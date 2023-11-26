@@ -5454,7 +5454,7 @@ void do_steal(CHAR_DATA *ch, char *argument)
 	     && number_percent() < get_skill(victim, gsk_deception))
          || (!IS_NPC(ch)
 	      && !IS_NPC(victim)
-	      && !IS_SET(ch->in_room->room_flags, ROOM_CHAOTIC|ROOM_PK)))	// Require full CPK
+	      && !IS_SET(ch->in_room->room_flag[0], ROOM_CHAOTIC|ROOM_PK)))	// Require full CPK
     {
 	send_to_char("Oops.\n\r", ch);
 	affect_strip(ch, gsk_sneak);
@@ -5532,7 +5532,7 @@ void do_steal(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (!IS_SET(ch->in_room->room_flags, ROOM_CHAOTIC|ROOM_PK) && !IS_NPC(victim) && !IS_NPC(ch))
+    if (!IS_SET(ch->in_room->room_flag[0], ROOM_CHAOTIC|ROOM_PK) && !IS_NPC(victim) && !IS_NPC(ch))
     {
 	send_to_char("You can only steal items in a chaotic room.\n\r", ch);
 	return;
@@ -8092,7 +8092,7 @@ void brew_end(CHAR_DATA *ch )
 			(get_curr_stat(ch, STAT_CON) / 4) +
 			skill_entry_rating(ch, ch->brew_info) - 10;
 
-    if (IS_SET(ch->in_room->room2_flags, ROOM_ALCHEMY))
+    if (IS_SET(ch->in_room->room_flag[1], ROOM_ALCHEMY))
         chance = (chance * 3)/2;
 
     chance = URANGE(1, chance, 98);
@@ -8601,7 +8601,7 @@ void scribe_end(CHAR_DATA *ch)
 	else if (ch->scribe_info[1])
 		chance = 41 * chance / 42;	// 1/2 + 1/3 + 1/7 = 41/42
 
-    if (IS_SET(ch->in_room->room2_flags, ROOM_ALCHEMY))
+    if (IS_SET(ch->in_room->room_flag[1], ROOM_ALCHEMY))
         chance = 3 * chance / 2;
 
     chance = URANGE(1, chance, 99);

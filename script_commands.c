@@ -5978,7 +5978,7 @@ SCRIPT_CMD(scriptcmd_startcombat)
 		return;
 
 	// The victim is fighting someone else in a singleplay room
-	if(!IS_NPC(attacker) && victim->fighting != NULL && victim->fighting != attacker && !IS_SET(attacker->in_room->room2_flags, ROOM_MULTIPLAY))
+	if(!IS_NPC(attacker) && victim->fighting != NULL && victim->fighting != attacker && !IS_SET(attacker->in_room->room_flag[1], ROOM_MULTIPLAY))
 		return;
 
 	// They are not in the same room
@@ -8800,6 +8800,8 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 	OBJ_DATA *obj;
 	int min = 0, max = 0;
 	bool hasmin = FALSE, hasmax = FALSE;
+	int assignmin = 0, assignmax = 0;
+	bool hasassignmin = false, hasassignmax = false;
 	bool allowarith = TRUE;
 	bool allowbitwise = TRUE;
 	bool isliquid = false;
@@ -8935,6 +8937,22 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		else if(!str_cmp(field,"move"))			{ ptr = (int *)&compartment->move_regen; allowarith = TRUE; allowbitwise = FALSE; min = 0; hasmin = TRUE; }
 		break;
 	}
+
+	case ENT_OBJECT_INSTRUMENT:
+		if (!IS_VALID(arg->d.obj) || !IS_INSTRUMENT(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (!str_cmp(field, "type"))			{ ptr = (int *)&(INSTRUMENT(obj)->type); allowarith = FALSE; allowbitwise = FALSE; flags = instrument_types; }
+		else if (!str_cmp(field, "flags"))		{ ptr = (int *)&(INSTRUMENT(obj)->flags); allowarith = FALSE; allowbitwise = TRUE; flags = instrument_flags; }
+		else if (!str_cmp(field, "beatsmin"))	{ ptr = (int *)&(INSTRUMENT(obj)->beats_min); allowarith = TRUE; allowbitwise = FALSE; hasmin = true; min = 1; hasmax = true; max = 200; }
+		else if (!str_cmp(field, "beatsmax"))	{ ptr = (int *)&(INSTRUMENT(obj)->beats_max); allowarith = TRUE; allowbitwise = FALSE; hasmin = true; min = 1; hasmax = true; max = 200; }
+		else if (!str_cmp(field, "manamin"))	{ ptr = (int *)&(INSTRUMENT(obj)->mana_min); allowarith = TRUE; allowbitwise = FALSE; hasmin = true; min = 1; hasmax = true; max = 200; }
+		else if (!str_cmp(field, "manamax"))	{ ptr = (int *)&(INSTRUMENT(obj)->mana_max); allowarith = TRUE; allowbitwise = FALSE; hasmin = true; min = 1; hasmax = true; max = 200; }
+		break;
+
 	case ENT_OBJECT_LIGHT:
 		if (!IS_VALID(arg->d.obj) || !IS_LIGHT(arg->d.obj)) return;
 		obj = arg->d.obj;
@@ -8975,7 +8993,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		PARSE_ARGTYPE(STRING);
 		strncpy(field, arg->d.str, MIL-1);
 
-		if (!str_cmp(field, "charges"))		{ ptr = (int *)&(PORTAL(obj)->charges); allowarith = TRUE; allowbitwise = FALSE; min = -1; hasmin = TRUE; }
+		if (!str_cmp(field, "charges"))		{ ptr = (int *)&(PORTAL(obj)->charges); allowarith = TRUE; allowbitwise = FALSE; min = 0; hasmin = TRUE; assignmin = -1; hasassignmin = true; }
 		else if (!str_cmp(field, "exit"))	{ ptr = (int *)&(PORTAL(obj)->exit); flags = portal_exit_flags; allowarith = FALSE; allowbitwise = TRUE; }
 		else if (!str_cmp(field, "flags"))	{ ptr = (int *)&(PORTAL(obj)->flags); flags = portal_flags; allowarith = FALSE; allowbitwise = TRUE; }
 		else if (!str_cmp(field, "param1"))	{ ptr = (int *)&(PORTAL(obj)->params[0]); allowarith = FALSE; allowbitwise = FALSE; }
@@ -8985,6 +9003,76 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		else if (!str_cmp(field, "param5"))	{ ptr = (int *)&(PORTAL(obj)->params[4]); allowarith = FALSE; allowbitwise = FALSE; }
 		else if (!str_cmp(field, "type"))	{ ptr = (int *)&(PORTAL(obj)->type); flags = portal_gatetype; allowarith = FALSE; allowbitwise = FALSE; }
 		break;
+
+
+	case ENT_OBJECT_SCROLL:
+		if (!IS_VALID(arg->d.obj) || !IS_SCROLL(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (!str_cmp(field, "maxmana"))	{ ptr = (int *)&(SCROLL(obj)->max_mana); allowarith = TRUE; allowbitwise = FALSE; hasmin = true; min = 0; }
+		break;
+
+	case ENT_OBJECT_TATTOO:
+		if (!IS_VALID(arg->d.obj) || !IS_TATTOO(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (!str_cmp(field, "touches"))		{ ptr = (int *)&(TATTOO(obj)->touches); allowarith = TRUE; allowbitwise = FALSE; hasmin = true; min = 0; hasassignmin = true; assignmin = -1; }
+		else if (!str_cmp(field, "fade"))	{ ptr = (int *)&(TATTOO(obj)->fading_chance); allowarith = TRUE; allowbitwise = FALSE; hasmin = true; min = 0; hasmax = true; max = 100; }
+		else if (!str_cmp(field, "fading"))	{ ptr = (int *)&(TATTOO(obj)->fading_rate); allowarith = TRUE; allowbitwise = FALSE; hasmin = true; min = 0; hasmax = true; max = 100; }
+		break;
+	
+	case ENT_OBJECT_WAND:
+		if (!IS_VALID(arg->d.obj) || !IS_WAND(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (!str_cmp(field, "charges"))			{ ptr = (int *)&(WAND(obj)->charges); allowarith = TRUE; allowbitwise = FALSE; if(WAND(obj)->max_charges >= 0) {hasmin = true; min = 0; hasassignmin = true; assignmin = -1; hasmax = true; max = WAND(obj)->max_charges;} else {hasmin = hasmax = true; min = max = -1;} }
+		else if (!str_cmp(field, "maxcharges"))	{ ptr = (int *)&(WAND(obj)->max_charges); allowarith = TRUE; allowbitwise = FALSE; hasmin = true; min = 0; hasassignmin = true; assignmin = -1; }
+		else if (!str_cmp(field, "cooldown"))	{ ptr = (int *)&(WAND(obj)->charges); allowarith = TRUE; allowbitwise = FALSE; if(WAND(obj)->recharge_time > 0) {hasmin = true; min = 0; hasmax = true; max = WAND(obj)->recharge_time;} else {hasmin = hasmax = true; min = max = 0;} }
+		else if (!str_cmp(field, "recharge"))	{ ptr = (int *)&(WAND(obj)->recharge_time); allowarith = TRUE; allowbitwise = FALSE; hasmin = true; min = 0; hasassignmin = true; assignmin = -1; }
+		break;
+
+	case ENT_INK_TYPE:
+	{
+		if (!IS_VALID(arg->d.obj_type.obj) || !IS_INK(arg->d.obj_type.obj)) return;
+		if (arg->d.obj_type.type < 1 || arg->d.obj_type.type > MAX_INK_TYPES) return;
+		obj = arg->d.obj;
+		
+		int type = arg->d.obj_type.type;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (!str_cmp(field, "type"))			{ ptr = (int *)&(INK(obj)->types[type]); allowarith = false; allowbitwise = false; flags = catalyst_types; }
+		else if (!str_cmp(field, "amount"))		{ ptr = (int *)&(INK(obj)->amounts[type]); allowarith = true; allowbitwise = false; hasmin = true; min = 0; }
+		break;
+	}
+
+	case ENT_INSTRUMENT_RESERVOIR:
+	{
+		if (!IS_VALID(arg->d.obj_type.obj) || !IS_INSTRUMENT(arg->d.obj_type.obj)) return;
+		if (arg->d.obj_type.type < 1 || arg->d.obj_type.type > INSTRUMENT_MAX_CATALYSTS) return;
+		obj = arg->d.obj;
+
+		int type = arg->d.obj_type.type;
+		INSTRUMENT_CATALYST *reservoir = &INSTRUMENT(obj)->reservoirs[type];
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (!str_cmp(field, "type"))			{ ptr = (int *)&(reservoir->type); allowarith = false; allowbitwise = false; flags = catalyst_types; }
+		else if (!str_cmp(field, "amount"))		{ ptr = (int *)&(reservoir->amount); allowarith = true; allowbitwise = false; if(reservoir->capacity > 0) { hasmin = true; min = 0; hasmax = true; max = reservoir->capacity; } else { hasmin = hasmax = true; min = max = 0; } }
+		else if (!str_cmp(field, "capacity"))	{ ptr = (int *)&(reservoir->capacity); allowarith = true; allowbitwise = false; hasmin = true; min = 0; }
+		break;
+	}
 
 	default: break;
 	}
@@ -9160,6 +9248,30 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		*ptr %= value;
 		break;
 
+	case '>':
+		if( !allowarith ) {
+			sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				buf[0], field);
+			scriptcmd_bug(info, msg);
+			return;
+		}
+
+		if (value > *ptr)
+			*ptr = value;
+		break;
+
+	case '<':
+		if( !allowarith ) {
+			sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				buf[0], field);
+			scriptcmd_bug(info, msg);
+			return;
+		}
+
+		if (value < *ptr)
+			*ptr = value;
+		break;
+
 	case '=':
 		if (liquid != NULL)
 		{
@@ -9172,6 +9284,19 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		}
 		else
 			*ptr = value;
+
+		// When explicitly assigning, allow different ranges
+		if (hasassignmin)
+		{
+			hasmin = true;
+			min = assignmin;
+		}
+
+		if (hasassignmax)
+		{
+			hasmax = true;
+			max = assignmax;
+		}
 		break;
 
 	case '&':

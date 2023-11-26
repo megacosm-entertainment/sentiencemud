@@ -582,7 +582,7 @@ void save_room_new(FILE *fp, ROOM_INDEX_DATA *room, int recordtype)
 	if(room->viewwilds) {
 		fprintf(fp,"Wilds %1u %1u %1u %1u\n", (unsigned)room->viewwilds->uid, (unsigned)room->x, (unsigned)room->y, (unsigned)room->z);
 	}
-	else if(IS_SET(room->room2_flags, ROOM_BLUEPRINT))
+	else if(IS_SET(room->room_flag[1], ROOM_BLUEPRINT))
 	{
 		fprintf(fp,"Blueprint %1u %1u %1u\n", (unsigned)room->x, (unsigned)room->y, (unsigned)room->z);
 	}
@@ -593,8 +593,8 @@ void save_room_new(FILE *fp, ROOM_INDEX_DATA *room, int recordtype)
 		fprintf(fp, "Region %ld\n", room->region->uid);
 	}
 
-    fprintf(fp, "Room_flags %ld\n", room->room_flags);
-    fprintf(fp, "Room2_flags %ld\n", room->room2_flags);
+    fprintf(fp, "Room_flags %ld\n", room->room_flag[0]);
+    fprintf(fp, "Room2_flags %ld\n", room->room_flag[1]);
     fprintf(fp, "Sector_type %d\n", room->sector_type);
 
     if (room->heal_rate != 100)
@@ -1067,8 +1067,15 @@ void save_object_multityping(FILE *fp, OBJ_INDEX_DATA *obj)
 		if (PORTAL(obj)->lock)
 			save_object_lockstate(fp, PORTAL(obj)->lock);
 
-		if (PORTAL(obj)->spells != NULL)
-			save_spell(fp, PORTAL(obj)->spells);
+
+		ITERATOR sit;
+		SPELL_DATA *spell;
+		iterator_start(&sit, SCROLL(obj)->spells);
+		while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
+		{
+			fprintf(fp, "SpellNew %s~ %d %d\n", spell->skill->name, spell->level, spell->repop);
+		}
+		iterator_stop(&sit);
 
 		fprintf(fp, "#-TYPEPORTAL\n");
 	}
@@ -2232,8 +2239,8 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 				fMatch = TRUE;
 				break;
 			}
-		KEY("Room_flags", 	room->room_flags, 	fread_number(fp));
-		KEY("Room2_flags", 	room->room2_flags, 	fread_number(fp));
+		KEY("Room_flags", 	room->room_flag[0], 	fread_number(fp));
+		KEY("Room2_flags", 	room->room_flag[1], 	fread_number(fp));
 
 		if (!str_cmp(word, "RoomProg")) {
 		    char *p;
@@ -3316,7 +3323,13 @@ INSTRUMENT_DATA *read_object_instrument_data(FILE *fp)
 							data->reservoirs[index - 1].capacity = capacity;
 						}
 					}
+					fMatch = true;
+					break;
 				}
+				break;
+
+			case 'T':
+				KEY("Type", data->type, stat_lookup(fread_string(fp), catalyst_types, CATALYST_NONE));
 				break;
 
 		}
@@ -3469,9 +3482,9 @@ PORTAL_DATA *read_object_portal_data(FILE *fp)
 						spell->skill = skill;
 						spell->level = level;
 						spell->repop = repop;
+						spell->next = NULL;
 
-						spell->next = data->spells;
-						data->spells = spell;
+						list_appendlink(data->spells, spell);
 					}
 					else
 					{
@@ -4181,7 +4194,13 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 			PORTAL(obj)->lock = obj->lock;
 			obj->lock = NULL;
 
-			PORTAL(obj)->spells = obj->spells;
+			SPELL_DATA *spell, *spell_next;
+			for(spell = obj->spells; spell; spell = spell_next)
+			{
+				spell_next = spell->next;
+				spell->next = NULL;
+				list_appendlink(PORTAL(obj)->spells, spell);
+			}
 			obj->spells = NULL;
 		}
 	}

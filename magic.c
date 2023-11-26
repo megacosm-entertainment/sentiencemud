@@ -360,7 +360,7 @@ bool validate_spell_target(CHAR_DATA *ch,int type,char *arg,int *t,CHAR_DATA **v
 
 		if (is_safe(ch, victim, TRUE) ||
 			(victim->fighting && !is_same_group(ch, victim->fighting) &&
-			ch != victim && !IS_SET(ch->in_room->room2_flags, ROOM_MULTIPLAY))) {
+			ch != victim && !IS_SET(ch->in_room->room_flag[1], ROOM_MULTIPLAY))) {
 			send_to_char("Not on that target.\n\r", ch);
 			return FALSE;
 		}
@@ -383,7 +383,7 @@ bool validate_spell_target(CHAR_DATA *ch,int type,char *arg,int *t,CHAR_DATA **v
 
 			if (victim != ch && victim->fighting && victim->fighting != ch &&
 				!is_same_group(ch, victim->fighting) && !IS_NPC(victim) &&
-				!IS_NPC(victim->fighting) && !is_pk(ch) && !IS_SET(ch->in_room->room_flags, ROOM_ARENA)) {
+				!IS_NPC(victim->fighting) && !is_pk(ch) && !IS_SET(ch->in_room->room_flag[0], ROOM_ARENA)) {
 				send_to_char("You can't interfere in a PK battle if you are not PK.\n\r", ch);
 				return FALSE;
 			}
@@ -453,7 +453,7 @@ bool validate_spell_target(CHAR_DATA *ch,int type,char *arg,int *t,CHAR_DATA **v
 
 		if (target == TARGET_CHAR && (is_safe(ch, victim, TRUE) ||
 			(victim->fighting && ch != victim && !is_same_group(ch, victim->fighting) &&
-			!IS_SET(ch->in_room->room2_flags, ROOM_MULTIPLAY)))) {
+			!IS_SET(ch->in_room->room_flag[1], ROOM_MULTIPLAY)))) {
 			send_to_char("Not on that target.\n\r", ch);
 			return FALSE;
 		}
@@ -470,7 +470,7 @@ bool validate_spell_target(CHAR_DATA *ch,int type,char *arg,int *t,CHAR_DATA **v
 		if (victim) {
 			if (victim != ch && victim->fighting && victim->fighting != ch &&
 				!is_same_group(ch, victim->fighting) && !IS_NPC(victim) &&
-				!IS_NPC(victim->fighting) && !is_pk(ch) && !IS_SET(ch->in_room->room_flags, ROOM_ARENA)) {
+				!IS_NPC(victim->fighting) && !is_pk(ch) && !IS_SET(ch->in_room->room_flag[0], ROOM_ARENA)) {
 				send_to_char("You can't interfere in a PK battle if you are not PK.\n\r", ch);
 				return FALSE;
 			}
@@ -550,7 +550,7 @@ void do_cast(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (IS_SET(ch->in_room->room_flags, ROOM_NOMAGIC)) {
+	if (IS_SET(ch->in_room->room_flag[0], ROOM_NOMAGIC)) {
 		send_to_char("Your magical energies are powerless here.\n\r", ch);
 		return;
 	}
@@ -619,7 +619,7 @@ void do_cast(CHAR_DATA *ch, char *argument)
 		ch->cast_successful = MAGICCAST_SUCCESS;
 
 		chance = 0;
-		if (IS_SET(ch->in_room->room2_flags, ROOM_HARD_MAGIC)) chance += 2;
+		if (IS_SET(ch->in_room->room_flag[1], ROOM_HARD_MAGIC)) chance += 2;
 		if (ch->in_room->sector_type == SECT_CURSED_SANCTUM) chance += 2;
 
 		// TODO: Add trigger for custom room stuff for harder magic
@@ -720,7 +720,7 @@ void do_cast(CHAR_DATA *ch, char *argument)
 
 		ch->cast_successful = MAGICCAST_SUCCESS;
 		chance = 0;
-		if (IS_SET(ch->in_room->room2_flags, ROOM_HARD_MAGIC)) chance += 2;
+		if (IS_SET(ch->in_room->room_flag[1], ROOM_HARD_MAGIC)) chance += 2;
 		if (ch->in_room->sector_type == SECT_CURSED_SANCTUM) chance += 2;
 
 		// TODO: Add trigger for custom room stuff for harder magic
@@ -764,7 +764,7 @@ void do_cast(CHAR_DATA *ch, char *argument)
 		ch->tempstore[0] = 1000;
 		p_percent_trigger(NULL,NULL,ch->in_room,NULL,ch,NULL,NULL, NULL, NULL, TRIG_PRECAST,"beats",0,0,0,0,0);
 		i = ch->tempstore[0];
-		if(IS_SET(ch->in_room->room2_flags,ROOM_SLOW_MAGIC)) i += number_range(500,1000);
+		if(IS_SET(ch->in_room->room_flag[1],ROOM_SLOW_MAGIC)) i += number_range(500,1000);
 		if(ch->in_room->sector_type == SECT_CURSED_SANCTUM) i += number_range(500,1000);
 	} else
 		i = 1000;
@@ -931,7 +931,7 @@ void cast_end(CHAR_DATA *ch)
 				CHAR_DATA *dam_vict;
 
 				act("{R$p shatters explosively!{x", ch, NULL, NULL, trap, NULL, NULL, NULL, TO_ALL);
-				if (!IS_SET(ch->in_room->room_flags, ROOM_SAFE) && !IN_CHAT(ch)) {
+				if (!IS_SET(ch->in_room->room_flag[0], ROOM_SAFE) && !IN_CHAT(ch)) {
 					for (dam_vict = ch->in_room->people; dam_vict; dam_vict = dam_vict->next_in_room) {
 						if (is_pk(dam_vict)) {
 							act("{RYou are struck by $p's shards!", dam_vict, NULL, NULL, trap, NULL, NULL, NULL, TO_CHAR);
@@ -1400,7 +1400,7 @@ bool can_escape(CHAR_DATA *ch)
 		!str_cmp(ch->in_room->area->name, "Arena") ||
 		!str_prefix("Maze", ch->in_room->area->name) ||
 		!str_cmp(ch->in_room->area->name, "Pyramid of the Abyss") ||
-		IS_SET(ch->in_room->room_flags, ROOM_NO_RECALL) ||
+		IS_SET(ch->in_room->room_flag[0], ROOM_NO_RECALL) ||
 		IS_SET(ch->in_room->area->area_flags, AREA_NO_RECALL)) {
 		send_to_char("Outside interference stops your transportation.\n\r", ch);
 		return FALSE;
@@ -1471,9 +1471,9 @@ bool can_gate(CHAR_DATA *ch, CHAR_DATA *victim)
 		return FALSE;
 	}
 
-	if (IS_SET(victim->in_room->room_flags, ROOM_NO_RECALL) ||
-		IS_SET(victim->in_room->room_flags, ROOM_NOMAGIC) ||
-		IS_SET(victim->in_room->room_flags, ROOM_CHAOTIC)) {
+	if (IS_SET(victim->in_room->room_flag[0], ROOM_NO_RECALL) ||
+		IS_SET(victim->in_room->room_flag[0], ROOM_NOMAGIC) ||
+		IS_SET(victim->in_room->room_flag[0], ROOM_CHAOTIC)) {
 		send_to_char("That room is protected from gating magic.\n\r", ch);
 		return FALSE;
 	}

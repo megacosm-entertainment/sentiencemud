@@ -242,7 +242,7 @@ SPELL_FUNC(spell_vision)
 		room = obj_room(ship->ship);
 
 	if (!IS_WILDERNESS(room) && /*!ON_SHIP(ch) &&*/
-		(!IS_SET(ch->in_room->room_flags, ROOM_VIEWWILDS) ||
+		(!IS_SET(ch->in_room->room_flag[0], ROOM_VIEWWILDS) ||
 		!IS_OUTSIDE(ch))) {
 		act("You must be outdoors.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return FALSE;
@@ -252,7 +252,7 @@ SPELL_FUNC(spell_vision)
 	act("You have a vision of your surrounding terrain.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
 	WILDS_DATA *wilds = room->wilds;
-	if(IS_SET(ch->in_room->room_flags, ROOM_VIEWWILDS))
+	if(IS_SET(ch->in_room->room_flag[0], ROOM_VIEWWILDS))
 		wilds = room->viewwilds;
 
 	bonus_view = 16;

@@ -5170,7 +5170,7 @@ SCRIPT_CMD(do_opcloneroom)
 	source = get_room_index_wnum(arg->d.wnum);
 	if(!source) return;
 
-	if( IS_SET(source->room2_flags, ROOM_NOCLONE) )
+	if( IS_SET(source->room_flag[1], ROOM_NOCLONE) )
 		return;
 
 	if(!(argument = expand_argument(info,argument,arg)))
@@ -5227,7 +5227,10 @@ SCRIPT_CMD(do_opalterroom)
 	char **str;
 	bool allow_empty = FALSE;
 	bool allowarith = TRUE;
+	bool allowbitwise = TRUE;
 	const struct flag_type *flags = NULL;
+	const struct flag_type **bank = NULL;
+	long temp_flags[4];
 
 	if(!info || !info->obj) return;
 
@@ -5357,8 +5360,7 @@ SCRIPT_CMD(do_opalterroom)
 		return;
 	}
 
-	if(!str_cmp(field,"room"))			{ ptr = (int*)&room->room_flags; flags = room_flags; }
-	else if(!str_cmp(field,"room2"))	{ ptr = (int*)&room->room2_flags; flags = room2_flags; }
+	if(!str_cmp(field,"flags"))			{ ptr = (int*)room->room_flag; bank = room_flagbank; }
 	else if(!str_cmp(field,"light"))	ptr = (int*)&room->light;
 	else if(!str_cmp(field,"sector"))	ptr = (int*)&room->sector_type;
 	else if(!str_cmp(field,"heal"))		{ ptr = (int*)&room->heal_rate; min_sec = 9; }
@@ -5381,7 +5383,32 @@ SCRIPT_CMD(do_opalterroom)
 		return;
 	}
 
-	if( flags != NULL )
+	memset(temp_flags, 0, sizeof(temp_flags));
+
+	if( bank != NULL )
+	{
+		if( arg->type != ENT_STRING ) return;
+
+		allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
+		if (!script_bitmatrix_lookup(arg->d.str, bank, temp_flags))
+			return;
+
+		if (bank == room_flagbank)
+		{
+			REMOVE_BIT(temp_flags[1], ROOM_NOCLONE);
+			REMOVE_BIT(temp_flags[1], ROOM_VIRTUAL_ROOM);
+			REMOVE_BIT(temp_flags[1], ROOM_BLUEPRINT);
+
+			if( buf[0] == '=' || buf[0] == '&' )
+			{
+				if( IS_SET(ptr[1], ROOM_NOCLONE) ) SET_BIT(temp_flags[1], ROOM_NOCLONE);
+				if( IS_SET(ptr[1], ROOM_VIRTUAL_ROOM) ) SET_BIT(temp_flags[1], ROOM_VIRTUAL_ROOM);
+				if( IS_SET(ptr[1], ROOM_BLUEPRINT) ) SET_BIT(temp_flags[1], ROOM_BLUEPRINT);
+			}
+
+		}		
+	}
+	else if( flags != NULL )
 	{
 		if( arg->type != ENT_STRING ) return;
 
@@ -5390,17 +5417,7 @@ SCRIPT_CMD(do_opalterroom)
 
 		if( value == NO_FLAG ) value = 0;
 
-		// ROOM2 has flags that cannot be manipulated by alterroom
-		if( flags == room2_flags )
-		{
-			REMOVE_BIT(value, ROOM_NOCLONE);
-
-			if( buf[0] == '=' || buf[0] == '&' )
-			{
-				if( IS_SET(*ptr, ROOM_NOCLONE) ) SET_BIT(value, ROOM_NOCLONE);
-				if( IS_SET(*ptr, ROOM_VIRTUAL_ROOM) ) SET_BIT(value, ROOM_VIRTUAL_ROOM);
-			}
-		}
+		// No special filtering
 	}
 	else
 	{
@@ -5465,11 +5482,73 @@ SCRIPT_CMD(do_opalterroom)
 			*ptr %= value;
 			break;
 
-		case '=': *ptr = value; break;
-		case '&': *ptr &= value; break;
-		case '|': *ptr |= value; break;
-		case '!': *ptr &= ~value; break;
-		case '^': *ptr ^= value; break;
+		case '=':
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] = temp_flags[i];
+			}
+			else
+				*ptr = value;
+			break;
+
+		case '&':
+			if( !allowbitwise ) {
+				bug("OpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+				return;
+			}
+
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] &= temp_flags[i];
+			}
+			else
+				*ptr &= value;
+			break;
+		case '|':
+			if( !allowbitwise ) {
+				bug("OpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+				return;
+			}
+
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] |= temp_flags[i];
+			}
+			else
+				*ptr |= value;
+			break;
+		case '!':
+			if( !allowbitwise ) {
+				bug("OpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+				return;
+			}
+
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] &= ~temp_flags[i];
+			}
+			else
+				*ptr &= ~value;
+			break;
+		case '^':
+			if( !allowbitwise ) {
+				bug("OpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+				return;
+			}
+
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] ^= temp_flags[i];
+			}
+			else
+				*ptr ^= value;
+
+			break;
 		default:
 			return;
 		}

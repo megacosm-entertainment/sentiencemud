@@ -243,7 +243,7 @@ ROOM_INDEX_DATA *exit_destination(EXIT_DATA *pexit)
 			}
 
 		} else if (IS_SET(pexit->exit_info, EX_ENVIRONMENT)) {
-			if(!IS_SET(pexit->from_room->room2_flags,ROOM_VIRTUAL_ROOM)) {
+			if(!IS_SET(pexit->from_room->room_flag[1],ROOM_VIRTUAL_ROOM)) {
 /*				wiznet("exit_destination()->NULL H",NULL,NULL,WIZ_TESTING,0,0); */
 				return NULL;
 			}
@@ -341,7 +341,7 @@ bool exit_destination_data(EXIT_DATA *pexit, DESTINATION_DATA *pDest)
 			}
 
 		} else if (IS_SET(pexit->exit_info, EX_ENVIRONMENT)) {
-			if(!IS_SET(pexit->from_room->room2_flags,ROOM_VIRTUAL_ROOM)) {
+			if(!IS_SET(pexit->from_room->room_flag[1],ROOM_VIRTUAL_ROOM)) {
 /*				wiznet("exit_destination()->NULL H",NULL,NULL,WIZ_TESTING,0,0); */
 				return FALSE;
 			}
@@ -485,7 +485,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 		}
 
 		if (in_room->sector_type == SECT_WATER_NOSWIM && !IS_SET(ch->parts, PART_FINS) && !IS_IMMORTAL(ch)) {
-			if(IS_SET(in_room->room2_flags,ROOM_CITYMOVE))
+			if(IS_SET(in_room->room_flag[1],ROOM_CITYMOVE))
 				WAIT_STATE(ch, 4);
 			else
 				WAIT_STATE(ch, 8);
@@ -509,11 +509,11 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 
 			m1 = UMIN(SECT_MAX-1, in_room->sector_type);
 			if(IS_SET(ch->parts, PART_FINS) && m1 == SECT_WATER_NOSWIM) m1 = SECT_WATER_SWIM;
-			if(IS_SET(in_room->room2_flags,ROOM_CITYMOVE) && movement_loss[m1] > movement_loss[SECT_CITY]) m1 = SECT_CITY;
+			if(IS_SET(in_room->room_flag[1],ROOM_CITYMOVE) && movement_loss[m1] > movement_loss[SECT_CITY]) m1 = SECT_CITY;
 
 			m2 = UMIN(SECT_MAX-1, to_room->sector_type);
 			if(IS_SET(ch->parts, PART_FINS) && m2 == SECT_WATER_NOSWIM) m2 = SECT_WATER_SWIM;
-			if(IS_SET(to_room->room2_flags,ROOM_CITYMOVE) && movement_loss[m2] > movement_loss[SECT_CITY]) m2 = SECT_CITY;
+			if(IS_SET(to_room->room_flag[1],ROOM_CITYMOVE) && movement_loss[m2] > movement_loss[SECT_CITY]) m2 = SECT_CITY;
 
 
 			/* Average movement between different sector types */
@@ -736,7 +736,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 	if (!IS_DEAD(ch)) check_ambush(ch);
 
 	/* Enable this?
-	  if (IS_SET(ch->in_room->room2_flags, ROOM_POST_OFFICE))
+	  if (IS_SET(ch->in_room->room_flag[1], ROOM_POST_OFFICE))
 	      check_new_mail(ch);*/
 
 	if (MOUNTED(ch) && number_percent() == 1 && get_skill(ch, gsk_riding) > 0)
@@ -823,7 +823,7 @@ bool check_rocks(CHAR_DATA *ch, bool show)
 	if (ch->in_room == NULL)
 		return FALSE;
 
-	if (IS_SET(ch->in_room->room_flags, ROOM_ROCKS) &&
+	if (IS_SET(ch->in_room->room_flag[0], ROOM_ROCKS) &&
 		number_percent() < 75 &&
 		!IS_DEAD(ch) &&
 		!IS_AFFECTED(ch, AFF_FLYING))
@@ -866,7 +866,7 @@ bool check_ice(CHAR_DATA *ch, bool show)
     if (IS_IMMORTAL(ch))
 	return FALSE;
 
-    if (!IS_SET(ch->in_room->room2_flags, ROOM_ICY)
+    if (!IS_SET(ch->in_room->room_flag[1], ROOM_ICY)
     && check_ice_storm(ch->in_room) == FALSE)
 	return FALSE;
 
@@ -898,9 +898,9 @@ bool check_room_flames(CHAR_DATA *ch, bool show)
 		if (obj->item_type == ITEM_ROOM_FLAME)
 		{
 			if (!IS_DEAD(ch) &&
-				(IS_SET(ch->in_room->room_flags, ROOM_PK) ||
-					IS_SET(ch->in_room->room_flags, ROOM_CHAOTIC) ||
-					IS_SET(ch->in_room->room_flags, ROOM_ARENA) ||
+				(IS_SET(ch->in_room->room_flag[0], ROOM_PK) ||
+					IS_SET(ch->in_room->room_flag[0], ROOM_CHAOTIC) ||
+					IS_SET(ch->in_room->room_flag[0], ROOM_ARENA) ||
 					is_pk(ch) || IS_NPC(ch)))
 			{
 				if( show )
@@ -1018,7 +1018,7 @@ bool can_move_room(CHAR_DATA *ch, int door, ROOM_INDEX_DATA *room)
 	/* Syn - why the hell wasn't this ever here in the first place? */
 	// Changed to so that mobs that aren't following anyone will obey no_mob.
 	// Those that are following others will be allowed through.
-	if (IS_NPC(ch) && (!IS_VALID(ch->master) || ch->master == ch) && IS_SET(room->room_flags, ROOM_NO_MOB))
+	if (IS_NPC(ch) && (!IS_VALID(ch->master) || ch->master == ch) && IS_SET(room->room_flag[0], ROOM_NO_MOB))
 		return FALSE;
 
 	if (IS_AFFECTED(ch, AFF_WEB)) {
@@ -4160,7 +4160,7 @@ void do_recall(CHAR_DATA *ch, char *argument)
     if (ch->in_room == location)
 	return;
 	/* Adding area_no_recall check to go with corresponding area flag - Areo 08-10-2006 */
-    if (IS_SET(ch->in_room->room_flags, ROOM_NO_RECALL)
+    if (IS_SET(ch->in_room->room_flag[0], ROOM_NO_RECALL)
     ||   IS_AFFECTED(ch, AFF_CURSE)
     || IS_SET(ch->in_room->area->area_flags, AREA_NO_RECALL))
     {
@@ -4613,7 +4613,7 @@ void check_traps(CHAR_DATA *ch, bool show)
 			exit->u1.to_room == NULL)
 			continue;
 
-		if (IS_SET(exit->u1.to_room->room_flags,ROOM_DEATH_TRAP) &&
+		if (IS_SET(exit->u1.to_room->room_flag[0],ROOM_DEATH_TRAP) &&
 			number_percent() < get_skill(ch, gsk_detect_traps))
 		{
 			if( show )

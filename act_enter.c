@@ -579,7 +579,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
  	if (IS_SET(PORTAL(portal)->flags,GATE_NOCURSE)
   		&&  (IS_AFFECTED(ch,AFF_CURSE)))
 	    /*
-	       ||   IS_SET(old_room->room_flags,ROOM_NO_RECALL)))
+	       ||   IS_SET(old_room->room_flag[0],ROOM_NO_RECALL)))
 	     */
 	{
 	    send_to_char("Something prevents you from leaving...\n\r",ch);
@@ -647,7 +647,14 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 	}
 
         /* Let portals cast spells */
-	obj_apply_spells(ch, portal, ch, NULL, PORTAL(portal)->spells, TRIG_APPLY_AFFECT);
+		ITERATOR sit;
+		SPELL_DATA *spell;
+		iterator_start(&sit, PORTAL(portal)->spells);
+		while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
+		{
+			obj_apply_spell(ch, portal, ch, NULL, spell, TRIG_APPLY_AFFECT);
+		}
+		iterator_stop(&sit);
 		/*
 	{
 		SPELL_DATA *spell;

@@ -1506,7 +1506,7 @@ void do_chtalk(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (IS_SET(ch->in_room->room_flags, ROOM_NOCOMM))
+    if (IS_SET(ch->in_room->room_flag[0], ROOM_NOCOMM))
     {
         send_to_char("You can't seem to gather enough energy to do it.\n\r", ch);
 	return;

@@ -2760,12 +2760,17 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.variables = (self && self->progs) ? &self->progs->vars : NULL;
 		break;
 
-	// Multi-typing
-	case ENTITY_OBJ_TYPE_PAGE:
-		arg->type = ENT_BOOK_PAGE;
-		arg->d.book_page = IS_VALID(self) ? PAGE(self) : NULL;
+	case ENTITY_OBJ_ISLOCKERED:
+		arg->type = ENT_BOOLEAN;
+		arg->d.boolean = self && self->locker;
 		break;
 
+	case ENTITY_OBJ_ISSTACHED:
+		arg->type = ENT_BOOLEAN;
+		arg->d.boolean = self && self->stached;
+		break;
+
+	// Multi-typing
 	case ENTITY_OBJ_TYPE_BOOK:
 		arg->type = ENT_OBJECT_BOOK;
 		// Uses self
@@ -2786,6 +2791,21 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		// Uses self
 		break;
 
+	case ENTITY_OBJ_TYPE_FURNITURE:
+		arg->type = ENT_OBJECT_FURNITURE;
+		// Uses self
+		break;
+
+	case ENTITY_OBJ_TYPE_INK:
+		arg->type = ENT_OBJECT_INK;
+		// Uses self
+		break;
+
+	case ENTITY_OBJ_TYPE_INSTRUMENT:
+		arg->type = ENT_OBJECT_INSTRUMENT;
+		// Uses self
+		break;
+
 	case ENTITY_OBJ_TYPE_LIGHT:
 		arg->type = ENT_OBJECT_LIGHT;
 		// Uses self
@@ -2796,8 +2816,28 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		// Uses self
 		break;
 
+	case ENTITY_OBJ_TYPE_PAGE:
+		arg->type = ENT_BOOK_PAGE;
+		arg->d.book_page = IS_VALID(self) ? PAGE(self) : NULL;
+		break;
+
 	case ENTITY_OBJ_TYPE_PORTAL:
 		arg->type = ENT_OBJECT_PORTAL;
+		// Uses self
+		break;
+
+	case ENTITY_OBJ_TYPE_SCROLL:
+		arg->type = ENT_OBJECT_PORTAL;
+		// Uses self
+		break;
+
+	case ENTITY_OBJ_TYPE_TATTOO:
+		arg->type = ENT_OBJECT_TATTOO;
+		// Uses self
+		break;
+
+	case ENTITY_OBJ_TYPE_WAND:
+		arg->type = ENT_OBJECT_WAND;
 		// Uses self
 		break;
 
@@ -2919,44 +2959,85 @@ char *expand_entity_object_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 
 	// Multi-typing
+	case ENTITY_OBJ_ISLOCKERED:
+		arg->type = ENT_BOOLEAN;
+		arg->d.boolean = false;
+		break;
+
+	case ENTITY_OBJ_ISSTACHED:
+		arg->type = ENT_BOOLEAN;
+		arg->d.boolean = false;
+		break;
+
+	// Multi-typing
 	case ENTITY_OBJ_TYPE_BOOK:
 		arg->type = ENT_OBJECT_BOOK;
-		// Uses arg->d.obj
+		// Uses self
 		break;
 
 	case ENTITY_OBJ_TYPE_CONTAINER:
 		arg->type = ENT_OBJECT_CONTAINER;
-		// Uses arg->d.obj
+		// Uses self
 		break;
 
 	case ENTITY_OBJ_TYPE_FLUID_CONTAINER:
 		arg->type = ENT_OBJECT_FLUID_CONTAINER;
-		// Uses arg->d.obj
+		// Uses self
 		break;
 
 	case ENTITY_OBJ_TYPE_FOOD:
 		arg->type = ENT_OBJECT_FOOD;
-		// Uses arg->d.obj
+		// Uses self
+		break;
+
+	case ENTITY_OBJ_TYPE_FURNITURE:
+		arg->type = ENT_OBJECT_FURNITURE;
+		// Uses self
+		break;
+
+	case ENTITY_OBJ_TYPE_INK:
+		arg->type = ENT_OBJECT_INK;
+		// Uses self
+		break;
+
+	case ENTITY_OBJ_TYPE_INSTRUMENT:
+		arg->type = ENT_OBJECT_INSTRUMENT;
+		// Uses self
 		break;
 
 	case ENTITY_OBJ_TYPE_LIGHT:
 		arg->type = ENT_OBJECT_LIGHT;
-		// Uses arg->d.obj
+		// Uses self
 		break;
 
 	case ENTITY_OBJ_TYPE_MONEY:
 		arg->type = ENT_OBJECT_MONEY;
-		// Uses arg->d.obj
+		// Uses self
 		break;
 
 	case ENTITY_OBJ_TYPE_PAGE:
-		arg->type = ENT_OBJECT_PAGE;
-		// Uses arg->d.obj
+		arg->type = ENT_BOOK_PAGE;
+		arg->d.book_page = NULL;
 		break;
 
 	case ENTITY_OBJ_TYPE_PORTAL:
 		arg->type = ENT_OBJECT_PORTAL;
-		// Uses arg->d.obj
+		// Uses self
+		break;
+
+	case ENTITY_OBJ_TYPE_SCROLL:
+		arg->type = ENT_OBJECT_PORTAL;
+		// Uses self
+		break;
+
+	case ENTITY_OBJ_TYPE_TATTOO:
+		arg->type = ENT_OBJECT_TATTOO;
+		// Uses self
+		break;
+
+	case ENTITY_OBJ_TYPE_WAND:
+		arg->type = ENT_OBJECT_WAND;
+		// Uses self
 		break;
 
 	default: return NULL;
@@ -3003,6 +3084,17 @@ char *expand_entity_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_MOBILE;
 		arg->d.mob = (room && room->progs) ? room->progs->target : NULL;
 		break;
+	case ENTITY_ROOM_FLAGS:
+		arg->type = ENT_BITMATRIX;
+		arg->d.bm.values = room ? room->room_flag : NULL;
+		arg->d.bm.bank = room_flagbank;
+		break;
+
+	case ENTITY_ROOM_EXITS:
+		arg->type = ENT_ARRAY_EXITS;
+		// Uses the room
+		break;
+
 	case ENTITY_ROOM_NORTH:
 	case ENTITY_ROOM_EAST:
 	case ENTITY_ROOM_SOUTH:
@@ -3100,6 +3192,111 @@ char *expand_entity_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 
 	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_array_exits(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	ROOM_INDEX_DATA *room = arg->d.room;
+
+	switch(*str)
+	{
+		case ESCAPE_EXPRESSION:
+		{
+			int door;
+			str = expand_argument_expression(info,str+1,&door);
+			if (!str) return NULL;
+
+			arg->type = ENT_EXIT;
+			arg->d.door.r = room;
+			if (door >= 0 && door < MAX_DIR)
+			{
+				arg->d.door.door = door;
+			}
+			else
+			{
+				arg->d.door.door = MAX_DIR;
+			}
+			return str;
+		}
+
+		// Will get a random direction, regardless if it exists.
+		case ENTITY_ARRAY_EXITS_RANDOM:
+			arg->type = ENT_EXIT;
+			arg->d.door.r = room;
+			arg->d.door.door = number_range(0, MAX_DIR - 1);
+			break;
+
+		// Same as RANDOM, but will only pick the exit if it's valid;
+		case ENTITY_ARRAY_EXITS_ANY:
+		{
+			arg->type = ENT_EXIT;
+			arg->d.door.r = room;
+
+			int dir = MAX_DIR;
+			if (room)
+			{
+				int count = 0;
+				for(int i = 0; i < MAX_DIR; i++)
+					if (room->exit[i])
+						count++;
+
+				if (count > 0)
+				{
+					int door = number_range(1, count);
+					
+					for(int i = 0; i < MAX_DIR; i++)
+					{
+						if (room->exit[i] && !--door)
+						{
+							dir = i;
+							break;
+						}
+					}
+				}
+			}
+
+			arg->d.door.door = dir;
+			break;
+		}
+
+		// Same as ANY, but will only pick an open exit
+		case ENTITY_ARRAY_EXITS_OPEN:
+		{
+			arg->type = ENT_EXIT;
+			arg->d.door.r = room;
+
+			int dir = MAX_DIR;
+			if (room)
+			{
+				int count = 0;
+				for(int i = 0; i < MAX_DIR; i++)
+					if (room->exit[i] && !IS_SET(room->exit[i]->exit_info, EX_CLOSED))
+						count++;
+
+				if (count > 0)
+				{
+					int door = number_range(1, count);
+					
+					for(int i = 0; i < MAX_DIR; i++)
+					{
+						if (room->exit[i] && !IS_SET(room->exit[i]->exit_info, EX_CLOSED) && !--door)
+						{
+							dir = i;
+							break;
+						}
+					}
+				}
+			}
+
+			arg->d.door.door = dir;
+			break;
+		}
+
+		default:
+			return NULL;
 	}
 
 	return str+1;
@@ -6597,8 +6794,6 @@ char *expand_entity_prior(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_dice(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	info = arg->d.info;
-
 	switch(*str) {
 	case ENTITY_DICE_NUMBER:
 		arg->type = ENT_NUMBER;
@@ -6630,6 +6825,43 @@ char *expand_entity_dice(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		}
 		else
 			arg->d.num = 0;
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_range(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	int min = UMIN(arg->d.range.min, arg->d.range.max);
+	int max = UMAX(arg->d.range.min, arg->d.range.max);
+
+	switch(*str) {
+	case ENTITY_RANGE_MIN:
+		arg->type = ENT_NUMBER;
+		arg->d.num = min;
+		break;
+
+	case ENTITY_RANGE_MAX:
+		arg->type = ENT_NUMBER;
+		arg->d.num = max;
+		break;
+
+	case ENTITY_RANGE_SPAN:
+		arg->type = ENT_NUMBER;
+		arg->d.num = max - min;
+		break;
+
+	case ENTITY_RANGE_AVERAGE:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (max + min) / 2;
+		break;
+
+	case ENTITY_RANGE_VALUE:
+		arg->type = ENT_NUMBER;
+		arg->d.num = number_range(min, max);
 		break;
 
 	default: return NULL;
@@ -7543,6 +7775,171 @@ char *expand_entity_object_furniture(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM
 	return str+1;
 }
 
+char *expand_entity_object_ink(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	switch(*str) {
+	case ENTITY_OBJ_INK_TYPES:
+		arg->type = ENT_INK_TYPES;
+		// Still uses the object
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_ink_types(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	OBJ_DATA *obj = arg->d.obj;
+
+	switch(*str)
+	{
+		case ESCAPE_EXPRESSION:
+		{
+			int index;
+			str = expand_argument_expression(info,str+1,&index);
+			if (!str) return NULL;
+
+			arg->type = ENT_INK_TYPE;
+			arg->d.obj_type.obj = obj;
+			arg->d.obj_type.type = index;
+			return str;
+		}
+
+		default:
+			return NULL;
+	}
+}
+
+
+char *expand_entity_ink_type(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	OBJ_DATA *obj = arg->d.obj_type.obj;
+	INK_DATA *ink = IS_VALID(obj) && IS_INK(obj) ? INK(obj) : NULL;
+	int type = arg->d.obj_type.type;
+
+	switch(*str)
+	{
+		case ENTITY_INK_TYPE_CATALYST:
+			arg->type = ENT_STAT;
+			arg->d.stat.value = IS_VALID(ink) && (type >= 1 && type <= MAX_INK_TYPES) ? ink->types[type] : NO_FLAG;
+			arg->d.stat.table = catalyst_types;
+			arg->d.stat.def_value = CATALYST_NONE;
+			break;
+
+		case ENTITY_INK_TYPE_AMOUNT:
+			arg->type = ENT_NUMBER;
+			arg->d.num = IS_VALID(ink) && (type >= 1 && type <= MAX_INK_TYPES) ? ink->amounts[type] : -1;
+			break;
+
+		default:
+			return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_object_instrument(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	INSTRUMENT_DATA *instrument = IS_VALID(arg->d.obj) && IS_INSTRUMENT(arg->d.obj) ? INSTRUMENT(arg->d.obj) : NULL;
+
+	switch(*str) {
+	case ENTITY_OBJ_INSTRUMENT_TYPE:
+		arg->type = ENT_STAT;
+		arg->d.stat.value = IS_VALID(instrument) ? instrument->type : NO_FLAG;
+		arg->d.stat.table = instrument_types;
+		arg->d.stat.def_value = INSTRUMENT_NONE;
+		break;
+
+	case ENTITY_OBJ_INSTRUMENT_FLAGS:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(instrument) ? instrument->flags : 0;
+		arg->d.bv.table = instrument_flags;
+		break;
+
+	case ENTITY_OBJ_INSTRUMENT_BEATS:
+		arg->type = ENT_RANGE;
+		arg->d.range.min = IS_VALID(instrument) ? instrument->beats_min : 0;
+		arg->d.range.max = IS_VALID(instrument) ? instrument->beats_max : 0;
+		break;
+
+	case ENTITY_OBJ_INSTRUMENT_MANA:
+		arg->type = ENT_RANGE;
+		arg->d.range.min = IS_VALID(instrument) ? instrument->mana_min : 0;
+		arg->d.range.max = IS_VALID(instrument) ? instrument->mana_max : 0;
+		break;
+
+	case ENTITY_OBJ_INSTRUMENT_RESERVOIRS:
+		arg->type = ENT_INSTRUMENT_RESERVOIRS;
+		// Uses the object
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+
+char *expand_entity_instrument_reservoirs(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	OBJ_DATA *obj = arg->d.obj;
+
+	switch(*str)
+	{
+		case ESCAPE_EXPRESSION:
+		{
+			int index;
+			str = expand_argument_expression(info,str+1,&index);
+			if (!str) return NULL;
+
+			arg->type = ENT_INSTRUMENT_RESERVOIR;
+			arg->d.obj_type.obj = obj;
+			arg->d.obj_type.type = index;
+			return str;
+		}
+
+		default:
+			return NULL;
+	}
+}
+
+char *expand_entity_instrument_reservoir(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	OBJ_DATA *obj = arg->d.obj_type.obj;
+	INSTRUMENT_DATA *instrument = IS_VALID(obj) && IS_INSTRUMENT(obj) ? INSTRUMENT(obj) : NULL;
+	int type = arg->d.obj_type.type;
+
+	INSTRUMENT_CATALYST *reservoir = IS_VALID(instrument) && (type >= 1 && type <= INSTRUMENT_MAX_CATALYSTS) ? &instrument->reservoirs[type] : NULL;
+
+	switch(*str)
+	{
+		case ENTITY_INSTRUMENT_RESERVOIR_CATALYST:
+			arg->type = ENT_STAT;
+			arg->d.stat.value = reservoir ? reservoir->type : NO_FLAG;
+			arg->d.stat.table = catalyst_types;
+			arg->d.stat.def_value = CATALYST_NONE;
+			break;
+
+		case ENTITY_INSTRUMENT_RESERVOIR_AMOUNT:
+			arg->type = ENT_NUMBER;
+			arg->d.num = reservoir ? reservoir->amount : -1;
+			break;
+
+		case ENTITY_INSTRUMENT_RESERVOIR_CAPACITY:
+			arg->type = ENT_NUMBER;
+			arg->d.num = reservoir ? reservoir->capacity : -1;
+			break;
+
+		default:
+			return NULL;
+	}
+
+	return str+1;
+}
+
+
 char *expand_entity_object_light(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	LIGHT_DATA *light = IS_VALID(arg->d.obj) && IS_LIGHT(arg->d.obj) ? LIGHT(arg->d.obj) : NULL;
@@ -7657,6 +8054,99 @@ char *expand_entity_object_portal(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *a
 		arg->d.lockstate = IS_VALID(portal) ? portal->lock : NULL;
 		break;
 		
+	case ENTITY_OBJ_PORTAL_SPELLS:
+		arg->type = ENT_ILLIST_SPELLS;
+		arg->d.blist = IS_VALID(portal) ? portal->spells : NULL;
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_object_scroll(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	SCROLL_DATA *scroll = IS_VALID(arg->d.obj) && IS_SCROLL(arg->d.obj) ? SCROLL(arg->d.obj) : NULL;
+
+	switch(*str) {
+	case ENTITY_OBJ_SCROLL_MAXMANA:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(scroll) ? scroll->max_mana : 0;
+		break;
+
+	case ENTITY_OBJ_SCROLL_SPELLS:
+		arg->type = ENT_ILLIST_SPELLS;
+		arg->d.blist = IS_VALID(scroll) ? scroll->spells : NULL;
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_object_tattoo(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	TATTOO_DATA *tattoo = IS_VALID(arg->d.obj) && IS_TATTOO(arg->d.obj) ? TATTOO(arg->d.obj) : NULL;
+
+	switch(*str) {
+	case ENTITY_OBJ_TATTOO_TOUCHES:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(tattoo) ? tattoo->touches : 0;
+		break;
+
+	case ENTITY_OBJ_TATTOO_FADE:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(tattoo) ? tattoo->fading_chance : 0;
+		break;
+
+	case ENTITY_OBJ_TATTOO_FADING:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(tattoo) ? tattoo->fading_rate : 0;
+		break;
+
+	case ENTITY_OBJ_TATTOO_SPELLS:
+		arg->type = ENT_ILLIST_SPELLS;
+		arg->d.blist = IS_VALID(tattoo) ? tattoo->spells : NULL;
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_object_wand(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	WAND_DATA *wand = IS_VALID(arg->d.obj) && IS_WAND(arg->d.obj) ? WAND(arg->d.obj) : NULL;
+
+	switch(*str) {
+	case ENTITY_OBJ_WAND_CHARGES:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(wand) ? wand->charges : 0;
+		break;
+
+	case ENTITY_OBJ_WAND_MAXCHARGES:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(wand) ? wand->max_charges : 0;
+		break;
+
+	case ENTITY_OBJ_WAND_COOLDOWN:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(wand) ? wand->cooldown : 0;
+		break;
+
+	case ENTITY_OBJ_WAND_RECHARGE:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(wand) ? wand->recharge_time : 0;
+		break;
+
+	case ENTITY_OBJ_WAND_SPELLS:
+		arg->type = ENT_ILLIST_SPELLS;
+		arg->d.blist = IS_VALID(wand) ? wand->spells : NULL;
+		break;
+
 	default: return NULL;
 	}
 
@@ -7690,17 +8180,18 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 //		wiznet(buf, NULL, NULL, WIZ_TESTING, 0, 0);
 
 		switch(arg->type) {
-		case ENT_PRIMARY:	next = expand_entity_primary(info,str,arg); break;
-		case ENT_BOOLEAN:	next = expand_entity_boolean(info,str,arg); break;
-		case ENT_NUMBER:	next = expand_entity_number(info,str,arg); break;
-		case ENT_STRING:	next = expand_entity_string(info,str,arg); break;
-		case ENT_WIDEVNUM:	next = expand_entity_widevnum(info,str,arg); break;
-		case ENT_MOBILE:	next = expand_entity_mobile(info,str,arg); break;
-		case ENT_OBJECT:	next = expand_entity_object(info,str,arg); break;
-		case ENT_ROOM:		next = expand_entity_room(info,str,arg); break;
-		case ENT_EXIT:		next = expand_entity_exit(info,str,arg); break;
-		case ENT_TOKEN:		next = expand_entity_token(info,str,arg); break;
-		case ENT_AREA:		next = expand_entity_area(info,str,arg); break;
+		case ENT_PRIMARY:		next = expand_entity_primary(info,str,arg); break;
+		case ENT_BOOLEAN:		next = expand_entity_boolean(info,str,arg); break;
+		case ENT_NUMBER:		next = expand_entity_number(info,str,arg); break;
+		case ENT_STRING:		next = expand_entity_string(info,str,arg); break;
+		case ENT_WIDEVNUM:		next = expand_entity_widevnum(info,str,arg); break;
+		case ENT_MOBILE:		next = expand_entity_mobile(info,str,arg); break;
+		case ENT_OBJECT:		next = expand_entity_object(info,str,arg); break;
+		case ENT_ROOM:			next = expand_entity_room(info,str,arg); break;
+		case ENT_ARRAY_EXITS:	next = expand_entity_array_exits(info,str,arg); break;
+		case ENT_EXIT:			next = expand_entity_exit(info,str,arg); break;
+		case ENT_TOKEN:			next = expand_entity_token(info,str,arg); break;
+		case ENT_AREA:			next = expand_entity_area(info,str,arg); break;
 		case ENT_AREA_REGION:	next = expand_entity_area_region(info,str,arg); break;
 		case ENT_OLLIST_MOB:	next = expand_entity_list_mob(info,str,arg); break;
 		case ENT_OLLIST_OBJ:	next = expand_entity_list_obj(info,str,arg); break;
@@ -7765,6 +8256,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_VARIABLE:		next = expand_entity_variable(info,str,arg); break;
 		case ENT_GROUP:			next = expand_entity_group(info,str,arg); break;
 		case ENT_DICE:			next = expand_entity_dice(info,str,arg); break;
+		case ENT_RANGE:			next = expand_entity_range(info,str,arg); break;
 		case ENT_MOBINDEX:		next = expand_entity_mobindex(info,str,arg); break;
 		case ENT_OBJINDEX:		next = expand_entity_objindex(info,str,arg); break;
 		case ENT_TOKENINDEX:	next = expand_entity_tokenindex(info,str,arg); break;
@@ -7786,14 +8278,23 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_OBJECT_FLUID_CONTAINER:	next = expand_entity_object_fluid_container(info,str,arg); break;
 		case ENT_OBJECT_FOOD:			next = expand_entity_object_food(info,str,arg); break;
 		case ENT_OBJECT_FURNITURE:		next = expand_entity_object_furniture(info,str,arg); break;
+		case ENT_OBJECT_INK:			next = expand_entity_object_ink(info,str,arg); break;
+		case ENT_OBJECT_INSTRUMENT:		next = expand_entity_object_instrument(info,str,arg); break;
 		case ENT_OBJECT_LIGHT:			next = expand_entity_object_light(info,str,arg); break;
 		case ENT_OBJECT_MONEY:			next = expand_entity_object_money(info,str,arg); break;
 		case ENT_OBJECT_PORTAL:			next = expand_entity_object_portal(info,str,arg); break;
+		case ENT_OBJECT_SCROLL:			next = expand_entity_object_scroll(info,str,arg); break;
+		case ENT_OBJECT_TATTOO:			next = expand_entity_object_tattoo(info,str,arg); break;
+		case ENT_OBJECT_WAND:			next = expand_entity_object_wand(info,str,arg); break;
 
 		case ENT_RESERVED_MOBILE:		next = expand_entity_reserved_mobile(info,str,arg); break;
 		case ENT_RESERVED_OBJECT:		next = expand_entity_reserved_object(info,str,arg); break;
 		case ENT_RESERVED_ROOM:			next = expand_entity_reserved_room(info,str,arg); break;
 
+		case ENT_INK_TYPES:				next = expand_entity_ink_types(info,str,arg); break;
+		case ENT_INK_TYPE:				next = expand_entity_ink_type(info,str,arg); break;
+		case ENT_INSTRUMENT_RESERVOIRS:	next = expand_entity_instrument_reservoirs(info,str,arg); break;
+		case ENT_INSTRUMENT_RESERVOIR:	next = expand_entity_instrument_reservoir(info,str,arg); break;
 		case ENT_CATALYST_USAGE:		next = expand_entity_catalyst_usage(info,str,arg); break;
 
 		case ENT_STAT:			next = expand_entity_stat(info,str,arg); break;

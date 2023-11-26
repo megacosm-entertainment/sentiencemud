@@ -178,7 +178,7 @@ SPELL_FUNC(spell_nexus)
 
 	portal->timer = 1 + level / 10;
 
-	if( to_room->wilds && IS_SET(to_room->room2_flags, ROOM_VIRTUAL_ROOM) )
+	if( to_room->wilds && IS_SET(to_room->room_flag[1], ROOM_VIRTUAL_ROOM) )
 	{
 		PORTAL(portal)->type = GATETYPE_WILDS;
 		PORTAL(portal)->params[0] = to_room->wilds->uid;
@@ -208,7 +208,7 @@ SPELL_FUNC(spell_nexus)
 		portal = create_object(obj_index_portal,0, TRUE);
 		portal->timer = 1 + level/10;
 
-		if( from_room->wilds && IS_SET(from_room->room2_flags, ROOM_VIRTUAL_ROOM) )
+		if( from_room->wilds && IS_SET(from_room->room_flag[1], ROOM_VIRTUAL_ROOM) )
 		{
 			PORTAL(portal)->type = GATETYPE_WILDS;
 			PORTAL(portal)->params[0] = from_room->wilds->uid;
@@ -308,15 +308,15 @@ SPELL_FUNC(spell_summon)
 	// Room
 	//
 	//Added area_no_recall check to go with corresponding area flag - Areo 08-10-2006
-	if (IS_SET(victim->in_room->room_flags, ROOM_NO_RECALL) ||
-		IS_SET(victim->in_room->room_flags, ROOM_NOMAGIC) ||
-		IS_SET(victim->in_room->room_flags, ROOM_SAFE) ||
+	if (IS_SET(victim->in_room->room_flag[0], ROOM_NO_RECALL) ||
+		IS_SET(victim->in_room->room_flag[0], ROOM_NOMAGIC) ||
+		IS_SET(victim->in_room->room_flag[0], ROOM_SAFE) ||
 		IS_SET(victim->in_room->area->area_flags, AREA_NO_RECALL)) {
 		send_to_char("Your target is in a magically protected room.\n\r", ch);
 		return FALSE;
 	}
 
-	if (IS_SET(ch->in_room->room_flags, ROOM_PK) || IS_SET(ch->in_room->room_flags, ROOM_CHAOTIC) || IS_SET(ch->in_room->room_flags, ROOM_ARENA)) {
+	if (IS_SET(ch->in_room->room_flag[0], ROOM_PK) || IS_SET(ch->in_room->room_flag[0], ROOM_CHAOTIC) || IS_SET(ch->in_room->room_flag[0], ROOM_ARENA)) {
 		send_to_char("You can't summon players into this room.\n\r", ch);
 		return FALSE;
 	}

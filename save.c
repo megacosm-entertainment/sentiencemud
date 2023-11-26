@@ -2586,8 +2586,14 @@ void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
 		if (PORTAL(obj)->lock)
 			fwrite_lock_state(fp, PORTAL(obj)->lock);
 
-		if (PORTAL(obj)->spells != NULL)
-			save_spell(fp, PORTAL(obj)->spells);
+		ITERATOR sit;
+		SPELL_DATA *spell;
+		iterator_start(&sit, SCROLL(obj)->spells);
+		while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
+		{
+			fprintf(fp, "SpellNew %s~ %d %d\n", spell->skill->name, spell->level, spell->repop);
+		}
+		iterator_stop(&sit);
 
 		fprintf(fp, "#-TYPEPORTAL\n");
 	}
@@ -3702,7 +3708,14 @@ INSTRUMENT_DATA *fread_obj_instrument_data(FILE *fp)
 							data->reservoirs[index - 1].capacity = capacity;
 						}
 					}
+
+					fMatch = true;
+					break;
 				}
+				break;
+
+			case 'T':
+				KEY("Type", data->type, stat_lookup(fread_string(fp), catalyst_types, CATALYST_NONE));
 				break;
 
 		}
@@ -3854,8 +3867,9 @@ PORTAL_DATA *fread_obj_portal_data(FILE *fp)
 						spell->skill = skill;
 						spell->level = fread_number(fp);
 						spell->repop = fread_number(fp);
-						spell->next = data->spells;
-						data->spells = spell;
+						spell->next = NULL;
+
+						list_appendlink(data->spells, spell);
 					}
 					else
 					{
@@ -4241,7 +4255,13 @@ void fread_obj_check_version(OBJ_DATA *obj, long values[MAX_OBJVALUES])
 			PORTAL(obj)->lock = obj->lock;
 			obj->lock = NULL;
 
-			PORTAL(obj)->spells = obj->spells;
+			SPELL_DATA *spell, *spell_next;
+			for(spell = obj->spells; spell; spell = spell_next)
+			{
+				spell_next = spell->next;
+				spell->next = NULL;
+				list_appendlink(PORTAL(obj)->spells, spell);
+			}
 			obj->spells = NULL;
 		}
 	}

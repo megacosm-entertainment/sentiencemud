@@ -1031,8 +1031,8 @@ void mobile_update(void)
 			if ((pexit = ch->in_room->exit[door]) != NULL
 			&&  pexit->u1.to_room != NULL
 			&&  !IS_SET(pexit->exit_info, EX_CLOSED)
-			&&  !IS_SET(pexit->u1.to_room->room_flags, ROOM_NO_MOB)
-			&&  !IS_SET(pexit->u1.to_room->room_flags, ROOM_NO_WANDER)
+			&&  !IS_SET(pexit->u1.to_room->room_flag[0], ROOM_NO_MOB)
+			&&  !IS_SET(pexit->u1.to_room->room_flag[0], ROOM_NO_WANDER)
 			&&  (!IS_SET(ch->act[1], ACT_STAY_LOCALE) ||
 				(pexit->u1.to_room->area == ch->in_room->area &&
 					(!ch->in_room->locale || !pexit->u1.to_room->locale || ch->in_room->locale == pexit->u1.to_room->locale)))
@@ -1040,9 +1040,9 @@ void mobile_update(void)
 			&&  (!IS_SET(ch->act[0], ACT_STAY_AREA)
 			 || pexit->u1.to_room->area == ch->in_room->area)
 			&&  (!IS_SET(ch->act[0], ACT_OUTDOORS)
-			 || !IS_SET(pexit->u1.to_room->room_flags,ROOM_INDOORS))
+			 || !IS_SET(pexit->u1.to_room->room_flag[0],ROOM_INDOORS))
 			&&  (!IS_SET(ch->act[0], ACT_INDOORS)
-			 || IS_SET(pexit->u1.to_room->room_flags,ROOM_INDOORS))) {
+			 || IS_SET(pexit->u1.to_room->room_flag[0],ROOM_INDOORS))) {
 				 AREA_REGION *to_region = get_room_region(pexit->u1.to_room);
 				 if (!IS_SET(ch->act[1], ACT2_STAY_REGION) || region == to_region)
 					move_char(ch, door, FALSE);
@@ -1475,7 +1475,7 @@ void char_update(void)
 		if (!IS_NPC(ch) && !IS_SET(ch->form, FORM_NO_BREATHING) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act[1], PLR_HOLYAURA)))
 		{
 			bool underwater = FALSE;
-			if (IS_SET(ch->in_room->room_flags, ROOM_UNDERWATER))
+			if (IS_SET(ch->in_room->room_flag[0], ROOM_UNDERWATER))
 				underwater = TRUE;
 			
 			if (ch->on_compartment)
@@ -1682,7 +1682,7 @@ void char_update(void)
 
 				if (ch->in_room != NULL &&
 					ch->in_room->sector_type != SECT_INSIDE &&
-					!IS_SET(ch->in_room->room_flags, ROOM_INDOORS))
+					!IS_SET(ch->in_room->room_flag[0], ROOM_INDOORS))
 				{
 					switch(num)
 					{
@@ -1700,7 +1700,7 @@ void char_update(void)
 						act("{YLightning crashes to the ground next to you!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 						break;
 					case 4:
-						if (number_percent() < lbchance && !IS_SET(ch->in_room->room_flags, ROOM_SAFE) && (IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NORECKONING)) && ch->fighting == NULL)
+						if (number_percent() < lbchance && !IS_SET(ch->in_room->room_flag[0], ROOM_SAFE) && (IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NORECKONING)) && ch->fighting == NULL)
 						{
 							act("{YZAAAAAAAAAAAAAAP! You are struck by a bolt from the sky...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
@@ -1866,8 +1866,8 @@ void char_update(void)
 		    }
 
 			// Fire off deathtraps.
-		    if (IS_SET(ch->in_room->room_flags, ROOM_DEATH_TRAP) &&
-		    	!IS_SET(ch->in_room->room_flags, ROOM_CHAOTIC)) {		// no chaotic-deathtraps
+		    if (IS_SET(ch->in_room->room_flag[0], ROOM_DEATH_TRAP) &&
+		    	!IS_SET(ch->in_room->room_flag[0], ROOM_CHAOTIC)) {		// no chaotic-deathtraps
 					raw_kill(ch, TRUE, FALSE, RAWKILL_NORMAL);
 		    }
 
@@ -1893,7 +1893,7 @@ void char_update(void)
 		    }
 
 		    // non-demons without a light in the demon area get fucked
-		    if (IS_SET(ch->in_room->room_flags, ROOM_ATTACK_IF_DARK) && !IS_DEMON(ch))
+		    if (IS_SET(ch->in_room->room_flag[0], ROOM_ATTACK_IF_DARK) && !IS_DEMON(ch))
 		    {
 				if (!IS_SET(ch->act[0], PLR_HOLYLIGHT))
 				{
@@ -2545,11 +2545,11 @@ void aggr_update(void)
 				int cough = FALSE;
 				// is the mobile in a Toxic Bog?
 				if(wch->in_room &&
-					(IS_SET(wch->in_room->room2_flags, ROOM_TOXIC_BOG) ||
+					(IS_SET(wch->in_room->room_flag[1], ROOM_TOXIC_BOG) ||
 					(wch->in_room->sector_type == SECT_TOXIC_BOG))) {
 					bool dec;
 
-					if(IS_SET(wch->in_room->room2_flags, ROOM_TOXIC_BOG)) chance += 10;
+					if(IS_SET(wch->in_room->room_flag[1], ROOM_TOXIC_BOG)) chance += 10;
 					if(wch->in_room->sector_type == SECT_TOXIC_BOG) chance += 10;
 
 					dec = (number_percent() < chance);
@@ -2599,7 +2599,7 @@ void aggr_update(void)
 						damage(wch, wch, number_range(5,10), gsk_toxic_fumes, TYPE_UNDEFINED, DAM_NONE, FALSE);
 				}
 			} else {
-				if(IS_SET(wch->in_room->room2_flags, ROOM_TOXIC_BOG)) chance += 50;
+				if(IS_SET(wch->in_room->room_flag[1], ROOM_TOXIC_BOG)) chance += 50;
 				if(wch->in_room->sector_type == SECT_TOXIC_BOG) chance += 50;
 
 				if(chance > 0 && number_percent() < chance)
@@ -2607,7 +2607,7 @@ void aggr_update(void)
 			}
 		}
 
-		if(IS_SET(wch->in_room->room2_flags, ROOM_DRAIN_MANA)) {
+		if(IS_SET(wch->in_room->room_flag[1], ROOM_DRAIN_MANA)) {
 			wch->mana -= number_range(5,15);
 			if(wch->in_room->sector_type == SECT_CURSED_SANCTUM)
 				wch->mana -= number_range(5,15);
@@ -2617,7 +2617,7 @@ void aggr_update(void)
 		}
 
 		chance = 0;
-		if(IS_SET(wch->in_room->room2_flags, ROOM_BRIARS)) chance += 5;
+		if(IS_SET(wch->in_room->room_flag[1], ROOM_BRIARS)) chance += 5;
 		if(wch->in_room->sector_type == SECT_BRAMBLE) chance += 5;
 
 		if(chance > 0 && number_percent() < chance) {
@@ -2646,13 +2646,13 @@ void aggr_update(void)
 	&&  number_percent() < 10
 	&&  !is_safe(wch, wch, FALSE)
 	&&  ((IS_NPC(wch) && wch->shop == NULL) ||
-	    (IS_SET(wch->in_room->room_flags, ROOM_PK))
+	    (IS_SET(wch->in_room->room_flag[0], ROOM_PK))
    	     || is_pk(wch)))
 	{
 	    for (obj = wch->in_room->contents; obj != NULL; obj = obj->next_content)
 	    {
 		// Room flames (inferno)
-		if (obj->item_type == ITEM_ROOM_FLAME && !IS_SET(wch->in_room->room_flags, ROOM_SAFE))
+		if (obj->item_type == ITEM_ROOM_FLAME && !IS_SET(wch->in_room->room_flag[0], ROOM_SAFE))
 		{
 		    if (number_percent() <= 2)
 		    {
@@ -2953,7 +2953,7 @@ void aggr_update(void)
 			// ABCD
 			if (ch->in_room == NULL ||
 				!check_aggression(ch, wch) ||
-				IS_SET(ch->in_room->room_flags, ROOM_SAFE) ||
+				IS_SET(ch->in_room->room_flag[0], ROOM_SAFE) ||
 				IS_AFFECTED(ch, AFF_CALM) ||
 				ch->fighting != NULL ||
 				IS_AFFECTED(ch, AFF_CHARM) ||
@@ -3043,7 +3043,7 @@ void update_hunting(void)
 	||  IS_SET(mob->hunting->affected_by[0], AFF_HIDE)
 	||  mob->hunting->in_room == NULL
 	||  mob->hunting->in_room->area != mob->in_room->area
-	||  IS_SET(mob->hunting->in_room->room_flags, ROOM_SAFE)
+	||  IS_SET(mob->hunting->in_room->room_flag[0], ROOM_SAFE)
 	||  !can_see(mob, mob->hunting)
 	||  number_percent() < get_skill(mob->hunting, gsk_trackless_step)/2
 	||  (check_evasion(mob->hunting) == TRUE && number_percent() < 33))
@@ -3061,7 +3061,7 @@ void update_hunting(void)
             // Mob has found player
   	    if (mob->in_room == mob->hunting->in_room)
 	    {
-		if (IS_SET(mob->in_room->room_flags,ROOM_SAFE)
+		if (IS_SET(mob->in_room->room_flag[0],ROOM_SAFE)
 		||  IS_AFFECTED(mob, AFF_CALM)
 		||  IS_AFFECTED(mob, AFF_CHARM)
 		||  !IS_AWAKE(mob)

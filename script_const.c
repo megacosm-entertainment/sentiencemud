@@ -389,14 +389,14 @@ ENT_FIELD entity_object[] = {
 	{"fluid_data",		ENTITY_OBJ_TYPE_FLUID_CONTAINER,	ENT_OBJECT_FLUID_CONTAINER },
 	{"food_data",		ENTITY_OBJ_TYPE_FOOD,		ENT_OBJECT_FOOD},
 	{"furniture_data",	ENTITY_OBJ_TYPE_FURNITURE,	ENT_OBJECT_FURNITURE},
-	//{"ink_data",		ENTITY_OBJ_TYPE_INK,		ENT_OBJECT_INK},
-	//{"instrument_data",	ENTITY_OBJ_TYPE_INSTRUMENT,	ENT_OBJECT_INSTRUMENT},
+	{"ink_data",		ENTITY_OBJ_TYPE_INK,		ENT_OBJECT_INK},
+	{"instrument_data",	ENTITY_OBJ_TYPE_INSTRUMENT,	ENT_OBJECT_INSTRUMENT},
 	{"light_data",		ENTITY_OBJ_TYPE_LIGHT,		ENT_OBJECT_LIGHT},
 	{"money_data",		ENTITY_OBJ_TYPE_MONEY,		ENT_OBJECT_MONEY},
 	{"portal_data",		ENTITY_OBJ_TYPE_PORTAL,		ENT_OBJECT_PORTAL},
-	//{"scroll_data",		ENTITY_OBJ_TYPE_SCROLL,		ENT_OBJECT_SCROLL},
-	//{"tattoo_data",		ENTITY_OBJ_TYPE_TATTOO,		ENT_OBJECT_TATTOO},
-	//{"wand_data",		ENTITY_OBJ_TYPE_WAND,		ENT_OBJECT_WAND},
+	{"scroll_data",		ENTITY_OBJ_TYPE_SCROLL,		ENT_OBJECT_SCROLL},
+	{"tattoo_data",		ENTITY_OBJ_TYPE_TATTOO,		ENT_OBJECT_TATTOO},
+	{"wand_data",		ENTITY_OBJ_TYPE_WAND,		ENT_OBJECT_WAND},
 	{NULL,			0,			ENT_UNKNOWN	}
 };
 
@@ -451,6 +451,20 @@ ENT_FIELD entity_object_furniture[] = {
 	{NULL,			0,			ENT_UNKNOWN },
 };
 
+ENT_FIELD entity_object_ink[] = {
+	{"types",		ENTITY_OBJ_INK_TYPES,			ENT_INK_TYPES },
+	{NULL,			0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_object_instrument[] = {
+	{"type",		ENTITY_OBJ_INSTRUMENT_TYPE,		ENT_STAT },
+	{"flags",		ENTITY_OBJ_INSTRUMENT_FLAGS,	ENT_BITVECTOR },
+	{"beats",		ENTITY_OBJ_INSTRUMENT_BEATS,	ENT_RANGE },
+	{"mana",		ENTITY_OBJ_INSTRUMENT_MANA,		ENT_RANGE },
+	{"reservoirs",	ENTITY_OBJ_INSTRUMENT_RESERVOIRS,	ENT_INSTRUMENT_RESERVOIRS },
+	{NULL,			0,								ENT_UNKNOWN	}
+};
+
 ENT_FIELD entity_object_light[] = {
 	{"duration",	ENTITY_OBJ_LIGHT_DURATION,	ENT_NUMBER },
 	{"flags",		ENTITY_OBJ_LIGHT_FLAGS,		ENT_BITVECTOR },
@@ -478,6 +492,30 @@ ENT_FIELD entity_object_portal[] = {
 	{"param3",		ENTITY_OBJ_PORTAL_PARAM3,		ENT_NUMBER		},
 	{"param4",		ENTITY_OBJ_PORTAL_PARAM4,		ENT_NUMBER		},
 	{"lock",		ENTITY_OBJ_PORTAL_LOCK,			ENT_LOCK_STATE },
+	{"spells",		ENTITY_OBJ_PORTAL_SPELLS,		ENT_ILLIST_SPELLS },
+	{NULL,			0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_object_scroll[] = {
+	{"maxmana",		ENTITY_OBJ_SCROLL_MAXMANA,		ENT_NUMBER		},
+	{"spells",		ENTITY_OBJ_SCROLL_SPELLS,		ENT_ILLIST_SPELLS },
+	{NULL,			0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_object_tattoo[] = {
+	{"touches",		ENTITY_OBJ_TATTOO_TOUCHES,		ENT_NUMBER },
+	{"fade",		ENTITY_OBJ_TATTOO_FADE,			ENT_NUMBER },
+	{"fading",		ENTITY_OBJ_TATTOO_FADING,		ENT_NUMBER },
+	{"spells",		ENTITY_OBJ_TATTOO_SPELLS,		ENT_ILLIST_SPELLS },
+	{NULL,			0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_object_wand[] = {
+	{"charges",		ENTITY_OBJ_WAND_CHARGES,		ENT_NUMBER },
+	{"maxcharges",	ENTITY_OBJ_WAND_MAXCHARGES,		ENT_NUMBER },
+	{"cooldown",	ENTITY_OBJ_WAND_COOLDOWN,		ENT_NUMBER },
+	{"recharge",	ENTITY_OBJ_WAND_RECHARGE,		ENT_NUMBER },
+	{"spells",		ENTITY_OBJ_WAND_SPELLS,			ENT_ILLIST_SPELLS },
 	{NULL,			0,								ENT_UNKNOWN	}
 };
 
@@ -495,8 +533,9 @@ ENT_FIELD entity_room[] = {
 	{"env_token",	ENTITY_ROOM_ENVIRON_TOKEN,	ENT_TOKEN	},
 	{"environ",		ENTITY_ROOM_ENVIRON,		ENT_ROOM	},
 	{"environment",	ENTITY_ROOM_ENVIRON,		ENT_ROOM	},
+	{"exits",		ENTITY_ROOM_EXITS,			ENT_ARRAY_EXITS },
 	{"extern",		ENTITY_ROOM_ENVIRON,		ENT_ROOM	},
-	//{"flags",		ENTITY_ROOM_FLAGS,			ENT_BITMATRIX },		// TODO: Add flag bank
+	{"flags",		ENTITY_ROOM_FLAGS,			ENT_BITMATRIX },
 	{"mobiles",		ENTITY_ROOM_MOBILES,		ENT_OLLIST_MOB	},
 	{"name",		ENTITY_ROOM_NAME,			ENT_STRING	},
 	{"north",		ENTITY_ROOM_NORTH,			ENT_EXIT	},
@@ -520,6 +559,13 @@ ENT_FIELD entity_room[] = {
 	{"dungeon",		ENTITY_ROOM_DUNGEON,		ENT_DUNGEON	},
 	{"ship",		ENTITY_ROOM_SHIP,			ENT_SHIP	},
 	{NULL,			0,							ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_array_exits[] = {
+	{"random",		ENTITY_ARRAY_EXITS_RANDOM,	ENT_EXIT },
+	{"any",			ENTITY_ARRAY_EXITS_ANY,		ENT_EXIT },
+	{"open",		ENTITY_ARRAY_EXITS_OPEN,	ENT_EXIT },
+	{NULL,			0,							ENT_UNKNOWN }
 };
 
 ENT_FIELD entity_exit[] = {
@@ -774,6 +820,21 @@ ENT_FIELD entity_compartment[] = {
 	{NULL,			0,			ENT_UNKNOWN },
 };
 
+ENT_FIELD entity_ink_type[] = {
+	{"catalyst",	ENTITY_INK_TYPE_CATALYST,		ENT_STAT },
+	{"type",		ENTITY_INK_TYPE_CATALYST,		ENT_STAT },
+	{"amount",		ENTITY_INK_TYPE_AMOUNT,			ENT_NUMBER },
+	{NULL,			0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_instrument_reservoir[] = {
+	{"catalyst",	ENTITY_INSTRUMENT_RESERVOIR_CATALYST,		ENT_STAT },
+	{"type",		ENTITY_INSTRUMENT_RESERVOIR_CATALYST,		ENT_STAT },
+	{"amount",		ENTITY_INSTRUMENT_RESERVOIR_AMOUNT,			ENT_NUMBER },
+	{"capacity",	ENTITY_INSTRUMENT_RESERVOIR_CAPACITY,		ENT_NUMBER },
+	{NULL,			0,											ENT_UNKNOWN	}
+};
+
 ENT_FIELD entity_liquid[] = {
 	{"name",	ENTITY_LIQUID_NAME,	ENT_STRING },
 	{"color",	ENTITY_LIQUID_COLOR, ENT_STRING },
@@ -835,7 +896,15 @@ ENT_FIELD entity_dice[] = {
 	{"roll",		ENTITY_DICE_ROLL,	ENT_NUMBER },
 	{"last",		ENTITY_DICE_LAST,	ENT_NUMBER },
 	{NULL,		0,						ENT_UNKNOWN	}
+};
 
+ENT_FIELD entity_range[] = {
+	{"min",		ENTITY_RANGE_MIN,		ENT_NUMBER },
+	{"max",		ENTITY_RANGE_MAX,		ENT_NUMBER },
+	{"average",	ENTITY_RANGE_AVERAGE,	ENT_NUMBER },
+	{"span",	ENTITY_RANGE_SPAN,		ENT_NUMBER },
+	{"value",	ENTITY_RANGE_VALUE,		ENT_NUMBER },
+	{NULL,		0,						ENT_UNKNOWN	}
 };
 
 ENT_FIELD entity_mobindex[] = {
@@ -950,6 +1019,7 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_MOBILE,		ENT_MOBILE,			entity_mobile,				TRUE,	FALSE },
 	{ ENT_OBJECT,		ENT_OBJECT,			entity_object,				TRUE,	FALSE },
 	{ ENT_ROOM,			ENT_ROOM,			entity_room,				TRUE,	FALSE },
+	{ ENT_ARRAY_EXITS,	ENT_ARRAY_EXITS,	entity_array_exits,			FALSE,	TRUE },
 	{ ENT_EXIT,			ENT_EXIT,			entity_exit,				FALSE,	FALSE },
 	{ ENT_TOKEN,		ENT_TOKEN,			entity_token,				TRUE,	FALSE },
 	{ ENT_AREA,			ENT_AREA,			entity_area,				TRUE,	FALSE },
@@ -963,6 +1033,8 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_BOOK_PAGE,	ENT_BOOK_PAGE,		entity_book_page,			FALSE,	FALSE },
 	{ ENT_FOOD_BUFF,	ENT_FOOD_BUFF,		entity_food_buff,			FALSE,	FALSE },
 	{ ENT_COMPARTMENT,	ENT_COMPARTMENT,	entity_compartment,			FALSE,	FALSE },
+	{ ENT_INK_TYPE,		ENT_INK_TYPE,		entity_ink_type,			FALSE,	FALSE },
+	{ ENT_INSTRUMENT_RESERVOIR, ENT_INSTRUMENT_RESERVOIR, entity_instrument_reservoir, FALSE, FALSE },
 	{ ENT_LIQUID,		ENT_LIQUID,			entity_liquid,				FALSE,	FALSE },
 	{ ENT_EXTRADESC,	ENT_EXTRADESC,		NULL,						FALSE,	FALSE },
 	{ ENT_HELP,			ENT_HELP,			NULL,						FALSE,	FALSE },
@@ -986,6 +1058,7 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_PERSIST,		ENT_PERSIST,		entity_persist,				FALSE,	FALSE },
 	{ ENT_GROUP,		ENT_GROUP,			entity_group,				FALSE,	FALSE },
 	{ ENT_DICE,			ENT_DICE,			entity_dice,				FALSE,	FALSE },
+	{ ENT_RANGE,		ENT_RANGE,			entity_range,				FALSE,	FALSE },
 	{ ENT_MOBINDEX,		ENT_MOBINDEX,		entity_mobindex,			FALSE,	FALSE },
 	{ ENT_OBJINDEX,		ENT_OBJINDEX,		entity_objindex,			FALSE,	FALSE },
 	{ ENT_TOKENINDEX,		ENT_TOKENINDEX,		entity_tokenindex,			FALSE,	FALSE },
@@ -1002,9 +1075,14 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_OBJECT_FLUID_CONTAINER, ENT_OBJECT_FLUID_CONTAINER, entity_object_fluid_container, FALSE, FALSE },
 	{ ENT_OBJECT_FOOD, ENT_OBJECT_FOOD, entity_object_food, FALSE,	FALSE },
 	{ ENT_OBJECT_FURNITURE, ENT_OBJECT_FURNITURE, entity_object_furniture, FALSE,	FALSE },
+	{ ENT_OBJECT_INK, ENT_OBJECT_INK, entity_object_ink, FALSE,	FALSE },
+	{ ENT_OBJECT_INSTRUMENT, ENT_OBJECT_INSTRUMENT, entity_object_instrument, FALSE,	FALSE },
 	{ ENT_OBJECT_LIGHT, ENT_OBJECT_LIGHT, entity_object_light, FALSE,	FALSE },
 	{ ENT_OBJECT_MONEY, ENT_OBJECT_MONEY, entity_object_money, FALSE,	FALSE },
 	{ ENT_OBJECT_PORTAL, ENT_OBJECT_PORTAL, entity_object_portal, FALSE,	FALSE },
+	{ ENT_OBJECT_SCROLL, ENT_OBJECT_SCROLL, entity_object_scroll, FALSE,	FALSE },
+	{ ENT_OBJECT_TATTOO, ENT_OBJECT_TATTOO, entity_object_tattoo, FALSE,	FALSE },
+	{ ENT_OBJECT_WAND, ENT_OBJECT_WAND, entity_object_wand, FALSE,	FALSE },
 	{ ENT_SKILL_VALUES, ENT_SKILL_VALUES, NULL, FALSE, TRUE },
 	{ ENT_SKILL_VALUENAMES, ENT_SKILL_VALUENAMES, NULL, FALSE, TRUE },
 	{ ENT_UNKNOWN,		ENT_UNKNOWN,		NULL,						FALSE,	FALSE },

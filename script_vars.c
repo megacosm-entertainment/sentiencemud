@@ -1828,7 +1828,7 @@ bool variable_copylist(ppVARIABLE from,ppVARIABLE to,bool index)
 		case VAR_INTEGER:	newv->_.i = oldv->_.i; break;
 		case VAR_STRING:	newv->_.s = str_dup(oldv->_.s); break;
 		case VAR_STRING_S:	newv->_.s = oldv->_.s; break;
-		case VAR_ROOM:		newv->_.r = oldv->_.r; break;
+		case VAR_ROOM:		newv->_.wnum_load = oldv->_.wnum_load; newv->_.r = oldv->_.r; break;
 		case VAR_EXIT:		newv->_.door.r = oldv->_.door.r; newv->_.door.door = oldv->_.door.door; break;
 		case VAR_MOBILE:	newv->_.m = oldv->_.m; break;
 		case VAR_OBJECT:	newv->_.o = oldv->_.o; break;
@@ -2350,11 +2350,16 @@ void variable_index_fix(void)
 
 	while(cur) {
 		if(cur->type == VAR_ROOM) {
-			if(cur->_.wnum_load.auid > 0 && cur->_.wnum_load.vnum > 0) cur->_.r = get_room_index_auid(cur->_.wnum_load.auid, cur->_.wnum_load.vnum);
-//			log_stringf("variable_index_fix: ROOM variable '%s', WNUM %ld#%ld, Room '%s'",
-//				cur->name,
-//				cur->_.wnum_load.auid, cur->_.wnum_load.vnum,
-//				cur->_.r ? cur->_.r->name : "(invalid)");
+			WNUM_LOAD wnum_load = cur->_.wnum_load;
+
+			if(wnum_load.auid > 0 && wnum_load.vnum > 0)
+				cur->_.r = get_room_index_auid(cur->_.wnum_load.auid, cur->_.wnum_load.vnum);
+			else
+				cur->_.r = NULL;
+			log_stringf("variable_index_fix: ROOM variable '%s', WNUM %ld#%ld, Room '%s'",
+				cur->name,
+				wnum_load.auid, wnum_load.vnum,
+				cur->_.r ? cur->_.r->name : "(invalid)");
 		}
 		cur = cur->global_next;
 	}
@@ -2374,9 +2379,17 @@ void variable_fix(pVARIABLE var)
 	LLIST_WILDS_DATA *lwilds;
 
 	if(fBootDb && var->type == VAR_ROOM) {	// Fix room variables on boot...
-		if(var->_.wnum_load.auid > 0 && var->_.wnum_load.vnum) {
+		WNUM_LOAD wnum_load = var->_.wnum_load;
+
+		if(wnum_load.auid > 0 && wnum_load.vnum > 0)
 			var->_.r = get_room_index_auid(var->_.wnum_load.auid, var->_.wnum_load.vnum);
-		}
+		else
+			var->_.r = NULL;
+		log_stringf("variable_fix: ROOM variable '%s', WNUM %ld#%ld, Room '%s'",
+			var->name,
+			wnum_load.auid, wnum_load.vnum,
+			var->_.r ? var->_.r->name : "(invalid)");
+
 	} else if(var->type == VAR_CLONE_ROOM) {	// Dynamic
 		if(var->_.cr.r && (room = get_clone_room(var->_.cr.r, var->_.cr.a, var->_.cr.b)) ) {
 			var->_.r = room;

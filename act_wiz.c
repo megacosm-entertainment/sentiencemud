@@ -1630,7 +1630,7 @@ void do_rstat(CHAR_DATA *ch, char *argument)
 
     sprintf(buf,
             "{YRoom flags:{x %s.\n\r{YDescription:{x\n\r%s\n\r",
-            flag_string(room_flags, location->room_flags),
+            flag_string(room_flags, location->room_flag[0]),
             location->description);
     add_buf(output, buf);
 
@@ -2557,16 +2557,15 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 		if (PORTAL(obj)->lock)
 			ostat_lock_state(PORTAL(obj)->lock, buffer);
 
-		if (PORTAL(obj)->spells)
+		ITERATOR sit;
+		SPELL_DATA *spell;
+		iterator_start(&sit, PORTAL(obj)->spells);
+		while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
 		{
-			SPELL_DATA *spell;
-			for(spell = PORTAL(obj)->spells; spell; spell = spell->next)
-			{
-				sprintf(buf, " {CSpell: %s {CLevel: {x%d\n\r",
-					spell->skill->name, spell->level);
-				add_buf(buffer, buf);
-			}
+			sprintf(buf, "   {CSpell: {x%s {BLevel: {x%d\n\r", spell->skill->name, spell->level);
+			add_buf(buffer, buf);
 		}
+		iterator_stop(&sit);
 	}
 
 	if (IS_SCROLL(obj))
@@ -6624,7 +6623,7 @@ void do_rset(CHAR_DATA *ch, char *argument)
      */
     if (!str_prefix(arg2, "flags"))
     {
-	location->room_flags	= value;
+	location->room_flag[0]	= value;
 	return;
     }
 
@@ -8458,7 +8457,7 @@ void do_token(CHAR_DATA *ch, char *argument)
 			}
 
 			TOKEN_DATA *token = give_token(token_index, NULL, NULL, ch->in_room);
-			if( ch->in_room->wilds && IS_SET(ch->in_room->room2_flags, ROOM_VIRTUAL_ROOM))
+			if( ch->in_room->wilds && IS_SET(ch->in_room->room_flag[1], ROOM_VIRTUAL_ROOM))
 				sprintf(buf, "Gave token %s(%ld) to wilds room %ld @ (%ld, %ld)\n\r", token_index->name, token_index->vnum, ch->in_room->wilds->uid, ch->in_room->x, ch->in_room->y);
 			else if( ch->in_room->source )
 				sprintf(buf, "Gave token %s(%ld) to clone room %ld ID(%lu:%lu)\n\r", token_index->name, token_index->vnum, ch->in_room->source->vnum, ch->in_room->id[0], ch->in_room->id[1]);
@@ -8476,7 +8475,7 @@ void do_token(CHAR_DATA *ch, char *argument)
 
 			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL,0,0,0,0,0);
 
-			if( ch->in_room->wilds && IS_SET(ch->in_room->room2_flags, ROOM_VIRTUAL_ROOM))
+			if( ch->in_room->wilds && IS_SET(ch->in_room->room_flag[1], ROOM_VIRTUAL_ROOM))
 				sprintf(buf, "Removed token %s(%ld.%ld) from wilds room %ld @ (%ld, %ld)\n\r", token->name, count, token->pIndexData->vnum, ch->in_room->wilds->uid, ch->in_room->x, ch->in_room->y);
 			else if( ch->in_room->source )
 				sprintf(buf, "Removed token %s(%ld.%ld) from clone room %ld ID(%lu:%lu)\n\r", token->name, count, token->pIndexData->vnum, ch->in_room->source->vnum, ch->in_room->id[0], ch->in_room->id[1]);

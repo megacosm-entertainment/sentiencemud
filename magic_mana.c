@@ -122,7 +122,7 @@ SPELL_FUNC(spell_counter_spell)
 		case TAR_CHAR_OFFENSIVE:
 			if (!IS_NPC(ch)) {
 				if (is_safe(ch, victim, TRUE) && victim != ch &&
-					!IS_SET(ch->in_room->room2_flags, ROOM_MULTIPLAY)) {
+					!IS_SET(ch->in_room->room_flag[1], ROOM_MULTIPLAY)) {
 					send_to_char("Not on that target.\n\r",ch);
 					return TRUE;
 				}

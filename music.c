@@ -91,7 +91,7 @@ bool validate_song_target(CHAR_DATA *ch,int type,char *arg, int *targ, CHAR_DATA
 
 		if (is_safe(ch, victim, TRUE) ||
 			(victim->fighting && !is_same_group(ch, victim->fighting) &&
-			ch != victim && !IS_SET(ch->in_room->room2_flags, ROOM_MULTIPLAY))) {
+			ch != victim && !IS_SET(ch->in_room->room_flag[1], ROOM_MULTIPLAY))) {
 			send_to_char("Not on that target.\n\r", ch);
 			return false;
 		}
@@ -115,7 +115,7 @@ bool validate_song_target(CHAR_DATA *ch,int type,char *arg, int *targ, CHAR_DATA
 
 			if (victim != ch && victim->fighting && victim->fighting != ch &&
 				!is_same_group(ch, victim->fighting) && !IS_NPC(victim) &&
-				!IS_NPC(victim->fighting) && !is_pk(ch) && !IS_SET(ch->in_room->room_flags, ROOM_ARENA)) {
+				!IS_NPC(victim->fighting) && !is_pk(ch) && !IS_SET(ch->in_room->room_flag[0], ROOM_ARENA)) {
 				send_to_char("You can't interfere in a PK battle if you are not PK.\n\r", ch);
 				return false;
 			}
@@ -154,7 +154,7 @@ bool validate_song_target(CHAR_DATA *ch,int type,char *arg, int *targ, CHAR_DATA
 
 		if ((is_safe(ch, victim, TRUE) ||
 			(victim->fighting && ch != victim && !is_same_group(ch, victim->fighting) &&
-			!IS_SET(ch->in_room->room2_flags, ROOM_MULTIPLAY)))) {
+			!IS_SET(ch->in_room->room_flag[1], ROOM_MULTIPLAY)))) {
 			send_to_char("Not on that target.\n\r", ch);
 			return false;
 		}
@@ -177,7 +177,7 @@ bool validate_song_target(CHAR_DATA *ch,int type,char *arg, int *targ, CHAR_DATA
 
 		if (victim != ch && victim->fighting && victim->fighting != ch &&
 			!is_same_group(ch, victim->fighting) && !IS_NPC(victim) &&
-			!IS_NPC(victim->fighting) && !is_pk(ch) && !IS_SET(ch->in_room->room_flags, ROOM_ARENA)) {
+			!IS_NPC(victim->fighting) && !is_pk(ch) && !IS_SET(ch->in_room->room_flag[0], ROOM_ARENA)) {
 			send_to_char("You can't interfere in a PK battle if you are not PK.\n\r", ch);
 			return false;
 		}
@@ -305,7 +305,7 @@ void do_play(CHAR_DATA *ch, char *argument)
 
 	// Check offensive songs for room safety
 	if ((entry->song->target == TAR_CHAR_OFFENSIVE || entry->song->target == TAR_OBJ_CHAR_OFF) &&
-		IS_SET(ch->in_room->room_flags, ROOM_SAFE))
+		IS_SET(ch->in_room->room_flag[0], ROOM_SAFE))
 	{
 		send_to_char("This room is sanctioned by the gods.\n\r", ch);
 		return;

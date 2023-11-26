@@ -167,7 +167,7 @@ void do_chat_enter(CHAR_DATA *ch, char *argument)
 
     recall = location_to_room(&ch->in_room->area->region.recall);
 
-    if (!IS_IMMORTAL(ch) && (!recall || ch->in_room != recall || !IS_SET(ch->in_room->room_flags, ROOM_SAFE)))
+    if (!IS_IMMORTAL(ch) && (!recall || ch->in_room != recall || !IS_SET(ch->in_room->room_flag[0], ROOM_SAFE)))
     {
 	send_to_char("You can only enter chat from the recall point of the area you are in.{x\n\r", ch);
 	return;

@@ -1454,17 +1454,17 @@ void do_redit(CHAR_DATA *ch, char *argument)
 //				pRoom->area->name,
 //				pRoom->region ? pRoom->region->name : "(null)",
 //				flag_string(sector_flags, pRoom->sector_type),
-//				flag_string(room_flags, pRoom->room_flags),
-//				flag_string(room2_flags, pRoom->room2_flags));
+//				flag_string(room_flags, pRoom->room_flag[0]),
+//				flag_string(room2_flags, pRoom->room_flag[1]));
 //			send_to_char(buf, ch);
 			ch->desc->last_area = pRoom->area;
 			ch->desc->last_area_region = pRoom->region;
 			ch->desc->last_room_sector = pRoom->sector_type;
-			ch->desc->last_room_flags = pRoom->room_flags;
-			ch->desc->last_room2_flags = pRoom->room2_flags;
+			ch->desc->last_room_flag[0] = pRoom->room_flag[0];
+			ch->desc->last_room_flag[1] = pRoom->room_flag[1];
 		}
 	}
-	else if(pRoom && IS_SET(pRoom->room2_flags,ROOM_VIRTUAL_ROOM))
+	else if(pRoom && IS_SET(pRoom->room_flag[1],ROOM_VIRTUAL_ROOM))
 	{
 		send_to_char("REdit : Virtual rooms may not be editted.\n\r", ch);
 		return;
@@ -1483,14 +1483,14 @@ void do_redit(CHAR_DATA *ch, char *argument)
 //				pRoom->area->name,
 //				pRoom->region ? pRoom->region->name : "(null)",
 //				flag_string(sector_flags, pRoom->sector_type),
-//				flag_string(room_flags, pRoom->room_flags),
-//				flag_string(room2_flags, pRoom->room2_flags));
+//				flag_string(room_flags, pRoom->room_flag[0]),
+//				flag_string(room2_flags, pRoom->room_flag[1]));
 //			send_to_char(buf, ch);
 			ch->desc->last_area = pRoom->area;
 			ch->desc->last_area_region = pRoom->region;
 			ch->desc->last_room_sector = pRoom->sector_type;
-			ch->desc->last_room_flags = pRoom->room_flags;
-			ch->desc->last_room2_flags = pRoom->room2_flags;
+			ch->desc->last_room_flag[0] = pRoom->room_flag[0];
+			ch->desc->last_room_flag[1] = pRoom->room_flag[1];
 		}
 	}
 
@@ -2587,8 +2587,8 @@ void do_rcopy(CHAR_DATA *ch, char *argument)
 	new_room->name = str_dup(old_room->name);
 	new_room->description = str_dup(old_room->description);
 	new_room->owner = str_dup(old_room->owner);
-	new_room->room_flags = old_room->room_flags;
-	new_room->room2_flags = old_room->room2_flags;
+	new_room->room_flag[0] = old_room->room_flag[0];
+	new_room->room_flag[1] = old_room->room_flag[1];
 	new_room->sector_type = old_room->sector_type;
 	new_room->heal_rate = old_room->heal_rate;
 	new_room->mana_rate = old_room->mana_rate;

@@ -1821,11 +1821,11 @@ DECL_IFC_FUN(ifc_roomflag)
 		if(!(pWilds = get_wilds_from_uid(NULL,ARG_NUM(0))))
 			*ret = FALSE;
 		else if((room = get_wilds_vroom(pWilds, ARG_NUM(1), ARG_NUM(2))))
-			*ret = (IS_SET(room->room_flags, flag_value_ifcheck(room_flags,ARG_STR(3))));
+			*ret = (IS_SET(room->room_flag[0], flag_value_ifcheck(room_flags,ARG_STR(3))));
 		else if(!(pTerrain = get_terrain_by_coors (pWilds, ARG_NUM(1), ARG_NUM(2))))
 			*ret = FALSE;
 		else
-			*ret = (IS_SET(pTerrain->template->room_flags, flag_value_ifcheck(room_flags,ARG_STR(3))));
+			*ret = (IS_SET(pTerrain->template->room_flag[0], flag_value_ifcheck(room_flags,ARG_STR(3))));
 
 	} else {
 		if(!ISARG_STR(1)) return FALSE;
@@ -1834,7 +1834,7 @@ DECL_IFC_FUN(ifc_roomflag)
 		else if(ISARG_ROOM(0)) room = ARG_ROOM(0);
 		else if(ISARG_TOK(0)) room = token_room(ARG_TOK(0));
 		else return FALSE;
-		*ret = (room && IS_SET(room->room_flags, flag_value_ifcheck(room_flags,ARG_STR(1))));
+		*ret = (room && IS_SET(room->room_flag[0], flag_value_ifcheck(room_flags,ARG_STR(1))));
 	}
 
 	return TRUE;
@@ -1852,11 +1852,11 @@ DECL_IFC_FUN(ifc_roomflag2)
 		if(!(pWilds = get_wilds_from_uid(NULL,ARG_NUM(0))))
 			*ret = FALSE;
 		else if((room = get_wilds_vroom(pWilds, ARG_NUM(1), ARG_NUM(2))))
-			*ret = (IS_SET(room->room2_flags, flag_value_ifcheck(room2_flags,ARG_STR(3))));
+			*ret = (IS_SET(room->room_flag[1], flag_value_ifcheck(room2_flags,ARG_STR(3))));
 		else if(!(pTerrain = get_terrain_by_coors (pWilds, ARG_NUM(1), ARG_NUM(2))))
 			*ret = FALSE;
 		else
-			*ret = (IS_SET(pTerrain->template->room2_flags, flag_value_ifcheck(room2_flags,ARG_STR(3))));
+			*ret = (IS_SET(pTerrain->template->room_flag[1], flag_value_ifcheck(room2_flags,ARG_STR(3))));
 
 	} else {
 		if(!ISARG_STR(1)) return FALSE;
@@ -1865,7 +1865,7 @@ DECL_IFC_FUN(ifc_roomflag2)
 		else if(ISARG_ROOM(0)) room = ARG_ROOM(0);
 		else if(ISARG_TOK(0)) room = token_room(ARG_TOK(0));
 		else return FALSE;
-		*ret = (room && IS_SET(room->room2_flags, flag_value_ifcheck(room2_flags,ARG_STR(1))));
+		*ret = (room && IS_SET(room->room_flag[1], flag_value_ifcheck(room2_flags,ARG_STR(1))));
 	}
 
 	return TRUE;
@@ -3551,7 +3551,7 @@ DECL_IFC_FUN(ifc_testhardmagic)
 	if(!mob || !mob->in_room) return FALSE;
 
 	chance = 0;
-	if (IS_SET(mob->in_room->room2_flags, ROOM_HARD_MAGIC)) chance += 2;
+	if (IS_SET(mob->in_room->room_flag[1], ROOM_HARD_MAGIC)) chance += 2;
 	if (mob->in_room->sector_type == SECT_CURSED_SANCTUM) chance += 2;
 	if(!IS_NPC(mob) && chance > 0 && number_range(1,chance) > 1) {
 		*ret = TRUE;
@@ -3567,7 +3567,7 @@ DECL_IFC_FUN(ifc_testslowmagic)
 
 	if(!mob || !mob->in_room) return FALSE;
 
-	*ret = IS_SET(mob->in_room->room2_flags,ROOM_SLOW_MAGIC) || (mob->in_room->sector_type == SECT_CURSED_SANCTUM);
+	*ret = IS_SET(mob->in_room->room_flag[1],ROOM_SLOW_MAGIC) || (mob->in_room->sector_type == SECT_CURSED_SANCTUM);
 
 	return TRUE;
 }
@@ -3628,7 +3628,7 @@ DECL_IFC_FUN(ifc_hasenvironment)
 
 	if(!room) return FALSE;
 
-	*ret = IS_SET(room->room2_flags,ROOM_VIRTUAL_ROOM) && (room->environ_type != ENVIRON_NONE);
+	*ret = IS_SET(room->room_flag[1],ROOM_VIRTUAL_ROOM) && (room->environ_type != ENVIRON_NONE);
 	return TRUE;
 }
 
@@ -3978,7 +3978,7 @@ DECL_IFC_FUN(ifc_sunlight)
 		else if(token) room = token_room(token);
 	}
 
-	if (room && (room->wilds || (room->sector_type != SECT_INSIDE && room->sector_type != SECT_NETHERWORLD && !IS_SET(room->room_flags, ROOM_INDOORS)))) {
+	if (room && (room->wilds || (room->sector_type != SECT_INSIDE && room->sector_type != SECT_NETHERWORLD && !IS_SET(room->room_flag[0], ROOM_INDOORS)))) {
 		*ret = (int)(-1000 * cos(3.1415926 * time_info.hour / 12));
 		if(*ret < 0) *ret = 0;
 	} else
@@ -5143,6 +5143,7 @@ DECL_IFC_FUN(ifc_isvalid)
 	else if (ISARG_AREA(0)) *ret = ARG_AREA(0) != NULL;
 	else if (ISARG_INSTANCE(0)) *ret = IS_VALID(ARG_INSTANCE(0));
 	else if (ISARG_DUNGEON(0)) *ret = IS_VALID(ARG_DUNGEON(0));
+	else if (ISARG_EXIT(0)) *ret = ARG_EXIT(0).r != NULL && ARG_EXIT(0).door >= 0 && ARG_EXIT(0).door < MAX_DIR && ARG_EXIT(0).r->exit[ARG_EXIT(0).door] != NULL;
 	else *ret = FALSE;
 
 	return TRUE;

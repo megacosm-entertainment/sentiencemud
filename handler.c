@@ -4237,7 +4237,7 @@ bool room_is_dark(ROOM_INDEX_DATA *pRoomIndex)
     if (pRoomIndex->light > 0)
 	return FALSE;
 
-    if (IS_SET(pRoomIndex->room_flags, ROOM_DARK))
+    if (IS_SET(pRoomIndex->room_flag[0], ROOM_DARK))
 	return TRUE;
 
     if (pRoomIndex->sector_type == SECT_INSIDE ||
@@ -4289,13 +4289,13 @@ bool room_is_private(ROOM_INDEX_DATA *pRoomIndex, CHAR_DATA *looker)
 	    return FALSE;
     }
 
-    if (IS_SET(pRoomIndex->room_flags, ROOM_PRIVATE)  && count >= 2)
+    if (IS_SET(pRoomIndex->room_flag[0], ROOM_PRIVATE)  && count >= 2)
 	return TRUE;
 
-    if (IS_SET(pRoomIndex->room_flags, ROOM_SOLITARY) && count >= 1)
+    if (IS_SET(pRoomIndex->room_flag[0], ROOM_SOLITARY) && count >= 1)
 	return TRUE;
 
-    if (IS_SET(pRoomIndex->room_flags, ROOM_IMP_ONLY))
+    if (IS_SET(pRoomIndex->room_flag[0], ROOM_IMP_ONLY))
 	return TRUE;
 
     return FALSE;
@@ -4378,7 +4378,7 @@ bool can_see(CHAR_DATA *ch, CHAR_DATA *victim)
 	if (is_darked(ch->in_room))
 		return FALSE;
 
-	if (ch->in_room && IS_SET(ch->in_room->room_flags, ROOM_DARK))
+	if (ch->in_room && IS_SET(ch->in_room->room_flag[0], ROOM_DARK))
 	{
 		//(!IS_AFFECTED(ch, AFF_INFRARED) || has_light(ch)) && IS_AFFECTED2(victim,AFF2_DARK_SHROUD)
 
@@ -4443,15 +4443,15 @@ bool can_see(CHAR_DATA *ch, CHAR_DATA *victim)
 /* visibility on a room -- for entering and exits */
 bool can_see_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
 {
-    if (IS_SET(pRoomIndex->room_flags, ROOM_IMP_ONLY)
+    if (IS_SET(pRoomIndex->room_flag[0], ROOM_IMP_ONLY)
     &&  get_trust(ch) < MAX_LEVEL)
 	return FALSE;
 
-    if (IS_SET(pRoomIndex->room_flags, ROOM_GODS_ONLY)
+    if (IS_SET(pRoomIndex->room_flag[0], ROOM_GODS_ONLY)
     &&  !IS_IMMORTAL(ch))
 	return FALSE;
 
-    if (IS_SET(pRoomIndex->room_flags,ROOM_NEWBIES_ONLY)
+    if (IS_SET(pRoomIndex->room_flag[0],ROOM_NEWBIES_ONLY)
     &&  ch->level > 10 && !IS_IMMORTAL(ch))
 	return FALSE;
 
@@ -5886,11 +5886,11 @@ int count_exits(ROOM_INDEX_DATA *room)
 bool is_room_pk(ROOM_INDEX_DATA *room, bool arena)
 {
 	if( room != NULL ) {
-		if( IS_SET(room->room_flags, ROOM_PK) )
+		if( IS_SET(room->room_flag[0], ROOM_PK) )
 			return TRUE;
 
 		// Only count ARENA (LPK) if desired
-		if( arena && IS_SET(room->room_flags, ROOM_ARENA) )
+		if( arena && IS_SET(room->room_flag[0], ROOM_ARENA) )
 			return TRUE;
 	}
 
@@ -6018,14 +6018,14 @@ int is_pk_safe_range(ROOM_INDEX_DATA *room, int depth, int reverse_dir)
     int dir;
 
     /*
-    if (reverse_dir != -1 && (IS_SET(room->room_flags, ROOM_PK)
-    ||   IS_SET(room->room_flags, ROOM_CHAOTIC)))
+    if (reverse_dir != -1 && (IS_SET(room->room_flag[0], ROOM_PK)
+    ||   IS_SET(room->room_flag[0], ROOM_CHAOTIC)))
         return rev_dir[reverse_dir];
      */
 
     if (depth == 0)
     {
-	if (IS_SET(room->room_flags, ROOM_PK))
+	if (IS_SET(room->room_flag[0], ROOM_PK))
 	    return 10;
 
 	else
@@ -6041,7 +6041,7 @@ int is_pk_safe_range(ROOM_INDEX_DATA *room, int depth, int reverse_dir)
 	    if (is_pk_safe_range(to_room, depth - 1, rev_dir[dir]) > -1)
 	    	return dir;
 
-	    if (IS_SET(to_room->room_flags, ROOM_PK))
+	    if (IS_SET(to_room->room_flag[0], ROOM_PK))
 		return dir;
 	}
 
@@ -6928,7 +6928,7 @@ ROOM_INDEX_DATA *find_safe_room(ROOM_INDEX_DATA *from_room, int depth, bool cros
     if (depth == 0)
 	return NULL;
 
-    if (IS_SET(from_room->room_flags, ROOM_SAFE))
+    if (IS_SET(from_room->room_flag[0], ROOM_SAFE))
 	return from_room;
 
     for (door = 0; door < MAX_DIR; door++)
@@ -8111,7 +8111,7 @@ ROOM_INDEX_DATA *get_environment(ROOM_INDEX_DATA *room)
 	}
 
 	// static or floating virtual rooms have no environment
-	if(!IS_SET(room->room2_flags,ROOM_VIRTUAL_ROOM)) return NULL;
+	if(!IS_SET(room->room_flag[1],ROOM_VIRTUAL_ROOM)) return NULL;
 
 	switch(room->environ_type) {
 	case ENVIRON_ROOM:	return room->environ.room;
@@ -9486,7 +9486,7 @@ void visit_room_direction(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, int max_de
 					nextdest.room = pVLink->pDestRoom;
 
 				if( nextdest.room &&
-					(IS_SET(nextdest.room->room2_flags, ROOM_BLUEPRINT) ||
+					(IS_SET(nextdest.room->room_flag[1], ROOM_BLUEPRINT) ||
 					IS_SET(nextdest.room->area->area_flags, AREA_BLUEPRINT)) )
 				{
 					nextdest.room = NULL;
@@ -9689,7 +9689,7 @@ bool can_room_update(ROOM_INDEX_DATA *room)
 {
 	if( !room ) return FALSE;
 
-	if( IS_SET(room->room2_flags, ROOM_ALWAYS_UPDATE) ) return TRUE;
+	if( IS_SET(room->room_flag[1], ROOM_ALWAYS_UPDATE) ) return TRUE;
 
 	if( IS_VALID(room->instance_section) )
 	{
@@ -9746,7 +9746,7 @@ bool is_room_unlocked(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
 {
 	if( !room ||											// Phantom room
 		room_is_clone(room) ||								// General clone
-		IS_SET(room->room2_flags,ROOM_VIRTUAL_ROOM) ||		// Wilderness room
+		IS_SET(room->room_flag[1],ROOM_VIRTUAL_ROOM) ||		// Wilderness room
 		IS_VALID(room->instance_section) )					// Instance room (should count as clone, though)
 		return true;
 

@@ -247,13 +247,13 @@ bool script_object_remref(OBJ_DATA *obj)
 
 void script_room_addref(ROOM_INDEX_DATA *room)
 {
-	if((room->source || IS_SET(room->room2_flags, ROOM_VIRTUAL_ROOM)) && room->progs)
+	if((room->source || IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM)) && room->progs)
 		room->progs->script_ref++;
 }
 
 bool script_room_remref(ROOM_INDEX_DATA *room)
 {
-	if((room->source || IS_SET(room->room2_flags, ROOM_VIRTUAL_ROOM)) && room->progs) {
+	if((room->source || IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM)) && room->progs) {
 		if( room->progs->script_ref > 0 && !--room->progs->script_ref ) {
 			if( room->progs->extract_when_done ) {
 				// Remove!
@@ -762,6 +762,7 @@ void script_loop_cleanup(SCRIPT_CB *block, int level)
 			case ENT_PLLIST_BOOK_PAGE:
 			case ENT_PLLIST_FOOD_BUFF:
 			case ENT_PLLIST_COMPARTMENT:
+			case ENT_ILLIST_SPELLS:
 			case ENT_ILLIST_VARIABLE:
 				iterator_stop(&block->loops[i].d.l.list.it);
 				break;
@@ -2939,7 +2940,7 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_ILLIST_SPELLS:
-			//log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
+			//log_stringf("opc_list: list type ENT_ILLIST_SPELLS");
 			spell = (SPELL_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 			//log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
 

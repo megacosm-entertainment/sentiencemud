@@ -445,6 +445,7 @@ enum entity_type_enum {
 	ENT_MOBILE,
 	ENT_OBJECT,
 	ENT_ROOM,
+	ENT_ARRAY_EXITS,
 	ENT_EXIT,
 	ENT_TOKEN,
 	ENT_AREA,
@@ -461,6 +462,7 @@ enum entity_type_enum {
 	ENT_VARIABLE,
 	ENT_GROUP,
 	ENT_DICE,
+	ENT_RANGE,
 	ENT_BITVECTOR,
 	ENT_BITMATRIX,
 	ENT_STAT,
@@ -470,6 +472,10 @@ enum entity_type_enum {
 	ENT_CATALYST_USAGE,
 	ENT_SKILL_VALUES,
 	ENT_SKILL_VALUENAMES,
+	ENT_INK_TYPES,
+	ENT_INK_TYPE,
+	ENT_INSTRUMENT_RESERVOIRS,
+	ENT_INSTRUMENT_RESERVOIR,
 
 	ENT_MOBINDEX,
 	ENT_OBJINDEX,
@@ -957,6 +963,29 @@ enum entity_object_furniture_enum {
 	ENTITY_OBJ_FURNITURE_COMPARTMENTS,
 };
 
+enum entity_object_ink_enum {
+	ENTITY_OBJ_INK_TYPES = ESCAPE_EXTRA,
+};
+
+enum entity_ink_type_enum {
+	ENTITY_INK_TYPE_CATALYST = ESCAPE_EXTRA,
+	ENTITY_INK_TYPE_AMOUNT,
+};
+
+enum entity_obj_instrument_enum {
+	ENTITY_OBJ_INSTRUMENT_TYPE = ESCAPE_EXTRA,
+	ENTITY_OBJ_INSTRUMENT_FLAGS,
+	ENTITY_OBJ_INSTRUMENT_BEATS,
+	ENTITY_OBJ_INSTRUMENT_MANA,
+	ENTITY_OBJ_INSTRUMENT_RESERVOIRS,
+};
+
+enum entity_instrument_reservoir_enum {
+	ENTITY_INSTRUMENT_RESERVOIR_CATALYST = ESCAPE_EXTRA,
+	ENTITY_INSTRUMENT_RESERVOIR_AMOUNT,
+	ENTITY_INSTRUMENT_RESERVOIR_CAPACITY,
+};
+
 enum entity_object_light_enum {
 	ENTITY_OBJ_LIGHT_DURATION = ESCAPE_EXTRA,
 	ENTITY_OBJ_LIGHT_FLAGS,
@@ -980,8 +1009,29 @@ enum entity_object_portal_enum {
 	ENTITY_OBJ_PORTAL_PARAM3,
 	ENTITY_OBJ_PORTAL_PARAM4,
 	ENTITY_OBJ_PORTAL_LOCK,
-	// ENTITY_OBJ_PORTAL_SPELLS,
+	ENTITY_OBJ_PORTAL_SPELLS,
 };
+
+enum entity_object_scroll_enum {
+	ENTITY_OBJ_SCROLL_MAXMANA = ESCAPE_EXTRA,
+	ENTITY_OBJ_SCROLL_SPELLS,	
+};
+
+enum entity_object_tattoo_enum {
+	ENTITY_OBJ_TATTOO_TOUCHES = ESCAPE_EXTRA,
+	ENTITY_OBJ_TATTOO_FADE,
+	ENTITY_OBJ_TATTOO_FADING,
+	ENTITY_OBJ_TATTOO_SPELLS,
+};
+
+enum entity_object_wand_enum {
+	ENTITY_OBJ_WAND_CHARGES = ESCAPE_EXTRA,
+	ENTITY_OBJ_WAND_MAXCHARGES,
+	ENTITY_OBJ_WAND_COOLDOWN,
+	ENTITY_OBJ_WAND_RECHARGE,
+	ENTITY_OBJ_WAND_SPELLS,
+};
+
 
 enum entity_room_enum {
 	ENTITY_ROOM_NAME = ESCAPE_EXTRA,
@@ -991,6 +1041,8 @@ enum entity_room_enum {
 	ENTITY_ROOM_AREA,
 	ENTITY_ROOM_REGION,
 	ENTITY_ROOM_TARGET,
+	ENTITY_ROOM_FLAGS,
+	ENTITY_ROOM_EXITS,
 	ENTITY_ROOM_NORTH,
 	ENTITY_ROOM_EAST,
 	ENTITY_ROOM_SOUTH,
@@ -1017,6 +1069,12 @@ enum entity_room_enum {
 	ENTITY_ROOM_DUNGEON,
 	ENTITY_ROOM_SHIP,
 	ENTITY_ROOM_SECTOR,
+};
+
+enum entity_array_exits_enum {
+	ENTITY_ARRAY_EXITS_RANDOM = ESCAPE_EXTRA,
+	ENTITY_ARRAY_EXITS_ANY,			// Same as RANDOM, but the exit *must* exist
+	ENTITY_ARRAY_EXITS_OPEN,		// Same as ANY, but the exit must *not* be closed
 };
 
 enum entity_exit_enum {
@@ -1339,6 +1397,14 @@ enum entity_dice_enum {
 	ENTITY_DICE_LAST,
 };
 
+enum entity_range_enum {
+	ENTITY_RANGE_MIN = ESCAPE_EXTRA,
+	ENTITY_RANGE_MAX,
+	ENTITY_RANGE_SPAN,
+	ENTITY_RANGE_AVERAGE,
+	ENTITY_RANGE_VALUE,
+};
+
 enum entity_mobindex_enum {
 	ENTITY_MOBINDEX_WNUM = ESCAPE_EXTRA,
 	ENTITY_MOBINDEX_LOADED,
@@ -1647,6 +1713,10 @@ struct script_var_type {
 		WNUM wnum;
 		WNUM_LOAD wnum_load;
 		DICE_DATA dice;
+		struct {
+			int min;
+			int max;
+		} range;
 		LLIST *list;	// Used for HOMOGENOUS lists only
 		AREA_REGION *ar;
 		struct {
@@ -1802,6 +1872,10 @@ struct script_parameter {
 		SKILL_ENTRY *entry;
 		SONG_DATA *song;
 		struct {
+			OBJ_DATA *obj;
+			int type;
+		} obj_type;			// Used by ENT_INK_TYPES and ENT_INSTRUMENT_RESERVOIRS
+		struct {
 			union {
 				CHAR_DATA **mob;
 				OBJ_DATA **obj;
@@ -1860,6 +1934,10 @@ struct script_parameter {
 		} stat;
 		WNUM wnum;
 		DICE_DATA *dice;
+		struct {
+			int min;
+			int max;
+		} range;
 		VARIABLE **variables;
 		LLIST *blist;
 		long aid;

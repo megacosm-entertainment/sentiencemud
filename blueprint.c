@@ -2599,7 +2599,7 @@ static void __instance_correct_portals(INSTANCE *instance)
 								dest = get_room_index_auid(auid, vnum);
 
 								if( !dest ||
-									IS_SET(dest->room2_flags, ROOM_BLUEPRINT) ||
+									IS_SET(dest->room_flag[1], ROOM_BLUEPRINT) ||
 									IS_SET(dest->area->area_flags, AREA_BLUEPRINT) )
 								{
 									// Nullify destination
@@ -3684,7 +3684,7 @@ bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, long lower, 
 		{
 			found = TRUE;
 
-			if( !IS_SET(room->room2_flags, ROOM_BLUEPRINT) &&
+			if( !IS_SET(room->room_flag[1], ROOM_BLUEPRINT) &&
 				!IS_SET(room->area->area_flags, AREA_BLUEPRINT) )
 			{
 				sprintf(buf, "{xRoom {W%ld{x is not allocated for use in blueprints.\n\r", room->vnum);
@@ -3692,7 +3692,7 @@ bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, long lower, 
 				valid = FALSE;
 			}
 
-			if( IS_SET(room->room2_flags, (ROOM_NOCLONE|ROOM_VIRTUAL_ROOM)) )
+			if( IS_SET(room->room_flag[1], (ROOM_NOCLONE|ROOM_VIRTUAL_ROOM)) )
 			{
 				sprintf(buf, "{xRoom {W%ld{x cannot be used in blueprints.\n\r", room->vnum);
 				add_buf(buffer, buf);
@@ -4068,7 +4068,7 @@ BSEDIT( bsedit_maze )
 				}
 			}
 
-			SET_BIT(room->room2_flags, ROOM_BLUEPRINT);
+			SET_BIT(room->room_flag[1], ROOM_BLUEPRINT);
 			MAZE_WEIGHTED_ROOM *mwr = new_maze_weighted_room();
 			mwr->weight = weight;
 			mwr->vnum = vnum;

@@ -396,6 +396,7 @@ int compile_entity_listbasetype(int ent)
 	case ENT_SKILL_VALUES:		ent = ENT_NUMBER; break;
 	case ENT_SKILL_VALUENAMES:	ent = ENT_STRING; break;
 
+	case ENT_ARRAY_EXITS:		ent = ENT_EXIT;	break;
 	case ENT_CATALYST_USAGE:	ent = ENT_NUMBER; break;
 
 	default:	ent = ENT_UNKNOWN; break;
@@ -431,6 +432,34 @@ char *compile_entity(char *str,int type, char **store, int *entity_type)
 				ent = ENT_NUMBER;
 				continue;
 			}
+
+		} else if(ent == ENT_INK_TYPES) {
+			if (*str == '[')
+			{
+				str = compile_expression(str+1,type, &p);
+				if( !str ) return NULL;
+
+				ent = ENT_INK_TYPE;
+				continue;
+			}
+
+			sprintf(buf,"Line %d: Expecting '[' after ENT_INK_TYPES in $().", compile_current_line);
+			compile_error_show(buf);
+			return NULL;
+
+		} else if(ent == ENT_INSTRUMENT_RESERVOIRS) {
+			if (*str == '[')
+			{
+				str = compile_expression(str+1,type, &p);
+				if( !str ) return NULL;
+
+				ent = ENT_INSTRUMENT_RESERVOIR;
+				continue;
+			}
+
+			sprintf(buf,"Line %d: Expecting '[' after ENT_INSTRUMENT_RESERVOIRS in $().", compile_current_line);
+			compile_error_show(buf);
+			return NULL;
 
 		} else {
 			if (script_entity_allow_index(ent))
@@ -737,8 +766,11 @@ char *compile_entity(char *str,int type, char **store, int *entity_type)
 			case ENT_PLLIST_CHURCH:	ent = ENT_CHURCH; break;
 			case ENT_PLLIST_FOOD_BUFF: ent = ENT_FOOD_BUFF; break;
 			case ENT_PLLIST_COMPARTMENT: ent = ENT_COMPARTMENT; break;
-
+			
+			case ENT_ILLIST_SPELLS:		ent = ENT_SPELL; break;
 			case ENT_ILLIST_VARIABLE:	ent = ENT_VARIABLE; break;
+
+			case ENT_ARRAY_EXITS:		ent = ENT_EXIT; break;
 
 			default:
 				sprintf(buf,"Line %d: Invalid $() primary '%s'.", compile_current_line, field);

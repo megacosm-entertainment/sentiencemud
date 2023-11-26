@@ -324,8 +324,8 @@ DESCRIPTOR_DATA *new_descriptor(void)
     d->last_area = NULL;
     d->last_area_region = NULL;
     d->last_room_sector = SECT_NONE;
-    d->last_room_flags = 0;
-    d->last_room2_flags = 0;
+    d->last_room_flag[0] = 0;
+    d->last_room_flag[0] = 0;
 
     top_descriptor++;
 
@@ -1833,8 +1833,8 @@ ROOM_INDEX_DATA *new_room_index( void )
     pRoom->owner	    =	&str_empty[0];
     pRoom->home_owner	    =   NULL;
     pRoom->vnum             =   0;
-    pRoom->room_flags       =   0;
-    pRoom->room2_flags      =   0;
+    pRoom->room_flag[0]       =   0;
+    pRoom->room_flag[1]      =   0;
     pRoom->light            =   0;
     pRoom->sector_type      =   0;
     pRoom->heal_rate	    =   100;
@@ -5871,6 +5871,7 @@ PORTAL_DATA *new_portal_data()
     data->name = str_dup("");
     data->short_descr = str_dup("");
     data->charges = -1;
+    data->spells = list_createx(FALSE, copy_spell, delete_spell);
 
     VALIDATE(data);
     return data;
@@ -5900,21 +5901,7 @@ PORTAL_DATA *copy_portal_data(PORTAL_DATA *src, bool repop)
         data->params[i] = src->params[i];
 
     data->lock = copy_lock_state(src->lock);
-
-    SPELL_DATA *spell, *spell_new;
-    for(spell = data->spells;spell;spell = spell->next)
-    {
-	    if (repop || spell->repop == 100 || number_percent() < spell->repop)
-	    {
-            spell_new = new_spell();
-            spell_new->skill = spell->skill;
-            spell_new->level = spell->level;
-            spell_new->repop = spell->repop;
-
-            spell_new->next = data->spells;
-            data->spells = spell_new;
-	    }
-    }
+    data->spells = list_copy(src->spells);
 
     VALIDATE(data);
     return data;
@@ -5927,6 +5914,7 @@ void free_portal_data(PORTAL_DATA *data)
     free_string(data->name);
     free_string(data->short_descr);
     free_lock_state(data->lock);
+    list_destroy(data->spells);
 
     INVALIDATE(data);
     data->next = portal_data_free;

@@ -1354,7 +1354,7 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, SKI
 	if (victim != ch) {
 		// Is victim safe from ch?
 		if (!(!IS_NPC(ch) && IS_IMMORTAL(ch)) &&
-			(is_safe(ch, victim, TRUE) || IS_SET(ch->in_room->room_flags, ROOM_SAFE) || IS_SET(victim->in_room->room_flags, ROOM_SAFE))) {
+			(is_safe(ch, victim, TRUE) || IS_SET(ch->in_room->room_flag[0], ROOM_SAFE) || IS_SET(victim->in_room->room_flag[0], ROOM_SAFE))) {
 			victim->set_death_type = DEATHTYPE_ALIVE;
 			victim->in_damage_function = FALSE;
 			return FALSE;
@@ -1821,7 +1821,7 @@ bool is_safe(CHAR_DATA *ch, CHAR_DATA *victim, bool show)
 
 	// checks for kill stealing here now
 	if (!IS_NPC(ch) && victim->fighting && !is_same_group(ch, victim->fighting)
-	&& victim != ch && !IS_SET(ch->in_room->room2_flags, ROOM_MULTIPLAY)) {
+	&& victim != ch && !IS_SET(ch->in_room->room_flag[1], ROOM_MULTIPLAY)) {
 
 	if (show)
 		send_to_char("Kill stealing is not allowed.\n\r", ch);
@@ -1851,7 +1851,7 @@ bool is_safe(CHAR_DATA *ch, CHAR_DATA *victim, bool show)
 	if (victim->fighting == ch || victim == ch)
 	return FALSE;
 
-	if (IS_SET(victim->in_room->room_flags, ROOM_SAFE))
+	if (IS_SET(victim->in_room->room_flag[0], ROOM_SAFE))
 	{
 	if (show)
 		send_to_char("This room is sanctioned by the gods.\n\r", ch);
@@ -2018,10 +2018,10 @@ bool is_safe(CHAR_DATA *ch, CHAR_DATA *victim, bool show)
 		}
 
 		// PK rooms. Be sure that BOTH players are in a PK room for ranged attacks!
-		if ((IS_SET(ch->in_room->room_flags, ROOM_PK)
-			 || IS_SET(ch->in_room->room_flags, ROOM_ARENA))
-		&&  (IS_SET(victim->in_room->room_flags, ROOM_PK)
-			 || IS_SET(victim->in_room->room_flags, ROOM_ARENA)))
+		if ((IS_SET(ch->in_room->room_flag[0], ROOM_PK)
+			 || IS_SET(ch->in_room->room_flag[0], ROOM_ARENA))
+		&&  (IS_SET(victim->in_room->room_flag[0], ROOM_PK)
+			 || IS_SET(victim->in_room->room_flag[0], ROOM_ARENA)))
 		return FALSE;
 
 		if (IS_SET(victim->act[0],PLR_BOTTER))
@@ -2094,7 +2094,7 @@ bool is_safe_spell(CHAR_DATA *ch, CHAR_DATA *victim, bool area)
 	*/
 
 	/* safe room? */
-	if (IS_SET(victim->in_room->room_flags,ROOM_SAFE))
+	if (IS_SET(victim->in_room->room_flag[0],ROOM_SAFE))
 		return TRUE;
 
 	/* killing mobiles */
@@ -3128,7 +3128,7 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
 		if (IS_IMMORTAL(ch))
 			SET_BIT(CORPSE_FLAGS(corpse), CORPSE_IMMORTAL);
 		else {
-			if(IS_SET(ch->in_room->room_flags, ROOM_CHAOTIC))
+			if(IS_SET(ch->in_room->room_flag[0], ROOM_CHAOTIC))
 				SET_BIT(CORPSE_FLAGS(corpse), CORPSE_CHAOTICDEATH);
 			if(is_room_pk(ch->in_room, TRUE) || is_pk(ch))
 				SET_BIT(CORPSE_FLAGS(corpse), CORPSE_PKDEATH);
@@ -3181,18 +3181,18 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
 	// 20070521 : NIB : If a PC and a chaotic Death, mark the corpse as a chaotic death
 	if(!IS_NPC(ch) && !IS_DEAD(ch) && !IS_IMMORTAL(ch))
 	{
- 		if(IS_SET(ch->in_room->room_flags,ROOM_CHAOTIC))
+ 		if(IS_SET(ch->in_room->room_flag[0],ROOM_CHAOTIC))
 			SET_BIT(CORPSE_FLAGS(corpse),CORPSE_CHAOTICDEATH);
 		if(is_room_pk(ch->in_room,FALSE) || is_pk(ch))
 			SET_BIT(CORPSE_FLAGS(corpse),CORPSE_PKDEATH);
-		if(IS_SET(ch->in_room->room_flags, ROOM_ARENA))
+		if(IS_SET(ch->in_room->room_flag[0], ROOM_ARENA))
 			SET_BIT(CORPSE_FLAGS(corpse),CORPSE_ARENADEATH);
 	}
 
 	// NPC death and CPK death for PCs
 	// Don't leave no_loot items in player corpses, just like no_uncurse -- Areo
 	if (IS_NPC(ch)
-	|| (!IS_NPC(ch) && !IS_DEAD(ch) && IS_SET(ch->in_room->room_flags,ROOM_CHAOTIC)))
+	|| (!IS_NPC(ch) && !IS_DEAD(ch) && IS_SET(ch->in_room->room_flag[0],ROOM_CHAOTIC)))
 	for (obj = ch->carrying; obj != NULL; obj = obj_next)
 	{
 		obj_next = obj->next_content;
@@ -3466,9 +3466,9 @@ int room_pkness(ROOM_INDEX_DATA)
 {
 	int pk = 1;
 
-	if (IS_SET(victim->in_room->room_flags, ROOM_PK) || IS_SET(victim->in_room->room_flags, ROOM_ARENA)) pk += 1;
-	if (IS_SET(victim->in_room->room_flags, ROOM_CHAOTIC)) pk += 2;
-	if (IS_SET(victim->in_room->room_flags, ROOM_SAFE)) pk = 0;
+	if (IS_SET(victim->in_room->room_flag[0], ROOM_PK) || IS_SET(victim->in_room->room_flag[0], ROOM_ARENA)) pk += 1;
+	if (IS_SET(victim->in_room->room_flag[0], ROOM_CHAOTIC)) pk += 2;
+	if (IS_SET(victim->in_room->room_flag[0], ROOM_SAFE)) pk = 0;
 
 	return pk;
 }
@@ -3530,7 +3530,7 @@ void death_sight_check(CHAR_DATA *ch, CHAR_DATA *victim)
 	void *argv[8];
 	int pk,skill,depth;
 
-	if (IS_SET(victim->in_room->room_flags, ROOM_SAFE)) return;
+	if (IS_SET(victim->in_room->room_flag[0], ROOM_SAFE)) return;
 
 	pk = room_pkness(victim->in_room);
 	skill = get_skill(ch, gsk_deathsight);
@@ -3629,7 +3629,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 		}
 	}
 
-	if (!IS_NPC(victim) && (IS_SET(victim->in_room->room_flags, ROOM_ARENA) || (pre_reckoning == 0 && reckoning_timer > 0)))
+	if (!IS_NPC(victim) && (IS_SET(victim->in_room->room_flag[0], ROOM_ARENA) || (pre_reckoning == 0 && reckoning_timer > 0)))
 		arena = TRUE;
 
 	/* if something catastrophic has happened bail out */
@@ -5823,7 +5823,7 @@ void do_burgle(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!IS_SET(ch->in_room->room_flags, ROOM_BANK)) {
+	if (!IS_SET(ch->in_room->room_flag[0], ROOM_BANK)) {
 		send_to_char("You have to be IN a bank to rob it\n\r", ch);
 		return;
 	}
@@ -6253,7 +6253,7 @@ int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue)
 					|| (IS_SET(pexit->exit_info, EX_AERIAL) && !flying)
 					|| (IS_NPC(ch) && (IS_SET(pexit->exit_info, EX_VLINK)))
 					|| number_range(0,ch->daze) != 0
-					|| (IS_NPC(ch) && (IS_SET(pexit->u1.to_room->room_flags, ROOM_NO_MOB) || IS_SET(pexit->u1.to_room->room_flags, ROOM_SAFE))))
+					|| (IS_NPC(ch) && (IS_SET(pexit->u1.to_room->room_flag[0], ROOM_NO_MOB) || IS_SET(pexit->u1.to_room->room_flag[0], ROOM_SAFE))))
 					continue;
 			}
 			else
@@ -6280,7 +6280,7 @@ int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue)
 				|| (IS_SET(pexit->exit_info, EX_AERIAL) && !flying)
 				|| (IS_NPC(ch) && (IS_SET(pexit->exit_info, EX_VLINK)))
 				|| number_range(0,ch->daze) != 0
-				|| (IS_NPC(ch) && (IS_SET(pexit->u1.to_room->room_flags, ROOM_NO_MOB) || IS_SET(pexit->u1.to_room->room_flags, ROOM_SAFE)))) {
+				|| (IS_NPC(ch) && (IS_SET(pexit->u1.to_room->room_flag[0], ROOM_NO_MOB) || IS_SET(pexit->u1.to_room->room_flag[0], ROOM_SAFE)))) {
 				door = -1;
 			}
 		}
@@ -7074,7 +7074,7 @@ void do_resurrect(CHAR_DATA *ch, char *argument)
 	}
 
 	// Only allow resurrection of CPK corpses in CPK rooms
-	if( IS_SET(ch->in_room->room_flags, ROOM_CHAOTIC) && !IS_SET(CORPSE_FLAGS(obj), CORPSE_CHAOTICDEATH) )
+	if( IS_SET(ch->in_room->room_flag[0], ROOM_CHAOTIC) && !IS_SET(CORPSE_FLAGS(obj), CORPSE_CHAOTICDEATH) )
 	{
 		// Any player, or non-holyaura immortal, attempting to do so will be ZOTTED.
 		if( !IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act[1], PLR_HOLYAURA)))
@@ -7817,7 +7817,7 @@ void player_kill(CHAR_DATA *ch, CHAR_DATA *victim)
 {
 	char buf[MAX_STRING_LENGTH];
 
-	if (!pre_reckoning && reckoning_timer > 0 && !IS_NPC(victim) && !IS_SET(victim->in_room->room_flags, ROOM_ARENA)) {
+	if (!pre_reckoning && reckoning_timer > 0 && !IS_NPC(victim) && !IS_SET(victim->in_room->room_flag[0], ROOM_ARENA)) {
 		sprintf(buf, "{MThe reckoning has claimed %s, who was slain by the mighty %s!{x\n\r", victim->name, ch->name);
 		gecho(buf);
 	}
@@ -7829,7 +7829,7 @@ void player_kill(CHAR_DATA *ch, CHAR_DATA *victim)
 	victim->tot_level + 75 < ch->tot_level &&
 	(ch->in_room->area->place_flags == PLACE_FIRST_CONTINENT ||
 	ch->in_room->area->place_flags == PLACE_SECOND_CONTINENT) &&
-	!IS_SET(victim->in_room->room_flags, ROOM_ARENA)) {
+	!IS_SET(victim->in_room->room_flag[0], ROOM_ARENA)) {
 	int place = 0;
 	sprintf(buf, "Let it be known %s has cowardly slain %s, %s is now known as a pirate!", ch->name, victim->name, ch->name);
 	crier_announce(buf);
@@ -7845,7 +7845,7 @@ void player_kill(CHAR_DATA *ch, CHAR_DATA *victim)
 	*/
 
 	// Arena win. Only announces and tallies in Plith arena to make "arena" flag more versatile.
-	if (IS_SET(ch->in_room->room_flags, ROOM_ARENA) && !str_cmp(victim->in_room->area->name, "Arena") && ch != victim) {
+	if (IS_SET(ch->in_room->room_flag[0], ROOM_ARENA) && !str_cmp(victim->in_room->area->name, "Arena") && ch != victim) {
 		ch->arena_kills++;
 		victim->arena_deaths++;
 
@@ -7870,7 +7870,7 @@ void player_kill(CHAR_DATA *ch, CHAR_DATA *victim)
 		ch->questpoints += quest_points;
 	} else if (ch != victim) { // Regular PK win.
 		// CPK
-		if (IS_SET(ch->in_room->room_flags, ROOM_CHAOTIC)) {
+		if (IS_SET(ch->in_room->room_flag[0], ROOM_CHAOTIC)) {
 			ch->cpk_kills++;
 			victim->cpk_deaths++;
 			if (IN_CHURCH(ch)) {

@@ -2640,7 +2640,7 @@ REDIT(redit_show)
 	    pRoom->name, pRoom->area->uid, pRoom->area->name);
     add_buf(buf1, buf);
 
-    if (IS_SET(pRoom->room2_flags, ROOM_VIRTUAL_ROOM))
+    if (IS_SET(pRoom->room_flag[1], ROOM_VIRTUAL_ROOM))
         sprintf (buf, "VRoom at ({W%ld{x, {W%ld{x), in wilds uid ({W%ld{x) '{W%s{x'\n\r",
                  pRoom->x, pRoom->y, pRoom->wilds->uid, pRoom->wilds->name);
     else if(pRoom->viewwilds)
@@ -2660,7 +2660,7 @@ REDIT(redit_show)
     add_buf(buf1, buf);
 
     sprintf(buf, "Room flags:   {r[{x%s{r]{x\n\r",
-		bitvector_string(2, pRoom->room_flags, room_flags, pRoom->room2_flags, room2_flags));
+		bitmatrix_string(room_flagbank, pRoom->room_flag));
     add_buf(buf1, buf);
 
     if (pRoom->heal_rate != 100 || pRoom->mana_rate != 100 || pRoom->heal_rate != 100)
@@ -3277,7 +3277,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 			return FALSE;
 		}
 
-		if( IS_SET(ch->in_room->room2_flags, ROOM_BLUEPRINT) ||
+		if( IS_SET(ch->in_room->room_flag[1], ROOM_BLUEPRINT) ||
 			IS_SET(ch->in_room->area->area_flags, ROOM_BLUEPRINT) )
 		{
 			if( !rooms_in_same_section(pRoom->area, pRoom->vnum, wnum.pArea, wnum.vnum) )
@@ -3286,7 +3286,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 				return FALSE;
 			}
 
-			redit_blueprint_oncreate = (IS_SET(ch->in_room->room2_flags, ROOM_BLUEPRINT)) && TRUE;
+			redit_blueprint_oncreate = (IS_SET(ch->in_room->room_flag[1], ROOM_BLUEPRINT)) && TRUE;
 		}
 
 		if( pRoom->exit[door] && IS_SET(pRoom->exit[door]->exit_info, EX_ENVIRONMENT) )
@@ -3922,7 +3922,7 @@ REDIT(redit_create)
 		// Only copy if the new room is in the same area as the previous room
 		if( pPrevRoom && pPrevRoom->area == wnum.pArea )
 		{
-			SET_BIT(pRoom->room2_flags, ROOM_BLUEPRINT);
+			SET_BIT(pRoom->room_flag[1], ROOM_BLUEPRINT);
 		}
 		redit_blueprint_oncreate = FALSE;
 	}
@@ -3935,12 +3935,12 @@ REDIT(redit_create)
 			ch->desc->last_area = pRoom->area;
 			ch->desc->last_area_region = NULL;
 			ch->desc->last_room_sector = SECT_NONE;
-			ch->desc->last_room_flags = 0;
-			ch->desc->last_room2_flags = 0;
+			ch->desc->last_room_flag[0] = 0;
+			ch->desc->last_room_flag[0] = 0;
 		}
 	}
 
-	if (!IS_SET(pRoom->room2_flags, ROOM_BLUEPRINT))
+	if (!IS_SET(pRoom->room_flag[1], ROOM_BLUEPRINT))
 	{
 		AREA_REGION *region = &pRoom->area->region;
 
@@ -3971,8 +3971,8 @@ REDIT(redit_create)
 			pRoom->sector_type = ch->desc->last_room_sector;
 		}
 
-		pRoom->room_flags = ch->desc->last_room_flags;
-		pRoom->room2_flags = ch->desc->last_room2_flags;
+		pRoom->room_flag[0] = ch->desc->last_room_flag[0];
+		pRoom->room_flag[1] = ch->desc->last_room_flag[1];
 	}
 
     iHash = wnum.vnum % MAX_KEY_HASH;
@@ -5250,7 +5250,8 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		if( PORTAL(obj)->lock )
 			print_lock_state(PORTAL(obj)->lock, buffer, "");
 
-		if (PORTAL(obj)->spells)
+
+		if (list_size(PORTAL(obj)->spells) > 0)
 		{
 			int cnt = 0;
 
@@ -5260,13 +5261,18 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 			sprintf(buf, "{g%-6s %-20s %-10s %-6s{x\n\r", "------", "-----", "-----", "------");
 			add_buf(buffer, buf);
 
-			for (SPELL_DATA *spell = PORTAL(obj)->spells; spell != NULL; spell = spell->next, cnt++)
+			ITERATOR sit;
+			SPELL_DATA *spell;
+			iterator_start(&sit, PORTAL(obj)->spells);
+			while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
 			{
 				sprintf(buf, "{B[{W%4d{B]{x %-20s %-10d %d%%\n\r",
 					cnt,
 					spell->skill->name, spell->level, spell->repop);
 				buf[0] = UPPER(buf[0]);
 				add_buf(buffer, buf);
+
+				cnt++;
 			}
 		}
 	}
@@ -13798,16 +13804,21 @@ OEDIT(oedit_type_portal)
 					return FALSE;
 				}
 
+				ITERATOR sit;
 				SPELL_DATA *spell_tmp;
-
-				for (spell_tmp = PORTAL(pObj)->spells; spell_tmp != NULL; spell_tmp = spell_tmp->next)
+				iterator_start(&sit, PORTAL(pObj)->spells);
+				while((spell_tmp = (SPELL_DATA *)iterator_nextdata(&sit)))
 				{
 					if (spell_tmp->skill == skill)
-					{
-						send_to_char("That spell is already on the object.\n\r", ch);
-						return FALSE;
-					}	
+						break;
 				}
+				iterator_stop(&sit);
+
+				if (spell_tmp)
+				{
+					send_to_char("That spell is already on the object.\n\r", ch);
+					return FALSE;
+				}	
 
 				if (!is_number(arg3) || !is_number(argument))
 				{
@@ -13836,13 +13847,7 @@ OEDIT(oedit_type_portal)
 				spell->repop = chance;
 				spell->next = NULL;
 
-				if (PORTAL(pObj)->spells == NULL)
-					PORTAL(pObj)->spells = spell;
-				else
-				{
-					for(spell_tmp = PORTAL(pObj)->spells; spell_tmp->next != NULL; spell_tmp = spell_tmp->next);
-			        spell_tmp->next = spell;
-				}
+				list_appendlink(PORTAL(pObj)->spells, spell);
 
 			    sprintf(buf, "PORTAL Spell %s, level %d, random %d added.\n\r",
 					get_spell_data_name(spell), spell->level, spell->repop);
@@ -13858,45 +13863,13 @@ OEDIT(oedit_type_portal)
 				}
 
 				int n = atoi(argument);
-				int i = 0;
-				SPELL_DATA *spell_prev = NULL;
-				SPELL_DATA *spell;
-				for (spell = PORTAL(pObj)->spells; spell != NULL; spell = spell->next)
-				{
-					if (i == n)
-						break;
-					i++;
-					spell_prev = spell;
-				}
-
-				if (spell == NULL)
-				{
-					send_to_char("No such PORTAL spell.\n\r", ch);
-					return FALSE;
-				}
-
-				// First one on the list
-				if (!spell_prev)
-					PORTAL(pObj)->spells = spell->next;
-				else
-					spell_prev->next = spell->next;
-				free_spell(spell);
-
+				list_remnthlink(PORTAL(pObj)->spells, n);
 				send_to_char("PORTAL Spell removed.\n\r", ch);
 				return TRUE;
 			}
 			else if (!str_prefix(arg, "clear"))
 			{
-				SPELL_DATA *spell, *next_spell;
-
-				for(spell = PORTAL(pObj)->spells; spell; spell = next_spell)
-				{
-					next_spell = spell->next;
-
-					free_spell(spell);
-				}
-
-				PORTAL(pObj)->spells = NULL;
+				list_clear(PORTAL(pObj)->spells);
 
 				send_to_char("PORTAL Spells cleared.\n\r", ch);
 				return TRUE;
@@ -17899,7 +17872,7 @@ REDIT(redit_room)
     EDIT_ROOM(ch, room);
 
 	long bits[2];
-	if (!bitvector_lookup(argument, 2, bits, room_flags, room2_flags))
+	if (!bitmatrix_lookup(argument, room_flagbank, bits))
 	{
 		send_to_char("Syntax:  room <flags>\n\r", ch);
 		send_to_char("Type '? room' for list of flags.\n\r", ch);
@@ -17922,12 +17895,12 @@ REDIT(redit_room)
 				return FALSE;
 			}
 		}
-		else*/ if( !IS_SET(bits[1], ROOM_NOCLONE) && IS_SET(room->room2_flags, ROOM_NOCLONE) )
+		else*/ if( !IS_SET(bits[1], ROOM_NOCLONE) && IS_SET(room->room_flag[1], ROOM_NOCLONE) )
 		{
 			send_to_char("No-clone room cannot be used in blueprints.\n\r", ch);
 			return FALSE;
 		}
-		else if( IS_SET(bits[1], ROOM_NOCLONE) && !IS_SET(room->room2_flags, ROOM_NOCLONE) )
+		else if( IS_SET(bits[1], ROOM_NOCLONE) && !IS_SET(room->room_flag[1], ROOM_NOCLONE) )
 		{
 			send_to_char("BLUEPRINT and NO_CLONE cannot mix.\n\r", ch);
 			return FALSE;
@@ -17936,7 +17909,7 @@ REDIT(redit_room)
 
 	if( IS_SET(bits[1], ROOM_NOCLONE) )
 	{
-		if( !IS_SET(bits[1], ROOM_BLUEPRINT) && IS_SET(room->room2_flags, ROOM_BLUEPRINT) )
+		if( !IS_SET(bits[1], ROOM_BLUEPRINT) && IS_SET(room->room_flag[1], ROOM_BLUEPRINT) )
 		{
 			send_to_char("Blueprint rooms cannot be no-clone.\n\r", ch);
 			return FALSE;
@@ -17947,9 +17920,9 @@ REDIT(redit_room)
 		{
 			send_to_char("Room is currently used in a blueprint.\n\r", ch);
 			// Clear it out, JIC
-			if( IS_SET(room->room2_flags, ROOM_NOCLONE) )
+			if( IS_SET(room->room_flag[1], ROOM_NOCLONE) )
 			{
-			    REMOVE_BIT(room->room2_flags, ROOM_NOCLONE);
+			    REMOVE_BIT(room->room_flag[1], ROOM_NOCLONE);
 			    return TRUE;
 			}
 
@@ -17958,15 +17931,15 @@ REDIT(redit_room)
 	}
 
 
-    TOGGLE_BIT(room->room_flags, bits[0]);
-    TOGGLE_BIT(room->room2_flags, bits[1]);
+	for(int i = 0; i < 2; i++)
+    	TOGGLE_BIT(room->room_flag[i], bits[i]);
 
 	// Now that we've gotten passed the validation:
 	// Check for toggling blueprints on and off
 	if (IS_SET(bits[1], ROOM_BLUEPRINT))
 	{
 		// Turned on
-		if (IS_SET(room->room2_flags, ROOM_BLUEPRINT))
+		if (IS_SET(room->room_flag[1], ROOM_BLUEPRINT))
 		{
 			// Blueprint rooms have *no* regions whatsoever
 			__region_remove_room(room);
@@ -17981,8 +17954,8 @@ REDIT(redit_room)
 
 	if (IS_SET(ch->act[0], PLR_AUTOOLC))
 	{
-		ch->desc->last_room_flags = room->room_flags;
-		ch->desc->last_room2_flags = room->room2_flags;
+		ch->desc->last_room_flag[0] = room->room_flag[0];
+		ch->desc->last_room_flag[1] = room->room_flag[1];
 	}
 
     send_to_char("Room flags toggled.\n\r", ch);
@@ -18057,7 +18030,7 @@ REDIT(redit_coords)
 		y = atoi(arg2);
 		z = atoi(arg3);
 
-		if( !IS_SET(room->room2_flags, ROOM_BLUEPRINT) )
+		if( !IS_SET(room->room_flag[1], ROOM_BLUEPRINT) )
 		{
 			w = get_wilds_from_uid(NULL,atoi(argument));
 			if(!w) {
@@ -18674,8 +18647,8 @@ void correct_vrooms(WILDS_DATA *pWilds, WILDS_TERRAIN *pTerrain)
 		if(vroom->parent_template == pTerrain) {
 			free_string(vroom->name);
 			vroom->name = str_dup(pTerrain->template->name);
-			vroom->room_flags = pTerrain->template->room_flags;
-			vroom->room2_flags = pTerrain->template->room2_flags|ROOM_VIRTUAL_ROOM;
+			vroom->room_flag[0] = pTerrain->template->room_flag[0];
+			vroom->room_flag[1] = pTerrain->template->room_flag[1]|ROOM_VIRTUAL_ROOM;
 				vroom->sector_type = pTerrain->template->sector_type;
 		}
 	}
@@ -18955,8 +18928,8 @@ WEDIT ( wedit_terrain )
                      pTerrain->showname ? pTerrain->showname : "(Not Set)",
                      flag_string(sector_flags, pTerrain->template->sector_type),
                      pTerrain->nonroom ? "  Yes    " : "  No     ",
-                     flag_string(room_flags, pTerrain->template->room_flags),
-                     flag_string(room2_flags, pTerrain->template->room2_flags));
+                     flag_string(room_flags, pTerrain->template->room_flag[0]),
+                     flag_string(room2_flags, pTerrain->template->room_flag[1]));
             add_buf(output, buf);
         }
 
@@ -19096,7 +19069,7 @@ WEDIT ( wedit_terrain )
 	    return FALSE;
 	}
 
-	TOGGLE_BIT(pTerrain->template->room_flags, value);
+	TOGGLE_BIT(pTerrain->template->room_flag[0], value);
 	correct_vrooms(pWilds, pTerrain);
 	send_to_char("Room flags toggled.\n\r", ch);
         return TRUE;
@@ -19110,7 +19083,7 @@ WEDIT ( wedit_terrain )
 	    return FALSE;
 	}
 
-	TOGGLE_BIT(pTerrain->template->room2_flags, value);
+	TOGGLE_BIT(pTerrain->template->room_flag[1], value);
 	correct_vrooms(pWilds, pTerrain);
 	send_to_char("Room2 flags toggled.\n\r", ch);
         return TRUE;
@@ -19368,7 +19341,7 @@ WEDIT ( wedit_vlink )
 					return FALSE;
 				}
 
-				if( IS_SET(destRoom->room2_flags, ROOM_BLUEPRINT) ||
+				if( IS_SET(destRoom->room_flag[1], ROOM_BLUEPRINT) ||
 					IS_SET(destRoom->area->area_flags, AREA_BLUEPRINT) )
 				{
 					send_to_char("Wedit vlink: Invalid destination.\n\r", ch);

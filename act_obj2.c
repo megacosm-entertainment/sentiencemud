@@ -1181,7 +1181,7 @@ void ink_end( CHAR_DATA *ch )
 	else if (ch->ink_info[1])
 		chance = 41 * chance / 42;
 
-    if (IS_SET(ch->in_room->room2_flags, ROOM_ALCHEMY))
+    if (IS_SET(ch->in_room->room_flag[1], ROOM_ALCHEMY))
         chance = 3 * chance / 2;
 
     chance = URANGE(1, chance, 99);
@@ -1287,7 +1287,7 @@ void ink_end( CHAR_DATA *ch )
 
 	level = ch->tot_level * ((n - 1) * chance + 100) / (n * 100);
 
-	if (IS_SET(ch->in_room->room2_flags, ROOM_ALCHEMY))
+	if (IS_SET(ch->in_room->room_flag[1], ROOM_ALCHEMY))
 		level = (ch->tot_level + level) / 2;
 
 	for(int i = 0; i < 3; i++)

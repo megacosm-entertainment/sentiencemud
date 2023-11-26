@@ -1500,8 +1500,7 @@ struct	descriptor_data
     AREA_REGION *last_area_region;      // Last area region assigned to a room.  If NULL, it will not do anything.
                                         // Will NULL when you change to start editting a room that is not in the same area.
     int last_room_sector;               
-    long last_room_flags;
-    long last_room2_flags;
+    long last_room_flag[2];
 
     /* Input function */
     bool		input;
@@ -5020,7 +5019,7 @@ struct obj_portal_data {
 
     LOCK_STATE *lock;
 
-    SPELL_DATA *spells;
+    LLIST *spells;
 };
 
 // ==========[ SCROLL ]============
@@ -6052,8 +6051,7 @@ struct	room_index_data
     char *		owner;
     char *      comments;
     long		vnum;
-    long		room_flags;
-    long		room2_flags;
+    long		room_flag[2];
     int			light;
     int			sector_type;
     int			heal_rate;
@@ -8232,7 +8230,7 @@ extern sh_int grn_unique;
 #define SAME_PLACE(from, to) (is_same_place((from),(to)))
 
 #define IS_OUTSIDE(ch)	( (ch)->in_room->wilds || \
-		(!IS_SET((ch)->in_room->room_flags,ROOM_INDOORS) && \
+		(!IS_SET((ch)->in_room->room_flag[0],ROOM_INDOORS) && \
 			(ch)->in_room->sector_type != SECT_INSIDE && (ch)->in_room->sector_type != SECT_NETHERWORLD ) )
 
 #define IS_SOCIAL(ch)	  (IS_SET((ch)->comm, COMM_SOCIAL))
@@ -8348,7 +8346,7 @@ extern sh_int grn_unique;
 #define IS_SHIFTED_WEREWOLF(ch)	(ch->shifted == SHIFTED_WEREWOLF )
 #define IS_SHIFTED_SLAYER(ch)	(ch->shifted == SHIFTED_SLAYER )
 #define IS_SHIFTED(ch)		(ch->shifted != SHIFTED_NONE )
-#define IS_SAFE(ch) (IS_SET(ch->in_room->room_flags, ROOM_SAFE))
+#define IS_SAFE(ch) (IS_SET(ch->in_room->room_flag[0], ROOM_SAFE))
 #define ON_QUEST(ch) (ch->quest != NULL)
 #define IS_INVASION_LEADER(ch)   ( IS_SET(ch->act[1], ACT2_INVASION_LEADER ))
 #define IS_PIRATE(ch)   (!IS_NPC(ch) ? (ch->pcdata->rank[CONT_SERALIA] == NPC_SHIP_RANK_PIRATE || \
