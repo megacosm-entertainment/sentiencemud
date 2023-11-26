@@ -283,7 +283,7 @@ void do_play(CHAR_DATA *ch, char *argument)
 		// Find equipped instrument
 		for (instrument = ch->carrying; instrument != NULL; instrument = instrument->next_content )
 		{
-			if ( instrument->item_type == ITEM_INSTRUMENT && instrument->wear_loc != WEAR_NONE)
+			if ( IS_INSTRUMENT(instrument) && instrument->wear_loc != WEAR_NONE)
 			{
 				break;
 			}
@@ -367,7 +367,17 @@ void do_play(CHAR_DATA *ch, char *argument)
 	mana = entry->song->mana;
 	beats = entry->song->beats;
 
-	// TODO: Add instrument level modification for mana
+	// Adjust the mana cost
+	if (instrument != NULL)
+	{
+		if (INSTRUMENT(instrument)->mana_min > 0 && INSTRUMENT(instrument)->mana_max > 0)
+		{
+			int scale = number_range(INSTRUMENT(instrument)->mana_min, INSTRUMENT(instrument)->mana_max);
+
+			mana = scale * mana / 100;
+		}
+	}
+
 
 	if ((ch->mana + ch->manastore) < mana) {
 		send_to_char("You don't have enough mana.\n\r", ch);
@@ -436,8 +446,8 @@ void do_play(CHAR_DATA *ch, char *argument)
 
 	// Block to deal with reductions
 	{
-		int scale1 = 100;
-		int scale2 = 100;
+		int scale1 = 1;
+		int scale2 = 1;
 
 		/* Sage has shorter playing time if Bard before */
 		if (IS_SAGE(ch) && ch->pcdata->sub_class_thief == CLASS_THIEF_BARD)
@@ -448,25 +458,10 @@ void do_play(CHAR_DATA *ch, char *argument)
 
 		if( instrument != NULL )
 		{
-
-			/*
-			// Magical instruments reduce the casting time by 25%
-			if( IS_OBJ_STAT(obj, ITEM_MAGIC) )
-			{
-				scale1 *= 3;
-				scale2 *= 4;	// Give a 25% reduction
-			}
-			*/
-
 			// Only do it if both are set
-			if( instrument->value[2] > 0 && instrument->value[3] > 0)
+			if (INSTRUMENT(instrument)->beats_min > 0 && INSTRUMENT(instrument)->beats_max > 0)
 			{
-				int scale;
-
-				if( instrument->value[2] < instrument->value[3] )
-					scale = number_range(instrument->value[2], instrument->value[3]);
-				else
-					scale = number_range(instrument->value[3], instrument->value[2]);
+				int scale = number_range(INSTRUMENT(instrument)->beats_min, INSTRUMENT(instrument)->beats_max);
 
 				if( scale != 100 )
 				{

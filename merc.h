@@ -319,6 +319,11 @@ struct sound_type {
 //    TATTOO
 //    WAND
 
+#define VERSION_OBJECT_013  0x01000012
+//  Change #1: start of adding item multi-typing
+//    INK
+//    INSTRUMENT
+
 
 #define VERSION_ROOM_001	0x01000001
 //  Change #1: lock states
@@ -329,7 +334,7 @@ struct sound_type {
 #define VERSION_DB			VERSION_DB_001
 #define VERSION_AREA		VERSION_AREA_003
 #define VERSION_MOBILE		0x01000000
-#define VERSION_OBJECT		VERSION_OBJECT_011
+#define VERSION_OBJECT		VERSION_OBJECT_013
 #define VERSION_ROOM		VERSION_ROOM_002
 #define VERSION_PLAYER		VERSION_PLAYER_005
 #define VERSION_TOKEN		0x01000000
@@ -4949,13 +4954,13 @@ struct obj_instrument_data {
     int type;
     long flags;
 
-    // Mana modifier (numerator/denominator)
-    int mana_numer;
-    int mana_denom;
+    // Mana modifier (min/max%)
+    int mana_min;
+    int mana_max;
 
-    // Beats modifier (numerator/denominator)
-    int beats_numer;
-    int beats_denom;
+    // Beats modifier (min/max%)
+    int beats_min;
+    int beats_max;
 
     // Catalyst reservoirs
     // - They will recharge with time and exposure to the right elements
@@ -5260,6 +5265,7 @@ struct	obj_data
     int			trap_dam;
     int 		last_wear_loc;
     bool		locker;
+    bool        stached;
     int			nest_clones;
 
     /* Used for pirate heads */

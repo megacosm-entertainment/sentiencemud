@@ -344,6 +344,8 @@ DECLARE_OLC_FUN( oedit_type_container );
 DECLARE_OLC_FUN( oedit_type_fluid_container );
 DECLARE_OLC_FUN( oedit_type_food );
 DECLARE_OLC_FUN( oedit_type_furniture );
+DECLARE_OLC_FUN( oedit_type_ink );
+DECLARE_OLC_FUN( oedit_type_instrument );
 DECLARE_OLC_FUN( oedit_type_light );
 DECLARE_OLC_FUN( oedit_type_money );
 DECLARE_OLC_FUN( oedit_type_page );

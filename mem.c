@@ -593,6 +593,8 @@ void free_obj(OBJ_DATA *obj)
     free_fluid_container_data(FLUID_CON(obj));
     free_food_data(FOOD(obj));
     free_furniture_data(FURNITURE(obj));
+    free_ink_data(INK(obj));
+    free_instrument_data(INSTRUMENT(obj));
     free_light_data(LIGHT(obj));
     free_money_data(MONEY(obj));
     free_book_page(PAGE(obj));
@@ -5650,6 +5652,119 @@ void free_furniture_data(FURNITURE_DATA *data)
     INVALIDATE(data);
     data->next = furniture_data_free;
     furniture_data_free = data;
+}
+
+// ============[ INK ]=============
+INK_DATA *ink_data_free;
+
+INK_DATA *new_ink_data()
+{
+    INK_DATA *data;
+    if (ink_data_free)
+    {
+        data = ink_data_free;
+        ink_data_free = ink_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(INK_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    VALIDATE(data);
+    return data;
+}
+
+INK_DATA *copy_ink_data(INK_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    INK_DATA *data;
+    if (ink_data_free)
+    {
+        data = ink_data_free;
+        ink_data_free = ink_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(INK_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    for(int i = 0; i < MAX_INK_TYPES; i++)
+    {
+        data->types[i] = src->types[i];
+        data->amounts[i] = src->amounts[i];
+    }
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_ink_data(INK_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    INVALIDATE(data);
+    data->next = ink_data_free;
+    ink_data_free = data;
+}
+
+// =========[ INSTRUMENT ]=========
+INSTRUMENT_DATA *instrument_data_free;
+
+INSTRUMENT_DATA *new_instrument_data()
+{
+    INSTRUMENT_DATA *data;
+    if (instrument_data_free)
+    {
+        data = instrument_data_free;
+        instrument_data_free = instrument_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(INSTRUMENT_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    VALIDATE(data);
+    return data;
+}
+
+INSTRUMENT_DATA *copy_instrument_data(INSTRUMENT_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    INSTRUMENT_DATA *data;
+    if (instrument_data_free)
+    {
+        data = instrument_data_free;
+        instrument_data_free = instrument_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(INSTRUMENT_DATA));
+
+    data->next = NULL;
+    data->type = src->type;
+    data->flags = src->flags;
+    data->mana_min = src->mana_min;
+    data->mana_max = src->mana_max;
+    data->beats_min = src->beats_min;
+    data->beats_max = src->beats_max;
+
+    for(int i = 0; i < INSTRUMENT_MAX_CATALYSTS; i++)
+    {
+        data->reservoirs[i] = src->reservoirs[i];
+    }
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_instrument_data(INSTRUMENT_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    INVALIDATE(data);
+    data->next = instrument_data_free;
+    instrument_data_free = data;
 }
 
 

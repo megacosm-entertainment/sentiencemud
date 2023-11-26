@@ -92,11 +92,13 @@ bool has_inks(CHAR_DATA *ch, int *need, bool show)
 
 	memset(have,0,sizeof(have));
 	for (obj = ch->carrying; obj != NULL; obj = obj->next_content) {
-		if (obj->item_type == ITEM_INK)
+		if (IS_INK(obj))
 		{
-			if(obj->value[0] > CATALYST_NONE && obj->value[0] < CATALYST_MAX) have[obj->value[0]]++;
-			if(obj->value[1] > CATALYST_NONE && obj->value[1] < CATALYST_MAX) have[obj->value[1]]++;
-			if(obj->value[2] > CATALYST_NONE && obj->value[2] < CATALYST_MAX) have[obj->value[2]]++;
+			for(int i = 0; i < MAX_INK_TYPES; i++)
+			{
+				if (INK(obj)->types[i] > CATALYST_NONE && INK(obj)->types[i] < CATALYST_MAX && INK(obj)->amounts[i] > 0)
+					have[INK(obj)->types[i]] += INK(obj)->amounts[i];
+			}
 		}
 	}
 
@@ -124,10 +126,16 @@ void extract_inks(CHAR_DATA *ch, int *need)
 	for (obj = ch->carrying; obj != NULL; obj = next) {
 		next = obj->next_content;
 		bool found = false;
-		if (obj->item_type == ITEM_INK) {
-			if(obj->value[0] > CATALYST_NONE && obj->value[0] < CATALYST_MAX && need[obj->value[0]]) { need[obj->value[0]]--; found = true; }
-			if(obj->value[1] > CATALYST_NONE && obj->value[1] < CATALYST_MAX && need[obj->value[1]]) { need[obj->value[1]]--; found = true; }
-			if(obj->value[2] > CATALYST_NONE && obj->value[2] < CATALYST_MAX && need[obj->value[2]]) { need[obj->value[2]]--; found = true; }
+		if (IS_INK(obj))
+		{
+			for(int i = 0; i < MAX_INK_TYPES; i++)
+			{
+				if (INK(obj)->types[i] > CATALYST_NONE && INK(obj)->types[i] < CATALYST_MAX && INK(obj)->amounts[i] > 0 && need[INK(obj)->types[i]] > 0)
+				{
+					need[INK(obj)->types[i]] -= INK(obj)->amounts[i];
+					found = true;
+				}
+			}
 		}
 		if (found) extract_obj(obj);
 	}

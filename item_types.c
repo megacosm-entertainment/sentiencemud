@@ -143,11 +143,9 @@ void obj_index_assess_item_types(OBJ_INDEX_DATA *pObjIndex, bool assigned[ITEM__
 bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 {
 	// Only the PRIMARY object matters
+	// If it is not explicitly listed, it doesn't multitype
 	switch(pObjIndex->item_type)
 	{
-		case ITEM_BOOK:
-			return FALSE;
-
 		case ITEM_CONTAINER:
 			if (item_type == ITEM_ARMOUR) return TRUE;
 			if (item_type == ITEM_CART) return TRUE;
@@ -212,12 +210,6 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 			if (item_type == ITEM_FURNITURE) return TRUE;
 			if (item_type == ITEM_FLUID_CONTAINER) return TRUE;
 			if (item_type == ITEM_CART) return TRUE;
-			return FALSE;
-
-		case ITEM_SCROLL:
-			return FALSE;
-
-		case ITEM_TATTOO:
 			return FALSE;
 
 		case ITEM_WAND:

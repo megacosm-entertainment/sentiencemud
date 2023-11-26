@@ -347,6 +347,7 @@ ENT_FIELD entity_mobile[] = {
 	{"tempstring",				ENTITY_MOB_TEMPSTRING,		ENT_STRING },
 	{"pmount",					ENTITY_MOB_PMOUNT,			ENT_WIDEVNUM },
 	{"catalystusage",			ENTITY_MOB_CATALYST_USAGE,	ENT_CATALYST_USAGE },
+	{"stache",					ENTITY_MOB_STACHE,			ENT_PLLIST_OBJ },
 	{NULL,				0,							ENT_UNKNOWN	}
 };
 
@@ -379,15 +380,23 @@ ENT_FIELD entity_object[] = {
 	{"extra",		ENTITY_OBJ_EXTRA,			ENT_BITMATRIX },
 	{"wear",		ENTITY_OBJ_WEAR,			ENT_BITVECTOR },
 	{"ship",		ENTITY_OBJ_SHIP,			ENT_SHIP		},
+	{"stache",					ENTITY_OBJ_STACHE,			ENT_PLLIST_OBJ },
+	{"islockered",		ENTITY_OBJ_ISLOCKERED,			ENT_BOOLEAN },
+	{"isstached",		ENTITY_OBJ_ISSTACHED,			ENT_BOOLEAN },
 	{"book_page",		ENTITY_OBJ_TYPE_PAGE,		ENT_BOOK_PAGE},			// This is unique in that it is not handled internally like other type
 	{"book_data",		ENTITY_OBJ_TYPE_BOOK,		ENT_OBJECT_BOOK},
 	{"container_data",	ENTITY_OBJ_TYPE_CONTAINER,	ENT_OBJECT_CONTAINER},
 	{"fluid_data",		ENTITY_OBJ_TYPE_FLUID_CONTAINER,	ENT_OBJECT_FLUID_CONTAINER },
 	{"food_data",		ENTITY_OBJ_TYPE_FOOD,		ENT_OBJECT_FOOD},
 	{"furniture_data",	ENTITY_OBJ_TYPE_FURNITURE,	ENT_OBJECT_FURNITURE},
+	//{"ink_data",		ENTITY_OBJ_TYPE_INK,		ENT_OBJECT_INK},
+	//{"instrument_data",	ENTITY_OBJ_TYPE_INSTRUMENT,	ENT_OBJECT_INSTRUMENT},
 	{"light_data",		ENTITY_OBJ_TYPE_LIGHT,		ENT_OBJECT_LIGHT},
 	{"money_data",		ENTITY_OBJ_TYPE_MONEY,		ENT_OBJECT_MONEY},
 	{"portal_data",		ENTITY_OBJ_TYPE_PORTAL,		ENT_OBJECT_PORTAL},
+	//{"scroll_data",		ENTITY_OBJ_TYPE_SCROLL,		ENT_OBJECT_SCROLL},
+	//{"tattoo_data",		ENTITY_OBJ_TYPE_TATTOO,		ENT_OBJECT_TATTOO},
+	//{"wand_data",		ENTITY_OBJ_TYPE_WAND,		ENT_OBJECT_WAND},
 	{NULL,			0,			ENT_UNKNOWN	}
 };
 

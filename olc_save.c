@@ -1007,6 +1007,35 @@ void save_object_multityping(FILE *fp, OBJ_INDEX_DATA *obj)
 		fprintf(fp, "#-TYPEFURNITURE\n");
 	}
 
+	if (IS_INK(obj))
+	{
+		fprintf(fp, "#TYPEINK\n");
+		for(int i = 0; i < MAX_INK_TYPES; i++)
+		{
+			fprintf(fp, "Type %d %s~ %d\n", i+1,
+				flag_string(catalyst_types, INK(obj)->types[i]), INK(obj)->amounts[i]);
+		}
+		fprintf(fp, "#-TYPEINK\n");
+	}
+
+	if (IS_INSTRUMENT(obj))
+	{
+		fprintf(fp, "#TYPEINSTRUMENT\n");
+
+		fprintf(fp, "Type %s~\n", flag_string(instrument_types, INSTRUMENT(obj)->type));
+		fprintf(fp, "Flags %s\n", print_flags(INSTRUMENT(obj)->flags));
+		fprintf(fp, "Beats %d %d\n", INSTRUMENT(obj)->beats_min, INSTRUMENT(obj)->beats_max);
+		fprintf(fp, "Mana %d %d\n", INSTRUMENT(obj)->mana_min, INSTRUMENT(obj)->mana_max);
+
+		for(int i = 0; i < INSTRUMENT_MAX_CATALYSTS; i++)
+		{
+			fprintf(fp, "Reservoir %d %s~ %d %d\n", i+1,
+				flag_string(catalyst_types, INSTRUMENT(obj)->reservoirs[i].type),
+				INSTRUMENT(obj)->reservoirs[i].amount, INSTRUMENT(obj)->reservoirs[i].capacity);
+		}
+		fprintf(fp, "#-TYPEINSTRUMENT\n");
+	}
+
 	if (IS_LIGHT(obj))
 	{
 		fprintf(fp, "#TYPELIGHT\n");
@@ -3179,6 +3208,129 @@ FURNITURE_DATA *read_object_furniture_data(FILE *fp)
 	return data;
 }
 
+
+INK_DATA *read_object_ink_data(FILE *fp)
+{
+	INK_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_ink_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPEINK"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case 'T':
+				if (!str_cmp(word, "Type"))
+				{
+					int index = fread_number(fp);
+					char *name = fread_string(fp);
+					int amount = fread_number(fp);
+
+					if (index >= 1 && index <= MAX_INK_TYPES)
+					{
+						int type = stat_lookup(name, catalyst_types, CATALYST_NONE);
+						if (type != CATALYST_NONE)
+						{
+							data->types[index-1] = type;
+							data->amounts[index-1] = amount;
+						}
+					}
+
+					fMatch = true;
+					break;
+				}
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_object_ink_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+
+INSTRUMENT_DATA *read_object_instrument_data(FILE *fp)
+{
+	INSTRUMENT_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_instrument_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPEINSTRUMENT"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case 'B':
+				if (!str_cmp(word, "Beats"))
+				{
+					data->beats_min = fread_number(fp);
+					data->beats_max = fread_number(fp);
+
+					fMatch = true;
+					break;					
+				}
+				break;
+
+			case 'F':
+				KEY("Flags", data->flags, fread_flag(fp));
+				break;
+
+			case 'M':
+				if (!str_cmp(word, "mana"))
+				{
+					data->mana_min = fread_number(fp);
+					data->mana_max = fread_number(fp);
+
+					fMatch = true;
+					break;					
+				}
+				break;
+
+			case 'R':
+				if (!str_cmp(word, "Reservoir"))
+				{
+					int index = fread_number(fp);
+					char *name = fread_string(fp);
+					int amount = fread_number(fp);
+					int capacity = fread_number(fp);
+
+					if (index >= 1 && index <= INSTRUMENT_MAX_CATALYSTS)
+					{
+						int type = stat_lookup(name, catalyst_types, CATALYST_NONE);
+						if (type != CATALYST_NONE)
+						{
+							data->reservoirs[index - 1].type = type;
+							data->reservoirs[index - 1].amount = amount;
+							data->reservoirs[index - 1].capacity = capacity;
+						}
+					}
+				}
+				break;
+
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_object_instrument_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+
 LIGHT_DATA *read_object_light_data(FILE *fp)
 {
 	LIGHT_DATA *data = NULL;
@@ -3582,6 +3734,14 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 			} else if (!str_cmp(word, "#TYPEFURNITURE")) {
 				if (IS_FURNITURE(obj)) free_furniture_data(FURNITURE(obj));
 				FURNITURE(obj) = read_object_furniture_data(fp);
+				fMatch = TRUE;
+			} else if (!str_cmp(word, "#TYPEINK")) {
+				if (IS_INK(obj)) free_ink_data(INK(obj));
+				INK(obj) = read_object_ink_data(fp);
+				fMatch = TRUE;
+			} else if (!str_cmp(word, "#TYPEINSTRUMENT")) {
+				if (IS_INSTRUMENT(obj)) free_instrument_data(INSTRUMENT(obj));
+				INSTRUMENT(obj) = read_object_instrument_data(fp);
 				fMatch = TRUE;
 			} else if (!str_cmp(word, "#TYPELIGHT")) {
 				if (IS_LIGHT(obj)) free_light_data(LIGHT(obj));
@@ -4111,6 +4271,53 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 				list_appendlink(WAND(obj)->spells, spell);
 			}
 			obj->spells = NULL;
+		}
+	}
+
+	if (area->version_object < VERSION_OBJECT_013)
+	{
+		if (obj->item_type == ITEM_INK)
+		{
+			// This will only ever have atmost THREE different catalyst types from the old format
+
+			if (IS_INK(obj)) free_ink_data(INK(obj));
+
+			INK(obj) = new_ink_data();
+			sh_int amounts[CATALYST_MAX];
+
+			// Tally up how much is on each type
+			// Example:
+			// v0  air
+			// v1  air
+			// v2  water
+			//
+			// Should tally up to 2 air and 1 water
+			for(int i = 0; i < CATALYST_MAX; i++) amounts[i] = 0;
+			for(int i = 0; i < 3; i++)
+				if (values[i] > CATALYST_NONE && values[i] < CATALYST_MAX)
+					amounts[values[i]]++;
+
+			// Copy over tallies
+			int n = 0;
+			for(int i = 0; i < CATALYST_MAX && n < 3; i++)
+			{
+				if (amounts[i] > 0)
+				{
+					INK(obj)->types[n] = i;
+					INK(obj)->amounts[n] = amounts[i];
+				}
+			}
+		}
+		else if (obj->item_type == ITEM_INSTRUMENT)
+		{
+			if (IS_INSTRUMENT(obj)) free_instrument_data(INSTRUMENT(obj));
+
+			INSTRUMENT(obj) = new_instrument_data();
+
+			INSTRUMENT(obj)->type = values[0];
+			INSTRUMENT(obj)->flags = values[1];
+			INSTRUMENT(obj)->beats_min = values[2];
+			INSTRUMENT(obj)->beats_max = values[3];
 		}
 	}
 

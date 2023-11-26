@@ -2104,7 +2104,7 @@ void obj_update(void)
 					continue;
 			}
 
-			if (!obj->locker)
+			if (!obj->locker && !obj->stached)
 			{
 
 				p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL,0,0,0,0,0);
@@ -2195,7 +2195,7 @@ void obj_update(void)
 			cold_effect(obj->in_room, 1, dice(4,8), TARGET_ROOM);
 		}
 
-		if (obj->timer <= 0 && !obj->locker)
+		if (obj->timer <= 0 && !obj->locker && !obj->stached)
 		{
 			// Check fountains that are out the locker and have capacity to fill.
 			// Fountains with a timer will not refill

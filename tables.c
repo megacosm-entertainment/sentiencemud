@@ -2746,8 +2746,6 @@ const struct flag_type player_conditions[] = {
 };
 
 const struct flag_type instrument_types[] = {
-	{ "vocal",		INSTRUMENT_VOCAL,		FALSE },
-	{ "any",		INSTRUMENT_ANY,			TRUE },
 	{ "none",		INSTRUMENT_NONE,		FALSE },
 	{ "reed",		INSTRUMENT_WIND_REED,	TRUE },
 	{ "flute",		INSTRUMENT_WIND_FLUTE,	TRUE },
@@ -2761,6 +2759,7 @@ const struct flag_type instrument_types[] = {
 
 const struct flag_type instrument_flags[] = {
 	{ "onehand",	INSTRUMENT_ONEHANDED,	TRUE	},
+    { "tuned",      INSTRUMENT_TUNED,       FALSE },        // Can only be set with commands
 	{ NULL,			0,						FALSE }
 };
 

@@ -10454,3 +10454,192 @@ SCRIPT_CMD(scriptcmd_reassign)
 
 	SETRETURN(1);
 }
+
+// ADDSTACHE $MOBILE|$OBJECT $OBJECT
+SCRIPT_CMD(scriptcmd_addstache)
+{
+	char *rest = argument;
+
+	if (!info) return;
+
+	SETRETURN(PRET_BADSYNTAX);
+	if (!PARSE_ARG)
+		return;
+
+	if (!PARSE_ARG)
+		return;
+
+	CHAR_DATA *mob;
+	OBJ_DATA *obj;
+	if (arg->type == ENT_MOBILE)
+	{
+		mob = arg->d.mob;
+		obj = NULL;
+	}
+	else if (arg->type == ENT_OBJECT)
+	{
+		mob = NULL;
+		obj = arg->d.obj;
+	}
+	else
+		return;
+
+	if (!IS_VALID(mob) && !IS_VALID(obj))
+		return;
+
+	PARSE_ARGTYPE(OBJECT);
+	OBJ_DATA *item = arg->d.obj;
+
+	// Already stored somewhere
+	if (item->locker || item->stached) return;
+
+	if (item->in_obj != NULL)
+	{
+		// Inside an object
+		obj_from_obj(item);
+	}
+	else if (item->carried_by != NULL)
+	{
+		// Carried by a mob (either in inventory or worn)
+		obj_from_char(item);
+	}
+	else
+		return;	// Fail
+
+	LLIST *stache = NULL;
+	if (IS_VALID(mob))
+		stache = mob->lstache;
+	else if (IS_VALID(obj))
+		stache = obj->lstache;
+	else
+		return;
+		
+	item->next_content = NULL;
+	item->stached = true;
+	list_appendlink(stache, item);
+	SETRETURN(1);
+}
+
+// REMSTACHE $MOBILE|$OBJECT $OBJECT[ $VARIABLENAME]
+// REMSTACHE $MOBILE|$OBJECT $NUMBER[ $VARIABLENAME]
+// REMSTACHE $MOBILE|$OBJECT $WIDEVNUM[ $VARIABLENAME]
+// REMSTACHE $MOBILE|$OBJECT $[#.]NAME[ $VARIABLENAME]
+SCRIPT_CMD(scriptcmd_remstache)
+{
+	char *rest = argument;
+
+	if (!info) return;
+
+	SETRETURN(0);
+	if (!PARSE_ARG)
+		return;
+
+	LLIST *stache = NULL;
+	CHAR_DATA *mob = NULL;
+	OBJ_DATA *obj = NULL;
+	if (arg->type == ENT_MOBILE)
+	{
+		stache = IS_VALID(arg->d.mob) ? arg->d.mob->lstache : NULL;
+		mob = arg->d.mob;
+	}
+	else if (arg->type == ENT_OBJECT)
+	{
+		stache = IS_VALID(arg->d.obj) ? arg->d.obj->lstache : NULL;
+		obj = arg->d.obj;
+	}
+	else
+		return;
+
+	if (!IS_VALID(stache)) return;
+
+	if (!PARSE_ARG) return;
+
+	ITERATOR it;
+	OBJ_DATA *item;
+	if (arg->type == ENT_OBJECT)
+	{
+		// Explicit object
+		item = arg->d.obj;
+		list_remlink(stache, item);
+	}
+	else if (arg->type == ENT_NUMBER)
+	{
+		// Remove Nth item
+		item = list_nthdata(stache, arg->d.num);
+		list_remnthlink(stache, arg->d.num);
+	}
+	else if (arg->type == ENT_WIDEVNUM)
+	{
+		// Remove FIRST instance of the widevnum
+		WNUM wnum = arg->d.wnum;
+
+		iterator_start(&it, stache);
+		while((item = (OBJ_DATA *)iterator_nextdata(&it)))
+		{
+			if (wnum_match_obj(wnum, item))
+			{
+				iterator_remcurrent(&it);
+				break;
+			}
+		}
+		iterator_stop(&it);
+	}
+	else if (arg->type == ENT_STRING)
+	{
+		// Remove Nth item with matching name
+		int count;
+		char name[MSL];
+
+		count = number_argument(arg->d.str, name);
+		if (count < 1) return;
+
+		WNUM wnum;
+		// Check if it's #.WIDEVNUM
+		if (parse_widevnum(name, get_area_from_scriptinfo(info), &wnum))
+		{
+			iterator_start(&it, stache);
+			while((item = (OBJ_DATA *)iterator_nextdata(&it)))
+			{
+				if (wnum_match_obj(wnum, item) && !--count)
+				{
+					iterator_remcurrent(&it);
+					break;
+				}
+			}
+			iterator_stop(&it);
+		}
+		else
+		{
+			iterator_start(&it, stache);
+			while((item = (OBJ_DATA *)iterator_nextdata(&it)))
+			{
+				if (is_name(name, item->name) && !--count)
+				{
+					iterator_remcurrent(&it);
+					break;
+				}
+			}
+			iterator_stop(&it);
+		}
+	}
+	else
+		return;
+
+	char *var_name = NULL;
+	if (rest && *rest)
+	{
+		PARSE_ARGTYPE(STRING);
+
+		var_name = arg->d.str;
+	}
+
+	item->stached = false;
+	if (mob != NULL)
+		obj_to_char(item, mob);
+	else if (obj != NULL)
+		obj_to_obj(item, obj);
+
+	if (var_name)
+		variables_set_object(info->var,var_name,item);
+	SETRETURN(1);
+}

@@ -2337,6 +2337,11 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.mobindex = (self && IS_NPC(self)) ? self->pIndexData : NULL;
 		break;
 
+	case ENTITY_MOB_STACHE:
+		arg->type = ENT_PLLIST_OBJ;
+		arg->d.blist = self ? self->lstache : NULL;
+		break;
+
 	default: return NULL;
 	}
 
@@ -2621,6 +2626,11 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.mobindex = NULL;
 		break;
 
+	case ENTITY_MOB_STACHE:
+		arg->type = ENT_PLLIST_OBJ;
+		arg->d.blist = NULL;
+		break;
+
 	default: return NULL;
 	}
 
@@ -2633,25 +2643,25 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	switch(*str) {
 	case ENTITY_OBJ_NAME:
 		arg->type = ENT_STRING;
-		arg->d.str = arg->d.obj ? arg->d.obj->name : SOMETHING;
+		arg->d.str = self ? self->name : SOMETHING;
 		break;
 	case ENTITY_OBJ_SHORT:
 		arg->type = ENT_STRING;
-		arg->d.str = arg->d.obj ? arg->d.obj->short_descr : SOMETHING;
+		arg->d.str = self ? self->short_descr : SOMETHING;
 		break;
 	case ENTITY_OBJ_LONG:
 		arg->type = ENT_STRING;
-		arg->d.str = arg->d.obj ? arg->d.obj->description : &str_empty[0];
+		arg->d.str = self ? self->description : &str_empty[0];
 		break;
 	case ENTITY_OBJ_FULLDESC:
 		arg->type = ENT_STRING;
-		arg->d.str = arg->d.obj ? arg->d.obj->full_description : &str_empty[0];
+		arg->d.str = self ? self->full_description : &str_empty[0];
 		break;
 	case ENTITY_OBJ_CONTAINER:
-		arg->d.obj = arg->d.obj ? arg->d.obj->in_obj : NULL;
+		self = self ? self->in_obj : NULL;
 		break;
 	case ENTITY_OBJ_FURNITURE:
-		arg->d.obj = arg->d.obj ? arg->d.obj->on : NULL;
+		self = self ? self->on : NULL;
 		break;
 	case ENTITY_OBJ_CONTENTS:
 		arg->type = ENT_OLLIST_OBJ;
@@ -2661,15 +2671,15 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_OBJ_OWNER:
 		arg->type = ENT_STRING;
-		arg->d.str = arg->d.obj && arg->d.obj->owner ? arg->d.obj->owner : &str_empty[0];
+		arg->d.str = self && self->owner ? self->owner : &str_empty[0];
 		break;
 	case ENTITY_OBJ_ROOM:
 		arg->type = ENT_ROOM;
-		arg->d.room = arg->d.obj ? obj_room(arg->d.obj) : NULL;
+		arg->d.room = self ? obj_room(self) : NULL;
 		break;
 	case ENTITY_OBJ_CARRIER:
 		arg->type = ENT_MOBILE;
-		arg->d.mob = arg->d.obj ? arg->d.obj->carried_by : NULL;
+		arg->d.mob = self ? self->carried_by : NULL;
 		break;
 	case ENTITY_OBJ_TOKENS:
 		arg->type = ENT_OLLIST_TOK;
@@ -2678,16 +2688,16 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.list.owner_type = ENT_UNKNOWN;
 		break;
 	case ENTITY_OBJ_TARGET:
-		arg->d.mob = (arg->d.obj && arg->d.obj->progs) ? arg->d.obj->progs->target : NULL;
+		arg->d.mob = (self && self->progs) ? self->progs->target : NULL;
 		break;
 	case ENTITY_OBJ_AREA:
 		arg->type = ENT_AREA;
-		arg->d.room = arg->d.obj ? obj_room(arg->d.obj) : NULL;
+		arg->d.room = self ? obj_room(self) : NULL;
 		arg->d.area = arg->d.room ? arg->d.room->area : NULL;
 		break;
 	case ENTITY_OBJ_NEXT:
 		arg->type = ENT_OBJECT;
-		arg->d.obj = arg->d.obj?arg->d.obj->next_content:NULL;
+		self = self?self->next_content:NULL;
 		break;
 	case ENTITY_OBJ_EXTRADESC:
 		arg->type = ENT_EXTRADESC;
@@ -2704,12 +2714,12 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.list.owner_type = ENT_OBJECT;
 		break;
 	case ESCAPE_VARIABLE:
-		str = expand_escape_variable(info,arg->d.obj?arg->d.obj->progs->vars:NULL,str+1,arg);
+		str = expand_escape_variable(info,self?self->progs->vars:NULL,str+1,arg);
 		if(!str) return NULL;
 		break;
 	case ENTITY_OBJ_CLONEROOMS:
 		arg->type = ENT_PLLIST_ROOM;
-		arg->d.blist = arg->d.obj ? arg->d.obj->lclonerooms : NULL;
+		arg->d.blist = self ? self->lclonerooms : NULL;
 		break;
 	case ENTITY_OBJ_AFFECTS:
 		arg->type = ENT_OLLIST_AFF;
@@ -2720,7 +2730,7 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 	case ENTITY_OBJ_INDEX:
 		arg->type = ENT_OBJINDEX;
-		arg->d.objindex = arg->d.obj ? arg->d.obj->pIndexData : NULL;
+		arg->d.objindex = self ? self->pIndexData : NULL;
 		break;
 
 	case ENTITY_OBJ_EXTRA:
@@ -2737,53 +2747,58 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 	case ENTITY_OBJ_SHIP:
 		arg->type = ENT_SHIP;
-		arg->d.ship = arg->d.obj ? arg->d.obj->ship : NULL;
+		arg->d.ship = self ? self->ship : NULL;
+		break;
+
+	case ENTITY_OBJ_STACHE:
+		arg->type = ENT_PLLIST_OBJ;
+		arg->d.blist = self ? self->lstache : NULL;
 		break;
 
 	case ENTITY_OBJ_VARIABLES:
 		arg->type = ENT_ILLIST_VARIABLE;
-		arg->d.variables = (arg->d.obj && arg->d.obj->progs) ? &arg->d.obj->progs->vars : NULL;
+		arg->d.variables = (self && self->progs) ? &self->progs->vars : NULL;
 		break;
 
 	// Multi-typing
 	case ENTITY_OBJ_TYPE_PAGE:
 		arg->type = ENT_BOOK_PAGE;
-		arg->d.book_page = IS_VALID(arg->d.obj) ? PAGE(arg->d.obj) : NULL;
+		arg->d.book_page = IS_VALID(self) ? PAGE(self) : NULL;
 		break;
 
 	case ENTITY_OBJ_TYPE_BOOK:
 		arg->type = ENT_OBJECT_BOOK;
-		// Uses arg->d.obj
+		// Uses self
 		break;
 
 	case ENTITY_OBJ_TYPE_CONTAINER:
 		arg->type = ENT_OBJECT_CONTAINER;
-		// Uses arg->d.obj
+		// Uses self
 		break;
 
 	case ENTITY_OBJ_TYPE_FLUID_CONTAINER:
 		arg->type = ENT_OBJECT_FLUID_CONTAINER;
-		// Uses arg->d.obj
+		// Uses self
 		break;
 
 	case ENTITY_OBJ_TYPE_FOOD:
 		arg->type = ENT_OBJECT_FOOD;
-		// Uses arg->d.obj
+		// Uses self
 		break;
 
 	case ENTITY_OBJ_TYPE_LIGHT:
 		arg->type = ENT_OBJECT_LIGHT;
-		// Uses arg->d.obj
+		// Uses self
 		break;
 
 	case ENTITY_OBJ_TYPE_MONEY:
 		arg->type = ENT_OBJECT_MONEY;
-		// Uses arg->d.obj
+		// Uses self
 		break;
 
 	case ENTITY_OBJ_TYPE_PORTAL:
 		arg->type = ENT_OBJECT_PORTAL;
-		// Uses arg->d.obj
+		// Uses self
 		break;
 
 	// SPELLS?
@@ -2891,6 +2906,11 @@ char *expand_entity_object_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_OBJ_SHIP:
 		arg->type = ENT_SHIP;
 		arg->d.ship = NULL;
+		break;
+
+	case ENTITY_OBJ_STACHE:
+		arg->type = ENT_PLLIST_OBJ;
+		arg->d.blist = NULL;
 		break;
 
 	case ENTITY_OBJ_VARIABLES:

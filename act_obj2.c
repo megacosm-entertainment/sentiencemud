@@ -194,7 +194,7 @@ void do_strike(CHAR_DATA *ch, char *argument)
     }
 
     /* Allow hammers to be used for instruments as well - Tieryo*/
-    if (obj_struck->item_type != ITEM_WEAPON && obj_struck->item_type != ITEM_ARMOUR && obj_struck->item_type != ITEM_INSTRUMENT)
+    if (obj_struck->item_type != ITEM_WEAPON && obj_struck->item_type != ITEM_ARMOUR && !IS_INSTRUMENT(obj_struck))
     {
 	send_to_char("This item can only be used on weapons and armour.\n\r", ch);
 	return;
@@ -369,7 +369,7 @@ void do_lore(CHAR_DATA *ch, char *argument)
 	     && objIndex->item_type != ITEM_ARTIFACT
 	     && objIndex->item_type != ITEM_LIGHT
 	     && objIndex->item_type != ITEM_CONTAINER
-	     && objIndex->item_type != ITEM_INSTRUMENT
+	     && !IS_INSTRUMENT(objIndex)
 	     && objIndex->item_type != ITEM_RANGED_WEAPON)
 	|| (arg3[0] != '\0'
 	     && type != objIndex->item_type)
@@ -1037,10 +1037,13 @@ void do_ink(CHAR_DATA *ch, char *argument)
 	memset(have,0,sizeof(have));
 	memset(need,0,sizeof(need));
 	for (obj = ch->carrying; obj != NULL; obj = obj->next_content) {
-		if (obj->item_type == ITEM_INK) {
-			if(obj->value[0] > CATALYST_NONE && obj->value[0] < CATALYST_MAX) have[obj->value[0]]++;
-			if(obj->value[1] > CATALYST_NONE && obj->value[1] < CATALYST_MAX) have[obj->value[1]]++;
-			if(obj->value[2] > CATALYST_NONE && obj->value[2] < CATALYST_MAX) have[obj->value[2]]++;
+		if (IS_INK(obj))
+		{
+			for(int i = 0; i < MAX_INK_TYPES; i++)
+			{
+				if (INK(obj)->types[i] > CATALYST_NONE && INK(obj)->types[i] < CATALYST_MAX && INK(obj)->amounts[i] > 0)
+					have[INK(obj)->types[i]] += INK(obj)->amounts[i];
+			}
 		}
 	}
 

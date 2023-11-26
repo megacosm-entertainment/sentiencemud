@@ -5169,6 +5169,58 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		}
 	}
 
+	if (IS_INK(obj))
+	{
+		add_buf(buffer, "\n\r{GInk:{x\n\r");
+
+		for(int i = 0; i < MAX_INK_TYPES; i++)
+		{
+			sprintf(buf, "{B[{WType %d  {B]:  {x%s{B ({x%d{B){x\n\r", i + 1,
+				flag_string(catalyst_types, INK(obj)->types[i]),
+				INK(obj)->amounts[i]);
+			add_buf(buffer, buf);
+		}
+	}
+
+	if (IS_INSTRUMENT(obj))
+	{
+		add_buf(buffer, "\n\r{GInstrument:{x\n\r");
+
+		sprintf(buf, "{B[{WType    {B]:  {x%s\n\r", flag_string(instrument_types, INSTRUMENT(obj)->type));
+		add_buf(buffer, buf);
+
+		sprintf(buf, "{B[{WFlags   {B]:  {x%s\n\r", flag_string(instrument_flags, INSTRUMENT(obj)->flags));
+		add_buf(buffer, buf);
+
+		if (INSTRUMENT(obj)->beats_min < INSTRUMENT(obj)->beats_max)
+			sprintf(buf, "{B[{WBeats   {B]:  {x%d{B%% to {x%d{B%%{x\n\r", INSTRUMENT(obj)->beats_min, INSTRUMENT(obj)->beats_max);
+		else
+			sprintf(buf, "{B[{WBeats   {B]:  {x%d{B%%{x\n\r", INSTRUMENT(obj)->beats_min);
+		add_buf(buffer, buf);
+
+		if (INSTRUMENT(obj)->mana_min < INSTRUMENT(obj)->mana_max)
+			sprintf(buf, "{B[{WMana    {B]:  {x%d{B%% to {x%d{B%%{x\n\r", INSTRUMENT(obj)->mana_min, INSTRUMENT(obj)->mana_max);
+		else
+			sprintf(buf, "{B[{WMana    {B]:  {x%d{B%%{x\n\r", INSTRUMENT(obj)->mana_min);
+		add_buf(buffer, buf);
+
+		add_buf(buffer, "{BReservoirs:{x\n\r");
+		for(int i = 0; i < INSTRUMENT_MAX_CATALYSTS; i++)
+		{
+			if (INSTRUMENT(obj)->reservoirs[i].type != CATALYST_NONE)
+			{
+				sprintf(buf, "  {W%d{B) {x%s {B({x%s{B}){x\n\r", i + 1,
+					flag_string(catalyst_types, INSTRUMENT(obj)->reservoirs[i].type),
+					(INSTRUMENT(obj)->reservoirs[i].capacity > 0) ?
+						formatf("%d {B/{x %d", INSTRUMENT(obj)->reservoirs[i].amount, INSTRUMENT(obj)->reservoirs[i].capacity) :
+						"none");
+			}
+			else
+				sprintf(buf, "  {W%d{B) {xnone\n\r", i + 1);
+			add_buf(buffer, buf);
+		}
+	}
+
 	if (IS_LIGHT(obj))
 	{
 		add_buf(buffer, "\n\r{GLight:{x\n\r");
@@ -5429,6 +5481,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	    break;
 	*/
 
+	/*
 	case ITEM_INK:
             sprintf(buf, "{B[  {Wv0{B]{G Type 1:{x                 [%s]\n\r", flag_string(catalyst_types, obj->value[0]));
 	    add_buf(buffer, buf);
@@ -5437,6 +5490,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
             sprintf(buf, "{B[  {Wv2{B]{G Type 3:{x                 [%s]\n\r", flag_string(catalyst_types, obj->value[2]));
 	    add_buf(buffer, buf);
 	    break;
+	*/
 
 	case ITEM_SEXTANT:
             sprintf(buf,
@@ -5624,6 +5678,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	    add_buf(buffer, buf);
 	    break;
 
+	/*
 	case ITEM_INSTRUMENT:
 	    sprintf(buf,
 	        "{B[  {Wv0{B]{G Type:{x            %s\n\r"
@@ -5635,6 +5690,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	        obj->value[2],obj->value[3]);
 	    add_buf(buffer, buf);
 	    break;
+	*/
 	/*
 	case ITEM_BOOK:
 	    sprintf(buf,
@@ -6623,6 +6679,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 	case ITEM_PILL:
 		break;
 
+	/*
 	case ITEM_TATTOO:
 		switch (value_num)
 		{
@@ -6660,6 +6717,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			break;
 		}
 		break;
+	*/
 
 	case ITEM_SEXTANT:
 		switch(value_num)
@@ -7123,6 +7181,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		}
 		break;
 
+	/*
 	case ITEM_INSTRUMENT:
 		switch (value_num)
 		{
@@ -7164,6 +7223,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			break;
 		}
 		break;
+	*/
 
 	/*
 	case ITEM_BOOK:
@@ -12148,6 +12208,325 @@ OEDIT(oedit_type_furniture)
 	oedit_type_furniture(ch, "");
 	return FALSE;
 }
+
+OEDIT(oedit_type_ink)
+{
+	OBJ_INDEX_DATA *pObj;
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_INK(pObj))
+		{
+			send_to_char(formatf("Syntax:  ink <1-%d> <type> <amount>\n\r", MAX_INK_TYPES), ch);
+
+			if (pObj->item_type != ITEM_INK)
+				send_to_char("         ink remove\n\r", ch);
+		}
+		else
+		{
+			send_to_char("Syntax:  ink add\n\r", ch);
+		}
+		return false;
+	}
+
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+
+	if (IS_INK(pObj))
+	{
+		if (is_number(arg))
+		{
+			int index = atoi(arg);
+			if (index < 1 || index > MAX_INK_TYPES)
+			{
+				send_to_char(formatf("Syntax:  ink {R<1-%d>{x <type> <amount>\n\r", MAX_INK_TYPES), ch);
+				send_to_char(formatf("Please specify a number from 1 to %d.\n\r", MAX_INK_TYPES), ch);
+				return false;
+			}
+
+			argument = one_argument(argument, arg);
+
+			int type;
+			if ((type = stat_lookup(arg, catalyst_types, CATALYST_NONE)) == CATALYST_NONE)
+			{
+				send_to_char(formatf("Syntax:  ink <1-%d> {R<type>{x <amount>\n\r", MAX_INK_TYPES), ch);
+				send_to_char("Invalid catalyst types.  Use '? catalyst_types' to list of valid types.\n\r", ch);
+				show_flag_cmds(ch, catalyst_types);
+				return false;
+			}
+
+			int amount;
+			if (!is_number(argument) || (amount = atoi(argument)) < 0)
+			{
+				send_to_char(formatf("Syntax:  ink <1-%d> <type> {R<amount>{x\n\r", MAX_INK_TYPES), ch);
+				send_to_char("Please specify a non-negative number.\n\r", ch);
+				return false;
+			}
+
+			INK(pObj)->types[index - 1] = type;
+			INK(pObj)->amounts[index - 1] = amount;
+			send_to_char(formatf("INK Type %d set.\n\r", index), ch);
+			return true;
+		}
+		
+		if (pObj->item_type != ITEM_INK)
+		{
+			if(!str_prefix(arg, "remove"))
+			{
+				free_ink_data(INK(pObj));
+				INK(pObj) = NULL;
+
+				send_to_char("INK type removed.\n\r\n\r", ch);
+				return true;
+			}
+		}
+	}
+	else if(!str_prefix(arg, "add"))
+	{
+		if (!obj_index_can_add_item_type(pObj, ITEM_INK))
+		{
+			send_to_char("You cannot add this item type to this object.\n\r", ch);
+			return FALSE;
+		}
+		
+		INK(pObj) = new_ink_data();
+		send_to_char("INK type added.\n\r\n\r", ch);
+		return TRUE;
+	}
+
+	oedit_type_ink(ch, "");
+	return false;
+}
+
+OEDIT(oedit_type_instrument)
+{
+	OBJ_INDEX_DATA *pObj;
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_INSTRUMENT(pObj))
+		{
+			send_to_char("Syntax:  instrument {Rtype{x <type>\n\r", ch);
+			send_to_char("         instrument {Rflags{x <flags>\n\r", ch);
+			send_to_char("         instrument {Rmana{x <min %> <max %>\n\r", ch);
+			send_to_char("         instrument {Rbeats{x <min %> <max %>\n\r", ch);
+			send_to_char(formatf("         instrument {Rreservoir{x <1-%d> <type> <capacity>[ <amount>]\n\r", INSTRUMENT_MAX_CATALYSTS), ch);
+			
+			if (pObj->item_type != ITEM_INSTRUMENT)
+				send_to_char("         instrument remove\n\r", ch);
+		}
+		else
+			send_to_char("Syntax:  instrument add\n\r", ch);
+		return FALSE;
+	}
+
+	if (IS_INSTRUMENT(pObj))
+	{
+		char arg[MIL];
+
+		argument = one_argument(argument, arg);
+
+		if (!str_prefix(arg, "beats"))
+		{
+			argument = one_argument(argument, arg);
+
+			int min;
+			if (!is_number(arg) || (min = atoi(arg)) < 1 || min > 200)
+			{
+				send_to_char("Syntax:  instrument beats {R<min %>{x <max %>\n\r", ch);
+				send_to_char("Please specify a number from 1 to 200.\n\r", ch);
+				return false;
+			}
+
+			int max;
+			if (!is_number(argument) || (max = atoi(argument)) < 1 || max > 200)
+			{
+				send_to_char("Syntax:  instrument beats <min %> {R<max %>{x\n\r", ch);
+				send_to_char("Please specify a number from 1 to 200.\n\r", ch);
+				return false;
+			}
+
+			// Swap them silently
+			if (min > max)
+			{
+				int m = min;
+				min = max;
+				max = m;
+			}
+
+			// TODO: Add limitations (can't have it too big, can't have it too small)
+			INSTRUMENT(pObj)->beats_min = min;
+			INSTRUMENT(pObj)->beats_max = max;
+			send_to_char("INSTRUMENT Mana range set.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "flags"))
+		{
+			long value;
+
+			if ((value = flag_value(instrument_flags, argument)) == NO_FLAG)
+			{
+				send_to_char("Syntax:  instrument flags {R<flags>{x\n\r", ch);
+				send_to_char("Invalid instrument flags.  Use 'instrument_flags' for list of valid flags.\n\r", ch);
+				show_flag_cmds(ch, instrument_flags);
+				return FALSE;
+			}
+
+			TOGGLE_BIT(INSTRUMENT(pObj)->flags, value);
+			send_to_char("INSTRUMENT flags changed.\n\r", ch);
+			return TRUE;
+		}
+
+		if (!str_prefix(arg, "mana"))
+		{
+			argument = one_argument(argument, arg);
+
+			int min;
+			if (!is_number(arg) || (min = atoi(arg)) < 1 || min > 200)
+			{
+				send_to_char("Syntax:  instrument mana {R<min %>{x <max %>\n\r", ch);
+				send_to_char("Please specify a number from 1 to 200.\n\r", ch);
+				return false;
+			}
+
+			int max;
+			if (!is_number(argument) || (max = atoi(argument)) < 1 || max > 200)
+			{
+				send_to_char("Syntax:  instrument mana <min %> {R<max %>{x\n\r", ch);
+				send_to_char("Please specify a number from 1 to 200.\n\r", ch);
+				return false;
+			}
+
+			// Swap them silently
+			if (min > max)
+			{
+				int m = min;
+				min = max;
+				max = m;
+			}
+
+			// TODO: Add limitations (can't have it too big, can't have it too small)
+			INSTRUMENT(pObj)->mana_min = min;
+			INSTRUMENT(pObj)->mana_max = max;
+			send_to_char("INSTRUMENT Mana range set.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "reservoir"))
+		{
+			argument = one_argument(argument, arg);
+
+			int index;
+			if (!is_number(arg) || (index = atoi(arg)) < 1 || index > INSTRUMENT_MAX_CATALYSTS)
+			{
+				send_to_char(formatf("Syntax: reservoir {R<1-%d>{x <type> <capacity>[ <amount>]\n\r", INSTRUMENT_MAX_CATALYSTS), ch);
+				send_to_char(formatf("Please specify a number from 1 to %d.\n\r", INSTRUMENT_MAX_CATALYSTS), ch);
+				return false;
+			}
+
+			argument = one_argument(argument, arg);
+
+			int type;
+			if ((type = stat_lookup(arg, catalyst_types, CATALYST_NONE)) == CATALYST_NONE)
+			{
+				send_to_char(formatf("Syntax: reservoir <1-%d> {R<type>{x <capacity>[ <amount>]\n\r", INSTRUMENT_MAX_CATALYSTS), ch);
+				send_to_char("Invalid catalyst type.  Use '? catalyst_types' to see list of valid types.\n\r", ch);
+				show_flag_cmds(ch, catalyst_types);
+				return false;
+			}
+
+			argument = one_argument(argument, arg);
+
+			int capacity;
+			if (!is_number(arg) || (capacity = atoi(arg)) < 0)
+			{
+				send_to_char(formatf("Syntax: reservoir <1-%d> <type> {R<capacity>{x[ <amount>]\n\r", INSTRUMENT_MAX_CATALYSTS), ch);
+				send_to_char("Please specify a non-negative number.\n\r", ch);
+				return false;
+			}
+
+			int amount = capacity;
+			if (capacity > 0)
+			{
+				if (argument[0])
+				{
+					if (!is_number(argument) || (amount = atoi(argument)) < 0 || amount > capacity)
+					{
+						send_to_char(formatf("Syntax: reservoir <1-%d> <type> <capacity> {R<amount>{x\n\r", INSTRUMENT_MAX_CATALYSTS), ch);
+						send_to_char(formatf("Please specify a number from 0 to %d.\n\r", capacity), ch);
+						return false;
+					}
+				}
+			}
+			else if (argument[0])
+			{
+				send_to_char(formatf("Syntax: reservoir <1-%d> <type> <capacity> {R<amount>{x\n\r", INSTRUMENT_MAX_CATALYSTS), ch);
+				send_to_char("Please omit {Wamount{x when {Wcapacity{x is 0.\n\r", ch);
+				return false;
+			}
+
+			INSTRUMENT(pObj)->reservoirs[index - 1].type = type;
+			INSTRUMENT(pObj)->reservoirs[index - 1].capacity = capacity;
+			INSTRUMENT(pObj)->reservoirs[index - 1].amount = amount;
+			send_to_char(formatf("INSTRUMENT Reservoir %d set.\n\r", index), ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "type"))
+		{
+			int value;
+
+			if ((value = stat_lookup(argument, instrument_types, INSTRUMENT_NONE)) == INSTRUMENT_NONE)
+			{
+				send_to_char("Syntax:  instrument type {R<type>{x\n\r", ch);
+				send_to_char("Invalid instrument type.  Use 'instrument_types' for list of valid types.\n\r", ch);
+				show_flag_cmds(ch, instrument_types);
+				return FALSE;
+			}
+
+			INSTRUMENT(pObj)->type = value;
+			send_to_char("INSTRUMENT type changed.\n\r", ch);
+			return TRUE;
+		}
+		
+
+		if (pObj->item_type != ITEM_INSTRUMENT)
+		{
+			if (!str_prefix(argument, "remove"))
+			{
+				free_instrument_data(INSTRUMENT(pObj));
+				INSTRUMENT(pObj) = NULL;
+
+				send_to_char("INSTRUMENT settings removed.\n\r", ch);
+				return TRUE;
+			}
+		}
+	}
+	else
+	{
+		if (!str_prefix(argument, "add"))
+		{
+			if (!obj_index_can_add_item_type(pObj, ITEM_INSTRUMENT))
+			{
+				send_to_char("You cannot add this item type to this object.\n\r", ch);
+				return FALSE;
+			}
+			
+			INSTRUMENT(pObj) = new_instrument_data();
+			send_to_char("INSTRUMENT type added.\n\r\n\r", ch);
+			return TRUE;
+		}
+	}
+
+	oedit_type_instrument(ch, "");
+	return FALSE;
+}
+
+
 
 OEDIT(oedit_type_light)
 {

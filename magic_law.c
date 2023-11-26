@@ -267,6 +267,18 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 		}
 	}
 
+	if (IS_INK(obj))
+	{
+		// TODO: NYI
+		add_buf(buffer, "{MInk: {WNOT YET IMPLEMENTED{x\n\r");
+	}
+
+	if (IS_INSTRUMENT(obj))
+	{
+		// TODO: NYI
+		add_buf(buffer, "{MInstrument: {WNOT YET IMPLEMENTED{x\n\r");
+	}
+
 	if (IS_SCROLL(obj))
 	{
 		if (list_size(SCROLL(obj)->spells) > 0)
@@ -299,6 +311,12 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 				add_buf(buffer, buf);
 			}
 		}
+	}
+
+	if (IS_WAND(obj))
+	{
+		// TODO: NYI
+		add_buf(buffer, "{MWand: {WNOT YET IMPLEMENTED{x\n\r");
 	}
 }
 
@@ -408,6 +426,7 @@ bool __func_identify(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
 		break;
 	*/
 
+	/*
 	case ITEM_TATTOO:
 		if (obj->value[0] > 0) {
 			sprintf(buf, "{MThis tattoo has {x%d{M remaining charge%s.{x\n\r",
@@ -435,6 +454,7 @@ bool __func_identify(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
 			add_buf(buffer, buf);
 		}
 		break;
+	*/
 
 	//case ITEM_WAND:
 	case ITEM_STAFF:

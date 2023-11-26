@@ -3763,6 +3763,8 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
 		FLUID_CON(obj) = copy_fluid_container_data(FLUID_CON(pObjIndex));
 		FOOD(obj) = copy_food_data(FOOD(pObjIndex));
 		FURNITURE(obj) = copy_furniture_data(FURNITURE(pObjIndex));
+		INK(obj) = copy_ink_data(INK(pObjIndex));
+		INSTRUMENT(obj) = copy_instrument_data(INSTRUMENT(pObjIndex));
 		LIGHT(obj) = copy_light_data(LIGHT(pObjIndex));
 		MONEY(obj) = copy_money_data(MONEY(pObjIndex));
 		PAGE(obj) = copy_book_page(PAGE(pObjIndex));
@@ -7627,6 +7629,8 @@ CONTAINER_DATA *fread_obj_container_data(FILE *fp);
 FLUID_CONTAINER_DATA *fread_obj_fluid_container_data(FILE *fp);
 FOOD_DATA *fread_obj_food_data(FILE *fp);
 FURNITURE_DATA *fread_obj_furniture_data(FILE *fp);
+INK_DATA *fread_obj_ink_data(FILE *fp);
+INSTRUMENT_DATA *fread_obj_instrument_data(FILE *fp);
 LIGHT_DATA *fread_obj_light_data(FILE *fp);
 MONEY_DATA *fread_obj_money_data(FILE *fp);
 BOOK_PAGE *fread_book_page(FILE *fp, char *closer);
@@ -7729,6 +7733,23 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_FURNITURE(obj)) free_furniture_data(FURNITURE(obj));
 
 					FURNITURE(obj) = fread_obj_furniture_data(fp);
+
+					fMatch = TRUE;
+					break;
+				}
+				if (!str_cmp(word, "#TYPEINK"))
+				{
+					if (IS_INK(obj)) free_ink_data(INK(obj));
+
+					INK(obj) = fread_obj_ink_data(fp);
+					fMatch = TRUE;
+					break;
+				}
+				if (!str_cmp(word, "#TYPEINSTRUMENT"))
+				{
+					if (IS_INSTRUMENT(obj)) free_instrument_data(INSTRUMENT(obj));
+
+					INSTRUMENT(obj) = fread_obj_instrument_data(fp);
 					fMatch = TRUE;
 					break;
 				}
@@ -7761,6 +7782,30 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_PORTAL(obj)) free_portal_data(PORTAL(obj));
 
 					PORTAL(obj) = fread_obj_portal_data(fp);
+					fMatch = TRUE;
+					break;
+				}
+				if (!str_cmp(word, "#TYPESCROLL"))
+				{
+					if (IS_SCROLL(obj)) free_scroll_data(SCROLL(obj));
+
+					SCROLL(obj) = fread_obj_scroll_data(fp);
+					fMatch = TRUE;
+					break;
+				}
+				if (!str_cmp(word, "#TYPETATTOO"))
+				{
+					if (IS_TATTOO(obj)) free_tattoo_data(TATTOO(obj));
+
+					TATTOO(obj) = fread_obj_tattoo_data(fp);
+					fMatch = TRUE;
+					break;
+				}
+				if (!str_cmp(word, "#TYPEWAND"))
+				{
+					if (IS_WAND(obj)) free_wand_data(WAND(obj));
+
+					WAND(obj) = fread_obj_wand_data(fp);
 					fMatch = TRUE;
 					break;
 				}

@@ -121,6 +121,8 @@ OBJ_DATA *	mana_regen_relic;
 OBJ_DATA *	rgObjNest[MAX_NEST];
 int 		nest_level;
 
+void fread_stache(FILE *fp, LLIST *lstache);
+void fwrite_stache_obj(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp);
 
 // Output a string of letters corresponding to the bitvalues for a flag
 char *print_flags(long flag)
@@ -150,6 +152,26 @@ char *print_flags(long flag)
     buf[pos] = '\0';
 
     return buf;
+}
+
+void fwrite_stache_char(CHAR_DATA *ch, FILE *fp)
+{
+	if (list_size(ch->lstache) > 0)
+	{
+		fprintf(fp, "#STACHE\n");
+
+		ITERATOR it;
+		OBJ_DATA *obj;
+		iterator_start(&it, ch->lstache);
+		while((obj = (OBJ_DATA *)iterator_nextdata(&it)))
+		{
+			fwrite_obj_new(ch, obj, fp, 0);
+		}
+
+		iterator_stop(&it);
+
+		fprintf(fp, "#-STACHE\n");
+	}
 }
 
 
@@ -223,6 +245,8 @@ void save_char_obj(CHAR_DATA *ch)
 				if( !token->skill )
 					fwrite_token(token, fp);
 		}
+
+		fwrite_stache_char(ch, fp);
 
 		fwrite_skills(ch, fp);
 
@@ -824,6 +848,8 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 			} else if (!str_cmp(word, "L")) {
 				obj = fread_obj_new(fp);
 				obj_to_locker(obj, ch);
+			} else if (!str_cmp(word, "STACHE")) {
+				fread_stache(fp, ch->lstache);
 			} else if (!str_cmp(word, "TOKEN")) {
 				token = fread_token(fp);
 				token_to_char(token, ch);
@@ -2500,6 +2526,35 @@ void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
 		fprintf(fp, "#-TYPEFURNITURE\n");
 	}
 
+	if (IS_INK(obj))
+	{
+		fprintf(fp, "#TYPEINK\n");
+		for(int i = 0; i < MAX_INK_TYPES; i++)
+		{
+			fprintf(fp, "Type %d %s~ %d\n", i+1,
+				flag_string(catalyst_types, INK(obj)->types[i]), INK(obj)->amounts[i]);
+		}
+		fprintf(fp, "#-TYPEINK\n");
+	}
+
+	if (IS_INSTRUMENT(obj))
+	{
+		fprintf(fp, "#TYPEINSTRUMENT\n");
+
+		fprintf(fp, "Type %s~\n", flag_string(instrument_types, INSTRUMENT(obj)->type));
+		fprintf(fp, "Flags %s\n", print_flags(INSTRUMENT(obj)->flags));
+		fprintf(fp, "Beats %d %d\n", INSTRUMENT(obj)->beats_min, INSTRUMENT(obj)->beats_max);
+		fprintf(fp, "Mana %d %d\n", INSTRUMENT(obj)->mana_min, INSTRUMENT(obj)->mana_max);
+
+		for(int i = 0; i < INSTRUMENT_MAX_CATALYSTS; i++)
+		{
+			fprintf(fp, "Reservoir %d %s~ %d %d\n", i+1,
+				flag_string(catalyst_types, INSTRUMENT(obj)->reservoirs[i].type),
+				INSTRUMENT(obj)->reservoirs[i].amount, INSTRUMENT(obj)->reservoirs[i].capacity);
+		}
+		fprintf(fp, "#-TYPEINSTRUMENT\n");
+	}
+
 	if (IS_LIGHT(obj))
 	{
 		fprintf(fp, "#TYPELIGHT\n");
@@ -2598,6 +2653,26 @@ void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
 	}
 }
 
+
+void fwrite_stache_obj(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp)
+{
+	if (list_size(obj->lstache) > 0)
+	{
+		fprintf(fp, "#STACHE\n");
+
+		ITERATOR it;
+		OBJ_DATA *item;
+		iterator_start(&it, obj->lstache);
+		while((item = (OBJ_DATA *)iterator_nextdata(&it)))
+		{
+			fwrite_obj_new(ch, item, fp, 0);
+		}
+
+		iterator_stop(&it);
+
+		fprintf(fp, "#-STACHE\n");
+	}
+}
 
 
 /*
@@ -2942,7 +3017,9 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
     fprintf(fp, "End\n\n");
 
     if (obj->contains != NULL)
-	fwrite_obj_new(ch, obj->contains, fp, iNest + 1);
+		fwrite_obj_new(ch, obj->contains, fp, iNest + 1);
+
+	fwrite_stache_obj(ch, obj, fp);
 }
 
 LOCK_STATE *fread_lock_state(FILE *fp)
@@ -3518,6 +3595,127 @@ FURNITURE_DATA *fread_obj_furniture_data(FILE *fp)
 	return data;
 }
 
+INK_DATA *fread_obj_ink_data(FILE *fp)
+{
+	INK_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_ink_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPEINK"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case 'T':
+				if (!str_cmp(word, "Type"))
+				{
+					int index = fread_number(fp);
+					char *name = fread_string(fp);
+					int amount = fread_number(fp);
+
+					if (index >= 1 && index <= MAX_INK_TYPES)
+					{
+						int type = stat_lookup(name, catalyst_types, CATALYST_NONE);
+						if (type != CATALYST_NONE)
+						{
+							data->types[index-1] = type;
+							data->amounts[index-1] = amount;
+						}
+					}
+
+					fMatch = true;
+					break;
+				}
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "fread_obj_ink_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+
+INSTRUMENT_DATA *fread_obj_instrument_data(FILE *fp)
+{
+	INSTRUMENT_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_instrument_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPEINSTRUMENT"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case 'B':
+				if (!str_cmp(word, "Beats"))
+				{
+					data->beats_min = fread_number(fp);
+					data->beats_max = fread_number(fp);
+
+					fMatch = true;
+					break;					
+				}
+				break;
+
+			case 'F':
+				KEY("Flags", data->flags, fread_flag(fp));
+				break;
+
+			case 'M':
+				if (!str_cmp(word, "mana"))
+				{
+					data->mana_min = fread_number(fp);
+					data->mana_max = fread_number(fp);
+
+					fMatch = true;
+					break;					
+				}
+				break;
+
+			case 'R':
+				if (!str_cmp(word, "Reservoir"))
+				{
+					int index = fread_number(fp);
+					char *name = fread_string(fp);
+					int amount = fread_number(fp);
+					int capacity = fread_number(fp);
+
+					if (index >= 1 && index <= INSTRUMENT_MAX_CATALYSTS)
+					{
+						int type = stat_lookup(name, catalyst_types, CATALYST_NONE);
+						if (type != CATALYST_NONE)
+						{
+							data->reservoirs[index - 1].type = type;
+							data->reservoirs[index - 1].amount = amount;
+							data->reservoirs[index - 1].capacity = capacity;
+						}
+					}
+				}
+				break;
+
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "fread_obj_instrument_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
 
 LIGHT_DATA *fread_obj_light_data(FILE *fp)
 {
@@ -3871,6 +4069,8 @@ void fread_obj_reset_multityping(OBJ_DATA *obj)
 	free_fluid_container_data(FLUID_CON(obj));	FLUID_CON(obj) = NULL;
 	free_food_data(FOOD(obj));				FOOD(obj) = NULL;
 	free_furniture_data(FURNITURE(obj));	FURNITURE(obj) = NULL;
+	free_ink_data(INK(obj));				INK(obj) = NULL;
+	free_instrument_data(INSTRUMENT(obj));	INSTRUMENT(obj) = NULL;
 	free_light_data(LIGHT(obj));			LIGHT(obj) = NULL;
 	free_money_data(MONEY(obj));			MONEY(obj) = NULL;
 	free_book_page(PAGE(obj));				PAGE(obj) = NULL;
@@ -4064,6 +4264,53 @@ void fread_obj_check_version(OBJ_DATA *obj, long values[MAX_OBJVALUES])
 		}
 	}
 
+	if (obj->version < VERSION_OBJECT_013)
+	{
+		if (obj->item_type == ITEM_INK)
+		{
+			// This will only ever have atmost THREE different catalyst types from the old format
+
+			if (IS_INK(obj)) free_ink_data(INK(obj));
+
+			INK(obj) = new_ink_data();
+			sh_int amounts[CATALYST_MAX];
+
+			// Tally up how much is on each type
+			// Example:
+			// v0  air
+			// v1  air
+			// v2  water
+			//
+			// Should tally up to 2 air and 1 water
+			for(int i = 0; i < CATALYST_MAX; i++) amounts[i] = 0;
+			for(int i = 0; i < 3; i++)
+				if (values[i] > CATALYST_NONE && values[i] < CATALYST_MAX)
+					amounts[values[i]]++;
+
+			// Copy over tallies
+			int n = 0;
+			for(int i = 0; i < CATALYST_MAX && n < 3; i++)
+			{
+				if (amounts[i] > 0)
+				{
+					INK(obj)->types[n] = i;
+					INK(obj)->amounts[n] = amounts[i];
+				}
+			}
+		}
+		else if (obj->item_type == ITEM_INSTRUMENT)
+		{
+			if (IS_INSTRUMENT(obj)) free_instrument_data(INSTRUMENT(obj));
+
+			INSTRUMENT(obj) = new_instrument_data();
+
+			INSTRUMENT(obj)->type = values[0];
+			INSTRUMENT(obj)->flags = values[1];
+			INSTRUMENT(obj)->beats_min = values[2];
+			INSTRUMENT(obj)->beats_max = values[3];
+		}
+	}
+
 	for(int i = 0; i < MAX_OBJVALUES; i++)
 		obj->value[i] = values[i];
 }
@@ -4138,6 +4385,13 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			fread_to_eol(fp);
 			break;
 		case '#':
+			if (!str_cmp(word, "#STACHE"))
+			{
+				fread_stache(fp, obj->lstache);
+				fMatch = true;
+				break;
+			}
+
 			if (!str_cmp(word, "#TOKEN"))
 			{
 				TOKEN_DATA *token = fread_token(fp);
@@ -4183,6 +4437,22 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 				FURNITURE(obj) = fread_obj_furniture_data(fp);
 
+				fMatch = TRUE;
+				break;
+			}
+			if (!str_cmp(word, "#TYPEINK"))
+			{
+				if (IS_INK(obj)) free_ink_data(INK(obj));
+
+				INK(obj) = fread_obj_ink_data(fp);
+				fMatch = TRUE;
+				break;
+			}
+			if (!str_cmp(word, "#TYPEINSTRUMENT"))
+			{
+				if (IS_INSTRUMENT(obj)) free_instrument_data(INSTRUMENT(obj));
+
+				INSTRUMENT(obj) = fread_obj_instrument_data(fp);
 				fMatch = TRUE;
 				break;
 			}
@@ -4919,6 +5189,36 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 		}
 	}
 }
+
+
+void fread_stache(FILE *fp, LLIST *lstache)
+{
+	char *word;
+	bool fMatch;
+
+    while (str_cmp((word = fread_word(fp)), "#-STACHE"))
+	{
+		fMatch = false;
+
+		if (!str_cmp(word, "#O"))
+		{
+			OBJ_DATA *obj = fread_obj_new(fp);
+
+			if (IS_VALID(obj))
+			{
+				obj->stached = true;
+				list_appendlink(lstache, obj);
+			}
+			fMatch = true;
+		}
+
+		if (!fMatch)
+		{
+			fread_to_eol(fp);
+		}
+	}
+}
+
 
 
 // Write the permanent objects - the ones which save over reboots, etc.
