@@ -3315,6 +3315,11 @@ char *expand_entity_exit(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_NUMBER;
 		arg->d.num = ex ? arg->d.door.door : -1;
 		break;
+	case ENTITY_EXIT_FLAGS:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = ex ? ex->exit_info : 0;
+		arg->d.bv.table = exit_flags;
+		break;
 	case ENTITY_EXIT_SOURCE:
 		arg->type = ENT_ROOM;
 		arg->d.room = arg->d.door.r;
@@ -5097,6 +5102,11 @@ char *expand_entity_clone_door(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_EXIT_DOOR:
 		arg->type = ENT_NUMBER;
 		arg->d.num = arg->d.cdoor.door;
+		break;
+	case ENTITY_EXIT_FLAGS:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = 0;
+		arg->d.bv.table = exit_flags;
 		break;
 	case ENTITY_EXIT_SOURCE:
 		arg->type = ENT_CLONE_ROOM;

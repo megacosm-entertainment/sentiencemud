@@ -571,6 +571,7 @@ ENT_FIELD entity_array_exits[] = {
 ENT_FIELD entity_exit[] = {
 	{"name",		ENTITY_EXIT_NAME,	ENT_STRING	},
 	{"door",		ENTITY_EXIT_DOOR,	ENT_NUMBER	},
+	{"flags",		ENTITY_EXIT_FLAGS,	ENT_BITVECTOR },
 	{"src",			ENTITY_EXIT_SOURCE,	ENT_ROOM	},
 	{"here",		ENTITY_EXIT_SOURCE,	ENT_ROOM	},
 	{"source",		ENTITY_EXIT_SOURCE,	ENT_ROOM	},
