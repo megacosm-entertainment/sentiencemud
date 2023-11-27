@@ -404,6 +404,8 @@ void save_area_new(AREA_DATA *area)
 
 	olc_save_index_vars(fp, area->index_vars, area);
 
+	save_reputation_indexes(fp, area);
+
     /* Whisp - write this function */
     save_area_trade(fp, area);
 
@@ -1721,7 +1723,18 @@ AREA_DATA *read_area_new(FILE *fp)
 	switch (word[0])
 	{
 	    case '#':
-		if (!str_cmp(word, "#REGION"))
+		if (!str_cmp(word, "#REPUTATION"))
+		{
+			REPUTATION_INDEX_DATA *rep = load_reputation_index(fp);
+			vnum = rep->vnum;
+			iHash = vnum % MAX_KEY_HASH;
+			rep->next = area->reputation_index_hash[iHash];
+			rep->area = area;
+			area->reputation_index_hash[iHash] = rep;
+			area->top_reputation_vnum = UMAX(area->top_reputation_vnum, vnum);
+			fMatch = TRUE;
+		}
+		else if (!str_cmp(word, "#REGION"))
 		{
 			read_area_region(fp, area);
 			fMatch = TRUE;

@@ -467,6 +467,9 @@ typedef struct skill_data SKILL_DATA;
 typedef struct skill_group_data SKILL_GROUP;
 typedef struct song_data SONG_DATA;
 
+typedef struct reputation_index_data REPUTATION_INDEX_DATA;
+typedef struct reputation_data REPUTATION_DATA;
+
 /* VIZZWILDS */
 typedef struct    wilds_vlink      WILDS_VLINK;
 typedef struct    wilds_data       WILDS_DATA;
@@ -4020,6 +4023,61 @@ struct limb_data {
 #define MAGICCAST_ROOMBLOCK		2
 #define MAGICCAST_SCRIPT		3	// Failure caused by scripting -
 
+typedef struct reputation_index_rank_data REPUTATION_INDEX_RANK_DATA;
+
+#define REPUTATION_RANK_NORANKUP        (A)     // Whether capping out the rank's capacity requires special action to rank up (Default: automatic)
+
+struct reputation_index_rank_data {
+    REPUTATION_INDEX_RANK_DATA *next;
+    bool valid;
+
+    sh_int uid;     // Local to the REPUTATION_INDEX_DATA
+    sh_int ordinal; // Order in the ranks list, updated every time the list is reworked
+
+    char *name;             // Display name (not a keyword)
+    char *description;      // Description about the rank, such as.. what does it offer?
+    char *comments;         // Builders' comments
+
+    long capacity;          // How much reputation is in this rank
+    long flags;
+
+    long set;               // Value assigned when manually set, usually 0
+
+    char color;             // Which color
+};
+
+struct reputation_index_data
+{
+    REPUTATION_INDEX_DATA *next;
+    bool valid;
+
+    AREA_DATA *area;
+    long vnum;
+
+    sh_int top_rank_uid;
+
+    char *name;
+    char *description;
+    char *comments;
+
+    // Order matters
+    LLIST *ranks;       // REPUTATION_INDEX_RANK_DATA
+
+    sh_int initial_rank;
+    sh_int initial_reputation;
+};
+
+struct reputation_data
+{
+    REPUTATION_DATA *next;
+    bool valid;
+
+    REPUTATION_INDEX_DATA *pIndexData;
+
+    sh_int current_rank;    // Always the ordinal number into the list
+    long reputation;        // How much reputation do you have in the current rank?
+};
+
 /*
  * One character (PC or NPC).
  */
@@ -4403,6 +4461,8 @@ struct	char_data
     LLIST *     lstache;    // Script item store
 
     LLIST *		lgroup;
+
+    LLIST *     reputations;
 
     int			deathsight_vision;
     int			cast_successful;	// Flag set when the casting is started indicating whether the result is successful
@@ -5514,6 +5574,7 @@ struct area_data {
     BLUEPRINT *blueprint_hash[MAX_KEY_HASH];
     DUNGEON_INDEX_DATA *dungeon_index_hash[MAX_KEY_HASH];
     SHIP_INDEX_DATA *ship_index_hash[MAX_KEY_HASH];
+    REPUTATION_INDEX_DATA *reputation_index_hash[MAX_KEY_HASH];
 	SCRIPT_DATA *mprog_list;
 	SCRIPT_DATA *oprog_list;
 	SCRIPT_DATA *rprog_list;
@@ -5543,6 +5604,7 @@ struct area_data {
     long top_blueprint_vnum;
     long top_ship_vnum;
     long top_dungeon_vnum;
+    long top_reputation_vnum;
 
     long top_region_uid;
 
@@ -10765,5 +10827,21 @@ extern LLIST *gc_tokens;
 extern int disconnect_timeout;
 extern int limbo_timeout;
 extern int top_trigger_type;
+
+REPUTATION_INDEX_DATA *load_reputation_index(FILE *fp);
+void save_reputation_indexes(FILE *fp, AREA_DATA *pArea);
+REPUTATION_INDEX_DATA *get_reputation_index(AREA_DATA *area, long vnum);
+REPUTATION_INDEX_DATA *get_reputation_index_auid(long auid, long vnum);
+REPUTATION_INDEX_DATA *get_reputation_index_wnum(WNUM wnum);
+REPUTATION_INDEX_RANK_DATA *get_reputation_rank(REPUTATION_INDEX_DATA *rep, int ordinal);
+REPUTATION_INDEX_RANK_DATA *get_reputation_rank_uid(REPUTATION_INDEX_DATA *rep, sh_int uid);
+REPUTATION_DATA *get_reputation_char(CHAR_DATA *ch, AREA_DATA *area, long vnum);
+REPUTATION_DATA *get_reputation_char_auid(CHAR_DATA *ch, long auid, long vnum);
+REPUTATION_DATA *get_reputation_char_wnum(CHAR_DATA *ch, WNUM wnum);
+int gain_reputation(CHAR_DATA *ch, REPUTATION_DATA *rep, int amount, bool show);
+bool set_reputation_rank(CHAR_DATA *ch, REPUTATION_DATA *rep, int rank_no, bool show);
+void insert_reputation(CHAR_DATA *ch, REPUTATION_DATA *rep);
+REPUTATION_DATA *set_reputation_char(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex);
+
 
 #endif /* !def __merc_h__ */

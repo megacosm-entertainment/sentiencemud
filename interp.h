@@ -622,3 +622,6 @@ DECLARE_DO_FUN( do_extinguish );
 //DECLARE_DO_FUN( do_navigate );
 
 DECLARE_DO_FUN( do_immstrike );
+
+
+DECLARE_DO_FUN( do_reputations );

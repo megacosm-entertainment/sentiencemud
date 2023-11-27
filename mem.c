@@ -615,6 +615,11 @@ static void delete_aura_data(void *ptr)
     free_aura_data((AURA_DATA *)ptr);
 }
 
+static void delete_reputation_data(void *ptr)
+{
+    free_reputation_data((REPUTATION_DATA *)ptr);
+}
+
 CHAR_DATA *new_char( void )
 {
     CHAR_DATA *ch;
@@ -738,6 +743,7 @@ CHAR_DATA *new_char( void )
     ch->lgroup			= list_create(FALSE);
     ch->auras           = list_createx(FALSE, NULL, delete_aura_data);
     ch->lstache         = list_create(FALSE);
+    ch->reputations     = list_createx(FALSE, NULL, delete_reputation_data);
 
     ch->deathsight_vision = 0;
     ch->in_damage_function = FALSE;
@@ -834,6 +840,8 @@ void free_char( CHAR_DATA *ch )
     list_destroy(ch->ltokens);
     list_destroy(ch->lclonerooms);
     list_destroy(ch->lgroup);
+    list_destroy(ch->auras);
+    list_destroy(ch->reputations);
 
     iterator_start(&it, ch->lstache);
     while((obj = (OBJ_DATA *)iterator_nextdata(&it)))
@@ -1599,6 +1607,8 @@ AREA_DATA *new_area( void )
         pArea       =   area_free;
         area_free   =   area_free->next;
     }
+
+    memset(pArea, 0, sizeof(AREA_DATA));
 
     SET_MEMTYPE(pArea,MEMTYPE_AREA);
     pArea->next             =   NULL;
@@ -6250,3 +6260,117 @@ void free_song_data(SONG_DATA *data)
     data->next = song_data_free;
     song_data_free = data;
 }
+
+
+REPUTATION_INDEX_RANK_DATA *reputation_index_rank_free;
+REPUTATION_INDEX_RANK_DATA *new_reputation_index_rank_data()
+{
+    REPUTATION_INDEX_RANK_DATA *data;
+    if (reputation_index_rank_free)
+    {
+        data = reputation_index_rank_free;
+        reputation_index_rank_free = reputation_index_rank_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(REPUTATION_INDEX_RANK_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    data->name = str_dup("");
+    data->description = str_dup("");
+    data->comments = str_dup("");
+    data->color = 'Y';      // Yellow
+    data->capacity = 1;
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_reputation_index_rank_data(REPUTATION_INDEX_RANK_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    free_string(data->name);
+    free_string(data->description);
+    free_string(data->comments);
+
+    INVALIDATE(data);
+    data->next = reputation_index_rank_free;
+    reputation_index_rank_free = data;
+}
+
+static void delete_reputation_index_rank_data(void *ptr)
+{
+    free_reputation_index_rank_data((REPUTATION_INDEX_RANK_DATA *)ptr);
+}
+
+REPUTATION_INDEX_DATA *reputation_index_free;
+REPUTATION_INDEX_DATA *new_reputation_index_data()
+{
+    REPUTATION_INDEX_DATA *data;
+    if (reputation_index_free)
+    {
+        data = reputation_index_free;
+        reputation_index_free = reputation_index_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(REPUTATION_INDEX_DATA));
+
+    memset(data, 0, sizeof(*data));
+
+    data->name = str_dup("");
+    data->description = str_dup("");
+    data->comments = str_dup("");
+
+    // If initial rank = 0, the reputation has not been configured properly.
+
+    data->ranks = list_createx(FALSE, NULL, delete_reputation_index_rank_data);
+    
+    VALIDATE(data);
+    return data;
+}
+
+void free_reputation_index_data(REPUTATION_INDEX_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    free_string(data->name);
+    free_string(data->description);
+    free_string(data->comments);
+
+    list_destroy(data->ranks);
+
+    INVALIDATE(data);
+    data->next = reputation_index_free;
+    reputation_index_free = data;
+}
+
+REPUTATION_DATA *reputation_free;
+REPUTATION_DATA *new_reputation_data()
+{
+    REPUTATION_DATA *data;
+
+    if(reputation_free)
+    {
+        data = reputation_free;
+        reputation_free = reputation_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(REPUTATION_DATA));
+
+    memset(data, 0, sizeof(*data));
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_reputation_data(REPUTATION_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    INVALIDATE(data);
+    data->next = reputation_free;
+    reputation_free = data;
+}
+
+

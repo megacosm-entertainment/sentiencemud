@@ -333,3 +333,13 @@ void free_skill_group_data(SKILL_GROUP *group);
 
 SONG_DATA *new_song_data();
 void free_song_data(SONG_DATA *song);
+
+
+REPUTATION_INDEX_RANK_DATA *new_reputation_index_rank_data();
+void free_reputation_index_rank_data(REPUTATION_INDEX_RANK_DATA *data);
+
+REPUTATION_INDEX_DATA *new_reputation_index_data();
+void free_reputation_index_data(REPUTATION_INDEX_DATA *data);
+
+REPUTATION_DATA *new_reputation_data();
+void free_reputation_data(REPUTATION_DATA *data);

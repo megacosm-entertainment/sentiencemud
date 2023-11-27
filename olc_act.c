@@ -3127,6 +3127,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 	{
 		ROOM_INDEX_DATA *pToRoom;
 		sh_int rev;
+		bool both = !argument[0] || !str_prefix(argument, "both");
 
 		if (!pRoom->exit[door])
 		{
@@ -3148,7 +3149,8 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 			return FALSE;
 		}
 
-		if (pToRoom->exit[rev])
+		// Only do it if the exit connects back to *this* room, and we want to delete both sides (which is the default)
+		if (both && pToRoom->exit[rev] && pToRoom->exit[rev]->u1.to_room == pRoom)
 		{
 			free_exit(pToRoom->exit[rev]);
 			pToRoom->exit[rev] = NULL;
