@@ -134,7 +134,7 @@ obj/project.o: project.c merc.h protocol.h sha256.h interp.h tables.h olc.h \
 obj/protocol.o: protocol.c protocol.h merc.h sha256.h
 obj/quest.o: quest.c merc.h protocol.h sha256.h recycle.h magic.h tables.h
 obj/reputation.o: reputation.c merc.h protocol.h sha256.h recycle.h tables.h \
- scripts.h
+ scripts.h olc.h
 obj/save.o: save.c merc.h protocol.h sha256.h recycle.h tables.h db.h olc.h \
  interp.h olc_save.h scripts.h wilds.h
 obj/scan.o: scan.c merc.h protocol.h sha256.h wilds.h

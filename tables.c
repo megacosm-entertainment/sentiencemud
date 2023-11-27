@@ -3954,3 +3954,9 @@ const struct flag_type song_flags[] =
     { "voice_only",         SONG_VOICE_ONLY,        TRUE  },
     { NULL,                 0,                      FALSE }
 };
+
+const struct flag_type reputation_rank_flags[] =
+{
+    { "no_rank_up",         REPUTATION_RANK_NORANKUP,   TRUE  },
+    { NULL,                 0,                      FALSE }
+};

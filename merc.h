@@ -4060,11 +4060,13 @@ struct reputation_index_data
     char *description;
     char *comments;
 
+    char *created_by;
+
     // Order matters
     LLIST *ranks;       // REPUTATION_INDEX_RANK_DATA
 
     sh_int initial_rank;
-    sh_int initial_reputation;
+    long initial_reputation;
 };
 
 struct reputation_data
@@ -10835,13 +10837,12 @@ REPUTATION_INDEX_DATA *get_reputation_index_auid(long auid, long vnum);
 REPUTATION_INDEX_DATA *get_reputation_index_wnum(WNUM wnum);
 REPUTATION_INDEX_RANK_DATA *get_reputation_rank(REPUTATION_INDEX_DATA *rep, int ordinal);
 REPUTATION_INDEX_RANK_DATA *get_reputation_rank_uid(REPUTATION_INDEX_DATA *rep, sh_int uid);
-REPUTATION_DATA *get_reputation_char(CHAR_DATA *ch, AREA_DATA *area, long vnum);
-REPUTATION_DATA *get_reputation_char_auid(CHAR_DATA *ch, long auid, long vnum);
-REPUTATION_DATA *get_reputation_char_wnum(CHAR_DATA *ch, WNUM wnum);
+REPUTATION_DATA *get_reputation_char(CHAR_DATA *ch, AREA_DATA *area, long vnum, bool show);
+REPUTATION_DATA *get_reputation_char_auid(CHAR_DATA *ch, long auid, long vnum, bool show);
+REPUTATION_DATA *get_reputation_char_wnum(CHAR_DATA *ch, WNUM wnum, bool show);
 int gain_reputation(CHAR_DATA *ch, REPUTATION_DATA *rep, int amount, bool show);
 bool set_reputation_rank(CHAR_DATA *ch, REPUTATION_DATA *rep, int rank_no, bool show);
-void insert_reputation(CHAR_DATA *ch, REPUTATION_DATA *rep);
-REPUTATION_DATA *set_reputation_char(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex);
+REPUTATION_DATA *set_reputation_char(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex, bool show);
 
 
 #endif /* !def __merc_h__ */

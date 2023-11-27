@@ -625,3 +625,7 @@ DECLARE_DO_FUN( do_immstrike );
 
 
 DECLARE_DO_FUN( do_reputations );
+
+DECLARE_DO_FUN( do_repedit );
+DECLARE_DO_FUN( do_replist );
+DECLARE_DO_FUN( do_repshow );

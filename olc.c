@@ -57,6 +57,7 @@ char *editor_name_table[] = {
 	"LiqEdit",
 	"SgEdit",
 	"SongEdit",
+	"RepEdit",
 };
 
 int editor_max_tabs_table[] = {
@@ -86,6 +87,7 @@ int editor_max_tabs_table[] = {
 	0,		// LiqEdit
 	0,		// SgEdit
 	0,		// SongEdit
+	0,		// RepEdit
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -112,6 +114,7 @@ const struct editor_cmd_type editor_table[] =
 	{ "liquid",		do_liqedit	},
 	{ "skillgroup",	do_sgedit	},
 	{ "song",		do_songedit },
+	{ "reputation",	do_repedit	},
 	{ NULL,			0,			}
 };
 
@@ -540,6 +543,9 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
 	case ED_SONGEDIT:
 		songedit(d->character, d->incomm);
 		break;
+	case ED_REPEDIT:
+		repedit(d->character, d->incomm);
+		break;
 
 	default:
 		return FALSE;
@@ -609,6 +615,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 	SKILL_GROUP *group;
 	LIQUID *liquid;
 	SONG_DATA *song;
+	REPUTATION_INDEX_DATA *rep;
 	static char buf[20];
 	char buf2[MSL];
 
@@ -754,6 +761,14 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 			strcpy(buf, "--");
 		break;
 
+	case ED_REPEDIT:
+		rep = (REPUTATION_INDEX_DATA *)ch->desc->pEdit;
+		if (IS_VALID(rep))
+			sprintf(buf, "%ld#%ld", rep->area->uid, rep->vnum);
+		else
+			strcpy(buf, "--");
+		break;
+
 	default:
 		sprintf(buf, " ");
 		break;
@@ -883,6 +898,10 @@ bool show_commands(CHAR_DATA *ch, char *argument)
 
 	case ED_SONGEDIT:
 		show_olc_cmds(ch, songedit_table);
+		break;
+
+	case ED_REPEDIT:
+		show_olc_cmds(ch, repedit_table);
 		break;
 	}
 
@@ -4499,6 +4518,203 @@ void songedit(CHAR_DATA *ch, char *argument)
 
 	interpret(ch, arg);
 }
+
+
+const struct olc_cmd_type repedit_table[] =
+{
+	{	"?",			show_help			},
+	{	"commands",		show_commands		},
+	{	"comments",		repedit_comments	},
+	{	"create",		repedit_create		},
+	{	"description",	repedit_description	},
+	{	"initial",		repedit_initial		},
+	{	"name",			repedit_name		},
+	{	"rank",			repedit_rank		},
+	{	"show",			repedit_show		},
+	{	NULL,			NULL				}
+};
+
+
+void do_repedit(CHAR_DATA *ch, char *argument)
+{
+	REPUTATION_INDEX_DATA *pRep;
+	char arg1[MAX_STRING_LENGTH];
+	WNUM wnum;
+
+	argument = one_argument(argument, arg1);
+
+	if (IS_NPC(ch))
+		return;
+
+	if (parse_widevnum(arg1, ch->in_room->area, &wnum))
+	{
+		if (!(pRep = get_reputation_index(wnum.pArea, wnum.vnum)))
+		{
+			send_to_char("RepEdit:  That vnum does not exist.\n\r", ch);
+			return;
+		}
+
+		if (!has_access_area(ch, pRep->area))
+		{
+			send_to_char("Insufficient security to edit reputation - action logged.\n\r" , ch);
+			return;
+		}
+
+		ch->pcdata->immortal->last_olc_command = current_time;
+		olc_set_editor(ch, ED_REPEDIT, pRep);
+		return;
+	}
+	else
+	{
+		if (!str_cmp(arg1, "create"))
+		{
+			if (repedit_create(ch, argument))
+				ch->desc->editor = ED_REPEDIT;
+		}
+
+		return;
+	}
+
+	send_to_char("RepEdit:  There is no default reputation to edit.\n\r", ch);
+}
+
+void repedit(CHAR_DATA *ch, char *argument)
+{
+	AREA_DATA *pArea;
+	REPUTATION_INDEX_DATA *pRep;
+	char command[MAX_INPUT_LENGTH];
+	char arg[MAX_STRING_LENGTH];
+	int  cmd;
+
+	smash_tilde(argument);
+	strcpy(arg, argument);
+	argument = one_argument(argument, command);
+
+	EDIT_REPUTATION(ch, pRep);
+	pArea = pRep->area;
+
+	if (pArea == NULL)
+	{
+		bug("repedit: pArea was null!", 0);
+		return;
+	}
+
+	if (!IS_BUILDER(ch, pArea))
+	{
+		send_to_char("RepEdit: Insufficient security to edit reputation - action logged.\n\r", ch);
+		edit_done(ch);
+		return;
+	}
+
+	if (!str_cmp(command, "done"))
+	{
+		edit_done(ch);
+		return;
+	}
+
+	ch->pcdata->immortal->last_olc_command = current_time;
+	if (command[0] == '\0')
+	{
+		repedit_show(ch, argument);
+		return;
+	}
+
+	for (cmd = 0; repedit_table[cmd].name != NULL; cmd++)
+	{
+		if (!str_prefix(command, repedit_table[cmd].name))
+		{
+			if ((*repedit_table[cmd].olc_fun) (ch, argument))
+			{
+				SET_BIT(pArea->area_flags, AREA_CHANGED);
+			}
+			return;
+		}
+	}
+
+	interpret(ch, arg);
+}
+
+
+void do_replist(CHAR_DATA *ch, char *argument)
+{
+	REPUTATION_INDEX_DATA *pRepIndex;
+	AREA_DATA *pArea;
+	BUFFER *buf1;
+	char buf[ MAX_STRING_LENGTH];
+	char arg[MAX_INPUT_LENGTH];
+	bool fAll;
+	bool found;
+	long vnum;
+	int col = 0;
+
+	one_argument(argument, arg);
+	if (arg[0] == '\0')
+	{
+		send_to_char("Syntax:  replist <all|name>\n\r", ch);
+		return;
+	}
+
+	buf1  = new_buf();
+	pArea = ch->in_room->area;
+	fAll  = !str_cmp(arg, "all");
+	found = FALSE;
+
+	for (vnum = 1; vnum <= pArea->top_reputation_vnum; vnum++)
+	{
+		if ((pRepIndex = get_reputation_index(pArea, vnum)) != NULL)
+		{
+			if (fAll || is_name(arg, pRepIndex->name))
+			{
+				found = TRUE;
+				sprintf(buf, "{x[%5ld] %-17.16s{x", pRepIndex->vnum, pRepIndex->name);
+				add_buf(buf1, buf);
+				if (++col % 3 == 0)
+					add_buf(buf1, "\n\r");
+			}
+		}
+	}
+
+	if (!found)
+	{
+		send_to_char("Reputation(s) not found in this area.\n\r", ch);
+		return;
+	}
+
+	if (col % 3 != 0)
+		add_buf(buf1, "\n\r");
+
+	page_to_char(buf_string(buf1), ch);
+	free_buf(buf1);
+	return;
+}
+
+void do_repshow(CHAR_DATA *ch, char *argument)
+{
+	REPUTATION_INDEX_DATA *pRep;
+	WNUM wnum;
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  repshow <widevnum>\n\r", ch);
+		return;
+	}
+
+	if (!parse_widevnum(argument, ch->in_room->area, &wnum))
+	{
+		send_to_char("Please specify a widevnum.\n\r", ch);
+		return;
+	}
+
+	if (!(pRep = get_reputation_index(wnum.pArea, wnum.vnum)))
+	{
+		send_to_char("That reputation does not exist.\n\r", ch);
+		return;
+	}
+
+	olc_show_item(ch, pRep, repedit_show, argument);
+	return;
+}
+
 
 void olc_show_progs(BUFFER *buffer, LLIST **progs, int type, const char *title)
 {

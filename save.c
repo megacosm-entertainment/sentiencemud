@@ -175,6 +175,7 @@ void fwrite_stache_char(CHAR_DATA *ch, FILE *fp)
 }
 
 
+
 // Save a character and inventory.
 void save_char_obj(CHAR_DATA *ch)
 {
@@ -699,10 +700,24 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     iterator_stop(&uait);
 
     for (cmd = ch->pcdata->commands; cmd != NULL; cmd = cmd->next)
-	fprintf(fp, "GrantedCommand %s~\n", cmd->name);
+		fprintf(fp, "GrantedCommand %s~\n", cmd->name);
 	#ifdef IMC
 	imc_savechar( ch, fp );
 	#endif
+
+	ITERATOR rpit;
+	REPUTATION_DATA *rep;
+
+	iterator_start(&rpit, ch->reputations);
+	while((rep = (REPUTATION_DATA *)iterator_nextdata(&rpit)))
+	{
+		fprintf(fp, "Reputation %ld#%ld %d %ld\n",
+			rep->pIndexData->area->uid, rep->pIndexData->vnum,
+			rep->current_rank,
+			rep->reputation);
+	}
+	iterator_stop(&rpit);
+
     fprintf(fp, "End\n\n");
 }
 
@@ -1897,6 +1912,28 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 		location_set(&ch->recall,NULL,wuid,x,y,z);
 		fMatch = TRUE;
 	    }
+			if (!str_cmp(word, "Reputation"))
+			{
+				WNUM_LOAD wnum_load = fread_widevnum(fp, 0);
+
+				REPUTATION_INDEX_DATA *repIndex = get_reputation_index_auid(wnum_load.auid, wnum_load.vnum);
+				if (IS_VALID(repIndex))
+				{
+					REPUTATION_DATA *rep = new_reputation_data();
+
+					rep->pIndexData = repIndex;
+					rep->current_rank = fread_number(fp);
+					rep->reputation = fread_number(fp);
+
+					list_appendlink(ch->reputations, rep);
+				}
+				else
+					fread_to_eol(fp);
+
+				fMatch = true;
+				break;
+			}
+
             if (!str_cmp(word, "Room_before_arena")) {
 				long auid = fread_number(fp);
 				long vnum = fread_number(fp);

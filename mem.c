@@ -6321,6 +6321,7 @@ REPUTATION_INDEX_DATA *new_reputation_index_data()
     data->name = str_dup("");
     data->description = str_dup("");
     data->comments = str_dup("");
+    data->created_by = str_dup("(none)");
 
     // If initial rank = 0, the reputation has not been configured properly.
 
@@ -6337,6 +6338,7 @@ void free_reputation_index_data(REPUTATION_INDEX_DATA *data)
     free_string(data->name);
     free_string(data->description);
     free_string(data->comments);
+    free_string(data->created_by);
 
     list_destroy(data->ranks);
 

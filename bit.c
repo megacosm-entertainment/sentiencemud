@@ -114,6 +114,7 @@ const struct flag_stat_type flag_stat_table[] =
     {   tattoo_loc_flags,           TRUE    },
     {   song_flags,                 FALSE   },
     {   song_target_types,          TRUE   },
+    {   reputation_rank_flags,      FALSE   },
     {	0,							0		}
 };
 

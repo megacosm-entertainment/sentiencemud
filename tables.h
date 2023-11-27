@@ -411,5 +411,7 @@ extern const struct song_func_type presong_func_table[];
 extern const struct song_func_type song_func_table[];
 extern const struct flag_type song_flags[];
 
+extern const struct flag_type reputation_rank_flags[];
+
 #endif
 

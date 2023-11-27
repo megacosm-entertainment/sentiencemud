@@ -149,6 +149,7 @@ const struct olc_help_type help_table[] =
 	{	"ranged",				STRUCT_FLAGS,		ranged_weapon_class,		"Ranged	weapon types."	},
 	{	"recite_func",			STRUCT_ARTIFICING,	recite_func_table,			"Recite Functions (SkEdit)"},
 	{	"remort_sublasses",		STRUCT_REMORT_SUBCLASSES,		NULL,			"Remort Subclasses" },
+	{	"reputation_rank",		STRUCT_FLAGS,		reputation_rank_flags,		"Reputation Rank flags." },
 	{	"res",					STRUCT_FLAGS,		res_flags,					"Mobile resistance."	},
 	{	"room",					STRUCT_FLAGBANK,	room_flagbank,				"Room attributes."	},
 	{	"rprog",				STRUCT_TRIGGERS,	dummy_triggers,				"RoomProgram types."	},
@@ -15701,7 +15702,7 @@ MEDIT(medit_comments)
 	return TRUE;
     }
 
-    send_to_char("Syntax:  desc    - line edit\n\r", ch);
+    send_to_char("Syntax:  comments    - line edit\n\r", ch);
     return FALSE;
 }
 

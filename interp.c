@@ -564,6 +564,11 @@ const	struct	cmd_type	cmd_table	[] =
 
 	{ "mxptest",	do_mxptest, POS_DEAD,	ML,		LOG_ALWAYS, 1, TRUE },
 	{ "immstrike",	do_immstrike, POS_DEAD,	IM,		LOG_ALWAYS, 1, TRUE },
+
+	{ "repedit",	do_repedit, POS_DEAD,	ML,		LOG_NORMAL, 1, TRUE },
+	{ "replist",	do_replist, POS_DEAD,	ML,		LOG_NORMAL, 1, TRUE },
+	{ "repshow",	do_repshow, POS_DEAD,	L5,		LOG_NORMAL, 1, TRUE },
+
     { "",		0,		POS_DEAD,     0,  LOG_NORMAL, 0, FALSE }
 };
 

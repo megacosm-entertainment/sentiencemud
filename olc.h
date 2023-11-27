@@ -54,6 +54,7 @@
 #define ED_SGEDIT   24
 #define ED_SONGEDIT	25
 
+#define ED_REPEDIT	26
 
 #define AEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define HEDIT( fun )            bool fun( CHAR_DATA *ch, char *argument )
@@ -75,6 +76,8 @@
 #define LIQEDIT( fun )       bool fun( CHAR_DATA *ch, char *argument )
 #define SGEDIT( fun )       bool fun( CHAR_DATA *ch, char *argument )
 #define SONGEDIT( fun )       bool fun( CHAR_DATA *ch, char *argument )
+
+#define REPEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 
 /*
  * Interpreter Prototypes
@@ -108,6 +111,8 @@ void    skedit  ( CHAR_DATA *ch, char *argument );
 void    liqedit ( CHAR_DATA *ch, char *argument );
 void    sgedit  ( CHAR_DATA *ch, char *argument );
 void    songedit  ( CHAR_DATA *ch, char *argument );
+
+void	repedit  ( CHAR_DATA *ch, char *argument );
 
 /*
  * OLC Constants
@@ -176,6 +181,7 @@ extern const struct olc_cmd_type        skedit_table[];
 extern const struct olc_cmd_type        liqedit_table[];
 extern const struct olc_cmd_type        sgedit_table[];
 extern const struct olc_cmd_type		songedit_table[];
+extern const struct olc_cmd_type		repedit_table[];
 
 /*
  * Editor Commands.
@@ -202,6 +208,8 @@ DECLARE_DO_FUN( do_skedit );
 DECLARE_DO_FUN( do_liqedit );
 DECLARE_DO_FUN( do_sgedit );
 DECLARE_DO_FUN( do_songedit );
+
+DECLARE_DO_FUN( do_repedit );
 
 /*
  * Area Editor Prototypes
@@ -689,6 +697,16 @@ DECLARE_OLC_FUN( songedit_mana );
 DECLARE_OLC_FUN( songedit_beats );
 DECLARE_OLC_FUN( songedit_target );
 
+
+DECLARE_OLC_FUN( repedit_show );
+DECLARE_OLC_FUN( repedit_create );
+DECLARE_OLC_FUN( repedit_name );
+DECLARE_OLC_FUN( repedit_description );
+DECLARE_OLC_FUN( repedit_comments );
+DECLARE_OLC_FUN( repedit_rank );
+DECLARE_OLC_FUN( repedit_initial );
+
+
 /*
  * Macros
  */
@@ -725,6 +743,7 @@ DECLARE_OLC_FUN( songedit_target );
 #define EDIT_SKILL_GROUP(ch, group)     ( group = (SKILL_GROUP *)ch->desc->pEdit)
 
 #define EDIT_SONG(ch, song)		( song = (SONG_DATA *)ch->desc->pEdit )
+#define EDIT_REPUTATION(ch, rep)	( rep = (REPUTATION_INDEX_DATA *)ch->desc->pEdit )
 
 /*
  * Prototypes
