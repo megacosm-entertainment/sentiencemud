@@ -348,6 +348,7 @@ ENT_FIELD entity_mobile[] = {
 	{"pmount",					ENTITY_MOB_PMOUNT,			ENT_WIDEVNUM },
 	{"catalystusage",			ENTITY_MOB_CATALYST_USAGE,	ENT_CATALYST_USAGE },
 	{"stache",					ENTITY_MOB_STACHE,			ENT_PLLIST_OBJ },
+	{"size",					ENTITY_MOB_SIZE,			ENT_STAT },
 	{NULL,				0,							ENT_UNKNOWN	}
 };
 

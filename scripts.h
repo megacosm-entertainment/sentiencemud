@@ -866,6 +866,7 @@ enum entity_mobile_enum {
 	ENTITY_MOB_HITSKILL,
 	ENTITY_MOB_CATALYST_USAGE,
 	ENTITY_MOB_STACHE,
+	ENTITY_MOB_SIZE,
 };
 
 enum entity_object_enum {

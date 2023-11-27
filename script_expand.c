@@ -2342,6 +2342,13 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.blist = self ? self->lstache : NULL;
 		break;
 
+	case ENTITY_MOB_SIZE:
+		arg->type = ENT_STAT;
+		arg->d.stat.value = self ? self->size : NO_FLAG;
+		arg->d.stat.table = size_flags;
+		arg->d.stat.def_value = SIZE_TINY - 1;
+		break;
+
 	default: return NULL;
 	}
 
@@ -2629,6 +2636,13 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_MOB_STACHE:
 		arg->type = ENT_PLLIST_OBJ;
 		arg->d.blist = NULL;
+		break;
+
+	case ENTITY_MOB_SIZE:
+		arg->type = ENT_STAT;
+		arg->d.stat.value = NO_FLAG;
+		arg->d.stat.table = size_flags;
+		arg->d.stat.def_value = SIZE_TINY - 1;
 		break;
 
 	default: return NULL;
