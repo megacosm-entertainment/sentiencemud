@@ -4531,6 +4531,7 @@ const struct olc_cmd_type repedit_table[] =
 	{	"name",			repedit_name		},
 	{	"rank",			repedit_rank		},
 	{	"show",			repedit_show		},
+	{	"token",		repedit_token		},	// Must do this to allow scripting!
 	{	NULL,			NULL				}
 };
 

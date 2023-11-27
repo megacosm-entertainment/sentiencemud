@@ -762,8 +762,10 @@ void script_loop_cleanup(SCRIPT_CB *block, int level)
 			case ENT_PLLIST_BOOK_PAGE:
 			case ENT_PLLIST_FOOD_BUFF:
 			case ENT_PLLIST_COMPARTMENT:
+			case ENT_PLLIST_REPUTATION_RANK:
 			case ENT_ILLIST_SPELLS:
 			case ENT_ILLIST_VARIABLE:
+			case ENT_ILLIST_REPUTATION:
 				iterator_stop(&block->loops[i].d.l.list.it);
 				break;
 			}
@@ -1100,6 +1102,8 @@ DECL_OPC_FUN(opc_list)
 	FOOD_BUFF_DATA *food_buff;
 	FURNITURE_COMPARTMENT *compartment;
 	SPELL_DATA *spell;
+	REPUTATION_DATA *reputation;
+	REPUTATION_INDEX_RANK_DATA *rank;
 
 	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
 		return opc_skip_block(block,block->cur_line->level-1,FALSE);
@@ -2027,6 +2031,34 @@ DECL_OPC_FUN(opc_list)
 			variables_set_compartment(block->info.var,block->loops[lp].var_name,compartment);
 			break;
 
+		case ENT_PLLIST_REPUTATION_RANK:
+			//log_stringf("opc_list: list type ENT_PLLIST_REPUTATION_RANK");
+			if(!arg->d.blist || !arg->d.blist->valid)
+			{
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			block->loops[lp].d.l.type = ENT_PLLIST_REPUTATION_RANK;
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+			rank = (REPUTATION_INDEX_RANK_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+			//log_stringf("opc_list: church(%s)", church ? church->name : "<END>");
+
+			if( !IS_VALID(rank) ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			// Set the variable
+			variables_set_reputation_rank(block->info.var,block->loops[lp].var_name,rank);
+			break;
+
 		case ENT_ILLIST_MOB_GROUP:
 			//log_stringf("opc_list: list type ENT_ILLIST_MOB_GROUP");
 			if(!arg->d.group_owner || !arg->d.group_owner->in_room)
@@ -2253,6 +2285,32 @@ DECL_OPC_FUN(opc_list)
 
 			// Set the variable
 			variables_set_object(block->info.var,block->loops[lp].var_name,obj);
+			break;
+
+		case ENT_ILLIST_REPUTATION:
+			//log_stringf("opc_list: list type ENT_ILLIST_REPUTATION");
+			if(!IS_VALID(arg->d.blist))
+			{
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			block->loops[lp].d.l.type = ENT_ILLIST_REPUTATION;
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+			reputation = (REPUTATION_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+			if( !IS_VALID(reputation) ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			// Set the variable
+			variables_set_reputation(block->info.var,block->loops[lp].var_name,reputation);
 			break;
 
 		default:
@@ -2835,6 +2893,20 @@ DECL_OPC_FUN(opc_list)
 
 			break;
 
+		case ENT_PLLIST_REPUTATION_RANK:
+			//log_stringf("opc_list: list type ENT_PLLIST_REPUTATION_RANK");
+			rank = (REPUTATION_INDEX_RANK_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+			// Set the variable
+			variables_set_reputation_rank(block->info.var,block->loops[lp].var_name,rank);
+
+			if( !IS_VALID(rank) ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				skip = TRUE;
+				break;
+			}
+
+			break;
 		case ENT_ILLIST_VARIABLE:
 			//log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
 			variable = (VARIABLE *)iterator_nextdata(&block->loops[lp].d.l.list.it);
@@ -2969,6 +3041,21 @@ DECL_OPC_FUN(opc_list)
 				break;
 			}
 
+			break;
+
+		case ENT_ILLIST_REPUTATION:
+			//log_stringf("opc_list: list type ENT_ILLIST_REPUTATION");
+			reputation = (REPUTATION_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+			//log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
+
+			// Set the variable
+			variables_set_reputation(block->info.var,block->loops[lp].var_name,reputation);
+
+			if( !IS_VALID(reputation) ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				skip = TRUE;
+				break;
+			}
 			break;
 		}
 

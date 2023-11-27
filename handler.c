@@ -10277,3 +10277,17 @@ char *formatf(const char *fmt, ...)
 
 	return buf[i];
 }
+
+
+bool token_should_save(TOKEN_DATA *token)
+{
+	if (!IS_VALID(token)) return false;
+
+	if (token->skill) return false;
+
+	if (IS_VALID(token->reputation)) return false;
+
+	//if (token->affect) return false;
+
+	return true;
+}

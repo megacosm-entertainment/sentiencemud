@@ -106,6 +106,7 @@ DUNGEON *dungeon_load(FILE *fp);
 void resolve_reserved(RESERVED_WNUM *reserved);
 void resolve_skills();
 void resolve_songs();
+void resolve_reputations();
 
 
 /* Reading of keys*/
@@ -1731,6 +1732,9 @@ void boot_db(void)
 	resolve_reserved_rprogs();
 	resolve_reserved_areas();
 
+	log_string("Resolving reputations");
+	resolve_reputations();
+
 	log_string("Resolving skills");
 	resolve_skills();
 
@@ -1830,6 +1834,24 @@ void boot_db(void)
     gconfig_write();
 }
 
+void resolve_reputations()
+{
+	for (AREA_DATA *area = area_first; area; area = area->next)
+	{
+		for (int i = 0; i < MAX_KEY_HASH; i++)
+		{
+			for (REPUTATION_INDEX_DATA *rep = area->reputation_index_hash[i]; rep; rep = rep->next)
+			{
+				if (rep->token_load.auid > 0 && rep->token_load.vnum > 0)
+				{
+					rep->token = get_token_index_auid(rep->token_load.auid, rep->token_load.vnum);
+				}
+			}
+		}
+
+	}
+
+}
 
 void resolve_skills()
 {

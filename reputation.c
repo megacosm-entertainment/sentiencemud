@@ -90,6 +90,7 @@ REPUTATION_INDEX_RANK_DATA *load_reputation_index_rank(FILE *fp)
 		case 'N':
 			KEYS("Name", data->name, fread_string(fp));
 			break;
+		
 		}
 
 
@@ -104,7 +105,7 @@ REPUTATION_INDEX_RANK_DATA *load_reputation_index_rank(FILE *fp)
 }
 
 // Load Reputation Index
-REPUTATION_INDEX_DATA *load_reputation_index(FILE *fp)
+REPUTATION_INDEX_DATA *load_reputation_index(FILE *fp, AREA_DATA *area)
 {
 	REPUTATION_INDEX_DATA *data;
 	bool fMatch;
@@ -112,6 +113,7 @@ REPUTATION_INDEX_DATA *load_reputation_index(FILE *fp)
 
 	data = new_reputation_index_data();
 	data->vnum = fread_number(fp);
+	data->area = area;
 
 	while(str_cmp((word = fread_word(fp)), "#-REPUTATION"))
 	{
@@ -150,6 +152,10 @@ REPUTATION_INDEX_DATA *load_reputation_index(FILE *fp)
 
 		case 'N':
 			KEYS("Name", data->name, fread_string(fp));
+			break;
+
+		case 'T':
+			KEY("Token", data->token_load, fread_widevnum(fp, area->uid));
 			break;
 		}
 
@@ -192,6 +198,9 @@ void save_reputation_index(FILE *fp, REPUTATION_INDEX_DATA *data)
 	if (data->initial_rank > 0)
 		fprintf(fp, "InitialRank %d\n", data->initial_rank);
 	fprintf(fp, "InitialReputation %ld\n", data->initial_reputation);
+
+	if (data->token)
+		fprintf(fp, "Token %ld#%ld\n", data->token->area->uid, data->token->vnum);
 
 	ITERATOR it;
 	REPUTATION_INDEX_RANK_DATA *rank;
@@ -383,10 +392,10 @@ int gain_reputation(CHAR_DATA *ch, REPUTATION_DATA *rep, int amount, bool show)
 			}
 		}
 
-		// Only possible if at the highest rank
+		// Only possible if at the highest rank or if the current rank is NO_RANK_UP
 		REPUTATION_INDEX_RANK_DATA *rank = get_reputation_rank(rep->pIndexData, rep->current_rank);
-		if (rep->reputation > rank->capacity)
-			rep->reputation = rank->capacity;
+		if (rep->reputation >= rank->capacity)
+			rep->reputation = rank->capacity - 1;
 	}
 
 	if (show)
@@ -617,6 +626,12 @@ REPEDIT( repedit_show )
 
 	sprintf(buf, "[Initial Reputation]:  %ld\n\r", pRep->initial_reputation);
 	add_buf(buffer, buf);
+
+	if (pRep->token)
+	{
+		sprintf(buf, "[Token             ]:  %s (%ld#%ld)\n\r", pRep->token->name, pRep->token->area->uid, pRep->token->vnum);
+		add_buf(buffer, buf);
+	}
 
 	sprintf(buf, "\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pRep->comments);
 	add_buf(buffer, buf);
@@ -1090,6 +1105,41 @@ REPEDIT( repedit_initial )
 	return true;
 }
 
+REPEDIT( repedit_token )
+{
+	REPUTATION_INDEX_DATA *pRep;
+
+	EDIT_REPUTATION(ch, pRep);
+
+	WNUM wnum;
+
+	if (!str_prefix(argument, "none"))
+	{
+		pRep->token = NULL;
+		send_to_char("Token cleared.\n\r", ch);
+	}
+	else if (parse_widevnum(argument, ch->in_room->area, &wnum))
+	{
+		TOKEN_INDEX_DATA *token = get_token_index(wnum.pArea, wnum.vnum);
+
+		if (!token)
+		{
+			send_to_char("There is no token with that widevnum.\n\r", ch);
+			return false;
+		}
+
+		pRep->token = token;
+		send_to_char("Token set.\n\r", ch);
+	}
+	else
+	{
+		send_to_char("Syntax:  token {R<widenum|none>{x\n\r", ch);
+		send_to_char("Please specify a widevnum or {Wnone{x.\n\r", ch);
+		return false;
+	}
+
+	return true;
+}
 
 
 // TODO: Add Variable support

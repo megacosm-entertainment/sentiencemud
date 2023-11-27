@@ -705,7 +705,7 @@ DECLARE_OLC_FUN( repedit_description );
 DECLARE_OLC_FUN( repedit_comments );
 DECLARE_OLC_FUN( repedit_rank );
 DECLARE_OLC_FUN( repedit_initial );
-
+DECLARE_OLC_FUN( repedit_token );		// Must be a singular token
 
 /*
  * Macros

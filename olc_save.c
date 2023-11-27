@@ -1725,11 +1725,10 @@ AREA_DATA *read_area_new(FILE *fp)
 	    case '#':
 		if (!str_cmp(word, "#REPUTATION"))
 		{
-			REPUTATION_INDEX_DATA *rep = load_reputation_index(fp);
+			REPUTATION_INDEX_DATA *rep = load_reputation_index(fp, area);
 			vnum = rep->vnum;
 			iHash = vnum % MAX_KEY_HASH;
 			rep->next = area->reputation_index_hash[iHash];
-			rep->area = area;
 			area->reputation_index_hash[iHash] = rep;
 			area->top_reputation_vnum = UMAX(area->top_reputation_vnum, vnum);
 			fMatch = TRUE;

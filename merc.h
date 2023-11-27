@@ -3908,6 +3908,7 @@ struct token_data
 
 	SKILL_ENTRY *skill;		// Is the token used in a skill entry?
     AFFECT_DATA *affect;
+    REPUTATION_DATA *reputation;
 
     int			tempstore[MAX_TEMPSTORE];		/* Temporary storage values for script processing */
 };
@@ -4026,6 +4027,7 @@ struct limb_data {
 typedef struct reputation_index_rank_data REPUTATION_INDEX_RANK_DATA;
 
 #define REPUTATION_RANK_NORANKUP        (A)     // Whether capping out the rank's capacity requires special action to rank up (Default: automatic)
+#define REPUTATION_RANK_PARAGON         (B)     // The rank will execute a script (if assigned) for when the bar fills up, and will reset the reputation back to 0 (no overflow kept).
 
 struct reputation_index_rank_data {
     REPUTATION_INDEX_RANK_DATA *next;
@@ -4062,6 +4064,10 @@ struct reputation_index_data
 
     char *created_by;
 
+    // Allows for triggers associated with the reputation
+    WNUM_LOAD token_load;
+    TOKEN_INDEX_DATA *token;
+
     // Order matters
     LLIST *ranks;       // REPUTATION_INDEX_RANK_DATA
 
@@ -4078,6 +4084,8 @@ struct reputation_data
 
     sh_int current_rank;    // Always the ordinal number into the list
     long reputation;        // How much reputation do you have in the current rank?
+
+    TOKEN_DATA *token;
 };
 
 /*
@@ -10830,7 +10838,7 @@ extern int disconnect_timeout;
 extern int limbo_timeout;
 extern int top_trigger_type;
 
-REPUTATION_INDEX_DATA *load_reputation_index(FILE *fp);
+REPUTATION_INDEX_DATA *load_reputation_index(FILE *fp, AREA_DATA *area);
 void save_reputation_indexes(FILE *fp, AREA_DATA *pArea);
 REPUTATION_INDEX_DATA *get_reputation_index(AREA_DATA *area, long vnum);
 REPUTATION_INDEX_DATA *get_reputation_index_auid(long auid, long vnum);
@@ -10844,5 +10852,6 @@ int gain_reputation(CHAR_DATA *ch, REPUTATION_DATA *rep, int amount, bool show);
 bool set_reputation_rank(CHAR_DATA *ch, REPUTATION_DATA *rep, int rank_no, bool show);
 REPUTATION_DATA *set_reputation_char(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex, bool show);
 
+bool token_should_save(TOKEN_DATA *token);
 
 #endif /* !def __merc_h__ */

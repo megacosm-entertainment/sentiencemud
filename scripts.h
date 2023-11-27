@@ -335,6 +335,10 @@ enum variable_enum {
 	VAR_BLUEPRINT_SECTION,
 	VAR_DUNGEONINDEX,
 	VAR_SHIPINDEX,
+
+	VAR_REPUTATION,
+	VAR_REPUTATION_INDEX,
+	VAR_REPUTATION_RANK,
 	
 	VAR_BOOK_PAGE,
 	VAR_FOOD_BUFF,
@@ -476,6 +480,9 @@ enum entity_type_enum {
 	ENT_INK_TYPE,
 	ENT_INSTRUMENT_RESERVOIRS,
 	ENT_INSTRUMENT_RESERVOIR,
+	ENT_REPUTATION,
+	ENT_REPUTATION_INDEX,
+	ENT_REPUTATION_RANK,
 
 	ENT_MOBINDEX,
 	ENT_OBJINDEX,
@@ -514,6 +521,7 @@ enum entity_type_enum {
 	ENT_PLLIST_BOOK_PAGE,
 	ENT_PLLIST_FOOD_BUFF,
 	ENT_PLLIST_COMPARTMENT,
+	ENT_PLLIST_REPUTATION_RANK,
 	ENT_PLLIST_MAX,
 	//////////////////////////////
 
@@ -538,6 +546,7 @@ enum entity_type_enum {
 	ENT_ILLIST_SHIPS,
 	ENT_ILLIST_SPELLS,
 	ENT_ILLIST_SPECIALKEYS,
+	ENT_ILLIST_REPUTATION,
 	ENT_ILLIST_MAX,
 	//////////////////////////////
 
@@ -867,6 +876,40 @@ enum entity_mobile_enum {
 	ENTITY_MOB_CATALYST_USAGE,
 	ENTITY_MOB_STACHE,
 	ENTITY_MOB_SIZE,
+	ENTITY_MOB_REPUTATIONS,
+};
+
+enum entity_reputation_enum
+{
+	ENTITY_REPUTATION_NAME = ESCAPE_EXTRA,
+	ENTITY_REPUTATION_INDEX,
+	ENTITY_REPUTATION_RANK,
+	ENTITY_REPUTATION_REPUTATION,
+	ENTITY_REPUTATION_TOKEN,
+};
+
+enum entity_reputation_index_enum
+{
+	ENTITY_REPINDEX_NAME = ESCAPE_EXTRA,
+	ENTITY_REPINDEX_WNUM,
+	ENTITY_REPINDEX_DESCRIPTION,
+	ENTITY_REPINDEX_COMMENTS,
+	ENTITY_REPINDEX_INITIAL_RANK,
+	ENTITY_REPINDEX_INITIAL_REPUTATION,
+	ENTITY_REPINDEX_RANKS,
+	ENTITY_REPINDEX_TOKEN,
+};
+
+enum entity_reputation_rank_enum
+{
+	ENTITY_REPRANK_NAME = ESCAPE_EXTRA,
+	ENTITY_REPRANK_UID,
+	ENTITY_REPRANK_ORDINAL,
+	ENTITY_REPRANK_DESCRIPTION,
+	ENTITY_REPRANK_COMMENTS,
+	ENTITY_REPRANK_COLOR,
+	ENTITY_REPRANK_FLAGS,
+	ENTITY_REPRANK_CAPACITY,
 };
 
 enum entity_object_enum {
@@ -1659,6 +1702,9 @@ struct script_var_type {
 		SKILL_DATA *skill;
 		SKILL_ENTRY *entry;
 		SONG_DATA *song;
+		REPUTATION_DATA *reputation;
+		REPUTATION_INDEX_DATA *reputation_index;
+		REPUTATION_INDEX_RANK_DATA *reputation_rank;
 		struct {
 			CHAR_DATA *owner;
 			TOKEN_DATA *token;
@@ -1873,6 +1919,11 @@ struct script_parameter {
 		SKILL_DATA *skill;
 		SKILL_ENTRY *entry;
 		SONG_DATA *song;
+
+		REPUTATION_DATA *reputation;
+		REPUTATION_INDEX_DATA *repIndex;
+		REPUTATION_INDEX_RANK_DATA *repRank;
+
 		struct {
 			OBJ_DATA *obj;
 			int type;
@@ -2751,6 +2802,12 @@ bool variables_setsave_blueprint_section (ppVARIABLE list,char *name,BLUEPRINT_S
 bool variables_setsave_blueprint (ppVARIABLE list,char *name,BLUEPRINT *blueprint, bool save);
 bool variables_setsave_dungeonindex (ppVARIABLE list,char *name,DUNGEON_INDEX_DATA *dngindex, bool save);
 bool variables_setsave_shipindex (ppVARIABLE list,char *name,SHIP_INDEX_DATA *shipindex, bool save);
+bool variables_set_reputation (ppVARIABLE list,char *name,REPUTATION_DATA *reputation);
+bool variables_setsave_reputation (ppVARIABLE list,char *name,REPUTATION_DATA *reputation, bool save);
+bool variables_set_reputation_index (ppVARIABLE list,char *name,REPUTATION_INDEX_DATA *reputation_index);
+bool variables_setsave_reputation_index (ppVARIABLE list,char *name,REPUTATION_INDEX_DATA *reputation_index, bool save);
+bool variables_set_reputation_rank (ppVARIABLE list,char *name,REPUTATION_INDEX_RANK_DATA *reputation_rank);
+bool variables_setsave_reputation_rank (ppVARIABLE list,char *name,REPUTATION_INDEX_RANK_DATA *reputation_rank, bool save);
 
 int variable_fread_type(char *str);
 pVARIABLE variable_create(ppVARIABLE list,char *name, bool index, bool clear);

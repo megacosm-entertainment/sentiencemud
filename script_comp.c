@@ -390,8 +390,11 @@ int compile_entity_listbasetype(int ent)
 	case ENT_PLLIST_CHURCH:	ent = ENT_CHURCH; break;
 	case ENT_PLLIST_FOOD_BUFF: ent = ENT_FOOD_BUFF; break;
 	case ENT_PLLIST_COMPARTMENT: ent = ENT_COMPARTMENT; break;
+	case ENT_PLLIST_REPUTATION_RANK:	ent = ENT_REPUTATION_RANK; break;
 
+	case ENT_ILLIST_SPELLS:		ent = ENT_SPELL; break;
 	case ENT_ILLIST_VARIABLE:	ent = ENT_VARIABLE; break;
+	case ENT_ILLIST_REPUTATION:	ent = ENT_REPUTATION; break;
 
 	case ENT_SKILL_VALUES:		ent = ENT_NUMBER; break;
 	case ENT_SKILL_VALUENAMES:	ent = ENT_STRING; break;
@@ -766,9 +769,11 @@ char *compile_entity(char *str,int type, char **store, int *entity_type)
 			case ENT_PLLIST_CHURCH:	ent = ENT_CHURCH; break;
 			case ENT_PLLIST_FOOD_BUFF: ent = ENT_FOOD_BUFF; break;
 			case ENT_PLLIST_COMPARTMENT: ent = ENT_COMPARTMENT; break;
-			
+			case ENT_PLLIST_REPUTATION_RANK:	ent = ENT_REPUTATION_RANK; break;
+
 			case ENT_ILLIST_SPELLS:		ent = ENT_SPELL; break;
 			case ENT_ILLIST_VARIABLE:	ent = ENT_VARIABLE; break;
+			case ENT_ILLIST_REPUTATION:	ent = ENT_REPUTATION; break;
 
 			case ENT_ARRAY_EXITS:		ent = ENT_EXIT; break;
 

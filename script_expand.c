@@ -2349,6 +2349,11 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.stat.def_value = SIZE_TINY - 1;
 		break;
 
+	case ENTITY_MOB_REPUTATIONS:
+		arg->type = ENT_ILLIST_REPUTATION;
+		arg->d.blist = self ? self->reputations : NULL;
+		break;
+
 	default: return NULL;
 	}
 
@@ -2645,6 +2650,167 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.stat.def_value = SIZE_TINY - 1;
 		break;
 
+	case ENTITY_MOB_REPUTATIONS:
+		arg->type = ENT_ILLIST_REPUTATION;
+		arg->d.blist = NULL;
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_reputation(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	REPUTATION_DATA *rep = arg->d.reputation;
+
+	switch(*str)
+	{
+	case ENTITY_REPUTATION_NAME:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(rep) ? rep->pIndexData->name : "";
+		break;
+
+	case ENTITY_REPUTATION_INDEX:
+		arg->type = ENT_REPUTATION_INDEX;
+		arg->d.repIndex = IS_VALID(rep) ? rep->pIndexData : NULL;
+		break;
+
+	case ENTITY_REPUTATION_RANK:
+	{
+		arg->type = ENT_REPUTATION_RANK;
+		if (IS_VALID(rep) && rep->current_rank > 0)
+			arg->d.repRank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(rep->pIndexData->ranks, rep->current_rank);
+		else
+			arg->d.repRank = NULL;
+		break;
+	}
+
+	case ENTITY_REPUTATION_REPUTATION:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(rep) ? rep->reputation : 0;
+		break;
+
+	case ENTITY_REPUTATION_TOKEN:
+		arg->type = ENT_TOKEN;
+		arg->d.token = IS_VALID(rep) ? rep->token : NULL;
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_reputation_index(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	REPUTATION_INDEX_DATA *repIndex = arg->d.repIndex;
+
+	switch(*str)
+	{
+	case ENTITY_REPINDEX_NAME:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(repIndex) ? repIndex->name : "";
+		break;
+
+	case ENTITY_REPINDEX_WNUM:
+		arg->type = ENT_WIDEVNUM;
+		arg->d.wnum.pArea = IS_VALID(repIndex) ? repIndex->area : NULL;
+		arg->d.wnum.vnum = IS_VALID(repIndex) ? repIndex->vnum : 0;
+		break;
+
+	case ENTITY_REPINDEX_DESCRIPTION:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(repIndex) ? repIndex->description : "";
+		break;
+
+	case ENTITY_REPINDEX_COMMENTS:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(repIndex) ? repIndex->comments : "";
+		break;
+
+	case ENTITY_REPINDEX_INITIAL_RANK:
+		arg->type = ENT_REPUTATION_RANK;
+		arg->d.repRank = IS_VALID(repIndex) && repIndex->initial_rank > 0 ? (REPUTATION_INDEX_RANK_DATA *)list_nthdata(repIndex->ranks, repIndex->initial_rank) : NULL;
+		break;
+
+	case ENTITY_REPINDEX_INITIAL_REPUTATION:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(repIndex) ? repIndex->initial_reputation : 0;
+		break;
+
+	case ENTITY_REPINDEX_RANKS:
+		arg->type = ENT_PLLIST_REPUTATION_RANK;
+		arg->d.blist = IS_VALID(repIndex) ? repIndex->ranks : NULL;
+		break;
+
+	case ENTITY_REPINDEX_TOKEN:
+		arg->type = ENT_TOKENINDEX;
+		arg->d.tokindex = IS_VALID(repIndex) ? repIndex->token : NULL;
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_reputation_rank(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	REPUTATION_INDEX_RANK_DATA *rank = arg->d.repRank;
+
+	switch(*str)
+	{
+	case ENTITY_REPRANK_NAME:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(rank) ? rank->name : "";
+		break;
+
+	case ENTITY_REPRANK_UID:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(rank) ? rank->uid : 0;
+		break;
+		
+	case ENTITY_REPRANK_ORDINAL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(rank) ? rank->ordinal : 0;
+		break;
+		
+	case ENTITY_REPRANK_DESCRIPTION:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(rank) ? rank->description : "";
+		break;
+		
+	case ENTITY_REPRANK_COMMENTS:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(rank) ? rank->comments : "";
+		break;
+		
+	case ENTITY_REPRANK_COLOR:
+		arg->type = ENT_STRING;
+		if (IS_VALID(rank))
+		{
+			clear_buf(arg->buffer);
+			add_buf_char(arg->buffer, '{');
+			add_buf_char(arg->buffer, rank->color);
+			arg->d.str = buf_string(arg->buffer);
+		}
+		else
+			arg->d.str = "";
+		break;
+		
+	case ENTITY_REPRANK_FLAGS:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(rank) ? rank->flags : 0;
+		arg->d.bv.table = reputation_rank_flags;
+		break;
+		
+	case ENTITY_REPRANK_CAPACITY:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(rank) ? rank->capacity : 0;
+		break;
+		
 	default: return NULL;
 	}
 
@@ -6239,6 +6405,55 @@ char *expand_entity_plist_compartment(SCRIPT_VARINFO *info,char *str,SCRIPT_PARA
 	return str+1;
 }
 
+char *expand_entity_plist_reputation_rank(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	register REPUTATION_INDEX_RANK_DATA *rank = NULL;
+	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			rank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(arg->d.blist, index);
+
+		arg->d.repRank = rank;
+		arg->type = ENT_REPUTATION_RANK;
+
+		return str;
+	}
+	case ENTITY_LIST_SIZE:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+		break;
+	case ENTITY_LIST_RANDOM:
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			rank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+
+		arg->d.repRank = rank;
+		arg->type = ENT_REPUTATION_RANK;
+		break;
+	case ENTITY_LIST_FIRST:
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			rank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(arg->d.blist, 1);
+
+		arg->d.repRank = rank;
+		arg->type = ENT_REPUTATION_RANK;
+		break;
+	case ENTITY_LIST_LAST:
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			rank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(arg->d.blist, -1);
+
+		arg->d.repRank = rank;
+		arg->type = ENT_REPUTATION_RANK;
+		break;
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
 char *expand_entity_plist_mob(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	register CHAR_DATA *ch = NULL;
@@ -8265,6 +8480,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_PLLIST_BOOK_PAGE:	next = expand_entity_plist_book_page(info,str,arg); break;
 		case ENT_PLLIST_FOOD_BUFF:	next = expand_entity_plist_food_buff(info,str,arg); break;
 		case ENT_PLLIST_COMPARTMENT:	next = expand_entity_plist_compartment(info,str,arg); break;
+		case ENT_PLLIST_REPUTATION_RANK:	next = expand_entity_plist_reputation_rank(info,str,arg); break;
 
 		case ENT_MOBILE_ID:		next = expand_entity_mobile_id(info,str,arg); break;
 		case ENT_OBJECT_ID:		next = expand_entity_object_id(info,str,arg); break;
@@ -8320,6 +8536,10 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_INSTRUMENT_RESERVOIRS:	next = expand_entity_instrument_reservoirs(info,str,arg); break;
 		case ENT_INSTRUMENT_RESERVOIR:	next = expand_entity_instrument_reservoir(info,str,arg); break;
 		case ENT_CATALYST_USAGE:		next = expand_entity_catalyst_usage(info,str,arg); break;
+
+		case ENT_REPUTATION:			next = expand_entity_reputation(info,str,arg); break;
+		case ENT_REPUTATION_INDEX:		next = expand_entity_reputation_index(info,str,arg); break;
+		case ENT_REPUTATION_RANK:		next = expand_entity_reputation_rank(info,str,arg); break;
 
 		case ENT_STAT:			next = expand_entity_stat(info,str,arg); break;
 		case ENT_BITVECTOR:		next = expand_entity_bitvector(info,str,arg); break;

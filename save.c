@@ -123,6 +123,7 @@ int 		nest_level;
 
 void fread_stache(FILE *fp, LLIST *lstache);
 void fwrite_stache_obj(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp);
+void fread_reputation(FILE *fp, CHAR_DATA *ch);
 
 // Output a string of letters corresponding to the bitvalues for a flag
 char *print_flags(long flag)
@@ -174,7 +175,25 @@ void fwrite_stache_char(CHAR_DATA *ch, FILE *fp)
 	}
 }
 
+void fwrite_reputations_char(CHAR_DATA *ch, FILE *fp)
+{
+	ITERATOR rpit;
+	REPUTATION_DATA *rep;
 
+	iterator_start(&rpit, ch->reputations);
+	while((rep = (REPUTATION_DATA *)iterator_nextdata(&rpit)))
+	{
+		fprintf(fp, "#REPUTATION %ld#%ld\n", rep->pIndexData->area->uid, rep->pIndexData->vnum);
+		fprintf(fp, "Rank %d\n", rep->current_rank);
+		fprintf(fp, "Reputation %ld\n", rep->reputation);
+
+		if (IS_VALID(rep->token))
+			fwrite_token(rep->token, fp);
+
+		fprintf(fp, "#-REPUTATION\n");
+	}
+	iterator_stop(&rpit);
+}
 
 // Save a character and inventory.
 void save_char_obj(CHAR_DATA *ch)
@@ -243,7 +262,7 @@ void save_char_obj(CHAR_DATA *ch)
 		if (ch->tokens != NULL) {
 			TOKEN_DATA *token;
 			for(token = ch->tokens; token; token = token->next)
-				if( !token->skill )
+				if( token_should_save(token) )
 					fwrite_token(token, fp);
 		}
 
@@ -705,19 +724,6 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 	imc_savechar( ch, fp );
 	#endif
 
-	ITERATOR rpit;
-	REPUTATION_DATA *rep;
-
-	iterator_start(&rpit, ch->reputations);
-	while((rep = (REPUTATION_DATA *)iterator_nextdata(&rpit)))
-	{
-		fprintf(fp, "Reputation %ld#%ld %d %ld\n",
-			rep->pIndexData->area->uid, rep->pIndexData->vnum,
-			rep->current_rank,
-			rep->reputation);
-	}
-	iterator_stop(&rpit);
-
     fprintf(fp, "End\n\n");
 }
 
@@ -868,6 +874,8 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 			} else if (!str_cmp(word, "TOKEN")) {
 				token = fread_token(fp);
 				token_to_char(token, ch);
+			} else if (!str_cmp(word, "REPUTATION")) {
+				fread_reputation(fp, ch);
 			} else if (!str_cmp(word, "SKILL")) {
 				fread_skill(fp, ch);
 			} else if (!str_cmp(word, "END"))
@@ -1912,27 +1920,6 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 		location_set(&ch->recall,NULL,wuid,x,y,z);
 		fMatch = TRUE;
 	    }
-			if (!str_cmp(word, "Reputation"))
-			{
-				WNUM_LOAD wnum_load = fread_widevnum(fp, 0);
-
-				REPUTATION_INDEX_DATA *repIndex = get_reputation_index_auid(wnum_load.auid, wnum_load.vnum);
-				if (IS_VALID(repIndex))
-				{
-					REPUTATION_DATA *rep = new_reputation_data();
-
-					rep->pIndexData = repIndex;
-					rep->current_rank = fread_number(fp);
-					rep->reputation = fread_number(fp);
-
-					list_appendlink(ch->reputations, rep);
-				}
-				else
-					fread_to_eol(fp);
-
-				fMatch = true;
-				break;
-			}
 
             if (!str_cmp(word, "Room_before_arena")) {
 				long auid = fread_number(fp);
@@ -6278,6 +6265,51 @@ void fread_skill(FILE *fp, CHAR_DATA *ch)
 	    }
 	}
 
+}
+
+void fread_reputation(FILE *fp, CHAR_DATA *ch)
+{
+    char buf[MSL];
+    char *word;
+    bool fMatch;
+
+	WNUM_LOAD wnum_load = fread_widevnum(fp, 0);
+	REPUTATION_INDEX_DATA *repIndex = get_reputation_index_auid(wnum_load.auid, wnum_load.vnum);
+	
+	REPUTATION_DATA *rep = new_reputation_data();
+	rep->pIndexData = repIndex;
+
+	while(str_cmp((word = fread_word(fp)), "#-REPUTATION"))
+    {
+		fMatch = false;
+
+		switch (UPPER(word[0]))
+		{
+		case '#':
+			if( IS_KEY("#TOKEN") ) {
+				rep->token = fread_token(fp);
+				fMatch = true;
+				break;
+			}
+			break;
+
+		case 'R':
+			KEY("Rank", rep->current_rank, fread_number(fp));
+			KEY("Reputation", rep->reputation, fread_number(fp));
+			break;
+		}
+
+	    if (!fMatch) {
+			sprintf(buf, "fread_reputation: no match for word %s", word);
+			bug(buf, 0);
+			fread_to_eol(fp);
+	    }
+	}
+
+	if (IS_VALID(rep->token))
+		token_to_char(rep->token, ch);
+
+	list_appendlink(ch->reputations, rep);
 }
 
 /* write a quest to disk */

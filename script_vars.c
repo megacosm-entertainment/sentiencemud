@@ -468,6 +468,9 @@ varset(dungeonindex_load,DUNGEONINDEX,WNUM_LOAD,dng,wnum_load)
 varset(shipindex_load,SHIPINDEX,WNUM_LOAD,ship,wnum_load)
 varset(spell,SPELL,SPELL_DATA *,spell,spell)
 varset(lockstate,LOCK_STATE,LOCK_STATE *,lockstate,lockstate)
+varset(reputation,REPUTATION,REPUTATION_DATA *,reputation,reputation)
+varset(reputation_index,REPUTATION_INDEX,REPUTATION_INDEX_DATA *,reputation_index,reputation_index)
+varset(reputation_rank,REPUTATION_RANK,REPUTATION_INDEX_RANK_DATA *,reputation_rank,reputation_rank)
 
 bool variables_set_dice (ppVARIABLE list,char *name,DICE_DATA *d)
 {
@@ -1707,6 +1710,7 @@ bool variable_copy(ppVARIABLE list,char *oldname,char *newname)
 	case VAR_WILDS:			newv->_.wilds = oldv->_.wilds; break;
 	case VAR_CHURCH:		newv->_.church = oldv->_.church; break;
 	case VAR_VARIABLE:		newv->_.variable = oldv->_.variable; break;
+	case VAR_REPUTATION:	newv->_.reputation = oldv->_.reputation; break;
 
 	case VAR_PLLIST_STR:
 	case VAR_PLLIST_CONN:
@@ -1778,6 +1782,7 @@ bool variable_copyto(ppVARIABLE from,ppVARIABLE to,char *oldname,char *newname, 
 	case VAR_CHURCH:		newv->_.church = oldv->_.church; break;
 	case VAR_VARIABLE:		newv->_.variable = oldv->_.variable; break;
 	case VAR_DICE:			newv->_.dice = oldv->_.dice; break;
+	case VAR_REPUTATION:	newv->_.reputation = oldv->_.reputation; break;
 
 	case VAR_PLLIST_STR:
 	case VAR_PLLIST_CONN:
@@ -1846,6 +1851,7 @@ bool variable_copylist(ppVARIABLE from,ppVARIABLE to,bool index)
 		case VAR_CHURCH:		newv->_.church = oldv->_.church; break;
 		case VAR_VARIABLE:		newv->_.variable = oldv->_.variable; break;
 		case VAR_DICE:			newv->_.dice = oldv->_.dice; break;
+		case VAR_REPUTATION:	newv->_.reputation = oldv->_.reputation; break;
 
 		case VAR_PLLIST_STR:
 		case VAR_PLLIST_CONN:
@@ -1914,6 +1920,7 @@ pVARIABLE variable_copyvar(pVARIABLE oldv)
 	case VAR_CHURCH:		newv->_.church = oldv->_.church; break;
 	case VAR_VARIABLE:		newv->_.variable = oldv->_.variable; break;
 	case VAR_DICE:			newv->_.dice = oldv->_.dice; break;
+	case VAR_REPUTATION:	newv->_.reputation = oldv->_.reputation; break;
 
 	case VAR_PLLIST_STR:
 	case VAR_PLLIST_CONN:
@@ -1994,6 +2001,12 @@ void variable_clearfield(int type, void *ptr)
 	while(cur) {
 		switch(cur->type)
 		{
+		case VAR_REPUTATION:
+			if (cur->_.reputation == ptr)
+			{
+				cur->_.reputation = NULL;
+			}
+			break;
 		case VAR_AFFECT:
 			if (cur->_.aff == ptr)
 			{
@@ -2385,10 +2398,6 @@ void variable_fix(pVARIABLE var)
 			var->_.r = get_room_index_auid(var->_.wnum_load.auid, var->_.wnum_load.vnum);
 		else
 			var->_.r = NULL;
-		log_stringf("variable_fix: ROOM variable '%s', WNUM %ld#%ld, Room '%s'",
-			var->name,
-			wnum_load.auid, wnum_load.vnum,
-			var->_.r ? var->_.r->name : "(invalid)");
 
 	} else if(var->type == VAR_CLONE_ROOM) {	// Dynamic
 		if(var->_.cr.r && (room = get_clone_room(var->_.cr.r, var->_.cr.a, var->_.cr.b)) ) {
@@ -3222,6 +3231,8 @@ void variable_fwrite(pVARIABLE var, FILE *fp)
 	case VAR_SHIPINDEX:
 		if (var->_.shipindex)
 			fprintf(fp, "VarShipIndex %ld#%ld\n", var->_.shipindex->area->uid, var->_.shipindex->vnum);
+
+	// Everything else doesn't save
 	}
 }
 
