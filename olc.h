@@ -418,6 +418,9 @@ DECLARE_OLC_FUN( medit_persist  );
 DECLARE_OLC_FUN( medit_questor  );
 DECLARE_OLC_FUN( medit_boss		);
 DECLARE_OLC_FUN( medit_crew		);
+DECLARE_OLC_FUN( medit_addreputation );
+DECLARE_OLC_FUN( medit_delreputation );
+DECLARE_OLC_FUN( medit_faction	);
 
 /* Any script editor */
 DECLARE_OLC_FUN( scriptedit_show	);
@@ -703,6 +706,7 @@ DECLARE_OLC_FUN( repedit_create );
 DECLARE_OLC_FUN( repedit_name );
 DECLARE_OLC_FUN( repedit_description );
 DECLARE_OLC_FUN( repedit_comments );
+DECLARE_OLC_FUN( repedit_flags );
 DECLARE_OLC_FUN( repedit_rank );
 DECLARE_OLC_FUN( repedit_initial );
 DECLARE_OLC_FUN( repedit_token );		// Must be a singular token

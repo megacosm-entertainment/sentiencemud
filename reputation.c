@@ -145,6 +145,10 @@ REPUTATION_INDEX_DATA *load_reputation_index(FILE *fp, AREA_DATA *area)
 			KEYS("Description", data->description, fread_string(fp));
 			break;
 
+		case 'F':
+			KEY("Flags", data->flags, fread_flag(fp));
+			break;
+
 		case 'I':
 			KEY("InitialRank", data->initial_rank, fread_number(fp));
 			KEY("InitialReputation", data->initial_reputation, fread_number(fp));
@@ -194,6 +198,8 @@ void save_reputation_index(FILE *fp, REPUTATION_INDEX_DATA *data)
 	fprintf(fp, "Description %s~\n", fix_string(data->description));
 	fprintf(fp, "Comments %s~\n", fix_string(data->comments));
 	fprintf(fp, "CreatedBy %s~\n", fix_string(data->created_by));
+
+	fprintf(fp, "Flags %s\n", print_flags(data->flags));
 
 	if (data->initial_rank > 0)
 		fprintf(fp, "InitialRank %d\n", data->initial_rank);
@@ -279,9 +285,26 @@ REPUTATION_INDEX_RANK_DATA *get_reputation_rank_uid(REPUTATION_INDEX_DATA *rep, 
 	return rank;
 }
 
+REPUTATION_DATA *find_reputation_char(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex)
+{
+	if (!IS_VALID(ch) || !IS_VALID(repIndex)) return NULL;
+
+	ITERATOR it;
+	REPUTATION_DATA *rep;
+	iterator_start(&it, ch->reputations);
+	while((rep = (REPUTATION_DATA *)iterator_nextdata(&it)))
+	{
+		if (rep->pIndexData == repIndex)
+			break;
+	}
+	iterator_stop(&it);
+
+	return rep;
+}
+
 
 // Get Reputation on Character
-REPUTATION_DATA *get_reputation_char(CHAR_DATA *ch, AREA_DATA *area, long vnum, bool show)
+REPUTATION_DATA *get_reputation_char(CHAR_DATA *ch, AREA_DATA *area, long vnum, bool add, bool show)
 {
 	if (!IS_VALID(ch) || !area || vnum < 1) return NULL;
 
@@ -296,15 +319,15 @@ REPUTATION_DATA *get_reputation_char(CHAR_DATA *ch, AREA_DATA *area, long vnum, 
 	iterator_stop(&it);
 
 	// If they don't have it, automatically give it to them
-	if (!rep)
+	if (!rep && add)
 	{
-		rep = set_reputation_char(ch, get_reputation_index(area, vnum), show);
+		rep = set_reputation_char(ch, get_reputation_index(area, vnum), -1, -1, show);
 	}
 
 	return rep;
 }
 
-REPUTATION_DATA *get_reputation_char_auid(CHAR_DATA *ch, long auid, long vnum, bool show)
+REPUTATION_DATA *get_reputation_char_auid(CHAR_DATA *ch, long auid, long vnum, bool add, bool show)
 {
 	if (!IS_VALID(ch) || auid < 1 || vnum < 1) return NULL;
 
@@ -319,15 +342,15 @@ REPUTATION_DATA *get_reputation_char_auid(CHAR_DATA *ch, long auid, long vnum, b
 	iterator_stop(&it);
 
 	// If they don't have it, automatically give it to them
-	if (!rep)
+	if (!rep && add)
 	{
-		rep = set_reputation_char(ch, get_reputation_index(get_area_from_uid(auid), vnum), show);
+		rep = set_reputation_char(ch, get_reputation_index(get_area_from_uid(auid), vnum), -1, -1, show);
 	}
 
 	return rep;
 }
 
-REPUTATION_DATA *get_reputation_char_wnum(CHAR_DATA *ch, WNUM wnum, bool show)
+REPUTATION_DATA *get_reputation_char_wnum(CHAR_DATA *ch, WNUM wnum, bool add, bool show)
 {
 	if (!IS_VALID(ch) || !wnum.pArea || wnum.vnum < 1) return NULL;
 
@@ -342,19 +365,80 @@ REPUTATION_DATA *get_reputation_char_wnum(CHAR_DATA *ch, WNUM wnum, bool show)
 	iterator_stop(&it);
 
 	// If they don't have it, automatically give it to them
-	if (!rep)
+	if (!rep && add)
 	{
-		rep = set_reputation_char(ch, get_reputation_index(wnum.pArea, wnum.vnum), show);
+		rep = set_reputation_char(ch, get_reputation_index(wnum.pArea, wnum.vnum), -1, -1, show);
 	}
 
 	return rep;
 }
 
-// Gain Reputation
-int gain_reputation(CHAR_DATA *ch, REPUTATION_DATA *rep, int amount, bool show)
-{
-	if (!IS_VALID(ch) || !IS_VALID(rep) || !amount) return 0;
 
+bool has_reputation(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex)
+{
+	ITERATOR it;
+	REPUTATION_DATA *rep;
+
+	iterator_start(&it, ch->reputations);
+	while((rep = (REPUTATION_DATA *)iterator_nextdata(&it)))
+	{
+		if (rep->pIndexData == repIndex)
+			break;
+	}
+	iterator_stop(&it);
+
+	return rep != NULL;
+}
+
+// Gain Reputation
+bool gain_reputation(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex, long amount, int *change, long *total_given, bool show)
+{
+	long total;
+	if (change) *change = 0;
+	if (total_given) *total_given = 0;
+	if (!IS_VALID(ch) || !IS_VALID(repIndex)) return false;
+
+	REPUTATION_DATA *rep = get_reputation_char(ch, repIndex->area, repIndex->vnum, true, show);
+
+	if (!IS_VALID(rep)) return false;
+
+	REPUTATION_INDEX_RANK_DATA *this_rank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(repIndex->ranks, rep->current_rank);
+
+	REPUTATION_DATA *old_tempreputation = ch->tempreputation;
+	int old_tempstore0 = ch->tempstore[0];
+
+	// Allow for bonuses, either specific to the reputation or all reputations
+
+	ch->tempstore[0] = amount;
+	ch->tempreputation = rep;
+
+	// Also.. can block gaining any reputation by returning a positive number (end denied)
+	int ret = p_percent_token_trigger( ch, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, rep->token, TRIG_REPUTATION_PREGAIN, NULL,show,0,0,0,0);
+	amount = ch->tempstore[0];	
+
+	ch->tempreputation = old_tempreputation;
+	ch->tempstore[0] = old_tempstore0;
+
+	if (ret > 0)
+		return false;
+
+	if (!amount) return false;
+	
+	// Gaining rep... but we are either on the final
+	if (amount > 0 &&
+
+		/* Final Rank and *not* flagged PARAGON */
+		((this_rank->ordinal == list_size(repIndex->ranks) && !IS_SET(this_rank->flags, REPUTATION_RANK_PARAGON)) ||
+
+		/* Rank doesn't allow ranking up automatically */
+		IS_SET(this_rank->flags, REPUTATION_RANK_NORANKUP)))
+	{
+		// Already at the limit?
+		if (rep->reputation >= (this_rank->capacity - 1))
+			return false;
+	}
+
+	total = amount;
 	rep->reputation += amount;
 	int last_rank = rep->current_rank;
 
@@ -374,7 +458,10 @@ int gain_reputation(CHAR_DATA *ch, REPUTATION_DATA *rep, int amount, bool show)
 
 		// Only possible if at the lowest rank at this point
 		if (rep->reputation < 0)
+		{
+			total -= rep->reputation;
 			rep->reputation = 0;
+		}
 	}
 	else
 	{
@@ -394,9 +481,170 @@ int gain_reputation(CHAR_DATA *ch, REPUTATION_DATA *rep, int amount, bool show)
 
 		// Only possible if at the highest rank or if the current rank is NO_RANK_UP
 		REPUTATION_INDEX_RANK_DATA *rank = get_reputation_rank(rep->pIndexData, rep->current_rank);
+
 		if (rep->reputation >= rank->capacity)
-			rep->reputation = rank->capacity - 1;
+		{
+			total += rep->reputation - rank->capacity + 1;	// it's really - (capacity - 1) distributed.
+
+			// Is it the final rank with PARAGON?
+			if (rep->current_rank == list_size(rep->pIndexData->ranks) && IS_SET(rank->flags, REPUTATION_RANK_PARAGON))
+			{
+				rep->reputation = 0;
+				paragon_reputation(ch, rep, true);
+			}
+			else
+			{
+				rep->reputation = rank->capacity - 1;
+			}
+		}
 	}
+
+	if (total_given) *total_given = total;
+
+	if (show)
+	{
+		if (total > 0)
+			send_to_char(formatf("{BYou received %ld points in %s.{x\n\r", total, repIndex->name), ch);
+		else if (total < 0)
+			send_to_char(formatf("{RYou lost %ld points from %s.{x\n\r", -total, repIndex->name), ch);
+
+		if (last_rank < rep->current_rank)
+		{
+			// Gained rank
+			REPUTATION_INDEX_RANK_DATA *rank = get_reputation_rank(rep->pIndexData, rep->current_rank);
+			send_to_char(formatf("{WYou have obtained the rank of '%s' for reputation '%s'!{x\n\r", rank->name, rep->pIndexData->name), ch);
+		}
+		else if (last_rank > rep->current_rank)
+		{
+			// Lost rank
+			REPUTATION_INDEX_RANK_DATA *rank = get_reputation_rank(rep->pIndexData, rep->current_rank);
+			send_to_char(formatf("{DYou have reduced your rank in '%s' to '%s'.{x\n\r", rep->pIndexData->name, rank->name), ch);
+		}
+	}
+
+	// Lost rank
+	if (rep->current_rank < last_rank)
+	{
+		// If last rank was the highest rank AND had RESET_PARAGON
+		if (last_rank == list_size(rep->pIndexData->ranks) && IS_SET(this_rank->flags, REPUTATION_RANK_RESET_PARAGON))
+			// Lose all paragon levels
+			rep->paragon_level = 0;
+	}
+
+	ch->tempreputation = rep;
+	p_percent_token_trigger( ch, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, rep->token, TRIG_REPUTATION_GAIN, NULL,show,amount,0,0,0);
+	ch->tempreputation = old_tempreputation;
+
+	// Update maximum rank
+	if (rep->current_rank > rep->maximum_rank)
+	{
+		if (IS_VALID(rep->token))
+		{
+			// Handle each RANKUP trigger, only if the reputation has a token associated with it
+			for(int i = rep->current_rank + 1; i <= rep->maximum_rank; i++)
+			{
+				rep->current_rank = i;
+				p_percent_trigger( NULL, NULL, NULL, rep->token, ch, NULL, NULL,NULL, NULL, TRIG_REPUTATION_RANKUP, NULL,show,0,0,0,0);
+			}
+		}
+
+		rep->maximum_rank = rep->current_rank;
+	}
+
+	if (change) *change = rep->current_rank - last_rank;
+	return true;
+}
+
+void paragon_reputation(CHAR_DATA *ch, REPUTATION_DATA *rep, bool show)
+{
+	if (!IS_VALID(ch) || !IS_VALID(rep)) return;
+
+	if (rep->current_rank < list_size(rep->pIndexData->ranks)) return;
+
+	// Next paragon level
+	++rep->paragon_level;
+
+	// If the reputation has a token, check for PARAGON trigger
+	if (IS_VALID(rep->token))
+		p_percent_trigger( NULL, NULL, NULL, rep->token, ch, NULL, NULL,NULL, NULL, TRIG_REPUTATION_PARAGON, NULL,show,0,0,0,0);
+}
+
+void group_gain_reputation(CHAR_DATA *ch, CHAR_DATA *victim)
+{
+	CHAR_DATA *gch;
+
+	// Ignore player victim
+	if (!IS_NPC(victim)) return;
+
+	// Check here just to make sure
+	if (ch->in_room == NULL) {
+		bug("group_gain_reputation: ch with null in_room", 0);
+		return;
+	}
+
+	for (gch = ch->in_room->people; gch != NULL; gch = gch->next_in_room)
+	{
+		/* If this char is in the same form */
+		if (is_same_group(gch, ch) && !IS_NPC(ch))
+		{
+			// Iterate over all of the mob reputations on the victim
+			MOB_REPUTATION_DATA *mob_rep;
+			for(mob_rep = victim->mob_reputations; mob_rep; mob_rep = mob_rep->next)
+			{
+				if (!IS_VALID(mob_rep->reputation)) continue;
+
+				REPUTATION_DATA *rep = find_reputation_char(gch, mob_rep->reputation);
+				int rankNo = IS_VALID(rep) ? rep->current_rank : mob_rep->reputation->initial_rank;
+
+				// Check the rank is valid
+				if (rankNo < 1 || rankNo > list_size(mob_rep->reputation->ranks))
+					continue;
+
+				// Check if GCH's rank is in the range of this entry
+				if (mob_rep->minimum_rank > 0 && rankNo < mob_rep->minimum_rank) continue;
+				if (mob_rep->maximum_rank > 0 && rankNo > mob_rep->maximum_rank) continue;
+
+				// Give reputation to group member
+				gain_reputation(gch, mob_rep->reputation, mob_rep->points, NULL, NULL, true);
+			}
+
+		}
+	}
+}
+
+
+// Set Rank on Reputation
+bool set_reputation_rank(CHAR_DATA *ch, REPUTATION_DATA *rep, int rank_no, int rank_rep, bool show)
+{
+	if (!IS_VALID(ch) || !IS_VALID(rep) || rank_no < 1 || rank_no > list_size(rep->pIndexData->ranks)) return false;
+
+	REPUTATION_INDEX_RANK_DATA *rank = get_reputation_rank(rep->pIndexData, rep->current_rank);
+
+	if (rep->current_rank == rank_no)
+	{
+		// Set the reputation
+
+		if (rank_rep < 0)	// Same rank, but automatic rep, leave reputation alone
+			return false;
+
+		rep->reputation = rank_rep;
+		if (rep->reputation > rank->capacity)
+			rep->reputation = rank->capacity - 1;
+
+		// Nothing to show here
+		return true;
+	}
+
+	int last_rank = rep->current_rank;
+
+	rep->current_rank = rank_no;
+	REPUTATION_INDEX_RANK_DATA *new_rank = get_reputation_rank(rep->pIndexData, rank_no);
+
+	if (rank_rep < 0)
+		rank_rep = new_rank->set;	// Set the reputation value according to the rank (usually 0)
+	rep->reputation = rank_rep;
+	if (rep->reputation > new_rank->capacity)
+		rep->reputation = new_rank->capacity - 1;
 
 	if (show)
 	{
@@ -414,43 +662,27 @@ int gain_reputation(CHAR_DATA *ch, REPUTATION_DATA *rep, int amount, bool show)
 		}
 	}
 
-	return rep->current_rank - last_rank;
-}
-
-// Set Rank on Reputation
-bool set_reputation_rank(CHAR_DATA *ch, REPUTATION_DATA *rep, int rank_no, bool show)
-{
-	if (!IS_VALID(ch) || !IS_VALID(rep) || rank_no < 1 || rank_no > list_size(rep->pIndexData->ranks)) return false;
-
-	if (rep->current_rank == rank_no) return false;
-
-	int last_rank = rep->current_rank;
-
-	rep->current_rank = rank_no;
-	REPUTATION_INDEX_RANK_DATA *rank = get_reputation_rank(rep->pIndexData, rep->current_rank);
-	rep->reputation = rank->set;	// Set the reputation value according to the rank (usually 0)
-
-	if (!show)
+	// Update maximum rank
+	if (rep->current_rank > rep->maximum_rank)
 	{
-		if (last_rank < rep->current_rank)
+		if (IS_VALID(rep->token))
 		{
-			// Gained rank
-			REPUTATION_INDEX_RANK_DATA *rank = get_reputation_rank(rep->pIndexData, rep->current_rank);
-			send_to_char(formatf("{WYou have obtained the rank of '%s' for reputation '%s'!{x\n\r", rank->name, rep->pIndexData->name), ch);
+			// Handle each RANKUP trigger, only if the reputation has a token associated with it
+			for(int i = rep->current_rank + 1; i <= rep->maximum_rank; i++)
+			{
+				rep->current_rank = i;
+				p_percent_trigger( NULL, NULL, NULL, rep->token, ch, NULL, NULL,NULL, NULL, TRIG_REPUTATION_RANKUP, NULL,show,0,0,0,0);
+			}
 		}
-		else if (last_rank > rep->current_rank)
-		{
-			// Lost rank
-			REPUTATION_INDEX_RANK_DATA *rank = get_reputation_rank(rep->pIndexData, rep->current_rank);
-			send_to_char(formatf("{DYou have reduced your rank in '%s' to '%s'.{x\n\r", rep->pIndexData->name, rank->name), ch);
-		}
+
+		rep->maximum_rank = rep->current_rank;
 	}
 
 	return true;
 }
 
 // Set Reputation on Character
-REPUTATION_DATA *set_reputation_char(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex, bool show)
+REPUTATION_DATA *set_reputation_char(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex, int startingRank, int startingRep, bool show)
 {
 	if (!IS_VALID(ch) || !IS_VALID(repIndex)) return NULL;
 
@@ -468,10 +700,28 @@ REPUTATION_DATA *set_reputation_char(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIn
 	// Already have it
 	if (IS_VALID(rep)) return NULL;
 
+	// Default starting rank or selected rank is out of range
+	if (startingRank < 1 || startingRank > list_size(repIndex->ranks))
+		startingRank = repIndex->initial_rank;
+
+	REPUTATION_INDEX_RANK_DATA *rank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(repIndex->ranks, startingRank);
+	if (!IS_VALID(rank)) return NULL;	// Invalid rank selected
+
+	// Default starting reputation
+	if (startingRep < 0)
+		startingRep = repIndex->initial_reputation;
+
+	// Keep starting reputation within the range of the selected rank
+	if (startingRep > rank->capacity)
+		startingRep = rank->capacity - 1;
+
 	rep = new_reputation_data();
 	rep->pIndexData = repIndex;
-	rep->current_rank = repIndex->initial_rank;
-	rep->reputation = repIndex->initial_reputation;
+	rep->flags = repIndex->flags;
+	rep->current_rank = startingRank;
+	rep->reputation = startingRep;
+	rep->maximum_rank = rep->current_rank;
+	rep->paragon_level = 0;
 
 	list_appendlink(ch->reputations, rep);
 
@@ -483,6 +733,26 @@ REPUTATION_DATA *set_reputation_char(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIn
 
 	return rep;
 }
+
+bool is_reputation_rank_peaceful(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex)
+{
+	if (!IS_VALID(ch) || !IS_VALID(repIndex)) return false;
+
+	REPUTATION_DATA *rep = find_reputation_char(ch, repIndex);
+	if (!IS_VALID(rep)) return false;
+
+	REPUTATION_INDEX_RANK_DATA *rank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(repIndex->ranks, rep->current_rank);
+
+	if (!IS_VALID(rank)) return false;
+
+	if(!IS_SET(rank->flags, REPUTATION_RANK_PEACEFUL)) return false;
+
+	// Current rank is set to PEACEFUL.  Requires AT WAR to be attackable
+	if(IS_SET(rep->flags, REPUTATION_AT_WAR)) return false;
+
+	return true;
+}
+
 
 // Insert Reputation
 void insert_reputation(LLIST *lp, REPUTATION_DATA *rep)
@@ -519,7 +789,8 @@ LLIST *sort_reputations(CHAR_DATA *ch)
 	iterator_start(&it, ch->reputations);
 	while((rep = (REPUTATION_DATA *)iterator_nextdata(&it)))
 	{
-		insert_reputation(list, rep);
+		if ((IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) || !IS_SET(rep->flags, REPUTATION_HIDDEN))
+			insert_reputation(list, rep);
 	}
 	iterator_stop(&it);
 
@@ -539,8 +810,8 @@ void do_reputations(CHAR_DATA *ch, char *argument)
 
 		BUFFER *buffer = new_buf();
 
-		add_buf(buffer, " ##  [        Name        ] [        Rank        ] [         Reputation        ]\n\r");
-		add_buf(buffer, "=================================================================================\n\r");
+		add_buf(buffer, " ##  [        Name        ] [        Rank        ] [                    Reputation                   ]\n\r");
+		add_buf(buffer, "=======================================================================================================\n\r");
 
 		int i = 0;
 		ITERATOR it;
@@ -555,17 +826,33 @@ void do_reputations(CHAR_DATA *ch, char *argument)
 			int percent = 100 * rep->reputation / rank->capacity;
 			int slots = 20 * rep->reputation / rank->capacity;
 
-			sprintf(buf, "%3d)  %-20.20s   %-20.20s   %12s{x [{%c%-20s{x]\n\r", ++i,
+			char repColor;
+			if (IS_SET(rep->flags, REPUTATION_AT_WAR))
+				repColor = 'R';
+			else if (IS_SET(rep->flags, REPUTATION_PEACEFUL) || IS_SET(rank->flags, REPUTATION_RANK_PEACEFUL))
+				repColor = 'G';
+			else
+				repColor = 'Y';
+			if (IS_SET(rep->flags, REPUTATION_HIDDEN))
+				repColor = LOWER(repColor);
+
+
+			sprintf(buf, "%3d)  {%c%-20.20s   {%c%-20.20s   %12s{x {W%-5ld [{%c%-20s{x] {W%5ld %s{x\n\r", ++i,
+				repColor,
 				rep->pIndexData->name,
+				rank->color ? rank->color : 'Y',
 				rank->name,
 				formatf("{W({x%d%%{W)", percent),
+				rep->reputation,
 				rank->color ? rank->color : 'Y',
-				(slots > 0) ? formatf("%*.*s", slots, slots, "####################") : "");
+				(slots > 0) ? formatf("%*.*s", slots, slots, "####################") : "",
+				rank->capacity,
+				(rep->paragon_level > 0) ? formatf("{W({x%d{Y*{W)", rep->paragon_level) : "");
 
 			add_buf(buffer, buf);
 		}
 		iterator_stop(&it);
-		add_buf(buffer, "---------------------------------------------------------------------------------\n\r");
+		add_buf(buffer, "-------------------------------------------------------------------------------------------------------\n\r");
 
 		list_destroy(reps);
 
@@ -589,7 +876,58 @@ void do_reputations(CHAR_DATA *ch, char *argument)
 		send_to_char("You haven't acquired any reputations.\n\r", ch);
 }
 
+void do_atwar(CHAR_DATA *ch, char *argument)
+{
+	if (IS_NPC(ch))
+	{
+		send_to_char("Huh?\n\r", ch);
+		return;
+	}
 
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  atwar <reputation name>\n\r", ch);
+		return;
+	}
+
+	int count;
+	char arg[MIL];
+	count = number_argument(argument, arg);
+
+	ITERATOR it;
+	REPUTATION_DATA *rep;
+	iterator_start(&it, ch->reputations);
+	while((rep = (REPUTATION_DATA *)iterator_nextdata(&it)))
+	{
+		if ((IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) || !IS_SET(rep->flags, REPUTATION_HIDDEN))
+		{
+			if (is_name(arg, rep->pIndexData->name) && !--count)
+				break;
+		}
+	}
+	iterator_stop(&it);
+
+	if (!IS_VALID(rep))
+	{
+		send_to_char("No such reputation by that name.\n\r", ch);
+		return;
+	}
+
+	if (IS_SET(rep->flags, REPUTATION_AT_WAR))
+	{
+		REMOVE_BIT(rep->flags, REPUTATION_AT_WAR);
+		send_to_char(formatf("{YYou are no longer AT WAR with %s.{x\n\r", rep->pIndexData->name), ch);
+	}
+	else if(IS_SET(rep->flags, REPUTATION_PEACEFUL))
+	{
+		send_to_char(formatf("{CYou feel compelled to remain peaceful with %s.{x\n\r", rep->pIndexData->name), ch);
+	}
+	else
+	{
+		SET_BIT(rep->flags, REPUTATION_AT_WAR);
+		send_to_char(formatf("{RYou are now AT WAR with %s.{x\n\r", rep->pIndexData->name), ch);
+	}
+}
 
 /////////////////////////////////////////////////////
 // Reputation Editor
@@ -615,6 +953,9 @@ REPEDIT( repedit_show )
 	sprintf(buf, "[Created by        }:  %s\n", pRep->created_by);
 
 	sprintf(buf, "[Description       ]:\n  %s\n\r", pRep->description);
+	add_buf(buffer, buf);
+
+	sprintf(buf, "[Flags             ]:  %s\n", flag_string(reputation_flags, pRep->flags));
 	add_buf(buffer, buf);
 
 	if (pRep->initial_rank > 0)
@@ -767,6 +1108,26 @@ REPEDIT( repedit_comments )
 
     send_to_char("Syntax:  comments\n\r", ch);
     return false;
+}
+
+REPEDIT( repedit_flags )
+{
+	REPUTATION_INDEX_DATA *pRep;
+
+	EDIT_REPUTATION(ch, pRep);
+
+	long value;
+    if ((value = flag_value(reputation_flags, argument)) == NO_FLAG)
+	{
+		send_to_char("Syntax:  flags {R<flags>{x\n\r", ch);
+		send_to_char("Invalid reputation flags.  Use '? reputation' to see valid list of flags.\n\r", ch);
+		show_flag_cmds(ch, reputation_flags);
+		return false;
+	}
+
+	TOGGLE_BIT(pRep->flags, value);
+	send_to_char("Reputation flags toggled.\n\r", ch);
+	return true;
 }
 
 struct color_name_type {

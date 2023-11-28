@@ -751,6 +751,7 @@ CHAR_DATA *new_char( void )
     ch->checkpoint = NULL;
     ch->tempstring = NULL;
     ch->shop = NULL;
+    ch->mob_reputations = NULL;
 
     return ch;
 }
@@ -878,6 +879,14 @@ void free_char( CHAR_DATA *ch )
     ch->id[0] = ch->id[1] = 0;
 
     ch->checkpoint = NULL;
+
+    MOB_REPUTATION_DATA *mob_rep, *mob_rep_next;
+    for(mob_rep = ch->mob_reputations; mob_rep; mob_rep = mob_rep_next)
+    {
+        mob_rep_next = mob_rep->next;
+        free_mob_reputation_data(mob_rep);
+    }
+    ch->mob_reputations = NULL;
 
 	if( ch->persist ) persist_removemobile(ch);
 
@@ -2211,6 +2220,7 @@ MOB_INDEX_DATA *new_mob_index( void )
     pMob->skeywds		=	str_dup( "none" );
     pMob->attacks	=   0;
     pMob->quests =  NULL;
+    pMob->reputations = NULL;
 
     return pMob;
 }
@@ -2242,6 +2252,13 @@ void free_mob_index( MOB_INDEX_DATA *pMob )
 
 	free_questor_data( pMob->pQuestor );
     if(pMob->pShop != NULL) free_shop( pMob->pShop );
+
+    MOB_REPUTATION_DATA *rep, *rep_next;
+    for(rep = pMob->reputations; rep; rep = rep_next)
+    {
+        rep_next = rep->next;
+        free_mob_reputation_data(rep);
+    }
 
     pMob->next              = mob_index_free;
     mob_index_free          = pMob;
@@ -6376,3 +6393,42 @@ void free_reputation_data(REPUTATION_DATA *data)
 }
 
 
+MOB_REPUTATION_DATA *mob_reputation_free;
+MOB_REPUTATION_DATA *new_mob_reputation_data()
+{
+    MOB_REPUTATION_DATA *data;
+    if (mob_reputation_free)
+    {
+        data = mob_reputation_free;
+        mob_reputation_free = mob_reputation_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(MOB_REPUTATION_DATA));
+    memset(data, 0, sizeof(*data));
+
+    VALIDATE(data);
+    return data;
+}
+
+MOB_REPUTATION_DATA *copy_mob_reputation_data(MOB_REPUTATION_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    MOB_REPUTATION_DATA *data = new_mob_reputation_data();
+
+    data->reputation = src->reputation;
+    data->minimum_rank = src->minimum_rank;
+    data->maximum_rank = src->maximum_rank;
+    data->points = src->points;
+
+    return data;
+}
+
+void free_mob_reputation_data(MOB_REPUTATION_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    INVALIDATE(data);
+    data->next = mob_reputation_free;
+    mob_reputation_free = data;
+}

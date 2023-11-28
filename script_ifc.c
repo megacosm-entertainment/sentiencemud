@@ -75,6 +75,11 @@ extern bool wiznet_script;
 #define ISARG_SHIP(x)		((argv[(x)]->type == ENT_SHIP) && argv[(x)]->d.ship)
 #define ISARG_BV(x)			((argv[(x)]->type == ENT_BITVECTOR) && argv[(x)]->d.bv.table)
 #define ISARG_BM(x)			((argv[(x)]->type == ENT_BITMATRIX) && argv[(x)]->d.bv.table)
+#define ISARG_STAT(x)		((argv[(x)]->type == ENT_STAT) && argv[(x)]->d.bv.table)
+#define ISARG_REPUTATION(x)	ISARG_TYPE(x,ENT_REPUTATION,reputation)
+#define ISARG_REPINDEX(x)	ISARG_TYPE(x,ENT_REPUTATION,repIndex)
+#define ISARG_REPRANK(x)	ISARG_TYPE(x,ENT_REPUTATION,repRank)
+
 
 #define ARG_NUM(x)	ARG_TYPE(x,num)
 #define ARG_STR(x)	ARG_TYPE(x,str)
@@ -106,6 +111,10 @@ extern bool wiznet_script;
 #define ARG_WNUM(x) ARG_TYPE(x,wnum)
 #define ARG_BV(x) ARG_TYPE(x,bv)
 #define ARG_BM(x) ARG_TYPE(x,bm)
+#define ARG_STAT(x) ARG_TYPE(x,stat)
+#define ARG_REPUTATION(x) ARG_TYPE(x,reputation)
+#define ARG_REPINDEX(x) ARG_TYPE(x,repIndex)
+#define ARG_REPRANK(x) ARG_TYPE(x,repRank)
 
 #define SHIFT_MOB()	do { if(ISARG_MOB(0)) { mob = ARG_MOB(0); ++argv; --argc; } } while(0)
 #define SHIFT_OBJ()	do { if(ISARG_OBJ(0)) { obj = ARG_OBJ(0); ++argv; --argc; } } while(0)
@@ -5144,6 +5153,9 @@ DECL_IFC_FUN(ifc_isvalid)
 	else if (ISARG_INSTANCE(0)) *ret = IS_VALID(ARG_INSTANCE(0));
 	else if (ISARG_DUNGEON(0)) *ret = IS_VALID(ARG_DUNGEON(0));
 	else if (ISARG_EXIT(0)) *ret = ARG_EXIT(0).r != NULL && ARG_EXIT(0).door >= 0 && ARG_EXIT(0).door < MAX_DIR && ARG_EXIT(0).r->exit[ARG_EXIT(0).door] != NULL;
+	else if (ISARG_REPUTATION(0)) *ret = IS_VALID(ARG_REPUTATION(0));
+	else if (ISARG_REPINDEX(0)) *ret = IS_VALID(ARG_REPINDEX(0));
+	else if (ISARG_REPRANK(0)) *ret = IS_VALID(ARG_REPRANK(0));
 	else *ret = FALSE;
 
 	return TRUE;

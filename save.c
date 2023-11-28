@@ -185,7 +185,10 @@ void fwrite_reputations_char(CHAR_DATA *ch, FILE *fp)
 	{
 		fprintf(fp, "#REPUTATION %ld#%ld\n", rep->pIndexData->area->uid, rep->pIndexData->vnum);
 		fprintf(fp, "Rank %d\n", rep->current_rank);
+		fprintf(fp, "MaximumRank %d\n", rep->maximum_rank);
 		fprintf(fp, "Reputation %ld\n", rep->reputation);
+		fprintf(fp, "ParagonLevel %d\n", rep->paragon_level);
+		fprintf(fp, "Flags %s\n", print_flags(rep->flags));
 
 		if (IS_VALID(rep->token))
 			fwrite_token(rep->token, fp);
@@ -269,6 +272,8 @@ void save_char_obj(CHAR_DATA *ch)
 		fwrite_stache_char(ch, fp);
 
 		fwrite_skills(ch, fp);
+
+		fwrite_reputations_char(ch, fp);
 
 	    fprintf(fp, "#END\n");
         fprintf(fp, "#END\n");
@@ -6291,6 +6296,18 @@ void fread_reputation(FILE *fp, CHAR_DATA *ch)
 				fMatch = true;
 				break;
 			}
+			break;
+
+		case 'F':
+			KEY("Flags", rep->flags, fread_flag(fp));
+			break;
+
+		case 'M':
+			KEY("MaximumRank", rep->maximum_rank, fread_number(fp));
+			break;
+
+		case 'P':
+			KEY("ParagonLevel", rep->paragon_level, fread_number(fp));
 			break;
 
 		case 'R':

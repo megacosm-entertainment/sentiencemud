@@ -149,6 +149,7 @@ const struct olc_help_type help_table[] =
 	{	"ranged",				STRUCT_FLAGS,		ranged_weapon_class,		"Ranged	weapon types."	},
 	{	"recite_func",			STRUCT_ARTIFICING,	recite_func_table,			"Recite Functions (SkEdit)"},
 	{	"remort_sublasses",		STRUCT_REMORT_SUBCLASSES,		NULL,			"Remort Subclasses" },
+	{	"reputation",			STRUCT_FLAGS,		reputation_flags,			"Reputation flags." },
 	{	"reputation_rank",		STRUCT_FLAGS,		reputation_rank_flags,		"Reputation Rank flags." },
 	{	"res",					STRUCT_FLAGS,		res_flags,					"Mobile resistance."	},
 	{	"room",					STRUCT_FLAGBANK,	room_flagbank,				"Room attributes."	},
@@ -14772,7 +14773,6 @@ int get_armour_strength(char *argument)
 	return OBJ_ARMOUR_NOSTRENGTH;
 }
 
-
 MEDIT(medit_show)
 {
 	MOB_INDEX_DATA *pMob;
@@ -14807,6 +14807,15 @@ MEDIT(medit_show)
 		pMob->sex == SEX_FEMALE  ? "female " :
 		pMob->sex == 3           ? "random " : "neutral",
 		race_table[pMob->race].name);
+	add_buf(buffer, buf);
+
+	if (IS_VALID(pMob->faction))
+		sprintf(buf, "Faction:      {C[{x%s {C({x%ld{C#{x%ld{C)]{x\n",
+			pMob->faction->name,
+			pMob->faction->area->uid,
+			pMob->faction->vnum);
+	else
+		sprintf(buf, "Faction:      {C[{Dnone{C]{x\n\r");
 	add_buf(buffer, buf);
 
     sprintf(buf, "Boss:         {C[%s{C]{x\n\r", (pMob->boss ? "{RYES" : "{gno"));
@@ -14923,6 +14932,51 @@ MEDIT(medit_show)
 
 	sprintf(buf, "\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pMob->comments);
 	add_buf(buffer, buf);
+
+	if (pMob->reputations)
+	{
+		add_buf(buffer, "Reputations:\n\r");
+		MOB_REPUTATION_DATA *rep;
+		int iRep;
+		for(iRep = 0, rep = pMob->reputations; rep; iRep++, rep = rep->next)
+		{
+			char repName[MIL];
+
+			if (IS_VALID(rep->reputation))
+				sprintf(repName, "%s {W({x%ld{W#{x%ld{W)",
+					rep->reputation->name, rep->reputation->area->uid, rep->reputation->vnum);
+			else
+				strcpy(repName, "{D(invalid)");
+
+			// Pad the text so the plain text fits within 20 characters
+			int plain_len = strlen_no_colours(repName);
+			if (plain_len < 20)
+			{
+				strcat(repName, formatf("%*.*s", 20 - plain_len, 20 - plain_len, " "));
+			}
+		
+			REPUTATION_INDEX_RANK_DATA *min_rank =
+				(IS_VALID(rep->reputation) && rep->minimum_rank > 0) ?
+					(REPUTATION_INDEX_RANK_DATA *)list_nthdata(rep->reputation->ranks, rep->minimum_rank) :
+					NULL;
+			
+			REPUTATION_INDEX_RANK_DATA *max_rank =
+				(IS_VALID(rep->reputation) && rep->maximum_rank > 0) ?
+					(REPUTATION_INDEX_RANK_DATA *)list_nthdata(rep->reputation->ranks, rep->maximum_rank) :
+					NULL;
+
+			add_buf(buffer, formatf("[%4d] %s {W({x%3d{W) {%c%-20s {W({x%3d{W) {%c%-20s {%c%d{x\n\r",
+				iRep, repName,
+				rep->minimum_rank,
+				IS_VALID(min_rank) ? min_rank->color : 'x',
+				IS_VALID(min_rank) ? min_rank->name : "none",
+				rep->maximum_rank,
+				IS_VALID(max_rank) ? max_rank->color : 'x',
+				IS_VALID(max_rank) ? max_rank->name : "none",
+				(rep->points < 0) ? 'R' : 'G',
+				rep->points));
+		}
+	}
 
 
 	if (pMob->pShop) {
@@ -17775,6 +17829,207 @@ MEDIT (medit_delmprog)
 
     send_to_char("Mprog removed.\n\r", ch);
     return TRUE;
+}
+
+MEDIT (medit_faction)
+{
+	char arg[MIL];
+	MOB_INDEX_DATA *pMob;
+
+	EDIT_MOB(ch, pMob);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  faction {Rset{x <widevnum>\n\r", ch);
+		send_to_char("         faction {Rclear{x\n\r", ch);
+		return false;
+	}
+
+	argument = one_argument(argument, arg);
+	if (!str_prefix(arg, "set"))
+	{
+		WNUM wnum;
+		if (!parse_widevnum(argument, ch->in_room->area, &wnum) || !wnum.pArea || wnum.vnum < 1)
+		{
+			send_to_char("Syntax:  faction set {R<widevnum>{x\n\r", ch);
+			send_to_char("Please specify a widevnum.\n\r", ch);
+			return false;
+		}
+
+		REPUTATION_INDEX_DATA *repIndex = get_reputation_index(wnum.pArea, wnum.vnum);
+		if (!IS_VALID(repIndex))
+		{
+			send_to_char("There is no reputation with that widevnum.\n\r", ch);
+			return false;
+		}
+
+		pMob->faction = repIndex;
+		send_to_char("Faction changed.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "clear"))
+	{
+		if (!IS_VALID(pMob->faction))
+		{
+			send_to_char("MobIndex isn't associated with a reputation.\n\r", ch);
+			return false;
+		}
+
+		pMob->faction = NULL;
+		send_to_char("Faction cleared.\n\r", ch);
+		return true;
+	}
+
+	medit_faction(ch, "");
+	return false;
+}
+
+MEDIT (medit_addreputation)
+{
+	char arg[MIL];
+	MOB_INDEX_DATA *pMob;
+	WNUM wnum;
+
+	EDIT_MOB(ch, pMob);
+
+	argument = one_argument(argument, arg);
+	if (!parse_widevnum(arg, ch->in_room->area, &wnum) || !wnum.pArea || wnum.vnum < 1)
+	{
+		send_to_char("Syntax:  addreputation {R<reputation widevnum>{x <minimum rank|none> <maximum rank|none> <points>\n\r", ch);
+		send_to_char("Please specify a valid widevnum.\n\r", ch);
+		return false;
+	}
+
+	REPUTATION_INDEX_DATA *repIndex = get_reputation_index(wnum.pArea, wnum.vnum);
+	if (!IS_VALID(repIndex))
+	{
+		send_to_char("No reputation with that widevnum.\n\r", ch);
+		return false;
+	}
+
+	argument = one_argument(argument, arg);
+	int min_rank;
+	if (is_number(arg))
+	{
+		min_rank = atoi(arg);
+		if (min_rank < 1 || min_rank > list_size(repIndex->ranks))
+		{
+			send_to_char("Syntax:  addreputation <reputation widevnum> {R<minimum rank|none>{x <maximum rank|none> <points>\n\r", ch);
+			send_to_char(formatf("Invalid rank number.  Please specify a number from 1 to %d or {Wnone{x.\n\r", list_size(repIndex->ranks)), ch);
+			return false;
+		}
+	}
+	else if(!str_prefix(arg, "none"))
+	{
+		min_rank = 0;
+	}
+	else
+	{
+		send_to_char("Syntax:  addreputation <reputation widevnum> {R<minimum rank|none>{x <maximum rank|none> <points>\n\r", ch);
+		send_to_char(formatf("Invalid rank number.  Please specify a number from 1 to %d or {Wnone{x.\n\r", list_size(repIndex->ranks)), ch);
+		return false;
+	}
+
+
+	argument = one_argument(argument, arg);
+	int max_rank;
+	if (is_number(arg))
+	{
+		max_rank = atoi(arg);
+		if (max_rank < 1 || max_rank > list_size(repIndex->ranks))
+		{
+			send_to_char("Syntax:  addreputation <reputation widevnum> <minimum rank|none> {R<maximum rank|none>{x <points>\n\r", ch);
+			send_to_char(formatf("Invalid rank number.  Please specify a number from 1 to %d or {Wnone{x.\n\r", list_size(repIndex->ranks)), ch);
+			return false;
+		}
+	}
+	else if(!str_prefix(arg, "none"))
+	{
+		max_rank = 0;
+	}
+	else
+	{
+		send_to_char("Syntax:  addreputation <reputation widevnum> <minimum rank|none> {R<maximum rank|none>{x <points>\n\r", ch);
+		send_to_char(formatf("Invalid rank number.  Please specify a number from 1 to %d or {Wnone{x.\n\r", list_size(repIndex->ranks)), ch);
+		return false;
+	}
+
+	if (min_rank && max_rank && min_rank > max_rank)
+	{
+		send_to_char("Syntax:  addreputation <reputation widevnum> {R<minimum rank> <maximum rank>{x <points>\n\r", ch);
+		send_to_char("Minimum rank must not be greater than maximum rank.\n\r", ch);
+		return false;
+	}
+
+	long points;
+	if (!is_number(argument) || !(points = atol(argument)))
+	{
+		send_to_char("Syntax:  addreputation <reputation widevnum> <minimum rank|none> <maximum rank|none> {R<points>{x\n\r", ch);
+		send_to_char("Please specify a nonzero number.\n\r", ch);
+		return false;
+	}
+
+	MOB_REPUTATION_DATA *rep, *new_rep;
+	new_rep = new_mob_reputation_data();
+	new_rep->reputation = repIndex;
+	new_rep->minimum_rank = min_rank;
+	new_rep->maximum_rank = max_rank;
+	new_rep->points = points;
+	new_rep->next = NULL;
+
+	for(rep = pMob->reputations; rep && rep->next; rep = rep->next);
+
+	if (rep)
+		rep->next = new_rep;
+	else
+		pMob->reputations = new_rep;
+
+	send_to_char("Reputation added.\n\r", ch);
+	return true;
+}
+
+
+MEDIT (medit_delreputation)
+{
+    MOB_INDEX_DATA *pMob;
+    char mprog[MAX_STRING_LENGTH];
+    int value;
+
+    EDIT_MOB(ch, pMob);
+
+    one_argument(argument, mprog);
+    if (!is_number(mprog) || mprog[0] == '\0')
+    {
+       send_to_char("Syntax:  delreputation <number>\n\r",ch);
+       return FALSE;
+    }
+
+    value = atol (mprog);
+
+    if (value < 0)
+    {
+        send_to_char("Please specify a non-negative number.\n\r",ch);
+        return FALSE;
+    }
+
+	MOB_REPUTATION_DATA *prev, *rep;
+	for(prev = NULL, rep = pMob->reputations; rep && value--; prev = rep, rep = rep->next);
+
+	if (!rep)
+	{
+		send_to_char("No such reputation.\n\r", ch);
+		return false;
+	}
+
+	if (prev)
+		prev->next = rep->next;
+	else
+		pMob->reputations = rep->next;
+	free_mob_reputation_data(rep);
+	
+    send_to_char("Reputation removed.\n\r", ch);
+    return true;
 }
 
 

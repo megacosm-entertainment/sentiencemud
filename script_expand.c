@@ -2354,6 +2354,16 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.blist = self ? self->reputations : NULL;
 		break;
 
+	case ENTITY_MOB_REPUTATION:
+		arg->type = ENT_REPUTATION;
+		arg->d.reputation = self ? self->tempreputation : NULL;
+		break;
+
+	case ENTITY_MOB_FACTION:
+		arg->type = ENT_REPUTATION_INDEX;
+		arg->d.repIndex = self ? self->faction : NULL;
+		break;
+
 	default: return NULL;
 	}
 
@@ -2655,6 +2665,16 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.blist = NULL;
 		break;
 
+	case ENTITY_MOB_REPUTATION:
+		arg->type = ENT_REPUTATION;
+		arg->d.reputation = NULL;
+		break;	
+
+	case ENTITY_MOB_FACTION:
+		arg->type = ENT_REPUTATION_INDEX;
+		arg->d.repIndex = NULL;
+		break;
+
 	default: return NULL;
 	}
 
@@ -2677,11 +2697,27 @@ char *expand_entity_reputation(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.repIndex = IS_VALID(rep) ? rep->pIndexData : NULL;
 		break;
 
+	case ENTITY_REPUTATION_FLAGS:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(rep) ? rep->flags : 0;
+		arg->d.bv.table = reputation_flags;
+		break;
+
 	case ENTITY_REPUTATION_RANK:
 	{
 		arg->type = ENT_REPUTATION_RANK;
 		if (IS_VALID(rep) && rep->current_rank > 0)
 			arg->d.repRank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(rep->pIndexData->ranks, rep->current_rank);
+		else
+			arg->d.repRank = NULL;
+		break;
+	}
+
+	case ENTITY_REPUTATION_MAXRANK:
+	{
+		arg->type = ENT_REPUTATION_RANK;
+		if (IS_VALID(rep) && rep->maximum_rank > 0)
+			arg->d.repRank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(rep->pIndexData->ranks, rep->maximum_rank);
 		else
 			arg->d.repRank = NULL;
 		break;
@@ -2695,6 +2731,11 @@ char *expand_entity_reputation(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_REPUTATION_TOKEN:
 		arg->type = ENT_TOKEN;
 		arg->d.token = IS_VALID(rep) ? rep->token : NULL;
+		break;
+
+	case ENTITY_REPUTATION_PARAGON:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(rep) ? rep->paragon_level : 0;
 		break;
 
 	default: return NULL;
@@ -2718,6 +2759,12 @@ char *expand_entity_reputation_index(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM
 		arg->type = ENT_WIDEVNUM;
 		arg->d.wnum.pArea = IS_VALID(repIndex) ? repIndex->area : NULL;
 		arg->d.wnum.vnum = IS_VALID(repIndex) ? repIndex->vnum : 0;
+		break;
+
+	case ENTITY_REPINDEX_FLAGS:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(repIndex) ? repIndex->flags : 0;
+		arg->d.bv.table = reputation_flags;
 		break;
 
 	case ENTITY_REPINDEX_DESCRIPTION:
@@ -3621,6 +3668,10 @@ char *expand_entity_token(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 //		arg->type = ENT_AFFECT;
 //		arg->d.aff = arg->d.token ? arg->d.token->affect : NULL;
 //		break;
+	case ENTITY_TOKEN_REPUTATION:
+		arg->type = ENT_REPUTATION;
+		arg->d.reputation = arg->d.token ? arg->d.token->reputation : NULL;
+		break;
 	default: return NULL;
 	}
 
@@ -3676,6 +3727,10 @@ char *expand_entity_token_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_TOKEN_VARIABLES:
 		arg->type = ENT_ILLIST_VARIABLE;
 		arg->d.variables = NULL;
+	case ENTITY_TOKEN_REPUTATION:
+		arg->type = ENT_REPUTATION;
+		arg->d.reputation = NULL;
+		break;
 	default: return NULL;
 	}
 

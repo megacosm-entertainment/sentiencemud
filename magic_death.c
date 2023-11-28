@@ -329,6 +329,7 @@ SPELL_FUNC(spell_kill)
 	if (ch != victim) {
 		int rating = get_skill(ch, gsk_kill);
 		group_gain(ch, victim, 25 + (rating / 2));
+		group_gain_reputation(ch, victim);
 		if( ch->fighting == victim )
 			stop_fighting(ch, FALSE);
 	}

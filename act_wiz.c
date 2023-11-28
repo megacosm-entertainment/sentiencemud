@@ -2930,7 +2930,7 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 
 	if (IS_NPC(victim))
 	{
-		sprintf(buf, "{BShort description:{x %s\n\r{BLong description:{x %s",
+		sprintf(buf, "{BShort description:{x %s\n\r{BLong description:{x %s\n\r",
 					 victim->short_descr,
 					 victim->long_descr[0] != '\0' ? victim->long_descr : "(none)\n\r");
 		send_to_char(buf, ch);
@@ -2995,6 +2995,53 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 
 			send_to_char(buf, ch);
 		}
+	}
+
+	if (IS_NPC(victim) && victim->mob_reputations)
+	{
+		send_to_char("{BReputation Table:{x\n\r", ch);
+
+		MOB_REPUTATION_DATA *rep;
+		int iRep;
+		for(iRep = 0, rep = victim->mob_reputations; rep; iRep++, rep = rep->next)
+		{
+			char repName[MIL];
+
+			if (IS_VALID(rep->reputation))
+				sprintf(repName, "%s {W({x%ld{W#{x%ld{W)",
+					rep->reputation->name, rep->reputation->area->uid, rep->reputation->vnum);
+			else
+				strcpy(repName, "{D(invalid)");
+
+			// Pad the text so the plain text fits within 20 characters
+			int plain_len = strlen_no_colours(repName);
+			if (plain_len < 20)
+			{
+				strcat(repName, formatf("%*.*s", 20 - plain_len, 20 - plain_len, " "));
+			}
+		
+			REPUTATION_INDEX_RANK_DATA *min_rank =
+				(IS_VALID(rep->reputation) && rep->minimum_rank > 0) ?
+					(REPUTATION_INDEX_RANK_DATA *)list_nthdata(rep->reputation->ranks, rep->minimum_rank) :
+					NULL;
+			
+			REPUTATION_INDEX_RANK_DATA *max_rank =
+				(IS_VALID(rep->reputation) && rep->maximum_rank > 0) ?
+					(REPUTATION_INDEX_RANK_DATA *)list_nthdata(rep->reputation->ranks, rep->maximum_rank) :
+					NULL;
+
+			send_to_char(formatf("[%4d] %s {W({x%3d{W) {%c%-20s {W({x%3d{W) {%c%-20s {%c%d{x\n\r",
+				iRep, repName,
+				rep->minimum_rank,
+				IS_VALID(min_rank) ? min_rank->color : 'x',
+				IS_VALID(min_rank) ? min_rank->name : "none",
+				rep->maximum_rank,
+				IS_VALID(max_rank) ? max_rank->color : 'x',
+				IS_VALID(max_rank) ? max_rank->name : "none",
+				(rep->points < 0) ? 'R' : 'G',
+				rep->points), ch);
+		}
+
 	}
 
 	if( IS_NPC(victim) && IS_VALID(victim->crew) )
@@ -4816,6 +4863,12 @@ void do_set(CHAR_DATA *ch, char *argument)
 	do_function(ch, &do_songset, argument);
 	return;
     }
+
+	if (!str_prefix(arg, "reputation"))
+	{
+		do_function(ch, &do_repset, argument);
+		return;
+	}
 
     if (!str_prefix(arg,"object"))
     {
@@ -9645,5 +9698,123 @@ void do_immstrike(CHAR_DATA *ch, char *argument)
 		amount = victim->hit - 1;
 
 	damage(ch, victim, amount, NULL, TYPE_UNDEFINED, DAM_BASH, true);
-	send_to_char("Ok.", ch);
+	send_to_char("Ok.\n\r", ch);
+}
+
+
+void do_repset(CHAR_DATA *ch, char *argument)
+{
+    char arg1[MAX_INPUT_LENGTH];
+    char arg2[MAX_INPUT_LENGTH];
+    char arg3[MAX_INPUT_LENGTH];
+    CHAR_DATA *victim;
+
+    argument = one_argument(argument, arg1);
+    argument = one_argument(argument, arg2);
+    argument = one_argument(argument, arg3);
+
+    if (arg1[0] == '\0' || arg2[0] == '\0' || arg3[0] == '\0')
+    {
+		send_to_char("Syntax:  set reputation <name> <reputation> <rank#>\n\r", ch);
+		send_to_char("         set reputation <name> <reputation> remove\n\r",ch);
+		return;
+    }
+
+    if ((victim = get_char_world(ch, arg1)) == NULL)
+    {
+		send_to_char("They aren't here.\n\r", ch);
+		return;
+    }
+
+    if (IS_NPC(victim))
+    {
+		send_to_char("Not on NPC's.\n\r", ch);
+		return;
+    }
+
+	WNUM wnum;
+	if (!parse_widevnum(arg2, NULL, &wnum))
+	{
+		send_to_char("Please specify a reputation widevnum.\n\r", ch);
+		return;
+	}
+
+	REPUTATION_INDEX_DATA *repIndex = get_reputation_index_wnum(wnum);
+
+	if (!repIndex)
+	{
+		send_to_char("No such reputation exists.\n\r", ch);
+		return;
+	}
+
+	if (is_number(arg3))
+	{
+		int rankNo = atoi(arg3);
+		if (rankNo < 1 || rankNo > list_size(repIndex->ranks))
+		{
+			send_to_char(formatf("Please specify a rank number from 1 to %d.\n\r", list_size(repIndex->ranks)), ch);
+			return;
+		}
+
+		REPUTATION_INDEX_RANK_DATA *toRank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(repIndex->ranks, rankNo);
+
+		int value = -1;
+		if (is_number(argument))
+		{
+			value = atoi(argument);
+
+			if (value < 0 || value >= toRank->capacity)
+			{
+				send_to_char(formatf("Please specify a reputation value between 0 and %d.\n\r", toRank->capacity - 1), ch);
+				return;
+			}
+		}
+
+		REPUTATION_DATA *rep = get_reputation_char_wnum(victim, wnum, false, false);
+		if (rep)
+		{
+			// Already has it... check the rank
+			if (rep->current_rank == rankNo)
+			{
+				send_to_char("That reputation is already at that rank.\n\r", ch);
+				return;
+			}
+
+			if (set_reputation_rank(victim, rep, rankNo, value, true))
+			{
+				send_to_char("Ok.\n\r", ch);
+			}
+			else
+			{
+				send_to_char("Failed.\n\r", ch);
+			}
+		}
+		else
+		{
+			if (set_reputation_char(victim, repIndex, rankNo, value, true))
+			{
+				send_to_char("Ok.\n\r", ch);
+			}
+			else
+			{
+				send_to_char("Failed.\n\r", ch);
+			}
+		}
+
+		return;
+	}
+	else if (!str_prefix(arg3, "remove"))
+	{
+		if (!has_reputation(victim, repIndex))
+		{
+			send_to_char("They don't have that reputation.\n\r", ch);
+			return;
+		}
+
+		send_to_char("Not yet implemented.\n\r", ch);
+		return;
+	}
+
+	do_repset(ch, "");
+	return;
 }

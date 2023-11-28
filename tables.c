@@ -3211,6 +3211,10 @@ const struct flag_type builtin_trigger_types[] =
     { "renew",		        TRIG_RENEW,	TRUE },
     { "renew_list",		    TRIG_RENEW_LIST,	TRUE },
     { "repop",		        TRIG_REPOP,	TRUE },
+    { "reputation_gain",    TRIG_REPUTATION_GAIN,    TRUE },
+    { "reputation_paragon", TRIG_REPUTATION_PARAGON,    TRUE },
+    { "reputation_pregain", TRIG_REPUTATION_PREGAIN,    TRUE },
+    { "reputation_rankup",  TRIG_REPUTATION_RANKUP,     TRUE },
     { "reset",		        TRIG_RESET,	TRUE },
     { "rest",		        TRIG_REST,	TRUE },
     { "restocked",		    TRIG_RESTOCKED,	TRUE },
@@ -3955,8 +3959,19 @@ const struct flag_type song_flags[] =
     { NULL,                 0,                      FALSE }
 };
 
+const struct flag_type reputation_flags[] =
+{
+    { "at_war",             REPUTATION_AT_WAR,      FALSE   },      // Only toggled in game-+
+    { "hidden",             REPUTATION_HIDDEN,      TRUE    },
+    { "peaceful",           REPUTATION_PEACEFUL,    TRUE    },
+    { NULL,                 0,                      FALSE }
+};
+
 const struct flag_type reputation_rank_flags[] =
 {
-    { "no_rank_up",         REPUTATION_RANK_NORANKUP,   TRUE  },
+    { "no_rank_up",         REPUTATION_RANK_NORANKUP,       TRUE  },
+    { "paragon",            REPUTATION_RANK_PARAGON,        TRUE  },
+    { "peaceful",           REPUTATION_RANK_PEACEFUL,       TRUE  },
+    { "reset_paragon",      REPUTATION_RANK_RESET_PARAGON,  TRUE  },
     { NULL,                 0,                      FALSE }
 };

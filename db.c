@@ -2079,6 +2079,27 @@ void fix_mobiles(void)
 					}
 				}
 
+				if (mob->faction_load.auid > 0 && mob->faction_load.vnum > 0)
+					mob->faction = get_reputation_index_auid(mob->faction_load.auid, mob->faction_load.vnum);
+				else
+					mob->faction = NULL;
+
+				MOB_REPUTATION_DATA *rep;
+				for(rep = mob->reputations; rep; rep = rep->next)
+				{
+					if (rep->reputation_load.auid > 0 && rep->reputation_load.vnum > 0)
+					{
+						rep->reputation = get_reputation_index_auid(rep->reputation_load.auid, rep->reputation_load.vnum);
+
+						if (!IS_VALID(rep->reputation))
+						{
+							bug(formatf("Fix_mobiles: reputation %ld#%ld not found on mob %s.", rep->reputation_load.auid, rep->reputation_load.vnum, widevnum_string_mobile(mob, NULL)), 0);
+						}
+					}
+					else
+						rep->reputation = NULL;
+				}
+	
 				if(mob->progs) {
 					for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( mob->progs[slot] ) {
 						iterator_start(&it, mob->progs[slot]);
@@ -3613,6 +3634,22 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 	// make sure nothing has 0 hp
 	mob->max_hit = UMAX(1, mob->max_hit);
 
+	// Copy reputations to the mobile.
+	// Will allow them to be modified by scripting
+	MOB_REPUTATION_DATA *prev, *rep;
+	for(prev = NULL, rep = pMobIndex->reputations; rep; rep = rep->next)
+	{
+		MOB_REPUTATION_DATA *new_rep = copy_mob_reputation_data(rep);
+		new_rep->next = NULL;
+
+		if (prev)
+			prev->next = new_rep;
+		else
+			mob->mob_reputations = new_rep;
+		prev = new_rep;
+	}
+	mob->faction = pMobIndex->faction;
+
 	return mob;
 }
 
@@ -3704,7 +3741,33 @@ CHAR_DATA *clone_mobile(CHAR_DATA *parent)
 
     /* now add the affects */
     for (paf = parent->affected; paf != NULL; paf = paf->next)
+	{
         affect_to_char(clone,paf);
+	}
+
+	// Clear out index reputations:
+	MOB_REPUTATION_DATA *prev, *rep, *rep_next;
+	for(rep = clone->mob_reputations; rep; rep = rep_next)
+	{
+		rep_next = rep->next;
+		free_mob_reputation_data(rep);
+	}
+	clone->mob_reputations = NULL;
+
+	// Copy reputations from parent
+	for(prev = NULL, rep = parent->mob_reputations; rep; rep = rep->next)
+	{
+		MOB_REPUTATION_DATA *new_rep = copy_mob_reputation_data(rep);
+		new_rep->next = NULL;
+
+		if (prev)
+			prev->next = new_rep;
+		else
+			clone->mob_reputations = new_rep;
+		prev = new_rep;
+	}
+	clone->faction = parent->faction;
+
 
     variable_freelist(&clone->progs->vars);
     variable_copylist(&parent->progs->vars,&clone->progs->vars,FALSE);

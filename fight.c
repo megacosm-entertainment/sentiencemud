@@ -1273,6 +1273,12 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, SKI
 		return FALSE;
 	}
 
+	if(IS_NPC(victim) && !IS_NPC(ch) && is_reputation_rank_peaceful(ch, victim->faction))
+	{
+		victim->set_death_type = DEATHTYPE_ALIVE;
+		return FALSE;
+	}
+
 	if (victim->position == POS_DEAD) {
 		victim->set_death_type = DEATHTYPE_ALIVE;
 		return FALSE;
@@ -1659,6 +1665,7 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, SKI
 
 		if (ch != victim) {
 			group_gain(ch, victim, 100);	// Full experience
+			group_gain_reputation(ch, victim);
 			if( ch->fighting == victim )
 				stop_fighting(ch, FALSE);
 		}
@@ -1885,190 +1892,199 @@ bool is_safe(CHAR_DATA *ch, CHAR_DATA *victim, bool show)
 	// NPC victim
 	if (IS_NPC(victim))
 	{
-	/* Syn- only mobs with act flag "protected" are automatically
-	   protected by the gods now. All mobs such as guildmasters,
-	   churchmasters, healers, bankers, etc, have been set to
-	   protected if they weren't at the time of this change. */
-	if (IS_SET(victim->act[0], ACT_PROTECTED))
-	{
-		if (show)
-		act("$N is protected by the gods.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-
-		return TRUE;
-	}
-
-	// Shopkeepers are protected
-	if (victim->shop != NULL)
-	{
-		if (show)
-		act("You can't do that in $N's store!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-
-		return TRUE;
-	}
-
-	// You can't harm your own mount. this is mainly for room attacks.
-	if (victim == MOUNTED(ch))
-  		return TRUE;
-
-	// NPC attacking NPC
-	if (!IS_NPC(ch))
-	{
-		// Can't attack pets
-		if (IS_SET(victim->act[0],ACT_PET))
+		/* Syn- only mobs with act flag "protected" are automatically
+		protected by the gods now. All mobs such as guildmasters,
+		churchmasters, healers, bankers, etc, have been set to
+		protected if they weren't at the time of this change. */
+		if (IS_SET(victim->act[0], ACT_PROTECTED))
 		{
-		if (show)
-			act("But $N looks so cute and cuddly...", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			if (show)
+				act("$N is protected by the gods.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
-		return TRUE;
+			return TRUE;
 		}
 
-		// Can't attack charmed characters unless you own them
-		if (IS_AFFECTED(victim,AFF_CHARM) && ch != victim->master)
-		{
-		if (show)
-			act("You can only attack $N if you are $S owner.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
-		return TRUE;
+		// Shopkeepers are protected
+		if (victim->shop != NULL)
+		{
+			if (show)
+				act("You can't do that in $N's store!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+
+			return TRUE;
 		}
-	}
+
+		// You can't harm your own mount. this is mainly for room attacks.
+		if (victim == MOUNTED(ch))
+			return TRUE;
+
+		// NPC attacking NPC
+		if (!IS_NPC(ch))
+		{
+			if (is_reputation_rank_peaceful(ch, victim->faction))
+			{
+				if (show)
+					act("$N is friendly.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+
+				return TRUE;
+			}
+
+			// Can't attack pets
+			if (IS_SET(victim->act[0],ACT_PET))
+			{
+			if (show)
+				act("But $N looks so cute and cuddly...", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+
+			return TRUE;
+			}
+
+			// Can't attack charmed characters unless you own them
+			if (IS_AFFECTED(victim,AFF_CHARM) && ch != victim->master)
+			{
+			if (show)
+				act("You can only attack $N if you are $S owner.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+
+			return TRUE;
+			}
+		}
 	}
 	// PC victim
 	else
 	{
-	// Dead people cannot be attacked
-	if (IS_DEAD(victim))
-	{
-		if (show)
-		act("$N's shade is immortal.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-
-		return TRUE;
-	}
-
-	// NPC attacking PC
-	if (IS_NPC(ch))
-	{
-		if (IS_AFFECTED(ch,AFF_CHARM)
-		&&  ch->master != NULL
-		&&  ch->master->fighting != victim)
+		// Dead people cannot be attacked
+		if (IS_DEAD(victim))
 		{
-		if (show)
-			send_to_char("Players are your friends!\n\r",ch);
+			if (show)
+			act("$N's shade is immortal.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
-		return TRUE;
-		}
-	}
-	else // PC attacking PC
-	{
-		// If you're pulling a relic anyone can PK you
-		if (victim->pulled_cart != NULL
-		&&  is_relic(victim->pulled_cart->pIndexData))
-		//&&  ch->church != NULL)
-		return FALSE;
-
-		// Also if any of your formation members are pulling relics, you are PKable
-		for (fch = victim->in_room->people; fch != NULL; fch = fch->next_in_room)
-		{
-		if (fch->pulled_cart != NULL
-		&&   is_relic(fch->pulled_cart->pIndexData)
-		&&   is_same_group(fch, victim))
-		//&&   ch->church != NULL)
-			return FALSE;
+			return TRUE;
 		}
 
-		// Check for autowar
-		if (ch->in_war && victim->in_war)
+		// NPC attacking PC
+		if (IS_NPC(ch))
 		{
-		// Genocide war?
-		if (auto_war->war_type == AUTO_WAR_GENOCIDE)
-		{
-			if (ch->race == victim->race)
+			if (IS_AFFECTED(ch,AFF_CHARM)
+			&&  ch->master != NULL
+			&&  ch->master->fighting != victim)
 			{
 			if (show)
-				act("A magical power prevents your body from harming $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				send_to_char("Players are your friends!\n\r",ch);
 
 			return TRUE;
 			}
-			else
-			return FALSE;
 		}
-		else
-		// Jihad war?
-		if (auto_war->war_type == AUTO_WAR_JIHAD)
+		else // PC attacking PC
 		{
-			if (ch->alignment < 0
-			&& (victim->alignment < 0 || IS_CHURCH_EVIL(victim)))
-			{
-			if (show)
-				act("A magical power prevents you from harming $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-
-			return TRUE;
-			}
-			else
-			if (ch->alignment > 0
-			&& (victim->alignment > 0 || IS_CHURCH_GOOD(victim)))
-			{
-			if (show)
-				act("A magical power prevents you from harming $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-
-			return TRUE;
-			}
-			else
+			// If you're pulling a relic anyone can PK you
+			if (victim->pulled_cart != NULL
+			&&  is_relic(victim->pulled_cart->pIndexData))
+			//&&  ch->church != NULL)
 			return FALSE;
-		}
-		}
 
-		// PK rooms. Be sure that BOTH players are in a PK room for ranged attacks!
-		if ((IS_SET(ch->in_room->room_flag[0], ROOM_PK)
-			 || IS_SET(ch->in_room->room_flag[0], ROOM_ARENA))
-		&&  (IS_SET(victim->in_room->room_flag[0], ROOM_PK)
-			 || IS_SET(victim->in_room->room_flag[0], ROOM_ARENA)))
-		return FALSE;
-
-		if (IS_SET(victim->act[0],PLR_BOTTER))
-		return FALSE;
-
-		// Is it the reckoning?
-		if (pre_reckoning == 0 && reckoning_timer > 0)
-		{
-			if (ch->tot_level <= 30 || victim->tot_level <= 30)
+			// Also if any of your formation members are pulling relics, you are PKable
+			for (fch = victim->in_room->people; fch != NULL; fch = fch->next_in_room)
 			{
+			if (fch->pulled_cart != NULL
+			&&   is_relic(fch->pulled_cart->pIndexData)
+			&&   is_same_group(fch, victim))
+			//&&   ch->church != NULL)
+				return FALSE;
+			}
+
+			// Check for autowar
+			if (ch->in_war && victim->in_war)
+			{
+			// Genocide war?
+			if (auto_war->war_type == AUTO_WAR_GENOCIDE)
+			{
+				if (ch->race == victim->race)
+				{
 				if (show)
-					send_to_char("Only players level 31 and above are affected by 'The Reckoning'.\n\r",ch);
+					act("A magical power prevents your body from harming $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
 				return TRUE;
+				}
+				else
+				return FALSE;
 			}
-
-			if (IS_SET(ch->act[1], PLR_NORECKONING))
+			else
+			// Jihad war?
+			if (auto_war->war_type == AUTO_WAR_JIHAD)
 			{
+				if (ch->alignment < 0
+				&& (victim->alignment < 0 || IS_CHURCH_EVIL(victim)))
+				{
 				if (show)
-					act("$N has opted out of 'The Reckoning'.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+					act("A magical power prevents you from harming $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
 				return TRUE;
+				}
+				else
+				if (ch->alignment > 0
+				&& (victim->alignment > 0 || IS_CHURCH_GOOD(victim)))
+				{
+				if (show)
+					act("A magical power prevents you from harming $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+
+				return TRUE;
+				}
+				else
+				return FALSE;
+			}
 			}
 
+			// PK rooms. Be sure that BOTH players are in a PK room for ranged attacks!
+			if ((IS_SET(ch->in_room->room_flag[0], ROOM_PK)
+				|| IS_SET(ch->in_room->room_flag[0], ROOM_ARENA))
+			&&  (IS_SET(victim->in_room->room_flag[0], ROOM_PK)
+				|| IS_SET(victim->in_room->room_flag[0], ROOM_ARENA)))
+			return FALSE;
+
+			if (IS_SET(victim->act[0],PLR_BOTTER))
+			return FALSE;
+
+			// Is it the reckoning?
+			if (pre_reckoning == 0 && reckoning_timer > 0)
+			{
+				if (ch->tot_level <= 30 || victim->tot_level <= 30)
+				{
+					if (show)
+						send_to_char("Only players level 31 and above are affected by 'The Reckoning'.\n\r",ch);
+
+					return TRUE;
+				}
+
+				if (IS_SET(ch->act[1], PLR_NORECKONING))
+				{
+					if (show)
+						act("$N has opted out of 'The Reckoning'.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+
+					return TRUE;
+				}
+
+				return FALSE;
+			}
+
+
+			if (!is_pk(ch))
+			{
+			if (show)
+				send_to_char("You must be PK to participate in PK.\n\r", ch);
+
+			return TRUE;
+			}
+
+			if (!is_pk(victim))
+			{
+			if (show)
+				act("$N must be PK to participate in PK.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+
+			return TRUE;
+			}
+
+			if (is_pk(ch) && is_pk(victim))
 			return FALSE;
 		}
-
-
-		if (!is_pk(ch))
-		{
-		if (show)
-			send_to_char("You must be PK to participate in PK.\n\r", ch);
-
-		return TRUE;
-		}
-
-		if (!is_pk(victim))
-		{
-		if (show)
-			act("$N must be PK to participate in PK.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-
-		return TRUE;
-		}
-
-		if (is_pk(ch) && is_pk(victim))
-		return FALSE;
-	}
 	}
 
 	return FALSE;
@@ -5942,6 +5958,7 @@ void do_slit(CHAR_DATA *ch, char *argument)
 
 		if (ch != victim) {
 			group_gain(ch, victim, 25 + (skill / 2));
+			group_gain_reputation(ch, victim);
 			if( ch->fighting == victim )
 				stop_fighting(ch, FALSE);
 		}

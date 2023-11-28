@@ -369,6 +369,7 @@ typedef struct	help_category		HELP_CATEGORY;
 typedef struct	help_data		HELP_DATA;
 typedef struct liquid_type LIQUID;
 typedef struct	mob_index_data		MOB_INDEX_DATA;
+typedef struct  mob_reputation_data   MOB_REPUTATION_DATA;
 typedef struct	note_data		NOTE_DATA;
 typedef struct	npc_ship_data		NPC_SHIP_DATA;
 typedef struct	npc_ship_hotspot_data	NPC_SHIP_HOTSPOT_DATA;
@@ -3668,6 +3669,10 @@ struct	mob_index_data
 
 	MOB_INDEX_SKILL_DATA *skills;
 
+    REPUTATION_INDEX_DATA *faction;
+    WNUM_LOAD faction_load;
+    MOB_REPUTATION_DATA *reputations;
+
 	bool		boss;
 };
 
@@ -4028,6 +4033,8 @@ typedef struct reputation_index_rank_data REPUTATION_INDEX_RANK_DATA;
 
 #define REPUTATION_RANK_NORANKUP        (A)     // Whether capping out the rank's capacity requires special action to rank up (Default: automatic)
 #define REPUTATION_RANK_PARAGON         (B)     // The rank will execute a script (if assigned) for when the bar fills up, and will reset the reputation back to 0 (no overflow kept).
+#define REPUTATION_RANK_RESET_PARAGON   (C)     // Whether your paragon level resets if you drop from the paragon rank
+#define REPUTATION_RANK_PEACEFUL        (D)     // NPCs associated with this reputation are safe from combat if you are at this rank.
 
 struct reputation_index_rank_data {
     REPUTATION_INDEX_RANK_DATA *next;
@@ -4048,6 +4055,12 @@ struct reputation_index_rank_data {
     char color;             // Which color
 };
 
+#define REPUTATION_HIDDEN       (A)         // The reputation is hidden from the "reputations" list
+#define REPUTATION_PEACEFUL     (B)         // Cannot toggle At War on reputation
+
+// Live Only
+#define REPUTATION_AT_WAR       (ee)         // Can attack people associated with this reputation
+
 struct reputation_index_data
 {
     REPUTATION_INDEX_DATA *next;
@@ -4063,6 +4076,8 @@ struct reputation_index_data
     char *comments;
 
     char *created_by;
+
+    long flags;
 
     // Allows for triggers associated with the reputation
     WNUM_LOAD token_load;
@@ -4082,10 +4097,29 @@ struct reputation_data
 
     REPUTATION_INDEX_DATA *pIndexData;
 
+    long flags;
+
     sh_int current_rank;    // Always the ordinal number into the list
     long reputation;        // How much reputation do you have in the current rank?
 
+    sh_int maximum_rank;    // The highest rank obtained
+    int paragon_level;      // How many times have this paragoned?
+    
     TOKEN_DATA *token;
+};
+
+struct mob_reputation_data
+{
+    MOB_REPUTATION_DATA *next;
+    bool valid;
+
+    REPUTATION_INDEX_DATA *reputation;  // Which reputation
+    WNUM_LOAD reputation_load;          // Resolve after loading
+
+    sh_int minimum_rank;                // Minimum rank (0 = no minimum)
+    sh_int maximum_rank;                // Maximum rank (0 = no maximum)
+
+    long points;
 };
 
 /*
@@ -4450,6 +4484,7 @@ struct	char_data
     int			tempstore[MAX_TEMPSTORE];		/* Temporary storage values for script processing */
     char *		tempstring;
     int			manastore;		/* A storage for "mana" other than the character's mana */
+    REPUTATION_DATA *tempreputation;
 
 	MOB_SKILL_DATA *mob_skills;
 
@@ -4473,6 +4508,8 @@ struct	char_data
     LLIST *		lgroup;
 
     LLIST *     reputations;
+    MOB_REPUTATION_DATA *mob_reputations;
+    REPUTATION_INDEX_DATA *faction;
 
     int			deathsight_vision;
     int			cast_successful;	// Flag set when the casting is started indicating whether the result is successful
@@ -7198,6 +7235,10 @@ enum trigger_index_enum {
 	TRIG_RENEW,			// Used by "RENEW"
 	TRIG_RENEW_LIST,	// Used by "RENEW LIST"
 	TRIG_REPOP,
+    TRIG_REPUTATION_GAIN,
+    TRIG_REPUTATION_PARAGON,    // Called when you paragon the reputation
+    TRIG_REPUTATION_PREGAIN,
+    TRIG_REPUTATION_RANKUP,
 	TRIG_RESET,
 	TRIG_REST,
 	TRIG_RESTOCKED,
@@ -10845,12 +10886,17 @@ REPUTATION_INDEX_DATA *get_reputation_index_auid(long auid, long vnum);
 REPUTATION_INDEX_DATA *get_reputation_index_wnum(WNUM wnum);
 REPUTATION_INDEX_RANK_DATA *get_reputation_rank(REPUTATION_INDEX_DATA *rep, int ordinal);
 REPUTATION_INDEX_RANK_DATA *get_reputation_rank_uid(REPUTATION_INDEX_DATA *rep, sh_int uid);
-REPUTATION_DATA *get_reputation_char(CHAR_DATA *ch, AREA_DATA *area, long vnum, bool show);
-REPUTATION_DATA *get_reputation_char_auid(CHAR_DATA *ch, long auid, long vnum, bool show);
-REPUTATION_DATA *get_reputation_char_wnum(CHAR_DATA *ch, WNUM wnum, bool show);
-int gain_reputation(CHAR_DATA *ch, REPUTATION_DATA *rep, int amount, bool show);
-bool set_reputation_rank(CHAR_DATA *ch, REPUTATION_DATA *rep, int rank_no, bool show);
-REPUTATION_DATA *set_reputation_char(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex, bool show);
+REPUTATION_DATA *find_reputation_char(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex);
+REPUTATION_DATA *get_reputation_char(CHAR_DATA *ch, AREA_DATA *area, long vnum, bool add, bool show);
+REPUTATION_DATA *get_reputation_char_auid(CHAR_DATA *ch, long auid, long vnum, bool add, bool show);
+REPUTATION_DATA *get_reputation_char_wnum(CHAR_DATA *ch, WNUM wnum, bool add, bool show);
+bool gain_reputation(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex, long amount, int *change, long *total_given, bool show);
+bool set_reputation_rank(CHAR_DATA *ch, REPUTATION_DATA *rep, int rank_no, int rank_rep, bool show);
+REPUTATION_DATA *set_reputation_char(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex, int startingRank, int startingRep, bool show);
+bool has_reputation(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex);
+void paragon_reputation(CHAR_DATA *ch, REPUTATION_DATA *rep, bool show);
+bool is_reputation_rank_peaceful(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex);
+void group_gain_reputation(CHAR_DATA *ch, CHAR_DATA *victim);
 
 bool token_should_save(TOKEN_DATA *token);
 

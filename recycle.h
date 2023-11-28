@@ -343,3 +343,8 @@ void free_reputation_index_data(REPUTATION_INDEX_DATA *data);
 
 REPUTATION_DATA *new_reputation_data();
 void free_reputation_data(REPUTATION_DATA *data);
+
+
+MOB_REPUTATION_DATA *new_mob_reputation_data();
+MOB_REPUTATION_DATA *copy_mob_reputation_data(MOB_REPUTATION_DATA *src);
+void free_mob_reputation_data(MOB_REPUTATION_DATA *data);

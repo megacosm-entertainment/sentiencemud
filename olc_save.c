@@ -766,6 +766,13 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
 	if(mob->boss)
 		fprintf(fp, "Boss\n");
 
+	MOB_REPUTATION_DATA *rep;
+	for(rep = mob->reputations; rep; rep = rep->next)
+	{
+		fprintf(fp, "Reputation %s %d %d %ld\n", widevnum_string(rep->reputation->area, rep->reputation->vnum, mob->area), rep->minimum_rank, rep->maximum_rank, rep->points);
+	}
+	if (IS_VALID(mob->faction))
+		fprintf(fp, "Faction %ld#%ld\n", mob->faction->area->uid, mob->faction->vnum);
 
 	if (mob->pQuestor != NULL)
 		save_questor_new(fp, mob->pQuestor, mob->area);
@@ -2464,7 +2471,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 		break;
 
 		case 'B':
-			KEY("Boss", mob->boss, TRUE);
+			KEY("Boss", mob->boss, true);
 			break;
 
 	    case 'C':
@@ -2489,8 +2496,9 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 		break;
 
 	    case 'F':
-		KEY("Form",		mob->form,	fread_number(fp));
-		break;
+			KEY("Faction", mob->faction_load, fread_widevnum(fp, area->uid));
+			KEY("Form",		mob->form,	fread_number(fp));
+			break;
 
 	    case 'H':
 	        KEY("Hitroll",	mob->hitroll,	fread_number(fp));
@@ -2597,7 +2605,34 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 		    free_string(race_string);
 
 		    fMatch = TRUE;
+			break;
 		}
+			if (!str_cmp(word, "Reputation"))
+			{
+				WNUM_LOAD wnum_load = fread_widevnum(fp, area->uid);
+				sh_int min_rank = fread_number(fp);
+				sh_int max_rank = fread_number(fp);
+				long points = fread_number(fp);
+
+				MOB_REPUTATION_DATA *new_rep = new_mob_reputation_data();
+				new_rep->reputation_load = wnum_load;
+				new_rep->minimum_rank = min_rank;
+				new_rep->maximum_rank = max_rank;
+				new_rep->points = points;
+				new_rep->next = NULL;
+
+				MOB_REPUTATION_DATA *rep;
+
+				for(rep = mob->reputations; rep && rep->next; rep = rep->next);
+
+				if (rep)
+					rep->next = new_rep;
+				else
+					mob->reputations = new_rep;
+
+				fMatch = true;
+				break;
+			}
 
 		break;
 
