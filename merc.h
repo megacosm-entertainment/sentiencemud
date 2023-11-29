@@ -442,8 +442,10 @@ typedef struct list_link_exit_data LLIST_EXIT_DATA;
 typedef struct list_link_skill_data LLIST_SKILL_DATA;
 typedef struct iterator_type ITERATOR;
 
-typedef struct book_page_data BOOK_PAGE;
+typedef struct obj_ammo_data AMMO_DATA;
+typedef struct obj_armor_data ARMOR_DATA;
 typedef struct obj_book_data BOOK_DATA;
+typedef struct obj_compass_data COMPASS_DATA;
 typedef struct container_filter_data CONTAINER_FILTER;
 typedef struct obj_container_data CONTAINER_DATA;
 typedef struct obj_fluid_container_data FLUID_CONTAINER_DATA;
@@ -454,8 +456,16 @@ typedef struct obj_furniture_data FURNITURE_DATA;
 typedef struct obj_ink_data INK_DATA;
 typedef struct obj_instrument_data INSTRUMENT_DATA;
 typedef struct obj_light_data LIGHT_DATA;
+typedef struct obj_mist_data MIST_DATA;
 typedef struct obj_money_data MONEY_DATA;
+typedef struct book_page_data BOOK_PAGE;
 typedef struct obj_portal_data PORTAL_DATA;
+typedef struct obj_scroll_data SCROLL_DATA;
+typedef struct obj_sextant_data SEXTANT_DATA;
+typedef struct obj_tattoo_data TATTOO_DATA;
+typedef struct obj_telescope_data TELESCOPE_DATA;
+typedef struct obj_wand_data WAND_DATA;
+typedef struct obj_weapon_data WEAPON_DATA;
 
 typedef struct olc_point_category_type POINT_CATEGORY;
 typedef struct olc_point_data OLC_POINT_DATA;
@@ -2841,53 +2851,6 @@ struct affliction_type {
 
 
 /* weapon class */
-#define WEAPON_UNKNOWN         -1
-#define WEAPON_EXOTIC			0
-#define WEAPON_SWORD			1
-#define WEAPON_DAGGER			2
-#define WEAPON_SPEAR			3
-#define WEAPON_MACE				4
-#define WEAPON_AXE				5
-#define WEAPON_FLAIL			6
-#define WEAPON_WHIP				7
-#define WEAPON_POLEARM			8
-#define WEAPON_STAKE			9
-#define WEAPON_QUARTERSTAFF		10
-#define WEAPON_ARROW			11
-#define WEAPON_BOLT				12
-#define WEAPON_DART				13	/* @@@NIB : 20070126 */
-#define WEAPON_HARPOON			14	/* @@@NIB : 20070126 */
-#define WEAPON_TYPE_MAX			15
-
-/* ranged weapon class */
-#define RANGED_WEAPON_EXOTIC		0
-#define RANGED_WEAPON_CROSSBOW		1
-#define RANGED_WEAPON_BOW			2
-#define RANGED_WEAPON_BLOWGUN		3	/* @@@NIB : 20070126 */
-#define RANGED_WEAPON_HARPOON		4	/* @@@NIB : 20070126 */
-#define RANGED_WEAPON_SPEAR			5
-
-/* weapon types */
-#define WEAPON_FLAMING		(A)
-#define WEAPON_FROST		(B)
-#define WEAPON_VAMPIRIC		(C)
-#define WEAPON_SHARP		(D)
-#define WEAPON_VORPAL		(E)
-#define WEAPON_TWO_HANDS	(F)
-#define WEAPON_SHOCKING		(G)
-#define WEAPON_POISON		(H)
-#define WEAPON_THROWABLE	(I)
-#define WEAPON_ACIDIC		(J)	/* @@@NIB : 20070209 */
-#define WEAPON_ANNEALED		(K)	/* @@@NIB : 20070209 */
-#define WEAPON_BARBED		(L)	/* @@@NIB : 20070209 */
-#define WEAPON_CHIPPED		(M)	/* @@@NIB : 20070209 */
-#define WEAPON_DULL		(N)	/* @@@NIB : 20070209 */
-#define WEAPON_OFFHAND		(O)	/* @@@NIB : 20070209 */
-#define WEAPON_ONEHAND		(P)	/* @@@NIB : 20070209 */
-#define WEAPON_RESONATE		(Q)	/* @@@NIB : 20070209 */
-#define WEAPON_BLAZE		(R)	/* @@@NIB : 20070209 */
-#define WEAPON_SUCKLE		(S)	/* @@@NIB : 20070209 */
-
 
 
 /* gate flags */
@@ -4826,6 +4789,61 @@ struct oclu_context_data
     LOCK_STATE **lock;
 };
 
+
+typedef struct gem_socket_data GEM_SOCKET;
+
+#define GEM_SOCKET_NONE     0   // Closed socket, denotes no socket
+#define GEM_SOCKET_RED      1   // Only red gems can go into socket
+#define GEM_SOCKET_ORANGE   2   // Red or yellow gems can go into socket
+#define GEM_SOCKET_YELLOW   3   // Only yellow gems can go into socket
+#define GEM_SOCKET_GREEN    4   // Yellow or blue gems can go into socket
+#define GEM_SOCKET_BLUE     5   // Only blue gems can go into socket
+#define GEM_SOCKET_PURPLE   6   // Red or blue gems can go into socket
+#define GEM_SOCKET_WHITE    7   // Any color gem can go into socket
+#define GEM_SOCKET_BLACK    8   // Only special gems can go into socket
+
+struct gem_socket_data {
+    union {
+        OBJ_INDEX_DATA *gem_index;
+        OBJ_DATA *gem;
+    } _;
+
+    int type;
+};
+
+// ============[ AMMO ]============
+#define AMMO(obj)               ((obj)->_ammo)
+#define IS_AMMO(obj)            IS_VALID(AMMO(obj))
+
+#define AMMO_NONE               0
+#define AMMO_ARROW              1
+#define AMMO_BOLT               2
+#define AMMO_BULLET             3
+#define AMMO_DART               4
+
+struct obj_ammo_data {
+    AMMO_DATA *next;
+    bool valid;
+
+    sh_int type;
+
+    DICE_DATA damage;
+};
+
+// ===========[ ARMOR ]============
+#define ARMOR(obj)              ((obj)->_armor)
+#define IS_ARMOR(obj)           IS_VALID(ARMOR(obj))
+
+struct obj_armor_data {
+    ARMOR_DATA *next;
+    bool valid;
+
+    sh_int bash;
+    sh_int pierce;
+    sh_int slash;
+    sh_int exotic;
+};
+
 // ============[ BOOK ]============
 #define PAGE(obj)               ((obj)->_page)
 #define IS_PAGE(obj)            IS_VALID(PAGE(obj))
@@ -4860,6 +4878,14 @@ struct obj_book_data {
     LOCK_STATE *lock;
 };
 
+// ==========[ COMPASS ]===========
+#define COMPASS(obj)            ((obj)->_compass)
+#define IS_COMPASS(obj)         IS_VALID(COMPASS(obj))
+
+struct obj_compass_data {
+    COMPASS_DATA *next;
+    bool valid;
+};
 
 // =========[ CONTAINER ]==========
 #define CONTAINER(obj)          ((obj)->_container)
@@ -4998,8 +5024,6 @@ struct furniture_compartment_data {
     int move_regen;
 
     LOCK_STATE *lock;
-
-    // WXYZ
 };
 
 struct obj_furniture_data {
@@ -5092,6 +5116,30 @@ struct obj_light_data {
     int duration;       // Ticks remaining.  Negative is infinite
 };
 
+// ============[ MIST ]============
+#define MIST(obj)           ((obj)->_mist)
+#define IS_MIST(obj)        IS_VALID(MIST(obj))
+
+// Maybe convert these to other attributes, like sh_int to act as a probability
+#define MIST_ICY            (A)     // Can cause freeze_effect on entry/random. Can cause grounded mobs to slip.
+#define MIST_FIERY          (B)     // Can cause fire_effect on entry/random.
+#define MIST_ACIDIC         (C)     // Can pit metal and whatnot
+#define MIST_STINK          (D)     // Causes mobs to flee
+#define MIST_WITHER         (E)
+#define MIST_TOXIC          (F)     // Infects mobs with toxic fumes
+#define MIST_SHOCK          (G)     // Can cause shock_effect on entry/random.
+#define MIST_FOG            (H)     // Can rust metal items.
+
+struct obj_mist_data {
+    MIST_DATA *next;
+    bool valid;
+
+    long flags;
+    sh_int obscure_mobs;
+    sh_int obscure_objs;
+    sh_int obscure_room;
+};
+
 // ===========[ MONEY ]============
 #define MONEY(obj)          ((obj)->_money)
 #define IS_MONEY(obj)       IS_VALID(MONEY(obj))
@@ -5134,8 +5182,6 @@ struct obj_portal_data {
 #define SCROLL(obj)          ((obj)->_scroll)
 #define IS_SCROLL(obj)       IS_VALID(SCROLL(obj))
 
-typedef struct obj_scroll_data SCROLL_DATA;
-
 #define SCROLL_DESTROY_ON_RECITE    (A)     // The scroll will be consumed when recited.
 
 struct obj_scroll_data
@@ -5149,11 +5195,20 @@ struct obj_scroll_data
     LLIST *spells;
 };
 
+// ==========[ SEXTANT ]===========
+#define SEXTANT(obj)     ((obj)->_sextant)
+#define IS_SEXTANT(obj)  IS_VALID(SEXTANT(obj))
+
+struct obj_sextant_data {
+    SEXTANT_DATA *next;
+    bool valid;
+
+    sh_int accuracy;
+};
+
 // ==========[ TATTOO ]============
 #define TATTOO(obj)             ((obj)->_tattoo)
 #define IS_TATTOO(obj)          IS_VALID(TATTOO(obj))
-
-typedef struct obj_tattoo_data TATTOO_DATA;
 
 struct obj_tattoo_data
 {
@@ -5167,11 +5222,23 @@ struct obj_tattoo_data
     LLIST *spells;
 };
 
+// =========[ TELESCOPE ]==========
+#define TELESCOPE(obj)      ((obj)->_telescope)
+#define IS_TELESCOPE(obj)   IS_VALID(TEleScOPE(obj))
+
+struct obj_telescope_data {
+    TELESCOPE_DATA *next;
+    bool valid;
+
+    // TODO: Allow collapsing?
+    sh_int distance;
+    sh_int min_distance;
+    sh_int max_distance;
+};
+
 // ===========[ WAND ]=============
 #define WAND(obj)           ((obj)->_wand)
 #define IS_WAND(obj)        IS_VALID(WAND(obj))
-
-typedef struct obj_wand_data WAND_DATA;
 
 struct obj_wand_data
 {
@@ -5186,6 +5253,70 @@ struct obj_wand_data
     LLIST *spells;
 };
 
+// ===========[ WEAPON ]===========
+#define WEAPON(obj)           ((obj)->_weapon)
+#define IS_WEAPON(obj)        IS_VALID(WEAPON(obj))
+
+// TODO: Combine WEAPON and RANGED_WEAPON
+#define WEAPON_UNKNOWN         -1
+#define WEAPON_EXOTIC			0
+#define WEAPON_SWORD			1
+#define WEAPON_DAGGER			2
+#define WEAPON_SPEAR			3
+#define WEAPON_MACE				4
+#define WEAPON_AXE				5
+#define WEAPON_FLAIL			6
+#define WEAPON_WHIP				7
+#define WEAPON_POLEARM			8
+#define WEAPON_STAKE			9
+#define WEAPON_QUARTERSTAFF		10
+#define WEAPON_ARROW			11
+#define WEAPON_BOLT				12
+#define WEAPON_DART				13	/* @@@NIB : 20070126 */
+#define WEAPON_HARPOON			14	/* @@@NIB : 20070126 */
+#define WEAPON_TYPE_MAX			15
+
+#define RANGED_WEAPON_EXOTIC		0
+#define RANGED_WEAPON_CROSSBOW		1
+#define RANGED_WEAPON_BOW			2
+#define RANGED_WEAPON_BLOWGUN		3
+#define RANGED_WEAPON_HARPOON		4
+#define RANGED_WEAPON_SPEAR			5   // TODO: Should this just be a staff that is thrown?
+
+
+// Weapon flags
+#define WEAPON_FLAMING		(A)     // Does fire damage
+#define WEAPON_FROST		(B)     // Does cold damage
+#define WEAPON_VAMPIRIC		(C)     // Life stealing
+#define WEAPON_SHARP		(D)     // Increases damage
+#define WEAPON_VORPAL		(E)     // Does critical damage
+#define WEAPON_TWO_HANDS	(F)     // Requires two hands to wield
+#define WEAPON_SHOCKING		(G)     // Does shock damage
+#define WEAPON_POISON		(H)     // Does poison damage
+#define WEAPON_THROWABLE	(I)     // Can be thrown
+#define WEAPON_ACIDIC		(J)     // Does acidic damage
+#define WEAPON_ANNEALED		(K)     // Currently only guarantees stronger blackjack affects
+#define WEAPON_BARBED		(L)     // Causes damage if dislodged
+#define WEAPON_CHIPPED		(M)     // ---- NOT USED
+#define WEAPON_DULL 		(N)     // Reduces damage
+#define WEAPON_OFFHAND		(O)     // Can only be used in off hand
+#define WEAPON_ONEHAND		(P)     // Can only be used in primary hand
+#define WEAPON_RESONATE		(Q)     // Does sound damage
+#define WEAPON_BLAZE		(R)     // Does light damage
+#define WEAPON_SUCKLE		(S)     // Mana stealing
+
+struct obj_weapon_data
+{
+    WEAPON_DATA *next;
+    bool valid;
+
+    sh_int type;
+    long flags;
+
+    DICE_DATA *damage;
+};
+
+////////////////
 
 /*
  * Prototype for an object.

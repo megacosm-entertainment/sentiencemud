@@ -6135,6 +6135,9 @@ void do_blackjack(CHAR_DATA *ch, char *argument)
 	else
 		chance = (chance*3)/2;
 
+	// TODO: Question: Does ANNEALED help keep weapons from being set to NULL?
+	// Looks like 25% of the time, non-annealed weapons will be nerfed.
+	// Likelihood, annealed weapons guarantee a better blackjack affect
 	weapon = get_eq_char(victim, WEAR_WIELD);
 	if (weapon && (number_percent() > 25 || weapon->item_type != ITEM_WEAPON || !IS_WEAPON_STAT(weapon,WEAPON_ANNEALED)))
 		weapon = NULL;
@@ -6154,7 +6157,7 @@ void do_blackjack(CHAR_DATA *ch, char *argument)
 			af.group     = AFFGROUP_PHYSICAL;
 			af.skill= gsk_sleep;
 			af.level = ch->tot_level+(weapon?(weapon->level/5):0);
-			af.duration = weapon ? number_range(2,4) : 1;
+			af.duration = weapon ? number_range(2,4) : 1;	// TODO: Maybe have ANNEALED also give a bonus here?
 			af.location = APPLY_NONE;
 			af.modifier = 0;
 			af.bitvector = AFF_SLEEP;

@@ -49,6 +49,104 @@
 #include "recycle.h"
 #include "tables.h"
 
+// 
+
+// ITEM_LIGHT				Yes
+// ITEM_SCROLL				Yes
+// ITEM_WAND				Yes
+// ITEM_STAFF				Deleted (to be merged with WEAPON)
+// ITEM_WEAPON				No
+// ITEM_TREASURE			No
+// ITEM_ARMOUR				No
+// ITEM_POTION				Fluid Container
+// ITEM_CLOTHING			No
+// ITEM_FURNITURE			Yes
+// ITEM_TRASH				No
+// ITEM_CONTAINER			Yes
+// ITEM_DRINK_CON			Fluid Container
+// ITEM_KEY					No
+// ITEM_FOOD				Yes
+// ITEM_MONEY				Yes
+// ITEM_BOAT				No
+// ITEM_CORPSE_NPC			No
+// ITEM_CORPSE_PC			No
+// ITEM_FLUID_CONTAINER		Yes
+// ITEM_FOUNTAIN			Fluid Container
+// ITEM_PILL				No
+// ITEM_PROTECT				To be deleted
+// ITEM_MAP					No
+// ITEM_PORTAL				Yes
+// ITEM_CATALYST			To be deleted
+// ITEM_ROOM_KEY			To be deleted
+// ITEM_GEM					No
+// ITEM_JEWELRY				No
+// ITEM_JUKEBOX				No
+// ITEM_ARTIFACT			No
+// ITEM_SHARECERT			To be deleted
+// ITEM_ROOM_FLAME			No (MIST)
+// ITEM_INSTRUMENT			Yes
+// ITEM_SEED				No
+// ITEM_CART				No
+// ITEM_SHIP				No
+// ITEM_ROOM_DARKNESS		To be converted to a room affect
+// ITEM_RANGED_WEAPON		No (WEAPON)
+// ITEM_SEXTANT				No
+// ITEM_WEAPON_CONTAINER	Container
+// ITEM_ROOM_ROOMSHIELD		To be converted to a room affect
+// ITEM_BOOK				Yes
+// ITEM_SMOKE_BOMB			No
+// ITEM_STINKING_CLOUD		No (MIST)
+// ITEM_HERB				No
+// ITEM_SPELL_TRAP			No
+// ITEM_WITHERING_CLOUD		No (MIST)
+// ITEM_BANK				No
+// ITEM_KEYRING				Container
+// ITEM_TRADE_TYPE			No
+// ITEM_ICE_STORM			No (MIST)
+// ITEM_FLOWER				No
+// ITEM_EMPTY_VIAL			Fluid Container / Deleted
+// ITEM_BLANK_SCROLL		Scroll / Deleted
+// ITEM_MIST				No (MIST)
+// ITEM_SHRINE				To be deleted
+// ITEM_WHISTLE				No
+// ITEM_SHOVEL				No
+// ITEM_TOOL				No
+// ITEM_PIPE				No
+// ITEM_TATTOO				Yes
+// ITEM_INK					Yes
+// ITEM_PART				No
+// ITEM_COMMODITY			No
+// ITEM_TELESCOPE			No
+// ITEM_COMPASS				No
+// ITEM_WHETSTONE			No
+// ITEM_CHISEL				No
+// ITEM_PICK				No
+// ITEM_TINDERBOX			No
+// ITEM_NEEDLE				No
+// ITEM_DRYING_CLOTH		No
+// ITEM_BODY_PART			No
+// ITEM_PAGE				Yes
+
+
+/*
+Plan:
+
+MIST:
+	ITEM_ICE_STORM
+	ITEM_MIST
+	ITEM_ROOM_FLAME
+	ITEM_STINKING_CLOUD
+	ITEM_WITHERING_CLOUD
+
+	Flags: icy, fiery, stinking, withering, toxic, acidic, fog
+	Obscure Objs: 0-100
+	Obscure Mobs: 0-100
+	Obscure Room: 0-100 (obscure's view from outside the room)
+
+Give HERBs some stuff for use with PIPEs.
+
+*/
+
 #if 0
 bool composite_matrix[ITEM__MAX][ITEM__MAX] = {
 /* ITEM_LIGHT */			{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
