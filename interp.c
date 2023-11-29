@@ -79,7 +79,6 @@ const	struct	cmd_type	cmd_table	[] =
     // Other common commands, placed here so one and two letter abbreviations work.
     { "?",			do_help,	POS_DEAD,	 0,  LOG_NEVER,  1, TRUE },
     { "at",         do_at,          POS_DEAD,        0,  LOG_ALWAYS, 0, FALSE },
-	{ "atwar",		do_atwar,		POS_DEAD,		0,	LOG_NORMAL,	1, FALSE },
     { "auction",    do_auction,     POS_SLEEPING,    0,  LOG_ALWAYS, 1, FALSE },
     { "bar",		do_bar,		POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
     { "bomb",		do_bomb,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },

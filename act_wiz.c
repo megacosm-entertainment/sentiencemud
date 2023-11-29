@@ -9697,7 +9697,7 @@ void do_immstrike(CHAR_DATA *ch, char *argument)
 	if (amount >= victim->hit)
 		amount = victim->hit - 1;
 
-	damage(ch, victim, amount, NULL, TYPE_UNDEFINED, DAM_BASH, true);
+	damage(ch, victim, amount, NULL, TYPE_HIT, DAM_BASH, true);
 	send_to_char("Ok.\n\r", ch);
 }
 

@@ -4059,7 +4059,8 @@ struct reputation_index_rank_data {
 #define REPUTATION_PEACEFUL     (B)         // Cannot toggle At War on reputation
 
 // Live Only
-#define REPUTATION_AT_WAR       (ee)         // Can attack people associated with this reputation
+#define REPUTATION_IGNORED      (dd)        // Player has chosen to ignore the reputation
+#define REPUTATION_AT_WAR       (ee)        // Can attack people associated with this reputation
 
 struct reputation_index_data
 {

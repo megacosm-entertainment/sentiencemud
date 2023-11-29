@@ -314,6 +314,12 @@ void multi_hit(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, int dt)
 	aid[0] = ch->id[0]; aid[1] = ch->id[1];
 	vid[0] = victim->id[0]; vid[1] = victim->id[1];
 
+	// When a mob tries to attack you... Make sure their faction is added to yours
+	if (!IS_NPC(ch) && IS_NPC(victim) && IS_VALID(victim->faction))
+	{
+		set_reputation_char(ch, victim->faction, -1, -1, true);
+	}
+
 	// Evasion skill: allows you to avoid attacks
 	if (!IS_NPC(victim) && get_skill(victim, gsk_evasion) > 0 &&
 		IS_AFFECTED2(victim, AFF2_EVASION) && number_percent() < (get_skill(victim, gsk_evasion) / 5)) {

@@ -834,6 +834,9 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 		}
 	}
 
+	if (skill->pgsn)
+		*skill->pgsn = skill->uid;
+
 	return skill;
 }
 
@@ -980,6 +983,13 @@ bool load_skills(void)
 		perror(SKILLS_FILE);
 		return false;
 	}
+
+	for(int i = 0; gsn_table[i].name; i++)
+	{
+		if (gsn_table[i].gsn) *gsn_table[i].gsn = -1;
+		if(gsn_table[i].gsk) *gsn_table[i].gsk = NULL;
+	}
+
 	
 	while(str_cmp((word = fread_word(fp)), "End"))
 	{
@@ -1053,9 +1063,14 @@ bool load_skills(void)
 	for(int i = 0; gsn_table[i].name; i++)
 	{
 		if (gsn_table[i].gsn)
+		{
 			*gsn_table[i].gsk = get_skill_data_uid(*gsn_table[i].gsn);
+
+		}
 		else
 			*gsn_table[i].gsk = NULL;
+
+		log_stringf("load_skills: gsk_%s = %s", gsn_table[i].name, (*gsn_table[i].gsk) ? "(set)" : "(unset)");
 	}
 	
 #endif
@@ -4717,6 +4732,16 @@ SKEDIT( skedit_gsn )
 		}
 
 		skill->pgsn = pgsn;
+		*pgsn = skill->uid;
+		for(int i = 0; gsn_table[i].name; i++)
+		{
+			if (gsn_table[i].gsn == pgsn && gsn_table[i].gsk)
+			{
+				*gsn_table[i].gsk = skill;
+				break;
+			}
+		}
+
 		send_to_char("Skill GSN set.\n\r", ch);
 		return true;
 	}
@@ -4728,6 +4753,18 @@ SKEDIT( skedit_gsn )
 			send_to_char("There is no GSN set on this skill.\n\r", ch);
 			return false;
 		}
+
+		for(int i = 0; gsn_table[i].name; i++)
+		{
+			if (gsn_table[i].gsn == skill->pgsn)
+			{
+				*gsn_table[i].gsn = -1;
+				if(gsn_table[i].gsk)
+					*gsn_table[i].gsk = skill;
+				break;
+			}
+		}
+
 
 		skill->pgsn = NULL;
 		send_to_char("Skill GSN clear.\n\r", ch);

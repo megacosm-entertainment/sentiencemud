@@ -398,8 +398,16 @@ bool gain_reputation(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex, long amount
 	if (total_given) *total_given = 0;
 	if (!IS_VALID(ch) || !IS_VALID(repIndex)) return false;
 
-	REPUTATION_DATA *rep = get_reputation_char(ch, repIndex->area, repIndex->vnum, true, show);
+	bool is_new = false;
 
+	REPUTATION_DATA *rep = find_reputation_char(ch, repIndex);
+	if (!IS_VALID(rep))
+	{
+		rep = set_reputation_char(ch, repIndex, -1, -1, show);
+		is_new = true;
+	}
+
+	// If it's still invalid... oops
 	if (!IS_VALID(rep)) return false;
 
 	REPUTATION_INDEX_RANK_DATA *this_rank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(repIndex->ranks, rep->current_rank);
@@ -484,7 +492,7 @@ bool gain_reputation(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex, long amount
 
 		if (rep->reputation >= rank->capacity)
 		{
-			total += rep->reputation - rank->capacity + 1;	// it's really - (capacity - 1) distributed.
+			total += rep->reputation - rank->capacity;
 
 			// Is it the final rank with PARAGON?
 			if (rep->current_rank == list_size(rep->pIndexData->ranks) && IS_SET(rank->flags, REPUTATION_RANK_PARAGON))
@@ -500,6 +508,13 @@ bool gain_reputation(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex, long amount
 	}
 
 	if (total_given) *total_given = total;
+
+	// Is a new reputation
+	if (is_new)
+	{
+		rep->maximum_rank = rep->current_rank;
+		last_rank = rep->current_rank;
+	}
 
 	if (show)
 	{
@@ -566,7 +581,9 @@ void paragon_reputation(CHAR_DATA *ch, REPUTATION_DATA *rep, bool show)
 
 	// If the reputation has a token, check for PARAGON trigger
 	if (IS_VALID(rep->token))
+	{
 		p_percent_trigger( NULL, NULL, NULL, rep->token, ch, NULL, NULL,NULL, NULL, TRIG_REPUTATION_PARAGON, NULL,show,0,0,0,0);
+	}
 }
 
 void group_gain_reputation(CHAR_DATA *ch, CHAR_DATA *victim)
@@ -582,16 +599,23 @@ void group_gain_reputation(CHAR_DATA *ch, CHAR_DATA *victim)
 		return;
 	}
 
+	LLIST *seen_reps = list_create(FALSE);
+
 	for (gch = ch->in_room->people; gch != NULL; gch = gch->next_in_room)
 	{
 		/* If this char is in the same form */
 		if (is_same_group(gch, ch) && !IS_NPC(ch))
 		{
 			// Iterate over all of the mob reputations on the victim
+
+			list_clear(seen_reps);
+
 			MOB_REPUTATION_DATA *mob_rep;
 			for(mob_rep = victim->mob_reputations; mob_rep; mob_rep = mob_rep->next)
 			{
 				if (!IS_VALID(mob_rep->reputation)) continue;
+
+				if (list_hasdata(seen_reps, mob_rep->reputation)) continue;
 
 				REPUTATION_DATA *rep = find_reputation_char(gch, mob_rep->reputation);
 				int rankNo = IS_VALID(rep) ? rep->current_rank : mob_rep->reputation->initial_rank;
@@ -606,10 +630,15 @@ void group_gain_reputation(CHAR_DATA *ch, CHAR_DATA *victim)
 
 				// Give reputation to group member
 				gain_reputation(gch, mob_rep->reputation, mob_rep->points, NULL, NULL, true);
+
+				// Only allow the reputation to be messaged with ONCE per cycle
+				list_appendlink(seen_reps, mob_rep->reputation);
 			}
 
 		}
 	}
+
+	list_destroy(seen_reps);
 }
 
 
@@ -723,6 +752,12 @@ REPUTATION_DATA *set_reputation_char(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIn
 	rep->maximum_rank = rep->current_rank;
 	rep->paragon_level = 0;
 
+	if (repIndex->token)
+	{
+		rep->token = give_token(repIndex->token, ch, NULL, NULL);
+		rep->token->reputation = rep;
+	}
+
 	list_appendlink(ch->reputations, rep);
 
 	if(show)
@@ -780,7 +815,39 @@ void insert_reputation(LLIST *lp, REPUTATION_DATA *rep)
 	}
 }
 
-LLIST *sort_reputations(CHAR_DATA *ch)
+
+struct __filter_reputation_params
+{
+	bool show_hidden;
+	bool show_ignored;
+	bool show_atwar;
+	bool show_peaceful;
+
+	bool filter_by_name;
+	char name[MIL];
+};
+
+
+static inline bool __filter_reputation(REPUTATION_DATA *rep, struct __filter_reputation_params *params)
+{
+	if(!params->show_hidden && IS_SET(rep->flags, REPUTATION_HIDDEN)) return false;
+
+	if(!params->show_ignored && IS_SET(rep->flags, REPUTATION_IGNORED)) return false;
+
+	if(!params->show_atwar && IS_SET(rep->flags, REPUTATION_AT_WAR)) return false;
+
+	REPUTATION_INDEX_RANK_DATA *rank = get_reputation_rank(rep->pIndexData, rep->current_rank);
+	if(!params->show_peaceful &&
+		(IS_SET(rep->flags, REPUTATION_PEACEFUL) ||
+		(!IS_SET(rep->flags, REPUTATION_AT_WAR) && IS_SET(rank->flags, REPUTATION_RANK_PEACEFUL))))
+		return false;
+
+	if(params->filter_by_name && params->name[0] && !is_name(params->name, rep->pIndexData->name)) return false;
+
+	return true;
+}
+
+LLIST *sort_reputations(CHAR_DATA *ch, struct __filter_reputation_params *filter)
 {
 	LLIST *list = list_create(FALSE);
 
@@ -789,7 +856,7 @@ LLIST *sort_reputations(CHAR_DATA *ch)
 	iterator_start(&it, ch->reputations);
 	while((rep = (REPUTATION_DATA *)iterator_nextdata(&it)))
 	{
-		if ((IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) || !IS_SET(rep->flags, REPUTATION_HIDDEN))
+		if (__filter_reputation(rep, filter))
 			insert_reputation(list, rep);
 	}
 	iterator_stop(&it);
@@ -797,86 +864,85 @@ LLIST *sort_reputations(CHAR_DATA *ch)
 	return list;
 }
 
-// List Reputations on Character
-void do_reputations(CHAR_DATA *ch, char *argument)
+REPUTATION_DATA *search_reputation(CHAR_DATA *ch, char *argument, struct __filter_reputation_params *filter)
 {
-	char buf[MSL];
+	LLIST *list = sort_reputations(ch, filter);
 
-	if (list_size(ch->reputations) > 0)
+	REPUTATION_DATA *rep;
+	if (is_number(argument))
 	{
-		// TODO: Parse filters
-
-		LLIST *reps = sort_reputations(ch);
-
-		BUFFER *buffer = new_buf();
-
-		add_buf(buffer, " ##  [        Name        ] [        Rank        ] [                    Reputation                   ]\n\r");
-		add_buf(buffer, "=======================================================================================================\n\r");
-
-		int i = 0;
-		ITERATOR it;
-		REPUTATION_DATA *rep;
-		iterator_start(&it, reps);
-		while((rep = (REPUTATION_DATA *)iterator_nextdata(&it)))
-		{
-			REPUTATION_INDEX_RANK_DATA *rank = get_reputation_rank(rep->pIndexData, rep->current_rank);
-
-			// TODO: Check filters
-
-			int percent = 100 * rep->reputation / rank->capacity;
-			int slots = 20 * rep->reputation / rank->capacity;
-
-			char repColor;
-			if (IS_SET(rep->flags, REPUTATION_AT_WAR))
-				repColor = 'R';
-			else if (IS_SET(rep->flags, REPUTATION_PEACEFUL) || IS_SET(rank->flags, REPUTATION_RANK_PEACEFUL))
-				repColor = 'G';
-			else
-				repColor = 'Y';
-			if (IS_SET(rep->flags, REPUTATION_HIDDEN))
-				repColor = LOWER(repColor);
-
-
-			sprintf(buf, "%3d)  {%c%-20.20s   {%c%-20.20s   %12s{x {W%-5ld [{%c%-20s{x] {W%5ld %s{x\n\r", ++i,
-				repColor,
-				rep->pIndexData->name,
-				rank->color ? rank->color : 'Y',
-				rank->name,
-				formatf("{W({x%d%%{W)", percent),
-				rep->reputation,
-				rank->color ? rank->color : 'Y',
-				(slots > 0) ? formatf("%*.*s", slots, slots, "####################") : "",
-				rank->capacity,
-				(rep->paragon_level > 0) ? formatf("{W({x%d{Y*{W)", rep->paragon_level) : "");
-
-			add_buf(buffer, buf);
-		}
-		iterator_stop(&it);
-		add_buf(buffer, "-------------------------------------------------------------------------------------------------------\n\r");
-
-		list_destroy(reps);
-
-		if (i > 0)
-		{
-			if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
-			{
-				send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
-			}
-			else
-			{
-				page_to_char(buffer->string, ch);
-			}
-		}
+		int value = atoi(argument);
+		if (value < 1 || value > list_size(list))
+			rep = NULL;
 		else
-			send_to_char("No matching reputations found.\n\r", ch);
-
-		free_buf(buffer);
+			rep = (REPUTATION_DATA *)list_nthdata(list, value);
 	}
 	else
-		send_to_char("You haven't acquired any reputations.\n\r", ch);
+	{
+		char arg[MIL];
+		int count = number_argument(argument, arg);
+
+		ITERATOR it;
+		iterator_start(&it, list);
+		while((rep = (REPUTATION_DATA *)iterator_nextdata(&it)))
+		{
+			if (is_name(arg, rep->pIndexData->name) && !--count)
+				break;
+		}
+		iterator_stop(&it);
+	}
+	list_destroy(list);
+
+	return rep;
 }
 
-void do_atwar(CHAR_DATA *ch, char *argument)
+static bool __parse_reputation_filters(CHAR_DATA *ch, char *argument, struct __filter_reputation_params *params)
+{
+	char arg[MIL];
+
+	while(argument[0])
+	{
+		argument = one_argument(argument, arg);
+
+		if (!str_prefix(arg, "ignored"))
+		{
+			params->show_ignored = true;
+		}
+		else if (!str_prefix(arg, "hidden"))
+		{
+			if (IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))
+				params->show_hidden = true;
+			else
+				return false;	// Invalid option when not an immortal with holylight
+		}
+		else if (!str_prefix(arg, "atwar"))
+		{
+			params->show_atwar = true;
+			params->show_peaceful = false;
+		}
+		else if (!str_prefix(arg, "peaceful"))
+		{
+			params->show_atwar = false;
+			params->show_peaceful = true;
+		}
+		else if (!str_prefix(arg, "name"))
+		{
+			if (argument[0] == '\0')
+				return false;
+
+			argument = one_argument(argument, params->name);
+
+			params->filter_by_name = true;
+		}
+		else
+			return false;
+	}
+
+	return true;
+}
+
+// List Reputations on Character
+void do_reputations(CHAR_DATA *ch, char *argument)
 {
 	if (IS_NPC(ch))
 	{
@@ -884,50 +950,254 @@ void do_atwar(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (argument[0] == '\0')
-	{
-		send_to_char("Syntax:  atwar <reputation name>\n\r", ch);
-		return;
-	}
-
-	int count;
 	char arg[MIL];
-	count = number_argument(argument, arg);
+	char buf[MSL];
 
-	ITERATOR it;
-	REPUTATION_DATA *rep;
-	iterator_start(&it, ch->reputations);
-	while((rep = (REPUTATION_DATA *)iterator_nextdata(&it)))
+	argument = one_argument(argument, arg);
+	struct __filter_reputation_params params;
+	params.show_hidden = false;
+	params.show_ignored = false;
+	params.show_atwar = true;
+	params.show_peaceful = true;
+	params.filter_by_name = false;
+	params.name[0] = '\0';
+
+	if (arg[0] == '\0' || !str_prefix(arg, "show"))
 	{
-		if ((IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) || !IS_SET(rep->flags, REPUTATION_HIDDEN))
+		if (list_size(ch->reputations) > 0)
 		{
-			if (is_name(arg, rep->pIndexData->name) && !--count)
-				break;
-		}
-	}
-	iterator_stop(&it);
+			if (!__parse_reputation_filters(ch, argument, &params))
+			{
+				send_to_char("Syntax:  reputations show <filters>\n\r", ch);
+				send_to_char("\n\r", ch);
+				send_to_char("Reputation Show Filters:\n\r", ch);
+				send_to_char(" atwar           - Only show reputations that you are at war with.\n\r", ch);
+				if (IS_IMMORTAL(ch))
+					send_to_char(" hidden          - Show hidden reputations (requires HOLYLIGHT on)\n\r", ch);
+				send_to_char(" ignored         - Show ignored reputations\n\r", ch);
+				send_to_char(" name <name>     - Filter by <name>\n\r", ch);
+				send_to_char(" peaceful        - Only show reputations that you are peaceful with.\n\r", ch);
+				return;
+			}
 
-	if (!IS_VALID(rep))
-	{
-		send_to_char("No such reputation by that name.\n\r", ch);
+			LLIST *reps = sort_reputations(ch, &params);
+
+			BUFFER *buffer = new_buf();
+
+			add_buf(buffer, " ##  [        Name        ] [        Rank        ] [                    Reputation                   ]\n\r");
+			add_buf(buffer, "=======================================================================================================\n\r");
+
+			int i = 0;
+			ITERATOR it;
+			REPUTATION_DATA *rep;
+			iterator_start(&it, reps);
+			while((rep = (REPUTATION_DATA *)iterator_nextdata(&it)))
+			{
+				REPUTATION_INDEX_RANK_DATA *rank = get_reputation_rank(rep->pIndexData, rep->current_rank);
+
+				int percent = 100 * rep->reputation / rank->capacity;
+				int slots = 20 * rep->reputation / rank->capacity;
+
+				char repColor;
+				if (IS_SET(rep->flags, REPUTATION_AT_WAR))
+					repColor = 'R';
+				else if (IS_SET(rep->flags, REPUTATION_PEACEFUL) || IS_SET(rank->flags, REPUTATION_RANK_PEACEFUL))
+					repColor = 'G';
+				else
+					repColor = 'Y';
+				if (IS_SET(rep->flags, REPUTATION_HIDDEN))
+					repColor = LOWER(repColor);
+
+
+				sprintf(buf, "%3d)  {%c%-20.20s   {%c%-20.20s   %12s{x {W%-5ld [{%c%-20s{x] {W%5ld %s{x\n\r", ++i,
+					repColor,
+					rep->pIndexData->name,
+					rank->color ? rank->color : 'Y',
+					rank->name,
+					formatf("{W({x%d%%{W)", percent),
+					rep->reputation,
+					rank->color ? rank->color : 'Y',
+					(slots > 0) ? formatf("%*.*s", slots, slots, "####################") : "",
+					rank->capacity,
+					(rep->paragon_level > 0) ? formatf("{W({x%d{Y*{W)", rep->paragon_level) : "");
+
+				add_buf(buffer, buf);
+			}
+			iterator_stop(&it);
+			add_buf(buffer, "-------------------------------------------------------------------------------------------------------\n\r");
+
+			list_destroy(reps);
+
+			if (i > 0)
+			{
+				if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+				{
+					send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+				}
+				else
+				{
+					page_to_char(buffer->string, ch);
+				}
+			}
+			else
+				send_to_char("No matching reputations found.\n\r", ch);
+
+			free_buf(buffer);
+		}
+		else
+			send_to_char("You haven't acquired any reputations.\n\r", ch);
+		
 		return;
 	}
 
-	if (IS_SET(rep->flags, REPUTATION_AT_WAR))
+	if (!str_prefix(arg, "atwar"))
 	{
-		REMOVE_BIT(rep->flags, REPUTATION_AT_WAR);
-		send_to_char(formatf("{YYou are no longer AT WAR with %s.{x\n\r", rep->pIndexData->name), ch);
+		REPUTATION_DATA *rep = search_reputation(ch, argument, &params);
+
+		if (!IS_VALID(rep))
+		{
+			send_to_char("No such reputation.\n\r", ch);
+			return;
+		}
+
+		if (IS_SET(rep->flags, REPUTATION_AT_WAR))
+		{
+			REMOVE_BIT(rep->flags, REPUTATION_AT_WAR);
+			send_to_char(formatf("{YYou are no longer AT WAR with %s.{x\n\r", rep->pIndexData->name), ch);
+		}
+		else if(IS_SET(rep->flags, REPUTATION_PEACEFUL))
+		{
+			send_to_char(formatf("{CYou feel compelled to remain peaceful with %s.{x\n\r", rep->pIndexData->name), ch);
+		}
+		else
+		{
+			SET_BIT(rep->flags, REPUTATION_AT_WAR);
+			send_to_char(formatf("{RYou are now AT WAR with %s.{x\n\r", rep->pIndexData->name), ch);
+		}
+		return;
 	}
-	else if(IS_SET(rep->flags, REPUTATION_PEACEFUL))
+
+	if (!str_prefix(arg, "ignore"))
 	{
-		send_to_char(formatf("{CYou feel compelled to remain peaceful with %s.{x\n\r", rep->pIndexData->name), ch);
+		params.show_ignored = true;
+		REPUTATION_DATA *rep = search_reputation(ch, argument, &params);
+
+		if (!IS_VALID(rep))
+		{
+			send_to_char("No such reputation.\n\r", ch);
+			return;
+		}
+
+		if (IS_SET(rep->flags, REPUTATION_IGNORED))
+		{
+			REMOVE_BIT(rep->flags, REPUTATION_IGNORED);
+			send_to_char(formatf("{WYou are no longer ignoring %s.{x\n\r", rep->pIndexData->name), ch);
+		}
+		else
+		{
+			SET_BIT(rep->flags, REPUTATION_IGNORED);
+			send_to_char(formatf("{DYou are now ignoring %s.{x\n\r", rep->pIndexData->name), ch);
+		}
+		return;
 	}
-	else
+
+	if (!str_prefix(arg, "info"))
 	{
-		SET_BIT(rep->flags, REPUTATION_AT_WAR);
-		send_to_char(formatf("{RYou are now AT WAR with %s.{x\n\r", rep->pIndexData->name), ch);
+
+		REPUTATION_DATA *rep = search_reputation(ch, argument, &params);
+
+		if (!IS_VALID(rep))
+		{
+			send_to_char("No such reputation.\n\r", ch);
+			return;
+		}
+
+		REPUTATION_INDEX_RANK_DATA *rank = get_reputation_rank(rep->pIndexData, rep->current_rank);
+
+		BUFFER *buffer = new_buf();
+
+		// TDOO: change this to a trait for SAGE
+		bool extra_info = (IS_IMMORTAL(ch) || IS_SAGE(ch));
+		add_buf(buffer, formatf("{YInformation about Reputation [%s]{x\n\r", rep->pIndexData->name));
+
+		if (extra_info)
+		{
+			// Area the reputation is located.
+			add_buf(buffer, formatf("{ySource: {W%s{x\n\r", rep->pIndexData->area->name));
+		}
+
+		add_buf(buffer, "{yStatus: ");
+		if (IS_SET(rep->flags, REPUTATION_AT_WAR))
+			add_buf(buffer, "{RAt War");
+		else if (IS_SET(rep->flags, REPUTATION_HIDDEN) || IS_SET(rank->flags, REPUTATION_RANK_PEACEFUL))
+			add_buf(buffer, "{GAt Peace");
+		else
+			add_buf(buffer, "{YNormal");
+
+		add_buf(buffer, "{x\n\r");
+
+		if (rep->paragon_level > 0)
+			add_buf(buffer, formatf("{yParagon Levels: {W%d{x\n\r", rep->paragon_level));
+
+
+		add_buf(buffer, "{yReputation Description:{x\n\r");
+		if (!IS_NULLSTR(rep->pIndexData->description))
+			add_buf(buffer, string_indent(rep->pIndexData->description, 3));
+		else
+			add_buf(buffer, "  Nothing.\n\r");
+
+		add_buf(buffer, "\n\r");
+		add_buf(buffer, formatf("{yCurrent Rank: {W%s{Y (#{W%d{Y){x\n\r", rank->name, rank->ordinal));
+
+		int percent = 100 * rep->reputation / rank->capacity;
+		int slots = 20 * rep->reputation / rank->capacity;
+
+		add_buf(buffer, formatf("{yProgress: {x%-5d {W[{%c%-20s{W] {x%5d {W({x%d{Y%%{W){x\n\r",
+			rep->reputation,
+			rank->color ? rank->color : 'Y',
+			((slots > 0) ? formatf("%*.*s", slots, slots, "####################") : ""),
+			rank->capacity,
+			percent));
+
+		add_buf(buffer, "{yRank Description:{x\n\r");
+		if (!IS_NULLSTR(rank->description))
+			add_buf(buffer, string_indent(rank->description, 3));
+		else
+			add_buf(buffer, "  Nothing.\n\r");
+
+
+		if (extra_info)
+		{
+			if (rep->maximum_rank > rep->current_rank)
+			{
+				REPUTATION_INDEX_RANK_DATA *max_rank = get_reputation_rank(rep->pIndexData, rep->maximum_rank);
+				add_buf(buffer, formatf("{yMaximum Achieved Rank: {W%s{x\n\r", max_rank->name));
+			}
+		}
+
+
+
+		if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+		{
+			send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+		}
+		else
+		{
+			page_to_char(buffer->string, ch);
+		}
+
+		free_buf(buffer);
+		return;
 	}
+
+	send_to_char("Syntax:  reputations[ show <filters>]  - Show reputations.\n\r", ch);
+	send_to_char("         reputations atwar <name/#>    - Toggles AT WAR status for reputation.\n\r", ch);
+	send_to_char("         reputations ignore <name/#>   - Toggles ignore status for reputation.\n\r", ch);
+	send_to_char("         reputations info <name/#>     - Shows more information for reputation.\n\r", ch);
 }
+
+
+
 
 /////////////////////////////////////////////////////
 // Reputation Editor

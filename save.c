@@ -6324,7 +6324,10 @@ void fread_reputation(FILE *fp, CHAR_DATA *ch)
 	}
 
 	if (IS_VALID(rep->token))
+	{
+		rep->token->reputation = rep;
 		token_to_char(rep->token, ch);
+	}
 
 	list_appendlink(ch->reputations, rep);
 }

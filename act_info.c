@@ -1174,6 +1174,14 @@ void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch, bool examine)
     if (IS_NPC(victim) && (!IS_SET(victim->act[0], ACT_NO_LORE) || ch->tot_level > victim->tot_level))
 		p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL,0,0,0,0,0);
 
+
+
+	if (!IS_NPC(ch) && IS_NPC(victim) && IS_VALID(victim->faction))
+	{
+		set_reputation_char(ch, victim->faction, -1, -1, true);
+	}
+
+
     return;
 }
 
