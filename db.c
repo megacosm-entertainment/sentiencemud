@@ -2068,6 +2068,12 @@ void fix_mobiles(void)
 			{
 				if(mob->pShop)
 				{
+					if (mob->pShop->reputation_load.auid > 0 && mob->pShop->reputation_load.vnum > 0)
+						mob->pShop->reputation = get_reputation_index_auid(mob->pShop->reputation_load.auid, mob->pShop->reputation_load.vnum);
+					else
+						mob->pShop->reputation = NULL;
+
+
 					SHOP_STOCK_DATA *stock;
 					for(stock = mob->pShop->stock; stock; stock = stock->next)
 					{
@@ -2075,6 +2081,16 @@ void fix_mobiles(void)
 						{
 							stock->wnum.pArea = stock->wnum_load.auid > 0 ? get_area_from_uid(stock->wnum_load.auid) : pArea;
 							stock->wnum.vnum = stock->wnum_load.vnum;
+						}
+
+						if (stock->reputation_load.auid > 0 && stock->reputation_load.vnum > 0)
+							stock->reputation = get_reputation_index_auid(stock->reputation_load.auid, stock->reputation_load.vnum);
+						else
+						{
+							stock->reputation = NULL;
+							stock->min_reputation_rank = 0;
+							stock->max_reputation_rank = 0;
+							stock->hide_without_reputation = false;
 						}
 					}
 				}
@@ -3056,6 +3072,10 @@ void copy_shop_stock(SHOP_DATA *to_shop, SHOP_STOCK_DATA *from_stock)
 	to_stock->discount = URANGE(0,from_stock->discount,100);
 	to_stock->level = from_stock->level;
 	to_stock->wnum = from_stock->wnum;
+	to_stock->reputation = from_stock->reputation;
+	to_stock->min_reputation_rank = from_stock->min_reputation_rank;
+	to_stock->max_reputation_rank = from_stock->max_reputation_rank;
+	to_stock->hide_without_reputation = from_stock->hide_without_reputation;
 	switch(to_stock->type)
 	{
 	case STOCK_OBJECT:
@@ -3104,6 +3124,9 @@ void copy_shop(SHOP_DATA *to_shop, SHOP_DATA *from_shop)
 	to_shop->restock_interval = from_shop->restock_interval;
 	if( to_shop->restock_interval > 0 )
 		to_shop->next_restock = current_time + to_shop->restock_interval * 60;
+
+	to_shop->reputation = from_shop->reputation;
+	to_shop->min_reputation_rank = from_shop->min_reputation_rank;
 
 	if( from_shop->shipyard > 0 )
 	{

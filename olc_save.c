@@ -1525,6 +1525,13 @@ void save_shop_stock_new(FILE *fp, SHOP_STOCK_DATA *stock, AREA_DATA *pRefArea)
 
 	fprintf(fp, "Description %s~\n", fix_string(stock->custom_descr));
 
+	if (IS_VALID(stock->reputation))
+	{
+		fprintf(fp, "Reputation %ld#%ld %d %d\n", stock->reputation->area->uid, stock->reputation->vnum, stock->min_reputation_rank, stock->max_reputation_rank);
+		if (stock->hide_without_reputation)
+			fprintf(fp, "HideWithoutReputation\n");
+	}
+
 	fprintf(fp, "#-STOCK\n");
 }
 
@@ -1560,6 +1567,11 @@ void save_shop_new(FILE *fp, SHOP_DATA *shop, AREA_DATA *pRefArea)
 			shop->shipyard_region[1][0],
 			shop->shipyard_region[1][1],
 			shop->shipyard_description);
+	}
+
+	if (IS_VALID(shop->reputation))
+	{
+		fprintf(fp, "Reputation %ld#%ld %d\n", shop->reputation->area->uid, shop->reputation->vnum, shop->min_reputation_rank);
 	}
 
 	if( shop->stock )
@@ -4853,6 +4865,9 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp, AREA_DATA *area)
 				break;
 			}
 			break;
+		case 'H':
+			KEY("HideWithoutReputation", stock->hide_without_reputation, true);
+			break;
 		case 'K':
 			if(!str_cmp(word, "Keyword"))
 			{
@@ -4901,6 +4916,14 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp, AREA_DATA *area)
 			KEY("QuestPnts", stock->qp, fread_number(fp));
 			break;
 		case 'R':
+			if (!str_cmp(word, "Reputation"))
+			{
+				stock->reputation_load = fread_widevnum(fp, area->uid);
+				stock->min_reputation_rank = fread_number(fp);
+				stock->max_reputation_rank = fread_number(fp);
+				fMatch = true;
+				break;
+			}
 			KEY("RestockRate", stock->restock_rate, fread_number(fp));
 			break;
 		case 'S':
@@ -5015,6 +5038,13 @@ SHOP_DATA *read_shop_new(FILE *fp, AREA_DATA *area)
 			KEY("ProfitSell",	shop->profit_sell,	fread_number(fp));
 			break;
 		case 'R':
+			if (!str_cmp(word, "Reputation"))
+			{
+				shop->reputation_load = fread_widevnum(fp, area->uid);
+				shop->min_reputation_rank = fread_number(fp);
+				fMatch = true;
+				break;
+			}
 			KEY("RestockInterval", shop->restock_interval, fread_number(fp));
 			break;
 

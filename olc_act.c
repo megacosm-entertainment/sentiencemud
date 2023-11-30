@@ -15019,6 +15019,25 @@ MEDIT(medit_show)
 		sprintf(buf, "  Flags: %s\n\r", flag_string(shop_flags, pShop->flags));
 		add_buf(buffer, buf);
 
+		if (IS_VALID(pShop->reputation))
+		{
+			if (pShop->min_reputation_rank > 0 && pShop->min_reputation_rank <= list_size(pShop->reputation->ranks))
+			{
+				REPUTATION_INDEX_RANK_DATA *shopRank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(pShop->reputation->ranks, pShop->min_reputation_rank);
+
+				if (IS_VALID(shopRank))
+					sprintf(buf, "  Interaction Reputation: %s, at least {%c%s{x\n\r", pShop->reputation->name, shopRank->color ? shopRank->color : 'Y', shopRank->name);
+				else
+					sprintf(buf, "  Interaction Reputation: %s\n\r", pShop->reputation->name);
+			}
+			else
+				sprintf(buf, "  Interaction Reputation: %s\n\r", pShop->reputation->name);
+			
+			add_buf(buffer, buf);
+		}
+		else
+			add_buf(buffer, "  Interaction Reputation: {D(none){x\n\r");
+
 		for (iTrade = 0; iTrade < MAX_TRADE; iTrade++) {
 			if (pShop->buy_type[iTrade]) {
 				if (!iTrade) {
@@ -15055,14 +15074,15 @@ MEDIT(medit_show)
 			char hours[MIL];
 			char item[MIL];
 			char disc[MIL];
+			char rep[MIL];
 			int hwidth, lwidth, qwidth, pwidth;
 
 			for(iStock = 1, pStock = pShop->stock;pStock;pStock = pStock->next, iStock++)
 			{
 				if(iStock == 1)
 				{
-					add_buf(buffer, "{G  Stock# Level Quantity Sng Hours    Price(s)    Disc                   Item{x\n\r");
-					add_buf(buffer, "{G  ------ ----- -------- --- ----- -------------- ---- --------------------------------------{x\n\r");
+					add_buf(buffer, "{G  Stock# Level Quantity Sng Hours    Price(s)    Disc           Reputation                            Item{x\n\r");
+					add_buf(buffer, "{G  ------ ----- -------- --- ----- -------------- ---- ------------------------------ --------------------------------------{x\n\r");
 				}
 
 				if( pStock->level > 0 )
@@ -15074,6 +15094,68 @@ MEDIT(medit_show)
 					strcpy(lvl, "{GAuto{x");
 				}
 				lwidth = get_colour_width(lvl) + 5;
+
+				if (IS_VALID(pStock->reputation))
+				{
+					REPUTATION_INDEX_RANK_DATA *pStockMinRank, *pStockMaxRank;
+
+					if (pStock->min_reputation_rank > 0 && pStock->min_reputation_rank <= list_size(pStock->reputation->ranks))
+						pStockMinRank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(pStock->reputation->ranks, pStock->min_reputation_rank);
+					else
+						pStockMinRank = NULL;
+
+					if (pStock->max_reputation_rank > 0 && pStock->max_reputation_rank <= list_size(pStock->reputation->ranks))
+						pStockMaxRank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(pStock->reputation->ranks, pStock->max_reputation_rank);
+					else
+						pStockMaxRank = NULL;
+
+					if (IS_VALID(pStockMinRank))
+					{
+						if (IS_VALID(pStockMaxRank))
+						{
+							sprintf(rep, "%s%s ({%c%s{x to {%c%s{x)",
+								pStock->reputation->name,
+								pStock->hide_without_reputation ? "{C ({WH{C){x" : "",
+								pStockMinRank->color ? pStockMinRank->color : 'Y',
+								pStockMinRank->name,
+								pStockMaxRank->color ? pStockMaxRank->color : 'Y',
+								pStockMaxRank->name);
+						}
+						else
+						{
+							sprintf(rep, "%s%s ({%c%s{x)",
+								pStock->reputation->name,
+								pStock->hide_without_reputation ? "{C ({WH{C){x" : "",
+								pStockMinRank->color ? pStockMinRank->color : 'Y',
+								pStockMinRank->name);
+						}
+					}
+					else if(pStockMaxRank)
+					{
+						sprintf(rep, "%s%s (to {%c%s{x)",
+							pStock->reputation->name,
+							pStock->hide_without_reputation ? "{C ({WH{C){x" : "",
+							pStockMaxRank->color ? pStockMaxRank->color : 'Y',
+							pStockMaxRank->name);
+					}
+					else
+					{
+						strcpy(rep, pStock->reputation->name);
+						if (pStock->hide_without_reputation)
+							strcat(rep, "{C ({WH{C}){x");
+					}
+				}
+				else
+				{
+					rep[0] = '\0';
+				}
+
+				// Pad, left justified, upto 30 characters
+				int repLen = strlen_no_colours(rep);
+				if (repLen < 30)
+				{
+					strcat(rep, formatf("%*s", 30 - repLen, ""));
+				}
 
 				if( pStock->quantity > 0 )
 				{
@@ -15293,7 +15375,7 @@ MEDIT(medit_show)
 					break;
 				}
 
-				sprintf(buf, "  {G[{x%4d{G]{x %-*s %*s  %s  %*s %-*s %s %s%s\n\r", iStock, lwidth, lvl, qwidth, qty, (pStock->singular?"{RY{x":"{GN{x"), hwidth, hours, pwidth, pricing, disc, typ, item);
+				sprintf(buf, "  {G[{x%4d{G]{x %-*s %*s  %s  %*s %-*s %s %s %s%s\n\r", iStock, lwidth, lvl, qwidth, qty, (pStock->singular?"{RY{x":"{GN{x"), hwidth, hours, pwidth, pricing, disc, rep, typ, item);
 				add_buf(buffer,buf);
 
 				if( !IS_NULLSTR(pStock->custom_descr) )
@@ -16054,6 +16136,8 @@ MEDIT(medit_shop)
 		send_to_char("         shop flags [flags]\n\r", ch);
 		send_to_char("         shop hours [#xopening] [#xclosing]\n\r", ch);
 		send_to_char("         shop profit [#xbuying%] [#xselling%]\n\r", ch);
+		send_to_char("         shop reputation set <reputation>[ <minimum rank#>]\n\r", ch);
+		send_to_char("         shop reputation clear\n\r", ch);
 		send_to_char("         shop restock [minutes]\n\r", ch);
 		send_to_char("         shop shipyard clear\n\r", ch);
 		send_to_char("         shop shipyard <wuid> <x1> <y1> <x2> <y2> <description>\n\r", ch);
@@ -16066,6 +16150,8 @@ MEDIT(medit_shop)
 		send_to_char("         shop stock [#] quantity [total] [reset rate]\n\r", ch);
 		send_to_char("         shop stock [#] singular\n\r", ch);
 		send_to_char("         shop stock [#] remove\n\r", ch);
+		send_to_char("         shop stock [#] reputation set <reputation> <minimum rank#|none> <maximum rank# none>[ <hide>]\n\r", ch);
+		send_to_char("         shop stock [#] reputation clear\n\r", ch);
 		send_to_char("         shop type [#x0-4] [item type]\n\r", ch);
 		return FALSE;
     }
@@ -16092,6 +16178,60 @@ MEDIT(medit_shop)
 		send_to_char("Shop hours set.\n\r", ch);
 		return TRUE;
     }
+
+	if (!str_prefix(command, "reputation"))
+	{
+		if (arg1[0] == '\0')
+		{
+			send_to_char("Syntax:  shop reputation set <reputation>[ <minimum rank#>]\n\r", ch);
+			send_to_char("         shop reputation clear\n\r", ch);
+			return false;
+		}
+
+		if (!str_prefix(arg1, "set"))
+		{
+			WNUM wnum;
+
+			if (!parse_widevnum(arg2, ch->in_room->area, &wnum) || !wnum.pArea || wnum.vnum < 1)
+			{
+				send_to_char("Please provide a widevnum.\n\r", ch);
+				return false;
+			}
+
+			REPUTATION_INDEX_DATA *repIndex = get_reputation_index_wnum(wnum);
+			if (!IS_VALID(repIndex))
+			{
+				send_to_char("No such reputation by that widevnum.\n\r", ch);
+				return false;
+			}
+
+			int min_rank = 0;
+			if (argument[0] != '\0')
+			{
+				if (!is_number(argument) || (min_rank = atoi(argument)) < 1 || min_rank > list_size(repIndex->ranks))
+				{
+					send_to_char(formatf("Please specify a rank number from 1 to %d.\n\r", list_size(repIndex->ranks)), ch);
+					return false;
+				}
+			}
+
+			pMob->pShop->reputation = repIndex;
+			pMob->pShop->min_reputation_rank = min_rank;
+			send_to_char("Interaction reputation set.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg1, "clear"))
+		{
+			pMob->pShop->reputation = NULL;
+			pMob->pShop->min_reputation_rank = 0;
+			send_to_char("Interaction reputation cleared.\n\r", ch);
+			return true;
+		}
+
+		medit_shop(ch, "reputation");
+		return false;
+	}
 
     if (!str_prefix(command, "restock"))
     {
@@ -16405,6 +16545,8 @@ MEDIT(medit_shop)
 			send_to_char("         shop stock [#] quantity [total] [reset rate]\n\r", ch);
 			send_to_char("         shop stock [#] singular\n\r", ch);
 			send_to_char("         shop stock [#] remove\n\r", ch);
+			send_to_char("         shop stock [#] reputation set <reputation> <minimum rank#|none> <maximum rank# none>[ <hide>]\n\r", ch);
+			send_to_char("         shop stock [#] reputation clear\n\r", ch);
 			return FALSE;
 		}
 
@@ -16982,6 +17124,95 @@ MEDIT(medit_shop)
 				return TRUE;
 			}
 
+			if (!str_prefix(arg2, "reputation"))
+			{
+				char arg3[MIL];
+
+				argument = one_argument(argument, arg3);
+				if (!str_prefix(arg3, "set"))
+				{
+					WNUM wnum;
+
+					argument = one_argument(argument, arg3);
+					if (!parse_widevnum(arg3, ch->in_room->area, &wnum) || !wnum.pArea || wnum.vnum < 1)
+					{
+						send_to_char("Please provide a valid widevnum,\n\r", ch);
+						return false;
+					}
+
+					REPUTATION_INDEX_DATA *repIndex = get_reputation_index_wnum(wnum);
+					if (!IS_VALID(repIndex))
+					{
+						send_to_char("No such reputation with that widevnum.\n\r", ch);
+						return false;
+					}
+
+					argument = one_argument(argument, arg3);
+					int min_rank;
+					if (!str_prefix(arg3, "none"))
+						min_rank = 0;
+					else
+					{
+						if (!is_number(arg3) || (min_rank = atoi(arg3)) < 1 || min_rank > list_size(repIndex->ranks))
+						{
+							send_to_char(formatf("Please provide a rank from 1 to %d.\n\r", list_size(repIndex->ranks)), ch);
+							return false;
+						}
+					}
+
+					argument = one_argument(argument, arg3);
+					int max_rank;
+					if (!str_prefix(arg3, "none"))
+						max_rank = 0;
+					else
+					{
+						if (!is_number(arg3) || (max_rank = atoi(arg3)) < 1 || max_rank > list_size(repIndex->ranks))
+						{
+							send_to_char(formatf("Please provide a rank from 1 to %d.\n\r", list_size(repIndex->ranks)), ch);
+							return false;
+						}
+					}
+
+					if (min_rank && max_rank && min_rank > max_rank)
+					{
+						send_to_char("Minimum rank must not be higher than the maximum rank.\n\r", ch);
+						return false;
+					}
+
+					bool hide = false;
+					if (argument[0] != '\0')
+					{
+						if (!str_prefix(argument, "hide") || !str_prefix(argument, "true") || !str_prefix(argument, "yes"))
+							hide = true;
+						else
+							hide = false;
+					}
+
+					stock->reputation = repIndex;
+					stock->min_reputation_rank = min_rank;
+					stock->max_reputation_rank = max_rank;
+					stock->hide_without_reputation = hide;
+
+					send_to_char("Stock reputation set.\n\r", ch);
+					return true;
+				}
+
+				if (!str_prefix(arg3, "clear"))
+				{
+					stock->reputation = NULL;
+					stock->min_reputation_rank = 0;
+					stock->max_reputation_rank = 0;
+					stock->hide_without_reputation = false;
+
+					send_to_char("Stock reputation cleared.\n\r", ch);
+					return true;
+				}
+
+				send_to_char("Syntax:  shop stock [#] reputation set <reputation> <minimum rank#|none> <maximum rank# none>[ <hide>]\n\r", ch);
+				send_to_char("         shop stock [#] reputation clear\n\r", ch);
+				return false;
+			}
+
 			send_to_char("Syntax:  shop stock [#] description [description]\n\r", ch);
 			send_to_char("         shop stock [#] discount [0-100]\n\r", ch);
 			send_to_char("         shop stock [#] level [level]\n\r", ch);
@@ -16990,6 +17221,8 @@ MEDIT(medit_shop)
 			send_to_char("         shop stock [#] quantity [total] [reset rate]\n\r", ch);
 			send_to_char("         shop stock [#] singular\n\r", ch);
 			send_to_char("         shop stock [#] remove\n\r", ch);
+			send_to_char("         shop stock [#] reputation set <reputation> <minimum rank#|none> <maximum rank# none>[ <hide>]\n\r", ch);
+			send_to_char("         shop stock [#] reputation clear\n\r", ch);
 			return FALSE;
 		}
 

@@ -1326,7 +1326,9 @@ CHAR_DATA *get_renewer_here(CHAR_DATA *ch, char *argument)
 		{
 			if (IS_NPC(mob) && IS_SET(mob->act[1], ACT2_RENEWER))
 			{
-				return mob;
+				// They must be peaceful with them
+				if(check_mob_factions_peaceful(ch, mob))
+					return mob;
 			}
 		}
 
@@ -1341,7 +1343,7 @@ CHAR_DATA *get_renewer_here(CHAR_DATA *ch, char *argument)
 			return NULL;
 		}
 
-		if (!IS_NPC(mob) || !IS_SET(mob->act[1], ACT2_RENEWER))
+		if (!IS_NPC(mob) || !IS_SET(mob->act[1], ACT2_RENEWER) || !check_mob_factions_peaceful(ch, mob))
 		{
 			// Make a tell?
 			act("You cannot do that with $N.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);

@@ -5576,6 +5576,19 @@ void do_steal(CHAR_DATA *ch, char *argument)
     send_to_char("{WGot it!{x\n\r", ch);
 }
 
+bool has_stock_reputation(CHAR_DATA *ch, SHOP_STOCK_DATA *stock)
+{
+	if (!IS_VALID(stock->reputation)) return true;	// No requirements, so ignore.
+
+	REPUTATION_DATA *rep = find_reputation_char(ch, stock->reputation);
+	int rank = IS_VALID(rep) ? rep->current_rank : stock->reputation->initial_rank;
+
+	if (stock->min_reputation_rank > 0 && rank < stock->min_reputation_rank) return false;
+	if (stock->max_reputation_rank > 0 && rank > stock->max_reputation_rank) return false;
+
+	return true;
+}
+
 CHAR_DATA *find_keeper(CHAR_DATA *ch)
 {
     /*char buf[MAX_STRING_LENGTH];*/
@@ -5585,14 +5598,30 @@ CHAR_DATA *find_keeper(CHAR_DATA *ch)
     pShop = NULL;
     for (keeper = ch->in_room->people; keeper; keeper = keeper->next_in_room)
     {
-	if (IS_NPC(keeper) && (pShop = keeper->shop) != NULL)
-	    break;
+		if (IS_NPC(keeper) && (pShop = keeper->shop) != NULL)
+		{
+			if (IS_VALID(pShop->reputation))
+			{
+				// If shopkeeper has a reputation requirement, make sure they meet it.
+				REPUTATION_DATA *rep = find_reputation_char(ch, pShop->reputation);
+				int repRank = IS_VALID(rep) ? rep->current_rank : pShop->reputation->initial_rank;
+
+				if (repRank >= pShop->min_reputation_rank)
+				{
+					break;
+				}
+				else
+					pShop = NULL;
+			}
+			else
+				break;
+		}
     }
 
-    if (pShop == NULL)
+    if (!keeper || !pShop)
     {
-	send_to_char("You can't do that here.\n\r", ch);
-	return NULL;
+		send_to_char("You can't do that here.\n\r", ch);
+		return NULL;
     }
 
     /*
@@ -5761,6 +5790,9 @@ bool get_stock_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, SHOP_REQUEST_DATA *reque
 		{
 			// Out of stock.
 			if( stock->max_quantity > 0 && stock->quantity < 1) continue;
+
+			// Skip here if the item is to be hidden from view when unavailable.
+			if ( stock->hide_without_reputation && !has_stock_reputation(ch, stock) ) continue;
 
 			if( stock->wnum.pArea && stock->wnum.vnum > 0 )
 			{
@@ -5964,6 +5996,8 @@ void do_buy(CHAR_DATA *ch, char *argument)
 		if ((keeper = find_keeper(ch)) == NULL)
 			return;
 
+		check_mob_factions(ch, keeper);
+
 		argument = one_argument(argument, arg);
 		if( is_number(arg) )
 		{
@@ -5995,8 +6029,17 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 			ch->reply = keeper;
 			return;
-
 		}
+
+		// Check that they meet the reputation requirements.
+		if (!has_stock_reputation(ch, request.stock))
+		{
+			act("{R$n tells you 'You may not buy that.'{x",
+				keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+			ch->reply = keeper;
+			return;
+		}
+		
 
 		if (number < 1 || number > 150)
 		{
@@ -6741,6 +6784,8 @@ void do_list(CHAR_DATA *ch, char *argument)
 		if ((keeper = find_keeper(ch)) == NULL)
 		    return;
 
+		check_mob_factions(ch, keeper);
+
         one_argument(argument,arg);
 
 		found = FALSE;
@@ -6756,6 +6801,11 @@ void do_list(CHAR_DATA *ch, char *argument)
 				if( stock->wnum.pArea && stock->wnum.vnum > 0 && stock->obj != NULL )
 				{
 					if( arg[0] != '\0' && !is_name(arg, stock->obj->name) )
+						continue;
+
+					bool has_rep = has_stock_reputation(ch, stock);
+
+					if (stock->hide_without_reputation && !has_rep)
 						continue;
 
 					if (!found)
@@ -6774,13 +6824,53 @@ void do_list(CHAR_DATA *ch, char *argument)
 					char *descr =
 						IS_NULLSTR(stock->custom_descr) ? stock->obj->short_descr : stock->custom_descr;
 
+					char repName[MIL];
+					repName[0] = '\0';
+					if (!has_rep && IS_VALID(stock->reputation))
+					{
+						REPUTATION_INDEX_RANK_DATA *stockMinRank, *stockMaxRank;
+
+						if (stock->min_reputation_rank > 0 && stock->min_reputation_rank <= list_size(stock->reputation->ranks))
+							stockMinRank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(stock->reputation->ranks, stock->min_reputation_rank);
+						else
+							stockMinRank = NULL;
+
+						if (stock->max_reputation_rank > 0 && stock->max_reputation_rank <= list_size(stock->reputation->ranks))
+							stockMaxRank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(stock->reputation->ranks, stock->max_reputation_rank);
+						else
+							stockMaxRank = NULL;
+
+						if (IS_VALID(stockMinRank))
+						{
+							if (IS_VALID(stockMaxRank))
+							{
+								sprintf(repName, " {R(requires %s to %s in %s){x",
+									stockMinRank->name,
+									stockMaxRank->name,
+									stock->reputation->name);
+							}
+							else
+							{
+								sprintf(repName, " {R(requires %s in %s){x",
+									stockMinRank->name,
+									stock->reputation->name);
+							}
+						}
+						else if(stockMaxRank)
+						{
+							sprintf(repName, " {R(available upto %s in %s){x",
+								stockMaxRank->name,
+								stock->reputation->name);
+						}
+					}
+
 					if( stock->max_quantity > 0 )
 					{
-						sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s\n\r", level,pwidth,pricing,stock->quantity,descr);
+						sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s%s\n\r", level,pwidth,pricing,stock->quantity,descr, repName);
 					}
 					else
 					{
-						sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s\n\r", level,pwidth,pricing,descr);
+						sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s%s\n\r", level,pwidth,pricing,descr, repName);
 					}
 
 					send_to_char(buf, ch);
@@ -6940,6 +7030,7 @@ void do_inspect(CHAR_DATA *ch, char *argument)
     if ((keeper = find_keeper(ch)) == NULL)
 		return;
 
+	check_mob_factions(ch, keeper);
 
 	bool found = get_stock_keeper(ch, keeper, &request, arg);
 
@@ -7057,6 +7148,8 @@ void do_sell(CHAR_DATA *ch, char *argument)
 		send_to_char("You can't do that here.\n\r", ch);
 		return;
 	}
+
+	check_mob_factions(ch, keeper);
 
 	if ((obj = get_obj_carry(ch, arg, ch)) == NULL)
 	{

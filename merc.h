@@ -1658,6 +1658,11 @@ struct	shop_data
     int		shipyard_region[2][2];
     char	*shipyard_description;	// Used when purchasing a ship to tell the buyer where the ship is located.
 
+    // This will detail the *minimum* reputation required to interact with the shopkeeper, as a shopkeeper
+    REPUTATION_INDEX_DATA *reputation;
+    WNUM_LOAD reputation_load;
+    int min_reputation_rank;
+
     SHOP_STOCK_DATA *stock;
 };
 
@@ -1703,6 +1708,14 @@ struct shop_stock_data
 	char *custom_descr;
 
 	bool singular;				// Can only buy one unit at a time
+
+    REPUTATION_INDEX_DATA *reputation;
+    WNUM_LOAD reputation_load;
+
+    int min_reputation_rank;
+    int max_reputation_rank;
+
+    bool hide_without_reputation;       // Hide stock item if they don't meet the required reputation requirements
 };
 
 struct shop_request_data
@@ -9091,6 +9104,7 @@ bool is_extra_xp_relic_in_room args( (ROOM_INDEX_DATA *room) );
 bool is_hp_regen_relic_in_room args( (ROOM_INDEX_DATA *room) );
 bool is_mana_regen_relic_in_room args( (ROOM_INDEX_DATA *room) );
 bool remove_obj( CHAR_DATA *ch, int iWear, bool fReplace );
+bool has_stock_reputation(CHAR_DATA *ch, SHOP_STOCK_DATA *stock);
 CHAR_DATA *find_keeper( CHAR_DATA *ch );
 int get_cost( CHAR_DATA *keeper, OBJ_DATA *obj, bool fBuy );
 long adjust_keeper_price(CHAR_DATA *keeper, long price, bool fBuy);
