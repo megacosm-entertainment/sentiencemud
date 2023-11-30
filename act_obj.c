@@ -5589,6 +5589,20 @@ bool has_stock_reputation(CHAR_DATA *ch, SHOP_STOCK_DATA *stock)
 	return true;
 }
 
+bool can_see_stock_reputation(CHAR_DATA *ch, SHOP_STOCK_DATA *stock)
+{
+	if (!IS_VALID(stock->reputation)) return true;	// No requirements, so ignore.
+
+	REPUTATION_DATA *rep = find_reputation_char(ch, stock->reputation);
+	int rank = IS_VALID(rep) ? rep->current_rank : stock->reputation->initial_rank;
+
+	if (stock->min_show_rank > 0 && rank < stock->min_show_rank) return false;
+	if (stock->max_show_rank > 0 && rank > stock->max_show_rank) return false;
+
+	return true;
+}
+
+
 CHAR_DATA *find_keeper(CHAR_DATA *ch)
 {
     /*char buf[MAX_STRING_LENGTH];*/
@@ -5792,7 +5806,7 @@ bool get_stock_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, SHOP_REQUEST_DATA *reque
 			if( stock->max_quantity > 0 && stock->quantity < 1) continue;
 
 			// Skip here if the item is to be hidden from view when unavailable.
-			if ( stock->hide_without_reputation && !has_stock_reputation(ch, stock) ) continue;
+			if ( !can_see_stock_reputation(ch, stock) ) continue;
 
 			if( stock->wnum.pArea && stock->wnum.vnum > 0 )
 			{
@@ -6803,10 +6817,10 @@ void do_list(CHAR_DATA *ch, char *argument)
 					if( arg[0] != '\0' && !is_name(arg, stock->obj->name) )
 						continue;
 
-					bool has_rep = has_stock_reputation(ch, stock);
-
-					if (stock->hide_without_reputation && !has_rep)
+					if ( !can_see_stock_reputation(ch, stock))
 						continue;
+
+					bool has_rep = has_stock_reputation(ch, stock);
 
 					if (!found)
 					{

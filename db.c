@@ -2090,7 +2090,8 @@ void fix_mobiles(void)
 							stock->reputation = NULL;
 							stock->min_reputation_rank = 0;
 							stock->max_reputation_rank = 0;
-							stock->hide_without_reputation = false;
+							stock->min_show_rank = 0;
+							stock->max_show_rank = 0;
 						}
 					}
 				}
@@ -3075,7 +3076,8 @@ void copy_shop_stock(SHOP_DATA *to_shop, SHOP_STOCK_DATA *from_stock)
 	to_stock->reputation = from_stock->reputation;
 	to_stock->min_reputation_rank = from_stock->min_reputation_rank;
 	to_stock->max_reputation_rank = from_stock->max_reputation_rank;
-	to_stock->hide_without_reputation = from_stock->hide_without_reputation;
+	to_stock->min_show_rank = from_stock->min_show_rank;
+	to_stock->max_show_rank = from_stock->max_show_rank;
 	switch(to_stock->type)
 	{
 	case STOCK_OBJECT:

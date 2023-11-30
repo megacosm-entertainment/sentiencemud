@@ -1527,9 +1527,10 @@ void save_shop_stock_new(FILE *fp, SHOP_STOCK_DATA *stock, AREA_DATA *pRefArea)
 
 	if (IS_VALID(stock->reputation))
 	{
-		fprintf(fp, "Reputation %ld#%ld %d %d\n", stock->reputation->area->uid, stock->reputation->vnum, stock->min_reputation_rank, stock->max_reputation_rank);
-		if (stock->hide_without_reputation)
-			fprintf(fp, "HideWithoutReputation\n");
+		if (stock->min_show_rank > 0 || stock->max_show_rank > 0)
+			fprintf(fp, "ReputationShow %ld#%ld %d %d %d %d\n", stock->reputation->area->uid, stock->reputation->vnum, stock->min_reputation_rank, stock->max_reputation_rank, stock->min_show_rank, stock->max_show_rank);
+		else
+			fprintf(fp, "Reputation %ld#%ld %d %d\n", stock->reputation->area->uid, stock->reputation->vnum, stock->min_reputation_rank, stock->max_reputation_rank);
 	}
 
 	fprintf(fp, "#-STOCK\n");
@@ -4865,9 +4866,6 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp, AREA_DATA *area)
 				break;
 			}
 			break;
-		case 'H':
-			KEY("HideWithoutReputation", stock->hide_without_reputation, true);
-			break;
 		case 'K':
 			if(!str_cmp(word, "Keyword"))
 			{
@@ -4921,6 +4919,18 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp, AREA_DATA *area)
 				stock->reputation_load = fread_widevnum(fp, area->uid);
 				stock->min_reputation_rank = fread_number(fp);
 				stock->max_reputation_rank = fread_number(fp);
+				stock->min_show_rank = 0;
+				stock->max_show_rank = 0;
+				fMatch = true;
+				break;
+			}
+			if (!str_cmp(word, "ReputationShow"))
+			{
+				stock->reputation_load = fread_widevnum(fp, area->uid);
+				stock->min_reputation_rank = fread_number(fp);
+				stock->max_reputation_rank = fread_number(fp);
+				stock->min_show_rank = fread_number(fp);
+				stock->max_show_rank = fread_number(fp);
 				fMatch = true;
 				break;
 			}
