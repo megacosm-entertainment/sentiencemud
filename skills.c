@@ -4102,9 +4102,9 @@ SKEDIT( skedit_show )
 
 		add_buf(buffer, "\n\r");
 		olc_buffer_show_string(ch, buffer, formatf("%d", skill->cast_mana), "mana cast", "Casting Mana:", 20, "xDW");
-		olc_buffer_show_string(ch, buffer, formatf("%d", skill->cast_mana), "mana brew", "Brewing Mana:", 20, "xDW");
-		olc_buffer_show_string(ch, buffer, formatf("%d", skill->cast_mana), "mana scribe", "Scribing Mana:", 20, "xDW");
-		olc_buffer_show_string(ch, buffer, formatf("%d", skill->cast_mana), "mana imbue", "Imbuing Mana:", 20, "xDW");
+		olc_buffer_show_string(ch, buffer, formatf("%d", skill->brew_mana), "mana brew", "Brewing Mana:", 20, "xDW");
+		olc_buffer_show_string(ch, buffer, formatf("%d", skill->scribe_mana), "mana scribe", "Scribing Mana:", 20, "xDW");
+		olc_buffer_show_string(ch, buffer, formatf("%d", skill->imbue_mana), "mana imbue", "Imbuing Mana:", 20, "xDW");
 		break;
 
 	case 3:	// Values

@@ -3632,8 +3632,8 @@ struct	mob_index_data
 
 	MOB_INDEX_SKILL_DATA *skills;
 
-    REPUTATION_INDEX_DATA *faction;
-    WNUM_LOAD faction_load;
+    LLIST *factions;            // REPUTATION_INDEX_DATA *
+    LLIST *factions_load;       // WNUM_LOAD *
     MOB_REPUTATION_DATA *reputations;
 
 	bool		boss;
@@ -4473,7 +4473,7 @@ struct	char_data
 
     LLIST *     reputations;
     MOB_REPUTATION_DATA *mob_reputations;
-    REPUTATION_INDEX_DATA *faction;
+    LLIST *     factions;           // REPUTATION_INDEX_DATA *
 
     int			deathsight_vision;
     int			cast_successful;	// Flag set when the casting is started indicating whether the result is successful
@@ -11029,6 +11029,8 @@ bool has_reputation(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex);
 void paragon_reputation(CHAR_DATA *ch, REPUTATION_DATA *rep, bool show);
 bool is_reputation_rank_peaceful(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex);
 void group_gain_reputation(CHAR_DATA *ch, CHAR_DATA *victim);
+void check_mob_factions(CHAR_DATA *ch, CHAR_DATA *victim);
+bool check_mob_factions_peaceful(CHAR_DATA *ch, CHAR_DATA *victim);
 
 bool token_should_save(TOKEN_DATA *token);
 

@@ -351,7 +351,7 @@ ENT_FIELD entity_mobile[] = {
 	{"size",					ENTITY_MOB_SIZE,			ENT_STAT },
 	{"reputations",				ENTITY_MOB_REPUTATIONS,		ENT_ILLIST_REPUTATION },
 	{"reputation",				ENTITY_MOB_REPUTATION,		ENT_REPUTATION },
-	{"faction",					ENTITY_MOB_FACTION,			ENT_REPUTATION_INDEX },
+	{"factions",				ENTITY_MOB_FACTIONS,		ENT_ILLIST_REPUTATION_INDEX },
 	{NULL,				0,							ENT_UNKNOWN	}
 };
 

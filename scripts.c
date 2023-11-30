@@ -766,6 +766,7 @@ void script_loop_cleanup(SCRIPT_CB *block, int level)
 			case ENT_ILLIST_SPELLS:
 			case ENT_ILLIST_VARIABLE:
 			case ENT_ILLIST_REPUTATION:
+			case ENT_ILLIST_REPUTATION_INDEX:
 				iterator_stop(&block->loops[i].d.l.list.it);
 				break;
 			}
@@ -1103,6 +1104,7 @@ DECL_OPC_FUN(opc_list)
 	FURNITURE_COMPARTMENT *compartment;
 	SPELL_DATA *spell;
 	REPUTATION_DATA *reputation;
+	REPUTATION_INDEX_DATA *repIndex;
 	REPUTATION_INDEX_RANK_DATA *rank;
 
 	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
@@ -2313,6 +2315,33 @@ DECL_OPC_FUN(opc_list)
 			variables_set_reputation(block->info.var,block->loops[lp].var_name,reputation);
 			break;
 
+
+		case ENT_ILLIST_REPUTATION_INDEX:
+			//log_stringf("opc_list: list type ENT_ILLIST_REPUTATION_INDEX");
+			if(!IS_VALID(arg->d.blist))
+			{
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			block->loops[lp].d.l.type = ENT_ILLIST_REPUTATION_INDEX;
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+			repIndex = (REPUTATION_INDEX_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+			if( !IS_VALID(repIndex) ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			// Set the variable
+			variables_set_reputation_index(block->info.var,block->loops[lp].var_name,repIndex);
+			break;
+
 		default:
 			//log_stringf("opc_list: list_type INVALID");
 			block->ret_val = PRET_BADSYNTAX;
@@ -3052,6 +3081,21 @@ DECL_OPC_FUN(opc_list)
 			variables_set_reputation(block->info.var,block->loops[lp].var_name,reputation);
 
 			if( !IS_VALID(reputation) ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				skip = TRUE;
+				break;
+			}
+			break;
+
+		case ENT_ILLIST_REPUTATION_INDEX:
+			//log_stringf("opc_list: list type ENT_ILLIST_REPUTATION_INDEX");
+			repIndex = (REPUTATION_INDEX_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+			//log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
+
+			// Set the variable
+			variables_set_reputation_index(block->info.var,block->loops[lp].var_name,repIndex);
+
+			if( !IS_VALID(repIndex) ) {
 				iterator_stop(&block->loops[lp].d.l.list.it);
 				skip = TRUE;
 				break;

@@ -752,6 +752,7 @@ CHAR_DATA *new_char( void )
     ch->tempstring = NULL;
     ch->shop = NULL;
     ch->mob_reputations = NULL;
+    ch->factions = list_create(FALSE);
 
     return ch;
 }
@@ -851,6 +852,7 @@ void free_char( CHAR_DATA *ch )
     }
     iterator_stop(&it);
     list_destroy(ch->lstache);
+    list_destroy(ch->factions);
 
 	if( !IS_NPC(ch))
 	{
@@ -2221,6 +2223,8 @@ MOB_INDEX_DATA *new_mob_index( void )
     pMob->attacks	=   0;
     pMob->quests =  NULL;
     pMob->reputations = NULL;
+    pMob->factions = list_create(FALSE);    // REPUTATION_INDEX_DATA *
+    pMob->factions_load = list_createx(FALSE, NULL, delete_list_wnum_load);
 
     return pMob;
 }
@@ -2259,6 +2263,9 @@ void free_mob_index( MOB_INDEX_DATA *pMob )
         rep_next = rep->next;
         free_mob_reputation_data(rep);
     }
+
+    list_destroy(pMob->factions);
+    list_destroy(pMob->factions_load);
 
     pMob->next              = mob_index_free;
     mob_index_free          = pMob;

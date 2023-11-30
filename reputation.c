@@ -390,6 +390,45 @@ bool has_reputation(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex)
 	return rep != NULL;
 }
 
+void check_mob_factions(CHAR_DATA *ch, CHAR_DATA *victim)
+{
+	if (!IS_NPC(ch) && IS_NPC(victim) && list_size(victim->factions) > 0)
+	{
+		ITERATOR fit;
+		REPUTATION_INDEX_DATA *repIndex;
+		iterator_start(&fit, victim->factions);
+		while ((repIndex = (REPUTATION_INDEX_DATA *)iterator_nextdata(&fit)))
+		{
+			set_reputation_char(ch, repIndex, -1, -1, true);
+		}
+		iterator_stop(&fit);
+	}
+}
+
+bool check_mob_factions_peaceful(CHAR_DATA *ch, CHAR_DATA *victim)
+{
+	bool peaceful = false;
+
+	if (!IS_NPC(ch) && IS_NPC(victim) && list_size(victim->factions) > 0)
+	{
+		ITERATOR fit;
+		REPUTATION_INDEX_DATA *repIndex;
+		iterator_start(&fit, victim->factions);
+		while ((repIndex = (REPUTATION_INDEX_DATA *)iterator_nextdata(&fit)))
+		{
+			if (is_reputation_rank_peaceful(ch, repIndex))
+			{
+				peaceful = true;
+				break;
+			}
+		}
+		iterator_stop(&fit);
+	}
+
+	return peaceful;
+}
+
+
 // Gain Reputation
 bool gain_reputation(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex, long amount, int *change, long *total_given, bool show)
 {

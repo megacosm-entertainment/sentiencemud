@@ -771,8 +771,14 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
 	{
 		fprintf(fp, "Reputation %s %d %d %ld\n", widevnum_string(rep->reputation->area, rep->reputation->vnum, mob->area), rep->minimum_rank, rep->maximum_rank, rep->points);
 	}
-	if (IS_VALID(mob->faction))
-		fprintf(fp, "Faction %ld#%ld\n", mob->faction->area->uid, mob->faction->vnum);
+
+	REPUTATION_INDEX_DATA *repIndex;
+	iterator_start(&it, mob->factions);
+	while((repIndex = (REPUTATION_INDEX_DATA *)iterator_nextdata(&it)))
+	{
+		fprintf(fp, "Faction %ld#%ld\n", repIndex->area->uid, repIndex->vnum);
+	}
+	iterator_stop(&it);
 
 	if (mob->pQuestor != NULL)
 		save_questor_new(fp, mob->pQuestor, mob->area);
@@ -2496,7 +2502,17 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 		break;
 
 	    case 'F':
-			KEY("Faction", mob->faction_load, fread_widevnum(fp, area->uid));
+			if (!str_cmp(word, "Faction"))
+			{
+				WNUM_LOAD *load = fread_widevnumptr(fp, area->uid);
+
+				if (load)
+				{
+					list_appendlink(mob->factions_load, load);
+				}
+				fMatch = true;
+				break;
+			}
 			KEY("Form",		mob->form,	fread_number(fp));
 			break;
 

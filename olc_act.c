@@ -14809,15 +14809,6 @@ MEDIT(medit_show)
 		race_table[pMob->race].name);
 	add_buf(buffer, buf);
 
-	if (IS_VALID(pMob->faction))
-		sprintf(buf, "Faction:      {C[{x%s {C({x%ld{C#{x%ld{C)]{x\n",
-			pMob->faction->name,
-			pMob->faction->area->uid,
-			pMob->faction->vnum);
-	else
-		sprintf(buf, "Faction:      {C[{Dnone{C]{x\n\r");
-	add_buf(buffer, buf);
-
     sprintf(buf, "Boss:         {C[%s{C]{x\n\r", (pMob->boss ? "{RYES" : "{gno"));
     add_buf(buffer, buf);
 
@@ -14933,9 +14924,31 @@ MEDIT(medit_show)
 	sprintf(buf, "\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pMob->comments);
 	add_buf(buffer, buf);
 
+	add_buf(buffer, "Factions:\n\r");
+	if (list_size(pMob->factions) > 0)
+	{
+		int f = 0;
+		ITERATOR fit;
+		REPUTATION_INDEX_DATA *faction;
+		iterator_start(&fit, pMob->factions);
+		while((faction = (REPUTATION_INDEX_DATA *)iterator_nextdata(&fit)))
+		{
+			sprintf(buf, "{x  [%3d] %s {C({x%ld{C#{x%ld{C){x\n\r",
+				f++,
+				faction->name,
+				faction->area->uid,
+				faction->vnum);
+			add_buf(buffer, buf);
+		}
+		iterator_stop(&fit);
+	}
+	else
+		add_buf(buffer, "{x  None\n\r");
+	add_buf(buffer, "\n\r");
+
 	if (pMob->reputations)
 	{
-		add_buf(buffer, "Reputations:\n\r");
+		add_buf(buffer, "Reputation Table:\n\r");
 		MOB_REPUTATION_DATA *rep;
 		int iRep;
 		for(iRep = 0, rep = pMob->reputations; rep; iRep++, rep = rep->next)
@@ -17840,18 +17853,19 @@ MEDIT (medit_faction)
 
 	if (argument[0] == '\0')
 	{
-		send_to_char("Syntax:  faction {Rset{x <widevnum>\n\r", ch);
+		send_to_char("Syntax:  faction {Radd{x <widevnum>\n\r", ch);
 		send_to_char("         faction {Rclear{x\n\r", ch);
+		send_to_char("         faction {Rremove{x <#>\n\r", ch);
 		return false;
 	}
 
 	argument = one_argument(argument, arg);
-	if (!str_prefix(arg, "set"))
+	if (!str_prefix(arg, "add"))
 	{
 		WNUM wnum;
 		if (!parse_widevnum(argument, ch->in_room->area, &wnum) || !wnum.pArea || wnum.vnum < 1)
 		{
-			send_to_char("Syntax:  faction set {R<widevnum>{x\n\r", ch);
+			send_to_char("Syntax:  faction add {R<widevnum>{x\n\r", ch);
 			send_to_char("Please specify a widevnum.\n\r", ch);
 			return false;
 		}
@@ -17863,21 +17877,47 @@ MEDIT (medit_faction)
 			return false;
 		}
 
-		pMob->faction = repIndex;
-		send_to_char("Faction changed.\n\r", ch);
+		if (list_hasdata(pMob->factions, repIndex))
+		{
+			send_to_char("That mob is already associate with that reputation.\n\r", ch);
+			return false;
+		}
+
+		list_appendlink(pMob->factions, repIndex);
+		send_to_char("Faction added.\n\r", ch);
 		return true;
 	}
 
 	if (!str_prefix(arg, "clear"))
 	{
-		if (!IS_VALID(pMob->faction))
+		if (list_size(pMob->factions) < 1)
 		{
 			send_to_char("MobIndex isn't associated with a reputation.\n\r", ch);
 			return false;
 		}
 
-		pMob->faction = NULL;
-		send_to_char("Faction cleared.\n\r", ch);
+		list_clear(pMob->factions);
+		send_to_char("Factions cleared.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "remove"))
+	{
+		if (list_size(pMob->factions) < 1)
+		{
+			send_to_char("MobIndex isn't associated with a reputation.\n\r", ch);
+			return false;
+		}
+
+		int index;
+		if (!is_number(argument) || (index = atoi(argument)) < 1 || index > list_size(pMob->factions))
+		{
+			send_to_char(formatf("Please specify a number from 1 to %d.\n\r", list_size(pMob->factions)), ch);
+			return false;
+		}
+
+		list_remnthlink(pMob->factions, index);
+		send_to_char("Faction removed.\n\r", ch);
 		return true;
 	}
 

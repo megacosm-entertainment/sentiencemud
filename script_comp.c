@@ -395,6 +395,7 @@ int compile_entity_listbasetype(int ent)
 	case ENT_ILLIST_SPELLS:		ent = ENT_SPELL; break;
 	case ENT_ILLIST_VARIABLE:	ent = ENT_VARIABLE; break;
 	case ENT_ILLIST_REPUTATION:	ent = ENT_REPUTATION; break;
+	case ENT_ILLIST_REPUTATION_INDEX:	ent = ENT_REPUTATION_INDEX; break;
 
 	case ENT_SKILL_VALUES:		ent = ENT_NUMBER; break;
 	case ENT_SKILL_VALUENAMES:	ent = ENT_STRING; break;
@@ -774,6 +775,7 @@ char *compile_entity(char *str,int type, char **store, int *entity_type)
 			case ENT_ILLIST_SPELLS:		ent = ENT_SPELL; break;
 			case ENT_ILLIST_VARIABLE:	ent = ENT_VARIABLE; break;
 			case ENT_ILLIST_REPUTATION:	ent = ENT_REPUTATION; break;
+			case ENT_ILLIST_REPUTATION_INDEX:	ent = ENT_REPUTATION_INDEX; break;
 
 			case ENT_ARRAY_EXITS:		ent = ENT_EXIT; break;
 

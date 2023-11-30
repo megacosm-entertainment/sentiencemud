@@ -315,10 +315,7 @@ void multi_hit(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, int dt)
 	vid[0] = victim->id[0]; vid[1] = victim->id[1];
 
 	// When a mob tries to attack you... Make sure their faction is added to yours
-	if (!IS_NPC(ch) && IS_NPC(victim) && IS_VALID(victim->faction))
-	{
-		set_reputation_char(ch, victim->faction, -1, -1, true);
-	}
+	check_mob_factions(ch, victim);
 
 	// Evasion skill: allows you to avoid attacks
 	if (!IS_NPC(victim) && get_skill(victim, gsk_evasion) > 0 &&
@@ -1279,7 +1276,7 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, SKI
 		return FALSE;
 	}
 
-	if(IS_NPC(victim) && !IS_NPC(ch) && is_reputation_rank_peaceful(ch, victim->faction))
+	if (check_mob_factions_peaceful(ch, victim))
 	{
 		victim->set_death_type = DEATHTYPE_ALIVE;
 		return FALSE;
@@ -1927,7 +1924,7 @@ bool is_safe(CHAR_DATA *ch, CHAR_DATA *victim, bool show)
 		// NPC attacking NPC
 		if (!IS_NPC(ch))
 		{
-			if (is_reputation_rank_peaceful(ch, victim->faction))
+			if (check_mob_factions_peaceful(ch, victim))
 			{
 				if (show)
 					act("$N is friendly.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);

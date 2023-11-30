@@ -2359,9 +2359,9 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.reputation = self ? self->tempreputation : NULL;
 		break;
 
-	case ENTITY_MOB_FACTION:
-		arg->type = ENT_REPUTATION_INDEX;
-		arg->d.repIndex = self ? self->faction : NULL;
+	case ENTITY_MOB_FACTIONS:
+		arg->type = ENT_ILLIST_REPUTATION_INDEX;
+		arg->d.blist = self ? self->factions : NULL;
 		break;
 
 	default: return NULL;
@@ -2670,9 +2670,9 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.reputation = NULL;
 		break;	
 
-	case ENTITY_MOB_FACTION:
-		arg->type = ENT_REPUTATION_INDEX;
-		arg->d.repIndex = NULL;
+	case ENTITY_MOB_FACTIONS:
+		arg->type = ENT_ILLIST_REPUTATION_INDEX;
+		arg->d.blist = NULL;
 		break;
 
 	default: return NULL;

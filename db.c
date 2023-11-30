@@ -2079,10 +2079,20 @@ void fix_mobiles(void)
 					}
 				}
 
-				if (mob->faction_load.auid > 0 && mob->faction_load.vnum > 0)
-					mob->faction = get_reputation_index_auid(mob->faction_load.auid, mob->faction_load.vnum);
-				else
-					mob->faction = NULL;
+				WNUM_LOAD *wl;
+				iterator_start(&it, mob->factions_load);
+				while((wl = (WNUM_LOAD *)iterator_nextdata(&it)))
+				{
+					if (wl->auid > 0 && wl->vnum > 0)
+					{
+						REPUTATION_INDEX_DATA *repIndex = get_reputation_index_auid(wl->auid, wl->vnum);
+
+						if (IS_VALID(repIndex))
+							list_appendlink(mob->factions, repIndex);
+					}
+				}
+				iterator_stop(&it);
+				list_clear(mob->factions_load);
 
 				MOB_REPUTATION_DATA *rep;
 				for(rep = mob->reputations; rep; rep = rep->next)
@@ -3648,7 +3658,8 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 			mob->mob_reputations = new_rep;
 		prev = new_rep;
 	}
-	mob->faction = pMobIndex->faction;
+	list_destroy(mob->factions);
+	mob->factions = list_copy(pMobIndex->factions);
 
 	return mob;
 }
@@ -3766,7 +3777,8 @@ CHAR_DATA *clone_mobile(CHAR_DATA *parent)
 			clone->mob_reputations = new_rep;
 		prev = new_rep;
 	}
-	clone->faction = parent->faction;
+	list_destroy(clone->factions);
+	clone->factions = list_copy(parent->factions);
 
 
     variable_freelist(&clone->progs->vars);
