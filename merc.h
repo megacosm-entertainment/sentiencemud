@@ -8742,6 +8742,8 @@ bool bitmatrix_isset(char *argument, const struct flag_type **bank, long *flags)
 char *bitmatrix_string(const struct flag_type **bank, const long *flags);
 char *flagbank_string(const struct flag_type **bank, ...);
 
+void display_resets(CHAR_DATA *ch);
+
 /*
  Introducing some variables to keep compiler from complaining. These are used in do_version.
 */
