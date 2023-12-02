@@ -223,7 +223,7 @@ void do_play(CHAR_DATA *ch, char *argument)
 		switch (target) {
 			case TAR_CHAR_OFFENSIVE:
 			case TAR_OBJ_CHAR_OFF:
-				if (IS_SET(ch->in_room->roomflag[0], ROOM_SAFE)) {
+				if (IS_SET(ch->in_room->room_flag[0], ROOM_SAFE)) {
 					send_to_char("This room is sanctioned by the gods.\n\r", ch);
 					return;
 				}

@@ -242,13 +242,13 @@ bool script_object_remref(OBJ_DATA *obj)
 
 void script_room_addref(ROOM_INDEX_DATA *room)
 {
-	if((room->source || IS_SET(room->roomflag[1], ROOM_VIRTUAL_ROOM)) && room->progs)
+	if((room->source || IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM)) && room->progs)
 		room->progs->script_ref++;
 }
 
 bool script_room_remref(ROOM_INDEX_DATA *room)
 {
-	if((room->source || IS_SET(room->roomflag[1], ROOM_VIRTUAL_ROOM)) && room->progs) {
+	if((room->source || IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM)) && room->progs) {
 		if( room->progs->script_ref > 0 && !--room->progs->script_ref ) {
 			if( room->progs->extract_when_done ) {
 				// Remove!
@@ -6326,7 +6326,7 @@ void do_ifchecks( CHAR_DATA *ch, char *argument)
 	add_buf(buffer,"{D-------------------------------------------------------------------------{x\n\r");
 
 	for(i=0,j=0;ifcheck_table[i].name;i++) if(!*argument || is_name(argument,ifcheck_table[i].name)) {
-		sprintf(buf,"{W%4d{D)  {Y%-20.20s %s %s %s %s %s   %s{x\n\r",++j,
+		sprintf(buf,"{W%4d{D)  {Y%-20.20s %s %s %s %s %s %s %s   %s{x\n\r",++j,
 			ifcheck_table[i].name,
 			((ifcheck_table[i].type & IFC_M) ? "{Gmob" : "   "),
 			((ifcheck_table[i].type & IFC_O) ? "{Gobj" : "   "),
@@ -6554,7 +6554,12 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 	if(!name[0]) return;
 
 	// Get type
-	argument = one_argument(argument,buf);
+	if(!(argument = expand_argument(info,argument,arg)))
+		return;
+
+	if( arg->type != ENT_STRING ) return;
+
+	strncpy(buf, arg->d.str, MIL-1);
 	if(!buf[0]) return;
 
 	// Appends a fully escaped string to the end of a variable along with an EOL.

@@ -79,7 +79,7 @@ void do_locker(CHAR_DATA *ch, char* argument)
 		}
 	}
 
-	if (!IS_SET(ch->in_room->roomflag[0], ROOM_LOCKER) && !item)
+	if (!IS_SET(ch->in_room->room_flag[0], ROOM_LOCKER) && !item)
 	{
 		send_to_char("You can't do that here.\n\r", ch);
 		return;

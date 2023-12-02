@@ -1154,7 +1154,7 @@ void fix_rooms(void)
 
 	    /* only do this for non-wilds rooms*/
 	    if (!fexit && room->wilds == NULL)
-		SET_BIT(room->roomflag[0],ROOM_NO_MOB);
+		SET_BIT(room->room_flag[0],ROOM_NO_MOB);
 
 
 		/* Fix it so that rooms that have wilderness coords will link to the proper wilderness*/
@@ -4917,10 +4917,10 @@ ROOM_INDEX_DATA *create_virtual_room_nouid(ROOM_INDEX_DATA *source, bool objects
 
 	if(source->source) source = source->source;
 
-	if(IS_SET(source->roomflag[1], ROOM_NOCLONE)) return NULL;
+	if(IS_SET(source->room_flag[1], ROOM_NOCLONE)) return NULL;
 
 	/* Can't clone a purely virtual room... ever*/
-	if(IS_SET(source->roomflag[1],ROOM_VIRTUAL_ROOM)) return NULL;
+	if(IS_SET(source->room_flag[1],ROOM_VIRTUAL_ROOM)) return NULL;
 
 	vroom = new_room_index();
 	if(!vroom)
@@ -4934,9 +4934,9 @@ ROOM_INDEX_DATA *create_virtual_room_nouid(ROOM_INDEX_DATA *source, bool objects
 
 	vroom->name = str_dup(source->name);
 	vroom->description = str_dup(source->description);
-	vroom->roomflag[0] = source->roomflag[0];
-	vroom->roomflag[1] = source->roomflag[1] | ROOM_VIRTUAL_ROOM;
-	REMOVE_BIT(vroom->roomflag[1], ROOM_BLUEPRINT);					// Clones can never be "blueprint" rooms
+	vroom->room_flag[0] = source->room_flag[0];
+	vroom->room_flag[1] = source->room_flag[1] | ROOM_VIRTUAL_ROOM;
+	REMOVE_BIT(vroom->room_flag[1], ROOM_BLUEPRINT);					// Clones can never be "blueprint" rooms
 	vroom->sector_type = source->sector_type;
 	vroom->viewwilds = source->viewwilds;
 	vroom->w = source->w;
@@ -5057,7 +5057,7 @@ ROOM_INDEX_DATA *get_clone_room(register ROOM_INDEX_DATA *source, register unsig
 	//log_stringf("get_clone_room: search for %ld, %lu, %lu", source->vnum, id1, id2);
 
 	/* Can't clone a purely virtual room... ever*/
-	if(IS_SET(source->roomflag[1],ROOM_VIRTUAL_ROOM))
+	if(IS_SET(source->room_flag[1],ROOM_VIRTUAL_ROOM))
 	{
 		//log_string("get_clone_room: source is a virtual room");
 		return NULL;
@@ -5451,7 +5451,7 @@ void persist_addroom(register ROOM_INDEX_DATA *room)
 		return;
 
 	// Clone rooms require the source to be flagged as clone persist
-	if( room->source && !IS_SET(room->source->roomflag[1], ROOM_CLONE_PERSIST))
+	if( room->source && !IS_SET(room->source->room_flag[1], ROOM_CLONE_PERSIST))
 		return;
 
 	if( list_hasdata(persist_rooms, room)) return;
@@ -6072,8 +6072,8 @@ void persist_save_room(FILE *fp, ROOM_INDEX_DATA *room)
 
 	if(room->persist) fprintf(fp, "Persist\n");
 	fprintf(fp, "Locale %ld\n", room->locale);
-	fprintf(fp, "RoomFlags %s~\n", print_flags(room->roomflag[0]));
-	fprintf(fp, "RoomFlags2 %s~\n", print_flags(room->roomflag[1]));
+	fprintf(fp, "room_flags %s~\n", print_flags(room->room_flag[0]));
+	fprintf(fp, "room_flags2 %s~\n", print_flags(room->room_flag[1]));
 	fprintf(fp, "Sector %s~\n", print_flags(room->sector_type));
 
 	if (room->heal_rate != 100) fprintf(fp, "HealRate %d\n", room->heal_rate);
@@ -7863,8 +7863,8 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 			case 'Q':
 				break;
 			case 'R':
-				KEY("RoomFlags", room->roomflag[0], fread_flag(fp)/*, roomflag[0], NO_FLAG, 0*/);
-				KEY("RoomFlags2", room->roomflag[1], fread_flag(fp)/*, roomflag[1], NO_FLAG, 0*/);
+				KEY("room_flags", room->room_flag[0], fread_flag(fp)/*, room_flag[0], NO_FLAG, 0*/);
+				KEY("room_flags2", room->room_flag[1], fread_flag(fp)/*, room_flag[1], NO_FLAG, 0*/);
 				if( !str_cmp(word, "RoomRecall") ) {
 					room->recall.wuid = fread_number(fp);
 					room->recall.id[0] = fread_number(fp);

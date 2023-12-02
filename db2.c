@@ -485,12 +485,12 @@ CHAR_DATA *get_random_mob_area( CHAR_DATA *ch, AREA_DATA *area)
 
         if ( can_see_room(ch,mob->in_room) &&
         	!room_is_private(mob->in_room, ch) &&
-        	!IS_SET(mob->in_room->roomflag[0], ROOM_PRIVATE) &&
-        	!IS_SET(mob->in_room->roomflag[0], ROOM_SOLITARY) &&
-        	!IS_SET(mob->in_room->roomflag[0], ROOM_DEATH_TRAP) &&
-        	!IS_SET(mob->in_room->roomflag[0], ROOM_SAFE) &&
-        	!IS_SET(mob->in_room->roomflag[0], ROOM_CPK) &&
-        	!IS_SET(mob->in_room->roomflag[1], ROOM_NO_GET_RANDOM) )
+        	!IS_SET(mob->in_room->room_flag[0], ROOM_PRIVATE) &&
+        	!IS_SET(mob->in_room->room_flag[0], ROOM_SOLITARY) &&
+        	!IS_SET(mob->in_room->room_flag[0], ROOM_DEATH_TRAP) &&
+        	!IS_SET(mob->in_room->room_flag[0], ROOM_SAFE) &&
+        	!IS_SET(mob->in_room->room_flag[0], ROOM_CPK) &&
+        	!IS_SET(mob->in_room->room_flag[1], ROOM_NO_GET_RANDOM) )
 	    break;
     }
 
@@ -518,16 +518,16 @@ bool valid_random_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, int n_room_flags, i
 			!room_is_private(room, ch) &&
 			str_cmp(room->name, "NULL") &&
 			!is_dislinked(room) &&
-			(!n_room_flags || !IS_SET(room->roomflag[0], n_room_flags)) &&
-			(!n_room2_flags || !IS_SET(room->roomflag[1], n_room2_flags)) );
+			(!n_room_flags || !IS_SET(room->room_flag[0], n_room_flags)) &&
+			(!n_room2_flags || !IS_SET(room->room_flag[1], n_room2_flags)) );
 	}
 	else
 	{
 		return ( room != NULL &&
 			str_cmp(room->name, "NULL") &&
 			!is_dislinked(room) &&
-			(!n_room_flags || !IS_SET(room->roomflag[0], n_room_flags)) &&
-			(!n_room2_flags || !IS_SET(room->roomflag[1], n_room2_flags)) );
+			(!n_room_flags || !IS_SET(room->room_flag[0], n_room_flags)) &&
+			(!n_room2_flags || !IS_SET(room->room_flag[1], n_room2_flags)) );
 	}
 }
 

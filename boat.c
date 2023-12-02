@@ -1878,7 +1878,7 @@ bool is_ship_safe(CHAR_DATA *ch, SHIP_DATA *ship, SHIP_DATA *ship2)
 		if( !ship->ship->in_room )
 			return false;
 
-		if( IS_SET(ship->ship->in_room->roomflag[1], ROOM_SAFE_HARBOR) )
+		if( IS_SET(ship->ship->in_room->room_flag[1], ROOM_SAFE_HARBOR) )
 			return true;
 
 		return false;
@@ -2068,8 +2068,8 @@ void ship_autosurvey( SHIP_DATA *ship )
 			ischar_onboard_ship(victim, ship) &&
 			IS_AWAKE(victim) &&
 			(IS_OUTSIDE(victim) ||
-				IS_SET(victim->in_room->roomflag[0], ROOM_SHIP_HELM) ||
-				IS_SET(victim->in_room->roomflag[0], ROOM_VIEWWILDS)) )
+				IS_SET(victim->in_room->room_flag[0], ROOM_SHIP_HELM) ||
+				IS_SET(victim->in_room->room_flag[0], ROOM_VIEWWILDS)) )
 		{
 			do_function(victim, &do_survey, "auto" );
 		}
@@ -2352,7 +2352,7 @@ void do_ships(CHAR_DATA *ch, char *argument)
 
 bool ship_can_issue_command(CHAR_DATA *ch, SHIP_DATA *ship)
 {
-	if (!IS_SET(ch->in_room->roomflag[0], ROOM_SHIP_HELM))
+	if (!IS_SET(ch->in_room->room_flag[0], ROOM_SHIP_HELM))
 	{
 		return false;
 	}
@@ -3358,7 +3358,7 @@ void do_ship_aim( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
-	if (!IS_SET(ch->in_room->roomflag[0], ROOM_SHIP_HELM))
+	if (!IS_SET(ch->in_room->room_flag[0], ROOM_SHIP_HELM))
 	{
 		act("You must be at the helm of the vessel to order an attack.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return;
@@ -7003,7 +7003,7 @@ bool is_shipyard_valid(long wuid, int x1, int y1, int x2, int y2)
 			if( terrain && !terrain->nonroom &&
 				(terrain->template->sector_type == SECT_WATER_NOSWIM ||
 				 terrain->template->sector_type == SECT_WATER_SWIM) &&
-				IS_SET(terrain->template->roomflag[1], ROOM_SAFE_HARBOR) )
+				IS_SET(terrain->template->room_flag[1], ROOM_SAFE_HARBOR) )
 			{
 
 				if( _is_terrain_land(wilds, x-1,y) ||
@@ -7037,7 +7037,7 @@ bool get_shipyard_location(long wuid, int x1, int y1, int x2, int y2, int *x, in
 		if( terrain && !terrain->nonroom &&
 			(terrain->template->sector_type == SECT_WATER_NOSWIM ||
 			 terrain->template->sector_type == SECT_WATER_SWIM) &&
-			IS_SET(terrain->template->roomflag[1], ROOM_SAFE_HARBOR) )
+			IS_SET(terrain->template->room_flag[1], ROOM_SAFE_HARBOR) )
 		{
 			if( _is_terrain_land(wilds, _x-1,_y) ||
 				_is_terrain_land(wilds, _x+1,_y) ||
@@ -7649,12 +7649,12 @@ SHEDIT( shedit_blueprint )
 
 			if( room )
 			{
-				if( IS_SET(room->roomflag[0], ROOM_SHIP_HELM) )
+				if( IS_SET(room->room_flag[0], ROOM_SHIP_HELM) )
 				{
 					helm = true;
 				}
 
-				if( IS_SET(room->roomflag[0], ROOM_VIEWWILDS) )
+				if( IS_SET(room->room_flag[0], ROOM_VIEWWILDS) )
 				{
 					viewwilds = true;
 				}
@@ -7674,12 +7674,12 @@ SHEDIT( shedit_blueprint )
 
 					if( room )
 					{
-						if( IS_SET(room->roomflag[0], ROOM_SHIP_HELM) )
+						if( IS_SET(room->room_flag[0], ROOM_SHIP_HELM) )
 						{
 							helm = true;
 						}
 
-						if( IS_SET(room->roomflag[0], ROOM_VIEWWILDS) )
+						if( IS_SET(room->room_flag[0], ROOM_VIEWWILDS) )
 						{
 							viewwilds = true;
 						}

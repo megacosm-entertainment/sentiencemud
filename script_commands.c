@@ -15,6 +15,8 @@
 //#define DEBUG_MODULE
 #include "debug.h"
 
+void reset_reckoning();
+
 #define PARSE_ARG				(rest = expand_argument(info,rest,arg))
 #define PARSE_ARGTYPE(x)		if (!PARSE_ARG || arg->type != ENT_##x) return
 #define PARSE_STR(b)			(expand_string(info,rest,(b)))
@@ -3824,7 +3826,7 @@ SCRIPT_CMD(scriptcmd_startcombat)
 		return;
 
 	// The victim is fighting someone else in a singleplay room
-	if(!IS_NPC(attacker) && victim->fighting != NULL && victim->fighting != attacker && !IS_SET(attacker->in_room->roomflag[1], ROOM_MULTIPLAY))
+	if(!IS_NPC(attacker) && victim->fighting != NULL && victim->fighting != attacker && !IS_SET(attacker->in_room->room_flag[1], ROOM_MULTIPLAY))
 		return;
 
 	// They are not in the same room
@@ -3918,6 +3920,59 @@ SCRIPT_CMD(scriptcmd_stopcombat)
 
 	if( mob->fighting == NULL )
 		info->progs->lastreturn = 1;
+}
+
+// STOPRECKONING
+// STOPRECKONING $immediate(boolean)
+// STOPRECKONING $duration(number)
+SCRIPT_CMD(scriptcmd_stopreckoning)
+{
+	char *rest = argument;
+	int duration = 5;		// Default, give 5 minutes
+	bool immediate = false;
+
+	info->progs->lastreturn = 0;
+
+	if (script_security < 9)
+		return;
+
+	if (rest && *rest)
+	{
+		if (!(rest = expand_argument(info, rest, arg)))
+			return;
+
+		if (arg->type == ENT_BOOLEAN)
+			immediate = arg->d.boolean;
+		else if (arg->type == ENT_STRING)
+			immediate = !str_prefix(arg->d.str, "yes") || !str_prefix(arg->d.str, "true") || !str_prefix(arg->d.str, "immediate");
+		else if (arg->type == ENT_NUMBER)
+			duration = UMAX(1, arg->d.num);
+	}
+
+	// Only work if the reckoning is active
+	if (reckoning_timer > 0)
+	{
+		if (immediate)
+		{
+			// The global message will be under script control.
+			reset_reckoning();
+			info->progs->lastreturn = -1;
+		}
+		else
+		{
+			struct tm *reck_time = (struct tm *) localtime(&current_time);
+			reck_time->tm_min += duration;
+			time_t timer = (time_t) mktime(reck_time);
+
+			// Check if the *new* timer is sooner than the current time left
+			if (timer < reckoning_timer)
+			{
+				reckoning_duration = duration;
+				reckoning_timer = timer;
+				info->progs->lastreturn = duration;
+			}
+		}
+	}
 }
 
 
@@ -4559,10 +4614,7 @@ SCRIPT_CMD(scriptcmd_alterobj)
 
 		if(!str_cmp(field,"cond"))				ptr = (int*)&obj->condition;
 		else if(!str_cmp(field,"cost"))			{ ptr = (int*)&obj->cost; min_sec = 5; }
-		else if(!str_cmp(field,"extra"))		{ ptr = (int*)&obj->extra[0]; flags = extra_flags; }
-		else if(!str_cmp(field,"extra2"))		{ ptr = (int*)&obj->extra[1]; flags = extra2_flags; min_sec = 5; }
-		else if(!str_cmp(field,"extra3"))		{ ptr = (int*)&obj->extra[2]; flags = extra3_flags; min_sec = 5; }
-		else if(!str_cmp(field,"extra4"))		{ ptr = (int*)&obj->extra[3]; flags = extra4_flags; min_sec = 5; }
+		else if(!str_cmp(field,"extra"))		{ ptr = (int*)obj->extra; bank = extra_flagbank; sec_flags[1] = sec_flags[2] = sec_flags[3] = 5; }
 		else if(!str_cmp(field,"fixes"))		{ ptr = (int*)&obj->times_allowed_fixed; min_sec = 5; }
 		else if(!str_cmp(field,"level"))		{ ptr = (int*)&obj->level; min_sec = 5; }
 		else if(!str_cmp(field,"repairs"))		ptr = (int*)&obj->times_fixed;
@@ -4592,6 +4644,30 @@ SCRIPT_CMD(scriptcmd_alterobj)
 			allowarith = false;	// This is a bit vector, no arithmetic operators.
 			if (!script_bitmatrix_lookup(arg->d.str, bank, temp_flags))
 				return;
+
+			// Make sure the script can change the particular flags
+			if( buf[0] == '=' || buf[0] == '&' )
+			{
+				for(int i = 0; bank[i]; i++)
+				{
+					if (script_security < sec_flags[i])
+					{
+						// Not enough security to change their values
+						temp_flags[i] = ptr[i];
+					}
+				}
+			}
+			else
+			{
+				for(int i = 0; bank[i]; i++)
+				{
+					if (script_security < sec_flags[i])
+					{
+						// Not enough security to change their values
+						temp_flags[i] = 0;
+					}
+				}
+			}
 
 			if (bank == extra_flagbank)
 			{

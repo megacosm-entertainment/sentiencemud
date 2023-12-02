@@ -1623,8 +1623,8 @@ ROOM_INDEX_DATA *new_room_index( void )
     pRoom->owner	    =	&str_empty[0];
     pRoom->home_owner	    =   NULL;
     pRoom->vnum             =   0;
-    pRoom->roomflag[0]       =   0;
-    pRoom->roomflag[1]      =   0;
+    pRoom->room_flag[0]       =   0;
+    pRoom->room_flag[1]      =   0;
     pRoom->light            =   0;
     pRoom->sector_type      =   0;
     pRoom->heal_rate	    =   100;

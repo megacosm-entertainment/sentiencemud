@@ -270,7 +270,7 @@ bool can_speak_channels(CHAR_DATA *ch)
 		return false;
 	}
 
-	if (IS_SET(ch->in_room->roomflag[0], ROOM_NOCOMM)) {
+	if (IS_SET(ch->in_room->room_flag[0], ROOM_NOCOMM)) {
 		send_to_char("No one can hear you.\n\r", ch);
 		return false;
 	}
@@ -850,7 +850,7 @@ void do_tell(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (IS_SET(ch->in_room->roomflag[0], ROOM_NOCOMM))
+	if (IS_SET(ch->in_room->room_flag[0], ROOM_NOCOMM))
 	{
 		send_to_char("You can't seem to gather enough energy to do it.\n\r", ch);
 		return;
@@ -1028,7 +1028,7 @@ void do_yell(CHAR_DATA *ch, char *argument)
 	return;
 	}
 
-	if (IS_SET(ch->in_room->roomflag[0], ROOM_NOCOMM))
+	if (IS_SET(ch->in_room->room_flag[0], ROOM_NOCOMM))
 	{
 	send_to_char("You can't seem to gather enough energy to do it.\n\r",
 	ch);
@@ -1151,7 +1151,7 @@ void do_quit(CHAR_DATA *ch, char *argument)
 		return;
 		}
 
-		if (IS_SET(ch->in_room->roomflag[1], ROOM_NO_QUIT))
+		if (IS_SET(ch->in_room->room_flag[1], ROOM_NO_QUIT))
 		{
 		send_to_char("You can't quit here.\n\r", ch);
 		return;
@@ -2691,7 +2691,7 @@ void do_quote(CHAR_DATA *ch, char *argument)
 	return;
 	}
 
-	if (IS_SET(ch->in_room->roomflag[0], ROOM_NOCOMM))
+	if (IS_SET(ch->in_room->room_flag[0], ROOM_NOCOMM))
 	{
 	send_to_char("You can't seem to gather enough energy to do it.\n\r",
 	ch);

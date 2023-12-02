@@ -1997,56 +1997,9 @@ DNGEDIT(dngedit_varset)
 {
     DUNGEON_INDEX_DATA *dungeon;
 
-    char name[MIL];
-    char type[MIL];
-    char yesno[MIL];
-    bool saved;
-
 	EDIT_DUNGEON(ch, dungeon);
 
-    if (argument[0] == '\0') {
-	send_to_char("Syntax:  varset <name> <number|string|room> <yes|no> <value>\n\r", ch);
-	return false;
-    }
-
-    argument = one_argument(argument, name);
-    argument = one_argument(argument, type);
-    argument = one_argument(argument, yesno);
-
-    if(!variable_validname(name)) {
-	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
-	return false;
-    }
-
-    saved = !str_cmp(yesno,"yes");
-
-    if(!argument[0]) {
-	send_to_char("Set what on the variable?\n\r", ch);
-	return false;
-    }
-
-    if(!str_cmp(type,"room")) {
-	if(!is_number(argument)) {
-	    send_to_char("Specify a room vnum.\n\r", ch);
-	    return false;
-	}
-
-	variables_setindex_room(&dungeon->index_vars,name,atoi(argument),saved);
-    } else if(!str_cmp(type,"string"))
-	variables_setindex_string(&dungeon->index_vars,name,argument,false,saved);
-    else if(!str_cmp(type,"number")) {
-	if(!is_number(argument)) {
-	    send_to_char("Specify an integer.\n\r", ch);
-	    return false;
-	}
-
-	variables_setindex_integer(&dungeon->index_vars,name,atoi(argument),saved);
-    } else {
-	send_to_char("Invalid type of variable.\n\r", ch);
-	return false;
-    }
-    send_to_char("Variable set.\n\r", ch);
-    return true;
+	return olc_varset(&dungeon->index_vars, ch, argument, false);
 }
 
 DNGEDIT(dngedit_varclear)
@@ -2055,23 +2008,7 @@ DNGEDIT(dngedit_varclear)
 
 	EDIT_DUNGEON(ch, dungeon);
 
-    if (argument[0] == '\0') {
-	send_to_char("Syntax:  varclear <name>\n\r", ch);
-	return false;
-    }
-
-    if(!variable_validname(argument)) {
-	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
-	return false;
-    }
-
-    if(!variable_remove(&dungeon->index_vars,argument)) {
-	send_to_char("No such variable defined.\n\r", ch);
-	return false;
-    }
-
-    send_to_char("Variable cleared.\n\r", ch);
-    return true;
+	return olc_varclear(&dungeon->index_vars, ch, argument, false);
 }
 
 

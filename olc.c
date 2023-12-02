@@ -1307,7 +1307,7 @@ void do_redit(CHAR_DATA *ch, char *argument)
 
 	char_from_room(ch);
 	char_to_room(ch, pRoom);
-    } else if(pRoom && IS_SET(pRoom->roomflag[1],ROOM_VIRTUAL_ROOM)) {
+    } else if(pRoom && IS_SET(pRoom->room_flag[1],ROOM_VIRTUAL_ROOM)) {
 	send_to_char("REdit : Virtual rooms may not be editted.\n\r", ch);
 	return;
     }
@@ -1916,7 +1916,7 @@ void display_resets(CHAR_DATA *ch)
 
 		    pRoomIndexPrev = get_room_index(pRoomIndex->vnum - 1);
 		    if (pRoomIndexPrev
-			&& IS_SET(pRoomIndexPrev->roomflag[0], ROOM_PET_SHOP))
+			&& IS_SET(pRoomIndexPrev->room_flag[0], ROOM_PET_SHOP))
 			final[5] = 'P';
 		}
 
@@ -2562,8 +2562,8 @@ void do_rcopy(CHAR_DATA *ch, char *argument)
     new_room->name = str_dup(old_room->name);
     new_room->description = str_dup(old_room->description);
     new_room->owner = str_dup(old_room->owner);
-    new_room->roomflag[0] = old_room->roomflag[0];
-    new_room->roomflag[1] = old_room->roomflag[1];
+    new_room->room_flag[0] = old_room->room_flag[0];
+    new_room->room_flag[1] = old_room->room_flag[1];
     new_room->sector_type = old_room->sector_type;
     new_room->heal_rate = old_room->heal_rate;
     new_room->mana_rate = old_room->mana_rate;
@@ -3978,6 +3978,37 @@ SHOP_STOCK_DATA *get_shop_stock_bypos(SHOP_DATA *shop, int nth)
 	return NULL;
 
 
+}
+
+void olc_show_progs(BUFFER *buffer, LLIST **progs, int type, const char *title)
+{
+	char buf[MSL];
+	int cnt, slot;
+
+	for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++)
+		if(list_size(progs[slot]) > 0) ++cnt;
+
+	if (cnt > 0) {
+		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "Number", "MobProg Vnum", "Trigger", "Phrase");
+		add_buf(buffer, buf);
+
+		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "------", "-------------", "-------", "------");
+		add_buf(buffer, buf);
+
+		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
+            ITERATOR it;
+            PROG_LIST *trigger;
+			iterator_start(&it, progs[slot]);
+			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
+				sprintf(buf, "{C[{W%4d{C]{x %-20ld %-10s %-6s\n\r", cnt,
+					trigger->vnum,trigger_name(trigger->trig_type),
+					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, false, false));
+				add_buf(buffer, buf);
+				cnt++;
+			}
+			iterator_stop(&it);
+		}
+	}
 }
 
 /* Used for handling projects. */

@@ -5273,7 +5273,7 @@ struct	room_index_data
     char *		owner;
     char *      comments;
     long		vnum;
-    long		roomflag[2];
+    long		room_flag[2];
     //long		room2_flags;
     int			light;
     int			sector_type;
@@ -6732,7 +6732,7 @@ extern int16_t grn_unique;
 #define SAME_PLACE(from, to) (is_same_place((from),(to)))
 
 #define IS_OUTSIDE(ch)	( (ch)->in_room->wilds || \
-		(!IS_SET((ch)->in_room->roomflag[0],ROOM_INDOORS) && \
+		(!IS_SET((ch)->in_room->room_flag[0],ROOM_INDOORS) && \
 			(ch)->in_room->sector_type != SECT_INSIDE && (ch)->in_room->sector_type != SECT_NETHERWORLD ) )
 
 #define IS_SOCIAL(ch)	  (IS_SET((ch)->comm, COMM_SOCIAL))
@@ -6848,7 +6848,7 @@ extern int16_t grn_unique;
 #define IS_SHIFTED_WEREWOLF(ch)	(ch->shifted == SHIFTED_WEREWOLF )
 #define IS_SHIFTED_SLAYER(ch)	(ch->shifted == SHIFTED_SLAYER )
 #define IS_SHIFTED(ch)		(ch->shifted != SHIFTED_NONE )
-#define IS_SAFE(ch) (IS_SET(ch->in_room->roomflag[0], ROOM_SAFE))
+#define IS_SAFE(ch) (IS_SET(ch->in_room->room_flag[0], ROOM_SAFE))
 #define ON_QUEST(ch) (ch->quest != NULL)
 #define IS_INVASION_LEADER(ch)   ( IS_SET(ch->act[1], ACT2_INVASION_LEADER ))
 #define IS_PIRATE(ch)   (!IS_NPC(ch) ? (ch->pcdata->rank[CONT_SERALIA] == NPC_SHIP_RANK_PIRATE || \

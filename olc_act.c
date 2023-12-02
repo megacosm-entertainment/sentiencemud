@@ -834,8 +834,8 @@ AEDIT(aedit_show)
     AREA_DATA *pArea;
     char buf  [MAX_STRING_LENGTH];
     ROOM_INDEX_DATA *recall;
-	ITERATOR it;
-	PROG_LIST *trigger;
+//	ITERATOR it;
+//	PROG_LIST *trigger;
 	BUFFER *buffer;
 	buffer = new_buf();
 
@@ -981,68 +981,11 @@ AEDIT(aedit_show)
 	add_buf(buffer, buf);
 
 
-    if (pArea->progs->progs) {
-	int cnt, slot;
+	if (pArea->progs->progs)
+		olc_show_progs(buffer, pArea->progs->progs, PRG_APROG, "AreaProg Vnum");
 
-	for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++)
-		if(list_size(pArea->progs->progs[slot]) > 0) ++cnt;
-
-	if (cnt > 0) {
-		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "Number", "AreaProg Vnum", "Trigger", "Phrase");
-		add_buf(buffer, buf);
-
-		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "------", "-------------", "-------", "------");
-		add_buf(buffer, buf);
-
-		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
-			iterator_start(&it, pArea->progs->progs[slot]);
-			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-				sprintf(buf, "{r[{W%4d{r]{x %-20ld %-10s %-10s\n\r", cnt,
-					trigger->vnum,trigger_name(trigger->trig_type),
-					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, true, false));
-				add_buf(buffer, buf);
-				cnt++;
-			}
-			iterator_stop(&it);
-		}
-	}
-    }
-
-    if (pArea->index_vars) {
-	pVARIABLE var;
-	int cnt;
-
-	for (cnt = 0, var = pArea->index_vars; var; var = var->next) ++cnt;
-
-	if (cnt > 0) {
-		sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "Name", "Type", "Saved", "Value");
-		add_buf(buffer, buf);
-
-		sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "----", "----", "-----", "-----");
-		add_buf(buffer, buf);
-
-		for (var = pArea->index_vars; var; var = var->next) {
-			switch(var->type) {
-			case VAR_INTEGER:
-				sprintf(buf, "{x%-20.20s {GNUMBER     {Y%c   {W%d{x\n\r", var->name,var->save?'Y':'N',var->_.i);
-				break;
-			case VAR_STRING:
-			case VAR_STRING_S:
-				sprintf(buf, "{x%-20.20s {GSTRING     {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N',var->_.s?var->_.s:"(empty)");
-				break;
-			case VAR_ROOM:
-				if(var->_.r && var->_.r->vnum > 0)
-					sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W%s {R({W%d{R){x\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->vnum);
-				else
-					sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W-no-where-{x\n\r",var->name,var->save?'Y':'N');
-				break;
-			default:
-				continue;
-			}
-			add_buf(buffer, buf);
-		}
-	}
-    }
+	if (pArea->index_vars)
+		olc_show_index_vars(buffer, pArea->index_vars);
 	page_to_char(buf_string(buffer), ch);
 	free_buf(buffer);
 
@@ -2043,58 +1986,16 @@ AEDIT (aedit_delaprog)
 AEDIT(aedit_varset)
 {
     AREA_DATA *pArea;
-    char name[MIL];
-    char type[MIL];
-    char yesno[MIL];
-    bool saved;
-
+ 
     EDIT_AREA(ch, pArea);
 
-    if (argument[0] == '\0') {
-	send_to_char("Syntax:  varset <name> <number|string|room> <yes|no> <value>\n\r", ch);
-	return false;
-    }
-
-    argument = one_argument(argument, name);
-    argument = one_argument(argument, type);
-    argument = one_argument(argument, yesno);
-
-    if(!variable_validname(name)) {
-	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
-	return false;
-    }
-
-    saved = !str_cmp(yesno,"yes");
-
-    if(!argument[0]) {
-	send_to_char("Set what on the variable?\n\r", ch);
-	return false;
-    }
-
-    if(!str_cmp(type,"room")) {
-	if(!is_number(argument)) {
-	    send_to_char("Specify a room vnum.\n\r", ch);
-	    return false;
+	if (olc_varset(&pArea->index_vars, ch, argument, false))
+	{
+		// Install variable into the "live"
+		olc_varset(&pArea->progs->vars, ch, argument, true);
+		return true;
 	}
-
-	variables_setindex_room(&pArea->index_vars,name,atoi(argument), saved);
-    } else if(!str_cmp(type,"string"))
-	variables_setindex_string(&pArea->index_vars,name,argument,false, saved);
-    else if(!str_cmp(type,"number")) {
-	if(!is_number(argument)) {
-	    send_to_char("Specify an integer.\n\r", ch);
-	    return false;
-	}
-
-	variables_setindex_integer(&pArea->index_vars,name,atoi(argument), saved);
-    } else {
-	send_to_char("Invalid type of variable.\n\r", ch);
 	return false;
-    }
-
-    variable_copyto(&pArea->index_vars,&pArea->progs->vars,name,name,false);
-    send_to_char("Variable set.\n\r", ch);
-    return true;
 }
 
 AEDIT(aedit_varclear)
@@ -2103,25 +2004,14 @@ AEDIT(aedit_varclear)
 
     EDIT_AREA(ch, pArea);
 
+	if (olc_varclear(&pArea->index_vars, ch, argument, false))
+	{
+		// Clear variable on "live"
+		olc_varclear(&pArea->progs->vars, ch, argument, true);
+		return true;
+	}
 
-    if (argument[0] == '\0') {
-	send_to_char("Syntax:  varclear <name>\n\r", ch);
 	return false;
-    }
-
-    if(!variable_validname(argument)) {
-	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
-	return false;
-    }
-
-    if(!variable_remove(&pArea->index_vars,argument)) {
-	send_to_char("No such variable defined.\n\r", ch);
-	return false;
-    }
-
-    variable_remove(&pArea->progs->vars,argument);
-    send_to_char("Variable cleared.\n\r", ch);
-    return true;
 }
 
 
@@ -2131,8 +2021,8 @@ REDIT(redit_show)
     ROOM_INDEX_DATA *pRoom;
     char buf[MAX_STRING_LENGTH];
     BUFFER *buf1;
-    ITERATOR it;
-    PROG_LIST *trigger;
+//    ITERATOR it;
+//    PROG_LIST *trigger;
     int door;
     CONDITIONAL_DESCR_DATA *cd;
     int i;
@@ -2149,7 +2039,7 @@ REDIT(redit_show)
 	    pRoom->name, pRoom->area->anum, pRoom->area->name);
     add_buf(buf1, buf);
 
-    if (IS_SET(pRoom->roomflag[1], ROOM_VIRTUAL_ROOM))
+    if (IS_SET(pRoom->room_flag[1], ROOM_VIRTUAL_ROOM))
         sprintf (buf, "VRoom at ({W%ld{x, {W%ld{x), in wilds uid ({W%ld{x) '{W%s{x'\n\r",
                  pRoom->x, pRoom->y, pRoom->wilds->uid, pRoom->wilds->name);
     else if(pRoom->viewwilds)
@@ -2169,7 +2059,7 @@ REDIT(redit_show)
     add_buf(buf1, buf);
 
     sprintf(buf, "Room flags:   {r[{x%s{r]{x\n\r",
-	    bitmatrix_string(room_flagbank, pRoom->roomflag));
+	    bitmatrix_string(room_flagbank, pRoom->room_flag));
     add_buf(buf1, buf);
 /*
     sprintf(buf, "Room2 flags:  {r[{x%s{r]{x\n\r",
@@ -2347,68 +2237,11 @@ REDIT(redit_show)
     if (found == false)
         add_buf(buf1, "    {W(None set){x\n\r");
 
-    if (pRoom->progs->progs) {
-	int cnt, slot;
+    if (pRoom->progs->progs)
+		olc_show_progs(buf1, pRoom->progs->progs, PRG_RPROG, "RoomProg Vnum");
 
-	for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++)
-		if(list_size(pRoom->progs->progs[slot]) > 0) ++cnt;
-
-	if (cnt > 0) {
-		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "Number", "RoomProg Vnum", "Trigger", "Phrase");
-		add_buf(buf1, buf);
-
-		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "------", "-------------", "-------", "------");
-		add_buf(buf1, buf);
-
-		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
-			iterator_start(&it, pRoom->progs->progs[slot]);
-			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-				sprintf(buf, "{r[{W%4d{r]{x %-20ld %-10s %-10s\n\r", cnt,
-					trigger->vnum,trigger_name(trigger->trig_type),
-					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, true, false));
-				add_buf(buf1, buf);
-				cnt++;
-			}
-			iterator_stop(&it);
-		}
-	}
-    }
-
-    if (pRoom->index_vars) {
-	pVARIABLE var;
-	int cnt;
-
-	for (cnt = 0, var = pRoom->index_vars; var; var = var->next) ++cnt;
-
-	if (cnt > 0) {
-		sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "Name", "Type", "Saved", "Value");
-		add_buf(buf1, buf);
-
-		sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "----", "----", "-----", "-----");
-		add_buf(buf1, buf);
-
-		for (var = pRoom->index_vars; var; var = var->next) {
-			switch(var->type) {
-			case VAR_INTEGER:
-				sprintf(buf, "{x%-20.20s {GNUMBER     {Y%c   {W%d{x\n\r", var->name,var->save?'Y':'N',var->_.i);
-				break;
-			case VAR_STRING:
-			case VAR_STRING_S:
-				sprintf(buf, "{x%-20.20s {GSTRING     {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N',var->_.s?var->_.s:"(empty)");
-				break;
-			case VAR_ROOM:
-				if(var->_.r && var->_.r->vnum > 0)
-					sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W%s {R({W%d{R){x\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->vnum);
-				else
-					sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W-no-where-{x\n\r",var->name,var->save?'Y':'N');
-				break;
-			default:
-				continue;
-			}
-			add_buf(buf1, buf);
-		}
-	}
-    }
+	if (pRoom->index_vars)
+		olc_show_index_vars(buf1, pRoom->index_vars);
 
     if (pRoom->conditional_descr)
     {
@@ -2757,7 +2590,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 			return false;
 		}
 
-		if( IS_SET(ch->in_room->roomflag[1], ROOM_BLUEPRINT) ||
+		if( IS_SET(ch->in_room->room_flag[1], ROOM_BLUEPRINT) ||
 			IS_SET(ch->in_room->area->area_flags, ROOM_BLUEPRINT) )
 		{
 			value = atol(arg);
@@ -2768,7 +2601,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 				return false;
 			}
 
-			redit_blueprint_oncreate = (IS_SET(ch->in_room->roomflag[1], ROOM_BLUEPRINT)) && true;
+			redit_blueprint_oncreate = (IS_SET(ch->in_room->room_flag[1], ROOM_BLUEPRINT)) && true;
 		}
 
 		if( pRoom->exit[door] && IS_SET(pRoom->exit[door]->exit_info, EX_ENVIRONMENT) )
@@ -3088,7 +2921,7 @@ REDIT(redit_down)
 
     return false;
 }
-
+/*
 REDIT(redit_varset)
 {
     ROOM_INDEX_DATA *pRoom;
@@ -3171,7 +3004,38 @@ REDIT(redit_varclear)
     send_to_char("Variable cleared.\n\r", ch);
     return true;
 }
+*/
 
+REDIT(redit_varset)
+{
+    ROOM_INDEX_DATA *pRoom;
+
+    EDIT_ROOM(ch, pRoom);
+
+    if(olc_varset(&pRoom->index_vars, ch, argument, false))
+    {
+        // This will *NOT* update cloned rooms...
+        olc_varset(&pRoom->progs->vars, ch, argument, true);
+        return true;
+    }
+    return false;
+}
+
+REDIT(redit_varclear)
+{
+    ROOM_INDEX_DATA *pRoom;
+
+    EDIT_ROOM(ch, pRoom);
+
+	if(olc_varclear(&pRoom->index_vars, ch, argument, false))
+	{
+		// This will *NOT* update cloned rooms...
+		olc_varclear(&pRoom->progs->vars, ch, argument, true);
+		return true;
+	}
+
+	return false;
+}
 
 REDIT(redit_ed)
 {
@@ -3478,7 +3342,7 @@ REDIT(redit_create)
 		// Only copy if the new room is in the same area as the previous room
 		if( pPrevRoom && pPrevRoom->area == pArea )
 		{
-			SET_BIT(pRoom->roomflag[1], ROOM_BLUEPRINT);
+			SET_BIT(pRoom->room_flag[1], ROOM_BLUEPRINT);
 		}
 		redit_blueprint_oncreate = false;
 	}
@@ -5661,8 +5525,8 @@ OEDIT(oedit_show)
     BUFFER *buffer;
     char buf[MAX_STRING_LENGTH];
     AFFECT_DATA *paf;
-    ITERATOR it;
-    PROG_LIST *trigger;
+//    ITERATOR it;
+//    PROG_LIST *trigger;
     SPELL_DATA *spell;
     int cnt;
 
@@ -5937,68 +5801,11 @@ OEDIT(oedit_show)
 	}
 
 
-    if (pObj->progs) {
-	int cnt, slot;
+    if (pObj->progs)
+		olc_show_progs(buffer, pObj->progs, PRG_OPROG, "ObjProg Vnum");
 
-	for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++)
-		if(list_size(pObj->progs[slot]) > 0) ++cnt;
-
-	if (cnt > 0) {
-		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "Number", "ObjProg Vnum", "Trigger", "Phrase");
-		add_buf(buffer, buf);
-
-		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "------", "-------------", "-------", "------");
-		add_buf(buffer, buf);
-
-		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
-			iterator_start(&it, pObj->progs[slot]);
-			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-				sprintf(buf, "{B[{W%4d{B]{x %-20ld %-10s %-6s\n\r", cnt,
-					trigger->vnum,trigger_name(trigger->trig_type),
-					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, false, false));
-				add_buf(buffer, buf);
-				cnt++;
-			}
-			iterator_stop(&it);
-		}
-	}
-    }
-
-    if (pObj->index_vars) {
-	pVARIABLE var;
-	int cnt;
-
-	for (cnt = 0, var = pObj->index_vars; var; var = var->next) ++cnt;
-
-	if (cnt > 0) {
-		sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "Name", "Type", "Saved", "Value");
-		add_buf(buffer, buf);
-
-		sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "----", "----", "-----", "-----");
-		add_buf(buffer, buf);
-
-		for (var = pObj->index_vars; var; var = var->next) {
-			switch(var->type) {
-			case VAR_INTEGER:
-				sprintf(buf, "{x%-20.20s {GNUMBER     {Y%c   {W%d{x\n\r", var->name,var->save?'Y':'N',var->_.i);
-				break;
-			case VAR_STRING:
-			case VAR_STRING_S:
-				sprintf(buf, "{x%-20.20s {GSTRING     {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N',var->_.s?var->_.s:"(empty)");
-				break;
-			case VAR_ROOM:
-				if(var->_.r && var->_.r->vnum > 0)
-					sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W%s {R({W%d{R){x\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->vnum);
-				else
-					sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W-no-where-{x\n\r",var->name,var->save?'Y':'N');
-				break;
-			default:
-				continue;
-			}
-			add_buf(buffer, buf);
-		}
-	}
-    }
+	if (pObj->index_vars)
+		olc_show_index_vars(buffer, pObj->index_vars);
 
 
     print_obj_values(pObj, buffer);
@@ -7239,56 +7046,10 @@ OEDIT(oedit_skeywds)
 OEDIT(oedit_varset)
 {
     OBJ_INDEX_DATA *pObj;
-    char name[MIL];
-    char type[MIL];
-    char yesno[MIL];
-    bool saved;
 
     EDIT_OBJ(ch, pObj);
 
-    if (argument[0] == '\0') {
-	send_to_char("Syntax:  varset <name> <number|string|room> <yes|no> <value>\n\r", ch);
-	return false;
-    }
-
-    argument = one_argument(argument, name);
-    argument = one_argument(argument, type);
-    argument = one_argument(argument, yesno);
-
-    if(!variable_validname(name)) {
-	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
-	return false;
-    }
-
-    saved = !str_cmp(yesno,"yes");
-
-    if(!argument[0]) {
-	send_to_char("Set what on the variable?\n\r", ch);
-	return false;
-    }
-
-    if(!str_cmp(type,"room")) {
-	if(!is_number(argument)) {
-	    send_to_char("Specify a room vnum.\n\r", ch);
-	    return false;
-	}
-
-	variables_setindex_room(&pObj->index_vars,name,atoi(argument),saved);
-    } else if(!str_cmp(type,"string"))
-	variables_setindex_string(&pObj->index_vars,name,argument,false,saved);
-    else if(!str_cmp(type,"number")) {
-	if(!is_number(argument)) {
-	    send_to_char("Specify an integer.\n\r", ch);
-	    return false;
-	}
-
-	variables_setindex_integer(&pObj->index_vars,name,atoi(argument),saved);
-    } else {
-	send_to_char("Invalid type of variable.\n\r", ch);
-	return false;
-    }
-    send_to_char("Variable set.\n\r", ch);
-    return true;
+	return olc_varset(&pObj->index_vars, ch, argument, false);
 }
 
 OEDIT(oedit_varclear)
@@ -7297,23 +7058,7 @@ OEDIT(oedit_varclear)
 
     EDIT_OBJ(ch, pObj);
 
-    if (argument[0] == '\0') {
-	send_to_char("Syntax:  varclear <name>\n\r", ch);
-	return false;
-    }
-
-    if(!variable_validname(argument)) {
-	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
-	return false;
-    }
-
-    if(!variable_remove(&pObj->index_vars,argument)) {
-	send_to_char("No such variable defined.\n\r", ch);
-	return false;
-    }
-
-    send_to_char("Variable cleared.\n\r", ch);
-    return true;
+	return olc_varclear(&pObj->index_vars, ch, argument, false);
 }
 
 
@@ -8280,8 +8025,8 @@ MEDIT(medit_show)
 {
 	MOB_INDEX_DATA *pMob;
 	char buf[MAX_STRING_LENGTH];
-	ITERATOR it;
-	PROG_LIST *trigger;
+//	ITERATOR it;
+//	PROG_LIST *trigger;
 	BUFFER *buffer;
 
 	EDIT_MOB(ch, pMob);
@@ -8853,68 +8598,11 @@ MEDIT(medit_show)
 		add_buf(buffer, "\n\r");
 	}
 
-	if (pMob->progs) {
-		int cnt, slot;
+    if (pMob->progs)
+		olc_show_progs(buffer, pMob->progs, PRG_MPROG, "MobProg Vnum");
 
-		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++)
-			if(list_size(pMob->progs[slot]) > 0) ++cnt;
-
-		if (cnt > 0) {
-			sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "Number", "MobProg Vnum", "Trigger", "Phrase");
-			add_buf(buffer, buf);
-
-			sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "------", "-------------", "-------", "------");
-			add_buf(buffer, buf);
-
-			for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
-				iterator_start(&it, pMob->progs[slot]);
-				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-					sprintf(buf, "{C[{W%4d{C]{x %-20ld %-10s %-6s\n\r", cnt,
-						trigger->vnum,trigger_name(trigger->trig_type),
-						trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, false, false));
-					add_buf(buffer, buf);
-					cnt++;
-				}
-				iterator_stop(&it);
-			}
-		}
-	}
-
-	if (pMob->index_vars) {
-		pVARIABLE var;
-		int cnt;
-
-		for (cnt = 0, var = pMob->index_vars; var; var = var->next) ++cnt;
-
-		if (cnt > 0) {
-			sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "Name", "Type", "Saved", "Value");
-			add_buf(buffer, buf);
-
-			sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "----", "----", "-----", "-----");
-			add_buf(buffer, buf);
-
-			for (var = pMob->index_vars; var; var = var->next) {
-				switch(var->type) {
-				case VAR_INTEGER:
-					sprintf(buf, "{x%-20.20s {GNUMBER     {Y%c   {W%d{x\n\r", var->name,var->save?'Y':'N',var->_.i);
-					break;
-				case VAR_STRING:
-				case VAR_STRING_S:
-					sprintf(buf, "{x%-20.20s {GSTRING     {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N',var->_.s?var->_.s:"(empty)");
-					break;
-				case VAR_ROOM:
-					if(var->_.r && var->_.r->vnum > 0)
-						sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W%s {R({W%d{R){x\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->vnum);
-					else
-						sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W-no-where-{x\n\r",var->name,var->save?'Y':'N');
-					break;
-				default:
-					continue;
-				}
-				add_buf(buffer, buf);
-			}
-		}
-	}
+	if (pMob->index_vars)
+		olc_show_index_vars(buffer, pMob->index_vars);
 
 	page_to_char(buf_string(buffer), ch);
 	free_buf(buffer);
@@ -9453,56 +9141,10 @@ MEDIT(medit_skeywds)
 MEDIT(medit_varset)
 {
     MOB_INDEX_DATA *pMob;
-    char name[MIL];
-    char type[MIL];
-    char yesno[MIL];
-    bool saved;
 
     EDIT_MOB(ch, pMob);
 
-    if (argument[0] == '\0') {
-	send_to_char("Syntax:  varset <name> <number|string|room> <yes|no> <value>\n\r", ch);
-	return false;
-    }
-
-    argument = one_argument(argument, name);
-    argument = one_argument(argument, type);
-    argument = one_argument(argument, yesno);
-
-    if(!variable_validname(name)) {
-	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
-	return false;
-    }
-
-    saved = !str_cmp(yesno,"yes");
-
-    if(!argument[0]) {
-	send_to_char("Set what on the variable?\n\r", ch);
-	return false;
-    }
-
-    if(!str_cmp(type,"room")) {
-	if(!is_number(argument)) {
-	    send_to_char("Specify a room vnum.\n\r", ch);
-	    return false;
-	}
-
-	variables_setindex_room(&pMob->index_vars,name,atoi(argument),saved);
-    } else if(!str_cmp(type,"string"))
-	variables_setindex_string(&pMob->index_vars,name,argument,false,saved);
-    else if(!str_cmp(type,"number")) {
-	if(!is_number(argument)) {
-	    send_to_char("Specify an integer.\n\r", ch);
-	    return false;
-	}
-
-	variables_setindex_integer(&pMob->index_vars,name,atoi(argument),saved);
-    } else {
-	send_to_char("Invalid type of variable.\n\r", ch);
-	return false;
-    }
-    send_to_char("Variable set.\n\r", ch);
-    return true;
+	return olc_varset(&pMob->index_vars, ch, argument, false);
 }
 
 MEDIT(medit_varclear)
@@ -9511,23 +9153,7 @@ MEDIT(medit_varclear)
 
     EDIT_MOB(ch, pMob);
 
-    if (argument[0] == '\0') {
-	send_to_char("Syntax:  varclear <name>\n\r", ch);
-	return false;
-    }
-
-    if(!variable_validname(argument)) {
-	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
-	return false;
-    }
-
-    if(!variable_remove(&pMob->index_vars,argument)) {
-	send_to_char("No such variable defined.\n\r", ch);
-	return false;
-    }
-
-    send_to_char("Variable cleared.\n\r", ch);
-    return true;
+	return olc_varclear(&pMob->index_vars, ch, argument, false);
 }
 
 MEDIT(medit_corpsetype)
@@ -11597,12 +11223,12 @@ REDIT(redit_room)
 						return false;
 					}
 				}
-				else if( !IS_SET(bits[1], ROOM_NOCLONE) && IS_SET(room->roomflag[1], ROOM_NOCLONE) )
+				else if( !IS_SET(bits[1], ROOM_NOCLONE) && IS_SET(room->room_flag[1], ROOM_NOCLONE) )
 				{
 					send_to_char("No-clone room cannot be used in blueprints.\n\r", ch);
 					return false;
 				}
-				else if( IS_SET(bits[1], ROOM_NOCLONE) && !IS_SET(room->roomflag[1], ROOM_NOCLONE) )
+				else if( IS_SET(bits[1], ROOM_NOCLONE) && !IS_SET(room->room_flag[1], ROOM_NOCLONE) )
 				{
 					send_to_char("BLUEPRINT and NO_CLONE cannot mix.\n\r", ch);
 					return false;
@@ -11611,7 +11237,7 @@ REDIT(redit_room)
 
 			if( IS_SET(bits[1], ROOM_NOCLONE) )
 			{
-				if( !IS_SET(bits[1], ROOM_BLUEPRINT) && IS_SET(room->roomflag[1], ROOM_BLUEPRINT) )
+				if( !IS_SET(bits[1], ROOM_BLUEPRINT) && IS_SET(room->room_flag[1], ROOM_BLUEPRINT) )
 				{
 					send_to_char("Blueprint rooms cannot be no-clone.\n\r", ch);
 					return false;
@@ -11622,9 +11248,9 @@ REDIT(redit_room)
 				{
 					send_to_char("Room is currently used in a blueprint.\n\r", ch);
 					// Clear it out, JIC
-					if( IS_SET(room->roomflag[1], ROOM_NOCLONE) )
+					if( IS_SET(room->room_flag[1], ROOM_NOCLONE) )
 					{
-			    		REMOVE_BIT(room->roomflag[1], ROOM_NOCLONE);
+			    		REMOVE_BIT(room->room_flag[1], ROOM_NOCLONE);
 			    		return true;
 					}
 
@@ -11632,8 +11258,8 @@ REDIT(redit_room)
 				}
 			}
 
-			TOGGLE_BIT(room->roomflag[0], bits[0]);
-			TOGGLE_BIT(room->roomflag[1], bits[1]);
+			TOGGLE_BIT(room->room_flag[0], bits[0]);
+			TOGGLE_BIT(room->room_flag[1], bits[1]);
 
 			send_to_char("Room flag(s) toggled.\n\r", ch);
 			return true;
@@ -11774,7 +11400,7 @@ REDIT(redit_coords)
 		y = atoi(arg2);
 		z = atoi(arg3);
 
-		if( !IS_SET(room->roomflag[1], ROOM_BLUEPRINT) )
+		if( !IS_SET(room->room_flag[1], ROOM_BLUEPRINT) )
 		{
 			w = get_wilds_from_uid(NULL,atoi(argument));
 			if(!w) {
@@ -12271,8 +11897,8 @@ void correct_vrooms(WILDS_DATA *pWilds, WILDS_TERRAIN *pTerrain)
 		if(vroom->parent_template == pTerrain) {
 			free_string(vroom->name);
 			vroom->name = str_dup(pTerrain->template->name);
-			vroom->roomflag[0] = pTerrain->template->roomflag[0];
-			vroom->roomflag[1] = pTerrain->template->roomflag[1]|ROOM_VIRTUAL_ROOM;
+			vroom->room_flag[0] = pTerrain->template->room_flag[0];
+			vroom->room_flag[1] = pTerrain->template->room_flag[1]|ROOM_VIRTUAL_ROOM;
 				vroom->sector_type = pTerrain->template->sector_type;
 		}
 	}
@@ -12298,7 +11924,7 @@ WEDIT ( wedit_terrain )
                       "         terrain <token> ansi <string>\n\r"
                       "         terrain <token> showname <string>\n\r"
                       "         terrain <token> briefdesc <string>\n\r"
-                      "         terrain <token> roomflag <flag>\n\r"
+                      "         terrain <token> room_flag <flag>\n\r"
                       "         terrain <token> room2flag <flag>\n\r"
                       "         terrain <token> sector <sector>\n\r"
                       "         terrain list <flag>\n\r", ch);
@@ -12324,8 +11950,8 @@ WEDIT ( wedit_terrain )
                      pTerrain->showname ? pTerrain->showname : "(Not Set)",
                      flag_string(sector_flags, pTerrain->template->sector_type),
                      pTerrain->nonroom ? "  Yes    " : "  No     ",
-                     bitmatrix_string(room_flagbank, pTerrain->template->roomflag));
-                     //flag_string(room2_flags, pTerrain->template->roomflag[1]));
+                     bitmatrix_string(room_flagbank, pTerrain->template->room_flag));
+                     //flag_string(room2_flags, pTerrain->template->room_flag[1]));
             add_buf(output, buf);
         }
 
@@ -12457,24 +12083,24 @@ WEDIT ( wedit_terrain )
         return true;
     }
 
-    if (!str_cmp(arg2, "roomflag"))
+    if (!str_cmp(arg2, "room_flag"))
     {
-	long roomflag[2];
-	if (bitvector_lookup(argument, 2, roomflag, room_flags, room2_flags))
+	long room_flag[2];
+	if (bitvector_lookup(argument, 2, room_flag, room_flags, room2_flags))
 	{
-		TOGGLE_BIT(pTerrain->template->roomflag[0], roomflag[0]);
-		TOGGLE_BIT(pTerrain->template->roomflag[1], roomflag[1]);
+		TOGGLE_BIT(pTerrain->template->room_flag[0], room_flag[0]);
+		TOGGLE_BIT(pTerrain->template->room_flag[1], room_flag[1]);
 		correct_vrooms(pWilds, pTerrain);
 		send_to_char("Room flags toggled.\n\r", ch);
         return true;
 	/*
 	if ((value = flag_value(room_flags, argument)) == NO_FLAG)
 	{
-	    send_to_char("Syntax: terrain <token> roomflag <flag>\n\r", ch);
+	    send_to_char("Syntax: terrain <token> room_flag <flag>\n\r", ch);
 	    return false;
 	}
 
-	TOGGLE_BIT(pTerrain->template->roomflag[0], value);
+	TOGGLE_BIT(pTerrain->template->room_flag[0], value);
 	correct_vrooms(pWilds, pTerrain);
 	send_to_char("Room flags toggled.\n\r", ch);
         return true;
@@ -12748,7 +12374,7 @@ WEDIT ( wedit_vlink )
 					return false;
 				}
 
-				if( IS_SET(destRoom->roomflag[1], ROOM_BLUEPRINT) ||
+				if( IS_SET(destRoom->room_flag[1], ROOM_BLUEPRINT) ||
 					IS_SET(destRoom->area->area_flags, AREA_BLUEPRINT) )
 				{
 					send_to_char("Wedit vlink: Invalid destination.\n\r", ch);

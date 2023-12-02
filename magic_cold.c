@@ -159,7 +159,7 @@ SPELL_FUNC(spell_ice_shards)
 		act("{W$n throw out $s hand, hurling shards of ice at $N!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
 	}
 
-	if (IS_SET(ch->in_room->roomflag[1], ROOM_FIRE) || ch->in_room->sector_type == SECT_LAVA) {
+	if (IS_SET(ch->in_room->room_flag[1], ROOM_FIRE) || ch->in_room->sector_type == SECT_LAVA) {
 		act("{RThe intense heat in the area melts the shards with a sizzle.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
 		return false;
 	}
@@ -204,7 +204,7 @@ int get_room_heat(ROOM_INDEX_DATA *room, int catalyst)
 	int heat = 0;
 
 	if(room) {
-		if (IS_SET(room->roomflag[1], ROOM_FIRE)) heat += 25;
+		if (IS_SET(room->room_flag[1], ROOM_FIRE)) heat += 25;
 		if (room->sector_type == SECT_LAVA) heat += 60;
 
 		for (obj = room->contents; obj != NULL; obj = obj->next_content) {
@@ -391,7 +391,7 @@ SPELL_FUNC(spell_ice_storm)
 	ROOM_INDEX_DATA *room;
 
 
-	if (IS_SET(ch->in_room->roomflag[1], ROOM_FIRE)) {
+	if (IS_SET(ch->in_room->room_flag[1], ROOM_FIRE)) {
 		send_to_char("The intense heat in the area melts your ice storm as soon as it appears.\n\r", ch);
 		act("$n summons an ice storm, but it melts instantly.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		return false;

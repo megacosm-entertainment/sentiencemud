@@ -98,9 +98,9 @@ SPELL_FUNC(spell_earth_walk)
 		return false;
 	}
 
-	if (IS_SET(victim->in_room->roomflag[0], ROOM_NO_RECALL) ||
-		IS_SET(victim->in_room->roomflag[0], ROOM_NOMAGIC) ||
-		IS_SET(victim->in_room->roomflag[0], ROOM_CPK)) {
+	if (IS_SET(victim->in_room->room_flag[0], ROOM_NO_RECALL) ||
+		IS_SET(victim->in_room->room_flag[0], ROOM_NOMAGIC) ||
+		IS_SET(victim->in_room->room_flag[0], ROOM_CPK)) {
 		send_to_char("That room is protected from gating magic.\n\r", ch);
 		return false;
 	}

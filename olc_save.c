@@ -427,17 +427,7 @@ void save_area_new(AREA_DATA *area)
 		}
 	}
 
-	if(area->index_vars) {
-		for(pVARIABLE var = area->index_vars; var; var = var->next) {
-			if(var->type == VAR_INTEGER)
-				fprintf(fp, "VarInt %s~ %d %d\n", var->name, var->save, var->_.i);
-			else if(var->type == VAR_STRING || var->type == VAR_STRING_S)
-				fprintf(fp, "VarStr %s~ %d %s~\n", var->name, var->save, var->_.s ? var->_.s : "");
-			else if(var->type == VAR_ROOM && var->_.r && var->_.r->vnum)
-				fprintf(fp, "VarRoom %s~ %d %d\n", var->name, var->save, (int)var->_.r->vnum);
-
-		}
-	}
+	olc_save_index_vars(fp, area->index_vars, area);
 
     /* Whisp - write this function */
     save_area_trade(fp, area);
@@ -575,7 +565,7 @@ void save_token(FILE *fp, TOKEN_INDEX_DATA *token)
 	ITERATOR it;
     PROG_LIST *trigger;
     EXTRA_DESCR_DATA *ed;
-    pVARIABLE var;
+//    pVARIABLE var;
     int i;
 
     fprintf(fp, "#TOKEN %ld\n", token->vnum);
@@ -616,17 +606,7 @@ void save_token(FILE *fp, TOKEN_INDEX_DATA *token)
 		}
     }
 
-	if(token->index_vars) {
-		for(var = token->index_vars; var; var = var->next) {
-			if(var->type == VAR_INTEGER)
-				fprintf(fp, "VarInt %s~ %d %d\n", var->name, var->save, var->_.i);
-			else if(var->type == VAR_STRING || var->type == VAR_STRING_S)
-				fprintf(fp, "VarStr %s~ %d %s~\n", var->name, var->save, var->_.s ? var->_.s : "");
-			else if(var->type == VAR_ROOM && var->_.r && var->_.r->vnum)
-				fprintf(fp, "VarRoom %s~ %d %d\n", var->name, var->save, (int)var->_.r->vnum);
-
-		}
-	}
+	olc_save_index_vars(fp, token->index_vars, token->area);
 
     fprintf(fp, "#-TOKEN\n");
 }
@@ -642,7 +622,7 @@ void save_room_new(FILE *fp, ROOM_INDEX_DATA *room, int recordtype)
     ITERATOR it;
     PROG_LIST *trigger;
     RESET_DATA *reset;
-    pVARIABLE var;
+//    pVARIABLE var;
 
     if (fp == NULL || room == NULL) {
 	bug("save_room_new: NULL.", 0);
@@ -665,13 +645,13 @@ void save_room_new(FILE *fp, ROOM_INDEX_DATA *room, int recordtype)
 	if(room->viewwilds) {
 		fprintf(fp,"Wilds %1u %1u %1u %1u\n", (unsigned)room->viewwilds->uid, (unsigned)room->x, (unsigned)room->y, (unsigned)room->z);
 	}
-	else if(IS_SET(room->roomflag[1], ROOM_BLUEPRINT))
+	else if(IS_SET(room->room_flag[1], ROOM_BLUEPRINT))
 	{
 		fprintf(fp,"Blueprint %1u %1u %1u\n", (unsigned)room->x, (unsigned)room->y, (unsigned)room->z);
 	}
 
-    fprintf(fp, "Room_flags %ld\n", room->roomflag[0]);
-    fprintf(fp, "Room2_flags %ld\n", room->roomflag[1]);
+    fprintf(fp, "Room_flags %ld\n", room->room_flag[0]);
+    fprintf(fp, "Room2_flags %ld\n", room->room_flag[1]);
     fprintf(fp, "Sector_type %d\n", room->sector_type);
 
     if (room->heal_rate != 100)
@@ -742,17 +722,7 @@ void save_room_new(FILE *fp, ROOM_INDEX_DATA *room, int recordtype)
 		}
 	}
 
-	if(room->index_vars) {
-		for(var = room->index_vars; var; var = var->next) {
-			if(var->type == VAR_INTEGER)
-				fprintf(fp, "VarInt %s~ %d %d\n", var->name, var->save, var->_.i);
-			else if(var->type == VAR_STRING || var->type == VAR_STRING_S)
-				fprintf(fp, "VarStr %s~ %d %s~\n", var->name, var->save, var->_.s ? var->_.s : "");
-			else if(var->type == VAR_ROOM && var->_.r && var->_.r->vnum)
-				fprintf(fp, "VarRoom %s~ %d %d\n", var->name, var->save, (int)var->_.r->vnum);
-
-		}
-	}
+	olc_save_index_vars(fp, room->index_vars, room->area);
 
     for (reset = room->reset_first; reset != NULL; reset = reset->next) {
 	fprintf(fp, "#RESET %c\n", reset->command);
@@ -770,7 +740,7 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
 {
 	ITERATOR it;
     PROG_LIST *trigger;
-    pVARIABLE var;
+//    pVARIABLE var;
     int race, i;
 
     race = mob->race;
@@ -849,17 +819,7 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
 		}
 	}
 
-	if(mob->index_vars) {
-		for(var = mob->index_vars; var; var = var->next) {
-			if(var->type == VAR_INTEGER)
-				fprintf(fp, "VarInt %s~ %d %d\n", var->name, var->save, var->_.i);
-			else if(var->type == VAR_STRING || var->type == VAR_STRING_S)
-				fprintf(fp, "VarStr %s~ %d %s~\n", var->name, var->save, var->_.s ? var->_.s : "");
-			else if(var->type == VAR_ROOM && var->_.r && var->_.r->vnum)
-				fprintf(fp, "VarRoom %s~ %d %d\n", var->name, var->save, (int)var->_.r->vnum);
-
-		}
-	}
+	olc_save_index_vars(fp, mob->index_vars, mob->area);
 
     if (mob->spec_fun != NULL)
 	fprintf(fp, "SpecFun %s~\n", spec_name(mob->spec_fun));
@@ -875,7 +835,7 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
 	EXTRA_DESCR_DATA *ed;
 	ITERATOR it;
 	PROG_LIST *trigger;
-	pVARIABLE var;
+//	pVARIABLE var;
 	int i;
 
 	/* hack to not save maps in the abyss as they are generated each reboot */
@@ -981,16 +941,7 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
 		}
 	}
 
-	if(obj->index_vars) {
-		for(var = obj->index_vars; var; var = var->next) {
-			if(var->type == VAR_INTEGER)
-				fprintf(fp, "VarInt %s~ %d %d\n", var->name, var->save, var->_.i);
-			else if(var->type == VAR_STRING || var->type == VAR_STRING_S)
-				fprintf(fp, "VarStr %s~ %d %s~\n", var->name, var->save, var->_.s ? var->_.s : "");
-			else if(var->type == VAR_ROOM && var->_.r && var->_.r->vnum)
-				fprintf(fp, "VarRoom %s~ %d %d\n", var->name, var->save, (int)var->_.r->vnum);
-		}
-	}
+	olc_save_index_vars(fp, obj->index_vars, obj->area);
 
 	if(obj->lock)
 	{
@@ -1378,7 +1329,7 @@ AREA_DATA *read_area_new(FILE *fp)
 		}
 		else if (!str_cmp(word, "#TOKEN"))
 		{
-		    token = read_token(fp);
+		    token = read_token(fp, area);
 		    vnum = token->vnum;
 		    iHash = vnum % MAX_KEY_HASH;
 		    token->next = token_index_hash[iHash];
@@ -1555,47 +1506,11 @@ AREA_DATA *read_area_new(FILE *fp)
                 KEY ("UID", area->uid, fread_number (fp));
 
 	    case 'V':
-		if (!str_cmp(word, "VarInt")) {
-			char *name;
-			int value;
-			bool saved;
-
-			fMatch = true;
-
-			name = fread_string(fp);
-			saved = fread_number(fp);
-			value = fread_number(fp);
-
-			variables_setindex_integer (&area->index_vars,name,value,saved);
-		}
-
-		if (!str_cmp(word, "VarStr")) {
-			char *name;
-			char *str;
-			bool saved;
-
-			fMatch = true;
-
-			name = fread_string(fp);
-			saved = fread_number(fp);
-			str = fread_string(fp);
-
-			variables_setindex_string (&area->index_vars,name,str,false,saved);
-		}
-
-		if (!str_cmp(word, "VarRoom")) {
-			char *name;
-			int value;
-			bool saved;
-
-			fMatch = true;
-
-			name = fread_string(fp);
-			saved = fread_number(fp);
-			value = fread_number(fp);
-
-			variables_setindex_room (&area->index_vars,name,value,saved);
-		}
+			if (olc_load_index_vars(fp, word, &area->index_vars, area))
+			{
+				fMatch = true;
+				break;
+			}
 
 		KEY("VersArea", area->version_area, fread_number(fp));
 		KEY("VersMobile", area->version_mobile, fread_number(fp));
@@ -2067,7 +1982,7 @@ void create_virtual_room_new(AREA_DATA *area, long vnum, int x, int y,
 
     pRoomIndex->name		= str_dup(pParent->name);
     pRoomIndex->description	= NULL;
-    pRoomIndex->roomflag[0]	= pParent->roomflag[0];
+    pRoomIndex->room_flag[0]	= pParent->room_flag[0];
     pRoomIndex->sector_type	= pParent->sector_type;
     pRoomIndex->light		= 0;//get_room_index(parent)->light;
     pRoomIndex->x = x;
@@ -2211,8 +2126,8 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 			break;
 
 	    case 'R':
-		KEY("Room_flags", 	room->roomflag[0], 	fread_number(fp));
-		KEY("Room2_flags", 	room->roomflag[1], 	fread_number(fp));
+		KEY("Room_flags", 	room->room_flag[0], 	fread_number(fp));
+		KEY("Room2_flags", 	room->room_flag[1], 	fread_number(fp));
 
 		if (!str_cmp(word, "RoomProg")) {
 		    int tindex;
@@ -2269,47 +2184,11 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 		break;
 
 	    case 'V':
-		if (!str_cmp(word, "VarInt")) {
-			char *name;
-			int value;
-			bool saved;
-
-			fMatch = true;
-
-			name = fread_string(fp);
-			saved = fread_number(fp);
-			value = fread_number(fp);
-
-			variables_setindex_integer (&room->index_vars,name,value,saved);
-		}
-
-		if (!str_cmp(word, "VarStr")) {
-			char *name;
-			char *str;
-			bool saved;
-
-			fMatch = true;
-
-			name = fread_string(fp);
-			saved = fread_number(fp);
-			str = fread_string(fp);
-
-			variables_setindex_string (&room->index_vars,name,str,false,saved);
-		}
-
-		if (!str_cmp(word, "VarRoom")) {
-			char *name;
-			int value;
-			bool saved;
-
-			fMatch = true;
-
-			name = fread_string(fp);
-			saved = fread_number(fp);
-			value = fread_number(fp);
-
-			variables_setindex_room (&room->index_vars,name,value,saved);
-		}
+			if (olc_load_index_vars(fp, word, &room->index_vars, area))
+			{
+				fMatch = true;
+				break;
+			}
 		break;
 
 	    case 'W':
@@ -2603,47 +2482,11 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 
             case 'T':
             case 'V':
-		if (!str_cmp(word, "VarInt")) {
-			char *name;
-			int value;
-			bool saved;
-
-			fMatch = true;
-
-			name = fread_string(fp);
-			saved = fread_number(fp);
-			value = fread_number(fp);
-
-			variables_setindex_integer (&mob->index_vars,name,value,saved);
-		}
-
-		if (!str_cmp(word, "VarStr")) {
-			char *name;
-			char *str;
-			bool saved;
-
-			fMatch = true;
-
-			name = fread_string(fp);
-			saved = fread_number(fp);
-			str = fread_string(fp);
-
-			variables_setindex_string (&mob->index_vars,name,str,false,saved);
-		}
-
-		if (!str_cmp(word, "VarRoom")) {
-			char *name;
-			int value;
-			bool saved;
-
-			fMatch = true;
-
-			name = fread_string(fp);
-			saved = fread_number(fp);
-			value = fread_number(fp);
-
-			variables_setindex_room (&mob->index_vars,name,value,saved);
-		}
+				if (olc_load_index_vars(fp, word, &mob->index_vars, area))
+				{
+					fMatch = true;
+					break;
+				}
 
 	        KEY("VulnFlags",	mob->vuln_flags,	fread_number(fp));
 		break;
@@ -2972,46 +2815,10 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 
 		    fMatch = true;
 		}
-		if (!str_cmp(word, "VarInt")) {
-			char *name;
-			int value;
-			bool saved;
-
+		if (olc_load_index_vars(fp, word, &obj->index_vars, area))
+		{
 			fMatch = true;
-
-			name = fread_string(fp);
-			saved = fread_number(fp);
-			value = fread_number(fp);
-
-			variables_setindex_integer (&obj->index_vars,name,value,saved);
-		}
-
-		if (!str_cmp(word, "VarStr")) {
-			char *name;
-			char *str;
-			bool saved;
-
-			fMatch = true;
-
-			name = fread_string(fp);
-			saved = fread_number(fp);
-			str = fread_string(fp);
-
-			variables_setindex_string (&obj->index_vars,name,str,false,saved);
-		}
-
-		if (!str_cmp(word, "VarRoom")) {
-			char *name;
-			int value;
-			bool saved;
-
-			fMatch = true;
-
-			name = fread_string(fp);
-			saved = fread_number(fp);
-			value = fread_number(fp);
-
-			variables_setindex_room (&obj->index_vars,name,value,saved);
+			break;
 		}
 
 		break;
@@ -3811,7 +3618,7 @@ SHOP_DATA *read_shop_new(FILE *fp)
 }
 
 
-TOKEN_INDEX_DATA *read_token(FILE *fp)
+TOKEN_INDEX_DATA *read_token(FILE *fp, AREA_DATA *area)
 {
     TOKEN_INDEX_DATA *token = NULL;
     EXTRA_DESCR_DATA *ed;
@@ -3923,47 +3730,11 @@ TOKEN_INDEX_DATA *read_token(FILE *fp)
 		    token->value_name[index] = fread_string(fp);
 		}
 
-		if (!str_cmp(word, "VarInt")) {
-			char *name;
-			int value;
-			bool saved;
-
-			fMatch = true;
-
-			name = fread_string(fp);
-			saved = fread_number(fp);
-			value = fread_number(fp);
-
-			variables_setindex_integer (&token->index_vars,name,value,saved);
-		}
-
-		if (!str_cmp(word, "VarStr")) {
-			char *name;
-			char *str;
-			bool saved;
-
-			fMatch = true;
-
-			name = fread_string(fp);
-			saved = fread_number(fp);
-			str = fread_string(fp);
-
-			variables_setindex_string (&token->index_vars,name,str,false,saved);
-		}
-
-		if (!str_cmp(word, "VarRoom")) {
-			char *name;
-			int value;
-			bool saved;
-
-			fMatch = true;
-
-			name = fread_string(fp);
-			saved = fread_number(fp);
-			value = fread_number(fp);
-
-			variables_setindex_room (&token->index_vars,name,value,saved);
-		}
+				if (olc_load_index_vars(fp, word, &token->index_vars, area))
+				{
+					fMatch = true;
+					break;
+				}
 	}
 
 	if (!fMatch) {

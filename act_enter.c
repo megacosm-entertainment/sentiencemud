@@ -225,7 +225,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
  	if (IS_SET(portal->value[2],GATE_NOCURSE)
   		&&  (IS_AFFECTED(ch,AFF_CURSE)))
 	    /*
-	       ||   IS_SET(old_room->roomflag[0],ROOM_NO_RECALL)))
+	       ||   IS_SET(old_room->room_flag[0],ROOM_NO_RECALL)))
 	     */
 	{
 	    send_to_char("Something prevents you from leaving...\n\r",ch);

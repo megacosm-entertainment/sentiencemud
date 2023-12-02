@@ -1172,7 +1172,7 @@ void ink_end( CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t
     else if (!sn3) chance = get_skill(ch, gsn_tattoo) / 2 + get_skill(ch, gsn_tattoo) / 3;
     else chance = get_skill(ch, gsn_tattoo) / 2;
 
-    if (IS_SET(ch->in_room->roomflag[1], ROOM_ALCHEMY))
+    if (IS_SET(ch->in_room->room_flag[1], ROOM_ALCHEMY))
         chance = (chance * 3)/2;
 
     chance = URANGE(1, chance, 98);
@@ -1234,7 +1234,7 @@ void ink_end( CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t
 
 	level = ch->tot_level * ((n - 1) * chance + 100) / (n * 100);
 
-	if (IS_SET(ch->in_room->roomflag[1], ROOM_ALCHEMY))
+	if (IS_SET(ch->in_room->room_flag[1], ROOM_ALCHEMY))
 		level = (ch->tot_level + level) / 2;
 
 

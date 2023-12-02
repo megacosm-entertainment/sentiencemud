@@ -924,7 +924,7 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 							dest = get_room_index(vnum);
 
 							if( !dest ||
-								IS_SET(dest->roomflag[1], ROOM_BLUEPRINT) ||
+								IS_SET(dest->room_flag[1], ROOM_BLUEPRINT) ||
 								IS_SET(dest->area->area_flags, AREA_BLUEPRINT) )
 							{
 								// Nullify destination
@@ -2020,7 +2020,7 @@ bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, long lower, 
 		{
 			found = true;
 
-			if( !IS_SET(room->roomflag[1], ROOM_BLUEPRINT) &&
+			if( !IS_SET(room->room_flag[1], ROOM_BLUEPRINT) &&
 				!IS_SET(room->area->area_flags, AREA_BLUEPRINT) )
 			{
 				sprintf(buf, "{xRoom {W%ld{x is not allocated for use in blueprints.\n\r", room->vnum);
@@ -2028,7 +2028,7 @@ bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, long lower, 
 				valid = false;
 			}
 
-			if( IS_SET(room->roomflag[1], (ROOM_NOCLONE|ROOM_VIRTUAL_ROOM)) )
+			if( IS_SET(room->room_flag[1], (ROOM_NOCLONE|ROOM_VIRTUAL_ROOM)) )
 			{
 				sprintf(buf, "{xRoom {W%ld{x cannot be used in blueprints.\n\r", room->vnum);
 				add_buf(buffer, buf);
@@ -3940,56 +3940,9 @@ BPEDIT(bpedit_varset)
 {
     BLUEPRINT *blueprint;
 
-    char name[MIL];
-    char type[MIL];
-    char yesno[MIL];
-    bool saved;
-
 	EDIT_BLUEPRINT(ch, blueprint);
 
-    if (argument[0] == '\0') {
-	send_to_char("Syntax:  varset <name> <number|string|room> <yes|no> <value>\n\r", ch);
-	return false;
-    }
-
-    argument = one_argument(argument, name);
-    argument = one_argument(argument, type);
-    argument = one_argument(argument, yesno);
-
-    if(!variable_validname(name)) {
-	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
-	return false;
-    }
-
-    saved = !str_cmp(yesno,"yes");
-
-    if(!argument[0]) {
-	send_to_char("Set what on the variable?\n\r", ch);
-	return false;
-    }
-
-    if(!str_cmp(type,"room")) {
-	if(!is_number(argument)) {
-	    send_to_char("Specify a room vnum.\n\r", ch);
-	    return false;
-	}
-
-	variables_setindex_room(&blueprint->index_vars,name,atoi(argument),saved);
-    } else if(!str_cmp(type,"string"))
-	variables_setindex_string(&blueprint->index_vars,name,argument,false,saved);
-    else if(!str_cmp(type,"number")) {
-	if(!is_number(argument)) {
-	    send_to_char("Specify an integer.\n\r", ch);
-	    return false;
-	}
-
-	variables_setindex_integer(&blueprint->index_vars,name,atoi(argument),saved);
-    } else {
-	send_to_char("Invalid type of variable.\n\r", ch);
-	return false;
-    }
-    send_to_char("Variable set.\n\r", ch);
-    return true;
+	return olc_varset(&blueprint->index_vars, ch, argument, false);
 }
 
 BPEDIT(bpedit_varclear)
@@ -3998,23 +3951,7 @@ BPEDIT(bpedit_varclear)
 
 	EDIT_BLUEPRINT(ch, blueprint);
 
-    if (argument[0] == '\0') {
-	send_to_char("Syntax:  varclear <name>\n\r", ch);
-	return false;
-    }
-
-    if(!variable_validname(argument)) {
-	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
-	return false;
-    }
-
-    if(!variable_remove(&blueprint->index_vars,argument)) {
-	send_to_char("No such variable defined.\n\r", ch);
-	return false;
-    }
-
-    send_to_char("Variable cleared.\n\r", ch);
-    return true;
+	return olc_varclear(&blueprint->index_vars, ch, argument, false);
 }
 
 

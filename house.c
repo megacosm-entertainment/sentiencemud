@@ -34,7 +34,7 @@ void do_house(CHAR_DATA *ch, char *argument)
 
     if (!str_cmp(arg, "buy"))
     {
-        if (!IS_SET(ch->in_room->roomflag[0], ROOM_HOUSE_UNSOLD))
+        if (!IS_SET(ch->in_room->room_flag[0], ROOM_HOUSE_UNSOLD))
 	{
 	    send_to_char("This property is not for sale.\n\r", ch);
 	    return;
@@ -63,7 +63,7 @@ void do_house(CHAR_DATA *ch, char *argument)
 	act("{RA big hairy gnome disappears in a flash of lightning.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	act("{RA big hairy gnome disappears in a flash of lightning.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
-	REMOVE_BIT(ch->in_room->roomflag[0], ROOM_HOUSE_UNSOLD);
+	REMOVE_BIT(ch->in_room->room_flag[0], ROOM_HOUSE_UNSOLD);
 
 	ch->home = ch->in_room->vnum;
 	ch->in_room->home_owner = str_dup( ch->name );
@@ -133,31 +133,31 @@ void do_house(CHAR_DATA *ch, char *argument)
 	if (!str_cmp(arg2, "cpk"))
 	{
 	    send_to_char("This room is now CPK!\n\r", ch);
-	    SET_BIT(ch->in_room->roomflag[0], ROOM_CPK);
+	    SET_BIT(ch->in_room->room_flag[0], ROOM_CPK);
 	    ch->gold -= 5000;
 	}
 	else if (!str_cmp(arg2, "pk"))
 	{
 	    send_to_char("This room is now PK!\n\r", ch);
-	    SET_BIT(ch->in_room->roomflag[0], ROOM_PK);
+	    SET_BIT(ch->in_room->room_flag[0], ROOM_PK);
 	    ch->gold -= 5000;
 	}
 	else if (!str_cmp(arg2, "private"))
 	{
 	    send_to_char("This room is now PRIVATE!\n\r", ch);
-	    SET_BIT(ch->in_room->roomflag[0], ROOM_PRIVATE);
+	    SET_BIT(ch->in_room->room_flag[0], ROOM_PRIVATE);
 	    ch->gold -= 5000;
 	}
 	else if (!str_cmp(arg2, "underwater"))
 	{
 	    send_to_char("This room is now filled with water!\n\r", ch);
-	    SET_BIT(ch->in_room->roomflag[0], ROOM_UNDERWATER);
+	    SET_BIT(ch->in_room->room_flag[0], ROOM_UNDERWATER);
 	    ch->gold -= 5000;
 	}
 	else if (!str_cmp(arg2, "safe"))
 	{
 	    send_to_char("This room is now a SAFE ROOM!\n\r", ch);
-	    SET_BIT(ch->in_room->roomflag[0], ROOM_SAFE);
+	    SET_BIT(ch->in_room->room_flag[0], ROOM_SAFE);
 	    ch->gold -= 5000;
 	}
 	else
@@ -335,7 +335,7 @@ void do_gohome(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (IS_SET(ch->in_room->roomflag[0], ROOM_NO_RECALL))
+    if (IS_SET(ch->in_room->room_flag[0], ROOM_NO_RECALL))
     {
 	send_to_char("Not from this room.\n\r", ch);
 	return;

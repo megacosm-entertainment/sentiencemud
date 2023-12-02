@@ -669,7 +669,7 @@ SPELL_FUNC(spell_word_of_recall)
 	}
 
 	//Added area_no_recall check to go with corresponding area flag - Areo 08-10-2006
-	if (IS_SET(victim->in_room->roomflag[0],ROOM_NO_RECALL) || IS_AFFECTED(victim,AFF_CURSE) || IS_SET(victim->in_room->area->area_flags, AREA_NO_RECALL)) {
+	if (IS_SET(victim->in_room->room_flag[0],ROOM_NO_RECALL) || IS_AFFECTED(victim,AFF_CURSE) || IS_SET(victim->in_room->area->area_flags, AREA_NO_RECALL)) {
 		send_to_char("Your attempt to recall has failed.\n\r",victim);
 		return false;
 	}

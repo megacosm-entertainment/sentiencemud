@@ -691,7 +691,7 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
             }
 						break;
 				case 5:
-						if (number_percent() < 30 && !IS_SET(ch->in_room->roomflag[0], ROOM_SAFE) && ch->fighting == NULL)
+						if (number_percent() < 30 && !IS_SET(ch->in_room->room_flag[0], ROOM_SAFE) && ch->fighting == NULL)
 						{
 							act("{YZAAAAAAAAAAAAAAP! You are struck by a bolt from the sky...{x\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 							damage(ch, ch, number_range(500,30000), 0, DAM_LIGHTNING, false);

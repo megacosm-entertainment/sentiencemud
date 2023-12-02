@@ -270,8 +270,8 @@ ROOM_INDEX_DATA *create_vroom(WILDS_DATA *pWilds,
     pRoomIndex->name            = str_dup(pTerrain->template->name);
     pRoomIndex->description     = NULL;
     pRoomIndex->owner           = NULL;
-    pRoomIndex->roomflag[0]      = pTerrain->template->roomflag[0];
-    pRoomIndex->roomflag[1]	= pTerrain->template->roomflag[1]|ROOM_VIRTUAL_ROOM;
+    pRoomIndex->room_flag[0]      = pTerrain->template->room_flag[0];
+    pRoomIndex->room_flag[1]	= pTerrain->template->room_flag[1]|ROOM_VIRTUAL_ROOM;
     pRoomIndex->sector_type     = pTerrain->template->sector_type;
     pRoomIndex->parent_template = pTerrain;
     pRoomIndex->heal_rate       = 100;
@@ -368,7 +368,7 @@ void destroy_wilds_vroom(ROOM_INDEX_DATA *pRoomIndex)
     }
 
 	// A persistant or non-wilderness room
-	if( pRoomIndex->persist || !IS_SET(pRoomIndex->roomflag[1], ROOM_VIRTUAL_ROOM)) {
+	if( pRoomIndex->persist || !IS_SET(pRoomIndex->room_flag[1], ROOM_VIRTUAL_ROOM)) {
 //		sprintf(buf, "destroy_wilds_vroom: %ld %ld - persist %s, virtual room %s", pRoomIndex->x, pRoomIndex->y, (pRoomIndex->persist ? "YES" : "NO"), (IS_SET(pRoomIndex->room2_flags, ROOM_VIRTUAL_ROOM)?"YES":"NO"));
 //		wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 		return;
@@ -1130,7 +1130,7 @@ bool link_vlink(WILDS_VLINK *pVLink)
         // if the static room happens to be loaded up
         if ((pRevRoom=get_room_index(pVLink->destvnum))!=NULL)
         {
-			if( IS_SET(pRevRoom->roomflag[1], ROOM_BLUEPRINT) ||
+			if( IS_SET(pRevRoom->room_flag[1], ROOM_BLUEPRINT) ||
 				IS_SET(pRevRoom->area->area_flags, AREA_BLUEPRINT) )
 			{
 				plogf("wilds.c, link_vlink(): Room involved in blueprints.");
@@ -1340,36 +1340,36 @@ void show_vroom_header_to_char(WILDS_TERRAIN *pTerrain, WILDS_DATA *pWilds, int 
 	linelength = strlen(pTerrain->template->name);
 	linelength = 50 - linelength;
 
-	if (IS_SET(pTerrain->template->roomflag[0], ROOM_SAFE))
+	if (IS_SET(pTerrain->template->room_flag[0], ROOM_SAFE))
 		sprintf(buf, "\n\r {W%s", pTerrain->template->name);
-	else if (IS_SET(pTerrain->template->roomflag[0], ROOM_UNDERWATER))
+	else if (IS_SET(pTerrain->template->room_flag[0], ROOM_UNDERWATER))
 		sprintf(buf, "\n\r {C%s", pTerrain->template->name);
 	else
 		sprintf(buf, "\n\r {Y%s", pTerrain->template->name);
 
 	send_to_char(buf, to);
 
-	if (IS_SET(pTerrain->template->roomflag[0], ROOM_PK) && IS_SET(pTerrain->template->roomflag[0], ROOM_CPK)) {
+	if (IS_SET(pTerrain->template->room_flag[0], ROOM_PK) && IS_SET(pTerrain->template->room_flag[0], ROOM_CPK)) {
 		sprintf(buf, "  {M[CNPK ROOM]");
 		send_to_char(buf, to);
 		linelength -= 13;
-	} else if (IS_SET(pTerrain->template->roomflag[0], ROOM_CPK)) {
+	} else if (IS_SET(pTerrain->template->room_flag[0], ROOM_CPK)) {
 		sprintf(buf, "  {M[CPK ROOM]");
 		send_to_char(buf, to);
 		linelength -= 12;
-	} else if (IS_SET(pTerrain->template->roomflag[0], ROOM_PK)) {
+	} else if (IS_SET(pTerrain->template->room_flag[0], ROOM_PK)) {
 		sprintf(buf, "  {R[NPK ROOM]");
 		send_to_char(buf, to);
 		linelength -= 12;
 	}
 
-	if (IS_SET(pTerrain->template->roomflag[1], ROOM_MULTIPLAY)) {
+	if (IS_SET(pTerrain->template->room_flag[1], ROOM_MULTIPLAY)) {
 		sprintf(buf, "  {W[FREE FOR ALL]");
 		send_to_char(buf, to);
 		linelength -= 16;
 	}
 
-	if (IS_SET(pTerrain->template->roomflag[0], ROOM_HOUSE_UNSOLD)) {
+	if (IS_SET(pTerrain->template->room_flag[0], ROOM_HOUSE_UNSOLD)) {
 		sprintf(buf, "  {R[PRIME REAL ESTATE]");
 		send_to_char(buf, to);
 		linelength -= 21;
@@ -1681,7 +1681,7 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 		if (d->connected == CON_PLAYING && d->character != to &&
 			can_see(to, d->character) &&
 			(d->character->in_room->wilds == pWilds ||
-				(d->character->in_room->viewwilds == pWilds && IS_SET(d->character->in_room->roomflag[1],ROOM_VISIBLE_ON_MAP))) &&
+				(d->character->in_room->viewwilds == pWilds && IS_SET(d->character->in_room->room_flag[1],ROOM_VISIBLE_ON_MAP))) &&
 			(d->character->in_room->x >= vp_startx && d->character->in_room->x <= vp_endx) &&
 			(d->character->in_room->y >= vp_starty && d->character->in_room->y <= vp_endy))
 		{
@@ -2942,7 +2942,7 @@ void link_vlinks (WILDS_DATA *pWilds)
             continue;
         }
 
-        if (IS_SET(pRevLinkRoomIndex->roomflag[1], ROOM_BLUEPRINT) ||
+        if (IS_SET(pRevLinkRoomIndex->room_flag[1], ROOM_BLUEPRINT) ||
         	IS_SET(pRevLinkRoomIndex->area->area_flags, AREA_BLUEPRINT))
         {
             plogf("wilds.c, apply_vlink(): destvnum %ld involved in blueprints.", pVLink->destvnum);

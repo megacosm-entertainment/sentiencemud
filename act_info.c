@@ -1466,7 +1466,7 @@ void do_survey(CHAR_DATA *ch, char *argument)
 		}
 
 		long bonus_view;
-		if( IS_SET(ch->in_room->roomflag[0], ROOM_VIEWWILDS) )
+		if( IS_SET(ch->in_room->room_flag[0], ROOM_VIEWWILDS) )
 			bonus_view = 8;
 		else
 			bonus_view = 2;
@@ -1787,7 +1787,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	linelength = 0;
 
 	if (IS_IMMORTAL(ch) && (IS_NPC(ch) || IS_SET(ch->act[0], PLR_HOLYLIGHT))) {
-		if (IS_SET(room->roomflag[1], ROOM_VIRTUAL_ROOM)) {
+		if (IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM)) {
 			if(room->wilds) {
 				sprintf (buf, "\n\r{C [ Area: %ld '%s', Wilds uid: %ld '%s', Vroom (%ld, %ld) ]{x",
 					room->area->anum, room->area->name,
@@ -1828,30 +1828,30 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	linelength = strlen(room->name);
 	linelength = 50 - linelength;
 
-	if (IS_SET(room->roomflag[0], ROOM_SAFE))
+	if (IS_SET(room->room_flag[0], ROOM_SAFE))
 		sprintf(buf, "\n\r {W%s", room->name);
-	else if (IS_SET(room->roomflag[0], ROOM_UNDERWATER))
+	else if (IS_SET(room->room_flag[0], ROOM_UNDERWATER))
 		sprintf(buf, "\n\r {C%s", room->name);
 	else
 		sprintf(buf, "\n\r {Y%s", room->name);
 
 	send_to_char(buf, ch);
 
-	if (IS_SET(room->roomflag[0], ROOM_PK) && IS_SET(room->roomflag[0], ROOM_CPK)) {
+	if (IS_SET(room->room_flag[0], ROOM_PK) && IS_SET(room->room_flag[0], ROOM_CPK)) {
 		sprintf(buf, "  {M[CNPK ROOM]");
 		send_to_char(buf, ch);
 		linelength -= 13;
-	} else if (IS_SET(room->roomflag[0], ROOM_CPK)) {
+	} else if (IS_SET(room->room_flag[0], ROOM_CPK)) {
 		sprintf(buf, "  {M[CPK ROOM]");
 		send_to_char(buf, ch);
 		linelength -= 12;
-	} else if (IS_SET(room->roomflag[0], ROOM_PK)) {
+	} else if (IS_SET(room->room_flag[0], ROOM_PK)) {
 		sprintf(buf, "  {R[NPK ROOM]");
 		send_to_char(buf, ch);
 		linelength -= 12;
 	}
 
-	if (IS_SET(room->roomflag[1], ROOM_MULTIPLAY)) {
+	if (IS_SET(room->room_flag[1], ROOM_MULTIPLAY)) {
 		sprintf(buf, "  {W[FREE FOR ALL]");
 		send_to_char(buf, ch);
 		linelength -= 16;
@@ -1865,7 +1865,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 		}
 	}
 
-	if (IS_SET(room->roomflag[0], ROOM_HOUSE_UNSOLD)) {
+	if (IS_SET(room->room_flag[0], ROOM_HOUSE_UNSOLD)) {
 		sprintf(buf, "  {R[PRIME REAL ESTATE]");
 		send_to_char(buf, ch);
 		linelength -= 21;
@@ -1997,7 +1997,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	send_to_char("{x\n\r", ch);
 
 	if (!automatic || ((!IS_NPC(ch) || IS_SWITCHED(ch)) && !IS_SET(ch->comm, COMM_BRIEF))) {
-		if (IS_WILDERNESS(room) || IS_SET(room->roomflag[0], ROOM_VIEWWILDS)) {
+		if (IS_WILDERNESS(room) || IS_SET(room->room_flag[0], ROOM_VIEWWILDS)) {
 			send_to_char("\n\r", ch);
 		} else {
 			if (room->chat_room != NULL) {
@@ -2020,8 +2020,8 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 				for (dir = 0; dir < MAX_DIR; dir++) {
 					if (room->exit[dir] != NULL &&
 						(to_room = room->exit[dir]->u1.to_room) != NULL) {
-						if (IS_SET(to_room->roomflag[0], ROOM_PK) ||
-							IS_SET(to_room->roomflag[0], ROOM_CPK) ||
+						if (IS_SET(to_room->room_flag[0], ROOM_PK) ||
+							IS_SET(to_room->room_flag[0], ROOM_CPK) ||
 							is_pk_safe_range(to_room, ch->pcdata->danger_range - 1, rev_dir[dir]) > -1) {
 							if (buf[0] == '\0')
 								sprintf(buf, "{RYou sense danger to the: %s", dir_name[dir]);
@@ -2042,7 +2042,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 
 #if 1
 			if (!IS_SET(ch->comm, COMM_NOMAP) && /*!ON_SHIP(ch) &&*/
-				!IS_SET(room->roomflag[0], ROOM_NOMAP) &&
+				!IS_SET(room->room_flag[0], ROOM_NOMAP) &&
 				!IS_SET(room->area->area_flags, AREA_NOMAP))
 				show_map_and_description(ch, room);
 			else {
@@ -2062,10 +2062,10 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 
 	/* VIZZWILDS - Check if char is in a wilderness room, and if so display wilds map */
 	if (room->wilds && ((automatic && ((!IS_NPC(ch) &&
-		IS_SET(room->roomflag[1], ROOM_VIRTUAL_ROOM) &&
+		IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM) &&
 		!IS_SET(ch->comm, COMM_BRIEF)))) ||
 		(!automatic && !IS_NPC(ch) &&
-		IS_SET(room->roomflag[1], ROOM_VIRTUAL_ROOM)))) {
+		IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM)))) {
 		int vp_x, vp_y;
 
 		vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
@@ -2073,8 +2073,8 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 		show_map_to_char_wyx(room->wilds, room->x, room->y, ch, room->x, room->y, vp_x, vp_y, false);
 	}
 
-	if(!IS_NPC(ch) /*&& !IS_SET(room->roomflag[1], ROOM_VIRTUAL_ROOM)*/ &&
-		IS_SET(room->roomflag[0], ROOM_VIEWWILDS) &&
+	if(!IS_NPC(ch) /*&& !IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM)*/ &&
+		IS_SET(room->room_flag[0], ROOM_VIEWWILDS) &&
 		(!automatic || !IS_SET(ch->comm, COMM_BRIEF))) {
 		int vp_x, vp_y;
 		int x, y;
@@ -2285,7 +2285,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 
 				send_to_char("{MThe crystal ball sparks and splutters as an image appears.{x\n\r", ch);
 				if ((victim = get_char_world(ch, argument)) == NULL ||
-					(victim->in_room != NULL && IS_SET(victim->in_room->roomflag[0], ROOM_SAFE)))
+					(victim->in_room != NULL && IS_SET(victim->in_room->room_flag[0], ROOM_SAFE)))
 				{
 					send_to_char("{MThe image blurs and fades into nothing.{x\n\r", ch);
 					return;
@@ -2409,9 +2409,9 @@ void do_look(CHAR_DATA * ch, char *argument)
 							}
 
 							if (!can_see_room(ch,victim->in_room) ||
-								IS_SET(victim->in_room->roomflag[0], ROOM_NOVIEW) ||
-								IS_SET(victim->in_room->roomflag[0], ROOM_PRIVATE) ||
-								IS_SET(victim->in_room->roomflag[0], ROOM_SOLITARY))
+								IS_SET(victim->in_room->room_flag[0], ROOM_NOVIEW) ||
+								IS_SET(victim->in_room->room_flag[0], ROOM_PRIVATE) ||
+								IS_SET(victim->in_room->room_flag[0], ROOM_SOLITARY))
 							{
 								send_to_char("{DAll you see is darkness.{x\n\r", ch);
 								return;
@@ -3038,7 +3038,7 @@ void do_exits(CHAR_DATA * ch, char *argument)
 				} else if (!(to_room = pexit->u1.to_room))
 					continue;
 			} else if (IS_SET(pexit->exit_info, EX_ENVIRONMENT)) {
-				if(!IS_SET(ch->in_room->roomflag[1],ROOM_VIRTUAL_ROOM))
+				if(!IS_SET(ch->in_room->room_flag[1],ROOM_VIRTUAL_ROOM))
 					continue;
 
 				found = true;
@@ -5210,7 +5210,7 @@ void do_bank(CHAR_DATA * ch, char *argument)
     }
 
     if (!IS_IMMORTAL(ch)
-    && !IS_SET(room->roomflag[0], ROOM_BANK)
+    && !IS_SET(room->room_flag[0], ROOM_BANK)
     && !item)
     {
 	send_to_char("You can't do that here.\n\r", ch);
@@ -6151,7 +6151,7 @@ void show_map_to_char(CHAR_DATA *ch, CHAR_DATA *to, int bonus_view_x, int bonus_
 				}
 				else
 					if (can_see_obj(ch, ship->ship) &&
-							((ship->last_roomflag[0] != NULL && ship->last_roomflag[0]->x == x && ship->last_roomflag[0]->y == y) ||
+							((ship->last_room_flag[0] != NULL && ship->last_room_flag[0]->x == x && ship->last_room_flag[0]->y == y) ||
 							 (ship->last_room[1] != NULL && ship->last_room[1]->x == x && ship->last_room[1]->y == y) ||
 							 (ship->last_room[2] != NULL && ship->last_room[2]->x == x && ship->last_room[2]->y == y)))
 
@@ -7251,21 +7251,21 @@ char determine_room_type(ROOM_INDEX_DATA *room)
     if (room == NULL)
 	return '@';
 
-    if (IS_SET(room->roomflag[0], ROOM_CPK))
+    if (IS_SET(room->room_flag[0], ROOM_CPK))
 	return 'K';
     if (room_is_dark(room))
 	return 'D';
-    if (IS_SET(room->roomflag[0], ROOM_MOUNT_SHOP))
+    if (IS_SET(room->room_flag[0], ROOM_MOUNT_SHOP))
 	return 'M';
-    if (IS_SET(room->roomflag[0], ROOM_BANK))
+    if (IS_SET(room->room_flag[0], ROOM_BANK))
 	return 'B';
-    if (IS_SET(room->roomflag[0], ROOM_PK))
+    if (IS_SET(room->room_flag[0], ROOM_PK))
 	return 'V';
-    if (IS_SET(room->roomflag[0], ROOM_DEATH_TRAP))
+    if (IS_SET(room->room_flag[0], ROOM_DEATH_TRAP))
 	return 'A';
-    if (IS_SET(room->roomflag[0], ROOM_LOCKER))
+    if (IS_SET(room->room_flag[0], ROOM_LOCKER))
 	return 'L';
-    if (IS_SET(room->roomflag[1], ROOM_POST_OFFICE))
+    if (IS_SET(room->room_flag[1], ROOM_POST_OFFICE))
 	return 'P';
 
     for (ch = room->people; ch != NULL; ch = ch->next_in_room) {
@@ -7279,7 +7279,7 @@ char determine_room_type(ROOM_INDEX_DATA *room)
 	}
     }
 
-    if (IS_SET(room->roomflag[0], ROOM_SAFE))
+    if (IS_SET(room->room_flag[0], ROOM_SAFE))
 	return 'S';
 
     return 'R';
@@ -7453,7 +7453,7 @@ void do_where(CHAR_DATA * ch, char *argument)
 		&& (victim = d->character) != NULL && !IS_NPC(victim)
 		&& !IS_SWITCHED(ch)
 		&& victim->in_room != NULL
-		&& !IS_SET(victim->in_room->roomflag[0], ROOM_NOWHERE)
+		&& !IS_SET(victim->in_room->room_flag[0], ROOM_NOWHERE)
 		&& victim->in_room->area == ch->in_room->area
 		&& (!IS_MORPHED(victim) || (IS_MORPHED(victim) && can_see_shift(ch, victim)))
 		&& (!IS_SHIFTED(victim) || (IS_SHIFTED(victim) && can_see_shift(ch, victim)))

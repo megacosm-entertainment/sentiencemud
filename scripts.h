@@ -229,7 +229,7 @@ enum ifcheck_enum {
 	CHK_RECKONING,
 	CHK_RECKONINGCHANCE,CHK_RECKONINGCOOLDOWN,CHK_RECKONINGDURATION,CHK_RECKONINGINTENSITY,
 	CHK_REGISTER,
-	CHK_RES,CHK_ROLL,CHK_ROOM,CHK_ROOMFLAG,CHK_ROOMFLAG2,CHK_ROOMVIEWWILDS,
+	CHK_RES,CHK_ROLL,CHK_ROOM,CHK_room_flag,CHK_room_flag2,CHK_ROOMVIEWWILDS,
 	CHK_ROOMWEIGHT,CHK_ROOMWILDS,CHK_ROOMX,CHK_ROOMY,CHK_ROOMZ,
 
 	/* S */
@@ -1974,6 +1974,7 @@ DECL_OPC_FUN(opc_area);
 DECL_OPC_FUN(opc_instance);
 DECL_OPC_FUN(opc_dungeon);
 
+void pstat_variable_list(CHAR_DATA *ch, pVARIABLE vars);
 
 /* General */
 long script_flag_value( const struct flag_type *flag_table, char *argument);
@@ -2223,10 +2224,10 @@ SCRIPT_CMD(do_mpaltermob);
 SCRIPT_CMD(do_opaltermob);
 SCRIPT_CMD(do_rpaltermob);
 SCRIPT_CMD(do_tpaltermob);
-SCRIPT_CMD(do_mpalterobj);
-SCRIPT_CMD(do_opalterobj);
-SCRIPT_CMD(do_rpalterobj);
-SCRIPT_CMD(do_tpalterobj);
+//SCRIPT_CMD(do_mpalterobj);
+//SCRIPT_CMD(do_opalterobj);
+//SCRIPT_CMD(do_rpalterobj);
+//SCRIPT_CMD(do_tpalterobj);
 SCRIPT_CMD(do_mpalterroom);
 SCRIPT_CMD(do_opalterroom);
 SCRIPT_CMD(do_rpalterroom);
@@ -2675,6 +2676,14 @@ SCRIPT_CMD(scriptcmd_wildernessmap);
 SCRIPT_CMD(scriptcmd_specialkey);
 SCRIPT_CMD(scriptcmd_loadinstanced);
 SCRIPT_CMD(scriptcmd_startreckoning);
+SCRIPT_CMD(scriptcmd_stopreckoning);
+SCRIPT_CMD(scriptcmd_alterobj);
+
+bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);
+bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);
+void olc_show_index_vars(BUFFER *buffer, pVARIABLE index_vars);
+void olc_save_index_vars(FILE *fp, pVARIABLE index_vars, AREA_DATA *pRefArea);
+bool olc_load_index_vars(FILE *fp, char *word, ppVARIABLE index_vars, AREA_DATA *pRefArea);
 
 #include "tables.h"
 

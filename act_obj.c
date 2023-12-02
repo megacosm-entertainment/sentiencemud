@@ -4250,7 +4250,7 @@ void do_steal(CHAR_DATA *ch, char *argument)
 	     && number_percent() < get_skill(victim, gsn_deception))
          || (!IS_NPC(ch)
 	      && !IS_NPC(victim)
-	      && !IS_SET(ch->in_room->roomflag[0], ROOM_CPK)))
+	      && !IS_SET(ch->in_room->room_flag[0], ROOM_CPK)))
     {
 	send_to_char("Oops.\n\r", ch);
 	affect_strip(ch,gsn_sneak);
@@ -4328,7 +4328,7 @@ void do_steal(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (!IS_SET(ch->in_room->roomflag[0], ROOM_CPK) && !IS_NPC(victim) && !IS_NPC(ch))
+    if (!IS_SET(ch->in_room->room_flag[0], ROOM_CPK) && !IS_NPC(victim) && !IS_NPC(ch))
     {
 	send_to_char("You can only steal items in a CPK room.\n\r", ch);
 	return;
@@ -4982,7 +4982,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 	//
 	//////////////////////////////////////////
 #if 0
-    if (IS_SET(ch->in_room->roomflag[0], ROOM_PET_SHOP))
+    if (IS_SET(ch->in_room->room_flag[0], ROOM_PET_SHOP))
     {
 		CHAR_DATA *pet;
 		ROOM_INDEX_DATA *pRoomIndexNext;
@@ -5905,7 +5905,7 @@ void do_list(CHAR_DATA *ch, char *argument)
 	}
     }
 */
-    if (IS_SET(ch->in_room->roomflag[0], ROOM_SHIP_SHOP))
+    if (IS_SET(ch->in_room->room_flag[0], ROOM_SHIP_SHOP))
     {
 	/*sprintf(buf, "{G%s has the following vessels for sale:{x\n\r", crew_seller->short_descr);*/
 	/*send_to_char(buf, ch);*/
@@ -6045,8 +6045,8 @@ void do_list(CHAR_DATA *ch, char *argument)
     } */
 
 #if 0
-    if (IS_SET(ch->in_room->roomflag[0], ROOM_PET_SHOP) ||
-    	IS_SET(ch->in_room->roomflag[0], ROOM_MOUNT_SHOP))
+    if (IS_SET(ch->in_room->room_flag[0], ROOM_PET_SHOP) ||
+    	IS_SET(ch->in_room->room_flag[0], ROOM_MOUNT_SHOP))
     {
 		ROOM_INDEX_DATA *pRoomIndexNext;
 		CHAR_DATA *pet;
@@ -6089,7 +6089,7 @@ void do_list(CHAR_DATA *ch, char *argument)
 
 		if (!found)
 		{
-			if (IS_SET(ch->in_room->roomflag[0], ROOM_PET_SHOP)) {
+			if (IS_SET(ch->in_room->room_flag[0], ROOM_PET_SHOP)) {
 				send_to_char("Sorry, we're out of pets right now.\n\r", ch);
 			} else {
 				send_to_char("Sorry, we're out of mounts right now.\n\r", ch);
@@ -7393,7 +7393,7 @@ void brew_end(CHAR_DATA *ch, int16_t sn)
         get_skill(ch, sn)/3 - 10 +
         (get_curr_stat(ch, STAT_CON))/4;
 
-    if (IS_SET(ch->in_room->roomflag[1], ROOM_ALCHEMY))
+    if (IS_SET(ch->in_room->room_flag[1], ROOM_ALCHEMY))
         chance = (chance * 3)/2;
 
     chance = URANGE(1, chance, 98);
@@ -7735,7 +7735,7 @@ void scribe_end(CHAR_DATA *ch, int16_t sn, int16_t sn2, int16_t sn3)
     else
         chance = get_skill(ch, gsn_scribe) / 2 + get_skill(ch, gsn_scribe) / 3;
 
-    if (IS_SET(ch->in_room->roomflag[1], ROOM_ALCHEMY))
+    if (IS_SET(ch->in_room->room_flag[1], ROOM_ALCHEMY))
         chance = (chance * 3)/2;
 
     chance = URANGE(1, chance, 98);

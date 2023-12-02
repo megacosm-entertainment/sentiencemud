@@ -53,6 +53,7 @@ static void ReportBug( const char *apText )
    bug( apText, 0 );
 }
 
+/*
 static void InfoMessage( descriptor_t *apDescriptor, const char *apData )
 {
    if (IS_SET(apDescriptor->character->act[0], PLR_COLOUR))
@@ -61,6 +62,7 @@ static void InfoMessage( descriptor_t *apDescriptor, const char *apData )
    Write (apDescriptor, "[INFO]");
    Write( apDescriptor, apData );
 }
+*/
 
 static void CompressStart( descriptor_t *apDescriptor )
 {
