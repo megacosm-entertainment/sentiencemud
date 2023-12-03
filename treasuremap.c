@@ -262,7 +262,7 @@ void do_spawntreasuremap(CHAR_DATA *ch, char *argument)
 
 	if( map )
 	{
-		SET_BIT(treasure->extra2_flags, ITEM_BURIED);	// Bury the treasure, yar!
+		SET_BIT(treasure->extra[1], ITEM_BURIED);	// Bury the treasure, yar!
 
 		obj_to_char(map, ch);
 		act("You spawn $p out of thin air.", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR);

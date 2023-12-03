@@ -73,13 +73,13 @@ void do_locker(CHAR_DATA *ch, char* argument)
 	}
 
 	for (obj = ch->carrying; obj != NULL; obj = obj->next_content) {
-		if (IS_SET(obj->extra2_flags, ITEM_LOCKER)) {
+		if (IS_SET(obj->extra[1], ITEM_LOCKER)) {
 			item = true;
 			break;
 		}
 	}
 
-	if (!IS_SET(ch->in_room->room_flags, ROOM_LOCKER) && !item)
+	if (!IS_SET(ch->in_room->room_flag[0], ROOM_LOCKER) && !item)
 	{
 		send_to_char("You can't do that here.\n\r", ch);
 		return;
@@ -183,7 +183,7 @@ void do_locker(CHAR_DATA *ch, char* argument)
 			return;
 		}
 
-		if (IS_SET(obj->extra2_flags, ITEM_NOLOCKER) || obj_nest_clones(obj) > 0) {
+		if (IS_SET(obj->extra[1], ITEM_NOLOCKER) || obj_nest_clones(obj) > 0) {
 			send_to_char("You can't put that item in your locker.\n\r", ch);
 			return;
 		}

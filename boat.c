@@ -1878,7 +1878,7 @@ bool is_ship_safe(CHAR_DATA *ch, SHIP_DATA *ship, SHIP_DATA *ship2)
 		if( !ship->ship->in_room )
 			return false;
 
-		if( IS_SET(ship->ship->in_room->room2_flags, ROOM_SAFE_HARBOR) )
+		if( IS_SET(ship->ship->in_room->room_flag[1], ROOM_SAFE_HARBOR) )
 			return true;
 
 		return false;
@@ -1929,7 +1929,7 @@ void get_ship_wildsicon(SHIP_DATA *ship, char *buf, size_t len)
 void get_ship_location(CHAR_DATA *ch, SHIP_DATA *ship, char *buf, size_t len)
 {
 	ROOM_INDEX_DATA *room = obj_room(ship->ship);
-	if( IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT) )
+	if( IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT) )
 	{
 		// Give exact location of ship
 		if( IS_WILDERNESS(room) )
@@ -2063,13 +2063,13 @@ void ship_autosurvey( SHIP_DATA *ship )
 		victim = d->original ? d->original : d->character;
 
 		if( d->connected == CON_PLAYING &&
-			IS_SET(victim->act2, PLR_AUTOSURVEY) &&
+			IS_SET(victim->act[1], PLR_AUTOSURVEY) &&
 			victim->in_room != NULL &&
 			ischar_onboard_ship(victim, ship) &&
 			IS_AWAKE(victim) &&
 			(IS_OUTSIDE(victim) ||
-				IS_SET(victim->in_room->room_flags, ROOM_SHIP_HELM) ||
-				IS_SET(victim->in_room->room_flags, ROOM_VIEWWILDS)) )
+				IS_SET(victim->in_room->room_flag[0], ROOM_SHIP_HELM) ||
+				IS_SET(victim->in_room->room_flag[0], ROOM_VIEWWILDS)) )
 		{
 			do_function(victim, &do_survey, "auto" );
 		}
@@ -2352,7 +2352,7 @@ void do_ships(CHAR_DATA *ch, char *argument)
 
 bool ship_can_issue_command(CHAR_DATA *ch, SHIP_DATA *ship)
 {
-	if (!IS_SET(ch->in_room->room_flags, ROOM_SHIP_HELM))
+	if (!IS_SET(ch->in_room->room_flag[0], ROOM_SHIP_HELM))
 	{
 		return false;
 	}
@@ -2599,7 +2599,7 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 	// First Mates can always execute orders on their ship as they were assigned that role
 	if( ch != ship->first_mate )
 	{
-		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act2, PLR_HOLYAURA)) && !ship_isowner_player(ship, ch))
+		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act[1], PLR_HOLYAURA)) && !ship_isowner_player(ship, ch))
 		{
 			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			return;
@@ -2622,7 +2622,7 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 					act("You give the order to your first mate to 'steer $T'.", ch, NULL, NULL, NULL, NULL, NULL, command, TO_CHAR);
 					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-					if( IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT) )
+					if( IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT) )
 					{
 						sprintf(buf, "{MFirst Mate Delay: {W%d{x\n\r", delay);
 						send_to_char(buf, ch);
@@ -2845,7 +2845,7 @@ void do_ship_engines( CHAR_DATA *ch, char *argument )
 	// First Mates can always execute orders on their ship as they were assigned that role
 	if( ch != ship->first_mate )
 	{
-		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act2, PLR_HOLYAURA)) && !ship_isowner_player(ship, ch))
+		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act[1], PLR_HOLYAURA)) && !ship_isowner_player(ship, ch))
 		{
 			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			return;
@@ -2868,7 +2868,7 @@ void do_ship_engines( CHAR_DATA *ch, char *argument )
 					act("You give the order to your first mate to 'engines $T'.", ch, NULL, NULL, NULL, NULL, NULL, command, TO_CHAR);
 					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-					if( IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT) )
+					if( IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT) )
 					{
 						sprintf(buf, "{MFirst Mate Delay: {W%d{x\n\r", delay);
 						send_to_char(buf, ch);
@@ -3078,7 +3078,7 @@ void do_ship_sails( CHAR_DATA *ch, char *argument )
 	// First Mates can always execute orders on their ship as they were assigned that role
 	if( ch != ship->first_mate )
 	{
-		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act2, PLR_HOLYAURA)) && !ship_isowner_player(ship, ch))
+		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act[1], PLR_HOLYAURA)) && !ship_isowner_player(ship, ch))
 		{
 			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			return;
@@ -3101,7 +3101,7 @@ void do_ship_sails( CHAR_DATA *ch, char *argument )
 					act("You give the order to your first mate to 'sails $T'.", ch, NULL, NULL, NULL, NULL, NULL, command, TO_CHAR);
 					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-					if( IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT) )
+					if( IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT) )
 					{
 						sprintf(buf, "{MFirst Mate Delay: {W%d{x\n\r", delay);
 						send_to_char(buf, ch);
@@ -3358,7 +3358,7 @@ void do_ship_aim( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
-	if (!IS_SET(ch->in_room->room_flags, ROOM_SHIP_HELM))
+	if (!IS_SET(ch->in_room->room_flag[0], ROOM_SHIP_HELM))
 	{
 		act("You must be at the helm of the vessel to order an attack.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return;
@@ -3985,7 +3985,7 @@ void do_ship_oars( CHAR_DATA *ch, char *argument )
 	// First Mates can always execute orders on their ship as they were assigned that role
 	if( ch != ship->first_mate )
 	{
-		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act2, PLR_HOLYAURA)) && !ship_isowner_player(ship, ch))
+		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act[1], PLR_HOLYAURA)) && !ship_isowner_player(ship, ch))
 		{
 			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			return;
@@ -4008,7 +4008,7 @@ void do_ship_oars( CHAR_DATA *ch, char *argument )
 					act("You give the order to your first mate to 'sails $T'.", ch, NULL, NULL, NULL, NULL, NULL, command, TO_CHAR);
 					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-					if( IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT) )
+					if( IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT) )
 					{
 						sprintf(buf, "{MFirst Mate Delay: {W%d{x\n\r", delay);
 						send_to_char(buf, ch);
@@ -4235,7 +4235,7 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 	// First Mates can always execute orders on their ship as they were assigned that role
 	if( ch != ship->first_mate )
 	{
-		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act2, PLR_HOLYAURA)) && !ship_isowner_player(ship, ch))
+		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act[1], PLR_HOLYAURA)) && !ship_isowner_player(ship, ch))
 		{
 			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			return;
@@ -4258,7 +4258,7 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 					act("You give the order to your first mate to 'land'.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-					if( IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT) )
+					if( IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT) )
 					{
 						sprintf(buf, "{MFirst Mate Delay: {W%d{x\n\r", delay);
 						send_to_char(buf, ch);
@@ -4452,7 +4452,7 @@ void do_ship_launch(CHAR_DATA *ch, char *argument)
 	// First Mates can always execute orders on their ship as they were assigned that role
 	if( ch != ship->first_mate )
 	{
-		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act2, PLR_HOLYAURA)) && !ship_isowner_player(ship, ch))
+		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act[1], PLR_HOLYAURA)) && !ship_isowner_player(ship, ch))
 		{
 			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			return;
@@ -4475,7 +4475,7 @@ void do_ship_launch(CHAR_DATA *ch, char *argument)
 					act("You give the order to your first mate to 'launch'.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-					if( IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT) )
+					if( IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT) )
 					{
 						sprintf(buf, "{MFirst Mate Delay: {W%d{x\n\r", delay);
 						send_to_char(buf, ch);
@@ -7003,7 +7003,7 @@ bool is_shipyard_valid(long wuid, int x1, int y1, int x2, int y2)
 			if( terrain && !terrain->nonroom &&
 				(terrain->template->sector_type == SECT_WATER_NOSWIM ||
 				 terrain->template->sector_type == SECT_WATER_SWIM) &&
-				IS_SET(terrain->template->room2_flags, ROOM_SAFE_HARBOR) )
+				IS_SET(terrain->template->room_flag[1], ROOM_SAFE_HARBOR) )
 			{
 
 				if( _is_terrain_land(wilds, x-1,y) ||
@@ -7037,7 +7037,7 @@ bool get_shipyard_location(long wuid, int x1, int y1, int x2, int y2, int *x, in
 		if( terrain && !terrain->nonroom &&
 			(terrain->template->sector_type == SECT_WATER_NOSWIM ||
 			 terrain->template->sector_type == SECT_WATER_SWIM) &&
-			IS_SET(terrain->template->room2_flags, ROOM_SAFE_HARBOR) )
+			IS_SET(terrain->template->room_flag[1], ROOM_SAFE_HARBOR) )
 		{
 			if( _is_terrain_land(wilds, _x-1,_y) ||
 				_is_terrain_land(wilds, _x+1,_y) ||
@@ -7649,12 +7649,12 @@ SHEDIT( shedit_blueprint )
 
 			if( room )
 			{
-				if( IS_SET(room->room_flags, ROOM_SHIP_HELM) )
+				if( IS_SET(room->room_flag[0], ROOM_SHIP_HELM) )
 				{
 					helm = true;
 				}
 
-				if( IS_SET(room->room_flags, ROOM_VIEWWILDS) )
+				if( IS_SET(room->room_flag[0], ROOM_VIEWWILDS) )
 				{
 					viewwilds = true;
 				}
@@ -7674,12 +7674,12 @@ SHEDIT( shedit_blueprint )
 
 					if( room )
 					{
-						if( IS_SET(room->room_flags, ROOM_SHIP_HELM) )
+						if( IS_SET(room->room_flag[0], ROOM_SHIP_HELM) )
 						{
 							helm = true;
 						}
 
-						if( IS_SET(room->room_flags, ROOM_VIEWWILDS) )
+						if( IS_SET(room->room_flag[0], ROOM_VIEWWILDS) )
 						{
 							viewwilds = true;
 						}

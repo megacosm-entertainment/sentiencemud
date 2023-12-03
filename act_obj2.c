@@ -38,7 +38,7 @@ void do_deposit(CHAR_DATA *ch, char *argument)
     /* GQ section */
     for (mob = room->people; mob != NULL; mob = mob->next_in_room)
     {
-	if (IS_SET(mob->act2, ACT2_GQ_MASTER))
+	if (IS_SET(mob->act[1], ACT2_GQ_MASTER))
 	    break;
     }
 
@@ -392,7 +392,7 @@ void do_lore(CHAR_DATA *ch, char *argument)
     mob = NULL;
     for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
     {
-	if (IS_SET(mob->act2, ACT2_LOREMASTER))
+	if (IS_SET(mob->act[1], ACT2_LOREMASTER))
 	    break;
     }
 
@@ -582,7 +582,7 @@ void do_lore(CHAR_DATA *ch, char *argument)
     scroll->extra_descr = ed;
     ed->description = str_dup(buf);
 
-    SET_BIT(scroll->extra_flags, ITEM_GLOW);
+    SET_BIT(scroll->extra[0], ITEM_GLOW);
 
     act("$N gives you $p.", ch, mob, NULL, scroll, NULL, NULL, NULL, TO_CHAR);
     act("$N gives $n $p.", ch, mob, NULL, scroll, NULL, NULL, NULL, TO_ROOM);
@@ -844,14 +844,14 @@ void do_keep(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (IS_SET(obj->extra2_flags, ITEM_KEPT))
+    if (IS_SET(obj->extra[1], ITEM_KEPT))
     {
-	REMOVE_BIT(obj->extra2_flags, ITEM_KEPT);
+	REMOVE_BIT(obj->extra[1], ITEM_KEPT);
 	act("You will no longer keep $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
     }
     else
     {
-	SET_BIT(obj->extra2_flags, ITEM_KEPT);
+	SET_BIT(obj->extra[1], ITEM_KEPT);
 	act("You will now keep $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
     }
 }
@@ -860,8 +860,8 @@ void do_keep(CHAR_DATA *ch, char *argument)
 /* Reset an obj for a new owner. Used in get, etc.*/
 void reset_obj(OBJ_DATA *obj)
 {
-    if (IS_SET(obj->extra2_flags, ITEM_KEPT))
-	REMOVE_BIT(obj->extra2_flags, ITEM_KEPT);
+    if (IS_SET(obj->extra[1], ITEM_KEPT))
+	REMOVE_BIT(obj->extra[1], ITEM_KEPT);
 
     obj->last_wear_loc = WEAR_NONE;
 }
@@ -1012,7 +1012,7 @@ void do_ruboff(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (IS_SET(obj->extra_flags, ITEM_NOREMOVE))
+    if (IS_SET(obj->extra[0], ITEM_NOREMOVE))
     {
 	send_to_char("The ink seems to be permanent.\n\r", ch);
 	return;
@@ -1172,7 +1172,7 @@ void ink_end( CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t
     else if (!sn3) chance = get_skill(ch, gsn_tattoo) / 2 + get_skill(ch, gsn_tattoo) / 3;
     else chance = get_skill(ch, gsn_tattoo) / 2;
 
-    if (IS_SET(ch->in_room->room2_flags, ROOM_ALCHEMY))
+    if (IS_SET(ch->in_room->room_flag[1], ROOM_ALCHEMY))
         chance = (chance * 3)/2;
 
     chance = URANGE(1, chance, 98);
@@ -1234,7 +1234,7 @@ void ink_end( CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t
 
 	level = ch->tot_level * ((n - 1) * chance + 100) / (n * 100);
 
-	if (IS_SET(ch->in_room->room2_flags, ROOM_ALCHEMY))
+	if (IS_SET(ch->in_room->room_flag[1], ROOM_ALCHEMY))
 		level = (ch->tot_level + level) / 2;
 
 
@@ -1374,9 +1374,9 @@ void do_activate(CHAR_DATA *ch, char *argument)
 	}
 	else
 	{
-    	if (IS_SET(obj->extra3_flags, ITEM_ACTIVATED))
+    	if (IS_SET(obj->extra[2], ITEM_ACTIVATED))
     	{
-			REMOVE_BIT(obj->extra3_flags, ITEM_ACTIVATED);
+			REMOVE_BIT(obj->extra[2], ITEM_ACTIVATED);
 			for (aff = obj->catalyst; aff != NULL; aff = aff->next)
 			{
 				aff->where = TO_CATALYST_DORMANT;
@@ -1386,7 +1386,7 @@ void do_activate(CHAR_DATA *ch, char *argument)
     	}
     	else
     	{
-			SET_BIT(obj->extra3_flags, ITEM_ACTIVATED);
+			SET_BIT(obj->extra[2], ITEM_ACTIVATED);
 			for (aff = obj->catalyst; aff != NULL; aff = aff->next)
 			{
 				aff->where = TO_CATALYST_ACTIVE;

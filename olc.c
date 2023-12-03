@@ -150,7 +150,7 @@ const struct olc_cmd_type redit_table[] =
     {   "owner",	redit_owner					},
     {	"persist",	redit_persist					},
     {	"room",		redit_room					},
-    {	"room2",	redit_room2					},
+    //{	"room2",	redit_room2					},
     {	"sector",	redit_sector					},
     {	"show",		redit_show					},
     {   "south",	redit_south					},
@@ -187,9 +187,9 @@ const struct olc_cmd_type oedit_table[] =
 	{ "description",	oedit_desc				},
 	{ "ed",				oedit_ed				},
 	{ "extra",			oedit_extra				},
-	{ "extra2",			oedit_extra2			},
-	{ "extra3",			oedit_extra3			},
-	{ "extra4",			oedit_extra4			},
+	//{ "extra2",			oedit_extra2			},
+	//{ "extra3",			oedit_extra3			},
+	//{ "extra4",			oedit_extra4			},
 	{ "fragility",		oedit_fragility			},
 	{ "level",			oedit_level				},
 	{ "lock",			oedit_lock				},
@@ -197,7 +197,7 @@ const struct olc_cmd_type oedit_table[] =
 	{ "material",		oedit_material			},
 	{ "name",			oedit_name				},
 	{ "next",			oedit_next				},
-	{ "oupdate",		oedit_update			},
+	//{ "oupdate",		oedit_update			},
 	{ "persist",		oedit_persist			},
 	{ "prev",			oedit_prev				},
 	{ "scriptkwd",		oedit_skeywds			},
@@ -257,10 +257,10 @@ const struct olc_cmd_type medit_table[] =
 {
     {   "?",		show_help	},
     {   "act",          medit_act       },
-    {   "act2",         medit_act2      },
+    //{   "act2",         medit_act2      },
     {   "addmprog",	medit_addmprog  },
     {   "affect",       medit_affect    },
-    {   "affect2",	medit_affect2   },
+    //{   "affect2",	medit_affect2   },
     {   "alignment",	medit_align	},
     {   "armour",        medit_ac        },
     {   "attacks",	medit_attacks   },
@@ -1307,7 +1307,7 @@ void do_redit(CHAR_DATA *ch, char *argument)
 
 	char_from_room(ch);
 	char_to_room(ch, pRoom);
-    } else if(pRoom && IS_SET(pRoom->room2_flags,ROOM_VIRTUAL_ROOM)) {
+    } else if(pRoom && IS_SET(pRoom->room_flag[1],ROOM_VIRTUAL_ROOM)) {
 	send_to_char("REdit : Virtual rooms may not be editted.\n\r", ch);
 	return;
     }
@@ -1916,7 +1916,7 @@ void display_resets(CHAR_DATA *ch)
 
 		    pRoomIndexPrev = get_room_index(pRoomIndex->vnum - 1);
 		    if (pRoomIndexPrev
-			&& IS_SET(pRoomIndexPrev->room_flags, ROOM_PET_SHOP))
+			&& IS_SET(pRoomIndexPrev->room_flag[0], ROOM_PET_SHOP))
 			final[5] = 'P';
 		}
 
@@ -2562,8 +2562,8 @@ void do_rcopy(CHAR_DATA *ch, char *argument)
     new_room->name = str_dup(old_room->name);
     new_room->description = str_dup(old_room->description);
     new_room->owner = str_dup(old_room->owner);
-    new_room->room_flags = old_room->room_flags;
-    new_room->room2_flags = old_room->room2_flags;
+    new_room->room_flag[0] = old_room->room_flag[0];
+    new_room->room_flag[1] = old_room->room_flag[1];
     new_room->sector_type = old_room->sector_type;
     new_room->heal_rate = old_room->heal_rate;
     new_room->mana_rate = old_room->mana_rate;
@@ -2656,10 +2656,10 @@ void do_mcopy(CHAR_DATA *ch, char *argument)
     new_mob->description = str_dup(old_mob->description);
     new_mob->comments   = str_dup(old_mob->comments);
 
-    new_mob->act          = old_mob->act;
-    new_mob->act2         = old_mob->act2;
-    new_mob->affected_by  = old_mob->affected_by;
-    new_mob->affected_by2 = old_mob->affected_by2;
+    new_mob->act[0]          = old_mob->act[0];
+    new_mob->act[1]         = old_mob->act[1];
+    new_mob->affected_by[0]  = old_mob->affected_by[0];
+    new_mob->affected_by[1] = old_mob->affected_by[1];
 
     new_mob->alignment    = old_mob->alignment;
     new_mob->level        = old_mob->level;
@@ -2816,8 +2816,10 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
     new_obj->full_description = str_dup(old_obj->full_description);
     new_obj->material = str_dup(old_obj->material);
     new_obj->item_type =  old_obj->item_type;
-    new_obj->extra_flags = old_obj->extra_flags;
-    new_obj->extra2_flags = old_obj->extra2_flags;
+    new_obj->extra[0] = old_obj->extra[0];
+    new_obj->extra[1] = old_obj->extra[1];
+    new_obj->extra[2] = old_obj->extra[2];
+    new_obj->extra[3] = old_obj->extra[3];
     new_obj->wear_flags = old_obj->wear_flags;
     new_obj->level = old_obj->level;
     new_obj->condition = old_obj->condition;
@@ -3547,7 +3549,7 @@ void set_weapon_dice(OBJ_INDEX_DATA *objIndex)
 	default: 						  	break;
     }
 
-    if (IS_SET(objIndex->extra2_flags, ITEM_REMORT_ONLY))
+    if (IS_SET(objIndex->extra[1], ITEM_REMORT_ONLY))
     {
 	type += 2;
 	num += 2;
@@ -3615,7 +3617,7 @@ void set_weapon_dice_obj(OBJ_DATA *obj)
 	default: 						  	break;
     }
 
-    if (IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY))
+    if (IS_SET(obj->extra[1], ITEM_REMORT_ONLY))
     {
 	type += 2;
 	num += 2;
@@ -3976,6 +3978,37 @@ SHOP_STOCK_DATA *get_shop_stock_bypos(SHOP_DATA *shop, int nth)
 	return NULL;
 
 
+}
+
+void olc_show_progs(BUFFER *buffer, LLIST **progs, int type, const char *title)
+{
+	char buf[MSL];
+	int cnt, slot;
+
+	for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++)
+		if(list_size(progs[slot]) > 0) ++cnt;
+
+	if (cnt > 0) {
+		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "Number", "MobProg Vnum", "Trigger", "Phrase");
+		add_buf(buffer, buf);
+
+		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "------", "-------------", "-------", "------");
+		add_buf(buffer, buf);
+
+		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
+            ITERATOR it;
+            PROG_LIST *trigger;
+			iterator_start(&it, progs[slot]);
+			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
+				sprintf(buf, "{C[{W%4d{C]{x %-20ld %-10s %-6s\n\r", cnt,
+					trigger->vnum,trigger_name(trigger->trig_type),
+					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, false, false));
+				add_buf(buffer, buf);
+				cnt++;
+			}
+			iterator_stop(&it);
+		}
+	}
 }
 
 /* Used for handling projects. */

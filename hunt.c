@@ -538,7 +538,7 @@ void do_hunt( CHAR_DATA *ch, char *argument )
     direction = find_path( ch->in_room->vnum, victim->in_room->vnum,
 	    ch, -1000, false );
 
-    if( direction == -1 || (IS_NPC(victim) && IS_SET(victim->act2, ACT2_NO_HUNT)))
+    if( direction == -1 || (IS_NPC(victim) && IS_SET(victim->act[1], ACT2_NO_HUNT)))
     {
 	act("You couldn't find a path to $N from here.\n\r", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	return;

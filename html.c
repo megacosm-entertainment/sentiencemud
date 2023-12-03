@@ -376,7 +376,7 @@ BUFFER *get_players_html()
 		wch->invis_level >= LEVEL_HERO ? "{W(Wizi) {x" : "",
 		//IS_SET(wch->comm, COMM_AFK) ? "{M[AFK] {x" : "",
 		//IS_SET(wch->comm, COMM_QUIET) ? "{R[Q] {x" : "",
-		IS_SET(wch->act, PLR_BOTTER) ? "{G[BOTTER] {x" : "",
+		IS_SET(wch->act[0], PLR_BOTTER) ? "{G[BOTTER] {x" : "",
 		wch->name);
 
 		free_string(area_type);
@@ -399,7 +399,7 @@ BUFFER *get_players_html()
 		    add_buf(output, "");
 		}
 
-		if (IS_SET(wch->act,PLR_HELPER))
+		if (IS_SET(wch->act[0],PLR_HELPER))
 		{
 		    add_buf(output, " {W[H]{X");
 		}

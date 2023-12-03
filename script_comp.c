@@ -401,7 +401,7 @@ char *compile_entity(char *str,int type, char **store)
 			*p++ = ENTITY_VAR_STR;
 			next_ent = ENT_STRING;
 
-		} else if(ent == ENT_BITVECTOR) {
+		} else if(ent == ENT_BITVECTOR || ent == ENT_BITMATRIX) {
 			if(suffix[0]) {
 				sprintf(buf,"Line %d: type suffix is only allowed for variable fields.", compile_current_line);
 				compile_error_show(buf);
@@ -764,6 +764,43 @@ char *compile_string(char *str, int type, int *length, bool doquotes)
 	return result;
 }
 
+char *parse_number(char *str, long *value)
+{
+    long number;
+    bool sign;
+
+	str = skip_whitespace(str);
+
+    number = 0;
+
+    sign   = false;
+    if (*str == '+')
+		++str;
+    else if (*str == '-')
+    {
+		sign = true;
+		++str;
+    }
+
+    if (!isdigit(*str))
+		return NULL;
+
+    while (isdigit(*str))
+    {
+		number = number * 10 + *str - '0';
+		++str;
+    }
+
+    if (sign)
+		number = 0 - number;
+
+	if (*str == ' ')
+		str = skip_whitespace(str);
+
+	*value = number;
+	return str;
+}
+
 bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 {
 	BOOLEXP *bool_exp = NULL, *bool_exp_root = NULL;
@@ -771,10 +808,13 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 	SCRIPT_CODE *code;
 	char *src, *start, *line, eol;
 	char buf[MIL], rbuf[MSL];
-	bool comment, neg, doquotes, valid, linevalid, disable, inspect, processrest, incline, muted, mute_used;
+	bool comment, neg, doquotes, valid, linevalid, disable, inspect, processrest, incline, muted, mute_used, last_case, got_case;
 	int state[MAX_NESTED_LEVEL];
 	int loops[MAX_NESTED_LOOPS];
-	int i, x, y, level, loop, rline, cline, lines, length, errors,named_labels, bool_exp_cline;
+	struct switch_data *switch_head = NULL;
+	struct switch_data *switch_tail = NULL;
+	struct switch_data *switches[MAX_NESTED_LEVEL];
+	int i, x, y, level, loop, nswitch, nswitches, rline, cline, lines, length, errors,named_labels, bool_exp_cline;
 	char *type_name;
 	const struct script_cmd_type *cmd;
 
@@ -852,6 +892,7 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 	// Initialize parsing
 	for(i=0;i<MAX_NESTED_LEVEL;i++) state[i] = IN_BLOCK;
 	for(i=0;i<MAX_NESTED_LOOPS;i++) loops[i] = -1;
+	for(i=0;i<MAX_NESTED_LEVEL;i++) switches[i] = NULL;
 	for(i=0;i<MAX_NAMED_LABELS;i++) labels[i][0] = 0;
 	i = 0;
 	cline = 0;
@@ -860,8 +901,14 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 	level = 0;
 	loop = 0;
 	named_labels = 0;
+	nswitch = 0;
+	nswitches = 0;
 	src = source;
 	eol = '\0';
+	switch_head = NULL;
+	switch_tail = NULL;
+	got_case = false;
+	last_case = false;
 
 	valid = true;
 	errors = 0;
@@ -889,6 +936,7 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 			linevalid = true;
 			processrest = true;
 			incline = true;
+			got_case = false;
 
 			do {
 
@@ -1541,6 +1589,202 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 					code[cline].opcode = OP_EXITWHILE;
 					code[cline].label = x;
 					state[level] = IN_BLOCK;
+				} else if(!str_cmp(buf,"switch")) {
+					if(state[level] == IN_SWITCH) {
+						sprintf(rbuf,"Line %d: Unexpected 'switch'.", rline);
+						compile_error_show(rbuf);
+						linevalid = false;
+						break;
+					}
+					code[cline].level = level;
+					code[cline].opcode = OP_SWITCH;
+
+					state[level++] = IN_SWITCH;
+					if (level >= MAX_NESTED_LEVEL) {
+						sprintf(rbuf,"Line %d: Nested levels too deep.", rline);
+						compile_error_show(rbuf);
+						linevalid = false;
+						break;
+					}
+					if(nswitch >= MAX_NESTED_LEVEL) {
+						sprintf(rbuf,"Line %d: too many nested switch in script.", rline);
+						compile_error_show(rbuf);
+						linevalid = false;
+						break;
+					}
+
+					state[level] = IN_BLOCK;
+					code[cline].param = nswitches;	// Which switch statement is it using?
+
+					struct switch_data *sw = alloc_mem(sizeof(struct switch_data));
+					memset(sw, 0, sizeof(*sw));
+
+					if (switch_tail)
+						switch_tail->next = sw;
+					else
+						switch_head = sw;
+					switch_tail = sw;
+					nswitches++;
+
+					switches[nswitch++] = sw;
+
+				} else if(!str_cmp(buf,"case")) {
+					// This needs to support multiple case statements such as
+					// case #
+					// case # #
+					// case #
+					//  code block #1
+					// case # #
+					// case #
+					//  code block #2
+					// ...
+
+					// Each number must be unique and not overlap another entry in the current switch
+
+					if (!level || state[level-1] != IN_SWITCH || !nswitch) {
+						sprintf(rbuf,"Line %d: case statement used outside of switch.", rline);
+						compile_error_show(rbuf);
+						linevalid = false;
+						break;
+					}
+
+					struct switch_case_data *_case;
+					long a, b;
+
+					line = parse_number(line, &a);	// case #
+					if (!line)
+					{
+						sprintf(rbuf,"Line %d: expected a number in case statement.", rline);
+						compile_error_show(rbuf);
+						linevalid = false;
+						break;
+					}
+
+					if (*line)		// case # # - inclusive range
+					{
+						line = parse_number(line, &b);
+
+						if (!line)
+						{
+							sprintf(rbuf,"Line %d: expected second number in range for case statement.", rline);
+							compile_error_show(rbuf);
+							linevalid = false;
+							break;
+						}
+					}
+					else
+						b = a;
+
+					if (a > b)
+					{
+						long x = a;
+						a = b;
+						b = x;
+					}
+
+					struct switch_data *sw = switches[nswitch-1];
+
+					// Verify uniqueness
+					struct switch_case_data *swc;
+					bool found = false;
+					for(swc = sw->case_head; swc; swc = swc->next)
+					{
+						// Is there overlap
+						if ((swc->a >= a && swc->a <= b) ||
+							(swc->b >= a && swc->b <= b) ||
+							(a >= swc->a && a <= swc->b) ||
+							(b >= swc->a && b <= swc->b))
+						{
+							found = true;
+							break;
+						}
+					}
+
+					if (found)
+					{
+						if (a != b)
+							sprintf(rbuf,"Line %d: duplicate/overlapping switch case found for case [%ld to %ld].", rline, a, b);
+						else
+							sprintf(rbuf,"Line %d: duplicate/overlapping switch case found for case %ld.", rline, a);
+						compile_error_show(rbuf);
+						linevalid = false;
+						break;
+					}
+
+					_case = alloc_mem(sizeof(struct switch_case_data));
+					if (!_case)
+					{
+						sprintf(rbuf,"Line %d: memory allocation error.", rline);
+						compile_error_show(rbuf);
+						linevalid = false;
+						break;
+					}
+
+
+					if ((sw->case_head || sw->default_case > 0) && !last_case)
+					{
+						// Has at least one case the last command was not a case statement of any kind
+						code[cline].opcode = OP_EXITSWITCH;
+						code[cline].level = level - 1;
+						code[cline].rest = str_dup("");
+						code[cline].length = 0;
+						++cline;
+					}
+
+					_case->a = a;
+					_case->b = b;
+					_case->line = cline;	// Points to the next code line
+
+					if (sw->case_tail)
+						sw->case_tail->next = _case;
+					else
+						sw->case_head = _case;
+					sw->case_tail = _case;
+
+					got_case = true;
+					processrest = false;
+					incline = false;
+
+				} else if(!str_cmp(buf,"default")) {
+					if (!level || state[level-1] != IN_SWITCH || !nswitch) {
+						sprintf(rbuf,"Line %d: default case statement used outside of switch.", rline);
+						compile_error_show(rbuf);
+						linevalid = false;
+						break;
+					}
+
+					struct switch_data *sw = switches[nswitch-1];
+
+					if ((sw->case_head || sw->default_case > 0) && !last_case)
+					{
+						// Has at least one case the last command was not a case statement of any kind
+						code[cline].opcode = OP_EXITSWITCH;
+						code[cline].level = level - 1;
+						code[cline].rest = str_dup("");
+						code[cline].length = 0;
+						++cline;
+					}
+
+					sw->default_case = cline;
+
+					got_case = true;
+					processrest = false;
+					incline = false;
+				} else if(!str_cmp(buf,"endswitch")) {
+					if (!level || state[level-1] != IN_SWITCH) {
+						sprintf(rbuf,"Line %d: Unmatched 'endswitch'.", rline);
+						compile_error_show(rbuf);
+						linevalid = false;
+						break;
+					}
+
+					switches[--nswitch] = NULL;
+					state[level] = IN_BLOCK;
+					state[--level] = IN_BLOCK;
+					code[cline].level = level;
+					code[cline].opcode = OP_ENDSWITCH;
+
+					processrest = false;
 				} else if(!str_cmp(buf,"mob")) {
 					if(type != IFC_M) {
 						sprintf(rbuf,"Line %d: Attempting to do a mob command outside an mprog.", rline);
@@ -1831,6 +2075,7 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 			if(incline)
 				++cline;
 			++i;
+			last_case = got_case;
 		}
 		*src = eol;
 		eol = 0;
@@ -1863,6 +2108,22 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 		if(fBootDb) {
 			script->code = NULL;
 			script->lines = 0;
+
+			// Clean up
+			struct switch_data *sw, *sw_next;
+			for(sw = switch_head; sw; sw = sw_next)
+			{
+				sw_next = sw->next;
+
+				struct switch_case_data *swc, *swc_next;
+				for(swc = sw->case_head; swc; swc = swc_next)
+				{
+					swc_next = swc->next;
+					free_mem(swc, sizeof(*swc));
+				}
+
+				free_mem(sw, sizeof(*sw));
+			}
 		}
 		return false;
 	}
@@ -1892,5 +2153,50 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 	script->code = code;
 	script->src = source;
 	script->lines = lines+1;
+
+	// Create Switch Table data and cleanup
+	if (nswitches > 0)
+	{
+		script->n_switch_table = nswitches;
+		script->switch_table = new_script_switch(nswitches);
+
+		nswitch = 0;
+		struct switch_data *sw, *sw_next;
+
+		// Only need to do actual clean up if nswitches > 0
+		for(sw = switch_head; sw; sw = sw_next, nswitch++)
+		{
+			sw_next = sw->next;
+
+			script->switch_table[nswitch].default_case = sw->default_case;
+
+			SCRIPT_SWITCH_CASE *case_head = NULL;
+			SCRIPT_SWITCH_CASE *case_tail = NULL;
+
+			struct switch_case_data *swc, *swc_next;
+			for(swc = sw->case_head; swc; swc = swc_next)
+			{
+				SCRIPT_SWITCH_CASE *c = new_script_switch_case();
+				c->a = swc->a;
+				c->b = swc->b;
+				c->line = swc->line;
+				c->next = NULL;
+
+				if (case_tail)
+					case_tail->next = c;
+				else
+					case_head = c;
+				case_tail = c;
+
+				swc_next = swc->next;
+				free_mem(swc, sizeof(*swc));
+			}
+
+			free_mem(sw, sizeof(*sw));
+
+			script->switch_table[nswitch].cases = case_head;
+		}
+	}
+
 	return true;
 }

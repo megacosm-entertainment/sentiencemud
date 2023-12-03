@@ -55,6 +55,48 @@ int flag_lookup (const char *name, const struct flag_type *flag_table)
     return 0;
 }
 
+int flag_find (const char *name, const struct flag_type *flag_table)
+{
+    int flag;
+
+    for (flag = 0; flag_table[flag].name != NULL; flag++)
+    {
+	if (LOWER(name[0]) == LOWER(flag_table[flag].name[0]) &&
+		!str_prefix(name,flag_table[flag].name))
+	    return flag_table[flag].bit;
+    }
+
+    return 0;
+}
+
+int stat_lookup (const char *name, const struct flag_type *flag_table, int invalid)
+{
+    int flag;
+
+    for (flag = 0; flag_table[flag].name != NULL; flag++)
+    {
+	if (LOWER(name[0]) == LOWER(flag_table[flag].name[0]) &&
+		!str_prefix(name,flag_table[flag].name) &&
+		flag_table[flag].settable)
+	    return flag_table[flag].bit;
+    }
+
+    return invalid;
+}
+
+int stat_find (const char *name, const struct flag_type *flag_table, int invalid)
+{
+    int flag;
+
+    for (flag = 0; flag_table[flag].name != NULL; flag++)
+    {
+	if (LOWER(name[0]) == LOWER(flag_table[flag].name[0]) &&
+		!str_prefix(name,flag_table[flag].name))
+	    return flag_table[flag].bit;
+    }
+
+    return invalid;
+}
 
 int position_lookup (const char *name)
 {

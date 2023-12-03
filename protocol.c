@@ -53,14 +53,16 @@ static void ReportBug( const char *apText )
    bug( apText, 0 );
 }
 
+/*
 static void InfoMessage( descriptor_t *apDescriptor, const char *apData )
 {
-   if (IS_SET(apDescriptor->character->act, PLR_COLOUR))
+   if (IS_SET(apDescriptor->character->act[0], PLR_COLOUR))
    Write( apDescriptor, "\t[F210][\toINFO\t[F210]]\tn " );
    else
    Write (apDescriptor, "[INFO]");
    Write( apDescriptor, apData );
 }
+*/
 
 static void CompressStart( descriptor_t *apDescriptor )
 {
@@ -1637,7 +1639,7 @@ const char *ColourRGB( descriptor_t *apDescriptor, const char *apRGB )
 {
    protocol_t *pProtocol = apDescriptor ? apDescriptor->pProtocol : NULL;
 
-   if ( (pProtocol && pProtocol->pVariables[eMSDP_ANSI_COLORS]->ValueInt) || (apDescriptor->character && (IS_SET(apDescriptor->character->act, PLR_COLOUR))))
+   if ( (pProtocol && pProtocol->pVariables[eMSDP_ANSI_COLORS]->ValueInt) || (apDescriptor->character && (IS_SET(apDescriptor->character->act[0], PLR_COLOUR))))
    {
       if ( IsValidColour(apRGB) )
       {

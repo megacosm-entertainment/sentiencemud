@@ -62,7 +62,7 @@
 #define TRANSFER_MODE_MOVEMENT	2
 
 
-#define DECL_IFC_FUN(x) bool x (SCRIPT_VARINFO *info, CHAR_DATA *mob,OBJ_DATA *obj,ROOM_INDEX_DATA *room, TOKEN_DATA *token,int *ret,int argc,SCRIPT_PARAM **argv)
+#define DECL_IFC_FUN(x) bool x (SCRIPT_VARINFO *info, CHAR_DATA *mob,OBJ_DATA *obj,ROOM_INDEX_DATA *room, TOKEN_DATA *token, AREA_DATA *area, int *ret,int argc,SCRIPT_PARAM **argv)
 #define DECL_OPC_FUN(x) bool x (SCRIPT_CB *block)
 #define SCRIPT_CMD(x)	void x (SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg)
 
@@ -177,7 +177,7 @@ enum ifcheck_enum {
 		CHK_ISMOBILE,CHK_ISMOONUP,CHK_ISMORPHED,CHK_ISMYSTIC,
 		CHK_ISNEUTRAL,CHK_ISNPC,
 		CHK_ISOBJECT,CHK_ISON,CHK_ISOWNER,
-		CHK_ISPC,CHK_ISPERSIST,CHK_ISPK,CHK_ISPREY,CHK_ISPULLING,CHK_ISPULLINGRELIC,
+		CHK_ISPC,CHK_ISPERSIST,CHK_ISPK,CHK_ISPREY,CHK_ISPROG,CHK_ISPULLING,CHK_ISPULLINGRELIC,
 		CHK_ISQUESTING,
 		CHK_ISREMORT,CHK_ISREPAIRABLE,CHK_ISRESTRUNG,CHK_ISRIDDEN,CHK_ISRIDER,CHK_ISRIDING,CHK_ISROOM,CHK_ISROOMDARK,
 		CHK_ISSAFE,CHK_ISSCRIBING,CHK_ISSHIFTED,CHK_ISSHOOTING,CHK_ISSHOPKEEPER,CHK_ISSPELL,CHK_ISSUBCLASS,CHK_ISSUSTAINED,
@@ -387,6 +387,9 @@ enum script_command_enum {
 	OP_WHILE,		/* while .... */
 	OP_ENDWHILE,
 	OP_EXITWHILE,
+	OP_SWITCH,
+	OP_ENDSWITCH,
+	OP_EXITSWITCH,		// Hidden opcode, looks for the ENDSWITCH
 	/* Add new opcodes here... */
 	OP_MOB,			/* A mob command */
 	OP_OBJ,			/* An obj command */
@@ -430,6 +433,7 @@ enum entity_type_enum {
 	ENT_GROUP,
 	ENT_DICE,
 	ENT_BITVECTOR,
+	ENT_BITMATRIX,
 
 	ENT_MOBINDEX,
 	ENT_OBJINDEX,
@@ -1145,6 +1149,7 @@ enum entity_ship_enum {
 #define IN_FOR			-3 /* Flag: Executable statements */
 #define IN_LIST			-4 /* Flag: Executable statements */
 #define IN_WHILE		-5 /* Flag: Begin of if-else-endif block */
+#define IN_SWITCH		-6
 #define MAX_CALL_LEVEL		15 /* Maximum nested calls */
 
 struct script_var_type {
@@ -1307,6 +1312,21 @@ struct loop_data {
 	char buf[MSL];
 };
 
+struct switch_case_data {
+	struct switch_case_data *next;
+	long a, b;
+	int line;
+};
+
+struct switch_data {
+	struct switch_data *next;
+	int id;
+	struct switch_case_data *case_head;
+	struct switch_case_data *case_tail;	// Most recently added case
+	int default_case;		// Line number of default case
+};
+
+
 /* Running information used in execution */
 struct script_control_block {
 	SCRIPT_CB *next;
@@ -1400,6 +1420,10 @@ struct script_parameter {
 			long value;
 			const struct flag_type *table;
 		} bv;
+		struct {
+			long *values;
+			const struct flag_type **bank;
+		} bm;
 		DICE_DATA *dice;
 		VARIABLE **variables;
 		LLIST *blist;
@@ -1638,6 +1662,7 @@ DECL_IFC_FUN(ifc_isnpc);
 DECL_IFC_FUN(ifc_ison);
 DECL_IFC_FUN(ifc_ispc);
 DECL_IFC_FUN(ifc_isprey);
+DECL_IFC_FUN(ifc_isprog);
 DECL_IFC_FUN(ifc_ispulling);
 DECL_IFC_FUN(ifc_ispullingrelic);
 DECL_IFC_FUN(ifc_isquesting);
@@ -1937,6 +1962,9 @@ DECL_OPC_FUN(opc_exitlist);
 DECL_OPC_FUN(opc_while);
 DECL_OPC_FUN(opc_endwhile);
 DECL_OPC_FUN(opc_exitwhile);
+DECL_OPC_FUN(opc_switch);
+DECL_OPC_FUN(opc_endswitch);
+DECL_OPC_FUN(opc_exitswitch);
 DECL_OPC_FUN(opc_mob);
 DECL_OPC_FUN(opc_obj);
 DECL_OPC_FUN(opc_room);
@@ -1946,9 +1974,11 @@ DECL_OPC_FUN(opc_area);
 DECL_OPC_FUN(opc_instance);
 DECL_OPC_FUN(opc_dungeon);
 
+void pstat_variable_list(CHAR_DATA *ch, pVARIABLE vars);
 
 /* General */
 long script_flag_value( const struct flag_type *flag_table, char *argument);
+bool script_bitmatrix_lookup(char *argument, const struct flag_type **bank, long *flags);
 char *ifcheck_get_value(SCRIPT_VARINFO *info,IFCHECK_DATA *ifc,char *text,int *ret,bool *valid);
 int execute_script(long pvnum, SCRIPT_DATA *script,
 	CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
@@ -2194,10 +2224,10 @@ SCRIPT_CMD(do_mpaltermob);
 SCRIPT_CMD(do_opaltermob);
 SCRIPT_CMD(do_rpaltermob);
 SCRIPT_CMD(do_tpaltermob);
-SCRIPT_CMD(do_mpalterobj);
-SCRIPT_CMD(do_opalterobj);
-SCRIPT_CMD(do_rpalterobj);
-SCRIPT_CMD(do_tpalterobj);
+//SCRIPT_CMD(do_mpalterobj);
+//SCRIPT_CMD(do_opalterobj);
+//SCRIPT_CMD(do_rpalterobj);
+//SCRIPT_CMD(do_tpalterobj);
 SCRIPT_CMD(do_mpalterroom);
 SCRIPT_CMD(do_opalterroom);
 SCRIPT_CMD(do_rpalterroom);
@@ -2646,6 +2676,14 @@ SCRIPT_CMD(scriptcmd_wildernessmap);
 SCRIPT_CMD(scriptcmd_specialkey);
 SCRIPT_CMD(scriptcmd_loadinstanced);
 SCRIPT_CMD(scriptcmd_startreckoning);
+SCRIPT_CMD(scriptcmd_stopreckoning);
+SCRIPT_CMD(scriptcmd_alterobj);
+
+bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);
+bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);
+void olc_show_index_vars(BUFFER *buffer, pVARIABLE index_vars);
+void olc_save_index_vars(FILE *fp, pVARIABLE index_vars, AREA_DATA *pRefArea);
+bool olc_load_index_vars(FILE *fp, char *word, ppVARIABLE index_vars, AREA_DATA *pRefArea);
 
 #include "tables.h"
 

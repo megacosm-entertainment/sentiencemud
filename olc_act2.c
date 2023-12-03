@@ -337,7 +337,7 @@ OEDIT(oedit_comments)
     send_to_char("Syntax:  comments\n\r", ch);
     return false;
 }
-
+/*
 OEDIT(oedit_update)
 {
     OBJ_INDEX_DATA *pObj;
@@ -363,7 +363,7 @@ OEDIT(oedit_update)
 
     return true;
 }
-
+*/
 OEDIT(oedit_timer)
 {
     OBJ_INDEX_DATA *pObj;
@@ -1525,31 +1525,32 @@ TEDIT(tedit_create)
 TEDIT(tedit_show)
 {
     TOKEN_INDEX_DATA *token_index;
-    ITERATOR it;
-    PROG_LIST *trigger;
+//    ITERATOR it;
+//    PROG_LIST *trigger;
     char buf[MSL];
     int i;
+	BUFFER *buffer = new_buf();
 
     EDIT_TOKEN(ch, token_index);
 
     sprintf(buf, "Name:                   {Y[{x%-20s{Y]{x\n\r", token_index->name);
-    send_to_char(buf, ch);
+    add_buf(buffer, buf);
     sprintf(buf, "Area:                   {Y[{x%-20s{Y]{x\n\r", token_index->area->name);
-    send_to_char(buf, ch);
+    add_buf(buffer, buf);
     sprintf(buf, "Vnum:                   {Y[{x%-20ld{Y]{x\n\r", token_index->vnum);
-    send_to_char(buf, ch);
+    add_buf(buffer, buf);
     sprintf(buf, "Type:                   {Y[{x%-20s{Y]{x\n\r", token_table[token_index->type].name);
-    send_to_char(buf, ch);
+    add_buf(buffer, buf);
     sprintf(buf, "Flags:                  {Y[{x%-20s{Y]{x\n\r", flag_string(token_flags, token_index->flags));
-    send_to_char(buf, ch);
+    add_buf(buffer, buf);
     sprintf(buf, "Timer:                  {Y[{x%-20d{Y]{x ticks\n\r", token_index->timer);
-    send_to_char(buf, ch);
+    add_buf(buffer, buf);
 
     sprintf(buf, "Description:\n\r%s\n\r", token_index->description);
-    send_to_char(buf, ch);
+    add_buf(buffer, buf);
 
     sprintf(buf, "\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", token_index->comments);
-    send_to_char(buf,ch);
+    add_buf(buffer, buf);
 
 
 
@@ -1571,76 +1572,30 @@ TEDIT(tedit_show)
 	send_to_char(buf, ch);
     } */
 
-    send_to_char("{YDefault values:{x\n\r", ch);
+    add_buf(buffer, "{YDefault values:{x\n\r");
     for (i = 0; i < MAX_TOKEN_VALUES; i++) {
     	sprintf(buf,
 		"Value {Y[{x%d{Y]:{x %-20s {Y[{x%ld{Y]{x\n\r",
 		i, token_index_getvaluename(token_index, i), token_index->value[i]);
 
-	send_to_char(buf, ch);
+	add_buf(buffer, buf);
     }
-    if (token_index->progs) {
-	int cnt, slot;
+    if (token_index->progs)
+		olc_show_progs(buffer, token_index->progs, PRG_TPROG, "TokProg Vnum");
 
-	for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++)
-		if(list_size(token_index->progs[slot]) > 0) ++cnt;
+	if (token_index->index_vars)
+		olc_show_index_vars(buffer, token_index->index_vars);
 
-	if (cnt > 0) {
-		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "Number", "TokProg Vnum", "Trigger", "Phrase");
-		send_to_char(buf, ch);
-
-		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "------", "-------------", "-------", "------");
-		send_to_char(buf, ch);
-
-		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
-			iterator_start(&it, token_index->progs[slot]);
-			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-				sprintf(buf, "{C[{W%4d{C]{x %-20ld %-10s %-6s\n\r", cnt,
-					trigger->vnum,trigger_name(trigger->trig_type),
-					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, false, true));
-				send_to_char(buf, ch);
-				cnt++;
-			}
-			iterator_stop(&it);
-		}
+	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH)
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
 	}
-    }
-
-    if (token_index->index_vars) {
-	pVARIABLE var;
-	int cnt;
-
-	for (cnt = 0, var = token_index->index_vars; var; var = var->next) ++cnt;
-
-	if (cnt > 0) {
-		sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "Name", "Type", "Saved", "Value");
-		send_to_char(buf, ch);
-
-		sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "----", "----", "-----", "-----");
-		send_to_char(buf, ch);
-
-		for (var = token_index->index_vars; var; var = var->next) {
-			switch(var->type) {
-			case VAR_INTEGER:
-				sprintf(buf, "{x%-20.20s {GNUMBER     {Y%c   {W%d{x\n\r", var->name,var->save?'Y':'N',var->_.i);
-				break;
-			case VAR_STRING:
-			case VAR_STRING_S:
-				sprintf(buf, "{x%-20.20s {GSTRING     {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N',var->_.s?var->_.s:"(empty)");
-				break;
-			case VAR_ROOM:
-				if(var->_.r && var->_.r->vnum > 0)
-					sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W%s {R({W%d{R){x\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->vnum);
-				else
-					sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W-no-where-{x\n\r",var->name,var->save?'Y':'N');
-				break;
-			default:
-				continue;
-			}
-			send_to_char(buf, ch);
-		}
+	else
+	{
+		page_to_char(buffer->string, ch);
 	}
-    }
+
+	free_buf(buffer);
 
     return false;
 }
@@ -2378,56 +2333,10 @@ TEDIT (tedit_deltprog)
 TEDIT(tedit_varset)
 {
     TOKEN_INDEX_DATA *token_index;
-    char name[MIL];
-    char type[MIL];
-    char yesno[MIL];
-    bool saved;
 
     EDIT_TOKEN(ch, token_index);
 
-    if (argument[0] == '\0') {
-	send_to_char("Syntax:  varset <name> <number|string|room> <yes|no> <value>\n\r", ch);
-	return false;
-    }
-
-    argument = one_argument(argument, name);
-    argument = one_argument(argument, type);
-    argument = one_argument(argument, yesno);
-
-    if(!variable_validname(name)) {
-	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
-	return false;
-    }
-
-    saved = !str_cmp(yesno,"yes");
-
-    if(!argument[0]) {
-	send_to_char("Set what on the variable?\n\r", ch);
-	return false;
-    }
-
-    if(!str_cmp(type,"room")) {
-	if(!is_number(argument)) {
-	    send_to_char("Specify a room vnum.\n\r", ch);
-	    return false;
-	}
-
-	variables_setindex_room(&token_index->index_vars,name,atoi(argument),saved);
-    } else if(!str_cmp(type,"string"))
-	variables_setindex_string(&token_index->index_vars,name,argument,false,saved);
-    else if(!str_cmp(type,"number")) {
-	if(!is_number(argument)) {
-	    send_to_char("Specify an integer.\n\r", ch);
-	    return false;
-	}
-
-	variables_setindex_integer(&token_index->index_vars,name,atoi(argument),saved);
-    } else {
-	send_to_char("Invalid type of variable.\n\r", ch);
-	return false;
-    }
-    send_to_char("Variable set.\n\r", ch);
-    return true;
+	return olc_varset(&token_index->index_vars, ch, argument, false);
 }
 
 TEDIT(tedit_varclear)
@@ -2436,23 +2345,7 @@ TEDIT(tedit_varclear)
 
     EDIT_TOKEN(ch, token_index);
 
-    if (argument[0] == '\0') {
-	send_to_char("Syntax:  varclear <name>\n\r", ch);
-	return false;
-    }
-
-    if(!variable_validname(argument)) {
-	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
-	return false;
-    }
-
-    if(!variable_remove(&token_index->index_vars,argument)) {
-	send_to_char("No such variable defined.\n\r", ch);
-	return false;
-    }
-
-    send_to_char("Variable cleared.\n\r", ch);
-    return true;
+	return olc_varclear(&token_index->index_vars, ch, argument, false);
 }
 
 char *token_index_getvaluename(TOKEN_INDEX_DATA *token, int v)

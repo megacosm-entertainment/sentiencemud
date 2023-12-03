@@ -613,6 +613,13 @@ const struct flag_type act2_flags[]=
     {   NULL,					0,						false	}
 };
 
+const struct flag_type *act_flagbank[] =
+{
+    act_flags,
+    act2_flags,
+    NULL
+};
+
 
 const struct string_type fragile_table[] =
 {
@@ -680,6 +687,13 @@ const struct flag_type plr2_flags[] =
     {	NULL,			0,	0			}
 };
 
+const struct flag_type *plr_flagbank[] =
+{
+    plr_flags,
+    plr2_flags,
+    NULL
+};
+
 const struct flag_type affect_flags[] =
 {
     {	"blind",		AFF_BLIND,	true	},
@@ -745,6 +759,12 @@ const struct flag_type affect2_flags[] =
     {   NULL,           	0,      0       }
 };
 
+const struct flag_type *affect_flagbank[] =
+{
+    affect_flags,
+    affect2_flags,
+    NULL
+};
 
 const struct flag_type off_flags[] =
 {
@@ -1189,6 +1209,13 @@ const struct flag_type room2_flags[] =
 
 };
 
+const struct flag_type *room_flagbank[] =
+{
+    room_flags,
+    room2_flags,
+    NULL
+};
+
 
 const struct flag_type sector_flags[] =
 {
@@ -1394,6 +1421,15 @@ const struct flag_type extra3_flags[] =
 const struct flag_type extra4_flags[] =
 {
     {   NULL,			0,			0	}
+};
+
+const struct flag_type *extra_flagbank[] =
+{
+    extra_flags,
+    extra2_flags,
+    extra3_flags,
+    extra4_flags,
+    NULL
 };
 
 const struct flag_type wear_flags[] =
@@ -2877,3 +2913,24 @@ const struct flag_type ship_flags[] =
 	{ NULL,				0,						false	}
 };
 
+const struct flag_type stock_types[] =
+{
+    { "crew",           STOCK_CREW,                 true },
+    { "custom",         STOCK_CUSTOM,               true },
+    { "guard",          STOCK_GUARD,                true },
+    { "mount",          STOCK_MOUNT,                true },
+    { "object",         STOCK_OBJECT,               true },
+    { "pet",            STOCK_PET,                  true },
+    { "ship",           STOCK_SHIP,                 true },
+    { NULL, 0, false }
+};
+
+const struct flag_type prog_entity_flags[] =
+{
+    { "at",             PROG_AT,                    true },
+    { "nodamage",       PROG_NODAMAGE,              true },
+    { "nodestruct",     PROG_NODESTRUCT,            true },
+    { "norawkill",      PROG_NORAWKILL,             true },
+    { "silent",         PROG_SILENT,                true },
+    { NULL, 0, false }
+};

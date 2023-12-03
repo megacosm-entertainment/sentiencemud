@@ -476,7 +476,7 @@ int get_skill(CHAR_DATA *ch, int sn)
 		else
 			skill = 0;
 	} //thief skills
-	else if (IS_SET(ch->act, ACT_THIEF) && (sn == gsn_sneak || sn == gsn_hide))
+	else if (IS_SET(ch->act[0], ACT_THIEF) && (sn == gsn_sneak || sn == gsn_hide))
 	    skill = 40+19 * log10(ch->tot_level)/2;
 
         else if ((sn == gsn_dodge && IS_SET(ch->off_flags,OFF_DODGE))
@@ -487,10 +487,10 @@ int get_skill(CHAR_DATA *ch, int sn)
 	    skill = 40+19 * log10(ch->tot_level)/2;
 
 	else if (sn == gsn_second_attack
-	&& (IS_SET(ch->act,ACT_WARRIOR) || IS_SET(ch->act,ACT_THIEF)))
+	&& (IS_SET(ch->act[0],ACT_WARRIOR) || IS_SET(ch->act[0],ACT_THIEF)))
 	    skill = 40+19 * log10(ch->tot_level)/2;
 
-	else if (sn == gsn_third_attack && IS_SET(ch->act,ACT_WARRIOR))
+	else if (sn == gsn_third_attack && IS_SET(ch->act[0],ACT_WARRIOR))
 	    skill = 40 * log10(ch->tot_level);
 
 	else if (sn == gsn_hand_to_hand)
@@ -501,8 +501,8 @@ int get_skill(CHAR_DATA *ch, int sn)
 
 	else if (sn == gsn_disarm
 	     &&  (IS_SET(ch->off_flags,OFF_DISARM)
-	     ||   IS_SET(ch->act,ACT_WARRIOR)
-	     ||	  IS_SET(ch->act,ACT_THIEF)))
+	     ||   IS_SET(ch->act[0],ACT_WARRIOR)
+	     ||	  IS_SET(ch->act[0],ACT_THIEF)))
 	    skill = 40 + 19*log10(ch->tot_level)/1.5;
 
 	else if (sn == gsn_berserk && IS_SET(ch->off_flags,OFF_BERSERK))
@@ -511,7 +511,7 @@ int get_skill(CHAR_DATA *ch, int sn)
 	else if (sn == gsn_kick)
 	    skill = 40 + 19*log10(ch->tot_level)/1.5;
 
-	else if (sn == gsn_backstab && IS_SET(ch->act,ACT_THIEF))
+	else if (sn == gsn_backstab && IS_SET(ch->act[0],ACT_THIEF))
 	    skill = 40 + 19*log10(ch->tot_level)/2;
 
   	else if (sn == gsn_rescue)
@@ -894,7 +894,7 @@ int can_carry_n(CHAR_DATA *ch)
     if (!IS_NPC(ch) && ch->level >= LEVEL_IMMORTAL)
 	return 1000;
 
-    if (IS_NPC(ch) && IS_SET(ch->act, ACT_PET))
+    if (IS_NPC(ch) && IS_SET(ch->act[0], ACT_PET))
 	return 0;
 
     return MAX_WEAR + get_curr_stat(ch,STAT_DEX) + ch->tot_level/2;
@@ -911,7 +911,7 @@ int can_carry_w(CHAR_DATA *ch)
     if (!IS_NPC(ch) && ch->level >= LEVEL_IMMORTAL)
 	return 10000000;
 
-    if (IS_NPC(ch) && IS_SET(ch->act, ACT_PET))
+    if (IS_NPC(ch) && IS_SET(ch->act[0], ACT_PET))
 	return 0;
 
     weight = str_app[get_curr_stat(ch,STAT_STR)].carry + ch->tot_level/5;
@@ -989,13 +989,13 @@ void affect_fix_char(CHAR_DATA *ch)
 	OBJ_DATA *obj;
 
 	// Reset flags
-	ch->affected_by = ch->affected_by_perm;
-	ch->affected_by2 = ch->affected_by2_perm;
+	ch->affected_by[0] = ch->affected_by_perm[0];
+	ch->affected_by[1] = ch->affected_by_perm[1];
 	ch->imm_flags = ch->imm_flags_perm;
 	ch->res_flags = ch->res_flags_perm;
 	ch->vuln_flags = ch->vuln_flags_perm;
 
-	ch->deathsight_vision = ( IS_SET(ch->affected_by2_perm, AFF2_DEATHSIGHT) ) ? ch->tot_level : 0;
+	ch->deathsight_vision = ( IS_SET(ch->affected_by_perm[1], AFF2_DEATHSIGHT) ) ? ch->tot_level : 0;
 
 	// Iterate through affects on character
 	for(paf = ch->affected; paf; paf = paf->next)
@@ -1003,8 +1003,8 @@ void affect_fix_char(CHAR_DATA *ch)
 		switch(paf->where)
 		{
 		    case TO_AFFECTS:
-				SET_BIT(ch->affected_by, paf->bitvector);
-				SET_BIT(ch->affected_by2, paf->bitvector2);
+				SET_BIT(ch->affected_by[0], paf->bitvector);
+				SET_BIT(ch->affected_by[1], paf->bitvector2);
 
 				if( IS_SET(paf->bitvector2, AFF2_DEATHSIGHT) && (paf->level > ch->deathsight_vision) )
 					ch->deathsight_vision = paf->level;
@@ -1032,8 +1032,8 @@ void affect_fix_char(CHAR_DATA *ch)
 				switch (paf->where)
 				{
 					case TO_AFFECTS:
-						SET_BIT(ch->affected_by, paf->bitvector);
-						SET_BIT(ch->affected_by2, paf->bitvector2);
+						SET_BIT(ch->affected_by[0], paf->bitvector);
+						SET_BIT(ch->affected_by[1], paf->bitvector2);
 
 						if( IS_SET(paf->bitvector2, AFF2_DEATHSIGHT) && (paf->level > ch->deathsight_vision) )
 							ch->deathsight_vision = paf->level;
@@ -1073,8 +1073,8 @@ void affect_modify(CHAR_DATA *ch, AFFECT_DATA *paf, bool fAdd)
 		switch (paf->where)
 		{
 			case TO_AFFECTS:
-				SET_BIT(ch->affected_by, paf->bitvector);
-				SET_BIT(ch->affected_by2, paf->bitvector2);
+				SET_BIT(ch->affected_by[0], paf->bitvector);
+				SET_BIT(ch->affected_by[1], paf->bitvector2);
 
 				if( IS_SET(paf->bitvector2, AFF2_DEATHSIGHT) && (paf->level > ch->deathsight_vision) )
 					ch->deathsight_vision = paf->level;
@@ -1096,8 +1096,8 @@ void affect_modify(CHAR_DATA *ch, AFFECT_DATA *paf, bool fAdd)
         switch (paf->where)
 	{
 	    case TO_AFFECTS:
-		MERGE_BIT(ch->affected_by, ch->affected_by_perm, paf->bitvector);
-		MERGE_BIT(ch->affected_by2, ch->affected_by2_perm, paf->bitvector2);
+		MERGE_BIT(ch->affected_by[0], ch->affected_by_perm[0], paf->bitvector);
+		MERGE_BIT(ch->affected_by[1], ch->affected_by_perm[1], paf->bitvector2);
 		break;
 	    case TO_IMMUNE:
 			MERGE_BIT(ch->imm_flags,ch->imm_flags_perm,paf->bitvector);
@@ -1203,7 +1203,7 @@ void affect_check(CHAR_DATA *ch, int where, long vector, long vector2)
 			switch (where)
 			{
 				case TO_AFFECTS:
-				SET_BIT(ch->affected_by,vector);
+				SET_BIT(ch->affected_by[0],vector);
 				break;
 				case TO_IMMUNE:
 				SET_BIT(ch->imm_flags,vector);
@@ -1222,7 +1222,7 @@ void affect_check(CHAR_DATA *ch, int where, long vector, long vector2)
 			switch (where)
 			{
 			case TO_AFFECTS:
-				SET_BIT(ch->affected_by2,vector2);
+				SET_BIT(ch->affected_by[1],vector2);
 				break;
 			}
 			return;
@@ -1241,7 +1241,7 @@ void affect_check(CHAR_DATA *ch, int where, long vector, long vector2)
 				switch (where)
 				{
 				case TO_AFFECTS:
-					SET_BIT(ch->affected_by,vector);
+					SET_BIT(ch->affected_by[0],vector);
 					break;
 				case TO_IMMUNE:
 					SET_BIT(ch->imm_flags,vector);
@@ -1259,7 +1259,7 @@ void affect_check(CHAR_DATA *ch, int where, long vector, long vector2)
 				switch (where)
 				{
 				case TO_AFFECTS:
-					SET_BIT(ch->affected_by2,vector2);
+					SET_BIT(ch->affected_by[1],vector2);
 					break;
 				}
 				return;
@@ -1311,16 +1311,16 @@ void affect_to_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
         switch (paf->where)
         {
 	    case TO_OBJECT:
-			SET_BIT(obj->extra_flags,paf->bitvector);
+			SET_BIT(obj->extra[0],paf->bitvector);
 			break;
 	    case TO_OBJECT2:
-			SET_BIT(obj->extra2_flags,paf->bitvector);
+			SET_BIT(obj->extra[1],paf->bitvector);
 			break;
 	    case TO_OBJECT3:
-			SET_BIT(obj->extra3_flags,paf->bitvector);
+			SET_BIT(obj->extra[2],paf->bitvector);
 			break;
 	    case TO_OBJECT4:
-			SET_BIT(obj->extra4_flags,paf->bitvector);
+			SET_BIT(obj->extra[3],paf->bitvector);
 			break;
 	    case TO_WEAPON:
 			if (obj->item_type == ITEM_WEAPON)
@@ -1410,16 +1410,16 @@ bool affect_removeall_obj(OBJ_DATA *obj)
 		if (paf->bitvector)
 			switch(paf->where) {
 			case TO_OBJECT:
-				MERGE_BIT(obj->extra_flags,obj->extra_flags_perm,paf->bitvector);
+				MERGE_BIT(obj->extra[0],obj->extra_perm[0],paf->bitvector);
 				break;
 			case TO_OBJECT2:
-				MERGE_BIT(obj->extra2_flags,obj->extra2_flags_perm,paf->bitvector);
+				MERGE_BIT(obj->extra[1],obj->extra_perm[1],paf->bitvector);
 				break;
 			case TO_OBJECT3:
-				MERGE_BIT(obj->extra3_flags,obj->extra3_flags_perm,paf->bitvector);
+				MERGE_BIT(obj->extra[2],obj->extra_perm[2],paf->bitvector);
 				break;
 			case TO_OBJECT4:
-				MERGE_BIT(obj->extra4_flags,obj->extra4_flags_perm,paf->bitvector);
+				MERGE_BIT(obj->extra[3],obj->extra_perm[3],paf->bitvector);
 				break;
 			case TO_WEAPON:
 				if (obj->item_type == ITEM_WEAPON)
@@ -1460,16 +1460,16 @@ bool affect_remove_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
 		switch(paf->where)
 		{
 		case TO_OBJECT:
-			MERGE_BIT(obj->extra_flags,obj->extra_flags_perm,paf->bitvector);
+			MERGE_BIT(obj->extra[0],obj->extra_perm[0],paf->bitvector);
 			break;
 		case TO_OBJECT2:
-			MERGE_BIT(obj->extra2_flags,obj->extra2_flags_perm,paf->bitvector);
+			MERGE_BIT(obj->extra[1],obj->extra_perm[1],paf->bitvector);
 			break;
 		case TO_OBJECT3:
-			MERGE_BIT(obj->extra3_flags,obj->extra3_flags_perm,paf->bitvector);
+			MERGE_BIT(obj->extra[2],obj->extra_perm[2],paf->bitvector);
 			break;
 		case TO_OBJECT4:
-			MERGE_BIT(obj->extra4_flags,obj->extra4_flags_perm,paf->bitvector);
+			MERGE_BIT(obj->extra[3],obj->extra_perm[3],paf->bitvector);
 			break;
 		case TO_WEAPON:
 			if (obj->item_type == ITEM_WEAPON)
@@ -1822,7 +1822,7 @@ void char_from_room(CHAR_DATA *ch)
 	{
 		INSTANCE *instance = ch->in_room->instance_section->instance;
 		DUNGEON *dungeon = instance->dungeon;
-		if( !IS_NPC(ch) || !IS_SET(ch->act2, ACT2_INSTANCE_MOB) )
+		if( !IS_NPC(ch) || !IS_SET(ch->act[1], ACT2_INSTANCE_MOB) )
 		{
 
 			if( IS_VALID(dungeon) )
@@ -1994,7 +1994,7 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
 		INSTANCE *instance = pRoomIndex->instance_section->instance;
 		DUNGEON *dungeon = instance->dungeon;
 
-		if( !IS_NPC(ch) || !IS_SET(ch->act2, ACT2_INSTANCE_MOB) )
+		if( !IS_NPC(ch) || !IS_SET(ch->act[1], ACT2_INSTANCE_MOB) )
 		{
 			if( IS_VALID(dungeon) )
 			{
@@ -2065,7 +2065,7 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
 
         if (af == NULL)
         {
-            if(!has_plague_af) REMOVE_BIT(ch->affected_by,AFF_PLAGUE);
+            if(!has_plague_af) REMOVE_BIT(ch->affected_by[0],AFF_PLAGUE);
             return;
         }
 
@@ -2137,8 +2137,8 @@ void obj_to_char(OBJ_DATA *obj, CHAR_DATA *ch)
     ch->carry_number	+= get_obj_number(obj);
     ch->carry_weight	+= get_obj_weight(obj);
 
-    if (IS_SET(obj->extra_flags, ITEM_HIDDEN))
-        REMOVE_BIT(obj->extra_flags, ITEM_HIDDEN);
+    if (IS_SET(obj->extra[0], ITEM_HIDDEN))
+        REMOVE_BIT(obj->extra[0], ITEM_HIDDEN);
 
     // convert money obj into gold/silver
     if (obj->item_type == ITEM_MONEY)
@@ -2147,7 +2147,7 @@ void obj_to_char(OBJ_DATA *obj, CHAR_DATA *ch)
 	ch->gold += obj->value[1];
 
 	// AUTOSPLIT
-	if (IS_SET(ch->act,PLR_AUTOSPLIT))
+	if (IS_SET(ch->act[0],PLR_AUTOSPLIT))
 	{
 	    int members;
 	    CHAR_DATA *gch;
@@ -2290,7 +2290,7 @@ void obj_from_char(OBJ_DATA *obj)
 
     --obj->pIndexData->carried;
 
-    REMOVE_BIT(obj->extra_flags, ITEM_INVENTORY);
+    REMOVE_BIT(obj->extra[0], ITEM_INVENTORY);
     obj->carried_by	 = NULL;
     obj->next_content	 = NULL;
     ch->carry_number	-= get_obj_number(obj);
@@ -2377,7 +2377,7 @@ void equip_char(CHAR_DATA *ch, OBJ_DATA *obj, int iWear)
         /* If the object is not a mortal object
         -or- is higher object level and the item is not flagged all_remort or the char is not remort */
         if ((obj->level > LEVEL_HERO) ||
-        ((ch->tot_level < obj->level) && !(IS_SET(obj->extra2_flags, ITEM_ALL_REMORT) && IS_REMORT(ch)))) {
+        ((ch->tot_level < obj->level) && !(IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)))) {
             return;
         }
     }
@@ -2390,7 +2390,7 @@ void equip_char(CHAR_DATA *ch, OBJ_DATA *obj, int iWear)
 	act("You are zapped by $p and drop it.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 	act("$n is zapped by $p and drops it.",  ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 
-        REMOVE_BIT(obj->extra2_flags, ITEM_KEPT);
+        REMOVE_BIT(obj->extra[1], ITEM_KEPT);
 
 	obj_from_char(obj);
 	obj_to_room(obj, ch->in_room);
@@ -2635,7 +2635,7 @@ void obj_from_room(OBJ_DATA *obj)
 
 	if( IS_VALID(obj->in_room->instance_section) && IS_VALID(obj->in_room->instance_section->instance) )
 	{
-		if( !IS_SET(obj->extra3_flags, ITEM_INSTANCE_OBJ) )
+		if( !IS_SET(obj->extra[2], ITEM_INSTANCE_OBJ) )
 		{
 			INSTANCE *instance = obj->in_room->instance_section->instance;
 			DUNGEON *dungeon = instance->dungeon;
@@ -2686,7 +2686,7 @@ void obj_to_room(OBJ_DATA *obj, ROOM_INDEX_DATA *pRoomIndex)
 	}
 	else if( IS_VALID(pRoomIndex->instance_section) && IS_VALID(pRoomIndex->instance_section->instance) )
 	{
-		if( !IS_SET(obj->extra3_flags, ITEM_INSTANCE_OBJ) )
+		if( !IS_SET(obj->extra[2], ITEM_INSTANCE_OBJ) )
 		{
 			INSTANCE *instance = pRoomIndex->instance_section->instance;
 			DUNGEON *dungeon = instance->dungeon;
@@ -3170,7 +3170,7 @@ void extract_char(CHAR_DATA *ch, bool fPull)
     {
 	GQ_MOB_DATA *gq_mob;
 
-	if(!IS_SET(ch->act, ACT_ANIMATED))
+	if(!IS_SET(ch->act[0], ACT_ANIMATED))
 		--ch->pIndexData->count;
 
 	/* for NPCs and global quests. */
@@ -4024,7 +4024,7 @@ bool room_is_dark(ROOM_INDEX_DATA *pRoomIndex)
 
     for (ch = pRoomIndex->people; ch; ch = ch->next_in_room) {
 	for (obj = ch->carrying; obj; obj = obj->next_content) {
-	    if (IS_SET(obj->extra2_flags, ITEM_EMITS_LIGHT)
+	    if (IS_SET(obj->extra[1], ITEM_EMITS_LIGHT)
 		    && obj->wear_loc != WEAR_NONE) return false;
 	}
     }
@@ -4042,7 +4042,7 @@ bool room_is_dark(ROOM_INDEX_DATA *pRoomIndex)
 
 	for (ch = to_room->people; ch; ch = ch->next_in_room) {
 	    for (obj = ch->carrying; obj; obj = obj->next_content) {
-		if (IS_SET(obj->extra2_flags, ITEM_EMITS_LIGHT)
+		if (IS_SET(obj->extra[1], ITEM_EMITS_LIGHT)
 			&& obj->wear_loc != WEAR_NONE)
 		    return false;
 	    }
@@ -4052,7 +4052,7 @@ bool room_is_dark(ROOM_INDEX_DATA *pRoomIndex)
     if (pRoomIndex->light > 0)
 	return false;
 
-    if (IS_SET(pRoomIndex->room_flags, ROOM_DARK))
+    if (IS_SET(pRoomIndex->room_flag[0], ROOM_DARK))
 	return true;
 
     if (pRoomIndex->sector_type == SECT_INSIDE ||
@@ -4104,13 +4104,13 @@ bool room_is_private(ROOM_INDEX_DATA *pRoomIndex, CHAR_DATA *looker)
 	    return false;
     }
 
-    if (IS_SET(pRoomIndex->room_flags, ROOM_PRIVATE)  && count >= 2)
+    if (IS_SET(pRoomIndex->room_flag[0], ROOM_PRIVATE)  && count >= 2)
 	return true;
 
-    if (IS_SET(pRoomIndex->room_flags, ROOM_SOLITARY) && count >= 1)
+    if (IS_SET(pRoomIndex->room_flag[0], ROOM_SOLITARY) && count >= 1)
 	return true;
 
-    if (IS_SET(pRoomIndex->room_flags, ROOM_IMP_ONLY))
+    if (IS_SET(pRoomIndex->room_flag[0], ROOM_IMP_ONLY))
 	return true;
 
     return false;
@@ -4121,7 +4121,7 @@ bool has_light(CHAR_DATA *ch)
 	OBJ_DATA *obj;
 
 	for(obj = ch->carrying; obj; obj = obj->next_content) {
-		if(obj->wear_loc == WEAR_LIGHT || (IS_SET(obj->extra2_flags, ITEM_EMITS_LIGHT) && obj->wear_loc != WEAR_NONE))
+		if(obj->wear_loc == WEAR_LIGHT || (IS_SET(obj->extra[1], ITEM_EMITS_LIGHT) && obj->wear_loc != WEAR_NONE))
 			return true;
 	}
 
@@ -4148,7 +4148,7 @@ bool can_see_imm(CHAR_DATA *ch, CHAR_DATA *victim)
 	if (ch->tot_level < victim->invis_level)
 		return false;
 
-	if (!IS_IMMORTAL(ch) && IS_NPC(victim) && IS_SET(victim->act2, ACT2_WIZI_MOB) && !IS_SET(ch->act2, ACT2_SEE_WIZI))
+	if (!IS_IMMORTAL(ch) && IS_NPC(victim) && IS_SET(victim->act[1], ACT2_WIZI_MOB) && !IS_SET(ch->act[1], ACT2_SEE_WIZI))
 		return false;
 
 	if (get_trust(ch) < victim->incog_level && ch->in_room != victim->in_room)
@@ -4168,11 +4168,11 @@ bool can_see(CHAR_DATA *ch, CHAR_DATA *victim)
 		return false;
 
 	/* imms w/ holylight can see everyone except higher level invis imms */
-	if (!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT) && victim->invis_level <= get_trust(ch))
+	if (!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT) && victim->invis_level <= get_trust(ch))
 		return true;
 
 	// these types of mobs can see everybody.
-	if (IS_NPC(ch) && (IS_SET(ch->act2, ACT2_SEE_ALL) || IS_SET(ch->act, ACT_IS_BANKER) || IS_SET(ch->act, ACT_IS_CHANGER) || ch->pIndexData->pQuestor != NULL))
+	if (IS_NPC(ch) && (IS_SET(ch->act[1], ACT2_SEE_ALL) || IS_SET(ch->act[0], ACT_IS_BANKER) || IS_SET(ch->act[0], ACT_IS_CHANGER) || ch->pIndexData->pQuestor != NULL))
 		return true;
 
 	if (IS_AFFECTED(ch, AFF_BLIND))
@@ -4181,7 +4181,7 @@ bool can_see(CHAR_DATA *ch, CHAR_DATA *victim)
 	if (is_darked(ch->in_room))
 		return false;
 
-	if (ch->in_room && IS_SET(ch->in_room->room_flags, ROOM_DARK))
+	if (ch->in_room && IS_SET(ch->in_room->room_flag[0], ROOM_DARK))
 	{
 		//(!IS_AFFECTED(ch, AFF_INFRARED) || has_light(ch)) && IS_AFFECTED2(victim,AFF2_DARK_SHROUD)
 
@@ -4193,7 +4193,7 @@ bool can_see(CHAR_DATA *ch, CHAR_DATA *victim)
 	}
 
 	if(!IS_AFFECTED2(victim,AFF2_DARK_SHROUD)) {
-		if (IS_SET(victim->affected_by2, AFF2_CLOAK_OF_GUILE) && IS_NPC(ch) && !IS_SET(ch->affected_by2, AFF2_SEE_CLOAK))
+		if (IS_SET(victim->affected_by[1], AFF2_CLOAK_OF_GUILE) && IS_NPC(ch) && !IS_SET(ch->affected_by[1], AFF2_SEE_CLOAK))
 			return false;
 
 		if ((IS_AFFECTED(victim, AFF_INVISIBLE) || IS_AFFECTED2(victim, AFF2_IMPROVED_INVIS)) && !IS_AFFECTED(ch, AFF_DETECT_INVIS))
@@ -4223,7 +4223,7 @@ bool can_see(CHAR_DATA *ch, CHAR_DATA *victim)
 	if (ch->tot_level < victim->invis_level)
 		return false;
 
-	if (!IS_IMMORTAL(ch) && IS_NPC(victim) && IS_SET(victim->act2, ACT2_WIZI_MOB) && !IS_SET(ch->act2, ACT2_SEE_WIZI))
+	if (!IS_IMMORTAL(ch) && IS_NPC(victim) && IS_SET(victim->act[1], ACT2_WIZI_MOB) && !IS_SET(ch->act[1], ACT2_SEE_WIZI))
 		return false;
 
 	if (get_trust(ch) < victim->incog_level && ch->in_room != victim->in_room)
@@ -4236,15 +4236,15 @@ bool can_see(CHAR_DATA *ch, CHAR_DATA *victim)
 /* visibility on a room -- for entering and exits */
 bool can_see_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
 {
-    if (IS_SET(pRoomIndex->room_flags, ROOM_IMP_ONLY)
+    if (IS_SET(pRoomIndex->room_flag[0], ROOM_IMP_ONLY)
     &&  get_trust(ch) < MAX_LEVEL)
 	return false;
 
-    if (IS_SET(pRoomIndex->room_flags, ROOM_GODS_ONLY)
+    if (IS_SET(pRoomIndex->room_flag[0], ROOM_GODS_ONLY)
     &&  !IS_IMMORTAL(ch))
 	return false;
 
-    if (IS_SET(pRoomIndex->room_flags,ROOM_NEWBIES_ONLY)
+    if (IS_SET(pRoomIndex->room_flag[0],ROOM_NEWBIES_ONLY)
     &&  ch->level > 10 && !IS_IMMORTAL(ch))
 	return false;
 
@@ -4264,24 +4264,24 @@ bool can_see_obj(CHAR_DATA *ch, OBJ_DATA *obj)
     }
 
     // Toggled on dead people's possessions.
-    if (IS_SET(obj->extra2_flags, ITEM_UNSEEN)) {
+    if (IS_SET(obj->extra[1], ITEM_UNSEEN)) {
 		return false;
 	}
 
-    if (IS_SET(obj->extra2_flags, ITEM_BURIED)) {
+    if (IS_SET(obj->extra[1], ITEM_BURIED)) {
 		return false;
 	}
 
-    if (obj->item_type == ITEM_SEED && IS_SET(obj->extra_flags, ITEM_PLANTED)) {
+    if (obj->item_type == ITEM_SEED && IS_SET(obj->extra[0], ITEM_PLANTED)) {
 		return false;
 	}
 
     // Item hidden on the ground, must be searched for first
-    if (IS_SET(obj->extra_flags, ITEM_HIDDEN) && obj->in_room != NULL) {
+    if (IS_SET(obj->extra[0], ITEM_HIDDEN) && obj->in_room != NULL) {
 		return false;
 	}
 
-    if (!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT))
+    if (!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))
 		return true;
 
     /*
@@ -4301,7 +4301,7 @@ bool can_see_obj(CHAR_DATA *ch, OBJ_DATA *obj)
     if (obj->item_type == ITEM_LIGHT && obj->value[2] != 0)
 	return true;
 
-    if (IS_SET(obj->extra_flags, ITEM_INVIS)
+    if (IS_SET(obj->extra[0], ITEM_INVIS)
     &&   !IS_AFFECTED(ch, AFF_DETECT_INVIS))
         return false;
 
@@ -4540,7 +4540,7 @@ void hunt_char(CHAR_DATA *ch, CHAR_DATA *victim)
 	return;
     }
 
-    if (IS_SET(ch->act2, ACT2_NO_CHASE))
+    if (IS_SET(ch->act[1], ACT2_NO_CHASE))
 	return;
 
     found = false;
@@ -4681,7 +4681,7 @@ void resurrect_pc(CHAR_DATA *ch)
 	affect_remove(ch, ch->affected);
 
     if (IS_SAGE(ch))
-		SET_BIT(ch->affected_by, AFF_DETECT_HIDDEN);
+		SET_BIT(ch->affected_by[0], AFF_DETECT_HIDDEN);
 
     ch->dead = false;
 
@@ -4699,8 +4699,8 @@ void resurrect_pc(CHAR_DATA *ch)
     }
 
     for (obj = ch->carrying; obj != NULL; obj = obj->next_content) {
-		if (IS_SET(obj->extra2_flags, ITEM_UNSEEN))
-		    REMOVE_BIT(obj->extra2_flags, ITEM_UNSEEN);
+		if (IS_SET(obj->extra[1], ITEM_UNSEEN))
+		    REMOVE_BIT(obj->extra[1], ITEM_UNSEEN);
     }
 
     /*FREE DEATH ITEMS HERE IF ANY */
@@ -4714,7 +4714,7 @@ void resurrect_pc(CHAR_DATA *ch)
     ch->lostparts	= 0;	// Restore anything lost
 
     if (IS_SAGE(ch))
-		SET_BIT(ch->affected_by, AFF_DETECT_HIDDEN);
+		SET_BIT(ch->affected_by[0], AFF_DETECT_HIDDEN);
 
     update_pos(ch);
 
@@ -4817,7 +4817,7 @@ bool can_see_shift(CHAR_DATA *ch, CHAR_DATA *victim)
 
     for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
     {
-        if(IS_SET(obj->extra2_flags, ITEM_TRUESIGHT)
+        if(IS_SET(obj->extra[1], ITEM_TRUESIGHT)
 	&& obj->wear_loc != WEAR_NONE
 	&& ch->in_room == victim->in_room)
 	    return true;
@@ -4843,7 +4843,7 @@ bool can_scare(CHAR_DATA *ch)
     for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
     {
 	if (obj->wear_loc != WEAR_NONE
-	&&  IS_SET(obj->extra2_flags, ITEM_SCARE))
+	&&  IS_SET(obj->extra[1], ITEM_SCARE))
 	    return true;
     }
 
@@ -4861,7 +4861,7 @@ bool is_sustained(CHAR_DATA *ch)
 
     for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
     {
-	if (IS_SET(obj->extra2_flags, ITEM_SUSTAIN)
+	if (IS_SET(obj->extra[1], ITEM_SUSTAIN)
 	&& obj->wear_loc != WEAR_NONE)
 	    return true;
     }
@@ -5344,7 +5344,7 @@ bool can_hunt(CHAR_DATA *ch, CHAR_DATA *victim)
 
     for (obj = victim->carrying; obj != NULL; obj = obj->next_content)
     {
-	if (obj->wear_loc != WEAR_NONE && IS_SET(obj->extra2_flags, ITEM_NO_HUNT))
+	if (obj->wear_loc != WEAR_NONE && IS_SET(obj->extra[1], ITEM_NO_HUNT))
 	    return false;
     }
 
@@ -5652,11 +5652,11 @@ int count_exits(ROOM_INDEX_DATA *room)
 bool is_room_pk(ROOM_INDEX_DATA *room, bool arena)
 {
 	if( room != NULL ) {
-		if( IS_SET(room->room_flags, ROOM_PK) || IS_SET(room->room_flags, ROOM_CPK) )
+		if( IS_SET(room->room_flag[0], ROOM_PK) || IS_SET(room->room_flag[0], ROOM_CPK) )
 			return true;
 
 		// Only count ARENA (LPK) if desired
-		if( arena && IS_SET(room->room_flags, ROOM_ARENA) )
+		if( arena && IS_SET(room->room_flag[0], ROOM_ARENA) )
 			return true;
 	}
 
@@ -5677,7 +5677,7 @@ bool is_pk(CHAR_DATA *ch)
     if (ch->pk_timer > 0)
     	return true;
 
-    if (IS_SET(ch->act, PLR_PK))
+    if (IS_SET(ch->act[0], PLR_PK))
 	return true;
 
     // If you pull a relic you are also PK
@@ -5784,15 +5784,15 @@ int is_pk_safe_range(ROOM_INDEX_DATA *room, int depth, int reverse_dir)
     int dir;
 
     /*
-    if (reverse_dir != -1 && (IS_SET(room->room_flags, ROOM_PK)
-    ||   IS_SET(room->room_flags, ROOM_CPK)))
+    if (reverse_dir != -1 && (IS_SET(room->room_flag[0], ROOM_PK)
+    ||   IS_SET(room->room_flag[0], ROOM_CPK)))
         return rev_dir[reverse_dir];
      */
 
     if (depth == 0)
     {
-	if (IS_SET(room->room_flags, ROOM_PK)
-	||   IS_SET(room->room_flags, ROOM_CPK))
+	if (IS_SET(room->room_flag[0], ROOM_PK)
+	||   IS_SET(room->room_flag[0], ROOM_CPK))
 	    return 10;
 
 	else
@@ -5808,8 +5808,8 @@ int is_pk_safe_range(ROOM_INDEX_DATA *room, int depth, int reverse_dir)
 	    if (is_pk_safe_range(to_room, depth - 1, rev_dir[dir]) > -1)
 	    	return dir;
 
-	    if (IS_SET(to_room->room_flags, ROOM_PK)
-	    ||   IS_SET(to_room->room_flags, ROOM_CPK))
+	    if (IS_SET(to_room->room_flag[0], ROOM_PK)
+	    ||   IS_SET(to_room->room_flag[0], ROOM_CPK))
 		return dir;
 	}
 
@@ -6141,7 +6141,7 @@ bool can_give_obj(CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim, bool silent)
 	return false;
     }
 
-    if (IS_SET(obj->extra2_flags, ITEM_SINGULAR)
+    if (IS_SET(obj->extra[1], ITEM_SINGULAR)
     &&  get_obj_vnum_carry(victim, obj->pIndexData->vnum, victim) != NULL)
     {
 	if (!silent)
@@ -6158,7 +6158,7 @@ bool can_give_obj(CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim, bool silent)
 	return false;
     }
 
-    if (!can_drop_obj(ch, obj, true) || IS_SET(obj->extra2_flags, ITEM_KEPT))
+    if (!can_drop_obj(ch, obj, true) || IS_SET(obj->extra[1], ITEM_KEPT))
     {
 	if (!silent)
 	    send_to_char("You can't let go of it.\n\r", ch);
@@ -6204,7 +6204,7 @@ bool can_drop_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool silent)
     which items they don't want stolen (and I'm sure there's other abuses of it too).
     Kept should be assigned specifically in functions which are called by the user
     of that item only such as give, drop, donate, etc etc
-    if (IS_SET(obj->extra2_flags, ITEM_KEPT))
+    if (IS_SET(obj->extra[1], ITEM_KEPT))
     {
 	if (!silent)
 	    act("$p has been marked for keeping. Type \"keep <item>\" to unmark it.", ch, obj, NULL, TO_CHAR);
@@ -6231,7 +6231,7 @@ bool can_drop_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool silent)
 	return false;
     }
 
-    if (IS_SET(obj->extra_flags, ITEM_NODROP))
+    if (IS_SET(obj->extra[0], ITEM_NODROP))
     {
 	if (!silent)
 	    act("You can't let go of $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
@@ -6280,7 +6280,7 @@ bool can_get_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
     if (get_carry_weight(ch) + get_obj_weight(obj) > can_carry_w(ch))
 	MSG(act("$p: you can't carry that much weight.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR))
 
-    if (IS_SET(obj->extra2_flags, ITEM_SINGULAR)
+    if (IS_SET(obj->extra[1], ITEM_SINGULAR)
     &&  get_obj_vnum_carry(ch, obj->pIndexData->vnum, ch) != NULL)
     {
 	if (!silent)
@@ -6419,7 +6419,7 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
     if (container)
     {
 	// To put it in a container on the ground you must be able to drop it
-	if (container->carried_by != ch && (!can_drop_obj(ch, obj, silent) || IS_SET(obj->extra2_flags, ITEM_KEPT))) {
+	if (container->carried_by != ch && (!can_drop_obj(ch, obj, silent) || IS_SET(obj->extra[1], ITEM_KEPT))) {
 	    if (!silent)
 		send_to_char("You can't let go of it.\n\r", ch);
 	    return false;
@@ -6463,8 +6463,8 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 	    return false;
 	}
 
-	if (IS_SET(obj->extra2_flags, ITEM_NO_CONTAINER) ||
-	    (IS_SET(obj->extra_flags, ITEM_NOUNCURSE) && IS_SET(obj->extra_flags, ITEM_NODROP)))
+	if (IS_SET(obj->extra[1], ITEM_NO_CONTAINER) ||
+	    (IS_SET(obj->extra[0], ITEM_NOUNCURSE) && IS_SET(obj->extra[0], ITEM_NODROP)))
 	{
 	    if (!silent)
 		act("You can't put $p in $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
@@ -6517,7 +6517,7 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 	    return false;
 	}
 
-	if (IS_SET(obj->extra_flags, ITEM_NOUNCURSE) && IS_SET(obj->extra_flags, ITEM_NODROP))
+	if (IS_SET(obj->extra[0], ITEM_NOUNCURSE) && IS_SET(obj->extra[0], ITEM_NODROP))
 	{
 	    if (!silent)
 		act("You can't let go of $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
@@ -6568,7 +6568,7 @@ bool can_sacrifice_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool silent)
     }
 
     if ((obj->item_type == ITEM_CORPSE_NPC || obj->item_type == ITEM_CORPSE_PC)
-    && obj->contains && !IS_SET(ch->act2, PLR_SACRIFICE_ALL))
+    && obj->contains && !IS_SET(ch->act[1], PLR_SACRIFICE_ALL))
     {
 	if (!silent)
 	    act("You must rid $p of its belongings before sacrificing it.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
@@ -6644,7 +6644,7 @@ ROOM_INDEX_DATA *find_safe_room(ROOM_INDEX_DATA *from_room, int depth, bool cros
     if (depth == 0)
 	return NULL;
 
-    if (IS_SET(from_room->room_flags, ROOM_SAFE))
+    if (IS_SET(from_room->room_flag[0], ROOM_SAFE))
 	return from_room;
 
     for (door = 0; door < MAX_DIR; door++)
@@ -6672,7 +6672,7 @@ bool can_clear_exit(ROOM_INDEX_DATA *room)
     CHAR_DATA *rch;
 
     for (rch = room->people; rch != NULL; rch = rch->next_in_room) {
-	if (!IS_NPC(rch) || IS_SET(rch->act2, ACT2_WILDS_WANDERER))
+	if (!IS_NPC(rch) || IS_SET(rch->act[1], ACT2_WILDS_WANDERER))
 	    return false;
     }
 
@@ -7334,7 +7334,7 @@ bool is_float_user(CHAR_DATA *ch)
 	if(!ch) return false;
 
 	for (obj = ch->carrying; obj; obj = obj->next_content)
-	    if (IS_SET(obj->extra2_flags, ITEM_FLOAT_USER) && obj->wear_loc != WEAR_NONE)
+	    if (IS_SET(obj->extra[1], ITEM_FLOAT_USER) && obj->wear_loc != WEAR_NONE)
 		return true;
 
 	return false;
@@ -7369,7 +7369,7 @@ int has_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int min
 				(IS_SET(method,CATALYST_WORN) && obj->wear_loc != WEAR_NONE) ||
 				IS_SET(method,(CATALYST_CARRY))) {
 					for(aff = obj->catalyst; aff; aff = aff->next) if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
-						if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act2, PLR_AUTOCAT))
+						if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act[1], PLR_AUTOCAT))
 							continue;
 
 						if(aff->duration < 0) return -1;	// Negative is treated as a "source"
@@ -7381,7 +7381,7 @@ int has_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int min
 				for (objNest = obj->contains; objNest; objNest = nextNest) {
 					nextNest = objNest->next_content;
 					for(aff = objNest->catalyst; aff; aff = aff->next) if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
-						if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act2, PLR_AUTOCAT))
+						if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act[1], PLR_AUTOCAT))
 							continue;
 						if(aff->duration < 0) return -1;	// Negative is treated as a "source"
 
@@ -7396,7 +7396,7 @@ int has_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int min
 	if(IS_SET(method,CATALYST_ROOM)) {
 		for(obj = room->contents; obj; obj = obj->next_content) {
 			for(aff = obj->catalyst; aff; aff = aff->next) if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
-					if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act2, PLR_AUTOCAT))
+					if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act[1], PLR_AUTOCAT))
 						continue;
 				if(aff->duration < 0) return -1;	// Negative is treated as a "source"
 				total += aff->duration;
@@ -7404,7 +7404,7 @@ int has_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int min
 			for (objNest = obj->contains; objNest; objNest = nextNest) {
 				nextNest = objNest->next_content;
 				for(aff = objNest->catalyst; aff; aff = aff->next) if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
-					if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act2, PLR_AUTOCAT))
+					if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act[1], PLR_AUTOCAT))
 						continue;
 					if(aff->duration < 0) return -1;	// Negative is treated as a "source"
 						total += aff->duration;
@@ -7432,7 +7432,7 @@ int use_catalyst_obj(CHAR_DATA *ch,ROOM_INDEX_DATA *room,OBJ_DATA *obj,int type,
 	for(prev = NULL, aff = obj->catalyst; aff && total < left; aff = next) {
 		next = aff->next;
 		if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
-			if( active && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act2, PLR_AUTOCAT) ) continue;
+			if( active && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act[1], PLR_AUTOCAT) ) continue;
 
 			if(aff->duration < 0) {
 				if(show && !p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CATALYST_SOURCE, NULL))
@@ -7829,7 +7829,7 @@ ROOM_INDEX_DATA *get_environment(ROOM_INDEX_DATA *room)
 	}
 
 	// static or floating virtual rooms have no environment
-	if(!IS_SET(room->room2_flags,ROOM_VIRTUAL_ROOM)) return NULL;
+	if(!IS_SET(room->room_flag[1],ROOM_VIRTUAL_ROOM)) return NULL;
 
 	switch(room->environ_type) {
 	case ENVIRON_ROOM:	return room->environ.room;
@@ -7851,7 +7851,7 @@ ROOM_INDEX_DATA *get_environment(ROOM_INDEX_DATA *room)
 
 bool mobile_is_flying(CHAR_DATA *mob)
 {
-	return mob && (IS_SET(mob->affected_by, AFF_FLYING) || is_float_user(mob) ||
+	return mob && (IS_SET(mob->affected_by[0], AFF_FLYING) || is_float_user(mob) ||
 		(mob->riding && mob->mount && mobile_is_flying(mob->mount)));
 }
 
@@ -7865,7 +7865,7 @@ bool check_vision(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool blind, bool dark)
 	}
 
 	if ((!IS_NPC(ch) || IS_SWITCHED(ch)) // we are a player
-		&& (IS_NPC(ch) || !IS_SET(ch->act, PLR_HOLYLIGHT))
+		&& (IS_NPC(ch) || !IS_SET(ch->act[0], PLR_HOLYLIGHT))
 		&& room_is_dark(room)
 		&& !IS_AFFECTED(ch, AFF_INFRARED)) {
 		if(dark) {
@@ -8925,7 +8925,7 @@ void visit_room_direction(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, int max_de
 					nextdest.room = pVLink->pDestRoom;
 
 				if( nextdest.room &&
-					(IS_SET(nextdest.room->room2_flags, ROOM_BLUEPRINT) ||
+					(IS_SET(nextdest.room->room_flag[1], ROOM_BLUEPRINT) ||
 					IS_SET(nextdest.room->area->area_flags, AREA_BLUEPRINT)) )
 				{
 					nextdest.room = NULL;
@@ -9220,7 +9220,7 @@ bool can_room_update(ROOM_INDEX_DATA *room)
 {
 	if( !room ) return false;
 
-	if( IS_SET(room->room2_flags, ROOM_ALWAYS_UPDATE) ) return true;
+	if( IS_SET(room->room_flag[1], ROOM_ALWAYS_UPDATE) ) return true;
 
 	if( IS_VALID(room->instance_section) )
 	{
@@ -9249,7 +9249,7 @@ bool can_room_update(ROOM_INDEX_DATA *room)
 bool is_area_unlocked(CHAR_DATA *ch, AREA_DATA *area)
 {
 	// Check player
-	if( !IS_VALID(ch) || IS_NPC(ch) || !IS_VALID(ch->pcdata) || (IS_IMMORTAL(ch) && IS_SET(ch->act2, PLR_HOLYWARP))) return true;
+	if( !IS_VALID(ch) || IS_NPC(ch) || !IS_VALID(ch->pcdata) || (IS_IMMORTAL(ch) && IS_SET(ch->act[1], PLR_HOLYWARP))) return true;
 
 	// Check area
 	if( !area || !IS_SET(area->area_flags, AREA_LOCKED) || IS_SET(area->area_flags, AREA_BLUEPRINT) ) return true;
@@ -9277,7 +9277,7 @@ bool is_room_unlocked(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
 {
 	if( !room ||											// Phantom room
 		room_is_clone(room) ||								// General clone
-		IS_SET(room->room2_flags,ROOM_VIRTUAL_ROOM) ||		// Wilderness room
+		IS_SET(room->room_flag[1],ROOM_VIRTUAL_ROOM) ||		// Wilderness room
 		IS_VALID(room->instance_section) )					// Instance room (should count as clone, though)
 		return true;
 

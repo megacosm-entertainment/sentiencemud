@@ -120,7 +120,7 @@ SPELL_FUNC(spell_counter_spell)
 		case TAR_CHAR_OFFENSIVE:
 			if (!IS_NPC(ch)) {
 				if (is_safe(ch, victim, true) && victim != ch &&
-					!IS_SET(ch->in_room->room2_flags, ROOM_MULTIPLAY)) {
+					!IS_SET(ch->in_room->room_flag[1], ROOM_MULTIPLAY)) {
 					send_to_char("Not on that target.\n\r",ch);
 					return true;
 				}
@@ -169,7 +169,7 @@ SPELL_FUNC(spell_discharge)
 		return false;
 	}
 
-	if (IS_SET(obj->extra2_flags, ITEM_NO_DISCHARGE)) {
+	if (IS_SET(obj->extra[1], ITEM_NO_DISCHARGE)) {
 		act("$p's magic cannot be removed from it.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 		return false;
 	}
@@ -264,7 +264,7 @@ SPELL_FUNC(spell_dispel_room)
 			sprintf(buf, "{gThe poisonous haze disappears.{x\n\r");
 			exists = true;
 		}
-		else if(IS_SET(obj->extra3_flags, ITEM_CAN_DISPEL)) {
+		else if(IS_SET(obj->extra[2], ITEM_CAN_DISPEL)) {
 			if(!saves_dispel(ch, NULL, obj->level))
 			{
 				if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SPELL_DISPEL, NULL))
@@ -307,7 +307,7 @@ SPELL_FUNC(spell_dispel_room)
 					sprintf(buf2, "{YThe noxious fumes wafting in from the %s dissipate.{x\n\r",	dir_name[ index ]);
 					exists = true;
 				}
-				else if(IS_SET(obj->extra3_flags, ITEM_CAN_DISPEL)) {
+				else if(IS_SET(obj->extra[2], ITEM_CAN_DISPEL)) {
 					if(!saves_dispel(ch, NULL, obj->level))
 					{
 						if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SPELL_DISPEL, dir_name[ index ]))

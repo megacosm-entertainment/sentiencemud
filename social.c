@@ -167,7 +167,7 @@ void do_chat_enter(CHAR_DATA *ch, char *argument)
 
     recall = location_to_room(&ch->in_room->area->recall);
 
-    if (!IS_IMMORTAL(ch) && (!recall || ch->in_room != recall || !IS_SET(ch->in_room->room_flags, ROOM_SAFE)))
+    if (!IS_IMMORTAL(ch) && (!recall || ch->in_room != recall || !IS_SET(ch->in_room->room_flag[0], ROOM_SAFE)))
     {
 	send_to_char("You can only enter chat from the recall point of the area you are in.{x\n\r", ch);
 	return;
@@ -210,6 +210,8 @@ void do_chat_enter(CHAR_DATA *ch, char *argument)
     char_from_room(ch);
     char_to_room(ch, get_room_index(ROOM_VNUM_CHAT));
 
+    act("{W$n has entered chat.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+
     SET_BIT(ch->comm, COMM_SOCIAL);
 }
 
@@ -242,13 +244,15 @@ void do_chat_exit(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    act("{WA ghostly spirit appears before $n and pulls $m to another dimension.{x",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-    act("{WA ghostly spirit appears before you and pulls you to another dimension.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    act("{W$n has left chat.{x",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act("{WYou exit chat.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
     REMOVE_BIT(ch->comm, COMM_SOCIAL);
 
     char_from_room(ch);
     char_to_room(ch, room);
+
+    act("{W$n fades in from another dimension.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 }
 
 

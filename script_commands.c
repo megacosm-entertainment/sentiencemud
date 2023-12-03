@@ -15,6 +15,16 @@
 //#define DEBUG_MODULE
 #include "debug.h"
 
+void reset_reckoning();
+
+#define PARSE_ARG				(rest = expand_argument(info,rest,arg))
+#define PARSE_ARGTYPE(x)		if (!PARSE_ARG || arg->type != ENT_##x) return
+#define PARSE_STR(b)			(expand_string(info,rest,(b)))
+#define SETRETURN(ret)			info->progs->lastreturn = (ret)
+#define IS_TRIGGER(trg)			(info->trigger_type == (trg))
+#define ARG_EQUALS(ss)			(!str_cmp(arg->d.str, (ss)))
+#define ARG_PREFIX(ss)			(!str_prefix(arg->d.str, (ss)))
+
 const struct script_cmd_type area_cmd_table[] = {
 	{ "call",				scriptcmd_call,				false,	true	},
 	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
@@ -27,6 +37,7 @@ const struct script_cmd_type area_cmd_table[] = {
 	{ "sendfloor",			scriptcmd_sendfloor,		false,	true	},
 	{ "specialkey",			scriptcmd_specialkey,		false,	true	},
 	{ "startreckoning",		scriptcmd_startreckoning,	true,	true	},
+	{ "stopreckoning",		scriptcmd_stopreckoning,	true,	true	},
 	{ "treasuremap",		scriptcmd_treasuremap,		false,	true	},
 	{ "unlockarea",			scriptcmd_unlockarea,		true,	true	},
 	{ "unmute",				scriptcmd_unmute,			false,	true	},
@@ -56,6 +67,7 @@ const struct script_cmd_type instance_cmd_table[] = {
 	{ "sendfloor",			scriptcmd_sendfloor,		false,	true	},
 	{ "specialkey",			scriptcmd_specialkey,		false,	true	},
 	{ "startreckoning",		scriptcmd_startreckoning,	true,	true	},
+	{ "stopreckoning",		scriptcmd_stopreckoning,	true,	true	},
 	{ "treasuremap",		scriptcmd_treasuremap,		false,	true	},
 	{ "unlockarea",			scriptcmd_unlockarea,		true,	true	},
 	{ "unmute",				scriptcmd_unmute,			false,	true	},
@@ -85,6 +97,7 @@ const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "sendfloor",			scriptcmd_sendfloor,		false,	true	},
 	{ "specialkey",			scriptcmd_specialkey,		false,	true	},
 	{ "startreckoning",		scriptcmd_startreckoning,	true,	true	},
+	{ "stopreckoning",		scriptcmd_stopreckoning,	true,	true	},
 	{ "treasuremap",		scriptcmd_treasuremap,		false,	true	},
 	{ "unlockarea",			scriptcmd_unlockarea,		true,	true	},
 	{ "unmute",				scriptcmd_unmute,			false,	true	},
@@ -900,7 +913,7 @@ SCRIPT_CMD(scriptcmd_applytoxin)
 	victim->bitten = UMAX(500/level, 30);
 	victim->bitten_level = level;
 
-	if (!IS_SET(victim->affected_by2, AFF2_TOXIN)) {
+	if (!IS_SET(victim->affected_by[1], AFF2_TOXIN)) {
 		AFFECT_DATA af;
 		af.where = TO_AFFECTS;
 		af.group     = AFFGROUP_BIOLOGICAL;
@@ -1003,8 +1016,8 @@ SCRIPT_CMD(scriptcmd_attach)
 				add_grouped(entity_mob, target_mob, show);	// Checks are already done
 
 				target_mob->pet = entity_mob;
-				SET_BIT(entity_mob->act, ACT_PET);
-				SET_BIT(entity_mob->affected_by, AFF_CHARM);
+				SET_BIT(entity_mob->act[0], ACT_PET);
+				SET_BIT(entity_mob->affected_by[0], AFF_CHARM);
 				entity_mob->comm = COMM_NOTELL|COMM_NOCHANNELS;
 
 			}
@@ -1702,11 +1715,11 @@ SCRIPT_CMD(scriptcmd_detach)
 		{
 			if( mob->pet == NULL ) return;
 
-			if( !IS_SET(mob->pet->pIndexData->act, ACT_PET) )
-				REMOVE_BIT(mob->pet->act, ACT_PET);
+			if( !IS_SET(mob->pet->pIndexData->act[0], ACT_PET) )
+				REMOVE_BIT(mob->pet->act[0], ACT_PET);
 
-			if( !IS_SET(mob->pet->pIndexData->affected_by, AFF_CHARM) )
-				REMOVE_BIT(mob->pet->affected_by, AFF_CHARM);
+			if( !IS_SET(mob->pet->pIndexData->affected_by[0], AFF_CHARM) )
+				REMOVE_BIT(mob->pet->affected_by[0], AFF_CHARM);
 
 			// This will not ungroup/unfollow
 			mob->pet->comm &= ~(COMM_NOTELL|COMM_NOCHANNELS);
@@ -1718,11 +1731,11 @@ SCRIPT_CMD(scriptcmd_detach)
 
 			if( mob->master->pet == mob )
 			{
-				if( !IS_SET(mob->pet->pIndexData->act, ACT_PET) )
-					REMOVE_BIT(mob->pet->act, ACT_PET);
+				if( !IS_SET(mob->pet->pIndexData->act[0], ACT_PET) )
+					REMOVE_BIT(mob->pet->act[0], ACT_PET);
 
-				if( !IS_SET(mob->pet->pIndexData->affected_by, AFF_CHARM) )
-					REMOVE_BIT(mob->pet->affected_by, AFF_CHARM);
+				if( !IS_SET(mob->pet->pIndexData->affected_by[0], AFF_CHARM) )
+					REMOVE_BIT(mob->pet->affected_by[0], AFF_CHARM);
 
 				// This will not ungroup/unfollow
 				mob->pet->comm &= ~(COMM_NOTELL|COMM_NOCHANNELS);
@@ -2453,13 +2466,13 @@ SCRIPT_CMD(scriptcmd_loadinstanced)
 	if( IS_VALID(info->dungeon) ) valid = true;
 	else if(IS_VALID(info->instance) ) valid = true;
 	else if( info->room && IS_VALID(info->room->instance_section) ) valid = true;
-	else if( info->mob && IS_SET(info->mob->act2, ACT2_INSTANCE_MOB) ) valid = true;
-	else if( info->obj && IS_SET(info->obj->extra3_flags, ITEM_INSTANCE_OBJ) ) valid = true;
+	else if( info->mob && IS_SET(info->mob->act[1], ACT2_INSTANCE_MOB) ) valid = true;
+	else if( info->obj && IS_SET(info->obj->extra[2], ITEM_INSTANCE_OBJ) ) valid = true;
 	else if( info->token )
 	{
 		if( info->token->room && IS_VALID(info->token->room->instance_section) ) valid = true;
-		else if( info->token->player && IS_SET(info->token->player->act2, ACT2_INSTANCE_MOB) ) valid = true;
-		else if( info->token->object && IS_SET(info->token->object->extra3_flags, ITEM_INSTANCE_OBJ) ) valid = true;
+		else if( info->token->player && IS_SET(info->token->player->act[1], ACT2_INSTANCE_MOB) ) valid = true;
+		else if( info->token->object && IS_SET(info->token->object->extra[2], ITEM_INSTANCE_OBJ) ) valid = true;
 	}
 
 	// Not a valid caller
@@ -2568,9 +2581,9 @@ SCRIPT_CMD(scriptcmd_makeinstanced)
 		if( info->dungeon && (info->dungeon != instance->dungeon || !IS_VALID(instance->dungeon)) )
 			return;
 
-		if( !IS_SET(arg->d.mob->act2, ACT2_INSTANCE_MOB) )
+		if( !IS_SET(arg->d.mob->act[1], ACT2_INSTANCE_MOB) )
 		{
-			SET_BIT(arg->d.mob->act2, ACT2_INSTANCE_MOB);
+			SET_BIT(arg->d.mob->act[1], ACT2_INSTANCE_MOB);
 
 
 			list_remlink(instance->mobiles, arg->d.mob);
@@ -2597,9 +2610,9 @@ SCRIPT_CMD(scriptcmd_makeinstanced)
 		if( info->dungeon && (info->dungeon != instance->dungeon || !IS_VALID(instance->dungeon)) )
 			return;
 
-		if( !IS_SET(arg->d.obj->extra3_flags, ITEM_INSTANCE_OBJ) )
+		if( !IS_SET(arg->d.obj->extra[2], ITEM_INSTANCE_OBJ) )
 		{
-			SET_BIT(arg->d.obj->extra3_flags, ITEM_INSTANCE_OBJ);
+			SET_BIT(arg->d.obj->extra[2], ITEM_INSTANCE_OBJ);
 
 			list_remlink(instance->objects, arg->d.obj);
 			if( IS_VALID(instance->dungeon) )
@@ -3621,7 +3634,7 @@ SCRIPT_CMD(scriptcmd_sendfloor)
 		for (vch = ch->in_room->people; vch; vch = next) {
 			next = vch->next_in_room;
 			if (PROG_FLAG(vch,PROG_AT)) continue;
-			if ((!IS_NPC(vch) || !IS_SET(vch->act2,ACT2_INSTANCE_MOB)) &&
+			if ((!IS_NPC(vch) || !IS_SET(vch->act[1],ACT2_INSTANCE_MOB)) &&
 				is_same_group(ch,vch)) {
 				if (vch->position != POS_STANDING) continue;
 				if (room_is_private(instance->entrance, info->mob)) break;
@@ -3634,7 +3647,7 @@ SCRIPT_CMD(scriptcmd_sendfloor)
 		for (vch = ch->in_room->people; vch; vch = next) {
 			next = vch->next_in_room;
 			if (PROG_FLAG(vch,PROG_AT)) continue;
-			if (!IS_NPC(vch) || !IS_SET(vch->act2,ACT2_INSTANCE_MOB)) {
+			if (!IS_NPC(vch) || !IS_SET(vch->act[1],ACT2_INSTANCE_MOB)) {
 				if (vch->position != POS_STANDING) continue;
 				if (room_is_private(instance->entrance, info->mob)) break;
 				do_mob_transfer(vch,instance->entrance,false,mode);
@@ -3816,7 +3829,7 @@ SCRIPT_CMD(scriptcmd_startcombat)
 		return;
 
 	// The victim is fighting someone else in a singleplay room
-	if(!IS_NPC(attacker) && victim->fighting != NULL && victim->fighting != attacker && !IS_SET(attacker->in_room->room2_flags, ROOM_MULTIPLAY))
+	if(!IS_NPC(attacker) && victim->fighting != NULL && victim->fighting != attacker && !IS_SET(attacker->in_room->room_flag[1], ROOM_MULTIPLAY))
 		return;
 
 	// They are not in the same room
@@ -3910,6 +3923,59 @@ SCRIPT_CMD(scriptcmd_stopcombat)
 
 	if( mob->fighting == NULL )
 		info->progs->lastreturn = 1;
+}
+
+// STOPRECKONING
+// STOPRECKONING $immediate(boolean)
+// STOPRECKONING $duration(number)
+SCRIPT_CMD(scriptcmd_stopreckoning)
+{
+	char *rest = argument;
+	int duration = 5;		// Default, give 5 minutes
+	bool immediate = false;
+
+	info->progs->lastreturn = 0;
+
+	if (script_security < 9)
+		return;
+
+	if (rest && *rest)
+	{
+		if (!(rest = expand_argument(info, rest, arg)))
+			return;
+
+		if (arg->type == ENT_BOOLEAN)
+			immediate = arg->d.boolean;
+		else if (arg->type == ENT_STRING)
+			immediate = !str_prefix(arg->d.str, "yes") || !str_prefix(arg->d.str, "true") || !str_prefix(arg->d.str, "immediate");
+		else if (arg->type == ENT_NUMBER)
+			duration = UMAX(1, arg->d.num);
+	}
+
+	// Only work if the reckoning is active
+	if (reckoning_timer > 0)
+	{
+		if (immediate)
+		{
+			// The global message will be under script control.
+			reset_reckoning();
+			info->progs->lastreturn = -1;
+		}
+		else
+		{
+			struct tm *reck_time = (struct tm *) localtime(&current_time);
+			reck_time->tm_min += duration;
+			time_t timer = (time_t) mktime(reck_time);
+
+			// Check if the *new* timer is sooner than the current time left
+			if (timer < reckoning_timer)
+			{
+				reckoning_duration = duration;
+				reckoning_timer = timer;
+				info->progs->lastreturn = duration;
+			}
+		}
+	}
 }
 
 
@@ -4433,3 +4499,336 @@ SCRIPT_CMD(scriptcmd_xcall)
 
 
 
+SCRIPT_CMD(scriptcmd_alterobj)
+{
+	char buf[2*MIL],field[MIL],*rest;
+	int value, num, min_sec = MIN_SCRIPT_SECURITY;
+	OBJ_DATA *obj = NULL;
+	int min = 0, max = 0;
+	bool hasmin = false, hasmax = false;
+	bool allowarith = true;
+	const struct flag_type *flags = NULL;
+	const struct flag_type **bank = NULL;
+	long temp_flags[4];
+	int sec_flags[4];
+
+	if(!info) return;
+
+	SETRETURN(0);
+
+	for(int i = 0; i < 4; i++)
+		sec_flags[i] = MIN_SCRIPT_SECURITY;
+
+	if(!(rest = expand_argument(info,argument,arg))) {
+		bug("AlterObj - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg->type) {
+	case ENT_STRING: obj = script_get_obj_here(info, arg->d.str); break;
+	case ENT_OBJECT: obj = arg->d.obj; break;
+	default: break;
+	}
+
+	if(!obj) {
+		bug("AlterObj - NULL object.", 0);
+		return;
+	}
+
+	if(!*rest) {
+		bug("AlterObj - Missing field type.",0);
+		return;
+	}
+
+	if(!(rest = expand_argument(info,rest,arg))) {
+		bug("AlterObj - Error in parsing.",0);
+		return;
+	}
+
+	field[0] = 0;
+	num = -1;
+
+	switch(arg->type) {
+	case ENT_STRING:
+		if(is_number(arg->d.str)) {
+			num = atoi(arg->d.str);
+			if(num < 0 || num >= 8) return;
+		} else
+			strncpy(field,arg->d.str,MIL-1);
+		break;
+	case ENT_NUMBER:
+		num = arg->d.num;
+		if(num < 0 || num >= 8) return;
+		break;
+	default: return;
+	}
+
+	if(num < 0 && !field[0]) return;
+
+	argument = one_argument(rest,buf);
+
+	if(!(rest = expand_argument(info,argument,arg))) {
+		bug("AlterObj - Error in parsing.",0);
+		return;
+	}
+
+	if(num >= 0) {
+		switch(arg->type) {
+		case ENT_STRING: value = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+		case ENT_NUMBER: value = arg->d.num; break;
+		default: return;
+		}
+
+		if(script_security < min_sec) {
+			sprintf(buf,"AlterObj - Attempting to alter value%d with security %d.\n\r", num, script_security);
+			bug(buf, 0);
+			return;
+		}
+
+		switch (buf[0]) {
+		case '+': obj->value[num] += value; break;
+		case '-': obj->value[num] -= value; break;
+		case '*': obj->value[num] *= value; break;
+		case '/':
+			if (!value) {
+				bug("AlterObj - adjust called with operator / and value 0", 0);
+				return;
+			}
+			obj->value[num] /= value;
+			break;
+		case '%':
+			if (!value) {
+				bug("AlterObj - adjust called with operator % and value 0", 0);
+				return;
+			}
+			obj->value[num] %= value;
+			break;
+
+		case '=': obj->value[num] = value; break;
+		case '&': obj->value[num] &= value; break;
+		case '|': obj->value[num] |= value; break;
+		case '!': obj->value[num] &= ~value; break;
+		case '^': obj->value[num] ^= value; break;
+		default:
+			return;
+		}
+	} else {
+		int *ptr = NULL;
+
+		if(!str_cmp(field,"cond"))				ptr = (int*)&obj->condition;
+		else if(!str_cmp(field,"cost"))			{ ptr = (int*)&obj->cost; min_sec = 5; }
+		else if(!str_cmp(field,"extra"))		{ ptr = (int*)obj->extra; bank = extra_flagbank; sec_flags[1] = sec_flags[2] = sec_flags[3] = 5; }
+		else if(!str_cmp(field,"fixes"))		{ ptr = (int*)&obj->times_allowed_fixed; min_sec = 5; }
+		else if(!str_cmp(field,"level"))		{ ptr = (int*)&obj->level; min_sec = 5; }
+		else if(!str_cmp(field,"repairs"))		ptr = (int*)&obj->times_fixed;
+		else if(!str_cmp(field,"tempstore1"))	ptr = (int*)&obj->tempstore[0];
+		else if(!str_cmp(field,"tempstore2"))	ptr = (int*)&obj->tempstore[1];
+		else if(!str_cmp(field,"tempstore3"))	ptr = (int*)&obj->tempstore[2];
+		else if(!str_cmp(field,"tempstore4"))	ptr = (int*)&obj->tempstore[3];
+		else if(!str_cmp(field,"tempstore5"))	ptr = (int*)&obj->tempstore[4];
+		else if(!str_cmp(field,"timer"))		ptr = (int*)&obj->timer;
+		else if(!str_cmp(field,"type"))			{ ptr = (int*)&obj->item_type; flags = type_flags; min_sec = 7; }
+		else if(!str_cmp(field,"wear"))			{ ptr = (int*)&obj->wear_flags; flags = wear_flags; }
+		else if(!str_cmp(field,"wearloc"))		{ ptr = (int*)&obj->wear_loc; flags = wear_loc_flags; }
+		else if(!str_cmp(field,"weight"))		ptr = (int*)&obj->weight;
+
+		if(!ptr) return;
+
+		if(script_security < min_sec) {
+			sprintf(buf,"AlterObj - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+			bug(buf, 0);
+			return;
+		}
+
+		if( bank != NULL )
+		{
+			if( arg->type != ENT_STRING ) return;
+
+			allowarith = false;	// This is a bit vector, no arithmetic operators.
+			if (!script_bitmatrix_lookup(arg->d.str, bank, temp_flags))
+				return;
+
+			// Make sure the script can change the particular flags
+			if( buf[0] == '=' || buf[0] == '&' )
+			{
+				for(int i = 0; bank[i]; i++)
+				{
+					if (script_security < sec_flags[i])
+					{
+						// Not enough security to change their values
+						temp_flags[i] = ptr[i];
+					}
+				}
+			}
+			else
+			{
+				for(int i = 0; bank[i]; i++)
+				{
+					if (script_security < sec_flags[i])
+					{
+						// Not enough security to change their values
+						temp_flags[i] = 0;
+					}
+				}
+			}
+
+			if (bank == extra_flagbank)
+			{
+				REMOVE_BIT(temp_flags[2], ITEM_INSTANCE_OBJ);
+
+				if( buf[0] == '=' || buf[0] == '&' )
+				{
+					if( IS_SET(ptr[2], ITEM_INSTANCE_OBJ) ) SET_BIT(temp_flags[2], ITEM_INSTANCE_OBJ);
+				}
+			}		
+		}
+		else if( flags != NULL )
+		{
+			if( arg->type != ENT_STRING ) return;
+
+			allowarith = false;	// This is a bit vector, no arithmetic operators.
+			value = script_flag_value(flags, arg->d.str);
+
+			if( value == NO_FLAG ) value = 0;
+
+			if( flags == extra3_flags )
+			{
+				REMOVE_BIT(value, ITEM_INSTANCE_OBJ);
+
+				if( buf[0] == '=' || buf[0] == '&' )
+				{
+					value |= (*ptr & (ITEM_INSTANCE_OBJ));
+				}
+			}
+		}
+		else
+		{
+			switch(arg->type) {
+			case ENT_STRING:
+				if( is_number(arg->d.str) )
+					value = atoi(arg->d.str);
+				else
+					return;
+
+				break;
+			case ENT_NUMBER: value = arg->d.num; break;
+			default: return;
+			}
+		}
+
+		switch (buf[0]) {
+		case '+':
+			if( !allowarith ) {
+				bug("AlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+				return;
+			}
+
+			*ptr += value;
+			break;
+
+		case '-':
+			if( !allowarith ) {
+				bug("AlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+				return;
+			}
+
+			*ptr -= value;
+			break;
+
+		case '*':
+			if( !allowarith ) {
+				bug("AlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+				return;
+			}
+
+			*ptr *= value;
+			break;
+
+		case '/':
+			if( !allowarith ) {
+				bug("AlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+				return;
+			}
+
+			if (!value) {
+				bug("AlterObj - adjust called with operator / and value 0", 0);
+				return;
+			}
+			*ptr /= value;
+			break;
+		case '%':
+			if( !allowarith ) {
+				bug("AlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+				return;
+			}
+
+			if (!value) {
+				bug("AlterObj - adjust called with operator % and value 0", 0);
+				return;
+			}
+			*ptr %= value;
+			break;
+
+		case '=':
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] = temp_flags[i];
+			}
+			else
+				*ptr = value;
+			break;
+
+		case '&':
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] &= temp_flags[i];
+			}
+			else
+				*ptr &= value;
+			break;
+		case '|':
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] |= temp_flags[i];
+			}
+			else
+				*ptr |= value;
+			break;
+		case '!':
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] &= ~temp_flags[i];
+			}
+			else
+				*ptr &= ~value;
+			break;
+		case '^':
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] ^= temp_flags[i];
+			}
+			else
+				*ptr ^= value;
+
+			break;
+		default:
+			return;
+		}
+
+		if( ptr )
+		{
+			if(hasmin && *ptr < min)
+				*ptr = min;
+
+			if(hasmax && *ptr > max)
+				*ptr = max;
+		}
+	}
+
+	SETRETURN(1);
+}

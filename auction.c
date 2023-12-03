@@ -332,7 +332,7 @@ void do_auction( CHAR_DATA *ch, char * argument )
 	return;
     }
 
-    if ( !can_drop_obj(ch, obj, true) || IS_SET(obj->extra2_flags, ITEM_KEPT))
+    if ( !can_drop_obj(ch, obj, true) || IS_SET(obj->extra[1], ITEM_KEPT))
     {
 	send_to_char("You can't let go of that item.\n\r",ch);
 	return;
@@ -361,7 +361,7 @@ void do_auction( CHAR_DATA *ch, char * argument )
 	}
     }
 
-    if (IS_SET(obj->extra2_flags, ITEM_NOAUCTION)) {
+    if (IS_SET(obj->extra[1], ITEM_NOAUCTION)) {
 	act("$p cannot be auctioned.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 	return;
     }

@@ -27,7 +27,7 @@ void do_shoot( CHAR_DATA *ch, char *argument )
     int ii;
     int range, beats;
 
-    if ( IS_SET(ch->in_room->room_flags, ROOM_SAFE ) )
+    if ( IS_SET(ch->in_room->room_flag[0], ROOM_SAFE ) )
     {
     	send_to_char("You cannot use ranged weapons from safe rooms.\n\r", ch );
 	return;
@@ -713,7 +713,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
     argument = one_argument( argument, arg2 );
     argument = one_argument( argument, arg3 );
 
-    if ( IS_SET(ch->in_room->room_flags, ROOM_SAFE ) )
+    if ( IS_SET(ch->in_room->room_flag[0], ROOM_SAFE ) )
     {
     	send_to_char("You cannot use ranged weapons from safe rooms.\n\r", ch );
 	return;
@@ -741,7 +741,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	return;
     }
 
-    if (!can_drop_obj(ch, obj, true) || IS_SET(obj->extra2_flags, ITEM_KEPT)) {
+    if (!can_drop_obj(ch, obj, true) || IS_SET(obj->extra[1], ITEM_KEPT)) {
 	send_to_char("You can't let go of it.\n\r", ch);
 	return;
     }

@@ -243,7 +243,7 @@ ROOM_INDEX_DATA *exit_destination(EXIT_DATA *pexit)
 			}
 
 		} else if (IS_SET(pexit->exit_info, EX_ENVIRONMENT)) {
-			if(!IS_SET(pexit->from_room->room2_flags,ROOM_VIRTUAL_ROOM)) {
+			if(!IS_SET(pexit->from_room->room_flag[1],ROOM_VIRTUAL_ROOM)) {
 /*				wiznet("exit_destination()->NULL H",NULL,NULL,WIZ_TESTING,0,0); */
 				return NULL;
 			}
@@ -341,7 +341,7 @@ bool exit_destination_data(EXIT_DATA *pexit, DESTINATION_DATA *pDest)
 			}
 
 		} else if (IS_SET(pexit->exit_info, EX_ENVIRONMENT)) {
-			if(!IS_SET(pexit->from_room->room2_flags,ROOM_VIRTUAL_ROOM)) {
+			if(!IS_SET(pexit->from_room->room_flag[1],ROOM_VIRTUAL_ROOM)) {
 /*				wiznet("exit_destination()->NULL H",NULL,NULL,WIZ_TESTING,0,0); */
 				return false;
 			}
@@ -425,7 +425,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 	if (IS_SET(pexit->exit_info, EX_HIDDEN) && !IS_SET(pexit->exit_info, EX_FOUND) && IS_SET(pexit->exit_info, EX_MUSTSEE) )
 	{
 		// If they are not an immortal or have holylight off, they can't use the exit
-		if( !IS_IMMORTAL(ch) || !IS_SET(ch->act,PLR_HOLYLIGHT) )
+		if( !IS_IMMORTAL(ch) || !IS_SET(ch->act[0],PLR_HOLYLIGHT) )
 		{
 			send_to_char("Alas, you cannot move that way.\n\r", ch);
 			return;
@@ -476,7 +476,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 		}
 
 		if (in_room->sector_type == SECT_WATER_NOSWIM && !IS_SET(ch->parts, PART_FINS) && !IS_IMMORTAL(ch)) {
-			if(IS_SET(in_room->room2_flags,ROOM_CITYMOVE))
+			if(IS_SET(in_room->room_flag[1],ROOM_CITYMOVE))
 				WAIT_STATE(ch, 4);
 			else
 				WAIT_STATE(ch, 8);
@@ -500,11 +500,11 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 
 			m1 = UMIN(SECT_MAX-1, in_room->sector_type);
 			if(IS_SET(ch->parts, PART_FINS) && m1 == SECT_WATER_NOSWIM) m1 = SECT_WATER_SWIM;
-			if(IS_SET(in_room->room2_flags,ROOM_CITYMOVE) && movement_loss[m1] > movement_loss[SECT_CITY]) m1 = SECT_CITY;
+			if(IS_SET(in_room->room_flag[1],ROOM_CITYMOVE) && movement_loss[m1] > movement_loss[SECT_CITY]) m1 = SECT_CITY;
 
 			m2 = UMIN(SECT_MAX-1, to_room->sector_type);
 			if(IS_SET(ch->parts, PART_FINS) && m2 == SECT_WATER_NOSWIM) m2 = SECT_WATER_SWIM;
-			if(IS_SET(to_room->room2_flags,ROOM_CITYMOVE) && movement_loss[m2] > movement_loss[SECT_CITY]) m2 = SECT_CITY;
+			if(IS_SET(to_room->room_flag[1],ROOM_CITYMOVE) && movement_loss[m2] > movement_loss[SECT_CITY]) m2 = SECT_CITY;
 
 
 			/* Average movement between different sector types */
@@ -717,7 +717,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 	if (!IS_DEAD(ch)) check_ambush(ch);
 
 	/* Enable this?
-	  if (IS_SET(ch->in_room->room2_flags, ROOM_POST_OFFICE))
+	  if (IS_SET(ch->in_room->room_flag[1], ROOM_POST_OFFICE))
 	      check_new_mail(ch);*/
 
 	if (MOUNTED(ch) && number_percent() == 1 && get_skill(ch, gsn_riding) > 0)
@@ -804,7 +804,7 @@ bool check_rocks(CHAR_DATA *ch, bool show)
 	if (ch->in_room == NULL)
 		return false;
 
-	if (IS_SET(ch->in_room->room_flags, ROOM_ROCKS) &&
+	if (IS_SET(ch->in_room->room_flag[0], ROOM_ROCKS) &&
 		number_percent() < 75 &&
 		!IS_DEAD(ch) &&
 		!IS_AFFECTED(ch, AFF_FLYING))
@@ -847,7 +847,7 @@ bool check_ice(CHAR_DATA *ch, bool show)
     if (IS_IMMORTAL(ch))
 	return false;
 
-    if (!IS_SET(ch->in_room->room2_flags, ROOM_ICY)
+    if (!IS_SET(ch->in_room->room_flag[1], ROOM_ICY)
     && check_ice_storm(ch->in_room) == false)
 	return false;
 
@@ -879,9 +879,9 @@ bool check_room_flames(CHAR_DATA *ch, bool show)
 		if (obj->item_type == ITEM_ROOM_FLAME)
 		{
 			if (!IS_DEAD(ch) &&
-				(IS_SET(ch->in_room->room_flags, ROOM_PK) ||
-					IS_SET(ch->in_room->room_flags, ROOM_CPK) ||
-					IS_SET(ch->in_room->room_flags, ROOM_ARENA) ||
+				(IS_SET(ch->in_room->room_flag[0], ROOM_PK) ||
+					IS_SET(ch->in_room->room_flag[0], ROOM_CPK) ||
+					IS_SET(ch->in_room->room_flag[0], ROOM_ARENA) ||
 					is_pk(ch) || IS_NPC(ch)))
 			{
 				if( show )
@@ -997,7 +997,7 @@ bool can_move_room(CHAR_DATA *ch, int door, ROOM_INDEX_DATA *room)
 	}
 
 	/* Syn - why the hell wasn't this ever here in the first place? */
-	if (IS_NPC(ch) && IS_SET(room->room_flags, ROOM_NO_MOB))
+	if (IS_NPC(ch) && IS_SET(room->room_flag[0], ROOM_NO_MOB))
 		return false;
 
 	if (IS_AFFECTED(ch, AFF_WEB)) {
@@ -1159,9 +1159,9 @@ void do_search(CHAR_DATA *ch, char *argument)
 
 		for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
 		{
-			if (IS_SET(obj->extra_flags, ITEM_HIDDEN) && number_percent() < number_range(60, 90))
+			if (IS_SET(obj->extra[0], ITEM_HIDDEN) && number_percent() < number_range(60, 90))
 			{
-				REMOVE_BIT(obj->extra_flags, ITEM_HIDDEN);
+				REMOVE_BIT(obj->extra[0], ITEM_HIDDEN);
 				act("$n has uncovered $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 				act("You have uncovered $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 				found = true;
@@ -1207,9 +1207,9 @@ void do_search(CHAR_DATA *ch, char *argument)
 
 		for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
 		{
-			if (IS_SET(obj->extra_flags, ITEM_HIDDEN) && number_percent() < number_range(60, 90))
+			if (IS_SET(obj->extra[0], ITEM_HIDDEN) && number_percent() < number_range(60, 90))
 			{
-				REMOVE_BIT(obj->extra_flags, ITEM_HIDDEN);
+				REMOVE_BIT(obj->extra[0], ITEM_HIDDEN);
 				act("You have uncovered $p{x!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 				found = true;
 			}
@@ -1228,9 +1228,9 @@ void do_search(CHAR_DATA *ch, char *argument)
 
 		for (obj = container->contains; obj != NULL; obj = obj->next_content)
 		{
-			if (IS_SET(obj->extra_flags, ITEM_HIDDEN) && number_percent() < number_range(60, 90))
+			if (IS_SET(obj->extra[0], ITEM_HIDDEN) && number_percent() < number_range(60, 90))
 			{
-				REMOVE_BIT(obj->extra_flags, ITEM_HIDDEN);
+				REMOVE_BIT(obj->extra[0], ITEM_HIDDEN);
 				act("You have uncovered $p{x inside $P{x!", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
 				found = true;
 			}
@@ -1350,7 +1350,7 @@ int find_door(CHAR_DATA *ch, char *arg, bool show)
 
 		if(IS_SET(pexit->exit_info, EX_HIDDEN) && !IS_SET(pexit->exit_info, EX_FOUND) && IS_SET(pexit->exit_info, EX_MUSTSEE) )
 		{
-			if(!IS_IMMORTAL(ch) || !IS_SET(ch->act,PLR_HOLYLIGHT))
+			if(!IS_IMMORTAL(ch) || !IS_SET(ch->act[0],PLR_HOLYLIGHT))
 			{
 				if (show)
 					act("I see no door $T here.", ch, NULL, NULL, NULL, NULL, NULL, arg, TO_CHAR);
@@ -2795,7 +2795,7 @@ void do_wake(CHAR_DATA *ch, char *argument)
     if (IS_AWAKE(victim))
 	{ act("$N is already awake.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR); return; }
 
-    if (!IS_IMMORTAL(ch) && (IS_AFFECTED(victim, AFF_SLEEP) || (!IS_NPC(victim) && IS_SET(victim->act2, PLR_NO_WAKE))))
+    if (!IS_IMMORTAL(ch) && (IS_AFFECTED(victim, AFF_SLEEP) || (!IS_NPC(victim) && IS_SET(victim->act[1], PLR_NO_WAKE))))
 	{ act("You can't wake $M!",   ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);  return; }
 
     act_new("$n wakes you.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT,POS_SLEEPING,NULL);
@@ -2889,7 +2889,7 @@ void do_hide(CHAR_DATA *ch, char *argument)
 			int chance;
 			CHAR_DATA *others;
 
-			if (!can_drop_obj(ch, obj, true) || IS_SET(obj->extra2_flags, ITEM_KEPT)) {
+			if (!can_drop_obj(ch, obj, true) || IS_SET(obj->extra[1], ITEM_KEPT)) {
 				send_to_char("You can't let go of it.\n\r", ch);
 				return;
 			}
@@ -3089,7 +3089,7 @@ void do_hide(CHAR_DATA *ch, char *argument)
 
 				p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_HIDE, NULL);
 			}
-			SET_BIT(obj->extra_flags, ITEM_HIDDEN);
+			SET_BIT(obj->extra[0], ITEM_HIDDEN);
 			return;
 		}
 		else
@@ -3100,7 +3100,7 @@ void do_hide(CHAR_DATA *ch, char *argument)
     }
 
 	// Hiding self
-    if (IS_SET(ch->affected_by, AFF_HIDE))
+    if (IS_SET(ch->affected_by[0], AFF_HIDE))
     {
     	send_to_char("You are already hidden.\n\r", ch);
 		return;
@@ -3134,7 +3134,7 @@ void hide_end(CHAR_DATA *ch)
 
     if (number_percent() < get_skill(ch,gsn_hide))
     {
-		SET_BIT(ch->affected_by, AFF_HIDE);
+		SET_BIT(ch->affected_by[0], AFF_HIDE);
         for (rch = ch->in_room->people; rch != NULL; rch = rch->next_in_room)
 		{
             if (get_skill(rch, gsn_deception) > 0)
@@ -3167,11 +3167,11 @@ void do_visible(CHAR_DATA *ch, char *argument)
     affect_strip (ch, gsn_sneak			);
     affect_strip (ch, skill_lookup("improved invisibility"));
     affect_strip (ch, skill_lookup("cloak of guile"));
-    REMOVE_BIT   (ch->affected_by, AFF_HIDE		);
-    REMOVE_BIT   (ch->affected_by, AFF_INVISIBLE	);
-    REMOVE_BIT   (ch->affected_by, AFF_SNEAK		);
-    REMOVE_BIT   (ch->affected_by2, AFF2_IMPROVED_INVIS);
-    REMOVE_BIT   (ch->affected_by2, AFF2_CLOAK_OF_GUILE);
+    REMOVE_BIT   (ch->affected_by[0], AFF_HIDE		);
+    REMOVE_BIT   (ch->affected_by[0], AFF_INVISIBLE	);
+    REMOVE_BIT   (ch->affected_by[0], AFF_SNEAK		);
+    REMOVE_BIT   (ch->affected_by[1], AFF2_IMPROVED_INVIS);
+    REMOVE_BIT   (ch->affected_by[1], AFF2_CLOAK_OF_GUILE);
     send_to_char("You reveal yourself.\n\r", ch);
 }
 
@@ -3212,7 +3212,7 @@ void do_recall(CHAR_DATA *ch, char *argument)
     if (ch->in_room == location)
 	return;
 	/* Adding area_no_recall check to go with corresponding area flag - Areo 08-10-2006 */
-    if (IS_SET(ch->in_room->room_flags, ROOM_NO_RECALL)
+    if (IS_SET(ch->in_room->room_flag[0], ROOM_NO_RECALL)
     ||   IS_AFFECTED(ch, AFF_CURSE)
     || IS_SET(ch->in_room->area->area_flags, AREA_NO_RECALL))
     {
@@ -3461,7 +3461,7 @@ void do_project(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (IS_SET(ch->in_room->room_flags,ROOM_NO_RECALL) ||
+    if (IS_SET(ch->in_room->room_flag[0],ROOM_NO_RECALL) ||
     IS_AFFECTED(ch,AFF_CURSE)
     || IS_SET(ch->in_room->area->area_flags, AREA_NO_RECALL))
     {
@@ -3477,8 +3477,8 @@ void do_project(CHAR_DATA *ch, char *argument)
         / Reset affects
         while (ch->affected)
             affect_remove(ch, ch->affected);
-        ch->affected_by = race_table[ch->race].aff;
-        ch->affected_by2 = 0;
+        ch->affected_by[0] = race_table[ch->race].aff;
+        ch->affected_by[1] = 0;
 
 	char_from_room(ch);
         char_to_room(ch, get_room_index(11051));
@@ -3497,8 +3497,8 @@ void do_project(CHAR_DATA *ch, char *argument)
 	/ Reset affects
         while (ch->affected)
             affect_remove(ch, ch->affected);
-        ch->affected_by = race_table[ch->race].aff;
-        ch->affected_by2 = 0;
+        ch->affected_by[0] = race_table[ch->race].aff;
+        ch->affected_by[1] = 0;
 
 	char_from_room(ch);
         char_to_room(ch, get_room_index(11022));
@@ -3685,7 +3685,7 @@ void check_see_hidden(CHAR_DATA *ch)
 
 	for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
 	{
-		if (IS_SET(obj->extra2_flags, ITEM_SEE_HIDDEN) &&
+		if (IS_SET(obj->extra[1], ITEM_SEE_HIDDEN) &&
 			obj->wear_loc != WEAR_NONE)
 			break;
 	}
@@ -3729,7 +3729,7 @@ void check_traps(CHAR_DATA *ch, bool show)
 			exit->u1.to_room == NULL)
 			continue;
 
-		if (IS_SET(exit->u1.to_room->room_flags,ROOM_DEATH_TRAP) &&
+		if (IS_SET(exit->u1.to_room->room_flag[0],ROOM_DEATH_TRAP) &&
 			number_percent() < get_skill(ch, gsn_detect_traps))
 		{
 			if( show )
@@ -3742,8 +3742,8 @@ void check_traps(CHAR_DATA *ch, bool show)
 
 	for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
 	{
-		if (!IS_SET(obj->extra_flags, ITEM_HIDDEN) &&
-			IS_SET(obj->extra2_flags, ITEM_TRAPPED) &&
+		if (!IS_SET(obj->extra[0], ITEM_HIDDEN) &&
+			IS_SET(obj->extra[1], ITEM_TRAPPED) &&
 			number_percent() < get_skill(ch, gsn_detect_traps))
 		{
 			if ( show )
@@ -3844,7 +3844,7 @@ void do_pk(CHAR_DATA *ch, char *argument)
 
     for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
     {
-	if (IS_SET(mob->act, ACT_PRACTICE))
+	if (IS_SET(mob->act[0], ACT_PRACTICE))
 	    break;
     }
 
@@ -3872,7 +3872,7 @@ void do_pk(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (IS_SET(ch->act, PLR_PK))
+    if (IS_SET(ch->act[0], PLR_PK))
     {
 	send_to_char("{RAre you SURE you want to toggle off PK? The cost is 5000 pneuma.{x\n\r", ch);
 	ch->personal_pk_question = true;

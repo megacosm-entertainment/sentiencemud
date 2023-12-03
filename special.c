@@ -670,11 +670,11 @@ bool spec_executioner( CHAR_DATA *ch )
     {
 	v_next = victim->next_in_room;
 
-/*	if ( !IS_NPC(victim) && IS_SET(victim->act, PLR_KILLER)
+/*	if ( !IS_NPC(victim) && IS_SET(victim->act[0], PLR_KILLER)
 	&&   can_see(ch,victim))
 	    { crime = "KILLER"; break; }
 
-	if ( !IS_NPC(victim) && IS_SET(victim->act, PLR_THIEF)
+	if ( !IS_NPC(victim) && IS_SET(victim->act[0], PLR_THIEF)
 	&&   can_see(ch,victim))
 	    { crime = "THIEF"; break; }*/
     }

@@ -26,11 +26,17 @@ char *opcode_names[OP_LASTCODE] = {
 	"WHILE",
 	"ENDWHILE",
 	"EXITWHILE",
+    "SWITCH",
+    "ENDSWITCH",
+    "EXITSWITCH",
 	"MOB <command>",
 	"OBJ <command>",
 	"ROOM <command>",
 	"TOKEN <command>",
 	"TOKEN <command> (other)",
+    "AREA <command>",
+    "INSTANCE <command>",
+    "DUNGEON <command>",
 };
 
 char *ifcheck_param_type_names[IFCP_MAX] = {
@@ -291,10 +297,8 @@ ENT_FIELD entity_mobile[] = {
 	{"vars",			ENTITY_MOB_VARIABLES,		ENT_ILLIST_VARIABLE	},
 	{"worn",			ENTITY_MOB_WORN,			ENT_PLLIST_OBJ },
 	{"index",			ENTITY_MOB_INDEX,			ENT_MOBINDEX },
-	{"act",				ENTITY_MOB_ACT,				ENT_BITVECTOR },
-	{"act2",			ENTITY_MOB_ACT2,			ENT_BITVECTOR },
-	{"affected",		ENTITY_MOB_AFFECT,			ENT_BITVECTOR },
-	{"affected2",		ENTITY_MOB_AFFECT2,			ENT_BITVECTOR },
+	{"act",				ENTITY_MOB_ACT,				ENT_BITMATRIX },
+	{"affected",		ENTITY_MOB_AFFECT,			ENT_BITMATRIX },
 	{"offense",			ENTITY_MOB_OFF,				ENT_BITVECTOR },
 	{"immune",			ENTITY_MOB_IMMUNE,			ENT_BITVECTOR },
 	{"resist",			ENTITY_MOB_RESIST,			ENT_BITVECTOR },
@@ -330,10 +334,7 @@ ENT_FIELD entity_object[] = {
 	{"wearer",		ENTITY_OBJ_CARRIER,	ENT_MOBILE	},
 	{"vars",		ENTITY_OBJ_VARIABLES,		ENT_ILLIST_VARIABLE	},
 	{"index",		ENTITY_OBJ_INDEX,			ENT_OBJINDEX },
-	{"extra",		ENTITY_OBJ_EXTRA,			ENT_BITVECTOR },
-	{"extra2",		ENTITY_OBJ_EXTRA2,			ENT_BITVECTOR },
-	{"extra3",		ENTITY_OBJ_EXTRA3,			ENT_BITVECTOR },
-	{"extra4",		ENTITY_OBJ_EXTRA4,			ENT_BITVECTOR },
+	{"extra",		ENTITY_OBJ_EXTRA,			ENT_BITMATRIX },
 	{"wear",		ENTITY_OBJ_WEAR,			ENT_BITVECTOR },
 	{"ship",		ENTITY_OBJ_SHIP,			ENT_SHIP		},
 	{NULL,			0,			ENT_UNKNOWN	}
@@ -690,7 +691,7 @@ struct _entity_type_info entity_type_info[] = {
 };
 
 
-// Trigger typoes
+// Trigger types
 struct trigger_type trigger_table	[] = {
 //	name,					alias, 		type,					slot,			mob?,	obj?,	room?,	token?, area?, instance?, dungeon?
 {	"act",					NULL,		TRIG_ACT,				TRIGSLOT_ACTION,		true,	true,	true,	true,	false,	false,	false	},
@@ -768,7 +769,8 @@ struct trigger_type trigger_table	[] = {
 {	"hitgain",				NULL,		TRIG_HITGAIN,			TRIGSLOT_RANDOM,		true,	false,	false,	true,	false,	false,	false	},
 {	"hpcnt",				NULL,		TRIG_HPCNT,				TRIGSLOT_GENERAL,		true,	false,	false,	true,	false,	false,	false	},
 {	"identify",				NULL,		TRIG_IDENTIFY,			TRIGSLOT_GENERAL,		false,	true,	false,	true,	false,	false,	false	},
-{	"inspect",				NULL,		TRIG_INSPECT,			TRIGSLOT_GENERAL,		true,	false,	false,	true,	false,	false,	false	},
+{	"inspect",				NULL,		TRIG_INSPECT,			TRIGSLOT_GENERAL,		true,	true,	false,	true,	false,	false,	false	},
+{	"inspect_custom",		NULL,		TRIG_INSPECT_CUSTOM,	TRIGSLOT_GENERAL,		true,	false,	false,	true,	false,	false,	false	},
 {	"interrupt",			NULL,		TRIG_INTERRUPT,			TRIGSLOT_INTERRUPT,		false,	false,	false,	true,	false,	false,	false	},
 {	"kill",					NULL,		TRIG_KILL,				TRIGSLOT_GENERAL,		true,	true,	true,	true,	false,	false,	false	},
 {	"knock",				NULL,		TRIG_KNOCK,				TRIGSLOT_GENERAL,		false,	false,	true,	true,	false,	false,	false	},
@@ -935,7 +937,7 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "areax",				IFC_ANY,	"",		true,	ifc_areax,				"ifcheck areax" },
 	{ "areay",				IFC_ANY,	"",		true,	ifc_areay,				"ifcheck areay" },
 	{ "bankbalance",		IFC_ANY,	"",		true,	ifc_bankbalance,		"ifcheck bankbalance" },
-	{ "bit",				IFC_ANY,	"",		true,	ifc_bit,				"ifcheck bit" },
+	{ "bit",				IFC_ANY,	"",		false,	ifc_bit,				"ifcheck bit" },
 	{ "boost",				IFC_ANY,	"",		true,	ifc_boost,				"ifcheck boost" },
 	{ "boosttimer",			IFC_ANY,	"",		true,	ifc_boosttimer,			"ifcheck boosttimer" },
 	{ "candrop",			IFC_ANY,	"E",	false,	ifc_candrop,			"ifcheck candrop" },
@@ -1101,6 +1103,7 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "ispersist",			IFC_ANY,	"E",	false,	ifc_ispersist,			"ifcheck ispersist" },
 	{ "ispk",				IFC_ANY,	"E",	false,	ifc_ispk,				"ifcheck ispk" },
 	{ "isprey",				IFC_ANY,	"E",	false,	ifc_isprey,				"ifcheck isprey" },
+	{ "isprog",				IFC_ANY,	"ES",	false,	ifc_isprog,				"ifcheck isprog" },
 	{ "ispulling",			IFC_ANY,	"Ee",	false,	ifc_ispulling,			"ifcheck ispulling" },
 	{ "ispullingrelic",		IFC_ANY,	"Es",	false,	ifc_ispullingrelic,		"ifcheck ispullingrelic" },
 	{ "isquesting",			IFC_ANY,	"E",	false,	ifc_isquesting,			"ifcheck isquesting" },
@@ -1340,6 +1343,9 @@ OPCODE_FUNC opcode_table[OP_LASTCODE] = {
 	opc_while,
 	opc_endwhile,
 	opc_exitwhile,
+	opc_switch,
+	opc_endswitch,
+	opc_exitswitch,
 	opc_mob,
 	opc_obj,
 	opc_room,

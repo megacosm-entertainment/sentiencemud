@@ -35,10 +35,10 @@ SPELL_FUNC(spell_call_familiar)
 	iterator_start(&it, loaded_chars);
 	while(( victim = (CHAR_DATA *)iterator_nextdata(&it)))
 	{
-		if (!IS_NPC(victim) || IS_SET(victim->act, ACT_PROTECTED) ||
-			IS_SET(victim->act, ACT_SENTINEL) ||
-			IS_SET(victim->act, ACT_PRACTICE) ||
-			IS_SET(victim->act, ACT_TRAIN) ||
+		if (!IS_NPC(victim) || IS_SET(victim->act[0], ACT_PROTECTED) ||
+			IS_SET(victim->act[0], ACT_SENTINEL) ||
+			IS_SET(victim->act[0], ACT_PRACTICE) ||
+			IS_SET(victim->act[0], ACT_TRAIN) ||
 			IS_AFFECTED(victim,AFF_CHARM) ||
 			victim->master ||
 			victim->fighting)
@@ -82,7 +82,7 @@ SPELL_FUNC(spell_call_familiar)
 			act("{YA faint glow pulses around $N momentarily before $E moves next to you.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		}
 
-		SET_BIT(victim->affected_by, AFF_CHARM);
+		SET_BIT(victim->affected_by[0], AFF_CHARM);
 		return true;
 	}
 
@@ -239,7 +239,7 @@ SPELL_FUNC(spell_vision)
 		room = obj_room(ship->ship);
 
 	if (!IS_WILDERNESS(room) && /*!ON_SHIP(ch) &&*/
-		(!IS_SET(ch->in_room->room_flags, ROOM_VIEWWILDS) ||
+		(!IS_SET(ch->in_room->room_flag[0], ROOM_VIEWWILDS) ||
 		!IS_OUTSIDE(ch))) {
 		act("You must be outdoors.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return false;
@@ -249,7 +249,7 @@ SPELL_FUNC(spell_vision)
 	act("You have a vision of your surrounding terrain.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
 	WILDS_DATA *wilds = room->wilds;
-	if(IS_SET(ch->in_room->room_flags, ROOM_VIEWWILDS))
+	if(IS_SET(ch->in_room->room_flag[0], ROOM_VIEWWILDS))
 		wilds = room->viewwilds;
 
 	bonus_view = 16;

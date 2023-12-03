@@ -564,10 +564,10 @@ CHAR_DATA *new_char( void )
     ch->move                    = 100;
     ch->max_move                = 100;
     ch->manastore		= 0;
-    ch->affected_by 		= 0;
-    ch->affected_by2		= 0;
-    ch->affected_by_perm		= 0;
-    ch->affected_by2_perm		= 0;
+    ch->affected_by[0] 		= 0;
+    ch->affected_by[1]		= 0;
+    ch->affected_by_perm[0]		= 0;
+    ch->affected_by_perm[1]		= 0;
     ch->imm_flags     =   0;
     ch->res_flags     =   0;
     ch->vuln_flags    =   0;
@@ -1623,8 +1623,8 @@ ROOM_INDEX_DATA *new_room_index( void )
     pRoom->owner	    =	&str_empty[0];
     pRoom->home_owner	    =   NULL;
     pRoom->vnum             =   0;
-    pRoom->room_flags       =   0;
-    pRoom->room2_flags      =   0;
+    pRoom->room_flag[0]       =   0;
+    pRoom->room_flag[1]      =   0;
     pRoom->light            =   0;
     pRoom->sector_type      =   0;
     pRoom->heal_rate	    =   100;
@@ -1860,10 +1860,10 @@ OBJ_INDEX_DATA *new_obj_index( void )
     pObj->creator_sig   =   str_dup( "none" );
     pObj->vnum          =   0;
     pObj->item_type     =   ITEM_TRASH;
-    pObj->extra_flags   =   0;
-    pObj->extra2_flags  =   0;
-    pObj->extra3_flags  =   0;
-    pObj->extra4_flags  =   0;
+    pObj->extra[0]   =   0;
+    pObj->extra[1]  =   0;
+    pObj->extra[2]  =   0;
+    pObj->extra[3]  =   0;
     pObj->wear_flags    =   0;
     pObj->count         =   0;
     pObj->weight        =   0;
@@ -1950,10 +1950,10 @@ MOB_INDEX_DATA *new_mob_index( void )
     pMob->killed        =   0;
     pMob->sex           =   0;
     pMob->level         =   0;
-    pMob->act           =   ACT_IS_NPC;
-    pMob->act2		=   0;
-    pMob->affected_by   =   0;
-    pMob->affected_by2  =   0;
+    pMob->act[0]          =   ACT_IS_NPC;
+    pMob->act[1]		=   0;
+    pMob->affected_by[0]   =   0;
+    pMob->affected_by[1]  =   0;
     pMob->alignment     =   0;
     pMob->hitroll	=   0;
     pMob->race          =   race_lookup( "human" );
@@ -3377,6 +3377,46 @@ void free_log_entry(LOG_ENTRY_DATA *log)
     free_string(log->text);
 }
 
+SCRIPT_SWITCH_CASE *new_script_switch_case(void)
+{
+    SCRIPT_SWITCH_CASE *data = alloc_mem(sizeof(SCRIPT_SWITCH_CASE));
+
+    memset(data, 0, sizeof(SCRIPT_SWITCH_CASE));
+
+    return data;
+}
+
+void free_script_switch_case(SCRIPT_SWITCH_CASE *data)
+{
+    if (data->next)
+        free_script_switch_case(data->next);
+
+    free_mem(data, sizeof(*data));
+}
+
+SCRIPT_SWITCH *new_script_switch(int nswitch)
+{
+    SCRIPT_SWITCH *data = alloc_mem(nswitch * sizeof(SCRIPT_SWITCH));
+
+    memset(data, 0, nswitch * sizeof(*data));
+
+    return data;
+}
+
+void free_script_switch(SCRIPT_SWITCH *data, int nswitch)
+{
+    if (data && nswitch > 0)
+    {
+        for(int i = 0; i < nswitch; i++)
+        {
+            if (data[i].cases)
+                free_script_switch_case(data[i].cases);
+        }
+
+        free_mem(data, nswitch * sizeof(*data));
+    }
+}
+
 // @@@NIB : 20070123 ----------
 SCRIPT_DATA *script_freechain = NULL;
 
@@ -3398,6 +3438,8 @@ SCRIPT_DATA *new_script(void)
 	s->flags = 0;
     s->comments = &str_empty[0];
 	s->area = NULL;
+    s->n_switch_table = 0;
+    s->switch_table = NULL;
 
 	return s;
 }
@@ -3432,6 +3474,9 @@ void free_script(SCRIPT_DATA *s)
 	free_string(s->src);
 	free_string(s->name);
     free_string(s->comments);
+
+    free_script_switch(s->switch_table, s->n_switch_table);
+    s->switch_table = NULL;
 
 	s->next = script_freechain;
 	script_freechain = s;

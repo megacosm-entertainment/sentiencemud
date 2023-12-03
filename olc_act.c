@@ -44,13 +44,24 @@ bool redit_blueprint_oncreate = false;
 struct olc_help_type
 {
     char *command;
+	int structure_type;
     const void *structure;
     char *desc;
 };
 
+#define STRUCT_FLAGS	0
+#define STRUCT_FLAGBANK	1
+#define STRUCT_TRIGGERS	2
+#define STRUCT_SPEC		3
+#define STRUCT_LIQUID	4
+#define STRUCT_ATTACK	5
+#define STRUCT_MATERIAL	6
+#define STRUCT_SKILL	7
+
 
 // This table contains help commands and a brief description of each.
 const struct olc_help_type help_table[] =
+/*
 {
     {	"area",		area_flags,	 "Area attributes."		 },
     {	"room",		room_flags,	 "Room attributes."		 },
@@ -120,6 +131,71 @@ const struct olc_help_type help_table[] =
     {	"ship",			ship_flags,	 "Ship flags"		 },
     {	"shipclass",		ship_class_types,	 "Ship class types"		 },
     {	NULL,		NULL,		 NULL				 }
+*/
+{
+	{	"act",					STRUCT_FLAGBANK,	act_flagbank,				"Mobile	attributes."	},
+	{	"affect",				STRUCT_FLAGBANK,	affect_flagbank,			"Mobile	affects."	},
+	{	"apply",				STRUCT_FLAGS,		apply_flags,				"Apply flags"	},
+	{	"apptype",				STRUCT_FLAGS,		apply_types,				"Apply types."	},
+	{	"aprog",				STRUCT_TRIGGERS,	trigger_table,				"AreaProgram types."	},
+	{	"area",					STRUCT_FLAGS,		area_flags,					"Area attributes."	},
+	{	"areawho",				STRUCT_FLAGS,		area_who_titles,			"Type of area for who."	},
+	{	"armour",				STRUCT_FLAGS,		ac_type,					"Ac for different attacks."	},
+	{	"catalyst",				STRUCT_FLAGS,		catalyst_types,				"Catalyst types."	},
+	{	"condition",			STRUCT_FLAGS,		room_condition_flags,		"Room Condition types."	},
+	{	"container",			STRUCT_FLAGS,		container_flags,			"Container status."	},
+	{	"corpsetypes",			STRUCT_FLAGS,		corpse_types,				"Corpse types."	},
+	{	"damageclass",			STRUCT_FLAGS,		damage_classes,				"Types of damages."},
+	{	"dprog",				STRUCT_TRIGGERS,	trigger_table,				"DungeonProgram types."	},
+	{	"dungeon",				STRUCT_FLAGS,		dungeon_flags,				"Dungeon Flags"	},
+	{	"exit",					STRUCT_FLAGS,		exit_flags,					"Exit types."	},
+	{	"extra",				STRUCT_FLAGBANK,	extra_flagbank,				"Object attributes."	},
+	{	"form",					STRUCT_FLAGS,		form_flags,					"Mobile body form."	},
+	{	"furniture",			STRUCT_FLAGS,		furniture_flags,			"Furniture types."	},
+	{	"imm",					STRUCT_FLAGS,		imm_flags,					"Mobile immunity."	},
+	{	"immortalflags",		STRUCT_FLAGS,		immortal_flags,				"Immortal duties."	},
+	{	"instance",				STRUCT_FLAGS,		instance_flags,				"Instance Flags"	},
+	{	"instruments",			STRUCT_FLAGS,		instrument_types,			"Instrument Types"	},
+	{	"iprog",				STRUCT_TRIGGERS,	trigger_table,				"InstanceProgram types."	},
+	{	"liquid",				STRUCT_LIQUID,		liq_table,					"Liquid types."	},
+	{	"lock",					STRUCT_FLAGS,		lock_flags,					"Lock state types."	},
+	{	"material",				STRUCT_MATERIAL,	material_table,				"Object materials."	},
+	{	"mprog",				STRUCT_TRIGGERS,	trigger_table,				"MobProgram types."	},
+	{	"off",					STRUCT_FLAGS,		off_flags,					"Mobile offensive behaviour."	},
+	{	"oprog",				STRUCT_TRIGGERS,	trigger_table,				"ObjProgram types."	},
+	{	"part",					STRUCT_FLAGS,		part_flags,					"Mobile body parts."	},
+	{	"placetype",			STRUCT_FLAGS,		place_flags,				"Where is the town/city etc."	},
+	{	"portal",				STRUCT_FLAGS,		portal_flags,				"Portal types."	},
+	{	"portal_exit",			STRUCT_FLAGS,		portal_exit_flags,			"Exit (Portal) types."	},
+	{	"position",				STRUCT_FLAGS,		position_flags,				"Mobile positions."	},
+	{	"projectflags",			STRUCT_FLAGS,		project_flags,				"Project flags."	},
+	{	"ranged",				STRUCT_FLAGS,		ranged_weapon_class,		"Ranged	weapon types."	},
+	{	"res",					STRUCT_FLAGS,		res_flags,					"Mobile resistance."	},
+	{	"room",					STRUCT_FLAGBANK,	room_flagbank,				"Room attributes."	},
+	{	"rprog",				STRUCT_TRIGGERS,	trigger_table,				"RoomProgram types."	},
+	{	"scriptflags",			STRUCT_FLAGS,		script_flags,				"Script Flags {D({Wrestricted{D){x."	},
+	{	"section_flags",		STRUCT_FLAGS,		blueprint_section_flags,	"Blueprint Section Flags"	},
+	{	"section_type",			STRUCT_FLAGS,		blueprint_section_types,	"Blueprint Section Types"	},
+	{	"sector",				STRUCT_FLAGS,		sector_flags,				"Sector types, terrain."	},
+	{	"sex",					STRUCT_FLAGS,		sex_flags,					"Sexes."	},
+	{	"ship",					STRUCT_FLAGS,		ship_flags,					"Ship flags"	},
+	{	"shipclass",			STRUCT_FLAGS,		ship_class_types,			"Ship class types"	},
+	{	"shop",					STRUCT_FLAGS,		shop_flags,					"Shop flags"	},
+	{	"size",					STRUCT_FLAGS,		size_flags,					"Mobile size."	},
+	{	"song_targets",			STRUCT_FLAGS,		song_target_types,			"Song Target Types."	},
+	{	"spec",					STRUCT_SPEC,		spec_table,					"Available special programs. {D(DEPRECATED){x"	},
+	{	"spell_targets",		STRUCT_FLAGS,		spell_target_types,			"Spell Target Types."	},
+	{	"spells",				STRUCT_SKILL,		skill_table,				"Names of current spells."	},
+	{	"tokenflags",			STRUCT_FLAGS,		token_flags,				"Token flags."	},
+	{	"tprog",				STRUCT_TRIGGERS,	trigger_table,				"TokenProgram types."	},
+	{	"type",					STRUCT_FLAGS,		type_flags,					"Types of objects."	},
+	{	"vuln",					STRUCT_FLAGS,		vuln_flags,					"Mobile vulnerability."	},
+	{	"wclass",				STRUCT_FLAGS,		weapon_class,				"Weapon class."	},
+	{	"weapon",				STRUCT_ATTACK,		attack_table,				"Weapon types."	},
+	{	"wear",					STRUCT_FLAGS,		wear_flags,					"Where to wear object."	},
+	{	"wear-loc",				STRUCT_FLAGS,		wear_loc_flags,				"Where mobile wears object."	},
+	{	"wtype",				STRUCT_FLAGS,		weapon_type2,				"Special weapon type."	},
+	{	NULL,					STRUCT_FLAGS,		NULL,						NULL									}
 };
 
 
@@ -151,6 +227,34 @@ void show_flag_cmds(CHAR_DATA *ch, const struct flag_type *flag_table)
     return;
 }
 
+void show_flagbank_cmds(CHAR_DATA *ch, const struct flag_type **flag_bank)
+{
+    char buf  [ MAX_STRING_LENGTH ];
+    char buf1 [ MAX_STRING_LENGTH ];
+    int  col;
+
+    buf1[0] = '\0';
+    col = 0;
+	for(int b = 0; flag_bank[b]; b++)
+	{
+		for (int f = 0; flag_bank[b][f].name != NULL; f++)
+		{
+			if (flag_bank[b][f].settable)
+			{
+				sprintf(buf, "%-19.18s", flag_bank[b][f].name);
+				strcat(buf1, buf);
+				if (++col % 4 == 0)
+					strcat(buf1, "\n\r");
+			}
+		}
+	}
+
+    if (col % 4 != 0)
+		strcat(buf1, "\n\r");
+
+    send_to_char(buf1, ch);
+    return;
+}
 
 // Displays all skill functions.
 void show_skill_cmds(CHAR_DATA *ch, int tar)
@@ -242,6 +346,7 @@ bool show_help(CHAR_DATA *ch, char *argument)
     }
 
     // Find the command, show changeable data.
+/*
     for (cnt = 0; help_table[cnt].command != NULL; cnt++)
     {
         if ( arg[0] == help_table[cnt].command[0]
@@ -439,8 +544,197 @@ bool show_help(CHAR_DATA *ch, char *argument)
 	    }
 	}
     }
+*/
+    for (cnt = 0; help_table[cnt].command != NULL; cnt++)
+    {
+        if ( arg[0] == help_table[cnt].command[0]
+          && !str_prefix(arg, help_table[cnt].command))
+		{
+			switch(help_table[cnt].structure_type)
+			{
+				case STRUCT_SPEC:
+					show_spec_cmds(ch);
+					break;
 
-    show_help(ch, "");
+				case STRUCT_LIQUID:
+					show_liqlist(ch);
+					break;
+
+				case STRUCT_ATTACK:
+					show_damlist(ch);
+					break;
+
+				case STRUCT_MATERIAL:
+					show_material_list(ch);
+					return false;
+				
+				case STRUCT_SKILL:
+					if (spell[0] == '\0')
+					{
+						send_to_char("Syntax:  ? spells [ignore/attack/defend/self/object/all]\n\r", ch);
+						return false;
+					}
+
+					if (!str_prefix(spell, "all"))
+						show_skill_cmds(ch, -1);
+					else if (!str_prefix(spell, "ignore"))
+						show_skill_cmds(ch, TAR_IGNORE);
+					else if (!str_prefix(spell, "attack"))
+						show_skill_cmds(ch, TAR_CHAR_OFFENSIVE);
+					else if (!str_prefix(spell, "defend"))
+						show_skill_cmds(ch, TAR_CHAR_DEFENSIVE);
+					else if (!str_prefix(spell, "self"))
+						show_skill_cmds(ch, TAR_CHAR_SELF);
+					else if (!str_prefix(spell, "object"))
+						show_skill_cmds(ch, TAR_OBJ_INV);
+					else
+						send_to_char("Syntax:  ? spell [ignore/attack/defend/self/object/all]\n\r", ch);
+
+					break;
+				case STRUCT_TRIGGERS:
+	    			if (help_table[cnt].structure == trigger_table)
+	    			{
+						int i, n;
+
+						if (!str_prefix(arg, "mprog"))
+						{
+							send_to_char("MobProgram Triggers:\n\r", ch);
+							for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
+							{
+								if (trigger_table[i].mob)
+								{
+									n++;
+									sprintf(buf, "%-20s", trigger_table[i].name);
+									send_to_char(buf, ch);
+									if (!(n % 4))
+										send_to_char("\n\r", ch);
+								}
+							}
+							if (n % 4)
+								send_to_char("\n\r", ch);
+						}
+						else if (!str_prefix(arg, "oprog"))
+						{
+							send_to_char("ObjProgram Triggers:\n\r", ch);
+							for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
+							{
+								if (trigger_table[i].obj)
+								{
+									n++;
+									sprintf(buf, "%-20s", trigger_table[i].name);
+									send_to_char(buf, ch);
+									if (!(n % 4))
+										send_to_char("\n\r", ch);
+								}
+							}
+							if (n % 4)
+								send_to_char("\n\r", ch);
+						}
+						else if (!str_prefix(arg, "rprog"))
+						{
+							send_to_char("RoomProgram Triggers:\n\r", ch);
+							for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
+							{
+								if (trigger_table[i].room)
+								{
+									n++;
+									sprintf(buf, "%-20s", trigger_table[i].name);
+									send_to_char(buf, ch);
+									if (!(n % 4))
+										send_to_char("\n\r", ch);
+								}
+							}
+							if (n % 4)
+								send_to_char("\n\r", ch);
+						}
+						else if (!str_prefix(arg, "tprog"))
+						{
+							send_to_char("TokenProgram Triggers:\n\r", ch);
+							for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
+							{
+								if (trigger_table[i].token)
+								{
+									n++;
+									sprintf(buf, "%-20s", trigger_table[i].name);
+									send_to_char(buf, ch);
+									if (!(n % 4))
+										send_to_char("\n\r", ch);
+								}
+							}
+							if (n % 4)
+								send_to_char("\n\r", ch);
+						}
+						else if (!str_prefix(arg, "aprog"))
+						{
+							send_to_char("AreaProgram Triggers:\n\r", ch);
+							for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
+							{
+								if (trigger_table[i].area)
+								{
+									n++;
+									sprintf(buf, "%-20s", trigger_table[i].name);
+									send_to_char(buf, ch);
+									if (!(n % 4))
+										send_to_char("\n\r", ch);
+								}
+							}
+							if (n % 4)
+								send_to_char("\n\r", ch);
+						}
+						else if (!str_prefix(arg, "iprog"))
+						{
+							send_to_char("InstanceProgram Triggers:\n\r", ch);
+							for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
+							{
+								if (trigger_table[i].instance)
+								{
+									n++;
+									sprintf(buf, "%-20s", trigger_table[i].name);
+									send_to_char(buf, ch);
+									if (!(n % 4))
+										send_to_char("\n\r", ch);
+								}
+							}
+							if (n % 4)
+								send_to_char("\n\r", ch);
+						}
+						else if (!str_prefix(arg, "dprog"))
+						{
+							send_to_char("DungeonProgram Triggers:\n\r", ch);
+							for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
+							{
+								if (trigger_table[i].dungeon)
+								{
+									n++;
+									sprintf(buf, "%-20s", trigger_table[i].name);
+									send_to_char(buf, ch);
+									if (!(n % 4))
+										send_to_char("\n\r", ch);
+								}
+							}
+							if (n % 4)
+								send_to_char("\n\r", ch);
+						}
+						break;
+
+				case STRUCT_FLAGS:
+					show_flag_cmds(ch, help_table[cnt].structure);
+					break;
+
+				case STRUCT_FLAGBANK:
+					show_flagbank_cmds(ch, (const struct flag_type **)help_table[cnt].structure);
+					break;
+				
+				default:
+					show_help(ch, "");
+					return false;
+			}
+			return false;
+		}
+    }
+	}
+
+//    show_help(ch, "");
     return false;
 }
 
@@ -540,8 +834,8 @@ AEDIT(aedit_show)
     AREA_DATA *pArea;
     char buf  [MAX_STRING_LENGTH];
     ROOM_INDEX_DATA *recall;
-	ITERATOR it;
-	PROG_LIST *trigger;
+//	ITERATOR it;
+//	PROG_LIST *trigger;
 	BUFFER *buffer;
 	buffer = new_buf();
 
@@ -687,68 +981,11 @@ AEDIT(aedit_show)
 	add_buf(buffer, buf);
 
 
-    if (pArea->progs->progs) {
-	int cnt, slot;
+	if (pArea->progs->progs)
+		olc_show_progs(buffer, pArea->progs->progs, PRG_APROG, "AreaProg Vnum");
 
-	for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++)
-		if(list_size(pArea->progs->progs[slot]) > 0) ++cnt;
-
-	if (cnt > 0) {
-		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "Number", "AreaProg Vnum", "Trigger", "Phrase");
-		add_buf(buffer, buf);
-
-		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "------", "-------------", "-------", "------");
-		add_buf(buffer, buf);
-
-		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
-			iterator_start(&it, pArea->progs->progs[slot]);
-			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-				sprintf(buf, "{r[{W%4d{r]{x %-20ld %-10s %-10s\n\r", cnt,
-					trigger->vnum,trigger_name(trigger->trig_type),
-					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, true, false));
-				add_buf(buffer, buf);
-				cnt++;
-			}
-			iterator_stop(&it);
-		}
-	}
-    }
-
-    if (pArea->index_vars) {
-	pVARIABLE var;
-	int cnt;
-
-	for (cnt = 0, var = pArea->index_vars; var; var = var->next) ++cnt;
-
-	if (cnt > 0) {
-		sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "Name", "Type", "Saved", "Value");
-		add_buf(buffer, buf);
-
-		sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "----", "----", "-----", "-----");
-		add_buf(buffer, buf);
-
-		for (var = pArea->index_vars; var; var = var->next) {
-			switch(var->type) {
-			case VAR_INTEGER:
-				sprintf(buf, "{x%-20.20s {GNUMBER     {Y%c   {W%d{x\n\r", var->name,var->save?'Y':'N',var->_.i);
-				break;
-			case VAR_STRING:
-			case VAR_STRING_S:
-				sprintf(buf, "{x%-20.20s {GSTRING     {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N',var->_.s?var->_.s:"(empty)");
-				break;
-			case VAR_ROOM:
-				if(var->_.r && var->_.r->vnum > 0)
-					sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W%s {R({W%d{R){x\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->vnum);
-				else
-					sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W-no-where-{x\n\r",var->name,var->save?'Y':'N');
-				break;
-			default:
-				continue;
-			}
-			add_buf(buffer, buf);
-		}
-	}
-    }
+	if (pArea->index_vars)
+		olc_show_index_vars(buffer, pArea->index_vars);
 	page_to_char(buf_string(buffer), ch);
 	free_buf(buffer);
 
@@ -1749,58 +1986,16 @@ AEDIT (aedit_delaprog)
 AEDIT(aedit_varset)
 {
     AREA_DATA *pArea;
-    char name[MIL];
-    char type[MIL];
-    char yesno[MIL];
-    bool saved;
-
+ 
     EDIT_AREA(ch, pArea);
 
-    if (argument[0] == '\0') {
-	send_to_char("Syntax:  varset <name> <number|string|room> <yes|no> <value>\n\r", ch);
-	return false;
-    }
-
-    argument = one_argument(argument, name);
-    argument = one_argument(argument, type);
-    argument = one_argument(argument, yesno);
-
-    if(!variable_validname(name)) {
-	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
-	return false;
-    }
-
-    saved = !str_cmp(yesno,"yes");
-
-    if(!argument[0]) {
-	send_to_char("Set what on the variable?\n\r", ch);
-	return false;
-    }
-
-    if(!str_cmp(type,"room")) {
-	if(!is_number(argument)) {
-	    send_to_char("Specify a room vnum.\n\r", ch);
-	    return false;
+	if (olc_varset(&pArea->index_vars, ch, argument, false))
+	{
+		// Install variable into the "live"
+		olc_varset(&pArea->progs->vars, ch, argument, true);
+		return true;
 	}
-
-	variables_setindex_room(&pArea->index_vars,name,atoi(argument), saved);
-    } else if(!str_cmp(type,"string"))
-	variables_setindex_string(&pArea->index_vars,name,argument,false, saved);
-    else if(!str_cmp(type,"number")) {
-	if(!is_number(argument)) {
-	    send_to_char("Specify an integer.\n\r", ch);
-	    return false;
-	}
-
-	variables_setindex_integer(&pArea->index_vars,name,atoi(argument), saved);
-    } else {
-	send_to_char("Invalid type of variable.\n\r", ch);
 	return false;
-    }
-
-    variable_copyto(&pArea->index_vars,&pArea->progs->vars,name,name,false);
-    send_to_char("Variable set.\n\r", ch);
-    return true;
 }
 
 AEDIT(aedit_varclear)
@@ -1809,25 +2004,14 @@ AEDIT(aedit_varclear)
 
     EDIT_AREA(ch, pArea);
 
+	if (olc_varclear(&pArea->index_vars, ch, argument, false))
+	{
+		// Clear variable on "live"
+		olc_varclear(&pArea->progs->vars, ch, argument, true);
+		return true;
+	}
 
-    if (argument[0] == '\0') {
-	send_to_char("Syntax:  varclear <name>\n\r", ch);
 	return false;
-    }
-
-    if(!variable_validname(argument)) {
-	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
-	return false;
-    }
-
-    if(!variable_remove(&pArea->index_vars,argument)) {
-	send_to_char("No such variable defined.\n\r", ch);
-	return false;
-    }
-
-    variable_remove(&pArea->progs->vars,argument);
-    send_to_char("Variable cleared.\n\r", ch);
-    return true;
 }
 
 
@@ -1837,8 +2021,8 @@ REDIT(redit_show)
     ROOM_INDEX_DATA *pRoom;
     char buf[MAX_STRING_LENGTH];
     BUFFER *buf1;
-    ITERATOR it;
-    PROG_LIST *trigger;
+//    ITERATOR it;
+//    PROG_LIST *trigger;
     int door;
     CONDITIONAL_DESCR_DATA *cd;
     int i;
@@ -1855,7 +2039,7 @@ REDIT(redit_show)
 	    pRoom->name, pRoom->area->anum, pRoom->area->name);
     add_buf(buf1, buf);
 
-    if (IS_SET(pRoom->room2_flags, ROOM_VIRTUAL_ROOM))
+    if (IS_SET(pRoom->room_flag[1], ROOM_VIRTUAL_ROOM))
         sprintf (buf, "VRoom at ({W%ld{x, {W%ld{x), in wilds uid ({W%ld{x) '{W%s{x'\n\r",
                  pRoom->x, pRoom->y, pRoom->wilds->uid, pRoom->wilds->name);
     else if(pRoom->viewwilds)
@@ -1875,13 +2059,13 @@ REDIT(redit_show)
     add_buf(buf1, buf);
 
     sprintf(buf, "Room flags:   {r[{x%s{r]{x\n\r",
-	    flag_string(room_flags, pRoom->room_flags));
+	    bitmatrix_string(room_flagbank, pRoom->room_flag));
     add_buf(buf1, buf);
-
+/*
     sprintf(buf, "Room2 flags:  {r[{x%s{r]{x\n\r",
 	    flag_string(room2_flags, pRoom->room2_flags));
     add_buf(buf1, buf);
-
+*/
     if (pRoom->heal_rate != 100 || pRoom->mana_rate != 100 || pRoom->heal_rate != 100)
     {
 	sprintf(buf,
@@ -2053,68 +2237,11 @@ REDIT(redit_show)
     if (found == false)
         add_buf(buf1, "    {W(None set){x\n\r");
 
-    if (pRoom->progs->progs) {
-	int cnt, slot;
+    if (pRoom->progs->progs)
+		olc_show_progs(buf1, pRoom->progs->progs, PRG_RPROG, "RoomProg Vnum");
 
-	for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++)
-		if(list_size(pRoom->progs->progs[slot]) > 0) ++cnt;
-
-	if (cnt > 0) {
-		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "Number", "RoomProg Vnum", "Trigger", "Phrase");
-		add_buf(buf1, buf);
-
-		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "------", "-------------", "-------", "------");
-		add_buf(buf1, buf);
-
-		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
-			iterator_start(&it, pRoom->progs->progs[slot]);
-			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-				sprintf(buf, "{r[{W%4d{r]{x %-20ld %-10s %-10s\n\r", cnt,
-					trigger->vnum,trigger_name(trigger->trig_type),
-					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, true, false));
-				add_buf(buf1, buf);
-				cnt++;
-			}
-			iterator_stop(&it);
-		}
-	}
-    }
-
-    if (pRoom->index_vars) {
-	pVARIABLE var;
-	int cnt;
-
-	for (cnt = 0, var = pRoom->index_vars; var; var = var->next) ++cnt;
-
-	if (cnt > 0) {
-		sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "Name", "Type", "Saved", "Value");
-		add_buf(buf1, buf);
-
-		sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "----", "----", "-----", "-----");
-		add_buf(buf1, buf);
-
-		for (var = pRoom->index_vars; var; var = var->next) {
-			switch(var->type) {
-			case VAR_INTEGER:
-				sprintf(buf, "{x%-20.20s {GNUMBER     {Y%c   {W%d{x\n\r", var->name,var->save?'Y':'N',var->_.i);
-				break;
-			case VAR_STRING:
-			case VAR_STRING_S:
-				sprintf(buf, "{x%-20.20s {GSTRING     {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N',var->_.s?var->_.s:"(empty)");
-				break;
-			case VAR_ROOM:
-				if(var->_.r && var->_.r->vnum > 0)
-					sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W%s {R({W%d{R){x\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->vnum);
-				else
-					sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W-no-where-{x\n\r",var->name,var->save?'Y':'N');
-				break;
-			default:
-				continue;
-			}
-			add_buf(buf1, buf);
-		}
-	}
-    }
+	if (pRoom->index_vars)
+		olc_show_index_vars(buf1, pRoom->index_vars);
 
     if (pRoom->conditional_descr)
     {
@@ -2149,6 +2276,14 @@ REDIT(redit_show)
 
     page_to_char (buf_string(buf1), ch);
     free_buf(buf1);
+
+		if (ch->in_room->reset_first)
+	{
+	    send_to_char(
+		"\n\rResets: M = mobile, R = room, O = object, "
+		"P = pet, S = shopkeeper\n\r", ch);
+	    display_resets(ch);
+	}
 
     return false;
 }
@@ -2455,7 +2590,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 			return false;
 		}
 
-		if( IS_SET(ch->in_room->room2_flags, ROOM_BLUEPRINT) ||
+		if( IS_SET(ch->in_room->room_flag[1], ROOM_BLUEPRINT) ||
 			IS_SET(ch->in_room->area->area_flags, ROOM_BLUEPRINT) )
 		{
 			value = atol(arg);
@@ -2466,7 +2601,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 				return false;
 			}
 
-			redit_blueprint_oncreate = (IS_SET(ch->in_room->room2_flags, ROOM_BLUEPRINT)) && true;
+			redit_blueprint_oncreate = (IS_SET(ch->in_room->room_flag[1], ROOM_BLUEPRINT)) && true;
 		}
 
 		if( pRoom->exit[door] && IS_SET(pRoom->exit[door]->exit_info, EX_ENVIRONMENT) )
@@ -2786,7 +2921,7 @@ REDIT(redit_down)
 
     return false;
 }
-
+/*
 REDIT(redit_varset)
 {
     ROOM_INDEX_DATA *pRoom;
@@ -2869,7 +3004,38 @@ REDIT(redit_varclear)
     send_to_char("Variable cleared.\n\r", ch);
     return true;
 }
+*/
 
+REDIT(redit_varset)
+{
+    ROOM_INDEX_DATA *pRoom;
+
+    EDIT_ROOM(ch, pRoom);
+
+    if(olc_varset(&pRoom->index_vars, ch, argument, false))
+    {
+        // This will *NOT* update cloned rooms...
+        olc_varset(&pRoom->progs->vars, ch, argument, true);
+        return true;
+    }
+    return false;
+}
+
+REDIT(redit_varclear)
+{
+    ROOM_INDEX_DATA *pRoom;
+
+    EDIT_ROOM(ch, pRoom);
+
+	if(olc_varclear(&pRoom->index_vars, ch, argument, false))
+	{
+		// This will *NOT* update cloned rooms...
+		olc_varclear(&pRoom->progs->vars, ch, argument, true);
+		return true;
+	}
+
+	return false;
+}
 
 REDIT(redit_ed)
 {
@@ -3176,7 +3342,7 @@ REDIT(redit_create)
 		// Only copy if the new room is in the same area as the previous room
 		if( pPrevRoom && pPrevRoom->area == pArea )
 		{
-			SET_BIT(pRoom->room2_flags, ROOM_BLUEPRINT);
+			SET_BIT(pRoom->room_flag[1], ROOM_BLUEPRINT);
 		}
 		redit_blueprint_oncreate = false;
 	}
@@ -3597,7 +3763,7 @@ REDIT(redit_oreset)
 
 	    newobj = create_object(pObjIndex, olevel, true);
 	    if (pReset->arg2 == WEAR_NONE)
-		SET_BIT(newobj->extra_flags, ITEM_INVENTORY);
+		SET_BIT(newobj->extra[0], ITEM_INVENTORY);
 	}
 	else
 #endif
@@ -5359,8 +5525,8 @@ OEDIT(oedit_show)
     BUFFER *buffer;
     char buf[MAX_STRING_LENGTH];
     AFFECT_DATA *paf;
-    ITERATOR it;
-    PROG_LIST *trigger;
+//    ITERATOR it;
+//    PROG_LIST *trigger;
     SPELL_DATA *spell;
     int cnt;
 
@@ -5403,25 +5569,25 @@ OEDIT(oedit_show)
     add_buf(buffer, buf);
 
     sprintf(buf, "Extra flags:  {B[{x%s{B]{x\n\r",
-	flag_string(extra_flags, pObj->extra_flags));
+	bitvector_string(4, pObj->extra[0], extra_flags, pObj->extra[1], extra2_flags, pObj->extra[2], extra3_flags, pObj->extra[3], extra4_flags));
     add_buf(buffer, buf);
-
+/*
     sprintf(buf, "Extra2 flags: {B[{x%s{B]{x\n\r",
-		    flag_string(extra2_flags, pObj->extra2_flags));
+		    flag_string(extra[1], pObj->extra[1]));
     add_buf(buffer, buf);
 
     sprintf(buf, "Extra3 flags: {B[{x%s{B]{x\n\r",
-		    flag_string(extra3_flags, pObj->extra3_flags));
+		    flag_string(extra[2], pObj->extra[2]));
     add_buf(buffer, buf);
 
     sprintf(buf, "Extra4 flags: {B[{x%s{B]{x\n\r",
-		    flag_string(extra4_flags, pObj->extra4_flags));
+		    flag_string(extra[3], pObj->extra[3]));
     add_buf(buffer, buf);
 
     sprintf(buf, "OUpdate:      {B[{x%s{B]{x\n\r",
     	pObj->update == true ? "Yes" : "No");
     add_buf(buffer, buf);
-
+*/
     sprintf(buf, "Timer:        {B[{x%d{B]{x\n\r",
         pObj->timer);
     add_buf(buffer, buf);
@@ -5635,68 +5801,11 @@ OEDIT(oedit_show)
 	}
 
 
-    if (pObj->progs) {
-	int cnt, slot;
+    if (pObj->progs)
+		olc_show_progs(buffer, pObj->progs, PRG_OPROG, "ObjProg Vnum");
 
-	for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++)
-		if(list_size(pObj->progs[slot]) > 0) ++cnt;
-
-	if (cnt > 0) {
-		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "Number", "ObjProg Vnum", "Trigger", "Phrase");
-		add_buf(buffer, buf);
-
-		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "------", "-------------", "-------", "------");
-		add_buf(buffer, buf);
-
-		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
-			iterator_start(&it, pObj->progs[slot]);
-			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-				sprintf(buf, "{B[{W%4d{B]{x %-20ld %-10s %-6s\n\r", cnt,
-					trigger->vnum,trigger_name(trigger->trig_type),
-					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, false, false));
-				add_buf(buffer, buf);
-				cnt++;
-			}
-			iterator_stop(&it);
-		}
-	}
-    }
-
-    if (pObj->index_vars) {
-	pVARIABLE var;
-	int cnt;
-
-	for (cnt = 0, var = pObj->index_vars; var; var = var->next) ++cnt;
-
-	if (cnt > 0) {
-		sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "Name", "Type", "Saved", "Value");
-		add_buf(buffer, buf);
-
-		sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "----", "----", "-----", "-----");
-		add_buf(buffer, buf);
-
-		for (var = pObj->index_vars; var; var = var->next) {
-			switch(var->type) {
-			case VAR_INTEGER:
-				sprintf(buf, "{x%-20.20s {GNUMBER     {Y%c   {W%d{x\n\r", var->name,var->save?'Y':'N',var->_.i);
-				break;
-			case VAR_STRING:
-			case VAR_STRING_S:
-				sprintf(buf, "{x%-20.20s {GSTRING     {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N',var->_.s?var->_.s:"(empty)");
-				break;
-			case VAR_ROOM:
-				if(var->_.r && var->_.r->vnum > 0)
-					sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W%s {R({W%d{R){x\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->vnum);
-				else
-					sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W-no-where-{x\n\r",var->name,var->save?'Y':'N');
-				break;
-			default:
-				continue;
-			}
-			add_buf(buffer, buf);
-		}
-	}
-    }
+	if (pObj->index_vars)
+		olc_show_index_vars(buffer, pObj->index_vars);
 
 
     print_obj_values(pObj, buffer);
@@ -6937,56 +7046,10 @@ OEDIT(oedit_skeywds)
 OEDIT(oedit_varset)
 {
     OBJ_INDEX_DATA *pObj;
-    char name[MIL];
-    char type[MIL];
-    char yesno[MIL];
-    bool saved;
 
     EDIT_OBJ(ch, pObj);
 
-    if (argument[0] == '\0') {
-	send_to_char("Syntax:  varset <name> <number|string|room> <yes|no> <value>\n\r", ch);
-	return false;
-    }
-
-    argument = one_argument(argument, name);
-    argument = one_argument(argument, type);
-    argument = one_argument(argument, yesno);
-
-    if(!variable_validname(name)) {
-	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
-	return false;
-    }
-
-    saved = !str_cmp(yesno,"yes");
-
-    if(!argument[0]) {
-	send_to_char("Set what on the variable?\n\r", ch);
-	return false;
-    }
-
-    if(!str_cmp(type,"room")) {
-	if(!is_number(argument)) {
-	    send_to_char("Specify a room vnum.\n\r", ch);
-	    return false;
-	}
-
-	variables_setindex_room(&pObj->index_vars,name,atoi(argument),saved);
-    } else if(!str_cmp(type,"string"))
-	variables_setindex_string(&pObj->index_vars,name,argument,false,saved);
-    else if(!str_cmp(type,"number")) {
-	if(!is_number(argument)) {
-	    send_to_char("Specify an integer.\n\r", ch);
-	    return false;
-	}
-
-	variables_setindex_integer(&pObj->index_vars,name,atoi(argument),saved);
-    } else {
-	send_to_char("Invalid type of variable.\n\r", ch);
-	return false;
-    }
-    send_to_char("Variable set.\n\r", ch);
-    return true;
+	return olc_varset(&pObj->index_vars, ch, argument, false);
 }
 
 OEDIT(oedit_varclear)
@@ -6995,23 +7058,7 @@ OEDIT(oedit_varclear)
 
     EDIT_OBJ(ch, pObj);
 
-    if (argument[0] == '\0') {
-	send_to_char("Syntax:  varclear <name>\n\r", ch);
-	return false;
-    }
-
-    if(!variable_validname(argument)) {
-	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
-	return false;
-    }
-
-    if(!variable_remove(&pObj->index_vars,argument)) {
-	send_to_char("No such variable defined.\n\r", ch);
-	return false;
-    }
-
-    send_to_char("Variable cleared.\n\r", ch);
-    return true;
+	return olc_varclear(&pObj->index_vars, ch, argument, false);
 }
 
 
@@ -7032,7 +7079,7 @@ OEDIT(oedit_short)
 
     send_to_char("Short description set.\n\r", ch);
 
-    if (IS_SET(ch->act, PLR_AUTOSETNAME))
+    if (IS_SET(ch->act[0], PLR_AUTOSETNAME))
     {
 	free_string(pObj->name);
 	pObj->name = short_to_name(pObj->short_descr);
@@ -7513,24 +7560,30 @@ OEDIT(oedit_ed)
 OEDIT(oedit_extra)
 {
     OBJ_INDEX_DATA *pObj;
-    int value;
+    //int value;
 
     if (argument[0] != '\0')
     {
-	EDIT_OBJ(ch, pObj);
+		EDIT_OBJ(ch, pObj);
+		
+		long extra[4];
 
-	if ((value = flag_value(extra_flags, argument)) != NO_FLAG)
-	{
-	    if (value == ITEM_PERMANENT || value == ITEM_HIDDEN) {
-		send_to_char("This flag is a utility flag and can't be toggled by immortals.\n\r", ch);
-		return false;
-	    }
+		if (!bitvector_lookup(argument, 4, extra, extra_flags, extra2_flags, extra3_flags, extra4_flags))
+		{
+			send_to_char("Invalid extra flag.\n\r", ch);
+			send_to_char("Type '? extra' for a list of flags.\n\r", ch);
+			return false;
+		}
 
-	    TOGGLE_BIT(pObj->extra_flags, value);
+	    //TOGGLE_BIT(pObj->extra_flags, value);
+		TOGGLE_BIT(pObj->extra[0], extra[0]);
+		TOGGLE_BIT(pObj->extra[1], extra[1]);
+		TOGGLE_BIT(pObj->extra[2], extra[2]);
+		TOGGLE_BIT(pObj->extra[3], extra[3]);
 
 	    send_to_char("Extra flag toggled.\n\r", ch);
 	    return true;
-	}
+	
     }
 
     send_to_char("Syntax:  extra [flag]\n\r"
@@ -7538,7 +7591,7 @@ OEDIT(oedit_extra)
     return false;
 }
 
-
+/*
 OEDIT(oedit_extra2)
 {
     OBJ_INDEX_DATA *pObj;
@@ -7549,13 +7602,13 @@ OEDIT(oedit_extra2)
 	EDIT_OBJ(ch, pObj);
 	
 	// We should be adding checks to individual flags.
-	/*
+
 	if (!has_imp_sig(NULL, pObj) && ch->tot_level < MAX_LEVEL)
 	{
 	    send_to_char("You can't do this without an IMP's permission.\n\r", ch);
 	    return false;
 	}
-	*/
+
 
 	if ((value = flag_value(extra2_flags, argument)) != NO_FLAG)
 	{
@@ -7584,13 +7637,13 @@ OEDIT(oedit_extra3)
 	EDIT_OBJ(ch, pObj);
 
 	// We should be adding checks to individual flags.
-	/*
+
 	if (!has_imp_sig(NULL, pObj) && ch->tot_level < MAX_LEVEL)
 	{
 	    send_to_char("You can't do this without an IMP's permission.\n\r", ch);
 	    return false;
 	}
-	*/
+
 
 	if ((value = flag_value(extra3_flags, argument)) != NO_FLAG)
 	{
@@ -7619,13 +7672,13 @@ OEDIT(oedit_extra4)
 	EDIT_OBJ(ch, pObj);
 
 	// We should be adding checks to individual flags.
-	/*
+
 	if (!has_imp_sig(NULL, pObj) && ch->tot_level < MAX_LEVEL)
 	{
 	    send_to_char("You can't do this without an IMP's permission.\n\r", ch);
 	    return false;
 	}
-	*/
+
 
 	if ((value = flag_value(extra4_flags, argument)) != NO_FLAG)
 	{
@@ -7643,6 +7696,7 @@ OEDIT(oedit_extra4)
 		  "Type '? extra4' for a list of flags.\n\r", ch);
     return false;
 }
+*/
 
 OEDIT(oedit_wear)
 {
@@ -7971,8 +8025,8 @@ MEDIT(medit_show)
 {
 	MOB_INDEX_DATA *pMob;
 	char buf[MAX_STRING_LENGTH];
-	ITERATOR it;
-	PROG_LIST *trigger;
+//	ITERATOR it;
+//	PROG_LIST *trigger;
 	BUFFER *buffer;
 
 	EDIT_MOB(ch, pMob);
@@ -7992,13 +8046,13 @@ MEDIT(medit_show)
 	add_buf(buffer, buf);
 
 	sprintf(buf, "Act:          {C[{x%s{C]{x\n\r",
-		flag_string(act_flags, pMob->act));
+		bitmatrix_string(act_flagbank, pMob->act));
 	add_buf(buffer, buf);
-
+/*
 	sprintf(buf, "Act2:         {C[{x%s{C]{x\n\r",
 		flag_string(act2_flags, pMob->act2));
 	add_buf(buffer, buf);
-
+*/
 	sprintf(buf, "Vnum:         {C[{x%6ld{C]{x  Sex: {C[{x%7s{C]{x  Race: {C[{x%s{C]{x\n\r",
 		pMob->vnum,
 		pMob->sex == SEX_MALE    ? "male   " :
@@ -8051,13 +8105,13 @@ MEDIT(medit_show)
 	add_buf(buffer, buf);
 
 	sprintf(buf, "Affected by:  {C[{x%s{C]{x\n\r",
-		flag_string(affect_flags, pMob->affected_by));
+		bitvector_string(2, pMob->affected_by[0], affect_flags, pMob->affected_by[1], affect2_flags));
 	add_buf(buffer, buf);
-
+/*
 	sprintf(buf, "Affected by2: {C[{x%s{C]{x\n\r",
 		flag_string(affect2_flags, pMob->affected_by2));
 	add_buf(buffer, buf);
-
+*/
 	sprintf(buf, "Armour:        {C[{xpierce: %d  bash: %d  slash: %d  magic: %d{C]{x\n\r",
 		pMob->ac[AC_PIERCE], pMob->ac[AC_BASH],
 		pMob->ac[AC_SLASH],  pMob->ac[AC_EXOTIC]);
@@ -8544,68 +8598,11 @@ MEDIT(medit_show)
 		add_buf(buffer, "\n\r");
 	}
 
-	if (pMob->progs) {
-		int cnt, slot;
+    if (pMob->progs)
+		olc_show_progs(buffer, pMob->progs, PRG_MPROG, "MobProg Vnum");
 
-		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++)
-			if(list_size(pMob->progs[slot]) > 0) ++cnt;
-
-		if (cnt > 0) {
-			sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "Number", "MobProg Vnum", "Trigger", "Phrase");
-			add_buf(buffer, buf);
-
-			sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "------", "-------------", "-------", "------");
-			add_buf(buffer, buf);
-
-			for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
-				iterator_start(&it, pMob->progs[slot]);
-				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-					sprintf(buf, "{C[{W%4d{C]{x %-20ld %-10s %-6s\n\r", cnt,
-						trigger->vnum,trigger_name(trigger->trig_type),
-						trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, false, false));
-					add_buf(buffer, buf);
-					cnt++;
-				}
-				iterator_stop(&it);
-			}
-		}
-	}
-
-	if (pMob->index_vars) {
-		pVARIABLE var;
-		int cnt;
-
-		for (cnt = 0, var = pMob->index_vars; var; var = var->next) ++cnt;
-
-		if (cnt > 0) {
-			sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "Name", "Type", "Saved", "Value");
-			add_buf(buffer, buf);
-
-			sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "----", "----", "-----", "-----");
-			add_buf(buffer, buf);
-
-			for (var = pMob->index_vars; var; var = var->next) {
-				switch(var->type) {
-				case VAR_INTEGER:
-					sprintf(buf, "{x%-20.20s {GNUMBER     {Y%c   {W%d{x\n\r", var->name,var->save?'Y':'N',var->_.i);
-					break;
-				case VAR_STRING:
-				case VAR_STRING_S:
-					sprintf(buf, "{x%-20.20s {GSTRING     {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N',var->_.s?var->_.s:"(empty)");
-					break;
-				case VAR_ROOM:
-					if(var->_.r && var->_.r->vnum > 0)
-						sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W%s {R({W%d{R){x\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->vnum);
-					else
-						sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W-no-where-{x\n\r",var->name,var->save?'Y':'N');
-					break;
-				default:
-					continue;
-				}
-				add_buf(buffer, buf);
-			}
-		}
-	}
+	if (pMob->index_vars)
+		olc_show_index_vars(buffer, pMob->index_vars);
 
 	page_to_char(buf_string(buffer), ch);
 	free_buf(buffer);
@@ -8834,8 +8831,8 @@ MEDIT(medit_create)
     if (value > top_vnum_mob)
 	top_vnum_mob = value;
 
-    pMob->act			= ACT_IS_NPC;
-    pMob->act2			= 0;
+    pMob->act[0]			= ACT_IS_NPC;
+    pMob->act[1]			= 0;
     iHash			= value % MAX_KEY_HASH;
     pMob->next			= mob_index_hash[iHash];
     mob_index_hash[iHash]	= pMob;
@@ -8846,7 +8843,7 @@ MEDIT(medit_create)
     pMob->level = 1;
     set_mob_hitdice(pMob);
     set_mob_damdice(pMob);
-    if (!IS_SET(pMob->act, ACT_MOUNT))
+    if (!IS_SET(pMob->act[0], ACT_MOUNT))
 	set_mob_movedice(pMob);
 
     send_to_char("Mobile Created.\n\r", ch);
@@ -8958,7 +8955,7 @@ MEDIT(medit_level)
     set_mob_damdice(pMob);
     send_to_char("Damage dice set.\n\r", ch);
 
-    if (!IS_SET(pMob->act, ACT_MOUNT)) {
+    if (!IS_SET(pMob->act[0], ACT_MOUNT)) {
 	set_mob_movedice(pMob);
 	send_to_char("Movement dice set.\n\r", ch);
     }
@@ -9045,7 +9042,7 @@ MEDIT(medit_short)
     pMob->short_descr = str_dup(argument);
 
     send_to_char("Short description set.\n\r", ch);
-    if (IS_SET(ch->act, PLR_AUTOSETNAME))
+    if (IS_SET(ch->act[0], PLR_AUTOSETNAME))
     {
 	free_string(pMob->player_name);
 	pMob->player_name = short_to_name(pMob->short_descr);
@@ -9144,56 +9141,10 @@ MEDIT(medit_skeywds)
 MEDIT(medit_varset)
 {
     MOB_INDEX_DATA *pMob;
-    char name[MIL];
-    char type[MIL];
-    char yesno[MIL];
-    bool saved;
 
     EDIT_MOB(ch, pMob);
 
-    if (argument[0] == '\0') {
-	send_to_char("Syntax:  varset <name> <number|string|room> <yes|no> <value>\n\r", ch);
-	return false;
-    }
-
-    argument = one_argument(argument, name);
-    argument = one_argument(argument, type);
-    argument = one_argument(argument, yesno);
-
-    if(!variable_validname(name)) {
-	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
-	return false;
-    }
-
-    saved = !str_cmp(yesno,"yes");
-
-    if(!argument[0]) {
-	send_to_char("Set what on the variable?\n\r", ch);
-	return false;
-    }
-
-    if(!str_cmp(type,"room")) {
-	if(!is_number(argument)) {
-	    send_to_char("Specify a room vnum.\n\r", ch);
-	    return false;
-	}
-
-	variables_setindex_room(&pMob->index_vars,name,atoi(argument),saved);
-    } else if(!str_cmp(type,"string"))
-	variables_setindex_string(&pMob->index_vars,name,argument,false,saved);
-    else if(!str_cmp(type,"number")) {
-	if(!is_number(argument)) {
-	    send_to_char("Specify an integer.\n\r", ch);
-	    return false;
-	}
-
-	variables_setindex_integer(&pMob->index_vars,name,atoi(argument),saved);
-    } else {
-	send_to_char("Invalid type of variable.\n\r", ch);
-	return false;
-    }
-    send_to_char("Variable set.\n\r", ch);
-    return true;
+	return olc_varset(&pMob->index_vars, ch, argument, false);
 }
 
 MEDIT(medit_varclear)
@@ -9202,23 +9153,7 @@ MEDIT(medit_varclear)
 
     EDIT_MOB(ch, pMob);
 
-    if (argument[0] == '\0') {
-	send_to_char("Syntax:  varclear <name>\n\r", ch);
-	return false;
-    }
-
-    if(!variable_validname(argument)) {
-	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
-	return false;
-    }
-
-    if(!variable_remove(&pMob->index_vars,argument)) {
-	send_to_char("No such variable defined.\n\r", ch);
-	return false;
-    }
-
-    send_to_char("Variable cleared.\n\r", ch);
-    return true;
+	return olc_varclear(&pMob->index_vars, ch, argument, false);
 }
 
 MEDIT(medit_corpsetype)
@@ -10317,18 +10252,21 @@ MEDIT(medit_sex)
 MEDIT(medit_act)
 {
     MOB_INDEX_DATA *pMob;
-    long value;
+    //long value;
 
     if (argument[0] != '\0')
     {
-	EDIT_MOB(ch, pMob);
+			EDIT_MOB(ch, pMob);
 
-	if ((value = flag_value(act_flags, argument)) != NO_FLAG)
-	{
-	    pMob->act ^= value;
+		long bits[2];
+		if (bitvector_lookup(argument, 2, bits, act_flags, act2_flags))
+		{
+			TOGGLE_BIT(pMob->act[0], bits[0]);
+			TOGGLE_BIT(pMob->act[1], bits[1]);
+			SET_BIT(pMob->act[0], ACT_IS_NPC);	// Force on, all the time
 
-	    send_to_char("Act flag toggled.\n\r", ch);
-	    return true;
+			send_to_char("Act flag toggled.\n\r", ch);
+			return true;
 	}
     }
 
@@ -10337,7 +10275,7 @@ MEDIT(medit_act)
     return false;
 }
 
-
+/*
 MEDIT(medit_act2)
 {
     MOB_INDEX_DATA *pMob;
@@ -10361,23 +10299,25 @@ MEDIT(medit_act2)
 		  "Type '? act2' for a list of flags.\n\r", ch);
     return false;
 }
-
+*/
 
 MEDIT(medit_affect)
 {
     MOB_INDEX_DATA *pMob;
-    int value;
+    //int value;
 
     if (argument[0] != '\0')
     {
-	EDIT_MOB(ch, pMob);
+		EDIT_MOB(ch, pMob);
+		long bits[2];
 
-	if ((value = flag_value(affect_flags, argument)) != NO_FLAG)
-	{
-	    pMob->affected_by ^= value;
+		if (bitvector_lookup(argument, 2, bits, affect_flags, affect2_flags))
+		{
+			TOGGLE_BIT(pMob->affected_by[0], bits[0]);
+			TOGGLE_BIT(pMob->affected_by[1], bits[1]);
 
-	    send_to_char("Affect flag toggled.\n\r", ch);
-	    return true;
+			send_to_char("Affect flag toggled.\n\r", ch);
+			return true;
 	}
     }
 
@@ -10386,7 +10326,7 @@ MEDIT(medit_affect)
     return false;
 }
 
-
+/*
 MEDIT(medit_affect2)
 {
     MOB_INDEX_DATA *pMob;
@@ -10409,7 +10349,7 @@ MEDIT(medit_affect2)
 		  "Type '? affect2' for a list of flags.\n\r", ch);
     return false;
 }
-
+*/
 
 MEDIT(medit_ac)
 {
@@ -10817,9 +10757,9 @@ MEDIT(medit_race)
 	EDIT_MOB(ch, pMob);
 
 	pMob->race = race;
-	pMob->act	  |= race_table[race].act;
-	pMob->act2	  |= race_table[race].act2;
-	pMob->affected_by |= race_table[race].aff;
+	pMob->act[0]	  |= race_table[race].act;
+	pMob->act[1]	  |= race_table[race].act2;
+	pMob->affected_by[0] |= race_table[race].aff;
 	pMob->off_flags   |= race_table[race].off;
 	pMob->imm_flags   |= race_table[race].imm;
 	pMob->res_flags   |= race_table[race].res;
@@ -11257,26 +11197,81 @@ MEDIT(medit_delquest)
     return true;
 }
 
-
 REDIT(redit_room)
 {
     ROOM_INDEX_DATA *room;
-    int value;
+    //long value;
 
-    EDIT_ROOM(ch, room);
-
-    if ((value = flag_value(room_flags, argument)) == NO_FLAG)
+    if (argument[0] != '\0')
     {
-	send_to_char("Syntax: room [flags]\n\r", ch);
-	return false;
+			EDIT_ROOM(ch, room);
+
+		long bits[2];
+		if (bitvector_lookup(argument, 2, bits, room_flags, room2_flags))
+		{
+
+		    if( IS_SET(bits[1], ROOM_BLUEPRINT) )
+    		{
+				// Only those that can edit blueprints can toggle this flag
+				if( !can_edit_blueprints(ch) )
+				{
+					bits[1] &= ~ROOM_BLUEPRINT;
+
+					if( !bits[1] )
+					{
+						send_to_char("Syntax: room [flags]\n\r", ch);
+						return false;
+					}
+				}
+				else if( !IS_SET(bits[1], ROOM_NOCLONE) && IS_SET(room->room_flag[1], ROOM_NOCLONE) )
+				{
+					send_to_char("No-clone room cannot be used in blueprints.\n\r", ch);
+					return false;
+				}
+				else if( IS_SET(bits[1], ROOM_NOCLONE) && !IS_SET(room->room_flag[1], ROOM_NOCLONE) )
+				{
+					send_to_char("BLUEPRINT and NO_CLONE cannot mix.\n\r", ch);
+					return false;
+				}
+			}
+
+			if( IS_SET(bits[1], ROOM_NOCLONE) )
+			{
+				if( !IS_SET(bits[1], ROOM_BLUEPRINT) && IS_SET(room->room_flag[1], ROOM_BLUEPRINT) )
+				{
+					send_to_char("Blueprint rooms cannot be no-clone.\n\r", ch);
+					return false;
+				}
+
+				// Check if room is already used in a section
+				if( get_blueprint_section_byroom(room->vnum) )
+				{
+					send_to_char("Room is currently used in a blueprint.\n\r", ch);
+					// Clear it out, JIC
+					if( IS_SET(room->room_flag[1], ROOM_NOCLONE) )
+					{
+			    		REMOVE_BIT(room->room_flag[1], ROOM_NOCLONE);
+			    		return true;
+					}
+
+					return false;
+				}
+			}
+
+			TOGGLE_BIT(room->room_flag[0], bits[0]);
+			TOGGLE_BIT(room->room_flag[1], bits[1]);
+
+			send_to_char("Room flag(s) toggled.\n\r", ch);
+			return true;
+	}
     }
 
-    TOGGLE_BIT(room->room_flags, value);
-    send_to_char("Room flags toggled.\n\r", ch);
-    return true;
+    send_to_char("Syntax: room [flag]\n\r"
+		  "Type '? room' for a list of flags.\n\r", ch);
+    return false;
 }
 
-
+/*
 REDIT(redit_room2)
 {
     ROOM_INDEX_DATA *room;
@@ -11342,7 +11337,7 @@ REDIT(redit_room2)
     send_to_char("Room flags toggled.\n\r", ch);
     return true;
 }
-
+*/
 
 REDIT(redit_sector)
 {
@@ -11405,7 +11400,7 @@ REDIT(redit_coords)
 		y = atoi(arg2);
 		z = atoi(arg3);
 
-		if( !IS_SET(room->room2_flags, ROOM_BLUEPRINT) )
+		if( !IS_SET(room->room_flag[1], ROOM_BLUEPRINT) )
 		{
 			w = get_wilds_from_uid(NULL,atoi(argument));
 			if(!w) {
@@ -11902,8 +11897,8 @@ void correct_vrooms(WILDS_DATA *pWilds, WILDS_TERRAIN *pTerrain)
 		if(vroom->parent_template == pTerrain) {
 			free_string(vroom->name);
 			vroom->name = str_dup(pTerrain->template->name);
-			vroom->room_flags = pTerrain->template->room_flags;
-			vroom->room2_flags = pTerrain->template->room2_flags|ROOM_VIRTUAL_ROOM;
+			vroom->room_flag[0] = pTerrain->template->room_flag[0];
+			vroom->room_flag[1] = pTerrain->template->room_flag[1]|ROOM_VIRTUAL_ROOM;
 				vroom->sector_type = pTerrain->template->sector_type;
 		}
 	}
@@ -11929,7 +11924,7 @@ WEDIT ( wedit_terrain )
                       "         terrain <token> ansi <string>\n\r"
                       "         terrain <token> showname <string>\n\r"
                       "         terrain <token> briefdesc <string>\n\r"
-                      "         terrain <token> roomflag <flag>\n\r"
+                      "         terrain <token> room_flag <flag>\n\r"
                       "         terrain <token> room2flag <flag>\n\r"
                       "         terrain <token> sector <sector>\n\r"
                       "         terrain list <flag>\n\r", ch);
@@ -11950,13 +11945,13 @@ WEDIT ( wedit_terrain )
 
         for(pTerrain=pWilds->pTerrain;pTerrain;pTerrain=pTerrain->next)
         {
-            sprintf(buf, " '{W%c{x'   '%s{x'   {W%-15s{x  {W%-15s{x  {W%s%s, %s{x\n\r",
+            sprintf(buf, " '{W%c{x'   '%s{x'   {W%-15s{x  {W%-15s{x  {W%s%s{x\n\r",
                      pTerrain->mapchar, pTerrain->showchar,
                      pTerrain->showname ? pTerrain->showname : "(Not Set)",
                      flag_string(sector_flags, pTerrain->template->sector_type),
                      pTerrain->nonroom ? "  Yes    " : "  No     ",
-                     flag_string(room_flags, pTerrain->template->room_flags),
-                     flag_string(room2_flags, pTerrain->template->room2_flags));
+                     bitmatrix_string(room_flagbank, pTerrain->template->room_flag));
+                     //flag_string(room2_flags, pTerrain->template->room_flag[1]));
             add_buf(output, buf);
         }
 
@@ -12088,20 +12083,30 @@ WEDIT ( wedit_terrain )
         return true;
     }
 
-    if (!str_cmp(arg2, "roomflag"))
+    if (!str_cmp(arg2, "room_flag"))
     {
+	long room_flag[2];
+	if (bitvector_lookup(argument, 2, room_flag, room_flags, room2_flags))
+	{
+		TOGGLE_BIT(pTerrain->template->room_flag[0], room_flag[0]);
+		TOGGLE_BIT(pTerrain->template->room_flag[1], room_flag[1]);
+		correct_vrooms(pWilds, pTerrain);
+		send_to_char("Room flags toggled.\n\r", ch);
+        return true;
+	/*
 	if ((value = flag_value(room_flags, argument)) == NO_FLAG)
 	{
-	    send_to_char("Syntax: terrain <token> roomflag <flag>\n\r", ch);
+	    send_to_char("Syntax: terrain <token> room_flag <flag>\n\r", ch);
 	    return false;
 	}
 
-	TOGGLE_BIT(pTerrain->template->room_flags, value);
+	TOGGLE_BIT(pTerrain->template->room_flag[0], value);
 	correct_vrooms(pWilds, pTerrain);
 	send_to_char("Room flags toggled.\n\r", ch);
         return true;
+	*/
     }
-
+/*
     if (!str_cmp(arg2, "room2flag"))
     {
 	if ((value = flag_value(room2_flags, argument)) == NO_FLAG)
@@ -12115,7 +12120,8 @@ WEDIT ( wedit_terrain )
 	send_to_char("Room2 flags toggled.\n\r", ch);
         return true;
     }
-
+*/
+	}
     if (!str_cmp(arg2, "sector"))
     {
 	if ((value = flag_value(sector_flags, argument)) == NO_FLAG)
@@ -12368,7 +12374,7 @@ WEDIT ( wedit_vlink )
 					return false;
 				}
 
-				if( IS_SET(destRoom->room2_flags, ROOM_BLUEPRINT) ||
+				if( IS_SET(destRoom->room_flag[1], ROOM_BLUEPRINT) ||
 					IS_SET(destRoom->area->area_flags, AREA_BLUEPRINT) )
 				{
 					send_to_char("Wedit vlink: Invalid destination.\n\r", ch);

@@ -41,7 +41,7 @@ AFFECT_DATA *read_obj_catalyst_new (FILE *fp);
 SHOP_DATA *read_shop_new( FILE *fp);
 SHIP_CREW_INDEX_DATA *read_ship_crew_index_new( FILE *fp );
 QUESTOR_DATA *read_questor_new( FILE *fp);
-TOKEN_INDEX_DATA *read_token( FILE *fp);
+TOKEN_INDEX_DATA *read_token( FILE *fp, AREA_DATA *area );
 
 /* help files */
 void save_helpfiles_new();

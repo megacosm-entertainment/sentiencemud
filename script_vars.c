@@ -8,6 +8,7 @@
 #include "strings.h"
 #include "merc.h"
 #include "db.h"
+#include "recycle.h"
 #include "scripts.h"
 #include "wilds.h"
 
@@ -3262,6 +3263,400 @@ void script_varclearon(SCRIPT_VARINFO *info, VARIABLE **vars, char *argument, SC
 	variable_remove(vars,name);
 }
 
+bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent)
+{
+    char name[MIL];
+    char type[MIL];
+    char yesno[MIL];
+    bool saved;
+
+    if (argument[0] == '\0') {
+	send_to_char("Syntax:  varset <name> <number|string|room> <yes|no> <value>\n\r", ch);
+	return false;
+    }
+
+    argument = one_argument(argument, name);
+    argument = one_argument(argument, type);
+    argument = one_argument(argument, yesno);
+
+    if(!variable_validname(name)) {
+	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
+	return false;
+    }
+
+    saved = !str_cmp(yesno,"yes");
+
+    if(!argument[0]) {
+	send_to_char("Set what on the variable?\n\r", ch);
+	return false;
+    }
+
+    if(!str_cmp(type,"room")) {
+	if(!is_number(argument)) {
+	    send_to_char("Specify a room vnum.\n\r", ch);
+	    return false;
+	}
+
+	variables_setindex_room(index_vars,name,atoi(argument), saved);
+    } else if(!str_cmp(type,"string"))
+		variables_setindex_string(index_vars,name,argument,false,saved);
+    else if(!str_cmp(type,"number"))
+	{
+		if(!is_number(argument)) {
+			send_to_char("Specify an integer.\n\r", ch);
+			return false;
+		}
+
+		variables_setindex_integer(index_vars,name,atoi(argument),saved);
+    }
+//	else if(!str_cmp(type,"skill"))
+//	{
+//		int sn = skill_lookup(argument);
+//		if (sn <= 0)
+//		{
+//			send_to_char("No such skill exists.\n\r", ch);
+//			return false;
+//		}
+//		
+//		variables_setindex_skill(index_vars,name,sn,saved);
+//	}
+//	else if(!str_cmp(type,"song"))
+//	{
+//		int sn = song_lookup(argument);
+//		if (sn <= 0)
+//		{
+//			send_to_char("No such song exists.\n\r", ch);
+//			return false;
+//		}
+//		
+//		variables_setindex_song(index_vars,name,sn,saved);
+//	}
+	else
+	{
+		send_to_char("Invalid type of variable.\n\r", ch);
+		return false;
+    }
+    send_to_char("Variable set.\n\r", ch);
+    return true;
+}
+
+bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent)
+{
+    if (argument[0] == '\0') {
+		send_to_char("Syntax:  varclear <name>\n\r", ch);
+		return false;
+    }
+
+    if(!variable_validname(argument)) {
+		send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
+		return false;
+    }
+
+    if(!variable_remove(index_vars,argument)) {
+		send_to_char("No such variable defined.\n\r", ch);
+		return false;
+    }
+
+    send_to_char("Variable cleared.\n\r", ch);
+    return true;
+}
+
+void olc_show_index_vars(BUFFER *buffer, pVARIABLE index_vars)
+{
+	char buf[MSL];
+	if (index_vars)
+	{
+		pVARIABLE var;
+		int cnt;
+
+		for (cnt = 0, var = index_vars; var; var = var->next) ++cnt;
+
+		if (cnt > 0) {
+			sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "Name", "Type", "Saved", "Value");
+			add_buf(buffer, buf);
+
+			sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "----", "----", "-----", "-----");
+			add_buf(buffer, buf);
+
+			for (var = index_vars; var; var = var->next) {
+				switch(var->type) {
+				case VAR_INTEGER:
+					sprintf(buf, "{x%-20.20s {GNUMBER     {Y%c   {W%d{x\n\r", var->name,var->save?'Y':'N',var->_.i);
+					break;
+				case VAR_STRING:
+				case VAR_STRING_S:
+					sprintf(buf, "{x%-20.20s {GSTRING     {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N',var->_.s?var->_.s:"(empty)");
+					break;
+				case VAR_ROOM:
+					if(var->_.r && var->_.r->vnum > 0)
+						sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W%s {R({W%d{R){x\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->vnum);
+					else
+						sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W-no-where-{x\n\r",var->name,var->save?'Y':'N');
+					break;
+				case VAR_SKILL:
+					if(var->_.sn > 0)
+						sprintf(buf, "{x%-20.20s {GSKILL      {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N', SKILL_NAME(var->_.sn));
+					else
+						sprintf(buf, "{x%-20.20s {GSKILL      {Y%c   {W-invalid-{x\n\r", var->name,var->save?'Y':'N');
+					break;
+//				case VAR_SONG:
+//					if(var->_.sn >= 0)
+//						sprintf(buf, "{x%-20.20s {GSONG       {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N', SONG_NAME(var->_.sn));
+//					else
+//						sprintf(buf, "{x%-20.20s {GSONG       {Y%c   {W-invalid-{x\n\r", var->name,var->save?'Y':'N');
+//					break;
+				default:
+					continue;
+				}
+				add_buf(buffer, buf);
+			}
+		}
+	}
+}
+
+void olc_save_index_vars(FILE *fp, pVARIABLE index_vars, AREA_DATA *pRefArea)
+{
+	if(index_vars) {
+		for(pVARIABLE var = index_vars; var; var = var->next) {
+			if(var->type == VAR_INTEGER)
+				fprintf(fp, "VarInt %s~ %d %d\n", var->name, var->save, var->_.i);
+			else if(var->type == VAR_STRING || var->type == VAR_STRING_S)
+				fprintf(fp, "VarStr %s~ %d %s~\n", var->name, var->save, var->_.s ? var->_.s : "");
+			else if(var->type == VAR_ROOM && var->_.r && var->_.r->vnum)
+				fprintf(fp, "VarRoom %s~ %d %d\n", var->name, var->save, (int)var->_.r->vnum);
+			else if(var->type == VAR_SKILL && var->_.sn > 0 )
+				fprintf(fp, "VarSkill %s~ %d '%s'\n", var->name, var->save, SKILL_NAME(var->_.sn));
+//			else if(var->type == VAR_SONG && var->_.sn >= 0 )
+//				fprintf(fp, "VarSong %s~ %d '%s'\n", var->name, var->save, SONG_NAME(var->_.sn));
+		}
+	}
+}
+
+bool olc_load_index_vars(FILE *fp, char *word, ppVARIABLE index_vars, AREA_DATA *pRefArea)
+{
+	if (!str_cmp(word, "VarInt")) {
+		char *name;
+		int value;
+		bool saved;
+
+		name = fread_string(fp);
+		saved = fread_number(fp);
+		value = fread_number(fp);
+
+		variables_setindex_integer (index_vars,name,value,saved);
+		return true;
+	}
+
+	if (!str_cmp(word, "VarStr")) {
+		char *name;
+		char *str;
+		bool saved;
+
+		name = fread_string(fp);
+		saved = fread_number(fp);
+		str = fread_string(fp);
+
+		variables_setindex_string (index_vars,name,str,false,saved);
+		return true;
+	}
+
+	if (!str_cmp(word, "VarRoom")) {
+		char *name;
+		int value;
+		bool saved;
+
+		name = fread_string(fp);
+		saved = fread_number(fp);
+		value = fread_number(fp);
+
+		variables_setindex_room (index_vars,name,value,saved);
+		return true;
+	}
+
+//	if (!str_cmp(word, "VarSkill"))
+//	{
+//		char *name;
+//		int sn;
+//		bool saved;
+//
+//		name = fread_string(fp);
+//		saved = fread_number(fp);
+//		sn = skill_lookup(fread_word(fp));
+//
+//		if (sn > 0)
+//			variables_setindex_skill(index_vars,name,sn,saved);
+//		return true;
+//	}
+
+//	if (!str_cmp(word, "VarSong"))
+//	{
+//		char *name;
+//		int sn;
+//		bool saved;
+//
+//		name = fread_string(fp);
+//		saved = fread_number(fp);
+//		sn = song_lookup(fread_word(fp));
+//
+//		if (sn >= 0)
+//			variables_setindex_song(index_vars,name,sn,saved);
+//		return true;
+//	}
+
+	return false;
+}
+
+void pstat_variable_list(CHAR_DATA *ch, pVARIABLE vars)
+{
+	char arg[MSL];
+	pVARIABLE var;
+
+	for(var = vars; var; var = var->next) {
+		switch(var->type) {
+		case VAR_INTEGER:
+			sprintf(arg,"Name [%-20s] Type[NUMBER] Save[%c] Value[%d]\n\r",
+				var->name,var->save?'Y':'N',var->_.i);
+			break;
+		case VAR_STRING:
+		case VAR_STRING_S:
+			if( var->_.s && strlen(var->_.s) > MIL )
+			{
+				sprintf(arg,"Name [%-20s] Type[STRING] Save[%c] Value[%.*s{x...{W(truncated){x]\n\r",
+					var->name,var->save?'Y':'N',MIL,var->_.s);
+			}
+			else
+			{
+				sprintf(arg,"Name [%-20s] Type[STRING] Save[%c] Value[%s{x]\n\r",
+					var->name,var->save?'Y':'N',var->_.s?var->_.s:"(empty)");
+			}
+			break;
+		case VAR_ROOM:
+			if(var->_.r) {
+				if( var->_.r->wilds )
+					sprintf(arg, "Name [%-20s] Type[ROOM  ] Save[%c] Value[%ld <%d,%d,%d>]\n\r", var->name,var->save?'Y':'N',var->_.r->wilds->uid,(int)var->_.r->x,(int)var->_.r->y,(int)var->_.r->z);
+				else if( var->_.r->source )
+					sprintf(arg, "Name [%-20s] Type[ROOM  ] Save[%c] Value[%s (%d %08X:%08X)]\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->source->vnum,(int)var->_.r->id[0],(int)var->_.r->id[1]);
+				else
+					sprintf(arg, "Name [%-20s] Type[ROOM  ] Save[%c] Value[%s (%d)]\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->vnum);
+			} else
+				sprintf(arg, "Name [%-20s] Type[ROOM  ] Save[%c] Value[-no-where-]\n\r", var->name,var->save?'Y':'N');
+			break;
+		case VAR_EXIT:
+			if(var->_.door.r) {
+				if( var->_.door.r->wilds)
+					sprintf(arg, "Name [%-20s] Type[EXIT  ] Save[%c] Value[%s at %ld <%d,%d,%d>]\n\r", var->name,var->save?'Y':'N',dir_name[var->_.door.door],var->_.door.r->wilds->uid,(int)var->_.door.r->x,(int)var->_.door.r->y,(int)var->_.door.r->z);
+				else if( var->_.door.r->source )
+					sprintf(arg, "Name [%-20s] Type[EXIT  ] Save[%c] Value[%s in %s (%d %08X:%08X)]\n\r", var->name,var->save?'Y':'N',dir_name[var->_.door.door],var->_.door.r->name,(int)var->_.door.r->source->vnum,(int)var->_.door.r->id[0],(int)var->_.door.r->id[1]);
+				else
+					sprintf(arg, "Name [%-20s] Type[EXIT  ] Save[%c] Value[%s in %s (%d)]\n\r", var->name,var->save?'Y':'N',dir_name[var->_.door.door],var->_.door.r->name,(int)var->_.door.r->vnum);
+			} else
+				sprintf(arg, "Name [%-20s] Type[EXIT  ] Save[%c] Value[-no-exit-]\n\r", var->name,var->save?'Y':'N');
+			break;
+		case VAR_MOBILE:
+			if(var->_.m) {
+				if(IS_NPC(var->_.m))
+					sprintf(arg, "Name [%-20s] Type[MOBILE] Save[%c] Value[%s (%d)] ID[%08X:%08X]\n\r", var->name,var->save?'Y':'N',var->_.m->short_descr,(int)var->_.m->pIndexData->vnum,(int)var->_.m->id[0],(int)var->_.m->id[1]);
+				else
+					sprintf(arg, "Name [%-20s] Type[PLAYER] Save[%c] Value[%s] ID[%08X:%08X]\n\r", var->name,var->save?'Y':'N',var->_.m->name,(int)var->_.m->id[0],(int)var->_.m->id[1]);
+			} else
+				sprintf(arg, "Name [%-20s] Type[MOBILE] Save[%c] Value[-no-mobile-]\n\r", var->name,var->save?'Y':'N');
+			break;
+		case VAR_OBJECT:
+			if(var->_.o)
+				sprintf(arg, "Name [%-20s] Type[OBJECT] Save[%c] Value[%s (%d)] ID[%08X:%08X]\n\r", var->name,var->save?'Y':'N',var->_.o->short_descr,(int)var->_.o->pIndexData->vnum,(int)var->_.o->id[0],(int)var->_.o->id[1]);
+			else
+				sprintf(arg, "Name [%-20s] Type[OBJECT] Save[%c] Value[-no-object-]\n\r", var->name,var->save?'Y':'N');
+			break;
+		case VAR_TOKEN:
+			if(var->_.t)
+				sprintf(arg, "Name [%-20s] Type[TOKEN ] Save[%c] Value[%s (%d)] ID[%08X:%08X]\n\r", var->name,var->save?'Y':'N',var->_.t->name,(int)var->_.t->pIndexData->vnum,(int)var->_.t->id[0],(int)var->_.t->id[1]);
+			else
+				sprintf(arg, "Name [%-20s] Type[TOKEN ] Save[%c] Value[-no-token-]\n\r", var->name,var->save?'Y':'N');
+			break;
+		case VAR_AREA:
+			if(var->_.a)
+				sprintf(arg, "Name [%-20s] Type[AREA  ] Save[%c] Value[%s (%ld)]\n\r", var->name,var->save?'Y':'N',var->_.a->name, var->_.a->uid);
+			else
+				sprintf(arg, "Name [%-20s] Type[AREA  ] Save[%c] Value[-no-area-]\n\r", var->name,var->save?'Y':'N');
+			break;
+		case VAR_MOBILE_ID:
+			sprintf(arg, "Name [%-20s] Type[MOBILE] Save[%c] Value[???] ID[%08X:%08X]\n\r", var->name,var->save?'Y':'N',(int)var->_.mid.a,(int)var->_.mid.b);
+			break;
+		case VAR_OBJECT_ID:
+			sprintf(arg, "Name [%-20s] Type[OBJECT] Save[%c] Value[???] ID[%08X:%08X]\n\r", var->name,var->save?'Y':'N',(int)var->_.oid.a,(int)var->_.oid.b);
+			break;
+		case VAR_TOKEN_ID:
+			sprintf(arg, "Name [%-20s] Type[TOKEN ] Save[%c] Value[???] ID[%08X:%08X]\n\r", var->name,var->save?'Y':'N',(int)var->_.tid.a,(int)var->_.tid.b);
+			break;
+		case VAR_BLLIST_MOB: {
+			LLIST *mob_list = var->_.list;
+			int sz = list_size(mob_list);
+
+			if( sz > 0 )
+			{
+				sprintf(arg, "Name [%-20s] Type[MOBLST] Save[%c]\n\r", var->name,var->save?'Y':'N');
+
+				LLIST_UID_DATA *data;
+				ITERATOR it;
+				iterator_start(&it, mob_list);
+				while(( data = (LLIST_UID_DATA *)iterator_nextdata(&it)))
+				{
+					send_to_char(arg, ch);
+
+					CHAR_DATA *m = (CHAR_DATA *)data->ptr;
+					if(IS_VALID(m))
+					{
+						if( IS_NPC(m) )
+							sprintf(arg,"      - MOBILE[%s (%d)] ID[%08X:%08X]\n\r", m->short_descr, (int)m->pIndexData->vnum, (int)m->id[0],(int)m->id[1]);
+						else
+							sprintf(arg,"      - PLAYER[%s] ID[%08X:%08X]\n\r", m->name, (int)m->id[0], (int)m->id[1]);
+					}
+					else
+						sprintf(arg,"      - MOBILE[???] ID[%08X:%08X]\n\r", (int)data->id[0],(int)data->id[1]);
+				}
+				iterator_stop(&it);
+			}
+			else
+				sprintf(arg, "Name [%-20s] Type[MOBLST] Save[%c] -empty-\n\r", var->name,var->save?'Y':'N');
+			break;
+		}
+		case VAR_BLLIST_OBJ: {
+
+			LLIST *obj_list = var->_.list;
+			int sz = list_size(obj_list);
+
+			if( sz > 0 )
+			{
+				sprintf(arg, "Name [%-20s] Type[OBJLST] Save[%c]\n\r", var->name,var->save?'Y':'N');
+				LLIST_UID_DATA *data;
+				ITERATOR it;
+
+				iterator_start(&it, obj_list);
+				while(( data = (LLIST_UID_DATA *)iterator_nextdata(&it)))
+				{
+					send_to_char(arg, ch);
+
+					OBJ_DATA *o = (OBJ_DATA *)data->ptr;
+					if(IS_VALID(o))
+						sprintf(arg,"      - OBJECT[%s (%d)] ID[%08X:%08X]\n\r", o->short_descr, (int)o->pIndexData->vnum, (int)o->id[0], (int)o->id[1]);
+					else
+						sprintf(arg,"      - OBJECT[???] ID[%08X:%08X] -empty-\n\r", (int)data->id[0], (int)data->id[1]);
+				}
+				iterator_stop(&it);
+			}
+			else
+				sprintf(arg, "Name [%-20s] Type[OBJLST] Save[%c]\n\r", var->name,var->save?'Y':'N');
+			break;
+		}
+		default:
+			sprintf(arg, "Name [%-20s] Type %d not displayed yet.\n\r", var->name,(int)var->type);
+			break;
+		}
+
+		send_to_char(arg, ch);
+	}
+
+}
 
 
 ////////////////////////////////////////////////
