@@ -2186,10 +2186,12 @@ DECL_IFC_FUN(ifc_varnumber)
 	else if(ISARG_OBJ(0)) { progs  = ARG_OBJ(0)->progs; ++argv; }
 	else if(ISARG_ROOM(0)) { progs  = ARG_ROOM(0)->progs; ++argv; }
 	else if(ISARG_TOK(0)) { progs  = ARG_TOK(0)->progs; ++argv; }
+	else if(ISARG_AREA(0)) { progs = ARG_AREA(0)->progs; ++argv; }
 	else if(mob) progs  = mob->progs;
 	else if(obj) progs  = obj->progs;
 	else if(room) progs  = room->progs;
 	else if(token) progs  = token->progs;
+	else if(area) progs = area->progs;
 
 	if(progs && progs->vars && ISARG_STR(0)) {
 		var = variable_get(progs->vars,ARG_STR(0));
@@ -2210,10 +2212,12 @@ DECL_IFC_FUN(ifc_varbool)
 	else if(ISARG_OBJ(0)) { progs  = ARG_OBJ(0)->progs; ++argv; }
 	else if(ISARG_ROOM(0)) { progs  = ARG_ROOM(0)->progs; ++argv; }
 	else if(ISARG_TOK(0)) { progs  = ARG_TOK(0)->progs; ++argv; }
+	else if(ISARG_AREA(0)) { progs = ARG_AREA(0)->progs; ++argv; }
 	else if(mob) progs  = mob->progs;
 	else if(obj) progs  = obj->progs;
 	else if(room) progs  = room->progs;
 	else if(token) progs  = token->progs;
+	else if(area) progs = area->progs;
 
 	if(progs && progs->vars && ISARG_STR(0)) {
 		var = variable_get(progs->vars,ARG_STR(0));
@@ -2234,10 +2238,12 @@ DECL_IFC_FUN(ifc_vardefined)
 	else if(ISARG_OBJ(0)) { progs = ARG_OBJ(0)->progs; ++argv; }
 	else if(ISARG_ROOM(0)) { progs = ARG_ROOM(0)->progs; ++argv; }
 	else if(ISARG_TOK(0)) { progs = ARG_TOK(0)->progs; ++argv; }
+	else if(ISARG_AREA(0)) { progs = ARG_AREA(0)->progs; ++argv; }
 	else if(mob) progs = mob->progs;
 	else if(obj) progs = obj->progs;
 	else if(room) progs = room->progs;
 	else if(token) progs = token->progs;
+	else if(area) progs = area->progs;
 
 //	if(wiznet_script) {
 //		sprintf(buf, "vardefined searching for '%s'", ARG_STR(0));
@@ -2266,10 +2272,12 @@ DECL_IFC_FUN(ifc_varstring)
 	else if(ISARG_OBJ(0)) { progs = ARG_OBJ(0)->progs; ++argv; }
 	else if(ISARG_ROOM(0)) { progs = ARG_ROOM(0)->progs; ++argv; }
 	else if(ISARG_TOK(0)) { progs = ARG_TOK(0)->progs; ++argv; }
+	else if(ISARG_AREA(0)) { progs = ARG_AREA(0)->progs; ++argv; }
 	else if(mob) progs = mob->progs;
 	else if(obj) progs = obj->progs;
 	else if(room) progs = room->progs;
 	else if(token) progs = token->progs;
+	else if(area) progs = area->progs;
 
 	if(progs && progs->vars && ISARG_STR(0) && ISARG_STR(1)) {
 		var = variable_get(progs->vars,ARG_STR(0));

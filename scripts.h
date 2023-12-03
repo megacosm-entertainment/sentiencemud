@@ -62,7 +62,7 @@
 #define TRANSFER_MODE_MOVEMENT	2
 
 
-#define DECL_IFC_FUN(x) bool x (SCRIPT_VARINFO *info, CHAR_DATA *mob,OBJ_DATA *obj,ROOM_INDEX_DATA *room, TOKEN_DATA *token,int *ret,int argc,SCRIPT_PARAM **argv)
+#define DECL_IFC_FUN(x) bool x (SCRIPT_VARINFO *info, CHAR_DATA *mob,OBJ_DATA *obj,ROOM_INDEX_DATA *room, TOKEN_DATA *token, AREA_DATA *area, int *ret,int argc,SCRIPT_PARAM **argv)
 #define DECL_OPC_FUN(x) bool x (SCRIPT_CB *block)
 #define SCRIPT_CMD(x)	void x (SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg)
 
