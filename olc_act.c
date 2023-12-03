@@ -2280,7 +2280,7 @@ REDIT(redit_show)
 		if (ch->in_room->reset_first)
 	{
 	    send_to_char(
-		"Resets: M = mobile, R = room, O = object, "
+		"\n\rResets: M = mobile, R = room, O = object, "
 		"P = pet, S = shopkeeper\n\r", ch);
 	    display_resets(ch);
 	}
