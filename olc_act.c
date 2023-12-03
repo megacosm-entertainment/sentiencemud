@@ -14991,6 +14991,87 @@ MEDIT(medit_show)
 		}
 	}
 
+	if (pMob->pPractice)
+	{
+		PRACTICE_DATA *pPractice = pMob->pPractice;
+
+		add_buf(buffer, "Practice Teaching data:\n\r");
+
+		if(pPractice->standard)
+			add_buf(buffer, "Mode: {YStandard{x\n\r");
+		else
+		{
+			add_buf(buffer, "Mode: {GCustom{x\n\r");
+
+			if (list_size(pPractice->entries) > 0)
+			{
+				add_buf(buffer, " ###  [ Type ] [        Name        ] [Max Rating] [    Rating Cost Points    ]\n\r");
+				add_buf(buffer, "================================================================================\n\r");
+
+				int iEntry = 0;
+				ITERATOR peit;
+				ITERATOR pcit;
+				PRACTICE_ENTRY_DATA *entry;
+				PRACTICE_COST_DATA *cost;
+				iterator_start(&peit, pPractice->entries);
+				while((entry = (PRACTICE_ENTRY_DATA *)iterator_nextdata(&peit)))
+				{
+					char *type;
+					// This needs to be an abbreviated list.. there can be way too much
+					char *name;
+					char maxrating[MIL];
+					char ratings[MIL * 2];
+
+					if (entry->song)
+					{
+						type = "Song";
+						name = entry->song->name;
+						strcpy(maxrating, "--- ");
+						strcpy(ratings, "---");
+					}
+					else if(entry->skill)
+					{
+						if (entry->skill->isspell)
+							type = "Spell";
+						else
+							type = "Skill";
+						name = entry->skill->name;
+
+						int pr = 0;
+						sprintf(maxrating, "%3d{W%%{x", entry->max_rating);
+
+						// Tally up the rating points.
+						iterator_start(&pcit, entry->costs);
+						while((cost = (PRACTICE_COST_DATA *)iterator_nextdata(&pcit)))
+						{
+							if (pr > 0)
+							{
+								ratings[pr++] = ',';
+								ratings[pr++] = ' ';
+							}
+							if (cost->min_rating > 0)
+								pr += sprintf(&ratings[pr], "%d{W%%{x", cost->min_rating);
+							else
+								pr += sprintf(&ratings[pr], "{Wacquire{x");
+						}
+						ratings[pr] = '\0';
+						iterator_stop(&pcit);
+					}
+					else
+						continue;
+
+					sprintf(buf, "[%3d]   %-5s   %-20s      %s      %s\n\r", ++iEntry,
+						type, name,
+						maxrating,
+						ratings);
+
+					add_buf(buffer, buf);
+				}
+				iterator_stop(&peit);
+				add_buf(buffer, "\n\r");
+			}
+		}
+	}
 
 	if (pMob->pShop) {
 		SHOP_DATA *pShop;
@@ -15281,6 +15362,29 @@ MEDIT(medit_show)
 
 						pj += sprintf(pricing+pj, "{x%ld{Cpn{x", pStock->pneuma);
 					}
+
+					if( pStock->rep_points > 0)
+					{
+						if( pj > 0 )
+						{
+							pricing[pj++] = ',';
+							pricing[pj++] = ' ';
+						}
+
+						pj += sprintf(pricing+pj, "{x%ld{Brep{x", pStock->rep_points);
+					}
+
+					if( pStock->paragon_levels > 0)
+					{
+						if( pj > 0 )
+						{
+							pricing[pj++] = ',';
+							pricing[pj++] = ' ';
+						}
+
+						pj += sprintf(pricing+pj, "{x%ld{Y*{x", pStock->paragon_levels);
+					}
+
 					pricing[pj] = '\0';
 					sprintf(disc, "%3d%%", pStock->discount);
 				}
@@ -16177,7 +16281,7 @@ MEDIT(medit_shop)
 		send_to_char("         shop stock [#] discount [0-100]\n\r", ch);
 		send_to_char("         shop stock [#] description [description]\n\r", ch);
 		send_to_char("         shop stock [#] level [level]\n\r", ch);
-		send_to_char("         shop stock [#] price [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
+		send_to_char("         shop stock [#] price <silver|qp|dp|pneuma|reputation|paragon|custom>[ <check price script (for custom only)>] <value>\n\r", ch);
 		send_to_char("         shop stock [#] quantity unlimited\n\r", ch);
 		send_to_char("         shop stock [#] quantity [total] [reset rate]\n\r", ch);
 		send_to_char("         shop stock [#] singular\n\r", ch);
@@ -16572,7 +16676,7 @@ MEDIT(medit_shop)
 			send_to_char("         shop stock [#] discount [0-100]\n\r", ch);
 			send_to_char("         shop stock [#] description [description]\n\r", ch);
 			send_to_char("         shop stock [#] level [level]\n\r", ch);
-			send_to_char("         shop stock [#] price [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
+			send_to_char("         shop stock [#] price <silver|qp|dp|pneuma|reputation|paragon|custom>[ <check price script (for custom only)>] [value]\n\r", ch);
 			send_to_char("         shop stock [#] quantity unlimited\n\r", ch);
 			send_to_char("         shop stock [#] quantity [total] [reset rate]\n\r", ch);
 			send_to_char("         shop stock [#] singular\n\r", ch);
@@ -16843,6 +16947,7 @@ MEDIT(medit_shop)
 			}
 			else if(!str_prefix(arg2, "custom"))
 			{
+				argument = one_argument(argument, arg2);
 				if(!IS_NULLSTR(argument))
 				{
 					for(stock = pMob->pShop->stock; stock; stock = stock->next)
@@ -16925,6 +17030,7 @@ MEDIT(medit_shop)
 						stock->discount = pMob->pShop->discount;
 						free_string(stock->custom_price);
 						stock->custom_price = &str_empty[0];
+						stock->check_price = NULL;
 					}
 					send_to_char("Stock silver price changed.\n\r", ch);
 					return TRUE;
@@ -16946,6 +17052,7 @@ MEDIT(medit_shop)
 						stock->discount = pMob->pShop->discount;
 						free_string(stock->custom_price);
 						stock->custom_price = &str_empty[0];
+						stock->check_price = NULL;
 					}
 					send_to_char("Stock quest point price changed.\n\r", ch);
 					return TRUE;
@@ -16967,6 +17074,7 @@ MEDIT(medit_shop)
 						stock->discount = pMob->pShop->discount;
 						free_string(stock->custom_price);
 						stock->custom_price = &str_empty[0];
+						stock->check_price = NULL;
 					}
 					send_to_char("Stock deity point price changed.\n\r", ch);
 					return TRUE;
@@ -16988,33 +17096,102 @@ MEDIT(medit_shop)
 						stock->discount = pMob->pShop->discount;
 						free_string(stock->custom_price);
 						stock->custom_price = &str_empty[0];
+						stock->check_price = NULL;
 					}
 					send_to_char("Stock pneuma price changed.\n\r", ch);
 					return TRUE;
 				}
 
+				if(!str_prefix(arg3, "reputation"))
+				{
+					if(!is_number(argument))
+					{
+						send_to_char("Reputation price must be a number.\n\r", ch);
+						return FALSE;
+					}
+
+					int points = atoi(argument);
+
+					if(points > 0 && !IS_VALID(stock->reputation))
+					{
+						send_to_char("Please assign a reputation to the stock item, first.\n\r", ch);
+						return false;
+					}
+
+					stock->rep_points = UMAX(points, 0);
+					if( !IS_NULLSTR(stock->custom_price) )
+					{
+						stock->discount = pMob->pShop->discount;
+						free_string(stock->custom_price);
+						stock->custom_price = &str_empty[0];
+						stock->check_price = NULL;
+					}
+					send_to_char("Stock reputation point price changed.\n\r", ch);
+					return TRUE;
+				}
+
+				if(!str_prefix(arg3, "paragon"))
+				{
+					if(!is_number(argument))
+					{
+						send_to_char("Paragon price must be a number.\n\r", ch);
+						return FALSE;
+					}
+
+					int levels = atoi(argument);
+
+					if(levels > 0 && !IS_VALID(stock->reputation))
+					{
+						send_to_char("Please assign a reputation to the stock item, first.\n\r", ch);
+						return false;
+					}
+
+					stock->paragon_levels = UMAX(levels, 0);
+					if( !IS_NULLSTR(stock->custom_price) )
+					{
+						stock->discount = pMob->pShop->discount;
+						free_string(stock->custom_price);
+						stock->custom_price = &str_empty[0];
+						stock->check_price = NULL;
+					}
+					send_to_char("Stock paragon level price changed.\n\r", ch);
+					return TRUE;
+				}
+
 				if(!str_prefix(arg3, "custom"))
 				{
-					if(argument[0] == '\0')
+					WNUM wnum;
+					argument = one_argument(argument, arg3);
+					if(argument[0] == '\0' || !parse_widevnum(arg3, ch->in_room->area, &wnum) || !wnum.pArea || wnum.vnum < 1)
 					{
-						send_to_char("Please specify a custom price string.\n\r", ch);
-						send_to_char("Syntax:  shop stock [#] price custom [value]\n\r\n\r", ch);
+						send_to_char("Please specify a custom price string and check price script.\n\r", ch);
+						send_to_char("Syntax:  shop stock [#] price <check price script> custom <value>\n\r\n\r", ch);
 						send_to_char("If you wish to clear the custom pricing, select a different pricing type.\n\r", ch);
 						return FALSE;
+					}
+
+					SCRIPT_DATA *script = get_script_index_wnum(wnum, PRG_MPROG);
+					if (!script)
+					{
+						send_to_char("No such mobprog by that widevnum.\n\r", ch);
+						return false;
 					}
 
 					stock->silver = 0;
 					stock->qp = 0;
 					stock->dp = 0;
 					stock->pneuma = 0;
+					stock->rep_points = 0;
+					stock->paragon_levels = 0;
 					stock->discount = 0;
+					stock->check_price = script;
 					free_string(stock->custom_price);
 					stock->custom_price = str_dup(argument);
 					send_to_char("Stock custom price changed.\n\r", ch);
 					return TRUE;
 				}
 
-				send_to_char("Syntax:  shop stock [#] price [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
+				send_to_char("Syntax:  shop stock [#] price <silver|qp|dp|pneuma|reputation|paragon|custom>[ <check price script (for custom only)>] [value]\n\r", ch);
 				return FALSE;
 			}
 
@@ -17275,7 +17452,7 @@ MEDIT(medit_shop)
 			send_to_char("Syntax:  shop stock [#] description [description]\n\r", ch);
 			send_to_char("         shop stock [#] discount [0-100]\n\r", ch);
 			send_to_char("         shop stock [#] level [level]\n\r", ch);
-			send_to_char("         shop stock [#] price [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
+			send_to_char("         shop stock [#] price <silver|qp|dp|pneuma|custom|reputation|paragon> <value>[ <check_price script (only on custom)>]\n\r", ch);
 			send_to_char("         shop stock [#] quantity unlimited\n\r", ch);
 			send_to_char("         shop stock [#] quantity [total] [reset rate]\n\r", ch);
 			send_to_char("         shop stock [#] singular\n\r", ch);
@@ -18214,6 +18391,988 @@ MEDIT (medit_faction)
 	}
 
 	medit_faction(ch, "");
+	return false;
+}
+
+// Inserts based upon entry name
+static void __insert_practice_entry(PRACTICE_DATA *data, PRACTICE_ENTRY_DATA *entry)
+{
+	ITERATOR it;
+	PRACTICE_ENTRY_DATA *e;
+	char *name = entry->skill ? entry->skill->name : entry->song->name;
+
+	iterator_start(&it, data->entries);
+	while((e = (PRACTICE_ENTRY_DATA *)iterator_nextdata(&it)))
+	{
+		char *nm = e->skill ? e->skill->name : e->song->name;
+
+		if (str_cmp(name, nm) < 0)
+		{
+			iterator_insert_before(&it, entry);
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	if (!e)
+	{
+		list_appendlink(data->entries, entry);
+	}
+}
+
+// Inserts based upon minimum rating
+static void __insert_entry_cost(PRACTICE_ENTRY_DATA *entry, PRACTICE_COST_DATA *cost)
+{
+	ITERATOR it;
+	PRACTICE_COST_DATA *c;
+	iterator_start(&it, entry->costs);
+	while((c = (PRACTICE_COST_DATA *)iterator_nextdata(&it)))
+	{
+		if (cost->min_rating < c->min_rating)
+		{
+			iterator_insert_before(&it, cost);
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	if (!c)
+	{
+		list_appendlink(entry->costs, cost);
+	}
+}
+
+static void __practice_add_entry(PRACTICE_DATA *data, SKILL_DATA *skill, SONG_DATA *song)
+{
+	PRACTICE_ENTRY_DATA *entry = new_practice_entry_data();
+
+	entry->skill = skill;
+	entry->song = song;
+	entry->max_rating = 75;		// Default max rating
+	entry->reputation = NULL;
+
+	__insert_practice_entry(data, entry);
+
+	if (IS_VALID(song))
+	{
+		PRACTICE_COST_DATA *cost = new_practice_cost_data();
+		cost->min_rating = 0;	// Acquire only
+
+		__insert_entry_cost(entry, cost);
+	}					
+}
+
+static bool __practice_has_entry(PRACTICE_DATA *data, SKILL_DATA *skill, SONG_DATA *song)
+{
+	ITERATOR it;
+	PRACTICE_ENTRY_DATA *entry;
+	iterator_start(&it, data->entries);
+	while((entry = (PRACTICE_ENTRY_DATA *)iterator_nextdata(&it)))
+	{
+		if ((skill && entry->skill == skill) ||
+			(song && entry->song == song))
+			break;
+	}
+	iterator_stop(&it);
+
+	return entry != NULL;
+}
+
+static bool __practice_entry_has_cost(PRACTICE_ENTRY_DATA *entry, int rating)
+{
+	if (rating < 0 || rating > 100) return false;
+
+	ITERATOR it;
+	PRACTICE_COST_DATA *cost;
+	iterator_start(&it, entry->costs);
+	while((cost = (PRACTICE_COST_DATA *)iterator_nextdata(&it)))
+	{
+		if (cost->min_rating == rating)
+			break;
+	}
+	iterator_stop(&it);
+
+	return cost != NULL;
+}
+
+MEDIT (medit_practice)
+{
+	char arg[MIL];
+	MOB_INDEX_DATA *pMob;
+
+	EDIT_MOB(ch, pMob);
+
+	if (argument[0] == '\0')
+	{
+		if (pMob->pPractice)
+		{
+			if (pMob->pPractice->standard)
+			{
+				send_to_char("Syntax:  practice unassign\n\r", ch);
+			}
+			else
+			{
+				send_to_char("Syntax:  practice add skill <name>\n\r", ch);
+				send_to_char("         practice add group <name> (creates individual skill entries)\n\r", ch);
+				send_to_char("         practice add song <name>\n\r", ch);
+				send_to_char("         practice unassign\n\r", ch);
+
+				// Show extra info about the current entry... as there is just way too much to show in medit_show
+				send_to_char("         practice <#> show\n\r", ch);
+
+				send_to_char("         practice <#> cost add <minimum rating|acquire>\n\r", ch);
+				send_to_char("         practice <#> cost clear\n\r", ch);
+				send_to_char("         practice <#> cost <#> price <silver|practices|trains|qp|dp|pneuma|reputation|paragon|custom>[ <check_price script (custom only)>] <value>\n\r", ch);
+				send_to_char("         practice <#> cost <#> remove\n\r", ch);
+
+				send_to_char("         practice <#> reputation <reputation widevnum> <minimum rank#|none> <maximum rank#|none> <minimum show rank#|none> <maximum show rank#|none>\n\r", ch);
+				// TODO: maybe this can also be scripted... just need a way to pass which practice entry to work with
+				send_to_char("         practice <#> maxrating <1-100>\n\r", ch);
+				send_to_char("         practice <#> remove\n\r", ch);
+			}
+		}
+		else
+		{
+			send_to_char("Syntax:  practice assign standard   -- standard practice set\n\r", ch);
+			send_to_char("         practice assign custom     -- allow customizing what can be practiced\n\r", ch);
+		}
+		return false;
+	}
+
+	argument = one_argument(argument, arg);
+	
+	if (pMob->pPractice)
+	{
+		if (pMob->pPractice->standard)
+		{
+			if (!str_prefix(argument, "unassign"))
+			{
+				free_practice_data(pMob->pPractice);
+				pMob->pPractice = NULL;
+
+				send_to_char("Practice data unassigned\n\r", ch);
+				return true;
+			}
+		}
+		else
+		{
+			PRACTICE_DATA *prac = pMob->pPractice;
+			if (!str_prefix(arg, "add"))
+			{
+				if (argument[0] == '\0')
+				{
+					send_to_char("Syntax:  practice add skill <name>\n\r", ch);
+					send_to_char("         practice add group <name>   (creates individual skill entries)\n\r", ch);
+					send_to_char("         practice add song <name>\n\r", ch);
+					return false;
+				}
+
+				argument = one_argument(argument, arg);
+				if (!str_prefix(arg, "group"))
+				{
+					if (argument[0] == '\0')
+					{
+						send_to_char("Syntax:  practice add group <name>   (creates individual skill entries)\n\r", ch);
+						send_to_char("Please provide a group name.\n\r", ch);
+						return false;
+					}
+
+					SKILL_GROUP *group = group_lookup(argument);
+					if (!IS_VALID(group))
+					{
+						send_to_char("No such skill group.\n\r", ch);
+						return false;
+					}
+
+					if (list_size(group->contents) < 1)
+					{
+						send_to_char("Group has no skills defined.\n\r", ch);
+						return false;
+					}
+
+					int added = 0;
+					ITERATOR skit;
+					char *skill_name;
+					iterator_start(&skit, group->contents);
+					while((skill_name = (char *)iterator_nextdata(&skit)))
+					{
+						SKILL_DATA *skill = get_skill_data(skill_name);
+
+						if (skill && !__practice_has_entry(prac, skill, NULL))
+						{
+							__practice_add_entry(prac, skill, NULL);
+							send_to_char(formatf("{W%s{x added.\n\r", skill->name), ch);
+							added++;
+						}
+					}
+					iterator_stop(&skit);
+
+					if (added > 0)
+					{
+						send_to_char(formatf("Added {W%d{x skill%s.\n\r", added, ((added == 1)?"":"s")), ch);
+						return true;
+					}
+					else
+					{
+						send_to_char("Nothing was added.\n\r", ch);
+						return false;
+					}
+				}
+
+				if (!str_prefix(arg, "skill"))
+				{
+					if (argument[0] == '\0')
+					{
+						send_to_char("Syntax:  practice add skill <name>\n\r", ch);
+						return false;
+					}
+
+					SKILL_DATA *skill = get_skill_data(argument);
+					if (!skill)
+					{
+						send_to_char("No such skill by that name.\n\r", ch);
+						return false;
+					}
+
+					if (__practice_has_entry(prac, skill, NULL))
+					{
+						send_to_char("That skill is already in the practice data.\n\r", ch);
+						return false;
+					}
+
+					__practice_add_entry(prac, skill, NULL);
+					send_to_char(formatf("Skill {W%s{x added.\n\r", skill->name), ch);
+					return true;
+				}
+
+				if (!str_prefix(arg, "song"))
+				{
+					if (argument[0] == '\0')
+					{
+						send_to_char("Syntax:  practice add song <name>\n\r", ch);
+						return false;
+					}
+
+					SONG_DATA *song = get_song_data(argument);
+					if (!song)
+					{
+						send_to_char("No such song by that name.\n\r", ch);
+						return false;
+					}
+
+					if (__practice_has_entry(prac, NULL, song))
+					{
+						send_to_char("That song is already in the practice data.\n\r", ch);
+						return false;
+					}
+
+					__practice_add_entry(prac, NULL, song);
+					send_to_char(formatf("Song {W%s{x added.\n\r", song->name), ch);
+					return true;
+				}
+
+				medit_practice(ch, "add");
+				return false;
+			}
+
+			if (!str_prefix(arg, "unassign"))
+			{
+				free_practice_data(pMob->pPractice);
+				pMob->pPractice = NULL;
+
+				send_to_char("Practice data unassigned\n\r", ch);
+				return true;
+			}
+			
+			if (is_number(arg))
+			{
+				if (list_size(prac->entries) < 1)
+				{
+					send_to_char("Please add an entry first.\n\r", ch);
+					return false;
+				}
+
+				if (argument[0] == '\0')
+				{
+					send_to_char("Syntax:  practice <#> show\n\r", ch);
+					send_to_char("         practice <#> cost add <minimum rating|acquire>\n\r", ch);
+					send_to_char("         practice <#> cost clear\n\r", ch);
+					send_to_char("         practice <#> cost <#> price <silver|practices|trains|qp|dp|pneuma|reputation|paragon|custom>[ <check_price script (custom only)>] <value>\n\r", ch);
+					send_to_char("         practice <#> cost <#> remove\n\r", ch);
+					send_to_char("         practice <#> reputation <reputation widevnum> <minimum rank#|none> <maximum rank#|none> <minimum show rank#|none> <maximum show rank#|none>\n\r", ch);
+					send_to_char("         practice <#> maxrating <1-100>\n\r", ch);
+					send_to_char("         practice <#> remove\n\r", ch);
+					return false;
+				}
+
+				int index = atoi(arg);
+				if (index < 1 || index > list_size(prac->entries))
+				{
+					send_to_char(formatf("Please provide an index from 1 to %d.\n\r", list_size(prac->entries)), ch);
+					return false;
+				}
+
+				PRACTICE_ENTRY_DATA *entry = (PRACTICE_ENTRY_DATA *)list_nthdata(prac->entries, index);
+
+				argument = one_argument(argument, arg);
+				if (!str_prefix(arg, "cost"))
+				{
+					if (argument[0] == '\0')
+					{
+						send_to_char("Syntax:  practice <#> cost add <minimum rating|acquire>\n\r", ch);
+						send_to_char("         practice <#> cost clear\n\r", ch);
+						send_to_char("         practice <#> cost <#> price <silver|practices|trains|qp|dp|pneuma|reputation|paragon|custom>[ <check_price script (custom only)>] <value>\n\r", ch);
+						send_to_char("         practice <#> cost <#> remove\n\r", ch);
+						return false;
+					}
+
+					argument = one_argument(argument, arg);
+
+					if (!str_prefix(arg, "add"))
+					{
+						if (argument[0] == '\0')
+						{
+							send_to_char("Syntax:  practice <#> cost add <minimum rating|acquire>\n\r", ch);
+							return false;
+						}
+
+						if (IS_VALID(entry->song))
+						{
+							send_to_char("Cannot add anymore cost points for song entries.\n\r", ch);
+							return false;
+						}
+
+						int min_rating;
+						if (!str_prefix(argument, "acquire"))
+							min_rating = 0;
+						else if (!is_number(argument) || (min_rating = atoi(argument)) < 1 || min_rating > 100)
+						{
+							send_to_char("Please provide a minimum rating from 1 to 100, or {Wacquire{x.\n\r", ch);
+							return false;
+						}
+
+						if (__practice_entry_has_cost(entry, min_rating))
+						{
+							send_to_char("There is already a cost point for that rating.\n\r", ch);
+							return false;
+						}
+
+						PRACTICE_COST_DATA *cost = new_practice_cost_data();
+						cost->min_rating = min_rating;
+
+						__insert_entry_cost(entry, cost);
+						send_to_char("Cost point added to practice entry.\n\r", ch);
+						return true;
+					}
+					else if (!str_prefix(arg, "clear"))
+					{
+						if (IS_VALID(entry->song))
+						{
+							send_to_char("Cannot clear cost list for song entries.\n\r", ch);
+							return false;
+						}
+
+						list_clear(entry->costs);
+						send_to_char("Cost points cleared.\n\r", ch);
+						return true;
+					}
+					else if (is_number(arg))
+					{
+						if (list_size(entry->costs) < 1)
+						{
+							send_to_char("Please add a cost table entry to the practice entry.", ch);
+							return false;
+						}
+
+						int cindex = atoi(arg);
+						if (cindex < 1 || cindex > list_size(entry->costs))
+						{
+							send_to_char(formatf("Please specify a cost index from 1 to %d\n\r", list_size(entry->costs)), ch);
+							return false;
+						}
+
+						if (argument[0] == '\0')
+						{
+							send_to_char("Syntax:  practice <#> cost <#> price <silver|practices|trains|qp|dp|pneuma|reputation|paragon|custom>[ <check_price script (custom only)>] <value>\n\r", ch);
+							send_to_char("         practice <#> cost <#> remove\n\r", ch);
+							return false;
+						}
+
+						PRACTICE_COST_DATA *cost = (PRACTICE_COST_DATA *)list_nthdata(entry->costs, cindex);
+
+						argument = one_argument(argument, arg);
+						if (!str_prefix(arg, "price"))
+						{
+							if (argument[0] == '\0')
+							{
+								send_to_char("Please specify silver, practices, trains, qp, dp, pneuma, reputation, paragon or custom.\n\r", ch);
+								return false;
+							}
+
+							argument = one_argument(argument, arg);
+							if (!str_prefix(arg, "silver"))
+							{
+								int silver;
+								if (!is_number(argument) || (silver = atoi(argument)) < 0)
+								{
+									send_to_char("Please specify a non-negative number.\n\r", ch);
+									return false;
+								}
+
+								cost->silver = silver;
+								send_to_char("Silver set on cost point.\n\r", ch);
+								return true;
+							}
+							if (!str_prefix(arg, "practices"))
+							{
+								int practices;
+								if (!is_number(argument) || (practices = atoi(argument)) < 0)
+								{
+									send_to_char("Please specify a non-negative number.\n\r", ch);
+									return false;
+								}
+
+								cost->practices = practices;
+								send_to_char("Practices set on cost point.\n\r", ch);
+								return true;
+							}
+							if (!str_prefix(arg, "trains"))
+							{
+								int trains;
+								if (!is_number(argument) || (trains = atoi(argument)) < 0)
+								{
+									send_to_char("Please specify a non-negative number.\n\r", ch);
+									return false;
+								}
+
+								cost->trains = trains;
+								send_to_char("Trains set on cost point.\n\r", ch);
+								return true;
+							}
+							if (!str_prefix(arg, "qp"))
+							{
+								int qp;
+								if (!is_number(argument) || (qp = atoi(argument)) < 0)
+								{
+									send_to_char("Please specify a non-negative number.\n\r", ch);
+									return false;
+								}
+
+								cost->qp = qp;
+								send_to_char("Questpoint set on cost point.\n\r", ch);
+								return true;
+							}
+							if (!str_prefix(arg, "dp"))
+							{
+								int dp;
+								if (!is_number(argument) || (dp = atoi(argument)) < 0)
+								{
+									send_to_char("Please specify a non-negative number.\n\r", ch);
+									return false;
+								}
+
+								cost->dp = dp;
+								send_to_char("Deitypoint set on cost point.\n\r", ch);
+								return true;
+							}
+							if (!str_prefix(arg, "pneuma"))
+							{
+								int pneuma;
+								if (!is_number(argument) || (pneuma = atoi(argument)) < 0)
+								{
+									send_to_char("Please specify a non-negative number.\n\r", ch);
+									return false;
+								}
+
+								cost->pneuma = pneuma;
+								send_to_char("Pneuma set on cost point.\n\r", ch);
+								return true;
+							}
+							if (!str_prefix(arg, "reputation"))
+							{
+								int points;
+								if (!is_number(argument) || (points = atoi(argument)) < 0)
+								{
+									send_to_char("Please provide a non-negative number.\n\r", ch);
+									return false;
+								}
+
+								if (points > 0)
+								{
+									// Only care if setting a positive value
+									if (!IS_VALID(entry->reputation))
+									{
+										send_to_char("Please assign a reputation to the entry first.\n\r", ch);
+										return false;
+									}
+								}
+
+								cost->rep_points = points;
+								send_to_char("Reputation Points set on cost point.\n\r", ch);
+								return true;
+							}
+
+							if (!str_prefix(arg, "paragon"))
+							{
+								int levels;
+								if (!is_number(argument) || (levels = atoi(argument)) < 0)
+								{
+									send_to_char("Please provide a non-negative number.\n\r", ch);
+									return false;
+								}
+
+								if (levels > 0)
+								{
+									// Only care if setting a positive value
+									if (!IS_VALID(entry->reputation))
+									{
+										send_to_char("Please assign a reputation to the entry first.\n\r", ch);
+										return false;
+									}
+
+									REPUTATION_INDEX_RANK_DATA *lastRank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(entry->reputation->ranks, -1);
+									if (!IS_SET(lastRank->flags, REPUTATION_RANK_PARAGON))
+									{
+										send_to_char("Reputation is not configured to Paragon.\n\r", ch);
+										return false;
+									}
+								}
+
+								cost->paragon_levels = levels;
+								send_to_char("Paragon Levels set on cost point.\n\r", ch);
+								return true;
+							}
+
+							if (!str_prefix(arg, "custom"))
+							{
+								WNUM wnum;
+								argument = one_argument(argument, arg);
+								if(argument[0] == '\0' || !parse_widevnum(arg, ch->in_room->area, &wnum) || !wnum.pArea || wnum.vnum < 1)
+								{
+									send_to_char("Please specify a custom price string and check price script.\n\r", ch);
+									send_to_char("Syntax:  shop stock [#] price <check price script> custom <value>\n\r\n\r", ch);
+									send_to_char("If you wish to clear the custom pricing, select a different pricing type.\n\r", ch);
+									return FALSE;
+								}
+
+								SCRIPT_DATA *script = get_script_index_wnum(wnum, PRG_MPROG);
+								if (!script)
+								{
+									send_to_char("No such mobprog by that widevnum.\n\r", ch);
+									return false;
+								}
+
+								cost->silver = 0;
+								cost->practices = 0;
+								cost->trains = 0;
+								cost->qp = 0;
+								cost->dp = 0;
+								cost->pneuma = 0;
+								cost->rep_points = 0;
+								cost->paragon_levels = 0;
+								free_string(cost->custom_price);
+								cost->custom_price = str_dup(argument);
+								cost->check_price = script;
+
+								send_to_char("Custom pricing set.\n\r", ch);
+								return true;
+							}
+
+							medit_practice(ch, formatf("%d cost %d price", index, cindex));
+							return false;
+						}
+
+						if (!str_prefix(arg, "remove"))
+						{
+							if (IS_VALID(entry->song))
+							{
+								send_to_char("Cannot remove any cost points for song entries.\n\r", ch);
+								return false;
+							}
+
+							list_remnthlink(entry->costs, cindex);
+							free_practice_cost_data(cost);
+
+							send_to_char(formatf("Cost point %d removed.\n\r", cindex), ch);
+							return true;
+						}
+
+						medit_practice(ch, formatf("%d cost %d", index, cindex));
+						return false;
+					}
+
+					medit_practice(ch, formatf("%d cost", index));
+					return false;
+				}
+
+				if (!str_prefix(arg, "maxrating"))
+				{
+					// TODO: Add imp_sig / implementer allowance to get this all the way to 100
+					int rating;
+					if (!is_number(argument) || (rating = atoi(argument)) < 1 || rating > 95)
+					{
+						send_to_char("Please specify a rating from 1 to 95.\n\r", ch);
+						return false;
+					}
+
+					entry->max_rating = rating;
+					send_to_char("Maximum rating changed.\n\r", ch);
+					return true;
+				}
+
+				if (!str_prefix(arg, "remove"))
+				{
+					list_remnthlink(prac->entries, index);
+					free_practice_entry_data(entry);
+
+					send_to_char(formatf("Entry #%d removed.\n\r", index), ch);
+					return true;
+				}
+
+				if (!str_prefix(arg, "reputation"))
+				{
+					WNUM wnum;
+					argument = one_argument(argument, arg);
+					if (!parse_widevnum(arg, ch->in_room->area, &wnum) || !wnum.pArea || wnum.vnum < 1)
+					{
+						send_to_char("Please provide a widevnum.\n\r", ch);
+						return false;
+					}
+
+					REPUTATION_INDEX_DATA *repIndex = get_reputation_index_wnum(wnum);
+					if (!IS_VALID(repIndex))
+					{
+						send_to_char("No such reputation with that widevnum.\n\r", ch);
+						return false;
+					}
+
+					if (list_size(repIndex->ranks) < 1)
+					{
+						send_to_char("That reputation has no ranks defined.\n\r", ch);
+						return false;
+					}
+
+					int min_rank;
+					argument = one_argument(argument, arg);
+					if (!str_prefix(arg, "none"))
+						min_rank = 0;
+					else if (!is_number(arg) || (min_rank = atoi(arg)) < 1 || min_rank > list_size(repIndex->ranks))
+					{
+						send_to_char(formatf("Please specify a minimum rank number from 1 to %d, or {Wnone{x.\n\r", list_size(repIndex->ranks)), ch);
+						return false;
+					}
+
+					int max_rank;
+					argument = one_argument(argument, arg);
+					if (!str_prefix(arg, "none"))
+						max_rank = 0;
+					else if (!is_number(arg) || (max_rank = atoi(arg)) < 1 || max_rank > list_size(repIndex->ranks))
+					{
+						send_to_char(formatf("Please specify a maximum rank number from 1 to %d, or {Wnone{x.\n\r", list_size(repIndex->ranks)), ch);
+						return false;
+					}
+
+					if (min_rank > 0 && max_rank > 0 && min_rank > max_rank)
+					{
+						send_to_char("Minimum rank must not be greater than the maximum rank.\n\r", ch);
+						return false;
+					}
+
+
+					int min_show_rank;
+					argument = one_argument(argument, arg);
+					if (!str_prefix(arg, "none"))
+						min_show_rank = 0;
+					else if (!is_number(arg) || (min_show_rank = atoi(arg)) < 1 || min_show_rank > list_size(repIndex->ranks))
+					{
+						send_to_char(formatf("Please specify a minimum show rank number from 1 to %d, or {Wnone{x.\n\r", list_size(repIndex->ranks)), ch);
+						return false;
+					}
+
+					int max_show_rank;
+					argument = one_argument(argument, arg);
+					if (!str_prefix(arg, "none"))
+						max_show_rank = 0;
+					else if (!is_number(arg) || (max_show_rank = atoi(arg)) < 1 || max_show_rank > list_size(repIndex->ranks))
+					{
+						send_to_char(formatf("Please specify a maximum show rank number from 1 to %d, or {Wnone{x.\n\r", list_size(repIndex->ranks)), ch);
+						return false;
+					}
+
+					if (min_show_rank > 0 && max_show_rank > 0 && min_show_rank > max_show_rank)
+					{
+						send_to_char("Minimum show rank must not be greater than the maximum show rank.\n\r", ch);
+						return false;
+					}
+
+					entry->reputation = repIndex;
+					entry->min_reputation_rank = min_rank;
+					entry->max_reputation_rank = max_rank;
+					entry->min_show_rank = min_show_rank;
+					entry->max_show_rank = max_show_rank;
+
+					return true;
+				}
+
+				if (!str_prefix(arg, "show"))
+				{
+					char buf[MSL];
+					ITERATOR pcit;
+					PRACTICE_COST_DATA *cost;
+
+					BUFFER *buffer = new_buf();
+
+					if (entry->skill)
+						sprintf(buf, "Skill: %s\n\r", entry->skill->name);
+					else if (entry->song)
+						sprintf(buf, "Song: %s\n\r", entry->song->name);
+					else
+						sprintf(buf, "Unknown: ???\n\r");
+					add_buf(buffer, buf);
+
+					sprintf(buf, "Maximum Rating: %d%%\n\r", entry->max_rating);
+					add_buf(buffer, buf);
+
+					if (IS_VALID(entry->reputation))
+					{
+						add_buf(buffer, "Reputation:\n\r");
+						add_buf(buffer, formatf("  %s (%ld#%ld)\n\r",
+							entry->reputation->name,
+							entry->reputation->area->uid,
+							entry->reputation->vnum));
+
+						REPUTATION_INDEX_RANK_DATA *minRank;
+						if (entry->min_reputation_rank > 0)
+							minRank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(entry->reputation->ranks, entry->min_reputation_rank);
+						else
+							minRank = NULL;
+
+						if (!IS_VALID(minRank))
+							add_buf(buffer, formatf("  Minimum Rank: %s (%d)\n\r", minRank->name, entry->min_reputation_rank));
+						else
+							add_buf(buffer, "  Minimum Rank: none\n\r");
+
+						REPUTATION_INDEX_RANK_DATA *maxRank;
+						if (entry->max_reputation_rank > 0)
+							maxRank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(entry->reputation->ranks, entry->max_reputation_rank);
+						else
+							maxRank = NULL;
+
+						if (!IS_VALID(maxRank))
+							add_buf(buffer, formatf("  Maximum Rank: %s (%d)\n\r", maxRank->name, entry->max_reputation_rank));
+						else
+							add_buf(buffer, "  Maximum Rank: none\n\r");
+
+						REPUTATION_INDEX_RANK_DATA *minShowRank;
+						if (entry->min_show_rank > 0)
+							minShowRank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(entry->reputation->ranks, entry->min_show_rank);
+						else
+							minShowRank = NULL;
+
+						if (!IS_VALID(minShowRank))
+							add_buf(buffer, formatf("  Minimum Show Rank: %s (%d)\n\r", minShowRank->name, entry->min_show_rank));
+						else
+							add_buf(buffer, "  Minimum Show Rank: none\n\r");
+
+						REPUTATION_INDEX_RANK_DATA *maxShowRank;
+						if (entry->max_show_rank > 0)
+							maxShowRank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(entry->reputation->ranks, entry->max_show_rank);
+						else
+							maxShowRank = NULL;
+
+						if (!IS_VALID(maxShowRank))
+							add_buf(buffer, formatf("  Maximum Show Rank: %s (%d)\n\r", maxShowRank->name, entry->max_show_rank));
+						else
+							add_buf(buffer, "  Maximum Show Rank: none\n\r");
+					}
+					else
+						add_buf(buffer, "Reputation:\n\r  none\n\r");
+					add_buf(buffer, "\n\r");
+
+					if (list_size(entry->costs) > 0)
+					{
+						add_buf(buffer, "Costs:\n\r");
+
+						add_buf(buffer, "###  Rating    Price\n\r");
+						add_buf(buffer, "=== ========= ==========================================\n\r");
+
+						int iCost = 0;
+						iterator_start(&pcit, entry->costs);
+						while((cost = (PRACTICE_COST_DATA *)iterator_nextdata(&pcit)))
+						{
+							char rating[MIL];
+							if (cost->min_rating > 0)
+								sprintf(rating, "%6d{W%%{x", cost->min_rating);
+							else
+								strcpy(rating, "{Yacquire{x");
+
+							char price[MIL];
+
+							if (IS_NULLSTR(cost->custom_price) || !cost->check_price)
+							{
+								int pr = 0;
+								if (cost->silver > 0)
+								{
+									if (pr > 0)
+									{
+										price[pr++] = ',';
+										price[pr++] = ' ';
+									}
+									int s = cost->silver % 100;
+									long g = cost->silver / 100;
+
+									if (g > 0)
+									{
+										if (s > 0)
+											pr += sprintf(&price[pr], "%ld{Yg{x %d{Ws{x", g, s);
+										else
+											pr += sprintf(&price[pr], "%ld{Yg{x", g);
+									}
+									else
+										pr += sprintf(&price[pr], "%d{Ws{x", s);
+								}
+
+								if (cost->practices > 0)
+								{
+									if (pr > 0)
+									{
+										price[pr++] = ',';
+										price[pr++] = ' ';
+									}
+
+									pr += sprintf(&price[pr], "%ld{Gp{x", cost->practices);
+								}
+
+								if (cost->trains > 0)
+								{
+									if (pr > 0)
+									{
+										price[pr++] = ',';
+										price[pr++] = ' ';
+									}
+
+									pr += sprintf(&price[pr], "%ld{Gt{x", cost->trains);
+								}
+
+								if (cost->qp > 0)
+								{
+									if (pr > 0)
+									{
+										price[pr++] = ',';
+										price[pr++] = ' ';
+									}
+
+									pr += sprintf(&price[pr], "%ld{Yqp{x", cost->qp);
+								}
+
+								if (cost->dp > 0)
+								{
+									if (pr > 0)
+									{
+										price[pr++] = ',';
+										price[pr++] = ' ';
+									}
+
+									pr += sprintf(&price[pr], "%ld{Ydp{x", cost->dp);
+								}
+
+								if (cost->pneuma > 0)
+								{
+									if (pr > 0)
+									{
+										price[pr++] = ',';
+										price[pr++] = ' ';
+									}
+
+									pr += sprintf(&price[pr], "%ld{Cpn{x", cost->pneuma);
+								}
+
+								if (cost->rep_points > 0)
+								{
+									if (pr > 0)
+									{
+										price[pr++] = ',';
+										price[pr++] = ' ';
+									}
+
+									pr += sprintf(&price[pr], "%ld{Brep{x", cost->rep_points);
+								}
+
+								if (cost->paragon_levels > 0)
+								{
+									if (pr > 0)
+									{
+										price[pr++] = ',';
+										price[pr++] = ' ';
+									}
+
+									pr += sprintf(&price[pr], "%ld{Y*{x", cost->paragon_levels);
+								}
+
+								price[pr] = '\0';
+							}
+							else
+							{
+								sprintf(price, "%s [%s (%ld#%ld)]\n\r",
+									cost->custom_price,
+									cost->check_price->name,
+									cost->check_price->area->uid,
+									cost->check_price->vnum);
+							}
+
+							sprintf(buf, "%3d  %s   %s\n\r", ++iCost, rating, price);
+							add_buf(buffer, buf);
+						}
+						iterator_stop(&pcit);
+					}
+
+					if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+					{
+						send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+					}
+					else
+					{
+						page_to_char(buffer->string, ch);
+					}
+
+					free_buf(buffer);
+
+					return false;
+				}
+
+
+				return false;
+			}
+		}
+	}
+	else
+	{
+		if (!str_prefix(arg, "assign"))
+		{
+			bool standard;
+			if (!str_prefix(argument, "standard"))
+			{
+				standard = true;
+				send_to_char("Adding Standard Practice suite.\n\r", ch);
+			}
+			else if (!str_prefix(argument, "custom"))
+			{
+				standard = false;
+				send_to_char("Adding Custom Practice suite.\n\r", ch);
+			}
+			else
+			{
+				medit_practice(ch, "");
+				return false;	
+			}
+
+			pMob->pPractice = new_practice_data();
+			pMob->pPractice->standard = standard;
+			return true;
+		}
+	}
+
+	medit_practice(ch, "");
 	return false;
 }
 

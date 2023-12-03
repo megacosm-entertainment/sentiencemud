@@ -390,6 +390,7 @@ typedef struct	ship_index_data		SHIP_INDEX_DATA;
 typedef struct	ship_data		SHIP_DATA;
 typedef struct	shop_stock_data	SHOP_STOCK_DATA;
 typedef struct	shop_data		SHOP_DATA;
+typedef struct  practice_data   PRACTICE_DATA;
 typedef struct	shop_request_data	SHOP_REQUEST_DATA;
 typedef struct	time_info_data		TIME_INFO_DATA;
 typedef struct	trade_area_data		TRADE_AREA_DATA;
@@ -1629,6 +1630,87 @@ struct	help_data
     STRING_DATA *related_topics;
 };
 
+typedef struct practice_cost_data PRACTICE_COST_DATA;
+
+#define PRACTICE_COST_SILVER        0
+#define PRACTICE_COST_PRACTICE      1
+#define PRACTICE_COST_TRAIN         2
+#define PRACTICE_COST_QUEST         3
+#define PRACTICE_COST_DEITY         4
+#define PRACTICE_COST_PNEUMA        5
+#define PRACTICE_COST_REPUTATION    6       // Consumes reputation progress on the current reputation (will not drop rank)
+#define PRACTICE_COST_PARAGON       7       // Consumes paragon levels on the reputation
+#define PRACTICE_COST_OBJECT        8
+#define PRACTICE_COST_CUSTOM        9
+
+struct  practice_cost_data
+{
+    PRACTICE_COST_DATA *next;
+    bool valid;
+
+    sh_int min_rating;
+
+	long silver;
+    long practices;
+    long trains;
+	long qp;
+	long dp;
+	long pneuma;
+    long rep_points;
+    long paragon_levels;
+	char *custom_price;			// Custom pricing (supercedes other pricing values)
+    SCRIPT_DATA *check_price;
+    WNUM_LOAD check_price_load;
+
+    OBJ_INDEX_DATA *obj;                // Used when CURRENCY == OBJECT
+    WNUM_LOAD obj_load;
+
+    REPUTATION_INDEX_DATA *reputation;  // Used when CURRENCY == REPUTATION or PARAGON
+    WNUM_LOAD reputation_load;
+
+};
+
+typedef struct practice_entry_data PRACTICE_ENTRY_DATA;
+
+struct  practice_entry_data
+{
+    PRACTICE_ENTRY_DATA *next;
+    bool valid;
+
+    SKILL_DATA *skill;
+    SONG_DATA *song;
+
+    // If you want to have entirely different maximum ratings for different rank sets,
+    //   This will require that you make separate entries.
+    REPUTATION_INDEX_DATA *reputation;
+    WNUM_LOAD reputation_load;
+    sh_int min_reputation_rank;
+    sh_int max_reputation_rank;
+    sh_int min_show_rank;
+    sh_int max_show_rank;
+
+    sh_int max_rating;
+
+    LLIST *costs;
+
+    // TODO: Need to make sure the script can *access* all of the practice data necessary to make decisions.
+    // Used for checking whether you *can* learn
+    //  end allowed/0       allows you to learn the entry at this time
+    //  end denied/1        blocks you from learning the entry at this time, standard messaging
+    //  end silent/2        blocks you from learning the entry at this time, script handles messaging
+    SCRIPT_DATA *check_script;
+    WNUM_LOAD check_script_load;
+};
+
+struct  practice_data
+{
+    PRACTICE_DATA *next;
+
+    bool standard;
+    LLIST *entries;
+};
+
+
 /*
  * Shop types.
  */
@@ -1687,7 +1769,11 @@ struct shop_stock_data
 	long qp;
 	long dp;
 	long pneuma;
+    long rep_points;
+    long paragon_levels;
 	char *custom_price;			// Custom pricing (supercedes other pricing values)
+    SCRIPT_DATA *check_price;
+    WNUM_LOAD check_price_load;
 
 	int discount;				// How much of a discount is the shopkeeper willing to haggle (0-100%)
 
@@ -3593,6 +3679,7 @@ struct	mob_index_data
     MOB_INDEX_DATA *	next;
     SPEC_FUN *		spec_fun;
     SHOP_DATA *		pShop;
+    PRACTICE_DATA * pPractice;
     QUESTOR_DATA *	pQuestor;
     SHIP_CREW_INDEX_DATA *pCrew;
     LLIST **        progs;
@@ -4142,6 +4229,7 @@ struct	char_data
     ROOM_INDEX_DATA *	was_in_room;
     WILDS_DATA *was_in_wilds;
 	ROOM_INDEX_DATA *	checkpoint;
+    PRACTICE_DATA   * practicer;
 	SHOP_DATA		* shop;
 	SHIP_CREW_DATA  * crew;
     LOCATION before_dungeon;   // Where were you prior to going to the dungeon?

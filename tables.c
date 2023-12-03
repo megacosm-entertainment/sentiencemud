@@ -3975,3 +3975,19 @@ const struct flag_type reputation_rank_flags[] =
     { "reset_paragon",      REPUTATION_RANK_RESET_PARAGON,  TRUE  },
     { NULL,                 0,                      FALSE }
 };
+
+const struct flag_type practice_cost_types[] =
+{
+    { "silver",             PRACTICE_COST_SILVER,       TRUE    },
+    { "practice",           PRACTICE_COST_PRACTICE,     TRUE    },
+    { "train",              PRACTICE_COST_TRAIN,        TRUE    },
+    { "quest",              PRACTICE_COST_QUEST,        TRUE    },
+    { "deity",              PRACTICE_COST_DEITY,        TRUE    },
+    { "pneuma",             PRACTICE_COST_PNEUMA,       TRUE    },
+    { "reputation",         PRACTICE_COST_REPUTATION,   TRUE    },
+    { "paragon",            PRACTICE_COST_PARAGON,      TRUE    },
+    { "object",             PRACTICE_COST_OBJECT,       TRUE    },
+    { "custom",             PRACTICE_COST_CUSTOM,       TRUE    },
+    { NULL,                 0,                          FALSE  }
+};
+

@@ -780,6 +780,9 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
 	}
 	iterator_stop(&it);
 
+	if (mob->pPractice != NULL)
+		save_practice_data(fp, mob->pPractice, mob->area);
+
 	if (mob->pQuestor != NULL)
 		save_questor_new(fp, mob->pQuestor, mob->area);
 
@@ -1458,7 +1461,7 @@ void save_questor_new(FILE *fp, QUESTOR_DATA *questor, AREA_DATA *pRefArea)
 	if (!pRefArea || questor->scroll.auid != pRefArea->uid)
 	    fprintf(fp, "Scroll %ld#%ld\n", questor->scroll.auid, questor->scroll.vnum);
 	else
-	    fprintf(fp, "Scroll %ld\n", questor->scroll.vnum);
+	    fprintf(fp, "Scroll #%ld\n", questor->scroll.vnum);
 	
     fprintf(fp, "Keywords %s~\n", fix_string(questor->keywords));
     fprintf(fp, "ShortDescr %s~\n", fix_string(questor->short_descr));
@@ -1469,6 +1472,83 @@ void save_questor_new(FILE *fp, QUESTOR_DATA *questor, AREA_DATA *pRefArea)
     fprintf(fp, "Suffix %s~\n", fix_string(questor->suffix));
     fprintf(fp, "LineWidth %d\n", questor->line_width);
     fprintf(fp, "#-QUESTOR\n");
+}
+
+void save_practice_cost_data(FILE *fp, PRACTICE_COST_DATA *data, AREA_DATA *area)
+{
+	fprintf(fp, "#COST\n");
+	fprintf(fp, "MinRating %d\n", data->min_rating);
+
+	fprintf(fp, "Silver %ld\n", data->silver);
+	fprintf(fp, "Practices %ld\n", data->practices);
+	fprintf(fp, "Trains %ld\n", data->trains);
+	fprintf(fp, "QuestPnts %ld\n", data->qp);
+	fprintf(fp, "DeityPnts %ld\n", data->dp);
+	fprintf(fp, "Pneuma %ld\n", data->pneuma);
+	fprintf(fp, "RepPoints %ld\n", data->rep_points);
+	fprintf(fp, "Paragon %ld\n", data->paragon_levels);
+	if (!IS_NULLSTR(data->custom_price) && data->check_price)
+	{
+		fprintf(fp, "CustomPricing %s~ %s\n", fix_string(data->custom_price), widevnum_string(data->check_price->area, data->check_price->vnum, area));	}
+
+	if (data->obj)
+		fprintf(fp, "Object %s\n", widevnum_string(data->obj->area, data->obj->vnum, area));
+
+	if (IS_VALID(data->reputation))
+	{
+		fprintf(fp, "Reputation %s\n", widevnum_string(data->reputation->area, data->reputation->vnum, area));
+	}
+
+	fprintf(fp, "#-COST\n");
+}
+
+void save_practice_entry_data(FILE *fp, PRACTICE_ENTRY_DATA *data, AREA_DATA *area)
+{
+	fprintf(fp, "#ENTRY\n");
+
+	if (IS_VALID(data->skill))
+		fprintf(fp, "Skill %s~\n", data->skill->name);
+	
+	if (IS_VALID(data->song))
+		fprintf(fp, "Song %s~\n", data->song->name);
+
+	if (IS_VALID(data->reputation))
+		fprintf(fp, "Reputation %s %d %d\n", widevnum_string(data->reputation->area, data->reputation->vnum, area), data->min_reputation_rank, data->max_reputation_rank);
+
+	fprintf(fp, "MaxRating %d\n", data->max_rating);
+
+	if (data->check_script)
+		fprintf(fp, "CheckScript %s\n", widevnum_string(data->check_script->area, data->check_script->vnum, area));
+
+	ITERATOR it;
+	PRACTICE_COST_DATA *cost;
+	iterator_start(&it, data->costs);
+	while((cost = (PRACTICE_COST_DATA *)iterator_nextdata(&it)))
+	{
+		save_practice_cost_data(fp, cost, area);
+	}
+	iterator_stop(&it);
+
+	fprintf(fp, "#-ENTRY\n");
+}
+
+void save_practice_data(FILE *fp, PRACTICE_DATA *data, AREA_DATA *area)
+{
+	fprintf(fp, "#PRACTICE\n");
+	if (data->standard)
+		fprintf(fp, "Standard\n");
+	else
+	{
+		ITERATOR it;
+		PRACTICE_ENTRY_DATA *entry;
+		iterator_start(&it, data->entries);
+		while((entry = (PRACTICE_ENTRY_DATA *)iterator_nextdata(&it)))
+		{
+			save_practice_entry_data(fp, entry, area);
+		}
+		iterator_stop(&it);
+	}
+	fprintf(fp, "#-PRACTICE\n");
 }
 
 void save_shop_stock_new(FILE *fp, SHOP_STOCK_DATA *stock, AREA_DATA *pRefArea)
@@ -1486,7 +1566,10 @@ void save_shop_stock_new(FILE *fp, SHOP_STOCK_DATA *stock, AREA_DATA *pRefArea)
 	fprintf(fp, "QuestPnts %ld\n", stock->qp);
 	fprintf(fp, "DeityPnts %ld\n", stock->dp);
 	fprintf(fp, "Pneuma %ld\n", stock->pneuma);
-	fprintf(fp, "Pricing %s~\n", fix_string(stock->custom_price));
+	fprintf(fp, "RepPoints %ld\n", stock->rep_points);
+	fprintf(fp, "Paragon %ld\n", stock->paragon_levels);
+	if (!IS_NULLSTR(stock->custom_price) && stock->check_price)
+		fprintf(fp, "CustomPricing %s~ %s\n", fix_string(stock->custom_price), widevnum_string(stock->check_price->area, stock->check_price->vnum, pRefArea));
 
 	// Quantity
 	fprintf(fp, "Quantity %d\n", stock->quantity);
@@ -2461,6 +2544,13 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 
 				mob->pCrew = read_ship_crew_index_new(fp);
 				fMatch = TRUE;
+				break;
+			}
+
+			if (!str_cmp(word, "#PRACTICE"))
+			{
+				mob->pPractice = read_practice_data(fp, area);
+				fMatch = true;
 				break;
 			}
 
@@ -4831,6 +4921,185 @@ QUESTOR_DATA *read_questor_new(FILE *fp, AREA_DATA *area)
     return questor;
 }
 
+PRACTICE_COST_DATA *read_practice_cost_data(FILE *fp, AREA_DATA *area)
+{
+	PRACTICE_COST_DATA *data;
+	char *word;
+
+	data = new_practice_cost_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-COST"))
+    {
+		fMatch = FALSE;
+
+		switch (word[0]) {
+		case 'C':
+			if (!str_cmp(word, "CustomPricing"))
+			{
+				data->custom_price = fread_string(fp);
+				data->check_price_load = fread_widevnum(fp, area->uid);
+				fMatch = true;
+				break;
+			}
+			break;
+
+		case 'D':
+			KEY("DeityPnts", data->dp, fread_number(fp));
+			break;
+
+		case 'M':
+			KEY("MinRating", data->min_rating, fread_number(fp));
+			break;
+
+		case 'O':
+			KEY("Object", data->obj_load, fread_widevnum(fp, area->uid));
+			break;
+
+		case 'P':
+			KEY("Paragon", data->paragon_levels, fread_number(fp));
+			KEY("Pneuma", data->pneuma, fread_number(fp));
+			KEY("Practices", data->practices, fread_number(fp));
+			break;
+
+		case 'Q':
+			KEY("QuestPnts", data->qp, fread_number(fp));
+			break;
+
+		case 'R':
+			KEY("RepPoints", data->rep_points, fread_number(fp));
+			KEY("Reputation", data->reputation_load, fread_widevnum(fp, area->uid));
+			break;
+
+		case 'S':
+			KEY("Silver", data->silver, fread_number(fp));
+			break;
+
+		case 'T':
+			KEY("Trains", data->trains, fread_number(fp));
+			break;
+
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_practice_cost_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+PRACTICE_ENTRY_DATA *read_practice_entry_data(FILE *fp, AREA_DATA *area)
+{
+	PRACTICE_ENTRY_DATA *data;
+	char *word;
+
+	data = new_practice_entry_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-ENTRY"))
+    {
+		fMatch = FALSE;
+		switch(word[0])
+		{
+		case '#':
+			if (!str_cmp(word, "#COST"))
+			{
+				PRACTICE_COST_DATA *cost = read_practice_cost_data(fp, area);
+
+				list_appendlink(data->costs, cost);
+
+				fMatch = true;
+				break;
+			}
+			break;
+
+		case 'C':
+			KEY("CheckScript", data->check_script_load, fread_widevnum(fp, area->uid));
+			break;
+
+		case 'M':
+			KEY("MaxRating", data->max_rating, fread_number(fp));
+			break;
+
+		case 'R':
+			if (!str_cmp(word, "Reputation"))
+			{
+				data->reputation_load = fread_widevnum(fp, area->uid);
+				data->min_reputation_rank = fread_number(fp);
+				data->max_reputation_rank = fread_number(fp);
+
+				fMatch = true;
+				break;
+			}
+			break;
+
+		case 'S':
+			if (!str_cmp(word, "Skill"))
+			{
+				data->skill = get_skill_data(fread_string(fp));
+				fMatch = true;
+				break;
+			}
+
+			if (!str_cmp(word, "Song"))
+			{
+				data->song = get_song_data(fread_string(fp));
+				fMatch = true;
+				break;
+			}
+			break;
+
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_practice_entry_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+
+}
+
+PRACTICE_DATA *read_practice_data(FILE *fp, AREA_DATA *area)
+{
+	PRACTICE_DATA *data;
+	char *word;
+
+	data = new_practice_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-PRACTICE"))
+    {
+		fMatch = FALSE;
+		switch(word[0])
+		{
+		case '#':
+			if (!str_cmp(word, "#ENTRY"))
+			{
+				PRACTICE_ENTRY_DATA *entry = read_practice_entry_data(fp, area);
+
+				list_appendlink(data->entries, entry);
+
+				fMatch = true;
+				break;
+			}
+			break;
+
+		case 'S':
+			KEY("Standard", data->standard, true);
+
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_practice_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+
+}
+
 SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp, AREA_DATA *area)
 {
 	SHOP_STOCK_DATA *stock;
@@ -4850,7 +5119,15 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp, AREA_DATA *area)
 				stock->type = STOCK_CREW;
 				break;
 			}
+			if (!str_cmp(word, "CustomPricing"))
+			{
+				stock->custom_price = fread_string(fp);
+				stock->check_price_load = fread_widevnum(fp, area->uid);
+				fMatch = TRUE;
+				break;
+			}
 			break;
+
 		case 'D':
 			KEY("DeityPnts", stock->dp, fread_number(fp));
 			KEYS("Description", stock->custom_descr, fread_string(fp));
@@ -4899,6 +5176,7 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp, AREA_DATA *area)
 			}
 			break;
 		case 'P':
+			KEY("Paragon", stock->paragon_levels, fread_number(fp));
 			if(!str_cmp(word, "Pet"))
 			{
 				fMatch = TRUE;
@@ -4914,6 +5192,7 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp, AREA_DATA *area)
 			KEY("QuestPnts", stock->qp, fread_number(fp));
 			break;
 		case 'R':
+			KEY("RepPoints", stock->rep_points, fread_number(fp));
 			if (!str_cmp(word, "Reputation"))
 			{
 				stock->reputation_load = fread_widevnum(fp, area->uid);
@@ -4957,6 +5236,13 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp, AREA_DATA *area)
 	}
 
 	stock->discount = URANGE(0, stock->discount, 100);
+
+	// Clear out the custom price if the script isn't set
+	if (!IS_NULLSTR(stock->custom_price) && (stock->check_price_load.auid < 1 || stock->check_price_load.vnum < 1))
+	{
+		free_string(stock->custom_price);
+		stock->custom_price = &str_empty[0];
+	}
 
 	return stock;
 }

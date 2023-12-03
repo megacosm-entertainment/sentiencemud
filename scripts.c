@@ -497,8 +497,39 @@ int ifcheck_comparison(SCRIPT_VARINFO *info, short param, char *rest, SCRIPT_PAR
 		text = expand_argument(info,rest,arg);
 		if(!text) return -1;
 
+		// Special checks that are boolean values
 		if( arg->type == ENT_BOOLEAN )
 			return arg->d.boolean ? 1 : 0;
+
+		if (arg->type == ENT_WIDEVNUM)
+			return (arg->d.wnum.pArea && arg->d.wnum.vnum > 0) ? 1 : 0;
+
+		if (arg->type == ENT_MOBILE)
+			return IS_VALID(arg->d.mob) ? 1 : 0;
+		
+		if (arg->type == ENT_OBJECT)
+			return IS_VALID(arg->d.obj) ? 1 : 0;
+		
+		if (arg->type == ENT_ROOM)
+			return (arg->d.room != NULL) ? 1 : 0;
+		
+		if (arg->type == ENT_EXIT)
+			return (arg->d.door.r && arg->d.door.door >= 0 && arg->d.door.door < MAX_DIR && arg->d.door.r->exit[arg->d.door.door] != NULL) ? 1 : 0;
+		
+		if (arg->type == ENT_STRING)
+			return IS_NULLSTR(arg->d.str) ? 0 : 1;
+		
+		if (arg->type == ENT_AREA)
+			return (arg->d.area != NULL) ? 1 : 0;
+
+		if (arg->type == ENT_INSTANCE)
+			return IS_VALID(arg->d.instance) ? 1 : 0;
+		
+		if (arg->type == ENT_DUNGEON)
+			return IS_VALID(arg->d.dungeon) ? 1 : 0;
+
+		if (arg->type == ENT_SHIP)
+			return IS_VALID(arg->d.ship) ? 1 : 0;
 
 		if (arg->type == ENT_STAT)
 		{

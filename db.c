@@ -2066,6 +2066,62 @@ void fix_mobiles(void)
 		for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
 			for (mob = pArea->mob_index_hash[iHash]; mob != NULL; mob = mob->next)
 			{
+				if(mob->pPractice)
+				{
+					ITERATOR peit;
+					ITERATOR pcit;
+					PRACTICE_ENTRY_DATA *entry;
+					PRACTICE_COST_DATA *cost;
+					iterator_start(&peit, mob->pPractice->entries);
+					while((entry = (PRACTICE_ENTRY_DATA *)iterator_nextdata(&peit)))
+					{
+
+						if (entry->reputation_load.auid > 0 && entry->reputation_load.vnum > 0)
+							entry->reputation = get_reputation_index_auid(entry->reputation_load.auid, entry->reputation_load.vnum);
+						else
+						{
+							entry->reputation = NULL;
+							entry->min_reputation_rank = 0;
+							entry->max_reputation_rank = 0;
+						}
+
+						if (entry->check_script_load.auid > 0 && entry->check_script_load.vnum > 0)
+							entry->check_script = get_script_index_auid(entry->check_script_load.auid, entry->check_script_load.vnum, PRG_MPROG);
+						else
+							entry->check_script = NULL;
+
+						iterator_start(&pcit, entry->costs);
+						while((cost = (PRACTICE_COST_DATA *)iterator_nextdata(&pcit)))
+						{
+							if(cost->check_price_load.auid > 0 && cost->check_price_load.vnum > 0)
+							{
+								cost->check_price = get_script_index_auid(cost->check_price_load.auid, cost->check_price_load.vnum, PRG_MPROG);
+							}
+							else
+							{
+								// No check price script, clear the custom price string
+								cost->check_price = NULL;
+								free_string(cost->custom_price);
+								cost->custom_price = &str_empty[0];
+							}
+
+							if (cost->obj_load.auid > 0 && cost->obj_load.vnum > 0)
+								cost->obj = get_obj_index_auid(cost->obj_load.auid, cost->obj_load.vnum);
+							else
+								cost->obj = NULL;
+
+							if (cost->reputation_load.auid > 0 && cost->reputation_load.vnum > 0)
+								cost->reputation = get_reputation_index_auid(cost->reputation_load.auid, cost->reputation_load.vnum);
+							else
+								cost->reputation = NULL;
+
+						}
+						iterator_stop(&pcit);
+
+					}
+					iterator_stop(&peit);
+				}
+
 				if(mob->pShop)
 				{
 					if (mob->pShop->reputation_load.auid > 0 && mob->pShop->reputation_load.vnum > 0)
@@ -3064,6 +3120,8 @@ void copy_shop_stock(SHOP_DATA *to_shop, SHOP_STOCK_DATA *from_stock)
 	to_stock->qp = from_stock->qp;
 	to_stock->dp = from_stock->dp;
 	to_stock->pneuma = from_stock->pneuma;
+	to_stock->rep_points = from_stock->rep_points;
+	to_stock->paragon_levels = from_stock->paragon_levels;
 	to_stock->quantity = from_stock->quantity;
 	to_stock->max_quantity = from_stock->quantity;
 	to_stock->restock_rate = from_stock->restock_rate;
@@ -3078,6 +3136,7 @@ void copy_shop_stock(SHOP_DATA *to_shop, SHOP_STOCK_DATA *from_stock)
 	to_stock->max_reputation_rank = from_stock->max_reputation_rank;
 	to_stock->min_show_rank = from_stock->min_show_rank;
 	to_stock->max_show_rank = from_stock->max_show_rank;
+	to_stock->check_price = from_stock->check_price;
 	switch(to_stock->type)
 	{
 	case STOCK_OBJECT:
@@ -3686,6 +3745,8 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 	list_destroy(mob->factions);
 	mob->factions = list_copy(pMobIndex->factions);
 
+	mob->practicer = copy_practice_data(pMobIndex->pPractice);
+
 	return mob;
 }
 
@@ -3805,6 +3866,8 @@ CHAR_DATA *clone_mobile(CHAR_DATA *parent)
 	list_destroy(clone->factions);
 	clone->factions = list_copy(parent->factions);
 
+	free_practice_data(clone->practicer);
+	clone->practicer = copy_practice_data(parent->practicer);
 
     variable_freelist(&clone->progs->vars);
     variable_copylist(&parent->progs->vars,&clone->progs->vars,FALSE);
@@ -7261,11 +7324,22 @@ void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
 			paf->slot);
 	}
 
+
+	MOB_REPUTATION_DATA *rep;
+	for(rep = ch->mob_reputations; rep; rep = rep->next)
+	{
+		fprintf(fp, "MobReputation %s %d %d %ld\n", widevnum_string(rep->reputation->area, rep->reputation->vnum, ch->pIndexData->area), rep->minimum_rank, rep->maximum_rank, rep->points);
+	}
+
+	if (ch->practicer)
+		save_practice_data(fp, ch->practicer, ch->pIndexData->area);
+
 	if( ch->shop )
 		save_shop_new(fp, ch->shop, ch->pIndexData->area);
 
 	if( ch->crew )
 		save_ship_crew(fp, ch->crew);
+
 
 	// Save Variables
 	if( ch->progs )
@@ -8544,6 +8618,16 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 
 					break;
 				}
+				if (!str_cmp(word, "#PRACTICE"))
+				{
+					PRACTICE_DATA *practice = read_practice_data(fp, index->area);
+					fMatch = true;
+					if (practice)
+						ch->practicer = practice;
+					else
+						good = false;
+					break;
+				}
 				if (!str_cmp(word,"#SHOP")) {
 					SHOP_DATA *shop = read_shop_new(fp, index->area);
 
@@ -8776,6 +8860,33 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 				break;
 			case 'M':
 				SKEY("Material",	ch->material);
+				if (!str_cmp(word, "Reputation"))
+				{
+					WNUM_LOAD wnum_load = fread_widevnum(fp, index->area->uid);
+					sh_int min_rank = fread_number(fp);
+					sh_int max_rank = fread_number(fp);
+					long points = fread_number(fp);
+
+					MOB_REPUTATION_DATA *new_rep = new_mob_reputation_data();
+					new_rep->reputation_load = wnum_load;
+					new_rep->minimum_rank = min_rank;
+					new_rep->maximum_rank = max_rank;
+					new_rep->points = points;
+					new_rep->next = NULL;
+
+					MOB_REPUTATION_DATA *rep;
+
+					for(rep = ch->mob_reputations; rep && rep->next; rep = rep->next);
+
+					if (rep)
+						rep->next = new_rep;
+					else
+						ch->mob_reputations = new_rep;
+
+					fMatch = true;
+					break;
+				}
+
 				break;
 			case 'N':
 				SKEY("Name",		ch->name);

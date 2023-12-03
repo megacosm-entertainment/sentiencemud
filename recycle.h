@@ -348,3 +348,15 @@ void free_reputation_data(REPUTATION_DATA *data);
 MOB_REPUTATION_DATA *new_mob_reputation_data();
 MOB_REPUTATION_DATA *copy_mob_reputation_data(MOB_REPUTATION_DATA *src);
 void free_mob_reputation_data(MOB_REPUTATION_DATA *data);
+
+PRACTICE_COST_DATA *new_practice_cost_data();
+PRACTICE_COST_DATA *copy_practice_cost_data(PRACTICE_COST_DATA *src);
+void free_practice_cost_data(PRACTICE_COST_DATA *cost_data);
+
+PRACTICE_ENTRY_DATA *new_practice_entry_data();
+PRACTICE_ENTRY_DATA *copy_practice_entry_data(PRACTICE_ENTRY_DATA *src);
+void free_practice_entry_data(PRACTICE_ENTRY_DATA *entry_data);
+
+PRACTICE_DATA *new_practice_data();
+PRACTICE_DATA *copy_practice_data(PRACTICE_DATA *src);
+void free_practice_data(PRACTICE_DATA *data);

@@ -6439,3 +6439,193 @@ void free_mob_reputation_data(MOB_REPUTATION_DATA *data)
     data->next = mob_reputation_free;
     mob_reputation_free = data;
 }
+
+
+PRACTICE_COST_DATA *practice_cost_data_free;
+PRACTICE_COST_DATA *new_practice_cost_data()
+{
+    PRACTICE_COST_DATA *data;
+    if (practice_cost_data_free)
+    {
+        data = practice_cost_data_free;
+        practice_cost_data_free = practice_cost_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(PRACTICE_COST_DATA));
+    memset(data, 0, sizeof(*data));
+
+    // Defaults
+    data->custom_price = &str_empty[0];
+
+    return data;
+}
+
+PRACTICE_COST_DATA *copy_practice_cost_data(PRACTICE_COST_DATA *src)
+{
+    if (!src) return NULL;
+
+    PRACTICE_COST_DATA *data;
+    if (practice_cost_data_free)
+    {
+        data = practice_cost_data_free;
+        practice_cost_data_free = practice_cost_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(PRACTICE_COST_DATA));
+    memset(data, 0, sizeof(*data));
+
+    data->min_rating = src->min_rating;
+
+    data->silver = src->silver;
+    data->practices = src->practices;
+    data->trains = src->trains;
+    data->qp = src->qp;
+    data->dp = src->dp;
+    data->pneuma = src->pneuma;
+    data->rep_points = src->rep_points;
+    data->paragon_levels = src->paragon_levels;
+    data->custom_price = str_dup(src->custom_price);
+
+    data->check_price = src->check_price;
+    data->obj = src->obj;
+    data->reputation = src->reputation;
+
+    return data;
+}
+void free_practice_cost_data(PRACTICE_COST_DATA *data)
+{
+    if (!data) return;
+
+    free_string(data->custom_price);
+
+    data->next = practice_cost_data_free;
+    practice_cost_data_free = data;
+}
+
+static void *copier_practice_cost_data(void *src)
+{
+    return copy_practice_cost_data((PRACTICE_COST_DATA *)src);
+}
+
+static void delete_practice_cost_data(void *ptr)
+{
+    free_practice_cost_data((PRACTICE_COST_DATA *)ptr);
+}
+
+PRACTICE_ENTRY_DATA *practice_entry_data_free;
+PRACTICE_ENTRY_DATA *new_practice_entry_data()
+{
+    PRACTICE_ENTRY_DATA *data;
+    if (practice_entry_data_free)
+    {
+        data = practice_entry_data_free;
+        practice_entry_data_free = practice_entry_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(PRACTICE_ENTRY_DATA));
+    memset(data, 0, sizeof(*data));
+
+    data->costs = list_createx(false, copier_practice_cost_data, delete_practice_cost_data);
+    
+    return data;
+}
+
+PRACTICE_ENTRY_DATA *copy_practice_entry_data(PRACTICE_ENTRY_DATA *src)
+{
+    if (!src) return NULL;
+
+    PRACTICE_ENTRY_DATA *data;
+    if (practice_entry_data_free)
+    {
+        data = practice_entry_data_free;
+        practice_entry_data_free = practice_entry_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(PRACTICE_ENTRY_DATA));
+    memset(data, 0, sizeof(*data));
+
+    data->skill = src->skill;
+    data->song = src->song;
+
+    data->reputation = src->reputation;
+    data->min_reputation_rank = src->min_reputation_rank;
+    data->max_reputation_rank = src->max_reputation_rank;
+    data->min_show_rank = src->min_show_rank;
+    data->max_show_rank = src->max_show_rank;
+
+    data->max_rating = src->max_rating;
+
+    data->costs = list_copy(src->costs);
+
+    data->check_script = src->check_script;
+
+    return data;
+}
+
+void free_practice_entry_data(PRACTICE_ENTRY_DATA *data)
+{
+    if (!data) return;
+
+    list_destroy(data->costs);
+
+    data->next = practice_entry_data_free;
+    practice_entry_data_free = data;
+}
+
+static void *copier_practice_entry_data(void *src)
+{
+    return copy_practice_entry_data((PRACTICE_ENTRY_DATA *)src);
+}
+
+static void delete_practice_entry_data(void *ptr)
+{
+    free_practice_entry_data((PRACTICE_ENTRY_DATA *)ptr);
+}
+
+PRACTICE_DATA *practice_data_free;
+PRACTICE_DATA *new_practice_data()
+{
+    PRACTICE_DATA *data;
+    if (practice_data_free)
+    {
+        data = practice_data_free;
+        practice_data_free = practice_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(PRACTICE_DATA));
+    memset(data, 0, sizeof(*data));
+
+    data->entries = list_createx(false, copier_practice_entry_data, delete_practice_entry_data);
+
+    return data;
+}
+
+PRACTICE_DATA *copy_practice_data(PRACTICE_DATA *src)
+{
+    if (!src) return NULL;
+
+    PRACTICE_DATA *data;
+    if (practice_data_free)
+    {
+        data = practice_data_free;
+        practice_data_free = practice_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(PRACTICE_DATA));
+    memset(data, 0, sizeof(*data));
+
+    data->standard = src->standard;
+    data->entries = list_copy(src->entries);
+    
+    return data;
+}
+
+void free_practice_data(PRACTICE_DATA *data)
+{
+    if (data) return;
+
+    list_destroy(data->entries);
+
+    data->next = practice_data_free;
+    practice_data_free = data;
+}
