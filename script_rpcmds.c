@@ -4867,7 +4867,10 @@ SCRIPT_CMD(do_rpalterroom)
 	char **str;
 	bool allow_empty = false;
 	bool allowarith = true;
+	bool allowbitwise = true;
 	const struct flag_type *flags = NULL;
+	const struct flag_type **bank = NULL;
+	long temp_flags[4];
 
 	if(!info || !info->room) return;
 
@@ -4902,7 +4905,7 @@ SCRIPT_CMD(do_rpalterroom)
 
         if(!str_cmp(field,"mapid")) {
                 if(!(rest = expand_argument(info,rest,arg))) {
-                        bug("MPAlterRoom - Error in parsing.",0);
+                        bug("RpAlterRoom - Error in parsing.",0);
                         return;
                 }
                 switch(arg->type) {
@@ -4995,8 +4998,7 @@ SCRIPT_CMD(do_rpalterroom)
 		return;
 	}
 
-	if(!str_cmp(field,"room"))			{ ptr = (int*)&room->room_flag[0]; flags = room_flags; }
-	else if(!str_cmp(field,"room2"))	{ ptr = (int*)&room->room_flag[0]; flags = room2_flags; }
+	if(!str_cmp(field,"flags"))			{ ptr = (int*)room->room_flag; bank = room_flagbank; }
 	else if(!str_cmp(field,"light"))	ptr = (int*)&room->light;
 	else if(!str_cmp(field,"sector"))	ptr = (int*)&room->sector_type;
 	else if(!str_cmp(field,"heal"))		{ ptr = (int*)&room->heal_rate; min_sec = 9; }
@@ -5018,7 +5020,32 @@ SCRIPT_CMD(do_rpalterroom)
 		return;
 	}
 
-	if( flags != NULL )
+	memset(temp_flags, 0, sizeof(temp_flags));
+
+	if( bank != NULL )
+	{
+		if( arg->type != ENT_STRING ) return;
+
+		allowarith = false;	// This is a bit vector, no arithmetic operators.
+		if (!script_bitmatrix_lookup(arg->d.str, bank, temp_flags))
+			return;
+
+		if (bank == room_flagbank)
+		{
+			REMOVE_BIT(temp_flags[1], ROOM_NOCLONE);
+			REMOVE_BIT(temp_flags[1], ROOM_VIRTUAL_ROOM);
+			REMOVE_BIT(temp_flags[1], ROOM_BLUEPRINT);
+
+			if( buf[0] == '=' || buf[0] == '&' )
+			{
+				if( IS_SET(ptr[1], ROOM_NOCLONE) ) SET_BIT(temp_flags[1], ROOM_NOCLONE);
+				if( IS_SET(ptr[1], ROOM_VIRTUAL_ROOM) ) SET_BIT(temp_flags[1], ROOM_VIRTUAL_ROOM);
+				if( IS_SET(ptr[1], ROOM_BLUEPRINT) ) SET_BIT(temp_flags[1], ROOM_BLUEPRINT);
+			}
+
+		}		
+	}
+	else if( flags != NULL )
 	{
 		if( arg->type != ENT_STRING ) return;
 
@@ -5102,11 +5129,73 @@ SCRIPT_CMD(do_rpalterroom)
 			*ptr %= value;
 			break;
 
-		case '=': *ptr = value; break;
-		case '&': *ptr &= value; break;
-		case '|': *ptr |= value; break;
-		case '!': *ptr &= ~value; break;
-		case '^': *ptr ^= value; break;
+		case '=':
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] = temp_flags[i];
+			}
+			else
+				*ptr = value;
+			break;
+
+		case '&':
+			if( !allowbitwise ) {
+				bug("RpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+				return;
+			}
+
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] &= temp_flags[i];
+			}
+			else
+				*ptr &= value;
+			break;
+		case '|':
+			if( !allowbitwise ) {
+				bug("RpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+				return;
+			}
+
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] |= temp_flags[i];
+			}
+			else
+				*ptr |= value;
+			break;
+		case '!':
+			if( !allowbitwise ) {
+				bug("RpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+				return;
+			}
+
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] &= ~temp_flags[i];
+			}
+			else
+				*ptr &= ~value;
+			break;
+		case '^':
+			if( !allowbitwise ) {
+				bug("RpAlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+				return;
+			}
+
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] ^= temp_flags[i];
+			}
+			else
+				*ptr ^= value;
+
+			break;
 		default:
 			return;
 		}
