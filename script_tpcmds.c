@@ -119,6 +119,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "startcombat",		scriptcmd_startcombat,		false,	true	},
 	{ "startreckoning",		scriptcmd_startreckoning,	true,	true	},
 	{ "stopcombat",			scriptcmd_stopcombat,		false,	true	},
+	{ "stopreckoning",		scriptcmd_stopreckoning,	true,	true	},
 	{ "stringmob",			do_tpstringmob,				true,	true	},
 	{ "stringobj",			do_tpstringobj,				true,	true	},
 	{ "stripaffect",		do_tpstripaffect,			true,	true	},

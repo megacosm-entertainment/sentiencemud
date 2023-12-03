@@ -115,6 +115,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "startcombat",		scriptcmd_startcombat,	false,	true	},
 	{ "startreckoning",		scriptcmd_startreckoning,	true,	true	},
 	{ "stopcombat",			scriptcmd_stopcombat,	false,	true	},
+	{ "stopreckoning",		scriptcmd_stopreckoning,	true,	true	},
 	{ "stringmob",			do_rpstringmob,			true,	true	},
 	{ "stringobj",			do_rpstringobj,			true,	true	},
 	{ "stripaffect",		do_rpstripaffect,		true,	true	},
