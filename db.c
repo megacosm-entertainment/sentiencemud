@@ -1910,26 +1910,26 @@ int get_this_class(CHAR_DATA *ch, SKILL_DATA *skill)
 
     this_class = 9999;
 
-    if (ch->pcdata->class_mage != -1 && (level = skill->skill_level[ch->pcdata->class_mage]) < 31)
+    if (ch->pcdata->class_mage != -1 && (level = skill->skill_level[ch->pcdata->class_mage]) <= MAX_CLASS_LEVEL)
     {
 		this_class = ch->pcdata->class_mage;
     }
-    else if (ch->pcdata->class_cleric != -1 && (level = skill->skill_level[ch->pcdata->class_cleric]) < 31)
+    else if (ch->pcdata->class_cleric != -1 && (level = skill->skill_level[ch->pcdata->class_cleric]) <= MAX_CLASS_LEVEL)
 	{
 	    this_class = ch->pcdata->class_cleric;
 	}
-	else if (ch->pcdata->class_thief != -1 && (level = skill->skill_level[ch->pcdata->class_thief]) < 31)
+	else if (ch->pcdata->class_thief != -1 && (level = skill->skill_level[ch->pcdata->class_thief]) <= MAX_CLASS_LEVEL)
 	{
 	this_class = ch->pcdata->class_thief;
 	}
-	else if (ch->pcdata->class_warrior != -1 && (level = skill->skill_level[ch->pcdata->class_warrior]) < 31)
+	else if (ch->pcdata->class_warrior != -1 && (level = skill->skill_level[ch->pcdata->class_warrior]) <= MAX_CLASS_LEVEL)
 	{
 		this_class = ch->pcdata->class_warrior;
 	}
 
-    if (IS_ANGEL(ch) || IS_MYSTIC(ch) || IS_DEMON(ch)) {
+    if (IS_ANGEL(ch) || IS_MYSTIC(ch) || IS_DEMON(ch) || IS_IMMORTAL(ch)) {
 		for(int i = 0; i < MAX_CLASS; i++)
-			if (skill->skill_level[i] < 31)
+			if (skill->skill_level[i] <= MAX_CLASS_LEVEL)
 				return i;
 
 		return 0;

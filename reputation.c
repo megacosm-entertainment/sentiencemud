@@ -428,6 +428,17 @@ bool check_mob_factions_peaceful(CHAR_DATA *ch, CHAR_DATA *victim)
 	return peaceful;
 }
 
+bool reputation_has_paragon(REPUTATION_INDEX_DATA *repIndex)
+{
+	if (!IS_VALID(repIndex)) return false;
+	if (list_size(repIndex->ranks) < 1) return false;
+
+	REPUTATION_INDEX_RANK_DATA *rank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(repIndex->ranks, -1);
+
+	if (!IS_VALID(rank)) return false;
+	
+	return IS_SET(rank->flags, REPUTATION_RANK_PARAGON) && true;
+}
 
 // Gain Reputation
 bool gain_reputation(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex, long amount, int *change, long *total_given, bool show)

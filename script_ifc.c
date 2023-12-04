@@ -2218,10 +2218,16 @@ DECL_IFC_FUN(ifc_varexit)
 	else if(ISARG_OBJ(0)) { progs = ARG_OBJ(0)->progs; ++argv; }
 	else if(ISARG_ROOM(0)) { progs = ARG_ROOM(0)->progs; ++argv; }
 	else if(ISARG_TOK(0)) { progs = ARG_TOK(0)->progs; ++argv; }
+	else if(ISARG_AREA(0)) { progs = ARG_AREA(0)->progs; ++argv; }
+	else if(ISARG_INSTANCE(0)) { progs = ARG_INSTANCE(0)->progs; ++argv; }
+	else if(ISARG_DUNGEON(0)) { progs = ARG_DUNGEON(0)->progs; ++argv; }
 	else if(mob) progs = mob->progs;
 	else if(obj) progs = obj->progs;
 	else if(room) progs = room->progs;
 	else if(token) progs = token->progs;
+	else if(area) progs = area->progs;
+	else if(instance) progs = instance->progs;
+	else if(dungeon) progs = dungeon->progs;
 
 	if(progs && progs->vars && ISARG_STR(0) && ISARG_STR(1)) {
 		int door = get_num_dir(ARG_STR(1));
@@ -2240,14 +2246,20 @@ DECL_IFC_FUN(ifc_varnumber)
 {
 	PROG_DATA * progs = NULL;
 	pVARIABLE var;
-	if(ISARG_MOB(0)) { progs  = ARG_MOB(0)->progs; ++argv; }
-	else if(ISARG_OBJ(0)) { progs  = ARG_OBJ(0)->progs; ++argv; }
-	else if(ISARG_ROOM(0)) { progs  = ARG_ROOM(0)->progs; ++argv; }
-	else if(ISARG_TOK(0)) { progs  = ARG_TOK(0)->progs; ++argv; }
-	else if(mob) progs  = mob->progs;
-	else if(obj) progs  = obj->progs;
-	else if(room) progs  = room->progs;
-	else if(token) progs  = token->progs;
+	if(ISARG_MOB(0)) { progs = ARG_MOB(0)->progs; ++argv; }
+	else if(ISARG_OBJ(0)) { progs = ARG_OBJ(0)->progs; ++argv; }
+	else if(ISARG_ROOM(0)) { progs = ARG_ROOM(0)->progs; ++argv; }
+	else if(ISARG_TOK(0)) { progs = ARG_TOK(0)->progs; ++argv; }
+	else if(ISARG_AREA(0)) { progs = ARG_AREA(0)->progs; ++argv; }
+	else if(ISARG_INSTANCE(0)) { progs = ARG_INSTANCE(0)->progs; ++argv; }
+	else if(ISARG_DUNGEON(0)) { progs = ARG_DUNGEON(0)->progs; ++argv; }
+	else if(mob) progs = mob->progs;
+	else if(obj) progs = obj->progs;
+	else if(room) progs = room->progs;
+	else if(token) progs = token->progs;
+	else if(area) progs = area->progs;
+	else if(instance) progs = instance->progs;
+	else if(dungeon) progs = dungeon->progs;
 
 	if(progs && progs->vars && ISARG_STR(0)) {
 		var = variable_get(progs->vars,ARG_STR(0));
@@ -2264,14 +2276,20 @@ DECL_IFC_FUN(ifc_varbool)
 {
 	PROG_DATA * progs = NULL;
 	pVARIABLE var;
-	if(ISARG_MOB(0)) { progs  = ARG_MOB(0)->progs; ++argv; }
-	else if(ISARG_OBJ(0)) { progs  = ARG_OBJ(0)->progs; ++argv; }
-	else if(ISARG_ROOM(0)) { progs  = ARG_ROOM(0)->progs; ++argv; }
-	else if(ISARG_TOK(0)) { progs  = ARG_TOK(0)->progs; ++argv; }
-	else if(mob) progs  = mob->progs;
-	else if(obj) progs  = obj->progs;
-	else if(room) progs  = room->progs;
-	else if(token) progs  = token->progs;
+	if(ISARG_MOB(0)) { progs = ARG_MOB(0)->progs; ++argv; }
+	else if(ISARG_OBJ(0)) { progs = ARG_OBJ(0)->progs; ++argv; }
+	else if(ISARG_ROOM(0)) { progs = ARG_ROOM(0)->progs; ++argv; }
+	else if(ISARG_TOK(0)) { progs = ARG_TOK(0)->progs; ++argv; }
+	else if(ISARG_AREA(0)) { progs = ARG_AREA(0)->progs; ++argv; }
+	else if(ISARG_INSTANCE(0)) { progs = ARG_INSTANCE(0)->progs; ++argv; }
+	else if(ISARG_DUNGEON(0)) { progs = ARG_DUNGEON(0)->progs; ++argv; }
+	else if(mob) progs = mob->progs;
+	else if(obj) progs = obj->progs;
+	else if(room) progs = room->progs;
+	else if(token) progs = token->progs;
+	else if(area) progs = area->progs;
+	else if(instance) progs = instance->progs;
+	else if(dungeon) progs = dungeon->progs;
 
 	if(progs && progs->vars && ISARG_STR(0)) {
 		var = variable_get(progs->vars,ARG_STR(0));
@@ -2292,10 +2310,16 @@ DECL_IFC_FUN(ifc_vardefined)
 	else if(ISARG_OBJ(0)) { progs = ARG_OBJ(0)->progs; ++argv; }
 	else if(ISARG_ROOM(0)) { progs = ARG_ROOM(0)->progs; ++argv; }
 	else if(ISARG_TOK(0)) { progs = ARG_TOK(0)->progs; ++argv; }
+	else if(ISARG_AREA(0)) { progs = ARG_AREA(0)->progs; ++argv; }
+	else if(ISARG_INSTANCE(0)) { progs = ARG_INSTANCE(0)->progs; ++argv; }
+	else if(ISARG_DUNGEON(0)) { progs = ARG_DUNGEON(0)->progs; ++argv; }
 	else if(mob) progs = mob->progs;
 	else if(obj) progs = obj->progs;
 	else if(room) progs = room->progs;
 	else if(token) progs = token->progs;
+	else if(area) progs = area->progs;
+	else if(instance) progs = instance->progs;
+	else if(dungeon) progs = dungeon->progs;
 
 //	if(wiznet_script) {
 //		sprintf(buf, "vardefined searching for '%s'", ARG_STR(0));
@@ -2324,10 +2348,16 @@ DECL_IFC_FUN(ifc_varstring)
 	else if(ISARG_OBJ(0)) { progs = ARG_OBJ(0)->progs; ++argv; }
 	else if(ISARG_ROOM(0)) { progs = ARG_ROOM(0)->progs; ++argv; }
 	else if(ISARG_TOK(0)) { progs = ARG_TOK(0)->progs; ++argv; }
+	else if(ISARG_AREA(0)) { progs = ARG_AREA(0)->progs; ++argv; }
+	else if(ISARG_INSTANCE(0)) { progs = ARG_INSTANCE(0)->progs; ++argv; }
+	else if(ISARG_DUNGEON(0)) { progs = ARG_DUNGEON(0)->progs; ++argv; }
 	else if(mob) progs = mob->progs;
 	else if(obj) progs = obj->progs;
 	else if(room) progs = room->progs;
 	else if(token) progs = token->progs;
+	else if(area) progs = area->progs;
+	else if(instance) progs = instance->progs;
+	else if(dungeon) progs = dungeon->progs;
 
 	if(progs && progs->vars && ISARG_STR(0) && ISARG_STR(1)) {
 		var = variable_get(progs->vars,ARG_STR(0));

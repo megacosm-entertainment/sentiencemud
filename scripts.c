@@ -465,7 +465,7 @@ char *ifcheck_get_value(SCRIPT_VARINFO *info,IFCHECK_DATA *ifc,char *text,long *
 //		sprintf(buf,"args = %d", i);
 //		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 //	}
-	if(info && (ifc->func)(info,info->mob,info->obj,info->room,info->token,ret,i,argv))
+	if(info && (ifc->func)(info,info->mob,info->obj,info->room,info->token,info->area,info->instance,info->dungeon,ret,i,argv))
 		*valid = TRUE;
 
 //	if(wiznet_script) {

@@ -600,7 +600,7 @@ typedef struct script_code SCRIPT_CODE;
 typedef struct script_varinfo SCRIPT_VARINFO;
 typedef struct script_control_block SCRIPT_CB;
 typedef struct script_parameter SCRIPT_PARAM;
-typedef bool (*IFC_FUNC)(SCRIPT_VARINFO *info, CHAR_DATA *mob,OBJ_DATA *obj,ROOM_INDEX_DATA *room, TOKEN_DATA *token, long *ret,int argc,SCRIPT_PARAM **argv);
+typedef bool (*IFC_FUNC)(SCRIPT_VARINFO *info, CHAR_DATA *mob,OBJ_DATA *obj,ROOM_INDEX_DATA *room, TOKEN_DATA *token, AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon, long *ret,int argc,SCRIPT_PARAM **argv);
 typedef bool (*OPCODE_FUNC)(SCRIPT_CB *block);
 typedef struct entity_field_type ENT_FIELD;
 typedef struct script_var_type VARIABLE, *pVARIABLE, **ppVARIABLE;
@@ -1631,23 +1631,14 @@ struct	help_data
 };
 
 typedef struct practice_cost_data PRACTICE_COST_DATA;
-
-#define PRACTICE_COST_SILVER        0
-#define PRACTICE_COST_PRACTICE      1
-#define PRACTICE_COST_TRAIN         2
-#define PRACTICE_COST_QUEST         3
-#define PRACTICE_COST_DEITY         4
-#define PRACTICE_COST_PNEUMA        5
-#define PRACTICE_COST_REPUTATION    6       // Consumes reputation progress on the current reputation (will not drop rank)
-#define PRACTICE_COST_PARAGON       7       // Consumes paragon levels on the reputation
-#define PRACTICE_COST_OBJECT        8
-#define PRACTICE_COST_CUSTOM        9
+typedef struct practice_entry_data PRACTICE_ENTRY_DATA;
 
 struct  practice_cost_data
 {
     PRACTICE_COST_DATA *next;
     bool valid;
 
+    PRACTICE_ENTRY_DATA *entry;
     sh_int min_rating;
 
 	long silver;
@@ -1670,7 +1661,7 @@ struct  practice_cost_data
 
 };
 
-typedef struct practice_entry_data PRACTICE_ENTRY_DATA;
+#define PRACTICE_ENTRY_NO_HAGGLE        (A)
 
 struct  practice_entry_data
 {
@@ -1690,6 +1681,7 @@ struct  practice_entry_data
     sh_int max_show_rank;
 
     sh_int max_rating;
+    long flags;
 
     LLIST *costs;
 
@@ -11138,5 +11130,7 @@ void check_mob_factions(CHAR_DATA *ch, CHAR_DATA *victim);
 bool check_mob_factions_peaceful(CHAR_DATA *ch, CHAR_DATA *victim);
 
 bool token_should_save(TOKEN_DATA *token);
+
+char *strip_colors( const char *string );
 
 #endif /* !def __merc_h__ */

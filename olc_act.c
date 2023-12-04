@@ -138,6 +138,7 @@ const struct olc_help_type help_table[] =
 	{	"portal_exit",			STRUCT_FLAGS,		portal_exit_flags,			"Exit (Portal) types."	},
 	{	"portal_type",			STRUCT_FLAGS,		portal_gatetype,			"Portal gate types"},
 	{	"position",				STRUCT_FLAGS,		position_flags,				"Mobile positions."	},
+	{	"practice_entry",		STRUCT_FLAGS,		practice_entry_flags,		"Practice Entry attributes."},
 	{	"prebrew_func",			STRUCT_ARTIFICING,	prebrew_func_table,			"PreBrew Functions (SkEdit)"},
 //	{	"preimbue_func",		STRUCT_ARTIFICING,	preimbue_func_table,		"PreImbue Functions (SkEdit)"},
 	{	"preink_func",			STRUCT_ARTIFICING,	preink_func_table,			"PreInk Functions (SkEdit)"},
@@ -18457,6 +18458,7 @@ static void __practice_add_entry(PRACTICE_DATA *data, SKILL_DATA *skill, SONG_DA
 	{
 		PRACTICE_COST_DATA *cost = new_practice_cost_data();
 		cost->min_rating = 0;	// Acquire only
+		cost->entry = entry;
 
 		__insert_entry_cost(entry, cost);
 	}					
@@ -18524,6 +18526,8 @@ MEDIT (medit_practice)
 				send_to_char("         practice <#> cost clear\n\r", ch);
 				send_to_char("         practice <#> cost <#> price <silver|practices|trains|qp|dp|pneuma|reputation|paragon|custom>[ <check_price script (custom only)>] <value>\n\r", ch);
 				send_to_char("         practice <#> cost <#> remove\n\r", ch);
+
+				send_to_char("         practice <#> flags <flags>\n\r", ch);
 
 				send_to_char("         practice <#> reputation <reputation widevnum> <minimum rank#|none> <maximum rank#|none> <minimum show rank#|none> <maximum show rank#|none>\n\r", ch);
 				// TODO: maybe this can also be scripted... just need a way to pass which practice entry to work with
@@ -18759,6 +18763,7 @@ MEDIT (medit_practice)
 
 						PRACTICE_COST_DATA *cost = new_practice_cost_data();
 						cost->min_rating = min_rating;
+						cost->entry = entry;
 
 						__insert_entry_cost(entry, cost);
 						send_to_char("Cost point added to practice entry.\n\r", ch);
@@ -19003,6 +19008,21 @@ MEDIT (medit_practice)
 
 					medit_practice(ch, formatf("%d cost", index));
 					return false;
+				}
+
+				if (!str_prefix(arg, "flags"))
+				{
+					long value;
+					if ((value = flag_value(practice_entry_flags, argument)) == NO_FLAG)
+					{
+						send_to_char("Invalid practice entry flag.  Use '? practice_entry' to list valid flags.\n\r", ch);
+						show_flag_cmds(ch, practice_entry_flags);
+						return false;
+					}
+
+					TOGGLE_BIT(entry->flags, value);
+					send_to_char("Practice entry flags toggled.\n\r", ch);
+					return true;
 				}
 
 				if (!str_prefix(arg, "maxrating"))
@@ -19352,8 +19372,8 @@ MEDIT (medit_practice)
 			bool standard;
 			if (!str_prefix(argument, "standard"))
 			{
-				standard = true;
-				send_to_char("Adding Standard Practice suite.\n\r", ch);
+				send_to_char("Standard practice suite not implemented yet.\n\r", ch);
+				return false;
 			}
 			else if (!str_prefix(argument, "custom"))
 			{

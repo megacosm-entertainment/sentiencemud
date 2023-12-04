@@ -50,6 +50,8 @@
 #define MAX_SKILL_TRAINABLE	90
 
 void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool show_spells, bool hide_learned);
+bool is_racial_skill(int race, SKILL_DATA *skill);
+bool reputation_has_paragon(REPUTATION_INDEX_DATA *repIndex);
 
 struct message_handler_type
 {
@@ -2495,36 +2497,1053 @@ void group_remove(CHAR_DATA *ch, const char *name)
 	}
 }
 
+static bool __skill_can_learn(CHAR_DATA *ch, SKILL_DATA *skill, SKILL_ENTRY *se)
+{
+    int this_class;
 
+	if (se)
+	{
+		if (!IS_SET(se->flags, SKILL_PRACTICE)) return false;
+
+		if (se->source != SKILLSRC_NORMAL) return true;
+
+		// They already have it learned to some degree		
+	    if (se->rating > 1)
+			return true;
+	}
+
+	if (is_global_skill(skill))
+		return true;
+
+	///////////////////////////////////////////////////////////////////
+	// TODO: Update after new class system is in place
+	this_class = get_this_class(ch, skill);
+
+	// Racial skill? Class skill?
+	if (!is_racial_skill(ch->race, skill) &&
+		!has_class_skill(ch->pcdata->class_current, skill) &&
+		!has_subclass_skill(ch->pcdata->sub_class_current, skill))
+		return false;
+
+	return ch->level >= skill->skill_level[this_class];
+	///////////////////////////////////////////////////////////////////
+}
+
+// Only handles skill entries
+static bool __student_can_show_entry(CHAR_DATA *ch, PRACTICE_ENTRY_DATA *entry, SKILL_ENTRY *se)
+{
+	if (!IS_VALID(entry->skill)) return false;
+
+	// Immortals with HOLYLIGHT can see every skill
+	if (IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))
+		return true;
+	
+	// Check reputation
+	if (IS_VALID(entry->reputation))
+	{
+		REPUTATION_DATA *rep = find_reputation_char(ch, entry->reputation);
+		int rank = IS_VALID(rep) ? rep->current_rank : entry->reputation->initial_rank;
+
+		if (entry->min_show_rank > 0 && rank < entry->min_show_rank) return false;
+		if (entry->max_show_rank > 0 && rank > entry->max_show_rank) return false;
+	}
+
+	// TODO: Add quest completion requirements
+	// TODO: Need to add a script for custom visibility
+	// TODO: Perhaps there can be extra requirements on the skill
+
+	// Do they meet the requirements on the skill itself?
+	return __skill_can_learn(ch, entry->skill, se);
+
+#if 0
+	if (!IS_NPC(ch))
+	{
+		// Is this a racial?
+		if (is_racial_skill(ch->race, entry->skill) &&
+			(ch->level >= entry->skill->skill_level[this_class] || had_skill(ch, entry->skill)))
+			return true;
+	}
+
+	if (is_global_skill(entry->skill))
+		return true;
+
+	if (had_skill(ch, entry->skill))
+
+	if (has_class_skill(ch->pcdata->class_current, entry->skill) &&
+		ch->level >= entry->skill->skill_level[this_class])
+		return true;
+
+	if (has_subclass_skill(ch->pcdata->sub_class_current, entry->skill) &&
+		ch->level >= entry->skill->skill_level[this_class])
+		return true;
+
+    return false;
+#endif
+}
+
+// Only handles skill entries
+// Assumes visibility
+static bool __student_can_learn_entry(CHAR_DATA *ch, PRACTICE_ENTRY_DATA *entry, SKILL_ENTRY *se)
+{
+	if (IS_VALID(entry->song)) return false;
+
+	// Immortals with HOLYAURA can learn every skill
+	if (IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYAURA))
+		return true;
+
+	// Check reputation
+	if (IS_VALID(entry->reputation))
+	{
+		REPUTATION_DATA *rep = find_reputation_char(ch, entry->reputation);
+		int rank = IS_VALID(rep) ? rep->current_rank : entry->reputation->initial_rank;
+
+		if (entry->min_reputation_rank > 0 && rank < entry->min_reputation_rank) return false;
+		if (entry->max_reputation_rank > 0 && rank > entry->max_reputation_rank) return false;
+	}
+
+	// TODO: Add quest completion requirements
+	// TODO: Need to add a script for custom learnability
+	// TODO: Perhaps there can be extra requirements on the skill
+
+	// Do they meet the requirements on the skill itself?
+	return __skill_can_learn(ch, entry->skill, se);
+}
+
+static char *__teacher_give_reason(CHAR_DATA *ch, PRACTICE_ENTRY_DATA *entry, int this_class, int rating)
+{
+	static char msg[4][MSL];
+	static int imsg = 0;
+
+	imsg = (imsg + 1) % 4;
+	char *p = &msg[imsg][0];
+
+	*p++ = ' ';
+
+	if (IS_VALID(entry->reputation))
+	{
+		REPUTATION_DATA *rep = find_reputation_char(ch, entry->reputation);
+		int rank = IS_VALID(rep) ? rep->current_rank : entry->reputation->initial_rank;
+
+		REPUTATION_INDEX_RANK_DATA *minRank;
+		if (entry->min_reputation_rank > 0)
+			minRank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(entry->reputation->ranks, entry->min_reputation_rank);
+		else
+			minRank = NULL;
+
+		REPUTATION_INDEX_RANK_DATA *maxRank;
+		if (entry->max_reputation_rank > 0)
+			maxRank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(entry->reputation->ranks, entry->max_reputation_rank);
+		else
+			maxRank = NULL;
+
+		if (IS_VALID(minRank))
+		{
+			if (IS_VALID(maxRank))
+			{
+				if (rank < minRank->ordinal || rank > maxRank->ordinal)
+					p += sprintf(p, " [Requires: %s to %s in %s]", minRank->name, maxRank->name, entry->reputation->name);
+			}
+			else
+			{
+				if (rank < minRank->ordinal)
+					p += sprintf(p, " [Requires: at least %s in %s]", minRank->name, entry->reputation->name);
+			}
+		}
+		else if (IS_VALID(maxRank))
+		{
+			if (rank > maxRank->ordinal)
+				p += sprintf(p, " [Requires: at most %s in %s]", maxRank->name, entry->reputation->name);
+		}
+	}
+
+	if (ch->level < entry->skill->skill_level[this_class] && entry->skill->skill_level[this_class] <= MAX_CLASS_LEVEL)
+	{
+		p += sprintf(p, " [Unlocks at level %d]", entry->skill->skill_level[this_class]);
+	}
+
+	*p = '\0';
+	return msg[imsg];
+}
+
+static PRACTICE_COST_DATA *__practice_entry_get_cost(PRACTICE_ENTRY_DATA *entry, int rating)
+{
+	ITERATOR pcit;
+	PRACTICE_COST_DATA *cost, *max_cost = NULL;
+	iterator_start(&pcit, entry->costs);
+	while((cost = (PRACTICE_COST_DATA *)iterator_nextdata(&pcit)))
+	{
+		// If we assume order by min_rating ascending, then just go until we find a cost point after rating or no more costs
+		if (rating >= cost->min_rating)
+			max_cost = cost;
+		else
+			break;
+	}
+	iterator_stop(&pcit);
+
+	return max_cost;
+}
+
+static char *__practice_cost_get_string(PRACTICE_COST_DATA *cost)
+{
+	static char buf[4][MSL];
+	static int i = 0;
+	i = (i + 1) & 4;
+
+	char *p = &buf[i][0];
+
+	if (IS_NULLSTR(cost->custom_price))
+	{
+		int pi = 0;
+
+		if (cost->silver > 0)
+		{
+			if (pi > 0)
+			{
+				p[pi++] = ',';
+				p[pi++] = ' ';
+			}
+			long s = cost->silver % 100;
+			long g = cost->silver / 100;
+
+			if (g > 0)
+			{
+				if (s > 0)
+					pi += sprintf(p + pi, "%ld{Yg{x %ld{Ws{x", g, s);
+				else
+					pi += sprintf(p + pi, "%ld{Yg{x", g);
+			}
+			else
+				pi += sprintf(p + pi, "%ld{Ws{x", s);
+		}
+
+		if (cost->practices > 0)
+		{
+			if (pi > 0)
+			{
+				p[pi++] = ',';
+				p[pi++] = ' ';
+			}
+
+			pi += sprintf(p + pi, "%ld{Gp{x", cost->practices);
+		}
+
+		if (cost->trains > 0)
+		{
+			if (pi > 0)
+			{
+				p[pi++] = ',';
+				p[pi++] = ' ';
+			}
+
+			pi += sprintf(p + pi, "%ld{Gt{x", cost->trains);
+		}
+
+		if (cost->qp > 0)
+		{
+			if (pi > 0)
+			{
+				p[pi++] = ',';
+				p[pi++] = ' ';
+			}
+
+			pi += sprintf(p + pi, "%ld{Yqp{x", cost->qp);
+		}
+
+		if (cost->dp > 0)
+		{
+			if (pi > 0)
+			{
+				p[pi++] = ',';
+				p[pi++] = ' ';
+			}
+
+			pi += sprintf(p + pi, "%ld{Ydp{x", cost->dp);
+		}
+
+		if (cost->pneuma > 0)
+		{
+			if (pi > 0)
+			{
+				p[pi++] = ',';
+				p[pi++] = ' ';
+			}
+
+			pi += sprintf(p + pi, "%ld{Cpn{x", cost->pneuma);
+		}
+
+		if (cost->rep_points > 0)
+		{
+			if (pi > 0)
+			{
+				p[pi++] = ',';
+				p[pi++] = ' ';
+			}
+
+			pi += sprintf(p + pi, "%ld{Brep{x", cost->rep_points);
+		}
+
+		if (cost->paragon_levels > 0)
+		{
+			if (pi > 0)
+			{
+				p[pi++] = ',';
+				p[pi++] = ' ';
+			}
+
+			pi += sprintf(p + pi, "%ld{Y*{x", cost->paragon_levels);
+		}
+
+		p[pi] = '\0';
+	}
+	else
+		strcpy(p, cost->custom_price);
+
+	return &buf[i][0];
+}
+
+static char *__practice_cost_get_string_error(PRACTICE_COST_DATA *cost)
+{
+	// Same as the other, but will be in all RED
+	static char buf[4][MSL];
+	static int i = 0;
+	i = (i + 1) & 4;
+
+	char *p = &buf[i][0];
+
+	int pi = 2;
+	p[pi++] = '{';
+	p[pi++] = 'R';
+
+	if (IS_NULLSTR(cost->custom_price))
+	{
+		if (cost->silver > 0)
+		{
+			if (pi > 0)
+			{
+				p[pi++] = ',';
+				p[pi++] = ' ';
+			}
+			long s = cost->silver % 100;
+			long g = cost->silver / 100;
+
+			if (g > 0)
+			{
+				if (s > 0)
+					pi += sprintf(p + pi, "%ldg %lds", g, s);
+				else
+					pi += sprintf(p + pi, "%ldg", g);
+			}
+			else
+				pi += sprintf(p + pi, "%lds", s);
+		}
+
+		if (cost->practices > 0)
+		{
+			if (pi > 0)
+			{
+				p[pi++] = ',';
+				p[pi++] = ' ';
+			}
+
+			pi += sprintf(p + pi, "%ldp", cost->practices);
+		}
+
+		if (cost->trains > 0)
+		{
+			if (pi > 0)
+			{
+				p[pi++] = ',';
+				p[pi++] = ' ';
+			}
+
+			pi += sprintf(p + pi, "%ldt", cost->trains);
+		}
+
+		if (cost->qp > 0)
+		{
+			if (pi > 0)
+			{
+				p[pi++] = ',';
+				p[pi++] = ' ';
+			}
+
+			pi += sprintf(p + pi, "%ldqp", cost->qp);
+		}
+
+		if (cost->dp > 0)
+		{
+			if (pi > 0)
+			{
+				p[pi++] = ',';
+				p[pi++] = ' ';
+			}
+
+			pi += sprintf(p + pi, "%lddp", cost->dp);
+		}
+
+		if (cost->pneuma > 0)
+		{
+			if (pi > 0)
+			{
+				p[pi++] = ',';
+				p[pi++] = ' ';
+			}
+
+			pi += sprintf(p + pi, "%ldpn", cost->pneuma);
+		}
+
+		if (cost->rep_points > 0)
+		{
+			if (pi > 0)
+			{
+				p[pi++] = ',';
+				p[pi++] = ' ';
+			}
+
+			pi += sprintf(p + pi, "%ldrep", cost->rep_points);
+		}
+
+		if (cost->paragon_levels > 0)
+		{
+			if (pi > 0)
+			{
+				p[pi++] = ',';
+				p[pi++] = ' ';
+			}
+
+			pi += sprintf(p + pi, "%ld*", cost->paragon_levels);
+		}
+	}
+	else
+	{
+		pi += sprintf(p + pi, "%s", strip_colors(cost->custom_price));
+	}
+
+	p[pi++] = '{';
+	p[pi++] = 'x';
+	p[pi] = '\0';
+
+	return &buf[i][0];
+}
+
+static bool __practice_cost_has_value(PRACTICE_COST_DATA *cost)
+{
+	if (!IS_NULLSTR(cost->custom_price) || !cost->check_price)
+	{
+		if (cost->silver > 0) return true;
+		if (cost->practices > 0) return true;
+		if (cost->trains > 0) return true;
+		if (cost->qp > 0) return true;
+		if (cost->dp > 0) return true;
+		if (cost->pneuma > 0) return true;
+		if (cost->rep_points > 0) return true;
+		if (cost->paragon_levels > 0) return true;
+
+		return false;
+	}
+
+	return true;
+}
+
+// Assumes teacher->practicer valid
+static LLIST *__teacher_get_available(CHAR_DATA *ch, CHAR_DATA *teacher)
+{
+//	int skills_found = 0;
+//	int spells_found = 0;
+//	BUFFER *buffer = new_buf();
+
+//	add_buf(buffer, "Skills/Spells available:\n\r");
+
+//	add_buf(buffer, "[Lvl] [            Name            ] [        Cost        ]\n\r");
+//	add_buf(buffer, "============================================================\n\r");
+	LLIST *abilities = list_create(FALSE);
+
+	if (teacher->practicer->standard)
+	{
+		// List standard stuff
+	}
+	else
+	{
+		ITERATOR peit;
+		PRACTICE_ENTRY_DATA *entry;
+
+		iterator_start(&peit, teacher->practicer->entries);
+		while((entry = (PRACTICE_ENTRY_DATA *)iterator_nextdata(&peit)))
+		{
+			if (list_size(entry->costs) < 1) continue;	// Can't purchase this, so ignore it
+			if (!IS_VALID(entry->skill)) continue;
+
+			SKILL_ENTRY *se = skill_entry_findskill(ch->sorted_skills, entry->skill);
+
+			// Already at the cap of what the teacher can teach
+			//if (se && se->rating >= entry->max_rating) continue;
+
+			if (__student_can_show_entry(ch, entry, se))
+			{
+				// TODO: Update to new class structure
+				int this_class = get_this_class(ch, entry->skill);
+				if (this_class < 0 || this_class >= MAX_CLASS) continue;
+
+				int level = entry->skill->skill_level[this_class];
+
+				if (level > MAX_CLASS_LEVEL) continue;
+				int rating = se ? se->rating : 0;
+				PRACTICE_COST_DATA *cost = __practice_entry_get_cost(entry, rating);
+
+				if (!cost)
+					cost = (PRACTICE_COST_DATA *)list_nthdata(entry->costs, 1);
+
+				// Only keep it if the cost has proper values on it
+				if (cost && __practice_cost_has_value(cost))
+				{
+					list_appendlink(abilities, cost);
+				}
+#if 0
+				char *reason = __teacher_give_reason(ch,entry,this_class,rating);
+
+				char *cost_str;
+				if (cost)
+				{
+					if (can_learn)
+						cost_str = __practice_cost_get_string(cost);
+					else
+						cost_str = __practice_cost_get_string_error(cost);
+				}
+				else
+				{
+					cost = (PRACTICE_COST_DATA *)list_nthdata(entry->costs, 1);
+
+					cost_str = __practice_cost_get_string_error(cost);
+				}
+
+				int cost_len = strlen(cost_str);
+				int plain_len = strlen_no_colours(cost_str);
+				if (plain_len < 20)
+					cost_len += 20 - plain_len;
+				
+				if (entry->skill->isspell)
+					spells_found++;
+				else
+					skills_found++;
+				sprintf(buf, " %3d   %-28s   %-*s%s\n\r", level, name, cost_len, cost_str, reason);
+				add_buf(buffer, buf);
+#endif
+			}
+		}
+		iterator_stop(&peit);
+	}
+
+#if 0
+	add_buf(buffer, "------------------------------------------------------------\n\r");
+	if (spells_found > 0)
+	{
+		if (skills_found > 0)
+			add_buf(buffer, formatf("%d skills/spells found.\n\r", spells_found + skills_found));
+		else
+			add_buf(buffer, formatf("%d spells found.\n\r", spells_found));
+	}
+	else
+	{
+		if (skills_found > 0)
+			add_buf(buffer, formatf("%d skills found.\n\r", skills_found));
+		else
+			send_to_char("Nothing found.\n\r", ch);
+	}
+
+	if (spells_found > 0 || skills_found > 0)
+	{
+		if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+		{
+			send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+		}
+		else
+		{
+			page_to_char(buffer->string, ch);
+		}
+	}
+
+	free_buf(buffer);
+#endif
+
+	return abilities;
+}
+
+
+// PRACTICE <teacher>				-- Lists all available skills and spells available to learn.
+// PRACTICE <teacher> <name>		-- Tries to learn specific ability from teacher
 void do_practice( CHAR_DATA *ch, char *argument )
 {
 	char buf[MAX_STRING_LENGTH];
 	char arg[MSL];
-	SKILL_DATA *skill;
-	int learn;
 	CHAR_DATA *mob;
 	SKILL_ENTRY *entry;
+	ITERATOR pcit;
+	PRACTICE_COST_DATA *cost;
 
 	if (IS_NPC(ch))
 		return;
 
 	argument = one_argument( argument, arg );
 
-	if (!arg[0]) {
-		list_skill_entries(ch, "", TRUE, TRUE, TRUE);
-		send_to_char("\n\r", ch);
-		return;
-	}
+	char teacher[MIL];
+	int count = number_argument(arg, teacher);
 
 	for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room) {
-		if (IS_NPC(mob) && IS_SET(mob->act[0], ACT_PRACTICE))
-			break;
+		if (IS_NPC(mob) && can_see(ch, mob) && mob->practicer)
+		{
+			if (!teacher[0] || (is_name(teacher, mob->name) && !--count))
+				break;
+		}
 	}
 
 	if (!mob) {
 		send_to_char("You can't do that here.\n\r", ch);
 		return;
 	}
+
+	LLIST *abilities = __teacher_get_available(ch, mob);
+
+	if (!argument[0])
+	{
+		if (list_size(abilities) > 0)
+		{
+			int skills_found = 0;
+			int spells_found = 0;
+			BUFFER *buffer = new_buf();
+
+			add_buf(buffer, "Skills/Spells available:\n\r");
+
+			add_buf(buffer, "[Lvl] [            Name            ] [        Cost        ]\n\r");
+			add_buf(buffer, "============================================================\n\r");
+
+			iterator_start(&pcit, abilities);
+			while((cost = (PRACTICE_COST_DATA *)iterator_nextdata(&pcit)))
+			{
+				PRACTICE_ENTRY_DATA *pe = cost->entry;
+				entry = skill_entry_findskill(ch->sorted_skills, pe->skill);
+				bool can_learn = __student_can_learn_entry(ch, pe, entry);
+
+				// TODO: Update to new class structure
+				int this_class = get_this_class(ch, pe->skill);
+				if (this_class < 0 || this_class >= MAX_CLASS) continue;
+
+				char *name = pe->skill->name;
+				int level = pe->skill->skill_level[this_class];
+
+				if (level > MAX_CLASS_LEVEL) continue;
+				int rating = entry ? entry->rating : 0;
+
+				char *reason = __teacher_give_reason(ch,pe,this_class,rating);
+
+				if (rating < cost->min_rating)
+					can_learn = false;
+
+				char *cost_str;
+				if (can_learn)
+					cost_str = __practice_cost_get_string(cost);
+				else
+					cost_str = __practice_cost_get_string_error(cost);
+
+				int cost_len = strlen(cost_str);
+				int plain_len = strlen_no_colours(cost_str);
+				if (plain_len < 20)
+					cost_len += 20 - plain_len;
+				
+				if (pe->skill->isspell)
+					spells_found++;
+				else
+					skills_found++;
+				sprintf(buf, " %3d   %-28s   %-*s%s\n\r", level, name, cost_len, cost_str, reason);
+				add_buf(buffer, buf);
+			}
+			iterator_stop(&pcit);
+			
+			add_buf(buffer, "------------------------------------------------------------\n\r");
+			if (spells_found > 0)
+			{
+				if (skills_found > 0)
+					add_buf(buffer, formatf("%d skills/spells found.\n\r", spells_found + skills_found));
+				else
+					add_buf(buffer, formatf("%d spells found.\n\r", spells_found));
+			}
+			else
+			{
+				add_buf(buffer, formatf("%d skills found.\n\r", skills_found));
+			}
+
+			if (spells_found > 0 || skills_found > 0)
+			{
+				if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+				{
+					send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+				}
+				else
+				{
+					page_to_char(buffer->string, ch);
+				}
+			}
+
+			free_buf(buffer);
+		}
+		else
+			send_to_char("Nothing found.\n\r", ch);
+		list_destroy(abilities);
+		return;
+	}
+
+	char name[MIL];
+	count = number_argument(argument, name);
+
+	iterator_start(&pcit, abilities);
+	while((cost = (PRACTICE_COST_DATA *)iterator_nextdata(&pcit)))
+	{
+		PRACTICE_ENTRY_DATA *pe = cost->entry;
+		if (is_name(name, pe->skill->name) && !--count)
+		{
+			break;
+		}
+	}
+	iterator_stop(&pcit);
+	list_destroy(abilities);
+
+	if (cost)
+	{
+		PRACTICE_ENTRY_DATA *pe = cost->entry;
+		entry = skill_entry_findskill(ch->sorted_skills, pe->skill);
+		int rating = entry ? entry->rating : 0;
+		
+		// Can't practice this yet
+		if (rating < cost->min_rating)
+		{
+			send_to_char("You can't practice that.\n\r", ch);
+			return;
+		}
+
+		if (rating >= pe->max_rating)
+		{
+			sprintf(buf, "There is nothing more that you can learn about %s here.\n\r", pe->skill->name);
+			send_to_char(buf, ch);
+			return;
+		}
+
+		int amount = 0;
+
+		if( IS_VALID(pe->skill)) {
+			int this_class = get_this_class(ch, pe->skill);
+			if (this_class >= 0 && this_class < MAX_CLASS)
+				amount = (pe->skill->rating[this_class] == 0 ? 10 : pe->skill->rating[this_class]);
+		}
+
+		int learn;
+		if (amount > 0)
+		{
+			if (IS_IMMORTAL(ch))
+			{
+				send_to_char(formatf("Intellect learning rate: %d\n\r", int_app[get_curr_stat(ch, STAT_INT)].learn), ch);
+			}
+
+
+			learn = int_app[get_curr_stat(ch, STAT_INT)].learn / amount;
+		}
+		else
+		{
+			send_to_char("You can't practice that.\n\r", ch);
+			return;
+		}
+
+		if (cost->check_price)
+		{
+			// This needs to handle any haggling
+			int ret = execute_script(cost->check_price,mob,NULL,NULL,NULL,NULL,NULL,NULL,ch,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,TRIG_NONE,0,0,0,0,0);
+			if (ret > 0)
+			{
+				// TODO: Any default messaging?
+
+				return;
+			}
+		}
+		else
+		{
+			long money = ch->gold * 100 + ch->silver;
+
+			long silver = cost->silver;
+			long practices = cost->practices;
+			long trains = cost->trains;
+			long qp = cost->qp;
+			long dp = cost->dp;
+			long pneuma = cost->pneuma;
+			long points = IS_VALID(pe->reputation) ? cost->rep_points : 0;
+			long levels = reputation_has_paragon(pe->reputation) ? cost->paragon_levels : 0;
+			REPUTATION_DATA *rep = IS_VALID(pe->reputation) ? find_reputation_char(ch, pe->reputation) : NULL;
+
+			
+			bool haggled = false;
+			int haggle = get_skill(ch, gsk_haggle);
+			if (!IS_SET(pe->flags, PRACTICE_ENTRY_NO_HAGGLE))
+			{
+				int roll;
+
+				// Haggle silver
+				if (silver > 0 && (roll = number_percent()) < haggle)
+				{
+					silver -= (silver * roll) / 200;
+					silver = UMAX(silver, 1);
+					haggled = true;
+				}
+
+				// Haggle practices
+				if (practices > 0 && (roll = number_percent()) < haggle)
+				{
+					practices -= (practices * roll) / 200;
+					practices = UMAX(practices, 1);
+					haggled = true;
+				}
+
+				// Haggle trains
+				if (trains > 0 && (roll = number_percent()) < haggle)
+				{
+					trains -= (trains * roll) / 200;
+					trains = UMAX(trains, 1);
+					haggled = true;
+				}
+
+				// Haggle qp
+				if (qp > 0 && (roll = number_percent()) < haggle)
+				{
+					qp -= (qp * roll) / 200;
+					qp = UMAX(qp, 1);
+					haggled = true;
+				}
+
+				// Haggle dp
+				if (dp > 0 && (roll = number_percent()) < haggle)
+				{
+					dp -= (dp * roll) / 200;
+					dp = UMAX(dp, 1);
+					haggled = true;
+				}
+
+				// Haggle pnuema
+				if (pneuma > 0 && (roll = number_percent()) < haggle)
+				{
+					pneuma -= (pneuma * roll) / 200;
+					pneuma = UMAX(pneuma, 1);
+					haggled = true;
+				}
+
+				// Haggle reputation
+				if (points > 0 && (roll = number_percent()) < haggle)
+				{
+					points -= (points * roll) / 200;
+					points = UMAX(points, 1);
+					haggled = true;
+				}
+
+				// Haggle paragon levels
+				if (levels > 0 && (roll = number_percent()) < haggle)
+				{
+					levels -= (levels * roll) / 200;
+					levels = UMAX(levels, 1);
+					haggled = true;
+				}
+			}
+
+			bool success = true;
+			BUFFER *buffer = new_buf();
+
+			if (money < silver)
+			{
+				success = false;
+				// You need XYZ silver
+				long s = silver % 100;
+				long g = silver / 100;
+
+				if (g > 0)
+				{
+					if (s > 0)
+						add_buf(buffer, formatf("You need {Y%ld{x gold and {Y%ld{x silver.\n\r", g, s));
+					else
+						add_buf(buffer, formatf("You need {Y%ld{x gold.\n\r", g));
+				}
+				else
+					add_buf(buffer, formatf("You need {Y%ld{x silver.\n\r", s));
+			}
+
+			if (ch->practice < practices)
+			{
+				success = false;
+				add_buf(buffer, formatf("You need {Y%ld{x practices.\n\r", practices));
+			}
+
+			if (ch->train < trains)
+			{
+				success = false;
+				add_buf(buffer, formatf("You need {Y%ld{x trains.\n\r", trains));
+			}
+
+			if (ch->questpoints < qp)
+			{
+				success = false;
+				add_buf(buffer, formatf("You need {Y%ld{x quest points.\n\r", qp));
+			}
+
+			if (ch->deitypoints < dp)
+			{
+				success = false;
+				add_buf(buffer, formatf("You need {Y%ld{x deity points.\n\r", dp));
+			}
+
+			if (ch->pneuma < pneuma)
+			{
+				success = false;
+				add_buf(buffer, formatf("You need {Y%ld{x pneuma.\n\r", pneuma));
+			}
+
+
+			if (IS_VALID(rep))
+			{
+				if (rep->reputation < points)
+				{
+					success = false;
+					if (IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))
+						add_buf(buffer, formatf("You need {Y%ld{x reputation in {Y%s ({x%ld{Y#{x%ld{Y}){x.\n\r",
+							points, pe->reputation->name, pe->reputation->area->uid, pe->reputation->vnum));
+					else
+						add_buf(buffer, formatf("You need {Y%ld{x reputation in {Y%s{x.\n\r", points, pe->reputation->name));
+				}
+
+				if (rep->paragon_level < levels)
+				{
+					success = false;
+					if (IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))
+						add_buf(buffer, formatf("You need {Y%ld{x paragon levels in {Y%s ({x%ld{Y#{x%ld{Y}){x.\n\r",
+							levels, pe->reputation->name, pe->reputation->area->uid, pe->reputation->vnum));
+					else
+						add_buf(buffer, formatf("You need {Y%ld{x paragon levels in {Y%s{x.\n\r", levels, pe->reputation->name));
+				}
+			}
+			else if(IS_VALID(pe->reputation))
+			{
+				success = false;
+				if (IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))
+					add_buf(buffer, formatf("You need {Y%s ({x%ld{Y#{x%ld{Y}){x reputation.\n\r",
+						pe->reputation->name, pe->reputation->area->uid, pe->reputation->vnum));
+				else
+					add_buf(buffer, formatf("You need {Y%s{x reputation.\n\r", pe->reputation->name));
+			}
+
+			if (success)
+			{
+				if( silver > 0 )
+				{
+					deduct_cost(ch,silver);
+					long g = silver / 100;
+					long s = silver % 100;
+
+					mob->gold += g;
+					mob->silver += s;
+
+					if (g > 0)
+					{
+						if (s > 0)
+							add_buf(buffer, formatf("You paid {Y%ld{x gold and {Y%ld{x silver.\n\r", g, s));
+						else
+							add_buf(buffer, formatf("You paid {Y%ld{x gold.\n\r", g));
+					}
+					else
+						add_buf(buffer, formatf("You paid {Y%ld{x silver.\n\r", s));
+				}
+
+				if (practices > 0)
+				{
+					ch->practice -= practices;
+					add_buf(buffer, formatf("You paid {Y%ld{x practices.\n\r", practices));
+				}
+
+				if (trains > 0)
+				{
+					ch->train -= trains;
+					add_buf(buffer, formatf("You paid {Y%ld{x trains.\n\r", trains));
+				}
+
+				if( qp > 0 )
+				{
+					ch->questpoints -= qp;
+					add_buf(buffer, formatf("You paid {Y%ld{x quest points.\n\r", qp));
+				}
+
+				if( dp > 0 )
+				{
+					ch->deitypoints -= dp;
+					add_buf(buffer, formatf("You paid {Y%ld{x deity points.\n\r", dp));
+				}
+
+				if( pneuma > 0 )
+				{
+					ch->pneuma -= pneuma;
+					add_buf(buffer, formatf("You paid {Y%ld{x pneuma.\n\r", pneuma));
+				}
+
+				if (IS_VALID(rep))
+				{
+					if (points > 0)
+					{
+						rep->reputation -= points;
+						add_buf(buffer, formatf("You paid {Y%ld{x reputation in {Y%s{x.\n\r", points, pe->reputation->name));
+					}
+
+					if (levels > 0)
+					{
+						rep->paragon_level -= levels;
+						add_buf(buffer, formatf("You paid {Y%ld{x paragon levels in {Y%s{x.\n\r", levels, pe->reputation->name));
+					}
+				}
+			}
+
+			if (haggled)
+			{
+				act("You haggle with $N.",ch,mob, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+				check_improve(ch, gsk_haggle, success, 5);
+			}
+			send_to_char(buffer->string, ch);
+
+			free_buf(buffer);
+
+			if (!entry)
+			{
+				TOKEN_DATA *token = NULL;
+				if (pe->skill->token)
+					token = give_token(pe->skill->token, ch, NULL, NULL);
+
+				if (is_skill_spell(pe->skill))
+					entry = skill_entry_addspell(ch, pe->skill, token, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+				else
+					entry = skill_entry_addskill(ch, pe->skill, token, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+			}
+				
+			entry->rating += learn;
+			if (IS_IMMORTAL(ch))
+			{
+				send_to_char(formatf("Acquired %d rating points.\n\r", learn), ch);
+			}
+
+			if (entry->rating < pe->max_rating) {
+				act("You practice $T from $N.", ch, mob, NULL, NULL, NULL, NULL, pe->skill->name, TO_CHAR);
+				act("$n practices $T from $N.", ch, mob, NULL, NULL, NULL, NULL, pe->skill->name, TO_ROOM);
+			} else {
+				entry->rating = pe->max_rating;
+				act("{WYou have learned all you can from $N about $T.{x", ch, mob, NULL, NULL, NULL, NULL, pe->skill->name, TO_CHAR);
+				act("{W$n has learned all $e can from $N about $T.{x", ch, mob, NULL, NULL, NULL, NULL, pe->skill->name, TO_ROOM);
+			}
+		}
+	}
+	else
+	{
+		send_to_char("You can't practice that.\n\r", ch);
+		return;
+	}
+
+#if 0	
 
 	entry = skill_entry_findname(ch->sorted_skills, arg);
 	if( !entry )
@@ -2674,6 +3693,7 @@ void do_practice( CHAR_DATA *ch, char *argument )
 			act("{W$n is now learned at $T.{x", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_ROOM);
 		}
 	}
+#endif
 #endif
 }
 

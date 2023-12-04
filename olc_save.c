@@ -1515,6 +1515,7 @@ void save_practice_entry_data(FILE *fp, PRACTICE_ENTRY_DATA *data, AREA_DATA *ar
 	if (IS_VALID(data->reputation))
 		fprintf(fp, "Reputation %s %d %d\n", widevnum_string(data->reputation->area, data->reputation->vnum, area), data->min_reputation_rank, data->max_reputation_rank);
 
+	fprintf(fp, "Flags %s\n", print_flags(data->flags));
 	fprintf(fp, "MaxRating %d\n", data->max_rating);
 
 	if (data->check_script)
@@ -5007,6 +5008,7 @@ PRACTICE_ENTRY_DATA *read_practice_entry_data(FILE *fp, AREA_DATA *area)
 				PRACTICE_COST_DATA *cost = read_practice_cost_data(fp, area);
 
 				list_appendlink(data->costs, cost);
+				cost->entry = data;
 
 				fMatch = true;
 				break;
@@ -5015,6 +5017,10 @@ PRACTICE_ENTRY_DATA *read_practice_entry_data(FILE *fp, AREA_DATA *area)
 
 		case 'C':
 			KEY("CheckScript", data->check_script_load, fread_widevnum(fp, area->uid));
+			break;
+
+		case 'F':
+			KEY("Flags", data->flags, fread_flag(fp));
 			break;
 
 		case 'M':

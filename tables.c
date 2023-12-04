@@ -3976,18 +3976,9 @@ const struct flag_type reputation_rank_flags[] =
     { NULL,                 0,                      FALSE }
 };
 
-const struct flag_type practice_cost_types[] =
+const struct flag_type practice_entry_flags[] =
 {
-    { "silver",             PRACTICE_COST_SILVER,       TRUE    },
-    { "practice",           PRACTICE_COST_PRACTICE,     TRUE    },
-    { "train",              PRACTICE_COST_TRAIN,        TRUE    },
-    { "quest",              PRACTICE_COST_QUEST,        TRUE    },
-    { "deity",              PRACTICE_COST_DEITY,        TRUE    },
-    { "pneuma",             PRACTICE_COST_PNEUMA,       TRUE    },
-    { "reputation",         PRACTICE_COST_REPUTATION,   TRUE    },
-    { "paragon",            PRACTICE_COST_PARAGON,      TRUE    },
-    { "object",             PRACTICE_COST_OBJECT,       TRUE    },
-    { "custom",             PRACTICE_COST_CUSTOM,       TRUE    },
-    { NULL,                 0,                          FALSE  }
+    { "no_haggle",          PRACTICE_ENTRY_NO_HAGGLE,       TRUE  },
+    { NULL,                 0,                              FALSE }
 };
 

@@ -115,7 +115,6 @@ const struct flag_stat_type flag_stat_table[] =
     {   song_flags,                 FALSE   },
     {   song_target_types,          TRUE    },
     {   reputation_rank_flags,      FALSE   },
-    {   practice_cost_types,        TRUE    },
     {	0,							0		}
 };
 

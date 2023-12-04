@@ -414,7 +414,7 @@ extern const struct flag_type song_flags[];
 extern const struct flag_type reputation_flags[];
 extern const struct flag_type reputation_rank_flags[];
 
-extern const struct flag_type practice_cost_types[];
+extern const struct flag_type practice_entry_flags[];
 
 #endif
 

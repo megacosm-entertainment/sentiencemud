@@ -6556,6 +6556,12 @@ PRACTICE_ENTRY_DATA *copy_practice_entry_data(PRACTICE_ENTRY_DATA *src)
     data->max_rating = src->max_rating;
 
     data->costs = list_copy(src->costs);
+    ITERATOR it;
+    PRACTICE_COST_DATA *cost;
+    iterator_start(&it, data->costs);
+    while((cost = (PRACTICE_COST_DATA *)iterator_nextdata(&it)))
+        cost->entry = data;
+    iterator_stop(&it);
 
     data->check_script = src->check_script;
 

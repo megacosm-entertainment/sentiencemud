@@ -661,6 +661,56 @@ int get_colour_width(char *text)
 	return (len - plen);
 }
 
+char *strip_colors( const char *string )
+{
+	static char _buf[4][MSL];
+	static int j = 0;
+
+	int i,n;
+
+	if( string[0] == '\0' )
+		return &str_empty[0];
+
+	j = (j + 1) % 4;
+	char *buf = &_buf[j][0];
+
+	int len = strlen(string);
+
+	for (i = 0, n = 0; i < len && string[i] != '\0';) {
+		if( string[i] == '{' )
+		{
+			if( string[i+1] == '{' )		// Double {{ becomes { when processed, but still counts as two
+			{
+				buf[n++] = '{';
+				buf[n++] = '{';
+			}
+
+			i+=2;
+		}
+		else if (string[i] == '`')
+		{
+			if (string[i+1] == '[')
+				i+= 7;
+			else if(string[i+1] == '`')	// Double `` becomes ` when processed, but still counts as two
+			{
+				buf[n++] = '`';
+				buf[n++] = '`';
+				i+= 2;
+			}
+			else
+			{
+				i+= 2;
+			}
+		}
+		else
+			buf[n++] = string[i++];
+	}
+
+	buf[n] = '\0';
+
+	return buf;
+
+}
 
 /* return a string without colour codes- {x {Y etc. */
 char *nocolour( const char *string )
