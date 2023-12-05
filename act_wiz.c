@@ -5335,7 +5335,7 @@ void do_songset(CHAR_DATA *ch, char *argument)
     char arg3[MAX_INPUT_LENGTH];
     char buf[MSL];
     CHAR_DATA *victim;
-    bool state;
+    int value;
     SONG_DATA *song;
     bool fAll;
 
@@ -5346,8 +5346,8 @@ void do_songset(CHAR_DATA *ch, char *argument)
     if (arg1[0] == '\0' || arg2[0] == '\0' || arg3[0] == '\0')
     {
 		send_to_char("Syntax:\n\r",ch);
-		send_to_char("  set song <name> <song name> <learned|unlearned>\n\r", ch);
-		send_to_char("  set song <name> all <learned|unlearned>\n\r",ch);
+		send_to_char("  set song <name> <song name> <value>\n\r", ch);
+		send_to_char("  set song <name> all <value>\n\r",ch);
 		return;
     }
 
@@ -5372,15 +5372,21 @@ void do_songset(CHAR_DATA *ch, char *argument)
 		return;
     }
 
-	if (!str_prefix(arg3, "learned"))
-		state = true;
-	else if (!str_prefix(arg3, "unlearned"))
-		state = false;
-	else
-	{
-		send_to_char("Please specify either {Wlearned{x or {Dunlearned{x.\n\r", ch);
+    /*
+     * Get the value.
+     */
+    if (!is_number(arg3))
+    {
+		send_to_char("Value must be numeric.\n\r", ch);
 		return;
-	}
+    }
+
+    value = atoi(arg3);
+    if (value < 0 || value > 100)
+    {
+		send_to_char("Value range is 0 to 100.\n\r", ch);
+		return;
+    }
 
     if (fAll)
     {
@@ -5389,7 +5395,7 @@ void do_songset(CHAR_DATA *ch, char *argument)
 		while((song = (SONG_DATA *)iterator_nextdata(&it)))
 		{
 			SKILL_ENTRY *entry = skill_entry_findsong(victim->sorted_songs, song);
-			if (state)
+			if (value > 0)
 			{
 				if (!entry)
 				{
@@ -5397,8 +5403,10 @@ void do_songset(CHAR_DATA *ch, char *argument)
 					if (song->token)
 						token = give_token(song->token, victim, NULL, NULL);
 
-					skill_entry_addsong(victim, song, token, SKILLSRC_NORMAL);
+					entry = skill_entry_addsong(victim, song, token, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
 				}
+
+				entry->rating = value;
 			}
 			else if (entry)
 			{
@@ -5410,7 +5418,7 @@ void do_songset(CHAR_DATA *ch, char *argument)
     else
 	{
 		SKILL_ENTRY *entry = skill_entry_findsong(victim->sorted_songs, song);
-		if (state)
+		if (value > 0)
 		{
 			if (!entry)
 			{
@@ -5418,8 +5426,10 @@ void do_songset(CHAR_DATA *ch, char *argument)
 				if (song->token)
 					token = give_token(song->token, victim, NULL, NULL);
 
-				skill_entry_addsong(victim, song, token, SKILLSRC_NORMAL);
+				entry = skill_entry_addsong(victim, song, token, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
 			}
+
+			entry->rating = value;
 		}
 		else
 		{
@@ -5428,9 +5438,9 @@ void do_songset(CHAR_DATA *ch, char *argument)
 	}
 
     if (!fAll)
-		sprintf(buf, "Set %s's \"{W%s{x\" song to %s{x\n\r", victim->name, song->name, (state ? "{Wlearned" : "{Dunlearned"));
+		sprintf(buf, "Set %s's \"{W%s{x\" song to %d%%{x\n\r", victim->name, song->name, value);
     else
-		sprintf(buf, "Set all of %s's songs to %s{x\n\r", victim->name, (state ? "{Wlearned" : "{Dunlearned"));
+		sprintf(buf, "Set all of %s's songs to %d%%{x\n\r", victim->name, value);
 
     send_to_char(buf, ch);
 }

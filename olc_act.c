@@ -15027,8 +15027,6 @@ MEDIT(medit_show)
 					{
 						type = "Song";
 						name = entry->song->name;
-						strcpy(maxrating, "--- ");
-						strcpy(ratings, "---");
 					}
 					else if(entry->skill)
 					{
@@ -15038,28 +15036,29 @@ MEDIT(medit_show)
 							type = "Skill";
 						name = entry->skill->name;
 
-						int pr = 0;
-						sprintf(maxrating, "%3d{W%%{x", entry->max_rating);
-
-						// Tally up the rating points.
-						iterator_start(&pcit, entry->costs);
-						while((cost = (PRACTICE_COST_DATA *)iterator_nextdata(&pcit)))
-						{
-							if (pr > 0)
-							{
-								ratings[pr++] = ',';
-								ratings[pr++] = ' ';
-							}
-							if (cost->min_rating > 0)
-								pr += sprintf(&ratings[pr], "%d{W%%{x", cost->min_rating);
-							else
-								pr += sprintf(&ratings[pr], "{Wacquire{x");
-						}
-						ratings[pr] = '\0';
-						iterator_stop(&pcit);
 					}
 					else
 						continue;
+
+					int pr = 0;
+					sprintf(maxrating, "%3d{W%%{x", entry->max_rating);
+
+					// Tally up the rating points.
+					iterator_start(&pcit, entry->costs);
+					while((cost = (PRACTICE_COST_DATA *)iterator_nextdata(&pcit)))
+					{
+						if (pr > 0)
+						{
+							ratings[pr++] = ',';
+							ratings[pr++] = ' ';
+						}
+						if (cost->min_rating > 0)
+							pr += sprintf(&ratings[pr], "%d{W%%{x", cost->min_rating);
+						else
+							pr += sprintf(&ratings[pr], "{Wacquire{x");
+					}
+					ratings[pr] = '\0';
+					iterator_stop(&pcit);
 
 					sprintf(buf, "[%3d]   %-5s   %-20s      %s      %s\n\r", ++iEntry,
 						type, name,
@@ -17517,6 +17516,7 @@ MEDIT(medit_act)
 			TOGGLE_BIT(pMob->act[0], bits[0]);
 			TOGGLE_BIT(pMob->act[1], bits[1]);
 			SET_BIT(pMob->act[0], ACT_IS_NPC);	// Force on, all the time
+			REMOVE_BIT(pMob->act[0], ACT_PRACTICE);
 
 			send_to_char("Act flag toggled.\n\r", ch);
 			return TRUE;
@@ -18453,6 +18453,7 @@ static void __practice_add_entry(PRACTICE_DATA *data, SKILL_DATA *skill, SONG_DA
 	entry->reputation = NULL;
 
 	__insert_practice_entry(data, entry);
+	/*
 
 	if (IS_VALID(song))
 	{
@@ -18461,7 +18462,8 @@ static void __practice_add_entry(PRACTICE_DATA *data, SKILL_DATA *skill, SONG_DA
 		cost->entry = entry;
 
 		__insert_entry_cost(entry, cost);
-	}					
+	}
+	*/					
 }
 
 static bool __practice_has_entry(PRACTICE_DATA *data, SKILL_DATA *skill, SONG_DATA *song)
@@ -18740,12 +18742,6 @@ MEDIT (medit_practice)
 							return false;
 						}
 
-						if (IS_VALID(entry->song))
-						{
-							send_to_char("Cannot add anymore cost points for song entries.\n\r", ch);
-							return false;
-						}
-
 						int min_rating;
 						if (!str_prefix(argument, "acquire"))
 							min_rating = 0;
@@ -18771,12 +18767,6 @@ MEDIT (medit_practice)
 					}
 					else if (!str_prefix(arg, "clear"))
 					{
-						if (IS_VALID(entry->song))
-						{
-							send_to_char("Cannot clear cost list for song entries.\n\r", ch);
-							return false;
-						}
-
 						list_clear(entry->costs);
 						send_to_char("Cost points cleared.\n\r", ch);
 						return true;
@@ -18989,12 +18979,6 @@ MEDIT (medit_practice)
 
 						if (!str_prefix(arg, "remove"))
 						{
-							if (IS_VALID(entry->song))
-							{
-								send_to_char("Cannot remove any cost points for song entries.\n\r", ch);
-								return false;
-							}
-
 							list_remnthlink(entry->costs, cindex);
 							free_practice_cost_data(cost);
 

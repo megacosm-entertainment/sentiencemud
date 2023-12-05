@@ -4294,7 +4294,8 @@ struct	char_data
     OBJ_DATA		*recite_scroll;
     OBJ_DATA 		*resurrect_target;
     char			*music_target;
-    SONG_DATA       *song;
+    SKILL_ENTRY     *song;
+
     SCRIPT_DATA		*song_script;		/* The scripted spell to be done */
     TOKEN_DATA		*song_token;		/* The token from which the script call is made */
     int				song_mana;
@@ -7231,6 +7232,7 @@ struct song_data
     sh_int mana;
     sh_int target;
     sh_int beats;
+    sh_int rating;
 };
 
 struct music_type
@@ -9955,7 +9957,7 @@ void write_permanent_objs ( );
 void fwrite_token(TOKEN_DATA *token, FILE *fp);
 void fwrite_skills(CHAR_DATA *ch, FILE *fp);
 TOKEN_DATA *fread_token(FILE *fp);
-void fread_skill(FILE *fp, CHAR_DATA *ch);
+void fread_skill(FILE *fp, CHAR_DATA *ch, bool is_song);
 void fwrite_quest_part(FILE *fp, QUEST_PART_DATA *part);
 QUEST_PART_DATA *fread_quest_part(FILE *fp);
 
@@ -9964,7 +9966,9 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp);
 /* skills.c */
 long 	exp_per_level	args( ( CHAR_DATA *ch, long points ) );
 void 	check_improve	args( ( CHAR_DATA *ch, SKILL_DATA *skill, bool success, int multiplier ) );
+void    check_improve_song	args( ( CHAR_DATA *ch, SONG_DATA *song, bool success, int multiplier ) );
 void check_improve_show( CHAR_DATA *ch, SKILL_DATA *skill, bool success, int multiplier, bool show );
+void    check_improve_song_show	args( ( CHAR_DATA *ch, SONG_DATA *song, bool success, int multiplier, bool show ) );
 SKILL_GROUP *group_lookup	args( (const char *name) );
 void	gn_add		args( ( CHAR_DATA *ch, SKILL_GROUP *group) );
 void 	gn_remove	args( ( CHAR_DATA *ch, SKILL_GROUP *group) );
@@ -10416,7 +10420,7 @@ SKILL_ENTRY *skill_entry_findtoken( SKILL_ENTRY *list, TOKEN_DATA *token );
 SKILL_ENTRY *skill_entry_findtokenindex( SKILL_ENTRY *list, TOKEN_INDEX_DATA *token_index );
 SKILL_ENTRY *skill_entry_addskill (CHAR_DATA *ch, SKILL_DATA *skill, TOKEN_DATA *token, char source, long flags);
 SKILL_ENTRY *skill_entry_addspell (CHAR_DATA *ch, SKILL_DATA *skill, TOKEN_DATA *token, char source, long flags);
-SKILL_ENTRY *skill_entry_addsong (CHAR_DATA *ch, SONG_DATA *song, TOKEN_DATA *token, char source);
+SKILL_ENTRY *skill_entry_addsong (CHAR_DATA *ch, SONG_DATA *song, TOKEN_DATA *token, char source, long flags);
 void skill_entry_remove (SKILL_ENTRY **list, SKILL_DATA *skill, SONG_DATA *song, TOKEN_DATA *token, bool isspell);
 void skill_entry_removeentry (SKILL_ENTRY **list, SKILL_ENTRY *entry);
 void skill_entry_removeskill (CHAR_DATA *ch, SKILL_DATA *skill);

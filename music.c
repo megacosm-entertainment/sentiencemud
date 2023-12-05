@@ -83,7 +83,7 @@ bool validate_song_target(CHAR_DATA *ch,int type,char *arg, int *targ, CHAR_DATA
 
 		if (!victim) {
 			if (!arg[0])
-				send_to_char("PLay it on whom?\n\r", ch);
+				send_to_char("Play it on whom?\n\r", ch);
 			else
 				send_to_char("They aren't here.\n\r", ch);
 			return false;
@@ -252,12 +252,14 @@ void do_play(CHAR_DATA *ch, char *argument)
 		{
 			BUFFER *buffer = new_buf();
 			add_buf(buffer, "You know the following songs: \n\r\n\r");
-			add_buf(buffer, "{YSong Title                            Level         Mana{x\n\r");
-			add_buf(buffer, "{Y---------------------------------------------------------{x\n\r");
+			add_buf(buffer, "{YSong Title                            Level         Mana        Rating{x\n\r");
+			add_buf(buffer, "{Y-----------------------------------------------------------------------{x\n\r");
 
 			for(entry = ch->sorted_songs; entry; entry = entry->next)
 			{
-				sprintf(buf, "%-30s %10d %13d\n\r", entry->song->name, entry->song->level, entry->song->mana);
+				// the 18s takes into account the four characters in the color codes.
+				sprintf(buf, "%-30s %10d %13d %18s\n\r", entry->song->name, entry->song->level, entry->song->mana,
+					((entry->rating < 100) ? formatf("{Y%d%%{x", entry->rating) : "{MMaster{x"));
 				add_buf(buffer, buf);
 			}
 			page_to_char(buf_string(buffer), ch);
@@ -438,7 +440,7 @@ void do_play(CHAR_DATA *ch, char *argument)
 	}
 
 	// Setup targets.
-	ch->song = entry->song;
+	ch->song = entry;
 	ch->song_token = IS_VALID(entry->token) ? entry->token : NULL;
 	ch->song_script = script;
 	ch->song_mana = mana;
@@ -489,24 +491,54 @@ void music_end( CHAR_DATA *ch )
 	int type;
 	bool offensive = FALSE;
 
-	if (ch->song_instrument == NULL)
+	int chance = get_skill(ch, gsk_music) * ch->song->rating;
+
+	if (chance < number_range(0, 9999))
 	{
-    	act( "{YYou finish singing your song.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-    	act( "{Y$n finishes $s song.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		// Failed
+		if (ch->song_instrument == NULL)
+		{
+			act( "{YYou mispronounce a word while singing your song.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act( "{Y$n mispronounces a word while singing $s song.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		}
+		else
+		{
+			act( "{YYou play an incorrect note on $p{Y.{x", ch, NULL, NULL, ch->song_instrument, NULL, NULL, NULL, TO_CHAR);
+			act( "{Y$n plays an incorrect note on $p{Y.{x", ch, NULL, NULL, ch->song_instrument, NULL, NULL, NULL, TO_ROOM);
+		}
+		
+		check_improve_song(ch, ch->song->song, false, 5);
+		check_improve(ch, gsk_music, false, 5);
+
+		free_string(ch->music_target);
+		ch->music_target = NULL;
+		ch->song_token = NULL;
+		ch->song_script = NULL;
+		ch->song = NULL;
+		ch->song_instrument = NULL;
+		return;
 	}
 	else
 	{
-    	act( "{YYou finish playing your song on $p{Y.{x", ch, NULL, NULL, ch->song_instrument, NULL, NULL, NULL, TO_CHAR);
-    	act( "{Y$n finishes $s song on $p{Y.{x", ch, NULL, NULL, ch->song_instrument, NULL, NULL, NULL, TO_ROOM);
+		if (ch->song_instrument == NULL)
+		{
+			act( "{YYou finish singing your song.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act( "{Y$n finishes $s song.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		}
+		else
+		{
+			act( "{YYou finish playing your song on $p{Y.{x", ch, NULL, NULL, ch->song_instrument, NULL, NULL, NULL, TO_CHAR);
+			act( "{Y$n finishes $s song on $p{Y.{x", ch, NULL, NULL, ch->song_instrument, NULL, NULL, NULL, TO_ROOM);
+		}
 	}
 
 	if(ch->song_token) {
 		token = ch->song_token;
 	}
 
-	song = ch->song;
-	type = ch->song->target;
-	mana = ch->song->mana;
+	song = ch->song->song;
+	type = song->target;
+	mana = song->mana;
 	offensive = (type == TAR_CHAR_OFFENSIVE || type == TAR_OBJ_CHAR_OFF);
 
 	// TODO: Handle instrument modification of mana costs
@@ -579,7 +611,8 @@ void music_end( CHAR_DATA *ch )
 		ch->song_instrument = NULL;
 	}
 
-    check_improve(ch, gsk_music, TRUE, 2);
+	check_improve_song(ch, song, true, 2);
+	check_improve(ch, gsk_music, true, 2);
 }
 
 
@@ -621,6 +654,7 @@ void save_song(FILE *fp, SONG_DATA *song)
 	fprintf(fp, "Mana %d\n", song->mana);
 	fprintf(fp, "Target %s~\n", flag_string(song_target_types, song->target));
 	fprintf(fp, "Flags %s\n", print_flags(song->flags));
+	fprintf(fp, "Rating %d\n", song->rating);
 
 	if (song->token)
 	{
@@ -709,6 +743,10 @@ SONG_DATA *load_song(FILE *fp)
 					fMatch = true;
 					break;
 				}
+				break;
+
+			case 'R':
+				KEY("Rating", song->rating, fread_number(fp));
 				break;
 
 			case 'S':
@@ -1001,6 +1039,7 @@ SONGEDIT( songedit_show )
 	olc_buffer_show_string(ch, buffer, formatf("%d", song->level), "level", "Level:", 20, "xDW");
 	olc_buffer_show_string(ch, buffer, formatf("%d", song->beats), "beats", "Beats:", 20, "xDW");
 	olc_buffer_show_string(ch, buffer, formatf("%d", song->mana), "mana", "Mana:", 20, "xDW");
+	olc_buffer_show_string(ch, buffer, formatf("%d", song->rating), "difficulty", "Difficulty:", 20, "xDW");
 
 	olc_buffer_show_flags_ex(ch, buffer, song_flags, song->flags, "flags", "Flags:", 77, 20, 5, "xxYyCcD");
 	olc_buffer_show_flags_ex(ch, buffer, song_target_types, song->target, "target", "Target:", 77, 20, 5, "xxYyCcD");
@@ -1331,6 +1370,25 @@ SONGEDIT( songedit_flags )
 	return true;
 }
 
+SONGEDIT( songedit_difficulty )
+{
+	SONG_DATA *song;
+
+	EDIT_SONG(ch, song);
+
+	int difficulty;
+	if (!is_number(argument) || (difficulty = atoi(argument)) < 1)
+	{
+		send_to_char("Syntax:  songedit difficulty {R<difficulty>{x\n\r", ch);
+		send_to_char("Please specify a positive number.\n\r", ch);
+		return false;
+	}
+
+	song->rating = difficulty;
+	send_to_char("Song difficulty set.\n\r", ch);
+	return true;
+}
+
 SONGEDIT( songedit_level )
 {
 	char buf[MSL];
@@ -1409,4 +1467,76 @@ SONGEDIT( songedit_target )
 	song->target = value;
 	send_to_char("Song target set.\n\r", ch);
 	return true;
+}
+
+void check_improve_song_show( CHAR_DATA *ch, SONG_DATA *song, bool success, int multiplier, bool show )
+{
+    int chance;
+    char buf[100];
+    SKILL_ENTRY *entry;
+
+    if (IS_NPC(ch))
+		return;
+
+    if (IS_SOCIAL(ch))
+		return;
+
+	entry = skill_entry_findsong(ch->sorted_songs, song);
+	if(!entry)
+		return;
+
+	if(!IS_SET(entry->flags, SKILL_IMPROVE))
+		return;
+
+	if (!IS_IMMORTAL(ch) && ch->pcdata->sub_class_thief != CLASS_THIEF_BARD)
+		return;
+
+    if (entry->rating <= 0 || entry->rating == 100)
+		return;
+
+	int diff = (song->rating > 0) ? song->rating : 10;
+
+    // check to see if the character has a chance to learn
+    chance      = 10 * int_app[get_curr_stat(ch, STAT_INT)].learn;
+    multiplier  = UMAX(multiplier,1);
+    chance     /= (multiplier * diff * 2);	// Songs should be easier than skills
+    chance     += ch->level;
+
+	//if (IS_IMMORTAL(ch))
+	//{
+	//	send_to_char(formatf("chance = %d, success = %s\n\r", chance, success?"true":"false"), ch);
+	//}
+
+    if (number_range(1,1000) > chance)
+		return;
+
+    // now that the character has a CHANCE to learn, see if they really have
+    if (success)
+    {
+		chance = URANGE(2, 100 - entry->rating, 25);
+		if (number_percent() < chance)
+		{
+			sprintf(buf,"{WYou have become better at %s!{x\n\r", song->name);
+			send_to_char(buf,ch);
+			entry->rating++;
+			gain_exp(ch, 2 * diff);
+		}
+    }
+    else
+    {
+		chance = URANGE(5, entry->rating/2, 30);
+		if (number_percent() < chance)
+		{
+			sprintf(buf, "{WYou learn from your mistakes, and your %s skill improves.{x\n\r", song->name);
+			send_to_char(buf, ch);
+			entry->rating += number_range(1,3);
+			entry->rating = UMIN(entry->rating,100);
+			gain_exp(ch,diff);
+		}
+    }
+}
+
+void check_improve_song( CHAR_DATA *ch, SONG_DATA *song, bool success, int multiplier )
+{
+	check_improve_song_show( ch, song, success, multiplier, true );
 }

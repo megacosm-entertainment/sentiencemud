@@ -552,7 +552,7 @@ const struct flag_type act_flags[] =
     {	"wimpy",				ACT_WIMPY,				TRUE	},
     {	"pet",					ACT_PET,				TRUE	},
     {	"train",				ACT_TRAIN,				TRUE	},
-    {	"practice",				ACT_PRACTICE,			TRUE	},
+    {	"practice",				ACT_PRACTICE,			FALSE	},
     {	"blacksmith",			ACT_BLACKSMITH,			TRUE	},
     {	"crew_seller",			ACT_CREW_SELLER,		TRUE	},
     {   "no_lore",				ACT_NO_LORE,			TRUE	},

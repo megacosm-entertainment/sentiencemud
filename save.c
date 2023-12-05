@@ -881,8 +881,10 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 				token_to_char(token, ch);
 			} else if (!str_cmp(word, "REPUTATION")) {
 				fread_reputation(fp, ch);
-			} else if (!str_cmp(word, "SKILL")) {
-				fread_skill(fp, ch);
+			} else if (!str_cmp(word, "SKILLENTRY")) {
+				fread_skill(fp, ch, false);
+			} else if (!str_cmp(word, "SONGENTRY")) {
+				fread_skill(fp, ch, true);
 			} else if (!str_cmp(word, "END"))
 				break;
 			else {
@@ -6113,51 +6115,28 @@ TOKEN_DATA *fread_token(FILE *fp)
 
 void fwrite_skill(CHAR_DATA *ch, SKILL_ENTRY *entry, FILE *fp)
 {
-		fprintf(fp, "#SKILL\n");
-		switch(entry->source) {
-		case SKILLSRC_SCRIPT:		fprintf(fp, "TypeScript\n"); break;
-		case SKILLSRC_SCRIPT_PERM:	fprintf(fp, "TypeScriptPerm\n"); break;
-		case SKILLSRC_AFFECT:		fprintf(fp, "TypeAffect\n"); break;
-		// Normal is default
-		}
-
-		// Only save if it's
-		if( (entry->flags & ~SKILL_SPELL) != SKILL_AUTOMATIC)
-			fprintf(fp, "Flags %s\n", flag_string( skill_entry_flags, entry->flags));
-		if( IS_VALID(entry->token) ) {
-			fwrite_token(entry->token, fp);
-		}
-
-		if( entry->skill ) {
-			fprintf(fp, "Sk %d %d %s~\n",
-				entry->rating,
-				entry->mod_rating,
-				entry->skill->name);
-		}
-
-		if( entry->song ) {
-			fprintf(fp, "Song %s~\n", entry->song->name);
-		}
-/*
-	for (sn = 0; sn < MAX_SONGS && music_table[sn].name; sn++)
-		if( ch->pcdata->songs_learned[sn] )
-			fprintf(fp, "Song '%s'\n", music_table[sn].name);
-
-	for (sn = 0; sn < MAX_SKILL && skill_table[sn].name; sn++)
-	{
-	    if (skill_table[sn].name != NULL && ch->pcdata->learned[sn] != 0)
-	    {
-		fprintf(fp, "Sk %d '%s'\n",
-		    ch->pcdata->learned[sn], skill_table[sn].name);
-	    }
-	    if (skill_table[sn].name != NULL && ch->pcdata->mod_learned[sn] != 0)
-	    {
-		fprintf(fp, "SkMod %d '%s'\n",
-		    ch->pcdata->mod_learned[sn], skill_table[sn].name);
-	    }
+	if (entry->skill)
+		fprintf(fp, "#SKILLENTRY %s~\n", entry->skill->name);
+	else if (entry->song)
+		fprintf(fp, "#SONGENTRY %s~\n", entry->song->name);
+	else
+		return;
+	switch(entry->source) {
+	case SKILLSRC_SCRIPT:		fprintf(fp, "TypeScript\n"); break;
+	case SKILLSRC_SCRIPT_PERM:	fprintf(fp, "TypeScriptPerm\n"); break;
+	case SKILLSRC_AFFECT:		fprintf(fp, "TypeAffect\n"); break;
+	// Normal is default
 	}
-*/
-		fprintf(fp, "End\n\n");
+
+	// Only save if it's
+	if( (entry->flags & ~SKILL_SPELL) != SKILL_AUTOMATIC)
+		fprintf(fp, "Flags %s\n", flag_string( skill_entry_flags, entry->flags));
+	if( IS_VALID(entry->token) ) {
+		fwrite_token(entry->token, fp);
+	}
+
+	fprintf(fp, "Rating %d %d\n", entry->rating, entry->mod_rating);
+	fprintf(fp, "End\n\n");
 }
 
 void fwrite_skills(CHAR_DATA *ch, FILE *fp)
@@ -6171,18 +6150,23 @@ void fwrite_skills(CHAR_DATA *ch, FILE *fp)
 		fwrite_skill(ch, entry, fp);
 }
 
-void fread_skill(FILE *fp, CHAR_DATA *ch)
+void fread_skill(FILE *fp, CHAR_DATA *ch, bool is_song)
 {
     TOKEN_DATA *token = NULL;
     SKILL_DATA *skill = NULL;
 	SKILL_ENTRY *entry = NULL;
     SONG_DATA *song = NULL;
     long flags = SKILL_AUTOMATIC;
-    int rating = -1, mod = 0;	// For built-in skills
+    int rating = -1, mod = 0;
     char source = SKILLSRC_NORMAL;
     char buf[MSL];
     char *word;
     bool fMatch;
+
+	if (is_song)
+		song = get_song_data(fread_string(fp));
+	else
+		skill = get_skill_data(fread_string(fp));
 
     for (; ;)
     {
@@ -6194,17 +6178,17 @@ void fread_skill(FILE *fp, CHAR_DATA *ch)
 				token_to_char(token, ch);
 
 			if( IS_VALID(song) ) {
-				skill_entry_addsong(ch, song, token, source);
+				entry = skill_entry_addsong(ch, song, token, source, flags);
 			} else if(IS_VALID(skill)) {
 				//log_stringf("Adding %s '%s' to %s", (is_skill_spell(skill)?"Spell":"Skill"), skill->name, ch->name);
 				if( is_skill_spell(skill) )
 					entry = skill_entry_addspell(ch, skill, token, source, flags);
 				else
 					entry = skill_entry_addskill(ch, skill, token, source, flags);
-
-				entry->rating = rating;
-				entry->mod_rating = mod;
 			}
+
+			entry->rating = rating;
+			entry->mod_rating = mod;
 			
 		    fMatch = TRUE;
 			return;
@@ -6223,22 +6207,14 @@ void fread_skill(FILE *fp, CHAR_DATA *ch)
 			FVKEY("Flags",	flags, fread_string_eol(fp), skill_entry_flags);
 			break;
 
-		case 'S':
-			if(IS_KEY("Sk")) {
+		case 'R':
+			if (!str_cmp(word, "Rating"))
+			{
 				rating = fread_number(fp);
 				mod = fread_number(fp);
-				
-				skill = get_skill_data(fread_string(fp));
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
-
-			if(IS_KEY("Song")) {
-				song = get_song_data(fread_string(fp));
-				fMatch = TRUE;
-				break;
-			}
-
 			break;
 
 		case 'T':

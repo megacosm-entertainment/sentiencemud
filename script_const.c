@@ -330,7 +330,7 @@ ENT_FIELD entity_mobile[] = {
 	{"room",					ENTITY_MOB_ROOM,			ENT_ROOM	},
 	{"sex",						ENTITY_MOB_SEX,				ENT_STAT	},
 	{"short",					ENTITY_MOB_SHORT,			ENT_STRING	},
-	{"song",					ENTITY_MOB_SONG,			ENT_SONG	},
+	{"song",					ENTITY_MOB_SONG,			ENT_SKILLENTRY	},
 	{"songtarget",				ENTITY_MOB_SONGTARGET,		ENT_STRING	},
 	{"songtoken",				ENTITY_MOB_SONGTOKEN,		ENT_TOKEN	},
 	{"target",					ENTITY_MOB_TARGET,			ENT_MOBILE	},
@@ -796,7 +796,7 @@ ENT_FIELD entity_skillentry[] = {
 	{ "mod",	ENTITY_SKILLENTRY_MOD_RATING,	ENT_NUMBER },
 	{ "rating",	ENTITY_SKILLENTRY_RATING,		ENT_NUMBER },
 	{ "skill",	ENTITY_SKILLENTRY_SKILL,		ENT_SKILL },
-	{ "song",	ENTITY_SKILLENTRY_SONG,			ENT_NUMBER },
+	{ "song",	ENTITY_SKILLENTRY_SONG,			ENT_SONG },
 	{ "source",	ENTITY_SKILLENTRY_SOURCE,		ENT_NUMBER },
 	{ "token",	ENTITY_SKILLENTRY_TOKEN,		ENT_TOKEN },
 	{NULL,		0,			ENT_UNKNOWN	}

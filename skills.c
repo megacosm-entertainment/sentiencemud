@@ -1670,315 +1670,217 @@ void do_train(CHAR_DATA *ch, char *argument)
     int mod_hit;
     int mod_mana;
     int mod_move;
-    int rating;
-    char *name;
-    SKILL_ENTRY *entry;
 
     if (IS_NPC(ch))
 		return;
 
 	argument = one_argument(argument, arg);
 
-	//Moving this further down to account for anything other than a valid train argument.
-/*	if( arg[0] == '\0') {
-		sprintf(buf, "You have %d training sessions.\n\r", ch->train);
-		send_to_char(buf, ch);
-		return;
-	} else*/
-	 if(!str_cmp(arg, "skill")) {
-		for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
-		{
-			if (IS_NPC(mob) && (mob->pIndexData->vnum == VNUM_QUESTOR_1
-				||  mob->pIndexData->vnum == VNUM_QUESTOR_2))
+	for (mob = ch->in_room->people; mob; mob = mob->next_in_room)
+	{
+		if (IS_NPC(mob) && IS_SET(mob->act[0], ACT_TRAIN))
 			break;
-		}
+	}
 
-		if (mob == NULL)
+	if (mob == NULL)
+	{
+		send_to_char("You can't do that here.\n\r", ch);
+		return;
+	}
+
+	if(p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRETRAIN, arg,0,0,0,0,0))
+		return;
+
+	cost = 1;
+
+	mod_hit = 0;
+	mod_mana = 0;
+	mod_move = 0;
+
+	max_hit = pc_race_table[ch->race].max_vital_stats[MAX_HIT];
+	max_mana = pc_race_table[ch->race].max_vital_stats[MAX_MANA];
+	max_move = pc_race_table[ch->race].max_vital_stats[MAX_MOVE];
+
+	for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
+	{
+		if (obj->wear_loc != WEAR_NONE)
 		{
-			send_to_char("There is nobody here to help you do that.\n\r", ch);
-			return;
-		}
-
-		// TODO: Rework
-		if (ch->tot_level < 2 * MAX_CLASS_LEVEL + 1)
-		{
-			sprintf(buf, "%s, you must be of at least the third class to do this.", pers(ch, mob));
-			do_say(mob, buf);
-			return;
-		}
-
-		entry = skill_entry_findname(ch->sorted_skills, argument);
-		if( !entry )
-		{
-			sprintf(buf, "You know nothing of that skill, %s!\n\r", pers(ch, mob));
-			do_say(mob, buf);
-			return;
-		}
-
-		if( entry->token )
-		{
-		    if(p_percent_trigger(NULL, NULL, NULL, entry->token, ch, mob, NULL, NULL, NULL, TRIG_PRETRAINTOKEN, NULL,0,0,0,0,0))
-		    {
-				send_to_char("There is nobody here to help you do that.\n\r", ch);
-				return;
-			}
-
-			/*
-			if( entry->token->value[TOKVAL_SPELL_LEARN] < 1 )
+			for (af = obj->affected; af != NULL; af = af->next)
 			{
-				send_to_char("There is nobody here to help you do that.\n\r", ch);
-				return;
+				if (af->location == APPLY_HIT)
+					mod_hit += af->modifier;
+				if (af->location == APPLY_MANA)
+					mod_mana += af->modifier;
+				if (af->location == APPLY_MOVE)
+					mod_move += af->modifier;
 			}
-			*/
 		}
+	}
 
-		name = skill_entry_name(entry);
-		rating = skill_entry_rating(ch, entry);
-		if( rating < MAX_SKILL_LEARNABLE )
+	max_hit += mod_hit;
+	max_mana += mod_mana;
+	mod_move += mod_move;
+
+	if (!str_cmp(arg, "str"))
+	{
+		if (class_table[ch->pcdata->class_current].attr_prime == STAT_STR || ch->pcdata->class_mage != -1)
+			cost    = 1;
+		stat        = STAT_STR;
+		pOutput     = "strength";
+	}
+
+	else if (!str_cmp(arg, "int"))
+	{
+		if (class_table[ch->pcdata->class_current].attr_prime == STAT_INT || ch->pcdata->class_mage != -1)
+			cost    = 1;
+		stat	    = STAT_INT;
+		pOutput     = "intelligence";
+	}
+
+	else if (!str_cmp(arg, "wis"))
+	{
+		if (class_table[ch->pcdata->class_current].attr_prime == STAT_WIS || ch->pcdata->class_cleric != -1)
+			cost    = 1;
+		stat	    = STAT_WIS;
+		pOutput     = "wisdom";
+	}
+
+	else if (!str_cmp(arg, "dex"))
+	{
+		if (class_table[ch->pcdata->class_current].attr_prime == STAT_DEX || ch->pcdata->class_thief != -1)
+			cost    = 1;
+		stat  	    = STAT_DEX;
+		pOutput     = "dexterity";
+	}
+
+	else if (!str_cmp(arg, "con"))
+	{
+		if (class_table[ch->pcdata->class_current].attr_prime == STAT_CON)
+			cost    = 1;
+		stat	    = STAT_CON;
+		pOutput     = "constitution";
+	}
+	else if (!str_cmp(arg, "hp"))
+		cost = 1;
+
+	else if (!str_cmp(arg, "mana"))
+		cost = 1;
+
+	else if (!str_cmp(arg, "move"))
+		cost = 1;
+
+	else
+	{
+		sprintf(buf, "You have %d training sessions. \n\r", ch->train);
+		send_to_char(buf,ch);
+		strcpy(buf, "You can train:");
+		if (ch->perm_stat[STAT_STR] < get_max_train(ch,STAT_STR))	strcat(buf, " str");
+		if (ch->perm_stat[STAT_INT] < get_max_train(ch,STAT_INT))	strcat(buf, " int");
+		if (ch->perm_stat[STAT_WIS] < get_max_train(ch,STAT_WIS))	strcat(buf, " wis");
+		if (ch->perm_stat[STAT_DEX] < get_max_train(ch,STAT_DEX))	strcat(buf, " dex");
+		if (ch->perm_stat[STAT_CON] < get_max_train(ch,STAT_CON))	strcat(buf, " con");
+		if (ch->max_hit < max_hit)									strcat(buf, " hp");
+		if (ch->max_mana < max_mana)								strcat(buf, " mana");
+		if (ch->max_move < max_move)								strcat(buf, " move");
+
+		if (buf[strlen(buf)-1] != ':')
 		{
-			sprintf(buf, "You must come back when you have studied this skill to the utmost through mundane means, %s.\n\r", pers(ch, mob));
-			do_say(mob, buf);
-			return;
-		}
-
-        if (rating >= MAX_SKILL_TRAINABLE)
-		{
-			sprintf(buf, "Even I can't help your mastery of %s past this point, %s.", name, pers(ch, mob));
-			do_say(mob, buf);
-			return;
-		}
-
-		cost = 3 * rating / 20;
-		if (cost <= ch->train)
-		{
-			ch->train -= cost;
-			act("$n trains $t with $N.", ch, mob, NULL, NULL, NULL, name, NULL, TO_ROOM);
-			act("You train $t with $N.", ch, mob, NULL, NULL, NULL, name, NULL, TO_CHAR);
-			act("{YYou feel your mastery of $t soaring to new heights!{x", ch, NULL, NULL, NULL, NULL, name, NULL, TO_CHAR);
-
-			entry->rating++;
-			/*
-			if( entry->token ) {
-				if( entry->token->pIndexData->value[TOKVAL_SPELL_RATING] > 0 )
-					entry->token->value[TOKVAL_SPELL_RATING] += entry->token->pIndexData->value[TOKVAL_SPELL_RATING];
-				else
-					entry->token->value[TOKVAL_SPELL_RATING]++;
-			} else
-				ch->pcdata->learned[entry->sn]++;
-			*/
+			strcat(buf, ".\n\r");
+			send_to_char(buf, ch);
 		}
 		else
 		{
-			sprintf(buf, "It would take %d trains to train that skill, %s.", cost, pers(ch, mob));
-			do_say(mob, buf);
-		}
-	} else {
-		for (mob = ch->in_room->people; mob; mob = mob->next_in_room)
-		{
-			if (IS_NPC(mob) && IS_SET(mob->act[0], ACT_TRAIN))
-				break;
+			act("You have nothing left to train.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		}
 
-		if (mob == NULL)
-		{
-			send_to_char("You can't do that here.\n\r", ch);
-			return;
-		}
-
-	    if(p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRETRAIN, arg,0,0,0,0,0))
-			return;
-
-		cost = 1;
-
-		mod_hit = 0;
-		mod_mana = 0;
-		mod_move = 0;
-
-		max_hit = pc_race_table[ch->race].max_vital_stats[MAX_HIT];
-		max_mana = pc_race_table[ch->race].max_vital_stats[MAX_MANA];
-		max_move = pc_race_table[ch->race].max_vital_stats[MAX_MOVE];
-
-		for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-		{
-			if (obj->wear_loc != WEAR_NONE)
-			{
-				for (af = obj->affected; af != NULL; af = af->next)
-				{
-					if (af->location == APPLY_HIT)
-						mod_hit += af->modifier;
-					if (af->location == APPLY_MANA)
-						mod_mana += af->modifier;
-					if (af->location == APPLY_MOVE)
-						mod_move += af->modifier;
-				}
-			}
-		}
-
-		max_hit += mod_hit;
-		max_mana += mod_mana;
-		mod_move += mod_move;
-
-		if (!str_cmp(arg, "str"))
-		{
-			if (class_table[ch->pcdata->class_current].attr_prime == STAT_STR || ch->pcdata->class_mage != -1)
-				cost    = 1;
-			stat        = STAT_STR;
-			pOutput     = "strength";
-		}
-
-		else if (!str_cmp(arg, "int"))
-		{
-			if (class_table[ch->pcdata->class_current].attr_prime == STAT_INT || ch->pcdata->class_mage != -1)
-				cost    = 1;
-			stat	    = STAT_INT;
-			pOutput     = "intelligence";
-		}
-
-		else if (!str_cmp(arg, "wis"))
-		{
-			if (class_table[ch->pcdata->class_current].attr_prime == STAT_WIS || ch->pcdata->class_cleric != -1)
-				cost    = 1;
-			stat	    = STAT_WIS;
-			pOutput     = "wisdom";
-		}
-
-		else if (!str_cmp(arg, "dex"))
-		{
-			if (class_table[ch->pcdata->class_current].attr_prime == STAT_DEX || ch->pcdata->class_thief != -1)
-				cost    = 1;
-			stat  	    = STAT_DEX;
-			pOutput     = "dexterity";
-		}
-
-		else if (!str_cmp(arg, "con"))
-		{
-			if (class_table[ch->pcdata->class_current].attr_prime == STAT_CON)
-				cost    = 1;
-			stat	    = STAT_CON;
-			pOutput     = "constitution";
-		}
-	    else if (!str_cmp(arg, "hp"))
-		    cost = 1;
-
-	    else if (!str_cmp(arg, "mana"))
-		    cost = 1;
-
-	    else if (!str_cmp(arg, "move"))
-		    cost = 1;
-
-	    else
-	    {
-			sprintf(buf, "You have %d training sessions. \n\r", ch->train);
-			send_to_char(buf,ch);
-			strcpy(buf, "You can train:");
-			if (ch->perm_stat[STAT_STR] < get_max_train(ch,STAT_STR))	strcat(buf, " str");
-			if (ch->perm_stat[STAT_INT] < get_max_train(ch,STAT_INT))	strcat(buf, " int");
-			if (ch->perm_stat[STAT_WIS] < get_max_train(ch,STAT_WIS))	strcat(buf, " wis");
-			if (ch->perm_stat[STAT_DEX] < get_max_train(ch,STAT_DEX))	strcat(buf, " dex");
-			if (ch->perm_stat[STAT_CON] < get_max_train(ch,STAT_CON))	strcat(buf, " con");
-			if (ch->max_hit < max_hit)									strcat(buf, " hp");
-			if (ch->max_mana < max_mana)								strcat(buf, " mana");
-        	if (ch->max_move < max_move)								strcat(buf, " move");
-
-			if (buf[strlen(buf)-1] != ':')
-			{
-			    strcat(buf, ".\n\r");
-			    send_to_char(buf, ch);
-			}
-			else
-			{
-			    act("You have nothing left to train.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			}
-
-			return;
-	    }
+		return;
+	}
 
 
-		if (!str_cmp(arg, "hp"))
-		{
-			if (cost > ch->train)
-			{
-				send_to_char("You don't have enough training sessions.\n\r", ch);
-				return;
-			}
-
-			if (ch->max_hit >= max_hit) {
-				send_to_char("Your body can't get any tougher.\n\r", ch);
-				return;
-			}
-
-			ch->train -= cost;
-			ch->pcdata->perm_hit += 10;
-			ch->max_hit += 10;
-			ch->hit += 10;
-			act("Your health increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-			act("$n's health increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
-			return;
-		}
-
-		if (!str_cmp(arg, "mana"))
-		{
-			if (cost > ch->train)
-			{
-				send_to_char("You don't have enough training sessions.\n\r", ch);
-				return;
-			}
-
-			if (ch->max_mana >= max_mana) {
-				send_to_char("Your body can't get any tougher.\n\r", ch);
-				return;
-			}
-
-			ch->train -= cost;
-			ch->pcdata->perm_mana += 10;
-			ch->max_mana += 10;
-			ch->mana +=10;
-			act("Your mana increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-			act("$n's mana increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
-
-			return;
-		}
-
-		if (!str_cmp(arg, "move"))
-		{
-			if (cost > ch->train)
-			{
-				send_to_char("You don't have enough training sessions.\n\r", ch);
-				return;
-			}
-
-			if (ch->max_move >= max_move) {
-				send_to_char("Your body can't get any more durable.\n\r", ch);
-				return;
-			}
-
-			ch->train -= cost;
-			ch->pcdata->perm_move += 10;
-			ch->max_move += 10;
-			ch->move += 10;
-			act("Your stamina increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-			act("$n's stamina increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
-			return;
-		}
-
-		if (ch->perm_stat[stat]  >= get_max_train(ch,stat))
-		{
-			act("Your $T is already at maximum.", ch, NULL, NULL, NULL, NULL, NULL, pOutput, TO_CHAR);
-			return;
-		}
-
+	if (!str_cmp(arg, "hp"))
+	{
 		if (cost > ch->train)
 		{
 			send_to_char("You don't have enough training sessions.\n\r", ch);
 			return;
 		}
 
-		ch->train -= cost;
-		add_perm_stat(ch, stat, 1);
+		if (ch->max_hit >= max_hit) {
+			send_to_char("Your body can't get any tougher.\n\r", ch);
+			return;
+		}
 
-		act("Your $T increases!", ch, NULL, NULL, NULL, NULL, NULL, pOutput, TO_CHAR);
-		act("$n's $T increases!", ch, NULL, NULL, NULL, NULL, NULL, pOutput, TO_ROOM);
+		ch->train -= cost;
+		ch->pcdata->perm_hit += 10;
+		ch->max_hit += 10;
+		ch->hit += 10;
+		act("Your health increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+		act("$n's health increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+		return;
 	}
+
+	if (!str_cmp(arg, "mana"))
+	{
+		if (cost > ch->train)
+		{
+			send_to_char("You don't have enough training sessions.\n\r", ch);
+			return;
+		}
+
+		if (ch->max_mana >= max_mana) {
+			send_to_char("Your body can't get any tougher.\n\r", ch);
+			return;
+		}
+
+		ch->train -= cost;
+		ch->pcdata->perm_mana += 10;
+		ch->max_mana += 10;
+		ch->mana +=10;
+		act("Your mana increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+		act("$n's mana increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+
+		return;
+	}
+
+	if (!str_cmp(arg, "move"))
+	{
+		if (cost > ch->train)
+		{
+			send_to_char("You don't have enough training sessions.\n\r", ch);
+			return;
+		}
+
+		if (ch->max_move >= max_move) {
+			send_to_char("Your body can't get any more durable.\n\r", ch);
+			return;
+		}
+
+		ch->train -= cost;
+		ch->pcdata->perm_move += 10;
+		ch->max_move += 10;
+		ch->move += 10;
+		act("Your stamina increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+		act("$n's stamina increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+		return;
+	}
+
+	if (ch->perm_stat[stat]  >= get_max_train(ch,stat))
+	{
+		act("Your $T is already at maximum.", ch, NULL, NULL, NULL, NULL, NULL, pOutput, TO_CHAR);
+		return;
+	}
+
+	if (cost > ch->train)
+	{
+		send_to_char("You don't have enough training sessions.\n\r", ch);
+		return;
+	}
+
+	ch->train -= cost;
+	add_perm_stat(ch, stat, 1);
+
+	act("Your $T increases!", ch, NULL, NULL, NULL, NULL, NULL, pOutput, TO_CHAR);
+	act("$n's $T increases!", ch, NULL, NULL, NULL, NULL, NULL, pOutput, TO_ROOM);
 }
 
 
@@ -2529,14 +2431,36 @@ static bool __skill_can_learn(CHAR_DATA *ch, SKILL_DATA *skill, SKILL_ENTRY *se)
 	///////////////////////////////////////////////////////////////////
 }
 
+static bool __song_can_learn(CHAR_DATA *ch, SONG_DATA *song, SKILL_ENTRY *se)
+{
+    if (ch->pcdata->sub_class_thief != CLASS_THIEF_BARD)
+		return false;
+
+	if (se)
+	{
+		if (!IS_SET(se->flags, SKILL_PRACTICE)) return false;
+
+		if (se->source != SKILLSRC_NORMAL) return true;
+
+		// They already have it learned to some degree		
+	    if (se->rating > 1)
+			return true;
+	}
+
+	// Either was bard or is over the level of the song
+	return ch->pcdata->sub_class_current != CLASS_THIEF_BARD || ch->level >= song->level;
+}
+
+
 // Only handles skill entries
 static bool __student_can_show_entry(CHAR_DATA *ch, PRACTICE_ENTRY_DATA *entry, SKILL_ENTRY *se)
 {
-	if (!IS_VALID(entry->skill)) return false;
-
 	// Immortals with HOLYLIGHT can see every skill
 	if (IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))
 		return true;
+
+	if (entry->song && ch->pcdata->sub_class_thief != CLASS_THIEF_BARD)
+		return false;
 	
 	// Check reputation
 	if (IS_VALID(entry->reputation))
@@ -2553,7 +2477,12 @@ static bool __student_can_show_entry(CHAR_DATA *ch, PRACTICE_ENTRY_DATA *entry, 
 	// TODO: Perhaps there can be extra requirements on the skill
 
 	// Do they meet the requirements on the skill itself?
-	return __skill_can_learn(ch, entry->skill, se);
+	if (entry->skill)
+		return __skill_can_learn(ch, entry->skill, se);
+	else if(entry->song)
+		return __song_can_learn(ch, entry->song, se);
+	
+	return false;
 
 #if 0
 	if (!IS_NPC(ch))
@@ -2585,11 +2514,12 @@ static bool __student_can_show_entry(CHAR_DATA *ch, PRACTICE_ENTRY_DATA *entry, 
 // Assumes visibility
 static bool __student_can_learn_entry(CHAR_DATA *ch, PRACTICE_ENTRY_DATA *entry, SKILL_ENTRY *se)
 {
-	if (IS_VALID(entry->song)) return false;
-
 	// Immortals with HOLYAURA can learn every skill
 	if (IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYAURA))
 		return true;
+
+	if (entry->song && ch->pcdata->sub_class_thief != CLASS_THIEF_BARD)
+		return false;
 
 	// Check reputation
 	if (IS_VALID(entry->reputation))
@@ -2606,7 +2536,12 @@ static bool __student_can_learn_entry(CHAR_DATA *ch, PRACTICE_ENTRY_DATA *entry,
 	// TODO: Perhaps there can be extra requirements on the skill
 
 	// Do they meet the requirements on the skill itself?
-	return __skill_can_learn(ch, entry->skill, se);
+	if (entry->skill)
+		return __skill_can_learn(ch, entry->skill, se);
+	else if(entry->song)
+		return __song_can_learn(ch, entry->song, se);
+	
+	return false;
 }
 
 static char *__teacher_give_reason(CHAR_DATA *ch, PRACTICE_ENTRY_DATA *entry, int this_class, int rating)
@@ -2656,9 +2591,20 @@ static char *__teacher_give_reason(CHAR_DATA *ch, PRACTICE_ENTRY_DATA *entry, in
 		}
 	}
 
-	if (ch->level < entry->skill->skill_level[this_class] && entry->skill->skill_level[this_class] <= MAX_CLASS_LEVEL)
+	if (entry->skill)
 	{
-		p += sprintf(p, " [Unlocks at level %d]", entry->skill->skill_level[this_class]);
+		if (ch->level < entry->skill->skill_level[this_class] && entry->skill->skill_level[this_class] <= MAX_CLASS_LEVEL)
+		{
+			p += sprintf(p, " [Unlocks at level %d]", entry->skill->skill_level[this_class]);
+		}
+	}
+	else if (entry->song)
+	{
+		// Only care if they are currently a bard
+		if (ch->pcdata->sub_class_current == CLASS_THIEF_BARD && ch->level < entry->song->level)
+		{
+			p += sprintf(p, " [Unlocks at level %d]", entry->song->level);
+		}
 	}
 
 	*p = '\0';
@@ -2948,14 +2894,6 @@ static bool __practice_cost_has_value(PRACTICE_COST_DATA *cost)
 // Assumes teacher->practicer valid
 static LLIST *__teacher_get_available(CHAR_DATA *ch, CHAR_DATA *teacher)
 {
-//	int skills_found = 0;
-//	int spells_found = 0;
-//	BUFFER *buffer = new_buf();
-
-//	add_buf(buffer, "Skills/Spells available:\n\r");
-
-//	add_buf(buffer, "[Lvl] [            Name            ] [        Cost        ]\n\r");
-//	add_buf(buffer, "============================================================\n\r");
 	LLIST *abilities = list_create(FALSE);
 
 	if (teacher->practicer->standard)
@@ -2971,20 +2909,32 @@ static LLIST *__teacher_get_available(CHAR_DATA *ch, CHAR_DATA *teacher)
 		while((entry = (PRACTICE_ENTRY_DATA *)iterator_nextdata(&peit)))
 		{
 			if (list_size(entry->costs) < 1) continue;	// Can't purchase this, so ignore it
-			if (!IS_VALID(entry->skill)) continue;
+			SKILL_ENTRY *se;
 
-			SKILL_ENTRY *se = skill_entry_findskill(ch->sorted_skills, entry->skill);
-
-			// Already at the cap of what the teacher can teach
-			//if (se && se->rating >= entry->max_rating) continue;
+			if (entry->skill)
+				se = skill_entry_findskill(ch->sorted_skills, entry->skill);
+			else
+				se = skill_entry_findsong(ch->sorted_songs, entry->song);
 
 			if (__student_can_show_entry(ch, entry, se))
 			{
 				// TODO: Update to new class structure
-				int this_class = get_this_class(ch, entry->skill);
-				if (this_class < 0 || this_class >= MAX_CLASS) continue;
+				int level, this_class;
 
-				int level = entry->skill->skill_level[this_class];
+				if (entry->skill)
+				{
+					this_class = get_this_class(ch, entry->skill);
+					if (this_class < 0 || this_class >= MAX_CLASS) continue;
+
+					level = entry->skill->skill_level[this_class];
+				}
+				else if(entry->song)
+				{
+					this_class = CLASS_THIEF;
+					level = entry->song->level;
+				}
+				else
+					continue;
 
 				if (level > MAX_CLASS_LEVEL) continue;
 				int rating = se ? se->rating : 0;
@@ -2998,72 +2948,10 @@ static LLIST *__teacher_get_available(CHAR_DATA *ch, CHAR_DATA *teacher)
 				{
 					list_appendlink(abilities, cost);
 				}
-#if 0
-				char *reason = __teacher_give_reason(ch,entry,this_class,rating);
-
-				char *cost_str;
-				if (cost)
-				{
-					if (can_learn)
-						cost_str = __practice_cost_get_string(cost);
-					else
-						cost_str = __practice_cost_get_string_error(cost);
-				}
-				else
-				{
-					cost = (PRACTICE_COST_DATA *)list_nthdata(entry->costs, 1);
-
-					cost_str = __practice_cost_get_string_error(cost);
-				}
-
-				int cost_len = strlen(cost_str);
-				int plain_len = strlen_no_colours(cost_str);
-				if (plain_len < 20)
-					cost_len += 20 - plain_len;
-				
-				if (entry->skill->isspell)
-					spells_found++;
-				else
-					skills_found++;
-				sprintf(buf, " %3d   %-28s   %-*s%s\n\r", level, name, cost_len, cost_str, reason);
-				add_buf(buffer, buf);
-#endif
 			}
 		}
 		iterator_stop(&peit);
 	}
-
-#if 0
-	add_buf(buffer, "------------------------------------------------------------\n\r");
-	if (spells_found > 0)
-	{
-		if (skills_found > 0)
-			add_buf(buffer, formatf("%d skills/spells found.\n\r", spells_found + skills_found));
-		else
-			add_buf(buffer, formatf("%d spells found.\n\r", spells_found));
-	}
-	else
-	{
-		if (skills_found > 0)
-			add_buf(buffer, formatf("%d skills found.\n\r", skills_found));
-		else
-			send_to_char("Nothing found.\n\r", ch);
-	}
-
-	if (spells_found > 0 || skills_found > 0)
-	{
-		if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
-		{
-			send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
-		}
-		else
-		{
-			page_to_char(buffer->string, ch);
-		}
-	}
-
-	free_buf(buffer);
-#endif
 
 	return abilities;
 }
@@ -3109,6 +2997,7 @@ void do_practice( CHAR_DATA *ch, char *argument )
 		{
 			int skills_found = 0;
 			int spells_found = 0;
+			int songs_found = 0;
 			BUFFER *buffer = new_buf();
 
 			add_buf(buffer, "Skills/Spells available:\n\r");
@@ -3120,15 +3009,31 @@ void do_practice( CHAR_DATA *ch, char *argument )
 			while((cost = (PRACTICE_COST_DATA *)iterator_nextdata(&pcit)))
 			{
 				PRACTICE_ENTRY_DATA *pe = cost->entry;
-				entry = skill_entry_findskill(ch->sorted_skills, pe->skill);
+				if (pe->song)
+					entry = skill_entry_findsong(ch->sorted_songs, pe->song);
+				else
+					entry = skill_entry_findskill(ch->sorted_skills, pe->skill);
 				bool can_learn = __student_can_learn_entry(ch, pe, entry);
 
 				// TODO: Update to new class structure
-				int this_class = get_this_class(ch, pe->skill);
-				if (this_class < 0 || this_class >= MAX_CLASS) continue;
+				int this_class, level;
+				char *name;
+				if (pe->skill)
+				{
+					this_class = get_this_class(ch, pe->skill);
+					if (this_class < 0 || this_class >= MAX_CLASS) continue;
 
-				char *name = pe->skill->name;
-				int level = pe->skill->skill_level[this_class];
+					name = pe->skill->name;
+					level = pe->skill->skill_level[this_class];
+				}
+				else if (pe->song)
+				{
+					this_class = CLASS_THIEF;
+					name = pe->song->name;
+					level = pe->song->level;
+				}
+				else
+					continue;
 
 				if (level > MAX_CLASS_LEVEL) continue;
 				int rating = entry ? entry->rating : 0;
@@ -3148,31 +3053,27 @@ void do_practice( CHAR_DATA *ch, char *argument )
 				int plain_len = strlen_no_colours(cost_str);
 				if (plain_len < 20)
 					cost_len += 20 - plain_len;
-				
-				if (pe->skill->isspell)
-					spells_found++;
-				else
-					skills_found++;
+
+				if (pe->song)
+					songs_found++;
+				else if (pe->skill)
+				{
+					if (pe->skill->isspell)
+						spells_found++;
+					else
+						skills_found++;
+				}
 				sprintf(buf, " %3d   %-28s   %-*s%s\n\r", level, name, cost_len, cost_str, reason);
 				add_buf(buffer, buf);
 			}
 			iterator_stop(&pcit);
 			
 			add_buf(buffer, "------------------------------------------------------------\n\r");
-			if (spells_found > 0)
+			int total = skills_found + spells_found + songs_found;
+			if (total > 0)
 			{
-				if (skills_found > 0)
-					add_buf(buffer, formatf("%d skills/spells found.\n\r", spells_found + skills_found));
-				else
-					add_buf(buffer, formatf("%d spells found.\n\r", spells_found));
-			}
-			else
-			{
-				add_buf(buffer, formatf("%d skills found.\n\r", skills_found));
-			}
+				add_buf(buffer, formatf("%d abilit%s found.\n\r", total, ((total == 1)?"y":"ies")));
 
-			if (spells_found > 0 || skills_found > 0)
-			{
 				if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
 				{
 					send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
@@ -3198,9 +3099,15 @@ void do_practice( CHAR_DATA *ch, char *argument )
 	while((cost = (PRACTICE_COST_DATA *)iterator_nextdata(&pcit)))
 	{
 		PRACTICE_ENTRY_DATA *pe = cost->entry;
-		if (is_name(name, pe->skill->name) && !--count)
+		if (pe->song)
 		{
-			break;
+			if (is_name(name, pe->song->name) && !--count)
+				break;
+		}
+		else if (pe->skill)
+		{
+			if (is_name(name, pe->skill->name) && !--count)
+				break;
 		}
 	}
 	iterator_stop(&pcit);
@@ -3209,7 +3116,23 @@ void do_practice( CHAR_DATA *ch, char *argument )
 	if (cost)
 	{
 		PRACTICE_ENTRY_DATA *pe = cost->entry;
-		entry = skill_entry_findskill(ch->sorted_skills, pe->skill);
+		char *name;
+		if (pe->skill)
+		{
+			name = pe->skill->name;
+			entry = skill_entry_findskill(ch->sorted_skills, pe->skill);
+		}
+		else if (pe->song)
+		{
+			name = pe->song->name;
+			entry = skill_entry_findsong(ch->sorted_songs, pe->song);
+		}
+		else
+		{
+			send_to_char("You can't practice that.\n\r", ch);
+			return;
+		}
+
 		int rating = entry ? entry->rating : 0;
 		
 		// Can't practice this yet
@@ -3221,7 +3144,7 @@ void do_practice( CHAR_DATA *ch, char *argument )
 
 		if (rating >= pe->max_rating)
 		{
-			sprintf(buf, "There is nothing more that you can learn about %s here.\n\r", pe->skill->name);
+			sprintf(buf, "There is nothing more that you can learn about %s here.\n\r", name);
 			send_to_char(buf, ch);
 			return;
 		}
@@ -3233,16 +3156,14 @@ void do_practice( CHAR_DATA *ch, char *argument )
 			if (this_class >= 0 && this_class < MAX_CLASS)
 				amount = (pe->skill->rating[this_class] == 0 ? 10 : pe->skill->rating[this_class]);
 		}
+		else if (IS_VALID(pe->song)) {
+			// TODO: Add song difficulty?
+			amount = 5;
+		}
 
 		int learn;
 		if (amount > 0)
 		{
-			if (IS_IMMORTAL(ch))
-			{
-				send_to_char(formatf("Intellect learning rate: %d\n\r", int_app[get_curr_stat(ch, STAT_INT)].learn), ch);
-			}
-
-
 			learn = int_app[get_curr_stat(ch, STAT_INT)].learn / amount;
 		}
 		else
@@ -3508,10 +3429,14 @@ void do_practice( CHAR_DATA *ch, char *argument )
 			send_to_char(buffer->string, ch);
 
 			free_buf(buffer);
+		}
 
-			if (!entry)
+		if (!entry)
+		{
+			TOKEN_DATA *token = NULL;
+
+			if (pe->skill)
 			{
-				TOKEN_DATA *token = NULL;
 				if (pe->skill->token)
 					token = give_token(pe->skill->token, ch, NULL, NULL);
 
@@ -3520,21 +3445,25 @@ void do_practice( CHAR_DATA *ch, char *argument )
 				else
 					entry = skill_entry_addskill(ch, pe->skill, token, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
 			}
-				
-			entry->rating += learn;
-			if (IS_IMMORTAL(ch))
+			else if (pe->song)
 			{
-				send_to_char(formatf("Acquired %d rating points.\n\r", learn), ch);
-			}
+				if (pe->song->token)
+					token = give_token(pe->song->token, ch, NULL, NULL);
 
-			if (entry->rating < pe->max_rating) {
-				act("You practice $T from $N.", ch, mob, NULL, NULL, NULL, NULL, pe->skill->name, TO_CHAR);
-				act("$n practices $T from $N.", ch, mob, NULL, NULL, NULL, NULL, pe->skill->name, TO_ROOM);
-			} else {
-				entry->rating = pe->max_rating;
-				act("{WYou have learned all you can from $N about $T.{x", ch, mob, NULL, NULL, NULL, NULL, pe->skill->name, TO_CHAR);
-				act("{W$n has learned all $e can from $N about $T.{x", ch, mob, NULL, NULL, NULL, NULL, pe->skill->name, TO_ROOM);
+				entry = skill_entry_addsong(ch, pe->song, token, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
 			}
+			else
+				return;
+		}
+			
+		entry->rating += learn;
+		if (entry->rating < pe->max_rating) {
+			act("You practice $T from $N.", ch, mob, NULL, NULL, NULL, NULL, name, TO_CHAR);
+			act("$n practices $T from $N.", ch, mob, NULL, NULL, NULL, NULL, name, TO_ROOM);
+		} else {
+			entry->rating = pe->max_rating;
+			act("{WYou have learned all you can from $N about $T.{x", ch, mob, NULL, NULL, NULL, NULL, name, TO_CHAR);
+			act("{W$n has learned all $e can from $N about $T.{x", ch, mob, NULL, NULL, NULL, NULL, name, TO_ROOM);
 		}
 	}
 	else
@@ -3697,6 +3626,11 @@ void do_practice( CHAR_DATA *ch, char *argument )
 #endif
 }
 
+
+#if 0
+
+// REHEARSE <teacher>
+// REHEARSE <teacher> <song>
 void do_rehearse( CHAR_DATA *ch, char *argument )
 {
 	char buf[MAX_STRING_LENGTH];
@@ -3717,6 +3651,28 @@ void do_rehearse( CHAR_DATA *ch, char *argument )
 	wasbard = was_bard(ch);
 
 	argument = one_argument( argument, arg );
+
+	argument = one_argument( argument, arg );
+
+	char teacher[MIL];
+	int count = number_argument(arg, teacher);
+
+	for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room) {
+		if (IS_NPC(mob) && can_see(ch, mob) && mob->practicer)
+		{
+			if (!teacher[0] || (is_name(teacher, mob->name) && !--count))
+				break;
+		}
+	}
+
+	if (!mob) {
+		send_to_char("You can't do that here.\n\r", ch);
+		return;
+	}
+
+	LLIST *abilities = __teacher_get_available(ch, mob);
+
+
 
 	if (!arg[0]) {
 		// List all the songs the can learn but don't know
@@ -3803,7 +3759,7 @@ void do_rehearse( CHAR_DATA *ch, char *argument )
 	act("You rehearse {W$T{x.", ch, NULL, NULL, NULL, NULL, NULL, song->name, TO_CHAR);
 	act("{+$n rehearses {x$T{x.", ch, NULL, NULL, NULL, NULL, NULL, song->name, TO_ROOM);
 }
-
+#endif
 
 // Is sn a racial skill for a given race?
 bool is_racial_skill(int race, SKILL_DATA *skill)
@@ -4418,13 +4374,13 @@ SKILL_ENTRY *skill_entry_addspell (CHAR_DATA *ch, SKILL_DATA *skill, TOKEN_DATA 
 	return skill_entry_insert( &ch->sorted_skills, skill, NULL, token, (SKILL_SPELL | (flags & ~SKILL_SPELL)), source );
 }
 
-SKILL_ENTRY *skill_entry_addsong (CHAR_DATA *ch, SONG_DATA *song, TOKEN_DATA *token, char source)
+SKILL_ENTRY *skill_entry_addsong (CHAR_DATA *ch, SONG_DATA *song, TOKEN_DATA *token, char source, long flags)
 {
 	if( !ch ) return NULL;
 
 	if( song < 0 && (!token || token->type != TOKEN_SONG)) return NULL;
 
-	return skill_entry_insert( &ch->sorted_songs, NULL, song, token, 0, source );
+	return skill_entry_insert( &ch->sorted_songs, NULL, song, token, (flags & ~SKILL_SPELL), source );
 }
 
 void skill_entry_removeskill (CHAR_DATA *ch, SKILL_DATA *skill)

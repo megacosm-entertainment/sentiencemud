@@ -4418,6 +4418,7 @@ const struct olc_cmd_type songedit_table[] =
 	{	"?",			show_help			},
 	{	"beats",		songedit_beats		},
 	{	"commands",		show_commands		},
+	{	"difficulty", 	songedit_difficulty	},
 	{	"flags",		songedit_flags		},
 	{	"install",		songedit_install	},
 	{	"level",		songedit_level		},

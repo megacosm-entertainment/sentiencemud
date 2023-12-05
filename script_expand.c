@@ -2227,8 +2227,8 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.str = self ? (char*)self->cast_target_name : (char*)&str_empty[0];
 		break;
 	case ENTITY_MOB_SONG:
-		arg->type = ENT_SONG;
-		arg->d.song = self ? self->song : NULL;
+		arg->type = ENT_SKILLENTRY;
+		arg->d.entry = self ? self->song : NULL;
 		break;
 	case ENTITY_MOB_SONGTOKEN:
 		arg->type = ENT_TOKEN;

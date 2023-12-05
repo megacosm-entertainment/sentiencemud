@@ -695,6 +695,7 @@ DECLARE_OLC_FUN( songedit_show );
 DECLARE_OLC_FUN( songedit_install );
 DECLARE_OLC_FUN( songedit_presongfunc );
 DECLARE_OLC_FUN( songedit_songfunc );
+DECLARE_OLC_FUN( songedit_difficulty );
 DECLARE_OLC_FUN( songedit_flags );
 DECLARE_OLC_FUN( songedit_level );
 DECLARE_OLC_FUN( songedit_mana );
