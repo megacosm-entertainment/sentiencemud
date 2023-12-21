@@ -1274,8 +1274,8 @@ const struct flag_type type_flags[] =
     {	"light",		ITEM_LIGHT,		TRUE	},
     {	"scroll",		ITEM_SCROLL,		TRUE	},
     {	"wand",			ITEM_WAND,		TRUE	},
-    {	"staff",		ITEM_STAFF,		TRUE	},
     {	"weapon",		ITEM_WEAPON,		TRUE	},
+    {   "ammo",         ITEM_AMMO,          TRUE    },
     {	"treasure",		ITEM_TREASURE,		TRUE	},
     {	"armour",		ITEM_ARMOUR,		TRUE	},
     {	"furniture",		ITEM_FURNITURE,		TRUE	},
@@ -1305,9 +1305,7 @@ const struct flag_type type_flags[] =
     {   "cart",			ITEM_CART,		TRUE	},
     {   "ship",			ITEM_SHIP,		TRUE	},
     {   "room_darkness_object",	ITEM_ROOM_DARKNESS,	TRUE	},
-    {   "ranged_weapon",	ITEM_RANGED_WEAPON,	TRUE	},
     {   "sextant",		ITEM_SEXTANT,		TRUE	},
-    {   "weapon_container",	ITEM_WEAPON_CONTAINER,	FALSE	},
     {   "room_roomshield_object",	ITEM_ROOM_ROOMSHIELD,	TRUE	},
     {	"book",			ITEM_BOOK,		TRUE	},
     {	"page",			ITEM_PAGE,		TRUE	},
@@ -1317,12 +1315,9 @@ const struct flag_type type_flags[] =
     {   "spell_trap",       	ITEM_SPELL_TRAP,	TRUE	},
     {   "withering_cloud",  	ITEM_WITHERING_CLOUD,	TRUE	},
     {   "bank",			ITEM_BANK,		TRUE 	},
-    {   "keyring",		ITEM_KEYRING,		FALSE 	},
     {	"ice_storm",		ITEM_ICE_STORM,		TRUE	},
     {	"flower",		ITEM_FLOWER,		TRUE	},
     {   "trade_type",		ITEM_TRADE_TYPE,	TRUE	},
-    {   "empty_vial",	        ITEM_EMPTY_VIAL,	TRUE	},
-    {   "blank_scroll",		ITEM_BLANK_SCROLL,	TRUE    },
     {	"mist",			ITEM_MIST,		TRUE	},
     {	"shrine",		ITEM_SHRINE,		TRUE	},
     {   "whistle",		ITEM_WHISTLE, TRUE  },
@@ -1351,6 +1346,7 @@ const struct flag_type extra_flags[] =
 	{	"bless",		ITEM_BLESS,		    TRUE	},
     {   "bought",       ITEM_SHOP_BOUGHT,   FALSE   },
 	{	"burnproof",	ITEM_BURN_PROOF,	TRUE	},
+    {   "ephemeral",    ITEM_EPHEMERAL,     TRUE    },      // Indicate the item disappears after use or the next game tick.  Use case is generated ammo that isn't meant to remain after doing damage.
 	{	"evil",			ITEM_EVIL,	    	TRUE	},
 	{	"freezeproof",	ITEM_FREEZE_PROOF,	TRUE	},
 	{	"glow",			ITEM_GLOW,          TRUE	},
@@ -1383,6 +1379,7 @@ const struct flag_type extra2_flags[] =
 {
 	{   "all_remort",		ITEM_ALL_REMORT,	TRUE    },
 	{   "buried",	    	ITEM_BURIED,		FALSE   },
+    {   "created",          ITEM_CREATED,       FALSE   },
 	{   "emits_light",		ITEM_EMITS_LIGHT,	TRUE    },
 	{   "enchanted",		ITEM_ENCHANTED,		FALSE   },
 	{   "float_user",		ITEM_FLOAT_USER,	TRUE    },
@@ -1714,36 +1711,54 @@ const struct flag_type size_flags[] =
 
 const struct flag_type ranged_weapon_class[] =
 {
-    {   "exotic",        RANGED_WEAPON_EXOTIC,  TRUE    },
-    {   "crossbow",      RANGED_WEAPON_CROSSBOW,TRUE    },
-    {   "bow",           RANGED_WEAPON_BOW,     TRUE    },
-    {   "blowgun",	RANGED_WEAPON_BLOWGUN,	TRUE    },	// @@@NIB : 20070126 : darts!
-    {   "harpoon",	RANGED_WEAPON_HARPOON,	TRUE    },	// @@@NIB : 20070126 : harpoons!
-    {   NULL,          	 0,                     TRUE    }
+    {   NULL,          	 0,                     FALSE    }
 };
 
+const struct flag_type ammo_types[] =
+{
+    {   "none",       	AMMO_NONE,              TRUE    },
+    {   "acid",         AMMO_ACID,              FALSE   },  // Only usable by a sprayer
+    {   "arrow",       	AMMO_ARROW,             TRUE    },
+    {   "bolt",       	AMMO_BOLT,              TRUE    },
+    {   "bullet",      	AMMO_BULLET,            TRUE    },
+    {   "dart",       	AMMO_DART,              TRUE    },
+    {   "fuel",         AMMO_FUEL,              FALSE   },  // Only usable by a flame thrower
+    {   "potion",       AMMO_POTION,            FALSE   },  // Only usable by a sprayer
+    {   NULL,          	0,                      FALSE   }
+};
 
 const struct flag_type weapon_class[] =
 {
-    {   "exotic",	WEAPON_EXOTIC,		TRUE    },
-    {   "sword",	WEAPON_SWORD,		TRUE    },
-    {   "dagger",	WEAPON_DAGGER,		TRUE    },
-    {   "spear",	WEAPON_SPEAR,		TRUE    },
-    {   "mace",		WEAPON_MACE,		TRUE    },
-    {   "axe",		WEAPON_AXE,		TRUE    },
-    {   "flail",	WEAPON_FLAIL,		TRUE    },
-    {   "whip",		WEAPON_WHIP,		TRUE    },
-    {   "polearm",	WEAPON_POLEARM,		TRUE    },
-    {	"stake",	WEAPON_STAKE,		TRUE	},
+    {   "acidsprayer",  WEAPON_ACID_SPRAYER,    TRUE    },
+    {   "axe",	    	WEAPON_AXE,		        TRUE    },
+    {	"blowgun",  	WEAPON_BLOWGUN,	    	TRUE	},
+    {	"bow",        	WEAPON_BOW, 	    	TRUE	},
+    {   "chemosprayer", WEAPON_POTION_SPRAYER,  TRUE    },
+    {	"crossbow",  	WEAPON_CROSSBOW,		TRUE	},
+    {   "dagger",   	WEAPON_DAGGER,  		TRUE    },
+    {   "exotic",   	WEAPON_EXOTIC,  		TRUE    },
+    {   "flail",    	WEAPON_FLAIL,	    	TRUE    },
+    {   "flamethrower", WEAPON_FLAMETHROWER,    TRUE    },
+    {   "gun",          WEAPON_GUN,             TRUE    },
+    {	"harpoon",  	WEAPON_HARPOON,	    	TRUE	},
+    {   "mace",	    	WEAPON_MACE,    		TRUE    },
+    {   "polearm",  	WEAPON_POLEARM,	    	TRUE    },
     {	"quarterstaff",	WEAPON_QUARTERSTAFF,	TRUE	},
-    {	"arrow",	WEAPON_ARROW,		TRUE	},
-    {	"bolt",		WEAPON_BOLT,		TRUE	},
-    {	"dart",		WEAPON_DART,		TRUE	},
-    {	"harpoon",	WEAPON_HARPOON,		TRUE	},
-    {	"throwable",	WEAPON_THROWABLE,	FALSE	},
-    {   NULL,		0,			0       }
+    {   "spear",    	WEAPON_SPEAR,   		TRUE    },
+    {	"stake",    	WEAPON_STAKE,	    	TRUE	},
+    {   "sword",    	WEAPON_SWORD,   		TRUE    },
+    {   "whip",	    	WEAPON_WHIP,	    	TRUE    },
+    {   NULL,	    	0,          			FALSE       }
 };
 
+const struct weapon_ammo_type weapon_ammo_table[] =
+{
+    { WEAPON_BLOWGUN,   AMMO_DART },
+    { WEAPON_BOW,       AMMO_ARROW },
+    { WEAPON_CROSSBOW,  AMMO_BOLT },
+    //{ WEAPON_GUN,      AMMO_BULLET },
+    { WEAPON_UNKNOWN,   AMMO_NONE }
+};
 
 const struct flag_type weapon_type2[] =
 {
@@ -3014,6 +3029,9 @@ const struct flag_type builtin_trigger_types[] =
     { "afterdeath",		    TRIG_AFTERDEATH,	TRUE },
     { "afterkill",		    TRIG_AFTERKILL,	TRUE },
     { "aggression",         TRIG_AGGRESSION, TRUE },
+    { "ammo_break",         TRIG_AMMO_BREAK, TRUE },
+    { "ammo_mana",          TRIG_AMMO_MANA, TRUE },
+    { "ammo_scripted",      TRIG_AMMO_SCRIPTED, TRUE },
     { "animate",		    TRIG_ANIMATE,	TRUE },
     { "assist",		        TRIG_ASSIST,	TRUE },
     { "attack_backstab",	TRIG_ATTACK_BACKSTAB,	TRUE },
@@ -3375,9 +3393,10 @@ const struct flag_type scroll_flags[] =
 
 const struct gln_type gln_table[] =
 {
-    { "water", &gln_water, &liquid_water },
+    { "acid", &gln_acid, &liquid_acid },
     { "blood", &gln_blood, &liquid_blood },
     { "potion", &gln_potion, &liquid_potion },
+    { "water", &gln_water, &liquid_water },
     { NULL, NULL, NULL }
 };
 
@@ -3636,6 +3655,10 @@ const struct zap_func_type zap_func_table[] =
     { NULL,                 NULL }
 };
 
+const struct brandish_func_type brandish_func_table[] =
+{
+    { NULL,                 NULL }
+};
 
 
 const struct gsn_type gsn_table[] =
@@ -3969,6 +3992,7 @@ const struct flag_type reputation_flags[] =
 
 const struct flag_type reputation_rank_flags[] =
 {
+    { "hostile",            REPUTATION_RANK_HOSTILE,        TRUE  },
     { "no_rank_up",         REPUTATION_RANK_NORANKUP,       TRUE  },
     { "paragon",            REPUTATION_RANK_PARAGON,        TRUE  },
     { "peaceful",           REPUTATION_RANK_PEACEFUL,       TRUE  },

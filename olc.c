@@ -216,6 +216,7 @@ const struct olc_cmd_type oedit_table[] =
 	{ "addskill",		oedit_addskill			},
 	{ "addspell",		oedit_addspell			},
 	{ "allowedfixed",	oedit_allowed_fixed		},
+	{ "ammo",			oedit_type_ammo			},
 	{ "book", 			oedit_type_book			},
 	{ "commands",		show_commands			},
 	{ "comments",		oedit_comments			},
@@ -268,6 +269,7 @@ const struct olc_cmd_type oedit_table[] =
 	{ "varset",			oedit_varset			},
 	{ "wand",			oedit_type_wand			},
 	{ "waypoints",		oedit_waypoints			},
+	{ "weapon",			oedit_type_weapon		},
 	{ "wear",			oedit_wear				},
 	{ "weight",			oedit_weight			},
 	{ NULL,				0,						}
@@ -3507,20 +3509,28 @@ void set_weapon_dice(OBJ_INDEX_DATA *objIndex)
 
 	switch(objIndex->value[0])
 	{
-	case WEAPON_EXOTIC:		type += 3;	num -= 1; 	break;
-	case WEAPON_SWORD:		type += 1;	num += 1; 	break;
-	case WEAPON_DAGGER:		type -= 2;	num += 1; 	break;
-	case WEAPON_SPEAR: 		type += 1;		  	break;
-	case WEAPON_MACE:		type += 2;		  	break;
+	case WEAPON_EXOTIC:			type += 3;	num -= 1; 	break;
+	case WEAPON_SWORD:			type += 1;	num += 1; 	break;
+	case WEAPON_DAGGER:			type -= 2;	num += 1; 	break;
+	case WEAPON_SPEAR: 			type += 1;		  	break;
+	case WEAPON_MACE:			type += 2;		  	break;
 	case WEAPON_AXE:        	type += 2;		  	break;
-	case WEAPON_FLAIL:		type += 2;		 	break;
-	case WEAPON_WHIP:		type += 1;	num += 1; 	break;
+	case WEAPON_FLAIL:			type += 2;		 	break;
+	case WEAPON_WHIP:			type += 1;	num += 1; 	break;
 	case WEAPON_POLEARM:		type += 2;		  	break;
-	case WEAPON_STAKE:				  	  	break;
+	case WEAPON_STAKE:			break;
 	case WEAPON_QUARTERSTAFF:	type += 1;		  	break;
-	case WEAPON_ARROW: 		type = (type*7)/4;	num *= 2; 	break;
-	case WEAPON_BOLT:		type *= 2;	num *= 2;	break;
-	default: 						  	break;
+	case WEAPON_HARPOON:		break;
+	case WEAPON_CROSSBOW:		break;
+	case WEAPON_BOW:			break;
+	case WEAPON_BLOWGUN:		break;
+	case WEAPON_FLAMETHROWER:	break;
+	case WEAPON_ACID_SPRAYER:	break;
+	case WEAPON_POTION_SPRAYER:	break;
+
+	//case WEAPON_ARROW: 		type = (type*7)/4;	num *= 2; 	break;
+	//case WEAPON_BOLT:		type *= 2;	num *= 2;	break;
+	default: 					break;
 	}
 
 	if (IS_SET(objIndex->extra[1], ITEM_REMORT_ONLY))
@@ -3575,19 +3585,27 @@ void set_weapon_dice_obj(OBJ_DATA *obj)
 
 	switch(obj->value[0])
 	{
-	case WEAPON_EXOTIC:		type += 3;	num -= 1; 	break;
-	case WEAPON_SWORD:		type += 1;	num += 1; 	break;
-	case WEAPON_DAGGER:		type -= 2;	num += 1; 	break;
-	case WEAPON_SPEAR: 		type += 1;		  	break;
-	case WEAPON_MACE:		type += 2;		  	break;
+	case WEAPON_EXOTIC:			type += 3;	num -= 1; 	break;
+	case WEAPON_SWORD:			type += 1;	num += 1; 	break;
+	case WEAPON_DAGGER:			type -= 2;	num += 1; 	break;
+	case WEAPON_SPEAR: 			type += 1;		  	break;
+	case WEAPON_MACE:			type += 2;		  	break;
 	case WEAPON_AXE:        	type += 2;		  	break;
-	case WEAPON_FLAIL:		type += 2;	num -= 1; 	break;
-	case WEAPON_WHIP:		type += 1;	num += 1; 	break;
+	case WEAPON_FLAIL:			type += 2;	num -= 1; 	break;
+	case WEAPON_WHIP:			type += 1;	num += 1; 	break;
 	case WEAPON_POLEARM:		type += 2;		  	break;
-	case WEAPON_STAKE:				  	  	break;
+	case WEAPON_STAKE:		  	break;
 	case WEAPON_QUARTERSTAFF:	type += 1;		  	break;
-	case WEAPON_ARROW: 		type = (type*7)/4;	num *= 2; 	break;
-	case WEAPON_BOLT:		type *= 2;	num *= 2;	break;
+	case WEAPON_HARPOON:		break;
+	case WEAPON_CROSSBOW:		break;
+	case WEAPON_BOW:			break;
+	case WEAPON_BLOWGUN:		break;
+	case WEAPON_FLAMETHROWER:	break;
+	case WEAPON_ACID_SPRAYER:	break;
+	case WEAPON_POTION_SPRAYER:	break;
+
+	//case WEAPON_ARROW: 		type = (type*7)/4;	num *= 2; 	break;
+	//case WEAPON_BOLT:		type *= 2;	num *= 2;	break;
 	default: 						  	break;
 	}
 
@@ -3955,19 +3973,21 @@ SHOP_STOCK_DATA *get_shop_stock_bypos(SHOP_DATA *shop, int nth)
 
 void obj_index_reset_multitype(OBJ_INDEX_DATA *pObjIndex)
 {
-	free_book_page(PAGE(pObjIndex));				PAGE(pObjIndex) = NULL;
-	free_book_data(BOOK(pObjIndex));				BOOK(pObjIndex) = NULL;
-	free_container_data(CONTAINER(pObjIndex));		CONTAINER(pObjIndex) = NULL;
-	free_fluid_container_data(FLUID_CON(pObjIndex));FLUID_CON(pObjIndex) = NULL;
-	free_food_data(FOOD(pObjIndex));				FOOD(pObjIndex) = NULL;
-	free_ink_data(INK(pObjIndex));					INK(pObjIndex) = NULL;
-	free_instrument_data(INSTRUMENT(pObjIndex));	INSTRUMENT(pObjIndex) = NULL;
-	free_light_data(LIGHT(pObjIndex));				LIGHT(pObjIndex) = NULL;
-	free_money_data(MONEY(pObjIndex));				MONEY(pObjIndex) = NULL;
-	free_portal_data(PORTAL(pObjIndex));			PORTAL(pObjIndex) = NULL;
-	free_scroll_data(SCROLL(pObjIndex));			SCROLL(pObjIndex) = NULL;
-	free_tattoo_data(TATTOO(pObjIndex));			TATTOO(pObjIndex) = NULL;
-	free_wand_data(WAND(pObjIndex));				WAND(pObjIndex) = NULL;
+	free_ammo_data(AMMO(pObjIndex));					AMMO(pObjIndex) = NULL;
+	free_book_data(BOOK(pObjIndex));					BOOK(pObjIndex) = NULL;
+	free_container_data(CONTAINER(pObjIndex));			CONTAINER(pObjIndex) = NULL;
+	free_fluid_container_data(FLUID_CON(pObjIndex));	FLUID_CON(pObjIndex) = NULL;
+	free_food_data(FOOD(pObjIndex));					FOOD(pObjIndex) = NULL;
+	free_ink_data(INK(pObjIndex));						INK(pObjIndex) = NULL;
+	free_instrument_data(INSTRUMENT(pObjIndex));		INSTRUMENT(pObjIndex) = NULL;
+	free_light_data(LIGHT(pObjIndex));					LIGHT(pObjIndex) = NULL;
+	free_money_data(MONEY(pObjIndex));					MONEY(pObjIndex) = NULL;
+	free_book_page(PAGE(pObjIndex));					PAGE(pObjIndex) = NULL;
+	free_portal_data(PORTAL(pObjIndex));				PORTAL(pObjIndex) = NULL;
+	free_scroll_data(SCROLL(pObjIndex));				SCROLL(pObjIndex) = NULL;
+	free_tattoo_data(TATTOO(pObjIndex));				TATTOO(pObjIndex) = NULL;
+	free_wand_data(WAND(pObjIndex));					WAND(pObjIndex) = NULL;
+	free_weapon_data(WEAPON(pObjIndex));				WEAPON(pObjIndex) = NULL;
 }
 
 void obj_index_set_primarytype(OBJ_INDEX_DATA *pObjIndex, int item_type)
@@ -3977,7 +3997,7 @@ void obj_index_set_primarytype(OBJ_INDEX_DATA *pObjIndex, int item_type)
 	pObjIndex->item_type = item_type;
 	switch(item_type)
 	{
-		case ITEM_PAGE:			PAGE(pObjIndex) = new_book_page(); break;
+		case ITEM_AMMO:			AMMO(pObjIndex) = new_ammo_data(); break;
 		case ITEM_BOOK:			BOOK(pObjIndex) = new_book_data(); break;
 		case ITEM_CONTAINER:	CONTAINER(pObjIndex) = new_container_data(); break;
 		case ITEM_FLUID_CONTAINER:	FLUID_CON(pObjIndex) = new_fluid_container_data(); break;
@@ -3987,10 +4007,12 @@ void obj_index_set_primarytype(OBJ_INDEX_DATA *pObjIndex, int item_type)
 		case ITEM_INSTRUMENT:	INSTRUMENT(pObjIndex) = new_instrument_data(); break;
 		case ITEM_LIGHT:		LIGHT(pObjIndex) = new_light_data(); break;
 		case ITEM_MONEY:		MONEY(pObjIndex) = new_money_data(); break;
+		case ITEM_PAGE:			PAGE(pObjIndex) = new_book_page(); break;
 		case ITEM_PORTAL:		PORTAL(pObjIndex) = new_portal_data(); break;
 		case ITEM_SCROLL:		SCROLL(pObjIndex) = new_scroll_data(); break;
 		case ITEM_TATTOO:		TATTOO(pObjIndex) = new_tattoo_data(); break;
 		case ITEM_WAND:			WAND(pObjIndex) = new_wand_data(); break;
+		case ITEM_WEAPON:		WEAPON(pObjIndex) = new_weapon_data(); break;
 	}
 }
 
@@ -4095,7 +4117,7 @@ const struct olc_cmd_type skedit_table[] =
 {
 	{	"?",			show_help			},
 	{	"beats",		skedit_beats		},
-	//{	"brandish",		skedit_brandishfunc },
+	{	"brandish",		skedit_brandishfunc },
 	{	"brew",			skedit_brewfunc		},
 	{	"commands",		show_commands		},
 	//	"delete",		skedit_delete		},		// TODO: Need to be abke to track usage first

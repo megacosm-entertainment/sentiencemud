@@ -2358,6 +2358,11 @@ void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
 {
 	ITERATOR it;
 
+	if (IS_AMMO(obj))
+	{
+
+	}
+
 	if (IS_BOOK(obj))
 	{
 		BOOK_DATA *book = BOOK(obj);
@@ -2688,6 +2693,11 @@ void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
 
 		fprintf(fp, "#-TYPEWAND\n");
 	}
+
+	if (IS_WEAPON(obj))
+	{
+
+	}
 }
 
 
@@ -2766,15 +2776,11 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
     if (obj->description != obj->pIndexData->description)
         fprintf(fp, "Desc %s~\n",	obj->description	    );
     if (obj->full_description != obj->pIndexData->full_description)
-	fprintf(fp, "FullD %s~\n",     fix_string(obj->full_description));
-    if (obj->extra[0] != obj->extra_perm[0])
-        fprintf(fp, "ExtF %ld\n",	obj->extra[0]	    );
-    if (obj->extra[1] != obj->extra_perm[1])
-        fprintf(fp, "Ext2F %ld\n",	obj->extra[1]	    );
-    if (obj->extra[2] != obj->extra_perm[2])
-        fprintf(fp, "Ext3F %ld\n",	obj->extra[2]	    );
-    if (obj->extra[3] != obj->extra_perm[3])
-        fprintf(fp, "Ext4F %ld\n",	obj->extra[3]	    );
+		fprintf(fp, "FullD %s~\n",     fix_string(obj->full_description));
+	fprintf(fp, "ExtF %ld\n",	obj->extra[0]	    );
+	fprintf(fp, "Ext2F %ld\n",	obj->extra[1]	    );
+	fprintf(fp, "Ext3F %ld\n",	obj->extra[2]	    );
+	fprintf(fp, "Ext4F %ld\n",	obj->extra[3]	    );
     if (obj->wear_flags != obj->pIndexData->wear_flags)
         fprintf(fp, "WeaF %d\n",	obj->wear_flags		    );
     if (obj->item_type != obj->pIndexData->item_type)
@@ -2834,14 +2840,6 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
 		fprintf(fp, " 0\n");
 	}
 	*/
-
-	// Permanent flags based
-    fprintf(fp, "PermExtra %ld\n",	obj->extra_perm[0] );
-    fprintf(fp, "PermExtra2 %ld\n",	obj->extra_perm[1] );
-	fprintf(fp, "PermExtra3 %ld\n",	obj->extra_perm[2] );
-	fprintf(fp, "PermExtra4 %ld\n",	obj->extra_perm[3] );
-	if( obj->item_type == ITEM_WEAPON )
-		fprintf(fp, "PermWeapon %ld\n",	obj->weapon_flags_perm );
 
     /* variable data */
     fprintf(fp, "Wear %d\n",   obj->wear_loc               );
@@ -4109,6 +4107,7 @@ WAND_DATA *fread_obj_wand_data(FILE *fp)
 
 void fread_obj_reset_multityping(OBJ_DATA *obj)
 {
+	free_ammo_data(AMMO(obj));				AMMO(obj) = NULL;
 	free_book_data(BOOK(obj));				BOOK(obj) = NULL;
 	free_container_data(CONTAINER(obj));	CONTAINER(obj) = NULL;
 	free_fluid_container_data(FLUID_CON(obj));	FLUID_CON(obj) = NULL;
@@ -4123,6 +4122,7 @@ void fread_obj_reset_multityping(OBJ_DATA *obj)
 	free_scroll_data(SCROLL(obj));			SCROLL(obj) = NULL;
 	free_tattoo_data(TATTOO(obj));			TATTOO(obj) = NULL;
 	free_wand_data(WAND(obj));				WAND(obj) = NULL;
+	free_weapon_data(WEAPON(obj));			WEAPON(obj) = NULL;
 }
 
 void fread_obj_check_version(OBJ_DATA *obj, long values[MAX_OBJVALUES])
@@ -4166,6 +4166,7 @@ void fread_obj_check_version(OBJ_DATA *obj, long values[MAX_OBJVALUES])
 			CONTAINER(obj)->lock = obj->lock;
 			obj->lock = NULL;
 		}
+#if 0
 		else if (obj->item_type == ITEM_WEAPON_CONTAINER)
 		{
 			obj->item_type = ITEM_CONTAINER;
@@ -4202,6 +4203,7 @@ void fread_obj_check_version(OBJ_DATA *obj, long values[MAX_OBJVALUES])
 			CONTAINER(obj)->lock = obj->lock;
 			obj->lock = NULL;
 		}
+#endif
 	}
 
 	if (obj->version < VERSION_OBJECT_008)
@@ -5128,11 +5130,6 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			break;
 
 		case 'P':
-			KEY("PermExtra",		obj->extra_perm[0],	fread_number(fp));
-			KEY("PermExtra2",		obj->extra_perm[1],	fread_number(fp));
-			KEY("PermExtra3",		obj->extra_perm[2],	fread_number(fp));
-			KEY("PermExtra4",		obj->extra_perm[3],	fread_number(fp));
-			KEY("PermWeapon",		obj->weapon_flags_perm,	fread_number(fp));
 			KEY("Persist", obj->persist, fread_number(fp));
 			break;
 

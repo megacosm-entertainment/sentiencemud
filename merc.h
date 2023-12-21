@@ -110,6 +110,9 @@
 #define DECLARE_ZAP_FUN( fun ) ZAP_FUN fun
 #define ZAP_FUNC(s)     bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj, void *vo, int target)
 
+#define DECLARE_BRANDISH_FUN( fun ) BRANDISH_FUN fun
+#define BRANDISH_FUNC(s)     bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim)
+
 #define DECLARE_ARTIFICE_FUN( fun ) ARTIFICE_FUN fun
 #define ARTIFICE_FUNC(s)    bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
 
@@ -579,7 +582,7 @@ typedef bool TOUCH_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *t
 // TODO: IMBUE
 typedef bool PREIMBUE_FUN   (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
 typedef bool IMBUE_FUN      (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
-// TODO: BRANDISH_FUN
+typedef bool BRANDISH_FUN        (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim);
 typedef bool ZAP_FUN        (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj, void *vo, int target);
 // TODO: EQUIP_FUN
 typedef bool SONG_FUN	(SONG_DATA *song, int level, CHAR_DATA *ch, OBJ_DATA *instrument, void *vo, int target);
@@ -2709,7 +2712,7 @@ struct affliction_type {
 #define ITEM_LIGHT		      1
 #define ITEM_SCROLL		      2
 #define ITEM_WAND		      3
-#define ITEM_STAFF		      4
+//#define ITEM_STAFF		      4
 #define ITEM_WEAPON		      5
 #define ITEM_TREASURE		      8
 #define ITEM_ARMOUR		      9
@@ -2744,9 +2747,10 @@ struct affliction_type {
 #define ITEM_CART		     40
 #define ITEM_SHIP		     41
 #define ITEM_ROOM_DARKNESS	     42
-#define ITEM_RANGED_WEAPON	     43
+#define ITEM_AMMO               43
+//#define ITEM_RANGED_WEAPON	     43
 #define ITEM_SEXTANT		     44
-#define ITEM_WEAPON_CONTAINER	     45
+//#define ITEM_WEAPON_CONTAINER	     45
 #define ITEM_ROOM_ROOMSHIELD         46
 #define ITEM_BOOK		     47
 #define ITEM_SMOKE_BOMB		     48
@@ -2755,12 +2759,12 @@ struct affliction_type {
 #define ITEM_SPELL_TRAP		     51
 #define ITEM_WITHERING_CLOUD         52
 #define ITEM_BANK		     53
-#define ITEM_KEYRING	             54
+//#define ITEM_KEYRING	             54
 #define ITEM_TRADE_TYPE 	     55
 #define ITEM_ICE_STORM		     56
 #define ITEM_FLOWER		     57
-#define ITEM_EMPTY_VIAL		     58
-#define ITEM_BLANK_SCROLL	     59
+//#define ITEM_EMPTY_VIAL		     58
+//#define ITEM_BLANK_SCROLL	     59
 #define ITEM_MIST		     60
 #define ITEM_SHRINE		     61
 #define ITEM_WHISTLE                 62
@@ -2807,7 +2811,7 @@ struct affliction_type {
 #define ITEM_HIDDEN		    (S)
 #define ITEM_NOLOCATE		(T)
 #define ITEM_MELT_DROP		(U)
-//                          (V)
+#define ITEM_EPHEMERAL      (V)
 #define ITEM_SHOCK_PROOF    (W)
 #define ITEM_FREEZE_PROOF	(X)
 #define ITEM_BURN_PROOF		(Y)
@@ -2831,7 +2835,7 @@ struct affliction_type {
 #define ITEM_FLOAT_USER		(H)
 #define ITEM_SEE_HIDDEN		(I)
 #define ITEM_TRAPPED		(J)
-//                          (K)
+#define ITEM_CREATED        (K)     // Used to indicate the item was created by OLOAD
 #define ITEM_SUPER_STRONG	(L)
 #define ITEM_REMORT_ONLY	(M)
 #define ITEM_NO_LORE		(N)
@@ -4092,6 +4096,7 @@ typedef struct reputation_index_rank_data REPUTATION_INDEX_RANK_DATA;
 #define REPUTATION_RANK_PARAGON         (B)     // The rank will execute a script (if assigned) for when the bar fills up, and will reset the reputation back to 0 (no overflow kept).
 #define REPUTATION_RANK_RESET_PARAGON   (C)     // Whether your paragon level resets if you drop from the paragon rank
 #define REPUTATION_RANK_PEACEFUL        (D)     // NPCs associated with this reputation are safe from combat if you are at this rank.
+#define REPUTATION_RANK_HOSTILE         (E)     // NPCs associated with this reputation are openly hostile toward you (eg, they might attack you).
 
 struct reputation_index_rank_data {
     REPUTATION_INDEX_RANK_DATA *next;
@@ -4114,6 +4119,8 @@ struct reputation_index_rank_data {
 
 #define REPUTATION_HIDDEN       (A)         // The reputation is hidden from the "reputations" list
 #define REPUTATION_PEACEFUL     (B)         // Cannot toggle At War on reputation
+#define REPUTATION_ON_UPDATE    (C)         // Auto-unhides when the reputation updates
+#define REPUTATION_ON_ENCOUNTER (D)         // Auto-unhides when encounter the reputation.
 
 // Live Only
 #define REPUTATION_IGNORED      (dd)        // Player has chosen to ignore the reputation
@@ -4312,6 +4319,8 @@ struct	char_data
 	ROOM_INDEX_DATA	*script_wait_room;
 	TOKEN_DATA		*script_wait_token;
 
+    OBJ_DATA        *outbound_object;       // Special object reference to allow scripts to generate objects that can be returned.  Can only be set in specific triggers.
+
     int			fade;
     int			fade_dir;
     int			force_fading;		// Caused by scripting
@@ -4348,6 +4357,7 @@ struct	char_data
     int			projectile_range;
     OBJ_DATA *		projectile;
     char *		projectile_victim;
+    int         projectile_mana;
 
     CHAR_DATA 		*bind_victim;
     CHAR_DATA		*pursuit_by;
@@ -4916,6 +4926,13 @@ struct gem_socket_data {
 #define AMMO_BOLT               2
 #define AMMO_BULLET             3
 #define AMMO_DART               4
+#define AMMO_FUEL               5       // Requires FLUID_CONTAINER attached, requires liquid that can be used as fuel
+#define AMMO_ACID               6       // Requires FLUID_CONTAINER attached, requires "acid" liquid
+#define AMMO_POTION             7       // Requires FLUID_CONTAINER attached, requires "potion" liquid (with spells)
+#define AMMO_MANA               8       // Uses shooter's mana
+#define AMMO_SCRIPTED           9       // Calls a trigger on the weapon to generate "ammo"
+// Other ammo?
+
 
 struct obj_ammo_data {
     AMMO_DATA *next;
@@ -4923,7 +4940,12 @@ struct obj_ammo_data {
 
     sh_int type;
 
+    int damage_type;
+    long flags;
+
     DICE_DATA damage;
+
+    char *msg_break;        // Message for when the ammo breaks
 };
 
 // ===========[ ARMOR ]============
@@ -5341,6 +5363,8 @@ struct obj_wand_data
     WAND_DATA *next;
     bool valid;
 
+    int max_mana;           // Used in imbuing.
+
     int charges;            // Current number of charges available to ZAP with.
     int max_charges;        // Maximum number of charges the wand can have.
     int cooldown;           // Current time before next recharge.
@@ -5366,18 +5390,15 @@ struct obj_wand_data
 #define WEAPON_POLEARM			8
 #define WEAPON_STAKE			9
 #define WEAPON_QUARTERSTAFF		10
-#define WEAPON_ARROW			11
-#define WEAPON_BOLT				12
-#define WEAPON_DART				13	/* @@@NIB : 20070126 */
-#define WEAPON_HARPOON			14	/* @@@NIB : 20070126 */
-#define WEAPON_TYPE_MAX			15
-
-#define RANGED_WEAPON_EXOTIC		0
-#define RANGED_WEAPON_CROSSBOW		1
-#define RANGED_WEAPON_BOW			2
-#define RANGED_WEAPON_BLOWGUN		3
-#define RANGED_WEAPON_HARPOON		4
-#define RANGED_WEAPON_SPEAR			5   // TODO: Should this just be a staff that is thrown?
+#define WEAPON_HARPOON			11
+#define WEAPON_CROSSBOW         12
+#define WEAPON_BOW      		13
+#define WEAPON_BLOWGUN          14
+#define WEAPON_GUN              15
+#define WEAPON_FLAMETHROWER     16      // Requires FLUID_CONTAINER attached with fuel to work, can also use a FLUID_CONTAINER on the BACK slot
+#define WEAPON_ACID_SPRAYER     17      // Requires FLUID_CONTAINER attached with acid to work, can also use a FLUID_CONTAINER on the BACK slot
+#define WEAPON_POTION_SPRAYER   18      // Requires FLUID_CONTAINER attached with potion to work, can also use a FLUID_CONTAINER on the BACK slot
+#define WEAPON_TYPE_MAX			19
 
 
 // Weapon flags
@@ -5401,15 +5422,38 @@ struct obj_wand_data
 #define WEAPON_BLAZE		(R)     // Does light damage
 #define WEAPON_SUCKLE		(S)     // Mana stealing
 
+#define MAX_ATTACK_POINTS        5   // Number of attack points a weapon can have
+
+typedef struct weapon_attack_point WEAPON_ATTACK_POINT;
+
+struct weapon_attack_point
+{
+    sh_int type;
+    long flags;
+    DICE_DATA damage;
+};
+
 struct obj_weapon_data
 {
     WEAPON_DATA *next;
     bool valid;
 
-    sh_int type;
-    long flags;
+    sh_int weapon_class;
 
-    DICE_DATA *damage;
+    WEAPON_ATTACK_POINT attacks[MAX_ATTACK_POINTS];
+
+    int ammo;               // Type of ammo, if ranged
+    int range;              // Number of rooms the weapon can shoot, if ranged
+
+    int max_mana;           // Maximum amount of mana allowed when imbuing the weapon
+
+    // Used by BRANDISH
+    int charges;            // Current number of charges available to BRANDISH with.
+    int max_charges;        // Maximum number of charges the weapon can have.
+    int cooldown;           // Current time before next recharge.
+    int recharge_time;      // How many ticks it takes to recharge one charge.  If not positive, it will not recharge.
+
+    LLIST *spells;          // Will only allow spells you can brandish
 };
 
 ////////////////
@@ -5474,6 +5518,7 @@ struct	obj_index_data
 
 	LLIST *waypoints;
 
+    AMMO_DATA *_ammo;
     BOOK_DATA *_book;
     CONTAINER_DATA *_container;
     FLUID_CONTAINER_DATA *_fluid_container;
@@ -5488,6 +5533,7 @@ struct	obj_index_data
     SCROLL_DATA *_scroll;
     TATTOO_DATA *_tattoo;
     WAND_DATA *_wand;
+    WEAPON_DATA *_weapon;
 };
 
 
@@ -5578,6 +5624,7 @@ struct	obj_data
 
     LOCK_STATE		*lock;
 
+    AMMO_DATA *_ammo;
     BOOK_DATA *_book;
     CONTAINER_DATA *_container;
     FLUID_CONTAINER_DATA *_fluid_container;
@@ -5592,6 +5639,7 @@ struct	obj_data
     SCROLL_DATA *_scroll;
     TATTOO_DATA *_tattoo;
     WAND_DATA *_wand;
+    WEAPON_DATA *_weapon;
 
     SHIP_DATA		*ship;
     LLIST			*waypoints;
@@ -5620,9 +5668,6 @@ struct	obj_data
 	/* 20140508 NIB - Used by corpses (at first) */
     char *owner_name;	/* Used to indicate the original mob's name for use decaying the corpse. */
     char *owner_short;	/* Used to indicate the original mob's short for use decaying the corpse. */
-
-    long extra_perm[4];
-    long weapon_flags_perm;	// Used by weapon objects for use with TO_WEAPON
 
     int			tempstore[MAX_TEMPSTORE];		/* Temporary storage values for script processing */
 
@@ -7106,7 +7151,7 @@ struct skill_data
     // Imbuing:
     PREIMBUE_FUN * preimbue_fun;
     IMBUE_FUN * imbue_fun;
-    // BRANDISH_FUN * brandish_fun;     // Used by brandishing weapons
+    BRANDISH_FUN * brandish_fun;     // Used by brandishing weapons
     ZAP_FUN * zap_fun;               // Used by wands
     // EQUIP_FUN * equip_fun;           // Used by jewelry and adorned armor
 
@@ -7265,6 +7310,9 @@ enum trigger_index_enum {
 	TRIG_AFTERDEATH,	/* Fired just after you die */
 	TRIG_AFTERKILL,		/* Called after someome kills a target.  TODO: Damage will become forbidden in this trigger. */
     TRIG_AGGRESSION,
+    TRIG_AMMO_BREAK,    // Called when AMMO breaks.
+    TRIG_AMMO_MANA,     // Used to calculate any mana cost
+    TRIG_AMMO_SCRIPTED, // Used to generate ammo
 	TRIG_ANIMATE,
     TRIG_APPLY_AFFECT,
 	TRIG_ASSIST,
@@ -7980,6 +8028,7 @@ extern sh_int	gsn_fireball;
 extern sh_int	gsn_fireproof;
 extern sh_int	gsn_flail;
 extern sh_int	gsn_flamestrike;
+extern sh_int   gsn_flamethower;
 extern sh_int	gsn_flight;
 extern sh_int	gsn_fly;
 extern sh_int	gsn_fourth_attack;
@@ -8087,6 +8136,7 @@ extern sh_int	gsn_spell_deflection;
 extern sh_int	gsn_spell_shield;
 extern sh_int	gsn_spell_trap;
 extern sh_int	gsn_spirit_rack;
+extern sh_int   gsn_sprayer;
 extern sh_int	gsn_stake;
 extern sh_int	gsn_starflare;
 extern sh_int	gsn_staves;
@@ -8260,6 +8310,7 @@ extern SKILL_DATA *gsk_fireball;
 extern SKILL_DATA *gsk_fireproof;
 extern SKILL_DATA *gsk_flail;
 extern SKILL_DATA *gsk_flamestrike;
+extern SKILL_DATA *gsk_flamethrower;
 extern SKILL_DATA *gsk_flight;
 extern SKILL_DATA *gsk_fly;
 extern SKILL_DATA *gsk_fourth_attack;
@@ -8367,6 +8418,7 @@ extern SKILL_DATA *gsk_spell_deflection;
 extern SKILL_DATA *gsk_spell_shield;
 extern SKILL_DATA *gsk_spell_trap;
 extern SKILL_DATA *gsk_spirit_rack;
+extern SKILL_DATA *gsk_sprayer;
 extern SKILL_DATA *gsk_stake;
 extern SKILL_DATA *gsk_starflare;
 extern SKILL_DATA *gsk_staves;
@@ -8726,7 +8778,8 @@ extern sh_int grn_unique;
 #define CAN_WEAR(obj, part)	(IS_SET((obj)->wear_flags,  (part)))
 #define IS_OBJ_STAT(obj, stat)	(IS_SET((obj)->extra[0],(stat)))
 #define IS_OBJ2_STAT(obj,stat)  (IS_SET((obj)->extra[1],(stat)))
-#define IS_WEAPON_STAT(obj,stat)(IS_SET((obj)->value[4],(stat)))
+#define IS_WEAPON_STAT(obj,stat)    (IS_WEAPON((obj)) && IS_SET(WEAPON((obj))->attacks[0].flags,(stat)))
+#define IS_WEAPON_NSTAT(obj,n,stat)    (IS_WEAPON((obj)) && IS_SET(WEAPON((obj))->attacks[(n)].flags,(stat)))
 #define WEIGHT_MULT(obj)	((obj)->item_type == ITEM_CONTAINER ? \
 	(obj)->value[4] : 100)
 #define CORPSE_TYPE(obj)	((obj)->value[0])
@@ -9606,11 +9659,11 @@ void 	deduct_cost	args( (CHAR_DATA *ch, int cost) );
 void	affect_enchant	args( (OBJ_DATA *obj) );
 int 	check_immune	args( (CHAR_DATA *ch, sh_int dam_type) );
 int 	material_lookup args( ( const char *name) );
-int	weapon_lookup	args( ( const char *name) );
-int	weapon_type	args( ( const char *name) );
-int	ranged_weapon_type	args( ( const char *name) );
-char 	*weapon_name	args( ( int weapon_Type) );
-char 	*ranged_weapon_name	args( ( int weapon_Type) );
+//int	weapon_lookup	args( ( const char *name) );
+//int	weapon_type	args( ( const char *name) );
+//int	ranged_weapon_type	args( ( const char *name) );
+//char 	*weapon_name	args( ( int weapon_Type) );
+//char 	*ranged_weapon_name	args( ( int weapon_Type) );
 char	*item_name	args( ( int item_type) );
 int	attack_lookup	args( ( const char *name) );
 long	wiznet_lookup	args( ( const char *name) );
@@ -11039,6 +11092,7 @@ SCRIPT_DATA *get_script_token(TOKEN_INDEX_DATA *token, int trigger, int slot);
 int objindex_get_subtype(OBJ_INDEX_DATA *pObjIndex);
 bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type);
 bool container_is_valid_item_type(OBJ_DATA *container, int item_type, int subtype);
+bool container_filters_for_item_type(OBJ_DATA *container, int item_type, int subtype);
 bool container_is_valid_item(OBJ_DATA *container, OBJ_DATA *obj);
 int container_get_content_weight(OBJ_DATA *container, OBJ_DATA *obj);
 bool container_can_fit_weight(OBJ_DATA *container, OBJ_DATA *obj);
@@ -11084,9 +11138,11 @@ extern sh_int top_liquid_uid;
 extern sh_int gln_water;
 extern sh_int gln_blood;
 extern sh_int gln_potion;
+extern sh_int gln_acid;
 LIQUID *liquid_water;
 LIQUID *liquid_blood;
 LIQUID *liquid_potion;
+LIQUID *liquid_acid;
 LIQUID *liquid_lookup(char *name);
 LIQUID *liquid_lookup_uid(sh_int uid);
 sh_int *liquid_gln_lookup(char *name);
@@ -11129,9 +11185,11 @@ REPUTATION_DATA *set_reputation_char(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIn
 bool has_reputation(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex);
 void paragon_reputation(CHAR_DATA *ch, REPUTATION_DATA *rep, bool show);
 bool is_reputation_rank_peaceful(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex);
+bool is_reputation_rank_hostile(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex);
 void group_gain_reputation(CHAR_DATA *ch, CHAR_DATA *victim);
 void check_mob_factions(CHAR_DATA *ch, CHAR_DATA *victim);
 bool check_mob_factions_peaceful(CHAR_DATA *ch, CHAR_DATA *victim);
+bool check_mob_factions_hostile(CHAR_DATA *ch, CHAR_DATA *victim);
 
 bool token_should_save(TOKEN_DATA *token);
 

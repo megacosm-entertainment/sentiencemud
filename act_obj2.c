@@ -163,41 +163,40 @@ void do_strike(CHAR_DATA *ch, char *argument)
     if ((obj = get_eq_char(ch, WEAR_HOLD)) == NULL)
     {
         send_to_char("You don't have anything to strike with.\n\r", ch);
-	return;
+		return;
     }
     else
     {
-	if (obj->pIndexData != obj_index_glass_hammer)
-	{
-	    act("You can't accomplish anything with $p.",
-	    	ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	    return;
-	}
+		if (obj->pIndexData != obj_index_glass_hammer)
+		{
+			act("You can't accomplish anything with $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
     }
 
     if (argument[0] == '\0')
     {
-	send_to_char("Strike what?\n\r", ch);
-	return;
+		send_to_char("Strike what?\n\r", ch);
+		return;
     }
 
     if ((obj_struck = get_obj_carry(ch, argument, ch)) == NULL)
     {
-	send_to_char("You don't have that item.\n\r", ch);
-	return;
+		send_to_char("You don't have that item.\n\r", ch);
+		return;
     }
 
     if (obj_struck == obj || obj_struck->timer > 0)
     {
-	send_to_char("You really wouldn't want to do that.\n\r", ch);
-	return;
+		send_to_char("You really wouldn't want to do that.\n\r", ch);
+		return;
     }
 
     /* Allow hammers to be used for instruments as well - Tieryo*/
-    if (obj_struck->item_type != ITEM_WEAPON && obj_struck->item_type != ITEM_ARMOUR && !IS_INSTRUMENT(obj_struck))
+    if (!IS_WEAPON(obj_struck) && obj_struck->item_type != ITEM_ARMOUR && !IS_INSTRUMENT(obj_struck))
     {
-	send_to_char("This item can only be used on weapons and armour.\n\r", ch);
-	return;
+		send_to_char("This item can only be used on weapons and armour.\n\r", ch);
+		return;
     }
 
     if (obj_struck->fragility == OBJ_FRAGILE_SOLID)
@@ -225,6 +224,7 @@ void do_strike(CHAR_DATA *ch, char *argument)
 // TODO: REWORK THIS ENTIRE THING
 void do_lore(CHAR_DATA *ch, char *argument)
 {
+#if 0
     CHAR_DATA *mob;
     OBJ_DATA *scroll;
     OBJ_INDEX_DATA *objIndex;
@@ -446,6 +446,9 @@ void do_lore(CHAR_DATA *ch, char *argument)
     act("$N gives you $p.", ch, mob, NULL, scroll, NULL, NULL, NULL, TO_CHAR);
     act("$N gives $n $p.", ch, mob, NULL, scroll, NULL, NULL, NULL, TO_ROOM);
     obj_to_char(scroll, ch);
+#else
+	command_under_construction(ch);
+#endif
 }
 
 

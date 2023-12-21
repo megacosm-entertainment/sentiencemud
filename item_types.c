@@ -278,13 +278,7 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 		case ITEM_ARMOUR:
 			if (item_type == ITEM_CONTAINER) return TRUE;
 			if (item_type == ITEM_JEWELRY) return TRUE;
-			if (item_type == ITEM_RANGED_WEAPON) return TRUE;
 			if (item_type == ITEM_LIGHT) return TRUE;
-			return FALSE;
-
-		case ITEM_RANGED_WEAPON:
-			if (item_type == ITEM_ARMOUR) return TRUE;
-			if (item_type == ITEM_CONTAINER) return TRUE;
 			return FALSE;
 
 		case ITEM_FLUID_CONTAINER:
@@ -293,6 +287,7 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 			if (item_type == ITEM_FURNITURE) return TRUE;
 			if (item_type == ITEM_PORTAL) return TRUE;
 			if (item_type == ITEM_CART) return TRUE;
+			if (item_type == ITEM_WEAPON) return true;
 			return FALSE;
 
 		case ITEM_LIGHT:
@@ -300,6 +295,8 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 			if (item_type == ITEM_FLUID_CONTAINER) return TRUE;
 			if (item_type == ITEM_FURNITURE) return TRUE;
 			if (item_type == ITEM_PORTAL) return TRUE;
+			if (item_type == ITEM_WEAPON) return true;
+			if (item_type == ITEM_WAND) return true;
 			return FALSE;
 
 		case ITEM_PORTAL:
@@ -318,6 +315,7 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 		case ITEM_WEAPON:
 			if (item_type == ITEM_LIGHT) return TRUE;
 			if (item_type == ITEM_WAND) return TRUE;
+			if (item_type == ITEM_FLUID_CONTAINER) return true;
 			return FALSE;
 	}
 
@@ -354,9 +352,9 @@ int __item_type_get_subtype(OBJ_DATA *obj)
 {
 	if (IS_VALID(obj))
 	{
-		if (obj->item_type == ITEM_WEAPON)	// TODO: IS_WEAPON(obj)
+		if (IS_WEAPON(obj))
 		{
-			return obj->value[0];		// Weapon type
+			return WEAPON(obj)->weapon_class;
 		}
 	}
 
@@ -367,9 +365,9 @@ int objindex_get_subtype(OBJ_INDEX_DATA *pObjIndex)
 {
 	if (pObjIndex)
 	{
-		if (pObjIndex->item_type == ITEM_WEAPON) // TODO: IS_WEAPON
+		if (WEAPON(pObjIndex))
 		{
-			return pObjIndex->value[0];
+			return WEAPON(pObjIndex)->weapon_class;
 		}
 	}
 
@@ -748,6 +746,16 @@ bool container_is_valid_item_type(OBJ_DATA *container, int item_type, int subtyp
 			 __container_is_listed(CONTAINER(container)->whitelist, item_type, subtype)) &&
 			((list_size(CONTAINER(container)->blacklist) < 1) ||
 			!__container_is_listed(CONTAINER(container)->blacklist, item_type, subtype));
+}
+
+// Same as container_is_valid_item_type, except it *MUST* be in the whitelist and either an empty blacklist or NOT in the blacklist
+bool container_filters_for_item_type(OBJ_DATA *container, int item_type, int subtype)
+{
+	return IS_VALID(container) && IS_CONTAINER(container) &&
+			(__container_is_listed(CONTAINER(container)->whitelist, item_type, subtype)) &&
+			((list_size(CONTAINER(container)->blacklist) < 1) ||
+			!__container_is_listed(CONTAINER(container)->blacklist, item_type, subtype));
+
 }
 
 // Is the primary item_type allowed in the container?

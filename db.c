@@ -361,6 +361,7 @@ sh_int	gsn_fireball;
 sh_int	gsn_fireproof;
 sh_int	gsn_flail;
 sh_int	gsn_flamestrike;
+sh_int	gsn_flamethrower;
 sh_int	gsn_flight;
 sh_int	gsn_fly;
 sh_int	gsn_fourth_attack;
@@ -469,6 +470,7 @@ sh_int	gsn_spell_deflection;
 sh_int	gsn_spell_shield;
 sh_int	gsn_spell_trap;
 sh_int	gsn_spirit_rack;
+sh_int	gsn_sprayer;
 sh_int	gsn_stake;
 sh_int	gsn_starflare;
 sh_int	gsn_staves;
@@ -641,6 +643,7 @@ SKILL_DATA *gsk_fireball;
 SKILL_DATA *gsk_fireproof;
 SKILL_DATA *gsk_flail;
 SKILL_DATA *gsk_flamestrike;
+SKILL_DATA *gsk_flamethrower;
 SKILL_DATA *gsk_flight;
 SKILL_DATA *gsk_fly;
 SKILL_DATA *gsk_fourth_attack;
@@ -748,6 +751,7 @@ SKILL_DATA *gsk_spell_deflection;
 SKILL_DATA *gsk_spell_shield;
 SKILL_DATA *gsk_spell_trap;
 SKILL_DATA *gsk_spirit_rack;
+SKILL_DATA *gsk_sprayer;
 SKILL_DATA *gsk_stake;
 SKILL_DATA *gsk_starflare;
 SKILL_DATA *gsk_staves;
@@ -973,10 +977,12 @@ TOKEN_DATA *global_tokens = NULL;
 sh_int gln_water;
 sh_int gln_blood;
 sh_int gln_potion;
+sh_int gln_acid;
 
 LIQUID *liquid_water;
 LIQUID *liquid_blood;
 LIQUID *liquid_potion;
+LIQUID *liquid_acid;
 
 /*
  * Memory management.
@@ -3943,6 +3949,7 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
 	// Item Multi-typing
 	if (multitypes)
 	{
+		AMMO(obj) = copy_ammo_data(AMMO(pObjIndex));
 		BOOK(obj) = copy_book_data(BOOK(pObjIndex));
 		CONTAINER(obj) = copy_container_data(CONTAINER(pObjIndex));
 		FLUID_CON(obj) = copy_fluid_container_data(FLUID_CON(pObjIndex));
@@ -3957,87 +3964,8 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
 		SCROLL(obj) = copy_scroll_data(SCROLL(pObjIndex));
 		TATTOO(obj) = copy_tattoo_data(TATTOO(pObjIndex));
 		WAND(obj) = copy_wand_data(WAND(pObjIndex));
+		WEAPON(obj) = copy_weapon_data(WEAPON(pObjIndex));
 	}
-
-#if 0
-    /*
-     * Mess with object properties.
-     */
-    switch (obj->item_type)
-    {
-	case ITEM_LIGHT:
-	    if (obj->value[2] >= 999)
-		obj->value[2] = -1;
-	    break;
-
-	case ITEM_CATALYST:
-	    if (!obj->value[1]) obj->value[1] = 1; /* Fix zero charge catalysts to single uses*/
-	    break;
-
-	case ITEM_BOOK:
-	case ITEM_HERB:
-	case ITEM_FURNITURE:
-	case ITEM_TRADE_TYPE:
-	case ITEM_SEED:
-	case ITEM_SEXTANT:
-	case ITEM_INSTRUMENT:
-	case ITEM_CART:
-	case ITEM_SHARECERT:
-	case ITEM_SMOKE_BOMB:
-	case ITEM_ROOM_ROOMSHIELD:
-	case ITEM_ROOM_DARKNESS:
-	case ITEM_STINKING_CLOUD:
-	case ITEM_WITHERING_CLOUD:
-	case ITEM_ROOM_FLAME:
-	case ITEM_ARTIFACT:
-	case ITEM_TRASH:
-	case ITEM_CONTAINER:
-	case ITEM_WEAPON_CONTAINER:
-	case ITEM_DRINK_CON:
-	case ITEM_KEY:
-	case ITEM_BOAT:
-	case ITEM_CORPSE_NPC:
-	case ITEM_CORPSE_PC:
-	case ITEM_RANGED_WEAPON:
-	case ITEM_FOUNTAIN:
-	case ITEM_MAP:
-	case ITEM_SHIP:
-	case ITEM_CLOTHING:
-	case ITEM_PORTAL:
-	case ITEM_TREASURE:
-	case ITEM_SPELL_TRAP:
-	case ITEM_ROOM_KEY:
-	case ITEM_GEM:
-	case ITEM_JEWELRY:
-	case ITEM_JUKEBOX:
-	case ITEM_SCROLL:
-	case ITEM_WAND:
-	case ITEM_STAFF:
-	case ITEM_WEAPON:
-	case ITEM_ARMOUR:
-	case ITEM_BANK:
-	case ITEM_KEYRING:
-	case ITEM_POTION:
-	case ITEM_PILL:
-	case ITEM_ICE_STORM:
-	case ITEM_FLOWER:
-	case ITEM_MIST:
-	case ITEM_MONEY:
-	case ITEM_WHISTLE:
-	case ITEM_SHOVEL:
-	case ITEM_SHRINE:
-	    break;
-
-	case ITEM_FOOD:
-	    obj->timer = obj->value[4];
-            break;
-
-	default:
-	    bug("create_object: vnum %ld bad type.", pObjIndex->vnum);
-
-	    break;
-    }
-#endif
 
     /* Random affects on objs*/
     if (affects)
@@ -6943,14 +6871,6 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 	fprintf(fp, "WearFlags %d\n", obj->wear_flags);				// **
 	fprintf(fp, "ItemType %d\n", obj->item_type);				// **
 
-	fprintf(fp, "PermExtra %ld\n", obj->extra_perm[0]);				// **
-	fprintf(fp, "PermExtra2 %ld\n", obj->extra_perm[1]);				// **
-	fprintf(fp, "PermExtra3 %ld\n", obj->extra_perm[2]);				// **
-	fprintf(fp, "PermExtra4 %ld\n", obj->extra_perm[3]);				// **
-
-	if( obj->item_type == ITEM_WEAPON )
-		fprintf(fp, "PermWeapon %ld\n", obj->weapon_flags_perm);
-
 	// Save location
 	if (obj->in_room) {	// **
 		if(obj->in_room->wilds)		fprintf(fp, "Vroom %ld %ld %ld\n", obj->in_room->wilds->uid, obj->in_room->x, obj->in_room->y);
@@ -8390,11 +8310,6 @@ OBJ_DATA *persist_load_object(FILE *fp)
 				KEY("OwnerShort",	obj->owner_short,			fread_string(fp));
 				break;
 			case 'P':
-				KEY("PermExtra",		obj->extra_perm[0],	fread_number(fp));
-				KEY("PermExtra2",		obj->extra_perm[1],	fread_number(fp));
-				KEY("PermExtra3",		obj->extra_perm[2],	fread_number(fp));
-				KEY("PermExtra4",		obj->extra_perm[3],	fread_number(fp));
-				KEY("PermWeapon",		obj->weapon_flags_perm,	fread_number(fp));
 				FKEY("Persist",		obj->persist);
 				break;
 			case 'Q':

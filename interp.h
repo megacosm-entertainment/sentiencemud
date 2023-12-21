@@ -37,6 +37,8 @@
 /* wrapper function for safe command execution */
 void do_function args((CHAR_DATA *ch, DO_FUN *do_fun, char *argument));
 
+void command_under_construction(CHAR_DATA *ch);
+
 /* for command types */
 #define ML 	MAX_LEVEL	/* implementor */
 #define L1	MAX_LEVEL - 1  	/* creator */
@@ -632,3 +634,4 @@ DECLARE_DO_FUN( do_replist );
 DECLARE_DO_FUN( do_repshow );
 
 DECLARE_DO_FUN( do_repset );
+

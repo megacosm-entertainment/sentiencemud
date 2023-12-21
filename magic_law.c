@@ -318,6 +318,40 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 		// TODO: NYI
 		add_buf(buffer, "{MWand: {WNOT YET IMPLEMENTED{x\n\r");
 	}
+
+	if (IS_WEAPON(obj))
+	{
+		add_buf(buffer, "{MWeapon type is {x");
+
+
+		// Now... why is this like this?
+		switch (obj->value[0]) {
+		case(WEAPON_EXOTIC): 		add_buf(buffer, "exotic{M");		break;
+		case(WEAPON_SWORD): 		add_buf(buffer, "sword{M");		break;
+		case(WEAPON_DAGGER): 		add_buf(buffer, "dagger{M");		break;
+		case(WEAPON_SPEAR): 		add_buf(buffer, "spear/staff{M");	break;
+		case(WEAPON_MACE): 		add_buf(buffer, "mace/club{M");	break;
+		case(WEAPON_AXE): 		add_buf(buffer, "axe{M");		break;
+		case(WEAPON_FLAIL): 		add_buf(buffer, "flail{M");		break;
+		case(WEAPON_WHIP): 		add_buf(buffer, "whip{M");		break;
+		case(WEAPON_POLEARM): 		add_buf(buffer, "polearm{M");		break;
+		case(WEAPON_STAKE): 		add_buf(buffer, "stake{M");		break;
+		case(WEAPON_QUARTERSTAFF):	add_buf(buffer, "quarterstaff{M");	break;
+		case(WEAPON_HARPOON):		add_buf(buffer, "harpoon{M"); 		break;
+		default:			add_buf(buffer, "unknown{M");		break;
+		}
+
+		sprintf(buf, " with attack type {x%s{M.{x\n\r", attack_table[obj->value[3]].noun);
+		add_buf(buffer, buf);
+
+		sprintf(buf,"{MDamage is {x%dd%d {M(average {Y%d{M).\n\r{x",
+			obj->value[1],obj->value[2], (1 + obj->value[2]) * obj->value[1] / 2);
+		add_buf(buffer, buf);
+		if (obj->value[4]) {
+			sprintf(buf,"{MWeapons flags: {x%s\n\r",weapon_bit_name(obj->value[4]));
+			add_buf(buffer,buf);
+		}
+	}
 }
 
 bool __func_identify(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
@@ -376,6 +410,7 @@ bool __func_identify(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
 	}
 
 	switch (obj->item_type) {
+	/*
 	case ITEM_RANGED_WEAPON:
 		add_buf(buffer, "{MRanged weapon type is {x");
 
@@ -396,6 +431,7 @@ bool __func_identify(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
 		sprintf(buf, "{MRange is {x%d{M rooms.\n\r", obj->value[3]);
 		add_buf(buffer, buf);
 		break;
+	*/
 
 	// TODO: update for display the keys when the container whitelists keys
 	/*
@@ -456,13 +492,14 @@ bool __func_identify(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
 		break;
 	*/
 
-	//case ITEM_WAND:
+/*
+	case ITEM_WAND:
 	case ITEM_STAFF:
 		sprintf(buf, "{MHas {x%d{M/{x%d {Mcharges.{x\n\r",
 			obj->value[2], obj->value[1]);
 		add_buf(buffer, buf);
 		break;
-
+*/
 	/*
 	case ITEM_DRINK_CON:
 		if (obj->value[0] != 0 && obj->value[1] != 0)
@@ -504,8 +541,11 @@ bool __func_identify(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
 		break;
 	*/
 
+	/*
 	case ITEM_WEAPON:
 		add_buf(buffer, "{MWeapon type is {x");
+
+
 		// Now... why is this like this?
 		switch (obj->value[0]) {
 		case(WEAPON_EXOTIC): 		add_buf(buffer, "exotic{M");		break;
@@ -519,10 +559,6 @@ bool __func_identify(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
 		case(WEAPON_POLEARM): 		add_buf(buffer, "polearm{M");		break;
 		case(WEAPON_STAKE): 		add_buf(buffer, "stake{M");		break;
 		case(WEAPON_QUARTERSTAFF):	add_buf(buffer, "quarterstaff{M");	break;
-		case(WEAPON_THROWABLE): 	add_buf(buffer, "throwable{M");	break;
-		case(WEAPON_ARROW): 		add_buf(buffer, "arrow{M"); 		break;
-		case(WEAPON_BOLT): 		add_buf(buffer, "bolt{M"); 		break;
-		case(WEAPON_DART): 		add_buf(buffer, "dart{M"); 		break;
 		case(WEAPON_HARPOON):		add_buf(buffer, "harpoon{M"); 		break;
 		default:			add_buf(buffer, "unknown{M");		break;
 		}
@@ -538,6 +574,7 @@ bool __func_identify(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
 			add_buf(buffer,buf);
 		}
 		break;
+	*/
 
 	case ITEM_ARMOUR:
 		sprintf(buf, "{MArmour class is {x%d {Mpierce, {x%d {Mbash, {x%d {Mslash, and {x%d {Mvs. magic.\n\r",
@@ -574,6 +611,7 @@ bool __func_identify(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
 				case TO_OBJECT4:
 					sprintf(buf,"{MAdds {x%s {Mobject flag.{x\n", extra4_bit_name(af->bitvector));
 					break;
+				// TODO: Fix for the N attack points
 				case TO_WEAPON:
 					sprintf(buf,"{MAdds {x%s {Mweapon flags.\n{x", weapon_bit_name(af->bitvector));
 					break;

@@ -134,6 +134,7 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "scriptwait",			do_opscriptwait,		FALSE,	TRUE	},
 	{ "selfdestruct",		do_opselfdestruct,		FALSE,	FALSE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
+	{ "setoutbound",		scriptcmd_setoutbound,		TRUE,	TRUE	},
 	{ "setposition",		scriptcmd_setposition,		TRUE,	TRUE	},
 	{ "setrace",			scriptcmd_setrace,			TRUE,	TRUE	},
 	{ "setrecall",			do_opsetrecall,			FALSE,	TRUE	},

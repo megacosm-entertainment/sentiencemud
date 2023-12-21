@@ -10935,3 +10935,35 @@ SCRIPT_CMD(scriptcmd_remstache)
 		variables_set_object(info->var,var_name,item);
 	SETRETURN(1);
 }
+
+
+// Can only be used in OPROGs and TPROGs on object tokens... so far
+// OBJECT|TOKEN SETOUTBOUND $MOBILE $OBJECT
+SCRIPT_CMD(scriptcmd_setoutbound)
+{
+	char *rest = argument;
+
+	if (!info) return;
+
+	// Must be from an OPROG or a TPROG on an object's token
+	if (!info->obj && (!info->token || info->token->object))
+		return;
+
+	// Make sure it is in a particular trigger
+	if (!IS_TRIGGER(TRIG_AMMO_SCRIPTED))
+		return;
+
+	SETRETURN(0);
+	PARSE_ARGTYPE(MOBILE);
+	CHAR_DATA *mob = arg->d.mob;
+
+	PARSE_ARGTYPE(OBJECT);
+	OBJ_DATA *obj = arg->d.obj;
+
+	// Object must *not* be lockered, stached, or in the mail
+	if (obj->locker || obj->stached || obj->in_mail)
+		return;
+
+	mob->outbound_object = obj;
+	SETRETURN(1);
+}

@@ -347,6 +347,7 @@ DECLARE_OLC_FUN( oedit_persist  );
 DECLARE_OLC_FUN( oedit_lock		);
 DECLARE_OLC_FUN( oedit_waypoints	);
 
+DECLARE_OLC_FUN( oedit_type_ammo );
 DECLARE_OLC_FUN( oedit_type_book );
 DECLARE_OLC_FUN( oedit_type_container );
 DECLARE_OLC_FUN( oedit_type_fluid_container );
@@ -361,6 +362,7 @@ DECLARE_OLC_FUN( oedit_type_portal );
 DECLARE_OLC_FUN( oedit_type_scroll );
 DECLARE_OLC_FUN( oedit_type_tattoo );
 DECLARE_OLC_FUN( oedit_type_wand );
+DECLARE_OLC_FUN( oedit_type_weapon );
 
 /*
  * Mobile Editor Prototypes
@@ -665,7 +667,7 @@ DECLARE_OLC_FUN( skedit_touchfunc );
 
 //DECLARE_OLC_FUN( skedit_preimbuefunc );
 //DECLARE_OLC_FUN( skedit_imbuefunc );
-//DECLARE_OLC_FUN( skedit_brandishfunc );
+DECLARE_OLC_FUN( skedit_brandishfunc );
 DECLARE_OLC_FUN( skedit_zapfunc );
 //DECLARE_OLC_FUN( skedit_equipfunc );
 

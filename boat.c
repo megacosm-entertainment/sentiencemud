@@ -5444,11 +5444,11 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 		{
 			map = NULL;
 			for (map = ch->carrying; map != NULL; map = map->next_content) {
-				if (map->item_type == ITEM_BLANK_SCROLL || map->pIndexData == obj_index_blank_scroll)
+				if (IS_SCROLL(map))
 					break;
 			}
 
-			if (map == NULL)
+			if (map == NULL || !IS_SCROLL(map) || list_size(SCROLL(map)->spells) > 0)
 			{
 				send_to_char("You do not have a blank scroll.\n\r", ch);
 				return;
@@ -5467,7 +5467,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			if( map->item_type == ITEM_BLANK_SCROLL || map->pIndexData == obj_index_blank_scroll )
+			if( IS_SCROLL(map) && list_size(SCROLL(map)->spells) < 1 )
 			{
 				// Replace blank scroll with map object
 				extract_obj(map);

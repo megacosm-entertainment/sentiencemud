@@ -91,6 +91,7 @@ const struct olc_help_type help_table[] =
 {
 	{	"act",					STRUCT_FLAGBANK,	act_flagbank,				"Mobile	attributes."	},
 	{	"affect",				STRUCT_FLAGBANK,	affect_flagbank,			"Mobile	affects."	},
+	{	"ammo",					STRUCT_FLAGS,		ammo_types,					"Ammo types."	},
 	{	"apply",				STRUCT_FLAGS,		apply_flags,				"Apply flags"	},
 	{	"apptype",				STRUCT_FLAGS,		apply_types,				"Apply types."	},
 	{	"aprog",				STRUCT_TRIGGERS,	dummy_triggers,				"AreaProgram types."	},
@@ -4806,6 +4807,22 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
     add_buf(buffer, "\n\r");
 
 	// MULTI-TYPING
+	if (IS_AMMO(obj))
+	{
+		AMMO_DATA *ammo = AMMO(obj);
+		add_buf(buffer, "\n\r{GAmmo:{x\n\r");
+		sprintf(buf, "{B[{WType         {B]:  {x%s\n\r", flag_string(ammo_types, ammo->type));
+		add_buf(buffer, buf);
+
+		DICE_DATA dice = ammo->damage;
+		sprintf(buf, "{B[{WDamage       {B]:  %s\n\r",
+			((dice.bonus > 0) ?
+				formatf("{x%d{Bd{x%d{B+{x%d", dice.number, dice.size, dice.bonus) :
+				formatf("{x%d{Bd{x%d", dice.number, dice.size)));
+		add_buf(buffer, buf);
+
+	}
+
 	if (IS_BOOK(obj))
 	{
 		add_buf(buffer, "\n\r{GBook:{x\n\r");
@@ -5365,16 +5382,19 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		WAND_DATA *wand = WAND(obj);
 
 		add_buf(buffer, "\n\r{GWand:{x\n\r");
+		sprintf(buf, "{B[{WMaximum Mana {B]:  {x%d{B (used for imbuing){x\n\r", wand->max_mana);
+		add_buf(buffer, buf);
+
 		if (wand->max_charges < 0)
-			sprintf(buf, "{B[{WCharges    {B]:  {Wunlimited{x\n\r");
+			sprintf(buf, "{B[{WCharges      {B]:  {Wunlimited{x\n\r");
 		else
-			sprintf(buf, "{B[{WCharges    {B]:  {x%d{B / {x%d\n\r", wand->charges, wand->max_charges);
+			sprintf(buf, "{B[{WCharges      {B]:  {x%d{B / {x%d\n\r", wand->charges, wand->max_charges);
 		add_buf(buffer, buf);
 
 		if (wand->recharge_time > 0)
-			sprintf(buf, "{B[{WRecharging {B]:  1 charge per {x%d{B tick%s{x\n\r", wand->recharge_time, ((wand->recharge_time == 1)?"":"s"));
+			sprintf(buf, "{B[{WRecharging   {B]:  1 charge per {x%d{B tick%s{x\n\r", wand->recharge_time, ((wand->recharge_time == 1)?"":"s"));
 		else
-			sprintf(buf, "{B[{WRecharging {B]:  none{x\n\r");
+			sprintf(buf, "{B[{WRecharging   {B]:  none{x\n\r");
 		add_buf(buffer, buf);
 
 		if (list_size(wand->spells) > 0)
@@ -5390,6 +5410,75 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 			ITERATOR sit;
 			SPELL_DATA *spell;
 			iterator_start(&sit, wand->spells);
+			while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
+			{
+				sprintf(buf, "{B[{W%4d{B]{x %-20s %-10d %d%%\n\r",
+					cnt,
+					spell->skill->name, spell->level, spell->repop);
+				buf[0] = UPPER(buf[0]);
+				add_buf(buffer, buf);
+
+				cnt++;
+			}
+		}
+	}
+
+	if (IS_WEAPON(obj))
+	{
+		WEAPON_DATA *weapon = WEAPON(obj);
+
+		add_buf(buffer, "\n\r{GWeapon:{x\n\r");
+		sprintf(buf, "{B[{WClass        {B]:  {x%s\n\r", flag_string(weapon_class, weapon->weapon_class));
+		add_buf(buffer, buf);
+
+		for(int a = 0; a < MAX_ATTACK_POINTS; a++)
+		{
+			if (weapon->attacks[a].type >= 0)
+			{
+				int dt = weapon->attacks[a].type;
+				DICE_DATA dice = weapon->attacks[a].damage;
+				sprintf(buf, "{B[{WAttack %-2d    {B]:  {x%s {B({x%s{B), Damage: %s{B, Flags: {x%s\n\r", a+1,
+					attack_table[dt].noun,
+					flag_string(damage_classes, attack_table[dt].damage),
+					((dice.bonus > 0) ?
+						formatf("{x%d{Bd{x%d{B+{x%d", dice.number, dice.size, dice.bonus) :
+						formatf("{x%d{Bd{x%d", dice.number, dice.size)),
+					flag_string(weapon_type2, weapon->attacks[a].flags));
+				add_buf(buffer, buf);
+			}
+			else
+				sprintf(buf, "{B[{WAttack %-2d    {B]:  {xnone\n\r", a+1);
+			add_buf(buffer, buf);
+		}
+
+		sprintf(buf, "{B[{WMaximum Mana {B]:  {x%d{B (used for imbuing){x\n\r", weapon->max_mana);
+		add_buf(buffer, buf);
+
+		if (weapon->max_charges < 0)
+			sprintf(buf, "{B[{WCharges      {B]:  {Wunlimited{x\n\r");
+		else
+			sprintf(buf, "{B[{WCharges      {B]:  {x%d{B / {x%d\n\r", weapon->charges, weapon->max_charges);
+		add_buf(buffer, buf);
+
+		if (weapon->recharge_time > 0)
+			sprintf(buf, "{B[{WRecharging   {B]:  1 charge per {x%d{B tick%s{x\n\r", weapon->recharge_time, ((weapon->recharge_time == 1)?"":"s"));
+		else
+			sprintf(buf, "{B[{WRecharging   {B]:  none{x\n\r");
+		add_buf(buffer, buf);
+
+		if (list_size(weapon->spells) > 0)
+		{
+			int cnt = 0;
+
+			sprintf(buf, "{g%-6s %-20s %-10s %-6s{x\n\r", "Number", "Spell", "Level", "Random");
+			add_buf(buffer, buf);
+
+			sprintf(buf, "{g%-6s %-20s %-10s %-6s{x\n\r", "------", "-----", "-----", "------");
+			add_buf(buffer, buf);
+
+			ITERATOR sit;
+			SPELL_DATA *spell;
+			iterator_start(&sit, weapon->spells);
 			while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
 			{
 				sprintf(buf, "{B[{W%4d{B]{x %-20s %-10d %d%%\n\r",
@@ -5537,6 +5626,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	case ITEM_ARTIFACT:
 	    break;
 
+	/*
 	case ITEM_RANGED_WEAPON:
             sprintf(buf, "{B[  {Wv0{B]{G Ranged Weapon class:{x   %s\n\r",
 		     flag_string(ranged_weapon_class, obj->value[0]));
@@ -5550,7 +5640,8 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	    sprintf(buf, "{B[  {Wv3{B]{G Projectile Distance:{x [%ld]\n\r", obj->value[3]);
 	    add_buf(buffer, buf);
 	    break;
-
+	*/
+/*
 	case ITEM_WEAPON:
             sprintf(buf, "{B[  {Wv0{B]{G Weapon class:{x   %s\n\r",
 		     flag_string(weapon_class, obj->value[0]));
@@ -5566,7 +5657,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		     flag_string(weapon_type2,  obj->value[4]));
 	    add_buf(buffer, buf);
 	    break;
-
+*/
 	case ITEM_SHIP:
 	    sprintf(buf,
 		"{B[  {Wv0{B]{G Weight:{x     [%ld kg]\n\r"
@@ -6635,6 +6726,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 	default:
 		break;
 
+	/*
 	case ITEM_BLANK_SCROLL:
 		switch(value_num)
 		{
@@ -6656,9 +6748,10 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			break;
 		}
 		break;
+		*/
 
-	case ITEM_WAND:
-	case ITEM_STAFF:
+	//case ITEM_WAND:
+	//case ITEM_STAFF:
 		/*
 		switch (value_num)
 		{
@@ -6682,10 +6775,10 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			//pObj->value[3] = skill_lookup(argument);
 			break;
 		}
-		*/
 		break;
+		*/
 
-	case ITEM_SCROLL:
+	//case ITEM_SCROLL:
 	//case ITEM_POTION:
 	case ITEM_PILL:
 		break;
@@ -6802,6 +6895,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		}
 		break;
 
+	/*
 	case ITEM_RANGED_WEAPON:
 		switch (value_num)
 		{
@@ -6826,6 +6920,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			break;
 		}
 		break;
+	*/
 
 	case ITEM_HERB:
 		/*
@@ -6909,6 +7004,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 
 		break;
 
+	/*
 	case ITEM_WEAPON:
 		switch (value_num)
 		{
@@ -6937,6 +7033,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			break;
 		}
 		break;
+		*/
 
 	case ITEM_CART:
 		switch (value_num)
@@ -9587,6 +9684,7 @@ OEDIT(oedit_wear)
 		return FALSE;
 	}
 
+/*
         if ((flag_value(wear_flags, argument) == ITEM_WEAR_BACK)
 	&&     pObj->item_type != ITEM_RANGED_WEAPON)
 	{
@@ -9600,7 +9698,7 @@ OEDIT(oedit_wear)
 	    send_to_char("Only weapon containers can be worn on the shoulder.\n\r", ch);
 	    return FALSE;
 	}
-
+*/
 	if ((value = flag_value(wear_flags, argument)) != NO_FLAG)
 	{
 	    TOGGLE_BIT(pObj->wear_flags, value);
@@ -9630,8 +9728,7 @@ OEDIT(oedit_type)
 		if ((value = flag_value(type_flags, argument)) != NO_FLAG)
 		{
 
-			if ((value == ITEM_KEYRING ||
-				 value == ITEM_BANK ||
+			if ((value == ITEM_BANK ||
 				 value == ITEM_SHARECERT ||
 				 value == ITEM_ROOM_DARKNESS ||
 				 value == ITEM_ROOM_FLAME ||
@@ -9681,6 +9778,117 @@ OEDIT(oedit_type)
 	send_to_char("Syntax:  type [flag]\n\r"
 				"Type '? type' for a list of flags.\n\r", ch);
 	return FALSE;
+}
+
+OEDIT( oedit_type_ammo )
+{
+	OBJ_INDEX_DATA *pObj;
+
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_AMMO(pObj))
+		{
+			send_to_char("Syntax:  ammo type <type>\n\r", ch);
+			send_to_char("         ammo dice <number> <size>[ <bonus>]\n\r", ch);
+
+			if (pObj->item_type != ITEM_AMMO)
+			{
+				send_to_char("         ammo remove\n\r", ch);
+			}
+		}
+		else
+		{
+			send_to_char("Syntax:  ammo add\n\r", ch);
+		}
+		return false;
+	}
+
+	char arg[MIL];
+	argument = one_argument(argument, arg);
+	if (IS_AMMO(pObj))
+	{
+		if (!str_prefix(arg, "dice"))
+		{
+			int number;
+			argument = one_argument(argument, arg);
+			if (!is_number(arg) || (number = atoi(arg)) < 1)
+			{
+				send_to_char("Please specify a positive number of dice.\n\r", ch);
+				return false;
+			}
+
+			int size;
+			argument = one_argument(argument, arg);
+			if (!is_number(arg) || (size = atoi(arg)) < 1)
+			{
+				send_to_char("Please specify a positive dice size.\n\r", ch);
+				return false;
+			}
+
+			int bonus = 0;
+			if (argument[0] != '\0')
+			{
+				if (!is_number(argument) || (bonus = atoi(argument)) < 1)
+				{
+					send_to_char("Please specify a positive dice bonus.\n\r", ch);
+					return false;
+				}
+			}
+
+			AMMO(pObj)->damage.number = number;
+			AMMO(pObj)->damage.size = size;
+			AMMO(pObj)->damage.bonus = bonus;
+			send_to_char("AMMO Damage dice changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "remove"))
+		{
+			if (pObj->item_type != ITEM_AMMO)
+			{
+				
+				free_ammo_data(AMMO(pObj));
+				AMMO(pObj) = NULL;
+				send_to_char("AMMO data removed from object.\n\r", ch);
+				return true;
+			}
+		}
+
+		if (!str_prefix(arg, "type"))
+		{
+			int type;
+			if ((type = stat_lookup(argument, ammo_types, NO_FLAG)) == NO_FLAG)
+			{
+				send_to_char("Invalid ammo type.  Use '? ammo' for list of valid types.\n\r", ch);
+				show_flag_cmds(ch, ammo_types);
+				return false;
+			}
+
+			AMMO(pObj)->type = type;
+			send_to_char("AMMO type changed.\n\r", ch);
+			return true;
+		}
+	}
+	else
+	{
+		if (!str_prefix(arg, "add"))
+		{
+			if (!obj_index_can_add_item_type(pObj, ITEM_AMMO))
+			{
+				send_to_char("You cannot add this item type to this object.\n\r", ch);
+				return FALSE;
+			}
+
+			AMMO(pObj) = new_ammo_data();
+			send_to_char("AMMO data added to object.\n\r\n\r", ch);
+			return TRUE;
+		}
+	}
+
+	oedit_type_ammo(ch, "");
+	return false;
 }
 
 void __oedit_book_renumber_pages(BOOK_DATA *book)
@@ -14345,6 +14553,7 @@ OEDIT(oedit_type_wand)
 		{
 			send_to_char("Syntax:  wand charges <#charges>\n\r", ch);
 			send_to_char("         wand maxcharges <#charges|unlimited>\n\r", ch);
+			send_to_char("         wand maxmana <mana>\n\r", ch);
 			send_to_char("         wand recharge <#rate>\n\r", ch);
 			send_to_char("         wand spell clear\n\r", ch);
 			send_to_char("         wand spell add <spell name> <spell level>\n\r", ch);
@@ -14415,6 +14624,20 @@ OEDIT(oedit_type_wand)
 			else if(WAND(pObj)->charges < 0 || max < WAND(pObj)->charges)
 				WAND(pObj)->charges = max;
 			send_to_char("WAND Max Charges set.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "maxmana"))
+		{
+			int mana;
+			if (!is_number(argument) || (mana = atoi(argument)) < 0)
+			{
+				send_to_char("Please specify a non-negative number for maximum mana.\n\r", ch);
+				return false;
+			}
+
+			WAND(pObj)->max_mana = mana;
+			send_to_char("WAND Maximum Mana set.\n\r", ch);
 			return true;
 		}
 
@@ -14567,6 +14790,388 @@ OEDIT(oedit_type_wand)
 	oedit_type_wand(ch, "");
 	return false;
 }
+
+bool olc_can_brandish_spell(SKILL_DATA *skill)
+{
+	if (!is_skill_spell(skill)) return false;
+
+	if (skill->token)
+		return get_script_token(skill->token, TRIG_TOKEN_BRANDISH, TRIGSLOT_SPELL) != NULL;
+	else
+		return skill->zap_fun != NULL;
+}
+
+OEDIT( oedit_type_weapon )
+{
+	OBJ_INDEX_DATA *pObj;
+
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_WEAPON(pObj))
+		{
+			send_to_char("Syntax:  weapon class <weapon class>\n\r", ch);
+			send_to_char("         weapon attack <#> type <attack type>\n\r", ch);
+			send_to_char("         weapon attack <#> dice <number> <size>[ <bonus>]\n\r", ch);
+			send_to_char("         weapon attack <#> flags <flags>\n\r", ch);
+			send_to_char("         weapon attack <#> reset\n\r", ch);
+			send_to_char("         weapon maxmana <mana>   (for imbuing)\n\r", ch);
+			send_to_char("         weapon spell add <name> <level>\n\r", ch);
+			send_to_char("         weapon spell remove <index>\n\r", ch);
+			send_to_char("         weapon spell clear\n\r", ch);
+
+			if (pObj->item_type != ITEM_WEAPON)
+			{
+				send_to_char("         weapon remove\n\r", ch);
+			}
+		}
+		else
+		{
+			send_to_char("Syntax:  weapon add\n\r", ch);
+		}
+		return false;
+	}
+
+	char arg[MIL];
+	char buf[MSL];
+	argument = one_argument(argument, arg);
+	if (IS_WEAPON(pObj))
+	{
+		if (!str_prefix(arg, "charges"))
+		{
+			if (WEAPON(pObj)->max_charges < 0)
+			{
+				send_to_char("Weapon already has unlimited charges.\n\r", ch);
+				return false;
+			}
+
+			if (WEAPON(pObj)->max_charges == 0)
+			{
+				send_to_char("Weapon has no charges.\n\r", ch);
+				return false;
+			}
+
+			int charges;
+			if (!is_number(argument) || (charges = atoi(argument)) < 0 || charges > WEAPON(pObj)->max_charges)
+			{
+				send_to_char("Syntax:  weapon charges {R<#charges>{x\n\r", ch);
+				sprintf(buf, "Please provide a number from 0 to %d.\n\r", WEAPON(pObj)->max_charges);
+				send_to_char(buf, ch);
+				return false;
+			}
+
+			WEAPON(pObj)->charges = charges;
+			send_to_char("WEAPON Charges set.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "class"))
+		{
+			int clazz;
+			if ((clazz = stat_lookup(argument, weapon_class, WEAPON_UNKNOWN)) == WEAPON_UNKNOWN)
+			{
+				send_to_char("Invalid weapon class.  Use '? wclass' for valid types.\n\r", ch);
+				show_flag_cmds(ch, weapon_class);
+				return false;
+			}
+
+			WEAPON(pObj)->weapon_class = clazz;
+			// Reset the Ammo
+			WEAPON(pObj)->ammo = AMMO_NONE;
+			send_to_char("Weapon Class changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "maxcharges"))
+		{
+			int max;
+			if (!str_prefix(argument, "unlimited"))
+			{
+				max = -1;
+			}
+			else if (!is_number(argument) || (max = atoi(argument)) < 0)
+			{
+				send_to_char("Syntax:  weapon maxcharges {R<#charges>{x\n\r", ch);
+				send_to_char("Please provide a non-negative number.\n\r", ch);
+				return false;
+			}
+
+			WEAPON(pObj)->max_charges = max;
+			if (max < 0)
+				WEAPON(pObj)->charges = -1;
+			else if(WEAPON(pObj)->charges < 0 || max < WEAPON(pObj)->charges)
+				WEAPON(pObj)->charges = max;
+			send_to_char("WEAPON Max Charges set.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "maxmana"))
+		{
+			int mana;
+			if (!is_number(argument) || (mana = atoi(argument)) < 0)
+			{
+				send_to_char("Please specify a non-negative number for maximum mana.\n\r", ch);
+				return false;
+			}
+
+			WEAPON(pObj)->max_mana = mana;
+			send_to_char("WEAPON Maximum Mana set.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "recharge"))
+		{
+			if (WEAPON(pObj)->max_charges < 0)
+			{
+				send_to_char("Weapon already has unlimited charges.\n\r", ch);
+				return false;
+			}
+
+			if (WEAPON(pObj)->max_charges == 0)
+			{
+				send_to_char("Weapon has no charges.\n\r", ch);
+				return false;
+			}
+
+			int rate;
+			if (!is_number(argument) || (rate = atoi(argument)) < 0)
+			{
+				send_to_char("Syntax:  weapon recharge {R<#rate>{x\n\r", ch);
+				send_to_char("Please provide a non-negative number.\n\r", ch);
+				return false;
+			}
+
+			WEAPON(pObj)->recharge_time = rate;
+			send_to_char("WEAPON Recharge Rate set.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "attack"))
+		{
+			int index;
+			argument = one_argument(argument, arg);
+			if (!is_number(arg) || (index = atoi(arg)) < 1 || index > MAX_ATTACK_POINTS)
+			{
+				send_to_char(formatf("Please specify an index from 1 to %d.\n\r", MAX_ATTACK_POINTS), ch);
+				return false;
+			}
+
+			WEAPON_ATTACK_POINT *attack = &(WEAPON(pObj)->attacks[index-1]);
+
+			argument = one_argument(argument, arg);
+
+			if (!str_prefix(arg, "dice"))
+			{
+				int number;
+				argument = one_argument(argument, arg);
+				if (!is_number(arg) || (number = atoi(arg)) < 1)
+				{
+					send_to_char("Please specify a positive number of dice.\n\r", ch);
+					return false;
+				}
+
+				int size;
+				argument = one_argument(argument, arg);
+				if (!is_number(arg) || (size = atoi(arg)) < 1)
+				{
+					send_to_char("Please specify a positive dice size.\n\r", ch);
+					return false;
+				}
+
+				int bonus = 0;
+				if (argument[0] != '\0')
+				{
+					if (!is_number(argument) || (bonus = atoi(argument)) < 1)
+					{
+						send_to_char("Please specify a positive dice bonus.\n\r", ch);
+						return false;
+					}
+				}
+
+				attack->damage.number = number;
+				attack->damage.size = size;
+				attack->damage.bonus = bonus;
+				send_to_char(formatf("WEAPON Attack #%d dice changed.\n\r", index), ch);
+				return true;
+			}
+
+			if (!str_prefix(arg, "flags"))
+			{
+				long value;
+				if ((value = flag_value(weapon_type2, arg)) == NO_FLAG)
+				{
+					send_to_char("Invalid attack flag.  Use '? wtype' for list of valid flags.\n\r", ch);
+					show_flag_cmds(ch, weapon_type2);
+					return false;
+				}
+
+				TOGGLE_BIT(attack->flags, value);
+				send_to_char(formatf("WEAPON Attack #%d flags toggled.\n\r", index), ch);
+				return true;
+			}
+
+			if (!str_prefix(arg, "reset"))
+			{
+				attack->type = -1;
+				attack->damage.number = 0;
+				attack->damage.size = 0;
+				attack->damage.bonus = 0;
+				attack->flags = 0;
+
+				send_to_char(formatf("WEAPON Attack #%d reset.\n\r", index), ch);
+				return true;
+			}
+
+			if (!str_prefix(arg, "type"))
+			{
+				int type;
+				if ((type = attack_lookup(argument)) == 0)
+				{
+					send_to_char("Invalid attack type.  Use '? weapon' for list of valid types.\n\r", ch);
+					show_damlist(ch);
+					return false;
+				}
+
+				attack->type = type;
+				send_to_char(formatf("WEAPON Attack #%d type changed.\n\r", index), ch);
+				return true;
+			}
+
+			send_to_char("Syntax:  weapon attack <#> type <attack type>\n\r", ch);
+			send_to_char("         weapon attack <#> dice <number> <size>[ <bonus>]\n\r", ch);
+			send_to_char("         weapon attack <#> flags <flags>\n\r", ch);
+			send_to_char("         weapon attack <#> reset\n\r", ch);
+			return false;
+		}
+
+		if (!str_prefix(arg, "remove"))
+		{
+			if (pObj->item_type != ITEM_WEAPON)
+			{
+				
+				free_weapon_data(WEAPON(pObj));
+				WEAPON(pObj) = NULL;
+				send_to_char("WEAPON data removed from object.\n\r", ch);
+				return true;
+			}
+		}
+
+		if (!str_prefix(arg, "spell"))
+		{
+			if (argument[0] == '\0')
+			{
+				send_to_char("Syntax:  weapon spell {Radd{x <spell name> <level>\n\r", ch);
+				send_to_char("         weapon spell {Rremove{x <index>\n\r", ch);
+				send_to_char("         weapon spell {Rclear{x\n\r", ch);
+				return false;
+			}
+
+			argument = one_argument(argument, arg);
+			if (!str_prefix(arg, "add"))
+			{
+				char name[MIL];
+				SPELL_DATA *spell;
+				int level;
+				SKILL_DATA *skill;
+
+				argument = one_argument(argument, name);
+
+				if (IS_NULLSTR(name))
+				{
+					send_to_char("Please specify a name.\n\r", ch);
+					return false;
+				}
+				else
+				{
+					skill = get_skill_data(name);
+					if (!IS_VALID(skill) || !is_skill_spell(skill))
+					{
+						send_to_char("That's not a spell.\n\r", ch);
+						return false;
+					}
+
+					if(!olc_can_zap_spell(skill))
+					{
+						send_to_char("That spell cannot be used in weapon.\n\r", ch);
+						return false;
+					}
+				}
+
+				if (!is_number(argument) || (level = atoi(argument)) < 1 || level > get_trust(ch))
+				{
+					sprintf(buf, "Level range is 1-%d.\n\r", get_trust(ch));
+					send_to_char(buf, ch);
+					return false;
+				}
+
+				spell			= new_spell();
+				spell->skill	= skill;
+				spell->level	= level;
+				spell->repop	= 100;
+				spell->next		= NULL;
+
+				list_appendlink(WEAPON(pObj)->spells, spell);
+
+				sprintf(buf, "Added spell %s, level %d.\n\r",
+					get_spell_data_name(spell), spell->level);
+				send_to_char(buf, ch);
+				return true;
+			}
+			else if(!str_prefix(arg, "remove"))
+			{
+				int index;
+				if(!is_number(argument) || (index = atoi(argument)) < 1 || index > list_size(WEAPON(pObj)->spells))
+				{
+					send_to_char("Syntax:  weapon spell remove {R<index>{x\n\r", ch);
+					sprintf(buf, "Please provide a number from 1 to %d.\n\r", list_size(WEAPON(pObj)->spells));
+					send_to_char(buf, ch);
+					return false;
+				}
+
+				list_remnthlink(WEAPON(pObj)->spells, index);
+				sprintf(buf, "WEAPON Spell #%d removed.\n\r", index);
+				send_to_char(buf, ch);
+				return true;
+			}
+			else if(!str_prefix(arg, "clear"))
+			{
+				if (list_size(WEAPON(pObj)->spells) < 1)
+				{
+					send_to_char("Spell list is empty.\n\r", ch);
+					return false;
+				}
+
+				list_clear(WEAPON(pObj)->spells);
+				send_to_char("WEAPON Spells cleared.\n\r", ch);
+				return true;
+			}
+
+			oedit_type_weapon(ch, "spell");
+			return false;
+		}
+
+	}
+	else
+	{
+		if (!str_prefix(arg, "add"))
+		{
+			if (!obj_index_can_add_item_type(pObj, ITEM_WEAPON))
+			{
+				send_to_char("You cannot add this item type to this object.\n\r", ch);
+				return FALSE;
+			}
+
+			WEAPON(pObj) = new_weapon_data();
+			send_to_char("WEAPON data added to object.\n\r\n\r", ch);
+			return TRUE;
+		}
+	}
+
+	oedit_type_weapon(ch, "");
+	return false;
+}
+
 
 OEDIT(oedit_material)
 {

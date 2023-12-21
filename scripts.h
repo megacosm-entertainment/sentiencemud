@@ -3398,6 +3398,8 @@ SCRIPT_CMD(tokencmd_spelldeflection);
 SCRIPT_CMD(scriptcmd_addstache);
 SCRIPT_CMD(scriptcmd_remstache);
 
+SCRIPT_CMD(scriptcmd_setoutbound);
+
 bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);
 bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);
 void olc_show_index_vars(BUFFER *buffer, pVARIABLE index_vars);

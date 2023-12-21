@@ -78,7 +78,6 @@ void acid_effect(void *vo, int level, int dam, int target)
 	    default:
 		return;
 	    case ITEM_CONTAINER:
-	    case ITEM_WEAPON_CONTAINER:
 	    case ITEM_CORPSE_PC:
 	    case ITEM_CORPSE_NPC:
 		msg = "$p fumes and dissolves.";
@@ -89,7 +88,6 @@ void acid_effect(void *vo, int level, int dam, int target)
 	    case ITEM_CLOTHING:
 		msg = "$p is corroded into scrap.";
 	 	break;
-	    case ITEM_STAFF:
 	    case ITEM_WAND:
 		chance -= 10;
 		msg = "$p corrodes and breaks.";
@@ -362,10 +360,6 @@ memset(&af,0,sizeof(af));
             chance += 50;
             msg = "{R$p crackles and burns!{x";
             break;
-        case ITEM_STAFF:
-            chance += 10;
-            msg = "{D$p smokes and chars!{x";
-            break;
         case ITEM_WAND:
             msg = "{Y$p sparks and sputters!{x";
             break;
@@ -605,7 +599,6 @@ void shock_effect(void *vo,int level, int dam, int target)
 	    default:
 		return;
 	   case ITEM_WAND:
-	   case ITEM_STAFF:
 		chance += 10;
 		msg = "{R$p overloads and explodes!{x";
 		break;

@@ -183,12 +183,12 @@ SPELL_FUNC(spell_enchant_weapon)
 
 	obj = (OBJ_DATA *) vo;
 
-	if (obj->item_type != ITEM_WEAPON) {
+	if (IS_WEAPON(obj)) {
 		send_to_char("That isn't a weapon.\n\r",ch);
 		return FALSE;
 	}
 
-	if (obj->wear_loc != -1) {
+	if (obj->wear_loc != WEAR_NONE) {
 		send_to_char("Remove it first.\n\r",ch);
 		return FALSE;
 	}

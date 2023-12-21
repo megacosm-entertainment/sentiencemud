@@ -428,6 +428,29 @@ bool check_mob_factions_peaceful(CHAR_DATA *ch, CHAR_DATA *victim)
 	return peaceful;
 }
 
+bool check_mob_factions_hostile(CHAR_DATA *ch, CHAR_DATA *victim)
+{
+	bool hostile = false;
+
+	if (!IS_NPC(ch) && IS_NPC(victim) && list_size(victim->factions) > 0)
+	{
+		ITERATOR fit;
+		REPUTATION_INDEX_DATA *repIndex;
+		iterator_start(&fit, victim->factions);
+		while ((repIndex = (REPUTATION_INDEX_DATA *)iterator_nextdata(&fit)))
+		{
+			if (is_reputation_rank_hostile(ch, repIndex))
+			{
+				hostile = true;
+				break;
+			}
+		}
+		iterator_stop(&fit);
+	}
+
+	return hostile;
+}
+
 bool reputation_has_paragon(REPUTATION_INDEX_DATA *repIndex)
 {
 	if (!IS_VALID(repIndex)) return false;
@@ -836,6 +859,20 @@ bool is_reputation_rank_peaceful(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex)
 	if(IS_SET(rep->flags, REPUTATION_AT_WAR)) return false;
 
 	return true;
+}
+
+bool is_reputation_rank_hostile(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex)
+{
+	if (!IS_VALID(ch) || !IS_VALID(repIndex)) return false;
+
+	REPUTATION_DATA *rep = find_reputation_char(ch, repIndex);
+	if (!IS_VALID(rep)) return false;
+
+	REPUTATION_INDEX_RANK_DATA *rank = (REPUTATION_INDEX_RANK_DATA *)list_nthdata(repIndex->ranks, rep->current_rank);
+
+	if (!IS_VALID(rank)) return false;
+
+	return IS_SET(rank->flags, REPUTATION_RANK_HOSTILE) && true;
 }
 
 

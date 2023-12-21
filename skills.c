@@ -140,7 +140,7 @@ FUNC_LOOKUPS(ink,INK_FUN,!func)
 FUNC_LOOKUPS(touch,TOUCH_FUN,!func)
 //FUNC_LOOKUPS(preimbue,PREIMBUE_FUN,!func)
 //FUNC_LOOKUPS(imbue,IMBUE_FUN,!func)
-//FUNC_LOOKUPS(brandish,BRANDISH_FUN,!func)
+FUNC_LOOKUPS(brandish,BRANDISH_FUN,!func)
 FUNC_LOOKUPS(zap,ZAP_FUN,!func)
 //FUNC_LOOKUPS(equip,EQUIP_FUN,!func)
 
@@ -250,8 +250,8 @@ void save_skill(FILE *fp, SKILL_DATA *skill)
 //		if(skill->imbue_fun)
 //			fprintf(fp, "ImbueFunc %s~\n", imbue_func_name(skill->imbue_fun));
 
-//		if(skill->brandish_fun)
-//			fprintf(fp, "BrandishFunc %s~\n", brandish_func_name(skill->brandish_fun));
+		if(skill->brandish_fun)
+			fprintf(fp, "BrandishFunc %s~\n", brandish_func_name(skill->brandish_fun));
 
 		if(skill->zap_fun)
 			fprintf(fp, "ZapFunc %s~\n", zap_func_name(skill->zap_fun));
@@ -450,7 +450,6 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 		{
 			case 'B':
 				KEY("Beats", skill->beats, fread_number(fp));
-#if 0
 				if (!str_cmp(word, "BrandishFunc"))
 				{
 					char *name = fread_string(fp);
@@ -464,7 +463,6 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 					fMatch = true;
 					break;
 				}
-#endif
 				if (!str_cmp(word, "BrewFunc"))
 				{
 					char *name = fread_string(fp);
@@ -5056,7 +5054,7 @@ SKEDIT( skedit_show )
 			olc_buffer_show_string(ch, buffer, scribe_func_display(skill->scribe_fun),		"scribe",		"   {W+ {xScribe:", 20, "XDW");
 
 			add_buf(buffer, "\n\r {w- {xActions:\n\r");
-			olc_buffer_show_string(ch, buffer, NULL,										"brandish",		"   {W+ {xBrandish:", 20, "XDW");
+			olc_buffer_show_string(ch, buffer, brandish_func_display(skill->brandish_fun),  "brandish",		"   {W+ {xBrandish:", 20, "XDW");
 			olc_buffer_show_string(ch, buffer, NULL,										"equip",		"   {W+ {xEquip:", 20, "XDW");
 			olc_buffer_show_string(ch, buffer, interrupt_func_display(skill->interrupt_fun),"interrupt",	"   {W+ {xInterrupt:", 20, "XDW");
 			olc_buffer_show_string(ch, buffer, prespell_func_display(skill->prespell_fun),	"prespell",		"   {W+ {xPrespell:", 20, "XDW");
@@ -5518,7 +5516,7 @@ SKEDIT_FUNC(touch,TOKEN_TOUCH,TOUCH_FUN,NULL)
 // TODO: IMBUE stuff
 //SKEDIT_FUNC(preimbue,TOKEN_PREIMBUE,PREIMBUE_FUN,NULL)
 //SKEDIT_FUNC(imbue,TOKEN_IMBUE,IMBUE_FUN,NULL)
-//SKEDIT_FUNC(brandish,TOKEN_BRANDISH,BRANDISH_FUN,NULL)
+SKEDIT_FUNC(brandish,TOKEN_BRANDISH,BRANDISH_FUN,NULL)
 SKEDIT_FUNC(zap,TOKEN_ZAP,ZAP_FUN,NULL)
 //SKEDIT_FUNC(equip,TOKEN_EQUIP,EQUIP_FUN,NULL)
 

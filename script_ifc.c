@@ -2396,10 +2396,12 @@ DECL_IFC_FUN(ifc_weapon)
 	return TRUE;
 }
 
+// TODO: FIX or get rid up
 DECL_IFC_FUN(ifc_weapontype)
 {
-	*ret = ISARG_OBJ(0) && ARG_OBJ(0)->item_type == ITEM_WEAPON &&
-		ARG_OBJ(0)->value[0] == weapon_type(ARG_STR(1));
+//	*ret = ISARG_OBJ(0) && ARG_OBJ(0)->item_type == ITEM_WEAPON &&
+//		ARG_OBJ(0)->value[0] == weapon_type(ARG_STR(1));
+	*ret = FALSE;
 	return TRUE;
 }
 
@@ -4426,11 +4428,15 @@ DECL_IFC_FUN(ifc_objweaponstat)
 	return TRUE;
 }
 
+// TODO: fix or get rid of
 DECL_IFC_FUN(ifc_objranged)
 {
+/*
 	*ret = ISARG_OBJ(0) && ISARG_STR(1) &&
 		(ARG_OBJ(0)->item_type == ITEM_RANGED_WEAPON) &&
 		(ARG_OBJ(0)->value[0] == flag_value(ranged_weapon_class,ARG_STR(1)));
+*/
+	*ret = false;
 	return TRUE;
 }
 

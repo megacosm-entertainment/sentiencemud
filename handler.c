@@ -70,6 +70,7 @@ int count_users(OBJ_DATA *obj)
 }
 
 
+#if 0
 /* return weapon type given its name string */
 int weapon_lookup (const char *name)
 {
@@ -85,7 +86,7 @@ int weapon_lookup (const char *name)
 
     return -1;
 }
-
+#endif
 
 /* count # of items in a list */
 int count_items_list(OBJ_DATA *list)
@@ -119,6 +120,7 @@ int count_items_list_nest(OBJ_DATA *list)
 }
 
 
+#if 0
 int ranged_weapon_type (const char *name)
 {
     int type;
@@ -132,8 +134,9 @@ int ranged_weapon_type (const char *name)
 
     return RANGED_WEAPON_EXOTIC;
 }
+#endif
 
-
+#if 0
 int weapon_type (const char *name)
 {
     int type;
@@ -147,7 +150,7 @@ int weapon_type (const char *name)
 
     return WEAPON_UNKNOWN;
 }
-
+#endif
 
 // Return item type string from integer
 char *item_name(int item_type)
@@ -161,7 +164,7 @@ char *item_name(int item_type)
     return "none";
 }
 
-
+#if 0
 // Return weapon type string from integer
 char *weapon_name(int weapon_type)
 {
@@ -173,8 +176,9 @@ char *weapon_name(int weapon_type)
 
     return "unknown";
 }
+#endif
 
-
+#if 0
 // Return ranged weapon type string from integer
 char *ranged_weapon_name(int weapon_type)
 {
@@ -185,7 +189,7 @@ char *ranged_weapon_name(int weapon_type)
             return ranged_weapon_table[type].name;
     return "exotic";
 }
-
+#endif
 
 /* find a location from a tag. Very handy! */
 ROOM_INDEX_DATA *find_location(CHAR_DATA *ch, char *arg)
@@ -564,6 +568,27 @@ int get_skill(CHAR_DATA *ch, SKILL_DATA *skill)
     return URANGE(0,rating,100);
 }
 
+SKILL_DATA **weapon_skill_types[WEAPON_TYPE_MAX] =
+{
+	&gsk_exotic,
+	&gsk_sword,
+	&gsk_dagger,
+	&gsk_spear,
+	&gsk_mace,
+	&gsk_axe,
+	&gsk_flail,
+	&gsk_whip,
+	&gsk_polearm,
+	&gsk_stake,
+	&gsk_quarterstaff,
+	&gsk_harpooning,
+	&gsk_crossbow,
+	&gsk_bow,
+	&gsk_blowgun,
+	&gsk_flamethrower,
+	&gsk_sprayer,
+	&gsk_sprayer,
+};
 
 /* for returning weapon information */
 SKILL_DATA *get_weapon_sn(CHAR_DATA *ch)
@@ -571,46 +596,22 @@ SKILL_DATA *get_weapon_sn(CHAR_DATA *ch)
     OBJ_DATA *wield;
 
     wield = get_eq_char(ch, WEAR_WIELD);
-    if (wield == NULL || wield->item_type != ITEM_WEAPON)
+    if (wield == NULL || !IS_WEAPON(wield))
         return gsk_hand_to_hand;
-
-    else switch (wield->value[0])
-    {
-        default :                  return NULL;
-        case(WEAPON_SWORD):        return gsk_sword;
-        case(WEAPON_EXOTIC):       return gsk_exotic;
-        case(WEAPON_DAGGER):       return gsk_dagger;
-        case(WEAPON_SPEAR):        return gsk_spear;
-        case(WEAPON_MACE):         return gsk_mace;
-        case(WEAPON_AXE):          return gsk_axe;
-        case(WEAPON_FLAIL):        return gsk_flail;
-        case(WEAPON_WHIP):         return gsk_whip;
-        case(WEAPON_POLEARM):      return gsk_polearm;
-        case(WEAPON_STAKE):        return gsk_stake;
-		case(WEAPON_QUARTERSTAFF): return gsk_quarterstaff;
-   }
+	else if (WEAPON(wield)->weapon_class >= 0 && WEAPON(wield)->weapon_class < WEAPON_TYPE_MAX)
+		return *weapon_skill_types[WEAPON(wield)->weapon_class];
+	else
+		return NULL;
 }
 
 SKILL_DATA *get_objweapon_sn(OBJ_DATA *obj)
 {
-    if (!obj || obj->item_type != ITEM_WEAPON)
+    if (obj == NULL || !IS_WEAPON(obj))
         return gsk_hand_to_hand;
-
-    else switch (obj->value[0])
-    {
-        default :                  return NULL;
-        case(WEAPON_SWORD):        return gsk_sword;
-        case(WEAPON_EXOTIC):       return gsk_exotic;
-        case(WEAPON_DAGGER):       return gsk_dagger;
-        case(WEAPON_SPEAR):        return gsk_spear;
-        case(WEAPON_MACE):         return gsk_mace;
-        case(WEAPON_AXE):          return gsk_axe;
-        case(WEAPON_FLAIL):        return gsk_flail;
-        case(WEAPON_WHIP):         return gsk_whip;
-        case(WEAPON_POLEARM):      return gsk_polearm;
-        case(WEAPON_STAKE):        return gsk_stake;
-		case(WEAPON_QUARTERSTAFF): return gsk_quarterstaff;
-	}
+	else if (WEAPON(obj)->weapon_class >= 0 && WEAPON(obj)->weapon_class < WEAPON_TYPE_MAX)
+		return *weapon_skill_types[WEAPON(obj)->weapon_class];
+	else
+		return NULL;
 }
 
 // TODO: Review the need for this as it does a lot of what 'get_skill' does
@@ -1369,9 +1370,10 @@ void affect_to_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
 	    case TO_OBJECT4:
 			SET_BIT(obj->extra[3],paf->bitvector);
 			break;
+		// TODO: This needs to access the individual attack slots
 	    case TO_WEAPON:
-			if (obj->item_type == ITEM_WEAPON)
-			    SET_BIT(obj->value[4],paf->bitvector);
+			if (IS_WEAPON(obj))
+			    SET_BIT(WEAPON(obj)->attacks[0].flags,paf->bitvector);
 		break;
         }
     }
@@ -1454,26 +1456,6 @@ bool affect_removeall_obj(OBJ_DATA *obj)
 		// If worn, remove this affect from the character, JIC
 		if(is_worn) affect_modify(obj->carried_by, paf, FALSE);
 
-		if (paf->bitvector)
-			switch(paf->where) {
-			case TO_OBJECT:
-				MERGE_BIT(obj->extra[0],obj->extra_perm[0],paf->bitvector);
-				break;
-			case TO_OBJECT2:
-				MERGE_BIT(obj->extra[1],obj->extra_perm[1],paf->bitvector);
-				break;
-			case TO_OBJECT3:
-				MERGE_BIT(obj->extra[2],obj->extra_perm[2],paf->bitvector);
-				break;
-			case TO_OBJECT4:
-				MERGE_BIT(obj->extra[3],obj->extra_perm[3],paf->bitvector);
-				break;
-			case TO_WEAPON:
-				if (obj->item_type == ITEM_WEAPON)
-					MERGE_BIT(obj->value[4],obj->weapon_flags_perm,paf->bitvector);
-				break;
-			}
-
 		free_affect(paf);
 	}
 
@@ -1502,29 +1484,6 @@ bool affect_remove_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
 	}
 
 	/* remove flags from the object if needed */
-	if (paf->bitvector)
-	{
-		switch(paf->where)
-		{
-		case TO_OBJECT:
-			MERGE_BIT(obj->extra[0],obj->extra_perm[0],paf->bitvector);
-			break;
-		case TO_OBJECT2:
-			MERGE_BIT(obj->extra[1],obj->extra_perm[1],paf->bitvector);
-			break;
-		case TO_OBJECT3:
-			MERGE_BIT(obj->extra[2],obj->extra_perm[2],paf->bitvector);
-			break;
-		case TO_OBJECT4:
-			MERGE_BIT(obj->extra[3],obj->extra_perm[3],paf->bitvector);
-			break;
-		case TO_WEAPON:
-			if (obj->item_type == ITEM_WEAPON)
-				MERGE_BIT(obj->value[4],obj->weapon_flags_perm,paf->bitvector);
-			break;
-		}
-	}
-
 	if (paf == obj->affected)
 		obj->affected = paf->next;
 	else
@@ -2437,7 +2396,7 @@ OBJ_DATA *get_eq_char(CHAR_DATA *ch, int iWear)
 void equip_char(CHAR_DATA *ch, OBJ_DATA *obj, int iWear)
 {
     AFFECT_DATA *paf;
-    SPELL_DATA *spell;
+    //SPELL_DATA *spell;
     int i;
     //char buf[MSL];
 
@@ -2504,12 +2463,8 @@ void equip_char(CHAR_DATA *ch, OBJ_DATA *obj, int iWear)
 		
 		// TODO: Require it be *specific types of items
 		// TODO: Fix so that it takes into account multityping
-	    if (obj->item_type != ITEM_WAND
-	    &&  obj->item_type != ITEM_STAFF
-	    &&  obj->item_type != ITEM_SCROLL
-	    &&  obj->item_type != ITEM_FLUID_CONTAINER
-	    &&  obj->item_type != ITEM_TATTOO
-	    &&  obj->item_type != ITEM_PILL)
+#if 0
+	    if (!IS_WAND(obj) && !IS_SCROLL(obj) && IS_FLUID_CON(obj) && IS_TATTOO(obj) && obj->item_type != ITEM_PILL)
 	    for (spell = obj->spells; spell != NULL; spell = spell->next)
 	    {
 			for (paf = ch->affected; paf != NULL; paf = paf->next)
@@ -2524,6 +2479,7 @@ void equip_char(CHAR_DATA *ch, OBJ_DATA *obj, int iWear)
 			affect_strip(ch, spell->skill);
 			obj_cast_spell(spell->skill, spell->level + MAGIC_WEAR_SPELL, ch, ch, obj);
 	    }
+#endif
     }
 
 }
@@ -2535,13 +2491,13 @@ void equip_char(CHAR_DATA *ch, OBJ_DATA *obj, int iWear)
 int unequip_char(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
 {
     AFFECT_DATA *paf = NULL;
-    AFFECT_DATA *af;
+    //AFFECT_DATA *af;
     int i, loc = obj->wear_loc;
-    int level = 0;
-    int found_loc = WEAR_NONE;
-    SPELL_DATA *spell, *spell_tmp;
-    OBJ_DATA *obj_tmp;
-    bool found;		// @@@NIB : 20070128
+    //int level = 0;
+    //int found_loc = WEAR_NONE;
+    //SPELL_DATA *spell, *spell_tmp;
+    //OBJ_DATA *obj_tmp;
+    //bool found;		// @@@NIB : 20070128
 
     if (obj->wear_loc == WEAR_NONE)
     {
@@ -2569,9 +2525,9 @@ int unequip_char(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
 		if (was_lit && !light_char_has_light(ch) && ch->in_room != NULL && ch->in_room->light > 0)
 			--ch->in_room->light;
 
+#if 0
 	    // Remove spells
 	    if (obj->item_type != ITEM_WAND
-	    &&  obj->item_type != ITEM_STAFF
 	    &&  obj->item_type != ITEM_SCROLL
 	    &&  obj->item_type != ITEM_FLUID_CONTAINER
 	    &&  obj->item_type != ITEM_TATTOO
@@ -2635,7 +2591,7 @@ int unequip_char(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
 			}
 			// @@@NIB : 20070128
 	    }
-
+#endif
 	    affect_stripall_wearloc(ch, loc);	// Remove all affects tied to this wear slot
 
 	    affect_fix_char(ch);
@@ -9777,6 +9733,13 @@ bool lockstate_functional(LOCK_STATE *lock)
 	return false;
 }
 
+bool is_keyring(OBJ_DATA *obj)
+{
+	if (!IS_CONTAINER(obj)) return false;
+
+	return container_filters_for_item_type(obj, ITEM_KEY, -1);
+}
+
 OBJ_DATA *lockstate_getkey(CHAR_DATA *ch, LOCK_STATE *lock)
 {
 	if( !lock ) return NULL;
@@ -9799,7 +9762,7 @@ OBJ_DATA *lockstate_getkey(CHAR_DATA *ch, LOCK_STATE *lock)
 					break;
 
 				// Inside a keyring that is in the primary inventory?
-				if( obj->in_obj != NULL && obj->in_obj->item_type == ITEM_KEYRING )
+				if( obj->in_obj != NULL && is_keyring(obj->in_obj) )
 				{
 					if( obj->in_obj->carried_by == ch )
 						break;
@@ -9825,9 +9788,10 @@ OBJ_DATA *lockstate_getkey(CHAR_DATA *ch, LOCK_STATE *lock)
 		}
 
 		/* Keyring */
+		// Which is just a container that filters for keys.
 		for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
 		{
-			if (obj->pIndexData->item_type == ITEM_KEYRING)
+			if (is_keyring(obj))
 			{
 				for (key = obj->contains; key != NULL; key = key->next_content)
 				{

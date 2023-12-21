@@ -35,6 +35,12 @@
 #ifndef __TABLES_H__
 #define __TABLES_H__
 
+struct weapon_ammo_type
+{
+	int weapon;
+	int ammo;
+};
+
 struct spell_func_type
 {
 	char *name;
@@ -99,6 +105,12 @@ struct zap_func_type
 {
 	char *name;
 	ZAP_FUN *func;
+};
+
+struct brandish_func_type
+{
+	char *name;
+	BRANDISH_FUN *func;
 };
 
 struct artifice_func_type
@@ -406,6 +418,7 @@ extern const struct preink_func_type preink_func_table[];
 extern const struct ink_func_type ink_func_table[];
 extern const struct touch_func_type touch_func_table[];
 extern const struct zap_func_type zap_func_table[];
+extern const struct brandish_func_type brandish_func_table[];
 
 extern const struct song_func_type presong_func_table[];
 extern const struct song_func_type song_func_table[];
@@ -415,6 +428,9 @@ extern const struct flag_type reputation_flags[];
 extern const struct flag_type reputation_rank_flags[];
 
 extern const struct flag_type practice_entry_flags[];
+extern const struct flag_type ammo_types[];
+
+extern const struct weapon_ammo_type weapon_ammo_table[];
 
 #endif
 

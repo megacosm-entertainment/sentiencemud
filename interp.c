@@ -2246,25 +2246,33 @@ void stop_ranged( CHAR_DATA *ch, bool messages )
 {
     if ( ch == NULL )
     {
-	bug( "stop_ranged: null ch", 0 );
-	return;
+		bug( "stop_ranged: null ch", 0 );
+		return;
     }
 
     if ( ch->projectile_weapon != NULL )
     {
-	if ( messages )
-	{
-	    act("You put down $p.", ch, NULL, NULL, ch->projectile_weapon, NULL, NULL, NULL, TO_CHAR );
-	    act("$n puts down $p.", ch, NULL, NULL, ch->projectile_weapon, NULL, NULL, NULL, TO_ROOM );
-	}
+		if ( messages )
+		{
+			act("You put down $p.", ch, NULL, NULL, ch->projectile_weapon, NULL, NULL, NULL, TO_CHAR );
+			act("$n puts down $p.", ch, NULL, NULL, ch->projectile_weapon, NULL, NULL, NULL, TO_ROOM );
+		}
 
-	ch->ranged = 0;
-	ch->projectile_weapon = NULL;
-	free_string( ch->projectile_victim );
-	ch->projectile_victim = NULL;
-	ch->projectile_dir    = -1;
-	ch->projectile_range  = 0;
-	ch->projectile	      = NULL;
+		ch->ranged = 0;
+		ch->projectile_weapon = NULL;
+		free_string( ch->projectile_victim );
+		ch->projectile_victim = NULL;
+		ch->projectile_dir    = -1;
+		ch->projectile_range  = 0;
+		ch->projectile_mana = 0;
+
+		// Need to destroy created objects
+		if (IS_VALID(ch->projectile) && IS_SET(ch->projectile->extra[1], ITEM_CREATED))
+		{
+			extract_obj(ch->projectile);
+		}
+
+		ch->projectile	      = NULL;
     }
 }
 
@@ -2285,4 +2293,11 @@ bool is_granted_command(CHAR_DATA *ch, char *name)
     }
 
     return FALSE;
+}
+
+void command_under_construction(CHAR_DATA *ch)
+{
+	send_to_char("{D*{Y*{D*{Y*{D*{Y[{R UNDER CONSTRUCTION {Y]{D*{Y*{D*{Y*{D*{x\n\r\n\r", ch);
+	send_to_char("Command is under construction.  Please be patient until it is ready.\n\r\n\r", ch);
+	send_to_char("{D*{Y*{D*{Y*{D*{Y[{R UNDER CONSTRUCTION {Y]{D*{Y*{D*{Y*{D*{x\n\r", ch);
 }

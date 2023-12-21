@@ -588,6 +588,7 @@ void free_obj(OBJ_DATA *obj)
 		obj->waypoints = NULL;
 	}
 
+    free_ammo_data(AMMO(obj));
     free_book_data(BOOK(obj));
     free_container_data(CONTAINER(obj));
     free_fluid_container_data(FLUID_CON(obj));
@@ -602,6 +603,7 @@ void free_obj(OBJ_DATA *obj)
     free_scroll_data(SCROLL(obj));
     free_tattoo_data(TATTOO(obj));
     free_wand_data(WAND(obj));
+    free_weapon_data(WEAPON(obj));
 
     INVALIDATE(obj);
 
@@ -5112,8 +5114,66 @@ void free_aura_data(AURA_DATA *aura)
 
 // Item Multi-Typing
 
-// ============[ BOOK ]============
+// ============[ AMMO ]============
+AMMO_DATA *ammo_data_free;
+AMMO_DATA *new_ammo_data()
+{
+    AMMO_DATA *data;
+    if (ammo_data_free)
+    {
+        data = ammo_data_free;
+        ammo_data_free = ammo_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(AMMO_DATA));
+    memset(data, 0, sizeof(*data));
 
+    data->type = AMMO_NONE;
+
+    data->msg_break = &str_empty[0];
+
+    VALIDATE(data);
+    return data;
+}
+
+AMMO_DATA *copy_ammo_data(AMMO_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    AMMO_DATA *data;
+    if (ammo_data_free)
+    {
+        data = ammo_data_free;
+        ammo_data_free = ammo_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(AMMO_DATA));
+    memset(data, 0, sizeof(*data));
+
+    data->type = src->type;
+    data->damage_type = src->damage_type;
+    data->flags = src->flags;
+    data->damage = src->damage;
+    data->damage.last_roll = 0;
+
+    data->msg_break = str_dup(src->msg_break);
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_ammo_data(AMMO_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    free_string(data->msg_break);
+
+    INVALIDATE(data);
+    data->next = ammo_data_free;
+    ammo_data_free = data;
+}
+
+// ============[ BOOK ]============
 BOOK_PAGE *book_page_free;
 BOOK_PAGE *new_book_page()
 {
@@ -6106,6 +6166,7 @@ WAND_DATA *copy_wand_data(WAND_DATA *src)
     data->max_charges = src->max_charges;
     data->cooldown = src->cooldown;
     data->recharge_time = src->recharge_time;
+    data->max_mana = src->max_mana;
 
     data->spells = list_copy(src->spells);
 
@@ -6125,8 +6186,77 @@ void free_wand_data(WAND_DATA *data)
 }
 
 
+// Weapon
+WEAPON_DATA *weapon_data_free;
+WEAPON_DATA *new_weapon_data()
+{
+    WEAPON_DATA *data;
+    if (weapon_data_free)
+    {
+        data = weapon_data_free;
+        weapon_data_free = weapon_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(WEAPON_DATA));
+    memset(data, 0, sizeof(*data));
+
+    data->weapon_class = WEAPON_UNKNOWN;
+    data->ammo = AMMO_NONE;
+
+    data->spells = list_createx(FALSE, copy_spell, delete_spell);
+
+    VALIDATE(data);
+    return data;
+}
+
+WEAPON_DATA *copy_weapon_data(WEAPON_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    WEAPON_DATA *data;
+    if (weapon_data_free)
+    {
+        data = weapon_data_free;
+        weapon_data_free = weapon_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(WEAPON_DATA));
+    memset(data, 0, sizeof(*data));
+
+    data->weapon_class = src->weapon_class;
+    for(int i = 0; i < MAX_ATTACK_POINTS; i++)
+        data->attacks[i] = src->attacks[i];
+
+    data->ammo = src->ammo;
+    data->range = src->range;
+
+    data->charges = src->charges;
+    data->max_charges = src->max_charges;
+    data->cooldown = src->cooldown;
+    data->recharge_time = src->recharge_time;
+    data->max_mana = src->max_mana;
+
+    data->spells = list_copy(src->spells);
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_weapon_data(WEAPON_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    list_destroy(data->spells);
+
+    INVALIDATE(data);
+    data->next = weapon_data_free;
+    weapon_data_free = data;
+}
 
 
+
+
+////////////////////////////////////////////////////////////////
 
 SKILL_DATA *skill_data_free;
 SKILL_DATA *new_skill_data()

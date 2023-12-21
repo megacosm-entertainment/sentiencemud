@@ -1444,7 +1444,7 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, SKI
 			}
 
 			if (vObj->condition <= 0) {
-				if (vObj->item_type == ITEM_WEAPON) {
+				if (IS_WEAPON(vObj)) {
 					unequip_char(victim, vObj, TRUE);
 					act("{y$n's $p breaks in two with a loud snap!{x", victim, NULL, NULL, vObj, NULL, NULL, NULL, TO_ROOM);
 					act("{y$p splits in two with a loud snap!{x", victim, NULL, NULL, vObj, NULL, NULL, NULL, TO_CHAR);
@@ -2892,10 +2892,10 @@ bool set_fighting(CHAR_DATA *ch, CHAR_DATA *victim)
 		int chance;
 
 		if ((obj = get_eq_char(victim, WEAR_WIELD)) != NULL &&
-			obj->item_type == ITEM_WEAPON && obj->value[0] == WEAPON_SPEAR)
+			IS_WEAPON(obj) && WEAPON(obj)->weapon_class == WEAPON_SPEAR)
 			found = TRUE;
 		else if ((obj = get_eq_char(victim, WEAR_SECONDARY)) != NULL &&
-			obj->item_type == ITEM_WEAPON && obj->value[0] == WEAPON_SPEAR)
+			IS_WEAPON(obj) && WEAPON(obj)->weapon_class == WEAPON_SPEAR)
 			found = TRUE;
 
 		chance = victim->tot_level - ch->tot_level + get_skill(victim, gsk_wilderness_spear_style);
@@ -4192,13 +4192,6 @@ void dam_message(CHAR_DATA *ch, CHAR_DATA *victim, int dam, SKILL_DATA *skill, i
 	CHAR_DATA *gch;
 	char punct;
 	float percent;
-//	char msg[MSL];
-
-//	sprintf(msg, "dam_message: '%s' vs '%s', dam = %d, dt = %d, immune = %s",
-//		(ch ? ch->name : "(null)"),
-//		(victim ? victim->name: "(null"),
-//		dam, dt, (immune ? "TRUE" : "FALSE"));
-//	wiznet(msg,NULL,NULL,WIZ_TESTING,0,0);
 
 	if (ch == NULL || victim == NULL)
 		return;
@@ -5647,6 +5640,7 @@ void do_breathe(CHAR_DATA *ch, char *argument)
 
 void do_backstab(CHAR_DATA *ch, char *argument)
 {
+#if 0
 	char arg[MAX_INPUT_LENGTH];
 	CHAR_DATA *rch, *rch_next;
 	CHAR_DATA *victim;
@@ -5824,6 +5818,9 @@ void do_backstab(CHAR_DATA *ch, char *argument)
 	// Make sure to start some shit if the backstab failed.
 	if (failed)
 		multi_hit(victim, ch, NULL, TYPE_HIT);
+#else
+	command_under_construction(ch);
+#endif
 }
 
 
@@ -5869,6 +5866,7 @@ void do_burgle(CHAR_DATA *ch, char *argument)
 
 void do_slit(CHAR_DATA *ch, char *argument)
 {
+#if 0
 	char arg[MAX_INPUT_LENGTH];
 	CHAR_DATA *victim;
 	OBJ_DATA *wield;
@@ -5997,6 +5995,9 @@ void do_slit(CHAR_DATA *ch, char *argument)
 		// Hahahaha
 		if (RIDDEN(ch)) check_quest_slay_mob(RIDDEN(ch), victim, true);
 	}
+#else
+	command_under_construction(ch);
+#endif
 }
 
 
@@ -6136,7 +6137,7 @@ void do_blackjack(CHAR_DATA *ch, char *argument)
 	// Looks like 25% of the time, non-annealed weapons will be nerfed.
 	// Likelihood, annealed weapons guarantee a better blackjack affect
 	weapon = get_eq_char(victim, WEAR_WIELD);
-	if (weapon && (number_percent() > 25 || weapon->item_type != ITEM_WEAPON || !IS_WEAPON_STAT(weapon,WEAPON_ANNEALED)))
+	if (weapon && (number_percent() > 25 /*|| weapon->item_type != ITEM_WEAPON || !IS_WEAPON_STAT(weapon,WEAPON_ANNEALED)*/))
 		weapon = NULL;
 
 	if (number_percent() < chance) {

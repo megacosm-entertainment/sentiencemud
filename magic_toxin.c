@@ -184,7 +184,9 @@ SPELL_FUNC(spell_poison)
 			return TRUE;
 		}
 
-		if (obj->item_type == ITEM_WEAPON) {
+		// TODO: Fix
+#if 0
+		if (IS_WEAPON(obj)) {
 			if (IS_WEAPON_STAT(obj,WEAPON_FLAMING) ||
 				IS_WEAPON_STAT(obj,WEAPON_FROST) ||
 				IS_WEAPON_STAT(obj,WEAPON_VAMPIRIC) ||
@@ -220,7 +222,7 @@ SPELL_FUNC(spell_poison)
 			act("$p is coated with deadly venom.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
 			return TRUE;
 		}
-
+#endif
 		act("You can't poison $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 		return FALSE;
 	}

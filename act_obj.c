@@ -2874,12 +2874,11 @@ void do_envenom(CHAR_DATA *ch, char *argument)
 	}
 
 	memset(&af,0,sizeof(af));
-    if (obj->item_type == ITEM_WEAPON)
+    if (IS_WEAPON(obj))
     {
         if (IS_WEAPON_STAT(obj,WEAPON_FLAMING)
         ||  IS_WEAPON_STAT(obj,WEAPON_FROST)
         ||  IS_WEAPON_STAT(obj,WEAPON_VAMPIRIC)
-/*        ||  IS_WEAPON_STAT(obj,WEAPON_SHARP)	 Why??  Makes no sense. */
         ||  IS_WEAPON_STAT(obj,WEAPON_VORPAL)
         ||  IS_WEAPON_STAT(obj,WEAPON_SHOCKING)
         ||  IS_WEAPON_STAT(obj,WEAPON_ACIDIC)
@@ -2908,7 +2907,6 @@ void do_envenom(CHAR_DATA *ch, char *argument)
 	percent = number_percent();
 	if (percent < skill)
 	{
-
             af.where     = TO_WEAPON;
             af.group     = AFFGROUP_WEAPON;
             af.skill     = gsk_poison;
@@ -4912,142 +4910,204 @@ void recite_end(CHAR_DATA *ch)
 }
 
 
+void obj_brandish_spell(OBJ_DATA *weapon, SKILL_DATA *skill, int level, CHAR_DATA *ch, CHAR_DATA *victim)
+{
+    if (!IS_VALID(skill))
+	{
+		bug("obj_brandish_spell: bad skill data.", 0);
+		return;
+	}
+
+	if (skill->token)
+	{
+		if (!get_script_token(skill->token, TRIG_TOKEN_BRANDISH, TRIGSLOT_SPELL))
+		{
+			bug("obj_brandish_spell: bad skill uid = %d.", skill->uid);
+			return;
+		}
+	}
+	else if (!skill->brandish_fun)
+    {
+		bug("obj_brandish_spell: bad skill uid = %d.", skill->uid);
+		return;
+    }
+
+	// Does the spell need to be checked for deflections to switch victim?
+	CHAR_DATA *tch;
+	check_spell_deflection_new(ch, victim, skill, false, &tch, NULL);
+	if (!tch)
+		return;
+	
+	victim = tch;
+
+	//char _buf[MSL];
+	if (skill->token)
+		p_token_index_percent_trigger(skill->token, ch, victim, NULL, weapon, NULL, TRIG_TOKEN_BRANDISH, NULL, 0,0,0,0,0, level,0,0,0,0);
+	else
+		(*(skill->brandish_fun)) (skill, level, ch, weapon, victim);
+}
+
 void do_brandish(CHAR_DATA *ch, char *argument)
 {
-	char buf[MSL];
     CHAR_DATA *vch;
     CHAR_DATA *vch_next;
-    OBJ_DATA *staff;
-    SPELL_DATA *spell;
+    OBJ_DATA *weapon;
+	SKILL_DATA *weapon_skill;
 
-    if ((staff = get_eq_char(ch, WEAR_HOLD)) == NULL)
-    {
-	send_to_char("You hold nothing in your hand.\n\r", ch);
-	return;
-    }
+	if ((weapon = get_obj_carry(ch, argument, ch)) == NULL)
+	{
+		send_to_char("You do not have that weapon.\n\r", ch);
+		return;
+	}
 
-	// TODO: Utilize return code
-	// 
-    if(p_percent_trigger(NULL, staff, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREBRANDISH, argument,0,0,0,0,0))
+	if (!IS_WEAPON(weapon) || list_size(WEAPON(weapon)->spells) < 1)
+	{
+		send_to_char("You can only brandish imbued weapons.\n\r", ch);
+		return;
+	}
+
+	if (weapon->wear_loc != WEAR_WIELD && weapon->wear_loc != WEAR_SECONDARY)
+	{
+		act("You must wielding $p to brandish it.",  ch, NULL, NULL, weapon, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	int ret = p_percent_trigger(NULL, weapon, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREBRANDISH, argument,0,0,0,0,0);
+	if (ret > 0)
+	{
+		if (ret != PRET_SILENT)
+		{
+			send_to_char("You cannot brandish that.\n\r", ch);
+		}
     	return;
-
-    if (staff->item_type != ITEM_STAFF)
-    {
-		send_to_char("You can brandish only with a staff.\n\r", ch);
-		return;
-    }
-
-    if (!staff->spells)
-    {
-		bug("Do_brandish: no spells %d.", staff->pIndexData->vnum);
-		return;
-    }
+	}
 
     WAIT_STATE(ch, 2 * PULSE_VIOLENCE);
 
-    if (staff->value[2] > 0)
+    if (WEAPON(weapon)->charges > 0)
     {
-		act("$n brandishes $p.", ch, NULL, NULL, staff, NULL, NULL, NULL, TO_ROOM);
-		act("You brandish $p.",  ch, NULL, NULL, staff, NULL, NULL, NULL, TO_CHAR);
-		if (ch->tot_level < staff->level || number_percent() >= (20 + 4 * get_skill(ch, gsk_staves) / 5))
+		weapon_skill = get_objweapon_sn(weapon);
+
+		act("$n brandishes $p.", ch, NULL, NULL, weapon, NULL, NULL, NULL, TO_ROOM);
+		act("You brandish $p.",  ch, NULL, NULL, weapon, NULL, NULL, NULL, TO_CHAR);
+		if (ch->tot_level < weapon->level || number_percent() >= (20 + 4 * get_skill(ch, weapon_skill) / 5))
 		{
-			act ("You fail to invoke $p.",ch, NULL, NULL,staff, NULL, NULL,NULL,TO_CHAR);
+			act ("You fail to invoke $p.",ch, NULL, NULL,weapon, NULL, NULL,NULL,TO_CHAR);
 			act ("...and nothing happens.",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
 			check_improve(ch,gsk_staves,FALSE,2);
 		}
 		else
 		{
+			ITERATOR it;
+			SPELL_DATA *spell;
 		    for (vch = ch->in_room->people; vch; vch = vch_next)
 		    {
 				vch_next	= vch->next_in_room;
 
-                for (spell = staff->spells; spell != NULL; spell = spell->next)
+				bool offensive = false;
+				switch(spell->skill->target)
 				{
-					if (spell->skill->token)
-					{
-						switch(spell->skill->target)
-						{
-							default:
-								sprintf(buf, "Bad target for spell %s (token).", spell->skill->name);
-								bug(buf, 0);
-								continue;
+				default:
+					bug(formatf("Bad target for spell %s.", spell->skill->name), 0);
+					continue;
 
-							case TAR_IGNORE:
-								if (vch != ch)
-									continue;
-								break;
+				case TAR_IGNORE:
+					if (vch != ch)
+						continue;
+					break;
 
-							case TAR_CHAR_OFFENSIVE:
-								if (IS_NPC(ch) == IS_NPC(vch))
-									continue;
-								break;
+				case TAR_CHAR_OFFENSIVE:
+					if (IS_NPC(ch) == IS_NPC(vch))
+						continue;
 
-							case TAR_CHAR_DEFENSIVE:
-								if (IS_NPC(ch) != IS_NPC(vch))
-									continue;
-								break;
+					offensive = true;
+					break;
 
-							case TAR_CHAR_SELF:
-								if (vch != ch)
-									continue;
-								break;
-						}
+				case TAR_CHAR_DEFENSIVE:
+					if (IS_NPC(ch) != IS_NPC(vch))
+						continue;
+					break;
 
-						p_token_index_percent_trigger(spell->skill->token, ch, vch, NULL, staff, NULL, TRIG_TOKEN_BRANDISH, NULL, spell->level, 0, 0, 0, 0,0,0,0,0,0);
-					}
-					else
-					{
-						switch (spell->skill->target)
-						{
-							default:
-								sprintf(buf, "Bad target for spell %s.", spell->skill->name);
-								bug(buf, 0);
-								return;
-
-							case TAR_IGNORE:
-								if (vch != ch)
-									continue;
-								break;
-
-							case TAR_CHAR_OFFENSIVE:
-								if (IS_NPC(ch) == IS_NPC(vch))
-									continue;
-								break;
-
-							case TAR_CHAR_DEFENSIVE:
-								if (IS_NPC(ch) != IS_NPC(vch))
-									continue;
-								break;
-
-							case TAR_CHAR_SELF:
-								if (vch != ch)
-									continue;
-								break;
-						}
-
-						obj_cast_spell(spell->skill, spell->level, ch, vch, NULL);
-					}
-
+				case TAR_CHAR_SELF:
+					if (vch != ch)
+						continue;
+					break;
 				}
 
-				// Let it do something even if there were no spells
-			    p_percent_trigger(NULL, staff, NULL, NULL, ch, vch, NULL, NULL, NULL, TRIG_BRANDISH, argument,0,0,0,0,0);
+				iterator_start(&it, WEAPON(weapon)->spells);
+				while((spell = (SPELL_DATA *)iterator_nextdata(&it)))
+				{
+					obj_brandish_spell(weapon, spell->skill, spell->level, ch, vch);
+				}
+				iterator_stop(&it);
 
-				check_improve(ch,gsk_staves,TRUE,2);
+				// Let it do something even if there were no spells
+			    p_percent_trigger(NULL, weapon, NULL, NULL, ch, vch, NULL, NULL, NULL, TRIG_BRANDISH, argument,0,0,0,0,0);
+
+				if (offensive && vch != ch && vch->master != ch && vch->fighting == NULL)
+				{
+					multi_hit(vch, ch, NULL, TYPE_UNDEFINED);
+				}
 			}
+
+			check_improve(ch,weapon_skill,TRUE,2);
 		}
     }
 
 	// When $(victim) isn't defined, it's the aftermath
-	p_percent_trigger(NULL, staff, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BRANDISH, argument,0,0,0,0,0);
+	p_percent_trigger(NULL, weapon, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BRANDISH, argument,0,0,0,0,0);
 
-    if (--staff->value[2] <= 0)
+
+	--WEAPON(weapon)->charges;
+    if (WEAPON(weapon)->charges < 1)
     {
-		act("$n's $p blazes bright and is gone.", ch, NULL, NULL, staff, NULL, NULL, NULL, TO_ROOM);
-		act("Your $p blazes bright and is gone.", ch, NULL, NULL, staff, NULL, NULL, NULL, TO_CHAR);
-		log_string("It disappeared in a blaze");
-		extract_obj(staff);
+		// If a weapon can't recharge, it will explode
+		if (WEAPON(weapon)->recharge_time < 1)
+		{
+			act("$n's $p blazes bright and is gone.", ch, NULL, NULL, weapon, NULL, NULL, NULL, TO_ROOM);
+			act("Your $p blazes bright and is gone.", ch, NULL, NULL, weapon, NULL, NULL, NULL, TO_CHAR);
+			extract_obj(weapon);
+			return;
+		}
+
+		// TODO: What should happen if a weapon is overused?
+		// Should it damage the weapon?
+		// If so, should the condition of the weapon affect whether the weapon works?
+		// Wand gets damaged from overuse
+		if (weapon->fragility != OBJ_FRAGILE_SOLID)
+		{
+			switch (weapon->fragility)
+			{
+			case OBJ_FRAGILE_STRONG:
+				if (number_percent() < 25)
+					weapon->condition--;
+				break;
+			case OBJ_FRAGILE_NORMAL:
+				if (number_percent() < 50)
+					weapon->condition--;
+				break;
+			case OBJ_FRAGILE_WEAK:
+				weapon->condition--;
+				break;
+			default:
+				break;
+			}
+
+			if (weapon->condition <= 0)
+			{
+				act("$n's $p blazes bright and is gone.", ch, NULL, NULL, weapon, NULL, NULL, NULL, TO_ROOM);
+				act("Your $p blazes bright and is gone.", ch, NULL, NULL, weapon, NULL, NULL, NULL, TO_CHAR);
+				extract_obj(weapon);
+				return;
+			}
+		}
     }
+
+	// Start recharging
+	if (WEAPON(weapon)->charges < WEAPON(weapon)->max_charges && WEAPON(weapon)->recharge_time > 0 && WEAPON(weapon)->cooldown < 1)
+	{
+		WEAPON(weapon)->cooldown = WEAPON(weapon)->recharge_time;
+	}
 }
 
 void obj_zap_spell(OBJ_DATA *wand, SKILL_DATA *skill, int level, CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *obj)
@@ -5967,6 +6027,7 @@ int get_cost(CHAR_DATA *keeper, OBJ_DATA *obj, bool fBuy)
 		}
     }
 
+	/*
     if (obj->item_type == ITEM_STAFF || obj->item_type == ITEM_WAND)
     {
 		if (obj->value[1] == 0)
@@ -5974,6 +6035,7 @@ int get_cost(CHAR_DATA *keeper, OBJ_DATA *obj, bool fBuy)
 		else
 		    cost = cost * obj->value[2] / obj->value[1];
     }
+	*/
 
     return cost;
 }
@@ -7449,8 +7511,7 @@ void do_secondary(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (!CAN_WEAR(obj, ITEM_WIELD)
-	 || obj->pIndexData->item_type != ITEM_WEAPON)
+    if (!CAN_WEAR(obj, ITEM_WIELD) || !IS_WEAPON(obj->pIndexData))
     {
 	send_to_char("That's not a weapon.\n\r", ch);
 	return;
@@ -7703,7 +7764,7 @@ void do_pull(CHAR_DATA *ch, char *argument)
 	else if(!unequip_char(ch,obj,TRUE)) {
 		act("$n dislodges $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 		act("You dislodge $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		if(obj->item_type == ITEM_WEAPON && IS_WEAPON_STAT(obj,WEAPON_BARBED)) {
+		if(IS_WEAPON_STAT(obj,WEAPON_BARBED)) {
 			act("{R$p{R tears away flesh from $n.{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 			act("{R$p{R tears away some of your flesh.{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 			damage(ch, ch, UMIN(ch->hit,25), NULL, TYPE_UNDEFINED, DAM_PIERCE, TRUE);
@@ -8927,6 +8988,7 @@ void bomb_end(CHAR_DATA *ch)
 
 void do_infuse(CHAR_DATA *ch, char *argument)
 {
+#if 0
     OBJ_DATA *obj;
     AFFECT_DATA af;
     char arg1[MAX_INPUT_LENGTH];
@@ -8939,105 +9001,106 @@ void do_infuse(CHAR_DATA *ch, char *argument)
 
     if ((skill = get_skill(ch, gsk_infuse)) == 0)
     {
-	send_to_char("What?\n\r", ch);
-	return;
+		send_to_char("What?\n\r", ch);
+		return;
     }
 
     /* find out what */
     if (arg1[0] == '\0')
     {
-	send_to_char("Infuse what item?\n\r",ch);
-	return;
+		send_to_char("Infuse what item?\n\r",ch);
+		return;
     }
 
     obj =  get_obj_list(ch,arg1,ch->carrying);
 
     if (obj== NULL)
     {
-	send_to_char("You don't have that item.\n\r",ch);
-	return;
+		send_to_char("You don't have that item.\n\r",ch);
+		return;
     }
-memset(&af,0,sizeof(af));
-    if (obj->item_type == ITEM_WEAPON)
+
+    if (IS_WEAPON(obj))
     {
         if (arg2[0] == '\0')
         {
-	    act("Infuse $p with what?", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	    return;
+		    act("Infuse $p with what?", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		    return;
         }
 
-        if (IS_WEAPON_STAT(obj,WEAPON_FLAMING)
-        ||  IS_WEAPON_STAT(obj,WEAPON_FROST)
-        ||  IS_WEAPON_STAT(obj,WEAPON_VAMPIRIC)
-/*        ||  IS_WEAPON_STAT(obj,WEAPON_SHARP)	 Why is this here?  Changed this to be manual*/
-        ||  IS_WEAPON_STAT(obj,WEAPON_VORPAL)
-        ||  IS_WEAPON_STAT(obj,WEAPON_SHOCKING)
-        ||  IS_WEAPON_STAT(obj,WEAPON_ACIDIC)
-        ||  IS_WEAPON_STAT(obj,WEAPON_RESONATE)
-        ||  IS_WEAPON_STAT(obj,WEAPON_BLAZE)
-        ||  IS_WEAPON_STAT(obj,WEAPON_SUCKLE))
+        if (IS_WEAPON_STAT(obj,WEAPON_FLAMING) ||
+			IS_WEAPON_STAT(obj,WEAPON_FROST) ||
+			IS_WEAPON_STAT(obj,WEAPON_VAMPIRIC) ||
+			IS_WEAPON_STAT(obj,WEAPON_VORPAL) ||
+			IS_WEAPON_STAT(obj,WEAPON_SHOCKING) ||
+			IS_WEAPON_STAT(obj,WEAPON_ACIDIC) ||
+			IS_WEAPON_STAT(obj,WEAPON_RESONATE) ||
+			IS_WEAPON_STAT(obj,WEAPON_BLAZE) ||
+			IS_WEAPON_STAT(obj,WEAPON_SUCKLE))
         {
             act("$p is already infused with a magic enchantment.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
             return;
         }
 
-	if (obj->value[3] < 0
-	||  attack_table[obj->value[3]].damage == DAM_BASH)
-	{
-	    send_to_char("You can only envenom edged weapons.\n\r",ch);
-	    return;
-	}
 
-	weapon = -1;
-	if (!str_cmp(arg2, "fire"))		weapon = WEAPON_FLAMING;
-	else if (!str_cmp(arg2, "frost"))	weapon = WEAPON_FROST;
-	else if (!str_cmp(arg2, "vampiric"))	weapon = WEAPON_VAMPIRIC;
-/*	else if (!str_cmp(arg2, "sharp"))	weapon = WEAPON_SHARP;*/
-	else if (!str_cmp(arg2, "vorpal"))	weapon = WEAPON_VORPAL;
-	else if (!str_cmp(arg2, "shocking"))	weapon = WEAPON_SHOCKING;
-	else if (!str_cmp(arg2, "acidic"))	weapon = WEAPON_ACIDIC;
-	else if (!str_cmp(arg2, "resonate"))	weapon = WEAPON_RESONATE;
-	else if (!str_cmp(arg2, "blaze"))	weapon = WEAPON_BLAZE;
-	else if (!str_cmp(arg2, "suckle"))	weapon = WEAPON_SUCKLE;
+		if (WEAPON(obj)->attack < 0 || attack_table[WEAPON(obj)->attack].damage == DAM_BASH)
+		{
+			send_to_char("You can only envenom edged weapons.\n\r",ch);
+			return;
+		}
 
-	if (weapon == -1)
-        {
-	    send_to_char("Can only infuse fire, frost, vampiric, sharp, vorpal or shocking.\n\r", ch);
-	    return;
-        }
+		weapon = -1;
+		if (!str_cmp(arg2, "fire"))					weapon = WEAPON_FLAMING;
+		else if (!str_cmp(arg2, "frost"))			weapon = WEAPON_FROST;
+		else if (!str_cmp(arg2, "vampiric"))		weapon = WEAPON_VAMPIRIC;
+		else if (!str_cmp(arg2, "vorpal"))			weapon = WEAPON_VORPAL;
+		else if (!str_cmp(arg2, "shocking"))		weapon = WEAPON_SHOCKING;
+		else if (!str_cmp(arg2, "acidic"))			weapon = WEAPON_ACIDIC;
+		else if (!str_cmp(arg2, "resonate"))		weapon = WEAPON_RESONATE;
+		else if (!str_cmp(arg2, "blaze"))			weapon = WEAPON_BLAZE;
+		else if (!str_cmp(arg2, "suckle"))			weapon = WEAPON_SUCKLE;
 
-	percent = number_percent();
-	if (percent < skill)
-	{
-            af.where     = TO_WEAPON;
-            af.group     = AFFGROUP_WEAPON;
-            af.skill     = gsk_infuse;
-            af.level     = (ch->tot_level * skill)/ 100;
-            af.duration  = ((ch->tot_level/2) * skill)/ 100;
-            af.location  = 0;
-            af.modifier  = 0;
+		if (weapon == -1)
+		{
+			send_to_char("Can only infuse fire, frost, vampiric, sharp, vorpal, shocking, acidic, resonate, blaze, suckle.\n\r", ch);
+			return;
+		}
 
-            af.bitvector = weapon;
-	    af.bitvector2 = 0;
-		af.slot	= WEAR_NONE;
-            affect_to_obj(obj,&af);
+		percent = number_percent();
+		if (percent < skill)
+		{
+			memset(&af,0,sizeof(af));
+			af.where     = TO_WEAPON;
+			af.group     = AFFGROUP_WEAPON;
+			af.skill     = gsk_infuse;
+			af.level     = (ch->tot_level * skill)/ 100;
+			af.duration  = ((ch->tot_level/2) * skill)/ 100;
+			af.location  = 0;
+			af.modifier  = 0;
 
-            act("$n carefully infuses $p with a magical enchantment.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
-	    act("You carefully infuse $p with a magical enchantment.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-	    check_improve(ch,gsk_infuse,TRUE,3);
-	    WAIT_STATE(ch,gsk_infuse->beats);
-            return;
-        }
-	else
-	{
-	    act("You fail to infuse $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-	    check_improve(ch,gsk_infuse,FALSE,3);
-	    WAIT_STATE(ch,gsk_infuse->beats);
-	    return;
-	}
+			af.bitvector = weapon;
+			af.bitvector2 = 0;
+			af.slot	= WEAR_NONE;
+			affect_to_obj(obj,&af);
+
+			act("$n carefully infuses $p with a magical enchantment.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
+			act("You carefully infuse $p with a magical enchantment.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+			check_improve(ch,gsk_infuse,TRUE,3);
+			WAIT_STATE(ch,gsk_infuse->beats);
+			return;
+		}
+		else
+		{
+			act("You fail to infuse $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+			check_improve(ch,gsk_infuse,FALSE,3);
+			WAIT_STATE(ch,gsk_infuse->beats);
+			return;
+		}
     }
-
     act("You can't infuse $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+#else
+	command_under_construction(ch);
+#endif
 }
 
 

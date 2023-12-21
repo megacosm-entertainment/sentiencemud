@@ -9577,6 +9577,15 @@ bool load_liquids()
 		list_appendlink(liquid_list, liquid_potion);
 		gln_potion = liquid_potion->uid;
 
+		// Acid
+		liquid_acid = new_liquid();
+		liquid_acid->name = str_dup("acid");
+		liquid_acid->uid = ++top_liquid_uid;
+		liquid_acid->gln = &gln_acid;
+		liquid_acid->color = str_dup("clear green");
+		list_appendlink(liquid_list, liquid_acid);
+		gln_acid = liquid_acid->uid;
+
 		save_liquids();
 
 		return true;

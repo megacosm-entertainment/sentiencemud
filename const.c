@@ -154,8 +154,8 @@ const struct item_type		item_table	[]	=
     {	ITEM_LIGHT,		"light"				},
     {	ITEM_SCROLL,		"scroll"			},
     {	ITEM_WAND,		"wand"				},
-    {   ITEM_STAFF,		"staff"				},
     {   ITEM_WEAPON,		"weapon"			},
+	{	ITEM_AMMO,			"ammo"			},
     {   ITEM_TREASURE,		"treasure"			},
     {   ITEM_ARMOUR,		"armour"				},
     {	ITEM_CLOTHING,		"clothing"			},
@@ -186,9 +186,7 @@ const struct item_type		item_table	[]	=
     {   ITEM_CART, 		"cart"				},
     {   ITEM_SHIP, 		"ship"				},
     {   ITEM_ROOM_DARKNESS, 	"room_darkness_object"		},
-    {   ITEM_RANGED_WEAPON, 	"ranged_weapon"			},
     {   ITEM_SEXTANT, 		"sextant"			},
-    {   ITEM_WEAPON_CONTAINER,	"weapon_container"		},
     {	ITEM_ROOM_ROOMSHIELD,	"room_roomshield_object"	},
     {	ITEM_PAGE,		"page"				},
     {	ITEM_BOOK,		"book"				},
@@ -197,13 +195,10 @@ const struct item_type		item_table	[]	=
     {	ITEM_SPELL_TRAP,	"spell_trap"			},
     {	ITEM_WITHERING_CLOUD,	"withering_cloud"		},
     {   ITEM_BANK,		"bank" 				},
-    {   ITEM_KEYRING,		"keyring" 			},
     {   ITEM_TRADE_TYPE,	"trade_type" 			},
     {	ITEM_ICE_STORM,		"ice_storm" 			},
     {	ITEM_FLOWER,		"flower"			},
     {   ITEM_HERB,		"herb",				},
-    {   ITEM_EMPTY_VIAL,	"empty_vial"			},
-    {   ITEM_BLANK_SCROLL,	"blank_scroll" 			},
     {   ITEM_MIST,		"mist"				},
     {	ITEM_SHRINE,		"shrine"			},
     {   ITEM_WHISTLE,   "whistle"    },
@@ -238,6 +233,7 @@ const   struct  tunneler_place_type  tunneler_place_table[] =
 };
 
 
+#if 0
 const	struct	weapon_type	weapon_table	[]	=
 {
 /*  name		vnum				type			gsn*/
@@ -270,6 +266,7 @@ const	struct	weapon_type	ranged_weapon_table	[]	=
     { "harpoon",	0,0,	RANGED_WEAPON_HARPOON,	&gsn_harpooning	},	/* @@@NIB : 20070126*/
     { NULL,		0,0,	0,			NULL		}
 };
+#endif
 
 const	int	size_weight[] = { 0, 10, 50, 120, 450, 4500 };
 

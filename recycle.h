@@ -241,6 +241,11 @@ void free_aura_data(AURA_DATA *aura);
 
 // Item Multi-typing
 
+// Ammo
+AMMO_DATA *new_ammo_data();
+AMMO_DATA *copy_ammo_data(AMMO_DATA *src);
+void free_ammo_data(AMMO_DATA *data);
+
 // Book
 BOOK_PAGE *new_book_page();
 BOOK_PAGE *copy_book_page(BOOK_PAGE *src);
@@ -318,6 +323,11 @@ void free_tattoo_data(TATTOO_DATA *data);
 WAND_DATA *new_wand_data();
 WAND_DATA *copy_wand_data(WAND_DATA *src);
 void free_wand_data(WAND_DATA *data);
+
+// Weapon
+WEAPON_DATA *new_weapon_data();
+WEAPON_DATA *copy_weapon_data(WEAPON_DATA *src);
+void free_weapon_data(WEAPON_DATA *data);
 
 
 

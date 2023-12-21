@@ -2060,7 +2060,6 @@ void obj_update(void)
 		if( cur_room != NULL && IS_VALID(region) && region->area_who == AREA_CHAT && !IS_SET(obj->extra[2], ITEM_RIFT_UPDATE))
 			continue;
 
-
 		// Adjust obj affects - except for people in social
 		if (obj->carried_by == NULL || !IS_SOCIAL(obj->carried_by)) {
 			for (paf = obj->affected; paf != NULL; paf = paf_next) {
@@ -2122,6 +2121,21 @@ void obj_update(void)
 		// Make sure the object is still there before proceeding
 		if(!obj->valid || obj->id[0] != uid[0] || obj->id[1] != uid[1])
 			continue;
+
+		// Ephemeral objects vanish on this tick, regardless.
+		if( IS_SET(obj->extra[0], ITEM_EPHEMERAL ))
+		{
+			// Ephemeral corpses will not be a thing:
+			if (obj->item_type != ITEM_CORPSE_NPC && obj->item_type != ITEM_CORPSE_PC)
+			{
+				if (obj->carried_by)
+					act("$p vanishes.", obj->carried_by, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				else if (obj->in_room && obj->in_room->people)
+					act("$p vanishes.", obj->in_room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
+				extract_obj(obj);
+				continue;
+			}
+		}
 
 		// Update tokens on object. Remove the one for which the timer has run out.
 		iterator_start(&tit, obj->ltokens);
@@ -2405,6 +2419,9 @@ bool check_aggression(CHAR_DATA *ch, CHAR_DATA *vch)
 	}
 
 	if (IS_AFFECTED2(ch, AFF2_AGGRESSIVE))
+		aggressive = true;
+
+	if (check_mob_factions_hostile(ch, vch))
 		aggressive = true;
 
 	if (p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CAUSE_AGGRESSION, NULL, 0, 0, 0, 0, 0) > 0 ||

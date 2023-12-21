@@ -9210,6 +9210,8 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 
 	info->progs->lastreturn = 1;
 
+	SET_BIT(obj->extra[1], ITEM_CREATED);
+
 	return obj;
 }
 

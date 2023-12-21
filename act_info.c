@@ -351,7 +351,7 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 	    strcat(buf, obj->short_descr);
 	strcat(buf, " ");
 
-	if (obj->item_type == ITEM_WEAPON)
+	if (IS_WEAPON(obj))
 	{
 	    if (obj->condition == 0)
 		strcat(buf, "{y(Broken){x");

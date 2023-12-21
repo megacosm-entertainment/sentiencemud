@@ -17,6 +17,7 @@
 
 void do_smite(CHAR_DATA *ch, char *argument)
 {
+#if 0
 	CHAR_DATA *victim;
 	OBJ_DATA *wield;
 	char arg[MAX_STRING_LENGTH];
@@ -102,11 +103,15 @@ void do_smite(CHAR_DATA *ch, char *argument)
 		damage(ch, victim, dice(wield->value[1]*2,wield->value[2]*2), gsk_smite, TYPE_UNDEFINED, DAM_HOLY, TRUE);
 		check_improve(ch, gsk_smite, FALSE, 1);
 	}
+#else
+	command_under_construction(ch);
+#endif
 }
 
 
 void do_stake(CHAR_DATA *ch, char *argument)
 {
+#if 0
     CHAR_DATA *victim;
     OBJ_DATA *stake;
     int chance;
@@ -194,11 +199,15 @@ void do_stake(CHAR_DATA *ch, char *argument)
 	one_hit(victim, ch, NULL, 0, FALSE);
 	check_improve(ch, gsk_stake, FALSE, 1);
     }
+#else
+	command_under_construction(ch);
+#endif
 }
 
 
 void do_trample(CHAR_DATA *ch, char *argument)
 {
+#if 0
 	char arg[MSL];
 	char buf[MSL];
 	int chance, skill;
@@ -304,6 +313,9 @@ void do_trample(CHAR_DATA *ch, char *argument)
 	}
 	p_percent_trigger(mount,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"postmount",0,0,0,0,0);
 	p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"postrider",0,0,0,0,0);
+#else
+	command_under_construction(ch);
+#endif
 }
 
 
@@ -636,6 +648,7 @@ bool check_evasion(CHAR_DATA *ch)
 
 void do_behead(CHAR_DATA *ch, char *argument)
 {
+#if 0
 	CHAR_DATA *victim;
 	OBJ_DATA *wield;
 	int skill, hit, chance;
@@ -731,4 +744,7 @@ void do_behead(CHAR_DATA *ch, char *argument)
 		act("{Y$N quickly ducks under $n's decapitating $t!{x",	ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_NOTVICT);
 		check_improve(ch, gsk_behead, FALSE, 6);
 	}
+#else
+	command_under_construction(ch);
+#endif
 }
