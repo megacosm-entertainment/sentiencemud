@@ -3615,6 +3615,7 @@ const struct quaff_func_type quaff_func_table[] =
 
 const struct prescribe_func_type prescribe_func_table[] =
 {
+    { "silence",        prescribe_silence },
     { NULL, NULL }
 };
 
@@ -3626,12 +3627,14 @@ const struct scribe_func_type scribe_func_table[] =
 const struct recite_func_type recite_func_table[] =
 {
     { "identify",       recite_identify },
+    { "silence",        recite_silence },
     { "word_of_recall", recite_word_of_recall },
     { NULL, NULL }
 };
 
 const struct preink_func_type preink_func_table[] =
 {
+    { "silence",        preink_silence },
     { NULL, NULL }
 };
 
@@ -3646,17 +3649,37 @@ const struct touch_func_type touch_func_table[] =
     { "chain_lightning",    touch_chain_lightning },
     { "fly",                touch_fly },
     { "haste",              touch_haste },
+    { "silence",            touch_silence },
     { NULL,                 NULL }
+};
+
+const struct preimbue_func_type preimbue_func_table[] =
+{
+    { "silence",            preimbue_silence },
+    { NULL, NULL }
+};
+
+const struct imbue_func_type imbue_func_table[] =
+{
+    { NULL, NULL }
 };
 
 const struct zap_func_type zap_func_table[] =
 {
     { "chain_lightning",    zap_chain_lightning },
+    { "silence",            zap_silence },
     { NULL,                 NULL }
 };
 
 const struct brandish_func_type brandish_func_table[] =
 {
+    { "silence",            brandish_silence },
+    { NULL,                 NULL }
+};
+
+const struct equip_func_type equip_func_table[] =
+{
+    { "silence",            equip_silence },
     { NULL,                 NULL }
 };
 
@@ -3811,6 +3834,7 @@ const struct gsn_type gsn_table[] =
 	{ "ice_shards",	        &gsn_ice_shards,	        &gsk_ice_shards },
 	{ "ice_storm",	        &gsn_ice_storm,	        &gsk_ice_storm },
 	{ "identify",	        &gsn_identify,	        &gsk_identify },
+	{ "imbue",	            &gsn_imbue,	            &gsk_imbue },
 	{ "improved_invis",	    &gsn_improved_invisibility,	    &gsk_improved_invisibility },
 	{ "inferno",	        &gsn_inferno,	        &gsk_inferno },
 	{ "infravision",	    &gsn_infravision,	    &gsk_infravision },

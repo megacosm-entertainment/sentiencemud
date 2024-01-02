@@ -3013,6 +3013,16 @@ SCRIPT_CMD(do_opinterrupt)
 		SET_BIT(ret,INTERRUPT_INK);
 	}
 
+	if (IS_SET(stop, INTERRUPT_IMBUE) && victim->imbuing > 0) {
+		victim->imbuing = 0;
+		victim->imbue_type = IMBUE_NONE;
+		victim->imbue_info[0] = NULL;
+		victim->imbue_info[1] = NULL;
+		victim->imbue_info[2] = NULL;
+		victim->imbue_obj = NULL;
+		SET_BIT(ret,INTERRUPT_IMBUE);
+	}
+
 	if (IS_SET(stop,INTERRUPT_RANGED) && victim->ranged > 0) {
 		if(victim->projectile_victim)
 			variables_set_string(info->var,"stoprangedtarget",victim->projectile_victim,FALSE);

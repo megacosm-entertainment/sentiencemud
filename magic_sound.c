@@ -80,6 +80,43 @@ SPELL_FUNC(prespell_silence)
 	return true;
 }
 
+static bool __silence_function(SKILL_DATA *skill, CHAR_DATA *ch, CHAR_DATA *victim, int level, int duration, int slot, char *message)
+{
+	if (IS_AFFECTED2(victim, AFF2_SILENCE)) {
+		if (victim == ch)
+			send_to_char("You are already silenced.\n\r",ch);
+		else
+			act("$N is already silenced.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return false;
+	}
+
+	if (saves_spell(level,victim,DAM_SOUND)) {
+		send_to_char("Nothing happens.\n\r", ch);
+		return false;
+	}
+
+	AFFECT_DATA af;
+	memset(&af,0,sizeof(af));
+	af.slot	= slot;
+	af.where = TO_AFFECTS;
+	af.group = AFFGROUP_MAGICAL;
+	af.catalyst_type = -1;
+	af.skill = skill;
+	af.level = level;
+	af.duration = duration;
+	af.location = APPLY_NONE;
+	af.modifier = 0;
+	af.bitvector = 0;
+	af.bitvector2 = AFF2_SILENCE;
+	affect_to_char(victim, &af);
+
+	send_to_char(message, victim);
+
+	act("You have been silenced!",victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_CHAR);
+	act("$n has been silenced!",victim,NULL, NULL, NULL, NULL, NULL,NULL,TO_ROOM);
+	return true;
+}
+
 SPELL_FUNC(spell_silence)
 {
 	CHAR_DATA *victim;
@@ -96,39 +133,7 @@ SPELL_FUNC(spell_silence)
 	// Catalyst is checked in the prespell
 	catalyst = use_catalyst(ch,NULL,CATALYST_SOUND,CATALYST_INVENTORY,lvl,TRUE);
 
-	if (IS_AFFECTED2(victim, AFF2_SILENCE)) {
-		if (victim == ch)
-			send_to_char("You are already silenced.\n\r",ch);
-		else
-			act("$N is already silenced.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
-	}
-
-	if (saves_spell(level,victim,DAM_SOUND)) {
-		send_to_char("Nothing happens.\n\r", ch);
-		return FALSE;
-	}
-
-	AFFECT_DATA af;
-	memset(&af,0,sizeof(af));
-	af.slot	= obj_wear_loc;
-	af.where = TO_AFFECTS;
-	af.group = AFFGROUP_MAGICAL;
-	af.catalyst_type = -1;
-	af.skill = skill;
-	af.level = level;
-	af.duration = catalyst / lvl;
-	af.location = APPLY_NONE;
-	af.modifier = 0;
-	af.bitvector = 0;
-	af.bitvector2 = AFF2_SILENCE;
-	affect_to_char(victim, &af);
-
-	send_to_char("You get the feeling there is a huge sock in your throat.\n\r", victim);
-
-	act("You have been silenced!",victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_CHAR);
-	act("$n has been silenced!",victim,NULL, NULL, NULL, NULL, NULL,NULL,TO_ROOM);
-	return TRUE;
+	return __silence_function(skill, ch, victim, level, catalyst / lvl, obj_wear_loc, "You get the feeling there is a huge sock in your throat.\n\r");
 }
 
 PREBREW_FUNC( prebrew_silence )
@@ -144,37 +149,72 @@ BREW_FUNC( brew_silence )
 
 QUAFF_FUNC( quaff_silence )
 {
-	if (IS_AFFECTED2(ch, AFF2_SILENCE)) {
-		send_to_char("You are already silenced.\n\r",ch);
-		return false;
-	}
+	return __silence_function(skill, ch, ch, level, gsk_silence->values[1], WEAR_NONE, "Your throat has gone numb.\n\r");
+}
 
-	if (saves_spell(level,ch,DAM_SOUND)) {
-		send_to_char("Nothing happens.\n\r", ch);
-		return false;
-	}
-
-	AFFECT_DATA af;
-	memset(&af,0,sizeof(af));
-	af.slot	= WEAR_NONE;
-	af.where = TO_AFFECTS;
-	af.group = AFFGROUP_MAGICAL;
-	af.catalyst_type = -1;
-	af.skill = skill;
-	af.level = level;
-	af.duration = gsk_silence->values[1];
-	af.location = APPLY_NONE;
-	af.modifier = 0;
-	af.bitvector = 0;
-	af.bitvector2 = AFF2_SILENCE;
-	affect_to_char(ch, &af);
-
-	send_to_char("Your throat has gone numb.\n\r", ch);
-
-	act("You have been silenced!",ch, NULL, NULL, NULL, NULL,NULL,NULL,TO_CHAR);
-	act("$n has been silenced!",ch,NULL, NULL, NULL, NULL, NULL,NULL,TO_ROOM);
+PRESCRIBE_FUNC( prescribe_silence )
+{
+	ch->catalyst_usage[CATALYST_SOUND] += gsk_silence->values[0];
 	return true;
 }
+
+SCRIBE_FUNC( scribe_silence )
+{
+	return true;
+}
+
+RECITE_FUNC( recite_silence )
+{
+	return __silence_function(skill, ch, (CHAR_DATA *)vo, level, gsk_silence->values[1], WEAR_NONE, "Your throat has gone numb.\n\r");
+}
+
+
+PREINK_FUNC( preink_silence )
+{
+	ch->catalyst_usage[CATALYST_SOUND] += gsk_silence->values[0];
+	return true;
+}
+
+INK_FUNC( ink_silence )
+{
+	return true;
+}
+
+TOUCH_FUNC( touch_silence )
+{
+	return __silence_function(skill, ch, ch, level, gsk_silence->values[1], tattoo->wear_loc, "Your throat has gone numb.\n\r");
+}
+
+
+PREIMBUE_FUNC( preimbue_silence )
+{
+	ch->catalyst_usage[CATALYST_SOUND] += gsk_silence->values[0];
+	return true;
+}
+
+IMBUE_FUNC( imbue_silence )
+{
+	return true;
+}
+
+ZAP_FUNC( zap_silence )
+{
+	return __silence_function(skill, ch, (CHAR_DATA *)vo, level, gsk_silence->values[1], WEAR_NONE, "Your throat has gone numb.\n\r");
+}
+
+BRANDISH_FUNC( brandish_silence )
+{
+	return __silence_function(skill, ch, victim, level, gsk_silence->values[1], WEAR_NONE, "Your throat has gone numb.\n\r");
+}
+
+EQUIP_FUNC( equip_silence )
+{
+	return __silence_function(skill, ch, ch, level, -1, obj->wear_loc, "Your throat has gone numb.\n\r");
+}
+
+
+
+
 ////////////////////////////////
 
 

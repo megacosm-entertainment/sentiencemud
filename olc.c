@@ -4123,9 +4123,10 @@ const struct olc_cmd_type skedit_table[] =
 	//	"delete",		skedit_delete		},		// TODO: Need to be abke to track usage first
 	{	"difficulty",	skedit_difficulty	},
 	{	"display",		skedit_display		},
-	//{	"equip",		skedit_equipfunc	},
+	{	"equip",		skedit_equipfunc	},
 	{	"flags",		skedit_flags		},
 	{	"gsn",			skedit_gsn			},
+	{	"imbue",		skedit_imbuefunc	},
 	{	"ink",			skedit_inkfunc		},
 	{	"inks",			skedit_inks			},
 	{	"install",		skedit_install		},		// As opposed to create
@@ -4137,6 +4138,7 @@ const struct olc_cmd_type skedit_table[] =
 	//{	"name",			skedit_name			},		// Can't change the name
 	{	"position",		skedit_position		},
 	{	"prebrew",		skedit_prebrewfunc	},
+	{	"preimbue",		skedit_preimbuefunc	},
 	{	"preink",		skedit_preinkfunc	},
 	{	"prescribe",	skedit_prescribefunc},
 	{	"prespell",		skedit_prespellfunc	},

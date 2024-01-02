@@ -2350,6 +2350,19 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 	}
 	add_buf(buffer, "\n\r");
 
+	if (IS_AMMO(obj))
+	{
+		DICE_DATA dice = AMMO(obj)->damage;
+		sprintf(buf, "{CAmmo: {BType: {x%s {BDamage: {x%s{B (%s) Flags: {x%s\n\r",
+			flag_string(ammo_types, AMMO(obj)->type),
+			((dice.bonus > 0) ?
+				formatf("{x%d{Bd{x%d{B+{x%d", dice.number, dice.size, dice.bonus) :
+				formatf("{x%d{Bd{x%d", dice.number, dice.size)),
+			(AMMO(obj)->damage_type >= 0) ? formatf("{x%s{B", attack_table[AMMO(obj)->damage_type].noun) : "none",
+			flag_string(weapon_type2, AMMO(obj)->flags));
+		add_buf(buffer, buf);
+	}
+
 	if (IS_BOOK(obj))
 	{
 		sprintf(buf, "{CBook[{x%s{C / {x%s{C]: {BPages: (Total: {x%d{B, Current: {x%d{B) Flags: {x%s{B{x\n\r",
@@ -2640,6 +2653,67 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 		ITERATOR sit;
 		SPELL_DATA *spell;
 		iterator_start(&sit, WAND(obj)->spells);
+		while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
+		{
+			sprintf(buf, "   {CSpell: {x%s {BLevel: {x%d\n\r", spell->skill->name, spell->level);
+			add_buf(buffer, buf);
+		}
+		iterator_stop(&sit);
+	}
+
+	if (IS_WEAPON(obj))
+	{
+		char charges[2*MIL];
+		char recharging[2*MIL];
+		char cooldown[2*MIL];
+
+		if (WEAPON(obj)->max_charges < 0)
+			strcpy(charges, "unlimited");
+		else
+			sprintf(charges, "%d{B / {x%d", WEAPON(obj)->charges, WEAPON(obj)->max_charges);
+
+		if (WEAPON(obj)->recharge_time > 0)
+			sprintf(recharging, "{B1 charge per {x%d{B tick%s.", WEAPON(obj)->recharge_time, ((WEAPON(obj)->recharge_time==1)?"":"s"));
+		else
+			strcpy(recharging, "none.");
+
+		if ((WEAPON(obj)->charges < WEAPON(obj)->max_charges) && WEAPON(obj)->recharge_time > 0)
+			sprintf(cooldown, "%d{B tick%s until next charge.", WEAPON(obj)->cooldown, ((WEAPON(obj)->cooldown == 1)?"":"s"));
+		else
+			strcpy(cooldown, "off.");
+
+		sprintf(buf, "{CWeapon: {BClass: {x%s {BRange: {x%d {BAmmo: {x%s {BMax Mana: {x%d {BCharges: {x%s {BRecharging: {x%s {BCooldown: {x%s{x\n\r",
+			flag_string(weapon_class, WEAPON(obj)->weapon_class),
+			WEAPON(obj)->range,
+			flag_string(ammo_types, WEAPON(obj)->ammo),
+			WEAPON(obj)->max_mana,
+			charges, recharging, cooldown);
+		add_buf(buffer, buf);
+
+		for(int i = 0; i < MAX_ATTACK_POINTS; i++)
+		{
+			WEAPON_ATTACK_POINT *attack = &WEAPON(obj)->attacks[i];
+
+			if (attack->type >= 0)
+			{
+				int dt = attack->type;
+				DICE_DATA dice = attack->damage;
+				sprintf(buf, "   {CAttack %d: {x%s {B({x%s{B), Damage: %s{B, Flags: {x%s\n\r", i+1,
+					attack_table[dt].noun,
+					flag_string(damage_classes, attack_table[dt].damage),
+					((dice.bonus > 0) ?
+						formatf("{x%d{Bd{x%d{B+{x%d", dice.number, dice.size, dice.bonus) :
+						formatf("{x%d{Bd{x%d", dice.number, dice.size)),
+					flag_string(weapon_type2, attack->flags));
+			}
+			else
+				sprintf(buf, "   {CAttack %d: {xnone\n\r", i+1);
+			add_buf(buffer, buf);
+		}
+
+		ITERATOR sit;
+		SPELL_DATA *spell;
+		iterator_start(&sit, WEAPON(obj)->spells);
 		while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
 		{
 			sprintf(buf, "   {CSpell: {x%s {BLevel: {x%d\n\r", spell->skill->name, spell->level);

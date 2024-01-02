@@ -2360,7 +2360,21 @@ void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
 
 	if (IS_AMMO(obj))
 	{
+		fprintf(fp, "#TYPEAMMO\n");
 
+		fprintf(fp, "Type %s~\n", flag_string(ammo_types, AMMO(obj)->type));
+
+		if (!IS_NULLSTR(AMMO(obj)->msg_break))
+			fprintf(fp, "MsgBreak %s~\n", fix_string(AMMO(obj)->msg_break));
+
+		fprintf(fp, "Damage %s~ %s %d %d %d\n",
+			attack_table[AMMO(obj)->damage_type].noun,
+			print_flags(AMMO(obj)->flags),
+			AMMO(obj)->damage.number,
+			AMMO(obj)->damage.size,
+			AMMO(obj)->damage.bonus);
+
+		fprintf(fp, "#-TYPEAMMO\n");
 	}
 
 	if (IS_BOOK(obj))
@@ -2624,7 +2638,7 @@ void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
 
 		ITERATOR sit;
 		SPELL_DATA *spell;
-		iterator_start(&sit, SCROLL(obj)->spells);
+		iterator_start(&sit, PORTAL(obj)->spells);
 		while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
 		{
 			fprintf(fp, "SpellNew %s~ %d %d\n", spell->skill->name, spell->level, spell->repop);
@@ -2696,6 +2710,45 @@ void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
 
 	if (IS_WEAPON(obj))
 	{
+		fprintf(fp, "#TYPEWEAPON\n");
+
+		fprintf(fp, "WeaponClass %s~\n", flag_string(weapon_class, WEAPON(obj)->weapon_class));
+		fprintf(fp, "MaxMana %d\n", WEAPON(obj)->max_mana);
+		fprintf(fp, "Charges %d\n", WEAPON(obj)->charges);
+		fprintf(fp, "MaxCharges %d\n", WEAPON(obj)->max_charges);
+		fprintf(fp, "Cooldown %d\n", WEAPON(obj)->cooldown);
+		fprintf(fp, "RechargeTime %d\n", WEAPON(obj)->recharge_time);
+
+		if (WEAPON(obj)->ammo != AMMO_NONE)
+			fprintf(fp, "Ammo %s~\n", flag_string(ammo_types, WEAPON(obj)->ammo));
+		if (WEAPON(obj)->range > 0)
+			fprintf(fp, "Range %d\n", WEAPON(obj)->range);
+
+		for(int i = 0; i < MAX_ATTACK_POINTS; i++)
+		{
+			if (WEAPON(obj)->attacks[i].type >= 0)
+			{
+				fprintf(fp, "Attack %d %s~ %s~ %s~ %s %d %d %d\n", i,
+					fix_string(WEAPON(obj)->attacks[i].name),
+					fix_string(WEAPON(obj)->attacks[i].short_descr),
+					attack_table[WEAPON(obj)->attacks[i].type].noun,
+					print_flags(WEAPON(obj)->attacks[i].flags),
+					WEAPON(obj)->attacks[i].damage.number,
+					WEAPON(obj)->attacks[i].damage.size,
+					WEAPON(obj)->attacks[i].damage.bonus);
+			}
+		}
+
+		ITERATOR sit;
+		SPELL_DATA *spell;
+		iterator_start(&sit, WEAPON(obj)->spells);
+		while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
+		{
+			fprintf(fp, "Spell %s~ %d\n", spell->skill->name, spell->level);
+		}
+		iterator_stop(&sit);
+
+		fprintf(fp, "#-TYPEWEAPON\n");
 
 	}
 }
@@ -3121,6 +3174,54 @@ LOCK_STATE *fread_lock_state(FILE *fp)
 	return lock;
 }
 
+AMMO_DATA *fread_obj_ammo_data(FILE *fp)
+{
+	AMMO_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_ammo_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPEAMMO"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+		case 'D':
+			if (!str_cmp(word, "Damage"))
+			{
+				data->damage_type = attack_lookup(fread_string(fp));
+				data->flags = fread_flag(fp);
+				data->damage.number = fread_number(fp);
+				data->damage.size = fread_number(fp);
+				data->damage.bonus = fread_number(fp);
+				data->damage.last_roll = 0;
+				fMatch = true;
+				break;
+			}
+			break;
+
+		case 'M':
+			KEYS("MsgBreak", data->msg_break, fread_string(fp));
+			break;
+
+		case 'T':
+			KEY("Type", data->type, stat_lookup(fread_string(fp), ammo_types, AMMO_NONE));
+			break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "fread_obj_ammo_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+
 BOOK_PAGE *fread_book_page(FILE *fp, char *closer)
 {
 	BOOK_PAGE *page = new_book_page();
@@ -3154,6 +3255,8 @@ BOOK_PAGE *fread_book_page(FILE *fp, char *closer)
 
 	return page;
 }
+
+
 
 BOOK_DATA *fread_obj_book_data(FILE *fp)
 {
@@ -4103,6 +4206,102 @@ WAND_DATA *fread_obj_wand_data(FILE *fp)
 }
 
 
+WEAPON_DATA *fread_obj_weapon_data(FILE *fp)
+{
+	WEAPON_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_weapon_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPEWEAPON"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case 'A':
+				KEY("Ammo", data->ammo, stat_lookup(fread_string(fp), ammo_types, AMMO_NONE));
+				if (!str_cmp(word, "Attack"))
+				{
+					int index = fread_number(fp);
+					char *name = fread_string(fp);
+					char *short_descr = fread_string(fp);
+					sh_int type = attack_lookup(fread_string(fp));
+					long flags = fread_flag(fp);
+					int number = fread_number(fp);
+					int size = fread_number(fp);
+					int bonus = fread_number(fp);
+
+					if (index >= 0 && index < MAX_ATTACK_POINTS)
+					{
+						data->attacks[index].type = type;
+						data->attacks[index].name = name;
+						data->attacks[index].short_descr = short_descr;
+						data->attacks[index].flags = flags;
+						data->attacks[index].damage.number = number;
+						data->attacks[index].damage.size = size;
+						data->attacks[index].damage.bonus = bonus;
+						data->attacks[index].damage.last_roll = 0;
+					}
+					fMatch = true;
+					break;
+				}
+				break;
+
+			case 'C':
+				KEY("Charges", data->charges, fread_number(fp));
+				KEY("Cooldown", data->cooldown, fread_number(fp));
+				break;
+
+			case 'M':
+				KEY("MaxCharges", data->max_charges, fread_number(fp));
+				KEY("MaxMana", data->max_mana, fread_number(fp));
+				break;
+
+			case 'R':
+				KEY("Range", data->range, fread_number(fp));
+				KEY("RechargeTime", data->recharge_time, fread_number(fp));
+				break;
+
+			case 'S':
+				if (!str_cmp(word, "Spell"))
+				{
+					char *name = fread_string(fp);
+					int level = fread_number(fp);
+
+					SKILL_DATA *skill = get_skill_data(name);
+					if (IS_VALID(skill) && is_skill_spell(skill))
+					{
+						SPELL_DATA *spell = new_spell();
+						spell->skill = skill;
+						spell->level = level;
+						spell->repop = 100;
+						spell->next = NULL;
+
+						list_appendlink(data->spells, spell);
+					}
+
+					fMatch = true;
+					break;
+				}
+				break;
+
+			case 'W':
+				KEY("WeaponClass", data->weapon_class, stat_lookup(fread_string(fp), weapon_class, WEAPON_EXOTIC));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "fread_obj_weapon_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
 
 
 void fread_obj_reset_multityping(OBJ_DATA *obj)
@@ -4452,6 +4651,14 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				fMatch		= TRUE;
 				break;
 			}
+			if (!str_cmp(word, "#TYPEAMMO"))
+			{
+				if (IS_AMMO(obj)) free_ammo_data(AMMO(obj));
+
+				AMMO(obj) = fread_obj_ammo_data(fp);
+				fMatch = TRUE;
+				break;
+			}
 			if (!str_cmp(word, "#TYPEBOOK"))
 			{
 				if (IS_BOOK(obj)) free_book_data(BOOK(obj));
@@ -4562,6 +4769,14 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_WAND(obj)) free_wand_data(WAND(obj));
 
 				WAND(obj) = fread_obj_wand_data(fp);
+				fMatch = TRUE;
+				break;
+			}
+			if (!str_cmp(word, "#TYPEWEAPON"))
+			{
+				if (IS_WEAPON(obj)) free_weapon_data(WEAPON(obj));
+
+				WEAPON(obj) = fread_obj_weapon_data(fp);
 				fMatch = TRUE;
 				break;
 			}

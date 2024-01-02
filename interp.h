@@ -245,6 +245,7 @@ DECLARE_DO_FUN(	do_hunt		);
 DECLARE_DO_FUN(	do_idea		);
 DECLARE_DO_FUN( do_ifchecks	);
 DECLARE_DO_FUN( do_ignore	);
+DECLARE_DO_FUN( do_imbue	);
 DECLARE_DO_FUN(	do_immortalise	);
 DECLARE_DO_FUN( do_immflag 	);
 DECLARE_DO_FUN(	do_immtalk	);

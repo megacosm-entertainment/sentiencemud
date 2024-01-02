@@ -138,11 +138,11 @@ FUNC_LOOKUPS(recite,RECITE_FUN,!func)
 FUNC_LOOKUPS(preink,PREINK_FUN,!func)
 FUNC_LOOKUPS(ink,INK_FUN,!func)
 FUNC_LOOKUPS(touch,TOUCH_FUN,!func)
-//FUNC_LOOKUPS(preimbue,PREIMBUE_FUN,!func)
-//FUNC_LOOKUPS(imbue,IMBUE_FUN,!func)
+FUNC_LOOKUPS(preimbue,PREIMBUE_FUN,!func)
+FUNC_LOOKUPS(imbue,IMBUE_FUN,!func)
 FUNC_LOOKUPS(brandish,BRANDISH_FUN,!func)
 FUNC_LOOKUPS(zap,ZAP_FUN,!func)
-//FUNC_LOOKUPS(equip,EQUIP_FUN,!func)
+FUNC_LOOKUPS(equip,EQUIP_FUN,!func)
 
 sh_int *gsn_from_name(char *name)
 {
@@ -244,11 +244,11 @@ void save_skill(FILE *fp, SKILL_DATA *skill)
 		if(skill->touch_fun)
 			fprintf(fp, "TouchFunc %s~\n", touch_func_name(skill->touch_fun));
 
-//		if(skill->preimbue_fun)
-//			fprintf(fp, "PreImbueFunc %s~\n", preimbue_func_name(skill->preimbue_fun));
+		if(skill->preimbue_fun)
+			fprintf(fp, "PreImbueFunc %s~\n", preimbue_func_name(skill->preimbue_fun));
 
-//		if(skill->imbue_fun)
-//			fprintf(fp, "ImbueFunc %s~\n", imbue_func_name(skill->imbue_fun));
+		if(skill->imbue_fun)
+			fprintf(fp, "ImbueFunc %s~\n", imbue_func_name(skill->imbue_fun));
 
 		if(skill->brandish_fun)
 			fprintf(fp, "BrandishFunc %s~\n", brandish_func_name(skill->brandish_fun));
@@ -256,8 +256,8 @@ void save_skill(FILE *fp, SKILL_DATA *skill)
 		if(skill->zap_fun)
 			fprintf(fp, "ZapFunc %s~\n", zap_func_name(skill->zap_fun));
 
-//		if(skill->equip_fun)
-//			fprintf(fp, "EquipFunc %s~\n", brandish_func_name(skill->equip_fun));
+		if(skill->equip_fun)
+			fprintf(fp, "EquipFunc %s~\n", equip_func_name(skill->equip_fun));
 	}
 
 	for(int i = 0; i < MAX_SKILL_VALUES; i++)
@@ -484,7 +484,6 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 				break;
 
 			case 'E':
-#if 0
 				if (!str_cmp(word, "EquipFunc"))
 				{
 					char *name = fread_string(fp);
@@ -498,7 +497,6 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 					fMatch = true;
 					break;
 				}
-#endif
 				break;
 
 			case 'F':
@@ -516,6 +514,19 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 				break;
 			
 			case 'I':
+				if (!str_cmp(word, "ImbueFunc"))
+				{
+					char *name = fread_string(fp);
+
+					skill->imbue_fun = imbue_func_lookup(name);
+					if (!skill->imbue_fun)
+					{
+						// Complain
+						log_stringf("load_skill: Invalid ImbueFunc '%s' for skill '%s'", name, skill->name);
+					}
+					fMatch = true;
+					break;
+				}
 				KEY("ImbueMana", skill->imbue_mana, fread_number(fp));
 				if (!str_cmp(word, "InkFunc"))
 				{
@@ -611,7 +622,6 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 					fMatch = true;
 					break;
 				}
-#if 0
 				if (!str_cmp(word, "PreImbueFunc"))
 				{
 					char *name = fread_string(fp);
@@ -625,7 +635,6 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 					fMatch = true;
 					break;
 				}
-#endif
 				if (!str_cmp(word, "PreInkFunc"))
 				{
 					char *name = fread_string(fp);
@@ -5045,10 +5054,10 @@ SKEDIT( skedit_show )
 		{
 			add_buf(buffer, " {W- {xArtificing:\n\r");
 			olc_buffer_show_string(ch, buffer, brew_func_display(skill->brew_fun),			"brew",			"   {W+ {xBrew:", 20, "XDW");
-			olc_buffer_show_string(ch, buffer, NULL,										"imbue",		"   {W+ {xImbue:", 20, "XDW");
+			olc_buffer_show_string(ch, buffer, imbue_func_display(skill->imbue_fun),		"imbue",		"   {W+ {xImbue:", 20, "XDW");
 			olc_buffer_show_string(ch, buffer, ink_func_display(skill->ink_fun),			"ink",			"   {W+ {xInk:", 20, "XDW");
 			olc_buffer_show_string(ch, buffer, prebrew_func_display(skill->prebrew_fun),	"prebrew",		"   {W+ {xPrebrew:", 20, "XDW");
-			olc_buffer_show_string(ch, buffer, NULL,										"preimbue",		"   {W+ {xPreimbue:", 20, "XDW");
+			olc_buffer_show_string(ch, buffer, preimbue_func_display(skill->preimbue_fun),	"preimbue",		"   {W+ {xPreimbue:", 20, "XDW");
 			olc_buffer_show_string(ch, buffer, preink_func_display(skill->preink_fun),		"preink",		"   {W+ {xPreink:", 20, "XDW");
 			olc_buffer_show_string(ch, buffer, prescribe_func_display(skill->prescribe_fun),"prescribe",	"   {W+ {xPrescribe:", 20, "XDW");
 			olc_buffer_show_string(ch, buffer, scribe_func_display(skill->scribe_fun),		"scribe",		"   {W+ {xScribe:", 20, "XDW");
@@ -5098,7 +5107,9 @@ SKEDIT( skedit_show )
 		for(int i = 0; msg_handlers[i].verb; i++)
 		{
 			int j = msg_handlers[i].order;
-			olc_buffer_show_string(ch, buffer, skill->display, formatf("message %s", msg_handlers[j].verb), formatf("%s:", msg_handlers[j].label), 38, "xDW");	
+			char **pptr = (char **)((void *)(msg_handlers[j].field) - (void *)&__static_skill + (void *)skill);
+
+			olc_buffer_show_string(ch, buffer, *pptr, formatf("message %s", msg_handlers[j].verb), formatf("%s:", msg_handlers[j].label), 38, "xDW");	
 		}
 		break;
 
@@ -5513,12 +5524,11 @@ SKEDIT_FUNC(preink,TOKEN_PREINK,PREINK_FUN,NULL)
 SKEDIT_FUNC(ink,TOKEN_INK,INK_FUN,NULL)
 SKEDIT_FUNC(touch,TOKEN_TOUCH,TOUCH_FUN,NULL)
 
-// TODO: IMBUE stuff
-//SKEDIT_FUNC(preimbue,TOKEN_PREIMBUE,PREIMBUE_FUN,NULL)
-//SKEDIT_FUNC(imbue,TOKEN_IMBUE,IMBUE_FUN,NULL)
+SKEDIT_FUNC(preimbue,TOKEN_PREIMBUE,PREIMBUE_FUN,NULL)
+SKEDIT_FUNC(imbue,TOKEN_IMBUE,IMBUE_FUN,NULL)
 SKEDIT_FUNC(brandish,TOKEN_BRANDISH,BRANDISH_FUN,NULL)
 SKEDIT_FUNC(zap,TOKEN_ZAP,ZAP_FUN,NULL)
-//SKEDIT_FUNC(equip,TOKEN_EQUIP,EQUIP_FUN,NULL)
+SKEDIT_FUNC(equip,TOKEN_EQUIP,EQUIP_FUN,NULL)
 
 #if 0
 // Morph based upon whether this is a source or scripted ability

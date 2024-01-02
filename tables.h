@@ -101,6 +101,18 @@ struct touch_func_type
 	TOUCH_FUN *func;
 };
 
+struct preimbue_func_type
+{
+	char *name;
+	PREIMBUE_FUN *func;
+};
+
+struct imbue_func_type
+{
+	char *name;
+	IMBUE_FUN *func;
+};
+
 struct zap_func_type
 {
 	char *name;
@@ -111,6 +123,12 @@ struct brandish_func_type
 {
 	char *name;
 	BRANDISH_FUN *func;
+};
+
+struct equip_func_type
+{
+	char *name;
+	EQUIP_FUN *func;
 };
 
 struct artifice_func_type
@@ -417,8 +435,11 @@ extern const struct recite_func_type recite_func_table[];
 extern const struct preink_func_type preink_func_table[];
 extern const struct ink_func_type ink_func_table[];
 extern const struct touch_func_type touch_func_table[];
+extern const struct preimbue_func_type preimbue_func_table[];
+extern const struct imbue_func_type imbue_func_table[];
 extern const struct zap_func_type zap_func_table[];
 extern const struct brandish_func_type brandish_func_table[];
+extern const struct equip_func_type equip_func_table[];
 
 extern const struct song_func_type presong_func_table[];
 extern const struct song_func_type song_func_table[];

@@ -3210,6 +3210,7 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
 
 	// NPC death and CPK death for PCs
 	// Don't leave no_loot items in player corpses, just like no_uncurse -- Areo
+	// TODO: This was supposed to use nodrop, not no_uncurse
 	if (IS_NPC(ch)
 	|| (!IS_NPC(ch) && !IS_DEAD(ch) && IS_SET(ch->in_room->room_flag[0],ROOM_CHAOTIC)))
 	for (obj = ch->carrying; obj != NULL; obj = obj_next)

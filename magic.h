@@ -242,6 +242,7 @@ DECLARE_RECITE_FUN ( recite_silence );
 DECLARE_RECITE_FUN ( recite_word_of_recall );
 
 // PREINK
+DECLARE_PREINK_FUN ( preink_silence );
 
 // INK
 
@@ -250,8 +251,23 @@ DECLARE_TOUCH_FUN ( touch_armour );
 DECLARE_TOUCH_FUN ( touch_chain_lightning );
 DECLARE_TOUCH_FUN ( touch_fly );
 DECLARE_TOUCH_FUN ( touch_haste );
+DECLARE_TOUCH_FUN ( touch_silence );
+
+// PREIMBUE
+DECLARE_PREIMBUE_FUN( preimbue_silence );
+
+// IMBUE
 
 // ZAP
 DECLARE_ZAP_FUN ( zap_chain_lightning );
+DECLARE_ZAP_FUN ( zap_silence );
 
+// BRANDISH
+DECLARE_BRANDISH_FUN( brandish_armour );
+//DECLARE_BRANDISH_FUN( brandish_fly );
+//DECLARE_BRANDISH_FUN( brandish_haste );
+DECLARE_BRANDISH_FUN( brandish_silence );
+//DECLARE_BRANDISH_FUN( brandish_word_of_recall );
 
+// EQUIP
+DECLARE_EQUIP_FUN( equip_silence );

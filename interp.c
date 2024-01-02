@@ -239,6 +239,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "hands",			do_hands,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
     { "heal",			do_heal,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
     { "hold",			do_wear,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
+    { "imbue",			do_imbue,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
     { "infuse",			do_infuse,	POS_DEAD,	 0,  LOG_ALWAYS, 1, FALSE },
     { "inspect", 		do_inspect,     POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
     { "keep",			do_keep,	POS_RESTING,     0,  LOG_NORMAL, 1, TRUE },
@@ -1533,7 +1534,10 @@ void interpret( CHAR_DATA *ch, char *argument )
 		stop_music(ch, TRUE);
 
     if (ch->brew > 0 && !allowed)
-        return;
+		return;
+
+	if (ch->imbuing > 0 && !allowed)
+		return;
 
     if (ch->repair > 0 && !allowed)
     {

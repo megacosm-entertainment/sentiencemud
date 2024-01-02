@@ -1912,6 +1912,8 @@ const struct flag_type interrupt_action_types[] = {
 	{	"cast",		INTERRUPT_CAST,		TRUE },
 	{	"fade",		INTERRUPT_FADE,		TRUE },
 	{	"hide",		INTERRUPT_HIDE,		TRUE },
+	{	"imbue", INTERRUPT_IMBUE, TRUE },
+	{	"ink", INTERRUPT_INK, TRUE },
 	{	"music",	INTERRUPT_MUSIC,	TRUE },
 	{	"ranged",	INTERRUPT_RANGED,	TRUE },
 	{	"recite",	INTERRUPT_RECITE,	TRUE },
@@ -1922,7 +1924,5 @@ const struct flag_type interrupt_action_types[] = {
 	{	"script",	INTERRUPT_SCRIPT,	TRUE },
 	{	"trance",	INTERRUPT_TRANCE,	TRUE },
 	{	"silent",	INTERRUPT_SILENT,	TRUE },
-	{	"ink", INTERRUPT_INK, TRUE },
-	{	"imbue", INTERRUPT_IMBUE, TRUE },
 	{	NULL,		0,			FALSE }
 };

@@ -665,8 +665,8 @@ DECLARE_OLC_FUN( skedit_touchfunc );
 
 // TODO: Imbue functionality
 
-//DECLARE_OLC_FUN( skedit_preimbuefunc );
-//DECLARE_OLC_FUN( skedit_imbuefunc );
+DECLARE_OLC_FUN( skedit_preimbuefunc );
+DECLARE_OLC_FUN( skedit_imbuefunc );
 DECLARE_OLC_FUN( skedit_brandishfunc );
 DECLARE_OLC_FUN( skedit_zapfunc );
 //DECLARE_OLC_FUN( skedit_equipfunc );

@@ -389,6 +389,7 @@ sh_int	gsn_holy_wrath;
 sh_int	gsn_hunt;
 sh_int	gsn_ice_storm;
 sh_int	gsn_identify;
+sh_int	gsn_imbue;
 sh_int	gsn_improved_invisibility;
 sh_int	gsn_inferno;
 sh_int	gsn_infravision;
@@ -671,6 +672,7 @@ SKILL_DATA *gsk_holy_wrath;
 SKILL_DATA *gsk_hunt;
 SKILL_DATA *gsk_ice_storm;
 SKILL_DATA *gsk_identify;
+SKILL_DATA *gsk_imbue;
 SKILL_DATA *gsk_improved_invisibility;
 SKILL_DATA *gsk_inferno;
 SKILL_DATA *gsk_infravision;
@@ -1103,6 +1105,7 @@ WNUM obj_wnum_gold_skull;
 WNUM obj_wnum_empty_vial;
 WNUM obj_wnum_potion;
 WNUM obj_wnum_blank_scroll;
+WNUM obj_wnum_wand;
 WNUM obj_wnum_scroll;
 WNUM obj_wnum_page;
 WNUM obj_wnum_leather_jacket;
@@ -1202,6 +1205,7 @@ OBJ_INDEX_DATA *obj_index_empty_vial = NULL;
 OBJ_INDEX_DATA *obj_index_potion = NULL;
 OBJ_INDEX_DATA *obj_index_blank_scroll = NULL;
 OBJ_INDEX_DATA *obj_index_scroll = NULL;
+OBJ_INDEX_DATA *obj_index_wand = NULL;
 OBJ_INDEX_DATA *obj_index_page = NULL;
 OBJ_INDEX_DATA *obj_index_leather_jacket = NULL;
 OBJ_INDEX_DATA *obj_index_green_tights = NULL;
@@ -1412,6 +1416,7 @@ RESERVED_WNUM reserved_obj_wnums[] =
 //	{ "ObjSwordSent",			0,		100105,		&obj_wnum_sword_sent,			&obj_index_sword_sent },
 	{ "ObjTornHeart",			0,		13,			&obj_wnum_torn_heart,			&obj_index_torn_heart },
 	{ "ObjTreasureMap",			0,		100602,		&obj_wnum_treasure_map,			&obj_index_treasure_map },
+	{ "ObjWand",				0,		0,			&obj_wnum_wand,					&obj_index_wand },
 	{ "ObjWhistle",				0,		100003,		&obj_wnum_whistle,				&obj_index_whistle },
 	{ "ObjWitheringCloud",		0,		6537,		&obj_wnum_withering_cloud,		&obj_index_withering_cloud },
 	{ NULL,						0,		0,			NULL, NULL }
@@ -7740,6 +7745,7 @@ TOKEN_DATA *persist_load_token(FILE *fp)
 	return token;
 }
 
+AMMO_DATA *fread_obj_ammo_data(FILE *fp);
 BOOK_DATA *fread_obj_book_data(FILE *fp);
 CONTAINER_DATA *fread_obj_container_data(FILE *fp);
 FLUID_CONTAINER_DATA *fread_obj_fluid_container_data(FILE *fp);
@@ -7754,6 +7760,7 @@ PORTAL_DATA *fread_obj_portal_data(FILE *fp);
 SCROLL_DATA *fread_obj_scroll_data(FILE *fp);
 TATTOO_DATA *fread_obj_tattoo_data(FILE *fp);
 WAND_DATA *fread_obj_wand_data(FILE *fp);
+WEAPON_DATA *fread_obj_weapon_data(FILE *fp);
 
 void fread_obj_check_version(OBJ_DATA *obj, long values[MAX_OBJVALUES]);
 
@@ -7812,6 +7819,15 @@ OBJ_DATA *persist_load_object(FILE *fp)
 
 					break;
 				}
+				if (!str_cmp(word, "#TYPEAMMO"))
+				{
+					if (IS_AMMO(obj)) free_ammo_data(AMMO(obj));
+
+					AMMO(obj) = fread_obj_ammo_data(fp);
+					fMatch = TRUE;
+					break;
+				}
+
 				if (!str_cmp(word, "#TYPEBOOK"))
 				{
 					if (IS_BOOK(obj)) free_book_data(BOOK(obj));
@@ -7922,6 +7938,14 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_WAND(obj)) free_wand_data(WAND(obj));
 
 					WAND(obj) = fread_obj_wand_data(fp);
+					fMatch = TRUE;
+					break;
+				}
+				if (!str_cmp(word, "#TYPEWEAPON"))
+				{
+					if (IS_WEAPON(obj)) free_weapon_data(WEAPON(obj));
+
+					WEAPON(obj) = fread_obj_weapon_data(fp);
 					fMatch = TRUE;
 					break;
 				}

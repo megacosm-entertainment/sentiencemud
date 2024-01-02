@@ -703,6 +703,7 @@ CHAR_DATA *new_char( void )
     ch->scribe = 0;
     ch->ranged = 0;
     ch->repair = 0;
+    ch->imbuing = 0;
     ch->paralyzed = 0;
     ch->ship_move = 0;
     ch->ship_attack = 0;
@@ -5129,7 +5130,6 @@ AMMO_DATA *new_ammo_data()
     memset(data, 0, sizeof(*data));
 
     data->type = AMMO_NONE;
-
     data->msg_break = &str_empty[0];
 
     VALIDATE(data);
@@ -6203,6 +6203,13 @@ WEAPON_DATA *new_weapon_data()
     data->weapon_class = WEAPON_UNKNOWN;
     data->ammo = AMMO_NONE;
 
+    for(int i = 0; i < MAX_ATTACK_POINTS; i++)
+    {
+        data->attacks[i].name = &str_empty[0];
+        data->attacks[i].short_descr = &str_empty[0];
+        data->attacks[i].type = -1;
+    }
+
     data->spells = list_createx(FALSE, copy_spell, delete_spell);
 
     VALIDATE(data);
@@ -6225,7 +6232,11 @@ WEAPON_DATA *copy_weapon_data(WEAPON_DATA *src)
 
     data->weapon_class = src->weapon_class;
     for(int i = 0; i < MAX_ATTACK_POINTS; i++)
+    {
         data->attacks[i] = src->attacks[i];
+        data->attacks[i].name = str_dup(src->attacks[i].name);
+        data->attacks[i].short_descr = str_dup(src->attacks[i].short_descr);
+    }
 
     data->ammo = src->ammo;
     data->range = src->range;
@@ -6245,6 +6256,12 @@ WEAPON_DATA *copy_weapon_data(WEAPON_DATA *src)
 void free_weapon_data(WEAPON_DATA *data)
 {
     if (!IS_VALID(data)) return;
+
+    for(int i = 0; i < MAX_ATTACK_POINTS; i++)
+    {
+        free_string(data->attacks[i].name);
+        free_string(data->attacks[i].short_descr);
+    }
 
     list_destroy(data->spells);
 

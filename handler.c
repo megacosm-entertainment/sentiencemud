@@ -9320,6 +9320,7 @@ bool is_char_busy(CHAR_DATA *ch)
 	if( ch->resurrect > 0 ) return TRUE;
 	if( ch->brew > 0 ) return TRUE;
 	if( ch->recite > 0 ) return TRUE;
+	if( ch->imbuing > 0 ) return TRUE;
 	if( ch->paroxysm > 0 ) return TRUE;
 	if( ch->panic > 0 ) return TRUE;
 	if( ch->repair > 0 ) return TRUE;

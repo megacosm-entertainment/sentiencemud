@@ -102,16 +102,19 @@
 #define TOUCH_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *tattoo)
 
 #define DECLARE_PREIMBUE_FUN( fun ) PREIMBUE_FUN fun
-#define PREIMBUE_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
+#define PREIMBUE_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj, int imbue_type)
 
 #define DECLARE_IMBUE_FUN( fun ) IMBUE_FUN fun
-#define IMBUE_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
+#define IMBUE_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj, int imbue_type)
 
 #define DECLARE_ZAP_FUN( fun ) ZAP_FUN fun
 #define ZAP_FUNC(s)     bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj, void *vo, int target)
 
 #define DECLARE_BRANDISH_FUN( fun ) BRANDISH_FUN fun
 #define BRANDISH_FUNC(s)     bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim)
+
+#define DECLARE_EQUIP_FUN( fun ) EQUIP_FUN fun
+#define EQUIP_FUNC(s)       bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
 
 #define DECLARE_ARTIFICE_FUN( fun ) ARTIFICE_FUN fun
 #define ARTIFICE_FUNC(s)    bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
@@ -327,6 +330,12 @@ struct sound_type {
 //    INK
 //    INSTRUMENT
 
+#define VERSION_OBJECT_014  0x01000013
+//  Change #1: start of adding item multi-typing
+//    WEAPON
+//    AMMO
+
+
 
 #define VERSION_ROOM_001	0x01000001
 //  Change #1: lock states
@@ -337,7 +346,7 @@ struct sound_type {
 #define VERSION_DB			VERSION_DB_001
 #define VERSION_AREA		VERSION_AREA_003
 #define VERSION_MOBILE		0x01000000
-#define VERSION_OBJECT		VERSION_OBJECT_013
+#define VERSION_OBJECT		VERSION_OBJECT_014
 #define VERSION_ROOM		VERSION_ROOM_002
 #define VERSION_PLAYER		VERSION_PLAYER_005
 #define VERSION_TOKEN		0x01000000
@@ -579,12 +588,11 @@ typedef bool RECITE_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *
 typedef bool PREINK_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, CHAR_DATA *victim, int wear_loc);
 typedef bool INK_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, CHAR_DATA *victim, int wear_loc);
 typedef bool TOUCH_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *tattoo);
-// TODO: IMBUE
-typedef bool PREIMBUE_FUN   (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
-typedef bool IMBUE_FUN      (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
+typedef bool PREIMBUE_FUN   (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj, int imbue_type);
+typedef bool IMBUE_FUN      (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj, int imbue_type);
 typedef bool BRANDISH_FUN        (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim);
 typedef bool ZAP_FUN        (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj, void *vo, int target);
-// TODO: EQUIP_FUN
+typedef bool EQUIP_FUN      (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
 typedef bool SONG_FUN	(SONG_DATA *song, int level, CHAR_DATA *ch, OBJ_DATA *instrument, void *vo, int target);
 
 
@@ -4187,6 +4195,12 @@ struct mob_reputation_data
     long points;
 };
 
+#define IMBUE_UNKNOWN   -1
+#define IMBUE_NONE      0
+#define IMBUE_JEWELRY   1
+#define IMBUE_WAND      2
+#define IMBUE_WEAPON    3
+
 /*
  * One character (PC or NPC).
  */
@@ -4297,6 +4311,7 @@ struct	char_data
     int			pk_timer;
     int 		no_recall;
     int			inking;
+    int         imbuing;
 
     OBJ_DATA		*recite_scroll;
     OBJ_DATA 		*resurrect_target;
@@ -4351,6 +4366,10 @@ struct	char_data
     SKILL_ENTRY *ink_info[3];
     int			ink_loc;
     CHAR_DATA		*ink_target;
+
+    sh_int imbue_type;
+    SKILL_ENTRY *imbue_info[3];
+    OBJ_DATA *imbue_obj;
 
     int			projectile_dir;
     OBJ_DATA *		projectile_weapon;
@@ -5428,6 +5447,8 @@ typedef struct weapon_attack_point WEAPON_ATTACK_POINT;
 
 struct weapon_attack_point
 {
+    char *name;             // Keyword
+    char *short_descr;      // Display string
     sh_int type;
     long flags;
     DICE_DATA damage;
@@ -7153,7 +7174,7 @@ struct skill_data
     IMBUE_FUN * imbue_fun;
     BRANDISH_FUN * brandish_fun;     // Used by brandishing weapons
     ZAP_FUN * zap_fun;               // Used by wands
-    // EQUIP_FUN * equip_fun;           // Used by jewelry and adorned armor
+    EQUIP_FUN * equip_fun;           // Used by jewelry and adorned armor
 
     sh_int	target;			/* Legal targets		*/
     sh_int	minimum_position;	/* Position for caster / user	*/
@@ -8056,6 +8077,7 @@ extern sh_int	gsn_holy_wrath;
 extern sh_int	gsn_hunt;
 extern sh_int	gsn_ice_storm;
 extern sh_int	gsn_identify;
+extern sh_int	gsn_imbue;
 extern sh_int	gsn_improved_invisibility;
 extern sh_int	gsn_inferno;
 extern sh_int	gsn_infravision;
@@ -8338,6 +8360,7 @@ extern SKILL_DATA *gsk_holy_wrath;
 extern SKILL_DATA *gsk_hunt;
 extern SKILL_DATA *gsk_ice_storm;
 extern SKILL_DATA *gsk_identify;
+extern SKILL_DATA *gsk_imbue;
 extern SKILL_DATA *gsk_improved_invisibility;
 extern SKILL_DATA *gsk_inferno;
 extern SKILL_DATA *gsk_infravision;
@@ -8698,6 +8721,7 @@ extern sh_int grn_unique;
 #define FADE_STATE(ch, npulse)  ((ch)->fade = UMAX((ch)->fade, (npulse)))
 #define MUSIC_STATE(ch, npulse)  ((ch)->music = UMAX((ch)->music, (npulse)))
 #define BREW_STATE(ch, npulse)  ((ch)->brew = UMAX((ch)->brew, (npulse)))
+#define IMBUE_STATE(ch, npulse)  ((ch)->imbuing = UMAX((ch)->imbuing, (npulse)))
 #define TATTOO_STATE(ch, npulse)  ((ch)->inking = UMAX((ch)->inking, (npulse)))
 #define PAROXYSM_STATE(ch, npulse) ((ch)->paroxysm = UMAX((ch)->brew, (npulse)))
 #define BIND_STATE(ch, npulse)  ((ch)->bind = UMAX((ch)->bind, (npulse)))
@@ -9250,6 +9274,7 @@ bool get_stock_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, SHOP_REQUEST_DATA *reque
 OBJ_DATA *get_obj_keeper( CHAR_DATA *ch, CHAR_DATA *keeper, char *argument );
 void bomb_end( CHAR_DATA *ch);
 void brew_end( CHAR_DATA *ch);
+void imbue_end( CHAR_DATA *ch);
 void do_restring( CHAR_DATA *ch, char *argument );
 void obj_to_keeper( OBJ_DATA *obj, CHAR_DATA *ch );
 void recite_end( CHAR_DATA *ch);
@@ -10854,6 +10879,7 @@ extern WNUM obj_wnum_empty_vial;
 extern WNUM obj_wnum_potion;
 extern WNUM obj_wnum_blank_scroll;
 extern WNUM obj_wnum_scroll;
+extern WNUM obj_wnum_wand;
 extern WNUM obj_wnum_page;
 extern WNUM obj_wnum_leather_jacket;
 extern WNUM obj_wnum_green_tights;
@@ -10950,6 +10976,7 @@ extern OBJ_INDEX_DATA *obj_index_gold_skull;
 extern OBJ_INDEX_DATA *obj_index_empty_vial;
 extern OBJ_INDEX_DATA *obj_index_potion;
 extern OBJ_INDEX_DATA *obj_index_blank_scroll;
+extern OBJ_INDEX_DATA *obj_index_wand;
 extern OBJ_INDEX_DATA *obj_index_scroll;
 extern OBJ_INDEX_DATA *obj_index_page;
 extern OBJ_INDEX_DATA *obj_index_leather_jacket;

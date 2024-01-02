@@ -4814,13 +4814,21 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		sprintf(buf, "{B[{WType         {B]:  {x%s\n\r", flag_string(ammo_types, ammo->type));
 		add_buf(buffer, buf);
 
+		if (ammo->damage_type >= 0)
+			sprintf(buf, "{B[{WDamage Type  {B]:  {x%s\n\r", attack_table[ammo->damage_type].noun);
+		else
+			sprintf(buf, "{B[{WDamage Type  {B]:  none{x\n\r");
+		add_buf(buffer, buf);
+
 		DICE_DATA dice = ammo->damage;
-		sprintf(buf, "{B[{WDamage       {B]:  %s\n\r",
+		sprintf(buf, "{B[{WDamage       {B]:  {x%s\n\r",
 			((dice.bonus > 0) ?
 				formatf("{x%d{Bd{x%d{B+{x%d", dice.number, dice.size, dice.bonus) :
 				formatf("{x%d{Bd{x%d", dice.number, dice.size)));
 		add_buf(buffer, buf);
 
+		sprintf(buf, "{B[{WFlags        {B]:  {x%s\n\r", flag_string(weapon_type2, ammo->flags));
+		add_buf(buffer, buf);
 	}
 
 	if (IS_BOOK(obj))
@@ -5444,7 +5452,6 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 						formatf("{x%d{Bd{x%d{B+{x%d", dice.number, dice.size, dice.bonus) :
 						formatf("{x%d{Bd{x%d", dice.number, dice.size)),
 					flag_string(weapon_type2, weapon->attacks[a].flags));
-				add_buf(buffer, buf);
 			}
 			else
 				sprintf(buf, "{B[{WAttack %-2d    {B]:  {xnone\n\r", a+1);
@@ -5464,6 +5471,12 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 			sprintf(buf, "{B[{WRecharging   {B]:  1 charge per {x%d{B tick%s{x\n\r", weapon->recharge_time, ((weapon->recharge_time == 1)?"":"s"));
 		else
 			sprintf(buf, "{B[{WRecharging   {B]:  none{x\n\r");
+		add_buf(buffer, buf);
+
+		sprintf(buf, "{B[{WRange        {B]:  {x%d\n\r", weapon->range);
+		add_buf(buffer, buf);
+
+		sprintf(buf, "{B[{WAmmo         {B]:  {x%s\n\r", flag_string(ammo_types, weapon->ammo));
 		add_buf(buffer, buf);
 
 		if (list_size(weapon->spells) > 0)
@@ -9841,6 +9854,21 @@ OEDIT( oedit_type_ammo )
 			AMMO(pObj)->damage.size = size;
 			AMMO(pObj)->damage.bonus = bonus;
 			send_to_char("AMMO Damage dice changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "flags"))
+		{
+			long value;
+			if ((value = flag_value(weapon_type2, argument)) == NO_FLAG)
+			{
+				send_to_char("Invalid attack flag.  Use '? wtype' for list of valid flags.\n\r", ch);
+				show_flag_cmds(ch, weapon_type2);
+				return false;
+			}
+
+			TOGGLE_BIT(AMMO(pObj)->flags, value);
+			send_to_char("AMMO Attack flags toggled.\n\r", ch);
 			return true;
 		}
 
@@ -14801,6 +14829,8 @@ bool olc_can_brandish_spell(SKILL_DATA *skill)
 		return skill->zap_fun != NULL;
 }
 
+
+
 OEDIT( oedit_type_weapon )
 {
 	OBJ_INDEX_DATA *pObj;
@@ -14817,6 +14847,11 @@ OEDIT( oedit_type_weapon )
 			send_to_char("         weapon attack <#> flags <flags>\n\r", ch);
 			send_to_char("         weapon attack <#> reset\n\r", ch);
 			send_to_char("         weapon maxmana <mana>   (for imbuing)\n\r", ch);
+			send_to_char("         weapon charges <#charges>\n\r", ch);
+			send_to_char("         weapon maxcharges <#charges|unlimited>\n\r", ch);
+			send_to_char("         weapon recharge <#rate>\n\r", ch);
+			send_to_char("         weapon ammo <type>\n\r", ch);
+			send_to_char("         weapon range <distance>\n\r", ch);
 			send_to_char("         weapon spell add <name> <level>\n\r", ch);
 			send_to_char("         weapon spell remove <index>\n\r", ch);
 			send_to_char("         weapon spell clear\n\r", ch);
@@ -14838,6 +14873,21 @@ OEDIT( oedit_type_weapon )
 	argument = one_argument(argument, arg);
 	if (IS_WEAPON(pObj))
 	{
+		if (!str_prefix(arg, "ammo"))
+		{
+			int type;
+			if ((type = stat_lookup(argument, ammo_types, NO_FLAG)) == NO_FLAG)
+			{
+				send_to_char("Invalid ammo type.  Use '? ammo' for list of valid types.\n\r", ch);
+				show_flag_cmds(ch, ammo_types);
+				return false;
+			}
+
+			WEAPON(pObj)->ammo = type;
+			send_to_char("WEAPON Ammo type set.\n\r", ch);
+			return true;
+		}
+
 		if (!str_prefix(arg, "charges"))
 		{
 			if (WEAPON(pObj)->max_charges < 0)
@@ -14920,6 +14970,20 @@ OEDIT( oedit_type_weapon )
 			return true;
 		}
 
+		if (!str_prefix(arg, "range"))
+		{
+			int range;
+			if (!is_number(argument) || (range = atoi(argument)) < 0)
+			{
+				send_to_char("Please specify a non-negative number.\n\r", ch);
+				return false;
+			}
+
+			WEAPON(pObj)->range = range;
+			send_to_char("WEAPON Range set.\n\r", ch);
+			return true;
+		}
+
 		if (!str_prefix(arg, "recharge"))
 		{
 			if (WEAPON(pObj)->max_charges < 0)
@@ -14999,7 +15063,7 @@ OEDIT( oedit_type_weapon )
 			if (!str_prefix(arg, "flags"))
 			{
 				long value;
-				if ((value = flag_value(weapon_type2, arg)) == NO_FLAG)
+				if ((value = flag_value(weapon_type2, argument)) == NO_FLAG)
 				{
 					send_to_char("Invalid attack flag.  Use '? wtype' for list of valid flags.\n\r", ch);
 					show_flag_cmds(ch, weapon_type2);

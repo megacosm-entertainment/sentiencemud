@@ -82,6 +82,51 @@ bool __isspell_valid(CHAR_DATA *ch, OBJ_DATA *obj, SKILL_ENTRY *spell, int pretr
 	return TRUE;
 }
 
+bool are_spell_targets_compatible(SKILL_ENTRY *sa, SKILL_ENTRY *sb)
+{
+	if (!sa || !sb) return true;
+
+	int a = sa->skill->target;
+	int b = sb->skill->target;
+
+	switch(a)
+	{
+	case TAR_IGNORE:
+	case TAR_OBJ_GROUND:
+	case TAR_IGNORE_CHAR_DEF:
+		return a == b;	// They *MUST* be the same for this target
+
+
+	case TAR_CHAR_DEFENSIVE:
+	case TAR_CHAR_OFFENSIVE:
+	case TAR_CHAR_SELF:
+	case TAR_CHAR_FORMATION:
+		if (b == TAR_CHAR_OFFENSIVE) return true;
+		if (b == TAR_CHAR_DEFENSIVE) return true;
+		if (b == TAR_CHAR_SELF) return true;
+		if (b == TAR_CHAR_FORMATION) return true;
+		if (b == TAR_OBJ_CHAR_OFF) return true;
+		if (b == TAR_OBJ_CHAR_DEF) return true;
+		break;
+
+	case TAR_OBJ_CHAR_OFF:
+	case TAR_OBJ_CHAR_DEF:
+		if (b == TAR_IGNORE) return false;
+		if (b == TAR_OBJ_GROUND) return false;
+		if (b == TAR_IGNORE_CHAR_DEF) return false;
+		return true;
+
+	case TAR_OBJ_INV:
+		if (b == TAR_OBJ_INV) return true;
+		if (b == TAR_OBJ_CHAR_OFF) return true;
+		if (b == TAR_OBJ_CHAR_DEF) return true;
+		break;
+	}
+
+	return false;
+}
+
+
 bool has_inks(CHAR_DATA *ch, int *need, bool show)
 {
     int have[CATALYST_MAX];
@@ -5057,56 +5102,60 @@ void do_brandish(CHAR_DATA *ch, char *argument)
 	// When $(victim) isn't defined, it's the aftermath
 	p_percent_trigger(NULL, weapon, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BRANDISH, argument,0,0,0,0,0);
 
-
-	--WEAPON(weapon)->charges;
-    if (WEAPON(weapon)->charges < 1)
-    {
-		// If a weapon can't recharge, it will explode
-		if (WEAPON(weapon)->recharge_time < 1)
+	if (WEAPON(weapon)->charges > 0)
+	{
+		--WEAPON(weapon)->charges;
+		if (WEAPON(weapon)->charges < 1)
 		{
-			act("$n's $p blazes bright and is gone.", ch, NULL, NULL, weapon, NULL, NULL, NULL, TO_ROOM);
-			act("Your $p blazes bright and is gone.", ch, NULL, NULL, weapon, NULL, NULL, NULL, TO_CHAR);
-			extract_obj(weapon);
-			return;
-		}
-
-		// TODO: What should happen if a weapon is overused?
-		// Should it damage the weapon?
-		// If so, should the condition of the weapon affect whether the weapon works?
-		// Wand gets damaged from overuse
-		if (weapon->fragility != OBJ_FRAGILE_SOLID)
-		{
-			switch (weapon->fragility)
+			// If a weapon can't recharge, it will explode
+			if (WEAPON(weapon)->recharge_time < 1)
 			{
-			case OBJ_FRAGILE_STRONG:
-				if (number_percent() < 25)
-					weapon->condition--;
-				break;
-			case OBJ_FRAGILE_NORMAL:
-				if (number_percent() < 50)
-					weapon->condition--;
-				break;
-			case OBJ_FRAGILE_WEAK:
-				weapon->condition--;
-				break;
-			default:
-				break;
-			}
-
-			if (weapon->condition <= 0)
-			{
+				// TODO: Make this a trigger?
 				act("$n's $p blazes bright and is gone.", ch, NULL, NULL, weapon, NULL, NULL, NULL, TO_ROOM);
 				act("Your $p blazes bright and is gone.", ch, NULL, NULL, weapon, NULL, NULL, NULL, TO_CHAR);
 				extract_obj(weapon);
 				return;
 			}
-		}
-    }
 
-	// Start recharging
-	if (WEAPON(weapon)->charges < WEAPON(weapon)->max_charges && WEAPON(weapon)->recharge_time > 0 && WEAPON(weapon)->cooldown < 1)
-	{
-		WEAPON(weapon)->cooldown = WEAPON(weapon)->recharge_time;
+			// TODO: What should happen if a weapon is overused?
+			// Should it damage the weapon?
+			// If so, should the condition of the weapon affect whether the weapon works?
+			// Wand gets damaged from overuse
+			if (weapon->fragility != OBJ_FRAGILE_SOLID)
+			{
+				switch (weapon->fragility)
+				{
+				case OBJ_FRAGILE_STRONG:
+					if (number_percent() < 25)
+						weapon->condition--;
+					break;
+				case OBJ_FRAGILE_NORMAL:
+					if (number_percent() < 50)
+						weapon->condition--;
+					break;
+				case OBJ_FRAGILE_WEAK:
+					weapon->condition--;
+					break;
+				default:
+					break;
+				}
+
+				if (weapon->condition <= 0)
+				{
+					// TODO: Make a trigger?
+					act("$n's $p blazes bright and is gone.", ch, NULL, NULL, weapon, NULL, NULL, NULL, TO_ROOM);
+					act("Your $p blazes bright and is gone.", ch, NULL, NULL, weapon, NULL, NULL, NULL, TO_CHAR);
+					extract_obj(weapon);
+					return;
+				}
+			}
+		}
+
+		// Start recharging
+		if (WEAPON(weapon)->charges < WEAPON(weapon)->max_charges && WEAPON(weapon)->recharge_time > 0 && WEAPON(weapon)->cooldown < 1)
+		{
+			WEAPON(weapon)->cooldown = WEAPON(weapon)->recharge_time;
+		}
 	}
 }
 
@@ -8373,6 +8422,494 @@ void brew_end(CHAR_DATA *ch )
 	FLUID_CON(potion)->amount = FLUID_CON(potion)->capacity = LIQ_SERVING * uses;
 }
 
+static inline bool is_imbueable_wand(OBJ_DATA *obj)
+{
+	return IS_WAND(obj) && WAND(obj)->max_mana > 0 && list_size(WAND(obj)->spells) < 1;
+}
+
+static inline bool is_imbueable_weapon(OBJ_DATA *obj)
+{
+	return IS_WEAPON(obj) && WEAPON(obj)->max_mana > 0 && list_size(WEAPON(obj)->spells) < 1;
+}
+
+int get_imbue_target(OBJ_DATA *obj)
+{
+	// TODO: Add JEWELRY and other adornments (like GEMs)
+
+	if (is_imbueable_wand(obj))
+	{
+		if (is_imbueable_weapon(obj)) return IMBUE_UNKNOWN;
+
+		return IMBUE_WAND;
+	}
+
+	if (is_imbueable_weapon(obj))
+	{
+		return IMBUE_WEAPON;
+	}
+
+	return IMBUE_NONE;
+}
+
+bool can_imbue_spell(CHAR_DATA *ch, OBJ_DATA *obj, SKILL_ENTRY *spell, int imbue_type)
+{
+	if (!spell || !spell->isspell)
+	{
+		send_to_char("You don't know any spells by that name.\n\r", ch);
+		return FALSE;
+	}
+
+	if (!IS_SET(spell->skill->flags, SKILL_CAN_IMBUE))
+	{
+		act_new("You cannot imbue $t onto $p.", ch,NULL,NULL,obj,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
+		return FALSE;
+	}
+
+	if (IS_VALID(spell->token))
+	{
+		int trigger;
+		switch(imbue_type)
+		{
+			case IMBUE_WAND:	trigger = TRIG_TOKEN_ZAP; break;
+			case IMBUE_WEAPON:	trigger = TRIG_TOKEN_BRANDISH; break;
+			default:
+				act_new("You cannot imbue $t onto $p.", ch,NULL,NULL,obj,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
+				return false;
+		}
+
+		SCRIPT_DATA *script = get_script_token(spell->token->pIndexData, trigger, TRIGSLOT_SPELL);
+		if(!script) {
+			act_new("You cannot imbue $t onto $p.", ch,NULL,NULL,obj,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
+			return FALSE;
+		}
+
+		int ret = p_percent_trigger(NULL, NULL, NULL, spell->token, ch, NULL, NULL, obj, NULL, TRIG_TOKEN_PREIMBUE, NULL,0,0,0,0,0);
+		if (ret)
+		{
+			if (ret != PRET_SILENT)
+			{
+				act_new("You cannot imbue $t onto $p.", ch,NULL,NULL,obj,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
+			}
+			return FALSE;
+		}
+	}
+	else
+	{
+		switch(imbue_type)
+		{
+			case IMBUE_WAND:
+				if(!spell->skill->zap_fun)
+				{
+					act_new("You cannot imbue $t onto $p.", ch,NULL,NULL,obj,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
+					return false;
+				}
+				break;
+
+			case IMBUE_WEAPON:
+				if(!spell->skill->brandish_fun)
+				{
+					act_new("You cannot imbue $t onto $p.", ch,NULL,NULL,obj,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
+					return false;
+				}
+				break;
+
+			default:
+				act_new("You cannot imbue $t onto $p.", ch,NULL,NULL,obj,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
+				return false;
+		}
+
+		if(spell->skill->preimbue_fun)
+		{
+			// preimbue function is responsible for messages.
+			if (!(*spell->skill->preimbue_fun)(spell->skill, ch->tot_level, ch, obj, imbue_type))
+				return false;
+		}
+	}
+
+	return true;
+}
+
+
+// imbue <object>[ <context>] <spell1>[ <spell2>[ <spell3>]]
+void do_imbue(CHAR_DATA *ch, char *argument)
+{
+    OBJ_DATA *obj;
+	SKILL_ENTRY *spells[3];
+    int mana;
+    int chance;
+    //int kill;
+    char arg[MIL];
+	char buf[MSL];
+
+    if (IS_DEAD(ch))
+    {
+		send_to_char("You can't do that. You are dead.\n\r", ch);
+		return;
+    }
+
+    if ((chance = get_skill(ch, gsk_imbue)) == 0)
+    {
+		send_to_char("Imbue? What's that?\n\r",ch);
+		return;
+    }
+
+	argument = one_argument(argument, arg);
+	if ((obj = get_obj_carry(ch, arg, ch)) == NULL)
+	{
+		send_to_char("You do not have a valid item to imbue.\n\r", ch);
+		return;
+	}
+
+	int max_mana;
+	int imbue_type = get_imbue_target(obj);
+
+	if (imbue_type == IMBUE_NONE)
+	{
+		act("You cannot imbue $p with anything.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	// Has multiple options, so specify
+	if (imbue_type == IMBUE_UNKNOWN)
+	{
+		// Need to check for the context
+
+		argument = one_argument(argument, arg);
+		if (!str_prefix(arg, "wand"))
+		{
+			if (!IS_WAND(obj))
+			{
+				send_to_char("That is not a wand.\n\r", ch);
+				return;
+			}
+
+			if (!is_imbueable_wand(obj))
+			{
+				send_to_char("You cannot imbue that.\n\r", ch);
+				return;
+			}
+
+			imbue_type = IMBUE_WAND;
+			max_mana = WAND(obj)->max_mana;
+		}
+		else if (!str_prefix(arg, "weapon"))
+		{
+			if (!IS_WEAPON(obj))
+			{
+				send_to_char("That is not a weapon.\n\r", ch);
+				return;
+			}
+
+			if (!is_imbueable_weapon(obj))
+			{
+				send_to_char("You cannot imbue that.\n\r", ch);
+				return;
+			}
+
+			imbue_type = IMBUE_WEAPON;
+			max_mana = WEAPON(obj)->max_mana;
+		}
+		else
+		{
+			bool first = true;
+			sprintf(buf, "$p has multiple parts that can be imbued:");
+
+			// TODO: Add JEWELRY, GEM and other adornments
+			if (is_imbueable_wand(obj))
+			{
+				if (first)
+					strcat(buf, " wand");
+				else
+					strcat(buf, ", wand");
+				first = false;
+			}
+			if (is_imbueable_weapon(obj))
+			{
+				if (first)
+					strcat(buf, " weapon");
+				else
+					strcat(buf, ", weapon");
+				first = false;
+			}
+			act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
+	}
+	else if (imbue_type == IMBUE_WAND)
+		max_mana = WAND(obj)->max_mana;
+	else if (imbue_type == IMBUE_WEAPON)
+		max_mana = WEAPON(obj)->max_mana;
+
+
+    if (argument[0] == '\0')
+    {
+		send_to_char("What do you wish to imbue?\n\r", ch);
+		return;
+    }
+
+	spells[0] = NULL;
+	spells[1] = NULL;
+	spells[2] = NULL;
+
+	// Clear out catalyst usages
+	memset(ch->catalyst_usage, 0, sizeof(ch->catalyst_usage));
+	argument = one_argument(argument, arg);
+	spells[0] = skill_entry_findname(ch->sorted_skills, arg);
+	if (!can_imbue_spell(ch, obj, spells[0], imbue_type))
+		return;
+
+	if (argument[0] != '\0')
+	{
+		argument = one_argument(argument, arg);
+		spells[1] = skill_entry_findname(ch->sorted_skills, arg);
+		if (!can_imbue_spell(ch, obj, spells[1], imbue_type))
+			return;
+
+		if (argument[0] != '\0')
+		{
+			argument = one_argument(argument, arg);
+			spells[2] = skill_entry_findname(ch->sorted_skills, arg);
+			if (!can_imbue_spell(ch, obj, spells[2], imbue_type))
+				return;
+		}
+	}
+
+    mana = 0;
+	for(int i = 0; i < 3; i++)
+	{
+		if (spells[i])
+			mana += spells[i]->skill->imbue_mana;
+	}
+
+    if (mana > max_mana)
+    {
+		act("$p cannot hold that much magic.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		return;
+    }
+
+	if (!are_spell_targets_compatible(spells[0], spells[1]) ||
+		!are_spell_targets_compatible(spells[0], spells[2]) ||
+		!are_spell_targets_compatible(spells[1], spells[2]))
+	{
+		send_to_char("All spells must have the same kind of targeting requirements.\n\r", ch);
+
+		// TODO: Report what is wrong?
+		return;
+	}
+
+	bool have_all_catalysts = true;
+	for(int i = 0; i < CATALYST_MAX; i++)
+	{
+		if (ch->catalyst_usage[i] > 0)
+		{
+			int catalyst = has_catalyst(ch,NULL,i,CATALYST_INVENTORY|CATALYST_ROOM);
+			if (catalyst >= 0 && catalyst < ch->catalyst_usage[i])
+			{
+				sprintf(buf,"You appear to be missing a required %s catalyst. (%d/%d)\n\r", catalyst_descs[i],catalyst, ch->catalyst_usage[i]);
+				send_to_char(buf, ch);
+				have_all_catalysts = false;
+			}
+		}
+	}
+
+	if (!have_all_catalysts)
+		return;
+
+    act("{Y$n begins to imbue $p...{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+    act("{YYou begin to imbue $p...{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+
+	ch->imbue_type = imbue_type;
+	ch->imbue_info[0] = spells[0];
+	ch->imbue_info[1] = spells[1];
+	ch->imbue_info[2] = spells[2];
+	ch->imbue_obj = obj;
+
+    IMBUE_STATE(ch, 12);
+
+}
+
+bool restring_imbue_obj(OBJ_DATA *obj)
+{
+	int types = 0;
+
+	if (IS_WAND(obj)) types++;
+	if (IS_WEAPON(obj)) types++;
+
+	return types == 1;
+}
+
+void imbue_end(CHAR_DATA *ch)
+{
+    char buf[2*MAX_STRING_LENGTH];
+	SPELL_DATA *spell;
+    int chance;
+    char imbue_name[MAX_STRING_LENGTH];
+
+	chance = get_skill(ch, gsk_imbue);
+	if (ch->imbue_info[2])
+		chance = 5 * chance / 6;	// 1/2 + 1/3 = 5/6
+	else if (ch->imbue_info[1])
+		chance = 41 * chance / 42;	// 1/2 + 1/3 + 1/7 = 41/42
+
+    if (IS_SET(ch->in_room->room_flag[1], ROOM_ALCHEMY))
+        chance = 3 * chance / 2;
+
+    chance = URANGE(1, chance, 99);
+
+	// TODO: Add Inspiration system that guarantees artificing
+    if (IS_IMMORTAL(ch))
+	{
+        chance = 100;
+	}
+
+	// Make sure we *still* have all the catalysts,
+	// as they might have been consumed or destroyed by the time the brewing is finished
+	bool have_all_catalysts = true;
+	for(int i = 0; i < CATALYST_MAX; i++)
+	{
+		if (ch->catalyst_usage[i] > 0)
+		{
+			int catalyst = has_catalyst(ch,NULL,i,CATALYST_INVENTORY|CATALYST_ROOM);
+			if (catalyst >= 0 && catalyst < ch->catalyst_usage[i])
+			{
+				sprintf(buf,"You appear to be missing a required %s catalyst. (%d/%d)\n\r", catalyst_descs[i],catalyst, ch->catalyst_usage[i]);
+				send_to_char(buf, ch);
+				have_all_catalysts = false;
+			}
+		}
+	}
+
+	if (!have_all_catalysts)
+		return;
+
+    if (number_percent() >= chance)
+    {
+		// TODO: Possible to critical failure, causing the imbuing item to lose its ability to be imbued?
+//        act("{Y$n's scroll explodes into flame.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+//        act("{YYour blank scroll explodes into flame as you make a minor mistake.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+
+		switch(ch->imbue_type)
+		{
+			case IMBUE_WAND:
+				break;
+			case IMBUE_WEAPON:
+				break;
+		}
+        check_improve(ch, gsk_imbue, FALSE, 3);
+        return;
+    }
+
+	// Use all the catalysts
+	for(int i = 0; i < CATALYST_MAX; i++)
+	{
+		if (ch->catalyst_usage[i] > 0)
+			use_catalyst(ch,NULL,i,CATALYST_INVENTORY|CATALYST_ROOM,ch->catalyst_usage[i],TRUE);
+	}
+
+	// Post processing after successful imbuing
+	for(int i = 0; i < 3; i++)
+	{
+		SKILL_ENTRY *entry = ch->imbue_info[i];
+		if (entry)
+		{
+			if (IS_VALID(entry->token))
+			{
+				p_percent_trigger(NULL, NULL, NULL, entry->token, ch, NULL, NULL, ch->imbue_obj, NULL, TRIG_TOKEN_IMBUE, NULL,ch->imbue_type,0,0,0,0);
+			}
+			else if(entry->skill->imbue_fun)
+			{
+				(*entry->skill->imbue_fun)(entry->skill, ch->tot_level, ch, ch->imbue_obj, ch->imbue_type);
+			}
+		}
+	}
+
+	if (ch->imbue_info[2])
+		sprintf(imbue_name, "%s, %s, %s", skill_entry_name(ch->imbue_info[0]), skill_entry_name(ch->imbue_info[1]), skill_entry_name(ch->imbue_info[2]));
+	else if (ch->imbue_info[1])
+		sprintf(imbue_name, "%s, %s", skill_entry_name(ch->imbue_info[0]), skill_entry_name(ch->imbue_info[1]));
+	else
+		strcpy(imbue_name, skill_entry_name(ch->imbue_info[0]));
+
+	act("You imbue $t into $p.", ch, NULL, NULL, ch->imbue_obj, NULL, imbue_name, NULL, TO_CHAR);
+	act("$n imbues $t into $p.", ch, NULL, NULL, ch->imbue_obj, NULL, imbue_name, NULL, TO_ROOM);
+
+    check_improve(ch, gsk_imbue, TRUE, 3);
+
+	int count = 0;
+	for(int i = 0; i < 3; i++)
+		if (ch->imbue_info[i]) count++;
+
+	// TODO: change when classes are redone
+	// TODO: Maybe change to a perk?
+	bool alchemist = (ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_ALCHEMIST);
+
+	// TODO: Charges and recharging are in the item or a product of imbuing?
+
+	LLIST *spells = NULL;
+	switch(ch->imbue_type)
+	{
+		case IMBUE_WAND:	spells = WAND(ch->imbue_obj)->spells; break;
+		case IMBUE_WEAPON:	spells = WEAPON(ch->imbue_obj)->spells; break;
+		default:
+			return;
+	}
+
+	for(int i = 0; i < 3; i++)
+	{
+		if (ch->imbue_info[i])
+		{
+			spell = new_spell();
+
+			spell->skill = ch->imbue_info[i]->skill;
+			spell->level = ch->tot_level / count;
+			if (count > 1 && alchemist)
+				spell->level += ch->tot_level / (count + 1);
+			list_appendlink(spells, spell);
+		}
+	}
+
+	// Determine if the object should be restrung	
+	if (restring_imbue_obj(ch->imbue_obj))
+	{
+		OBJ_INDEX_DATA *template = NULL;
+		char *type = "";
+		switch(ch->imbue_type)
+		{
+			case IMBUE_WAND:
+				template = obj_index_wand;
+				type = "wand";
+				break;
+			
+			case IMBUE_WEAPON:
+				// TODO: Make it based upon the weapon type?
+				//  Example: staff of fly
+				//           sword of lightning bolt
+
+				break;
+		}
+
+		if (template)
+		{
+		    sprintf(buf, template->short_descr, imbue_name);
+
+			free_string(ch->imbue_obj->short_descr);
+			ch->imbue_obj->short_descr = str_dup(buf);
+
+			sprintf(buf, template->description, imbue_name);
+
+			free_string(ch->imbue_obj->description);
+			ch->imbue_obj->description = str_dup(buf);
+
+			free_string(ch->imbue_obj->full_description);
+			ch->imbue_obj->full_description = str_dup(buf);
+
+			free_string(ch->imbue_obj->name);
+			strcat(imbue_name, " ");
+			strcat(imbue_name, type);
+			ch->imbue_obj->name = short_to_name(imbue_name);
+		}
+	}
+}
 
 void do_plant(CHAR_DATA *ch, char *argument)
 {
@@ -8531,50 +9068,6 @@ bool can_scribe_spell(CHAR_DATA *ch, OBJ_DATA *obj, SKILL_ENTRY *spell)
 	return true;
 }
 
-bool are_spell_targets_compatible(SKILL_ENTRY *sa, SKILL_ENTRY *sb)
-{
-	if (!sa || !sb) return true;
-
-	int a = sa->skill->target;
-	int b = sb->skill->target;
-
-	switch(a)
-	{
-	case TAR_IGNORE:
-	case TAR_OBJ_GROUND:
-	case TAR_IGNORE_CHAR_DEF:
-		return a == b;	// They *MUST* be the same for this target
-
-
-	case TAR_CHAR_DEFENSIVE:
-	case TAR_CHAR_OFFENSIVE:
-	case TAR_CHAR_SELF:
-	case TAR_CHAR_FORMATION:
-		if (b == TAR_CHAR_OFFENSIVE) return true;
-		if (b == TAR_CHAR_DEFENSIVE) return true;
-		if (b == TAR_CHAR_SELF) return true;
-		if (b == TAR_CHAR_FORMATION) return true;
-		if (b == TAR_OBJ_CHAR_OFF) return true;
-		if (b == TAR_OBJ_CHAR_DEF) return true;
-		break;
-
-	case TAR_OBJ_CHAR_OFF:
-	case TAR_OBJ_CHAR_DEF:
-		if (b == TAR_IGNORE) return false;
-		if (b == TAR_OBJ_GROUND) return false;
-		if (b == TAR_IGNORE_CHAR_DEF) return false;
-		return true;
-
-	case TAR_OBJ_INV:
-		if (b == TAR_OBJ_INV) return true;
-		if (b == TAR_OBJ_CHAR_OFF) return true;
-		if (b == TAR_OBJ_CHAR_DEF) return true;
-		break;
-	}
-
-	return false;
-}
-
 // scribe <scroll> <spell1>[ <spell2>[ <spell3>]]
 void do_scribe(CHAR_DATA *ch, char *argument)
 {
@@ -8645,7 +9138,8 @@ void do_scribe(CHAR_DATA *ch, char *argument)
 	{
 		if (spells[i])
 		{
-			mana += skill_entry_mana(ch, spells[i]);
+			//mana += skill_entry_mana(ch, spells[i]);
+			mana += spells[i]->skill->scribe_mana;
 			for(int j = 0; j < 3; j++)
 			{
 				if (spells[i]->skill->inks[j][0] > CATALYST_NONE && spells[i]->skill->inks[j][0] < CATALYST_MAX)
@@ -8654,7 +9148,7 @@ void do_scribe(CHAR_DATA *ch, char *argument)
 		}
 	}
 
-	int max_mana = (obj->value[0] > 0) ? obj->value[0] : 200;
+	int max_mana = (SCROLL(obj)->max_mana > 0) ? SCROLL(obj)->max_mana : 200;
     if (mana > max_mana)
     {
 		send_to_char("The scroll can't hold that much magic.\n\r", ch);

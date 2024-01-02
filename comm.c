@@ -4664,12 +4664,26 @@ void update_pc_timers(CHAR_DATA *ch)
 
     if (ch != NULL && ch->brew > 0)
     {
-	--ch->brew;
-	if (ch->brew <= 0) {
-	    brew_end(ch);
-		ch->brew_info = NULL;
-	}
+		--ch->brew;
+		if (ch->brew <= 0) {
+		    brew_end(ch);
+			ch->brew_info = NULL;
+		}
     }
+
+	if (ch != NULL && ch->imbuing > 0)
+	{
+		--ch->imbuing;
+		if (ch->imbuing <= 0) {
+			imbue_end(ch);
+			
+			ch->imbue_type = IMBUE_NONE;
+			ch->imbue_info[0] = NULL;
+			ch->imbue_info[1] = NULL;
+			ch->imbue_info[2] = NULL;
+			ch->imbue_obj = NULL;
+		}
+	}
 
     if (ch != NULL && ch->pk_timer> 0)
     {

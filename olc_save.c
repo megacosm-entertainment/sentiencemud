@@ -832,6 +832,9 @@ void save_object_multityping(FILE *fp, OBJ_INDEX_DATA *obj)
 
 		fprintf(fp, "Type %s~\n", flag_string(ammo_types, AMMO(obj)->type));
 
+		if (!IS_NULLSTR(AMMO(obj)->msg_break))
+			fprintf(fp, "MsgBreak %s~\n", fix_string(AMMO(obj)->msg_break));
+
 		fprintf(fp, "Damage %s~ %s %d %d %d\n",
 			attack_table[AMMO(obj)->damage_type].noun,
 			print_flags(AMMO(obj)->flags),
@@ -1104,7 +1107,7 @@ void save_object_multityping(FILE *fp, OBJ_INDEX_DATA *obj)
 
 		ITERATOR sit;
 		SPELL_DATA *spell;
-		iterator_start(&sit, SCROLL(obj)->spells);
+		iterator_start(&sit, PORTAL(obj)->spells);
 		while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
 		{
 			fprintf(fp, "SpellNew %s~ %d %d\n", spell->skill->name, spell->level, spell->repop);
@@ -1195,7 +1198,9 @@ void save_object_multityping(FILE *fp, OBJ_INDEX_DATA *obj)
 		{
 			if (WEAPON(obj)->attacks[i].type >= 0)
 			{
-				fprintf(fp, "Attack %d %s~ %s %d %d %d\n", i,
+				fprintf(fp, "Attack %d %s~ %s~ %s~ %s %d %d %d\n", i,
+					fix_string(WEAPON(obj)->attacks[i].name),
+					fix_string(WEAPON(obj)->attacks[i].short_descr),
 					attack_table[WEAPON(obj)->attacks[i].type].noun,
 					print_flags(WEAPON(obj)->attacks[i].flags),
 					WEAPON(obj)->attacks[i].damage.number,
@@ -2967,6 +2972,10 @@ AMMO_DATA *read_object_ammo_data(FILE *fp)
 			}
 			break;
 
+		case 'M':
+			KEYS("MsgBreak", data->msg_break, fread_string(fp));
+			break;
+
 		case 'T':
 			KEY("Type", data->type, stat_lookup(fread_string(fp), ammo_types, AMMO_NONE));
 			break;
@@ -3919,6 +3928,7 @@ WAND_DATA *read_object_wand_data(FILE *fp)
 
 			case 'M':
 				KEY("MaxCharges", data->max_charges, fread_number(fp));
+				KEY("MaxMana", data->max_mana, fread_number(fp));
 				break;
 
 			case 'R':
@@ -3979,6 +3989,8 @@ WEAPON_DATA *read_object_weapon_data(FILE *fp)
 				if (!str_cmp(word, "Attack"))
 				{
 					int index = fread_number(fp);
+					char *name = fread_string(fp);
+					char *short_descr = fread_string(fp);
 					sh_int type = attack_lookup(fread_string(fp));
 					long flags = fread_flag(fp);
 					int number = fread_number(fp);
@@ -3988,6 +4000,8 @@ WEAPON_DATA *read_object_weapon_data(FILE *fp)
 					if (index >= 0 && index < MAX_ATTACK_POINTS)
 					{
 						data->attacks[index].type = type;
+						data->attacks[index].name = name;
+						data->attacks[index].short_descr = short_descr;
 						data->attacks[index].flags = flags;
 						data->attacks[index].damage.number = number;
 						data->attacks[index].damage.size = size;
@@ -4716,6 +4730,11 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 			INSTRUMENT(obj)->beats_min = values[2];
 			INSTRUMENT(obj)->beats_max = values[3];
 		}
+	}
+
+	if (area->version_object < VERSION_OBJECT_014)
+	{
+		// NEVERMIND
 	}
 
 	// Remove when all item multi-typing is complete

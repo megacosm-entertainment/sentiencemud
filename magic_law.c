@@ -91,6 +91,31 @@ TOUCH_FUNC(touch_armour)
 	return TRUE;
 }
 
+BRANDISH_FUNC(brandish_armour)
+{
+	if (is_affected(ch, skill)) {
+		send_to_char("You are already armoured.\n\r",ch);
+		return FALSE;
+	}
+
+	AFFECT_DATA af;
+	memset(&af,0,sizeof(af));
+	af.where = TO_AFFECTS;
+	af.group = AFFGROUP_MAGICAL;
+	af.skill = skill;
+	af.level = level;
+	af.duration  = 35 * obj->condition / 100;
+	af.modifier  = -20;
+	af.location  = APPLY_AC;
+	af.bitvector = 0;
+	af.bitvector2 = 0;
+	af.slot = WEAR_NONE;
+	affect_to_char(ch, &af);
+	
+	send_to_char("You feel someone protecting you.\n\r", ch);
+	return TRUE;
+}
+
 SPELL_FUNC(spell_cloak_of_guile)
 {
 	CHAR_DATA *victim;
@@ -316,7 +341,21 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 	if (IS_WAND(obj))
 	{
 		// TODO: NYI
-		add_buf(buffer, "{MWand: {WNOT YET IMPLEMENTED{x\n\r");
+		add_buf(buffer, "{MWand: {WNOT YET COMPLETED{x\n\r");
+
+		if (list_size(WAND(obj)->spells) > 0)
+		{
+			add_buf(buffer, "{MSpells when {Wzapped{x:\n\r");
+			ITERATOR it;
+			SPELL_DATA *spell;
+			iterator_start(&it, WAND(obj)->spells);
+			while((spell = (SPELL_DATA *)iterator_nextdata(&it)))
+			{
+				sprintf(buf, " {W* {MLevel {W%d {Mspell of {W%s{M.{x\n\r",
+					spell->level, get_spell_data_name(spell));
+				add_buf(buffer, buf);
+			}
+		}
 	}
 
 	if (IS_WEAPON(obj))
@@ -350,6 +389,20 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 		if (obj->value[4]) {
 			sprintf(buf,"{MWeapons flags: {x%s\n\r",weapon_bit_name(obj->value[4]));
 			add_buf(buffer,buf);
+		}
+
+		if (list_size(WEAPON(obj)->spells) > 0)
+		{
+			add_buf(buffer, "{MSpells when {Wbrandished{x:\n\r");
+			ITERATOR it;
+			SPELL_DATA *spell;
+			iterator_start(&it, WEAPON(obj)->spells);
+			while((spell = (SPELL_DATA *)iterator_nextdata(&it)))
+			{
+				sprintf(buf, " {W* {MLevel {W%d {Mspell of {W%s{M.{x\n\r",
+					spell->level, get_spell_data_name(spell));
+				add_buf(buffer, buf);
+			}
 		}
 	}
 }

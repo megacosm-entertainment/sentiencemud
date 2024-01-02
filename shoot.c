@@ -87,60 +87,7 @@ void do_shoot( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
-	// Note: AMMO_MANA weapons *must* use this to be able to shoot anything as it won't be able to pull any physical ammo out.
-	ch->outbound_object = NULL;
-	p_percent_trigger(NULL, bow, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_AMMO_SCRIPTED, NULL, 0, 0, 0, 0, 0);
-
-	obj = ch->outbound_object;
-	if (obj == NULL)
-	{
-		// If the weapon hasn't generated any ammo, but isn't defined to *use* any, complain and fail.
-		if (ammo_type == AMMO_NONE || ammo_type == AMMO_MANA)
-		{
-			send_to_char("You can't shoot that.\n\r", ch);
-			return;
-		}
-
-		// Check for a quiver first, make sure it's the right kind
-		if ( ( quiver = get_eq_char( ch, WEAR_SHOULDER ) ) != NULL )
-		{
-			for ( obj = quiver->contains; obj != NULL; obj = obj->next_content )
-			{
-				if ( can_see_obj(ch, obj) &&
-					IS_AMMO(obj) && AMMO(obj)->type == ammo_type &&
-					obj->level <= ch->tot_level)
-					break;
-			}
-
-			// If no quiver or if quiver is empty, check inventory
-			if ( obj == NULL )
-			{
-				quiver = NULL;
-
-				for ( obj = ch->carrying; obj != NULL; obj = obj->next_content )
-				{
-					if ( can_see_obj(ch, obj) &&
-						IS_AMMO(obj) && AMMO(obj)->type == ammo_type &&
-						obj->level <= ch->tot_level)
-						break;
-				}
-			}
-		}
-
-		// If it pulls an ammo item from your inventory or the quiver,
-		// Make sure the stop_ranged doesn't nuke it as it exists in something.
-		if (obj != NULL)
-		{
-			REMOVE_BIT(obj->extra[1], ITEM_CREATED);
-		}
-	}
-
-	if ( obj == NULL )
-	{
-		send_to_char("You have a weapon, but nothing to fire.\n\r", ch );
-		return;
-	}
-
+	// Get the victim first...
 	argument = one_argument( argument, arg1 );
 	argument = one_argument( argument, arg2 );
 
@@ -163,50 +110,117 @@ void do_shoot( CHAR_DATA *ch, char *argument )
 
     if ( victim == NULL )
     {
-	if ( direction != -1 )
-	    victim = search_dir_name( ch, arg1, direction, WEAPON(bow)->range );
-	else
-	{
-	    direction = -1;
-
-	    if ( ( victim = get_char_room( ch, NULL, arg1 ) ) == NULL )
-	    {
-		for ( ii = 0; ii < MAX_DIR; ii++ )
+		if ( direction != -1 )
+			victim = search_dir_name( ch, arg1, direction, WEAPON(bow)->range );
+		else
 		{
-		    if ( (vch = search_dir_name( ch, arg1, ii, WEAPON(bow)->range ) ) != NULL )
-		    {
-			if ( direction != -1 )
-			{
-			    send_to_char("Multiple targets like that, which direction?\n\r", ch );
-			    return;
-			}
+			direction = -1;
 
-			victim = vch;
-			direction = ii;
-		    }
+			if ( ( victim = get_char_room( ch, NULL, arg1 ) ) == NULL )
+			{
+				for ( ii = 0; ii < MAX_DIR; ii++ )
+				{
+					if ( (vch = search_dir_name( ch, arg1, ii, WEAPON(bow)->range ) ) != NULL )
+					{
+						if ( direction != -1 )
+						{
+							send_to_char("Multiple targets like that, which direction?\n\r", ch );
+							return;
+						}
+
+						victim = vch;
+						direction = ii;
+					}
+				}
+			}
 		}
-	    }
-	}
     }
 
     if ( victim == NULL )
     {
-	if ( direction == -1 )
-	    send_to_char("You don't see anyone like that around.\n\r", ch );
-	else
-	    act("You don't see anyone like that to the $t.", ch, NULL, NULL, NULL, NULL, dir_name[direction], NULL, TO_CHAR );
+		if ( direction == -1 )
+			send_to_char("You don't see anyone like that around.\n\r", ch );
+		else
+			act("You don't see anyone like that to the $t.", ch, NULL, NULL, NULL, NULL, dir_name[direction], NULL, TO_CHAR );
 
-	return;
+		return;
     }
 
     if ( victim == ch )
     {
-	send_to_char("There are far more pleasant ways to commit suicide.\n\r", ch );
-	return;
+		send_to_char("There are far more pleasant ways to commit suicide.\n\r", ch );
+		return;
     }
 
     if ( is_safe( ch, victim, TRUE ) )
 		return;
+
+	// Note: AMMO_MANA weapons *must* use this to be able to shoot anything as it won't be able to pull any physical ammo out.
+	ch->outbound_object = NULL;
+	p_percent_trigger(NULL, bow, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_AMMO_SCRIPTED, NULL, 0, 0, 0, 0, 0);
+
+	obj = ch->outbound_object;
+	if (obj == NULL)
+	{
+		// If the weapon hasn't generated any ammo, but isn't defined to *use* any, complain and fail.
+		if (ammo_type == AMMO_NONE || ammo_type == AMMO_MANA)
+		{
+			send_to_char("You can't shoot that.\n\r", ch);
+			return;
+		}
+
+		// Check for a quiver first, make sure it's the right kind
+		if ( ( quiver = get_eq_char( ch, WEAR_SHOULDER ) ) != NULL )
+		{
+			for ( obj = quiver->contains; obj != NULL; obj = obj->next_content )
+			{
+				if ( can_see_obj(ch, obj) &&
+					IS_AMMO(obj) && AMMO(obj)->type == ammo_type &&
+					obj->level <= ch->tot_level)
+				{
+					// If it pulls an ammo item from the quiver,
+					// Make sure the stop_ranged doesn't nuke it as it exists in something.
+					REMOVE_BIT(obj->extra[1], ITEM_CREATED);
+					break;
+				}
+			}
+
+			// No object from the quiver, try getting a scripted object
+			if (obj == NULL)
+			{
+				ch->outbound_object = NULL;
+				p_percent_trigger(NULL, quiver, NULL, NULL, ch, victim, NULL, bow, NULL, TRIG_AMMO_SCRIPTED, NULL, 0, 0, 0, 0, 0);
+				obj = ch->outbound_object;
+			}
+
+			// If no quiver or if quiver is empty, check inventory
+			if ( obj == NULL )
+			{
+				quiver = NULL;
+
+				for ( obj = ch->carrying; obj != NULL; obj = obj->next_content )
+				{
+					if ( can_see_obj(ch, obj) &&
+						IS_AMMO(obj) && AMMO(obj)->type == ammo_type &&
+						obj->level <= ch->tot_level)
+					{
+						// If it pulls an ammo item from your inventory,
+						// Make sure the stop_ranged doesn't nuke it as it exists in something.
+						REMOVE_BIT(obj->extra[1], ITEM_CREATED);
+						break;
+					}
+				}
+			}
+		}
+
+	}
+
+	if ( obj == NULL )
+	{
+		send_to_char("You have a weapon, but nothing to fire.\n\r", ch );
+		return;
+	}
+
 
     range = get_distance( ch, arg1, direction, WEAPON(bow)->range );
 

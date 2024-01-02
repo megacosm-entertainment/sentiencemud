@@ -2308,6 +2308,28 @@ void obj_update(void)
 					}
 				}
 			}
+
+
+			if(IS_WEAPON(obj) && WEAPON(obj)->charges < WEAPON(obj)->max_charges && WEAPON(obj)->recharge_time > 0)
+			{
+				if(WEAPON(obj)->cooldown > 0 && --WEAPON(obj)->cooldown <= 0)
+				{
+					WEAPON(obj)->charges++;
+
+					if (WEAPON(obj)->charges < WEAPON(obj)->max_charges)
+					{
+						WEAPON(obj)->cooldown = WEAPON(obj)->recharge_time;
+					}
+					else
+					{
+						WEAPON(obj)->cooldown = 0;
+
+						// Auto repair up to 99% if still at least 50%
+						if(obj->condition < 99 && obj->condition >= number_range(50,98))
+							obj->condition++;
+					}
+				}
+			}
 		}
 
 		// Handle timers for decaying objs, etc
