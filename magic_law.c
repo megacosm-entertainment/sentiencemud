@@ -116,6 +116,32 @@ BRANDISH_FUNC(brandish_armour)
 	return TRUE;
 }
 
+EQUIP_FUNC(equip_armour)
+{
+	AFFECT_DATA af;
+
+	memset(&af,0,sizeof(af));
+
+	if (is_affected(ch, skill))
+		affect_strip(ch, skill);
+
+	af.slot = obj->wear_loc;
+	af.where = TO_AFFECTS;
+	af.group = AFFGROUP_MAGICAL;
+	af.skill = skill;
+	af.level = level;
+	af.duration  = -1;
+	af.modifier  = -20;
+	af.location  = APPLY_AC;
+	af.bitvector = 0;
+	af.bitvector2 = 0;
+	affect_to_char(ch, &af);
+	send_to_char("You feel someone protecting you.\n\r", ch);
+	return TRUE;
+}
+
+
+
 SPELL_FUNC(spell_cloak_of_guile)
 {
 	CHAR_DATA *victim;
@@ -302,6 +328,30 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 	{
 		// TODO: NYI
 		add_buf(buffer, "{MInstrument: {WNOT YET IMPLEMENTED{x\n\r");
+	}
+
+	if (IS_JEWELRY(obj))
+	{
+		// TODO: Need to indicate how much mana the jewelry can hold
+		if (list_size(JEWELRY(obj)->spells) > 0)
+		{
+			add_buf(buffer, "{MSpells when {Wequipped{x:\n\r");
+			ITERATOR it;
+			SPELL_DATA *spell;
+			iterator_start(&it, JEWELRY(obj)->spells);
+			while((spell = (SPELL_DATA *)iterator_nextdata(&it)))
+			{
+				sprintf(buf, " {W* {MLevel {W%d {Mspell of {W%s{M.{x\n\r",
+					spell->level, get_spell_data_name(spell));
+				add_buf(buffer, buf);
+			}
+		}
+	}
+
+	if (IS_LIGHT(obj))
+	{
+		// TODO: NYI
+		add_buf(buffer, "{MLight: {WNOT YET IMPLEMENTED{x\n\r");
 	}
 
 	if (IS_SCROLL(obj))
@@ -695,12 +745,12 @@ bool __func_identify(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
 	*/
 
 	for (af = obj->catalyst; af != NULL; af = af->next) {
-		sprintf(buf, "%satalyst {x%s {Mof strength {x%d {M", ((af->where == TO_CATALYST_ACTIVE) ? "{MC" : "{xDormant{M c" ), flag_string( catalyst_types, af->catalyst_type ), af->level);
+		sprintf(buf, "%satalyst {x%s {M", ((af->where == TO_CATALYST_ACTIVE) ? "{MC" : "{xDormant{M c" ), flag_string( catalyst_types, af->catalyst_type ));
 		add_buf(buffer, buf);
 		if (af->duration > -1)
-			sprintf(buf,"with {x%d%%{M left.\n\r{x",100 * af->duration / (af->level * af->modifier) );
+			sprintf(buf,"with {x%d%%{M left.{x\n\r",100 * af->duration / af->modifier );
 		else
-			sprintf(buf,"with an infinite source.\n\r{x");
+			sprintf(buf,"with an infinite source.{x\n\r");
 		add_buf(buffer,buf);
 	}
 	

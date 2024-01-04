@@ -468,6 +468,7 @@ typedef struct furniture_compartment_data FURNITURE_COMPARTMENT;
 typedef struct obj_furniture_data FURNITURE_DATA;
 typedef struct obj_ink_data INK_DATA;
 typedef struct obj_instrument_data INSTRUMENT_DATA;
+typedef struct obj_jewelry_data JEWELRY_DATA;
 typedef struct obj_light_data LIGHT_DATA;
 typedef struct obj_mist_data MIST_DATA;
 typedef struct obj_money_data MONEY_DATA;
@@ -5230,12 +5231,24 @@ struct obj_instrument_data {
     int beats_min;
     int beats_max;
 
-    // Catalyst reservoirs
+    // TODO: Catalyst reservoirs
     // - They will recharge with time and exposure to the right elements
     //   Example: being on the beach or at sea will replenish the water catalyst, if there is any
     INSTRUMENT_CATALYST reservoirs[INSTRUMENT_MAX_CATALYSTS];
 };
 
+// ==========[ JEWELRY ]===========
+#define JEWELRY(obj)    ((obj)->_jewelry)
+#define IS_JEWELRY(obj) IS_VALID(JEWELRY(obj))
+
+struct obj_jewelry_data {
+    JEWELRY_DATA *next;
+    bool valid;
+
+    int max_mana;
+
+    LLIST *spells;    
+};
 
 // ===========[ LIGHT ]============
 #define LIGHT(obj)      ((obj)->_light)
@@ -5547,6 +5560,7 @@ struct	obj_index_data
     FURNITURE_DATA *_furniture;
     INK_DATA *_ink;
     INSTRUMENT_DATA *_instrument;
+    JEWELRY_DATA *_jewelry;
     LIGHT_DATA *_light;
     MONEY_DATA *_money;
     BOOK_PAGE *_page;
@@ -5653,6 +5667,7 @@ struct	obj_data
     FURNITURE_DATA *_furniture;
     INK_DATA *_ink;
     INSTRUMENT_DATA *_instrument;
+    JEWELRY_DATA *_jewelry;
     LIGHT_DATA *_light;
     MONEY_DATA *_money;
     BOOK_PAGE *_page;

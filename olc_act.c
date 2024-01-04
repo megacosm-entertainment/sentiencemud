@@ -5251,6 +5251,39 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		}
 	}
 
+	if (IS_JEWELRY(obj))
+	{
+		add_buf(buffer, "\n\r{GJewelry:{x\n\r");
+
+		sprintf(buf, "{B[{WMaximum Mana {B]:  {x%d\n\r", JEWELRY(obj)->max_mana);
+		add_buf(buffer, buf);
+
+		if (list_size(JEWELRY(obj)->spells) > 0)
+		{
+			int cnt = 0;
+
+			sprintf(buf, "{g%-6s %-20s %-10s %-6s{x\n\r", "Number", "Spell", "Level", "Random");
+			add_buf(buffer, buf);
+
+			sprintf(buf, "{g%-6s %-20s %-10s %-6s{x\n\r", "------", "-----", "-----", "------");
+			add_buf(buffer, buf);
+
+			ITERATOR sit;
+			SPELL_DATA *spell;
+			iterator_start(&sit, JEWELRY(obj)->spells);
+			while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
+			{
+				sprintf(buf, "{B[{W%4d{B]{x %-20s %-10d %d%%\n\r",
+					cnt,
+					spell->skill->name, spell->level, spell->repop);
+				buf[0] = UPPER(buf[0]);
+				add_buf(buffer, buf);
+
+				cnt++;
+			}
+		}
+	}
+
 	if (IS_LIGHT(obj))
 	{
 		add_buf(buffer, "\n\r{GLight:{x\n\r");
@@ -5545,8 +5578,8 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	    break;
 		*/
 
-	case ITEM_HERB:
 		/*
+	case ITEM_HERB:
 	    sprintf(buf,
 	        "{B[  {Wv0{B]{G Type:{x            [%s]\n\r"
 		"{B[  {Wv1{B]{G Healing:{x         [%ld%%]\n\r"
@@ -5566,8 +5599,8 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		skill_table[obj->value[7]].name);
 
 	    add_buf(buffer, buf);
-		*/
 	    break;
+		*/
 
 	/*
 	case ITEM_BLANK_SCROLL:
@@ -9793,6 +9826,22 @@ OEDIT(oedit_type)
 	return FALSE;
 }
 
+bool olc_has_spell(LLIST *spells, SKILL_DATA *spell)
+{
+	ITERATOR it;
+	SPELL_DATA *sp;
+
+	iterator_start(&it, spells);
+	while((sp = (SPELL_DATA *)iterator_nextdata(&it)))
+	{
+		if (sp->skill == spell)
+			break;
+	}
+	iterator_stop(&it);
+
+	return (sp != NULL);
+}
+
 OEDIT( oedit_type_ammo )
 {
 	OBJ_INDEX_DATA *pObj;
@@ -12773,7 +12822,182 @@ OEDIT(oedit_type_instrument)
 	return FALSE;
 }
 
+bool olc_can_equip_spell(SKILL_DATA *skill)
+{
+	if (!is_skill_spell(skill)) return false;
 
+	if (skill->token)
+		return get_script_token(skill->token, TRIG_TOKEN_EQUIP, TRIGSLOT_SPELL) != NULL;
+	else
+		return skill->equip_fun != NULL;
+}
+
+OEDIT(oedit_type_jewelry)
+{
+	OBJ_INDEX_DATA *pObj;
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_JEWELRY(pObj))
+		{
+			send_to_char("Syntax:  jewelry maxmana <mana>\n\r", ch);
+			send_to_char("         jewelry spell add <name> <level>\n\r", ch);
+			send_to_char("         jewelry spell remove <#>\n\r", ch);
+			send_to_char("         jewelry spell clear\n\r", ch);
+			
+			if (pObj->item_type != ITEM_JEWELRY)
+				send_to_char("         jewelry remove\n\r", ch);
+		}
+		else
+			send_to_char("Syntax:  jewelry add\n\r", ch);
+		return FALSE;
+	}
+
+	if (IS_JEWELRY(pObj))
+	{
+		JEWELRY_DATA *jewelry = JEWELRY(pObj);
+		char arg[MIL];
+
+		argument = one_argument(argument, arg);
+
+		if (!str_prefix(arg, "maxmana"))
+		{
+			int mana;
+			if (!is_number(argument) || (mana = atoi(argument)) < 0)
+			{
+				send_to_char("Please specify a non-negative number for maximum mana.\n\r", ch);
+				return false;
+			}
+
+			JEWELRY(pObj)->max_mana = mana;
+			send_to_char("JEWELRY Maximum Mana changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "spell"))
+		{
+
+			argument = one_argument(argument, arg);
+
+			if (!str_prefix(arg, "add"))
+			{
+				char name[MIL];
+				SPELL_DATA *spell;
+				int level;
+				SKILL_DATA *skill;
+
+				argument = one_argument(argument, name);
+
+				if (IS_NULLSTR(name))
+				{
+					send_to_char("Please specify a name.\n\r", ch);
+					return false;
+				}
+				else
+				{
+					skill = get_skill_data(name);
+					if (!IS_VALID(skill) || !is_skill_spell(skill))
+					{
+						send_to_char("That's not a spell.\n\r", ch);
+						return false;
+					}
+
+					if (!olc_can_equip_spell(skill))
+					{
+						send_to_char("That spell cannot be equipped.\n\r", ch);
+						return false;
+					}
+				}
+
+				if (!is_number(argument) || (level = atoi(argument)) < 1 || level > get_trust(ch))
+				{
+					send_to_char(formatf("Level range is 1-%d.\n\r", get_trust(ch)), ch);
+					return false;
+				}
+
+				// Spells must be unique on jewelry
+				if (olc_has_spell(jewelry->spells, skill))
+				{
+					send_to_char("Spell already on the jewelry.\n\r", ch);
+					return false;
+				}
+
+				spell			= new_spell();
+				spell->skill	= skill;
+				spell->level	= level;
+				spell->repop	= 100;
+				spell->next		= NULL;
+
+				list_appendlink(jewelry->spells, spell);
+
+				send_to_char(formatf("Added spell %s, level %d.\n\r", get_spell_data_name(spell), spell->level), ch);
+				return true;
+			}
+
+			if (!str_prefix(arg, "remove"))
+			{
+				if (list_size(jewelry->spells) < 1)
+				{
+					send_to_char("There are no spells on the jewelry data.\n\r", ch);
+					return false;
+				}
+
+				int index;
+				if (!is_number(argument) || (index = atoi(argument)) < 1 || index > list_size(jewelry->spells))
+				{
+					send_to_char(formatf("Please specify an index from 1 to %d.\n\r", list_size(jewelry->spells)), ch);
+					return false;
+				}
+
+				list_remnthlink(jewelry->spells, index);
+				send_to_char("JEWELRY spell removed.\n\r", ch);
+				return true;
+			}
+
+			if (!str_prefix(arg, "clear"))
+			{
+				list_clear(jewelry->spells);
+				send_to_char("JEWELRY spells cleared.\n\r", ch);
+				return true;
+			}
+
+			oedit_type_jewelry(ch, "");
+			return false;
+		}
+
+
+		if (pObj->item_type != ITEM_JEWELRY)
+		{
+			if (!str_prefix(argument, "remove"))
+			{
+				free_jewelry_data(JEWELRY(pObj));
+				JEWELRY(pObj) = NULL;
+
+				send_to_char("JEWELRY settings removed.\n\r", ch);
+				return TRUE;
+			}
+		}
+	}
+	else
+	{
+		if (!str_prefix(argument, "add"))
+		{
+			if (!obj_index_can_add_item_type(pObj, ITEM_JEWELRY))
+			{
+				send_to_char("You cannot add this item type to this object.\n\r", ch);
+				return FALSE;
+			}
+			
+			JEWELRY(pObj) = new_jewelry_data();
+			send_to_char("JEWELRY type added.\n\r\n\r", ch);
+			return TRUE;
+		}
+	}
+
+	oedit_type_jewelry(ch, "");
+	return FALSE;
+}
 
 OEDIT(oedit_type_light)
 {

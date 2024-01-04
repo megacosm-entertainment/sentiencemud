@@ -2605,6 +2605,24 @@ void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
 		fprintf(fp, "#-TYPEINSTRUMENT\n");
 	}
 
+	if (IS_JEWELRY(obj))
+	{
+		fprintf(fp, "#TYPEJEWELRY\n");
+
+		fprintf(fp, "MaxMana %d\n", JEWELRY(obj)->max_mana);
+
+		ITERATOR sit;
+		SPELL_DATA *spell;
+		iterator_start(&sit, JEWELRY(obj)->spells);
+		while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
+		{
+			fprintf(fp, "Spell %s~ %d\n", spell->skill->name, spell->level);
+		}
+		iterator_stop(&sit);
+
+		fprintf(fp, "#-TYPEJEWELRY\n");
+	}
+
 	if (IS_LIGHT(obj))
 	{
 		fprintf(fp, "#TYPELIGHT\n");
@@ -2690,6 +2708,8 @@ void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
 	if (IS_WAND(obj))
 	{
 		fprintf(fp, "#TYPEWAND\n");
+
+		fprintf(fp, "MaxMana %d\n", WAND(obj)->max_mana);
 
 		fprintf(fp, "Charges %d\n", WAND(obj)->charges);
 		fprintf(fp, "MaxCharges %d\n", WAND(obj)->max_charges);
@@ -3861,6 +3881,57 @@ INSTRUMENT_DATA *fread_obj_instrument_data(FILE *fp)
 	return data;
 }
 
+JEWELRY_DATA *fread_obj_jewelry_data(FILE *fp)
+{
+	JEWELRY_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_jewelry_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPEJEWELRY"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case 'M':
+				KEY("MaxMana", data->max_mana, fread_number(fp));
+				break;
+
+			case 'S':
+				if (!str_cmp(word, "Spell"))
+				{
+					char *name = fread_string(fp);
+					int level = fread_number(fp);
+
+					SKILL_DATA *skill = get_skill_data(name);
+					if (IS_VALID(skill) && is_skill_spell(skill))
+					{
+						SPELL_DATA *spell = new_spell();
+						spell->skill = skill;
+						spell->level = level;
+						spell->repop = 100;
+						spell->next = NULL;
+
+						list_appendlink(data->spells, spell);
+					}
+
+					fMatch = true;
+					break;
+				}
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "fread_obj_jewelry_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
 
 LIGHT_DATA *fread_obj_light_data(FILE *fp)
 {
@@ -4165,6 +4236,7 @@ WAND_DATA *fread_obj_wand_data(FILE *fp)
 				break;
 
 			case 'M':
+				KEY("MaxMana", data->max_mana, fread_number(fp));
 				KEY("MaxCharges", data->max_charges, fread_number(fp));
 				break;
 
@@ -4314,6 +4386,7 @@ void fread_obj_reset_multityping(OBJ_DATA *obj)
 	free_furniture_data(FURNITURE(obj));	FURNITURE(obj) = NULL;
 	free_ink_data(INK(obj));				INK(obj) = NULL;
 	free_instrument_data(INSTRUMENT(obj));	INSTRUMENT(obj) = NULL;
+	free_jewelry_data(JEWELRY(obj));		JEWELRY(obj) = NULL;
 	free_light_data(LIGHT(obj));			LIGHT(obj) = NULL;
 	free_money_data(MONEY(obj));			MONEY(obj) = NULL;
 	free_book_page(PAGE(obj));				PAGE(obj) = NULL;
@@ -4713,6 +4786,14 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_INSTRUMENT(obj)) free_instrument_data(INSTRUMENT(obj));
 
 				INSTRUMENT(obj) = fread_obj_instrument_data(fp);
+				fMatch = TRUE;
+				break;
+			}
+			if (!str_cmp(word, "#TYPEJEWELRY"))
+			{
+				if (IS_JEWELRY(obj)) free_jewelry_data(JEWELRY(obj));
+
+				JEWELRY(obj) = fread_obj_jewelry_data(fp);
 				fMatch = TRUE;
 				break;
 			}

@@ -355,6 +355,7 @@ DECLARE_OLC_FUN( oedit_type_food );
 DECLARE_OLC_FUN( oedit_type_furniture );
 DECLARE_OLC_FUN( oedit_type_ink );
 DECLARE_OLC_FUN( oedit_type_instrument );
+DECLARE_OLC_FUN( oedit_type_jewelry );
 DECLARE_OLC_FUN( oedit_type_light );
 DECLARE_OLC_FUN( oedit_type_money );
 DECLARE_OLC_FUN( oedit_type_page );
@@ -669,7 +670,7 @@ DECLARE_OLC_FUN( skedit_preimbuefunc );
 DECLARE_OLC_FUN( skedit_imbuefunc );
 DECLARE_OLC_FUN( skedit_brandishfunc );
 DECLARE_OLC_FUN( skedit_zapfunc );
-//DECLARE_OLC_FUN( skedit_equipfunc );
+DECLARE_OLC_FUN( skedit_equipfunc );
 
 DECLARE_OLC_FUN( skedit_gsn );
 DECLARE_OLC_FUN( skedit_level );

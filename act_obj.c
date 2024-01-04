@@ -8422,6 +8422,11 @@ void brew_end(CHAR_DATA *ch )
 	FLUID_CON(potion)->amount = FLUID_CON(potion)->capacity = LIQ_SERVING * uses;
 }
 
+static inline bool is_imbueable_jewelry(OBJ_DATA *obj)
+{
+	return IS_JEWELRY(obj) && JEWELRY(obj)->max_mana > 0 && list_size(JEWELRY(obj)->spells) < 1;
+}
+
 static inline bool is_imbueable_wand(OBJ_DATA *obj)
 {
 	return IS_WAND(obj) && WAND(obj)->max_mana > 0 && list_size(WAND(obj)->spells) < 1;
@@ -8434,7 +8439,13 @@ static inline bool is_imbueable_weapon(OBJ_DATA *obj)
 
 int get_imbue_target(OBJ_DATA *obj)
 {
-	// TODO: Add JEWELRY and other adornments (like GEMs)
+	if (is_imbueable_jewelry(obj))
+	{
+		if (is_imbueable_wand(obj)) return IMBUE_UNKNOWN;
+		if (is_imbueable_weapon(obj)) return IMBUE_UNKNOWN;
+
+		return IMBUE_JEWELRY;
+	}
 
 	if (is_imbueable_wand(obj))
 	{
@@ -8470,6 +8481,7 @@ bool can_imbue_spell(CHAR_DATA *ch, OBJ_DATA *obj, SKILL_ENTRY *spell, int imbue
 		int trigger;
 		switch(imbue_type)
 		{
+			case IMBUE_JEWELRY:	trigger = TRIG_TOKEN_EQUIP; break;
 			case IMBUE_WAND:	trigger = TRIG_TOKEN_ZAP; break;
 			case IMBUE_WEAPON:	trigger = TRIG_TOKEN_BRANDISH; break;
 			default:
@@ -8497,6 +8509,14 @@ bool can_imbue_spell(CHAR_DATA *ch, OBJ_DATA *obj, SKILL_ENTRY *spell, int imbue
 	{
 		switch(imbue_type)
 		{
+			case IMBUE_JEWELRY:
+				if(!spell->skill->equip_fun)
+				{
+					act_new("You cannot imbue $t onto $p.", ch,NULL,NULL,obj,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
+					return false;
+				}
+				break;
+
 			case IMBUE_WAND:
 				if(!spell->skill->zap_fun)
 				{
@@ -8575,7 +8595,24 @@ void do_imbue(CHAR_DATA *ch, char *argument)
 		// Need to check for the context
 
 		argument = one_argument(argument, arg);
-		if (!str_prefix(arg, "wand"))
+		if (!str_prefix(arg, "jewelry"))
+		{
+			if (!IS_JEWELRY(obj))
+			{
+				send_to_char("That is not jewelry.\n\r", ch);
+				return;
+			}
+
+			if (!is_imbueable_jewelry(obj))
+			{
+				send_to_char("You cannot imbue that.\n\r", ch);
+				return;
+			}
+
+			imbue_type = IMBUE_JEWELRY;
+			max_mana = JEWELRY(obj)->max_mana;
+		}
+		else if (!str_prefix(arg, "wand"))
 		{
 			if (!IS_WAND(obj))
 			{
@@ -8615,6 +8652,14 @@ void do_imbue(CHAR_DATA *ch, char *argument)
 			sprintf(buf, "$p has multiple parts that can be imbued:");
 
 			// TODO: Add JEWELRY, GEM and other adornments
+			if (is_imbueable_jewelry(obj))
+			{
+				if (first)
+					strcat(buf, " jewelry");
+				else
+					strcat(buf, ", jewelry");
+				first = false;
+			}
 			if (is_imbueable_wand(obj))
 			{
 				if (first)
@@ -8635,6 +8680,8 @@ void do_imbue(CHAR_DATA *ch, char *argument)
 			return;
 		}
 	}
+	else if (imbue_type == IMBUE_JEWELRY)
+		max_mana = JEWELRY(obj)->max_mana;
 	else if (imbue_type == IMBUE_WAND)
 		max_mana = WAND(obj)->max_mana;
 	else if (imbue_type == IMBUE_WEAPON)
@@ -8732,6 +8779,7 @@ bool restring_imbue_obj(OBJ_DATA *obj)
 {
 	int types = 0;
 
+	if (IS_JEWELRY(obj)) types++;
 	if (IS_WAND(obj)) types++;
 	if (IS_WEAPON(obj)) types++;
 
@@ -8790,6 +8838,8 @@ void imbue_end(CHAR_DATA *ch)
 
 		switch(ch->imbue_type)
 		{
+			case IMBUE_JEWELRY:
+				break;
 			case IMBUE_WAND:
 				break;
 			case IMBUE_WEAPON:
@@ -8848,6 +8898,7 @@ void imbue_end(CHAR_DATA *ch)
 	LLIST *spells = NULL;
 	switch(ch->imbue_type)
 	{
+		case IMBUE_JEWELRY:	spells = JEWELRY(ch->imbue_obj)->spells; break;
 		case IMBUE_WAND:	spells = WAND(ch->imbue_obj)->spells; break;
 		case IMBUE_WEAPON:	spells = WEAPON(ch->imbue_obj)->spells; break;
 		default:
@@ -8868,6 +8919,9 @@ void imbue_end(CHAR_DATA *ch)
 		}
 	}
 
+	// Imbuing it will make it "magical"
+	SET_BIT(ch->imbue_obj->extra[0], ITEM_MAGIC);
+
 	// Determine if the object should be restrung	
 	if (restring_imbue_obj(ch->imbue_obj))
 	{
@@ -8875,6 +8929,9 @@ void imbue_end(CHAR_DATA *ch)
 		char *type = "";
 		switch(ch->imbue_type)
 		{
+			case IMBUE_JEWELRY:
+				break;
+
 			case IMBUE_WAND:
 				template = obj_index_wand;
 				type = "wand";

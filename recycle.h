@@ -294,6 +294,11 @@ INSTRUMENT_DATA *new_instrument_data();
 INSTRUMENT_DATA *copy_instrument_data();
 void free_instrument_data(INSTRUMENT_DATA *data);
 
+// Jewelry
+JEWELRY_DATA *new_jewelry_data();
+JEWELRY_DATA *copy_jewelry_data(JEWELRY_DATA *src);
+void free_jewelry_data(JEWELRY_DATA *data);
+
 // Light
 LIGHT_DATA *new_light_data();
 LIGHT_DATA *copy_light_data(LIGHT_DATA *src);

@@ -270,4 +270,7 @@ DECLARE_BRANDISH_FUN( brandish_silence );
 //DECLARE_BRANDISH_FUN( brandish_word_of_recall );
 
 // EQUIP
+DECLARE_EQUIP_FUN( equip_armour );
+DECLARE_EQUIP_FUN( equip_haste );
+DECLARE_EQUIP_FUN( equip_invis );
 DECLARE_EQUIP_FUN( equip_silence );

@@ -1389,7 +1389,7 @@ void catalyst_to_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
 		    if(cat->modifier < 0 || paf->modifier < 0)
 			    cat->duration = cat->modifier = -1;
 		    else
-			    cat->duration += (paf->level * paf->modifier);
+			    cat->duration += paf->modifier;
 		    return;
 	    }
     }
@@ -1401,7 +1401,7 @@ void catalyst_to_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
     VALIDATE(paf);	/* in case we missed it when we set up paf */
     paf_new->next	= obj->catalyst;
     obj->catalyst	= paf_new;
-    paf_new->duration = (paf_new->modifier > 0) ? (paf_new->level * paf_new->modifier) : -1;
+    paf_new->duration = (paf_new->modifier > 0) ? paf_new->modifier : -1;
 }
 
 
@@ -2389,6 +2389,34 @@ OBJ_DATA *get_eq_char(CHAR_DATA *ch, int iWear)
     return NULL;
 }
 
+void equip_spells(CHAR_DATA *ch, OBJ_DATA *obj, LLIST *spells)
+{
+    AFFECT_DATA *paf;
+	ITERATOR it;
+	SPELL_DATA *spell;
+
+	iterator_start(&it, spells);
+	while((spell = (SPELL_DATA *)iterator_nextdata(&it)))
+	{
+		for (paf = ch->affected; paf != NULL; paf = paf->next)
+		{
+			if (paf->skill == spell->skill)
+				break;
+		}
+
+		if (paf != NULL && paf->level >= spell->level)
+			continue;
+
+		affect_strip(ch, spell->skill);
+
+		if (spell->skill->token)
+			p_token_index_percent_trigger(spell->skill->token, ch, ch, NULL, obj, NULL, TRIG_TOKEN_EQUIP, NULL, 0,0,0,0,0,spell->level,0,0,0,0);
+		else
+			(*(spell->skill->equip_fun)) (spell->skill, spell->level, ch, obj);
+	}
+	iterator_stop(&it);
+}
+
 
 /*
  * Equip a char with an obj.
@@ -2463,6 +2491,13 @@ void equip_char(CHAR_DATA *ch, OBJ_DATA *obj, int iWear)
 		
 		// TODO: Require it be *specific types of items
 		// TODO: Fix so that it takes into account multityping
+
+		if (IS_JEWELRY(obj))
+		{
+			equip_spells(ch, obj, JEWELRY(obj)->spells);
+		}
+
+		// TODO: Armour + adornments
 #if 0
 	    if (!IS_WAND(obj) && !IS_SCROLL(obj) && IS_FLUID_CON(obj) && IS_TATTOO(obj) && obj->item_type != ITEM_PILL)
 	    for (spell = obj->spells; spell != NULL; spell = spell->next)
@@ -2481,9 +2516,81 @@ void equip_char(CHAR_DATA *ch, OBJ_DATA *obj, int iWear)
 	    }
 #endif
     }
-
 }
 
+void unequip_spells(CHAR_DATA *ch, OBJ_DATA *obj, LLIST *spells, int wear_loc, bool show)
+{
+	AFFECT_DATA *af;
+	ITERATOR it;
+	SPELL_DATA *spell;
+
+	iterator_start(&it, spells);
+	while((spell = (SPELL_DATA *)iterator_nextdata(&it)))
+	{
+		//int spell_level = spell->level;
+
+		// Find the first affect that matches this spell and is derived from the object
+		for (af = ch->affected; af != NULL; af = af->next)
+		{
+			if (af->skill == spell->skill && af->slot == wear_loc)
+				break;
+		}
+
+		if( !af ) {
+			// This spell was not applied by this object
+			continue;
+		}
+
+		bool found = false;
+		int found_loc = WEAR_NONE;
+		int level = 0;
+
+		// If there's another obj with the same spell put that one on
+		for (OBJ_DATA *obj_tmp = ch->carrying; obj_tmp; obj_tmp = obj_tmp->next_content)
+		{
+			if( obj_tmp->wear_loc != WEAR_NONE && obj != obj_tmp )
+			{
+				ITERATOR sit;
+				SPELL_DATA *spell_tmp;
+
+				if (IS_JEWELRY(obj_tmp))
+				{
+					iterator_start(&sit, JEWELRY(obj_tmp)->spells);
+					while((spell_tmp = (SPELL_DATA *)iterator_nextdata(&sit)))
+					{
+						if (spell_tmp->skill == spell->skill && spell_tmp->level > level)
+						{
+							level = spell_tmp->level;	// Keep the maximum
+							found_loc = obj_tmp->wear_loc;
+							found = true;
+						}
+					}
+					iterator_stop(&sit);
+				}
+			}
+		}
+
+		if(found)
+		{
+			af->level = level;
+			af->slot = found_loc;
+		}
+		else
+		{
+			// No other worn object had this spell available
+
+			if( show ) {
+				if (spell->skill->msg_off) {
+					send_to_char(spell->skill->msg_off, ch);
+					send_to_char("\n\r", ch);
+				}
+			}
+
+			affect_strip(ch, spell->skill);
+		}
+	}
+	iterator_stop(&it);
+}
 
 /*
  * Unequip a char with an obj.
@@ -2525,6 +2632,10 @@ int unequip_char(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
 		if (was_lit && !light_char_has_light(ch) && ch->in_room != NULL && ch->in_room->light > 0)
 			--ch->in_room->light;
 
+		if (IS_JEWELRY(obj))
+		{
+			unequip_spells(ch, obj, JEWELRY(obj)->spells, loc, show);
+		}
 #if 0
 	    // Remove spells
 	    if (obj->item_type != ITEM_WAND

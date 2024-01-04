@@ -596,6 +596,7 @@ void free_obj(OBJ_DATA *obj)
     free_furniture_data(FURNITURE(obj));
     free_ink_data(INK(obj));
     free_instrument_data(INSTRUMENT(obj));
+    free_jewelry_data(JEWELRY(obj));
     free_light_data(LIGHT(obj));
     free_money_data(MONEY(obj));
     free_book_page(PAGE(obj));
@@ -5861,6 +5862,61 @@ void free_instrument_data(INSTRUMENT_DATA *data)
     instrument_data_free = data;
 }
 
+// ==========[ JEWELRY ]===========
+JEWELRY_DATA *jewelry_data_free;
+
+JEWELRY_DATA *new_jewelry_data()
+{
+    JEWELRY_DATA *data;
+    if(jewelry_data_free)
+    {
+        data = jewelry_data_free;
+        jewelry_data_free = jewelry_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(JEWELRY_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    data->spells = list_createx(false, copy_spell, delete_spell);
+
+    VALIDATE(data);
+    return data;
+}
+
+JEWELRY_DATA *copy_jewelry_data(JEWELRY_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    JEWELRY_DATA *data;
+
+    if(jewelry_data_free)
+    {
+        data = jewelry_data_free;
+        jewelry_data_free = jewelry_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(JEWELRY_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    data->max_mana = src->max_mana;
+    data->spells = list_copy(src->spells);
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_jewelry_data(JEWELRY_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    list_destroy(data->spells);
+
+    INVALIDATE(data);
+    data->next = jewelry_data_free;
+    jewelry_data_free = data;
+}
 
 // ===========[ LIGHT ]============
 LIGHT_DATA *light_data_free;

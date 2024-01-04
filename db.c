@@ -3962,6 +3962,7 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
 		FURNITURE(obj) = copy_furniture_data(FURNITURE(pObjIndex));
 		INK(obj) = copy_ink_data(INK(pObjIndex));
 		INSTRUMENT(obj) = copy_instrument_data(INSTRUMENT(pObjIndex));
+		JEWELRY(obj) = copy_jewelry_data(JEWELRY(pObjIndex));
 		LIGHT(obj) = copy_light_data(LIGHT(pObjIndex));
 		MONEY(obj) = copy_money_data(MONEY(pObjIndex));
 		PAGE(obj) = copy_book_page(PAGE(pObjIndex));
@@ -7753,6 +7754,7 @@ FOOD_DATA *fread_obj_food_data(FILE *fp);
 FURNITURE_DATA *fread_obj_furniture_data(FILE *fp);
 INK_DATA *fread_obj_ink_data(FILE *fp);
 INSTRUMENT_DATA *fread_obj_instrument_data(FILE *fp);
+JEWELRY_DATA *fread_obj_jewelry_data(FILE *fp);
 LIGHT_DATA *fread_obj_light_data(FILE *fp);
 MONEY_DATA *fread_obj_money_data(FILE *fp);
 BOOK_PAGE *fread_book_page(FILE *fp, char *closer);
@@ -7882,6 +7884,14 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_INSTRUMENT(obj)) free_instrument_data(INSTRUMENT(obj));
 
 					INSTRUMENT(obj) = fread_obj_instrument_data(fp);
+					fMatch = TRUE;
+					break;
+				}
+				if (!str_cmp(word, "#TYPEJEWELRY"))
+				{
+					if (IS_JEWELRY(obj)) free_jewelry_data(JEWELRY(obj));
+
+					JEWELRY(obj) = fread_obj_jewelry_data(fp);
 					fMatch = TRUE;
 					break;
 				}

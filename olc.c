@@ -236,6 +236,9 @@ const struct olc_cmd_type oedit_table[] =
 	{ "food",			oedit_type_food			},
 	{ "fragility",		oedit_fragility			},
 	{ "furniture",		oedit_type_furniture	},
+	{ "ink",			oedit_type_ink			},
+	{ "instrument",		oedit_type_instrument	},
+	{ "jewelry",		oedit_type_jewelry		},
 	{ "level",			oedit_level				},
 	{ "light",			oedit_type_light		},
 	{ "lock",			oedit_lock				},
@@ -4005,6 +4008,7 @@ void obj_index_set_primarytype(OBJ_INDEX_DATA *pObjIndex, int item_type)
 		case ITEM_FURNITURE:	FURNITURE(pObjIndex) = new_furniture_data(); break;
 		case ITEM_INK:			INK(pObjIndex) = new_ink_data(); break;
 		case ITEM_INSTRUMENT:	INSTRUMENT(pObjIndex) = new_instrument_data(); break;
+		case ITEM_JEWELRY:		JEWELRY(pObjIndex) = new_jewelry_data(); break;
 		case ITEM_LIGHT:		LIGHT(pObjIndex) = new_light_data(); break;
 		case ITEM_MONEY:		MONEY(pObjIndex) = new_money_data(); break;
 		case ITEM_PAGE:			PAGE(pObjIndex) = new_book_page(); break;

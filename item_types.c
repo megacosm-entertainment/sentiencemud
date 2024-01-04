@@ -255,9 +255,10 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 			return FALSE;
 
 		case ITEM_JEWELRY:
-			if (item_type == ITEM_ARMOUR) return TRUE;
 			if (item_type == ITEM_CONTAINER) return TRUE;
+			if (item_type == ITEM_FLUID_CONTAINER) return TRUE;
 			if (item_type == ITEM_LIGHT) return TRUE;
+			if (item_type == ITEM_WAND) return TRUE;
 			return FALSE;
 		
 		case ITEM_CART:
@@ -277,11 +278,12 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 
 		case ITEM_ARMOUR:
 			if (item_type == ITEM_CONTAINER) return TRUE;
-			if (item_type == ITEM_JEWELRY) return TRUE;
+			if (item_type == ITEM_FLUID_CONTAINER) return TRUE;
 			if (item_type == ITEM_LIGHT) return TRUE;
 			return FALSE;
 
 		case ITEM_FLUID_CONTAINER:
+			if (item_type == ITEM_ARMOUR) return TRUE;
 			if (item_type == ITEM_LIGHT) return TRUE;
 			if (item_type == ITEM_CONTAINER) return TRUE;
 			if (item_type == ITEM_FURNITURE) return TRUE;
@@ -291,6 +293,7 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 			return FALSE;
 
 		case ITEM_LIGHT:
+			if (item_type == ITEM_ARMOUR) return TRUE;
 			if (item_type == ITEM_CONTAINER) return TRUE;
 			if (item_type == ITEM_FLUID_CONTAINER) return TRUE;
 			if (item_type == ITEM_FURNITURE) return TRUE;
@@ -308,6 +311,7 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 			return FALSE;
 
 		case ITEM_WAND:
+			if (item_type == ITEM_JEWELRY) return true;
 			if (item_type == ITEM_LIGHT) return TRUE;
 			if (item_type == ITEM_WEAPON) return TRUE;
 			return FALSE;

@@ -386,6 +386,31 @@ TOUCH_FUNC(touch_haste)
 	return TRUE;
 }
 
+EQUIP_FUNC(equip_haste)
+{
+	AFFECT_DATA af;
+
+	memset(&af,0,sizeof(af));
+
+	if (is_affected(ch, skill))
+		affect_strip(ch, skill);
+
+	af.slot = obj->wear_loc;
+	af.where = TO_AFFECTS;
+	af.group = AFFGROUP_MAGICAL;
+	af.skill = skill;
+	af.level = level;
+	af.duration  = -1;
+	af.location  = APPLY_DEX;
+	af.modifier  = 1 + (level >= 18) + (level >= 25) + (level >= 32);
+	af.bitvector = AFF_HASTE;
+	af.bitvector2 = 0;
+	affect_to_char(ch, &af);
+	send_to_char("You feel yourself moving more quickly.\n\r", ch);
+	act("$n is moving more quickly.",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+	return TRUE;
+}
+
 
 SPELL_FUNC(spell_heal)
 {
@@ -555,6 +580,32 @@ SPELL_FUNC(spell_invis)
 	af.slot = obj_wear_loc;
 	affect_to_char(victim, &af);
 	send_to_char("You fade out of existence.\n\r", victim);
+	return TRUE;
+}
+
+EQUIP_FUNC(equip_invis)
+{
+	AFFECT_DATA af;
+
+	memset(&af,0,sizeof(af));
+
+	if (is_affected(ch, skill))
+		affect_strip(ch, skill);
+
+	act("$n fades out of existence.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+
+	af.slot = obj->wear_loc;
+	af.where = TO_AFFECTS;
+	af.group = AFFGROUP_MAGICAL;
+	af.skill = skill;
+	af.level = level;
+	af.duration = -1;
+	af.location = APPLY_NONE;
+	af.modifier = 0;
+	af.bitvector = AFF_INVISIBLE;
+	af.bitvector2 = 0;
+	affect_to_char(ch, &af);
+	send_to_char("You fade out of existence.\n\r", ch);
 	return TRUE;
 }
 

@@ -3679,6 +3679,9 @@ const struct brandish_func_type brandish_func_table[] =
 
 const struct equip_func_type equip_func_table[] =
 {
+    { "armour",             equip_armour },
+    { "haste",              equip_haste },
+    { "invis",              equip_invis },
     { "silence",            equip_silence },
     { NULL,                 NULL }
 };

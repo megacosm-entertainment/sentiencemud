@@ -429,6 +429,30 @@ void save_skills(void)
 	}
 }
 
+void skill_autoset_functions(SKILL_DATA *skill, char *name)
+{
+	if (skill->token_load.auid > 0 && skill->token_load.vnum > 0) return;	// Ignore token skills
+	if (!skill->isspell) return;	// Ignore non-spells
+
+	if (!skill->brandish_fun)	skill->brandish_fun = brandish_func_lookup(name);
+	if (!skill->brew_fun)		skill->brew_fun = brew_func_lookup(name);
+	if (!skill->equip_fun)		skill->equip_fun = equip_func_lookup(name);
+	if (!skill->imbue_fun)		skill->imbue_fun = imbue_func_lookup(name);
+	if (!skill->ink_fun)		skill->ink_fun = ink_func_lookup(name);
+	if (!skill->interrupt_fun)	skill->interrupt_fun = interrupt_func_lookup(name);
+	if (!skill->prebrew_fun)	skill->prebrew_fun = prebrew_func_lookup(name);
+	if (!skill->preimbue_fun)	skill->preimbue_fun = preimbue_func_lookup(name);
+	if (!skill->preink_fun)		skill->preink_fun = preink_func_lookup(name);
+	if (!skill->prescribe_fun)	skill->prescribe_fun = prescribe_func_lookup(name);
+	if (!skill->prespell_fun)	skill->prespell_fun = prespell_func_lookup(name);
+	if (!skill->pulse_fun)		skill->pulse_fun = pulse_func_lookup(name);
+	if (!skill->quaff_fun)		skill->quaff_fun = quaff_func_lookup(name);
+	if (!skill->recite_fun)		skill->recite_fun = recite_func_lookup(name);
+	if (!skill->scribe_fun)		skill->scribe_fun = scribe_func_lookup(name);
+	if (!skill->touch_fun)		skill->touch_fun = touch_func_lookup(name);
+	if (!skill->zap_fun)		skill->zap_fun = zap_func_lookup(name);
+}
+
 SKILL_DATA *load_skill(FILE *fp, bool isspell)
 {
 	SKILL_DATA *skill = new_skill_data();
@@ -436,6 +460,7 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 	char buf[MSL];
 	char *word;
 	bool fMatch;
+	char *spell_func_name = NULL;
 
 	skill->name = fread_string(fp);
 	skill->uid = fread_number(fp);
@@ -753,12 +778,12 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 				}
 				if (!str_cmp(word, "SpellFunc"))
 				{
-					char *name = fread_string(fp);
+					spell_func_name = fread_string(fp);
 
-					skill->spell_fun = spell_func_lookup(name);
+					skill->spell_fun = spell_func_lookup(spell_func_name);
 					if (!skill->spell_fun)
 					{
-						log_stringf("load_skill: Invalid SpellFunc '%s' for skill '%s'", name, skill->name);
+						log_stringf("load_skill: Invalid SpellFunc '%s' for skill '%s'", spell_func_name, skill->name);
 					}
 					fMatch = true;
 					break;
@@ -845,6 +870,11 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 
 	if (skill->pgsn)
 		*skill->pgsn = skill->uid;
+
+	if (spell_func_name)
+	{
+		skill_autoset_functions(skill, spell_func_name);
+	}
 
 	return skill;
 }
@@ -5064,7 +5094,7 @@ SKEDIT( skedit_show )
 
 			add_buf(buffer, "\n\r {w- {xActions:\n\r");
 			olc_buffer_show_string(ch, buffer, brandish_func_display(skill->brandish_fun),  "brandish",		"   {W+ {xBrandish:", 20, "XDW");
-			olc_buffer_show_string(ch, buffer, NULL,										"equip",		"   {W+ {xEquip:", 20, "XDW");
+			olc_buffer_show_string(ch, buffer, equip_func_display(skill->equip_fun),		"equip",		"   {W+ {xEquip:", 20, "XDW");
 			olc_buffer_show_string(ch, buffer, interrupt_func_display(skill->interrupt_fun),"interrupt",	"   {W+ {xInterrupt:", 20, "XDW");
 			olc_buffer_show_string(ch, buffer, prespell_func_display(skill->prespell_fun),	"prespell",		"   {W+ {xPrespell:", 20, "XDW");
 			olc_buffer_show_string(ch, buffer, pulse_func_display(skill->pulse_fun),		"pulse",		"   {W+ {xPulse:", 20, "XDW");

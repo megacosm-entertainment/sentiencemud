@@ -1073,6 +1073,24 @@ void save_object_multityping(FILE *fp, OBJ_INDEX_DATA *obj)
 		fprintf(fp, "#-TYPEINSTRUMENT\n");
 	}
 
+	if (IS_JEWELRY(obj))
+	{
+		fprintf(fp, "#TYPEJEWELRY\n");
+
+		fprintf(fp, "MaxMana %d\n", JEWELRY(obj)->max_mana);
+
+		ITERATOR sit;
+		SPELL_DATA *spell;
+		iterator_start(&sit, JEWELRY(obj)->spells);
+		while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
+		{
+			fprintf(fp, "Spell %s~ %d\n", spell->skill->name, spell->level);
+		}
+		iterator_stop(&sit);
+
+		fprintf(fp, "#-TYPEJEWELRY\n");
+	}
+
 	if (IS_LIGHT(obj))
 	{
 		fprintf(fp, "#TYPELIGHT\n");
@@ -3622,6 +3640,59 @@ INSTRUMENT_DATA *read_object_instrument_data(FILE *fp)
 	return data;
 }
 
+JEWELRY_DATA *read_object_jewelry_data(FILE *fp)
+{
+	JEWELRY_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_jewelry_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPEJEWELRY"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case 'M':
+				KEY("MaxMana", data->max_mana, fread_number(fp));
+				break;
+
+			case 'S':
+				if (!str_cmp(word, "Spell"))
+				{
+					char *name = fread_string(fp);
+					int level = fread_number(fp);
+
+					SKILL_DATA *skill = get_skill_data(name);
+					if (is_skill_spell(skill))
+					{
+						SPELL_DATA *spell = new_spell();
+						spell->skill = skill;
+						spell->level = level;
+						spell->repop = 100;
+						spell->next = NULL;
+
+						list_appendlink(data->spells, spell);
+					}
+
+					fMatch = true;
+					break;
+				}
+
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_object_jewelry_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
 
 LIGHT_DATA *read_object_light_data(FILE *fp)
 {
@@ -4135,6 +4206,10 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 			} else if (!str_cmp(word, "#TYPEINSTRUMENT")) {
 				if (IS_INSTRUMENT(obj)) free_instrument_data(INSTRUMENT(obj));
 				INSTRUMENT(obj) = read_object_instrument_data(fp);
+				fMatch = TRUE;
+			} else if (!str_cmp(word, "#TYPEJEWELRY")) {
+				if (IS_JEWELRY(obj)) free_jewelry_data(JEWELRY(obj));
+				JEWELRY(obj) = read_object_jewelry_data(fp);
 				fMatch = TRUE;
 			} else if (!str_cmp(word, "#TYPELIGHT")) {
 				if (IS_LIGHT(obj)) free_light_data(LIGHT(obj));

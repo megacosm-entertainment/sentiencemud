@@ -2646,8 +2646,8 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 		else
 			strcpy(cooldown, "off.");
 
-		sprintf(buf, "{CWand: {BCharges: {x%s {BRecharging: {x%s {BCooldown: {x%s{x\n\r",
-			charges, recharging, cooldown);
+		sprintf(buf, "{CWand: {BMaximum Mana: {x%d {BCharges: {x%s {BRecharging: {x%s {BCooldown: {x%s{x\n\r",
+			WAND(obj)->max_mana, charges, recharging, cooldown);
 		add_buf(buffer, buf);
 
 		ITERATOR sit;
