@@ -402,6 +402,7 @@ int compile_entity_listbasetype(int ent)
 
 	case ENT_ARRAY_EXITS:		ent = ENT_EXIT;	break;
 	case ENT_CATALYST_USAGE:	ent = ENT_NUMBER; break;
+	case ENT_WEAPON_ATTACKS:	ent = ENT_WEAPON_ATTACK; break;
 
 	default:	ent = ENT_UNKNOWN; break;
 	}
@@ -462,6 +463,20 @@ char *compile_entity(char *str,int type, char **store, int *entity_type)
 			}
 
 			sprintf(buf,"Line %d: Expecting '[' after ENT_INSTRUMENT_RESERVOIRS in $().", compile_current_line);
+			compile_error_show(buf);
+			return NULL;
+
+		} else if (ent == ENT_WEAPON_ATTACKS) {
+			if (*str == '[')
+			{
+				str = compile_expression(str+1,type, &p);
+				if( !str ) return NULL;
+
+				ent = ENT_WEAPON_ATTACK;
+				continue;
+			}
+
+			sprintf(buf,"Line %d: Expecting '[' after ENT_WEAPON_ATTACKS in $().", compile_current_line);
 			compile_error_show(buf);
 			return NULL;
 
@@ -559,6 +574,7 @@ char *compile_entity(char *str,int type, char **store, int *entity_type)
 
 			*p++ = ESCAPE_EXTRA + catalyst - CATALYST_NONE;
 			next_ent = ENT_NUMBER;
+
 		} else if(ent == ENT_RESERVED_MOBILE) {
 			if(suffix[0]) {
 				sprintf(buf,"Line %d: type suffix is only allowed for variable fields.", compile_current_line);

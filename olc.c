@@ -244,6 +244,7 @@ const struct olc_cmd_type oedit_table[] =
 	{ "lock",			oedit_lock				},
 	{ "long",			oedit_long				},
 	{ "material",		oedit_material			},
+	{ "mist",			oedit_type_mist			},
 	{ "money",			oedit_type_money		},
 	{ "name",			oedit_name				},
 	{ "next",			oedit_next				},
@@ -3983,7 +3984,9 @@ void obj_index_reset_multitype(OBJ_INDEX_DATA *pObjIndex)
 	free_food_data(FOOD(pObjIndex));					FOOD(pObjIndex) = NULL;
 	free_ink_data(INK(pObjIndex));						INK(pObjIndex) = NULL;
 	free_instrument_data(INSTRUMENT(pObjIndex));		INSTRUMENT(pObjIndex) = NULL;
+	free_jewelry_data(JEWELRY(pObjIndex));				JEWELRY(pObjIndex) = NULL;
 	free_light_data(LIGHT(pObjIndex));					LIGHT(pObjIndex) = NULL;
+	free_mist_data(MIST(pObjIndex));					MIST(pObjIndex) = NULL;
 	free_money_data(MONEY(pObjIndex));					MONEY(pObjIndex) = NULL;
 	free_book_page(PAGE(pObjIndex));					PAGE(pObjIndex) = NULL;
 	free_portal_data(PORTAL(pObjIndex));				PORTAL(pObjIndex) = NULL;
@@ -4010,6 +4013,7 @@ void obj_index_set_primarytype(OBJ_INDEX_DATA *pObjIndex, int item_type)
 		case ITEM_INSTRUMENT:	INSTRUMENT(pObjIndex) = new_instrument_data(); break;
 		case ITEM_JEWELRY:		JEWELRY(pObjIndex) = new_jewelry_data(); break;
 		case ITEM_LIGHT:		LIGHT(pObjIndex) = new_light_data(); break;
+		case ITEM_MIST:			MIST(pObjIndex) = new_mist_data(); break;
 		case ITEM_MONEY:		MONEY(pObjIndex) = new_money_data(); break;
 		case ITEM_PAGE:			PAGE(pObjIndex) = new_book_page(); break;
 		case ITEM_PORTAL:		PORTAL(pObjIndex) = new_portal_data(); break;

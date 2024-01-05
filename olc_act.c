@@ -5296,6 +5296,36 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		add_buf(buffer, buf);
 	}
 
+	if (IS_MIST(obj))
+	{
+		MIST_DATA *mist = MIST(obj);
+		add_buf(buffer, "\n\r{GMist:{x\n\r");
+
+	    sprintf(buf, "{B[{WObscure Mobiles  {B]:  {x%d{B%%{x\n\r", mist->obscure_mobs);
+	    add_buf(buffer, buf);
+	    sprintf(buf, "{B[{WObscure Objects  {B]:  {x%d{B%%{x\n\r", mist->obscure_objs);
+	    add_buf(buffer, buf);
+	    sprintf(buf, "{B[{WObscure Room     {B]:  {x%d{B%%{x\n\r", mist->obscure_room);
+	    add_buf(buffer, buf);
+
+	    sprintf(buf, "{B[{CIcy              {B]:  {x%d{B%%{x\n\r", mist->icy);
+	    add_buf(buffer, buf);
+	    sprintf(buf, "{B[{RFiery            {B]:  {x%d{B%%{x\n\r", mist->fiery);
+	    add_buf(buffer, buf);
+	    sprintf(buf, "{B[{GAcidic           {B]:  {x%d{B%%{x\n\r", mist->acidic);
+	    add_buf(buffer, buf);
+	    sprintf(buf, "{B[{YStink            {B]:  {x%d{B%%{x\n\r", mist->stink);
+	    add_buf(buffer, buf);
+	    sprintf(buf, "{B[{DWither           {B]:  {x%d{B%%{x\n\r", mist->wither);
+	    add_buf(buffer, buf);
+	    sprintf(buf, "{B[{GToxic Fumes      {B]:  {x%d{B%%{x\n\r", mist->toxic);
+	    add_buf(buffer, buf);
+	    sprintf(buf, "{B[{YShocking         {B]:  {x%d{B%%{x\n\r", mist->shock);
+	    add_buf(buffer, buf);
+	    sprintf(buf, "{B[{WFog              {B]:  {x%d{B%%{x\n\r", mist->fog);
+	    add_buf(buffer, buf);
+	}
+
 	if (IS_MONEY(obj))
 	{
 		add_buf(buffer, "\n\r{GMoney:{x\n\r");
@@ -5805,12 +5835,14 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	    break;
 	*/
 
+	/*
 	case ITEM_MIST:
 	    sprintf(buf, "{B[  {Wv0{B]{G %%HideObjects:{x    [%ld]\n\r", obj->value[0]);
 	    add_buf(buffer, buf);
 	    sprintf(buf, "{B[  {Wv1{B]{G %%HideCharacters:{x [%ld]\n\r", obj->value[1]);
 	    add_buf(buffer, buf);
 	    break;
+	*/
 
 	case ITEM_CORPSE_NPC:
 	    sprintf(buf,
@@ -7284,6 +7316,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		break;
 		*/
 
+	/*
 	case ITEM_MIST:
 		switch (value_num)
 		{
@@ -7300,6 +7333,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			break;
 		}
 		break;
+	*/
 
 	case ITEM_CORPSE_NPC:
 		switch (value_num)
@@ -9777,10 +9811,10 @@ OEDIT(oedit_type)
 			if ((value == ITEM_BANK ||
 				 value == ITEM_SHARECERT ||
 				 value == ITEM_ROOM_DARKNESS ||
-				 value == ITEM_ROOM_FLAME ||
+				 //value == ITEM_ROOM_FLAME ||
 				 value == ITEM_SMOKE_BOMB ||
 				 value == ITEM_MONEY ||
-				 value == ITEM_WITHERING_CLOUD ||
+				 //value == ITEM_WITHERING_CLOUD ||
 				 value == ITEM_ROOM_ROOMSHIELD ||
 				 value == ITEM_CATALYST ||
 				 value == ITEM_SHRINE) &&
@@ -13038,7 +13072,7 @@ OEDIT(oedit_type_light)
 			}
 
 			LIGHT(pObj)->duration = duration;
-			send_to_char("LIGHT duraiton changed.\n\r", ch);
+			send_to_char("LIGHT duration changed.\n\r", ch);
 			return TRUE;
 		}
 
@@ -13089,6 +13123,134 @@ OEDIT(oedit_type_light)
 	oedit_type_light(ch, "");
 	return FALSE;
 }
+
+#define PARSE_PERCENT(v,s,f,msg)	\
+	if (!str_prefix((v),(s))) \
+	{ \
+		int percent; \
+\
+		if (!is_number(argument) || (percent = atoi(argument)) < 0 || percent > 100) \
+		{ \
+			send_to_char("Please provide a percentage.\n\r", ch); \
+			return false; \
+		} \
+\
+		(f) = percent; \
+		send_to_char( (msg), ch); \
+		return true; \
+	}
+
+OEDIT(oedit_type_mist)
+{
+	OBJ_INDEX_DATA *pObj;
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_MIST(pObj))
+		{
+			send_to_char("Syntax:  mist obscure <mobiles|objects|room> <0-100>\n\r", ch);
+			send_to_char("         mist duration <duration|infinite>\n\r", ch);
+			
+			if (pObj->item_type != ITEM_MIST)
+				send_to_char("         mist remove\n\r", ch);
+		}
+		else
+			send_to_char("Syntax:  mist add\n\r", ch);
+		return FALSE;
+	}
+
+	if (IS_MIST(pObj))
+	{
+		char arg[MIL];
+
+		argument = one_argument(argument, arg);
+
+		if (!str_prefix(arg, "obscure"))
+		{
+			if (argument[0] == '\0')
+			{
+				send_to_char("Syntax:  mist obscure mobiles <0-100>\n\r", ch);
+				send_to_char("         mist obscure objects <0-100>\n\r", ch);
+				send_to_char("         mist obscure room <0-100>\n\r", ch);
+				return false;
+			}
+
+			int obscure;
+
+			argument = one_argument(argument, arg);
+			if (!is_number(argument) || (obscure = atoi(argument)) < 0 || obscure > 100)
+			{
+				send_to_char("Please provide a percentage (0 to 100).\n\r", ch);
+				return false;
+			}
+
+			if (!str_prefix(arg, "mobiles"))
+			{
+				MIST(pObj)->obscure_mobs = obscure;
+				send_to_char("MIST Obscure Mobiles changed.\n\r", ch);
+				return true;
+			}
+
+			if (!str_prefix(arg, "objects"))
+			{
+				MIST(pObj)->obscure_objs = obscure;
+				send_to_char("MIST Obscure Objects changed.\n\r", ch);
+				return true;
+			}
+
+			if (!str_prefix(arg, "room"))
+			{
+				MIST(pObj)->obscure_room = obscure;
+				send_to_char("MIST Obscure Room changed.\n\r", ch);
+				return true;
+			}
+
+			oedit_type_mist(ch, "obscure");
+			return false;
+		}
+
+		PARSE_PERCENT(arg,"icy",MIST(pObj)->icy,"MIST Icy Chance Changed.\n\r")
+		PARSE_PERCENT(arg,"fiery",MIST(pObj)->fiery,"MIST Fiery Chance Changed.\n\r")
+		PARSE_PERCENT(arg,"acidic",MIST(pObj)->acidic,"MIST Acidic Chance Changed.\n\r")
+		PARSE_PERCENT(arg,"stink",MIST(pObj)->stink,"MIST Stinking Chance Changed.\n\r")
+		PARSE_PERCENT(arg,"wither",MIST(pObj)->wither,"MIST Withering Chance Changed.\n\r")
+		PARSE_PERCENT(arg,"toxic",MIST(pObj)->toxic,"MIST Toxic Chance Changed.\n\r")
+		PARSE_PERCENT(arg,"shock",MIST(pObj)->shock,"MIST Shock Chance Changed.\n\r")
+		PARSE_PERCENT(arg,"fog",MIST(pObj)->fog,"MIST Fog Chance Changed.\n\r")
+
+		if (pObj->item_type != ITEM_MIST)
+		{
+			if (!str_prefix(argument, "remove"))
+			{
+				free_mist_data(MIST(pObj));
+				MIST(pObj) = NULL;
+
+				send_to_char("MIST settings removed.\n\r", ch);
+				return TRUE;
+			}
+		}
+	}
+	else
+	{
+		if (!str_prefix(argument, "add"))
+		{
+			if (!obj_index_can_add_item_type(pObj, ITEM_MIST))
+			{
+				send_to_char("You cannot add this item type to this object.\n\r", ch);
+				return FALSE;
+			}
+			
+			MIST(pObj) = new_mist_data();
+			send_to_char("MIST type added.\n\r\n\r", ch);
+			return TRUE;
+		}
+	}
+
+	oedit_type_mist(ch, "");
+	return FALSE;
+}
+
 
 OEDIT(oedit_type_money)
 {

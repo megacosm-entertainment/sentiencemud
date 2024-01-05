@@ -1099,6 +1099,25 @@ void save_object_multityping(FILE *fp, OBJ_INDEX_DATA *obj)
 		fprintf(fp, "#-TYPELIGHT\n");
 	}
 
+	if (IS_MIST(obj))
+	{
+		fprintf(fp, "#TYPEMIST\n");
+		fprintf(fp, "ObscureMobs %d\n", MIST(obj)->obscure_mobs);
+		fprintf(fp, "ObscureObjs %d\n", MIST(obj)->obscure_objs);
+		fprintf(fp, "ObscureRoom %d\n", MIST(obj)->obscure_room);
+
+		fprintf(fp, "Icy %d\n", MIST(obj)->icy);
+		fprintf(fp, "Fiery %d\n", MIST(obj)->fiery);
+		fprintf(fp, "Acidic %d\n", MIST(obj)->acidic);
+		fprintf(fp, "Stink %d\n", MIST(obj)->stink);
+		fprintf(fp, "Wither %d\n", MIST(obj)->wither);
+		fprintf(fp, "Toxic %d\n", MIST(obj)->toxic);
+		fprintf(fp, "Shock %d\n", MIST(obj)->shock);
+		fprintf(fp, "Fog %d\n", MIST(obj)->fog);
+
+		fprintf(fp, "#-TYPEMIST\n");
+	}
+
 	if (IS_MONEY(obj))
 	{
 		fprintf(fp, "#TYPEMONEY\n");
@@ -3726,6 +3745,63 @@ LIGHT_DATA *read_object_light_data(FILE *fp)
 	return data;
 }
 
+MIST_DATA *read_object_mist_data(FILE *fp)
+{
+	MIST_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_mist_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPEMIST"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case 'A':
+				KEY("Acidic", data->acidic, fread_number(fp));
+				break;
+
+			case 'F':
+				KEY("Fiery", data->fiery, fread_number(fp));
+				KEY("Fog", data->fog, fread_number(fp));
+				break;
+
+			case 'I':
+				KEY("Icy", data->icy, fread_number(fp));
+				break;
+
+			case 'O':
+				KEY("ObscureMobs", data->obscure_mobs, fread_number(fp));
+				KEY("ObscureObjs", data->obscure_objs, fread_number(fp));
+				KEY("ObscureRoom", data->obscure_room, fread_number(fp));
+				break;
+
+			case 'S':
+				KEY("Shock", data->shock, fread_number(fp));
+				KEY("Stink", data->stink, fread_number(fp));
+				break;
+
+			case 'T':
+				KEY("Toxic", data->toxic, fread_number(fp));
+				break;
+
+			case 'W':
+				KEY("Wither", data->wither, fread_number(fp));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_object_mist_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
 MONEY_DATA *read_object_money_data(FILE *fp)
 {
 	MONEY_DATA *data = NULL;
@@ -4214,6 +4290,10 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 			} else if (!str_cmp(word, "#TYPELIGHT")) {
 				if (IS_LIGHT(obj)) free_light_data(LIGHT(obj));
 				LIGHT(obj) = read_object_light_data(fp);
+				fMatch = TRUE;
+			} else if (!str_cmp(word, "#TYPEMIST")) {
+				if (IS_MIST(obj)) free_mist_data(MIST(obj));
+				MIST(obj) = read_object_mist_data(fp);
 				fMatch = TRUE;
 			} else if (!str_cmp(word, "#TYPEMONEY")) {
 				if (IS_MONEY(obj)) free_money_data(MONEY(obj));
@@ -4810,6 +4890,34 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 	if (area->version_object < VERSION_OBJECT_014)
 	{
 		// NEVERMIND
+	}
+
+	if (area->version_object < VERSION_OBJECT_015)
+	{
+		if (obj->item_type == ITEM_ICE_STORM)
+		{
+			obj_index_reset_multitype(obj);
+			obj_index_set_primarytype(obj, ITEM_MIST);
+			MIST(obj)->icy = 3;
+		}
+		else if (obj->item_type == ITEM_ROOM_FLAME)
+		{
+			obj_index_reset_multitype(obj);
+			obj_index_set_primarytype(obj, ITEM_MIST);
+			MIST(obj)->fiery = 3;
+		}
+		else if (obj->item_type == ITEM_STINKING_CLOUD)
+		{
+			obj_index_reset_multitype(obj);
+			obj_index_set_primarytype(obj, ITEM_MIST);
+			MIST(obj)->stink = 4;
+		}
+		else if (obj->item_type == ITEM_WITHERING_CLOUD)
+		{
+			obj_index_reset_multitype(obj);
+			obj_index_set_primarytype(obj, ITEM_MIST);
+			MIST(obj)->wither = 4;
+		}
 	}
 
 	// Remove when all item multi-typing is complete

@@ -208,7 +208,7 @@ int get_room_heat(ROOM_INDEX_DATA *room, int catalyst)
 		if (room->sector_type == SECT_LAVA) heat += 60;
 
 		for (obj = room->contents; obj != NULL; obj = obj->next_content) {
-			if (obj->item_type == ITEM_ROOM_FLAME) heat += 15;
+			if (IS_MIST(obj) && MIST(obj)->fiery > 0 ) heat += 15;
 		}
 
 		heat = URANGE(0,heat,100);

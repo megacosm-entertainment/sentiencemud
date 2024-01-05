@@ -600,14 +600,17 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
     prgpstrShow = alloc_mem(count * sizeof(char *));
     prgnShow = alloc_mem(count * sizeof(int));
     nShow = 0;
-    max = -1;
+    max = 0;
     mist = NULL;
 
     /* Figure out if there is a mist-type item in the room, which blocks objects from view. */
     if (list != NULL && list->carried_by == NULL && list->in_room != NULL) {
 	for (mobj = list->in_room->contents; mobj != NULL; mobj = mobj->next_content) {
-	    if (mobj->item_type == ITEM_MIST && mobj->value[0] > max)
+	    if (IS_MIST(mobj) && MIST(mobj)->obscure_objs > max)
+		{
+			max = MIST(mobj)->obscure_objs;
 	    	mist = mobj;
+		}
 	}
     }
 
@@ -627,7 +630,7 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
 		continue;
 
 	/* Mist type blocks random objs from view. */
-	if (mist != NULL && number_percent() < mist->value[0] && obj->item_type != ITEM_MIST)
+	if (mist != NULL && mist != obj && IS_MIST(mist) && MIST(mist)->obscure_objs > number_percent())
 	    continue;
 
 	if (obj->wear_loc == WEAR_NONE && can_see_obj(ch, obj)) {
@@ -1182,12 +1185,19 @@ void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch, bool examine)
 void show_char_to_char(CHAR_DATA *list, CHAR_DATA *ch, CHAR_DATA *victim)
 {
     CHAR_DATA *rch;
-    OBJ_DATA *mist;
+    OBJ_DATA *mist = NULL;
+	OBJ_DATA *obj;
 
-    for (mist = ch->in_room->contents; mist != NULL; mist = mist->next_content)
+	int max = 0;
+
+
+    for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
     {
-	if (mist->item_type == ITEM_MIST)
-	    break;
+		if (IS_MIST(obj) && MIST(obj)->obscure_mobs > max)
+		{
+			mist = obj;
+			max = MIST(obj)->obscure_mobs;
+		}
     }
 
     for (rch = list; rch != NULL; rch = rch->next_in_room)
@@ -1203,8 +1213,8 @@ void show_char_to_char(CHAR_DATA *list, CHAR_DATA *ch, CHAR_DATA *victim)
 	    if (!can_see(rch, victim))
 		continue;
 
-	    if (mist && number_percent() < mist->value[1])
-		continue;
+	    if (mist && IS_MIST(mist) && MIST(mist)->obscure_mobs > number_percent())
+			continue;
 
  	    if (!IS_IMMORTAL(ch)
 	    && IS_NPC(victim)

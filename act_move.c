@@ -895,7 +895,7 @@ bool check_room_flames(CHAR_DATA *ch, bool show)
 
 	for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
 	{
-		if (obj->item_type == ITEM_ROOM_FLAME)
+		if (IS_MIST(obj) && MIST(obj)->fiery > number_percent())
 		{
 			if (!IS_DEAD(ch) &&
 				(IS_SET(ch->in_room->room_flag[0], ROOM_PK) ||

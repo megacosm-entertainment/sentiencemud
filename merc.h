@@ -335,7 +335,13 @@ struct sound_type {
 //    WEAPON
 //    AMMO
 
-
+#define VERSION_OBJECT_015  0x01000014
+//  Change #1: start of adding item multi-typing
+//    MIST
+//    ICE_STORM
+//    ROOM_FLAME_OBJECT
+//    STINKING_CLOUD
+//    WITHERING_CLOUD
 
 #define VERSION_ROOM_001	0x01000001
 //  Change #1: lock states
@@ -346,7 +352,7 @@ struct sound_type {
 #define VERSION_DB			VERSION_DB_001
 #define VERSION_AREA		VERSION_AREA_003
 #define VERSION_MOBILE		0x01000000
-#define VERSION_OBJECT		VERSION_OBJECT_014
+#define VERSION_OBJECT		VERSION_OBJECT_015
 #define VERSION_ROOM		VERSION_ROOM_002
 #define VERSION_PLAYER		VERSION_PLAYER_005
 #define VERSION_TOKEN		0x01000000
@@ -2676,11 +2682,11 @@ struct affliction_type {
 #define OBJ_VNUM_ROOMSHIELD        6532
 #define OBJ_VNUM_HARMONICA	   6533
 #define OBJ_VNUM_SMOKE_BOMB        6534
-#define OBJ_VNUM_STINKING_CLOUD    6535
+//#define OBJ_VNUM_STINKING_CLOUD    6535
 #define OBJ_VNUM_SPELL_TRAP 	   6536
-#define OBJ_VNUM_WITHERING_CLOUD   6537
-#define OBJ_VNUM_ICE_STORM	   6538
-#define OBJ_VNUM_EMPTY_TATTOO      6539
+//#define OBJ_VNUM_WITHERING_CLOUD   6537
+//#define OBJ_VNUM_ICE_STORM	   6538
+//#define OBJ_VNUM_EMPTY_TATTOO      6539
 
 #define OBJ_VNUM_DARK_WRAITH_EQ    100502
 #define OBJ_VNUM_ABYSS_PORTAL      2000001
@@ -5270,6 +5276,7 @@ struct obj_light_data {
 #define MIST(obj)           ((obj)->_mist)
 #define IS_MIST(obj)        IS_VALID(MIST(obj))
 
+/*
 // Maybe convert these to other attributes, like sh_int to act as a probability
 #define MIST_ICY            (A)     // Can cause freeze_effect on entry/random. Can cause grounded mobs to slip.
 #define MIST_FIERY          (B)     // Can cause fire_effect on entry/random.
@@ -5279,15 +5286,26 @@ struct obj_light_data {
 #define MIST_TOXIC          (F)     // Infects mobs with toxic fumes
 #define MIST_SHOCK          (G)     // Can cause shock_effect on entry/random.
 #define MIST_FOG            (H)     // Can rust metal items.
+*/
 
 struct obj_mist_data {
     MIST_DATA *next;
     bool valid;
 
-    long flags;
-    sh_int obscure_mobs;
-    sh_int obscure_objs;
-    sh_int obscure_room;
+    char obscure_mobs;
+    char obscure_objs;
+    char obscure_room;
+
+    char icy;
+    char fiery;
+    char acidic;
+    char stink;
+    char wither;
+    char toxic;
+    char shock;
+    char fog;
+
+    // TODO: What else?  Insanity?  Hallucination?
 };
 
 // ===========[ MONEY ]============
@@ -5562,6 +5580,7 @@ struct	obj_index_data
     INSTRUMENT_DATA *_instrument;
     JEWELRY_DATA *_jewelry;
     LIGHT_DATA *_light;
+    MIST_DATA *_mist;
     MONEY_DATA *_money;
     BOOK_PAGE *_page;
     PORTAL_DATA *_portal;
@@ -5669,6 +5688,7 @@ struct	obj_data
     INSTRUMENT_DATA *_instrument;
     JEWELRY_DATA *_jewelry;
     LIGHT_DATA *_light;
+    MIST_DATA *_mist;
     MONEY_DATA *_money;
     BOOK_PAGE *_page;
     PORTAL_DATA *_portal;
@@ -7584,6 +7604,7 @@ enum trigger_index_enum {
 	TRIG_TAKEOFF,
 	TRIG_THROW,
     TRIG_TICK,
+    TRIG_TIMER_EXPIRE,
     TRIG_TOGGLE_CUSTOM,
     TRIG_TOGGLE_LIST,
     TRIG_TOKEN_BRANDISH,

@@ -7846,6 +7846,45 @@ char *expand_entity_reserved_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *a
 	return str+1;
 }
 
+char *expand_entity_object_ammo(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	AMMO_DATA *ammo = IS_VALID(arg->d.obj) && IS_AMMO(arg->d.obj) ? AMMO(arg->d.obj) : NULL;
+
+	switch(*str) {
+	case ENTITY_OBJ_AMMO_TYPE:
+		arg->type = ENT_STAT;
+		arg->d.stat.value = IS_VALID(ammo) ? ammo->type : AMMO_NONE;
+		arg->d.stat.table = ammo_types;
+		arg->d.stat.def_value = NO_FLAG;
+		break;
+
+	case ENTITY_OBJ_AMMO_DAMAGE_TYPE:
+		arg->type = ENT_ATTACK;
+		arg->d.num = IS_VALID(ammo) ? ammo->damage_type : -1;
+		break;
+
+	case ENTITY_OBJ_AMMO_FLAGS:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(ammo) ? ammo->flags : 0;
+		arg->d.bv.table = weapon_type2;
+		break;
+
+	case ENTITY_OBJ_AMMO_DAMAGE:
+		arg->type = ENT_DICE;
+		arg->d.dice = IS_VALID(ammo) ? &(ammo->damage) : NULL;
+		break;
+
+	case ENTITY_OBJ_AMMO_MESSAGE_BREAK:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(ammo) ? ammo->msg_break : "";
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
 char *expand_entity_object_book(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	BOOK_DATA *book = IS_VALID(arg->d.obj) && IS_BOOK(arg->d.obj) ? BOOK(arg->d.obj) : NULL;
@@ -7864,7 +7903,7 @@ char *expand_entity_object_book(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg
 	case ENTITY_OBJ_BOOK_FLAGS:
 		arg->type = ENT_BITVECTOR;
 		arg->d.bv.value = IS_VALID(book) ? book->flags : 0;
-		arg->d.bv.table = IS_VALID(book) ? book_flags : NULL;
+		arg->d.bv.table = book_flags;
 		break;
 
 	case ENTITY_OBJ_BOOK_CURRENT:
@@ -8233,6 +8272,27 @@ char *expand_entity_instrument_reservoir(SCRIPT_VARINFO *info,char *str,SCRIPT_P
 	return str+1;
 }
 
+char *expand_entity_object_jewelry(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	JEWELRY_DATA *jewelry = IS_VALID(arg->d.obj) && IS_JEWELRY(arg->d.obj) ? JEWELRY(arg->d.obj) : NULL;
+
+	switch(*str) {
+	case ENTITY_OBJ_JEWELRY_MAXMANA:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(jewelry) ? jewelry->max_mana : 0;
+		break;
+
+	case ENTITY_OBJ_JEWELRY_SPELLS:
+		arg->type = ENT_ILLIST_SPELLS;
+		arg->d.blist = IS_VALID(jewelry) ? jewelry->spells : NULL;
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
 
 char *expand_entity_object_light(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
@@ -8255,6 +8315,74 @@ char *expand_entity_object_light(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *ar
 
 	return str+1;
 }
+
+
+char *expand_entity_object_mist(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	MIST_DATA *mist = IS_VALID(arg->d.obj) && IS_MIST(arg->d.obj) ? MIST(arg->d.obj) : NULL;
+
+	switch(*str) {
+	case ENTITY_OBJ_MIST_OBSCURE_MOBILES:
+		arg->type = ENT_NUMBER;
+		arg->d.num = mist ? mist->obscure_mobs : 0;
+		break;
+
+	case ENTITY_OBJ_MIST_OBSCURE_OBJECTS:
+		arg->type = ENT_NUMBER;
+		arg->d.num = mist ? mist->obscure_objs : 0;
+		break;
+
+	case ENTITY_OBJ_MIST_OBSCURE_ROOM:
+		arg->type = ENT_NUMBER;
+		arg->d.num = mist ? mist->obscure_room : 0;
+		break;
+
+	case ENTITY_OBJ_MIST_ICY:
+		arg->type = ENT_NUMBER;
+		arg->d.num = mist ? mist->icy : 0;
+		break;
+
+	case ENTITY_OBJ_MIST_FIERY:
+		arg->type = ENT_NUMBER;
+		arg->d.num = mist ? mist->fiery : 0;
+		break;
+
+	case ENTITY_OBJ_MIST_ACIDIC:
+		arg->type = ENT_NUMBER;
+		arg->d.num = mist ? mist->acidic : 0;
+		break;
+
+	case ENTITY_OBJ_MIST_STINK:
+		arg->type = ENT_NUMBER;
+		arg->d.num = mist ? mist->stink : 0;
+		break;
+
+	case ENTITY_OBJ_MIST_WITHER:
+		arg->type = ENT_NUMBER;
+		arg->d.num = mist ? mist->wither : 0;
+		break;
+
+	case ENTITY_OBJ_MIST_TOXIC:
+		arg->type = ENT_NUMBER;
+		arg->d.num = mist ? mist->toxic : 0;
+		break;
+
+	case ENTITY_OBJ_MIST_SHOCK:
+		arg->type = ENT_NUMBER;
+		arg->d.num = mist ? mist->shock : 0;
+		break;
+
+	case ENTITY_OBJ_MIST_FOG:
+		arg->type = ENT_NUMBER;
+		arg->d.num = mist ? mist->fog : 0;
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
 
 char *expand_entity_object_money(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
@@ -8436,12 +8564,177 @@ char *expand_entity_object_wand(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg
 		arg->d.num = IS_VALID(wand) ? wand->recharge_time : 0;
 		break;
 
+	case ENTITY_OBJ_WAND_MAXMANA:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(wand) ? wand->max_mana : 0;
+		break;
+
 	case ENTITY_OBJ_WAND_SPELLS:
 		arg->type = ENT_ILLIST_SPELLS;
 		arg->d.blist = IS_VALID(wand) ? wand->spells : NULL;
 		break;
 
 	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_object_weapon(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	WEAPON_DATA *weapon = IS_VALID(arg->d.obj) && IS_WEAPON(arg->d.obj) ? WEAPON(arg->d.obj) : NULL;
+
+	switch(*str) {
+	case ENTITY_OBJ_WEAPON_CLASS:
+		arg->type = ENT_STAT;
+		arg->d.stat.value = IS_VALID(weapon) ? weapon->weapon_class : WEAPON_UNKNOWN;
+		arg->d.stat.table = weapon_class;
+		arg->d.stat.def_value = NO_FLAG;
+		break;
+
+	case ENTITY_OBJ_WEAPON_ATTACKS:
+		arg->type = ENT_WEAPON_ATTACKS;
+		// Uses arg->d.obj;
+		break;
+
+	case ENTITY_OBJ_WEAPON_AMMO:
+		arg->type = ENT_STAT;
+		arg->d.stat.value = IS_VALID(weapon) ? weapon->ammo : AMMO_NONE;
+		arg->d.stat.table = ammo_types;
+		arg->d.stat.def_value = NO_FLAG;
+		break;
+
+	case ENTITY_OBJ_WEAPON_RANGE:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(weapon) ? weapon->range : 0;
+		break;
+
+	case ENTITY_OBJ_WEAPON_CHARGES:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(weapon) ? weapon->charges : 0;
+		break;
+
+	case ENTITY_OBJ_WEAPON_MAXCHARGES:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(weapon) ? weapon->max_charges : 0;
+		break;
+
+	case ENTITY_OBJ_WEAPON_COOLDOWN:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(weapon) ? weapon->cooldown : 0;
+		break;
+
+	case ENTITY_OBJ_WEAPON_RECHARGE:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(weapon) ? weapon->recharge_time : 0;
+		break;
+
+	case ENTITY_OBJ_WEAPON_MAXMANA:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(weapon) ? weapon->max_mana : 0;
+		break;
+
+	case ENTITY_OBJ_WEAPON_SPELLS:
+		arg->type = ENT_ILLIST_SPELLS;
+		arg->d.blist = IS_VALID(weapon) ? weapon->spells : NULL;
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_weapon_attacks(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	OBJ_DATA *obj = arg->d.obj;
+
+	switch(*str)
+	{
+		case ESCAPE_EXPRESSION:
+		{
+			int index;
+			str = expand_argument_expression(info,str+1,&index);
+			if (!str) return NULL;
+
+			if (index < 1 || index > MAX_ATTACK_POINTS) return NULL;
+
+			arg->type = ENT_WEAPON_ATTACK;
+			arg->d.obj_type.obj = obj;
+			arg->d.obj_type.type = index;
+			return str;
+		}
+
+		default:
+			return NULL;
+	}
+}
+
+char *expand_entity_weapon_attack(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	OBJ_DATA *obj = arg->d.obj_type.obj;
+	int type = arg->d.obj_type.type;
+
+	switch(*str)
+	{
+		case ENTITY_WEAPON_ATTACK_NAME:
+			arg->type = ENT_STRING;
+			arg->d.str = (IS_WEAPON(obj) && type >= 0 && type < MAX_ATTACK_POINTS) ? WEAPON(obj)->attacks[type].name : "";
+			break;
+
+		case ENTITY_WEAPON_ATTACK_SHORT:
+			arg->type = ENT_STRING;
+			arg->d.str = (IS_WEAPON(obj) && type >= 0 && type < MAX_ATTACK_POINTS) ? WEAPON(obj)->attacks[type].short_descr : "";
+			break;
+
+		case ENTITY_WEAPON_ATTACK_TYPE:
+			arg->type = ENT_ATTACK;
+			arg->d.num = (IS_WEAPON(obj) && type >= 0 && type < MAX_ATTACK_POINTS) ? WEAPON(obj)->attacks[type].type: -1;
+			break;
+
+		case ENTITY_WEAPON_ATTACK_FLAGS:
+			arg->type = ENT_BITVECTOR;
+			arg->d.bv.value = (IS_WEAPON(obj) && type >= 0 && type < MAX_ATTACK_POINTS) ? WEAPON(obj)->attacks[type].flags : 0;
+			arg->d.bv.table = weapon_type2;
+			break;
+
+		case ENTITY_WEAPON_ATTACK_DAMAGE:
+			arg->type = ENT_DICE;
+			arg->d.dice = (IS_WEAPON(obj) && type >= 0 && type < MAX_ATTACK_POINTS) ? &(WEAPON(obj)->attacks[type].damage) : NULL;
+			break;
+
+		default:
+			return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_attack_type(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	int dt = arg->d.num;
+
+	switch(*str)
+	{
+		case ENTITY_ATTACK_NAME:
+			arg->type = ENT_STRING;
+			arg->d.str = (dt > 0 && dt < MAX_DAMAGE_MESSAGE) ? attack_table[dt].name : "none";
+			break;
+
+		case ENTITY_ATTACK_NOUN:
+			arg->type = ENT_STRING;
+			arg->d.str = (dt > 0 && dt < MAX_DAMAGE_MESSAGE) ? attack_table[dt].noun : "none";
+			break;
+
+		case ENTITY_ATTACK_TYPE:
+			arg->type = ENT_STAT;
+			arg->d.stat.value = (dt > 0 && dt < MAX_DAMAGE_MESSAGE) ? attack_table[dt].damage : DAM_NONE;
+			arg->d.stat.table = damage_classes;
+			arg->d.stat.def_value = -1;
+			break;
+
+		default:
+			return NULL;
 	}
 
 	return str+1;
@@ -8567,7 +8860,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_SHIPINDEX:				next = expand_entity_shipindex(info,str,arg); break;
 
 		// Multi-typing
-		case ENT_OBJECT_PAGE:			next = expand_entity_object_page(info,str,arg); break;
+		case ENT_OBJECT_AMMO:			next = expand_entity_object_ammo(info,str,arg); break;
 		case ENT_OBJECT_BOOK:			next = expand_entity_object_book(info,str,arg); break;
 		case ENT_OBJECT_CONTAINER:		next = expand_entity_object_container(info,str,arg); break;
 		case ENT_OBJECT_FLUID_CONTAINER:	next = expand_entity_object_fluid_container(info,str,arg); break;
@@ -8575,12 +8868,16 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_OBJECT_FURNITURE:		next = expand_entity_object_furniture(info,str,arg); break;
 		case ENT_OBJECT_INK:			next = expand_entity_object_ink(info,str,arg); break;
 		case ENT_OBJECT_INSTRUMENT:		next = expand_entity_object_instrument(info,str,arg); break;
+		case ENT_OBJECT_JEWELRY:		next = expand_entity_object_jewelry(info,str,arg); break;
 		case ENT_OBJECT_LIGHT:			next = expand_entity_object_light(info,str,arg); break;
+		case ENT_OBJECT_MIST:			next = expand_entity_object_mist(info,str,arg); break;
 		case ENT_OBJECT_MONEY:			next = expand_entity_object_money(info,str,arg); break;
+		case ENT_OBJECT_PAGE:			next = expand_entity_object_page(info,str,arg); break;
 		case ENT_OBJECT_PORTAL:			next = expand_entity_object_portal(info,str,arg); break;
 		case ENT_OBJECT_SCROLL:			next = expand_entity_object_scroll(info,str,arg); break;
 		case ENT_OBJECT_TATTOO:			next = expand_entity_object_tattoo(info,str,arg); break;
 		case ENT_OBJECT_WAND:			next = expand_entity_object_wand(info,str,arg); break;
+		case ENT_OBJECT_WEAPON:			next = expand_entity_object_weapon(info,str,arg); break;
 
 		case ENT_RESERVED_MOBILE:		next = expand_entity_reserved_mobile(info,str,arg); break;
 		case ENT_RESERVED_OBJECT:		next = expand_entity_reserved_object(info,str,arg); break;
@@ -8591,6 +8888,10 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_INSTRUMENT_RESERVOIRS:	next = expand_entity_instrument_reservoirs(info,str,arg); break;
 		case ENT_INSTRUMENT_RESERVOIR:	next = expand_entity_instrument_reservoir(info,str,arg); break;
 		case ENT_CATALYST_USAGE:		next = expand_entity_catalyst_usage(info,str,arg); break;
+
+		case ENT_WEAPON_ATTACKS:		next = expand_entity_weapon_attacks(info,str,arg); break;
+		case ENT_WEAPON_ATTACK:			next = expand_entity_weapon_attack(info,str,arg); break;
+		case ENT_ATTACK:				next = expand_entity_attack_type(info,str,arg); break;
 
 		case ENT_REPUTATION:			next = expand_entity_reputation(info,str,arg); break;
 		case ENT_REPUTATION_INDEX:		next = expand_entity_reputation_index(info,str,arg); break;

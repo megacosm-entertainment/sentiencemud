@@ -867,7 +867,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	    for ( cloud = ch->in_room->contents; cloud != NULL;
 	          cloud = cloud->next_content )
 	    {
-		if ( cloud->item_type == ITEM_STINKING_CLOUD )
+		if ( cloud->pIndexData == obj_index_stinking_cloud )
 		{
 		    found = TRUE;
 		    break;

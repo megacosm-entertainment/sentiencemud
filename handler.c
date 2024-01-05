@@ -5878,8 +5878,8 @@ bool check_ice_storm(ROOM_INDEX_DATA *room)
 
     for (obj = room->contents; obj != NULL; obj = obj->next_content)
     {
-	if (obj->item_type == ITEM_ICE_STORM)
-	    return TRUE;
+		if (IS_MIST(obj) && MIST(obj)->icy > number_percent())
+			return true;
     }
 
     return FALSE;

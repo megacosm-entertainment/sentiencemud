@@ -237,6 +237,8 @@ SPELL_FUNC(spell_dispel_magic)
 
 SPELL_FUNC(spell_dispel_room)
 {
+	// TODO: Fix this
+#if 0
 	OBJ_DATA *obj = NULL;
 	EXIT_DATA *pexit = NULL;
 	ROOM_INDEX_DATA *pRoom = NULL;
@@ -332,6 +334,7 @@ SPELL_FUNC(spell_dispel_room)
 			}
 		}
 	}
+#endif
 	return TRUE;
 }
 

@@ -2545,6 +2545,21 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 		iterator_stop(&it);
 	}
 
+	if (IS_MIST(obj))
+	{
+		MIST_DATA *mist = MIST(obj);
+		sprintf(buf, "{CMist: {BObscure Mobiles: {x%d{B%%, Objects: {x%d{B%%, Room: {x%d{B%%{x\n\r",
+			mist->obscure_mobs, mist->obscure_objs, mist->obscure_room);
+		add_buf(buffer, buf);
+
+		sprintf(buf, "   {BIcy: {x%d{B%%, Fiery: {x%d{B%%, Acidic: {x%d{B%%, Stinking: {x%d{B%%{x\n\r",
+			mist->icy, mist->fiery, mist->acidic, mist->stink);
+		add_buf(buffer, buf);
+		sprintf(buf, "   {BWither: {x%d{B%%, Toxic: {x%d{B%%, Shock: {x%d{B%%, Fog: {x%d{B%%{x\n\r",
+			mist->wither, mist->toxic, mist->shock, mist->fog);
+		add_buf(buffer, buf);
+	}
+
 	if (IS_MONEY(obj))
 	{
 		sprintf(buf, "{CMoney: {Y%dg {W%ds{x\n\r", MONEY(obj)->gold, MONEY(obj)->silver);
@@ -2555,7 +2570,7 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 	{
 		char charges[MIL];
 		if (PORTAL(obj)->charges < 0)
-			strcpy(charges, "Unlimted");
+			strcpy(charges, "Unlimited");
 		else
 			sprintf(charges, "%d", PORTAL(obj)->charges);
 

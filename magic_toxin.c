@@ -265,7 +265,7 @@ SPELL_FUNC(spell_stinking_cloud)
 	OBJ_DATA *obj;
 
 	for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
-		if (obj->item_type == ITEM_STINKING_CLOUD)
+		if (obj->pIndexData == obj_index_stinking_cloud)
 			return FALSE;
 
 	cloud = create_object(obj_index_stinking_cloud, 0, TRUE);
@@ -506,7 +506,7 @@ SPELL_FUNC(spell_withering_cloud)
 	act("{gYou form an acidic withering cloud.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
 	for (obj = ch->in_room->contents; obj; obj = obj->next_content) {
-		if (obj->item_type == ITEM_WITHERING_CLOUD) {
+		if (obj->pIndexData == obj_index_withering_cloud) {
 			exists = TRUE;
 			break;
 		}
@@ -525,7 +525,7 @@ SPELL_FUNC(spell_withering_cloud)
 			if(!(room = exit_destination(ch->in_room->exit[dir]))) continue;
 
 			for (obj = room->contents; obj; obj = obj->next_content) {
-				if (obj->item_type == ITEM_WITHERING_CLOUD) {
+				if (obj->pIndexData == obj_index_withering_cloud) {
 					exists = TRUE;
 					break;
 				}

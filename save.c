@@ -2631,6 +2631,25 @@ void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
 		fprintf(fp, "#-TYPELIGHT\n");
 	}
 
+	if (IS_MIST(obj))
+	{
+		fprintf(fp, "#TYPEMIST\n");
+		fprintf(fp, "ObscureMobs %d\n", MIST(obj)->obscure_mobs);
+		fprintf(fp, "ObscureObjs %d\n", MIST(obj)->obscure_objs);
+		fprintf(fp, "ObscureRoom %d\n", MIST(obj)->obscure_room);
+
+		fprintf(fp, "Icy %d\n", MIST(obj)->icy);
+		fprintf(fp, "Fiery %d\n", MIST(obj)->fiery);
+		fprintf(fp, "Acidic %d\n", MIST(obj)->acidic);
+		fprintf(fp, "Stink %d\n", MIST(obj)->stink);
+		fprintf(fp, "Wither %d\n", MIST(obj)->wither);
+		fprintf(fp, "Toxic %d\n", MIST(obj)->toxic);
+		fprintf(fp, "Shock %d\n", MIST(obj)->shock);
+		fprintf(fp, "Fog %d\n", MIST(obj)->fog);
+
+		fprintf(fp, "#-TYPEMIST\n");
+	}
+
 	if (IS_MONEY(obj))
 	{
 		fprintf(fp, "#TYPEMONEY\n");
@@ -3966,6 +3985,64 @@ LIGHT_DATA *fread_obj_light_data(FILE *fp)
 	return data;
 }
 
+MIST_DATA *fread_obj_mist_data(FILE *fp)
+{
+	MIST_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_mist_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPEMIST"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case 'A':
+				KEY("Acidic", data->acidic, fread_number(fp));
+				break;
+
+			case 'F':
+				KEY("Fiery", data->fiery, fread_number(fp));
+				KEY("Fog", data->fog, fread_number(fp));
+				break;
+
+			case 'I':
+				KEY("Icy", data->icy, fread_number(fp));
+				break;
+
+			case 'O':
+				KEY("ObscureMobs", data->obscure_mobs, fread_number(fp));
+				KEY("ObscureObjs", data->obscure_objs, fread_number(fp));
+				KEY("ObscureRoom", data->obscure_room, fread_number(fp));
+				break;
+
+			case 'S':
+				KEY("Shock", data->shock, fread_number(fp));
+				KEY("Stink", data->stink, fread_number(fp));
+				break;
+
+			case 'T':
+				KEY("Toxic", data->toxic, fread_number(fp));
+				break;
+
+			case 'W':
+				KEY("Wither", data->wither, fread_number(fp));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "fread_obj_mist_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+
 MONEY_DATA *fread_obj_money_data(FILE *fp)
 {
 	MONEY_DATA *data = NULL;
@@ -4388,6 +4465,7 @@ void fread_obj_reset_multityping(OBJ_DATA *obj)
 	free_instrument_data(INSTRUMENT(obj));	INSTRUMENT(obj) = NULL;
 	free_jewelry_data(JEWELRY(obj));		JEWELRY(obj) = NULL;
 	free_light_data(LIGHT(obj));			LIGHT(obj) = NULL;
+	free_mist_data(MIST(obj));				MIST(obj) = NULL;
 	free_money_data(MONEY(obj));			MONEY(obj) = NULL;
 	free_book_page(PAGE(obj));				PAGE(obj) = NULL;
 	free_portal_data(PORTAL(obj));			PORTAL(obj) = NULL;
@@ -4802,6 +4880,14 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_LIGHT(obj)) free_light_data(LIGHT(obj));
 
 				LIGHT(obj) = fread_obj_light_data(fp);
+				fMatch = TRUE;
+				break;
+			}
+			if (!str_cmp(word, "#TYPEMIST"))
+			{
+				if (IS_MIST(obj)) free_mist_data(MIST(obj));
+
+				MIST(obj) = fread_obj_mist_data(fp);
 				fMatch = TRUE;
 				break;
 			}

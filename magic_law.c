@@ -354,6 +354,12 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 		add_buf(buffer, "{MLight: {WNOT YET IMPLEMENTED{x\n\r");
 	}
 
+	if (IS_MIST(obj))
+	{
+		// TODO: NYI
+		add_buf(buffer, "{MMist: {WNOT YET IMPLEMENTED{x\n\r");
+	}
+
 	if (IS_SCROLL(obj))
 	{
 		if (list_size(SCROLL(obj)->spells) > 0)

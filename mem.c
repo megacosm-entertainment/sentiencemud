@@ -5958,6 +5958,67 @@ void free_light_data(LIGHT_DATA *data)
     light_data_free = data;
 }
 
+// ============[ MIST ]============
+MIST_DATA *mist_data_free;
+MIST_DATA *new_mist_data()
+{
+    MIST_DATA *data;
+    if (mist_data_free)
+    {
+        data = mist_data_free;
+        mist_data_free = mist_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(MIST_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    VALIDATE(data);
+    return data;
+}
+
+MIST_DATA *copy_mist_data(MIST_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    MIST_DATA *data;
+    if (mist_data_free)
+    {
+        data = mist_data_free;
+        mist_data_free = mist_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(MIST_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    data->obscure_mobs = src->obscure_mobs;
+    data->obscure_objs = src->obscure_objs;
+    data->obscure_room = src->obscure_room;
+
+    data->icy = src->icy;
+    data->fiery = src->fiery;
+    data->acidic = src->acidic;
+    data->stink = src->stink;
+    data->wither = src->wither;
+    data->toxic = src->toxic;
+    data->shock = src->shock;
+    data->fog = src->fog;
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_mist_data(MIST_DATA *data)
+{
+    if(!IS_VALID(data)) return;
+
+    INVALIDATE(data);
+    data->next = mist_data_free;
+    mist_data_free = data;
+}
+
+
 // ===========[ MONEY ]============
 MONEY_DATA *money_data_free;
 

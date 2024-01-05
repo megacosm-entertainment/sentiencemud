@@ -3964,6 +3964,7 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
 		INSTRUMENT(obj) = copy_instrument_data(INSTRUMENT(pObjIndex));
 		JEWELRY(obj) = copy_jewelry_data(JEWELRY(pObjIndex));
 		LIGHT(obj) = copy_light_data(LIGHT(pObjIndex));
+		MIST(obj) = copy_mist_data(MIST(pObjIndex));
 		MONEY(obj) = copy_money_data(MONEY(pObjIndex));
 		PAGE(obj) = copy_book_page(PAGE(pObjIndex));
 		PORTAL(obj) = copy_portal_data(PORTAL(pObjIndex), FALSE);
@@ -7756,6 +7757,7 @@ INK_DATA *fread_obj_ink_data(FILE *fp);
 INSTRUMENT_DATA *fread_obj_instrument_data(FILE *fp);
 JEWELRY_DATA *fread_obj_jewelry_data(FILE *fp);
 LIGHT_DATA *fread_obj_light_data(FILE *fp);
+MIST_DATA *fread_obj_mist_data(FILE *fp);
 MONEY_DATA *fread_obj_money_data(FILE *fp);
 BOOK_PAGE *fread_book_page(FILE *fp, char *closer);
 PORTAL_DATA *fread_obj_portal_data(FILE *fp);
@@ -7900,6 +7902,14 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_LIGHT(obj)) free_light_data(LIGHT(obj));
 
 					LIGHT(obj) = fread_obj_light_data(fp);
+					fMatch = TRUE;
+					break;
+				}
+				if (!str_cmp(word, "#TYPEMIST"))
+				{
+					if (IS_MIST(obj)) free_mist_data(MIST(obj));
+
+					MIST(obj) = fread_obj_mist_data(fp);
 					fMatch = TRUE;
 					break;
 				}

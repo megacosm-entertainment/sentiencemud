@@ -2186,8 +2186,8 @@ void obj_update(void)
 		}
 
 		// Ice storms - work in PK rooms
-		if (obj->in_room != NULL && obj->item_type == ITEM_ICE_STORM && is_room_pk(obj->in_room, TRUE)) {
-			for (rch = obj->in_room->people; rch != NULL; rch = rch_next) {
+		if (obj->in_room != NULL && IS_MIST(obj) && MIST(obj)->icy > 0 && is_room_pk(obj->in_room, TRUE)) {
+			for (rch = obj->in_room->people; rch != NULL; rch = rch_next) if(MIST(obj)->icy > number_percent()) {
 				rch_next = rch->next_in_room;
 
 				switch (check_immune(rch, DAM_COLD)) {
@@ -2339,65 +2339,69 @@ void obj_update(void)
 		nuke_obj = TRUE;
 		spill_contents = 100;
 
-		switch (obj->item_type)
+		if (!p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_TIMER_EXPIRE, NULL,0,0,0,0,0))
 		{
-		// Simple messages
-		default:					message = "$p crumbles into dust."; break;
-		case ITEM_FLUID_CONTAINER:
-			if (list_size(FLUID_CON(obj)->spells) > 0)
-				message = "$p has evaporated from disuse.";
-			else
-				message = "$p dries up.";
-			break;
-		case ITEM_ROOM_FLAME:		message = "{DThe flames die down and disappear.{x"; break;
-		case ITEM_ROOM_DARKNESS:	message = "{YThe light returns.{x"; break;
-		case ITEM_ROOM_ROOMSHIELD:	message = "{YThe energy field shielding the room fades away.{X"; break;
-		case ITEM_STINKING_CLOUD:	message = "{YThe poisonous haze disappears.{x"; break;
-		case ITEM_WITHERING_CLOUD:	message = "{YThe poisonous haze disappears.{x"; break;
-		case ITEM_FOOD:				message = "$p decomposes."; break;
-		case ITEM_ICE_STORM:		message = "{W$p dies down and melts.{x"; break;
-		case ITEM_TATTOO:			message = "$p fades away as the ink dries.";break;
-		case ITEM_PORTAL:			message = "$p fades out of existence."; break;
-
-		// Corpse decaying
-		case ITEM_CORPSE_NPC:
-		case ITEM_CORPSE_PC:
-			message = corpse_info_table[CORPSE_TYPE(obj)].decay_message;
-
-			if (obj->carried_by)
-				act(message, obj->carried_by, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-			else if (obj->in_room && obj->in_room->people)
-				act(message, obj->in_room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
-			message = NULL;
-
-			if(corpse_info_table[CORPSE_TYPE(obj)].decay_type != RAWKILL_NOCORPSE) {
-				spill_contents = corpse_info_table[CORPSE_TYPE(obj)].decay_spill_chance;
-				set_corpse_data(obj,corpse_info_table[CORPSE_TYPE(obj)].decay_type);
-				spill_contents += corpse_info_table[CORPSE_TYPE(obj)].decay_spill_chance;
-				spill_contents /= 2;	// Split the difference
-				nuke_obj = FALSE;
-			}
-			break;
-
-		case ITEM_CONTAINER:
-			if (CAN_WEAR(obj,ITEM_WEAR_FLOAT)) {
-				if (obj->contains) {
-					spill_contents = 100;
-					message = "$p flickers and vanishes, spilling its contents on the floor.";
-				}
+			switch (obj->item_type)
+			{
+			// Simple messages
+			default:					message = "$p crumbles into dust."; break;
+			case ITEM_FLUID_CONTAINER:
+				if (list_size(FLUID_CON(obj)->spells) > 0)
+					message = "$p has evaporated from disuse.";
 				else
-					message = "$p flickers and vanishes.";
-			} else
-				message = "$p crumbles into dust.";
-			break;
-		}
+					message = "$p dries up.";
+				break;
+			case ITEM_MIST:				message = "$p dissipates."; break;
+			//case ITEM_ROOM_FLAME:		message = "{DThe flames die down and disappear.{x"; break;
+			case ITEM_ROOM_DARKNESS:	message = "{YThe light returns.{x"; break;
+			case ITEM_ROOM_ROOMSHIELD:	message = "{YThe energy field shielding the room fades away.{X"; break;
+			//case ITEM_STINKING_CLOUD:	message = "{YThe poisonous haze disappears.{x"; break;
+			//case ITEM_WITHERING_CLOUD:	message = "{YThe poisonous haze disappears.{x"; break;
+			case ITEM_FOOD:				message = "$p decomposes."; break;
+			//case ITEM_ICE_STORM:		message = "{W$p dies down and melts.{x"; break;
+			case ITEM_TATTOO:			message = "$p fades away as the ink dries.";break;
+			case ITEM_PORTAL:			message = "$p fades out of existence."; break;
 
-		// Do we have any message to process?
-		if(!IS_NULLSTR(message)) {
-			if (obj->carried_by)
-				act(message, obj->carried_by, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-			else if (obj->in_room && obj->in_room->people)
-				act(message, obj->in_room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
+			// Corpse decaying
+			case ITEM_CORPSE_NPC:
+			case ITEM_CORPSE_PC:
+				message = corpse_info_table[CORPSE_TYPE(obj)].decay_message;
+
+				if (obj->carried_by)
+					act(message, obj->carried_by, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				else if (obj->in_room && obj->in_room->people)
+					act(message, obj->in_room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
+				message = NULL;
+
+				if(corpse_info_table[CORPSE_TYPE(obj)].decay_type != RAWKILL_NOCORPSE) {
+					spill_contents = corpse_info_table[CORPSE_TYPE(obj)].decay_spill_chance;
+					set_corpse_data(obj,corpse_info_table[CORPSE_TYPE(obj)].decay_type);
+					spill_contents += corpse_info_table[CORPSE_TYPE(obj)].decay_spill_chance;
+					spill_contents /= 2;	// Split the difference
+					nuke_obj = FALSE;
+				}
+				break;
+
+			case ITEM_CONTAINER:
+				if (CAN_WEAR(obj,ITEM_WEAR_FLOAT)) {
+					if (obj->contains) {
+						spill_contents = 100;
+						message = "$p flickers and vanishes, spilling its contents on the floor.";
+					}
+					else
+						message = "$p flickers and vanishes.";
+				} else
+					message = "$p crumbles into dust.";
+				break;
+			}
+
+			// Do we have any message to process?
+			if(!IS_NULLSTR(message)) {
+				if (obj->carried_by)
+					act(message, obj->carried_by, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				else if (obj->in_room && obj->in_room->people)
+					act(message, obj->in_room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
+			}
 		}
 
 		// Spill contents if there is any
@@ -2691,9 +2695,9 @@ void aggr_update(void)
 	    for (obj = wch->in_room->contents; obj != NULL; obj = obj->next_content)
 	    {
 		// Room flames (inferno)
-		if (obj->item_type == ITEM_ROOM_FLAME && !IS_SET(wch->in_room->room_flag[0], ROOM_SAFE))
+		if (IS_MIST(obj) && MIST(obj)->fiery > 0 && !IS_SET(wch->in_room->room_flag[0], ROOM_SAFE))
 		{
-		    if (number_percent() <= 2)
+		    if (MIST(obj)->fiery > number_percent())
 		    {
 			act("{RYou are scorched by flames!{x",
 				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -2701,33 +2705,31 @@ void aggr_update(void)
 				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 			damage(wch, wch, number_range(50, 500),NULL,TYPE_UNDEFINED, DAM_FIRE, FALSE);
 		    }
-		    else
-		    if (number_percent() <= 2)
+		    else if (MIST(obj)->fiery > number_percent())
 		    {
-			/* Don't apply the blind affect twice */
-			if (!IS_SET(wch->affected_by[0], AFF_BLIND)) {
+				/* Don't apply the blind affect twice */
+				if (!IS_SET(wch->affected_by[0], AFF_BLIND)) {
 
-			    act("{DYou are blinded by smoke!{x",
-				    wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			    act("{D$n is blinded by smoke!{x",
-				    wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					act("{DYou are blinded by smoke!{x",
+						wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+					act("{D$n is blinded by smoke!{x",
+						wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-				af.slot	= WEAR_NONE;
-			    af.where     = TO_AFFECTS;
-			    af.group     = AFFGROUP_PHYSICAL;
-				af.catalyst_type = -1;
-			    af.skill      = gsk_blindness;
-			    af.level     = obj->level;
-			    af.location  = APPLY_HITROLL;
-			    af.modifier  = -4;
-			    af.duration  = 2;
-			    af.bitvector = AFF_BLIND;
-			    af.bitvector2 = 0;
-			    affect_to_char(wch, &af);
-			}
+					af.slot	= WEAR_NONE;
+					af.where     = TO_AFFECTS;
+					af.group     = AFFGROUP_PHYSICAL;
+					af.catalyst_type = -1;
+					af.skill      = gsk_blindness;
+					af.level     = obj->level;
+					af.location  = APPLY_HITROLL;
+					af.modifier  = -4;
+					af.duration  = 2;
+					af.bitvector = AFF_BLIND;
+					af.bitvector2 = 0;
+					affect_to_char(wch, &af);
+				}
 		    }
-		    else
-		    if (number_percent() <= 2)
+		    else if (MIST(obj)->fiery > number_percent())
 		    {
 			act("{RYou are scorched by flames!{x",
 				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -2736,25 +2738,25 @@ void aggr_update(void)
 			fire_effect((void *) wch,obj->level,	number_range(0, wch->tot_level * 10),TARGET_CHAR);
 		    }
 		}
-		else
+
 		// Withering clouds (wither spell)
-		if (obj->item_type == ITEM_WITHERING_CLOUD)
+		if (IS_MIST(obj) && MIST(obj)->wither > 0)
 		{
-		    if (number_percent() <= 2)
+		    if (MIST(obj)->wither > number_percent())
 		    {
 			act("You splutter and gag!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			act("$n splutters and gags!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		    }
-		    else
-		    if (number_percent() <= 2)
+		    else if (MIST(obj)->wither > number_percent())
 		    {
 			act("You cough and splutter!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			act("$n coughs and splutters violently!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		    }
-		    if (number_percent() <= 2 && wch->fighting == NULL
-		    && IS_AWAKE(wch) && wch->position == POS_STANDING
-		    &&  !(IS_NPC(wch) && (IS_SET(wch->act[0],ACT_PROTECTED) || wch->shop != NULL))
-		    &&  !(!IS_NPC(wch) && IS_IMMORTAL(wch)))
+
+		    if (MIST(obj)->wither > number_percent() && wch->fighting == NULL &&
+				IS_AWAKE(wch) && wch->position == POS_STANDING &&
+				!(IS_NPC(wch) && (IS_SET(wch->act[0],ACT_PROTECTED) || wch->shop != NULL)) &&
+				!(!IS_NPC(wch) && IS_IMMORTAL(wch)))
 		    {
 			act("$n stumbles about choking and gagging!",
 				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -2762,8 +2764,7 @@ void aggr_update(void)
 				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			do_function(wch, &do_flee, NULL);
 		    }
-		    else
-		    if (number_percent() <= 2)
+		    else if (MIST(obj)->wither > number_percent())
 		    {
 			act("$n is blinded by the toxic haze!",
 				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -2781,9 +2782,7 @@ void aggr_update(void)
 			af.bitvector2 = 0;
 			affect_to_char(wch, &af);
 		    }
-		    else
-		    if (number_percent() <= 2
-		    && check_immune(wch, DAM_POISON) != IS_IMMUNE)
+		    else if (MIST(obj)->wither > number_percent() && check_immune(wch, DAM_POISON) != IS_IMMUNE)
 		    {
 			act("$n is poisoned by the toxic haze!",
 				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -2801,15 +2800,14 @@ void aggr_update(void)
 			af.bitvector2 = 0;
 			affect_to_char(wch, &af);
 		    }
-		    else
-		    if (number_percent() <= 2)
+		    else if (MIST(obj)->wither > number_percent())
 			acid_effect((void *)wch,obj->level,number_range(0, wch->tot_level * 10),TARGET_CHAR);
 		}
-		else
+
 		// Stinking clouds (smoke bombs)
-		if (obj->item_type == ITEM_STINKING_CLOUD)
+		if (IS_MIST(obj) && MIST(obj)->stink > 0)
 		{
-		    if (number_percent() <= 3)
+		    if (MIST(obj)->stink > number_percent())
 		    {
 			CHAR_DATA *victim, *vnext;
 

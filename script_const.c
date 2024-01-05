@@ -432,6 +432,7 @@ ENT_FIELD entity_object[] = {
 	{"stache",					ENTITY_OBJ_STACHE,			ENT_PLLIST_OBJ },
 	{"islockered",		ENTITY_OBJ_ISLOCKERED,			ENT_BOOLEAN },
 	{"isstached",		ENTITY_OBJ_ISSTACHED,			ENT_BOOLEAN },
+	{"ammo_data",		ENTITY_OBJ_TYPE_AMMO,		ENT_OBJECT_AMMO},
 	{"book_page",		ENTITY_OBJ_TYPE_PAGE,		ENT_BOOK_PAGE},			// This is unique in that it is not handled internally like other type
 	{"book_data",		ENTITY_OBJ_TYPE_BOOK,		ENT_OBJECT_BOOK},
 	{"container_data",	ENTITY_OBJ_TYPE_CONTAINER,	ENT_OBJECT_CONTAINER},
@@ -440,12 +441,24 @@ ENT_FIELD entity_object[] = {
 	{"furniture_data",	ENTITY_OBJ_TYPE_FURNITURE,	ENT_OBJECT_FURNITURE},
 	{"ink_data",		ENTITY_OBJ_TYPE_INK,		ENT_OBJECT_INK},
 	{"instrument_data",	ENTITY_OBJ_TYPE_INSTRUMENT,	ENT_OBJECT_INSTRUMENT},
+	{"jewelry_data",	ENTITY_OBJ_TYPE_JEWELRY,	ENT_OBJECT_JEWELRY},
 	{"light_data",		ENTITY_OBJ_TYPE_LIGHT,		ENT_OBJECT_LIGHT},
+	{"mist_data",		ENTITY_OBJ_TYPE_MIST,		ENT_OBJECT_MIST},
 	{"money_data",		ENTITY_OBJ_TYPE_MONEY,		ENT_OBJECT_MONEY},
 	{"portal_data",		ENTITY_OBJ_TYPE_PORTAL,		ENT_OBJECT_PORTAL},
 	{"scroll_data",		ENTITY_OBJ_TYPE_SCROLL,		ENT_OBJECT_SCROLL},
 	{"tattoo_data",		ENTITY_OBJ_TYPE_TATTOO,		ENT_OBJECT_TATTOO},
 	{"wand_data",		ENTITY_OBJ_TYPE_WAND,		ENT_OBJECT_WAND},
+	{"weapon_data",		ENTITY_OBJ_TYPE_WEAPON,		ENT_OBJECT_WEAPON},
+	{NULL,			0,			ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_object_ammo[] = {
+	{"type",			ENTITY_OBJ_AMMO_TYPE,			ENT_STAT },
+	{"attack",			ENTITY_OBJ_AMMO_DAMAGE_TYPE,	ENT_ATTACK },
+	{"flags",			ENTITY_OBJ_AMMO_FLAGS,			ENT_BITVECTOR },
+	{"damage",			ENTITY_OBJ_AMMO_DAMAGE,			ENT_DICE },
+	{"msgbreak",		ENTITY_OBJ_AMMO_MESSAGE_BREAK,	ENT_STRING },
 	{NULL,			0,			ENT_UNKNOWN	}
 };
 
@@ -514,10 +527,31 @@ ENT_FIELD entity_object_instrument[] = {
 	{NULL,			0,								ENT_UNKNOWN	}
 };
 
+ENT_FIELD entity_object_jewelry[] = {
+	{"maxmana",		ENTITY_OBJ_JEWELRY_MAXMANA,		ENT_NUMBER },
+	{"spells",		ENTITY_OBJ_JEWELRY_SPELLS,		ENT_ILLIST_SPELLS },
+	{NULL,			0,								ENT_UNKNOWN	}
+};
+
 ENT_FIELD entity_object_light[] = {
 	{"duration",	ENTITY_OBJ_LIGHT_DURATION,	ENT_NUMBER },
 	{"flags",		ENTITY_OBJ_LIGHT_FLAGS,		ENT_BITVECTOR },
 	{NULL,			0,			ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_object_mist[] = {
+	{"mobiles",		ENTITY_OBJ_MIST_OBSCURE_MOBILES,	ENT_NUMBER },
+	{"objects",		ENTITY_OBJ_MIST_OBSCURE_OBJECTS,	ENT_NUMBER },
+	{"room",		ENTITY_OBJ_MIST_OBSCURE_ROOM,		ENT_NUMBER },
+	{"icy",			ENTITY_OBJ_MIST_ICY,				ENT_NUMBER },
+	{"fiery",		ENTITY_OBJ_MIST_FIERY,				ENT_NUMBER },
+	{"acidic",		ENTITY_OBJ_MIST_ACIDIC,				ENT_NUMBER },
+	{"stink",		ENTITY_OBJ_MIST_STINK,				ENT_NUMBER },
+	{"wither",		ENTITY_OBJ_MIST_WITHER,				ENT_NUMBER },
+	{"toxic",		ENTITY_OBJ_MIST_TOXIC,				ENT_NUMBER },
+	{"shock",		ENTITY_OBJ_MIST_SHOCK,				ENT_NUMBER },
+	{"fog",			ENTITY_OBJ_MIST_FOG,				ENT_NUMBER },
+	{NULL,			0,			ENT_UNKNOWN }
 };
 
 ENT_FIELD entity_object_money[] = {
@@ -564,7 +598,22 @@ ENT_FIELD entity_object_wand[] = {
 	{"maxcharges",	ENTITY_OBJ_WAND_MAXCHARGES,		ENT_NUMBER },
 	{"cooldown",	ENTITY_OBJ_WAND_COOLDOWN,		ENT_NUMBER },
 	{"recharge",	ENTITY_OBJ_WAND_RECHARGE,		ENT_NUMBER },
+	{"maxmana",		ENTITY_OBJ_WAND_MAXMANA,		ENT_NUMBER },
 	{"spells",		ENTITY_OBJ_WAND_SPELLS,			ENT_ILLIST_SPELLS },
+	{NULL,			0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_object_weapon[] = {
+	{"class",		ENTITY_OBJ_WEAPON_CLASS,		ENT_STAT },
+	{"attacks",		ENTITY_OBJ_WEAPON_ATTACKS,		ENT_WEAPON_ATTACKS },
+	{"ammo",		ENTITY_OBJ_WEAPON_AMMO,			ENT_STAT },
+	{"range",		ENTITY_OBJ_WEAPON_RANGE,		ENT_NUMBER },
+	{"charges",		ENTITY_OBJ_WEAPON_CHARGES,		ENT_NUMBER },
+	{"maxcharges",	ENTITY_OBJ_WEAPON_MAXCHARGES,	ENT_NUMBER },
+	{"cooldown",	ENTITY_OBJ_WEAPON_COOLDOWN,		ENT_NUMBER },
+	{"recharge",	ENTITY_OBJ_WEAPON_RECHARGE,		ENT_NUMBER },
+	{"maxmana",		ENTITY_OBJ_WEAPON_MAXMANA,		ENT_NUMBER },
+	{"spells",		ENTITY_OBJ_WEAPON_SPELLS,		ENT_ILLIST_SPELLS },
 	{NULL,			0,								ENT_UNKNOWN	}
 };
 
@@ -886,6 +935,22 @@ ENT_FIELD entity_instrument_reservoir[] = {
 	{NULL,			0,											ENT_UNKNOWN	}
 };
 
+ENT_FIELD entity_weapon_attack[] = {
+	{"name",		ENTITY_WEAPON_ATTACK_NAME,					ENT_STRING },
+	{"short",		ENTITY_WEAPON_ATTACK_SHORT,					ENT_STRING },
+	{"type",		ENTITY_WEAPON_ATTACK_TYPE,					ENT_ATTACK },		// It's going to be similar to ENT_STAT but has to use the attack_lookup
+	{"flags",		ENTITY_WEAPON_ATTACK_FLAGS,					ENT_BITVECTOR },
+	{"damage",		ENTITY_WEAPON_ATTACK_DAMAGE,				ENT_DICE },
+	{NULL,			0,											ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_attack_type[] = {
+	{"name",		ENTITY_ATTACK_NAME,							ENT_STRING },
+	{"noun",		ENTITY_ATTACK_NOUN,							ENT_STRING },
+	{"type",		ENTITY_ATTACK_TYPE,							ENT_STAT },
+	{NULL,			0,											ENT_UNKNOWN	}
+};
+
 ENT_FIELD entity_liquid[] = {
 	{"name",	ENTITY_LIQUID_NAME,	ENT_STRING },
 	{"color",	ENTITY_LIQUID_COLOR, ENT_STRING },
@@ -1086,6 +1151,8 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_COMPARTMENT,	ENT_COMPARTMENT,	entity_compartment,			FALSE,	FALSE },
 	{ ENT_INK_TYPE,		ENT_INK_TYPE,		entity_ink_type,			FALSE,	FALSE },
 	{ ENT_INSTRUMENT_RESERVOIR, ENT_INSTRUMENT_RESERVOIR, entity_instrument_reservoir, FALSE, FALSE },
+	{ ENT_WEAPON_ATTACK,	ENT_WEAPON_ATTACK,	entity_weapon_attack,	FALSE,	FALSE },
+	{ ENT_ATTACK,		ENT_ATTACK,			entity_attack_type,			FALSE,	FALSE },
 	{ ENT_LIQUID,		ENT_LIQUID,			entity_liquid,				FALSE,	FALSE },
 	{ ENT_EXTRADESC,	ENT_EXTRADESC,		NULL,						FALSE,	FALSE },
 	{ ENT_HELP,			ENT_HELP,			NULL,						FALSE,	FALSE },
@@ -1120,7 +1187,7 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_BLUEPRINT,		ENT_BLUEPRINT,		entity_blueprint,			FALSE,	FALSE },
 	{ ENT_DUNGEONINDEX,		ENT_DUNGEONINDEX,		entity_dungeon_index,				FALSE,	FALSE },
 	{ ENT_WIDEVNUM,		ENT_WIDEVNUM,		entity_widevnum,			FALSE,	FALSE },
-	{ ENT_OBJECT_PAGE, ENT_OBJECT_PAGE, entity_book_page, FALSE,	FALSE },
+	{ ENT_OBJECT_AMMO, ENT_OBJECT_AMMO, entity_object_ammo, FALSE,	FALSE },
 	{ ENT_OBJECT_BOOK, ENT_OBJECT_BOOK, entity_object_book, FALSE,	FALSE },
 	{ ENT_OBJECT_CONTAINER, ENT_OBJECT_CONTAINER, entity_object_container, FALSE,	FALSE },
 	{ ENT_OBJECT_FLUID_CONTAINER, ENT_OBJECT_FLUID_CONTAINER, entity_object_fluid_container, FALSE, FALSE },
@@ -1128,12 +1195,16 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_OBJECT_FURNITURE, ENT_OBJECT_FURNITURE, entity_object_furniture, FALSE,	FALSE },
 	{ ENT_OBJECT_INK, ENT_OBJECT_INK, entity_object_ink, FALSE,	FALSE },
 	{ ENT_OBJECT_INSTRUMENT, ENT_OBJECT_INSTRUMENT, entity_object_instrument, FALSE,	FALSE },
+	{ ENT_OBJECT_JEWELRY, ENT_OBJECT_JEWELRY, entity_object_jewelry, FALSE,	FALSE },
 	{ ENT_OBJECT_LIGHT, ENT_OBJECT_LIGHT, entity_object_light, FALSE,	FALSE },
+	{ ENT_OBJECT_MIST, ENT_OBJECT_MIST, entity_object_mist, FALSE,	FALSE },
 	{ ENT_OBJECT_MONEY, ENT_OBJECT_MONEY, entity_object_money, FALSE,	FALSE },
+	{ ENT_OBJECT_PAGE, ENT_OBJECT_PAGE, entity_book_page, FALSE,	FALSE },
 	{ ENT_OBJECT_PORTAL, ENT_OBJECT_PORTAL, entity_object_portal, FALSE,	FALSE },
 	{ ENT_OBJECT_SCROLL, ENT_OBJECT_SCROLL, entity_object_scroll, FALSE,	FALSE },
 	{ ENT_OBJECT_TATTOO, ENT_OBJECT_TATTOO, entity_object_tattoo, FALSE,	FALSE },
 	{ ENT_OBJECT_WAND, ENT_OBJECT_WAND, entity_object_wand, FALSE,	FALSE },
+	{ ENT_OBJECT_WEAPON, ENT_OBJECT_WEAPON, entity_object_weapon, FALSE,	FALSE },
 	{ ENT_SKILL_VALUES, ENT_SKILL_VALUES, NULL, FALSE, TRUE },
 	{ ENT_SKILL_VALUENAMES, ENT_SKILL_VALUENAMES, NULL, FALSE, TRUE },
 	{ ENT_REPUTATION, ENT_REPUTATION, entity_reputation, FALSE, FALSE },

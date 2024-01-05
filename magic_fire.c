@@ -284,7 +284,7 @@ SPELL_FUNC(spell_fire_cloud)
 	act("{RYou breathe forth a massive cloud of fire!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
 	for (obj = ch->in_room->contents; obj; obj = obj->next_content) {
-		if (obj->item_type == ITEM_ROOM_FLAME) {
+		if (obj->pIndexData == obj_index_inferno) {
 			exists = TRUE;
 			break;
 		}
@@ -307,7 +307,7 @@ SPELL_FUNC(spell_fire_cloud)
 		if(!(room = exit_destination(ch->in_room->exit[dir]))) continue;
 
 		for (obj = room->contents; obj != NULL; obj = obj->next_content) {
-			if (obj->item_type == ITEM_ROOM_FLAME) {
+			if (obj->pIndexData == obj_index_inferno) {
 				exists = TRUE;
 				break;
 			}
@@ -412,7 +412,7 @@ SPELL_FUNC(spell_inferno)
 	OBJ_DATA *obj;
 
 	for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
-		if (obj->item_type == ITEM_ROOM_FLAME) {
+		if (obj->pIndexData == obj_index_inferno) {
 			send_to_char("The room is already a raging inferno.\n\r", ch);
 			return FALSE;
 		}

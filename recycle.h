@@ -304,6 +304,11 @@ LIGHT_DATA *new_light_data();
 LIGHT_DATA *copy_light_data(LIGHT_DATA *src);
 void free_light_data(LIGHT_DATA *data);
 
+// Mist
+MIST_DATA *new_mist_data();
+MIST_DATA *copy_mist_data(MIST_DATA *src);
+void free_mist_data(MIST_DATA *data);
+
 // Money
 MONEY_DATA *new_money_data();
 MONEY_DATA *copy_money_data(MONEY_DATA *src);

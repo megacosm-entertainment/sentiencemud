@@ -357,6 +357,7 @@ DECLARE_OLC_FUN( oedit_type_ink );
 DECLARE_OLC_FUN( oedit_type_instrument );
 DECLARE_OLC_FUN( oedit_type_jewelry );
 DECLARE_OLC_FUN( oedit_type_light );
+DECLARE_OLC_FUN( oedit_type_mist );
 DECLARE_OLC_FUN( oedit_type_money );
 DECLARE_OLC_FUN( oedit_type_page );
 DECLARE_OLC_FUN( oedit_type_portal );
@@ -651,7 +652,6 @@ DECLARE_OLC_FUN( skedit_spellfunc );
 DECLARE_OLC_FUN( skedit_pulsefunc );
 DECLARE_OLC_FUN( skedit_interruptfunc );
 
-// TODO: Add editor functions for handling the different functions necessary for artificing (brewing, scribing, etc) that are/will be available via tokens so they work for "built-in" spells
 DECLARE_OLC_FUN( skedit_prebrewfunc );
 DECLARE_OLC_FUN( skedit_brewfunc );
 DECLARE_OLC_FUN( skedit_quafffunc );
@@ -663,8 +663,6 @@ DECLARE_OLC_FUN( skedit_recitefunc );
 DECLARE_OLC_FUN( skedit_preinkfunc );
 DECLARE_OLC_FUN( skedit_inkfunc );
 DECLARE_OLC_FUN( skedit_touchfunc );
-
-// TODO: Imbue functionality
 
 DECLARE_OLC_FUN( skedit_preimbuefunc );
 DECLARE_OLC_FUN( skedit_imbuefunc );
