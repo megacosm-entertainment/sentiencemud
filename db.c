@@ -89,6 +89,10 @@ extern	LLIST *loaded_dungeons;
 extern	LLIST *loaded_ships;
 LLIST *loaded_special_keys;
 LLIST *material_list = NULL;
+
+MATERIAL *gm_iron = NULL;
+MATERIAL *gm_silver = NULL;
+
 LLIST *liquid_list = NULL;
 sh_int top_liquid_uid = 0;
 

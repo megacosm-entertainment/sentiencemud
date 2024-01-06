@@ -731,6 +731,7 @@ DECLARE_OLC_FUN( matedit_corrodibility );
 DECLARE_OLC_FUN( matedit_fragility );
 DECLARE_OLC_FUN( matedit_strength );
 DECLARE_OLC_FUN( matedit_value );
+DECLARE_OLC_FUN( matedit_gm );
 
 /*
  * Macros

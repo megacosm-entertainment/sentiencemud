@@ -7337,6 +7337,8 @@ struct material_data
 
     char *name;
 
+    MATERIAL **gm;
+
     int material_class;         // Type of material, such as METAL
 
     long flags;
@@ -11252,6 +11254,9 @@ void fluid_empty_container(FLUID_CONTAINER_DATA *a);
 
 extern LLIST *material_list;
 MATERIAL *material_lookup(const char *name);
+extern MATERIAL *gm_iron;
+extern MATERIAL *gm_silver;
+
 
 extern LLIST *liquid_list;
 extern sh_int top_liquid_uid;

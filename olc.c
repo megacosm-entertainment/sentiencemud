@@ -4150,6 +4150,7 @@ const struct olc_cmd_type matedit_table[] =
 	{	"create",			matedit_create		},
 	{	"flags",			matedit_flags		},
 	{	"flammable",		matedit_flammable	},
+	{	"gm",				matedit_gm			},
 	{	"name",				matedit_name		},
 	{	"strength",			matedit_strength	},
 	{	"value",			matedit_value		},

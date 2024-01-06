@@ -150,6 +150,12 @@ struct gsn_type
 	SKILL_DATA **gsk;
 };
 
+struct gm_type
+{
+	char *name;
+	MATERIAL **material;
+};
+
 struct npc_ship_type
 {
 	int npc_ship_type;
@@ -455,6 +461,8 @@ extern const struct weapon_ammo_type weapon_ammo_table[];
 
 extern const struct flag_type material_classes[];
 extern const struct flag_type material_flags[];
+
+extern const struct gm_type gm_table[];
 
 #endif
 

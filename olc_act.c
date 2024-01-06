@@ -43,6 +43,8 @@ void obj_index_set_primarytype(OBJ_INDEX_DATA *pObjIndex, int item_type);
 void insert_liquid(LIQUID *liquid);
 void save_liquids();
 
+MATERIAL **gm_from_name(char *name);
+char *gm_to_name(MATERIAL **material);
 void insert_material(MATERIAL *material);
 void save_materials();
 
@@ -23138,6 +23140,9 @@ MATEDIT( matedit_show )
 	sprintf(buf, "Material:    %s\n\r", material->name);
 	add_buf(buffer, buf);
 
+	sprintf(buf, "GM: %s\n\r", (material->gm) ? gm_to_name(material->gm) : "{Dnone{x");
+	add_buf(buffer, buf);
+
 	sprintf(buf, "Class: %s\n\r", flag_string(material_classes, material->material_class));
 	add_buf(buffer, buf);
 
@@ -23228,6 +23233,59 @@ MATEDIT( matedit_name )
 
 	send_to_char("Material name set.\n\r", ch);
 	return true;
+}
+
+MATEDIT( matedit_gm )
+{
+	MATERIAL *material;
+
+	EDIT_MATERIAL(ch, material);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  gm set <global material>\n\r", ch);
+		send_to_char("         gm clear\n\r", ch);
+		return false;
+	}
+
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+
+	if (!str_prefix(arg, "set"))
+	{
+		MATERIAL **gm = gm_from_name(argument);
+
+		if(gm == NULL)
+		{
+			send_to_char("Invalid global material.\n\r", ch);
+			return false;
+		}
+
+		if (*gm) (*gm)->gm = NULL;	// Unlink from previous assignment
+		*gm = material;
+		material->gm = gm;
+		send_to_char("Material GM set.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "clear"))
+	{
+		if (!material->gm)
+		{
+			send_to_char("Material does not reference a global material.\n\r", ch);
+			return false;
+		}
+
+		*(material->gm) = NULL;
+		material->gm = NULL;
+		send_to_char("Material GM cleared.\n\r", ch);
+		return true;
+	}
+
+	matedit_gm(ch, "");
+	return false;
+
 }
 
 MATEDIT( matedit_class )

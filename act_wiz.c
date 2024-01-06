@@ -9934,6 +9934,31 @@ void do_repset(CHAR_DATA *ch, char *argument)
 
 
 
+MATERIAL **gm_from_name(char *name)
+{
+	for(int i = 0; gm_table[i].name; i++)
+	{
+		if(!str_cmp(gm_table[i].name, name))
+		{
+			return gm_table[i].material;
+		}
+	}
+
+	return NULL;
+}
+
+char *gm_to_name(MATERIAL **material)
+{
+	for(int i = 0; gm_table[i].name; i++)
+	{
+		if(gm_table[i].material == material)
+		{
+			return gm_table[i].name;
+		}
+	}
+
+	return NULL;
+}
 
 
 
@@ -9953,6 +9978,8 @@ void save_material(FILE *fp, MATERIAL *mat)
 	fprintf(fp, "Fragility %s~\n", fragile_table[mat->fragility].name);
 	fprintf(fp, "Strength %d\n", mat->strength);
 	fprintf(fp, "Value %d\n", mat->value);
+	if (mat->gm)
+		fprintf(fp, "GM %s~\n", gm_to_name(mat->gm));
 
 	if (IS_VALID(mat->corroded))
 		fprintf(fp, "Corroded %s~\n", mat->corroded->name);
@@ -10029,6 +10056,10 @@ MATERIAL *load_material(FILE *fp)
 				KEY("Flags", mat->flags, fread_flag(fp));
 				KEY("Flammable", mat->flammable, fread_number(fp));
 				KEY("Fragility", mat->fragility, fragile_lookup(fread_string(fp)));
+				break;
+
+			case 'G':
+				KEY("GM", mat->gm, gm_from_name(fread_string(fp)));
 				break;
 
 			case 'N':
@@ -10152,6 +10183,8 @@ bool load_materials()
 
 		if (!IS_NULLSTR(mat->load_corroded))
 			mat->corroded = material_lookup(mat->load_corroded);
+
+		if (mat->gm) *(mat->gm) = mat;
 	}
 	iterator_stop(&it);
 	log_stringf("load_materials: total materials = %d", list_size(material_list));

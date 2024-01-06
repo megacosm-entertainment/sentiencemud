@@ -4061,4 +4061,8 @@ const struct flag_type material_flags[] =
     { NULL,                 0,                              FALSE }
 };
 
-
+const struct gm_type gm_table[] = {
+    { "iron", &gm_iron },
+    { "silver", &gm_silver },
+    { NULL, NULL }
+};
