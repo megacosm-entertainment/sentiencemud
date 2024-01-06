@@ -189,7 +189,16 @@ int liq_lookup (const char *name)
     return -1;
 }
 
+int fragile_lookup(register const char *name)
+{
+    for(register int i = 0; fragile_table[i].name; i++)
+        if(!str_prefix(name, fragile_table[i].name))
+            return i;
 
+    return OBJ_FRAGILE_NORMAL;  // Assume normal if can't find the right one
+}
+
+#if 0
 int material_lookup (register const char *name)
 {
 	register int i;
@@ -200,7 +209,7 @@ int material_lookup (register const char *name)
 
 	return -1;
 }
-
+#endif
 
 char *get_weapon_class(OBJ_INDEX_DATA *obj)
 {
@@ -244,6 +253,20 @@ int toxin_lookup (const char *name)
 			return tox;
 
 	return -1;
+}
+
+MATERIAL *material_lookup(const char *name)
+{
+    ITERATOR it;
+    MATERIAL *mat;
+    iterator_start(&it, material_list);
+    while((mat = (MATERIAL *)iterator_nextdata(&it)))
+    {
+        if (!str_prefix(name, mat->name))
+            break;
+    }
+    iterator_stop(&it);
+    return mat;
 }
 
 LIQUID *liquid_lookup(char *name)

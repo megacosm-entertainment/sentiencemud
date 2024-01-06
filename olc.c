@@ -27,6 +27,7 @@ extern GLOBAL_DATA gconfig;
 AREA_DATA *get_area_data args ((long anum));
 AREA_DATA *get_area_from_uid args ((long uid));
 void save_liquids();
+void save_materials();
 void save_skills();
 void save_songs();
 
@@ -58,6 +59,7 @@ char *editor_name_table[] = {
 	"SgEdit",
 	"SongEdit",
 	"RepEdit",
+	"MatEdit",
 };
 
 int editor_max_tabs_table[] = {
@@ -88,6 +90,7 @@ int editor_max_tabs_table[] = {
 	0,		// SgEdit
 	0,		// SongEdit
 	0,		// RepEdit
+	0,		// MatEdit
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -115,6 +118,7 @@ const struct editor_cmd_type editor_table[] =
 	{ "skillgroup",	do_sgedit	},
 	{ "song",		do_songedit },
 	{ "reputation",	do_repedit	},
+	{ "material",	do_matedit	},
 	{ NULL,			0,			}
 };
 
@@ -556,6 +560,9 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
 	case ED_REPEDIT:
 		repedit(d->character, d->incomm);
 		break;
+	case ED_MATEDIT:
+		matedit(d->character, d->incomm);
+		break;
 
 	default:
 		return FALSE;
@@ -626,6 +633,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 	LIQUID *liquid;
 	SONG_DATA *song;
 	REPUTATION_INDEX_DATA *rep;
+	MATERIAL *material;
 	static char buf[20];
 	char buf2[MSL];
 
@@ -779,6 +787,14 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 			strcpy(buf, "--");
 		break;
 
+	case ED_MATEDIT:
+		material = (MATERIAL *)ch->desc->pEdit;
+		if (IS_VALID(material))
+			sprintf(buf, "%s", material->name);
+		else
+			strcpy(buf, "--");
+		break;
+
 	default:
 		sprintf(buf, " ");
 		break;
@@ -912,6 +928,10 @@ bool show_commands(CHAR_DATA *ch, char *argument)
 
 	case ED_REPEDIT:
 		show_olc_cmds(ch, repedit_table);
+		break;
+
+	case ED_MATEDIT:
+		show_olc_cmds(ch, matedit_table);
 		break;
 	}
 
@@ -2731,7 +2751,7 @@ void do_mcopy(CHAR_DATA *ch, char *argument)
 	new_mob->form	  = old_mob->form;
 	new_mob->parts	  = old_mob->parts;
 	new_mob->size	  = old_mob->size;
-	new_mob->material     = str_dup(old_mob->material);
+	new_mob->material     = old_mob->material;
 	new_mob->move	  = old_mob->move;
 	new_mob->attacks      = old_mob->attacks;
 	new_mob->corpse_type = old_mob->corpse_type;
@@ -2842,7 +2862,7 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
 	new_obj->short_descr = str_dup(old_obj->short_descr);
 	new_obj->description = str_dup(old_obj->description);
 	new_obj->full_description = str_dup(old_obj->full_description);
-	new_obj->material = str_dup(old_obj->material);
+	new_obj->material = old_obj->material;
 	new_obj->item_type =  old_obj->item_type;
 	new_obj->extra[0] = old_obj->extra[0];
 	new_obj->extra[1] = old_obj->extra[1];
@@ -4113,6 +4133,118 @@ void liqedit(CHAR_DATA *ch, char *argument)
 			{
 				// Save the liquids
 				save_liquids();
+			}
+			return;
+		}
+	}
+
+	interpret(ch, arg);
+}
+
+const struct olc_cmd_type matedit_table[] =
+{
+	{	"?",				show_help			},
+	{	"class",			matedit_class	},
+	{	"commands",			show_commands		},
+	{	"corrodibility",	matedit_corrodibility	},
+	{	"create",			matedit_create		},
+	{	"flags",			matedit_flags		},
+	{	"flammable",		matedit_flammable	},
+	{	"name",				matedit_name		},
+	{	"strength",			matedit_strength	},
+	{	"value",			matedit_value		},
+	{	NULL,			0,					}
+};
+
+
+void do_matedit(CHAR_DATA *ch, char *argument)
+{
+	MATERIAL *material;
+    char command[MSL];
+
+    argument = one_argument(argument, command);
+
+	if ((material = material_lookup(command)))
+	{
+		olc_set_editor(ch, ED_MATEDIT, material);
+		return;
+	}
+
+	if (!str_cmp(command, "create"))
+	{
+		matedit_create(ch, argument);
+		return;
+	}
+
+	send_to_char("Syntax:  matedit <name>\n\r", ch);
+	send_to_char("         matedit create <name>\n\r", ch);
+}
+
+void do_matlist(CHAR_DATA *ch, char *argument)
+{
+	matedit_list(ch, argument);
+}
+
+void do_matshow(CHAR_DATA *ch, char *argument)
+{
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  matshow <material name>\n\r", ch);
+		return;
+	}
+
+	MATERIAL *material = material_lookup(argument);
+	if (!IS_VALID(material))
+	{
+		send_to_char("There is no material with that name.\n\r", ch);
+		return;		
+	}
+
+	olc_show_item(ch, material, matedit_show, "");
+}
+
+
+
+
+void matedit(CHAR_DATA *ch, char *argument)
+{
+	char command[MIL];
+	char arg[MIL];
+	int  cmd;
+
+	smash_tilde(argument);
+	strcpy(arg, argument);
+	argument = one_argument(argument, command);
+
+	if (get_trust(ch) < MAX_LEVEL)
+	{
+		send_to_char("MatEdit:  Insufficient security to edit materials - action logged.\n\r", ch);
+		edit_done(ch);
+		return;
+	}
+
+	if (!str_cmp(command, "done"))
+	{
+		edit_done(ch);
+		return;
+	}
+
+	ch->pcdata->immortal->last_olc_command = current_time;
+
+	if (command[0] == '\0')
+	{
+		matedit_show(ch, argument);
+		return;
+	}
+
+	for (cmd = 0; matedit_table[cmd].name != NULL; cmd++)
+	{
+		if (!str_prefix(command, matedit_table[cmd].name))
+		{
+			if ((*matedit_table[cmd].olc_fun) (ch, argument))
+			{
+				// Save the materials
+				save_materials();
 			}
 			return;
 		}

@@ -2584,16 +2584,31 @@ void aggr_update(void)
 	if(wch->in_room) {
 		int chance = 0;
  		if(!IS_IMMORTAL(wch)) {
+			// Look for a MIST with toxic chance on it
+			OBJ_DATA *mist = NULL;
+			int max = 0;
+			for(OBJ_DATA *obj = wch->in_room->contents; obj; obj = obj->next_content)
+			{
+				if (IS_MIST(obj) && MIST(obj)->toxic > max)
+				{
+					mist = obj;
+					max = MIST(obj)->toxic;
+				}
+			}
+
 			if((tox = affect_find(wch->affected,gsk_toxic_fumes))) {
 				int cough = FALSE;
+
 				// is the mobile in a Toxic Bog?
 				if(wch->in_room &&
 					(IS_SET(wch->in_room->room_flag[1], ROOM_TOXIC_BOG) ||
-					(wch->in_room->sector_type == SECT_TOXIC_BOG))) {
+					(wch->in_room->sector_type == SECT_TOXIC_BOG) ||
+					mist != NULL)) {
 					bool dec;
 
 					if(IS_SET(wch->in_room->room_flag[1], ROOM_TOXIC_BOG)) chance += 10;
 					if(wch->in_room->sector_type == SECT_TOXIC_BOG) chance += 10;
+					if(mist != NULL) chance += MIST(mist)->toxic;
 
 					dec = (number_percent() < chance);
 					for(paf = tox;paf;paf = paf->next)
@@ -2644,6 +2659,7 @@ void aggr_update(void)
 			} else {
 				if(IS_SET(wch->in_room->room_flag[1], ROOM_TOXIC_BOG)) chance += 50;
 				if(wch->in_room->sector_type == SECT_TOXIC_BOG) chance += 50;
+				if(mist != NULL) chance += MIST(mist)->toxic;
 
 				if(chance > 0 && number_percent() < chance)
 					toxic_fumes_effect(wch,NULL);
@@ -2685,158 +2701,215 @@ void aggr_update(void)
 	}
 
 	// This is for inferno, withering cloud, etc.
-	if (wch->in_room != NULL
-	&&  number_percent() < 10
-	&&  !is_safe(wch, wch, FALSE)
-	&&  ((IS_NPC(wch) && wch->shop == NULL) ||
-	    (IS_SET(wch->in_room->room_flag[0], ROOM_PK))
-   	     || is_pk(wch)))
+	if (wch->in_room != NULL &&
+		number_percent() < 10 &&
+		!is_safe(wch, wch, FALSE) &&
+		((IS_NPC(wch) && wch->shop == NULL) || (IS_SET(wch->in_room->room_flag[0], ROOM_PK)) || is_pk(wch)))
 	{
 	    for (obj = wch->in_room->contents; obj != NULL; obj = obj->next_content)
 	    {
-		// Room flames (inferno)
-		if (IS_MIST(obj) && MIST(obj)->fiery > 0 && !IS_SET(wch->in_room->room_flag[0], ROOM_SAFE))
-		{
-		    if (MIST(obj)->fiery > number_percent())
-		    {
-			act("{RYou are scorched by flames!{x",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			act("{R$n is scorched by flames!{x",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-			damage(wch, wch, number_range(50, 500),NULL,TYPE_UNDEFINED, DAM_FIRE, FALSE);
-		    }
-		    else if (MIST(obj)->fiery > number_percent())
-		    {
-				/* Don't apply the blind affect twice */
-				if (!IS_SET(wch->affected_by[0], AFF_BLIND)) {
+			// Room flames (inferno)
+			if (IS_MIST(obj) && MIST(obj)->fiery > 0 && !IS_SET(wch->in_room->room_flag[0], ROOM_SAFE))
+			{
+				if (MIST(obj)->fiery > number_percent())
+				{
+					act("{RYou are scorched by flames!{x", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+					act("{R$n is scorched by flames!{x", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					damage(wch, wch, number_range(50, 500),NULL,TYPE_UNDEFINED, DAM_FIRE, FALSE);
+				}
+				else if (MIST(obj)->fiery > number_percent())
+				{
+					/* Don't apply the blind affect twice */
+					if (!IS_SET(wch->affected_by[0], AFF_BLIND)) {
 
-					act("{DYou are blinded by smoke!{x",
-						wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-					act("{D$n is blinded by smoke!{x",
-						wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+						act("{DYou are blinded by smoke!{x",
+							wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+						act("{D$n is blinded by smoke!{x",
+							wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
+						af.slot	= WEAR_NONE;
+						af.where     = TO_AFFECTS;
+						af.group     = AFFGROUP_PHYSICAL;
+						af.catalyst_type = -1;
+						af.skill      = gsk_blindness;
+						af.level     = obj->level;
+						af.location  = APPLY_HITROLL;
+						af.modifier  = -4;
+						af.duration  = 2;
+						af.bitvector = AFF_BLIND;
+						af.bitvector2 = 0;
+						affect_to_char(wch, &af);
+					}
+				}
+				else if (MIST(obj)->fiery > number_percent())
+				{
+					act("{RYou are scorched by flames!{x", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+					act("{R$n is scorched by flames!{x", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					fire_effect((void *) wch,obj->level, number_range(0, wch->tot_level * 10),TARGET_CHAR);
+				}
+			}
+
+			// Withering clouds (wither spell)
+			if (IS_MIST(obj) && MIST(obj)->wither > 0)
+			{
+				if (MIST(obj)->wither > number_percent())
+				{
+					act("You splutter and gag!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+					act("$n splutters and gags!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				}
+				else if (MIST(obj)->wither > number_percent())
+				{
+					act("You cough and splutter!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+					act("$n coughs and splutters violently!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				}
+
+				if (MIST(obj)->wither > number_percent() && wch->fighting == NULL &&
+					IS_AWAKE(wch) && wch->position == POS_STANDING &&
+					!(IS_NPC(wch) && (IS_SET(wch->act[0],ACT_PROTECTED) || wch->shop != NULL)) &&
+					!(!IS_NPC(wch) && IS_IMMORTAL(wch)))
+				{
+					act("$n stumbles about choking and gagging!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					act("You stumble about choking and gagging!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+					do_function(wch, &do_flee, NULL);
+				}
+				else if (MIST(obj)->wither > number_percent())
+				{
+					act("$n is blinded by the toxic haze!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					act("You are blinded by the toxic haze around you!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 					af.slot	= WEAR_NONE;
 					af.where     = TO_AFFECTS;
-					af.group     = AFFGROUP_PHYSICAL;
 					af.catalyst_type = -1;
-					af.skill      = gsk_blindness;
+					af.skill     = gsk_blindness;
 					af.level     = obj->level;
 					af.location  = APPLY_HITROLL;
 					af.modifier  = -4;
-					af.duration  = 2;
+					af.duration  = 2; //1+level > 3 ? 3 : 1+level;
 					af.bitvector = AFF_BLIND;
 					af.bitvector2 = 0;
 					affect_to_char(wch, &af);
 				}
-		    }
-		    else if (MIST(obj)->fiery > number_percent())
-		    {
-			act("{RYou are scorched by flames!{x",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			act("{R$n is scorched by flames!{x",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-			fire_effect((void *) wch,obj->level,	number_range(0, wch->tot_level * 10),TARGET_CHAR);
-		    }
-		}
-
-		// Withering clouds (wither spell)
-		if (IS_MIST(obj) && MIST(obj)->wither > 0)
-		{
-		    if (MIST(obj)->wither > number_percent())
-		    {
-			act("You splutter and gag!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			act("$n splutters and gags!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		    }
-		    else if (MIST(obj)->wither > number_percent())
-		    {
-			act("You cough and splutter!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			act("$n coughs and splutters violently!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		    }
-
-		    if (MIST(obj)->wither > number_percent() && wch->fighting == NULL &&
-				IS_AWAKE(wch) && wch->position == POS_STANDING &&
-				!(IS_NPC(wch) && (IS_SET(wch->act[0],ACT_PROTECTED) || wch->shop != NULL)) &&
-				!(!IS_NPC(wch) && IS_IMMORTAL(wch)))
-		    {
-			act("$n stumbles about choking and gagging!",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-			act("You stumble about choking and gagging!",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			do_function(wch, &do_flee, NULL);
-		    }
-		    else if (MIST(obj)->wither > number_percent())
-		    {
-			act("$n is blinded by the toxic haze!",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-			act("You are blinded by the toxic haze around you!",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			af.slot	= WEAR_NONE;
-			af.where     = TO_AFFECTS;
-			af.catalyst_type = -1;
-			af.skill     = gsk_blindness;
-			af.level     = obj->level;
-			af.location  = APPLY_HITROLL;
-			af.modifier  = -4;
-			af.duration  = 2; //1+level > 3 ? 3 : 1+level;
-			af.bitvector = AFF_BLIND;
-			af.bitvector2 = 0;
-			affect_to_char(wch, &af);
-		    }
-		    else if (MIST(obj)->wither > number_percent() && check_immune(wch, DAM_POISON) != IS_IMMUNE)
-		    {
-			act("$n is poisoned by the toxic haze!",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-			act("You are poisoned by the toxic haze around you!",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			af.slot	= WEAR_NONE;
-			af.where     = TO_AFFECTS;
-			af.catalyst_type = -1;
-			af.skill     = gsk_poison;
-			af.level     = obj->level * 3/4;
-			af.duration  = URANGE(1,obj->level / 2, 5);
-			af.location  = APPLY_STR;
-			af.modifier  = -1;
-			af.bitvector = AFF_POISON;
-			af.bitvector2 = 0;
-			affect_to_char(wch, &af);
-		    }
-		    else if (MIST(obj)->wither > number_percent())
-			acid_effect((void *)wch,obj->level,number_range(0, wch->tot_level * 10),TARGET_CHAR);
-		}
-
-		// Stinking clouds (smoke bombs)
-		if (IS_MIST(obj) && MIST(obj)->stink > 0)
-		{
-		    if (MIST(obj)->stink > number_percent())
-		    {
-			CHAR_DATA *victim, *vnext;
-
-			for (victim = wch->in_room->people; victim != NULL; victim = vnext)
-			{
-			    vnext = victim->next_in_room;
-
-			    if (IS_NPC(victim))
-			    {
-				if (victim->shop != NULL
-				||   IS_SET(victim->act[0], ACT_PROTECTED	)
-				||   IS_SET(victim->act[0], ACT_SENTINEL	))
-				    continue;
-			    }
-
-			    if (victim->tot_level <= obj->level
-			    &&  (victim->tot_level > 30 || IS_REMORT(victim))// no newbs!
-			    &&  victim->fighting == NULL
-			    &&  victim->position == POS_STANDING
-			    &&  number_percent() < 20)
-			    {
-				act("{GYou choke on the acrid fumes from $p!{x", victim, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-				act("{G$n chokes on the acrid fumes from $p!{x", victim, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-				do_flee(victim, NULL);
-			    }
+				else if (MIST(obj)->wither > number_percent() && check_immune(wch, DAM_POISON) != IS_IMMUNE)
+				{
+					act("$n is poisoned by the toxic haze!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					act("You are poisoned by the toxic haze around you!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+					af.slot	= WEAR_NONE;
+					af.where     = TO_AFFECTS;
+					af.catalyst_type = -1;
+					af.skill     = gsk_poison;
+					af.level     = obj->level * 3/4;
+					af.duration  = URANGE(1,obj->level / 2, 5);
+					af.location  = APPLY_STR;
+					af.modifier  = -1;
+					af.bitvector = AFF_POISON;
+					af.bitvector2 = 0;
+					affect_to_char(wch, &af);
+				}
+				else if (MIST(obj)->wither > number_percent())
+					acid_effect((void *)wch,obj->level,number_range(0, wch->tot_level * 10),TARGET_CHAR);
 			}
-		    }
-		}
+
+			// Stinking clouds (smoke bombs)
+			if (IS_MIST(obj) && MIST(obj)->stink > 0)
+			{
+				if (MIST(obj)->stink > number_percent())
+				{
+					CHAR_DATA *victim, *vnext;
+
+					for (victim = wch->in_room->people; victim != NULL; victim = vnext)
+					{
+						vnext = victim->next_in_room;
+
+						if (IS_NPC(victim))
+						{
+							if (victim->shop != NULL || IS_SET(victim->act[0], ACT_PROTECTED) || IS_SET(victim->act[0], ACT_SENTINEL))
+								continue;
+						}
+
+						if (victim->tot_level <= obj->level &&
+							(victim->tot_level > 30 || IS_REMORT(victim)) &&
+							victim->fighting == NULL &&
+							victim->position == POS_STANDING &&
+							number_percent() < 20)
+						{
+							act("{GYou choke on the acrid fumes from $p!{x", victim, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+							act("{G$n chokes on the acrid fumes from $p!{x", victim, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+							do_flee(victim, NULL);
+						}
+					}
+				}
+			}
+
+			// Shocking mists
+			if (IS_MIST(obj) && MIST(obj)->shock > 0 && !IS_SET(wch->in_room->room_flag[0], ROOM_SAFE))
+			{
+				if (MIST(obj)->shock > number_percent())
+				{
+					act("{YYou are struck by lightning!{x", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+					act("{Y$n is struck by lightning!{x", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					damage(wch, wch, number_range(50, 500),NULL,TYPE_UNDEFINED, DAM_LIGHTNING, FALSE);
+				}
+				else if (MIST(obj)->shock > number_percent())
+				{
+					// TODO: Paralyze them for a bit
+				}
+				else if (MIST(obj)->shock > number_percent())
+				{
+					act("{YYou are struck by lightning!{x", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+					act("{Y$n is struck by lightning!{x", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					shock_effect((void *) wch,obj->level, number_range(0, wch->tot_level * 10),TARGET_CHAR);
+				}
+			}
+
+			// Fog mists - corrodes materials (like iron -> rust, copper -> patina)
+			if (IS_MIST(obj) && MIST(obj)->fog > 0 && !IS_SET(wch->in_room->room_flag[0], ROOM_SAFE))
+			{
+				if (MIST(obj)->fog > number_percent())
+				{
+					CHAR_DATA *victim, *vnext;
+
+					for (victim = wch->in_room->people; victim != NULL; victim = vnext)
+					{
+						vnext = victim->next_in_room;
+
+						if (IS_NPC(victim))
+						{
+							if (victim->shop != NULL || IS_SET(victim->act[0], ACT_PROTECTED) || IS_SET(victim->act[0], ACT_SENTINEL))
+								continue;
+						}
+
+						if (victim->tot_level <= obj->level &&
+							(victim->tot_level > 30 || IS_REMORT(victim)) &&
+							victim->fighting == NULL &&
+							victim->position == POS_STANDING &&
+							number_percent() < 20)
+						{
+							for(OBJ_DATA *o = victim->carrying; o; o = o->next_content)
+							{
+								// TODO: Check whether the item is protected from corrosion
+
+								// Check the material for corrosion
+								if (IS_VALID(o->material) && IS_VALID(o->material->corroded) && o->material->corrodibility > number_percent())
+								{
+									act("$p corrodes.", ch, NULL, NULL, o, NULL, NULL, NULL, TO_ALL);
+									// If the fragility of the object matches the object's current material fragility
+									if (o->fragility == o->pIndexData->fragility && o->fragility == o->material->fragility)
+									{
+										o->fragility = o->material->corroded->fragility;
+									}
+									o->material = o->material->corroded;
+
+									// TODO: Add trigger for when the material changes
+								}
+							}
+						}
+					}
+				}
+
+			}
+
 	    }
+
+
 	}
 
 	/*

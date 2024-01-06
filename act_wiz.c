@@ -9926,3 +9926,235 @@ void do_repset(CHAR_DATA *ch, char *argument)
 	do_repset(ch, "");
 	return;
 }
+
+
+
+
+
+
+
+
+
+
+
+static void delete_material(void *ptr)
+{
+	free_material((MATERIAL *)ptr);
+}
+
+void save_material(FILE *fp, MATERIAL *mat)
+{
+	fprintf(fp, "#MATERIAL\n");
+	fprintf(fp, "Name %s~\n", fix_string(mat->name));
+	fprintf(fp, "Class %s~\n", flag_string(material_classes, mat->material_class));
+	fprintf(fp, "Flags %s\n", print_flags(mat->flags));
+	fprintf(fp, "Flammable %d\n", mat->flammable);
+	fprintf(fp, "Corrodibility %d\n", mat->corrodibility);
+	fprintf(fp, "Fragility %s~\n", fragile_table[mat->fragility].name);
+	fprintf(fp, "Strength %d\n", mat->strength);
+	fprintf(fp, "Value %d\n", mat->value);
+
+	if (IS_VALID(mat->corroded))
+		fprintf(fp, "Corroded %s~\n", mat->corroded->name);
+
+	if (IS_VALID(mat->burned))
+		fprintf(fp, "Burned %s~\n", mat->burned->name);
+
+	fprintf(fp, "#-MATERIAL\n");
+}
+
+void save_materials()
+{
+	FILE *fp;
+
+	log_string("save_materials: saving " MATERIALS_FILE);
+	if ((fp = fopen(MATERIALS_FILE, "w")) == NULL)
+	{
+		bug("save_materials: fopen", 0);
+		perror(MATERIALS_FILE);
+	}
+	else
+	{
+#if 0
+		for (int i = 0; material_table[i].name; i++)
+		{
+			log_stringf("MATERIAL: %s", material_table[i].name);
+
+			fprintf(fp, "#MATERIAL\n");
+			fprintf(fp, "Name %s~\n", material_table[i].name);
+
+			fprintf(fp, "Strength %d\n", material_table[i].strength);
+			fprintf(fp, "Value %d\n", material_table[i].value);
+			
+			fprintf(fp, "#-MATERIAL\n");
+		}
+#else
+		ITERATOR it;
+		MATERIAL *material;
+		iterator_start(&it, material_list);
+		while((material = (MATERIAL *)iterator_nextdata(&it)))
+		{
+			save_material(fp, material);
+		}
+		iterator_stop(&it);
+#endif
+
+		fprintf(fp, "End\n");
+		fclose(fp);
+	}
+}
+
+MATERIAL *load_material(FILE *fp)
+{
+	MATERIAL *mat = new_material();
+	char buf[MSL];
+	char *word;
+	bool fMatch;
+
+    while (str_cmp((word = fread_word(fp)), "#-MATERIAL"))
+	{
+		switch(word[0])
+		{
+			case 'B':
+				KEYS("Burned", mat->load_burned, fread_string(fp));
+				break;
+
+			case 'C':
+				KEY("Class", mat->material_class, stat_lookup(fread_string(fp), material_classes, MATERIAL_CLASS_NONE));
+				KEYS("Corroded", mat->load_corroded, fread_string(fp));
+				KEY("Corrodibility", mat->corrodibility, fread_number(fp));
+				break;
+
+			case 'F':
+				KEY("Flags", mat->flags, fread_flag(fp));
+				KEY("Flammable", mat->flammable, fread_number(fp));
+				KEY("Fragility", mat->fragility, fragile_lookup(fread_string(fp)));
+				break;
+
+			case 'N':
+				KEYS("Name", mat->name, fread_string(fp));
+				break;
+
+			case 'S':
+				KEY("Strength", mat->strength, fread_number(fp));
+				break;
+
+			case 'V':
+				KEY("Value", mat->value, fread_number(fp));
+				break;
+		}
+
+		if (!fMatch)
+		{
+			sprintf(buf, "load_material: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+	
+	return mat;
+}
+
+void insert_material(MATERIAL *material)
+{
+	ITERATOR it;
+	MATERIAL *mat;
+	iterator_start(&it, material_list);
+	while((mat = (MATERIAL *)iterator_nextdata(&it)))
+	{
+		// Why is this inaccessible?
+		int cmp = str_cmp(material->name, mat->name);
+		if(cmp < 0)
+		{
+			iterator_insert_before(&it, material);
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	if (!mat)
+	{
+		list_appendlink(material_list, material);
+	}
+}
+
+bool load_materials()
+{
+	FILE *fp;
+	char buf[MSL];
+	char *word;
+	bool fMatch;
+
+	log_string("load_materials: creating material_list");
+	material_list = list_createx(FALSE, NULL, delete_material);
+	if (!IS_VALID(material_list))
+	{
+		log_string("material_list was not created.");
+		return FALSE;
+	}
+
+	log_string("load_materials: loading " MATERIALS_FILE);
+	if ((fp = fopen(MATERIALS_FILE, "r")) == NULL)
+	{
+		log_string("load_materials: '" MATERIALS_FILE "' file not found.  Bootstrapping materials.");
+
+		for(int i = 0; material_table[i].name; i++)
+		{
+			MATERIAL *mat = new_material();
+			mat->name = str_dup(material_table[i].name);
+			mat->strength = material_table[i].strength;
+			mat->value = material_table[i].value;
+
+			insert_material(mat);
+		}
+
+		save_materials();
+
+		return true;
+	}
+
+	while (str_cmp((word = fread_word(fp)), "End"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case '#':
+				if (!str_cmp(word, "#MATERIAL"))
+				{
+					MATERIAL *material = load_material(fp);
+					if (material)
+					{
+						insert_material(material);
+					}
+					else
+						log_string("Failed to load a material.");
+					fMatch = TRUE;
+					break;
+				}
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "load_materials: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+	log_string("Materials loaded.");
+
+	// Resolve the material references
+	ITERATOR it;
+	MATERIAL *mat;
+	iterator_start(&it, material_list);
+	while((mat = (MATERIAL *)iterator_nextdata(&it)))
+	{
+		if (!IS_NULLSTR(mat->load_burned))
+			mat->burned = material_lookup(mat->load_burned);
+
+		if (!IS_NULLSTR(mat->load_corroded))
+			mat->corroded = material_lookup(mat->load_corroded);
+	}
+	iterator_stop(&it);
+	log_stringf("load_materials: total materials = %d", list_size(material_list));
+
+	return true;
+}

@@ -524,7 +524,6 @@ void free_obj(OBJ_DATA *obj)
     free_string( obj->description );
     free_string( obj->short_descr );
     free_string( obj->owner     );
-    free_string( obj->material );
 
     if ( obj->old_name != NULL )
 	free_string( obj->old_name );
@@ -2105,7 +2104,6 @@ OBJ_INDEX_DATA *new_obj_index( void )
     pObj->weight        =   0;
     pObj->cost          =   0;
     pObj->points	=   0;
-    pObj->material      =   str_dup( "unknown" );      /* ROM */
     pObj->condition     =   100;                        /* ROM */
     pObj->timer		=   0;
     pObj->skeywds		=	str_dup( "none" );
@@ -2204,7 +2202,6 @@ MOB_INDEX_DATA *new_mob_index( void )
     pMob->imm_flags     =   0;
     pMob->res_flags     =   0;
     pMob->vuln_flags    =   0;
-    pMob->material      =   str_dup("unknown");
     pMob->off_flags     =   0;
     pMob->size          =   SIZE_MEDIUM;
     pMob->ac[AC_PIERCE]	=   0;
@@ -2244,7 +2241,6 @@ void free_mob_index( MOB_INDEX_DATA *pMob )
     free_string( pMob->long_descr );
     free_string( pMob->description );
     free_string( pMob->comments );
-    free_string( pMob->material );
     free_string( pMob->sig );
     free_string( pMob->skeywds );
 
@@ -6898,4 +6894,39 @@ void free_practice_data(PRACTICE_DATA *data)
 
     data->next = practice_data_free;
     practice_data_free = data;
+}
+
+
+MATERIAL *material_free;
+MATERIAL *new_material()
+{
+    MATERIAL *data;
+    if (material_free)
+    {
+        data = material_free;
+        material_free = material_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(MATERIAL));
+
+    memset(data, 0, sizeof(*data));
+
+    data->fragility = OBJ_FRAGILE_NORMAL;   // Default fragility
+    data->load_corroded = &str_empty[0];
+    data->load_burned = &str_empty[0];
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_material(MATERIAL *data)
+{
+    if (!IS_VALID(data)) return;
+
+    free_string(data->load_corroded);
+    free_string(data->load_burned);
+
+    INVALIDATE(data);
+    data->next = material_free;
+    material_free = data;
 }

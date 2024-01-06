@@ -1271,8 +1271,8 @@ DECL_IFC_FUN(ifc_manaregen)
 
 DECL_IFC_FUN(ifc_material)
 {
-	if(ISARG_MOB(0)) *ret = ARG_MOB(0)->material && !str_cmp(ARG_STR(1), ARG_MOB(0)->material);
-	else if(ISARG_OBJ(0)) *ret = ARG_OBJ(0)->material && !str_cmp(ARG_STR(1), ARG_OBJ(0)->material);
+	if(ISARG_MOB(0)) *ret = IS_VALID(ARG_MOB(0)->material) && !str_cmp(ARG_STR(1), ARG_MOB(0)->material->name);
+	else if(ISARG_OBJ(0)) *ret = IS_VALID(ARG_OBJ(0)->material) && !str_cmp(ARG_STR(1), ARG_OBJ(0)->material->name);
 	else *ret = FALSE;
 	return TRUE;
 }

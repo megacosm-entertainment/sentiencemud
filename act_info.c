@@ -1630,6 +1630,29 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 
 	linelength = 0;
 
+	// Check for a MIST with obscure_room
+	if (remote)
+	{
+		OBJ_DATA *mist = NULL;
+		int max = 0;
+
+		for(OBJ_DATA *obj = room->contents; obj; obj = obj->next_content)
+		{
+			if (IS_MIST(obj) && MIST(obj)->obscure_room > max)
+			{
+				mist = obj;
+				max = MIST(obj)->obscure_room;
+			}
+		}
+
+		if (mist != NULL && max > number_percent())
+		{
+			send_to_char(mist->description, ch);
+			return;
+		}
+	}
+
+
 	if (IS_IMMORTAL(ch) && (IS_NPC(ch) || IS_SET(ch->act[0], PLR_HOLYLIGHT))) {
 		if (IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM)) {
 			if(room->wilds) {
@@ -2747,10 +2770,8 @@ void do_look(CHAR_DATA * ch, char *argument)
 		look_room = pexit->u1.to_room;
 	}
 
-	char_room = ch->in_room;
-	ch->in_room = look_room;
-	do_function(ch, &do_look, "auto");
-	ch->in_room = char_room;
+	// Changed looking through an exit to use show_room
+	show_room(ch, look_room, true, false, true);
 }
 
 

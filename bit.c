@@ -116,6 +116,7 @@ const struct flag_stat_type flag_stat_table[] =
     {   song_target_types,          TRUE    },
     {   reputation_rank_flags,      FALSE   },
     {   ammo_types,                 TRUE    },
+    {   material_classes,           TRUE    },
     {	0,							0		}
 };
 

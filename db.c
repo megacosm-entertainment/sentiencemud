@@ -88,6 +88,7 @@ extern	LLIST *loaded_instances;
 extern	LLIST *loaded_dungeons;
 extern	LLIST *loaded_ships;
 LLIST *loaded_special_keys;
+LLIST *material_list = NULL;
 LLIST *liquid_list = NULL;
 sh_int top_liquid_uid = 0;
 
@@ -3354,7 +3355,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 	mob->form				= pMobIndex->form;
 	mob->parts				= pMobIndex->parts;
 	mob->size				= pMobIndex->size;
-	mob->material			= str_dup(pMobIndex->material);
+	mob->material			= pMobIndex->material;
 	mob->corpse_type		= pMobIndex->corpse_type;
 	mob->corpse_wnum		= pMobIndex->corpse;
 
@@ -3818,7 +3819,7 @@ CHAR_DATA *clone_mobile(CHAR_DATA *parent)
     clone->form		= parent->form;
     clone->parts	= parent->parts;
     clone->size		= parent->size;
-    clone->material	= str_dup(parent->material);
+    clone->material	= parent->material;
     clone->off_flags	= parent->off_flags;
     clone->dam_type	= parent->dam_type;
     clone->start_pos	= parent->start_pos;
@@ -3927,7 +3928,7 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
     obj->old_short_descr 	= NULL;
     obj->old_description        = NULL;
     obj->loaded_by      = NULL;
-    obj->material	= str_dup(pObjIndex->material);
+    obj->material	= pObjIndex->material;
     obj->condition	= pObjIndex->condition;
     obj->times_allowed_fixed	= pObjIndex->times_allowed_fixed;
     obj->fragility	= pObjIndex->fragility;
@@ -4122,7 +4123,7 @@ void clone_object(OBJ_DATA *parent, OBJ_DATA *clone)
     clone->cost		= parent->cost;
     clone->level	= parent->level;
     clone->condition	= parent->condition;
-    clone->material	= str_dup(parent->material);
+    clone->material	= parent->material;
     clone->timer	= parent->timer;
     clone->num_enchanted = parent->num_enchanted;
 
@@ -6323,7 +6324,7 @@ ROOM_INDEX_DATA *create_virtual_room_nouid(ROOM_INDEX_DATA *source, bool objects
 			ex2->rs_flags = ex->rs_flags;
 			ex2->orig_door = ex->orig_door;
 			ex2->door.strength = ex->door.strength;
-			ex2->door.material = str_dup(ex->door.material);
+			ex2->door.material = ex->door.material;
 			ex2->door.lock = ex->door.lock;
 			ex2->door.rs_lock = ex->door.rs_lock;
 			ex2->from_room = vroom;
@@ -7201,7 +7202,8 @@ void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
 
 	fprintf(fp, "Parts %ld\n", ch->parts);
 	fprintf(fp, "Size %d\n", ch->size);
-	fprintf(fp, "Material %s~\n", (!ch->material[0] ? "Unknown" : ch->material));
+	if (IS_VALID(ch->material))
+		fprintf(fp, "Material %s~\n", ch->material->name);
 	if (ch->corpse_type)
 		fprintf(fp, "CorpseType %ld\n", (long int)ch->corpse_type);
 	if (ch->corpse_wnum.auid > 0 && ch->corpse_wnum.vnum > 0)
@@ -7318,8 +7320,8 @@ void persist_save_exit(FILE *fp, EXIT_DATA *ex)
 		flag_string(lock_flags, ex->door.rs_lock.flags),
 		ex->door.rs_lock.pick_chance,
 		ex->door.strength);
-	if(!IS_NULLSTR(ex->door.material))
-		fprintf(fp, "DoorMat %s~\n", ex->door.material);
+	if(IS_VALID(ex->door.material))
+		fprintf(fp, "DoorMat %s~\n", ex->door.material->name);
 
 	fprintf(fp, "#-EXIT\n\n");
 }
@@ -8818,7 +8820,12 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 				KEY("LostParts",	ch->lostparts,	fread_flag(fp));
 				break;
 			case 'M':
-				SKEY("Material",	ch->material);
+				if (!str_cmp(word, "Material"))
+				{
+					ch->material = material_lookup(fread_string(fp));
+					fMatch = true;
+					break;
+				}
 				if (!str_cmp(word, "Reputation"))
 				{
 					WNUM_LOAD wnum_load = fread_widevnum(fp, index->area->uid);
@@ -9107,7 +9114,7 @@ EXIT_DATA *persist_load_exit(FILE *fp)
 					break;
 				}
 
-				SKEY("DoorMat", ex->door.material);
+				KEY("DoorMat", ex->door.material, material_lookup(fread_string(fp)));
 				break;
 			case 'E':
 				break;

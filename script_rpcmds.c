@@ -3036,133 +3036,6 @@ SCRIPT_CMD(do_rpresetdice)
 
 
 
-SCRIPT_CMD(do_rpstringobj)
-{
-	char buf[MSL],field[MIL],*rest, **str;
-	int min_sec = MIN_SCRIPT_SECURITY;
-	OBJ_DATA *obj = NULL;
-
-	bool newlines = FALSE;
-
-	if(!info || !info->room) return;
-
-	if(!(rest = expand_argument(info,argument,arg))) {
-		bug("RpStringObj - Error in parsing.",0);
-		return;
-	}
-
-	switch(arg->type) {
-	case ENT_STRING:
-		obj = get_obj_here(NULL,info->room,arg->d.str);
-		break;
-	case ENT_OBJECT:
-		obj = arg->d.obj;
-		break;
-	default: break;
-	}
-
-	if(!obj) {
-		bug("RpStringObj - NULL object.", 0);
-		return;
-	}
-
-	if(!*rest) {
-		bug("RpStringObj - Missing field type.",0);
-		return;
-	}
-
-	if(!(rest = expand_argument(info,rest,arg))) {
-		bug("RpStringObj - Error in parsing.",0);
-		return;
-	}
-
-	field[0] = 0;
-
-	switch(arg->type) {
-	case ENT_STRING:
-		strncpy(field,arg->d.str,MIL-1);
-		break;
-	default: return;
-	}
-
-	if(!field[0]) return;
-
-	BUFFER *buffer = new_buf();
-	expand_string(info,rest,buffer);
-
-	if( buffer->string[0] != '\0' )
-	{
-
-		if(!str_cmp(field,"name")) {
-			if(obj->old_short_descr)
-			{
-				free_buf(buffer);
-				return;	// Can't change restrings, sorry!
-			}
-			str = (char**)&obj->name;
-		} else if(!str_cmp(field,"owner")) {
-			str = (char**)&obj->owner;
-			min_sec = 5;
-		} else if(!str_cmp(field,"short")) {
-			if(obj->old_short_descr)
-			{
-				free_buf(buffer);
-				return;	// Can't change restrings, sorry!
-			}
-			str = (char**)&obj->short_descr;
-		} else if(!str_cmp(field,"long")) {
-			if(obj->old_description)
-			{
-				free_buf(buffer);
-				return;	// Can't change restrings, sorry!
-			}
-
-			str = (char**)&obj->description;
-		} else if(!str_cmp(field,"full")) {
-			if(obj->old_full_description)
-			{
-				free_buf(buffer);
-				return;	// Can't change restrings, sorry!
-			}
-
-			str = (char**)&obj->full_description;
-			newlines = TRUE;
-		} else if(!str_cmp(field,"material")) {
-			int mat = material_lookup(buf);
-
-			if(mat < 0) {
-				bug("RpStringObj - Invalid material.\n\r", 0);
-				free_buf(buffer);
-				return;
-			}
-
-			// Force material to the full name
-			clear_buf(buffer);
-			add_buf(buffer,material_table[mat].name);
-
-			str = (char**)&obj->material;
-		}
-		else
-		{
-			free_buf(buffer);
-			return;
-		}
-
-		if(script_security < min_sec) {
-			sprintf(buf,"RpStringObj - Attempting to restring '%s' with security %d.\n\r", field, script_security);
-			bug(buf, 0);
-			free_buf(buffer);
-			return;
-		}
-
-		strip_newline(buffer->string, newlines);
-
-		free_string(*str);
-		*str = str_dup(buffer->string);
-	}
-
-	free_buf(buffer);
-}
 
 SCRIPT_CMD(do_rpaltermob)
 {
@@ -3262,7 +3135,6 @@ SCRIPT_CMD(do_rpaltermob)
 	else if(!str_cmp(field,"lostparts"))	{ ptr = (int*)&mob->lostparts; allowarith = FALSE; flags = part_flags; }
 	else if(!str_cmp(field,"mana"))		ptr = (int*)&mob->mana;
 	else if(!str_cmp(field,"manastore"))	{ ptr = (int*)&mob->manastore; allowpc = TRUE; }
-//	else if(!str_cmp(field,"material"))	ptr = (int*)&mob->material;
 	else if(!str_cmp(field,"maxexp"))	ptr = (int*)&mob->maxexp;
 	else if(!str_cmp(field,"maxhit"))	ptr = (int*)&mob->max_hit;
 	else if(!str_cmp(field,"maxmana"))	ptr = (int*)&mob->max_mana;
@@ -4437,6 +4309,7 @@ SCRIPT_CMD(do_rpalterexit)
 	int min = 0, max = 0;
 	bool hasmin = FALSE, hasmax = FALSE;
 	bool allowarith = TRUE;
+	bool check_material = false;
 	const struct flag_type *flags = NULL;
 
 	if(!info || !info->room) return;
@@ -4510,8 +4383,26 @@ SCRIPT_CMD(do_rpalterexit)
 	str = NULL;
 	if(!str_cmp(field,"keyword"))		str = &ex->keyword;
 	else if(!str_cmp(field,"long"))		str = &ex->long_desc;
-	else if(!str_cmp(field,"material"))	str = &ex->door.material;
+	else if(!str_cmp(field,"material"))	check_material = true;
 	else if(!str_cmp(field,"short"))	str = &ex->short_desc;
+
+	if (check_material)
+	{
+		BUFFER *buffer = new_buf();
+		expand_string(info,rest,buffer);
+
+		MATERIAL *material = material_lookup(buf_string(buffer));
+
+		if(!IS_VALID(material)) {
+			scriptcmd_bug(info, "RpAlterExit - Invalid material.");
+			free_buf(buffer);
+			return;
+		}
+
+		ex->door.material = material;
+		free_buf(buffer);
+		return;
+	}
 
 	if(str) {
 		BUFFER *buffer = new_buf();

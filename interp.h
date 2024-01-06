@@ -636,3 +636,7 @@ DECLARE_DO_FUN( do_repshow );
 
 DECLARE_DO_FUN( do_repset );
 
+
+DECLARE_DO_FUN( do_matedit );
+DECLARE_DO_FUN( do_matlist );
+DECLARE_DO_FUN( do_matshow );

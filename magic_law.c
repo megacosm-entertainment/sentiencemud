@@ -498,7 +498,7 @@ bool __func_identify(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
 
 	add_buf(buffer, buf);
 
-	sprintf(buf, "{MIt is made out of {x%s{M.\n\r", obj->material);
+	sprintf(buf, "{MIt is made out of {x%s{M.\n\r", IS_VALID(obj->material)?obj->material->name:"nothing");
 	add_buf(buffer, buf);
 
 	// Sages know where items come from, if from the mortal world

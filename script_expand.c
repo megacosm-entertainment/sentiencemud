@@ -2997,7 +2997,17 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.boolean = self && self->stached;
 		break;
 
+	case ENTITY_OBJ_MATERIAL:
+		arg->type = ENT_MATERIAL;
+		arg->d.material = self ? self->material : NULL;
+		break;
+
 	// Multi-typing
+	case ENTITY_OBJ_TYPE_AMMO:
+		arg->type = ENT_OBJECT_AMMO;
+		// Uses self
+		break;
+
 	case ENTITY_OBJ_TYPE_BOOK:
 		arg->type = ENT_OBJECT_BOOK;
 		// Uses self
@@ -3033,8 +3043,18 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		// Uses self
 		break;
 
+	case ENTITY_OBJ_TYPE_JEWELRY:
+		arg->type = ENT_OBJECT_JEWELRY;
+		// Uses self
+		break;
+
 	case ENTITY_OBJ_TYPE_LIGHT:
 		arg->type = ENT_OBJECT_LIGHT;
+		// Uses self
+		break;
+
+	case ENTITY_OBJ_TYPE_MIST:
+		arg->type = ENT_OBJECT_MIST;
 		// Uses self
 		break;
 
@@ -3065,6 +3085,11 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 	case ENTITY_OBJ_TYPE_WAND:
 		arg->type = ENT_OBJECT_WAND;
+		// Uses self
+		break;
+
+	case ENTITY_OBJ_TYPE_WEAPON:
+		arg->type = ENT_OBJECT_WEAPON;
 		// Uses self
 		break;
 
@@ -5009,6 +5034,67 @@ char *expand_entity_liquid(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_LIQUID_FUEL_DURATION:
 		arg->type = ENT_NUMBER;
 		arg->d.num = IS_VALID(liquid) ? liquid->fuel_duration : 0;
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+
+char *expand_entity_material(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	MATERIAL *material = arg->d.material;
+
+	switch(*str)
+	{
+	case ENTITY_MATERIAL_NAME:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(material) ? material->name : "";
+		break;
+
+	case ENTITY_MATERIAL_CLASS:
+		arg->type = ENT_STAT;
+		arg->d.stat.value = IS_VALID(material) ? material->material_class : NO_FLAG;
+		arg->d.stat.table = material_classes;
+		arg->d.stat.def_value = MATERIAL_CLASS_NONE;
+		break;
+
+	case ENTITY_MATERIAL_FLAGS:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(material) ? material->flags : 0;
+		arg->d.bv.table = material_flags;
+		break;
+
+	case ENTITY_MATERIAL_FLAMMABLE:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(material) ? material->flammable : 0;
+		break;
+
+	case ENTITY_MATERIAL_CORRODIBILITY:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(material) ? material->corrodibility : 0;
+		break;
+
+	case ENTITY_MATERIAL_STRENGTH:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(material) ? material->strength : 0;
+		break;
+
+	case ENTITY_MATERIAL_VALUE:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(material) ? material->value : 0;
+		break;
+
+	case ENTITY_MATERIAL_BURNED:
+		arg->type = ENT_MATERIAL;
+		arg->d.material = IS_VALID(material) ? material->burned : NULL;
+		break;
+
+	case ENTITY_MATERIAL_CORRODED:
+		arg->type = ENT_MATERIAL;
+		arg->d.material = IS_VALID(material) ? material->corroded : NULL;
 		break;
 
 	default: return NULL;
@@ -8798,6 +8884,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_FOOD_BUFF:	next = expand_entity_food_buff(info,str,arg); break;
 		case ENT_COMPARTMENT:	next = expand_entity_compartment(info,str,arg); break;
 		case ENT_LIQUID:		next = expand_entity_liquid(info,str,arg); break;
+		case ENT_MATERIAL:		next = expand_entity_material(info,str,arg); break;
 		case ENT_SPELL:		next = expand_entity_spelldata(info,str,arg); break;
 		case ENT_LOCK_STATE:	next = expand_entity_lockstate(info,str,arg); break;
 		case ENT_SONG:		next = expand_entity_song(info,str,arg); break;

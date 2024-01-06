@@ -4714,6 +4714,20 @@ void fread_obj_check_version(OBJ_DATA *obj, long values[MAX_OBJVALUES])
 		}
 	}
 
+	if (obj->version < VERSION_OBJECT_016)
+	{
+		int new_fragility = obj->fragility;
+		switch(obj->fragility)
+		{
+			case OLD_OBJ_FRAGILE_WEAK: new_fragility = OBJ_FRAGILE_WEAK; break;
+			case OLD_OBJ_FRAGILE_NORMAL: new_fragility = OBJ_FRAGILE_NORMAL; break;
+			case OLD_OBJ_FRAGILE_STRONG: new_fragility = OBJ_FRAGILE_STRONG; break;
+			case OLD_OBJ_FRAGILE_SOLID: new_fragility = OBJ_FRAGILE_SOLID; break;
+		}
+
+		obj->fragility = new_fragility;
+	}
+
 	for(int i = 0; i < MAX_OBJVALUES; i++)
 		obj->value[i] = values[i];
 }

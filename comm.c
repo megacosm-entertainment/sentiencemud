@@ -293,6 +293,9 @@ extern void save_area_list();
 extern void save_area_new(AREA_DATA *area);
 extern void init_string_space();
 
+bool load_materials();
+void save_materials();
+
 bool load_liquids();
 void save_liquids();
 
@@ -693,6 +696,9 @@ int main(int argc, char **argv)
 	if (!init_scripting()) exit(1);
 	log_string("scripting initialized.");
 
+	if (!load_materials()) exit(1);
+	log_string("materials loaded.");
+
 	if (!load_liquids()) exit(1);
 	log_string("liquids loaded.");
 
@@ -750,6 +756,9 @@ int main(int argc, char **argv)
 
 	save_liquids();
 	list_destroy(liquid_list);
+
+	save_materials();
+	list_destroy(material_list);
 
 	save_skills();
 	list_destroy(skills_list);

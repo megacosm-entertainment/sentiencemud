@@ -343,6 +343,9 @@ struct sound_type {
 //    STINKING_CLOUD
 //    WITHERING_CLOUD
 
+#define VERSION_OBJECT_016  0x01000015
+//  Change #1: Change the order of the fragility to allow for natural modification
+
 #define VERSION_ROOM_001	0x01000001
 //  Change #1: lock states
 
@@ -352,7 +355,7 @@ struct sound_type {
 #define VERSION_DB			VERSION_DB_001
 #define VERSION_AREA		VERSION_AREA_003
 #define VERSION_MOBILE		0x01000000
-#define VERSION_OBJECT		VERSION_OBJECT_015
+#define VERSION_OBJECT		VERSION_OBJECT_016
 #define VERSION_ROOM		VERSION_ROOM_002
 #define VERSION_PLAYER		VERSION_PLAYER_005
 #define VERSION_TOKEN		0x01000000
@@ -386,6 +389,7 @@ typedef struct	global_data		GLOBAL_DATA;
 typedef struct	help_category		HELP_CATEGORY;
 typedef struct	help_data		HELP_DATA;
 typedef struct liquid_type LIQUID;
+typedef struct material_data MATERIAL;
 typedef struct	mob_index_data		MOB_INDEX_DATA;
 typedef struct  mob_reputation_data   MOB_REPUTATION_DATA;
 typedef struct	note_data		NOTE_DATA;
@@ -3730,7 +3734,7 @@ struct	mob_index_data
     long		form;
     long		parts;
     sh_int		size;
-    char *		material;
+    MATERIAL *material;
     /*long		mprog_flags; */
     long 		move;
     int			attacks;
@@ -4457,7 +4461,7 @@ struct	char_data
     long		parts;
     long		lostparts;	/* Stuff you've lost! */
     int			size;
-    char *		material;
+    MATERIAL *material;
 
     /* for mobs */
     long		off_flags;
@@ -5529,7 +5533,7 @@ struct	obj_index_data
     char *		description;
     char * 		full_description;
     long		vnum;
-    char *		material;
+    MATERIAL *material;
     sh_int		item_type;
     long        extra[4];
 //    long 		extra_flags;
@@ -5667,7 +5671,7 @@ struct	obj_data
     long		cost;
     int			level;
     int 		condition;
-    char *		material;
+    MATERIAL *material;
     int			timer;
     int 		fragility;
     int			times_allowed_fixed;
@@ -5730,10 +5734,15 @@ struct	obj_data
 };
 
 /* fragility */
-#define OBJ_FRAGILE_NORMAL 	0
-#define OBJ_FRAGILE_SOLID  	1
-#define OBJ_FRAGILE_WEAK 	2
-#define OBJ_FRAGILE_STRONG 	3
+#define OBJ_FRAGILE_WEAK 	0
+#define OBJ_FRAGILE_NORMAL 	1
+#define OBJ_FRAGILE_STRONG 	2
+#define OBJ_FRAGILE_SOLID  	3
+
+#define OLD_OBJ_FRAGILE_NORMAL 	0
+#define OLD_OBJ_FRAGILE_SOLID  	1
+#define OLD_OBJ_FRAGILE_WEAK 	2
+#define OLD_OBJ_FRAGILE_STRONG 	3
 
 #define OBJ_ARMOUR_NOSTRENGTH 	0
 #define OBJ_ARMOUR_LIGHT 	1
@@ -5772,7 +5781,7 @@ struct	exit_data
 
 	struct door_data {
 		sh_int strength;
-		char *material;
+		MATERIAL *material;
 		LOCK_STATE lock;
 		LOCK_STATE rs_lock;
 //		int rs_lock_flags;
@@ -7303,6 +7312,50 @@ struct mob_skill_data {
 	sh_int rating;
 };
 
+
+#define MATERIAL_CLASS_UNKNOWN  -1
+#define MATERIAL_CLASS_NONE     0     // Is nothing
+#define MATERIAL_CLASS_LIQUID   1
+#define MATERIAL_CLASS_WOOD     2
+#define MATERIAL_CLASS_STONE    3
+#define MATERIAL_CLASS_METAL    4
+#define MATERIAL_CLASS_GEM      5
+#define MATERIAL_CLASS_FLESH    6
+#define MATERIAL_CLASS_PLANT    7
+#define MATERIAL_CLASS_CLOTH    8
+#define MATERIAL_CLASS_ENERGY   9
+#define MATERIAL_CLASS_LEATHER  10
+#define MATERIAL_CLASS_SCALE    11
+#define MATERIAL_CLASS_GAS      12
+#define MATERIAL_CLASS_ORGANIC  13
+#define MATERIAL_CLASS_EARTH    14  // Soils, dirt, mud, etc
+
+struct material_data
+{
+    MATERIAL *next;
+    bool valid;
+
+    char *name;
+
+    int material_class;         // Type of material, such as METAL
+
+    long flags;
+
+    char flammable;         // How flammable is it?
+    char corrodibility;     // How likely it is to corrode/rust.
+
+    int fragility;          // Inherent fragility
+    int strength;
+    int value;
+
+    // Loading strings for the MATERIALs below
+    char *load_corroded;
+    char *load_burned;
+
+    // If these materials are NULL, nothing changes
+    MATERIAL *corroded;     // What this material changes into when it corrodes
+    MATERIAL *burned;       // What this material changes into when it burns
+};
 
 struct material_type
 {
@@ -9130,6 +9183,7 @@ char *	crypt		args( ( const char *key, const char *salt ) );
 #define CONFIG_FILE		SYSTEM_DIR "gconfig.rc"
 #define TRIGGERS_FILE       SYSTEM_DIR "triggers.dat"
 #define LIQUIDS_FILE        SYSTEM_DIR "liquids.dat"
+#define MATERIALS_FILE      SYSTEM_DIR "materials.dat"
 #define SKILLS_FILE         SYSTEM_DIR "skills.dat"
 #define SONGS_FILE         SYSTEM_DIR "songs.dat"
 /*Notes of all kinds */
@@ -9719,7 +9773,7 @@ int	count_users	args( (OBJ_DATA *obj) );
 void 	deduct_cost	args( (CHAR_DATA *ch, int cost) );
 void	affect_enchant	args( (OBJ_DATA *obj) );
 int 	check_immune	args( (CHAR_DATA *ch, sh_int dam_type) );
-int 	material_lookup args( ( const char *name) );
+//int 	material_lookup args( ( const char *name) );
 //int	weapon_lookup	args( ( const char *name) );
 //int	weapon_type	args( ( const char *name) );
 //int	ranged_weapon_type	args( ( const char *name) );
@@ -11196,16 +11250,19 @@ bool obj_has_same_spells(LLIST *a, LLIST *b);
 bool fluid_has_same_fluid(FLUID_CONTAINER_DATA *a, FLUID_CONTAINER_DATA *b);
 void fluid_empty_container(FLUID_CONTAINER_DATA *a);
 
+extern LLIST *material_list;
+MATERIAL *material_lookup(const char *name);
+
 extern LLIST *liquid_list;
 extern sh_int top_liquid_uid;
 extern sh_int gln_water;
 extern sh_int gln_blood;
 extern sh_int gln_potion;
 extern sh_int gln_acid;
-LIQUID *liquid_water;
-LIQUID *liquid_blood;
-LIQUID *liquid_potion;
-LIQUID *liquid_acid;
+extern LIQUID *liquid_water;
+extern LIQUID *liquid_blood;
+extern LIQUID *liquid_potion;
+extern LIQUID *liquid_acid;
 LIQUID *liquid_lookup(char *name);
 LIQUID *liquid_lookup_uid(sh_int uid);
 sh_int *liquid_gln_lookup(char *name);
@@ -11257,5 +11314,6 @@ bool check_mob_factions_hostile(CHAR_DATA *ch, CHAR_DATA *victim);
 bool token_should_save(TOKEN_DATA *token);
 
 char *strip_colors( const char *string );
+int fragile_lookup(register const char *name);
 
 #endif /* !def __merc_h__ */

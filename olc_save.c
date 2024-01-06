@@ -743,7 +743,8 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
         mob->start_pos, mob->default_pos, mob->sex, mob->wealth);
     fprintf(fp, "Parts %ld Size %d\n",
 	mob->parts, mob->size);
-    fprintf(fp, "Material %s~\n", mob->material[0] == '\0' ? "Unknown" : mob->material);
+	if (IS_VALID(mob->material))
+    	fprintf(fp, "Material %s~\n", mob->material->name);
     if (mob->corpse_type)
 	fprintf(fp, "CorpseType %ld\n", (long int)mob->corpse_type);
     if (mob->corpse.auid > 0 && mob->corpse.vnum > 0)
@@ -1279,7 +1280,8 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
 	fprintf(fp, "ShortDesc %s~\n", obj->short_descr);
 	fprintf(fp, "LongDesc %s~\n", obj->description);
 	fprintf(fp, "Description %s~\n", fix_string(obj->full_description));
-	fprintf(fp, "Material %s~\n", obj->material);
+	if (IS_VALID(obj->material))
+		fprintf(fp, "Material %s~\n", obj->material->name);
 	fprintf(fp, "ImpSig %s~\n", obj->imp_sig);
 	if(obj->persist)
 		fprintf(fp, "Persist\n");
@@ -2744,7 +2746,12 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 		break;
 
 	    case 'M':
-	        KEYS("Material",	mob->material,	fread_string(fp));
+			if (!str_cmp(word, "Material"))
+			{
+				mob->material = material_lookup(fread_string(fp));
+				fMatch = true;
+				break;
+			}
 		KEY("Movement",	mob->move,	fread_number(fp));
 
 		if (!str_cmp(word, "Mana")) {
@@ -4403,7 +4410,12 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 				break;
 			}
 
-			KEYS("Material",	obj->material,	fread_string(fp));
+			if (!str_cmp(word, "Material"))
+			{
+				obj->material = material_lookup(fread_string(fp));
+				fMatch = true;
+				break;
+			}
 			break;
 
 		case 'N':
@@ -4918,6 +4930,20 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 			obj_index_set_primarytype(obj, ITEM_MIST);
 			MIST(obj)->wither = 4;
 		}
+	}
+
+	if (area->version_object < VERSION_OBJECT_016)
+	{
+		int new_fragility = obj->fragility;
+		switch(obj->fragility)
+		{
+			case OLD_OBJ_FRAGILE_WEAK: new_fragility = OBJ_FRAGILE_WEAK; break;
+			case OLD_OBJ_FRAGILE_NORMAL: new_fragility = OBJ_FRAGILE_NORMAL; break;
+			case OLD_OBJ_FRAGILE_STRONG: new_fragility = OBJ_FRAGILE_STRONG; break;
+			case OLD_OBJ_FRAGILE_SOLID: new_fragility = OBJ_FRAGILE_SOLID; break;
+		}
+
+		obj->fragility = new_fragility;
 	}
 
 	// Remove when all item multi-typing is complete

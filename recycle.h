@@ -238,7 +238,6 @@ void free_ship_crew_index(SHIP_CREW_INDEX_DATA *crew);
 AURA_DATA *new_aura_data();
 void free_aura_data(AURA_DATA *aura);
 
-
 // Item Multi-typing
 
 // Ammo
@@ -344,6 +343,9 @@ void free_weapon_data(WEAPON_DATA *data);
 
 LIQUID *new_liquid();
 void free_liquid(LIQUID *liq);
+
+MATERIAL *new_material();
+void free_material(MATERIAL *data);
 
 SKILL_DATA *new_skill_data();
 void free_skill_data(SKILL_DATA *skill);

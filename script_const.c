@@ -432,6 +432,7 @@ ENT_FIELD entity_object[] = {
 	{"stache",					ENTITY_OBJ_STACHE,			ENT_PLLIST_OBJ },
 	{"islockered",		ENTITY_OBJ_ISLOCKERED,			ENT_BOOLEAN },
 	{"isstached",		ENTITY_OBJ_ISSTACHED,			ENT_BOOLEAN },
+	{"material",		ENTITY_OBJ_MATERIAL,		ENT_MATERIAL },
 	{"ammo_data",		ENTITY_OBJ_TYPE_AMMO,		ENT_OBJECT_AMMO},
 	{"book_page",		ENTITY_OBJ_TYPE_PAGE,		ENT_BOOK_PAGE},			// This is unique in that it is not handled internally like other type
 	{"book_data",		ENTITY_OBJ_TYPE_BOOK,		ENT_OBJECT_BOOK},
@@ -966,6 +967,19 @@ ENT_FIELD entity_liquid[] = {
 	{NULL,		0,					ENT_UNKNOWN }
 };
 
+ENT_FIELD entity_material[] = {
+	{"name",			ENTITY_MATERIAL_NAME,			ENT_STRING },
+	{"class",			ENTITY_MATERIAL_CLASS,			ENT_STAT },
+	{"flags",			ENTITY_MATERIAL_FLAGS,			ENT_BITVECTOR },
+	{"flammable",		ENTITY_MATERIAL_FLAMMABLE,		ENT_NUMBER },
+	{"corrodibility",	ENTITY_MATERIAL_CORRODIBILITY,	ENT_NUMBER },
+	{"strength",		ENTITY_MATERIAL_STRENGTH,		ENT_NUMBER },
+	{"value",			ENTITY_MATERIAL_VALUE,			ENT_NUMBER },
+	{"burned",			ENTITY_MATERIAL_BURNED,			ENT_MATERIAL },
+	{"corroded",		ENTITY_MATERIAL_CORRODED,		ENT_MATERIAL },
+	{NULL,				0,								ENT_UNKNOWN }
+};
+
 ENT_FIELD entity_song[] = {
 	{"name",	ENTITY_SONG_NAME,	ENT_STRING	},
 	{"uid",		ENTITY_SONG_UID,	ENT_NUMBER	},
@@ -1154,6 +1168,7 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_WEAPON_ATTACK,	ENT_WEAPON_ATTACK,	entity_weapon_attack,	FALSE,	FALSE },
 	{ ENT_ATTACK,		ENT_ATTACK,			entity_attack_type,			FALSE,	FALSE },
 	{ ENT_LIQUID,		ENT_LIQUID,			entity_liquid,				FALSE,	FALSE },
+	{ ENT_MATERIAL,		ENT_MATERIAL,		entity_material,			FALSE,	FALSE },
 	{ ENT_EXTRADESC,	ENT_EXTRADESC,		NULL,						FALSE,	FALSE },
 	{ ENT_HELP,			ENT_HELP,			NULL,						FALSE,	FALSE },
 	{ ENT_PRIOR,		ENT_PRIOR,			entity_prior,				FALSE,	FALSE },

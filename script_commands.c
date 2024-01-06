@@ -9585,7 +9585,7 @@ SCRIPT_CMD(scriptcmd_stringobjmt)
 		else if (!str_cmp(field, "long"))		{ if (obj->old_description) return; str = (char **)&obj->description; }
 		else if (!str_cmp(field, "full"))		{ if (obj->old_full_description) return; str = (char **)&obj->full_description; }
 		else if (!str_cmp(field, "owner"))		{ str = (char **)&obj->owner; }
-		else if (!str_cmp(field, "material"))	{ str = (char **)&obj->material; check_material = TRUE; }
+		else if (!str_cmp(field, "material"))	{ check_material = TRUE; }
 		break;
 
 	case ENT_OBJECT:
@@ -9602,7 +9602,7 @@ SCRIPT_CMD(scriptcmd_stringobjmt)
 		else if (!str_cmp(field, "long"))		{ if (obj->old_description) return; str = (char **)&obj->description; }
 		else if (!str_cmp(field, "full"))		{ if (obj->old_full_description) return; str = (char **)&obj->full_description; newlines = TRUE; }
 		else if (!str_cmp(field, "owner"))		{ str = (char **)&obj->owner; min_sec = 5; }
-		else if (!str_cmp(field, "material"))	{ str = (char **)&obj->material; check_material = TRUE; }
+		else if (!str_cmp(field, "material"))	{ check_material = TRUE; }
 		break;
 
 	case ENT_OBJECT_PAGE:
@@ -9685,25 +9685,25 @@ SCRIPT_CMD(scriptcmd_stringobjmt)
 
 	if (check_material)
 	{
-		int mat = material_lookup(buf_string(buffer));
+		MATERIAL *material = material_lookup(buf_string(buffer));
 
-		if(mat < 0) {
+		if(!IS_VALID(material)) {
 			scriptcmd_bug(info, "StringObj - Invalid material.");
 			free_buf(buffer);
 			return;
 		}
 
 		// Force material to the full name
-		clear_buf(buffer);
-		add_buf(buffer,material_table[mat].name);
+		obj->material = material;
 	}
+	else
+	{
+		char *p = buf_string(buffer);
+		strip_newline(p, newlines);
 
-	char *p = buf_string(buffer);
-	strip_newline(p, newlines);
-
-	free_string(*str);
-	*str = str_dup(p);
-
+		free_string(*str);
+		*str = str_dup(p);
+	}
 	free_buf(buffer);
 
 	SETRETURN(1);

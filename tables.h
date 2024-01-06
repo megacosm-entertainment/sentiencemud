@@ -453,5 +453,8 @@ extern const struct flag_type ammo_types[];
 
 extern const struct weapon_ammo_type weapon_ammo_table[];
 
+extern const struct flag_type material_classes[];
+extern const struct flag_type material_flags[];
+
 #endif
 

@@ -622,10 +622,11 @@ const struct flag_type *act_flagbank[] =
 
 const struct string_type fragile_table[] =
 {
-    {   "Normal"  	},
-    {   "Solid"    	},
     {   "Weak"  	},
-    {   "Strong" 	}
+    {   "Normal"  	},
+    {   "Strong" 	},
+    {   "Solid"    	},
+    {   NULL        }
 };
 
 
@@ -4033,4 +4034,31 @@ const struct flag_type practice_entry_flags[] =
     { "no_haggle",          PRACTICE_ENTRY_NO_HAGGLE,       TRUE  },
     { NULL,                 0,                              FALSE }
 };
+
+const struct flag_type material_classes[] =
+{
+    { "none",               MATERIAL_CLASS_NONE,            FALSE },
+    { "liquid",             MATERIAL_CLASS_LIQUID,          TRUE  },
+    { "wood",               MATERIAL_CLASS_WOOD,            TRUE  },
+    { "stone",              MATERIAL_CLASS_STONE,           TRUE  },
+    { "metal",              MATERIAL_CLASS_METAL,           TRUE  },
+    { "gem",                MATERIAL_CLASS_GEM,             TRUE  },
+    { "flesh",              MATERIAL_CLASS_FLESH,           TRUE  },
+    { "plant",              MATERIAL_CLASS_PLANT,           TRUE  },
+    { "cloth",              MATERIAL_CLASS_CLOTH,           TRUE  },
+    { "energy",             MATERIAL_CLASS_ENERGY,          TRUE  },
+    { "leather",            MATERIAL_CLASS_LEATHER,         TRUE  },
+    { "scale",              MATERIAL_CLASS_SCALE,           TRUE  },
+    { "gas",                MATERIAL_CLASS_GAS,             TRUE  },
+    { "organic",            MATERIAL_CLASS_ORGANIC,         TRUE  },
+    { "earth",              MATERIAL_CLASS_EARTH,           TRUE  },
+    { "no_haggle",          PRACTICE_ENTRY_NO_HAGGLE,       TRUE  },
+    { NULL,                 0,                              FALSE }
+};
+
+const struct flag_type material_flags[] =
+{
+    { NULL,                 0,                              FALSE }
+};
+
 

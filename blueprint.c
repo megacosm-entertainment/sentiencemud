@@ -1518,7 +1518,7 @@ inline static void __maze_link_room(ROOM_INDEX_DATA *room, int door, ROOM_INDEX_
 	exClone->rs_flags = 0;
 	exClone->orig_door = door;
 	exClone->door.strength = 0;
-	exClone->door.material = str_dup("");
+	exClone->door.material = NULL;
 	exClone->from_room = room;
 	exClone->u1.to_room = dest;
 
@@ -1531,7 +1531,7 @@ inline static void __maze_link_room(ROOM_INDEX_DATA *room, int door, ROOM_INDEX_
 	exClone->rs_flags = 0;
 	exClone->orig_door = door;
 	exClone->door.strength = 0;
-	exClone->door.material = str_dup("");
+	exClone->door.material = NULL;
 	exClone->from_room = dest;
 	exClone->u1.to_room = room;
 }
@@ -1748,7 +1748,7 @@ bool blueprint_section_generate_maze(INSTANCE_SECTION *section, BLUEPRINT_SECTIO
 				exClone->rs_flags = exParent->rs_flags;
 				exClone->orig_door = exParent->orig_door;
 				exClone->door.strength = exParent->door.strength;
-				exClone->door.material = str_dup(exParent->door.material);
+				exClone->door.material = exParent->door.material;
 				exClone->door.lock = exParent->door.rs_lock;
 				exClone->door.rs_lock = exParent->door.rs_lock;
 				exClone->from_room = room;
@@ -1900,7 +1900,7 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 					exClone->rs_flags = exParent->rs_flags;
 					exClone->orig_door = exParent->orig_door;
 					exClone->door.strength = exParent->door.strength;
-					exClone->door.material = str_dup(exParent->door.material);
+					exClone->door.material = exParent->door.material;
 					exClone->door.lock = exParent->door.rs_lock;
 					exClone->door.rs_lock = exParent->door.rs_lock;
 					exClone->from_room = room;

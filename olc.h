@@ -55,6 +55,7 @@
 #define ED_SONGEDIT	25
 
 #define ED_REPEDIT	26
+#define ED_MATEDIT	27
 
 #define AEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define HEDIT( fun )            bool fun( CHAR_DATA *ch, char *argument )
@@ -78,6 +79,8 @@
 #define SONGEDIT( fun )       bool fun( CHAR_DATA *ch, char *argument )
 
 #define REPEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
+#define MATEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
+
 
 /*
  * Interpreter Prototypes
@@ -113,6 +116,7 @@ void    sgedit  ( CHAR_DATA *ch, char *argument );
 void    songedit  ( CHAR_DATA *ch, char *argument );
 
 void	repedit  ( CHAR_DATA *ch, char *argument );
+void	matedit  ( CHAR_DATA *ch, char *argument );
 
 /*
  * OLC Constants
@@ -182,6 +186,7 @@ extern const struct olc_cmd_type        liqedit_table[];
 extern const struct olc_cmd_type        sgedit_table[];
 extern const struct olc_cmd_type		songedit_table[];
 extern const struct olc_cmd_type		repedit_table[];
+extern const struct olc_cmd_type		matedit_table[];
 
 /*
  * Editor Commands.
@@ -210,6 +215,7 @@ DECLARE_DO_FUN( do_sgedit );
 DECLARE_DO_FUN( do_songedit );
 
 DECLARE_DO_FUN( do_repedit );
+DECLARE_DO_FUN( do_matedit );
 
 /*
  * Area Editor Prototypes
@@ -714,6 +720,18 @@ DECLARE_OLC_FUN( repedit_rank );
 DECLARE_OLC_FUN( repedit_initial );
 DECLARE_OLC_FUN( repedit_token );		// Must be a singular token
 
+DECLARE_OLC_FUN( matedit_list );
+DECLARE_OLC_FUN( matedit_create );
+DECLARE_OLC_FUN( matedit_show );
+DECLARE_OLC_FUN( matedit_name );
+DECLARE_OLC_FUN( matedit_class );
+DECLARE_OLC_FUN( matedit_flags );
+DECLARE_OLC_FUN( matedit_flammable );
+DECLARE_OLC_FUN( matedit_corrodibility );
+DECLARE_OLC_FUN( matedit_fragility );
+DECLARE_OLC_FUN( matedit_strength );
+DECLARE_OLC_FUN( matedit_value );
+
 /*
  * Macros
  */
@@ -751,6 +769,7 @@ DECLARE_OLC_FUN( repedit_token );		// Must be a singular token
 
 #define EDIT_SONG(ch, song)		( song = (SONG_DATA *)ch->desc->pEdit )
 #define EDIT_REPUTATION(ch, rep)	( rep = (REPUTATION_INDEX_DATA *)ch->desc->pEdit )
+#define EDIT_MATERIAL(ch, mat)		( mat = (MATERIAL *)ch->desc->pEdit )
 
 /*
  * Prototypes
