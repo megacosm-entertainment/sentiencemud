@@ -521,7 +521,8 @@ const struct position_type position_table[] =
 
 const struct flag_type sex_table[] =
 {
-   {	"none",     SEX_NEUTRAL,    TRUE },
+   {	"none",     SEX_NEUTRAL,    FALSE },
+   {    "neuter",   SEX_NEUTRAL,    TRUE },
    {	"male",		SEX_MALE,       TRUE },
    {	"female",	SEX_FEMALE,     TRUE },
    {	"either",	SEX_EITHER,     TRUE },
@@ -4068,8 +4069,47 @@ const struct gm_type gm_table[] =
     { NULL, NULL }
 };
 
+
 const struct gcl_type gcl_table[] =
 {
+    { "adept",          &gcl_adept },
+    { "alchemist",      &gcl_alchemist },
+    { "archaeologist",  &gcl_archaeologist },
+    { "archmage",       &gcl_archmage },
+    { "armorer",        &gcl_armorer },
+    { "assassin",       &gcl_assassin },
+    { "bard",           &gcl_bard },
+    { "blacksmith",     &gcl_blacksmith },
+    { "botanist",       &gcl_botanist },
+    { "crusader",       &gcl_crusader },
+    { "culinarian",     &gcl_culinarian },
+    { "destroyer",      &gcl_destroyer },
+    { "druid",          &gcl_druid },
+    { "enchanter",      &gcl_enchanter },
+    { "engineer",       &gcl_engineer },
+    { "fisher",         &gcl_fisher },
+    { "geomancer",      &gcl_geomancer },
+    { "gladiator",      &gcl_gladiator },
+    { "highwayman",     &gcl_highwayman },
+    { "illusionist",    &gcl_illusionist },
+    { "jewelcrafter",   &gcl_jewelcrafter },
+    { "leatherworker",  &gcl_leatherworker },
+    { "marauder",       &gcl_marauder },
+    { "mariner",        &gcl_mariner },
+    { "miner",          &gcl_miner },
+    { "monk",           &gcl_monk },
+    { "necromancer",    &gcl_necromancer },
+    { "ninja",          &gcl_ninja },
+    { "paladin",        &gcl_paladin },
+    { "ranger",         &gcl_ranger },
+    { "rogue",          &gcl_rogue },
+    { "sage",           &gcl_sage },
+    { "skinner",        &gcl_skinner },
+    { "sorcerer",       &gcl_sorcerer },
+    { "warlord",        &gcl_warlord },
+    { "weaver",         &gcl_weaver },
+    { "witch",          &gcl_witch },
+    { "wizard",         &gcl_wizard },
     { NULL, NULL }
 };
 

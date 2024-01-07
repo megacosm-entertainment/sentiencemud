@@ -4108,9 +4108,9 @@ SCRIPT_CMD(scriptcmd_makeinstanced)
 			SET_BIT(arg->d.mob->act[1], ACT2_INSTANCE_MOB);
 
 
-			list_remlink(instance->mobiles, arg->d.mob);
+			list_remlink(instance->mobiles, arg->d.mob, false);
 			if( IS_VALID(instance->dungeon) )
-				list_remlink(instance->dungeon->mobiles, arg->d.mob);
+				list_remlink(instance->dungeon->mobiles, arg->d.mob, false);
 		}
 	}
 	else if( arg->type == ENT_OBJECT )
@@ -4136,9 +4136,9 @@ SCRIPT_CMD(scriptcmd_makeinstanced)
 		{
 			SET_BIT(arg->d.obj->extra[2], ITEM_INSTANCE_OBJ);
 
-			list_remlink(instance->objects, arg->d.obj);
+			list_remlink(instance->objects, arg->d.obj, false);
 			if( IS_VALID(instance->dungeon) )
-				list_remlink(instance->dungeon->objects, arg->d.obj);
+				list_remlink(instance->dungeon->objects, arg->d.obj, false);
 		}
 	}
 	else
@@ -9877,7 +9877,7 @@ void __multitype_book(OBJ_DATA *book, SCRIPT_VARINFO *info, char *rest, SCRIPT_P
 		PAGE(torn_page)->text = str_dup(page->text);
 
 		// Remove actual page from book
-		list_remlink(BOOK(book)->pages, page);
+		list_remlink(BOOK(book)->pages, page, false);
 
 		/*
 		 * Destination
@@ -9928,7 +9928,7 @@ void __multitype_book(OBJ_DATA *book, SCRIPT_VARINFO *info, char *rest, SCRIPT_P
 		else
 		{
 			// This is the minimum actions necessary for a phantom object extraction
-			list_remlink(loaded_objects, torn_page);
+			list_remlink(loaded_objects, torn_page, false);
 			--torn_page->pIndexData->count;
 			free_obj(torn_page);
 			return;
@@ -10852,13 +10852,13 @@ SCRIPT_CMD(scriptcmd_remstache)
 	{
 		// Explicit object
 		item = arg->d.obj;
-		list_remlink(stache, item);
+		list_remlink(stache, item, false);
 	}
 	else if (arg->type == ENT_NUMBER)
 	{
 		// Remove Nth item
 		item = list_nthdata(stache, arg->d.num);
-		list_remnthlink(stache, arg->d.num);
+		list_remnthlink(stache, arg->d.num, false);
 	}
 	else if (arg->type == ENT_WIDEVNUM)
 	{

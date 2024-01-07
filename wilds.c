@@ -418,7 +418,7 @@ void destroy_wilds_vroom(ROOM_INDEX_DATA *pRoomIndex)
 	    room_from_environment(clone);
     }
 
-	list_remlink(pWilds->loaded_vrooms,pRoomIndex);
+	list_remlink(pWilds->loaded_vrooms,pRoomIndex, false);
 	pWilds->loaded_rooms--;
 
 //	sprintf(buf, "destroy_wilds_vroom: %ld %ld %ld - destroying room", pWilds->uid, pRoomIndex->x, pRoomIndex->y);

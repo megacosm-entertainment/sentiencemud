@@ -26,6 +26,7 @@ extern GLOBAL_DATA gconfig;
  *   */
 AREA_DATA *get_area_data args ((long anum));
 AREA_DATA *get_area_from_uid args ((long uid));
+void save_classes();
 void save_liquids();
 void save_materials();
 void save_skills();
@@ -60,6 +61,7 @@ char *editor_name_table[] = {
 	"SongEdit",
 	"RepEdit",
 	"MatEdit",
+	"ClsEdit",
 };
 
 int editor_max_tabs_table[] = {
@@ -91,6 +93,7 @@ int editor_max_tabs_table[] = {
 	0,		// SongEdit
 	0,		// RepEdit
 	0,		// MatEdit
+	0,		// ClsEdit
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -119,6 +122,7 @@ const struct editor_cmd_type editor_table[] =
 	{ "song",		do_songedit },
 	{ "reputation",	do_repedit	},
 	{ "material",	do_matedit	},
+	{ "class",		do_clsedit  },
 	{ NULL,			0,			}
 };
 
@@ -564,6 +568,10 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
 		matedit(d->character, d->incomm);
 		break;
 
+	case ED_CLSEDIT:
+		clsedit(d->character, d->incomm);
+		break;
+
 	default:
 		return FALSE;
 	}
@@ -634,6 +642,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 	SONG_DATA *song;
 	REPUTATION_INDEX_DATA *rep;
 	MATERIAL *material;
+	CLASS_DATA *clazz;
 	static char buf[20];
 	char buf2[MSL];
 
@@ -795,6 +804,14 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 			strcpy(buf, "--");
 		break;
 
+	case ED_CLSEDIT:
+		clazz = (CLASS_DATA *)ch->desc->pEdit;
+		if (IS_VALID(clazz))
+			sprintf(buf, "%s", clazz->name);
+		else
+			strcpy(buf, "--");
+		break;
+
 	default:
 		sprintf(buf, " ");
 		break;
@@ -932,6 +949,10 @@ bool show_commands(CHAR_DATA *ch, char *argument)
 
 	case ED_MATEDIT:
 		show_olc_cmds(ch, matedit_table);
+		break;
+
+	case ED_CLSEDIT:
+		show_olc_cmds(ch, clsedit_table);
 		break;
 	}
 
@@ -4884,6 +4905,120 @@ void do_repshow(CHAR_DATA *ch, char *argument)
 	}
 
 	olc_show_item(ch, pRep, repedit_show, argument);
+	return;
+}
+
+
+const struct olc_cmd_type clsedit_table[] =
+{
+
+	{	"?",			show_help			},
+	{	"commands",		show_commands		},
+	{	"create",		clsedit_create		},
+	{	"description",	clsedit_description	},
+	{	"display",		clsedit_display		},
+	{	"gcl",			clsedit_gcl			},
+	{	"name",			clsedit_name		},
+	{	"primary",		clsedit_primary		},
+	{	"show",			clsedit_show		},
+	{	"skills",		clsedit_skills		},
+	{	"type",			clsedit_type		},
+	{	"who",			clsedit_who			},
+	{	NULL,			NULL				}
+};
+
+
+void do_clsedit(CHAR_DATA *ch, char *argument)
+{
+	CLASS_DATA *clazz;
+	char arg1[MSL];
+
+	argument = one_argument(argument, arg1);
+
+	if (IS_NPC(ch))
+		return;
+
+	if (arg1[0] != '\0')
+	{
+		if (!str_cmp(arg1, "create"))
+		{
+			if (clsedit_create(ch, argument))
+				ch->desc->editor = ED_CLSEDIT;
+
+			return;
+		}
+
+		clazz = get_class_data(arg1);
+		if (!IS_VALID(clazz))
+		{
+			send_to_char("No such class by that name.\n\r", ch);
+			return;
+		}
+
+		ch->pcdata->immortal->last_olc_command = current_time;
+		olc_set_editor(ch, ED_CLSEDIT, clazz);
+		return;
+	}
+
+	send_to_char("ClsEdit:  There is no default class to edit.\n\r", ch);
+}
+
+void clsedit(CHAR_DATA *ch, char *argument)
+{
+	char command[MAX_INPUT_LENGTH];
+	char arg[MAX_STRING_LENGTH];
+	int  cmd;
+
+	smash_tilde(argument);
+	strcpy(arg, argument);
+	argument = one_argument(argument, command);
+
+	if (!str_cmp(command, "done"))
+	{
+		edit_done(ch);
+		return;
+	}
+
+	ch->pcdata->immortal->last_olc_command = current_time;
+	if (command[0] == '\0')
+	{
+		clsedit_show(ch, argument);
+		return;
+	}
+
+	for (cmd = 0; clsedit_table[cmd].name != NULL; cmd++)
+	{
+		if (!str_prefix(command, clsedit_table[cmd].name))
+		{
+			if ((*clsedit_table[cmd].olc_fun) (ch, argument))
+			{
+				save_classes();
+			}
+			return;
+		}
+	}
+
+	interpret(ch, arg);
+}
+
+
+void do_clsshow(CHAR_DATA *ch, char *argument)
+{
+	CLASS_DATA *clazz;
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  clsshow <class name>\n\r", ch);
+		return;
+	}
+
+	if (!(clazz = get_class_data(argument)))
+	{
+		send_to_char("That class does not exist.\n\r", ch);
+		return;
+	}
+
+	olc_show_item(ch, clazz, clsedit_show, argument);
 	return;
 }
 

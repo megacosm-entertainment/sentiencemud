@@ -674,7 +674,7 @@ struct class_data {
 
     sh_int type;        // Basic type
 
-    SKILL_GROUP *skills;
+    LLIST *groups;
 
     sh_int primary_stat;
 
@@ -10677,9 +10677,9 @@ void list_remref(LLIST *lp);
 bool list_addlink(LLIST *lp, void *data);
 bool list_appendlink(LLIST *lp, void *data);
 bool list_appendlist(LLIST *lp, LLIST *src);
-void list_remlink(LLIST *lp, void *data);
+void list_remlink(LLIST *lp, void *data, bool del);
 void *list_nthdata(LLIST *lp, int nth);
-void list_remnthlink(LLIST *lp, register int nth);
+void list_remnthlink(LLIST *lp, register int nth, bool del);
 bool list_contains(LLIST *lp, register void *ptr, int (*cmp)(void *a, void *b));
 bool list_hasdata(LLIST *lp, register void *ptr);
 int list_size(LLIST *lp);
@@ -11336,8 +11336,51 @@ SONG_DATA *get_song_data_uid(sh_int uid);
 
 extern LLIST *classes_list;
 extern sh_int top_class_uid;
+extern CLASS_DATA *gcl_adept;
+extern CLASS_DATA *gcl_alchemist;
+extern CLASS_DATA *gcl_archaeologist;
+extern CLASS_DATA *gcl_archmage;
+extern CLASS_DATA *gcl_armorer;
+extern CLASS_DATA *gcl_assassin;
+extern CLASS_DATA *gcl_bard;
+extern CLASS_DATA *gcl_blacksmith;
+extern CLASS_DATA *gcl_botanist;
+extern CLASS_DATA *gcl_crusader;
+extern CLASS_DATA *gcl_culinarian;
+extern CLASS_DATA *gcl_destroyer;
+extern CLASS_DATA *gcl_druid;
+extern CLASS_DATA *gcl_enchanter;
+extern CLASS_DATA *gcl_engineer;
+extern CLASS_DATA *gcl_fisher;
+extern CLASS_DATA *gcl_geomancer;
+extern CLASS_DATA *gcl_gladiator;
+extern CLASS_DATA *gcl_highwayman;
+extern CLASS_DATA *gcl_illusionist;
+extern CLASS_DATA *gcl_jewelcrafter;
+extern CLASS_DATA *gcl_leatherworker;
+extern CLASS_DATA *gcl_marauder;
+extern CLASS_DATA *gcl_mariner;
+extern CLASS_DATA *gcl_miner;
+extern CLASS_DATA *gcl_monk;
+extern CLASS_DATA *gcl_necromancer;
+extern CLASS_DATA *gcl_ninja;
+extern CLASS_DATA *gcl_paladin;
+extern CLASS_DATA *gcl_ranger;
+extern CLASS_DATA *gcl_rogue;
+extern CLASS_DATA *gcl_sage;
+extern CLASS_DATA *gcl_skinner;
+extern CLASS_DATA *gcl_sorcerer;
+extern CLASS_DATA *gcl_warlord;
+extern CLASS_DATA *gcl_weaver;
+extern CLASS_DATA *gcl_witch;
+extern CLASS_DATA *gcl_wizard;
 CLASS_DATA *get_class_data(const char *name);
 CLASS_DATA *get_class_uid(const sh_int uid);
+CLASS_LEVEL *get_class_level(CHAR_DATA *ch, CLASS_DATA *clazz);
+bool has_class_level(CHAR_DATA *ch, CLASS_DATA *clazz);
+void add_class_level(CHAR_DATA *ch, CLASS_DATA *clazz, int level);
+void remove_class_level(CHAR_DATA *ch, CLASS_DATA *clazz);
+
 
 extern LLIST *gc_mobiles;
 extern LLIST *gc_objects;

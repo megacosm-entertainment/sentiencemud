@@ -1653,13 +1653,13 @@ void extract_dungeon(DUNGEON *dungeon)
 	iterator_stop(&it);
 
 
-	list_remlink(loaded_dungeons, dungeon);
+	list_remlink(loaded_dungeons, dungeon, false);
 
 	// Remove instances from loaded list
 	iterator_start(&it, dungeon->floors);
 	while( (instance = (INSTANCE *)iterator_nextdata(&it)) )
 	{
-		list_remlink(loaded_instances, instance);
+		list_remlink(loaded_instances, instance, true);
 	}
 	iterator_stop(&it);
 
@@ -3213,7 +3213,7 @@ DNGEDIT( dngedit_floors )
 			return FALSE;
 		}
 
-		list_remnthlink(dng->floors, index);
+		list_remnthlink(dng->floors, index, false);
 
 		// TODO: Need to go through everything to make sure the floor is no longer referenced
 
@@ -3704,7 +3704,7 @@ DNGEDIT( dngedit_levels )
 				level->total_weight -= weighted->weight;
 			}
 
-			list_remnthlink(level->weighted_floors, index);
+			list_remnthlink(level->weighted_floors, index, true);
 
 			send_to_char("Weight Random entry removed.\n\r", ch);
 			return FALSE;
@@ -4187,7 +4187,7 @@ DNGEDIT( dngedit_levels )
 					lvl->total_weight -= weighted->weight;
 				}
 
-				list_remnthlink(lvl->weighted_floors, index);
+				list_remnthlink(lvl->weighted_floors, index, true);
 
 				send_to_char("Weight Random entry removed.\n\r", ch);
 				return FALSE;
@@ -4220,7 +4220,7 @@ DNGEDIT( dngedit_levels )
 				return FALSE;
 			}
 		
-			list_remnthlink(level->group, index);
+			list_remnthlink(level->group, index, true);
 			dungeon_update_level_ordinals(dng);
 
 			send_to_char("Level removed.\n\r", ch);
@@ -4263,7 +4263,7 @@ DNGEDIT( dngedit_levels )
 			return FALSE;
 		}
 	
-		list_remnthlink(dng->levels, index);
+		list_remnthlink(dng->levels, index, true);
 		dungeon_update_level_ordinals(dng);
 
 		send_to_char("Level removed.\n\r", ch);
@@ -4707,7 +4707,7 @@ DNGEDIT( dngedit_special )
 
 			if( !str_prefix(arg3, "remove") || !str_prefix(arg3, "delete") )
 			{
-				list_remnthlink(dng->special_rooms, index);
+				list_remnthlink(dng->special_rooms, index, true);
 
 				send_to_char("Special room deleted.\n\r", ch);
 				return TRUE;
@@ -6334,7 +6334,7 @@ DNGEDIT( dngedit_special )
 						return FALSE;
 					}
 
-					list_remnthlink(ex->from, findex);
+					list_remnthlink(ex->from, findex, true);
 					send_to_char("From definition removed from special exit.\n\r", ch);
 					if (list_size(ex->from) < 1)
 						send_to_char("{RWarning:{x Please add a from definition for this exit to work.\n\r", ch);
@@ -6756,7 +6756,7 @@ DNGEDIT( dngedit_special )
 						return FALSE;
 					}
 
-					list_remnthlink(ex->to, tindex);
+					list_remnthlink(ex->to, tindex, true);
 					send_to_char("To definition removed to special exit.\n\r", ch);
 					if (list_size(ex->to) < 1)
 						send_to_char("{RWarning:{x Please add a To definition for this exit to work.\n\r", ch);
@@ -6803,7 +6803,7 @@ DNGEDIT( dngedit_special )
 					return FALSE;
 				}
 
-				list_remnthlink(gex->group, index);
+				list_remnthlink(gex->group, index, true);
 				sprintf(buf, "Special exit %d removed from group %d.\n\r", index, gindex);
 				send_to_char(buf, ch);
 				return TRUE;
@@ -7249,7 +7249,7 @@ DNGEDIT( dngedit_special )
 					return FALSE;
 				}
 
-				list_remnthlink(ex->from, findex);
+				list_remnthlink(ex->from, findex, true);
 				send_to_char("From definition removed from special exit.\n\r", ch);
 				if (list_size(ex->from) < 1)
 					send_to_char("{RWarning:{x Please add a from definition for this exit to work.\n\r", ch);
@@ -7686,7 +7686,7 @@ DNGEDIT( dngedit_special )
 					return FALSE;
 				}
 
-				list_remnthlink(ex->to, tindex);
+				list_remnthlink(ex->to, tindex, true);
 				send_to_char("To definition removed to special exit.\n\r", ch);
 				if (list_size(ex->to) < 1)
 					send_to_char("{RWarning:{x Please add a to definition for this exit to work.\n\r", ch);
@@ -7734,7 +7734,7 @@ DNGEDIT( dngedit_special )
 				return FALSE;
 			}
 
-			list_remnthlink(dng->special_exits, index);
+			list_remnthlink(dng->special_exits, index, true);
 			send_to_char("Special exit removed.\n\r", ch);
 			return TRUE;
 		}

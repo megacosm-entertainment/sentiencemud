@@ -4929,6 +4929,7 @@ void do_set(CHAR_DATA *ch, char *argument)
 	send_to_char("  set church <no.> <field> <value>\n\r",ch);
     send_to_char("  set skill <name> <spell or skill> <value>\n\r",ch);
     send_to_char("  set song <name> <song name> learned|unlearned\n\r",ch);
+	send_to_char("  set class <name> <class name> <#level|delete>\n\r",ch);
 	send_to_char("  set sky   <cloudless|cloudy|rainy|stormy>\n\r", ch);
 	send_to_char("  set time  <hour|day|month|year> <#>\n\r", ch);
 	send_to_char("  set token <char name> <token vnum> <v#|timer> <op> <value>\n\r", ch);
@@ -4956,6 +4957,12 @@ void do_set(CHAR_DATA *ch, char *argument)
 	if (!str_prefix(arg, "reputation"))
 	{
 		do_function(ch, &do_repset, argument);
+		return;
+	}
+
+	if (!str_prefix(arg, "class"))
+	{
+		do_function(ch, &do_classset, argument);
 		return;
 	}
 
@@ -9928,7 +9935,97 @@ void do_repset(CHAR_DATA *ch, char *argument)
 	return;
 }
 
+void do_classset(CHAR_DATA *ch, char *argument)
+{
+    char arg1[MIL];
+    char arg2[MIL];
+    CHAR_DATA *victim;
 
+    argument = one_argument(argument, arg1);
+    argument = one_argument(argument, arg2);
+
+    if (arg1[0] == '\0' || arg2[0] == '\0' || argument[0] == '\0')
+    {
+		send_to_char("Syntax:  set class <name> <class name|all> <#level>\n\r", ch);
+		send_to_char("         set class <name> <class name|all> delete\n\r",ch);
+		return;
+    }
+
+    if ((victim = get_char_world(ch, arg1)) == NULL)
+    {
+		send_to_char("They aren't here.\n\r", ch);
+		return;
+    }
+
+    if (IS_NPC(victim))
+    {
+		send_to_char("Not on NPC's.\n\r", ch);
+		return;
+    }
+
+	CLASS_DATA *clazz;
+	int level;
+	if (!str_prefix(arg2, "all"))
+	{
+		if (!str_prefix(argument, "delete"))
+		{
+			// Delete all of their classes
+			ITERATOR cit;
+			iterator_start(&cit, classes_list);
+			while((clazz = (CLASS_DATA *)iterator_nextdata(&cit)))
+			{
+				remove_class_level(victim, clazz);
+			}
+			iterator_stop(&cit);
+
+			send_to_char(formatf("All classes removed from %s.\n\r", victim->name), ch);
+			return;
+		}
+
+		if (!is_number(argument) || (level = atoi(argument)) < 1 || level > MAX_CLASS_LEVEL)
+		{
+			send_to_char(formatf("Please specify a level from 1 to %d.\n\r", MAX_CLASS_LEVEL), ch);
+			return;
+		}
+
+		ITERATOR cit;
+		iterator_start(&cit, classes_list);
+		while((clazz = (CLASS_DATA *)iterator_nextdata(&cit)))
+		{
+			add_class_level(victim, clazz, level);
+		}
+		iterator_stop(&cit);
+
+		send_to_char(formatf("All classes added to %s at level %d.\n\r", victim->name, level), ch);
+		return;
+	}
+	else
+	{
+		clazz = get_class_data(arg2);
+		if (!IS_VALID(clazz))
+		{
+			send_to_char("No such class by that name.  You get review the list with `classlist`.\n\r", ch);
+			return;
+		}
+
+		if (!str_prefix(argument, "delete"))
+		{
+			remove_class_level(victim, clazz);
+			send_to_char(formatf("Class %s removed from %s.\n\r", clazz->name, victim->name), ch);
+			return;
+		}
+
+		if (!is_number(argument) || (level = atoi(argument)) < 1 || level > MAX_CLASS_LEVEL)
+		{
+			send_to_char(formatf("Please specify a level from 1 to %d.\n\r", MAX_CLASS_LEVEL), ch);
+			return;
+		}
+
+		add_class_level(victim, clazz, level);
+		send_to_char(formatf("Class %s set to level %d on %s.\n\r", clazz->name, level, victim->name), ch);
+		return;
+	}
+}
 
 
 

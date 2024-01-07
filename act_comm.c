@@ -1940,7 +1940,7 @@ void stop_grouped(CHAR_DATA *ch)
 		if (ch->leader != NULL) {
 			ch->leader->num_grouped--;
 			if( list_hasdata(ch->leader->lgroup, ch))
-				list_remlink(ch->leader->lgroup, ch);
+				list_remlink(ch->leader->lgroup, ch, true);
 		}
 
 	leader = ch->leader;

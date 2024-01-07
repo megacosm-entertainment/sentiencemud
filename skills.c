@@ -52,6 +52,7 @@
 void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool show_spells, bool hide_learned);
 bool is_racial_skill(int race, SKILL_DATA *skill);
 bool reputation_has_paragon(REPUTATION_INDEX_DATA *repIndex);
+void show_flag_cmds(CHAR_DATA *ch, const struct flag_type *flag_table);
 
 struct message_handler_type
 {
@@ -2364,7 +2365,7 @@ void gn_remove( CHAR_DATA *ch, SKILL_GROUP *group)
 
 	if (!IS_VALID(group)) return;
 
-	list_remlink(ch->pcdata->group_known, group);
+	list_remlink(ch->pcdata->group_known, group, false);
 
 	ITERATOR sit;
 	char *sk;
@@ -6546,6 +6547,8 @@ SGEDIT( sgedit_create )
 	char buf[MSL];
 	sprintf(buf, "Group {W%s{x added.\n\r", argument);
 	send_to_char(buf, ch);
+
+	olc_set_editor(ch, ED_SGEDIT, group);
 	return true;
 }
 
@@ -6623,7 +6626,7 @@ SGEDIT( sgedit_remove )
 		return false;
 	}
 
-	list_remnthlink(group->contents, index);
+	list_remnthlink(group->contents, index, true);
 	sprintf(buf, "Removed #%d item from group.\n\r", index);
 	send_to_char(buf, ch);
 	return true;
@@ -6708,6 +6711,8 @@ void save_class(FILE *fp, CLASS_DATA *clazz)
 {
 	fprintf(fp, "#CLASS %d\n", clazz->uid);
 	fprintf(fp, "Name %s~\n", fix_string(clazz->name));
+	if (clazz->gcl)
+		fprintf(fp, "GCL %s~\n", gcl_to_name(clazz->gcl));
 	fprintf(fp, "Type %s~\n", flag_string(class_types, clazz->type));
 	fprintf(fp, "Description %s~\n", fix_string(clazz->description));
 
@@ -6721,8 +6726,17 @@ void save_class(FILE *fp, CLASS_DATA *clazz)
 	fprintf(fp, "WhoFemale %s~\n", clazz->who[SEX_FEMALE]);
 	fprintf(fp, "WhoEither %s~\n", clazz->who[SEX_EITHER]);
 
-	if(IS_VALID(clazz->skills))
-		fprintf(fp, "Group %s~\n", clazz->skills->name);
+	if (list_size(clazz->groups))
+	{
+		ITERATOR git;
+		SKILL_GROUP *group;
+		iterator_start(&git, clazz->groups);
+		while((group = (SKILL_GROUP *)iterator_nextdata(&git)))
+		{
+			fprintf(fp, "Group %s~\n", group->name);
+		}
+		iterator_stop(&git);
+	}
 
 	fprintf(fp, "PrimaryStat %s~\n", flag_string(stat_types, clazz->primary_stat));
 
@@ -6809,7 +6823,15 @@ CLASS_DATA *load_class(FILE *fp)
 
 			case 'G':
 				KEY("GCL", data->gcl, gcl_from_name(fread_string(fp)));
-				KEY("Group", data->skills, group_lookup(fread_string(fp)));
+				if (!str_cmp(word, "Group"))
+				{
+					SKILL_GROUP *group = group_lookup(fread_string(fp));
+
+					if (IS_VALID(group))
+						list_appendlink(data->groups, group);
+					fMatch = true;
+					break;
+				}
 				break;
 
 			case 'N':
@@ -6879,9 +6901,22 @@ bool load_classes()
 				cls->who[j] = str_dup(sub_class_table[i].who_name[j]);
 			}
 
+
 			cls->display[SEX_EITHER] = str_dup(sub_class_table[i].name[SEX_NEUTRAL]);
 			cls->who[SEX_EITHER] = str_dup(sub_class_table[i].who_name[SEX_NEUTRAL]);
-			cls->skills = group_lookup(sub_class_table[i].default_group);
+			SKILL_GROUP *group = group_lookup(sub_class_table[i].default_group);
+
+			if (IS_VALID(group))
+				list_appendlink(cls->groups, group);
+
+			if (cls->type >= 0 && cls->type < MAX_CLASS)
+			{
+				group = group_lookup(class_table[cls->type].base_group);
+				if (IS_VALID(group))
+					list_appendlink(cls->groups, group);
+
+				cls->primary_stat = class_table[cls->type].attr_prime;
+			}
 
 			insert_class(cls);
 		}
@@ -6926,6 +6961,10 @@ bool load_classes()
 
 		bool save = false;
 
+		for(int i = 0; gcl_table[i].name; i++)
+			if (gcl_table[i].gcl)
+				*(gcl_table[i].gcl) = NULL;
+
 		ITERATOR it;
 		iterator_start(&it, classes_list);
 		while((clazz = (CLASS_DATA *)iterator_nextdata(&it)))
@@ -6948,7 +6987,7 @@ bool load_classes()
 	return true;
 }
 
-void do_classlist(CHAR_DATA *ch, char *argument)
+void do_clslist(CHAR_DATA *ch, char *argument)
 {
 	BUFFER *buffer = new_buf();
 	char buf[MSL];
@@ -6990,3 +7029,513 @@ void do_classlist(CHAR_DATA *ch, char *argument)
 
 	free_buf(buffer);
 }
+
+
+CLASS_LEVEL *get_class_level(CHAR_DATA *ch, CLASS_DATA *clazz)
+{
+	// Not NPCs at this time
+	// TODO: Review how to do it for NPCs, perhaps move the ->classes list off pcdata
+	if (IS_NPC(ch)) return NULL;
+
+	ITERATOR it;
+	CLASS_LEVEL *level;
+	iterator_start(&it, ch->pcdata->classes);
+	while((level = (CLASS_LEVEL *)iterator_nextdata(&it)))
+	{
+		if (level->clazz == clazz)
+			break;
+	}
+	iterator_stop(&it);
+
+	return level;
+}
+
+bool has_class_level(CHAR_DATA *ch, CLASS_DATA *clazz)
+{
+	if (IS_NPC(ch)) return false;
+
+	ITERATOR it;
+	CLASS_LEVEL *level;
+	iterator_start(&it, ch->pcdata->classes);
+	while((level = (CLASS_LEVEL *)iterator_nextdata(&it)))
+	{
+		if (level->clazz == clazz)
+			break;
+	}
+	iterator_stop(&it);
+
+	return (level != NULL);
+}
+
+void insert_class_level(CHAR_DATA *ch, CLASS_LEVEL *cl)
+{
+	ITERATOR it;
+	CLASS_LEVEL *level;
+	iterator_start(&it, ch->pcdata->classes);
+	while((level = (CLASS_LEVEL *)iterator_nextdata(&it)))
+	{
+		int cmp = str_cmp(cl->clazz->name, level->clazz->name);
+		if (cmp < 0)
+		{
+			iterator_insert_before(&it, cl);
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	if (!level)
+	{
+		list_appendlink(ch->pcdata->classes, cl);
+	}
+}
+
+void add_class_level(CHAR_DATA *ch, CLASS_DATA *clazz, int level)
+{
+	// First check if they have the class level
+	CLASS_LEVEL *cl = get_class_level(ch, clazz);
+
+	if (IS_VALID(cl))
+	{
+		cl->level = level;
+		cl->xp = 0;
+	}
+	else
+	{
+		cl = new_class_level();
+		cl->clazz = clazz;
+		cl->level = level;
+		cl->xp = 0;
+
+		insert_class_level(ch, cl);
+
+		if (list_size(clazz->groups) > 0)
+		{
+			ITERATOR git;
+			SKILL_GROUP *group;
+			iterator_start(&git, clazz->groups);
+			while((group = (SKILL_GROUP *)iterator_nextdata(&git)))
+			{
+				gn_add(ch, group);
+			}
+			iterator_stop(&git);
+		}
+	}
+
+}
+
+void remove_class_level(CHAR_DATA *ch, CLASS_DATA *clazz)
+{
+	CLASS_LEVEL *cl = get_class_level(ch, clazz);
+
+	if (IS_VALID(cl))
+	{
+		if (list_size(clazz->groups) > 0)
+		{
+			ITERATOR git;
+			SKILL_GROUP *group;
+			iterator_start(&git, clazz->groups);
+			while((group = (SKILL_GROUP *)iterator_nextdata(&git)))
+			{
+				gn_remove(ch, group);
+			}
+			iterator_stop(&git);
+		}
+
+		list_remlink(ch->pcdata->classes, cl, true);
+	}
+}
+
+
+
+// CLSEDIT
+
+CLSEDIT( clsedit_show )
+{
+	CLASS_DATA *clazz;
+
+	EDIT_CLASS(ch, clazz);
+
+	BUFFER *buffer = new_buf();
+
+	add_buf(buffer, formatf("Class: %s (%d)\n\r", clazz->name, clazz->uid));
+
+	if (clazz->gcl)
+	{
+		char *gcl_name = gcl_to_name(clazz->gcl);
+		add_buf(buffer, formatf("GCL: %s\n\r", gcl_name ? gcl_name : "{Rinvalid{x"));
+	}
+	else
+		add_buf(buffer, "GCL: {Dnone{x\n\r");
+
+	add_buf(buffer, formatf("Type: %s\n\r", flag_string(class_types, clazz->type)));
+
+	add_buf(buffer, "Description:\n\r");
+	add_buf(buffer, string_indent(clazz->description, 3));
+	add_buf(buffer, "\n\r");
+
+	add_buf(buffer, "Display:\n\r");
+	add_buf(buffer, formatf("  Neuter: %s\n\r", clazz->display[SEX_NEUTRAL]));
+	add_buf(buffer, formatf("  Male:   %s\n\r", clazz->display[SEX_MALE]));
+	add_buf(buffer, formatf("  Female: %s\n\r", clazz->display[SEX_FEMALE]));
+	add_buf(buffer, formatf("  Either: %s\n\r", clazz->display[SEX_EITHER]));
+	add_buf(buffer, "\n\r");
+
+	add_buf(buffer, "Who:\n\r");
+	add_buf(buffer, formatf("  Neuter: %s\n\r", clazz->who[SEX_NEUTRAL]));
+	add_buf(buffer, formatf("  Male:   %s\n\r", clazz->who[SEX_MALE]));
+	add_buf(buffer, formatf("  Female: %s\n\r", clazz->who[SEX_FEMALE]));
+	add_buf(buffer, formatf("  Either: %s\n\r", clazz->who[SEX_EITHER]));
+	add_buf(buffer, "\n\r");
+
+	add_buf(buffer, formatf("Primary Stat: %s\n\r", flag_string(stat_types, clazz->primary_stat)));
+
+	add_buf(buffer, "Groups:\n\r");
+	if (list_size(clazz->groups) > 0)
+	{
+		ITERATOR git;
+		SKILL_GROUP *group;
+		iterator_start(&git, clazz->groups);
+		while((group = (SKILL_GROUP *)iterator_nextdata(&git)))
+		{
+			add_buf(buffer, formatf("  %s\n\r", group->name));
+		}
+		iterator_stop(&git);
+	}
+	else
+		add_buf(buffer, "  None\n\r");
+
+	// TODO: traits
+
+	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(buffer->string, ch);
+	}
+
+	free_buf(buffer);
+	return false;
+}
+
+CLSEDIT( clsedit_create )
+{
+	CLASS_DATA *clazz;
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  clsedit create <name>\n\r", ch);
+		send_to_char("Please provide a name.\n\r", ch);
+		return false;
+	}
+
+	if ((clazz = get_class_data(argument)))
+	{
+		send_to_char("That name is already in use.\n\r", ch);
+		return false;
+	}
+
+	clazz = new_class_data();
+	smash_tilde(argument);
+	clazz->name = str_dup(argument);
+	insert_class(clazz);
+	save_classes();
+
+	olc_set_editor(ch, ED_CLSEDIT, clazz);
+
+	send_to_char("Class created.\n\r", ch);
+	return true;
+}
+
+CLSEDIT( clsedit_name )
+{
+	CLASS_DATA *clazz;
+
+	EDIT_CLASS(ch, clazz);
+
+	smash_tilde(argument);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Please provide a name.\n\r", ch);
+		return false;
+	}
+
+	CLASS_DATA *other = get_class_data(argument);
+	if (IS_VALID(other) && clazz != other)
+	{
+		send_to_char("That name is already in use.\n\r", ch);
+		return false;
+	}
+
+	free_string(clazz->name);
+	clazz->name = str_dup(argument);
+
+	list_remlink(classes_list, clazz, false);
+	insert_class(clazz);
+
+	send_to_char("Class Name changed.\n\r", ch);
+	return true;
+}
+
+CLSEDIT( clsedit_description )
+{
+	CLASS_DATA *clazz;
+
+	EDIT_CLASS(ch, clazz);
+
+	string_append(ch, &clazz->description);
+	return true;
+}
+
+CLSEDIT( clsedit_display )
+{
+	CLASS_DATA *clazz;
+
+	EDIT_CLASS(ch, clazz);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  clsedit display <sex> <who string>\n\r", ch);
+		send_to_char("Valid sex: neuter, male, female, either\n\r", ch);
+		return false;
+	}
+
+	char arg[MIL];
+	argument = one_argument(argument, arg);
+	
+	int sex;
+	if ((sex = sex_lookup(arg)) == -1)
+	{
+		send_to_char("Syntax:  clsedit display <sex> <who string>\n\r", ch);
+		send_to_char("Valid sex: neuter, male, female, either\n\r", ch);
+		return false;
+	}
+
+	smash_tilde(argument);
+	if (argument[0] == '\0')
+	{
+		send_to_char("Please provide a display string.\n\r", ch);
+		return false;
+	}
+
+	free_string(clazz->display[sex]);
+	clazz->display[sex] = str_dup(argument);
+	send_to_char(formatf("DISPLAY string set for {+%s.\n\r", flag_string(sex_table, sex)), ch);
+	return false;
+}
+
+CLSEDIT( clsedit_type )
+{
+	CLASS_DATA *clazz;
+
+	EDIT_CLASS(ch, clazz);
+
+	int type;
+	if ((type = stat_lookup(argument, class_types, NO_FLAG)) == NO_FLAG)
+	{
+		send_to_char("Invalid class type.  Use '? classtypes' for valid list.\n\r", ch);
+		show_flag_cmds(ch, class_types);
+		return false;
+	}
+
+	clazz->type = type;
+	send_to_char("Class Type changed.\n\r", ch);
+	return true;
+}
+
+CLSEDIT( clsedit_primary )
+{
+	CLASS_DATA *clazz;
+
+	EDIT_CLASS(ch, clazz);
+
+	int stat;
+	if ((stat = stat_lookup(argument, stat_types, NO_FLAG)) == NO_FLAG)
+	{
+		send_to_char("Invalid stat type.  Use '? stats' for valid list.\n\r", ch);
+		show_flag_cmds(ch, stat_types);
+		return false;
+	}
+
+	clazz->primary_stat = stat;
+	send_to_char("Class Primary Stat changed.\n\r", ch);
+	return true;
+}
+
+CLSEDIT( clsedit_skills )
+{
+	CLASS_DATA *clazz;
+
+	EDIT_CLASS(ch, clazz);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  skills add <group name>\n\r", ch);
+		send_to_char("         skills remove <group name>\n\r", ch);
+		send_to_char("         skills clear\n\r", ch);
+		return false;
+	}
+
+	char arg[MIL];
+	argument = one_argument(argument, arg);
+	if (!str_prefix(arg, "add"))
+	{
+		SKILL_GROUP *group = group_lookup(argument);
+		if (!IS_VALID(group))
+		{
+			send_to_char("No such skill group by that name.  Use 'sglist' for list of skill groups.\n\r", ch);
+			return false;
+		}
+
+		if (list_contains(clazz->groups, group, NULL))
+		{
+			send_to_char("Class already has that skill group.\n\r", ch);
+			return false;
+		}
+
+		list_appendlink(clazz->groups, group);
+		send_to_char("Skill group added to class.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "remove"))
+	{
+		SKILL_GROUP *group = group_lookup(argument);
+		if (!IS_VALID(group))
+		{
+			send_to_char("No such skill group by that name.  Use 'sglist' for list of skill groups.\n\r", ch);
+			return false;
+		}
+
+		if (!list_contains(clazz->groups, group, NULL))
+		{
+			send_to_char("Class does not have that skill group.\n\r", ch);
+			return false;
+		}
+
+		list_remlink(clazz->groups, group, false);
+		send_to_char("Skill group removed from class.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "clear"))
+	{
+		if (list_size(clazz->groups) < 1)
+		{
+			send_to_char("Class does not have any skill groups assigned.\n\r", ch);
+			return false;
+		}
+
+		list_clear(clazz->groups);
+		send_to_char("Class skill groups cleared.\n\r", ch);
+		return true;
+	}
+
+	clsedit_skills(ch, "");
+	return false;
+}
+
+CLSEDIT( clsedit_who )
+{
+	CLASS_DATA *clazz;
+
+	EDIT_CLASS(ch, clazz);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  clsedit who <sex> <who string>\n\r", ch);
+		send_to_char("Valid sex: neuter, male, female, either\n\r", ch);
+		return false;
+	}
+
+	char arg[MIL];
+	argument = one_argument(argument, arg);
+	
+	int sex;
+	if ((sex = sex_lookup(arg)) == -1)
+	{
+		send_to_char("Syntax:  clsedit who <sex> <who string>\n\r", ch);
+		send_to_char("Valid sex: neuter, male, female, either\n\r", ch);
+		return false;
+	}
+
+	smash_tilde(argument);
+	if (argument[0] == '\0')
+	{
+		send_to_char("Please provide a who string.\n\r", ch);
+		return false;
+	}
+
+	int len = strlen_no_colours(argument);
+	if (len > 12)
+	{
+		send_to_char("Please limit who string to 12 plain characters.\n\r", ch);
+		return false;
+	}
+
+	free_string(clazz->who[sex]);
+	clazz->who[sex] = str_dup(argument);
+	send_to_char(formatf("WHO string set for {+%s.\n\r", flag_string(sex_table, sex)), ch);
+	return false;
+}
+
+CLSEDIT( clsedit_gcl )
+{
+	CLASS_DATA *clazz;
+
+	EDIT_CLASS(ch, clazz);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  clsedit gcl set <global class>\n\r", ch);
+		send_to_char("         clsedit gcl clear\n\r", ch);
+		return false;
+	}
+
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+
+	if (!str_prefix(arg, "set"))
+	{
+		if (argument[0] == '\0')
+		{
+			send_to_char("Syntax:  clsedit gcl set <global class>\n\r", ch);
+			return false;
+		}
+
+		CLASS_DATA **gcl = gcl_from_name(argument);
+		if (!gcl)
+		{
+			send_to_char("No such global class by that name.\n\r", ch);
+			send_to_char("Use '? gcl' to get a list of valid names.\n\r", ch);
+			show_help(ch, "gcl");
+			return false;
+		}
+
+		if (*gcl) (*gcl)->gcl = NULL;	// Unassign the previous class
+
+		*gcl = clazz;
+		clazz->gcl = gcl;
+		send_to_char("Class GCL set.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "clear"))
+	{
+		if (clazz->gcl) *(clazz->gcl) = NULL;
+		clazz->gcl = NULL;
+
+		send_to_char("Class GCL cleared.\n\r", ch);
+		return true;
+	}
+
+	clsedit_gcl(ch, "");
+	return false;
+}
+
+
+
+

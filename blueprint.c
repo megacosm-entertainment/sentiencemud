@@ -1816,7 +1816,7 @@ bool blueprint_section_generate_maze(INSTANCE_SECTION *section, BLUEPRINT_SECTIO
 				}
 			}
 			else
-				list_remnthlink(visited, 1);
+				list_remnthlink(visited, 1, false);
 		}
 		while(list_size(visited) > 0);
 	}
@@ -2876,7 +2876,7 @@ void extract_instance(INSTANCE *instance)
 	}
 	iterator_stop(&it);
 
-	list_remlink(loaded_instances, instance);
+	list_remlink(loaded_instances, instance, true);
 
 	free_instance(instance);
 }
@@ -4103,7 +4103,7 @@ BSEDIT( bsedit_maze )
 				return FALSE;
 			}
 
-			list_remnthlink(bs->maze_templates, index);
+			list_remnthlink(bs->maze_templates, index, true);
 			sprintf(buf, "Maze room template %d removed.", index);
 			send_to_char(buf, ch);
 			return TRUE;
@@ -4267,7 +4267,7 @@ BSEDIT( bsedit_maze )
 				return FALSE;
 			}
 
-			list_remnthlink(bs->maze_fixed_rooms, index);
+			list_remnthlink(bs->maze_fixed_rooms, index, true);
 			sprintf(buf, "Fixed maze room %d removed.\n\r", index);
 			send_to_char(buf, ch);
 			return TRUE;
@@ -5917,7 +5917,7 @@ BPEDIT( bpedit_section )
 			return FALSE;
 		}
 
-		list_remnthlink(bp->sections, index);
+		list_remnthlink(bp->sections, index, true);
 
 		send_to_char("Blueprint section removed.\n\r", ch);
 #if 0
@@ -6645,7 +6645,7 @@ BPEDIT( bpedit_layout )
 
 				ls->total_weight -= weighted->weight;
 
-				list_remnthlink(ls->weighted_sections, windex);
+				list_remnthlink(ls->weighted_sections, windex, true);
 
 				sprintf(buf, "Removed table entry %d from Weighted %d Section entry.\n\r", windex, index);
 				send_to_char(buf, ch);
@@ -7252,7 +7252,7 @@ BPEDIT( bpedit_layout )
 
 					ls->total_weight -= weighted->weight;
 
-					list_remnthlink(gls->weighted_sections, windex);
+					list_remnthlink(gls->weighted_sections, windex, true);
 
 					sprintf(buf, "Removed table entry %d from Weighted %d Section entry in Group %d Section.\n\r", windex, index, gindex);
 					send_to_char(buf, ch);
@@ -7285,7 +7285,7 @@ BPEDIT( bpedit_layout )
 					return FALSE;
 				}
 
-				list_remnthlink(ls->group, index);
+				list_remnthlink(ls->group, index, true);
 				blueprint_update_section_ordinals(bp);
 
 				sprintf(buf, "Layout %d removed from Group %d Section.\n\r", index, gindex);
@@ -7325,7 +7325,7 @@ BPEDIT( bpedit_layout )
 				return FALSE;
 			}
 
-			list_remnthlink(bp->layout, index);
+			list_remnthlink(bp->layout, index, true);
 			blueprint_update_section_ordinals(bp);
 
 			sprintf(buf, "Layout %d removed.\n\r", index);
@@ -8098,7 +8098,7 @@ BPEDIT( bpedit_links )
 
 				BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(ll->from, windex);
 				ll->total_from -= weighted->weight;
-				list_remnthlink(ll->from, windex);
+				list_remnthlink(ll->from, windex, true);
 
 				char *mode = "Link";
 				if (ll->mode == LINKMODE_SOURCE)
@@ -8458,7 +8458,7 @@ BPEDIT( bpedit_links )
 
 				BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(ll->to, windex);
 				ll->total_to -= weighted->weight;
-				list_remnthlink(ll->to, windex);
+				list_remnthlink(ll->to, windex, true);
 
 				char *mode = "Link";
 				if (ll->mode == LINKMODE_DESTINATION)
@@ -9390,7 +9390,7 @@ BPEDIT( bpedit_links )
 
 					BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(ll->from, windex);
 					ll->total_from -= weighted->weight;
-					list_remnthlink(ll->from, windex);
+					list_remnthlink(ll->from, windex, true);
 
 					char *mode = "Link";
 					if (ll->mode == LINKMODE_SOURCE)
@@ -9754,7 +9754,7 @@ BPEDIT( bpedit_links )
 
 					BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(ll->to, windex);
 					ll->total_to -= weighted->weight;
-					list_remnthlink(ll->to, windex);
+					list_remnthlink(ll->to, windex, true);
 
 					char *mode = "Link";
 					if (ll->mode == LINKMODE_DESTINATION)
@@ -10196,7 +10196,7 @@ BPEDIT( bpedit_entrances )
 				return FALSE;
 			}
 
-			list_remnthlink(bp->entrances, index);
+			list_remnthlink(bp->entrances, index, true);
 			sprintf(buf, "Removed Blueprint Entrance %d.\n\r", index);
 			send_to_char(buf, ch);
 			return TRUE;
@@ -10582,7 +10582,7 @@ BPEDIT( bpedit_exits )
 				return FALSE;
 			}
 
-			list_remnthlink(bp->exits, index);
+			list_remnthlink(bp->exits, index, true);
 			sprintf(buf, "Removed Blueprint Exit %d.\n\r", index);
 			send_to_char(buf, ch);
 			return TRUE;
@@ -11024,7 +11024,7 @@ BPEDIT( bpedit_rooms )
 				return FALSE;
 			}
 
-			list_remnthlink(bp->special_rooms, index);
+			list_remnthlink(bp->special_rooms, index, true);
 			sprintf(buf, "Special Room %d removed.\n\r", index);
 			send_to_char(buf, ch);
 			return TRUE;

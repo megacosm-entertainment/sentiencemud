@@ -71,8 +71,6 @@ struct olc_help_type
 #define STRUCT_SPELLFUNC	8
 #define STRUCT_GSN		9
 #define STRUCT_CLASSES	10
-#define STRUCT_SUBCLASSES 11
-#define STRUCT_REMORT_SUBCLASSES 12
 #define STRUCT_PREBREWFUNC		13
 #define STRUCT_BREWFUNC			14
 #define STRUCT_QUAFFFUNC		15
@@ -89,6 +87,7 @@ struct olc_help_type
 #define STRUCT_ZAPFUNC			26
 
 #define STRUCT_ARTIFICING		27
+#define STRUCT_GCL				28
 
 struct trigger_type dummy_triggers[1];
 
@@ -127,6 +126,7 @@ const struct olc_help_type help_table[] =
 	{   "foodbuffs",			STRUCT_FLAGS,		food_buff_types,			"Food Buff types" },
 	{	"form",					STRUCT_FLAGS,		form_flags,					"Mobile body form."	},
 	{	"furniture",			STRUCT_FLAGS,		furniture_flags,			"Furniture types."	},
+	{	"gcl",					STRUCT_GCL,			NULL,						"Global classes"},
 	{	"gsn",					STRUCT_GSN,			NULL,						"GLobal Skill Numbers."},
 	{	"imm",					STRUCT_FLAGS,		imm_flags,					"Mobile immunity."	},
 	{	"immortalflags",		STRUCT_FLAGS,		immortal_flags,				"Immortal duties."	},
@@ -160,7 +160,6 @@ const struct olc_help_type help_table[] =
 	{	"quaff_func",			STRUCT_ARTIFICING,	quaff_func_table,			"Quaff Functions (SkEdit)"},
 	{	"ranged",				STRUCT_FLAGS,		ranged_weapon_class,		"Ranged	weapon types."	},
 	{	"recite_func",			STRUCT_ARTIFICING,	recite_func_table,			"Recite Functions (SkEdit)"},
-	{	"remort_sublasses",		STRUCT_REMORT_SUBCLASSES,		NULL,			"Remort Subclasses" },
 	{	"reputation",			STRUCT_FLAGS,		reputation_flags,			"Reputation flags." },
 	{	"reputation_rank",		STRUCT_FLAGS,		reputation_rank_flags,		"Reputation Rank flags." },
 	{	"res",					STRUCT_FLAGS,		res_flags,					"Mobile resistance."	},
@@ -188,7 +187,6 @@ const struct olc_help_type help_table[] =
 	{	"spell_targets",		STRUCT_FLAGS,		spell_target_types,			"Spell Target Types."	},
 	{	"spells",				STRUCT_SKILL,		NULL,						"Names of current spells."	},
 	{	"stats",				STRUCT_FLAGS,		stat_types,					"Stat types"},
-	{	"sublasses",			STRUCT_SUBCLASSES,		NULL,					"Subclasses" },
 	{	"tattoo_loc",			STRUCT_FLAGS,		tattoo_loc_flags,			"Tattoo Locations."},
 	{	"tokenflags",			STRUCT_FLAGS,		token_flags,				"Token flags."	},
 	{	"touch_func",			STRUCT_ARTIFICING,	touch_func_table,			"Touch Functions (SkEdit)"},
@@ -221,7 +219,7 @@ static void __region_remove_room(ROOM_INDEX_DATA *room)
 {
 	if (IS_VALID(room->region))
 	{
-		list_remlink(room->region->rooms, room);
+		list_remlink(room->region->rooms, room, false);
 	}
 	room->region = NULL;
 }
@@ -421,6 +419,30 @@ void show_gsns(CHAR_DATA *ch)
     return;
 }
 
+void show_gcls(CHAR_DATA *ch)
+{
+    char buf  [ MAX_STRING_LENGTH ];
+    char buf1 [ MAX_STRING_LENGTH ];
+    int  col;
+
+    buf1[0] = '\0';
+    col = 0;
+    send_to_char("Global Classes available for use:\n\r", ch);
+    for (int i = 0; gcl_table[i].name != NULL; i++)
+    {
+		sprintf(buf, "%-19.18s", gcl_table[i].name);
+		strcat(buf1, buf);
+		if (++col % 4 == 0)
+	    	strcat(buf1, "\n\r");
+    }
+
+    if (col % 4 != 0)
+	strcat(buf1, "\n\r");
+
+    send_to_char(buf1, ch);
+    return;
+}
+
 void show_classes(CHAR_DATA *ch)
 {
     char buf  [ MAX_STRING_LENGTH ];
@@ -429,14 +451,20 @@ void show_classes(CHAR_DATA *ch)
 
     buf1[0] = '\0';
     col = 0;
+
+	ITERATOR it;
+	CLASS_DATA *clazz;
+
     send_to_char("Classes available for use:\n\r", ch);
-    for (int i = 0; i < MAX_CLASS; i++)
+	iterator_start(&it, classes_list);
+	while((clazz = (CLASS_DATA *)iterator_nextdata(&it)))
     {
-		sprintf(buf, "%-19.18s", class_table[i].name);
+		sprintf(buf, "%-19.18s", clazz->name);
 		strcat(buf1, buf);
 		if (++col % 4 == 0)
 	    	strcat(buf1, "\n\r");
     }
+	iterator_stop(&it);
 
     if (col % 4 != 0)
 	strcat(buf1, "\n\r");
@@ -445,29 +473,6 @@ void show_classes(CHAR_DATA *ch)
     return;
 }
 
-void show_subclasses(CHAR_DATA *ch, bool remort)
-{
-    char buf  [ MAX_STRING_LENGTH ];
-    char buf1 [ MAX_STRING_LENGTH ];
-    int  col;
-
-    buf1[0] = '\0';
-    col = 0;
-    send_to_char("Subclasses available for use:\n\r", ch);
-    for (int i = 0; sub_class_table[i].name; i++) if (sub_class_table[i].remort == remort)
-    {
-		sprintf(buf, "%-19.18s", (char *)sub_class_table[i].name);
-		strcat(buf1, buf);
-		if (++col % 4 == 0)
-	    	strcat(buf1, "\n\r");
-    }
-
-    if (col % 4 != 0)
-	strcat(buf1, "\n\r");
-
-    send_to_char(buf1, ch);
-    return;
-}
 
 void show_artificing(CHAR_DATA *ch, const void *structure)
 {
@@ -581,16 +586,12 @@ bool show_help(CHAR_DATA *ch, char *argument)
 					show_classes(ch);
 					break;
 
-				case STRUCT_REMORT_SUBCLASSES:
-					show_subclasses(ch, true);
-					break;
-
-				case STRUCT_SUBCLASSES:
-					show_subclasses(ch, false);
-					break;
-				
 				case STRUCT_ARTIFICING:
 					show_artificing(ch, help_table[cnt].structure);
+					break;
+
+				case STRUCT_GCL:
+					show_gcls(ch);
 					break;
 
 				case STRUCT_FLAGS:
@@ -1353,7 +1354,7 @@ AEDIT(aedit_regions)
 		}
 		iterator_stop(&pit);
 		
-		list_remnthlink(pArea->regions, region_no);
+		list_remnthlink(pArea->regions, region_no, true);
 		sprintf(buf, "Region %d removed.\n\r", region_no);
 		send_to_char(buf, ch);
 		return TRUE;
@@ -8827,7 +8828,7 @@ OEDIT(oedit_waypoints)
 			return FALSE;
 		}
 
-		list_remnthlink(pObj->waypoints, value);
+		list_remnthlink(pObj->waypoints, value, true);
 		send_to_char("Waypoint deleted.\n\r", ch);
 		return TRUE;
 	}
@@ -10990,7 +10991,7 @@ OEDIT(oedit_type_container)
 					return FALSE;
 				}
 
-				list_remnthlink(CONTAINER(pObj)->whitelist, filter_no);
+				list_remnthlink(CONTAINER(pObj)->whitelist, filter_no, true);
 				sprintf(buf, "CONTAINER Whitelist #%d removed.\n\r", filter_no);
 				send_to_char(buf, ch);
 				return TRUE;
@@ -11085,7 +11086,7 @@ OEDIT(oedit_type_container)
 					return FALSE;
 				}
 
-				list_remnthlink(CONTAINER(pObj)->blacklist, filter_no);
+				list_remnthlink(CONTAINER(pObj)->blacklist, filter_no, true);
 				sprintf(buf, "CONTAINER Blacklist #%d removed.\n\r", filter_no);
 				send_to_char(buf, ch);
 				return TRUE;
@@ -11556,7 +11557,7 @@ OEDIT(oedit_type_fluid_container)
 					return false;
 				}
 
-				list_remnthlink(FLUID_CON(pObj)->spells, index);
+				list_remnthlink(FLUID_CON(pObj)->spells, index, true);
 				sprintf(buf, "FLUID Potion Spell #%d removed.\n\r", index);
 				send_to_char(buf, ch);
 				return true;
@@ -11773,7 +11774,7 @@ OEDIT(oedit_type_food)
 				return FALSE;
 			}
 
-			list_remnthlink(FOOD(pObj)->buffs, buff_no);
+			list_remnthlink(FOOD(pObj)->buffs, buff_no, true);
 
 			sprintf(buf, "Food Buff %d removed.\n\r", buff_no);
 			send_to_char(buf, ch);
@@ -12170,7 +12171,7 @@ OEDIT(oedit_type_furniture)
 							FURNITURE(pObj)->main_compartment = 0;
 						}
 
-						list_remnthlink(FURNITURE(pObj)->compartments, index);
+						list_remnthlink(FURNITURE(pObj)->compartments, index, true);
 						send_to_char("FURNITURE Compartment removed.\n\r", ch);
 						return TRUE;
 					}
@@ -13000,7 +13001,7 @@ OEDIT(oedit_type_jewelry)
 					return false;
 				}
 
-				list_remnthlink(jewelry->spells, index);
+				list_remnthlink(jewelry->spells, index, true);
 				send_to_char("JEWELRY spell removed.\n\r", ch);
 				return true;
 			}
@@ -14506,7 +14507,7 @@ OEDIT(oedit_type_portal)
 				}
 
 				int n = atoi(argument);
-				list_remnthlink(PORTAL(pObj)->spells, n);
+				list_remnthlink(PORTAL(pObj)->spells, n, true);
 				send_to_char("PORTAL Spell removed.\n\r", ch);
 				return TRUE;
 			}
@@ -14697,7 +14698,7 @@ OEDIT(oedit_type_scroll)
 					return false;
 				}
 
-				list_remnthlink(SCROLL(pObj)->spells, index);
+				list_remnthlink(SCROLL(pObj)->spells, index, true);
 				sprintf(buf, "SCROLL Spell #%d removed.\n\r", index);
 				send_to_char(buf, ch);
 				return true;
@@ -14910,7 +14911,7 @@ OEDIT(oedit_type_tattoo)
 					return false;
 				}
 
-				list_remnthlink(TATTOO(pObj)->spells, index);
+				list_remnthlink(TATTOO(pObj)->spells, index, true);
 				sprintf(buf, "TATTOO Spell #%d removed.\n\r", index);
 				send_to_char(buf, ch);
 				return true;
@@ -15170,7 +15171,7 @@ OEDIT(oedit_type_wand)
 					return false;
 				}
 
-				list_remnthlink(WAND(pObj)->spells, index);
+				list_remnthlink(WAND(pObj)->spells, index, true);
 				sprintf(buf, "WAND Spell #%d removed.\n\r", index);
 				send_to_char(buf, ch);
 				return true;
@@ -15595,7 +15596,7 @@ OEDIT( oedit_type_weapon )
 					return false;
 				}
 
-				list_remnthlink(WEAPON(pObj)->spells, index);
+				list_remnthlink(WEAPON(pObj)->spells, index, true);
 				sprintf(buf, "WEAPON Spell #%d removed.\n\r", index);
 				send_to_char(buf, ch);
 				return true;
@@ -19469,7 +19470,7 @@ MEDIT (medit_faction)
 			return false;
 		}
 
-		list_remnthlink(pMob->factions, index);
+		list_remnthlink(pMob->factions, index, true);
 		send_to_char("Faction removed.\n\r", ch);
 		return true;
 	}
@@ -20062,7 +20063,7 @@ MEDIT (medit_practice)
 
 						if (!str_prefix(arg, "remove"))
 						{
-							list_remnthlink(entry->costs, cindex);
+							list_remnthlink(entry->costs, cindex, true);
 							free_practice_cost_data(cost);
 
 							send_to_char(formatf("Cost point %d removed.\n\r", cindex), ch);
@@ -20109,7 +20110,7 @@ MEDIT (medit_practice)
 
 				if (!str_prefix(arg, "remove"))
 				{
-					list_remnthlink(prac->entries, index);
+					list_remnthlink(prac->entries, index, true);
 					free_practice_entry_data(entry);
 
 					send_to_char(formatf("Entry #%d removed.\n\r", index), ch);
@@ -23230,7 +23231,7 @@ MATEDIT( matedit_name )
 	material->name = str_dup(argument);
 
 	// Reposition material
-	list_remlink(material_list, material);
+	list_remlink(material_list, material, false);
 	insert_material(material);
 
 	send_to_char("Material name set.\n\r", ch);

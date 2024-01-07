@@ -124,28 +124,7 @@ int 		nest_level;
 void fread_stache(FILE *fp, LLIST *lstache);
 void fwrite_stache_obj(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp);
 void fread_reputation(FILE *fp, CHAR_DATA *ch);
-
-void insert_class_level(CHAR_DATA *ch, CLASS_LEVEL *cl)
-{
-	ITERATOR it;
-	CLASS_LEVEL *level;
-	iterator_start(&it, ch->pcdata->classes);
-	while((level = (CLASS_LEVEL *)iterator_nextdata(&it)))
-	{
-		int cmp = str_cmp(cl->clazz->name, level->clazz->name);
-		if (cmp < 0)
-		{
-			iterator_insert_before(&it, cl);
-			break;
-		}
-	}
-	iterator_stop(&it);
-
-	if (!level)
-	{
-		list_appendlink(ch->pcdata->classes, cl);
-	}
-}
+void insert_class_level(CHAR_DATA *ch, CLASS_LEVEL *cl);
 
 // Output a string of letters corresponding to the bitvalues for a flag
 char *print_flags(long flag)

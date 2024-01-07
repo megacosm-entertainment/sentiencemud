@@ -819,7 +819,7 @@ void free_char( CHAR_DATA *ch )
 
     if (ch->church != NULL)
     {
-		list_remlink(ch->church->online_players, ch);
+		list_remlink(ch->church->online_players, ch, false);
 	if (ch->church_member != NULL)
 		ch->church_member->ch = NULL;
 	ch->church = NULL;
@@ -4884,7 +4884,7 @@ void free_dungeon(DUNGEON *dng)
 
     // Automatically remove it from the list
     if (dng->index)
-        list_remlink(dng->index->loaded, dng);
+        list_remlink(dng->index->loaded, dng, false);
 
 	INVALIDATE(dng);
 	dng->next = dungeon_free;
@@ -4921,7 +4921,7 @@ void free_special_key(SPECIAL_KEY_DATA *sk)
 {
 	if( !IS_VALID(sk) ) return;
 
-	list_remlink(loaded_special_keys, sk);
+	list_remlink(loaded_special_keys, sk, false);
 
 	list_destroy(sk->list);
 
@@ -6963,6 +6963,7 @@ CLASS_DATA *new_class_data()
 
     data->type = CLASS_NONE;
     data->primary_stat = STAT_NONE;
+    data->groups = list_create(false);
 
     VALIDATE(data);
     return data;
@@ -6979,6 +6980,8 @@ void free_class_data(CLASS_DATA *data)
         free_string(data->display[i]);
         free_string(data->who[i]);
     }
+
+    list_destroy(data->groups);
 
     INVALIDATE(data);
     data->next = class_data_free;

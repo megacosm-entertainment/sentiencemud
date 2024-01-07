@@ -155,6 +155,7 @@ DECLARE_DO_FUN( do_chrem    	);
 DECLARE_DO_FUN(	do_chtalk	);
 DECLARE_DO_FUN(	do_church	);
 DECLARE_DO_FUN(	do_circle	);
+DECLARE_DO_FUN( do_classset    );
 DECLARE_DO_FUN(	do_clear	);
 DECLARE_DO_FUN( do_clone	);
 DECLARE_DO_FUN(	do_close	);
@@ -643,4 +644,6 @@ DECLARE_DO_FUN( do_matshow );
 
 
 DECLARE_DO_FUN( do_classes );
-DECLARE_DO_FUN( do_classlist );
+DECLARE_DO_FUN( do_clslist );
+DECLARE_DO_FUN( do_clsedit );
+DECLARE_DO_FUN( do_clsshow );

@@ -2454,7 +2454,7 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 				long uid = fread_number(fp);
 
 				if (IS_VALID(room->region))
-					list_remlink(room->region->rooms, room);
+					list_remlink(room->region->rooms, room, false);
 
 				room->region = get_area_region_by_uid(area, uid);
 

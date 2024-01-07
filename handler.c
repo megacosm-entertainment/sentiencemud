@@ -1865,19 +1865,19 @@ void char_from_room(CHAR_DATA *ch)
 			if( IS_VALID(dungeon) )
 			{
 				if( !IS_NPC(ch) )
-					list_remlink(dungeon->players, ch);
-				list_remlink(dungeon->mobiles, ch);
+					list_remlink(dungeon->players, ch, false);
+				list_remlink(dungeon->mobiles, ch, false);
 			}
 
 			if( !IS_NPC(ch) )
-				list_remlink(instance->players, ch);
-			list_remlink(instance->mobiles, ch);
+				list_remlink(instance->players, ch, false);
+			list_remlink(instance->mobiles, ch, false);
 		}
 		else if( IS_BOSS(ch) )
 		{
 			if( IS_VALID(dungeon) )
-				list_remlink(dungeon->bosses, ch);
-			list_remlink(instance->bosses, ch);
+				list_remlink(dungeon->bosses, ch, false);
+			list_remlink(instance->bosses, ch, false);
 		}
 	}
 	else
@@ -1928,8 +1928,8 @@ void char_from_room(CHAR_DATA *ch)
 			bug("Char_from_room: ch not found.", 0);
     }
 
-    list_remlink(ch->in_room->lpeople, ch);
-    list_remlink(ch->in_room->lentity, ch);
+    list_remlink(ch->in_room->lpeople, ch, false);
+    list_remlink(ch->in_room->lentity, ch, false);
 
     if (ch->in_wilds)
     {
@@ -2287,7 +2287,7 @@ void obj_from_locker(OBJ_DATA *obj)
     obj->next_content    = NULL;
     obj->locker	 	 = FALSE;
 
-    list_remlink(ch->llocker, obj);
+    list_remlink(ch->llocker, obj, false);
 }
 
 
@@ -2334,7 +2334,7 @@ void obj_from_char(OBJ_DATA *obj)
     obj->next_content	 = NULL;
     ch->carry_number	-= get_obj_number(obj);
     ch->carry_weight	-= get_obj_weight(obj);
-    list_remlink(ch->lcarrying, obj);
+    list_remlink(ch->lcarrying, obj, false);
 }
 
 
@@ -2615,7 +2615,7 @@ int unequip_char(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
 	bool was_lit = light_char_has_light(ch);
 
     obj->wear_loc = WEAR_NONE;
-    list_remlink(ch->lworn, obj);
+    list_remlink(ch->lworn, obj, false);
 
 	// If the item was concealed, don't handle any object affects.
 	if(wear_params[loc][WEAR_PARAM_AFFECTS]) {
@@ -2758,8 +2758,8 @@ void obj_from_room(OBJ_DATA *obj)
 		if (ch->on == obj)
 			ch->on = NULL;
 
-	list_remlink(in_room->lcontents, obj);
-	list_remlink(in_room->lentity, obj);
+	list_remlink(in_room->lcontents, obj, false);
+	list_remlink(in_room->lentity, obj, false);
 
 
 	if (IS_LIGHT(obj) && IS_SET(LIGHT(obj)->flags, LIGHT_IS_ACTIVE))
@@ -3104,7 +3104,7 @@ void extract_church(CHURCH_DATA *church)
 	}
     }
 
-    list_remlink(list_churches, church);
+    list_remlink(list_churches, church, false);
 
     free_church(church);
     return;
@@ -3194,7 +3194,7 @@ void extract_obj(OBJ_DATA *obj)
 	extract_obj(obj_content);
     }
 
-	list_remlink(loaded_objects, obj);
+	list_remlink(loaded_objects, obj, false);
 
 	// Clear the most recent corpse data on the player owner
     if( (obj->item_type == ITEM_CORPSE_PC) && !IS_NULLSTR(obj->owner) )
@@ -3269,10 +3269,10 @@ void extract_char(CHAR_DATA *ch, bool fPull)
 
 		// Remove from ship's crew
 		if( list_hasdata(ch->belongs_to_ship->crew, ch) )
-			list_remlink(ch->belongs_to_ship->crew, ch);
+			list_remlink(ch->belongs_to_ship->crew, ch, false);
 
 		if( list_hasdata(ch->belongs_to_ship->oarsmen, ch) )
-			list_remlink(ch->belongs_to_ship->oarsmen, ch);
+			list_remlink(ch->belongs_to_ship->oarsmen, ch, false);
 
 		if( ch->belongs_to_ship->first_mate == ch )
 			ch->belongs_to_ship->first_mate = NULL;
@@ -3351,9 +3351,9 @@ void extract_char(CHAR_DATA *ch, bool fPull)
 			wch->progs->target = NULL;
     }
     iterator_stop(&it);
-    list_remlink(loaded_chars, ch);
+    list_remlink(loaded_chars, ch, false);
     // Temporarily disabled for reconnect crash.
-    //list_remlink(loaded_players, ch);
+    //list_remlink(loaded_players, ch, false);
 
 
     if (ch->desc != NULL)
@@ -7111,7 +7111,7 @@ void token_from_char(TOKEN_DATA *token)
 		HANDLE(token->player), IS_NPC(token->player) ? token->player->pIndexData->vnum : 0);
 	log_string(buf);
 
-	list_remlink(token->player->ltokens, token);
+	list_remlink(token->player->ltokens, token, false);
 
 	if (token_prev == NULL)
 		token_tmp->player->tokens = token_tmp->next;
@@ -7198,7 +7198,7 @@ void token_from_obj(TOKEN_DATA *token)
 		token->name, token->pIndexData->vnum, token->object->short_descr, VNUM(token->object));
 	log_string(buf);
 
-	list_remlink(token->object->ltokens, token);
+	list_remlink(token->object->ltokens, token, false);
 
 	if (token_prev == NULL)
 		token_tmp->object->tokens = token_tmp->next;
@@ -7271,7 +7271,7 @@ void token_from_room(TOKEN_DATA *token)
 		token->name, token->pIndexData->vnum, token->room->name, token->room->vnum);
 	log_string(buf);
 
-	list_remlink(token->object->ltokens, token);
+	list_remlink(token->object->ltokens, token, false);
 
 	if (token_prev == NULL)
 		token_tmp->object->tokens = token_tmp->next;
@@ -8251,7 +8251,7 @@ void room_from_environment(ROOM_INDEX_DATA *room)
 		prev = &(*prev)->next_clone;
 	}
 
-	list_remlink(lclones, room);
+	list_remlink(lclones, room, false);
 
 	// The object now has no clones
 	if(room->environ_type == ENVIRON_OBJECT && !room->environ.obj->clone_rooms)
@@ -8548,10 +8548,10 @@ void list_remref(LLIST *lp)
 	}
 }
 
-void list_remdata(LLIST *lp, LLIST_LINK *link)
+void list_remdata(LLIST *lp, LLIST_LINK *link, bool del)
 {
 	if( link ) {
-		if( lp->deleter )
+		if( del && lp->deleter )
 			(*lp->deleter)(link->data);
 
 		link->data = NULL;
@@ -8800,7 +8800,7 @@ bool list_insertlink(LLIST *lp, void *data, int to)
 
 // Nulls out any data pointer that matches the supplied pointer
 // It will NOT cull the list
-void list_remlink(LLIST *lp, void *data)
+void list_remlink(LLIST *lp, void *data, bool del)
 {
 	LLIST_LINK *link, *link_next;
 
@@ -8809,7 +8809,7 @@ void list_remlink(LLIST *lp, void *data)
 		{
 			link_next = link->next;
 			if(link->data == data) {
-				list_remdata(lp, link);
+				list_remdata(lp, link, del);
 			}
 		}
 	}
@@ -8822,7 +8822,7 @@ void list_clear(LLIST *lp)
 	if(lp && lp->valid) {
 		for(link = lp->head; link; link = link_next) {
 			link_next = link->next;
-			list_remdata(lp, link);
+			list_remdata(lp, link, true);
 		}
 
 		lp->size = 0;
@@ -8847,7 +8847,7 @@ void *list_nthdata(LLIST *lp, register int nth)
 	return (link && !nth) ? link->data : NULL;
 }
 
-void list_remnthlink(LLIST *lp, register int nth)
+void list_remnthlink(LLIST *lp, register int nth, bool del)
 {
 	register LLIST_LINK *link = NULL;
 
@@ -8862,7 +8862,7 @@ void list_remnthlink(LLIST *lp, register int nth)
 	}
 
 	if( link && !nth ) {
-		list_remdata(lp, link);
+		list_remdata(lp, link, del);
 	}
 }
 

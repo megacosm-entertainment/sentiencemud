@@ -720,7 +720,7 @@ SHIP_DATA *create_ship(WNUM wnum)
 	instance = create_instance(ship_index->blueprint);
 	if( !IS_VALID(instance) )
 	{
-		list_remlink(loaded_objects, obj);
+		list_remlink(loaded_objects, obj, true);
 		--obj->pIndexData->count;
 		free_obj(obj);
 		free_ship(ship);
@@ -767,17 +767,17 @@ void extract_ship(SHIP_DATA *ship)
 {
 	if( !IS_VALID(ship) ) return;
 
-	if( IS_VALID(ship->owner) && !IS_NPC(ship->owner) )
-	{
-		list_remlink(ship->owner->pcdata->ships, ship);
-	}
-
 	detach_ships_ship(ship);
-
-	list_remlink(loaded_ships, ship);
 
 	extract_instance(ship->instance);
 	extract_obj(ship->ship);
+
+	if( IS_VALID(ship->owner) && !IS_NPC(ship->owner) )
+	{
+		list_remlink(ship->owner->pcdata->ships, ship, false);
+	}
+
+	list_remlink(loaded_ships, ship, false);
 
 	free_ship(ship);
 }
@@ -5108,11 +5108,11 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 		while( (route = (SHIP_ROUTE *)iterator_nextdata(&rit)) )
 		{
 			// Remove waypoint from route (if it is in there)
-			list_remlink(route->waypoints, wp);
+			list_remlink(route->waypoints, wp, true);
 		}
 		iterator_stop(&rit);
 
-		list_remnthlink(ship->waypoints, value);
+		list_remnthlink(ship->waypoints, value, true);
 		send_to_char("Waypoint deleted.\n\r", ch);
 
 		if( use_navigator )
@@ -5724,7 +5724,7 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		list_remnthlink(ship->routes, value);
+		list_remnthlink(ship->routes, value, true);
 		send_to_char("Route deleted.\n\r", ch);
 		return;
 	}
@@ -5934,7 +5934,7 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		list_remnthlink(route->waypoints, windex);
+		list_remnthlink(route->waypoints, windex, true);
 		send_to_char("Waypoint deleted from route.\n\r", ch);
 		return;
 	}
@@ -6490,11 +6490,11 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 
 		if( list_hasdata(ship->oarsmen, crew) )
 		{
-			list_remlink(ship->oarsmen, crew);
+			list_remlink(ship->oarsmen, crew, false);
 			send_to_char("{WOarsman unassigned due to crew removal.{x\n\r", ch);
 		}
 
-		list_remlink(ship->crew, crew);
+		list_remlink(ship->crew, crew, false);
 		crew->belongs_to_ship = NULL;
 
 		extract_char(crew, TRUE);
@@ -6740,7 +6740,7 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			list_remlink(ship->oarsmen, crew);
+			list_remlink(ship->oarsmen, crew, false);
 			send_to_char("Oarsman unassigned.\n\r", ch);
 			return;
 		}
@@ -8147,7 +8147,7 @@ SHEDIT( shedit_keys )
 			return FALSE;
 		}
 
-		list_remnthlink(ship->special_keys, value);
+		list_remnthlink(ship->special_keys, value, true);
 		send_to_char("Key removed.\n\r", ch);
 		return TRUE;
 	}

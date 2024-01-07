@@ -2257,73 +2257,73 @@ void variable_clearfield(int type, void *ptr)
 
 		case VAR_PLLIST_STR:
 			if( type == VAR_STRING && ptr && list_isvalid(cur->_.list)) {
-				list_remlink(cur->_.list, ptr);
+				list_remlink(cur->_.list, ptr, false);
 			}
 			break;
 
 		case VAR_PLLIST_CONN:
 			if( type == VAR_CONNECTION && ptr && list_isvalid(cur->_.list)) {
-				list_remlink(cur->_.list, ptr);
+				list_remlink(cur->_.list, ptr, false);
 			}
 			break;
 
 		case VAR_PLLIST_ROOM:
 			if( type == VAR_ROOM && ptr && list_isvalid(cur->_.list)) {
-				list_remlink(cur->_.list, ptr);
+				list_remlink(cur->_.list, ptr, false);
 			}
 			break;
 
 		case VAR_PLLIST_MOB:
 			if( type == VAR_MOBILE && ptr && list_isvalid(cur->_.list)) {
-				list_remlink(cur->_.list, ptr);
+				list_remlink(cur->_.list, ptr, false);
 			}
 			break;
 
 		case VAR_PLLIST_OBJ:
 			if( type == VAR_OBJECT && ptr && list_isvalid(cur->_.list)) {
-				list_remlink(cur->_.list, ptr);
+				list_remlink(cur->_.list, ptr, false);
 			}
 			break;
 
 		case VAR_PLLIST_TOK:
 			if( type == VAR_TOKEN && ptr && list_isvalid(cur->_.list)) {
-				list_remlink(cur->_.list, ptr);
+				list_remlink(cur->_.list, ptr, false);
 			}
 			break;
 
 		case VAR_PLLIST_CHURCH:
 			if( type == VAR_CHURCH && ptr && list_isvalid(cur->_.list)) {
-				list_remlink(cur->_.list, ptr);
+				list_remlink(cur->_.list, ptr, false);
 			}
 			break;
 
 		case VAR_PLLIST_BOOK_PAGE:
 			if( type == VAR_BOOK_PAGE && ptr && list_isvalid(cur->_.list)) {
-				list_remlink(cur->_.list, ptr);
+				list_remlink(cur->_.list, ptr, false);
 			}
 			break;
 
 		case VAR_PLLIST_FOOD_BUFF:
 			if( type == VAR_FOOD_BUFF && ptr && list_isvalid(cur->_.list)) {
-				list_remlink(cur->_.list, ptr);
+				list_remlink(cur->_.list, ptr, false);
 			}
 			break;
 
 		case VAR_PLLIST_COMPARTMENT:
 			if( type == VAR_COMPARTMENT && ptr && list_isvalid(cur->_.list)) {
-				list_remlink(cur->_.list, ptr);
+				list_remlink(cur->_.list, ptr, false);
 			}
 			break;
 
 		case VAR_PLLIST_AREA:
 			if( type == VAR_AREA && ptr && list_isvalid(cur->_.list)) {
-				list_remlink(cur->_.list, ptr);
+				list_remlink(cur->_.list, ptr, false);
 			}
 			break;
 
 		case VAR_PLLIST_AREA_REGION:
 			if( type == VAR_AREA_REGION && ptr && list_isvalid(cur->_.list)) {
-				list_remlink(cur->_.list, ptr);
+				list_remlink(cur->_.list, ptr, false);
 			}
 			break;
 

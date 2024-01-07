@@ -106,7 +106,45 @@ sh_int top_song_uid = 0;
 
 LLIST *classes_list = NULL;
 sh_int top_class_uid = 0;
-// Add global class pointers here
+CLASS_DATA *gcl_adept;
+CLASS_DATA *gcl_alchemist;
+CLASS_DATA *gcl_archaeologist;
+CLASS_DATA *gcl_archmage;
+CLASS_DATA *gcl_armorer;
+CLASS_DATA *gcl_assassin;
+CLASS_DATA *gcl_bard;
+CLASS_DATA *gcl_blacksmith;
+CLASS_DATA *gcl_botanist;
+CLASS_DATA *gcl_crusader;
+CLASS_DATA *gcl_culinarian;
+CLASS_DATA *gcl_destroyer;
+CLASS_DATA *gcl_druid;
+CLASS_DATA *gcl_enchanter;
+CLASS_DATA *gcl_engineer;
+CLASS_DATA *gcl_fisher;
+CLASS_DATA *gcl_geomancer;
+CLASS_DATA *gcl_gladiator;
+CLASS_DATA *gcl_highwayman;
+CLASS_DATA *gcl_illusionist;
+CLASS_DATA *gcl_jewelcrafter;
+CLASS_DATA *gcl_leatherworker;
+CLASS_DATA *gcl_marauder;
+CLASS_DATA *gcl_mariner;
+CLASS_DATA *gcl_miner;
+CLASS_DATA *gcl_monk;
+CLASS_DATA *gcl_necromancer;
+CLASS_DATA *gcl_ninja;
+CLASS_DATA *gcl_paladin;
+CLASS_DATA *gcl_ranger;
+CLASS_DATA *gcl_rogue;
+CLASS_DATA *gcl_sage;
+CLASS_DATA *gcl_skinner;
+CLASS_DATA *gcl_sorcerer;
+CLASS_DATA *gcl_warlord;
+CLASS_DATA *gcl_weaver;
+CLASS_DATA *gcl_witch;
+CLASS_DATA *gcl_wizard;
+
 
 void free_room_index( ROOM_INDEX_DATA *pRoom );
 void load_instances();
@@ -6798,19 +6836,19 @@ void persist_addroom(register ROOM_INDEX_DATA *room)
 
 void persist_removemobile(register CHAR_DATA *mob)
 {
-	list_remlink(persist_mobs, mob);
+	list_remlink(persist_mobs, mob, false);
 	mob->persist = FALSE;
 }
 
 void persist_removeobject(register OBJ_DATA *obj)
 {
-	list_remlink(persist_objs, obj);
+	list_remlink(persist_objs, obj, false);
 	obj->persist = FALSE;
 }
 
 void persist_removeroom(register ROOM_INDEX_DATA *room)
 {
-	list_remlink(persist_rooms, room);
+	list_remlink(persist_rooms, room, false);
 	room->persist = FALSE;
 }
 

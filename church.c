@@ -603,10 +603,10 @@ void remove_member(CHURCH_PLAYER_DATA * member)
 	free_string(member->ch->church_name);
 
 	member->ch->church_member = NULL;
-        list_remlink(member->church->online_players, member->ch);
+        list_remlink(member->church->online_players, member->ch, false);
     }
 
-   	list_remlink(member->church->roster, member->name);
+   	list_remlink(member->church->roster, member->name, false);
 
     free_church_player(member);
 }
@@ -1327,7 +1327,7 @@ void do_chcreate(CHAR_DATA *ch, char *argument)
 		write_churches_new();
 	} else {
 		if( church ) {
-			list_remlink(list_churches, church);
+			list_remlink(list_churches, church, false);
 			free_church(church);
 		}
 		if( player ) free_church_player( player);
@@ -1377,7 +1377,7 @@ void do_chdelete(CHAR_DATA *ch, char *argument)
 	    return;
 	}
 
-	list_remlink(list_churches, church);
+	list_remlink(list_churches, church, false);
 	extract_church(church);
 
 	send_to_char("Church deleted.\n\r", ch);
@@ -4144,7 +4144,7 @@ void church_remove_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room)
 	iterator_stop(&it);
 
 	if(treasure != NULL) {
-		list_remlink(church->treasure_rooms, treasure);
+		list_remlink(church->treasure_rooms, treasure, false);
 		free_mem(treasure, sizeof(CHURCH_TREASURE_ROOM));
 	}
 }

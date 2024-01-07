@@ -58,6 +58,7 @@ void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant);
 void look_map(CHAR_DATA *ch, OBJ_DATA *map);
 void look_portal(CHAR_DATA *ch, OBJ_DATA *portal);
 ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool allow_random);
+void show_flag_cmds(CHAR_DATA *ch, const struct flag_type *flag_table);
 
 char *const where_name[] = {
     "{Y<used as light>       {x",
@@ -8747,6 +8748,113 @@ void look_portal(CHAR_DATA *ch, OBJ_DATA *portal)
 	}
 }
 
+struct class_info_filter
+{
+	char name[MIL];
+	sh_int type;
+	sh_int min_level;
+	sh_int max_level;
+
+
+	bool has_name;
+	bool has_type;
+	bool has_min;
+	bool has_max;
+};
+
+bool __classes_parse_filters(CHAR_DATA *ch, char *argument, struct class_info_filter *params)
+{
+	params->has_name = false;
+	params->has_type = false;
+	params->has_min = false;
+	params->has_max = false;
+
+	while(argument[0])
+	{
+		char arg[MIL];
+		argument = one_argument(argument, arg);
+
+		if (!str_prefix(arg, "name"))
+		{
+			if (argument[0] == '\0')
+			{
+				send_to_char("Missing name in filter.\n\r", ch);
+				return false;
+			}
+
+			argument = one_argument(argument, params->name);
+			params->has_name = true;
+		}
+		else if (!str_prefix(arg, "type"))
+		{
+			if (argument[0] == '\0')
+			{
+				send_to_char("Missing type in filter.\n\r", ch);
+				return false;
+			}
+
+			argument = one_argument(argument, arg);
+
+			int type;
+			if ((type = stat_lookup(arg, class_types, NO_FLAG)) == NO_FLAG)
+			{
+				send_to_char("Invalid class type.  Please select from one of the following:\n\r", ch);
+				show_flag_cmds(ch, class_types);
+				return false;
+			}
+
+			params->type = type;
+			params->has_type = true;
+		}
+		else if (!str_prefix(arg, "min"))
+		{
+			if (argument[0] == '\0')
+			{
+				send_to_char("Missing minimum level in filter.\n\r", ch);
+				return false;
+			}
+
+			argument = one_argument(argument, arg);
+			int level;
+			if (!is_number(arg) || (level = atoi(arg)) < 1 || level > MAX_CLASS_LEVEL)
+			{
+				send_to_char(formatf("Please provide a level from 1 to %d.\n\r", MAX_CLASS_LEVEL), ch);
+				return false;
+			}
+
+			params->min_level = level;
+			params->has_min = true;
+		}
+		else if (!str_prefix(arg, "max"))
+		{
+			if (argument[0] == '\0')
+			{
+				send_to_char("Missing minimum level in filter.\n\r", ch);
+				return false;
+			}
+
+			argument = one_argument(argument, arg);
+			int level;
+			if (!is_number(arg) || (level = atoi(arg)) < 1 || level > MAX_CLASS_LEVEL)
+			{
+				send_to_char(formatf("Please provide a level from 1 to %d.\n\r", MAX_CLASS_LEVEL), ch);
+				return false;
+			}
+
+			params->max_level = level;
+			params->has_max = true;
+		}
+	}
+
+	if (params->has_min && params->has_max && params->min_level > params->max_level)
+	{
+		send_to_char("Minimum level cannot be greater than maximum level in filter.\n\r", ch);
+		return false;
+	}
+
+	return true;
+}
+
 
 void do_classes(CHAR_DATA *ch, char *argument)
 {
@@ -8754,27 +8862,60 @@ void do_classes(CHAR_DATA *ch, char *argument)
 
 	BUFFER *buffer = new_buf();
 	char buf[MSL];
+	struct class_info_filter params;
+
+	if (!__classes_parse_filters(ch, argument, &params))
+		return;
 
 	int i = 0;
 	ITERATOR it;
 	CLASS_LEVEL *level;
 
 	add_buf(buffer, formatf(" # [        Name        ] [ Level ] [         Progress         ]\n\r"));
-	add_buf(buffer, formatf("===============================================================\n\r"));
+	add_buf(buffer, formatf("=================================================================\n\r"));
 
 	iterator_start(&it, ch->pcdata->classes);
 	while((level = (CLASS_LEVEL *)iterator_nextdata(&it)))
 	{
+		if (params.has_name && str_prefix(params.name, level->clazz->name)) continue;
+		if (params.has_type && level->clazz->type != params.type) continue;
+		if (params.has_min && level->level < params.min_level) continue;
+		if (params.has_max && level->level > params.max_level) continue;
+
 		int maxexp = exp_per_level_table[level->level].exp;
 		long percent = (maxexp > 0) ? (100 * level->xp / maxexp) : 0;
-		sprintf(buf, "%2d  %-20s     %s     %s\n\r", ++i,
+
+		char clazz_color = 'x';
+		switch(level->clazz->type)
+		{
+		case CLASS_CLERIC:		clazz_color = 'Y'; break;
+		case CLASS_CRAFTING:	clazz_color = 'C'; break;
+		case CLASS_EXPLORER:	clazz_color = 'M'; break;
+		case CLASS_GATHERING:	clazz_color = 'G'; break;
+		case CLASS_MAGE:		clazz_color = 'B'; break;
+		case CLASS_THIEF:		clazz_color = 'W'; break;
+		case CLASS_WARRIOR:		clazz_color = 'R'; break;
+		}
+
+		sprintf(buf, "%2d  {%c%-20s{x     %s     %s\n\r", ++i,
+			clazz_color,
 			level->clazz->name,
 			(level->level < MAX_CLASS_LEVEL) ? formatf("%3d", level->level) : "{WMAX{x",
 			(level->level < MAX_CLASS_LEVEL) ? formatf("%ld / %ld (%ld%%)", level->xp, maxexp, percent) : "{D-{x / {D-{x");
 		add_buf(buffer, buf);
 	}
 	iterator_stop(&it);
-	add_buf(buffer, formatf("===============================================================\n\r"));
+	add_buf(buffer, formatf("=================================================================\n\r"));
+
+	if (i > 0)
+	{
+		add_buf(buffer, formatf("%d class%s found.\n\r", i, (i == 1)?"":"es"));
+	}
+	else
+	{
+		clear_buf(buffer);
+		add_buf(buffer, "No classes found.\n\r");
+	}
 
 	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
 	{

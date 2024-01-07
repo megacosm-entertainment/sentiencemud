@@ -57,6 +57,8 @@
 #define ED_REPEDIT	26
 #define ED_MATEDIT	27
 
+#define ED_CLSEDIT	28
+
 #define AEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define HEDIT( fun )            bool fun( CHAR_DATA *ch, char *argument )
 #define MEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
@@ -81,6 +83,7 @@
 #define REPEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define MATEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 
+#define CLSEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 
 /*
  * Interpreter Prototypes
@@ -117,6 +120,8 @@ void    songedit  ( CHAR_DATA *ch, char *argument );
 
 void	repedit  ( CHAR_DATA *ch, char *argument );
 void	matedit  ( CHAR_DATA *ch, char *argument );
+
+void	clsedit  ( CHAR_DATA *ch, char *argument );
 
 /*
  * OLC Constants
@@ -187,6 +192,7 @@ extern const struct olc_cmd_type        sgedit_table[];
 extern const struct olc_cmd_type		songedit_table[];
 extern const struct olc_cmd_type		repedit_table[];
 extern const struct olc_cmd_type		matedit_table[];
+extern const struct olc_cmd_type		clsedit_table[];
 
 /*
  * Editor Commands.
@@ -216,6 +222,7 @@ DECLARE_DO_FUN( do_songedit );
 
 DECLARE_DO_FUN( do_repedit );
 DECLARE_DO_FUN( do_matedit );
+DECLARE_DO_FUN( do_clsedit );
 
 /*
  * Area Editor Prototypes
@@ -733,6 +740,18 @@ DECLARE_OLC_FUN( matedit_strength );
 DECLARE_OLC_FUN( matedit_value );
 DECLARE_OLC_FUN( matedit_gm );
 
+DECLARE_OLC_FUN( clsedit_show );
+DECLARE_OLC_FUN( clsedit_create );
+DECLARE_OLC_FUN( clsedit_name );
+DECLARE_OLC_FUN( clsedit_description );
+DECLARE_OLC_FUN( clsedit_display );
+DECLARE_OLC_FUN( clsedit_type );
+DECLARE_OLC_FUN( clsedit_primary );
+DECLARE_OLC_FUN( clsedit_skills );
+DECLARE_OLC_FUN( clsedit_who );
+DECLARE_OLC_FUN( clsedit_gcl );
+
+
 /*
  * Macros
  */
@@ -771,6 +790,8 @@ DECLARE_OLC_FUN( matedit_gm );
 #define EDIT_SONG(ch, song)		( song = (SONG_DATA *)ch->desc->pEdit )
 #define EDIT_REPUTATION(ch, rep)	( rep = (REPUTATION_INDEX_DATA *)ch->desc->pEdit )
 #define EDIT_MATERIAL(ch, mat)		( mat = (MATERIAL *)ch->desc->pEdit )
+
+#define EDIT_CLASS(ch, cls)			( cls = (CLASS_DATA *)ch->desc->pEdit )
 
 /*
  * Prototypes

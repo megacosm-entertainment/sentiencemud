@@ -1684,7 +1684,7 @@ REPEDIT( repedit_rank )
 
 		if (!str_prefix(arg, "remove"))
 		{
-			list_remnthlink(pRep->ranks, index);
+			list_remnthlink(pRep->ranks, index, true);
 			__reorder_reputation_ranks(pRep);
 
 			send_to_char(formatf("Rank #%d removed.\n\r", index), ch);
