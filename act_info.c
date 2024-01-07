@@ -8746,3 +8746,44 @@ void look_portal(CHAR_DATA *ch, OBJ_DATA *portal)
 			show_room_description(ch, location);
 	}
 }
+
+
+void do_classes(CHAR_DATA *ch, char *argument)
+{
+	if (IS_NPC(ch)) return;
+
+	BUFFER *buffer = new_buf();
+	char buf[MSL];
+
+	int i = 0;
+	ITERATOR it;
+	CLASS_LEVEL *level;
+
+	add_buf(buffer, formatf(" # [        Name        ] [ Level ] [         Progress         ]\n\r"));
+	add_buf(buffer, formatf("===============================================================\n\r"));
+
+	iterator_start(&it, ch->pcdata->classes);
+	while((level = (CLASS_LEVEL *)iterator_nextdata(&it)))
+	{
+		int maxexp = exp_per_level_table[level->level].exp;
+		long percent = (maxexp > 0) ? (100 * level->xp / maxexp) : 0;
+		sprintf(buf, "%2d  %-20s     %s     %s\n\r", ++i,
+			level->clazz->name,
+			(level->level < MAX_CLASS_LEVEL) ? formatf("%3d", level->level) : "{WMAX{x",
+			(level->level < MAX_CLASS_LEVEL) ? formatf("%ld / %ld (%ld%%)", level->xp, maxexp, percent) : "{D-{x / {D-{x");
+		add_buf(buffer, buf);
+	}
+	iterator_stop(&it);
+	add_buf(buffer, formatf("===============================================================\n\r"));
+
+	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(buffer->string, ch);
+	}
+
+	free_buf(buffer);
+}

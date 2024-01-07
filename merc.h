@@ -277,6 +277,8 @@ struct sound_type {
 #define VERSION_PLAYER_005	0x01000004
 //	Change #1: Existin Immortals will have HOLYWARP turned on automagically
 
+#define VERSION_PLAYER_006  0x01000005
+
 
 #define VERSION_OBJECT_001	0x01000000
 
@@ -357,7 +359,7 @@ struct sound_type {
 #define VERSION_MOBILE		0x01000000
 #define VERSION_OBJECT		VERSION_OBJECT_016
 #define VERSION_ROOM		VERSION_ROOM_002
-#define VERSION_PLAYER		VERSION_PLAYER_005
+#define VERSION_PLAYER		VERSION_PLAYER_006
 #define VERSION_TOKEN		0x01000000
 #define VERSION_AFFECT		0x01000000
 #define VERSION_SCRIPT		0x02000000
@@ -687,6 +689,7 @@ struct class_level_data {
 
     CLASS_DATA *clazz;
     int level;
+    long xp;                // Current XP in the class
 
     // Vitals?
 };
@@ -11333,7 +11336,8 @@ SONG_DATA *get_song_data_uid(sh_int uid);
 
 extern LLIST *classes_list;
 extern sh_int top_class_uid;
-
+CLASS_DATA *get_class_data(const char *name);
+CLASS_DATA *get_class_uid(const sh_int uid);
 
 extern LLIST *gc_mobiles;
 extern LLIST *gc_objects;

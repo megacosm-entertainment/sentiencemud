@@ -125,6 +125,28 @@ void fread_stache(FILE *fp, LLIST *lstache);
 void fwrite_stache_obj(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp);
 void fread_reputation(FILE *fp, CHAR_DATA *ch);
 
+void insert_class_level(CHAR_DATA *ch, CLASS_LEVEL *cl)
+{
+	ITERATOR it;
+	CLASS_LEVEL *level;
+	iterator_start(&it, ch->pcdata->classes);
+	while((level = (CLASS_LEVEL *)iterator_nextdata(&it)))
+	{
+		int cmp = str_cmp(cl->clazz->name, level->clazz->name);
+		if (cmp < 0)
+		{
+			iterator_insert_before(&it, cl);
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	if (!level)
+	{
+		list_appendlink(ch->pcdata->classes, cl);
+	}
+}
+
 // Output a string of letters corresponding to the bitvalues for a flag
 char *print_flags(long flag)
 {
@@ -327,17 +349,14 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     fprintf(fp, "Sex  %d\n",	ch->sex			);
     fprintf(fp, "LockerRent %ld\n", (long int)ch->locker_rent   );
 
-	/*
 	ITERATOR cit;
 	CLASS_LEVEL *cl;
 	iterator_start(&cit, ch->pcdata->classes);
 	while((cl = (CLASS_LEVEL *)iterator_nextdata(&cit)))
 	{
-		fprintf("Class %s~ ")
+		fprintf(fp, "ClassLevel %s~ %d %ld\n", cl->clazz->name, cl->level, cl->xp);
 	}
-
 	iterator_stop(&cit);
-	*/
 
     fprintf(fp, "Cla  %d\n",	ch->pcdata->class_current		);
     fprintf(fp, "Mc0  %d\n",	ch->pcdata->class_mage		);
@@ -1300,19 +1319,40 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
             if (!str_cmp(word, "Before_social")) {
 		location_set(&ch->before_social,get_area_from_uid(fread_number(fp)),0,fread_number(fp),0,0);
 		fMatch = TRUE;
+		break;
 	    }
             if (!str_cmp(word, "Before_socialC")) {
 		location_set(&ch->before_social,get_area_from_uid(fread_number(fp)),0,fread_number(fp),fread_number(fp),fread_number(fp));
 		fMatch = TRUE;
+		break;
 	    }
             if (!str_cmp(word, "Before_socialW")) {
 		location_set(&ch->before_social,NULL,fread_number(fp),fread_number(fp),fread_number(fp),fread_number(fp));
 		fMatch = TRUE;
+		break;
 	    }
 		break;
 
 	case 'C':
 	    KEY("Class",    ch->pcdata->class_current,         fread_number(fp));
+		if (!str_cmp(word, "ClassLevel"))
+		{
+			char *name = fread_string(fp);
+			CLASS_DATA *clazz = get_class_data(name);
+			int level = fread_number(fp);
+			long xp = fread_number(fp);
+
+			if (IS_VALID(clazz))
+			{
+				CLASS_LEVEL *cl = new_class_level();
+				cl->clazz = clazz;
+				cl->level = level;
+				cl->xp = xp;
+				insert_class_level(ch, cl);
+			}
+			fMatch = true;
+			break;
+		}
 	    KEY("Cla",	     ch->pcdata->class_current,         fread_number(fp));
 	    KEY("ChDelay",  ch->pcdata->challenge_delay,  fread_number(fp));
 	    KEY("CPKCount",  ch->cpk_deaths,  fread_number(fp));
@@ -5904,6 +5944,30 @@ void fix_object_lockstate(OBJ_DATA *obj)
 	}
 }
 
+static inline void __add_class_level(CHAR_DATA *ch, int sub_class)
+{
+	if (sub_class == -1) return;
+
+	int level = MAX_CLASS_LEVEL;
+	long xp = 0;
+	if (!IS_IMMORTAL(ch) && sub_class == ch->pcdata->sub_class_current)
+	{
+		level = ch->level;	// Local class level
+		xp = ch->exp;		// Current experience
+		// TODO: will need to rescale it based upon 1-40 range, only
+	}
+
+	CLASS_DATA *clazz = get_class_data(sub_class_table[sub_class].name[0]);
+	if (!IS_VALID(clazz)) return;
+
+	CLASS_LEVEL *cl = new_class_level();
+	cl->clazz = clazz;
+	cl->level = level;
+	cl->xp = xp;
+
+	insert_class_level(ch, cl);
+}
+
 void fix_character(CHAR_DATA *ch)
 {
     int i;
@@ -6082,6 +6146,22 @@ void fix_character(CHAR_DATA *ch)
 		REMOVE_BIT(ch->act[0], PLR_PK);
 		ch->version = 10;
     }
+
+	if (ch->version < VERSION_PLAYER_006)
+	{
+		// Create all of the class level entries
+		__add_class_level(ch, ch->pcdata->sub_class_cleric);
+		__add_class_level(ch, ch->pcdata->sub_class_mage);
+		__add_class_level(ch, ch->pcdata->sub_class_thief);
+		__add_class_level(ch, ch->pcdata->sub_class_warrior);
+
+		__add_class_level(ch, ch->pcdata->second_sub_class_cleric);
+		__add_class_level(ch, ch->pcdata->second_sub_class_mage);
+		__add_class_level(ch, ch->pcdata->second_sub_class_thief);
+		__add_class_level(ch, ch->pcdata->second_sub_class_warrior);
+
+		ch->version = VERSION_PLAYER_006;
+	}
 
     if (IS_IMMORTAL(ch))
     {

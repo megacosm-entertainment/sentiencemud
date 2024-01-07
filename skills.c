@@ -6647,7 +6647,39 @@ SGEDIT( sgedit_clear )
 }
 
 
+//////////////////////////////////
+// Classes
 
+CLASS_DATA *get_class_data(const char *name)
+{
+	ITERATOR it;
+	CLASS_DATA *clazz;
+	iterator_start(&it, classes_list);
+	while((clazz = (CLASS_DATA *)iterator_nextdata(&it)))
+	{
+		if (!str_prefix(name, clazz->name))
+			break;
+	}
+	iterator_stop(&it);
+
+	return clazz;
+}
+
+
+CLASS_DATA *get_class_uid(const sh_int uid)
+{
+	ITERATOR it;
+	CLASS_DATA *clazz;
+	iterator_start(&it, classes_list);
+	while((clazz = (CLASS_DATA *)iterator_nextdata(&it)))
+	{
+		if (clazz->uid == uid)
+			break;
+	}
+	iterator_stop(&it);
+
+	return clazz;
+}
 
 CLASS_DATA **gcl_from_name(char *name)
 {
@@ -6784,6 +6816,10 @@ CLASS_DATA *load_class(FILE *fp)
 				KEYS("Name", data->name, fread_string(fp));
 				break;
 
+			case 'P':
+				KEY("PrimaryStat", data->primary_stat, stat_lookup(fread_string(fp),stat_types,STAT_NONE));
+				break;
+
 			case 'T':
 				// TODO: Trait
 				KEY("Type", data->type, stat_lookup(fread_string(fp),class_types,CLASS_NONE));
@@ -6888,14 +6924,25 @@ bool load_classes()
 			}
 		}
 
+		bool save = false;
+
 		ITERATOR it;
 		iterator_start(&it, classes_list);
 		while((clazz = (CLASS_DATA *)iterator_nextdata(&it)))
 		{
 			if (clazz->gcl)
 				*(clazz->gcl) = clazz;
+
+			if (!clazz->uid)
+			{
+				clazz->uid = ++top_class_uid;
+				save = true;
+			}
 		}
 		iterator_stop(&it);
+
+		if (save)
+			save_classes();
 	}
 
 	return true;

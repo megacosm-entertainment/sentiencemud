@@ -361,7 +361,8 @@ void gain_exp(CHAR_DATA *ch, int gain)
 			return;
 
 		/* make sure you never get more than the exp for your level */
-		ch->exp = UMIN(exp_per_level(ch,ch->pcdata->points), ch->exp + gain);
+		long maxexp = exp_per_level(ch,ch->pcdata->points);
+		ch->exp = UMIN(maxexp, ch->exp + gain);
 
 		if (ch->tot_level < LEVEL_HERO && ch->level < MAX_CLASS_LEVEL &&
 			ch->exp >= exp_per_level(ch,ch->pcdata->points)) {

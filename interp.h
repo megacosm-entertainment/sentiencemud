@@ -642,4 +642,5 @@ DECLARE_DO_FUN( do_matlist );
 DECLARE_DO_FUN( do_matshow );
 
 
+DECLARE_DO_FUN( do_classes );
 DECLARE_DO_FUN( do_classlist );
