@@ -9535,6 +9535,7 @@ LIQUID *load_liquid(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-LIQUID"))
 	{
+		fMatch = FALSE;
 		switch(word[0])
 		{
 			case 'C':
@@ -10040,6 +10041,7 @@ MATERIAL *load_material(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-MATERIAL"))
 	{
+		fMatch = FALSE;
 		switch(word[0])
 		{
 			case 'B':

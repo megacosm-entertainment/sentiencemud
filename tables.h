@@ -156,6 +156,12 @@ struct gm_type
 	MATERIAL **material;
 };
 
+struct gcl_type
+{
+	char *name;
+	CLASS_DATA **gcl;
+};
+
 struct npc_ship_type
 {
 	int npc_ship_type;
@@ -463,6 +469,11 @@ extern const struct flag_type material_classes[];
 extern const struct flag_type material_flags[];
 
 extern const struct gm_type gm_table[];
+extern const struct gcl_type gcl_table[];
+
+extern const struct flag_type class_types[];
+extern const struct flag_type stat_types[];
+
 
 #endif
 

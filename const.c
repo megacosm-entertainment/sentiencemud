@@ -2088,6 +2088,15 @@ const   struct  sub_class_type  sub_class_table [] =
 	{CLASS_THIEF_BARD, CLASS_THIEF_ROGUE		},
 	{0,	0,	0,	0,	0		}
     },
+
+    {
+	{NULL, NULL, NULL},
+	{NULL, NULL, NULL},
+	CLASS_NONE, 	NULL,
+	ALIGN_NONE,	false,
+	{-1, -1},
+	{0,	0,	0,	0,	0		}
+    },
 };
 
 

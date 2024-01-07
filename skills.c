@@ -471,6 +471,7 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 
     while (str_cmp((word = fread_word(fp)), end))
 	{
+		fMatch = FALSE;
 		switch(word[0])
 		{
 			case 'B':
@@ -935,6 +936,7 @@ SKILL_GROUP *load_skill_group(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-GROUP"))
 	{
+		fMatch = false;
 		switch(word[0])
 		{
 			case 'I':
@@ -6642,4 +6644,302 @@ SGEDIT( sgedit_clear )
 	list_clear(group->contents);
 	send_to_char("Group cleared.\n\r", ch);
 	return true;
+}
+
+
+
+
+CLASS_DATA **gcl_from_name(char *name)
+{
+	for(int i = 0; gcl_table[i].name; i++)
+	{
+		if (!str_prefix(name, gcl_table[i].name))
+			return gcl_table[i].gcl;
+	}
+
+	return NULL;
+}
+
+char *gcl_to_name(CLASS_DATA **gcl)
+{
+	for(int i = 0; gcl_table[i].name; i++)
+	{
+		if (gcl_table[i].gcl == gcl)
+			return gcl_table[i].name;
+	}
+
+	return NULL;
+}
+
+
+void save_class(FILE *fp, CLASS_DATA *clazz)
+{
+	fprintf(fp, "#CLASS %d\n", clazz->uid);
+	fprintf(fp, "Name %s~\n", fix_string(clazz->name));
+	fprintf(fp, "Type %s~\n", flag_string(class_types, clazz->type));
+	fprintf(fp, "Description %s~\n", fix_string(clazz->description));
+
+	fprintf(fp, "DisplayNeutral %s~\n", clazz->display[SEX_NEUTRAL]);
+	fprintf(fp, "DisplayMale %s~\n", clazz->display[SEX_MALE]);
+	fprintf(fp, "DisplayFemale %s~\n", clazz->display[SEX_FEMALE]);
+	fprintf(fp, "DisplayEither %s~\n", clazz->display[SEX_EITHER]);
+
+	fprintf(fp, "WhoNeutral %s~\n", clazz->who[SEX_NEUTRAL]);
+	fprintf(fp, "WhoMale %s~\n", clazz->who[SEX_MALE]);
+	fprintf(fp, "WhoFemale %s~\n", clazz->who[SEX_FEMALE]);
+	fprintf(fp, "WhoEither %s~\n", clazz->who[SEX_EITHER]);
+
+	if(IS_VALID(clazz->skills))
+		fprintf(fp, "Group %s~\n", clazz->skills->name);
+
+	fprintf(fp, "PrimaryStat %s~\n", flag_string(stat_types, clazz->primary_stat));
+
+	// TODO: Traits
+
+	fprintf(fp, "#-CLASS\n");
+}
+
+void save_classes()
+{
+	FILE *fp;
+
+	log_string("save_classes: saving " CLASSES_FILE);
+	if ((fp = fopen(CLASSES_FILE, "w")) == NULL)
+	{
+		bug("save_classes: fopen", 0);
+		perror(CLASSES_FILE);
+		return;
+	}
+
+	ITERATOR it;
+	CLASS_DATA *clazz;
+	iterator_start(&it, classes_list);
+	while((clazz = (CLASS_DATA *)iterator_nextdata(&it)))
+	{
+		save_class(fp, clazz);
+	}	
+	iterator_stop(&it);
+
+	fprintf(fp, "End\n");
+	fclose(fp);
+}
+
+
+static void delete_class_data(void *ptr)
+{
+	free_class_data((CLASS_DATA *)ptr);
+}
+
+void insert_class(CLASS_DATA *clazz)
+{
+	ITERATOR it;
+	CLASS_DATA *cls;
+	iterator_start(&it, classes_list);
+	while((cls = (CLASS_DATA *)iterator_nextdata(&it)))
+	{
+		int cmp = str_cmp(clazz->name, cls->name);
+		if(cmp < 0)
+		{
+			iterator_insert_before(&it, clazz);
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	if (!cls)
+	{
+		list_appendlink(classes_list, clazz);
+	}
+}
+
+CLASS_DATA *load_class(FILE *fp)
+{
+	CLASS_DATA *data = new_class_data();
+
+	char buf[MSL];
+	char *word;
+	bool fMatch;
+
+	data->uid = fread_number(fp);
+
+    while (str_cmp((word = fread_word(fp)), "#-CLASS"))
+	{
+		fMatch = FALSE;
+		switch(word[0])
+		{
+			case 'D':
+				KEYS("Description", data->description, fread_string(fp));
+				KEYS("DisplayEither", data->display[SEX_EITHER], fread_string(fp));
+				KEYS("DisplayFemale", data->display[SEX_FEMALE], fread_string(fp));
+				KEYS("DisplayMale", data->display[SEX_MALE], fread_string(fp));
+				KEYS("DisplayNeutral", data->display[SEX_NEUTRAL], fread_string(fp));
+				break;
+
+			case 'G':
+				KEY("GCL", data->gcl, gcl_from_name(fread_string(fp)));
+				KEY("Group", data->skills, group_lookup(fread_string(fp)));
+				break;
+
+			case 'N':
+				KEYS("Name", data->name, fread_string(fp));
+				break;
+
+			case 'T':
+				// TODO: Trait
+				KEY("Type", data->type, stat_lookup(fread_string(fp),class_types,CLASS_NONE));
+				break;
+
+			case 'W':
+				KEYS("WhoEither", data->who[SEX_EITHER], fread_string(fp));
+				KEYS("WhoFemale", data->who[SEX_FEMALE], fread_string(fp));
+				KEYS("WhoMale", data->who[SEX_MALE], fread_string(fp));
+				KEYS("WhoNeutral", data->who[SEX_NEUTRAL], fread_string(fp));
+				break;
+
+		}
+
+		if (!fMatch)
+		{
+			sprintf(buf, "load_class: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+bool load_classes()
+{
+	FILE *fp;
+	char buf[MSL];
+	char *word;
+	bool fMatch;
+	CLASS_DATA *clazz;
+	top_class_uid = 0;
+
+	log_string("load_classes: creating classes_list");
+	classes_list = list_createx(FALSE, NULL, delete_class_data);
+	if (!IS_VALID(classes_list))
+	{
+		log_string("classess_list was not created.");
+		return false;
+	}
+
+	log_string("load_classes: loading " CLASSES_FILE);
+	if ((fp = fopen(CLASSES_FILE, "r")) == NULL)
+	{
+		log_string("load_classes: '" CLASSES_FILE "' file not found.  Bootstrapping classes.");
+
+		for(int i = 0; sub_class_table[i].name[0]; i++)
+		{
+			CLASS_DATA *cls = new_class_data();
+			cls->uid = ++top_class_uid;
+			cls->name = str_dup(sub_class_table[i].name[0]);
+			cls->type = sub_class_table[i].class;
+
+			for(int j = 0; j < 3; j++)
+			{
+				cls->display[j] = str_dup(sub_class_table[i].name[j]);
+				cls->who[j] = str_dup(sub_class_table[i].who_name[j]);
+			}
+
+			cls->display[SEX_EITHER] = str_dup(sub_class_table[i].name[SEX_NEUTRAL]);
+			cls->who[SEX_EITHER] = str_dup(sub_class_table[i].who_name[SEX_NEUTRAL]);
+			cls->skills = group_lookup(sub_class_table[i].default_group);
+
+			insert_class(cls);
+		}
+
+		// None of the classes have a gcl defined
+
+		save_classes();
+	}
+	else
+	{
+		while(str_cmp((word = fread_word(fp)), "End"))
+		{
+			fMatch = false;
+
+			switch(word[0])
+			{
+			case '#':
+				if (!str_cmp(word, "#CLASS"))
+				{
+					clazz = load_class(fp);
+					if (clazz)
+					{
+						insert_class(clazz);
+
+						if (clazz->uid > top_class_uid)
+							top_class_uid = clazz->uid;
+					}
+					else
+						log_string("Failed to load a class.");
+
+					fMatch = true;
+					break;
+				}
+				break;
+			}
+
+			if (!fMatch) {
+				sprintf(buf, "load_classes: no match for word %s", word);
+				bug(buf, 0);
+			}
+		}
+
+		ITERATOR it;
+		iterator_start(&it, classes_list);
+		while((clazz = (CLASS_DATA *)iterator_nextdata(&it)))
+		{
+			if (clazz->gcl)
+				*(clazz->gcl) = clazz;
+		}
+		iterator_stop(&it);
+	}
+
+	return true;
+}
+
+void do_classlist(CHAR_DATA *ch, char *argument)
+{
+	BUFFER *buffer = new_buf();
+	char buf[MSL];
+
+	sprintf(buf, "%-4s %-20s %-20s\n\r",
+		"#", "Name", "Type");
+	add_buf(buffer, buf);
+	sprintf(buf, "%-4s %-20s %-20s\n\r",
+		"====", "====================", "====================");
+	add_buf(buffer, buf);
+
+	int i = 0;
+	ITERATOR it;
+	CLASS_DATA *clazz;
+    iterator_start(&it, classes_list);
+    while((clazz = (CLASS_DATA *)iterator_nextdata(&it)))
+    {
+		sprintf(buf, "%-4d %-20s %-20s\n\r", ++i,
+			clazz->name, flag_string(class_types, clazz->type));
+		add_buf(buffer, buf);
+    }
+    iterator_stop(&it);
+
+	sprintf(buf, "%-4s %-20s %-20s\n\r",
+		"====", "====================", "====================");
+	add_buf(buffer, buf);
+
+	sprintf(buf, "Total: %d\n\r", i);
+	add_buf(buffer, buf);
+
+	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(buffer->string, ch);
+	}
+
+	free_buf(buffer);
 }

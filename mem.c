@@ -901,6 +901,10 @@ void free_char( CHAR_DATA *ch )
     char_free = ch;
 }
 
+static void delete_class_level(void *ptr)
+{
+    free_class_level((CLASS_LEVEL *)ptr);
+}
 
 PC_DATA *new_pcdata(void)
 {
@@ -940,6 +944,8 @@ PC_DATA *new_pcdata(void)
     pcdata->buffer = new_buf();
     pcdata->convert_church = -1;
     pcdata->need_change_pw = TRUE;
+
+    pcdata->classes = list_createx(false, NULL, delete_class_level);
 
     pcdata->class_mage = -1;
     pcdata->class_cleric = -1;
@@ -1022,6 +1028,7 @@ void free_pcdata(PC_DATA *pcdata)
     string_vector_freeall(pcdata->script_prompts);
     pcdata->script_prompts = NULL;
 
+    list_destroy(pcdata->classes);
     list_destroy(pcdata->unlocked_areas);
     list_destroy(pcdata->ships);
     list_destroy(pcdata->group_known);
@@ -6929,4 +6936,78 @@ void free_material(MATERIAL *data)
     INVALIDATE(data);
     data->next = material_free;
     material_free = data;
+}
+
+CLASS_DATA *class_data_free;
+CLASS_DATA *new_class_data()
+{
+    CLASS_DATA *data;
+    if (class_data_free)
+    {
+        data = class_data_free;
+        class_data_free = class_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(CLASS_DATA));
+
+    memset(data, 0, sizeof(*data));
+
+    data->name = &str_empty[0];
+    data->description = &str_empty[0];
+
+    for(int i = 0; i < SEX_MAX; i++)
+    {
+        data->display[i] = &str_empty[0];
+        data->who[i] = &str_empty[0];
+    }
+
+    data->type = CLASS_NONE;
+    data->primary_stat = STAT_NONE;
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_class_data(CLASS_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    free_string(data->name);
+
+    for(int i = 0; i < SEX_MAX; i++)
+    {
+        free_string(data->display[i]);
+        free_string(data->who[i]);
+    }
+
+    INVALIDATE(data);
+    data->next = class_data_free;
+    class_data_free = data;
+}
+
+CLASS_LEVEL *class_level_free;
+CLASS_LEVEL *new_class_level()
+{
+    CLASS_LEVEL *cl;
+    if (class_level_free)
+    {
+        cl = class_level_free;
+        class_level_free = class_level_free->next;
+    }
+    else
+        cl = alloc_mem(sizeof(CLASS_LEVEL));
+    
+    memset(cl, 0, sizeof(*cl));
+
+    VALIDATE(cl);
+    return cl;
+}
+
+void free_class_level(CLASS_LEVEL *cl)
+{
+    if (!IS_VALID(cl)) return;
+
+    INVALIDATE(cl);
+    cl->next = class_level_free;
+    class_level_free = cl;
 }

@@ -305,6 +305,9 @@ void save_skills();
 bool load_songs();
 void save_songs();
 
+bool load_classes();
+void save_classes();
+
 /*
  * Global variables.
  */
@@ -708,6 +711,9 @@ int main(int argc, char **argv)
 	if (!load_songs()) exit(1);
 	log_string("songs loaded.");
 
+	if (!load_classes()) exit(1);
+	log_string("classes loaded");
+
     /*
      * Run the game.
      */
@@ -753,6 +759,9 @@ int main(int argc, char **argv)
 	for( server = first_server; server; server = server->next )
 	imc_shutdown(FALSE, server);
 	#endif
+
+	save_classes();
+	list_destroy(classes_list);
 
 	save_liquids();
 	list_destroy(liquid_list);

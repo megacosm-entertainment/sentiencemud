@@ -117,6 +117,8 @@ const struct flag_stat_type flag_stat_table[] =
     {   reputation_rank_flags,      FALSE   },
     {   ammo_types,                 TRUE    },
     {   material_classes,           TRUE    },
+    {   class_types,                true    },
+    {   stat_types,                 true    },
     {	0,							0		}
 };
 

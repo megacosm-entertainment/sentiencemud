@@ -88,8 +88,8 @@ extern	LLIST *loaded_instances;
 extern	LLIST *loaded_dungeons;
 extern	LLIST *loaded_ships;
 LLIST *loaded_special_keys;
-LLIST *material_list = NULL;
 
+LLIST *material_list = NULL;
 MATERIAL *gm_iron = NULL;
 MATERIAL *gm_silver = NULL;
 
@@ -103,6 +103,10 @@ SKILL_GROUP *global_skills = NULL;
 
 LLIST *songs_list = NULL;
 sh_int top_song_uid = 0;
+
+LLIST *classes_list = NULL;
+sh_int top_class_uid = 0;
+// Add global class pointers here
 
 void free_room_index( ROOM_INDEX_DATA *pRoom );
 void load_instances();

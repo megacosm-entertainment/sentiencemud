@@ -428,6 +428,7 @@ typedef struct  chat_op_data		CHAT_OP_DATA;
 typedef struct  church_data             CHURCH_DATA;
 typedef struct  church_player_data      CHURCH_PLAYER_DATA;
 typedef struct	church_treasure_room_data	CHURCH_TREASURE_ROOM;
+typedef struct  class_data CLASS_DATA;
 typedef struct  conditional_descr_data  CONDITIONAL_DESCR_DATA;
 typedef struct  gq_data			GQ_DATA;
 typedef struct  gq_mob_data		GQ_MOB_DATA;
@@ -637,6 +638,58 @@ typedef struct location_type {
 	 if wuid==0 and id[0] == 0, no recall
 	 if wuid==0 and id[0] != 0 and id[1:2] == 0, static room */
 } LOCATION;
+
+/* Sex */
+#define SEX_NEUTRAL         0
+#define SEX_MALE            1
+#define SEX_FEMALE          2
+#define SEX_EITHER          3
+#define SEX_MAX             4
+
+#define CLASS_NPC           -1
+#define CLASS_NONE          -1
+#define CLASS_MAGE          0
+#define CLASS_CLERIC 		1
+#define CLASS_THIEF 		2
+#define CLASS_WARRIOR 		3
+#define CLASS_CRAFTING      4
+#define CLASS_GATHERING     5
+#define CLASS_EXPLORER      6   // Explorer classes
+
+struct class_data {
+    CLASS_DATA *next;
+    bool valid;
+
+    char *name;
+    char *description;
+
+    char *display[SEX_MAX];
+    char *who[SEX_MAX];
+
+    CLASS_DATA **gcl;
+
+    sh_int uid;
+
+    sh_int type;        // Basic type
+
+    SKILL_GROUP *skills;
+
+    sh_int primary_stat;
+
+    // TODO: Traits?
+};
+
+typedef struct class_level_data CLASS_LEVEL;
+
+struct class_level_data {
+    CLASS_LEVEL *next;
+    bool valid;
+
+    CLASS_DATA *clazz;
+    int level;
+
+    // Vitals?
+};
 
 #define SKILLSRC_NORMAL			0	// Gained through normal acquisition (Impossible for tokens)
 #define SKILLSRC_SCRIPT			1	// Gained via script - can be given/revoked by GRANTSKILL/REVOKESKILL
@@ -1830,6 +1883,7 @@ struct shop_request_data
  * Per-class stuff.
  */
 #define MAX_STATS 	5
+#define STAT_NONE   -1
 #define STAT_STR 	0
 #define STAT_INT	1
 #define STAT_WIS	2
@@ -2563,11 +2617,6 @@ struct affliction_type {
 #define AFFFLAG_NODISPEL		(A)		// Affect cannot be removed by dispel
 #define AFFFLAG_NOCANCEL		(B)		// Affect cannot be removed by cancellation
 
-/* Sex */
-#define SEX_NEUTRAL         0
-#define SEX_MALE            1
-#define SEX_FEMALE          2
-#define SEX_EITHER          3
 
 /* AC types */
 #define AC_PIERCE			0
@@ -4026,12 +4075,6 @@ struct command_data
 #define SECOND_CLASS_THIEF	14
 #define SECOND_CLASS_WARRIOR	15
 
-#define CLASS_NPC              -1
-#define CLASS_MAGE 		0
-#define CLASS_CLERIC 		1
-#define CLASS_THIEF 		2
-#define CLASS_WARRIOR 		3
-
 #define CLASS_WARRIOR_MARAUDER 	0
 #define CLASS_WARRIOR_GLADIATOR	1
 #define CLASS_WARRIOR_PALADIN  	2
@@ -4706,6 +4749,8 @@ struct	pc_data
     time_t		last_login;
     time_t		last_project_inquiry;
     time_t      last_ready_check;
+
+    LLIST *classes;
 
     int			class_current;
     int			sub_class_current;
@@ -9187,6 +9232,7 @@ char *	crypt		args( ( const char *key, const char *salt ) );
 #define LIQUIDS_FILE        SYSTEM_DIR "liquids.dat"
 #define MATERIALS_FILE      SYSTEM_DIR "materials.dat"
 #define SKILLS_FILE         SYSTEM_DIR "skills.dat"
+#define CLASSES_FILE        SYSTEM_DIR "classes.dat"
 #define SONGS_FILE         SYSTEM_DIR "songs.dat"
 /*Notes of all kinds */
 #define NOTE_FILE       NOTE_DIR "notes.not"		/* For 'notes'*/
@@ -11257,7 +11303,6 @@ MATERIAL *material_lookup(const char *name);
 extern MATERIAL *gm_iron;
 extern MATERIAL *gm_silver;
 
-
 extern LLIST *liquid_list;
 extern sh_int top_liquid_uid;
 extern sh_int gln_water;
@@ -11284,6 +11329,11 @@ extern LLIST *songs_list;
 extern sh_int top_song_uid;
 SONG_DATA *get_song_data(char *name);
 SONG_DATA *get_song_data_uid(sh_int uid);
+
+
+extern LLIST *classes_list;
+extern sh_int top_class_uid;
+
 
 extern LLIST *gc_mobiles;
 extern LLIST *gc_objects;

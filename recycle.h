@@ -340,6 +340,12 @@ void free_weapon_data(WEAPON_DATA *data);
 
 
 
+CLASS_DATA *new_class_data();
+void free_class_data(CLASS_DATA *data);
+
+CLASS_LEVEL *new_class_level();
+void free_class_level(CLASS_LEVEL *cl);
+
 
 LIQUID *new_liquid();
 void free_liquid(LIQUID *liq);

@@ -4061,8 +4061,39 @@ const struct flag_type material_flags[] =
     { NULL,                 0,                              FALSE }
 };
 
-const struct gm_type gm_table[] = {
+const struct gm_type gm_table[] =
+{
     { "iron", &gm_iron },
     { "silver", &gm_silver },
     { NULL, NULL }
+};
+
+const struct gcl_type gcl_table[] =
+{
+    { NULL, NULL }
+};
+
+const struct flag_type class_types[] =
+{
+    { "none",       CLASS_NONE,         false },
+    { "cleric",     CLASS_CLERIC,       true },
+    { "crafting",   CLASS_CRAFTING,     true },
+    { "explorer",   CLASS_EXPLORER,     true },
+    { "gathering",  CLASS_GATHERING,    true },
+    { "mage",       CLASS_MAGE,         true },
+    { "thief",      CLASS_THIEF,        true },
+    { "warrior",    CLASS_WARRIOR,      true },
+    { NULL,         0,                  false }
+};
+
+const struct flag_type stat_types[] =
+{
+    { "none",           STAT_NONE,          true },
+    { "constitution",   STAT_CON,           true },
+    { "dexterity",      STAT_DEX,           true },
+    { "intelligence",   STAT_INT,           true },
+    { "strength",       STAT_STR,           true },
+    { "wisdom",         STAT_WIS,           true },
+    { NULL,             0,                  false }
+
 };

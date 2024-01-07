@@ -326,6 +326,19 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     fprintf(fp, "Race %s~\n", pc_race_table[ch->race].name);
     fprintf(fp, "Sex  %d\n",	ch->sex			);
     fprintf(fp, "LockerRent %ld\n", (long int)ch->locker_rent   );
+
+	/*
+	ITERATOR cit;
+	CLASS_LEVEL *cl;
+	iterator_start(&cit, ch->pcdata->classes);
+	while((cl = (CLASS_LEVEL *)iterator_nextdata(&cit)))
+	{
+		fprintf("Class %s~ ")
+	}
+
+	iterator_stop(&cit);
+	*/
+
     fprintf(fp, "Cla  %d\n",	ch->pcdata->class_current		);
     fprintf(fp, "Mc0  %d\n",	ch->pcdata->class_mage		);
     fprintf(fp, "Mc1  %d\n",	ch->pcdata->class_cleric		);
