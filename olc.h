@@ -58,6 +58,7 @@
 #define ED_MATEDIT	27
 
 #define ED_CLSEDIT	28
+#define ED_RACEEDIT	29
 
 #define AEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define HEDIT( fun )            bool fun( CHAR_DATA *ch, char *argument )
@@ -84,6 +85,7 @@
 #define MATEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 
 #define CLSEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
+#define RACEEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 
 /*
  * Interpreter Prototypes
@@ -122,6 +124,7 @@ void	repedit  ( CHAR_DATA *ch, char *argument );
 void	matedit  ( CHAR_DATA *ch, char *argument );
 
 void	clsedit  ( CHAR_DATA *ch, char *argument );
+void	raceedit  ( CHAR_DATA *ch, char *argument );
 
 /*
  * OLC Constants
@@ -193,6 +196,7 @@ extern const struct olc_cmd_type		songedit_table[];
 extern const struct olc_cmd_type		repedit_table[];
 extern const struct olc_cmd_type		matedit_table[];
 extern const struct olc_cmd_type		clsedit_table[];
+extern const struct olc_cmd_type		raceedit_table[];
 
 /*
  * Editor Commands.
@@ -223,6 +227,7 @@ DECLARE_DO_FUN( do_songedit );
 DECLARE_DO_FUN( do_repedit );
 DECLARE_DO_FUN( do_matedit );
 DECLARE_DO_FUN( do_clsedit );
+DECLARE_DO_FUN( do_raceedit );
 
 /*
  * Area Editor Prototypes
@@ -751,6 +756,28 @@ DECLARE_OLC_FUN( clsedit_skills );
 DECLARE_OLC_FUN( clsedit_who );
 DECLARE_OLC_FUN( clsedit_gcl );
 
+DECLARE_OLC_FUN( raceedit_show );
+DECLARE_OLC_FUN( raceedit_create );
+DECLARE_OLC_FUN( raceedit_name );
+DECLARE_OLC_FUN( raceedit_description );
+DECLARE_OLC_FUN( raceedit_comments );
+DECLARE_OLC_FUN( raceedit_flags );
+DECLARE_OLC_FUN( raceedit_act );
+DECLARE_OLC_FUN( raceedit_aff );
+DECLARE_OLC_FUN( raceedit_off );
+DECLARE_OLC_FUN( raceedit_imm );
+DECLARE_OLC_FUN( raceedit_res );
+DECLARE_OLC_FUN( raceedit_vuln );
+DECLARE_OLC_FUN( raceedit_form );
+DECLARE_OLC_FUN( raceedit_parts );
+DECLARE_OLC_FUN( raceedit_gr );
+DECLARE_OLC_FUN( raceedit_remort );
+DECLARE_OLC_FUN( raceedit_who );
+DECLARE_OLC_FUN( raceedit_stats );
+DECLARE_OLC_FUN( raceedit_maxstats );
+DECLARE_OLC_FUN( raceedit_maxvitals );
+DECLARE_OLC_FUN( raceedit_size );
+DECLARE_OLC_FUN( raceedit_align );
 
 /*
  * Macros
@@ -792,6 +819,7 @@ DECLARE_OLC_FUN( clsedit_gcl );
 #define EDIT_MATERIAL(ch, mat)		( mat = (MATERIAL *)ch->desc->pEdit )
 
 #define EDIT_CLASS(ch, cls)			( cls = (CLASS_DATA *)ch->desc->pEdit )
+#define EDIT_RACE(ch, race)			( race = (RACE_DATA *)ch->desc->pEdit )
 
 /*
  * Prototypes

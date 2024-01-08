@@ -579,6 +579,9 @@ const	struct	cmd_type	cmd_table	[] =
 	{ "clslist",	do_clslist, POS_DEAD,	L5,		LOG_NORMAL, 1, TRUE },
 	{ "clsshow",	do_clsshow, POS_DEAD,	L5,		LOG_NORMAL, 1, TRUE },
 
+	{ "raceedit",	do_raceedit, POS_DEAD,	ML,		LOG_ALWAYS, 1, TRUE },
+	{ "raceshow",	do_raceshow, POS_DEAD,	L5,		LOG_NORMAL, 1, TRUE },
+	{ "racelist",	do_racelist, POS_DEAD,	L5,		LOG_NORMAL, 1, TRUE },
     { "",		0,		POS_DEAD,     0,  LOG_NORMAL, 0, FALSE }
 };
 

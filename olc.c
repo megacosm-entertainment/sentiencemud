@@ -26,6 +26,7 @@ extern GLOBAL_DATA gconfig;
  *   */
 AREA_DATA *get_area_data args ((long anum));
 AREA_DATA *get_area_from_uid args ((long uid));
+void save_races();
 void save_classes();
 void save_liquids();
 void save_materials();
@@ -62,6 +63,7 @@ char *editor_name_table[] = {
 	"RepEdit",
 	"MatEdit",
 	"ClsEdit",
+	"RaceEdit",
 };
 
 int editor_max_tabs_table[] = {
@@ -94,6 +96,7 @@ int editor_max_tabs_table[] = {
 	0,		// RepEdit
 	0,		// MatEdit
 	0,		// ClsEdit
+	0,		// RaceEdit
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -123,6 +126,7 @@ const struct editor_cmd_type editor_table[] =
 	{ "reputation",	do_repedit	},
 	{ "material",	do_matedit	},
 	{ "class",		do_clsedit  },
+	{ "race",		do_raceedit },
 	{ NULL,			0,			}
 };
 
@@ -572,6 +576,10 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
 		clsedit(d->character, d->incomm);
 		break;
 
+	case ED_RACEEDIT:
+		raceedit(d->character, d->incomm);
+		break;
+
 	default:
 		return FALSE;
 	}
@@ -643,7 +651,8 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 	REPUTATION_INDEX_DATA *rep;
 	MATERIAL *material;
 	CLASS_DATA *clazz;
-	static char buf[20];
+	RACE_DATA *race;
+	static char buf[MIL];
 	char buf2[MSL];
 
 	buf[0] = '\0';
@@ -812,6 +821,14 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 			strcpy(buf, "--");
 		break;
 
+	case ED_RACEEDIT:
+		race = (RACE_DATA *)ch->desc->pEdit;
+		if (IS_VALID(race))
+			sprintf(buf, "%s", race->name);
+		else
+			strcpy(buf, "--");
+		break;
+
 	default:
 		sprintf(buf, " ");
 		break;
@@ -953,6 +970,10 @@ bool show_commands(CHAR_DATA *ch, char *argument)
 
 	case ED_CLSEDIT:
 		show_olc_cmds(ch, clsedit_table);
+		break;
+
+	case ED_RACEEDIT:
+		show_olc_cmds(ch, raceedit_table);
 		break;
 	}
 
@@ -5022,6 +5043,131 @@ void do_clsshow(CHAR_DATA *ch, char *argument)
 	return;
 }
 
+
+const struct olc_cmd_type raceedit_table[] =
+{
+
+	{	"?",			show_help			},
+	{	"act",			raceedit_act		},
+	{	"aff",			raceedit_aff		},
+	{	"align",		raceedit_align		},
+	{	"commands",		show_commands		},
+	{	"comments",		raceedit_comments	},
+	{	"create",		raceedit_create		},
+	{	"description",	raceedit_description	},
+	{	"flags",		raceedit_flags		},
+	{	"form",			raceedit_form		},
+	{	"gr",			raceedit_gr			},
+	{	"imm",			raceedit_imm		},
+	{	"maxstats",		raceedit_maxstats	},
+	{	"maxvitals",	raceedit_maxvitals	},
+	{	"name",			raceedit_name		},
+	{	"off",			raceedit_off		},
+	{	"parts",		raceedit_parts		},
+	{	"remort",		raceedit_remort		},
+	{	"res",			raceedit_res		},
+	{	"show",			raceedit_show		},
+	{	"size",			raceedit_size		},
+	{	"stats",		raceedit_stats		},
+	{	"vuln",			raceedit_vuln		},
+	{	"who",			raceedit_who		},
+	{	NULL,			NULL				}
+};
+
+
+void do_raceedit(CHAR_DATA *ch, char *argument)
+{
+	RACE_DATA *race;
+	char arg1[MSL];
+
+	argument = one_argument(argument, arg1);
+
+	if (IS_NPC(ch))
+		return;
+
+	if (arg1[0] != '\0')
+	{
+		if (!str_cmp(arg1, "create"))
+		{
+			if (raceedit_create(ch, argument))
+				ch->desc->editor = ED_RACEEDIT;
+
+			return;
+		}
+
+		race = get_race_data(arg1);
+		if (!IS_VALID(race))
+		{
+			send_to_char("No such race by that name.\n\r", ch);
+			return;
+		}
+
+		ch->pcdata->immortal->last_olc_command = current_time;
+		olc_set_editor(ch, ED_RACEEDIT, race);
+		return;
+	}
+
+	send_to_char("RaceEdit:  There is no default race to edit.\n\r", ch);
+}
+
+void raceedit(CHAR_DATA *ch, char *argument)
+{
+	char command[MAX_INPUT_LENGTH];
+	char arg[MAX_STRING_LENGTH];
+	int  cmd;
+
+	smash_tilde(argument);
+	strcpy(arg, argument);
+	argument = one_argument(argument, command);
+
+	if (!str_cmp(command, "done"))
+	{
+		edit_done(ch);
+		return;
+	}
+
+	ch->pcdata->immortal->last_olc_command = current_time;
+	if (command[0] == '\0')
+	{
+		raceedit_show(ch, argument);
+		return;
+	}
+
+	for (cmd = 0; raceedit_table[cmd].name != NULL; cmd++)
+	{
+		if (!str_prefix(command, raceedit_table[cmd].name))
+		{
+			if ((*raceedit_table[cmd].olc_fun) (ch, argument))
+			{
+				save_races();
+			}
+			return;
+		}
+	}
+
+	interpret(ch, arg);
+}
+
+
+void do_raceshow(CHAR_DATA *ch, char *argument)
+{
+	RACE_DATA *race;
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  raceshow <race name>\n\r", ch);
+		return;
+	}
+
+	if (!(race = get_race_data(argument)))
+	{
+		send_to_char("That race does not exist.\n\r", ch);
+		return;
+	}
+
+	olc_show_item(ch, race, raceedit_show, argument);
+	return;
+}
 
 void olc_show_progs(BUFFER *buffer, LLIST **progs, int type, const char *title)
 {

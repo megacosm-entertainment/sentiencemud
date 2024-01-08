@@ -7014,3 +7014,44 @@ void free_class_level(CLASS_LEVEL *cl)
     cl->next = class_level_free;
     class_level_free = cl;
 }
+
+RACE_DATA *race_data_free;
+RACE_DATA *new_race_data()
+{
+    RACE_DATA *data;
+    if (race_data_free)
+    {
+        data = race_data_free;
+        race_data_free = race_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(RACE_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    data->name = &str_empty[0];
+    data->description = &str_empty[0];
+    data->comments = &str_empty[0];
+
+    data->who = &str_empty[0];
+    data->skills = list_create(FALSE);
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_race_data(RACE_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    free_string(data->name);
+    free_string(data->description);
+    free_string(data->comments);
+    free_string(data->who);
+
+    list_destroy(data->skills);
+
+    INVALIDATE(data);
+    data->next = race_data_free;
+    race_data_free = data;
+}

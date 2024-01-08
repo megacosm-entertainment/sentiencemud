@@ -145,6 +145,36 @@ CLASS_DATA *gcl_weaver;
 CLASS_DATA *gcl_witch;
 CLASS_DATA *gcl_wizard;
 
+LLIST *race_list = NULL;
+sh_int top_race_uid;
+
+RACE_DATA *gr_angel;
+RACE_DATA *gr_avatar;
+RACE_DATA *gr_berserker;
+RACE_DATA *gr_changeling;
+RACE_DATA *gr_colossus;
+RACE_DATA *gr_demon;
+RACE_DATA *gr_draconian;
+RACE_DATA *gr_dragon;
+RACE_DATA *gr_drow;
+RACE_DATA *gr_dwarf;
+RACE_DATA *gr_elf;
+RACE_DATA *gr_fiend;
+RACE_DATA *gr_hell_baron;
+RACE_DATA *gr_human;
+RACE_DATA *gr_lich;
+RACE_DATA *gr_minotaur;
+RACE_DATA *gr_mystic;
+RACE_DATA *gr_naga;
+RACE_DATA *gr_seraph;
+RACE_DATA *gr_shaper;
+RACE_DATA *gr_sith;
+RACE_DATA *gr_slayer;
+RACE_DATA *gr_specter;
+RACE_DATA *gr_titan;
+RACE_DATA *gr_vampire;
+RACE_DATA *gr_wraith;
+
 
 void free_room_index( ROOM_INDEX_DATA *pRoom );
 void load_instances();
@@ -1647,21 +1677,10 @@ void boot_db(void)
      * processor load.
      */
     {
-	int sn, lev;
+	int lev;
 
 	for (lev = 0; lev != MAX_MOB_SKILL_LEVEL; lev++)
 	    mob_skill_table[lev] = 40 + 19 * log10(lev);
-
-	for (sn = 0; race_table[sn].name; sn++)
-	{
-	    if (race_table[sn].pgrn)
-		*race_table[sn].pgrn = sn;
-	}
-	for (sn = 0; pc_race_table[sn].name; sn++)
-	{
-	    if (pc_race_table[sn].pgrn)
-		*pc_race_table[sn].pgrn = sn;
-	}
 
     }
 

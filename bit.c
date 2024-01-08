@@ -119,6 +119,7 @@ const struct flag_stat_type flag_stat_table[] =
     {   material_classes,           TRUE    },
     {   class_types,                true    },
     {   stat_types,                 true    },
+    {   vital_types,                true    },
     {	0,							0		}
 };
 

@@ -88,6 +88,7 @@ struct olc_help_type
 
 #define STRUCT_ARTIFICING		27
 #define STRUCT_GCL				28
+#define STRUCT_GR				29
 
 struct trigger_type dummy_triggers[1];
 
@@ -119,7 +120,7 @@ const struct olc_help_type help_table[] =
 	{	"dprog",				STRUCT_TRIGGERS,	dummy_triggers,				"DungeonProgram types."	},
 	{	"death_release",		STRUCT_FLAGS,		death_release_modes,		"Dungeon Death Release mobes."},
 	{	"dungeon",				STRUCT_FLAGS,		dungeon_flags,				"Dungeon Flags"	},
-//	{	"equip_func",			STRUCT_ARTIFICING,	equip_func_table,			"Equip Functions (SkEdit)"},
+	{	"equip_func",			STRUCT_ARTIFICING,	equip_func_table,			"Equip Functions (SkEdit)"},
 	{	"exit",					STRUCT_FLAGS,		exit_flags,					"Exit types."	},
 	{	"extra",				STRUCT_FLAGBANK,	extra_flagbank,				"Object attributes."	},
 	{	"fluid_con",			STRUCT_FLAGS,		fluid_con_flags,			"Fluid Container status."	},
@@ -127,7 +128,8 @@ const struct olc_help_type help_table[] =
 	{	"form",					STRUCT_FLAGS,		form_flags,					"Mobile body form."	},
 	{	"furniture",			STRUCT_FLAGS,		furniture_flags,			"Furniture types."	},
 	{	"gcl",					STRUCT_GCL,			NULL,						"Global classes"},
-	{	"gsn",					STRUCT_GSN,			NULL,						"GLobal Skill Numbers."},
+	{	"gsn",					STRUCT_GSN,			NULL,						"Global Skill Numbers."},
+	{	"gr",					STRUCT_GR,			NULL,						"Global Races" },
 	{	"imm",					STRUCT_FLAGS,		imm_flags,					"Mobile immunity."	},
 	{	"immortalflags",		STRUCT_FLAGS,		immortal_flags,				"Immortal duties."	},
 	{	"instance",				STRUCT_FLAGS,		instance_flags,				"Instance Flags"	},
@@ -151,7 +153,7 @@ const struct olc_help_type help_table[] =
 	{	"position",				STRUCT_FLAGS,		position_flags,				"Mobile positions."	},
 	{	"practice_entry",		STRUCT_FLAGS,		practice_entry_flags,		"Practice Entry attributes."},
 	{	"prebrew_func",			STRUCT_ARTIFICING,	prebrew_func_table,			"PreBrew Functions (SkEdit)"},
-//	{	"preimbue_func",		STRUCT_ARTIFICING,	preimbue_func_table,		"PreImbue Functions (SkEdit)"},
+	{	"preimbue_func",		STRUCT_ARTIFICING,	preimbue_func_table,		"PreImbue Functions (SkEdit)"},
 	{	"preink_func",			STRUCT_ARTIFICING,	preink_func_table,			"PreInk Functions (SkEdit)"},
 	{	"prescribe_func",		STRUCT_ARTIFICING,	prescribe_func_table,		"PreScribe Functions (SkEdit)"},
 	{	"presong_func",			STRUCT_ARTIFICING,	presong_func_table,			"Presong Functions (SongEdit)"},
@@ -443,6 +445,30 @@ void show_gcls(CHAR_DATA *ch)
     return;
 }
 
+void show_grs(CHAR_DATA *ch)
+{
+    char buf  [ MAX_STRING_LENGTH ];
+    char buf1 [ MAX_STRING_LENGTH ];
+    int  col;
+
+    buf1[0] = '\0';
+    col = 0;
+    send_to_char("Global Races available for use:\n\r", ch);
+    for (int i = 0; gr_table[i].name != NULL; i++)
+    {
+		sprintf(buf, "%-19.18s", gr_table[i].name);
+		strcat(buf1, buf);
+		if (++col % 4 == 0)
+	    	strcat(buf1, "\n\r");
+    }
+
+    if (col % 4 != 0)
+	strcat(buf1, "\n\r");
+
+    send_to_char(buf1, ch);
+    return;
+}
+
 void show_classes(CHAR_DATA *ch)
 {
     char buf  [ MAX_STRING_LENGTH ];
@@ -592,6 +618,10 @@ bool show_help(CHAR_DATA *ch, char *argument)
 
 				case STRUCT_GCL:
 					show_gcls(ch);
+					break;
+
+				case STRUCT_GR:
+					show_grs(ch);
 					break;
 
 				case STRUCT_FLAGS:

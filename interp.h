@@ -647,3 +647,8 @@ DECLARE_DO_FUN( do_classes );
 DECLARE_DO_FUN( do_clslist );
 DECLARE_DO_FUN( do_clsedit );
 DECLARE_DO_FUN( do_clsshow );
+
+
+DECLARE_DO_FUN( do_racelist );
+DECLARE_DO_FUN( do_raceedit );
+DECLARE_DO_FUN( do_raceshow );

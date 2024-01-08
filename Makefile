@@ -99,6 +99,7 @@ C_FILES = \
 	project.c \
 	protocol.c \
 	quest.c \
+	race.c \
 	reputation.c \
 	save.c \
 	scan.c \
@@ -206,6 +207,7 @@ O_FILES = \
 	$(OBJDIR)/project.o \
 	$(OBJDIR)/protocol.o \
 	$(OBJDIR)/quest.o \
+	$(OBJDIR)/race.o \
 	$(OBJDIR)/reputation.o \
 	$(OBJDIR)/save.o \
 	$(OBJDIR)/scan.o \

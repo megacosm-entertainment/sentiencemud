@@ -162,6 +162,12 @@ struct gcl_type
 	CLASS_DATA **gcl;
 };
 
+struct gr_type
+{
+	char *name;
+	RACE_DATA **gr;
+};
+
 struct npc_ship_type
 {
 	int npc_ship_type;
@@ -473,7 +479,9 @@ extern const struct gcl_type gcl_table[];
 
 extern const struct flag_type class_types[];
 extern const struct flag_type stat_types[];
+extern const struct flag_type vital_types[];
 
+extern const struct gr_type gr_table[];
 
 #endif
 

@@ -4135,5 +4135,43 @@ const struct flag_type stat_types[] =
     { "strength",       STAT_STR,           true },
     { "wisdom",         STAT_WIS,           true },
     { NULL,             0,                  false }
+};
 
+const struct flag_type vital_types[] =
+{
+    { "hp",             0,                  true },
+    { "mana",           1,                  true },
+    { "move",           2,                  true },
+    { NULL,             0,                  false }
+};
+
+const struct gr_type gr_table[] =
+{
+    { "angel", &gr_angel },
+    { "avatar", &gr_avatar },
+    { "berserker", &gr_berserker },
+    { "changeling", &gr_changeling },
+    { "colossus", &gr_colossus },
+    { "demon", &gr_demon },
+    { "draconian", &gr_draconian },
+    { "dragon", &gr_dragon },
+    { "drow", &gr_drow },
+    { "dwarf", &gr_dwarf },
+    { "elf", &gr_elf },
+    { "fiend", &gr_fiend },
+    { "hell baron", &gr_hell_baron },
+    { "human", &gr_human },
+    { "lich", &gr_lich },
+    { "minotaur", &gr_minotaur },
+    { "mystic", &gr_mystic },
+    { "naga", &gr_naga },
+    { "seraph", &gr_seraph },
+    { "shaper", &gr_shaper },
+    { "sith", &gr_sith },
+    { "slayer", &gr_slayer },
+    { "specter", &gr_specter },
+    { "titan", &gr_titan },
+    { "vampire", &gr_vampire },
+    { "wraith", &gr_wraith },
+    { NULL, NULL }
 };

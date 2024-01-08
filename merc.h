@@ -443,6 +443,7 @@ typedef struct  prog_list              	PROG_LIST;
 typedef struct  quest_index_data        QUEST_INDEX_DATA;
 typedef struct  quest_index_part_data   QUEST_INDEX_PART_DATA;
 typedef struct  quest_list		QUEST_LIST;
+typedef struct  race_data       RACE_DATA;
 typedef struct  stat_data		STAT_DATA;
 typedef struct  string_data		STRING_DATA; /* for lists of strings */
 typedef struct	weather_data		WEATHER_DATA;
@@ -1972,6 +1973,55 @@ struct attack_type
     int   	damage;			/* damage class */
 };
 
+// Race Flags
+
+struct race_data
+{
+    RACE_DATA *next;
+    bool valid;
+
+    char *name;
+    char *description;
+    char *comments;
+
+    sh_int uid;
+
+    RACE_DATA **pgr;        // Global Race
+
+    bool playable;
+    long flags;
+
+    long act[2];
+    long aff[2];
+    long off;
+
+    long imm;
+    long res;
+    long vuln;
+
+    long form;
+    long parts;
+
+    // Playable Race Data
+    RACE_DATA **pgpr;       // Global Player Race
+    RACE_DATA **premort;    // Remort race reference
+    bool remort;
+
+    char *who;
+
+    LLIST *skills;          // Racial bonus skills
+
+    int stats[MAX_STATS];       // Starting stats
+    int max_stats[MAX_STATS];   // Maximum stats
+    int max_vitals[3];          // Max hit points, mana, movement
+
+    int min_size;               // Minimum size
+    int max_size;               // Maximum size
+    int default_alignment;      // Default alignment on creation, can be changed (with points)
+
+    // TODO: Player Race Attributes
+    // TODO: Starting Locations?
+};
 
 struct race_type
 {
@@ -9236,6 +9286,7 @@ char *	crypt		args( ( const char *key, const char *salt ) );
 #define MATERIALS_FILE      SYSTEM_DIR "materials.dat"
 #define SKILLS_FILE         SYSTEM_DIR "skills.dat"
 #define CLASSES_FILE        SYSTEM_DIR "classes.dat"
+#define RACES_FILE          SYSTEM_DIR "races.dat"
 #define SONGS_FILE         SYSTEM_DIR "songs.dat"
 /*Notes of all kinds */
 #define NOTE_FILE       NOTE_DIR "notes.not"		/* For 'notes'*/
@@ -11417,5 +11468,36 @@ bool token_should_save(TOKEN_DATA *token);
 
 char *strip_colors( const char *string );
 int fragile_lookup(register const char *name);
+
+
+extern LLIST *race_list;
+extern sh_int top_race_uid;
+extern RACE_DATA *gr_angel;
+extern RACE_DATA *gr_avatar;
+extern RACE_DATA *gr_berserker;
+extern RACE_DATA *gr_changeling;
+extern RACE_DATA *gr_colossus;
+extern RACE_DATA *gr_demon;
+extern RACE_DATA *gr_draconian;
+extern RACE_DATA *gr_dragon;
+extern RACE_DATA *gr_drow;
+extern RACE_DATA *gr_dwarf;
+extern RACE_DATA *gr_elf;
+extern RACE_DATA *gr_fiend;
+extern RACE_DATA *gr_hell_baron;
+extern RACE_DATA *gr_human;
+extern RACE_DATA *gr_lich;
+extern RACE_DATA *gr_minotaur;
+extern RACE_DATA *gr_mystic;
+extern RACE_DATA *gr_naga;
+extern RACE_DATA *gr_seraph;
+extern RACE_DATA *gr_shaper;
+extern RACE_DATA *gr_sith;
+extern RACE_DATA *gr_slayer;
+extern RACE_DATA *gr_specter;
+extern RACE_DATA *gr_titan;
+extern RACE_DATA *gr_vampire;
+extern RACE_DATA *gr_wraith;
+RACE_DATA *get_race_data(const char *name);
 
 #endif /* !def __merc_h__ */

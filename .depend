@@ -133,6 +133,8 @@ obj/project.o: project.c merc.h protocol.h sha256.h interp.h tables.h olc.h \
  recycle.h
 obj/protocol.o: protocol.c protocol.h merc.h sha256.h
 obj/quest.o: quest.c merc.h protocol.h sha256.h recycle.h magic.h tables.h
+obj/race.o: race.c merc.h protocol.h sha256.h recycle.h tables.h scripts.h \
+ olc.h
 obj/reputation.o: reputation.c merc.h protocol.h sha256.h recycle.h tables.h \
  scripts.h olc.h
 obj/save.o: save.c merc.h protocol.h sha256.h recycle.h tables.h db.h olc.h \

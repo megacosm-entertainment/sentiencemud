@@ -308,6 +308,9 @@ void save_songs();
 bool load_classes();
 void save_classes();
 
+bool load_races();
+void save_races();
+
 /*
  * Global variables.
  */
@@ -714,6 +717,9 @@ int main(int argc, char **argv)
 	if (!load_classes()) exit(1);
 	log_string("classes loaded");
 
+	if (!load_races()) exit(1);
+	log_string("races loaded");
+
     /*
      * Run the game.
      */
@@ -759,6 +765,9 @@ int main(int argc, char **argv)
 	for( server = first_server; server; server = server->next )
 	imc_shutdown(FALSE, server);
 	#endif
+
+	save_races();
+	list_destroy(race_list);
 
 	save_classes();
 	list_destroy(classes_list);

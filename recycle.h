@@ -339,6 +339,8 @@ WEAPON_DATA *copy_weapon_data(WEAPON_DATA *src);
 void free_weapon_data(WEAPON_DATA *data);
 
 
+RACE_DATA *new_race_data();
+void free_race_data(RACE_DATA *data);
 
 CLASS_DATA *new_class_data();
 void free_class_data(CLASS_DATA *data);
