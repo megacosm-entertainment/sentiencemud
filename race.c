@@ -145,11 +145,8 @@ void save_race(FILE *fp, RACE_DATA *race)
 
 	if (race->playable)
 	{
-		if (race->pgpr)
-			fprintf(fp, "GPR %s~\n", gr_to_name(race->pgpr));
-
-		if (race->premort)
-			fprintf(fp, "GRemort %s~\n", gr_to_name(race->premort));
+		if (IS_VALID(race->premort))
+			fprintf(fp, "GRemort %s~\n", race->premort->name);
 
 		if (race->remort)
 			fprintf(fp, "Remort\n");
@@ -219,6 +216,7 @@ RACE_DATA *load_race(FILE *fp, bool playable)
 
 	data->uid = fread_number(fp);
 	data->playable = playable;
+	data->load_remort = NULL;
 
     while (str_cmp((word = fread_word(fp)), "#-RACE"))
 	{
@@ -293,8 +291,7 @@ RACE_DATA *load_race(FILE *fp, bool playable)
 					break;
 
 				case 'G':
-					KEY("GPR", data->pgpr, gr_from_name(fread_string(fp)));
-					KEY("GRemort", data->premort, gr_from_name(fread_string(fp)));
+					KEY("GRemort", data->load_remort, fread_string(fp));
 					break;
 
 				case 'M':
@@ -452,8 +449,6 @@ bool load_races()
 			{
 				sh_int j = *(race_table[i].pgprn);
 
-				race->pgpr = gr_from_name(race->name);
-
 				race->who = str_dup(pc_race_table[j].who_name);
 
 				for(int k = 0; k < 9; k++) if (!IS_NULLSTR(pc_race_table[j].skills[k]))
@@ -493,7 +488,7 @@ bool load_races()
 			{
 				int j = *(pc_race_table[i].prgrn);
 
-				race->premort = gr_from_name(pc_race_table[j].name);
+				race->premort = get_race_data(pc_race_table[j].name);
 			}
 		}
 	}
@@ -564,6 +559,13 @@ bool load_races()
 			{
 				race->uid = ++top_race_uid;
 				save = true;
+			}
+
+			if (race->load_remort)
+			{
+				race->premort = get_race_data(race->load_remort);
+				free_string(race->load_remort);
+				race->load_remort = NULL;
 			}
 		}
 		iterator_stop(&it);
@@ -772,8 +774,8 @@ RACEEDIT( raceedit_show )
 	{
 		add_buf(buffer, formatf("Remort:        %s{x\n", (race->remort ? "{WYES" : "{DNO")));
 
-		if (race->premort)
-			add_buf(buffer, formatf("Remort Race:   %s\n", gr_to_name(race->premort)));
+		if (IS_VALID(race->premort))
+			add_buf(buffer, formatf("Remort Race:   %s\n", race->premort->name));
 		else
 			add_buf(buffer, "Remort Race:   {Dnone{x\n");
 
@@ -1186,9 +1188,9 @@ RACEEDIT( raceedit_remort )
 			iterator_start(&it, race_list);
 			while((r = (RACE_DATA *)iterator_nextdata(&it)))
 			{
-				if (r->playable && r->premort && *(r->premort) && *(r->premort) == race)
+				if (r->playable && IS_VALID(r->premort) && r->premort == race)
 				{
-					*(r->premort) = NULL;
+					r->premort = NULL;
 				}
 			}
 			iterator_stop(&it);
@@ -1232,22 +1234,14 @@ RACEEDIT( raceedit_remort )
 				return false;
 			}
 
-			if (!remort->pgr)
-			{
-				send_to_char("That race is missing a GR reference.\n\r", ch);
-				return false;
-			}
-
-			race->premort = remort->pgr;
+			race->premort = remort;
 			send_to_char("Race Remort Reference assigned.\n\r", ch);
 			return true;
 		}
 		else if (!str_prefix(arg, "set"))
 		{
 			// Unassign the remort linkage
-			if (race->premort && *(race->premort))
-				*(race->premort) = NULL;
-			
+			race->premort = NULL;
 			race->remort = true;
 			send_to_char("Race Remort Status set.\n\r", ch);
 			return true;

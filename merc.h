@@ -2003,8 +2003,7 @@ struct race_data
     long parts;
 
     // Playable Race Data
-    RACE_DATA **pgpr;       // Global Player Race
-    RACE_DATA **premort;    // Remort race reference
+    RACE_DATA *premort;     // Remort race reference
     bool remort;
 
     char *who;
@@ -2021,6 +2020,8 @@ struct race_data
 
     // TODO: Player Race Attributes
     // TODO: Starting Locations?
+
+    char *load_remort;
 };
 
 struct race_type
