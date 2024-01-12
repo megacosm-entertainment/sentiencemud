@@ -1803,10 +1803,10 @@ void bust_a_prompt(CHAR_DATA *ch)
     if(!str || str[0] == '\0')
     {
 	if (MOUNTED(ch))
-       	 sprintf(buf, "{B<{x%ld{Bhp {x%ld{Bm {x%ld{Bmv>{Y< %ldmv >{x ",
+       	 sprintf(buf, "{B<{x%ld{Bhp {x%ld{Bm {x%ld{Bmv>{Y< %ldmv >{x\n\r",
 	    ch->hit, ch->mana, ch->move, ch->mount->move);
 	else
-       	 sprintf(buf, "{B<{x%ld{Bhp {x%ld{Bm {x%ld{Bmv>{x ",
+       	 sprintf(buf, "{B<{x%ld{Bhp {x%ld{Bm {x%ld{Bmv>{x\n\r",
 	    ch->hit, ch->mana, ch->move);
 
 	send_to_char(buf, ch);

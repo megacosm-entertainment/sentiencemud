@@ -380,7 +380,7 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     if (ch->description[0] != '\0')
     	fprintf(fp, "Desc %s~\n", fix_string(ch->description));
     if (ch->prompt != NULL
-    || !str_cmp(ch->prompt,"{B<{x%h{Bhp {x%m{Bm {x%v{Bmv>{x "))
+    || !str_cmp(ch->prompt,"{B<{x%h{Bhp {x%m{Bm {x%v{Bmv>{x%c"))
         fprintf(fp, "Prom %s~\n",      ch->prompt  	);
     fprintf(fp, "Race %s~\n", ch->race->name);
     fprintf(fp, "Sex  %d\n",	ch->sex			);
@@ -847,7 +847,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     ch->comm				= COMM_PROMPT;
     ch->num_grouped			= 0;
     ch->dead = FALSE;
-    ch->prompt 				= str_dup("{B<{x%h{Bhp {x%m{Bm {x%v{Bmv>{x ");
+    ch->prompt 				= str_dup("{B<{x%h{Bhp {x%m{Bm {x%v{Bmv>{x%c");
     ch->pcdata->confirm_delete		= FALSE;
     ch->pcdata->pwd			= str_dup("");
 	ch->pcdata->pwd_vers	= 0;

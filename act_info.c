@@ -1421,7 +1421,7 @@ void do_prompt(CHAR_DATA * ch, char *argument)
     }
 
     if (!strcmp(argument, "all"))
-	strcpy(buf, "{B<%h{Bhp %m{Bm %v{Bmv>{x ");
+	strcpy(buf, "{B<%h{Bhp %m{Bm %v{Bmv>{x%c");
     else {
 	//if (strlen(argument) > 50)
 	//    argument[50] = '\0';
