@@ -1064,7 +1064,7 @@ void mobile_update(void)
 			 || IS_SET(pexit->u1.to_room->room_flag[0],ROOM_INDOORS))) {
 				 AREA_REGION *to_region = get_room_region(pexit->u1.to_room);
 				 if (!IS_SET(ch->act[1], ACT2_STAY_REGION) || region == to_region)
-					move_char(ch, door, FALSE);
+					move_char(ch, door, FALSE, false);
 			 }
 		}
     }
@@ -3217,7 +3217,7 @@ void update_hunting(void)
 		continue;
 	    }
 
-	    move_char(mob, direction, FALSE);
+	    move_char(mob, direction, FALSE, false);
 
 	    result = number_range(0, 2);
 
@@ -3333,7 +3333,7 @@ void update_hunting_pc(CHAR_DATA *ch)
 
 	deduct_move(ch, 5);
 
-	move_char(ch, direction, TRUE);
+	move_char(ch, direction, TRUE, false);
 
 	// Found them
 	if (ch->in_room == victim->in_room)

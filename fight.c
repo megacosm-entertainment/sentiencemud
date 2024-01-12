@@ -6296,7 +6296,7 @@ int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue)
 		}
 
 		if( door >= 0 )
-			move_char(ch, door, FALSE);
+			move_char(ch, door, FALSE, true);
 	}
 
 	// Check if char was actually able to move
@@ -6376,7 +6376,7 @@ int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue)
 			if (ch->pursuit_by->script_wait)
 			script_end_failure(ch->pursuit_by, TRUE);
 		interrupt_script(ch->pursuit_by, FALSE);
-			move_char(ch->pursuit_by, door, FALSE);
+			move_char(ch->pursuit_by, door, FALSE, false);
 			one_hit(ch->pursuit_by, ch, NULL, TYPE_HIT, FALSE);
 			check_improve(ch, gsk_pursuit, TRUE, 1);
 		}

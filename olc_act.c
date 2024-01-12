@@ -3061,7 +3061,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 
 	if (command[0] == '\0' && argument[0] == '\0')	/* Move command. */
 	{
-		move_char(ch, door, TRUE);
+		move_char(ch, door, TRUE, false);
 		return FALSE;
 	}
 

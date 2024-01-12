@@ -353,7 +353,7 @@ bool exit_destination_data(EXIT_DATA *pexit, DESTINATION_DATA *pDest)
 	return TRUE;
 }
 
-void move_char(CHAR_DATA *ch, int door, bool follow)
+void move_char(CHAR_DATA *ch, int door, bool follow, bool fleeing)
 {
 	CHAR_DATA *fch;
 	CHAR_DATA *fch_next;
@@ -394,8 +394,10 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 	door = URANGE(0,ch->in_room->tempstore[0],(MAX_DIR-1));
 
 	/* Exit trigger, if activated, bail out. Only PCs are triggered. */
-	if (!IS_NPC(ch) && (p_exit_trigger(ch, door, PRG_MPROG,0,0,0,0,0) ||
-			p_exit_trigger(ch, door, PRG_OPROG,0,0,0,0,0) || p_exit_trigger(ch, door, PRG_RPROG,0,0,0,0,0)))
+	if (!fleeing && !IS_NPC(ch) &&
+		(p_exit_trigger(ch, door, PRG_MPROG,0,0,0,0,0) ||
+		 p_exit_trigger(ch, door, PRG_OPROG,0,0,0,0,0) ||
+		 p_exit_trigger(ch, door, PRG_RPROG,0,0,0,0,0)))
 		return;
 
 	/* Check if char is "on" something. preventing movement */
@@ -697,7 +699,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 
 		if (fch->master == ch && fch->position == POS_STANDING && can_see_room(fch,to_room)) {
 			act("{WYou follow $N.{x", fch, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			move_char(fch, door, TRUE);
+			move_char(fch, door, TRUE, false);
 		}
 	}
 
@@ -1258,62 +1260,62 @@ void do_search(CHAR_DATA *ch, char *argument)
 
 void do_north(CHAR_DATA *ch, char *argument)
 {
-    move_char(ch, DIR_NORTH, FALSE);
+    move_char(ch, DIR_NORTH, FALSE, false);
     return;
 }
 
 void do_east(CHAR_DATA *ch, char *argument)
 {
-    move_char(ch, DIR_EAST, FALSE);
+    move_char(ch, DIR_EAST, FALSE, false);
     return;
 }
 
 void do_south(CHAR_DATA *ch, char *argument)
 {
-    move_char(ch, DIR_SOUTH, FALSE);
+    move_char(ch, DIR_SOUTH, FALSE, false);
     return;
 }
 
 void do_west(CHAR_DATA *ch, char *argument)
 {
-    move_char(ch, DIR_WEST, FALSE);
+    move_char(ch, DIR_WEST, FALSE, false);
     return;
 }
 
 void do_northeast(CHAR_DATA *ch, char *argument)
 {
-    move_char(ch, DIR_NORTHEAST, FALSE);
+    move_char(ch, DIR_NORTHEAST, FALSE, false);
     return;
 }
 
 void do_northwest(CHAR_DATA *ch, char *argument)
 {
-    move_char(ch, DIR_NORTHWEST, FALSE);
+    move_char(ch, DIR_NORTHWEST, FALSE, false);
     return;
 }
 
 void do_southeast(CHAR_DATA *ch, char *argument)
 {
-    move_char(ch, DIR_SOUTHEAST, FALSE);
+    move_char(ch, DIR_SOUTHEAST, FALSE, false);
     return;
 }
 
 void do_southwest(CHAR_DATA *ch, char *argument)
 {
-    move_char(ch, DIR_SOUTHWEST, FALSE);
+    move_char(ch, DIR_SOUTHWEST, FALSE, false);
     return;
 }
 
 void do_up(CHAR_DATA *ch, char *argument)
 {
-    move_char(ch, DIR_UP, FALSE);
+    move_char(ch, DIR_UP, FALSE, false);
     return;
 }
 
 
 void do_down(CHAR_DATA *ch, char *argument)
 {
-    move_char(ch, DIR_DOWN, FALSE);
+    move_char(ch, DIR_DOWN, FALSE, false);
     return;
 }
 

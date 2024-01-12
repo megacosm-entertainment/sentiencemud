@@ -965,7 +965,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
     if ( ch->in_room == victim->in_room )
     {
 	act("$n throws $s $p at you!", ch, victim, NULL, obj, NULL, NULL, NULL, TO_VICT);
-	act("$n throws $s $p at $N!",  ch, victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
+	act("$N throws $S $p at $n!",  victim, ch, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
 	act("You throw $p at $N!",     ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 
 	if ( damage( ch, victim, dam, gsk_throw, TYPE_UNDEFINED, obj->value[3], TRUE ) == FALSE )
