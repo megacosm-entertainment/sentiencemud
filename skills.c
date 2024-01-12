@@ -2501,7 +2501,7 @@ void check_improve_show( CHAR_DATA *ch, SKILL_DATA *skill, bool success, int mul
 			// Skill is not available yet in any class
 			if (!level) return;
 		}
-		else
+		else if(IS_VALID(current))
 		{
 			ITERATOR lit;
 			SKILL_CLASS_LEVEL *level;
@@ -2516,6 +2516,8 @@ void check_improve_show( CHAR_DATA *ch, SKILL_DATA *skill, bool success, int mul
 			// Skill is not available for the class or not at the right level
 			if (!level) return;
 		}
+		else
+			return;
 	}
 	else if (ch->tot_level < skill->default_level)
 		return;
