@@ -8942,8 +8942,8 @@ void do_classes(CHAR_DATA *ch, char *argument)
 				MXPCreateSend(ch->desc, formatf("setclass %s", level->clazz->display[ch->sex]), display) :
 				display,
 			"",
-			(level->level < MAX_CLASS_LEVEL) ? formatf("%3d", level->level) : "{WMAX{x",
-			(level->level < MAX_CLASS_LEVEL) ? formatf("%ld / %ld (%ld%%)", level->xp, maxexp, percent) : "{D-{x / {D-{x");
+			(level->level < level->clazz->max_level) ? formatf("%3d", level->level) : "{WMAX{x",
+			(level->level < level->clazz->max_level) ? formatf("%ld / %ld (%ld%%)", level->xp, maxexp, percent) : "{D-{x / {D-{x");
 		add_buf(buffer, buf);
 	}
 	iterator_stop(&it);
