@@ -404,10 +404,11 @@ void ranged_end( CHAR_DATA *ch )
 	    if ( sk == gsk_blowgun ) {
 	        // @@@NIB : 20070126 : if an assassin/ninja, they get a +5% accuracy
 	        //	with blowguns
-			if ( ch->pcdata->second_sub_class_cleric == CLASS_THIEF_NINJA &&
-			    ch->pcdata->sub_class_thief == CLASS_THIEF_ASSASSIN)
+			// TODO: Make this a trait (ninja + assassin synergy)
+			if (get_current_class(ch) == gcl_ninja)
 			    skill += 5;
-	    } else if ( ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_RANGER )
+		// TODO: Make this a trait
+	    } else if ( get_current_class(ch) == gcl_ranger )
 			skill += 5;
     }
 
@@ -941,8 +942,8 @@ void do_throw( CHAR_DATA *ch, char *argument )
     if ( IS_ELF( ch ) )
 	skill += 5;
 
-    if ( !IS_NPC(ch) && ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_RANGER )
-	skill += 5;
+    if ( !IS_NPC(ch) && get_current_class(ch) == gcl_ranger )
+		skill += 5;
 
     if ( number_percent() > (skill + get_curr_stat( ch, STAT_DEX )/2) )
     {
@@ -1144,10 +1145,12 @@ int get_ranged_skill(CHAR_DATA *ch)
 	    if ( sk == gsk_blowgun ) {
 	        // @@@NIB : 20070128 : if an assassin/ninja, they get a +5% accuracy
 	        //	with blowguns
-		if ( ch->pcdata->second_sub_class_cleric == CLASS_THIEF_NINJA &&
-		    ch->pcdata->sub_class_thief == CLASS_THIEF_ASSASSIN)
+		// TODO: Make this a trait (ninja + assassin synergy?)
+		if (get_current_class(ch) == gcl_ninja)
 		    skill += 5;
-	    } else if ( ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_RANGER )
+
+		// TODO: Make this a trait
+	    } else if ( get_current_class(ch) == gcl_ranger )
 		skill += 5;
     }
 

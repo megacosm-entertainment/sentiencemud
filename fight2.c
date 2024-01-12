@@ -379,8 +379,9 @@ memset(&af,0,sizeof(af));
         while (ch->affected)
             affect_remove(ch, ch->affected);
 
-	REMOVE_BIT(ch->affected_by[0], AFF_INFRARED);
-        ch->affected_by[0] = race_table[ch->race].aff;
+		REMOVE_BIT(ch->affected_by[0], AFF_INFRARED);
+        ch->affected_by[0] = ch->race->aff[0];
+        ch->affected_by[1] = ch->race->aff[1];
 
 	if (!silent) {
 	    act("$n winces in pain as $e constrains the demon inside $m.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -448,14 +449,14 @@ memset(&af,0,sizeof(af));
 	{
 	    ch->shifted = SHIFTED_SLAYER;
 	    pMob = IS_REMORT(ch) ? mob_index_changeling : mob_index_slayer;
-	    ch->affected_by[0] |= race_table[pMob->race].aff;
 	}
 	else
 	{
-            ch->shifted = SHIFTED_WEREWOLF;
+        ch->shifted = SHIFTED_WEREWOLF;
 	    pMob = mob_index_werewolf;
-	    ch->affected_by[0] |= race_table[pMob->race].aff;
 	}
+	ch->affected_by[0] |= pMob->race->aff[0];
+	ch->affected_by[1] |= pMob->race->aff[1];
 
 	/* figure out how many classes - 1 to figure out how much stat boost to give. */
 	num_classes = 0;

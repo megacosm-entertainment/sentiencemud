@@ -40,6 +40,7 @@
 #include "scripts.h"
 #include "magic.h"
 #include "music.h"
+#include "classes.h"
 
 const struct hint_type hintsTable[] =
 {
@@ -683,6 +684,7 @@ const struct flag_type plr2_flags[] =
     {   "holywarp",     PLR_HOLYWARP,   FALSE   },
     {   "no_reckoning",     PLR_NORECKONING,   FALSE   },
     {   "no_lore",     PLR_NOLORE,   FALSE   },
+    {	"holypersona",		PLR_HOLYPERSONA,		FALSE	},
     {	NULL,			0,	0			}
 };
 
@@ -1049,6 +1051,7 @@ const struct flag_type area_flags[] =
     {	"no_fading",	AREA_NO_FADING,		TRUE	},
     {	"blueprint",	AREA_BLUEPRINT,		TRUE	},
     {	"locked",		AREA_LOCKED,		TRUE	},
+    {   "low_level",    AREA_LOW_LEVEL,     TRUE    },
     {	NULL,			0,			0	}
 };
 
@@ -1955,37 +1958,48 @@ const	struct	bit_type	bitvector_type	[]	=
 
 const struct exp_table exp_per_level_table[] =
 {
-    {250}, // 1
-    {500}, // 2
-    {1000}, // 3
-    {2500}, // 4
-    {3000}, // 5
-    {4000}, // 6
-    {7500}, // 7
-    {8000}, // 8
-    {9000}, // 9
-    {10000}, // 10
-    {12500}, // 11
-    {15000}, // 12
-    {17500}, // 13
-    {18500}, // 14
-    {20500}, // 15
-    {25000}, // 16
-    {40000}, // 17
-    {60000}, // 18
-    {90000}, // 19
-    {100000}, // 20
-    {120000}, // 21
-    {130000}, // 22
-    {130000}, // 23
-    {150000}, // 24
-    {175000}, // 25
-    {250000}, // 26
-    {500000}, // 27
-    {750000}, // 28
-    {850000}, // 29
-    {1000000}, // 30
-
+    {0},        // 0 - Never Used, just here because the level is 1-based, the array is 0-based
+    {250},      // 1
+    {500},      // 2
+    {1000},     // 3
+    {2500},     // 4
+    {3000},     // 5
+    {4000},     // 6
+    {7500},     // 7
+    {8000},     // 8
+    {9000},     // 9
+    {10000},    // 10
+    {12500},    // 11
+    {15000},    // 12
+    {17500},    // 13
+    {18500},    // 14
+    {20500},    // 15
+    {25000},    // 16
+    {40000},    // 17
+    {60000},    // 18
+    {90000},    // 19
+    {100000},   // 20
+    {120000},   // 21
+    {130000},   // 22
+    {130000},   // 23
+    {150000},   // 24
+    {175000},   // 25
+    {250000},   // 26
+    {500000},   // 27
+    {750000},   // 28
+    {850000},   // 29
+    {1000000},  // 30
+    {1500000},  // 31 - becomes significantly harder
+    {2000000},  // 32
+    {3000000},  // 33
+    {4000000},  // 34
+    {5000000},  // 35
+    {7500000},  // 36
+    {10000000}, // 37
+    {12000000}, // 38
+    {15000000}, // 39
+    {0},        // 40 - Current Max Level
+#if 0
     {5000}, // 1
     {7500}, // 2
     {10000}, // 3
@@ -2078,6 +2092,7 @@ const struct exp_table exp_per_level_table[] =
     {13500000}, // 28
     {14500000}, // 29
     {15000000} //  30
+#endif
 };
 
 
@@ -2855,6 +2870,7 @@ const struct flag_type skill_entry_flags[] = {
 	{"practice",		SKILL_PRACTICE,			TRUE},
 	{"improve",			SKILL_IMPROVE,			TRUE},
 	{"favourite",		SKILL_FAVOURITE,			FALSE},	// This is set manually
+    {"cross_class",     SKILL_CROSS_CLASS,      true},  // Borrowed from SKILL_DATA for instances where an affect makes the skill cross class
 	{ NULL,				0,			FALSE }
 };
 
@@ -3973,9 +3989,18 @@ const struct flag_type skill_flags[] =
     { "can_imbue",          SKILL_CAN_IMBUE,        TRUE  },
     { "can_ink",            SKILL_CAN_INK,          TRUE  },
     { "can_scribe",         SKILL_CAN_SCRIBE,       TRUE  },
-    { "cross_class",        SKILL_CROSS_CLASS,      FALSE },    // NYI
+    { "cross_class",        SKILL_CROSS_CLASS,      true },
+    { "no_improve",         SKILL_NO_IMPROVE,       true },
+    { "no_practice",        SKILL_NO_PRACTICE,      true },
     { "spell_pulse",        SKILL_SPELL_PULSE,      TRUE  },
     { NULL,                 0,                      FALSE }
+};
+
+const struct flag_type class_flags[] =
+{
+    { "combative",          CLASS_COMBATIVE,        true },
+    { "no_level",           CLASS_NO_LEVEL,         true },
+    { NULL,                 0,                      false }
 };
 
 const struct song_func_type presong_func_table[] =
@@ -4073,6 +4098,7 @@ const struct gm_type gm_table[] =
 const struct gcl_type gcl_table[] =
 {
     { "adept",          &gcl_adept },
+    { "adventurer",     &gcl_adventurer },
     { "alchemist",      &gcl_alchemist },
     { "archaeologist",  &gcl_archaeologist },
     { "archmage",       &gcl_archmage },
@@ -4174,4 +4200,14 @@ const struct gr_type gr_table[] =
     { "vampire", &gr_vampire },
     { "wraith", &gr_wraith },
     { NULL, NULL }
+};
+
+const struct class_leave_type class_leave_table[] =
+{
+    {NULL, NULL}
+};
+
+const struct class_enter_type class_enter_table[] =
+{
+    {NULL, NULL}
 };

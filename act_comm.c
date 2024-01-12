@@ -1636,7 +1636,7 @@ void do_group(CHAR_DATA *ch, char *argument)
 				sprintf(buf,
 					"{B[{G%3d {Y%-6.6s{B] {G%-15.15s {w%6ld{B/{w%ld {Bhp {w%6ld{B/{w%ld {Bmana {w%6ld{B/{w%ld {Bmv{x\n\r",
 					gch->level,
-					IS_NPC(gch) ? " NPC  " : pc_race_table[gch->race].who_name,
+					IS_NPC(gch) ? " NPC  " : (IS_VALID(gch->race) ? gch->race->who : "      "),
 					name,
 					gch->hit,   gch->max_hit,
 					gch->mana,  gch->max_mana,

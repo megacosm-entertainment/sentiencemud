@@ -443,12 +443,12 @@ void do_hunt( CHAR_DATA *ch, char *argument )
     argument = one_argument( argument, arg );
     argument = one_argument( argument, arg2 );
 
-    if (!IS_NPC(ch)
-    && str_cmp(race_table[ch->race].name, "sith")
-    && get_skill(ch, gsk_hunt) == 0 )
+    // TODO: Change the Sith/Naga race checks to a racial trait
+    if (!IS_NPC(ch) && ch->race != gr_sith && ch->race != gr_naga &&
+        get_skill(ch, gsk_hunt) == 0 )
     {
-	send_to_char("Huh?\n\r",ch);
-	return;
+        send_to_char("Huh?\n\r",ch);
+        return;
     }
 
     if ( ch->hunting != NULL )

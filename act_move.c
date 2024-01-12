@@ -101,14 +101,7 @@ const	sh_int	movement_loss	[SECT_MAX]	=
 
 int get_player_classnth(CHAR_DATA *ch)
 {
-	int num = 4;
-
-	if(ch->pcdata->class_mage == -1) --num;
-	if(ch->pcdata->class_cleric == -1) --num;
-	if(ch->pcdata->class_thief == -1) --num;
-	if(ch->pcdata->class_warrior == -1) --num;
-
-	return UMAX(1,num);
+	return list_size(ch->pcdata->classes);
 }
 
 ROOM_INDEX_DATA *exit_destination(EXIT_DATA *pexit)
@@ -520,11 +513,11 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 			move = (movement_loss[m1] + movement_loss[m2]) / 2;
 		}
 
-		/* If crusader, 25% less movement in the wilds */
-		if (ch->pcdata->second_sub_class_warrior == CLASS_WARRIOR_CRUSADER && IN_WILDERNESS(ch))
+		/* If currently crusader, 25% less movement in the wilds */
+		if (ch->pcdata->current_class->clazz == gcl_crusader && IN_WILDERNESS(ch))
 			move -= move / 4;
 
-		if (ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_RANGER)
+		if (ch->pcdata->current_class->clazz == gcl_ranger)
 			move -= move / 4;
 
 		if (!MOUNTED(ch)) {
@@ -746,7 +739,8 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 		check_improve(ch, gsk_trackless_step, TRUE, 8);
 
 	/* Druids regenerate in nature */
-	if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch)) {
+	// TODO: Change into a trait
+	if (get_current_class(ch) == gcl_druid && is_in_nature(ch)) {
 		ch->move += number_range(1,3);
 		ch->move = UMIN(ch->move, ch->max_move);
 		ch->hit += number_range(1,3);
@@ -2400,7 +2394,8 @@ void do_pick(CHAR_DATA *ch, char *argument)
 
 	WAIT_STATE(ch, gsk_pick_lock->beats);
 
-	if (get_profession(ch, SECOND_SUBCLASS_THIEF) != CLASS_THIEF_HIGHWAYMAN)
+	// TODO: turn into a trait
+	if (get_current_class(ch) == gcl_highwayman)
 	{
 		int skill = get_skill(ch, gsk_pick_lock);
 

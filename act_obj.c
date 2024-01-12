@@ -5547,15 +5547,15 @@ void do_steal(CHAR_DATA *ch, char *argument)
     	percent += 25;
     else
     {
-	if (ch->pcdata->second_sub_class_thief == CLASS_THIEF_HIGHWAYMAN)
+		if (ch->pcdata->current_class->clazz == gcl_highwayman)
         {
-	    if (ch->heldup == victim)
-	        percent = 0;
-	    else
-		percent += 25;
-	}
-	else
-	    percent += 50;
+		    if (ch->heldup == victim)
+		        percent = 0;
+	    	else
+				percent += 25;
+		}
+		else
+		    percent += 50;
     }
 
     if (percent > get_skill(ch, gsk_steal)
@@ -8410,7 +8410,7 @@ void brew_end(CHAR_DATA *ch )
 
 	// TODO: Need to convert this to some kind of trait?
 	int uses = 1;
-    if (ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_ALCHEMIST)
+    if (ch->pcdata->current_class->clazz == gcl_alchemist)
     {
 		if (get_skill(ch, gsk_brew) < 75)
 			uses = 2;
@@ -8891,7 +8891,7 @@ void imbue_end(CHAR_DATA *ch)
 
 	// TODO: change when classes are redone
 	// TODO: Maybe change to a perk?
-	bool alchemist = (ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_ALCHEMIST);
+	bool alchemist = (ch->pcdata->current_class->clazz == gcl_alchemist);
 
 	// TODO: Charges and recharging are in the item or a product of imbuing?
 
@@ -9420,7 +9420,7 @@ void scribe_end(CHAR_DATA *ch)
 
 	// TODO: change when classes are redone
 	// TODO: Maybe change to a perk?
-	bool alchemist = (ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_ALCHEMIST);
+	bool alchemist = (ch->pcdata->current_class->clazz == gcl_alchemist);
 
 	for(int i = 0; i < 3; i++)
 	{

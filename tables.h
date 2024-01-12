@@ -168,6 +168,18 @@ struct gr_type
 	RACE_DATA **gr;
 };
 
+struct class_leave_type
+{
+	char *name;
+	CLASS_LEAVE_FUN *func;
+};
+
+struct class_enter_type
+{
+	char *name;
+	CLASS_ENTER_FUN *func;
+};
+
 struct npc_ship_type
 {
 	int npc_ship_type;
@@ -482,6 +494,11 @@ extern const struct flag_type stat_types[];
 extern const struct flag_type vital_types[];
 
 extern const struct gr_type gr_table[];
+
+extern const struct flag_type class_flags[];
+
+extern const struct class_leave_type class_leave_table[];
+extern const struct class_enter_type class_enter_table[];
 
 #endif
 

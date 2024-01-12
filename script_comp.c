@@ -396,6 +396,9 @@ int compile_entity_listbasetype(int ent)
 	case ENT_ILLIST_VARIABLE:	ent = ENT_VARIABLE; break;
 	case ENT_ILLIST_REPUTATION:	ent = ENT_REPUTATION; break;
 	case ENT_ILLIST_REPUTATION_INDEX:	ent = ENT_REPUTATION_INDEX; break;
+	case ENT_ILLIST_SKILLS:		ent = ENT_SKILL; break;
+	case ENT_ILLIST_SKILLGROUPS:		ent = ENT_SKILLGROUP; break;
+	case ENT_ILLIST_CLASSES:		ent = ENT_CLASSLEVEL; break;
 
 	case ENT_SKILL_VALUES:		ent = ENT_NUMBER; break;
 	case ENT_SKILL_VALUENAMES:	ent = ENT_STRING; break;
@@ -557,6 +560,56 @@ char *compile_entity(char *str,int type, char **store, int *entity_type)
 				*p++ = ENTITY_VAR_BOOLEAN;
 				next_ent = ENT_BOOLEAN;
 			}
+		} else if(ent == ENT_SEX_STRING_TABLE) {
+			if(suffix[0]) {
+				sprintf(buf,"Line %d: type suffix is only allowed for variable fields.", compile_current_line);
+				compile_error_show(buf);
+				return NULL;
+			}
+			int sex = sex_lookup(field);
+			if (sex == -1)
+			{
+				sprintf(buf,"Line %d: invalid sex in SEX STRING TABLE.", compile_current_line);
+				compile_error_show(buf);
+				return NULL;
+			}
+
+			*p++ = ESCAPE_EXTRA + sex - SEX_NEUTRAL;
+			next_ent = ENT_STRING;
+
+		} else if(ent == ENT_STATS_TABLE) {
+			if(suffix[0]) {
+				sprintf(buf,"Line %d: type suffix is only allowed for variable fields.", compile_current_line);
+				compile_error_show(buf);
+				return NULL;
+			}
+			int stat = stat_lookup(field, stat_types, STAT_NONE);
+			if (stat == STAT_NONE)
+			{
+				sprintf(buf,"Line %d: invalid stat in STATS TABLE.", compile_current_line);
+				compile_error_show(buf);
+				return NULL;
+			}
+
+			*p++ = ESCAPE_EXTRA + stat;
+			next_ent = ENT_NUMBER;
+
+		} else if(ent == ENT_VITALS_TABLE) {
+			if(suffix[0]) {
+				sprintf(buf,"Line %d: type suffix is only allowed for variable fields.", compile_current_line);
+				compile_error_show(buf);
+				return NULL;
+			}
+			int vital = stat_lookup(field, vital_types, NO_FLAG);
+			if (vital == NO_FLAG)
+			{
+				sprintf(buf,"Line %d: invalid vital in VITALS TABLE.", compile_current_line);
+				compile_error_show(buf);
+				return NULL;
+			}
+
+			*p++ = ESCAPE_EXTRA + vital;
+			next_ent = ENT_NUMBER;
 
 		} else if(ent == ENT_CATALYST_USAGE) {
 			if(suffix[0]) {
@@ -792,6 +845,9 @@ char *compile_entity(char *str,int type, char **store, int *entity_type)
 			case ENT_ILLIST_VARIABLE:	ent = ENT_VARIABLE; break;
 			case ENT_ILLIST_REPUTATION:	ent = ENT_REPUTATION; break;
 			case ENT_ILLIST_REPUTATION_INDEX:	ent = ENT_REPUTATION_INDEX; break;
+			case ENT_ILLIST_SKILLS:		ent = ENT_SKILL; break;
+			case ENT_ILLIST_SKILLGROUPS:	ent = ENT_SKILLGROUP; break;
+			case ENT_ILLIST_CLASSES:		ent = ENT_CLASSLEVEL; break;
 
 			case ENT_ARRAY_EXITS:		ent = ENT_EXIT; break;
 

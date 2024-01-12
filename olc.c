@@ -27,7 +27,7 @@ extern GLOBAL_DATA gconfig;
 AREA_DATA *get_area_data args ((long anum));
 AREA_DATA *get_area_from_uid args ((long uid));
 void save_races();
-void save_classes();
+void save_classes(bool booting);
 void save_liquids();
 void save_materials();
 void save_skills();
@@ -4325,6 +4325,7 @@ const struct olc_cmd_type skedit_table[] =
 	{	"preink",		skedit_preinkfunc	},
 	{	"prescribe",	skedit_prescribefunc},
 	{	"prespell",		skedit_prespellfunc	},
+	{	"primary",		skedit_primary		},
 	{	"pulse",		skedit_pulsefunc	},
 	{	"quaff",		skedit_quafffunc	},
 	{	"race",			skedit_race			},
@@ -4938,7 +4939,9 @@ const struct olc_cmd_type clsedit_table[] =
 	{	"create",		clsedit_create		},
 	{	"description",	clsedit_description	},
 	{	"display",		clsedit_display		},
+	{	"flags",		clsedit_flags		},
 	{	"gcl",			clsedit_gcl			},
+	{	"maxlevel",		clsedit_maxlevel	},
 	{	"name",			clsedit_name		},
 	{	"primary",		clsedit_primary		},
 	{	"show",			clsedit_show		},
@@ -5013,7 +5016,7 @@ void clsedit(CHAR_DATA *ch, char *argument)
 		{
 			if ((*clsedit_table[cmd].olc_fun) (ch, argument))
 			{
-				save_classes();
+				save_classes(false);
 			}
 			return;
 		}
@@ -5068,6 +5071,8 @@ const struct olc_cmd_type raceedit_table[] =
 	{	"res",			raceedit_res		},
 	{	"show",			raceedit_show		},
 	{	"size",			raceedit_size		},
+	{	"skills",		raceedit_skills		},
+	{	"starting",		raceedit_starting	},
 	{	"stats",		raceedit_stats		},
 	{	"vuln",			raceedit_vuln		},
 	{	"who",			raceedit_who		},

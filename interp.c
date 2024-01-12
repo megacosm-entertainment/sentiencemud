@@ -389,6 +389,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "gq",		do_gq,		POS_DEAD,	L4,  LOG_ALWAYS, 1, TRUE },
     { "holyaura",	do_holyaura,	POS_DEAD,	L5,  LOG_NORMAL, 1, TRUE },
     { "holylight",	do_holylight,	POS_DEAD,	L5,  LOG_NORMAL, 1, TRUE },
+    { "holypersona",	do_holypersona,	POS_DEAD,	L5,  LOG_NORMAL, 1, TRUE },
     { "holywarp",	do_holywarp,	POS_DEAD,	L5,  LOG_NORMAL, 1, TRUE },
     { "housemove",	do_housemove,   POS_DEAD,	L5,  LOG_ALWAYS, 1, TRUE },
     { "immflag",	do_immflag,	POS_DEAD,	L5,  LOG_ALWAYS, 1, TRUE },
@@ -574,6 +575,7 @@ const	struct	cmd_type	cmd_table	[] =
 	{ "matlist",	do_matlist, POS_DEAD,	L5,		LOG_NORMAL, 1, TRUE },
 	{ "matshow",	do_matshow, POS_DEAD,	L5,		LOG_NORMAL, 1, TRUE },
 
+	{ "setclass", 	do_setclass, POS_DEAD,	1,		LOG_NORMAL, 1, true },
 	{ "classes",	do_classes, POS_DEAD,	1,		LOG_NORMAL, 1, TRUE },
 	{ "clsedit",	do_clsedit, POS_DEAD,	ML,		LOG_ALWAYS, 1, TRUE },
 	{ "clslist",	do_clslist, POS_DEAD,	L5,		LOG_NORMAL, 1, TRUE },
@@ -1299,6 +1301,8 @@ void interpret( CHAR_DATA *ch, char *argument )
 	}
     }
 
+#if 0
+	// TODO: Fix remorting.  This might need to go entirely
     // Remorting!
     if (ch->remort_question) {
 		int iClass;
@@ -1332,6 +1336,7 @@ void interpret( CHAR_DATA *ch, char *argument )
 		}
 		return;
 	}
+#endif
 
     // Convert church to a different alignment?
     if (!IS_NPC(ch) && ch->pcdata->convert_church != -1)

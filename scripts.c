@@ -798,6 +798,9 @@ void script_loop_cleanup(SCRIPT_CB *block, int level)
 			case ENT_ILLIST_VARIABLE:
 			case ENT_ILLIST_REPUTATION:
 			case ENT_ILLIST_REPUTATION_INDEX:
+			case ENT_ILLIST_SKILLS:
+			case ENT_ILLIST_SKILLGROUPS:
+			case ENT_ILLIST_CLASSES:
 				iterator_stop(&block->loops[i].d.l.list.it);
 				break;
 			}
@@ -1134,6 +1137,9 @@ DECL_OPC_FUN(opc_list)
 	FOOD_BUFF_DATA *food_buff;
 	FURNITURE_COMPARTMENT *compartment;
 	SPELL_DATA *spell;
+	SKILL_DATA *skill;
+	SKILL_GROUP *skill_group;
+	CLASS_LEVEL *level;
 	REPUTATION_DATA *reputation;
 	REPUTATION_INDEX_DATA *repIndex;
 	REPUTATION_INDEX_RANK_DATA *rank;
@@ -2373,6 +2379,84 @@ DECL_OPC_FUN(opc_list)
 			variables_set_reputation_index(block->info.var,block->loops[lp].var_name,repIndex);
 			break;
 
+		case ENT_ILLIST_SKILLS:
+			//log_stringf("opc_list: list type ENT_ILLIST_SKILLS");
+			if(!IS_VALID(arg->d.blist))
+			{
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			block->loops[lp].d.l.type = ENT_ILLIST_SKILLS;
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+			skill = (SKILL_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+			if( !IS_VALID(skill) ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			// Set the variable
+			variables_set_skill(block->info.var,block->loops[lp].var_name,skill);
+			break;
+
+		case ENT_ILLIST_SKILLGROUPS:
+			//log_stringf("opc_list: list type ENT_ILLIST_SKILLGROUPS");
+			if(!IS_VALID(arg->d.blist))
+			{
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			block->loops[lp].d.l.type = ENT_ILLIST_SKILLGROUPS;
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+			skill_group = (SKILL_GROUP *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+			if( !IS_VALID(skill_group) ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			// Set the variable
+			variables_set_skill_group(block->info.var,block->loops[lp].var_name,skill_group);
+			break;
+
+		case ENT_ILLIST_CLASSES:
+			//log_stringf("opc_list: list type ENT_ILLIST_CLASSES");
+			if(!IS_VALID(arg->d.blist))
+			{
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			block->loops[lp].d.l.type = ENT_ILLIST_CLASSES;
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+			level = (CLASS_LEVEL *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+			if( !IS_VALID(level) ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			// Set the variable
+			variables_set_classlevel(block->info.var,block->loops[lp].var_name,level);
+			break;
+
 		default:
 			//log_stringf("opc_list: list_type INVALID");
 			block->ret_val = PRET_BADSYNTAX;
@@ -3127,6 +3211,51 @@ DECL_OPC_FUN(opc_list)
 			variables_set_reputation_index(block->info.var,block->loops[lp].var_name,repIndex);
 
 			if( !IS_VALID(repIndex) ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				skip = TRUE;
+				break;
+			}
+			break;
+
+		case ENT_ILLIST_SKILLS:
+			//log_stringf("opc_list: list type ENT_ILLIST_SKILLS");
+			skill = (SKILL_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+			//log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
+
+			// Set the variable
+			variables_set_skill(block->info.var,block->loops[lp].var_name,skill);
+
+			if( !IS_VALID(skill) ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				skip = TRUE;
+				break;
+			}
+			break;
+
+		case ENT_ILLIST_SKILLGROUPS:
+			//log_stringf("opc_list: list type ENT_ILLIST_SKILLGROUPS");
+			skill_group = (SKILL_GROUP *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+			//log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
+
+			// Set the variable
+			variables_set_skill_group(block->info.var,block->loops[lp].var_name,skill_group);
+
+			if( !IS_VALID(skill_group) ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				skip = TRUE;
+				break;
+			}
+			break;
+
+		case ENT_ILLIST_CLASSES:
+			//log_stringf("opc_list: list type ENT_ILLIST_CLASSES");
+			level = (CLASS_LEVEL *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+			//log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
+
+			// Set the variable
+			variables_set_classlevel(block->info.var,block->loops[lp].var_name,level);
+
+			if( !IS_VALID(level) ) {
 				iterator_stop(&block->loops[lp].d.l.list.it);
 				skip = TRUE;
 				break;
@@ -4456,7 +4585,8 @@ void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet, int mode)
 			check_improve_show(ch, gsk_trackless_step, TRUE, 8, show);
 
 		/* Druids regenerate in nature */
-		if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch)) {
+		// TODO: Turn into a trait
+		if (get_current_class(ch) == gcl_druid && is_in_nature(ch)) {
 			ch->move += number_range(1,3);
 			ch->move = UMIN(ch->move, ch->max_move);
 			ch->hit += number_range(1,3);
@@ -7057,7 +7187,7 @@ void token_skill_improve( CHAR_DATA *ch, TOKEN_DATA *token, bool success, int mu
 			sprintf(buf,"{WYou have become better at %s!{x\n\r", token->name);
 			send_to_char(buf,ch);
 			token->value[TOKVAL_SPELL_RATING]++;
-			gain_exp(ch, 2 * diff);
+			gain_exp(ch, NULL, 2 * diff);
 		}
 	} else {
 		chance = URANGE(5, per/2, 30);
@@ -7067,7 +7197,7 @@ void token_skill_improve( CHAR_DATA *ch, TOKEN_DATA *token, bool success, int mu
 			token->value[TOKVAL_SPELL_RATING] += number_range(1,3);
 			if(token->value[TOKVAL_SPELL_RATING] >= max_rating)
 				token->value[TOKVAL_SPELL_RATING] = max_rating;
-			gain_exp(ch,2 * diff);
+			gain_exp(ch, NULL,2 * diff);
 		}
 	}
 }

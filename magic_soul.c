@@ -55,7 +55,7 @@ SPELL_FUNC(spell_soul_essence)
 		i = i * rating * rating2 / 10000;
 
 		// Give boost for avatars and wraiths
-		if(ch->race == grn_avatar || ch->race == grn_wraith)
+		if(ch->race == gr_avatar || ch->race == gr_wraith)
 			i = i * ( 240 + ch->tot_level ) / 240;
 
 		// TODO: Account for pneuma boosts

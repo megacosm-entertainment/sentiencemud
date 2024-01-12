@@ -110,6 +110,7 @@ const struct olc_help_type help_table[] =
 	{	"book",					STRUCT_FLAGS,		book_flags,					"Book flags."	},
 	{	"brew_func",			STRUCT_ARTIFICING,	brew_func_table,			"Brew Functions (SkEdit)"},
 	{	"catalyst",				STRUCT_FLAGS,		catalyst_types,				"Catalyst types."	},
+	{	"class",				STRUCT_FLAGS,		class_flags,				"Class flags." },
 	{	"classes",				STRUCT_CLASSES,		NULL,						"Classes" },
 	{	"classtypes",			STRUCT_FLAGS,		class_types,				"Class Types"},
 	{ 	"compartment",			STRUCT_FLAGS,		compartment_flags,			"Compartment Flags."},
@@ -160,6 +161,7 @@ const struct olc_help_type help_table[] =
 	{	"prespell_func",		STRUCT_SPELLFUNC,	prespell_func_table,		"Prespell functions (SkEdit)"},
 	{	"projectflags",			STRUCT_FLAGS,		project_flags,				"Project flags."	},
 	{	"quaff_func",			STRUCT_ARTIFICING,	quaff_func_table,			"Quaff Functions (SkEdit)"},
+	//{	"race",					STRUCT_FLAGS,		race_flags,					"Race flags." },
 	{	"ranged",				STRUCT_FLAGS,		ranged_weapon_class,		"Ranged	weapon types."	},
 	{	"recite_func",			STRUCT_ARTIFICING,	recite_func_table,			"Recite Functions (SkEdit)"},
 	{	"reputation",			STRUCT_FLAGS,		reputation_flags,			"Reputation flags." },
@@ -5978,14 +5980,17 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		break;
 
 	case ITEM_BODY_PART:
+	{
+		RACE_DATA *race = get_race_uid(obj->value[1]);
 		sprintf(buf,
 				"{B[  {Wv0{B]{G Body Parts:{x    %s\n\r"
 				"{B[  {Wv1{B]{G Race:{x          %s\n\r",
 				flag_string(part_flags, obj->value[0]),
-				race_table[obj->value[1]].name);
+				(IS_VALID(race) ? race->name : "{Dnone{x"));
 
 		add_buf(buffer, buf);
 		break;
+	}
     }
 }
 
@@ -15909,8 +15914,8 @@ MEDIT(medit_show)
 		pMob->vnum,
 		pMob->sex == SEX_MALE    ? "male   " :
 		pMob->sex == SEX_FEMALE  ? "female " :
-		pMob->sex == 3           ? "random " : "neutral",
-		race_table[pMob->race].name);
+		pMob->sex == SEX_EITHER  ? "random " : "neutral",
+		pMob->race->name);
 	add_buf(buffer, buf);
 
     sprintf(buf, "Boss:         {C[%s{C]{x\n\r", (pMob->boss ? "{RYES" : "{gno"));
@@ -19065,44 +19070,50 @@ MEDIT(medit_damdice)
 MEDIT(medit_race)
 {
     MOB_INDEX_DATA *pMob;
-    int race;
+    RACE_DATA *race;
 
-    if (argument[0] != '\0'
-    && (race = race_lookup(argument)) != 0)
-    {
-	EDIT_MOB(ch, pMob);
+    if (argument[0] != '\0')
+	{
+		race = get_race_data(argument);
+		if (IS_VALID(race))
+		{
+			EDIT_MOB(ch, pMob);
 
-	pMob->race = race;
-	pMob->act[0]	  |= race_table[race].act;
-	pMob->act[1]	  |= race_table[race].act2;
-	pMob->affected_by[0] |= race_table[race].aff;
-	pMob->off_flags   |= race_table[race].off;
-	pMob->imm_flags   |= race_table[race].imm;
-	pMob->res_flags   |= race_table[race].res;
-	pMob->vuln_flags  |= race_table[race].vuln;
-	pMob->form        |= race_table[race].form;
-	pMob->parts       |= race_table[race].parts;
+			pMob->race = race;
+			pMob->act[0]	  |= race->act[0];
+			pMob->act[1]	  |= race->act[1];
+			pMob->affected_by[0] |= race->aff[0];
+			pMob->affected_by[1] |= race->aff[1];
+			pMob->off_flags   |= race->off;
+			pMob->imm_flags   |= race->imm;
+			pMob->res_flags   |= race->res;
+			pMob->vuln_flags  |= race->vuln;
+			pMob->form        |= race->form;
+			pMob->parts       |= race->parts;
 
-	send_to_char("Race set.\n\r", ch);
-	return TRUE;
+			send_to_char("Race set.\n\r", ch);
+			return TRUE;
+		}
     }
 
     if (argument[0] == '?')
     {
-	char buf[MAX_STRING_LENGTH];
+		char buf[MAX_STRING_LENGTH];
 
-	send_to_char("Available races are:", ch);
-
-	for (race = 0; race_table[race].name != NULL; race++)
-	{
-	    if ((race % 3) == 0)
+		send_to_char("Available races are:", ch);
+		int i = 1;
+		ITERATOR it;
+		iterator_start(&it, race_list);
+		while((race = (RACE_DATA *)iterator_nextdata(&it)))
+		{
+			if ((i++ % 3) == 0)
+				send_to_char("\n\r", ch);
+			sprintf(buf, " %-15s", race->name);
+			send_to_char(buf, ch);
+		}
+		iterator_stop(&it);
 		send_to_char("\n\r", ch);
-	    sprintf(buf, " %-15s", race_table[race].name);
-	    send_to_char(buf, ch);
-	}
-
-	send_to_char("\n\r", ch);
-	return FALSE;
+		return FALSE;
     }
 
     send_to_char("Syntax:  race [race]\n\r"

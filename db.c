@@ -107,6 +107,7 @@ sh_int top_song_uid = 0;
 LLIST *classes_list = NULL;
 sh_int top_class_uid = 0;
 CLASS_DATA *gcl_adept;
+CLASS_DATA *gcl_adventurer;
 CLASS_DATA *gcl_alchemist;
 CLASS_DATA *gcl_archaeologist;
 CLASS_DATA *gcl_archmage;
@@ -1977,43 +1978,6 @@ void resolve_songs()
 }
 
 
-int get_this_class(CHAR_DATA *ch, SKILL_DATA *skill)
-{
-    int this_class;
-    int level;
-
-	if (!IS_VALID(skill))
-		return 9999;
-
-    this_class = 9999;
-
-    if (ch->pcdata->class_mage != -1 && (level = skill->skill_level[ch->pcdata->class_mage]) <= MAX_CLASS_LEVEL)
-    {
-		this_class = ch->pcdata->class_mage;
-    }
-    else if (ch->pcdata->class_cleric != -1 && (level = skill->skill_level[ch->pcdata->class_cleric]) <= MAX_CLASS_LEVEL)
-	{
-	    this_class = ch->pcdata->class_cleric;
-	}
-	else if (ch->pcdata->class_thief != -1 && (level = skill->skill_level[ch->pcdata->class_thief]) <= MAX_CLASS_LEVEL)
-	{
-	this_class = ch->pcdata->class_thief;
-	}
-	else if (ch->pcdata->class_warrior != -1 && (level = skill->skill_level[ch->pcdata->class_warrior]) <= MAX_CLASS_LEVEL)
-	{
-		this_class = ch->pcdata->class_warrior;
-	}
-
-    if (IS_ANGEL(ch) || IS_MYSTIC(ch) || IS_DEMON(ch) || IS_IMMORTAL(ch)) {
-		for(int i = 0; i < MAX_CLASS; i++)
-			if (skill->skill_level[i] <= MAX_CLASS_LEVEL)
-				return i;
-
-		return 0;
-    }
-
-    return this_class;
-}
 
 
 void new_reset(ROOM_INDEX_DATA *pR, RESET_DATA *pReset)
@@ -3306,7 +3270,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 	CHAR_DATA *mob;
 	AFFECT_DATA af;
 	GQ_MOB_DATA *gq_mob;
-	const struct race_type *race;
+	RACE_DATA *race;
 	int i;
 
 	mobile_count++;
@@ -3416,7 +3380,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		mob->sex = number_range(1,2);
 
 	mob->race				= pMobIndex->race;
-	race = &race_table[mob->race];
+	race = mob->race;
 	mob->form				= pMobIndex->form;
 	mob->parts				= pMobIndex->parts;
 	mob->size				= pMobIndex->size;
@@ -3424,8 +3388,8 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 	mob->corpse_type		= pMobIndex->corpse_type;
 	mob->corpse_wnum		= pMobIndex->corpse;
 
-	mob->affected_by_perm[0]	= race->aff;
-	mob->affected_by_perm[1]	= race->aff2;
+	mob->affected_by_perm[0]	= mob->race->aff[0];
+	mob->affected_by_perm[1]	= mob->race->aff[1];
 	mob->imm_flags_perm		= pMobIndex->imm_flags;
 	mob->res_flags_perm		= pMobIndex->res_flags;
 	mob->vuln_flags_perm	= pMobIndex->vuln_flags;
@@ -3485,7 +3449,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		/* Put spells on here*/
 		if (IS_AFFECTED(mob,AFF_INVISIBLE))
 		{
-			af.group		= IS_SET(race->aff,AFF_INVISIBLE)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.group		= IS_SET(race->aff[0],AFF_INVISIBLE)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_invis;
 			af.level		= mob->level;
@@ -3500,7 +3464,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
 		if (IS_AFFECTED(mob,AFF_DETECT_INVIS))
 		{
-			af.group		= IS_SET(race->aff,AFF_DETECT_INVIS)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.group		= IS_SET(race->aff[0],AFF_DETECT_INVIS)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_detect_invis;
 			af.level		= mob->level;
@@ -3514,7 +3478,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
 		if (IS_AFFECTED(mob,AFF_DETECT_HIDDEN))
 		{
-			af.group		= IS_SET(race->aff,AFF_DETECT_HIDDEN)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.group		= IS_SET(race->aff[0],AFF_DETECT_HIDDEN)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_detect_hidden;
 			af.level		= mob->level;
@@ -3528,7 +3492,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
 		if (IS_AFFECTED(mob,AFF_SANCTUARY))
 		{
-			af.group		= IS_SET(race->aff,AFF_SANCTUARY)?AFFGROUP_RACIAL:AFFGROUP_DIVINE;
+			af.group		= IS_SET(race->aff[0],AFF_SANCTUARY)?AFFGROUP_RACIAL:AFFGROUP_DIVINE;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_sanctuary;
 			af.level		= mob->level;
@@ -3542,7 +3506,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
 		if (IS_AFFECTED(mob,AFF_INFRARED))
 		{
-			af.group		= IS_SET(race->aff,AFF_INFRARED)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.group		= IS_SET(race->aff[0],AFF_INFRARED)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_infravision;
 			af.level		= mob->level;
@@ -3556,7 +3520,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
 		if (IS_AFFECTED(mob,AFF_DEATH_GRIP))
 		{
-			af.group		= IS_SET(race->aff,AFF_DEATH_GRIP)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.group		= IS_SET(race->aff[0],AFF_DEATH_GRIP)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_death_grip;
 			af.level		= mob->level;
@@ -3570,7 +3534,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
 		if (IS_AFFECTED(mob,AFF_FLYING))
 		{
-			af.group		= IS_SET(race->aff,AFF_FLYING)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.group		= IS_SET(race->aff[0],AFF_FLYING)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_fly;
 			af.level		= mob->level;
@@ -3584,7 +3548,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
 		if (IS_AFFECTED(mob,AFF_PASS_DOOR))
 		{
-			af.group		= IS_SET(race->aff,AFF_PASS_DOOR)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.group		= IS_SET(race->aff[0],AFF_PASS_DOOR)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_pass_door;
 			af.level		= mob->level;
@@ -3598,7 +3562,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
 		if (IS_AFFECTED(mob,AFF_HASTE))
 		{
-			af.group		= IS_SET(race->aff,AFF_HASTE)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.group		= IS_SET(race->aff[0],AFF_HASTE)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_haste;
 			af.level		= mob->level;
@@ -3627,7 +3591,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
 		if (IS_AFFECTED2(mob, AFF2_LIGHT_SHROUD))
 		{
-			af.group		= IS_SET(race->aff2,AFF2_LIGHT_SHROUD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.group		= IS_SET(race->aff[1],AFF2_LIGHT_SHROUD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_light_shroud;
 			af.level		= mob->level;
@@ -3641,7 +3605,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
 		if (IS_AFFECTED2(mob, AFF2_HEALING_AURA))
 		{
-			af.group		= IS_SET(race->aff2,AFF2_HEALING_AURA)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.group		= IS_SET(race->aff[1],AFF2_HEALING_AURA)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_healing_aura;
 			af.level		= mob->level;
@@ -3655,7 +3619,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
 		if (IS_AFFECTED2(mob, AFF2_ENERGY_FIELD))
 		{
-			af.group		= IS_SET(race->aff2,AFF2_ENERGY_FIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.group		= IS_SET(race->aff[1],AFF2_ENERGY_FIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_energy_field;
 			af.level		= mob->level;
@@ -3669,7 +3633,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
 		if (IS_AFFECTED2(mob, AFF2_SPELL_SHIELD))
 		{
-			af.group		= IS_SET(race->aff2,AFF2_SPELL_SHIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.group		= IS_SET(race->aff[1],AFF2_SPELL_SHIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_spell_shield;
 			af.level		= mob->level;
@@ -3683,7 +3647,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
 		if (IS_AFFECTED2(mob, AFF2_SPELL_DEFLECTION))
 		{
-			af.group		= IS_SET(race->aff2,AFF2_SPELL_DEFLECTION)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.group		= IS_SET(race->aff[1],AFF2_SPELL_DEFLECTION)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_spell_deflection;
 			af.level		= mob->level;
@@ -3697,7 +3661,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
 		if (IS_AFFECTED2(mob, AFF2_AVATAR_SHIELD))
 		{
-			af.group		= IS_SET(race->aff2,AFF2_AVATAR_SHIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.group		= IS_SET(race->aff[1],AFF2_AVATAR_SHIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_avatar_shield;
 			af.level		= mob->level;
@@ -3711,7 +3675,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
 		if (IS_AFFECTED2(mob, AFF2_ELECTRICAL_BARRIER))
 		{
-			af.group		= IS_SET(race->aff2,AFF2_ELECTRICAL_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.group		= IS_SET(race->aff[1],AFF2_ELECTRICAL_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_electrical_barrier;
 			af.level		= mob->level;
@@ -3726,7 +3690,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
 		if (IS_AFFECTED2(mob, AFF2_FIRE_BARRIER))
 		{
-			af.group		= IS_SET(race->aff2,AFF2_FIRE_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.group		= IS_SET(race->aff[1],AFF2_FIRE_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_fire_barrier;
 			af.level		= mob->level;
@@ -3740,7 +3704,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
 		if (IS_AFFECTED2(mob, AFF2_FROST_BARRIER))
 		{
-			af.group		= IS_SET(race->aff2,AFF2_FROST_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.group		= IS_SET(race->aff[1],AFF2_FROST_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_frost_barrier;
 			af.level		= mob->level;
@@ -3754,7 +3718,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
 		if (IS_AFFECTED2(mob, AFF2_IMPROVED_INVIS))
 		{
-			af.group		= IS_SET(race->aff2,AFF2_IMPROVED_INVIS)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.group		= IS_SET(race->aff[1],AFF2_IMPROVED_INVIS)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_improved_invisibility;
 			af.level		= mob->level;
@@ -3768,7 +3732,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
 		if (IS_AFFECTED2(mob, AFF2_STONE_SKIN))
 		{
-			af.group		= IS_SET(race->aff2,AFF2_STONE_SKIN)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.group		= IS_SET(race->aff[1],AFF2_STONE_SKIN)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_stone_skin;
 			af.level		= mob->level;
@@ -7218,7 +7182,7 @@ void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
 	fprintf(fp, "ShD  %s~\n", ch->short_descr);
 	fprintf(fp, "LnD  %s~\n", ch->long_descr);
 	fprintf(fp, "Desc %s~\n", fix_string(ch->description));
-	fprintf(fp, "Race %s~\n", race_table[ch->race].name);
+	fprintf(fp, "Race %s~\n", ch->race->name);
 	fprintf(fp, "Sex  %d\n", ch->sex);
 	fprintf(fp, "Levl %d\n", ch->level);
 	fprintf(fp, "TLevl %d\n", ch->tot_level);
@@ -8696,7 +8660,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 						if (IS_VALID(skill))
 		                    paf->skill = skill;
 						else
-							log_string("fread_char: unknown skill.");
+							log_string("persist_load_mobile: unknown skill.");
 						paf->custom_name = NULL;
 						paf->group = flag_value(affgroup_mobile_flags, fread_word(fp));
 						if(paf->group == NO_FLAG) paf->group = AFFGROUP_MAGICAL;
@@ -8941,10 +8905,12 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 					char *name = fread_string(fp);
 
 					// Default to Human if the race is not found.
-					if( !(ch->race = race_lookup(name)) )
-						ch->race = grn_human;
+					RACE_DATA *race = get_race_data(name);
+					if( !IS_VALID(race) )
+						ch->race = gr_human;
 
 					fMatch = TRUE;
+					break;
 				}
 
 				if(IS_KEY("RepopRoom")) {

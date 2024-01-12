@@ -348,6 +348,9 @@ void free_class_data(CLASS_DATA *data);
 CLASS_LEVEL *new_class_level();
 void free_class_level(CLASS_LEVEL *cl);
 
+SKILL_CLASS_LEVEL *new_skill_class_level();
+void free_skill_class_level(SKILL_CLASS_LEVEL *data);
+
 
 LIQUID *new_liquid();
 void free_liquid(LIQUID *liq);

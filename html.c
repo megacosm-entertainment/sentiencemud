@@ -310,7 +310,10 @@ BUFFER *get_players_html()
 		|| (fChurchOnly && wch->church != church ))
 	    continue;
 
-	class = sub_class_table[wch->pcdata->sub_class_current].who_name[wch->sex];
+	if (IS_VALID(wch->pcdata->current_class))
+		class = wch->pcdata->current_class->clazz->who[wch->sex];
+	else
+		class = "            ";
 
 	switch (wch->level)
 	{
@@ -349,7 +352,7 @@ BUFFER *get_players_html()
 	 */
 
 	sprintf( racestr, "{Y");
-	strncat( racestr, pc_race_table[wch->race].who_name, 6 );
+	strncat( racestr, wch->race->who, 6 );
 
 	nMatch++;
 
@@ -367,7 +370,7 @@ BUFFER *get_players_html()
 		wch->level,
 		wch->tot_level,
 		wch->sex == 0 ? "N" : (wch->sex == 1 ? "M" : "F"),
-		wch->race < MAX_PC_RACE ? racestr : "      ",
+		IS_VALID(wch->race) ? racestr : "      ",
 		class,
 		area_type,
 		(IS_DEAD(wch) /*&& !IS_DEMON(wch) && !IS_ANGEL(wch)*/) ?

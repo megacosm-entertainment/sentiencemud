@@ -700,9 +700,9 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
 {
 	ITERATOR it;
     PROG_LIST *trigger;
-    int race, i;
+    int i;
 
-    race = mob->race;
+    RACE_DATA *race = mob->race;
 
     fprintf(fp, "#MOBILE %ld\n", mob->vnum);
     fprintf(fp, "Name %s~\n", mob->player_name);
@@ -715,15 +715,15 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
     if(mob->persist)
  	   fprintf(fp, "Persist\n");
     fprintf(fp, "Skeywds %s~\n", mob->skeywds);
-    fprintf(fp, "Race %s~\n", race_table[mob->race].name);
+    fprintf(fp, "Race %s~\n", mob->race->name);
     if (mob->act[0] != 0)
-	fprintf(fp, "Act %ld\n", mob->act[0] | race_table[race].act);
+	fprintf(fp, "Act %ld\n", mob->act[0] | race->act[0]);
     if (mob->act[1] != 0)
-	fprintf(fp, "Act2 %ld\n", mob->act[1] | race_table[race].act2);
+	fprintf(fp, "Act2 %ld\n", mob->act[1] | race->act[1]);
     if (mob->affected_by[0] != 0)
-	fprintf(fp, "Affected_by %ld\n", mob->affected_by[0] | race_table[race].aff);
+	fprintf(fp, "Affected_by %ld\n", mob->affected_by[0] | race->aff[0]);
     if (mob->affected_by[1] != 0)
-	fprintf(fp, "Affected_by2 %ld\n", mob->affected_by[1]);
+	fprintf(fp, "Affected_by2 %ld\n", mob->affected_by[1] | race->aff[1]);
 
     fprintf(fp, "Level %d Alignment %d\n", mob->level, mob->alignment);
 
@@ -2829,7 +2829,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 		if (!str_cmp(word, "Race")) {
 		    char *race_string = fread_string(fp);
 
-		    mob->race = race_lookup(race_string);
+		    mob->race = get_race_data(race_string);
 
 		    free_string(race_string);
 

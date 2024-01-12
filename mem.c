@@ -946,7 +946,10 @@ PC_DATA *new_pcdata(void)
     pcdata->need_change_pw = TRUE;
 
     pcdata->classes = list_createx(false, NULL, delete_class_level);
+    pcdata->current_class = NULL;
 
+#if 0
+    // Removed in PLAYER VERSION 007
     pcdata->class_mage = -1;
     pcdata->class_cleric = -1;
     pcdata->class_thief = -1;
@@ -966,6 +969,7 @@ PC_DATA *new_pcdata(void)
     pcdata->second_sub_class_cleric = -1;
     pcdata->second_sub_class_thief = -1;
     pcdata->second_sub_class_warrior = -1;
+#endif
 
     pcdata->unlocked_areas = list_create(FALSE);
     pcdata->ships = list_create(FALSE);
@@ -2203,7 +2207,7 @@ MOB_INDEX_DATA *new_mob_index( void )
     pMob->affected_by[1]  =   0;
     pMob->alignment     =   0;
     pMob->hitroll	=   0;
-    pMob->race          =   race_lookup( "human" );
+    pMob->race          =   gr_human;
     pMob->form          =   0;
     pMob->parts         =   0;
     pMob->imm_flags     =   0;
@@ -6395,6 +6399,11 @@ void free_weapon_data(WEAPON_DATA *data)
 
 ////////////////////////////////////////////////////////////////
 
+static void delete_skill_class_level(void *ptr)
+{
+    free_skill_class_level((SKILL_CLASS_LEVEL *)ptr);
+}
+
 SKILL_DATA *skill_data_free;
 SKILL_DATA *new_skill_data()
 {
@@ -6411,6 +6420,11 @@ SKILL_DATA *new_skill_data()
 
     data->name = str_dup("");
     data->display = str_dup("");
+
+    data->levels = list_createx(false, NULL, delete_skill_class_level);
+    data->difficulty = 1;
+    data->primary_stat = STAT_NONE;
+
     for(int i = 0; i < MAX_CLASS; i++)
     {
         data->skill_level[i] = 41;  // TODO: Replace with constant
@@ -6419,7 +6433,7 @@ SKILL_DATA *new_skill_data()
 
     data->target = TAR_IGNORE;
     data->minimum_position = POS_DEAD;
-    data->race = -1;
+    data->race = NULL;
 
     data->noun_damage = str_dup("");
     data->msg_off = str_dup("");
@@ -6459,6 +6473,8 @@ void free_skill_data(SKILL_DATA *data)
     free_string(data->msg_disp);
     free_string(data->msg_obj);
     free_string(data->msg_off);
+
+    list_destroy(data->levels);
 
     free_string(data->msg_defl_noaff_char);
     free_string(data->msg_defl_noaff_room);
@@ -6962,6 +6978,7 @@ CLASS_DATA *new_class_data()
     }
 
     data->type = CLASS_NONE;
+    data->max_level = MAX_CLASS_LEVEL;  // Default maximum level
     data->primary_stat = STAT_NONE;
     data->groups = list_create(false);
 
@@ -7054,4 +7071,19 @@ void free_race_data(RACE_DATA *data)
     INVALIDATE(data);
     data->next = race_data_free;
     race_data_free = data;
+}
+
+SKILL_CLASS_LEVEL *new_skill_class_level()
+{
+    SKILL_CLASS_LEVEL *data = alloc_mem(sizeof(SKILL_CLASS_LEVEL));
+
+    data->clazz = NULL;
+    data->level = 0;
+
+    return data;
+}
+
+void free_skill_class_level(SKILL_CLASS_LEVEL *data)
+{
+    free_mem(data, sizeof(SKILL_CLASS_LEVEL));
 }

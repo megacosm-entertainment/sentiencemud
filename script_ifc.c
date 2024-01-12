@@ -1783,7 +1783,7 @@ DECL_IFC_FUN(ifc_quest)
 
 DECL_IFC_FUN(ifc_race)
 {
-	*ret = ISARG_MOB(0) && VALID_STR(1) && ARG_MOB(0)->race == race_lookup(ARG_STR(1));
+	*ret = ISARG_MOB(0) && VALID_STR(1) && ARG_MOB(0)->race == get_race_data(ARG_STR(1));
 	return TRUE;
 }
 
@@ -3284,42 +3284,40 @@ DECL_IFC_FUN(ifc_systemtime)
 	return TRUE;
 }
 
-DECL_IFC_FUN(ifc_hassubclass)
+DECL_IFC_FUN(ifc_hasclass)
 {
-	int sub;
+	*ret = false;
+	if (ISARG_MOB(0) && ISARG_STR(1) && !IS_NPC(ARG_MOB(0)))
+	{
+		CLASS_DATA *clazz = get_class_data(ARG_STR(1));
+		if (IS_VALID(clazz))
+		{
+			CLASS_LEVEL *level = get_class_level(ARG_MOB(0), clazz);
 
-	if(ISARG_MOB(0) && ISARG_STR(1) && !IS_NPC(ARG_MOB(0))) {
-		sub = sub_class_search(ARG_STR(1));
-		if(sub < 0)
-			*ret = FALSE;
-		else {
-			if(sub_class_table[sub].remort)
-				*ret = ((get_profession(ARG_MOB(0),sub_class_table[sub].class + SECOND_CLASS_MAGE)) == sub) ? TRUE : FALSE;
-			else
-				*ret = ((get_profession(ARG_MOB(0),sub_class_table[sub].class + SUBCLASS_MAGE)) == sub) ? TRUE : FALSE;
+			*ret = level ? true : false;
 		}
 
-	} else
-		*ret = FALSE;
+		return true;
+	}
 
-	return TRUE;
+	return false;
 }
 
-DECL_IFC_FUN(ifc_issubclass)
+DECL_IFC_FUN(ifc_isclass)
 {
-	int sub;
+	*ret = false;
+	if (ISARG_MOB(0) && ISARG_STR(1) && !IS_NPC(ARG_MOB(0)))
+	{
+		CLASS_DATA *clazz = get_class_data(ARG_STR(1));
+		if (IS_VALID(clazz) && IS_VALID(ARG_MOB(0)->pcdata->current_class))
+		{
+			*ret = (ARG_MOB(0)->pcdata->current_class->clazz == clazz);
+		}
 
-	if(ISARG_MOB(0) && ISARG_STR(1) && !IS_NPC(ARG_MOB(0))) {
-		sub = sub_class_search(ARG_STR(1));
-		if(sub < 0)
-			*ret = FALSE;
-		else
-			*ret = ((get_profession(ARG_MOB(0),SUBCLASS_CURRENT)) == sub) ? TRUE : FALSE;
+		return true;
+	}
 
-	} else
-		*ret = FALSE;
-
-	return TRUE;
+	return false;
 }
 
 DECL_IFC_FUN(ifc_objfrag)
@@ -3943,7 +3941,7 @@ DECL_IFC_FUN(ifc_xp)
 
 DECL_IFC_FUN(ifc_maxxp)
 {
-	*ret = ISARG_MOB(0) ? (IS_NPC(ARG_MOB(0)) ? ARG_MOB(0)->maxexp : exp_per_level(ARG_MOB(0),ARG_MOB(0)->pcdata->points)) : 0;
+	*ret = ISARG_MOB(0) ? (IS_NPC(ARG_MOB(0)) ? ARG_MOB(0)->maxexp : exp_per_level(ARG_MOB(0), NULL,ARG_MOB(0)->pcdata->points)) : 0;
 	return TRUE;
 }
 

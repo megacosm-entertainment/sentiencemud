@@ -625,6 +625,7 @@ char *act_bit_name( int act_type, long act_flags )
 		if (act_flags & PLR_HOLYWARP	) strcat(buf, " holy_warp");
 		if (act_flags & PLR_NORECKONING	) strcat(buf, " no_reckoning");
 		if (act_flags & PLR_NOLORE		) strcat(buf, " no_lore");
+		if (act_flags & PLR_HOLYPERSONA	) strcat(buf, " holy_persona");
 		break;
 	}
     return ( buf[0] != '\0' ) ? buf+1 : "none";

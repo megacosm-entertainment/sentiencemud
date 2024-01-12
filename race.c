@@ -73,6 +73,22 @@ RACE_DATA *get_race_data(const char *name)
 	return race;
 }
 
+RACE_DATA *get_race_uid(const sh_int uid)
+{
+	ITERATOR it;
+	RACE_DATA *race;
+	
+	iterator_start(&it, race_list);
+	while((race = (RACE_DATA *)iterator_nextdata(&it)))
+	{
+		if (race->uid == uid)
+			break;
+	}
+	iterator_stop(&it);
+
+	return race;
+}
+
 void insert_race(RACE_DATA *race)
 {
 	ITERATOR it;
@@ -147,6 +163,9 @@ void save_race(FILE *fp, RACE_DATA *race)
 	{
 		if (IS_VALID(race->premort))
 			fprintf(fp, "GRemort %s~\n", race->premort->name);
+
+		if (race->starting)
+			fprintf(fp, "Starting\n");
 
 		if (race->remort)
 			fprintf(fp, "Remort\n");
@@ -354,6 +373,8 @@ RACE_DATA *load_race(FILE *fp, bool playable)
 						break;
 					}
 
+					KEY("Starting", data->starting, true);
+
 					if (!str_cmp(word, "Stat"))
 					{
 						char *name = fread_string(fp);
@@ -413,82 +434,82 @@ bool load_races()
 	{
 		log_string("load_races: '" RACES_FILE "' file not found.  Bootstrapping races.");
 
-		for (int i = 0; race_table[i].name; i++)
+		for (int i = 0; __race_table[i].name; i++)
 		{
-			if (race_table[i].pgrn)
-				*race_table[i].pgrn = i;
+			if (__race_table[i].pgrn)
+				*__race_table[i].pgrn = i;
 		}
-		for (int i = 0; pc_race_table[i].name; i++)
+		for (int i = 0; __pc_race_table[i].name; i++)
 		{
-			if (pc_race_table[i].pgrn)
-				*pc_race_table[i].pgrn = i;
+			if (__pc_race_table[i].pgrn)
+				*__pc_race_table[i].pgrn = i;
 		}
 
 		// Skip the first entry ("none")
-		for(int i = 1; race_table[i].name; i++)
+		for(int i = 1; __race_table[i].name; i++)
 		{
 			RACE_DATA *race = new_race_data();
 			race->uid = ++top_race_uid;
 
-			race->name = str_dup(race_table[i].name);
-			race->playable = race_table[i].pc_race;
+			race->name = str_dup(__race_table[i].name);
+			race->playable = __race_table[i].pc_race;
 			race->pgr = gr_from_name(race->name);
 
-			race->act[0] = race_table[i].act;
-			race->act[1] = race_table[i].act2;
-			race->aff[0] = race_table[i].aff;
-			race->aff[1] = race_table[i].aff2;
-			race->off = race_table[i].off;
-			race->imm = race_table[i].imm;
-			race->res = race_table[i].res;
-			race->vuln = race_table[i].vuln;
-			race->form = race_table[i].form;
-			race->parts = race_table[i].parts;
+			race->act[0] = __race_table[i].act;
+			race->act[1] = __race_table[i].act2;
+			race->aff[0] = __race_table[i].aff;
+			race->aff[1] = __race_table[i].aff2;
+			race->off = __race_table[i].off;
+			race->imm = __race_table[i].imm;
+			race->res = __race_table[i].res;
+			race->vuln = __race_table[i].vuln;
+			race->form = __race_table[i].form;
+			race->parts = __race_table[i].parts;
 
-			if (race->playable && race_table[i].pgprn)
+			if (race->playable && __race_table[i].pgprn)
 			{
-				sh_int j = *(race_table[i].pgprn);
+				sh_int j = *(__race_table[i].pgprn);
 
-				race->who = str_dup(pc_race_table[j].who_name);
+				race->who = str_dup(__pc_race_table[j].who_name);
 
-				for(int k = 0; k < 9; k++) if (!IS_NULLSTR(pc_race_table[j].skills[k]))
+				for(int k = 0; k < 9; k++) if (!IS_NULLSTR(__pc_race_table[j].skills[k]))
 				{
-					SKILL_DATA *skill = get_skill_data(pc_race_table[j].skills[k]);
+					SKILL_DATA *skill = get_skill_data(__pc_race_table[j].skills[k]);
 					if (IS_VALID(skill))
 						list_appendlink(race->skills, skill);
 				}
 
 				for(int k = 0; k < MAX_STATS; k++)
 				{
-					race->stats[k] = pc_race_table[j].stats[k];
-					race->max_stats[k] = pc_race_table[j].max_stats[k];
+					race->stats[k] = __pc_race_table[j].stats[k];
+					race->max_stats[k] = __pc_race_table[j].max_stats[k];
 				}
 
 				for(int k = 0; k < 3; k++)
 				{
-					race->max_vitals[k] = pc_race_table[j].max_vital_stats[k];
+					race->max_vitals[k] = __pc_race_table[j].max_vital_stats[k];
 				}
 
-				race->min_size = pc_race_table[j].size;
-				race->max_size = pc_race_table[j].size;
-				race->default_alignment = pc_race_table[j].alignment;
+				race->min_size = __pc_race_table[j].size;
+				race->max_size = __pc_race_table[j].size;
+				race->default_alignment = __pc_race_table[j].alignment;
 
-				race->remort = pc_race_table[j].remort;
+				race->remort = __pc_race_table[j].remort;
 			}
 
 			insert_race(race);
 		}
 
 		// Link REMORT pointers
-		for(int i = 1; pc_race_table[i].name; i++)
+		for(int i = 1; __pc_race_table[i].name; i++)
 		{
-			RACE_DATA *race = get_race_data(pc_race_table[i].name);
+			RACE_DATA *race = get_race_data(__pc_race_table[i].name);
 
-			if (pc_race_table[i].prgrn && *(pc_race_table[i].prgrn) != -1)
+			if (__pc_race_table[i].prgrn && *(__pc_race_table[i].prgrn) != -1)
 			{
-				int j = *(pc_race_table[i].prgrn);
+				int j = *(__pc_race_table[i].prgrn);
 
-				race->premort = get_race_data(pc_race_table[j].name);
+				race->premort = get_race_data(__pc_race_table[j].name);
 			}
 		}
 	}
@@ -772,6 +793,7 @@ RACEEDIT( raceedit_show )
 
 	if (race->playable)
 	{
+		add_buf(buffer, formatf("Starting:      %s{x\n", (race->starting ? "{WYES" : "{DNO")));
 		add_buf(buffer, formatf("Remort:        %s{x\n", (race->remort ? "{WYES" : "{DNO")));
 
 		if (IS_VALID(race->premort))
@@ -1147,6 +1169,46 @@ RACEEDIT( raceedit_gr )
 	return false;
 }
 
+RACEEDIT( raceedit_starting )
+{
+	RACE_DATA *race;
+
+	EDIT_RACE(ch, race);
+
+	if (!race->playable)
+	{
+		send_to_char("May only modify player fields on playable races.\n\r", ch);
+		return false;
+	}
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  starting <yes|no>\n\r", ch);
+		return false;
+	}
+
+	bool starting;
+	if (!str_prefix(argument, "yes"))
+		starting = true;
+	else if (!str_prefix(argument, "no"))
+		starting = false;
+	else
+	{
+		send_to_char("Please specify yes or no.\n\r", ch);
+		return false;
+	}
+
+	if(starting && race->remort)
+	{
+		send_to_char("Unable to make a remort race as a starting race.\n\r", ch);
+		return false;
+	}
+
+	race->starting = starting;
+	send_to_char("Race Starting changed.\n\r", ch);
+	return true;
+}
+
 RACEEDIT( raceedit_remort )
 {
 	RACE_DATA *race;
@@ -1240,6 +1302,12 @@ RACEEDIT( raceedit_remort )
 		}
 		else if (!str_prefix(arg, "set"))
 		{
+			if(race->starting)
+			{
+				send_to_char("Unable to make a starting race as a remort race.\n\r", ch);
+				return false;
+			}
+
 			// Unassign the remort linkage
 			race->premort = NULL;
 			race->remort = true;
@@ -1458,4 +1526,99 @@ RACEEDIT( raceedit_align )
 	return true;
 }
 
+RACEEDIT( raceedit_skills )
+{
+	RACE_DATA *race;
 
+	EDIT_RACE(ch, race);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  skills add <skill name>\n\r", ch);
+		send_to_char("         skills remove <skill name>\n\r", ch);
+		send_to_char("         skills clear\n\r", ch);
+		return false;
+	}
+
+	char arg[MIL];
+	argument = one_argument(argument, arg);
+	if (!str_prefix(arg, "add"))
+	{
+		if (argument[0] == '\0')
+		{
+			send_to_char("Syntax:  skills add <skill name>\n\r", ch);
+			return false;
+		}
+
+		SKILL_DATA *skill = get_skill_data(argument);
+		if (!IS_VALID(skill))
+		{
+			send_to_char("No such skill by that name.\n\r", ch);
+			return false;
+		}
+
+		if (list_size(skill->levels) > 0)
+		{
+			send_to_char("Skill may not have class restrictions on it.\n\r", ch);
+			return false;
+		}
+
+		if (list_contains(race->skills, skill, NULL))
+		{
+			send_to_char("Race already has that skill.\n\r", ch);
+			return false;
+		}
+
+		list_appendlink(race->skills, skill);
+		send_to_char("Skill added to race.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "remove"))
+	{
+		if (list_size(race->skills) < 1)
+		{
+			send_to_char("Race has no skills.\n\r", ch);
+			return false;
+		}
+		
+		if (argument[0] == '\0')
+		{
+			send_to_char("Syntax:  skills remove <skill name>\n\r", ch);
+			return false;
+		}
+
+		SKILL_DATA *skill = get_skill_data(argument);
+		if (!IS_VALID(skill))
+		{
+			send_to_char("No such skill by that name.\n\r", ch);
+			return false;
+		}
+
+		if (!list_contains(race->skills, skill, NULL))
+		{
+			send_to_char("Race does not have that skill.\n\r", ch);
+			return false;
+		}
+
+		list_remlink(race->skills, skill, false);
+		send_to_char("Skill removed from race.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "clear"))
+	{
+		if (list_size(race->skills) > 0)
+		{
+			list_clear(race->skills);
+			send_to_char("Race skills cleared.\n\r", ch);
+			return true;
+		}
+
+		send_to_char("Race has no skills.\n\r", ch);
+		return false;
+	}
+
+	raceedit_skills(ch, "");
+	return false;
+}

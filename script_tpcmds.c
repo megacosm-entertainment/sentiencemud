@@ -7421,8 +7421,6 @@ SCRIPT_CMD(do_tpremort)
 {
 	char *rest;
 
-    CHAR_DATA *mob;
-
 	if(!info || !info->token || IS_NULLSTR(argument)) return;
 
 	info->token->progs->lastreturn = 0;
@@ -7432,29 +7430,20 @@ SCRIPT_CMD(do_tpremort)
 
 	if(arg->type != ENT_MOBILE || !arg->d.mob) return;
 
-	mob = arg->d.mob;
-	if(IS_NPC(mob) || !mob->desc || is_char_busy(mob)) return;
+    CHAR_DATA *mob = arg->d.mob;
 
-	// Are they already being prompted
-	if(mob->desc->input ||
-		mob->pk_question ||
-		mob->remove_question ||
-		mob->personal_pk_question ||
-		mob->cross_zone_question ||
-		IS_VALID(mob->seal_book) ||
-		mob->pcdata->convert_church != -1 ||
-		mob->challenged ||
-		mob->remort_question)
-		return;
+	// Player must be here...
+	if (IS_NPC(mob) || !mob->desc) return;
 
-	if(IS_REMORT(mob)) return;
+	// Doesn't have a valid race
+	if (!IS_VALID(mob->race)) return;
 
-    if (mob->tot_level < LEVEL_HERO) return;
+	// Are they even capable of remorting from their current race?
+	if (!IS_VALID(mob->race->premort)) return;
 
-    mob->remort_question = TRUE;
-    show_multiclass_choices(mob, mob);
+	remort_player(mob);
 
-	info->token->progs->lastreturn = 1;
+	info->mob->progs->lastreturn = 1;
 }
 
 // Syntax: restore $MOBILE[ PERCENT]

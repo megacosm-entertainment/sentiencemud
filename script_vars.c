@@ -544,6 +544,25 @@ bool variables_setsave_skill (ppVARIABLE list,char *name,SKILL_DATA *skill, bool
 	return TRUE;
 }
 
+bool variables_set_skill_group (ppVARIABLE list,char *name,SKILL_GROUP *skill_group)
+{
+	return variables_setsave_skill_group( list, name, skill_group, TRISTATE );
+}
+
+bool variables_setsave_skill_group (ppVARIABLE list,char *name,SKILL_GROUP *skill_group, bool save)
+{
+	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
+
+	if(!var) return FALSE;
+
+	var->type = VAR_SKILLGROUP;
+	if( save != TRISTATE )
+		var->save = save;
+	var->_.skill_group =  IS_VALID(skill_group) ? skill_group : NULL;
+
+	return TRUE;
+}
+
 bool variables_set_skillinfo (ppVARIABLE list,char *name,CHAR_DATA *owner, SKILL_DATA *skill, TOKEN_DATA *token)
 {
 	return variables_setsave_skillinfo( list, name, owner, skill, token, TRISTATE );
@@ -583,6 +602,26 @@ bool variables_setsave_song (ppVARIABLE list,char *name,SONG_DATA *song, bool sa
 
 	return TRUE;
 }
+
+bool variables_set_classlevel (ppVARIABLE list,char *name,CLASS_LEVEL *level)
+{
+	return variables_setsave_classlevel( list, name, level, TRISTATE );
+}
+
+bool variables_setsave_classlevel (ppVARIABLE list,char *name,CLASS_LEVEL *level, bool save)
+{
+	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
+
+	if(!var) return FALSE;
+
+	var->type = VAR_CLASSLEVEL;
+	if( save != TRISTATE )
+		var->save = save;
+	var->_.level =  IS_VALID(level) ? level : NULL;
+
+	return TRUE;
+}
+
 
 bool variables_set_mobile_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save)
 {
@@ -1700,6 +1739,8 @@ bool variable_copy(ppVARIABLE list,char *oldname,char *newname)
 	case VAR_AREA_REGION:	newv->_.ar = oldv->_.ar; break;
 	case VAR_SKILL:			newv->_.skill = oldv->_.skill; break;
 	case VAR_SKILLINFO:		newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.skill = oldv->_.sk.skill; break;
+	case VAR_SKILLGROUP:	newv->_.skill_group = oldv->_.skill_group; break;
+	case VAR_CLASSLEVEL:	newv->_.level = oldv->_.level; break;
 	case VAR_SONG:			newv->_.song = oldv->_.song; break;
 	case VAR_AFFECT:		newv->_.aff = oldv->_.aff; break;
 	case VAR_BOOK_PAGE:		newv->_.book_page = oldv->_.book_page; break;
@@ -1770,6 +1811,8 @@ bool variable_copyto(ppVARIABLE from,ppVARIABLE to,char *oldname,char *newname, 
 	case VAR_AREA:		newv->_.a = oldv->_.a; break;
 	case VAR_AREA_REGION:	newv->_.ar = oldv->_.ar; break;
 	case VAR_SKILL:		newv->_.skill = oldv->_.skill; break;
+	case VAR_SKILLGROUP:	newv->_.skill_group = oldv->_.skill_group; break;
+	case VAR_CLASSLEVEL:	newv->_.level = oldv->_.level; break;
 	case VAR_SKILLINFO:	newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.skill = oldv->_.sk.skill; break;
 	case VAR_SONG:		newv->_.song = oldv->_.song; break;
 	case VAR_AFFECT:	newv->_.aff = oldv->_.aff; break;
@@ -1839,6 +1882,8 @@ bool variable_copylist(ppVARIABLE from,ppVARIABLE to,bool index)
 		case VAR_OBJECT:	newv->_.o = oldv->_.o; break;
 		case VAR_TOKEN:		newv->_.t = oldv->_.t; break;
 		case VAR_SKILL:		newv->_.skill = oldv->_.skill; break;
+		case VAR_SKILLGROUP:	newv->_.skill_group = oldv->_.skill_group; break;
+		case VAR_CLASSLEVEL:	newv->_.level = oldv->_.level; break;
 		case VAR_SKILLINFO:	newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.skill = oldv->_.sk.skill; break;
 		case VAR_SONG:		newv->_.song = oldv->_.song; break;
 		case VAR_AFFECT:	newv->_.aff = oldv->_.aff; break;
@@ -1908,6 +1953,8 @@ pVARIABLE variable_copyvar(pVARIABLE oldv)
 	case VAR_AREA:			newv->_.a = oldv->_.a; break;
 	case VAR_AREA_REGION:	newv->_.ar = oldv->_.ar; break;
 	case VAR_SKILL:			newv->_.skill = oldv->_.skill; break;
+	case VAR_SKILLGROUP:	newv->_.skill_group = oldv->_.skill_group; break;
+	case VAR_CLASSLEVEL:	newv->_.level = oldv->_.level; break;
 	case VAR_SKILLINFO:		newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.skill = oldv->_.sk.skill; break;
 	case VAR_SONG:			newv->_.song = oldv->_.song; break;
 	case VAR_AFFECT:		newv->_.aff = oldv->_.aff; break;
@@ -3878,6 +3925,19 @@ void olc_show_index_vars(BUFFER *buffer, pVARIABLE index_vars)
 					else
 						sprintf(buf, "{x%-20.20s {GSONG       {Y%c   {W-invalid-{x\n\r", var->name,var->save?'Y':'N');
 					break;
+				case VAR_SKILLGROUP:
+					if(IS_VALID(var->_.skill_group))
+						sprintf(buf, "{x%-20.20s {GSKILL GROUP{Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N', var->_.skill_group->name);
+					else
+						sprintf(buf, "{x%-20.20s {GSKILL GROUP{Y%c   {W-invalid-{x\n\r", var->name,var->save?'Y':'N');
+					break;
+				case VAR_CLASSLEVEL:
+					if(IS_VALID(var->_.level))
+						sprintf(buf, "{x%-20.20s {GCLASS LEVEL{Y%c   {W%s{x : {W%d{x\n\r", var->name,var->save?'Y':'N', var->_.level->clazz->name, var->_.level->level);
+					else
+						sprintf(buf, "{x%-20.20s {GCLASS LEVEL{Y%c   {W-invalid-{x\n\r", var->name,var->save?'Y':'N');
+					break;
+
 				default:
 					continue;
 				}

@@ -3116,8 +3116,13 @@ void do_score(CHAR_DATA * ch, char *argument)
     strcat(buf, "|\n\r");
     send_to_char(buf, ch);
 
-    sprintf(subclass, "%s", sub_class_table[ch->pcdata->sub_class_current].name[ch->sex]);
-    subclass[0] = LOWER(subclass[0]);
+	if (IS_VALID(ch->pcdata->current_class))
+	{
+		strcpy(subclass, ch->pcdata->current_class->clazz->display[ch->sex]);
+	    subclass[0] = LOWER(subclass[0]);
+	}
+	else
+		strcpy(subclass, "adventurer");
 
 	if (!IS_NPC(ch) && ch->pcdata->title[0])
 	{
@@ -3129,12 +3134,11 @@ void do_score(CHAR_DATA * ch, char *argument)
 	}
 
     /* LINE 2 *** */
-    sprintf(buf, "| {G%s {B[{x%s{B] [{x%s{B] [{x%s{B] [{x%s{B]{x",
+    sprintf(buf, "| {G%s {B[{x%s{B] [{x%s{B] [{x%s{B]{x",
 	    buf2,
-	    ch->sex == 0 ? "sexless" : ch->sex == 1 ? "male" : "female",
-	    race_table[ch->race].name,
-	    IS_NPC(ch) ? "mobile" : class_table[get_profession(ch, CLASS_CURRENT)].name,
-	    IS_NPC(ch) ? "mobile" : subclass);
+	    ch->sex == SEX_NEUTRAL ? "sexless" : ch->sex == SEX_MALE ? "male" : "female",
+		IS_VALID(ch->race) ? ch->race->name : "unknown",
+	    IS_NPC(ch) ? "mobile" : (IS_VALID(ch->pcdata->current_class) ? ch->pcdata->current_class->clazz->name : "unknown"));
 
     for (i = fstr_len(buf); i < 75; i++)
 	strcat(buf, " ");
@@ -3233,7 +3237,7 @@ void do_score(CHAR_DATA * ch, char *argument)
     if (!IS_NPC(ch) && ch->level < LEVEL_HERO)
     {
 	sprintf(buf, "{BExp to Level: {x%ld",
-		(exp_per_level(ch, ch->pcdata->points) - ch->exp));
+		(exp_per_level(ch, NULL, ch->pcdata->points) - ch->exp));
 	for (i = fstr_len(buf); i < 25; i++)
 	    strcat(buf, " ");
 	send_to_char(buf, ch);
@@ -3462,61 +3466,18 @@ void do_score(CHAR_DATA * ch, char *argument)
     /* Show Subclasses */
     if (!IS_IMMORTAL(ch))
     {
-	send_to_char("{xYou are proficient in the following subclasses:\n\r", ch);
-	if (get_profession(ch, SUBCLASS_MAGE) != -1)
-	{
-	    sprintf(buf, "{B[{x%s{B]{x", sub_class_table[get_profession(ch, SUBCLASS_MAGE)].name[ch->sex]);
-	    send_to_char(buf, ch);
-	}
+		send_to_char("{xYou are proficient in the following classes:\n\r", ch);
+		ITERATOR lit;
+		CLASS_LEVEL *cl;
+		iterator_start(&lit, ch->pcdata->classes);
+		while((cl = (CLASS_LEVEL *)iterator_nextdata(&lit)))
+		{
+		    sprintf(buf, "{B[{x%s{B]{x", cl->clazz->display[ch->sex]);
+		    send_to_char(buf, ch);
+		}
+		iterator_stop(&lit);
 
-	if (get_profession(ch, SUBCLASS_CLERIC) != -1)
-	{
-	    if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_WITCH && ch->sex == SEX_MALE)
-		sprintf(buf, "{B[{x%s{B]{x", "warlock");
-
-	    else
-		sprintf(buf, "{B[{x%s{B]{x", sub_class_table[get_profession(ch, SUBCLASS_CLERIC)].name[ch->sex]);
-
-	    send_to_char(buf, ch);
-	}
-
-	if (get_profession(ch, SUBCLASS_THIEF) != -1)
-	{
-	    sprintf(buf, "{B[{x%s{B]{x", sub_class_table[get_profession(ch, SUBCLASS_THIEF)].name[ch->sex]);
-	    send_to_char(buf, ch);
-	}
-
-	if (get_profession(ch, SUBCLASS_WARRIOR) != -1)
-	{
-	    sprintf(buf, "{B[{x%s{B]{x", sub_class_table[get_profession(ch, SUBCLASS_WARRIOR)].name[ch->sex]);
-	    send_to_char(buf, ch);
-	}
-
-	if (get_profession(ch, SECOND_SUBCLASS_MAGE) != -1)
-	{
-	    sprintf(buf, "{B[{x%s{B]{x", sub_class_table[get_profession(ch, SECOND_SUBCLASS_MAGE)].name[ch->sex]);
-	    send_to_char(buf, ch);
-	}
-
-	if (get_profession(ch, SECOND_SUBCLASS_CLERIC) != -1)
-	{
-	    sprintf(buf, "{B[{x%s{B]{x", sub_class_table[get_profession(ch, SECOND_SUBCLASS_CLERIC)].name[ch->sex]);
-	    send_to_char(buf, ch);
-	}
-
-	if (get_profession(ch, SECOND_SUBCLASS_THIEF) != -1)
-	{
-	    sprintf(buf, "{B[{x%s{B]{x", sub_class_table[get_profession(ch, SECOND_SUBCLASS_THIEF)].name[ch->sex]);
-	    send_to_char(buf, ch);
-	}
-
-	if (get_profession(ch, SECOND_SUBCLASS_WARRIOR) != -1)
-	{
-	    sprintf(buf, "{B[{x%s{B]{x", sub_class_table[get_profession(ch, SECOND_SUBCLASS_WARRIOR)].name[ch->sex]);
-	    send_to_char(buf, ch);
-	}
-
-	send_to_char("\n\r", ch);
+		send_to_char("\n\r", ch);
     }
 
     /* if (!IS_NPC(ch) && ch->tot_level >= LEVEL_IMMORTAL && ch->pcdata->immortal)
@@ -3754,35 +3715,70 @@ void do_score(CHAR_DATA * ch, char *argument)
 
     if (IS_IMMORTAL(ch))
     {
-	send_to_char("Holy: ", ch);
-	if (IS_SET(ch->act[0], PLR_HOLYLIGHT))
-	    send_to_char("{WLIGHT{x", ch);
-	else
-	    send_to_char("{DLIGHT{x", ch);
+		send_to_char("Holy: ", ch);
+		send_to_char(MXPCreateSend(ch->desc,"holyaura", (IS_SET(ch->act[1], PLR_HOLYAURA) ? "{WAURA{x" : "{DAURA{x")), ch);
+		send_to_char(" ", ch);
+		send_to_char(MXPCreateSend(ch->desc,"holylight", (IS_SET(ch->act[0], PLR_HOLYLIGHT) ? "{WLIGHT{x" : "{DLIGHT{x")), ch);
+		send_to_char(" ", ch);
+		send_to_char(MXPCreateSend(ch->desc,"holypersona", (IS_SET(ch->act[1], PLR_HOLYPERSONA) ? "{WPERSONA{x" : "{DPERSONA{x")), ch);
+		send_to_char(" ", ch);
+		send_to_char(MXPCreateSend(ch->desc,"holywarp", (IS_SET(ch->act[1], PLR_HOLYWARP) ? "{WWARP{x" : "{DWARP{x")), ch);
+		send_to_char("\n\r", ch);
 
-	if (IS_SET(ch->act[1], PLR_HOLYAURA))
-	    send_to_char(" {WAURA{x", ch);
-	else
-	    send_to_char(" {DAURA{x", ch);
+		if (ch->invis_level > 0)
+		{
+			send_to_char(formatf("Invisible: level %d  [ ", ch->invis_level), ch);
+			send_to_char(MXPCreateSend(ch->desc,"wizinvis", "off"), ch);
 
-	if (IS_SET(ch->act[1], PLR_HOLYWARP))
-	    send_to_char(" {WWARP{x", ch);
-	else
-	    send_to_char(" {DWARP{x", ch);
+			if (ch->invis_level > 2)
+			{
+				send_to_char(" ", ch);
+				send_to_char(MXPCreateSend(ch->desc,formatf("wizinvis %d", ch->invis_level - 1), "down"), ch);
+			}
 
-	if (ch->invis_level)
-	{
-	    sprintf(buf, "  Invisible: level %d", ch->invis_level);
-	    send_to_char(buf, ch);
-	}
+			if (ch->invis_level < get_trust(ch))
+			{
+				send_to_char(" ", ch);
+				send_to_char(MXPCreateSend(ch->desc,formatf("wizinvis %d", ch->invis_level + 1), "up"), ch);
+				send_to_char(" ", ch);
+				send_to_char(MXPCreateSend(ch->desc,formatf("wizinvis %d", get_trust(ch)), "max"), ch);
+			}
 
-	if (ch->incog_level)
-	{
-	    sprintf(buf, "  Incognito: level %d", ch->incog_level);
-	    send_to_char(buf, ch);
-	}
+		}
+		else
+		{
+			send_to_char("Invisible: off  [ ", ch);
+			send_to_char(MXPCreateSend(ch->desc,"wizinvis", "on"), ch);
+		}
+		send_to_char(" ]\n\r", ch);
 
-	send_to_char("\n\r", ch);
+		if (ch->incog_level > 0)
+		{
+			sprintf(buf, "Incognito: level %d", ch->incog_level);
+			send_to_char(buf, ch);
+			send_to_char(formatf("  Incognito: level %d  [ ", ch->incog_level), ch);
+			send_to_char(MXPCreateSend(ch->desc,"incognito", "off"), ch);
+
+			if (ch->incog_level > 2)
+			{
+				send_to_char(" ", ch);
+				send_to_char(MXPCreateSend(ch->desc,formatf("incognito %d", ch->incog_level - 1), "down"), ch);
+			}
+
+			if (ch->incog_level < get_trust(ch))
+			{
+				send_to_char(" ", ch);
+				send_to_char(MXPCreateSend(ch->desc,formatf("incognito %d", ch->incog_level + 1), "up"), ch);
+				send_to_char(" ", ch);
+				send_to_char(MXPCreateSend(ch->desc,formatf("incognito %d", get_trust(ch)), "max"), ch);
+			}
+		}
+		else
+		{
+			send_to_char("Incognito: off  [ ", ch);
+			send_to_char(MXPCreateSend(ch->desc,"incognito", "on"), ch);
+		}
+		send_to_char(" ]\n\r", ch);
     }
 }
 
@@ -3860,10 +3856,10 @@ void do_affects(CHAR_DATA * ch, char *argument)
         send_to_char(buf,ch);
     }
 
-    if (race_table[ch->race].aff != 0)
+    if (ch->race->aff[0] != 0 || ch->race->aff[1] != 0)
     {
         sprintf(buf, "{BRacial Affects: {G%s{x\n\r",
-			affect_bit_name(race_table[ch->race].aff));
+			bitmatrix_string(affect_flagbank, ch->race->aff));
         send_to_char(buf,ch);
     }
 
@@ -4554,39 +4550,77 @@ void do_who_new(CHAR_DATA * ch, char *argument)
 			arg[0] =='\0' || !str_prefix(arg, wch->name) ||
 			((!str_cmp(arg, "immortal") || !str_cmp(arg, "immortals") || !str_cmp(arg, "imm")) && wch->tot_level >= LEVEL_IMMORTAL) ||
 			(church != NULL && wch->church == church) ||
-			!str_prefix(arg, race_table[wch->race].name) || !str_prefix(arg, sub_class_table[get_profession(wch, SUBCLASS_CURRENT)].name[wch->sex]))
+			!str_prefix(arg, wch->race->name) ||
+			(IS_VALID(wch->pcdata->current_class) && !str_prefix(arg, wch->pcdata->current_class->clazz->display[wch->sex])))
 			;
 		else
 			continue;
 
-        if (wch->tot_level >= LEVEL_IMMORTAL)
-		    strcpy(classstr,wch->pcdata->immortal->imm_flag);
+		char *clazzptr;
+		char clazz_color = 'x';
+        if (IS_IMMORTAL(wch) && IS_SET(wch->act[1], PLR_HOLYPERSONA))
+		    clazzptr = wch->pcdata->immortal->imm_flag;
+		else if (IS_VALID(wch->pcdata->current_class))
+		{
+	    	clazzptr = wch->pcdata->current_class->clazz->who[wch->sex];
+
+			switch(wch->pcdata->current_class->clazz->type)
+			{
+			case CLASS_CLERIC:		clazz_color = 'Y'; break;
+			case CLASS_CRAFTING:	clazz_color = 'C'; break;
+			case CLASS_EXPLORER:	clazz_color = 'M'; break;
+			case CLASS_GATHERING:	clazz_color = 'G'; break;
+			case CLASS_MAGE:		clazz_color = 'B'; break;
+			case CLASS_THIEF:		clazz_color = 'W'; break;
+			case CLASS_WARRIOR:		clazz_color = 'R'; break;
+			}
+		}
 		else
-	    	strcpy(classstr,sub_class_table[get_profession(wch, SUBCLASS_CURRENT)].who_name[wch->sex]);
+			clazzptr = "";
+
+		// This will autocenter the text into a 12 character span
+		classlen = strlen_no_colours(clazzptr);
+		int start = 0;
+		while(classlen < 12)
+		{
+			if ((classlen & 1) == 0)	// Even
+			{
+				classstr[start++] = ' ';
+			}
+
+			classlen++;
+		}
+		strcpy(classstr + start, clazzptr);
+
 		classlen = 12 + strlen(classstr) - strlen_no_colours(classstr);
 
-		if(wch->race >= MAX_PC_RACE)
-			strcpy(racestr, "       ");
+		if (IS_VALID(wch->race))
+			strcpy(racestr, wch->race->who);
 		else
-			strcpy(racestr, pc_race_table[wch->race].who_name);
+			strcpy(racestr, "       ");
 		racelen = 7 + strlen(racestr) - strlen_no_colours(racestr);
 
 		nMatch++;
 
 		area_type = get_char_where(wch);
 
-		/* @SYN070509 Get rid of imm level. */
 		if (IS_IMMORTAL(wch))
 		    sprintf(level, "{W  IMM  {x");
 		else
-		    sprintf(level, "%-3d{B:{G%-3d", wch->level, wch->tot_level);
+		{
+			CLASS_LEVEL *current = wch->pcdata->current_class;
+			if (IS_VALID(current))
+		    	sprintf(level, "%-3d{B:{G%-3d", current->level, wch->tot_level);
+			else
+		    	sprintf(level, "---{B:{G%-3d", wch->tot_level);
+		}
 
 		sprintf(buf,
-        	"{B[{G%s{B][{M%s{B][ {Y%-*.*s {R%-*.*s {C%-6s {B] %s%s%s%s{G%-12s{x",
+        	"{B[{G%s{B][{M%s{B][ {Y%-*.*s {%c%-*.*s {C%-6s {B] %s%s%s%s{G%-12s{x",
 			level,
 			wch->sex == 0 ? "N" : (wch->sex == 1 ? "M" : "F"),
 			racelen,racelen,racestr,
-			classlen,classlen,classstr,
+			clazz_color,classlen,classlen,classstr,
 			area_type,
 			IS_DEAD(wch) ? "{D(Dead) {x" : "",
 			wch->incog_level > LEVEL_HERO ? "{D(Incog) {x" : "",
@@ -4675,10 +4709,11 @@ void do_whois(CHAR_DATA * ch, char *argument)
 	{
 	    found = TRUE;
 
-	    class = sub_class_table[get_profession(wch, SUBCLASS_CURRENT)].who_name[wch->sex];
+	    class = IS_VALID(wch->pcdata->current_class) ? wch->pcdata->current_class->clazz->name : "unknown";
 
+		// TODO: Add HOLY flag that can be used to show this
         if (wch->tot_level >= LEVEL_IMMORTAL)
-	    class = wch->pcdata->immortal->imm_flag;
+		    class = wch->pcdata->immortal->imm_flag;
 
 	if(!IS_IMMORTAL(wch)) {
 	        while (*class == '{')
@@ -4690,9 +4725,10 @@ void do_whois(CHAR_DATA * ch, char *argument)
 	   class++;
 	}
 
+	// TODO: Add HOLYPERSONA that will hide an immortal's race and class
 	/* If they are a player or a shaper, then use the PLAYER RACE name... */
-	if(!IS_IMMORTAL(wch) || wch->race == grn_shaper)
-		strcpy(racestr, pc_race_table[wch->race].name);
+	if(!IS_IMMORTAL(wch) || wch->race == gr_shaper)
+		strcpy(racestr, wch->race->who);
 	else if (wch->sex == SEX_FEMALE)
 		strcpy(racestr, "Goddess");
 	else
@@ -4727,7 +4763,7 @@ void do_whois(CHAR_DATA * ch, char *argument)
 		     "\n\rDescription:\n\r",
 		     wch->name,
 		     (wch->pcdata->title != NULL) ? wch->pcdata->title : "",
-		     wch->sex == 0 ? "None" : (wch->sex == 1 ? "Male" : "Female"),
+		     wch->sex == SEX_NEUTRAL ? "None" : (wch->sex == SEX_MALE ? "Male" : "Female"),
 		     (wch->church != NULL) ? wch->church_name : "None",
 		     (wch->church != NULL && wch->church_member != NULL) ? get_chrank(wch->church_member) : "None",
                      racestr,
@@ -8897,9 +8933,15 @@ void do_classes(CHAR_DATA *ch, char *argument)
 		case CLASS_WARRIOR:		clazz_color = 'R'; break;
 		}
 
-		sprintf(buf, "%2d  {%c%-20s{x     %s     %s\n\r", ++i,
-			clazz_color,
-			level->clazz->name,
+		char *display = formatf("{%c%s{x", clazz_color, level->clazz->display[ch->sex]);
+		int l=20-strlen_no_colours(display);
+		l=UMAX(l,0);
+
+		sprintf(buf, formatf("%%2d  %%s%%%ds     %%s     %%s\n\r", l), ++i,
+			(ch->pcdata->current_class != level) ?
+				MXPCreateSend(ch->desc, formatf("setclass %s", level->clazz->display[ch->sex]), display) :
+				display,
+			"",
 			(level->level < MAX_CLASS_LEVEL) ? formatf("%3d", level->level) : "{WMAX{x",
 			(level->level < MAX_CLASS_LEVEL) ? formatf("%ld / %ld (%ld%%)", level->xp, maxexp, percent) : "{D-{x / {D-{x");
 		add_buf(buffer, buf);

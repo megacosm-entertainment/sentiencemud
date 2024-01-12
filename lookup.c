@@ -147,6 +147,7 @@ int size_lookup (const char *name)
 /* returns race number */
 int race_lookup (const char *name)
 {
+/*
    int race;
 
    for ( race = 0; race_table[race].name != NULL; race++)
@@ -155,7 +156,7 @@ int race_lookup (const char *name)
 	&&  !str_prefix( name,race_table[race].name))
 	    return race;
    }
-
+*/
    return 0;
 }
 

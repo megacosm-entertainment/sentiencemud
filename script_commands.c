@@ -1474,7 +1474,7 @@ SCRIPT_CMD(scriptcmd_award)
 			field_name = "quest points";
 
 		} else if( !str_prefix(field, "experience") || !str_cmp(field, "xp") ) {
-			gain_exp(victim, amount);
+			gain_exp(victim, NULL, amount);
 			field_name = "experience";
 
 		} else
@@ -5192,7 +5192,7 @@ SCRIPT_CMD(scriptcmd_setrace)
 {
 	char *rest = argument;
 	CHAR_DATA *victim;
-	int race;
+	RACE_DATA *race;
 
 	SETRETURN(0);
 
@@ -5201,18 +5201,19 @@ SCRIPT_CMD(scriptcmd_setrace)
 	if (!IS_VALID(victim) || IS_NPC(victim)) return;
 
 	PARSE_ARGTYPE(STRING);
-	race = race_lookup(arg->d.str);
 
-	if (race == 0) return;
+	race = get_race_data(arg->d.str);
 
-	if (!race_table[race].pc_race) return;
+	if (!IS_VALID(race)) return;
+
+	if (!race->playable) return;
 
 	if (victim->tot_level < 1)
 	{
 		// New player
 
 		// Can't select a remort race to start off with
-		if (pc_race_table[race].remort) return;
+		if (race->remort) return;
 	}
 	else
 	{
@@ -5221,22 +5222,22 @@ SCRIPT_CMD(scriptcmd_setrace)
 		if (script_security < 9) return;
 
 		// Is remort, but new race isn't remort
-		if (IS_REMORT(victim) && !pc_race_table[race].remort) return;
+		if (IS_REMORT(victim) && !race->remort) return;
 
 		// Isn't remort, but new race is remort
-		if (!IS_REMORT(victim) && pc_race_table[race].remort) return;
+		if (!IS_REMORT(victim) && race->remort) return;
 	}
 
 
 	victim->race = race;
-	victim->affected_by_perm[0] = race_table[victim->race].aff;
-	victim->affected_by_perm[1] = race_table[victim->race].aff2;
-	victim->imm_flags_perm = race_table[victim->race].imm;
-	victim->res_flags_perm = race_table[victim->race].res;
-	victim->vuln_flags_perm = race_table[victim->race].vuln;
+	victim->affected_by_perm[0] = race->aff[0];
+	victim->affected_by_perm[1] = race->aff[1];
+	victim->imm_flags_perm = race->imm;
+	victim->res_flags_perm = race->res;
+	victim->vuln_flags_perm = race->vuln;
 	affect_fix_char(victim);
-	victim->form = race_table[victim->race].form;
-	victim->parts = race_table[victim->race].parts;
+	victim->form = race->form;
+	victim->parts = race->parts;
 	victim->lostparts = 0;
 
 	SETRETURN(1);

@@ -283,7 +283,7 @@ long wiznet_lookup (const char *name)
     return -1;
 }
 
-
+#if 0
 /* returns class number */
 int class_lookup(const char *name)
 {
@@ -335,6 +335,7 @@ int sub_class_search(const char *name)
 	    return sub_class;
    return -1;
 }
+#endif
 
 /* for immunity, vulnerabiltiy, and resistant
    the 'globals' (magic and weapons) may be overriden
@@ -449,12 +450,8 @@ int get_skill(CHAR_DATA *ch, SKILL_DATA *skill)
         rating = ch->level * 5 / 2;
     else if (!IS_NPC(ch))
     {
-		int this_class;
-
-		this_class = get_this_class(ch,skill);
-
 		SKILL_ENTRY *entry = skill_entry_findskill(ch->sorted_skills, skill);
-		if (entry && (had_skill(ch, skill) || ch->level >= skill->skill_level[this_class]))
+		if (entry && skill_entry_available(ch, entry))
 	    	rating = skill_entry_rating(ch, entry);
 		else
 		    rating = 0;
@@ -465,11 +462,16 @@ int get_skill(CHAR_DATA *ch, SKILL_DATA *skill)
 	 * Changed level calculation to the log functio to scale
 	 * well up to lv500  */
 
+#if 0
 		// Account for racial skills.
 		if (skill->race > 0 && ch->race != skill->race)
 			rating = 0;
 		else if (ch->tot_level < 10)
 			rating = 10;
+#else
+		if (ch->tot_level < 10)
+			rating = 10;
+#endif
 
 		if (is_skill_spell(skill))
 		{
@@ -882,7 +884,7 @@ int get_curr_stat(CHAR_DATA *ch, int stat)
     if (ch->dirty_stat[stat]) {
 
 		cur = ch->perm_stat[stat] + ch->mod_stat[stat];
-		max = !IS_NPC(ch) ? pc_race_table[ch->race].max_stats[stat] : 25;
+		max = !IS_NPC(ch) ? ch->race->max_stats[stat] : 25;
 		if (cur > max) {
 			float t = exp(-0.0075*(cur-max));
 			cur = max + (int)((50-max)*(1-t)/(1+t)+0.5);
@@ -904,19 +906,19 @@ int get_max_train(CHAR_DATA *ch, int stat)
     if (IS_NPC(ch) || ch->level > LEVEL_IMMORTAL)
 	return 25;
 
-    max = pc_race_table[ch->race].max_stats[stat];
+    max = ch->race->max_stats[stat];
 /* nrrk! disabling this, too! -- Areo
     if ((stat == STAT_INT && ch->pcdata->class_mage != -1)
     ||  (stat == STAT_WIS && ch->pcdata->class_cleric != -1)
     ||  (stat == STAT_DEX && ch->pcdata->class_thief != -1)
     ||  (stat == STAT_STR && ch->pcdata->class_warrior != -1))
     {*/
-	if ((ch->race == grn_human) || (ch->race == grn_avatar))
+	// TODO: Change into a racial trait
+	if ((ch->race == gr_human) || (ch->race == gr_avatar))
 	   max += 1;
 /*	else
 	   max += 2;
     }*/
-
 
     return UMIN(max,25);
 }
@@ -4981,10 +4983,11 @@ void resurrect_pc(CHAR_DATA *ch)
 
     /* Reset form and parts - Fixes issue 33 on gitlab repo - Tieryo 07/22/2016 */
 	/* Went back to fix properly for issue 126 */
-    ch->form = race_table[ch->race].form;
-    ch->parts = race_table[ch->race].parts & ~ch->lostparts;
+    ch->form = ch->race->form;
+    ch->parts = ch->race->parts & ~ch->lostparts;
     ch->lostparts	= 0;	// Restore anything lost
 
+	// TODO: Make this a trait
     if (IS_SAGE(ch))
 		SET_BIT(ch->affected_by[0], AFF_DETECT_HIDDEN);
 
@@ -5357,14 +5360,14 @@ char *pirate_name_generator(void)
 /* get remort race of a character based on their player race */
 // NIB20090323 - simplified this by adding race pointers to the pc_race table that points to the race number for the remort
 // If that race doesn't have the pointer, it can't remort. :)
-int get_remort_race(CHAR_DATA *ch)
+RACE_DATA *get_remort_race(CHAR_DATA *ch)
 {
-	int race, pc_race;
+	if (IS_VALID(ch->race->premort))
+	{
+		return ch->race->premort;
+	}
 
-	race = ch->race;
-	pc_race = race_table[race].pgprn ? *race_table[race].pgprn : 0;
-
-	return (!pc_race_table[pc_race].remort && pc_race_table[pc_race].prgrn) ? *pc_race_table[pc_race].prgrn : 0;
+	return NULL;
 }
 
 
@@ -6132,6 +6135,7 @@ bool is_pulling_relic(CHAR_DATA *ch)
 }
 
 
+#if 0
 // Lookup a class, subclass, or second subclass.
 int get_profession(CHAR_DATA *ch, int class_type)
 {
@@ -6174,7 +6178,6 @@ int get_profession(CHAR_DATA *ch, int class_type)
 	    return CLASS_NPC;
     }
 }
-
 
 // Set a class, subclass, etc on someone.
 void set_profession(CHAR_DATA *ch, int class_type, int class_value)
@@ -6313,7 +6316,7 @@ void set_profession(CHAR_DATA *ch, int class_type, int class_value)
 	    return;
     }
 }
-
+#endif
 
 // Find out what room an obj is 'in'.
 ROOM_INDEX_DATA *obj_room(OBJ_DATA *obj)

@@ -218,10 +218,9 @@ void check_assist(CHAR_DATA *ch, CHAR_DATA *victim)
 			// Don't include mounts in the fight except for crusader
 		if (IS_NPC(rch) && IS_SET(rch->act[0], ACT_MOUNT))
 		{
-		if (rch->rider != NULL
-		&&  !IS_NPC(rch->rider)
-		&&  rch->rider->pcdata->second_sub_class_warrior != CLASS_WARRIOR_CRUSADER)
-			continue;
+			// TODO: Change to a trait
+			if (rch->rider != NULL && !IS_NPC(rch->rider) && (!IS_VALID(ch->pcdata->current_class) || ch->pcdata->current_class->clazz != gcl_crusader))
+				continue;
 		}
 
 		// PCs next
@@ -444,8 +443,9 @@ void multi_hit(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, int dt)
 		if(!is_combatant_valid(victim, vid[0], vid[1])) return;
 	}
 
-	// better chance of 4th attack for marauder->destroyer
-	if (get_profession(ch, SUBCLASS_WARRIOR) == CLASS_WARRIOR_MARAUDER && get_profession(ch, SECOND_SUBCLASS_WARRIOR) == CLASS_WARRIOR_DESTROYER)
+	// better chance of 4th attack for destroyer
+	// TODO: Turn into a trait
+	if (get_current_class(ch) == gcl_destroyer)
 		chance = get_skill(ch, gsk_fourth_attack)/2;
 	else
 		chance = get_skill(ch, gsk_fourth_attack)/3;
@@ -1295,9 +1295,9 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, SKI
 
 	victim->in_damage_function = TRUE;
 
-	// sneaking doesn't wear off for rogue->ninja
-	if (IS_AFFECTED(ch, AFF_SNEAK) && !(get_profession(ch, SECOND_SUBCLASS_THIEF) == CLASS_THIEF_NINJA &&
-		get_profession(ch, SUBCLASS_THIEF) == CLASS_THIEF_ROGUE))
+	// sneaking doesn't wear off for ninja
+	// TODO: Turn into a trait
+	if (IS_AFFECTED(ch, AFF_SNEAK) && get_current_class(ch) != gcl_ninja)
 		affect_strip(ch, gsk_sneak);
 
 	if (IS_AFFECTED2(ch, AFF2_EVASION))
@@ -2364,7 +2364,8 @@ bool check_parry(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield)
 	}
 
 	// Ninja get better parry if wielding a sword and dagger
-	if (get_profession(victim, SECOND_SUBCLASS_THIEF) == CLASS_THIEF_NINJA) {
+	// TODO: Turn into a trait
+	if (get_current_class(ch) == gcl_ninja) {
 
 		if (weapon && weapon2 &&
 			((weapon->value[0] == WEAPON_SWORD && weapon2->value[0] == WEAPON_DAGGER) || (weapon->value[0] == WEAPON_DAGGER && weapon2->value[0] == WEAPON_SWORD))) {
@@ -2376,9 +2377,8 @@ bool check_parry(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield)
 		}
 	}
 
-	// Gladiator->destroyer also have better parry
-	if (get_profession(victim, SUBCLASS_WARRIOR) == CLASS_WARRIOR_GLADIATOR &&
-		get_profession(victim, SECOND_SUBCLASS_WARRIOR) == CLASS_WARRIOR_DESTROYER)
+	// destroyer also have better parry
+	if (get_current_class(ch) == gcl_destroyer)
 		chance = (chance * 3)/2;
 
 	ch->skill_chance = chance;
@@ -2812,7 +2812,8 @@ bool can_start_combat(CHAR_DATA *ch)
 
 	if (IS_NPC(ch) && IS_SET(ch->act[0], ACT_MOUNT) && MOUNTED(ch))
 	{
-		if (IS_NPC(MOUNTED(ch)) || get_profession(MOUNTED(ch), SECOND_SUBCLASS_WARRIOR) != CLASS_WARRIOR_CRUSADER)
+		// TODO: Turn into a trait
+		if (IS_NPC(MOUNTED(ch)) || get_current_class(ch) != gcl_crusader)
 			return FALSE;
 	}
 
@@ -3381,7 +3382,7 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
 
 		if( obj->item_type == ITEM_BODY_PART )
 		{
-			obj->value[1] = ch->race;
+			obj->value[1] = ch->race->uid;
 			if( !IS_NPC(ch) || ch->persist )
 			{
 				obj->value[2] = ch->id[0];
@@ -3789,8 +3790,8 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 
 	p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_STRIPAFFECT, NULL,0,0,0,0,0);
 
-	victim->affected_by[0]	= race_table[victim->race].aff;
-	victim->affected_by[1] = 0;
+	victim->affected_by[0]	= victim->race->aff[0];
+	victim->affected_by[1] = victim->race->aff[1];
 
 	victim->paroxysm = 0;
 
@@ -3962,8 +3963,6 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim, int percent)
 	char buf[MAX_STRING_LENGTH];
 	CHAR_DATA *gch;
 	int xp;
-	int members;
-	int group_levels;
 
 	// If is an NPC that can't level, verify this mob is grouped with a player in the room.
 	if (IS_NPC(ch) && !IS_SET(ch->act[1], ACT2_CANLEVEL))
@@ -3988,27 +3987,6 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim, int percent)
 		return;
 	}
 
-	members = 0;
-	group_levels = 0;
-	for (gch = ch->in_room->people; gch != NULL; gch = gch->next_in_room)
-	{
-		/* If this char is in the same form */
-		if (is_same_group(gch, ch))
-		{
-			members++;
-			if (IS_NPC(gch) && IS_SET(gch->act[0], ACT_MOUNT))
-				continue;
-			else
-				group_levels += gch->tot_level;
-		}
-	}
-
-	if (members == 0)
-	{
-		bug("Group_gain: 0 members.", members);
-		members = 1;
-		group_levels = ch->tot_level ;
-	}
 
 	for (gch = ch->in_room->people; gch != NULL; gch = gch->next_in_room)
 	{
@@ -4018,11 +3996,13 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim, int percent)
 		if (!is_same_group(gch, ch) || IS_NPC(gch))
 			continue;
 
-		xp = xp_compute(gch, victim, group_levels);	// This is computed so that objects can get experience
+		xp = xp_compute(gch, victim);	// This is computed so that objects can get experience
 
 		xp = percent * xp / 100;
 
-		if (!(IS_IMMORTAL(gch) || gch->tot_level == 120))
+		CLASS_LEVEL *level = get_class_level(gch, NULL);
+
+		if (!IS_IMMORTAL(gch) && IS_VALID(level) && level->level < level->clazz->max_level)
 		{
 			int pc_xp = xp;
 			/* Check for reckoning boost in addition to experience boost. If reckoning is active, do a flat 2x experience -- Areo */
@@ -4054,7 +4034,7 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim, int percent)
 			}
 			sprintf(buf, "{BYou receive {C%d {Bexperience points.\n\r{x", pc_xp);
 			send_to_char(buf, gch);
-			gain_exp(gch, pc_xp);
+			gain_exp(gch, NULL, pc_xp);
 		}
 
 		for (obj = gch->carrying; obj != NULL; obj = obj_next)
@@ -4084,7 +4064,7 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim, int percent)
 
 
 // Compute exp for a kill.
-int xp_compute(CHAR_DATA *gch, CHAR_DATA *victim, int total_levels)
+int xp_compute(CHAR_DATA *gch, CHAR_DATA *victim)
 {
 	int xp;
 	int base_exp;
@@ -4092,7 +4072,7 @@ int xp_compute(CHAR_DATA *gch, CHAR_DATA *victim, int total_levels)
 	char buf[MAX_STRING_LENGTH];
 	OBJ_DATA *obj;
 	int bonus_xp = 0;
-	int gch_tot_level;
+	int gch_level;
 	int diff_level;
 
 	multiplier = victim->tot_level;
@@ -4101,21 +4081,21 @@ int xp_compute(CHAR_DATA *gch, CHAR_DATA *victim, int total_levels)
 	else if (victim->tot_level < 90)	base_exp = 140;
 	else								base_exp = 150;
 
-	gch_tot_level = UMIN(120, gch->tot_level);	// Clamp the level
-	diff_level = gch_tot_level - victim->tot_level;
+	CLASS_LEVEL *level = get_class_level(gch, NULL);
+	gch_level = level ? level->level : 1;
+	diff_level = gch_level - victim->tot_level;
 
 	// adjust exp based on level difference
 	base_exp -= ((diff_level));
-	if (victim->tot_level > gch_tot_level)
+	if (victim->tot_level > gch_level)
 		base_exp += ((-diff_level)) / 2;
 
 	xp = base_exp * multiplier;
 
-	xp = (int) ((float) xp * (float) ((float) gch_tot_level / (float) total_levels));
+	//xp = (int) ((float) xp * (float) ((float) gch_level / (float) total_levels));
 
-	// HACK! stop people from leveling in plith.
-	// TODO: Add area flag to do this
-	if (diff_level > 25 && !str_cmp(gch->in_room->area->name, "Plith"))
+	// Stop players from farming in low level or newbie areas
+	if (diff_level > 25 && IS_SET(gch->in_room->area->area_flags, (AREA_LOW_LEVEL|AREA_NEWBIE)))
 		xp = (int) xp / diff_level;
 
 	victim->tempstore[0] = xp;
@@ -4134,6 +4114,7 @@ int xp_compute(CHAR_DATA *gch, CHAR_DATA *victim, int total_levels)
 	if (IS_SET(victim->act[0], ACT_ANIMATED))
 		xp = 0;
 
+	// TODO: Add a NO_XP flag?
 
 	bonus_xp = 0;
 	// Extra xp relic
@@ -4173,14 +4154,13 @@ int xp_compute(CHAR_DATA *gch, CHAR_DATA *victim, int total_levels)
 	bonus_xp += gch->in_room->tempstore[0];
 
 	if( xp > 0 && bonus_xp > 0 ) {
-		if(!(IS_IMMORTAL(gch) || gch->tot_level == 120))
+		if(!IS_IMMORTAL(gch) && level && level->level < level->clazz->max_level)
 			printf_to_char(gch, "{W%d%% more experience!{x", bonus_xp);
 		xp = (100 + bonus_xp) * xp / 100;
 	}
-	// kind of a hack but oh well
-	xp = UMAX(xp, 0);
 
-	return xp;
+	// Keep XP non-negative
+	return UMAX(xp, 0);
 }
 
 
@@ -6129,7 +6109,8 @@ void do_blackjack(CHAR_DATA *ch, char *argument)
 	chance = get_skill(ch, gsk_blackjack);
 	chance += (ch->tot_level - victim->tot_level);
 
-	if (get_profession(ch, SECOND_SUBCLASS_THIEF) != CLASS_THIEF_HIGHWAYMAN)
+	// TODO: Turn into a trait
+	if (get_current_class(ch) != gcl_highwayman)
 		chance = chance/2;
 	else
 		chance = (chance*3)/2;

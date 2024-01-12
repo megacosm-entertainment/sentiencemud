@@ -91,8 +91,10 @@ ENT_FIELD entity_types[] = {
 	{"area",			ENTITY_VAR_AREA,		ENT_AREA		},
 	{"aregion",			ENTITY_VAR_AREA_REGION,	ENT_AREA_REGION	},
 	{"skill",			ENTITY_VAR_SKILL,		ENT_SKILL		},
+	{"skillgroup",		ENTITY_VAR_SKILLGROUP,	ENT_SKILLGROUP	},
 	{"skillinfo",		ENTITY_VAR_SKILLINFO,	ENT_SKILLINFO	},
 	{"song",			ENTITY_VAR_SONG,		ENT_SONG		},
+	{"classlevel",		ENTITY_VAR_CLASSLEVEL,	ENT_CLASSLEVEL	},
 	{"aff",				ENTITY_VAR_AFFECT,		ENT_AFFECT		},
 	{"book_page",		ENTITY_VAR_BOOK_PAGE,	ENT_BOOK_PAGE	},
 	{"food_buff",		ENTITY_VAR_FOOD_BUFF,	ENT_FOOD_BUFF	},
@@ -248,6 +250,8 @@ ENT_FIELD entity_mobile[] = {
 	{"casttoken",				ENTITY_MOB_CASTTOKEN,		ENT_TOKEN	},
 	{"checkpoint",				ENTITY_MOB_CHECKPOINT,		ENT_ROOM	},
 	{"church",					ENTITY_MOB_CHURCH,			ENT_CHURCH	},
+	{"class",					ENTITY_MOB_CLASS,			ENT_CLASSLEVEL	},
+	{"classes",					ENTITY_MOB_CLASSES,			ENT_ILLIST_CLASSES	},
 	{"clonerooms",				ENTITY_MOB_CLONEROOMS,		ENT_BLLIST_ROOM	},
 	{"connection",				ENTITY_MOB_CONNECTION,		ENT_CONN	},
 	{"eq_about",				ENTITY_MOB_EQ_ABOUT,		ENT_OBJECT	},
@@ -324,7 +328,7 @@ ENT_FIELD entity_mobile[] = {
 	{"opponent",				ENTITY_MOB_OPPONENT,		ENT_MOBILE	},
 	{"owner",					ENTITY_MOB_OWNER,			ENT_MOBILE	},
 	{"prey",					ENTITY_MOB_HUNTING,			ENT_MOBILE	},
-	{"race",					ENTITY_MOB_RACE,			ENT_STRING	},
+	{"race",					ENTITY_MOB_RACE,			ENT_RACE	},
 	{"recall",					ENTITY_MOB_RECALL,			ENT_ROOM	},
 	{"rider",					ENTITY_MOB_RIDER,			ENT_MOBILE	},
 	{"room",					ENTITY_MOB_ROOM,			ENT_ROOM	},
@@ -840,6 +844,12 @@ ENT_FIELD entity_skill[] = {
 	{NULL,		0,			ENT_UNKNOWN	}
 };
 
+ENT_FIELD entity_skillgroups[] = {
+	{"name",	ENTITY_SKILLGROUP_NAME,		ENT_STRING },
+	{"contents",ENTITY_SKILLGROUP_CONTENTS,	ENT_ILLIST_SKILLGROUPS },
+	{NULL,		0,							ENT_UNKNOWN	}
+};
+
 ENT_FIELD entity_skillentry[] = {
 	{ "flags",	ENTITY_SKILLENTRY_FLAGS,		ENT_BITVECTOR },
 	{ "isspell",ENTITY_SKILLENTRY_ISSPELL,		ENT_BOOLEAN },
@@ -1005,17 +1015,65 @@ ENT_FIELD entity_variable[] = {
 	{"type",	ENTITY_VARIABLE_TYPE,	ENT_STRING	},
 	{"save",	ENTITY_VARIABLE_SAVE,	ENT_NUMBER	},
 	{NULL,		0,			ENT_UNKNOWN	}
+};
 
+ENT_FIELD entity_race[] = {
+	{"name",			ENTITY_RACE_NAME,				ENT_STRING	},
+	{"description",		ENTITY_RACE_DESCRIPTION,		ENT_STRING	},
+	{"comments",		ENTITY_RACE_COMMENTS,			ENT_STRING	},
+	{"uid",				ENTITY_RACE_UID,				ENT_NUMBER	},
+	{"playable",		ENTITY_RACE_PLAYABLE,			ENT_BOOLEAN	},
+	{"starting",		ENTITY_RACE_STARTING,			ENT_BOOLEAN	},
+	{"act",				ENTITY_RACE_ACT,				ENT_BITMATRIX	},
+	{"affects",			ENTITY_RACE_AFFECTS,			ENT_BITMATRIX	},
+	{"offense",			ENTITY_RACE_OFFENSE,			ENT_BITVECTOR	},
+	{"immune",			ENTITY_RACE_IMMUNE,				ENT_BITVECTOR	},
+	{"resist",			ENTITY_RACE_RESIST,				ENT_BITVECTOR	},
+	{"vuln",			ENTITY_RACE_VULN,				ENT_BITVECTOR	},
+	{"form",			ENTITY_RACE_FORM,				ENT_BITVECTOR	},
+	{"parts",			ENTITY_RACE_PARTS,				ENT_BITVECTOR	},
+	{"isremort",		ENTITY_RACE_ISREMORT,			ENT_BOOLEAN	},
+	{"remort",			ENTITY_RACE_REMORT,				ENT_RACE	},
+	{"who",				ENTITY_RACE_WHO,				ENT_STRING	},
+	{"skills",			ENTITY_RACE_SKILLS,				ENT_ILLIST_SKILLS	},
+	{"startingstats",	ENTITY_RACE_STARTING_STATS,		ENT_STATS_TABLE	},
+	{"maxstats",		ENTITY_RACE_MAX_STATS,			ENT_STATS_TABLE	},
+	{"maxvitals",		ENTITY_RACE_MAX_VITALS,			ENT_VITALS_TABLE	},
+	{"minsize",			ENTITY_RACE_MIN_SIZE,			ENT_NUMBER	},
+	{"maxsize",			ENTITY_RACE_MAX_SIZE,			ENT_NUMBER	},
+	{"alignment",		ENTITY_RACE_DEFAULT_ALIGNMENT,	ENT_NUMBER	},
+	{NULL,				0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_class[] = {
+	{"name",		ENTITY_CLASS_NAME,			ENT_STRING	},
+	{"description",	ENTITY_CLASS_DESCRIPTION,	ENT_STRING	},
+	{"comments",	ENTITY_CLASS_COMMENTS,		ENT_STRING	},
+	{"uid",			ENTITY_CLASS_UID,			ENT_NUMBER	},
+	{"display",		ENTITY_CLASS_DISPLAY,		ENT_SEX_STRING_TABLE	},
+	{"who",			ENTITY_CLASS_WHO,			ENT_SEX_STRING_TABLE	},
+	{"type",		ENTITY_CLASS_TYPE,			ENT_STAT	},
+	{"flags",		ENTITY_CLASS_FLAGS,			ENT_BITVECTOR	},
+	{"groups",		ENTITY_CLASS_GROUPS,		ENT_ILLIST_SKILLGROUPS	},
+	{"stat",		ENTITY_CLASS_PRIMARY_STAT,	ENT_STAT	},
+	{"maxlevel",	ENTITY_CLASS_MAX_LEVEL,		ENT_NUMBER	},
+	{NULL,			0,							ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_classlevel[] = {
+	{"class",		ENTITY_CLASSLEVEL_CLASS,	ENT_CLASS	},
+	{"level",		ENTITY_CLASSLEVEL_LEVEL,	ENT_NUMBER	},
+	{NULL,			0,							ENT_UNKNOWN	}
 };
 
 ENT_FIELD entity_group[] = {
-	{"owner",			ENTITY_GROUP_OWNER,				ENT_MOBILE	},
-	{"leader",			ENTITY_GROUP_LEADER,			ENT_MOBILE	},
-	{"ally",			ENTITY_GROUP_ALLY,				ENT_MOBILE	},
-	{"member",			ENTITY_GROUP_MEMBER,			ENT_MOBILE		},
-	{"members",			ENTITY_GROUP_MEMBERS,			ENT_ILLIST_MOB_GROUP	},
-	{"size",			ENTITY_GROUP_SIZE,				ENT_NUMBER	},
-	{NULL,		0,						ENT_UNKNOWN	}
+	{"owner",		ENTITY_GROUP_OWNER,		ENT_MOBILE	},
+	{"leader",		ENTITY_GROUP_LEADER,	ENT_MOBILE	},
+	{"ally",		ENTITY_GROUP_ALLY,		ENT_MOBILE	},
+	{"member",		ENTITY_GROUP_MEMBER,	ENT_MOBILE		},
+	{"members",		ENTITY_GROUP_MEMBERS,	ENT_ILLIST_MOB_GROUP	},
+	{"size",		ENTITY_GROUP_SIZE,		ENT_NUMBER	},
+	{NULL,			0,						ENT_UNKNOWN	}
 
 };
 
@@ -1025,7 +1083,7 @@ ENT_FIELD entity_dice[] = {
 	{"bonus",		ENTITY_DICE_BONUS,	ENT_NUMBER },
 	{"roll",		ENTITY_DICE_ROLL,	ENT_NUMBER },
 	{"last",		ENTITY_DICE_LAST,	ENT_NUMBER },
-	{NULL,		0,						ENT_UNKNOWN	}
+	{NULL,			0,					ENT_UNKNOWN	}
 };
 
 ENT_FIELD entity_range[] = {
@@ -1040,6 +1098,7 @@ ENT_FIELD entity_range[] = {
 ENT_FIELD entity_mobindex[] = {
 	{"wnum",			ENTITY_MOBINDEX_WNUM,			ENT_WIDEVNUM },
 	{"loaded",			ENTITY_MOBINDEX_LOADED,			ENT_NUMBER },
+	{NULL,		0,						ENT_UNKNOWN	}
 };
 
 ENT_FIELD entity_objindex[] = {
@@ -1154,10 +1213,14 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_TOKEN,		ENT_TOKEN,			entity_token,				TRUE,	FALSE },
 	{ ENT_AREA,			ENT_AREA,			entity_area,				TRUE,	FALSE },
 	{ ENT_SKILL,		ENT_SKILL,			entity_skill,				FALSE,	FALSE },
+	{ ENT_SKILLGROUP,	ENT_SKILLGROUP,		entity_skillgroups,			FALSE,	FALSE },
 	{ ENT_SKILLENTRY,	ENT_SKILLENTRY,		entity_skillentry,			FALSE,	FALSE },
 	{ ENT_SKILLINFO,	ENT_SKILLINFO,		entity_skill_info,			FALSE,	FALSE },
 	{ ENT_SPELL,		ENT_SPELL,			entity_spelldata,			FALSE,	FALSE },
 	{ ENT_SONG,			ENT_SONG,			entity_song,				FALSE,	FALSE },
+	{ ENT_RACE,			ENT_RACE,			entity_race,				FALSE,	FALSE },
+	{ ENT_CLASS,		ENT_CLASS,			entity_class,				FALSE,	FALSE },
+	{ ENT_CLASSLEVEL,	ENT_CLASSLEVEL,		entity_classlevel,			FALSE,	FALSE },
 	{ ENT_CONN,			ENT_CONN,			entity_conn,				FALSE,	FALSE },
 	{ ENT_AFFECT,		ENT_AFFECT,			entity_affect,				FALSE,	FALSE },
 	{ ENT_BOOK_PAGE,	ENT_BOOK_PAGE,		entity_book_page,			FALSE,	FALSE },
@@ -1592,12 +1655,12 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "has",				IFC_ANY,	"ES",	FALSE,	ifc_has,				"ifcheck has" },
 	{ "hascatalyst",		IFC_ANY,	"ES",	TRUE,	ifc_hascatalyst,		"ifcheck hascatalyst" },
 	{ "hascheckpoint",		IFC_ANY,	"ES",	TRUE,	ifc_hascheckpoint,		"ifcheck hascheckpoint" },
+	{ "hasclass",			IFC_ANY,	"ES",	FALSE,	ifc_hasclass,			"ifcheck hasclass" },
 	{ "hasenviroment",		IFC_ANY,	"ES",	TRUE,	ifc_hasenvironment,		"ifcheck hasenvironment" },
 	{ "hasprompt",			IFC_ANY,	"E",	FALSE,	ifc_hasprompt,			"ifcheck hasprompt" },
 	{ "hasqueue",			IFC_ANY,	"E",	FALSE,	ifc_hasqueue,			"ifcheck hasqueue" },
 	{ "hasship",			IFC_NONE,	"E",	FALSE,	ifc_hasship,			"ifcheck hasship" },
 	{ "hasspell",			IFC_ANY,	"ES",	FALSE,	ifc_hasspell,			"ifcheck hasspell" },
-	{ "hassubclass",		IFC_ANY,	"ES",	FALSE,	ifc_hassubclass,		"ifcheck hassubclass" },
 	{ "hastarget",			IFC_ANY,	"E",	FALSE,	ifc_hastarget,			"ifcheck hastarget" },
 	{ "hastoken",			IFC_ANY,	"EN",	FALSE,	ifc_hastoken,			"ifcheck hastoken" },
 	{ "hasvlink",			IFC_ANY,	"",		TRUE,	ifc_hasvlink,			"ifcheck hasvlink" },
@@ -1640,6 +1703,7 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "ischarm",			IFC_ANY,	"E",	FALSE,	ifc_ischarm,			"ifcheck ischarm" },
 	{ "ischurchexcom",		IFC_ANY,	"E",	FALSE,	ifc_ischurchexcom,		"ifcheck ischurchexcom" },
 	{ "ischurchpk",			IFC_ANY,	"E",	FALSE,	ifc_ischurchpk,			"ifcheck ischurchpk" },
+	{ "isclass",			IFC_ANY,	"ES",	FALSE,	ifc_isclass,			"ifcheck isclass" },
 	{ "iscloneroom",		IFC_ANY,	"E",	FALSE,	ifc_iscloneroom,		"ifcheck iscloneroom" },
 	{ "iscontainer",		IFC_ANY,	"E",	FALSE,	ifc_iscontainer,		"ifcheck iscontainer" },
 	{ "iscpkproof",			IFC_ANY,	"E",	FALSE,	ifc_iscpkproof,			"ifcheck iscpkproof" },
@@ -1697,7 +1761,6 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "isshooting",			IFC_ANY,	"Es",	FALSE,	ifc_isshooting,			"ifcheck isshooting" },
 	{ "isshopkeeper",		IFC_ANY,	"E",	FALSE,	ifc_isshopkeeper,		"ifcheck isshopkeeper" },
 	{ "isspell",			IFC_ANY,	"E",	FALSE,	ifc_isspell,			"ifcheck isspell" },
-	{ "issubclass",			IFC_ANY,	"ES",	FALSE,	ifc_issubclass,			"ifcheck issubclass" },
 	{ "issustained",		IFC_ANY,	"E",	FALSE,	ifc_issustained,		"ifcheck issustained" },
 	{ "istarget",			IFC_ANY,	"E",	FALSE,	ifc_istarget,			"ifcheck istarget" },
 	{ "istattooing",		IFC_ANY,	"E",	FALSE,	ifc_istattooing,		"ifcheck istattooing" },

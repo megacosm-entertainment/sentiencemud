@@ -1,4 +1,3 @@
-
 /***************************************************************************
  *                                                                         *
  *    Scripting engine rebuilt by Michael Kurtz (Nibelung)                 *
@@ -558,6 +557,8 @@ char *expand_argument_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 			} else
 				arg->d.sk.tid[0] = arg->d.sk.tid[1] = 0;
 			break;
+		case VAR_SKILLGROUP:	arg->type = ENT_SKILLGROUP; arg->d.skill_group = var->_.skill_group; break;
+		case VAR_CLASSLEVEL:	arg->type = ENT_CLASSLEVEL; arg->d.level = var->_.level; break;
 		case VAR_SONG:		arg->type = ENT_SONG; arg->d.song = var->_.song; break;
 		case VAR_AFFECT:	arg->type = ENT_AFFECT; arg->d.aff = var->_.aff; break;
 		case VAR_BOOK_PAGE:	arg->type = ENT_BOOK_PAGE; arg->d.book_page = var->_.book_page; break;
@@ -949,6 +950,21 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 		else return NULL;
 
 		arg->type = ENT_SONG;
+		break;
+
+	case ENTITY_VAR_SKILLGROUP:
+		if (var && var->type == VAR_SKILLGROUP)
+			arg->d.skill_group = var->_.skill_group;
+		else return NULL;
+
+		arg->type = ENT_SKILLGROUP;
+		break;
+	case ENTITY_VAR_CLASSLEVEL:
+		if (var && var->type == VAR_CLASSLEVEL)
+			arg->d.level = var->_.level;
+		else return NULL;
+
+		arg->type = ENT_CLASSLEVEL;
 		break;
 
 	case ENTITY_VAR_SECTION:
@@ -1932,8 +1948,16 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.str = self ? (char*)himself[URANGE(0,self->sex,2)] : (char*)SOMEONE;
 		break;
 	case ENTITY_MOB_RACE:
-		arg->type = ENT_STRING;
-		arg->d.str = self ? (char*)race_table[self->race].name : "unknown";
+		arg->type = ENT_RACE;
+		arg->d.race = self ? self->race : NULL;
+		break;
+	case ENTITY_MOB_CLASS:
+		arg->type = ENT_CLASSLEVEL;
+		arg->d.level = (self && !IS_NPC(self)) ? self->pcdata->current_class : NULL;
+		break;
+	case ENTITY_MOB_CLASSES:
+		arg->type = ENT_ILLIST_CLASSES;
+		arg->d.blist = (self && !IS_NPC(self)) ? self->pcdata->classes : NULL;
 		break;
 	case ENTITY_MOB_ROOM:
 		arg->type = ENT_ROOM;
@@ -2418,10 +2442,16 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.str = (char*)SOMEONE;
 		break;
 	case ENTITY_MOB_RACE:
-		arg->type = ENT_STRING;
-		clear_buf(arg->buffer);
-		add_buf(arg->buffer, "unknown");
-		arg->d.str = buf_string(arg->buffer);
+		arg->type = ENT_RACE;
+		arg->d.race = NULL;
+		break;
+	case ENTITY_MOB_CLASS:
+		arg->type = ENT_CLASSLEVEL;
+		arg->d.level = NULL;
+		break;
+	case ENTITY_MOB_CLASSES:
+		arg->type = ENT_ILLIST_CLASSES;
+		arg->d.blist = NULL;
 		break;
 	case ENTITY_MOB_ROOM:
 		arg->type = ENT_ROOM;
@@ -4525,6 +4555,7 @@ char *expand_entity_skill(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	return str+1;
 }
 
+
 char *expand_entity_skill_values(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	if (*str == ESCAPE_EXPRESSION)
@@ -4564,6 +4595,31 @@ char *expand_entity_skill_valuenames(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM
 
 	return NULL;
 }
+
+char *expand_entity_skillgroup(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	SKILL_GROUP *group = arg->d.skill_group;
+
+	switch(*str)
+	{
+	case ENTITY_SKILLGROUP_NAME:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(group) ? group->name : "";
+		break;
+	
+	// TODO: Turn this into a special parser to get out either SKILL_GROUP or SKILL_DATA.
+	case ENTITY_SKILLGROUP_CONTENTS:
+		arg->type = ENT_PLLIST_STR;
+		arg->d.blist = IS_VALID(group) ? group->contents : NULL;
+		break;
+
+	default:
+		return NULL;
+	}
+
+	return str+1;
+}
+
 
 char *expand_entity_skillentry(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
@@ -8840,6 +8896,295 @@ char *expand_entity_catalyst_usage(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *
 	return NULL;
 }
 
+char *expand_entity_race(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	RACE_DATA *race = arg->d.race;
+
+	switch(*str)
+	{
+	case ENTITY_RACE_NAME:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(race) ? race->name : "";
+		break;
+
+	case ENTITY_RACE_DESCRIPTION:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(race) ? race->description : "";
+		break;
+
+	case ENTITY_RACE_COMMENTS:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(race) ? race->description : "";
+		break;
+
+	case ENTITY_RACE_UID:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(race) ? race->uid : 0;
+		break;
+
+	case ENTITY_RACE_PLAYABLE:
+		arg->type = ENT_BOOLEAN;
+		arg->d.boolean = IS_VALID(race) ? race->playable : false;
+		break;
+
+	case ENTITY_RACE_STARTING:
+		arg->type = ENT_BOOLEAN;
+		arg->d.boolean = IS_VALID(race) ? race->starting : false;
+		break;
+
+	case ENTITY_RACE_ACT:
+		arg->type = ENT_BITMATRIX;
+		arg->d.bm.values = IS_VALID(race) ? race->act : NULL;
+		arg->d.bm.bank = act_flagbank;
+		break;
+
+	case ENTITY_RACE_AFFECTS:
+		arg->type = ENT_BITMATRIX;
+		arg->d.bm.values = IS_VALID(race) ? race->aff : NULL;
+		arg->d.bm.bank = affect_flagbank;
+		break;
+
+	case ENTITY_RACE_OFFENSE:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(race) ? race->off : 0;
+		arg->d.bv.table = off_flags;
+		break;
+
+	case ENTITY_RACE_IMMUNE:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(race) ? race->imm : 0;
+		arg->d.bv.table = imm_flags;
+		break;
+
+	case ENTITY_RACE_RESIST:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(race) ? race->res : 0;
+		arg->d.bv.table = imm_flags;
+		break;
+
+	case ENTITY_RACE_VULN:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(race) ? race->vuln : 0;
+		arg->d.bv.table = imm_flags;
+		break;
+
+	case ENTITY_RACE_FORM:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(race) ? race->form : 0;
+		arg->d.bv.table = form_flags;
+		break;
+
+	case ENTITY_RACE_PARTS:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(race) ? race->parts : 0;
+		arg->d.bv.table = part_flags;
+		break;
+
+	case ENTITY_RACE_ISREMORT:
+		arg->type = ENT_BOOLEAN;
+		arg->d.boolean = IS_VALID(race) ? race->remort : false;
+		break;
+
+	case ENTITY_RACE_REMORT:
+		arg->type = ENT_RACE;
+		arg->d.race = IS_VALID(race) ? race->premort : NULL;
+		break;
+
+	case ENTITY_RACE_WHO:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(race) ? race->who : "";
+		break;
+
+	case ENTITY_RACE_SKILLS:
+		arg->type = ENT_ILLIST_SKILLS;
+		arg->d.blist = IS_VALID(race) ? race->skills : NULL;
+		break;
+
+	case ENTITY_RACE_STARTING_STATS:
+		arg->type = ENT_STATS_TABLE;
+		arg->d.ints.table = IS_VALID(race) ? race->stats : NULL;
+		arg->d.ints.max = MAX_STATS;
+		break;
+
+	case ENTITY_RACE_MAX_STATS:
+		arg->type = ENT_STATS_TABLE;
+		arg->d.ints.table = IS_VALID(race) ? race->max_stats : NULL;
+		arg->d.ints.max = MAX_STATS;
+		break;
+
+	case ENTITY_RACE_MAX_VITALS:
+		arg->type = ENT_VITALS_TABLE;
+		arg->d.ints.table = IS_VALID(race) ? race->max_vitals : NULL;
+		arg->d.ints.max = 3;
+		break;
+
+	case ENTITY_RACE_MIN_SIZE:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(race) ? race->min_size : 0;
+		break;
+
+	case ENTITY_RACE_MAX_SIZE:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(race) ? race->max_size : 0;
+		break;
+
+	case ENTITY_RACE_DEFAULT_ALIGNMENT:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(race) ? race->default_alignment : 0;
+		break;
+
+	default:
+		return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_class(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	CLASS_DATA *clazz = arg->d.clazz;
+
+	switch(*str)
+	{
+	case ENTITY_CLASS_NAME:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(clazz) ? clazz->name : "";
+		break;
+
+	case ENTITY_CLASS_DESCRIPTION:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(clazz) ? clazz->description : "";
+		break;
+
+	case ENTITY_CLASS_COMMENTS:
+		arg->type = ENT_STRING;
+		arg->d.str = "";	// TODO: Add class comments
+		break;
+
+	case ENTITY_CLASS_UID:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(clazz) ? clazz->uid : 0;
+		break;
+
+	case ENTITY_CLASS_DISPLAY:
+		arg->type = ENT_SEX_STRING_TABLE;
+		arg->d.strings.table = IS_VALID(clazz) ? clazz->display : NULL;
+		arg->d.strings.max = SEX_MAX;
+		break;
+
+	case ENTITY_CLASS_WHO:
+		arg->type = ENT_SEX_STRING_TABLE;
+		arg->d.strings.table = IS_VALID(clazz) ? clazz->who : NULL;
+		arg->d.strings.max = SEX_MAX;
+		break;
+
+	case ENTITY_CLASS_TYPE:
+		arg->type = ENT_STAT;
+		arg->d.stat.value = IS_VALID(clazz) ? clazz->type : NO_FLAG;
+		arg->d.stat.table = class_types;
+		arg->d.stat.def_value = CLASS_NONE;
+		break;
+
+	case ENTITY_CLASS_FLAGS:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(clazz) ? clazz->flags : 0;
+		arg->d.bv.table = class_flags;
+		break;
+
+	case ENTITY_CLASS_GROUPS:
+		arg->type = ENT_ILLIST_SKILLGROUPS;
+		arg->d.blist = IS_VALID(clazz) ? clazz->groups : NULL;
+		break;
+
+	case ENTITY_CLASS_PRIMARY_STAT:
+		arg->type = ENT_STAT;
+		arg->d.stat.value = IS_VALID(clazz) ? clazz->primary_stat : NO_FLAG;
+		arg->d.stat.table = stat_types;
+		arg->d.stat.def_value = STAT_NONE;
+		break;
+
+	case ENTITY_CLASS_MAX_LEVEL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(clazz) ? clazz->max_level : 0;
+		break;
+
+	default:
+		return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_classlevel(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	CLASS_LEVEL *level = arg->d.level;
+
+	switch(*str)
+	{
+	case ENTITY_CLASSLEVEL_CLASS:
+		arg->type = ENT_CLASS;
+		arg->d.clazz = level ? level->clazz : NULL;
+		break;
+
+	case ENTITY_CLASSLEVEL_LEVEL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = level ? level->level : 0;
+		break;
+
+	default:
+		return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_sex_string_table(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	char **table = arg->d.strings.table;
+	int max = arg->d.strings.max;
+
+	int sex = (int)(*str - ESCAPE_EXTRA);
+	if (sex < 0 || sex >= max)
+		return NULL;
+
+	arg->type = ENT_STRING;
+	arg->d.str = table ? table[sex] : "";
+
+	return str+1;
+}
+
+char *expand_entity_stats_table(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	int *table = arg->d.ints.table;
+	int max = arg->d.ints.max;
+
+	int stat = (int)(*str - ESCAPE_EXTRA);
+	if (stat < 0 || stat >= max)
+		return NULL;
+
+	arg->type = ENT_NUMBER;
+	arg->d.num = table ? table[stat] : 0;
+
+	return str+1;
+}
+
+char *expand_entity_vitals_table(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	int *table = arg->d.ints.table;
+	int max = arg->d.ints.max;
+
+	int vital = (int)(*str - ESCAPE_EXTRA);
+	if (vital < 0 || vital >= max)
+		return NULL;
+
+	arg->type = ENT_NUMBER;
+	arg->d.num = table ? table[vital] : 0;
+
+	return str+1;
+}
+
+
+
 
 char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
@@ -8873,6 +9218,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_SKILL:		next = expand_entity_skill(info,str,arg); break;
 		case ENT_SKILL_VALUES:	next = expand_entity_skill_values(info,str,arg); break;
 		case ENT_SKILL_VALUENAMES:	next = expand_entity_skill_valuenames(info,str,arg); break;
+		case ENT_SKILLGROUP:	next = expand_entity_skillgroup(info,str,arg); break;
 		case ENT_SKILLENTRY:	next = expand_entity_skillentry(info,str,arg); break;
 		case ENT_SKILLINFO:	next = expand_entity_skillinfo(info,str,arg); break;
 		case ENT_CONN:		next = expand_entity_conn(info,str,arg); break;
@@ -8987,6 +9333,14 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_STAT:			next = expand_entity_stat(info,str,arg); break;
 		case ENT_BITVECTOR:		next = expand_entity_bitvector(info,str,arg); break;
 		case ENT_BITMATRIX:		next = expand_entity_bitmatrix(info,str,arg); break;
+
+		case ENT_RACE:				next = expand_entity_race(info,str,arg); break;
+		case ENT_CLASS:				next = expand_entity_class(info,str,arg); break;
+		case ENT_CLASSLEVEL:			next = expand_entity_classlevel(info,str,arg); break;
+		case ENT_SEX_STRING_TABLE:	next = expand_entity_sex_string_table(info,str,arg); break;
+		case ENT_STATS_TABLE:		next = expand_entity_stats_table(info,str,arg); break;
+		case ENT_VITALS_TABLE:		next = expand_entity_vitals_table(info,str,arg); break;
+
 		case ENT_NULL:
 			next = str+1;
 			arg->type = ENT_NULL;

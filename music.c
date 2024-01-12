@@ -451,12 +451,14 @@ void do_play(CHAR_DATA *ch, char *argument)
 		int scale1 = 1;
 		int scale2 = 1;
 
+		#if 0
 		/* Sage has shorter playing time if Bard before */
 		if (IS_SAGE(ch) && ch->pcdata->sub_class_thief == CLASS_THIEF_BARD)
 		{
 			scale1 *= 2;
 			scale2 *= 3;	// Give a 1/3 reduction
 		}
+		#endif
 
 		if( instrument != NULL )
 		{
@@ -616,18 +618,6 @@ void music_end( CHAR_DATA *ch )
 }
 
 
-bool was_bard( CHAR_DATA *ch )
-{
-    // they are a bard now, so they have to level to get the songs
-    if ( ch->pcdata->sub_class_current == CLASS_THIEF_BARD )
-	return FALSE;
-
-    // They were a bard sometime in the past so they dont have to level.
-    if ( ch->pcdata->sub_class_thief == CLASS_THIEF_BARD )
-	return TRUE;
-
-    return FALSE;
-}
 
 SONG_DATA *get_song_data( char *name)
 {
@@ -1488,7 +1478,8 @@ void check_improve_song_show( CHAR_DATA *ch, SONG_DATA *song, bool success, int 
 	if(!IS_SET(entry->flags, SKILL_IMPROVE))
 		return;
 
-	if (!IS_IMMORTAL(ch) && ch->pcdata->sub_class_thief != CLASS_THIEF_BARD)
+	// Only bards, as songs may only be played while as a bard
+	if (!IS_IMMORTAL(ch) && get_current_class(ch) != gcl_bard)
 		return;
 
     if (entry->rating <= 0 || entry->rating == 100)
@@ -1519,7 +1510,7 @@ void check_improve_song_show( CHAR_DATA *ch, SONG_DATA *song, bool success, int 
 			sprintf(buf,"{WYou have become better at %s!{x\n\r", song->name);
 			send_to_char(buf,ch);
 			entry->rating++;
-			gain_exp(ch, 2 * diff);
+			gain_exp(ch, NULL, 2 * diff);
 		}
     }
     else
@@ -1531,7 +1522,7 @@ void check_improve_song_show( CHAR_DATA *ch, SONG_DATA *song, bool success, int 
 			send_to_char(buf, ch);
 			entry->rating += number_range(1,3);
 			entry->rating = UMIN(entry->rating,100);
-			gain_exp(ch,diff);
+			gain_exp(ch, NULL,diff);
 		}
     }
 }

@@ -239,6 +239,7 @@ DECLARE_DO_FUN(	do_hints	);
 DECLARE_DO_FUN(	do_holdup	);
 DECLARE_DO_FUN(	do_holylight	);
 DECLARE_DO_FUN(	do_holyaura	);
+DECLARE_DO_FUN(	do_holypersona	);
 DECLARE_DO_FUN(	do_holywarp	);
 DECLARE_DO_FUN(	do_house	);
 DECLARE_DO_FUN(	do_housemove	);
@@ -643,6 +644,7 @@ DECLARE_DO_FUN( do_matlist );
 DECLARE_DO_FUN( do_matshow );
 
 
+DECLARE_DO_FUN( do_setclass );
 DECLARE_DO_FUN( do_classes );
 DECLARE_DO_FUN( do_clslist );
 DECLARE_DO_FUN( do_clsedit );

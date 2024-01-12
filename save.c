@@ -126,6 +126,64 @@ void fwrite_stache_obj(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp);
 void fread_reputation(FILE *fp, CHAR_DATA *ch);
 void insert_class_level(CHAR_DATA *ch, CLASS_LEVEL *cl);
 
+// Version structures
+struct __player_data_version_007
+{
+    int			class_current;
+    int			sub_class_current;
+    int			class_mage;
+    int			second_class_mage;
+    int			sub_class_mage;
+    int			second_sub_class_mage;
+    int			class_cleric;
+    int			second_class_cleric;
+    int			sub_class_cleric;
+    int			second_sub_class_cleric;
+    int			class_thief;
+    int			second_class_thief;
+    int			sub_class_thief;
+    int			second_sub_class_thief;
+    int			class_warrior;
+    int			second_class_warrior;
+    int			sub_class_warrior;
+    int			second_sub_class_warrior;
+};
+
+static void __init_player_versioning_007(struct __player_data_version_007 *data)
+{
+	data->class_current = -1;
+	data->sub_class_current = -1;
+	data->class_mage = -1;
+	data->second_class_mage = -1;
+	data->sub_class_mage = -1;
+	data->second_sub_class_mage = -1;
+	data->class_cleric = -1;
+	data->second_class_cleric = -1;
+	data->sub_class_cleric = -1;
+	data->second_sub_class_cleric = -1;
+	data->class_thief = -1;
+	data->second_class_thief = -1;
+	data->sub_class_thief = -1;
+	data->second_sub_class_thief = -1;
+	data->class_warrior = -1;
+	data->second_class_warrior = -1;
+	data->sub_class_warrior = -1;
+	data->second_sub_class_warrior = -1;
+}
+
+struct __player_data_versioning
+{
+	struct __player_data_version_007 _007;
+};
+
+static void __init_player_versioning(struct __player_data_versioning *data)
+{
+	__init_player_versioning_007(&data->_007);
+}
+
+void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__versioning);
+void fix_character( CHAR_DATA *ch, struct __player_data_versioning *__versioning );
+
 // Output a string of letters corresponding to the bitvalues for a flag
 char *print_flags(long flag)
 {
@@ -324,7 +382,7 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     if (ch->prompt != NULL
     || !str_cmp(ch->prompt,"{B<{x%h{Bhp {x%m{Bm {x%v{Bmv>{x "))
         fprintf(fp, "Prom %s~\n",      ch->prompt  	);
-    fprintf(fp, "Race %s~\n", pc_race_table[ch->race].name);
+    fprintf(fp, "Race %s~\n", ch->race->name);
     fprintf(fp, "Sex  %d\n",	ch->sex			);
     fprintf(fp, "LockerRent %ld\n", (long int)ch->locker_rent   );
 
@@ -337,6 +395,13 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 	}
 	iterator_stop(&cit);
 
+	if (IS_VALID(ch->pcdata->current_class) && IS_VALID(ch->pcdata->current_class->clazz))
+	{
+		fprintf(fp, "Class %s~\n", ch->pcdata->current_class->clazz->name);
+	}
+
+#if 0
+	// Removed in PLAYER VERSION 007
     fprintf(fp, "Cla  %d\n",	ch->pcdata->class_current		);
     fprintf(fp, "Mc0  %d\n",	ch->pcdata->class_mage		);
     fprintf(fp, "Mc1  %d\n",	ch->pcdata->class_cleric		);
@@ -355,6 +420,8 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     fprintf(fp, "SSMc1  %d\n",	ch->pcdata->second_sub_class_cleric		);
     fprintf(fp, "SSMc2  %d\n",	ch->pcdata->second_sub_class_thief		);
     fprintf(fp, "SSMc3  %d\n",	ch->pcdata->second_sub_class_warrior		);
+#endif
+
     if (ch->pcdata->email != NULL)
 	fprintf(fp, "Email %s~\n",  ch->pcdata->email	);
     fprintf(fp, "Levl %d\n",	ch->level		);
@@ -751,6 +818,7 @@ extern pVARIABLE variable_tail;
  */
 bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 {
+	struct __player_data_versioning __versioning;
     char strsave[MAX_INPUT_LENGTH];
     char buf[MSL];
     CHAR_DATA *ch;
@@ -763,6 +831,8 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     TOKEN_DATA *token;
     pVARIABLE last_var = variable_tail;
 
+	__init_player_versioning(&__versioning);
+
     ch = new_char();
     ch->pcdata = new_pcdata();
 
@@ -771,7 +841,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     ch->name				= str_dup(name);
     ch->id[0] = ch->id[1]		= 0;
     ch->pcdata->creation_date		= -1;
-    ch->race				= race_lookup("human");
+    ch->race				= gr_human;
     ch->act[0]				= PLR_NOSUMMON;
     ch->act[1]				= 0;
     ch->comm				= COMM_PROMPT;
@@ -846,7 +916,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 
 			word = fread_word(fp);
 			if (!str_cmp(word, "PLAYER"))
-				fread_char(ch, fp);
+				fread_char(ch, fp, &__versioning);
 			else if (!str_cmp(word, "OBJECT") || !str_cmp(word, "O"))
 			{
 				obj = fread_obj_new(fp);
@@ -960,13 +1030,13 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 
     // Fix char.
     if (found)
-	fix_character(ch);
+		fix_character(ch, &__versioning);
 
     /* Redo shift. Remember ch->shifted was just used as a placeholder to tell the game
        to re-shift, so we have to switch it to none first. */
     if (ch->shifted != SHIFTED_NONE) {
-	ch->shifted = SHIFTED_NONE;
-	shift_char(ch, TRUE);
+		ch->shifted = SHIFTED_NONE;
+		shift_char(ch, TRUE);
     }
 
 	variable_fix_list(last_var ? last_var : variable_head);
@@ -979,7 +1049,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 /*
  * Read in a char.
  */
-void fread_char(CHAR_DATA *ch, FILE *fp)
+void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__versioning)
 {
     AREA_DATA *pArea = NULL;
     char buf[MAX_STRING_LENGTH];
@@ -993,7 +1063,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
     int percent;
     int i = 0;
 
-    sprintf(buf,"save.c, fread_char: reading %s.",ch->name);
+	sprintf(buf,"save.c, fread_char: reading %s.",ch->name);
     log_string(buf);
 
 	ch->version = VERSION_PLAYER_000;
@@ -1313,7 +1383,32 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 		break;
 
 	case 'C':
-	    KEY("Class",    ch->pcdata->class_current,         fread_number(fp));
+		if (ch->version < VERSION_PLAYER_007)
+		{
+		    KEY("Cla",	    __versioning->_007.class_current,         fread_number(fp));
+	    	KEY("Class",    __versioning->_007.class_current,         fread_number(fp));
+		}
+		else
+		{
+			if (!str_cmp(word, "Class"))
+			{
+				char *name = fread_string(fp);
+
+				CLASS_DATA *clazz = get_class_data(name);
+				if (IS_VALID(clazz))
+				{
+					ch->pcdata->current_class = get_class_level(ch, clazz);
+
+					if (!IS_VALID(ch->pcdata->current_class))
+					{
+						// Complain
+					}
+				}
+
+				fMatch = true;
+				break;
+			}
+		}
 		if (!str_cmp(word, "ClassLevel"))
 		{
 			char *name = fread_string(fp);
@@ -1332,7 +1427,6 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 			fMatch = true;
 			break;
 		}
-	    KEY("Cla",	     ch->pcdata->class_current,         fread_number(fp));
 	    KEY("ChDelay",  ch->pcdata->challenge_delay,  fread_number(fp));
 	    KEY("CPKCount",  ch->cpk_deaths,  fread_number(fp));
 	    KEY("ChannelFlags",		ch->pcdata->channel_flags, fread_number(fp));
@@ -1584,37 +1678,37 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 		    break;
 
 		// Hack to make all chars who have hp/mana/move over there max down
-		if (ch->pcdata->perm_hit > pc_race_table[ ch->race ].max_vital_stats[ MAX_HIT ] + 11)
+		if (ch->pcdata->perm_hit > ch->race->max_vitals[ MAX_HIT ] + 11)
 		{
 		    // Get difference in hp, and divide it by 10 to find the number of train sessions.
-		    qp_number = (ch->pcdata->perm_hit - pc_race_table[ ch->race ].max_vital_stats[ MAX_HIT ]) / 10;
+		    qp_number = (ch->pcdata->perm_hit - ch->race->max_vitals[ MAX_HIT ]) / 10;
 		    // Multiply sessions by 15 being number of pracs.
 		    qp_number *= 15;
 		    ch->questpoints += qp_number;
 
-		    ch->pcdata->perm_hit = pc_race_table[ ch->race ].max_vital_stats[ MAX_HIT ];
+		    ch->pcdata->perm_hit = ch->race->max_vitals[ MAX_HIT ];
 		}
 
-		if (ch->pcdata->perm_mana > pc_race_table[ ch->race ].max_vital_stats[ MAX_MANA ] + 11)
+		if (ch->pcdata->perm_mana > ch->race->max_vitals[ MAX_MANA ] + 11)
 		{
 		    // Get difference in hp, and divide it by 10 to find the number of train sessions.
-		    qp_number = (ch->pcdata->perm_mana - pc_race_table[ ch->race ].max_vital_stats[ MAX_MANA ]) / 10;
+		    qp_number = (ch->pcdata->perm_mana - ch->race->max_vitals[ MAX_MANA ]) / 10;
 		    // Multiply sessions by 15 being number of pracs.
 		    qp_number *= 15;
 		    ch->questpoints += qp_number;
 
-		    ch->pcdata->perm_mana = pc_race_table[ ch->race ].max_vital_stats[ MAX_MANA ];
+		    ch->pcdata->perm_mana = ch->race->max_vitals[ MAX_MANA ];
 		}
 
-		if (ch->pcdata->perm_move > pc_race_table[ ch->race ].max_vital_stats[ MAX_MOVE ] + 11)
+		if (ch->pcdata->perm_move > ch->race->max_vitals[ MAX_MOVE ] + 11)
 		{
 		    // Get difference in hp, and divide it by 10 to find the number of train sessions.
-		    qp_number = (ch->pcdata->perm_move - pc_race_table[ ch->race ].max_vital_stats[ MAX_MOVE ]) / 10;
+		    qp_number = (ch->pcdata->perm_move - ch->race->max_vitals[ MAX_MOVE ]) / 10;
 		    // Multiply sessions by 15 being number of pracs.
 		    qp_number *= 15;
 		    ch->questpoints += qp_number;
 
-		    ch->pcdata->perm_move = pc_race_table[ ch->race ].max_vital_stats[ MAX_MOVE ];
+		    ch->pcdata->perm_move = ch->race->max_vitals[ MAX_MOVE ];
 		}
 
                 break;
@@ -1690,10 +1784,13 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 	    break;
 
 	case 'M':
-	    KEY("Mc0",		 ch->pcdata->class_mage,		fread_number(fp));
-	    KEY("Mc1",		 ch->pcdata->class_cleric,		fread_number(fp));
-	    KEY("Mc2",		 ch->pcdata->class_thief,		fread_number(fp));
-	    KEY("Mc3",		 ch->pcdata->class_warrior,		fread_number(fp));
+		if (ch->version < VERSION_PLAYER_007)
+		{
+			KEY("Mc0",		 __versioning->_007.class_mage,		fread_number(fp));
+			KEY("Mc1",		 __versioning->_007.class_cleric,		fread_number(fp));
+			KEY("Mc2",		 __versioning->_007.class_thief,		fread_number(fp));
+			KEY("Mc3",		 __versioning->_007.class_warrior,		fread_number(fp));
+		}
 	    KEY("MonsterKills", ch->monster_kills,	fread_number(fp));
 	    break;
 
@@ -1982,26 +2079,29 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 		location_set(&ch->pcdata->room_before_arena,NULL,wuid,x,y,z);
 		fMatch = TRUE;
 	    }
-	    KEY("RMc0",		 ch->pcdata->second_class_mage,		fread_number(fp));
-	    KEY("RMc1",		 ch->pcdata->second_class_cleric,	fread_number(fp));
-	    KEY("RMc2",		 ch->pcdata->second_class_thief,	fread_number(fp));
-	    KEY("RMc3",		 ch->pcdata->second_class_warrior,	fread_number(fp));
+		if (ch->version < VERSION_PLAYER_007)
+		{
+			KEY("RMc0",		 __versioning->_007.second_class_mage,		fread_number(fp));
+			KEY("RMc1",		 __versioning->_007.second_class_cleric,	fread_number(fp));
+			KEY("RMc2",		 __versioning->_007.second_class_thief,	fread_number(fp));
+			KEY("RMc3",		 __versioning->_007.second_class_warrior,	fread_number(fp));
+		}
 
             if (!str_cmp(word, "Race"))
 	    {
                  race_string = fread_string(fp);
 		 if (!str_cmp(race_string, "werewolf"))
-		     ch->race = race_lookup("sith");
+		     ch->race = gr_sith;
 		 else if (!str_cmp(race_string, "guru"))
-	             ch->race = race_lookup("mystic");
+	             ch->race = gr_mystic;
 		 else if (!str_cmp(race_string, "high elf"))
-		     ch->race = race_lookup("seraph");
+		     ch->race = gr_seraph;
 		 else if (!str_cmp(race_string, "high dwarf"))
-		     ch->race = race_lookup("berserker");
+		     ch->race = gr_berserker;
 		 else if (!str_cmp(race_string, "shade"))
-		     ch->race = race_lookup("specter");
+		     ch->race = gr_specter;
 		 else
-		     ch->race = race_lookup(race_string);
+		     ch->race = get_race_data(race_string);
 
 		 free_string(race_string);
                  fMatch = TRUE;
@@ -2075,16 +2175,18 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 	    KEY("ShD",		ch->short_descr,	fread_string(fp));
 	    KEY("Sec",         ch->pcdata->security,	fread_number(fp));
             KEY("Silv",        ch->silver,             fread_number(fp));
-	    KEY("Subcla",	ch->pcdata->sub_class_current,		fread_number(fp));
-	    KEY("SMc0",	ch->pcdata->sub_class_mage,	fread_number(fp));
-	    KEY("SMc1",	ch->pcdata->sub_class_cleric,	fread_number(fp));
-	    KEY("SMc2",	ch->pcdata->sub_class_thief,	fread_number(fp));
-	    KEY("SMc3",	ch->pcdata->sub_class_warrior,	fread_number(fp))
-	    KEY("SSMc0",	ch->pcdata->second_sub_class_mage,	fread_number(fp));
-	    KEY("SSMc1",	ch->pcdata->second_sub_class_cleric,	fread_number(fp));
-	    KEY("SSMc2",	ch->pcdata->second_sub_class_thief,	fread_number(fp));
-	    KEY("SSMc3",	ch->pcdata->second_sub_class_warrior,	fread_number(fp));
-
+		if (ch->version < VERSION_PLAYER_007)
+		{
+		    KEY("Subcla",	__versioning->_007.sub_class_current,		fread_number(fp));
+			KEY("SMc0",		__versioning->_007.sub_class_mage,	fread_number(fp));
+			KEY("SMc1",		__versioning->_007.sub_class_cleric,	fread_number(fp));
+			KEY("SMc2",		__versioning->_007.sub_class_thief,	fread_number(fp));
+			KEY("SMc3",		__versioning->_007.sub_class_warrior,	fread_number(fp))
+			KEY("SSMc0",	__versioning->_007.second_sub_class_mage,	fread_number(fp));
+			KEY("SSMc1",	__versioning->_007.second_sub_class_cleric,	fread_number(fp));
+			KEY("SSMc2",	__versioning->_007.second_sub_class_thief,	fread_number(fp));
+			KEY("SSMc3",	__versioning->_007.second_sub_class_warrior,	fread_number(fp));
+		}
 
 	    if (!str_cmp(word, "Shifted"))
 	    {
@@ -5923,20 +6025,20 @@ void fix_object_lockstate(OBJ_DATA *obj)
 	}
 }
 
-static inline void __add_class_level(CHAR_DATA *ch, int sub_class)
+static inline void __add_class_level(CHAR_DATA *ch, int sub_class, struct __player_data_versioning *__versioning)
 {
 	if (sub_class == -1) return;
 
 	int level = MAX_CLASS_LEVEL;
 	long xp = 0;
-	if (!IS_IMMORTAL(ch) && sub_class == ch->pcdata->sub_class_current)
+	if (!IS_IMMORTAL(ch) && sub_class == __versioning->_007.sub_class_current)
 	{
 		level = ch->level;	// Local class level
 		xp = ch->exp;		// Current experience
 		// TODO: will need to rescale it based upon 1-40 range, only
 	}
 
-	CLASS_DATA *clazz = get_class_data(sub_class_table[sub_class].name[0]);
+	CLASS_DATA *clazz = get_class_data(__sub_class_table[sub_class].name[0]);
 	if (!IS_VALID(clazz)) return;
 
 	CLASS_LEVEL *cl = new_class_level();
@@ -5947,7 +6049,7 @@ static inline void __add_class_level(CHAR_DATA *ch, int sub_class)
 	insert_class_level(ch, cl);
 }
 
-void fix_character(CHAR_DATA *ch)
+void fix_character(CHAR_DATA *ch, struct __player_data_versioning *__versioning)
 {
     int i;
     char buf[MSL];
@@ -5955,10 +6057,10 @@ void fix_character(CHAR_DATA *ch)
 	AFFECT_DATA *paf;
 	OBJ_DATA *obj;
 
-    if (ch->race == 0)
-	ch->race = race_lookup("human");
+    if (!IS_VALID(ch->race))
+		ch->race = gr_human;
 
-    ch->size = pc_race_table[ch->race].size;
+    //ch->size = ch->race->min_size;
     ch->dam_type = 17; /*punch */
 
 	LLIST *groups = ch->pcdata->group_known;
@@ -5974,18 +6076,23 @@ void fix_character(CHAR_DATA *ch)
 	list_destroy(groups);
 
     /* make sure they have any new race skills */
-    for (i = 0; pc_race_table[ch->race].skills[i] != NULL; i++)
-		group_add(ch,pc_race_table[ch->race].skills[i],FALSE);
-
+	ITERATOR skit;
+	SKILL_DATA *skill;
+	iterator_start(&skit, ch->race->skills);
+	while((skill = (SKILL_DATA *)iterator_nextdata(&skit)))
+	{
+		skill_add(ch, skill);
+	}
+	iterator_stop(&skit);
 
 	// TODO: Readd checks for dealing with racial affects, affects2, imm, res and vuln
 
 	/* 20203003 - Tieryo - Fix missing racial perm affects */
 
-	if (ch->affected_by_perm[0] != race_table[ch->race].aff || ch->affected_by_perm[1] != race_table[ch->race].aff2)
+	if (ch->affected_by_perm[0] != ch->race->aff[0] || ch->affected_by_perm[1] != ch->race->aff[1])
 	{
-	ch->affected_by_perm[0] = race_table[ch->race].aff;
-	ch->affected_by_perm[1] = race_table[ch->race].aff2;
+	ch->affected_by_perm[0] = ch->race->aff[0];
+	ch->affected_by_perm[1] = ch->race->aff[1];
 	resetaffects = TRUE;
 	}
 	if( resetaffects )
@@ -6077,17 +6184,18 @@ void fix_character(CHAR_DATA *ch)
 	for(obj = ch->carrying; obj; obj = obj->next_content)
 		fix_object_lockstate(obj);
 
-    ch->form = race_table[ch->race].form;
-    ch->parts = race_table[ch->race].parts & ~ch->lostparts;
+    ch->form = ch->race->form;
+    ch->parts = ch->race->parts & ~ch->lostparts;
 	ch->lostparts = 0;
 
     if (ch->version < 2)
     {
 		group_add(ch,"global skills",FALSE);
-		group_add(ch,class_table[ch->pcdata->class_current].base_group,FALSE);
+		group_add(ch,__class_table[__versioning->_007.class_current].base_group,FALSE);
 		ch->version = 2;
     }
 
+#if 0
     /* make sure they have any new skills that have been added */
     if (ch->pcdata->class_mage != -1)		group_add(ch, class_table[ch->pcdata->class_mage].base_group, FALSE);
     if (ch->pcdata->class_cleric != -1)		group_add(ch, class_table[ch->pcdata->class_cleric].base_group, FALSE);
@@ -6098,6 +6206,7 @@ void fix_character(CHAR_DATA *ch)
     if (ch->pcdata->second_sub_class_cleric != -1)	group_add(ch, sub_class_table[ch->pcdata->second_sub_class_cleric].default_group, FALSE);
     if (ch->pcdata->second_sub_class_thief != -1)	group_add(ch, sub_class_table[ch->pcdata->second_sub_class_thief].default_group, FALSE);
     if (ch->pcdata->second_sub_class_warrior != -1)	group_add(ch, sub_class_table[ch->pcdata->second_sub_class_warrior].default_group, FALSE);
+#endif
 
     if (ch->version < 6)
 		ch->version = 6;
@@ -6108,8 +6217,8 @@ void fix_character(CHAR_DATA *ch)
 		if (IS_AFFECTED2(ch, AFF2_ENSNARE))
 			REMOVE_BIT(ch->affected_by[1], AFF2_ENSNARE);
 
-		if (ch->pcdata->second_sub_class_thief == CLASS_THIEF_SAGE)
-			SET_BIT(ch->affected_by[0], AFF_DETECT_HIDDEN);
+		//if (ch->pcdata->second_sub_class_thief == CLASS_THIEF_SAGE)
+		//	SET_BIT(ch->affected_by[0], AFF_DETECT_HIDDEN);
 
 		ch->version = 7;
     }
@@ -6129,17 +6238,39 @@ void fix_character(CHAR_DATA *ch)
 	if (ch->version < VERSION_PLAYER_006)
 	{
 		// Create all of the class level entries
-		__add_class_level(ch, ch->pcdata->sub_class_cleric);
-		__add_class_level(ch, ch->pcdata->sub_class_mage);
-		__add_class_level(ch, ch->pcdata->sub_class_thief);
-		__add_class_level(ch, ch->pcdata->sub_class_warrior);
+		__add_class_level(ch, __versioning->_007.sub_class_cleric, __versioning);
+		__add_class_level(ch, __versioning->_007.sub_class_mage, __versioning);
+		__add_class_level(ch, __versioning->_007.sub_class_thief, __versioning);
+		__add_class_level(ch, __versioning->_007.sub_class_warrior, __versioning);
 
-		__add_class_level(ch, ch->pcdata->second_sub_class_cleric);
-		__add_class_level(ch, ch->pcdata->second_sub_class_mage);
-		__add_class_level(ch, ch->pcdata->second_sub_class_thief);
-		__add_class_level(ch, ch->pcdata->second_sub_class_warrior);
+		__add_class_level(ch, __versioning->_007.second_sub_class_cleric, __versioning);
+		__add_class_level(ch, __versioning->_007.second_sub_class_mage, __versioning);
+		__add_class_level(ch, __versioning->_007.second_sub_class_thief, __versioning);
+		__add_class_level(ch, __versioning->_007.second_sub_class_warrior, __versioning);
 
 		ch->version = VERSION_PLAYER_006;
+	}
+
+	ITERATOR clit, sgit;
+	CLASS_LEVEL *cl;
+	SKILL_GROUP *sg;
+	iterator_start(&clit, ch->pcdata->classes);
+	while((cl = (CLASS_LEVEL *)iterator_nextdata(&clit)))
+	{
+		iterator_start(&sgit, cl->clazz->groups);
+		while((sg = (SKILL_GROUP *)iterator_nextdata(&sgit)))
+		{
+			gn_add(ch, sg);
+		}
+		iterator_stop(&sgit);
+	}
+	iterator_stop(&clit);
+
+	if (ch->version < VERSION_PLAYER_007)
+	{
+
+
+		ch->version = VERSION_PLAYER_007;
 	}
 
     if (IS_IMMORTAL(ch))
@@ -6157,8 +6288,8 @@ void fix_character(CHAR_DATA *ch)
     }
 
     for (i = 0; i < MAX_STATS; i++)
-		if (ch->perm_stat[i] > pc_race_table[ch->race].max_stats[i])
-	    	set_perm_stat(ch, i, pc_race_table[ch->race].max_stats[i]);
+		if (ch->perm_stat[i] > ch->race->max_stats[i])
+	    	set_perm_stat(ch, i, ch->race->max_stats[i]);
 
     // If imm flag not set, set the default flag
     /*if (ch->tot_level >= LEVEL_IMMORTAL && (ch->pcdata->immortal->imm_flag == NULL))
@@ -6247,7 +6378,7 @@ void fix_character(CHAR_DATA *ch)
 
 
 
-
+#if 0
 bool missing_class(CHAR_DATA *ch)
 {
     int classes;
@@ -6265,6 +6396,7 @@ bool missing_class(CHAR_DATA *ch)
     if (classes < (IS_REMORT(ch)?120:ch->tot_level) / 31 + 1) return TRUE;
     else return FALSE;
 }
+#endif
 
 // TODO: AUDIT: do we still need this
 /* Check for screwed up subclasses. Ie people who have a mage class
@@ -6360,6 +6492,7 @@ void descrew_subclasses(CHAR_DATA *ch)
 // Check someone's classes. Used because for some godawful reason people can be missing a mage class, etc.
 bool has_correct_classes(CHAR_DATA *ch)
 {
+#if 0
     int correctnum;
     int num = 0;
     char buf[MSL];
@@ -6389,12 +6522,14 @@ bool has_correct_classes(CHAR_DATA *ch)
 	//send_to_char(buf,ch); send_to_char("\n\r", ch);
 	return FALSE;
     } else
+#endif
 	return TRUE;
 }
 
 
 void fix_broken_classes(CHAR_DATA *ch)
 {
+#if 0
     char buf[MSL];
     int mage    = ch->pcdata->class_mage;
     int cleric  = ch->pcdata->class_cleric;
@@ -6402,7 +6537,7 @@ void fix_broken_classes(CHAR_DATA *ch)
     int warrior = ch->pcdata->class_warrior;
 
     sprintf(buf, "fix_broken_classes: fixing broken classes for %s, a level %d %s.",
-        ch->name, ch->tot_level, race_table[ch->race].name);
+        ch->name, ch->tot_level, ch->race->name);
     log_string(buf);
 
     if (mage == -1 && find_class_skill(ch, CLASS_MAGE) == TRUE) {
@@ -6435,9 +6570,10 @@ void fix_broken_classes(CHAR_DATA *ch)
 
     save_char_obj(ch);
     //send_to_char("All fixed!\n\r", ch);
+#endif
 }
 
-
+#if 0
 // Find out if a player has a skill, ANY skill, which belongs to a general class.
 bool find_class_skill(CHAR_DATA *ch, int class)
 {
@@ -6469,6 +6605,7 @@ bool find_class_skill(CHAR_DATA *ch, int class)
 
 	return str != NULL;
 }
+#endif
 
 
 /* write a token */

@@ -306,7 +306,7 @@ bool load_songs();
 void save_songs();
 
 bool load_classes();
-void save_classes();
+void save_classes(bool booting);
 
 bool load_races();
 void save_races();
@@ -708,14 +708,14 @@ int main(int argc, char **argv)
 	if (!load_liquids()) exit(1);
 	log_string("liquids loaded.");
 
+	if (!load_classes()) exit(1);
+	log_string("classes loaded");
+
 	if (!load_skills()) exit(1);
 	log_string("skills loaded.");
 
 	if (!load_songs()) exit(1);
 	log_string("songs loaded.");
-
-	if (!load_classes()) exit(1);
-	log_string("classes loaded");
 
 	if (!load_races()) exit(1);
 	log_string("races loaded");
@@ -767,23 +767,19 @@ int main(int argc, char **argv)
 	#endif
 
 	save_races();
-	list_destroy(race_list);
-
-	save_classes();
-	list_destroy(classes_list);
-
+	save_classes(false);
 	save_liquids();
-	list_destroy(liquid_list);
-
 	save_materials();
-	list_destroy(material_list);
-
 	save_skills();
+	save_songs();
+
+	list_destroy(race_list);
+	list_destroy(liquid_list);
+	list_destroy(material_list);
+	list_destroy(classes_list);
 	list_destroy(skills_list);
 	list_destroy(skill_groups_list);
 	free_skill_group_data(global_skills);
-
-	save_songs();
 	list_destroy(songs_list);
 
 	terminate_scripting();
@@ -1913,13 +1909,35 @@ void bust_a_prompt(CHAR_DATA *ch)
 	case 'V' :
 		sprintf(buf2, "%ld", ch->max_move);
 		i = buf2; break;
+	case 'C' :
+	{
+		CLASS_LEVEL *level = get_class_level(ch, NULL);
+		sprintf(buf2, "%s", IS_VALID(level) ? level->clazz->display[ch->sex] : "{Dnone{x");
+		i = buf2; break;
+	}
+	case 'l':
+	{
+		CLASS_LEVEL *level = get_class_level(ch, NULL);
+		sprintf(buf2, "%d", IS_VALID(level) ? level->level : 0);
+		i = buf2; break;
+	}
+	case 'L':
+		sprintf(buf2, "%d", ch->tot_level);
+		i = buf2; break;
+	
 	case 'x' :
-		sprintf(buf2, "%ld", ch->exp);
+	{
+		CLASS_LEVEL *level = get_class_level(ch, NULL);
+		sprintf(buf2, "%ld", IS_VALID(level) ? level->xp : ch->exp);
 		i = buf2; break;
+	}
 	case 'X' :
-		sprintf(buf2, "%ld", IS_NPC(ch) ? 0 :
-		exp_per_level(ch,ch->pcdata->points) - ch->exp);
+	{
+		CLASS_LEVEL *level = get_class_level(ch, NULL);
+		sprintf(buf2, "%ld", IS_NPC(ch) ? ch->maxexp - ch->exp :
+		(IS_VALID(level) ? (exp_per_level(ch, NULL,ch->pcdata->points) - level->xp) : 0));
 		i = buf2; break;
+	}
 	case 'Q' :
 		sprintf(buf2, "%ld", IS_NPC(ch) ? 0 : ch->pcdata->quests_completed);
 		i = buf2; break;
@@ -1945,10 +1963,7 @@ void bust_a_prompt(CHAR_DATA *ch)
 		sprintf(buf2, "%ld", ch->silver);
 		i = buf2; break;
 	case 'a' :
-		if(ch->level > 9)
-			sprintf(buf2, "%d", ch->alignment);
-		else
-			sprintf(buf2, "%s", IS_GOOD(ch) ? "good" : IS_EVIL(ch) ? "evil" : "neutral");
+		sprintf(buf2, "%d", ch->alignment);
 		i = buf2; break;
 	case 'r' :
 		if(ch->in_room != NULL)
@@ -1999,8 +2014,8 @@ void bust_a_prompt(CHAR_DATA *ch)
 	case 'I' :
 		sprintf(buf2, "%d", can_carry_n(ch));
 		i = buf2; break;
-	case 'C' :
-		sprintf(buf2, "%ld", (ch->silver / 50 + ch->gold/30));
+	case 'K' :
+		sprintf(buf2, "%ld", COIN_WEIGHT(ch));
 		i = buf2; break;
 	case 'J' :
 		sprintf(buf2, "%s", IS_IMMORTAL(ch) ? ch->pcdata->immortal->build_project!= NULL ? ch->pcdata->immortal->build_project->name : "" : "N/A");
@@ -2141,19 +2156,16 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 	char buf[MAX_STRING_LENGTH];
 	char arg[MAX_INPUT_LENGTH];
 	char races[MSL];
-	char classes[MSL];
-	char subclasses[MSL];
 	CHAR_DATA *ch;
 	char *pwdnew;
-	int iClass,race,i;
+	int i;
+	RACE_DATA *race;
 	bool fOld;
 	long playernum;
 	HELP_DATA *help;
 	long vector, *field;
     char strsave[MAX_INPUT_LENGTH];
     FILE *fp;
-
-	iClass = -1;
 
 	while (isspace(*argument))
 		argument++;
@@ -2651,8 +2663,9 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			}
 			else
 			{
-				if ((race = race_lookup(argument)) != 0 &&
-					(help = lookup_help_exact(race_table[race].name, 0, topHelpCat)) != NULL)
+				race = get_race_data(argument);
+				if (IS_VALID(race) &&
+					(help = lookup_help_exact(race->name, 0, topHelpCat)) != NULL)
 				{
 					sprintf(buf, "{b++++++{B------{C++++++ {W%s {C++++++{B------{b++++++{x\n\r\n\r", help->keyword);
 					send_to_char(buf, ch);
@@ -2671,24 +2684,30 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			break;
 		}
 
-		if ((race = race_lookup(argument)) == 0) {
+		race = get_race_data(argument);
+		if (!IS_VALID(race)) {
 			send_to_char("There is no such race.\n\r", ch);
 			send_to_char(races, ch);
 			break;
 		}
 
-		if (!race_table[race].pc_race || race == grn_shaper) {
+		if (!race->playable || race == gr_shaper) {
 			send_to_char("That isn't a player race.\n\r", ch);
 			send_to_char(races, ch);
 			break;
 		}
 
-		if (pc_race_table[race].remort) {
+		if (race->remort) {
 			send_to_char("You cannot choose that race.\n\r", ch);
 			send_to_char(races, ch);
 			break;
 		}
 
+#if 0
+		// Disabled as players can freely choose their alignment (and can change it as well)
+		//   Will inform players that choosing a race whose standard alignment differs from what
+		//    they've selected will cause some issues they will likely have to overcome, due to
+		//    npcs and factions not liking them.
 		if ((ch->alignment == 0 && pc_race_table[race].alignment != ALIGN_NONE) ||
 			(ch->alignment  < 0 && pc_race_table[race].alignment != ALIGN_EVIL) ||
 			(ch->alignment  > 0 && pc_race_table[race].alignment != ALIGN_GOOD))
@@ -2700,39 +2719,45 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			send_to_char(races, ch);
 			break;
 		}
+#endif
 		ch->race = race;
 
 		/* initialize stats */
 		for (i = 0; i < MAX_STATS; i++) {
-			ch->perm_stat[i] = pc_race_table[race].stats[i];
+			ch->perm_stat[i] = race->stats[i];
 			ch->dirty_stat[i] = TRUE;
 		}
-		ch->act[1]        = ch->act[1]|race_table[race].act2;
-		ch->affected_by[0] = ch->affected_by[0]|race_table[race].aff;
 
-		ch->imm_flags_perm = race_table[race].imm;
-		ch->res_flags_perm = race_table[race].res;
-		ch->vuln_flags_perm = race_table[race].vuln;
+		ch->act[0]		= (ch->act[0] | race->act[0]) & ~ACT_IS_NPC;
+		ch->act[1]		= ch->act[1] | race->act[1];
+		ch->affected_by[0] = ch->affected_by[0] | race->aff[0];
+		ch->affected_by[1] = ch->affected_by[1] | race->aff[1];
+
+		ch->imm_flags_perm = race->imm;
+		ch->res_flags_perm = race->res;
+		ch->vuln_flags_perm = race->vuln;
 		/* 20203003 - Tieryo - Fixing racial affects */
-		ch->affected_by_perm[0] = race_table[race].aff;
-		ch->affected_by_perm[1] = race_table[race].aff2;
+		ch->affected_by_perm[0] = race->aff[0];
+		ch->affected_by_perm[1] = race->aff[1];
 
-		ch->imm_flags	= ch->imm_flags|race_table[race].imm;
-		ch->res_flags	= ch->res_flags|race_table[race].res;
-		ch->vuln_flags	= ch->vuln_flags|race_table[race].vuln;
-		ch->form	= race_table[race].form;
-		ch->parts	= race_table[race].parts;
+		ch->imm_flags	= ch->imm_flags|race->imm;
+		ch->res_flags	= ch->res_flags|race->res;
+		ch->vuln_flags	= ch->vuln_flags|race->vuln;
+		ch->form	= race->form;
+		ch->parts	= race->parts;
 
-		/* add skills */
-		for (i = 0; i < 5; i++)
+		// TODO: change this to allow for groups as well
+		ITERATOR skit;
+		SKILL_DATA *skill;
+		iterator_start(&skit, race->skills);
+		while((skill = (SKILL_DATA *)iterator_nextdata(&skit)))
 		{
-			if (pc_race_table[race].skills[i] == NULL)
-				break;
-
-			group_add(ch,pc_race_table[race].skills[i],FALSE);
+			skill_add(ch, skill);
 		}
+		iterator_stop(&skit);
 
-		ch->size = pc_race_table[race].size;
+		// TODO: Add size selection *IF* the race has a range.
+		ch->size = race->min_size;
 
 		send_to_char("\n\r{YWhat is your sex (M/F)?{x ", ch);
 		d->connected = CON_GET_NEW_SEX;
@@ -2751,6 +2776,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			return;
 		}
 
+#if 0
 		send_to_char("\n\rIn Sentience, there are four main classes to choose from. From \n\r", ch);
 		send_to_char("these four classes you may choose a subclass that belong to these\n\r", ch);
 		send_to_char("classes. Within each subclass you must complete 30 levels before\n\r", ch);
@@ -2760,6 +2786,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 
 		send_to_char("For help on a specific class, type help <class>.\n\r\n\r", ch);
 
+		// TODO: Remove from character creation as there will be in-game mechanisms for getting classes and switching between them.
 		strcpy(buf, "{YSelect the class you would like to begin with {B[{C");
 		for (iClass = 0; iClass < MAX_CLASS; iClass++)
 		{
@@ -2769,9 +2796,68 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		}
 		strcat(buf, "{B]{Y:{x ");
 		send_to_char(buf, ch);
-		d->connected = CON_GET_NEW_CLASS;
+#endif
+
+		SET_BIT(ch->act[0], PLR_NO_CHALLENGE);
+
+		group_add(ch,"global skills",FALSE);
+
+		// Set them as an adventurer
+		add_class_level(ch, gcl_adventurer, 1);
+		ch->pcdata->current_class = get_class_level(ch, gcl_adventurer);
+
+		/* Make it so no notes appear*/
+		ch->pcdata->last_note = current_time;
+		ch->pcdata->last_idea = current_time;
+		ch->pcdata->last_penalty = current_time;
+		ch->pcdata->last_news = current_time;
+		ch->pcdata->last_changes = current_time;
+		ch->pcdata->last_ready_check = 0;
+
+		send_to_char("\n\r{YPress ENTER to begin your journey, adventurer!{W\n\r", ch);
+		buf[0] = '\0';
+
+		/* Set up default toggles*/
+		for (i = 0; pc_set_table[i].name != NULL; i++)
+		{
+			if (pc_set_table[i].default_state == SETTING_ON && ch->tot_level >= pc_set_table[i].min_level)
+			{
+				if (pc_set_table[i].vector != 0)
+				{
+					vector = pc_set_table[i].vector;
+					field = &ch->act[0];
+				}
+				else if (pc_set_table[i].vector2 != 0)
+				{
+					vector = pc_set_table[i].vector2;
+					field = &ch->act[1];
+				}
+				else if (pc_set_table[i].vector_comm != 0)
+				{
+					vector = pc_set_table[i].vector_comm;
+					field = &ch->comm;
+				}
+				else
+					continue;
+
+				if (pc_set_table[i].inverted)
+				{
+					REMOVE_BIT(*field, vector);
+				}
+				else
+				{
+					SET_BIT(*field, vector);
+				}
+			}
+		}
+
+		ch->level     = 0;
+		ch->tot_level = 0;
+
+		d->connected = CON_READ_MOTD;
 		break;
 
+#if 0
 	case CON_GET_NEW_CLASS:
 		sprintf(classes, "\n\r{YChoose your class {B[{Cmage cleric thief warrior{B]{Y:{x ");
 		if (!str_prefix("help", argument))
@@ -3017,6 +3103,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		entry->rating = 50;
 		d->connected = CON_READ_MOTD;
 		break;
+#endif
 
 	case CON_READ_IMOTD:
 		write_to_buffer(d,"\n\r",2);
@@ -3074,10 +3161,6 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		// New player
 		if (ch->level == 0)
 		{
-			int prime_stat = class_table[ch->pcdata->class_current].attr_prime;
-			ch->perm_stat[prime_stat] += 3;
-			ch->dirty_stat[prime_stat] = TRUE;
-
 			ch->exp	= 0;
 			ch->hit	= ch->max_hit;
 			ch->mana	= ch->max_mana;
@@ -4862,28 +4945,40 @@ void update_pc_timers(CHAR_DATA *ch)
     }
 }
 
+static inline bool __can_choose_race(CHAR_DATA *ch, RACE_DATA *race)
+{
+	if (!race->playable) return false;
+
+	if (race->remort) return false;
+
+	// TODO: Add race unlocks
+
+	return race->starting;
+}
+
 
 void add_possible_races(CHAR_DATA *ch, char *string)
 {
     char buf[MSL];
-    int i;
     bool found = FALSE;
 
     sprintf(buf, " {B[{C");
-    for (i = 1; i < MAX_PC_RACE; i++)
-    {
-	if ((!pc_race_table[i].remort)
-	&& ((ch->alignment == 0 && pc_race_table[i].alignment == ALIGN_NONE)
-	||  (ch->alignment  < 0 && pc_race_table[i].alignment == ALIGN_EVIL)
-	||  (ch->alignment  > 0 && pc_race_table[i].alignment == ALIGN_GOOD)))
-	{
-	    if (found)
-		strcat(buf, " ");
 
-	    found = TRUE;
-	    strcat(buf, pc_race_table[i].name);
+	ITERATOR it;
+	RACE_DATA *race;
+	iterator_start(&it, race_list);
+	while((race = (RACE_DATA *)iterator_nextdata(&it)))
+	{
+		if (!__can_choose_race(ch, race))
+			continue;
+
+	    if (found)
+			strcat(buf, " ");
+
+	    found = true;
+	    strcat(buf, race->name);
 	}
-    }
+	iterator_stop(&it);
 
     strcat(buf, "{B]{x");
 
@@ -4893,6 +4988,7 @@ void add_possible_races(CHAR_DATA *ch, char *string)
 
 void add_possible_subclasses(CHAR_DATA *ch, char *string)
 {
+#if 0
     char buf[MSL];
     int i;
     int count;
@@ -4929,6 +5025,7 @@ void add_possible_subclasses(CHAR_DATA *ch, char *string)
     }
 
     strcat(string, "{B]{x");
+#endif
 }
 
 

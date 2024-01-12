@@ -358,6 +358,7 @@ const  struct player_setting_type    pc_set_table[] =
     {	"formstate",	0,		 0,		COMM_SHOW_FORM_STATE,FALSE,0,	SETTING_ON	},
     {   "holyaura",	0,		PLR_HOLYAURA,	 0,		FALSE,	IM,	SETTING_ON	},
     {   "holylight",	PLR_HOLYLIGHT,	 0,		0,		FALSE,	IM,	SETTING_ON	},
+    {   "holypersona",	0,	 PLR_HOLYPERSONA,		0,		FALSE,	IM,	SETTING_ON	},
     {   "holywarp",	0,		PLR_HOLYWARP,	 0,		FALSE,	IM,	SETTING_ON	},
     {	"map",		0,		 0,		COMM_NOMAP,	TRUE,	0,	SETTING_OFF	},
     {	"nochallenge",	PLR_NO_CHALLENGE,0,		0,		FALSE,	0,	SETTING_OFF	},
@@ -456,7 +457,7 @@ const 	struct attack_type	attack_table	[MAX_DAMAGE_MESSAGE]	=
 };
 
 
-const 	struct	race_type	race_table	[] =
+const 	struct	race_type	__race_table	[] =
 {
 	/*
 	{
@@ -1496,7 +1497,7 @@ const 	struct	race_type	race_table	[] =
 
 
 
-const	struct	pc_race_type	pc_race_table	[]	=
+const	struct	pc_race_type	__pc_race_table	[]	=
 {
 	/*
 	{
@@ -1871,7 +1872,7 @@ const	struct	pc_race_type	pc_race_table	[]	=
 };
 
 
-const   struct  sub_class_type  sub_class_table [] =
+const   struct  sub_class_type  __sub_class_table [] =
 {
     /*
     {
@@ -2100,7 +2101,7 @@ const   struct  sub_class_type  sub_class_table [] =
 };
 
 
-const	struct	class_type	class_table	[MAX_CLASS]	=
+const	struct	class_type	__class_table	[MAX_CLASS]	=
 {
     /*
     {
@@ -2554,8 +2555,8 @@ const	struct	liq_type	liq_table	[]	=
  * The skill and spell table.
  */
 
-#if 0
-struct skill_type	skill_table [MAX_SKILL]	=
+#if 1
+struct skill_type	__skill_table [MAX_SKILL]	=
 {
     /*
     {
@@ -4398,13 +4399,6 @@ struct skill_type	skill_table [MAX_SKILL]	=
 		spell_web, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_web,
 		-1, 50, 12,
 		"", "The webs holding you in place disappear.", "", "The webs around $n disappear.",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"well fed",
-		{ 31, 31, 31, 31 }, { 8, 8, 8, 8},
-		spell_null, TAR_CHAR_SELF, POS_SLEEPING, &gsn_well_fed,
-		-1, 0, 0,
-		"", "", "", "",
 		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
 	}, {
 		"whip",

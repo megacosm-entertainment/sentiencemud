@@ -50,7 +50,7 @@
 
 // Lookup a skill by name.
 #if 0
-int _skill_lookup(const char *name)
+int skill_lookup(const char *name)
 {
     int sn;
 
@@ -193,11 +193,15 @@ void say_spell(CHAR_DATA *ch, SKILL_DATA *skill)
     sprintf(buf2, "$n utters the words, '%s'.", buf);
     sprintf(buf,  "$n utters the words, '%s'.", skill->name);
 
+	CLASS_DATA *clazz = get_current_class(ch);
     for (rch = ch->in_room->people; rch; rch = rch->next_in_room)
     {
-	if (rch != ch)
-	    act((!IS_NPC(rch) && ch->pcdata->class_current == rch->pcdata->class_current) ? buf : buf2,
-	        ch, rch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+		if (rch != ch)
+		{
+			CLASS_DATA *rclazz = get_current_class(rch);
+		    act((!IS_NPC(rch) && clazz == rclazz) ? buf : buf2,
+	    	    ch, rch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+		}
     }
 }
 

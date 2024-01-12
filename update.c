@@ -262,16 +262,23 @@ void advance_level(CHAR_DATA *ch, bool hide)
     ch->pcdata->last_level =
 	(ch->played + (int) (current_time - ch->logon)) / 3600;
 
-    add_hp	= con_app[get_curr_stat(ch,STAT_CON)].hitp + number_range(
+//	CLASS_DATA *clazz = get_current_class(ch);
+
+	// TODO: Add health range to class
+    add_hp	= con_app[get_curr_stat(ch,STAT_CON)].hitp/* + number_range(
 		  class_table[get_profession(ch, CLASS_CURRENT)].hp_min,
-		  class_table[get_profession(ch, CLASS_CURRENT)].hp_max);
+		  class_table[get_profession(ch, CLASS_CURRENT)].hp_max)*/;
 
     add_mana 	= get_curr_stat(ch,STAT_INT)/4 +
 	          get_curr_stat(ch,STAT_WIS)/4 +
 		  number_range(1, 10);
 
+	/*
+	// TODO: Add mana flag to class
     if (!class_table[get_profession(ch, CLASS_CURRENT)].fMana)
 	add_mana /= 2;
+
+	*/
 
     add_move	= get_curr_stat(ch, STAT_STR) / 2 + get_curr_stat(ch, STAT_DEX) / 2 + number_range(1, 3);
 
@@ -292,12 +299,12 @@ void advance_level(CHAR_DATA *ch, bool hide)
 	add_move = (ch->pcdata->move_before / 120);
     }
 
-    if (ch->pcdata->perm_hit + add_hp > pc_race_table[ch->race].max_vital_stats[MAX_HIT])
-	add_hp = pc_race_table[ch->race].max_vital_stats[MAX_HIT] - ch->pcdata->perm_hit;
-    if (ch->pcdata->perm_mana + add_mana > pc_race_table[ch->race].max_vital_stats[MAX_MANA])
-	add_mana = pc_race_table[ch->race].max_vital_stats[MAX_MANA] - ch->pcdata->perm_mana;
-    if (ch->pcdata->perm_move + add_move > pc_race_table[ch->race].max_vital_stats[MAX_MOVE])
-	add_move = pc_race_table[ch->race].max_vital_stats[MAX_MOVE] - ch->pcdata->perm_move;
+    if (ch->pcdata->perm_hit + add_hp > ch->race->max_vitals[MAX_HIT])
+		add_hp = ch->race->max_vitals[MAX_HIT] - ch->pcdata->perm_hit;
+    if (ch->pcdata->perm_mana + add_mana > ch->race->max_vitals[MAX_MANA])
+		add_mana = ch->race->max_vitals[MAX_MANA] - ch->pcdata->perm_mana;
+    if (ch->pcdata->perm_move + add_move > ch->race->max_vitals[MAX_MOVE])
+		add_move = ch->race->max_vitals[MAX_MOVE] - ch->pcdata->perm_move;
 
     ch->max_hit += add_hp;
     ch->max_mana += add_mana;
@@ -329,9 +336,11 @@ void advance_level(CHAR_DATA *ch, bool hide)
 
 
 // Give a character exp
-void gain_exp(CHAR_DATA *ch, int gain)
+void gain_exp(CHAR_DATA *ch, CLASS_DATA *clazz, int gain)
 {
 	char buf[MAX_STRING_LENGTH];
+
+	CLASS_LEVEL *level = get_class_level(ch, clazz);
 
 	// Allow scripts to affect gaining experience, as well as blocking the use of the xp
 	ch->tempstore[0] = gain;
@@ -356,38 +365,40 @@ void gain_exp(CHAR_DATA *ch, int gain)
 				ch->tot_level += 1;
 			}
 		}
-	} else {
-		if (ch->tot_level >= 120)
+	} else if (IS_VALID(level)) {
+		if (level->level >= level->clazz->max_level)
 			return;
 
 		/* make sure you never get more than the exp for your level */
-		long maxexp = exp_per_level(ch,ch->pcdata->points);
-		ch->exp = UMIN(maxexp, ch->exp + gain);
+		long maxexp = exp_per_level(ch,clazz,ch->pcdata->points);
+		level->xp = level->xp + gain;
 
-		if (ch->tot_level < LEVEL_HERO && ch->level < MAX_CLASS_LEVEL &&
-			ch->exp >= exp_per_level(ch,ch->pcdata->points)) {
+		if (level->xp >= maxexp) {
 
-			send_to_char("{MYou raise a level!!{x\n\r", ch);
-			ch->exp = 0;
-			ch->level += 1;
-			ch->tot_level += 1;
+			send_to_char(formatf("{MYou raise a level in {+{W%s{x!!{x\n\r", level->clazz->display[ch->sex]), ch);
+			level->xp = 0;
+			level->level++;
+			if (!IS_SET(level->clazz->flags, CLASS_NO_LEVEL))
+				ch->tot_level++;
 			if( IS_SET(ch->affected_by_perm[1], AFF2_DEATHSIGHT) )
 				ch->deathsight_vision = ch->tot_level;
 
-			sprintf(buf,"%s gained level %d",ch->name,ch->level);
+			sprintf(buf,"%s gained level %d",ch->name,level->level);
 
-			sprintf(buf, "All congratulate %s who is now level %d!!!", ch->name, ch->tot_level);
+			sprintf(buf, "All congratulate %s who is now level %d in {+%s!!!", ch->name, level->level, level->clazz->display[ch->sex]);
 			crier_announce(buf);
 
+			#if 0
 			if (ch->level >= MIN_CLASS_LEVEL_MULTI) {
 				if (ch->tot_level != 120) {
 					send_to_char("You are now ready to multiclass."
 						"\n\rType 'help multiclass' for more information.\n\r", ch);
 				}
 			}
+			#endif
 
 			log_string(buf);
-			sprintf(buf,"$N has attained level %d!",ch->level);
+			sprintf(buf,"$N has attained level %d as %s!",level->level, level->clazz->name);
 			wiznet(buf,ch,NULL,WIZ_LEVELS,0,0);
 			advance_level(ch,FALSE);
 
@@ -430,7 +441,7 @@ int hit_gain(CHAR_DATA *ch)
 	else
 	{
 		gain = UMAX(3,get_curr_stat(ch,STAT_CON) - 3 + ch->tot_level/2);
-		gain += class_table[get_profession(ch, CLASS_CURRENT)].hp_max - 10;
+		//gain += class_table[get_profession(ch, CLASS_CURRENT)].hp_max - 10;
 		number = number_percent();
 		if (number < get_skill(ch, gsk_fast_healing))
 		{
@@ -446,6 +457,7 @@ int hit_gain(CHAR_DATA *ch)
 		case POS_RESTING:   gain = gain * 2; 		break;
 		case POS_FIGHTING: 	gain /= 2;				break;
 		}
+		// TODO: Add savagery checks
 		/* Removing this for now. Tieryo 2023-03-06
 		if (ch->pcdata->condition[COND_HUNGER] == 0)
 			gain /= 2;
@@ -471,7 +483,8 @@ int hit_gain(CHAR_DATA *ch)
 		gain *= 2;
 
 	// Druids get 33% more in nature
-	if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch))
+	// TODO: Turn into a trait
+	if (get_current_class(ch) == gcl_druid && is_in_nature(ch))
 		gain += gain/3;
 
 	/* If you have the relic you get 25% more */
@@ -524,8 +537,11 @@ int mana_gain(CHAR_DATA *ch)
 				check_improve(ch,gsk_meditation,TRUE,8);
 		}
 
+		/*
+		// TODO: Add mana flag to class
 		if (!class_table[get_profession(ch, CLASS_CURRENT)].fMana)
 			gain /= 2;
+		*/
 
 		switch (ch->position)
 		{
@@ -534,6 +550,7 @@ int mana_gain(CHAR_DATA *ch)
 		case POS_RESTING:	gain = 3 * gain/2;	break;
 		case POS_FIGHTING:	gain /= 2;			break;
 		}
+		// TODO: Add savagery checks
 		/* Removing this for now - Tieryo 2023-03-06
 		if (ch->pcdata->condition[COND_HUNGER]   == 0)
 			gain /= 2;
@@ -559,7 +576,7 @@ int mana_gain(CHAR_DATA *ch)
 		gain /= 2;
 
 	// Druids get 33% more in nature
-	if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch))
+	if (get_current_class(ch) == gcl_druid && is_in_nature(ch))
 		gain += gain/3;
 
 	if (ch->church && objindex_in_treasure_room(ch->church, obj_index_relic_mana_regen))
@@ -568,8 +585,8 @@ int mana_gain(CHAR_DATA *ch)
 	if (IS_ELF(ch))
 		gain *= 2;
 
-	// TODO: turn this into a trait or add grn's
-	if (!str_cmp(race_table[ch->race].name, "lich"))
+	// TODO: turn this into a racial trait
+	if (ch->race == gr_lich || ch->race == gr_wraith)
 		gain = (gain * 5)/2;
 
 	if (ch->tot_level < 31 && !IS_REMORT(ch))
@@ -618,6 +635,7 @@ int move_gain(CHAR_DATA *ch)
 		case POS_SLEEPING:	gain += get_curr_stat(ch,STAT_DEX)*3;		break;
 		case POS_RESTING:	gain += get_curr_stat(ch,STAT_DEX) / 2 * 3;	break;
 		}
+		// TODO: Add savagery checks
 		/* Removing this for now - Tieryo 2023-03-06
 		if (ch->pcdata->condition[COND_HUNGER]   == 0)
 			gain /= 2;
@@ -645,7 +663,7 @@ int move_gain(CHAR_DATA *ch)
 		gain /= 2;
 
 	// Druids get 33% more in nature
-	if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch))
+	if (get_current_class(ch) == gcl_druid && is_in_nature(ch))
 		gain += gain/3;
 
 	if (ch->tot_level < 31 && !IS_REMORT(ch))
@@ -3979,14 +3997,16 @@ void msdp_update( void )
 
             ++PlayerCount;
 
+			CLASS_LEVEL *level = get_class_level(d->character, NULL);
+
             MSDPSetString( d, eMSDP_CHARACTER_NAME, d->character->name );
             MSDPSetNumber( d, eMSDP_ALIGNMENT, d->character->alignment );
             MSDPSetNumber( d, eMSDP_EXPERIENCE, d->character->exp );
-            MSDPSetNumber( d, eMSDP_EXPERIENCE_MAX, exp_per_level(d->character,
+            MSDPSetNumber( d, eMSDP_EXPERIENCE_MAX, exp_per_level(d->character, NULL,
                d->character->pcdata->points)  );
-            MSDPSetNumber( d, eMSDP_EXPERIENCE_TNL, ((d->character->level + 1) *
-               exp_per_level(d->character, d->character->pcdata->points) -
-               d->character->exp ) );
+            MSDPSetNumber( d, eMSDP_EXPERIENCE_TNL, (((IS_VALID(level) ? level->level : 0) + 1) *
+               exp_per_level(d->character, NULL, d->character->pcdata->points) -
+               IS_VALID(level) ? level->xp : d->character->exp ) );
 
             MSDPSetNumber( d, eMSDP_HEALTH, d->character->hit );
             MSDPSetNumber( d, eMSDP_HEALTH_MAX, d->character->max_hit );

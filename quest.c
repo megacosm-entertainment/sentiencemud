@@ -711,8 +711,8 @@ void do_quest(CHAR_DATA *ch, char *argument)
 				ch->tot_level*100);
 				pracreward += 1;
 
-				// TODO: turn this into a TRAIT
-				if (ch->pcdata->second_sub_class_warrior == CLASS_WARRIOR_CRUSADER)
+				// TODO: turn this into a trait
+				if (get_current_class(ch) == gcl_crusader)
 				{
 					pointreward += 5;
 					if (number_percent() < 10)
@@ -827,7 +827,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 			sprintf(buf, "You gain %d experience points!\n\r", expreward);
 			send_to_char(buf, ch);
 
-			gain_exp(ch, expreward);
+			gain_exp(ch, NULL, expreward);
 		}
 /* Syn - disabling
   send_to_char("You receive 1 military quest point!\n\r", ch);

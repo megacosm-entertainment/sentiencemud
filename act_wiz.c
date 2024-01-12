@@ -2847,7 +2847,7 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 
 	sprintf(buf, "{BVnum:{x %ld  {BRace:{x %s  {BSex:{x %s  {BRoom:{x %ld\n\r",
 				 VNUM(victim),
-				 race_table[victim->race].name,
+				 victim->race->name,
 				 sex_table[victim->sex].name,
 				 victim->in_room == NULL ? 0 : victim->in_room->vnum);
 	send_to_char(buf, ch);
@@ -3027,6 +3027,18 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 
 	if (!IS_NPC(victim))
 	{
+#if 1
+		send_to_char("{BClasses:{x\n\r", ch);
+		ITERATOR clit;
+		CLASS_LEVEL *cl;
+		iterator_start(&clit, victim->pcdata->classes);
+		while((cl = (CLASS_LEVEL *)iterator_nextdata(&clit)))
+		{
+			sprintf(buf, "{B{+%s: {x%s{B, Level: {x%d{B, Experience: {x%ld\n\r", flag_string(class_types, cl->clazz->type), cl->clazz->name, cl->level, cl->xp);
+			send_to_char(buf, ch);
+		}
+		iterator_stop(&clit);
+#else
 		sprintf(buf, "{BSubclasses: Mage:{x %s {BCleric:{x %s {BThief:{x %s {BWarrior:{x %s\n\r",
 					 victim->pcdata->sub_class_mage < 0 ? "none" : sub_class_table[victim->pcdata->sub_class_mage].name[victim->sex],
 					 victim->pcdata->sub_class_cleric < 0 ? "none" : sub_class_table[victim->pcdata->sub_class_cleric].name[victim->sex],
@@ -3042,6 +3054,7 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 						 victim->pcdata->second_sub_class_warrior < 0 ? "none" : sub_class_table[victim->pcdata->second_sub_class_warrior].name[victim->sex]);
 			send_to_char(buf, ch);
 		}
+#endif
 	}
 
 	for (paf = victim->affected; paf != NULL; paf = paf->next) if(!paf->custom_name)
@@ -4555,6 +4568,7 @@ void do_advance(CHAR_DATA *ch, char *argument)
 	do_function(victim, &do_holylight, "");
 	do_function(victim, &do_holywarp, "");
 	do_function(victim, &do_holyaura, "");
+	do_function(victim, &do_holypersona, "");
 	sprintf(buf, "\n\rYou have been set to wizinvis level {W%d{x.\n\r", victim->invis_level);
 	send_to_char(buf,victim);
 	}
@@ -6286,6 +6300,7 @@ void do_mset(CHAR_DATA *ch, char *argument)
 	return;
     }
 
+#if 0
     if (!str_prefix(arg2, "class"))
     {
 	int class;
@@ -6317,7 +6332,9 @@ void do_mset(CHAR_DATA *ch, char *argument)
 	victim->pcdata->class_current = class;
 	return;
     }
+#endif
 
+#if 0
     if (!str_prefix(arg2, "level"))
     {
 	if (!IS_NPC(victim))
@@ -6335,6 +6352,7 @@ void do_mset(CHAR_DATA *ch, char *argument)
 	victim->level = value;
 	return;
     }
+#endif
 
     if (!str_prefix(arg2, "gold"))
     {
@@ -6515,49 +6533,34 @@ void do_mset(CHAR_DATA *ch, char *argument)
 
     if (!str_prefix(arg2, "race"))
     {
-	int race;
+	RACE_DATA *race = get_race_data(arg3);
 
-	race = race_lookup(arg3);
-
-	if (race == 0)
+	if (!IS_VALID(race))
 	{
 	    send_to_char("That is not a valid race.\n\r",ch);
 	    return;
 	}
 
-	if (!IS_NPC(victim) && !race_table[race].pc_race)
+	if (!IS_NPC(victim) && !race->playable)
 	{
 	    send_to_char("That is not a valid player race.\n\r",ch);
 	    return;
 	}
 
 	victim->race = race;
-	victim->affected_by_perm[0] = race_table[victim->race].aff;
-	victim->affected_by_perm[1] = race_table[victim->race].aff2;
-    victim->imm_flags_perm = race_table[victim->race].imm;
-    victim->res_flags_perm = race_table[victim->race].res;
-    victim->vuln_flags_perm = race_table[victim->race].vuln;
+	victim->affected_by_perm[0] = race->aff[0];
+	victim->affected_by_perm[1] = race->aff[1];
+    victim->imm_flags_perm = race->imm;
+    victim->res_flags_perm = race->res;
+    victim->vuln_flags_perm = race->vuln;
     affect_fix_char(victim);
 
-    victim->form        = race_table[victim->race].form;
-    victim->parts       = race_table[victim->race].parts;
+    victim->form        = race->form;
+    victim->parts       = race->parts;
     victim->lostparts	= 0;
 
 	return;
     }
-
-    /* Syn -  unused
-    if (!str_prefix(arg2,"group"))
-    {
-	if (!IS_NPC(victim))
-	{
-	    send_to_char("Only on NPCs.\n\r",ch);
-	    return;
-	}
-	victim->group = value;
-	return;
-    }
-    */
 
     /*
      * Generate usage message.
@@ -6886,15 +6889,15 @@ void do_sockets( CHAR_DATA *ch, char *argument )
               case CON_CONFIRM_NEW_PASSWORD: st = "Confirm Passwd ";    break;
               case CON_GET_NEW_RACE:         st = "  Get New Race ";    break;
               case CON_GET_NEW_SEX:          st = "  Get New Sex  ";    break;
-              case CON_GET_NEW_CLASS:        st = " Get New Class ";    break;
+              //case CON_GET_NEW_CLASS:        st = " Get New Class ";    break;
               case CON_GET_ALIGNMENT:  	     st = " Get New Align ";	break;
 	      	  case CON_READ_IMOTD:		     st = " Reading IMOTD "; 	break;
               case CON_READ_MOTD:            st = "  Reading MOTD ";    break;
 	      	  case CON_BREAK_CONNECT:	     st = "   LINKDEAD    ";	break;
               case CON_GET_ASCII:		     st = "   Get ASCII   ";	break;
-              case CON_GET_SUB_CLASS:	     st = "  Get Subclass ";	break;
-              case CON_OLD_SUBCLASS:	     st = "  Get Old Sub  ";	break;
-              case CON_SUBCLASS_CHOOSE:	     st = "Choose Subclass";	break;
+              //case CON_GET_SUB_CLASS:	     st = "  Get Subclass ";	break;
+              //case CON_OLD_SUBCLASS:	     st = "  Get Old Sub  ";	break;
+              //case CON_SUBCLASS_CHOOSE:	     st = "Choose Subclass";	break;
               case CON_CHANGE_PASSWORD:	     st = "Change Password";	break;
               case CON_CHANGE_PASSWORD_CONFIRM:	st = "Confirm PassChg";	break;
               case CON_GET_EMAIL:			 st = "   Get Email   ";	break;
@@ -7178,6 +7181,26 @@ void do_holylight(CHAR_DATA *ch, char *argument)
     return;
 }
 
+void do_holypersona(CHAR_DATA *ch, char *argument)
+{
+    if (IS_NPC(ch))
+	return;
+
+    if (IS_SET(ch->act[1], PLR_HOLYPERSONA))
+    {
+	REMOVE_BIT(ch->act[1], PLR_HOLYPERSONA);
+	send_to_char("Holy persona mode off.\n\r", ch);
+    }
+    else
+    {
+	SET_BIT(ch->act[1], PLR_HOLYPERSONA);
+	send_to_char("Holy persona mode on.\n\r", ch);
+    }
+
+    return;
+}
+
+
 void do_holywarp(CHAR_DATA *ch, char *argument)
 {
     if (IS_NPC(ch))
@@ -7391,6 +7414,7 @@ void do_reckoning(CHAR_DATA *ch, char *argument)
 
 void do_immortalise(CHAR_DATA *ch, char *argument)
 {
+#if 0
     CHAR_DATA *victim;
     //OBJ_DATA *obj;
     char arg[MAX_INPUT_LENGTH];
@@ -7437,6 +7461,7 @@ void do_immortalise(CHAR_DATA *ch, char *argument)
 		return;
     }
 
+
     for (i = CLASS_WARRIOR_WARLORD; i < MAX_SUB_CLASS; i++) {
 		if (!str_cmp(argument, sub_class_table[i].name[victim->sex]))
 		    break;
@@ -7454,7 +7479,9 @@ void do_immortalise(CHAR_DATA *ch, char *argument)
     }
 
 	remort_player(victim, i);
-
+#else
+	command_under_construction(ch);
+#endif
 }
 
 
@@ -7758,8 +7785,10 @@ void do_alevel(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    xp = exp_per_level(victim, victim->pcdata->points) - victim->exp;
-    gain_exp(victim, xp);
+	CLASS_LEVEL *level = get_class_level(victim, NULL);
+
+    xp = exp_per_level(victim, NULL, victim->pcdata->points) - (IS_VALID(level) ? level->xp : victim->exp);
+    gain_exp(victim, NULL, xp);
 
     return;
 }
@@ -9992,7 +10021,7 @@ void do_classset(CHAR_DATA *ch, char *argument)
 		iterator_start(&cit, classes_list);
 		while((clazz = (CLASS_DATA *)iterator_nextdata(&cit)))
 		{
-			add_class_level(victim, clazz, level);
+			add_class_level(victim, clazz, UMIN(level,clazz->max_level));
 		}
 		iterator_stop(&cit);
 
@@ -10015,9 +10044,9 @@ void do_classset(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		if (!is_number(argument) || (level = atoi(argument)) < 1 || level > MAX_CLASS_LEVEL)
+		if (!is_number(argument) || (level = atoi(argument)) < 1 || level > clazz->max_level)
 		{
-			send_to_char(formatf("Please specify a level from 1 to %d.\n\r", MAX_CLASS_LEVEL), ch);
+			send_to_char(formatf("Please specify a level from 1 to %d.\n\r", clazz->max_level), ch);
 			return;
 		}
 

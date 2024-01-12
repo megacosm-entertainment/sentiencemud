@@ -150,8 +150,8 @@ enum ifcheck_enum {
 	CHK_GROUPSTR,CHK_GROUPWIS,CHK_GRPSIZE,
 
 	/* H */
-	CHK_HANDSFULL,CHK_HAS,CHK_HASCATALYST,CHK_HASCHECKPOINT,CHK_HASENVIRONMENT,CHK_HASPROMPT,CHK_HASQUEUE,
-	CHK_HASSHIP,CHK_HASSPELL,CHK_HASSUBCLASS,
+	CHK_HANDSFULL,CHK_HAS,CHK_HASCATALYST,CHK_HASCHECKPOINT,CHK_HASCLASS,CHK_HASENVIRONMENT,CHK_HASPROMPT,CHK_HASQUEUE,
+	CHK_HASSHIP,CHK_HASSPELL,
 	CHK_HASTARGET,CHK_HASTOKEN,
 	CHK_HASVLINK,CHK_HEALREGEN,CHK_HIRED,
 	CHK_HITDAMAGE,CHK_HITDAMCLASS,CHK_HITDAMTYPE,
@@ -168,7 +168,7 @@ enum ifcheck_enum {
 		CHK_ISAMBUSHING,CHK_ISANGEL,CHK_ISAREAUNLOCKED,
 		CHK_ISBOOK,CHK_ISBOSS,CHK_ISBREWING,CHK_ISBUSY,
 		CHK_ISCASTFAILURE,CHK_ISCASTING,CHK_ISCASTRECOVERED,CHK_ISCASTROOMBLOCKED,CHK_ISCASTSUCCESS,
-		CHK_ISCHARM,CHK_ISCHURCHEXCOM,CHK_ISCHURCHPK,CHK_ISCLONEROOM,CHK_ISCONTAINER,CHK_ISCPKPROOF,CHK_ISCROSSZONE,
+		CHK_ISCHARM,CHK_ISCHURCHEXCOM,CHK_ISCHURCHPK,CHK_ISCLASS,CHK_ISCLONEROOM,CHK_ISCONTAINER,CHK_ISCPKPROOF,CHK_ISCROSSZONE,
 		CHK_ISDEAD,CHK_ISDELAY,CHK_ISDEMON,
 		CHK_ISEVIL,
 		CHK_ISFADING,CHK_ISFIGHTING,CHK_ISFLUIDCONTAINER,CHK_ISFLYING,CHK_ISFOLLOW,CHK_ISFOOD,CHK_ISFURNITURE,
@@ -183,7 +183,7 @@ enum ifcheck_enum {
 		CHK_ISPC,CHK_ISPERSIST,CHK_ISPK,CHK_ISPORTAL,CHK_ISPREY,CHK_ISPROG,CHK_ISPULLING,CHK_ISPULLINGRELIC,
 		CHK_ISQUESTING,
 		CHK_ISREMORT,CHK_ISREPAIRABLE,CHK_ISRESTRUNG,CHK_ISRIDDEN,CHK_ISRIDER,CHK_ISRIDING,CHK_ISROOM,CHK_ISROOMDARK,
-		CHK_ISSAFE,CHK_ISSCRIBING,CHK_ISSHIFTED,CHK_ISSHOOTING,CHK_ISSHOPKEEPER,CHK_ISSPELL,CHK_ISSUBCLASS,CHK_ISSUSTAINED,
+		CHK_ISSAFE,CHK_ISSCRIBING,CHK_ISSHIFTED,CHK_ISSHOOTING,CHK_ISSHOPKEEPER,CHK_ISSPELL,CHK_ISSUSTAINED,
 		CHK_ISTARGET,CHK_ISTREASUREROOM,CHK_ISTOKEN,
 		CHK_ISVALID,CHK_ISVALIDITEM,CHK_ISVISIBLE,CHK_ISVISIBLETO,
 		CHK_ISWNUM,CHK_ISWORN,
@@ -300,7 +300,9 @@ enum variable_enum {
 	VAR_TOKEN,
 	VAR_AREA,
 	VAR_SKILL,			/* A skill INDEX that will reference general skill data */
+	VAR_SKILLGROUP,
 	VAR_SKILLINFO,		/* Skill reference on a creature { CHAR_DATA *owner, int sn } */
+	VAR_CLASSLEVEL,
 	VAR_SPELL,
 	VAR_CONNECTION,
 	VAR_AFFECT,			/* References an affect */
@@ -455,6 +457,7 @@ enum entity_type_enum {
 	ENT_AREA,
 	ENT_WILDS,
 	ENT_SKILL,
+	ENT_SKILLGROUP,
 	ENT_SKILLINFO,
 	ENT_SKILLENTRY,
 	ENT_CONN,
@@ -486,6 +489,13 @@ enum entity_type_enum {
 	ENT_REPUTATION,
 	ENT_REPUTATION_INDEX,
 	ENT_REPUTATION_RANK,
+	ENT_RACE,
+	ENT_CLASS,
+	ENT_CLASSLEVEL,
+
+	ENT_SEX_STRING_TABLE,		// TABLE.neuter, TABLE.male, TABLE.female, TABLE.either -> ENT_STRING, encode the parsing as a sex index (0 - 3)
+	ENT_STATS_TABLE,			// TABLE.strength.... -> ENT_NUMBER, encodes the parsing as the STAT_* define
+	ENT_VITALS_TABLE,			// TABLE.hp.... -> ENT_NUMBER, encodes the parsing as the vitals index (0 - 2)
 
 	ENT_MOBINDEX,
 	ENT_OBJINDEX,
@@ -551,6 +561,9 @@ enum entity_type_enum {
 	ENT_ILLIST_SPECIALKEYS,
 	ENT_ILLIST_REPUTATION,
 	ENT_ILLIST_REPUTATION_INDEX,
+	ENT_ILLIST_SKILLS,
+	ENT_ILLIST_SKILLGROUPS,
+	ENT_ILLIST_CLASSES,
 	ENT_ILLIST_MAX,
 	//////////////////////////////
 
@@ -663,7 +676,9 @@ enum entity_variable_types_enum {
 	ENTITY_VAR_AREA_REGION,
 	ENTITY_VAR_WILDS,
 	ENTITY_VAR_SKILL,
+	ENTITY_VAR_SKILLGROUP,
 	ENTITY_VAR_SKILLINFO,
+	ENTITY_VAR_CLASSLEVEL,
 	ENTITY_VAR_SPELL,
 	ENTITY_VAR_SONG,
 	ENTITY_VAR_CONN,
@@ -789,6 +804,8 @@ enum entity_mobile_enum {
 	ENTITY_MOB_HIS_O,
 	ENTITY_MOB_HIMSELF,
 	ENTITY_MOB_RACE,
+	ENTITY_MOB_CLASS,
+	ENTITY_MOB_CLASSES,
 	ENTITY_MOB_ROOM,
 	ENTITY_MOB_HOUSE,
 	ENTITY_MOB_CARRYING,
@@ -1391,6 +1408,11 @@ enum entity_skill_enum {
 	ENTITY_SKILL_VALUENAMES,
 };
 
+enum entity_skillgroup_enum {
+	ENTITY_SKILLGROUP_NAME = ESCAPE_EXTRA,
+	ENTITY_SKILLGROUP_CONTENTS,
+};
+
 enum entity_skillentry_enum {
 	ENTITY_SKILLENTRY_SKILL = ESCAPE_EXTRA,
 	ENTITY_SKILLENTRY_SOURCE,
@@ -1507,6 +1529,52 @@ enum entity_song_enum {
 	ENTITY_SONG_MANA,
 	ENTITY_SONG_TARGET,
 	ENTITY_SONG_BEATS,
+};
+
+enum entity_race_enum {
+	ENTITY_RACE_NAME = ESCAPE_EXTRA,
+	ENTITY_RACE_DESCRIPTION,
+	ENTITY_RACE_COMMENTS,
+	ENTITY_RACE_UID,
+	ENTITY_RACE_PLAYABLE,
+	ENTITY_RACE_STARTING,
+	ENTITY_RACE_ACT,
+	ENTITY_RACE_AFFECTS,
+	ENTITY_RACE_OFFENSE,
+	ENTITY_RACE_IMMUNE,
+	ENTITY_RACE_RESIST,
+	ENTITY_RACE_VULN,
+	ENTITY_RACE_FORM,
+	ENTITY_RACE_PARTS,
+	ENTITY_RACE_ISREMORT,
+	ENTITY_RACE_REMORT,
+	ENTITY_RACE_WHO,
+	ENTITY_RACE_SKILLS,
+	ENTITY_RACE_STARTING_STATS,
+	ENTITY_RACE_MAX_STATS,
+	ENTITY_RACE_MAX_VITALS,
+	ENTITY_RACE_MIN_SIZE,
+	ENTITY_RACE_MAX_SIZE,
+	ENTITY_RACE_DEFAULT_ALIGNMENT,
+};
+
+enum entity_class_enum {
+	ENTITY_CLASS_NAME = ESCAPE_EXTRA,
+	ENTITY_CLASS_DESCRIPTION,
+	ENTITY_CLASS_COMMENTS,
+	ENTITY_CLASS_UID,
+	ENTITY_CLASS_DISPLAY,
+	ENTITY_CLASS_WHO,
+	ENTITY_CLASS_TYPE,
+	ENTITY_CLASS_FLAGS,
+	ENTITY_CLASS_GROUPS,
+	ENTITY_CLASS_PRIMARY_STAT,
+	ENTITY_CLASS_MAX_LEVEL,
+};
+
+enum entity_classlevel_enum {
+	ENTITY_CLASSLEVEL_CLASS = ESCAPE_EXTRA,
+	ENTITY_CLASSLEVEL_LEVEL,
 };
 
 enum entity_variable_enum {
@@ -1790,8 +1858,10 @@ struct script_var_type {
 		SHIP_INDEX_DATA *shipindex;
 		bool boolean;
 		SKILL_DATA *skill;
+		SKILL_GROUP *skill_group;
 		SKILL_ENTRY *entry;
 		SONG_DATA *song;
+		CLASS_LEVEL *level;
 		REPUTATION_DATA *reputation;
 		REPUTATION_INDEX_DATA *reputation_index;
 		REPUTATION_INDEX_RANK_DATA *reputation_rank;
@@ -2007,6 +2077,7 @@ struct script_parameter {
 		AREA_REGION *aregion;
 
 		SKILL_DATA *skill;
+		SKILL_GROUP *skill_group;
 		SKILL_ENTRY *entry;
 		SONG_DATA *song;
 
@@ -2014,6 +2085,20 @@ struct script_parameter {
 		REPUTATION_INDEX_DATA *repIndex;
 		REPUTATION_INDEX_RANK_DATA *repRank;
 		MATERIAL *material;
+
+		RACE_DATA *race;
+		CLASS_DATA *clazz;
+		CLASS_LEVEL *level;
+
+		struct {
+			char **table;
+			int max;
+		} strings;
+
+		struct {
+			int *table;
+			int max;
+		} ints;
 
 		struct {
 			OBJ_DATA *obj;
@@ -2278,11 +2363,11 @@ DECL_IFC_FUN(ifc_handsfull);
 DECL_IFC_FUN(ifc_has);
 DECL_IFC_FUN(ifc_hascatalyst);
 DECL_IFC_FUN(ifc_hascheckpoint);
+DECL_IFC_FUN(ifc_hasclass);
 DECL_IFC_FUN(ifc_hasenvironment);
 DECL_IFC_FUN(ifc_hasprompt);
 DECL_IFC_FUN(ifc_hasqueue);
 DECL_IFC_FUN(ifc_hasship);
-DECL_IFC_FUN(ifc_hassubclass);
 DECL_IFC_FUN(ifc_hastarget);
 DECL_IFC_FUN(ifc_hastoken);
 DECL_IFC_FUN(ifc_hasvlink);
@@ -2309,6 +2394,7 @@ DECL_IFC_FUN(ifc_isbusy);
 DECL_IFC_FUN(ifc_iscasting);
 DECL_IFC_FUN(ifc_ischarm);
 DECL_IFC_FUN(ifc_ischurchexcom);
+DECL_IFC_FUN(ifc_isclass);
 DECL_IFC_FUN(ifc_iscloneroom);
 DECL_IFC_FUN(ifc_iscpkproof);
 DECL_IFC_FUN(ifc_isdead);
@@ -2351,7 +2437,6 @@ DECL_IFC_FUN(ifc_isshooting);
 DECL_IFC_FUN(ifc_isshopkeeper);
 DECL_IFC_FUN(ifc_isspell);
 DECL_IFC_FUN(ifc_isspell);
-DECL_IFC_FUN(ifc_issubclass);
 DECL_IFC_FUN(ifc_issustained);
 DECL_IFC_FUN(ifc_istarget);
 DECL_IFC_FUN(ifc_istattooing);
@@ -2819,6 +2904,7 @@ bool variables_set_mobile(ppVARIABLE list,char *name,CHAR_DATA *m);
 bool variables_set_object(ppVARIABLE list,char *name,OBJ_DATA *o);
 bool variables_set_room(ppVARIABLE list,char *name,ROOM_INDEX_DATA *r);
 bool variables_set_skill(ppVARIABLE list,char *name,SKILL_DATA *skill);
+bool variables_set_skill_group(ppVARIABLE list,char *name,SKILL_GROUP *skill_group);
 bool variables_set_skillinfo(ppVARIABLE list,char *name,CHAR_DATA *owner,SKILL_DATA *skill, TOKEN_DATA *token);
 bool variables_set_spell(ppVARIABLE list,char *name,SPELL_DATA *spell);
 bool variables_set_liquid(ppVARIABLE list,char *name,LIQUID *liquid);
@@ -2864,6 +2950,7 @@ bool variables_setsave_mobile(ppVARIABLE list,char *name,CHAR_DATA *m, bool save
 bool variables_setsave_object(ppVARIABLE list,char *name,OBJ_DATA *o, bool save);
 bool variables_setsave_room(ppVARIABLE list,char *name,ROOM_INDEX_DATA *r, bool save);
 bool variables_setsave_skill(ppVARIABLE list,char *name, SKILL_DATA *skill, bool save);
+bool variables_setsave_skill_group(ppVARIABLE list,char *name, SKILL_GROUP *skill_group, bool save);
 bool variables_setsave_skillinfo(ppVARIABLE list,char *name,CHAR_DATA *owner,SKILL_DATA *skill, TOKEN_DATA *token, bool save);
 bool variables_setsave_spell(ppVARIABLE list,char *name,SPELL_DATA *spell, bool save);
 bool variables_setsave_liquid(ppVARIABLE list,char *name,LIQUID *liquid, bool save);
@@ -2899,6 +2986,8 @@ bool variables_set_reputation_index (ppVARIABLE list,char *name,REPUTATION_INDEX
 bool variables_setsave_reputation_index (ppVARIABLE list,char *name,REPUTATION_INDEX_DATA *reputation_index, bool save);
 bool variables_set_reputation_rank (ppVARIABLE list,char *name,REPUTATION_INDEX_RANK_DATA *reputation_rank);
 bool variables_setsave_reputation_rank (ppVARIABLE list,char *name,REPUTATION_INDEX_RANK_DATA *reputation_rank, bool save);
+bool variables_set_classlevel (ppVARIABLE list,char *name,CLASS_LEVEL *level);
+bool variables_setsave_classlevel (ppVARIABLE list,char *name,CLASS_LEVEL *level, bool save);
 
 int variable_fread_type(char *str);
 pVARIABLE variable_create(ppVARIABLE list,char *name, bool index, bool clear);

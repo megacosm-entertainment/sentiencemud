@@ -116,10 +116,7 @@ SPELL_FUNC(spell_cure_blindness)
 		return TRUE;
 	}
 
-	if (get_profession(ch, CLASS_CLERIC) != -1)
-		chance = get_skill(ch, skill);
-	else
-		chance = 75;
+	chance = get_skill(ch, skill);
 
 	if (IS_AFFECTED(victim, AFF_BLIND) && number_percent() < chance) {
 		affect_strip(victim, gsk_blindness);
@@ -163,10 +160,7 @@ SPELL_FUNC(spell_cure_disease)
 		return FALSE;
 	}
 
-	if (get_profession(ch, CLASS_CLERIC) != -1)
-		chance = get_skill(ch, skill);
-	else
-		chance = 75;
+	chance = get_skill(ch, skill);
 
 	if (number_percent() < chance) {
 		affect_strip(victim, gsk_plague);
@@ -213,10 +207,7 @@ SPELL_FUNC(spell_cure_poison)
 		return FALSE;
 	}
 
-	if (get_profession(ch, CLASS_CLERIC) != -1)
-		chance = get_skill(ch, skill);
-	else
-		chance = 75;
+	chance = get_skill(ch, skill);
 
 	if (number_percent() < chance) {
 		affect_strip(victim, gsk_poison);
@@ -263,10 +254,7 @@ SPELL_FUNC(spell_cure_toxic)
 		return FALSE;
 	}
 
-	if (get_profession(ch, CLASS_CLERIC) != -1)
-		chance = get_skill(ch, skill);
-	else
-		chance = 75;
+	chance = get_skill(ch, skill);
 
 	if (number_percent() < chance) {
 		if(IS_IMMORTAL(ch) || (!IS_SET(victim->in_room->room_flag[1], ROOM_TOXIC_BOG) &&

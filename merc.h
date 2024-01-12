@@ -279,6 +279,7 @@ struct sound_type {
 
 #define VERSION_PLAYER_006  0x01000005
 
+#define VERSION_PLAYER_007  0x01000006
 
 #define VERSION_OBJECT_001	0x01000000
 
@@ -359,7 +360,7 @@ struct sound_type {
 #define VERSION_MOBILE		0x01000000
 #define VERSION_OBJECT		VERSION_OBJECT_016
 #define VERSION_ROOM		VERSION_ROOM_002
-#define VERSION_PLAYER		VERSION_PLAYER_006
+#define VERSION_PLAYER		VERSION_PLAYER_007
 #define VERSION_TOKEN		0x01000000
 #define VERSION_AFFECT		0x01000000
 #define VERSION_SCRIPT		0x02000000
@@ -659,6 +660,12 @@ typedef struct location_type {
 #define CLASS_GATHERING     5
 #define CLASS_EXPLORER      6   // Explorer classes
 
+#define CLASS_NO_LEVEL      (A) // Gaining levels in this class does not accumulate tot_level on the player.
+#define CLASS_COMBATIVE     (Z) // Class is considered a combat class
+
+typedef void CLASS_LEAVE_FUN (CHAR_DATA *ch);
+typedef void CLASS_ENTER_FUN (CHAR_DATA *ch);
+
 struct class_data {
     CLASS_DATA *next;
     bool valid;
@@ -675,9 +682,15 @@ struct class_data {
 
     sh_int type;        // Basic type
 
+    long flags;
+
     LLIST *groups;
 
     sh_int primary_stat;
+    sh_int max_level;   // What is considered the maximum level for the class?
+
+    CLASS_LEAVE_FUN *leave;
+    CLASS_ENTER_FUN *enter;
 
     // TODO: Traits?
 };
@@ -704,6 +717,7 @@ struct class_level_data {
 #define SKILL_PRACTICE			(B)
 #define SKILL_IMPROVE			(C)
 #define SKILL_FAVOURITE			(D)
+//                              (Z) // This will use SKILL_CROSS_CLASS flag from the skill data
 
 #define SKILL_AUTOMATIC			(SKILL_PRACTICE|SKILL_IMPROVE)
 
@@ -1474,7 +1488,7 @@ struct church_treasure_room_data
 #define CON_CONFIRM_NEW_PASSWORD	 5
 #define CON_GET_NEW_RACE		 6
 #define CON_GET_NEW_SEX			 7
-#define CON_GET_NEW_CLASS		 8
+//#define CON_GET_NEW_CLASS		 8
 #define CON_GET_ALIGNMENT		 9
 /*#define CON_DEFAULT_CHOICE		10 */
 /*#define CON_GEN_GROUPS		11 */
@@ -1483,9 +1497,9 @@ struct church_treasure_room_data
 #define CON_READ_MOTD			14
 #define CON_BREAK_CONNECT		15
 #define CON_GET_ASCII			16
-#define CON_GET_SUB_CLASS       	17
-#define CON_OLD_SUBCLASS  	     	18
-#define CON_SUBCLASS_CHOOSE             19
+//#define CON_GET_SUB_CLASS       	17
+//#define CON_OLD_SUBCLASS  	     	18
+//#define CON_SUBCLASS_CHOOSE             19
 #define CON_CHANGE_PASSWORD		20
 #define CON_CHANGE_PASSWORD_CONFIRM     21
 #define CON_GET_EMAIL			22
@@ -1989,6 +2003,7 @@ struct race_data
     RACE_DATA **pgr;        // Global Race
 
     bool playable;
+    bool starting;
     long flags;
 
     long act[2];
@@ -3454,6 +3469,7 @@ enum {
 #define AREA_NO_FADING		(K)
 #define AREA_BLUEPRINT		(L)		// Area is used to hold rooms used for Blueprints.  Will block VLINKs
 #define AREA_LOCKED			(M)		// Area requires the player to unlock the area first
+#define AREA_LOW_LEVEL      (N)     // Area is considered low level
 #define AREA_NO_SAVE		(Z)
 
 /*
@@ -3627,6 +3643,7 @@ enum {
 #define PLR_HOLYWARP		(G)
 #define PLR_NORECKONING		(H)
 #define PLR_NOLORE			(I)
+#define PLR_HOLYPERSONA     (J)
 
 #define COMM_QUIET              (A)
 #define COMM_NOMUSIC           	(B)
@@ -3832,7 +3849,7 @@ struct	mob_index_data
     sh_int		default_pos;
 
     sh_int		sex;
-    sh_int		race;
+    RACE_DATA *race;
     long		wealth;
     long		form;
     long		parts;
@@ -4386,7 +4403,7 @@ struct	char_data
     /*int			group; Syn - unused and unnecessary */
     int			sex;
 
-    int			race;
+    RACE_DATA   *race;
     int			orace;
     int			level;
     int			tot_level;
@@ -4806,6 +4823,10 @@ struct	pc_data
 
     LLIST *classes;
 
+    CLASS_LEVEL *current_class;
+
+    // DEPRECATED:
+#if 0
     int			class_current;
     int			sub_class_current;
     int			class_mage;
@@ -4824,6 +4845,7 @@ struct	pc_data
     int			second_class_warrior;
     int			sub_class_warrior;
     int			second_sub_class_warrior;
+#endif
 
     long		perm_hit;
     long		perm_mana;
@@ -4831,9 +4853,7 @@ struct	pc_data
     int			true_sex;
     int			last_level;
     int			condition	[5];
-//    bool		songs_learned[MAX_SONGS];
-//    int			learned		[MAX_SKILL];        // Moved to the SKILL_DATA
-//    int			mod_learned	[MAX_SKILL];
+
     LLIST *     group_known;
     long		points;
     bool              	confirm_delete;
@@ -7265,12 +7285,23 @@ struct church_command_type
 #define SKILL_CAN_INK       (D)
 #define SKILL_CAN_IMBUE     (E)
 #define SKILL_SPELL_PULSE   (F)
+#define SKILL_NO_PRACTICE   (X)     // Skill does not allow practicing.  Overrides the skill entry flag.
+#define SKILL_NO_IMPROVE    (Y)     // Skill does not naturally improve.  Overrides the skill entry flag.
 #define SKILL_CROSS_CLASS   (Z)     // Whether the skill can be used in classes not registered for the skill (NYI)
 
 #define SCHOOL_NONE         0
 #define SCHOOL_ARCANE       1
 #define SCHOOL_ELEMENTAL    2
 #define SCHOOL_DIVINE       3
+
+typedef struct skill_class_level SKILL_CLASS_LEVEL;
+
+// No free chain for this
+struct skill_class_level
+{
+    CLASS_DATA *clazz;  // Which class
+    sh_int level;       // Level when you will get the skill for this class
+};
 
 struct skill_data
 {
@@ -7287,6 +7318,12 @@ struct skill_data
 
     sh_int	skill_level[MAX_CLASS];	/* Level needed by class	*/
     sh_int	rating[MAX_CLASS];	/* How hard it is to learn	*/
+
+    LLIST *levels;
+    sh_int default_level;       // Level when ->levels is empty
+
+    sh_int difficulty;
+    sh_int primary_stat;
 
     // Functions only used when the spell is a source ability:
     // Token abilities will call their respective triggers
@@ -7323,7 +7360,7 @@ struct skill_data
     sh_int	minimum_position;	/* Position for caster / user	*/
     sh_int *	pgsn;			/* Pointer to associated gsn	*/
     /* sh_int	slot;		 	Syn- reusing this as a racial skill toggle. */
-    int 	race;			/* If it's a racial skill ONLY, this is the race number. If not, its -1.
+    RACE_DATA *race;			/* If it's a racial skill ONLY, this is the race number. If not, its -1.
 					   This doesn't apply for skills that can be gotten from classes, like archery. */
 
     sh_int	beats;			/* Waiting time after use	*/
@@ -8883,23 +8920,23 @@ extern sh_int grn_unique;
 
 
 /* Race checks! */
-#define IS_DROW(ch)		(ch->race == grn_drow || ch->race == grn_specter)
-#define IS_MINOTAUR(ch)		(ch->race == grn_minotaur || ch->race == grn_hell_baron)
-#define IS_SITH(ch)		(ch->race == grn_sith || ch->race == grn_naga)
-#define IS_LICH(ch)		(ch->race == grn_lich || ch->race == grn_wraith)
-#define IS_HUMAN(ch)		(ch->race == grn_human || ch->race == grn_avatar)
-#define IS_DWARF(ch)		(ch->race == grn_dwarf || ch->race == grn_berserker)
-#define IS_TITAN(ch)		(ch->race == grn_titan || ch->race == grn_colossus)
-#define IS_SAGE(ch)		(get_profession((ch), SECOND_SUBCLASS_THIEF) == CLASS_THIEF_SAGE)
-#define IS_ANGEL(ch)		(ch->race == grn_angel)
-#define IS_MYSTIC(ch)		(ch->race == grn_mystic)
-#define IS_DEMON(ch)		(ch->race == grn_demon)
-#define IS_REMORT(ch)		(race_table[ch->race].pgprn && pc_race_table[*race_table[ch->race].pgprn].remort)
-#define IS_VAMPIRE(ch)		(ch->race == grn_vampire || ch->race == grn_fiend)
-#define IS_SLAYER(ch)		(ch->race == grn_slayer || ch->race == grn_changeling)
-#define IS_DRACONIAN(ch)	(ch->race == grn_draconian || ch->race == grn_dragon)
-#define IS_DRAGON(ch)		(ch->race == grn_dragon)
-#define IS_ELF(ch)		(ch->race == grn_elf || ch->race == grn_seraph)
+#define IS_DROW(ch)		(ch->race == gr_drow || ch->race == gr_specter)
+#define IS_MINOTAUR(ch)		(ch->race == gr_minotaur || ch->race == gr_hell_baron)
+#define IS_SITH(ch)		(ch->race == gr_sith || ch->race == gr_naga)
+#define IS_LICH(ch)		(ch->race == gr_lich || ch->race == gr_wraith)
+#define IS_HUMAN(ch)		(ch->race == gr_human || ch->race == gr_avatar)
+#define IS_DWARF(ch)		(ch->race == gr_dwarf || ch->race == gr_berserker)
+#define IS_TITAN(ch)		(ch->race == gr_titan || ch->race == gr_colossus)
+#define IS_SAGE(ch)		(get_current_class(ch) == gcl_sage)
+#define IS_ANGEL(ch)		(ch->race == gr_angel)
+#define IS_MYSTIC(ch)		(ch->race == gr_mystic)
+#define IS_DEMON(ch)		(ch->race == gr_demon)
+#define IS_REMORT(ch)		(IS_VALID(ch->race) && ch->race->playable && ch->race->remort)
+#define IS_VAMPIRE(ch)		(ch->race == gr_vampire || ch->race == gr_fiend)
+#define IS_SLAYER(ch)		(ch->race == gr_slayer || ch->race == gr_changeling)
+#define IS_DRACONIAN(ch)	(ch->race == gr_draconian || ch->race == gr_dragon)
+#define IS_DRAGON(ch)		(ch->race == gr_dragon)
+#define IS_ELF(ch)		(ch->race == gr_elf || ch->race == gr_seraph)
 
 
 #define WAIT_STATE(ch, npulse)	((ch)->wait = UMAX((ch)->wait, (npulse)))
@@ -9094,8 +9131,8 @@ extern  const           long            food_table[];
 extern  const   struct  rep_type	rating_table    [];
 extern  const   struct  map_exit_type map_exit_table    [];
 extern  const   struct  rank_type	rank_table      [];
-extern	const	struct	class_type	class_table	[MAX_CLASS];
-extern	const	struct	sub_class_type	sub_class_table [];
+extern	const	struct	class_type	__class_table	[MAX_CLASS];
+extern	const	struct	sub_class_type	__sub_class_table [];
 extern	const	struct	weapon_type	weapon_table	[];
 extern	const	struct	weapon_type	ranged_weapon_table	[];
 extern	const	struct	crew_type	crew_table	[];
@@ -9112,8 +9149,10 @@ extern  const   struct  item_type       token_table     [];
 extern	const	struct	player_setting_type	pc_set_table	[];
 extern	const	struct	wiznet_type	wiznet_table	[];
 extern	const	struct	attack_type	attack_table	[];
-extern  const	struct  race_type	race_table	[];
-extern	const	struct	pc_race_type	pc_race_table	[];
+//extern  const	struct  race_type	race_table	[];
+//extern	const	struct	pc_race_type	pc_race_table	[];
+extern  const	struct  race_type	__race_table	[];
+extern	const	struct	pc_race_type	__pc_race_table	[];
 extern  const	struct	spec_type	spec_table	[];
 extern	const	struct	liq_type	liq_table	[];
 //extern	struct	skill_type	skill_table	[MAX_SKILL];
@@ -9442,7 +9481,6 @@ void check_room_shield_source( CHAR_DATA *ch, bool show );
 
 /* music.c */
 void    music_end       args( ( CHAR_DATA *ch ) );
-bool was_bard( CHAR_DATA *ch );
 
 /* shoot.c */
 CHAR_DATA *search_dir_name( CHAR_DATA *ch, char *argument, int direction, int range );
@@ -9529,7 +9567,6 @@ TOKEN_INDEX_DATA *get_token_index_wnum(WNUM wnum);
 TOKEN_INDEX_DATA *get_token_index_auid(long auid, long vnum);
 TOKEN_INDEX_DATA *get_token_index(AREA_DATA *pArea, long vnum);
 bool is_singular_token(TOKEN_INDEX_DATA *index);
-int     get_this_class args( ( CHAR_DATA *ch, SKILL_DATA *skill ) );
 void	reset_area      args( ( AREA_DATA * pArea ) );
 void	reset_room	args( ( ROOM_INDEX_DATA *pRoom ) );
 char *	print_flags	args( ( long flag ));
@@ -9661,7 +9698,7 @@ bool damage_new( CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, SK
 bool is_safe( CHAR_DATA *ch, CHAR_DATA *victim, bool show );
 bool is_safe_spell( CHAR_DATA *ch, CHAR_DATA *victim, bool area );
 bool one_hit( CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, int dt, bool secondary );
-int xp_compute( CHAR_DATA *gch, CHAR_DATA *victim, int total_levels );
+int xp_compute( CHAR_DATA *gch, CHAR_DATA *victim );
 void bind_end( CHAR_DATA *ch );
 void check_assist( CHAR_DATA *ch, CHAR_DATA *victim );
 void check_killer( CHAR_DATA *ch, CHAR_DATA *victim);
@@ -9885,9 +9922,9 @@ int 	check_immune	args( (CHAR_DATA *ch, sh_int dam_type) );
 char	*item_name	args( ( int item_type) );
 int	attack_lookup	args( ( const char *name) );
 long	wiznet_lookup	args( ( const char *name) );
-int	class_lookup	args( ( const char *name) );
-int	sub_class_lookup(CHAR_DATA *ch, const char *);
-int	sub_class_search(const char *);
+//int	class_lookup	args( ( const char *name) );
+//int	sub_class_lookup(CHAR_DATA *ch, const char *);
+//int	sub_class_search(const char *);
 bool	is_church	args( (CHAR_DATA *ch) );
 bool	is_same_church	args( (CHAR_DATA *ch, CHAR_DATA *victim));
 bool	is_old_mob	args ( (CHAR_DATA *ch) );
@@ -10009,7 +10046,7 @@ bool is_good_church( CHAR_DATA *ch );
 bool is_evil_church( CHAR_DATA *ch );
 bool wields_item_type( CHAR_DATA *ch, int weapon_type );
 char   *pirate_name_generator args(( void ));
-int get_remort_race( CHAR_DATA *ch );
+RACE_DATA *get_remort_race( CHAR_DATA *ch );
 bool is_darked( ROOM_INDEX_DATA *room );
 bool is_dead( CHAR_DATA *ch );
 void deduct_move( CHAR_DATA *ch, int amount );
@@ -10040,8 +10077,8 @@ int is_pk_safe_range( ROOM_INDEX_DATA *room, int depth, int reverse_dir );
 void stop_hunt( CHAR_DATA *ch, bool dead );
 bool is_pulling_relic( CHAR_DATA *ch );
 int index_helpfiles( int index, HELP_CATEGORY *hCat );
-int get_profession(CHAR_DATA *ch, int class_type);
-void set_profession(CHAR_DATA *ch, int class_type, int class_value);
+//int get_profession(CHAR_DATA *ch, int class_type);
+//void set_profession(CHAR_DATA *ch, int class_type, int class_value);
 ROOM_INDEX_DATA *obj_room(OBJ_DATA *obj);
 ROOM_INDEX_DATA *token_room(TOKEN_DATA *token);
 void exit_name(ROOM_INDEX_DATA *room, int door, char *kwd);
@@ -10205,17 +10242,14 @@ int rpcmd_lookup(char *command);*/
 
 
 /* save.c */
-bool find_class_skill( CHAR_DATA *ch, int class );
+//bool find_class_skill( CHAR_DATA *ch, int class );
 bool load_char_obj	args( ( DESCRIPTOR_DATA *d, char *name ) );
 bool update_object( OBJ_DATA *obj );
 OBJ_DATA *fread_obj_new( FILE *fp );
 void cleanup_affects( OBJ_DATA *obj );
 void descrew_subclasses( CHAR_DATA *);
 void fix_broken_classes( CHAR_DATA *ch );
-void fix_character( CHAR_DATA *ch );
 void fix_object( OBJ_DATA *obj );
-void fread_char      args( ( CHAR_DATA *ch,  FILE *fp ) );
-void fread_char	args( ( CHAR_DATA *ch,  FILE *fp ) );
 void fread_mount     args( ( CHAR_DATA *ch,  FILE *fp ) );
 void fwrite_char     args( ( CHAR_DATA *ch,  FILE *fp ) );
 void fwrite_mount    args( ( CHAR_DATA *pet, FILE *fp) );
@@ -10235,7 +10269,7 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp);
 
 
 /* skills.c */
-long 	exp_per_level	args( ( CHAR_DATA *ch, long points ) );
+long 	exp_per_level	args( ( CHAR_DATA *ch, CLASS_DATA *clazz, long points ) );
 void 	check_improve	args( ( CHAR_DATA *ch, SKILL_DATA *skill, bool success, int multiplier ) );
 void    check_improve_song	args( ( CHAR_DATA *ch, SONG_DATA *song, bool success, int multiplier ) );
 void check_improve_show( CHAR_DATA *ch, SKILL_DATA *skill, bool success, int multiplier, bool show );
@@ -10243,19 +10277,21 @@ void    check_improve_song_show	args( ( CHAR_DATA *ch, SONG_DATA *song, bool suc
 SKILL_GROUP *group_lookup	args( (const char *name) );
 void	gn_add		args( ( CHAR_DATA *ch, SKILL_GROUP *group) );
 void 	gn_remove	args( ( CHAR_DATA *ch, SKILL_GROUP *group) );
+void 	skill_add	args( ( CHAR_DATA *ch, SKILL_DATA *sk) );
 void 	group_add	args( ( CHAR_DATA *ch, const char *name, bool deduct) );
+void	skill_remove	args( ( CHAR_DATA *ch, SKILL_DATA *sk) );
 void	group_remove	args( ( CHAR_DATA *ch, const char *name) );
-bool had_skill( CHAR_DATA *ch, SKILL_DATA *skill );
-bool has_subclass_skill( int subclass, SKILL_DATA *skill );
+//bool skill_available( CHAR_DATA *ch, SKILL_DATA *skill );
+//bool has_subclass_skill( int subclass, SKILL_DATA *skill );
 bool can_practice( CHAR_DATA *ch, SKILL_DATA *skill );
-bool has_class_skill ( int class, SKILL_DATA *skill );
+//bool has_class_skill ( int class, SKILL_DATA *skill );
 bool is_global_skill( SKILL_DATA *skill );
 bool should_have_skill( CHAR_DATA *ch, SKILL_DATA *skill );
 void update_skills( CHAR_DATA *ch );
 void fix_subclasses( CHAR_DATA *);
 bool has_correct_classes( CHAR_DATA *ch );
-void show_multiclass_choices(CHAR_DATA *ch, CHAR_DATA *looker);
-bool can_choose_subclass(CHAR_DATA *ch, int subclass);
+//void show_multiclass_choices(CHAR_DATA *ch, CHAR_DATA *looker);
+//bool can_choose_subclass(CHAR_DATA *ch, int subclass);
 
 /* special.c */
 SF *	spec_lookup	args( ( const char *name ) );
@@ -10267,7 +10303,7 @@ RID *	room_by_name	args( ( char *target, int level, bool error) );
 /* update.c */
 void	healing_locket_update args( ( CHAR_DATA *ch ) );
 void	advance_level	args( ( CHAR_DATA *ch, bool hide ) );
-void	gain_exp	args( ( CHAR_DATA *ch, int gain ) );
+void	gain_exp	args( ( CHAR_DATA *ch, CLASS_DATA *clazz, int gain ) );
 void	gain_condition	args( ( CHAR_DATA *ch, int iCond, int value ) );
 void	update_handler	args( ( void ) );
 void    pneuma_relic_update args( ( void ) );
@@ -10623,7 +10659,7 @@ extern int wear_params[MAX_WEAR][7];
 char *get_script_prompt_string(CHAR_DATA *ch, char *key);
 bool script_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *token, SCRIPT_DATA *script, int mana);
 void token_skill_improve( CHAR_DATA *ch, TOKEN_DATA *token, bool success, int multiplier );
-int sub_class_search(const char *name);
+//int sub_class_search(const char *name);
 
 bool string_vector_add(STRING_VECTOR **head, char *key, char *string);
 void string_vector_free(STRING_VECTOR *v);
@@ -10706,7 +10742,8 @@ int skill_entry_mana (CHAR_DATA *ch, SKILL_ENTRY *entry);
 int skill_entry_learn (CHAR_DATA *ch, SKILL_ENTRY *entry);
 int skill_entry_target(CHAR_DATA *ch, SKILL_ENTRY *entry);
 char *skill_entry_name (SKILL_ENTRY *entry);
-void remort_player(CHAR_DATA *ch, int remort_class);
+void remort_player(CHAR_DATA *ch);
+bool skill_entry_available( CHAR_DATA *ch, SKILL_ENTRY *entry);
 
 void persist_addmobile(CHAR_DATA *mob);
 void persist_addobject(OBJ_DATA *obj);
@@ -11379,6 +11416,7 @@ extern LLIST *skill_groups_list;
 extern SKILL_GROUP *global_skills;
 SKILL_DATA *get_skill_data(char *name);
 SKILL_DATA *get_skill_data_uid(sh_int uid);
+SKILL_CLASS_LEVEL *get_skill_class_level(SKILL_DATA *skill, CLASS_DATA *clazz);
 
 extern LLIST *songs_list;
 extern sh_int top_song_uid;
@@ -11389,6 +11427,7 @@ SONG_DATA *get_song_data_uid(sh_int uid);
 extern LLIST *classes_list;
 extern sh_int top_class_uid;
 extern CLASS_DATA *gcl_adept;
+extern CLASS_DATA *gcl_adventurer;
 extern CLASS_DATA *gcl_alchemist;
 extern CLASS_DATA *gcl_archaeologist;
 extern CLASS_DATA *gcl_archmage;
@@ -11428,6 +11467,7 @@ extern CLASS_DATA *gcl_witch;
 extern CLASS_DATA *gcl_wizard;
 CLASS_DATA *get_class_data(const char *name);
 CLASS_DATA *get_class_uid(const sh_int uid);
+CLASS_DATA *get_current_class(CHAR_DATA *ch);
 CLASS_LEVEL *get_class_level(CHAR_DATA *ch, CLASS_DATA *clazz);
 bool has_class_level(CHAR_DATA *ch, CLASS_DATA *clazz);
 void add_class_level(CHAR_DATA *ch, CLASS_DATA *clazz, int level);
@@ -11500,5 +11540,6 @@ extern RACE_DATA *gr_titan;
 extern RACE_DATA *gr_vampire;
 extern RACE_DATA *gr_wraith;
 RACE_DATA *get_race_data(const char *name);
+RACE_DATA *get_race_uid(const sh_int uid);
 
 #endif /* !def __merc_h__ */

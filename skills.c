@@ -40,6 +40,7 @@
 #include "merc.h"
 #include "interp.h"
 #include "magic.h"
+#include "classes.h"
 #include "recycle.h"
 #include "tables.h"
 #include "db.h"
@@ -49,10 +50,26 @@
 #define MAX_SKILL_LEARNABLE	75
 #define MAX_SKILL_TRAINABLE	90
 
+#define VERSION_SKILLS_000	0x00000000
+#define VERSION_SKILLS_001  0x01000000
+
+#define VERSION_SKILLS		VERSION_SKILLS_001
+
+#define VERSION_CLASS_000	0x00000000
+#define VERSION_CLASS_001	0x01000000
+#define VERSION_CLASS_002	0x01000001
+
+#define VERSION_CLASS		VERSION_CLASS_002
+
+int version_skills = VERSION_SKILLS_000;
+int version_class = VERSION_CLASS_000;
+
 void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool show_spells, bool hide_learned);
-bool is_racial_skill(int race, SKILL_DATA *skill);
+bool is_racial_skill(RACE_DATA *race, SKILL_DATA *skill);
 bool reputation_has_paragon(REPUTATION_INDEX_DATA *repIndex);
 void show_flag_cmds(CHAR_DATA *ch, const struct flag_type *flag_table);
+void resolve_skill_classes();
+bool skill_available( CHAR_DATA *ch, SKILL_DATA *skill );
 
 struct message_handler_type
 {
@@ -189,13 +206,18 @@ void save_skill(FILE *fp, SKILL_DATA *skill)
 	if (!IS_NULLSTR(skill->display) && str_cmp(skill->name, skill->display))
 		fprintf(fp, "Display %s~\n", skill->display);
 
-	fprintf(fp, "Level");
-	for(int j = 0; j < MAX_CLASS; j++) fprintf(fp, " %d", skill->skill_level[j]);
-	fprintf(fp, "\n");
+	fprintf(fp, "DefaultLevel %d\n", skill->default_level);
+	fprintf(fp, "Difficulty %d\n", skill->difficulty);
+	fprintf(fp, "PrimaryStat %s~\n", flag_string(stat_types, skill->primary_stat));
 
-	fprintf(fp, "Rating");
-	for(int j = 0; j < MAX_CLASS; j++) fprintf(fp, " %d", skill->rating[j]);
-	fprintf(fp, "\n");
+	ITERATOR lit;
+	SKILL_CLASS_LEVEL *level;
+	iterator_start(&lit, skill->levels);
+	while((level = (SKILL_CLASS_LEVEL *)iterator_nextdata(&lit)))
+	{
+		fprintf(fp, "ClassLevel %s~ %d\n", level->clazz->name, level->level);
+	}
+	iterator_stop(&lit);
 
 	fprintf(fp, "Flags %s\n", print_flags(skill->flags));
 
@@ -275,9 +297,8 @@ void save_skill(FILE *fp, SKILL_DATA *skill)
 	if(skill->pgsn)
 		fprintf(fp, "GSN %s~\n", gsn_to_name(skill->pgsn));
 
-	// TODO: After rcedit is added, change accordingly
-	if(skill->race >= 0)
-		fprintf(fp, "Race %s~\n", race_table[skill->race].name);
+	if(IS_VALID(skill->race))
+		fprintf(fp, "Race %s~\n", skill->race->name);
 
 	fprintf(fp, "Mana %d\n", skill->cast_mana);
 	fprintf(fp, "BrewMana %d\n", skill->brew_mana);
@@ -343,6 +364,7 @@ void save_skills(void)
 	}
 	else
 	{
+		fprintf(fp, "Version %d\n", VERSION_SKILLS);	// Save the version
 #if 0
 		for (int i = 1; i < MAX_SKILL && skill_table[i].name; i++)
 		{
@@ -454,6 +476,30 @@ void skill_autoset_functions(SKILL_DATA *skill, char *name)
 	if (!skill->zap_fun)		skill->zap_fun = zap_func_lookup(name);
 }
 
+
+void insert_skill_class_level(SKILL_DATA *skill, SKILL_CLASS_LEVEL *level)
+{
+	ITERATOR it;
+	SKILL_CLASS_LEVEL *lvl;
+	iterator_start(&it, skill->levels);
+	while((lvl = (SKILL_CLASS_LEVEL *)iterator_nextdata(&it)))
+	{
+		int cmp = str_cmp(level->clazz->name, lvl->clazz->name);
+		if (cmp < 0)
+		{
+			iterator_insert_before(&it, level);
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	if(!lvl)
+	{
+		list_appendlink(skill->levels, level);
+	}
+}
+
+
 SKILL_DATA *load_skill(FILE *fp, bool isspell)
 {
 	SKILL_DATA *skill = new_skill_data();
@@ -467,6 +513,14 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 	skill->uid = fread_number(fp);
 	skill->isspell = isspell;
 	skill->flags = SKILL_CAN_CAST;	// Default
+
+	int skill_level[MAX_CLASS];
+	int rating[MAX_CLASS];
+	for(int i = 0; i < MAX_CLASS; i++)
+	{
+		skill_level[i] = MAX_CLASS_LEVEL + 1;
+		rating[i] = 1;
+	}
 
 	const char *end = isspell ? "#-SPELL" : "#-SKILL";
 
@@ -506,7 +560,28 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 				KEY("BrewMana", skill->brew_mana, fread_number(fp));
 				break;
 
+			case 'C':
+				if (!str_cmp(word, "ClassLevel"))
+				{
+					char *name = fread_string(fp);
+					int level = fread_number(fp);
+
+					CLASS_DATA *clazz = get_class_data(name);
+					if (IS_VALID(clazz))
+					{
+						SKILL_CLASS_LEVEL *lvl = new_skill_class_level();
+						lvl->clazz = clazz;
+						lvl->level = level;
+						insert_skill_class_level(skill, lvl);
+					}
+					fMatch = true;
+					break;
+				}
+				break;
+
 			case 'D':
+				KEY("DefaultLevel", skill->default_level, fread_number(fp));
+				KEY("Difficulty", skill->difficulty, fread_number(fp));
 				KEYS("Display", skill->display, fread_string(fp));
 				break;
 
@@ -594,12 +669,15 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 				break;
 			
 			case 'L':
-				if (!str_cmp(word, "Level"))
+				if (version_skills < VERSION_SKILLS_001)
 				{
-					for(int i = 0; i < MAX_CLASS; i++) skill->skill_level[i] = fread_number(fp);
+					if (!str_cmp(word, "Level"))
+					{
+						for(int i = 0; i < MAX_CLASS; i++) skill_level[i] = fread_number(fp);
 
-					fMatch = true;
-					break;
+						fMatch = true;
+						break;
+					}
 				}
 				break;
 
@@ -701,6 +779,7 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 					fMatch = true;
 					break;
 				}
+				KEY("PrimaryStat", skill->primary_stat, stat_lookup(fread_string(fp), stat_types, STAT_NONE));
 				if (!str_cmp(word, "PulseFunc"))
 				{
 					char *name = fread_string(fp);
@@ -736,17 +815,19 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 				if (!str_cmp(word, "Race"))
 				{
 					char *name = fread_string(fp);
-					skill->race = race_lookup(name);
+					skill->race = get_race_data(name);
 
 					fMatch = true;
 					break;
 				}
-				if (!str_cmp(word, "Rating"))
+				if (version_skills < VERSION_SKILLS_001)
 				{
-					for(int i = 0; i < MAX_CLASS; i++) skill->rating[i] = fread_number(fp);
-
-					fMatch = true;
-					break;
+					if (!str_cmp(word, "Rating"))
+					{
+						for(int i = 0; i < MAX_CLASS; i++) rating[i] = fread_number(fp);
+						fMatch = true;
+						break;
+					}
 				}
 				if (!str_cmp(word, "ReciteFunc"))
 				{
@@ -878,6 +959,38 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 		skill_autoset_functions(skill, spell_func_name);
 	}
 
+	if (version_skills < VERSION_SKILLS_001)
+	{
+		// Generate class levels based upon the class types
+		ITERATOR cit;
+		CLASS_DATA *clazz;
+		iterator_start(&cit, classes_list);
+		while((clazz = (CLASS_DATA *)iterator_nextdata(&cit)))
+		{
+			if (clazz->type >= 0 && clazz->type < MAX_CLASS)
+			{
+				if (skill_level[clazz->type] <= MAX_CLASS_LEVEL)
+				{
+					SKILL_CLASS_LEVEL *level = new_skill_class_level();
+					level->clazz = clazz;
+					level->level = skill_level[clazz->type];
+					insert_skill_class_level(skill, level);
+				}
+			}
+		}
+		iterator_stop(&cit);
+
+		// Find the highest difficulty
+		int diff = 1;
+		for(int i = 0; i < MAX_CLASS; i++)
+		{
+			if (rating[i] > diff)
+				diff = rating[i];
+		}
+		skill->difficulty = diff;
+
+	}
+
 	return skill;
 }
 
@@ -992,6 +1105,96 @@ static void delete_skill_group_data(void *ptr)
 	free_skill_group_data((SKILL_GROUP *)ptr);	
 }
 
+extern struct skill_type __skill_table[];
+static int __skill_lookup(const char *name)
+{
+	int sn;
+
+	for (sn = 0; __skill_table[sn].name; sn++)
+	{
+		if (LOWER(name[0]) == LOWER(__skill_table[sn].name[0]) &&
+			!str_prefix(name, __skill_table[sn].name))
+		return sn;
+	}
+
+	return -1;
+}
+
+static void version002__resolve_class_skill_levels()
+{
+	ITERATOR cit, git, sit;
+	CLASS_DATA *clazz;
+	SKILL_DATA *skill;
+
+	// Populate the skill levels based upon class involvement
+	iterator_start(&cit, classes_list);
+	while((clazz = (CLASS_DATA *)iterator_nextdata(&cit)))
+	{
+		int type = clazz->type;
+		if (!str_cmp(clazz->name, "bard") || !str_cmp(clazz->name, "sage"))
+			type = CLASS_THIEF;
+
+		SKILL_GROUP *group;
+		iterator_start(&git, clazz->groups);
+		while((group = (SKILL_GROUP *)iterator_nextdata(&git)))
+		{
+			char *name;
+			iterator_start(&sit, group->contents);
+			while((name = (char *)iterator_nextdata(&sit)))
+			{
+				skill = get_skill_data(name);
+				int sn = __skill_lookup(name);
+				if (IS_VALID(skill))
+				{
+					SKILL_CLASS_LEVEL *level = get_skill_class_level(skill, clazz);
+
+					if (!level)
+					{
+						level = new_skill_class_level();
+						level->clazz = clazz;
+
+						if (sn > 0 && sn < MAX_SKILL && type >= CLASS_MAGE && type <= CLASS_WARRIOR)
+							level->level = __skill_table[sn].skill_level[type];
+						else
+							// Set it to 1
+							level->level = 1;
+
+						insert_skill_class_level(skill, level);
+					}
+				}
+			}
+			iterator_stop(&sit);
+		}
+		iterator_stop(&git);
+	}
+	iterator_stop(&cit);
+
+	// Handle skills with nothing to set the default level
+	iterator_start(&sit, skills_list);
+	while((skill = (SKILL_DATA *)iterator_nextdata(&sit)))
+	{
+		if (list_size(skill->levels) < 1)
+		{
+			int sn = __skill_lookup(skill->name);
+			if (sn > 0 && sn < MAX_SKILL)
+			{
+				int min_level = MAX_CLASS_LEVEL + 1;
+				for(int i = 0; i < MAX_CLASS; i++)
+				{
+					if (__skill_table[sn].skill_level[i] < min_level)
+						min_level = __skill_table[sn].skill_level[i];
+				}
+
+				skill->default_level = min_level;
+			}
+			else
+				skill->default_level = 1;	// Default value for "new" skills
+		}
+	}
+	iterator_stop(&sit);
+}
+
+
 bool load_skills(void)
 {
 #if 1
@@ -1032,6 +1235,7 @@ bool load_skills(void)
 		if(gsn_table[i].gsk) *gsn_table[i].gsk = NULL;
 	}
 
+	version_skills = VERSION_SKILLS_000;
 	
 	while(str_cmp((word = fread_word(fp)), "End"))
 	{
@@ -1093,6 +1297,10 @@ bool load_skills(void)
 				break;
 			}
 			break;
+
+		case 'V':
+			KEY("Version", version_skills, fread_number(fp));
+			break;
 		}
 
 		if (!fMatch) {
@@ -1137,13 +1345,41 @@ bool load_skills(void)
 	gsk__well_fed.msg_obj = str_dup("");
 	gsk__well_fed.msg_off = str_dup("You are no longer well fed.");
 
+	resolve_skill_classes();
+
+	if (version_skills < VERSION_CLASS_002)
+		version002__resolve_class_skill_levels();
+
+	if (version_skills < VERSION_SKILLS)
+		save_skills();
+
+	version_skills = VERSION_SKILLS;
+
 	return true;
 }
+
 
 // Free up all of the data from the loading
 void cleanup_skills(void)
 {
 	// Do nothing right now
+}
+
+SKILL_CLASS_LEVEL *get_skill_class_level(SKILL_DATA *skill, CLASS_DATA *clazz)
+{
+	if (!IS_VALID(skill) || !IS_VALID(clazz)) return NULL;
+
+	ITERATOR it;
+	SKILL_CLASS_LEVEL *level;
+	iterator_start(&it, skill->levels);
+	while((level = (SKILL_CLASS_LEVEL *)iterator_nextdata(&it)))
+	{
+		if (level->clazz == clazz)
+			break;
+	}
+	iterator_stop(&it);
+
+	return level;
 }
 
 SKILL_DATA *get_skill_data(char *name)
@@ -1178,6 +1414,7 @@ SKILL_DATA *get_skill_data_uid(sh_int uid)
 
 void do_multi(CHAR_DATA *ch, char *argument)
 {
+#if 0
     char buf[2*MAX_STRING_LENGTH];
     char buf2[MSL];
     CHAR_DATA *mob;
@@ -1487,11 +1724,16 @@ void do_multi(CHAR_DATA *ch, char *argument)
     double_xp(ch);
 
 	p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_MULTICLASS, NULL,0,0,0,0,0);
+#else
+	command_under_construction(ch);
+#endif
 }
 
 
+#if 0
 void show_multiclass_choices(CHAR_DATA *ch, CHAR_DATA *looker)
 {
+#if 0
     char buf[MSL];
     char buf2[MSL];
     int i;
@@ -1574,6 +1816,9 @@ void show_multiclass_choices(CHAR_DATA *ch, CHAR_DATA *looker)
     }
 
     send_to_char(buf, looker);
+#else
+	command_under_construction(ch);
+#endif
 }
 
 
@@ -1691,7 +1936,7 @@ bool can_choose_subclass(CHAR_DATA *ch, int subclass)
     bug(buf, 0);
     return FALSE;
 }
-
+#endif
 
 // Train a stat
 void do_train(CHAR_DATA *ch, char *argument)
@@ -1737,9 +1982,9 @@ void do_train(CHAR_DATA *ch, char *argument)
 	mod_mana = 0;
 	mod_move = 0;
 
-	max_hit = pc_race_table[ch->race].max_vital_stats[MAX_HIT];
-	max_mana = pc_race_table[ch->race].max_vital_stats[MAX_MANA];
-	max_move = pc_race_table[ch->race].max_vital_stats[MAX_MOVE];
+	max_hit = ch->race->max_vitals[MAX_HIT];
+	max_mana = ch->race->max_vitals[MAX_MANA];
+	max_move = ch->race->max_vitals[MAX_MOVE];
 
 	for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
 	{
@@ -1761,42 +2006,44 @@ void do_train(CHAR_DATA *ch, char *argument)
 	max_mana += mod_mana;
 	mod_move += mod_move;
 
+//	CLASS_DATA *clazz = get_current_class(ch);
+
 	if (!str_cmp(arg, "str"))
 	{
-		if (class_table[ch->pcdata->class_current].attr_prime == STAT_STR || ch->pcdata->class_mage != -1)
-			cost    = 1;
+//		if (class_table[ch->pcdata->class_current].attr_prime == STAT_STR || ch->pcdata->class_mage != -1)
+//			cost    = 1;
 		stat        = STAT_STR;
 		pOutput     = "strength";
 	}
 
 	else if (!str_cmp(arg, "int"))
 	{
-		if (class_table[ch->pcdata->class_current].attr_prime == STAT_INT || ch->pcdata->class_mage != -1)
-			cost    = 1;
+//		if (class_table[ch->pcdata->class_current].attr_prime == STAT_INT || ch->pcdata->class_mage != -1)
+//			cost    = 1;
 		stat	    = STAT_INT;
 		pOutput     = "intelligence";
 	}
 
 	else if (!str_cmp(arg, "wis"))
 	{
-		if (class_table[ch->pcdata->class_current].attr_prime == STAT_WIS || ch->pcdata->class_cleric != -1)
-			cost    = 1;
+//		if (class_table[ch->pcdata->class_current].attr_prime == STAT_WIS || ch->pcdata->class_cleric != -1)
+//			cost    = 1;
 		stat	    = STAT_WIS;
 		pOutput     = "wisdom";
 	}
 
 	else if (!str_cmp(arg, "dex"))
 	{
-		if (class_table[ch->pcdata->class_current].attr_prime == STAT_DEX || ch->pcdata->class_thief != -1)
-			cost    = 1;
+//		if (class_table[ch->pcdata->class_current].attr_prime == STAT_DEX || ch->pcdata->class_thief != -1)
+//			cost    = 1;
 		stat  	    = STAT_DEX;
 		pOutput     = "dexterity";
 	}
 
 	else if (!str_cmp(arg, "con"))
 	{
-		if (class_table[ch->pcdata->class_current].attr_prime == STAT_CON)
-			cost    = 1;
+//		if (class_table[ch->pcdata->class_current].attr_prime == STAT_CON)
+//			cost    = 1;
 		stat	    = STAT_CON;
 		pOutput     = "constitution";
 	}
@@ -2188,20 +2435,24 @@ void do_skills(CHAR_DATA *ch, char *argument)
 }
 
 
-long exp_per_level(CHAR_DATA *ch, long points)
+long exp_per_level(CHAR_DATA *ch, CLASS_DATA *clazz, long points)
 {
     double expl;
 
     if (IS_NPC(ch))
-	return 1000;
+		return 1000;
 
-    expl = exp_per_level_table[ch->tot_level].exp;
+	CLASS_LEVEL *level = get_class_level(ch, clazz);
+	if (!IS_VALID(level)) return 0;
 
-    if (IS_REMORT(ch))
-        expl = 3 * expl / 2;
+    if (level->level < level->clazz->max_level)
+	    expl = exp_per_level_table[level->level].exp;		// level is 1 based, array is 0 based
+	else
+		expl = 0;
 
-    if (ch->level == MAX_CLASS_LEVEL)
-	expl = 0;
+	// TODO: Should there be an XP penalty for remorting?
+    //if (IS_REMORT(ch))
+    //    expl = 3 * expl / 2;
 
     return expl;
 }
@@ -2211,7 +2462,6 @@ void check_improve_show( CHAR_DATA *ch, SKILL_DATA *skill, bool success, int mul
 {
     int chance;
     char buf[100];
-    int this_class;
     SKILL_ENTRY *entry;
 
     if (IS_NPC(ch))
@@ -2220,26 +2470,64 @@ void check_improve_show( CHAR_DATA *ch, SKILL_DATA *skill, bool success, int mul
     if (IS_SOCIAL(ch))
 		return;
 
+	if(IS_SET(skill->flags, SKILL_NO_IMPROVE))
+		return;
+
 	entry = skill_entry_findskill(ch->sorted_skills, skill);
 	if(!entry)
 		return;
 
 	if(!IS_SET(entry->flags, SKILL_IMPROVE))
+		return;	
+
+	CLASS_LEVEL *current = ch->pcdata->current_class;
+
+	if (list_size(skill->levels) > 0)
+	{
+		if (IS_SET(skill->flags, SKILL_CROSS_CLASS))
+		{
+			ITERATOR lit;
+			SKILL_CLASS_LEVEL *level;
+			iterator_start(&lit, skill->levels);
+			while((level = (SKILL_CLASS_LEVEL *)iterator_nextdata(&lit)))
+			{
+				CLASS_LEVEL *cl = get_class_level(ch, level->clazz);
+
+				if (IS_VALID(cl) && cl->level >= level->level)
+					break;
+			}
+			iterator_stop(&lit);
+
+			// Skill is not available yet in any class
+			if (!level) return;
+		}
+		else
+		{
+			ITERATOR lit;
+			SKILL_CLASS_LEVEL *level;
+			iterator_start(&lit, skill->levels);
+			while((level = (SKILL_CLASS_LEVEL *)iterator_nextdata(&lit)))
+			{
+				if (level->clazz == current->clazz && current->level >= level->level)
+					break;
+			}
+			iterator_stop(&lit);
+
+			// Skill is not available for the class or not at the right level
+			if (!level) return;
+		}
+	}
+	else if (ch->tot_level < skill->default_level)
 		return;
 
-    this_class = get_this_class(ch, skill);
-
-    if (get_skill(ch, skill) == 0
-    ||  skill->rating[this_class] == 0
-    ||  entry->rating <= 0
-    ||  entry->rating == 100)
-	return;
+    if (entry->rating <= 0 || entry->rating == 100)
+		return;
 
     // check to see if the character has a chance to learn
     chance      = 10 * int_app[get_curr_stat(ch, STAT_INT)].learn;
     multiplier  = UMAX(multiplier,1);
 //    multiplier  = UMIN(multiplier + 3, 8);
-    chance     /= (multiplier * skill->rating[this_class] * 4);
+    chance     /= (multiplier * skill->difficulty * 4);
     chance     += ch->level;
 
     if (number_range(1,1000) > chance)
@@ -2254,7 +2542,7 @@ void check_improve_show( CHAR_DATA *ch, SKILL_DATA *skill, bool success, int mul
 	    sprintf(buf,"{WYou have become better at %s!{x\n\r", skill->name);
 	    send_to_char(buf,ch);
 	    entry->rating++;
-	    gain_exp(ch, 2 * skill->rating[this_class]);
+	    //gain_exp(ch, NULL, 2 * skill->difficulty);		// Removed for now
 	}
     }
     else
@@ -2268,7 +2556,7 @@ void check_improve_show( CHAR_DATA *ch, SKILL_DATA *skill, bool success, int mul
 	    send_to_char(buf, ch);
 	    entry->rating += number_range(1,3);
 	    entry->rating = UMIN(entry->rating,100);
-	    gain_exp(ch,2 * skill->rating[ch->pcdata->class_current]);
+	    //gain_exp(ch, NULL,2 * skill->difficulty);	// Removed for now
 	}
     }
 }
@@ -2377,6 +2665,26 @@ void gn_remove( CHAR_DATA *ch, SKILL_GROUP *group)
 	iterator_stop(&sit);
 }
 
+void skill_add( CHAR_DATA *ch, SKILL_DATA *sk)
+{
+	if (!IS_VALID(sk)) return;
+
+	SKILL_ENTRY *entry = skill_entry_findskill(ch->sorted_skills, sk);
+
+	if (!entry)
+	{
+		TOKEN_DATA *token = NULL;
+		if (sk->token)
+			token = give_token(sk->token, ch, NULL, NULL);
+		
+		if (is_skill_spell(sk))
+			entry = skill_entry_addspell(ch, sk, token, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+		else
+			entry = skill_entry_addskill(ch, sk, token, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+
+		entry->rating = 1;
+	}
+}
 
 void group_add( CHAR_DATA *ch, const char *name, bool deduct)
 {
@@ -2389,22 +2697,7 @@ void group_add( CHAR_DATA *ch, const char *name, bool deduct)
 
     if (IS_VALID(sk))
     {
-		SKILL_ENTRY *entry = skill_entry_findskill(ch->sorted_skills, sk);
-
-		if (!entry)
-		{
-			TOKEN_DATA *token = NULL;
-			if (sk->token)
-				token = give_token(sk->token, ch, NULL, NULL);
-			
-			if (is_skill_spell(sk))
-				entry = skill_entry_addspell(ch, sk, token, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
-			else
-				entry = skill_entry_addskill(ch, sk, token, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
-
-			entry->rating = 1;
-		}
-
+		skill_add(ch, sk);
 		return;
     }
 
@@ -2416,6 +2709,14 @@ void group_add( CHAR_DATA *ch, const char *name, bool deduct)
 	}
 }
 
+void skill_remove(CHAR_DATA *ch, SKILL_DATA *sk)
+{
+	if (!IS_VALID(sk)) return;
+
+	SKILL_ENTRY *entry = skill_entry_findskill(ch->sorted_skills, sk);
+	
+	skill_entry_removeentry(&ch->sorted_skills, entry);
+}
 
 void group_remove(CHAR_DATA *ch, const char *name)
 {
@@ -2425,9 +2726,7 @@ void group_remove(CHAR_DATA *ch, const char *name)
 
     if (IS_VALID(sk))
     {
-		SKILL_ENTRY *entry = skill_entry_findskill(ch->sorted_skills, sk);
-		
-		skill_entry_removeentry(&ch->sorted_skills, entry);
+		skill_remove(ch, sk);
 		return;
     }
 
@@ -2441,39 +2740,52 @@ void group_remove(CHAR_DATA *ch, const char *name)
 
 static bool __skill_can_learn(CHAR_DATA *ch, SKILL_DATA *skill, SKILL_ENTRY *se)
 {
-    int this_class;
-
 	if (se)
 	{
-		if (!IS_SET(se->flags, SKILL_PRACTICE)) return false;
+		if (!IS_SET(se->flags, SKILL_PRACTICE)) {
+			//send_to_char(formatf("SKILL_ENTRY(%s) cannot practice.\n\r", skill->name), ch);
+			return false;
+		}
 
 		if (se->source != SKILLSRC_NORMAL) return true;
 
 		// They already have it learned to some degree		
-	    if (se->rating > 1)
+	    if (se->rating > 2)
 			return true;
+
+		//send_to_char(formatf("SKILL_ENTRY(%s) found.\n\r", skill->name), ch);
+	}
+
+	// Skills with no class requirements, check against their total level
+	if (list_size(skill->levels) < 1 && ch->tot_level >= skill->default_level)
+	{
+		//send_to_char(formatf("Able to learn general skill '%s'.\n\r", skill->name), ch);
+		return true;
 	}
 
 	if (is_global_skill(skill))
 		return true;
 
-	///////////////////////////////////////////////////////////////////
-	// TODO: Update after new class system is in place
-	this_class = get_this_class(ch, skill);
+	if (is_racial_skill(ch->race, skill))
+		return true;
 
-	// Racial skill? Class skill?
-	if (!is_racial_skill(ch->race, skill) &&
-		!has_class_skill(ch->pcdata->class_current, skill) &&
-		!has_subclass_skill(ch->pcdata->sub_class_current, skill))
-		return false;
+	//if (!se)
+	//	send_to_char(formatf("SKILL_ENTRY(%s) not found.\n\r", skill->name), ch);
+	if (se)
+		return skill_entry_available(ch, se);
 
-	return ch->level >= skill->skill_level[this_class];
+	// They don't have the SKILL_ENTRY yet, so see if they can acquire it
 	///////////////////////////////////////////////////////////////////
+
+	// Assumes they do not already have the SKILL_ENTRY
+	return skill_available(ch, skill);
 }
 
 static bool __song_can_learn(CHAR_DATA *ch, SONG_DATA *song, SKILL_ENTRY *se)
 {
-    if (ch->pcdata->sub_class_thief != CLASS_THIEF_BARD)
+	CLASS_LEVEL *level = get_class_level(ch, gcl_bard);
+
+	if (!IS_VALID(level))
 		return false;
 
 	if (se)
@@ -2487,8 +2799,7 @@ static bool __song_can_learn(CHAR_DATA *ch, SONG_DATA *song, SKILL_ENTRY *se)
 			return true;
 	}
 
-	// Either was bard or is over the level of the song
-	return ch->pcdata->sub_class_current != CLASS_THIEF_BARD || ch->level >= song->level;
+	return level->level >= song->level;
 }
 
 
@@ -2499,7 +2810,7 @@ static bool __student_can_show_entry(CHAR_DATA *ch, PRACTICE_ENTRY_DATA *entry, 
 	if (IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))
 		return true;
 
-	if (entry->song && ch->pcdata->sub_class_thief != CLASS_THIEF_BARD)
+	if (entry->song && get_current_class(ch) != gcl_bard)
 		return false;
 	
 	// Check reputation
@@ -2550,6 +2861,72 @@ static bool __student_can_show_entry(CHAR_DATA *ch, PRACTICE_ENTRY_DATA *entry, 
 #endif
 }
 
+int get_minimum_skill_class_level(CHAR_DATA *ch, SKILL_DATA *skill)
+{
+	if (IS_NPC(ch)) return 0;
+
+	ITERATOR lit;
+	if (list_size(skill->levels) > 0)
+	{
+		int min_level = 0;
+		bool available = false;
+
+		SKILL_ENTRY *entry = skill_entry_findskill(ch->sorted_skills, skill);
+
+		SKILL_CLASS_LEVEL *level;
+		if ((entry && IS_SET(entry->flags, SKILL_CROSS_CLASS)) || IS_SET(entry->skill->flags, SKILL_CROSS_CLASS))
+		{
+			iterator_start(&lit, skill->levels);
+			while((level = (SKILL_CLASS_LEVEL *)iterator_nextdata(&lit)))
+			{
+				CLASS_LEVEL *cl = get_class_level(ch, level->clazz);
+
+				if (IS_VALID(cl))
+				{
+					if (!min_level || level->level < min_level || (level->level == min_level && !available &&  cl->level >= level->level))
+					{
+						min_level = level->level;
+						available = (cl->level >= level->level);
+					}
+				}
+			}
+			iterator_stop(&lit);
+		}
+		else
+		{
+			// Not cross class, so check whether the current class is one of the required classes
+			CLASS_LEVEL *current = ch->pcdata->current_class;
+
+			if (IS_VALID(current))
+			{
+				iterator_start(&lit, skill->levels);
+				while((level = (SKILL_CLASS_LEVEL *)iterator_nextdata(&lit)))
+				{
+					if (level->clazz == current->clazz && current->level >= level->level)
+					{
+						if (!min_level || level->level < min_level || (level->level == min_level && !available && current->level >= level->level))
+						{
+							min_level = level->level;
+							available = (current->level >= level->level);
+						}
+					}
+				}
+				iterator_stop(&lit);
+			}
+		}
+
+		return available ? min_level : -min_level;
+	}
+	else if (ch->tot_level >= skill->default_level)
+		return skill->default_level;
+	else
+		return -skill->default_level;
+
+	return 0;
+}
+
+
+
 // Only handles skill entries
 // Assumes visibility
 static bool __student_can_learn_entry(CHAR_DATA *ch, PRACTICE_ENTRY_DATA *entry, SKILL_ENTRY *se)
@@ -2558,7 +2935,7 @@ static bool __student_can_learn_entry(CHAR_DATA *ch, PRACTICE_ENTRY_DATA *entry,
 	if (IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYAURA))
 		return true;
 
-	if (entry->song && ch->pcdata->sub_class_thief != CLASS_THIEF_BARD)
+	if (entry->song && get_current_class(ch) != gcl_bard)
 		return false;
 
 	// Check reputation
@@ -2584,7 +2961,7 @@ static bool __student_can_learn_entry(CHAR_DATA *ch, PRACTICE_ENTRY_DATA *entry,
 	return false;
 }
 
-static char *__teacher_give_reason(CHAR_DATA *ch, PRACTICE_ENTRY_DATA *entry, int this_class, int rating)
+static char *__teacher_give_reason(CHAR_DATA *ch, PRACTICE_ENTRY_DATA *entry, int rating)
 {
 	static char msg[4][MSL];
 	static int imsg = 0;
@@ -2633,15 +3010,17 @@ static char *__teacher_give_reason(CHAR_DATA *ch, PRACTICE_ENTRY_DATA *entry, in
 
 	if (entry->skill)
 	{
-		if (ch->level < entry->skill->skill_level[this_class] && entry->skill->skill_level[this_class] <= MAX_CLASS_LEVEL)
+		int level = get_minimum_skill_class_level(ch, entry->skill);
+		// If it is negative, it means it is possible, but not available just yet
+		if (level < 0)
 		{
-			p += sprintf(p, " [Unlocks at level %d]", entry->skill->skill_level[this_class]);
+			p += sprintf(p, " [Unlocks at level %d]", -level);
 		}
 	}
 	else if (entry->song)
 	{
 		// Only care if they are currently a bard
-		if (ch->pcdata->sub_class_current == CLASS_THIEF_BARD && ch->level < entry->song->level)
+		if (IS_VALID(ch->pcdata->current_class) && ch->pcdata->current_class->clazz == gcl_bard && ch->pcdata->current_class->level < entry->song->level)
 		{
 			p += sprintf(p, " [Unlocks at level %d]", entry->song->level);
 		}
@@ -2958,25 +3337,23 @@ static LLIST *__teacher_get_available(CHAR_DATA *ch, CHAR_DATA *teacher)
 
 			if (__student_can_show_entry(ch, entry, se))
 			{
-				// TODO: Update to new class structure
-				int level, this_class;
+				bool available = false;
 
 				if (entry->skill)
 				{
-					this_class = get_this_class(ch, entry->skill);
-					if (this_class < 0 || this_class >= MAX_CLASS) continue;
-
-					level = entry->skill->skill_level[this_class];
+					// Check availability based upon whether they have the skill entry or if they can acquire it
+					available = skill_entry_available(ch, se) || skill_available(ch, entry->skill);
 				}
 				else if(entry->song)
 				{
-					this_class = CLASS_THIEF;
-					level = entry->song->level;
+					CLASS_LEVEL *bard = get_class_level(ch, gcl_bard);
+
+					available = (IS_VALID(bard) && bard->level >= entry->song->level);
 				}
 				else
 					continue;
 
-				if (level > MAX_CLASS_LEVEL) continue;
+				if (!available) continue;
 				int rating = se ? se->rating : 0;
 				PRACTICE_COST_DATA *cost = __practice_entry_get_cost(entry, rating);
 
@@ -2995,6 +3372,8 @@ static LLIST *__teacher_get_available(CHAR_DATA *ch, CHAR_DATA *teacher)
 
 	return abilities;
 }
+
+
 
 
 // PRACTICE <teacher>				-- Lists all available skills and spells available to learn.
@@ -3040,7 +3419,7 @@ void do_practice( CHAR_DATA *ch, char *argument )
 			int songs_found = 0;
 			BUFFER *buffer = new_buf();
 
-			add_buf(buffer, "Skills/Spells available:\n\r");
+			add_buf(buffer, "Skills/Spells/Songs available:\n\r");
 
 			add_buf(buffer, "[Lvl] [            Name            ] [        Cost        ]\n\r");
 			add_buf(buffer, "============================================================\n\r");
@@ -3056,32 +3435,36 @@ void do_practice( CHAR_DATA *ch, char *argument )
 				bool can_learn = __student_can_learn_entry(ch, pe, entry);
 
 				// TODO: Update to new class structure
-				int this_class, level;
+				int level;
 				char *name;
 				if (pe->skill)
 				{
-					this_class = get_this_class(ch, pe->skill);
-					if (this_class < 0 || this_class >= MAX_CLASS) continue;
-
 					name = pe->skill->name;
-					level = pe->skill->skill_level[this_class];
+					level = get_minimum_skill_class_level(ch, pe->skill);
 				}
 				else if (pe->song)
 				{
-					this_class = CLASS_THIEF;
 					name = pe->song->name;
 					level = pe->song->level;
 				}
 				else
 					continue;
 
-				if (level > MAX_CLASS_LEVEL) continue;
+				if (level < 1 || level > MAX_CLASS_LEVEL) 
+				{
+					send_to_char(formatf("Skipping ability '%s' due to level being %d.\n\r", name, level), ch);
+					continue;
+				}
 				int rating = entry ? entry->rating : 0;
 
-				char *reason = __teacher_give_reason(ch,pe,this_class,rating);
+				char *reason = __teacher_give_reason(ch,pe,rating);
 
 				if (rating < cost->min_rating)
 					can_learn = false;
+
+				// It is beyond what the trainer can even teach
+				if (rating >= pe->max_rating)
+					continue;
 
 				char *cost_str;
 				if (can_learn)
@@ -3123,6 +3506,8 @@ void do_practice( CHAR_DATA *ch, char *argument )
 					page_to_char(buffer->string, ch);
 				}
 			}
+			else
+				act("$N has nothing to teach you.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
 			free_buf(buffer);
 		}
@@ -3191,12 +3576,12 @@ void do_practice( CHAR_DATA *ch, char *argument )
 
 		int amount = 0;
 
-		if( IS_VALID(pe->skill)) {
-			int this_class = get_this_class(ch, pe->skill);
-			if (this_class >= 0 && this_class < MAX_CLASS)
-				amount = (pe->skill->rating[this_class] == 0 ? 10 : pe->skill->rating[this_class]);
+		if( IS_VALID(pe->skill))
+		{
+			amount = pe->skill->difficulty;
 		}
-		else if (IS_VALID(pe->song)) {
+		else if (IS_VALID(pe->song))
+		{
 			// TODO: Add song difficulty?
 			amount = 5;
 		}
@@ -3802,26 +4187,19 @@ void do_rehearse( CHAR_DATA *ch, char *argument )
 #endif
 
 // Is sn a racial skill for a given race?
-bool is_racial_skill(int race, SKILL_DATA *skill)
+bool is_racial_skill(RACE_DATA *race, SKILL_DATA *skill)
 {
-    int i;
-
+	if (!IS_VALID(race)) return false;
 	if (!IS_VALID(skill)) return false;
 
-    for (i = 0; pc_race_table[race].skills[i] != NULL; i++)
-    {
-	if (!str_cmp(skill->name, pc_race_table[race].skills[i]))
-	    return TRUE;
-    }
-
-    return FALSE;
+	return list_contains(race->skills, skill, NULL);
 }
 
 
 // This monster determines if a person can practice a skill
 bool can_practice( CHAR_DATA *ch, SKILL_DATA *skill )
 {
-    int this_class;
+    //int this_class;
 	SKILL_ENTRY *entry;
 
     if (!IS_VALID(skill)) return false;
@@ -3833,14 +4211,13 @@ bool can_practice( CHAR_DATA *ch, SKILL_DATA *skill )
 
 	if (entry->source != SKILLSRC_NORMAL) return TRUE;
 
-    this_class = get_this_class(ch, skill);
+    //this_class = get_this_class(ch, skill);
 
     // Is it a racial skill ?
     if (!IS_NPC(ch))
     {
-		if (is_racial_skill(ch->race, skill) &&
-			(ch->level >= skill->skill_level[this_class] || had_skill(ch, skill)))
-	    return TRUE;
+		if (is_racial_skill(ch->race, skill) && skill_entry_available(ch, entry))
+	    	return true;
     }
 
     // Does *everyone* get the skill? (such as hand to hand)
@@ -3848,9 +4225,10 @@ bool can_practice( CHAR_DATA *ch, SKILL_DATA *skill )
 		return TRUE;
 
     // Have they had the skill in a previous subclass or class?
-    if (had_skill(ch,skill))
-		return TRUE;
+    if (skill_entry_available(ch,entry))
+		return true;
 
+#if 0
     // Is the skill in the person's *current* class and the person
     // is of high enough level for it?
     if (has_class_skill(ch->pcdata->class_current, skill) &&
@@ -3861,12 +4239,13 @@ bool can_practice( CHAR_DATA *ch, SKILL_DATA *skill )
     if (has_subclass_skill(ch->pcdata->sub_class_current, skill) &&
 		ch->level >= skill->skill_level[this_class])
 	return TRUE;
+#endif
 
     // For old skills which already got practiced
     if (entry->rating > 2)
-		return TRUE;
+		return true;
 
-    return FALSE;
+    return true;
 }
 
 bool is_skill_spell(SKILL_DATA *skill)
@@ -3936,99 +4315,131 @@ char *skill_difficulty_value(SKILL_DATA *skill, int clazz)
 	return buf[i];
 }
 
-// Has a person had a skill in their previous classes/subclasses?
-bool had_skill( CHAR_DATA *ch, SKILL_DATA *skill )
+bool skill_entry_available( CHAR_DATA *ch, SKILL_ENTRY *entry)
+{
+    if (!entry) return false;
+
+    if (IS_IMMORTAL(ch)) return true;
+
+	if (IS_VALID(entry->skill))
+	{
+		if (list_size(entry->skill->levels) > 0)
+		{
+			bool found = false;
+			ITERATOR lit;
+			SKILL_CLASS_LEVEL *level;
+
+			// If the entry or the skill is cross class, check if they have any class that meets the correct level
+			if (IS_SET(entry->flags, SKILL_CROSS_CLASS) || IS_SET(entry->skill->flags, SKILL_CROSS_CLASS))
+			{
+				iterator_start(&lit, entry->skill->levels);
+				while((level = (SKILL_CLASS_LEVEL *)iterator_nextdata(&lit)))
+				{
+					CLASS_LEVEL *cl = get_class_level(ch, level->clazz);
+
+					// Do they have it and have the appropriate level?
+					if (IS_VALID(cl) && cl->level >= level->level)
+					{
+						found = true;
+						break;
+					}
+				}
+				iterator_stop(&lit);
+			}
+			else
+			{
+				//send_to_char(formatf("skill_entry_available(%s) class only\n\r", entry->skill->name), ch);
+
+				if (IS_VALID(ch->pcdata->current_class))
+				{
+					// Check if current class is in the list
+					iterator_start(&lit, entry->skill->levels);
+					while((level = (SKILL_CLASS_LEVEL *)iterator_nextdata(&lit)))
+					{
+						// Do they have it and have the appropriate level?
+						if (ch->pcdata->current_class->clazz == level->clazz && ch->pcdata->current_class->level >= level->level)
+						{
+							found = true;
+							break;
+						}
+					}
+					iterator_stop(&lit);
+				}
+			}
+
+			if (found) return true;
+		}
+		else if (ch->tot_level >= entry->skill->default_level)
+			return true;
+	}
+	else if(IS_VALID(entry->song))
+	{
+		// Songs are Bard only and not cross-class
+		if (IS_VALID(ch->pcdata->current_class) && ch->pcdata->current_class->clazz == gcl_bard)
+		{
+			if (ch->pcdata->current_class->level >= entry->song->level)
+				return true;
+		}
+	}
+
+	return false;
+}
+
+// Assumes they do not have the SKILL_ENTRY
+bool skill_available( CHAR_DATA *ch, SKILL_DATA *skill )
 {
     if (!IS_VALID(skill)) return false;
 
     if (IS_IMMORTAL(ch)) return true;
 
-	SKILL_ENTRY *entry = skill_entry_findskill(ch->sorted_skills, skill);
-	// Don't have the skill entry at all
-	if (!entry) return false;
+	if (list_size(skill->levels) > 0)
+	{
+		bool found = false;
 
-	if (entry->rating > 1) return true;
-
-    if (!IS_REMORT(ch))
-    {
-		switch (ch->pcdata->class_current)
+		if (IS_SET(skill->flags, SKILL_CROSS_CLASS))
 		{
-		case CLASS_MAGE:
-			return (has_subclass_skill( ch->pcdata->sub_class_cleric, skill ) ||
-					has_subclass_skill( ch->pcdata->sub_class_thief, skill ) ||
-					has_subclass_skill( ch->pcdata->sub_class_warrior, skill ) ||
-					has_class_skill( get_profession(ch, CLASS_CLERIC), skill ) ||
-					has_class_skill( get_profession(ch, CLASS_THIEF), skill ) ||
-					has_class_skill( get_profession(ch, CLASS_WARRIOR), skill ));
+			ITERATOR lit;
+			SKILL_CLASS_LEVEL *level;
+			iterator_start(&lit, skill->levels);
+			while((level = (SKILL_CLASS_LEVEL *)iterator_nextdata(&lit)))
+			{
+				CLASS_LEVEL *cl = get_class_level(ch, level->clazz);
 
-	    case CLASS_CLERIC:
-			return (has_subclass_skill( ch->pcdata->sub_class_mage, skill ) ||
-					has_subclass_skill( ch->pcdata->sub_class_thief, skill ) ||
-					has_subclass_skill( ch->pcdata->sub_class_warrior, skill ) ||
-					has_class_skill( get_profession(ch, CLASS_MAGE), skill ) ||
-					has_class_skill( get_profession(ch, CLASS_THIEF), skill ) ||
-					has_class_skill( get_profession(ch, CLASS_WARRIOR), skill ));
-
-	    case CLASS_THIEF:
-			return (has_subclass_skill( ch->pcdata->sub_class_mage, skill ) ||
-					has_subclass_skill( ch->pcdata->sub_class_cleric, skill ) ||
-					has_subclass_skill( ch->pcdata->sub_class_warrior, skill ) ||
-					has_class_skill( get_profession(ch, CLASS_MAGE), skill ) ||
-					has_class_skill( get_profession(ch, CLASS_CLERIC), skill ) ||
-					has_class_skill( get_profession(ch, CLASS_WARRIOR), skill ));
-
-	    case CLASS_WARRIOR:
-			return (has_subclass_skill( ch->pcdata->sub_class_mage, skill ) ||
-					has_subclass_skill( ch->pcdata->sub_class_cleric, skill ) ||
-					has_subclass_skill( ch->pcdata->sub_class_thief, skill ) ||
-					has_class_skill( get_profession(ch, CLASS_MAGE), skill ) ||
-					has_class_skill( get_profession(ch, CLASS_CLERIC), skill ) ||
-					has_class_skill( get_profession(ch, CLASS_THIEF), skill ));
+				// Do they have it and have the appropriate level?
+				if (IS_VALID(cl) && cl->level >= level->level)
+				{
+					found = true;
+					break;
+				}
+			}
+			iterator_stop(&lit);
 		}
-    }
-    else // for remorts
-    {
-		if (has_class_skill( CLASS_MAGE, skill ) ||
-			has_class_skill( CLASS_CLERIC, skill ) ||
-			has_class_skill( CLASS_THIEF, skill ) ||
-			has_class_skill( CLASS_WARRIOR, skill ) ||
-			has_subclass_skill( ch->pcdata->sub_class_mage, skill ) ||
-			has_subclass_skill( ch->pcdata->sub_class_cleric, skill ) ||
-			has_subclass_skill( ch->pcdata->sub_class_thief, skill ) ||
-			has_subclass_skill( ch->pcdata->sub_class_warrior, skill ))
-	    	return true;
-
-		switch( ch->pcdata->sub_class_current )
+		else
 		{
-			case CLASS_MAGE_ARCHMAGE:
-			case CLASS_MAGE_ILLUSIONIST:
-			case CLASS_MAGE_GEOMANCER:
-				return (has_subclass_skill( ch->pcdata->second_sub_class_cleric, skill ) ||
-						has_subclass_skill( ch->pcdata->second_sub_class_thief, skill ) ||
-						has_subclass_skill( ch->pcdata->second_sub_class_warrior, skill ));
+			CLASS_LEVEL *current = get_class_level(ch, NULL);
 
-			case CLASS_CLERIC_RANGER:
-			case CLASS_CLERIC_ADEPT:
-			case CLASS_CLERIC_ALCHEMIST:
-				return (has_subclass_skill( ch->pcdata->second_sub_class_mage, skill ) ||
-						has_subclass_skill( ch->pcdata->second_sub_class_thief, skill ) ||
-						has_subclass_skill( ch->pcdata->second_sub_class_warrior, skill ));
-
-			case CLASS_THIEF_HIGHWAYMAN:
-			case CLASS_THIEF_NINJA:
-			case CLASS_THIEF_SAGE:
-				return (has_subclass_skill( ch->pcdata->second_sub_class_mage, skill ) ||
-						has_subclass_skill( ch->pcdata->second_sub_class_cleric, skill ) ||
-						has_subclass_skill( ch->pcdata->second_sub_class_warrior, skill ));
-
-			case CLASS_WARRIOR_WARLORD:
-			case CLASS_WARRIOR_DESTROYER:
-			case CLASS_WARRIOR_CRUSADER:
-				return (has_subclass_skill( ch->pcdata->second_sub_class_mage, skill ) ||
-						has_subclass_skill( ch->pcdata->second_sub_class_cleric, skill ) ||
-						has_subclass_skill( ch->pcdata->second_sub_class_thief, skill ));
+			if (IS_VALID(current))
+			{
+				ITERATOR lit;
+				SKILL_CLASS_LEVEL *level;
+				iterator_start(&lit, skill->levels);
+				while((level = (SKILL_CLASS_LEVEL *)iterator_nextdata(&lit)))
+				{
+					// Do they have it and have the appropriate level?
+					if (level->clazz == current->clazz && current->level >= level->level)
+					{
+						found = true;
+						break;
+					}
+				}
+				iterator_stop(&lit);
+			}
 		}
-    }
+
+		return found;
+	}
+	else if (ch->tot_level >= skill->default_level)
+		return true;
 
 	return false;
 }
@@ -4086,6 +4497,7 @@ void update_skills( CHAR_DATA *ch )
 }
 
 
+#if 0
 // Return true if the skill belongs to the subclass.
 bool has_subclass_skill( int subclass, SKILL_DATA *skill )
 {
@@ -4198,6 +4610,7 @@ bool should_have_skill( CHAR_DATA *ch, SKILL_DATA *skill )
 
     return FALSE;
 }
+#endif
 
 char *skill_entry_name (SKILL_ENTRY *entry)
 {
@@ -4481,7 +4894,6 @@ int token_skill_mana(TOKEN_DATA *token)
 
 int skill_entry_rating (CHAR_DATA *ch, SKILL_ENTRY *entry)
 {
-
 	return entry->rating;
 
 /*
@@ -4518,20 +4930,74 @@ int skill_entry_mod(CHAR_DATA *ch, SKILL_ENTRY *entry)
 
 int skill_entry_level (CHAR_DATA *ch, SKILL_ENTRY *entry)
 {
-	int this_class;
-
 	if( IS_IMMORTAL(ch) )
 		return LEVEL_IMMORTAL;
 
 	if (IS_VALID(entry->skill))
 	{
-		this_class = get_this_class(ch, entry->skill);
+		if (IS_NPC(ch)) return 0;
 
-		// Not ready yet
-		if( !had_skill( ch, entry->skill ) && (ch->level < entry->skill->skill_level[this_class]) )
-			return -entry->skill->skill_level[this_class];
+		if (list_size(entry->skill->levels) > 0)
+		{
+			if (IS_SET(entry->flags, SKILL_CROSS_CLASS) || IS_SET(entry->skill->flags, SKILL_CROSS_CLASS))
+			{
+				int min_level = 0;
+				bool available = false;
 
-		return entry->skill->skill_level[this_class];
+				ITERATOR lit;
+				SKILL_CLASS_LEVEL *lvl;
+				iterator_start(&lit, entry->skill->levels);
+				while((lvl = (SKILL_CLASS_LEVEL *)iterator_nextdata(&lit)))
+				{
+					CLASS_LEVEL *level = get_class_level(ch, lvl->clazz);
+
+					// Check if the player has the class at the required level
+					if (IS_VALID(level))
+					{
+						// Is it the lowest?
+						// If this already matches the lowest, but the previous minimum wasn't available, but this one is
+						if (!min_level || lvl->level < min_level || (!available && (level->level >= lvl->level)))
+						{
+							min_level = lvl->level;
+							available = (level->level >= lvl->level);
+						}
+					}
+				}
+				iterator_stop(&lit);
+
+				return available ? min_level : -min_level;
+			}
+			else
+			{
+				CLASS_LEVEL *current = ch->pcdata->current_class;
+
+				// Determine the level of the skill based upon the current class
+				ITERATOR lit;
+				SKILL_CLASS_LEVEL *lvl;
+				iterator_start(&lit, entry->skill->levels);
+				while((lvl = (SKILL_CLASS_LEVEL *)iterator_nextdata(&lit)))
+				{
+					if (lvl->clazz == current->clazz)
+						break;
+				}
+				iterator_stop(&lit);
+
+				if (lvl)
+				{
+					if (current->level < lvl->level)
+						return -lvl->level;
+
+					return lvl->level;
+				}
+				else
+					// Current class is not in the list
+					return 0;
+			}
+		}
+		else if (ch->tot_level >= entry->skill->default_level)
+			return entry->skill->default_level;
+		else
+			return -entry->skill->default_level;
 	} else if( IS_VALID(entry->song) ) {
 		return entry->song->level;
 	} else
@@ -4552,12 +5018,12 @@ int skill_entry_learn (CHAR_DATA *ch, SKILL_ENTRY *entry)
 {
 	int amount = 0;
 
-	if(!IS_SET(entry->flags, SKILL_PRACTICE)) return 0;
+	if (IS_SET(entry->skill->flags, SKILL_NO_IMPROVE)) return 0;
 
-	if( IS_VALID(entry->skill)) {
-		int this_class = get_this_class(ch, entry->skill);
-		amount = (entry->skill->rating[this_class] == 0 ? 10 : entry->skill->rating[this_class]);
-	}
+	if (!IS_SET(entry->flags, SKILL_PRACTICE)) return 0;
+
+	if (IS_VALID(entry->skill))
+		amount = entry->skill->difficulty > 0 ? entry->skill->difficulty : 10;
 
 	if(amount > 0)
 		return int_app[get_curr_stat(ch, STAT_INT)].learn / amount;
@@ -4577,8 +5043,10 @@ int skill_entry_target(CHAR_DATA *ch, SKILL_ENTRY *entry)
 }
 
 
-void remort_player(CHAR_DATA *ch, int remort_class)
+// TODO: Rework entire thing....
+void remort_player(CHAR_DATA *ch)
 {
+#if 0
 	const struct sub_class_type *class_info;
 	OBJ_DATA *obj;
     char buf[2*MAX_STRING_LENGTH];
@@ -4607,7 +5075,7 @@ void remort_player(CHAR_DATA *ch, int remort_class)
 
     i = 0;
     ch->race = get_remort_race(ch);
-    sprintf(buf2, "%s", pc_race_table[ch->race].name);
+    sprintf(buf2, "%s", ch->race->name);
     while (buf2[i] != '\0')
     {
 		buf2[i] = UPPER(buf2[i]);
@@ -4664,19 +5132,24 @@ void remort_player(CHAR_DATA *ch, int remort_class)
 		set_perm_stat(ch, i, UMAX(val, 13));
 	}
 
-	ch->affected_by_perm[0] = race_table[ch->race].aff;
-	ch->affected_by_perm[1] = race_table[ch->race].aff2;
-    ch->imm_flags_perm = race_table[ch->race].imm;
-    ch->res_flags_perm = race_table[ch->race].res;
-    ch->vuln_flags_perm = race_table[ch->race].vuln;
+	ch->affected_by_perm[0] = ch->race->aff[0];
+	ch->affected_by_perm[1] = ch->race->aff[1];
+    ch->imm_flags_perm = ch->race->imm;
+    ch->res_flags_perm = ch->race->res;
+    ch->vuln_flags_perm = ch->race->vuln;
 
-    ch->form        = race_table[ch->race].form;
-    ch->parts       = race_table[ch->race].parts;
+    ch->form        = ch->race->form;
+    ch->parts       = ch->race->parts;
     ch->lostparts	= 0;	// Restore anything lost
 
-    /* add skills for remort race*/
-    for (i = 0; pc_race_table[ch->race].skills[i] != NULL; i++)
-		group_add(ch,pc_race_table[ch->race].skills[i],FALSE);
+	ITERATOR skit;
+	SKILL_DATA *skill;
+	iterator_start(&skit, ch->race->skills);
+	while((skill = (SKILL_DATA *)iterator_nextdata(&skit)))
+	{
+		skill_add(ch, skill);
+	}
+	iterator_stop(&skit);
 
     ch->pcdata->hit_before  = ch->pcdata->perm_hit;
     ch->pcdata->mana_before = ch->pcdata->perm_mana;
@@ -4751,7 +5224,7 @@ void remort_player(CHAR_DATA *ch, int remort_class)
 		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REMORT, NULL,0,0,0,0,0);
 		obj = obj_next;
     }
-
+#endif
 }
 
 
@@ -5019,35 +5492,27 @@ SKEDIT( skedit_show )
 			add_buf(buffer, buf);
 		}
 
-		add_buf(buffer, "\n\rLevels:\n\r");
-		sprintf(buf, " - %s %-7s{x    - %s %s{x\n\r",
-			MXPCreateSend(ch->desc, "level cleric", "Cleric: "),
-			skill_level_value(skill, CLASS_CLERIC),
-			MXPCreateSend(ch->desc, "level mage", "Mage:   "),
-			skill_level_value(skill, CLASS_MAGE));
-		add_buf(buffer, buf);
-		sprintf(buf, " - %s %-7s{x    - %s %s{x\n\r",
-			MXPCreateSend(ch->desc, "level thief", "Thief:  "),
-			skill_level_value(skill, CLASS_THIEF),
-			MXPCreateSend(ch->desc, "level warrior", "Warrior:"),
-			skill_level_value(skill, CLASS_WARRIOR));
-		add_buf(buffer, buf);
+		if (list_size(skill->levels) > 0)
+		{
+			add_buf(buffer, "\n\rLevels:\n\r");
+			ITERATOR lit;
+			SKILL_CLASS_LEVEL *level;
+			iterator_start(&lit, skill->levels);
+			while((level = (SKILL_CLASS_LEVEL *)iterator_nextdata(&lit)))
+			{
+				int l = 20 - strlen(level->clazz->name);
+				l = UMAX(l, 0);
+				sprintf(buf, formatf(" - %%s:%%%ds {W%%d{x\n\r", l), MXPCreateSend(ch->desc, formatf("level %s", level->clazz->name), level->clazz->name), "", level->level);
+				add_buf(buffer, buf);
+			}
+			iterator_stop(&lit);
+			add_buf(buffer, "\n\r");
+		}
+		else
+			add_buf(buffer, formatf("%s: %d\n\r", MXPCreateSend(ch->desc, "level", "Level"), skill->default_level));
 
-		add_buf(buffer, "\n\rDifficulties:\n\r");
-		sprintf(buf, " - %s %-12s{x    - %s %s{x\n\r",
-			MXPCreateSend(ch->desc, "difficulty cleric", "Cleric: "),
-			skill_difficulty_value(skill, CLASS_CLERIC),
-			MXPCreateSend(ch->desc, "difficulty mage", "Mage:   "),
-			skill_difficulty_value(skill, CLASS_MAGE));
-		add_buf(buffer, buf);
-		sprintf(buf, " - %s %-12s{x    - %s %s{x\n\r",
-			MXPCreateSend(ch->desc, "difficulty thief", "Thief:  "),
-			skill_difficulty_value(skill, CLASS_THIEF),
-			MXPCreateSend(ch->desc, "difficulty warrior", "Warrior:"),
-			skill_difficulty_value(skill, CLASS_WARRIOR));
-		add_buf(buffer, buf);
-
-		add_buf(buffer, "\n\r");
+		add_buf(buffer, formatf("Difficulty: %d\n\r", skill->difficulty));
+		add_buf(buffer, formatf("Primary Stat: %s\n\r", flag_string(stat_types, skill->primary_stat)));
 
 		olc_buffer_show_flags_ex(ch, buffer, spell_target_types, skill->target, "target", "Target:", 77, 20, 5, "xxYyCcD");
 		olc_buffer_show_flags_ex(ch, buffer, spell_position_flags, skill->minimum_position, "position", "Minimum Position:", 77, 20, 5, "xxYyCcD");
@@ -5055,7 +5520,7 @@ SKEDIT( skedit_show )
 		add_buf(buffer, "\n\r");
 
 		olc_buffer_show_string(ch, buffer, formatf("%d", skill->beats), "beats", "Beats:", 20, "xDW");
-		olc_buffer_show_string(ch, buffer, (skill->race > 0) ? formatf("%s", MXPCreateSend(ch->desc, formatf("rcshow %s", race_table[skill->race].name), race_table[skill->race].name)) : NULL, "race", "Racial Skill:", 20, "xDW");
+		olc_buffer_show_string(ch, buffer, IS_VALID(skill->race) ? formatf("%s", MXPCreateSend(ch->desc, formatf("raceshow %s", skill->race->name), skill->race->name)) : NULL, "race", "Racial Skill:", 20, "xDW");
 		break;
 	
 	case 1:	// Functions / Triggers
@@ -5365,17 +5830,23 @@ SKEDIT( skedit_display )
 	return false;
 }
 
-// TODO: Implement or move into a skgedit
-SKEDIT( skedit_group )
+SKEDIT( skedit_primary )
 {
-	/*
 	SKILL_DATA *skill;
 
 	EDIT_SKILL(ch, skill);
-	*/
-	send_to_char("Not implemented yet.\n\r", ch);
 
-	return false;
+	int stat;
+	if ((stat = stat_lookup(argument, stat_types, NO_FLAG)) == NO_FLAG)
+	{
+		send_to_char("Invalid stat.  Use '? stats' for list of valid stat types.\n\r", ch);
+		show_flag_cmds(ch, stat_types);
+		return false;
+	}
+
+	skill->primary_stat = stat;
+	send_to_char("Skill Primary Stat set.\n\r", ch);
+	return true;
 }
 
 // Remove all instances of the trigger
@@ -5801,8 +6272,7 @@ SKEDIT( skedit_level )
 
 	if (argument[0] == '\0')
 	{
-		sprintf(buf, "Syntax:  skedit level {R<class>{x 1-%d|none\n\r", MAX_CLASS_LEVEL);
-		send_to_char(buf, ch);
+		send_to_char("Syntax:  skedit level {R<class>{x <level>|none\n\r", ch);
 		send_to_char("Please select a class.  Use '? classes' to get a list of classes.\n\r", ch);
 		return false;
 	}
@@ -5810,20 +6280,19 @@ SKEDIT( skedit_level )
 	char arg[MIL];
 	argument = one_argument(argument, arg);
 	
-	int clazz = class_lookup(arg);
-	if (clazz < 0)
+	CLASS_DATA *clazz = get_class_data(arg);
+	if (!IS_VALID(clazz))
 	{
-		sprintf(buf, "Syntax:  skedit level <class> {R1-%d|none{x\n\r", MAX_CLASS_LEVEL);
-		send_to_char(buf, ch);
+		send_to_char("Syntax:  skedit level {R<class>{x <level>|none\n\r", ch);
 		send_to_char("Invalid class.  Use '? classes' to get a list of classes.\n\r", ch);
 		return false;
 	}
 
 	if (argument[0] == '\0')
 	{
-		sprintf(buf, "Syntax:  skedit level <class> {R1-%d|none{x\n\r", MAX_CLASS_LEVEL);
+		sprintf(buf, "Syntax:  skedit level <class> {R1-%d|none{x\n\r", clazz->max_level);
 		send_to_char(buf, ch);
-		sprintf(buf, "Please specify a number from 1 to %d or {Wnone{x.\n\r", MAX_CLASS_LEVEL);
+		sprintf(buf, "Please specify a number from 1 to %d or {Wnone{x.\n\r", clazz->max_level);
 		send_to_char(buf, ch);
 		return false;
 	}
@@ -5832,11 +6301,11 @@ SKEDIT( skedit_level )
 	if (is_number(argument))
 	{
 		value = atoi(argument);
-		if (value < 1 || value > MAX_CLASS_LEVEL)
+		if (value < 1 || value > clazz->max_level)
 		{
-			sprintf(buf, "Syntax:  skedit level <class> {R1-%d{x\n\r", MAX_CLASS_LEVEL);
+			sprintf(buf, "Syntax:  skedit level <class> {R1-%d{x\n\r", clazz->max_level);
 			send_to_char(buf, ch);
-			sprintf(buf, "Please specify a number from 1 to %d.\n\r", MAX_CLASS_LEVEL);
+			sprintf(buf, "Please specify a number from 1 to %d.\n\r", clazz->max_level);
 			send_to_char(buf, ch);
 			return false;
 		}
@@ -5848,73 +6317,53 @@ SKEDIT( skedit_level )
 	else
 	{
 		send_to_char("Syntax:  skedit level <class> {Rnone{x\n\r", ch);
-		sprintf(buf, "Please specify a number from 1 to %d or {Wnone{x.\n\r", MAX_CLASS_LEVEL);
+		sprintf(buf, "Please specify a number from 1 to %d or {Wnone{x.\n\r", clazz->max_level);
 		send_to_char(buf, ch);
 		return false;
 	}
 
-	skill->skill_level[clazz] = value;
-	sprintf(buf, "Skill level set for {+%s.\n\r", class_table[clazz].name);
+	SKILL_CLASS_LEVEL *level = get_skill_class_level(skill, clazz);
+	if (level)
+	{
+		if (value > 0)
+			level->level = value;
+		else
+			list_remlink(skill->levels, level, true);
+	}
+	else if(value > 0)
+	{
+		level = new_skill_class_level();
+		level->clazz = clazz;
+		level->level = value;
+		insert_skill_class_level(skill, level);
+	}
+	else
+	{
+		send_to_char("Skill does not have class entry.\n\r", ch);
+		return false;
+	}
+
+	sprintf(buf, "Skill level set for {+%s.\n\r", clazz->name);
 	send_to_char(buf, ch);
 	return true;
 }
 
 SKEDIT( skedit_difficulty )
 {
-	char buf[MSL];
 	SKILL_DATA *skill;
 
 	EDIT_SKILL(ch, skill);
 
-	if (argument[0] == '\0')
+	int difficulty;
+	if (!is_number(argument) || (difficulty = atoi(argument)) < 1)
 	{
-		send_to_char("Syntax:  skedit difficulty {R<class>{x 1+|none\n\r", ch);
-		send_to_char("Please select a class.  Use '? classes' to get a list of classes.\n\r", ch);
+		send_to_char("Syntax:  skedit difficulty 1+\n\r", ch);
+		send_to_char("Please specify a positive number.\n\r", ch);
 		return false;
 	}
 
-	char arg[MIL];
-	argument = one_argument(argument, arg);
-	
-	int clazz = class_lookup(arg);
-	if (clazz < 0)
-	{
-		send_to_char("Syntax:  skedit difficulty {R<class>{x 1+|none\n\r", ch);
-		send_to_char("Invalid class.  Use '? classes' to get a list of classes.\n\r", ch);
-		return false;
-	}
-
-	if (argument[0] == '\0')
-	{
-		send_to_char("Syntax:  skedit difficulty <class> {R1+|none{x\n\r", ch);
-		send_to_char("Please specify a positive number or {Wnone{x.\n\r", ch);
-		return false;
-	}
-
-	int value;
-	if (is_number(argument))
-	{
-		value = atoi(argument);
-		if (value < 1)
-		{
-			send_to_char("Syntax:  skedit difficulty <class> {R1+{x\n\r", ch);
-			send_to_char("Please specify a positive number.\n\r", ch);
-			return false;
-		}
-	}
-	else if (!str_prefix(argument, "none"))
-	{
-		value = -1;
-	}
-	else
-	{
-		send_to_char("Syntax:  skedit difficulty <class> {Rnone{x\n\r", ch);
-		return false;
-	}
-
-	skill->rating[clazz] = value;
-	sprintf(buf, "Skill difficulty set for {+%s.\n\r", class_table[clazz].name);
-	send_to_char(buf, ch);
+	skill->difficulty = difficulty;
+	send_to_char("Skill difficulty set.\n\r", ch);
 	return true;
 }
 
@@ -5963,40 +6412,52 @@ SKEDIT( skedit_race )
 
 	EDIT_SKILL(ch, skill);
 
-	int race;
-	if (argument[0] != '\0' && (race = race_lookup(argument)) >= 0)
+	if (argument[0] == '\0')
 	{
-		send_to_char("Syntax:  skedit race {R<race>{x\n\r", ch);
+		send_to_char("Syntax:  skedit race {R<race|none>{x\n\r", ch);
 		send_to_char("Please specify a race.  Use '? races' for valid races.\n\r", ch);
 		return false;
 	}
 
-    if (argument[0] == '?')
-    {
-		send_to_char("Available races are:", ch);
-
-		for (race = 0; race_table[race].name != NULL; race++)
-		{
-			if ((race % 3) == 0)
-				send_to_char("\n\r", ch);
-			sprintf(buf, " %-15s", race_table[race].name);
-			send_to_char(buf, ch);
-		}
-
-		send_to_char("\n\r", ch);
-		return false;
-    }
-
-	if (race > 0)
+	if (!str_prefix(argument, "none"))
 	{
-		skill->race = race;
-		send_to_char("Skill Race set.\n\r", ch);
+		skill->race = NULL;
+		send_to_char("Skill race cleared.\n\r", ch);
 	}
 	else
 	{
-		skill->race = -1;
-		send_to_char("Skill Race cleared.\n\r", ch);
+		RACE_DATA *race = get_race_data(argument);
+		if (!IS_VALID(race))
+		{
+			send_to_char("Syntax:  skedit race {R<race>{x\n\r", ch);
+			send_to_char("Invalid race.  Use '? races' for valid races.\n\r", ch);
+			return false;
+		}
+
+		if (argument[0] == '?')
+		{
+			send_to_char("Available races are:", ch);
+
+			int i = 0;
+			ITERATOR rit;
+			iterator_start(&rit, race_list);
+			while((race = (RACE_DATA *)iterator_nextdata(&rit)))
+			{
+				if ((i++ % 3) == 0)
+					send_to_char("\n\r", ch);
+				sprintf(buf, " %-15s", race->name);
+				send_to_char(buf, ch);
+			}
+			iterator_stop(&rit);
+
+			send_to_char("\n\r", ch);
+			return false;
+		}
+
+		skill->race = race;
+		send_to_char("Skill race set.\n\r", ch);
 	}
+
 	return true;
 }
 
@@ -6707,13 +7168,14 @@ char *gcl_to_name(CLASS_DATA **gcl)
 }
 
 
-void save_class(FILE *fp, CLASS_DATA *clazz)
+void save_class(FILE *fp, CLASS_DATA *clazz, bool booting)
 {
 	fprintf(fp, "#CLASS %d\n", clazz->uid);
 	fprintf(fp, "Name %s~\n", fix_string(clazz->name));
 	if (clazz->gcl)
 		fprintf(fp, "GCL %s~\n", gcl_to_name(clazz->gcl));
 	fprintf(fp, "Type %s~\n", flag_string(class_types, clazz->type));
+	fprintf(fp, "Flags %s\n", print_flags(clazz->flags));
 	fprintf(fp, "Description %s~\n", fix_string(clazz->description));
 
 	fprintf(fp, "DisplayNeutral %s~\n", clazz->display[SEX_NEUTRAL]);
@@ -6726,18 +7188,33 @@ void save_class(FILE *fp, CLASS_DATA *clazz)
 	fprintf(fp, "WhoFemale %s~\n", clazz->who[SEX_FEMALE]);
 	fprintf(fp, "WhoEither %s~\n", clazz->who[SEX_EITHER]);
 
-	if (list_size(clazz->groups))
+	if (list_size(clazz->groups) > 0)
 	{
-		ITERATOR git;
-		SKILL_GROUP *group;
-		iterator_start(&git, clazz->groups);
-		while((group = (SKILL_GROUP *)iterator_nextdata(&git)))
+		if (booting)
 		{
-			fprintf(fp, "Group %s~\n", group->name);
+			ITERATOR git;
+			char *group;
+			iterator_start(&git, clazz->groups);
+			while((group = (char *)iterator_nextdata(&git)))
+			{
+				fprintf(fp, "Group %s~\n", group);
+			}
+			iterator_stop(&git);
 		}
-		iterator_stop(&git);
+		else
+		{
+			ITERATOR git;
+			SKILL_GROUP *group;
+			iterator_start(&git, clazz->groups);
+			while((group = (SKILL_GROUP *)iterator_nextdata(&git)))
+			{
+				fprintf(fp, "Group %s~\n", group->name);
+			}
+			iterator_stop(&git);
+		}
 	}
 
+	fprintf(fp, "MaxLevel %d\n", clazz->max_level);
 	fprintf(fp, "PrimaryStat %s~\n", flag_string(stat_types, clazz->primary_stat));
 
 	// TODO: Traits
@@ -6745,7 +7222,7 @@ void save_class(FILE *fp, CLASS_DATA *clazz)
 	fprintf(fp, "#-CLASS\n");
 }
 
-void save_classes()
+void save_classes(bool booting)
 {
 	FILE *fp;
 
@@ -6757,12 +7234,14 @@ void save_classes()
 		return;
 	}
 
+	fprintf(fp, "Version %d\n", VERSION_CLASS);
+
 	ITERATOR it;
 	CLASS_DATA *clazz;
 	iterator_start(&it, classes_list);
 	while((clazz = (CLASS_DATA *)iterator_nextdata(&it)))
 	{
-		save_class(fp, clazz);
+		save_class(fp, clazz, booting);
 	}	
 	iterator_stop(&it);
 
@@ -6798,6 +7277,11 @@ void insert_class(CLASS_DATA *clazz)
 	}
 }
 
+static void delete_class_group_name(void *ptr)
+{
+    free_string((char *)ptr);
+}
+
 CLASS_DATA *load_class(FILE *fp)
 {
 	CLASS_DATA *data = new_class_data();
@@ -6807,6 +7291,7 @@ CLASS_DATA *load_class(FILE *fp)
 	bool fMatch;
 
 	data->uid = fread_number(fp);
+	data->groups->deleter = delete_class_group_name;	// Replace the deleter for the loading process ONLY
 
     while (str_cmp((word = fread_word(fp)), "#-CLASS"))
 	{
@@ -6825,13 +7310,16 @@ CLASS_DATA *load_class(FILE *fp)
 				KEY("GCL", data->gcl, gcl_from_name(fread_string(fp)));
 				if (!str_cmp(word, "Group"))
 				{
-					SKILL_GROUP *group = group_lookup(fread_string(fp));
-
-					if (IS_VALID(group))
-						list_appendlink(data->groups, group);
+					char *name = fread_string(fp);
+					list_appendlink(data->groups, name);
+					// Resolve after load_skills is called
 					fMatch = true;
 					break;
 				}
+				break;
+			
+			case 'M':
+				KEY("MaxLevel", data->max_level, fread_number(fp));
 				break;
 
 			case 'N':
@@ -6863,6 +7351,29 @@ CLASS_DATA *load_class(FILE *fp)
 		}
 	}
 
+	if (version_class < VERSION_CLASS_001)
+	{
+		bool combative = false;
+		switch(data->type)
+		{
+			case CLASS_WARRIOR:
+			case CLASS_THIEF:
+			case CLASS_CLERIC:
+			case CLASS_MAGE:
+				combative = true;
+				break;
+
+			default:
+				if (!str_cmp(data->name, "bard") ||
+					!str_cmp(data->name, "sage"))
+					combative = true;
+				break;
+		}
+
+		if (combative)
+			SET_BIT(data->flags, CLASS_COMBATIVE);
+	}
+
 	return data;
 }
 
@@ -6883,47 +7394,68 @@ bool load_classes()
 		return false;
 	}
 
+	bool save = false;
+
 	log_string("load_classes: loading " CLASSES_FILE);
 	if ((fp = fopen(CLASSES_FILE, "r")) == NULL)
 	{
 		log_string("load_classes: '" CLASSES_FILE "' file not found.  Bootstrapping classes.");
 
-		for(int i = 0; sub_class_table[i].name[0]; i++)
+		for(int i = 0; __sub_class_table[i].name[0]; i++)
 		{
 			CLASS_DATA *cls = new_class_data();
 			cls->uid = ++top_class_uid;
-			cls->name = str_dup(sub_class_table[i].name[0]);
-			cls->type = sub_class_table[i].class;
+			cls->name = str_dup(__sub_class_table[i].name[0]);
+			cls->type = __sub_class_table[i].class;
 
 			for(int j = 0; j < 3; j++)
 			{
-				cls->display[j] = str_dup(sub_class_table[i].name[j]);
-				cls->who[j] = str_dup(sub_class_table[i].who_name[j]);
+				cls->display[j] = str_dup(__sub_class_table[i].name[j]);
+				cls->who[j] = str_dup(__sub_class_table[i].who_name[j]);
 			}
 
 
-			cls->display[SEX_EITHER] = str_dup(sub_class_table[i].name[SEX_NEUTRAL]);
-			cls->who[SEX_EITHER] = str_dup(sub_class_table[i].who_name[SEX_NEUTRAL]);
-			SKILL_GROUP *group = group_lookup(sub_class_table[i].default_group);
+			cls->display[SEX_EITHER] = str_dup(__sub_class_table[i].name[SEX_NEUTRAL]);
+			cls->who[SEX_EITHER] = str_dup(__sub_class_table[i].who_name[SEX_NEUTRAL]);
+			SKILL_GROUP *group = group_lookup(__sub_class_table[i].default_group);
 
 			if (IS_VALID(group))
 				list_appendlink(cls->groups, group);
 
 			if (cls->type >= 0 && cls->type < MAX_CLASS)
 			{
-				group = group_lookup(class_table[cls->type].base_group);
+				group = group_lookup(__class_table[cls->type].base_group);
 				if (IS_VALID(group))
 					list_appendlink(cls->groups, group);
 
-				cls->primary_stat = class_table[cls->type].attr_prime;
+				cls->primary_stat = __class_table[cls->type].attr_prime;
 			}
+
+			// All of the built-in classes are combative
+			SET_BIT(cls->flags, CLASS_COMBATIVE);
 
 			insert_class(cls);
 		}
 
-		// None of the classes have a gcl defined
+		// Autoset the GCL
+		for(int i = 0; gcl_table[i].name; i++)
+			if (gcl_table[i].gcl)
+				*(gcl_table[i].gcl) = NULL;
 
-		save_classes();
+		ITERATOR it;
+		iterator_start(&it, classes_list);
+		while((clazz = (CLASS_DATA *)iterator_nextdata(&it)))
+		{
+			if (!clazz->gcl)
+			{
+				clazz->gcl = gcl_from_name(clazz->name);
+				if (clazz->gcl)
+					*(clazz->gcl) = clazz;
+			}
+		}
+		iterator_stop(&it);
+
+		save = true;
 	}
 	else
 	{
@@ -6951,6 +7483,10 @@ bool load_classes()
 					break;
 				}
 				break;
+
+			case 'V':
+				KEY("Version", version_class, fread_number(fp));
+				break;
 			}
 
 			if (!fMatch) {
@@ -6958,8 +7494,6 @@ bool load_classes()
 				bug(buf, 0);
 			}
 		}
-
-		bool save = false;
 
 		for(int i = 0; gcl_table[i].name; i++)
 			if (gcl_table[i].gcl)
@@ -6979,12 +7513,55 @@ bool load_classes()
 			}
 		}
 		iterator_stop(&it);
-
-		if (save)
-			save_classes();
 	}
 
+	if (save || version_class < VERSION_CLASS)
+		save_classes(true);
+
+	if (version_class < VERSION_CLASS_002)
+	{
+		
+	}
+
+	version_class = VERSION_CLASS;
+
 	return true;
+}
+
+void resolve_skill_classes()
+{
+	bool save = false;
+
+	ITERATOR cit, git;
+	CLASS_DATA *clazz;
+	char *group_name;
+
+	iterator_start(&cit, classes_list);
+	while((clazz = (CLASS_DATA *)iterator_nextdata(&cit)))
+	{
+		LLIST *groups = list_create(false);
+
+		iterator_start(&git, clazz->groups);
+		while((group_name = (char *)iterator_nextdata(&git)))
+		{
+			SKILL_GROUP *group = group_lookup(group_name);
+
+			if (IS_VALID(group))
+				list_appendlink(groups, group);
+			else
+				save = true;
+		}
+		iterator_stop(&git);
+
+		// Replace groups list
+		list_destroy(clazz->groups);
+		clazz->groups = groups;
+	}
+	iterator_stop(&cit);
+
+
+	if (save)
+		save_classes(false);
 }
 
 void do_clslist(CHAR_DATA *ch, char *argument)
@@ -7030,12 +7607,25 @@ void do_clslist(CHAR_DATA *ch, char *argument)
 	free_buf(buffer);
 }
 
+CLASS_DATA *get_current_class(CHAR_DATA *ch)
+{
+	if (IS_NPC(ch)) return NULL;
+
+	if (IS_VALID(ch->pcdata->current_class))
+		return ch->pcdata->current_class->clazz;
+
+	return NULL;
+}
+
 
 CLASS_LEVEL *get_class_level(CHAR_DATA *ch, CLASS_DATA *clazz)
 {
 	// Not NPCs at this time
 	// TODO: Review how to do it for NPCs, perhaps move the ->classes list off pcdata
 	if (IS_NPC(ch)) return NULL;
+
+	// NULL clazz refers to the current class
+	if (!IS_VALID(clazz)) return ch->pcdata->current_class;
 
 	ITERATOR it;
 	CLASS_LEVEL *level;
@@ -7052,7 +7642,7 @@ CLASS_LEVEL *get_class_level(CHAR_DATA *ch, CLASS_DATA *clazz)
 
 bool has_class_level(CHAR_DATA *ch, CLASS_DATA *clazz)
 {
-	if (IS_NPC(ch)) return false;
+	if (IS_NPC(ch) || IS_VALID(clazz)) return false;
 
 	ITERATOR it;
 	CLASS_LEVEL *level;
@@ -7120,7 +7710,6 @@ void add_class_level(CHAR_DATA *ch, CLASS_DATA *clazz, int level)
 			iterator_stop(&git);
 		}
 	}
-
 }
 
 void remove_class_level(CHAR_DATA *ch, CLASS_DATA *clazz)
@@ -7168,6 +7757,7 @@ CLSEDIT( clsedit_show )
 		add_buf(buffer, "GCL: {Dnone{x\n\r");
 
 	add_buf(buffer, formatf("Type: %s\n\r", flag_string(class_types, clazz->type)));
+	add_buf(buffer, formatf("Flags: %s\n\r", flag_string(class_flags, clazz->flags)));
 
 	add_buf(buffer, "Description:\n\r");
 	add_buf(buffer, string_indent(clazz->description, 3));
@@ -7186,6 +7776,8 @@ CLSEDIT( clsedit_show )
 	add_buf(buffer, formatf("  Female: %s\n\r", clazz->who[SEX_FEMALE]));
 	add_buf(buffer, formatf("  Either: %s\n\r", clazz->who[SEX_EITHER]));
 	add_buf(buffer, "\n\r");
+
+	add_buf(buffer, formatf("Maximum Level: %d\n", clazz->max_level));
 
 	add_buf(buffer, formatf("Primary Stat: %s\n\r", flag_string(stat_types, clazz->primary_stat)));
 
@@ -7240,7 +7832,7 @@ CLSEDIT( clsedit_create )
 	smash_tilde(argument);
 	clazz->name = str_dup(argument);
 	insert_class(clazz);
-	save_classes();
+	save_classes(false);
 
 	olc_set_editor(ch, ED_CLSEDIT, clazz);
 
@@ -7342,6 +7934,24 @@ CLSEDIT( clsedit_type )
 
 	clazz->type = type;
 	send_to_char("Class Type changed.\n\r", ch);
+	return true;
+}
+
+CLSEDIT( clsedit_maxlevel )
+{
+	CLASS_DATA *clazz;
+
+	EDIT_CLASS(ch, clazz);
+
+	int level;
+	if (!is_number(argument) || (level = atoi(argument)) < 1 || level > MAX_CLASS_LEVEL)
+	{
+		send_to_char(formatf("Please specify a number from 1 to %d.\n", MAX_CLASS_LEVEL), ch);
+		return false;
+	}
+
+	clazz->max_level = level;
+	send_to_char("Class Maximum Level set.\n\r", ch);
 	return true;
 }
 
@@ -7536,6 +8146,89 @@ CLSEDIT( clsedit_gcl )
 	return false;
 }
 
+CLSEDIT( clsedit_flags )
+{
+	CLASS_DATA *clazz;
 
+	EDIT_CLASS(ch, clazz);
 
+	long value;
+	if ((value = flag_value(class_flags, argument)) == NO_FLAG)
+	{
+		send_to_char("Invalid class flag.  Use '? class' for list of valid flags:\n\r", ch);
+		show_flag_cmds(ch, class_flags);
+		return false;
+	}
 
+	TOGGLE_BIT(clazz->flags, value);
+	send_to_char("Class flags toggled.\n\r", ch);
+	return true;
+}
+
+bool is_current_class_combat(CHAR_DATA *ch)
+{
+	if (IS_NPC(ch)) return false;
+
+	if (!IS_VALID(ch->pcdata->current_class)) return false;
+
+	return IS_SET(ch->pcdata->current_class->clazz->flags, CLASS_COMBATIVE) ? true : false;
+}
+
+void do_setclass(CHAR_DATA *ch, char *argument)
+{
+	if (IS_NPC(ch))
+	{
+		send_to_char("Huh?\n\r", ch);
+		return;
+	}
+
+	// Can't change from a combat class in the middle of combat
+	if (ch->fighting != NULL && is_current_class_combat(ch))
+	{
+		send_to_char("You are fighting!\n\r", ch);
+		return;
+	}
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  setclass <class name>\n\r", ch);
+		send_to_char("Use 'classes' to see a list of your classes.\n\r", ch);
+		return;
+	}
+
+	ITERATOR it;
+	CLASS_LEVEL *level;
+	iterator_start(&it, ch->pcdata->classes);
+	while((level = (CLASS_LEVEL *)iterator_nextdata(&it)))
+	{
+		if (!str_prefix(argument, level->clazz->display[ch->sex]))
+			break;		
+	}
+	iterator_stop(&it);
+
+	if (!level)
+	{
+		send_to_char("You do not know that class.\n\r", ch);
+		return;
+	}
+
+	if (ch->pcdata->current_class == level)
+	{
+		send_to_char("You are already in that class.\n\r", ch);
+		return;
+	}
+
+	// Process leaving the class
+	if (IS_VALID(ch->pcdata->current_class) && ch->pcdata->current_class->clazz->leave)
+		(*ch->pcdata->current_class->clazz->leave)(ch);
+
+	ch->pcdata->current_class = level;
+	act("You switch to $t.", ch, NULL, NULL, NULL, NULL, level->clazz->display[ch->sex], NULL, TO_CHAR);
+	act("$n switches to $t.", ch, NULL, NULL, NULL, NULL, level->clazz->display[ch->sex], NULL, TO_ROOM);
+
+	// Process entering the class
+	if (ch->pcdata->current_class->clazz->enter)
+		(*ch->pcdata->current_class->clazz->enter)(ch);
+
+	return;
+}

@@ -664,7 +664,6 @@ DECLARE_OLC_FUN( skedit_list );
 DECLARE_OLC_FUN( skedit_show );
 DECLARE_OLC_FUN( skedit_name );
 DECLARE_OLC_FUN( skedit_display );  // For things like "improved invis" for "improved invisibility"
-DECLARE_OLC_FUN( skedit_group );
 DECLARE_OLC_FUN( skedit_prespellfunc );
 DECLARE_OLC_FUN( skedit_spellfunc );
 DECLARE_OLC_FUN( skedit_pulsefunc );
@@ -691,6 +690,7 @@ DECLARE_OLC_FUN( skedit_equipfunc );
 DECLARE_OLC_FUN( skedit_gsn );
 DECLARE_OLC_FUN( skedit_level );
 DECLARE_OLC_FUN( skedit_difficulty );
+DECLARE_OLC_FUN( skedit_primary );
 DECLARE_OLC_FUN( skedit_target );
 DECLARE_OLC_FUN( skedit_position );
 DECLARE_OLC_FUN( skedit_race );
@@ -750,11 +750,13 @@ DECLARE_OLC_FUN( clsedit_create );
 DECLARE_OLC_FUN( clsedit_name );
 DECLARE_OLC_FUN( clsedit_description );
 DECLARE_OLC_FUN( clsedit_display );
+DECLARE_OLC_FUN( clsedit_maxlevel );
 DECLARE_OLC_FUN( clsedit_type );
 DECLARE_OLC_FUN( clsedit_primary );
 DECLARE_OLC_FUN( clsedit_skills );
 DECLARE_OLC_FUN( clsedit_who );
 DECLARE_OLC_FUN( clsedit_gcl );
+DECLARE_OLC_FUN( clsedit_flags );
 
 DECLARE_OLC_FUN( raceedit_show );
 DECLARE_OLC_FUN( raceedit_create );
@@ -778,6 +780,8 @@ DECLARE_OLC_FUN( raceedit_maxstats );
 DECLARE_OLC_FUN( raceedit_maxvitals );
 DECLARE_OLC_FUN( raceedit_size );
 DECLARE_OLC_FUN( raceedit_align );
+DECLARE_OLC_FUN( raceedit_starting );
+DECLARE_OLC_FUN( raceedit_skills );
 
 /*
  * Macros

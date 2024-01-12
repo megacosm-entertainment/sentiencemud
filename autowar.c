@@ -141,7 +141,7 @@ void do_war(CHAR_DATA *ch, char *argument)
 			((100 * wch->hit) / wch->max_hit),
 			wch->level,
 			wch->tot_level,
-			capitalize( race_table[ wch->race ].name ),
+			capitalize( wch->race->name ),
 			wch->name);
 		send_to_char( buf, ch );
 	    }
@@ -176,7 +176,7 @@ void do_war(CHAR_DATA *ch, char *argument)
 			(int)(wch->hit / wch->max_hit * 100),
 			wch->level,
 			wch->tot_level,
-			capitalize( race_table[ wch->race ].name ),
+			capitalize( wch->race->name ),
 			wch->name
 		       );
 		send_to_char( buf, ch );
@@ -232,7 +232,7 @@ void start_war()
 {
     CHAR_DATA *wch;
     int counter;
-    int race;
+//    int race;
     int evil;
     int good;
     char buf[ MAX_STRING_LENGTH ];
@@ -264,6 +264,7 @@ void start_war()
 	    break;
 
 	case AUTO_WAR_GENOCIDE:
+#if 0
 	    race = auto_war->team_players->race;
 	    for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
 	    {
@@ -278,7 +279,7 @@ void start_war()
 		free_auto_war( auto_war );
 		return;
 	    }
-
+#endif
 	    break;
 
 	case AUTO_WAR_JIHAD:
@@ -334,6 +335,7 @@ void auto_war_time_finish()
     else
     if ( auto_war->war_type == AUTO_WAR_GENOCIDE )
     {
+#if 0
 	CHAR_DATA *wch;
 	int races[26];
 	int i = 0;
@@ -390,7 +392,7 @@ void auto_war_time_finish()
 		wch->wars_won++;
 	    }
 	}
-
+#endif
 	free_auto_war( auto_war );
     }
     else
@@ -514,6 +516,7 @@ void test_for_end_of_war()
     else
     if ( auto_war->war_type == AUTO_WAR_GENOCIDE )
     {
+#if 0
 	CHAR_DATA *wch;
 	int race;
 	bool ended = TRUE;
@@ -556,9 +559,9 @@ void test_for_end_of_war()
 		    wch->wars_won++;
 		}
 	    }
-
 	    free_auto_war( auto_war );
 	}
+#endif
     }
     else
     if ( auto_war->war_type == AUTO_WAR_JIHAD )
