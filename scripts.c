@@ -35,6 +35,14 @@ bool opc_skip_block(SCRIPT_CB *block,int level,bool endblock);
 bool is_stat( const struct flag_type *flag_table );
 void delete_list_uid_data(void *ptr);
 
+#define VERSION_TRIGGERS_000	0x00000000
+#define VERSION_TRIGGERS_001	0x01000000
+
+#define VERSION_TRIGGERS		VERSION_TRIGGERS_001
+
+long version_triggers = VERSION_TRIGGERS_000;
+
+
 char *	const	dir_name_phrase	[]		=
 {
     "0 (north)", "1 (east)", "2 (south)", "3 (west)", "4 (up)", "5 (down)", "6 (northeast)",  "7 (northwest)", "8 (southeast)", "9 (southwest)"
@@ -1143,6 +1151,7 @@ DECL_OPC_FUN(opc_list)
 	REPUTATION_DATA *reputation;
 	REPUTATION_INDEX_DATA *repIndex;
 	REPUTATION_INDEX_RANK_DATA *rank;
+	MISSION_DATA *mission;
 
 	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
 		return opc_skip_block(block,block->cur_line->level-1,FALSE);
@@ -1250,17 +1259,6 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.owner = arg->d.list.owner;
 			block->loops[lp].d.l.owner_type = ENT_MOBILE;
 
-			/*
-			if(block->loops[lp].d.l.cur.m) {
-				ch = block->loops[lp].d.l.cur.m;
-				if(!IS_NPC(ch))
-					log_stringf("opc_list: player(%s,%ld,%ld)", ch->name, ch->id[0], ch->id[1]);
-				else
-					log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
-			} else
-				log_stringf("opc_list: mobile(<END>)");
-			*/
-
 			// Set the variable
 			variables_set_mobile(block->info.var,block->loops[lp].var_name,*arg->d.list.ptr.mob);
 			break;
@@ -1341,6 +1339,26 @@ DECL_OPC_FUN(opc_list)
 
 			// Set the variable
 			variables_set_affect(block->info.var,block->loops[lp].var_name,*arg->d.list.ptr.aff);
+			break;
+
+		case ENT_OLLIST_MISSION_PARTS:
+			//log_stringf("opc_list: list type ENT_MOBILE");
+			mission = (MISSION_DATA *)arg->d.list.owner;
+
+			if(!mission || !arg->d.list.ptr.part || !*arg->d.list.ptr.part)
+			{
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			block->loops[lp].d.l.type = ENT_MISSION_PART;
+			block->loops[lp].d.l.cur.part = *arg->d.list.ptr.part;
+			block->loops[lp].d.l.next.part = block->loops[lp].d.l.cur.part->next;
+			block->loops[lp].d.l.owner = arg->d.list.owner;
+			block->loops[lp].d.l.owner_type = ENT_MISSION_PART;
+
+			// Set the variable
+			variables_set_mission_part(block->info.var,block->loops[lp].var_name,mission,*arg->d.list.ptr.part);
 			break;
 
 		case ENT_EXTRADESC:
@@ -2457,6 +2475,31 @@ DECL_OPC_FUN(opc_list)
 			variables_set_classlevel(block->info.var,block->loops[lp].var_name,level);
 			break;
 
+		case ENT_ILLIST_MISSIONS:
+			//log_stringf("opc_list: list type ENT_ILLIST_MISSIONS");
+			if(!IS_VALID(arg->d.blist))
+			{
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			block->loops[lp].d.l.type = ENT_ILLIST_MISSIONS;
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+			mission = (MISSION_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+			if( !mission ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			variables_set_mission(block->info.var,block->loops[lp].var_name,mission);
+			break;
+
 		default:
 			//log_stringf("opc_list: list_type INVALID");
 			block->ret_val = PRET_BADSYNTAX;
@@ -2621,6 +2664,28 @@ DECL_OPC_FUN(opc_list)
 			}
 
 			block->loops[lp].d.l.next.aff = block->loops[lp].d.l.cur.aff->next;
+			break;
+
+		case ENT_MISSION_PART:
+			//log_stringf("opc_list: list type ENT_MOBILE");
+			mission = (MISSION_DATA *)block->loops[lp].d.l.owner;
+			if (!mission)
+			{
+				skip = true;
+				break;
+			}
+
+			block->loops[lp].d.l.cur.part = block->loops[lp].d.l.next.part;
+
+			// Set the variable
+			variables_set_mission_part(block->info.var,block->loops[lp].var_name,mission,block->loops[lp].d.l.cur.part);
+
+			if(!block->loops[lp].d.l.cur.part) {
+				skip = TRUE;
+				break;
+			}
+
+			block->loops[lp].d.l.next.part = block->loops[lp].d.l.cur.part->next;
 			break;
 
 		case ENT_EXTRADESC:
@@ -3256,6 +3321,21 @@ DECL_OPC_FUN(opc_list)
 			variables_set_classlevel(block->info.var,block->loops[lp].var_name,level);
 
 			if( !IS_VALID(level) ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				skip = TRUE;
+				break;
+			}
+			break;
+
+		case ENT_ILLIST_MISSIONS:
+			//log_stringf("opc_list: list type ENT_ILLIST_MISSIONS");
+			mission = (MISSION_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+			//log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
+
+			// Set the variable
+			variables_set_mission(block->info.var,block->loops[lp].var_name,mission);
+
+			if( !mission ) {
 				iterator_stop(&block->loops[lp].d.l.list.it);
 				skip = TRUE;
 				break;
@@ -4594,7 +4674,7 @@ void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet, int mode)
 		}
 
 		if (!IS_NPC(ch))
-			check_quest_rescue_mob(ch, show);
+			check_mission_rescue_mob(ch, show);
 	}
 
 	if( ch->desc && quiet && ch->desc->muted > 0)
@@ -9387,6 +9467,7 @@ void save_triggers()
 	}
 	else
 	{
+		fprintf(fp, "Version %d\n", VERSION_TRIGGERS);
 #if 0
 		for(int i = 0; trigger_table[i].name; i++)
 		{
@@ -9450,7 +9531,7 @@ struct trigger_type *load_trigger(FILE *fp)
 
 	free_string(tt->name);
 	tt->name = fread_string(fp);
-	
+
     while (str_cmp((word = fread_word(fp)), "#-TRIGGER"))
 	{
 		switch(word[0])
@@ -9463,11 +9544,39 @@ struct trigger_type *load_trigger(FILE *fp)
 			case 'B':
 				if (!str_cmp(word, "BuiltinType"))
 				{
-					int type = stat_lookup(fread_string(fp), builtin_trigger_types, TRIG__MAX);
+					int type;
+					char *name = fread_string(fp);
+
+					bool fix_name = false;
+					if (version_triggers < VERSION_TRIGGERS_001)
+					{
+						fix_name = true;
+						// Remap old QUEST triggers to MISSION triggers
+						if (!str_cmp(name, "prequest"))					type = TRIG_PREMISSION;
+						else if (!str_cmp(name, "postquest"))			type = TRIG_POSTMISSION;
+						else if (!str_cmp(name, "mission_cancel"))		type = TRIG_MISSION_CANCEL;
+						else if (!str_cmp(name, "mission_complete"))	type = TRIG_MISSION_COMPLETE;
+						else if (!str_cmp(name, "mission_incomplete"))	type = TRIG_MISSION_INCOMPLETE;
+						else if (!str_cmp(name, "mission_part"))		type = TRIG_MISSION_PART;
+						else
+						{
+							type = stat_lookup(name, builtin_trigger_types, TRIG__MAX);
+							fix_name = false;
+						}
+					}
+					else
+						type = stat_lookup(name, builtin_trigger_types, TRIG__MAX);
 
 					if (type != TRIG__MAX)
 					{
 						tt->type = type;
+
+						// Fix the trigger's name
+						if (fix_name)
+						{
+							free_string(tt->name);
+							tt->name = str_dup(name);
+						}
 					}
 
 					fMatch = TRUE;
@@ -9589,6 +9698,10 @@ bool load_triggers()
 					break;
 				}
 				break;
+			
+			case 'V':
+				KEY("Version", version_triggers, fread_number(fp));
+				break;
 		}
 
 		if (!fMatch) {
@@ -9612,6 +9725,9 @@ bool load_triggers()
 #endif
 	log_stringf("load_triggers: total triggers = %d", list_size(trigger_list));
 #endif
+
+	version_triggers = VERSION_TRIGGERS;
+
 	return TRUE;
 }
 

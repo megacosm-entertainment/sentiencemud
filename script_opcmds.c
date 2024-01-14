@@ -93,6 +93,16 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "lockadd",			scriptcmd_lockadd,			FALSE,	TRUE	},
 	{ "lockremove",			scriptcmd_lockremove,		FALSE,	TRUE	},
 	{ "lockset",			scriptcmd_lockset,			FALSE,	TRUE	},
+	{ "missionaccept",		scriptcmd_missionaccept,		FALSE,	TRUE	},
+	{ "missioncancel",		scriptcmd_missioncancel,		FALSE,	TRUE	},
+	{ "missioncomplete",		scriptcmd_missioncomplete,	FALSE,	TRUE	},
+	{ "missiongenerate",		scriptcmd_missiongenerate,	FALSE,	TRUE	},
+	{ "missionpartcustom",	scriptcmd_missionpartcustom,	TRUE,	TRUE	},
+	{ "missionpartgetitem",	scriptcmd_missionpartgetitem,	TRUE,	TRUE	},
+	{ "missionpartgoto",		scriptcmd_missionpartgoto,	TRUE,	TRUE	},
+	{ "missionpartrescue",	scriptcmd_missionpartrescue,	TRUE,	TRUE	},
+	{ "missionpartslay",		scriptcmd_missionpartslay,	TRUE,	TRUE	},
+	{ "missionscroll",		scriptcmd_missionscroll,		FALSE,	TRUE	},
 	{ "mload",				do_opmload,				FALSE,	TRUE	},
 	{ "mute",				scriptcmd_mute,			FALSE,	TRUE	},
 	{ "nametrigger",			scriptcmd_nametrigger,	TRUE,	FALSE	},
@@ -106,16 +116,6 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "persist",			do_oppersist,			FALSE,	TRUE	},
 	{ "prompt",				do_opprompt,			FALSE,	TRUE	},
 	{ "purge",				do_oppurge,				FALSE,	FALSE	},
-	{ "questaccept",		scriptcmd_questaccept,		FALSE,	TRUE	},
-	{ "questcancel",		scriptcmd_questcancel,		FALSE,	TRUE	},
-	{ "questcomplete",		scriptcmd_questcomplete,	FALSE,	TRUE	},
-	{ "questgenerate",		scriptcmd_questgenerate,	FALSE,	TRUE	},
-	{ "questpartcustom",	scriptcmd_questpartcustom,	TRUE,	TRUE	},
-	{ "questpartgetitem",	scriptcmd_questpartgetitem,	TRUE,	TRUE	},
-	{ "questpartgoto",		scriptcmd_questpartgoto,	TRUE,	TRUE	},
-	{ "questpartrescue",	scriptcmd_questpartrescue,	TRUE,	TRUE	},
-	{ "questpartslay",		scriptcmd_questpartslay,	TRUE,	TRUE	},
-	{ "questscroll",		scriptcmd_questscroll,		FALSE,	TRUE	},
 	{ "queue",				do_opqueue,				FALSE,	TRUE	},
 	{ "rawkill",			do_oprawkill,			FALSE,	TRUE	},
 	{ "reassign",			scriptcmd_reassign,			TRUE,	FALSE	},
@@ -2859,18 +2859,11 @@ SCRIPT_CMD(do_opsettimer)
 		else if(!str_cmp(buf,"panic")) PANIC_STATE(victim, amt);
 		else if(!str_cmp(buf,"paroxysm")) PAROXYSM_STATE(victim, amt);
 		else if(!str_cmp(buf,"paralyze")) victim->paralyzed = UMAX(victim->paralyzed,amt);
-		else if(!str_cmp(buf,"quest"))
-		{
-			if(!IS_NPC(victim) && IS_QUESTING(victim))
-			{
-				victim->countdown = amt;
-			}
-		}
-		else if(!str_cmp(buf,"nextquest"))
+		else if(!str_cmp(buf,"nextmission"))
 		{
 			if(!IS_NPC(victim))
 			{
-				victim->nextquest = amt;
+				victim->nextmission = amt;
 			}
 		}
 	}

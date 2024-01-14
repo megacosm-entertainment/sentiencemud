@@ -115,6 +115,8 @@ obj/mail.o: mail.c merc.h protocol.h sha256.h interp.h recycle.h tables.h
 obj/mccp.o: mccp.c merc.h protocol.h sha256.h telnet.h
 obj/mem.o: mem.c merc.h protocol.h sha256.h recycle.h scripts.h tables.h \
  debug.h
+obj/missions.o: missions.c merc.h protocol.h sha256.h recycle.h magic.h \
+ tables.h
 obj/mount.o: mount.c merc.h protocol.h sha256.h interp.h
 obj/music.o: music.c merc.h protocol.h sha256.h recycle.h scripts.h tables.h \
  music.h olc.h

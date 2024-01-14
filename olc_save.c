@@ -784,8 +784,8 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
 	if (mob->pPractice != NULL)
 		save_practice_data(fp, mob->pPractice, mob->area);
 
-	if (mob->pQuestor != NULL)
-		save_questor_new(fp, mob->pQuestor, mob->area);
+	if (mob->pMissionary != NULL)
+		save_missionary_new(fp, mob->pMissionary, mob->area);
 
     /* save the shop */
     if (mob->pShop != NULL)
@@ -1559,23 +1559,23 @@ void save_scripts_new(FILE *fp, AREA_DATA *area)
 		save_script_new(fp, area, scr, "DUNGEON");
 }
 
-void save_questor_new(FILE *fp, QUESTOR_DATA *questor, AREA_DATA *pRefArea)
+void save_missionary_new(FILE *fp, MISSIONARY_DATA *missionary, AREA_DATA *pRefArea)
 {
-    fprintf(fp, "#QUESTOR\n");
-	if (!pRefArea || questor->scroll.auid != pRefArea->uid)
-	    fprintf(fp, "Scroll %ld#%ld\n", questor->scroll.auid, questor->scroll.vnum);
+    fprintf(fp, "#MISSIONARY\n");
+	if (!pRefArea || missionary->scroll.auid != pRefArea->uid)
+	    fprintf(fp, "Scroll %ld#%ld\n", missionary->scroll.auid, missionary->scroll.vnum);
 	else
-	    fprintf(fp, "Scroll #%ld\n", questor->scroll.vnum);
+	    fprintf(fp, "Scroll #%ld\n", missionary->scroll.vnum);
 	
-    fprintf(fp, "Keywords %s~\n", fix_string(questor->keywords));
-    fprintf(fp, "ShortDescr %s~\n", fix_string(questor->short_descr));
-    fprintf(fp, "LongDescr %s~\n", fix_string(questor->long_descr));
-    fprintf(fp, "Header %s~\n", fix_string(questor->header));
-    fprintf(fp, "Footer %s~\n", fix_string(questor->footer));
-    fprintf(fp, "Prefix %s~\n", fix_string(questor->prefix));
-    fprintf(fp, "Suffix %s~\n", fix_string(questor->suffix));
-    fprintf(fp, "LineWidth %d\n", questor->line_width);
-    fprintf(fp, "#-QUESTOR\n");
+    fprintf(fp, "Keywords %s~\n", fix_string(missionary->keywords));
+    fprintf(fp, "ShortDescr %s~\n", fix_string(missionary->short_descr));
+    fprintf(fp, "LongDescr %s~\n", fix_string(missionary->long_descr));
+    fprintf(fp, "Header %s~\n", fix_string(missionary->header));
+    fprintf(fp, "Footer %s~\n", fix_string(missionary->footer));
+    fprintf(fp, "Prefix %s~\n", fix_string(missionary->prefix));
+    fprintf(fp, "Suffix %s~\n", fix_string(missionary->suffix));
+    fprintf(fp, "LineWidth %d\n", missionary->line_width);
+    fprintf(fp, "#-MISSIONARY\n");
 }
 
 void save_practice_cost_data(FILE *fp, PRACTICE_COST_DATA *data, AREA_DATA *area)
@@ -2625,7 +2625,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 {
     MOB_INDEX_DATA *mob = NULL;
     SHOP_DATA *shop;
-    QUESTOR_DATA *questor;
+    MISSIONARY_DATA *missionary;
     PROG_LIST *mpr;
     char *word;
 
@@ -2665,10 +2665,10 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 			    mob->pShop = shop;
 			    break;
 			}
-	        if (!str_cmp(word, "#QUESTOR")) {
+	        if (!str_cmp(word, "#MISSIONARY")) {
 			    fMatch = TRUE;
-			    questor = read_questor_new(fp, area);
-			    mob->pQuestor = questor;
+			    missionary = read_missionary_new(fp, area);
+			    mob->pMissionary = missionary;
 			    break;
 			}
 
@@ -5312,53 +5312,53 @@ AFFECT_DATA *read_obj_catalyst_new(FILE *fp)
 }
 
 
-QUESTOR_DATA *read_questor_new(FILE *fp, AREA_DATA *area)
+MISSIONARY_DATA *read_missionary_new(FILE *fp, AREA_DATA *area)
 {
-    QUESTOR_DATA *questor;
+    MISSIONARY_DATA *missionary;
     char *word;
 
-    questor = new_questor_data();
+    missionary = new_missionary_data();
 
-    while (str_cmp((word = fread_word(fp)), "#-QUESTOR"))
+    while (str_cmp((word = fread_word(fp)), "#-MISSIONARY"))
     {
 	fMatch = FALSE;
 	switch (word[0]) {
 		case 'F':
-	        KEYS("Footer",		questor->footer,	fread_string(fp));
+	        KEYS("Footer",		missionary->footer,	fread_string(fp));
 	        break;
 
 	    case 'H':
-	        KEYS("Header",		questor->header,	fread_string(fp));
+	        KEYS("Header",		missionary->header,	fread_string(fp));
 	        break;
 
 	    case 'K':
-	        KEYS("Keywords",	questor->keywords,	fread_string(fp));
+	        KEYS("Keywords",	missionary->keywords,	fread_string(fp));
 	        break;
 
 	    case 'L':
-	        KEY("LineWidth",	questor->line_width,	fread_number(fp));
-	        KEYS("LongDescr",	questor->long_descr,	fread_string(fp));
+	        KEY("LineWidth",	missionary->line_width,	fread_number(fp));
+	        KEYS("LongDescr",	missionary->long_descr,	fread_string(fp));
 			break;
 
 	    case 'P':
-	        KEYS("Prefix",		questor->prefix,	fread_string(fp));
+	        KEYS("Prefix",		missionary->prefix,	fread_string(fp));
 	        break;
 
 	    case 'S':
-	        KEY("Scroll",		questor->scroll,	fread_widevnum(fp, area->uid));
-	        KEYS("ShortDescr",	questor->short_descr,	fread_string(fp));
-	        KEYS("Suffix",		questor->suffix,	fread_string(fp));
+	        KEY("Scroll",		missionary->scroll,	fread_widevnum(fp, area->uid));
+	        KEYS("ShortDescr",	missionary->short_descr,	fread_string(fp));
+	        KEYS("Suffix",		missionary->suffix,	fread_string(fp));
 			break;
 
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_questor_new: no match for word %s", word);
+			sprintf(buf, "read_missionary_new: no match for word %s", word);
 			bug(buf, 0);
 		}
     }
 
-    return questor;
+    return missionary;
 }
 
 PRACTICE_COST_DATA *read_practice_cost_data(FILE *fp, AREA_DATA *area)

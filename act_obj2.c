@@ -77,7 +77,7 @@ void do_deposit(CHAR_DATA *ch, char *argument)
 	    sprintf(buf, "Thank you, %s!", pers(ch, mob));
 	    do_say(mob, buf);
 
-	    sprintf(buf, "{WYou gain %d quest points, %d practices, and %ld experience points!{x\n\r",
+	    sprintf(buf, "{WYou gain %d mission points, %d practices, and %ld experience points!{x\n\r",
 		    qp, prac, exp);
 	    send_to_char(buf, ch);
 
@@ -85,7 +85,7 @@ void do_deposit(CHAR_DATA *ch, char *argument)
 		    silver, gold);
 	    act(buf, ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
-	    ch->questpoints += qp;
+	    ch->missionpoints += qp;
 	    ch->practice += prac;
 	    gain_exp(ch, NULL, exp);
 	    ch->silver += silver;

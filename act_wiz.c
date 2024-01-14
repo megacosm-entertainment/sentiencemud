@@ -60,7 +60,6 @@ extern RESERVED_WNUM reserved_obj_wnums[];
 extern RESERVED_WNUM reserved_mob_wnums[];
 extern RESERVED_WNUM reserved_rprog_wnums[];
 extern RESERVED_AREA reserved_areas[];
-extern GLOBAL_DATA gconfig;
 
 
 RESERVED_WNUM *search_reserved(RESERVED_WNUM *reserved, char *name)
@@ -121,6 +120,10 @@ int gconfig_read (void)
 	gconfig.next_church_vnum_start = 1;
 
     gconfig.db_version = VERSION_DB_000;
+
+	gconfig.max_mission_allowance = 100;
+	gconfig.inc_missions = 6;		// Per day
+	gconfig.max_missions = 25;
 
 	disconnect_timeout = 30;
 	limbo_timeout = 12;
@@ -202,11 +205,17 @@ int gconfig_read (void)
 				}
 	            break;
 
+			case 'I':
+				KEY("IncMissions", gconfig.inc_missions, fread_number(fp));
+				break;
+
 			case 'L':
 				KEY("LimboTimeout", limbo_timeout, fread_number(fp));
 				break;
 
 			case 'M':
+				KEY("MaxMissionAllowance", gconfig.max_mission_allowance, fread_number(fp));
+				KEY("MaxMissions", gconfig.max_missions, fread_number(fp));
 				{
 					RESERVED_WNUM *mwnum = search_reserved(reserved_mob_wnums, word);
 
@@ -413,6 +422,9 @@ int gconfig_write(void)
     if(is_test_port) fprintf(fp, "Testport\n");
 	fprintf(fp, "DisconnectTimeout %d\n", disconnect_timeout);
 	fprintf(fp, "LimboTimeout %d\n", limbo_timeout);
+	fprintf(fp, "MaxMissionAllowance %d\n", gconfig.max_mission_allowance);
+	fprintf(fp, "IncMissions %d\n", gconfig.inc_missions);
+	fprintf(fp, "MaxMissions %d\n", gconfig.max_missions);
 
 	write_reserved(fp, reserved_room_wnums);
 	write_reserved(fp, reserved_mob_wnums);
@@ -2881,8 +2893,8 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 
 	if (!IS_NPC(ch))
 	{
-		sprintf(buf, "{BKarma:{x %ld  {BPneuma:{x %ld  {BQuestPoints:{x %d{x\n\r",
-					 victim->deitypoints, victim->pneuma, victim->questpoints);
+		sprintf(buf, "{BKarma:{x %ld  {BPneuma:{x %ld  {BMissionPoints:{x %d{x\n\r",
+					 victim->deitypoints, victim->pneuma, victim->missionpoints);
 		send_to_char(buf, ch);
 	}
 
@@ -6091,7 +6103,7 @@ void do_mset(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (!str_cmp(arg2, "qp"))
+    if (!str_cmp(arg2, "mp"))
     {
 	if (IS_NPC(victim))
 	{
@@ -6111,7 +6123,7 @@ void do_mset(CHAR_DATA *ch, char *argument)
 	    return;
 	}
 
-	victim->questpoints = atoi(arg3);
+	victim->missionpoints = atoi(arg3);
 	return;
     }
 

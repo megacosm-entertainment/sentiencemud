@@ -2464,7 +2464,6 @@ void do_donate(CHAR_DATA *ch, char *argument)
     act("$n donates $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
     act("You donate $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 
-    if (!is_quest_item(obj))
 	obj->cost = 0;
 
     obj_from_char(obj);
@@ -6499,7 +6498,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				if( silver < 0 )
 					return;
 
-				long qp = haggle_price(ch, keeper, chance, number, stock->qp, ch->questpoints, stock->discount, &haggled, FALSE);
+				long qp = haggle_price(ch, keeper, chance, number, stock->qp, ch->missionpoints, stock->discount, &haggled, FALSE);
 				if( qp < 0 )
 					return;
 
@@ -6527,7 +6526,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 
 				if( qp > 0 )
 				{
-					ch->questpoints -= qp;
+					ch->missionpoints -= qp;
 				}
 
 				if( dp > 0 )
@@ -7399,7 +7398,7 @@ void do_sell(CHAR_DATA *ch, char *argument)
 
 				ch->gold		+= silver/100;
 				ch->silver		+= silver%100;
-				ch->questpoints	+= qp;
+				ch->missionpoints	+= qp;
 				ch->deitypoints	+= dp;
 				ch->pneuma		+= pneuma;
 

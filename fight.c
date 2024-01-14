@@ -1675,8 +1675,8 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, SKI
 
 		// If invasion mob then check if quest point is earned
 		if (!IS_NPC(ch) && IS_NPC(victim) && IS_SET(victim->act[1], ACT2_INVASION_MOB) && number_percent() < 5) {
-			send_to_char("{WYou have been awarded a quest point!{x\n\r", ch);
-			ch->questpoints++;
+			send_to_char("{WYou have been awarded a mission point!{x\n\r", ch);
+			ch->missionpoints++;
 		}
 
 		// Send to logs
@@ -1729,12 +1729,12 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, SKI
 
 		// Check if slain victim was part of a quest. Checks if your horse got the kill, too.
 		if (!IS_NPC(ch)) {
-			check_quest_slay_mob(ch, victim, true);
+			check_mission_slay_mob(ch, victim, true);
 			check_invasion_quest_slay_mob(ch, victim);
 		}
 
 		// Hahahaha
-		if (RIDDEN(ch)) check_quest_slay_mob(RIDDEN(ch), victim, true);
+		if (RIDDEN(ch)) check_mission_slay_mob(RIDDEN(ch), victim, true);
 
 		// Autoloot
 		if (!IS_NPC(ch) && kill_in_room && (corpse != NULL) &&
@@ -5969,12 +5969,12 @@ void do_slit(CHAR_DATA *ch, char *argument)
 
 		// Check if slain victim was part of a quest. Checks if your horse got the kill, too.
 		if (!IS_NPC(ch)) {
-			check_quest_slay_mob(ch, victim, true);
+			check_mission_slay_mob(ch, victim, true);
 			check_invasion_quest_slay_mob(ch, victim);
 		}
 
 		// Hahahaha
-		if (RIDDEN(ch)) check_quest_slay_mob(RIDDEN(ch), victim, true);
+		if (RIDDEN(ch)) check_mission_slay_mob(RIDDEN(ch), victim, true);
 	}
 #else
 	command_under_construction(ch);
@@ -7871,9 +7871,9 @@ void player_kill(CHAR_DATA *ch, CHAR_DATA *victim)
 		}
 
 		quest_points = 20;
-		sprintf(buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points);
+		sprintf(buf, "{WYou have been awarded {Y%d{W mission points!{x", quest_points);
 		act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		ch->questpoints += quest_points;
+		ch->missionpoints += quest_points;
 	} else if (ch != victim) { // Regular PK win.
 		// CPK
 		if (IS_SET(ch->in_room->room_flag[0], ROOM_CHAOTIC)) {

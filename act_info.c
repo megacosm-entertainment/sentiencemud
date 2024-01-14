@@ -775,22 +775,8 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
     else
 		strcat(buf, "{G");
 
-    if (IS_QUESTING(ch) && IS_NPC(victim))
-    {
-        QUEST_PART_DATA *part;
-
-        for (part = ch->quest->parts; part != NULL; part = part->next)
-        {
-	    if (part->mob != -1 && !part->complete)
-	    {
-                if (part->mob == victim->pIndexData->vnum && part->area == victim->pIndexData->area)
-                {
-   	 	    strcat(buf, "{R[X] {G");
-		    break;
-		}
-	    }
-        }
-    }
+    if (is_mission_mob(ch, victim))
+		strcat(buf, "{R[X] {G");
 
     /* print name */
     if (IS_NPC(victim) ||
@@ -3294,7 +3280,7 @@ void do_score(CHAR_DATA * ch, char *argument)
 	strcat(buf, " ");
     strcat(buf, "|\n\r");
     send_to_char(buf, ch);
-    sprintf(buf, "{C| {BQuest Points: {w%-9d", ch->questpoints);
+    sprintf(buf, "{C| {BMission Points: {w%-9d", ch->missionpoints);
     send_to_char(buf, ch);
     sprintf(buf, "{BDeity Points: {w%-11ld", ch->deitypoints);
     send_to_char(buf, ch);
@@ -3312,8 +3298,8 @@ void do_score(CHAR_DATA * ch, char *argument)
     send_to_char(buf, ch);
     sprintf(buf, "{BBank Balance: {w%-10ld {C|\n\r", ch->pcdata->bankbalance);
     send_to_char(buf, ch);
-    sprintf(buf, "{C| {BDeaths: {w%-39d {BQuests Completed:{x %-7ld{C|\n\r",
-		    ch->deaths, ch->pcdata->quests_completed);
+    sprintf(buf, "{C| {BDeaths: {w%-39d {BMissions Completed:{x %-7ld{C|\n\r",
+		    ch->deaths, ch->pcdata->missions_completed);
     send_to_char(buf, ch);
     sprintf(buf, "{C| {BPK Wins       : {w%-31d {BCPK Wins:{x %-14d {C|\n\r",
 	    ch->player_kills,

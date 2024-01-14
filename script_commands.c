@@ -1469,9 +1469,9 @@ SCRIPT_CMD(scriptcmd_award)
 			victim->train += amount;
 			field_name = "trains";
 
-		} else if( !str_prefix(field, "quest") || !str_cmp(field, "qp") ) {
-			victim->questpoints += amount;
-			field_name = "quest points";
+		} else if( !str_prefix(field, "mission") || !str_cmp(field, "mp") ) {
+			victim->missionpoints += amount;
+			field_name = "mission points";
 
 		} else if( !str_prefix(field, "experience") || !str_cmp(field, "xp") ) {
 			gain_exp(victim, NULL, amount);
@@ -1817,7 +1817,7 @@ SCRIPT_CMD(scriptcmd_damage)
 
 
 // DEDUCT mobile string(type)[ (subtype)] number(amount)
-// Types: silver, gold, pneuma, deity/dp, practice, train, quest/qp, reputation, paragon
+// Types: silver, gold, pneuma, deity/dp, practice, train, mission/mp, reputation, paragon
 // Subtype is only used by reputation or paragon, can either be a widevnum or a reputation entity
 // Returns actual amount deducted
 //
@@ -2000,10 +2000,10 @@ SCRIPT_CMD(scriptcmd_deduct)
 			victim->train -= info->progs->lastreturn;
 			field_name = "trains";
 
-		} else if( !str_prefix(field, "quest") || !str_cmp(field, "qp") ) {
-			info->progs->lastreturn = UMIN(victim->questpoints, amount);
-			victim->questpoints -= info->progs->lastreturn;
-			field_name = "quest points";
+		} else if( !str_prefix(field, "mission") || !str_cmp(field, "mp") ) {
+			info->progs->lastreturn = UMIN(victim->missionpoints, amount);
+			victim->missionpoints -= info->progs->lastreturn;
+			field_name = "mission points";
 
 		} else
 			return;
@@ -4228,7 +4228,7 @@ SCRIPT_CMD(scriptcmd_pageat)
 //////////////////////////////////////
 // Q
 
-// QUESTACCEPT $PLAYER[ $SCROLL]
+// MISSIONACCEPT $PLAYER[ $SCROLL]
 // Finalizes the $PLAYER's pending SCRIPTED quest
 //
 // $PLAYER - player who is on a quest
@@ -4238,7 +4238,7 @@ SCRIPT_CMD(scriptcmd_pageat)
 // Fails if the scroll is defined but does not have WEAR_TAKE set OR is worn.
 //
 // LASTRETURN will be the resulting countdown timer
-SCRIPT_CMD(scriptcmd_questaccept)
+SCRIPT_CMD(scriptcmd_missionaccept)
 {
 	char *rest;
 	CHAR_DATA *mob;
@@ -4248,12 +4248,12 @@ SCRIPT_CMD(scriptcmd_questaccept)
 	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob) || !IS_QUESTING(arg->d.mob)) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob)) return;
 
 	mob = arg->d.mob;
 
 	// Must be on a scripted quest that is still generating
-	if( !mob->quest->generating || !mob->quest->scripted ) return;
+	if( !mob->pending_mission->generating || !mob->pending_mission->scripted ) return;
 
 	// Check if there is a SCROLL, if so.. give it to the target
 	if( *rest )
@@ -4280,27 +4280,25 @@ SCRIPT_CMD(scriptcmd_questaccept)
 		obj_to_char(scroll, mob);
 	}
 
-	mob->countdown = 0;
-	for (QUEST_PART_DATA *qp = mob->quest->parts; qp != NULL; qp = qp->next)
-		mob->countdown += qp->minutes;
-
-	mob->quest->generating = FALSE;
-	info->progs->lastreturn = mob->countdown;
+	mob->pending_mission->generating = FALSE;
+	list_appendlink(mob->missions, mob->pending_mission);
+	info->progs->lastreturn = mob->pending_mission->timer;
+	mob->pending_mission = NULL;
 }
 
-// QUESTCANCEL $PLAYER[ $CLEANUP]
+// MISSIONCANCEL $PLAYER $INDEX[ $CLEANUP]
 // Cancels the $PLAYER's pending SCRIPTED quest
 //
 // $PLAYER  - Cancels the pending quest for this player
 // $CLEANUP - script (caller space) used to clean up generated quest parts (optional)
 //
 // Fails if the player does not have a pending scripted quest.
-SCRIPT_CMD(scriptcmd_questcancel)
+SCRIPT_CMD(scriptcmd_missioncancel)
 {
 	char *rest;
 	CHAR_DATA *mob;
 	WNUM wnum;
-	int type;
+	int type, index;
 	SCRIPT_DATA *script;
 
 	info->progs->lastreturn = 0;
@@ -4316,12 +4314,15 @@ SCRIPT_CMD(scriptcmd_questcancel)
 	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob) || !IS_QUESTING(arg->d.mob)) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob) || list_size(arg->d.mob->missions) < 1) return;
 
 	mob = arg->d.mob;
 
-	// Must be on a scripted quest that is still generating
-	if( !mob->quest->generating || !mob->quest->scripted ) return;
+	if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
+		return;
+
+	index = arg->d.num;
+	if (index < 1 || index > list_size(mob->missions)) return;
 
 	// Get cleanup script (if there)
 	if( *rest )
@@ -4335,17 +4336,16 @@ SCRIPT_CMD(scriptcmd_questcancel)
 			return;
 
 		// Don't care about response
-		execute_script(script, info->mob, info->obj, info->room, info->token, NULL, NULL, NULL, mob, NULL, NULL, NULL, NULL,NULL, NULL,NULL,NULL,TRIG_NONE,0,0,0,0,0);
+		// Which mission is on register1
+		execute_script(script, info->mob, info->obj, info->room, info->token, NULL, NULL, NULL, mob, NULL, NULL, NULL, NULL,NULL, NULL,NULL,NULL,TRIG_NONE,index,0,0,0,0);
 	}
 
-	free_quest(mob->quest);
-	mob->quest = NULL;
-
+	list_remnthlink(mob->missions, index, true);
 	info->progs->lastreturn = 1;
 }
 
-// QUESTCOMPLETE $player $partno
-SCRIPT_CMD(scriptcmd_questcomplete)
+// MISSIONCOMPLETE $player $missionno $partno
+SCRIPT_CMD(scriptcmd_missioncomplete)
 {
 	char *rest;
 	CHAR_DATA *mob;
@@ -4355,7 +4355,7 @@ SCRIPT_CMD(scriptcmd_questcomplete)
 	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob) || !IS_QUESTING(arg->d.mob)) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob) || !ON_MISSION(arg->d.mob)) return;
 
 	mob = arg->d.mob;
 
@@ -4363,16 +4363,26 @@ SCRIPT_CMD(scriptcmd_questcomplete)
 		return;
 
 	if( arg->type != ENT_NUMBER ) return;
+	int mission_no = arg->d.num;
 
-	if(check_quest_custom_task(mob, arg->d.num, true))
+	if (mission_no < 1 || mission_no > list_size(mob->missions))
+		return;
+
+	if(!(rest = expand_argument(info,rest,arg)))
+		return;
+
+	if( arg->type != ENT_NUMBER ) return;
+
+	if(check_mission_custom_task(mob, mission_no, arg->d.num, true))
 		info->progs->lastreturn = 1;
 }
 
 
-// QUESTGENERATE $PLAYER $QUESTRECEIVER $PARTCOUNT $PARTSCRIPT
+// MISSIONGENERATE $PLAYER $MISSIONRECEIVER $PARTCOUNT $PARTSCRIPT $MODE[ $CLASS/CURRENT/$TYPE/CURRENT]
 
-// QUESTRECEIVER cannot be a wilderness room (for now?)
-SCRIPT_CMD(scriptcmd_questgenerate)
+// MISSIONRECEIVER cannot be a wilderness room (for now?)
+// MODE = auto, class and type, will change what the next argument is
+SCRIPT_CMD(scriptcmd_missiongenerate)
 {
 	char *rest;
 	CHAR_DATA *mob;
@@ -4381,7 +4391,6 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 	CHAR_DATA *qr_mob = NULL;
 	OBJ_DATA *qr_obj = NULL;
 	ROOM_INDEX_DATA *qr_room = NULL;
-	int *tempstores;
 	int type, parts;
 	WNUM wnum;
 	SCRIPT_DATA *script;
@@ -4391,39 +4400,36 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 	if(info->mob)
 	{
 		type = PRG_MPROG;
-		tempstores = info->mob->tempstore;
 
 		if( !IS_NPC(info->mob) )
 			return;
 
-		qg_type = QUESTOR_MOB;
+		qg_type = MISSIONARY_MOB;
 		qg_wnum.pArea = info->mob->pIndexData->area;
 		qg_wnum.vnum = info->mob->pIndexData->vnum;
 	}
 	else if(info->obj)
 	{
 		type = PRG_OPROG;
-		tempstores = info->obj->tempstore;
 
-		qg_type = QUESTOR_OBJ;
+		qg_type = MISSIONARY_OBJ;
 		qg_wnum.pArea = info->obj->pIndexData->area;
 		qg_wnum.vnum = info->obj->pIndexData->vnum;
 	}
 	else if(info->room)
 	{
 		type = PRG_RPROG;
-		tempstores = info->room->tempstore;
+
 		if( info->room->wilds || info->room->source )
 			return;
 
-		qg_type = QUESTOR_ROOM;
+		qg_type = MISSIONARY_ROOM;
 		qg_wnum.pArea = info->room->area;
 		qg_wnum.vnum = info->room->vnum;
 	}
 	else if(info->token)
 	{
 		type = PRG_TPROG;
-		tempstores = info->token->tempstore;
 
 		// Select the owner
 		if( info->token->player )
@@ -4431,13 +4437,13 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 			if( !IS_NPC(info->token->player) )
 				return;
 
-			qg_type = QUESTOR_MOB;
+			qg_type = MISSIONARY_MOB;
 			qg_wnum.pArea = info->token->player->pIndexData->area;
 			qg_wnum.vnum = info->token->player->pIndexData->vnum;
 		}
 		else if( info->token->object )
 		{
-			qg_type = QUESTOR_OBJ;
+			qg_type = MISSIONARY_OBJ;
 			qg_wnum.pArea = info->token->object->pIndexData->area;
 			qg_wnum.vnum = info->token->object->pIndexData->vnum;
 		}
@@ -4446,7 +4452,7 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 			if( info->token->room->wilds || info->token->room->source )
 				return;
 
-			qg_type = QUESTOR_ROOM;
+			qg_type = MISSIONARY_ROOM;
 			qg_wnum.pArea = info->token->room->area;
 			qg_wnum.vnum = info->token->room->vnum;
 		}
@@ -4460,11 +4466,11 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob) || IS_QUESTING(arg->d.mob)) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob) || list_size(arg->d.mob->missions) >= gconfig.max_missions) return;
 
 	mob = arg->d.mob;
 
-	// Get quest receiver
+	// Get mission receiver
 	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
@@ -4515,61 +4521,139 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 	if (!wnum.pArea || wnum.vnum < 1 || !(script = get_script_index(wnum.pArea, wnum.vnum, type)))
 		return;
 
-	mob->quest = new_quest();
-	mob->quest->generating = TRUE;
-	mob->quest->scripted = TRUE;
-	mob->quest->questgiver_type = qg_type;
-	mob->quest->questgiver = qg_wnum;
+	// Get the mode
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
+		return;
+
+	bool clazz_restricted;
+	bool clazz_type_restricted;
+	CLASS_DATA *clazz;
+	sh_int clazz_type;
+	if (!str_prefix(arg->d.str, "auto"))
+	{
+		clazz_restricted = false;
+		clazz_type_restricted = false;
+		clazz = get_current_class(mob);
+		if (!IS_VALID(clazz)) return;
+
+		clazz_type = clazz->type;
+	}
+	else if (!str_prefix(arg->d.str, "class"))
+	{
+		if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
+			return;
+
+		if (!str_prefix(arg->d.str, "current"))
+		{
+			clazz = get_current_class(mob);
+			if (!IS_VALID(clazz)) return;
+		}
+		else
+		{
+			// Get class
+			clazz = get_class_data(arg->d.str);
+			if (!IS_VALID(clazz)) return;
+
+			// Do they have it?
+			if (!has_class_level(mob, clazz)) return;
+		}
+		clazz_type = clazz->type;
+		clazz_restricted = true;
+		clazz_type_restricted = false;
+	}
+	else if (!str_prefix(arg->d.str, "type"))
+	{
+		if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
+			return;
+
+		if (!str_prefix(arg->d.str, "current"))
+		{
+			clazz = get_current_class(mob);
+			if (!IS_VALID(clazz)) return;
+
+			clazz_type = clazz->type;
+		}
+		else
+		{
+			clazz = NULL;
+
+			if((clazz_type = stat_lookup(arg->d.str, class_types, CLASS_NONE)) == CLASS_NONE)
+				return;
+
+
+		}
+		clazz_restricted = false;
+		clazz_type_restricted = true;
+	}
+	else
+		return;
+
+	MISSION_DATA *mission = new_mission();
+	mission->generating = true;
+	mission->scripted = true;
+	mission->clazz = clazz;
+	mission->clazz_type = clazz_type;
+	mission->clazz_restricted = clazz_restricted;
+	mission->clazz_type_restricted = clazz_type_restricted;
+	mission->timer = 0;
+	mission->giver_type = qg_type;
+	mission->giver = qg_wnum;
 	if( qr_mob )
 	{
-		mob->quest->questreceiver_type = QUESTOR_MOB;
-		mob->quest->questreceiver.pArea = qr_mob->pIndexData->area;
-		mob->quest->questreceiver.vnum = qr_mob->pIndexData->vnum;
+		mission->receiver_type = MISSIONARY_MOB;
+		mission->receiver.pArea = qr_mob->pIndexData->area;
+		mission->receiver.vnum = qr_mob->pIndexData->vnum;
 	}
 	else if( qr_obj )
 	{
-		mob->quest->questreceiver_type = QUESTOR_OBJ;
-		mob->quest->questreceiver.pArea = qr_obj->pIndexData->area;
-		mob->quest->questreceiver.vnum = qr_obj->pIndexData->vnum;
+		mission->receiver_type = MISSIONARY_OBJ;
+		mission->receiver.pArea = qr_obj->pIndexData->area;
+		mission->receiver.vnum = qr_obj->pIndexData->vnum;
 	}
 	else if( qr_room )
 	{
-		mob->quest->questreceiver_type = QUESTOR_ROOM;
-		mob->quest->questreceiver.pArea = qr_room->area;
-		mob->quest->questreceiver.vnum = qr_room->vnum;
+		mission->receiver_type = MISSIONARY_ROOM;
+		mission->receiver.pArea = qr_room->area;
+		mission->receiver.vnum = qr_room->vnum;
 	}
+
+	// Needed by the TRIG_MISSION_PART commands
+	mob->pending_mission = mission;
 
 	bool success = TRUE;
 	for(int i = 0; i < parts; i++)
 	{
-		QUEST_PART_DATA *part = new_quest_part();
+		MISSION_PART_DATA *part = new_mission_part();
 
-		part->next = mob->quest->parts;
-		mob->quest->parts = part;
+		part->next = mob->pending_mission->parts;
+		mob->pending_mission->parts = part;
 		part->index = parts - i;
 
-		tempstores[0] = part->index;
-
-		if( execute_script(script, info->mob, info->obj, info->room, info->token, NULL, NULL, NULL, mob, NULL, NULL, NULL, NULL,NULL, NULL,NULL,NULL,TRIG_QUEST_PART,0,0,0,0,0) <= 0 )
+		if( execute_script(script, info->mob, info->obj, info->room, info->token, NULL, NULL, NULL, mob, NULL, NULL, NULL, NULL,NULL, NULL,NULL,NULL,TRIG_MISSION_PART,part->index,0,0,0,0) <= 0 )
 		{
 			success = FALSE;
 			break;
 		}
+
+		// Accumulate the duration
+		mob->pending_mission->timer += part->minutes;
 	}
+
+	mob->pending_mission = NULL;
 
 	if( success )
 	{
-		info->progs->lastreturn = 1;
+		list_appendlink(mob->missions, mission);
+		info->progs->lastreturn = mission->timer;
 	}
 	else
 	{
-		free_quest(mob->quest);
-		mob->quest = NULL;
+		free_mission(mission);
 	}
 }
 
-// QUESTPARTCUSTOM $PLAYER $STRING[ $MINUTES]
-SCRIPT_CMD(scriptcmd_questpartcustom)
+// MISSIONPARTCUSTOM $PLAYER $STRING[ $MINUTES]
+SCRIPT_CMD(scriptcmd_missionpartcustom)
 {
 	char buf[MSL];
 	char *rest;
@@ -4586,7 +4670,7 @@ SCRIPT_CMD(scriptcmd_questpartcustom)
 	ch = arg->d.mob;
 
 	// Must be in the generation phase
-	if( ch->quest == NULL || !ch->quest->generating ) return;
+	if( ch->pending_mission == NULL || !ch->pending_mission->generating ) return;
 
 	if(!(rest = expand_argument(info,rest,arg)))
 		return;
@@ -4594,7 +4678,7 @@ SCRIPT_CMD(scriptcmd_questpartcustom)
 	if(!IS_NULLSTR(arg->d.str))
 		return;
 
-	QUEST_PART_DATA *part = ch->quest->parts;
+	MISSION_PART_DATA *part = ch->pending_mission->parts;
 	sprintf(buf, "{xTask {Y%d{x: %s{x.", part->index, arg->d.str);
 
 	minutes = number_range(10,20);
@@ -4614,8 +4698,8 @@ SCRIPT_CMD(scriptcmd_questpartcustom)
 }
 
 
-// QUESTPARTGETITEM $PLAYER $OBJECT[ $MINUTES]
-SCRIPT_CMD(scriptcmd_questpartgetitem)
+// MISSIONPARTGETITEM $PLAYER $OBJECT[ $MINUTES]
+SCRIPT_CMD(scriptcmd_missionpartgetitem)
 {
 	char buf[MSL];
 	char *rest;
@@ -4633,7 +4717,7 @@ SCRIPT_CMD(scriptcmd_questpartgetitem)
 	ch = arg->d.mob;
 
 	// Must be in the generation phase
-	if( ch->quest == NULL || !ch->quest->generating ) return;
+	if( ch->pending_mission == NULL || !ch->pending_mission->generating ) return;
 
 	if(!(rest = expand_argument(info,rest,arg)))
 		return;
@@ -4650,7 +4734,7 @@ SCRIPT_CMD(scriptcmd_questpartgetitem)
 		minutes = UMAX(arg->d.num,1);
 	}
 
-	QUEST_PART_DATA *part = ch->quest->parts;
+	MISSION_PART_DATA *part = ch->pending_mission->parts;
 
 	sprintf(buf, "{xTask {Y%d{x: Retrieve {Y%s{x from {Y%s{x in {Y%s{x.",
 		part->index,
@@ -4669,8 +4753,8 @@ SCRIPT_CMD(scriptcmd_questpartgetitem)
 	info->progs->lastreturn = 1;
 }
 
-// QUESTPARTGOTO $PLAYER first|second|both|$ROOM[ $MINUTES]
-SCRIPT_CMD(scriptcmd_questpartgoto)
+// MISSIONPARTGOTO $PLAYER first|second|third|fourth|both|$ROOM[ $MINUTES]
+SCRIPT_CMD(scriptcmd_missionpartgoto)
 {
 	char buf[MSL];
 	char *rest;
@@ -4688,7 +4772,7 @@ SCRIPT_CMD(scriptcmd_questpartgoto)
 	ch = arg->d.mob;
 
 	// Must be in the generation phase
-	if( ch->quest == NULL || !ch->quest->generating ) return;
+	if( ch->pending_mission == NULL || !ch->pending_mission->generating ) return;
 
 	if(!(rest = expand_argument(info,rest,arg)))
 		return;
@@ -4716,7 +4800,7 @@ SCRIPT_CMD(scriptcmd_questpartgoto)
 		minutes = UMAX(arg->d.num,1);
 	}
 
-	QUEST_PART_DATA *part = ch->quest->parts;
+	MISSION_PART_DATA *part = ch->pending_mission->parts;
 
 	sprintf(buf, "{xTask {Y%d{x: Travel to {Y%s{x in {Y%s{x.",
 		part->index,
@@ -4731,8 +4815,8 @@ SCRIPT_CMD(scriptcmd_questpartgoto)
 	info->progs->lastreturn = 1;
 }
 
-// QUESTPARTRESCUE $PLAYER $TARGET[ $MINUTES]
-SCRIPT_CMD(scriptcmd_questpartrescue)
+// MISSIONPARTRESCUE $PLAYER $TARGET[ $MINUTES]
+SCRIPT_CMD(scriptcmd_missionpartrescue)
 {
 	char buf[MSL];
 	char *rest;
@@ -4750,7 +4834,7 @@ SCRIPT_CMD(scriptcmd_questpartrescue)
 	ch = arg->d.mob;
 
 	// Must be in the generation phase
-	if( ch->quest == NULL || !ch->quest->generating ) return;
+	if( ch->pending_mission == NULL || !ch->pending_mission->generating ) return;
 
 	if(!(rest = expand_argument(info,rest,arg)))
 		return;
@@ -4767,7 +4851,7 @@ SCRIPT_CMD(scriptcmd_questpartrescue)
 		minutes = UMAX(arg->d.num,1);
 	}
 
-	QUEST_PART_DATA *part = ch->quest->parts;
+	MISSION_PART_DATA *part = ch->pending_mission->parts;
 
 	sprintf(buf, "{xTask {Y%d{x: Rescue {Y%s{x from {Y%s{x in {Y%s{x.",
 		part->index,
@@ -4784,8 +4868,8 @@ SCRIPT_CMD(scriptcmd_questpartrescue)
 }
 
 
-// QUESTPARTSLAY $PLAYER $TARGET[ $MINUTES]
-SCRIPT_CMD(scriptcmd_questpartslay)
+// MISSIONPARTSLAY $PLAYER $TARGET[ $MINUTES]
+SCRIPT_CMD(scriptcmd_missionpartslay)
 {
 	char buf[MSL];
 	char *rest;
@@ -4803,7 +4887,7 @@ SCRIPT_CMD(scriptcmd_questpartslay)
 	ch = arg->d.mob;
 
 	// Must be in the generation phase
-	if( ch->quest == NULL || !ch->quest->generating ) return;
+	if( ch->pending_mission == NULL || !ch->pending_mission->generating ) return;
 
 	if(!(rest = expand_argument(info,rest,arg)))
 		return;
@@ -4820,7 +4904,7 @@ SCRIPT_CMD(scriptcmd_questpartslay)
 		minutes = UMAX(arg->d.num,1);
 	}
 
-	QUEST_PART_DATA *part = ch->quest->parts;
+	MISSION_PART_DATA *part = ch->pending_mission->parts;
 
 	sprintf(buf, "{xTask {Y%d{x: Slay {Y%s{x.  %s was last seen in {Y%s{x.",
 		part->index,
@@ -4837,7 +4921,7 @@ SCRIPT_CMD(scriptcmd_questpartslay)
 	info->progs->lastreturn = 1;
 }
 
-char *__get_questscroll_args(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg,
+char *__get_missionscroll_args(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg,
 	char **header, char **footer, int *width, char **prefix, char **suffix)
 {
 	char *rest;
@@ -4882,12 +4966,12 @@ char *__get_questscroll_args(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM 
 	return rest;
 }
 
-// QUESTSCROLL $PLAYER $QUESTGIVER $WNUM $HEADER $FOOTER $WIDTH $PREFIX[ $SUFFIX] $VARIABLENAME
-SCRIPT_CMD(scriptcmd_questscroll)
+// MISSIONSCROLL $PLAYER $GIVER $WNUM $HEADER $FOOTER $WIDTH $PREFIX[ $SUFFIX] $VARIABLENAME
+SCRIPT_CMD(scriptcmd_missionscroll)
 {
 	char *header, *footer, *prefix, *suffix;
 	int width;
-	char questgiver[MSL];
+	char giver[MSL];
 	char *rest;
 	CHAR_DATA *ch;
 	WNUM wnum;
@@ -4902,7 +4986,7 @@ SCRIPT_CMD(scriptcmd_questscroll)
 	ch = arg->d.mob;
 
 	// Must be in the generation phase
-	if( ch->quest == NULL || !ch->quest->generating || !ch->quest->scripted ) return;
+	if( ch->pending_mission == NULL || !ch->pending_mission->generating || !ch->pending_mission->scripted ) return;
 
 	// Get questreceiver description
 	if(!(rest = expand_argument(info,rest,arg)))
@@ -4913,32 +4997,32 @@ SCRIPT_CMD(scriptcmd_questscroll)
 		if( !IS_VALID(arg->d.mob) || !IS_NPC(arg->d.mob) )
 			return;
 
-		strncpy(questgiver, arg->d.mob->short_descr, MSL-1);
-		questgiver[MSL-1] = '\0';
+		strncpy(giver, arg->d.mob->short_descr, MSL-1);
+		giver[MSL-1] = '\0';
 	}
 	else if( arg->type == ENT_OBJECT )
 	{
 		if( !IS_VALID(arg->d.obj) )
 			return;
 
-		strncpy(questgiver, arg->d.obj->short_descr, MSL-1);
-		questgiver[MSL-1] = '\0';
+		strncpy(giver, arg->d.obj->short_descr, MSL-1);
+		giver[MSL-1] = '\0';
 	}
 	else if( arg->type == ENT_ROOM )
 	{
 		if( arg->d.room == NULL || arg->d.room->wilds || arg->d.room->source )
 			return;
 
-		strncpy(questgiver, arg->d.room->name, MSL-1);
-		questgiver[MSL-1] = '\0';
+		strncpy(giver, arg->d.room->name, MSL-1);
+		giver[MSL-1] = '\0';
 	}
 	else if( arg->type == ENT_STRING )
 	{
 		if( IS_NULLSTR(arg->d.str) )
 			return;
 
-		strncpy(questgiver, arg->d.str, MSL-1);
-		questgiver[MSL-1] = '\0';
+		strncpy(giver, arg->d.str, MSL-1);
+		giver[MSL-1] = '\0';
 	}
 	else
 		return;
@@ -4951,14 +5035,14 @@ SCRIPT_CMD(scriptcmd_questscroll)
 	if( !wnum.pArea || wnum.vnum < 1 || !get_obj_index(wnum.pArea, wnum.vnum))
 		return;
 
-	rest = __get_questscroll_args(info, rest, arg, &header, &footer, &width, &prefix, &suffix);
+	rest = __get_missionscroll_args(info, rest, arg, &header, &footer, &width, &prefix, &suffix);
 	if( rest && *rest )
 	{
 		rest = expand_argument(info,rest,arg);
 
 		if( rest && arg->type == ENT_STRING )
 		{
-			OBJ_DATA *scroll = generate_quest_scroll(ch,questgiver,wnum,header,footer,prefix,suffix,width);
+			OBJ_DATA *scroll = generate_mission_scroll(ch,giver, ch->pending_mission,wnum,header,footer,prefix,suffix,width);
 			if( scroll != NULL )
 			{
 				variables_set_object(info->var, arg->d.str, scroll);

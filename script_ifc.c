@@ -1054,9 +1054,9 @@ DECL_IFC_FUN(ifc_ispullingrelic)
 	return TRUE;
 }
 
-DECL_IFC_FUN(ifc_isquesting)
+DECL_IFC_FUN(ifc_onmission)
 {
-	*ret = VALID_PLAYER(0) && ON_QUEST(ARG_MOB(0));
+	*ret = VALID_PLAYER(0) && ON_MISSION(ARG_MOB(0));
 	return TRUE;
 }
 
@@ -1775,9 +1775,9 @@ DECL_IFC_FUN(ifc_practices)
 	return TRUE;
 }
 
-DECL_IFC_FUN(ifc_quest)
+DECL_IFC_FUN(ifc_mission)
 {
-	*ret = ISARG_MOB(0) ? ARG_MOB(0)->questpoints : 0;
+	*ret = ISARG_MOB(0) ? ARG_MOB(0)->missionpoints : 0;
 	return TRUE;
 }
 
@@ -2160,9 +2160,9 @@ DECL_IFC_FUN(ifc_totalpkwins)
 	return TRUE;
 }
 
-DECL_IFC_FUN(ifc_totalquests)
+DECL_IFC_FUN(ifc_totalmissions)
 {
-	*ret = VALID_PLAYER(0) ? ARG_MOB(0)->pcdata->quests_completed : 0;
+	*ret = VALID_PLAYER(0) ? ARG_MOB(0)->pcdata->missions_completed : 0;
 	return TRUE;
 }
 
@@ -2754,14 +2754,12 @@ DECL_IFC_FUN(ifc_timer)
 		else if(!str_prefix(ARG_STR(1),"fade")) *ret = ARG_MOB(0)->fade;
 		else if(!str_prefix(ARG_STR(1),"hide")) *ret = ARG_MOB(0)->hide;
 		else if(!str_prefix(ARG_STR(1),"music")) *ret = ARG_MOB(0)->music;
-		else if(!str_prefix(ARG_STR(1),"next_quest")) *ret = ARG_MOB(0)->nextquest;
-		else if(!str_prefix(ARG_STR(1),"nextquest")) *ret = ARG_MOB(0)->nextquest;
+		else if(!str_prefix(ARG_STR(1),"nextmission")) *ret = ARG_MOB(0)->nextmission;
 		else if(!str_prefix(ARG_STR(1),"norecall")) *ret = ARG_MOB(0)->no_recall;
 		else if(!str_prefix(ARG_STR(1),"panic")) *ret = ARG_MOB(0)->panic;
 		else if(!str_prefix(ARG_STR(1),"paralyzed")) *ret = ARG_MOB(0)->paralyzed;
 		else if(!str_prefix(ARG_STR(1),"paroxysm")) *ret = ARG_MOB(0)->paroxysm;
 		else if(!str_prefix(ARG_STR(1),"pk")) *ret = ARG_MOB(0)->pk_timer;
-		else if(!str_prefix(ARG_STR(1),"quest")) *ret = ARG_MOB(0)->countdown;
 		else if(!str_prefix(ARG_STR(1),"ranged")) *ret = ARG_MOB(0)->ranged;
 		else if(!str_prefix(ARG_STR(1),"recite")) *ret = ARG_MOB(0)->recite;
 		else if(!str_prefix(ARG_STR(1),"resurrect")) *ret = ARG_MOB(0)->resurrect;
@@ -4699,7 +4697,7 @@ DECL_IFC_FUN(ifc_boost)
 
 	if(!str_cmp(ARG_STR(0),"xp")) *ret = boost_table[BOOST_EXPERIENCE].boost;
 	else if(!str_cmp(ARG_STR(0),"damage")) *ret = boost_table[BOOST_DAMAGE].boost;
-	else if(!str_cmp(ARG_STR(0),"qp")) *ret = boost_table[BOOST_QP].boost;
+	else if(!str_cmp(ARG_STR(0),"mp")) *ret = boost_table[BOOST_MP].boost;
 	else if(!str_cmp(ARG_STR(0),"pneuma")) *ret = boost_table[BOOST_PNEUMA].boost;
 	else if(!str_cmp(ARG_STR(0),"reckoning")) *ret = boost_table[BOOST_RECKONING].boost;
 	else
@@ -4717,7 +4715,7 @@ DECL_IFC_FUN(ifc_boosttimer)
 
 	if(!str_cmp(ARG_STR(0),"xp")) timer = boost_table[BOOST_EXPERIENCE].boost;
 	else if(!str_cmp(ARG_STR(0),"damage")) timer = boost_table[BOOST_DAMAGE].boost;
-	else if(!str_cmp(ARG_STR(0),"qp")) timer = boost_table[BOOST_QP].boost;
+	else if(!str_cmp(ARG_STR(0),"mp")) timer = boost_table[BOOST_MP].boost;
 	else if(!str_cmp(ARG_STR(0),"pneuma")) timer = boost_table[BOOST_PNEUMA].boost;
 	else if(!str_cmp(ARG_STR(0),"reckoning")) timer = boost_table[BOOST_RECKONING].boost;
 	else

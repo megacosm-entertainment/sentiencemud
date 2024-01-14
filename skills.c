@@ -3729,10 +3729,10 @@ void do_practice( CHAR_DATA *ch, char *argument )
 				add_buf(buffer, formatf("You need {Y%ld{x trains.\n\r", trains));
 			}
 
-			if (ch->questpoints < qp)
+			if (ch->missionpoints < qp)
 			{
 				success = false;
-				add_buf(buffer, formatf("You need {Y%ld{x quest points.\n\r", qp));
+				add_buf(buffer, formatf("You need {Y%ld{x mission points.\n\r", qp));
 			}
 
 			if (ch->deitypoints < dp)
@@ -3816,8 +3816,8 @@ void do_practice( CHAR_DATA *ch, char *argument )
 
 				if( qp > 0 )
 				{
-					ch->questpoints -= qp;
-					add_buf(buffer, formatf("You paid {Y%ld{x quest points.\n\r", qp));
+					ch->missionpoints -= qp;
+					add_buf(buffer, formatf("You paid {Y%ld{x mission points.\n\r", qp));
 				}
 
 				if( dp > 0 )

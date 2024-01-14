@@ -16663,59 +16663,59 @@ MEDIT(medit_show)
 		add_buf(buffer, "\n\r");
 	}
 
-	if (pMob->pQuestor)
+	if (pMob->pMissionary)
 	{
-		QUESTOR_DATA *questor = pMob->pQuestor;
+		MISSIONARY_DATA *missionary = pMob->pMissionary;
 
-		add_buf(buffer, "{YQuestor data:\n\r");
+		add_buf(buffer, "{YMissionary data:\n\r");
 
-		sprintf(buf, "  {YScroll: %ld#%ld\n\r", questor->scroll.auid, questor->scroll.vnum);
+		sprintf(buf, "  {YScroll: %ld#%ld\n\r", missionary->scroll.auid, missionary->scroll.vnum);
 		add_buf(buffer, buf);
 
-		if(IS_NULLSTR(questor->keywords))
+		if(IS_NULLSTR(missionary->keywords))
 			sprintf(buf, "  {YKeywords: (empty){x\n\r");
 		else
-			sprintf(buf, "  {YKeywords: %s{x\n\r", questor->keywords);
+			sprintf(buf, "  {YKeywords: %s{x\n\r", missionary->keywords);
 		add_buf(buffer, buf);
 
-		if(IS_NULLSTR(questor->short_descr))
+		if(IS_NULLSTR(missionary->short_descr))
 			sprintf(buf, "  {YShort Description: (empty){x\n\r");
 		else
-			sprintf(buf, "  {YShort Description: %s{x\n\r", questor->short_descr);
+			sprintf(buf, "  {YShort Description: %s{x\n\r", missionary->short_descr);
 		add_buf(buffer, buf);
 
-		if(IS_NULLSTR(questor->long_descr))
+		if(IS_NULLSTR(missionary->long_descr))
 			sprintf(buf, "  {YDescription: (empty){x\n\r");
 		else
-			sprintf(buf, "  {YDescription: %s{x\n\r", questor->long_descr);
+			sprintf(buf, "  {YDescription: %s{x\n\r", missionary->long_descr);
 		add_buf(buffer, buf);
 
-		if(IS_NULLSTR(questor->header))
+		if(IS_NULLSTR(missionary->header))
 			sprintf(buf, "  {YHeader: (empty){x\n\r");
 		else
-			sprintf(buf, "  {YHeader:\n\r%s{x\n\r", questor->header);
+			sprintf(buf, "  {YHeader:\n\r%s{x\n\r", missionary->header);
 		add_buf(buffer, buf);
 
-		if(IS_NULLSTR(questor->footer))
+		if(IS_NULLSTR(missionary->footer))
 			sprintf(buf, "  {YFooter: (empty){x\n\r");
 		else
-			sprintf(buf, "  {YFooter:\n\r%s{x\n\r", questor->footer);
+			sprintf(buf, "  {YFooter:\n\r%s{x\n\r", missionary->footer);
 		add_buf(buffer, buf);
 
-		if(IS_NULLSTR(questor->prefix))
+		if(IS_NULLSTR(missionary->prefix))
 			sprintf(buf, "  {YPrefix: (empty){x\n\r");
 		else
-			sprintf(buf, "  {YPrefix: %s{x\n\r", questor->prefix);
+			sprintf(buf, "  {YPrefix: %s{x\n\r", missionary->prefix);
 		add_buf(buffer, buf);
 
-		if(IS_NULLSTR(questor->suffix))
+		if(IS_NULLSTR(missionary->suffix))
 			sprintf(buf, "  {YSuffix: (empty){x\n\r");
 		else
-			sprintf(buf, "  {YSuffix: %s{x\n\r", questor->suffix);
+			sprintf(buf, "  {YSuffix: %s{x\n\r", missionary->suffix);
 		add_buf(buffer, buf);
 
-		if( questor->line_width > 0 )
-			sprintf(buf, "  {YWidth:  %d{x\n\r", questor->line_width);
+		if( missionary->line_width > 0 )
+			sprintf(buf, "  {YWidth:  %d{x\n\r", missionary->line_width);
 		else
 			sprintf(buf, "  {YWidth:  disabled{x\n\r");
 		add_buf(buffer, buf);
@@ -22387,7 +22387,7 @@ VLEDIT ( vledit_show )
     return (FALSE);
 }
 
-MEDIT(medit_questor)
+MEDIT(medit_missionary)
 {
 	MOB_INDEX_DATA *pMob;
 	char arg[MIL];
@@ -22396,8 +22396,8 @@ MEDIT(medit_questor)
 
 	if(IS_NULLSTR(argument))
 	{
-		send_to_char("QUESTOR ADD                 Adds questor data to mob.\n\r", ch);
-		send_to_char("        REMOVE              Removes questor data from mob.\n\r", ch);
+		send_to_char("MISSIONARY ADD                 Adds missionary data to mob.\n\r", ch);
+		send_to_char("        REMOVE              Removes missionary data from mob.\n\r", ch);
 		send_to_char("        SCROLL [wnum]       Sets the scroll object to the specified widevnum.\n\r", ch);
 		send_to_char("        KEYWORDS [string]   Sets keywords of scroll.\n\r", ch);
 		send_to_char("        SHORT [string]      Sets short description of scroll.\n\r", ch);
@@ -22420,15 +22420,15 @@ MEDIT(medit_questor)
 			return FALSE;
 	    }
 
-	    if( pMob->pQuestor != NULL )
+	    if( pMob->pMissionary != NULL )
 	    {
-			send_to_char("There is already questor data.\n\r", ch);
+			send_to_char("There is already missionary data.\n\r", ch);
 			return FALSE;
 		}
 
-		pMob->pQuestor = new_questor_data();
+		pMob->pMissionary = new_missionary_data();
 	    use_imp_sig(pMob, NULL);
-		send_to_char("Questor data added.\n\r", ch);
+		send_to_char("Missionary data added.\n\r", ch);
 		return TRUE;
 
 	} else if (!str_prefix(arg,"remove")) {
@@ -22438,15 +22438,15 @@ MEDIT(medit_questor)
 			return FALSE;
 	    }
 
-	    if( pMob->pQuestor == NULL )
+	    if( pMob->pMissionary == NULL )
 	    {
-			send_to_char("There is any questor data.\n\r", ch);
+			send_to_char("There is any missionary data.\n\r", ch);
 			return FALSE;
 		}
 
-		free_questor_data(pMob->pQuestor);
-		pMob->pQuestor = NULL;
-		send_to_char("Questor data removed.\n\r", ch);
+		free_missionary_data(pMob->pMissionary);
+		pMob->pMissionary = NULL;
+		send_to_char("Missionary data removed.\n\r", ch);
 		return TRUE;
 
 	} else if (!str_prefix(arg,"scroll")) {
@@ -22463,60 +22463,60 @@ MEDIT(medit_questor)
 			return FALSE;
 		}
 
-		pMob->pQuestor->scroll.auid = wnum.pArea->uid;
-		pMob->pQuestor->scroll.vnum = wnum.vnum;
-		send_to_char("Questor scroll object changed.\n\r", ch);
+		pMob->pMissionary->scroll.auid = wnum.pArea->uid;
+		pMob->pMissionary->scroll.vnum = wnum.vnum;
+		send_to_char("Missionary scroll object changed.\n\r", ch);
 		return TRUE;
 
 	} else if (!str_prefix(arg,"keywords")) {
-		free_string(pMob->pQuestor->keywords);
-		pMob->pQuestor->keywords = str_dup(argument);
+		free_string(pMob->pMissionary->keywords);
+		pMob->pMissionary->keywords = str_dup(argument);
 
 		send_to_char("Keywords set.\n\r", ch);
 		return TRUE;
 
 	} else if (!str_prefix(arg,"short")) {
-		free_string(pMob->pQuestor->short_descr);
-		pMob->pQuestor->short_descr = str_dup(argument);
+		free_string(pMob->pMissionary->short_descr);
+		pMob->pMissionary->short_descr = str_dup(argument);
 
 		send_to_char("Short description set.\n\r", ch);
 		return TRUE;
 
 	} else if (!str_prefix(arg,"long")) {
-		free_string(pMob->pQuestor->long_descr);
-		pMob->pQuestor->long_descr = str_dup(argument);
+		free_string(pMob->pMissionary->long_descr);
+		pMob->pMissionary->long_descr = str_dup(argument);
 
 		send_to_char("Long description set.\n\r", ch);
 		return TRUE;
 
 	} else if (!str_prefix(arg,"header")) {
-		send_to_char("Editting the Questor Header:\n\r", ch);
+		send_to_char("Editting the Missionary Header:\n\r", ch);
 		send_to_char("  Use {Y$PLAYER${x as a placeholder for the player's name.\n\r", ch);
-		send_to_char("  Use {Y$QUESTOR${x as a placeholder for the questgiver's name.\n\r", ch);
+		send_to_char("  Use {Y$MISSIONARY${x as a placeholder for the questgiver's name.\n\r", ch);
 		send_to_char("\n\r", ch);
 
-		string_append(ch, &pMob->pQuestor->header);
+		string_append(ch, &pMob->pMissionary->header);
 		return TRUE;
 
 	} else if (!str_prefix(arg,"footer")) {
-		send_to_char("Editting the Questor Footer:\n\r", ch);
+		send_to_char("Editting the Missionary Footer:\n\r", ch);
 		send_to_char("  Use {Y$PLAYER${x as a placeholder for the player's name.\n\r", ch);
-		send_to_char("  Use {Y$QUESTOR${x as a placeholder for the questgiver's name.\n\r", ch);
+		send_to_char("  Use {Y$MISSIONARY${x as a placeholder for the questgiver's name.\n\r", ch);
 		send_to_char("\n\r", ch);
 
-		string_append(ch, &pMob->pQuestor->footer);
+		string_append(ch, &pMob->pMissionary->footer);
 		return TRUE;
 
 	} else if (!str_prefix(arg,"prefix")) {
-		free_string(pMob->pQuestor->prefix);
-		pMob->pQuestor->prefix = str_dup(argument);
+		free_string(pMob->pMissionary->prefix);
+		pMob->pMissionary->prefix = str_dup(argument);
 
 		send_to_char("Prefix set.\n\r", ch);
 		return TRUE;
 
 	} else if (!str_prefix(arg,"suffix")) {
-		free_string(pMob->pQuestor->suffix);
-		pMob->pQuestor->suffix = str_dup(argument);
+		free_string(pMob->pMissionary->suffix);
+		pMob->pMissionary->suffix = str_dup(argument);
 
 		send_to_char("Prefix set.\n\r", ch);
 		return TRUE;
@@ -22531,7 +22531,7 @@ MEDIT(medit_questor)
 		int width = atoi(argument);
 		if( width <= 0 )
 		{
-			pMob->pQuestor->line_width = 0;
+			pMob->pMissionary->line_width = 0;
 			send_to_char("Line width disabled.\n\r", ch);
 			return TRUE;
 
@@ -22542,12 +22542,12 @@ MEDIT(medit_questor)
 			return FALSE;
 		}
 
-		pMob->pQuestor->line_width = width;
+		pMob->pMissionary->line_width = width;
 		send_to_char("Line width set.\n\r", ch);
 		return TRUE;
 
 	} else {
-		medit_questor(ch, "");
+		medit_missionary(ch, "");
 		return FALSE;
 	}
 

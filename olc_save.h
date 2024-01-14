@@ -18,7 +18,7 @@ void save_objects_new( FILE *fp, AREA_DATA *area );
 void save_room_new( FILE *fp, ROOM_INDEX_DATA *room, int recordtype );
 void save_mobile_new( FILE *fp, MOB_INDEX_DATA *mob );
 void save_object_new( FILE *fp, OBJ_INDEX_DATA *obj );
-void save_questor_new( FILE *fp, QUESTOR_DATA *questor, AREA_DATA *pRefArea );
+void save_missionary_new( FILE *fp, MISSIONARY_DATA *missonary, AREA_DATA *pRefArea );
 void save_scripts_new( FILE *fp, AREA_DATA *area );
 void save_practice_data( FILE *fp, PRACTICE_DATA *data, AREA_DATA *area );
 void save_shop_new( FILE *fp, SHOP_DATA *shop, AREA_DATA *pRefArea );
@@ -42,7 +42,7 @@ AFFECT_DATA *read_obj_catalyst_new (FILE *fp);
 PRACTICE_DATA *read_practice_data(FILE *fp, AREA_DATA *area);
 SHOP_DATA *read_shop_new( FILE *fp, AREA_DATA *area);
 SHIP_CREW_INDEX_DATA *read_ship_crew_index_new( FILE *fp );
-QUESTOR_DATA *read_questor_new( FILE *fp, AREA_DATA *area);
+MISSIONARY_DATA *read_missionary_new( FILE *fp, AREA_DATA *area);
 TOKEN_INDEX_DATA *read_token( FILE *fp, AREA_DATA *area);
 
 /* help files */

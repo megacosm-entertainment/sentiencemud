@@ -126,8 +126,8 @@ HELP_DATA *	new_help	args( ( void ) );
 LLIST_UID_DATA *new_list_uid_data();
 void free_list_uid_data(LLIST_UID_DATA *luid);
 
-QUESTOR_DATA *new_questor_data();
-void free_questor_data(QUESTOR_DATA *q);
+MISSIONARY_DATA *new_missionary_data();
+void free_missionary_data(MISSIONARY_DATA *q);
 
 OLC_POINT_BOOST *new_olc_point_boost();
 void free_olc_point_boost(OLC_POINT_BOOST *boost);

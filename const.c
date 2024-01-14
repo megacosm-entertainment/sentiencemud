@@ -4791,7 +4791,7 @@ struct boost_type boost_table[] =
 {
     { "experience",	"{GEXPERIENCE",			100,		0		},
     { "damage",		"{RDAMAGE",			100,		0		},
-    { "qp",		"{MQUEST POINTS",		100,		0		},
+    { "mp",		"{MMISSION POINTS",		100,		0		},
     { "pneuma",		"{CPNEUMA",			100,		0		},
     { "reckoning",	"{rRECKONING",		100,		0		},
 

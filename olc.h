@@ -437,7 +437,7 @@ DECLARE_OLC_FUN( medit_corpsetype	);
 DECLARE_OLC_FUN( medit_corpse	);
 DECLARE_OLC_FUN( medit_zombie	);
 DECLARE_OLC_FUN( medit_persist  );
-DECLARE_OLC_FUN( medit_questor  );
+DECLARE_OLC_FUN( medit_missionary  );
 DECLARE_OLC_FUN( medit_boss		);
 DECLARE_OLC_FUN( medit_crew		);
 DECLARE_OLC_FUN( medit_addreputation );

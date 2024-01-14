@@ -1018,8 +1018,8 @@ long top_obj_index;
 long top_reset;
 long top_room;
 long top_shop;
-long top_quest;
-long top_quest_part;
+long top_mission;
+long top_mission_part;
 long top_oprog_index;
 long top_rprog_index;
 long top_vnum_mob;
@@ -3304,7 +3304,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 	variable_copylist(&pMobIndex->index_vars,&mob->progs->vars,FALSE);
 
 	mob->deitypoints    = 0;
-	mob->questpoints    = 0;
+	mob->missionpoints    = 0;
 	mob->pneuma         = 0;
 
 	/* give them some cash money */
@@ -7211,7 +7211,7 @@ void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
 	fprintf(fp, "Pneuma %ld\n", ch->pneuma);
 	if (ch->home.pArea && ch->home.vnum > 0)
 		fprintf(fp, "Home %ld#%ld\n", ch->home.pArea->uid, ch->home.vnum);
-	fprintf(fp, "QuestPnts %d\n", ch->questpoints);
+	fprintf(fp, "MissionPnts %d\n", ch->missionpoints);
 	fprintf(fp, "DeityPnts %ld\n", ch->deitypoints);
 
 	fprintf(fp, "Exp  %ld\n", ch->exp);
@@ -8898,7 +8898,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 				KEY("Prac",			ch->practice,	fread_number(fp));
 				break;
 			case 'Q':
-				KEY("QuestPnts",	ch->questpoints,		fread_number(fp));
+				KEY("MissionPnts",	ch->missionpoints,		fread_number(fp));
 				break;
 			case 'R':
 				if(IS_KEY("Race")) {

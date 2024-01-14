@@ -181,7 +181,6 @@ enum ifcheck_enum {
 		CHK_ISNEUTRAL,CHK_ISNPC,
 		CHK_ISOBJECT,CHK_ISON,CHK_ISOWNER,
 		CHK_ISPC,CHK_ISPERSIST,CHK_ISPK,CHK_ISPORTAL,CHK_ISPREY,CHK_ISPROG,CHK_ISPULLING,CHK_ISPULLINGRELIC,
-		CHK_ISQUESTING,
 		CHK_ISREMORT,CHK_ISREPAIRABLE,CHK_ISRESTRUNG,CHK_ISRIDDEN,CHK_ISRIDER,CHK_ISRIDING,CHK_ISROOM,CHK_ISROOMDARK,
 		CHK_ISSAFE,CHK_ISSCRIBING,CHK_ISSHIFTED,CHK_ISSHOOTING,CHK_ISSHOPKEEPER,CHK_ISSPELL,CHK_ISSUSTAINED,
 		CHK_ISTARGET,CHK_ISTREASUREROOM,CHK_ISTOKEN,
@@ -198,7 +197,7 @@ enum ifcheck_enum {
 	CHK_MAX,
 	CHK_MAXCARRY,CHK_MAXHIT,CHK_MAXMANA,CHK_MAXMOVE,
 	CHK_MAXWEIGHT,CHK_MAXXP,
-	CHK_MIN,
+	CHK_MIN,CHK_MISSION,
 	CHK_MOBCLONES,CHK_MOBEXISTS,CHK_MOBHERE,CHK_MOBS,CHK_MOBSIZE,CHK_MONEY,CHK_MONKILLS,
 	CHK_MONTH,CHK_MOONPHASE,CHK_MOVEREGEN,
 
@@ -213,7 +212,7 @@ enum ifcheck_enum {
 	CHK_OBJTIMER,CHK_OBJTYPE,CHK_OBJVAL0,CHK_OBJVAL1,CHK_OBJVAL2,
 	CHK_OBJVAL3,CHK_OBJVAL4,CHK_OBJVAL5,CHK_OBJVAL6,CHK_OBJVAL7,CHK_OBJVAL8,CHK_OBJVAL9,
 	CHK_OBJWEAPON,CHK_OBJWEAPONSTAT,CHK_OBJWEAR,CHK_OBJWEARLOC,CHK_OBJWEIGHT,CHK_OBJWEIGHTLEFT,
-	CHK_OFF,CHK_ORDER,
+	CHK_OFF,CHK_ONMISSION,CHK_ORDER,
 
 
 	/* P */
@@ -225,7 +224,6 @@ enum ifcheck_enum {
 
 
 	/* Q */
-	CHK_QUEST,
 
 
 	/* R */
@@ -250,8 +248,8 @@ enum ifcheck_enum {
 	CHK_TEMPSTORE1,CHK_TEMPSTORE2,CHK_TEMPSTORE3,CHK_TEMPSTORE4,CHK_TEMPSTORE5,CHK_TEMPSTRING,
 	CHK_TESTHARDMAGIC,CHK_TESTSKILL,CHK_TESTSLOWMAGIC,CHK_TESTTOKENSPELL,
 	CHK_THIRST,CHK_TIMEOFDAY,CHK_TIMER,CHK_TOKENCOUNT,CHK_TOKENEXISTS,CHK_TOKENTIMER,
-	CHK_TOKENTYPE,CHK_TOKENVALUE,CHK_TOTALFIGHTS,CHK_TOTALLOSS,CHK_TOTALPKFIGHTS,
-	CHK_TOTALPKLOSS,CHK_TOTALPKRATIO,CHK_TOTALPKWINS,CHK_TOTALQUESTS,CHK_TOTALRATIO,
+	CHK_TOKENTYPE,CHK_TOKENVALUE,CHK_TOTALFIGHTS,CHK_TOTALLOSS,CHK_TOTALMISSIONS,CHK_TOTALPKFIGHTS,
+	CHK_TOTALPKLOSS,CHK_TOTALPKRATIO,CHK_TOTALPKWINS,CHK_TOTALRATIO,
 	CHK_TOTALWINS,CHK_TOXIN,CHK_TRAINS,
 
 	/* U */
@@ -302,6 +300,8 @@ enum variable_enum {
 	VAR_SKILL,			/* A skill INDEX that will reference general skill data */
 	VAR_SKILLGROUP,
 	VAR_SKILLINFO,		/* Skill reference on a creature { CHAR_DATA *owner, int sn } */
+	VAR_RACE,
+	VAR_CLASS,
 	VAR_CLASSLEVEL,
 	VAR_SPELL,
 	VAR_CONNECTION,
@@ -347,6 +347,9 @@ enum variable_enum {
 	VAR_COMPARTMENT,
 	VAR_LIQUID,
 	VAR_LOCK_STATE,
+
+	VAR_MISSION,
+	VAR_MISSION_PART,
 
 	VAR_BLLIST_FIRST,
 	////////////////////////
@@ -545,6 +548,7 @@ enum entity_type_enum {
 	ENT_OLLIST_OBJ,
 	ENT_OLLIST_TOK,
 	ENT_OLLIST_AFF,
+	ENT_OLLIST_MISSION_PARTS,
 	ENT_OLLIST_MAX,
 	//////////////////////////////
 
@@ -564,6 +568,7 @@ enum entity_type_enum {
 	ENT_ILLIST_SKILLS,
 	ENT_ILLIST_SKILLGROUPS,
 	ENT_ILLIST_CLASSES,
+	ENT_ILLIST_MISSIONS,
 	ENT_ILLIST_MAX,
 	//////////////////////////////
 
@@ -596,8 +601,8 @@ enum entity_type_enum {
 	ENT_DUNGEONINDEX,
 	ENT_SHIPINDEX,
 
-	ENT_QUESTPART,
-	ENT_QUEST,
+	ENT_MISSION_PART,
+	ENT_MISSION,
 
 	ENT_BOOK_PAGE,
 	ENT_FOOD_BUFF,
@@ -678,6 +683,8 @@ enum entity_variable_types_enum {
 	ENTITY_VAR_SKILL,
 	ENTITY_VAR_SKILLGROUP,
 	ENTITY_VAR_SKILLINFO,
+	ENTITY_VAR_RACE,
+	ENTITY_VAR_CLASS,
 	ENTITY_VAR_CLASSLEVEL,
 	ENTITY_VAR_SPELL,
 	ENTITY_VAR_SONG,
@@ -703,6 +710,8 @@ enum entity_variable_types_enum {
 	ENTITY_VAR_BLUEPRINT_SECTION,
 	ENTITY_VAR_DUNGEONINDEX,
 	ENTITY_VAR_SHIPINDEX,
+	ENTITY_VAR_MISSION,
+	ENTITY_VAR_MISSION_PART,
 
 	ENTITY_VAR_BLLIST_ROOM,
 	ENTITY_VAR_BLLIST_MOB,
@@ -905,7 +914,7 @@ enum entity_mobile_enum {
 	ENTITY_MOB_REPUTATIONS,
 	ENTITY_MOB_REPUTATION,
 	ENTITY_MOB_FACTIONS,
-
+	ENTITY_MOB_MISSIONS,
 };
 
 enum entity_reputation_enum
@@ -1373,6 +1382,38 @@ enum entity_blist_enum {
 	ENTITY_BLLIST_LAST
 };
 
+enum entity_mission_enum {
+	ENTITY_MISSION_GIVER = ESCAPE_EXTRA,		// WIDEVNUM
+	ENTITY_MISSION_GIVER_TYPE,					// STAT
+	ENTITY_MISSION_RECEIVER,					// WIDEVNUM
+	ENTITY_MISSION_RECEIVER_TYPE,				// STAT
+	ENTITY_MISSION_GENERATING,
+	ENTITY_MISSION_SCRIPTED,
+	ENTITY_MISSION_TIMER,
+	ENTITY_MISSION_CLASS,
+	ENTITY_MISSION_CLASS_TYPE,
+	ENTITY_MISSION_CLASS_RESTRICTED,
+	ENTITY_MISSION_CLASS_TYPE_RESTRICTED,
+	ENTITY_MISSION_PARTS,
+};
+
+enum entity_mission_part_enum {
+	ENTITY_MISSION_PART_INDEX = ESCAPE_EXTRA,	// NUMBER
+	ENTITY_MISSION_PART_OBJECT,					// OBJECT
+	ENTITY_MISSION_PART_DESCRIPTION,			// STRING
+	ENTITY_MISSION_PART_MINUTES,				// NUMBER
+	ENTITY_MISSION_PART_AREA,					// AREA
+	ENTITY_MISSION_PART_SLAY,					// WIDEVNUM
+	ENTITY_MISSION_PART_RETRIEVE,				// WIDEVNUM
+	ENTITY_MISSION_PART_TRAVEL,					// WIDEVNUM
+	ENTITY_MISSION_PART_SACRIFICE,				// WIDEVNUM
+	ENTITY_MISSION_PART_RESCUE,					// WIDEVNUM
+	ENTITY_MISSION_PART_CUSTOM,					// BOOLEAN
+	ENTITY_MISSION_PART_COMPLETE,				// BOOLEAN
+	ENTITY_MISSION_PART_MISSION,				// MISSION
+};
+
+
 enum entity_skill_enum {
 	ENTITY_SKILL_GSN = ESCAPE_EXTRA,
 	ENTITY_SKILL_TOKEN,
@@ -1644,7 +1685,7 @@ enum entity_instance_enum {
 	ENTITY_INSTANCE_OWNERS,
 	ENTITY_INSTANCE_OBJECT,
 	ENTITY_INSTANCE_DUNGEON,
-	ENTITY_INSTANCE_QUEST,
+	//ENTITY_INSTANCE_QUEST,
 	ENTITY_INSTANCE_SHIP,
 	ENTITY_INSTANCE_FLOOR,
 	ENTITY_INSTANCE_ENTRY,
@@ -1861,6 +1902,8 @@ struct script_var_type {
 		SKILL_GROUP *skill_group;
 		SKILL_ENTRY *entry;
 		SONG_DATA *song;
+		RACE_DATA *race;
+		CLASS_DATA *clazz;
 		CLASS_LEVEL *level;
 		REPUTATION_DATA *reputation;
 		REPUTATION_INDEX_DATA *reputation_index;
@@ -1870,6 +1913,12 @@ struct script_var_type {
 			TOKEN_DATA *token;
 			SKILL_DATA *skill;
 		} sk;
+
+		MISSION_DATA *mission;
+		struct {
+			MISSION_DATA *mission;		// Owner of the part
+			MISSION_PART_DATA *part;
+		} mp;
 
 		// Only used when on persistant entities
 		long aid;		// area UID
@@ -1991,6 +2040,7 @@ struct loop_data {
 				char *str;
 				EXTRA_DESCR_DATA *ed;
 				SPELL_DATA *spell;
+				MISSION_PART_DATA *part;
 			} cur, next;
 			struct {
 				LLIST *lp;
@@ -2090,6 +2140,12 @@ struct script_parameter {
 		CLASS_DATA *clazz;
 		CLASS_LEVEL *level;
 
+		MISSION_DATA *mission;
+		struct {
+			MISSION_DATA *mission;
+			MISSION_PART_DATA *part;
+		} mp;
+
 		struct {
 			char **table;
 			int max;
@@ -2111,6 +2167,7 @@ struct script_parameter {
 				TOKEN_DATA **tok;
 				AFFECT_DATA **aff;
 				EXTRA_DESCR_DATA **ed;
+				MISSION_PART_DATA **part;
 			} ptr;
 			void *owner;
 			int owner_type;
@@ -2422,7 +2479,6 @@ DECL_IFC_FUN(ifc_isprey);
 DECL_IFC_FUN(ifc_isprog);
 DECL_IFC_FUN(ifc_ispulling);
 DECL_IFC_FUN(ifc_ispullingrelic);
-DECL_IFC_FUN(ifc_isquesting);
 DECL_IFC_FUN(ifc_isremort);
 DECL_IFC_FUN(ifc_isrepairable);
 DECL_IFC_FUN(ifc_isrestrung);
@@ -2504,6 +2560,7 @@ DECL_IFC_FUN(ifc_objwearloc);
 DECL_IFC_FUN(ifc_objweight);
 DECL_IFC_FUN(ifc_objweightleft);
 DECL_IFC_FUN(ifc_off);
+DECL_IFC_FUN(ifc_onmission);
 DECL_IFC_FUN(ifc_order);
 DECL_IFC_FUN(ifc_parts);
 DECL_IFC_FUN(ifc_people);
@@ -2527,7 +2584,7 @@ DECL_IFC_FUN(ifc_portal);
 DECL_IFC_FUN(ifc_portalexit);
 DECL_IFC_FUN(ifc_pos);
 DECL_IFC_FUN(ifc_practices);
-DECL_IFC_FUN(ifc_quest);
+DECL_IFC_FUN(ifc_mission);
 DECL_IFC_FUN(ifc_race);
 DECL_IFC_FUN(ifc_rand);
 DECL_IFC_FUN(ifc_randpoint);
@@ -2585,7 +2642,7 @@ DECL_IFC_FUN(ifc_totalpkfights);
 DECL_IFC_FUN(ifc_totalpkloss);
 DECL_IFC_FUN(ifc_totalpkratio);
 DECL_IFC_FUN(ifc_totalpkwins);
-DECL_IFC_FUN(ifc_totalquests);
+DECL_IFC_FUN(ifc_totalmissions);
 DECL_IFC_FUN(ifc_totalratio);
 DECL_IFC_FUN(ifc_totalwins);
 DECL_IFC_FUN(ifc_toxin);
@@ -2986,8 +3043,16 @@ bool variables_set_reputation_index (ppVARIABLE list,char *name,REPUTATION_INDEX
 bool variables_setsave_reputation_index (ppVARIABLE list,char *name,REPUTATION_INDEX_DATA *reputation_index, bool save);
 bool variables_set_reputation_rank (ppVARIABLE list,char *name,REPUTATION_INDEX_RANK_DATA *reputation_rank);
 bool variables_setsave_reputation_rank (ppVARIABLE list,char *name,REPUTATION_INDEX_RANK_DATA *reputation_rank, bool save);
+bool variables_set_race (ppVARIABLE list,char *name,RACE_DATA *race);
+bool variables_setsave_race (ppVARIABLE list,char *name,RACE_DATA *race, bool save);
+bool variables_set_class (ppVARIABLE list,char *name,CLASS_DATA *clazz);
+bool variables_setsave_class (ppVARIABLE list,char *name,CLASS_DATA *clazz, bool save);
 bool variables_set_classlevel (ppVARIABLE list,char *name,CLASS_LEVEL *level);
 bool variables_setsave_classlevel (ppVARIABLE list,char *name,CLASS_LEVEL *level, bool save);
+bool variables_set_mission (ppVARIABLE list,char *name,MISSION_DATA *mission);
+bool variables_setsave_mission (ppVARIABLE list,char *name,MISSION_DATA *mission, bool save);
+bool variables_set_mission_part (ppVARIABLE list,char *name,MISSION_DATA *mission, MISSION_PART_DATA *part);
+bool variables_setsave_mission_part (ppVARIABLE list,char *name,MISSION_DATA *mission, MISSION_PART_DATA *part, bool save);
 
 int variable_fread_type(char *str);
 pVARIABLE variable_create(ppVARIABLE list,char *name, bool index, bool clear);
@@ -3100,7 +3165,7 @@ SCRIPT_CMD(do_tpdamage);
 SCRIPT_CMD(do_mpdecdeity);
 SCRIPT_CMD(do_mpdecpneuma);
 SCRIPT_CMD(do_mpdecprac);
-SCRIPT_CMD(do_mpdecquest);
+SCRIPT_CMD(do_mpdecmission);
 SCRIPT_CMD(do_mpdectrain);
 SCRIPT_CMD(do_mpdelay);
 SCRIPT_CMD(do_opdelay);
@@ -3450,16 +3515,16 @@ SCRIPT_CMD(scriptcmd_entercombat);
 SCRIPT_CMD(scriptcmd_flee);
 SCRIPT_CMD(scriptcmd_inputstring);
 SCRIPT_CMD(scriptcmd_grantskill);
-SCRIPT_CMD(scriptcmd_questcomplete);
+SCRIPT_CMD(scriptcmd_missioncomplete);
 SCRIPT_CMD(scriptcmd_revokeskill);
 SCRIPT_CMD(scriptcmd_startcombat);
 SCRIPT_CMD(scriptcmd_stopcombat);
 
-SCRIPT_CMD(scriptcmd_questpartcustom);
-SCRIPT_CMD(scriptcmd_questpartgetitem);
-SCRIPT_CMD(scriptcmd_questpartgoto);
-SCRIPT_CMD(scriptcmd_questpartrescue);
-SCRIPT_CMD(scriptcmd_questpartslay);
+SCRIPT_CMD(scriptcmd_missionpartcustom);
+SCRIPT_CMD(scriptcmd_missionpartgetitem);
+SCRIPT_CMD(scriptcmd_missionpartgoto);
+SCRIPT_CMD(scriptcmd_missionpartrescue);
+SCRIPT_CMD(scriptcmd_missionpartslay);
 
 SCRIPT_CMD(scriptcmd_attach);
 SCRIPT_CMD(scriptcmd_detach);
@@ -3467,10 +3532,10 @@ SCRIPT_CMD(scriptcmd_detach);
 SCRIPT_CMD(scriptcmd_pageat);
 SCRIPT_CMD(scriptcmd_fade);
 
-SCRIPT_CMD(scriptcmd_questaccept);
-SCRIPT_CMD(scriptcmd_questcancel);
-SCRIPT_CMD(scriptcmd_questgenerate);
-SCRIPT_CMD(scriptcmd_questscroll);
+SCRIPT_CMD(scriptcmd_missionaccept);
+SCRIPT_CMD(scriptcmd_missioncancel);
+SCRIPT_CMD(scriptcmd_missiongenerate);
+SCRIPT_CMD(scriptcmd_missionscroll);
 
 SCRIPT_CMD(scriptcmd_ed);
 

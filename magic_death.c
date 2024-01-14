@@ -336,8 +336,8 @@ SPELL_FUNC(spell_kill)
 
 	// If invasion mob then check if quest point is earned
 	if (!IS_NPC(ch) && IS_NPC(victim) && IS_SET(victim->act[1], ACT2_INVASION_MOB) && number_percent() < 5) {
-		send_to_char("{WYou have been awarded a quest point!{x\n\r", ch);
-		ch->questpoints++;
+		send_to_char("{WYou have been awarded a mission point!{x\n\r", ch);
+		ch->missionpoints++;
 	}
 
 	here = victim->in_room;
@@ -354,12 +354,12 @@ SPELL_FUNC(spell_kill)
 
 	// Check if slain victim was part of a quest. Checks if your horse got the kill, too.
 	if (!IS_NPC(ch)) {
-		check_quest_slay_mob(ch, victim, true);
+		check_mission_slay_mob(ch, victim, true);
 		check_invasion_quest_slay_mob(ch, victim);
 	}
 
 	// Hahahaha
-	if (RIDDEN(ch)) check_quest_slay_mob(RIDDEN(ch), victim, true);
+	if (RIDDEN(ch)) check_mission_slay_mob(RIDDEN(ch), victim, true);
 
 	return TRUE;
 }

@@ -434,9 +434,9 @@ void auto_war_time_finish()
 		if ( wch->alignment > 0 )
 		{
 		    quest_points = 50;
-		    sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
+		    sprintf( buf, "{WYou have been awarded {Y%d{W mission points!{x", quest_points );
 		    act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-		    wch->questpoints += quest_points;
+		    wch->missionpoints += quest_points;
 		    wch->wars_won++;
 		}
 	    }
@@ -454,9 +454,9 @@ void auto_war_time_finish()
 		if ( wch->alignment < 0 )
 		{
 		    quest_points = 50;
-		    sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
+		    sprintf( buf, "{WYou have been awarded {Y%d{W mission points!{x", quest_points );
 		    act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-		    wch->questpoints += quest_points;
+		    wch->missionpoints += quest_points;
 		    wch->wars_won++;
 		}
 	    }
@@ -506,9 +506,9 @@ void test_for_end_of_war()
 
 	/* Reward winners*/
 	quest_points = 50;
-	sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
+	sprintf( buf, "{WYou have been awarded {Y%d{W mission points!{x", quest_points );
 	act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-	wch->questpoints += quest_points;
+	wch->missionpoints += quest_points;
 	wch->wars_won++;
 
 	free_auto_war( auto_war );
@@ -612,9 +612,9 @@ void test_for_end_of_war()
 		    if ( wch->alignment > 0 )
 		    {
 			quest_points = 50;
-			sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
+			sprintf( buf, "{WYou have been awarded {Y%d{W mission points!{x", quest_points );
 			act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-			wch->questpoints += quest_points;
+			wch->missionpoints += quest_points;
 			wch->wars_won++;
 		    }
 		}
@@ -633,9 +633,9 @@ void test_for_end_of_war()
 			if ( wch->alignment < 0 )
 			{
 			    quest_points = 50;
-			    sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
+			    sprintf( buf, "{WYou have been awarded {Y%d{W mission points!{x", quest_points );
 			    act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-			    wch->questpoints += quest_points;
+			    wch->missionpoints += quest_points;
 			    wch->wars_won++;
 			}
 		    }

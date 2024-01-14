@@ -750,7 +750,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow, bool fleeing)
 	}
 
 	if (!IS_NPC(ch))
-		check_quest_rescue_mob(ch, true);
+		check_mission_rescue_mob(ch, true);
 
 }
 

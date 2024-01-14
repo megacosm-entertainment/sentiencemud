@@ -569,7 +569,6 @@ const struct flag_type act_flags[] =
     {	"outdoors",				ACT_OUTDOORS,			TRUE	},
     {   "restringer",			ACT_IS_RESTRINGER,		TRUE	},
     {	"indoors",				ACT_INDOORS,			TRUE	},
-    {	"questor",				ACT_QUESTOR,			TRUE	},
     {	"healer",				ACT_IS_HEALER,			TRUE	},
     {	"stay_locale",			ACT_STAY_LOCALE,		TRUE	},
     {	"update_always",		ACT_UPDATE_ALWAYS,		TRUE	},
@@ -3161,13 +3160,17 @@ const struct flag_type builtin_trigger_types[] =
     { "lore",		        TRIG_LORE,	TRUE },
     { "lore_ex",		    TRIG_LORE_EX,	TRUE },
     { "managain",		    TRIG_MANAGAIN,	TRUE },
+    { "mission_cancel",     TRIG_MISSION_CANCEL,	TRUE },
+    { "mission_complete",   TRIG_MISSION_COMPLETE,	TRUE },
+    { "mission_incomplete", TRIG_MISSION_INCOMPLETE,	TRUE },
+    { "mission_part",       TRIG_MISSION_PART,	TRUE },
     { "moon",		        TRIG_MOON,	TRUE },
     { "mount",		        TRIG_MOUNT,	TRUE },
     { "move_char",		    TRIG_MOVE_CHAR,	TRUE },
     { "movegain",		    TRIG_MOVEGAIN,	TRUE },
     { "multiclass",		    TRIG_MULTICLASS,	TRUE },
     { "open",		        TRIG_OPEN,	TRUE },
-    { "postquest",		    TRIG_POSTQUEST,	TRUE },
+    { "postmission",	    TRIG_POSTMISSION,	TRUE },
     { "pour",               TRIG_POUR,  TRUE },
     { "practice",		    TRIG_PRACTICE,	TRUE },
     { "practicetoken",		TRIG_PRACTICETOKEN,	TRUE },
@@ -3193,13 +3196,13 @@ const struct flag_type builtin_trigger_types[] =
     { "preignite",          TRIG_PREIGNITE,    TRUE },
     { "prekill",		    TRIG_PREKILL,	TRUE },
     { "prelock",		    TRIG_PRELOCK,	TRUE },
+    { "premission",		    TRIG_PREMISSION,	TRUE },
     { "premount",		    TRIG_PREMOUNT,	TRUE },
     { "prepractice",		TRIG_PREPRACTICE,	TRUE },
     { "prepracticeother",	TRIG_PREPRACTICEOTHER,	TRUE },
     { "prepracticethat",	TRIG_PREPRACTICETHAT,	TRUE },
     { "prepracticetoken",	TRIG_PREPRACTICETOKEN,	TRUE },
     { "preput",		        TRIG_PREPUT,	TRUE },
-    { "prequest",		    TRIG_PREQUEST,	TRUE },
     { "prerecall",		    TRIG_PRERECALL,	TRUE },
     { "prerecite",		    TRIG_PRERECITE,	TRUE },
     { "prereckoning",		TRIG_PRERECKONING,	TRUE },
@@ -3228,10 +3231,6 @@ const struct flag_type builtin_trigger_types[] =
     { "push",		        TRIG_PUSH,	TRUE },
     { "push_on",		    TRIG_PUSH_ON,	TRUE },
     { "put",		        TRIG_PUT,	TRUE },
-    { "quest_cancel",		TRIG_QUEST_CANCEL,	TRUE },
-    { "quest_complete",		TRIG_QUEST_COMPLETE,	TRUE },
-    { "quest_incomplete",	TRIG_QUEST_INCOMPLETE,	TRUE },
-    { "quest_part",		    TRIG_QUEST_PART,	TRUE },
     { "quit",		        TRIG_QUIT,	TRUE },
     { "random",		        TRIG_RANDOM,	TRUE },
     { "readycheck",         TRIG_READYCHECK,    TRUE },
@@ -4210,4 +4209,12 @@ const struct class_leave_type class_leave_table[] =
 const struct class_enter_type class_enter_table[] =
 {
     {NULL, NULL}
+};
+
+const struct flag_type missionary_types[] =
+{
+    {"mob",     MISSIONARY_MOB,     true},
+    {"obj",     MISSIONARY_OBJ,     true},
+    {"room",    MISSIONARY_ROOM,    true},
+    {NULL,      0,                  false }
 };

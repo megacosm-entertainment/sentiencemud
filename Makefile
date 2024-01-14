@@ -88,6 +88,7 @@ C_FILES = \
 	mail.c \
 	mccp.c \
 	mem.c \
+	missions.c \
 	mount.c \
 	music.c \
 	note.c \
@@ -196,6 +197,7 @@ O_FILES = \
 	$(OBJDIR)/mail.o \
 	$(OBJDIR)/mccp.o \
 	$(OBJDIR)/mem.o \
+	$(OBJDIR)/missions.o \
 	$(OBJDIR)/mount.o \
 	$(OBJDIR)/music.o \
 	$(OBJDIR)/note.o \

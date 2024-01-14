@@ -94,6 +94,8 @@ ENT_FIELD entity_types[] = {
 	{"skillgroup",		ENTITY_VAR_SKILLGROUP,	ENT_SKILLGROUP	},
 	{"skillinfo",		ENTITY_VAR_SKILLINFO,	ENT_SKILLINFO	},
 	{"song",			ENTITY_VAR_SONG,		ENT_SONG		},
+	{"race",			ENTITY_VAR_RACE,		ENT_RACE		},
+	{"class",			ENTITY_VAR_CLASS,		ENT_CLASS		},
 	{"classlevel",		ENTITY_VAR_CLASSLEVEL,	ENT_CLASSLEVEL	},
 	{"aff",				ENTITY_VAR_AFFECT,		ENT_AFFECT		},
 	{"book_page",		ENTITY_VAR_BOOK_PAGE,	ENT_BOOK_PAGE	},
@@ -138,6 +140,8 @@ ENT_FIELD entity_types[] = {
 	{"lockstate",		ENTITY_VAR_LOCK_STATE,		ENT_LOCK_STATE},
 	{"spell",			ENTITY_VAR_SPELL,			ENT_SPELL},
 	{"liquid",			ENTITY_VAR_LIQUID,			ENT_LIQUID},
+	{"mission",			ENTITY_VAR_MISSION,			ENT_MISSION},
+	{"missionpart",		ENTITY_VAR_MISSION_PART,	ENT_MISSION_PART},
 	{NULL,				0,						ENT_UNKNOWN	}
 };
 
@@ -356,6 +360,7 @@ ENT_FIELD entity_mobile[] = {
 	{"reputations",				ENTITY_MOB_REPUTATIONS,		ENT_ILLIST_REPUTATION },
 	{"reputation",				ENTITY_MOB_REPUTATION,		ENT_REPUTATION },
 	{"factions",				ENTITY_MOB_FACTIONS,		ENT_ILLIST_REPUTATION_INDEX },
+	{"missions",				ENTITY_MOB_MISSIONS,		ENT_ILLIST_MISSIONS },
 	{NULL,				0,							ENT_UNKNOWN	}
 };
 
@@ -1066,6 +1071,40 @@ ENT_FIELD entity_classlevel[] = {
 	{NULL,			0,							ENT_UNKNOWN	}
 };
 
+ENT_FIELD entity_mission[] = {
+	{"giver",			ENTITY_MISSION_GIVER,					ENT_WIDEVNUM				},
+	{"givertype",		ENTITY_MISSION_GIVER_TYPE,				ENT_STAT					},
+	{"receiver",		ENTITY_MISSION_RECEIVER,				ENT_WIDEVNUM				},
+	{"receivertype",	ENTITY_MISSION_RECEIVER_TYPE,			ENT_STAT					},
+	{"generating",		ENTITY_MISSION_GENERATING,				ENT_BOOLEAN					},
+	{"scripted",		ENTITY_MISSION_SCRIPTED,				ENT_BOOLEAN					},
+	{"timer",			ENTITY_MISSION_TIMER,					ENT_NUMBER					},
+	{"class",			ENTITY_MISSION_CLASS,					ENT_CLASS					},
+	{"classtype",		ENTITY_MISSION_CLASS_TYPE,				ENT_STAT					},
+	{"restricted",		ENTITY_MISSION_CLASS_RESTRICTED,		ENT_BOOLEAN					},
+	{"type_restricted",	ENTITY_MISSION_CLASS_TYPE_RESTRICTED,	ENT_BOOLEAN					},
+	{"parts",			ENTITY_MISSION_PARTS,					ENT_OLLIST_MISSION_PARTS	},
+	{NULL,				0,										ENT_UNKNOWN					}
+};
+
+ENT_FIELD entity_mission_part[] = {
+	{"index",		ENTITY_MISSION_PART_INDEX,			ENT_NUMBER		},
+	{"object",		ENTITY_MISSION_PART_OBJECT,			ENT_OBJECT		},
+	{"description",	ENTITY_MISSION_PART_DESCRIPTION,	ENT_STRING		},
+	{"minutes",		ENTITY_MISSION_PART_MINUTES,		ENT_NUMBER		},
+	{"area",		ENTITY_MISSION_PART_AREA,			ENT_AREA		},
+	{"slay",		ENTITY_MISSION_PART_SLAY,			ENT_WIDEVNUM	},
+	{"retrieve",	ENTITY_MISSION_PART_RETRIEVE,		ENT_WIDEVNUM	},
+	{"travel",		ENTITY_MISSION_PART_TRAVEL,			ENT_WIDEVNUM	},
+	{"sacrifice",	ENTITY_MISSION_PART_SACRIFICE,		ENT_WIDEVNUM	},
+	{"rescue",		ENTITY_MISSION_PART_RESCUE,			ENT_WIDEVNUM	},
+	{"custom",		ENTITY_MISSION_PART_CUSTOM,			ENT_BOOLEAN		},
+	{"complete",	ENTITY_MISSION_PART_COMPLETE,		ENT_BOOLEAN		},
+	{"mission",		ENTITY_MISSION_PART_MISSION,		ENT_MISSION		},
+	{NULL,			0,									ENT_UNKNOWN		}
+};
+
+
 ENT_FIELD entity_group[] = {
 	{"owner",		ENTITY_GROUP_OWNER,		ENT_MOBILE	},
 	{"leader",		ENTITY_GROUP_LEADER,	ENT_MOBILE	},
@@ -1221,6 +1260,8 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_RACE,			ENT_RACE,			entity_race,				FALSE,	FALSE },
 	{ ENT_CLASS,		ENT_CLASS,			entity_class,				FALSE,	FALSE },
 	{ ENT_CLASSLEVEL,	ENT_CLASSLEVEL,		entity_classlevel,			FALSE,	FALSE },
+	{ ENT_MISSION,		ENT_MISSION,		entity_mission,				FALSE,	FALSE },
+	{ ENT_MISSION_PART,	ENT_MISSION_PART,	entity_mission_part,		FALSE,	FALSE },
 	{ ENT_CONN,			ENT_CONN,			entity_conn,				FALSE,	FALSE },
 	{ ENT_AFFECT,		ENT_AFFECT,			entity_affect,				FALSE,	FALSE },
 	{ ENT_BOOK_PAGE,	ENT_BOOK_PAGE,		entity_book_page,			FALSE,	FALSE },
@@ -1746,7 +1787,6 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "isprog",				IFC_ANY,	"ES",	FALSE,	ifc_isprog,				"ifcheck isprog" },
 	{ "ispulling",			IFC_ANY,	"Ee",	FALSE,	ifc_ispulling,			"ifcheck ispulling" },
 	{ "ispullingrelic",		IFC_ANY,	"E",	FALSE,	ifc_ispullingrelic,		"ifcheck ispullingrelic" },
-	{ "isquesting",			IFC_ANY,	"E",	FALSE,	ifc_isquesting,			"ifcheck isquesting" },
 	{ "isremort",			IFC_ANY,	"E",	FALSE,	ifc_isremort,			"ifcheck isremort" },
 	{ "isrepairable",		IFC_ANY,	"E",	FALSE,	ifc_isrepairable,		"ifcheck isrepairable" },
 	{ "isrestrung",			IFC_ANY,	"E",	FALSE,	ifc_isrestrung,			"ifcheck isrestrung" },
@@ -1796,6 +1836,7 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "maxweight",			IFC_ANY,	"E",	TRUE,	ifc_maxweight,			"ifcheck maxweight" },
 	{ "maxxp",				IFC_ANY,	"E",	TRUE,	ifc_maxxp,				"ifcheck maxxp" },
 	{ "min",				IFC_ANY,	"E",	TRUE,	ifc_min,				"ifcheck min" },
+	{ "missionpoint",		IFC_ANY,	"E",	TRUE,	ifc_mission,			"ifcheck missionpoint" },
 	{ "mobclones",			IFC_ANY,	"E",	TRUE,	ifc_mobclones,			"ifcheck mobclones" },
 	{ "mobexists",			IFC_ANY,	"S",	FALSE,	ifc_mobexists,			"ifcheck mobexists" },
 	{ "mobhere",			IFC_ANY,	"S",	FALSE,	ifc_mobhere,			"ifcheck mobhere" },
@@ -1839,6 +1880,7 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "objweight",			IFC_ANY,	"E",	TRUE,	ifc_objweight,			"ifcheck objweight" },
 	{ "objweightleft",		IFC_ANY,	"E",	TRUE,	ifc_objweightleft,		"ifcheck objweightleft" },
 	{ "off",				IFC_ANY,	"ES",	FALSE,	ifc_off,				"ifcheck off" },
+	{ "onmission",			IFC_ANY,	"E",	FALSE,	ifc_onmission,			"ifcheck onmission" },
 	{ "order",				IFC_MO,		"E",	TRUE,	ifc_order,				"ifcheck order" },
 	{ "parts",				IFC_ANY,	"ES",	FALSE,	ifc_parts,				"ifcheck parts" },
 	{ "people",				IFC_ANY,	"E",	TRUE,	ifc_people,				"ifcheck people" },
@@ -1864,7 +1906,6 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "pos",				IFC_ANY,	"ES",	FALSE,	ifc_pos,				"ifcheck pos" },
 	{ "practices",			IFC_ANY,	"E",	TRUE,	ifc_practices,			"ifcheck practices" },
 	{ "protocol",			IFC_ANY,	"ES",	FALSE,	ifc_protocol,			"ifcheck protocol" },
-	{ "questpoint",			IFC_ANY,	"E",	TRUE,	ifc_quest,				"ifcheck questpoint" },
 	{ "race",				IFC_ANY,	"ES",	FALSE,	ifc_race,				"ifcheck race" },
 	{ "rand",				IFC_ANY,	"Nn",	FALSE,	ifc_rand,				"ifcheck rand" },
 	{ "randpoint",			IFC_ANY,	"Nn",	FALSE,	ifc_randpoint,			"ifcheck randpoint" },
@@ -1927,11 +1968,11 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "tokenvalue",			IFC_ANY,	"ENN",	TRUE,	ifc_tokenvalue,			"ifcheck tokenvalue" },
 	{ "totalfights",		IFC_ANY,	"E",	TRUE,	ifc_totalfights,		"ifcheck totalfights" },
 	{ "totalloss",			IFC_ANY,	"E",	TRUE,	ifc_totalloss,			"ifcheck totalloss" },
+	{ "totalmissions",		IFC_ANY,	"E",	TRUE,	ifc_totalmissions,		"ifcheck totalmissions" },
 	{ "totalpkfights",		IFC_ANY,	"E",	TRUE,	ifc_totalpkfights,		"ifcheck totalpkfights" },
 	{ "totalpkloss",		IFC_ANY,	"E",	TRUE,	ifc_totalpkloss,		"ifcheck totalpkloss" },
 	{ "totalpkratio",		IFC_ANY,	"E",	TRUE,	ifc_totalpkratio,		"ifcheck totalpkratio" },
 	{ "totalpkwins",		IFC_ANY,	"E",	TRUE,	ifc_totalpkwins,		"ifcheck totalpkwins" },
-	{ "totalquests",		IFC_ANY,	"E",	TRUE,	ifc_totalquests,		"ifcheck totalquests" },
 	{ "totalratio",			IFC_ANY,	"E",	TRUE,	ifc_totalratio,			"ifcheck totalratio" },
 	{ "totalwins",			IFC_ANY,	"E",	TRUE,	ifc_totalwins,			"ifcheck totalwins" },
 	{ "toxin",				IFC_ANY,	"ES",	TRUE,	ifc_toxin,				"ifcheck toxin" },

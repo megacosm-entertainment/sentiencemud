@@ -1938,11 +1938,12 @@ void bust_a_prompt(CHAR_DATA *ch)
 		(IS_VALID(level) ? (exp_per_level(ch, NULL,ch->pcdata->points) - level->xp) : 0));
 		i = buf2; break;
 	}
+	// TODO: Fix
 	case 'Q' :
-		sprintf(buf2, "%ld", IS_NPC(ch) ? 0 : ch->pcdata->quests_completed);
+		sprintf(buf2, "%ld", IS_NPC(ch) ? 0 : ch->pcdata->missions_completed);
 		i = buf2; break;
 	case 'q' :
-		sprintf(buf2, "%d", IS_NPC(ch) ? 0 : ch->questpoints);
+		sprintf(buf2, "%d", IS_NPC(ch) ? 0 : ch->missionpoints);
 		i = buf2; break;
 	case 'p' :
 		sprintf(buf2, "%d", IS_NPC(ch) ? 0 : ch->practice);

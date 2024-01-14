@@ -74,11 +74,11 @@ PROG_DATA *prog_data_free;
 PROG_LIST *mprog_free;
 PROG_LIST *oprog_free;
 PROG_LIST *rprog_free;
-QUEST_DATA *quest_free;
+MISSION_DATA *mission_free;
+MISSION_PART_DATA *mission_part_free;
 QUEST_INDEX_DATA *quest_index_free;
 QUEST_INDEX_PART_DATA *quest_index_part_free;
 QUEST_LIST *quest_list_free;
-QUEST_PART_DATA *quest_part_free;
 RESET_DATA *reset_free;
 ROOM_INDEX_DATA *room_index_free;
 SHIP_CREW_DATA *ship_crew_free;
@@ -622,6 +622,11 @@ static void delete_reputation_data(void *ptr)
     free_reputation_data((REPUTATION_DATA *)ptr);
 }
 
+static void delete_mission_data(void *ptr)
+{
+    free_mission((MISSION_DATA *)ptr);
+}
+
 CHAR_DATA *new_char( void )
 {
     CHAR_DATA *ch;
@@ -730,8 +735,6 @@ CHAR_DATA *new_char( void )
         ch->dirty_stat[i] = TRUE;
     }
 
-    ch->quest			= NULL;
-
     ch->hit_damage		= 0;
     ch->hit_type		= TYPE_UNDEFINED;
 
@@ -756,6 +759,8 @@ CHAR_DATA *new_char( void )
     ch->shop = NULL;
     ch->mob_reputations = NULL;
     ch->factions = list_create(FALSE);
+
+    ch->missions = list_createx(false, NULL, delete_mission_data);
 
     return ch;
 }
@@ -897,6 +902,8 @@ void free_char( CHAR_DATA *ch )
 
 	if( ch->shop ) free_shop(ch->shop);
 
+    list_destroy(ch->missions);
+
     ch->next = char_free;
     char_free = ch;
 }
@@ -938,7 +945,7 @@ PC_DATA *new_pcdata(void)
     pcdata->vis_to_people = NULL;
     pcdata->quiet_people = NULL;
     pcdata->commands = NULL;
-    pcdata->quests_completed = 0;
+    pcdata->missions_completed = 0;
     location_clear(&pcdata->room_before_arena);
     //pcdata->quests = NULL;
     pcdata->buffer = new_buf();
@@ -2265,7 +2272,7 @@ void free_mob_index( MOB_INDEX_DATA *pMob )
 	free_quest_list( quest_list );
     }
 
-	free_questor_data( pMob->pQuestor );
+	free_missionary_data( pMob->pMissionary );
     if(pMob->pShop != NULL) free_shop( pMob->pShop );
 
     MOB_REPUTATION_DATA *rep, *rep_next;
@@ -2365,68 +2372,70 @@ void free_help( HELP_DATA *pHelp )
 }
 
 
-QUEST_DATA *new_quest( void )
+MISSION_DATA *new_mission( void )
 {
-    QUEST_DATA *pQuest;
+    MISSION_DATA *pMission;
 
-    if ( !quest_free )
+    if ( !mission_free )
     {
-	pQuest = alloc_perm( sizeof(*pQuest) );
+	pMission = alloc_perm( sizeof(*pMission) );
     }
     else
     {
-	pQuest = quest_free;
-	quest_free = quest_free->next;
+	pMission = mission_free;
+	mission_free = mission_free->next;
     }
 
-    pQuest->next = NULL;
-    pQuest->parts = NULL;
-    pQuest->msg_complete = FALSE;
-    pQuest->generating = FALSE;
-    pQuest->scripted = FALSE;
+    pMission->next = NULL;
+    pMission->parts = NULL;
+    pMission->msg_complete = FALSE;
+    pMission->generating = FALSE;
+    pMission->scripted = FALSE;
 
-    pQuest->questgiver_type = -1;
-    pQuest->questgiver = wnum_zero;
-    pQuest->questreceiver_type = -1;
-    pQuest->questreceiver = wnum_zero;
+    pMission->giver_type = -1;
+    pMission->giver = wnum_zero;
+    pMission->receiver_type = -1;
+    pMission->receiver = wnum_zero;
 
-    top_quest++;
+    top_mission++;
 
-    return pQuest;
+    return pMission;
 }
 
 
-void free_quest( QUEST_DATA *pQuest )
+void free_mission( MISSION_DATA *pMission )
 {
-    QUEST_PART_DATA *part;
-    QUEST_PART_DATA *next_part;
+    MISSION_PART_DATA *part;
+    MISSION_PART_DATA *next_part;
 
-    part = pQuest->parts;
+    script_clear_list(pMission);
+
+    part = pMission->parts;
 
     while( part != NULL) {
 	next_part = part->next;
-        free_quest_part( part );
+        free_mission_part( part );
 	part = next_part;
     }
 
-    pQuest->next         =   quest_free;
-    quest_free             =   pQuest;
+    pMission->next         =   mission_free;
+    mission_free             =   pMission;
     return;
 }
 
 
-QUEST_PART_DATA *new_quest_part( void )
+MISSION_PART_DATA *new_mission_part( void )
 {
-    QUEST_PART_DATA *pPart;
+    MISSION_PART_DATA *pPart;
 
-    if ( !quest_part_free )
+    if ( !mission_part_free )
     {
 	pPart = alloc_perm( sizeof(*pPart) );
     }
     else
     {
-	pPart = quest_part_free;
-	quest_part_free = quest_part_free->next;
+	pPart = mission_part_free;
+	mission_part_free = mission_part_free->next;
     }
 
     pPart->pObj = NULL;
@@ -2441,18 +2450,18 @@ QUEST_PART_DATA *new_quest_part( void )
     pPart->custom_task = FALSE;
     pPart->complete = FALSE;
 
-    top_quest_part++;
+    top_mission_part++;
 
     return pPart;
 }
 
 
-void free_quest_part( QUEST_PART_DATA *pPart )
+void free_mission_part( MISSION_PART_DATA *pPart )
 {
     pPart->pObj = NULL;
 
-    pPart->next         =   quest_part_free;
-    quest_part_free     =   pPart;
+    pPart->next         =   mission_part_free;
+    mission_part_free     =   pPart;
 
     if(pPart->description) free_string(pPart->description);
     return;
@@ -3885,17 +3894,17 @@ void free_boolexp(BOOLEXP *boolexp)
 	boolexp_free = boolexp;
 }
 
-QUESTOR_DATA *questor_free = NULL;
+MISSIONARY_DATA *missionary_free = NULL;
 
-QUESTOR_DATA *new_questor_data()
+MISSIONARY_DATA *new_missionary_data()
 {
-	QUESTOR_DATA *q;
-	if(!questor_free)
-		q = alloc_perm(sizeof(QUESTOR_DATA));
+	MISSIONARY_DATA *q;
+	if(!missionary_free)
+		q = alloc_perm(sizeof(MISSIONARY_DATA));
 	else
 	{
-		q = questor_free;
-		questor_free = questor_free->next;
+		q = missionary_free;
+		missionary_free = missionary_free->next;
 	}
 
 	VALIDATE(q);
@@ -3913,7 +3922,7 @@ QUESTOR_DATA *new_questor_data()
 	return q;
 }
 
-void free_questor_data(QUESTOR_DATA *q)
+void free_missionary_data(MISSIONARY_DATA *q)
 {
 	if(!IS_VALID(q)) return;
 
@@ -3926,8 +3935,8 @@ void free_questor_data(QUESTOR_DATA *q)
 	free_string(q->footer);
 
 	INVALIDATE(q);
-	q->next = questor_free;
-	questor_free = q;
+	q->next = missionary_free;
+	missionary_free = q;
 
 }
 

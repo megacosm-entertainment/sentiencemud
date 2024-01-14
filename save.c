@@ -171,14 +171,28 @@ static void __init_player_versioning_007(struct __player_data_version_007 *data)
 	data->second_sub_class_warrior = -1;
 }
 
+struct __player_data_version_008
+{
+	unsigned int questpoints;
+	long quests_completed;
+};
+
+static void __init_player_versioning_008(struct __player_data_version_008 *data)
+{
+	data->questpoints = 0;
+	data->quests_completed = 0;
+}
+
 struct __player_data_versioning
 {
 	struct __player_data_version_007 _007;
+	struct __player_data_version_008 _008;
 };
 
 static void __init_player_versioning(struct __player_data_versioning *data)
 {
 	__init_player_versioning_007(&data->_007);
+	__init_player_versioning_008(&data->_008);
 }
 
 void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__versioning);
@@ -343,6 +357,40 @@ void save_char_obj(CHAR_DATA *ch)
     fclose(fp);
     rename(TEMP_FILE,strsave);
     fpReserve = fopen(NULL_FILE, "r");
+}
+
+
+void fwrite_mission_part(FILE *fp, MISSION_PART_DATA *part)
+{
+	/* Recursion to make sure we don't have list flipping */
+	if (part->next != NULL)
+	fwrite_mission_part(fp, part->next);
+
+	fprintf(fp, "#MISSIONPART\n");
+
+	if (part->pObj != NULL && !part->complete)
+	{
+		// Special case. Objects will be extracted on quit, re-loaded on login.
+		if (part->pObj->in_room == NULL)
+			bug("fwrite_mission_part: trying to save a mission pickup obj with null in_room", 0);
+		else
+			fprintf(fp, "OPart %ld %ld\n", part->pObj->pIndexData->vnum, part->pObj->in_room->vnum);
+	}
+	else if (part->mob != -1)
+		fprintf(fp, "MPart %ld#%ld\n", part->area->uid, part->mob);
+	else if (part->obj_sac != -1)
+		fprintf(fp, "OSPart %ld#%ld\n", part->area->uid, part->obj_sac);
+	else if (part->mob_rescue != -1)
+		fprintf(fp, "MRPart %ld#%ld\n", part->area->uid, part->mob_rescue);
+	else if (part->room != -1)
+		fprintf(fp, "Room %ld#%ld\n", part->area->uid, part->room);
+	else if (part->custom_task)
+		fprintf(fp, "Custom\n");
+
+	if (part->complete) fprintf(fp, "Complete\n");
+
+	fprintf(fp, "Description %s~\n", fix_string(part->description));
+	fprintf(fp, "#-MISSIONPART\n");
 }
 
 
@@ -593,29 +641,42 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 		fprintf(fp, "Home %s\n", widevnum_string_wnum(ch->home, NULL));
 	if (ch->pcdata->personal_mount.pArea && ch->pcdata->personal_mount.vnum > 0)
 		fprintf(fp, "PersonalMount %s\n", widevnum_string_wnum(ch->pcdata->personal_mount, NULL));
-    if (ch->questpoints != 0)
-        fprintf(fp, "QuestPnts %d\n",  ch->questpoints);
-    if (ch->pcdata->quests_completed != 0)
-	fprintf(fp, "QuestsCompleted %ld\n", ch->pcdata->quests_completed);
     if (ch->deitypoints != 0)
-	fprintf(fp, "DeityPnts %ld\n", ch->deitypoints);
-    if (ch->nextquest != 0)
-        fprintf(fp, "QuestNext %d\n",  ch->nextquest  );
-    else if (ch->countdown != 0)
-        fprintf(fp, "QuestNext %d\n",  10             );
+		fprintf(fp, "DeityPnts %ld\n", ch->deitypoints);
+    if (ch->missionpoints != 0)
+        fprintf(fp, "MissionPnts %d\n",  ch->missionpoints);
+    if (ch->pcdata->missions_completed != 0)
+		fprintf(fp, "MissionsCompleted %ld\n", ch->pcdata->missions_completed);
+	if (ch->nextmission != 0)
+        fprintf(fp, "MissionNext %d\n",  ch->nextmission  );
 
-    if (IS_QUESTING(ch)) {
-		fprintf(fp, "Questing\n");
-		fprintf(fp, "QuestGiverType %d\n", ch->quest->questgiver_type);
-		fprintf(fp, "QuestGiver %s\n", widevnum_string_wnum(ch->quest->questgiver, NULL));
-		fprintf(fp, "QuestReceiverType %d\n", ch->quest->questreceiver_type);
-		fprintf(fp, "QuestReceiver %s\n", widevnum_string_wnum(ch->quest->questreceiver, NULL));
+	ITERATOR mit;
+	MISSION_DATA *mission;
+	iterator_start(&mit, ch->missions);
+	while((mission = (MISSION_DATA *)iterator_nextdata(&mit)))
+	{
+		fprintf(fp, "#MISSION\n");
 
-		fwrite_quest_part(fp, ch->quest->parts);
-    }
+		fprintf(fp, "Timer %ld\n", mission->timer);
+		fprintf(fp, "GiverType %d\n", mission->giver_type);
+		fprintf(fp, "Giver %s\n", widevnum_string_wnum(mission->giver, NULL));
+		fprintf(fp, "ReceiverType %d\n", mission->receiver_type);
+		fprintf(fp, "Receiver %s\n", widevnum_string_wnum(mission->receiver, NULL));
 
-    if (ch->countdown > 0)
-	    fprintf(fp, "QCountDown %d\n", ch->countdown);
+		fprintf(fp, "Class %s~\n", mission->clazz->name);
+		fprintf(fp, "ClassType %s\n", flag_string(class_types, mission->clazz_type));
+
+		if (mission->clazz_restricted)
+			fprintf(fp, "ClassRestricted\n");
+
+		if (mission->clazz_type_restricted)
+			fprintf(fp, "ClassTypeRestricted\n");
+
+		fwrite_mission_part(fp, mission->parts);
+		fprintf(fp, "#-MISSION\n");
+	}
+	iterator_stop(&mit);
+
 
     fprintf(fp, "DeathCount %d\n",	ch->deaths			);
     fprintf(fp, "ArenaCount %d\n",	ch->arena_deaths			);
@@ -1045,6 +1106,201 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     return found;
 }
 
+MISSION_PART_DATA *fread_mission_part(FILE *fp)
+{
+    MISSION_PART_DATA *part;
+    char buf[MSL];
+    char *word;
+    bool fMatch;
+	WNUM_LOAD wnum;
+
+    part = new_mission_part();
+
+    for (; ;)
+    {
+		word   = feof(fp) ? "#-MISSIONPART" : fread_word(fp);
+		fMatch = FALSE;
+
+		if (!str_cmp(word, "#-MISSIONPART")) {
+			fMatch = TRUE;
+			return part;
+		}
+
+		switch (UPPER(word[0]))
+		{
+			case 'C':
+				if (!str_cmp(word, "Complete")) {
+					part->complete = TRUE;
+					fMatch = TRUE;
+					fread_to_eol(fp);
+					break;
+				}
+
+				if (!str_cmp(word, "Custom")) {
+					part->custom_task = TRUE;
+					fMatch = TRUE;
+					break;
+				}
+				break;
+
+			case 'D':
+				if (!str_cmp(word, "Description")) {
+					part->description = fread_string(fp);
+					fMatch = TRUE;
+					break;
+				}
+				break;
+
+		    case 'M':
+				if (!str_cmp(word, "MPart")) {
+					wnum = fread_widevnum(fp, 0);
+					part->area = get_area_from_uid(wnum.auid);
+					part->mob = wnum.vnum;
+					fMatch = TRUE;
+					break;
+				}
+
+				if (!str_cmp(word, "MRPart")) {
+					wnum = fread_widevnum(fp, 0);
+					part->area = get_area_from_uid(wnum.auid);
+					part->mob_rescue = wnum.vnum;
+					fMatch = TRUE;
+					break;
+				}
+				break;
+
+		    case 'O':
+				/* Special Case - Make an Obj */
+				if (!str_cmp(word, "OPart")) {
+					ROOM_INDEX_DATA *room;
+					OBJ_DATA *obj;
+					OBJ_INDEX_DATA *obj_i;
+					WNUM_LOAD room_vnum;
+
+					wnum = fread_widevnum(fp, 0);
+					part->area = get_area_from_uid(wnum.auid);
+					part->obj = wnum.vnum;
+
+					obj_i = get_obj_index(part->area, part->obj);
+
+					room_vnum = fread_widevnum(fp, 0);
+					room = get_room_index_auid(room_vnum.auid, room_vnum.vnum);
+
+					obj = create_object(obj_i, 1, TRUE);
+					obj_to_room(obj, room);
+
+					part->pObj = obj;
+
+					fMatch = TRUE;
+					break;
+				}
+
+				if (!str_cmp(word, "OSPart")) {
+					wnum = fread_widevnum(fp, 0);
+					part->area = get_area_from_uid(wnum.auid);
+					part->obj_sac = wnum.vnum;
+					fMatch = TRUE;
+					break;
+				}
+				break;
+
+		    case 'R':
+				if (!str_cmp(word, "Room")) {
+					wnum = fread_widevnum(fp, 0);
+					part->area = get_area_from_uid(wnum.auid);
+					part->room = wnum.vnum;
+					fMatch = TRUE;
+					break;
+				}
+				break;
+		}
+
+	    if (!fMatch) {
+		    sprintf(buf, "fread_mission_part: no match for word %s", word);
+		    bug(buf, 0);
+		    fread_to_eol(fp);
+	    }
+    }
+}
+
+
+MISSION_DATA *fread_mission(FILE *fp)
+{
+    MISSION_DATA *mission;
+    char buf[MSL];
+    char *word;
+    bool fMatch;
+	WNUM_LOAD wnum;
+
+	mission = new_mission();
+
+    for (; ;)
+    {
+		word   = feof(fp) ? "#-MISSION" : fread_word(fp);
+		fMatch = FALSE;
+
+		if (!str_cmp(word, "#-MISSION")) {
+			return mission;
+		}
+
+		switch (UPPER(word[0]))
+		{
+			case '#':
+				if (!str_cmp(word, "#MISSIONPART"))
+				{
+					MISSION_PART_DATA *part = fread_mission_part(fp);
+					part->next = mission->parts;
+					mission->parts = part;
+					fMatch = true;
+					break;
+				}
+				break;
+
+			case 'C':
+				KEY("Class", mission->clazz, get_class_data(fread_string(fp)));
+				KEY("ClassRestricted", mission->clazz_type_restricted, true);
+				KEY("ClassType", mission->clazz_type, stat_lookup(fread_string(fp),class_types,CLASS_NONE));
+				KEY("ClassTypeRestricted", mission->clazz_type_restricted, true);
+				break;
+
+			case 'G':
+				if (!str_cmp(word, "Giver"))
+				{
+					wnum = fread_widevnum(fp, 0);
+					mission->giver.pArea = get_area_from_uid(wnum.auid);
+					mission->giver.vnum = wnum.vnum;
+					fMatch = TRUE;
+					break;
+				}
+				KEY("GiverType", mission->giver_type, fread_number(fp));
+				break;
+
+			case 'R':
+				if (!str_cmp(word, "Receiver"))
+				{
+					wnum = fread_widevnum(fp, 0);
+					mission->receiver.pArea = get_area_from_uid(wnum.auid);
+					mission->receiver.vnum = wnum.vnum;
+					fMatch = TRUE;
+					break;
+				}
+				KEY("ReceiverType", mission->receiver_type, fread_number(fp));
+				break;
+
+			case 'T':
+				KEY("Timer", mission->timer, fread_number(fp));
+				break;
+		}
+
+	    if (!fMatch) {
+		    sprintf(buf, "read_quest_part: no match for word %s", word);
+		    bug(buf, 0);
+		    fread_to_eol(fp);
+	    }
+    }
+
+}
+
 
 /*
  * Read in a char.
@@ -1082,6 +1338,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 	    break;
 
 	case '#':
+#if 0
 	    if (!str_cmp(word, "#QUESTPART")) {
 		QUEST_PART_DATA *part;
 
@@ -1097,6 +1354,14 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		ch->quest->parts = part;
 		break;
 	    }
+#endif
+		if (!str_cmp(word, "#MISSION"))
+		{
+			MISSION_DATA *mission = fread_mission(fp);
+			list_appendlink(ch->missions, mission);
+			fMatch = true;
+			break;
+		}
 
 	case 'A':
 	    KEY("Act",		ch->act[0],		fread_flag(fp));
@@ -1684,7 +1949,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		    qp_number = (ch->pcdata->perm_hit - ch->race->max_vitals[ MAX_HIT ]) / 10;
 		    // Multiply sessions by 15 being number of pracs.
 		    qp_number *= 15;
-		    ch->questpoints += qp_number;
+		    ch->missionpoints += qp_number;
 
 		    ch->pcdata->perm_hit = ch->race->max_vitals[ MAX_HIT ];
 		}
@@ -1695,7 +1960,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		    qp_number = (ch->pcdata->perm_mana - ch->race->max_vitals[ MAX_MANA ]) / 10;
 		    // Multiply sessions by 15 being number of pracs.
 		    qp_number *= 15;
-		    ch->questpoints += qp_number;
+		    ch->missionpoints += qp_number;
 
 		    ch->pcdata->perm_mana = ch->race->max_vitals[ MAX_MANA ];
 		}
@@ -1706,7 +1971,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		    qp_number = (ch->pcdata->perm_move - ch->race->max_vitals[ MAX_MOVE ]) / 10;
 		    // Multiply sessions by 15 being number of pracs.
 		    qp_number *= 15;
-		    ch->questpoints += qp_number;
+		    ch->missionpoints += qp_number;
 
 		    ch->pcdata->perm_move = ch->race->max_vitals[ MAX_MOVE ];
 		}
@@ -1791,6 +2056,10 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 			KEY("Mc2",		 __versioning->_007.class_thief,		fread_number(fp));
 			KEY("Mc3",		 __versioning->_007.class_warrior,		fread_number(fp));
 		}
+		KEY("MissionNext",   ch->nextmission,          fread_number(fp));
+		KEY("MissionPnts",   ch->missionpoints,        fread_number(fp));
+		KEY("MissionsCompleted", ch->pcdata->missions_completed, fread_number(fp));
+
 	    KEY("MonsterKills", ch->monster_kills,	fread_number(fp));
 	    break;
 
@@ -1858,11 +2127,11 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 
 	    break;
         case 'Q':
-            KEY("QuestPnts",   ch->questpoints,        fread_number(fp));
-            KEY("QuestNext",   ch->nextquest,          fread_number(fp));
-	    KEY("QCountDown",  ch->countdown,		fread_number(fp));
-	    KEY("QuestsCompleted",
-                ch->pcdata->quests_completed, fread_number(fp));
+			if (ch->version < VERSION_PLAYER_008)
+			{
+	            KEY("QuestPnts",   __versioning->_008.questpoints,        fread_number(fp));
+			    KEY("QuestsCompleted", __versioning->_008.quests_completed, fread_number(fp));
+			}
 
 	    if (!str_cmp(word, "QuietTo"))
 	    {
@@ -1877,6 +2146,8 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		break;
 	    }
 
+		// This version update will wipe out their last active quest
+#if 0
 	    if (!str_cmp(word, "Questing"))
 	    {
 			ch->quest = (QUEST_DATA *)new_quest();
@@ -2029,7 +2300,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 				ch->quest->parts->complete = TRUE;
 		fMatch = TRUE;
 	    }
-
+#endif
             break;
 
 	case 'R':
@@ -2441,26 +2712,27 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
     }
 
 
-	// Make sure questing data from old info is configured properly
-    if( ch->quest != NULL )
-    {
-		if( !ch->quest->questgiver.pArea || ch->quest->questgiver.vnum < 1 )
+	// Make sure mission data from old info is configured properly
+	ITERATOR mit;
+	MISSION_DATA *mission;
+	iterator_start(&mit, ch->missions);
+	while((mission = (MISSION_DATA *)iterator_nextdata(&mit)))
+	{
+		if (!mission->giver.pArea || mission->giver.vnum < 1)
 		{
-			// No questgiver info
-			free_quest(ch->quest);
-			ch->countdown = 0;
-			ch->quest = NULL;
+			iterator_remcurrent(&mit);
 		}
 		else
 		{
-			if( ch->quest->questgiver_type < 0 ) ch->quest->questgiver_type = QUESTOR_MOB;
-			if( !ch->quest->questreceiver.pArea || ch->quest->questreceiver.vnum < 1 || ch->quest->questreceiver_type < 0 )
+			if (mission->giver_type < 0) mission->giver_type = MISSIONARY_MOB;
+			if (!mission->receiver.pArea || mission->receiver.vnum < 1)
 			{
-				ch->quest->questreceiver = ch->quest->questgiver;
-				ch->quest->questreceiver_type = QUESTOR_MOB;
+				mission->receiver = mission->giver;
+				mission->receiver_type = mission->giver_type;
 			}
 		}
 	}
+	iterator_stop(&mit);
 }
 
 void fwrite_lock_state(FILE *fp, LOCK_STATE *lock)
@@ -6268,9 +6540,14 @@ void fix_character(CHAR_DATA *ch, struct __player_data_versioning *__versioning)
 
 	if (ch->version < VERSION_PLAYER_007)
 	{
-
-
 		ch->version = VERSION_PLAYER_007;
+	}
+
+	if (ch->version < VERSION_PLAYER_008)
+	{
+		ch->missionpoints = __versioning->_008.questpoints;
+		ch->pcdata->missions_completed = __versioning->_008.quests_completed;
+		ch->version = VERSION_PLAYER_008;
 	}
 
     if (IS_IMMORTAL(ch))
@@ -6911,38 +7188,8 @@ void fread_reputation(FILE *fp, CHAR_DATA *ch)
 }
 
 /* write a quest to disk */
-void fwrite_quest_part(FILE *fp, QUEST_PART_DATA *part)
-{
-    /* Recursion to make sure we don't have list flipping */
-    if (part->next != NULL)
-	fwrite_quest_part(fp, part->next);
 
-    fprintf(fp, "#QUESTPART\n");
-
-    if (part->pObj != NULL && !part->complete) { // Special case. Objects will be extracted on quit, re-loaded on login.
-	if (part->pObj->in_room == NULL)
-	    bug("fwrite_quest_part: trying to save a quest pickup obj with null in_room", 0);
-	else
-	    fprintf(fp, "OPart %ld %ld\n", part->pObj->pIndexData->vnum, part->pObj->in_room->vnum);
-    }
-    else if (part->mob != -1)
-	fprintf(fp, "MPart %ld#%ld\n", part->area->uid, part->mob);
-    else if (part->obj_sac != -1)
-	fprintf(fp, "OSPart %ld#%ld\n", part->area->uid, part->obj_sac);
-    else if (part->mob_rescue != -1)
-	fprintf(fp, "MRPart %ld#%ld\n", part->area->uid, part->mob_rescue);
-    else if (part->room != -1)
-	fprintf(fp, "QRoom %ld#%ld\n", part->area->uid, part->room);
-    else if (part->custom_task)
-		fprintf(fp, "QCustom\n");
-
-    if (part->complete)
-		fprintf(fp, "QComplete\n");
-	fprintf(fp, "QDescription %s~\n", part->description);
-
-    fprintf(fp, "End\n");
-}
-
+#if 0
 QUEST_PART_DATA *fread_quest_part(FILE *fp)
 {
     QUEST_PART_DATA *part;
@@ -7054,3 +7301,4 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
 	    }
     }
 }
+#endif

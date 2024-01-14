@@ -500,5 +500,7 @@ extern const struct flag_type class_flags[];
 extern const struct class_leave_type class_leave_table[];
 extern const struct class_enter_type class_enter_table[];
 
+extern const struct flag_type missionary_types[];
+
 #endif
 

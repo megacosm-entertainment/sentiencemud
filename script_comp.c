@@ -371,6 +371,7 @@ int compile_entity_listbasetype(int ent)
 	case ENT_OLLIST_OBJ:	ent = ENT_OBJECT; break;
 	case ENT_OLLIST_TOK:	ent = ENT_TOKEN; break;
 	case ENT_OLLIST_AFF:	ent = ENT_AFFECT; break;
+	case ENT_OLLIST_MISSION_PARTS:	ent = ENT_MISSION_PART; break;
 
 	case ENT_BLLIST_ROOM:	ent = ENT_ROOM; break;
 	case ENT_BLLIST_MOB:	ent = ENT_MOBILE; break;
@@ -399,6 +400,7 @@ int compile_entity_listbasetype(int ent)
 	case ENT_ILLIST_SKILLS:		ent = ENT_SKILL; break;
 	case ENT_ILLIST_SKILLGROUPS:		ent = ENT_SKILLGROUP; break;
 	case ENT_ILLIST_CLASSES:		ent = ENT_CLASSLEVEL; break;
+	case ENT_ILLIST_MISSIONS:		ent = ENT_MISSION; break;
 
 	case ENT_SKILL_VALUES:		ent = ENT_NUMBER; break;
 	case ENT_SKILL_VALUENAMES:	ent = ENT_STRING; break;

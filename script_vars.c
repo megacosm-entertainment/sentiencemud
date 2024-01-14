@@ -471,6 +471,10 @@ varset(lockstate,LOCK_STATE,LOCK_STATE *,lockstate,lockstate)
 varset(reputation,REPUTATION,REPUTATION_DATA *,reputation,reputation)
 varset(reputation_index,REPUTATION_INDEX,REPUTATION_INDEX_DATA *,reputation_index,reputation_index)
 varset(reputation_rank,REPUTATION_RANK,REPUTATION_INDEX_RANK_DATA *,reputation_rank,reputation_rank)
+varset(mission,MISSION,MISSION_DATA *,mission,mission);
+varset(race,RACE,RACE_DATA *,race,race);
+varset(class,CLASS,CLASS_DATA *,clazz,clazz);
+varset(classlevel,CLASSLEVEL,CLASS_LEVEL *,level,level);
 
 bool variables_set_dice (ppVARIABLE list,char *name,DICE_DATA *d)
 {
@@ -603,21 +607,22 @@ bool variables_setsave_song (ppVARIABLE list,char *name,SONG_DATA *song, bool sa
 	return TRUE;
 }
 
-bool variables_set_classlevel (ppVARIABLE list,char *name,CLASS_LEVEL *level)
+bool variables_set_mission_part (ppVARIABLE list,char *name,MISSION_DATA *mission,MISSION_PART_DATA *part)
 {
-	return variables_setsave_classlevel( list, name, level, TRISTATE );
+	return variables_setsave_mission_part( list, name, mission, part, TRISTATE );
 }
 
-bool variables_setsave_classlevel (ppVARIABLE list,char *name,CLASS_LEVEL *level, bool save)
+bool variables_setsave_mission_part (ppVARIABLE list,char *name,MISSION_DATA *mission,MISSION_PART_DATA *part, bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
 	if(!var) return FALSE;
 
-	var->type = VAR_CLASSLEVEL;
+	var->type = VAR_MISSION_PART;
 	if( save != TRISTATE )
 		var->save = save;
-	var->_.level =  IS_VALID(level) ? level : NULL;
+	var->_.mp.mission =  mission;
+	var->_.mp.part = (mission && part) ? part : NULL;
 
 	return TRUE;
 }

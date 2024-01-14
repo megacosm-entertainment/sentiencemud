@@ -281,6 +281,8 @@ struct sound_type {
 
 #define VERSION_PLAYER_007  0x01000006
 
+#define VERSION_PLAYER_008  0x01000007
+
 #define VERSION_OBJECT_001	0x01000000
 
 #define VERSION_OBJECT_002	0x01000001
@@ -360,7 +362,7 @@ struct sound_type {
 #define VERSION_MOBILE		0x01000000
 #define VERSION_OBJECT		VERSION_OBJECT_016
 #define VERSION_ROOM		VERSION_ROOM_002
-#define VERSION_PLAYER		VERSION_PLAYER_007
+#define VERSION_PLAYER		VERSION_PLAYER_008
 #define VERSION_TOKEN		0x01000000
 #define VERSION_AFFECT		0x01000000
 #define VERSION_SCRIPT		0x02000000
@@ -404,9 +406,9 @@ typedef struct	obj_data		OBJ_DATA;
 typedef struct	obj_index_data		OBJ_INDEX_DATA;
 typedef struct	spell_data		SPELL_DATA;
 typedef struct	pc_data			PC_DATA;
-typedef struct	questor_data	QUESTOR_DATA;
-typedef struct	quest_data		QUEST_DATA;
-typedef struct	quest_part_data		QUEST_PART_DATA;
+typedef struct	missionary_data	MISSIONARY_DATA;
+typedef struct	mission_data		MISSION_DATA;
+typedef struct	mission_part_data		MISSION_PART_DATA;
 typedef struct	reset_data		RESET_DATA;
 typedef struct	room_index_data		ROOM_INDEX_DATA;
 typedef struct	ship_crew_index_data	SHIP_CREW_INDEX_DATA;
@@ -1349,6 +1351,10 @@ struct global_data
     unsigned long next_dungeon_uid[4];
 
     long	db_version;
+
+    int     max_mission_allowance;  // How many mission allowances can a player have?
+    int     inc_missions;           // How many missions will a player accrue when their mission allowance ticks over?
+    int     max_missions;           // How many missions can a player have running at the same time?
 };
 
 struct bounty_data
@@ -2107,7 +2113,7 @@ struct herb_type
 
 #define BOOST_EXPERIENCE	0
 #define BOOST_DAMAGE		1
-#define BOOST_QP		2
+#define BOOST_MP		2
 #define BOOST_PNEUMA		3
 #define BOOST_RECKONING		4
 
@@ -2348,7 +2354,7 @@ struct affliction_type {
 #define ACT_OUTDOORS			(W)
 #define ACT_IS_RESTRINGER		(X)
 #define ACT_INDOORS				(Y)
-#define ACT_QUESTOR				(Z)
+//                              Z
 #define ACT_IS_HEALER			(aa)
 #define ACT_STAY_LOCALE			(bb)
 #define ACT_UPDATE_ALWAYS		(cc)
@@ -3815,7 +3821,7 @@ struct	mob_index_data
     SPEC_FUN *		spec_fun;
     SHOP_DATA *		pShop;
     PRACTICE_DATA * pPractice;
-    QUESTOR_DATA *	pQuestor;
+    MISSIONARY_DATA *	pMissionary;
     SHIP_CREW_INDEX_DATA *pCrew;
     LLIST **        progs;
     QUEST_LIST *	quests;
@@ -3916,9 +3922,9 @@ struct gq_data
     GQ_OBJ_DATA *objects;
 };
 
-struct questor_data
+struct missionary_data
 {
-	QUESTOR_DATA *next;
+	MISSIONARY_DATA *next;
 	bool valid;
 
     WNUM_LOAD scroll;
@@ -3935,29 +3941,43 @@ struct questor_data
 	int line_width;
 };
 
-#define QUESTOR_MOB		0
-#define QUESTOR_OBJ		1
-#define QUESTOR_ROOM	2
+#define MISSIONARY_MOB		0
+#define MISSIONARY_OBJ		1
+#define MISSIONARY_ROOM 	2
 
-/* For randomly generated quests */
-struct quest_data
+#define MISSION_MODE_AUTO       0
+#define MISSION_MODE_CLASS_TYPE 1
+#define MISSION_MODE_CLASS      2
+
+
+
+/* For randomly generated missions */
+struct mission_data
 {
-    QUEST_DATA *        next;
-    QUEST_PART_DATA *   parts;
-    int					questgiver_type;
-    WNUM                questgiver;
-    int					questreceiver_type;
-    WNUM				questreceiver;
+    MISSION_DATA *        next;
+    MISSION_PART_DATA *   parts;
+    int					giver_type;
+    WNUM                giver;
+    int					receiver_type;
+    WNUM				receiver;
 
     bool		msg_complete;
     bool		generating;
     bool		scripted;
+
+    long        timer;               // How much time is left in this mission?
+
+    CLASS_DATA  *clazz;                 // Class that requested the mission
+    sh_int      clazz_type;             // Type of class that requested the mission
+                                        // Mutually exclusive vvvv
+    bool        clazz_restricted;       // Class restricted - Must be in ->clazz to complete the mission
+    bool        clazz_type_restricted;  // Class type restricted - Must be in the ->clazz->type to complete the mission
 };
 
 
-struct quest_part_data
+struct mission_part_data
 {
-    QUEST_PART_DATA *   next;
+    MISSION_PART_DATA *   next;
 
     OBJ_DATA 		*pObj;
     char *		description;
@@ -4622,11 +4642,13 @@ struct	char_data
     CHURCH_PLAYER_DATA *church_member;
     CHURCH_PLAYER_DATA *remove_question;
 
-    /* Quest */
-    QUEST_DATA *	quest;
-    unsigned int     	questpoints;
-    int              	nextquest;
-    int              	countdown;
+    /* Missions */
+    MISSION_DATA *  pending_mission;            // The currently pending mission
+    LLIST *	missions;
+    unsigned int     	missionpoints;
+    int                 allowed_missions;       // How many missions can you start?
+    time_t              mission_reset;          // When to accrue missions next (daily timers)
+    int         nextmission;                    // Penalty delay for being able to request another missions
 
     CHAR_DATA *		hunting;
 
@@ -4867,7 +4889,7 @@ struct	pc_data
     long		mana_before;
     long		move_before;
 
-    long		quests_completed;
+    long		missions_completed;
     LOCATION		room_before_arena;
     STRING_DATA		*vis_to_people; /* vis to this list of names */
     STRING_DATA		*quiet_people; /* these people can tell w/ quiet */
@@ -7673,13 +7695,17 @@ enum trigger_index_enum {
 	TRIG_LORE,
 	TRIG_LORE_EX,
 	TRIG_MANAGAIN,
+	TRIG_MISSION_CANCEL,
+	TRIG_MISSION_COMPLETE,	// Prior to awards being given, called when the mission turned in complete, allowing editing of the awards
+	TRIG_MISSION_INCOMPLETE,	// Prior to awards being given, called when the mission turned in incomplete , allowing editing of the awards
+	TRIG_MISSION_PART,		// Used to generate a custom mission part when selected.
 	TRIG_MOON,
 	TRIG_MOUNT,
 	TRIG_MOVE_CHAR,
 	TRIG_MOVEGAIN,
 	TRIG_MULTICLASS,	// Called when a player multiclasses
 	TRIG_OPEN,
-	TRIG_POSTQUEST,			// Called after all quest rewards and messages are given
+	TRIG_POSTMISSION,			// Called after all quest rewards and messages are given
     TRIG_POUR,
 	TRIG_PRACTICE,
 	TRIG_PRACTICETOKEN,
@@ -7705,13 +7731,13 @@ enum trigger_index_enum {
     TRIG_PREIGNITE,
 	TRIG_PREKILL,
     TRIG_PRELOCK,
+	TRIG_PREMISSION,			// Allows custom checking for missions, also allows setting the number of mission parts.
 	TRIG_PREMOUNT,
 	TRIG_PREPRACTICE,
 	TRIG_PREPRACTICEOTHER,
 	TRIG_PREPRACTICETHAT,
 	TRIG_PREPRACTICETOKEN,
 	TRIG_PREPUT,
-	TRIG_PREQUEST,			// Allows custom checking for questing, also allows setting the number of quest parts.
 	TRIG_PRERECALL,
 	TRIG_PRERECITE,
 	TRIG_PRERECKONING,
@@ -7740,10 +7766,6 @@ enum trigger_index_enum {
 	TRIG_PUSH,
 	TRIG_PUSH_ON,		/* NIB : 20070121 */
 	TRIG_PUT,
-	TRIG_QUEST_CANCEL,
-	TRIG_QUEST_COMPLETE,	// Prior to awards being given, called when the quest turned in complete, allowing editing of the awards
-	TRIG_QUEST_INCOMPLETE,	// Prior to awards being given, called when the quest turned in incomplete , allowing editing of the awards
-	TRIG_QUEST_PART,		// Used to generate a custom quest part when selected.
 	TRIG_QUIT,
 	TRIG_RANDOM,        // DEPRECATE
     TRIG_READYCHECK,
@@ -8880,7 +8902,8 @@ extern sh_int grn_unique;
 #define IS_SOCIAL(ch)	  (IS_SET((ch)->comm, COMM_SOCIAL))
 #define IS_PK(ch)         (((ch)->church != NULL &&     \
 			   (ch)->church->pk == TRUE ) || IS_SET((ch)->act[0],PLR_PK))
-#define IS_QUESTING(ch)	        ( ch->quest != NULL )
+#define ON_MISSION(ch)          ( list_size( (ch)->missions ) > 1 )
+//#define IS_QUESTING(ch)	        ( ch->quest != NULL )
 #define IS_UNDEAD(ch)		(IS_SET((ch)->act[0], ACT_UNDEAD) || \
 				 IS_SET((ch)->form, FORM_UNDEAD))
 #define IS_MSP(ch)              (ch->desc ? IS_MSP_DESC( ch->desc ) : FALSE)
@@ -9801,11 +9824,11 @@ OBJ_INDEX_DATA *new_obj_index( void );
 PROG_DATA *new_prog_data(void);
 LLIST **new_prog_bank(void);
 PROG_LIST *new_trigger(void);
+MISSION_DATA *new_mission( void );
+MISSION_PART_DATA *new_mission_part(void);
 QUEST_INDEX_DATA *new_quest_index( void );
-QUEST_DATA *new_quest( void );
 QUEST_LIST *new_quest_list( void );
-QUEST_PART_DATA *new_quest_part(void);
-QUESTOR_DATA *new_questor_data( void );
+MISSIONARY_DATA *new_missionary_data( void );
 RESET_DATA *new_reset_data( void );
 ROOM_INDEX_DATA *new_room_index( void );
 SHIP_CREW_DATA *new_ship_crew args( ( void ) );
@@ -9842,9 +9865,9 @@ void free_prog_data(PROG_DATA *pr_dat);
 void free_trigger(PROG_LIST *trigger);
 void free_prog_list(LLIST **pr_list);
 void free_quest_index( QUEST_INDEX_DATA *quest_index );
-void free_quest( QUEST_DATA *pQuest );
+void free_mission( MISSION_DATA *pMission );
 void free_quest_list( QUEST_LIST *quest_list );
-void free_quest_part( QUEST_PART_DATA *pPart );
+void free_mission_part( MISSION_PART_DATA *pPart );
 void free_reset_data( RESET_DATA *pReset );
 void free_ship_crew( SHIP_CREW_DATA *crew );
 void free_shop( SHOP_DATA *pShop );
@@ -9872,20 +9895,21 @@ void free_log_entry(LOG_ENTRY_DATA *log);
 char *create_affect_cname(char *name);
 char *get_affect_cname(char *name);
 
+// missions.c
+bool generate_mission( CHAR_DATA *ch, CHAR_DATA *missionary, MISSION_DATA *mission );
+bool generate_mission_part( CHAR_DATA *ch, CHAR_DATA *missionary, MISSION_DATA *mission, MISSION_PART_DATA *part, int partno );
+void check_mission_rescue_mob( CHAR_DATA *ch, bool show );
+void check_mission_retrieve_obj( CHAR_DATA *ch, OBJ_DATA *obj, bool show );
+void check_mission_slay_mob( CHAR_DATA *ch, CHAR_DATA *mob, bool show );
+void check_mission_totally_complete( CHAR_DATA *ch, bool show );
+void check_mission_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool show);
+bool check_mission_custom_task(CHAR_DATA *ch, int mission, int task, bool show);
+// TODO: Add other task checks
+void mission_update(void);
+bool is_mission_mob(CHAR_DATA *ch, CHAR_DATA *victim);
+
 /* quest.c */
-bool generate_quest( CHAR_DATA *ch, CHAR_DATA *questman );
-void quest_update(void);
-bool generate_quest_part( CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *part, int partno );
-bool is_quest_item( OBJ_DATA *obj );
-bool is_quest_token( OBJ_DATA *obj );
-int count_quest_parts( CHAR_DATA *ch );
 QUEST_INDEX_DATA *get_quest_index( AREA_DATA *area, long vnum );
-void check_quest_rescue_mob( CHAR_DATA *ch, bool show );
-void check_quest_retrieve_obj( CHAR_DATA *ch, OBJ_DATA *obj, bool show );
-void check_quest_slay_mob( CHAR_DATA *ch, CHAR_DATA *mob, bool show );
-void check_quest_totally_complete( CHAR_DATA *ch, bool show );
-void check_quest_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool show);
-bool check_quest_custom_task(CHAR_DATA *ch, int task, bool show);
 
 /* handler.c */
 int get_coord_distance( int x1, int y1, int x2, int y2 );
@@ -10262,8 +10286,6 @@ void fwrite_token(TOKEN_DATA *token, FILE *fp);
 void fwrite_skills(CHAR_DATA *ch, FILE *fp);
 TOKEN_DATA *fread_token(FILE *fp);
 void fread_skill(FILE *fp, CHAR_DATA *ch, bool is_song);
-void fwrite_quest_part(FILE *fp, QUEST_PART_DATA *part);
-QUEST_PART_DATA *fread_quest_part(FILE *fp);
 
 
 
@@ -10564,9 +10586,12 @@ extern  long top_vroom;
 extern  long top_help_index;
 extern  long top_wilderness_exit;
 
+extern	long top_mission;
+extern	long top_mission_part;
+
 /* quests */
-extern	long top_quest;
-extern	long top_quest_part;
+extern	long top_mission;
+extern	long top_mission_part;
 
 /* church */
 extern  long top_church;
@@ -10833,7 +10858,7 @@ void show_basic_mob_lore(CHAR_DATA *ch, CHAR_DATA *victim);
 SHOP_STOCK_DATA *get_stockonly_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, char *argument);
 bool is_pullable(OBJ_DATA *obj);
 
-OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, char *questgiver, WNUM wnum, char *header, char *footer, char *prefix, char *suffix, int width);
+OBJ_DATA *generate_mission_scroll(CHAR_DATA *ch, char *giver, MISSION_DATA *mission, WNUM wnum, char *header, char *footer, char *prefix, char *suffix, int width);
 OBJ_DATA *get_obj_world_index(CHAR_DATA *ch, OBJ_INDEX_DATA *pObjIndex, bool all);
 
 BLUEPRINT_SECTION *load_blueprint_section(FILE *fp, AREA_DATA *pArea);
@@ -11540,5 +11565,7 @@ extern RACE_DATA *gr_vampire;
 extern RACE_DATA *gr_wraith;
 RACE_DATA *get_race_data(const char *name);
 RACE_DATA *get_race_uid(const sh_int uid);
+
+extern GLOBAL_DATA gconfig;
 
 #endif /* !def __merc_h__ */

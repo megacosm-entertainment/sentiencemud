@@ -43,7 +43,7 @@ void msdp_update	args((void));
 void ship_update     args((void));
 void npc_ship_state_update     args((void));
 void who_list	args((void));
-void quest_update    args((void));
+void mission_update    args((void));
 void remove_port     args((long vnum_boat_dock, int door));
 void create_port     args((long vnum_port, long vnum_boat_dock, int door));
 void stock_update    args((void));
@@ -153,7 +153,7 @@ void update_handler(void)
 	char_update();
 	//update_invasion_quest(); Syn - don't do this. it seems to eat a lot of CPU time.
 	obj_update();
-	quest_update();
+	mission_update();
     	pneuma_relic_update();
 	relic_update();
 	update_area_trade();
@@ -1012,7 +1012,8 @@ void mobile_update(void)
 			if (CAN_WEAR(obj, ITEM_TAKE)
 			&&   obj->cost > max
 			&&   obj->cost > 0
-			&&   !is_quest_token(obj))
+			/* TODO: FIX
+			&&   !is_quest_token(obj)*/)
 			{
 				obj_best = obj;
 				max = obj->cost;

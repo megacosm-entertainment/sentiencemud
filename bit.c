@@ -41,6 +41,8 @@
  		but stats can only be assigned.  Update this table when a
  		new set of flags is installed.
  ****************************************************************************/
+
+ // TODO: There's no need to make this a special list.. just have it if it is included in this list, it is a stat
 const struct flag_stat_type flag_stat_table[] =
 {
 /*  {	structure					stat	}, */
@@ -120,6 +122,7 @@ const struct flag_stat_type flag_stat_table[] =
     {   class_types,                true    },
     {   stat_types,                 true    },
     {   vital_types,                true    },
+    {   missionary_types,           true    },
     {	0,							0		}
 };
 
@@ -573,7 +576,6 @@ char *act_bit_name( int act_type, long act_flags )
 		if (act_flags & ACT_IS_RESTRINGER) strcat(buf, " restringer");
 		if (act_flags & ACT_IS_CHANGER  ) strcat(buf, " changer");
 		if (act_flags & ACT_UPDATE_ALWAYS) strcat(buf," update_always");
-		if (act_flags & ACT_QUESTOR) strcat(buf," questor");
 		if (act_flags & ACT_STAY_LOCALE) strcat(buf, " stay_locale");
 		break;
 	case 2:		// NPC->act[1]

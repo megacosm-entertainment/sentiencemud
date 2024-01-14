@@ -1266,15 +1266,17 @@ void do_quit(CHAR_DATA *ch, char *argument)
 	}
 	}
 
-	/* kill quest obj's linked to char, to be restored upon boot-up */
-	if (ch->quest != NULL) {
-	    QUEST_PART_DATA *part;
-
-	    for (part = ch->quest->parts; part != NULL; part = part->next) {
-		if (part->pObj != NULL)
-		    extract_obj(part->pObj);
+	ITERATOR mit;
+	MISSION_DATA *mission;
+	iterator_start(&mit, ch->missions);
+	while((mission = (MISSION_DATA *)iterator_nextdata(&mit)))
+	{
+	    for (MISSION_PART_DATA *part = mission->parts; part != NULL; part = part->next) {
+			if (part->pObj != NULL)
+			    extract_obj(part->pObj);
 	    }
 	}
+	iterator_stop(&mit);
 
 	id[0] = ch->id[0];
 	id[1] = ch->id[1];

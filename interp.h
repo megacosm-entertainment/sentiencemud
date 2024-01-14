@@ -364,7 +364,7 @@ DECLARE_DO_FUN(	do_put		);
 DECLARE_DO_FUN( do_qedit	);
 DECLARE_DO_FUN( do_qlist 	);
 DECLARE_DO_FUN(	do_quaff	);
-DECLARE_DO_FUN( do_quest        );
+DECLARE_DO_FUN( do_mission  );
 DECLARE_DO_FUN( do_quiet	);
 DECLARE_DO_FUN(	do_quit		);
 DECLARE_DO_FUN( do_quote	);
