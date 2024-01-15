@@ -2783,6 +2783,45 @@ void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
 		fprintf(fp, "#-TYPEAMMO\n");
 	}
 
+	if (IS_ARMOR(obj))
+	{
+		ARMOR_DATA *armor = ARMOR(obj);
+
+		fprintf(fp, "#TYPEARMOR\n");
+
+		fprintf(fp, "Type %s~\n", flag_string(armour_types, armor->armor_type));
+		fprintf(fp, "Strength %s~\n", flag_string(armour_strength_table, armor->armor_strength));
+
+		fprintf(fp, "Bash %d\n", armor->bash);
+		fprintf(fp, "Pierce %d\n", armor->pierce);
+		fprintf(fp, "Slash %d\n", armor->slash);
+		fprintf(fp, "Magic %d\n", armor->magic);
+
+		fprintf(fp, "MaxAdornments %d\n", armor->max_adornments);
+		if (armor->max_adornments > 0 && armor->adornments != NULL)
+		{
+			for(int i = 0; i < armor->max_adornments; i++)
+			{
+				ADORNMENT_DATA *adorn = armor->adornments[i];
+				if (IS_VALID(adorn))
+				{
+					fprintf(fp, "#ADORNMENT\n");
+					fprintf(fp, "Type %s~\n", flag_string(adornment_types, adorn->type));
+					fprintf(fp, "Name %s~\n", fix_string(adorn->name));
+					fprintf(fp, "Short %s~\n", fix_string(adorn->short_descr));
+					fprintf(fp, "Description %s~\n", fix_string(adorn->description));
+
+					if (adorn->spell != NULL)
+						fprintf(fp, "Spell %s~ %d\n", adorn->spell->skill->name, adorn->spell->level);
+
+					fprintf(fp, "#-ADORNMENT\n");
+				}
+			}
+		}
+
+		fprintf(fp, "#-TYPEARMOR\n");
+	}
+
 	if (IS_BOOK(obj))
 	{
 		BOOK_DATA *book = BOOK(obj);
@@ -3666,6 +3705,164 @@ AMMO_DATA *fread_obj_ammo_data(FILE *fp)
 	return data;
 }
 
+ADORNMENT_DATA *fread_adornment_data(FILE *fp)
+{
+	ADORNMENT_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_adornment_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPEADORNMENT"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case 'D':
+				KEYS("Description", data->description, fread_string(fp));
+				break;
+
+			case 'N':
+				KEYS("Name", data->name, fread_string(fp));
+				break;
+
+			case 'S':
+				KEYS("ShortDescr", data->short_descr, fread_string(fp));
+				if (!str_cmp(word, "Spell"))
+				{
+					char *name = fread_string(fp);
+					int level = fread_number(fp);
+
+					SKILL_DATA *skill = get_skill_data(name);
+					if (IS_VALID(skill) && is_skill_spell(skill))
+					{
+						if (data->spell != NULL)
+							free_spell(data->spell);
+
+						SPELL_DATA *spell = new_spell();
+						spell->skill = skill;
+						spell->level = level;
+						spell->repop = 100;
+						spell->next = NULL;
+
+						data->spell = spell;
+					}
+
+					fMatch = true;
+					break;
+				}
+				break;
+
+			case 'T':
+				KEY("Type", data->type, stat_lookup(fread_string(fp),adornment_types,ADORNMENT_NONE));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "fread_adornment_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+ARMOR_DATA *fread_obj_armor_data(FILE *fp)
+{
+	ARMOR_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_armor_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPEARMOR"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case '#':
+				if (!str_cmp(word, "#ADORNMENT"))
+				{
+					ADORNMENT_DATA *adornment = fread_adornment_data(fp);
+
+					bool found = false;
+					for(int i = 0; i < data->max_adornments; i++)
+					{
+						if(data->adornments[i] == NULL)
+						{
+							data->adornments[i] = adornment;
+							found = true;
+							break;
+						}
+					}
+
+					if (!found)
+					{
+						free_adornment_data(adornment);
+						// Complain
+					}
+
+					fMatch = true;
+					break;
+				}
+				break;
+
+			case 'B':
+				KEY("Bash", data->bash, fread_number(fp));
+				break;
+
+			case 'M':
+				KEY("Magic", data->magic, fread_number(fp));
+				if (!str_cmp(word, "MaxAdornments"))
+				{
+					int max = fread_number(fp);
+
+					if (data->adornments != NULL)
+					{
+						// complain about already being defined.
+						break;
+					}
+
+					if (max >= 1 && max <= MAX_ADORNMENTS)
+					{
+						data->max_adornments = max;
+						data->adornments = alloc_mem(max * sizeof(ADORNMENT_DATA *));
+						for (int i = 0; i < max; i++)
+							data->adornments[i] = NULL;
+					}
+					else
+						data->max_adornments = 0;
+					fMatch = true;
+					break;
+				}
+				break;
+
+			case 'P':
+				KEY("Pierce", data->pierce, fread_number(fp));
+				break;
+
+			case 'S':
+				KEY("Slash", data->slash, fread_number(fp));
+				KEY("Strength", data->armor_strength, stat_lookup(fread_string(fp), armour_strength_table, OBJ_ARMOUR_NOSTRENGTH));
+				break;
+
+			case 'T':
+				KEY("Type", data->armor_type, stat_lookup(fread_string(fp), armour_types, ARMOR_TYPE_NONE));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "fread_obj_armor_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
 
 BOOK_PAGE *fread_book_page(FILE *fp, char *closer)
 {
@@ -4862,6 +5059,7 @@ WEAPON_DATA *fread_obj_weapon_data(FILE *fp)
 void fread_obj_reset_multityping(OBJ_DATA *obj)
 {
 	free_ammo_data(AMMO(obj));				AMMO(obj) = NULL;
+	free_armor_data(ARMOR(obj));			ARMOR(obj) = NULL;
 	free_book_data(BOOK(obj));				BOOK(obj) = NULL;
 	free_container_data(CONTAINER(obj));	CONTAINER(obj) = NULL;
 	free_fluid_container_data(FLUID_CON(obj));	FLUID_CON(obj) = NULL;
@@ -5227,6 +5425,14 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_AMMO(obj)) free_ammo_data(AMMO(obj));
 
 				AMMO(obj) = fread_obj_ammo_data(fp);
+				fMatch = TRUE;
+				break;
+			}
+			if (!str_cmp(word, "#TYPEARMOR"))
+			{
+				if (IS_ARMOR(obj)) free_armor_data(ARMOR(obj));
+
+				ARMOR(obj) = fread_obj_armor_data(fp);
 				fMatch = TRUE;
 				break;
 			}

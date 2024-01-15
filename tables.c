@@ -633,11 +633,11 @@ const struct string_type fragile_table[] =
 
 const struct flag_type armour_strength_table[] =
 {
-    {	"None",		OBJ_ARMOUR_NOSTRENGTH,	TRUE   	},
-    {   "Light",	OBJ_ARMOUR_LIGHT,   TRUE  	},
-    {   "Medium",	OBJ_ARMOUR_MEDIUM,   TRUE    	},
-    {   "Strong",	OBJ_ARMOUR_STRONG,   TRUE  	},
-    {   "Heavy",	OBJ_ARMOUR_HEAVY,   TRUE 	},
+    {	"none",		OBJ_ARMOUR_NOSTRENGTH,	TRUE   	},
+    {   "light",	OBJ_ARMOUR_LIGHT,   TRUE  	},
+    {   "medium",	OBJ_ARMOUR_MEDIUM,   TRUE    	},
+    {   "strong",	OBJ_ARMOUR_STRONG,   TRUE  	},
+    {   "heavy",	OBJ_ARMOUR_HEAVY,   TRUE 	},
     {	NULL, 0, FALSE }
 };
 
@@ -4131,6 +4131,7 @@ const struct gcl_type gcl_table[] =
     { "sage",           &gcl_sage },
     { "skinner",        &gcl_skinner },
     { "sorcerer",       &gcl_sorcerer },
+    { "stonemason",     &gcl_stonemason },
     { "warlord",        &gcl_warlord },
     { "weaver",         &gcl_weaver },
     { "witch",          &gcl_witch },
@@ -4217,4 +4218,23 @@ const struct flag_type missionary_types[] =
     {"obj",     MISSIONARY_OBJ,     true},
     {"room",    MISSIONARY_ROOM,    true},
     {NULL,      0,                  false }
+};
+
+const struct flag_type armour_types[] =
+{
+    {"none",    ARMOR_TYPE_NONE,    false },
+    {"cloth",   ARMOR_TYPE_CLOTH,   true },
+    {"leather", ARMOR_TYPE_LEATHER, true },
+    {"mail",    ARMOR_TYPE_MAIL,    true },
+    {"plate",   ARMOR_TYPE_PLATE,   true },
+    {NULL,      0,                  false }
+};
+
+const struct flag_type adornment_types[] =
+{
+    {"none",        ADORNMENT_NONE,         false},
+    {"embroidery",  ADORNMENT_EMBROIDERY,   true},
+    {"rune",        ADORNMENT_RUNE,         true},
+    {"gem",         ADORNMENT_GEM,          true},
+    {NULL,          0,                      false}
 };

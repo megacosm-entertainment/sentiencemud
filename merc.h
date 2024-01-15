@@ -472,6 +472,7 @@ typedef struct list_link_exit_data LLIST_EXIT_DATA;
 typedef struct list_link_skill_data LLIST_SKILL_DATA;
 typedef struct iterator_type ITERATOR;
 
+typedef struct adornment_data ADORNMENT_DATA;
 typedef struct obj_ammo_data AMMO_DATA;
 typedef struct obj_armor_data ARMOR_DATA;
 typedef struct obj_book_data BOOK_DATA;
@@ -5123,14 +5124,73 @@ struct obj_ammo_data {
 #define ARMOR(obj)              ((obj)->_armor)
 #define IS_ARMOR(obj)           IS_VALID(ARMOR(obj))
 
+#define ARMOR_TYPE_NONE     0
+#define ARMOR_TYPE_CLOTH    1
+#define ARMOR_TYPE_LEATHER  2
+#define ARMOR_TYPE_MAIL     3
+#define ARMOR_TYPE_PLATE    4
+
+#define OBJ_ARMOUR_NOSTRENGTH 	0
+#define OBJ_ARMOUR_LIGHT 	1
+#define OBJ_ARMOUR_MEDIUM 	2
+#define OBJ_ARMOUR_STRONG 	3
+#define OBJ_ARMOUR_HEAVY 	4
+
+#define MAX_ADORNMENTS      3
+
+#define ADORNMENT_NONE          0
+#define ADORNMENT_EMBROIDERY    1       // Can only be placed on cloth as embroidery
+#define ADORNMENT_RUNE          2       // Can only be placed on leather as etchings
+#define ADORNMENT_GEM           3       // Can only be placed on mail and plate as cut gems
+
+// THREAD:
+//  Need threads with the right elemental aspects
+//  EMBROIDER <cloth armor> <spell>
+//  Requires a NEEDLE.
+
+// RUNE:
+//  Need to add some kind of requirements 
+//  ETCH <leather armor> <spell>
+//  Requires a CARVING TOOL.
+
+// CUT GEM:
+//  SOCKET <mail/plate armor>[ <slot>] <cut gem>
+//  If <slot> is omitted, goes into the first slot available
+//  Cut gems are IMBUED with a single spell.
+//  Requires a PLIER.
+
+
+
+struct adornment_data {
+    ADORNMENT_DATA *next;
+    bool valid;
+
+    sh_int type;
+
+    char *name;             // Keyword for selecting the adornment by name
+    char *short_descr;      // How the adornment is shown in the list
+    char *description;      // How the adornment is shown when looked at.
+
+    SPELL_DATA *spell;  // Only *ONE* spell
+};
+
 struct obj_armor_data {
     ARMOR_DATA *next;
     bool valid;
 
+    sh_int armor_type;
+    sh_int armor_strength;
+
     sh_int bash;
     sh_int pierce;
     sh_int slash;
-    sh_int exotic;
+    sh_int magic;
+
+    // What else?
+
+    // Limited number of adornments
+    sh_int max_adornments;      // Maximum number of adornments allowed on the armor
+    ADORNMENT_DATA **adornments;    // Just make it an array
 };
 
 // ============[ BOOK ]============
@@ -5716,6 +5776,7 @@ struct	obj_index_data
 	LLIST *waypoints;
 
     AMMO_DATA *_ammo;
+    ARMOR_DATA *_armor;
     BOOK_DATA *_book;
     CONTAINER_DATA *_container;
     FLUID_CONTAINER_DATA *_fluid_container;
@@ -5824,6 +5885,7 @@ struct	obj_data
     LOCK_STATE		*lock;
 
     AMMO_DATA *_ammo;
+    ARMOR_DATA *_armor;
     BOOK_DATA *_book;
     CONTAINER_DATA *_container;
     FLUID_CONTAINER_DATA *_fluid_container;
@@ -5884,12 +5946,6 @@ struct	obj_data
 #define OLD_OBJ_FRAGILE_SOLID  	1
 #define OLD_OBJ_FRAGILE_WEAK 	2
 #define OLD_OBJ_FRAGILE_STRONG 	3
-
-#define OBJ_ARMOUR_NOSTRENGTH 	0
-#define OBJ_ARMOUR_LIGHT 	1
-#define OBJ_ARMOUR_MEDIUM 	2
-#define OBJ_ARMOUR_STRONG 	3
-#define OBJ_ARMOUR_HEAVY 	4
 
 #define OBJ_XPGAIN_GROUP	1		// XP gained from the group_gain function, which is only received when a kill is made
 
@@ -11485,6 +11541,7 @@ extern CLASS_DATA *gcl_rogue;
 extern CLASS_DATA *gcl_sage;
 extern CLASS_DATA *gcl_skinner;
 extern CLASS_DATA *gcl_sorcerer;
+extern CLASS_DATA *gcl_stonemason;
 extern CLASS_DATA *gcl_warlord;
 extern CLASS_DATA *gcl_weaver;
 extern CLASS_DATA *gcl_witch;

@@ -502,5 +502,8 @@ extern const struct class_enter_type class_enter_table[];
 
 extern const struct flag_type missionary_types[];
 
+extern const struct flag_type armour_types[];
+extern const struct flag_type adornment_types[];
+
 #endif
 

@@ -366,6 +366,7 @@ DECLARE_OLC_FUN( oedit_lock		);
 DECLARE_OLC_FUN( oedit_waypoints	);
 
 DECLARE_OLC_FUN( oedit_type_ammo );
+DECLARE_OLC_FUN( oedit_type_armor );
 DECLARE_OLC_FUN( oedit_type_book );
 DECLARE_OLC_FUN( oedit_type_container );
 DECLARE_OLC_FUN( oedit_type_fluid_container );

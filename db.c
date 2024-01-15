@@ -141,6 +141,7 @@ CLASS_DATA *gcl_rogue;
 CLASS_DATA *gcl_sage;
 CLASS_DATA *gcl_skinner;
 CLASS_DATA *gcl_sorcerer;
+CLASS_DATA *gcl_stonemason;
 CLASS_DATA *gcl_warlord;
 CLASS_DATA *gcl_weaver;
 CLASS_DATA *gcl_witch;
@@ -3985,6 +3986,7 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
 	if (multitypes)
 	{
 		AMMO(obj) = copy_ammo_data(AMMO(pObjIndex));
+		ARMOR(obj) = copy_armor_data(ARMOR(pObjIndex));
 		BOOK(obj) = copy_book_data(BOOK(pObjIndex));
 		CONTAINER(obj) = copy_container_data(CONTAINER(pObjIndex));
 		FLUID_CON(obj) = copy_fluid_container_data(FLUID_CON(pObjIndex));
@@ -7779,6 +7781,7 @@ TOKEN_DATA *persist_load_token(FILE *fp)
 }
 
 AMMO_DATA *fread_obj_ammo_data(FILE *fp);
+ARMOR_DATA *fread_obj_armor_data(FILE *fp);
 BOOK_DATA *fread_obj_book_data(FILE *fp);
 CONTAINER_DATA *fread_obj_container_data(FILE *fp);
 FLUID_CONTAINER_DATA *fread_obj_fluid_container_data(FILE *fp);
@@ -7859,6 +7862,15 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_AMMO(obj)) free_ammo_data(AMMO(obj));
 
 					AMMO(obj) = fread_obj_ammo_data(fp);
+					fMatch = TRUE;
+					break;
+				}
+
+				if (!str_cmp(word, "#TYPEARMOR"))
+				{
+					if (IS_ARMOR(obj)) free_armor_data(ARMOR(obj));
+
+					ARMOR(obj) = fread_obj_armor_data(fp);
 					fMatch = TRUE;
 					break;
 				}

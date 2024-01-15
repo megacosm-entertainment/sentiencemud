@@ -4040,6 +4040,7 @@ SHOP_STOCK_DATA *get_shop_stock_bypos(SHOP_DATA *shop, int nth)
 void obj_index_reset_multitype(OBJ_INDEX_DATA *pObjIndex)
 {
 	free_ammo_data(AMMO(pObjIndex));					AMMO(pObjIndex) = NULL;
+	free_armor_data(ARMOR(pObjIndex));					ARMOR(pObjIndex) = NULL;
 	free_book_data(BOOK(pObjIndex));					BOOK(pObjIndex) = NULL;
 	free_container_data(CONTAINER(pObjIndex));			CONTAINER(pObjIndex) = NULL;
 	free_fluid_container_data(FLUID_CON(pObjIndex));	FLUID_CON(pObjIndex) = NULL;
@@ -4066,6 +4067,7 @@ void obj_index_set_primarytype(OBJ_INDEX_DATA *pObjIndex, int item_type)
 	switch(item_type)
 	{
 		case ITEM_AMMO:			AMMO(pObjIndex) = new_ammo_data(); break;
+		case ITEM_ARMOUR:		ARMOR(pObjIndex) = new_armor_data(); break;
 		case ITEM_BOOK:			BOOK(pObjIndex) = new_book_data(); break;
 		case ITEM_CONTAINER:	CONTAINER(pObjIndex) = new_container_data(); break;
 		case ITEM_FLUID_CONTAINER:	FLUID_CON(pObjIndex) = new_fluid_container_data(); break;

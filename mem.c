@@ -588,6 +588,7 @@ void free_obj(OBJ_DATA *obj)
 	}
 
     free_ammo_data(AMMO(obj));
+    free_armor_data(ARMOR(obj));
     free_book_data(BOOK(obj));
     free_container_data(CONTAINER(obj));
     free_fluid_container_data(FLUID_CON(obj));
@@ -5189,6 +5190,152 @@ void free_ammo_data(AMMO_DATA *data)
     data->next = ammo_data_free;
     ammo_data_free = data;
 }
+
+// ============[ ARMOR ]===========
+ADORNMENT_DATA *adornment_data_free;
+
+ADORNMENT_DATA *new_adornment_data()
+{
+    ADORNMENT_DATA *data;
+    if (adornment_data_free)
+    {
+        data = adornment_data_free;
+        adornment_data_free = adornment_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(ADORNMENT_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    data->name = &str_empty[0];
+    data->short_descr = &str_empty[0];
+    data->description = &str_empty[0];
+
+    data->spell = NULL;
+
+    VALIDATE(data);
+    return data;
+}
+
+ADORNMENT_DATA *copy_adornment_data(ADORNMENT_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    ADORNMENT_DATA *data;
+    if (adornment_data_free)
+    {
+        data = adornment_data_free;
+        adornment_data_free = adornment_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(ADORNMENT_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    data->type = src->type;
+    data->name = str_dup(src->name);
+    data->short_descr = str_dup(src->short_descr);
+    data->description = str_dup(src->description);
+
+    if (src->spell != NULL)
+        data->spell = copy_spell(src->spell);
+
+    VALIDATE(data);
+    return data;
+
+}
+
+void free_adornment_data(ADORNMENT_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    free_string(data->name);
+    free_string(data->short_descr);
+    free_string(data->description);
+    if (data->spell != NULL)
+        free_spell(data->spell);
+
+    INVALIDATE(data);
+    data->next = adornment_data_free;
+    adornment_data_free = data;
+}
+
+
+ARMOR_DATA *armor_data_free;
+
+ARMOR_DATA *new_armor_data()
+{
+    ARMOR_DATA *data;
+    if (armor_data_free)
+    {
+        data = armor_data_free;
+        armor_data_free = armor_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(ARMOR_DATA));
+
+    memset(data, 0, sizeof(*data));
+
+    VALIDATE(data);
+    return data;
+}
+
+ARMOR_DATA *copy_armor_data(ARMOR_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    ARMOR_DATA *data;
+    if (armor_data_free)
+    {
+        data = armor_data_free;
+        armor_data_free = armor_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(ARMOR_DATA));
+
+    memset(data, 0, sizeof(*data));
+
+    data->armor_type = src->armor_type;
+    data->armor_strength = src->armor_strength;
+
+    data->bash = src->bash;
+    data->pierce = src->pierce;
+    data->slash = src->slash;
+    data->magic = src->magic;
+
+    if (src->adornments != NULL && src->max_adornments > 0)
+    {
+        data->max_adornments = src->max_adornments;
+        data->adornments = alloc_mem(sizeof(ADORNMENT_DATA) * data->max_adornments);
+
+        for(int i = 0; i < data->max_adornments; i++)
+        {
+            data->adornments[i] = copy_adornment_data(src->adornments[i]);
+        }
+    }
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_armor_data(ARMOR_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    if (data->adornments != NULL && data->max_adornments > 0)
+    {
+        for(int i = 0; i < data->max_adornments; i++)
+        {
+            free_adornment_data(data->adornments[i]);
+        }
+        free_mem(data->adornments, sizeof(ADORNMENT_DATA *) * data->max_adornments);
+    }
+
+    INVALIDATE(data);
+    data->next = armor_data_free;
+    armor_data_free = data;
+}
+
 
 // ============[ BOOK ]============
 BOOK_PAGE *book_page_free;

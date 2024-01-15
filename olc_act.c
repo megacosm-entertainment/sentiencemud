@@ -96,7 +96,9 @@ struct trigger_type dummy_triggers[1];
 // This table contains help commands and a brief description of each.
 const struct olc_help_type help_table[] =
 {
+	{	"ac",					STRUCT_FLAGS,		ac_type,					"Ac for different attacks."	},
 	{	"act",					STRUCT_FLAGBANK,	act_flagbank,				"Mobile	attributes."	},
+	{	"adornments", 			STRUCT_FLAGS,		adornment_types,			"Adornment Types."	},
 	{	"affect",				STRUCT_FLAGBANK,	affect_flagbank,			"Mobile	affects."	},
 	{	"ammo",					STRUCT_FLAGS,		ammo_types,					"Ammo types."	},
 	{	"apply",				STRUCT_FLAGS,		apply_flags,				"Apply flags"	},
@@ -105,7 +107,8 @@ const struct olc_help_type help_table[] =
 	{	"area",					STRUCT_FLAGS,		area_flags,					"Area attributes."	},
 	{	"arearegion",			STRUCT_FLAGS,		area_region_flags,			"Area Region attributes."	},
 	{	"areawho",				STRUCT_FLAGS,		area_who_titles,			"Type of area for who."	},
-	{	"armour",				STRUCT_FLAGS,		ac_type,					"Ac for different attacks."	},
+	{	"armour",				STRUCT_FLAGS,		armour_types,				"Types of Armor"	},
+	{	"armourstrength",		STRUCT_FLAGS,		armour_strength_table,		"Armor strength types"	},
 	{	"blueprint",			STRUCT_FLAGS,		blueprint_flags,			"Blueprint flags" },
 	{	"book",					STRUCT_FLAGS,		book_flags,					"Book flags."	},
 	{	"brew_func",			STRUCT_ARTIFICING,	brew_func_table,			"Brew Functions (SkEdit)"},
@@ -4878,6 +4881,52 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		add_buf(buffer, buf);
 	}
 
+	if (IS_ARMOR(obj))
+	{
+		ARMOR_DATA *armor = ARMOR(obj);
+		add_buf(buffer, "\n\r{GArmor:{x\n\r");
+		sprintf(buf, "{B[{WType             {B]:  {x%s\n\r", flag_string(armour_types, armor->armor_type));
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WStrength         {B]:  {x%s\n\r", flag_string(armour_strength_table, armor->armor_strength));
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{YBash             {B]:  {x%d\n\r", armor->bash);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{YPierce           {B]:  {x%d\n\r", armor->pierce);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{YSlash            {B]:  {x%d\n\r", armor->slash);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{YMagic            {B]:  {x%d\n\r", armor->magic);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WMax Adornments   {B]:  {x%d\n\r", armor->max_adornments);
+		add_buf(buffer, buf);
+
+		if (armor->adornments != NULL)
+		{
+			add_buf(buffer, "\n\rAdornments:\n\r");
+			add_buf(buffer, "#  [   Type   ] [     Spell Name     ] [ Level ]\n\r");
+			add_buf(buffer, "=================================================\n\r");
+			for(int i = 0; i < armor->max_adornments; i++)
+			{
+				ADORNMENT_DATA *adorn = armor->adornments[i];
+				if (IS_VALID(adorn))
+				{
+					if (adorn->spell != NULL)
+						sprintf(buf, "%d)  %-10s   %-20s    %5d\n\r", i + 1,
+							flag_string(adornment_types, adorn->type),
+							adorn->spell->skill->name,
+							adorn->spell->level);
+					else
+						sprintf(buf, "%d)  %-10s   {D-no spell-{x\n\r", i + 1,
+							flag_string(adornment_types, adorn->type));
+				}
+				else
+					sprintf(buf, "%d)  %-10s{x\n\r", i+1, "---");
+
+				add_buf(buffer, buf);
+			}
+		}
+	}
+
 	if (IS_BOOK(obj))
 	{
 		add_buf(buffer, "\n\r{GBook:{x\n\r");
@@ -5731,6 +5780,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	    add_buf(buffer, buf);
 	    break;
 
+	/*
 	case ITEM_ARMOUR:
 	    sprintf(buf,
 		"{B[  {Wv0{B] {GAc pierce       {x[%ld]\n\r"
@@ -5745,7 +5795,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		armour_strength_table[obj->value[4]].name);
 	    add_buf(buffer, buf);
 	    break;
-
+	*/
 	case ITEM_ARTIFACT:
 	    break;
 
@@ -6989,6 +7039,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		}
 		break;
 
+	/*
 	case ITEM_ARMOUR:
 		switch (value_num)
 		{
@@ -7022,6 +7073,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			break;
 		}
 		break;
+	*/
 
 	/*
 	case ITEM_RANGED_WEAPON:
@@ -10054,6 +10106,504 @@ OEDIT( oedit_type_ammo )
 	return false;
 }
 
+
+bool olc_can_equip_spell(SKILL_DATA *skill)
+{
+	if (!is_skill_spell(skill)) return false;
+
+	if (skill->token)
+		return get_script_token(skill->token, TRIG_TOKEN_EQUIP, TRIGSLOT_SPELL) != NULL;
+	else
+		return skill->equip_fun != NULL;
+}
+
+
+OEDIT( oedit_type_armor )
+{
+	OBJ_INDEX_DATA *pObj;
+
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_ARMOR(pObj))
+		{
+			send_to_char("Syntax:  armor type <type>\n\r", ch);
+			send_to_char("         armor strength <strength>\n\r", ch);
+			send_to_char("         armor bash <#rating>\n\r", ch);
+			send_to_char("         armor pierce <#rating>\n\r", ch);
+			send_to_char("         armor slash <#rating>\n\r", ch);
+			send_to_char("         armor magic <#rating>\n\r", ch);
+			send_to_char(formatf("         armor maxadornments <0-%d>\n\r", MAX_ADORNMENTS), ch);
+
+			send_to_char("         armor adornment add <type> <spell>\n\r", ch);
+			send_to_char("         armor adornment remove <#>\n\r", ch);
+			send_to_char("         armor adornment clear\n\r", ch);
+			send_to_char("         armor adornment <#> name <name>\n\r", ch);
+			send_to_char("         armor adornment <#> short <string>\n\r", ch);
+			send_to_char("         armor adornment <#> description    - Opens string editor\n\r", ch);
+			send_to_char("         armor adornment <#> spell <spell>\n\r", ch);
+			send_to_char("         armor adornment <#> level <leve>\n\r", ch);
+
+			if (pObj->item_type != ITEM_ARMOUR)
+			{
+				send_to_char("         armor remove\n\r", ch);
+			}
+		}
+		else
+		{
+			send_to_char("Syntax:  armor add\n\r", ch);
+		}
+		return false;
+	}
+
+	char arg[MIL];
+	argument = one_argument(argument, arg);
+	if (IS_ARMOR(pObj))
+	{
+		if (!str_prefix(arg, "type"))
+		{
+			int type;
+			if ((type = stat_lookup(argument, armour_types, NO_FLAG)) == NO_FLAG)
+			{
+				send_to_char("Invalid armor type.  Use '? armour' for valid types.\n\r", ch);
+				show_flag_cmds(ch, armour_types);
+				return false;
+			}
+
+			ARMOR(pObj)->armor_type = type;
+			send_to_char("ARMOR Type changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "strength"))
+		{
+			int strength;
+			if ((strength = stat_lookup(argument, armour_strength_table, NO_FLAG)) == NO_FLAG)
+			{
+				send_to_char("Invalid armor strength. Use '? armourstrength' for valid strengths.\n\r", ch);
+				show_flag_cmds(ch, armour_strength_table);
+				return false;
+			}
+
+			int armour = calc_obj_armour(pObj->level, strength);
+
+			ARMOR(pObj)->bash = armour;
+			ARMOR(pObj)->pierce = armour;
+			ARMOR(pObj)->slash = armour;
+			ARMOR(pObj)->magic = 9 * armour / 10;
+			ARMOR(pObj)->armor_strength = strength;
+
+			send_to_char("ARMOR Strength changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "bash"))
+		{
+			int armour;
+			if (!is_number(argument) || (armour = atoi(argument)) < 0)
+			{
+				send_to_char("Please provide a non-negative number.\n\r", ch);
+				return false;
+			}
+
+			ARMOR(pObj)->bash = armour;
+			send_to_char("ARMOR Bash Rating changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "pierce"))
+		{
+			int armour;
+			if (!is_number(argument) || (armour = atoi(argument)) < 0)
+			{
+				send_to_char("Please provide a non-negative number.\n\r", ch);
+				return false;
+			}
+
+			ARMOR(pObj)->pierce = armour;
+			send_to_char("ARMOR Pierce Rating changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "slash"))
+		{
+			int armour;
+			if (!is_number(argument) || (armour = atoi(argument)) < 0)
+			{
+				send_to_char("Please provide a non-negative number.\n\r", ch);
+				return false;
+			}
+
+			ARMOR(pObj)->slash = armour;
+			send_to_char("ARMOR Slash Rating changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "magic"))
+		{
+			int armour;
+			if (!is_number(argument) || (armour = atoi(argument)) < 0)
+			{
+				send_to_char("Please provide a non-negative number.\n\r", ch);
+				return false;
+			}
+
+			ARMOR(pObj)->magic = armour;
+			send_to_char("ARMOR Magic Rating changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "maxadornments"))
+		{
+			int max;
+			if (!is_number(argument) || (max = atoi(argument)) < 0 || max > MAX_ADORNMENTS)
+			{
+				send_to_char(formatf("Please provide a number from 0 to %d.\n\r", MAX_ADORNMENTS), ch);
+				return false;
+			}
+
+			if (ARMOR(pObj)->max_adornments > 0 && ARMOR(pObj)->adornments != NULL)
+			{
+				for(int i = ARMOR(pObj)->max_adornments; i-- > 0; )
+				{
+					ADORNMENT_DATA *adorn = ARMOR(pObj)->adornments[i];
+					if (IS_VALID(adorn))
+						free_adornment_data(adorn);
+				}
+				free_mem(ARMOR(pObj)->adornments, sizeof(ADORNMENT_DATA *) * ARMOR(pObj)->max_adornments);
+				ARMOR(pObj)->adornments = NULL;
+			}
+
+			ARMOR(pObj)->max_adornments = max;
+			if (max > 0)
+			{
+				ARMOR(pObj)->adornments = alloc_mem(sizeof(ADORNMENT_DATA *) * max);
+				for(int i = 0; i < max; i++)
+					ARMOR(pObj)->adornments[i] = NULL;
+			}
+
+			send_to_char("ARMOR Max Adornments changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "adornment"))
+		{
+			if (ARMOR(pObj)->max_adornments < 1 || ARMOR(pObj)->adornments == NULL)
+			{
+				send_to_char("Armor does not allow adornments.\n\r", ch);
+				return false;
+			}
+
+			if (argument[0] == '\0')
+			{
+				send_to_char("Syntax:  armor adornment add <type> <spell> <level>\n\r", ch);
+				send_to_char("         armor adornment remove <#>\n\r", ch);
+				send_to_char("         armor adornment clear\n\r", ch);
+				send_to_char("         armor adornment <#> name <name>\n\r", ch);
+				send_to_char("         armor adornment <#> short <string>\n\r", ch);
+				send_to_char("         armor adornment <#> description    - Opens string editor\n\r", ch);
+				send_to_char("         armor adornment <#> spell <spell>\n\r", ch);
+				send_to_char("         armor adornment <#> level <leve>\n\r", ch);
+				return false;
+			}
+
+			argument = one_argument(argument, arg);
+
+			if (!str_prefix(arg, "add"))
+			{
+				int new_index;
+				for(new_index = ARMOR(pObj)->max_adornments; new_index-- > 0;)
+				{
+					ADORNMENT_DATA *adorn = ARMOR(pObj)->adornments[new_index];
+					if (!IS_VALID(adorn))
+						break;
+				}
+
+				if (new_index < 0)
+				{
+					send_to_char("You cannot add any more adornments.\n\r", ch);
+					return false;
+				}
+
+				argument = one_argument(argument, arg);
+
+				int type;
+				if ((type = stat_lookup(arg, adornment_types, NO_FLAG)) == NO_FLAG)
+				{
+					send_to_char("Invalid adornment type.  Use '? adornments' for valid list.\n\r", ch);
+					show_flag_cmds(ch, adornment_types);
+					return false;
+				}
+
+
+				argument = one_argument(argument, arg);
+				SKILL_DATA *skill;
+				if (IS_NULLSTR(arg))
+				{
+					send_to_char("Please specify a spell name.\n\r", ch);
+					return false;
+				}
+				else
+				{
+					skill = get_skill_data(arg);
+					if (!IS_VALID(skill) || !is_skill_spell(skill))
+					{
+						send_to_char("That's not a spell.\n\r", ch);
+						return false;
+					}
+
+					if (!olc_can_equip_spell(skill))
+					{
+						send_to_char("That spell cannot be equipped.\n\r", ch);
+						return false;
+					}
+				}
+
+				int level;
+				if (!is_number(argument) || (level = atoi(argument)) < 1 || level > get_trust(ch))
+				{
+					send_to_char(formatf("Level range is 1-%d.\n\r", get_trust(ch)), ch);
+					return false;
+				}
+
+				// Spells must be unique on adornments on the armor
+				for(int i = ARMOR(pObj)->max_adornments; i-- > 0;)
+				{
+					ADORNMENT_DATA *adorn = ARMOR(pObj)->adornments[i];
+					if (IS_VALID(adorn) && adorn->spell != NULL)
+					{
+						if (adorn->spell->skill == skill)
+						{
+							send_to_char("Already have an adornment with that spell.\n\r", ch);
+							return false;
+						}
+					}
+				}
+
+				ADORNMENT_DATA *adornment = new_adornment_data();
+
+				SPELL_DATA *spell = new_spell();
+				spell->skill	= skill;
+				spell->level	= level;
+				spell->repop	= 100;
+				spell->next		= NULL;
+
+				adornment->spell = spell;
+
+				ARMOR(pObj)->adornments[new_index] = adornment;
+
+				send_to_char("Adornment added.\n\r", ch);
+				return true;
+			}
+			
+			if (!str_prefix(arg, "remove"))
+			{
+				int index;
+				if (!is_number(argument) || (index = atoi(argument)) < 1 || index > ARMOR(pObj)->max_adornments)
+				{
+					send_to_char(formatf("Please provide a number from 1 to %d.\n\r", ARMOR(pObj)->max_adornments), ch);
+					return false;
+				}
+				ADORNMENT_DATA *adorn = ARMOR(pObj)->adornments[index - 1];
+				if (!IS_VALID(adorn))
+				{
+					send_to_char("No adornment at that slot.\n\r", ch);
+					return false;
+				}
+
+				free_adornment_data(adorn);
+				ARMOR(pObj)->adornments[index - 1] = NULL;
+				send_to_char(formatf("ARMOR Adornment #%d removed.\n\r", index), ch);
+				return true;
+			}
+			
+			if (!str_prefix(arg, "clear"))
+			{
+				for(int i = ARMOR(pObj)->max_adornments; i-- > 0; )
+				{
+					free_adornment_data(ARMOR(pObj)->adornments[i]);
+					ARMOR(pObj)->adornments[i] = NULL;
+				}
+
+				send_to_char("ARMOR Adornments cleared.\n\r", ch);
+				return true;
+			}
+
+			int index;
+			if (!is_number(arg) || (index = atoi(arg)) < 1 || index > ARMOR(pObj)->max_adornments)
+			{
+				send_to_char(formatf("Please provide an index from 1 to %d.\n\r", ARMOR(pObj)->max_adornments), ch);
+				return false;
+			}
+
+			ADORNMENT_DATA *adornment = ARMOR(pObj)->adornments[index - 1];
+			if (!IS_VALID(adornment))
+			{
+				send_to_char("No such adornment at that slot.\n\r", ch);
+				return false;
+			}
+
+			argument = one_argument(argument, arg);
+
+			if (!str_prefix(arg, "name"))
+			{
+				if (argument[0] == '\0')
+				{
+					send_to_char("Please provide a name.\n\r", ch);
+					return false;
+				}
+
+				smash_tilde(argument);
+				free_string(adornment->name);
+				adornment->name = str_dup(argument);
+				send_to_char("ARMOR Adornment Name changed.\n\r", ch);
+				return true;
+			}
+
+			if (!str_prefix(arg, "short"))
+			{
+				if (argument[0] == '\0')
+				{
+					send_to_char("Please provide a short descriptiong.\n\r", ch);
+					return false;
+				}
+
+				smash_tilde(argument);
+				free_string(adornment->short_descr);
+				adornment->short_descr = str_dup(argument);
+				send_to_char("ARMOR Adornment Short Description changed.\n\r", ch);
+				return true;
+			}
+
+			if (!str_prefix(arg, "description"))
+			{
+				if (argument[0] == '\0')
+				{
+					string_append(ch, &adornment->description);
+					return true;
+				}
+
+				send_to_char(formatf("Syntax:  adornment %d description\n\r", index), ch);
+				return false;
+			}
+
+			if (!str_prefix(arg, "spell"))
+			{
+				SKILL_DATA *skill;
+				if (IS_NULLSTR(argument))
+				{
+					send_to_char("Please specify a spell name.\n\r", ch);
+					return false;
+				}
+				else
+				{
+					skill = get_skill_data(argument);
+					if (!IS_VALID(skill) || !is_skill_spell(skill))
+					{
+						send_to_char("That's not a spell.\n\r", ch);
+						return false;
+					}
+
+					if (!olc_can_equip_spell(skill))
+					{
+						send_to_char("That spell cannot be equipped.\n\r", ch);
+						return false;
+					}
+				}
+
+				for(int i = ARMOR(pObj)->max_adornments; i-- > 0; )
+				{
+					ADORNMENT_DATA *adorn = ARMOR(pObj)->adornments[i];
+
+					if (IS_VALID(adorn) && adornment != adorn && adorn->spell != NULL)
+					{
+						if (adorn->spell->skill == skill)
+						{
+							send_to_char("Already have an adornment with that spell.\n\r", ch);
+							return false;
+						}
+					}
+				}
+
+				if (adornment->spell != NULL)
+				{
+					adornment->spell->skill = skill;
+				}
+				else
+				{
+					SPELL_DATA *spell = new_spell();
+					spell->skill	= skill;
+					spell->level	= pObj->level;
+					spell->repop	= 100;
+					spell->next		= NULL;
+
+					adornment->spell = spell;
+				}
+
+				send_to_char(formatf("ARMOR Adornment #%d Spell set.\n\r", index), ch);
+				return true;
+			}
+
+			if (!str_prefix(arg, "level"))
+			{
+				int level;
+				if (!is_number(argument) || (level = atoi(argument)) < 1 || level > get_trust(ch))
+				{
+					send_to_char(formatf("Level range is 1-%d.\n\r", get_trust(ch)), ch);
+					return false;
+				}
+
+				if (adornment->spell == NULL)
+				{
+					send_to_char("Please assign a spell first to the adornment.\n\r", ch);
+					return false;
+				}
+
+				adornment->spell->level = level;
+				send_to_char(formatf("ARMOR Adornment %d spell level set.\n\r", index), ch);
+				return true;
+			}
+
+			oedit_type_armor(ch, formatf("adornment %d", index));
+			return false;
+		}
+
+
+		if (pObj->item_type != ITEM_ARMOUR)
+		{
+			if (!str_prefix(arg, "remove"))
+			{
+				free_armor_data(ARMOR(pObj));
+				ARMOR(pObj) = NULL;
+
+				send_to_char("Armor data removed.\n\r", ch);
+				return true;
+			}
+		}
+	}
+	else
+	{
+		if (!str_prefix(arg, "add"))
+		{
+			if (!obj_index_can_add_item_type(pObj, ITEM_ARMOUR))
+			{
+				send_to_char("You cannot add this item type to this object.\n\r", ch);
+				return FALSE;
+			}
+
+			ARMOR(pObj) = new_armor_data();
+			send_to_char("ARMOR data added to object.\n\r\n\r", ch);
+			return TRUE;
+		}
+
+	}
+
+	oedit_type_armor(ch, "");
+	return false;
+}
+
+
 void __oedit_book_renumber_pages(BOOK_DATA *book)
 {
 	ITERATOR it;
@@ -12906,16 +13456,6 @@ OEDIT(oedit_type_instrument)
 
 	oedit_type_instrument(ch, "");
 	return FALSE;
-}
-
-bool olc_can_equip_spell(SKILL_DATA *skill)
-{
-	if (!is_skill_spell(skill)) return false;
-
-	if (skill->token)
-		return get_script_token(skill->token, TRIG_TOKEN_EQUIP, TRIGSLOT_SPELL) != NULL;
-	else
-		return skill->equip_fun != NULL;
 }
 
 OEDIT(oedit_type_jewelry)

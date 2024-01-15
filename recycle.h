@@ -245,6 +245,15 @@ AMMO_DATA *new_ammo_data();
 AMMO_DATA *copy_ammo_data(AMMO_DATA *src);
 void free_ammo_data(AMMO_DATA *data);
 
+// Armor
+ADORNMENT_DATA *new_adornment_data();
+ADORNMENT_DATA *copy_adornment_data(ADORNMENT_DATA *src);
+void free_adornment_data(ADORNMENT_DATA *data);
+
+ARMOR_DATA *new_armor_data();
+ARMOR_DATA *copy_armor_data(ARMOR_DATA *src);
+void free_armor_data(ARMOR_DATA *data);
+
 // Book
 BOOK_PAGE *new_book_page();
 BOOK_PAGE *copy_book_page(BOOK_PAGE *src);
