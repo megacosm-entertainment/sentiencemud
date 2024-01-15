@@ -1642,7 +1642,7 @@ void do_rstat(CHAR_DATA *ch, char *argument)
 
     sprintf(buf,
             "{YRoom flags:{x %s.\n\r{YDescription:{x\n\r%s\n\r",
-            flag_string(room_flags, location->room_flag[0]),
+            flagbank_string(room_flagbank, location->room_flag),
             location->description);
     add_buf(output, buf);
 
@@ -2955,7 +2955,7 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 
 	if (!IS_NPC(victim))
 	{
-		sprintf(buf, "{BAge:{x %d  {BPlayed:{x %d  {BTimer:{x %d  {BCreated:{B %s{x",
+		sprintf(buf, "{BAge:{x %d  {BPlayed:{x %d  {BTimer:{x %d  {BCreated:{X %s{x",
 					 get_age(victim),
 					 (int) (victim->played + current_time - victim->logon) / 3600,
 					 victim->timer,
@@ -3327,7 +3327,7 @@ void do_vnum(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-	if (!str_cmp(arg, "token"))
+	if (!str_cmp(arg, "token") || !str_cmp(arg, "tok"))
 	{
 	do_function(ch, &do_tfind, string);
 	return;
@@ -3341,8 +3341,11 @@ void do_vnum(CHAR_DATA *ch, char *argument)
     }
     */
     /* do both */
+	send_to_char("Mobiles:\n\r",ch);
     do_function(ch, &do_mfind, argument);
+	send_to_char("\n\rObjects:\n\r",ch);
     do_function(ch, &do_ofind, argument);
+	send_to_char("\n\rTokens:\n\r", ch);
 	do_function(ch, &do_tfind, argument);
 }
 
@@ -4581,6 +4584,7 @@ void do_advance(CHAR_DATA *ch, char *argument)
 	do_function(victim, &do_holywarp, "");
 	do_function(victim, &do_holyaura, "");
 	do_function(victim, &do_holypersona, "");
+	victim->prompt = str_dup("{W[{R%o{W][{g%O{W] Room: {a%R {W({a%r{W) - {X%h{W>{X%c");
 	sprintf(buf, "\n\rYou have been set to wizinvis level {W%d{x.\n\r", victim->invis_level);
 	send_to_char(buf,victim);
 	}
@@ -4865,6 +4869,7 @@ void do_notell(CHAR_DATA *ch, char *argument)
 	wiznet(buf,ch,NULL,WIZ_PENALTIES,WIZ_SECURE,0);
     }
 }
+
 
 void do_peace(CHAR_DATA *ch, char *argument)
 {
@@ -8435,8 +8440,8 @@ void do_boost(CHAR_DATA *ch, char *argument)
 
 	if (arg3[0] == '\0')
 		percent = 150;
-	else if ((percent = atoi(arg3)) < 1 || percent > 200) {
-		send_to_char("Invalid boost percent.\n\rPercent must be 1-200%.\n\r", ch);
+	else if ((percent = atoi(arg3)) < 100 || percent > 200) {
+		send_to_char("Invalid boost percent.\n\rPercent must be 100-200%%.\n\r", ch);
 		return;
 	}
 

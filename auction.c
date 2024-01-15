@@ -115,6 +115,7 @@ void do_auction( CHAR_DATA *ch, char * argument )
 	    }
 	    spell_identify( 0, ch->tot_level, ch,
 	    	(void *) auction_info.item, TARGET_OBJ, WEAR_NONE );
+		p_percent_trigger(NULL, (void *) auction_info.item, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_IDENTIFY, NULL, 0, 0, 0, 0, 0);
 	    return;
 	}
 
@@ -139,6 +140,7 @@ void do_auction( CHAR_DATA *ch, char * argument )
 	}
 
 	spell_identify( 0, ch->tot_level, ch, (void *) auction_info.item, TARGET_OBJ, WEAR_NONE );
+	p_percent_trigger(NULL, (void *) auction_info.item, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_IDENTIFY, NULL, 0, 0, 0, 0, 0);
         /* AO 010217 LAME
 	if ( ch->tot_level < obj->level - 25 && !IS_REMORT(ch))
 	{

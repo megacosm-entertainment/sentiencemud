@@ -376,6 +376,7 @@ const  struct player_setting_type    pc_set_table[] =
     {	"showdamage",	PLR_SHOWDAMAGE,	 0,		0,		false,	IM,	SETTING_OFF	},
     {	"mobile",	PLR_MOBILE,	0,	0, false,	0, SETTING_OFF },
     {	"favskills",	0,	PLR_FAVSKILLS,	0, false,	0, SETTING_OFF },
+	{	"compass",	0,	PLR_COMPASS,	0,	false,	0,	SETTING_ON},
 /*    {	"building",     PLR_BUILDING,	 0,		0,		false,  IM,	SETTING_OFF	},*/
     {	NULL,		0,		 0,		0,		false,	0,	SETTING_OFF	}
 };
@@ -2087,15 +2088,6 @@ const   struct  sub_class_type  __sub_class_table [] =
 	CLASS_THIEF, 	"sage skills",
 	ALIGN_NONE,	true,
 	{CLASS_THIEF_BARD, CLASS_THIEF_ROGUE		},
-	{0,	0,	0,	0,	0		}
-    },
-
-    {
-	{NULL, NULL, NULL},
-	{NULL, NULL, NULL},
-	CLASS_NONE, 	NULL,
-	ALIGN_NONE,	false,
-	{-1, -1},
 	{0,	0,	0,	0,	0		}
     },
 };

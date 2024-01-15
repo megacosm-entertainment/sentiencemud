@@ -861,6 +861,11 @@ void do_chgohall(CHAR_DATA *ch, char *argument)
 	return;
     }
 
+	if (IS_DEAD(ch))
+	{
+		send_to_char("You can't gohall while dead.\n\r", ch);
+		return;
+	}
     if (ch->position == POS_SLEEPING)
     {
         send_to_char("Wake up first!\n\r", ch);

@@ -953,7 +953,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 						!can_get_obj(ch, obj, container, NULL, true))
 						continue;
 
-					if (ch->carry_number + get_obj_number(obj) == can_carry_n(ch)) {
+					if (ch->carry_number + get_obj_number(obj) > can_carry_n(ch)) {
 						if (i > 0 && match_obj != NULL) {
 							sprintf(buf, "{Y({G%2d{Y) {x$n gets $p from $P.", i);
 							act(buf, ch, NULL, NULL, match_obj, container, NULL, NULL, TO_ROOM);
@@ -1044,6 +1044,11 @@ void do_get(CHAR_DATA *ch, char *argument)
 
 					church_announce_theft(ch, NULL);
 				}
+			}
+			if (!gotten)
+			{
+				sprintf(buf, "You were unable to take anything from %s.\n\r", container->short_descr);
+				send_to_char(buf, ch);
 			}
 	}
 }

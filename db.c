@@ -6844,13 +6844,13 @@ void persist_save_scriptdata(FILE *fp, PROG_DATA *prog)
 {
 	pVARIABLE var;
 
-	log_stringf("%s: Saving variables...", __FUNCTION__);
+//	log_stringf("%s: Saving variables...", __FUNCTION__);
 	for( var = prog->vars; var; var = var->next) {
-		log_stringf("%s: Variable %s%s", __FUNCTION__, var->name, (var->save ? " - Saving...":""));
+//		log_stringf("%s: Variable %s%s", __FUNCTION__, var->name, (var->save ? " - Saving...":""));
 		if(var->save)
 			variable_fwrite( var, fp );
 	}
-	log_stringf("%s: Saving variables... Done.", __FUNCTION__);
+//	log_stringf("%s: Saving variables... Done.", __FUNCTION__);
 }
 
 void persist_save_location(FILE *fp, LOCATION *loc, char *prefix)
@@ -6892,7 +6892,7 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 	if (multiple && obj->next_content)
 		persist_save_object(fp, obj->next_content, multiple);
 
-	log_stringf("persist_save: saving object %08lX:%08lX.", obj->id[0], obj->id[1]);
+//	log_stringf("persist_save: saving object %08lX:%08lX.", obj->id[0], obj->id[1]);
 
 	// Save all object information, including persistance (in case it is saved elsewhere)
 	fprintf(fp, "#OBJECT %s\n", widevnum_string_object(obj->pIndexData, NULL));
@@ -7548,7 +7548,7 @@ void persist_save(void)
 	register ROOM_INDEX_DATA *room;
 	ITERATOR it;
 
-	log_stringf("persist_save: Saving persistance...");
+//	log_stringf("persist_save: Saving persistance...");
 
 	if (!(fp = fopen(PERSIST_FILE, "w"))) {
 		bug("persist.save: Couldn't open file.",0);
@@ -7556,7 +7556,7 @@ void persist_save(void)
 		// Save objects
 		iterator_start(&it, persist_objs);
 		while(( obj = (OBJ_DATA *)iterator_nextdata(&it) )) {
-			log_stringf("persist_save: checking to save persistant object %08lX:%08lX.", obj->id[0], obj->id[1]);
+//			log_stringf("persist_save: checking to save persistant object %08lX:%08lX.", obj->id[0], obj->id[1]);
 			if( !check_persist_environment( NULL, obj, NULL) ) {
 				persist_save_object(fp, obj, false);
 			}
@@ -7584,7 +7584,7 @@ void persist_save(void)
 		fclose(fp);
 	}
 
-	log_stringf("persist_save: done.");
+//	log_stringf("persist_save: done.");
 }
 
 void persist_fix_environment_room(ROOM_INDEX_DATA *clone)

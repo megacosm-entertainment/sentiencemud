@@ -97,6 +97,8 @@ const	int16_t	movement_loss	[SECT_MAX]	=
 	50,		/* SECT_UNDERWATER */
 	50,		/* SECT_DEEP_UNDERWATER */
 	4,		/* SECT_JUNGLE */
+	1,		/* SECT_PAVED_ROAD */
+	1,		/* SECT_DIRT_ROAD */
 };
 
 int get_player_classnth(CHAR_DATA *ch)
@@ -1902,13 +1904,13 @@ void do_lock(CHAR_DATA *ch, char *argument)
 
 			if (context.is_default)
 			{
-				act("You lock $p.",ch, NULL, NULL,obj, NULL, NULL, NULL,TO_CHAR);
-				act("$n locks $p.",ch, NULL, NULL,obj, NULL, NULL, NULL,TO_ROOM);
+				act("You lock $p with $P.",ch, NULL, NULL,obj, key, NULL, NULL,TO_CHAR);
+				act("$n locks $p with $P.",ch, NULL, NULL,obj, key, NULL, NULL,TO_ROOM);
 			}
 			else
 			{
-				act("You lock $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_CHAR);
-				act("$n locks $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_ROOM);
+				act("You lock $t on $p with $P.",ch, NULL, NULL,obj, key, context.label, NULL,TO_CHAR);
+				act("$n locks $t on $p with $P.",ch, NULL, NULL,obj, key, context.label, NULL,TO_ROOM);
 			}
 
 			SET_BIT(PORTAL(obj)->lock->flags,LOCK_LOCKED);
@@ -1987,13 +1989,13 @@ void do_lock(CHAR_DATA *ch, char *argument)
 
 		if (context.is_default)
 		{
-			act("You lock $p.",ch, NULL, NULL,obj, NULL, NULL, NULL,TO_CHAR);
-			act("$n locks $p.",ch, NULL, NULL,obj, NULL, NULL, NULL, TO_ROOM);
+			act("You lock $p with $P.",ch, NULL, NULL,obj, key, NULL, NULL,TO_CHAR);
+			act("$n locks $p with $P.",ch, NULL, NULL,obj, key, NULL, NULL, TO_ROOM);
 		}
 		else
 		{
-			act("You lock $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_CHAR);
-			act("$n locks $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL, TO_ROOM);
+			act("You lock $t on $p with $P.",ch, NULL, NULL,obj, key, context.label, NULL,TO_CHAR);
+			act("$n locks $t on $p with $P.",ch, NULL, NULL,obj, key, context.label, NULL, TO_ROOM);
 		}
 
 		SET_BIT((*context.lock)->flags, LOCK_LOCKED);
@@ -2063,8 +2065,8 @@ void do_lock(CHAR_DATA *ch, char *argument)
 		SET_BIT(pexit->door.lock.flags, LOCK_LOCKED);
 		/* send_to_char("*Click*\n\r", ch); */
 		exit_name(ch->in_room, door, exit);
-		act("You lock $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_CHAR);
-		act("$n locks $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_ROOM);
+		act("You lock $T with $p.", ch, NULL, NULL, key, NULL, NULL, exit, TO_CHAR);
+		act("$n locks $T with $p.", ch, NULL, NULL, key, NULL, NULL, exit, TO_ROOM);
 
 		/* lock the other side */
 		if ((to_room   = pexit->u1.to_room) != NULL &&
@@ -2191,13 +2193,13 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 
 			if (context.is_default)
 			{
-				act("You unlock $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-				act("$n unlocks $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
+				act("You unlock $p with $P.",ch, NULL, NULL,obj, key, NULL,NULL,TO_CHAR);
+				act("$n unlocks $p with $P.",ch, NULL, NULL,obj, key, NULL,NULL,TO_ROOM);
 			}
 			else
 			{
-				act("You unlock $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_CHAR);
-				act("$n unlocks $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_ROOM);
+				act("You unlock $t on $p with $P.",ch, NULL, NULL,obj, key, context.label, NULL,TO_CHAR);
+				act("$n unlocks $t on $p with $P.",ch, NULL, NULL,obj, key, context.label, NULL,TO_ROOM);
 			}
 
 			REMOVE_BIT(PORTAL(obj)->lock->flags,LOCK_LOCKED);
@@ -2274,13 +2276,13 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 
 		if (context.is_default)
 		{
-			act("You unlock $p.",ch, NULL, NULL,obj, NULL, NULL, NULL,TO_CHAR);
-			act("$n unlocks $p.",ch, NULL, NULL,obj, NULL, NULL, NULL, TO_ROOM);
+			act("You unlock $p with $P.",ch, NULL, NULL,obj, key, NULL, NULL,TO_CHAR);
+			act("$n unlocks $p with $P.",ch, NULL, NULL,obj, key, NULL, NULL, TO_ROOM);
 		}
 		else
 		{
-			act("You unlock $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_CHAR);
-			act("$n unlocks $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL, TO_ROOM);
+			act("You unlock $t on $p with $P.",ch, NULL, NULL,obj, key, context.label, NULL,TO_CHAR);
+			act("$n unlocks $t on $p with $P.",ch, NULL, NULL,obj, key, context.label, NULL, TO_ROOM);
 		}
 
 		REMOVE_BIT((*context.lock)->flags,LOCK_LOCKED);

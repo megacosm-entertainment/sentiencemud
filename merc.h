@@ -229,7 +229,7 @@ struct sound_type {
  */
 #define	MAX_KEY_HASH		 9204
 #define MAX_STRING_LENGTH	 4608
-#define MAX_INPUT_LENGTH	 256
+#define MAX_INPUT_LENGTH	 512
 #define PAGELEN			 22
 
 #define MSL MAX_STRING_LENGTH
@@ -1159,7 +1159,7 @@ struct olc_point_area_data {
 #define MAX_WILDERNESS_EXITS	100000
 #define MAX_WORDS		45424
 #define SILVER_PER_KG		500
-#define MINS_PER_DEATH		8
+#define MINS_PER_DEATH		4
 #define PORT_NORMAL	        9000
 #define PORT_TEST		9999
 #define PORT_RAE	        7777
@@ -3525,7 +3525,9 @@ enum {
 #define SECT_UNDERWATER		23
 #define SECT_DEEP_UNDERWATER	24
 #define SECT_JUNGLE		25
-#define SECT_MAX		26
+#define SECT_PAVED_ROAD 26
+#define SECT_DIRT_ROAD  27
+#define SECT_MAX		28
 
 
 #define WEAR_PARAM_SEEN		0
@@ -3666,6 +3668,7 @@ enum {
 #define PLR_NORECKONING		(H)
 #define PLR_NOLORE			(I)
 #define PLR_HOLYPERSONA     (J)
+#define PLR_COMPASS         (K)
 
 #define COMM_QUIET              (A)
 #define COMM_NOMUSIC           	(B)
