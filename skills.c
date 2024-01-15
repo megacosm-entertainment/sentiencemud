@@ -2248,7 +2248,7 @@ void do_convert(CHAR_DATA *ch, char *argument)
     send_to_char("Syntax:  convert <practices|trains>\n\r", ch);
 }
 
-void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool show_spells, bool hide_learned)
+void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool show_spells, bool hide_learned, bool show_learn_amount)
 {
 	BUFFER *buffer;
 
@@ -2258,7 +2258,7 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
 	char arg[MSL];
 	int i;
 	char color, *name;
-	int skill, rating, mod, level, mana;
+	int skill, rating, mod, level, mana, learn;
 	SKILL_ENTRY *entry;
 
 	if (ch == NULL) {
@@ -2338,6 +2338,7 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
 			level = skill_entry_level(ch, entry);	// Negate level implies they do not know it yet.
 			name = skill_entry_name(entry);
 			mana = skill_entry_mana(ch, entry);
+			learn - skill_entry_learn(ch, entry);
 
 			if( skill < 1 ) continue;
 

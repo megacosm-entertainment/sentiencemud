@@ -44,12 +44,13 @@
 
 const struct hint_type hintsTable[] =
 {
-    {"The map shows you a small map of the surrounding area. To turn it off type 'map'.\n\r"},
+    {"The map shows you a small map of the surrounding area. To turn it off type 'toggle map'.\n\r"},
     {"Players with an {W[H]{M by their name are designated helpers. Feel free to ask them for help or advice.\n\r"},
     {"If you need any help try asking over the 'helper' channel to page a helper or immortal.\n\r"},
     {"If you are lost you can type 'recall' at any time to return to a familiar place.\n\r"},
     {"You can recover mana or hit points by sleeping or resting. To do this, type 'sleep' or 'rest'. Type 'wake' or 'stand' once you have finished.\n\r"},
     {"You can type \"hints\" at any time to remove these messages.\n\r"},
+    {"There is a guide available for new players at https://playerguide.sentiencemud.net.\n\r"},
     {"When you feel able, the mayor in Olaria offers quests. Quests give\n\ryour money, experience, pracs and quest points that can be used to buy magical\n\requipment.\n\r"},
     {"You can turn off channels by typing the name of the channel without anything\n\rafter. You can find the names of all channels by typing 'channels'.\n\r"},
     {"Type 'help auction' for information on how to use the auction channel.\n\r"},
@@ -681,6 +682,7 @@ const struct flag_type plr2_flags[] =
     {	"mobile",		PLR_MOBILE,		false	},
     {	"favskills",	PLR_FAVSKILLS,	false	},
     {   "holywarp",     PLR_HOLYWARP,   false   },
+    {   "compass",      PLR_COMPASS,    false   },
     {   "no_reckoning",     PLR_NORECKONING,   false   },
     {   "no_lore",     PLR_NOLORE,   false   },
     {	"holypersona",		PLR_HOLYPERSONA,		false	},
@@ -1269,6 +1271,8 @@ const struct flag_type sector_flags[] =
     {	"underwater",		SECT_UNDERWATER,	true	},
     {	"deep_underwater",	SECT_DEEP_UNDERWATER,	true	},
     {	"jungle",		SECT_JUNGLE,		true	},
+    {   "dirt_road",    SECT_DIRT_ROAD,     true    },
+    {   "paved_road",   SECT_PAVED_ROAD,    true    },
     {	NULL,			0,			0	}
 };
 

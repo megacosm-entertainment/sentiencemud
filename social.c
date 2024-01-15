@@ -209,6 +209,7 @@ void do_chat_enter(CHAR_DATA *ch, char *argument)
 
     char_from_room(ch);
     char_to_room(ch, room_index_chat);
+    act("{W$n has entered chat.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
     SET_BIT(ch->comm, COMM_SOCIAL);
 }
@@ -242,13 +243,15 @@ void do_chat_exit(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    act("{WA ghostly spirit appears before $n and pulls $m to another dimension.{x",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-    act("{WA ghostly spirit appears before you and pulls you to another dimension.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    act("{W$n has left chat.{x",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act("{WYou exit chat.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
     REMOVE_BIT(ch->comm, COMM_SOCIAL);
 
     char_from_room(ch);
     char_to_room(ch, room);
+
+    act("{W$n fades in from another dimension.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 }
 
 
@@ -294,7 +297,7 @@ void do_chat_list(CHAR_DATA *ch, char *argument)
 		chat->created_by,
 		buf2);
 	send_to_char(buf, ch) ;
-	sprintf(buf, "    Topic: %s\n\r", chat->topic);
+	sprintf(buf, "    Topic: %s{x\n\r", chat->topic);
 	send_to_char(buf, ch);
     }
 
@@ -559,8 +562,11 @@ void do_chat_topic(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (strlen(argument) > 150)
-	argument[150] = '\0';
+    if (strlen_no_colours(argument) > 150)
+	{
+        send_to_char("Chat topic must be under 150 characters.\n\r", ch);
+        return;
+    }
 
     smash_tilde(argument);
 
@@ -569,11 +575,9 @@ void do_chat_topic(CHAR_DATA *ch, char *argument)
 
     chat->topic = str_dup(argument);
 
-    strcat(chat->topic, "{x");
-
-    sprintf(buf, "Topic changed to \"%s\".\n\r", argument);
+    sprintf(buf, "Topic changed to \"%s{x\".\n\r", argument);
     send_to_char(buf, ch);
-    sprintf(buf, "$n has changed the topic to \"%s\".", argument);
+    sprintf(buf, "$n has changed the topic to \"%s{x\".", argument);
     act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
     write_chat_rooms();

@@ -300,7 +300,8 @@ void string_add(CHAR_DATA *ch, char *argument)
             send_to_char("                          (requires '', \"\") \n\r", ch);
             send_to_char("{M.h{X               - get help (this info)\n\r", ch);
             send_to_char("{M.s{X               - show string so far  \n\r", ch);
-            send_to_char("{M.f{X               - (word wrap) string  \n\r", ch);
+            send_to_char("{M.f{X               - format (word wrap) string  \n\r", ch);
+			send_to_char("{M.fp{X              - format string, leaving blank lines \n\r", ch);
             send_to_char("{M.c{X               - clear string so far \n\r", ch);
             send_to_char("{M.ld <num>{X    - delete line <num>\n\r", ch);
             send_to_char("{M.li <num> <str>{X- insert <str> before line <num>\n\r", ch);
