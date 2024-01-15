@@ -66,7 +66,7 @@ void do_showversion(CHAR_DATA *ch, char *argument)
 //	build_date = (time_t) &__BUILD_DATE;
 //	builddate = &__BUILD_DATE)
 //	sprintf(buf,"Build Date: %u\n\r",&build_date);
-	sprintf(buf,"Build Number: %s (\t<a href=\"%s\">%s\t</a>)\n\rCommit URL: %s\n\rBuild Date: %s\n\r", BUILD_NUMBER, COMMIT, VERSION, COMMIT, BUILD_DATE);
+	sprintf(buf,"Build Number: %s (%s)\n\rCommit URL: \t<a href=\"%s\">%s\t</a>\n\rBuild Date: %s\n\r", BUILD_NUMBER, VERSION, COMMIT, COMMIT, BUILD_DATE);
 	send_to_char(buf,ch);
 
 }
