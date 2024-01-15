@@ -20,6 +20,7 @@
 
 extern void persist_save(void);
 extern void readycheck_update(CHAR_DATA *ch);
+extern char *get_affect_name(AFFECT_DATA *paf);
 
 // Global variables
 int save_number = 0;

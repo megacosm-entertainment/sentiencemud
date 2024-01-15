@@ -1,5 +1,5 @@
-#BUILD_NUMBER_LFLAGS  = -Xlinker --defsym -Xlinker __BUILD_DATE="$$(sh date.sh)"
-#BUILD_NUMBER_LFLAGS += -Xlinker --defsym -Xlinker __BUILD_NUMBER=$$(cat $(BUILD_NUMBER_FILE))
+BUILD_NUMBER_LFLAGS  = -Xlinker --defsym -Xlinker __BUILD_DATE="$$(sh date.sh)"
+BUILD_NUMBER_LFLAGS += -Xlinker --defsym -Xlinker __BUILD_NUMBER=$$(cat $(BUILD_NUMBER_FILE))
 
 # Build number file.  Increment if any object file changes.
 $(BUILD_NUMBER_FILE): $(O_FILES)

@@ -64,7 +64,7 @@
 int version_skills = VERSION_SKILLS_000;
 int version_class = VERSION_CLASS_000;
 
-void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool show_spells, bool hide_learned);
+void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool show_spells, bool hide_learned, bool show_learn_amount);
 bool is_racial_skill(RACE_DATA *race, SKILL_DATA *skill);
 bool reputation_has_paragon(REPUTATION_INDEX_DATA *repIndex);
 void show_flag_cmds(CHAR_DATA *ch, const struct flag_type *flag_table);
@@ -2338,7 +2338,7 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
 			level = skill_entry_level(ch, entry);	// Negate level implies they do not know it yet.
 			name = skill_entry_name(entry);
 			mana = skill_entry_mana(ch, entry);
-			learn - skill_entry_learn(ch, entry);
+			learn = skill_entry_learn(ch, entry);
 
 			if( skill < 1 ) continue;
 
@@ -2369,7 +2369,12 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
 							else
 								sprintf(buf, " %3d     %-8s %-26s    {MMaster", i, min_mana, eff_name);
 						} else if( mod )
-							sprintf(buf, " %3d     %-8s %-26s    {G%d%% {W(%+d%%)", i, min_mana, eff_name, rating, mod);
+							if ( show_learn_amount )
+								sprintf(buf, " %3d     %-8s %-26s    {G%d%% {W(%+d%%) {C- Gain %d%% per prac{X", i, min_mana, eff_name, rating, mod, learn);
+							else
+								sprintf(buf, " %3d     %-8s %-26s    {G%d%% {W(%+d%%)", i, min_mana, eff_name, rating, mod);
+						else if ( show_learn_amount )
+							sprintf(buf, " %3d     %-8s %-26s    {G%d%% {C- Gain %d%% per prac{X", i, min_mana,  eff_name, rating, learn);
 						else
 							sprintf(buf, " %3d     %-8s %-26s    {G%d%%", i, min_mana,  eff_name, rating);
 					}
@@ -2386,7 +2391,12 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
 							else
 								sprintf(buf, " %3d     %-26s    {MMaster", i, eff_name);
 						} else if( mod )
-							sprintf(buf, " %3d     %-26s    {G%d%% {W(%+d%%)", i, eff_name, rating, mod);
+							if (show_learn_amount )
+								sprintf(buf, " %3d     %-26s    {G%d%% {W(%+d%%) {C- Gain %d%% per prac{X", i, eff_name, rating, mod, learn);
+							else
+								sprintf(buf, " %3d     %-26s    {G%d%% {W(%+d%%)", i, eff_name, rating, mod);
+						else if ( show_learn_amount )
+							sprintf(buf, " %3d     %-26s    {G%d%% {C- Gain %d%% per prac{X", i, eff_name, rating, learn);
 						else
 							sprintf(buf, " %3d     %-26s    {G%d%%", i, eff_name, rating);
 					}
@@ -2426,13 +2436,13 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
 
 void do_spells(CHAR_DATA *ch, char *argument)
 {
-	list_skill_entries(ch, argument, false, true, false);
+	list_skill_entries(ch, argument, false, true, false, false);
 }
 
 
 void do_skills(CHAR_DATA *ch, char *argument)
 {
-	list_skill_entries(ch, argument, true, false, false);
+	list_skill_entries(ch, argument, true, false, false, false);
 }
 
 
