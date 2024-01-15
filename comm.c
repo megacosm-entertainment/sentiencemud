@@ -63,6 +63,7 @@
 /* VIZZWILDS - support for plogf() and printf_to_char() functions*/
 #include <stdarg.h>
 
+#include "strings.h"
 #include "merc.h"
 #include "interp.h"
 #include "recycle.h"
@@ -1491,7 +1492,7 @@ void read_from_buffer(DESCRIPTOR_DATA *d)
 
 	if (d->inbuf[i] == '\b' && k > 0)
 	    --k;
-	else if (isascii(d->inbuf[i]) && isprint(d->inbuf[i]))
+	else if (ISASCII(d->inbuf[i]) && ISPRINT(d->inbuf[i]))
 	    d->incomm[k++] = d->inbuf[i];
         else if (d->inbuf[i] == (signed char)IAC) {
             if (!memcmp(&d->inbuf[i], compress_do, strlen(compress_do))) {
@@ -2168,7 +2169,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
     char strsave[MAX_INPUT_LENGTH];
     FILE *fp;
 
-	while (isspace(*argument))
+	while (ISSPACE(*argument))
 		argument++;
 
 	ch = d->character;
@@ -3446,10 +3447,10 @@ bool check_parse_name(char *name)
 	fIll = TRUE;
 	for (pc = name; *pc != '\0'; pc++)
 	{
-	    if (!isalpha(*pc))
+	    if (!ISALPHA(*pc))
 		return FALSE;
 
-	    if (isupper(*pc)) /* ugly anti-caps hack */
+	    if (ISUPPER(*pc)) /* ugly anti-caps hack */
 	    {
 		if (adjcaps)
 		    cleancaps = TRUE;
@@ -3785,7 +3786,7 @@ void send_to_char(const char *txt, CHAR_DATA *ch)
 					continue;
 			    }
 
-			    if( capitalize && isalpha(*point) )
+			    if( capitalize && ISALPHA(*point) )
 				{
 			    	*point2 = UPPER(*point);	// Make uppercase
 			    	capitalize = FALSE;
@@ -3849,7 +3850,7 @@ void send_to_char(const char *txt, CHAR_DATA *ch)
 
 					continue;
 				}
-			    if( capitalize && isalpha(*point) )
+			    if( capitalize && ISALPHA(*point) )
 				{
 			    	*point2 = UPPER(*point);	// Make uppercase
 			    	capitalize = FALSE;
@@ -3970,7 +3971,7 @@ void page_to_char(const char *txt, CHAR_DATA *ch)
 					}
 					continue;
 				}
-			    if( capitalize && isalpha(*point) )
+			    if( capitalize && ISALPHA(*point) )
 				{
 			    	*point2 = UPPER(*point);	// Make uppercase
 			    	capitalize = FALSE;
@@ -4000,7 +4001,7 @@ void page_to_char(const char *txt, CHAR_DATA *ch)
 						capitalize = TRUE;
 					continue;
 				}
-			    if( capitalize && isalpha(*point) )
+			    if( capitalize && ISALPHA(*point) )
 				{
 			    	*point2 = UPPER(*point);	// Make uppercase
 			    	capitalize = FALSE;
@@ -4061,7 +4062,7 @@ void show_string(struct descriptor_data *d, char *input)
 		{
 			*scan = '\0';
 			write_to_buffer(d,buffer,strlen(buffer));
-			for (chk = d->showstr_point; *chk && isspace(*chk); chk++);
+			for (chk = d->showstr_point; *chk && ISSPACE(*chk); chk++);
 
 			if (!*chk)
 			{
@@ -4407,7 +4408,7 @@ void colourconv(char *buffer, const char *txt, CHAR_DATA *ch)
 			}
 
 			// Not a color code
-			if( capitalize && isalpha(*point) )
+			if( capitalize && ISALPHA(*point) )
 			{
 				*buffer = UPPER(*point);
 				capitalize = FALSE;
@@ -4470,7 +4471,7 @@ void colourconv(char *buffer, const char *txt, CHAR_DATA *ch)
 
 				continue;
 			}
-			if( capitalize && isalpha(*point) ) {
+			if( capitalize && ISALPHA(*point) ) {
 				*buffer = UPPER(*point);
 				capitalize = FALSE;
 			}
@@ -4588,7 +4589,7 @@ void room_echo(ROOM_INDEX_DATA *pRoom, char *message)
 void echo_around(ROOM_INDEX_DATA *pRoom, char *message)
 {
     EXIT_DATA *pexit;
-    sh_int dir;
+    int16_t dir;
 
     for (dir = 0; dir < MAX_DIR; dir++)
     {

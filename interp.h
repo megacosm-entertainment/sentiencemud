@@ -60,10 +60,10 @@ struct	cmd_type
 {
     char * const	name;	   /* command name */
     DO_FUN *		do_fun;	   /* do_function */
-    sh_int		position;  /* minimum position required */
-    sh_int		level;     /* min. level required */
-    sh_int		log;       /* log when? */
-    sh_int              show;      /* show? */
+    int16_t		position;  /* minimum position required */
+    int16_t		level;     /* min. level required */
+    int16_t		log;       /* log when? */
+    int16_t              show;      /* show? */
     bool		is_ooc;		// Command is purely OOC - certain things won't break when doing these commands
 };
 

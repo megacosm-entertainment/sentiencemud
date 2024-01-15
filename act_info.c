@@ -40,6 +40,7 @@
 #include <ctype.h>
 #include <time.h>
 #include <math.h>
+#include "strings.h"
 #include "merc.h"
 #include "interp.h"
 #include "magic.h"
@@ -305,7 +306,7 @@ int show_map(CHAR_DATA * ch, char *buf, char *map, int counter, int line);
 char *get_char_where args((CHAR_DATA * ch));
 CHURCH_DATA *find_char_church(CHAR_DATA * ch);
 int find_char_position_in_church(CHAR_DATA * ch);
-void format_page(sh_int n, char *a, CHAR_DATA * wch);
+void format_page(int16_t n, char *a, CHAR_DATA * wch);
 /*
 int get_squares_to_show_x(ROOM_INDEX_DATA *pRoom, int bonus_view);
 int get_squares_to_show_y(ROOM_INDEX_DATA *pRoom, int bonus_view);
@@ -4706,7 +4707,7 @@ void do_whois(CHAR_DATA * ch, char *argument)
 		    class += 2;
 	}
 
-	while (isspace(*class))
+	while (ISSPACE(*class))
 	{
 	   class++;
 	}
@@ -4787,9 +4788,9 @@ void do_whois(CHAR_DATA * ch, char *argument)
 }
 
 
-void format_page(sh_int n, char *a, CHAR_DATA * ch)
+void format_page(int16_t n, char *a, CHAR_DATA * ch)
 {
-    sh_int counter;
+    int16_t counter;
 
     if (n - fstr_len(a) <= 0)
 	return;
@@ -5144,7 +5145,7 @@ void do_password(CHAR_DATA *ch, char *argument)
      * So we just steal all its code.  Bleagh.
      */
     pArg = arg1;
-    while (isspace(*argument))
+    while (ISSPACE(*argument))
 	argument++;
 
     cEnd = ' ';
@@ -5161,7 +5162,7 @@ void do_password(CHAR_DATA *ch, char *argument)
     *pArg = '\0';
 
     pArg = arg2;
-    while (isspace(*argument))
+    while (ISSPACE(*argument))
 	argument++;
 
     cEnd = ' ';
@@ -8773,9 +8774,9 @@ void look_portal(CHAR_DATA *ch, OBJ_DATA *portal)
 struct class_info_filter
 {
 	char name[MIL];
-	sh_int type;
-	sh_int min_level;
-	sh_int max_level;
+	int16_t type;
+	int16_t min_level;
+	int16_t max_level;
 
 
 	bool has_name;

@@ -268,7 +268,7 @@ REPUTATION_INDEX_RANK_DATA *get_reputation_rank(REPUTATION_INDEX_DATA *rep, int 
 	return (REPUTATION_INDEX_RANK_DATA *)list_nthdata(rep->ranks, ordinal);
 }
 
-REPUTATION_INDEX_RANK_DATA *get_reputation_rank_uid(REPUTATION_INDEX_DATA *rep, sh_int uid)
+REPUTATION_INDEX_RANK_DATA *get_reputation_rank_uid(REPUTATION_INDEX_DATA *rep, int16_t uid)
 {
 	if (!IS_VALID(rep) || uid < 1 || uid > rep->top_rank_uid) return NULL;
 

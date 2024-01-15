@@ -5561,7 +5561,7 @@ void do_kill(CHAR_DATA *ch, char *argument)
 void do_breathe(CHAR_DATA *ch, char *argument)
 {
 	static char *breath_names[] = { "acid", "fire", "frost", "gas", "lightning", NULL };
-	//static sh_int *breath_gsn[] = { &gsn_acid_breath, &gsn_fire_breath, &gsn_frost_breath, &gsn_gas_breath, &gsn_lightning_breath };
+	//static int16_t *breath_gsn[] = { &gsn_acid_breath, &gsn_fire_breath, &gsn_frost_breath, &gsn_gas_breath, &gsn_lightning_breath };
 	static SKILL_DATA **breath_gsk[] = { &gsk_acid_breath, &gsk_fire_breath, &gsk_frost_breath, &gsk_gas_breath, &gsk_lightning_breath };
 	static SPELL_FUN *breath_fun[] = { spell_acid_breath, spell_fire_breath, spell_frost_breath, spell_gas_breath, spell_lightning_breath };
 	char arg[MAX_INPUT_LENGTH];

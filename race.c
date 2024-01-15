@@ -73,7 +73,7 @@ RACE_DATA *get_race_data(const char *name)
 	return race;
 }
 
-RACE_DATA *get_race_uid(const sh_int uid)
+RACE_DATA *get_race_uid(const int16_t uid)
 {
 	ITERATOR it;
 	RACE_DATA *race;
@@ -468,7 +468,7 @@ bool load_races()
 
 			if (race->playable && __race_table[i].pgprn)
 			{
-				sh_int j = *(__race_table[i].pgprn);
+				int16_t j = *(__race_table[i].pgprn);
 
 				race->who = str_dup(__pc_race_table[j].who_name);
 

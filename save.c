@@ -4980,7 +4980,7 @@ WEAPON_DATA *fread_obj_weapon_data(FILE *fp)
 					int index = fread_number(fp);
 					char *name = fread_string(fp);
 					char *short_descr = fread_string(fp);
-					sh_int type = attack_lookup(fread_string(fp));
+					int16_t type = attack_lookup(fread_string(fp));
 					long flags = fread_flag(fp);
 					int number = fread_number(fp);
 					int size = fread_number(fp);
@@ -5280,7 +5280,7 @@ void fread_obj_check_version(OBJ_DATA *obj, long values[MAX_OBJVALUES])
 			if (IS_INK(obj)) free_ink_data(INK(obj));
 
 			INK(obj) = new_ink_data();
-			sh_int amounts[CATALYST_MAX];
+			int16_t amounts[CATALYST_MAX];
 
 			// Tally up how much is on each type
 			// Example:

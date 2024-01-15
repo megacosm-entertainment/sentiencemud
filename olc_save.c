@@ -2878,8 +2878,8 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 			if (!str_cmp(word, "Reputation"))
 			{
 				WNUM_LOAD wnum_load = fread_widevnum(fp, area->uid);
-				sh_int min_rank = fread_number(fp);
-				sh_int max_rank = fread_number(fp);
+				int16_t min_rank = fread_number(fp);
+				int16_t max_rank = fread_number(fp);
 				long points = fread_number(fp);
 
 				MOB_REPUTATION_DATA *new_rep = new_mob_reputation_data();
@@ -4344,7 +4344,7 @@ WEAPON_DATA *read_object_weapon_data(FILE *fp)
 					int index = fread_number(fp);
 					char *name = fread_string(fp);
 					char *short_descr = fread_string(fp);
-					sh_int type = attack_lookup(fread_string(fp));
+					int16_t type = attack_lookup(fread_string(fp));
 					long flags = fread_flag(fp);
 					int number = fread_number(fp);
 					int size = fread_number(fp);
@@ -5060,7 +5060,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 			if (IS_INK(obj)) free_ink_data(INK(obj));
 
 			INK(obj) = new_ink_data();
-			sh_int amounts[CATALYST_MAX];
+			int16_t amounts[CATALYST_MAX];
 
 			// Tally up how much is on each type
 			// Example:

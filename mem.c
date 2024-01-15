@@ -2300,7 +2300,7 @@ void free_trade_item(TRADE_ITEM *item)
     return;
 }
 
-void new_trade_item( AREA_DATA *area, sh_int type, long replenish_time, long replenish_amount,
+void new_trade_item( AREA_DATA *area, int16_t type, long replenish_time, long replenish_amount,
     long max_qty, long min_price, long max_price, long obj_vnum )
 {
     TRADE_ITEM *item;

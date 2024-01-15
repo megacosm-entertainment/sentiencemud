@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "strings.h"
 #include "merc.h"
 #include "tables.h"
 #include "olc.h"
@@ -33,7 +34,7 @@
 #include "wilds.h"
 
 extern GLOBAL_DATA         gconfig;
-/* Return TRUE if area changed, FALSE if not. */
+/* Return true if area changed, false if not. */
 AREA_DATA *get_area_data args ((long anum));
 AREA_DATA *get_area_from_uid args ((long uid));
 
@@ -2313,7 +2314,7 @@ AEDIT(aedit_file)
      */
     for (i = 0; i < length; i++)
     {
-	if (!isalnum(file[i]))
+	if (!ISALNUM(file[i]))
 	{
 	    send_to_char("Only letters and numbers are valid.\n\r", ch);
 	    return FALSE;
@@ -2971,7 +2972,7 @@ bool rp_change_exit(ROOM_INDEX_DATA *pRoom, char *argument, int door)
 
     if (!str_cmp(arg, "delete"))
     {
-	sh_int rev;
+	int16_t rev;
 
 	if (!pRoom->exit[door])
 	{
@@ -3074,7 +3075,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 		if (!room_is_clone(pRoom) && (value = flag_value(exit_flags, argument)) != NO_FLAG)
 		{
 			ROOM_INDEX_DATA *pToRoom;
-			sh_int rev;
+			int16_t rev;
 
 			if (!pRoom->exit[door])
 			{
@@ -3128,7 +3129,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 		if (!room_is_clone(pRoom) && (value = flag_value(exit_flags, argument)) != NO_FLAG)
 		{
 			ROOM_INDEX_DATA *pToRoom;
-			sh_int rev;
+			int16_t rev;
 
 			if (!pRoom->exit[door])
 			{
@@ -3180,7 +3181,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 	if (!str_cmp(command, "delete"))
 	{
 		ROOM_INDEX_DATA *pToRoom;
-		sh_int rev;
+		int16_t rev;
 		bool both = !argument[0] || !str_prefix(argument, "both");
 
 		if (!pRoom->exit[door])
@@ -3361,7 +3362,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 	{
 		ROOM_INDEX_DATA *pToRoom;
 		EXIT_DATA *pExit;
-		sh_int rev;
+		int16_t rev;
 		WNUM wnum;
 
 		if (arg[0] == '\0' || !parse_widevnum(arg, ch->in_room->area, &wnum))
@@ -6432,7 +6433,7 @@ bool set_portal_params(CHAR_DATA *ch, OBJ_INDEX_DATA *obj, int value_num, char *
 					else
 					{
 						char argsr[MIL];
-						bool mode = TRISTATE;
+						sent_bool mode = TRISTATE_UNDEF;
 
 						argument = one_argument(argument, argsr);
 
@@ -6701,7 +6702,7 @@ bool set_portal_params(CHAR_DATA *ch, OBJ_INDEX_DATA *obj, int value_num, char *
 					else
 					{
 						char argsr[MIL];
-						bool mode = TRISTATE;
+						sent_bool mode = TRISTATE_UNDEF;
 
 						argument = one_argument(argument, argsr);
 
@@ -6811,7 +6812,7 @@ bool set_portal_params(CHAR_DATA *ch, OBJ_INDEX_DATA *obj, int value_num, char *
 					else
 					{
 						char argsr[MIL];
-						bool mode = TRISTATE;
+						sent_bool mode = TRISTATE_UNDEF;
 
 						argument = one_argument(argument, argsr);
 
@@ -14150,7 +14151,7 @@ bool __oedit_type_portal_subtype(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, char *argu
 				}
 				else
 				{
-					bool mode = TRISTATE;
+					sent_bool mode = TRISTATE_UNDEF;
 
 					if (!str_prefix(arg2, "generated"))
 						mode = FALSE;
@@ -14360,7 +14361,7 @@ bool __oedit_type_portal_subtype(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, char *argu
 				}
 				else
 				{
-					return TRISTATE;
+					return TRISTATE_UNDEF;
 				}
 
 				portal->params[3] = 0;
@@ -14457,7 +14458,7 @@ bool __oedit_type_portal_subtype(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, char *argu
 				}
 				else
 				{
-					bool mode = TRISTATE;
+					sent_bool mode = TRISTATE_UNDEF;
 
 					if (!str_prefix(arg2, "generated"))
 						mode = FALSE;
@@ -14554,7 +14555,7 @@ bool __oedit_type_portal_subtype(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, char *argu
 				}
 				else
 				{
-					bool mode = TRISTATE;
+					sent_bool mode = TRISTATE_UNDEF;
 
 					if (!str_prefix(arg2, "generated"))
 						mode = FALSE;
@@ -14628,7 +14629,7 @@ bool __oedit_type_portal_subtype(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, char *argu
 			break;
 	}
 
-	return TRISTATE;
+	return TRISTATE_UNDEF;
 }
 
 OEDIT(oedit_type_portal)
@@ -15109,8 +15110,8 @@ OEDIT(oedit_type_portal)
 			}
 		}
 
-		bool ret = __oedit_type_portal_subtype(ch, pObj, argument);
-		if (ret != TRISTATE) return ret;
+		sent_bool ret = __oedit_type_portal_subtype(ch, pObj, argument);
+		if (ret != TRISTATE_UNDEF) return ret;
 	}
 	else if(!str_prefix(arg, "add"))
 	{
@@ -19473,17 +19474,17 @@ MEDIT(medit_hitdice)
 
     num = cp = argument;
 
-    while (isdigit(*cp)) ++cp;
-    while (*cp != '\0' && !isdigit(*cp))  *(cp++) = '\0';
+    while (ISDIGIT(*cp)) ++cp;
+    while (*cp != '\0' && !ISDIGIT(*cp))  *(cp++) = '\0';
 
     type = cp;
 
-    while (isdigit(*cp)) ++cp;
-    while (*cp != '\0' && !isdigit(*cp)) *(cp++) = '\0';
+    while (ISDIGIT(*cp)) ++cp;
+    while (*cp != '\0' && !ISDIGIT(*cp)) *(cp++) = '\0';
 
     bonus = cp;
 
-    while (isdigit(*cp)) ++cp;
+    while (ISDIGIT(*cp)) ++cp;
     if (*cp != '\0') *cp = '\0';
 
     if ((!is_number(num  ) || atoi(num  ) < 1)
@@ -19519,17 +19520,17 @@ MEDIT(medit_manadice)
 
     num = cp = argument;
 
-    while (isdigit(*cp)) ++cp;
-    while (*cp != '\0' && !isdigit(*cp))  *(cp++) = '\0';
+    while (ISDIGIT(*cp)) ++cp;
+    while (*cp != '\0' && !ISDIGIT(*cp))  *(cp++) = '\0';
 
     type = cp;
 
-    while (isdigit(*cp)) ++cp;
-    while (*cp != '\0' && !isdigit(*cp)) *(cp++) = '\0';
+    while (ISDIGIT(*cp)) ++cp;
+    while (*cp != '\0' && !ISDIGIT(*cp)) *(cp++) = '\0';
 
     bonus = cp;
 
-    while (isdigit(*cp)) ++cp;
+    while (ISDIGIT(*cp)) ++cp;
     if (*cp != '\0') *cp = '\0';
 
     if (!(is_number(num) && is_number(type) && is_number(bonus)))
@@ -19571,17 +19572,17 @@ MEDIT(medit_damdice)
 
     num = cp = argument;
 
-    while (isdigit(*cp)) ++cp;
-    while (*cp != '\0' && !isdigit(*cp))  *(cp++) = '\0';
+    while (ISDIGIT(*cp)) ++cp;
+    while (*cp != '\0' && !ISDIGIT(*cp))  *(cp++) = '\0';
 
     type = cp;
 
-    while (isdigit(*cp)) ++cp;
-    while (*cp != '\0' && !isdigit(*cp)) *(cp++) = '\0';
+    while (ISDIGIT(*cp)) ++cp;
+    while (*cp != '\0' && !ISDIGIT(*cp)) *(cp++) = '\0';
 
     bonus = cp;
 
-    while (isdigit(*cp)) ++cp;
+    while (ISDIGIT(*cp)) ++cp;
     if (*cp != '\0') *cp = '\0';
 
     if (!(is_number(num) && is_number(type) && is_number(bonus)))

@@ -5,6 +5,7 @@
  *                                                                         *
  **************************************************************************/
 
+#include "strings.h"
 #include "merc.h"
 #include "db.h"
 #include "recycle.h"
@@ -32,7 +33,7 @@ bool variable_validname(char *str)
 	if(!str || !*str) return FALSE;
 
 	while(*str) {
-		if(!isprint(*str) || *str == '~') return FALSE;
+		if(!ISPRINT(*str) || *str == '~') return FALSE;
 		++str;
 	}
 
@@ -412,14 +413,14 @@ pVARIABLE variable_create(ppVARIABLE list,char *name, bool index, bool clear)
 }
 
 #define varset(n,c,t,v,f) \
-bool variables_setsave_##n (ppVARIABLE list,char *name,t v, bool save) \
+bool variables_setsave_##n (ppVARIABLE list,char *name,t v, sent_bool save) \
 { \
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE); \
  \
 	if(!var) return FALSE; \
  \
 	var->type = VAR_##c; \
-	if( save != TRISTATE ) \
+	if( save != TRISTATE_UNDEF ) \
 		var->save = save; \
 	var->_.f = v; \
  \
@@ -428,7 +429,7 @@ bool variables_setsave_##n (ppVARIABLE list,char *name,t v, bool save) \
  \
 bool variables_set_##n (ppVARIABLE list,char *name,t v) \
 { \
-	return variables_setsave_##n (list, name, v, TRISTATE); \
+	return variables_setsave_##n (list, name, v, TRISTATE_UNDEF); \
 } \
 
 
@@ -478,17 +479,17 @@ varset(classlevel,CLASSLEVEL,CLASS_LEVEL *,level,level);
 
 bool variables_set_dice (ppVARIABLE list,char *name,DICE_DATA *d)
 {
-	return variables_setsave_dice (list, name, d, TRISTATE);
+	return variables_setsave_dice (list, name, d, TRISTATE_UNDEF);
 }
 
-bool variables_setsave_dice (ppVARIABLE list,char *name,DICE_DATA *d, bool save)
+bool variables_setsave_dice (ppVARIABLE list,char *name,DICE_DATA *d, sent_bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
 	if(!var) return FALSE;
 
 	var->type = VAR_DICE;
-	if( save != TRISTATE )
+	if( save != TRISTATE_UNDEF )
 		var->save = save;
 	var->_.dice.number = d->number;
 	var->_.dice.size = d->size;
@@ -498,14 +499,14 @@ bool variables_setsave_dice (ppVARIABLE list,char *name,DICE_DATA *d, bool save)
 	return TRUE;
 }
 
-bool variables_set_door (ppVARIABLE list,char *name, ROOM_INDEX_DATA *room, int door, bool save)
+bool variables_set_door (ppVARIABLE list,char *name, ROOM_INDEX_DATA *room, int door, sent_bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
 	if(!var) return FALSE;
 
 	var->type = VAR_EXIT;
-	if( save != TRISTATE )
+	if( save != TRISTATE_UNDEF )
 		var->save = save;
 	var->_.door.r = room;
 	var->_.door.door = door;
@@ -518,10 +519,10 @@ bool variables_set_exit (ppVARIABLE list,char *name, EXIT_DATA *ex)
 {
 	if( !ex || !ex->from_room) return FALSE;
 
-	return variables_set_door( list, name, ex->from_room, ex->orig_door, TRISTATE );
+	return variables_set_door( list, name, ex->from_room, ex->orig_door, TRISTATE_UNDEF );
 }
 
-bool variables_setsave_exit (ppVARIABLE list,char *name, EXIT_DATA *ex, bool save)
+bool variables_setsave_exit (ppVARIABLE list,char *name, EXIT_DATA *ex, sent_bool save)
 {
 	if( !ex || !ex->from_room) return FALSE;
 
@@ -531,17 +532,17 @@ bool variables_setsave_exit (ppVARIABLE list,char *name, EXIT_DATA *ex, bool sav
 
 bool variables_set_skill (ppVARIABLE list,char *name,SKILL_DATA *skill)
 {
-	return variables_setsave_skill( list, name, skill, TRISTATE );
+	return variables_setsave_skill( list, name, skill, TRISTATE_UNDEF );
 }
 
-bool variables_setsave_skill (ppVARIABLE list,char *name,SKILL_DATA *skill, bool save)
+bool variables_setsave_skill (ppVARIABLE list,char *name,SKILL_DATA *skill, sent_bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
 	if(!var) return FALSE;
 
 	var->type = VAR_SKILL;
-	if( save != TRISTATE )
+	if( save != TRISTATE_UNDEF )
 		var->save = save;
 	var->_.skill =  IS_VALID(skill) ? skill : NULL;
 
@@ -550,17 +551,17 @@ bool variables_setsave_skill (ppVARIABLE list,char *name,SKILL_DATA *skill, bool
 
 bool variables_set_skill_group (ppVARIABLE list,char *name,SKILL_GROUP *skill_group)
 {
-	return variables_setsave_skill_group( list, name, skill_group, TRISTATE );
+	return variables_setsave_skill_group( list, name, skill_group, TRISTATE_UNDEF );
 }
 
-bool variables_setsave_skill_group (ppVARIABLE list,char *name,SKILL_GROUP *skill_group, bool save)
+bool variables_setsave_skill_group (ppVARIABLE list,char *name,SKILL_GROUP *skill_group, sent_bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
 	if(!var) return FALSE;
 
 	var->type = VAR_SKILLGROUP;
-	if( save != TRISTATE )
+	if( save != TRISTATE_UNDEF )
 		var->save = save;
 	var->_.skill_group =  IS_VALID(skill_group) ? skill_group : NULL;
 
@@ -569,17 +570,17 @@ bool variables_setsave_skill_group (ppVARIABLE list,char *name,SKILL_GROUP *skil
 
 bool variables_set_skillinfo (ppVARIABLE list,char *name,CHAR_DATA *owner, SKILL_DATA *skill, TOKEN_DATA *token)
 {
-	return variables_setsave_skillinfo( list, name, owner, skill, token, TRISTATE );
+	return variables_setsave_skillinfo( list, name, owner, skill, token, TRISTATE_UNDEF );
 }
 
-bool variables_setsave_skillinfo (ppVARIABLE list,char *name,CHAR_DATA *owner, SKILL_DATA *skill, TOKEN_DATA *token, bool save)
+bool variables_setsave_skillinfo (ppVARIABLE list,char *name,CHAR_DATA *owner, SKILL_DATA *skill, TOKEN_DATA *token, sent_bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
 	if(!var) return FALSE;
 
 	var->type = VAR_SKILLINFO;
-	if( save != TRISTATE )
+	if( save != TRISTATE_UNDEF )
 		var->save = save;
 	var->_.sk.owner = owner;
 	var->_.sk.token = token;
@@ -590,17 +591,17 @@ bool variables_setsave_skillinfo (ppVARIABLE list,char *name,CHAR_DATA *owner, S
 
 bool variables_set_song (ppVARIABLE list,char *name,SONG_DATA *song)
 {
-	return variables_setsave_song( list, name, song, TRISTATE );
+	return variables_setsave_song( list, name, song, TRISTATE_UNDEF );
 }
 
-bool variables_setsave_song (ppVARIABLE list,char *name,SONG_DATA *song, bool save)
+bool variables_setsave_song (ppVARIABLE list,char *name,SONG_DATA *song, sent_bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
 	if(!var) return FALSE;
 
 	var->type = VAR_SONG;
-	if( save != TRISTATE )
+	if( save != TRISTATE_UNDEF )
 		var->save = save;
 	var->_.song =  song;
 
@@ -609,17 +610,17 @@ bool variables_setsave_song (ppVARIABLE list,char *name,SONG_DATA *song, bool sa
 
 bool variables_set_mission_part (ppVARIABLE list,char *name,MISSION_DATA *mission,MISSION_PART_DATA *part)
 {
-	return variables_setsave_mission_part( list, name, mission, part, TRISTATE );
+	return variables_setsave_mission_part( list, name, mission, part, TRISTATE_UNDEF );
 }
 
-bool variables_setsave_mission_part (ppVARIABLE list,char *name,MISSION_DATA *mission,MISSION_PART_DATA *part, bool save)
+bool variables_setsave_mission_part (ppVARIABLE list,char *name,MISSION_DATA *mission,MISSION_PART_DATA *part, sent_bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
 	if(!var) return FALSE;
 
 	var->type = VAR_MISSION_PART;
-	if( save != TRISTATE )
+	if( save != TRISTATE_UNDEF )
 		var->save = save;
 	var->_.mp.mission =  mission;
 	var->_.mp.part = (mission && part) ? part : NULL;
@@ -628,7 +629,7 @@ bool variables_setsave_mission_part (ppVARIABLE list,char *name,MISSION_DATA *mi
 }
 
 
-bool variables_set_mobile_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save)
+bool variables_set_mobile_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, sent_bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -642,7 +643,7 @@ bool variables_set_mobile_id (ppVARIABLE list,char *name,unsigned long a, unsign
 	return TRUE;
 }
 
-bool variables_set_object_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save)
+bool variables_set_object_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, sent_bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -656,7 +657,7 @@ bool variables_set_object_id (ppVARIABLE list,char *name,unsigned long a, unsign
 	return TRUE;
 }
 
-bool variables_set_token_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save)
+bool variables_set_token_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, sent_bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -670,7 +671,7 @@ bool variables_set_token_id (ppVARIABLE list,char *name,unsigned long a, unsigne
 	return TRUE;
 }
 
-bool variables_set_area_id (ppVARIABLE list,char *name, long aid, bool save)
+bool variables_set_area_id (ppVARIABLE list,char *name, long aid, sent_bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -683,7 +684,7 @@ bool variables_set_area_id (ppVARIABLE list,char *name, long aid, bool save)
 	return TRUE;
 }
 
-bool variables_set_area_region_id(ppVARIABLE list,char *name,long aid,long rid,bool save)
+bool variables_set_area_region_id(ppVARIABLE list,char *name,long aid,long rid,sent_bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -697,7 +698,7 @@ bool variables_set_area_region_id(ppVARIABLE list,char *name,long aid,long rid,b
 	return TRUE;
 }
 
-bool variables_set_wilds_id (ppVARIABLE list,char *name, long wid, bool save)
+bool variables_set_wilds_id (ppVARIABLE list,char *name, long wid, sent_bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -710,7 +711,7 @@ bool variables_set_wilds_id (ppVARIABLE list,char *name, long wid, bool save)
 	return TRUE;
 }
 
-bool variables_set_church_id (ppVARIABLE list,char *name, long chid, bool save)
+bool variables_set_church_id (ppVARIABLE list,char *name, long chid, sent_bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -723,7 +724,7 @@ bool variables_set_church_id (ppVARIABLE list,char *name, long chid, bool save)
 	return TRUE;
 }
 
-bool variables_set_clone_room (ppVARIABLE list,char *name, ROOM_INDEX_DATA *source,unsigned long a, unsigned long b, bool save)
+bool variables_set_clone_room (ppVARIABLE list,char *name, ROOM_INDEX_DATA *source,unsigned long a, unsigned long b, sent_bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -738,7 +739,7 @@ bool variables_set_clone_room (ppVARIABLE list,char *name, ROOM_INDEX_DATA *sour
 	return TRUE;
 }
 
-bool variables_set_wilds_room (ppVARIABLE list,char *name, unsigned long w, int x, int y, bool save)
+bool variables_set_wilds_room (ppVARIABLE list,char *name, unsigned long w, int x, int y, sent_bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -753,7 +754,7 @@ bool variables_set_wilds_room (ppVARIABLE list,char *name, unsigned long w, int 
 	return TRUE;
 }
 
-bool variables_set_clone_door (ppVARIABLE list,char *name, ROOM_INDEX_DATA *source,unsigned long a, unsigned long b, int door, bool save)
+bool variables_set_clone_door (ppVARIABLE list,char *name, ROOM_INDEX_DATA *source,unsigned long a, unsigned long b, int door, sent_bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -769,7 +770,7 @@ bool variables_set_clone_door (ppVARIABLE list,char *name, ROOM_INDEX_DATA *sour
 	return TRUE;
 }
 
-bool variables_set_wilds_door (ppVARIABLE list,char *name, unsigned long w, int x, int y, int door, bool save)
+bool variables_set_wilds_door (ppVARIABLE list,char *name, unsigned long w, int x, int y, int door, sent_bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -785,7 +786,7 @@ bool variables_set_wilds_door (ppVARIABLE list,char *name, unsigned long w, int 
 	return TRUE;
 }
 
-bool variables_set_skillinfo_id (ppVARIABLE list,char *name, unsigned long ma, unsigned long mb, unsigned long ta, unsigned long tb, SKILL_DATA *skill, bool save)
+bool variables_set_skillinfo_id (ppVARIABLE list,char *name, unsigned long ma, unsigned long mb, unsigned long ta, unsigned long tb, SKILL_DATA *skill, sent_bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -802,7 +803,7 @@ bool variables_set_skillinfo_id (ppVARIABLE list,char *name, unsigned long ma, u
 	return TRUE;
 }
 
-pVARIABLE variables_set_list (ppVARIABLE list, char *name, int type, bool save)
+pVARIABLE variables_set_list (ppVARIABLE list, char *name, int type, sent_bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -844,7 +845,7 @@ bool variables_set_connection (ppVARIABLE list, char *name, DESCRIPTOR_DATA *con
 	return TRUE;
 }
 
-bool variables_set_list_str (ppVARIABLE list, char *name, char *str, bool save)
+bool variables_set_list_str (ppVARIABLE list, char *name, char *str, sent_bool save)
 {
 	char *cpy;
 	pVARIABLE var = variable_get(*list, name);
@@ -899,7 +900,7 @@ static bool variables_append_list_uid (ppVARIABLE list, char *name, int type, un
 	return TRUE;
 }
 
-bool variables_set_list_mob (ppVARIABLE list, char *name, CHAR_DATA *mob, bool save)
+bool variables_set_list_mob (ppVARIABLE list, char *name, CHAR_DATA *mob, sent_bool save)
 {
 	LLIST_UID_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
@@ -943,7 +944,7 @@ bool variables_append_list_mob (ppVARIABLE list, char *name, CHAR_DATA *mob)
 	return TRUE;
 }
 
-bool variables_set_list_obj (ppVARIABLE list, char *name, OBJ_DATA *obj, bool save)
+bool variables_set_list_obj (ppVARIABLE list, char *name, OBJ_DATA *obj, sent_bool save)
 {
 	LLIST_UID_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
@@ -987,7 +988,7 @@ bool variables_append_list_obj (ppVARIABLE list, char *name, OBJ_DATA *obj)
 	return TRUE;
 }
 
-bool variables_set_list_token (ppVARIABLE list, char *name, TOKEN_DATA *token, bool save)
+bool variables_set_list_token (ppVARIABLE list, char *name, TOKEN_DATA *token, sent_bool save)
 {
 	LLIST_UID_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
@@ -1031,7 +1032,7 @@ bool variables_append_list_token (ppVARIABLE list, char *name, TOKEN_DATA *token
 	return TRUE;
 }
 
-bool variables_set_list_area (ppVARIABLE list, char *name, AREA_DATA *area, bool save)
+bool variables_set_list_area (ppVARIABLE list, char *name, AREA_DATA *area, sent_bool save)
 {
 	LLIST_AREA_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
@@ -1073,7 +1074,7 @@ bool variables_append_list_area (ppVARIABLE list, char *name, AREA_DATA *area)
 	return TRUE;
 }
 
-bool variables_set_list_area_region (ppVARIABLE list, char *name, AREA_REGION *aregion, bool save)
+bool variables_set_list_area_region (ppVARIABLE list, char *name, AREA_REGION *aregion, sent_bool save)
 {
 	LLIST_AREA_REGION_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
@@ -1117,7 +1118,7 @@ bool variables_append_list_area_region (ppVARIABLE list, char *name, AREA_REGION
 	return TRUE;
 }
 
-bool variables_set_list_wilds (ppVARIABLE list, char *name, WILDS_DATA *wilds, bool save)
+bool variables_set_list_wilds (ppVARIABLE list, char *name, WILDS_DATA *wilds, sent_bool save)
 {
 	LLIST_WILDS_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
@@ -1159,7 +1160,7 @@ bool variables_append_list_wilds (ppVARIABLE list, char *name, WILDS_DATA *wilds
 	return TRUE;
 }
 
-bool variables_set_list_room (ppVARIABLE list, char *name, ROOM_INDEX_DATA *room, bool save)
+bool variables_set_list_room (ppVARIABLE list, char *name, ROOM_INDEX_DATA *room, sent_bool save)
 {
 	LLIST_ROOM_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
@@ -1237,7 +1238,7 @@ bool variables_append_list_room (ppVARIABLE list, char *name, ROOM_INDEX_DATA *r
 	return TRUE;
 }
 
-bool variables_set_list_connection (ppVARIABLE list, char *name, DESCRIPTOR_DATA *conn, bool save)
+bool variables_set_list_connection (ppVARIABLE list, char *name, DESCRIPTOR_DATA *conn, sent_bool save)
 {
 	pVARIABLE var = variable_get(*list, name);
 
@@ -1546,7 +1547,7 @@ bool variables_set_string(ppVARIABLE list,char *name,char *str,bool shared)
 	return TRUE;
 }
 
-bool variables_setsave_string(ppVARIABLE list,char *name,char *str,bool shared, bool save)
+bool variables_setsave_string(ppVARIABLE list,char *name,char *str,bool shared, sent_bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 

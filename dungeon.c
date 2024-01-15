@@ -4715,7 +4715,7 @@ DNGEDIT( dngedit_special )
 
 			if( !str_prefix(arg3, "level") )
 			{
-				bool mode = TRISTATE;
+				sent_bool mode = TRISTATE_UNDEF;
 
 				int levels = dungeon_index_generation_count(dng);
 
@@ -4788,7 +4788,7 @@ DNGEDIT( dngedit_special )
 		}
 		else if( !str_prefix(arg2, "add") )
 		{
-			bool mode = TRISTATE;
+			sent_bool mode = TRISTATE_UNDEF;
 			char argm[MIL];
 			argument = one_argument(argument, argm);
 			argument = one_argument(argument, arg3);
@@ -5159,8 +5159,8 @@ DNGEDIT( dngedit_special )
 			// special exit add static <from-level> <from-exit> <to-level> <to-entrance>
 			if (!str_prefix(arg3, "static"))
 			{
-				bool from_mode = TRISTATE;
-				bool to_mode = TRISTATE;
+				sent_bool from_mode = TRISTATE_UNDEF;
+				sent_bool to_mode = TRISTATE_UNDEF;
 				char argmf[MIL];
 				char argmt[MIL];
 
@@ -5325,7 +5325,7 @@ DNGEDIT( dngedit_special )
 			// special exit add source <to-level> <to-entrance>
 			if (!str_prefix(arg3, "source"))
 			{
-				bool to_mode = TRISTATE;
+				sent_bool to_mode = TRISTATE_UNDEF;
 				char argmt[MIL];
 
 				argument = one_argument(argument, argmt);
@@ -5399,7 +5399,7 @@ DNGEDIT( dngedit_special )
 
 			if (!str_prefix(arg3, "destination"))
 			{
-				bool from_mode = TRISTATE;
+				sent_bool from_mode = TRISTATE_UNDEF;
 				char argmf[MIL];
 
 				argument = one_argument(argument, argmf);
@@ -5611,8 +5611,8 @@ DNGEDIT( dngedit_special )
 				// special exit group # add static <from-level> <from-exit> <to-level> <to-entrance>
 				if (!str_prefix(arg3, "static"))
 				{
-					bool from_mode = TRISTATE;
-					bool to_mode = TRISTATE;
+					sent_bool from_mode = TRISTATE_UNDEF;
+					sent_bool to_mode = TRISTATE_UNDEF;
 					char argmf[MIL];
 					char argmt[MIL];
 
@@ -5744,7 +5744,7 @@ DNGEDIT( dngedit_special )
 				// special exit group # add source <to-level> <to-entrance>
 				if (!str_prefix(arg3, "source"))
 				{
-					bool to_mode = TRISTATE;
+					sent_bool to_mode = TRISTATE_UNDEF;
 					char argmt[MIL];
 
 					argument = one_argument(argument, argmt);
@@ -5825,7 +5825,7 @@ DNGEDIT( dngedit_special )
 
 				if (!str_prefix(arg3, "destination"))
 				{
-					bool from_mode = TRISTATE;
+					sent_bool from_mode = TRISTATE_UNDEF;
 					char argmf[MIL];
 
 					argument = one_argument(argument, argmf);
@@ -6039,7 +6039,7 @@ DNGEDIT( dngedit_special )
 						return FALSE;
 					}
 
-					bool from_mode = TRISTATE;
+					sent_bool from_mode = TRISTATE_UNDEF;
 					char argmf[MIL];
 
 					argument = one_argument(argument, argmf);
@@ -6127,7 +6127,7 @@ DNGEDIT( dngedit_special )
 							return FALSE;
 						}
 
-						bool from_mode = TRISTATE;
+						sent_bool from_mode = TRISTATE_UNDEF;
 						char argmf[MIL];
 
 						if (!str_prefix(argmf, "generated"))
@@ -6234,7 +6234,7 @@ DNGEDIT( dngedit_special )
 							return FALSE;
 						}
 
-						bool from_mode = TRISTATE;
+						sent_bool from_mode = TRISTATE_UNDEF;
 						char argmf[MIL];
 
 						if (!str_prefix(argmf, "generated"))
@@ -6461,7 +6461,7 @@ DNGEDIT( dngedit_special )
 						return FALSE;
 					}
 
-					bool to_mode = TRISTATE;
+					sent_bool to_mode = TRISTATE_UNDEF;
 					char argmt[MIL];
 
 					argument = one_argument(argument, argmt);
@@ -6549,7 +6549,7 @@ DNGEDIT( dngedit_special )
 							return FALSE;
 						}
 
-						bool to_mode = TRISTATE;
+						sent_bool to_mode = TRISTATE_UNDEF;
 						char argmf[MIL];
 
 						if (!str_prefix(argmf, "generated"))
@@ -6656,7 +6656,7 @@ DNGEDIT( dngedit_special )
 							return FALSE;
 						}
 
-						bool to_mode = TRISTATE;
+						sent_bool to_mode = TRISTATE_UNDEF;
 						char argmf[MIL];
 
 						if (!str_prefix(argmf, "generated"))
@@ -6950,7 +6950,7 @@ DNGEDIT( dngedit_special )
 					return FALSE;
 				}
 
-				bool from_mode = TRISTATE;
+				sent_bool from_mode = TRISTATE_UNDEF;
 				char argm[MIL];
 				
 				argument = one_argument(argument, argm);
@@ -7038,7 +7038,7 @@ DNGEDIT( dngedit_special )
 						return FALSE;
 					}
 
-					bool from_mode = TRISTATE;
+					sent_bool from_mode = TRISTATE_UNDEF;
 					char argm[MIL];
 
 					argument = one_argument(argument, argm);
@@ -7146,7 +7146,7 @@ DNGEDIT( dngedit_special )
 						return FALSE;
 					}
 
-					bool from_mode = TRISTATE;
+					sent_bool from_mode = TRISTATE_UNDEF;
 					char argm[MIL];
 
 					argument = one_argument(argument, argm);
@@ -7387,7 +7387,7 @@ DNGEDIT( dngedit_special )
 					return FALSE;
 				}
 
-				bool to_mode = TRISTATE;
+				sent_bool to_mode = TRISTATE_UNDEF;
 				char argm[MIL];
 
 				argument = one_argument(argument, argm);
@@ -7475,7 +7475,7 @@ DNGEDIT( dngedit_special )
 						return FALSE;
 					}
 
-					bool to_mode = TRISTATE;
+					sent_bool to_mode = TRISTATE_UNDEF;
 					char argm[MIL];
 
 					argument = one_argument(argument, argm);
@@ -7583,7 +7583,7 @@ DNGEDIT( dngedit_special )
 						return FALSE;
 					}
 
-					bool to_mode = TRISTATE;
+					sent_bool to_mode = TRISTATE_UNDEF;
 					char argm[MIL];
 
 					argument = one_argument(argument, argm);
@@ -8942,7 +8942,7 @@ void do_readycheck(CHAR_DATA *ch, char *argument)
 				if (IS_VALID(vch_dungeon) && vch_dungeon == dungeon)
 				{
 					vch->pcdata->last_ready_check = current_time + DEFAULT_READY_CHECK;
-					vch->pcdata->readycheck_answer = TRISTATE;
+					vch->pcdata->readycheck_answer = TRISTATE_UNDEF;
 					act("$n has initiated a readycheck.", ch, vch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 					send_to_char("Please answer with either {Yreadycheck yes{x or {Yreadycheck no{x.\n\r", vch);
 				}
@@ -8959,7 +8959,7 @@ void do_readycheck(CHAR_DATA *ch, char *argument)
 
 	if (!str_prefix(arg, "yes"))
 	{
-		if (ch->pcdata->readycheck_answer != TRISTATE)
+		if (ch->pcdata->readycheck_answer != TRISTATE_UNDEF)
 		{
 			send_to_char("You've already given your ready state.\n\r", ch);
 			return;
@@ -8972,7 +8972,7 @@ void do_readycheck(CHAR_DATA *ch, char *argument)
 	
 	if (!str_prefix(arg, "no"))
 	{
-		if (ch->pcdata->readycheck_answer != TRISTATE)
+		if (ch->pcdata->readycheck_answer != TRISTATE_UNDEF)
 		{
 			send_to_char("You've already given your ready state.\n\r", ch);
 			return;
@@ -9016,7 +9016,7 @@ void readycheck_update(CHAR_DATA *ch)
 				complete = FALSE;
 
 			// Someone hasn't voted yet
-			if (vch->pcdata->readycheck_answer == TRISTATE)
+			if (vch->pcdata->readycheck_answer == TRISTATE_UNDEF)
 			{
 				complete = FALSE;
 				show = FALSE;

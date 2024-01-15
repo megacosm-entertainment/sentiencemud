@@ -39,9 +39,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
+#include "strings.h"
 #include "merc.h"
 #include "recycle.h"
 #include "tables.h"
+
 
 extern FILE *                  fpArea;
 extern char                    strArea[MAX_INPUT_LENGTH];
@@ -556,7 +558,7 @@ void load_thread(char *name, NOTE_DATA **list, int type, time_t free_time)
                 return;
             }
         }
-        while (isspace(letter));
+        while (ISSPACE(letter));
         ungetc(letter, fp);
 
         pnote           = alloc_perm(sizeof(*pnote));

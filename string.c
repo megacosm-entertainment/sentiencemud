@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "strings.h"
 #include "merc.h"
 #include "tables.h"
 #include "olc.h"
@@ -494,7 +495,7 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 	if( xbuf[0] != '\0' )
 	{
 		int i = strlen(xbuf);
-		while( (--i > 0) && isspace(xbuf[i]) );
+		while( (--i > 0) && ISSPACE(xbuf[i]) );
 		xbuf[++i] = '\n';
 		xbuf[++i] = '\r';
 		xbuf[++i] = '\0';

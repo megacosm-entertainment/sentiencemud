@@ -3055,7 +3055,7 @@ SCRIPT_CMD(instancecmd_links)
 		if (ARG_PREFIX("static"))
 		{
 			PARSE_ARGTYPE(STRING);
-			bool from_mode = TRISTATE;
+			sent_bool from_mode = TRISTATE_UNDEF;
 			if (ARG_PREFIX("generated"))
 				from_mode = FALSE;
 			else if (ARG_PREFIX("ordinal"))
@@ -3077,7 +3077,7 @@ SCRIPT_CMD(instancecmd_links)
 			if (from_link_no < 1 || from_link_no > link_count) return;
 
 			PARSE_ARGTYPE(STRING);
-			bool to_mode = TRISTATE;
+			sent_bool to_mode = TRISTATE_UNDEF;
 			if (ARG_PREFIX("generated"))
 				to_mode = FALSE;
 			else if (ARG_PREFIX("ordinal"))
@@ -3112,7 +3112,7 @@ SCRIPT_CMD(instancecmd_links)
 		else if(ARG_PREFIX("source"))
 		{
 			PARSE_ARGTYPE(STRING);
-			bool to_mode = TRISTATE;
+			sent_bool to_mode = TRISTATE_UNDEF;
 			if (ARG_PREFIX("generated"))
 				to_mode = FALSE;
 			else if (ARG_PREFIX("ordinal"))
@@ -3144,7 +3144,7 @@ SCRIPT_CMD(instancecmd_links)
 		else if(ARG_PREFIX("destination"))
 		{
 			PARSE_ARGTYPE(STRING);
-			bool from_mode = TRISTATE;
+			sent_bool from_mode = TRISTATE_UNDEF;
 			if (ARG_PREFIX("generated"))
 				from_mode = FALSE;
 			else if (ARG_PREFIX("ordinal"))
@@ -3205,7 +3205,7 @@ SCRIPT_CMD(instancecmd_links)
 		if (weight < 1) return;
 
 		PARSE_ARGTYPE(STRING);
-		bool from_mode = TRISTATE;
+		sent_bool from_mode = TRISTATE_UNDEF;
 		if (ARG_PREFIX("generated"))
 			from_mode = FALSE;
 		else if (ARG_PREFIX("ordinal"))
@@ -3244,7 +3244,7 @@ SCRIPT_CMD(instancecmd_links)
 		if (weight < 1) return;
 
 		PARSE_ARGTYPE(STRING);
-		bool to_mode = TRISTATE;
+		sent_bool to_mode = TRISTATE_UNDEF;
 		if (ARG_PREFIX("generated"))
 			to_mode = FALSE;
 		else if (ARG_PREFIX("ordinal"))
@@ -3285,7 +3285,7 @@ SCRIPT_CMD(instancecmd_links)
 			if (ARG_PREFIX("static"))
 			{
 				PARSE_ARGTYPE(STRING);
-				bool from_mode = TRISTATE;
+				sent_bool from_mode = TRISTATE_UNDEF;
 				if (ARG_PREFIX("generated"))
 					from_mode = FALSE;
 				else if (ARG_PREFIX("ordinal"))
@@ -3307,7 +3307,7 @@ SCRIPT_CMD(instancecmd_links)
 				if (from_link_no < 1 || from_link_no > link_count) return;
 
 				PARSE_ARGTYPE(STRING);
-				bool to_mode = TRISTATE;
+				sent_bool to_mode = TRISTATE_UNDEF;
 				if (ARG_PREFIX("generated"))
 					to_mode = FALSE;
 				else if (ARG_PREFIX("ordinal"))
@@ -3342,7 +3342,7 @@ SCRIPT_CMD(instancecmd_links)
 			else if (ARG_PREFIX("source"))
 			{
 				PARSE_ARGTYPE(STRING);
-				bool to_mode = TRISTATE;
+				sent_bool to_mode = TRISTATE_UNDEF;
 				if (ARG_PREFIX("generated"))
 					to_mode = FALSE;
 				else if (ARG_PREFIX("ordinal"))
@@ -3374,7 +3374,7 @@ SCRIPT_CMD(instancecmd_links)
 			else if (ARG_PREFIX("destination"))
 			{
 				PARSE_ARGTYPE(STRING);
-				bool from_mode = TRISTATE;
+				sent_bool from_mode = TRISTATE_UNDEF;
 				if (ARG_PREFIX("generated"))
 					from_mode = FALSE;
 				else if (ARG_PREFIX("ordinal"))
@@ -3428,7 +3428,7 @@ SCRIPT_CMD(instancecmd_links)
 			if (weight < 1) return;
 
 			PARSE_ARGTYPE(STRING);
-			bool from_mode = TRISTATE;
+			sent_bool from_mode = TRISTATE_UNDEF;
 			if (ARG_PREFIX("generated"))
 				from_mode = FALSE;
 			else if (ARG_PREFIX("ordinal"))
@@ -3467,7 +3467,7 @@ SCRIPT_CMD(instancecmd_links)
 			if (weight < 1) return;
 
 			PARSE_ARGTYPE(STRING);
-			bool to_mode = TRISTATE;
+			sent_bool to_mode = TRISTATE_UNDEF;
 			if (ARG_PREFIX("generated"))
 				to_mode = FALSE;
 			else if (ARG_PREFIX("ordinal"))
@@ -4528,7 +4528,7 @@ SCRIPT_CMD(scriptcmd_missiongenerate)
 	bool clazz_restricted;
 	bool clazz_type_restricted;
 	CLASS_DATA *clazz;
-	sh_int clazz_type;
+	int16_t clazz_type;
 	if (!str_prefix(arg->d.str, "auto"))
 	{
 		clazz_restricted = false;
@@ -5486,7 +5486,7 @@ SCRIPT_CMD(dungeoncmd_specialexits)
 		{
 			// generated|ordinal
 			PARSE_ARGTYPE(STRING);
-			bool from_mode = TRISTATE;
+			sent_bool from_mode = TRISTATE_UNDEF;
 			if (ARG_PREFIX("generated"))
 				from_mode = FALSE;
 			else if (ARG_PREFIX("ordinal"))
@@ -5511,7 +5511,7 @@ SCRIPT_CMD(dungeoncmd_specialexits)
 
 			// generated|ordinal
 			PARSE_ARGTYPE(STRING);
-			bool to_mode = TRISTATE;
+			sent_bool to_mode = TRISTATE_UNDEF;
 			if (ARG_PREFIX("generated"))
 				to_mode = FALSE;
 			else if (ARG_PREFIX("ordinal"))
@@ -5551,7 +5551,7 @@ SCRIPT_CMD(dungeoncmd_specialexits)
 		{
 			// generated|ordinal
 			PARSE_ARGTYPE(STRING);
-			bool to_mode = TRISTATE;
+			sent_bool to_mode = TRISTATE_UNDEF;
 			if (ARG_PREFIX("generated"))
 				to_mode = FALSE;
 			else if (ARG_PREFIX("ordinal"))
@@ -5586,7 +5586,7 @@ SCRIPT_CMD(dungeoncmd_specialexits)
 		{
 			// generated|ordinal
 			PARSE_ARGTYPE(STRING);
-			bool from_mode = TRISTATE;
+			sent_bool from_mode = TRISTATE_UNDEF;
 			if (ARG_PREFIX("generated"))
 				from_mode = FALSE;
 			else if (ARG_PREFIX("ordinal"))
@@ -5651,7 +5651,7 @@ SCRIPT_CMD(dungeoncmd_specialexits)
 
 		// generated|ordinal
 		PARSE_ARGTYPE(STRING);
-		bool from_mode = TRISTATE;
+		sent_bool from_mode = TRISTATE_UNDEF;
 		if (ARG_PREFIX("generated"))
 			from_mode = FALSE;
 		else if (ARG_PREFIX("ordinal"))
@@ -5694,7 +5694,7 @@ SCRIPT_CMD(dungeoncmd_specialexits)
 
 		// generated|ordinal
 		PARSE_ARGTYPE(STRING);
-		bool to_mode = TRISTATE;
+		sent_bool to_mode = TRISTATE_UNDEF;
 		if (ARG_PREFIX("generated"))
 			to_mode = FALSE;
 		else if (ARG_PREFIX("ordinal"))
@@ -5741,7 +5741,7 @@ SCRIPT_CMD(dungeoncmd_specialexits)
 			{
 				// generated|ordinal
 				PARSE_ARGTYPE(STRING);
-				bool from_mode = TRISTATE;
+				sent_bool from_mode = TRISTATE_UNDEF;
 				if (ARG_PREFIX("generated"))
 					from_mode = FALSE;
 				else if (ARG_PREFIX("ordinal"))
@@ -5766,7 +5766,7 @@ SCRIPT_CMD(dungeoncmd_specialexits)
 
 				// generated|ordinal
 				PARSE_ARGTYPE(STRING);
-				bool to_mode = TRISTATE;
+				sent_bool to_mode = TRISTATE_UNDEF;
 				if (ARG_PREFIX("generated"))
 					to_mode = FALSE;
 				else if (ARG_PREFIX("ordinal"))
@@ -5806,7 +5806,7 @@ SCRIPT_CMD(dungeoncmd_specialexits)
 			{
 				// generated|ordinal
 				PARSE_ARGTYPE(STRING);
-				bool to_mode = TRISTATE;
+				sent_bool to_mode = TRISTATE_UNDEF;
 				if (ARG_PREFIX("generated"))
 					to_mode = FALSE;
 				else if (ARG_PREFIX("ordinal"))
@@ -5841,7 +5841,7 @@ SCRIPT_CMD(dungeoncmd_specialexits)
 			{
 				// generated|ordinal
 				PARSE_ARGTYPE(STRING);
-				bool from_mode = TRISTATE;
+				sent_bool from_mode = TRISTATE_UNDEF;
 				if (ARG_PREFIX("generated"))
 					from_mode = FALSE;
 				else if (ARG_PREFIX("ordinal"))
@@ -5899,7 +5899,7 @@ SCRIPT_CMD(dungeoncmd_specialexits)
 
 			// generated|ordinal
 			PARSE_ARGTYPE(STRING);
-			bool from_mode = TRISTATE;
+			sent_bool from_mode = TRISTATE_UNDEF;
 			if (ARG_PREFIX("generated"))
 				from_mode = FALSE;
 			else if (ARG_PREFIX("ordinal"))
@@ -5942,7 +5942,7 @@ SCRIPT_CMD(dungeoncmd_specialexits)
 
 			// generated|ordinal
 			PARSE_ARGTYPE(STRING);
-			bool to_mode = TRISTATE;
+			sent_bool to_mode = TRISTATE_UNDEF;
 			if (ARG_PREFIX("generated"))
 				to_mode = FALSE;
 			else if (ARG_PREFIX("ordinal"))
@@ -6063,7 +6063,7 @@ SCRIPT_CMD(dungeoncmd_specialrooms)
 	else if (ARG_PREFIX("add"))
 	{
 		int levels = dungeon_index_generation_count(dng);
-		bool mode = TRISTATE;
+		sent_bool mode = TRISTATE_UNDEF;
 
 		PARSE_ARGTYPE(STRING);
 		if (ARG_PREFIX("generated"))
@@ -6136,7 +6136,7 @@ SCRIPT_CMD(instancecmd_specialrooms)
 	else if (ARG_PREFIX("add"))
 	{
 		PARSE_ARGTYPE(STRING);
-		bool mode = TRISTATE;
+		sent_bool mode = TRISTATE_UNDEF;
 		if (ARG_PREFIX("generated"))
 			mode = FALSE;
 		else if (ARG_PREFIX("ordinal"))
@@ -10475,7 +10475,7 @@ void __multitype_portal(OBJ_DATA *portal, SCRIPT_VARINFO *info, char *rest, SCRI
 				}
 				else
 				{
-					bool mode = TRISTATE;
+					sent_bool mode = TRISTATE_UNDEF;
 					PARSE_ARGTYPE(STRING);
 					if (!str_prefix(arg->d.str, "generated"))
 						mode = FALSE;
@@ -10613,7 +10613,7 @@ void __multitype_portal(OBJ_DATA *portal, SCRIPT_VARINFO *info, char *rest, SCRI
 				}
 				else
 				{
-					bool mode = TRISTATE;
+					sent_bool mode = TRISTATE_UNDEF;
 
 					if (!str_prefix(arg->d.str, "generated"))
 						mode = FALSE;
@@ -10665,7 +10665,7 @@ void __multitype_portal(OBJ_DATA *portal, SCRIPT_VARINFO *info, char *rest, SCRI
 					params[0] = 0;
 				else
 				{
-					bool mode = TRISTATE;
+					sent_bool mode = TRISTATE_UNDEF;
 
 					if (!str_prefix(arg->d.str, "generated"))
 						mode = FALSE;

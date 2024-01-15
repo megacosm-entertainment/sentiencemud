@@ -102,7 +102,7 @@ int bearing_door[] = {
 void crew_skill_improve(CHAR_DATA *ch, int skill)
 {
 	SHIP_CREW_DATA *crew = ch->crew;
-	sh_int *ptr;
+	int16_t *ptr;
 
 	switch(skill)
 	{

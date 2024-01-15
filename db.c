@@ -41,6 +41,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <stdarg.h>
+#include "strings.h"
 #include "merc.h"
 #include "db.h"
 #include "math.h"
@@ -50,6 +51,7 @@
 #include "scripts.h"
 #include "wilds.h"
 
+/*
 #if !defined(OLD_RAND)
 #if !defined(linux)
 long random();
@@ -58,6 +60,7 @@ void srandom(unsigned int);
 int getpid();
 time_t time(time_t *tloc);
 #endif
+*/
 
 // VERSION_ROOM_002 special defines
 #define VR_002_EX_LOCKED		(C)
@@ -94,18 +97,18 @@ MATERIAL *gm_iron = NULL;
 MATERIAL *gm_silver = NULL;
 
 LLIST *liquid_list = NULL;
-sh_int top_liquid_uid = 0;
+int16_t top_liquid_uid = 0;
 
 LLIST *skills_list = NULL;
-sh_int top_skill_uid = 0;
+int16_t top_skill_uid = 0;
 LLIST *skill_groups_list = NULL;
 SKILL_GROUP *global_skills = NULL;
 
 LLIST *songs_list = NULL;
-sh_int top_song_uid = 0;
+int16_t top_song_uid = 0;
 
 LLIST *classes_list = NULL;
-sh_int top_class_uid = 0;
+int16_t top_class_uid = 0;
 CLASS_DATA *gcl_adept;
 CLASS_DATA *gcl_adventurer;
 CLASS_DATA *gcl_alchemist;
@@ -148,7 +151,7 @@ CLASS_DATA *gcl_witch;
 CLASS_DATA *gcl_wizard;
 
 LLIST *race_list = NULL;
-sh_int top_race_uid;
+int16_t top_race_uid;
 
 RACE_DATA *gr_angel;
 RACE_DATA *gr_avatar;
@@ -320,285 +323,285 @@ bool			objRepop;
    obj_to_room(). When the object is given to a char or a room, this variable
    is toggled off, and the object will then no longer trigger repop scripts. */
 
-sh_int	gsn__auction;
-sh_int	gsn__inspect;
-sh_int	gsn__well_fed;
+int16_t	gsn__auction;
+int16_t	gsn__inspect;
+int16_t	gsn__well_fed;
 
-sh_int	gsn_acid_blast;
-sh_int	gsn_acid_breath;
-sh_int	gsn_acro;
-sh_int	gsn_afterburn;
-sh_int	gsn_air_spells;
-sh_int	gsn_ambush;
-sh_int	gsn_animate_dead;
-sh_int	gsn_archery;
-sh_int	gsn_armour;
-sh_int	gsn_athletics;
-sh_int	gsn_avatar_shield;
-sh_int	gsn_axe;
-sh_int	gsn_backstab;
-sh_int	gsn_bar;
-sh_int	gsn_bash;
-sh_int	gsn_behead;
-sh_int	gsn_berserk;
-sh_int	gsn_bind;
-sh_int	gsn_bite;
-sh_int	gsn_blackjack;
-sh_int	gsn_bless;
-sh_int	gsn_blindness;
-sh_int	gsn_blowgun;
-sh_int	gsn_bomb;
-sh_int	gsn_bow;
-sh_int	gsn_breath;
-sh_int	gsn_brew;
-sh_int	gsn_burgle;
-sh_int	gsn_burning_hands;
-sh_int	gsn_call_familiar;
-sh_int	gsn_call_lightning;
-sh_int	gsn_calm;
-sh_int	gsn_cancellation;
-sh_int	gsn_catch;
-sh_int	gsn_cause_critical;
-sh_int	gsn_cause_light;
-sh_int	gsn_cause_serious;
-sh_int	gsn_chain_lightning;
-sh_int	gsn_channel;
-sh_int	gsn_charge;
-sh_int	gsn_charm_person;
-sh_int	gsn_chill_touch;
-sh_int	gsn_circle;
-sh_int	gsn_cloak_of_guile;
-sh_int	gsn_colour_spray;
-sh_int	gsn_combine;
-sh_int	gsn_consume;
-sh_int	gsn_continual_light;
-sh_int	gsn_control_weather;
-sh_int	gsn_cosmic_blast;
-sh_int	gsn_counterspell;
-sh_int	gsn_create_food;
-sh_int	gsn_create_rose;
-sh_int	gsn_create_spring;
-sh_int	gsn_create_water;
-sh_int	gsn_crippling_touch;
-sh_int	gsn_crossbow;
-sh_int	gsn_cure_blindness;
-sh_int	gsn_cure_critical;
-sh_int	gsn_cure_disease;
-sh_int	gsn_cure_light;
-sh_int	gsn_cure_poison;
-sh_int	gsn_cure_serious;
-sh_int	gsn_cure_toxic;
-sh_int	gsn_curse;
-sh_int	gsn_dagger;
-sh_int	gsn_death_grip;
-sh_int	gsn_deathbarbs;
-sh_int	gsn_deathsight;
-sh_int	gsn_deception;
-sh_int	gsn_deep_trance;
-sh_int	gsn_demonfire;
-sh_int	gsn_destruction;
-sh_int	gsn_detect_hidden;
-sh_int	gsn_detect_invis;
-sh_int	gsn_detect_magic;
-sh_int	gsn_detect_traps;
-sh_int	gsn_dirt;
-sh_int	gsn_dirt_kicking;
-sh_int	gsn_disarm;
-sh_int	gsn_discharge;
-sh_int	gsn_dispel_evil;
-sh_int	gsn_dispel_good;
-sh_int	gsn_dispel_magic;
-sh_int	gsn_dispel_room;
-sh_int	gsn_dodge;
-sh_int	gsn_dual;
-sh_int	gsn_eagle_eye;
-sh_int	gsn_earth_spells;
-sh_int	gsn_earthquake;
-sh_int	gsn_electrical_barrier;
-sh_int	gsn_enchant_armour;
-sh_int	gsn_enchant_weapon;
-sh_int	gsn_energy_drain;
-sh_int	gsn_energy_field;
-sh_int	gsn_enhanced_damage;
-sh_int	gsn_ensnare;
-sh_int	gsn_entrap;
-sh_int	gsn_envenom;
-sh_int	gsn_evasion;
-sh_int	gsn_exorcism;
-sh_int	gsn_exotic;
-sh_int	gsn_fade;
-sh_int	gsn_faerie_fire;
-sh_int	gsn_faerie_fog;
-sh_int	gsn_fast_healing;
-sh_int	gsn_fatigue;
-sh_int	gsn_feign;
-sh_int	gsn_fire_barrier;
-sh_int	gsn_fire_breath;
-sh_int	gsn_fire_cloud;
-sh_int	gsn_fire_spells;
-sh_int	gsn_fireball;
-sh_int	gsn_fireproof;
-sh_int	gsn_flail;
-sh_int	gsn_flamestrike;
-sh_int	gsn_flamethrower;
-sh_int	gsn_flight;
-sh_int	gsn_fly;
-sh_int	gsn_fourth_attack;
-sh_int	gsn_frenzy;
-sh_int	gsn_frost_barrier;
-sh_int	gsn_frost_breath;
-sh_int	gsn_gas_breath;
-sh_int	gsn_gate;
-sh_int	gsn_giant_strength;
-sh_int	gsn_glorious_bolt;
-sh_int	gsn_haggle;
-sh_int	gsn_hand_to_hand;
-sh_int	gsn_harm;
-sh_int	gsn_harpooning;
-sh_int	gsn_haste;
-sh_int	gsn_heal;
-sh_int	gsn_healing_aura;
-sh_int	gsn_healing_hands;
-sh_int	gsn_hide;
-sh_int	gsn_holdup;
-sh_int	gsn_holy_shield;
-sh_int	gsn_holy_sword;
-sh_int	gsn_holy_word;
-sh_int	gsn_holy_wrath;
-sh_int	gsn_hunt;
-sh_int	gsn_ice_storm;
-sh_int	gsn_identify;
-sh_int	gsn_imbue;
-sh_int	gsn_improved_invisibility;
-sh_int	gsn_inferno;
-sh_int	gsn_infravision;
-sh_int	gsn_infuse;
-sh_int	gsn_intimidate;
-sh_int	gsn_invis;
-sh_int	gsn_judge;
-sh_int	gsn_kick;
-sh_int	gsn_kill;
-sh_int	gsn_leadership;
-sh_int	gsn_light_shroud;
-sh_int	gsn_lightning_bolt;
-sh_int	gsn_lightning_breath;
-sh_int	gsn_locate_object;
-sh_int	gsn_lore;
-sh_int	gsn_mace;
-sh_int	gsn_magic_missile;
-sh_int	gsn_martial_arts;
-sh_int	gsn_mass_healing;
-sh_int	gsn_mass_invis;
-sh_int	gsn_master_weather;
-sh_int	gsn_maze;
-sh_int	gsn_meditation;
-sh_int	gsn_mob_lore;
-sh_int	gsn_momentary_darkness;
-sh_int	gsn_morphlock;
-sh_int	gsn_mount_and_weapon_style;
-sh_int	gsn_music;
-sh_int	gsn_navigation;
-sh_int	gsn_neurotoxin;
-sh_int	gsn_nexus;
-sh_int	gsn_offhanded;
-sh_int	gsn_parry;
-sh_int	gsn_pass_door;
-sh_int	gsn_peek;
-sh_int	gsn_pick_lock;
-sh_int	gsn_plague;
-sh_int	gsn_poison;
-sh_int	gsn_polearm;
-sh_int	gsn_possess;
-sh_int	gsn_pursuit;
-sh_int	gsn_quarterstaff;
-sh_int	gsn_raise_dead;
-sh_int	gsn_recall;
-sh_int	gsn_recharge;
-sh_int	gsn_refresh;
-sh_int	gsn_regeneration;
-sh_int	gsn_remove_curse;
-sh_int	gsn_rending;
-sh_int	gsn_repair;
-sh_int	gsn_rescue;
-sh_int	gsn_resurrect;
-sh_int	gsn_reverie;
-sh_int	gsn_riding;
-sh_int	gsn_room_shield;
-sh_int	gsn_sanctuary;
-sh_int	gsn_scan;
-sh_int	gsn_scribe;
-sh_int	gsn_scrolls;
-sh_int	gsn_scry;
-sh_int	gsn_second_attack;
-sh_int	gsn_sense_danger;
-sh_int	gsn_shape;
-sh_int	gsn_shield;
-sh_int	gsn_shield_block;
-sh_int	gsn_shield_weapon_style;
-sh_int	gsn_shift;
-sh_int	gsn_shocking_grasp;
-sh_int	gsn_silence;
-sh_int	gsn_single_style;
-sh_int	gsn_skull;
-sh_int	gsn_sleep;
-sh_int	gsn_slit_throat;
-sh_int	gsn_slow;
-sh_int	gsn_smite;
-sh_int	gsn_sneak;
-sh_int	gsn_spear;
-sh_int	gsn_spell_deflection;
-sh_int	gsn_spell_shield;
-sh_int	gsn_spell_trap;
-sh_int	gsn_spirit_rack;
-sh_int	gsn_sprayer;
-sh_int	gsn_stake;
-sh_int	gsn_starflare;
-sh_int	gsn_staves;
-sh_int	gsn_steal;
-sh_int	gsn_stone_skin;
-sh_int	gsn_stone_spikes;
-sh_int	gsn_subvert;
-sh_int	gsn_summon;
-sh_int	gsn_survey;
-sh_int	gsn_swerve;
-sh_int	gsn_sword;
-sh_int	gsn_sword_and_dagger_style;
-sh_int	gsn_tail_kick;
-sh_int	gsn_tattoo;
-sh_int	gsn_temperance;
-sh_int	gsn_third_attack;
-sh_int	gsn_third_eye;
-sh_int	gsn_throw;
-sh_int	gsn_titanic_attack;
-sh_int	gsn_toxic_fumes;
-sh_int	gsn_toxins;
-sh_int	gsn_trackless_step;
-sh_int	gsn_trample;
-sh_int	gsn_trip;
-sh_int	gsn_turn_undead;
-sh_int	gsn_two_handed_style;
-sh_int	gsn_underwater_breathing;
-sh_int	gsn_vision;
-sh_int	gsn_wands;
-sh_int	gsn_warcry;
-sh_int	gsn_water_spells;
-sh_int	gsn_weaken;
-sh_int	gsn_weaving;
-sh_int	gsn_web;
-sh_int	gsn_whip;
-sh_int	gsn_wilderness_spear_style;
-sh_int	gsn_wind_of_confusion;
-sh_int	gsn_withering_cloud;
-sh_int	gsn_word_of_recall;
+int16_t	gsn_acid_blast;
+int16_t	gsn_acid_breath;
+int16_t	gsn_acro;
+int16_t	gsn_afterburn;
+int16_t	gsn_air_spells;
+int16_t	gsn_ambush;
+int16_t	gsn_animate_dead;
+int16_t	gsn_archery;
+int16_t	gsn_armour;
+int16_t	gsn_athletics;
+int16_t	gsn_avatar_shield;
+int16_t	gsn_axe;
+int16_t	gsn_backstab;
+int16_t	gsn_bar;
+int16_t	gsn_bash;
+int16_t	gsn_behead;
+int16_t	gsn_berserk;
+int16_t	gsn_bind;
+int16_t	gsn_bite;
+int16_t	gsn_blackjack;
+int16_t	gsn_bless;
+int16_t	gsn_blindness;
+int16_t	gsn_blowgun;
+int16_t	gsn_bomb;
+int16_t	gsn_bow;
+int16_t	gsn_breath;
+int16_t	gsn_brew;
+int16_t	gsn_burgle;
+int16_t	gsn_burning_hands;
+int16_t	gsn_call_familiar;
+int16_t	gsn_call_lightning;
+int16_t	gsn_calm;
+int16_t	gsn_cancellation;
+int16_t	gsn_catch;
+int16_t	gsn_cause_critical;
+int16_t	gsn_cause_light;
+int16_t	gsn_cause_serious;
+int16_t	gsn_chain_lightning;
+int16_t	gsn_channel;
+int16_t	gsn_charge;
+int16_t	gsn_charm_person;
+int16_t	gsn_chill_touch;
+int16_t	gsn_circle;
+int16_t	gsn_cloak_of_guile;
+int16_t	gsn_colour_spray;
+int16_t	gsn_combine;
+int16_t	gsn_consume;
+int16_t	gsn_continual_light;
+int16_t	gsn_control_weather;
+int16_t	gsn_cosmic_blast;
+int16_t	gsn_counterspell;
+int16_t	gsn_create_food;
+int16_t	gsn_create_rose;
+int16_t	gsn_create_spring;
+int16_t	gsn_create_water;
+int16_t	gsn_crippling_touch;
+int16_t	gsn_crossbow;
+int16_t	gsn_cure_blindness;
+int16_t	gsn_cure_critical;
+int16_t	gsn_cure_disease;
+int16_t	gsn_cure_light;
+int16_t	gsn_cure_poison;
+int16_t	gsn_cure_serious;
+int16_t	gsn_cure_toxic;
+int16_t	gsn_curse;
+int16_t	gsn_dagger;
+int16_t	gsn_death_grip;
+int16_t	gsn_deathbarbs;
+int16_t	gsn_deathsight;
+int16_t	gsn_deception;
+int16_t	gsn_deep_trance;
+int16_t	gsn_demonfire;
+int16_t	gsn_destruction;
+int16_t	gsn_detect_hidden;
+int16_t	gsn_detect_invis;
+int16_t	gsn_detect_magic;
+int16_t	gsn_detect_traps;
+int16_t	gsn_dirt;
+int16_t	gsn_dirt_kicking;
+int16_t	gsn_disarm;
+int16_t	gsn_discharge;
+int16_t	gsn_dispel_evil;
+int16_t	gsn_dispel_good;
+int16_t	gsn_dispel_magic;
+int16_t	gsn_dispel_room;
+int16_t	gsn_dodge;
+int16_t	gsn_dual;
+int16_t	gsn_eagle_eye;
+int16_t	gsn_earth_spells;
+int16_t	gsn_earthquake;
+int16_t	gsn_electrical_barrier;
+int16_t	gsn_enchant_armour;
+int16_t	gsn_enchant_weapon;
+int16_t	gsn_energy_drain;
+int16_t	gsn_energy_field;
+int16_t	gsn_enhanced_damage;
+int16_t	gsn_ensnare;
+int16_t	gsn_entrap;
+int16_t	gsn_envenom;
+int16_t	gsn_evasion;
+int16_t	gsn_exorcism;
+int16_t	gsn_exotic;
+int16_t	gsn_fade;
+int16_t	gsn_faerie_fire;
+int16_t	gsn_faerie_fog;
+int16_t	gsn_fast_healing;
+int16_t	gsn_fatigue;
+int16_t	gsn_feign;
+int16_t	gsn_fire_barrier;
+int16_t	gsn_fire_breath;
+int16_t	gsn_fire_cloud;
+int16_t	gsn_fire_spells;
+int16_t	gsn_fireball;
+int16_t	gsn_fireproof;
+int16_t	gsn_flail;
+int16_t	gsn_flamestrike;
+int16_t	gsn_flamethrower;
+int16_t	gsn_flight;
+int16_t	gsn_fly;
+int16_t	gsn_fourth_attack;
+int16_t	gsn_frenzy;
+int16_t	gsn_frost_barrier;
+int16_t	gsn_frost_breath;
+int16_t	gsn_gas_breath;
+int16_t	gsn_gate;
+int16_t	gsn_giant_strength;
+int16_t	gsn_glorious_bolt;
+int16_t	gsn_haggle;
+int16_t	gsn_hand_to_hand;
+int16_t	gsn_harm;
+int16_t	gsn_harpooning;
+int16_t	gsn_haste;
+int16_t	gsn_heal;
+int16_t	gsn_healing_aura;
+int16_t	gsn_healing_hands;
+int16_t	gsn_hide;
+int16_t	gsn_holdup;
+int16_t	gsn_holy_shield;
+int16_t	gsn_holy_sword;
+int16_t	gsn_holy_word;
+int16_t	gsn_holy_wrath;
+int16_t	gsn_hunt;
+int16_t	gsn_ice_storm;
+int16_t	gsn_identify;
+int16_t	gsn_imbue;
+int16_t	gsn_improved_invisibility;
+int16_t	gsn_inferno;
+int16_t	gsn_infravision;
+int16_t	gsn_infuse;
+int16_t	gsn_intimidate;
+int16_t	gsn_invis;
+int16_t	gsn_judge;
+int16_t	gsn_kick;
+int16_t	gsn_kill;
+int16_t	gsn_leadership;
+int16_t	gsn_light_shroud;
+int16_t	gsn_lightning_bolt;
+int16_t	gsn_lightning_breath;
+int16_t	gsn_locate_object;
+int16_t	gsn_lore;
+int16_t	gsn_mace;
+int16_t	gsn_magic_missile;
+int16_t	gsn_martial_arts;
+int16_t	gsn_mass_healing;
+int16_t	gsn_mass_invis;
+int16_t	gsn_master_weather;
+int16_t	gsn_maze;
+int16_t	gsn_meditation;
+int16_t	gsn_mob_lore;
+int16_t	gsn_momentary_darkness;
+int16_t	gsn_morphlock;
+int16_t	gsn_mount_and_weapon_style;
+int16_t	gsn_music;
+int16_t	gsn_navigation;
+int16_t	gsn_neurotoxin;
+int16_t	gsn_nexus;
+int16_t	gsn_offhanded;
+int16_t	gsn_parry;
+int16_t	gsn_pass_door;
+int16_t	gsn_peek;
+int16_t	gsn_pick_lock;
+int16_t	gsn_plague;
+int16_t	gsn_poison;
+int16_t	gsn_polearm;
+int16_t	gsn_possess;
+int16_t	gsn_pursuit;
+int16_t	gsn_quarterstaff;
+int16_t	gsn_raise_dead;
+int16_t	gsn_recall;
+int16_t	gsn_recharge;
+int16_t	gsn_refresh;
+int16_t	gsn_regeneration;
+int16_t	gsn_remove_curse;
+int16_t	gsn_rending;
+int16_t	gsn_repair;
+int16_t	gsn_rescue;
+int16_t	gsn_resurrect;
+int16_t	gsn_reverie;
+int16_t	gsn_riding;
+int16_t	gsn_room_shield;
+int16_t	gsn_sanctuary;
+int16_t	gsn_scan;
+int16_t	gsn_scribe;
+int16_t	gsn_scrolls;
+int16_t	gsn_scry;
+int16_t	gsn_second_attack;
+int16_t	gsn_sense_danger;
+int16_t	gsn_shape;
+int16_t	gsn_shield;
+int16_t	gsn_shield_block;
+int16_t	gsn_shield_weapon_style;
+int16_t	gsn_shift;
+int16_t	gsn_shocking_grasp;
+int16_t	gsn_silence;
+int16_t	gsn_single_style;
+int16_t	gsn_skull;
+int16_t	gsn_sleep;
+int16_t	gsn_slit_throat;
+int16_t	gsn_slow;
+int16_t	gsn_smite;
+int16_t	gsn_sneak;
+int16_t	gsn_spear;
+int16_t	gsn_spell_deflection;
+int16_t	gsn_spell_shield;
+int16_t	gsn_spell_trap;
+int16_t	gsn_spirit_rack;
+int16_t	gsn_sprayer;
+int16_t	gsn_stake;
+int16_t	gsn_starflare;
+int16_t	gsn_staves;
+int16_t	gsn_steal;
+int16_t	gsn_stone_skin;
+int16_t	gsn_stone_spikes;
+int16_t	gsn_subvert;
+int16_t	gsn_summon;
+int16_t	gsn_survey;
+int16_t	gsn_swerve;
+int16_t	gsn_sword;
+int16_t	gsn_sword_and_dagger_style;
+int16_t	gsn_tail_kick;
+int16_t	gsn_tattoo;
+int16_t	gsn_temperance;
+int16_t	gsn_third_attack;
+int16_t	gsn_third_eye;
+int16_t	gsn_throw;
+int16_t	gsn_titanic_attack;
+int16_t	gsn_toxic_fumes;
+int16_t	gsn_toxins;
+int16_t	gsn_trackless_step;
+int16_t	gsn_trample;
+int16_t	gsn_trip;
+int16_t	gsn_turn_undead;
+int16_t	gsn_two_handed_style;
+int16_t	gsn_underwater_breathing;
+int16_t	gsn_vision;
+int16_t	gsn_wands;
+int16_t	gsn_warcry;
+int16_t	gsn_water_spells;
+int16_t	gsn_weaken;
+int16_t	gsn_weaving;
+int16_t	gsn_web;
+int16_t	gsn_whip;
+int16_t	gsn_wilderness_spear_style;
+int16_t	gsn_wind_of_confusion;
+int16_t	gsn_withering_cloud;
+int16_t	gsn_word_of_recall;
 
-sh_int	gsn_ice_shards;
-sh_int	gsn_stone_touch;
-sh_int	gsn_glacial_wave;
-sh_int	gsn_earth_walk;
-sh_int	gsn_flash;
-sh_int	gsn_shriek;
-sh_int	gsn_dark_shroud;
-sh_int	gsn_soul_essence;
+int16_t	gsn_ice_shards;
+int16_t	gsn_stone_touch;
+int16_t	gsn_glacial_wave;
+int16_t	gsn_earth_walk;
+int16_t	gsn_flash;
+int16_t	gsn_shriek;
+int16_t	gsn_dark_shroud;
+int16_t	gsn_soul_essence;
 
 
 
@@ -886,105 +889,105 @@ SKILL_DATA *gsk_soul_essence;
 
 
 
-sh_int gprn_human;
-sh_int gprn_elf;
-sh_int gprn_dwarf;
-sh_int gprn_titan;
-sh_int gprn_vampire;
-sh_int gprn_drow;
-sh_int gprn_sith;
-sh_int gprn_draconian;
-sh_int gprn_slayer;
-sh_int gprn_minotaur;
-sh_int gprn_angel;
-sh_int gprn_mystic;
-sh_int gprn_demon;
-sh_int gprn_lich;
-sh_int gprn_avatar;
-sh_int gprn_seraph;
-sh_int gprn_berserker;
-sh_int gprn_colossus;
-sh_int gprn_fiend;
-sh_int gprn_specter;
-sh_int gprn_naga;
-sh_int gprn_dragon;
-sh_int gprn_changeling;
-sh_int gprn_hell_baron;
-sh_int gprn_wraith;
-sh_int gprn_shaper;
+int16_t gprn_human;
+int16_t gprn_elf;
+int16_t gprn_dwarf;
+int16_t gprn_titan;
+int16_t gprn_vampire;
+int16_t gprn_drow;
+int16_t gprn_sith;
+int16_t gprn_draconian;
+int16_t gprn_slayer;
+int16_t gprn_minotaur;
+int16_t gprn_angel;
+int16_t gprn_mystic;
+int16_t gprn_demon;
+int16_t gprn_lich;
+int16_t gprn_avatar;
+int16_t gprn_seraph;
+int16_t gprn_berserker;
+int16_t gprn_colossus;
+int16_t gprn_fiend;
+int16_t gprn_specter;
+int16_t gprn_naga;
+int16_t gprn_dragon;
+int16_t gprn_changeling;
+int16_t gprn_hell_baron;
+int16_t gprn_wraith;
+int16_t gprn_shaper;
 
 
-sh_int grn_human;
-sh_int grn_elf;
-sh_int grn_dwarf;
-sh_int grn_titan;
-sh_int grn_vampire;
-sh_int grn_drow;
-sh_int grn_sith;
-sh_int grn_draconian;
-sh_int grn_slayer;
-sh_int grn_minotaur;
-sh_int grn_angel;
-sh_int grn_mystic;
-sh_int grn_demon;
-sh_int grn_lich;
-sh_int grn_avatar;
-sh_int grn_seraph;
-sh_int grn_berserker;
-sh_int grn_colossus;
-sh_int grn_fiend;
-sh_int grn_specter;
-sh_int grn_naga;
-sh_int grn_dragon;
-sh_int grn_changeling;
-sh_int grn_hell_baron;
-sh_int grn_wraith;
-sh_int grn_shaper;
-sh_int grn_were_changed;
-sh_int grn_mob_vampire;
-sh_int grn_bat;
-sh_int grn_werewolf;
-sh_int grn_bear;
-sh_int grn_bugbear;
-sh_int grn_cat;
-sh_int grn_centipede;
-sh_int grn_dog;
-sh_int grn_doll;
-sh_int grn_fido;
-sh_int grn_fox;
-sh_int grn_goblin;
-sh_int grn_hobgoblin;
-sh_int grn_kobold;
-sh_int grn_lizard;
-sh_int grn_doxian;
-sh_int grn_orc;
-sh_int grn_pig;
-sh_int grn_rabbit;
-sh_int grn_school_monster;
-sh_int grn_snake;
-sh_int grn_song_bird;
-sh_int grn_golem;
-sh_int grn_unicorn;
-sh_int grn_griffon;
-sh_int grn_troll;
-sh_int grn_water_fowl;
-sh_int grn_giant;
-sh_int grn_wolf;
-sh_int grn_wyvern;
-sh_int grn_nileshian;
-sh_int grn_skeleton;
-sh_int grn_zombie;
-sh_int grn_wisp;
-sh_int grn_insect;
-sh_int grn_gnome;
-sh_int grn_angel_mob;
-sh_int grn_demon_mob;
-sh_int grn_rodent;
-sh_int grn_treant;
-sh_int grn_horse;
-sh_int grn_bird;
-sh_int grn_fungus;
-sh_int grn_unique;
+int16_t grn_human;
+int16_t grn_elf;
+int16_t grn_dwarf;
+int16_t grn_titan;
+int16_t grn_vampire;
+int16_t grn_drow;
+int16_t grn_sith;
+int16_t grn_draconian;
+int16_t grn_slayer;
+int16_t grn_minotaur;
+int16_t grn_angel;
+int16_t grn_mystic;
+int16_t grn_demon;
+int16_t grn_lich;
+int16_t grn_avatar;
+int16_t grn_seraph;
+int16_t grn_berserker;
+int16_t grn_colossus;
+int16_t grn_fiend;
+int16_t grn_specter;
+int16_t grn_naga;
+int16_t grn_dragon;
+int16_t grn_changeling;
+int16_t grn_hell_baron;
+int16_t grn_wraith;
+int16_t grn_shaper;
+int16_t grn_were_changed;
+int16_t grn_mob_vampire;
+int16_t grn_bat;
+int16_t grn_werewolf;
+int16_t grn_bear;
+int16_t grn_bugbear;
+int16_t grn_cat;
+int16_t grn_centipede;
+int16_t grn_dog;
+int16_t grn_doll;
+int16_t grn_fido;
+int16_t grn_fox;
+int16_t grn_goblin;
+int16_t grn_hobgoblin;
+int16_t grn_kobold;
+int16_t grn_lizard;
+int16_t grn_doxian;
+int16_t grn_orc;
+int16_t grn_pig;
+int16_t grn_rabbit;
+int16_t grn_school_monster;
+int16_t grn_snake;
+int16_t grn_song_bird;
+int16_t grn_golem;
+int16_t grn_unicorn;
+int16_t grn_griffon;
+int16_t grn_troll;
+int16_t grn_water_fowl;
+int16_t grn_giant;
+int16_t grn_wolf;
+int16_t grn_wyvern;
+int16_t grn_nileshian;
+int16_t grn_skeleton;
+int16_t grn_zombie;
+int16_t grn_wisp;
+int16_t grn_insect;
+int16_t grn_gnome;
+int16_t grn_angel_mob;
+int16_t grn_demon_mob;
+int16_t grn_rodent;
+int16_t grn_treant;
+int16_t grn_horse;
+int16_t grn_bird;
+int16_t grn_fungus;
+int16_t grn_unique;
 
 
 /*
@@ -1055,10 +1058,10 @@ LLIST *persist_rooms;
 
 TOKEN_DATA *global_tokens = NULL;
 
-sh_int gln_water;
-sh_int gln_blood;
-sh_int gln_potion;
-sh_int gln_acid;
+int16_t gln_water;
+int16_t gln_blood;
+int16_t gln_potion;
+int16_t gln_acid;
 
 LIQUID *liquid_water;
 LIQUID *liquid_blood;
@@ -4420,7 +4423,7 @@ char fread_letter(FILE *fp)
     {
 	c = getc(fp);
     }
-    while (isspace(c));
+    while (ISSPACE(c));
 
     return c;
 }
@@ -4469,7 +4472,7 @@ long fread_number(FILE *fp)
     {
 	c = getc(fp);
     }
-    while (isspace(c));
+    while (ISSPACE(c));
 
     number = 0;
 
@@ -4484,13 +4487,13 @@ long fread_number(FILE *fp)
 	c = getc(fp);
     }
 
-    if (!isdigit(c))
+    if (!ISDIGIT(c))
     {
 	bug("Fread_number: bad format (%c).", c);
 	exit(1);
     }
 
-    while (isdigit(c))
+    while (ISDIGIT(c))
     {
 	number = number * 10 + c - '0';
 	c      = getc(fp);
@@ -4521,15 +4524,15 @@ WNUM_LOAD fread_widevnum(FILE *fp, long refAuid)
 	{
 		c = getc(fp);
 	}
-	while (isspace(c));
+	while (ISSPACE(c));
 
-	if (!isdigit(c) && c != '#')
+	if (!ISDIGIT(c) && c != '#')
 	{
 		bug("Fread_widevnum: bad format (%c) (expecting a digit or #).", c);
 		exit(1);
 	}
 
-	while (isdigit(c))
+	while (ISDIGIT(c))
 	{
 		number = number * 10 + c - '0';
 		c = getc(fp);
@@ -4545,14 +4548,14 @@ WNUM_LOAD fread_widevnum(FILE *fp, long refAuid)
 
 	c = getc(fp);
 
-	if (!isdigit(c))
+	if (!ISDIGIT(c))
 	{
 		bug("Fread_widevnum: bad format (%c) (Expecting digit).", c);
 		exit(1);
 	}
 	number = 0;
 
-	while (isdigit(c))
+	while (ISDIGIT(c))
 	{
 		number = number * 10 + c - '0';
 		c = getc(fp);
@@ -4577,15 +4580,15 @@ WNUM_LOAD *fread_widevnumptr(FILE *fp, long refAuid)
 	{
 		c = getc(fp);
 	}
-	while (isspace(c));
+	while (ISSPACE(c));
 
-	if (!isdigit(c) && c != '#')
+	if (!ISDIGIT(c) && c != '#')
 	{
 		bug("Fread_widevnumptr: bad format (%c).", c);
 		exit(1);
 	}
 
-	while (isdigit(c))
+	while (ISDIGIT(c))
 	{
 		auid = auid * 10 + c - '0';
 		c = getc(fp);
@@ -4600,13 +4603,13 @@ WNUM_LOAD *fread_widevnumptr(FILE *fp, long refAuid)
 	c = getc(fp);
 
 	// VNUM half
-	if (!isdigit(c))
+	if (!ISDIGIT(c))
 	{
 		bug("Fread_widevnumptr: bad format (%c).", c);
 		exit(1);
 	}
 
-	while (isdigit(c))
+	while (ISDIGIT(c))
 	{
 		vnum = vnum * 10 + c - '0';
 		c = getc(fp);
@@ -4703,7 +4706,7 @@ long fread_flag(FILE *fp)
     {
 	c = getc(fp);
     }
-    while (isspace(c));
+    while (ISSPACE(c));
 
     if (c == '-')
     {
@@ -4713,7 +4716,7 @@ long fread_flag(FILE *fp)
 
     number = 0;
 
-    if (!isdigit(c))
+    if (!ISDIGIT(c))
     {
 	while (('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z'))
 	{
@@ -4722,7 +4725,7 @@ long fread_flag(FILE *fp)
 	}
     }
 
-    while (isdigit(c))
+    while (ISDIGIT(c))
     {
 	number = number * 10 + c - '0';
 	c = getc(fp);
@@ -4791,7 +4794,7 @@ char *fread_string(FILE *fp)
     {
 	c = getc(fp);
     }
-    while (isspace(c));
+    while (ISSPACE(c));
 
     if ((*plast++ = c) == '~')
 	return &str_empty[0];
@@ -4926,7 +4929,7 @@ char *fread_string_eol(FILE *fp)
     {
 	c = getc(fp);
     }
-    while (isspace(c));
+    while (ISSPACE(c));
 
     if ((*plast++ = c) == '\n')
 	return &str_empty[0];
@@ -5009,7 +5012,7 @@ char *fread_string_new(FILE *fp)
      */
     do
         c = getc(fp);
-    while (isspace(c));
+    while (ISSPACE(c));
 
     if (c == '~')
 	return &str_empty[0];
@@ -5062,7 +5065,7 @@ char *fread_string_eol_new(FILE *fp)
      */
     do
         c = getc(fp);
-    while (isspace(c));
+    while (ISSPACE(c));
 
     if (c == '~')
 	return &str_empty[0];
@@ -5123,7 +5126,7 @@ char *fread_word(FILE *fp)
     {
 	cEnd = getc(fp);
     }
-    while (isspace(cEnd));
+    while (ISSPACE(cEnd));
 
     if (cEnd == '\'' || cEnd == '"')
     {
@@ -5139,7 +5142,7 @@ char *fread_word(FILE *fp)
     for (; pword < word + MAX_INPUT_LENGTH; pword++)
     {
 	*pword = getc(fp);
-	if (cEnd == ' ' ? isspace(*pword) : *pword == cEnd)
+	if (cEnd == ' ' ? ISSPACE(*pword) : *pword == cEnd)
 	{
 	    if (cEnd == ' ')
 		ungetc(*pword, fp);
@@ -6013,14 +6016,14 @@ void do_memory(CHAR_DATA *ch, char *argument)
 /* @@@NIB : 20070123 : does what it says...*/
 char *skip_whitespace(register char *str)
 {
-	if(str) while(isspace(*str)) ++str;
+	if(str) while(ISSPACE(*str)) ++str;
 	return str;
 }
 
 void strip_newline(char *buf, bool append)
 {
 	int len = strlen(buf);
-	while(len > 0 && isspace(buf[len-1])) --len;
+	while(len > 0 && ISSPACE(buf[len-1])) --len;
 	if(append) {
 		buf[len++] = '\n';
 		buf[len++] = '\r';
@@ -6071,16 +6074,16 @@ char *fread_string_len(FILE *fp)
 	/* Skip whitespaces*/
     do
 	c = getc(fp);
-    while (isspace(c));
+    while (ISSPACE(c));
 
     len = 0;
 
-    if (!isdigit(c)) {
+    if (!ISDIGIT(c)) {
 	bug("Fread_string_new: bad format (%c).", c);
 	exit(1);
     }
 
-    while (isdigit(c))
+    while (ISDIGIT(c))
     {
 	len = len * 10 + c - '0';
 	c      = getc(fp);
@@ -8870,8 +8873,8 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 				if (!str_cmp(word, "Reputation"))
 				{
 					WNUM_LOAD wnum_load = fread_widevnum(fp, index->area->uid);
-					sh_int min_rank = fread_number(fp);
-					sh_int max_rank = fread_number(fp);
+					int16_t min_rank = fread_number(fp);
+					int16_t max_rank = fread_number(fp);
 					long points = fread_number(fp);
 
 					MOB_REPUTATION_DATA *new_rep = new_mob_reputation_data();

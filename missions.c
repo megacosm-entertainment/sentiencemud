@@ -297,7 +297,7 @@ void do_mission(CHAR_DATA *ch, char *argument)
     if (!str_cmp(arg1, "request"))
     {
 		// TODO: Add player property for the default mission mode (for when they just do `mission request`)
-		sh_int mode = MISSION_MODE_AUTO;
+		int16_t mode = MISSION_MODE_AUTO;
 
 		/* For the following functions, a QM must be present. */
 		for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
@@ -319,7 +319,7 @@ void do_mission(CHAR_DATA *ch, char *argument)
 		}
 
 		CLASS_DATA *focus = NULL;
-		sh_int clazz_type = CLASS_NONE;
+		int16_t clazz_type = CLASS_NONE;
 		if (!str_prefix(arg2, "current"))
 		{
 			if (!str_prefix(argument, "type"))

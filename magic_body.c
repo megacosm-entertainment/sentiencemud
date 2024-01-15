@@ -74,7 +74,7 @@ SPELL_FUNC(spell_colour_spray)
 {
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
 
-	static const sh_int dam_each[] = {
+	static const int16_t dam_each[] = {
 		0,
 		0,  0,  0,  0,  0,	 0,  0,  0,  0,  0,
 		30, 35, 40, 45, 50,	55, 55, 55, 56, 57,

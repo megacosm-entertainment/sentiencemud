@@ -11,6 +11,7 @@
 #include <time.h>
 #include <sys/types.h>
 #include <ctype.h>
+#include "strings.h"
 #include "merc.h"
 #include "db.h"
 #include "recycle.h"
@@ -93,14 +94,14 @@ char *compile_ifcheck(char *str,int type, char **store)
 
 	str = skip_whitespace(str);
 
-	if(!isalpha(*str)) {
+	if(!ISALPHA(*str)) {
 		sprintf(buf2,"Line %d: Ifchecks must start with an alphabetic character.", compile_current_line);
 		compile_error_show(buf2);
 		return NULL;
 	}
 
 	s = buf;
-	while(isalnum(*str)) *s++ = *str++;
+	while(ISALNUM(*str)) *s++ = *str++;
 	*s = 0;
 
 	ifc = ifcheck_lookup(buf, type);
@@ -141,24 +142,24 @@ char *compile_expression(char *str,int type, char **store)
 
 	while(*str && *str != ']') {
 		str = skip_whitespace(str);
-		if(isdigit(*str)) {	// Constant
+		if(ISDIGIT(*str)) {	// Constant
 			if(expect) {
 				sprintf(buf,"Line %d: Expecting an operator.", compile_current_line);
 				compile_error_show(buf);
 				return NULL;
 			}
 
-			while(isdigit(*str)) *p++ = *str++;
+			while(ISDIGIT(*str)) *p++ = *str++;
 			++opnds;
 			expect = TRUE;
-		} else if(isalpha(*str)) {	// Variable (simple, alpha-only)
+		} else if(ISALPHA(*str)) {	// Variable (simple, alpha-only)
 			if(expect) {
 				sprintf(buf,"Line %d: Expecting an operator.", compile_current_line);
 				compile_error_show(buf);
 				return NULL;
 			}
 			*p++ = ESCAPE_VARIABLE;
-			while(isalpha(*str) || isdigit(*str)) *p++ = *str++;
+			while(ISALPHA(*str) || ISDIGIT(*str)) *p++ = *str++;
 			*p++ = ESCAPE_END;
 			++opnds;
 			expect = TRUE;
@@ -170,7 +171,7 @@ char *compile_expression(char *str,int type, char **store)
 			}
 			*p++ = ESCAPE_VARIABLE;
 			++str;
-			while(*str && *str != '"' && isprint(*str)) *p++ = *str++;
+			while(*str && *str != '"' && ISPRINT(*str)) *p++ = *str++;
 			if(*str != '"') {
 				sprintf(buf,"Line %d: Missing quote around long variable name in expression.", compile_current_line);
 				compile_error_show(buf);
@@ -297,14 +298,14 @@ char *compile_variable(char *str, char **store, int type, bool bracket, bool any
 	char *p = *store;
 	*p++ = ESCAPE_VARIABLE;
 	while(str && *str && *str != '>') {
-		if(isalpha(*str)) *p++ = *str++;
+		if(ISALPHA(*str)) *p++ = *str++;
 		else if(*str == '<') {
 			str = compile_variable(str+1,&p, type,TRUE,TRUE);
 			if(!str) return NULL;
 		} else if(*str == '[') {
 			str = compile_expression(str+1,type,&p);
 			if(!str) return NULL;
-		} else if(anychar && isprint(*str)) *p++ = *str++;
+		} else if(anychar && ISPRINT(*str)) *p++ = *str++;
 		else {
 			char buf[MIL];
 			sprintf(buf,"Line %d: Invalid character in variable name.", compile_current_line);
@@ -343,7 +344,7 @@ char *compile_entity_field(char *str,char *field, char *suffix)
 		}
 		++str;
 	} else {
-		while(*str && !isspace(*str) && *str != ')' && *str != '.' && *str != ':' && *str != '[') *field++ = *str++;
+		while(*str && !ISSPACE(*str) && *str != ')' && *str != '.' && *str != ':' && *str != '[') *field++ = *str++;
 	}
 	*field = 0;
 
@@ -352,7 +353,7 @@ char *compile_entity_field(char *str,char *field, char *suffix)
 	// Has a type suffix, used for variables
 	if(*str == ':') {
 		str = skip_whitespace(str+1);
-		while(*str && !isspace(*str) && *str != ')' && *str != '.') *suffix++ = *str++;
+		while(*str && !ISSPACE(*str) && *str != ')' && *str != '.') *suffix++ = *str++;
 	} else if(*str != ')' && *str != '.' && *str != '[') {
 		sprintf(buf,"Line %d: Invalid character in $().", compile_current_line);
 		compile_error_show(buf);
@@ -664,7 +665,7 @@ char *compile_entity(char *str,int type, char **store, int *entity_type)
 			next_ent = ENT_ROOM;
 
 		} else if(ent == ENT_STRING) {
-			bool paddir = TRISTATE;		// false = padleft, true = padright
+			sent_bool paddir = TRISTATE_UNDEF;		// false = padleft, true = padright
 
 			if( !str_cmp(field, "padleft") )
 			{
@@ -681,7 +682,7 @@ char *compile_entity(char *str,int type, char **store, int *entity_type)
 				return NULL;
 			}*/
 
-			if (paddir != TRISTATE)
+			if (paddir != TRISTATE_UNDEF)
 			{
 				if( !is_number(suffix) )
 				{
@@ -715,7 +716,7 @@ char *compile_entity(char *str,int type, char **store, int *entity_type)
 				}
 			}
 		} else if(ent == ENT_NUMBER) {
-			bool paddir = TRISTATE;		// false = padleft, true = padright
+			sent_bool paddir = TRISTATE_UNDEF;		// false = padleft, true = padright
 			if( !str_cmp(field, "padleft") )
 			{
 				paddir = false;
@@ -731,7 +732,7 @@ char *compile_entity(char *str,int type, char **store, int *entity_type)
 				return NULL;
 			}*/
 
-			if (paddir != TRISTATE)
+			if (paddir != TRISTATE_UNDEF)
 			{
 				if( !is_number(suffix) )
 				{
@@ -896,7 +897,7 @@ char *compile_substring(char *str, int type, char **store, bool ifc, bool doquot
 				str = compile_entity(str+2,type,&p,NULL);
 			else if(str[1] == '<') {
 				str = compile_variable(str+2,&p,type,TRUE,TRUE);
-			} else if(isalpha(str[1])) {
+			} else if(ISALPHA(str[1])) {
 				*p++ = ESCAPE_UA + str[1] - 'A';
 				str += 2;
 			} else if(str[1] == '$') {
@@ -916,7 +917,7 @@ char *compile_substring(char *str, int type, char **store, bool ifc, bool doquot
 		} else if(ifc && *str == ']')
 			break;
 		else if(doquotes) {
-			if(isspace(*str)) {
+			if(ISSPACE(*str)) {
 				*p++ = *str++;
 				startword = TRUE;
 			} else {
@@ -1010,7 +1011,7 @@ char *compile_string(char *str, int type, int *length, bool doquotes)
 	}
 
 	// Trim off excess whitespace
-	while(p > buf && isspace(p[-1])) --p;
+	while(p > buf && ISSPACE(p[-1])) --p;
 //_D_
 
 	*p = 0;
@@ -1043,10 +1044,10 @@ char *parse_number(char *str, long *value)
 		++str;
     }
 
-    if (!isdigit(*str))
+    if (!ISDIGIT(*str))
 		return NULL;
 
-    while (isdigit(*str))
+    while (ISDIGIT(*str))
     {
 		number = number * 10 + *str - '0';
 		++str;

@@ -162,7 +162,7 @@ FUNC_LOOKUPS(brandish,BRANDISH_FUN,!func)
 FUNC_LOOKUPS(zap,ZAP_FUN,!func)
 FUNC_LOOKUPS(equip,EQUIP_FUN,!func)
 
-sh_int *gsn_from_name(char *name)
+int16_t *gsn_from_name(char *name)
 {
 	for(int i = 0; gsn_table[i].name; i++)
 	{
@@ -188,7 +188,7 @@ SKILL_DATA **gsk_from_name(char *name)
 	return NULL;
 }
 
-char *gsn_to_name(sh_int *pgsn)
+char *gsn_to_name(int16_t *pgsn)
 {
 	for(int i = 0; gsn_table[i].name; i++)
 	{
@@ -1397,7 +1397,7 @@ SKILL_DATA *get_skill_data(char *name)
 	return skill;
 }
 
-SKILL_DATA *get_skill_data_uid(sh_int uid)
+SKILL_DATA *get_skill_data_uid(int16_t uid)
 {
 	ITERATOR it;
 	SKILL_DATA *skill;
@@ -1946,7 +1946,7 @@ void do_train(CHAR_DATA *ch, char *argument)
     CHAR_DATA *mob;
     AFFECT_DATA *af;
     OBJ_DATA *obj;
-    sh_int stat = - 1;
+    int16_t stat = - 1;
     char *pOutput = NULL;
     int cost;
     int max_hit;
@@ -6196,7 +6196,7 @@ SKEDIT( skedit_gsn )
 			return false;
 		}
 
-		sh_int *pgsn = gsn_from_name(argument);
+		int16_t *pgsn = gsn_from_name(argument);
 		if (!pgsn)
 		{
 			send_to_char("Syntax:  skedit gsn set {R<gsn>{x\n\r", ch);
@@ -6468,7 +6468,7 @@ SKEDIT( skedit_mana )
 	char buf[MSL];
 	char arg[MIL];
 	SKILL_DATA *skill;
-	sh_int *mana;
+	int16_t *mana;
 
 	EDIT_SKILL(ch, skill);
 
@@ -7132,7 +7132,7 @@ CLASS_DATA *get_class_data(const char *name)
 }
 
 
-CLASS_DATA *get_class_uid(const sh_int uid)
+CLASS_DATA *get_class_uid(const int16_t uid)
 {
 	ITERATOR it;
 	CLASS_DATA *clazz;

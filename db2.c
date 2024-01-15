@@ -12,9 +12,11 @@
 #include <time.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include "strings.h"
 #include "merc.h"
 #include "db.h"
 #include "tables.h"
+
 
 int social_count;
 struct social_type	social_table		[MAX_SOCIALS];
@@ -822,7 +824,7 @@ char *short_to_name( const char *short_desc )
     do
     {
 		n = 0;
-		while ( isspace( temp_desc[i]))
+		while ( ISSPACE( temp_desc[i]))
 		{
 		    i++;
 		}

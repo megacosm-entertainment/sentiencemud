@@ -5,6 +5,7 @@
  *                                                                         *
  **************************************************************************/
 
+#include "strings.h"
 #include "merc.h"
 #include "tables.h"
 #include "scripts.h"
@@ -459,7 +460,7 @@ char *ifcheck_get_value(SCRIPT_VARINFO *info,IFCHECK_DATA *ifc,char *text,long *
 	for(i=0;argument && *argument && *argument != ESCAPE_END && *argument != '=' && *argument != '<' &&
 		*argument != '>' && *argument != '!' && *argument != '&' && i<IFC_MAXPARAMS;i++) {
 //		if(wiznet_script) {
-//			sprintf(buf,"*argument = %02.2X (%c)", *argument, isprint(*argument) ? *argument : ' ');
+//			sprintf(buf,"*argument = %02.2X (%c)", *argument, ISPRINT(*argument) ? *argument : ' ');
 //			wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 //		}
 		clear_buf(argv[i]->buffer);
@@ -4358,7 +4359,7 @@ TOKEN_DATA *token_find_match(SCRIPT_VARINFO *info, TOKEN_DATA *tokens,char *argu
  * item_type: item type or -1
  * fWear: TRUE: item must be worn, FALSE: don't care
  */
-bool has_item(CHAR_DATA *ch, WNUM wnum, sh_int item_type, bool fWear)
+bool has_item(CHAR_DATA *ch, WNUM wnum, int16_t item_type, bool fWear)
 {
     OBJ_DATA *obj;
     for (obj = ch->carrying; obj; obj = obj->next_content)
@@ -4795,7 +4796,7 @@ bool script_change_exit(ROOM_INDEX_DATA *pRoom, ROOM_INDEX_DATA *pToRoom, int do
 	EXIT_DATA *pExit;
 
 	if (!pToRoom) {
-		sh_int rev;
+		int16_t rev;
 
 		if (!pRoom->exit[door]) {
 			bug("script_change_exit: Couldn't delete exit. %d", pRoom->vnum);
@@ -8626,7 +8627,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 				return;
 
 			if( arg->type == ENT_MOBILE && IS_VALID(arg->d.mob) )
-				variables_set_list_mob(vars,name,arg->d.mob,TRISTATE);
+				variables_set_list_mob(vars,name,arg->d.mob,TRISTATE_UNDEF);
 
 		// MOBLIST remove <index>|<mobile>
 		} else if( !str_cmp(arg->d.str, "remove") ) {
@@ -8667,7 +8668,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 				return;
 
 			if( arg->type == ENT_OBJECT && IS_VALID(arg->d.obj) )
-				variables_set_list_obj(vars,name,arg->d.obj,TRISTATE);
+				variables_set_list_obj(vars,name,arg->d.obj,TRISTATE_UNDEF);
 
 		// OBJLIST remove <index>|<mobile>
 		} else if( !str_cmp(arg->d.str, "remove") ) {
@@ -9960,7 +9961,7 @@ void do_triggers(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			bool scriptable = TRISTATE;
+			sent_bool scriptable = TRISTATE_UNDEF;
 			if (!str_prefix(arg5, "yes"))
 				scriptable = TRUE;
 			else if (!str_prefix(arg5, "no"))
@@ -10022,7 +10023,7 @@ void do_triggers(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			bool value = TRISTATE;
+			sent_bool value = TRISTATE_UNDEF;
 			if (!str_prefix(argument, "yes"))
 				value = TRUE;
 			else if (!str_prefix(argument, "no"))

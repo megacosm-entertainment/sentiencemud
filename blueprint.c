@@ -7442,14 +7442,14 @@ BPEDIT( bpedit_links )
 				char arg5[MIL];
 				char arg6[MIL];
 				char arg7[MIL];
-				bool from_mode = TRISTATE;
-				bool to_mode = TRISTATE;
+				sent_bool from_mode = TRISTATE_UNDEF;
+				sent_bool to_mode = TRISTATE_UNDEF;
 
 				argument = one_argument(argument, arg3);
 				if (!str_prefix(arg3, "generated"))
-					from_mode = false;
+					from_mode = TRISTATE_FALSE;
 				else if(!str_prefix(arg3, "ordinal"))
-					from_mode = true;
+					from_mode = TRISTATE_TRUE;
 				else
 				{
 					send_to_char("Syntax:  links add static {Rgenerated|ordinal{x <from-section> <from-link> generated|ordinal <to-section> <to-link>\n\r", ch);
@@ -7583,13 +7583,13 @@ BPEDIT( bpedit_links )
 				int sections = blueprint_generation_count(bp);
 				char arg3[MIL];
 				char arg4[MIL];
-				bool to_mode = TRISTATE;
+				sent_bool to_mode = TRISTATE_UNDEF;
 
 				argument = one_argument(argument, arg3);
 				if (!str_prefix(arg3, "generated"))
-					to_mode = false;
+					to_mode = TRISTATE_FALSE;
 				else if(!str_prefix(arg3, "ordinal"))
-					to_mode = true;
+					to_mode = TRISTATE_TRUE;
 				else
 				{
 					send_to_char("Syntax:  links add source {Rgenerated|ordinal{x <to-section> <to-link>\n\r", ch);
@@ -7653,7 +7653,7 @@ BPEDIT( bpedit_links )
 				int sections = blueprint_generation_count(bp);
 				char arg3[MIL];
 				char arg4[MIL];
-				bool from_mode = TRISTATE;
+				sent_bool from_mode = TRISTATE_UNDEF;
 
 				argument = one_argument(argument, arg3);
 				if (!str_prefix(arg3, "generated"))
@@ -7841,7 +7841,7 @@ BPEDIT( bpedit_links )
 			if (!str_prefix(arg3, "add"))
 			{
 				int sections = blueprint_generation_count(bp);
-				bool from_mode = TRISTATE;
+				sent_bool from_mode = TRISTATE_UNDEF;
 				char arg4[MIL];
 				char arg5[MIL];
 				char arg6[MIL];
@@ -7949,7 +7949,7 @@ BPEDIT( bpedit_links )
 			if (!str_prefix(arg3, "set"))
 			{
 				int sections = blueprint_generation_count(bp);
-				bool from_mode = TRISTATE;
+				sent_bool from_mode = TRISTATE_UNDEF;
 				char argw[MIL];
 				char arg4[MIL];
 				char arg5[MIL];
@@ -8201,7 +8201,7 @@ BPEDIT( bpedit_links )
 			if (!str_prefix(arg3, "add"))
 			{
 				int sections = blueprint_generation_count(bp);
-				bool to_mode = TRISTATE;
+				sent_bool to_mode = TRISTATE_UNDEF;
 				char arg4[MIL];
 				char arg5[MIL];
 				char arg6[MIL];
@@ -8309,7 +8309,7 @@ BPEDIT( bpedit_links )
 			if (!str_prefix(arg3, "set"))
 			{
 				int sections = blueprint_generation_count(bp);
-				bool to_mode = TRISTATE;
+				sent_bool to_mode = TRISTATE_UNDEF;
 				char argw[MIL];
 				char arg4[MIL];
 				char arg5[MIL];
@@ -8725,14 +8725,14 @@ BPEDIT( bpedit_links )
 					char arg5[MIL];
 					char arg6[MIL];
 					char arg7[MIL];
-					bool from_mode = TRISTATE;
-					bool to_mode = TRISTATE;
+					sent_bool from_mode = TRISTATE_UNDEF;
+					sent_bool to_mode = TRISTATE_UNDEF;
 
 					argument = one_argument(argument, arg3);
 					if (!str_prefix(arg3, "generated"))
-						from_mode = false;
+						from_mode = TRISTATE_FALSE;
 					else if(!str_prefix(arg3, "ordinal"))
-						from_mode = true;
+						from_mode = TRISTATE_TRUE;
 					else
 					{
 						send_to_char("Syntax:  links group # add static {Rgenerated|ordinal{x <from-section> <from-link> generated|ordinal <to-section> <to-link>\n\r", ch);
@@ -8874,13 +8874,13 @@ BPEDIT( bpedit_links )
 					int sections = blueprint_generation_count(bp);
 					char arg3[MIL];
 					char arg4[MIL];
-					bool to_mode = TRISTATE;
+					sent_bool to_mode = TRISTATE_UNDEF;
 
 					argument = one_argument(argument, arg3);
 					if (!str_prefix(arg3, "generated"))
-						to_mode = false;
+						to_mode = TRISTATE_FALSE;
 					else if(!str_prefix(arg3, "ordinal"))
-						to_mode = true;
+						to_mode = TRISTATE_TRUE;
 					else
 					{
 						send_to_char("Syntax:  links group # add source {Rgenerated|ordinal{x <to-section> <to-link>\n\r", ch);
@@ -8948,13 +8948,13 @@ BPEDIT( bpedit_links )
 					int sections = blueprint_generation_count(bp);
 					char arg3[MIL];
 					char arg4[MIL];
-					bool from_mode = TRISTATE;
+					sent_bool from_mode = TRISTATE_UNDEF;
 
 					argument = one_argument(argument, arg3);
 					if (!str_prefix(arg3, "generated"))
-						from_mode = FALSE;
+						from_mode = TRISTATE_FALSE;
 					else if(!str_prefix(arg3, "ordinal"))
-						from_mode = TRUE;
+						from_mode = TRISTATE_TRUE;
 					else
 					{
 						send_to_char("Syntax:  links group # add destination {Rgenerated|ordinal{x <from-section> <from-link>\n\r", ch);
@@ -9129,7 +9129,7 @@ BPEDIT( bpedit_links )
 				if (!str_prefix(arg3, "add"))
 				{
 					int sections = blueprint_generation_count(bp);
-					bool from_mode = TRISTATE;
+					sent_bool from_mode = TRISTATE_UNDEF;
 					char arg4[MIL];
 					char arg5[MIL];
 					char arg6[MIL];
@@ -9241,7 +9241,7 @@ BPEDIT( bpedit_links )
 				if (!str_prefix(arg3, "set"))
 				{
 					int sections = blueprint_generation_count(bp);
-					bool from_mode = TRISTATE;
+					sent_bool from_mode = TRISTATE_UNDEF;
 					char argw[MIL];
 					char arg4[MIL];
 					char arg5[MIL];
@@ -9493,7 +9493,7 @@ BPEDIT( bpedit_links )
 				if (!str_prefix(arg3, "add"))
 				{
 					int sections = blueprint_generation_count(bp);
-					bool to_mode = TRISTATE;
+					sent_bool to_mode = TRISTATE_UNDEF;
 					char arg4[MIL];
 					char arg5[MIL];
 					char arg6[MIL];
@@ -9605,7 +9605,7 @@ BPEDIT( bpedit_links )
 				if (!str_prefix(arg3, "set"))
 				{
 					int sections = blueprint_generation_count(bp);
-					bool to_mode = TRISTATE;
+					sent_bool to_mode = TRISTATE_UNDEF;
 					char argw[MIL];
 					char arg4[MIL];
 					char arg5[MIL];
@@ -9915,7 +9915,7 @@ BPEDIT( bpedit_entrances )
 		if(!str_prefix(arg, "add"))
 		{
 			int sections = blueprint_generation_count(bp);
-			bool mode = TRISTATE;
+			sent_bool mode = TRISTATE_UNDEF;
 			char arg2[MIL];	// name
 			char arg3[MIL]; // mode
 			char arg4[MIL]; // section
@@ -10033,7 +10033,7 @@ BPEDIT( bpedit_entrances )
 		if (!str_prefix(arg, "set"))
 		{
 			int sections = blueprint_generation_count(bp);
-			bool mode = TRISTATE;
+			sent_bool mode = TRISTATE_UNDEF;
 			char argn[MIL];	// index
 			char arg2[MIL];	// name
 			char arg3[MIL]; // mode
@@ -10301,7 +10301,7 @@ BPEDIT( bpedit_exits )
 		if(!str_prefix(arg, "add"))
 		{
 			int sections = blueprint_generation_count(bp);
-			bool mode = TRISTATE;
+			sent_bool mode = TRISTATE_UNDEF;
 			char arg2[MIL];	// name
 			char arg3[MIL]; // mode
 			char arg4[MIL]; // section
@@ -10419,7 +10419,7 @@ BPEDIT( bpedit_exits )
 		if (!str_prefix(arg, "set"))
 		{
 			int sections = blueprint_generation_count(bp);
-			bool mode = TRISTATE;
+			sent_bool mode = TRISTATE_UNDEF;
 			char argn[MIL];	// index
 			char arg2[MIL];	// name
 			char arg3[MIL]; // mode
@@ -10673,7 +10673,7 @@ BPEDIT( bpedit_recall )
 	else
 	{
 		argument = one_argument(argument, arg);
-		bool mode = TRISTATE;
+		sent_bool mode = TRISTATE_UNDEF;
 		if (!str_prefix(arg, "generated"))
 			mode = FALSE;
 		else if (!str_prefix(arg, "ordinal"))
@@ -10921,7 +10921,7 @@ BPEDIT( bpedit_rooms )
 
 		if (!str_prefix(arg, "add"))
 		{
-			bool mode = TRISTATE;
+			sent_bool mode = TRISTATE_UNDEF;
 			char arg2[MIL];	// name
 			char arg3[MIL];	// mode
 			char arg4[MIL];	// section

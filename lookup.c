@@ -284,7 +284,7 @@ LIQUID *liquid_lookup(char *name)
     return liq;
 }
 
-LIQUID *liquid_lookup_uid(sh_int uid)
+LIQUID *liquid_lookup_uid(int16_t uid)
 {
     ITERATOR it;
     LIQUID *liq;
@@ -298,7 +298,7 @@ LIQUID *liquid_lookup_uid(sh_int uid)
     return liq;
 }
 
-sh_int *liquid_gln_lookup(char *name)
+int16_t *liquid_gln_lookup(char *name)
 {
     for(int i = 0; gln_table[i].name; i++)
         if(!str_prefix(name, gln_table[i].name))
@@ -307,7 +307,7 @@ sh_int *liquid_gln_lookup(char *name)
     return NULL;
 }
 
-char *liquid_gln_name(sh_int *gln)
+char *liquid_gln_name(int16_t *gln)
 {
     for(int i = 0; gln_table[i].name; i++)
         if(gln_table[i].gln == gln)

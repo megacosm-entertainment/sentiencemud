@@ -38,6 +38,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "strings.h"
 #include "merc.h"
 #include "interp.h"
 #include "scripts.h"
@@ -1000,7 +1001,7 @@ void interpret( CHAR_DATA *ch, char *argument )
     const struct cmd_type* selected_command = NULL;
 
     // Strip leading spaces
-    while (isspace(*argument))
+    while (ISSPACE(*argument))
 	argument++;
 
     if ( argument[0] == '\0' )
@@ -1088,12 +1089,12 @@ void interpret( CHAR_DATA *ch, char *argument )
     *   also no spaces needed after punctuation.
     */
     strcpy( logline, argument );
-    if ( !isalpha(argument[0]) && !isdigit(argument[0]) )
+    if ( !isalpha(argument[0]) && !ISDIGIT(argument[0]) )
     {
 	command[0] = argument[0];
 	command[1] = '\0';
 	argument++;
-	while ( isspace(*argument) )
+	while ( ISSPACE(*argument) )
 	    argument++;
     }
     else
@@ -1858,7 +1859,7 @@ bool is_number( char *arg )
 
     for ( ; *arg != '\0'; arg++ )
     {
-        if ( !isdigit( *arg ) )
+        if ( !ISDIGIT( *arg ) )
             return FALSE;
     }
 
@@ -1872,7 +1873,7 @@ bool is_percent( char *arg )
 
 	for ( ; *arg != '%' && *arg != '\0'; arg++ )
 	{
-		if ( !isdigit( *arg ) )
+		if ( !ISDIGIT( *arg ) )
 			return FALSE;
 	}
 
@@ -1939,7 +1940,7 @@ char *one_argument_norm( char *argument, char *arg_first )
 {
     char cEnd;
 
-    while ( isspace(*argument) )
+    while ( ISSPACE(*argument) )
 	argument++;
 
     cEnd = ' ';
@@ -1959,7 +1960,7 @@ char *one_argument_norm( char *argument, char *arg_first )
     }
     *arg_first = '\0';
 
-    while ( isspace(*argument) )
+    while ( ISSPACE(*argument) )
 	argument++;
 
     return argument;
@@ -1971,7 +1972,7 @@ char *one_argument( char *argument, char *arg_first )
 {
     char cEnd;
 
-    while ( isspace(*argument) )
+    while ( ISSPACE(*argument) )
 	argument++;
 
     cEnd = ' ';
@@ -1991,7 +1992,7 @@ char *one_argument( char *argument, char *arg_first )
     }
     *arg_first = '\0';
 
-    while ( isspace(*argument) )
+    while ( ISSPACE(*argument) )
 	argument++;
 
     return argument;
@@ -2006,7 +2007,7 @@ char *one_caseful_argument (char *argument, char *arg_first)
 {
     char cEnd;
 
-    while (isspace (*argument))
+    while (ISSPACE (*argument))
         argument++;
 
     cEnd = ' ';
@@ -2026,7 +2027,7 @@ char *one_caseful_argument (char *argument, char *arg_first)
     }
     *arg_first = '\0';
 
-    while (isspace (*argument))
+    while (ISSPACE (*argument))
         argument++;
 
     return argument;

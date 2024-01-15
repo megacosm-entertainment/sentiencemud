@@ -146,7 +146,7 @@ struct song_func_type
 struct gsn_type
 {
 	char *name;
-	sh_int *gsn;
+	int16_t *gsn;
 	SKILL_DATA **gsk;
 };
 
@@ -265,7 +265,7 @@ struct church_type
 {
     char 	*name;
     char 	*who_name;
-    sh_int 	hall;
+    int16_t 	hall;
     bool	independent; /* true for loners */
 };
 
