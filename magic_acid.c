@@ -23,13 +23,13 @@ SPELL_FUNC(spell_acid_blast)
 	int dam;
 
 	if (check_shield_block_projectile(ch, victim, "acid blast", NULL))
-		return FALSE;
+		return false;
 
 	dam = dice(level, 6);
 	if (saves_spell(level, victim, DAM_ACID)) dam /= 2;
 
-	damage(ch, victim, dam, skill, TYPE_UNDEFINED, DAM_ACID, TRUE);
-	return TRUE;
+	damage(ch, victim, dam, skill, TYPE_UNDEFINED, DAM_ACID, true);
+	return true;
 }
 
 SPELL_FUNC(spell_acid_breath)
@@ -42,7 +42,7 @@ SPELL_FUNC(spell_acid_breath)
 	act("You spit acid at $N.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
 	if (check_shield_block_projectile(ch, victim, "acid stream", NULL))
-		return FALSE;
+		return false;
 
 	dam = level * 15;
 
@@ -51,7 +51,7 @@ SPELL_FUNC(spell_acid_breath)
 
 	acid_effect(victim,level,dam/13,TARGET_CHAR);
 	victim->set_death_type = DEATHTYPE_BREATH;
-	damage(ch,victim,dam,skill,TYPE_UNDEFINED,DAM_ACID,TRUE);
-	return TRUE;
+	damage(ch,victim,dam,skill,TYPE_UNDEFINED,DAM_ACID,true);
+	return true;
 }
 

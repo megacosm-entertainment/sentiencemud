@@ -25,12 +25,12 @@ void afterburn_hitroom(ROOM_INDEX_DATA *room, CHAR_DATA *ch, int dam, int level)
 	fire_effect((void *) room, level, dam, TARGET_ROOM);
 	for (victim = room->people; victim ; victim = vnext) {
 		vnext = victim->next_in_room;
-		if (!is_safe(ch, victim, FALSE) && victim != ch) {
+		if (!is_safe(ch, victim, false) && victim != ch) {
 			CHAR_DATA *tch;
 			check_spell_deflection_new(ch, victim, gsk_afterburn, false, &tch, NULL);
 			if (!tch) continue;
 
-			damage(ch, tch, dam, gsk_afterburn, TYPE_UNDEFINED, DAM_FIRE, TRUE);
+			damage(ch, tch, dam, gsk_afterburn, TYPE_UNDEFINED, DAM_FIRE, true);
 			fire_effect((void *)tch, level, dam, TARGET_CHAR);
 		}
 	}
@@ -44,7 +44,7 @@ bool afterburn_progress(ROOM_INDEX_DATA *room, CHAR_DATA *ch, int depth, int doo
 	int level, dam;
 	char buf[MSL];
 
-	if(!afdata || !room) return TRUE;
+	if(!afdata || !room) return true;
 
 	level = afdata->level - afdata->decay * depth;
 	if( level < 1 ) level = 1;
@@ -65,7 +65,7 @@ bool afterburn_progress(ROOM_INDEX_DATA *room, CHAR_DATA *ch, int depth, int doo
 		printf_to_char(ch, "%d] {RA scorching fireball flies %sward!{x\n\r", depth, dir_name[ door ]);
 	}
 
-	return FALSE;
+	return false;
 }
 
 void afterburn_end(ROOM_INDEX_DATA *room, CHAR_DATA *ch, int depth, int door, void *data, bool canceled )
@@ -83,16 +83,16 @@ SPELL_FUNC(spell_afterburn)
 	int door;
 	struct afterburn_data data;
 
-	if (!arg) return FALSE;
+	if (!arg) return false;
 
 	if (!arg[0]) {
 		send_to_char("Cast it in which direction?\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if ((door = parse_direction(arg)) < 0) {
 		send_to_char("That's not a direction.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	act("{RA scorching fireball erupts from your hands and flies $tward!{x", ch, NULL, NULL, NULL, NULL, dir_name[door], NULL, TO_CHAR);
@@ -114,11 +114,11 @@ SPELL_FUNC(spell_afterburn)
 	/* hurt people in the room first */
 	for (victim = ch->in_room->people; victim ; victim = vnext) {
 		vnext = victim->next_in_room;
-		if (!is_safe(ch, victim, FALSE) && victim != ch) {
+		if (!is_safe(ch, victim, false) && victim != ch) {
 			if (!check_spell_deflection(ch, victim, sn))
 				continue;
 
-			damage(ch, victim, dam, sn, DAM_FIRE, TRUE);
+			damage(ch, victim, dam, sn, DAM_FIRE, true);
 			fire_effect((void *)victim, level, dam, TARGET_CHAR);
 		}
 	}
@@ -142,11 +142,11 @@ SPELL_FUNC(spell_afterburn)
 		fire_effect((void *) to_room, level, dam, TARGET_ROOM);
 		for (victim = to_room->people; victim ; victim = vnext) {
 			vnext = victim->next_in_room;
-			if (!is_safe(ch, victim, FALSE) && victim != ch) {
+			if (!is_safe(ch, victim, false) && victim != ch) {
 				if (!check_spell_deflection(ch, victim, sn))
 					continue;
 
-				damage(ch, victim, dam,sn, DAM_FIRE, TRUE);
+				damage(ch, victim, dam,sn, DAM_FIRE, true);
 				fire_effect((void *)victim, level, dam, TARGET_CHAR);
 			}
 		}
@@ -158,7 +158,7 @@ SPELL_FUNC(spell_afterburn)
 		room_echo(to_room, buf);
 	}
 #endif
-	return TRUE;
+	return true;
 }
 
 
@@ -173,20 +173,20 @@ SPELL_FUNC(spell_burning_hands)
 
 	dam = UMIN(dam, 2500);
 
-	damage(ch, victim, dam, skill, TYPE_UNDEFINED, DAM_FIRE,TRUE);
-	return TRUE;
+	damage(ch, victim, dam, skill, TYPE_UNDEFINED, DAM_FIRE,true);
+	return true;
 }
 
 SPELL_FUNC(spell_fire_barrier)
 {
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
 	AFFECT_DATA af;
-	bool perm = FALSE;
+	bool perm = false;
 	memset(&af,0,sizeof(af));
 
 	if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	if (perm && is_affected(victim, skill))
@@ -196,7 +196,7 @@ SPELL_FUNC(spell_fire_barrier)
 			send_to_char("You are already surrounded by a fire barrier.\n\r",ch);
 		else
 			act("$N is already surrounded by a fire barrier.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	af.slot = obj_wear_loc;
@@ -212,7 +212,7 @@ SPELL_FUNC(spell_fire_barrier)
 	affect_to_char(victim, &af);
 	act("{RA barrier fire blooms around $n, defending $m from harm.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	send_to_char("{RA barrier of fire blooms around you.{x\n\r", victim);
-	return TRUE;
+	return true;
 }
 
 
@@ -227,7 +227,7 @@ SPELL_FUNC(spell_fire_breath)
 	act("You breathe forth a cone of fire.",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_CHAR);
 
 	if (check_shield_block_projectile(ch, victim, "cone of fire", NULL))
-		return FALSE;
+		return false;
 
 	dam = level * 12;
 
@@ -239,7 +239,7 @@ SPELL_FUNC(spell_fire_breath)
 	for (vch = victim->in_room->people; vch; vch = vch_next) {
 		vch_next = vch->next_in_room;
 
-		if (is_safe_spell(ch, vch, TRUE) || is_same_group(ch, vch) || (IS_NPC(vch) && IS_NPC(ch) &&
+		if (is_safe_spell(ch, vch, true) || is_same_group(ch, vch) || (IS_NPC(vch) && IS_NPC(ch) &&
 			(ch->fighting != vch || vch->fighting != ch)))
 			continue;
 
@@ -248,22 +248,22 @@ SPELL_FUNC(spell_fire_breath)
 		if (vch == victim) {
 			if (saves_spell(level,vch,DAM_FIRE)) {
 				fire_effect(vch,level/2,dam/4,TARGET_CHAR);
-				damage(ch,vch,dam/2,skill,TYPE_UNDEFINED,DAM_FIRE,TRUE);
+				damage(ch,vch,dam/2,skill,TYPE_UNDEFINED,DAM_FIRE,true);
 			} else	{
 				fire_effect(vch,level,dam,TARGET_CHAR);
-				damage(ch,vch,dam,skill,TYPE_UNDEFINED,DAM_FIRE,TRUE);
+				damage(ch,vch,dam,skill,TYPE_UNDEFINED,DAM_FIRE,true);
 			}
 		} else {
 			if (saves_spell(level - 2,vch,DAM_FIRE)) {
 				fire_effect(vch,level/4,dam/8,TARGET_CHAR);
-				damage(ch,vch,dam/4,skill,TYPE_UNDEFINED,DAM_FIRE,TRUE);
+				damage(ch,vch,dam/4,skill,TYPE_UNDEFINED,DAM_FIRE,true);
 			} else {
 				fire_effect(vch,level/2,dam/4,TARGET_CHAR);
-				damage(ch,vch,dam/2,skill,TYPE_UNDEFINED,DAM_FIRE,TRUE);
+				damage(ch,vch,dam/2,skill,TYPE_UNDEFINED,DAM_FIRE,true);
 			}
 		}
 	}
-	return TRUE;
+	return true;
 }
 
 
@@ -273,11 +273,11 @@ SPELL_FUNC(spell_fire_cloud)
 	OBJ_DATA *obj;
 	ROOM_INDEX_DATA *room;
 	int dir = 0;
-	bool exists = FALSE;
+	bool exists = false;
 
 	if (!obj_index_inferno) {
 		bug("spell_fire_cloud: null obj_index!\n", 0);
-		return FALSE;
+		return false;
 	}
 
 	act("{RA cloud of burning fire erupts from $n's mouth setting light to everything!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -285,20 +285,20 @@ SPELL_FUNC(spell_fire_cloud)
 
 	for (obj = ch->in_room->contents; obj; obj = obj->next_content) {
 		if (obj->pIndexData == obj_index_inferno) {
-			exists = TRUE;
+			exists = true;
 			break;
 		}
 	}
 
 	if (!exists) {
-		fire_cloud = create_object(obj_index_inferno, 0, TRUE);
+		fire_cloud = create_object(obj_index_inferno, 0, true);
 		fire_cloud->timer = 4;
 		obj_to_room(fire_cloud, ch->in_room);
 	}
 
 	echo_around(ch->in_room, "{RA huge fireball flies into the room setting light to everything!{x\n\r");
 
-	exists = FALSE;
+	exists = false;
 	for (dir = 0; dir < MAX_DIR; dir++) {
 		if (!ch->in_room->exit[dir]) continue;
 
@@ -308,19 +308,19 @@ SPELL_FUNC(spell_fire_cloud)
 
 		for (obj = room->contents; obj != NULL; obj = obj->next_content) {
 			if (obj->pIndexData == obj_index_inferno) {
-				exists = TRUE;
+				exists = true;
 				break;
 			}
 		}
 
 		if (!exists) {
-			fire_cloud = create_object(obj_index_inferno, 0, TRUE);
+			fire_cloud = create_object(obj_index_inferno, 0, true);
 			fire_cloud->timer = 4;
 			obj_to_room(fire_cloud, room);
 		}
 	}
 
-	return TRUE;
+	return true;
 }
 
 
@@ -334,7 +334,7 @@ SPELL_FUNC(spell_fireball)
 	act("{RA large fireball flies from $n's hands towards you!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 
 	if (check_shield_block_projectile(ch, victim, "fireball", NULL))
-		return FALSE;
+		return false;
 
 	level = UMAX(0, level);
 	dam = dice(level, level/7);
@@ -345,9 +345,9 @@ SPELL_FUNC(spell_fireball)
 	/* CAP */
 	dam = UMIN(dam, 2500);
 
-	damage(ch,victim,dam,skill, TYPE_UNDEFINED, DAM_FIRE, TRUE);
+	damage(ch,victim,dam,skill, TYPE_UNDEFINED, DAM_FIRE, true);
 	// fire_effect(victim, level, dam, target);
-	return TRUE;
+	return true;
 }
 
 
@@ -359,12 +359,12 @@ SPELL_FUNC(spell_fireproof)
 
 	if (IS_OBJ_STAT(obj,ITEM_BURN_PROOF)) {
 		act("$p is already protected from burning.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	if (obj->item_type == ITEM_SCROLL || (IS_FLUID_CON(obj) && list_size(FLUID_CON(obj)->spells) > 0)) {
 		act("$p is already invested with enough magic. You can't make it fireproof.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	af.slot	= WEAR_NONE;
@@ -382,7 +382,7 @@ SPELL_FUNC(spell_fireproof)
 
 	act("You protect $p from fire.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 	act("$p is surrounded by a protective aura.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_flamestrike)
@@ -395,14 +395,14 @@ SPELL_FUNC(spell_flamestrike)
 	act("{RA large stream of fire shoots from $n's fingertips toward you.{x",ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 
 	if (check_shield_block_projectile(ch, victim, "flamestrike", NULL))
-		return FALSE;
+		return false;
 
 	dam = dice(level/3 + 2, level/3 - 2);
 
 	dam = (dam * get_skill(ch, skill))/100;
 
-	damage(ch, victim, dam, skill,TYPE_UNDEFINED, DAM_FIRE ,TRUE);
-	return TRUE;
+	damage(ch, victim, dam, skill,TYPE_UNDEFINED, DAM_FIRE ,true);
+	return true;
 }
 
 
@@ -414,22 +414,22 @@ SPELL_FUNC(spell_inferno)
 	for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
 		if (obj->pIndexData == obj_index_inferno) {
 			send_to_char("The room is already a raging inferno.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
-	inferno = create_object(obj_index_inferno, 0, TRUE);
+	inferno = create_object(obj_index_inferno, 0, true);
 	inferno->timer = 4;
 	obj_to_room(inferno, ch->in_room);
 	act("With a whisper, the room is ablaze with the burning fires of Hell!",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_hell_forge)
 {
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_magma_flow)
 {
-	return TRUE;
+	return true;
 }

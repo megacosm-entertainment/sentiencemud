@@ -70,7 +70,7 @@ OBJ_DATA *generate_mission_scroll(CHAR_DATA *ch, char *giver, MISSION_DATA *miss
 		scroll_index = obj_index_quest_scroll;
 	}
 
-	OBJ_DATA *scroll = create_object(scroll_index, 0, TRUE);
+	OBJ_DATA *scroll = create_object(scroll_index, 0, true);
 	if( scroll != NULL )
 	{
 		/*
@@ -470,7 +470,7 @@ void do_mission(CHAR_DATA *ch, char *argument)
 
 		if (generate_mission(ch, mob, ch->pending_mission))
 		{
-			ch->pending_mission->generating = FALSE;
+			ch->pending_mission->generating = false;
 
 			sprintf(buf, "Thank you, brave %s!", HANDLE(ch));
 			do_say(mob, buf);
@@ -781,14 +781,14 @@ void do_mission(CHAR_DATA *ch, char *argument)
 			act ("You inform $N you have completed your mission.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		}
 
-		found = FALSE;
-		incomplete = FALSE;
+		found = false;
+		incomplete = false;
 		for (part = mission->parts; part != NULL; part = part->next)
 		{
 			if (part->complete)
-				found = TRUE;
+				found = true;
 			if (!part->complete)
-				incomplete = TRUE;
+				incomplete = true;
 		}
 
 		if (!found)
@@ -968,7 +968,7 @@ void do_mission(CHAR_DATA *ch, char *argument)
 
 
 /*
- * Generate a quest. Returns TRUE if a quest is found.
+ * Generate a quest. Returns true if a quest is found.
  */
 bool generate_mission(CHAR_DATA *ch, CHAR_DATA *missionary, MISSION_DATA *mission)
 {
@@ -977,8 +977,8 @@ bool generate_mission(CHAR_DATA *ch, CHAR_DATA *missionary, MISSION_DATA *missio
 	int parts;
 	int i;
 
-	mission->generating = TRUE;
-	mission->scripted = FALSE;
+	mission->generating = true;
+	mission->scripted = false;
 
 	int total_level = 0;
 	if (mission->clazz_restricted)
@@ -1037,7 +1037,7 @@ bool generate_mission(CHAR_DATA *ch, CHAR_DATA *missionary, MISSION_DATA *missio
 	missionary->tempstore[3] = md->scroll.vnum;	// Default quest scroll item (VNUM)
 	// register1 is total level for use in number of parts
 	if(p_percent_trigger( missionary, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_PREMISSION, NULL,total_level,0,0,0,0))
-		return FALSE;
+		return false;
 	parts = missionary->tempstore[0];				// Updated number of parts to do
 	if( parts < 1 ) parts = 1;					//    Require at least one part.
 
@@ -1060,7 +1060,7 @@ bool generate_mission(CHAR_DATA *ch, CHAR_DATA *missionary, MISSION_DATA *missio
 		if (generate_mission_part(ch, missionary, mission, part, parts - i))
 			continue;
 		else
-			return FALSE;
+			return false;
 	}
 
 	// create the scroll
@@ -1070,7 +1070,7 @@ bool generate_mission(CHAR_DATA *ch, CHAR_DATA *missionary, MISSION_DATA *missio
 	if( scroll == NULL )
 	{
 		// COMPLAIN
-		return FALSE;
+		return false;
 	}
 
 	free_string(scroll->name);
@@ -1085,7 +1085,7 @@ bool generate_mission(CHAR_DATA *ch, CHAR_DATA *missionary, MISSION_DATA *missio
     act("$N gives $p to $n.", ch, missionary, NULL, scroll, NULL, NULL, NULL, TO_ROOM);
     act("$N gives you $p.",   ch, missionary, NULL, scroll, NULL, NULL, NULL, TO_CHAR);
     obj_to_char(scroll, ch);
-    return TRUE;
+    return true;
 }
 
 /* Set up a mission part. */
@@ -1156,7 +1156,7 @@ void check_mission_rescue_mob(CHAR_DATA *ch, bool show)
     CHAR_DATA *mob;
     char buf[MAX_STRING_LENGTH];
     int i;
-    bool found = TRUE;
+    bool found = true;
 
     if (IS_NPC(ch))
     {
@@ -1179,7 +1179,7 @@ void check_mission_rescue_mob(CHAR_DATA *ch, bool show)
 
 				if (part->complete) continue;
 
-				found = FALSE;
+				found = false;
 				mob = ch->in_room->people;
 				while (mob != NULL)
 				{
@@ -1201,7 +1201,7 @@ void check_mission_rescue_mob(CHAR_DATA *ch, bool show)
 						
 						// TOOD: Remove AFF2_AGGRESSIVE
 
-						found = TRUE;
+						found = true;
 						break;
 					}
 
@@ -1216,7 +1216,7 @@ void check_mission_rescue_mob(CHAR_DATA *ch, bool show)
 						send_to_char(buf, ch);
 					}
 
-					part->complete = TRUE;
+					part->complete = true;
 					break;
 				}
 
@@ -1268,7 +1268,7 @@ void check_mission_retrieve_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
 						send_to_char(buf, ch);
 					}
 
-					part->complete = TRUE;
+					part->complete = true;
 				}
 			}
 		}
@@ -1316,7 +1316,7 @@ void check_mission_slay_mob(CHAR_DATA *ch, CHAR_DATA *mob, bool show)
 						send_to_char(buf, ch);
 					}
 
-					part->complete = TRUE;
+					part->complete = true;
 				}
 			}
 		}
@@ -1368,7 +1368,7 @@ void check_mission_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool show)
 						send_to_char(buf, ch);
 					}
 
-					part->complete = TRUE;
+					part->complete = true;
 				}
 			}
 		}

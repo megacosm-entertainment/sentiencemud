@@ -79,7 +79,7 @@ void trance_end(CHAR_DATA *ch)
     int gain;
     char buf[MSL];
     int chance = get_skill(ch, gsk_deep_trance);
-    bool worked = TRUE;
+    bool worked = true;
 
     send_to_char("{YYou come out of your trance.{x\n\r", ch);
 
@@ -92,16 +92,16 @@ void trance_end(CHAR_DATA *ch)
 
 	ch->mana += gain;
 
-	check_improve(ch, gsk_deep_trance, TRUE, 1);
+	check_improve(ch, gsk_deep_trance, true, 1);
     } else {
 	send_to_char("You fail to gather any lost mana during your deep trance.\n\r", ch);
-	check_improve(ch, gsk_deep_trance, FALSE, 1);
-	worked = FALSE;
+	check_improve(ch, gsk_deep_trance, false, 1);
+	worked = false;
     }
 
     sprintf(buf, "{Y$n comes out of $s trance");
 
-    if (worked == TRUE)
+    if (worked == true)
 	strcat(buf, " looking energized.{x");
     else
 	strcat(buf, ", but appears unchanged.{x");
@@ -243,7 +243,7 @@ bool check_spell_deflection_new(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *sk
 				(validate && !((validate)(ch, victim, rch, skill, af))) ||
 				((skill->target == TAR_CHAR_OFFENSIVE ||
 				skill->target == TAR_OBJ_CHAR_OFF) &&
-				ch != NULL && is_safe(ch, rch, FALSE)))
+				ch != NULL && is_safe(ch, rch, false)))
 			{
 				rch = NULL;
 				continue;
@@ -294,7 +294,7 @@ bool check_spell_deflection_new(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *sk
 }
 
 
-// Returns TRUE if the spell got through.
+// Returns true if the spell got through.
 // TODO: make a copy for the various spell functions...
 bool check_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, DEFLECT_FUN *deflect)
 {
@@ -304,7 +304,7 @@ bool check_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill,
 	int lev;
 
 	if (!IS_AFFECTED2(victim, AFF2_SPELL_DEFLECTION))
-		return TRUE;
+		return true;
 
 	act("{MThe crimson aura around you pulses!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	act("{MThe crimson aura around $n pulses!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -316,7 +316,7 @@ bool check_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill,
 	}
 
 	if (af == NULL)
-		return TRUE;
+		return true;
 
 	lev = (af->level * 3)/4;
 	lev = URANGE(15, lev, 90);
@@ -334,7 +334,7 @@ bool check_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill,
 			}
 		}
 
-		return TRUE;
+		return true;
 	}
 
 	/* it bounces to a random person */
@@ -345,7 +345,7 @@ bool check_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill,
 				rch == victim ||
 				((skill->target == TAR_CHAR_OFFENSIVE ||
 				skill->target == TAR_OBJ_CHAR_OFF) &&
-				ch != NULL && is_safe(ch, rch, FALSE))) {
+				ch != NULL && is_safe(ch, rch, false))) {
 				rch = NULL;
 				continue;
 			}
@@ -357,7 +357,7 @@ bool check_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill,
 		send_to_char("{MThe crimson aura around you vanishes.{x\n\r", victim);
 		act("{MThe crimson aura around $n vanishes.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		affect_remove(victim, af);
-		return TRUE;
+		return true;
 	}
 
 	if (rch != NULL) {
@@ -378,12 +378,12 @@ bool check_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill,
 		}
 	}
 
-	return FALSE;
+	return false;
 }
 
 // TODO: Make work with the trigger itself, not the script
 // TODO: Rework
-// Returns TRUE if the spell got through.
+// Returns true if the spell got through.
 bool check_spell_deflection_token(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *token, SCRIPT_DATA *script, char *target_name)
 {
 	CHAR_DATA *rch = NULL;
@@ -393,7 +393,7 @@ bool check_spell_deflection_token(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *
 	int type;
 
 	if (!IS_AFFECTED2(victim, AFF2_SPELL_DEFLECTION))
-		return TRUE;
+		return true;
 
 	act("{MThe crimson aura around you pulses!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	act("{MThe crimson aura around $n pulses!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -405,7 +405,7 @@ bool check_spell_deflection_token(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *
 	}
 
 	if (af == NULL)
-		return TRUE;
+		return true;
 
 	lev = (af->level * 3)/4;
 	lev = URANGE(15, lev, 90);
@@ -424,7 +424,7 @@ bool check_spell_deflection_token(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *
 			}
 		}
 
-		return TRUE;
+		return true;
 	}
 
 	type = token->skill->skill->target;
@@ -436,7 +436,7 @@ bool check_spell_deflection_token(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *
 				rch == victim ||
 				((type == TAR_CHAR_OFFENSIVE ||
 				type == TAR_OBJ_CHAR_OFF) &&
-				ch != NULL && is_safe(ch, rch, FALSE))) {
+				ch != NULL && is_safe(ch, rch, false))) {
 				rch = NULL;
 				continue;
 			}
@@ -448,7 +448,7 @@ bool check_spell_deflection_token(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *
 		send_to_char("{MThe crimson aura around you vanishes.{x\n\r", victim);
 		act("{MThe crimson aura around $n vanishes.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		affect_remove(victim, af);
-		return TRUE;
+		return true;
 	}
 
 	if (rch != NULL) {
@@ -466,6 +466,6 @@ bool check_spell_deflection_token(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *
 		}
 	}
 
-	return FALSE;
+	return false;
 }
 

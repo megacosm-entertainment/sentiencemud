@@ -30,12 +30,12 @@ SPELL_FUNC(spell_shriek)
 	victim->set_death_type = DEATHTYPE_MAGIC;
 
 	if (saves_spell(level,victim,DAM_SOUND)) {
-		damage(ch,victim,dam/4,skill,TYPE_UNDEFINED,DAM_SOUND,TRUE);
+		damage(ch,victim,dam/4,skill,TYPE_UNDEFINED,DAM_SOUND,true);
 	} else {
 		act("$N screams in pain, covering $S ears.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-		damage(ch,victim,dam,skill,TYPE_UNDEFINED,DAM_SOUND,TRUE);
+		damage(ch,victim,dam,skill,TYPE_UNDEFINED,DAM_SOUND,true);
 	}
-	return TRUE;
+	return true;
 }
 
 ////////////////////////////////
@@ -131,7 +131,7 @@ SPELL_FUNC(spell_silence)
 	lvl = (lvl > 19) ? (lvl / 10) : 1;
 
 	// Catalyst is checked in the prespell
-	catalyst = use_catalyst(ch,NULL,CATALYST_SOUND,CATALYST_INVENTORY,lvl,TRUE);
+	catalyst = use_catalyst(ch,NULL,CATALYST_SOUND,CATALYST_INVENTORY,lvl,true);
 
 	return __silence_function(skill, ch, victim, level, catalyst / lvl, obj_wear_loc, "You get the feeling there is a huge sock in your throat.\n\r");
 }
@@ -227,16 +227,16 @@ SPELL_FUNC(spell_vocalize)
 
 	if ((direction = parse_direction(dir)) == -1) {
 		send_to_char("That's not a direction.", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (!ch->in_room->exit[direction]) {
 		send_to_char("Nothing happens.", ch);
-		return FALSE;
+		return false;
 	}
 
 	sprintf(buf, "%s says '%s'.\n\r", ch->name, speaker);
 	buf[0] = UPPER(buf[0]);
-	return FALSE;
+	return false;
 }
 

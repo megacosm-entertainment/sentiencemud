@@ -64,8 +64,8 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	if (!str_cmp(arg, "show"))
 	{
 		int i;
-		bool mob = FALSE;
-		bool obj = FALSE;
+		bool mob = false;
+		bool obj = false;
 
 		if (arg2[0] == '\0' && str_prefix("mob", arg2) && str_prefix("obj", arg2))
 		{
@@ -74,9 +74,9 @@ void do_gq(CHAR_DATA *ch, char *argument)
 		}
 
 		if (!str_prefix("mob", arg2))
-			mob = TRUE;
+			mob = true;
 		if (!str_prefix("obj", arg2))
-			obj = TRUE;
+			obj = true;
 
 		sprintf(buf, "{Y#  %-8s %-34s %-5s", "Widevnum", "Name", "Found{x\n\r");
 		send_to_char(buf, ch);
@@ -140,13 +140,13 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	{
 		sprintf(buf, "{B({WGQ{B)-->{x {BD{CO{BU{CB{BL{CE{B E{CX{BP{CE{BR{CI{BE{CN{BC{CE {Bactivated!{x\n\r");
 		gecho(buf);
-		xp_boost = TRUE;
+		xp_boost = true;
 	}
 	else
 	{
 		sprintf(buf, "{B({WGQ{B)-->{x {BD{CO{BU{CB{BL{CE{B E{CX{BP{CE{BR{CI{BE{CN{BC{CE {Bhas ended.{x\n\r");
 		send_to_char(buf, ch);
-		xp_boost = FALSE;
+		xp_boost = false;
 	}
 	return;
 	}
@@ -163,13 +163,13 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	{
 		sprintf(buf, "{B({WGQ{B)-->{x {RDAMAGE BOOST {ractivated!{x\n\r");
 		gecho(buf);
-		dam_boost = TRUE;
+		dam_boost = true;
 	}
 	else
 	{
 		sprintf(buf, "{B({WGQ{B)-->{x {RDAMAGE BOOST {rhas ended.{x\n\r");
 		send_to_char(buf, ch);
-		dam_boost = FALSE;
+		dam_boost = false;
 	}
 	return;
 	}
@@ -183,7 +183,7 @@ void do_gq(CHAR_DATA *ch, char *argument)
 		while((mob = (CHAR_DATA *)iterator_nextdata(&it)))
 		{
 			if (is_global_mob(mob))
-				extract_char(mob, TRUE);
+				extract_char(mob, true);
 		}
 		iterator_stop(&it);
 
@@ -200,7 +200,7 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	}
 
 	send_to_char("Global mode {GON!@#{X\n\r", ch);
-	global = TRUE;
+	global = true;
 	return;
 	}
 
@@ -213,7 +213,7 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	}
 
 	send_to_char("Global mode {ROFF!@#{X\n\r", ch);
-	global = FALSE;
+	global = false;
 	return;
 	}
 
@@ -325,9 +325,9 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	gq_mob->next = NULL;
 
 	if (!str_cmp(arg5, "group"))
-		gq_mob->group = TRUE;
+		gq_mob->group = true;
 	else
-		gq_mob->group = FALSE;
+		gq_mob->group = false;
 
 	if (global_quest.mobs == NULL)
 	{
@@ -385,7 +385,7 @@ void do_gq(CHAR_DATA *ch, char *argument)
 			obj_index ? obj_index->area->uid : 0,
 			obj_index ? obj_index->vnum : 0,
 			gq_mob->class,
-			gq_mob->group == TRUE ? "yes" : "no");
+			gq_mob->group == true ? "yes" : "no");
 		add_buf(buffer, buf);
 		}
 

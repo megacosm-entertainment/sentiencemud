@@ -47,7 +47,7 @@ void save_bans(void)
 {
     BAN_DATA *pban;
     FILE *fp;
-    bool found = FALSE;
+    bool found = false;
 
     fclose( fpReserve );
     if ( ( fp = fopen( BAN_FILE, "w" ) ) == NULL )
@@ -59,7 +59,7 @@ void save_bans(void)
     {
 	if (IS_SET(pban->ban_flags,BAN_PERMANENT))
 	{
-	    found = TRUE;
+	    found = true;
 	    fprintf(fp,"%-20s %-2d %s\n",pban->name,pban->level,
 		print_flags(pban->ban_flags));
 	}
@@ -122,18 +122,18 @@ bool check_ban(char *site,int type)
 	if (IS_SET(pban->ban_flags,BAN_PREFIX)
 	&&  IS_SET(pban->ban_flags,BAN_SUFFIX)
 	&&  strstr(pban->name,host) != NULL)
-	    return TRUE;
+	    return true;
 
 	if (IS_SET(pban->ban_flags,BAN_PREFIX)
 	&&  !str_suffix(pban->name,host))
-	    return TRUE;
+	    return true;
 
 	if (IS_SET(pban->ban_flags,BAN_SUFFIX)
 	&&  !str_prefix(pban->name,host))
-	    return TRUE;
+	    return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 
@@ -144,7 +144,7 @@ void ban_site(CHAR_DATA *ch, char *argument, bool fPerm)
     char *name;
     BUFFER *buffer;
     BAN_DATA *pban, *prev;
-    bool prefix = FALSE,suffix = FALSE;
+    bool prefix = false,suffix = false;
     int type;
 
     argument = one_argument(argument,arg1);
@@ -198,13 +198,13 @@ void ban_site(CHAR_DATA *ch, char *argument, bool fPerm)
 
     if (name[0] == '*')
     {
-	prefix = TRUE;
+	prefix = true;
 	name++;
     }
 
     if (name[strlen(name) - 1] == '*')
     {
-	suffix = TRUE;
+	suffix = true;
 	name[strlen(name) - 1] = '\0';
     }
 
@@ -260,13 +260,13 @@ void ban_site(CHAR_DATA *ch, char *argument, bool fPerm)
 
 void do_ban(CHAR_DATA *ch, char *argument)
 {
-    ban_site(ch,argument,FALSE);
+    ban_site(ch,argument,false);
 }
 
 
 void do_permban(CHAR_DATA *ch, char *argument)
 {
-    ban_site(ch,argument,TRUE);
+    ban_site(ch,argument,true);
 }
 
 

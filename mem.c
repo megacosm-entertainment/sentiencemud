@@ -180,7 +180,7 @@ static void delete_waypoint(void *ptr)
 
 LLIST *new_waypoints_list()
 {
-	return list_createx(FALSE,copy_waypoint,delete_waypoint);
+	return list_createx(false,copy_waypoint,delete_waypoint);
 }
 
 static void delete_ship_route(void *ptr)
@@ -226,9 +226,9 @@ SKILL_ENTRY *new_skill_entry()
 
 	entry->source = SKILLSRC_NORMAL;
     entry->flags = SKILL_AUTOMATIC;
-	entry->isspell = FALSE;
-	//entry->practice = TRUE;
-	//entry->improve = TRUE;
+	entry->isspell = false;
+	//entry->practice = true;
+	//entry->improve = true;
 
 	return entry;
 }
@@ -477,10 +477,10 @@ OBJ_DATA *new_obj(void)
 
     SET_MEMTYPE(obj,MEMTYPE_OBJ);
     obj->in_mail = NULL;
-	obj->ltokens = list_create(FALSE);
-	obj->lcontains = list_create(FALSE);
-	obj->lclonerooms = list_create(FALSE);
-    obj->lstache = list_create(FALSE);
+	obj->ltokens = list_create(false);
+	obj->lcontains = list_create(false);
+	obj->lclonerooms = list_create(false);
+    obj->lstache = list_create(false);
 	obj->lock = NULL;
 	obj->waypoints = NULL;
 
@@ -647,7 +647,7 @@ CHAR_DATA *new_char( void )
     SET_MEMTYPE(ch,MEMTYPE_MOB);
     VALIDATE(ch);
 
-    ch->morphed = FALSE;
+    ch->morphed = false;
     ch->name                    = &str_empty[0];
     ch->short_descr             = &str_empty[0];
     ch->long_descr              = &str_empty[0];
@@ -692,12 +692,12 @@ CHAR_DATA *new_char( void )
     ch->cpk_deaths = 0;
     ch->arena_deaths = 0;
     ch->remove_question = NULL;
-    ch->cross_zone_question = FALSE;
+    ch->cross_zone_question = false;
     ch->seal_book = NULL;
     ch->heldup = NULL;
     ch->ambush = NULL;
     ch->pursuit_by = NULL;
-    ch->has_head = TRUE;
+    ch->has_head = true;
     ch->resurrect = 0;
     ch->cast = 0;
     ch->daze = 0;
@@ -721,7 +721,7 @@ CHAR_DATA *new_char( void )
     ch->boarded_ship = NULL;
     ch->ship_arrival_time = 0;
     ch->ship_depart_time = 0;
-    ch->in_war = FALSE;
+    ch->in_war = false;
     ch->ship_crash_time = -1;
     ch->fade_dir = -1;		//@@@NIB : 20071020
     ch->force_fading = 0;
@@ -733,7 +733,7 @@ CHAR_DATA *new_char( void )
     {
         ch->perm_stat[i] = 13;
         ch->mod_stat[i] = 0;
-        ch->dirty_stat[i] = TRUE;
+        ch->dirty_stat[i] = true;
     }
 
     ch->hit_damage		= 0;
@@ -742,24 +742,24 @@ CHAR_DATA *new_char( void )
     ch->sorted_skills		= NULL;
     ch->sorted_songs		= NULL;
 
-    ch->llocker			= list_create(FALSE);
-    ch->lcarrying		= list_create(FALSE);
-    ch->lworn			= list_create(FALSE);
-    ch->ltokens			= list_create(FALSE);
-    ch->lclonerooms		= list_create(FALSE);
-    ch->lgroup			= list_create(FALSE);
-    ch->auras           = list_createx(FALSE, NULL, delete_aura_data);
-    ch->lstache         = list_create(FALSE);
-    ch->reputations     = list_createx(FALSE, NULL, delete_reputation_data);
+    ch->llocker			= list_create(false);
+    ch->lcarrying		= list_create(false);
+    ch->lworn			= list_create(false);
+    ch->ltokens			= list_create(false);
+    ch->lclonerooms		= list_create(false);
+    ch->lgroup			= list_create(false);
+    ch->auras           = list_createx(false, NULL, delete_aura_data);
+    ch->lstache         = list_create(false);
+    ch->reputations     = list_createx(false, NULL, delete_reputation_data);
 
     ch->deathsight_vision = 0;
-    ch->in_damage_function = FALSE;
+    ch->in_damage_function = false;
 
     ch->checkpoint = NULL;
     ch->tempstring = NULL;
     ch->shop = NULL;
     ch->mob_reputations = NULL;
-    ch->factions = list_create(FALSE);
+    ch->factions = list_create(false);
 
     ch->missions = list_createx(false, NULL, delete_mission_data);
 
@@ -937,7 +937,7 @@ PC_DATA *new_pcdata(void)
 	pcdata->alias_sub[alias] = NULL;
     }
 
-	pcdata->quit_on_input = FALSE;
+	pcdata->quit_on_input = false;
     pcdata->email = NULL;
     pcdata->afk_message = NULL;
     pcdata->title = str_dup("");
@@ -951,7 +951,7 @@ PC_DATA *new_pcdata(void)
     //pcdata->quests = NULL;
     pcdata->buffer = new_buf();
     pcdata->convert_church = -1;
-    pcdata->need_change_pw = TRUE;
+    pcdata->need_change_pw = true;
 
     pcdata->classes = list_createx(false, NULL, delete_class_level);
     pcdata->current_class = NULL;
@@ -979,13 +979,13 @@ PC_DATA *new_pcdata(void)
     pcdata->second_sub_class_warrior = -1;
 #endif
 
-    pcdata->unlocked_areas = list_create(FALSE);
-    pcdata->ships = list_create(FALSE);
+    pcdata->unlocked_areas = list_create(false);
+    pcdata->ships = list_create(false);
     pcdata->spam_block_navigation = false;
 
     pcdata->extra_commands = NULL;  // This will only ever be not-null during its execution
 
-    pcdata->group_known = list_create(FALSE);
+    pcdata->group_known = list_create(false);
 
     VALIDATE(pcdata);
     return pcdata;
@@ -1309,7 +1309,7 @@ bool add_buf(BUFFER *buffer, char *string)
     oldsize = buffer->size;
 
     if (buffer->state == BUFFER_OVERFLOW) /* don't waste time on bad strings! */
-	return FALSE;
+	return false;
 
     len = strlen(buffer->string) + strlen(string) + 1;
 
@@ -1322,7 +1322,7 @@ bool add_buf(BUFFER *buffer, char *string)
 		buffer->size = oldsize;
 		buffer->state = BUFFER_OVERFLOW;
 		bug("buffer overflow past size %d",buffer->size);
-		return FALSE;
+		return false;
 	    }
   	}
     }
@@ -1336,7 +1336,7 @@ bool add_buf(BUFFER *buffer, char *string)
     }
 
     strcat(buffer->string,string);
-    return TRUE;
+    return true;
 }
 
 
@@ -1379,7 +1379,7 @@ LLIST **new_prog_bank(void)
 	int i;
 	LLIST **data = alloc_mem(TRIGSLOT_MAX *sizeof(LLIST *));
 	for(i = 0; i < TRIGSLOT_MAX; i++)
-		data[i] = list_create(FALSE);
+		data[i] = list_create(false);
 
 	return data;
 }
@@ -1508,7 +1508,7 @@ CHURCH_DATA *new_church( void )
     pChurch->founder_last_login = 0;
     pChurch->pk = 0;
     pChurch->settings = 0;
-    pChurch->treasure_rooms = list_createx(FALSE, NULL, delete_church_treasure_room);
+    pChurch->treasure_rooms = list_createx(false, NULL, delete_church_treasure_room);
     pChurch->key = 0;
 
     pChurch->pk_wins = 0;
@@ -1519,8 +1519,8 @@ CHURCH_DATA *new_church( void )
     pChurch->created = 0;
     pChurch->colour1 = 'C';
     pChurch->colour2 = 'B';
-    pChurch->online_players = list_create(FALSE);
-    pChurch->roster = list_create(FALSE);
+    pChurch->online_players = list_create(false);
+    pChurch->roster = list_create(false);
 
     top_church++;
 
@@ -1655,13 +1655,13 @@ AREA_DATA *new_area( void )
     pArea->repop	    =   0;
     pArea->nplayer          =   0;
     //pArea->flags	    =   0;
-    pArea->empty            =   TRUE;              /* ROM patch */
+    pArea->empty            =   true;              /* ROM patch */
     pArea->anum             =   top_area;
     sprintf( buf, "area%ld.are", pArea->anum );
     pArea->file_name        =   str_dup( buf );
     pArea->uid              =   0;  /* Vizz - uid 0 is invalid */
-    pArea->open		    =   FALSE;
-    pArea->room_list = list_create(FALSE);
+    pArea->open		    =   false;
+    pArea->room_list = list_create(false);
     pArea->comments =   &str_empty[0];
     pArea->description  =   &str_empty[0];
 
@@ -1672,7 +1672,7 @@ AREA_DATA *new_area( void )
     pArea->progs->vars      =	NULL;
     pArea->index_vars       =	NULL;
 
-    pArea->regions = list_createx(FALSE, NULL, delete_area_region);
+    pArea->regions = list_createx(false, NULL, delete_area_region);
     pArea->region.area = pArea;
     pArea->region.uid = 0;  // This is the only one in the area that has this.
     pArea->region.name = str_dup("default region");
@@ -1682,9 +1682,9 @@ AREA_DATA *new_area( void )
     pArea->region.y		    =   -1;
     pArea->region.land_x	    =   -1;
     pArea->region.land_y	    =   -1;
-    pArea->region.rooms = list_create(FALSE);
-    pArea->region.players = list_create(FALSE);
-    pArea->region.valid = TRUE;
+    pArea->region.rooms = list_create(false);
+    pArea->region.players = list_create(false);
+    pArea->region.valid = true;
     pArea->top_region_uid = 0;  // Pre-incremented before use
 
     return pArea;
@@ -1710,7 +1710,7 @@ void free_area( AREA_DATA *pArea )
     free_string(pArea->region.comments);
     list_destroy(pArea->region.players);
     list_destroy(pArea->region.rooms);
-    pArea->region.valid = FALSE;
+    pArea->region.valid = false;
 
 	for(boost = pArea->points; boost; boost = boost_next) {
 		boost_next = boost->next;
@@ -1748,8 +1748,8 @@ AREA_REGION *new_area_region()
     region->name = str_dup("");
     region->description = str_dup("");
     region->comments = str_dup("");
-    region->players = list_create(FALSE);
-    region->rooms = list_create(FALSE);
+    region->players = list_create(false);
+    region->rooms = list_create(false);
 
     VALIDATE(region);
     return region;
@@ -1889,12 +1889,12 @@ ROOM_INDEX_DATA *new_room_index( void )
     pRoom->reset_first = NULL;
     pRoom->reset_last = NULL;
 
-    pRoom->lentity = list_create(FALSE);
-    pRoom->lpeople = list_create(FALSE);
-    pRoom->lcontents = list_create(FALSE);
-    pRoom->levents = list_create(FALSE);
-    pRoom->ltokens = list_create(FALSE);
-    pRoom->lclonerooms = list_create(FALSE);
+    pRoom->lentity = list_create(false);
+    pRoom->lpeople = list_create(false);
+    pRoom->lcontents = list_create(false);
+    pRoom->levents = list_create(false);
+    pRoom->ltokens = list_create(false);
+    pRoom->lclonerooms = list_create(false);
 
     return pRoom;
 }
@@ -2009,7 +2009,7 @@ SHOP_STOCK_DATA *new_shop_stock()
 	pStock->restock_rate = 0;
 
 	pStock->duration = -1;
-	pStock->singular = FALSE;
+	pStock->singular = false;
 
 	pStock->custom_keyword = &str_empty[0];
 	pStock->custom_descr = &str_empty[0];
@@ -2243,8 +2243,8 @@ MOB_INDEX_DATA *new_mob_index( void )
     pMob->attacks	=   0;
     pMob->quests =  NULL;
     pMob->reputations = NULL;
-    pMob->factions = list_create(FALSE);    // REPUTATION_INDEX_DATA *
-    pMob->factions_load = list_createx(FALSE, NULL, delete_list_wnum_load);
+    pMob->factions = list_create(false);    // REPUTATION_INDEX_DATA *
+    pMob->factions_load = list_createx(false, NULL, delete_list_wnum_load);
 
     return pMob;
 }
@@ -2389,9 +2389,9 @@ MISSION_DATA *new_mission( void )
 
     pMission->next = NULL;
     pMission->parts = NULL;
-    pMission->msg_complete = FALSE;
-    pMission->generating = FALSE;
-    pMission->scripted = FALSE;
+    pMission->msg_complete = false;
+    pMission->generating = false;
+    pMission->scripted = false;
 
     pMission->giver_type = -1;
     pMission->giver = wnum_zero;
@@ -2448,8 +2448,8 @@ MISSION_PART_DATA *new_mission_part( void )
     pPart->mob_rescue = -1;
     pPart->room = -1;
     pPart->description = &str_empty[0];
-    pPart->custom_task = FALSE;
-    pPart->complete = FALSE;
+    pPart->custom_task = false;
+    pPart->complete = false;
 
     top_mission_part++;
 
@@ -2491,7 +2491,7 @@ SHIP_INDEX_DATA *new_ship_index()
 	ship->min_crew = -1;
 	ship->max_crew = -1;
 
-	ship->special_keys = list_create(FALSE);
+	ship->special_keys = list_create(false);
 
 	return ship;
 }
@@ -2530,12 +2530,12 @@ SHIP_DATA *new_ship()
 	ship->sextant_x = -1;
 	ship->sextant_y = -1;
 
-	ship->crew = list_create(FALSE);
-	ship->oarsmen = list_create(FALSE);
+	ship->crew = list_create(false);
+	ship->oarsmen = list_create(false);
 
 	ship->waypoints = new_waypoints_list();
-	ship->route_waypoints = list_createx(FALSE, NULL, delete_waypoint);
-	ship->routes = list_createx(FALSE, NULL, delete_ship_route);
+	ship->route_waypoints = list_createx(false, NULL, delete_waypoint);
+	ship->routes = list_createx(false, NULL, delete_ship_route);
 
 	VALIDATE(ship);
 	return ship;
@@ -2951,7 +2951,7 @@ void free_auto_war( AUTO_WAR *m_auto_war )
 {
     while( m_auto_war->team_players != NULL )
     {
-	stop_fighting( m_auto_war->team_players, FALSE);
+	stop_fighting( m_auto_war->team_players, false);
 	act( "{D$n disappears in puff of smoke.{x", m_auto_war->team_players, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
 	act( "You have been transported to Plith.", m_auto_war->team_players, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
 	char_from_room( m_auto_war->team_players );
@@ -2987,7 +2987,7 @@ GQ_MOB_DATA *new_gq_mob( void )
     gq_mob->wnum_load.auid = 0;
     gq_mob->wnum_load.vnum = 0;
     gq_mob->class = 0;
-    gq_mob->group = FALSE;
+    gq_mob->group = false;
     gq_mob->obj_load.auid = 0;
     gq_mob->obj_load.vnum = 0;
     gq_mob->count = 0;
@@ -3149,7 +3149,7 @@ MAIL_DATA *new_mail( void )
     mail->recipient = NULL;
     mail->message = NULL;
     mail->status = 0;
-    mail->picked_up = FALSE;
+    mail->picked_up = false;
 
     return mail;
 }
@@ -3983,7 +3983,7 @@ BLUEPRINT_LINK *new_blueprint_link()
 	bl->room = NULL;
 	bl->ex = NULL;
 
-	bl->used = FALSE;
+	bl->used = false;
 
 	VALIDATE(bl);
 	return bl;
@@ -4097,8 +4097,8 @@ BLUEPRINT_SECTION *new_blueprint_section()
 
     bs->maze_x = 0;
     bs->maze_y = 0;
-    bs->maze_templates = list_createx(FALSE, NULL, delete_maze_weighted_room);
-    bs->maze_fixed_rooms = list_createx(FALSE, NULL, delete_maze_fixed_room);
+    bs->maze_templates = list_createx(false, NULL, delete_maze_weighted_room);
+    bs->maze_fixed_rooms = list_createx(false, NULL, delete_maze_fixed_room);
 
 	VALIDATE(bs);
 	return bs;
@@ -4286,8 +4286,8 @@ BLUEPRINT_LAYOUT_SECTION_DATA *new_blueprint_layout_section_data()
     }
     memset(data, 0, sizeof(BLUEPRINT_LAYOUT_SECTION_DATA));
 
-    data->weighted_sections = list_createx(FALSE, NULL, delete_weighted_random_section_data);
-    data->group = list_createx(FALSE, NULL, delete_blueprint_layout_section_data);
+    data->weighted_sections = list_createx(false, NULL, delete_weighted_random_section_data);
+    data->group = list_createx(false, NULL, delete_blueprint_layout_section_data);
 
     VALIDATE(data);
     return data;
@@ -4325,9 +4325,9 @@ BLUEPRINT_LAYOUT_LINK_DATA *new_blueprint_layout_link_data()
 
     memset(data, 0, sizeof(BLUEPRINT_LAYOUT_LINK_DATA));
 
-    data->from = list_createx(FALSE, NULL, delete_weighted_random_link_data);
-    data->to = list_createx(FALSE, NULL, delete_weighted_random_link_data);
-    data->group = list_createx(FALSE, NULL, delete_blueprint_layout_link_data);
+    data->from = list_createx(false, NULL, delete_weighted_random_link_data);
+    data->to = list_createx(false, NULL, delete_weighted_random_link_data);
+    data->group = list_createx(false, NULL, delete_blueprint_layout_link_data);
 
     VALIDATE(data);
     return data;
@@ -4365,15 +4365,15 @@ BLUEPRINT *new_blueprint()
 
 	bp->area_who = AREA_INSTANCE;
 
-	bp->sections = list_create(FALSE);
-	bp->special_rooms = list_createx(FALSE, NULL, delete_blueprint_special_room);
+	bp->sections = list_create(false);
+	bp->special_rooms = list_createx(false, NULL, delete_blueprint_special_room);
 
-    bp->layout = list_createx(FALSE, NULL, delete_blueprint_layout_section_data);
-    bp->links = list_createx(FALSE, NULL, delete_blueprint_layout_link_data);
+    bp->layout = list_createx(false, NULL, delete_blueprint_layout_section_data);
+    bp->links = list_createx(false, NULL, delete_blueprint_layout_link_data);
     bp->recall = 0;         // 0 = invalid, >0 = positional index, <0 = ordinal index
 
-    bp->entrances = list_createx(FALSE, NULL, delete_blueprint_exit_data);
-    bp->exits = list_createx(FALSE, NULL, delete_blueprint_exit_data);
+    bp->entrances = list_createx(false, NULL, delete_blueprint_exit_data);
+    bp->exits = list_createx(false, NULL, delete_blueprint_exit_data);
 
 	VALIDATE(bp);
 	return bp;
@@ -4416,7 +4416,7 @@ INSTANCE_SECTION *new_instance_section()
 	else
 		section = alloc_perm(sizeof(INSTANCE_SECTION));
 
-	section->rooms = list_create(FALSE);
+	section->rooms = list_create(false);
 
 	VALIDATE(section);
 	return section;
@@ -4547,15 +4547,15 @@ INSTANCE *new_instance()
 	instance->object_uid[0] = 0;
 	instance->object_uid[1] = 0;
 
-	instance->sections = list_create(FALSE);
-	instance->players = list_create(FALSE);
-	instance->mobiles = list_create(FALSE);
-	instance->objects = list_create(FALSE);
-	instance->rooms = list_create(FALSE);
-	instance->bosses = list_create(FALSE);
-	instance->special_rooms = list_createx(FALSE, NULL, delete_named_special_room);
-    instance->special_exits = list_createx(FALSE, NULL, delete_named_special_exit);
-	instance->player_owners = list_createx(FALSE, NULL, delete_list_uid_data);
+	instance->sections = list_create(false);
+	instance->players = list_create(false);
+	instance->mobiles = list_create(false);
+	instance->objects = list_create(false);
+	instance->rooms = list_create(false);
+	instance->bosses = list_create(false);
+	instance->special_rooms = list_createx(false, NULL, delete_named_special_room);
+    instance->special_exits = list_createx(false, NULL, delete_named_special_exit);
+	instance->player_owners = list_createx(false, NULL, delete_list_uid_data);
 
 	VALIDATE(instance);
 	return instance;
@@ -4659,9 +4659,9 @@ DUNGEON_INDEX_SPECIAL_EXIT *new_dungeon_index_special_exit()
 
 	memset(special, 0, sizeof(DUNGEON_INDEX_SPECIAL_EXIT));
 	special->name = &str_empty[0];
-    special->from = list_createx(FALSE, NULL, delete_weighted_random_exit_data);
-    special->to = list_createx(FALSE, NULL, delete_weighted_random_exit_data);
-    special->group = list_createx(FALSE, NULL, delete_dungeon_index_special_exit);
+    special->from = list_createx(false, NULL, delete_weighted_random_exit_data);
+    special->to = list_createx(false, NULL, delete_weighted_random_exit_data);
+    special->group = list_createx(false, NULL, delete_dungeon_index_special_exit);
 
 	VALIDATE(special);
 	return special;
@@ -4742,9 +4742,9 @@ DUNGEON_INDEX_LEVEL_DATA *new_dungeon_index_level()
 
     dungeon_level->mode = LEVELMODE_STATIC;
     dungeon_level->floor = 0;
-    dungeon_level->weighted_floors = list_createx(FALSE, NULL, delete_weighted_random_floor_data);
+    dungeon_level->weighted_floors = list_createx(false, NULL, delete_weighted_random_floor_data);
     dungeon_level->total_weight = 0;
-    dungeon_level->group = list_createx(FALSE, NULL, delete_dungeon_index_level);
+    dungeon_level->group = list_createx(false, NULL, delete_dungeon_index_level);
 
     VALIDATE(dungeon_level);
 
@@ -4790,13 +4790,13 @@ DUNGEON_INDEX_DATA *new_dungeon_index()
     dungeon_index->max_players = 1;
 
     if (fBootDb)
-    	dungeon_index->floors = list_createx(FALSE, NULL, delete_list_wnum_load);
+    	dungeon_index->floors = list_createx(false, NULL, delete_list_wnum_load);
     else
-    	dungeon_index->floors = list_create(FALSE);
+    	dungeon_index->floors = list_create(false);
 
-    dungeon_index->levels = list_createx(FALSE, NULL, delete_dungeon_index_level);
-	dungeon_index->special_rooms = list_createx(FALSE, NULL, delete_dungeon_index_special_room);
-    dungeon_index->special_exits = list_createx(FALSE, NULL, delete_dungeon_index_special_exit);
+    dungeon_index->levels = list_createx(false, NULL, delete_dungeon_index_level);
+	dungeon_index->special_rooms = list_createx(false, NULL, delete_dungeon_index_special_room);
+    dungeon_index->special_exits = list_createx(false, NULL, delete_dungeon_index_special_exit);
 	dungeon_index->entry_room = 0;
 	dungeon_index->exit_room = 0;
 
@@ -4806,7 +4806,7 @@ DUNGEON_INDEX_DATA *new_dungeon_index()
 	dungeon_index->zone_out_portal = &str_empty[0];
 	dungeon_index->zone_out_mount = &str_empty[0];
 
-    dungeon_index->loaded = list_create(FALSE); // Will contain (DUNGEON *)
+    dungeon_index->loaded = list_create(false); // Will contain (DUNGEON *)
 
 	VALIDATE(dungeon_index);
 	return dungeon_index;
@@ -4854,16 +4854,16 @@ DUNGEON *new_dungeon()
 
 	memset(dng, 0, sizeof(DUNGEON));
 
-	dng->empty = FALSE;
-	dng->floors = list_create(FALSE);
-	dng->players = list_create(FALSE);
-	dng->mobiles = list_create(FALSE);
-	dng->objects = list_create(FALSE);
-	dng->rooms = list_create(FALSE);
-	dng->bosses = list_create(FALSE);
-	dng->special_rooms = list_createx(FALSE, NULL, delete_named_special_room);
-    dng->special_exits = list_createx(FALSE, NULL, delete_named_special_exit);
-	dng->player_owners = list_createx(FALSE, NULL, delete_list_uid_data);
+	dng->empty = false;
+	dng->floors = list_create(false);
+	dng->players = list_create(false);
+	dng->mobiles = list_create(false);
+	dng->objects = list_create(false);
+	dng->rooms = list_create(false);
+	dng->bosses = list_create(false);
+	dng->special_rooms = list_createx(false, NULL, delete_named_special_room);
+    dng->special_exits = list_createx(false, NULL, delete_named_special_exit);
+	dng->player_owners = list_createx(false, NULL, delete_list_uid_data);
 
 	VALIDATE(dng);
 	return dng;
@@ -4923,7 +4923,7 @@ SPECIAL_KEY_DATA *new_special_key()
 
 	memset(sk, 0, sizeof(SPECIAL_KEY_DATA));
 
-	sk->list = list_createx(FALSE, NULL, delete_list_uid_data);
+	sk->list = list_createx(false, NULL, delete_list_uid_data);
 
 	VALIDATE(sk);
 
@@ -4994,10 +4994,10 @@ LOCK_STATE *new_lock_state()
 
     memset(state, 0, sizeof(LOCK_STATE));
 
-    //state->keys = list_createx(FALSE, copy_lock_state_key, delete_lock_state_key);
+    //state->keys = list_createx(false, copy_lock_state_key, delete_lock_state_key);
 	state->pick_chance	= 100;
 	state->flags		= 0;
-	state->special_keys	= list_createx(FALSE, copy_lockstate_special_key, delete_lockstate_special_key);
+	state->special_keys	= list_createx(false, copy_lockstate_special_key, delete_lockstate_special_key);
 
 	return state;
 }
@@ -5048,7 +5048,7 @@ SHIP_ROUTE *new_ship_route()
 	memset(route, 0, sizeof(SHIP_ROUTE));
 
 	route->name = &str_empty[0];
-	route->waypoints = list_create(FALSE);
+	route->waypoints = list_create(false);
 
 	VALIDATE(route);
 	return route;
@@ -5412,7 +5412,7 @@ BOOK_DATA *new_book_data()
 
     data->name = str_dup("");
     data->short_descr = str_dup("");
-    data->pages = list_createx(FALSE, _copy_book_page, delete_book_page);
+    data->pages = list_createx(false, _copy_book_page, delete_book_page);
 
     VALIDATE(data);
     return data;
@@ -5506,8 +5506,8 @@ CONTAINER_DATA *new_container_data()
 
     data->name = str_dup("");
     data->short_descr = str_dup("");
-    data->whitelist = list_createx(FALSE, copy_container_filter, delete_container_filter);   // Filled with positive INTs
-    data->blacklist = list_createx(FALSE, copy_container_filter, delete_container_filter);   // Filled with positive INTs
+    data->whitelist = list_createx(false, copy_container_filter, delete_container_filter);   // Filled with positive INTs
+    data->blacklist = list_createx(false, copy_container_filter, delete_container_filter);   // Filled with positive INTs
 
     VALIDATE(data);
     return data;
@@ -5608,7 +5608,7 @@ FLUID_CONTAINER_DATA *new_fluid_container_data()
 
     data->name = str_dup("");
     data->short_descr = str_dup("");
-    data->spells = list_createx(FALSE, copy_spell, delete_spell);
+    data->spells = list_createx(false, copy_spell, delete_spell);
 
     VALIDATE(data);
     return data;
@@ -5731,7 +5731,7 @@ FOOD_DATA *new_food_data()
     
     memset(data, 0, sizeof(*data));
 
-    data->buffs = list_createx(FALSE, copy_food_buff_data, delete_food_buff_data);
+    data->buffs = list_createx(false, copy_food_buff_data, delete_food_buff_data);
 
     VALIDATE(data);
     return data;
@@ -5872,7 +5872,7 @@ FURNITURE_DATA *new_furniture_data()
 
     memset(data, 0, sizeof(*data));
 
-    data->compartments = list_createx(FALSE, copy_furniture_compartment, delete_furniture_compartment);
+    data->compartments = list_createx(false, copy_furniture_compartment, delete_furniture_compartment);
     data->main_compartment = 0;
 
     VALIDATE(data);
@@ -6245,7 +6245,7 @@ PORTAL_DATA *new_portal_data()
     data->name = str_dup("");
     data->short_descr = str_dup("");
     data->charges = -1;
-    data->spells = list_createx(FALSE, copy_spell, delete_spell);
+    data->spells = list_createx(false, copy_spell, delete_spell);
 
     VALIDATE(data);
     return data;
@@ -6314,7 +6314,7 @@ SCROLL_DATA *new_scroll_data()
     
     memset(data, 0, sizeof(*data));
 
-    data->spells = list_createx(FALSE, copy_spell, delete_spell);
+    data->spells = list_createx(false, copy_spell, delete_spell);
 
     VALIDATE(data);
     return data;
@@ -6368,7 +6368,7 @@ TATTOO_DATA *new_tattoo_data()
     
     memset(data, 0, sizeof(*data));
 
-    data->spells = list_createx(FALSE, copy_spell, delete_spell);
+    data->spells = list_createx(false, copy_spell, delete_spell);
 
     VALIDATE(data);
     return data;
@@ -6423,7 +6423,7 @@ WAND_DATA *new_wand_data()
     
     memset(data, 0, sizeof(*data));
 
-    data->spells = list_createx(FALSE, copy_spell, delete_spell);
+    data->spells = list_createx(false, copy_spell, delete_spell);
 
     VALIDATE(data);
     return data;
@@ -6490,7 +6490,7 @@ WEAPON_DATA *new_weapon_data()
         data->attacks[i].type = -1;
     }
 
-    data->spells = list_createx(FALSE, copy_spell, delete_spell);
+    data->spells = list_createx(false, copy_spell, delete_spell);
 
     VALIDATE(data);
     return data;
@@ -6674,7 +6674,7 @@ SKILL_GROUP *new_skill_group_data()
     memset(data, 0, sizeof(*data));
 
     data->name = str_dup("");
-    data->contents = list_createx(FALSE, NULL, delete_group_content);
+    data->contents = list_createx(false, NULL, delete_group_content);
 
     VALIDATE(data);
     return data;
@@ -6788,7 +6788,7 @@ REPUTATION_INDEX_DATA *new_reputation_index_data()
 
     // If initial rank = 0, the reputation has not been configured properly.
 
-    data->ranks = list_createx(FALSE, NULL, delete_reputation_index_rank_data);
+    data->ranks = list_createx(false, NULL, delete_reputation_index_rank_data);
     
     VALIDATE(data);
     return data;
@@ -7207,7 +7207,7 @@ RACE_DATA *new_race_data()
     data->comments = &str_empty[0];
 
     data->who = &str_empty[0];
-    data->skills = list_create(FALSE);
+    data->skills = list_create(false);
 
     VALIDATE(data);
     return data;

@@ -672,7 +672,7 @@ void group_gain_reputation(CHAR_DATA *ch, CHAR_DATA *victim)
 		return;
 	}
 
-	LLIST *seen_reps = list_create(FALSE);
+	LLIST *seen_reps = list_create(false);
 
 	for (gch = ch->in_room->people; gch != NULL; gch = gch->next_in_room)
 	{
@@ -936,7 +936,7 @@ static inline bool __filter_reputation(REPUTATION_DATA *rep, struct __filter_rep
 
 LLIST *sort_reputations(CHAR_DATA *ch, struct __filter_reputation_params *filter)
 {
-	LLIST *list = list_create(FALSE);
+	LLIST *list = list_create(false);
 
 	ITERATOR it;
 	REPUTATION_DATA *rep;

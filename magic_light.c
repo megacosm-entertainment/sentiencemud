@@ -49,7 +49,7 @@ bool visit_func_flash (ROOM_INDEX_DATA *room, void *argv[], int argc, int depth,
 
 	for (vch = room->people; vch != NULL; vch = vch_next) {
 		vch_next = vch->next_in_room;
-		if (!is_safe(ch, vch, FALSE) && vch != ch) {
+		if (!is_safe(ch, vch, false) && vch != ch) {
 			if(!IS_AFFECTED(vch, AFF_BLIND) && number_range(0,(int)(size_t)argv[1]-1) < level && !saves_spell(level, vch, DAM_LIGHT)) {
 				affect_to_char(vch, &af);
 				send_to_char("You are blinded!\n\r", vch);
@@ -60,7 +60,7 @@ bool visit_func_flash (ROOM_INDEX_DATA *room, void *argv[], int argc, int depth,
 		}
 	}
 
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_flash)
@@ -79,21 +79,21 @@ SPELL_FUNC(spell_flash)
 	argv[1] = (void *)(size_t)level;
 	argv[2] = (void *)3;
 
-	visit_rooms(ch->in_room,visit_func_flash,3,argv,3,TRUE);
-	return TRUE;
+	visit_rooms(ch->in_room,visit_func_flash,3,argv,3,true);
+	return true;
 }
 
 SPELL_FUNC(spell_improved_invisibility)
 {
 	CHAR_DATA *victim;
 	AFFECT_DATA af;
-	bool perm = FALSE;
+	bool perm = false;
 
 	memset(&af,0,sizeof(af));
 
 	if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	/* character target */
@@ -101,7 +101,7 @@ SPELL_FUNC(spell_improved_invisibility)
 
 	if (IS_AFFECTED(victim, AFF_INVISIBLE) || IS_AFFECTED2(victim, AFF2_IMPROVED_INVIS)) {
 		send_to_char("You are already invisible.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	af.slot = obj_wear_loc;
@@ -118,7 +118,7 @@ SPELL_FUNC(spell_improved_invisibility)
 
 	send_to_char("You fade out of existence.\n\r", victim);
 	act("$n fades out of existence.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	return TRUE;
+	return true;
 }
 
 
@@ -131,19 +131,19 @@ SPELL_FUNC(spell_continual_light)
 	//makes sometihng glow
 	if (IS_SET(obj->extra[0], ITEM_GLOW)) {
 		act("$p is already glowing.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	act("$p starts glowing with a bright light.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 	act("$n's $p starts glowing with a bright light.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 	SET_BIT(obj->extra[0], ITEM_GLOW);
-	return TRUE;
+	return true;
 /* will re-enable later (AO)
-	light = create_object(obj_index_light_ball, 0, TRUE);
+	light = create_object(obj_index_light_ball, 0, true);
 	obj_to_room(light, ch->in_room);
 	act("$n twiddles $s thumbs and $p appears.",   ch, NULL, NULL, light, NULL, NULL, NULL, TO_ROOM);
 	act("You twiddle your thumbs and $p appears.", ch, NULL, NULL, light, NULL, NULL, NULL, TO_CHAR);
-	return TRUE;  */
+	return true;  */
 }
 
 
@@ -165,7 +165,7 @@ SPELL_FUNC(spell_starflare)
 		vnext = victim->next_in_room;
 
 		if (victim != ch) {
-			if (!is_safe(victim, ch, FALSE) && !is_same_group(victim, ch)) {
+			if (!is_safe(victim, ch, false) && !is_same_group(victim, ch)) {
 				CHAR_DATA *tch;
 				check_spell_deflection_new(ch, victim, skill, false, &tch, NULL);
 				if (!tch) continue;
@@ -174,14 +174,14 @@ SPELL_FUNC(spell_starflare)
 				if (saves_spell(level, tch, DAM_LIGHT))
 					dam /= 3;
 
-				damage(ch, tch, dam, skill, TYPE_UNDEFINED, DAM_LIGHT, TRUE);
+				damage(ch, tch, dam, skill, TYPE_UNDEFINED, DAM_LIGHT, true);
 				spell_blindness(gsk_blindness, level, ch, (void *) tch, TARGET_CHAR, WEAR_NONE);
 
 				level -= 4;
 			}
 		}
 	}
-	return TRUE;
+	return true;
 }
 
 

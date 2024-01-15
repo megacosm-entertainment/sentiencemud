@@ -241,17 +241,17 @@ char *imcstrrep( const char *src, const char *sch, const char *rep )
 {
    int lensrc = strlen( src ), lensch = strlen( sch ), lenrep = strlen( rep ), x, y, in_p;
    static char newsrc[LGST];
-   bool searching = FALSE;
+   bool searching = false;
 
    newsrc[0] = '\0';
    for( x = 0, in_p = 0; x < lensrc; x++, in_p++ )
    {
       if( src[x] == sch[0] )
       {
-         searching = TRUE;
+         searching = true;
          for( y = 0; y < lensch; y++ )
             if( src[x + y] != sch[y] )
-               searching = FALSE;
+               searching = false;
 
          if( searching )
          {
@@ -288,7 +288,7 @@ char *imcstrrep( const char *src, const char *sch, const char *rep )
             }
             x += lensch - 1;
             in_p--;
-            searching = FALSE;
+            searching = false;
             continue;
          }
       }
@@ -478,21 +478,21 @@ bool imcstr_prefix( const char *astr, const char *bstr )
    if( !astr )
    {
       imcbug( "Strn_cmp: null astr." );
-      return TRUE;
+      return true;
    }
 
    if( !bstr )
    {
       imcbug( "Strn_cmp: null bstr." );
-      return TRUE;
+      return true;
    }
 
    for( ; *astr; astr++, bstr++ )
    {
       if( LOWER( *astr ) != LOWER( *bstr ) )
-         return TRUE;
+         return true;
    }
-   return FALSE;
+   return false;
 }
 
 /*
@@ -514,12 +514,12 @@ char *imccapitalize( const char *str )
 bool imc_hasname( const char *list, const char *member )
 {
    if( !list || list[0] == '\0' )
-      return FALSE;
+      return false;
 
    if( !strstr( list, member ) )
-      return FALSE;
+      return false;
 
-   return TRUE;
+   return true;
 }
 
 /* Add a new member to the list, provided it's not already there */
@@ -614,13 +614,13 @@ char *imc_channel_nameof( const char *src )
 {
    static char name[SMST];
    size_t x, y = 0;
-   bool colon = FALSE;
+   bool colon = false;
 
    for( x = 0; x < strlen( src ); x++ )
    {
       if( src[x] == ':' )
       {
-         colon = TRUE;
+         colon = true;
          continue;
       }
       if( !colon )
@@ -644,12 +644,12 @@ char *escape_string( const char *src )
 {
    static char newstr[LGST];
    size_t x, y = 0;
-   bool quote = FALSE, endquote = FALSE;
+   bool quote = false, endquote = false;
 
    if( strchr( src, ' ' ) )
    {
-      quote = TRUE;
-      endquote = TRUE;
+      quote = true;
+      endquote = true;
    }
 
    for( x = 0; x < strlen( src ); x++ )
@@ -658,7 +658,7 @@ char *escape_string( const char *src )
       {
          newstr[y] = '=';
          newstr[++y] = '"';
-         quote = FALSE;
+         quote = false;
       }
       else if( src[x] == '\n' )
       {
@@ -732,9 +732,9 @@ bool imc_isbanned( const char *who )
    for( mud = first_imc_ban; mud; mud = mud->next )
    {
       if( !strcasecmp( mud->name, imc_mudof( who ) ) )
-         return TRUE;
+         return true;
    }
-   return FALSE;
+   return false;
 }
 
 bool imc_isignoring( CHAR_DATA * ch, const char *ignore )
@@ -746,19 +746,19 @@ bool imc_isignoring( CHAR_DATA * ch, const char *ignore )
       if( !strcasecmp( imc_nameof( temp->name ), "*" ) )
       {
          if( !strcasecmp( imc_mudof( temp->name ), imc_mudof( ignore ) ) )
-            return TRUE;
+            return true;
       }
 
       if( !strcasecmp( imc_mudof( temp->name ), "*" ) )
       {
          if( !strcasecmp( imc_nameof( temp->name ), imc_nameof( ignore ) ) )
-            return TRUE;
+            return true;
       }
 
       if( !imcstr_prefix( ignore, temp->name ) )
-         return TRUE;
+         return true;
    }
-   return FALSE;
+   return false;
 }
 
 /* There should only one of these..... */
@@ -818,7 +818,7 @@ void imc_new_reminfo( const char *mud, const char *version, const char *netname,
    else
       p->path = IMCSTRALLOC( path );
 
-   p->expired = FALSE;
+   p->expired = false;
 
 /*
   Hack to make the *dalet server show up properly. mtfox 10-12-08
@@ -856,15 +856,15 @@ bool check_mud( CHAR_DATA * ch, const char *mud )
    if( !r )
    {
       imc_printf( ch, "~W%s ~cis not a valid mud name.\r\n", mud );
-      return FALSE;
+      return false;
    }
 
    if( r->expired )
    {
       imc_printf( ch, "~W%s ~cis not connected right now.\r\n", r->name );
-      return FALSE;
+      return false;
    }
-   return TRUE;
+   return true;
 }
 
 bool check_mudof( CHAR_DATA * ch, const char *mud )
@@ -892,27 +892,27 @@ bool imccheck_permissions( CHAR_DATA * ch, int checkvalue, int targetvalue, bool
    if( checkvalue < 0 || checkvalue > IMCPERM_IMP )
    {
       imc_to_char( "Invalid permission setting.\r\n", ch );
-      return FALSE;
+      return false;
    }
 
    if( checkvalue > IMCPERM( ch ) )
    {
       imc_to_char( "You cannot set permissions higher than your own.\r\n", ch );
-      return FALSE;
+      return false;
    }
 
    if( checkvalue == IMCPERM( ch ) && IMCPERM( ch ) != IMCPERM_IMP && enforceequal )
    {
       imc_to_char( "You cannot set permissions equal to your own. Someone higher up must do this.\r\n", ch );
-      return FALSE;
+      return false;
    }
 
    if( IMCPERM( ch ) < targetvalue )
    {
       imc_to_char( "You cannot alter the permissions of someone or something above your own.\r\n", ch );
-      return FALSE;
+      return false;
    }
-   return TRUE;
+   return true;
 }
 
 IMC_BAN *imc_newban( void )
@@ -950,10 +950,10 @@ bool imc_delban( const char *what )
       if( !strcasecmp( what, ban->name ) )
       {
          imc_freeban( ban );
-         return TRUE;
+         return true;
       }
    }
-   return FALSE;
+   return false;
 }
 
 /*
@@ -1094,10 +1094,10 @@ void imc_new_channel( const char *chan, const char *owner, const char *ops, cons
       c->local_name = imc_channel_nameof( c->name );
 
    c->level = perm;
-   c->refreshed = TRUE;
+   c->refreshed = true;
    c->open = copen;
    IMCLINK( c, first_imc_channel, last_imc_channel, next, prev );
-   imcformat_channel( NULL, c, 4, FALSE );
+   imcformat_channel( NULL, c, 4, false );
 }
 
 /*
@@ -1122,12 +1122,12 @@ int imcfread_number( FILE * fp )
 
    number = 0;
 
-   sign = FALSE;
+   sign = false;
    if( c == '+' )
       c = getc( fp );
    else if( c == '-' )
    {
-      sign = TRUE;
+      sign = true;
       c = getc( fp );
    }
 
@@ -1369,7 +1369,7 @@ void imc_freepacket( IMC_PACKET * p )
 
 int find_next_esign( const char *string, int current )
 {
-   bool quote = FALSE;
+   bool quote = false;
 
    if( string[current] == '=' )
       current++;
@@ -1399,7 +1399,7 @@ char *imc_getData( char *output, const char *key, const char *packet )
 {
    int current = 0;
    size_t i = 0;
-   bool quote = FALSE;
+   bool quote = false;
 
    output[0] = '\0';
 
@@ -1427,7 +1427,7 @@ char *imc_getData( char *output, const char *key, const char *packet )
 
    if( packet[current] == '"' )
    {
-      quote = TRUE;
+      quote = true;
       current++;
    }
 
@@ -2364,7 +2364,7 @@ char *imc_assemble_who( void )
    CHAR_DATA *person;
    DESCRIPTOR_DATA *d;
    int pcount = 0;
-   bool plr = FALSE, imm = FALSE;
+   bool plr = false, imm = false;
    char plrheader[SMST], immheader[SMST], rank[SMST], flags[SMST], name[SMST], title[SMST], plrline[SMST], immline[SMST];
    char plrlines[LGST], immlines[LGST], head[LGST], tail[LGST];
    static char master[LGST];  /* The final result that gets returned */
@@ -2391,7 +2391,7 @@ char *imc_assemble_who( void )
          if( !plr )
          {
             imcstrlcpy( plrheader, whot->plrheader, LGST );
-            plr = TRUE;
+            plr = true;
          }
 
          imcstrlcpy( rank, imcrankbuffer( person ), LGST );
@@ -2409,7 +2409,7 @@ char *imc_assemble_who( void )
       }
    }
 
-   imm = FALSE;
+   imm = false;
    for( d = first_descriptor; d; d = d->next )
    {
       person = d->original ? d->original : d->character;
@@ -2427,7 +2427,7 @@ char *imc_assemble_who( void )
          if( !imm )
          {
             imcstrlcpy( immheader, whot->immheader, SMST );
-            imm = TRUE;
+            imm = true;
          }
 
          imcstrlcpy( rank, imcrankbuffer( person ), SMST );
@@ -2648,7 +2648,7 @@ PFUN( imc_recv_beep )
    }
 
    /*
-    * always display the TRUE name here
+    * always display the true name here
     */
    imc_printf( vic, "~c\a%s imcbeeps you.~!\r\n", fix_sender(q->from) );
 }
@@ -2678,7 +2678,7 @@ PFUN( imc_recv_isalive )
       return;
    }
 
-   r->expired = FALSE;
+   r->expired = false;
 
    if( url[0] != '\0' )
    {
@@ -3048,7 +3048,7 @@ PFUN( imc_recv_closenotify )
    if( !( r = imc_find_reminfo( host ) ) )
       return;
 
-   r->expired = TRUE;
+   r->expired = true;
 }
 
 void imc_register_default_packets( void )
@@ -3079,7 +3079,7 @@ void imc_register_default_packets( void )
    imc_register_packet_handler( "ice-chan-whoreply", imc_recv_chanwhoreply );
    imc_register_packet_handler( "close-notify", imc_recv_closenotify );
 
-   default_packets_registered = TRUE;
+   default_packets_registered = true;
 }
 
 PACKET_FUN *pfun_lookup( const char *type )
@@ -3172,7 +3172,7 @@ void imc_parse_packet( char *packet )
      if( strcasecmp( imc_network_of(serverpath), "Unknown" ) ) {
      r->network = IMCSTRALLOC( imc_network_of(serverpath) );
      r->path = IMCSTRALLOC( p->route );
-     r->expired = FALSE;
+     r->expired = false;
 	}
  }
    IMCDISPOSE( p );
@@ -3194,7 +3194,7 @@ void imc_finalize_connection( char *name, char *netname, SERVER_DATA *server)
 
    if (!strcasecmp(server->network, "Unknown"))
 {
-   imc_shutdown( FALSE, server );
+   imc_shutdown( false, server );
          imclog( "Cannot connect to %s as the netowrk name is unknown. Set the network name manually in imc.servers", server->servername );
    return;
 }
@@ -3211,30 +3211,30 @@ void imc_handle_autosetup( char *source, char *servername, char *cmd, char *txt,
       if( !strcasecmp( txt, "connected" ) )
       {
          imclog( "There is already a mud named %s connected to the %s network.", this_imcmud->localname, server->network );
-         imc_shutdown( FALSE, server );
+         imc_shutdown( false, server );
          return;
       }
       if( !strcasecmp( txt, "private" ) )
       {
          imclog( "%s is a private server. Autosetup denied.", servername );
-         imc_shutdown( FALSE, server );
+         imc_shutdown( false, server );
          return;
       }
       if( !strcasecmp( txt, "full" ) )
       {
          imclog( "%s has reached its connection limit. Autosetup denied.", servername );
-         imc_shutdown( FALSE, server );
+         imc_shutdown( false, server );
          return;
       }
       if( !strcasecmp( txt, "ban" ) )
       {
          imclog( "%s has banned your connection. Autosetup denied.", servername );
-         imc_shutdown( FALSE, server );
+         imc_shutdown( false, server );
          return;
       }
       imclog( "%s: Invalid 'reject' response. Autosetup failed.", servername );
       imclog( "Data received: %s %s %s %s %s", source, servername, cmd, txt, encrypt );
-      imc_shutdown( FALSE, server );
+      imc_shutdown( false, server );
       return;
    }
 
@@ -3244,7 +3244,7 @@ void imc_handle_autosetup( char *source, char *servername, char *cmd, char *txt,
       if( encrypt && encrypt[0] != '\0' && !strcasecmp( encrypt, "SHA256-SET" ) )
       {
          imclog( "SHA-256 Authentication has been enabled." );
-         server->sha256pass = TRUE;
+         server->sha256pass = true;
          imc_save_config(  );
       }
       imc_finalize_connection( servername, txt, server );
@@ -3253,7 +3253,7 @@ void imc_handle_autosetup( char *source, char *servername, char *cmd, char *txt,
 
    imclog( "%s: Invalid autosetup response.", servername );
    imclog( "Data received: %s %s %s %s %s %s", source, servername, cmd, txt, encrypt, server->network );
-   imc_shutdown( FALSE, server );
+   imc_shutdown( false, server );
 }
 
 bool imc_write_socket( SERVER_DATA *server )
@@ -3280,7 +3280,7 @@ bool imc_write_socket( SERVER_DATA *server )
             *p2 = '\0';
 
             server->outtop = strlen( server->outbuf );
-            return TRUE;
+            return true;
          }
 
          if( nwritten < 0 )
@@ -3288,8 +3288,8 @@ bool imc_write_socket( SERVER_DATA *server )
          else
             imclog( "%s", "Connection close detected on socket write." );
 
-         imc_shutdown( TRUE, server );
-         return FALSE;
+         imc_shutdown( true, server );
+         return false;
       }
       nleft -= nwritten;
       ptr += nwritten;
@@ -3320,7 +3320,7 @@ void imc_process_authentication( char *packet, SERVER_DATA *server )
    if( rname[0] == '\0' )
    {
       imclog( "%s", "Incomplete authentication packet. Unable to connect." );
-      imc_shutdown( FALSE, server );
+      imc_shutdown( false, server );
       return;
    }
 
@@ -3333,7 +3333,7 @@ void imc_process_authentication( char *packet, SERVER_DATA *server )
       if( pw[0] == '\0' )
       {
          imclog( "SHA-256 Authentication failure: No auth_value was returned by %s.", rname );
-         imc_shutdown( FALSE, server );
+         imc_shutdown( false, server );
          return;
       }
 
@@ -3368,7 +3368,7 @@ void imc_process_authentication( char *packet, SERVER_DATA *server )
       if( strcasecmp( server->serverpw, pw ) )
       {
          imclog( "%s sent an improper serverpassword.", rname );
-         imc_shutdown( FALSE, server);
+         imc_shutdown( false, server);
          return;
       }
 
@@ -3376,7 +3376,7 @@ void imc_process_authentication( char *packet, SERVER_DATA *server )
       if( encrypt[0] != '\0' && !strcasecmp( encrypt, "SHA256-SET" ) )
       {
          imclog( "SHA-256 Authentication has been enabled." );
-         server->sha256pass = TRUE;
+         server->sha256pass = true;
          imc_save_config(  );
       }
       imc_finalize_connection( rname, netname, server );
@@ -3395,7 +3395,7 @@ void imc_process_authentication( char *packet, SERVER_DATA *server )
 
    imclog( "Invalid authentication response received from %s!!", rname );
    imclog( "Data received: %s %s %s %s %s", command, rname, pw, version, netname );
-   imc_shutdown( FALSE, server );
+   imc_shutdown( false, server );
 }
 
 /*
@@ -3440,7 +3440,7 @@ bool imc_read_socket( SERVER_DATA *server )
 {
    size_t iStart, iErr;
    short loop_count = 0;
-   bool begin = TRUE;
+   bool begin = true;
 
    iStart = strlen( server->inbuf );
 
@@ -3460,7 +3460,7 @@ bool imc_read_socket( SERVER_DATA *server )
          if( iStart >= sizeof( server->inbuf ) - 10 )
             break;
 
-         begin = FALSE;
+         begin = false;
       }
       else if( nRead == 0 && server->state == IMC_ONLINE )
       {
@@ -3468,18 +3468,18 @@ bool imc_read_socket( SERVER_DATA *server )
             break;
 
          imclog( "%s", "Connection close detected on read of IMC2 socket." );
-         return FALSE;
+         return false;
       }
       else if( iErr == EAGAIN || iErr == EWOULDBLOCK )
          break;
       else if( nRead == -1 )
       {
          imclog( "%s: Descriptor error on #%d: %s", __FUNCTION__, server->desc, strerror( iErr ) );
-         return FALSE;
+         return false;
       }
    }
    server->inbuf[iStart] = '\0';
-   return TRUE;
+   return true;
 }
 
 void imc_loop( void )
@@ -3506,7 +3506,7 @@ void imc_loop( void )
          if( server->sha256pass )
          {
             imclog( "%s", "Unable to reconnect using SHA-256, trying standard authentication." );
-            server->sha256pass = FALSE;
+            server->sha256pass = false;
             imc_save_config( );
             server->imcconnect_attempts = 0;
          }
@@ -3517,7 +3517,7 @@ void imc_loop( void )
             continue;
          }
       }
-      imc_startup( TRUE, -1, FALSE );
+      imc_startup( true, -1, false );
       continue;
    }
 
@@ -3543,7 +3543,7 @@ void imc_loop( void )
    if( select( server->desc + 1, &in_set, &out_set, NULL, &null_time ) < 0 )
    {
       perror( "imc_loop: select: poll" );
-      imc_shutdown( TRUE, server );
+      imc_shutdown( true, server );
       continue;
    }
 
@@ -3558,7 +3558,7 @@ void imc_loop( void )
                if( !strcasecmp( server->incomm, "SHA-256 authentication is required." ) )
                {
                   imclog( "%s", "Unable to reconnect using standard authentication, trying SHA-256." );
-                  server->sha256pass = TRUE;
+                  server->sha256pass = true;
                   imc_save_config(  );
                }
                else
@@ -3566,7 +3566,7 @@ void imc_loop( void )
             }
          }
          FD_CLR( server->desc, &out_set );
-         imc_shutdown( TRUE, server );
+         imc_shutdown( true, server );
          continue;
       }
 
@@ -3598,7 +3598,7 @@ void imc_loop( void )
    if( server->desc > 0 && server->outtop > 0 && FD_ISSET( server->desc, &out_set ) && !imc_write_socket( server ) )
    {
       server->outtop = 0;
-      imc_shutdown( TRUE, server );
+      imc_shutdown( true, server );
       }
    }
 }
@@ -3641,9 +3641,9 @@ bool imc_is_connected (void)
 		  if (!server)
             continue;
              if (server->state == IMC_ONLINE)
-				 return (TRUE);
+				 return (true);
              }
-			 return(FALSE);
+			 return(false);
 }
 
 bool imc_is_connecting (void)
@@ -3654,9 +3654,9 @@ bool imc_is_connecting (void)
 		  if (!server)
             continue;
              if (server->state > IMC_OFFLINE)
-				 return (TRUE);
+				 return (true);
              }
-			 return(FALSE);
+			 return(false);
 }
 
 void imc_char_login( CHAR_DATA * ch )
@@ -3670,7 +3670,7 @@ void imc_char_login( CHAR_DATA * ch )
 
    imc_adjust_perms( ch );
 
-   if( imc_is_connected() == FALSE )
+   if( imc_is_connected() == false )
    {
       if( IMCPERM( ch ) >= IMCPERM_IMM )
          imc_to_char( "~RAll IMC2 connections are down.\r\n", ch );
@@ -3694,11 +3694,11 @@ void imc_char_login( CHAR_DATA * ch )
 
 bool imc_loadchar( CHAR_DATA * ch, FILE * fp, const char *word )
 {
-   bool fMatch = FALSE;
+   bool fMatch = false;
 
 #if !defined(IMCSTANDALONE)
    if( IS_NPC( ch ) )
-      return FALSE;
+      return false;
 #endif
 
    if( IMCPERM( ch ) == IMCPERM_NOTSET )
@@ -3719,14 +3719,14 @@ bool imc_loadchar( CHAR_DATA * ch, FILE * fp, const char *word )
          if( !strcasecmp( word, "IMCFlags" ) )
          {
             IMCFLAG( ch ) = imcfread_number( fp );
-            fMatch = TRUE;
+            fMatch = true;
             break;
          }
 
          if( !strcasecmp( word, "IMClisten" ) )
          {
             IMC_LISTEN( ch ) = imcfread_line( fp );
-            if( IMC_LISTEN( ch ) != NULL && imc_is_connected() == TRUE )
+            if( IMC_LISTEN( ch ) != NULL && imc_is_connected() == true )
             {
                IMC_CHANNEL *channel = NULL;
                char *channels = IMCSTRALLOC(IMC_LISTEN( ch ));
@@ -3745,14 +3745,14 @@ bool imc_loadchar( CHAR_DATA * ch, FILE * fp, const char *word )
                  }
             }
             imc_char_login( ch );
-            fMatch = TRUE;
+            fMatch = true;
             break;
          }
 
          if( !strcasecmp( word, "IMCdeny" ) )
          {
             IMC_DENY( ch ) = imcfread_line( fp );
-            if( IMC_DENY( ch ) != NULL && imc_is_connected() == TRUE)
+            if( IMC_DENY( ch ) != NULL && imc_is_connected() == true)
             {
                IMC_CHANNEL *channel = NULL;
                char *channels = IMC_DENY( ch );
@@ -3770,7 +3770,7 @@ bool imc_loadchar( CHAR_DATA * ch, FILE * fp, const char *word )
                      imc_removename( &IMC_DENY( ch ), arg );
                }
             }
-            fMatch = TRUE;
+            fMatch = true;
             break;
          }
 
@@ -3781,7 +3781,7 @@ bool imc_loadchar( CHAR_DATA * ch, FILE * fp, const char *word )
             IMCCREATE( temp, IMC_IGNORE, 1 );
             temp->name = imcfread_line( fp );
             IMCLINK( temp, FIRST_IMCIGNORE( ch ), LAST_IMCIGNORE( ch ), next, prev );
-            fMatch = TRUE;
+            fMatch = true;
             break;
          }
 
@@ -3857,7 +3857,7 @@ void imc_load_pfile( CHAR_DATA * ch, const char *tag, char *line )
    if( !strcmp( tag, "IMCLSN" )|| !strcmp( tag, "ILSN" ) )
    {
       IMC_LISTEN( ch ) = IMCSTRALLOC( line );
-      if( IMC_LISTEN( ch ) != NULL && imc_is_connected() == TRUE )
+      if( IMC_LISTEN( ch ) != NULL && imc_is_connected() == true )
       {
          IMC_CHANNEL *channel = NULL;
          char *channels = IMC_LISTEN( ch );
@@ -4100,12 +4100,12 @@ void imc_readchannel( IMC_CHANNEL * channel, FILE * fp )
    for( ;; )
    {
       word = feof( fp ) ? "End" : imcfread_word( fp );
-      fMatch = FALSE;
+      fMatch = false;
 
       switch ( word[0] )
       {
          case '*':
-            fMatch = TRUE;
+            fMatch = true;
             imcfread_to_eol( fp );
             break;
 
@@ -4198,7 +4198,7 @@ if ( first_imc_channel )
          for( x = 0; x < MAX_IMCHISTORY; x++ )
             channel->history[x] = NULL;
 
-         channel->refreshed = FALSE;   /* Prevents crash trying to use a bogus channel */
+         channel->refreshed = false;   /* Prevents crash trying to use a bogus channel */
          IMCLINK( channel, first_imc_channel, last_imc_channel, next, prev );
        if( imcpacketdebug )
 		 imclog( "configured %s as %s", channel->name, channel->local_name );
@@ -4314,12 +4314,12 @@ void imc_readcolour( IMC_COLOUR * colour, FILE * fp )
    for( ;; )
    {
       word = feof( fp ) ? "End" : imcfread_word( fp );
-      fMatch = FALSE;
+      fMatch = false;
 
       switch ( word[0] )
       {
          case '*':
-            fMatch = TRUE;
+            fMatch = true;
             imcfread_to_eol( fp );
             break;
 
@@ -4430,12 +4430,12 @@ void imc_readhelp( IMC_HELP_DATA * help, FILE * fp )
    for( ;; )
    {
       word = feof( fp ) ? "End" : imcfread_word( fp );
-      fMatch = FALSE;
+      fMatch = false;
 
       switch ( word[0] )
       {
          case '*':
-            fMatch = TRUE;
+            fMatch = true;
             imcfread_to_eol( fp );
             break;
 
@@ -4461,7 +4461,7 @@ void imc_readhelp( IMC_HELP_DATA * help, FILE * fp )
                }
                else
                   help->level = permvalue;
-               fMatch = TRUE;
+               fMatch = true;
                break;
             }
             break;
@@ -4475,7 +4475,7 @@ void imc_readhelp( IMC_HELP_DATA * help, FILE * fp )
                   num++;
                hbuf[num] = '\0';
                help->text = IMCSTRALLOC( hbuf );
-               fMatch = TRUE;
+               fMatch = true;
                break;
             }
             break;
@@ -4577,12 +4577,12 @@ void imc_readcommand( IMC_CMD_DATA * cmd, FILE * fp )
    for( ;; )
    {
       word = feof( fp ) ? "End" : imcfread_word( fp );
-      fMatch = FALSE;
+      fMatch = false;
 
       switch ( word[0] )
       {
          case '*':
-            fMatch = TRUE;
+            fMatch = true;
             imcfread_to_eol( fp );
             break;
 
@@ -4597,7 +4597,7 @@ void imc_readcommand( IMC_CMD_DATA * cmd, FILE * fp )
                IMCCREATE( alias, IMC_ALIAS, 1 );
                alias->name = imcfread_line( fp );
                IMCLINK( alias, cmd->first_alias, cmd->last_alias, next, prev );
-               fMatch = TRUE;
+               fMatch = true;
                break;
             }
             break;
@@ -4610,7 +4610,7 @@ void imc_readcommand( IMC_CMD_DATA * cmd, FILE * fp )
                cmd->function = imc_function( word );
                if( cmd->function == NULL )
                   imcbug( "imc_readcommand: Command %s loaded with invalid function. Set to NULL.", cmd->name );
-               fMatch = TRUE;
+               fMatch = true;
                break;
             }
             break;
@@ -4632,7 +4632,7 @@ void imc_readcommand( IMC_CMD_DATA * cmd, FILE * fp )
                }
                else
                   cmd->level = permvalue;
-               fMatch = TRUE;
+               fMatch = true;
                break;
             }
             break;
@@ -4654,7 +4654,7 @@ bool imc_load_commands( void )
    if( !( fp = fopen( IMC_CMD_FILE, "r" ) ) )
    {
       imclog( "%s", "No command table found." );
-      return FALSE;
+      return false;
    }
 
    for( ;; )

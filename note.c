@@ -93,7 +93,7 @@ void parse_note(CHAR_DATA *ch, char *argument, int type)
 
         if (!str_cmp(argument, "all"))
         {
-            fAll = TRUE;
+            fAll = true;
             anum = 0;
         }
         else if (argument[0] == '\0' || !str_prefix(argument, "next"))
@@ -129,7 +129,7 @@ void parse_note(CHAR_DATA *ch, char *argument, int type)
         }
         else if (is_number(argument))
         {
-            fAll = FALSE;
+            fAll = false;
             anum = atoi(argument);
         }
         else
@@ -215,7 +215,7 @@ void parse_note(CHAR_DATA *ch, char *argument, int type)
         {
             if (is_note_to(ch, pnote) && vnum++ == anum)
             {
-                note_remove(ch, pnote, FALSE);
+                note_remove(ch, pnote, false);
 		sprintf(buf, "%s removed.\n\r", list_name);
 		buf[0] = UPPER(buf[0]);
 		send_to_char(buf, ch);
@@ -242,7 +242,7 @@ void parse_note(CHAR_DATA *ch, char *argument, int type)
         {
             if (is_note_to(ch, pnote) && vnum++ == anum)
             {
-                note_remove(ch, pnote,TRUE);
+                note_remove(ch, pnote,true);
 		sprintf(buf, "%s deleted.\n\r", list_name);
 		buf[0] = UPPER(buf[0]);
 		send_to_char(buf, ch);
@@ -432,28 +432,28 @@ void do_unread(CHAR_DATA *ch)
 {
     char buf[MAX_STRING_LENGTH];
     int count;
-    bool found = FALSE;
+    bool found = false;
 
     if (IS_NPC(ch))
 	return;
 
     if ((count = count_spool(ch,news_list)) > 0)
     {
-	found = TRUE;
+	found = true;
 	sprintf(buf,"There %s %d new news article%s waiting.\n\r",
 	    count > 1 ? "are" : "is",count, count > 1 ? "s" : "");
 	send_to_char(buf,ch);
     }
     if ((count = count_spool(ch,changes_list)) > 0)
     {
-	found = TRUE;
+	found = true;
 	sprintf(buf,"There %s %d change%s waiting to be read.\n\r",
 	    count > 1 ? "are" : "is", count, count > 1 ? "s" : "");
         send_to_char(buf,ch);
     }
     if ((count = count_spool(ch,note_list)) > 0)
     {
-	found = TRUE;
+	found = true;
 	sprintf(buf,"{GYou have {Y%d {Gnew note%s waiting.{x\n\r",
 	    count, count > 1 ? "s" : "");
 	send_to_char(buf,ch);
@@ -665,14 +665,14 @@ void append_note(NOTE_DATA *pnote)
 bool is_note_to(CHAR_DATA *ch, NOTE_DATA *pnote)
 {
     if (!str_cmp(ch->name, pnote->sender))
-	return TRUE;
+	return true;
 
     if (is_exact_name("all", pnote->to_list))
-	return TRUE;
+	return true;
 
     if (ch->church != NULL
     && is_name(ch->church->name, pnote->to_list))
-        return TRUE;
+        return true;
 
     if (ch->tot_level == MAX_LEVEL
     &&  (is_exact_name(pnote->to_list, "coder")
@@ -680,7 +680,7 @@ bool is_note_to(CHAR_DATA *ch, NOTE_DATA *pnote)
          || is_exact_name(pnote->to_list, "imp")
          || is_exact_name(pnote->to_list, "implementor")
          || is_exact_name(pnote->to_list, "implementors")))
-	return TRUE;
+	return true;
 
     if (IS_IMMORTAL(ch)
 	    && (is_exact_name("immortal", pnote->to_list)
@@ -689,12 +689,12 @@ bool is_note_to(CHAR_DATA *ch, NOTE_DATA *pnote)
 		|| is_exact_name("gods", pnote->to_list)
 	        || is_exact_name("staff", pnote->to_list)
 		|| is_exact_name("slackers", pnote->to_list)))
-	return TRUE;
+	return true;
 
     if (is_exact_name(ch->name, pnote->to_list))
-	return TRUE;
+	return true;
 
-    return FALSE;
+    return false;
 }
 
 
@@ -797,12 +797,12 @@ bool hide_note(CHAR_DATA *ch, NOTE_DATA *pnote)
     time_t last_read;
 
     if (IS_NPC(ch))
-	return TRUE;
+	return true;
 
     switch (pnote->type)
     {
 	default:
-	    return TRUE;
+	    return true;
 	case NOTE_NOTE:
 	    last_read = ch->pcdata->last_note;
 	    break;
@@ -815,15 +815,15 @@ bool hide_note(CHAR_DATA *ch, NOTE_DATA *pnote)
     }
 
     if (pnote->date_stamp <= last_read)
-	return TRUE;
+	return true;
 
     if (!str_cmp(ch->name,pnote->sender))
-	return TRUE;
+	return true;
 
     if (!is_note_to(ch,pnote))
-	return TRUE;
+	return true;
 
-    return FALSE;
+    return false;
 }
 
 

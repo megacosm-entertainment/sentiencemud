@@ -86,8 +86,8 @@ void do_mount(CHAR_DATA *ch, char *argument)
     {
 	act("{ROUCH! You attempt to mount $N, but $E bucks and kicks you off!{x", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	act("{R$n attempts to mount $N, but $E bucks and kicks $m off!{x", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	damage(mount, ch, ch->hit/5, gsk_kick, TYPE_UNDEFINED, DAM_BASH, FALSE);
-	stop_fighting(ch, TRUE);
+	damage(mount, ch, ch->hit/5, gsk_kick, TYPE_UNDEFINED, DAM_BASH, false);
+	stop_fighting(ch, true);
 	ch->position = POS_RESTING;
 	ch->bashed = 4;
 	return;
@@ -101,9 +101,9 @@ void do_mount(CHAR_DATA *ch, char *argument)
     act("$n hops on your back!", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 
     ch->mount = mount;
-    ch->riding = TRUE;
+    ch->riding = true;
     mount->rider = ch;
-    mount->riding = TRUE;
+    mount->riding = true;
 
     p_percent_trigger(mount, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_MOUNT, NULL,0,0,0,0,0);
 
@@ -113,7 +113,7 @@ void do_mount(CHAR_DATA *ch, char *argument)
     REMOVE_BIT(ch->affected_by[0], AFF_HIDE);
 
     if (get_skill(ch, gsk_riding) > 0)
-	    add_grouped(mount, ch, TRUE);
+	    add_grouped(mount, ch, true);
 }
 
 
@@ -132,8 +132,8 @@ void do_dismount(CHAR_DATA *ch, char *argument)
 	act("$n dismounts from $N.",  ch, mount, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
 	act("$n dismounts from you.", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 
-	ch->riding = FALSE;
-	mount->riding = FALSE;
+	ch->riding = false;
+	mount->riding = false;
 	mount->rider = NULL;
 	ch->mount = NULL;
     }

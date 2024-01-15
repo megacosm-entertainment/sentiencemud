@@ -91,11 +91,11 @@ INVASION_QUEST* create_invasion_quest(AREA_DATA *pArea, int max_level, long p_le
 
 
     // create leader
-    leader = create_mobile(get_mob_index(leader_vnum), FALSE);
+    leader = create_mobile(get_mob_index(leader_vnum), false);
     leader->invasion_quest = quest;
     quest->leader = leader;
 
-    while(TRUE) {
+    while(true) {
       vnum = number_range(1, pArea->top_room);
       pRoom = get_room_index(pArea, vnum);
 
@@ -114,9 +114,9 @@ INVASION_QUEST* create_invasion_quest(AREA_DATA *pArea, int max_level, long p_le
     // place mobs
     for (i = 0; i < number; i++) {
       CHAR_DATA *mob; 
-    	mob = create_mobile(get_mob_index(mob_vnum), FALSE);
+    	mob = create_mobile(get_mob_index(mob_vnum), false);
 
-			while(TRUE) {
+			while(true) {
 				vnum = number_range(1, pArea->top_room);
 				pRoom = get_room_index(pArea, vnum);
 
@@ -144,13 +144,13 @@ void extract_invasion_quest(INVASION_QUEST *quest) {
     char_from_invasion(ch, quest);
     if (ch != NULL) {
       char_from_room(ch);
-      extract_char(ch, FALSE);
+      extract_char(ch, false);
     }
   }
 
   if (quest->leader != NULL) {
     char_from_room(quest->leader);
-  	extract_char(quest->leader, FALSE);
+  	extract_char(quest->leader, false);
   }
 
   quest->leader = NULL;

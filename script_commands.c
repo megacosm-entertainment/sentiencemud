@@ -41,170 +41,170 @@ void reset_reckoning();
 #define ARG_PREFIX(ss)			(!str_prefix(arg->d.str, (ss)))
 
 const struct script_cmd_type area_cmd_table[] = {
-	{ "acttrigger",				scriptcmd_acttrigger,	TRUE,	FALSE	},
-	{ "addaura",			scriptcmd_addaura,			TRUE,	TRUE	},
-	{ "bribetrigger",			scriptcmd_bribetrigger,	TRUE,	FALSE	},
-	{ "call",				scriptcmd_call,				FALSE,	TRUE	},
-	{ "directiontrigger",		scriptcmd_directiontrigger,	TRUE,	FALSE	},
-	{ "dungeoncommence",	scriptcmd_dungeoncommence,	TRUE,	TRUE	},
-	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	TRUE,	TRUE	},
-	{ "dungeonfailure",		scriptcmd_dungeonfailure,	TRUE,	TRUE	},
-	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
-	{ "emoteattrigger",			scriptcmd_emoteattrigger,	TRUE,	FALSE	},
-	{ "emotetrigger",			scriptcmd_emotetrigger,	TRUE,	FALSE	},
-	{ "exacttrigger",			scriptcmd_exacttrigger,	TRUE,	FALSE	},
-	{ "exittrigger",			scriptcmd_exittrigger,	TRUE,	FALSE	},
-	{ "givetrigger",			scriptcmd_givetrigger,	TRUE,	FALSE	},
-	{ "greettrigger",			scriptcmd_greettrigger,	TRUE,	FALSE	},
-	{ "hprcttrigger",			scriptcmd_hprcttrigger,	TRUE,	FALSE	},
-	{ "instancecomplete",	scriptcmd_instancecomplete,	TRUE,	TRUE	},
-	{ "mload",				scriptcmd_mload,			FALSE,	TRUE	},
-	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
-	{ "nametrigger",			scriptcmd_nametrigger,	TRUE,	FALSE	},
-	{ "numbertrigger",			scriptcmd_numbertrigger,	TRUE,	FALSE	},
-	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
-	{ "percenttokentrigger",	scriptcmd_percenttokentrigger,	TRUE,	FALSE	},
-	{ "percenttrigger",			scriptcmd_percenttrigger,	TRUE,	FALSE	},
-	{ "reassign",			scriptcmd_reassign,			TRUE,	FALSE	},
-	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
-	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
-	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
-	{ "setposition",		scriptcmd_setposition,		TRUE,	TRUE	},
-	{ "settitle",			scriptcmd_settitle,			TRUE,	TRUE	},
-	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
-	{ "startreckoning",		scriptcmd_startreckoning,	TRUE,	TRUE	},
-	{ "stopreckoning",		scriptcmd_stopreckoning,	TRUE,	TRUE	},
-	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
-	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
-	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
-	{ "useontrigger",			scriptcmd_useontrigger,	TRUE,	FALSE	},
-	{ "usetrigger",				scriptcmd_usetrigger,	TRUE,	FALSE	},
-	{ "usewithtrigger",			scriptcmd_usewithtrigger,	TRUE,	FALSE	},
-	{ "varclear",			scriptcmd_varclear,			FALSE,	TRUE	},
-	{ "varclearon",			scriptcmd_varclearon,		FALSE,	TRUE	},
-	{ "varcopy",			scriptcmd_varcopy,			FALSE,	TRUE	},
-	{ "varsave",			scriptcmd_varsave,			FALSE,	TRUE	},
-	{ "varsaveon",			scriptcmd_varsaveon,		FALSE,	TRUE	},
-	{ "varset",				scriptcmd_varset,			FALSE,	TRUE	},
-	{ "varseton",			scriptcmd_varseton,			FALSE,	TRUE	},
-	{ "wildernessmap",		scriptcmd_wildernessmap,	FALSE,	TRUE	},
-	{ "xcall",				scriptcmd_xcall,			FALSE,	TRUE	},
-	{ NULL,					NULL,						FALSE,	FALSE	}
+	{ "acttrigger",				scriptcmd_acttrigger,	true,	false	},
+	{ "addaura",			scriptcmd_addaura,			true,	true	},
+	{ "bribetrigger",			scriptcmd_bribetrigger,	true,	false	},
+	{ "call",				scriptcmd_call,				false,	true	},
+	{ "directiontrigger",		scriptcmd_directiontrigger,	true,	false	},
+	{ "dungeoncommence",	scriptcmd_dungeoncommence,	true,	true	},
+	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
+	{ "dungeonfailure",		scriptcmd_dungeonfailure,	true,	true	},
+	{ "echoat",				scriptcmd_echoat,			false,	true	},
+	{ "emoteattrigger",			scriptcmd_emoteattrigger,	true,	false	},
+	{ "emotetrigger",			scriptcmd_emotetrigger,	true,	false	},
+	{ "exacttrigger",			scriptcmd_exacttrigger,	true,	false	},
+	{ "exittrigger",			scriptcmd_exittrigger,	true,	false	},
+	{ "givetrigger",			scriptcmd_givetrigger,	true,	false	},
+	{ "greettrigger",			scriptcmd_greettrigger,	true,	false	},
+	{ "hprcttrigger",			scriptcmd_hprcttrigger,	true,	false	},
+	{ "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
+	{ "mload",				scriptcmd_mload,			false,	true	},
+	{ "mute",				scriptcmd_mute,				false,	true	},
+	{ "nametrigger",			scriptcmd_nametrigger,	true,	false	},
+	{ "numbertrigger",			scriptcmd_numbertrigger,	true,	false	},
+	{ "oload",				scriptcmd_oload,			false,	true	},
+	{ "percenttokentrigger",	scriptcmd_percenttokentrigger,	true,	false	},
+	{ "percenttrigger",			scriptcmd_percenttrigger,	true,	false	},
+	{ "reassign",			scriptcmd_reassign,			true,	false	},
+	{ "reckoning",			scriptcmd_reckoning,		true,	true	},
+	{ "remaura",			scriptcmd_remaura,			true,	true	},
+	{ "sendfloor",			scriptcmd_sendfloor,		false,	true	},
+	{ "setposition",		scriptcmd_setposition,		true,	true	},
+	{ "settitle",			scriptcmd_settitle,			true,	true	},
+	{ "specialkey",			scriptcmd_specialkey,		false,	true	},
+	{ "startreckoning",		scriptcmd_startreckoning,	true,	true	},
+	{ "stopreckoning",		scriptcmd_stopreckoning,	true,	true	},
+	{ "treasuremap",		scriptcmd_treasuremap,		false,	true	},
+	{ "unlockarea",			scriptcmd_unlockarea,		true,	true	},
+	{ "unmute",				scriptcmd_unmute,			false,	true	},
+	{ "useontrigger",			scriptcmd_useontrigger,	true,	false	},
+	{ "usetrigger",				scriptcmd_usetrigger,	true,	false	},
+	{ "usewithtrigger",			scriptcmd_usewithtrigger,	true,	false	},
+	{ "varclear",			scriptcmd_varclear,			false,	true	},
+	{ "varclearon",			scriptcmd_varclearon,		false,	true	},
+	{ "varcopy",			scriptcmd_varcopy,			false,	true	},
+	{ "varsave",			scriptcmd_varsave,			false,	true	},
+	{ "varsaveon",			scriptcmd_varsaveon,		false,	true	},
+	{ "varset",				scriptcmd_varset,			false,	true	},
+	{ "varseton",			scriptcmd_varseton,			false,	true	},
+	{ "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
+	{ "xcall",				scriptcmd_xcall,			false,	true	},
+	{ NULL,					NULL,						false,	false	}
 };
 
 const struct script_cmd_type instance_cmd_table[] = {
-	{ "acttrigger",				scriptcmd_acttrigger,	TRUE,	FALSE	},
-	{ "addaura",			scriptcmd_addaura,			TRUE,	TRUE	},
-	{ "bribetrigger",			scriptcmd_bribetrigger,	TRUE,	FALSE	},
-	{ "call",				scriptcmd_call,				FALSE,	TRUE	},
-	{ "directiontrigger",		scriptcmd_directiontrigger,	TRUE,	FALSE	},
-	{ "dungeoncommence",	scriptcmd_dungeoncommence,	TRUE,	TRUE	},
-	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	TRUE,	TRUE	},
-	{ "dungeonfailure",		scriptcmd_dungeonfailure,	TRUE,	TRUE	},
-	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
-	{ "emoteattrigger",			scriptcmd_emoteattrigger,	TRUE,	FALSE	},
-	{ "emotetrigger",			scriptcmd_emotetrigger,	TRUE,	FALSE	},
-	{ "exacttrigger",			scriptcmd_exacttrigger,	TRUE,	FALSE	},
-	{ "exittrigger",			scriptcmd_exittrigger,	TRUE,	FALSE	},
-	{ "givetrigger",			scriptcmd_givetrigger,	TRUE,	FALSE	},
-	{ "greettrigger",			scriptcmd_greettrigger,	TRUE,	FALSE	},
-	{ "hprcttrigger",			scriptcmd_hprcttrigger,	TRUE,	FALSE	},
-	{ "instancecomplete",	scriptcmd_instancecomplete,	TRUE,	TRUE	},
-	{ "instancefailure",	scriptcmd_instancefailure,	TRUE,	TRUE	},
-	{ "layout",				instancecmd_layout,			FALSE,	TRUE	},
-	{ "links",				instancecmd_links,			FALSE,	TRUE	},
-	{ "loadinstanced",		scriptcmd_loadinstanced,	TRUE,	TRUE	},
-	{ "makeinstanced",		scriptcmd_makeinstanced,	TRUE,	TRUE	},
-	{ "mload",				scriptcmd_mload,			FALSE,	TRUE	},
-	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
-	{ "nametrigger",			scriptcmd_nametrigger,	TRUE,	FALSE	},
-	{ "numbertrigger",			scriptcmd_numbertrigger,	TRUE,	FALSE	},
-	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
-	{ "percenttokentrigger",	scriptcmd_percenttokentrigger,	TRUE,	FALSE	},
-	{ "percenttrigger",			scriptcmd_percenttrigger,	TRUE,	FALSE	},
-	{ "reassign",			scriptcmd_reassign,			TRUE,	FALSE	},
-	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
-	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
-	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
-	{ "setposition",		scriptcmd_setposition,		TRUE,	TRUE	},
-	{ "settitle",			scriptcmd_settitle,			TRUE,	TRUE	},
-	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
-	{ "specialrooms",		instancecmd_specialrooms,	FALSE,	TRUE	},
-	{ "startreckoning",		scriptcmd_startreckoning,	TRUE,	TRUE	},
-	{ "stopreckoning",		scriptcmd_stopreckoning,	TRUE,	TRUE	},
-	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
-	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
-	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
-	{ "useontrigger",			scriptcmd_useontrigger,	TRUE,	FALSE	},
-	{ "usetrigger",				scriptcmd_usetrigger,	TRUE,	FALSE	},
-	{ "usewithtrigger",			scriptcmd_usewithtrigger,	TRUE,	FALSE	},
-	{ "varclear",			scriptcmd_varclear,			FALSE,	TRUE	},
-	{ "varclearon",			scriptcmd_varclearon,		FALSE,	TRUE	},
-	{ "varcopy",			scriptcmd_varcopy,			FALSE,	TRUE	},
-	{ "varsave",			scriptcmd_varsave,			FALSE,	TRUE	},
-	{ "varsaveon",			scriptcmd_varsaveon,		FALSE,	TRUE	},
-	{ "varset",				scriptcmd_varset,			FALSE,	TRUE	},
-	{ "varseton",			scriptcmd_varseton,			FALSE,	TRUE	},
-	{ "wildernessmap",		scriptcmd_wildernessmap,	FALSE,	TRUE	},
-	{ "xcall",				scriptcmd_xcall,			FALSE,	TRUE	},
-	{ NULL,					NULL,						FALSE,	FALSE	}
+	{ "acttrigger",				scriptcmd_acttrigger,	true,	false	},
+	{ "addaura",			scriptcmd_addaura,			true,	true	},
+	{ "bribetrigger",			scriptcmd_bribetrigger,	true,	false	},
+	{ "call",				scriptcmd_call,				false,	true	},
+	{ "directiontrigger",		scriptcmd_directiontrigger,	true,	false	},
+	{ "dungeoncommence",	scriptcmd_dungeoncommence,	true,	true	},
+	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
+	{ "dungeonfailure",		scriptcmd_dungeonfailure,	true,	true	},
+	{ "echoat",				scriptcmd_echoat,			false,	true	},
+	{ "emoteattrigger",			scriptcmd_emoteattrigger,	true,	false	},
+	{ "emotetrigger",			scriptcmd_emotetrigger,	true,	false	},
+	{ "exacttrigger",			scriptcmd_exacttrigger,	true,	false	},
+	{ "exittrigger",			scriptcmd_exittrigger,	true,	false	},
+	{ "givetrigger",			scriptcmd_givetrigger,	true,	false	},
+	{ "greettrigger",			scriptcmd_greettrigger,	true,	false	},
+	{ "hprcttrigger",			scriptcmd_hprcttrigger,	true,	false	},
+	{ "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
+	{ "instancefailure",	scriptcmd_instancefailure,	true,	true	},
+	{ "layout",				instancecmd_layout,			false,	true	},
+	{ "links",				instancecmd_links,			false,	true	},
+	{ "loadinstanced",		scriptcmd_loadinstanced,	true,	true	},
+	{ "makeinstanced",		scriptcmd_makeinstanced,	true,	true	},
+	{ "mload",				scriptcmd_mload,			false,	true	},
+	{ "mute",				scriptcmd_mute,				false,	true	},
+	{ "nametrigger",			scriptcmd_nametrigger,	true,	false	},
+	{ "numbertrigger",			scriptcmd_numbertrigger,	true,	false	},
+	{ "oload",				scriptcmd_oload,			false,	true	},
+	{ "percenttokentrigger",	scriptcmd_percenttokentrigger,	true,	false	},
+	{ "percenttrigger",			scriptcmd_percenttrigger,	true,	false	},
+	{ "reassign",			scriptcmd_reassign,			true,	false	},
+	{ "reckoning",			scriptcmd_reckoning,		true,	true	},
+	{ "remaura",			scriptcmd_remaura,			true,	true	},
+	{ "sendfloor",			scriptcmd_sendfloor,		false,	true	},
+	{ "setposition",		scriptcmd_setposition,		true,	true	},
+	{ "settitle",			scriptcmd_settitle,			true,	true	},
+	{ "specialkey",			scriptcmd_specialkey,		false,	true	},
+	{ "specialrooms",		instancecmd_specialrooms,	false,	true	},
+	{ "startreckoning",		scriptcmd_startreckoning,	true,	true	},
+	{ "stopreckoning",		scriptcmd_stopreckoning,	true,	true	},
+	{ "treasuremap",		scriptcmd_treasuremap,		false,	true	},
+	{ "unlockarea",			scriptcmd_unlockarea,		true,	true	},
+	{ "unmute",				scriptcmd_unmute,			false,	true	},
+	{ "useontrigger",			scriptcmd_useontrigger,	true,	false	},
+	{ "usetrigger",				scriptcmd_usetrigger,	true,	false	},
+	{ "usewithtrigger",			scriptcmd_usewithtrigger,	true,	false	},
+	{ "varclear",			scriptcmd_varclear,			false,	true	},
+	{ "varclearon",			scriptcmd_varclearon,		false,	true	},
+	{ "varcopy",			scriptcmd_varcopy,			false,	true	},
+	{ "varsave",			scriptcmd_varsave,			false,	true	},
+	{ "varsaveon",			scriptcmd_varsaveon,		false,	true	},
+	{ "varset",				scriptcmd_varset,			false,	true	},
+	{ "varseton",			scriptcmd_varseton,			false,	true	},
+	{ "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
+	{ "xcall",				scriptcmd_xcall,			false,	true	},
+	{ NULL,					NULL,						false,	false	}
 };
 
 const struct script_cmd_type dungeon_cmd_table[] = {
-	{ "acttrigger",				scriptcmd_acttrigger,	TRUE,	FALSE	},
-	{ "addaura",			scriptcmd_addaura,			TRUE,	TRUE	},
-	{ "bribetrigger",			scriptcmd_bribetrigger,	TRUE,	FALSE	},
-	{ "call",				scriptcmd_call,				FALSE,	TRUE	},
-	{ "directiontrigger",		scriptcmd_directiontrigger,	TRUE,	FALSE	},
-	{ "dungeoncommence",	scriptcmd_dungeoncommence,	TRUE,	TRUE	},
-	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	TRUE,	TRUE	},
-	{ "dungeonfailure",		scriptcmd_dungeonfailure,	TRUE,	TRUE	},
-	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
-	{ "emoteattrigger",			scriptcmd_emoteattrigger,	TRUE,	FALSE	},
-	{ "emotetrigger",			scriptcmd_emotetrigger,	TRUE,	FALSE	},
-	{ "exacttrigger",			scriptcmd_exacttrigger,	TRUE,	FALSE	},
-	{ "exittrigger",			scriptcmd_exittrigger,	TRUE,	FALSE	},
-	{ "givetrigger",			scriptcmd_givetrigger,	TRUE,	FALSE	},
-	{ "greettrigger",			scriptcmd_greettrigger,	TRUE,	FALSE	},
-	{ "hprcttrigger",			scriptcmd_hprcttrigger,	TRUE,	FALSE	},
-	{ "instancecomplete",	scriptcmd_instancecomplete,	TRUE,	TRUE	},
-	{ "levels",				dungeoncmd_levels,			FALSE,	TRUE	},
-	{ "loadinstanced",		scriptcmd_loadinstanced,	TRUE,	TRUE	},
-	{ "makeinstanced",		scriptcmd_makeinstanced,	TRUE,	TRUE	},
-	{ "mload",				scriptcmd_mload,			FALSE,	TRUE	},
-	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
-	{ "nametrigger",			scriptcmd_nametrigger,	TRUE,	FALSE	},
-	{ "numbertrigger",			scriptcmd_numbertrigger,	TRUE,	FALSE	},
-	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
-	{ "percenttokentrigger",	scriptcmd_percenttokentrigger,	TRUE,	FALSE	},
-	{ "percenttrigger",			scriptcmd_percenttrigger,	TRUE,	FALSE	},
-	{ "reassign",			scriptcmd_reassign,			TRUE,	FALSE	},
-	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
-	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
-	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
-	{ "setposition",		scriptcmd_setposition,		TRUE,	TRUE	},
-	{ "settitle",			scriptcmd_settitle,			TRUE,	TRUE	},
-	{ "specialexits",		dungeoncmd_specialexits,	FALSE,	TRUE	},
-	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
-	{ "specialrooms",		dungeoncmd_specialrooms,	FALSE,	TRUE	},
-	{ "startreckoning",		scriptcmd_startreckoning,	TRUE,	TRUE	},
-	{ "stopreckoning",		scriptcmd_stopreckoning,	TRUE,	TRUE	},
-	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
-	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
-	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
-	{ "useontrigger",			scriptcmd_useontrigger,	TRUE,	FALSE	},
-	{ "usetrigger",				scriptcmd_usetrigger,	TRUE,	FALSE	},
-	{ "usewithtrigger",			scriptcmd_usewithtrigger,	TRUE,	FALSE	},
-	{ "varclear",			scriptcmd_varclear,			FALSE,	TRUE	},
-	{ "varclearon",			scriptcmd_varclearon,		FALSE,	TRUE	},
-	{ "varcopy",			scriptcmd_varcopy,			FALSE,	TRUE	},
-	{ "varsave",			scriptcmd_varsave,			FALSE,	TRUE	},
-	{ "varsaveon",			scriptcmd_varsaveon,		FALSE,	TRUE	},
-	{ "varset",				scriptcmd_varset,			FALSE,	TRUE	},
-	{ "varseton",			scriptcmd_varseton,			FALSE,	TRUE	},
-	{ "wildernessmap",		scriptcmd_wildernessmap,	FALSE,	TRUE	},
-	{ "xcall",				scriptcmd_xcall,			FALSE,	TRUE	},
-	{ NULL,					NULL,						FALSE,	FALSE	}
+	{ "acttrigger",				scriptcmd_acttrigger,	true,	false	},
+	{ "addaura",			scriptcmd_addaura,			true,	true	},
+	{ "bribetrigger",			scriptcmd_bribetrigger,	true,	false	},
+	{ "call",				scriptcmd_call,				false,	true	},
+	{ "directiontrigger",		scriptcmd_directiontrigger,	true,	false	},
+	{ "dungeoncommence",	scriptcmd_dungeoncommence,	true,	true	},
+	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
+	{ "dungeonfailure",		scriptcmd_dungeonfailure,	true,	true	},
+	{ "echoat",				scriptcmd_echoat,			false,	true	},
+	{ "emoteattrigger",			scriptcmd_emoteattrigger,	true,	false	},
+	{ "emotetrigger",			scriptcmd_emotetrigger,	true,	false	},
+	{ "exacttrigger",			scriptcmd_exacttrigger,	true,	false	},
+	{ "exittrigger",			scriptcmd_exittrigger,	true,	false	},
+	{ "givetrigger",			scriptcmd_givetrigger,	true,	false	},
+	{ "greettrigger",			scriptcmd_greettrigger,	true,	false	},
+	{ "hprcttrigger",			scriptcmd_hprcttrigger,	true,	false	},
+	{ "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
+	{ "levels",				dungeoncmd_levels,			false,	true	},
+	{ "loadinstanced",		scriptcmd_loadinstanced,	true,	true	},
+	{ "makeinstanced",		scriptcmd_makeinstanced,	true,	true	},
+	{ "mload",				scriptcmd_mload,			false,	true	},
+	{ "mute",				scriptcmd_mute,				false,	true	},
+	{ "nametrigger",			scriptcmd_nametrigger,	true,	false	},
+	{ "numbertrigger",			scriptcmd_numbertrigger,	true,	false	},
+	{ "oload",				scriptcmd_oload,			false,	true	},
+	{ "percenttokentrigger",	scriptcmd_percenttokentrigger,	true,	false	},
+	{ "percenttrigger",			scriptcmd_percenttrigger,	true,	false	},
+	{ "reassign",			scriptcmd_reassign,			true,	false	},
+	{ "reckoning",			scriptcmd_reckoning,		true,	true	},
+	{ "remaura",			scriptcmd_remaura,			true,	true	},
+	{ "sendfloor",			scriptcmd_sendfloor,		false,	true	},
+	{ "setposition",		scriptcmd_setposition,		true,	true	},
+	{ "settitle",			scriptcmd_settitle,			true,	true	},
+	{ "specialexits",		dungeoncmd_specialexits,	false,	true	},
+	{ "specialkey",			scriptcmd_specialkey,		false,	true	},
+	{ "specialrooms",		dungeoncmd_specialrooms,	false,	true	},
+	{ "startreckoning",		scriptcmd_startreckoning,	true,	true	},
+	{ "stopreckoning",		scriptcmd_stopreckoning,	true,	true	},
+	{ "treasuremap",		scriptcmd_treasuremap,		false,	true	},
+	{ "unlockarea",			scriptcmd_unlockarea,		true,	true	},
+	{ "unmute",				scriptcmd_unmute,			false,	true	},
+	{ "useontrigger",			scriptcmd_useontrigger,	true,	false	},
+	{ "usetrigger",				scriptcmd_usetrigger,	true,	false	},
+	{ "usewithtrigger",			scriptcmd_usewithtrigger,	true,	false	},
+	{ "varclear",			scriptcmd_varclear,			false,	true	},
+	{ "varclearon",			scriptcmd_varclearon,		false,	true	},
+	{ "varcopy",			scriptcmd_varcopy,			false,	true	},
+	{ "varsave",			scriptcmd_varsave,			false,	true	},
+	{ "varsaveon",			scriptcmd_varsaveon,		false,	true	},
+	{ "varset",				scriptcmd_varset,			false,	true	},
+	{ "varseton",			scriptcmd_varseton,			false,	true	},
+	{ "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
+	{ "xcall",				scriptcmd_xcall,			false,	true	},
+	{ NULL,					NULL,						false,	false	}
 };
 
 int apcmd_lookup(char *command)
@@ -392,7 +392,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 
 	switch(arg->type) {
 	case ENT_STRING:
-		if (!(mob = script_get_char_room(info, arg->d.str, FALSE)))
+		if (!(mob = script_get_char_room(info, arg->d.str, false)))
 			obj = script_get_obj_here(info, arg->d.str);
 		break;
 	case ENT_MOBILE: mob = arg->d.mob; break;
@@ -715,7 +715,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 
 	switch(arg->type) {
 	case ENT_STRING:
-		if (!(mob = script_get_char_room(info, arg->d.str, FALSE)))
+		if (!(mob = script_get_char_room(info, arg->d.str, false)))
 			obj = script_get_obj_here(info, arg->d.str);
 		break;
 	case ENT_MOBILE: mob = arg->d.mob; break;
@@ -1034,7 +1034,7 @@ SCRIPT_CMD(scriptcmd_applytoxin)
 		return;
 
 	switch(arg->type) {
-	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, FALSE); break;
+	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, false); break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
@@ -1106,7 +1106,7 @@ SCRIPT_CMD(scriptcmd_attach)
 	CHAR_DATA *target_mob = NULL;
 	OBJ_DATA *entity_obj = NULL;
 
-	bool show = TRUE;
+	bool show = true;
 
 	info->progs->lastreturn = 0;
 
@@ -1318,7 +1318,7 @@ SCRIPT_CMD(scriptcmd_award)
 
 	switch(arg->type) {
 	case ENT_CHURCH: church = arg->d.church; break;
-	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, TRUE); break;
+	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, true); break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
@@ -1511,7 +1511,7 @@ SCRIPT_CMD(scriptcmd_breathe)
 		return;
 
 	switch(arg->type) {
-	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, FALSE); break;
+	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, false); break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
@@ -1533,7 +1533,7 @@ SCRIPT_CMD(scriptcmd_breathe)
 			return;
 
 		switch(arg->type) {
-		case ENT_STRING: attacker = script_get_char_room(info, arg->d.str, FALSE); break;
+		case ENT_STRING: attacker = script_get_char_room(info, arg->d.str, false); break;
 		case ENT_MOBILE: attacker = arg->d.mob; break;
 		default: attacker = NULL; break;
 		}
@@ -1611,7 +1611,7 @@ SCRIPT_CMD(scriptcmd_call)
 		}
 
 		switch(arg->type) {
-		case ENT_STRING: ch = script_get_char_room(info, arg->d.str, FALSE); break;
+		case ENT_STRING: ch = script_get_char_room(info, arg->d.str, false); break;
 		case ENT_MOBILE: ch = arg->d.mob; break;
 		default: ch = NULL; break;
 		}
@@ -1634,7 +1634,7 @@ SCRIPT_CMD(scriptcmd_call)
 		}
 
 		switch(arg->type) {
-		case ENT_STRING: vch = script_get_char_room(info, arg->d.str, FALSE); break;
+		case ENT_STRING: vch = script_get_char_room(info, arg->d.str, false); break;
 		case ENT_MOBILE: vch = arg->d.mob; break;
 		default: vch = NULL; break;
 		}
@@ -1691,7 +1691,7 @@ SCRIPT_CMD(scriptcmd_damage)
 	char *rest;
 	CHAR_DATA *victim = NULL, *victim_next, *attacker = NULL;
 	int low, high, level, value, dc;
-	bool fAll = FALSE, fKill = FALSE, fLevel = FALSE, fRemort = FALSE, fTwo = FALSE;
+	bool fAll = false, fKill = false, fLevel = false, fRemort = false, fTwo = false;
 
 
 	if(!(rest = expand_argument(info,argument,arg))) {
@@ -1701,8 +1701,8 @@ SCRIPT_CMD(scriptcmd_damage)
 
 	switch(arg->type) {
 	case ENT_STRING:
-		if(!str_cmp(arg->d.str,"all")) fAll = TRUE;
-		else victim = script_get_char_room(info, arg->d.str, FALSE);
+		if(!str_cmp(arg->d.str,"all")) fAll = true;
+		else victim = script_get_char_room(info, arg->d.str, false);
 		break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
@@ -1723,10 +1723,10 @@ SCRIPT_CMD(scriptcmd_damage)
 	switch(arg->type) {
 	case ENT_NUMBER: low = arg->d.num; break;
 	case ENT_STRING:
-		if(!str_cmp(arg->d.str,"level")) { fLevel = TRUE; break; }
-		if(!str_cmp(arg->d.str,"remort")) { fLevel = fRemort = TRUE; break; }
-		if(!str_cmp(arg->d.str,"dual")) { fLevel = fTwo = TRUE; break; }
-		if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = TRUE; break; }
+		if(!str_cmp(arg->d.str,"level")) { fLevel = true; break; }
+		if(!str_cmp(arg->d.str,"remort")) { fLevel = fRemort = true; break; }
+		if(!str_cmp(arg->d.str,"dual")) { fLevel = fTwo = true; break; }
+		if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = true; break; }
 		if(is_number(arg->d.str)) { low = atoi(arg->d.str); break; }
 	default:
 		return;
@@ -1774,7 +1774,7 @@ SCRIPT_CMD(scriptcmd_damage)
 
 		if( arg->type != ENT_STRING ) return;
 
-		if (!str_cmp(arg->d.str,"kill") || !str_cmp(arg->d.str,"lethal")) fKill = TRUE;
+		if (!str_cmp(arg->d.str,"kill") || !str_cmp(arg->d.str,"lethal")) fKill = true;
 	}
 
 	if( *rest ) {
@@ -1806,12 +1806,12 @@ SCRIPT_CMD(scriptcmd_damage)
 			victim_next = victim->next_in_room;
 			if (victim != info->mob && (!attacker || victim != attacker)) {
 				value = fLevel ? dice(low,high) : number_range(low,high);
-				damage(attacker?attacker:victim, victim, fKill ? value : UMIN(victim->hit,value), NULL, TYPE_UNDEFINED, dc, FALSE);
+				damage(attacker?attacker:victim, victim, fKill ? value : UMIN(victim->hit,value), NULL, TYPE_UNDEFINED, dc, false);
 			}
 		}
 	} else {
 		value = fLevel ? dice(low,high) : number_range(low,high);
-		damage(attacker?attacker:victim, victim, fKill ? value : UMIN(victim->hit,value), NULL, TYPE_UNDEFINED, dc, FALSE);
+		damage(attacker?attacker:victim, victim, fKill ? value : UMIN(victim->hit,value), NULL, TYPE_UNDEFINED, dc, false);
 	}
 }
 
@@ -1845,7 +1845,7 @@ SCRIPT_CMD(scriptcmd_deduct)
 
 	switch(arg->type) {
 	case ENT_CHURCH: church = arg->d.church; break;
-	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, TRUE); break;
+	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, true); break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
@@ -2039,7 +2039,7 @@ SCRIPT_CMD(scriptcmd_detach)
 	char field[MIL];
 	CHAR_DATA *mob = NULL;
 
-	bool show = TRUE;
+	bool show = true;
 
 	info->progs->lastreturn = 0;
 
@@ -2193,7 +2193,7 @@ SCRIPT_CMD(scriptcmd_echoat)
 
 
 	switch(arg->type) {
-	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, FALSE); break;
+	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, false); break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
 	case ENT_ROOM: room = arg->d.room; break;
 	case ENT_AREA: area = arg->d.area; break;
@@ -2348,7 +2348,7 @@ SCRIPT_CMD(scriptcmd_entercombat)
 	CHAR_DATA *attacker = NULL;
 	CHAR_DATA *victim = NULL;
 
-	bool fSilent = FALSE;
+	bool fSilent = false;
 
 
 	info->progs->lastreturn = 0;
@@ -2357,7 +2357,7 @@ SCRIPT_CMD(scriptcmd_entercombat)
 		return;
 
 	switch(arg->type) {
-	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, FALSE); break;
+	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, false); break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
@@ -2372,10 +2372,10 @@ SCRIPT_CMD(scriptcmd_entercombat)
 		attacker = victim;
 		if( arg->type == ENT_BOOLEAN ) {
 			// VICTIM SILENT syntax
-			fSilent = arg->d.boolean == TRUE;
+			fSilent = arg->d.boolean == true;
 		} else {
 			switch(arg->type) {
-			case ENT_STRING: victim = script_get_char_room(info, arg->d.str, FALSE); break;
+			case ENT_STRING: victim = script_get_char_room(info, arg->d.str, false); break;
 			case ENT_MOBILE: victim = arg->d.mob; break;
 			default: victim = NULL; break;
 			}
@@ -2389,7 +2389,7 @@ SCRIPT_CMD(scriptcmd_entercombat)
 
 				// ATTACKER VICTIM SILENT syntax
 				if( arg->type == ENT_BOOLEAN )
-					fSilent = arg->d.boolean == TRUE;
+					fSilent = arg->d.boolean == true;
 			}
 		}
 	} else if(!info->mob)
@@ -2411,7 +2411,7 @@ SCRIPT_CMD(scriptcmd_entercombat)
 // $PLAYER    - player to force into fading
 // $DIRECTION - exit to travel in, "random"|"any" to pick a random exit
 // $RATING    - skill rating to mimic the fading, ranging from 1 to 100
-// $INTERRUPT - flag (default FALSE) on whether to interrupt the player.
+// $INTERRUPT - flag (default false) on whether to interrupt the player.
 //
 // Fails if not a player
 // Fails if player is rifting
@@ -2437,7 +2437,7 @@ SCRIPT_CMD(scriptcmd_fade)
 
 	target = info->mob;
 	switch(arg->type) {
-	case ENT_STRING: target = script_get_char_room(info, arg->d.str, TRUE); break;
+	case ENT_STRING: target = script_get_char_room(info, arg->d.str, true); break;
 	case ENT_MOBILE: target = arg->d.mob; break;
 	default: target = NULL; break;
 	}
@@ -2481,16 +2481,16 @@ SCRIPT_CMD(scriptcmd_fade)
 		// Check whether to make the busy flag false
 		if( arg->type == ENT_BOOLEAN )
 		{
-			if( arg->d.boolean ) busy = FALSE;
+			if( arg->d.boolean ) busy = false;
 		}
 		else if( arg->type == ENT_NUMBER )
 		{
-			if( arg->d.num != 0 ) busy = FALSE;
+			if( arg->d.num != 0 ) busy = false;
 		}
 		else if( arg->type == ENT_STRING )
 		{
 			if( !str_cmp(arg->d.str, "yes") || !str_cmp(arg->d.str, "true") )
-				busy = FALSE;
+				busy = false;
 		}
 
 	}
@@ -2521,7 +2521,7 @@ SCRIPT_CMD(scriptcmd_flee)
 	char *rest;
 	CHAR_DATA *target;
 	int door = -1;
-	bool conceal = FALSE, pursue = TRUE;
+	bool conceal = false, pursue = true;
 	char fleedata[MIL];
 	char *fleearg = str_empty;
 
@@ -2533,7 +2533,7 @@ SCRIPT_CMD(scriptcmd_flee)
 
 	target = info->mob;
 	switch(arg->type) {
-	case ENT_STRING: target = script_get_char_room(info, arg->d.str, TRUE); break;
+	case ENT_STRING: target = script_get_char_room(info, arg->d.str, true); break;
 	case ENT_MOBILE: target = arg->d.mob; break;
 	default: target = NULL; break;
 	}
@@ -2638,7 +2638,7 @@ SCRIPT_CMD(scriptcmd_grantskill)
 		rating = URANGE(1,arg->d.num,100);
 
 		if( *rest ) {
-			bool fPerm = FALSE;
+			bool fPerm = false;
 
 			if(!(rest = expand_argument(info,rest,arg)))
 				return;
@@ -2786,7 +2786,7 @@ SCRIPT_CMD(scriptcmd_inputstring)
 
 	pVARIABLE var = variable_get(*(info->var),buf_string(buffer));
 
-	mob->desc->input = TRUE;
+	mob->desc->input = true;
 	if( var && var->type == VAR_STRING && !IS_NULLSTR(var->_.s) )
 		mob->desc->inputString = str_dup(var->_.s);
 	else
@@ -3057,9 +3057,9 @@ SCRIPT_CMD(instancecmd_links)
 			PARSE_ARGTYPE(STRING);
 			sent_bool from_mode = TRISTATE_UNDEF;
 			if (ARG_PREFIX("generated"))
-				from_mode = FALSE;
+				from_mode = false;
 			else if (ARG_PREFIX("ordinal"))
-				from_mode = TRUE;
+				from_mode = true;
 			else
 				return;
 
@@ -3079,9 +3079,9 @@ SCRIPT_CMD(instancecmd_links)
 			PARSE_ARGTYPE(STRING);
 			sent_bool to_mode = TRISTATE_UNDEF;
 			if (ARG_PREFIX("generated"))
-				to_mode = FALSE;
+				to_mode = false;
 			else if (ARG_PREFIX("ordinal"))
-				to_mode = TRUE;
+				to_mode = true;
 			else
 				return;
 
@@ -3114,9 +3114,9 @@ SCRIPT_CMD(instancecmd_links)
 			PARSE_ARGTYPE(STRING);
 			sent_bool to_mode = TRISTATE_UNDEF;
 			if (ARG_PREFIX("generated"))
-				to_mode = FALSE;
+				to_mode = false;
 			else if (ARG_PREFIX("ordinal"))
-				to_mode = TRUE;
+				to_mode = true;
 			else
 				return;
 
@@ -3146,9 +3146,9 @@ SCRIPT_CMD(instancecmd_links)
 			PARSE_ARGTYPE(STRING);
 			sent_bool from_mode = TRISTATE_UNDEF;
 			if (ARG_PREFIX("generated"))
-				from_mode = FALSE;
+				from_mode = false;
 			else if (ARG_PREFIX("ordinal"))
-				from_mode = TRUE;
+				from_mode = true;
 			else
 				return;
 
@@ -3207,9 +3207,9 @@ SCRIPT_CMD(instancecmd_links)
 		PARSE_ARGTYPE(STRING);
 		sent_bool from_mode = TRISTATE_UNDEF;
 		if (ARG_PREFIX("generated"))
-			from_mode = FALSE;
+			from_mode = false;
 		else if (ARG_PREFIX("ordinal"))
-			from_mode = TRUE;
+			from_mode = true;
 		else
 			return;
 
@@ -3246,9 +3246,9 @@ SCRIPT_CMD(instancecmd_links)
 		PARSE_ARGTYPE(STRING);
 		sent_bool to_mode = TRISTATE_UNDEF;
 		if (ARG_PREFIX("generated"))
-			to_mode = FALSE;
+			to_mode = false;
 		else if (ARG_PREFIX("ordinal"))
-			to_mode = TRUE;
+			to_mode = true;
 		else
 			return;
 
@@ -3287,9 +3287,9 @@ SCRIPT_CMD(instancecmd_links)
 				PARSE_ARGTYPE(STRING);
 				sent_bool from_mode = TRISTATE_UNDEF;
 				if (ARG_PREFIX("generated"))
-					from_mode = FALSE;
+					from_mode = false;
 				else if (ARG_PREFIX("ordinal"))
-					from_mode = TRUE;
+					from_mode = true;
 				else
 					return;
 
@@ -3309,9 +3309,9 @@ SCRIPT_CMD(instancecmd_links)
 				PARSE_ARGTYPE(STRING);
 				sent_bool to_mode = TRISTATE_UNDEF;
 				if (ARG_PREFIX("generated"))
-					to_mode = FALSE;
+					to_mode = false;
 				else if (ARG_PREFIX("ordinal"))
-					to_mode = TRUE;
+					to_mode = true;
 				else
 					return;
 
@@ -3344,9 +3344,9 @@ SCRIPT_CMD(instancecmd_links)
 				PARSE_ARGTYPE(STRING);
 				sent_bool to_mode = TRISTATE_UNDEF;
 				if (ARG_PREFIX("generated"))
-					to_mode = FALSE;
+					to_mode = false;
 				else if (ARG_PREFIX("ordinal"))
-					to_mode = TRUE;
+					to_mode = true;
 				else
 					return;
 
@@ -3376,9 +3376,9 @@ SCRIPT_CMD(instancecmd_links)
 				PARSE_ARGTYPE(STRING);
 				sent_bool from_mode = TRISTATE_UNDEF;
 				if (ARG_PREFIX("generated"))
-					from_mode = FALSE;
+					from_mode = false;
 				else if (ARG_PREFIX("ordinal"))
-					from_mode = TRUE;
+					from_mode = true;
 				else
 					return;
 
@@ -3430,9 +3430,9 @@ SCRIPT_CMD(instancecmd_links)
 			PARSE_ARGTYPE(STRING);
 			sent_bool from_mode = TRISTATE_UNDEF;
 			if (ARG_PREFIX("generated"))
-				from_mode = FALSE;
+				from_mode = false;
 			else if (ARG_PREFIX("ordinal"))
-				from_mode = TRUE;
+				from_mode = true;
 			else
 				return;
 
@@ -3469,9 +3469,9 @@ SCRIPT_CMD(instancecmd_links)
 			PARSE_ARGTYPE(STRING);
 			sent_bool to_mode = TRISTATE_UNDEF;
 			if (ARG_PREFIX("generated"))
-				to_mode = FALSE;
+				to_mode = false;
 			else if (ARG_PREFIX("ordinal"))
-				to_mode = TRUE;
+				to_mode = true;
 			else
 				return;
 
@@ -3879,7 +3879,7 @@ SCRIPT_CMD(scriptcmd_lockset)
 			return;
 
 		OBJ_INDEX_DATA *pObjIndex = NULL;
-		bool clear = FALSE;
+		bool clear = false;
 		if (arg->type == ENT_WIDEVNUM)
 		{
 			// Verify the key exists
@@ -3893,7 +3893,7 @@ SCRIPT_CMD(scriptcmd_lockset)
 		else if (arg->type == ENT_STRING)
 		{
 			if (!str_prefix(arg->d.str, "clear") || !str_prefix(arg->d.str, "none"))
-				clear = TRUE;
+				clear = true;
 		}
 
 		if (clear)
@@ -3989,7 +3989,7 @@ SCRIPT_CMD(scriptcmd_lockset)
 			if (!IS_VALID(arg->d.obj))
 				return;
 
-			bool found = FALSE;
+			bool found = false;
 			LLIST_UID_DATA *luid;
 			ITERATOR sxit;
 			iterator_start(&sxit, lock->special_keys);
@@ -3997,7 +3997,7 @@ SCRIPT_CMD(scriptcmd_lockset)
 			{
 				if (luid->ptr == arg->d.obj)
 				{
-					found = TRUE;
+					found = true;
 					break;
 				}
 			}
@@ -4280,7 +4280,7 @@ SCRIPT_CMD(scriptcmd_missionaccept)
 		obj_to_char(scroll, mob);
 	}
 
-	mob->pending_mission->generating = FALSE;
+	mob->pending_mission->generating = false;
 	list_appendlink(mob->missions, mob->pending_mission);
 	info->progs->lastreturn = mob->pending_mission->timer;
 	mob->pending_mission = NULL;
@@ -4620,7 +4620,7 @@ SCRIPT_CMD(scriptcmd_missiongenerate)
 	// Needed by the TRIG_MISSION_PART commands
 	mob->pending_mission = mission;
 
-	bool success = TRUE;
+	bool success = true;
 	for(int i = 0; i < parts; i++)
 	{
 		MISSION_PART_DATA *part = new_mission_part();
@@ -4631,7 +4631,7 @@ SCRIPT_CMD(scriptcmd_missiongenerate)
 
 		if( execute_script(script, info->mob, info->obj, info->room, info->token, NULL, NULL, NULL, mob, NULL, NULL, NULL, NULL,NULL, NULL,NULL,NULL,TRIG_MISSION_PART,part->index,0,0,0,0) <= 0 )
 		{
-			success = FALSE;
+			success = false;
 			break;
 		}
 
@@ -4691,7 +4691,7 @@ SCRIPT_CMD(scriptcmd_missionpartcustom)
 	}
 
 	part->description = str_dup(buf);
-	part->custom_task = TRUE;
+	part->custom_task = true;
 	part->minutes = minutes;
 
 	info->progs->lastreturn = 1;
@@ -5384,7 +5384,7 @@ SCRIPT_CMD(scriptcmd_spawndungeon)
 		return;
 
 	switch(arg->type) {
-	case ENT_STRING: ch = script_get_char_room(info, arg->d.str, FALSE); break;
+	case ENT_STRING: ch = script_get_char_room(info, arg->d.str, false); break;
 	case ENT_MOBILE: ch = arg->d.mob; break;
 	default: ch = NULL; break;
 	}
@@ -5488,9 +5488,9 @@ SCRIPT_CMD(dungeoncmd_specialexits)
 			PARSE_ARGTYPE(STRING);
 			sent_bool from_mode = TRISTATE_UNDEF;
 			if (ARG_PREFIX("generated"))
-				from_mode = FALSE;
+				from_mode = false;
 			else if (ARG_PREFIX("ordinal"))
-				from_mode = TRUE;
+				from_mode = true;
 			else
 				return;
 
@@ -5513,9 +5513,9 @@ SCRIPT_CMD(dungeoncmd_specialexits)
 			PARSE_ARGTYPE(STRING);
 			sent_bool to_mode = TRISTATE_UNDEF;
 			if (ARG_PREFIX("generated"))
-				to_mode = FALSE;
+				to_mode = false;
 			else if (ARG_PREFIX("ordinal"))
-				to_mode = TRUE;
+				to_mode = true;
 			else
 				return;
 
@@ -5553,9 +5553,9 @@ SCRIPT_CMD(dungeoncmd_specialexits)
 			PARSE_ARGTYPE(STRING);
 			sent_bool to_mode = TRISTATE_UNDEF;
 			if (ARG_PREFIX("generated"))
-				to_mode = FALSE;
+				to_mode = false;
 			else if (ARG_PREFIX("ordinal"))
-				to_mode = TRUE;
+				to_mode = true;
 			else
 				return;
 
@@ -5588,9 +5588,9 @@ SCRIPT_CMD(dungeoncmd_specialexits)
 			PARSE_ARGTYPE(STRING);
 			sent_bool from_mode = TRISTATE_UNDEF;
 			if (ARG_PREFIX("generated"))
-				from_mode = FALSE;
+				from_mode = false;
 			else if (ARG_PREFIX("ordinal"))
-				from_mode = TRUE;
+				from_mode = true;
 			else
 				return;
 
@@ -5653,9 +5653,9 @@ SCRIPT_CMD(dungeoncmd_specialexits)
 		PARSE_ARGTYPE(STRING);
 		sent_bool from_mode = TRISTATE_UNDEF;
 		if (ARG_PREFIX("generated"))
-			from_mode = FALSE;
+			from_mode = false;
 		else if (ARG_PREFIX("ordinal"))
-			from_mode = TRUE;
+			from_mode = true;
 		else
 			return;
 
@@ -5696,9 +5696,9 @@ SCRIPT_CMD(dungeoncmd_specialexits)
 		PARSE_ARGTYPE(STRING);
 		sent_bool to_mode = TRISTATE_UNDEF;
 		if (ARG_PREFIX("generated"))
-			to_mode = FALSE;
+			to_mode = false;
 		else if (ARG_PREFIX("ordinal"))
-			to_mode = TRUE;
+			to_mode = true;
 		else
 			return;
 
@@ -5743,9 +5743,9 @@ SCRIPT_CMD(dungeoncmd_specialexits)
 				PARSE_ARGTYPE(STRING);
 				sent_bool from_mode = TRISTATE_UNDEF;
 				if (ARG_PREFIX("generated"))
-					from_mode = FALSE;
+					from_mode = false;
 				else if (ARG_PREFIX("ordinal"))
-					from_mode = TRUE;
+					from_mode = true;
 				else
 					return;
 
@@ -5768,9 +5768,9 @@ SCRIPT_CMD(dungeoncmd_specialexits)
 				PARSE_ARGTYPE(STRING);
 				sent_bool to_mode = TRISTATE_UNDEF;
 				if (ARG_PREFIX("generated"))
-					to_mode = FALSE;
+					to_mode = false;
 				else if (ARG_PREFIX("ordinal"))
-					to_mode = TRUE;
+					to_mode = true;
 				else
 					return;
 
@@ -5808,9 +5808,9 @@ SCRIPT_CMD(dungeoncmd_specialexits)
 				PARSE_ARGTYPE(STRING);
 				sent_bool to_mode = TRISTATE_UNDEF;
 				if (ARG_PREFIX("generated"))
-					to_mode = FALSE;
+					to_mode = false;
 				else if (ARG_PREFIX("ordinal"))
-					to_mode = TRUE;
+					to_mode = true;
 				else
 					return;
 
@@ -5843,9 +5843,9 @@ SCRIPT_CMD(dungeoncmd_specialexits)
 				PARSE_ARGTYPE(STRING);
 				sent_bool from_mode = TRISTATE_UNDEF;
 				if (ARG_PREFIX("generated"))
-					from_mode = FALSE;
+					from_mode = false;
 				else if (ARG_PREFIX("ordinal"))
-					from_mode = TRUE;
+					from_mode = true;
 				else
 					return;
 
@@ -5901,9 +5901,9 @@ SCRIPT_CMD(dungeoncmd_specialexits)
 			PARSE_ARGTYPE(STRING);
 			sent_bool from_mode = TRISTATE_UNDEF;
 			if (ARG_PREFIX("generated"))
-				from_mode = FALSE;
+				from_mode = false;
 			else if (ARG_PREFIX("ordinal"))
-				from_mode = TRUE;
+				from_mode = true;
 			else
 				return;
 
@@ -5944,9 +5944,9 @@ SCRIPT_CMD(dungeoncmd_specialexits)
 			PARSE_ARGTYPE(STRING);
 			sent_bool to_mode = TRISTATE_UNDEF;
 			if (ARG_PREFIX("generated"))
-				to_mode = FALSE;
+				to_mode = false;
 			else if (ARG_PREFIX("ordinal"))
-				to_mode = TRUE;
+				to_mode = true;
 			else
 				return;
 
@@ -6067,9 +6067,9 @@ SCRIPT_CMD(dungeoncmd_specialrooms)
 
 		PARSE_ARGTYPE(STRING);
 		if (ARG_PREFIX("generated"))
-			mode = FALSE;
+			mode = false;
 		else if (ARG_PREFIX("ordinal"))
-			mode = TRUE;
+			mode = true;
 		else
 			return;
 		
@@ -6081,7 +6081,7 @@ SCRIPT_CMD(dungeoncmd_specialrooms)
 		int room_no = arg->d.num;
 		
 		BUFFER *buffer = new_buf();
-		bool valid = TRUE;
+		bool valid = true;
 		if(expand_string(info,rest,buffer) && !IS_NULLSTR(buffer->string) )
 		{
 			smash_tilde(buffer->string);
@@ -6096,7 +6096,7 @@ SCRIPT_CMD(dungeoncmd_specialrooms)
 			list_appendlink(dng->special_rooms, special);
 		}
 		else
-			valid = FALSE;
+			valid = false;
 
 		free_buf(buffer);
 
@@ -6138,9 +6138,9 @@ SCRIPT_CMD(instancecmd_specialrooms)
 		PARSE_ARGTYPE(STRING);
 		sent_bool mode = TRISTATE_UNDEF;
 		if (ARG_PREFIX("generated"))
-			mode = FALSE;
+			mode = false;
 		else if (ARG_PREFIX("ordinal"))
-			mode = TRUE;
+			mode = true;
 		else
 			return;
 
@@ -6159,7 +6159,7 @@ SCRIPT_CMD(instancecmd_specialrooms)
 			return;
 
 		BUFFER *buffer = new_buf();
-		bool valid = TRUE;
+		bool valid = true;
 		if (expand_string(info, rest, buffer) && !IS_NULLSTR(buffer->string))
 		{
 			smash_tilde(buffer->string);
@@ -6172,7 +6172,7 @@ SCRIPT_CMD(instancecmd_specialrooms)
 			list_appendlink(bp->special_rooms, room);
 		}
 		else
-			valid = FALSE;
+			valid = false;
 
 		free_buf(buffer);
 		if (!valid)
@@ -6198,7 +6198,7 @@ SCRIPT_CMD(scriptcmd_startcombat)
 	}
 
 	switch(arg->type) {
-	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, FALSE); break;
+	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, false); break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
@@ -6212,7 +6212,7 @@ SCRIPT_CMD(scriptcmd_startcombat)
 
 		attacker = victim;
 		switch(arg->type) {
-		case ENT_STRING: victim = script_get_char_room(info, arg->d.str, FALSE); break;
+		case ENT_STRING: victim = script_get_char_room(info, arg->d.str, false); break;
 		case ENT_MOBILE: victim = arg->d.mob; break;
 		default: victim = NULL; break;
 		}
@@ -6238,7 +6238,7 @@ SCRIPT_CMD(scriptcmd_startcombat)
 		return;
 
 	// The victim is safe
-	if(is_safe(attacker, victim, FALSE)) return;
+	if(is_safe(attacker, victim, false)) return;
 
 	// Set them to fighting!
 	if(set_fighting(attacker, victim))
@@ -6250,7 +6250,7 @@ SCRIPT_CMD(scriptcmd_startreckoning)
 {
 	char *rest = argument;
 	int duration = 30;
-	bool skip = FALSE;
+	bool skip = false;
 
 	info->progs->lastreturn = 0;
 
@@ -6270,7 +6270,7 @@ SCRIPT_CMD(scriptcmd_startreckoning)
 				return;
 
 			if (!str_prefix(arg->d.str, "true") || !str_prefix(arg->d.str, "yes"))
-				skip = TRUE;
+				skip = true;
 		}
 	}
 
@@ -6295,7 +6295,7 @@ SCRIPT_CMD(scriptcmd_stopcombat)
 	char *rest;
 
 	CHAR_DATA *mob;
-	bool fBoth = FALSE;
+	bool fBoth = false;
 
 	info->progs->lastreturn = 0;
 
@@ -6828,7 +6828,7 @@ SCRIPT_CMD(scriptcmd_xcall)
 		}
 
 		switch(arg->type) {
-		case ENT_STRING: ch = script_get_char_room(info, arg->d.str, FALSE); break;
+		case ENT_STRING: ch = script_get_char_room(info, arg->d.str, false); break;
 		case ENT_MOBILE: ch = arg->d.mob; break;
 		default: ch = NULL; break;
 		}
@@ -6850,7 +6850,7 @@ SCRIPT_CMD(scriptcmd_xcall)
 		}
 
 		switch(arg->type) {
-		case ENT_STRING: vch = script_get_char_room(info, arg->d.str, FALSE); break;
+		case ENT_STRING: vch = script_get_char_room(info, arg->d.str, false); break;
 		case ENT_MOBILE: vch = arg->d.mob; break;
 		default: vch = NULL; break;
 		}
@@ -8434,7 +8434,7 @@ SCRIPT_CMD(scriptcmd_remspell)
 	int level;
 	int sn;
 	TOKEN_INDEX_DATA *token;
-	bool found = FALSE, show = TRUE;
+	bool found = false, show = true;
 	AFFECT_DATA *paf;
 
 	if(!info || IS_NULLSTR(argument)) return;
@@ -8486,11 +8486,11 @@ SCRIPT_CMD(scriptcmd_remspell)
 		if(IS_NULLSTR(arg->d.str)) return;
 
 		if( !str_cmp(arg->d.str, "silent") )
-			show = FALSE;
+			show = false;
 	}
 
 
-	found = FALSE;
+	found = false;
 
 	spell_prev = NULL;
 	for(spell = target->spells; spell; spell_prev = spell, spell = spell->next) {
@@ -8504,7 +8504,7 @@ SCRIPT_CMD(scriptcmd_remspell)
 
 			free_spell(spell);
 
-			found = TRUE;
+			found = true;
 			break;
 		}
 	}
@@ -8534,7 +8534,7 @@ SCRIPT_CMD(scriptcmd_remspell)
 				return;
 			}
 
-			found = FALSE;
+			found = false;
 			level = 0;
 
 
@@ -8547,7 +8547,7 @@ SCRIPT_CMD(scriptcmd_remspell)
 							spell->level > level ) {
 							//level = spell->level;	// Keep the maximum
 							//found_loc = obj_tmp->wear_loc;
-							found = TRUE;
+							found = true;
 						}
 					}
 				}
@@ -8587,8 +8587,8 @@ SCRIPT_CMD(scriptcmd_alterobj)
 	int value, num, min_sec = MIN_SCRIPT_SECURITY;
 	OBJ_DATA *obj = NULL;
 	int min = 0, max = 0;
-	bool hasmin = FALSE, hasmax = FALSE;
-	bool allowarith = TRUE;
+	bool hasmin = false, hasmax = false;
+	bool allowarith = true;
 	const struct flag_type *flags = NULL;
 	const struct flag_type **bank = NULL;
 	long temp_flags[4];
@@ -8726,7 +8726,7 @@ SCRIPT_CMD(scriptcmd_alterobj)
 		{
 			if( arg->type != ENT_STRING ) return;
 
-			allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
+			allowarith = false;	// This is a bit vector, no arithmetic operators.
 			if (!script_bitmatrix_lookup(arg->d.str, bank, temp_flags))
 				return;
 
@@ -8768,7 +8768,7 @@ SCRIPT_CMD(scriptcmd_alterobj)
 		{
 			if( arg->type != ENT_STRING ) return;
 
-			allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
+			allowarith = false;	// This is a bit vector, no arithmetic operators.
 			value = script_flag_value(flags, arg->d.str);
 
 			if( value == NO_FLAG ) value = 0;
@@ -9012,7 +9012,7 @@ SCRIPT_CMD(scriptcmd_setposition)
 	char *rest = argument;
 	CHAR_DATA *ch;
 	int position;
-	//bool force = FALSE;
+	//bool force = false;
 
 	SETRETURN(-1);
 
@@ -9051,11 +9051,11 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 	int value, min_sec = MIN_SCRIPT_SECURITY;
 	OBJ_DATA *obj;
 	int min = 0, max = 0;
-	bool hasmin = FALSE, hasmax = FALSE;
+	bool hasmin = false, hasmax = false;
 	int assignmin = 0, assignmax = 0;
 	bool hasassignmin = false, hasassignmax = false;
-	bool allowarith = TRUE;
-	bool allowbitwise = TRUE;
+	bool allowarith = true;
+	bool allowbitwise = true;
 	bool isliquid = false;
 	LIQUID *liquid = NULL;
 	const struct flag_type *flags = NULL;
@@ -9085,21 +9085,21 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		PARSE_ARGTYPE(STRING);
 		strncpy(field, arg->d.str, MIL-1);
 
-		if(!str_cmp(field,"cond"))				{ ptr = (int*)&obj->condition; allowarith = TRUE; allowbitwise = FALSE; }
-		else if(!str_cmp(field,"cost"))			{ ptr = (int*)&obj->cost; min_sec = 5; allowarith = TRUE; allowbitwise = FALSE; }
-		else if(!str_cmp(field,"extra"))		{ ptr = (int*)obj->extra; bank = extra_flagbank; sec_flags[1] = sec_flags[2] = sec_flags[3] = 7; allowarith = FALSE; allowbitwise = TRUE; }
-		else if(!str_cmp(field,"fixes"))		{ ptr = (int*)&obj->times_allowed_fixed; min_sec = 5; allowarith = TRUE; allowbitwise = FALSE; }
-		else if(!str_cmp(field,"level"))		{ ptr = (int*)&obj->level; min_sec = 5; allowarith = TRUE; allowbitwise = FALSE; }
-		else if(!str_cmp(field,"repairs"))		{ ptr = (int*)&obj->times_fixed; allowarith = TRUE; allowbitwise = FALSE; }
+		if(!str_cmp(field,"cond"))				{ ptr = (int*)&obj->condition; allowarith = true; allowbitwise = false; }
+		else if(!str_cmp(field,"cost"))			{ ptr = (int*)&obj->cost; min_sec = 5; allowarith = true; allowbitwise = false; }
+		else if(!str_cmp(field,"extra"))		{ ptr = (int*)obj->extra; bank = extra_flagbank; sec_flags[1] = sec_flags[2] = sec_flags[3] = 7; allowarith = false; allowbitwise = true; }
+		else if(!str_cmp(field,"fixes"))		{ ptr = (int*)&obj->times_allowed_fixed; min_sec = 5; allowarith = true; allowbitwise = false; }
+		else if(!str_cmp(field,"level"))		{ ptr = (int*)&obj->level; min_sec = 5; allowarith = true; allowbitwise = false; }
+		else if(!str_cmp(field,"repairs"))		{ ptr = (int*)&obj->times_fixed; allowarith = true; allowbitwise = false; }
 		else if(!str_cmp(field,"tempstore1"))	ptr = (int*)&obj->tempstore[0];		// bitwise left TRISTATE to allow both arithmetic and bitwise operations
 		else if(!str_cmp(field,"tempstore2"))	ptr = (int*)&obj->tempstore[1];		// bitwise left TRISTATE to allow both arithmetic and bitwise operations
 		else if(!str_cmp(field,"tempstore3"))	ptr = (int*)&obj->tempstore[2];		// bitwise left TRISTATE to allow both arithmetic and bitwise operations
 		else if(!str_cmp(field,"tempstore4"))	ptr = (int*)&obj->tempstore[3];		// bitwise left TRISTATE to allow both arithmetic and bitwise operations
 		else if(!str_cmp(field,"tempstore5"))	ptr = (int*)&obj->tempstore[4];		// bitwise left TRISTATE to allow both arithmetic and bitwise operations
-		else if(!str_cmp(field,"timer"))		{ ptr = (int*)&obj->timer; allowarith = TRUE; allowbitwise = FALSE; }
-		else if(!str_cmp(field,"wear"))			{ ptr = (int*)&obj->wear_flags; flags = wear_flags; allowarith = FALSE; allowbitwise = TRUE; }
-		else if(!str_cmp(field,"wearloc"))		{ ptr = (int*)&obj->wear_loc; flags = wear_loc_flags; allowarith = FALSE; allowbitwise = FALSE; }
-		else if(!str_cmp(field,"weight"))		{ ptr = (int*)&obj->weight;  allowarith = TRUE; allowbitwise = FALSE;}
+		else if(!str_cmp(field,"timer"))		{ ptr = (int*)&obj->timer; allowarith = true; allowbitwise = false; }
+		else if(!str_cmp(field,"wear"))			{ ptr = (int*)&obj->wear_flags; flags = wear_flags; allowarith = false; allowbitwise = true; }
+		else if(!str_cmp(field,"wearloc"))		{ ptr = (int*)&obj->wear_loc; flags = wear_loc_flags; allowarith = false; allowbitwise = false; }
+		else if(!str_cmp(field,"weight"))		{ ptr = (int*)&obj->weight;  allowarith = true; allowbitwise = false;}
 		break;
 
 	case ENT_OBJECT_BOOK:
@@ -9109,9 +9109,9 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		PARSE_ARGTYPE(STRING);
 		strncpy(field, arg->d.str, MIL-1);
 
-		if (!str_cmp(field, "current"))			{ ptr = (int *)&(BOOK(obj)->current_page); allowarith = TRUE; allowbitwise = FALSE; min = 1; hasmin = TRUE; max = book_max_pages(BOOK(obj)); hasmax = TRUE; }
-		else if (!str_cmp(field, "flags"))		{ ptr = (int *)&(BOOK(obj)->flags); flags = book_flags; allowarith = FALSE; allowbitwise = TRUE; }
-		else if (!str_cmp(field, "opener"))		{ ptr = (int *)&(BOOK(obj)->open_page); allowarith = TRUE; allowbitwise = FALSE; min = 1; hasmin = TRUE; max = book_max_pages(BOOK(obj)); hasmax = TRUE; }
+		if (!str_cmp(field, "current"))			{ ptr = (int *)&(BOOK(obj)->current_page); allowarith = true; allowbitwise = false; min = 1; hasmin = true; max = book_max_pages(BOOK(obj)); hasmax = true; }
+		else if (!str_cmp(field, "flags"))		{ ptr = (int *)&(BOOK(obj)->flags); flags = book_flags; allowarith = false; allowbitwise = true; }
+		else if (!str_cmp(field, "opener"))		{ ptr = (int *)&(BOOK(obj)->open_page); allowarith = true; allowbitwise = false; min = 1; hasmin = true; max = book_max_pages(BOOK(obj)); hasmax = true; }
 
 		break;
 
@@ -9122,10 +9122,10 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		PARSE_ARGTYPE(STRING);
 		strncpy(field, arg->d.str, MIL-1);
 
-		if (!str_cmp(field, "flags"))			{ ptr = (int *)&(CONTAINER(obj)->flags); flags = container_flags; allowarith = FALSE; allowbitwise = TRUE; }
-		else if (!str_cmp(field, "volume"))		{ ptr = (int *)&(CONTAINER(obj)->max_volume); allowarith = TRUE; allowbitwise = FALSE; min = 0; hasmin = TRUE; }
-		else if (!str_cmp(field, "weight"))		{ ptr = (int *)&(CONTAINER(obj)->max_weight); allowarith = TRUE; allowbitwise = FALSE; min = 0; hasmin = TRUE; }
-		else if (!str_cmp(field, "weight%"))	{ ptr = (int *)&(CONTAINER(obj)->weight_multiplier); allowarith = TRUE; allowbitwise = FALSE; min = 0; hasmin = TRUE; max = 100; hasmax = TRUE; }
+		if (!str_cmp(field, "flags"))			{ ptr = (int *)&(CONTAINER(obj)->flags); flags = container_flags; allowarith = false; allowbitwise = true; }
+		else if (!str_cmp(field, "volume"))		{ ptr = (int *)&(CONTAINER(obj)->max_volume); allowarith = true; allowbitwise = false; min = 0; hasmin = true; }
+		else if (!str_cmp(field, "weight"))		{ ptr = (int *)&(CONTAINER(obj)->max_weight); allowarith = true; allowbitwise = false; min = 0; hasmin = true; }
+		else if (!str_cmp(field, "weight%"))	{ ptr = (int *)&(CONTAINER(obj)->weight_multiplier); allowarith = true; allowbitwise = false; min = 0; hasmin = true; max = 100; hasmax = true; }
 		break;
 
 	case ENT_OBJECT_FLUID_CONTAINER:
@@ -9152,9 +9152,9 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		PARSE_ARGTYPE(STRING);
 		strncpy(field, arg->d.str, MIL-1);
 
-		if(!str_cmp(field,"hunger"))		{ ptr = (int *)(&FOOD(obj)->hunger); allowarith = TRUE; allowbitwise = FALSE; hasmin = TRUE; min = 0; }
-		else if(!str_cmp(field,"full"))		{ ptr = (int *)(&FOOD(obj)->full); allowarith = TRUE; allowbitwise = FALSE; hasmin = TRUE; min = 0; }
-		else if(!str_cmp(field,"poison"))	{ ptr = (int *)(&FOOD(obj)->poison); allowarith = TRUE; allowbitwise = FALSE; hasmin = TRUE; min = 0; hasmax = TRUE; max = 100; }
+		if(!str_cmp(field,"hunger"))		{ ptr = (int *)(&FOOD(obj)->hunger); allowarith = true; allowbitwise = false; hasmin = true; min = 0; }
+		else if(!str_cmp(field,"full"))		{ ptr = (int *)(&FOOD(obj)->full); allowarith = true; allowbitwise = false; hasmin = true; min = 0; }
+		else if(!str_cmp(field,"poison"))	{ ptr = (int *)(&FOOD(obj)->poison); allowarith = true; allowbitwise = false; hasmin = true; min = 0; hasmax = true; max = 100; }
 		break;
 
 	case ENT_OBJECT_FURNITURE:
@@ -9164,7 +9164,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		PARSE_ARGTYPE(STRING);
 		strncpy(field, arg->d.str, MIL-1);
 
-		if(!str_cmp(field, "main"))			{ ptr = (int *)(&FURNITURE(obj)->main_compartment); allowarith = FALSE; allowbitwise = FALSE; min = 0; hasmin = TRUE; max = list_size(FURNITURE(obj)->compartments); hasmax = TRUE; }
+		if(!str_cmp(field, "main"))			{ ptr = (int *)(&FURNITURE(obj)->main_compartment); allowarith = false; allowbitwise = false; min = 0; hasmin = true; max = list_size(FURNITURE(obj)->compartments); hasmax = true; }
 		break;
 
 	case ENT_COMPARTMENT:
@@ -9176,17 +9176,17 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		PARSE_ARGTYPE(STRING);
 		strncpy(field, arg->d.str, MIL-1);
 
-		if(!str_cmp(field,"flags"))				{ ptr = (int *)&compartment->flags; flags = compartment_flags; allowarith = FALSE; allowbitwise = TRUE; }
-		else if(!str_cmp(field,"occupants"))	{ ptr = (int *)&compartment->max_occupants; allowarith = TRUE; allowbitwise = FALSE; min = 0; hasmin = TRUE; }
-		else if(!str_cmp(field,"weight"))		{ ptr = (int *)&compartment->max_weight; allowarith = TRUE; allowbitwise = FALSE; min = 0; hasmin = TRUE; }
-		else if(!str_cmp(field,"standing"))		{ ptr = (int *)&compartment->standing; flags = furniture_flags; allowarith = FALSE; allowbitwise = TRUE; }
-		else if(!str_cmp(field,"hanging"))		{ ptr = (int *)&compartment->hanging; flags = furniture_flags; allowarith = FALSE; allowbitwise = TRUE; }
-		else if(!str_cmp(field,"sitting"))		{ ptr = (int *)&compartment->sitting; flags = furniture_flags; allowarith = FALSE; allowbitwise = TRUE; }
-		else if(!str_cmp(field,"resting"))		{ ptr = (int *)&compartment->resting; flags = furniture_flags; allowarith = FALSE; allowbitwise = TRUE; }
-		else if(!str_cmp(field,"sleeping"))		{ ptr = (int *)&compartment->sleeping; flags = furniture_flags; allowarith = FALSE; allowbitwise = TRUE; }
-		else if(!str_cmp(field,"health"))		{ ptr = (int *)&compartment->health_regen; allowarith = TRUE; allowbitwise = FALSE; min = 0; hasmin = TRUE; }
-		else if(!str_cmp(field,"mana"))			{ ptr = (int *)&compartment->mana_regen; allowarith = TRUE; allowbitwise = FALSE; min = 0; hasmin = TRUE; }
-		else if(!str_cmp(field,"move"))			{ ptr = (int *)&compartment->move_regen; allowarith = TRUE; allowbitwise = FALSE; min = 0; hasmin = TRUE; }
+		if(!str_cmp(field,"flags"))				{ ptr = (int *)&compartment->flags; flags = compartment_flags; allowarith = false; allowbitwise = true; }
+		else if(!str_cmp(field,"occupants"))	{ ptr = (int *)&compartment->max_occupants; allowarith = true; allowbitwise = false; min = 0; hasmin = true; }
+		else if(!str_cmp(field,"weight"))		{ ptr = (int *)&compartment->max_weight; allowarith = true; allowbitwise = false; min = 0; hasmin = true; }
+		else if(!str_cmp(field,"standing"))		{ ptr = (int *)&compartment->standing; flags = furniture_flags; allowarith = false; allowbitwise = true; }
+		else if(!str_cmp(field,"hanging"))		{ ptr = (int *)&compartment->hanging; flags = furniture_flags; allowarith = false; allowbitwise = true; }
+		else if(!str_cmp(field,"sitting"))		{ ptr = (int *)&compartment->sitting; flags = furniture_flags; allowarith = false; allowbitwise = true; }
+		else if(!str_cmp(field,"resting"))		{ ptr = (int *)&compartment->resting; flags = furniture_flags; allowarith = false; allowbitwise = true; }
+		else if(!str_cmp(field,"sleeping"))		{ ptr = (int *)&compartment->sleeping; flags = furniture_flags; allowarith = false; allowbitwise = true; }
+		else if(!str_cmp(field,"health"))		{ ptr = (int *)&compartment->health_regen; allowarith = true; allowbitwise = false; min = 0; hasmin = true; }
+		else if(!str_cmp(field,"mana"))			{ ptr = (int *)&compartment->mana_regen; allowarith = true; allowbitwise = false; min = 0; hasmin = true; }
+		else if(!str_cmp(field,"move"))			{ ptr = (int *)&compartment->move_regen; allowarith = true; allowbitwise = false; min = 0; hasmin = true; }
 		break;
 	}
 
@@ -9197,12 +9197,12 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		PARSE_ARGTYPE(STRING);
 		strncpy(field, arg->d.str, MIL-1);
 
-		if (!str_cmp(field, "type"))			{ ptr = (int *)&(INSTRUMENT(obj)->type); allowarith = FALSE; allowbitwise = FALSE; flags = instrument_types; }
-		else if (!str_cmp(field, "flags"))		{ ptr = (int *)&(INSTRUMENT(obj)->flags); allowarith = FALSE; allowbitwise = TRUE; flags = instrument_flags; }
-		else if (!str_cmp(field, "beatsmin"))	{ ptr = (int *)&(INSTRUMENT(obj)->beats_min); allowarith = TRUE; allowbitwise = FALSE; hasmin = true; min = 1; hasmax = true; max = 200; }
-		else if (!str_cmp(field, "beatsmax"))	{ ptr = (int *)&(INSTRUMENT(obj)->beats_max); allowarith = TRUE; allowbitwise = FALSE; hasmin = true; min = 1; hasmax = true; max = 200; }
-		else if (!str_cmp(field, "manamin"))	{ ptr = (int *)&(INSTRUMENT(obj)->mana_min); allowarith = TRUE; allowbitwise = FALSE; hasmin = true; min = 1; hasmax = true; max = 200; }
-		else if (!str_cmp(field, "manamax"))	{ ptr = (int *)&(INSTRUMENT(obj)->mana_max); allowarith = TRUE; allowbitwise = FALSE; hasmin = true; min = 1; hasmax = true; max = 200; }
+		if (!str_cmp(field, "type"))			{ ptr = (int *)&(INSTRUMENT(obj)->type); allowarith = false; allowbitwise = false; flags = instrument_types; }
+		else if (!str_cmp(field, "flags"))		{ ptr = (int *)&(INSTRUMENT(obj)->flags); allowarith = false; allowbitwise = true; flags = instrument_flags; }
+		else if (!str_cmp(field, "beatsmin"))	{ ptr = (int *)&(INSTRUMENT(obj)->beats_min); allowarith = true; allowbitwise = false; hasmin = true; min = 1; hasmax = true; max = 200; }
+		else if (!str_cmp(field, "beatsmax"))	{ ptr = (int *)&(INSTRUMENT(obj)->beats_max); allowarith = true; allowbitwise = false; hasmin = true; min = 1; hasmax = true; max = 200; }
+		else if (!str_cmp(field, "manamin"))	{ ptr = (int *)&(INSTRUMENT(obj)->mana_min); allowarith = true; allowbitwise = false; hasmin = true; min = 1; hasmax = true; max = 200; }
+		else if (!str_cmp(field, "manamax"))	{ ptr = (int *)&(INSTRUMENT(obj)->mana_max); allowarith = true; allowbitwise = false; hasmin = true; min = 1; hasmax = true; max = 200; }
 		break;
 
 	case ENT_OBJECT_LIGHT:
@@ -9212,8 +9212,8 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		PARSE_ARGTYPE(STRING);
 		strncpy(field, arg->d.str, MIL-1);
 
-		if(!str_cmp(field,"duration"))		{ ptr = (int *)(&LIGHT(obj)->duration); allowarith = TRUE; allowbitwise = FALSE; }
-		else if(!str_cmp(field,"flags"))	{ ptr = (int *)(&LIGHT(obj)->flags); flags = light_flags; allowarith = FALSE; allowbitwise = TRUE; }
+		if(!str_cmp(field,"duration"))		{ ptr = (int *)(&LIGHT(obj)->duration); allowarith = true; allowbitwise = false; }
+		else if(!str_cmp(field,"flags"))	{ ptr = (int *)(&LIGHT(obj)->flags); flags = light_flags; allowarith = false; allowbitwise = true; }
 		break;
 
 	case ENT_OBJECT_MONEY:
@@ -9223,8 +9223,8 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		PARSE_ARGTYPE(STRING);
 		strncpy(field, arg->d.str, MIL-1);
 
-		if (!str_cmp(field, "gold"))		{ ptr = (int *)&(MONEY(obj)->gold); min_sec = 5; max = (script_security - 4) * 1000; hasmax = TRUE; }
-		else if (!str_cmp(field, "silver"))	{ ptr = (int *)&(MONEY(obj)->silver); min_sec = 5; max = (script_security - 4) * 100000; hasmax = TRUE; }
+		if (!str_cmp(field, "gold"))		{ ptr = (int *)&(MONEY(obj)->gold); min_sec = 5; max = (script_security - 4) * 1000; hasmax = true; }
+		else if (!str_cmp(field, "silver"))	{ ptr = (int *)&(MONEY(obj)->silver); min_sec = 5; max = (script_security - 4) * 100000; hasmax = true; }
 
 		break;
 
@@ -9235,7 +9235,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		PARSE_ARGTYPE(STRING);
 		strncpy(field, arg->d.str, MIL-1);
 
-		if (!str_cmp(field, "number"))			{ ptr = (int *)&PAGE(obj)->page_no; min = 1; hasmin = TRUE; }
+		if (!str_cmp(field, "number"))			{ ptr = (int *)&PAGE(obj)->page_no; min = 1; hasmin = true; }
 		break;
 
 	case ENT_OBJECT_PORTAL:
@@ -9245,15 +9245,15 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		PARSE_ARGTYPE(STRING);
 		strncpy(field, arg->d.str, MIL-1);
 
-		if (!str_cmp(field, "charges"))		{ ptr = (int *)&(PORTAL(obj)->charges); allowarith = TRUE; allowbitwise = FALSE; min = 0; hasmin = TRUE; assignmin = -1; hasassignmin = true; }
-		else if (!str_cmp(field, "exit"))	{ ptr = (int *)&(PORTAL(obj)->exit); flags = portal_exit_flags; allowarith = FALSE; allowbitwise = TRUE; }
-		else if (!str_cmp(field, "flags"))	{ ptr = (int *)&(PORTAL(obj)->flags); flags = portal_flags; allowarith = FALSE; allowbitwise = TRUE; }
-		else if (!str_cmp(field, "param1"))	{ ptr = (int *)&(PORTAL(obj)->params[0]); allowarith = FALSE; allowbitwise = FALSE; }
-		else if (!str_cmp(field, "param2"))	{ ptr = (int *)&(PORTAL(obj)->params[1]); allowarith = FALSE; allowbitwise = FALSE; }
-		else if (!str_cmp(field, "param3"))	{ ptr = (int *)&(PORTAL(obj)->params[2]); allowarith = FALSE; allowbitwise = FALSE; }
-		else if (!str_cmp(field, "param4"))	{ ptr = (int *)&(PORTAL(obj)->params[3]); allowarith = FALSE; allowbitwise = FALSE; }
-		else if (!str_cmp(field, "param5"))	{ ptr = (int *)&(PORTAL(obj)->params[4]); allowarith = FALSE; allowbitwise = FALSE; }
-		else if (!str_cmp(field, "type"))	{ ptr = (int *)&(PORTAL(obj)->type); flags = portal_gatetype; allowarith = FALSE; allowbitwise = FALSE; }
+		if (!str_cmp(field, "charges"))		{ ptr = (int *)&(PORTAL(obj)->charges); allowarith = true; allowbitwise = false; min = 0; hasmin = true; assignmin = -1; hasassignmin = true; }
+		else if (!str_cmp(field, "exit"))	{ ptr = (int *)&(PORTAL(obj)->exit); flags = portal_exit_flags; allowarith = false; allowbitwise = true; }
+		else if (!str_cmp(field, "flags"))	{ ptr = (int *)&(PORTAL(obj)->flags); flags = portal_flags; allowarith = false; allowbitwise = true; }
+		else if (!str_cmp(field, "param1"))	{ ptr = (int *)&(PORTAL(obj)->params[0]); allowarith = false; allowbitwise = false; }
+		else if (!str_cmp(field, "param2"))	{ ptr = (int *)&(PORTAL(obj)->params[1]); allowarith = false; allowbitwise = false; }
+		else if (!str_cmp(field, "param3"))	{ ptr = (int *)&(PORTAL(obj)->params[2]); allowarith = false; allowbitwise = false; }
+		else if (!str_cmp(field, "param4"))	{ ptr = (int *)&(PORTAL(obj)->params[3]); allowarith = false; allowbitwise = false; }
+		else if (!str_cmp(field, "param5"))	{ ptr = (int *)&(PORTAL(obj)->params[4]); allowarith = false; allowbitwise = false; }
+		else if (!str_cmp(field, "type"))	{ ptr = (int *)&(PORTAL(obj)->type); flags = portal_gatetype; allowarith = false; allowbitwise = false; }
 		break;
 
 
@@ -9264,7 +9264,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		PARSE_ARGTYPE(STRING);
 		strncpy(field, arg->d.str, MIL-1);
 
-		if (!str_cmp(field, "maxmana"))	{ ptr = (int *)&(SCROLL(obj)->max_mana); allowarith = TRUE; allowbitwise = FALSE; hasmin = true; min = 0; }
+		if (!str_cmp(field, "maxmana"))	{ ptr = (int *)&(SCROLL(obj)->max_mana); allowarith = true; allowbitwise = false; hasmin = true; min = 0; }
 		break;
 
 	case ENT_OBJECT_TATTOO:
@@ -9274,9 +9274,9 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		PARSE_ARGTYPE(STRING);
 		strncpy(field, arg->d.str, MIL-1);
 
-		if (!str_cmp(field, "touches"))		{ ptr = (int *)&(TATTOO(obj)->touches); allowarith = TRUE; allowbitwise = FALSE; hasmin = true; min = 0; hasassignmin = true; assignmin = -1; }
-		else if (!str_cmp(field, "fade"))	{ ptr = (int *)&(TATTOO(obj)->fading_chance); allowarith = TRUE; allowbitwise = FALSE; hasmin = true; min = 0; hasmax = true; max = 100; }
-		else if (!str_cmp(field, "fading"))	{ ptr = (int *)&(TATTOO(obj)->fading_rate); allowarith = TRUE; allowbitwise = FALSE; hasmin = true; min = 0; hasmax = true; max = 100; }
+		if (!str_cmp(field, "touches"))		{ ptr = (int *)&(TATTOO(obj)->touches); allowarith = true; allowbitwise = false; hasmin = true; min = 0; hasassignmin = true; assignmin = -1; }
+		else if (!str_cmp(field, "fade"))	{ ptr = (int *)&(TATTOO(obj)->fading_chance); allowarith = true; allowbitwise = false; hasmin = true; min = 0; hasmax = true; max = 100; }
+		else if (!str_cmp(field, "fading"))	{ ptr = (int *)&(TATTOO(obj)->fading_rate); allowarith = true; allowbitwise = false; hasmin = true; min = 0; hasmax = true; max = 100; }
 		break;
 	
 	case ENT_OBJECT_WAND:
@@ -9286,10 +9286,10 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		PARSE_ARGTYPE(STRING);
 		strncpy(field, arg->d.str, MIL-1);
 
-		if (!str_cmp(field, "charges"))			{ ptr = (int *)&(WAND(obj)->charges); allowarith = TRUE; allowbitwise = FALSE; if(WAND(obj)->max_charges >= 0) {hasmin = true; min = 0; hasassignmin = true; assignmin = -1; hasmax = true; max = WAND(obj)->max_charges;} else {hasmin = hasmax = true; min = max = -1;} }
-		else if (!str_cmp(field, "maxcharges"))	{ ptr = (int *)&(WAND(obj)->max_charges); allowarith = TRUE; allowbitwise = FALSE; hasmin = true; min = 0; hasassignmin = true; assignmin = -1; }
-		else if (!str_cmp(field, "cooldown"))	{ ptr = (int *)&(WAND(obj)->charges); allowarith = TRUE; allowbitwise = FALSE; if(WAND(obj)->recharge_time > 0) {hasmin = true; min = 0; hasmax = true; max = WAND(obj)->recharge_time;} else {hasmin = hasmax = true; min = max = 0;} }
-		else if (!str_cmp(field, "recharge"))	{ ptr = (int *)&(WAND(obj)->recharge_time); allowarith = TRUE; allowbitwise = FALSE; hasmin = true; min = 0; hasassignmin = true; assignmin = -1; }
+		if (!str_cmp(field, "charges"))			{ ptr = (int *)&(WAND(obj)->charges); allowarith = true; allowbitwise = false; if(WAND(obj)->max_charges >= 0) {hasmin = true; min = 0; hasassignmin = true; assignmin = -1; hasmax = true; max = WAND(obj)->max_charges;} else {hasmin = hasmax = true; min = max = -1;} }
+		else if (!str_cmp(field, "maxcharges"))	{ ptr = (int *)&(WAND(obj)->max_charges); allowarith = true; allowbitwise = false; hasmin = true; min = 0; hasassignmin = true; assignmin = -1; }
+		else if (!str_cmp(field, "cooldown"))	{ ptr = (int *)&(WAND(obj)->charges); allowarith = true; allowbitwise = false; if(WAND(obj)->recharge_time > 0) {hasmin = true; min = 0; hasmax = true; max = WAND(obj)->recharge_time;} else {hasmin = hasmax = true; min = max = 0;} }
+		else if (!str_cmp(field, "recharge"))	{ ptr = (int *)&(WAND(obj)->recharge_time); allowarith = true; allowbitwise = false; hasmin = true; min = 0; hasassignmin = true; assignmin = -1; }
 		break;
 
 	case ENT_INK_TYPE:
@@ -9639,8 +9639,8 @@ SCRIPT_CMD(scriptcmd_stringobjmt)
 	int min_sec = MIN_SCRIPT_SECURITY;
 	OBJ_DATA *obj = NULL;
 
-	bool newlines = FALSE;
-	bool check_material = FALSE;
+	bool newlines = false;
+	bool check_material = false;
 
 	if(!info) return;
 
@@ -9670,7 +9670,7 @@ SCRIPT_CMD(scriptcmd_stringobjmt)
 		else if (!str_cmp(field, "long"))		{ if (obj->old_description) return; str = (char **)&obj->description; }
 		else if (!str_cmp(field, "full"))		{ if (obj->old_full_description) return; str = (char **)&obj->full_description; }
 		else if (!str_cmp(field, "owner"))		{ str = (char **)&obj->owner; }
-		else if (!str_cmp(field, "material"))	{ check_material = TRUE; }
+		else if (!str_cmp(field, "material"))	{ check_material = true; }
 		break;
 
 	case ENT_OBJECT:
@@ -9685,9 +9685,9 @@ SCRIPT_CMD(scriptcmd_stringobjmt)
 		if (!str_cmp(field, "name"))			{ if (obj->old_short_descr) return; str = (char **)&obj->name; }
 		else if (!str_cmp(field, "short"))		{ if (obj->old_short_descr) return; str = (char **)&obj->short_descr; }
 		else if (!str_cmp(field, "long"))		{ if (obj->old_description) return; str = (char **)&obj->description; }
-		else if (!str_cmp(field, "full"))		{ if (obj->old_full_description) return; str = (char **)&obj->full_description; newlines = TRUE; }
+		else if (!str_cmp(field, "full"))		{ if (obj->old_full_description) return; str = (char **)&obj->full_description; newlines = true; }
 		else if (!str_cmp(field, "owner"))		{ str = (char **)&obj->owner; min_sec = 5; }
-		else if (!str_cmp(field, "material"))	{ check_material = TRUE; }
+		else if (!str_cmp(field, "material"))	{ check_material = true; }
 		break;
 
 	case ENT_OBJECT_PAGE:
@@ -9700,7 +9700,7 @@ SCRIPT_CMD(scriptcmd_stringobjmt)
 		strncpy(field, arg->d.str, MIL-1);
 
 		if (!str_cmp(field, "title"))		{ str = (char **)&PAGE(obj)->title; }
-		else if (!str_cmp(field, "text"))	{ str = (char **)&PAGE(obj)->text; newlines = TRUE; }
+		else if (!str_cmp(field, "text"))	{ str = (char **)&PAGE(obj)->text; newlines = true; }
 		break;
 
 	case ENT_OBJECT_BOOK:
@@ -9887,7 +9887,7 @@ void __multitype_book(OBJ_DATA *book, SCRIPT_VARINFO *info, char *rest, SCRIPT_P
 		OBJ_DATA *to_obj;
 		ROOM_INDEX_DATA *to_room;
 		ROOM_INDEX_DATA *here = obj_room(book);
-		bool fToroom = FALSE;
+		bool fToroom = false;
 
 		PARSE_ARGTYPE(NUMBER);
 		page_no = arg->d.num;
@@ -9900,7 +9900,7 @@ void __multitype_book(OBJ_DATA *book, SCRIPT_VARINFO *info, char *rest, SCRIPT_P
 		if (!PARSE_ARG)
 			return;
 
-		OBJ_DATA *torn_page = create_object(obj_index_page, 1, FALSE);
+		OBJ_DATA *torn_page = create_object(obj_index_page, 1, false);
 
 		sprintf(buf, torn_page->short_descr, book->short_descr);
 		free_string(torn_page->short_descr);
@@ -9975,7 +9975,7 @@ void __multitype_book(OBJ_DATA *book, SCRIPT_VARINFO *info, char *rest, SCRIPT_P
 		switch(arg->type) {
 		case ENT_STRING:
 			if(!str_cmp(arg->d.str, "room"))
-				fToroom = TRUE;
+				fToroom = true;
 			break;
 
 		case ENT_MOBILE:
@@ -10478,9 +10478,9 @@ void __multitype_portal(OBJ_DATA *portal, SCRIPT_VARINFO *info, char *rest, SCRI
 					sent_bool mode = TRISTATE_UNDEF;
 					PARSE_ARGTYPE(STRING);
 					if (!str_prefix(arg->d.str, "generated"))
-						mode = FALSE;
+						mode = false;
 					else if (!str_prefix(arg->d.str, "ordinal"))
-						mode = TRUE;
+						mode = true;
 					else
 						return;
 
@@ -10616,9 +10616,9 @@ void __multitype_portal(OBJ_DATA *portal, SCRIPT_VARINFO *info, char *rest, SCRI
 					sent_bool mode = TRISTATE_UNDEF;
 
 					if (!str_prefix(arg->d.str, "generated"))
-						mode = FALSE;
+						mode = false;
 					else if (!str_prefix(arg->d.str, "ordinal"))
-						mode = TRUE;
+						mode = true;
 					else
 						return;
 
@@ -10668,9 +10668,9 @@ void __multitype_portal(OBJ_DATA *portal, SCRIPT_VARINFO *info, char *rest, SCRI
 					sent_bool mode = TRISTATE_UNDEF;
 
 					if (!str_prefix(arg->d.str, "generated"))
-						mode = FALSE;
+						mode = false;
 					else if (!str_prefix(arg->d.str, "ordinal"))
-						mode = TRUE;
+						mode = true;
 					else
 						return;
 

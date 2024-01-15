@@ -274,27 +274,27 @@ const	int	size_weight[] = { 0, 10, 50, 120, 450, 4500 };
 const	struct	trade_type	trade_table	[]	=
 {
 /*  type			name			live?	minprice	maxprice*/
-    { TRADE_NONE,     	  	"None", 		FALSE, 	0, 	0 	},
-    { TRADE_WEAPONS, 	  	"Weapons", 		FALSE, 	4000, 	4200 	},
-    { TRADE_FARMING_EQ,    	"Farming Equipment", 	FALSE, 	9700, 	10000 	},
-    { TRADE_PRECIOUS_GEMS, 	"Precious Gems", 	FALSE, 	98000, 	98100 	},
-    { TRADE_IRON_ORE,	  	"Iron Ore", 		FALSE, 	2500, 	2700 	},
-    { TRADE_WOOD,	  	"Wood", 		FALSE, 	1000, 	1100 	},
-    { TRADE_FARMING_FOOD,  	"Farming Food", 	FALSE,	2000, 	3000 	},
-    { TRADE_SLAVES,   	  	"Slaves", 		TRUE, 	2500000, 	2550000 	},
-    { TRADE_PIGS,          	"Pigs", 		TRUE, 	10000, 	10400 	},
-    { TRADE_PAPER, 	 	"Paper", 		FALSE, 	5000, 	5300 	},
-    { TRADE_GOLD, 	  	"Gold", 		FALSE, 	500000, 	502000 	},
-    { TRADE_SILVER,  	  	"Silver", 		FALSE, 	200000, 	205000 	},
-    { TRADE_SPICES,  	  	"Spices", 		FALSE, 	15000, 	15700 	},
-    { TRADE_CANNONS, 	  	"Cannons", 		FALSE, 	50000, 	52000 	},
-    { TRADE_EXOTIC_SEEDS,  	"Exotic Seeds", 	FALSE, 	5000, 	10000 	},
-    { TRADE_SPECIAL,  	  	"Special Cargo", 	FALSE, 	5000, 	10000 	},
-    { TRADE_REAGENTS,      	"Alchemy Reagents", 	FALSE, 	2000, 	2350 	},
-    { TRADE_PASSENGER,     	"Passenger", 		FALSE, 	5000, 	10000 	},
-    { TRADE_CONTRABAND, 	"Contraband", 		FALSE, 	1500000, 	1515000 	},
-    { TRADE_LAST, 	  	"", 			FALSE, 	0,  	0 	},
-    { -1, 			"", 			FALSE, 	0,  	0 	}
+    { TRADE_NONE,     	  	"None", 		false, 	0, 	0 	},
+    { TRADE_WEAPONS, 	  	"Weapons", 		false, 	4000, 	4200 	},
+    { TRADE_FARMING_EQ,    	"Farming Equipment", 	false, 	9700, 	10000 	},
+    { TRADE_PRECIOUS_GEMS, 	"Precious Gems", 	false, 	98000, 	98100 	},
+    { TRADE_IRON_ORE,	  	"Iron Ore", 		false, 	2500, 	2700 	},
+    { TRADE_WOOD,	  	"Wood", 		false, 	1000, 	1100 	},
+    { TRADE_FARMING_FOOD,  	"Farming Food", 	false,	2000, 	3000 	},
+    { TRADE_SLAVES,   	  	"Slaves", 		true, 	2500000, 	2550000 	},
+    { TRADE_PIGS,          	"Pigs", 		true, 	10000, 	10400 	},
+    { TRADE_PAPER, 	 	"Paper", 		false, 	5000, 	5300 	},
+    { TRADE_GOLD, 	  	"Gold", 		false, 	500000, 	502000 	},
+    { TRADE_SILVER,  	  	"Silver", 		false, 	200000, 	205000 	},
+    { TRADE_SPICES,  	  	"Spices", 		false, 	15000, 	15700 	},
+    { TRADE_CANNONS, 	  	"Cannons", 		false, 	50000, 	52000 	},
+    { TRADE_EXOTIC_SEEDS,  	"Exotic Seeds", 	false, 	5000, 	10000 	},
+    { TRADE_SPECIAL,  	  	"Special Cargo", 	false, 	5000, 	10000 	},
+    { TRADE_REAGENTS,      	"Alchemy Reagents", 	false, 	2000, 	2350 	},
+    { TRADE_PASSENGER,     	"Passenger", 		false, 	5000, 	10000 	},
+    { TRADE_CONTRABAND, 	"Contraband", 		false, 	1500000, 	1515000 	},
+    { TRADE_LAST, 	  	"", 			false, 	0,  	0 	},
+    { -1, 			"", 			false, 	0,  	0 	}
 };
 
 
@@ -341,43 +341,43 @@ const   struct wiznet_type      wiznet_table    [] =
 const  struct player_setting_type    pc_set_table[] =
 {
     /*  name            plr bit          plr2 bit, 	comm bit,    	backwards, min level to toggle, default setting */
-    {	"afk",		0,		 0,		COMM_AFK,	FALSE,	0,	SETTING_OFF	},
-    {	"autoeq",	PLR_AUTOEQ,	 0,		0,		FALSE,	0,	SETTING_ON	},
-    {	"autoexit",	PLR_AUTOEXIT,	 0,		0,		FALSE,	0,	SETTING_ON	},
-    {	"autogold",	PLR_AUTOGOLD,	 0,		0,		FALSE,	0,	SETTING_ON	},
-    {	"autoloot",	PLR_AUTOLOOT,	 0,		0,		FALSE,	0,	SETTING_ON	},
-    {   "autoolc",	PLR_AUTOOLC,	 0,	 0,		FALSE,	IM,	SETTING_OFF	},
-    {	"autosac",	PLR_AUTOSAC,	 0,		0,		FALSE,	0,	SETTING_ON	},
-    {	"autosetname",	PLR_AUTOSETNAME, 0,		0,		FALSE,	IM,	SETTING_ON	},
-    {	"autosplit",	PLR_AUTOSPLIT,	 0,		0,		FALSE,	0,	SETTING_ON	},
-    {	"autosurvey",	0,		 PLR_AUTOSURVEY,0,		FALSE,	0,	SETTING_OFF	},
-    {	"battlespam",	0,		 0,		COMM_NOBATTLESPAM,TRUE,	0,	SETTING_OFF	},
-    {	"brief",	0,		 0,		COMM_BRIEF,	FALSE,	0,	SETTING_OFF	},
-    {	"colour",	PLR_COLOUR,	 0,		0,		FALSE,	0,	SETTING_OFF	},
-    {	"compact",	0,		 0,		COMM_COMPACT,	FALSE,	0,	SETTING_OFF	},
-    {	"formstate",	0,		 0,		COMM_SHOW_FORM_STATE,FALSE,0,	SETTING_ON	},
-    {   "holyaura",	0,		PLR_HOLYAURA,	 0,		FALSE,	IM,	SETTING_ON	},
-    {   "holylight",	PLR_HOLYLIGHT,	 0,		0,		FALSE,	IM,	SETTING_ON	},
-    {   "holypersona",	0,	 PLR_HOLYPERSONA,		0,		FALSE,	IM,	SETTING_ON	},
-    {   "holywarp",	0,		PLR_HOLYWARP,	 0,		FALSE,	IM,	SETTING_ON	},
-    {	"map",		0,		 0,		COMM_NOMAP,	TRUE,	0,	SETTING_OFF	},
-    {	"nochallenge",	PLR_NO_CHALLENGE,0,		0,		FALSE,	0,	SETTING_OFF	},
-    {	"nofollow",	PLR_NOFOLLOW,	 0,		0,		FALSE,	0,	SETTING_OFF	},
-    {   "nolore",	0,		PLR_NOLORE,	 0,		FALSE,	0,	SETTING_OFF	},
-    {   "noreckoning",	0,		PLR_NORECKONING,	 0,		FALSE,	0,	SETTING_OFF	},
-    {	"noresurrect",	PLR_NO_RESURRECT,0,		0,		FALSE,	0,	SETTING_ON	},
-    {	"nosummon",	PLR_NOSUMMON,	 0,		0,		FALSE,	0,	SETTING_ON	},
-    {   "nowake",	0,		 PLR_NO_WAKE,	0,		FALSE,  0,      SETTING_OFF	},
-    {   "notify",	0,	 	 0,		COMM_NOTIFY,	FALSE,	0,	SETTING_ON	},
-    {	"prompt",	0,		 0,		COMM_PROMPT,	FALSE,	0,	SETTING_ON	},
-    {	"pursuit",	PLR_PURSUIT,	 0,		0,		FALSE,	0,	SETTING_OFF	},
-    {	"quiet",	0,		 0,		COMM_QUIET,	FALSE,	0,	SETTING_OFF	},
-    {	"sacrifice_all",	0,	 PLR_SACRIFICE_ALL,0,		FALSE,  0,      SETTING_OFF	},
-    {	"showdamage",	PLR_SHOWDAMAGE,	 0,		0,		FALSE,	IM,	SETTING_OFF	},
-    {	"mobile",	PLR_MOBILE,	0,	0, FALSE,	0, SETTING_OFF },
-    {	"favskills",	0,	PLR_FAVSKILLS,	0, FALSE,	0, SETTING_OFF },
-/*    {	"building",     PLR_BUILDING,	 0,		0,		FALSE,  IM,	SETTING_OFF	},*/
-    {	NULL,		0,		 0,		0,		FALSE,	0,	SETTING_OFF	}
+    {	"afk",		0,		 0,		COMM_AFK,	false,	0,	SETTING_OFF	},
+    {	"autoeq",	PLR_AUTOEQ,	 0,		0,		false,	0,	SETTING_ON	},
+    {	"autoexit",	PLR_AUTOEXIT,	 0,		0,		false,	0,	SETTING_ON	},
+    {	"autogold",	PLR_AUTOGOLD,	 0,		0,		false,	0,	SETTING_ON	},
+    {	"autoloot",	PLR_AUTOLOOT,	 0,		0,		false,	0,	SETTING_ON	},
+    {   "autoolc",	PLR_AUTOOLC,	 0,	 0,		false,	IM,	SETTING_OFF	},
+    {	"autosac",	PLR_AUTOSAC,	 0,		0,		false,	0,	SETTING_ON	},
+    {	"autosetname",	PLR_AUTOSETNAME, 0,		0,		false,	IM,	SETTING_ON	},
+    {	"autosplit",	PLR_AUTOSPLIT,	 0,		0,		false,	0,	SETTING_ON	},
+    {	"autosurvey",	0,		 PLR_AUTOSURVEY,0,		false,	0,	SETTING_OFF	},
+    {	"battlespam",	0,		 0,		COMM_NOBATTLESPAM,true,	0,	SETTING_OFF	},
+    {	"brief",	0,		 0,		COMM_BRIEF,	false,	0,	SETTING_OFF	},
+    {	"colour",	PLR_COLOUR,	 0,		0,		false,	0,	SETTING_OFF	},
+    {	"compact",	0,		 0,		COMM_COMPACT,	false,	0,	SETTING_OFF	},
+    {	"formstate",	0,		 0,		COMM_SHOW_FORM_STATE,false,0,	SETTING_ON	},
+    {   "holyaura",	0,		PLR_HOLYAURA,	 0,		false,	IM,	SETTING_ON	},
+    {   "holylight",	PLR_HOLYLIGHT,	 0,		0,		false,	IM,	SETTING_ON	},
+    {   "holypersona",	0,	 PLR_HOLYPERSONA,		0,		false,	IM,	SETTING_ON	},
+    {   "holywarp",	0,		PLR_HOLYWARP,	 0,		false,	IM,	SETTING_ON	},
+    {	"map",		0,		 0,		COMM_NOMAP,	true,	0,	SETTING_OFF	},
+    {	"nochallenge",	PLR_NO_CHALLENGE,0,		0,		false,	0,	SETTING_OFF	},
+    {	"nofollow",	PLR_NOFOLLOW,	 0,		0,		false,	0,	SETTING_OFF	},
+    {   "nolore",	0,		PLR_NOLORE,	 0,		false,	0,	SETTING_OFF	},
+    {   "noreckoning",	0,		PLR_NORECKONING,	 0,		false,	0,	SETTING_OFF	},
+    {	"noresurrect",	PLR_NO_RESURRECT,0,		0,		false,	0,	SETTING_ON	},
+    {	"nosummon",	PLR_NOSUMMON,	 0,		0,		false,	0,	SETTING_ON	},
+    {   "nowake",	0,		 PLR_NO_WAKE,	0,		false,  0,      SETTING_OFF	},
+    {   "notify",	0,	 	 0,		COMM_NOTIFY,	false,	0,	SETTING_ON	},
+    {	"prompt",	0,		 0,		COMM_PROMPT,	false,	0,	SETTING_ON	},
+    {	"pursuit",	PLR_PURSUIT,	 0,		0,		false,	0,	SETTING_OFF	},
+    {	"quiet",	0,		 0,		COMM_QUIET,	false,	0,	SETTING_OFF	},
+    {	"sacrifice_all",	0,	 PLR_SACRIFICE_ALL,0,		false,  0,      SETTING_OFF	},
+    {	"showdamage",	PLR_SHOWDAMAGE,	 0,		0,		false,	IM,	SETTING_OFF	},
+    {	"mobile",	PLR_MOBILE,	0,	0, false,	0, SETTING_OFF },
+    {	"favskills",	0,	PLR_FAVSKILLS,	0, false,	0, SETTING_OFF },
+/*    {	"building",     PLR_BUILDING,	 0,		0,		false,  IM,	SETTING_OFF	},*/
+    {	NULL,		0,		 0,		0,		false,	0,	SETTING_OFF	}
 };
 
 
@@ -476,7 +476,7 @@ const 	struct	race_type	__race_table	[] =
 	*/
 	{
 		"none",
-		FALSE,
+		false,
 		NULL,NULL,
 		0,
 		0,
@@ -490,7 +490,7 @@ const 	struct	race_type	__race_table	[] =
 		0
 	}, {
 		"human",
-		TRUE,
+		true,
 		&grn_human,&gprn_human,
 		0,
 		0,
@@ -504,7 +504,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_LUNGS
 	}, {
 		"elf",
-		TRUE,
+		true,
 		&grn_elf,&gprn_elf,
 		0,
 		0,
@@ -518,7 +518,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_LUNGS
 	}, {
 		"dwarf",
-		TRUE,
+		true,
 		&grn_dwarf,&gprn_dwarf,
 		0,
 		0,
@@ -531,7 +531,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_LUNGS
 	}, {
 		"titan",
-		TRUE,
+		true,
 		&grn_titan,&gprn_titan,
 		0,
 		0,
@@ -545,7 +545,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_LUNGS
 	}, {
 		"vampire",
-		TRUE,
+		true,
 		&grn_vampire,&gprn_vampire,
 		0,
 		0,
@@ -559,7 +559,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_FANGS | PART_LUNGS
 	}, {
 		"drow",
-		TRUE,
+		true,
 		&grn_drow,&gprn_drow,
 		0,
 		0,
@@ -573,7 +573,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_LUNGS
 	}, {
 		"sith",
-		TRUE,
+		true,
 		&grn_sith,&gprn_sith,
 		0,
 		0,
@@ -587,7 +587,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_FANGS | PART_TAIL | PART_LUNGS
 	}, {
 		"draconian",
-		TRUE,
+		true,
 		&grn_draconian,&gprn_draconian,
 		0,
 		0,
@@ -601,7 +601,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_WINGS | PART_TAIL | PART_CLAWS | PART_FANGS | PART_SCALES | PART_LUNGS
 	}, {
 		"slayer",
-		TRUE,
+		true,
 		&grn_slayer,&gprn_slayer,
 		0,
 		0,
@@ -615,7 +615,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_LUNGS
 	}, {
 		"minotaur",
-		TRUE,
+		true,
 		&grn_minotaur,&gprn_minotaur,
 		0,
 		0,
@@ -629,7 +629,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_TAIL | PART_HORNS | PART_LUNGS
 	}, {
 		"angel",
-		TRUE,
+		true,
 		&grn_angel,&gprn_angel,
 		0,
 		0,
@@ -643,7 +643,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_TAIL | PART_CLAWS | PART_FANGS | PART_HORNS | PART_SCALES | PART_LUNGS
 	}, {
 		"mystic",
-		TRUE,
+		true,
 		&grn_mystic,&gprn_mystic,
 		0,
 		0,
@@ -657,7 +657,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_LUNGS
 	}, {
 		"demon",
-		TRUE,
+		true,
 		&grn_demon,&gprn_demon,
 		0,
 		0,
@@ -670,7 +670,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_TAIL | PART_CLAWS | PART_FANGS | PART_HORNS | PART_SCALES | PART_FANGS | PART_LUNGS
 	}, {
 		"lich",
-		TRUE,
+		true,
 		&grn_lich,&gprn_lich,
 		0,
 		0,
@@ -684,7 +684,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_CLAWS | PART_LUNGS
 	}, {
 		"avatar",
-		TRUE,
+		true,
 		&grn_avatar,&gprn_avatar,
 		0,
 		0,
@@ -698,7 +698,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_LUNGS
 	}, {
 		"seraph",
-		TRUE,
+		true,
 		&grn_seraph,&gprn_seraph,
 		0,
 		0,
@@ -712,7 +712,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_WINGS | PART_LUNGS
 	}, {
 		"berserker",
-		TRUE,
+		true,
 		&grn_berserker,&gprn_berserker,
 		0,
 		0,
@@ -726,7 +726,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_LUNGS
 	}, {
 		"colossus",
-		TRUE,
+		true,
 		&grn_colossus,&gprn_colossus,
 		0,
 		0,
@@ -740,7 +740,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_LUNGS
 	}, {
 		"fiend",
-		TRUE,
+		true,
 		&grn_fiend,&gprn_fiend,
 		0,
 		0,
@@ -754,7 +754,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_FANGS | PART_LUNGS
 	}, {
 		"specter",
-		TRUE,
+		true,
 		&grn_specter,&gprn_specter,
 		0,
 		0,
@@ -768,7 +768,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_WINGS | PART_LUNGS
 	}, {
 		"naga",
-		TRUE,
+		true,
 		&grn_naga,&gprn_naga,
 		0,
 		0,
@@ -782,7 +782,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_FANGS | PART_TAIL | PART_LUNGS
 	}, {
 		"dragon",
-		TRUE,
+		true,
 		&grn_dragon,&gprn_dragon,
 		0,
 		0,
@@ -796,7 +796,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_WINGS | PART_TAIL | PART_CLAWS | PART_FANGS | PART_SCALES | PART_LUNGS
 	}, {
 		"changeling",
-		TRUE,
+		true,
 		&grn_changeling,&gprn_changeling,
 		0,
 		0,
@@ -810,7 +810,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_LUNGS
 	}, {
 		"hell baron",
-		TRUE,
+		true,
 		&grn_hell_baron,&gprn_hell_baron,
 		0,
 		0,
@@ -824,7 +824,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_TAIL | PART_HORNS | PART_LUNGS
 	}, {
 		"wraith",
-		TRUE,
+		true,
 		&grn_wraith,&gprn_wraith,
 		0,
 		0,
@@ -838,7 +838,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_CLAWS | PART_LUNGS
 	}, {
 		"shaper",
-		TRUE,
+		true,
 		&grn_shaper,&gprn_shaper,
 		0,
 		0,
@@ -852,7 +852,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_LUNGS
 	}, {
 		"were_changed",
-		FALSE,
+		false,
 		&grn_were_changed,NULL,
 		0,
 		0,
@@ -865,7 +865,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE | PART_CLAWS | PART_FANGS | PART_LUNGS
 	}, {
 		"mob_vampire",
-		FALSE,
+		false,
 		&grn_mob_vampire,NULL,
 		0,
 		0,
@@ -879,7 +879,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_FANGS | PART_LUNGS
 	}, {
 		"bat",
-		FALSE,
+		false,
 		&grn_bat,NULL,
 		0,
 		0,
@@ -893,7 +893,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE | PART_WINGS | PART_LUNGS
 	}, {
 		"werewolf",
-		FALSE,
+		false,
 		&grn_werewolf,NULL,
 		0,
 		0,
@@ -907,7 +907,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_LUNGS
 	}, {
 		"bear",
-		FALSE,
+		false,
 		&grn_bear,NULL,
 		0,
 		0,
@@ -921,7 +921,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE | PART_CLAWS | PART_FANGS | PART_LUNGS
 	}, {
 		"bugbear",
-		FALSE,
+		false,
 		&grn_bugbear,NULL,
 		0,
 		0,
@@ -935,7 +935,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE | PART_CLAWS | PART_FANGS | PART_LUNGS
 	}, {
 		"cat",
-		FALSE,
+		false,
 		&grn_cat,NULL,
 		0,
 		0,
@@ -949,7 +949,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE | PART_TAIL | PART_CLAWS | PART_FANGS | PART_LUNGS
 	}, {
 		"centipede",
-		FALSE,
+		false,
 		&grn_centipede,NULL,
 		0,
 		0,
@@ -963,7 +963,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_LEGS | PART_EYE | PART_LUNGS
 	}, {
 		"dog",
-		FALSE,
+		false,
 		&grn_dog,NULL,
 		0,
 		0,
@@ -977,7 +977,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE | PART_CLAWS | PART_FANGS | PART_LUNGS
 	}, {
 		"doll",
-		FALSE,
+		false,
 		&grn_doll,NULL,
 		0,
 		0,
@@ -991,7 +991,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HANDS | PART_FEET | PART_EYE
 	}, {
 		"fido",
-		FALSE,
+		false,
 		&grn_fido,NULL,
 		0,
 		0,
@@ -1005,7 +1005,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE | PART_TAIL | PART_FANGS | PART_LUNGS
 	}, {
 		"fox",
-		FALSE,
+		false,
 		&grn_fox,NULL,
 		0,
 		0,
@@ -1019,7 +1019,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE | PART_TAIL | PART_FANGS | PART_LUNGS
 	}, {
 		"goblin",
-		FALSE,
+		false,
 		&grn_goblin,NULL,
 		0,
 		0,
@@ -1033,7 +1033,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_LUNGS
 	}, {
 		"hobgoblin",
-		FALSE,
+		false,
 		&grn_hobgoblin,NULL,
 		0,
 		0,
@@ -1047,7 +1047,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_TUSKS | PART_LUNGS
 	}, {
 		"kobold",
-		FALSE,
+		false,
 		&grn_kobold,NULL,
 		0,
 		0,
@@ -1061,7 +1061,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_TAIL | PART_LUNGS
 	}, {
 		"lizard",
-		FALSE,
+		false,
 		&grn_lizard,NULL,
 		0,
 		0,
@@ -1075,7 +1075,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EYE | PART_TAIL | PART_FANGS | PART_LUNGS
 	}, {
 		"doxian",
-		FALSE,
+		false,
 		&grn_doxian,NULL,
 		0,
 		0,
@@ -1089,7 +1089,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HANDS | PART_FEET | PART_EAR | PART_EYE | PART_LUNGS
 	}, {
 		"orc",
-		FALSE,
+		false,
 		&grn_orc,NULL,
 		0,
 		0,
@@ -1103,7 +1103,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_LUNGS
 	}, {
 		"pig",
-		FALSE,
+		false,
 		&grn_pig,NULL,
 		0,
 		0,
@@ -1117,7 +1117,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE | PART_LUNGS
 	}, {
 		"rabbit",
-		FALSE,
+		false,
 		&grn_rabbit,NULL,
 		0,
 		0,
@@ -1131,7 +1131,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE | PART_LUNGS
 	}, {
 		"school monster",
-		FALSE,
+		false,
 		&grn_school_monster,NULL,
 		0,
 		0,
@@ -1145,7 +1145,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE | PART_TAIL | PART_CLAWS | PART_LUNGS
 	}, {
 		"snake",
-		FALSE,
+		false,
 		&grn_snake,NULL,
 		0,
 		0,
@@ -1159,7 +1159,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_HEART | PART_BRAINS | PART_GUTS | PART_EYE | PART_LONG_TONGUE | PART_TAIL | PART_FANGS | PART_SCALES | PART_LUNGS
 	}, {
 		"song bird",
-		FALSE,
+		false,
 		&grn_song_bird,NULL,
 		0,
 		0,
@@ -1173,7 +1173,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EYE | PART_WINGS | PART_LUNGS
 	}, {
 		"golem",
-		FALSE,
+		false,
 		&grn_golem,NULL,
 		0,
 		0,
@@ -1187,7 +1187,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EYE | PART_WINGS | PART_TAIL | PART_CLAWS | PART_FANGS | PART_LUNGS
 	}, {
 		"unicorn",
-		FALSE,
+		false,
 		&grn_unicorn,NULL,
 		0,
 		0,
@@ -1201,7 +1201,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EYE | PART_WINGS | PART_TAIL | PART_CLAWS | PART_FANGS | PART_LUNGS
 	}, {
 		"griffon",
-		FALSE,
+		false,
 		&grn_griffon,NULL,
 		0,
 		0,
@@ -1215,7 +1215,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EYE | PART_WINGS | PART_TAIL | PART_CLAWS | PART_FANGS | PART_LUNGS
 	}, {
 		"troll",
-		FALSE,
+		false,
 		&grn_troll,NULL,
 		0,
 		0,
@@ -1229,7 +1229,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_CLAWS | PART_FANGS | PART_LUNGS
 	}, {
 		"water fowl",
-		FALSE,
+		false,
 		&grn_water_fowl,NULL,
 		0,
 		0,
@@ -1243,7 +1243,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EYE | PART_WINGS | PART_LUNGS
 	}, {
 		"giant",
-		FALSE,
+		false,
 		&grn_giant,NULL,
 		0,
 		0,
@@ -1257,7 +1257,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EYE | PART_WINGS | PART_LUNGS
 	}, {
 		"wolf",
-		FALSE,
+		false,
 		&grn_wolf,NULL,
 		0,
 		0,
@@ -1271,7 +1271,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_EAR | PART_EYE | PART_TAIL | PART_FANGS | PART_LUNGS
 	}, {
 		"wyvern",
-		FALSE,
+		false,
 		&grn_wyvern,NULL,
 		0,
 		0,
@@ -1285,7 +1285,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE | PART_TAIL | PART_FANGS | PART_SCALES | PART_LUNGS
 	}, {
 		"nileshian",
-		FALSE,
+		false,
 		&grn_nileshian,NULL,
 		0,
 		0,
@@ -1299,7 +1299,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_FANGS | PART_CLAWS | PART_TAIL | PART_LUNGS
 	}, {
 		"skeleton",
-		FALSE,
+		false,
 		&grn_skeleton,NULL,
 		0,
 		0,
@@ -1313,7 +1313,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_FANGS
 	}, {
 		"zombie",
-		FALSE,
+		false,
 		&grn_zombie,NULL,
 		0,
 		0,
@@ -1327,7 +1327,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_FANGS | PART_LUNGS
 	}, {
 		"wisp",
-		FALSE,
+		false,
 		&grn_wisp,NULL,
 		0,
 		0,
@@ -1341,7 +1341,7 @@ const 	struct	race_type	__race_table	[] =
 		0
 	}, {
 		"insect",
-		FALSE,
+		false,
 		&grn_insect,NULL,
 		0,
 		0,
@@ -1355,7 +1355,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_LEGS | PART_BRAINS | PART_GUTS | PART_FEET | PART_EYE | PART_WINGS | PART_TAIL | PART_EYESTALKS
 	}, {
 		"gnome",
-		FALSE,
+		false,
 		&grn_gnome,NULL,
 		0,
 		0,
@@ -1369,7 +1369,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_TAIL | PART_CLAWS | PART_LUNGS
 	}, {
 		"angel_mob",
-		FALSE,
+		false,
 		&grn_angel_mob,NULL,
 		0,
 		0,
@@ -1383,7 +1383,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_TAIL | PART_CLAWS | PART_FANGS | PART_HORNS | PART_SCALES | PART_LUNGS
 	}, {
 		"demon_mob",
-		FALSE,
+		false,
 		&grn_demon_mob,NULL,
 		0,
 		0,
@@ -1397,7 +1397,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_TAIL | PART_CLAWS | PART_FANGS | PART_HORNS | PART_SCALES | PART_LUNGS
 	}, {
 		"rodent",
-		FALSE,
+		false,
 		&grn_rodent,NULL,
 		0,
 		0,
@@ -1411,7 +1411,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE | PART_TAIL | PART_CLAWS | PART_LUNGS
 	}, {
 		"treant",
-		FALSE,
+		false,
 		&grn_treant,NULL,
 		0,
 		0,
@@ -1426,7 +1426,7 @@ const 	struct	race_type	__race_table	[] =
 	}, {
 		// TODO: What....?? FIX THIS
 		"horse",
-		FALSE,
+		false,
 		&grn_horse,NULL,
 		0,
 		0,
@@ -1440,7 +1440,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_GUTS
 	}, {
 		"bird",
-		FALSE,
+		false,
 		&grn_bird,NULL,
 		0,
 		0,
@@ -1454,7 +1454,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_TAIL | PART_CLAWS | PART_FANGS | PART_HORNS | PART_SCALES | PART_LUNGS
 	}, {
 		"fungus",
-		FALSE,
+		false,
 		&grn_fungus,NULL,
 		0,
 		0,
@@ -1468,7 +1468,7 @@ const 	struct	race_type	__race_table	[] =
 		PART_GUTS
 	}, {
 		"unique",
-		FALSE,
+		false,
 		&grn_unique,NULL,
 		0,
 		0,
@@ -1482,7 +1482,7 @@ const 	struct	race_type	__race_table	[] =
 		0
 	}, {
 		NULL,
-		FALSE,
+		false,
 		NULL,NULL,
 		0,
 		0,
@@ -1526,7 +1526,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_NONE,
 		NULL,
 		NULL,
-		FALSE,
+		false,
 		{0, 0, 0, 0, 0}
 	},{
 		"human",
@@ -1539,7 +1539,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_NONE,
 		&gprn_human,
 		&grn_avatar,
-		FALSE,
+		false,
 		{0, 0, 0, 0, 0}
 	},{
 		"elf",
@@ -1552,7 +1552,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_GOOD,
 		&gprn_elf,
 		&grn_seraph,
-		FALSE,
+		false,
 		{0, 0, 0, 0, 0}
 	}, {
 		"dwarf",
@@ -1565,7 +1565,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_NONE,
 		&gprn_dwarf,
 		&grn_berserker,
-		FALSE,
+		false,
 		{0, 0, 0, 0, 0}
 
 	}, {
@@ -1579,7 +1579,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_GOOD,
 		&gprn_titan,
 		&grn_colossus,
-		FALSE,
+		false,
 		{0, 0, 0, 0, 0}
 	}, {
 		"vampire",
@@ -1592,7 +1592,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_EVIL,
 		&gprn_vampire,
 		&grn_fiend,
-		FALSE,
+		false,
 		{0, 0, 0, 0, 0}
 	}, {
 		"drow",
@@ -1605,7 +1605,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_EVIL,
 		&gprn_drow,
 		&grn_specter,
-		FALSE,
+		false,
 		{0, 0, 0, 0, 0}
 	}, {
 		"sith",
@@ -1618,7 +1618,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_EVIL,
 		&gprn_sith,
 		&grn_naga,
-		FALSE,
+		false,
 		{0, 0, 0, 0, 0}
 	}, {
 		"draconian",
@@ -1631,7 +1631,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_GOOD,
 		&gprn_draconian,
 		&grn_dragon,
-		FALSE,
+		false,
 		{0, 0, 0, 0, 0}
 	}, {
 		"slayer",
@@ -1644,7 +1644,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_GOOD,
 		&gprn_slayer,
 		&grn_changeling,
-		FALSE,
+		false,
 		{0, 0, 0, 0, 0}
 	}, {
 		"minotaur",
@@ -1657,7 +1657,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_EVIL,
 		&gprn_minotaur,
 		&grn_hell_baron,
-		FALSE,
+		false,
 		{0, 0, 0, 0, 0}
 	}, {
 		"Angel",
@@ -1670,7 +1670,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_GOOD,
 		&gprn_angel,
 		NULL,
-		TRUE,
+		true,
 		{0, 0, 0, 0, 0}
 	}, {
 		"Mystic",
@@ -1683,7 +1683,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_NONE,
 		&gprn_mystic,
 		NULL,
-		TRUE,
+		true,
 		{0, 0, 0, 0, 0}
 	}, {
 		"Demon",
@@ -1696,7 +1696,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_EVIL,
 		&gprn_demon,
 		NULL,
-		TRUE,
+		true,
 		{0, 0, 0, 0, 0}
 	}, {
 		"lich",
@@ -1709,7 +1709,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_NONE,
 		&gprn_lich,
 		&grn_wraith,
-		FALSE,
+		false,
 		{0, 0, 0, 0, 0}
 
 	}, {	/* Remort Races */
@@ -1723,7 +1723,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_NONE,
 		&gprn_avatar,
 		NULL,
-		TRUE,
+		true,
 		{0, 0, 0, 0, 0}
 	}, {
 		"seraph",
@@ -1736,7 +1736,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_GOOD,
 		&gprn_seraph,
 		NULL,
-		TRUE,
+		true,
 		{0, 0, 0, 0, 0}
 	}, {
 		"berserker",
@@ -1749,7 +1749,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_NONE,
 		&gprn_berserker,
 		NULL,
-		TRUE,
+		true,
 		{0, 0, 0, 0, 0}
 	}, {
 		"colossus",
@@ -1762,7 +1762,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_GOOD,
 		&gprn_colossus,
 		NULL,
-		TRUE,
+		true,
 		{0, 0, 0, 0, 0}
 	}, {
 		"fiend",
@@ -1775,7 +1775,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_EVIL,
 		&gprn_fiend,
 		NULL,
-		TRUE,
+		true,
 		{0, 0, 0, 0, 0}
 	}, {
 		"specter",
@@ -1788,7 +1788,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_EVIL,
 		&gprn_specter,
 		NULL,
-		TRUE,
+		true,
 		{0, 0, 0, 0, 0}
 	}, {
 		"naga",
@@ -1801,7 +1801,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_EVIL,
 		&gprn_naga,
 		NULL,
-		TRUE,
+		true,
 		{0, 0, 0, 0, 0}
 	}, {
 		"dragon",
@@ -1814,7 +1814,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_GOOD,
 		&gprn_dragon,
 		NULL,
-		TRUE,
+		true,
 		{0, 0, 0, 0, 0}
 	}, {
 		"changeling",
@@ -1827,7 +1827,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_GOOD,
 		&gprn_changeling,
 		NULL,
-		TRUE,
+		true,
 		{0, 0, 0, 0, 0}
 	}, {
 		"hell baron",
@@ -1840,7 +1840,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_EVIL,
 		&gprn_hell_baron,
 		NULL,
-		TRUE,
+		true,
 		{0, 0, 0, 0, 0}
 	}, {
 		"wraith",
@@ -1853,7 +1853,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_NONE,
 		&gprn_wraith,
 		NULL,
-		TRUE,
+		true,
 		{0, 0, 0, 0, 0}
 	}, {
 		"shaper",
@@ -1866,7 +1866,7 @@ const	struct	pc_race_type	__pc_race_table	[]	=
 		ALIGN_NONE,
 		&gprn_shaper,
 		NULL,
-		TRUE,
+		true,
 		{0, 0, 0, 0, 0}
 	}
 };
@@ -1888,7 +1888,7 @@ const   struct  sub_class_type  __sub_class_table [] =
 	{"marauder", 	"marauder", 	"marauder"	},
 	{"  Marauder  ", "  Marauder  ", "  Marauder  "	},
 	CLASS_WARRIOR, 	"marauder skills",
-	ALIGN_EVIL,	FALSE,			{-1, -1	},
+	ALIGN_EVIL,	false,			{-1, -1	},
 	{0,	0,	0,	0,	0		}
     },
 
@@ -1896,7 +1896,7 @@ const   struct  sub_class_type  __sub_class_table [] =
 	{"gladiator", 	"gladiator", 	"gladiator"	},
 	{" Gladiator  ", " Gladiator  ", " Gladiator  "	},
 	CLASS_WARRIOR, 	"gladiator skills",
-	ALIGN_NONE, 	FALSE, 			{-1, -1	},
+	ALIGN_NONE, 	false, 			{-1, -1	},
 	{0,	0,	0,	0,	0		}
     },
 
@@ -1904,7 +1904,7 @@ const   struct  sub_class_type  __sub_class_table [] =
 	{"paladin", 	"paladin", 	"paladin"	},
 	{"  Paladin   ", "  Paladin   ", "  Paladin   "	},
 	CLASS_WARRIOR, 	"paladin skills",
-	ALIGN_GOOD,	FALSE,			{-1, -1	},
+	ALIGN_GOOD,	false,			{-1, -1	},
 	{0,	0,	0,	0,	0		}
     },
 
@@ -1912,7 +1912,7 @@ const   struct  sub_class_type  __sub_class_table [] =
 	{"necromancer",	"necromancer",	"necromancer"	},
 	{"Necromancer ", "Necromancer ", "Necromancer "	},
 	CLASS_MAGE, 	"necromancer skills",
-	ALIGN_EVIL,	FALSE,			{-1, -1	},
+	ALIGN_EVIL,	false,			{-1, -1	},
 	{0,	0,	0,	0,	0		}
     },
 
@@ -1920,7 +1920,7 @@ const   struct  sub_class_type  __sub_class_table [] =
 	{"sorcerer",	"sorcerer",	"sorceress"	},
 	{"  Sorcerer  ", "  Sorcerer  ", " Sorceress  "	},
 	CLASS_MAGE, 	"sorcerer skills",
-	ALIGN_NONE,	FALSE, 			{-1, -1	},
+	ALIGN_NONE,	false, 			{-1, -1	},
 	{0,	0,	0,	0,	0		}
     },
 
@@ -1928,7 +1928,7 @@ const   struct  sub_class_type  __sub_class_table [] =
 	{"wizard",     "wizard",	"wizard",	},
 	{"  Wizard    ", "  Wizard    ", "  Wizard    "	},
 	CLASS_MAGE, 	"wizard skills",
-	ALIGN_GOOD,	FALSE, 			{-1, -1	},
+	ALIGN_GOOD,	false, 			{-1, -1	},
 	{0,	0,	0,	0,	0		}
     },
 
@@ -1936,7 +1936,7 @@ const   struct  sub_class_type  __sub_class_table [] =
 	{"witch",	"warlock",	"witch"		},
 	{"   Witch    ", "  Warlock   ", "   Witch    "	},
 	CLASS_CLERIC, 	"witch skills",
-	ALIGN_EVIL,	FALSE, 			{-1, -1	},
+	ALIGN_EVIL,	false, 			{-1, -1	},
 	{0,	0,	0,	0,	0		}
     },
 
@@ -1944,7 +1944,7 @@ const   struct  sub_class_type  __sub_class_table [] =
 	{"druid",    	"druid",	"druid",	},
 	{"   Druid    ", "   Druid    ", "   Druid    "	},
 	CLASS_CLERIC, 	"druid skills",
-	ALIGN_NONE, 	FALSE, 			{-1, -1	},
+	ALIGN_NONE, 	false, 			{-1, -1	},
 	{0,	0,	0,	0,	0		}
     },
 
@@ -1952,7 +1952,7 @@ const   struct  sub_class_type  __sub_class_table [] =
 	{"monk",     	"monk",		"monk"		},
 	{"   Monk     ", "   Monk     ", "   Monk     "	},
 	CLASS_CLERIC, 	"monk skills",
-	ALIGN_GOOD, 	FALSE, 			{-1, -1	},
+	ALIGN_GOOD, 	false, 			{-1, -1	},
 	{0,	0,	0,	0,	0		}
     },
 
@@ -1960,7 +1960,7 @@ const   struct  sub_class_type  __sub_class_table [] =
 	{"assassin",    "assassin",	"assassin"	},
 	{"  Assassin  ", "  Assassin  ", "  Assassin  "	},
 	CLASS_THIEF, 	"assassin skills",
-	ALIGN_EVIL, 	FALSE, 			{-1, -1	},
+	ALIGN_EVIL, 	false, 			{-1, -1	},
 	{0,	0,	0,	0,	0		}
     },
 
@@ -1968,7 +1968,7 @@ const   struct  sub_class_type  __sub_class_table [] =
 	{"rogue", 	"rogue",	"rogue"		},
 	{"   Rogue    ", "   Rogue    ", "   Rogue    "	},
 	CLASS_THIEF, 	"rogue skills",
-	ALIGN_NONE, 	FALSE, 			{-1, -1	},
+	ALIGN_NONE, 	false, 			{-1, -1	},
 	{0,	0,	0,	0,	0		}
     },
 
@@ -1976,7 +1976,7 @@ const   struct  sub_class_type  __sub_class_table [] =
 	{"bard", 	"bard",		"bard"		},
 	{"   Bard     ", "   Bard     ", "   Bard     "	},
 	CLASS_THIEF, 	"bard skills",
-	ALIGN_GOOD,	FALSE,			{-1, -1	},
+	ALIGN_GOOD,	false,			{-1, -1	},
 	{0,	0,	0,	0,	0		}
     },
 
@@ -1986,7 +1986,7 @@ const   struct  sub_class_type  __sub_class_table [] =
 	{"warlord",	"warlord",	"warlord"	},
 	{"  Warlord   ", "  Warlord   ", "  Warlord   "	},
 	CLASS_WARRIOR, 	"warlord skills",
-	ALIGN_NONE,	TRUE,
+	ALIGN_NONE,	true,
 	{CLASS_WARRIOR_MARAUDER, CLASS_WARRIOR_PALADIN	},
 	{0,	0,	0,	0,	0		}
     },
@@ -1995,7 +1995,7 @@ const   struct  sub_class_type  __sub_class_table [] =
 	{"destroyer", 	"destroyer",	"destroyer",	},
 	{" Destroyer  ", " Destroyer  ", " Destroyer  "	},
 	CLASS_WARRIOR, 	"destroyer skills",
-	ALIGN_NONE,	TRUE,
+	ALIGN_NONE,	true,
 	{CLASS_WARRIOR_GLADIATOR, CLASS_WARRIOR_MARAUDER},
 	{0,	0,	0,	0,	0		}
     },
@@ -2004,7 +2004,7 @@ const   struct  sub_class_type  __sub_class_table [] =
 	{"crusader", 	"crusader",	"crusader"	},
 	{"  Crusader  ", "  Crusader  ", "  Crusader  "	},
 	CLASS_WARRIOR, 	"crusader skills",
-	ALIGN_NONE,	TRUE,
+	ALIGN_NONE,	true,
 	{CLASS_WARRIOR_GLADIATOR, CLASS_WARRIOR_PALADIN	},
 	{0,	0,	0,	0,	0		}
     },
@@ -2013,7 +2013,7 @@ const   struct  sub_class_type  __sub_class_table [] =
 	{"archmage", 	"archmage",	"archmage"	},
 	{" Arch-Mage  ", " Arch-Mage  ", " Arch-Mage  "	},
 	CLASS_MAGE, 	"archmage skills",
-	ALIGN_NONE,	TRUE,
+	ALIGN_NONE,	true,
 	{CLASS_MAGE_NECROMANCER, CLASS_MAGE_SORCERER	},
 	{0,	0,	0,	0,	0		}
     },
@@ -2022,7 +2022,7 @@ const   struct  sub_class_type  __sub_class_table [] =
 	{"geomancer", 	"geomancer",	"geomancer"	},
 	{" Geomancer  ", " Geomancer  ", " Geomancer  "	},
 	CLASS_MAGE, 	"geomancer skills",
-	ALIGN_NONE,	TRUE,
+	ALIGN_NONE,	true,
 	{CLASS_MAGE_NECROMANCER, CLASS_MAGE_WIZARD	},
 	{0,	0,	0,	0,	0		}
     },
@@ -2031,7 +2031,7 @@ const   struct  sub_class_type  __sub_class_table [] =
 	{"illusionist",	"illusionist",	"illusionist"	},
 	{"Illusionist ", "Illusionist ", "Illusionist "	},
 	CLASS_MAGE, 	"illusionist skills",
-	ALIGN_NONE,	TRUE,
+	ALIGN_NONE,	true,
 	{CLASS_MAGE_SORCERER, CLASS_MAGE_WIZARD		},
 	{0,	0,	0,	0,	0		}
     },
@@ -2040,7 +2040,7 @@ const   struct  sub_class_type  __sub_class_table [] =
 	{"alchemist", 	"alchemist",	"alchemist"	},
 	{" Alchemist  ", " Alchemist  ", " Alchemist  "	},
 	CLASS_CLERIC, 	"alchemist skills",
-	ALIGN_NONE,	TRUE,
+	ALIGN_NONE,	true,
 	{CLASS_CLERIC_WITCH, CLASS_CLERIC_DRUID		},
 	{0,	0,	0,	0,	0		}
     },
@@ -2049,7 +2049,7 @@ const   struct  sub_class_type  __sub_class_table [] =
 	{"ranger", 	"ranger",	"ranger"	},
 	{"   Ranger   ", "   Ranger   ", "   Ranger   " },
 	CLASS_CLERIC, 	"ranger skills",
-	ALIGN_NONE,	TRUE,
+	ALIGN_NONE,	true,
 	{CLASS_CLERIC_DRUID, CLASS_CLERIC_MONK		},
 	{0,	0,	0,	0,	0		}
     },
@@ -2058,7 +2058,7 @@ const   struct  sub_class_type  __sub_class_table [] =
 	{"adept", 	"adept",	"adept",	},
 	{"   Adept    ", "   Adept    ", "   Adept    "	},
 	CLASS_CLERIC, 	"adept skills",
-	ALIGN_NONE,	TRUE,
+	ALIGN_NONE,	true,
 	{CLASS_CLERIC_WITCH, CLASS_CLERIC_MONK		},
 	{0,	0,	0,	0,	0		}
     },
@@ -2067,7 +2067,7 @@ const   struct  sub_class_type  __sub_class_table [] =
 	{"highwayman", 	"highwayman",	"highwaywoman"	},
 	{" Highwayman ", " Highwayman ", "Highwaywoman"	},
 	CLASS_THIEF, 	"highwayman skills",
-	ALIGN_NONE,	TRUE,
+	ALIGN_NONE,	true,
 	{CLASS_THIEF_ASSASSIN, CLASS_THIEF_BARD		},
 	{0,	0,	0,	0,	0		}
     },
@@ -2076,7 +2076,7 @@ const   struct  sub_class_type  __sub_class_table [] =
 	{"ninja", 	"ninja",	"ninja"		},
 	{"   Ninja    ", "   Ninja    ", "   Ninja    "	},
 	CLASS_THIEF, 	"ninja skills",
-	ALIGN_NONE,	TRUE,
+	ALIGN_NONE,	true,
 	{CLASS_THIEF_ASSASSIN, CLASS_THIEF_ROGUE	},
 	{0,	0,	0,	0,	0		}
     },
@@ -2085,7 +2085,7 @@ const   struct  sub_class_type  __sub_class_table [] =
 	{"sage", 	"sage",		"sage"		},
 	{"   Sage     ", "   Sage     ", "   Sage     "	},
 	CLASS_THIEF, 	"sage skills",
-	ALIGN_NONE,	TRUE,
+	ALIGN_NONE,	true,
 	{CLASS_THIEF_BARD, CLASS_THIEF_ROGUE		},
 	{0,	0,	0,	0,	0		}
     },
@@ -2113,25 +2113,25 @@ const	struct	class_type	__class_table	[MAX_CLASS]	=
 
     {
 	"mage", 	STAT_INT,  	OBJ_VNUM_NEWB_QUARTERSTAFF,
-	6,  		8, 		TRUE,
+	6,  		8, 		true,
 	"mage skills"
     },
 
     {
 	"cleric", 	STAT_WIS,  	OBJ_VNUM_NEWB_QUARTERSTAFF,
-	7, 		10, 		TRUE,
+	7, 		10, 		true,
 	"cleric skills"
     },
 
     {
 	"thief",   	STAT_DEX,  	OBJ_VNUM_NEWB_DAGGER,
-	8, 		13, 		FALSE,
+	8, 		13, 		false,
 	"thief skills"
     },
 
     {
 	"warrior", 	STAT_STR,  	OBJ_VNUM_NEWB_SWORD,
-	11, 		15, 		FALSE,
+	11, 		15, 		false,
 	"warrior skills"
     }
 };
@@ -4755,10 +4755,10 @@ const struct sound_type sound_table[] =
 /* Sith toxin types*/
 const struct toxin_type toxin_table[MAX_TOXIN] =
 {
-    {	"paralysis", 	{10,15},	25,	spell_toxin_paralysis,	FALSE	},
-    {	"weakness",	{10,15},	45,	spell_toxin_weakness,	FALSE	},
-    {	"neurotoxin",	{10,15},	45,	spell_toxin_neurotoxin,	FALSE	},
-    {	"venom",	{10,15},	30,	spell_toxin_venom,	FALSE	},
+    {	"paralysis", 	{10,15},	25,	spell_toxin_paralysis,	false	},
+    {	"weakness",	{10,15},	45,	spell_toxin_weakness,	false	},
+    {	"neurotoxin",	{10,15},	45,	spell_toxin_neurotoxin,	false	},
+    {	"venom",	{10,15},	30,	spell_toxin_venom,	false	},
 };
 
 

@@ -42,20 +42,20 @@ SPELL_FUNC(spell_chill_touch)
 	} else
 		dam /= 2;
 
-	damage(ch, victim, dam, skill,TYPE_UNDEFINED, DAM_COLD,TRUE);
-	return TRUE;
+	damage(ch, victim, dam, skill,TYPE_UNDEFINED, DAM_COLD,true);
+	return true;
 }
 
 SPELL_FUNC(spell_frost_barrier)
 {
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
 	AFFECT_DATA af;
-	bool perm = FALSE;
+	bool perm = false;
 	memset(&af,0,sizeof(af));
 
 	if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	if (perm && is_affected(victim, skill))
@@ -65,7 +65,7 @@ SPELL_FUNC(spell_frost_barrier)
 			send_to_char("You are already surrounded by a frost barrier.\n\r",ch);
 		else
 			act("$N is already surrounded by a frost barrier.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	af.where = TO_AFFECTS;
@@ -81,7 +81,7 @@ SPELL_FUNC(spell_frost_barrier)
 	affect_to_char(victim, &af);
 	act("{BYou hear a low-pitched humming sound as the temperature around $n drops.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	send_to_char("{BThe temperature of the air around you drops rapidly, forming a frost barrier.{x\n\r", victim);
-	return TRUE;
+	return true;
 }
 
 
@@ -95,7 +95,7 @@ SPELL_FUNC(spell_frost_breath)
 	act("You breath out a cone of frost.",ch,NULL,NULL,NULL,NULL,NULL,NULL,TO_CHAR);
 
 	if (check_shield_block_projectile(ch, victim, "freezing cone of frost", NULL))
-		return FALSE;
+		return false;
 
 	act("$n breathes a freezing cone of frost over you!", ch,victim, NULL, NULL, NULL, NULL, NULL,TO_VICT);
 
@@ -109,7 +109,7 @@ SPELL_FUNC(spell_frost_breath)
 	for (vch = victim->in_room->people; vch; vch = vch_next) {
 		vch_next = vch->next_in_room;
 
-		if (is_safe_spell(ch,vch,TRUE) || is_same_group(ch, vch) || (IS_NPC(vch) && IS_NPC(ch) &&
+		if (is_safe_spell(ch,vch,true) || is_same_group(ch, vch) || (IS_NPC(vch) && IS_NPC(ch) &&
 			(ch->fighting != vch || vch->fighting != ch)))
 			continue;
 
@@ -118,23 +118,23 @@ SPELL_FUNC(spell_frost_breath)
 		if (vch == victim) {
 			if (saves_spell(level,vch,DAM_COLD)) {
 				cold_effect(vch,level/2,dam/4,TARGET_CHAR);
-				damage(ch,vch,dam/2,skill,TYPE_UNDEFINED,DAM_COLD,TRUE);
+				damage(ch,vch,dam/2,skill,TYPE_UNDEFINED,DAM_COLD,true);
 			} else {
 				cold_effect(vch,level,dam,TARGET_CHAR);
-				damage(ch,vch,dam,skill,TYPE_UNDEFINED,DAM_COLD,TRUE);
+				damage(ch,vch,dam,skill,TYPE_UNDEFINED,DAM_COLD,true);
 			}
 		} else {
 			if (saves_spell(level - 2,vch,DAM_COLD)) {
 				cold_effect(vch,level/4,dam/8,TARGET_CHAR);
-				damage(ch,vch,dam/4,skill,TYPE_UNDEFINED,DAM_COLD,TRUE);
+				damage(ch,vch,dam/4,skill,TYPE_UNDEFINED,DAM_COLD,true);
 			} else {
 				cold_effect(vch,level/2,dam/4,TARGET_CHAR);
-				damage(ch,vch,dam/2,skill,TYPE_UNDEFINED,DAM_COLD,TRUE);
+				damage(ch,vch,dam/2,skill,TYPE_UNDEFINED,DAM_COLD,true);
 			}
 		}
 	}
 
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_ice_shards)
@@ -161,11 +161,11 @@ SPELL_FUNC(spell_ice_shards)
 
 	if (IS_SET(ch->in_room->room_flag[1], ROOM_FIRE) || ch->in_room->sector_type == SECT_LAVA) {
 		act("{RThe intense heat in the area melts the shards with a sizzle.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
-		return FALSE;
+		return false;
 	}
 
 	if (check_shield_block_projectile(ch, victim, "ice shards", NULL))
-		return FALSE;
+		return false;
 
 	level	= UMAX(0, level);
 	dam	= dice(level, level/7);
@@ -175,9 +175,9 @@ SPELL_FUNC(spell_ice_shards)
 	/* CAP */
 	dam = UMIN(dam, 2500);
 
-	damage(ch,victim,dam,skill,TYPE_UNDEFINED, DAM_COLD, TRUE);
+	damage(ch,victim,dam,skill,TYPE_UNDEFINED, DAM_COLD, true);
 
-	return TRUE;
+	return true;
 }
 
 void spellassist_room_freeze(ROOM_INDEX_DATA *room, CHAR_DATA *ch, int level, int sides, SKILL_DATA *skill)
@@ -189,10 +189,10 @@ void spellassist_room_freeze(ROOM_INDEX_DATA *room, CHAR_DATA *ch, int level, in
 	cold_effect((void *) room, level, dice(level,sides), TARGET_ROOM);
 	for (victim = room->people; victim != NULL; victim = vnext) {
 		vnext = victim->next_in_room;
-		if (!is_safe(ch, victim, FALSE) && victim != ch) {
+		if (!is_safe(ch, victim, false) && victim != ch) {
 			dam = dice(level,sides);
 
-			damage(ch, victim, dam, skill,TYPE_UNDEFINED, DAM_COLD, TRUE);
+			damage(ch, victim, dam, skill,TYPE_UNDEFINED, DAM_COLD, true);
 			cold_effect((void *)victim, level, dam, TARGET_CHAR);
 		}
 	}
@@ -233,7 +233,7 @@ bool glacialwave_progress(ROOM_INDEX_DATA *room, CHAR_DATA *ch, int depth, int d
 	int level, heat, catalyst, i;
 	char buf[MSL];
 
-	if(!gw || !room) return TRUE;
+	if(!gw || !room) return true;
 
 	level = gw->level;
 	catalyst = gw->catalyst;
@@ -255,15 +255,15 @@ bool glacialwave_progress(ROOM_INDEX_DATA *room, CHAR_DATA *ch, int depth, int d
 	}
 
 	if (gw->large && number_range(0,24) < heat) {
-		gw->large = FALSE;	// It takes little to prevent ice storms
+		gw->large = false;	// It takes little to prevent ice storms
 		room_echo(room,"{RThe intense heat in the area diminishes the glacial wave significantly.{x");
 
 	} else if (number_percent() < heat) {
 		room_echo(room,"{RThe intense heat in the area absorbs the glacial wave.{x");
-		return TRUE;
+		return true;
 	}
 
-	if (gw->do_ice && number_range(0,24) < heat) gw->do_ice = FALSE;	// It takes little to prevent ice storms
+	if (gw->do_ice && number_range(0,24) < heat) gw->do_ice = false;	// It takes little to prevent ice storms
 
 	spellassist_room_freeze(room,ch,level,gw->large?8:5,gsk_glacial_wave);
 
@@ -276,7 +276,7 @@ bool glacialwave_progress(ROOM_INDEX_DATA *room, CHAR_DATA *ch, int depth, int d
 	}
 
 
-	return FALSE;
+	return false;
 }
 
 void glacialwave_end(ROOM_INDEX_DATA *room, CHAR_DATA *ch, int depth, int door, void *data, bool canceled )
@@ -316,46 +316,46 @@ SPELL_FUNC(spell_glacial_wave)
 	int max_depth;
 	int door;
 	int catalyst, i;
-	bool do_ice, large = FALSE;
+	bool do_ice, large = false;
 
-	if (!arg) return FALSE;
+	if (!arg) return false;
 
 	if (arg[0] == '\0') {
 		send_to_char("Cast it in which direction?\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if ((door = parse_direction(arg)) == -1) {
 		send_to_char("That's not a direction.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 /*
 	if (!ch->in_room->exit[door] || !ch->in_room->exit[door]->u1.to_room || (IS_SET(ch->in_room->exit[door]->exit_info,EX_HIDDEN) && !IS_SET(ch->in_room->exit[door]->exit_info,EX_FOUND)) || IS_SET(ch->in_room->exit[door]->exit_info,EX_CLOSED)) {
 		send_to_char("You need an open direction.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 */
 	if(IS_NPC(ch) && ch->pIndexData->vnum == MOB_VNUM_OBJCASTER) {	// non-mob caster
 		max_depth = 5;
 		depth_scale = 50;
-		do_ice = FALSE;
+		do_ice = false;
 		catalyst = 0;
 	} else {
-		catalyst = use_catalyst(ch,NULL,CATALYST_ICE,CATALYST_ROOM|CATALYST_HOLD,10,TRUE);
+		catalyst = use_catalyst(ch,NULL,CATALYST_ICE,CATALYST_ROOM|CATALYST_HOLD,10,true);
 
 		// If they have an ice catalyst...
 		if(catalyst > 0) {
 			level = level * number_range(20,20+5*catalyst)/10;
 			max_depth = 6 + number_range(0,catalyst)/3;
 			for(depth_scale = 50, i=0;i<catalyst;i++, depth_scale = (2099 + 80 * depth_scale) / 100);
-			do_ice = TRUE;		// Enable ice storms
+			do_ice = true;		// Enable ice storms
 			large = number_range(0,9) < catalyst;
 
 		// If not...
 		} else {
 			max_depth = 5;
 			depth_scale = 50;
-			do_ice = FALSE;
+			do_ice = false;
 		}
 
 		act("{BA great cold envelops the hands of $n as the air rapidly cools to well past freezing.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -381,7 +381,7 @@ SPELL_FUNC(spell_glacial_wave)
 	if( !glacialwave_progress(ch->in_room, ch, 0, -1, &data ) )
 		visit_room_direction(ch, ch->in_room, max_depth, door, &data, glacialwave_progress, glacialwave_end);
 
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_ice_storm)
@@ -394,27 +394,27 @@ SPELL_FUNC(spell_ice_storm)
 	if (IS_SET(ch->in_room->room_flag[1], ROOM_FIRE)) {
 		send_to_char("The intense heat in the area melts your ice storm as soon as it appears.\n\r", ch);
 		act("$n summons an ice storm, but it melts instantly.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		return FALSE;
+		return false;
 	}
 
 	room = ch->in_room;
 	if (room->sector_type == SECT_AIR || room->sector_type == SECT_NETHERWORLD) {
 		send_to_char("You can't seem to summon the powers of ice here.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
-	obj = create_object(obj_index_ice_storm, 0, TRUE);
+	obj = create_object(obj_index_ice_storm, 0, true);
 	act("{BYou summon a huge ice storm!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	act("{B$n summons a huge ice storm!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	obj_to_room(obj, ch->in_room);
 	cold_effect(ch->in_room, level, dice(4,8), TARGET_ROOM);
 	for (vch = ch->in_room->people; vch != NULL; vch = vch->next_in_room) {
-		if (!is_safe_spell(ch, vch, TRUE))
+		if (!is_safe_spell(ch, vch, true))
 			cold_effect(vch, level/2, dice(4,8), TARGET_CHAR);
 	}
 
 	obj->timer = UMAX(level/30, 1);
 
-	return TRUE;
+	return true;
 }
 

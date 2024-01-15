@@ -377,7 +377,7 @@ IMMORTAL_DATA *read_immortal(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-IMMORTAL"))
     {
-	fMatch = FALSE;
+	fMatch = false;
 	switch (word[0])
 	{
 	    case '#':
@@ -389,7 +389,7 @@ IMMORTAL_DATA *read_immortal(FILE *fp)
 	    case 'D':
 		if (!str_cmp(word, "Duties")) {
 		    immortal->duties = fread_number(fp);
-		    fMatch = TRUE;
+		    fMatch = true;
 		}
 		break;
 
@@ -438,7 +438,7 @@ IMMORTAL_DATA *read_immortal(FILE *fp)
 		{
 			immortal->created = d.character->pcdata->creation_date;
 			d.character->desc = NULL;
-			extract_char(d.character, TRUE);
+			extract_char(d.character, true);
 		}
 	}
 

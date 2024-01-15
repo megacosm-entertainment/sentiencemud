@@ -36,21 +36,21 @@ REDIT(redit_addcdesc)
     if (type[0] == '\0' || phrase[0] == '\0')
     {
 	send_to_char("Syntax: addcdesc [type] [phrase]\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if ((value = flag_value(room_condition_flags, type)) == NO_FLAG)
     {
 	send_to_char("Valid condition types are:\n\r", ch);
 	show_help(ch, "condition");
-	return FALSE;
+	return false;
     }
 
 	int phr = cd_phrase_lookup(pRoom, value, phrase);
     if (phr == -1)
     {
 	send_to_char("Invalid phrase.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     for (cd = pRoom->conditional_descr; cd != NULL; cd = cd->next)
@@ -58,7 +58,7 @@ REDIT(redit_addcdesc)
 	if (cd->condition == value && cd->phrase == phr)
 	{
 	    send_to_char("That would be redundant.\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
     }
 
@@ -70,27 +70,27 @@ REDIT(redit_addcdesc)
 
     string_append(ch, &cd->description);
 
-    return TRUE;
+    return true;
 }
 
 
 REDIT(redit_dislink)
 {
     ROOM_INDEX_DATA *pRoom;
-    bool changed = FALSE;
+    bool changed = false;
 
     EDIT_ROOM(ch, pRoom);
 
     if (!str_cmp(argument, "junk")) {
 	free_string(pRoom->name);
 	pRoom->name = str_dup("NULL");
-	changed = TRUE;
+	changed = true;
     }
 
     if (dislink_room(pRoom))
     {
 	send_to_char("Room dislinked.\n\r", ch);
-	changed = TRUE;
+	changed = true;
     }
     else
 	send_to_char("No exits to dislink.\n\r", ch);
@@ -221,14 +221,14 @@ REDIT(redit_delcdesc)
     if (!is_number(cDesc) || cDesc[0] == '\0')
     {
 	send_to_char("Syntax: delcdesc [#cdesc]\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     value = atoi(cDesc);
     if (value < 0)
     {
 	send_to_char("Invalid value.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     cd_prev = NULL;
@@ -244,7 +244,7 @@ REDIT(redit_delcdesc)
     if (cd == NULL)
     {
 	send_to_char("Conditional description not found in list.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (cd_prev == NULL) // head of list
@@ -259,7 +259,7 @@ REDIT(redit_delcdesc)
     free_conditional_descr(cd);
 
     send_to_char("Conditional description removed.\n\r", ch);
-    return TRUE;
+    return true;
 }
 
 
@@ -277,14 +277,14 @@ REDIT(redit_editcdesc)
     if (arg[0] == '\0')
     {
 	send_to_char("Syntax: editcdesc [#cdesc]\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     num = atoi(arg);
     if (num < 0)
     {
 	send_to_char("Invalid argument.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     i = 0;
@@ -299,12 +299,12 @@ REDIT(redit_editcdesc)
     if (cd == NULL)
     {
 	send_to_char("Conditional description not found in list.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     string_append(ch, &cd->description);
 
-    return TRUE;
+    return true;
 }
 
 
@@ -317,11 +317,11 @@ OEDIT(oedit_desc)
     if (argument[0] == '\0')
     {
 	string_append(ch, &pObj->full_description);
-	return TRUE;
+	return true;
     }
 
     send_to_char("Syntax:  desc\n\r", ch);
-    return FALSE;
+    return false;
 }
 
 OEDIT(oedit_comments)
@@ -333,11 +333,11 @@ OEDIT(oedit_comments)
     if (argument[0] == '\0')
     {
 	string_append(ch, &pObj->comments);
-	return TRUE;
+	return true;
     }
 
     send_to_char("Syntax:  comments\n\r", ch);
-    return FALSE;
+    return false;
 }
 
 OEDIT(oedit_update)
@@ -349,21 +349,21 @@ OEDIT(oedit_update)
     if (ch->tot_level < MAX_LEVEL - 2)
     {
 	send_to_char("Insufficient security to toggle update.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
-    if (pObj->update == TRUE)
+    if (pObj->update == true)
     {
-	pObj->update = FALSE;
+	pObj->update = false;
 	send_to_char("Update OFF.\n\r", ch);
     }
     else
     {
-	pObj->update = TRUE;
+	pObj->update = true;
 	send_to_char("Update ON.\n\r", ch);
     }
 
-    return TRUE;
+    return true;
 }
 
 OEDIT(oedit_timer)
@@ -378,24 +378,24 @@ OEDIT(oedit_timer)
     if (arg[0] == '\0')
     {
 	send_to_char("Syntax: timer <#ticks>\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (!is_number(arg))
     {
 	send_to_char("Argument must be numerical.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if ((time = atoi(arg)) < 0 || time > 10000)
     {
 	send_to_char("Range is 0 (doesn't decay) to 1000.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     pObj->timer = time;
     send_to_char("Timer set.\n\r", ch);
-    return TRUE;
+    return true;
 }
 
 
@@ -529,7 +529,7 @@ HEDIT (hedit_show)
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);
 
-    return FALSE;
+    return false;
 }
 
 
@@ -543,23 +543,23 @@ HEDIT(hedit_make)
     if (argument[0] == '\0')
     {
 	send_to_char("Syntax: hedit make [keyword(s)]\n\r",ch);
-	return FALSE;
+	return false;
     }
 
     if (ch->desc->pEdit != NULL)
     {
     	send_to_char("You are already editing a helpfile.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (ch->desc->hCat == topHelpCat) {
 	send_to_char("You can only add categories in the root category.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (!has_access_helpcat(ch, ch->desc->hCat)) {
 	send_to_char("Insufficient security - access denied.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     pHelp = new_help();
@@ -592,7 +592,7 @@ HEDIT(hedit_make)
 	insert_help(pHelp, &ch->desc->hCat->inside_helps);
 
     sprintf(buf, "New help entry %s created inside %s.\n\r", pHelp->keyword, pHelp->hCat->name);
-    return TRUE;
+    return true;
 }
 
 
@@ -604,7 +604,7 @@ HEDIT(hedit_edit)
     if (argument[0] == '\0')
     {
 	send_to_char("Syntax: hedit edit <keyword(s)>\n\r",ch);
-	return FALSE;
+	return false;
     }
 
     // Look in current category first
@@ -629,16 +629,16 @@ HEDIT(hedit_edit)
     if (help == NULL)
     {
 	act("Couldn't find a helpfile with keyword $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);
-	return FALSE;
+	return false;
     }
 
     if (!has_access_help(ch, help) || !has_access_helpcat(ch, help->hCat)) {
 	send_to_char("Insufficient security - access denied.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
 	olc_set_editor(ch, ED_HELP, help);
-    return FALSE;
+    return false;
 }
 
 
@@ -656,7 +656,7 @@ HEDIT(hedit_move)
 
     if (arg[0] == '\0' || arg2[0] == '\0') {
 	send_to_char("Syntax: move [helpfile|category] [category|up]\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     hCatSrc = ch->desc->hCat;
@@ -676,17 +676,17 @@ HEDIT(hedit_move)
 
     if (hCat == NULL && help == NULL) {
 	send_to_char("Couldn't find a help file or category to move.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (hCatDest == NULL) {
 	send_to_char("Couldn't find the destination category.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (!has_access_helpcat(ch, hCatDest) || !has_access_helpcat(ch, hCatSrc)) {
 	send_to_char("Insufficient security - access denied.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     // Do help first since this situation will be more likely, possible both
@@ -696,7 +696,7 @@ HEDIT(hedit_move)
 
 	if (!has_access_help(ch, help) || !has_access_helpcat(ch, help->hCat)) {
 	    send_to_char("Insufficient security - access denied.\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
 
 	if (help == hCatSrc->inside_helps)
@@ -724,12 +724,12 @@ HEDIT(hedit_move)
 
 	if (!has_access_helpcat(ch, hCat) || !has_access_helpcat(ch, hCatDest)) {
 	    send_to_char("Insufficient security - access denied.\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
 
 	if (hCat == hCatDest) {
 	    send_to_char("You can't move a category into itself.\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
 
 	if (hCatSrc->inside_cats == hCat)
@@ -762,7 +762,7 @@ HEDIT(hedit_move)
 	    hCatDest == topHelpCat ? "root category" : hCatDest->name, TO_CHAR);
     }
 
-    return TRUE;
+    return true;
 }
 
 
@@ -774,12 +774,12 @@ HEDIT(hedit_addcat)
     if (argument[0] == '\0')
     {
     	send_to_char("Syntax: hedit addcat <name>\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (!has_access_helpcat(ch, ch->desc->hCat)) {
 	send_to_char("Insufficient security - access denied.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     hCat = new_help_category();
@@ -808,7 +808,7 @@ HEDIT(hedit_addcat)
     	hCat->up == topHelpCat ? "root category" : hCat->up->name);
     send_to_char(buf, ch);
 
-    return TRUE;
+    return true;
 }
 
 
@@ -819,18 +819,18 @@ HEDIT(hedit_opencat)
     if (argument[0] == '\0')
     {
     	send_to_char("Syntax: opencategory <name>\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if ((hCat = find_help_category(argument, ch->desc->hCat->inside_cats)) == NULL)
     {
         act("No category by the name of $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);
-	return FALSE;
+	return false;
     }
 
     ch->desc->hCat = hCat;
     act("Opened category $t.", ch, NULL, NULL, NULL, NULL, hCat->name, NULL, TO_CHAR);
-    return FALSE;
+    return false;
 }
 
 
@@ -839,20 +839,20 @@ HEDIT(hedit_upcat)
     if (ch->desc->hCat->up == NULL)
     {
         send_to_char("You're already at the root category.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (ch->desc->pEdit != NULL)
     {
 	send_to_char("You must be finished with your current helpfile before switching categories.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     ch->desc->hCat = ch->desc->hCat->up;
 
     act("Switched categories to $t.", ch, NULL, NULL, NULL, NULL,
         ch->desc->hCat == topHelpCat ? "root category" : ch->desc->hCat->name, NULL, TO_CHAR);
-    return FALSE;
+    return false;
 }
 
 
@@ -863,7 +863,7 @@ HEDIT(hedit_remcat)
     if (argument[0] == '\0')
     {
     	send_to_char("Syntax: hedit remcat <name>\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     for (hCat = ch->desc->hCat->inside_cats; hCat != NULL; hCat = hCat->next)
@@ -877,12 +877,12 @@ HEDIT(hedit_remcat)
     if (hCat == NULL)
     {
     	send_to_char("Couldn't find category to remove.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (!has_access_helpcat(ch, ch->desc->hCat) || !has_access_helpcat(ch, hCat)) {
 	send_to_char("Insufficient security - access denied.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (hCatPrev != NULL)
@@ -892,7 +892,7 @@ HEDIT(hedit_remcat)
 
     act("Removed category $t.", ch, NULL, NULL, NULL, NULL, hCat->name, NULL, TO_CHAR);
     free_help_category(hCat);
-    return TRUE;
+    return true;
 }
 
 
@@ -911,7 +911,7 @@ HEDIT(hedit_shiftcat)
     ||	(str_prefix(arg2, "left") && str_prefix(arg2, "right")))
     {
 	send_to_char("Syntax: shift [category] [left|right]\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     for (hcat = ch->desc->hCat->inside_cats; hcat != NULL; hcat = hcat->next)
@@ -922,14 +922,14 @@ HEDIT(hedit_shiftcat)
 
     if (hcat == NULL) {
 	send_to_char("No category found with that name.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (!str_prefix(arg2, "left"))
     {
 	if (hcat == ch->desc->hCat->inside_cats) {
 	    send_to_char("That category is already at the start of the list.\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
 
 	hcatprev = NULL;
@@ -956,7 +956,7 @@ HEDIT(hedit_shiftcat)
     {
 	if (hcat->next == NULL) {
 	    send_to_char("That category is already at the end of the list.\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
 
         hcatprev = NULL;
@@ -982,7 +982,7 @@ HEDIT(hedit_shiftcat)
 
     hedit_show(ch, "");
 
-    return TRUE;
+    return true;
 }
 
 
@@ -992,7 +992,7 @@ HEDIT(hedit_text)
 
     if (ch->desc->pEdit == NULL) {
 	send_to_char("You aren't editing a help file.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     EDIT_HELP(ch, pHelp);
@@ -1000,11 +1000,11 @@ HEDIT(hedit_text)
     if (argument[0] =='\0')
     {
        string_append(ch, &pHelp->text);
-       return TRUE;
+       return true;
     }
 
     send_to_char(" Syntax: text\n\r",ch);
-    return FALSE;
+    return false;
 }
 
 
@@ -1012,28 +1012,28 @@ HEDIT(hedit_name)
 {
     if (ch->desc->pEdit != NULL) {
 	send_to_char("You must finish editing your help file before you rename the category.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (ch->tot_level < MAX_LEVEL && ch->desc->hCat == topHelpCat) {
 	send_to_char("You can't rename the root category.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (!has_access_helpcat(ch, ch->desc->hCat)) {
 	send_to_char("Insufficient security - access denied.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (argument[0] == '\0') {
 	send_to_char("Syntax: name [name]\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     free_string(ch->desc->hCat->name);
     ch->desc->hCat->name = str_dup(argument);
     send_to_char("Name set.\n\r", ch);
-    return TRUE;
+    return true;
 }
 
 
@@ -1041,21 +1041,21 @@ HEDIT(hedit_description)
 {
     if (ch->desc->pEdit != NULL) {
 	send_to_char("You must finish editing your help file before you edit the category's description.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (ch->tot_level < MAX_LEVEL && ch->desc->hCat == topHelpCat) {
 	send_to_char("You can't change the description of the root category.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (!has_access_helpcat(ch, ch->desc->hCat)) {
 	send_to_char("Insufficient security - access denied.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     string_append(ch, &ch->desc->hCat->description);
-    return TRUE;
+    return true;
 }
 
 
@@ -1066,7 +1066,7 @@ HEDIT(hedit_keywords)
 
     if (ch->desc->pEdit == NULL) {
 	send_to_char("You aren't editing a help file.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     EDIT_HELP(ch, pHelp);
@@ -1074,7 +1074,7 @@ HEDIT(hedit_keywords)
     if (argument[0] == '\0')
     {
         send_to_char(" Syntax: keywords [keywords]\n\r",ch);
-        return FALSE;
+        return false;
     }
 
     i = 0;
@@ -1087,7 +1087,7 @@ HEDIT(hedit_keywords)
     free_string(pHelp->keyword);
     pHelp->keyword = str_dup(argument);
     send_to_char("Keyword(s) Set.\n\r", ch);
-    return TRUE;
+    return true;
 }
 
 
@@ -1098,23 +1098,23 @@ HEDIT(hedit_level)
     if (argument[0] == '\0' || !is_number(argument))
     {
 	send_to_char("Syntax:  level [number]\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (ch->desc->pEdit == NULL) {
         if (ch->desc->hCat == topHelpCat) {
 	    send_to_char("You can't change the level of the top-level category.\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
 	else {
 	    if (ch->pcdata->security <= ch->desc->hCat->security) {
 		send_to_char("Insufficient security - access denied.\n\r", ch);
-		return FALSE;
+		return false;
 	    }
 
 	    ch->desc->hCat->min_level = atoi(argument);
 	    act("Current category's level set.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	    return TRUE;
+	    return true;
 	}
     }
 
@@ -1123,7 +1123,7 @@ HEDIT(hedit_level)
     pHelp->min_level = atoi(argument);
 
     send_to_char("Level set.\n\r", ch);
-    return TRUE;
+    return true;
 }
 
 
@@ -1134,30 +1134,30 @@ HEDIT(hedit_security)
 
     if (ch->tot_level < MAX_LEVEL) {
 	send_to_char("You don't have the clearance to do this.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (argument[0] == '\0' || !is_number(argument)
     ||   (arg = atoi(argument)) > 9 || arg < 1)
     {
 	send_to_char("Syntax: security [1-9]\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (ch->desc->pEdit == NULL) {
 	if (!has_access_helpcat(ch, ch->desc->hCat)) {
 	    send_to_char("Insufficient security - access denied.\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
 
         if (ch->desc->hCat == topHelpCat && ch->tot_level < MAX_LEVEL) {
 	    send_to_char("You can't change the security of the root category.\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
 	else {
 	    ch->desc->hCat->security = arg;
 	    act("Current category's security set.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	    return TRUE;
+	    return true;
 	}
     }
 
@@ -1166,7 +1166,7 @@ HEDIT(hedit_security)
     help->security = arg;
 
     send_to_char("Security set.\n\r", ch);
-    return TRUE;
+    return true;
 }
 
 
@@ -1179,7 +1179,7 @@ HEDIT(hedit_builder)
 
     if (ch->tot_level < MAX_LEVEL - 1) {
 	send_to_char("You don't have the clearance to do this.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (ch->desc->pEdit != NULL)
@@ -1193,7 +1193,7 @@ HEDIT(hedit_builder)
     {
 	send_to_char("Syntax:  builder [$name]  -toggles builder\n\r", ch);
 	send_to_char("Syntax:  builder All      -allows everyone\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     name[0] = UPPER(name[0]);
@@ -1202,7 +1202,7 @@ HEDIT(hedit_builder)
     {
 	if (!has_access_helpcat(ch, ch->desc->hCat)) {
 	    send_to_char("Insufficient security - access denied.\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
 
 	if (strstr(hcat->builders, name) != NULL)
@@ -1216,13 +1216,13 @@ HEDIT(hedit_builder)
 			hcat->builders = str_dup("None");
 	    }
 	    send_to_char("Builder removed.\n\r", ch);
-	    return TRUE;
+	    return true;
 	}
 	else
 	{
 	    if (!has_access_help(ch, help)) {
 		send_to_char("Insufficient security - access denied.\n\r", ch);
-		return FALSE;
+		return false;
 	    }
 
 
@@ -1231,7 +1231,7 @@ HEDIT(hedit_builder)
 	    if (!player_exists(name) && str_cmp(name, "All"))
 	    {
 			act("There is no character by the name of $t.", ch, NULL, NULL, NULL, NULL, name, NULL, TO_CHAR);
-			return FALSE;
+			return false;
 	    }
 
 	    if (strstr(hcat->builders, "None") != NULL)
@@ -1252,7 +1252,7 @@ HEDIT(hedit_builder)
 	    send_to_char("Builder added.\n\r", ch);
 	    send_to_char(hcat->builders,ch);
 	    send_to_char("\n\r", ch);
-	    return TRUE;
+	    return true;
 	}
     }
     else if(help != NULL)
@@ -1260,7 +1260,7 @@ HEDIT(hedit_builder)
 
 	    if (!has_access_help(ch, help)) {
 		send_to_char("Insufficient security - access denied.\n\r", ch);
-		return FALSE;
+		return false;
 	    }
 
 	if (strstr(help->builders, name) != NULL)
@@ -1274,7 +1274,7 @@ HEDIT(hedit_builder)
 		help->builders = str_dup("None");
 	    }
 	    send_to_char("Builder removed.\n\r", ch);
-	    return TRUE;
+	    return true;
 	}
 	else
 	{
@@ -1283,7 +1283,7 @@ HEDIT(hedit_builder)
 	    if (!player_exists(name) && str_cmp(name, "All"))
 	    {
 		act("There is no character by the name of $t.", ch, NULL, NULL, NULL, NULL, name, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	    }
 
 	    if (strstr(help->builders, "None") != NULL)
@@ -1304,11 +1304,11 @@ HEDIT(hedit_builder)
 	    send_to_char("Builder added.\n\r", ch);
 	    send_to_char(help->builders,ch);
 	    send_to_char("\n\r", ch);
-	    return TRUE;
+	    return true;
 	}
     }
 
-    return FALSE;
+    return false;
 }
 
 
@@ -1322,7 +1322,7 @@ HEDIT(hedit_addtopic)
 
     if (ch->desc->pEdit == NULL) {
 	send_to_char("You aren't editing a help file.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     EDIT_HELP(ch, pHelp);
@@ -1330,13 +1330,13 @@ HEDIT(hedit_addtopic)
     if (argument[0] == '\0')
     {
         send_to_char("Syntax: addtopic [keywords]\n\r",ch);
-        return FALSE;
+        return false;
     }
 
     if (lookup_help_exact(argument, ch->tot_level, topHelpCat) == NULL)
     {
 	act("There is no helpfile with keywords $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);
-	return FALSE;
+	return false;
     }
 
     i = 0;
@@ -1370,7 +1370,7 @@ HEDIT(hedit_addtopic)
     }
 
     act("Related topic $t added.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);
-    return TRUE;
+    return true;
 }
 
 
@@ -1384,7 +1384,7 @@ HEDIT(hedit_remtopic)
 
     if (ch->desc->pEdit == NULL) {
 	send_to_char("You aren't editing a help file.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     EDIT_HELP(ch, pHelp);
@@ -1392,12 +1392,12 @@ HEDIT(hedit_remtopic)
     if (argument[0] == '\0' || (val = atoi(argument)) < 0)
     {
         send_to_char("Syntax: remtopic [#]\n\r",ch);
-        return FALSE;
+        return false;
     }
 
     if (pHelp->related_topics == NULL) {
 	send_to_char("There are no related topics on this helpfile.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     i = 0;
@@ -1414,7 +1414,7 @@ HEDIT(hedit_remtopic)
     if (topic == NULL)
     {
 	send_to_char("Couldn't find that related topic.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (topic_prev != NULL)
@@ -1424,7 +1424,7 @@ HEDIT(hedit_remtopic)
 
     free_string_data(topic);
     send_to_char("Related topic removed.\n\r", ch);
-    return TRUE;
+    return true;
 }
 
 
@@ -1436,12 +1436,12 @@ HEDIT(hedit_delete)
 
     if (ch->tot_level < MAX_LEVEL - 4) {
 	send_to_char("You don't have the clearance to delete help files.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (argument[0] == '\0') {
 	send_to_char("Syntax: delete <keyword>\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     hCat = ch->desc->hCat;
@@ -1454,12 +1454,12 @@ HEDIT(hedit_delete)
 
     if (pHelp == NULL) {
 	act("Didn't find a file with keyword $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);
-	return FALSE;
+	return false;
     }
 
     if (!has_access_help(ch, pHelp) || !has_access_helpcat(ch, pHelp->hCat)) {
 	send_to_char("Insufficient security - access denied.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (prev_pHelp != NULL)
@@ -1469,7 +1469,7 @@ HEDIT(hedit_delete)
 
     act("Help file $t deleted.", ch, NULL, NULL, NULL, NULL, pHelp->keyword, NULL, TO_CHAR);
     free_help(pHelp);
-    return TRUE;
+    return true;
 }
 
 
@@ -1484,19 +1484,19 @@ TEDIT(tedit_create)
     if (argument[0] == '\0' || !parse_widevnum(argument, ch->in_room->area, &wnum))
     {
 	send_to_char("Syntax: tedit create [widevnum]\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (!IS_BUILDER(ch, wnum.pArea))
     {
 		send_to_char("You aren't a builder in that area.\n\r", ch);
-		return FALSE;
+		return false;
     }
 
     if (get_token_index(wnum.pArea, wnum.vnum))
     {
 		send_to_char("Token vnum already exists.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
     token_index = new_token_index();
@@ -1514,7 +1514,7 @@ TEDIT(tedit_create)
 
     send_to_char("Token created.\n\r", ch);
     SET_BIT(token_index->area->area_flags, AREA_CHANGED);
-    return TRUE;
+    return true;
 }
 
 
@@ -1683,7 +1683,7 @@ TEDIT(tedit_show)
 
 	free_buf(buffer);
 
-    return FALSE;
+    return false;
 }
 
 
@@ -1696,13 +1696,13 @@ TEDIT(tedit_name)
     if (argument[0] == '\0')
     {
 	send_to_char("Syntax:  name [string]\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     free_string(token_index->name);
     token_index->name = str_dup(argument);
     send_to_char("Name set.\n\r", ch);
-    return TRUE;
+    return true;
 }
 
 
@@ -1716,7 +1716,7 @@ TEDIT(tedit_type)
     if (argument[0] == '\0')
     {
 	send_to_char("Syntax:  type [general|quest|affect|skill|spell]\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     for (i = 0; token_table[i].name != NULL; i++) {
@@ -1726,22 +1726,22 @@ TEDIT(tedit_type)
 
     if (token_table[i].name == NULL) {
 	send_to_char("That token type doesn't exist.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
 	if(i == TOKEN_SPELL && ch->tot_level < MAX_LEVEL) {
 		send_to_char("Only IMPs can make spell tokens.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if(i == TOKEN_SONG && ch->tot_level < MAX_LEVEL) {
 		send_to_char("Only IMPs can make song tokens.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
     token_index->type = token_table[i].type;
     act("Set token type to $t.", ch, NULL, NULL, NULL, NULL, token_table[i].name, NULL, TO_CHAR);
-    return TRUE;
+    return true;
 }
 
 
@@ -1755,12 +1755,12 @@ TEDIT(tedit_flags)
     || ((value = flag_value(token_flags, argument)) == NO_FLAG))
     {
 	send_to_char("Syntax:  flags [token flag]\n\rType '? tokenflags' for a list of flags.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     TOGGLE_BIT(token_index->flags, value);
     send_to_char("Token flag toggled.\n\r", ch);
-    return TRUE;
+    return true;
 }
 
 
@@ -1773,18 +1773,18 @@ TEDIT(tedit_timer)
     if (argument[0] == '\0')
     {
 	send_to_char("Syntax:  timer [number of ticks]\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if ((value = atoi(argument)) < 0 || value > 65000)
     {
 	send_to_char("Invalid value. Must be a number of ticks between 0 and 65,000.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     token_index->timer = value;
     send_to_char("Timer set.\n\r", ch);
-    return TRUE;
+    return true;
 }
 
 
@@ -1796,7 +1796,7 @@ TEDIT(tedit_ed)
     char keyword[MAX_INPUT_LENGTH];
     char copy_item[MAX_INPUT_LENGTH];
 
-    return FALSE; // ED not implemented yet
+    return false; // ED not implemented yet
 
     EDIT_TOKEN(ch, token_index);
 
@@ -1815,7 +1815,7 @@ TEDIT(tedit_ed)
 	send_to_char("         ed environment [keyword]\n\r", ch);
 
 
-	return FALSE;
+	return false;
     }
 
     if (!str_cmp(command, "environment"))
@@ -1823,7 +1823,7 @@ TEDIT(tedit_ed)
 	if (keyword[0] == '\0')
 	{
 	    send_to_char("Syntax:  ed environment [keyword]\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
 
 	ed			=   new_extra_descr();
@@ -1834,7 +1834,7 @@ TEDIT(tedit_ed)
 
 	send_to_char("Enviromental extra description added.\n\r", ch);
 
-	return TRUE;
+	return true;
     }
 
     if (!str_cmp(command, "copy"))
@@ -1844,7 +1844,7 @@ TEDIT(tedit_ed)
     	if (keyword[0] == '\0' || copy_item[0] == '\0')
 	{
 	   send_to_char("Syntax:  ed copy existing_keyword new_keyword\n\r", ch);
-	   return FALSE;
+	   return false;
         }
 
 	for (ed = token_index->ed; ed; ed = ed->next)
@@ -1856,7 +1856,7 @@ TEDIT(tedit_ed)
 	if (!ed)
 	{
 	    send_to_char("TEdit:  Extra description keyword not found.\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
 
 	ed2			=   new_extra_descr();
@@ -1870,7 +1870,7 @@ TEDIT(tedit_ed)
 
 	send_to_char("Done.\n\r", ch);
 
-	return TRUE;
+	return true;
     }
 
     if (!str_cmp(command, "add"))
@@ -1878,7 +1878,7 @@ TEDIT(tedit_ed)
 	if (keyword[0] == '\0')
 	{
 	    send_to_char("Syntax:  ed add [keyword]\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
 
 	ed			=   new_extra_descr();
@@ -1889,7 +1889,7 @@ TEDIT(tedit_ed)
 
 	string_append(ch, &ed->description);
 
-	return TRUE;
+	return true;
     }
 
 
@@ -1898,7 +1898,7 @@ TEDIT(tedit_ed)
 	if (keyword[0] == '\0')
 	{
 	    send_to_char("Syntax:  ed edit [keyword]\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
 
 	for (ed = token_index->ed; ed; ed = ed->next)
@@ -1910,7 +1910,7 @@ TEDIT(tedit_ed)
 	if (!ed)
 	{
 	    send_to_char("TEdit:  Extra description keyword not found.\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
 
 	if( !ed->description )
@@ -1918,7 +1918,7 @@ TEDIT(tedit_ed)
 
 	string_append(ch, &ed->description);
 
-	return TRUE;
+	return true;
     }
 
 
@@ -1929,7 +1929,7 @@ TEDIT(tedit_ed)
 	if (keyword[0] == '\0')
 	{
 	    send_to_char("Syntax:  ed delete [keyword]\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
 
 	for (ed = token_index->ed; ed; ed = ed->next)
@@ -1942,7 +1942,7 @@ TEDIT(tedit_ed)
 	if (!ed)
 	{
 	    send_to_char("TEdit:  Extra description keyword not found.\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
 
 	if (!ped)
@@ -1953,7 +1953,7 @@ TEDIT(tedit_ed)
 	free_extra_descr(ed);
 
 	send_to_char("Extra description deleted.\n\r", ch);
-	return TRUE;
+	return true;
     }
 
 
@@ -1962,7 +1962,7 @@ TEDIT(tedit_ed)
 	if (keyword[0] == '\0')
 	{
 	    send_to_char("Syntax:  ed format [keyword]\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
 
 	for (ed = token_index->ed; ed; ed = ed->next)
@@ -1974,19 +1974,19 @@ TEDIT(tedit_ed)
 	if (!ed)
 	{
 	    send_to_char("TEDIT:  Extra description keyword not found.\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
 
 	if( !ed->description )
 	{
 	    send_to_char("TEdit:  Extra description is an environmental extra description.\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
 
 	ed->description = format_string(ed->description);
 
 	send_to_char("Extra description formatted.\n\r", ch);
-	return TRUE;
+	return true;
     }
 
 	if (!str_cmp(command, "show"))
@@ -1994,7 +1994,7 @@ TEDIT(tedit_ed)
 		if (keyword[0] == '\0')
 		{
 			send_to_char("Syntax:  ed show [keyword]\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		for (ed = token_index->ed; ed; ed = ed->next)
@@ -2006,22 +2006,22 @@ TEDIT(tedit_ed)
 		if (!ed)
 		{
 			send_to_char("TEdit:  Extra description keyword not found.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if (!ed->description)
 		{
 			send_to_char("TEdit:  Cannot show environmental extra description.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		page_to_char(ed->description, ch);
 
-		return TRUE;
+		return true;
 	}
 
     tedit_ed(ch, "");
-    return TRUE;
+    return true;
 }
 
 
@@ -2034,11 +2034,11 @@ TEDIT(tedit_description)
     if (argument[0] != '\0')
     {
 	send_to_char("Syntax:  desc\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     string_append(ch, &token_index->description);
-    return TRUE;
+    return true;
 }
 
 TEDIT(tedit_comments)
@@ -2050,11 +2050,11 @@ TEDIT(tedit_comments)
     if (argument[0] != '\0')
     {
 	send_to_char("Syntax:  comment\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     string_append(ch, &token_index->comments);
-    return TRUE;
+    return true;
 }
 
 TEDIT(tedit_value)
@@ -2073,13 +2073,13 @@ TEDIT(tedit_value)
 
     if (arg[0] == '\0' || arg2[0] == '\0') {
 	send_to_char("Syntax:  value <number> <value>\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if ((value_num = atoi(arg)) < 0 || value_num >= MAX_TOKEN_VALUES) {
 	sprintf(buf, "Number must be 0-%d\n\r", MAX_TOKEN_VALUES - 1);
 	send_to_char(buf, ch);
-	return FALSE;
+	return false;
     }
 
 	if(token_index->type == TOKEN_SPELL) {
@@ -2088,7 +2088,7 @@ TEDIT(tedit_value)
 			value_value = atoi(arg2);
 			if(value_value < 0 || value_value > 1000000) {
 				send_to_char("Max rating must be within range of 0 (for 100%%) to 1000000.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			send_to_char("Max rating set.\n\r", ch);
@@ -2097,7 +2097,7 @@ TEDIT(tedit_value)
 			value_value = atoi(arg2);
 			if(value_value < 1 || value_value > 1000000) {
 				send_to_char("Difficulty must be within range of 1 to 1000000.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			send_to_char("Difficulty set.\n\r", ch);
@@ -2112,7 +2112,7 @@ TEDIT(tedit_value)
 
 			if ((value_value = flag_value(position_flags, arg2)) == NO_FLAG) {
 				send_to_char("Invalid position for spell.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			send_to_char("Minimum position set.\n\r", ch);
@@ -2121,7 +2121,7 @@ TEDIT(tedit_value)
 			value_value = atoi(arg2);
 			if(value_value < 0 || value_value > 1000000) {
 				send_to_char("Mana cost must be within range of 0 to 1000000.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			send_to_char("Mana cost set.\n\r", ch);
@@ -2130,7 +2130,7 @@ TEDIT(tedit_value)
 			value_value = atoi(arg2);
 			if(value_value < 0 || value_value > 1000000) {
 				send_to_char("Learn cost must be within range of 0 to 1000000.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			send_to_char("Learn cost set.\n\r", ch);
@@ -2151,7 +2151,7 @@ TEDIT(tedit_value)
 			value_value = atoi(arg2);
 			if(value_value < 0 || value_value > 1000000) {
 				send_to_char("Max rating must be within range of 0 (for 100%%) to 1000000.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			send_to_char("Max rating set.\n\r", ch);
@@ -2160,7 +2160,7 @@ TEDIT(tedit_value)
 			value_value = atoi(arg2);
 			if(value_value < 1 || value_value > 1000000) {
 				send_to_char("Difficulty must be within range of 1 to 1000000.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			send_to_char("Difficulty set.\n\r", ch);
@@ -2169,7 +2169,7 @@ TEDIT(tedit_value)
 			value_value = atoi(arg2);
 			if(value_value < 0 || value_value > 1000000) {
 				send_to_char("Learn cost must be within range of 0 to 1000000.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			send_to_char("Learn cost set.\n\r", ch);
@@ -2195,7 +2195,7 @@ TEDIT(tedit_value)
 			{
 				send_to_char("Invalid target for the song.\n\r", ch);
 				send_to_char("See '? song_targets' \n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 
@@ -2205,7 +2205,7 @@ TEDIT(tedit_value)
 			value_value = atoi(arg2);
 			if(value_value < 0 || value_value > 1000000) {
 				send_to_char("Mana cost must be within range of 0 to 1000000.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			send_to_char("Mana cost set.\n\r", ch);
@@ -2214,7 +2214,7 @@ TEDIT(tedit_value)
 			value_value = atoi(arg2);
 			if(value_value < 0 || value_value > 1000000) {
 				send_to_char("Learn cost must be within range of 0 to 1000000.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			send_to_char("Learn cost set.\n\r", ch);
@@ -2237,7 +2237,7 @@ TEDIT(tedit_value)
 		sprintf(buf, "Set value %d to %ld.\n\r", value_num, value_value);
 		send_to_char(buf, ch);
 	}
-    return TRUE;
+    return true;
 }
 
 
@@ -2254,18 +2254,18 @@ TEDIT(tedit_valuename)
 
     if (arg[0] == '\0' || argument[0] == '\0') {
 	send_to_char("Syntax:  valuename <number> <string>\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if ((value_num = atoi(arg)) < 0 || value_num >= MAX_TOKEN_VALUES) {
 	sprintf(buf, "Number must be 0-%d\n\r", MAX_TOKEN_VALUES - 1);
 	send_to_char(buf, ch);
-	return FALSE;
+	return false;
     }
 
     if (strlen(argument) <= 2) {
 	send_to_char("Value name must have at least 3 characters.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     free_string(token_index->value_name[value_num]);
@@ -2273,7 +2273,7 @@ TEDIT(tedit_valuename)
     sprintf(buf, "Set token %ld's value %d to be named '%s'.\n\r", token_index->vnum,
 	    value_num, argument);
     send_to_char(buf, ch);
-    return TRUE;
+    return true;
 }
 
 
@@ -2297,13 +2297,13 @@ TEDIT (tedit_addtprog)
     if (!parse_widevnum(num, ch->in_room->area, &wnum) || trigger[0] =='\0' || phrase[0] =='\0')
     {
 	send_to_char("Syntax:   addtprog [wnum] [trigger] [phrase]\n\r",ch);
-	return FALSE;
+	return false;
     }
 
 	if (!(tt = get_trigger_type(trigger, PRG_TPROG))) {
 	send_to_char("Valid flags are:\n\r",ch);
 	show_help(ch, "tprog");
-	return FALSE;
+	return false;
     }
 
     value = tt->type;
@@ -2320,7 +2320,7 @@ TEDIT (tedit_addtprog)
 			SKILL_DATA *skill = get_skill_data(phrase);
 			if(!IS_VALID(skill) || !is_skill_spell(skill)) {
 				send_to_char("Invalid spell for trigger.\n\r",ch);
-				return FALSE;
+				return false;
 			}
 			sprintf(phrase,"%d",skill->uid);
 		}
@@ -2341,7 +2341,7 @@ TEDIT (tedit_addtprog)
 			int door = parse_door(phrase);
 			if( door < 0 ) {
 				send_to_char("Invalid direction for exit/exall/knock/knocking/showexit/look_at trigger.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 			sprintf(phrase,"%d",door);
 		}
@@ -2363,7 +2363,7 @@ TEDIT (tedit_addtprog)
     if ((code = get_script_index (wnum.pArea, wnum.vnum, PRG_TPROG)) == NULL)
     {
 	send_to_char("No such TokenProgram.\n\r",ch);
-	return FALSE;
+	return false;
     }
 
     // Make sure this has a list of progs!
@@ -2371,7 +2371,7 @@ TEDIT (tedit_addtprog)
 
     if(!token_index->progs) {
 	send_to_char("Could not define token_index->progs!\n\r",ch);
-	return FALSE;
+	return false;
     }
 
     list                  = new_trigger();
@@ -2386,7 +2386,7 @@ TEDIT (tedit_addtprog)
 	trigger_type_add_use(tt);
 
     send_to_char("Tprog Added.\n\r",ch);
-    return TRUE;
+    return true;
 }
 
 
@@ -2402,7 +2402,7 @@ TEDIT (tedit_deltprog)
     if (!is_number(tprog) || tprog[0] == '\0')
     {
        send_to_char("Syntax:  delmprog [#mprog]\n\r",ch);
-       return FALSE;
+       return false;
     }
 
     value = atol (tprog);
@@ -2410,16 +2410,16 @@ TEDIT (tedit_deltprog)
     if (value < 0)
     {
         send_to_char("Only non-negative tprog-numbers allowed.\n\r",ch);
-        return FALSE;
+        return false;
     }
 
     if(!edit_deltrigger(token_index->progs,value)) {
 	send_to_char("No such mprog.\n\r",ch);
-	return FALSE;
+	return false;
     }
 
     send_to_char("Tprog removed.\n\r", ch);
-    return TRUE;
+    return true;
 }
 
 TEDIT(tedit_varset)

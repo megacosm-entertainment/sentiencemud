@@ -108,7 +108,7 @@ void do_scan(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	door = find_door(NULL, arg1, FALSE);
+	door = find_door(NULL, arg1, false);
 	if(door < 0) {
 		send_to_char("Which way do you want to scan?\n\r", ch);
 		return;
@@ -145,7 +145,7 @@ void do_scan(CHAR_DATA *ch, char *argument)
 	*/
 
 	if (skill > 0)
-		check_improve( ch, gsk_scan, TRUE, 1 );
+		check_improve( ch, gsk_scan, true, 1 );
 }
 
 
@@ -154,10 +154,10 @@ bool scan_list(ROOM_INDEX_DATA *scan_room, CHAR_DATA *ch, int depth, int door, v
    CHAR_DATA *rch;
 
    if ( scan_room == NULL )
-		return FALSE;
+		return false;
 
 	if(!can_see_room (ch, scan_room))
-		return FALSE;
+		return false;
 
 
 	for (rch = scan_room->people; rch != NULL; rch=rch->next_in_room)
@@ -171,7 +171,7 @@ bool scan_list(ROOM_INDEX_DATA *scan_room, CHAR_DATA *ch, int depth, int door, v
 		if (can_see(ch, rch) && rch->position != POS_FEIGN)
 			scan_char( rch, ch, depth, door );
 	}
-	return FALSE;
+	return false;
 }
 
 

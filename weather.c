@@ -323,11 +323,11 @@ void do_weather(CHAR_DATA *ch, char *argument)
     for (y = 0; y < squares_to_show_y*2; y++) {
         for (x = 0; x < squares_to_show_x*2; x++) {
           int lx, ly;
-					bool found_rain_storm = FALSE;
-					bool found_lightning_storm = FALSE;
-					bool found_snow_storm = FALSE;
-					bool found_hurricane = FALSE;
-					bool found_tornado = FALSE;
+					bool found_rain_storm = false;
+					bool found_lightning_storm = false;
+					bool found_snow_storm = false;
+					bool found_hurricane = false;
+					bool found_tornado = false;
 
           lx = chx - squares_to_show_x + x;
           ly = chy - squares_to_show_y + y;
@@ -347,19 +347,19 @@ void do_weather(CHAR_DATA *ch, char *argument)
                 if ( field >= radius ) {
                     switch(storm->storm_type) {
 											case WEATHER_RAIN_STORM:
-													 found_rain_storm = TRUE;
+													 found_rain_storm = true;
 													 break;
 											case WEATHER_LIGHTNING_STORM:
- 													 found_lightning_storm = TRUE;
+ 													 found_lightning_storm = true;
 													 break;
 											case WEATHER_SNOW_STORM:
- 													 found_snow_storm = TRUE;
+ 													 found_snow_storm = true;
 													 break;
 											case WEATHER_HURRICANE:
- 													 found_hurricane = TRUE;
+ 													 found_hurricane = true;
 													 break;
 											case WEATHER_TORNADO:
- 													 found_tornado = TRUE;
+ 													 found_tornado = true;
 													 break;
  										}
                  }
@@ -412,11 +412,11 @@ int get_storm_for_room(ROOM_INDEX_DATA *pRoom)
     STORM_DATA *storm = NULL;
     int lx, ly;
     int storm_type = WEATHER_NONE;
-		bool found_rain_storm = FALSE;
-		bool found_lightning_storm = FALSE;
-		bool found_snow_storm = FALSE;
-		bool found_hurricane = FALSE;
-		bool found_tornado = FALSE;
+		bool found_rain_storm = false;
+		bool found_lightning_storm = false;
+		bool found_snow_storm = false;
+		bool found_hurricane = false;
+		bool found_tornado = false;
 
     // Get area
     pArea = pRoom->area;
@@ -452,19 +452,19 @@ int get_storm_for_room(ROOM_INDEX_DATA *pRoom)
          if (distance < storm->radius) {
 					switch(storm->storm_type) {
 								case WEATHER_RAIN_STORM:
-										 found_rain_storm = TRUE;
+										 found_rain_storm = true;
 										 break;
 								case WEATHER_LIGHTNING_STORM:
-										 found_lightning_storm = TRUE;
+										 found_lightning_storm = true;
 										 break;
 								case WEATHER_SNOW_STORM:
-										 found_snow_storm = TRUE;
+										 found_snow_storm = true;
 										 break;
 								case WEATHER_HURRICANE:
-										 found_hurricane = TRUE;
+										 found_hurricane = true;
 										 break;
 								case WEATHER_TORNADO:
-										 found_tornado = TRUE;
+										 found_tornado = true;
 										 break;
 							}
     		 }
@@ -503,19 +503,19 @@ int get_storm_for_room(ROOM_INDEX_DATA *pRoom)
 						 if (distance < storm->radius + 10) {
 							switch(storm->storm_type) {
 										case WEATHER_RAIN_STORM:
-												 found_rain_storm = TRUE;
+												 found_rain_storm = true;
 												 break;
 										case WEATHER_LIGHTNING_STORM:
-												 found_lightning_storm = TRUE;
+												 found_lightning_storm = true;
 												 break;
 										case WEATHER_SNOW_STORM:
-												 found_snow_storm = TRUE;
+												 found_snow_storm = true;
 												 break;
 										case WEATHER_HURRICANE:
-												 found_hurricane = TRUE;
+												 found_hurricane = true;
 												 break;
 										case WEATHER_TORNADO:
-												 found_tornado = TRUE;
+												 found_tornado = true;
 												 break;
 									}
 						 }
@@ -701,7 +701,7 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
 						if (number_percent() < 30 && !IS_SET(ch->in_room->room_flag[0], ROOM_SAFE) && ch->fighting == NULL)
 						{
 							act("{YZAAAAAAAAAAAAAAP! You are struck by a bolt from the sky...{x\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-							damage(ch, ch, number_range(500,30000), 0, DAM_LIGHTNING, FALSE);
+							damage(ch, ch, number_range(500,30000), 0, DAM_LIGHTNING, false);
 						}
 						break;
         default:
@@ -770,7 +770,7 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
 			      send_to_char("Something caught in the wind hits you hard!{x\n\r", ch);
             send_to_char("Out of nowhere something slams solidly into you.\n\r", ch);
             act("{R$n is struck by an object caught in the storm!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-					  damage(ch, ch, 30000, 0, DAM_NONE, FALSE);
+					  damage(ch, ch, 30000, 0, DAM_NONE, false);
 						break;
         default:
 					switch(sector_type) {
@@ -911,7 +911,7 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
 			      send_to_char("{RYou are sucked up into the tornado!{x\n\r", ch);
             send_to_char("Out of nowhere something slams solidly into you.\n\r", ch);
             act("{R$n is struck by an object caught in the storm!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-					  damage(ch, ch, 30000, 0, DAM_NONE, FALSE);
+					  damage(ch, ch, 30000, 0, DAM_NONE, false);
 						break;
 				case 6:
             pArea = find_area("Wilderness");
@@ -930,12 +930,12 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
             if (!IS_AFFECTED(MOUNTED(ch), AFF_FLYING)) {
               send_to_char("You are thrown wildly around in circles and find yourself plummeting to the ground!\n\r", ch);
 			        send_to_char("{RYou hit the ground with a loud thump!!!{x\n\r", ch);
-					   	damage(ch, ch, 30000, 0, DAM_NONE, FALSE);
+					   	damage(ch, ch, 30000, 0, DAM_NONE, false);
             }
             else {
               send_to_char("You are thrown ferociously out of the tornado.\n\r", ch);
               send_to_char("{RYou hit the ground hard, you manage to fly up enough to soften your landing.\n\r", ch);
-					   	damage(ch, ch, number_range(10,ch->max_hit), 0, DAM_NONE, FALSE);
+					   	damage(ch, ch, number_range(10,ch->max_hit), 0, DAM_NONE, false);
             }
 						break;
 			}
@@ -1103,11 +1103,11 @@ void storm_affect_char_background args((CHAR_DATA *ch, int storm_type)) {
 					//  Handle close storms in the wilderness
 					if (IN_WILDERNESS(ch)) {
 						STORM_DATA *storm;
-						bool found_rain_storm = FALSE;
-						bool found_lightning_storm = FALSE;
-						bool found_snow_storm = FALSE;
-						bool found_hurricane = FALSE;
-						bool found_tornado = FALSE;
+						bool found_rain_storm = false;
+						bool found_lightning_storm = false;
+						bool found_snow_storm = false;
+						bool found_hurricane = false;
+						bool found_tornado = false;
 						int storm_type;
 
 						// Run through all storms in the wilderness and see which is affecting player
@@ -1123,19 +1123,19 @@ void storm_affect_char_background args((CHAR_DATA *ch, int storm_type)) {
 							if (distance < storm->radius) {
 								switch(storm->storm_type) {
 									case WEATHER_RAIN_STORM:
-										found_rain_storm = TRUE;
+										found_rain_storm = true;
 										break;
 									case WEATHER_LIGHTNING_STORM:
-										found_lightning_storm = TRUE;
+										found_lightning_storm = true;
 										break;
 									case WEATHER_SNOW_STORM:
-										found_snow_storm = TRUE;
+										found_snow_storm = true;
 										break;
 									case WEATHER_HURRICANE:
-										found_hurricane = TRUE;
+										found_hurricane = true;
 										break;
 									case WEATHER_TORNADO:
-										found_tornado = TRUE;
+										found_tornado = true;
 										break;
 								}
 							}
@@ -1179,19 +1179,19 @@ void storm_affect_char_background args((CHAR_DATA *ch, int storm_type)) {
 												if (distance < storm->radius + 5) {
 													switch(storm->storm_type) {
 														case WEATHER_RAIN_STORM:
-															found_rain_storm = TRUE;
+															found_rain_storm = true;
 															break;
 														case WEATHER_LIGHTNING_STORM:
-															found_lightning_storm = TRUE;
+															found_lightning_storm = true;
 															break;
 														case WEATHER_SNOW_STORM:
-															found_snow_storm = TRUE;
+															found_snow_storm = true;
 															break;
 														case WEATHER_HURRICANE:
-															found_hurricane = TRUE;
+															found_hurricane = true;
 															break;
 														case WEATHER_TORNADO:
-															found_tornado = TRUE;
+															found_tornado = true;
 															break;
 													}
 												}

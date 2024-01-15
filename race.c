@@ -239,7 +239,7 @@ RACE_DATA *load_race(FILE *fp, bool playable)
 
     while (str_cmp((word = fread_word(fp)), "#-RACE"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 		switch(word[0])
 		{
 			case 'A':
@@ -422,7 +422,7 @@ bool load_races()
 	top_race_uid = 0;
 
 	log_string("load_races: creating race_list");
-	race_list = list_createx(FALSE, NULL, delete_race_data);
+	race_list = list_createx(false, NULL, delete_race_data);
 	if (!IS_VALID(race_list))
 	{
 		log_string("race_list was not created.");

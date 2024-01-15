@@ -315,12 +315,12 @@ int find_path( AREA_DATA *in_area, long in_room_vnum, AREA_DATA *out_area, long 
 
     if ( depth <0 )
     {
-	thru_doors = TRUE;
+	thru_doors = true;
 	depth = -depth;
     }
     else
     {
-	thru_doors = FALSE;
+	thru_doors = false;
     }
 
     startp = get_room_index( in_area, in_room_vnum );
@@ -438,7 +438,7 @@ void do_hunt( CHAR_DATA *ch, char *argument )
     char arg2[MSL];
     CHAR_DATA *victim;
     int direction;
-    bool fAuto = FALSE;
+    bool fAuto = false;
 
     argument = one_argument( argument, arg );
     argument = one_argument( argument, arg2 );
@@ -474,7 +474,7 @@ void do_hunt( CHAR_DATA *ch, char *argument )
     }
 
     if ( !str_cmp( arg2, "auto" ) )
-	fAuto = TRUE;
+	fAuto = true;
 
     if ( ( victim = (CHAR_DATA *)get_char_area( ch, arg ) ) == NULL )
     {
@@ -546,7 +546,7 @@ void do_hunt( CHAR_DATA *ch, char *argument )
     // Max rooms so people can track across areas without megalag
     direction = find_path( ch->in_room->area, ch->in_room->vnum,
         victim->in_room->area, victim->in_room->vnum,
-	    ch, -1000, FALSE );
+	    ch, -1000, false );
 
     if( direction == -1 || (IS_NPC(victim) && IS_SET(victim->act[1], ACT2_NO_HUNT)))
     {
@@ -587,7 +587,7 @@ void do_hunt( CHAR_DATA *ch, char *argument )
      * Display the results of the search.
      */
     act("$N is $t from here.", ch, victim, NULL, NULL, NULL, dir_name[direction], NULL, TO_CHAR );
-    check_improve(ch,gsk_hunt,TRUE,1);
+    check_improve(ch,gsk_hunt,true,1);
 }
 
 

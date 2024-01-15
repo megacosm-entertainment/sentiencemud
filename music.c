@@ -89,7 +89,7 @@ bool validate_song_target(CHAR_DATA *ch,int type,char *arg, int *targ, CHAR_DATA
 			return false;
 		}
 
-		if (is_safe(ch, victim, TRUE) ||
+		if (is_safe(ch, victim, true) ||
 			(victim->fighting && !is_same_group(ch, victim->fighting) &&
 			ch != victim && !IS_SET(ch->in_room->room_flag[1], ROOM_MULTIPLAY))) {
 			send_to_char("Not on that target.\n\r", ch);
@@ -139,7 +139,7 @@ bool validate_song_target(CHAR_DATA *ch,int type,char *arg, int *targ, CHAR_DATA
 	case TAR_OBJ_CHAR_OFF:
 		if (!arg[0] && !ch->fighting) {
 			send_to_char("Play it on whom?\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if (ch->fighting && !arg[0])
@@ -152,7 +152,7 @@ bool validate_song_target(CHAR_DATA *ch,int type,char *arg, int *targ, CHAR_DATA
 			return false;
 		}
 
-		if ((is_safe(ch, victim, TRUE) ||
+		if ((is_safe(ch, victim, true) ||
 			(victim->fighting && ch != victim && !is_same_group(ch, victim->fighting) &&
 			!IS_SET(ch->in_room->room_flag[1], ROOM_MULTIPLAY)))) {
 			send_to_char("Not on that target.\n\r", ch);
@@ -206,7 +206,7 @@ bool validate_song_target(CHAR_DATA *ch,int type,char *arg, int *targ, CHAR_DATA
 
 	if (!arg[0]) {
 		send_to_char("Play it on whom?\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	send_to_char("They aren't anywhere in Sentience.\n\r", ch);
@@ -491,7 +491,7 @@ void music_end( CHAR_DATA *ch )
 	SONG_DATA *song = NULL;
 	int mana;
 	int type;
-	bool offensive = FALSE;
+	bool offensive = false;
 
 	int chance = get_skill(ch, gsk_music) * ch->song->rating;
 
@@ -581,7 +581,7 @@ void music_end( CHAR_DATA *ch )
 
 			free_string(music_target_name);
 
-			if (mob != ch && !is_safe(ch, mob, FALSE) && (type == TAR_CHAR_OFFENSIVE || type == TAR_OBJ_CHAR_OFF || offensive))
+			if (mob != ch && !is_safe(ch, mob, false) && (type == TAR_CHAR_OFFENSIVE || type == TAR_OBJ_CHAR_OFF || offensive))
 			{
 				multi_hit(ch, mob, NULL, TYPE_UNDEFINED);
 			}
@@ -812,7 +812,7 @@ bool load_songs(void)
 	top_song_uid = 0;
 
 	log_string("load_songs: creating songs_list");
-	songs_list = list_createx(FALSE, NULL, delete_song_data);
+	songs_list = list_createx(false, NULL, delete_song_data);
 	if (!IS_VALID(songs_list))
 	{
 		log_string("songs_list was not created.");

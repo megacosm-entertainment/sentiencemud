@@ -423,7 +423,7 @@ memset(&af,0,sizeof(af));
 
 	    for ( vch = room->people; vch != NULL; vch = vch->next_in_room )
 	    {
-		damage( vch, vch, number_range(20,50), NULL, 0, DAM_FIRE, FALSE );
+		damage( vch, vch, number_range(20,50), NULL, 0, DAM_FIRE, false );
 	    }
 	}
 
@@ -638,7 +638,7 @@ void damage_vampires( CHAR_DATA *ch, int dam )
 	else dam = dam / 2;
     }
 
-    check_improve( ch, gsk_temperance, TRUE, 8 );
+    check_improve( ch, gsk_temperance, true, 8 );
 
     dam = UMAX( dam, 25 );
 
@@ -655,7 +655,7 @@ void damage_vampires( CHAR_DATA *ch, int dam )
         ch->move -= dam/4;
 
     if ( ch->hit - dam/4 < 1 )
-	raw_kill( ch, FALSE, FALSE, RAWKILL_INCINERATE );
+	raw_kill( ch, false, false, RAWKILL_INCINERATE );
     else
 	ch->hit -= dam/4;
 }

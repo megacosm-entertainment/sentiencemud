@@ -119,58 +119,58 @@ char *const where_name[] = {
 
 int wear_params[MAX_WEAR][7] = {
 /*	seen,		autoeq		remove		shifted		affects		uneq_death	always_remove */
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		TRUE },  // Light
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Finger
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Finger
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Neck
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Neck
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Torso
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Head
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Legs
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Feet
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Hands
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Arms
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Shield
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Body
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Waist
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Wrist
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Wrist
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Wield
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Held
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Secondary
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Ring Finger
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Back
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Shoulders
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Ankle
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Ankle
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Ear
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Ear
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Eyes
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Face
-	{ TRUE,		FALSE,		TRUE,		FALSE,		TRUE,		FALSE,		FALSE }, // Head Tattoo
-	{ TRUE,		FALSE,		TRUE,		FALSE,		TRUE,		FALSE,		FALSE }, // Body Tattoo
-	{ TRUE,		FALSE,		TRUE,		FALSE,		TRUE,		FALSE,		FALSE }, // Arm Tattoo
-	{ TRUE,		FALSE,		TRUE,		FALSE,		TRUE,		FALSE,		FALSE }, // Arm Tattoo
-	{ TRUE,		FALSE,		TRUE,		FALSE,		TRUE,		FALSE,		FALSE }, // Leg Tattoo
-	{ TRUE,		FALSE,		TRUE,		FALSE,		TRUE,		FALSE,		FALSE }, // Leg Tattoo
-	{ TRUE,		FALSE,		FALSE,		TRUE,		FALSE,		TRUE,		FALSE }, // Lodged in Head
-	{ TRUE,		FALSE,		FALSE,		TRUE,		FALSE,		TRUE,		FALSE }, // Lodged in Body
-	{ TRUE,		FALSE,		FALSE,		TRUE,		FALSE,		TRUE,		FALSE }, // Lodged in Arm
-	{ TRUE,		FALSE,		FALSE,		TRUE,		FALSE,		TRUE,		FALSE }, // Lodged in Arm
-	{ TRUE,		FALSE,		FALSE,		TRUE,		FALSE,		TRUE,		FALSE }, // Lodged in Leg
-	{ TRUE,		FALSE,		FALSE,		TRUE,		FALSE,		TRUE,		FALSE }, // Lodged in Leg
-	{ TRUE,		FALSE,		FALSE,		TRUE,		FALSE,		TRUE,		FALSE }, // Entangled
-	{ FALSE,	FALSE,		TRUE,		FALSE,		FALSE,		TRUE,		TRUE },  // Concealed
-	{ TRUE,		FALSE,		TRUE,		TRUE,		FALSE,		FALSE,		TRUE },  // Floating
-	{ TRUE,		FALSE,		TRUE,		FALSE,		TRUE,		FALSE,		FALSE }, // Arm Tattoo
-	{ TRUE,		FALSE,		TRUE,		FALSE,		TRUE,		FALSE,		FALSE }, // Arm Tattoo
-	{ TRUE,		FALSE,		TRUE,		FALSE,		TRUE,		FALSE,		FALSE }, // Leg Tattoo
-	{ TRUE,		FALSE,		TRUE,		FALSE,		TRUE,		FALSE,		FALSE }, // Leg Tattoo
-	{ TRUE,		FALSE,		TRUE,		FALSE,		TRUE,		FALSE,		FALSE }, // Shoulder Tattoo
-	{ TRUE,		FALSE,		TRUE,		FALSE,		TRUE,		FALSE,		FALSE }, // Shoulder Tattoo
-	{ TRUE,		FALSE,		TRUE,		FALSE,		TRUE,		FALSE,		FALSE }, // Back Tattoo
-	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		FALSE }, // Tabard
-	{ TRUE,		FALSE,		TRUE,		FALSE,		TRUE,		FALSE,		FALSE }, // Neck Tattoo
+	{ true,		true,		true,		false,		true,		true,		true },  // Light
+	{ true,		true,		true,		false,		true,		true,		false }, // Finger
+	{ true,		true,		true,		false,		true,		true,		false }, // Finger
+	{ true,		true,		true,		false,		true,		true,		false }, // Neck
+	{ true,		true,		true,		false,		true,		true,		false }, // Neck
+	{ true,		true,		true,		false,		true,		true,		false }, // Torso
+	{ true,		true,		true,		false,		true,		true,		false }, // Head
+	{ true,		true,		true,		false,		true,		true,		false }, // Legs
+	{ true,		true,		true,		false,		true,		true,		false }, // Feet
+	{ true,		true,		true,		false,		true,		true,		false }, // Hands
+	{ true,		true,		true,		false,		true,		true,		false }, // Arms
+	{ true,		true,		true,		false,		true,		true,		false }, // Shield
+	{ true,		true,		true,		false,		true,		true,		false }, // Body
+	{ true,		true,		true,		false,		true,		true,		false }, // Waist
+	{ true,		true,		true,		false,		true,		true,		false }, // Wrist
+	{ true,		true,		true,		false,		true,		true,		false }, // Wrist
+	{ true,		true,		true,		false,		true,		true,		false }, // Wield
+	{ true,		true,		true,		false,		true,		true,		false }, // Held
+	{ true,		true,		true,		false,		true,		true,		false }, // Secondary
+	{ true,		true,		true,		false,		true,		true,		false }, // Ring Finger
+	{ true,		true,		true,		false,		true,		true,		false }, // Back
+	{ true,		true,		true,		false,		true,		true,		false }, // Shoulders
+	{ true,		true,		true,		false,		true,		true,		false }, // Ankle
+	{ true,		true,		true,		false,		true,		true,		false }, // Ankle
+	{ true,		true,		true,		false,		true,		true,		false }, // Ear
+	{ true,		true,		true,		false,		true,		true,		false }, // Ear
+	{ true,		true,		true,		false,		true,		true,		false }, // Eyes
+	{ true,		true,		true,		false,		true,		true,		false }, // Face
+	{ true,		false,		true,		false,		true,		false,		false }, // Head Tattoo
+	{ true,		false,		true,		false,		true,		false,		false }, // Body Tattoo
+	{ true,		false,		true,		false,		true,		false,		false }, // Arm Tattoo
+	{ true,		false,		true,		false,		true,		false,		false }, // Arm Tattoo
+	{ true,		false,		true,		false,		true,		false,		false }, // Leg Tattoo
+	{ true,		false,		true,		false,		true,		false,		false }, // Leg Tattoo
+	{ true,		false,		false,		true,		false,		true,		false }, // Lodged in Head
+	{ true,		false,		false,		true,		false,		true,		false }, // Lodged in Body
+	{ true,		false,		false,		true,		false,		true,		false }, // Lodged in Arm
+	{ true,		false,		false,		true,		false,		true,		false }, // Lodged in Arm
+	{ true,		false,		false,		true,		false,		true,		false }, // Lodged in Leg
+	{ true,		false,		false,		true,		false,		true,		false }, // Lodged in Leg
+	{ true,		false,		false,		true,		false,		true,		false }, // Entangled
+	{ false,	false,		true,		false,		false,		true,		true },  // Concealed
+	{ true,		false,		true,		true,		false,		false,		true },  // Floating
+	{ true,		false,		true,		false,		true,		false,		false }, // Arm Tattoo
+	{ true,		false,		true,		false,		true,		false,		false }, // Arm Tattoo
+	{ true,		false,		true,		false,		true,		false,		false }, // Leg Tattoo
+	{ true,		false,		true,		false,		true,		false,		false }, // Leg Tattoo
+	{ true,		false,		true,		false,		true,		false,		false }, // Shoulder Tattoo
+	{ true,		false,		true,		false,		true,		false,		false }, // Shoulder Tattoo
+	{ true,		false,		true,		false,		true,		false,		false }, // Back Tattoo
+	{ true,		true,		true,		false,		true,		true,		false }, // Tabard
+	{ true,		false,		true,		false,		true,		false,		false }, // Neck Tattoo
 };
 
 int wear_concealed[] = {
@@ -638,7 +638,7 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
 	if (obj->wear_loc == WEAR_NONE && can_see_obj(ch, obj)) {
 	    pstrShow = format_obj_to_char(obj, ch, fShort);
 
-	    fCombine = FALSE;
+	    fCombine = false;
 
 	    /*
 	     * Look for duplicates, case sensitive. (now it is case sensitive)
@@ -647,7 +647,7 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
 	    for (iShow = nShow - 1; iShow >= 0; iShow--) {
 		if (!strcmp(prgpstrShow[iShow], pstrShow)) {
 		    prgnShow[iShow]++;
-		    fCombine = TRUE;
+		    fCombine = true;
 		    break;
 		}
 	    }
@@ -1143,8 +1143,8 @@ void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch, bool examine)
     && number_percent() < get_skill(ch, gsk_peek))
     {
 	send_to_char("\n\rYou peek at the inventory:\n\r", ch);
-	check_improve(ch, gsk_peek, TRUE, 4);
-	show_list_to_char(victim->carrying, ch, TRUE, TRUE);
+	check_improve(ch, gsk_peek, true, 4);
+	show_list_to_char(victim->carrying, ch, true, true);
     }
 
 	if( IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NOLORE) || examine )
@@ -1157,7 +1157,7 @@ void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch, bool examine)
 			{
 				send_to_char("\n\r{YYou recognize the following things about this creature:{x\n\r", ch);
 				show_basic_mob_lore(ch, victim);
-				check_improve(ch, gsk_mob_lore, TRUE, 7);
+				check_improve(ch, gsk_mob_lore, true, 7);
 			}
 		}
     }
@@ -1267,12 +1267,12 @@ void show_char_to_char(CHAR_DATA *list, CHAR_DATA *ch, CHAR_DATA *victim)
 bool check_blind(CHAR_DATA * ch)
 {
     if (!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))
-	return TRUE;
+	return true;
 
     if (IS_AFFECTED(ch, AFF_BLIND))
-	return FALSE;
+	return false;
 
-    return TRUE;
+    return true;
 }
 
 
@@ -1466,7 +1466,7 @@ void do_survey(CHAR_DATA *ch, char *argument)
 		    return;
 		}
 
-		show_map_to_char_wyx(ship->ship->in_room->wilds, ship->ship->in_room->x, ship->ship->in_room->y, ch, ship->ship->in_room->x, ship->ship->in_room->y, x, y, FALSE);
+		show_map_to_char_wyx(ship->ship->in_room->wilds, ship->ship->in_room->x, ship->ship->in_room->y, ch, ship->ship->in_room->x, ship->ship->in_room->y, x, y, false);
 
 		// Display sailing vessels in the same room as the ship
 		return;
@@ -1505,7 +1505,7 @@ void do_survey(CHAR_DATA *ch, char *argument)
 	char_from_room(ch);
 	char_to_room(ch, orig->ship->ship->in_room);
 
-	show_map_to_char(ch, ch, bonus_view * 3+ch->wildview_bonus_x, bonus_view * 2/3+ch->wildview_bonus_y, FALSE);
+	show_map_to_char(ch, ch, bonus_view * 3+ch->wildview_bonus_x, bonus_view * 2/3+ch->wildview_bonus_y, false);
 
 	 Check for sailing ships
 	for (ship = ((AREA_DATA *) get_sailing_boat_area())->ship_list;
@@ -1919,7 +1919,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 				send_to_char("\n\r\n\r", ch);
 			}
 
-			bool add_blank = FALSE;
+			bool add_blank = false;
 
 			if (!remote && get_skill(ch, gsk_sense_danger) > 0 &&
 				(!IS_NPC(ch) && ch->pcdata->danger_range > 0)) {
@@ -1948,16 +1948,16 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 				strcat(buf, "{x\n\r");
 				send_to_char(buf,ch);
 
-				add_blank = TRUE;
+				add_blank = true;
 
 				if (number_percent() == 1)
-					check_improve(ch, gsk_sense_danger, TRUE, 1);
+					check_improve(ch, gsk_sense_danger, true, 1);
 			}
 
 			if (!remote)
 			{
 				if (p_percent_trigger(NULL, NULL, room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ROOM_HEADER, NULL, 0, 0, 0, 0, 0))
-					add_blank = TRUE;
+					add_blank = true;
 			}
 
 			if (!remote && add_blank)
@@ -2000,7 +2000,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 
 		vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
 		vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
-		show_map_to_char_wyx(room->wilds, room->x, room->y, ch, room->x, room->y, vp_x, vp_y, FALSE);
+		show_map_to_char_wyx(room->wilds, room->x, room->y, ch, room->x, room->y, vp_x, vp_y, false);
 	}
 
 	if(!IS_NPC(ch) /*&& !IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM)*/ &&
@@ -2032,7 +2032,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 		{
 			vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
 			vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
-			show_map_to_char_wyx(viewwilds, x, y, ch, x, y, vp_x, vp_y, FALSE);
+			show_map_to_char_wyx(viewwilds, x, y, ch, x, y, vp_x, vp_y, false);
 		}
 	}
 
@@ -2045,7 +2045,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 			sprintf(buf, "     {MA heavy thick purple mist obscures what lies beneath you.{x\n\r");
 		send_to_char(buf, ch);
 	} else
-		show_list_to_char(room->contents, ch, FALSE, FALSE);
+		show_list_to_char(room->contents, ch, false, false);
 
 	show_char_to_char(room->people, ch, NULL);
 	return;
@@ -2065,7 +2065,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 	int door;
 	int number, count;
 	int i;
-	bool perform_lore = FALSE;
+	bool perform_lore = false;
 
 	if (ch->desc == NULL)
 		return;
@@ -2132,7 +2132,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 			else
 			{
 				act("$p holds:", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-				show_list_to_char(obj->contains, ch, TRUE, TRUE);
+				show_list_to_char(obj->contains, ch, true, true);
 			}
 		}
 		else if (IS_FLUID_CON(obj))
@@ -2169,7 +2169,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 			case ITEM_CORPSE_NPC:
 			case ITEM_CORPSE_PC:
 				act("$p holds:", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-				show_list_to_char(obj->contains, ch, TRUE, TRUE);
+				show_list_to_char(obj->contains, ch, true, true);
 				break;
 			}
 		}
@@ -2252,11 +2252,11 @@ void do_look(CHAR_DATA * ch, char *argument)
 	/* look at an object in the inventory */
 	for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
 	{
-		perform_lore = FALSE;
+		perform_lore = false;
 		if (can_see_obj(ch, obj))
 		{
 			/* Can person lore object */
-			perform_lore = FALSE;
+			perform_lore = false;
 			if ((IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NOLORE)) &&
 				get_skill(ch, gsk_lore) > 0 &&
 				number_percent() <= get_skill(ch, gsk_lore) &&
@@ -2265,7 +2265,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 				(IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
 				(IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
 				(!IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
-				perform_lore = TRUE;
+				perform_lore = true;
 
 			pdesc = get_extra_descr(arg3, obj->extra_descr);
 			if (pdesc != NULL && pdesc->description != NULL)
@@ -2283,7 +2283,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 						send_to_char("\n\r", ch);
 
 					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL,0,0,0,0,0);
-					check_improve(ch, gsk_lore, TRUE, 10);
+					check_improve(ch, gsk_lore, true, 10);
 					return;
 				}
 				else
@@ -2305,7 +2305,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 						send_to_char("\n\r", ch);
 
 					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL,0,0,0,0,0);
-					check_improve(ch, gsk_lore, TRUE, 10);
+					check_improve(ch, gsk_lore, true, 10);
 					return;
 				}
 				else
@@ -2326,7 +2326,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 						send_to_char("\n\r", ch);
 
 					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL,0,0,0,0,0);
-					check_improve(ch, gsk_lore, TRUE, 10);
+					check_improve(ch, gsk_lore, true, 10);
 
 					if( obj->item_type == ITEM_SEXTANT )
 					{
@@ -2388,7 +2388,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 		if (can_see_obj(ch, obj))
 		{
 			/* Can person lore object */
-			perform_lore = FALSE;
+			perform_lore = false;
 			if ((IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NOLORE)) &&
 				get_skill(ch, gsk_lore) > 0 &&
 				number_percent() <= get_skill(ch, gsk_lore) &&
@@ -2398,7 +2398,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 				(IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
 				(!IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
 
-				perform_lore = TRUE;
+				perform_lore = true;
 
 			/* Check extra desc first */
 			pdesc = get_extra_descr(arg3, obj->extra_descr);
@@ -2429,7 +2429,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 
 									if( !pTerrain->nonroom )
 										show_vroom_header_to_char(pTerrain, environ->wilds, environ->x, environ->y, ch);
-									show_map_to_char_wyx(environ->wilds, environ->x, environ->y, ch, environ->x, environ->y, vp_x, vp_y, FALSE);
+									show_map_to_char_wyx(environ->wilds, environ->x, environ->y, ch, environ->x, environ->y, vp_x, vp_y, false);
 
 									if (reckoning_timer > 0 && pre_reckoning == 0 && !IS_IMMORTAL(ch))
 										send_to_char("     {MA heavy thick purple mist obscures the view.{x\n\r", ch);
@@ -2465,7 +2465,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 						send_to_char("\n\r", ch);
 
 					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL,0,0,0,0,0);
-					check_improve(ch, gsk_lore, TRUE, 10);
+					check_improve(ch, gsk_lore, true, 10);
 					return;
 				}
 			}
@@ -2498,7 +2498,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 
 									if( !pTerrain->nonroom )
 										show_vroom_header_to_char(pTerrain, environ->wilds, environ->x, environ->y, ch);
-									show_map_to_char_wyx(environ->wilds, environ->x, environ->y, ch, environ->x, environ->y, vp_x, vp_y, FALSE);
+									show_map_to_char_wyx(environ->wilds, environ->x, environ->y, ch, environ->x, environ->y, vp_x, vp_y, false);
 
 									if (reckoning_timer > 0 && pre_reckoning == 0 && !IS_IMMORTAL(ch))
 										send_to_char("     {MA heavy thick purple mist obscures the view.{x\n\r", ch);
@@ -2534,7 +2534,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 						send_to_char("\n\r", ch);
 
 					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL,0,0,0,0,0);
-					check_improve(ch, gsk_lore, TRUE, 10);
+					check_improve(ch, gsk_lore, true, 10);
 					return;
 				}
 			}
@@ -2552,7 +2552,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 						send_to_char("\n\r", ch);
 
 					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL,0,0,0,0,0);
-					check_improve(ch, gsk_lore, TRUE, 10);
+					check_improve(ch, gsk_lore, true, 10);
 
 					if( obj->item_type == ITEM_TELESCOPE )
 					{
@@ -2603,7 +2603,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 
 							if( !pTerrain->nonroom )
 								show_vroom_header_to_char(pTerrain, environ->wilds, environ->x, environ->y, ch);
-							show_map_to_char_wyx(environ->wilds, environ->x, environ->y, ch, environ->x, environ->y, vp_x, vp_y, FALSE);
+							show_map_to_char_wyx(environ->wilds, environ->x, environ->y, ch, environ->x, environ->y, vp_x, vp_y, false);
 
 							if (reckoning_timer > 0 && pre_reckoning == 0 && !IS_IMMORTAL(ch))
 								send_to_char("     {MA heavy thick purple mist obscures the view.{x\n\r", ch);
@@ -2717,7 +2717,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 
 					if( !pTerrain->nonroom )
 						show_vroom_header_to_char(pTerrain, ch->in_room->wilds, to_x, to_y, ch);
-					show_map_to_char_wyx(ch->in_room->wilds, to_x, to_y, ch, ch->in_room->x, ch->in_room->y, vp_x, vp_y, FALSE);
+					show_map_to_char_wyx(ch->in_room->wilds, to_x, to_y, ch, ch->in_room->x, ch->in_room->y, vp_x, vp_y, false);
 
 					if (reckoning_timer > 0 && pre_reckoning == 0 && !IS_IMMORTAL(ch))
 						send_to_char("     {MA heavy thick purple mist obscures the view.{x\n\r", ch);
@@ -2771,7 +2771,7 @@ void do_examine(CHAR_DATA * ch, char *argument)
     int number, count;
     CHAR_DATA *victim;
     OBJ_DATA *obj;
-	bool perform_lore = FALSE;
+	bool perform_lore = false;
 
     argument = one_argument(argument, arg1);
 
@@ -2805,7 +2805,7 @@ void do_examine(CHAR_DATA * ch, char *argument)
 						(IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
 						(IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
 						(!IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
-						perform_lore = TRUE;
+						perform_lore = true;
 
 					if (ch != victim)
 					{
@@ -2827,7 +2827,7 @@ void do_examine(CHAR_DATA * ch, char *argument)
 						send_to_char("\n\r", ch);
 
 					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL,0,0,0,0,0);
-					check_improve(ch, gsk_lore, TRUE, 10);
+					check_improve(ch, gsk_lore, true, 10);
 					return;
 				}
 
@@ -2864,7 +2864,7 @@ void do_examine(CHAR_DATA * ch, char *argument)
 			(IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
 			(IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
 			(!IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
-			perform_lore = TRUE;
+			perform_lore = true;
 
 		send_to_char(obj->full_description, ch);
 		if (perform_lore)
@@ -2876,7 +2876,7 @@ void do_examine(CHAR_DATA * ch, char *argument)
 			send_to_char("\n\r", ch);
 
 		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL,0,0,0,0,0);
-		check_improve(ch, gsk_lore, TRUE, 10);
+		check_improve(ch, gsk_lore, true, 10);
     }
 
     return;
@@ -2916,7 +2916,7 @@ void do_exits(CHAR_DATA * ch, char *argument)
 	} else
 		sprintf(buf, "{YObvious exits:{x\n\r");
 
-	found = FALSE;
+	found = false;
 
 	if (ch->in_room->wilds) {
 		for(door = 0; door < MAX_DIR; door++) if((pexit = ch->in_room->exit[door])) {
@@ -2955,7 +2955,7 @@ void do_exits(CHAR_DATA * ch, char *argument)
 			if(!can_see_room (ch, to_room))
 				continue;
 
-			found = TRUE;
+			found = true;
 
 			if (fAuto) {
 				strcat(buf, " ");
@@ -2997,7 +2997,7 @@ void do_exits(CHAR_DATA * ch, char *argument)
 				if(!IS_SET(ch->in_room->room_flag[1],ROOM_VIRTUAL_ROOM))
 					continue;
 
-				found = TRUE;
+				found = true;
 
 				if (fAuto) {
 					strcat(buf, " ");
@@ -3013,7 +3013,7 @@ void do_exits(CHAR_DATA * ch, char *argument)
 
 			if(!is_exit_visible(ch, ch->in_room, door)) continue;
 
-			found = TRUE;
+			found = true;
 
 			if (fAuto) {
 				strcat(buf, " ");
@@ -3773,13 +3773,13 @@ bool are_affects_same_type(AFFECT_DATA *a, AFFECT_DATA *b)
 {
 	if (a->token)
 	{
-		if (!b->token) return FALSE;
+		if (!b->token) return false;
 
 		return a->token == b->token;
 	}
 	else
 	{
-		if (b->token) return FALSE;
+		if (b->token) return false;
 
 		return a->skill == b->skill;
 	}
@@ -3856,11 +3856,11 @@ void do_affects(CHAR_DATA * ch, char *argument)
 	send_to_char("{BYou are affected by the following:\n\r{x", ch);
 
 	for(i=0;affgroup_mobile_flags[i].name;i++) {
-		found = FALSE;
+		found = false;
 		paf_last = NULL;
 		for (paf = ch->affected; paf != NULL; paf = paf->next) if(paf->group == affgroup_mobile_flags[i].bit && paf->custom_name) {
 			if(!found) {
-				found = TRUE;
+				found = true;
 				sprintf(buf, "{YGroup: {W%s{x\n\r", affgroup_mobile_flags[i].name);
 				send_to_char(buf, ch);
 			}
@@ -3886,7 +3886,7 @@ void do_affects(CHAR_DATA * ch, char *argument)
 		paf_last = NULL;
 		for (paf = ch->affected; paf != NULL; paf = paf->next) if(paf->group == affgroup_mobile_flags[i].bit && !paf->custom_name) {
 			if(!found) {
-				found = TRUE;
+				found = true;
 				sprintf(buf, "{YGroup: {W%s{x\n\r", affgroup_mobile_flags[i].name);
 				send_to_char(buf, ch);
 			}
@@ -4295,7 +4295,7 @@ void do_time(CHAR_DATA * ch, char *argument)
     char buf[MAX_STRING_LENGTH];
     char *suf;
     int day, i, mins;
-    bool lunar = FALSE;
+    bool lunar = false;
 
     day = time_info.day + 1;
 
@@ -4639,7 +4639,7 @@ void do_who_new(CHAR_DATA * ch, char *argument)
 		if (IS_SET(wch->comm, COMM_QUIET))
 			add_buf(output, " {R[Q]{x");
 
-		if (IS_SET(wch->act[0], PLR_PK) || (wch->church != NULL && wch->church->pk == TRUE))
+		if (IS_SET(wch->act[0], PLR_PK) || (wch->church != NULL && wch->church->pk == true))
 		    add_buf(output, " {R[PK]{x");
 
 		if (IS_SET(wch->act[0], PLR_BUILDING))
@@ -4664,7 +4664,7 @@ void do_whois(CHAR_DATA * ch, char *argument)
     BUFFER *output;
     char buf[3*MAX_STRING_LENGTH];
     DESCRIPTOR_DATA *d;
-    bool found = FALSE;
+    bool found = false;
     int i;
     char idle_time[MSL];
 
@@ -4694,7 +4694,7 @@ void do_whois(CHAR_DATA * ch, char *argument)
 
 	if (!str_prefix(arg, wch->name))
 	{
-	    found = TRUE;
+	    found = true;
 
 	    class = IS_VALID(wch->pcdata->current_class) ? wch->pcdata->current_class->clazz->name : "unknown";
 
@@ -4847,7 +4847,7 @@ void do_inventory(CHAR_DATA * ch, char *argument)
     char buf[MAX_STRING_LENGTH];
 
     send_to_char("You are carrying:\n\r", ch);
-    show_list_to_char(ch->carrying, ch, TRUE, TRUE);
+    show_list_to_char(ch->carrying, ch, true, true);
     if (!IS_DEAD(ch))
     {
 	sprintf(buf,
@@ -4911,7 +4911,7 @@ void show_equipment(CHAR_DATA *ch, CHAR_DATA *victim)
 		sprintf(buf, "%s ", where_name[iWear]);
 		if (eq[iWear]) {
 			if (can_see_obj(ch, eq[iWear]))
-				sprintf(buf2, "%s\n\r", format_obj_to_char(eq[iWear], ch, TRUE));
+				sprintf(buf2, "%s\n\r", format_obj_to_char(eq[iWear], ch, true));
 			else
 				sprintf(buf2, "something.\n\r");
 		} else if (wear_params[iWear][1] && IS_SET(victim->act[0], PLR_AUTOEQ) && ch == victim)
@@ -4958,7 +4958,7 @@ void do_consider(CHAR_DATA * ch, char *argument)
 	return;
     }
 
-    if (is_safe(ch, victim, FALSE))
+    if (is_safe(ch, victim, false))
     {
 	send_to_char("Don't even think about it.\n\r", ch);
 	return;
@@ -5238,7 +5238,7 @@ void do_bank(CHAR_DATA * ch, char *argument)
     CHAR_DATA *target;
     OBJ_DATA *obj;
     long amount;
-    bool item = FALSE;
+    bool item = false;
     ROOM_INDEX_DATA *room;
 
     if (IS_NPC(ch))
@@ -5249,7 +5249,7 @@ void do_bank(CHAR_DATA * ch, char *argument)
     for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
     {
 	if (obj->item_type == ITEM_BANK) {
-	    item = TRUE;
+	    item = true;
 	    break;
 	}
     }
@@ -5307,7 +5307,7 @@ void do_bank(CHAR_DATA * ch, char *argument)
 
     if (str_cmp(arg1, "DEPOSIT") == 0)
     {
-	bool fAll = FALSE;
+	bool fAll = false;
 
 	if (arg2[0] == '\0')
 	{
@@ -5324,7 +5324,7 @@ void do_bank(CHAR_DATA * ch, char *argument)
 		return;
 	    }
 
-	    fAll = TRUE;
+	    fAll = true;
 	}
 
 	if (fAll)
@@ -5709,7 +5709,7 @@ char* get_wilderness_map(AREA_DATA *pArea, int lx, int ly, int bonus_view_x, int
     int squares_to_show_y;
     bool last_char_same;
     char last_char;
-    bool found = FALSE;
+    bool found = false;
     char last_colour_char;
     BUFFER *output;
     char *output_string;
@@ -5725,7 +5725,7 @@ char* get_wilderness_map(AREA_DATA *pArea, int lx, int ly, int bonus_view_x, int
     squares_to_show_x = get_squares_to_show_x(bonus_view_x);
     squares_to_show_y = get_squares_to_show_y(bonus_view_y);
 
-    last_char_same = FALSE;
+    last_char_same = false;
     last_char = ' ';
     last_colour_char = ' ';
 
@@ -5770,7 +5770,7 @@ char* get_wilderness_map(AREA_DATA *pArea, int lx, int ly, int bonus_view_x, int
 							&& y == 231))
 				{
 					sprintf(temp, "{y@");
-					found = TRUE;
+					found = true;
 				}
 
 				/*                       if ((time_info.hour >= 9
@@ -6101,12 +6101,12 @@ char* get_wilderness_map(AREA_DATA *pArea, int lx, int ly, int bonus_view_x, int
 			     if (last_char_same
 				 && (temp[2] != last_char
 				     || temp[1] != last_colour_char)) {
-			     last_char_same = FALSE;}
+			     last_char_same = false;}
 
 			     if (temp[2] == last_char
 				 && temp[1] ==
 				 last_colour_char) last_char_same =
-			     TRUE; if (last_char_same) {
+			     true; if (last_char_same) {
 			     /* send_to_char("{x.", to); */
 			     sprintf(temp, "%c", temp[2]);}
 
@@ -6155,7 +6155,7 @@ void show_map_to_char(CHAR_DATA *ch, CHAR_DATA *to, int bonus_view_x, int bonus_
 
     squares_to_show_x = get_squares_to_show_x(ch->in_room, bonus_view_x);
     squares_to_show_y = get_squares_to_show_y(ch->in_room, bonus_view_y);
-    last_char_same = FALSE;
+    last_char_same = false;
     last_char = ' ';
     last_colour_char = ' ';
     send_to_char("\n\r", ch);
@@ -6182,7 +6182,7 @@ void show_map_to_char(CHAR_DATA *ch, CHAR_DATA *to, int bonus_view_x, int bonus_
                     sprintf(temp, "{M@{x");}
                     else
                     {
-                        SHIP_DATA * ship; found = FALSE;
+                        SHIP_DATA * ship; found = false;
                         /* Check for sailing ships */
 			for (ship = ((AREA_DATA *)
 						get_sailing_boat_area())->
@@ -6197,7 +6197,7 @@ void show_map_to_char(CHAR_DATA *ch, CHAR_DATA *to, int bonus_view_x, int bonus_
 					if (!str_cmp(ship->owner_name, ch->name))
 						sprintf(temp, "{Y@");
 					else
-						sprintf(temp, "{y@"); found = TRUE;
+						sprintf(temp, "{y@"); found = true;
 				}
 				else
 					if (can_see_obj(ch, ship->ship) &&
@@ -6206,7 +6206,7 @@ void show_map_to_char(CHAR_DATA *ch, CHAR_DATA *to, int bonus_view_x, int bonus_
 							 (ship->last_room[2] != NULL && ship->last_room[2]->x == x && ship->last_room[2]->y == y)))
 
 					{
-						sprintf(temp, "{C~"); found = TRUE;
+						sprintf(temp, "{C~"); found = true;
 					}
 			}
 			for (d = descriptor_list; d != NULL;d = d->next)
@@ -6220,7 +6220,7 @@ void show_map_to_char(CHAR_DATA *ch, CHAR_DATA *to, int bonus_view_x, int bonus_
 				{
 					/*   sprintf(temp, "%s %ld\n\r", d->character->name, d->character->in_room->vnum);
 					  gecho(temp); */
-					sprintf(temp, "{W@"); found = TRUE;
+					sprintf(temp, "{W@"); found = true;
 				}
 			}
 			if (!found) {
@@ -6241,7 +6241,7 @@ void show_map_to_char(CHAR_DATA *ch, CHAR_DATA *to, int bonus_view_x, int bonus_
 							&& y == 231))
 				{
 					sprintf(temp, "{y@");
-					found = TRUE;
+					found = true;
 				}
 
 				/*                       if ((time_info.hour >= 9
@@ -6606,12 +6606,12 @@ void show_map_to_char(CHAR_DATA *ch, CHAR_DATA *to, int bonus_view_x, int bonus_
 			     if (last_char_same
 				 && (temp[2] != last_char
 				     || temp[1] != last_colour_char)) {
-			     last_char_same = FALSE;}
+			     last_char_same = false;}
 
 			     if (temp[2] == last_char
 				 && temp[1] ==
 				 last_colour_char) last_char_same =
-			     TRUE; if (last_char_same) {
+			     true; if (last_char_same) {
 			     /* send_to_char("{x.", to); */
 			     sprintf(temp, "%c", temp[2]);}
 
@@ -6641,7 +6641,7 @@ void do_scry(CHAR_DATA *ch, char *argument)
 	char buf[MSL];
 	CHAR_DATA *victim;
 	BUFFER *buffer;
-	bool found = FALSE, local;
+	bool found = false, local;
 	int count;
 	ITERATOR vit;
 
@@ -6673,7 +6673,7 @@ void do_scry(CHAR_DATA *ch, char *argument)
 
 	send_to_char("{MYou concentrate, extending your aura to the rest of the world...{x\n\r", ch);
 
-	check_improve(ch,gsk_scry,TRUE,5);
+	check_improve(ch,gsk_scry,true,5);
 	buffer = new_buf();
 	count = 0;
 	int skill = get_skill(ch, gsk_scry);
@@ -6693,7 +6693,7 @@ void do_scry(CHAR_DATA *ch, char *argument)
 				(region->place_flags == PLACE_ISLAND) ||
 				(region->place_flags == PLACE_WILDERNESS) ||
 				!str_cmp(victim->in_room->area->name, "Wilderness"))) {
-			found = TRUE;
+			found = true;
 			count++;
 			sprintf(buf, "One is in %s (%s)\n\r", victim->in_room->name, victim->in_room->area->name);
 			if(!add_buf(buffer,buf)) {
@@ -7914,13 +7914,13 @@ void where_locale(char *buf, CHAR_DATA *ch, CHAR_DATA *victim, int locale)
 bool in_same_locale(CHAR_DATA *ch, CHAR_DATA *victim)
 {
 	// Already in the same room (clone or not)
-	if (ch->in_room == victim->in_room) return TRUE;
+	if (ch->in_room == victim->in_room) return true;
 
 	// One is in a cloned room, the other is not
-	if ((!ch->in_room->source) != (!victim->in_room->source)) return FALSE;
+	if ((!ch->in_room->source) != (!victim->in_room->source)) return false;
 
 	// Different areas
-	if (ch->in_room->area != victim->in_room->area) return FALSE;
+	if (ch->in_room->area != victim->in_room->area) return false;
 
 	INSTANCE_SECTION *section = ch->in_room->instance_section;
 	INSTANCE_SECTION *section2 = victim->in_room->instance_section;
@@ -7930,7 +7930,7 @@ bool in_same_locale(CHAR_DATA *ch, CHAR_DATA *victim)
 		if (IS_VALID(section2))
 		{
 			// Same section already
-			if (section == section2) return TRUE;
+			if (section == section2) return true;
 
 			INSTANCE *instance = section->instance;
 			INSTANCE *instance2 = section2->instance;
@@ -7940,10 +7940,10 @@ bool in_same_locale(CHAR_DATA *ch, CHAR_DATA *victim)
 				if (IS_VALID(instance2))
 				{
 					// Same instance (either dungeon floor, duty instance, object instance, or ship)
-					if (instance == instance2) return TRUE;
+					if (instance == instance2) return true;
 
 					// Same dungeon
-					if (IS_VALID(instance->dungeon) && IS_VALID(instance2->dungeon) && instance->dungeon == instance2->dungeon) return TRUE;
+					if (IS_VALID(instance->dungeon) && IS_VALID(instance2->dungeon) && instance->dungeon == instance2->dungeon) return true;
 
 					// TODO: check for ship fleets in the future
 				}
@@ -7958,7 +7958,7 @@ bool in_same_locale(CHAR_DATA *ch, CHAR_DATA *victim)
 		return IS_VALID(region) && IS_VALID(region2) && region == region2;
 	}
 
-	return FALSE;
+	return false;
 }
 
 void do_where(CHAR_DATA * ch, char *argument)
@@ -7975,7 +7975,7 @@ void do_where(CHAR_DATA * ch, char *argument)
     {
 		sprintf(buf, "{YYou check for players in %s:\n\r{x", ch->in_room->area->name);
 		send_to_char(buf, ch);
-		found = FALSE;
+		found = false;
 		for (d = descriptor_list; d; d = d->next)
 		{
 			if (d->connected == CON_PLAYING
@@ -7990,7 +7990,7 @@ void do_where(CHAR_DATA * ch, char *argument)
 			&& victim->position != POS_FEIGN
 			&& can_see(ch, victim))
 			{
-				found = TRUE;
+				found = true;
 				sprintf(buf, "%-28s %s\n\r", pers(victim, ch), victim->in_room->name);
 				send_to_char(buf, ch);
 			}
@@ -8001,7 +8001,7 @@ void do_where(CHAR_DATA * ch, char *argument)
 	else if (!str_prefix(arg, "group"))
 	{
 		send_to_char("{CYou check for players in your group:\n\r{x", ch);
-		found = FALSE;
+		found = false;
 		for (d = descriptor_list; d; d = d->next)
 		{
 			if (d->connected == CON_PLAYING
@@ -8012,7 +8012,7 @@ void do_where(CHAR_DATA * ch, char *argument)
 			is_same_group(ch, victim))
 			{
 				int locale = relative_locale(ch, victim);
-				found = TRUE;
+				found = true;
 				where_locale(buf, ch, victim, locale);
 				send_to_char(buf, ch);
 			}
@@ -8752,7 +8752,7 @@ void look_portal(CHAR_DATA *ch, OBJ_DATA *portal)
 	if (IS_SET(portal->value[1], EX_CLOSED) && !IS_SET(portal->value[1], EX_TRANSPARENT))
 		return;
 
-	ROOM_INDEX_DATA *location = get_portal_destination(ch, portal, FALSE);
+	ROOM_INDEX_DATA *location = get_portal_destination(ch, portal, false);
 
 	if (location)
 	{
@@ -8764,7 +8764,7 @@ void look_portal(CHAR_DATA *ch, OBJ_DATA *portal)
 
 			vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
 			vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
-			show_map_to_char_wyx(location->wilds, location->x, location->y, ch, location->x, location->y, vp_x, vp_y, FALSE);
+			show_map_to_char_wyx(location->wilds, location->x, location->y, ch, location->x, location->y, vp_x, vp_y, false);
 		}
 		else
 			show_room_description(ch, location);

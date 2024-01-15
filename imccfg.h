@@ -108,12 +108,12 @@ const char *title_male( int chclass, int level );
 
 typedef unsigned char bool;
 
-#if !defined(FALSE)
-#define FALSE 0
+#if !defined(false)
+#define false 0
 #endif
 
-#if !defined(TRUE)
-#define TRUE 1
+#if !defined(true)
+#define true 1
 #endif
 
 #define CH_IMCDATA(ch)           ((ch)->imcchardata)

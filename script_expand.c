@@ -42,7 +42,7 @@ EXPAND(expand_argument_entity);
 //	Should the ids mismatch, reset the field
 bool check_varinfo(SCRIPT_VARINFO *info)
 {
-	bool ret = TRUE;
+	bool ret = true;
 	return ret;
 }
 
@@ -80,9 +80,9 @@ char *expand_skip(register char *str)
 
 static bool push(STACK *stk,int val)
 {
-	if(stk->t >= MAX_STACK) return FALSE;
+	if(stk->t >= MAX_STACK) return false;
 	stk->s[stk->t++] = val;
-	return TRUE;
+	return true;
 }
 
 static int perform_operation(STACK *op,STACK *opr)
@@ -116,7 +116,7 @@ static int perform_operation(STACK *op,STACK *opr)
 
 static bool push_operator(STACK *stk,int op)
 {
-	if(script_expression_tostack[op] == STK_MAX) return FALSE;
+	if(script_expression_tostack[op] == STK_MAX) return false;
 	return push(stk,script_expression_tostack[op]);
 }
 
@@ -126,27 +126,27 @@ static bool process_expession_stack(STACK *stk_op,STACK *stk_opr,int op)
 
 	if(op == CH_MAX) {
 		//printf("invalid operator.\n");
-		return FALSE;
+		return false;
 	}
 
 	// Iterate through the operators that CAN be popped off the stack
 	while((t = script_expression_stack_action[op][top(stk_opr,STK_EMPTY)]) == POP &&
 		(t = perform_operation(stk_op,stk_opr)) == DONE);
 
-	if(t == DONE) return TRUE;
+	if(t == DONE) return true;
 	else if(t == PUSH) {
 		push_operator(stk_opr,op);
-		return TRUE;
+		return true;
 	} else if(t == DELETE) {
 		--stk_opr->t;
-		return TRUE;
+		return true;
 	}
 //	else if(t == ERROR1) printf("unmatched right parentheses.\n");
 //	else if(t == ERROR2) printf("unmatched left parentheses.\n");
 //	else if(t == ERROR3) printf("division by zero.\n");
 //	else if(t == ERROR4) printf("insufficient operators/operands on stack.\n");
 
-	return FALSE;
+	return false;
 }
 
 // Used by expand_variable to expand internal variable references into string components
@@ -219,7 +219,7 @@ char *expand_variable_recursive(SCRIPT_VARINFO *info, char *str,BUFFER *buffer)
 char *expand_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,pVARIABLE *var)
 {
 	BUFFER *buffer;
-	bool deref = FALSE;
+	bool deref = false;
 	pVARIABLE v;
 
 	//if(*str == ESCAPE_VARIABLE && wiznet_variables) {
@@ -229,7 +229,7 @@ char *expand_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,pVARIABLE *
 	//}
 
 	if(*str == '*') {
-		deref = TRUE;
+		deref = true;
 		++str;
 	}
 
@@ -371,7 +371,7 @@ char *expand_argument_expression(SCRIPT_VARINFO *info, char *str,int *num)
 	STACK optr,opnd;
 	pVARIABLE var;
 	long value,op;
-	bool expect = FALSE;	// FALSE = number/open, TRUE = operator/close
+	bool expect = false;	// false = number/open, true = operator/close
 	char *p = str;
 	pVARIABLE vars = info ? *(info->var) : NULL;
 
@@ -396,7 +396,7 @@ char *expand_argument_expression(SCRIPT_VARINFO *info, char *str,int *num)
 				// Generate an error - expression too complex, simplify
 				break;
 			}
-			expect = TRUE;
+			expect = true;
 		} else if(*str == ESCAPE_VARIABLE) {	// Variable.. must resolve to a numerical value
 			if(expect) {
 				// Generate an error - missing an operator
@@ -424,7 +424,7 @@ char *expand_argument_expression(SCRIPT_VARINFO *info, char *str,int *num)
 				// Generate an error - expression too complex, simplify
 				break;
 			}
-			expect = TRUE;
+			expect = true;
 		} else if(*str == ESCAPE_ENTITY) {		// $() ENTITY.. must resolve to a numerical value
 			if(expect) {
 				// Generate an error - missing an operator
@@ -452,7 +452,7 @@ char *expand_argument_expression(SCRIPT_VARINFO *info, char *str,int *num)
 				break;
 			}
 
-			expect = TRUE;
+			expect = true;
 		} else if(*str == ESCAPE_EXPRESSION) {
 			if(expect) {
 				// Generate an error - missing an operator
@@ -471,21 +471,21 @@ char *expand_argument_expression(SCRIPT_VARINFO *info, char *str,int *num)
 				// Generate an error - expression too complex, simplify
 				break;
 			}
-			expect = TRUE;
+			expect = true;
 		} else {
 //			sprintf(buf,"expand_argument_expression: operator = %c, %2.2X", *str, str[1]&0xFF);
 //			wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 
 			switch(*str) {
-			case '+': op = expect ? CH_ADD : CH_MAX; expect=FALSE; break;
-			case '-': op = expect ? CH_SUB : CH_NEG; expect=FALSE; break;
-			case '*': op = expect ? CH_MUL : CH_MAX; expect=FALSE; break;
-			case '/': op = expect ? CH_DIV : CH_MAX; expect=FALSE; break;
-			case '%': op = expect ? CH_MOD : CH_MAX; expect=FALSE; break;
-			case ':': op = expect ? CH_RAND : CH_MAX; expect=FALSE; break;
-			case '!': op = expect ? CH_MAX : CH_NOT; expect=FALSE; break;
-			case '(': op = expect ? CH_MAX : CH_OPEN; expect=FALSE; break;
-			case ')': op = expect ? CH_CLOSE : CH_MAX; expect=TRUE; break;
+			case '+': op = expect ? CH_ADD : CH_MAX; expect=false; break;
+			case '-': op = expect ? CH_SUB : CH_NEG; expect=false; break;
+			case '*': op = expect ? CH_MUL : CH_MAX; expect=false; break;
+			case '/': op = expect ? CH_DIV : CH_MAX; expect=false; break;
+			case '%': op = expect ? CH_MOD : CH_MAX; expect=false; break;
+			case ':': op = expect ? CH_RAND : CH_MAX; expect=false; break;
+			case '!': op = expect ? CH_MAX : CH_NOT; expect=false; break;
+			case '(': op = expect ? CH_MAX : CH_OPEN; expect=false; break;
+			case ')': op = expect ? CH_CLOSE : CH_MAX; expect=true; break;
 			default:  op = CH_MAX; break;
 			}
 
@@ -7869,7 +7869,7 @@ EXPAND_TYPE(stat)
 			str = expand_name(info,(info?*(info->var):NULL),str+1,buffer);
 			if(!str) {
 				free_buf(buffer);
-				arg->d.boolean = FALSE;
+				arg->d.boolean = false;
 				return NULL;
 			}
 
@@ -7881,7 +7881,7 @@ EXPAND_TYPE(stat)
 		}
 		else
 		{
-			arg->d.boolean = FALSE;
+			arg->d.boolean = false;
 		}
 		break;
 	case ENTITY_STAT_VALUE:
@@ -7913,19 +7913,19 @@ EXPAND_TYPE(bitvector)
 			str = expand_name(info,(info?*(info->var):NULL),str+1,buffer);
 			if(!str) {
 				free_buf(buffer);
-				arg->d.boolean = FALSE;
+				arg->d.boolean = false;
 				return NULL;
 			}
 
 
 			bit = script_flag_lookup(buf_string(buffer), arg->d.bv.table);
 
-			arg->d.boolean = IS_SET(arg->d.bv.value, bit) && TRUE;
+			arg->d.boolean = IS_SET(arg->d.bv.value, bit) && true;
 			free_buf(buffer);
 		}
 		else
 		{
-			arg->d.boolean = FALSE;
+			arg->d.boolean = false;
 		}
 		break;
 	default: return NULL;
@@ -7946,7 +7946,7 @@ EXPAND_TYPE(bitmatrix)
 			str = expand_name(info,(info?*(info->var):NULL),str+1,buffer);
 			if(!str) {
 				free_buf(buffer);
-				arg->d.boolean = FALSE;
+				arg->d.boolean = false;
 				return NULL;
 			}
 
@@ -7955,7 +7955,7 @@ EXPAND_TYPE(bitmatrix)
 		}
 		else
 		{
-			arg->d.boolean = FALSE;
+			arg->d.boolean = false;
 		}
 		break;
 	default: return NULL;
@@ -8642,7 +8642,7 @@ EXPAND_TYPE(object_portal)
 	// This is dependent upon $(enactor) being valid
 	case ENTITY_OBJ_PORTAL_DESTINATION:
 		arg->type = ENT_ROOM;
-		arg->d.room = IS_VALID(obj) ? get_portal_destination(info->ch, obj, TRUE) : NULL;
+		arg->d.room = IS_VALID(obj) ? get_portal_destination(info->ch, obj, true) : NULL;
 		break;
 
 	case ENTITY_OBJ_PORTAL_PARAM0:
@@ -10115,16 +10115,16 @@ bool expand_string(SCRIPT_VARINFO *info,char *str,BUFFER *buffer)
 		if(!str) {
 			clear_buf(buffer);
 			expand_string_dump(buf_string(buffer));
-			DBG2EXITVALUE2(FALSE);
-			return FALSE;
+			DBG2EXITVALUE2(false);
+			return false;
 		}
 	}
 
 //	wiznet("EXPAND_STRING:",NULL,NULL,WIZ_TESTING,0,0);
 //	wiznet(start,NULL,NULL,WIZ_TESTING,0,0);
 	expand_string_dump(buf_string(buffer));
-	DBG2EXITVALUE2(TRUE);
-	return TRUE;
+	DBG2EXITVALUE2(true);
+	return true;
 }
 
 char *one_argument_escape( char *argument, char *arg_first )

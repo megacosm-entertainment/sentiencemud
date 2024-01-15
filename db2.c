@@ -174,11 +174,11 @@ void global_reset( void )
 	    if ( gq_mob->class == 1 && gq_mob->count + 1 > 50 )
 			continue;
 
-	    ch = create_mobile(get_mob_index_auid(gq_mob->wnum_load.auid, gq_mob->wnum_load.vnum), FALSE);
+	    ch = create_mobile(get_mob_index_auid(gq_mob->wnum_load.auid, gq_mob->wnum_load.vnum), false);
 	    if ( gq_mob->obj_load.auid > 0 && gq_mob->obj_load.vnum > 0 )
 	    {
 			OBJ_INDEX_DATA *obj_index = get_obj_index_auid( gq_mob->obj_load.auid, gq_mob->obj_load.vnum );
-		obj = create_object( obj_index, obj_index->level, FALSE);
+		obj = create_object( obj_index, obj_index->level, false);
 		obj_to_char(obj, ch);
 	    }
 
@@ -201,7 +201,7 @@ void global_reset( void )
 
 	    if ( number_percent() < gq_obj->repop )
 	    {
-		obj = create_object(get_obj_index_auid(gq_obj->wnum_load.auid, gq_obj->wnum_load.vnum), 1, FALSE);
+		obj = create_object(get_obj_index_auid(gq_obj->wnum_load.auid, gq_obj->wnum_load.vnum), 1, false);
 		obj_to_room( obj, room );
 	    }
 	}
@@ -397,7 +397,7 @@ OBJ_DATA *get_random_obj_area( CHAR_DATA *ch, AREA_DATA *area, ROOM_INDEX_DATA *
 	}
 
     if (room != NULL) {
-		obj = create_object(oIndex, oIndex->level, TRUE);
+		obj = create_object(oIndex, oIndex->level, true);
 		obj_to_room(obj, room);
     } else
 		obj = NULL;
@@ -416,7 +416,7 @@ OBJ_DATA *get_random_obj( CHAR_DATA *ch, int continent )
 
 	for (tries = 0; tries < 200; tries++)
 	{
-		area = get_random_area(ch, continent, TRUE);
+		area = get_random_area(ch, continent, true);
 
 		if ( IS_SET(area->area_flags,AREA_NO_GET_RANDOM) )
 			continue;
@@ -502,7 +502,7 @@ CHAR_DATA *get_random_mob( CHAR_DATA *ch, int continent )
     AREA_DATA *area;
     //char buf[MSL];
 
-	area = get_random_area(ch, continent, TRUE);
+	area = get_random_area(ch, continent, true);
 
 	return get_random_mob_area(ch, area);
 }
@@ -597,7 +597,7 @@ ROOM_INDEX_DATA *get_random_room( CHAR_DATA *ch, int continent )
     AREA_DATA *area;
 
 
-	area = get_random_area(ch, continent, TRUE);
+	area = get_random_area(ch, continent, true);
 
     return get_random_room_area_byflags(ch, area,
     	(ROOM_PRIVATE | ROOM_SOLITARY | ROOM_DEATH_TRAP | ROOM_SAFE | ROOM_CHAOTIC),
@@ -963,7 +963,7 @@ void do_dump( CHAR_DATA *ch, char *argument )
 					flag_string(wear_flags, obj->wear_flags));
 
 				fprintf( fp, "%s	%s	%d	%d	%d	%ld	%s	",
-					obj->update == TRUE ? "Yes" : "No",
+					obj->update == true ? "Yes" : "No",
 					fragile_table[obj->fragility].name,
 					obj->weight,
 					obj->condition,

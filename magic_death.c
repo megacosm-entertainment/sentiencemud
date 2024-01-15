@@ -30,34 +30,34 @@ SPELL_FUNC(spell_animate_dead)
 	if (target == TARGET_OBJ) {
 		obj = (OBJ_DATA *) vo;
 
-		bool keep_mob = TRUE;
-		bool restring_mob = TRUE;
+		bool keep_mob = true;
+		bool restring_mob = true;
 
 		if (obj->item_type == ITEM_CORPSE_PC) {
 			send_to_char("Player corpses cannot be animated.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if (obj->item_type != ITEM_CORPSE_NPC) {
 			send_to_char("Nothing happens.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if (IS_SET(obj->extra[2], ITEM_NO_ANIMATE)) {
 			act("$p seems to be immune to your necromantic magic.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-			return FALSE;
+			return false;
 		}
 
 		corpse = CORPSE_TYPE(obj);
 
 		if (!IS_SET(CORPSE_PARTS(obj),PART_HEAD) && !corpse_info_table[corpse].animate_headless) {
 			act("Your magic is not powerful enough.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-			return FALSE;
+			return false;
 		}
 
 		catalyst = has_catalyst(ch,NULL,CATALYST_DEATH,CATALYST_CARRY|CATALYST_ROOM);
 		if(catalyst < 0 || catalyst > 4) catalyst = 4;
-		if(catalyst) use_catalyst(ch,NULL,CATALYST_DEATH,CATALYST_CARRY|CATALYST_ROOM,catalyst,TRUE);
+		if(catalyst) use_catalyst(ch,NULL,CATALYST_DEATH,CATALYST_CARRY|CATALYST_ROOM,catalyst,true);
 
 		chance = obj->condition * CORPSE_ANIMATE(obj);
 		lvl = ch->tot_level / 2;
@@ -70,12 +70,12 @@ SPELL_FUNC(spell_animate_dead)
 
 		if(number_range(1,10000) > chance) {
 			act("Your magic is not powerful enough.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-			return FALSE;
+			return false;
 		}
 
 		if (obj->level > lvl) {
 			act("Your magic is not powerful enough.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-			return FALSE;
+			return false;
 		}
 
 		WNUM wnum;
@@ -91,7 +91,7 @@ SPELL_FUNC(spell_animate_dead)
 		}
 
 		index = get_mob_index(wnum.pArea, wnum.vnum);
-		victim = create_mobile(index, FALSE);
+		victim = create_mobile(index, false);
 
 		// Regardless what wealth the normal mob has...
 		victim->gold = 0;
@@ -99,25 +99,25 @@ SPELL_FUNC(spell_animate_dead)
 
 		// Do the animate trigger now so that information that might be needed for PREANIMATE is available.
 		if(p_percent_trigger( victim, NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ANIMATE, NULL,0,0,0,0,0))
-			restring_mob = FALSE;
+			restring_mob = false;
 
-		keep_mob = TRUE;
+		keep_mob = true;
 		// Check the victim if it can be resurrected directly
 		if (p_percent_trigger( victim, NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_PREANIMATE, NULL,0,0,0,0,0) )
-			keep_mob = FALSE;
+			keep_mob = false;
 
 		// Check the corpse for anything blocking the resurrection
 		if (keep_mob && p_percent_trigger( NULL, obj, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_PREANIMATE, NULL,0,0,0,0,0) )
-			keep_mob = FALSE;
+			keep_mob = false;
 
 		// Check the ROOM the corpse is in for anything blocking resurrection
 		if (keep_mob && p_percent_trigger( NULL, NULL, ch->in_room, NULL, ch, victim, NULL, obj, NULL, TRIG_PREANIMATE, NULL,0,0,0,0,0) )
-			keep_mob = FALSE;
+			keep_mob = false;
 
 		if( !keep_mob )
 		{
-			extract_char(victim, FALSE);
-			return FALSE;
+			extract_char(victim, false);
+			return false;
 		}
 
 
@@ -158,13 +158,13 @@ SPELL_FUNC(spell_animate_dead)
 		victim->pIndexData->count--;  // Animated mobs dont add to world count.
 		act("$p twitches then thrashes violently before rising to its feet!", victim, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 
-		add_follower(victim, ch, TRUE);
+		add_follower(victim, ch, true);
 		REMOVE_BIT(victim->act[0], ACT_PET);
-		if (!add_grouped(victim, ch, TRUE)) {
+		if (!add_grouped(victim, ch, true)) {
 			act("$n falls back to the ground.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 			char_from_room(victim);
-			extract_char(victim, TRUE);
-			return TRUE;
+			extract_char(victim, true);
+			return true;
 		}
 
 		// 20070521 : NIB : Add affects for dealing with missing body parts
@@ -180,27 +180,27 @@ SPELL_FUNC(spell_animate_dead)
 		}
 
 		extract_obj(obj);
-		return TRUE;
+		return true;
 	}
-	return FALSE;
+	return false;
 }
 
 SPELL_FUNC(spell_death_grip)
 {
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
 	AFFECT_DATA af;
-	bool perm = FALSE;
+	bool perm = false;
 	memset(&af,0,sizeof(af));
 
 	if (!get_eq_char(victim, WEAR_WIELD)) {
 		act("$n's fingers slip through thin air.", victim, ch, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		send_to_char("Your fingers slip through thin air.\n\r", victim);
-		return FALSE;
+		return false;
 	}
 
 	if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	if (perm && is_affected(victim, skill)) {
@@ -210,7 +210,7 @@ SPELL_FUNC(spell_death_grip)
 			send_to_char("Your grip won't get any tighter.\n\r",ch);
 		else
 			act("$N is already blessed with death grip.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	af.where = TO_AFFECTS;
@@ -228,21 +228,21 @@ SPELL_FUNC(spell_death_grip)
 	act("{D$n's weapon grip tightens as in death.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	send_to_char("{DYour grip tightens and locks into place.{x\n\r", victim);
 
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_deathsight)
 {
 	CHAR_DATA *victim;
 	AFFECT_DATA af;
-	bool perm = FALSE;
+	bool perm = false;
 	memset(&af,0,sizeof(af));
 
 	victim = (CHAR_DATA *) vo;
 
 	if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	if (perm && is_affected(victim, skill))
@@ -252,7 +252,7 @@ SPELL_FUNC(spell_deathsight)
 			send_to_char("You already sense the world of the dead.\n\r",ch);
 		else
 			act("$N can already sense the dead.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	af.where = TO_AFFECTS;
@@ -268,7 +268,7 @@ SPELL_FUNC(spell_deathsight)
 	affect_to_char(ch, &af);
 	send_to_char("{DYour mind opens up to the world of the dead.\n\r", victim);
 	act("{D$n's eyes momentarily flicker darker.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_kill)
@@ -284,7 +284,7 @@ SPELL_FUNC(spell_kill)
 	if (!IS_NPC(victim) && IS_IMMORTAL(victim)) {
 		act("{WYour immortal presence causes the shadows to flee in terror.{x",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_CHAR);
 		act("{WPowerful forces surround $n drive the shadows away!{x",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
-		return FALSE;
+		return false;
 	}
 
 	chance = 50 - (victim->tot_level - ch->tot_level)/2;
@@ -303,7 +303,7 @@ SPELL_FUNC(spell_kill)
 		act("The shroud of light around $N deflects your dark power!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		act("The shroud of light surrounding you deflects $n's dark power!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 		act("The shroud of light around $N deflects $n's dark power!", ch,victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-		return FALSE;
+		return false;
 	}
 
 	if (IS_AFFECTED(victim, AFF_SANCTUARY) || number_percent () >= chance || IS_SET(victim->imm_flags, IMM_KILL)) {
@@ -312,12 +312,12 @@ SPELL_FUNC(spell_kill)
 		act("{DThe dark shadows disperse.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		act("$n appears unaffected.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		act("You are unaffected.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	if (saves_spell(level,victim,DAM_OTHER) || IS_SHIFTED_SLAYER(victim)) {
 		send_to_char("Nothing happens.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	act("{R$n keels over and dies as $s heart stops instantly.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -331,7 +331,7 @@ SPELL_FUNC(spell_kill)
 		group_gain(ch, victim, 25 + (rating / 2));
 		group_gain_reputation(ch, victim);
 		if( ch->fighting == victim )
-			stop_fighting(ch, FALSE);
+			stop_fighting(ch, false);
 	}
 
 	// If invasion mob then check if quest point is earned
@@ -350,7 +350,7 @@ SPELL_FUNC(spell_kill)
 	else if (!IS_NPC(ch) && IS_NPC(victim))
 		ch->monster_kills++;
 
-	raw_kill(victim, TRUE, TRUE, RAWKILL_NORMAL); /* 1= has head, 0= no head */
+	raw_kill(victim, true, true, RAWKILL_NORMAL); /* 1= has head, 0= no head */
 
 	// Check if slain victim was part of a quest. Checks if your horse got the kill, too.
 	if (!IS_NPC(ch)) {
@@ -361,7 +361,7 @@ SPELL_FUNC(spell_kill)
 	// Hahahaha
 	if (RIDDEN(ch)) check_mission_slay_mob(RIDDEN(ch), victim, true);
 
-	return TRUE;
+	return true;
 }
 
 
@@ -378,22 +378,22 @@ SPELL_FUNC(spell_raise_dead)
 
 		if (obj->item_type != ITEM_CORPSE_NPC && obj->item_type != ITEM_CORPSE_PC) {
 			send_to_char("This spell must be cast on a fresh corpse.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if (IS_SET(obj->extra[1], ITEM_NO_RESURRECT)) {
 			act("$p seems to be immune to your necromantic magic.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-			return FALSE;
+			return false;
 		}
 
 		if (!IS_SET(CORPSE_PARTS(obj),PART_HEAD)) {
 			act("$p is missing its head.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-			return FALSE;
+			return false;
 		}
 
 		if (obj->level > ch->tot_level) {
 			act("You are not powerful enough to raise this being.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-			return FALSE;
+			return false;
 		}
 
 
@@ -402,13 +402,13 @@ SPELL_FUNC(spell_raise_dead)
 			if (!victim) {
 				sprintf(buf, "The soul of %s is no longer within this world.", obj->owner);
 				act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-				return FALSE;
+				return false;
 			}
 
 			if (!IS_DEAD(victim)) {
 				sprintf(buf, "The soul of %s has already been resurrected.", obj->owner);
 				act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-				return FALSE;
+				return false;
 			}
 
 			// Only allow resurrection of CPK corpses in CPK rooms
@@ -421,34 +421,34 @@ SPELL_FUNC(spell_raise_dead)
 					ch->hit = 1;
 					ch->mana = 1;
 					ch->move = 1;
-					return FALSE;
+					return false;
 				}
 			}
 
 			// Only allow resurrection of PK corpses in PK rooms...
-			if( is_room_pk(ch->in_room, TRUE) && !IS_SET(CORPSE_FLAGS(obj), CORPSE_PKDEATH) )
+			if( is_room_pk(ch->in_room, true) && !IS_SET(CORPSE_FLAGS(obj), CORPSE_PKDEATH) )
 			{
 				// No penalty here, just failure.
 				act("$p seems to be immune to your divine energies.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-				return FALSE;
+				return false;
 			}
 
 			if (obj != victim->pcdata->corpse) {
 				act("You can only raise $N's most current corpse.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-				return FALSE;
+				return false;
 			}
 
 			// Check the victim if it can be resurrected directly
 			if (p_percent_trigger( victim, NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_PRERESURRECT, NULL,0,0,0,0,0) )
-				return FALSE;
+				return false;
 
 			// Check the corpse for anything blocking the resurrection
 			if (p_percent_trigger( NULL, obj, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_PRERESURRECT, NULL,0,0,0,0,0) )
-				return FALSE;
+				return false;
 
 			// Check the ROOM the corpse is in for anything blocking resurrection
 			if (p_percent_trigger( NULL, NULL, ch->in_room, NULL, ch, victim, NULL, obj, NULL, TRIG_PRERESURRECT, NULL,0,0,0,0,0) )
-				return FALSE;
+				return false;
 
 
 			resurrect_pc(victim);
@@ -469,9 +469,9 @@ SPELL_FUNC(spell_raise_dead)
 			}
 			*/
 		} else {
-			bool keep_mob = TRUE;
+			bool keep_mob = true;
 
-			victim = create_mobile(get_mob_index_wnum(obj->orig_wnum), FALSE);
+			victim = create_mobile(get_mob_index_wnum(obj->orig_wnum), false);
 			// Regardless what wealth the normal mob has...
 			victim->gold = 0;
 			victim->silver = 0;
@@ -488,20 +488,20 @@ SPELL_FUNC(spell_raise_dead)
 
 			// Check the corpse for anything blocking the resurrection
 			if (p_percent_trigger( victim, NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_PRERESURRECT, NULL,0,0,0,0,0) )
-				keep_mob = FALSE;
+				keep_mob = false;
 
 			// Check the corpse for anything blocking the resurrection
 			if (keep_mob && p_percent_trigger( NULL, obj, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_PRERESURRECT, NULL,0,0,0,0,0) )
-				keep_mob = FALSE;
+				keep_mob = false;
 
 			// Check the ROOM the corpse is in for anything blocking resurrection
 			if (keep_mob && p_percent_trigger( NULL, NULL, ch->in_room, NULL, ch, victim, NULL, obj, NULL, TRIG_PRERESURRECT, NULL,0,0,0,0,0) )
-				keep_mob = FALSE;
+				keep_mob = false;
 
 			if( !keep_mob )
 			{
-				extract_char(victim, FALSE);
-				return FALSE;
+				extract_char(victim, false);
+				return false;
 			}
 		}
 
@@ -543,9 +543,9 @@ SPELL_FUNC(spell_raise_dead)
 		victim->hit = victim->max_hit/3;
 		victim->mana = victim->max_mana/3;
 		victim->move = victim->max_mana/3;
-		return TRUE;
+		return true;
 	} else {
 		send_to_char("Nothing happens.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 }

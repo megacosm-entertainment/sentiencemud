@@ -129,7 +129,7 @@ void editor_start(CHAR_DATA *ch, char **string, bool append)
 	else if(!append)
 		**string = '\0';
 	else
-		editor_show(ch,*string,FALSE,TRUE);
+		editor_show(ch,*string,false,true);
 
 	ch->desc->pString = string;
 	ch->desc->connected = CON_EDITOR;
@@ -183,9 +183,9 @@ void editor_input(CHAR_DATA *ch, char *argument)
 		char arg1[MIL], arg2[MIL], arg3[MIL], tmp[MIL];
 
 		argument = one_argument(argument, arg1);
-		argument = first_arg(argument, arg2, FALSE);
+		argument = first_arg(argument, arg2, false);
 		strcpy(tmp, argument);
-		argument = first_arg(argument, arg3, FALSE);
+		argument = first_arg(argument, arg3, false);
 
         	if (!str_cmp(arg1, ".c")) {
 			send_to_char("String cleared.\n\r", ch);
@@ -196,7 +196,7 @@ void editor_input(CHAR_DATA *ch, char *argument)
 
         	if (!str_cmp(arg1, ".s")) {
 			send_to_char("String so far:\n\r", ch);
-			editor_show(ch,(*ch->desc->pString),TRUE,TRUE);
+			editor_show(ch,(*ch->desc->pString),true,true);
 			return;
 		}
 
@@ -316,7 +316,7 @@ char *editor_line_insert(char *string, char *newstr, int line)
 {
 	char *strtmp;
 	int cnt = 1, tmp = 0;
-	bool done = FALSE;
+	bool done = false;
 	char buf[MAX_STRING_LENGTH];
 
 	buf[0] = '\0';
@@ -327,7 +327,7 @@ char *editor_line_insert(char *string, char *newstr, int line)
 			strcat(buf, "\n\r");
 			tmp += strlen(newstr) + 2;
 			cnt++;
-			done = TRUE;
+			done = true;
 		}
 
 		buf[tmp++] = *strtmp;

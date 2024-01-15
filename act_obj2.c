@@ -34,7 +34,7 @@ void do_deposit(CHAR_DATA *ch, char *argument)
     CHAR_DATA *mob;
     GQ_OBJ_DATA *gq_obj;
     int i = 0;
-    bool found = FALSE;
+    bool found = false;
     int qp = 0;
     int prac = 0;
     long exp = 0;
@@ -50,7 +50,7 @@ void do_deposit(CHAR_DATA *ch, char *argument)
 	    break;
     }
 
-    if (mob != NULL && global == TRUE)
+    if (mob != NULL && global == true)
     {
 	for (obj = ch->carrying; obj != NULL; obj = obj_next)
 	{
@@ -61,7 +61,7 @@ void do_deposit(CHAR_DATA *ch, char *argument)
 	    {
 		if (obj->pIndexData->area->uid == gq_obj->wnum_load.auid && obj->pIndexData->vnum == gq_obj->wnum_load.vnum)
 		{
-		    found = TRUE;
+		    found = true;
 		    qp += gq_obj->qp_reward;
 		    prac += gq_obj->prac_reward;
 		    exp += gq_obj->exp_reward;
@@ -99,7 +99,7 @@ void do_deposit(CHAR_DATA *ch, char *argument)
     }
 
     /* bottle section*/
-    found = FALSE;
+    found = false;
     for (mob = room->people; mob != NULL; mob = mob->next_in_room)
     {
 	if (!IS_NPC(mob))
@@ -124,7 +124,7 @@ void do_deposit(CHAR_DATA *ch, char *argument)
 
 	if (obj->pIndexData == obj_index_bottled_soul)
 	{
-	    found = TRUE;
+	    found = true;
 	    extract_obj(obj);
 	    i++;
 	}
@@ -414,7 +414,7 @@ void do_lore(CHAR_DATA *ch, char *argument)
     sprintf(buf2, "\n\rThank you for your business.\n\r\n\rSigned, {m%s{x.", mob->short_descr);
     strcat(buf, buf2);
 
-    scroll = create_object(obj_index_blank_scroll, 1, FALSE);
+    scroll = create_object(obj_index_blank_scroll, 1, false);
     free_string(scroll->name);
     free_string(scroll->short_descr);
     free_string(scroll->description);
@@ -476,10 +476,10 @@ void do_combine(CHAR_DATA *ch, char *argument)
     int charges;
     OBJ_DATA *obj1 = NULL;
     OBJ_DATA *obj2 = NULL;
-    bool scrolls = FALSE;
-    bool potions = FALSE;
-    bool maximize = TRUE;
-    bool destroy = FALSE;
+    bool scrolls = false;
+    bool potions = false;
+    bool maximize = true;
+    bool destroy = false;
     SPELL_DATA *spell1, *spell2;
 	SPELL_DATA *max_spell1, *max_spell2;
 
@@ -515,10 +515,10 @@ void do_combine(CHAR_DATA *ch, char *argument)
     switch (obj1->item_type)
     {
 	case ITEM_SCROLL:
-	    scrolls = TRUE;
+	    scrolls = true;
 	    break;
 	case ITEM_FLUID_CON:
-	    potions = TRUE;
+	    potions = true;
 	    break;
 	default:
 	    act("$p is not a scroll or a fluid container.", ch, NULL, NULL, obj1, NULL, NULL, NULL, TO_CHAR);
@@ -551,9 +551,9 @@ void do_combine(CHAR_DATA *ch, char *argument)
 
     roll = number_percent();
     if( roll > (chance + 7) )
-		destroy = TRUE;
+		destroy = true;
 	else if( roll > chance )
-		maximize = FALSE;
+		maximize = false;
 
 	// Check they have spells
     if (!obj1->spells)
@@ -573,7 +573,7 @@ void do_combine(CHAR_DATA *ch, char *argument)
 		spell1->repop = 0;
 
 	for (spell2 = obj2->spells; spell2; spell2 = spell2->next)
-		spell2->repop = FALSE;
+		spell2->repop = false;
 
 	if (maximize)
 	{
@@ -607,7 +607,7 @@ void do_combine(CHAR_DATA *ch, char *argument)
 				}
 
 				max_spell1->repop = max_spell2->level;
-				max_spell2->repop = TRUE;
+				max_spell2->repop = true;
 			}
 		}
 		while(max_spell1 != NULL);
@@ -617,7 +617,7 @@ void do_combine(CHAR_DATA *ch, char *argument)
 		// Non-maximize, pairs up spells by type, ignoring respective levels.
 		for (spell1 = obj1->spells; spell1; spell1 = spell1->next)
 		{
-			bool found = FALSE;
+			bool found = false;
 			if( spell1->level < 1 )
 				continue;
 
@@ -626,8 +626,8 @@ void do_combine(CHAR_DATA *ch, char *argument)
 				if (spell1->sn == spell2->sn && spell2->level > 0 && !spell2->repop )
 				{
 					spell1->repop = spell2->level;
-					spell2->repop = TRUE;
-					found = TRUE;
+					spell2->repop = true;
+					found = true;
 					break;
 				}
 			}
@@ -668,7 +668,7 @@ void do_combine(CHAR_DATA *ch, char *argument)
 			ch, NULL, NULL, obj1, obj2, NULL, NULL, TO_ROOM);
 		extract_obj(obj1);
 		extract_obj(obj2);
-		check_improve(ch, gsk_combine, 1, FALSE);
+		check_improve(ch, gsk_combine, 1, false);
 		return;
     }
 
@@ -686,7 +686,7 @@ void do_combine(CHAR_DATA *ch, char *argument)
     act("$n combines $p and $P.", ch, NULL, NULL, obj1, obj2, NULL, NULL, TO_ROOM);
 
     extract_obj(obj2);
-    check_improve(ch, gsk_combine, 1, TRUE);
+    check_improve(ch, gsk_combine, 1, true);
 #else
 	send_to_char("Combine is being reworked.\n\r", ch);
 #endif
@@ -850,7 +850,7 @@ void do_touch(CHAR_DATA *ch, char *argument)
 		return;
     }
 
-    if ((obj = get_obj_wear(ch, arg, TRUE)) == NULL)
+    if ((obj = get_obj_wear(ch, arg, true)) == NULL)
     {
 		send_to_char("You do not have that tattoo.\n\r", ch);
 		return;
@@ -919,7 +919,7 @@ void do_ruboff(CHAR_DATA *ch, char *argument)
 		return;
     }
 
-    if ((obj = get_obj_wear(ch, arg, TRUE)) == NULL)
+    if ((obj = get_obj_wear(ch, arg, true)) == NULL)
     {
 		send_to_char("You do not have that tattoo.\n\r", ch);
 		return;
@@ -954,7 +954,7 @@ bool can_ink_spell(CHAR_DATA *ch, SKILL_ENTRY *spell, CHAR_DATA *victim, int wea
 	if (!spell || !spell->isspell)
 	{
 		send_to_char("You don't know any spells by that name.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (!IS_SET(spell->skill->flags, SKILL_CAN_INK))
@@ -963,7 +963,7 @@ bool can_ink_spell(CHAR_DATA *ch, SKILL_ENTRY *spell, CHAR_DATA *victim, int wea
 			act_new("You cannot ink $t into a tattoo on $N.", ch,victim,NULL,NULL,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
 		else
 			act_new("You cannot ink $t into a tattoo.", ch,NULL,NULL,NULL,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
-		return FALSE;
+		return false;
 	}
 
 	if (IS_VALID(spell->token))
@@ -974,7 +974,7 @@ bool can_ink_spell(CHAR_DATA *ch, SKILL_ENTRY *spell, CHAR_DATA *victim, int wea
 				act_new("You cannot ink $t into a tattoo on $N.", ch,victim,NULL,NULL,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
 			else
 				act_new("You cannot ink $t into a tattoo.", ch,NULL,NULL,NULL,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
-			return FALSE;
+			return false;
 		}
 
 		int ret = p_percent_trigger(NULL, NULL, NULL, spell->token, ch, NULL, NULL, NULL, NULL, TRIG_TOKEN_PREINK, NULL,wear_loc,0,0,0,0);
@@ -987,7 +987,7 @@ bool can_ink_spell(CHAR_DATA *ch, SKILL_ENTRY *spell, CHAR_DATA *victim, int wea
 				else
 					act_new("You cannot ink $t into a tattoo.", ch,NULL,NULL,NULL,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
 			}
-			return FALSE;
+			return false;
 		}
 	}
 	else
@@ -1216,7 +1216,7 @@ void ink_end( CHAR_DATA *ch )
     {
 		act("{Y$n's attempt to ink a tattoo fails miserably.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		act("{YYou fail to coalesce the ink into a tattoo, dispersing them on the wind.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		check_improve(ch, gsk_tattoo, FALSE, 2);
+		check_improve(ch, gsk_tattoo, false, 2);
 		return;
     }
 
@@ -1224,7 +1224,7 @@ void ink_end( CHAR_DATA *ch )
 	for(int i = 0; i < CATALYST_MAX; i++)
 	{
 		if (ch->catalyst_usage[i] > 0)
-			use_catalyst(ch,NULL,i,CATALYST_INVENTORY|CATALYST_ROOM,ch->catalyst_usage[i],TRUE);
+			use_catalyst(ch,NULL,i,CATALYST_INVENTORY|CATALYST_ROOM,ch->catalyst_usage[i],true);
 	}
 
 	// Post processing after successful scribing
@@ -1257,9 +1257,9 @@ void ink_end( CHAR_DATA *ch )
 		act("$n coalesces the ink into a tattoo of $t onto $s skin.", ch, NULL, NULL, NULL, NULL, tattoo_name, NULL, TO_ROOM);
 	}
 
-    check_improve(ch, gsk_tattoo, TRUE, 2);
+    check_improve(ch, gsk_tattoo, true, 2);
 
-    tattoo = create_object(obj_index_empty_tattoo, 1, FALSE);
+    tattoo = create_object(obj_index_empty_tattoo, 1, false);
 
     sprintf(buf, tattoo->short_descr, tattoo_name);
 
@@ -1315,7 +1315,7 @@ void do_affix(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
     CHAR_DATA *victim;
-    bool silent = FALSE;
+    bool silent = false;
     OBJ_DATA *obj;
     int loc;
 
@@ -1360,7 +1360,7 @@ void do_affix(CHAR_DATA *ch, char *argument)
 		}
 
 		if(!str_cmp(argument,"silent"))
-			silent = TRUE;
+			silent = true;
 	} else
 		victim = ch;
 

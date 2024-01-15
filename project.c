@@ -308,7 +308,7 @@ void do_pinquiry(CHAR_DATA *ch, char *argument)
 
 	send_to_char("Editing inquiry.\n\r",ch);
 	string_append(ch, &pinq->text);
-	projects_changed = TRUE;
+	projects_changed = true;
 	EXIT_PROJECT_FUNCTION;
     }
 
@@ -323,7 +323,7 @@ void do_pinquiry(CHAR_DATA *ch, char *argument)
 	pinq->closed = current_time;
 	pinq->closed_by = str_dup(ch->name);
 	send_to_char("Inquiry closed.\n\r", ch);
-	projects_changed = TRUE;
+	projects_changed = true;
 	EXIT_PROJECT_FUNCTION;
     }
 
@@ -345,7 +345,7 @@ void do_pinquiry(CHAR_DATA *ch, char *argument)
 	free_string(pinq->closed_by);
 	pinq->closed_by = str_dup("N/A");
 	add_buf(buffer, "Inquiry opened.\n\r");
-	projects_changed = TRUE;
+	projects_changed = true;
 	EXIT_PROJECT_FUNCTION;
     }
 
@@ -382,7 +382,7 @@ void do_pinquiry(CHAR_DATA *ch, char *argument)
 	add_buf(buffer, "Posting reply.\n\r");
 	string_append(ch, &reply->text);
 
-	projects_changed = TRUE;
+	projects_changed = true;
 	EXIT_PROJECT_FUNCTION;
     }
 
@@ -397,7 +397,7 @@ void do_pinquiry(CHAR_DATA *ch, char *argument)
 	extract_project_inquiry(pinq);
 
 	add_buf(buffer, "Inquiry deleted.\n\r");
-	projects_changed = TRUE;
+	projects_changed = true;
 	EXIT_PROJECT_FUNCTION;
     }
 
@@ -571,7 +571,7 @@ void show_oldest_unread_inquiry(CHAR_DATA *ch)
     PROJECT_INQUIRY_DATA *pinq_oldest_unread = NULL;
 
     for (pinq = project_inquiry_list; pinq != NULL; pinq = pinq->next_global) {
-	if (/*has_access_project(ch, pinq->project)*/TRUE)
+	if (/*has_access_project(ch, pinq->project)*/true)
 	{
 	    reply = get_last_post(pinq);
 	    if (reply->date > ch->pcdata->last_project_inquiry
@@ -606,7 +606,7 @@ int count_project_inquiries(CHAR_DATA *ch)
 
     i = 0;
     for (pinq = project_inquiry_list; pinq != NULL; pinq = pinq->next_global) {
-	if (/*has_access_project(ch, pinq->project)*/ TRUE) {
+	if (/*has_access_project(ch, pinq->project)*/ true) {
 	    reply = get_last_post(pinq);
 	    if (reply->date > ch->pcdata->last_project_inquiry
 	    &&  str_cmp(ch->name, reply->sender))
@@ -648,29 +648,29 @@ bool can_view_project(CHAR_DATA *ch, PROJECT_DATA *project)
 
     // All 154+ can view any project
     if (ch->tot_level >= MAX_LEVEL - 1)
-	return TRUE;
+	return true;
 
     if (ch->pcdata->security >= project->security)
-	return TRUE;
+	return true;
 
     for (pb = project->builders; pb != NULL; pb = pb->next) {
 	if (!str_cmp(ch->name, pb->name))
-	    return TRUE;
+	    return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 
 bool can_edit_project(CHAR_DATA *ch, PROJECT_DATA *project)
 {
     if (ch->tot_level == MAX_LEVEL)
-	return TRUE;
+	return true;
 
     if (!str_cmp(ch->name, project->leader))
-	return TRUE;
+	return true;
 
-    return FALSE;
+    return false;
 }
 
 
@@ -727,7 +727,7 @@ PEDIT(pedit_create)
 
     if (ch->tot_level < MAX_LEVEL) {
 	send_to_char("Currently, only Implementors can create projects.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     project = new_project();
@@ -744,9 +744,9 @@ PEDIT(pedit_create)
 	olc_set_editor(ch, ED_PROJECT, project);
 
     project->created = current_time;
-    projects_changed = TRUE;
+    projects_changed = true;
     send_to_char("Project Created.\n\r", ch);
-    return FALSE;
+    return false;
 }
 
 
@@ -850,7 +850,7 @@ PEDIT(pedit_show)
     show_project_inquiries(project, ch);
 
 
-    return FALSE;
+    return false;
 }
 
 
@@ -898,13 +898,13 @@ PEDIT(pedit_name)
 
     if (argument[0] == '\0') {
 	send_to_char("Syntax:  name [name]\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     free_string(project->name);
     project->name = str_dup(argument);
     send_to_char("Project name set.\n\r", ch);
-    return TRUE;
+    return true;
 }
 
 
@@ -919,12 +919,12 @@ PEDIT(pedit_security)
     sec = atoi(argument);
     if (!is_number(argument) || argument[0] == '\0' || sec < 0 || sec > 9) {
 	send_to_char("Syntax:  security [0-9]\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     project->security = sec;
     send_to_char("Project security set.\n\r", ch);
-    return TRUE;
+    return true;
 }
 
 
@@ -943,13 +943,13 @@ PEDIT(pedit_pflag)
 	    TOGGLE_BIT(project->project_flags, value);
 
 	    send_to_char("Project flag toggled.\n\r", ch);
-	    return TRUE;
+	    return true;
 	}
     }
 
     send_to_char("Syntax:  pflag [flag]\n\r"
 	    "Type '? projectflags' for a list of flags.\n\r", ch);
-    return FALSE;
+    return false;
 }
 
 
@@ -959,21 +959,21 @@ PEDIT(pedit_builder)
     PROJECT_DATA *project;
     PROJECT_BUILDER_DATA *pb, *pb_prev, *pb_tmp;
     char arg[MSL];
-    bool found = FALSE;
+    bool found = false;
 
     EDIT_PROJECT(ch, project);
 
     argument = one_argument(argument, arg);
     if (arg[0] == '\0') {
 	send_to_char("Syntax:  builder [immortal name]\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     /* taking a builder off */
     pb_prev = NULL;
     for (pb = project->builders; pb != NULL; pb = pb->next) {
 	if (!str_cmp(pb->name, arg)) {
-	    found = TRUE;
+	    found = true;
 	    break;
 	}
 
@@ -994,7 +994,7 @@ PEDIT(pedit_builder)
     {
         if (find_immortal(arg) == NULL) {
 	    send_to_char("That immortal doesn't exist.\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
 
 	pb = new_project_builder();
@@ -1018,7 +1018,7 @@ PEDIT(pedit_builder)
     }
 
 
-    return TRUE;
+    return true;
 }
 
 
@@ -1032,23 +1032,23 @@ PEDIT(pedit_completed)
 
     if (argument[0] == '\0' || !is_number(argument)) {
 	send_to_char("Syntax:  completed [%%completed]\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if ((val = atoi(argument)) < 0 || val > 100) {
 	send_to_char("Valid completion is 0-100%.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (ch->tot_level < MAX_LEVEL && str_cmp(ch->name, project->leader)) {
 	send_to_char("Sorry, only the project leader, the head builder, or an implementor can adjust project completion status.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     project->completed = val;
     send_to_char("Project % completed set.\n\r", ch);
 
-    return TRUE;
+    return true;
 }
 
 
@@ -1064,12 +1064,12 @@ PEDIT(pedit_leader)
 
     if (arg[0] == '\0') {
 	send_to_char("Syntax:  leader [immortal name]\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if (get_char_world(NULL, arg) == NULL && !player_exists(arg)) {
 	send_to_char("Immortal not found.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     free_string(project->leader);
@@ -1077,7 +1077,7 @@ PEDIT(pedit_leader)
     project->leader = str_dup(arg);
 
     act("Project leader set to $t.", ch, NULL, NULL, NULL, NULL, project->leader, NULL, TO_CHAR);
-    return TRUE;
+    return true;
 }
 
 
@@ -1090,7 +1090,7 @@ PEDIT(pedit_description)
 
     string_append(ch, &project->description);
 
-    return TRUE;
+    return true;
 }
 
 
@@ -1103,14 +1103,14 @@ PEDIT(pedit_summary)
 
     if (argument[0] == '\0') {
 	send_to_char("Syntax:  summary [string]\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     free_string(project->summary);
     project->summary = str_dup(argument);
 
     send_to_char("Project summary set.\n\r", ch);
-    return TRUE;
+    return true;
 }
 
 
@@ -1128,7 +1128,7 @@ PEDIT(pedit_area)
 
     if (arg[0] == '\0') {
 	send_to_char("Syntax:  area [area name]\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     string_last = NULL;
@@ -1160,7 +1160,7 @@ PEDIT(pedit_area)
 
 	if (area == NULL) {
 	    send_to_char("Area not found.\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
 
 	/* Add it to the end of the list */
@@ -1179,7 +1179,7 @@ PEDIT(pedit_area)
 	act("Area $t added.", ch, NULL, NULL, NULL, NULL, area->name, NULL, TO_CHAR);
     }
 
-    return TRUE;
+    return true;
 }
 
 
@@ -1234,7 +1234,7 @@ void save_projects()
 
     fclose(fp);
 
-    projects_changed = FALSE;
+    projects_changed = false;
 }
 
 
@@ -1354,7 +1354,7 @@ PROJECT_DATA *read_project(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-PROJECT"))
     {
-	fMatch = FALSE;
+	fMatch = false;
 	switch (word[0])
 	{
 	    case '#':
@@ -1364,7 +1364,7 @@ PROJECT_DATA *read_project(FILE *fp)
 		    pb->next = project->builders;
 		    project->builders = pb;
 		    pb->project = project;
-		    fMatch = TRUE;
+		    fMatch = true;
 		    break;
 		}
 
@@ -1382,7 +1382,7 @@ PROJECT_DATA *read_project(FILE *fp)
 			project_inquiry_list = pinq;
 		    }
 
-		    fMatch = TRUE;
+		    fMatch = true;
 		    break;
 		}
 
@@ -1390,7 +1390,7 @@ PROJECT_DATA *read_project(FILE *fp)
 		if (!str_cmp(word, "Area")) {
 		    STRING_DATA *string, *string_tmp;
 
-		    fMatch = TRUE;
+		    fMatch = true;
 		    string = new_string_data();
 		    string->string = fread_string(fp);
 
@@ -1460,7 +1460,7 @@ PROJECT_BUILDER_DATA *read_project_builder(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-BUILDER"))
     {
-	fMatch = FALSE;
+	fMatch = false;
 	switch (word[0])
 	{
 	    case 'A':
@@ -1496,7 +1496,7 @@ PROJECT_INQUIRY_DATA *read_project_inquiry(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-INQUIRY"))
     {
-	fMatch = FALSE;
+	fMatch = false;
 	switch (word[0])
 	{
 	    case '#':
@@ -1507,7 +1507,7 @@ PROJECT_INQUIRY_DATA *read_project_inquiry(FILE *fp)
 		    pinq->replies = reply;
 		    reply->parent = pinq;
 
-		    fMatch = TRUE;
+		    fMatch = true;
 		}
 
 	    case 'C':

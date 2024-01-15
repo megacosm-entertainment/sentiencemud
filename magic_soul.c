@@ -24,15 +24,15 @@ SPELL_FUNC(spell_soul_essence)
 	char *arg = (char *) vo;
 	int souls, i;
 	int rating, rating2;
-	bool found = FALSE, all;
+	bool found = false, all;
 
-	if(IS_NPC(ch)) return FALSE;
+	if(IS_NPC(ch)) return false;
 
-	if (!arg) return FALSE;
+	if (!arg) return false;
 
 	if (!arg[0] || (!is_number(arg) && str_cmp(arg,"all"))) {
 		send_to_char("How much soul essence did you want to absorb?\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	all = !str_cmp(arg,"all");
@@ -42,7 +42,7 @@ SPELL_FUNC(spell_soul_essence)
 		obj_next = obj->next_content;
 
 		if (obj->pIndexData == obj_index_bottled_soul) {
-			found = TRUE;
+			found = true;
 			extract_obj(obj);
 			i++;
 		}
@@ -70,7 +70,7 @@ SPELL_FUNC(spell_soul_essence)
 			send_to_char("You absorb soul essence, but it completely dissipates...\n\r", ch);
 	} else
 		send_to_char("You lack soul essence to absorb.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 

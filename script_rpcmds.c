@@ -16,161 +16,161 @@
 
 
 const struct script_cmd_type room_cmd_table[] = {
-	{ "acttrigger",				scriptcmd_acttrigger,	TRUE,	FALSE	},
-	{ "addaffect",			scriptcmd_addaffect,	TRUE,	TRUE	},
-	{ "addaffectname",		scriptcmd_addaffectname,TRUE,	TRUE	},
-	{ "addaura",			scriptcmd_addaura,			TRUE,	TRUE	},
-	{ "addspell",			scriptcmd_addspell,				TRUE,	TRUE	},
-	{ "addstache",			scriptcmd_addstache,		TRUE,	TRUE },
-	{ "addtype",			scriptcmd_addtype,			TRUE, TRUE },
-	{ "alteraffect",		do_rpalteraffect,		TRUE,	TRUE	},
-	{ "alterexit",			do_rpalterexit,			FALSE,	TRUE	},
-	{ "altermob",			do_rpaltermob,			TRUE,	TRUE	},
-	{ "alterobj",			scriptcmd_alterobjmt,			TRUE,	TRUE	},
-	{ "alterroom",			do_rpalterroom,			TRUE,	TRUE	},
-	{ "applytoxin",			scriptcmd_applytoxin,	FALSE,	TRUE	},
-	{ "asound",				do_rpasound,			FALSE,	TRUE	},
-	{ "at",					do_rpat,				FALSE,	TRUE	},
-	{ "attach",				scriptcmd_attach,			TRUE,	TRUE	},
-	{ "award",				scriptcmd_award,		TRUE,	TRUE	},
-	{ "breathe",			scriptcmd_breathe,		FALSE,	TRUE	},
-	{ "bribetrigger",			scriptcmd_bribetrigger,	TRUE,	FALSE	},
-	{ "call",				do_rpcall,				FALSE,	TRUE	},
-	{ "cancel",				do_rpcancel,			FALSE,	FALSE	},
-	{ "chargebank",			do_rpchargebank,		FALSE,	TRUE	},
-	{ "checkpoint",			do_rpcheckpoint,		FALSE,	TRUE	},
-	{ "cloneroom",			do_rpcloneroom,			TRUE,	TRUE	},
-	{ "condition",			do_rpcondition,			FALSE,	TRUE	},
-	{ "crier",				do_rpcrier,				FALSE,	TRUE	},
-	{ "damage",				scriptcmd_damage,		FALSE,	TRUE	},
-	{ "deduct",				scriptcmd_deduct,		TRUE,	TRUE	},
-	{ "delay",				do_rpdelay,				FALSE,	TRUE	},
-	{ "dequeue",			do_rpdequeue,			FALSE,	FALSE	},
-	{ "destroyroom",		do_rpdestroyroom,		TRUE,	TRUE	},
-	{ "detach",				scriptcmd_detach,			TRUE,	TRUE	},
-	{ "directiontrigger",		scriptcmd_directiontrigger,	TRUE,	FALSE	},
-	{ "dungeoncommence",	scriptcmd_dungeoncommence,	TRUE,	TRUE	},
-	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	TRUE,	TRUE	},
-	{ "dungeonfailure",		scriptcmd_dungeonfailure,	TRUE,	TRUE	},
-	{ "echo",				do_rpecho,				FALSE,	TRUE	},
-	{ "echoaround",			do_rpechoaround,		FALSE,	TRUE	},
-	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
-	{ "echobattlespam",		do_rpechobattlespam,	FALSE,	TRUE	},
-	{ "echochurch",			do_rpechochurch,		FALSE,	TRUE	},
-	{ "echogrouparound",	do_rpechogrouparound,	FALSE,	TRUE	},
-	{ "echogroupat",		do_rpechogroupat,		FALSE,	TRUE	},
-	{ "echoleadaround",		do_rpecholeadaround,	FALSE,	TRUE	},
-	{ "echoleadat",			do_rpecholeadat,		FALSE,	TRUE	},
-	{ "echonotvict",		do_rpechonotvict,		FALSE,	TRUE	},
-	{ "echoroom",			do_rpechoroom,			FALSE,	TRUE	},
-	{ "ed",					scriptcmd_ed,				FALSE,	TRUE	},
-	{ "emoteattrigger",			scriptcmd_emoteattrigger,	TRUE,	FALSE	},
-	{ "emotetrigger",			scriptcmd_emotetrigger,	TRUE,	FALSE	},
-	{ "entercombat",		scriptcmd_entercombat,	FALSE,	TRUE	},
-	{ "exacttrigger",			scriptcmd_exacttrigger,	TRUE,	FALSE	},
-	{ "exittrigger",			scriptcmd_exittrigger,	TRUE,	FALSE	},
-	{ "fade",				scriptcmd_fade,				TRUE,	TRUE	},
-	{ "fixaffects",			do_rpfixaffects,		FALSE,	TRUE	},
-	{ "flee",				scriptcmd_flee,			FALSE,	TRUE	},
-	{ "force",				do_rpforce,				FALSE,	TRUE	},
-	{ "forget",				do_rpforget,			FALSE,	FALSE	},
-	{ "gecho",				do_rpgecho,				FALSE,	TRUE	},
-	{ "gforce",				do_rpgforce,			FALSE,	TRUE	},
-	{ "givetrigger",			scriptcmd_givetrigger,	TRUE,	FALSE	},
-	{ "grantskill",			scriptcmd_grantskill,	FALSE,	TRUE	},
-	{ "greettrigger",			scriptcmd_greettrigger,	TRUE,	FALSE	},
-	{ "group",				do_rpgroup,				FALSE,	TRUE	},
-	{ "gtransfer",			do_rpgtransfer,			FALSE,	TRUE	},
-	{ "hprcttrigger",			scriptcmd_hprcttrigger,	TRUE,	FALSE	},
-	{ "input",				do_rpinput,				FALSE,	TRUE	},
-	{ "inputstring",		scriptcmd_inputstring,	FALSE,	TRUE	},
-	{ "instancecomplete",	scriptcmd_instancecomplete,	TRUE,	TRUE	},
-	{ "interrupt",			do_rpinterrupt,			FALSE,	TRUE	},
-	{ "link",				do_rplink,				FALSE,	TRUE	},
-	{ "loadinstanced",		scriptcmd_loadinstanced,	TRUE,	TRUE	},
-	{ "lockadd",			scriptcmd_lockadd,			FALSE,	TRUE	},
-	{ "lockremove",			scriptcmd_lockremove,		FALSE,	TRUE	},
-	{ "lockset",			scriptcmd_lockset,			FALSE,	TRUE	},
-	{ "missionaccept",		scriptcmd_missionaccept,		FALSE,	TRUE	},
-	{ "missioncancel",		scriptcmd_missioncancel,		FALSE,	TRUE	},
-	{ "missioncomplete",		scriptcmd_missioncomplete,	FALSE,	TRUE	},
-	{ "missiongenerate",		scriptcmd_missiongenerate,	FALSE,	TRUE	},
-	{ "missionpartcustom",	scriptcmd_missionpartcustom,	TRUE,	TRUE	},
-	{ "missionpartgetitem",	scriptcmd_missionpartgetitem,	TRUE,	TRUE	},
-	{ "missionpartgoto",		scriptcmd_missionpartgoto,	TRUE,	TRUE	},
-	{ "missionpartrescue",	scriptcmd_missionpartrescue,	TRUE,	TRUE	},
-	{ "missionpartslay",		scriptcmd_missionpartslay,	TRUE,	TRUE	},
-	{ "missionscroll",		scriptcmd_missionscroll,		FALSE,	TRUE	},
-	{ "mload",				do_rpmload,				FALSE,	TRUE	},
-	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
-	{ "nametrigger",			scriptcmd_nametrigger,	TRUE,	FALSE	},
-	{ "numbertrigger",			scriptcmd_numbertrigger,	TRUE,	FALSE	},
-	{ "oload",				scriptcmd_oload,				FALSE,	TRUE	},
-	{ "otransfer",			do_rpotransfer,			FALSE,	TRUE	},
-	{ "pageat",				scriptcmd_pageat,			FALSE,	TRUE	},
-	{ "peace",				do_rppeace,				FALSE,	FALSE	},
-	{ "percenttokentrigger",	scriptcmd_percenttokentrigger,	TRUE,	FALSE	},
-	{ "percenttrigger",			scriptcmd_percenttrigger,	TRUE,	FALSE	},
-	{ "persist",			do_rppersist,			FALSE,	TRUE	},
-	{ "prompt",				do_rpprompt,			FALSE,	TRUE	},
-	{ "purge",				do_rppurge,				FALSE,	FALSE	},
-	{ "queue",				do_rpqueue,				FALSE,	TRUE	},
-	{ "rawkill",			do_rprawkill,			FALSE,	TRUE	},
-	{ "reassign",			scriptcmd_reassign,			TRUE,	FALSE	},
-	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
-	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
-	{ "remember",			do_rpremember,			FALSE,	TRUE	},
-	{ "remort",				do_rpremort,			TRUE,	TRUE	},
-	{ "remove",				do_rpremove,			FALSE,	TRUE	},
-	{ "remspell",			scriptcmd_remspell,			TRUE,	TRUE	},
-	{ "remstache",			scriptcmd_remstache,		TRUE,	TRUE },
-	{ "remtype",			scriptcmd_remtype,			TRUE,	TRUE	},
-	{ "resetdice",			do_rpresetdice,			TRUE,	TRUE	},
-	{ "restore",			do_rprestore,			TRUE,	TRUE	},
-	{ "revokeskill",		scriptcmd_revokeskill,	FALSE,	TRUE	},
-	{ "saveplayer",			do_rpsaveplayer,		FALSE,	TRUE	},
-	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
-	{ "setposition",		scriptcmd_setposition,		TRUE,	TRUE	},
-	{ "setrace",			scriptcmd_setrace,			TRUE,	TRUE	},
-	{ "setrecall",			do_rpsetrecall,			FALSE,	TRUE	},
-	{ "settimer",			do_rpsettimer,			FALSE,	TRUE	},
-	{ "settitle",			scriptcmd_settitle,			TRUE,	TRUE	},
-	{ "showcommand",		scriptcmd_showcommand,		FALSE,	TRUE	},
-	{ "showroom",			do_rpshowroom,			FALSE,	TRUE	},
-	{ "skimprove",			do_rpskimprove,			TRUE,	TRUE	},
-	{ "spawndungeon",		scriptcmd_spawndungeon,		TRUE,	TRUE	},
-	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
-	{ "startcombat",		scriptcmd_startcombat,	FALSE,	TRUE	},
-	{ "startreckoning",		scriptcmd_startreckoning,	TRUE,	TRUE	},
-	{ "stopcombat",			scriptcmd_stopcombat,	FALSE,	TRUE	},
-	{ "stopreckoning",		scriptcmd_stopreckoning,	TRUE,	TRUE	},
-	{ "stringmob",			do_rpstringmob,			TRUE,	TRUE	},
-	{ "stringobj",			scriptcmd_stringobjmt,			TRUE,	TRUE	},
-	{ "stripaffect",		do_rpstripaffect,		TRUE,	TRUE	},
-	{ "stripaffectname",	do_rpstripaffectname,	TRUE,	TRUE	},
-	{ "transfer",			do_rptransfer,			FALSE,	TRUE	},
-	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
-	{ "ungroup",			do_rpungroup,			FALSE,	TRUE	},
-	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
-	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
-	{ "usecatalyst",		do_rpusecatalyst,		FALSE,	TRUE	},
-	{ "useontrigger",			scriptcmd_useontrigger,	TRUE,	FALSE	},
-	{ "usetrigger",				scriptcmd_usetrigger,	TRUE,	FALSE	},
-	{ "usewithtrigger",			scriptcmd_usewithtrigger,	TRUE,	FALSE	},
-	{ "varclear",			do_rpvarclear,			FALSE,	TRUE	},
-	{ "varclearon",			do_rpvarclearon,		FALSE,	TRUE	},
-	{ "varcopy",			do_rpvarcopy,			FALSE,	TRUE	},
-	{ "varsave",			do_rpvarsave,			FALSE,	TRUE	},
-	{ "varsaveon",			do_rpvarsaveon,			FALSE,	TRUE	},
-	{ "varset",				do_rpvarset,			FALSE,	TRUE	},
-	{ "varseton",			do_rpvarseton,			FALSE,	TRUE	},
-	{ "vforce",				do_rpvforce,			FALSE,	TRUE	},
-	{ "wildernessmap",		scriptcmd_wildernessmap,	FALSE,	TRUE	},
-	{ "wiretransfer",		do_rpwiretransfer,		FALSE,	TRUE	},
-	{ "xcall",				do_rpxcall,				FALSE,	TRUE	},
-	{ "zecho",				do_rpzecho,				FALSE,	TRUE	},
-	{ "zot",				do_rpzot,				TRUE,	TRUE	},
-	{ NULL,					NULL,					FALSE,	FALSE	}
+	{ "acttrigger",				scriptcmd_acttrigger,	true,	false	},
+	{ "addaffect",			scriptcmd_addaffect,	true,	true	},
+	{ "addaffectname",		scriptcmd_addaffectname,true,	true	},
+	{ "addaura",			scriptcmd_addaura,			true,	true	},
+	{ "addspell",			scriptcmd_addspell,				true,	true	},
+	{ "addstache",			scriptcmd_addstache,		true,	true },
+	{ "addtype",			scriptcmd_addtype,			true, true },
+	{ "alteraffect",		do_rpalteraffect,		true,	true	},
+	{ "alterexit",			do_rpalterexit,			false,	true	},
+	{ "altermob",			do_rpaltermob,			true,	true	},
+	{ "alterobj",			scriptcmd_alterobjmt,			true,	true	},
+	{ "alterroom",			do_rpalterroom,			true,	true	},
+	{ "applytoxin",			scriptcmd_applytoxin,	false,	true	},
+	{ "asound",				do_rpasound,			false,	true	},
+	{ "at",					do_rpat,				false,	true	},
+	{ "attach",				scriptcmd_attach,			true,	true	},
+	{ "award",				scriptcmd_award,		true,	true	},
+	{ "breathe",			scriptcmd_breathe,		false,	true	},
+	{ "bribetrigger",			scriptcmd_bribetrigger,	true,	false	},
+	{ "call",				do_rpcall,				false,	true	},
+	{ "cancel",				do_rpcancel,			false,	false	},
+	{ "chargebank",			do_rpchargebank,		false,	true	},
+	{ "checkpoint",			do_rpcheckpoint,		false,	true	},
+	{ "cloneroom",			do_rpcloneroom,			true,	true	},
+	{ "condition",			do_rpcondition,			false,	true	},
+	{ "crier",				do_rpcrier,				false,	true	},
+	{ "damage",				scriptcmd_damage,		false,	true	},
+	{ "deduct",				scriptcmd_deduct,		true,	true	},
+	{ "delay",				do_rpdelay,				false,	true	},
+	{ "dequeue",			do_rpdequeue,			false,	false	},
+	{ "destroyroom",		do_rpdestroyroom,		true,	true	},
+	{ "detach",				scriptcmd_detach,			true,	true	},
+	{ "directiontrigger",		scriptcmd_directiontrigger,	true,	false	},
+	{ "dungeoncommence",	scriptcmd_dungeoncommence,	true,	true	},
+	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
+	{ "dungeonfailure",		scriptcmd_dungeonfailure,	true,	true	},
+	{ "echo",				do_rpecho,				false,	true	},
+	{ "echoaround",			do_rpechoaround,		false,	true	},
+	{ "echoat",				scriptcmd_echoat,			false,	true	},
+	{ "echobattlespam",		do_rpechobattlespam,	false,	true	},
+	{ "echochurch",			do_rpechochurch,		false,	true	},
+	{ "echogrouparound",	do_rpechogrouparound,	false,	true	},
+	{ "echogroupat",		do_rpechogroupat,		false,	true	},
+	{ "echoleadaround",		do_rpecholeadaround,	false,	true	},
+	{ "echoleadat",			do_rpecholeadat,		false,	true	},
+	{ "echonotvict",		do_rpechonotvict,		false,	true	},
+	{ "echoroom",			do_rpechoroom,			false,	true	},
+	{ "ed",					scriptcmd_ed,				false,	true	},
+	{ "emoteattrigger",			scriptcmd_emoteattrigger,	true,	false	},
+	{ "emotetrigger",			scriptcmd_emotetrigger,	true,	false	},
+	{ "entercombat",		scriptcmd_entercombat,	false,	true	},
+	{ "exacttrigger",			scriptcmd_exacttrigger,	true,	false	},
+	{ "exittrigger",			scriptcmd_exittrigger,	true,	false	},
+	{ "fade",				scriptcmd_fade,				true,	true	},
+	{ "fixaffects",			do_rpfixaffects,		false,	true	},
+	{ "flee",				scriptcmd_flee,			false,	true	},
+	{ "force",				do_rpforce,				false,	true	},
+	{ "forget",				do_rpforget,			false,	false	},
+	{ "gecho",				do_rpgecho,				false,	true	},
+	{ "gforce",				do_rpgforce,			false,	true	},
+	{ "givetrigger",			scriptcmd_givetrigger,	true,	false	},
+	{ "grantskill",			scriptcmd_grantskill,	false,	true	},
+	{ "greettrigger",			scriptcmd_greettrigger,	true,	false	},
+	{ "group",				do_rpgroup,				false,	true	},
+	{ "gtransfer",			do_rpgtransfer,			false,	true	},
+	{ "hprcttrigger",			scriptcmd_hprcttrigger,	true,	false	},
+	{ "input",				do_rpinput,				false,	true	},
+	{ "inputstring",		scriptcmd_inputstring,	false,	true	},
+	{ "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
+	{ "interrupt",			do_rpinterrupt,			false,	true	},
+	{ "link",				do_rplink,				false,	true	},
+	{ "loadinstanced",		scriptcmd_loadinstanced,	true,	true	},
+	{ "lockadd",			scriptcmd_lockadd,			false,	true	},
+	{ "lockremove",			scriptcmd_lockremove,		false,	true	},
+	{ "lockset",			scriptcmd_lockset,			false,	true	},
+	{ "missionaccept",		scriptcmd_missionaccept,		false,	true	},
+	{ "missioncancel",		scriptcmd_missioncancel,		false,	true	},
+	{ "missioncomplete",		scriptcmd_missioncomplete,	false,	true	},
+	{ "missiongenerate",		scriptcmd_missiongenerate,	false,	true	},
+	{ "missionpartcustom",	scriptcmd_missionpartcustom,	true,	true	},
+	{ "missionpartgetitem",	scriptcmd_missionpartgetitem,	true,	true	},
+	{ "missionpartgoto",		scriptcmd_missionpartgoto,	true,	true	},
+	{ "missionpartrescue",	scriptcmd_missionpartrescue,	true,	true	},
+	{ "missionpartslay",		scriptcmd_missionpartslay,	true,	true	},
+	{ "missionscroll",		scriptcmd_missionscroll,		false,	true	},
+	{ "mload",				do_rpmload,				false,	true	},
+	{ "mute",				scriptcmd_mute,				false,	true	},
+	{ "nametrigger",			scriptcmd_nametrigger,	true,	false	},
+	{ "numbertrigger",			scriptcmd_numbertrigger,	true,	false	},
+	{ "oload",				scriptcmd_oload,				false,	true	},
+	{ "otransfer",			do_rpotransfer,			false,	true	},
+	{ "pageat",				scriptcmd_pageat,			false,	true	},
+	{ "peace",				do_rppeace,				false,	false	},
+	{ "percenttokentrigger",	scriptcmd_percenttokentrigger,	true,	false	},
+	{ "percenttrigger",			scriptcmd_percenttrigger,	true,	false	},
+	{ "persist",			do_rppersist,			false,	true	},
+	{ "prompt",				do_rpprompt,			false,	true	},
+	{ "purge",				do_rppurge,				false,	false	},
+	{ "queue",				do_rpqueue,				false,	true	},
+	{ "rawkill",			do_rprawkill,			false,	true	},
+	{ "reassign",			scriptcmd_reassign,			true,	false	},
+	{ "reckoning",			scriptcmd_reckoning,		true,	true	},
+	{ "remaura",			scriptcmd_remaura,			true,	true	},
+	{ "remember",			do_rpremember,			false,	true	},
+	{ "remort",				do_rpremort,			true,	true	},
+	{ "remove",				do_rpremove,			false,	true	},
+	{ "remspell",			scriptcmd_remspell,			true,	true	},
+	{ "remstache",			scriptcmd_remstache,		true,	true },
+	{ "remtype",			scriptcmd_remtype,			true,	true	},
+	{ "resetdice",			do_rpresetdice,			true,	true	},
+	{ "restore",			do_rprestore,			true,	true	},
+	{ "revokeskill",		scriptcmd_revokeskill,	false,	true	},
+	{ "saveplayer",			do_rpsaveplayer,		false,	true	},
+	{ "sendfloor",			scriptcmd_sendfloor,		false,	true	},
+	{ "setposition",		scriptcmd_setposition,		true,	true	},
+	{ "setrace",			scriptcmd_setrace,			true,	true	},
+	{ "setrecall",			do_rpsetrecall,			false,	true	},
+	{ "settimer",			do_rpsettimer,			false,	true	},
+	{ "settitle",			scriptcmd_settitle,			true,	true	},
+	{ "showcommand",		scriptcmd_showcommand,		false,	true	},
+	{ "showroom",			do_rpshowroom,			false,	true	},
+	{ "skimprove",			do_rpskimprove,			true,	true	},
+	{ "spawndungeon",		scriptcmd_spawndungeon,		true,	true	},
+	{ "specialkey",			scriptcmd_specialkey,		false,	true	},
+	{ "startcombat",		scriptcmd_startcombat,	false,	true	},
+	{ "startreckoning",		scriptcmd_startreckoning,	true,	true	},
+	{ "stopcombat",			scriptcmd_stopcombat,	false,	true	},
+	{ "stopreckoning",		scriptcmd_stopreckoning,	true,	true	},
+	{ "stringmob",			do_rpstringmob,			true,	true	},
+	{ "stringobj",			scriptcmd_stringobjmt,			true,	true	},
+	{ "stripaffect",		do_rpstripaffect,		true,	true	},
+	{ "stripaffectname",	do_rpstripaffectname,	true,	true	},
+	{ "transfer",			do_rptransfer,			false,	true	},
+	{ "treasuremap",		scriptcmd_treasuremap,		false,	true	},
+	{ "ungroup",			do_rpungroup,			false,	true	},
+	{ "unlockarea",			scriptcmd_unlockarea,		true,	true	},
+	{ "unmute",				scriptcmd_unmute,			false,	true	},
+	{ "usecatalyst",		do_rpusecatalyst,		false,	true	},
+	{ "useontrigger",			scriptcmd_useontrigger,	true,	false	},
+	{ "usetrigger",				scriptcmd_usetrigger,	true,	false	},
+	{ "usewithtrigger",			scriptcmd_usewithtrigger,	true,	false	},
+	{ "varclear",			do_rpvarclear,			false,	true	},
+	{ "varclearon",			do_rpvarclearon,		false,	true	},
+	{ "varcopy",			do_rpvarcopy,			false,	true	},
+	{ "varsave",			do_rpvarsave,			false,	true	},
+	{ "varsaveon",			do_rpvarsaveon,			false,	true	},
+	{ "varset",				do_rpvarset,			false,	true	},
+	{ "varseton",			do_rpvarseton,			false,	true	},
+	{ "vforce",				do_rpvforce,			false,	true	},
+	{ "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
+	{ "wiretransfer",		do_rpwiretransfer,		false,	true	},
+	{ "xcall",				do_rpxcall,				false,	true	},
+	{ "zecho",				do_rpzecho,				false,	true	},
+	{ "zot",				do_rpzot,				true,	true	},
+	{ NULL,					NULL,					false,	false	}
 };
 
 int rpcmd_lookup(char *command)
@@ -619,9 +619,9 @@ SCRIPT_CMD(do_rpasound)
 
 					if(i <= j) {
 						// No, so do the message
-						MOBtrigger  = FALSE;
+						MOBtrigger  = false;
 						act(buffer->string, room->people, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
-						MOBtrigger  = TRUE;
+						MOBtrigger  = true;
 						rooms[i++] = room;
 					}
 				}
@@ -653,7 +653,7 @@ SCRIPT_CMD(do_rpat)
 	sec = script_security;
 	script_security = NO_SCRIPT_SECURITY;
 
-	remote = PROG_FLAG(dest,PROG_AT) ? TRUE : FALSE;
+	remote = PROG_FLAG(dest,PROG_AT) ? true : false;
 
 	PROG_SET(dest,PROG_AT);
 
@@ -826,7 +826,7 @@ SCRIPT_CMD(do_rpdamage)
 	char buf[MSL],*rest;
 	CHAR_DATA *victim = NULL, *victim_next;
 	int low, high, level, value, dc;
-	bool fAll = FALSE, fKill = FALSE, fLevel = FALSE, fRemort = FALSE, fTwo = FALSE;
+	bool fAll = false, fKill = false, fLevel = false, fRemort = false, fTwo = false;
 
 
 	if(!info || !info->room || !info->room) return;
@@ -838,7 +838,7 @@ SCRIPT_CMD(do_rpdamage)
 
 	switch(arg->type) {
 	case ENT_STRING:
-		if(!str_cmp(arg->d.str,"all")) fAll = TRUE;
+		if(!str_cmp(arg->d.str,"all")) fAll = true;
 		else victim = get_char_room(NULL, info->room, arg->d.str);
 		break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
@@ -864,10 +864,10 @@ SCRIPT_CMD(do_rpdamage)
 	switch(arg->type) {
 	case ENT_NUMBER: low = arg->d.num; break;
 	case ENT_STRING:
-		if(!str_cmp(arg->d.str,"level")) { fLevel = TRUE; break; }
-		if(!str_cmp(arg->d.str,"remort")) { fLevel = fRemort = TRUE; break; }
-		if(!str_cmp(arg->d.str,"dual")) { fLevel = fTwo = TRUE; break; }
-		if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = TRUE; break; }
+		if(!str_cmp(arg->d.str,"level")) { fLevel = true; break; }
+		if(!str_cmp(arg->d.str,"remort")) { fLevel = fRemort = true; break; }
+		if(!str_cmp(arg->d.str,"dual")) { fLevel = fTwo = true; break; }
+		if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = true; break; }
 		if(is_number(arg->d.str)) { low = atoi(arg->d.str); break; }
 	default:
 		bug("RpDamage - invalid argument from vnum %ld.", info->room->vnum);
@@ -926,7 +926,7 @@ SCRIPT_CMD(do_rpdamage)
 
 	// No expansion!
 	argument = one_argument(rest, buf);
-	if (!str_cmp(buf,"kill") || !str_cmp(buf,"lethal")) fKill = TRUE;
+	if (!str_cmp(buf,"kill") || !str_cmp(buf,"lethal")) fKill = true;
 
 	one_argument(argument, buf);
 	dc = damage_class_lookup(buf);
@@ -937,11 +937,11 @@ SCRIPT_CMD(do_rpdamage)
 		for(victim = info->room->people; victim; victim = victim_next) {
 			victim_next = victim->next_in_room;
 			value = fLevel ? dice(low,high) : number_range(low,high);
-			damage(victim, victim, fKill ? value : UMIN(victim->hit,value), NULL, TYPE_UNDEFINED, dc, FALSE);
+			damage(victim, victim, fKill ? value : UMIN(victim->hit,value), NULL, TYPE_UNDEFINED, dc, false);
 		}
 	} else {
 		value = fLevel ? dice(low,high) : number_range(low,high);
-		damage(victim, victim, fKill ? value : UMIN(victim->hit,value), NULL, TYPE_UNDEFINED, dc, FALSE);
+		damage(victim, victim, fKill ? value : UMIN(victim->hit,value), NULL, TYPE_UNDEFINED, dc, false);
 	}
 }
 
@@ -1360,7 +1360,7 @@ SCRIPT_CMD(do_rpforce)
 {
 	char *rest;
 	CHAR_DATA *victim = NULL, *next;
-	bool fAll = FALSE, forced;
+	bool fAll = false, forced;
 
 
 	if(!info || !info->room) return;
@@ -1372,7 +1372,7 @@ SCRIPT_CMD(do_rpforce)
 
 	switch(arg->type) {
 	case ENT_STRING:
-		if(!str_cmp(arg->d.str,"all")) fAll = TRUE;
+		if(!str_cmp(arg->d.str,"all")) fAll = true;
 		else victim = get_char_room(NULL,info->room, arg->d.str);
 		break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
@@ -1394,11 +1394,11 @@ SCRIPT_CMD(do_rpforce)
 		if (fAll) {
 			for (victim = info->room->people; victim; victim = next) {
 				next = victim->next_in_room;
-				forced_command = TRUE;
+				forced_command = true;
 				interpret(victim, buffer->string);
 			}
 		} else {
-			forced_command = TRUE;
+			forced_command = true;
 			interpret(victim, buffer->string);
 		}
 
@@ -1420,7 +1420,7 @@ SCRIPT_CMD(do_rpgdamage)
 	char buf[MSL],*rest;
 	CHAR_DATA *victim = NULL, *rch, *rch_next;
 	int low, high, level, value, dc;
-	bool fKill = FALSE, fLevel = FALSE, fRemort = FALSE, fTwo = FALSE;
+	bool fKill = false, fLevel = false, fRemort = false, fTwo = false;
 
 
 	if(!info || !info->room) return;
@@ -1455,10 +1455,10 @@ SCRIPT_CMD(do_rpgdamage)
 	switch(arg->type) {
 	case ENT_NUMBER: low = arg->d.num; break;
 	case ENT_STRING:
-		if(!str_cmp(arg->d.str,"level")) { fLevel = TRUE; break; }
-		if(!str_cmp(arg->d.str,"remort")) { fLevel = fRemort = TRUE; break; }
-		if(!str_cmp(arg->d.str,"dual")) { fLevel = fTwo = TRUE; break; }
-		if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = TRUE; break; }
+		if(!str_cmp(arg->d.str,"level")) { fLevel = true; break; }
+		if(!str_cmp(arg->d.str,"remort")) { fLevel = fRemort = true; break; }
+		if(!str_cmp(arg->d.str,"dual")) { fLevel = fTwo = true; break; }
+		if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = true; break; }
 		if(is_number(arg->d.str)) { low = atoi(arg->d.str); break; }
 	default:
 		bug("RpGdamage - invalid argument from vnum %ld.", info->room->vnum);
@@ -1511,7 +1511,7 @@ SCRIPT_CMD(do_rpgdamage)
 
 	// No expansion!
 	argument = one_argument(rest, buf);
-	if (!str_cmp(buf,"kill") || !str_cmp(buf,"lethal")) fKill = TRUE;
+	if (!str_cmp(buf,"kill") || !str_cmp(buf,"lethal")) fKill = true;
 
 	one_argument(argument, buf);
 	dc = damage_class_lookup(buf);
@@ -1522,7 +1522,7 @@ SCRIPT_CMD(do_rpgdamage)
 		rch_next = rch->next_in_room;
 		if (rch != victim && is_same_group(victim,rch)) {
 			value = fLevel ? dice(low,high) : number_range(low,high);
-			damage(rch, rch, fKill ? value : UMIN(rch->hit,value), NULL, TYPE_UNDEFINED, dc, FALSE);
+			damage(rch, rch, fKill ? value : UMIN(rch->hit,value), NULL, TYPE_UNDEFINED, dc, false);
 		}
 	}
 }
@@ -1600,7 +1600,7 @@ SCRIPT_CMD(do_rpgtransfer)
 	char buf[MIL], buf2[MIL], buf3[MIL], *rest;
 	CHAR_DATA *victim, *vch,*next;
 	ROOM_INDEX_DATA *dest;
-	bool all = FALSE, force = FALSE, quiet = FALSE;
+	bool all = false, force = false, quiet = false;
 	int mode;
 
 
@@ -1665,8 +1665,8 @@ SCRIPT_CMD(do_rplink)
 	WNUM wnum = wnum_zero;
 	unsigned long id1, id2;
 
-	bool del = FALSE;
-	bool environ = FALSE;
+	bool del = false;
+	bool environ = false;
 
 	if(!info || !info->room) return;
 
@@ -1706,12 +1706,12 @@ SCRIPT_CMD(do_rplink)
 		else if(!str_cmp(arg->d.str,"delete") ||
 			!str_cmp(arg->d.str,"remove") ||
 			!str_cmp(arg->d.str,"unlink")) {
-			del = TRUE;
+			del = true;
 		} else if(!str_cmp(arg->d.str,"environment") ||
 			!str_cmp(arg->d.str,"environ") ||
 			!str_cmp(arg->d.str,"extern") ||
 			!str_cmp(arg->d.str,"outside")) {
-			environ = TRUE;
+			environ = true;
 		} else if(!str_cmp(arg->d.str,"vroom")) {
 			argument = rest;
 			if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_WIDEVNUM)
@@ -1823,7 +1823,7 @@ SCRIPT_CMD(do_rpmload)
 		return;
 	}
 
-	victim = create_mobile(pMobIndex, FALSE);
+	victim = create_mobile(pMobIndex, false);
 	char_to_room(victim, info->room);
 	if(rest && *rest) variables_set_mobile(info->var,rest,victim);
 	p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
@@ -1833,7 +1833,7 @@ SCRIPT_CMD(do_rpoload)
 {
 	char buf[MIL], *rest;
 	long level;
-	bool fWear = FALSE;
+	bool fWear = false;
 	WNUM wnum = wnum_zero;
 	OBJ_INDEX_DATA *pObjIndex;
 	OBJ_DATA *obj;
@@ -1899,7 +1899,7 @@ SCRIPT_CMD(do_rpoload)
 				to_mob = arg->d.mob;
 				if((rest = one_argument(rest,buf))) {
 					if (!str_cmp(buf, "wear"))
-						fWear = TRUE;
+						fWear = true;
 					// use "none" for neither
 				}
 				break;
@@ -1927,7 +1927,7 @@ SCRIPT_CMD(do_rpoload)
 	} else
 		level = pObjIndex->level;
 
-	obj = create_object(pObjIndex, level, TRUE);
+	obj = create_object(pObjIndex, level, true);
 	if(to_room)
 		obj_to_room(obj, to_room);
 	else if( to_obj )
@@ -1937,7 +1937,7 @@ SCRIPT_CMD(do_rpoload)
 		(get_carry_weight (to_mob) + get_obj_weight (obj) <= can_carry_w (to_mob))) {
 		obj_to_char(obj, to_mob);
 		if (fWear)
-			wear_obj(to_mob, obj, TRUE);
+			wear_obj(to_mob, obj, true);
 	} else
 		obj_to_room(obj, info->room);
 
@@ -1987,7 +1987,7 @@ SCRIPT_CMD(do_rpotransfer)
 
 	if (obj->carried_by) {
 		if (obj->wear_loc != WEAR_NONE)
-			unequip_char(obj->carried_by, obj, TRUE);
+			unequip_char(obj->carried_by, obj, true);
 		obj_from_char(obj);
 	} else if(obj->in_obj)
 		obj_from_obj(obj);
@@ -2015,7 +2015,7 @@ SCRIPT_CMD(do_rppeace)
 
 	for (rch = info->room->people; rch; rch = rch->next_in_room) {
 		if (rch->fighting)
-			stop_fighting(rch, TRUE);
+			stop_fighting(rch, true);
 		if (IS_NPC(rch) && IS_SET(rch->act[0],ACT_AGGRESSIVE))
 			REMOVE_BIT(rch->act[0],ACT_AGGRESSIVE);
 
@@ -2056,14 +2056,14 @@ SCRIPT_CMD(do_rppurge)
 			bug("Rppurge - Attempting to purge a PC from vnum %d.", info->room->vnum);
 			return;
 		}
-		extract_char(victim, TRUE);
+		extract_char(victim, true);
 	} else if(obj)
 		extract_obj(obj);
 	else if(here) {
 		for (victim = here->people; victim; victim = vnext) {
 			vnext = victim->next_in_room;
 			if (IS_NPC(victim) && !IS_SET(victim->act[0], ACT_NOPURGE))
-				extract_char(victim, TRUE);
+				extract_char(victim, true);
 		}
 
 		for (obj = here->contents; obj; obj = obj_next) {
@@ -2075,7 +2075,7 @@ SCRIPT_CMD(do_rppurge)
 		for (victim = *mobs; victim; victim = vnext) {
 			vnext = victim->next_in_room;
 			if (IS_NPC(victim) && !IS_SET(victim->act[0], ACT_NOPURGE))
-				extract_char(victim, TRUE);
+				extract_char(victim, true);
 		}
 	} else if(objs) {
 		for (obj = *objs; obj; obj = obj_next) {
@@ -2145,7 +2145,7 @@ SCRIPT_CMD(do_rpremove)
 	CHAR_DATA *victim;
 	OBJ_DATA *obj = NULL, *obj_next;
 	int vnum = 0, count = 0;
-	bool fAll = FALSE;
+	bool fAll = false;
 
 	char name[MIL], *rest;
 
@@ -2182,7 +2182,7 @@ SCRIPT_CMD(do_rpremove)
 		if(is_number(arg->d.str))
 			vnum = atoi(arg->d.str);
 		else if(!str_cmp(arg->d.str,"all"))
-			fAll = TRUE;
+			fAll = true;
 		else
 			strncpy(name,arg->d.str,MIL-1);
 		break;
@@ -2235,7 +2235,7 @@ SCRIPT_CMD(do_rptransfer)
 	char buf[MIL], buf2[MIL], *rest;
 	CHAR_DATA *victim = NULL,*vnext;
 	ROOM_INDEX_DATA *dest;
-	bool all = FALSE, force = FALSE, quiet = FALSE;
+	bool all = false, force = false, quiet = false;
 	int mode;
 
 
@@ -2248,7 +2248,7 @@ SCRIPT_CMD(do_rptransfer)
 
 	switch(arg->type) {
 	case ENT_STRING:
-		if(!str_cmp(arg->d.str,"all")) all = TRUE;
+		if(!str_cmp(arg->d.str,"all")) all = true;
 		else victim = get_char_world(NULL, arg->d.str);
 		break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
@@ -2552,7 +2552,7 @@ SCRIPT_CMD(do_rpinterrupt)
 	ROOM_INDEX_DATA *here;
 
 	int stop, ret = 0;
-	bool silent = FALSE;
+	bool silent = false;
 
 	if(!info || !info->room) return;
 
@@ -2595,7 +2595,7 @@ SCRIPT_CMD(do_rpinterrupt)
 	ret = 0;
 
 	if (IS_SET(stop,INTERRUPT_SILENT))
-		silent = TRUE;
+		silent = true;
 
 	if (IS_SET(stop,INTERRUPT_CAST) && victim->cast > 0) {
 		stop_casting(victim, !silent);
@@ -2640,9 +2640,9 @@ SCRIPT_CMD(do_rpinterrupt)
 
 	if (IS_SET(stop,INTERRUPT_RECITE) && victim->recite > 0) {
 		if(victim->cast_target_name)
-			variables_set_string(info->var,"stoprecitetarget",victim->cast_target_name,FALSE);
+			variables_set_string(info->var,"stoprecitetarget",victim->cast_target_name,false);
 		else
-			variables_set_string(info->var,"stoprecitetarget","",FALSE);
+			variables_set_string(info->var,"stoprecitetarget","",false);
 		variables_set_object(info->var,"stopreciteobj",victim->recite_scroll);
 		victim->recite = 0;
 		victim->cast_target_name = NULL;
@@ -2694,9 +2694,9 @@ SCRIPT_CMD(do_rpinterrupt)
 
 	if (IS_SET(stop,INTERRUPT_RANGED) && victim->ranged > 0) {
 		if(victim->projectile_victim)
-			variables_set_string(info->var,"stoprangedtarget",victim->projectile_victim,FALSE);
+			variables_set_string(info->var,"stoprangedtarget",victim->projectile_victim,false);
 		else
-			variables_set_string(info->var,"stoprangedtarget","",FALSE);
+			variables_set_string(info->var,"stoprangedtarget","",false);
 		variables_set_object(info->var,"stoprangedweapon",victim->projectile_weapon);
 		variables_set_object(info->var,"stoprangedammo",victim->projectile);
 		variables_set_integer(info->var,"stoprangedist",victim->projectile_range);
@@ -2752,8 +2752,8 @@ SCRIPT_CMD(do_rpalterobj)
 	int value, num, min_sec = MIN_SCRIPT_SECURITY;
 	OBJ_DATA *obj = NULL;
 	int min = 0, max = 0;
-	bool hasmin = FALSE, hasmax = FALSE;
-	bool allowarith = TRUE;
+	bool hasmin = false, hasmax = false;
+	bool allowarith = true;
 	const struct flag_type *flags = NULL;
 
 	if(!info || !info->room) return;
@@ -2890,7 +2890,7 @@ SCRIPT_CMD(do_rpalterobj)
 		{
 			if( arg->type != ENT_STRING ) return;
 
-			allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
+			allowarith = false;	// This is a bit vector, no arithmetic operators.
 			value = script_flag_value(flags, arg->d.str);
 
 			if( value == NO_FLAG ) value = 0;
@@ -3037,12 +3037,12 @@ SCRIPT_CMD(do_rpaltermob)
 	CHAR_DATA *mob = NULL;
 
 	int *ptr = NULL;
-	bool allowpc = FALSE;
-	bool allowarith = TRUE;
-	bool allowbitwise = TRUE;
-	bool lookuprace = FALSE;
-	bool hasmin = FALSE;
-	bool hasmax = FALSE;
+	bool allowpc = false;
+	bool allowarith = true;
+	bool allowbitwise = true;
+	bool lookuprace = false;
+	bool hasmin = false;
+	bool hasmax = false;
 	bool check_catalyst = false;
 	const struct flag_type *flags = NULL;
 	const struct flag_type **bank = NULL;
@@ -3104,65 +3104,65 @@ SCRIPT_CMD(do_rpaltermob)
 	else if(!str_cmp(field,"brew"))		ptr = (int*)&mob->brew;
 	else if(!str_cmp(field,"cast"))		ptr = (int*)&mob->cast;
 	else if(!str_cmp(field,"catalystusage"))	{ check_catalyst = true; }
-	else if(!str_cmp(field,"comm"))		{ ptr = IS_NPC(mob)?NULL:(int*)&mob->comm; allowpc = TRUE; allowarith = FALSE; min_sec = 7; flags = comm_flags; }		// 20140512NIB - Allows for scripted fun with player communications, only bit operators allowed
+	else if(!str_cmp(field,"comm"))		{ ptr = IS_NPC(mob)?NULL:(int*)&mob->comm; allowpc = true; allowarith = false; min_sec = 7; flags = comm_flags; }		// 20140512NIB - Allows for scripted fun with player communications, only bit operators allowed
 	else if(!str_cmp(field,"damroll"))	ptr = (int*)&mob->damroll;
-	else if(!str_cmp(field,"danger"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->danger_range; allowpc = TRUE; }
+	else if(!str_cmp(field,"danger"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->danger_range; allowpc = true; }
 	else if(!str_cmp(field,"daze"))		ptr = (int*)&mob->daze;
-	else if(!str_cmp(field,"death"))	{ ptr = (IS_NPC(mob) || !IS_DEAD(mob))?NULL:(int*)&mob->time_left_death; allowpc = TRUE; }
+	else if(!str_cmp(field,"death"))	{ ptr = (IS_NPC(mob) || !IS_DEAD(mob))?NULL:(int*)&mob->time_left_death; allowpc = true; }
 	else if(!str_cmp(field,"dicenumber"))	{ ptr = IS_NPC(mob)?&mob->damage.number:NULL; }
 	else if(!str_cmp(field,"dicetype"))	{ ptr = IS_NPC(mob)?&mob->damage.size:NULL; }
 	else if(!str_cmp(field,"dicebonus"))	{ ptr = IS_NPC(mob)?&mob->damage.bonus:NULL; }
-	else if(!str_cmp(field,"drunk"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_DRUNK]; allowpc = TRUE; }
-//	else if(!str_cmp(field,"exitdir"))	{ ptr = (int*)&mob->exit_dir; allowpc = TRUE; }
-	else if(!str_cmp(field,"exp"))		{ ptr = (int*)&mob->exp; allowpc = TRUE; }
+	else if(!str_cmp(field,"drunk"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_DRUNK]; allowpc = true; }
+//	else if(!str_cmp(field,"exitdir"))	{ ptr = (int*)&mob->exit_dir; allowpc = true; }
+	else if(!str_cmp(field,"exp"))		{ ptr = (int*)&mob->exp; allowpc = true; }
 	else if(!str_cmp(field,"fade"))		ptr = (int*)&mob->fade;
-	else if(!str_cmp(field,"fullness"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_FULL]; allowpc = TRUE; }
+	else if(!str_cmp(field,"fullness"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_FULL]; allowpc = true; }
 	else if(!str_cmp(field,"gold"))		ptr = (int*)&mob->gold;
 	else if(!str_cmp(field,"hide"))		ptr = (int*)&mob->hide;
 	else if(!str_cmp(field,"hit"))		ptr = (int*)&mob->hit;
 	else if(!str_cmp(field,"hitdamage"))	ptr = (int*)&mob->hit_damage;
 	else if(!str_cmp(field,"hitroll"))	ptr = (int*)&mob->hitroll;
-	else if(!str_cmp(field,"hunger"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_HUNGER]; allowpc = TRUE; }
-	else if(!str_cmp(field,"imm"))		{ ptr = (int*)&mob->imm_flags; allowarith = FALSE; flags = imm_flags; }
+	else if(!str_cmp(field,"hunger"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_HUNGER]; allowpc = true; }
+	else if(!str_cmp(field,"imm"))		{ ptr = (int*)&mob->imm_flags; allowarith = false; flags = imm_flags; }
 	else if(!str_cmp(field,"level"))	ptr = (int*)&mob->tot_level;
-	else if(!str_cmp(field,"lostparts"))	{ ptr = (int*)&mob->lostparts; allowarith = FALSE; flags = part_flags; }
+	else if(!str_cmp(field,"lostparts"))	{ ptr = (int*)&mob->lostparts; allowarith = false; flags = part_flags; }
 	else if(!str_cmp(field,"mana"))		ptr = (int*)&mob->mana;
-	else if(!str_cmp(field,"manastore"))	{ ptr = (int*)&mob->manastore; allowpc = TRUE; }
+	else if(!str_cmp(field,"manastore"))	{ ptr = (int*)&mob->manastore; allowpc = true; }
 	else if(!str_cmp(field,"maxexp"))	ptr = (int*)&mob->maxexp;
 	else if(!str_cmp(field,"maxhit"))	ptr = (int*)&mob->max_hit;
 	else if(!str_cmp(field,"maxmana"))	ptr = (int*)&mob->max_mana;
 	else if(!str_cmp(field,"maxmove"))	ptr = (int*)&mob->max_move;
-	else if(!str_cmp(field,"mazed"))	{ ptr = (IS_NPC(mob))?NULL:(int*)&mob->maze_time_left; allowpc = TRUE; }
-	else if(!str_cmp(field,"modcon"))	{ ptr = (int*)&mob->mod_stat[STAT_CON]; allowpc = TRUE; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_CON; }
-	else if(!str_cmp(field,"moddex"))	{ ptr = (int*)&mob->mod_stat[STAT_DEX]; allowpc = TRUE; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_DEX; }
-	else if(!str_cmp(field,"modint"))	{ ptr = (int*)&mob->mod_stat[STAT_INT]; allowpc = TRUE; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_INT; }
-	else if(!str_cmp(field,"modstr"))	{ ptr = (int*)&mob->mod_stat[STAT_STR]; allowpc = TRUE; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_STR; }
-	else if(!str_cmp(field,"modwis"))	{ ptr = (int*)&mob->mod_stat[STAT_WIS]; allowpc = TRUE; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_WIS; }
+	else if(!str_cmp(field,"mazed"))	{ ptr = (IS_NPC(mob))?NULL:(int*)&mob->maze_time_left; allowpc = true; }
+	else if(!str_cmp(field,"modcon"))	{ ptr = (int*)&mob->mod_stat[STAT_CON]; allowpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_CON; }
+	else if(!str_cmp(field,"moddex"))	{ ptr = (int*)&mob->mod_stat[STAT_DEX]; allowpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_DEX; }
+	else if(!str_cmp(field,"modint"))	{ ptr = (int*)&mob->mod_stat[STAT_INT]; allowpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_INT; }
+	else if(!str_cmp(field,"modstr"))	{ ptr = (int*)&mob->mod_stat[STAT_STR]; allowpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_STR; }
+	else if(!str_cmp(field,"modwis"))	{ ptr = (int*)&mob->mod_stat[STAT_WIS]; allowpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_WIS; }
 	else if(!str_cmp(field,"move"))		ptr = (int*)&mob->move;
 	else if(!str_cmp(field,"music"))	ptr = (int*)&mob->music;
 	else if(!str_cmp(field,"norecall"))	ptr = (int*)&mob->no_recall;
 	else if(!str_cmp(field,"panic"))	ptr = (int*)&mob->panic;
 	else if(!str_cmp(field,"paralyzed"))	ptr = (int*)&mob->paralyzed;
 	else if(!str_cmp(field,"paroxysm"))	ptr = (int*)&mob->paroxysm;
-	else if(!str_cmp(field,"parts"))	{ ptr = (int*)&mob->parts; allowarith = FALSE; flags = part_flags; }
-	else if(!str_cmp(field,"permaffects"))	{ ptr = (int*)&mob->affected_by_perm[0]; allowarith = FALSE; flags = affect_flags; }
-	else if(!str_cmp(field,"permaffects2"))	{ ptr = (int*)&mob->affected_by_perm[1]; allowarith = FALSE; flags = affect2_flags; }
-	else if(!str_cmp(field,"permimm"))	{ ptr = (int*)&mob->imm_flags_perm; allowarith = FALSE; flags = imm_flags; }
-	else if(!str_cmp(field,"permres"))	{ ptr = (int*)&mob->res_flags_perm; allowarith = FALSE; flags = imm_flags; }
-	else if(!str_cmp(field,"permvuln"))	{ ptr = (int*)&mob->vuln_flags_perm; allowarith = FALSE; flags = imm_flags; }
+	else if(!str_cmp(field,"parts"))	{ ptr = (int*)&mob->parts; allowarith = false; flags = part_flags; }
+	else if(!str_cmp(field,"permaffects"))	{ ptr = (int*)&mob->affected_by_perm[0]; allowarith = false; flags = affect_flags; }
+	else if(!str_cmp(field,"permaffects2"))	{ ptr = (int*)&mob->affected_by_perm[1]; allowarith = false; flags = affect2_flags; }
+	else if(!str_cmp(field,"permimm"))	{ ptr = (int*)&mob->imm_flags_perm; allowarith = false; flags = imm_flags; }
+	else if(!str_cmp(field,"permres"))	{ ptr = (int*)&mob->res_flags_perm; allowarith = false; flags = imm_flags; }
+	else if(!str_cmp(field,"permvuln"))	{ ptr = (int*)&mob->vuln_flags_perm; allowarith = false; flags = imm_flags; }
 	else if(!str_cmp(field,"pktimer"))	ptr = (int*)&mob->pk_timer;
 	else if(!str_cmp(field,"pneuma"))	ptr = (int*)&mob->pneuma;
 	else if(!str_cmp(field,"practice"))	ptr = (int*)&mob->practice;
-	else if(!str_cmp(field,"race"))		{ ptr = (int*)&mob->race; min_sec = 7; allowarith = FALSE; lookuprace = TRUE; }
+	else if(!str_cmp(field,"race"))		{ ptr = (int*)&mob->race; min_sec = 7; allowarith = false; lookuprace = true; }
 	else if(!str_cmp(field,"ranged"))	ptr = (int*)&mob->ranged;
 	else if(!str_cmp(field,"recite"))	ptr = (int*)&mob->recite;
-	else if(!str_cmp(field,"res"))		{ ptr = (int*)&mob->res_flags;  allowarith = FALSE; flags = imm_flags; }
+	else if(!str_cmp(field,"res"))		{ ptr = (int*)&mob->res_flags;  allowarith = false; flags = imm_flags; }
 	else if(!str_cmp(field,"resurrect"))	ptr = (int*)&mob->resurrect;
 	else if(!str_cmp(field,"reverie"))	ptr = (int*)&mob->reverie;
 	else if(!str_cmp(field,"scribe"))	ptr = (int*)&mob->scribe;
-	else if(!str_cmp(field,"sex"))		{ ptr = (int*)&mob->sex; min = 0; max = 2; hasmin = hasmax = TRUE; flags = sex_flags; }
+	else if(!str_cmp(field,"sex"))		{ ptr = (int*)&mob->sex; min = 0; max = 2; hasmin = hasmax = true; flags = sex_flags; }
 	else if(!str_cmp(field,"silver"))	ptr = (int*)&mob->silver;
-	else if(!str_cmp(field,"size"))		{ ptr = (int*)&mob->size; min = SIZE_TINY; max = SIZE_GIANT; hasmin = hasmax = TRUE; flags = size_flags; }
+	else if(!str_cmp(field,"size"))		{ ptr = (int*)&mob->size; min = SIZE_TINY; max = SIZE_GIANT; hasmin = hasmax = true; flags = size_flags; }
 	else if(!str_cmp(field,"skillchance"))	ptr = (int*)&mob->skill_chance;
 	else if(!str_cmp(field,"sublevel"))	ptr = (int*)&mob->level;
 	else if(!str_cmp(field,"tempstore1"))	ptr = (int*)&mob->tempstore[0];
@@ -3170,14 +3170,14 @@ SCRIPT_CMD(do_rpaltermob)
 	else if(!str_cmp(field,"tempstore3"))	ptr = (int*)&mob->tempstore[2];
 	else if(!str_cmp(field,"tempstore4"))	ptr = (int*)&mob->tempstore[3];
 	else if(!str_cmp(field,"tempstore5"))	ptr = (int*)&mob->tempstore[4];
-	else if(!str_cmp(field,"thirst"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_THIRST]; allowpc = TRUE; }
+	else if(!str_cmp(field,"thirst"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_THIRST]; allowpc = true; }
 	else if(!str_cmp(field,"toxinneuro"))	ptr = (int*)&mob->toxin[TOXIN_NEURO];
 	else if(!str_cmp(field,"toxinpara"))	ptr = (int*)&mob->toxin[TOXIN_PARALYZE];
 	else if(!str_cmp(field,"toxinvenom"))	ptr = (int*)&mob->toxin[TOXIN_VENOM];
 	else if(!str_cmp(field,"toxinweak"))	ptr = (int*)&mob->toxin[TOXIN_WEAKNESS];
 	else if(!str_cmp(field,"train"))	ptr = (int*)&mob->train;
 	else if(!str_cmp(field,"trance"))	ptr = (int*)&mob->trance;
-	else if(!str_cmp(field,"vuln"))		{ ptr = (int*)&mob->vuln_flags; allowarith = FALSE; flags = imm_flags; }
+	else if(!str_cmp(field,"vuln"))		{ ptr = (int*)&mob->vuln_flags; allowarith = false; flags = imm_flags; }
 	else if(!str_cmp(field,"wait"))		ptr = (int*)&mob->wait;
 	else if(!str_cmp(field,"wildviewx"))	ptr = (int*)&mob->wildview_bonus_x;
 	else if(!str_cmp(field,"wildviewy"))	ptr = (int*)&mob->wildview_bonus_y;
@@ -3230,15 +3230,15 @@ SCRIPT_CMD(do_rpaltermob)
 		if( arg->type != ENT_STRING ) return;
 
 		// This is a race, can only be assigned
-		allowarith = FALSE;
-		allowbitwise = FALSE;
+		allowarith = false;
+		allowbitwise = false;
 		value = race_lookup(arg->d.str);
 	}
 	else if( bank != NULL )
 	{
 		if( arg->type != ENT_STRING ) return;
 
-		allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
+		allowarith = false;	// This is a bit vector, no arithmetic operators.
 		if (!script_bitmatrix_lookup(arg->d.str, bank, temp_flags))
 			return;
 
@@ -3256,7 +3256,7 @@ SCRIPT_CMD(do_rpaltermob)
 	{
 		if( arg->type != ENT_STRING ) return;
 
-		allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
+		allowarith = false;	// This is a bit vector, no arithmetic operators.
 		value = script_flag_value(flags, arg->d.str);
 
 		if( value == NO_FLAG ) value = 0;
@@ -3414,7 +3414,7 @@ SCRIPT_CMD(do_rpaltermob)
 		*ptr = max;
 
 	if(dirty_stat >= 0 && dirty_stat < MAX_STATS)
-		mob->dirty_stat[dirty_stat] = TRUE;
+		mob->dirty_stat[dirty_stat] = true;
 }
 
 
@@ -3424,7 +3424,7 @@ SCRIPT_CMD(do_rpstringmob)
 	int min_sec = MIN_SCRIPT_SECURITY;
 	CHAR_DATA *mob = NULL;
 
-	bool newlines = FALSE;
+	bool newlines = false;
 
 	if(!info || !info->room) return;
 
@@ -3480,8 +3480,8 @@ SCRIPT_CMD(do_rpstringmob)
 		if(!str_cmp(field,"name"))				str = (char**)&mob->name;
 		else if(!str_cmp(field,"owner"))		{ str = (char**)&mob->owner; min_sec = 5; }
 		else if(!str_cmp(field,"short"))		str = (char**)&mob->short_descr;
-		else if(!str_cmp(field,"long"))			{ str = (char**)&mob->long_descr; strcat(buf,"\n\r"); newlines = TRUE; }
-		else if(!str_cmp(field,"full"))			{ str = (char**)&mob->description; newlines = TRUE; }
+		else if(!str_cmp(field,"long"))			{ str = (char**)&mob->long_descr; strcat(buf,"\n\r"); newlines = true; }
+		else if(!str_cmp(field,"full"))			{ str = (char**)&mob->description; newlines = true; }
 		else if(!str_cmp(field,"tempstring"))	str = (char**)&mob->tempstring;
 		else
 		{
@@ -3511,7 +3511,7 @@ SCRIPT_CMD(do_rpskimprove)
 	int min_diff, diff;
 	SKILL_DATA *skill = NULL;
 	CHAR_DATA *mob = NULL;
-	bool success = FALSE;
+	bool success = false;
 
 	if(script_security < MIN_SCRIPT_SECURITY) {
 		bug("RpSkImprove - Insufficient security.",0);
@@ -3585,7 +3585,7 @@ SCRIPT_CMD(do_rpskimprove)
 	}
 
 	switch(arg->type) {
-	case ENT_NONE: success = TRUE; break;
+	case ENT_NONE: success = true; break;
 	case ENT_STRING:
 		if(is_number(arg->d.str))
 			success = (bool)(atoi(arg->d.str) != 0);
@@ -3596,7 +3596,7 @@ SCRIPT_CMD(do_rpskimprove)
 	case ENT_NUMBER:
 		success = (bool)(arg->d.num != 0);
 		break;
-	default: success = FALSE;
+	default: success = false;
 	}
 
 	check_improve( mob, skill, success, diff );
@@ -3653,7 +3653,7 @@ SCRIPT_CMD(do_rprawkill)
 	}
 
 	switch(arg->type) {
-	case ENT_NONE:	has_head = TRUE; break;
+	case ENT_NONE:	has_head = true; break;
 	case ENT_STRING:
 		has_head = !str_cmp(arg->d.str,"true") ||
 			!str_cmp(arg->d.str,"yes") ||
@@ -3668,7 +3668,7 @@ SCRIPT_CMD(do_rprawkill)
 	}
 
 	switch(arg->type) {
-	case ENT_NONE:	show_msg = TRUE; break;
+	case ENT_NONE:	show_msg = true; break;
 	case ENT_STRING:
 		show_msg = !str_cmp(arg->d.str,"true") ||
 			!str_cmp(arg->d.str,"yes");
@@ -4195,7 +4195,7 @@ SCRIPT_CMD(do_rpinput)
 	BUFFER *buffer = new_buf();
 	expand_string(info,rest,buffer);
 
-	mob->desc->input = TRUE;
+	mob->desc->input = true;
 	mob->desc->input_var = p ? str_dup(p) : NULL;
 	mob->desc->input_prompt = str_dup(buffer->string[0] ? buffer->string : " >");
 	mob->desc->input_script = wnum;
@@ -4300,8 +4300,8 @@ SCRIPT_CMD(do_rpalterexit)
 	int16_t *sptr = NULL;
 	char **str;
 	int min = 0, max = 0;
-	bool hasmin = FALSE, hasmax = FALSE;
-	bool allowarith = TRUE;
+	bool hasmin = false, hasmax = false;
+	bool allowarith = true;
 	bool check_material = false;
 	const struct flag_type *flags = NULL;
 
@@ -4441,7 +4441,7 @@ SCRIPT_CMD(do_rpalterexit)
 	{
 		if( arg->type != ENT_STRING || !ptr ) return;
 
-		allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
+		allowarith = false;	// This is a bit vector, no arithmetic operators.
 		value = script_flag_value(flags, arg->d.str);
 
 		if( value == NO_FLAG ) value = 0;
@@ -4726,7 +4726,7 @@ SCRIPT_CMD(do_rpcloneroom)
 	OBJ_DATA *obj;
 	TOKEN_DATA *tok;
 	ROOM_INDEX_DATA *source, *room, *clone;
-	bool no_env = FALSE;
+	bool no_env = false;
 
 	if(!info || !info->room) return;
 
@@ -4756,7 +4756,7 @@ SCRIPT_CMD(do_rpcloneroom)
 		room = NULL;
 		tok = NULL;
 		if(!str_cmp(arg->d.str, "none"))
-			no_env = TRUE;
+			no_env = true;
 		break;
 	default: return;
 	}
@@ -4790,9 +4790,9 @@ SCRIPT_CMD(do_rpalterroom)
 	int *ptr = NULL;
 	int16_t *sptr = NULL;
 	char **str;
-	bool allow_empty = FALSE;
-	bool allowarith = TRUE;
-	bool allowbitwise = TRUE;
+	bool allow_empty = false;
+	bool allowarith = true;
+	bool allowbitwise = true;
 	const struct flag_type *flags = NULL;
 	const struct flag_type **bank = NULL;
 	long temp_flags[4];
@@ -4892,8 +4892,8 @@ SCRIPT_CMD(do_rpalterroom)
 
 	str = NULL;
 	if(!str_cmp(field,"name"))		str = &room->name;
-	else if(!str_cmp(field,"desc"))		{ str = &room->description; allow_empty = TRUE; }
-	else if(!str_cmp(field,"owner"))	{ str = &room->owner; allow_empty = TRUE; min_sec = 9; }
+	else if(!str_cmp(field,"desc"))		{ str = &room->description; allow_empty = true; }
+	else if(!str_cmp(field,"owner"))	{ str = &room->owner; allow_empty = true; min_sec = 9; }
 
 	if(str) {
 		if(script_security < min_sec) {
@@ -4952,7 +4952,7 @@ SCRIPT_CMD(do_rpalterroom)
 	{
 		if( arg->type != ENT_STRING ) return;
 
-		allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
+		allowarith = false;	// This is a bit vector, no arithmetic operators.
 		if (!script_bitmatrix_lookup(arg->d.str, bank, temp_flags))
 			return;
 
@@ -4975,7 +4975,7 @@ SCRIPT_CMD(do_rpalterroom)
 	{
 		if( arg->type != ENT_STRING ) return;
 
-		allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
+		allowarith = false;	// This is a bit vector, no arithmetic operators.
 		value = script_flag_value(flags, arg->d.str);
 
 		if( value == NO_FLAG ) value = 0;
@@ -5280,13 +5280,13 @@ SCRIPT_CMD(do_rpshowroom)
 			for(viewer = room->people; viewer; viewer = next) {
 				next = viewer->next_in_room;
 				if(!IS_NPC(viewer) && (force || (IS_AWAKE(viewer) && check_vision(viewer,dest,false,false)))) {
-					show_map_to_char_wyx(wilds,x,y, viewer,x,y, width + viewer->wildview_bonus_x, height + viewer->wildview_bonus_y, FALSE);
+					show_map_to_char_wyx(wilds,x,y, viewer,x,y, width + viewer->wildview_bonus_x, height + viewer->wildview_bonus_y, false);
 				}
 			}
 		} else if(!IS_NPC(viewer)) {
 			// There is no awake check here since it is to one mob.
 			//  This can be used in things like DREAMS, seeing yourself at a certain location!
-			show_map_to_char_wyx(wilds,x,y, viewer,x,y, width + viewer->wildview_bonus_x, height + viewer->wildview_bonus_y, FALSE);
+			show_map_to_char_wyx(wilds,x,y, viewer,x,y, width + viewer->wildview_bonus_x, height + viewer->wildview_bonus_y, false);
 		}
 		return;
 	}
@@ -5795,7 +5795,7 @@ SCRIPT_CMD(do_rppersist)
 	CHAR_DATA *mob = NULL;
 	OBJ_DATA *obj = NULL;
 	ROOM_INDEX_DATA *room = NULL;
-	bool persist = FALSE, current = FALSE;
+	bool persist = false, current = false;
 
 
 	if(!info || !info->room) return;
@@ -5968,7 +5968,7 @@ SCRIPT_CMD(do_rpskillgroup)
 
 	char *rest;
 	CHAR_DATA *mob = NULL;
-	bool fAdd = FALSE;
+	bool fAdd = false;
 
 	if(!info || !info->room || IS_NULLSTR(argument)) return;
 
@@ -5988,9 +5988,9 @@ SCRIPT_CMD(do_rpskillgroup)
 	argument = one_argument(rest,buf);
 
 	if( !str_cmp(buf, "add") )
-		fAdd = TRUE;
+		fAdd = true;
 	else if(!str_cmp(buf, "remove"))
-		fAdd = FALSE;
+		fAdd = false;
 	else
 		return;
 
@@ -6198,7 +6198,7 @@ SCRIPT_CMD(do_rpremspell)
 	OBJ_DATA *target;
 	int level;
 	int sn;
-	bool found = FALSE, show = TRUE;
+	bool found = false, show = true;
 	AFFECT_DATA *paf;
 
 	if(!info || !info->room || IS_NULLSTR(argument)) return;
@@ -6228,11 +6228,11 @@ SCRIPT_CMD(do_rpremspell)
 		if(arg->type != ENT_STRING || IS_NULLSTR(arg->d.str)) return;
 
 		if( !str_cmp(arg->d.str, "silent") )
-			show = FALSE;
+			show = false;
 	}
 
 
-	found = FALSE;
+	found = false;
 	spell_prev = NULL;
 	for(spell = target->spells; spell; spell_prev = spell, spell = spell->next) {
 		if( spell->sn == sn ) {
@@ -6245,7 +6245,7 @@ SCRIPT_CMD(do_rpremspell)
 
 			free_spell(spell);
 
-			found = TRUE;
+			found = true;
 			break;
 		}
 	}
@@ -6274,7 +6274,7 @@ SCRIPT_CMD(do_rpremspell)
 				return;
 			}
 
-			found = FALSE;
+			found = false;
 			level = 0;
 
 
@@ -6286,7 +6286,7 @@ SCRIPT_CMD(do_rpremspell)
 						if (spell->sn == sn && spell->level > level ) {
 							level = spell->level;	// Keep the maximum
 							found_loc = obj_tmp->wear_loc;
-							found = TRUE;
+							found = true;
 						}
 					}
 				}
@@ -6638,7 +6638,7 @@ SCRIPT_CMD(do_rpgroup)
 	char *rest;
 
 	CHAR_DATA *follower, *leader;
-	bool fShow = TRUE;
+	bool fShow = true;
 
 	if(!info || !info->room || IS_NULLSTR(argument)) return;
 
@@ -6683,7 +6683,7 @@ SCRIPT_CMD(do_rpungroup)
 {
 	char *rest;
 
-	bool fAll = FALSE;
+	bool fAll = false;
 
 	if(!info || !info->room || IS_NULLSTR(argument)) return;
 

@@ -86,7 +86,7 @@ void update_handler(void)
     if (--pulse_area <= 0)
     {
         pulse_area = PULSE_AREA;
-	area_update(FALSE);
+	area_update(false);
 	//write_permanent_objs();
 	persist_save();
 	write_mail();
@@ -400,7 +400,7 @@ void gain_exp(CHAR_DATA *ch, CLASS_DATA *clazz, int gain)
 			log_string(buf);
 			sprintf(buf,"$N has attained level %d as %s!",level->level, level->clazz->name);
 			wiznet(buf,ch,NULL,WIZ_LEVELS,0,0);
-			advance_level(ch,FALSE);
+			advance_level(ch,false);
 
 			p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,TRIG_LEVEL, NULL,0,0,0,0,0);
 
@@ -447,7 +447,7 @@ int hit_gain(CHAR_DATA *ch)
 		{
 			gain += number * gain / 100;
 			if (ch->hit < ch->max_hit)
-				check_improve(ch,gsk_fast_healing,TRUE,8);
+				check_improve(ch,gsk_fast_healing,true,8);
 		}
 
 		switch (ch->position)
@@ -534,7 +534,7 @@ int mana_gain(CHAR_DATA *ch)
 		{
 			gain += number * gain / 100;
 			if (ch->mana < ch->max_mana)
-				check_improve(ch,gsk_meditation,TRUE,8);
+				check_improve(ch,gsk_meditation,true,8);
 		}
 
 		/*
@@ -852,7 +852,7 @@ void mobile_update(void)
 				}
 			}
 
-			extract_char(ch, TRUE);
+			extract_char(ch, true);
 			continue;
 		}
 
@@ -876,14 +876,14 @@ void mobile_update(void)
 			if( ch->shop->restock_interval > 0 ) {
 				if( ch->shop->next_restock < current_time ) {
 
-					bool restocked = FALSE;
+					bool restocked = false;
 					for(SHOP_STOCK_DATA *stock = ch->shop->stock; stock; stock = stock->next)
 					{
 						if( stock->max_quantity > 0 && stock->restock_rate > 0 && stock->quantity < stock->max_quantity)
 						{
 							stock->quantity += stock->restock_rate;
 							stock->quantity = UMIN(stock->quantity, stock->max_quantity);
-							restocked = TRUE;
+							restocked = true;
 
 						}
 					}
@@ -926,7 +926,7 @@ void mobile_update(void)
 		if (ch->belongs_to_ship != NULL &&
 			!IS_NPC_SHIP(ch->belongs_to_ship) &&
 			current_time > ch->hired_to) {
-			extract_char(ch, TRUE);
+			extract_char(ch, true);
 			continue;
 		}
 */
@@ -941,7 +941,7 @@ void mobile_update(void)
 				// - when no script gets executed, extraction will be performed
 				if(p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_CONTRACT_COMPLETE, NULL,0,0,0,0,0) <= 0)
 				{
-					extract_char(ch, TRUE);
+					extract_char(ch, true);
 					continue;
 				}
 
@@ -961,8 +961,8 @@ void mobile_update(void)
 				if( rider != NULL )
 				{
 					// Silently dismount
-					rider->riding = FALSE;
-					ch->riding = FALSE;
+					rider->riding = false;
+					ch->riding = false;
 					ch->rider = NULL;
 					rider->mount = NULL;
 				}
@@ -1006,7 +1006,7 @@ void mobile_update(void)
 			obj_best = 0;
 			for (obj = ch->in_room->contents; obj; obj = obj->next_content)
 			{
-			if (!can_get_obj(ch, obj, NULL, NULL, TRUE))
+			if (!can_get_obj(ch, obj, NULL, NULL, true))
 				continue;
 
 			if (CAN_WEAR(obj, ITEM_TAKE)
@@ -1065,7 +1065,7 @@ void mobile_update(void)
 			 || IS_SET(pexit->u1.to_room->room_flag[0],ROOM_INDOORS))) {
 				 AREA_REGION *to_region = get_room_region(pexit->u1.to_room);
 				 if (!IS_SET(ch->act[1], ACT2_STAY_REGION) || region == to_region)
-					move_char(ch, door, FALSE, false);
+					move_char(ch, door, false, false);
 			 }
 		}
     }
@@ -1462,7 +1462,7 @@ void char_update(void)
 				number_percent() < 1) {
 				act("$n wanders on home.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 				if(ch->home_room == NULL) {
-					extract_char(ch, TRUE);
+					extract_char(ch, true);
 					continue;
 				} else {
 					char_from_room(ch);
@@ -1494,17 +1494,17 @@ void char_update(void)
 		// Those whose form does not breath ignore this.
 		if (!IS_NPC(ch) && !IS_SET(ch->form, FORM_NO_BREATHING) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act[1], PLR_HOLYAURA)))
 		{
-			bool underwater = FALSE;
+			bool underwater = false;
 			if (IS_SET(ch->in_room->room_flag[0], ROOM_UNDERWATER))
-				underwater = TRUE;
+				underwater = true;
 			
 			if (ch->on_compartment)
 			{
 				if (compartment_is_closed(ch->on_compartment))
-					underwater = FALSE;
+					underwater = false;
 				
 				if (IS_SET(ch->on_compartment->flags, COMPARTMENT_UNDERWATER))
-					underwater = TRUE;
+					underwater = true;
 			}
 
 			if (underwater)
@@ -1516,7 +1516,7 @@ void char_update(void)
 				{
 					send_to_char("You choke and gag as your lungs fill with water!\n\r", ch);
 					act("$n thrashes about in the water gasping for air!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-					damage(ch, ch, ch->hit/2, NULL, TYPE_UNDEFINED, DAM_DROWNING,FALSE);
+					damage(ch, ch, ch->hit/2, NULL, TYPE_UNDEFINED, DAM_DROWNING,false);
 				}
 			}
 			else
@@ -1527,7 +1527,7 @@ void char_update(void)
 				{
 					send_to_char("You gasp for air but are unable to breathe!\n\r", ch);
 					act("$n thrashes about gasping for air!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-					damage(ch, ch, ch->hit/2, NULL, TYPE_UNDEFINED, DAM_SUFFOCATING,FALSE);
+					damage(ch, ch, ch->hit/2, NULL, TYPE_UNDEFINED, DAM_SUFFOCATING,false);
 				}
 			}
 		}
@@ -1561,18 +1561,18 @@ void char_update(void)
 		// Return from dead
 		if (!IS_NPC(ch) && ch->time_left_death > 0)
 		{
-			bool run_death_timer = TRUE;
+			bool run_death_timer = true;
 			OBJ_DATA *corpse = ch->pcdata->corpse;
 			ROOM_INDEX_DATA *corpse_room = obj_room(corpse);
 			// Check here, prevent the timer from counting down
 			if(p_percent_trigger(ch, NULL, NULL, NULL, ch, ch, NULL, corpse, NULL, TRIG_DEATH_TIMER, NULL,0,0,0,0,0))
-				run_death_timer = FALSE;
+				run_death_timer = false;
 
 			if( run_death_timer && IS_VALID(corpse) && p_percent_trigger(NULL, corpse, NULL, NULL, ch, ch, NULL, corpse, NULL, TRIG_DEATH_TIMER, NULL,0,0,0,0,0) )
-				run_death_timer = FALSE;
+				run_death_timer = false;
 
 			if( run_death_timer && corpse_room && p_percent_trigger(NULL, NULL, corpse_room, NULL, ch, ch, NULL, corpse, NULL, TRIG_DEATH_TIMER, NULL,0,0,0,0,0) )
-				run_death_timer = FALSE;
+				run_death_timer = false;
 
 			// TODO: Make a way to keep this while dead
 			// Perform actions while the player is dead regardless of timer running
@@ -1673,7 +1673,7 @@ void char_update(void)
 
 
 					if (ch->fighting != NULL)
-						stop_fighting(ch, TRUE);
+						stop_fighting(ch, true);
 
 					act("{D$n disappears into the void.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 					send_to_char("{DYou disappear into the void.\n\r{x", ch);
@@ -1724,7 +1724,7 @@ void char_update(void)
 						{
 							act("{YZAAAAAAAAAAAAAAP! You are struck by a bolt from the sky...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
-							damage(ch, ch, lbdam, gsk_lightning_bolt, TYPE_UNDEFINED, DAM_LIGHTNING, FALSE);
+							damage(ch, ch, lbdam, gsk_lightning_bolt, TYPE_UNDEFINED, DAM_LIGHTNING, false);
 						}
 						break;
 					case 5:
@@ -1767,7 +1767,7 @@ void char_update(void)
 				// Find someone to SLAUGHTER
 				for (player = ch->in_room->people; player != NULL; player = player->next_in_room)
 				{
-					if (player->fighting == NULL && !is_safe(ch, player,FALSE) && player->alignment < 150 && !is_same_group(player,ch))
+					if (player->fighting == NULL && !is_safe(ch, player,false) && player->alignment < 150 && !is_same_group(player,ch))
 						break;
 				}
 
@@ -1794,10 +1794,10 @@ void char_update(void)
 						send_to_char(buf, ch);
 
 						if (obj->wear_loc != WEAR_NONE)
-							remove_obj(ch, obj->wear_loc, TRUE);
+							remove_obj(ch, obj->wear_loc, true);
 
 						do_function(ch, &do_drop, obj->name);
-						damage(ch, ch, obj->level, NULL, TYPE_UNDEFINED, DAM_NONE,FALSE);
+						damage(ch, ch, obj->level, NULL, TYPE_UNDEFINED, DAM_NONE,false);
 					}
 				}
 
@@ -1814,14 +1814,14 @@ void char_update(void)
 			// If they are physically flying... drain movement slowly
 			if (!IS_NPC(ch) && is_affected(ch, gsk_flight))
 			{
-				bool fall = FALSE;
+				bool fall = false;
 				int amount, weight;
 				char *reason = "Feeling exhausted";
 
 				// Lacking WINGS?
 				if(!IS_SET(ch->parts,PART_WINGS)) {
 					reason = "Lacking the ability to stay airborne";
-					fall = TRUE;
+					fall = true;
 				} else {
 					amount = get_curr_stat(ch,STAT_CON);
 					amount = URANGE(3,amount,50);
@@ -1844,7 +1844,7 @@ void char_update(void)
 
 					if(number_range(0,ch->max_move/get_curr_stat(ch,STAT_CON)) > ch->move) {
 						reason = "Exhausted from flying";
-						fall = TRUE;
+						fall = true;
 					}
 				}
 
@@ -1856,13 +1856,13 @@ void char_update(void)
 						ch->in_room->sector_type == SECT_DEEP_UNDERWATER) {
 						act("$t, you plummet into the water below.", ch, NULL, NULL, NULL, NULL, reason, NULL, TO_CHAR);
 						act("$t, $n plummets into the water below.", ch, NULL, NULL, NULL, NULL, reason, NULL, TO_ROOM);
-						damage(ch, ch, number_range(10,100), NULL, TYPE_UNDEFINED, IS_AFFECTED(ch,AFF_SWIM)?DAM_WATER:DAM_DROWNING, FALSE);
-						if(RIDDEN(ch)) damage(RIDDEN(ch), RIDDEN(ch), number_range(10,100), NULL, TYPE_UNDEFINED, IS_AFFECTED(RIDDEN(ch),AFF_SWIM)?DAM_WATER:DAM_DROWNING, FALSE);
+						damage(ch, ch, number_range(10,100), NULL, TYPE_UNDEFINED, IS_AFFECTED(ch,AFF_SWIM)?DAM_WATER:DAM_DROWNING, false);
+						if(RIDDEN(ch)) damage(RIDDEN(ch), RIDDEN(ch), number_range(10,100), NULL, TYPE_UNDEFINED, IS_AFFECTED(RIDDEN(ch),AFF_SWIM)?DAM_WATER:DAM_DROWNING, false);
 					} else {
 						act("$t, you plummet to the ground below.", ch, NULL, NULL, NULL, NULL, reason, NULL, TO_CHAR);
 						act("$t, $n plummets to the ground below.", ch, NULL, NULL, NULL, NULL, reason, NULL, TO_ROOM);
-						damage(ch, ch, number_range(20,250), NULL, TYPE_UNDEFINED, DAM_BASH, FALSE);
-						if(RIDDEN(ch)) damage(RIDDEN(ch), RIDDEN(ch), number_range(20,250), NULL, TYPE_UNDEFINED, DAM_BASH, FALSE);
+						damage(ch, ch, number_range(20,250), NULL, TYPE_UNDEFINED, DAM_BASH, false);
+						if(RIDDEN(ch)) damage(RIDDEN(ch), RIDDEN(ch), number_range(20,250), NULL, TYPE_UNDEFINED, DAM_BASH, false);
 					}
 				}
 		    }
@@ -1881,14 +1881,14 @@ void char_update(void)
 				    act("You cough and splutter as you breath in a lung full of water.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 				    act("$n coughs and splutters as $s breaths in a lung full of water.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-				    damage(ch, ch, 30000, NULL, TYPE_UNDEFINED, DAM_DROWNING, FALSE);
+				    damage(ch, ch, 30000, NULL, TYPE_UNDEFINED, DAM_DROWNING, false);
 				}
 		    }
 
 			// Fire off deathtraps.
 		    if (IS_SET(ch->in_room->room_flag[0], ROOM_DEATH_TRAP) &&
 		    	!IS_SET(ch->in_room->room_flag[0], ROOM_CHAOTIC)) {		// no chaotic-deathtraps
-					raw_kill(ch, TRUE, FALSE, RAWKILL_NORMAL);
+					raw_kill(ch, true, false, RAWKILL_NORMAL);
 		    }
 
 			// The enchanted forest saps hit,mana, and move.
@@ -1902,7 +1902,7 @@ void char_update(void)
 				{
 				    send_to_char("You feel yourself disintegrate into dust.\n\r", ch);
 				    act("$n disintegrates into dust.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-				    raw_kill(ch, FALSE, TRUE, RAWKILL_INCINERATE);
+				    raw_kill(ch, false, true, RAWKILL_INCINERATE);
 				}
 
 				ch->mana = ch->mana - ch->max_mana/4;
@@ -1921,7 +1921,7 @@ void char_update(void)
 				    if (room_is_dark(ch->in_room))
 				    {
 						send_to_char("{RSomething bites you on the ass really hard.{x\n\r", ch);
-						damage(ch, ch, ch->max_hit, NULL, TYPE_UNDEFINED, DAM_NONE,FALSE);
+						damage(ch, ch, ch->max_hit, NULL, TYPE_UNDEFINED, DAM_NONE,false);
 				    }
 				    else // Creepy messages
 				    {
@@ -2026,14 +2026,14 @@ void char_update(void)
 				act("$n shivers and suffers.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 				send_to_char("You shiver and suffer.\n\r", ch);
 				ch->set_death_type = DEATHTYPE_TOXIN;
-				damage(ch, ch, poison->level/10 + 1, gsk_poison, TYPE_UNDEFINED, DAM_POISON, FALSE);
+				damage(ch, ch, poison->level/10 + 1, gsk_poison, TYPE_UNDEFINED, DAM_POISON, false);
 		    }
 		}
 		// Folks on the verge of death eventually go the whole way w/o help.
 		else if (ch->position == POS_INCAP && number_range(0,1) == 0)
-		    damage(ch, ch, 1, NULL, TYPE_UNDEFINED, DAM_NONE,FALSE);
+		    damage(ch, ch, 1, NULL, TYPE_UNDEFINED, DAM_NONE,false);
 		else if (ch->position == POS_MORTAL)
-		    damage(ch, ch, 1, NULL, TYPE_UNDEFINED, DAM_NONE,FALSE);
+		    damage(ch, ch, 1, NULL, TYPE_UNDEFINED, DAM_NONE,false);
     }
 
 
@@ -2195,7 +2195,7 @@ void obj_update(void)
 							continue;
 						}
 
-						new_obj = create_object(get_obj_index(obj->pIndexData->area, obj->value[1]), obj->level, TRUE);
+						new_obj = create_object(get_obj_index(obj->pIndexData->area, obj->value[1]), obj->level, true);
 						obj_to_room(new_obj, obj->in_room);
 
 						p_percent_trigger(NULL, new_obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
@@ -2206,7 +2206,7 @@ void obj_update(void)
 		}
 
 		// Ice storms - work in PK rooms
-		if (obj->in_room != NULL && IS_MIST(obj) && MIST(obj)->icy > 0 && is_room_pk(obj->in_room, TRUE)) {
+		if (obj->in_room != NULL && IS_MIST(obj) && MIST(obj)->icy > 0 && is_room_pk(obj->in_room, true)) {
 			for (rch = obj->in_room->people; rch != NULL; rch = rch_next) if(MIST(obj)->icy > number_percent()) {
 				rch_next = rch->next_in_room;
 
@@ -2356,7 +2356,7 @@ void obj_update(void)
 		if ((obj->timer <= 0 || --obj->timer > 0))
 			continue;
 
-		nuke_obj = TRUE;
+		nuke_obj = true;
 		spill_contents = 100;
 
 		if (!p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_TIMER_EXPIRE, NULL,0,0,0,0,0))
@@ -2398,7 +2398,7 @@ void obj_update(void)
 					set_corpse_data(obj,corpse_info_table[CORPSE_TYPE(obj)].decay_type);
 					spill_contents += corpse_info_table[CORPSE_TYPE(obj)].decay_spill_chance;
 					spill_contents /= 2;	// Split the difference
-					nuke_obj = FALSE;
+					nuke_obj = false;
 				}
 				break;
 
@@ -2617,7 +2617,7 @@ void aggr_update(void)
 			}
 
 			if((tox = affect_find(wch->affected,gsk_toxic_fumes))) {
-				int cough = FALSE;
+				int cough = false;
 
 				// is the mobile in a Toxic Bog?
 				if(wch->in_room &&
@@ -2645,7 +2645,7 @@ void aggr_update(void)
 
 					// Coughing messages
 					if(number_range(0,199) < chance) {
-						cough = TRUE;
+						cough = true;
 						if(number_percent() < 50)
 							send_to_char("{xYou cough uncontrollably from the toxic fumes.\n\r", wch);
 						else
@@ -2660,7 +2660,7 @@ void aggr_update(void)
 
 					// Coughing messages
 					if(number_percent() < 4) {
-						cough = TRUE;
+						cough = true;
 						send_to_char("{xYou cough uncontrollably.\n\r", wch);
 						act("{x$n coughs uncontrollably.", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 					}
@@ -2674,7 +2674,7 @@ void aggr_update(void)
 					WAIT_STATE(wch,cough);
 
 					if(number_percent() < 50)
-						damage(wch, wch, number_range(5,10), gsk_toxic_fumes, TYPE_UNDEFINED, DAM_NONE, FALSE);
+						damage(wch, wch, number_range(5,10), gsk_toxic_fumes, TYPE_UNDEFINED, DAM_NONE, false);
 				}
 			} else {
 				if(IS_SET(wch->in_room->room_flag[1], ROOM_TOXIC_BOG)) chance += 50;
@@ -2702,7 +2702,7 @@ void aggr_update(void)
 		if(chance > 0 && number_percent() < chance) {
 			if(number_percent() < 2)
 				send_to_char("{gThe sharp thorns scratch at your skin.{x\n\r", wch);
-			damage(wch, wch, number_range(chance/2,chance), NULL, TYPE_UNDEFINED, DAM_NONE, FALSE);
+			damage(wch, wch, number_range(chance/2,chance), NULL, TYPE_UNDEFINED, DAM_NONE, false);
 		}
 	}
 	// @@@NIB : 20070126 --------
@@ -2723,7 +2723,7 @@ void aggr_update(void)
 	// This is for inferno, withering cloud, etc.
 	if (wch->in_room != NULL &&
 		number_percent() < 10 &&
-		!is_safe(wch, wch, FALSE) &&
+		!is_safe(wch, wch, false) &&
 		((IS_NPC(wch) && wch->shop == NULL) || (IS_SET(wch->in_room->room_flag[0], ROOM_PK)) || is_pk(wch)))
 	{
 	    for (obj = wch->in_room->contents; obj != NULL; obj = obj->next_content)
@@ -2735,7 +2735,7 @@ void aggr_update(void)
 				{
 					act("{RYou are scorched by flames!{x", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 					act("{R$n is scorched by flames!{x", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-					damage(wch, wch, number_range(50, 500),NULL,TYPE_UNDEFINED, DAM_FIRE, FALSE);
+					damage(wch, wch, number_range(50, 500),NULL,TYPE_UNDEFINED, DAM_FIRE, false);
 				}
 				else if (MIST(obj)->fiery > number_percent())
 				{
@@ -2866,7 +2866,7 @@ void aggr_update(void)
 				{
 					act("{YYou are struck by lightning!{x", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 					act("{Y$n is struck by lightning!{x", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-					damage(wch, wch, number_range(50, 500),NULL,TYPE_UNDEFINED, DAM_LIGHTNING, FALSE);
+					damage(wch, wch, number_range(50, 500),NULL,TYPE_UNDEFINED, DAM_LIGHTNING, false);
 				}
 				else if (MIST(obj)->shock > number_percent())
 				{
@@ -2965,7 +2965,7 @@ void aggr_update(void)
 	&&  wch->boarded_ship != NULL)
 	{
 	    int i;
-	    bool no_enemy_left = TRUE;
+	    bool no_enemy_left = true;
 
 	    for (i = 0; i < MAX_SHIP_ROOMS; i++)
 	    {
@@ -2999,7 +2999,7 @@ void aggr_update(void)
 				vch->boarded_ship == wch->boarded_ship &&
 				vch->belongs_to_ship != wch->belongs_to_ship)
 			{
-			    no_enemy_left = FALSE;
+			    no_enemy_left = false;
 			    //	    gecho("FOUND!@!##@!!");
 			    if (wch->in_room == vch->in_room)
 			    {
@@ -3032,7 +3032,7 @@ void aggr_update(void)
       wch->target_name != NULL &&
       wch->fighting == NULL) {
      CHAR_DATA *target = get_player(wch->target_name);
-     bool consider_going = FALSE;
+     bool consider_going = false;
 
      if (target != NULL) {
      	if (wch->in_room == target->in_room) {
@@ -3040,7 +3040,7 @@ void aggr_update(void)
       }
       else {
         if (wch->in_room->area != target->in_room->area) {
-          consider_going = TRUE;
+          consider_going = true;
         }
         else {
           if (number_percent() < 10) {
@@ -3054,12 +3054,12 @@ void aggr_update(void)
      }
      }
      else {
-       consider_going = TRUE;
+       consider_going = true;
      }
 
      if (number_percent() < 2 && number_percent() < 50) {
        act("$n gives up with the hunt and leaves.", wch, NULL, NULL, TO_ROOM);
-       extract_char(wch, FALSE);
+       extract_char(wch, false);
        continue;
      }
   }
@@ -3094,13 +3094,13 @@ void aggr_update(void)
 			    continue;
 
 			// Evasion lets you get away from aggro mobs.
-			if (check_evasion(wch) == TRUE)
+			if (check_evasion(wch) == true)
 			{
-				check_improve(wch, gsk_evasion, TRUE, 8);
+				check_improve(wch, gsk_evasion, true, 8);
 				continue;
 			}
 			else
-				check_improve(wch, gsk_evasion, FALSE, 8);
+				check_improve(wch, gsk_evasion, false, 8);
 
 			// Make the NPC agressor (ch) attack a RANDOM person in the room.
 			count = 0;
@@ -3176,15 +3176,15 @@ void update_hunting(void)
 	||  IS_SET(mob->hunting->in_room->room_flag[0], ROOM_SAFE)
 	||  !can_see(mob, mob->hunting)
 	||  number_percent() < get_skill(mob->hunting, gsk_trackless_step)/2
-	||  (check_evasion(mob->hunting) == TRUE && number_percent() < 33))
-	    stop_hunt(mob, FALSE);
+	||  (check_evasion(mob->hunting) == true && number_percent() < 33))
+	    stop_hunt(mob, false);
 	else
 	{
 	    int result;
 
 	    if (mob->in_room == NULL)
 	    {
-		stop_hunt(mob, TRUE);
+		stop_hunt(mob, true);
 		continue;
 	    }
 
@@ -3197,7 +3197,7 @@ void update_hunting(void)
 		||  !IS_AWAKE(mob)
 		||  !can_see(mob, mob->hunting)
 		||  number_bits(1) == 0
-		||  check_evasion(mob->hunting) == TRUE)
+		||  check_evasion(mob->hunting) == true)
 		    continue;
 
 		multi_hit(mob, mob->hunting, NULL, TYPE_UNDEFINED);
@@ -3210,15 +3210,15 @@ void update_hunting(void)
 		continue;
 	    }
 	    else
-		direction = find_path(mob->in_room->area, mob->in_room->vnum, mob->hunting->in_room->area, mob->hunting->in_room->vnum, mob, -600, FALSE);
+		direction = find_path(mob->in_room->area, mob->in_room->vnum, mob->hunting->in_room->area, mob->hunting->in_room->vnum, mob, -600, false);
 
 	    if (direction == -1)
 	    {
-		stop_hunt(mob, FALSE);
+		stop_hunt(mob, false);
 		continue;
 	    }
 
-	    move_char(mob, direction, FALSE, false);
+	    move_char(mob, direction, false, false);
 
 	    result = number_range(0, 2);
 
@@ -3287,7 +3287,7 @@ void update_hunting_pc(CHAR_DATA *ch)
 	return;
     }
 
-    direction = find_path(ch->in_room->area, ch->in_room->vnum, victim->in_room->area, victim->in_room->vnum, ch, -500, FALSE);
+    direction = find_path(ch->in_room->area, ch->in_room->vnum, victim->in_room->area, victim->in_room->vnum, ch, -500, false);
 
     if (direction == -1)
     {
@@ -3334,7 +3334,7 @@ void update_hunting_pc(CHAR_DATA *ch)
 
 	deduct_move(ch, 5);
 
-	move_char(ch, direction, TRUE, false);
+	move_char(ch, direction, true, false);
 
 	// Found them
 	if (ch->in_room == victim->in_room)
@@ -3373,7 +3373,7 @@ void pneuma_relic_update(void)
 
         if (chance > 80)
 	{
-	    pneuma = create_object(obj_index_bottled_soul, 0, TRUE);
+	    pneuma = create_object(obj_index_bottled_soul, 0, true);
 	    obj_to_room(pneuma, pneuma_relic->in_room);
 
             for (people = pneuma_relic->in_room->people; people != NULL; people = people->next_in_room)
@@ -3525,7 +3525,7 @@ void bitten_update(CHAR_DATA *ch)
 	}
     }
 
-    damage(ch, ch, dice(UMAX(ch->bitten_level/8, 4),1), gsk_toxins, TYPE_UNDEFINED, DAM_POISON, FALSE);
+    damage(ch, ch, dice(UMAX(ch->bitten_level/8, 4),1), gsk_toxins, TYPE_UNDEFINED, DAM_POISON, false);
 
     --ch->bitten;
     if (ch->bitten <= 0)

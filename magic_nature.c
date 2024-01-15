@@ -29,7 +29,7 @@ SPELL_FUNC(spell_call_familiar)
 
 	if(ch->num_grouped >= 9) {
 		send_to_char("You have too many people in your group already.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	iterator_start(&it, loaded_chars);
@@ -59,9 +59,9 @@ SPELL_FUNC(spell_call_familiar)
 
 			// DON'T CREATE! TRANSFER THE MOB!
 
-			add_follower(victim, ch, FALSE);
-			if (!add_grouped(victim, ch, FALSE)) {
-				stop_follower(victim,FALSE);
+			add_follower(victim, ch, false);
+			if (!add_grouped(victim, ch, false)) {
+				stop_follower(victim,false);
 				continue;
 			}
 
@@ -83,10 +83,10 @@ SPELL_FUNC(spell_call_familiar)
 		}
 
 		SET_BIT(victim->affected_by[0], AFF_CHARM);
-		return TRUE;
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 SPELL_FUNC(spell_create_rose)
@@ -105,7 +105,7 @@ SPELL_FUNC(spell_create_rose)
 	else if (chance > 10 && chance <= 35) vnum = number_range(100082, 100089);
 	else vnum = number_range(100176, 100189);
 
-	rose = create_object(get_obj_index(vnum), 0, TRUE);
+	rose = create_object(get_obj_index(vnum), 0, true);
 	act("You have created $p!", ch, NULL, NULL, rose, NULL, NULL, NULL, TO_CHAR);
 	act("$n has created $p!", ch, NULL, NULL, rose, NULL, NULL, NULL, TO_ROOM);
 	if (ch->carry_number + 1 > can_carry_n(ch)) {
@@ -114,7 +114,7 @@ SPELL_FUNC(spell_create_rose)
 	} else
 		obj_to_char(rose, ch);
 #endif
-	return TRUE;
+	return true;
 }
 
 
@@ -124,21 +124,21 @@ SPELL_FUNC(spell_control_weather)
 
 	if (!target_name) {
 		send_to_char ("Do you want it to get better or worse?\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (!str_prefix(target_name, "better")) {
 		weather_info.change += dice(level / 3, 4);
 		send_to_char("The sky shimmers blue briefly.\n\r", ch);
-		return TRUE;
+		return true;
 	} else if (!str_prefix(target_name, "worse")) {
 		weather_info.change -= dice(level / 3, 4);
 		send_to_char("The sky shimmers red briefly.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 
 	send_to_char ("Do you want it to get better or worse?\n\r", ch);
-	return FALSE;
+	return false;
 }
 
 SPELL_FUNC(spell_eagle_eye)
@@ -152,7 +152,7 @@ SPELL_FUNC(spell_eagle_eye)
 
 	if (!IS_WILDERNESS(room)) {
 		send_to_char("Eagles won't come near the city. You must be in the wilderness.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	act("You momentarily see through the eyes of an eagle.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -167,7 +167,7 @@ SPELL_FUNC(spell_eagle_eye)
 	{
 		wait_function(ch->in_room, NULL, EVENT_ECHO, number_range(1,2), NULL, "An eagle can be seen flying high in the sky...\n\r");
 	}
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_ensnare)
@@ -179,12 +179,12 @@ SPELL_FUNC(spell_ensnare)
 	if (IS_AFFECTED(victim, AFF_WEB) ||
 		IS_AFFECTED2(victim, AFF2_ENSNARE)) {
 		act("$N is already entangled enough.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	if (saves_spell(level,victim,DAM_OTHER)) {
 		send_to_char("Nothing happens.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	af.slot	= obj_wear_loc;
@@ -200,7 +200,7 @@ SPELL_FUNC(spell_ensnare)
 	act("{gThick vines sprout from the ground to clutch you!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 	act("{gThick vines sprout from the ground to clutch $N!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	act("{gThick vines sprout from the ground to clutch $N!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-	return TRUE;
+	return true;
 }
 
 
@@ -226,10 +226,10 @@ SPELL_FUNC(spell_master_weather)
 		weather_info.sky = SKY_LIGHTNING;
 	} else {
 		send_to_char("You must specify rainy, stormy, cloudy, or clear.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_vision)
@@ -245,7 +245,7 @@ SPELL_FUNC(spell_vision)
 		(!IS_SET(ch->in_room->room_flag[0], ROOM_VIEWWILDS) ||
 		!IS_OUTSIDE(ch))) {
 		act("You must be outdoors.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	act("$n blinks $s eyes.\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -259,7 +259,7 @@ SPELL_FUNC(spell_vision)
 
 	show_map_to_char_wyx(wilds, room->x, room->y, ch, room->x, room->y, bonus_view * 2, bonus_view / 2, false);
 
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_web)
@@ -271,12 +271,12 @@ SPELL_FUNC(spell_web)
 
 	if (IS_AFFECTED(victim, AFF_WEB)) {
 		act("$N is already entangled in webs.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	if (saves_spell(level,victim,DAM_OTHER)) {
 		send_to_char("Nothing happens.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	af.slot	= obj_wear_loc;
@@ -294,6 +294,6 @@ SPELL_FUNC(spell_web)
 	act("$n engulfs $N in a thick web.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
 	if (ch != victim) act("You engulf $N in a thick web.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
-	return TRUE;
+	return true;
 }
 

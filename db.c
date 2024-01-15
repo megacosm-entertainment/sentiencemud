@@ -201,7 +201,7 @@ void resolve_reputations();
 #define KEY(literal, field, value) \
 	if (IS_KEY(literal)) { \
 		field = value; \
-		fMatch = TRUE; \
+		fMatch = true; \
 		break; \
 	}
 
@@ -209,21 +209,21 @@ void resolve_reputations();
 	if (IS_KEY(literal)) { \
 		free_string(field); \
 		field = fread_string(fp); \
-		fMatch = TRUE; \
+		fMatch = true; \
 		break; \
 	}
 
 #define FKEY(literal, field) \
 	if (IS_KEY(literal)) { \
-		field = TRUE; \
-		fMatch = TRUE; \
+		field = true; \
+		fMatch = true; \
 		break; \
 	}
 
 #define FVKEY(literal, field, string, tbl) \
 	if (IS_KEY(literal)) { \
 		field = script_flag_value(tbl, string); \
-		fMatch = TRUE; \
+		fMatch = true; \
 		break; \
 	}
 
@@ -233,7 +233,7 @@ void resolve_reputations();
 		if( field == bad ) { \
 			field = def; \
 		} \
-		fMatch = TRUE; \
+		fMatch = true; \
 		break; \
 	}
 
@@ -1089,7 +1089,7 @@ int			nAllocPerm;
 int			sAllocPerm;
 
 bool			fBootDb;
-bool			fBootstrap = FALSE;				// Set to true if no areas were loaded so the bootstraping process can begin.
+bool			fBootstrap = false;				// Set to true if no areas were loaded so the bootstraping process can begin.
 FILE *			fpArea;
 char			strArea[MAX_INPUT_LENGTH];
 
@@ -1602,7 +1602,7 @@ void boot_db(void)
      * Init some data space stuff.
      */
     {
-	fBootDb		= TRUE;
+	fBootDb		= true;
     }
 
     /*
@@ -1621,7 +1621,7 @@ void boot_db(void)
     auction_info.gold_held	= 0;
     auction_info.silver_held	= 0;
 
-//    logAll = TRUE; /*setting this on for now*/
+//    logAll = true; /*setting this on for now*/
 
     /*
      * Set time and weather.
@@ -1690,10 +1690,10 @@ void boot_db(void)
     }
 
 	// Initialize certain lists
-	loaded_instances = list_create(FALSE);
-	loaded_dungeons = list_create(FALSE);
-	loaded_ships = list_create(FALSE);
-	loaded_special_keys = list_create(FALSE);
+	loaded_instances = list_create(false);
+	loaded_dungeons = list_create(false);
+	loaded_ships = list_create(false);
+	loaded_special_keys = list_create(false);
 
     /*
      * Read in all the area files.
@@ -1767,7 +1767,7 @@ void boot_db(void)
 		if (!area_first)
 		{
 			// no areas loaded, enable bootstrapping process
-			fBootstrap = TRUE;
+			fBootstrap = true;
 		}
 		
     }
@@ -1832,11 +1832,11 @@ void boot_db(void)
     log_string("Loading churches");
     read_churches_new();
 
-    fBootDb	= FALSE;
+    fBootDb	= false;
     //log_string("Doing generate_poa_resets");
     //generate_poa_resets(-1);
     log_string("Doing area_update");
-    area_update(TRUE);
+    area_update(true);
     log_string("Doing load_notes");
     load_notes();
     log_string("Doing load_bans");
@@ -1900,7 +1900,7 @@ void boot_db(void)
     reckoning_duration = 30;
     reckoning_intensity = 100;
     reckoning_chance = 5;
-    objRepop = FALSE;
+    objRepop = false;
 
     prog_data_virtual = new_prog_data();
 
@@ -2036,7 +2036,7 @@ void fix_rooms(void)
 		{
 			for (room = area->room_index_hash[iHash]; room != NULL; room = room->next)
 			{
-				bool fexit = FALSE;
+				bool fexit = false;
 				for (door = 0; door <= 9; door++)
 				{
 					if ((pexit = room->exit[door]) != NULL)
@@ -2048,7 +2048,7 @@ void fix_rooms(void)
 							pexit->u1.to_room = NULL;
 						else
 						{
-							fexit = TRUE;
+							fexit = true;
 							pexit->u1.to_room = get_room_index(pArea, pexit->u1.wnum.vnum);
 						}
 
@@ -2629,7 +2629,7 @@ void reset_wilds(WILDS_DATA *pWilds)
         {
             if (IS_SET(pVLink->current_linkage, VLINK_PORTAL))
             {
-				obj = create_object(obj_index_abyss_portal, 0, TRUE);
+				obj = create_object(obj_index_abyss_portal, 0, true);
 				obj_to_vroom(obj, pWilds, pVLink->wildsorigin_x, pVLink->wildsorigin_y);
             }
         }
@@ -2734,7 +2734,7 @@ void area_update(bool fBoot)
 			pArea->age = 0;
 
 			if (pArea->nplayer == 0)
-				pArea->empty = TRUE;
+				pArea->empty = true;
 
 			// TODO: Add a repop or reset trigger call for the area?
 
@@ -2876,14 +2876,14 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 	int iExit;
 	int level = 0;
 	bool last;
-	bool instanced = FALSE;
+	bool instanced = false;
 
 	// Invalid room or the room is persistant
 	if (!pRoom || pRoom->persist)
 		return;
 
 	pMob = NULL;
-	last = FALSE;
+	last = false;
 
 	for (iExit = 0;  iExit < MAX_DIR;  iExit++)
 	{
@@ -2910,7 +2910,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 		ROOM_INDEX_DATA *pRoomIndex;
 		int count,limit=0;
 
-		instanced = FALSE;
+		instanced = false;
 
 		switch (pReset->command)
 		{
@@ -2935,15 +2935,15 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 
 				if( count >= pReset->arg2 )
 				{
-					last = FALSE;
+					last = false;
 					break;
 				}
 
-				instanced = TRUE;
+				instanced = true;
 			}
 			else if (pMobIndex->count >= pReset->arg2)
 			{
-				last = FALSE;
+				last = false;
 				break;
 			}
 
@@ -2955,7 +2955,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 					count++;
 					if (count >= pReset->arg4)
 					{
-						last = FALSE;
+						last = false;
 						break;
 					}
 				}
@@ -2964,7 +2964,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 			if (count >= pReset->arg4)
 				break;
 
-			pMob = create_mobile(pMobIndex, FALSE);
+			pMob = create_mobile(pMobIndex, false);
 			if( instanced )
 				SET_BIT(pMob->act[1], ACT2_INSTANCE_MOB);
 
@@ -2979,8 +2979,8 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 
 			LastMob = pMob;
 			level  = URANGE(0, pMob->level - 2, LEVEL_HERO - 1); /* -1 ROM */
-			last = TRUE;
-			objRepop = TRUE;
+			last = true;
+			objRepop = true;
 			p_percent_trigger(pMob, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
 			break;
 
@@ -3008,7 +3008,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 				else
 					players = 0;
 
-				instanced = TRUE;
+				instanced = true;
 			}
 			else
 				players = pRoom->area->nplayer;	// In a normal area
@@ -3016,17 +3016,17 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 
 			if (players > 0 || count_obj_list(pObjIndex, pRoom->contents) > 0)
 			{
-				last = FALSE;
+				last = false;
 				break;
 			}
 
-			pObj = create_object(pObjIndex, UMIN(number_fuzzy(level), LEVEL_HERO -1) , TRUE);
+			pObj = create_object(pObjIndex, UMIN(number_fuzzy(level), LEVEL_HERO -1) , true);
 			if( instanced )
 				SET_BIT(pObj->extra[2], ITEM_INSTANCE_OBJ);
 			pObj->cost = 0;
-			objRepop = TRUE;
+			objRepop = true;
 			obj_to_room(pObj, pRoom);
-			last = TRUE;
+			last = true;
 			break;
 
 		case 'P':	// Place Object into Object
@@ -3053,14 +3053,14 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 				(pObjIndex->count >= limit) ||
 				(count = count_obj_list(pObjIndex, LastObj->contains)) > pReset->arg4 )
 			{
-				last = FALSE;
+				last = false;
 				break;
 			}
 			/* lastObj->level  -  ROM */
 
 			while (count < pReset->arg4)
 			{
-				pObj = create_object(pObjIndex, number_fuzzy(LastObj->level), TRUE);
+				pObj = create_object(pObjIndex, number_fuzzy(LastObj->level), true);
 				obj_to_obj(pObj, LastObj);
 				count++;
 				if (pObjIndex->count >= limit)
@@ -3069,7 +3069,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 
 			/* fix object lock state! */
 			//LastObj->value[1] = LastObj->pIndexData->value[1];
-			last = TRUE;
+			last = true;
 			break;
 
 		case 'G':	// Place Object in Mobile Inventory
@@ -3084,7 +3084,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 
 			if (!LastMob)
 			{
-				last = FALSE;
+				last = false;
 				break;
 			}
 
@@ -3099,17 +3099,17 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 
 				if (pObjIndex->count < limit || number_range(0,4) == 0)
 				{
-					pObj = create_object(pObjIndex, UMIN(number_fuzzy(level), LEVEL_HERO - 1), TRUE);
+					pObj = create_object(pObjIndex, UMIN(number_fuzzy(level), LEVEL_HERO - 1), true);
 				}
 				else
 					break;
 			}
 
-			objRepop = TRUE;
+			objRepop = true;
 			obj_to_char(pObj, LastMob);
 			if (pReset->command == 'E')
 				equip_char(LastMob, pObj, pReset->arg4);
-			last = TRUE;
+			last = true;
 			break;
 
 		case 'R':	// Randomize exits
@@ -3147,7 +3147,7 @@ void chance_create_mob(ROOM_INDEX_DATA *pRoom, MOB_INDEX_DATA *pMobIndex, int ch
 
     if (number_percent() <= chance)
     {
-	pMobile = create_mobile(pMobIndex, FALSE);
+	pMobile = create_mobile(pMobIndex, false);
 	if (obj)
 	    obj_to_char(obj, pMobile);
 	char_to_room(pMobile, pRoom);
@@ -3305,7 +3305,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
 	mob->progs			= new_prog_data();
 	mob->progs->progs	= pMobIndex->progs;
-	variable_copylist(&pMobIndex->index_vars,&mob->progs->vars,FALSE);
+	variable_copylist(&pMobIndex->index_vars,&mob->progs->vars,false);
 
 	mob->deitypoints    = 0;
 	mob->missionpoints    = 0;
@@ -3805,7 +3805,7 @@ CHAR_DATA *clone_mobile(CHAR_DATA *parent)
     if (parent == NULL || !IS_NPC(parent))
 		return NULL;
 
-	clone = create_mobile(parent->pIndexData, FALSE);
+	clone = create_mobile(parent->pIndexData, false);
 	if(!clone)
 		return NULL;
 
@@ -3873,7 +3873,7 @@ CHAR_DATA *clone_mobile(CHAR_DATA *parent)
     {
 		clone->perm_stat[i]	= parent->perm_stat[i];
 		clone->mod_stat[i]	= parent->mod_stat[i];
-		clone->dirty_stat[i] = TRUE;
+		clone->dirty_stat[i] = true;
     }
 
 	clone->damage.number = parent->damage.number;
@@ -3915,7 +3915,7 @@ CHAR_DATA *clone_mobile(CHAR_DATA *parent)
 	clone->practicer = copy_practice_data(parent->practicer);
 
     variable_freelist(&clone->progs->vars);
-    variable_copylist(&parent->progs->vars,&clone->progs->vars,FALSE);
+    variable_copylist(&parent->progs->vars,&clone->progs->vars,false);
 
 	if(parent->persist && !clone->persist)
 		persist_addmobile(clone);
@@ -4002,7 +4002,7 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
 		MIST(obj) = copy_mist_data(MIST(pObjIndex));
 		MONEY(obj) = copy_money_data(MONEY(pObjIndex));
 		PAGE(obj) = copy_book_page(PAGE(pObjIndex));
-		PORTAL(obj) = copy_portal_data(PORTAL(pObjIndex), FALSE);
+		PORTAL(obj) = copy_portal_data(PORTAL(pObjIndex), false);
 		SCROLL(obj) = copy_scroll_data(SCROLL(pObjIndex));
 		TATTOO(obj) = copy_tattoo_data(TATTOO(pObjIndex));
 		WAND(obj) = copy_wand_data(WAND(pObjIndex));
@@ -4038,11 +4038,11 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
 	}
     }
 
-    variable_copylist(&pObjIndex->index_vars,&obj->progs->vars,FALSE);
+    variable_copylist(&pObjIndex->index_vars,&obj->progs->vars,false);
 
     obj->num_enchanted = 0;
     obj->version = VERSION_OBJECT_000;
-    obj->locker = FALSE;
+    obj->locker = false;
 
 	list_appendlink(loaded_objects, obj);
     pObjIndex->count++;
@@ -4084,7 +4084,7 @@ OBJ_DATA *create_object(OBJ_INDEX_DATA *pObjIndex, int level, bool affects)
 {
     OBJ_DATA *obj;
 
-    obj = create_object_noid(pObjIndex,level,affects,TRUE);
+    obj = create_object_noid(pObjIndex,level,affects,true);
 
 	if( obj )
 	{
@@ -4201,7 +4201,7 @@ void clone_object(OBJ_DATA *parent, OBJ_DATA *clone)
     }
 
     variable_freelist(&clone->progs->vars);
-    variable_copylist(&parent->progs->vars,&clone->progs->vars,FALSE);
+    variable_copylist(&parent->progs->vars,&clone->progs->vars,false);
 
 	if(parent->persist && !clone->persist) {
 		log_stringf("clone_object: Adding object %ld to persistance.", clone->pIndexData->vnum);
@@ -4350,14 +4350,14 @@ TOKEN_INDEX_DATA *get_token_index(AREA_DATA *pArea, long vnum)
 
 bool is_singular_token(TOKEN_INDEX_DATA *index)
 {
-	if(!index) return FALSE;
+	if(!index) return false;
 
 	// These can allow multiples
 	if(index->type == TOKEN_GENERAL || index->type == TOKEN_QUEST || index->type == TOKEN_AFFECT)
 		if(!IS_SET(index->flags, TOKEN_SINGULAR))
-			return FALSE;
+			return false;
 
-	return TRUE;
+	return true;
 }
 
 SCRIPT_DATA *get_script_index_wnum(WNUM wnum, int type)
@@ -4476,14 +4476,14 @@ long fread_number(FILE *fp)
 
     number = 0;
 
-    sign   = FALSE;
+    sign   = false;
     if (c == '+')
     {
 	c = getc(fp);
     }
     else if (c == '-')
     {
-	sign = TRUE;
+	sign = true;
 	c = getc(fp);
     }
 
@@ -4700,7 +4700,7 @@ long fread_flag(FILE *fp)
 {
     long number;
     char c;
-    bool negative = FALSE;
+    bool negative = false;
 
     do
     {
@@ -4710,7 +4710,7 @@ long fread_flag(FILE *fp)
 
     if (c == '-')
     {
-	negative = TRUE;
+	negative = true;
 	c = getc(fp);
     }
 
@@ -4907,11 +4907,11 @@ char *fread_string_eol(FILE *fp)
     char *plast;
     char c;
 
-    if (char_special[EOF-EOF] != TRUE)
+    if (char_special[EOF-EOF] != true)
     {
-	char_special[EOF -  EOF] = TRUE;
-	char_special['\n' - EOF] = TRUE;
-	char_special['\r' - EOF] = TRUE;
+	char_special[EOF -  EOF] = true;
+	char_special['\n' - EOF] = true;
+	char_special['\r' - EOF] = true;
     }
 
     plast = top_string + sizeof(char *);
@@ -5578,7 +5578,7 @@ int str_cmp_nocolour(const char *astr, const char *bstr)
 
 /*
  * Compare strings, case insensitive, for prefix matching.
- * Return TRUE if astr not a prefix of bstr
+ * Return true if astr not a prefix of bstr
  *   (compatibility with historical functions).
  */
 bool str_prefix(const char *astr, const char *bstr)
@@ -5586,31 +5586,31 @@ bool str_prefix(const char *astr, const char *bstr)
     if (astr == NULL)
     {
 	bug("Strn_cmp: null astr.", 0);
-	return TRUE;
+	return true;
     }
 
     if (bstr == NULL)
     {
 	bug("Strn_cmp: null bstr.", 0);
-	return TRUE;
+	return true;
     }
 
 	// Empty strings should *never* prefix another string
-	if (!*astr) return TRUE;
+	if (!*astr) return true;
 
     for (; *astr; astr++, bstr++)
     {
 	if (LOWER(*astr) != LOWER(*bstr))
-	    return TRUE;
+	    return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 
 /*
  * Compare strings, case insensitive, for match anywhere.
- * Returns TRUE is astr not part of bstr.
+ * Returns true is astr not part of bstr.
  *   (compatibility with historical functions).
  */
 bool str_infix(const char *astr, const char *bstr)
@@ -5621,7 +5621,7 @@ bool str_infix(const char *astr, const char *bstr)
     char c0;
 
     if ((c0 = LOWER(astr[0])) == '\0')
-	return FALSE;
+	return false;
 
     sstr1 = strlen(astr);
     sstr2 = strlen(bstr);
@@ -5629,16 +5629,16 @@ bool str_infix(const char *astr, const char *bstr)
     for (ichar = 0; ichar <= sstr2 - sstr1; ichar++)
     {
 	if (c0 == LOWER(bstr[ichar]) && !str_prefix(astr, bstr + ichar))
-	    return FALSE;
+	    return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 
 /*
  * Compare strings, case insensitive, for suffix matching.
- * Return TRUE if astr not a suffix of bstr
+ * Return true if astr not a suffix of bstr
  *   (compatibility with historical functions).
  */
 bool str_suffix(const char *astr, const char *bstr)
@@ -5649,9 +5649,9 @@ bool str_suffix(const char *astr, const char *bstr)
     sstr1 = strlen(astr);
     sstr2 = strlen(bstr);
     if (sstr1 <= sstr2 && !str_cmp(astr, bstr + sstr2 - sstr1))
-	return FALSE;
+	return false;
     else
-	return TRUE;
+	return true;
 }
 
 void str_lower(register char *src,register char *dest)
@@ -5811,7 +5811,7 @@ void load_reboot_objs()
 
     for (counter = 0; counter < 3; counter++)
     {
-        obj = create_object(obj_index_shard, 0, TRUE);
+        obj = create_object(obj_index_shard, 0, true);
         pRoom = get_random_room(NULL, 0);
 
         obj_to_room(obj, pRoom);
@@ -6321,7 +6321,7 @@ ROOM_INDEX_DATA *create_virtual_room_nouid(ROOM_INDEX_DATA *source, bool objects
 	if(objects) {
 		/* Clone non-takable objects, no contents though...*/
 		for(obj = source->contents; obj; obj = obj->next_content) if(!CAN_WEAR(obj,ITEM_TAKE)) {
-			obj2 = create_object(obj->pIndexData,0,FALSE);
+			obj2 = create_object(obj->pIndexData,0,false);
 			clone_object(obj,obj2);
 
 			obj_to_room(obj2,vroom);
@@ -6391,7 +6391,7 @@ ROOM_INDEX_DATA *create_virtual_room_nouid(ROOM_INDEX_DATA *source, bool objects
 
 ROOM_INDEX_DATA *create_virtual_room(ROOM_INDEX_DATA *source,bool links, bool resets)
 {
-	ROOM_INDEX_DATA *vroom = create_virtual_room_nouid(source, TRUE,links,resets);
+	ROOM_INDEX_DATA *vroom = create_virtual_room_nouid(source, true,links,resets);
 
 	get_vroom_id(vroom);
 
@@ -6460,7 +6460,7 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
 		if(clone->id[0] == id1 && clone->id[1] == id2) {
 			if(clone->progs) {
 				if(clone->progs->script_ref > 0) {
-					clone->progs->extract_when_done = TRUE;
+					clone->progs->extract_when_done = true;
 					return false;
 				}
 			}
@@ -6530,7 +6530,7 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
 			ch_next = ch->next_in_room;
 
 			if(IS_NPC(ch) && !ch->persist)
-				extract_char(ch, TRUE);
+				extract_char(ch, true);
 			else
 			{
 				char_from_room(ch);
@@ -6778,7 +6778,7 @@ void persist_addmobile(register CHAR_DATA *mob)
 		if( fBootDb )
 			abort();
 	} else
-		mob->persist = TRUE;
+		mob->persist = true;
 }
 
 void persist_addobject(register OBJ_DATA *obj)
@@ -6795,7 +6795,7 @@ void persist_addobject(register OBJ_DATA *obj)
 		if( fBootDb )
 			abort();
 	} else {
-		obj->persist = TRUE;
+		obj->persist = true;
 		log_stringf("persist_addobject: Object %ld flagged as persistant.", obj->pIndexData->vnum);
 	}
 }
@@ -6819,25 +6819,25 @@ void persist_addroom(register ROOM_INDEX_DATA *room)
 		if( fBootDb )
 			abort();
 	} else
-		room->persist = TRUE;
+		room->persist = true;
 }
 
 void persist_removemobile(register CHAR_DATA *mob)
 {
 	list_remlink(persist_mobs, mob, false);
-	mob->persist = FALSE;
+	mob->persist = false;
 }
 
 void persist_removeobject(register OBJ_DATA *obj)
 {
 	list_remlink(persist_objs, obj, false);
-	obj->persist = FALSE;
+	obj->persist = false;
 }
 
 void persist_removeroom(register ROOM_INDEX_DATA *room)
 {
 	list_remlink(persist_rooms, room, false);
-	room->persist = FALSE;
+	room->persist = false;
 }
 
 void persist_save_scriptdata(FILE *fp, PROG_DATA *prog)
@@ -7507,32 +7507,32 @@ void persist_save_room(FILE *fp, ROOM_INDEX_DATA *room)
 bool check_persist_environment( CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room )
 {
 	if( ch ) {
-		if( !IS_NPC(ch) ) return TRUE;	// It's a player
+		if( !IS_NPC(ch) ) return true;	// It's a player
 
-		if( ch->in_room && ch->in_room->persist) return TRUE;
+		if( ch->in_room && ch->in_room->persist) return true;
 
 		return check_persist_environment( NULL, NULL, ch->in_room );
 
 	} else if (obj) {
 		if( obj->locker )
-			return TRUE;	// They are in some player's locker, thus on a player, which is a persistant environment
+			return true;	// They are in some player's locker, thus on a player, which is a persistant environment
 		else if( obj->in_obj ) {
-			if( obj->in_obj->persist) return TRUE;
+			if( obj->in_obj->persist) return true;
 
 			return check_persist_environment( NULL, obj->in_obj, NULL );
 		} else if( obj->carried_by ) {
-			if( !IS_NPC(obj->carried_by ) ) return TRUE;	// Players are a special kind of persistance
-			if( obj->carried_by->persist) return TRUE;
+			if( !IS_NPC(obj->carried_by ) ) return true;	// Players are a special kind of persistance
+			if( obj->carried_by->persist) return true;
 
 			return check_persist_environment( obj->carried_by, NULL, NULL );
 		} else if( obj->in_room ) {
-			if( obj->in_room->persist) return TRUE;
+			if( obj->in_room->persist) return true;
 
 			return check_persist_environment( NULL, NULL, obj->in_room );
 		}
 	}
 
-	return FALSE;
+	return false;
 }
 
 // Rules for when a persistant entity is saved:
@@ -7728,11 +7728,11 @@ TOKEN_DATA *persist_load_token(FILE *fp)
 	token->global_next = global_tokens;
 	global_tokens = token;
 
-	variable_copylist(&token_index->index_vars,&token->progs->vars,FALSE);
+	variable_copylist(&token_index->index_vars,&token->progs->vars,false);
 
 	for (; ;) {
 		word   = feof(fp) ? "#-TOKEN" : fread_word(fp);
-		fMatch = FALSE;
+		fMatch = false;
 
 		if (!str_cmp(word, "#-TOKEN"))
 			break;
@@ -7753,12 +7753,12 @@ TOKEN_DATA *persist_load_token(FILE *fp)
 				if (!str_cmp(word, "Value")) {
 					int i = fread_number(fp);
 					token->value[i] = fread_number(fp);
-					fMatch = TRUE;
+					fMatch = true;
 				}
 
 				if( (vtype = variable_fread_type(word)) != VAR_UNKNOWN ) {
 					variable_fread(&token->progs->vars, vtype, fp);
-					fMatch = TRUE;
+					fMatch = true;
 				}
 
 				break;
@@ -7813,7 +7813,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 	OBJ_DATA *obj;
 	char *word;
 	int vtype;
-	bool good = TRUE, fMatch;
+	bool good = true, fMatch;
 	long values[MAX_OBJVALUES];
 
 	log_string("persist_load: #OBJECT");
@@ -7823,7 +7823,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 	if( !obj_index )
 		return NULL;
 
-	obj = create_object_noid(obj_index, -1, FALSE, FALSE);
+	obj = create_object_noid(obj_index, -1, false, false);
 	if( !obj )
 		return NULL;
 	obj->version = VERSION_OBJECT_000;
@@ -7834,7 +7834,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 
 	for (;good;) {
 		word = feof(fp) ? "#-OBJECT" : fread_word(fp);
-		fMatch = FALSE;
+		fMatch = false;
 
 		if (!str_cmp(word, "#-OBJECT"))
 			break;
@@ -7843,7 +7843,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 
 		switch (UPPER(word[0])) {
 			case '*':
-				fMatch = TRUE;
+				fMatch = true;
 				fread_to_eol(fp);
 				break;
 
@@ -7852,11 +7852,11 @@ OBJ_DATA *persist_load_object(FILE *fp)
 				if (!str_cmp(word,"#OBJECT")) {
 					OBJ_DATA *item = persist_load_object(fp);
 
-					fMatch = TRUE;
+					fMatch = true;
 					if( item ) {
 						obj_to_obj(item, obj);
 					} else
-						good = FALSE;
+						good = false;
 
 					break;
 				}
@@ -7865,7 +7865,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_AMMO(obj)) free_ammo_data(AMMO(obj));
 
 					AMMO(obj) = fread_obj_ammo_data(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 
@@ -7874,7 +7874,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_ARMOR(obj)) free_armor_data(ARMOR(obj));
 
 					ARMOR(obj) = fread_obj_armor_data(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 
@@ -7883,7 +7883,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_BOOK(obj)) free_book_data(BOOK(obj));
 
 					BOOK(obj) = fread_obj_book_data(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word, "#TYPECONTAINER"))
@@ -7891,7 +7891,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_CONTAINER(obj)) free_container_data(CONTAINER(obj));
 
 					CONTAINER(obj) = fread_obj_container_data(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word, "#TYPEFLUIDCONTAINER"))
@@ -7899,7 +7899,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_FLUID_CON(obj)) free_fluid_container_data(FLUID_CON(obj));
 
 					FLUID_CON(obj) = fread_obj_fluid_container_data(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word, "#TYPEFOOD"))
@@ -7907,7 +7907,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_FOOD(obj)) free_food_data(FOOD(obj));
 
 					FOOD(obj) = fread_obj_food_data(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word, "#TYPEFURNITURE"))
@@ -7916,7 +7916,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 
 					FURNITURE(obj) = fread_obj_furniture_data(fp);
 
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word, "#TYPEINK"))
@@ -7924,7 +7924,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_INK(obj)) free_ink_data(INK(obj));
 
 					INK(obj) = fread_obj_ink_data(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word, "#TYPEINSTRUMENT"))
@@ -7932,7 +7932,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_INSTRUMENT(obj)) free_instrument_data(INSTRUMENT(obj));
 
 					INSTRUMENT(obj) = fread_obj_instrument_data(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word, "#TYPEJEWELRY"))
@@ -7940,7 +7940,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_JEWELRY(obj)) free_jewelry_data(JEWELRY(obj));
 
 					JEWELRY(obj) = fread_obj_jewelry_data(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word, "#TYPELIGHT"))
@@ -7948,7 +7948,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_LIGHT(obj)) free_light_data(LIGHT(obj));
 
 					LIGHT(obj) = fread_obj_light_data(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word, "#TYPEMIST"))
@@ -7956,7 +7956,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_MIST(obj)) free_mist_data(MIST(obj));
 
 					MIST(obj) = fread_obj_mist_data(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word, "#TYPEMONEY"))
@@ -7964,7 +7964,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_MONEY(obj)) free_money_data(MONEY(obj));
 
 					MONEY(obj) = fread_obj_money_data(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word, "#TYPEPAGE"))
@@ -7972,7 +7972,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_PAGE(obj)) free_book_page(PAGE(obj));
 
 					PAGE(obj) = fread_book_page(fp, "#-TYPEPAGE");
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word, "#TYPEPORTAL"))
@@ -7980,7 +7980,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_PORTAL(obj)) free_portal_data(PORTAL(obj));
 
 					PORTAL(obj) = fread_obj_portal_data(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word, "#TYPESCROLL"))
@@ -7988,7 +7988,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_SCROLL(obj)) free_scroll_data(SCROLL(obj));
 
 					SCROLL(obj) = fread_obj_scroll_data(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word, "#TYPETATTOO"))
@@ -7996,7 +7996,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_TATTOO(obj)) free_tattoo_data(TATTOO(obj));
 
 					TATTOO(obj) = fread_obj_tattoo_data(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word, "#TYPEWAND"))
@@ -8004,7 +8004,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_WAND(obj)) free_wand_data(WAND(obj));
 
 					WAND(obj) = fread_obj_wand_data(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word, "#TYPEWEAPON"))
@@ -8012,18 +8012,18 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_WEAPON(obj)) free_weapon_data(WEAPON(obj));
 
 					WEAPON(obj) = fread_obj_weapon_data(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 
 				if (!str_cmp(word,"#TOKEN")) {
 					TOKEN_DATA *token = persist_load_token(fp);
 
-					fMatch = TRUE;
+					fMatch = true;
 					if( token )
 						token_to_obj(token, obj);
 					else
-						good = FALSE;
+						good = false;
 
 					break;
 				}
@@ -8059,7 +8059,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 						paf->bitvector = fread_number(fp);
 					paf->next = obj->affected;
 					obj->affected = paf;
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 
@@ -8097,7 +8097,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					}
 					else
 						bug("persist_load_object: unknown skill.",0);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 
@@ -8138,7 +8138,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 						paf->next = obj->affected;
 						obj->affected = paf;
 					}
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 
@@ -8166,7 +8166,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 						obj->catalyst = paf;
 					}
 
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word, "CataA")) {
@@ -8187,7 +8187,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 						paf->next = obj->catalyst;
 						obj->catalyst = paf;
 					}
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word, "CataN")) {
@@ -8209,7 +8209,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 						paf->next = obj->catalyst;
 						obj->catalyst = paf;
 					}
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word, "CataNA")) {
@@ -8230,7 +8230,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 						paf->next = obj->catalyst;
 						obj->catalyst = paf;
 					}
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 
@@ -8243,7 +8243,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if( (src = get_room_index_auid(w.auid, w.vnum)) )
 						here = get_clone_room(src, a, b);
 
-					fMatch = TRUE;
+					fMatch = true;
 				}
 				KEY("Cond",	obj->condition,		fread_number(fp));
 				KEY("Cost",	obj->cost,		fread_number(fp));
@@ -8258,12 +8258,12 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if( (src = get_room_index_auid(w.auid, w.vnum)) )
 						deep_here = get_clone_room(src, a, b);
 
-					fMatch = TRUE;
+					fMatch = true;
 				}
 				if( !str_cmp(word, "DeepRoom") ) {
 					WNUM_LOAD wnum = fread_widevnum(fp, 0);
 					deep_here = get_room_index_auid(wnum.auid, wnum.vnum);
-					fMatch = TRUE;
+					fMatch = true;
 				}
 				if( !str_cmp(word, "DeepVroom") ) {
 					ROOM_INDEX_DATA *r;
@@ -8279,7 +8279,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 						deep_here = r;
 					}
 
-					fMatch = TRUE;
+					fMatch = true;
 				}
 				break;
 			case 'E':
@@ -8296,7 +8296,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					ed->description	= fread_string(fp);
 					ed->next = obj->extra_descr;
 					obj->extra_descr = ed;
-					fMatch = TRUE;
+					fMatch = true;
 				}
 				if ( !str_cmp(word,"ExDeEnv") ) {
 					EXTRA_DESCR_DATA *ed;
@@ -8306,7 +8306,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					ed->description	= NULL;
 					ed->next = obj->extra_descr;
 					obj->extra_descr = ed;
-					fMatch = TRUE;
+					fMatch = true;
 				}
 				break;
 			case 'F':
@@ -8359,7 +8359,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 						id0 = fread_number(fp);
 					}
 
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				*/
@@ -8383,7 +8383,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 
 					list_appendlink(obj->waypoints, wp);
 
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -8408,7 +8408,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 				if( !str_cmp(word, "Room") ) {
 					WNUM_LOAD wnum = fread_widevnum(fp, 0);
 					here = get_room_index_auid(wnum.auid, wnum.vnum);
-					fMatch = TRUE;
+					fMatch = true;
 				}
 				break;
 			case 'S':
@@ -8419,7 +8419,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 
 					skill = get_skill_data(fread_string(fp));
 
-					fMatch = TRUE;
+					fMatch = true;
 					if ( is_skill_spell(skill) ) {
 						spell = new_spell();
 						spell->skill = skill;
@@ -8451,7 +8451,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if( idx >= 0 && idx < MAX_OBJVALUES )
 						values[idx] = val;
 
-					fMatch = TRUE;
+					fMatch = true;
 				}
 				KEY("Version",		obj->version,		fread_number(fp));
 				if( !str_cmp(word, "Vroom") ) {
@@ -8468,12 +8468,12 @@ OBJ_DATA *persist_load_object(FILE *fp)
 						here = r;
 					}
 
-					fMatch = TRUE;
+					fMatch = true;
 				}
 
 				if( (vtype = variable_fread_type(word)) != VAR_UNKNOWN ) {
 					variable_fread(&obj->progs->vars, vtype, fp);
-					fMatch = TRUE;
+					fMatch = true;
 				}
 				break;
 			case 'W':
@@ -8520,7 +8520,7 @@ SHIP_CREW_DATA *read_ship_crew(FILE *fp)
 
 	while (str_cmp((word = fread_word(fp)), "#-CREW"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 		switch (word[0]) {
 		case 'G':
 			KEY("Gunning", crew->gunning, fread_number(fp));
@@ -8563,7 +8563,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 	char *word;
 	int i;
 	int vtype;
-	bool good = TRUE, fMatch;
+	bool good = true, fMatch;
 
 	log_string("persist_load: #MOBILE");
 
@@ -8572,17 +8572,17 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 	if( !index )
 		return NULL;
 
-	ch = create_mobile(index, TRUE);
+	ch = create_mobile(index, true);
 	if( !ch )
 		return NULL;
 	ch->version = VERSION_MOBILE_000;
 	ch->id[0] = ch->id[1] = 0;
 	for(i = 0; i < MAX_STATS; i++)
-		ch->dirty_stat[i] = TRUE;
+		ch->dirty_stat[i] = true;
 
 	for (;good;) {
 		word = feof(fp) ? "#-MOBILE" : fread_word(fp);
-		fMatch = FALSE;
+		fMatch = false;
 
 		if (!str_cmp(word, "#-MOBILE"))
 			break;
@@ -8591,7 +8591,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 
 		switch (UPPER(word[0])) {
 			case '*':
-				fMatch = TRUE;
+				fMatch = true;
 				fread_to_eol(fp);
 				break;
 
@@ -8600,11 +8600,11 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 				if (!str_cmp(word,"#OBJECT")) {
 					OBJ_DATA *item = persist_load_object(fp);
 
-					fMatch = TRUE;
+					fMatch = true;
 					if( item )
 						obj_to_char(item, ch);
 					else
-						good = FALSE;
+						good = false;
 
 					if( item->wear_loc != WEAR_NONE ) {
 						list_addlink(ch->lworn, item);
@@ -8615,11 +8615,11 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 				if (!str_cmp(word,"#TOKEN")) {
 					TOKEN_DATA *token = persist_load_token(fp);
 
-					fMatch = TRUE;
+					fMatch = true;
 					if( token )
 						token_to_char(token, ch);
 					else
-						good = FALSE;
+						good = false;
 
 					break;
 				}
@@ -8636,22 +8636,22 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 				if (!str_cmp(word,"#SHOP")) {
 					SHOP_DATA *shop = read_shop_new(fp, index->area);
 
-					fMatch = TRUE;
+					fMatch = true;
 					if( shop )
 						ch->shop = shop;
 					else
-						good = FALSE;
+						good = false;
 
 					break;
 				}
 				if (!str_cmp(word,"#CREW")) {
 					SHIP_CREW_DATA *crew = read_ship_crew(fp);
 
-					fMatch = TRUE;
+					fMatch = true;
 					if( crew )
 						ch->crew = crew;
 					else
-						good = FALSE;
+						good = false;
 
 					break;
 				}
@@ -8660,7 +8660,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 				if(IS_KEY("ACs")) {
 					for(i = 0; i < 4; ch->armour[i++] = fread_number(fp));
 
-					fMatch = TRUE;
+					fMatch = true;
 				}
 				KEY("Act",		ch->act[0],			fread_flag(fp));
 				KEY("Act2",		ch->act[1],			fread_flag(fp));
@@ -8701,7 +8701,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 						paf->next = ch->affected;
 						ch->affected = paf;
 					}
-					fMatch = TRUE;
+					fMatch = true;
 				}
 
 				if(IS_KEY("Affcgn")) {
@@ -8739,7 +8739,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 							ch->affected = paf;
 						}
 					}
-					fMatch = TRUE;
+					fMatch = true;
 				}
 
 				KEY("Alig",		ch->alignment,		fread_number(fp));
@@ -8749,7 +8749,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 					set_mod_stat(ch, STAT_WIS, fread_number(fp));
 					set_mod_stat(ch, STAT_DEX, fread_number(fp));
 					set_mod_stat(ch, STAT_CON, fread_number(fp));
-					fMatch = TRUE;
+					fMatch = true;
 				}
 
 				if(IS_KEY("Attr")) {
@@ -8758,7 +8758,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 					set_perm_stat(ch, STAT_WIS, fread_number(fp));
 					set_perm_stat(ch, STAT_DEX, fread_number(fp));
 					set_perm_stat(ch, STAT_CON, fread_number(fp));
-					fMatch = TRUE;
+					fMatch = true;
 				}
 				break;
 			case 'B':
@@ -8773,7 +8773,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 
 					here = get_clone_room(source, id1, id2);
 
-					fMatch = TRUE;
+					fMatch = true;
 				}
 				KEY("Comm",			ch->comm,			fread_flag(fp));
 				KEY("CorpseType",	ch->corpse_type,	fread_number(fp));
@@ -8796,12 +8796,12 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 					if( (src = get_room_index_auid(w.auid, w.vnum)) )
 						deep_here = get_clone_room(src, a, b);
 
-					fMatch = TRUE;
+					fMatch = true;
 				}
 				if( !str_cmp(word, "DeepRoom") ) {
 					WNUM_LOAD w = fread_widevnum(fp, 0);
 					deep_here = get_room_index_auid(w.auid, w.vnum);
-					fMatch = TRUE;
+					fMatch = true;
 				}
 				if( !str_cmp(word, "DeepVroom") ) {
 					ROOM_INDEX_DATA *r;
@@ -8817,7 +8817,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 						deep_here = r;
 					}
 
-					fMatch = TRUE;
+					fMatch = true;
 				}
 
 				KEY("DeityPnts",		ch->deitypoints,		fread_number(fp));
@@ -8838,7 +8838,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 					ch->max_mana = fread_number(fp);
 					ch->move = fread_number(fp);
 					ch->max_move = fread_number(fp);
-					fMatch = TRUE;
+					fMatch = true;
 				}
 				KEY("Hit",	ch->hitroll,	fread_number(fp));
 				if (!str_cmp(word, "home"))
@@ -8846,7 +8846,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 					WNUM_LOAD home_load = fread_widevnum(fp, 0);
 					ch->home.pArea = get_area_from_uid(home_load.auid);
 					ch->home.vnum = home_load.vnum;
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -8924,7 +8924,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 					if( !IS_VALID(race) )
 						ch->race = gr_human;
 
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 
@@ -8932,7 +8932,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 					long auid = fread_number(fp);
 					long vnum = fread_number(fp);
 					location_set(&ch->recall,get_area_from_uid(auid),0,vnum,0,0);
-					fMatch = TRUE;
+					fMatch = true;
 				}
 
 				if(IS_KEY("RepopRoomC")) {
@@ -8941,7 +8941,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 					unsigned long id0 = fread_number(fp);
 					unsigned long id1 = fread_number(fp);
 					location_set(&ch->recall,get_area_from_uid(auid),0,vnum,id0,id1);
-					fMatch = TRUE;
+					fMatch = true;
 				}
 
 				if(IS_KEY("RepopRoomW")) {
@@ -8950,7 +8950,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 					long y = fread_number(fp);
 					long z = fread_number(fp);
 					location_set(&ch->recall,NULL,wuid,x,y,z);
-					fMatch = TRUE;
+					fMatch = true;
 				}
 
 				KEY("Resist",	ch->res_flags,	fread_flag(fp));
@@ -8961,7 +8961,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 
 					here = get_room_index_auid(w.auid, w.vnum);
 
-					fMatch = TRUE;
+					fMatch = true;
 				}
 				break;
 			case 'S':
@@ -8987,7 +8987,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 						bug(buf, 0);
 						fread_to_eol(fp);
 					}
-					fMatch = TRUE;
+					fMatch = true;
 				}
 
 				KEY("Trai",		ch->train,	fread_number(fp));
@@ -9013,13 +9013,13 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 						here = r;
 					}
 
-					fMatch = TRUE;
+					fMatch = true;
 				}
 
 				// Variables
 				if( (vtype = variable_fread_type(word)) != VAR_UNKNOWN ) {
 					variable_fread(&ch->progs->vars, vtype, fp);
-					fMatch = TRUE;
+					fMatch = true;
 				}
 
 				KEY("Vuln",	ch->vuln_flags,	fread_flag(fp));
@@ -9078,7 +9078,7 @@ EXIT_DATA *persist_load_exit(FILE *fp)
 
 	for (;;) {
 		word = feof(fp) ? "#-EXIT" : fread_word(fp);
-		fMatch = FALSE;
+		fMatch = false;
 
 		log_stringf("%s: %s", __FUNCTION__, word);
 
@@ -9087,7 +9087,7 @@ EXIT_DATA *persist_load_exit(FILE *fp)
 
 		switch (UPPER(word[0])) {
 			case '*':
-				fMatch = TRUE;
+				fMatch = true;
 				fread_to_eol(fp);
 				break;
 
@@ -9122,7 +9122,7 @@ EXIT_DATA *persist_load_exit(FILE *fp)
 								//log_string("get_clone_room: persist_load_exit");
 								if( !(clone = get_clone_room( room, y, z )) ) {
 									// Create the room
-									if( (clone = create_virtual_room_nouid(room, FALSE, FALSE, FALSE)) ) {
+									if( (clone = create_virtual_room_nouid(room, false, false, false)) ) {
 										clone->id[0] = y;
 										clone->id[1] = z;
 									}
@@ -9134,7 +9134,7 @@ EXIT_DATA *persist_load_exit(FILE *fp)
 						ex->u1.to_room = room;
 					}
 
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 
@@ -9156,7 +9156,7 @@ EXIT_DATA *persist_load_exit(FILE *fp)
 					ex->door.rs_lock.pick_chance = fread_number(fp);
 
 					ex->door.strength = fread_number(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 
@@ -9231,7 +9231,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 	int w, x, y, z;
 	char *word;
 	int vtype;
-	bool good = TRUE;
+	bool good = true;
 	bool fMatch;
 
 	if( rtype == 'R' ) {
@@ -9295,7 +9295,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 		//log_string("get_clone_room: persist_load_room");
 		room = get_clone_room(source,x,y);
 		if( !room ) {
-			room = create_virtual_room_nouid( source, FALSE, FALSE, FALSE );
+			room = create_virtual_room_nouid( source, false, false, false );
 			if( !room ) {
 				sprintf(buf, "persist_load_room: could not create clone room for %ld#%ld with uid %08X:%08X.", wnum.auid, wnum.vnum, x, y);
 				bug(buf,0);
@@ -9313,7 +9313,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 
 	for (;good;) {
 		word = feof(fp) ? "#-ROOM" : fread_word(fp);
-		fMatch = FALSE;
+		fMatch = false;
 
 		log_stringf("%s: %s", __FUNCTION__, word);
 
@@ -9322,7 +9322,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 
 		switch (UPPER(word[0])) {
 			case '*':
-				fMatch = TRUE;
+				fMatch = true;
 				fread_to_eol(fp);
 				break;
 
@@ -9331,7 +9331,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 				if (!str_cmp(word,"#EXIT")) {
 					EXIT_DATA *ex = persist_load_exit(fp);
 
-					fMatch = TRUE;
+					fMatch = true;
 					if( ex ) {
 						if( room->exit[ex->orig_door] )
 							free_exit(room->exit[ex->orig_door]);
@@ -9339,40 +9339,40 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 						ex->from_room = room;
 						room->exit[ex->orig_door] = ex;
 					} else
-						good = FALSE;
+						good = false;
 
 					break;
 				}
 				if (!str_cmp(word,"#MOBILE")) {
 					CHAR_DATA *mob = persist_load_mobile(fp);
 
-					fMatch = TRUE;
+					fMatch = true;
 					if( mob ) {
 						char_to_room(mob, room);
 					} else
-						good = FALSE;
+						good = false;
 
 					break;
 				}
 				if (!str_cmp(word,"#OBJECT")) {
 					OBJ_DATA *item = persist_load_object(fp);
 
-					fMatch = TRUE;
+					fMatch = true;
 					if( item ) {
 						obj_to_room(item, room);
 					} else
-						good = FALSE;
+						good = false;
 
 					break;
 				}
 				if (!str_cmp(word,"#TOKEN")) {
 					TOKEN_DATA *token = persist_load_token(fp);
 
-					fMatch = TRUE;
+					fMatch = true;
 					if( token )
 						token_to_room(token, room);
 					else
-						good = FALSE;
+						good = false;
 
 					break;
 				}
@@ -9402,7 +9402,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 						room->environ.clone.id[0] = x;
 						room->environ.clone.id[1] = y;
 					}
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word,"EnvironOBJ")) {
@@ -9420,7 +9420,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 						room->environ.clone.id[0] = x;
 						room->environ.clone.id[1] = y;
 					}
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word,"EnvironTOK")) {
@@ -9438,7 +9438,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 						room->environ.clone.id[0] = x;
 						room->environ.clone.id[1] = y;
 					}
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word,"EnvironCROOM")) {
@@ -9463,7 +9463,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 						}
 					}
 
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word,"EnvironVROOM")) {
@@ -9487,7 +9487,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 						}
 					}
 
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word,"EnvironROOM")) {
@@ -9496,7 +9496,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 					if(environ_room)
 						room_to_environment(room, NULL, NULL, environ_room, NULL);
 
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -9540,7 +9540,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 					room->recall.id[0] = fread_number(fp);
 					room->recall.id[1] = fread_number(fp);
 					room->recall.id[2] = fread_number(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -9554,7 +9554,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 			case 'V':
 				if( (vtype = variable_fread_type(word)) != VAR_UNKNOWN ) {
 					variable_fread(&room->progs->vars, vtype, fp);
-					fMatch = TRUE;
+					fMatch = true;
 				}
 				if( !str_cmp(word, "ViewWilds") ) {
 					w = fread_number(fp);
@@ -9569,7 +9569,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 
 					room->viewwilds = wilds;
 
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -9586,7 +9586,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 						room->y = fread_number(fp);
 						room->z = fread_number(fp);
 					}
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -9687,24 +9687,24 @@ bool persist_load(void)
 	CHAR_DATA *ch;
 	OBJ_DATA *obj;
 	ROOM_INDEX_DATA *room;
-	bool good = TRUE;
+	bool good = true;
 
 	log_string("persist_load: loading persist entities...");
 
 	if (!(fp = fopen(PERSIST_FILE, "r"))) {
 		bug("persist.dat: Couldn't open file.",0);
-		return TRUE;
+		return true;
 	} else {
 		while(good) {
 			word = fread_word(fp);
 
 			if(!str_cmp(word,"#ROOM")) {
 				room = persist_load_room(fp, 'R');
-				if(!room) good = FALSE;
+				if(!room) good = false;
 
 			} else if(!str_cmp(word,"#VROOM")) {
 				room = persist_load_room(fp, 'V');
-				if(!room) good = FALSE;
+				if(!room) good = false;
 
 
 			} else if(!str_cmp(word,"#CROOM")) {
@@ -9713,7 +9713,7 @@ bool persist_load(void)
 					variable_dynamic_fix_clone_room(room);
 					persist_fix_environment_room(room);
 				} else
-					good = FALSE;
+					good = false;
 
 			} else if(!str_cmp(word,"#MOBILE")) {
 				ch = persist_load_mobile(fp);
@@ -9724,26 +9724,26 @@ bool persist_load(void)
 						variable_dynamic_fix_mobile(ch);
 						persist_fix_environment_mobile(ch);
 					} else {
-						extract_char(ch,TRUE);
-						good = FALSE;
+						extract_char(ch,true);
+						good = false;
 					}
 				} else
-					good = FALSE;
+					good = false;
 			} else if(!str_cmp(word,"#OBJECT")) {
 				obj = persist_load_object(fp);
 
 				if( obj ) {
-					obj->locker = FALSE;
+					obj->locker = false;
 					if( obj->in_room ) {
 						obj_to_room(obj, obj->in_room);
 						variable_dynamic_fix_object(obj);
 						persist_fix_environment_object(obj);
 					} else {
 						extract_obj(obj);
-						good = FALSE;
+						good = false;
 					}
 				} else
-					good = FALSE;
+					good = false;
 
 			} else if(!str_cmp(word,"#END"))
 				break;
@@ -9827,7 +9827,7 @@ void load_instances()
 
 	while (str_cmp((word = fread_word(fp)), "#END"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		if (!str_cmp(word, "#INSTANCE"))
 		{
@@ -9838,7 +9838,7 @@ void load_instances()
 				list_appendlink(loaded_instances, instance);
 			}
 
-			fMatch = TRUE;
+			fMatch = true;
 			continue;
 		}
 		else if (!str_cmp(word, "#DUNGEON"))
@@ -9850,7 +9850,7 @@ void load_instances()
 				list_appendlink(loaded_dungeons, dungeon);
 			}
 
-			fMatch = TRUE;
+			fMatch = true;
 			continue;
 		}
 		else if (!str_cmp(word, "#SHIP"))
@@ -9862,7 +9862,7 @@ void load_instances()
 				list_appendlink(loaded_ships, ship);
 			}
 
-			fMatch = TRUE;
+			fMatch = true;
 		}
 
 		if (!fMatch) {

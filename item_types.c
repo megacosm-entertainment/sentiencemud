@@ -228,13 +228,13 @@ bool composite_matrix[ITEM__MAX][ITEM__MAX] = {
 void obj_index_assess_item_types(OBJ_INDEX_DATA *pObjIndex, bool assigned[ITEM__MAX])
 {
 	for(int i = 0; i < ITEM__MAX; i++)
-		assigned[i] = FALSE;
+		assigned[i] = false;
 
-	assigned[pObjIndex->item_type] = TRUE;
-	if (IS_CONTAINER(pObjIndex))	assigned[ITEM_CONTAINER] = TRUE;
-	if (IS_FOOD(pObjIndex))			assigned[ITEM_FOOD] = TRUE;
-	if (IS_LIGHT(pObjIndex))		assigned[ITEM_LIGHT] = TRUE;
-	if (IS_MONEY(pObjIndex))		assigned[ITEM_MONEY] = TRUE;
+	assigned[pObjIndex->item_type] = true;
+	if (IS_CONTAINER(pObjIndex))	assigned[ITEM_CONTAINER] = true;
+	if (IS_FOOD(pObjIndex))			assigned[ITEM_FOOD] = true;
+	if (IS_LIGHT(pObjIndex))		assigned[ITEM_LIGHT] = true;
+	if (IS_MONEY(pObjIndex))		assigned[ITEM_MONEY] = true;
 }
 
 
@@ -245,85 +245,85 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 	switch(pObjIndex->item_type)
 	{
 		case ITEM_CONTAINER:
-			if (item_type == ITEM_ARMOUR) return TRUE;
-			if (item_type == ITEM_CART) return TRUE;
-			if (item_type == ITEM_FLUID_CONTAINER) return TRUE;
-			if (item_type == ITEM_FURNITURE) return TRUE;
-			if (item_type == ITEM_JEWELRY) return TRUE;
-			if (item_type == ITEM_LIGHT) return TRUE;
-			if (item_type == ITEM_PORTAL) return TRUE;
-			return FALSE;
+			if (item_type == ITEM_ARMOUR) return true;
+			if (item_type == ITEM_CART) return true;
+			if (item_type == ITEM_FLUID_CONTAINER) return true;
+			if (item_type == ITEM_FURNITURE) return true;
+			if (item_type == ITEM_JEWELRY) return true;
+			if (item_type == ITEM_LIGHT) return true;
+			if (item_type == ITEM_PORTAL) return true;
+			return false;
 
 		case ITEM_JEWELRY:
-			if (item_type == ITEM_CONTAINER) return TRUE;
-			if (item_type == ITEM_FLUID_CONTAINER) return TRUE;
-			if (item_type == ITEM_LIGHT) return TRUE;
-			if (item_type == ITEM_WAND) return TRUE;
-			return FALSE;
+			if (item_type == ITEM_CONTAINER) return true;
+			if (item_type == ITEM_FLUID_CONTAINER) return true;
+			if (item_type == ITEM_LIGHT) return true;
+			if (item_type == ITEM_WAND) return true;
+			return false;
 		
 		case ITEM_CART:
-			if (item_type == ITEM_CONTAINER) return TRUE;
-			if (item_type == ITEM_FURNITURE) return TRUE;
-			if (item_type == ITEM_LIGHT) return TRUE;
-			if (item_type == ITEM_PORTAL) return TRUE;
-			return FALSE;
+			if (item_type == ITEM_CONTAINER) return true;
+			if (item_type == ITEM_FURNITURE) return true;
+			if (item_type == ITEM_LIGHT) return true;
+			if (item_type == ITEM_PORTAL) return true;
+			return false;
 
 		case ITEM_FURNITURE:
-			if (item_type == ITEM_CART) return TRUE;
-			if (item_type == ITEM_CONTAINER) return TRUE;
-			if (item_type == ITEM_FLUID_CONTAINER) return TRUE;
-			if (item_type == ITEM_LIGHT) return TRUE;
-			if (item_type == ITEM_PORTAL) return TRUE;
-			return FALSE;
+			if (item_type == ITEM_CART) return true;
+			if (item_type == ITEM_CONTAINER) return true;
+			if (item_type == ITEM_FLUID_CONTAINER) return true;
+			if (item_type == ITEM_LIGHT) return true;
+			if (item_type == ITEM_PORTAL) return true;
+			return false;
 
 		case ITEM_ARMOUR:
-			if (item_type == ITEM_CONTAINER) return TRUE;
-			if (item_type == ITEM_FLUID_CONTAINER) return TRUE;
-			if (item_type == ITEM_LIGHT) return TRUE;
-			return FALSE;
+			if (item_type == ITEM_CONTAINER) return true;
+			if (item_type == ITEM_FLUID_CONTAINER) return true;
+			if (item_type == ITEM_LIGHT) return true;
+			return false;
 
 		case ITEM_FLUID_CONTAINER:
-			if (item_type == ITEM_ARMOUR) return TRUE;
-			if (item_type == ITEM_LIGHT) return TRUE;
-			if (item_type == ITEM_CONTAINER) return TRUE;
-			if (item_type == ITEM_FURNITURE) return TRUE;
-			if (item_type == ITEM_PORTAL) return TRUE;
-			if (item_type == ITEM_CART) return TRUE;
+			if (item_type == ITEM_ARMOUR) return true;
+			if (item_type == ITEM_LIGHT) return true;
+			if (item_type == ITEM_CONTAINER) return true;
+			if (item_type == ITEM_FURNITURE) return true;
+			if (item_type == ITEM_PORTAL) return true;
+			if (item_type == ITEM_CART) return true;
 			if (item_type == ITEM_WEAPON) return true;
-			return FALSE;
+			return false;
 
 		case ITEM_LIGHT:
-			if (item_type == ITEM_ARMOUR) return TRUE;
-			if (item_type == ITEM_CONTAINER) return TRUE;
-			if (item_type == ITEM_FLUID_CONTAINER) return TRUE;
-			if (item_type == ITEM_FURNITURE) return TRUE;
-			if (item_type == ITEM_PORTAL) return TRUE;
+			if (item_type == ITEM_ARMOUR) return true;
+			if (item_type == ITEM_CONTAINER) return true;
+			if (item_type == ITEM_FLUID_CONTAINER) return true;
+			if (item_type == ITEM_FURNITURE) return true;
+			if (item_type == ITEM_PORTAL) return true;
 			if (item_type == ITEM_WEAPON) return true;
 			if (item_type == ITEM_WAND) return true;
-			return FALSE;
+			return false;
 
 		case ITEM_PORTAL:
-			if (item_type == ITEM_LIGHT) return TRUE;
-			if (item_type == ITEM_CONTAINER) return TRUE;
-			if (item_type == ITEM_FURNITURE) return TRUE;
-			if (item_type == ITEM_FLUID_CONTAINER) return TRUE;
-			if (item_type == ITEM_CART) return TRUE;
-			return FALSE;
+			if (item_type == ITEM_LIGHT) return true;
+			if (item_type == ITEM_CONTAINER) return true;
+			if (item_type == ITEM_FURNITURE) return true;
+			if (item_type == ITEM_FLUID_CONTAINER) return true;
+			if (item_type == ITEM_CART) return true;
+			return false;
 
 		case ITEM_WAND:
 			if (item_type == ITEM_JEWELRY) return true;
-			if (item_type == ITEM_LIGHT) return TRUE;
-			if (item_type == ITEM_WEAPON) return TRUE;
-			return FALSE;
+			if (item_type == ITEM_LIGHT) return true;
+			if (item_type == ITEM_WEAPON) return true;
+			return false;
 
 		case ITEM_WEAPON:
-			if (item_type == ITEM_LIGHT) return TRUE;
-			if (item_type == ITEM_WAND) return TRUE;
+			if (item_type == ITEM_LIGHT) return true;
+			if (item_type == ITEM_WAND) return true;
 			if (item_type == ITEM_FLUID_CONTAINER) return true;
-			return FALSE;
+			return false;
 	}
 
-	return FALSE;
+	return false;
 }
 
 
@@ -460,7 +460,7 @@ bool oclu_get_context(OCLU_CONTEXT *context, OBJ_DATA *obj, char *argument)
 		char arg[MIL];
 		int count = number_argument(argument, arg);
 
-		context->is_default = FALSE;
+		context->is_default = false;
 
 		if (IS_BOOK(obj))
 		{
@@ -471,7 +471,7 @@ bool oclu_get_context(OCLU_CONTEXT *context, OBJ_DATA *obj, char *argument)
 				context->flags = &(BOOK(obj)->flags);
 				context->label = BOOK(obj)->short_descr;
 				context->lock = &(BOOK(obj)->lock);
-				return TRUE;
+				return true;
 			}
 		}
 
@@ -484,7 +484,7 @@ bool oclu_get_context(OCLU_CONTEXT *context, OBJ_DATA *obj, char *argument)
 				context->flags = &(CONTAINER(obj)->flags);
 				context->label = CONTAINER(obj)->short_descr;
 				context->lock = &(CONTAINER(obj)->lock);
-				return TRUE;
+				return true;
 			}
 		}
 
@@ -497,7 +497,7 @@ bool oclu_get_context(OCLU_CONTEXT *context, OBJ_DATA *obj, char *argument)
 				context->flags = &(FLUID_CON(obj)->flags);
 				context->label = FLUID_CON(obj)->short_descr;
 				context->lock = &(FLUID_CON(obj)->lock);
-				return TRUE;
+				return true;
 			}
 		}
 
@@ -523,7 +523,7 @@ bool oclu_get_context(OCLU_CONTEXT *context, OBJ_DATA *obj, char *argument)
 			}
 			iterator_stop(&it);
 
-			if (compartment) return TRUE;
+			if (compartment) return true;
 		}
 
 		if (IS_PORTAL(obj))
@@ -535,14 +535,14 @@ bool oclu_get_context(OCLU_CONTEXT *context, OBJ_DATA *obj, char *argument)
 				context->flags = &(PORTAL(obj)->exit);
 				context->label = PORTAL(obj)->short_descr;
 				context->lock = &(PORTAL(obj)->lock);
-				return TRUE;
+				return true;
 			}
 		}
 	}
 	// Not dealing with an ambiguous object
 	else if (!obj_oclu_ambiguous(obj))
 	{
-		context->is_default = TRUE;
+		context->is_default = true;
 
 		if (IS_BOOK(obj))
 		{
@@ -551,7 +551,7 @@ bool oclu_get_context(OCLU_CONTEXT *context, OBJ_DATA *obj, char *argument)
 			context->flags = &(BOOK(obj)->flags);
 			context->label = BOOK(obj)->short_descr;
 			context->lock = &(BOOK(obj)->lock);
-			return TRUE;
+			return true;
 		}
 
 		if (IS_CONTAINER(obj))
@@ -561,7 +561,7 @@ bool oclu_get_context(OCLU_CONTEXT *context, OBJ_DATA *obj, char *argument)
 			context->flags = &(CONTAINER(obj)->flags);
 			context->label = CONTAINER(obj)->short_descr;
 			context->lock = &(CONTAINER(obj)->lock);
-			return TRUE;
+			return true;
 		}
 
 		if (IS_FLUID_CON(obj))
@@ -571,7 +571,7 @@ bool oclu_get_context(OCLU_CONTEXT *context, OBJ_DATA *obj, char *argument)
 			context->flags = &(FLUID_CON(obj)->flags);
 			context->label = FLUID_CON(obj)->short_descr;
 			context->lock = &(FLUID_CON(obj)->lock);
-			return TRUE;
+			return true;
 		}
 
 		if (IS_FURNITURE(obj))
@@ -584,7 +584,7 @@ bool oclu_get_context(OCLU_CONTEXT *context, OBJ_DATA *obj, char *argument)
 				context->flags = &compartment->flags;
 				context->label = compartment->short_descr;
 				context->lock = &compartment->lock;
-				return TRUE;
+				return true;
 			}
 		}
 
@@ -595,26 +595,26 @@ bool oclu_get_context(OCLU_CONTEXT *context, OBJ_DATA *obj, char *argument)
 			context->flags = &(PORTAL(obj)->exit);
 			context->label = PORTAL(obj)->short_descr;
 			context->lock = &(PORTAL(obj)->lock);
-			return TRUE;
+			return true;
 		}
 	}
 
-	return FALSE;
+	return false;
 }
 
 bool spell_cmp(SPELL_DATA *a, SPELL_DATA *b)
 {
-	if (a == NULL) return FALSE;
+	if (a == NULL) return false;
 	
-	if (b == NULL) return FALSE;
+	if (b == NULL) return false;
 
 	if (a->skill != b->skill) return false;
 
-	if (a->level != b->level) return FALSE;
+	if (a->level != b->level) return false;
 
-	if (a->repop != b->repop) return FALSE;
+	if (a->repop != b->repop) return false;
 
-	return TRUE;
+	return true;
 }
 
 bool obj_has_same_spells(LLIST *a, LLIST *b)
@@ -639,7 +639,7 @@ bool obj_has_same_spells(LLIST *a, LLIST *b)
 	iterator_stop(&ia);
 
 	// This spell was not found in the second list
-	if (sa) return FALSE;
+	if (sa) return false;
 
 	iterator_start(&ib, b);
 	while((sb = (SPELL_DATA *)iterator_nextdata(&ib)))
@@ -681,7 +681,7 @@ BOOK_PAGE *book_get_page(BOOK_DATA *book, int page_no)
 
 bool book_insert_page(BOOK_DATA *book, BOOK_PAGE *new_page)
 {
-	bool valid = TRUE;
+	bool valid = true;
 
 	ITERATOR it;
 	BOOK_PAGE *page;
@@ -691,7 +691,7 @@ bool book_insert_page(BOOK_DATA *book, BOOK_PAGE *new_page)
 		if (page->page_no == new_page->page_no)
 		{
 			// Page already exists with this page!
-			valid = FALSE;
+			valid = false;
 			break;
 		}
 
@@ -796,12 +796,12 @@ int container_get_content_weight(OBJ_DATA *container, OBJ_DATA *obj)
 
 bool container_can_fit_weight(OBJ_DATA *container, OBJ_DATA *obj)
 {
-	if (CONTAINER(container)->max_weight < 0) return TRUE;
+	if (CONTAINER(container)->max_weight < 0) return true;
 
 	int weight = container_get_content_weight(container, obj);
 
 	// No container data
-	if (weight < 0) return FALSE;
+	if (weight < 0) return false;
 
 	return (weight <= CONTAINER(container)->max_weight);
 }
@@ -828,11 +828,11 @@ int container_get_content_volume(OBJ_DATA *container, OBJ_DATA *obj)
 
 bool container_can_fit_volume(OBJ_DATA *container, OBJ_DATA *obj)
 {
-	if (CONTAINER(container)->max_volume < 0) return TRUE;
+	if (CONTAINER(container)->max_volume < 0) return true;
 
 	int volume = container_get_content_volume(container, obj);
 
-	if (volume < 0) return FALSE;
+	if (volume < 0) return false;
 
 	return (volume <= CONTAINER(container)->max_volume);
 }
@@ -840,7 +840,7 @@ bool container_can_fit_volume(OBJ_DATA *container, OBJ_DATA *obj)
 // Return true if okay
 bool container_check_duplicate(OBJ_DATA *container, OBJ_DATA *obj)
 {
-	if (!IS_CONTAINER(container)) return FALSE;
+	if (!IS_CONTAINER(container)) return false;
 
 	OBJ_DATA *o;
 
@@ -848,10 +848,10 @@ bool container_check_duplicate(OBJ_DATA *container, OBJ_DATA *obj)
 	{
 		// Same index
 		if (o->pIndexData == obj->pIndexData)
-			return FALSE;
+			return false;
 	}
 
-	return TRUE;
+	return true;
 }
 
 ////////////////////
@@ -859,7 +859,7 @@ bool container_check_duplicate(OBJ_DATA *container, OBJ_DATA *obj)
 bool fluid_has_same_fluid(FLUID_CONTAINER_DATA *a, FLUID_CONTAINER_DATA *b)
 {
 	// Assume both have liquids?
-	if (a->liquid != b->liquid) return FALSE;
+	if (a->liquid != b->liquid) return false;
 
 	return obj_has_same_spells(a->spells, b->spells);
 }
@@ -891,8 +891,8 @@ bool food_has_buffs(OBJ_DATA *obj)
 
 bool food_apply_buffs(CHAR_DATA *ch, OBJ_DATA *obj, int level, int duration)
 {
-	if (!IS_VALID(obj)) return FALSE;
-	if (!IS_FOOD(obj)) return FALSE;
+	if (!IS_VALID(obj)) return false;
+	if (!IS_FOOD(obj)) return false;
 
 	if (list_size(obj->_food->buffs) > 0)
 	{
@@ -923,7 +923,7 @@ bool food_apply_buffs(CHAR_DATA *ch, OBJ_DATA *obj, int level, int duration)
 		iterator_stop(&it);
 	}
 
-	return TRUE;
+	return true;
 }
 
 ////////////////////
@@ -1088,9 +1088,9 @@ bool light_char_has_light(CHAR_DATA *ch)
 		{
 			// Only need one active light source
 			if (IS_SET(LIGHT(obj)->flags, LIGHT_IS_ACTIVE))
-				return TRUE;
+				return true;
 		}
 	}
 
-	return FALSE;
+	return false;
 }

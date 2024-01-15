@@ -60,7 +60,7 @@
 #define KEY(literal, field, value) \
 	if (IS_KEY(literal)) { \
 		field = value; \
-		fMatch = TRUE; \
+		fMatch = true; \
 		break; \
 	}
 
@@ -68,21 +68,21 @@
 	if (IS_KEY(literal)) { \
 		free_string(field); \
 		field = fread_string(fp); \
-		fMatch = TRUE; \
+		fMatch = true; \
 		break; \
 	}
 
 #define FKEY(literal, field) \
 	if (IS_KEY(literal)) { \
-		field = TRUE; \
-		fMatch = TRUE; \
+		field = true; \
+		fMatch = true; \
 		break; \
 	}
 
 #define FVKEY(literal, field, string, tbl) \
 	if (IS_KEY(literal)) { \
 		field = flag_value(tbl, string); \
-		fMatch = TRUE; \
+		fMatch = true; \
 		break; \
 	}
 
@@ -92,7 +92,7 @@
 		if( field == bad ) { \
 			field = def; \
 		} \
-		fMatch = TRUE; \
+		fMatch = true; \
 		break; \
 	}
 
@@ -907,9 +907,9 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     ch->act[1]				= 0;
     ch->comm				= COMM_PROMPT;
     ch->num_grouped			= 0;
-    ch->dead = FALSE;
+    ch->dead = false;
     ch->prompt 				= str_dup("{B<{x%h{Bhp {x%m{Bm {x%v{Bmv>{x%c");
-    ch->pcdata->confirm_delete		= FALSE;
+    ch->pcdata->confirm_delete		= false;
     ch->pcdata->pwd			= str_dup("");
 	ch->pcdata->pwd_vers	= 0;
     //ch->pcdata->bamfin			= str_dup("");
@@ -919,7 +919,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     {
 		ch->perm_stat[stat]		= 13;
 		ch->mod_stat[stat]		= 0;
-		ch->dirty_stat[stat]	= TRUE;
+		ch->dirty_stat[stat]	= true;
 	}
     ch->pcdata->condition[COND_THIRST]	= 48;
     ch->pcdata->condition[COND_FULL]	= 48;
@@ -927,7 +927,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     ch->pcdata->condition[COND_STONED]	= 0;
     ch->pcdata->security		= 0;
     ch->pcdata->challenge_delay		= 0;
-    ch->morphed = FALSE;
+    ch->morphed = false;
     ch->locker_rent = 0;
     ch->deathsight_vision = 0;
 
@@ -935,7 +935,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 	imc_initchar( ch );
 	#endif
 
-    found = FALSE;
+    found = false;
     fclose(fpReserve);
 
     #if defined(unix)
@@ -956,7 +956,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 		for (iNest = 0; iNest < MAX_NEST; iNest++)
 			rgObjNest[iNest] = NULL;
 
-		found = TRUE;
+		found = true;
 		for (; ;)
 		{
 			char letter;
@@ -988,7 +988,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 				resolve_special_key(obj);
 
 				objNestList[obj->nest] = obj;
-				if (obj->locker == TRUE)
+				if (obj->locker == true)
 				{
 					obj_to_locker(obj, ch);
 					continue;
@@ -1097,7 +1097,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
        to re-shift, so we have to switch it to none first. */
     if (ch->shifted != SHIFTED_NONE) {
 		ch->shifted = SHIFTED_NONE;
-		shift_char(ch, TRUE);
+		shift_char(ch, true);
     }
 
 	variable_fix_list(last_var ? last_var : variable_head);
@@ -1119,10 +1119,10 @@ MISSION_PART_DATA *fread_mission_part(FILE *fp)
     for (; ;)
     {
 		word   = feof(fp) ? "#-MISSIONPART" : fread_word(fp);
-		fMatch = FALSE;
+		fMatch = false;
 
 		if (!str_cmp(word, "#-MISSIONPART")) {
-			fMatch = TRUE;
+			fMatch = true;
 			return part;
 		}
 
@@ -1130,15 +1130,15 @@ MISSION_PART_DATA *fread_mission_part(FILE *fp)
 		{
 			case 'C':
 				if (!str_cmp(word, "Complete")) {
-					part->complete = TRUE;
-					fMatch = TRUE;
+					part->complete = true;
+					fMatch = true;
 					fread_to_eol(fp);
 					break;
 				}
 
 				if (!str_cmp(word, "Custom")) {
-					part->custom_task = TRUE;
-					fMatch = TRUE;
+					part->custom_task = true;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -1146,7 +1146,7 @@ MISSION_PART_DATA *fread_mission_part(FILE *fp)
 			case 'D':
 				if (!str_cmp(word, "Description")) {
 					part->description = fread_string(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -1156,7 +1156,7 @@ MISSION_PART_DATA *fread_mission_part(FILE *fp)
 					wnum = fread_widevnum(fp, 0);
 					part->area = get_area_from_uid(wnum.auid);
 					part->mob = wnum.vnum;
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 
@@ -1164,7 +1164,7 @@ MISSION_PART_DATA *fread_mission_part(FILE *fp)
 					wnum = fread_widevnum(fp, 0);
 					part->area = get_area_from_uid(wnum.auid);
 					part->mob_rescue = wnum.vnum;
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -1186,12 +1186,12 @@ MISSION_PART_DATA *fread_mission_part(FILE *fp)
 					room_vnum = fread_widevnum(fp, 0);
 					room = get_room_index_auid(room_vnum.auid, room_vnum.vnum);
 
-					obj = create_object(obj_i, 1, TRUE);
+					obj = create_object(obj_i, 1, true);
 					obj_to_room(obj, room);
 
 					part->pObj = obj;
 
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 
@@ -1199,7 +1199,7 @@ MISSION_PART_DATA *fread_mission_part(FILE *fp)
 					wnum = fread_widevnum(fp, 0);
 					part->area = get_area_from_uid(wnum.auid);
 					part->obj_sac = wnum.vnum;
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -1209,7 +1209,7 @@ MISSION_PART_DATA *fread_mission_part(FILE *fp)
 					wnum = fread_widevnum(fp, 0);
 					part->area = get_area_from_uid(wnum.auid);
 					part->room = wnum.vnum;
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -1237,7 +1237,7 @@ MISSION_DATA *fread_mission(FILE *fp)
     for (; ;)
     {
 		word   = feof(fp) ? "#-MISSION" : fread_word(fp);
-		fMatch = FALSE;
+		fMatch = false;
 
 		if (!str_cmp(word, "#-MISSION")) {
 			return mission;
@@ -1269,7 +1269,7 @@ MISSION_DATA *fread_mission(FILE *fp)
 					wnum = fread_widevnum(fp, 0);
 					mission->giver.pArea = get_area_from_uid(wnum.auid);
 					mission->giver.vnum = wnum.vnum;
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				KEY("GiverType", mission->giver_type, fread_number(fp));
@@ -1281,7 +1281,7 @@ MISSION_DATA *fread_mission(FILE *fp)
 					wnum = fread_widevnum(fp, 0);
 					mission->receiver.pArea = get_area_from_uid(wnum.auid);
 					mission->receiver.vnum = wnum.vnum;
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				KEY("ReceiverType", mission->receiver_type, fread_number(fp));
@@ -1313,7 +1313,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
     char *race_string;
     char *immortal_flag = str_dup("");
     bool fMatch;
-    bool fMatchFound = FALSE;
+    bool fMatchFound = false;
     int count = 0;
     int lastlogoff = current_time;
     int percent;
@@ -1326,14 +1326,14 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
     for (; ;)
     {
 	word   = feof(fp) ? "End" : fread_word(fp);
-	fMatch = FALSE;
+	fMatch = false;
 
 	bug(word, 0);
 
 	switch (UPPER(word[0]))
 	{
 	case '*':
-	    fMatch = TRUE;
+	    fMatch = true;
 	    fread_to_eol(fp);
 	    break;
 
@@ -1382,14 +1382,14 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		if (count >= MAX_ALIAS)
 		{
 		    fread_to_eol(fp);
-		    fMatch = TRUE;
+		    fMatch = true;
 		    break;
 		}
 
 		ch->pcdata->alias[count] 	= str_dup(fread_word(fp));
 		ch->pcdata->alias_sub[count]	= str_dup(fread_word(fp));
 		count++;
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 
@@ -1398,21 +1398,21 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
                 if (count >= MAX_ALIAS)
                 {
                     fread_to_eol(fp);
-                    fMatch = TRUE;
+                    fMatch = true;
                     break;
                 }
 
                 ch->pcdata->alias[count]        = str_dup(fread_word(fp));
                 ch->pcdata->alias_sub[count]    = fread_string(fp);
                 count++;
-                fMatch = TRUE;
+                fMatch = true;
                 break;
             }
 
 	    if (!str_cmp(word, "AC") || !str_cmp(word,"Armour"))
 	    {
 		fread_to_eol(fp);
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 
@@ -1422,7 +1422,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 
 		for (i = 0; i < 4; i++)
 		    ch->armour[i] = fread_number(fp);
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 
@@ -1446,7 +1446,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		paf->bitvector	= fread_number(fp);
 		paf->next	= ch->affected;
 		ch->affected	= paf;
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 
@@ -1475,7 +1475,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		    paf->bitvector2 = fread_number(fp);
                 paf->next       = ch->affected;
                 ch->affected    = paf;
-                fMatch = TRUE;
+                fMatch = true;
                 break;
             }
 
@@ -1516,7 +1516,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 					paf->slot = fread_number(fp);
                 paf->next       = ch->affected;
                 ch->affected    = paf;
-                fMatch = TRUE;
+                fMatch = true;
                 break;
             }
 
@@ -1546,7 +1546,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 				    paf->bitvector2 = fread_number(fp);
                 paf->next       = ch->affected;
                 ch->affected    = paf;
-                fMatch = TRUE;
+                fMatch = true;
                 break;
             }
 
@@ -1589,7 +1589,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 					paf->slot = fread_number(fp);
                 paf->next       = ch->affected;
                 ch->affected    = paf;
-                fMatch = TRUE;
+                fMatch = true;
                 break;
             }
 
@@ -1598,7 +1598,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		int stat;
 		for (stat = 0; stat < MAX_STATS; stat ++)
 		   set_mod_stat(ch, stat, fread_number(fp));
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 
@@ -1608,7 +1608,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 
 		for (stat = 0; stat < MAX_STATS; stat++)
 			set_perm_stat(ch, stat, fread_number(fp));
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 
@@ -1619,7 +1619,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 
 			add_aura_to_char(ch, name, long_descr);
 
-			fMatch = TRUE;
+			fMatch = true;
 			break;
 		}
 	    break;
@@ -1632,17 +1632,17 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 	    KEY("Bank",	ch->pcdata->bankbalance, fread_number(fp));
             if (!str_cmp(word, "Before_social")) {
 		location_set(&ch->before_social,get_area_from_uid(fread_number(fp)),0,fread_number(fp),0,0);
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
             if (!str_cmp(word, "Before_socialC")) {
 		location_set(&ch->before_social,get_area_from_uid(fread_number(fp)),0,fread_number(fp),fread_number(fp),fread_number(fp));
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
             if (!str_cmp(word, "Before_socialW")) {
 		location_set(&ch->before_social,NULL,fread_number(fp),fread_number(fp),fread_number(fp),fread_number(fp));
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 		break;
@@ -1755,7 +1755,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 			free_string(ch->church_name);
 		}
 
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 
@@ -1773,7 +1773,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 
 			if (ch->in_room == NULL)
 				ch->in_room = room_index_temple;
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 
@@ -1782,7 +1782,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		ch->pcdata->condition[0] = fread_number(fp);
 		ch->pcdata->condition[1] = fread_number(fp);
 		ch->pcdata->condition[2] = fread_number(fp);
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
             if (!str_cmp(word,"Cnd"))
@@ -1791,7 +1791,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
                 ch->pcdata->condition[1] = fread_number(fp);
                 ch->pcdata->condition[2] = fread_number(fp);
 		ch->pcdata->condition[3] = fread_number(fp);
-                fMatch = TRUE;
+                fMatch = true;
                 break;
             }
 	    KEY("Comm",		ch->comm,		fread_flag(fp));
@@ -1810,8 +1810,8 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 	    KEY("DeathTimeLeft", ch->time_left_death,	fread_number(fp));
 
 	    if (!str_cmp(word, "Dead")) {
-		ch->dead = TRUE;
-		fMatch = TRUE;
+		ch->dead = true;
+		fMatch = true;
 	    }
 
 	    break;
@@ -1870,7 +1870,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
                 cmd->next = ch->pcdata->commands;
 		ch->pcdata->commands = cmd;
 
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 
@@ -1890,7 +1890,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 					list_appendlink(ch->pcdata->group_known, group);
 				}
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
             }
 
@@ -1905,7 +1905,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 
 			ch->home.pArea = get_area_from_uid(load.auid);
 			ch->home.vnum = load.vnum;
-			fMatch = TRUE;
+			fMatch = true;
 			break;
 		}
 
@@ -1914,7 +1914,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		ch->pcdata->hit_before  = fread_number(fp);
 		ch->pcdata->mana_before	= fread_number(fp);
 		ch->pcdata->move_before	= fread_number(fp);
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 
@@ -1926,7 +1926,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		ch->max_mana	= fread_number(fp);
 		ch->move	= fread_number(fp);
 		ch->max_move	= fread_number(fp);
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 
@@ -1937,7 +1937,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
                 ch->pcdata->perm_hit	= fread_number(fp);
                 ch->pcdata->perm_mana   = fread_number(fp);
                 ch->pcdata->perm_move   = fread_number(fp);
-                fMatch = TRUE;
+                fMatch = true;
 
 		if (IS_IMMORTAL(ch))
 		    break;
@@ -2006,7 +2006,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 
 	        ignore->name   = fread_string(fp);
 	        ignore->reason = fread_string(fp);
-	        fMatch = TRUE;
+	        fMatch = true;
 	        break;
 	    }
 	#ifdef IMC
@@ -2032,7 +2032,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 	    // fix mistake where date got saved as a string to the file
 	    if (!str_cmp(word, "LastLogin")) {
 		fread_to_eol(fp);
-		fMatch = TRUE;
+		fMatch = true;
 	    }
 
 	    if (!str_cmp(word, "LogO"))
@@ -2042,7 +2042,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		time = fread_number(fp);
 		ch->pcdata->last_logoff = time;
 		lastlogoff = time;
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 
@@ -2075,7 +2075,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		ch->pcdata->last_penalty		= fread_number(fp);
 		ch->pcdata->last_news			= fread_number(fp);
 		ch->pcdata->last_changes		= fread_number(fp);
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 
@@ -2085,7 +2085,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 	    if (!str_cmp(word,"OwnerOfShip"))
 	    {
 		//ch->pcdata->owner_of_boat_before_logoff		= fread_string(fp);
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 
@@ -2110,7 +2110,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 				ch->pcdata->personal_mount.vnum = 0;
 			}
 
-			fMatch = TRUE;
+			fMatch = true;
 			break;
 		}
 	    KEY("Played",	ch->played,		fread_number(fp));
@@ -2142,7 +2142,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		ch->pcdata->quiet_people = string;
 
 		string->string = fread_string(fp);
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 
@@ -2151,7 +2151,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 	    if (!str_cmp(word, "Questing"))
 	    {
 			ch->quest = (QUEST_DATA *)new_quest();
-			fMatch = TRUE;
+			fMatch = true;
 			break;
 		}
 
@@ -2162,7 +2162,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 				ch->quest = (QUEST_DATA *)new_quest();
 			}
 			ch->quest->questgiver_type = fread_number(fp);
-			fMatch = TRUE;
+			fMatch = true;
 			break;
 	    }
 
@@ -2177,7 +2177,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 			ch->quest->questgiver.pArea = get_area_from_uid(load.auid);
 			ch->quest->questgiver.vnum = load.vnum;
 	
-			fMatch = TRUE;
+			fMatch = true;
 			break;
 	    }
 
@@ -2188,7 +2188,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 				ch->quest = (QUEST_DATA *)new_quest();
 			}
 			ch->quest->questreceiver_type = fread_number(fp);
-			fMatch = TRUE;
+			fMatch = true;
 			break;
 	    }
 
@@ -2203,7 +2203,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 			ch->quest->questreceiver.pArea = get_area_from_uid(load.auid);
 			ch->quest->questreceiver.vnum = load.vnum;
 
-			fMatch = TRUE;
+			fMatch = true;
 			break;
 	    }
 
@@ -2221,7 +2221,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 
 		part->next = ch->quest->parts;
 		ch->quest->parts = part;
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 
@@ -2238,7 +2238,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 
 		part->next = ch->quest->parts;
 		ch->quest->parts = part;
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 
@@ -2255,7 +2255,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 
 		part->next = ch->quest->parts;
 		ch->quest->parts = part;
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 
@@ -2272,7 +2272,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 
 		part->next = ch->quest->parts;
 		ch->quest->parts = part;
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 
@@ -2289,7 +2289,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 
 		part->next = ch->quest->parts;
 		ch->quest->parts = part;
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 
@@ -2297,8 +2297,8 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 	    if (!str_cmp(word, "QComplete"))
 	    {
 			if (ch->quest != NULL)
-				ch->quest->parts->complete = TRUE;
-		fMatch = TRUE;
+				ch->quest->parts->complete = true;
+		fMatch = true;
 	    }
 #endif
             break;
@@ -2308,7 +2308,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 				long auid = fread_number(fp);
 				long vnum = fread_number(fp);
 		location_set(&ch->recall,get_area_from_uid(auid),0,vnum,0,0);
-		fMatch = TRUE;
+		fMatch = true;
 	    }
             if (!str_cmp(word, "RepopRoomC")) {
 				long auid = fread_number(fp);
@@ -2317,7 +2317,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 				unsigned long id1 = fread_number(fp);
 
 		location_set(&ch->recall,get_area_from_uid(auid),0,vnum,id0,id1);
-		fMatch = TRUE;
+		fMatch = true;
 	    }
             if (!str_cmp(word, "RepopRoomW")) {
 				long wuid = fread_number(fp);
@@ -2325,14 +2325,14 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 				long y = fread_number(fp);
 				long z = fread_number(fp);
 		location_set(&ch->recall,NULL,wuid,x,y,z);
-		fMatch = TRUE;
+		fMatch = true;
 	    }
 
             if (!str_cmp(word, "Room_before_arena")) {
 				long auid = fread_number(fp);
 				long vnum = fread_number(fp);
 		location_set(&ch->pcdata->room_before_arena,get_area_from_uid(auid),0,vnum,0,0);
-		fMatch = TRUE;
+		fMatch = true;
 	    }
             if (!str_cmp(word, "Room_before_arenaC")) {
 				long auid = fread_number(fp);
@@ -2340,7 +2340,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 				unsigned long id0 = fread_number(fp);
 				unsigned long id1 = fread_number(fp);
 		location_set(&ch->pcdata->room_before_arena,get_area_from_uid(auid),0,vnum,id0,id1);
-		fMatch = TRUE;
+		fMatch = true;
 	    }
             if (!str_cmp(word, "Room_before_arenaW")) {
 				long wuid = fread_number(fp);
@@ -2348,7 +2348,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 				long y = fread_number(fp);
 				long z = fread_number(fp);
 		location_set(&ch->pcdata->room_before_arena,NULL,wuid,x,y,z);
-		fMatch = TRUE;
+		fMatch = true;
 	    }
 		if (ch->version < VERSION_PLAYER_007)
 		{
@@ -2375,7 +2375,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		     ch->race = get_race_data(race_string);
 
 		 free_string(race_string);
-                 fMatch = TRUE;
+                 fMatch = true;
                  break;
             }
 
@@ -2388,12 +2388,12 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		ch->in_room = get_room_index_auid(w.auid, w.vnum);
 		if ((ch->in_room == NULL) /*|| (ch->tot_level < 150 && !ch->in_room->area->open)*/)
 		    ch->in_room = room_index_temple;
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 
 
-	    fMatchFound = FALSE;/*
+	    fMatchFound = false;/*
 	    for (i = 0; i < 3; i++)
             {
 	        char buf2[MSL];
@@ -2402,20 +2402,20 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		if (!str_cmp(word, buf2))
 		{
 		    ch->pcdata->rank[i] = fread_number(fp);
-		    fMatchFound = TRUE;
+		    fMatchFound = true;
 		}
 
 		sprintf(buf2, "Reputation%d", i);
 		if (!str_cmp(word, buf2))
 		{
 		    ch->pcdata->reputation[i] = fread_number(fp);
-		    fMatchFound = TRUE;
+		    fMatchFound = true;
 		}
 	    }*/
 
 	    if (fMatchFound)
 	    {
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 
@@ -2438,7 +2438,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 				list_appendlink(ch->pcdata->ships, ship);
 			}
 
-			fMatch = TRUE;
+			fMatch = true;
 			break;
 		}
 
@@ -2471,7 +2471,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		if (!str_cmp(temp, "Slayer"))
 		    ch->shifted = SHIFTED_SLAYER;
 
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 
@@ -2510,7 +2510,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 				entry->rating = value;
 			}
 
-			fMatch = TRUE;
+			fMatch = true;
 			break;
 	    }
 
@@ -2533,7 +2533,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 				if (entry) entry->mod_rating = value;
 			}
 
-			fMatch = TRUE;
+			fMatch = true;
 			break;
 	    }
 
@@ -2555,13 +2555,13 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 				skill_entry_addsong(ch, song, NULL, SKILLSRC_NORMAL);
 			}
 
-			fMatch = TRUE;
+			fMatch = true;
 			break;
 	    }
 		*/
 
 /*
-	    fMatchFound = FALSE;
+	    fMatchFound = false;
 	    for (i = 0; i < 3; i++)
             {
 	        char buf2[MSL];
@@ -2570,12 +2570,12 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		if (!str_cmp(word, buf2))
 		{
 		    ch->pcdata->ship_quest_points[i] = fread_number(fp);
-		    fMatchFound = TRUE;
+		    fMatchFound = true;
 		}
 	    }
 	    if (fMatchFound)
             {
-		    fMatch = TRUE;
+		    fMatch = true;
 		    break;
 	    }
 */
@@ -2591,7 +2591,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 
 	    if (!str_prefix("Toxn", word))
 	    {
-		fMatch = TRUE;
+		fMatch = true;
 		for (i = 0; i < MAX_TOXIN; i++)
 		{
 		    if (!str_cmp(word + 4, toxin_table[i].name))
@@ -2616,7 +2616,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 				free_string(ch->pcdata->title);
 				ch->pcdata->title = str_dup("");	// No title
 			}
-			fMatch = TRUE;
+			fMatch = true;
 			break;
 	    }
 
@@ -2634,7 +2634,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 				player_unlock_area(ch, unlocked_area);
 			}
 
-			fMatch = TRUE;
+			fMatch = true;
 			break;
 		}
 		break;
@@ -2652,7 +2652,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		ch->pcdata->vis_to_people = string;
 
 		string->string = fread_string(fp);
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 
@@ -2665,14 +2665,14 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 
 			ch->pIndexData = get_mob_index_auid(wnum_load.auid, wnum_load.vnum);
 
-			fMatch = TRUE;
+			fMatch = true;
 			break;
 	    }
 /*
 	    if (!str_cmp(word,"VnumOfShip"))
 	    {
 		ch->pcdata->vnum_of_boat_before_logoff		= fread_number(fp);
-		fMatch = TRUE;
+		fMatch = true;
 		break;
 	    }
 */
@@ -2688,7 +2688,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
                 /* Vizz - room may not exist yet */
                 ch->in_room = NULL;
 
-                fMatch = TRUE;
+                fMatch = true;
                 break;
             }
 	    break;
@@ -3352,7 +3352,7 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
 	fprintf(fp, "Fragility %d\n", obj->fragility);
     if (obj->times_allowed_fixed != obj->pIndexData->times_allowed_fixed)
 	fprintf(fp, "TimesAllowedFixed %d\n", obj->times_allowed_fixed);
-    if (obj->locker == TRUE)
+    if (obj->locker == true)
     	fprintf(fp, "Locker %d\n", obj->locker);
 
 	/*
@@ -3599,13 +3599,13 @@ LOCK_STATE *fread_lock_state(FILE *fp)
 	LOCK_STATE *lock;
 	char buf[MSL];
     char *word;
-	bool fMatch = FALSE;
+	bool fMatch = false;
 
 	lock = new_lock_state();
 
     while (str_cmp((word = fread_word(fp)), "#-LOCK"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -3642,7 +3642,7 @@ LOCK_STATE *fread_lock_state(FILE *fp)
 					luid->id[1] = id1;
 
 					list_appendlink(lock->special_keys, luid);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -3669,7 +3669,7 @@ AMMO_DATA *fread_obj_ammo_data(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-TYPEAMMO"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -3716,7 +3716,7 @@ ADORNMENT_DATA *fread_adornment_data(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-TYPEADORNMENT"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -3780,7 +3780,7 @@ ARMOR_DATA *fread_obj_armor_data(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-TYPEARMOR"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -3875,7 +3875,7 @@ BOOK_PAGE *fread_book_page(FILE *fp, char *closer)
 
 	while(str_cmp((word = fread_word(fp)), closer))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -3909,7 +3909,7 @@ BOOK_DATA *fread_obj_book_data(FILE *fp)
 
 	while(str_cmp((word = fread_word(fp)), "#-TYPEBOOK"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -3917,7 +3917,7 @@ BOOK_DATA *fread_obj_book_data(FILE *fp)
 				if (!str_cmp(word, "#LOCK"))
 				{
 					book->lock = fread_lock_state(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word, "#PAGE"))
@@ -3930,7 +3930,7 @@ BOOK_DATA *fread_obj_book_data(FILE *fp)
 						bug(buf, 0);
 						free_book_page(page);	
 					}
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -3971,13 +3971,13 @@ CONTAINER_DATA *fread_obj_container_data(FILE *fp)
 	CONTAINER_DATA *data = NULL;
 	char buf[MSL];
     char *word;
-	bool fMatch = FALSE;
+	bool fMatch = false;
 
 	data = new_container_data();
 
     while (str_cmp((word = fread_word(fp)), "#-TYPECONTAINER"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -3987,7 +3987,7 @@ CONTAINER_DATA *fread_obj_container_data(FILE *fp)
 					if (data->lock) free_lock_state(data->lock);
 
 					data->lock = fread_lock_state(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -4012,7 +4012,7 @@ CONTAINER_DATA *fread_obj_container_data(FILE *fp)
 						list_appendlink(data->blacklist, filter);
 					}
 
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -4055,7 +4055,7 @@ CONTAINER_DATA *fread_obj_container_data(FILE *fp)
 						list_appendlink(data->whitelist, filter);
 					}
 
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -4081,7 +4081,7 @@ FLUID_CONTAINER_DATA *fread_obj_fluid_container_data(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-TYPEFLUIDCONTAINER"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -4091,7 +4091,7 @@ FLUID_CONTAINER_DATA *fread_obj_fluid_container_data(FILE *fp)
 					if (data->lock) free_lock_state(data->lock);
 
 					data->lock = fread_lock_state(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -4179,7 +4179,7 @@ FOOD_BUFF_DATA *fread_food_buff(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-FOODBUFF"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -4226,7 +4226,7 @@ FOOD_DATA *fread_obj_food_data(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-TYPEFOOD"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -4237,7 +4237,7 @@ FOOD_DATA *fread_obj_food_data(FILE *fp)
 
 					list_appendlink(data->buffs, buff);
 
-					fMatch = TRUE;
+					fMatch = true;
 				}
 				break;
 
@@ -4274,7 +4274,7 @@ FURNITURE_COMPARTMENT *fread_furniture_compartment(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-COMPARTMENT"))
 	{
-		bool fMatch = FALSE;
+		bool fMatch = false;
 		switch(word[0])
 		{
 			case '#':
@@ -4283,7 +4283,7 @@ FURNITURE_COMPARTMENT *fread_furniture_compartment(FILE *fp)
 					if (data->lock) free_lock_state(data->lock);
 
 					data->lock = fread_lock_state(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -4345,7 +4345,7 @@ FURNITURE_DATA *fread_obj_furniture_data(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-TYPEFURNITURE"))
 	{
-		bool fMatch = FALSE;
+		bool fMatch = false;
 		switch(word[0])
 		{
 			case '#':
@@ -4356,7 +4356,7 @@ FURNITURE_DATA *fread_obj_furniture_data(FILE *fp)
 
 					compartment->ordinal = list_size(data->compartments);
 
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -4386,7 +4386,7 @@ INK_DATA *fread_obj_ink_data(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-TYPEINK"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -4434,7 +4434,7 @@ INSTRUMENT_DATA *fread_obj_instrument_data(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-TYPEINSTRUMENT"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -4514,7 +4514,7 @@ JEWELRY_DATA *fread_obj_jewelry_data(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-TYPEJEWELRY"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -4566,7 +4566,7 @@ LIGHT_DATA *fread_obj_light_data(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-TYPELIGHT"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -4599,7 +4599,7 @@ MIST_DATA *fread_obj_mist_data(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-TYPEMIST"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -4657,7 +4657,7 @@ MONEY_DATA *fread_obj_money_data(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-TYPEMONEY"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -4690,7 +4690,7 @@ PORTAL_DATA *fread_obj_portal_data(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-TYPEPORTAL"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -4699,7 +4699,7 @@ PORTAL_DATA *fread_obj_portal_data(FILE *fp)
 				{
 					if (!data->lock) free_lock_state(data->lock);
 					data->lock = fread_lock_state(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -4731,7 +4731,7 @@ PORTAL_DATA *fread_obj_portal_data(FILE *fp)
 						// Complain
 					}
 
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -4743,7 +4743,7 @@ PORTAL_DATA *fread_obj_portal_data(FILE *fp)
 				{
 					SKILL_DATA *skill = get_skill_data(fread_string(fp));
 
-					fMatch = TRUE;
+					fMatch = true;
 					if (IS_VALID(skill) && is_skill_spell(skill))
 					{
 						SPELL_DATA *spell = new_spell();
@@ -4767,7 +4767,7 @@ PORTAL_DATA *fread_obj_portal_data(FILE *fp)
 				{
 					data->type = flag_lookup(fread_string(fp), portal_gatetype);
 
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -4793,7 +4793,7 @@ SCROLL_DATA *fread_obj_scroll_data(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-TYPESCROLL"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -4849,7 +4849,7 @@ TATTOO_DATA *fread_obj_tattoo_data(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-TYPETATTOO"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -4906,7 +4906,7 @@ WAND_DATA *fread_obj_wand_data(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-TYPEWAND"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -4969,7 +4969,7 @@ WEAPON_DATA *fread_obj_weapon_data(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-TYPEWEAPON"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -5350,20 +5350,20 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 	//ROOM_INDEX_DATA *room = NULL;
 	long values[MAX_OBJVALUES];
 
-	fVnum = FALSE;
+	fVnum = false;
 	obj = NULL;
-	first = TRUE;  /* used to counter fp offset */
-	make_new = FALSE;
+	first = true;  /* used to counter fp offset */
+	make_new = false;
 
 	word   = feof(fp) ? "End" : fread_word(fp);
 	if (!str_cmp(word,"Vnum"))
 	{
 		WNUM_LOAD w = fread_widevnum(fp, 0);
-		first = FALSE;  /* fp will be in right place */
+		first = false;  /* fp will be in right place */
 
 		OBJ_INDEX_DATA *index = get_obj_index_auid(w.auid, w.vnum);
 		if ( index != NULL)
-			obj = create_object_noid(index,-1, FALSE, FALSE);
+			obj = create_object_noid(index,-1, false, false);
 
 	}
 
@@ -5381,20 +5381,20 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 	obj->version	= VERSION_OBJECT_000;
 	obj->id[0] = obj->id[1] = 0;
 
-	fVnum		= TRUE;
+	fVnum		= true;
 	iNest		= 0;
 
 	for (; ;)
 	{
 		if (first)
-			first = FALSE;
+			first = false;
 		else if(feof(fp))
 		{
 			bug("EOF encountered reading object from pfile", 0);
 			word = "End";
 		} else
 			word   = fread_word(fp);
-		fMatch = FALSE;
+		fMatch = false;
 
 //		sprintf(buf, "Fread_obj_new: word = '%s'", word);
 //		bug(buf, 0);
@@ -5402,7 +5402,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 		switch (UPPER(word[0]))
 		{
 		case '*':
-			fMatch = TRUE;
+			fMatch = true;
 			fread_to_eol(fp);
 			break;
 		case '#':
@@ -5417,7 +5417,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			{
 				TOKEN_DATA *token = fread_token(fp);
 				token_to_obj(token, obj);
-				fMatch		= TRUE;
+				fMatch		= true;
 				break;
 			}
 			if (!str_cmp(word, "#TYPEAMMO"))
@@ -5425,7 +5425,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_AMMO(obj)) free_ammo_data(AMMO(obj));
 
 				AMMO(obj) = fread_obj_ammo_data(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if (!str_cmp(word, "#TYPEARMOR"))
@@ -5433,7 +5433,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_ARMOR(obj)) free_armor_data(ARMOR(obj));
 
 				ARMOR(obj) = fread_obj_armor_data(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if (!str_cmp(word, "#TYPEBOOK"))
@@ -5441,7 +5441,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_BOOK(obj)) free_book_data(BOOK(obj));
 
 				BOOK(obj) = fread_obj_book_data(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if (!str_cmp(word, "#TYPECONTAINER"))
@@ -5449,7 +5449,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_CONTAINER(obj)) free_container_data(CONTAINER(obj));
 
 				CONTAINER(obj) = fread_obj_container_data(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if (!str_cmp(word, "#TYPEFLUIDCONTAINER"))
@@ -5457,7 +5457,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_FLUID_CON(obj)) free_fluid_container_data(FLUID_CON(obj));
 
 				FLUID_CON(obj) = fread_obj_fluid_container_data(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if (!str_cmp(word, "#TYPEFOOD"))
@@ -5465,7 +5465,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_FOOD(obj)) free_food_data(FOOD(obj));
 
 				FOOD(obj) = fread_obj_food_data(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if (!str_cmp(word, "#TYPEFURNITURE"))
@@ -5474,7 +5474,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 				FURNITURE(obj) = fread_obj_furniture_data(fp);
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if (!str_cmp(word, "#TYPEINK"))
@@ -5482,7 +5482,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_INK(obj)) free_ink_data(INK(obj));
 
 				INK(obj) = fread_obj_ink_data(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if (!str_cmp(word, "#TYPEINSTRUMENT"))
@@ -5490,7 +5490,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_INSTRUMENT(obj)) free_instrument_data(INSTRUMENT(obj));
 
 				INSTRUMENT(obj) = fread_obj_instrument_data(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if (!str_cmp(word, "#TYPEJEWELRY"))
@@ -5498,7 +5498,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_JEWELRY(obj)) free_jewelry_data(JEWELRY(obj));
 
 				JEWELRY(obj) = fread_obj_jewelry_data(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if (!str_cmp(word, "#TYPELIGHT"))
@@ -5506,7 +5506,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_LIGHT(obj)) free_light_data(LIGHT(obj));
 
 				LIGHT(obj) = fread_obj_light_data(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if (!str_cmp(word, "#TYPEMIST"))
@@ -5514,7 +5514,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_MIST(obj)) free_mist_data(MIST(obj));
 
 				MIST(obj) = fread_obj_mist_data(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if (!str_cmp(word, "#TYPEMONEY"))
@@ -5522,7 +5522,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_MONEY(obj)) free_money_data(MONEY(obj));
 
 				MONEY(obj) = fread_obj_money_data(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if (!str_cmp(word, "#TYPEPAGE"))
@@ -5530,7 +5530,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_PAGE(obj)) free_book_page(PAGE(obj));
 
 				PAGE(obj) = fread_book_page(fp, "#-TYPEPAGE");
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if (!str_cmp(word, "#TYPEPORTAL"))
@@ -5538,7 +5538,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_PORTAL(obj)) free_portal_data(PORTAL(obj));
 
 				PORTAL(obj) = fread_obj_portal_data(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if (!str_cmp(word, "#TYPESCROLL"))
@@ -5546,7 +5546,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_SCROLL(obj)) free_scroll_data(SCROLL(obj));
 
 				SCROLL(obj) = fread_obj_scroll_data(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if (!str_cmp(word, "#TYPETATTOO"))
@@ -5554,7 +5554,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_TATTOO(obj)) free_tattoo_data(TATTOO(obj));
 
 				TATTOO(obj) = fread_obj_tattoo_data(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if (!str_cmp(word, "#TYPEWAND"))
@@ -5562,7 +5562,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_WAND(obj)) free_wand_data(WAND(obj));
 
 				WAND(obj) = fread_obj_wand_data(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if (!str_cmp(word, "#TYPEWEAPON"))
@@ -5570,7 +5570,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_WEAPON(obj)) free_weapon_data(WEAPON(obj));
 
 				WEAPON(obj) = fread_obj_weapon_data(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;
@@ -5596,7 +5596,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				paf->bitvector	= fread_number(fp);
 				paf->next	= obj->affected;
 				obj->affected	= paf;
-				fMatch		= TRUE;
+				fMatch		= true;
 				break;
 			}
 
@@ -5616,7 +5616,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				paf->bitvector  = fread_number(fp);
 				paf->next       = obj->affected;
 				obj->affected   = paf;
-				fMatch          = TRUE;
+				fMatch          = true;
 				break;
 			}
 
@@ -5649,7 +5649,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 				paf->next       = obj->affected;
 				obj->affected   = paf;
-				fMatch          = TRUE;
+				fMatch          = true;
 				break;
 			}
 
@@ -5674,7 +5674,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				paf->bitvector  = fread_number(fp);
 				paf->next       = obj->affected;
 				obj->affected   = paf;
-				fMatch          = TRUE;
+				fMatch          = true;
 				break;
 			}
 
@@ -5711,7 +5711,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 					paf->bitvector2 = fread_number(fp);
 				paf->next       = obj->affected;
 				obj->affected   = paf;
-				fMatch          = TRUE;
+				fMatch          = true;
 				break;
 			}
 
@@ -5738,7 +5738,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 					paf->next       = obj->affected;
 					obj->affected    = paf;
 				}
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 
@@ -5778,7 +5778,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 					paf->next       = obj->affected;
 					obj->affected    = paf;
 				}
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;
@@ -5803,7 +5803,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 					paf->next        = obj->catalyst;
 					obj->catalyst    = paf;
 				}
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 
@@ -5826,7 +5826,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 					paf->next        = obj->catalyst;
 					obj->catalyst    = paf;
 				}
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 
@@ -5849,7 +5849,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 					paf->next        = obj->catalyst;
 					obj->catalyst    = paf;
 				}
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 
@@ -5872,7 +5872,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 					paf->next        = obj->catalyst;
 					obj->catalyst    = paf;
 				}
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			KEY("Cond",	obj->condition,		fread_number(fp));
@@ -5890,28 +5890,28 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			if (!str_cmp(word, "ExtraFlags") || !str_cmp(word, "ExtF"))
 			{
 				obj->extra[0] = fread_number(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 
 			if (!str_cmp(word, "Extra2Flags") || !str_cmp(word, "Ext2F"))
 			{
 				obj->extra[1] = fread_number(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 
 			if (!str_cmp(word, "Extra3Flags") || !str_cmp(word, "Ext3F"))
 			{
 				obj->extra[2] = fread_number(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 
 			if (!str_cmp(word, "Extra4Flags") || !str_cmp(word, "Ext4F"))
 			{
 				obj->extra[3] = fread_number(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 
@@ -5925,7 +5925,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				ed->description		= fread_string(fp);
 				ed->next		= obj->extra_descr;
 				obj->extra_descr	= ed;
-				fMatch = TRUE;
+				fMatch = true;
 			}
 
 			if (!str_cmp(word, "ExtraDescrEnv") || !str_cmp(word,"ExDeEnv"))
@@ -5938,7 +5938,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				ed->description		= NULL;
 				ed->next		= obj->extra_descr;
 				obj->extra_descr	= ed;
-				fMatch = TRUE;
+				fMatch = true;
 			}
 
 			if (!str_cmp(word, "End"))
@@ -5955,7 +5955,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 					{
 						free_obj(obj);
 						return NULL;
-						//obj = create_object(obj_index_dummy, 0 , FALSE);
+						//obj = create_object(obj_index_dummy, 0 , false);
 					}
 
 					fread_obj_check_version(obj, values);
@@ -5967,7 +5967,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 						wear = obj->wear_loc;
 						extract_obj(obj);
 
-						obj = create_object(obj->pIndexData,0, FALSE);
+						obj = create_object(obj->pIndexData,0, false);
 
 						obj->wear_loc = wear;
 					}
@@ -5999,7 +5999,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			{
 				obj->item_type = fread_number(fp);
 				obj->item_type = obj->pIndexData->item_type;
-				fMatch = TRUE;
+				fMatch = true;
 			}
 			break;
 
@@ -6012,11 +6012,11 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 				if ((pIndexData = get_obj_index_auid(load.auid, load.vnum)) != NULL)
 				{
-					key = create_object(pIndexData, pIndexData->level, FALSE);
+					key = create_object(pIndexData, pIndexData->level, false);
 					obj_to_obj(key, obj);
 				}
 
-				fMatch = TRUE;
+				fMatch = true;
 			}
 			break;
 
@@ -6054,7 +6054,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 					id0 = fread_number(fp);
 				}
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			*/
@@ -6080,7 +6080,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				}
 				*/
 
-				fMatch = TRUE;
+				fMatch = true;
 			}
 
 			KEY("LoadedBy",	obj->loaded_by,		fread_string(fp));
@@ -6102,7 +6102,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 				list_appendlink(obj->waypoints, wp);
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 
@@ -6122,7 +6122,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				{
 					obj->nest = iNest;
 				}
-				fMatch = TRUE;
+				fMatch = true;
 			}
 			break;
 
@@ -6149,7 +6149,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 				room = get_room_index_auid(w.auid, w.vnum);
 				obj->in_room = room;
-				fMatch = TRUE;
+				fMatch = true;
 			}
 			break;
 
@@ -6162,7 +6162,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				SKILL_DATA *skill;
 				SPELL_DATA *spell;
 
-				fMatch = TRUE;
+				fMatch = true;
 
 				skill = get_skill_data(fread_string(fp));
 				if (IS_VALID(skill))
@@ -6198,7 +6198,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 			if (!str_cmp(word, "Values") || !str_cmp(word,"Vals") || !str_cmp(word,"Val"))
 			{
-				fMatch		= TRUE;
+				fMatch		= true;
 
 				for(int i = 0; i < MAX_OBJVALUES; i++)
 					values[i] = fread_number(fp);
@@ -6208,7 +6208,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 			if( (vtype = variable_fread_type(word)) != VAR_UNKNOWN ) {
 				variable_fread(&obj->progs->vars, vtype, fp);
-				fMatch = TRUE;
+				fMatch = true;
 			}
 
 			if (!str_cmp(word, "Vnum"))
@@ -6219,9 +6219,9 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if ((obj->pIndexData = get_obj_index_auid(wnum.auid, wnum.vnum)) == NULL)
 					bug("Fread_obj: bad vnum %ld.", wnum.vnum);
 				else
-					fVnum = TRUE;
+					fVnum = true;
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;
@@ -6381,15 +6381,15 @@ void read_permanent_objs()
 bool update_object(OBJ_DATA *obj)
 {
      if (obj->pIndexData == NULL)
-         return FALSE;
+         return false;
 
-     if (obj->pIndexData->update == TRUE)
-	 return TRUE;
+     if (obj->pIndexData->update == true)
+	 return true;
 
      //if (obj->pIndexData->item_type == ITEM_WEAPON)
-       //  return TRUE;
+       //  return true;
 
-     return FALSE;
+     return false;
 }
 
 
@@ -6531,7 +6531,7 @@ void fix_character(CHAR_DATA *ch, struct __player_data_versioning *__versioning)
 {
     int i;
     char buf[MSL];
-    bool resetaffects = FALSE;
+    bool resetaffects = false;
 	AFFECT_DATA *paf;
 	OBJ_DATA *obj;
 
@@ -6542,7 +6542,7 @@ void fix_character(CHAR_DATA *ch, struct __player_data_versioning *__versioning)
     ch->dam_type = 17; /*punch */
 
 	LLIST *groups = ch->pcdata->group_known;
-	ch->pcdata->group_known = list_create(FALSE);
+	ch->pcdata->group_known = list_create(false);
 	ITERATOR git;
 	SKILL_GROUP *group;
 	iterator_start(&git, groups);
@@ -6571,7 +6571,7 @@ void fix_character(CHAR_DATA *ch, struct __player_data_versioning *__versioning)
 	{
 	ch->affected_by_perm[0] = ch->race->aff[0];
 	ch->affected_by_perm[1] = ch->race->aff[1];
-	resetaffects = TRUE;
+	resetaffects = true;
 	}
 	if( resetaffects )
 	{
@@ -6668,22 +6668,22 @@ void fix_character(CHAR_DATA *ch, struct __player_data_versioning *__versioning)
 
     if (ch->version < 2)
     {
-		group_add(ch,"global skills",FALSE);
-		group_add(ch,__class_table[__versioning->_007.class_current].base_group,FALSE);
+		group_add(ch,"global skills",false);
+		group_add(ch,__class_table[__versioning->_007.class_current].base_group,false);
 		ch->version = 2;
     }
 
 #if 0
     /* make sure they have any new skills that have been added */
-    if (ch->pcdata->class_mage != -1)		group_add(ch, class_table[ch->pcdata->class_mage].base_group, FALSE);
-    if (ch->pcdata->class_cleric != -1)		group_add(ch, class_table[ch->pcdata->class_cleric].base_group, FALSE);
-    if (ch->pcdata->class_thief != -1)		group_add(ch, class_table[ch->pcdata->class_thief].base_group, FALSE);
-    if (ch->pcdata->class_warrior != -1)	group_add(ch, class_table[ch->pcdata->class_warrior].base_group, FALSE);
+    if (ch->pcdata->class_mage != -1)		group_add(ch, class_table[ch->pcdata->class_mage].base_group, false);
+    if (ch->pcdata->class_cleric != -1)		group_add(ch, class_table[ch->pcdata->class_cleric].base_group, false);
+    if (ch->pcdata->class_thief != -1)		group_add(ch, class_table[ch->pcdata->class_thief].base_group, false);
+    if (ch->pcdata->class_warrior != -1)	group_add(ch, class_table[ch->pcdata->class_warrior].base_group, false);
 
-    if (ch->pcdata->second_sub_class_mage != -1)	group_add(ch, sub_class_table[ch->pcdata->second_sub_class_mage].default_group, FALSE);
-    if (ch->pcdata->second_sub_class_cleric != -1)	group_add(ch, sub_class_table[ch->pcdata->second_sub_class_cleric].default_group, FALSE);
-    if (ch->pcdata->second_sub_class_thief != -1)	group_add(ch, sub_class_table[ch->pcdata->second_sub_class_thief].default_group, FALSE);
-    if (ch->pcdata->second_sub_class_warrior != -1)	group_add(ch, sub_class_table[ch->pcdata->second_sub_class_warrior].default_group, FALSE);
+    if (ch->pcdata->second_sub_class_mage != -1)	group_add(ch, sub_class_table[ch->pcdata->second_sub_class_mage].default_group, false);
+    if (ch->pcdata->second_sub_class_cleric != -1)	group_add(ch, sub_class_table[ch->pcdata->second_sub_class_cleric].default_group, false);
+    if (ch->pcdata->second_sub_class_thief != -1)	group_add(ch, sub_class_table[ch->pcdata->second_sub_class_thief].default_group, false);
+    if (ch->pcdata->second_sub_class_warrior != -1)	group_add(ch, sub_class_table[ch->pcdata->second_sub_class_warrior].default_group, false);
 #endif
 
     if (ch->version < 6)
@@ -6876,8 +6876,8 @@ bool missing_class(CHAR_DATA *ch)
     if (ch->pcdata->sub_class_warrior != -1)
 	classes++;
 
-    if (classes < (IS_REMORT(ch)?120:ch->tot_level) / 31 + 1) return TRUE;
-    else return FALSE;
+    if (classes < (IS_REMORT(ch)?120:ch->tot_level) / 31 + 1) return true;
+    else return false;
 }
 #endif
 
@@ -6902,11 +6902,11 @@ void descrew_subclasses(CHAR_DATA *ch)
 	sprintf(buf, "descrew_subclasses: %s had a non-mage class!",
 		ch->name);
 	bug(buf, 0);
-	if (ch->pcdata->group_known[group_lookup("necromancer skills")] == TRUE)
+	if (ch->pcdata->group_known[group_lookup("necromancer skills")] == true)
 	    ch->pcdata->sub_class_mage = CLASS_MAGE_NECROMANCER;
-	else if (ch->pcdata->group_known[group_lookup("sorcerer skills")] == TRUE)
+	else if (ch->pcdata->group_known[group_lookup("sorcerer skills")] == true)
 	    ch->pcdata->sub_class_mage = CLASS_MAGE_SORCERER;
-	else if (ch->pcdata->group_known[group_lookup("wizard skills")] == TRUE)
+	else if (ch->pcdata->group_known[group_lookup("wizard skills")] == true)
 	    ch->pcdata->sub_class_mage = CLASS_MAGE_WIZARD;
 
 	//sprintf(buf, "{WYou had a screwed up mage class... it has been fixed to {Y%s.{x\n\r",
@@ -6920,11 +6920,11 @@ void descrew_subclasses(CHAR_DATA *ch)
 	sprintf(buf, "descrew_subclasses: %s had a non-cleric class!",
 		ch->name);
 	bug(buf, 0);
-	if (ch->pcdata->group_known[group_lookup("witch skills")] == TRUE)
+	if (ch->pcdata->group_known[group_lookup("witch skills")] == true)
 	    ch->pcdata->sub_class_cleric = CLASS_CLERIC_WITCH;
-	else if (ch->pcdata->group_known[group_lookup("druid skills")] == TRUE)
+	else if (ch->pcdata->group_known[group_lookup("druid skills")] == true)
 	    ch->pcdata->sub_class_cleric = CLASS_CLERIC_DRUID;
-	else if (ch->pcdata->group_known[group_lookup("monk skills")] == TRUE)
+	else if (ch->pcdata->group_known[group_lookup("monk skills")] == true)
 	    ch->pcdata->sub_class_cleric = CLASS_CLERIC_MONK;
 
 //	sprintf(buf, "{WYou had a screwed up cleric class... it has been fixed to {Y%s.{x\n\r",
@@ -6939,11 +6939,11 @@ void descrew_subclasses(CHAR_DATA *ch)
 		ch->name);
 	bug(buf, 0);
 
-	if (ch->pcdata->group_known[group_lookup("assassin skills")] == TRUE)
+	if (ch->pcdata->group_known[group_lookup("assassin skills")] == true)
 	    ch->pcdata->sub_class_thief = CLASS_THIEF_ASSASSIN;
-	if (ch->pcdata->group_known[group_lookup("rogue skills")] == TRUE)
+	if (ch->pcdata->group_known[group_lookup("rogue skills")] == true)
 	    ch->pcdata->sub_class_thief = CLASS_THIEF_ROGUE;
-	if (ch->pcdata->group_known[group_lookup("bard skills")] == TRUE)
+	if (ch->pcdata->group_known[group_lookup("bard skills")] == true)
 	    ch->pcdata->sub_class_thief = CLASS_THIEF_BARD;
 
 //	sprintf(buf, "{WYou had a screwed up thief class... it has been fixed to {Y%s.{x\n\r",
@@ -6957,11 +6957,11 @@ void descrew_subclasses(CHAR_DATA *ch)
 	sprintf(buf, "descrew_subclasses: %s had a non-warrior class!",
 		ch->name);
 	bug(buf, 0);
-	if (ch->pcdata->group_known[group_lookup("marauder skills")] == TRUE)
+	if (ch->pcdata->group_known[group_lookup("marauder skills")] == true)
 	    ch->pcdata->sub_class_warrior = CLASS_WARRIOR_MARAUDER;
-	if (ch->pcdata->group_known[group_lookup("gladiator skills")] == TRUE)
+	if (ch->pcdata->group_known[group_lookup("gladiator skills")] == true)
 	    ch->pcdata->sub_class_warrior = CLASS_WARRIOR_GLADIATOR;
-	if (ch->pcdata->group_known[group_lookup("paladin skills")] == TRUE)
+	if (ch->pcdata->group_known[group_lookup("paladin skills")] == true)
 	    ch->pcdata->sub_class_warrior = CLASS_WARRIOR_PALADIN;
 
 //	sprintf(buf, "{WYou had a screwed up warrior class... it has been fixed to {Y%s.{x\n\r",
@@ -7003,10 +7003,10 @@ bool has_correct_classes(CHAR_DATA *ch)
 	sprintf(buf, "Class problem detected. #classes needed: %d, #had: %d.", correctnum, num);
 	log_string(buf);
 	//send_to_char(buf,ch); send_to_char("\n\r", ch);
-	return FALSE;
+	return false;
     } else
 #endif
-	return TRUE;
+	return true;
 }
 
 
@@ -7023,32 +7023,32 @@ void fix_broken_classes(CHAR_DATA *ch)
         ch->name, ch->tot_level, ch->race->name);
     log_string(buf);
 
-    if (mage == -1 && find_class_skill(ch, CLASS_MAGE) == TRUE) {
+    if (mage == -1 && find_class_skill(ch, CLASS_MAGE) == true) {
 	//send_to_char("Found mage skills but no mage class, setting mage class.\n\r", ch);
 	log_string("Set mage class");
 	ch->pcdata->class_mage = CLASS_MAGE;
-	group_add(ch, "mage skills", FALSE);
+	group_add(ch, "mage skills", false);
     }
 
-    if (cleric == -1 && find_class_skill(ch, CLASS_CLERIC) == TRUE) {
+    if (cleric == -1 && find_class_skill(ch, CLASS_CLERIC) == true) {
 	//send_to_char("Found cleric skills but no cleric class, setting cleric class.\n\r", ch);
 	log_string("Set cleric class");
 	ch->pcdata->class_cleric = CLASS_CLERIC;
-	group_add(ch, "cleric skills", FALSE);
+	group_add(ch, "cleric skills", false);
     }
 
-    if (thief == -1 && find_class_skill(ch, CLASS_THIEF) == TRUE) {
+    if (thief == -1 && find_class_skill(ch, CLASS_THIEF) == true) {
 	//send_to_char("Found thief skills but no thief class, setting thief class.\n\r", ch);
 	log_string("Set thief class");
 	ch->pcdata->class_thief = CLASS_THIEF;
-	group_add(ch, "thief skills", FALSE);
+	group_add(ch, "thief skills", false);
     }
 
-    if (warrior == -1 && find_class_skill(ch, CLASS_WARRIOR) == TRUE) {
+    if (warrior == -1 && find_class_skill(ch, CLASS_WARRIOR) == true) {
 	//send_to_char("Found warrior skills but no warrior class, setting warrior class.\n\r", ch);
 	log_string("Set warrior class");
 	ch->pcdata->class_warrior = CLASS_WARRIOR;
-	group_add(ch, "warrior skills", FALSE);
+	group_add(ch, "warrior skills", false);
     }
 
     save_char_obj(ch);
@@ -7071,7 +7071,7 @@ bool find_class_skill(CHAR_DATA *ch, int class)
 	case CLASS_WARRIOR:	group = group_lookup("warrior skills");	break;
 	default:
 	    bug("find_class_skill: bad class.", 0);
-	    return FALSE;
+	    return false;
     }
 
 	if(!IS_VALID(group)) return false;
@@ -7147,16 +7147,16 @@ TOKEN_DATA *fread_token(FILE *fp)
 	token->global_next = global_tokens;
 	global_tokens = token;
 
-    variable_copylist(&token_index->index_vars,&token->progs->vars,FALSE);
+    variable_copylist(&token_index->index_vars,&token->progs->vars,false);
 
     for (; ;)
     {
 		word   = feof(fp) ? "End" : fread_word(fp);
-		fMatch = FALSE;
+		fMatch = false;
 
 		if (!str_cmp(word, "End")) {
 			get_token_id(token);
-			fMatch = TRUE;
+			fMatch = true;
 			return token;
 		}
 
@@ -7177,12 +7177,12 @@ TOKEN_DATA *fread_token(FILE *fp)
 
 				i = fread_number(fp);
 				token->value[i] = fread_number(fp);
-				fMatch = TRUE;
+				fMatch = true;
 			}
 
 			if( (vtype = variable_fread_type(word)) != VAR_UNKNOWN ) {
 				variable_fread(&token->progs->vars, vtype, fp);
-				fMatch = TRUE;
+				fMatch = true;
 			}
 
 			break;
@@ -7256,7 +7256,7 @@ void fread_skill(FILE *fp, CHAR_DATA *ch, bool is_song)
     for (; ;)
     {
 		word   = feof(fp) ? "End" : fread_word(fp);
-		fMatch = FALSE;
+		fMatch = false;
 
 		if (!str_cmp(word, "End")) {
 			if(IS_VALID(token))
@@ -7275,7 +7275,7 @@ void fread_skill(FILE *fp, CHAR_DATA *ch, bool is_song)
 			entry->rating = rating;
 			entry->mod_rating = mod;
 			
-		    fMatch = TRUE;
+		    fMatch = true;
 			return;
 		}
 
@@ -7284,7 +7284,7 @@ void fread_skill(FILE *fp, CHAR_DATA *ch, bool is_song)
 		case '#':
 			if( IS_KEY("#TOKEN") ) {
 				token = fread_token(fp);
-				fMatch = TRUE;
+				fMatch = true;
 			}
 			break;
 
@@ -7306,19 +7306,19 @@ void fread_skill(FILE *fp, CHAR_DATA *ch, bool is_song)
 			if(IS_KEY("TypeAffect"))
 			{
 				source = SKILLSRC_AFFECT;
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if(IS_KEY("TypeScript"))
 			{
 				source = SKILLSRC_SCRIPT;
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if(IS_KEY("TypeScriptPerm"))
 			{
 				source = SKILLSRC_SCRIPT_PERM;
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;
@@ -7409,10 +7409,10 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
     for (; ;)
     {
 		word   = feof(fp) ? "End" : fread_word(fp);
-		fMatch = FALSE;
+		fMatch = false;
 
 		if (!str_cmp(word, "End")) {
-			fMatch = TRUE;
+			fMatch = true;
 			return part;
 		}
 
@@ -7423,7 +7423,7 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
 				wnum = fread_widevnum(fp, 0);
 				part->area = get_area_from_uid(wnum.auid);
 			    part->mob = wnum.vnum;
-			    fMatch = TRUE;
+			    fMatch = true;
 			    break;
 			}
 
@@ -7431,7 +7431,7 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
 				wnum = fread_widevnum(fp, 0);
 				part->area = get_area_from_uid(wnum.auid);
 			    part->mob_rescue = wnum.vnum;
-			    fMatch = TRUE;
+			    fMatch = true;
 			    break;
 			}
 			break;
@@ -7453,12 +7453,12 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
 			    room_vnum = fread_widevnum(fp, 0);
 			    room = get_room_index_auid(room_vnum.auid, room_vnum.vnum);
 
-			    obj = create_object(obj_i, 1, TRUE);
+			    obj = create_object(obj_i, 1, true);
 			    obj_to_room(obj, room);
 
 			    part->pObj = obj;
 
-			    fMatch = TRUE;
+			    fMatch = true;
 			    break;
 			}
 
@@ -7466,33 +7466,33 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
 				wnum = fread_widevnum(fp, 0);
 				part->area = get_area_from_uid(wnum.auid);
 			    part->obj_sac = wnum.vnum;
-			    fMatch = TRUE;
+			    fMatch = true;
 			    break;
 			}
 			break;
 
 		    case 'Q':
 			if (!str_cmp(word, "QCustom")) {
-				part->custom_task = TRUE;
-				fMatch = TRUE;
+				part->custom_task = true;
+				fMatch = true;
 				break;
 			}
 			if (!str_cmp(word, "QDescription")) {
 				part->description = fread_string(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if (!str_cmp(word, "QRoom")) {
 				wnum = fread_widevnum(fp, 0);
 				part->area = get_area_from_uid(wnum.auid);
 			    part->room = wnum.vnum;
-			    fMatch = TRUE;
+			    fMatch = true;
 			    break;
 			}
 
 			if (!str_cmp(word, "QComplete")) {
-			    part->complete = TRUE;
-			    fMatch = TRUE;
+			    part->complete = true;
+			    fMatch = true;
 			    fread_to_eol(fp);
 			    break;
 			}

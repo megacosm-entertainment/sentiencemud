@@ -131,12 +131,12 @@ int gconfig_read (void)
     for(;;)
     {
         word = feof (fp) ? "END" : fread_word(fp);
-        fMatch = FALSE;
+        fMatch = false;
 
         switch (UPPER(word[0]))
         {
             case '*':
-                fMatch = TRUE;
+                fMatch = true;
                 fread_to_eol (fp);
             break;
 			case 'A':
@@ -146,7 +146,7 @@ int gconfig_read (void)
 					if (ra)
 					{
 						ra->auid = fread_number(fp);
-						fMatch = TRUE;
+						fMatch = true;
 						break;
 					}
 				}
@@ -223,7 +223,7 @@ int gconfig_read (void)
 					{
 						mwnum->auid = fread_number(fp);
 						mwnum->vnum = fread_number(fp);
-						fMatch = TRUE;
+						fMatch = true;
 					}
 				}
 				break;
@@ -232,43 +232,43 @@ int gconfig_read (void)
             	if(!str_cmp(word,"NextMobUID")) {
 					gconfig.next_mob_uid[0] = fread_number(fp);
 					gconfig.next_mob_uid[1] = fread_number(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
             	if(!str_cmp(word,"NextObjUID")) {
 					gconfig.next_obj_uid[0] = fread_number(fp);
 					gconfig.next_obj_uid[1] = fread_number(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
             	if(!str_cmp(word,"NextTokenUID")) {
 					gconfig.next_token_uid[0] = fread_number(fp);
 					gconfig.next_token_uid[1] = fread_number(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
             	if(!str_cmp(word,"NextVRoomUID")) {
 					gconfig.next_vroom_uid[0] = fread_number(fp);
 					gconfig.next_vroom_uid[1] = fread_number(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
             	if(!str_cmp(word,"NextShipUID")) {
 					gconfig.next_ship_uid[0] = fread_number(fp);
 					gconfig.next_ship_uid[1] = fread_number(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
             	if(!str_cmp(word,"NextInstanceUID")) {
 					gconfig.next_instance_uid[0] = fread_number(fp);
 					gconfig.next_instance_uid[1] = fread_number(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
             	if(!str_cmp(word,"NextDungeonUID")) {
 					gconfig.next_dungeon_uid[0] = fread_number(fp);
 					gconfig.next_dungeon_uid[1] = fread_number(fp);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
                 KEY ("NextAreaUID", gconfig.next_area_uid, fread_number(fp));
@@ -278,8 +278,8 @@ int gconfig_read (void)
 				KEY ("NextChurchVnumStart", gconfig.next_church_vnum_start, fread_number(fp));
 
                 if(!str_cmp(word,"Newlock")) {
-					newlock = TRUE;
-					fMatch = TRUE;
+					newlock = true;
+					fMatch = true;
 					break;
 				}
 	            break;
@@ -291,7 +291,7 @@ int gconfig_read (void)
 					{
 						ownum->auid = fread_number(fp);
 						ownum->vnum = fread_number(fp);
-						fMatch = TRUE;
+						fMatch = true;
 					}
 				}
 				break;
@@ -303,7 +303,7 @@ int gconfig_read (void)
 					{
 						rwnum->auid = fread_number(fp);
 						rwnum->vnum = fread_number(fp);
-						fMatch = TRUE;
+						fMatch = true;
 						break;
 					}
 
@@ -312,7 +312,7 @@ int gconfig_read (void)
 					{
 						rpwnum->auid = fread_number(fp);
 						rpwnum->vnum = fread_number(fp);
-						fMatch = TRUE;
+						fMatch = true;
 						break;
 					}
 				}
@@ -320,15 +320,15 @@ int gconfig_read (void)
 
 			case 'T':
                 if(!str_cmp(word,"Testport")) {
-					is_test_port = TRUE;
-					fMatch = TRUE;
+					is_test_port = true;
+					fMatch = true;
 					break;
 				}
 				break;
 			case 'W':
                 if(!str_cmp(word,"Wizlock")) {
-					wizlock = TRUE;
-					fMatch = TRUE;
+					wizlock = true;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -807,7 +807,7 @@ void do_deny(CHAR_DATA *ch, char *argument)
     wiznet(buf,ch,NULL,WIZ_PENALTIES,WIZ_SECURE,0);
     act("Denied access to $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
     save_char_obj(victim);
-    stop_fighting(victim,TRUE);
+    stop_fighting(victim,true);
     do_function(victim, &do_quit, NULL);
 }
 
@@ -1051,7 +1051,7 @@ void do_transfer(CHAR_DATA *ch, char *argument)
     }
 
     if (victim->fighting != NULL)
-	stop_fighting(victim, TRUE);
+	stop_fighting(victim, true);
 
     act("$n disappears.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
     char_from_room(victim);
@@ -1187,7 +1187,7 @@ void do_goto(CHAR_DATA *ch, char *argument)
     }
 
     if (ch->fighting != NULL)
-		stop_fighting(ch, TRUE);
+		stop_fighting(ch, true);
 
     for (rch = ch->in_room->people; rch != NULL; rch = rch->next_in_room)
     {
@@ -1312,7 +1312,7 @@ void do_goxy (CHAR_DATA * ch, char *argument)
     }
 
     if (ch->fighting != NULL)
-        stop_fighting (ch, TRUE);
+        stop_fighting (ch, true);
 
     for (rch = ch->in_room->people; rch != NULL; rch = rch->next_in_room)
     {
@@ -3371,8 +3371,8 @@ void do_mfind(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    fAll	= FALSE; /* !str_cmp(arg, "all"); */
-    found	= FALSE;
+    fAll	= false; /* !str_cmp(arg, "all"); */
+    found	= false;
     nMatch	= 0;
 
 	for (area = area_first; area; area = area->next) {
@@ -3380,7 +3380,7 @@ void do_mfind(CHAR_DATA *ch, char *argument)
 			for (pMobIndex = area->mob_index_hash[iHash]; pMobIndex != NULL; pMobIndex = pMobIndex->next) {
 				nMatch++;
 				if (fAll || is_name(argument, pMobIndex->player_name)) {
-					found = TRUE;
+					found = true;
 					sprintf(buf, "[%5ld#%-5ld] %s\n\r",
 						area->uid, pMobIndex->vnum, pMobIndex->short_descr);
 					send_to_char(buf, ch);
@@ -3413,8 +3413,8 @@ void do_ofind(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    fAll	= FALSE; /* !str_cmp(arg, "all"); */
-    found	= FALSE;
+    fAll	= false; /* !str_cmp(arg, "all"); */
+    found	= false;
     nMatch	= 0;
 
 	for (area = area_first; area; area = area->next) {
@@ -3422,7 +3422,7 @@ void do_ofind(CHAR_DATA *ch, char *argument)
 			for (pObjIndex = area->obj_index_hash[iHash]; pObjIndex != NULL; pObjIndex = pObjIndex->next) {
 				nMatch++;
 				if (fAll || is_name(argument, pObjIndex->name)) {
-					found = TRUE;
+					found = true;
 					sprintf(buf, "[%5ld#%-5ld] %s\n\r",
 						area->uid, pObjIndex->vnum, pObjIndex->short_descr);
 					send_to_char(buf, ch);
@@ -3459,8 +3459,8 @@ void do_tfind(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    fAll	= FALSE; /* !str_cmp(arg, "all"); */
-    found	= FALSE;
+    fAll	= false; /* !str_cmp(arg, "all"); */
+    found	= false;
     nMatch	= 0;
 
 	for (area = area_first; area; area = area->next) {
@@ -3468,7 +3468,7 @@ void do_tfind(CHAR_DATA *ch, char *argument)
 			for (pTokIndex = area->token_index_hash[iHash]; pTokIndex != NULL; pTokIndex = pTokIndex->next) {
 				nMatch++;
 				if (fAll || is_name(argument, pTokIndex->name)) {
-					found = TRUE;
+					found = true;
 					sprintf(buf, "[%5ld#%-5ld] %s\n\r",
 						area->uid, pTokIndex->vnum, pTokIndex->name);
 					send_to_char(buf, ch);
@@ -3492,7 +3492,7 @@ void do_rwhere(CHAR_DATA *ch, char *argument)
     int number, max_found;
     int hash;
 
-    found = FALSE;
+    found = false;
     number = 0;
     max_found = 200;
 
@@ -3517,7 +3517,7 @@ void do_rwhere(CHAR_DATA *ch, char *argument)
 						break;
 
 					number++;
-					found = TRUE;
+					found = true;
 					sprintf(buf, "{Y%3d){x %s (wnum {W%ld{Y#{W%ld{x)\n\r", number, room->name, area->uid, room->vnum);
 					add_buf(buffer,buf);
 				}
@@ -3547,7 +3547,7 @@ void do_owhere(CHAR_DATA *ch, char *argument)
     int number = 0, max_found;
     ITERATOR it;
 
-    found = FALSE;
+    found = false;
     number = 0;
     max_found = 200;
 
@@ -3565,7 +3565,7 @@ void do_owhere(CHAR_DATA *ch, char *argument)
         if (!can_see_obj(ch, obj) || !is_name(argument, obj->name))
             continue;
 
-        found = TRUE;
+        found = true;
         number++;
 
         for (in_obj = obj; in_obj->in_obj != NULL; in_obj = in_obj->in_obj) ;
@@ -3675,14 +3675,14 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
     /* all the mobs without a room */
     if (!str_cmp(argument,"nowhere")) {
         buffer = new_buf();
-        found=FALSE;
+        found=false;
         count=0;
 
 		iterator_start(&vit, loaded_chars);
 		while(( victim = (CHAR_DATA *)iterator_nextdata(&vit)))
 		{
             if (victim->in_room==NULL) {
-                found = TRUE;
+                found = true;
                 count++;
                 sprintf(buf, "{Y%3d){x [%5ld#%-5ld] %-28s %lx\n\r", count,
 					IS_NPC(victim) ? victim->pIndexData->area->uid : 0,
@@ -3703,7 +3703,7 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
     }
 
     /* ok - must be a mobname */
-    found = FALSE;
+    found = false;
     buffer = new_buf();
 
 	iterator_start(&vit, loaded_chars);
@@ -3711,7 +3711,7 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
 	{
 		if (victim->in_room != NULL &&
 			is_name(argument, victim->name)) {
-			found = TRUE;
+			found = true;
 			count++;
 			sprintf(buf, "{Y%3d){x [%5ld#%-5ld] %-28s [%5ld] %s\n\r", count,
 			IS_NPC(victim) ? victim->pIndexData->area->uid : 0,
@@ -3858,7 +3858,7 @@ void do_shutdown(CHAR_DATA *ch, char *argument)
 	}
 	iterator_stop(&cit);
 
-    merc_down = TRUE;
+    merc_down = true;
     for (d = descriptor_list; d != NULL; d = d_next) {
 		d_next = d->next;
 		if( d->connected == CON_PLAYING )
@@ -3867,7 +3867,7 @@ void do_shutdown(CHAR_DATA *ch, char *argument)
 			if (IS_VALID(vch)) {
 				/* save their shift */
 				if (ch->shifted != SHIFTED_NONE) {
-					shift_char(ch, TRUE);
+					shift_char(ch, true);
 					ch->shifted = IS_VAMPIRE(ch) ? SHIFTED_WEREWOLF : SHIFTED_SLAYER;
 				}
 
@@ -4015,7 +4015,7 @@ void recursive_clone(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *clone)
 
     for (c_obj = obj->contains; c_obj != NULL; c_obj = c_obj->next_content)
     {
-	t_obj = create_object(c_obj->pIndexData,0, TRUE);
+	t_obj = create_object(c_obj->pIndexData,0, true);
 	clone_object(c_obj,t_obj);
 	obj_to_obj(t_obj,clone);
 	recursive_clone(ch,c_obj,t_obj);
@@ -4075,7 +4075,7 @@ void do_clone(CHAR_DATA *ch, char *argument)
     {
 	OBJ_DATA *clone;
 
-	clone = create_object(obj->pIndexData,0, TRUE);
+	clone = create_object(obj->pIndexData,0, true);
 	clone_object(obj,clone);
 	if (obj->carried_by != NULL)
 	    obj_to_char(clone,ch);
@@ -4104,7 +4104,7 @@ void do_clone(CHAR_DATA *ch, char *argument)
 
 	for (obj = mob->carrying; obj != NULL; obj = obj->next_content)
 	{
-		new_obj = create_object(obj->pIndexData,0, TRUE);
+		new_obj = create_object(obj->pIndexData,0, true);
 		clone_object(obj,new_obj);
 		recursive_clone(ch,obj,new_obj);
 		obj_to_char(new_obj,clone);
@@ -4204,7 +4204,7 @@ void do_mload(CHAR_DATA *ch, char *argument)
         pMobIndex->vnum);
     act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
-    victim = create_mobile(pMobIndex, FALSE);
+    victim = create_mobile(pMobIndex, false);
 
     if (ch->in_wilds == NULL)
         char_to_room(victim, ch->in_room);
@@ -4288,7 +4288,7 @@ void do_oload(CHAR_DATA *ch, char *argument)
 
     if (amt == 1)
     {
-		obj = create_object(pObjIndex, pObjIndex->level, TRUE);
+		obj = create_object(pObjIndex, pObjIndex->level, true);
 		if (CAN_WEAR(obj, ITEM_TAKE))
 			obj_to_char(obj, ch);
 		else if (ch->in_room->wilds == NULL)
@@ -4315,7 +4315,7 @@ void do_oload(CHAR_DATA *ch, char *argument)
     {
 		for (i = 0; i < amt; i++)
 		{
-			obj = create_object(pObjIndex, pObjIndex->level, TRUE);
+			obj = create_object(pObjIndex, pObjIndex->level, true);
 			if (CAN_WEAR(obj, ITEM_TAKE))
 			obj_to_char(obj, ch);
 			else
@@ -4359,7 +4359,7 @@ void do_purge(CHAR_DATA *ch, char *argument)
 	    && victim != ch /* safety precaution */
 	    && victim != ch->rider
 	    && victim != ch->mount) {
-		extract_char(victim, TRUE);
+		extract_char(victim, true);
 	    }
 	}
 
@@ -4391,7 +4391,7 @@ void do_purge(CHAR_DATA *ch, char *argument)
 	}
 
 	act("Extracted $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	extract_char(victim, TRUE);
+	extract_char(victim, true);
 	return;
     }
     else
@@ -4532,7 +4532,7 @@ void do_advance(CHAR_DATA *ch, char *argument)
 	victim->hit      = victim->max_hit;
 	victim->mana     = victim->max_mana;
 	victim->move     = victim->max_move;
-	advance_level(victim, TRUE);
+	advance_level(victim, true);
 	victim->practice = temp_prac;
     }
     else
@@ -4548,7 +4548,7 @@ void do_advance(CHAR_DATA *ch, char *argument)
     {
 	victim->level += 1;
 	victim->tot_level += 1;
-	advance_level(victim,TRUE);
+	advance_level(victim,true);
     }
     else
     {
@@ -4784,12 +4784,12 @@ void do_log(CHAR_DATA *ch, char *argument)
     {
 	if (logAll)
 	{
-	    logAll = FALSE;
+	    logAll = false;
 	    send_to_char("Log ALL off.\n\r", ch);
 	}
 	else
 	{
-	    logAll = TRUE;
+	    logAll = true;
 	    send_to_char("Log ALL on.\n\r", ch);
 	}
 	return;
@@ -4873,7 +4873,7 @@ void do_peace(CHAR_DATA *ch, char *argument)
     for (rch = ch->in_room->people; rch != NULL; rch = rch->next_in_room)
     {
 	if (rch->fighting != NULL)
-	    stop_fighting(rch, TRUE);
+	    stop_fighting(rch, true);
 	if (IS_NPC(rch) && IS_SET(rch->act[0],ACT_AGGRESSIVE))
 	    REMOVE_BIT(rch->act[0],ACT_AGGRESSIVE);
 
@@ -7264,7 +7264,7 @@ void do_olevel(CHAR_DATA *ch, char *argument)
     OBJ_DATA *in_obj;
     bool found;
     int number = 0, max_found;
-    found = FALSE;
+    found = false;
     number = 0;
     max_found = 200;
     buffer = new_buf();
@@ -7296,7 +7296,7 @@ void do_olevel(CHAR_DATA *ch, char *argument)
 	    if (wear_loc[0] != '\0' && !IS_SET(obj->wear_flags, flag_value(wear_flags, wear_loc)))
 		    continue;
 
-	    found = TRUE;
+	    found = true;
 	    number++;
 	    for (in_obj = obj; in_obj->in_obj != NULL; in_obj = in_obj->in_obj);
 
@@ -7352,14 +7352,14 @@ void do_mlevel(CHAR_DATA *ch, char *argument)
 		send_to_char("Syntax: mlevel <level>\n\r",ch);
 		return;
 	}
-	found = FALSE;
+	found = false;
 	buffer = new_buf();
 	iterator_start(&vit, loaded_chars);
 	while(( victim = (CHAR_DATA *)iterator_nextdata(&vit)))
 	{
 		if (victim->in_room != NULL &&
 			atoi(argument) == victim->level) {
-			found = TRUE;
+			found = true;
 			count++;
 			sprintf(buf, "%3d) [%5ld] %-28s [%5ld] %s\n\r",
 					count,
@@ -7510,7 +7510,7 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
     char arg2[MAX_INPUT_LENGTH];
     long iHash;
     int door;
-    bool found = FALSE;
+    bool found = false;
 
     /* To provide a convenient way to translate door numbers to words */
     argument = one_argument(argument, arg1);
@@ -7550,7 +7550,7 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
 	    /*fp ? fprintf(fp, buf) : */add_buf(buffer, buf);
 
 	    /* Now let's start looping through all the rooms. */
-	    found = FALSE;
+	    found = false;
 	    for(iHash = 0; iHash < MAX_KEY_HASH; iHash++)
 	    {
 		for(from_room = parea->room_index_hash[iHash];
@@ -7576,7 +7576,7 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
 			     */
 			    if(to_room != NULL && to_room->area != parea)
 			    {
-				found = TRUE;
+				found = true;
 				sprintf(buf, "    (%ld#%ld) links %s to %s (%ld#%ld)\n\r",
 				    from_room->area->uid, from_room->vnum, dir_name[door],
 				    to_room->area->name, to_room->area->uid, to_room->vnum);
@@ -7683,7 +7683,7 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
 		    /* Found an exit, does it lead to a different area? */
 		    if(to_room != NULL && to_room->area != parea)
 		    {
-			found = TRUE;
+			found = true;
 			sprintf(buf, "%s (%ld#%ld) links %s to %s (%ld#%ld)\n\r",
 				    parea->name, from_room->area->uid, from_room->vnum, dir_name[door],
 				    to_room->area->name, to_room->area->uid, to_room->vnum);
@@ -7727,8 +7727,8 @@ void do_junk(CHAR_DATA *ch, char *argument)
     OBJ_DATA *obj_next;
     char arg[MAX_STRING_LENGTH];
     char arg2[MAX_STRING_LENGTH];
-    bool fAll = FALSE;
-    bool found = FALSE;
+    bool fAll = false;
+    bool found = false;
 
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
@@ -7747,7 +7747,7 @@ void do_junk(CHAR_DATA *ch, char *argument)
 
     if (argument[0] != '\0'
     && !str_cmp(argument, "all"))
-	    fAll = TRUE;
+	    fAll = true;
 
 	WNUM wnum = wnum_zero;
     if (parse_widevnum(arg2, ch->in_room->area, &wnum) && get_obj_index(wnum.pArea, wnum.vnum) == NULL)
@@ -7763,7 +7763,7 @@ void do_junk(CHAR_DATA *ch, char *argument)
 	    {
 		    act("Extracted $p from $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 		    extract_obj(obj);
-		    found = TRUE;
+		    found = true;
 		    if (!fAll) break;
 	    }
     }
@@ -8048,14 +8048,14 @@ void do_vislist(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    found = FALSE;
+    found = false;
     string_prev = NULL;
     for (string = ch->pcdata->vis_to_people; string != NULL;
           string = string->next)
     {
 	if (!str_prefix(arg, string->string))
 	{
-	    found = TRUE;
+	    found = true;
 	    break;
 	}
 
@@ -8090,7 +8090,7 @@ void do_vislist(CHAR_DATA *ch, char *argument)
 	if ((victim = get_char_world(ch, arg)) != NULL
 	&& !IS_NPC(victim))
 	{
-	    found_char = TRUE;
+	    found_char = true;
 	    sprintf(arg, "%s", capitalize(victim->name));
 	}
 	else
@@ -8098,11 +8098,11 @@ void do_vislist(CHAR_DATA *ch, char *argument)
 	    sprintf(player_name, "%s%c/%s", PLAYER_DIR, tolower(arg[0]), capitalize(arg));
 	    if ((fp = fopen(player_name, "r")) == NULL)
 	    {
-		found_char = FALSE;
+		found_char = false;
 	    }
 	    else
 	    {
-		found_char = TRUE;
+		found_char = true;
 		fclose (fp);
 	    }
 	}
@@ -8276,7 +8276,7 @@ void do_addcommand(CHAR_DATA *ch, char *argument)
     CHAR_DATA *vch;
     COMMAND_DATA *cmd;
     int i;
-    bool found = FALSE;
+    bool found = false;
 
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
@@ -8306,7 +8306,7 @@ void do_addcommand(CHAR_DATA *ch, char *argument)
         if (!str_prefix(arg2, cmd_table[i].name)
 	&&  cmd_table[i].level <= ch->tot_level)
 	{
-	    found = TRUE;
+	    found = true;
 	    break;
 	}
     }
@@ -8338,7 +8338,7 @@ void do_remcommand(CHAR_DATA *ch, char *argument)
     char buf[MSL];
     CHAR_DATA *vch;
     COMMAND_DATA *cmd, *cmd_prev = NULL;
-    bool found = FALSE;
+    bool found = false;
 
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
@@ -8367,7 +8367,7 @@ void do_remcommand(CHAR_DATA *ch, char *argument)
     {
         if (!str_prefix(arg2, cmd->name))
 	{
-	    found = TRUE;
+	    found = true;
 	    break;
 	}
 
@@ -9583,7 +9583,7 @@ LIQUID *load_liquid(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-LIQUID"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 		switch(word[0])
 		{
 			case 'C':
@@ -9603,7 +9603,7 @@ LIQUID *load_liquid(FILE *fp)
 
 					liq->gln = liquid_gln_lookup(name);
 
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -9672,11 +9672,11 @@ bool load_liquids()
 	top_liquid_uid = 0;
 
 	log_string("load_liquids: creating liquid_list");
-	liquid_list = list_createx(FALSE, NULL, delete_liquid);
+	liquid_list = list_createx(false, NULL, delete_liquid);
 	if (!IS_VALID(liquid_list))
 	{
 		log_string("liquid_list was not created.");
-		return FALSE;
+		return false;
 	}
 
 	log_string("load_liquids: loading " LIQUIDS_FILE);
@@ -9731,7 +9731,7 @@ bool load_liquids()
 
 	while (str_cmp((word = fread_word(fp)), "End"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -9748,7 +9748,7 @@ bool load_liquids()
 					}
 					else
 						log_string("Failed to load a liquid.");
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -9770,7 +9770,7 @@ bool load_liquids()
 		if (gln_table[i].liq) *gln_table[i].liq = NULL;
 	}
 
-	bool save = FALSE;
+	bool save = false;
 	iterator_start(&it, liquid_list);
 	while((liq = (LIQUID *)iterator_nextdata(&it)))
 	{
@@ -9778,7 +9778,7 @@ bool load_liquids()
 		if (liq->uid < 1)
 		{
 			liq->uid = ++top_liquid_uid;
-			save = TRUE;
+			save = true;
 		}
 
 		if (liq->gln)
@@ -10179,7 +10179,7 @@ MATERIAL *load_material(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-MATERIAL"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 		switch(word[0])
 		{
 			case 'B':
@@ -10256,11 +10256,11 @@ bool load_materials()
 	bool fMatch;
 
 	log_string("load_materials: creating material_list");
-	material_list = list_createx(FALSE, NULL, delete_material);
+	material_list = list_createx(false, NULL, delete_material);
 	if (!IS_VALID(material_list))
 	{
 		log_string("material_list was not created.");
-		return FALSE;
+		return false;
 	}
 
 	log_string("load_materials: loading " MATERIALS_FILE);
@@ -10285,7 +10285,7 @@ bool load_materials()
 
 	while (str_cmp((word = fread_word(fp)), "End"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -10299,7 +10299,7 @@ bool load_materials()
 					}
 					else
 						log_string("Failed to load a material.");
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				break;

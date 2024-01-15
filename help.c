@@ -559,7 +559,7 @@ HELP_CATEGORY *read_help_category_new(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-HELPCATEGORY"))
     {
-	fMatch = FALSE;
+	fMatch = false;
 
 	switch (word[0])
 	{
@@ -581,7 +581,7 @@ HELP_CATEGORY *read_help_category_new(FILE *fp)
 
 		    hcatNest->up = hcat;
 
-		    fMatch = TRUE;
+		    fMatch = true;
 		}
 
 		if (!str_cmp(word, "#HELP")) {
@@ -598,7 +598,7 @@ HELP_CATEGORY *read_help_category_new(FILE *fp)
 		    if (!str_cmp(help->keyword, "greeting"))
 			help_greeting = help->text;
 
-		    fMatch = TRUE;
+		    fMatch = true;
 		}
 
 		break;
@@ -663,7 +663,7 @@ HELP_DATA *read_help_new(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-HELP"))
     {
-	fMatch = FALSE;
+	fMatch = false;
 
 	switch (word[0])
 	{
@@ -688,7 +688,7 @@ HELP_DATA *read_help_new(FILE *fp)
 
                     topic = new_string_data();
 
-		    fMatch = TRUE;
+		    fMatch = true;
 
 		    topic->string = fread_string(fp);
 
@@ -710,7 +710,7 @@ HELP_DATA *read_help_new(FILE *fp)
 
 	    case 'T':
 		if (!str_cmp(word, "Text")) {
-		    fMatch = TRUE;
+		    fMatch = true;
 
 		    help->text = fread_string(fp);
 		}

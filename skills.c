@@ -526,7 +526,7 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 
     while (str_cmp((word = fread_word(fp)), end))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 		switch(word[0])
 		{
 			case 'B':
@@ -610,7 +610,7 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 				{
 					char *name = fread_string(fp);
 					skill->pgsn = gsn_from_name(name);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				break;
@@ -885,7 +885,7 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 				if (!str_cmp(word, "Token"))
 				{
 					skill->token_load = fread_widevnum(fp, 0);
-					fMatch = TRUE;
+					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word, "TouchFunc"))
@@ -1206,7 +1206,7 @@ bool load_skills(void)
 	top_skill_uid = 0;
 
 	log_string("load_skills: creating skills_list");
-	skills_list = list_createx(FALSE, NULL, delete_skill_data);
+	skills_list = list_createx(false, NULL, delete_skill_data);
 	if (!IS_VALID(skills_list))
 	{
 		log_string("skills_list was not created.");
@@ -1214,7 +1214,7 @@ bool load_skills(void)
 	}
 
 	log_string("load_skills: creating skill_groups_list");
-	skill_groups_list = list_createx(FALSE, NULL, delete_skill_group_data);
+	skill_groups_list = list_createx(false, NULL, delete_skill_group_data);
 	if (!IS_VALID(skill_groups_list))
 	{
 		log_string("skill_groups_list was not created.");
@@ -1713,8 +1713,8 @@ void do_multi(CHAR_DATA *ch, char *argument)
     ch->level = 1;
     ch->exp = 0;
     ch->tot_level++;
-    group_add(ch, class_table[ch->pcdata->class_current].base_group, TRUE);
-    group_add(ch, sub_class_table[ch->pcdata->sub_class_current].default_group, TRUE);
+    group_add(ch, class_table[ch->pcdata->class_current].base_group, true);
+    group_add(ch, sub_class_table[ch->pcdata->sub_class_current].default_group, true);
     sprintf(buf2, "%s", sub_class_table[ch->pcdata->sub_class_current].name[ch->sex]);
     buf2[0] = UPPER(buf2[0]);
     sprintf(buf, "All congratulate %s, who is now a%s %s!",
@@ -1835,22 +1835,22 @@ bool can_choose_subclass(CHAR_DATA *ch, int subclass)
 	{
 	    case CLASS_MAGE:
 	        if (get_profession(ch, CLASS_MAGE) != -1)
-			    return FALSE;
+			    return false;
 		    break;
 
 	    case CLASS_CLERIC:
 	        if (get_profession(ch, CLASS_CLERIC) != -1)
-			    return FALSE;
+			    return false;
 		    break;
 
 	    case CLASS_THIEF:
 	        if (get_profession(ch, CLASS_THIEF) != -1)
-			    return FALSE;
+			    return false;
 		    break;
 
 	    case CLASS_WARRIOR:
 	        if (get_profession(ch, CLASS_WARRIOR) != -1)
-			    return FALSE;
+			    return false;
 		    break;
 	}
 
@@ -1859,82 +1859,82 @@ bool can_choose_subclass(CHAR_DATA *ch, int subclass)
 	{
 		case ALIGN_EVIL:
 			if (IS_GOOD(ch))
-				return FALSE;
+				return false;
 			break;
 
 		case ALIGN_GOOD:
 			if (IS_EVIL(ch))
-				return FALSE;
+				return false;
 			break;
 	}
 
-	return TRUE;
+	return true;
     }
     else // Remort
     {
 	if (!IS_REMORT(ch) && ch->tot_level != LEVEL_HERO)
-	    return FALSE;
+	    return false;
 
 	switch (sub_class_table[subclass].class)
 	{
 	    case CLASS_MAGE:
 			if (get_profession(ch, SECOND_SUBCLASS_MAGE) != -1)
-				return FALSE;
+				return false;
 
 			prof = get_profession(ch, SUBCLASS_MAGE);
 
 			if (prof == sub_class_table[subclass].prereq[0] ||
 				prof == sub_class_table[subclass].prereq[1])
 
-			return TRUE;
+			return true;
 			break;
 
 	    case CLASS_CLERIC:
 			if (get_profession(ch, SECOND_SUBCLASS_CLERIC) != -1)
-				return FALSE;
+				return false;
 
 			prof = get_profession(ch, SUBCLASS_CLERIC);
 
 			if (prof == sub_class_table[subclass].prereq[0] ||
 				prof == sub_class_table[subclass].prereq[1])
 
-			return TRUE;
+			return true;
 			break;
 
 	    case CLASS_THIEF:
 			if (get_profession(ch, SECOND_SUBCLASS_THIEF) != -1)
-				return FALSE;
+				return false;
 
 			prof = get_profession(ch, SUBCLASS_THIEF);
 
 			if (prof == sub_class_table[subclass].prereq[0] ||
 				prof == sub_class_table[subclass].prereq[1])
 
-			return TRUE;
+			return true;
 			break;
 
 	    case CLASS_WARRIOR:
 			if (get_profession(ch, SECOND_SUBCLASS_WARRIOR) != -1)
-				return FALSE;
+				return false;
 
 			prof = get_profession(ch, SUBCLASS_WARRIOR);
 
 			if (prof == sub_class_table[subclass].prereq[0] ||
 				prof == sub_class_table[subclass].prereq[1])
 
-			return TRUE;
+			return true;
 			break;
 
 	    default:
-		    return FALSE;
+		    return false;
 	}
 
-	return FALSE;
+	return false;
     }
 
     sprintf(buf, "can_choose_subclass: invalid subclass for %s[%d]", ch->name, subclass);
     bug(buf, 0);
-    return FALSE;
+    return false;
 }
 #endif
 
@@ -2252,8 +2252,8 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
 {
 	BUFFER *buffer;
 
-	bool found = FALSE;
-	bool favonly = FALSE;
+	bool found = false;
+	bool favonly = false;
 	char buf[MAX_STRING_LENGTH];
 	char arg[MSL];
 	int i;
@@ -2321,7 +2321,7 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
 				else
 					sprintf(buf, " %3d     {%c%-26s    {D%d%%{x\n\r", i++, color, skill_entry_name(entry), -rating);
 				add_buf(buffer,buf);
-				found = TRUE;
+				found = true;
 			}
 		}
 	} else {
@@ -2400,7 +2400,7 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
 
 				add_buf(buffer,buf);
 				i++;
-				found = TRUE;
+				found = true;
 			}
 
 		}
@@ -2425,13 +2425,13 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
 
 void do_spells(CHAR_DATA *ch, char *argument)
 {
-	list_skill_entries(ch, argument, FALSE, TRUE, FALSE);
+	list_skill_entries(ch, argument, false, true, false);
 }
 
 
 void do_skills(CHAR_DATA *ch, char *argument)
 {
-	list_skill_entries(ch, argument, TRUE, FALSE, FALSE);
+	list_skill_entries(ch, argument, true, false, false);
 }
 
 
@@ -3315,7 +3315,7 @@ static bool __practice_cost_has_value(PRACTICE_COST_DATA *cost)
 // Assumes teacher->practicer valid
 static LLIST *__teacher_get_available(CHAR_DATA *ch, CHAR_DATA *teacher)
 {
-	LLIST *abilities = list_create(FALSE);
+	LLIST *abilities = list_create(false);
 
 	if (teacher->practicer->standard)
 	{
@@ -4064,7 +4064,7 @@ void do_rehearse( CHAR_DATA *ch, char *argument )
 	char arg[MSL];
 	CHAR_DATA *mob;
 	bool wasbard;
-	bool found = FALSE;
+	bool found = false;
 
 	if (IS_NPC(ch))
 		return;
@@ -4122,7 +4122,7 @@ void do_rehearse( CHAR_DATA *ch, char *argument )
 					song->name,
 					song->level);
 				add_buf(buffer, buf);
-				found = TRUE;
+				found = true;
 			}
 		}
 		iterator_stop(&it);
@@ -4207,11 +4207,11 @@ bool can_practice( CHAR_DATA *ch, SKILL_DATA *skill )
     if (!IS_VALID(skill)) return false;
 
 	entry = skill_entry_findskill(ch->sorted_skills, skill);
-	if (!entry) return FALSE;
+	if (!entry) return false;
 
-	if (!IS_SET(entry->flags, SKILL_PRACTICE)) return FALSE;
+	if (!IS_SET(entry->flags, SKILL_PRACTICE)) return false;
 
-	if (entry->source != SKILLSRC_NORMAL) return TRUE;
+	if (entry->source != SKILLSRC_NORMAL) return true;
 
     //this_class = get_this_class(ch, skill);
 
@@ -4224,7 +4224,7 @@ bool can_practice( CHAR_DATA *ch, SKILL_DATA *skill )
 
     // Does *everyone* get the skill? (such as hand to hand)
     if (is_global_skill(skill))
-		return TRUE;
+		return true;
 
     // Have they had the skill in a previous subclass or class?
     if (skill_entry_available(ch,entry))
@@ -4235,12 +4235,12 @@ bool can_practice( CHAR_DATA *ch, SKILL_DATA *skill )
     // is of high enough level for it?
     if (has_class_skill(ch->pcdata->class_current, skill) &&
 		ch->level >= skill->skill_level[this_class])
-	return TRUE;
+	return true;
 
     // Ditto for subclass
     if (has_subclass_skill(ch->pcdata->sub_class_current, skill) &&
 		ch->level >= skill->skill_level[this_class])
-	return TRUE;
+	return true;
 #endif
 
     // For old skills which already got practiced
@@ -4577,40 +4577,40 @@ bool should_have_skill( CHAR_DATA *ch, SKILL_DATA *skill )
     if (ch == NULL)
     {
     	bug("should_have_skill: null ch", 0 );
-		return FALSE;
+		return false;
     }
 
     if (!IS_VALID(skill))
     {
     	bug("should_have_skill: bad sn", 0 );
-		return FALSE;
+		return false;
     }
 
     if (is_racial_skill(ch->race, skill))
-    	return TRUE;
+    	return true;
 
     if (is_global_skill(skill))
-		return TRUE;
+		return true;
 
     if (has_class_skill( get_profession(ch, CLASS_MAGE), skill )
     ||  has_class_skill( get_profession(ch, CLASS_CLERIC), skill )
     ||  has_class_skill( get_profession(ch, CLASS_THIEF), skill )
     ||  has_class_skill( get_profession(ch, CLASS_WARRIOR), skill ))
-		return TRUE;
+		return true;
 
     if (has_subclass_skill( ch->pcdata->sub_class_mage, skill )
     ||  has_subclass_skill( ch->pcdata->sub_class_cleric, skill )
     ||  has_subclass_skill( ch->pcdata->sub_class_thief, skill )
     ||  has_subclass_skill( ch->pcdata->sub_class_warrior, skill ))
-		return TRUE;
+		return true;
 
     if (has_subclass_skill( ch->pcdata->second_sub_class_mage, skill )
     ||  has_subclass_skill( ch->pcdata->second_sub_class_cleric, skill )
     ||  has_subclass_skill( ch->pcdata->second_sub_class_thief, skill )
     ||  has_subclass_skill( ch->pcdata->second_sub_class_warrior, skill ))
-		return TRUE;
+		return true;
 
-    return FALSE;
+    return false;
 }
 #endif
 
@@ -4844,7 +4844,7 @@ void skill_entry_removeskill (CHAR_DATA *ch, SKILL_DATA *skill)
 
 	if (skill->token && skill->token->type != TOKEN_SKILL) return;
 
-	skill_entry_remove( &ch->sorted_skills, skill, NULL, NULL, FALSE );
+	skill_entry_remove( &ch->sorted_skills, skill, NULL, NULL, false );
 }
 
 void skill_entry_removespell (CHAR_DATA *ch, SKILL_DATA *skill)
@@ -4853,7 +4853,7 @@ void skill_entry_removespell (CHAR_DATA *ch, SKILL_DATA *skill)
 
 	if (skill->token && skill->token->type != TOKEN_SPELL) return;
 
-	skill_entry_remove( &ch->sorted_skills, skill, NULL, NULL, TRUE );
+	skill_entry_remove( &ch->sorted_skills, skill, NULL, NULL, true );
 }
 
 void skill_entry_removesong (CHAR_DATA *ch, SONG_DATA *song, TOKEN_DATA *token)
@@ -4862,7 +4862,7 @@ void skill_entry_removesong (CHAR_DATA *ch, SONG_DATA *song, TOKEN_DATA *token)
 
 	if( !IS_VALID(song) && (!token || token->type != TOKEN_SONG)) return;
 
-	skill_entry_remove( &ch->sorted_songs, NULL, song, token, FALSE );
+	skill_entry_remove( &ch->sorted_songs, NULL, song, token, false );
 }
 
 int token_skill_rating( TOKEN_DATA *token)
@@ -5121,7 +5121,7 @@ void remort_player(CHAR_DATA *ch)
     for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
     {
 		if (obj->wear_loc != WEAR_NONE)
-		    unequip_char(ch, obj, FALSE);
+		    unequip_char(ch, obj, false);
     }
 
     /* take off remaining affects*/
@@ -5203,8 +5203,8 @@ void remort_player(CHAR_DATA *ch)
 		break;
 	}
 
-    group_add(ch, class_table[ch->pcdata->class_current].base_group, TRUE);
-    group_add(ch, sub_class_table[ch->pcdata->sub_class_current].default_group, TRUE);
+    group_add(ch, class_table[ch->pcdata->class_current].base_group, true);
+    group_add(ch, sub_class_table[ch->pcdata->sub_class_current].default_group, true);
     ch->exp = 0;
 
     sprintf(buf2, sub_class_table[ch->pcdata->sub_class_current].name[ch->sex]);
@@ -5216,7 +5216,7 @@ void remort_player(CHAR_DATA *ch)
     double_xp(ch);
 
 	// Reset here since an immortal can still remort a player while they still have this question up
-	ch->remort_question = FALSE;
+	ch->remort_question = false;
 
 	p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REMORT, NULL,0,0,0,0,0);
 
@@ -7297,7 +7297,7 @@ CLASS_DATA *load_class(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-CLASS"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 		switch(word[0])
 		{
 			case 'D':
@@ -7389,7 +7389,7 @@ bool load_classes()
 	top_class_uid = 0;
 
 	log_string("load_classes: creating classes_list");
-	classes_list = list_createx(FALSE, NULL, delete_class_data);
+	classes_list = list_createx(false, NULL, delete_class_data);
 	if (!IS_VALID(classes_list))
 	{
 		log_string("classess_list was not created.");
