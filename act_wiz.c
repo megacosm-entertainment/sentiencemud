@@ -2036,7 +2036,7 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 
 	if (!IS_NPC(victim))
 	{
-		sprintf(buf, "{BAge:{x %d  {BPlayed:{x %d  {BTimer:{x %d  {BCreated:{B %s{x",
+		sprintf(buf, "{BAge:{x %d  {BPlayed:{x %d  {BTimer:{x %d  {BCreated:{x %s{x",
 					 get_age(victim),
 					 (int) (victim->played + current_time - victim->logon) / 3600,
 					 victim->timer,

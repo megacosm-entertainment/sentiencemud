@@ -47,7 +47,7 @@
 #define MAX_SKILL_LEARNABLE	75
 #define MAX_SKILL_TRAINABLE	90
 
-void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool show_spells, bool hide_learned);
+void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool show_spells, bool hide_learned, bool show_learn_amount);
 
 void do_multi(CHAR_DATA *ch, char *argument)
 {
@@ -965,7 +965,7 @@ void do_convert(CHAR_DATA *ch, char *argument)
     send_to_char("Syntax:  convert <practices|trains>\n\r", ch);
 }
 
-void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool show_spells, bool hide_learned)
+void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool show_spells, bool hide_learned, bool show_learn_amount)
 {
 	BUFFER *buffer;
 
@@ -975,7 +975,7 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
 	char arg[MSL];
 	int i;
 	char color, *name;
-	int skill, rating, mod, level, mana;
+	int skill, rating, mod, level, mana, learn;
 	SKILL_ENTRY *entry;
 
 	if (ch == NULL) {
@@ -1055,6 +1055,7 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
 			level = skill_entry_level(ch, entry);	// Negate level implies they do not know it yet.
 			name = skill_entry_name(entry);
 			mana = skill_entry_mana(ch, entry);
+			learn = skill_entry_learn(ch, entry);
 
 			if( skill < 1 ) continue;
 
@@ -1085,7 +1086,12 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
 							else
 								sprintf(buf, " %3d     %-8s %-26s    {MMaster", i, min_mana, eff_name);
 						} else if( mod )
-							sprintf(buf, " %3d     %-8s %-26s    {G%d%% {W(%+d%%)", i, min_mana, eff_name, rating, mod);
+							if ( show_learn_amount )
+								sprintf(buf, " %3d     %-8s %-26s    {G%d%% {W(%+d%%) {C- Gain %d%% per prac{X", i, min_mana, eff_name, rating, mod, learn);
+							else
+								sprintf(buf, " %3d     %-8s %-26s    {G%d%% {W(%+d%%)", i, min_mana, eff_name, rating, mod);
+						else if ( show_learn_amount )
+							sprintf(buf, " %3d     %-8s %-26s    {G%d%% {C- Gain %d%% per prac{X", i, min_mana,  eff_name, rating, learn);
 						else
 							sprintf(buf, " %3d     %-8s %-26s    {G%d%%", i, min_mana,  eff_name, rating);
 					}
@@ -1102,7 +1108,12 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
 							else
 								sprintf(buf, " %3d     %-26s    {MMaster", i, eff_name);
 						} else if( mod )
-							sprintf(buf, " %3d     %-26s    {G%d%% {W(%+d%%)", i, eff_name, rating, mod);
+							if (show_learn_amount )
+								sprintf(buf, " %3d     %-26s    {G%d%% {W(%+d%%) {C- Gain %d%% per prac{X", i, eff_name, rating, mod, learn);
+							else
+								sprintf(buf, " %3d     %-26s    {G%d%% {W(%+d%%)", i, eff_name, rating, mod);
+						else if ( show_learn_amount )
+							sprintf(buf, " %3d     %-26s    {G%d%% {C- Gain %d%% per prac{X", i, eff_name, rating, learn);
 						else
 							sprintf(buf, " %3d     %-26s    {G%d%%", i, eff_name, rating);
 					}
@@ -1142,13 +1153,13 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
 
 void do_spells(CHAR_DATA *ch, char *argument)
 {
-	list_skill_entries(ch, argument, false, true, false);
+	list_skill_entries(ch, argument, false, true, false, false);
 }
 
 
 void do_skills(CHAR_DATA *ch, char *argument)
 {
-	list_skill_entries(ch, argument, true, false, false);
+	list_skill_entries(ch, argument, true, false, false, false);
 }
 
 
@@ -1379,7 +1390,7 @@ void do_practice( CHAR_DATA *ch, char *argument )
 	argument = one_argument( argument, arg );
 
 	if (!arg[0]) {
-		list_skill_entries(ch, "", true, true, true);
+		list_skill_entries(ch, "", true, true, true, true);
 		send_to_char("\n\r", ch);
 		return;
 	}
