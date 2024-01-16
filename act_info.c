@@ -3936,6 +3936,17 @@ void do_affects(CHAR_DATA * ch, char *argument)
 				sprintf(buf, "{Bfor {W%d {Bhours{x", paf->duration);
 			send_to_char(buf, ch);
 
+			if (paf->slot != WEAR_NONE)
+			{
+				OBJ_DATA *eq = get_eq_char(ch, paf->slot);
+
+				if (IS_VALID(eq))
+				{
+					sprintf(buf, " {Bprovided by {W%s{x", eq->short_descr);
+					send_to_char(buf, ch);
+				}
+			}
+
 			send_to_char("\n\r", ch);
 			paf_last = paf;
 		}
@@ -3961,6 +3972,17 @@ void do_affects(CHAR_DATA * ch, char *argument)
 			else
 				sprintf(buf, "{Bfor {W%d {Bhours{x", paf->duration);
 			send_to_char(buf, ch);
+
+			if (paf->slot != WEAR_NONE)
+			{
+				OBJ_DATA *eq = get_eq_char(ch, paf->slot);
+
+				if (IS_VALID(eq))
+				{
+					sprintf(buf, " {Bprovided by {W%s{x", eq->short_descr);
+					send_to_char(buf, ch);
+				}
+			}
 
 			send_to_char("\n\r", ch);
 			paf_last = paf;
