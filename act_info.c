@@ -3291,7 +3291,7 @@ void do_score(CHAR_DATA * ch, char *argument)
 	strcat(buf, " ");
     strcat(buf, "|\n\r");
     send_to_char(buf, ch);
-    sprintf(buf, "{C| {BMission Points: {w%-9d", ch->missionpoints);
+    sprintf(buf, "{C| {BMission Points: {w%-7d", ch->missionpoints);
     send_to_char(buf, ch);
     sprintf(buf, "{BDeity Points: {w%-11ld", ch->deitypoints);
     send_to_char(buf, ch);
@@ -3309,7 +3309,7 @@ void do_score(CHAR_DATA * ch, char *argument)
     send_to_char(buf, ch);
     sprintf(buf, "{BBank Balance: {w%-10ld {C|\n\r", ch->pcdata->bankbalance);
     send_to_char(buf, ch);
-    sprintf(buf, "{C| {BDeaths: {w%-39d {BMissions Completed:{x %-7ld{C|\n\r",
+    sprintf(buf, "{C| {BDeaths: {w%-39d {BMissions Completed:{x %-5ld{C|\n\r",
 		    ch->deaths, ch->pcdata->missions_completed);
     send_to_char(buf, ch);
     sprintf(buf, "{C| {BPK Wins       : {w%-31d {BCPK Wins:{x %-14d {C|\n\r",

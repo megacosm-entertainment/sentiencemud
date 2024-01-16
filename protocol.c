@@ -57,7 +57,7 @@ static void ReportBug( const char *apText )
 static void InfoMessage( descriptor_t *apDescriptor, const char *apData )
 {
    if (IS_SET(apDescriptor->character->act[0], PLR_COLOUR))
-   Write( apDescriptor, "\t[F210][\toINFO\t[F210]]\tn " );
+   Write( apDescriptor, "\t[F210][\toINFO\t[F210]]\tx " );
    else
    Write (apDescriptor, "[INFO]");
    Write( apDescriptor, apData );
