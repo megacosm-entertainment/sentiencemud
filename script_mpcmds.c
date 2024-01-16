@@ -4307,7 +4307,7 @@ SCRIPT_CMD(do_mpresetdice)
 SCRIPT_CMD(do_mpaltermob)
 {
 	char buf[MSL],field[MIL],*rest;
-	int value, min_sec = MIN_SCRIPT_SECURITY, min = 0, max = 0;
+	int value = 0, min_sec = MIN_SCRIPT_SECURITY, min = 0, max = 0;
 	CHAR_DATA *mob = NULL;
 	int *ptr = NULL;
 	bool allowpc = false;
@@ -6087,7 +6087,7 @@ SCRIPT_CMD(do_mpcloneroom)
 SCRIPT_CMD(do_mpalterroom)
 {
 	char buf[MSL+2],field[MIL],*rest;
-	int value, min_sec = MIN_SCRIPT_SECURITY;
+	int value = 0, min_sec = MIN_SCRIPT_SECURITY;
 	ROOM_INDEX_DATA *room;
 	WILDS_DATA *wilds;
 

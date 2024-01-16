@@ -3363,7 +3363,7 @@ void __drink_fluid_con(CHAR_DATA *ch, OBJ_DATA *obj, int max_amount, char *verb)
 		return;
     }
 
-	int amount;
+	int amount = LIQ_SERVING;
 	if (max_amount < 0)	// Everything, or one serving if infinite
 	{
 		if (FLUID_CON(obj)->capacity < 0)
@@ -3374,6 +3374,11 @@ void __drink_fluid_con(CHAR_DATA *ch, OBJ_DATA *obj, int max_amount, char *verb)
 	else if (max_amount == 0)
 	{
 		amount = LIQ_SERVING;	// One serving
+	}
+	else
+	{
+		if (amount > max_amount)
+			amount = max_amount;
 	}
 
 	// Cap the amount available
@@ -8582,7 +8587,7 @@ void do_imbue(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	int max_mana;
+	int max_mana = 0;
 	int imbue_type = get_imbue_target(obj);
 
 	if (imbue_type == IMBUE_NONE)

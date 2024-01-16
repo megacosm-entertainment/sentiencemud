@@ -561,6 +561,7 @@ ENT_FIELD entity_object_mist[] = {
 	{"toxic",		ENTITY_OBJ_MIST_TOXIC,				ENT_NUMBER },
 	{"shock",		ENTITY_OBJ_MIST_SHOCK,				ENT_NUMBER },
 	{"fog",			ENTITY_OBJ_MIST_FOG,				ENT_NUMBER },
+	{"sleep",		ENTITY_OBJ_MIST_SLEEP,				ENT_NUMBER },
 	{NULL,			0,			ENT_UNKNOWN }
 };
 

@@ -2611,6 +2611,9 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 		sprintf(buf, "   {BWither: {x%d{B%%, Toxic: {x%d{B%%, Shock: {x%d{B%%, Fog: {x%d{B%%{x\n\r",
 			mist->wither, mist->toxic, mist->shock, mist->fog);
 		add_buf(buffer, buf);
+		sprintf(buf, "   {BSleep: {x%d{B%%{x\n\r",
+			mist->sleep);
+		add_buf(buffer, buf);
 	}
 
 	if (IS_MONEY(obj))

@@ -665,7 +665,7 @@ void do_cast(CHAR_DATA *ch, char *argument)
 
 		if (spell->skill->prespell_fun != NULL)
 		{
-			void *vo;
+			void *vo = NULL;
 			switch (spell->skill->target) {
 			case TAR_IGNORE:
 				vo = (void *) args;

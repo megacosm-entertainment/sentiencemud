@@ -1833,7 +1833,7 @@ SCRIPT_CMD(scriptcmd_deduct)
 	char *field_name;
 	CHAR_DATA *victim = NULL;
 	CHURCH_DATA *church = NULL;
-	REPUTATION_INDEX_DATA *repIndex;
+	REPUTATION_INDEX_DATA *repIndex = NULL;
 	bool paragon = false;
 	int amount = 0;
 
@@ -8654,13 +8654,13 @@ SCRIPT_CMD(scriptcmd_alterobj)
 		return;
 	}
 
-	if(num >= 0) {
-		switch(arg->type) {
-		case ENT_STRING: value = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
-		case ENT_NUMBER: value = arg->d.num; break;
-		default: return;
-		}
+	switch(arg->type) {
+	case ENT_STRING: value = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+	case ENT_NUMBER: value = arg->d.num; break;
+	default: return;
+	}
 
+	if(num >= 0) {
 		if(script_security < min_sec) {
 			sprintf(buf,"AlterObj - Attempting to alter value%d with security %d.\n\r", num, script_security);
 			bug(buf, 0);
@@ -9048,7 +9048,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 {
 	char msg[MSL];
 	char buf[2*MIL],field[MIL],*rest;
-	int value, min_sec = MIN_SCRIPT_SECURITY;
+	int value = 0, min_sec = MIN_SCRIPT_SECURITY;
 	OBJ_DATA *obj;
 	int min = 0, max = 0;
 	bool hasmin = false, hasmax = false;
@@ -9883,9 +9883,9 @@ void __multitype_book(OBJ_DATA *book, SCRIPT_VARINFO *info, char *rest, SCRIPT_P
 	}
 	else if(!str_prefix(arg->d.str, "rempage"))
 	{
-		CHAR_DATA *to_mob;
-		OBJ_DATA *to_obj;
-		ROOM_INDEX_DATA *to_room;
+		CHAR_DATA *to_mob = NULL;
+		OBJ_DATA *to_obj = NULL;
+		ROOM_INDEX_DATA *to_room = NULL;
 		ROOM_INDEX_DATA *here = obj_room(book);
 		bool fToroom = false;
 

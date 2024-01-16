@@ -18,6 +18,8 @@
 #include "tables.h"
 #include "wilds.h"
 
+DECLARE_SPELL_FUN( spell_sleep );
+
 extern void persist_save(void);
 extern void readycheck_update(CHAR_DATA *ch);
 extern char *get_affect_name(AFFECT_DATA *paf);
@@ -2260,22 +2262,25 @@ void obj_update(void)
 
 		// Ice storms - work in PK rooms
 		if (obj->in_room != NULL && IS_MIST(obj) && MIST(obj)->icy > 0 && is_room_pk(obj->in_room, true)) {
-			for (rch = obj->in_room->people; rch != NULL; rch = rch_next) if(MIST(obj)->icy > number_percent()) {
+			for (rch = obj->in_room->people; rch != NULL; rch = rch_next)
+			{
 				rch_next = rch->next_in_room;
+				if(MIST(obj)->icy > number_percent()) {
 
-				switch (check_immune(rch, DAM_COLD)) {
-				case IS_IMMUNE:
-					break;
+					switch (check_immune(rch, DAM_COLD)) {
+					case IS_IMMUNE:
+						break;
 
-				case IS_RESISTANT:
-					act("You shiver a bit, but are able to withstand the cold.", rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-					act("$n shivers a bit, but is able to withstand the cold.",  rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-					break;
+					case IS_RESISTANT:
+						act("You shiver a bit, but are able to withstand the cold.", rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+						act("$n shivers a bit, but is able to withstand the cold.",  rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+						break;
 
-				default:
-					act("You shiver from the intense ice storm.", rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-					act("$n shivers from the intense ice storm.", rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-					break;
+					default:
+						act("You shiver from the intense ice storm.", rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+						act("$n shivers from the intense ice storm.", rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+						break;
+					}
 				}
 			}
 
@@ -2963,7 +2968,7 @@ void aggr_update(void)
 								// Check the material for corrosion
 								if (IS_VALID(o->material) && IS_VALID(o->material->corroded) && o->material->corrodibility > number_percent())
 								{
-									act("$p corrodes.", ch, NULL, NULL, o, NULL, NULL, NULL, TO_ALL);
+									act("$p corrodes.", victim, NULL, NULL, o, NULL, NULL, NULL, TO_ALL);
 									// If the fragility of the object matches the object's current material fragility
 									if (o->fragility == o->pIndexData->fragility && o->fragility == o->material->fragility)
 									{
@@ -2977,7 +2982,43 @@ void aggr_update(void)
 						}
 					}
 				}
+			}
 
+			// Sleep Mists - knock people out
+			if (IS_MIST(obj) && MIST(obj)->sleep > 0 && !IS_SET(wch->in_room->room_flag[0], ROOM_SAFE))
+			{
+				if (MIST(obj)->sleep > number_percent())
+				{
+					CHAR_DATA *victim, *vnext;
+
+					for (victim = wch->in_room->people; victim != NULL; victim = vnext)
+					{
+						vnext = victim->next_in_room;
+
+						if (IS_NPC(victim))
+						{
+							// Shopkeepers and those that are protected are immune
+							if (victim->shop != NULL || IS_SET(victim->act[0], ACT_PROTECTED))
+								continue;
+						}
+
+						// Holy Aura'd Imms are immune to this...
+						else if (IS_IMMORTAL(victim) && IS_SET(victim->act[1], PLR_HOLYAURA))
+							continue;
+
+						// Face covering blocks this
+						if (get_eq_char(victim, WEAR_FACE) != NULL)
+							continue;
+
+						CLASS_LEVEL *level = get_class_level(victim, NULL);
+
+						if (IS_VALID(level) && level->level <= obj->level &&
+							number_percent() < 20)
+						{
+							spell_sleep(gsk_sleep, obj->level, victim, victim, TARGET_CHAR, WEAR_NONE);
+						}
+					}
+				}
 			}
 
 	    }

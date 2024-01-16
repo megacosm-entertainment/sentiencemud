@@ -8576,6 +8576,11 @@ EXPAND_TYPE(object_mist)
 		arg->d.num = mist ? mist->fog : 0;
 		break;
 
+	case ENTITY_OBJ_MIST_SLEEP:
+		arg->type = ENT_NUMBER;
+		arg->d.num = mist ? mist->sleep : 0;
+		break;
+
 	default: return NULL;
 	}
 

@@ -1108,6 +1108,7 @@ enum entity_object_mist_enum {
 	ENTITY_OBJ_MIST_TOXIC,
 	ENTITY_OBJ_MIST_SHOCK,
 	ENTITY_OBJ_MIST_FOG,
+	ENTITY_OBJ_MIST_SLEEP,
 };
 
 enum entity_object_money_enum {

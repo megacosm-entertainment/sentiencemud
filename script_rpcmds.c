@@ -3033,7 +3033,7 @@ SCRIPT_CMD(do_rpresetdice)
 SCRIPT_CMD(do_rpaltermob)
 {
 	char buf[MSL],field[MIL],*rest;
-	int value, min_sec = MIN_SCRIPT_SECURITY, min = 0, max = 0;
+	int value = 0, min_sec = MIN_SCRIPT_SECURITY, min = 0, max = 0;
 	CHAR_DATA *mob = NULL;
 
 	int *ptr = NULL;
@@ -4783,7 +4783,7 @@ SCRIPT_CMD(do_rpcloneroom)
 SCRIPT_CMD(do_rpalterroom)
 {
 	char buf[MSL+2],field[MIL],*rest;
-	int value, min_sec = MIN_SCRIPT_SECURITY;
+	int value = 0, min_sec = MIN_SCRIPT_SECURITY;
 	ROOM_INDEX_DATA *room;
 	WILDS_DATA *wilds;
 

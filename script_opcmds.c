@@ -3365,7 +3365,7 @@ SCRIPT_CMD(do_opresetdice)
 SCRIPT_CMD(do_opaltermob)
 {
 	char buf[MSL],field[MIL],*rest;
-	int value, min_sec = MIN_SCRIPT_SECURITY, min = 0, max = 0;
+	int value = 0, min_sec = MIN_SCRIPT_SECURITY, min = 0, max = 0;
 	CHAR_DATA *mob = NULL;
 
 	int *ptr = NULL;
@@ -5114,7 +5114,7 @@ SCRIPT_CMD(do_opcloneroom)
 SCRIPT_CMD(do_opalterroom)
 {
 	char buf[MSL+2],field[MIL],*rest;
-	int value, min_sec = MIN_SCRIPT_SECURITY;
+	int value = 0, min_sec = MIN_SCRIPT_SECURITY;
 	ROOM_INDEX_DATA *room;
 	WILDS_DATA *wilds;
 
