@@ -4234,6 +4234,16 @@ const struct flag_type armour_types[] =
     {NULL,      0,                  false }
 };
 
+const struct flag_type armour_protection_types[] =
+{
+    {"bash",    ARMOR_BASH,         true },
+    {"pierce",  ARMOR_PIERCE,       true },
+    {"slash",   ARMOR_SLASH,        true },
+    {"magic",   ARMOR_MAGIC,        true },
+    {NULL,      0,                  false }
+};
+
+
 const struct flag_type adornment_types[] =
 {
     {"none",        ADORNMENT_NONE,         false},

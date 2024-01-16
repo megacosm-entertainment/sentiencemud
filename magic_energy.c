@@ -149,7 +149,7 @@ SPELL_FUNC(spell_shield)
 	af.level = level;
 	af.duration = perm ? -1 : (8 + level);
 	af.location = APPLY_AC;
-	af.modifier = -20;
+	af.modifier = 20;
 	af.bitvector = 0;
 	af.bitvector2 = 0;
 	affect_to_char(victim, &af);

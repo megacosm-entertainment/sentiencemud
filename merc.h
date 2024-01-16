@@ -298,6 +298,8 @@ struct sound_type {
 
 #define VERSION_PLAYER_008  0x01000007
 
+#define VERSION_PLAYER_009  0x01000008
+
 #define VERSION_OBJECT_001	0x01000000
 
 #define VERSION_OBJECT_002	0x01000001
@@ -377,7 +379,7 @@ struct sound_type {
 #define VERSION_MOBILE		0x01000000
 #define VERSION_OBJECT		VERSION_OBJECT_016
 #define VERSION_ROOM		VERSION_ROOM_002
-#define VERSION_PLAYER		VERSION_PLAYER_008
+#define VERSION_PLAYER		VERSION_PLAYER_009
 #define VERSION_TOKEN		0x01000000
 #define VERSION_AFFECT		0x01000000
 #define VERSION_SCRIPT		0x02000000
@@ -667,6 +669,13 @@ typedef struct location_type {
 #define SEX_FEMALE          2
 #define SEX_EITHER          3
 #define SEX_MAX             4
+
+#define ARMOR_BASH          0
+#define ARMOR_PIERCE        1
+#define ARMOR_SLASH         2
+#define ARMOR_MAGIC         3
+#define ARMOR_MAX           4
+
 
 #define CLASS_NPC           -1
 #define CLASS_NONE          -1
@@ -4597,7 +4606,7 @@ struct	char_data
     int			alignment;
     int			hitroll;
     int			damroll;
-    int			armour[4];
+    int			armour[ARMOR_MAX];
     int			wimpy;
     int         xpboost;
 
@@ -5199,10 +5208,7 @@ struct obj_armor_data {
     int16_t armor_type;
     int16_t armor_strength;
 
-    int16_t bash;
-    int16_t pierce;
-    int16_t slash;
-    int16_t magic;
+    int16_t protection[ARMOR_MAX];
 
     // What else?
 

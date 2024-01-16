@@ -304,7 +304,7 @@ SPELL_FUNC(spell_frenzy)
 	af.location  = APPLY_DAMROLL;
 	affect_to_char(victim,&af);
 
-	af.modifier  = 10 * (level / 12);
+	af.modifier  = -10 * (level / 12);
 	af.location  = APPLY_AC;
 	affect_to_char(victim,&af);
 

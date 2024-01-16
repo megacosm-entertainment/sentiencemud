@@ -4533,7 +4533,7 @@ void do_berserk(CHAR_DATA *ch, char *argument)
 		af.location	= APPLY_DAMROLL;
 		affect_to_char(ch,&af);
 
-		af.modifier	= UMAX(10,10 * (ch->tot_level/5));
+		af.modifier	= -UMAX(10,10 * (ch->tot_level/5));
 		af.location	= APPLY_AC;
 		affect_to_char(ch,&af);
 

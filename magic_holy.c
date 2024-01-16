@@ -299,7 +299,7 @@ SPELL_FUNC(spell_holy_shield)
 		af.level = level;
 		af.duration = perm ? -1 : (6 + level);
 		af.location = APPLY_AC;
-		af.modifier = -(level/8);
+		af.modifier = (level/8);
 		af.bitvector = ITEM_HOLY;
 		af.bitvector2 = 0;
 		affect_to_obj(obj,&af);

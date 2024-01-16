@@ -718,8 +718,8 @@ void reset_char(CHAR_DATA *ch)
     ch->max_mana	= ch->pcdata->perm_mana;
     ch->max_move	= ch->pcdata->perm_move;
 
-    for (i = 0; i < 4; i++)
-		ch->armour[i]	= 100;
+    for (i = 0; i < ARMOR_MAX; i++)
+		ch->armour[i]	= 0;
 
     ch->hitroll		= 0;
     ch->damroll		= 0;
@@ -731,8 +731,8 @@ void reset_char(CHAR_DATA *ch)
 	obj = get_eq_char(ch,loc);
 	if (obj == NULL)
 	    continue;
-	for (i = 0; i < 4; i++)
-	    ch->armour[i] -= apply_ac(obj, loc, i);
+	for (i = 0; i < ARMOR_MAX; i++)
+	    ch->armour[i] += apply_ac(obj, loc, i);
 	for (af = obj->affected; af != NULL; af = af->next)
 	{
 	    mod = af->modifier;
@@ -750,8 +750,8 @@ void reset_char(CHAR_DATA *ch)
 		case APPLY_MOVE:        ch->max_move            += mod; break;
 
 		case APPLY_AC:
-					for (i = 0; i < 4; i ++)
-					    ch->armour[i] += mod;
+					for (i = 0; i < ARMOR_MAX; i ++)
+						ch->armour[i] += mod;
 					break;
 		case APPLY_HITROLL:     ch->hitroll             += mod; break;
 		case APPLY_DAMROLL:     ch->damroll             += mod; break;
@@ -793,7 +793,7 @@ void reset_char(CHAR_DATA *ch)
 	    case APPLY_MOVE:        ch->max_move            += mod; break;
 
 	    case APPLY_AC:
-				    for (i = 0; i < 4; i ++)
+				    for (i = 0; i < ARMOR_MAX; i ++)
 					ch->armour[i] += mod;
 				    break;
 	    case APPLY_HITROLL:     ch->hitroll             += mod; break;
@@ -1171,8 +1171,8 @@ void affect_modify(CHAR_DATA *ch, AFFECT_DATA *paf, bool fAdd)
 	    ch->max_hit						+= mod;	break;
 	case APPLY_MOVE:          ch->max_move			+= mod;	break;
 	case APPLY_AC:
-	    for (i = 0; i < 4; i ++)
-		ch->armour[i] += mod;
+	    for (i = 0; i < ARMOR_MAX; i ++)
+			ch->armour[i] += mod;
 	    break;
 	case APPLY_HITROLL:       ch->hitroll			+= mod;	break;
 	case APPLY_DAMROLL:       ch->damroll			+= mod;	break;
@@ -2345,27 +2345,32 @@ void obj_from_char(OBJ_DATA *obj)
  */
 int apply_ac(OBJ_DATA *obj, int iWear, int type)
 {
-    if (obj->item_type != ITEM_ARMOUR)
-	return 0;
+	if (!IS_ARMOR(obj))
+		return 0;
+	
+	if (type < 0 || type >= ARMOR_MAX)
+		return 0;
+
+	int rating = ARMOR(obj)->protection[type];
 
     switch (iWear)
     {
-	case WEAR_BODY:		return 3 * obj->value[type];
-	case WEAR_HEAD:		return 3 * obj->value[type];
-	case WEAR_LEGS:		return 2 * obj->value[type];
-	case WEAR_FEET:		return obj->value[type];
-	case WEAR_HANDS: 	return 2 * obj->value[type];
-	case WEAR_ARMS:		return 2 * obj->value[type];
-	case WEAR_SHIELD: 	return 3 * obj->value[type];
-	case WEAR_NECK_1: 	return 3 * obj->value[type];
-	case WEAR_NECK_2: 	return 3 * obj->value[type];
-	case WEAR_ABOUT: 	return obj->value[type];
-	case WEAR_WAIST: 	return obj->value[type];
-	case WEAR_FINGER_R: 	return obj->value[type];
-	case WEAR_FINGER_L: 	return obj->value[type];
-	case WEAR_WRIST_L: 	return obj->value[type];
-	case WEAR_WRIST_R: 	return obj->value[type];
-	case WEAR_HOLD:		return 2 * obj->value[type];
+	case WEAR_BODY:		return 3 * rating;
+	case WEAR_HEAD:		return 3 * rating;
+	case WEAR_LEGS:		return 2 * rating;
+	case WEAR_FEET:		return rating;
+	case WEAR_HANDS: 	return 2 * rating;
+	case WEAR_ARMS:		return 2 * rating;
+	case WEAR_SHIELD: 	return 3 * rating;
+	case WEAR_NECK_1: 	return 3 * rating;
+	case WEAR_NECK_2: 	return 3 * rating;
+	case WEAR_ABOUT: 	return rating;
+	case WEAR_WAIST: 	return rating;
+	case WEAR_FINGER_R: 	return rating;
+	case WEAR_FINGER_L: 	return rating;
+	case WEAR_WRIST_L: 	return rating;
+	case WEAR_WRIST_R: 	return rating;
+	case WEAR_HOLD:		return 2 * rating;
     }
 
     return 0;
@@ -2391,30 +2396,37 @@ OBJ_DATA *get_eq_char(CHAR_DATA *ch, int iWear)
     return NULL;
 }
 
-void equip_spells(CHAR_DATA *ch, OBJ_DATA *obj, LLIST *spells)
+void equip_spell(CHAR_DATA *ch, OBJ_DATA *obj, SPELL_DATA *spell)
 {
     AFFECT_DATA *paf;
+
+	for (paf = ch->affected; paf != NULL; paf = paf->next)
+	{
+		if (paf->skill == spell->skill)
+			break;
+	}
+
+	if (paf != NULL && paf->level >= spell->level)
+		return;
+
+	affect_strip(ch, spell->skill);
+
+	if (spell->skill->token)
+		p_token_index_percent_trigger(spell->skill->token, ch, ch, NULL, obj, NULL, TRIG_TOKEN_EQUIP, NULL, 0,0,0,0,0,spell->level,0,0,0,0);
+	else if (spell->skill->equip_fun)
+		(*(spell->skill->equip_fun)) (spell->skill, spell->level, ch, obj);
+
+}
+
+void equip_spells(CHAR_DATA *ch, OBJ_DATA *obj, LLIST *spells)
+{
 	ITERATOR it;
 	SPELL_DATA *spell;
 
 	iterator_start(&it, spells);
 	while((spell = (SPELL_DATA *)iterator_nextdata(&it)))
 	{
-		for (paf = ch->affected; paf != NULL; paf = paf->next)
-		{
-			if (paf->skill == spell->skill)
-				break;
-		}
-
-		if (paf != NULL && paf->level >= spell->level)
-			continue;
-
-		affect_strip(ch, spell->skill);
-
-		if (spell->skill->token)
-			p_token_index_percent_trigger(spell->skill->token, ch, ch, NULL, obj, NULL, TRIG_TOKEN_EQUIP, NULL, 0,0,0,0,0,spell->level,0,0,0,0);
-		else
-			(*(spell->skill->equip_fun)) (spell->skill, spell->level, ch, obj);
+		equip_spell(ch, obj, spell);
 	}
 	iterator_stop(&it);
 }
@@ -2477,8 +2489,12 @@ void equip_char(CHAR_DATA *ch, OBJ_DATA *obj, int iWear)
 	// Concealed items do nothing to the wearer's stats and affects.
 	if(wear_params[iWear][WEAR_PARAM_AFFECTS]) {
 	    /* apply armour class */
-	    for (i = 0; i < 4; i++)
-		ch->armour[i] -= apply_ac(obj, iWear, i);
+		if (IS_ARMOR(obj))
+		{
+			// Increases in armor should ADD protection.
+			for(i = 0; i < ARMOR_MAX; i++)
+				ch->armour[i] += apply_ac(obj, iWear, i);
+		}
 
 
 	    /* put obj's affects on the character */
@@ -2497,6 +2513,21 @@ void equip_char(CHAR_DATA *ch, OBJ_DATA *obj, int iWear)
 		if (IS_JEWELRY(obj))
 		{
 			equip_spells(ch, obj, JEWELRY(obj)->spells);
+		}
+		
+		if(IS_ARMOR(obj))
+		{
+			if (ARMOR(obj)->max_adornments > 0 && ARMOR(obj)->adornments != NULL)
+			{
+				for(int a = 0; a < ARMOR(obj)->max_adornments; a++)
+				{
+					ADORNMENT_DATA *adorn = ARMOR(obj)->adornments[a];
+					if (IS_VALID(adorn) && adorn->spell != NULL)
+					{
+						equip_spell(ch, obj, adorn->spell);
+					}
+				}
+			}
 		}
 
 		// TODO: Armour + adornments
@@ -2520,76 +2551,101 @@ void equip_char(CHAR_DATA *ch, OBJ_DATA *obj, int iWear)
     }
 }
 
-void unequip_spells(CHAR_DATA *ch, OBJ_DATA *obj, LLIST *spells, int wear_loc, bool show)
+void unequip_spell(CHAR_DATA *ch, OBJ_DATA *obj, SPELL_DATA *spell, int wear_loc, bool show)
 {
 	AFFECT_DATA *af;
+
+	// Find the first affect that matches this spell and is derived from the object
+	for (af = ch->affected; af != NULL; af = af->next)
+	{
+		if (af->skill == spell->skill && af->slot == wear_loc)
+			break;
+	}
+
+	if( !af ) {
+		// This spell was not applied by this object
+		return;
+	}
+
+	bool found = false;
+	int found_loc = WEAR_NONE;
+	int level = 0;
+
+	// If there's another obj with the same spell put that one on
+	for (OBJ_DATA *obj_tmp = ch->carrying; obj_tmp; obj_tmp = obj_tmp->next_content)
+	{
+		if( obj_tmp->wear_loc != WEAR_NONE && obj != obj_tmp )
+		{
+			ITERATOR sit;
+			SPELL_DATA *spell_tmp;
+
+			if (IS_JEWELRY(obj_tmp))
+			{
+				iterator_start(&sit, JEWELRY(obj_tmp)->spells);
+				while((spell_tmp = (SPELL_DATA *)iterator_nextdata(&sit)))
+				{
+					if (spell_tmp->skill == spell->skill && spell_tmp->level > level)
+					{
+						level = spell_tmp->level;	// Keep the maximum
+						found_loc = obj_tmp->wear_loc;
+						found = true;
+					}
+				}
+				iterator_stop(&sit);
+			}
+
+			if (IS_ARMOR(obj_tmp))
+			{
+				if (ARMOR(obj_tmp)->max_adornments > 0 && ARMOR(obj_tmp)->adornments != NULL)
+				{
+					for(int a = 0; a < ARMOR(obj_tmp)->max_adornments; a++)
+					{
+						ADORNMENT_DATA *adorn = ARMOR(obj_tmp)->adornments[a];
+						if (IS_VALID(adorn) && adorn->spell != NULL)
+						{
+							if (adorn->spell->skill == spell->skill && adorn->spell->level > level)
+							{
+								level = adorn->spell->level;	// Keep the maximum
+								found_loc = obj_tmp->wear_loc;
+								found = true;
+							}
+						}
+					}
+				}
+
+			}
+		}
+	}
+
+	if(found)
+	{
+		af->level = level;
+		af->slot = found_loc;
+	}
+	else
+	{
+		// No other worn object had this spell available
+
+		if( show ) {
+			if (spell->skill->msg_off) {
+				send_to_char(spell->skill->msg_off, ch);
+				send_to_char("\n\r", ch);
+			}
+		}
+
+		affect_strip(ch, spell->skill);
+	}
+}
+
+void unequip_spells(CHAR_DATA *ch, OBJ_DATA *obj, LLIST *spells, int wear_loc, bool show)
+{
 	ITERATOR it;
 	SPELL_DATA *spell;
 
 	iterator_start(&it, spells);
 	while((spell = (SPELL_DATA *)iterator_nextdata(&it)))
 	{
-		//int spell_level = spell->level;
-
-		// Find the first affect that matches this spell and is derived from the object
-		for (af = ch->affected; af != NULL; af = af->next)
-		{
-			if (af->skill == spell->skill && af->slot == wear_loc)
-				break;
-		}
-
-		if( !af ) {
-			// This spell was not applied by this object
-			continue;
-		}
-
-		bool found = false;
-		int found_loc = WEAR_NONE;
-		int level = 0;
-
-		// If there's another obj with the same spell put that one on
-		for (OBJ_DATA *obj_tmp = ch->carrying; obj_tmp; obj_tmp = obj_tmp->next_content)
-		{
-			if( obj_tmp->wear_loc != WEAR_NONE && obj != obj_tmp )
-			{
-				ITERATOR sit;
-				SPELL_DATA *spell_tmp;
-
-				if (IS_JEWELRY(obj_tmp))
-				{
-					iterator_start(&sit, JEWELRY(obj_tmp)->spells);
-					while((spell_tmp = (SPELL_DATA *)iterator_nextdata(&sit)))
-					{
-						if (spell_tmp->skill == spell->skill && spell_tmp->level > level)
-						{
-							level = spell_tmp->level;	// Keep the maximum
-							found_loc = obj_tmp->wear_loc;
-							found = true;
-						}
-					}
-					iterator_stop(&sit);
-				}
-			}
-		}
-
-		if(found)
-		{
-			af->level = level;
-			af->slot = found_loc;
-		}
-		else
-		{
-			// No other worn object had this spell available
-
-			if( show ) {
-				if (spell->skill->msg_off) {
-					send_to_char(spell->skill->msg_off, ch);
-					send_to_char("\n\r", ch);
-				}
-			}
-
-			affect_strip(ch, spell->skill);
-		}
+		unequip_spell(ch, obj, spell, wear_loc, show);
 	}
 	iterator_stop(&it);
 }
@@ -2621,8 +2677,13 @@ int unequip_char(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
 
 	// If the item was concealed, don't handle any object affects.
 	if(wear_params[loc][WEAR_PARAM_AFFECTS]) {
-	    for (i = 0; i < 4; i++)
-		ch->armour[i] += apply_ac(obj, loc, i);
+	    /* apply armour class */
+		if (IS_ARMOR(obj))
+		{
+			// Increases in armor should ADD protection.
+			for(i = 0; i < ARMOR_MAX; i++)
+				ch->armour[i] -= apply_ac(obj, loc, i);
+		}
 
 	    for (paf = obj->affected; paf != NULL; paf = paf->next)
 	    {
@@ -2637,6 +2698,21 @@ int unequip_char(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
 		if (IS_JEWELRY(obj))
 		{
 			unequip_spells(ch, obj, JEWELRY(obj)->spells, loc, show);
+		}
+
+		if (IS_ARMOR(obj))
+		{
+			if (ARMOR(obj)->max_adornments > 0 && ARMOR(obj)->adornments != NULL)
+			{
+				for(int a = 0; a < ARMOR(obj)->max_adornments; a++)
+				{
+					ADORNMENT_DATA *adorn = ARMOR(obj)->adornments[a];
+					if (IS_VALID(adorn) && adorn->spell != NULL)
+					{
+						unequip_spell(ch, obj, adorn->spell, loc, show);
+					}
+				}
+			}
 		}
 #if 0
 	    // Remove spells

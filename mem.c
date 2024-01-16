@@ -656,8 +656,8 @@ CHAR_DATA *new_char( void )
     ch->owner			= &str_empty[0];
     ch->logon                   = current_time;
     ch->lines                   = PAGELEN;
-    for (i = 0; i < 4; i++)
-        ch->armour[i]            = 100;
+    for (i = 0; i < ARMOR_MAX; i++)
+        ch->armour[i]           = 0;
     ch->position                = POS_STANDING;
     ch->hit                     = 20;
     ch->max_hit                 = 20;
@@ -5298,10 +5298,8 @@ ARMOR_DATA *copy_armor_data(ARMOR_DATA *src)
     data->armor_type = src->armor_type;
     data->armor_strength = src->armor_strength;
 
-    data->bash = src->bash;
-    data->pierce = src->pierce;
-    data->slash = src->slash;
-    data->magic = src->magic;
+    for(int i = 0; i < ARMOR_MAX; i++)
+        data->protection[i] = src->protection[i];
 
     if (src->adornments != NULL && src->max_adornments > 0)
     {
