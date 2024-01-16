@@ -3124,6 +3124,7 @@ void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
 		fprintf(fp, "Toxic %d\n", MIST(obj)->toxic);
 		fprintf(fp, "Shock %d\n", MIST(obj)->shock);
 		fprintf(fp, "Fog %d\n", MIST(obj)->fog);
+		fprintf(fp, "Sleep %d\n", MIST(obj)->sleep);
 
 		fprintf(fp, "#-TYPEMIST\n");
 	}
@@ -3747,7 +3748,7 @@ ADORNMENT_DATA *fread_adornment_data(FILE *fp)
 
 	data = new_adornment_data();
 
-    while (str_cmp((word = fread_word(fp)), "#-TYPEADORNMENT"))
+    while (str_cmp((word = fread_word(fp)), "#-ADORNMENT"))
 	{
 		fMatch = false;
 
@@ -3762,7 +3763,7 @@ ADORNMENT_DATA *fread_adornment_data(FILE *fp)
 				break;
 
 			case 'S':
-				KEYS("ShortDescr", data->short_descr, fread_string(fp));
+				KEYS("Short", data->short_descr, fread_string(fp));
 				if (!str_cmp(word, "Spell"))
 				{
 					char *name = fread_string(fp);
@@ -4661,6 +4662,7 @@ MIST_DATA *fread_obj_mist_data(FILE *fp)
 
 			case 'S':
 				KEY("Shock", data->shock, fread_number(fp));
+				KEY("Sleep", data->sleep, fread_number(fp));
 				KEY("Stink", data->stink, fread_number(fp));
 				break;
 

@@ -1154,6 +1154,7 @@ void save_object_multityping(FILE *fp, OBJ_INDEX_DATA *obj)
 		fprintf(fp, "Toxic %d\n", MIST(obj)->toxic);
 		fprintf(fp, "Shock %d\n", MIST(obj)->shock);
 		fprintf(fp, "Fog %d\n", MIST(obj)->fog);
+		fprintf(fp, "Sleep %d\n", MIST(obj)->sleep);
 
 		fprintf(fp, "#-TYPEMIST\n");
 	}
@@ -3082,7 +3083,7 @@ ADORNMENT_DATA *read_object_adornment_data(FILE *fp)
 
 	data = new_adornment_data();
 
-    while (str_cmp((word = fread_word(fp)), "#-TYPEADORNMENT"))
+    while (str_cmp((word = fread_word(fp)), "#-ADORNMENT"))
 	{
 		fMatch = false;
 
@@ -3097,7 +3098,7 @@ ADORNMENT_DATA *read_object_adornment_data(FILE *fp)
 				break;
 
 			case 'S':
-				KEYS("ShortDescr", data->short_descr, fread_string(fp));
+				KEYS("Short", data->short_descr, fread_string(fp));
 				if (!str_cmp(word, "Spell"))
 				{
 					char *name = fread_string(fp);
@@ -3991,6 +3992,7 @@ MIST_DATA *read_object_mist_data(FILE *fp)
 
 			case 'S':
 				KEY("Shock", data->shock, fread_number(fp));
+				KEY("Sleep", data->sleep, fread_number(fp));
 				KEY("Stink", data->stink, fread_number(fp));
 				break;
 
@@ -4464,6 +4466,10 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 			} else if (!str_cmp(word, "#TYPEAMMO")) {
 				if (IS_AMMO(obj)) free_ammo_data(AMMO(obj));
 				AMMO(obj) = read_object_ammo_data(fp);
+				fMatch = true;
+			} else if (!str_cmp(word, "#TYPEARMOR")) {
+				if (IS_ARMOR(obj)) free_armor_data(ARMOR(obj));
+				ARMOR(obj) = read_object_armor_data(fp);
 				fMatch = true;
 			} else if (!str_cmp(word, "#TYPEBOOK")) {
 				if (IS_BOOK(obj)) free_book_data(BOOK(obj));

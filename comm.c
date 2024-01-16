@@ -3683,7 +3683,8 @@ void send_to_char( const char *txt, CHAR_DATA *ch )
 	}
     return;
 }
-/*
+
+#if 0
 void send_to_char(const char *txt, CHAR_DATA *ch)
 {
     const	char 	*point;
@@ -3695,7 +3696,6 @@ void send_to_char(const char *txt, CHAR_DATA *ch)
     point2 = buf;
 	bool mxp = isMXP(ch->desc);
 
-    /*
     if (!IS_NPC(ch) && IS_STONED(ch))
     {
 	char colchar;
@@ -3793,7 +3793,6 @@ void send_to_char(const char *txt, CHAR_DATA *ch)
 					case MXP_END_TAG:
 						*point2 = '>';
 						break;
-					/*
 					case '&':
 						*point2++ = '&';
 						*point2++ = 'a';
@@ -3857,7 +3856,6 @@ void send_to_char(const char *txt, CHAR_DATA *ch)
 					case MXP_END_TAG:
 						*point2 = '>';
 						break;
-					/*
 					case '&':
 						*point2++ = '&';
 						*point2++ = 'a';
@@ -3893,7 +3891,7 @@ void send_to_char(const char *txt, CHAR_DATA *ch)
 	}
     return;
 }
-*/
+#endif
 
 /*
  * Send a page to one char.
@@ -3937,7 +3935,7 @@ void page_to_char(const char *txt, CHAR_DATA *ch)
 /*
  * Page to one char, new colour version, by Lope.
  */
-/*
+#if 0
 void page_to_char(const char *txt, CHAR_DATA *ch)
 {
     const	char	*point;
@@ -4027,7 +4025,7 @@ void page_to_char(const char *txt, CHAR_DATA *ch)
 	}
 
 }
-*/
+#endif
 
 
 /* string pager */
@@ -4439,7 +4437,6 @@ void colourconv(char *buffer, const char *txt, CHAR_DATA *ch)
 				case MXP_END_TAG:
 					*buffer = '>';
 					break;
-				/*
 				case '&':
 					*buffer++ = '&';
 					*buffer++ = 'a';
@@ -4501,7 +4498,6 @@ void colourconv(char *buffer, const char *txt, CHAR_DATA *ch)
 				case MXP_END_TAG:
 					*buffer = '>';
 					break;
-				/*
 				case '&':
 					*buffer++ = '&';
 					*buffer++ = 'a';

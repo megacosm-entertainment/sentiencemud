@@ -229,6 +229,7 @@ const struct olc_cmd_type oedit_table[] =
 	{ "addspell",		oedit_addspell			},
 	{ "allowedfixed",	oedit_allowed_fixed		},
 	{ "ammo",			oedit_type_ammo			},
+	{ "armor",			oedit_type_armor		},
 	{ "book", 			oedit_type_book			},
 	{ "commands",		show_commands			},
 	{ "comments",		oedit_comments			},
@@ -3462,17 +3463,33 @@ void do_rshow(CHAR_DATA *ch, char *argument)
 }
 
 
-int calc_obj_armour(int level, int strength)
+// TODO: Balance this!
+int calc_obj_armour(int level, int type, int strength)
 {
+	int scaleN = 1;
+	int scaleD = 1;
+
 	switch (strength)
 	{
-	case OBJ_ARMOUR_LIGHT:		return level/10;
-	case OBJ_ARMOUR_MEDIUM:		return level/5;
-	case OBJ_ARMOUR_STRONG:		return level * 3/10;
-	case OBJ_ARMOUR_HEAVY:		return level * 2/5;
+	case OBJ_ARMOUR_LIGHT:		scaleD = 4; break;					// 1 / 4
+	case OBJ_ARMOUR_MEDIUM:		scaleN = 3; scaleD = 5; break;		// 1 / 2
+	case OBJ_ARMOUR_STRONG:		break;								// 1 / 1
+	case OBJ_ARMOUR_HEAVY:		scaleN = 3; scaleD = 2; break;		// 5 / 3
 	case OBJ_ARMOUR_NOSTRENGTH:
 	default:			return 0;
 	}
+
+	switch(type)
+	{
+	case ARMOR_TYPE_CLOTH:		scaleD *= 2; break;					// 1 / 2
+	case ARMOR_TYPE_LEATHER:	break;								// 1 / 1
+	case ARMOR_TYPE_MAIL:		scaleN *= 2; break;					// 2 / 1
+	case ARMOR_TYPE_PLATE:		scaleN *= 4; break;					// 4 / 1
+	default:
+		return 0;
+	}
+
+	return scaleN * level / scaleD;
 }
 
 
@@ -3692,32 +3709,30 @@ void set_weapon_dice_obj(OBJ_DATA *obj)
 /* set AC for an obj index */
 void set_armour(OBJ_INDEX_DATA *objIndex)
 {
+	if (!IS_ARMOR(objIndex)) return;
+
 	int armour;
-	int armour_exotic;
 
-	armour = calc_obj_armour(objIndex->level, objIndex->value[4]) ;
-	armour_exotic = armour * 9/10;
-
-	objIndex->value[0] = armour;
-	objIndex->value[1] = armour;
-	objIndex->value[2] = armour;
-	objIndex->value[3] = armour_exotic;
+	armour = calc_obj_armour(objIndex->level, ARMOR(objIndex)->armor_type, ARMOR(objIndex)->armor_strength);
+	for(int i = 0; i < ARMOR_MAX; i++)
+		ARMOR(objIndex)->protection[i] = armour;
+	
+	ARMOR(objIndex)->protection[ARMOR_MAGIC] = 9 * armour / 10;
 }
 
 
 /* set AC for an obj */
 void set_armour_obj(OBJ_DATA *obj)
 {
+	if (!IS_ARMOR(obj)) return;
+
 	int armour;
-	int armour_exotic;
 
-	armour = calc_obj_armour(obj->level, obj->value[4]) ;
-	armour_exotic = armour * 9/10;
-
-	obj->value[0] = armour;
-	obj->value[1] = armour;
-	obj->value[2] = armour;
-	obj->value[3] = armour_exotic;
+	armour = calc_obj_armour(obj->level, ARMOR(obj)->armor_type, ARMOR(obj)->armor_strength);
+	for(int i = 0; i < ARMOR_MAX; i++)
+		ARMOR(obj)->protection[i] = armour;
+	
+	ARMOR(obj)->protection[ARMOR_MAGIC] = 9 * armour / 10;
 }
 
 

@@ -244,29 +244,31 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 	if (IS_ARMOR(obj))
 	{
 		ARMOR_DATA *armor = ARMOR(obj);
-		sprintf(buf, "{MArmor Type: {W%s{x\n\r", flag_string(armour_types, armor->armor_type));
-		add_buf(buffer, buf);
-		sprintf(buf, "{MArmor Strength: {W%s{x\n\r", flag_string(armour_strength_table, armor->armor_strength));
+		sprintf(buf, "{MArmor Type: {W%s{M, Strength: {W%s{x\n\r",
+			flag_string(armour_types, armor->armor_type),
+			flag_string(armour_strength_table, armor->armor_strength));
 		add_buf(buffer, buf);
 
 		// TODO: Indicate what the protections actually do
 		for(int i = 0; i < ARMOR_MAX; i++)
 		{
-			sprintf(buf, "{M{+%s Protection: {W%d{x\n\r", flag_string(armour_protection_types, i), armor->protection[i]);
+			sprintf(buf, "{M{+%-19s {W%d", formatf("%s Protection:", flag_string(armour_protection_types, i)), armor->protection[i]);
 			add_buf(buffer, buf);
+			if (IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))
+				add_buf(buffer, " {m(how this protection works TBD){x");
+			add_buf(buffer, "\n\r");
 		}
-
 		// Show the adornments
 		if (armor->max_adornments && armor->adornments != NULL)
 		{
-			add_buf(buffer, "{MAdornments:{x\n\r");
+			add_buf(buffer, "{MAdornments: applied when {Wequipped{x\n\r");
 			for(int i = 0; i < armor->max_adornments; i++)
 			{
 				ADORNMENT_DATA *adorn = armor->adornments[i];
 				if (IS_VALID(adorn))
 				{
 					if (adorn->spell != NULL)
-						sprintf(buf, "{Y* {MSlot {W%d{M: {+{W%s{M grants level {W%d{M spell {W%s{M when {Wequipped{M.{x\n\r", i+1,
+						sprintf(buf, "{Y* {MSlot {W%d{M: {+{W%s{M grants level {W%d{M spell {W%s{M.{x\n\r", i+1,
 							adorn->short_descr,
 							adorn->spell->level,
 							adorn->spell->skill->name);
@@ -275,7 +277,7 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 							adorn->short_descr);
 				}
 				else
-					sprintf(buf, "{MSlot {W%d{M: empty\n\r", i+1);
+					sprintf(buf, "{Y* {MSlot {W%d{M: empty\n\r", i+1);
 				add_buf(buffer, buf);
 			}
 		}

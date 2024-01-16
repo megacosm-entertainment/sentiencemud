@@ -5533,6 +5533,7 @@ struct obj_mist_data {
     char toxic;
     char shock;
     char fog;
+    char sleep;
 
     // TODO: What else?  Insanity?  Hallucination?
 };
@@ -10456,7 +10457,7 @@ char	*olc_ed_vnum	args( ( CHAR_DATA *ch ) );
 int olc_ed_tabs(CHAR_DATA *ch);
 void olc_set_editor(CHAR_DATA *ch, int editor, void *data);
 void olc_show_item(CHAR_DATA *ch, void *data, OLC_FUN *show_fun, char *argument);
-int calc_obj_armour args ( (int level, int strength) );
+int calc_obj_armour args ( (int level, int type, int strength) );
 void set_weapon_dice( OBJ_INDEX_DATA *objIndex );
 void set_weapon_dice_obj( OBJ_DATA *obj );
 void set_armour_obj( OBJ_DATA *obj );

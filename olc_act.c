@@ -5422,6 +5422,8 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	    add_buf(buffer, buf);
 	    sprintf(buf, "{B[{WFog              {B]:  {x%d{B%%{x\n\r", mist->fog);
 	    add_buf(buffer, buf);
+	    sprintf(buf, "{B[{WSleep            {B]:  {x%d{B%%{x\n\r", mist->sleep);
+	    add_buf(buffer, buf);
 	}
 
 	if (IS_MONEY(obj))
@@ -10119,7 +10121,6 @@ bool olc_can_equip_spell(SKILL_DATA *skill)
 		return skill->equip_fun != NULL;
 }
 
-
 OEDIT( oedit_type_armor )
 {
 	OBJ_INDEX_DATA *pObj;
@@ -10135,7 +10136,7 @@ OEDIT( oedit_type_armor )
 			send_to_char("         armor protection <type> <#rating>\n\r", ch);
 			send_to_char(formatf("         armor maxadornments <0-%d>\n\r", MAX_ADORNMENTS), ch);
 
-			send_to_char("         armor adornment add <type> <spell>\n\r", ch);
+			send_to_char("         armor adornment add <spell> <level>\n\r", ch);
 			send_to_char("         armor adornment remove <#>\n\r", ch);
 			send_to_char("         armor adornment clear\n\r", ch);
 			send_to_char("         armor adornment <#> name <name>\n\r", ch);
@@ -10171,6 +10172,8 @@ OEDIT( oedit_type_armor )
 			}
 
 			ARMOR(pObj)->armor_type = type;
+			set_armour(pObj);
+
 			send_to_char("ARMOR Type changed.\n\r", ch);
 			return true;
 		}
@@ -10185,12 +10188,8 @@ OEDIT( oedit_type_armor )
 				return false;
 			}
 
-			int armour = calc_obj_armour(pObj->level, strength);
-
-			for(int i = 0; i < ARMOR_MAX; i++)
-				ARMOR(pObj)->protection[i] = armour;
-			ARMOR(pObj)->protection[ARMOR_MAGIC] = 9 * armour / 10;
 			ARMOR(pObj)->armor_strength = strength;
+			set_armour(pObj);
 
 			send_to_char("ARMOR Strength changed.\n\r", ch);
 			return true;
@@ -10262,7 +10261,7 @@ OEDIT( oedit_type_armor )
 
 			if (argument[0] == '\0')
 			{
-				send_to_char("Syntax:  armor adornment add <type> <spell> <level>\n\r", ch);
+				send_to_char("Syntax:  armor adornment add <spell> <level>\n\r", ch);
 				send_to_char("         armor adornment remove <#>\n\r", ch);
 				send_to_char("         armor adornment clear\n\r", ch);
 				send_to_char("         armor adornment <#> name <name>\n\r", ch);
@@ -10278,7 +10277,7 @@ OEDIT( oedit_type_armor )
 			if (!str_prefix(arg, "add"))
 			{
 				int new_index;
-				for(new_index = ARMOR(pObj)->max_adornments; new_index-- > 0;)
+				for(new_index = 0; new_index < ARMOR(pObj)->max_adornments; new_index++)
 				{
 					ADORNMENT_DATA *adorn = ARMOR(pObj)->adornments[new_index];
 					if (!IS_VALID(adorn))
@@ -10291,16 +10290,26 @@ OEDIT( oedit_type_armor )
 					return false;
 				}
 
-				argument = one_argument(argument, arg);
-
 				int type;
-				if ((type = stat_lookup(arg, adornment_types, NO_FLAG)) == NO_FLAG)
+				switch(ARMOR(pObj)->armor_type)
 				{
-					send_to_char("Invalid adornment type.  Use '? adornments' for valid list.\n\r", ch);
-					show_flag_cmds(ch, adornment_types);
-					return false;
-				}
+					case ARMOR_TYPE_CLOTH:
+						type = ADORNMENT_EMBROIDERY;
+						break;
 
+					case ARMOR_TYPE_LEATHER:
+						type = ADORNMENT_RUNE;
+						break;
+
+					case ARMOR_TYPE_MAIL:
+					case ARMOR_TYPE_PLATE:
+						type = ADORNMENT_GEM;
+						break;
+
+					default:
+						send_to_char("ARMOR Type does not allow adornments.\n\r", ch);
+						return false;
+				}
 
 				argument = one_argument(argument, arg);
 				SKILL_DATA *skill;
@@ -10354,6 +10363,10 @@ OEDIT( oedit_type_armor )
 				spell->repop	= 100;
 				spell->next		= NULL;
 
+				adornment->type = type;
+				adornment->name = &str_empty[0];
+				adornment->short_descr = &str_empty[0];
+				adornment->description = &str_empty[0];
 				adornment->spell = spell;
 
 				ARMOR(pObj)->adornments[new_index] = adornment;
@@ -12560,6 +12573,12 @@ OEDIT(oedit_type_furniture)
 				{
 					mc = 0;
 				}
+				else
+				{
+					sprintf(buf, "Please specify a number from 1 to %d, or none.\n\r", list_size(FURNITURE(pObj)->compartments));
+					send_to_char(buf, ch);
+					return false;
+				}
 
 				FURNITURE(pObj)->main_compartment = mc;
 				send_to_char("FURNITURE Main Compartment changed.\n\r", ch);
@@ -12926,6 +12945,11 @@ OEDIT(oedit_type_furniture)
 						{
 							max_occupants = -1;
 						}
+						else
+						{
+							send_to_char("Please specify a positive number, or unlimited.\n\r", ch);
+							return false;
+						}
 
 						compartment->max_occupants = max_occupants;
 						send_to_char("FURNITURE Compartment Max Occupants set.\n\r", ch);
@@ -12947,6 +12971,11 @@ OEDIT(oedit_type_furniture)
 						else if (!str_prefix(argument, "unlimited"))
 						{
 							max_weight = -1;
+						}
+						else
+						{
+							send_to_char("Please specify a positive number, or unlimited.\n\r", ch);
+							return false;
 						}
 
 						compartment->max_weight = max_weight;
@@ -13775,6 +13804,7 @@ OEDIT(oedit_type_mist)
 		PARSE_PERCENT(arg,"toxic",MIST(pObj)->toxic,"MIST Toxic Chance Changed.\n\r")
 		PARSE_PERCENT(arg,"shock",MIST(pObj)->shock,"MIST Shock Chance Changed.\n\r")
 		PARSE_PERCENT(arg,"fog",MIST(pObj)->fog,"MIST Fog Chance Changed.\n\r")
+		PARSE_PERCENT(arg,"sleep",MIST(pObj)->sleep,"MIST Sleep Chance Changed.\n\r")
 
 		if (pObj->item_type != ITEM_MIST)
 		{
@@ -16212,8 +16242,6 @@ OEDIT(oedit_level)
 {
     OBJ_INDEX_DATA *pObj;
     char buf[MAX_STRING_LENGTH];
-    int armour;
-    int armour_exotic;
 
     EDIT_OBJ(ch, pObj);
 
@@ -16241,17 +16269,10 @@ OEDIT(oedit_level)
 
 
     /* auto setting armour stuff */
-    if (pObj->item_type == ITEM_ARMOUR)
+    if (IS_ARMOR(pObj))
     {
-        armour=(int) calc_obj_armour(pObj->level, pObj->value[4]);
-	armour_exotic=(int) armour * .90;
-
-	pObj->value[0] = armour;
-	pObj->value[1] = armour;
-	pObj->value[2] = armour;
-	pObj->value[3] = armour_exotic;
-
-	send_to_char("Armour class set.\n\r", ch);
+		set_armour(pObj);
+		send_to_char("Armour class set.\n\r", ch);
     }
 
     return true;
@@ -16765,14 +16786,14 @@ MEDIT(medit_show)
 			SHOP_STOCK_DATA *pStock;
 			int iStock;
 			char lvl[MIL];
-			char qty[MIL];
+			char qty[32];
 			char pricing[MIL];
 			char typ[MIL];
-			char hours[MIL];
+			char hours[20];
 			char item[MIL];
 			char disc[MIL];
-			char rep[MIL * 4];
-			int hwidth, lwidth, qwidth, pwidth;
+			char rep[MIL * 2];
+			int hwidth, qwidth, pwidth;
 
 			for(iStock = 1, pStock = pShop->stock;pStock;pStock = pStock->next, iStock++)
 			{
@@ -16790,7 +16811,6 @@ MEDIT(medit_show)
 				{
 					strcpy(lvl, "{GAuto{x");
 				}
-				lwidth = get_colour_width(lvl) + 5;
 
 				if (IS_VALID(pStock->reputation))
 				{
@@ -16899,9 +16919,9 @@ MEDIT(medit_show)
 				}
 				else
 				{
-					strcpy(qty, "   {D--{x   ");
+					strcpy(qty, "{D   {D--{x   {x");
 				}
-				qwidth = get_colour_width(qty) + 8;
+				qwidth = 16;
 
 				if( pStock->duration > 0 )
 				{
@@ -16911,7 +16931,7 @@ MEDIT(medit_show)
 				{
 					strcpy(hours, " {D---{x ");
 				}
-				hwidth = get_colour_width(hours) + 5;
+				hwidth = 9;
 
 				if( !IS_NULLSTR(pStock->custom_price) )
 				{
@@ -17127,7 +17147,7 @@ MEDIT(medit_show)
 					break;
 				}
 
-				sprintf(buf, "  {G[{x%4d{G]{x %-*s %*s  %s  %*s %-*s %s %s %s%s\n\r", iStock, lwidth, lvl, qwidth, qty, (pStock->singular?"{RY{x":"{GN{x"), hwidth, hours, pwidth, pricing, disc, rep, typ, item);
+				snprintf(buf, sizeof(buf) - 1, "  {G[{x%4d{G]{x %-9s %*s  %s  %*s %-*s %s %s %s%s\n\r", iStock, lvl, qwidth, qty, (pStock->singular?"{RY{x":"{GN{x"), hwidth, hours, pwidth, pricing, disc, rep, typ, item);
 				add_buf(buffer,buf);
 
 				if( !IS_NULLSTR(pStock->custom_descr) )

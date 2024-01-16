@@ -6165,6 +6165,7 @@ MIST_DATA *copy_mist_data(MIST_DATA *src)
     data->toxic = src->toxic;
     data->shock = src->shock;
     data->fog = src->fog;
+    data->sleep = src->sleep;
 
     VALIDATE(data);
     return data;
