@@ -56,7 +56,7 @@ SPELL_FUNC(spell_armour)
 	af.skill = skill;
 	af.level = level;
 	af.duration  = perm ? -1 : 35;
-	af.modifier  = -20;
+	af.modifier  = 20;
 	af.location  = APPLY_AC;
 	af.bitvector = 0;
 	af.bitvector2 = 0;
@@ -80,7 +80,7 @@ TOUCH_FUNC(touch_armour)
 	af.skill = skill;
 	af.level = level;
 	af.duration  = 35 * tattoo->condition / 100;
-	af.modifier  = -20;
+	af.modifier  = 20;
 	af.location  = APPLY_AC;
 	af.bitvector = 0;
 	af.bitvector2 = 0;
@@ -105,7 +105,7 @@ BRANDISH_FUNC(brandish_armour)
 	af.skill = skill;
 	af.level = level;
 	af.duration  = 35 * obj->condition / 100;
-	af.modifier  = -20;
+	af.modifier  = 20;
 	af.location  = APPLY_AC;
 	af.bitvector = 0;
 	af.bitvector2 = 0;
@@ -131,7 +131,7 @@ EQUIP_FUNC(equip_armour)
 	af.skill = skill;
 	af.level = level;
 	af.duration  = -1;
-	af.modifier  = -20;
+	af.modifier  = 20;
 	af.location  = APPLY_AC;
 	af.bitvector = 0;
 	af.bitvector2 = 0;
@@ -220,7 +220,7 @@ SPELL_FUNC(spell_faerie_fire)
 	af.level = level;
 	af.duration = level;
 	af.location = APPLY_AC;
-	af.modifier = 2 * level;
+	af.modifier = -2 * level;
 	af.bitvector = AFF_FAERIE_FIRE;
 	af.bitvector2 = 0;
 	affect_to_char(victim, &af);
@@ -235,6 +235,57 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 {
 	char buf[MSL];
 	ITERATOR it;
+
+	if (IS_AMMO(obj))
+	{
+		// TODO: Finish this
+	}
+
+	if (IS_ARMOR(obj))
+	{
+		ARMOR_DATA *armor = ARMOR(obj);
+		sprintf(buf, "{MArmor Type: {W%s{x\n\r", flag_string(armour_types, armor->armor_type));
+		add_buf(buffer, buf);
+		sprintf(buf, "{MArmor Strength: {W%s{x\n\r", flag_string(armour_strength_table, armor->armor_strength));
+		add_buf(buffer, buf);
+
+		// TODO: Indicate what the protections actually do
+		for(int i = 0; i < ARMOR_MAX; i++)
+		{
+			sprintf(buf, "{M{+%s Protection: {W%d{x\n\r", flag_string(armour_protection_types, i), armor->protection[i]);
+			add_buf(buffer, buf);
+		}
+
+		// Show the adornments
+		if (armor->max_adornments && armor->adornments != NULL)
+		{
+			add_buf(buffer, "{MAdornments:{x\n\r");
+			for(int i = 0; i < armor->max_adornments; i++)
+			{
+				ADORNMENT_DATA *adorn = armor->adornments[i];
+				if (IS_VALID(adorn))
+				{
+					if (adorn->spell != NULL)
+						sprintf(buf, "{Y* {MSlot {W%d{M: {+{W%s{M grants level {W%d{M spell {W%s{M when {Wequipped{M.{x\n\r", i+1,
+							adorn->short_descr,
+							adorn->spell->level,
+							adorn->spell->skill->name);
+					else
+						sprintf(buf, "{Y* {MSlot {W%d{M: {+{W%s{M does nothing.{x\n\r", i+1,
+							adorn->short_descr);
+				}
+				else
+					sprintf(buf, "{MSlot {W%d{M: empty\n\r", i+1);
+				add_buf(buffer, buf);
+			}
+		}
+	}
+
+	if (IS_BOOK(obj))
+	{
+		// TODO: Finish this
+	}
+
 	if (IS_CONTAINER(obj))
 	{
 		sprintf(buf,"{MItems: {x%d{M/{x%d{M  Weight: {x%d/%d{M  flags: {x%s{M\n\r",
@@ -315,6 +366,7 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 					spell->level, get_spell_data_name(spell));
 				add_buf(buffer, buf);
 			}
+			iterator_stop(&it);
 		}
 	}
 
@@ -345,6 +397,7 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 					spell->level, get_spell_data_name(spell));
 				add_buf(buffer, buf);
 			}
+			iterator_stop(&it);
 		}
 	}
 
@@ -374,6 +427,7 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 					spell->level, get_spell_data_name(spell));
 				add_buf(buffer, buf);
 			}
+			iterator_stop(&it);
 		}
 	}
 
@@ -391,6 +445,7 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 					spell->level, get_spell_data_name(spell));
 				add_buf(buffer, buf);
 			}
+			iterator_stop(&it);
 		}
 	}
 
@@ -411,6 +466,7 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 					spell->level, get_spell_data_name(spell));
 				add_buf(buffer, buf);
 			}
+			iterator_stop(&it);
 		}
 	}
 
@@ -459,6 +515,7 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 					spell->level, get_spell_data_name(spell));
 				add_buf(buffer, buf);
 			}
+			iterator_stop(&it);
 		}
 	}
 }
@@ -506,6 +563,7 @@ bool __func_identify(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
 		AREA_DATA *pArea;
 
 		pArea = obj->pIndexData->area;
+		// TODO: Change how the area is defined so that it can be labeled as being in the mortal world.
 		if ((pArea->region.place_flags == PLACE_FIRST_CONTINENT) ||
 			(pArea->region.place_flags == PLACE_SECOND_CONTINENT) ||
 			(pArea->region.place_flags == PLACE_THIRD_CONTINENT) ||
@@ -518,7 +576,7 @@ bool __func_identify(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
 			add_buf(buffer, "{MThis item is not of the mortal world.{x\n\r");
 	}
 
-	switch (obj->item_type) {
+//	switch (obj->item_type) {
 	/*
 	case ITEM_RANGED_WEAPON:
 		add_buf(buffer, "{MRanged weapon type is {x");
@@ -685,12 +743,14 @@ bool __func_identify(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
 		break;
 	*/
 
+	/*
 	case ITEM_ARMOUR:
 		sprintf(buf, "{MArmour class is {x%d {Mpierce, {x%d {Mbash, {x%d {Mslash, and {x%d {Mvs. magic.\n\r",
 			obj->value[0], obj->value[1], obj->value[2], obj->value[3]);
 		add_buf(buffer, buf);
 		break;
 	}
+	*/
 
 	_spell_identify_show_item_data(buffer, ch, obj);
 

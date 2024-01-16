@@ -855,10 +855,10 @@ void save_object_multityping(FILE *fp, OBJ_INDEX_DATA *obj)
 		fprintf(fp, "Type %s~\n", flag_string(armour_types, armor->armor_type));
 		fprintf(fp, "Strength %s~\n", flag_string(armour_strength_table, armor->armor_strength));
 
-		fprintf(fp, "Bash %d\n", armor->bash);
-		fprintf(fp, "Pierce %d\n", armor->pierce);
-		fprintf(fp, "Slash %d\n", armor->slash);
-		fprintf(fp, "Magic %d\n", armor->magic);
+		for(int i = 0; i < ARMOR_MAX; i++)
+		{
+			fprintf(fp, "Protection %s~ %d\n", flag_string(armour_protection_types, i), armor->protection[i]);
+		}
 
 		fprintf(fp, "MaxAdornments %d\n", armor->max_adornments);
 		if (armor->max_adornments > 0 && armor->adornments != NULL)
@@ -3179,12 +3179,7 @@ ARMOR_DATA *read_object_armor_data(FILE *fp)
 				}
 				break;
 
-			case 'B':
-				KEY("Bash", data->bash, fread_number(fp));
-				break;
-
 			case 'M':
-				KEY("Magic", data->magic, fread_number(fp));
 				if (!str_cmp(word, "MaxAdornments"))
 				{
 					int max = fread_number(fp);
@@ -3210,11 +3205,20 @@ ARMOR_DATA *read_object_armor_data(FILE *fp)
 				break;
 
 			case 'P':
-				KEY("Pierce", data->pierce, fread_number(fp));
+				if (!str_cmp(word,"Protection"))
+				{
+					int rating = stat_lookup(fread_string(fp),armour_protection_types,NO_FLAG);
+					int value = fread_number(fp);
+
+					if (rating != NO_FLAG)
+						data->protection[rating] = value;
+
+					fMatch = true;
+					break;
+				}
 				break;
 
 			case 'S':
-				KEY("Slash", data->slash, fread_number(fp));
 				KEY("Strength", data->armor_strength, stat_lookup(fread_string(fp), armour_strength_table, OBJ_ARMOUR_NOSTRENGTH));
 				break;
 

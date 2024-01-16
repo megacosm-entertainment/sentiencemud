@@ -5328,6 +5328,7 @@ void obj_zap_spell(OBJ_DATA *wand, SKILL_DATA *skill, int level, CHAR_DATA *ch, 
     }
 }
 
+// zap <wand> <target>
 void do_zap(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -5335,18 +5336,18 @@ void do_zap(CHAR_DATA *ch, char *argument)
     OBJ_DATA *wand;
     OBJ_DATA *obj;
 
-    one_argument(argument, arg);
+    argument = one_argument(argument, arg);
     if (arg[0] == '\0' && ch->fighting == NULL)
     {
 		send_to_char("Zap whom or what?\n\r", ch);
 		return;
     }
 
-    if ((wand = get_eq_char(ch, WEAR_HOLD)) == NULL)
-    {
-		send_to_char("You hold nothing in your hand.\n\r", ch);
+	if ((wand = get_obj_carry(ch, arg, ch)) == NULL)
+	{
+		send_to_char("You do not have that item.\n\r", ch);
 		return;
-    }
+	}
 
 	if (!IS_WAND(wand))
 	{
@@ -5359,7 +5360,7 @@ void do_zap(CHAR_DATA *ch, char *argument)
     	return;
 
     obj = NULL;
-    if (arg[0] == '\0')
+    if (argument[0] == '\0')
     {
 		if (ch->fighting != NULL)
 		    victim = ch->fighting;
@@ -5371,8 +5372,8 @@ void do_zap(CHAR_DATA *ch, char *argument)
     }
     else
     {
-		if ((victim = get_char_room (ch, NULL,arg)) == NULL &&
-			(obj    = get_obj_here  (ch, NULL,arg)) == NULL)
+		if ((victim = get_char_room (ch, NULL,argument)) == NULL &&
+			(obj    = get_obj_here  (ch, NULL,argument)) == NULL)
 		{
 			send_to_char("You can't find it.\n\r", ch);
 			return;
@@ -5423,7 +5424,7 @@ void do_zap(CHAR_DATA *ch, char *argument)
 			success = TRUE;
 		}
 
-		p_percent_trigger(NULL, wand, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ZAP, arg,success,0,0,0,0);
+		p_percent_trigger(NULL, wand, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ZAP, argument,success,0,0,0,0);
 		check_improve(ch,gsk_wands,success,2);
     }
 
@@ -5439,9 +5440,6 @@ void do_zap(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		// TODO: What should happen if a wand is overused?
-		// Should it damage the wand?
-		// If so, should the condition of the wand affect whether the wand works?
 		// Wand gets damaged from overuse
 		if (wand->fragility != OBJ_FRAGILE_SOLID)
 		{

@@ -314,7 +314,7 @@ SPELL_FUNC(spell_stone_skin)
 	af.level = level;
 	af.duration = perm?-1:level;
 	af.location = APPLY_AC;
-	af.modifier = -30 - (level/2);
+	af.modifier = 30 + (level/2);
 	af.bitvector = 0;
 	af.bitvector2 = AFF2_STONE_SKIN;
 	af.slot = obj_wear_loc;
@@ -413,7 +413,7 @@ SPELL_FUNC(spell_stone_touch)
 	af.level = level;
 	af.duration = level;
 	af.location = APPLY_AC;
-	af.modifier  = -40;
+	af.modifier  = 40;
 	af.bitvector = 0;
 	af.bitvector2 = AFF2_STONE_SKIN;
 	affect_to_char(victim, &af);

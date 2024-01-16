@@ -92,7 +92,7 @@ SPELL_FUNC(spell_enchant_armour)
 		for (paf = obj->affected; paf; paf = paf->next) {
 			if (paf->location == APPLY_AC) {
 				paf->skill = skill;
-				paf->modifier -= number_range(1, 4);
+				paf->modifier += number_range(1, 4);
 				paf->level = UMAX(paf->level,level);
 			} else if (number_percent() < 15) {
 				if (paf->location == APPLY_STR ||
@@ -122,7 +122,7 @@ SPELL_FUNC(spell_enchant_armour)
 		paf->level = level;
 		paf->duration = -1;
 		paf->location = APPLY_AC;
-		paf->modifier = -1;
+		paf->modifier = number_range(1, 4);
 		paf->bitvector  = 0;
 		paf->bitvector2 = 0;
 		paf->next = obj->affected;

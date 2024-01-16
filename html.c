@@ -387,7 +387,7 @@ BUFFER *get_players_html()
 
 		if (wch->church != NULL)
 		{
-		    buf_size = 50 - fstr_len(&buf[0]);
+		    buf_size = 50 - strlen_no_colours(&buf[0]);
 
 		    for (line_counter = 0; line_counter < buf_size; line_counter++)
 		    {

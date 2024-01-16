@@ -2375,6 +2375,47 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 		add_buf(buffer, buf);
 	}
 
+	if (IS_ARMOR(obj))
+	{
+
+		ARMOR_DATA *armor = ARMOR(obj);
+		sprintf(buf, "{CArmor: {BType: {x%s {BStrength: {x%s {BMax Adornment Slots: {x%d\n\r",
+			flag_string(armour_types, armor->armor_type),
+			flag_string(armour_strength_table, armor->armor_strength),
+			armor->max_adornments);
+		add_buf(buffer, buf);
+
+		for(int i = 0; i < ARMOR_MAX; i++)
+		{
+			sprintf(buf, " {B{+%s: {x%d", flag_string(armour_protection_types, i), armor->protection[i]);
+			add_buf(buffer, buf);
+		}
+		add_buf(buffer, "\n\r");
+
+		if (armor->adornments != NULL)
+		{
+			for(int i = 0; i < armor->max_adornments; i++)
+			{
+				ADORNMENT_DATA *adorn = armor->adornments[i];
+				if (IS_VALID(adorn))
+				{
+					if (adorn->spell != NULL)
+						sprintf(buf, " {C[Slot {W%d{C] Type: {x%s {CSpell: {x%s {CLevel: {x%d\n\r", i+1,
+							flag_string(adornment_types, adorn->type),
+							adorn->spell->skill ? adorn->spell->skill->name : "{D-invalid skill-",
+							adorn->spell->level);
+					else
+						sprintf(buf, " {C[Slot {W%d{C] Type: {x%s {CSpell: {Dnone{x\n\r", i+1,
+							flag_string(adornment_types, adorn->type));
+				}
+				else
+					sprintf(buf, " {C[Slot {W%d{C] {D-empty-{x\n\r", i + 1);
+				add_buf(buffer, buf);
+			}
+		}
+	}
+
+
 	if (IS_BOOK(obj))
 	{
 		sprintf(buf, "{CBook[{x%s{C / {x%s{C]: {BPages: (Total: {x%d{B, Current: {x%d{B) Flags: {x%s{B{x\n\r",

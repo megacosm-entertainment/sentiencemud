@@ -111,6 +111,7 @@ const struct olc_help_type help_table[] =
 	{	"armourstrength",		STRUCT_FLAGS,		armour_strength_table,		"Armor strength types"	},
 	{	"blueprint",			STRUCT_FLAGS,		blueprint_flags,			"Blueprint flags" },
 	{	"book",					STRUCT_FLAGS,		book_flags,					"Book flags."	},
+	{	"brandish_func",		STRUCT_ARTIFICING,	brandish_func_table,		"Brandish Functions."	},
 	{	"brew_func",			STRUCT_ARTIFICING,	brew_func_table,			"Brew Functions (SkEdit)"},
 	{	"catalyst",				STRUCT_FLAGS,		catalyst_types,				"Catalyst types."	},
 	{	"class",				STRUCT_FLAGS,		class_flags,				"Class flags." },
@@ -134,8 +135,10 @@ const struct olc_help_type help_table[] =
 	{	"gcl",					STRUCT_GCL,			NULL,						"Global classes"},
 	{	"gsn",					STRUCT_GSN,			NULL,						"Global Skill Numbers."},
 	{	"gr",					STRUCT_GR,			NULL,						"Global Races" },
+	{	"imbue_func",			STRUCT_ARTIFICING,	imbue_func_table,			"Imbue Functions."	},
 	{	"imm",					STRUCT_FLAGS,		imm_flags,					"Mobile immunity."	},
 	{	"immortalflags",		STRUCT_FLAGS,		immortal_flags,				"Immortal duties."	},
+	{	"ink_func",				STRUCT_ARTIFICING,	ink_func_table,				"Ink Functions."	},
 	{	"instance",				STRUCT_FLAGS,		instance_flags,				"Instance Flags"	},
 	{	"instrument_flags",		STRUCT_FLAGS,		instrument_flags,			"Instrument Flags"	},
 	{	"instrument_types",		STRUCT_FLAGS,		instrument_types,			"Instrument Types"	},
@@ -163,6 +166,7 @@ const struct olc_help_type help_table[] =
 	{	"presong_func",			STRUCT_ARTIFICING,	presong_func_table,			"Presong Functions (SongEdit)"},
 	{	"prespell_func",		STRUCT_SPELLFUNC,	prespell_func_table,		"Prespell functions (SkEdit)"},
 	{	"projectflags",			STRUCT_FLAGS,		project_flags,				"Project flags."	},
+	{	"protections",			STRUCT_FLAGS,		armour_protection_types,	"Armor protection types."	},
 	{	"quaff_func",			STRUCT_ARTIFICING,	quaff_func_table,			"Quaff Functions (SkEdit)"},
 	//{	"race",					STRUCT_FLAGS,		race_flags,					"Race flags." },
 	{	"ranged",				STRUCT_FLAGS,		ranged_weapon_class,		"Ranged	weapon types."	},
@@ -4889,14 +4893,11 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		add_buf(buffer, buf);
 		sprintf(buf, "{B[{WStrength         {B]:  {x%s\n\r", flag_string(armour_strength_table, armor->armor_strength));
 		add_buf(buffer, buf);
-		sprintf(buf, "{B[{YBash             {B]:  {x%d\n\r", armor->bash);
-		add_buf(buffer, buf);
-		sprintf(buf, "{B[{YPierce           {B]:  {x%d\n\r", armor->pierce);
-		add_buf(buffer, buf);
-		sprintf(buf, "{B[{YSlash            {B]:  {x%d\n\r", armor->slash);
-		add_buf(buffer, buf);
-		sprintf(buf, "{B[{YMagic            {B]:  {x%d\n\r", armor->magic);
-		add_buf(buffer, buf);
+		for(int i = 0; i < ARMOR_MAX; i++)
+		{
+			sprintf(buf, "{B[{Y{+%-17s{B]:  {x%d\n\r", flag_string(armour_protection_types, i), armor->protection[i]);
+			add_buf(buffer, buf);
+		}
 		sprintf(buf, "{B[{WMax Adornments   {B]:  {x%d\n\r", armor->max_adornments);
 		add_buf(buffer, buf);
 
@@ -8147,7 +8148,7 @@ OEDIT(oedit_addaffect)
 	case APPLY_AC:
 		pMod = (int) atoi(mod)/10;
 		if (pMod == 0) pMod = 1;
-		if (atoi(mod) > 0) pAdd = TRUE;
+		if (atoi(mod) < 0) pAdd = TRUE;
 		break;
 	case APPLY_HITROLL:
 	case APPLY_DAMROLL:
@@ -10130,10 +10131,7 @@ OEDIT( oedit_type_armor )
 		{
 			send_to_char("Syntax:  armor type <type>\n\r", ch);
 			send_to_char("         armor strength <strength>\n\r", ch);
-			send_to_char("         armor bash <#rating>\n\r", ch);
-			send_to_char("         armor pierce <#rating>\n\r", ch);
-			send_to_char("         armor slash <#rating>\n\r", ch);
-			send_to_char("         armor magic <#rating>\n\r", ch);
+			send_to_char("         armor protection <type> <#rating>\n\r", ch);
 			send_to_char(formatf("         armor maxadornments <0-%d>\n\r", MAX_ADORNMENTS), ch);
 
 			send_to_char("         armor adornment add <type> <spell>\n\r", ch);
@@ -10188,18 +10186,26 @@ OEDIT( oedit_type_armor )
 
 			int armour = calc_obj_armour(pObj->level, strength);
 
-			ARMOR(pObj)->bash = armour;
-			ARMOR(pObj)->pierce = armour;
-			ARMOR(pObj)->slash = armour;
-			ARMOR(pObj)->magic = 9 * armour / 10;
+			for(int i = 0; i < ARMOR_MAX; i++)
+				ARMOR(pObj)->protection[i] = armour;
+			ARMOR(pObj)->protection[ARMOR_MAGIC] = 9 * armour / 10;
 			ARMOR(pObj)->armor_strength = strength;
 
 			send_to_char("ARMOR Strength changed.\n\r", ch);
 			return true;
 		}
 
-		if (!str_prefix(arg, "bash"))
+		if (!str_prefix(arg, "protection"))
 		{
+			argument = one_argument(argument, arg);
+			int type;
+			if ((type = stat_lookup(arg, armour_protection_types, NO_FLAG)) == NO_FLAG)
+			{
+				send_to_char("Invalid protection type.  Use '? protections' for valid list of types.\n\r", ch);
+				show_flag_cmds(ch, armour_protection_types);
+				return false;
+			}
+
 			int armour;
 			if (!is_number(argument) || (armour = atoi(argument)) < 0)
 			{
@@ -10207,50 +10213,8 @@ OEDIT( oedit_type_armor )
 				return false;
 			}
 
-			ARMOR(pObj)->bash = armour;
-			send_to_char("ARMOR Bash Rating changed.\n\r", ch);
-			return true;
-		}
-
-		if (!str_prefix(arg, "pierce"))
-		{
-			int armour;
-			if (!is_number(argument) || (armour = atoi(argument)) < 0)
-			{
-				send_to_char("Please provide a non-negative number.\n\r", ch);
-				return false;
-			}
-
-			ARMOR(pObj)->pierce = armour;
-			send_to_char("ARMOR Pierce Rating changed.\n\r", ch);
-			return true;
-		}
-
-		if (!str_prefix(arg, "slash"))
-		{
-			int armour;
-			if (!is_number(argument) || (armour = atoi(argument)) < 0)
-			{
-				send_to_char("Please provide a non-negative number.\n\r", ch);
-				return false;
-			}
-
-			ARMOR(pObj)->slash = armour;
-			send_to_char("ARMOR Slash Rating changed.\n\r", ch);
-			return true;
-		}
-
-		if (!str_prefix(arg, "magic"))
-		{
-			int armour;
-			if (!is_number(argument) || (armour = atoi(argument)) < 0)
-			{
-				send_to_char("Please provide a non-negative number.\n\r", ch);
-				return false;
-			}
-
-			ARMOR(pObj)->magic = armour;
-			send_to_char("ARMOR Magic Rating changed.\n\r", ch);
+			ARMOR(pObj)->protection[type] = armour;
+			send_to_char(formatf("ARMOR {+%s Rating changed.\n\r", flag_string(armour_protection_types, type)), ch);
 			return true;
 		}
 

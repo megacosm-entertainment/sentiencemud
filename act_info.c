@@ -3079,10 +3079,10 @@ void do_score(CHAR_DATA * ch, char *argument)
     char subclass[MIL];
     int i;
     char tbuf[MAX_STRING_LENGTH];
-    int pierce_s;
-    int bash_s;
-    int slash_s;
-    int exotic_s;
+    //int pierce_s;
+    //int bash_s;
+    //int slash_s;
+    //int exotic_s;
 
     if (IS_NPC(ch))
 	return;
@@ -3124,9 +3124,9 @@ void do_score(CHAR_DATA * ch, char *argument)
 	    buf2,
 	    ch->sex == SEX_NEUTRAL ? "sexless" : ch->sex == SEX_MALE ? "male" : "female",
 		IS_VALID(ch->race) ? ch->race->name : "unknown",
-	    IS_NPC(ch) ? "mobile" : (IS_VALID(ch->pcdata->current_class) ? ch->pcdata->current_class->clazz->name : "unknown"));
+	    IS_NPC(ch) ? "mobile" : (IS_VALID(ch->pcdata->current_class) ? ch->pcdata->current_class->clazz->display[ch->sex] : "unknown"));
 
-    for (i = fstr_len(buf); i < 75; i++)
+    for (i = strlen_no_colours(buf); i < 75; i++)
 	strcat(buf, " ");
 
     strcat(buf, "{C|\n\r");
@@ -3147,18 +3147,18 @@ void do_score(CHAR_DATA * ch, char *argument)
 
     sprintf(buf, "| {BHP:   {x%ld{B/{x%ld", ch->hit, ch->max_hit);
 
-    for (i = fstr_len(buf); i < 25; i++)
+    for (i = strlen_no_colours(buf); i < 25; i++)
 	strcat(buf, " ");
     send_to_char(buf, ch);
 
     sprintf(buf, "{BStr: {x%d{B/{x%d",
 	    get_curr_stat(ch, STAT_STR), ch->perm_stat[STAT_STR]);
-    for (i = fstr_len(buf); i < 25; i++)
+    for (i = strlen_no_colours(buf); i < 25; i++)
 	strcat(buf, " ");
     send_to_char(buf, ch);
 
     sprintf(buf, "{BPracs: {x%d", ch->practice);
-    for (i = fstr_len(buf); i < 25; i++)
+    for (i = strlen_no_colours(buf); i < 25; i++)
 	strcat(buf, " ");
     send_to_char(buf, ch);
 
@@ -3167,18 +3167,18 @@ void do_score(CHAR_DATA * ch, char *argument)
     /* LINE 5 *** */
     sprintf(buf, "| {BMana: {x%ld{B/{x%ld", ch->mana, ch->max_mana);
 
-    for (i = fstr_len(buf); i < 25; i++)
+    for (i = strlen_no_colours(buf); i < 25; i++)
 	strcat(buf, " ");
     send_to_char(buf, ch);
 
     sprintf(buf, "{BInt: {x%d{B/{x%d",
 	    get_curr_stat(ch, STAT_INT), ch->perm_stat[STAT_INT]);
-    for (i = fstr_len(buf); i < 25; i++)
+    for (i = strlen_no_colours(buf); i < 25; i++)
 	strcat(buf, " ");
     send_to_char(buf, ch);
 
     sprintf(buf, "{BTrains: {x%d", ch->train);
-    for (i = fstr_len(buf); i < 25; i++)
+    for (i = strlen_no_colours(buf); i < 25; i++)
 	strcat(buf, " ");
     send_to_char(buf, ch);
 
@@ -3187,18 +3187,18 @@ void do_score(CHAR_DATA * ch, char *argument)
 
     sprintf(buf, "| {BMove: {x%ld{B/{x%ld", ch->move, ch->max_move);
 
-    for (i = fstr_len(buf); i < 25; i++)
+    for (i = strlen_no_colours(buf); i < 25; i++)
 	strcat(buf, " ");
     send_to_char(buf, ch);
 
     sprintf(buf, "{BWis: {x%d{B/{x%d",
 	    get_curr_stat(ch, STAT_WIS), ch->perm_stat[STAT_WIS]);
-    for (i = fstr_len(buf); i < 25; i++)
+    for (i = strlen_no_colours(buf); i < 25; i++)
 	strcat(buf, " ");
     send_to_char(buf, ch);
 
     sprintf(buf, "{BLevel: {x%d", ch->level);
-    for (i = fstr_len(buf); i < 25; i++)
+    for (i = strlen_no_colours(buf); i < 25; i++)
 	strcat(buf, " ");
     send_to_char(buf, ch);
 
@@ -3210,13 +3210,13 @@ void do_score(CHAR_DATA * ch, char *argument)
     	sprintf(buf, "| {BAge: {XAgeless{X");
     else
 	    sprintf(buf, "| {BAge: {x%d", get_age(ch));
-    for (i = fstr_len(buf); i < 25; i++)
+    for (i = strlen_no_colours(buf); i < 25; i++)
 	strcat(buf, " ");
     send_to_char(buf, ch);
 
     sprintf(buf, "{BDex: {x%d{B/{x%d",
 	    get_curr_stat(ch, STAT_DEX), ch->perm_stat[STAT_DEX]);
-    for (i = fstr_len(buf); i < 25; i++)
+    for (i = strlen_no_colours(buf); i < 25; i++)
 	strcat(buf, " ");
     send_to_char(buf, ch);
 
@@ -3224,7 +3224,7 @@ void do_score(CHAR_DATA * ch, char *argument)
     {
 	sprintf(buf, "{BExp to Level: {x%ld",
 		(exp_per_level(ch, NULL, ch->pcdata->points) - ch->exp));
-	for (i = fstr_len(buf); i < 25; i++)
+	for (i = strlen_no_colours(buf); i < 25; i++)
 	    strcat(buf, " ");
 	send_to_char(buf, ch);
     }
@@ -3243,14 +3243,14 @@ void do_score(CHAR_DATA * ch, char *argument)
 	sprintf(buf, "| {BHrs: {x%d",
 	    ((ch->played + (int) (current_time - ch->logon)) / 3600));
 
-    for (i = fstr_len(buf); i < 25; i++)
+    for (i = strlen_no_colours(buf); i < 25; i++)
 	strcat(buf, " ");
     send_to_char(buf, ch);
 
 
     sprintf(buf, "{BCon: {x%d{B/{x%d",
 	    get_curr_stat(ch, STAT_CON), ch->perm_stat[STAT_CON]);
-    for (i = fstr_len(buf); i < 25; i++)
+    for (i = strlen_no_colours(buf); i < 25; i++)
 	strcat(buf, " ");
     send_to_char(buf, ch);
 
@@ -3276,15 +3276,15 @@ void do_score(CHAR_DATA * ch, char *argument)
 	strcat(buf, "{Rsatanic{X");
 
     strcat(buf, "{C)");
-    for (i = fstr_len(buf); i < 25; i++)
+    for (i = strlen_no_colours(buf); i < 25; i++)
 	strcat(buf, " ");
     strcat(buf, "|\n\r");
     send_to_char(buf, ch);
-    sprintf(buf, "{C| {BMission Points: {w%-9d", ch->missionpoints);
+    sprintf(buf, "{C| {BPneuma: {w%-14ld ", ch->pneuma);
     send_to_char(buf, ch);
-    sprintf(buf, "{BDeity Points: {w%-11ld", ch->deitypoints);
+    sprintf(buf, "{BDeity Points: {w%-10ld ", ch->deitypoints);
     send_to_char(buf, ch);
-    sprintf(buf, "{BPneuma: {w%-16ld {C|\n\r", ch->pneuma);
+    sprintf(buf, "{BMission Points: {w%-8d {C|\n\r", ch->missionpoints);
     send_to_char(buf, ch);
     sprintf(buf2, "%d{B[{x+%d{B]", GET_HITROLL(ch), ch->hitroll);
     sprintf(buf, "{C| {BHitroll: {w%-20s", buf2);
@@ -3298,7 +3298,7 @@ void do_score(CHAR_DATA * ch, char *argument)
     send_to_char(buf, ch);
     sprintf(buf, "{BBank Balance: {w%-10ld {C|\n\r", ch->pcdata->bankbalance);
     send_to_char(buf, ch);
-    sprintf(buf, "{C| {BDeaths: {w%-39d {BMissions Completed:{x %-7ld{C|\n\r",
+    sprintf(buf, "{C| {BDeaths: {w%-39d {BMissions Run:{x %-10ld {C|\n\r",
 		    ch->deaths, ch->pcdata->missions_completed);
     send_to_char(buf, ch);
     sprintf(buf, "{C| {BPK Wins       : {w%-31d {BCPK Wins:{x %-14d {C|\n\r",
@@ -3323,6 +3323,52 @@ void do_score(CHAR_DATA * ch, char *argument)
     send_to_char(buf, ch);
 
     /* LINE 9 *** */
+	for(int i = 0; i < ARMOR_MAX; i++)
+	{
+		int rating = ch->armour[i];
+		rating = URANGE(0, rating, 100);
+
+		int stars = 0;
+
+		strcpy(tbuf, "{b");				// Start off DARK BLUE
+		for(int j = 0; j <= rating; j+=5)
+		{
+			if (j == 90)				// WHITE
+			    strcat(tbuf, "{W");
+			else if (j == 80)			// RED
+				strcat(tbuf, "{R");
+			else if (j == 70)			// YELLOW
+				strcat(tbuf, "{Y");
+			else if (j == 60)			// GREEN
+				strcat(tbuf, "{G");
+			else if (j == 40)			// CYAN
+				strcat(tbuf, "{C");
+			else if (j == 20)			// BLUE
+				strcat(tbuf, "{B");
+
+			strcat(tbuf, "*");
+			stars++;
+		}
+
+		strcat(tbuf, "{x");
+		int len = strlen(tbuf);
+
+		// Pad until the plain characters fits the screen
+		while (stars < 59)
+		{
+			stars++;
+			tbuf[len++] = ' ';
+		}
+		tbuf[len] = '\0';
+
+	    sprintf(buf, "| {B{+%-9s{C%3d{B: %s{x", flag_string(armour_protection_types, i), ch->armour[i], tbuf);
+
+		// Pad to fit the width
+		strcat(buf, "{C|\n\r");
+
+		send_to_char(buf, ch);
+	}
+#if 0
     pierce_s = GET_AC(ch, AC_PIERCE);
     bash_s = GET_AC(ch, AC_BASH);
     slash_s = GET_AC(ch, AC_SLASH);
@@ -3351,7 +3397,7 @@ void do_score(CHAR_DATA * ch, char *argument)
     }
     sprintf(buf, "| {BPiercing {C%3d{B: {Y%-39s{x", GET_AC(ch, AC_PIERCE),
 	    tbuf);
-    for (i = fstr_len(buf); i < 75; i++)
+    for (i = strlen_no_colours(buf); i < 75; i++)
 	strcat(buf, " ");
     send_to_char(buf, ch);
     send_to_char("{C|\n\r", ch);
@@ -3379,7 +3425,7 @@ void do_score(CHAR_DATA * ch, char *argument)
     }
     sprintf(buf, "| {BBashing  {C%3d{B: {Y%s{x", GET_AC(ch, AC_BASH),
 	    tbuf);
-    for (i = fstr_len(buf); i < 75; i++)
+    for (i = strlen_no_colours(buf); i < 75; i++)
 	strcat(buf, " ");
     send_to_char(buf, ch);
     send_to_char("{C|\n\r", ch);
@@ -3406,7 +3452,7 @@ void do_score(CHAR_DATA * ch, char *argument)
     }
     sprintf(buf, "| {BSlashing {C%3d{B: {Y%s{x", GET_AC(ch, AC_SLASH),
 	    tbuf);
-    for (i = fstr_len(buf); i < 75; i++)
+    for (i = strlen_no_colours(buf); i < 75; i++)
 	strcat(buf, " ");
     send_to_char(buf, ch);
     send_to_char("{C|\n\r", ch);
@@ -3435,10 +3481,11 @@ void do_score(CHAR_DATA * ch, char *argument)
 
     sprintf(buf, "| {BExotic   {C%3d{B: {Y%s{x", GET_AC(ch, AC_EXOTIC),
 	    tbuf);
-    for (i = fstr_len(buf); i < 75; i++)
+    for (i = strlen_no_colours(buf); i < 75; i++)
 	strcat(buf, " ");
     send_to_char(buf, ch);
     send_to_char("{C|\n\r", ch);
+#endif
 
     /* CLOSING LINE */
     sprintf(buf, "{C|");
@@ -4590,11 +4637,11 @@ void do_who_new(CHAR_DATA * ch, char *argument)
 
 		area_type = get_char_where(wch);
 
-		if (IS_IMMORTAL(wch))
+        if (IS_IMMORTAL(wch) && IS_SET(wch->act[1], PLR_HOLYPERSONA))
 		    sprintf(level, "{W  IMM  {x");
 		else
 		{
-			CLASS_LEVEL *current = wch->pcdata->current_class;
+			CLASS_LEVEL *current = get_class_level(wch, NULL);
 			if (IS_VALID(current))
 		    	sprintf(level, "%-3d{B:{G%-3d", current->level, wch->tot_level);
 			else
@@ -4619,7 +4666,7 @@ void do_who_new(CHAR_DATA * ch, char *argument)
 
 		if (wch->church != NULL)
 		{
-			buf_size = 50 - fstr_len(&buf[0]);
+			buf_size = 50 - strlen_no_colours(&buf[0]);
 
 			for (line_counter = 0; line_counter < buf_size; line_counter++)
 			add_buf(output, " ");
@@ -4791,27 +4838,14 @@ void format_page(sh_int n, char *a, CHAR_DATA * ch)
 {
     sh_int counter;
 
-    if (n - fstr_len(a) <= 0)
+    if (n - strlen_no_colours(a) <= 0)
 	return;
 
-    for (counter = 0; counter < n - fstr_len(a); counter++)
+    for (counter = 0; counter < n - strlen_no_colours(a); counter++)
 	send_to_char(" ", ch);
 
 }
 
-
-int fstr_len(char *a)
-{
-    int counter = 0;
-    int char_number = 0;
-    for (counter = 0; counter < strlen(a); counter++) {
-	if (a[counter] == '{') {
-	    counter++;
-	} else
-	    char_number++;
-    }
-    return char_number;
-}
 
 
 void do_count(CHAR_DATA * ch, char *argument)

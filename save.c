@@ -183,16 +183,30 @@ static void __init_player_versioning_008(struct __player_data_version_008 *data)
 	data->quests_completed = 0;
 }
 
+struct __player_data_version_009
+{
+	int armour[4];
+};
+
+static void __init_player_versioning_009(struct __player_data_version_009 *data)
+{
+	for(int i = 0; i < 4; i++)
+		data->armour[i] = 0;
+}
+
+
 struct __player_data_versioning
 {
 	struct __player_data_version_007 _007;
 	struct __player_data_version_008 _008;
+	struct __player_data_version_009 _009;
 };
 
 static void __init_player_versioning(struct __player_data_versioning *data)
 {
 	__init_player_versioning_007(&data->_007);
 	__init_player_versioning_008(&data->_008);
+	__init_player_versioning_009(&data->_009);
 }
 
 void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__versioning);
@@ -725,9 +739,11 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     if (ch->hitroll != 0)
 	fprintf(fp, "Hit   %d\n",	ch->hitroll	);
     if (ch->damroll != 0)
-	fprintf(fp, "Dam   %d\n",	ch->damroll	);
-    fprintf(fp, "ACs %d %d %d %d\n",
-	ch->armour[0],ch->armour[1],ch->armour[2],ch->armour[3]);
+		fprintf(fp, "Dam   %d\n",	ch->damroll	);
+	for(int i = 0; i < ARMOR_MAX; i++)
+	{
+		fprintf(fp, "Armor %s~ %d\n", flag_string(armour_protection_types, i), ch->armour[i]);
+	}
     if (ch->wimpy !=0)
 	fprintf(fp, "Wimp  %d\n",	ch->wimpy	);
     fprintf(fp, "Attr %d %d %d %d %d\n",
@@ -1416,15 +1432,18 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		break;
 	    }
 
-	    if (!str_cmp(word,"ACs"))
-	    {
-		int i;
+		if (ch->version < VERSION_PLAYER_009)
+		{
+			if (!str_cmp(word,"ACs"))
+			{
+			int i;
 
-		for (i = 0; i < 4; i++)
-		    ch->armour[i] = fread_number(fp);
-		fMatch = TRUE;
-		break;
-	    }
+			for (i = 0; i < 4; i++)
+				__versioning->_009.armour[i] = fread_number(fp);
+			fMatch = TRUE;
+			break;
+			}
+		}
 
 	    if (!str_cmp(word, "AffD"))
 	    {
@@ -1611,6 +1630,20 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		fMatch = TRUE;
 		break;
 	    }
+
+		if (!str_cmp(word, "Armor"))
+		{
+			char *name = fread_string(fp);
+			int value = fread_number(fp);
+
+			int ac = stat_lookup(name, armour_protection_types, NO_FLAG);
+			if (ac != NO_FLAG)
+			{
+				ch->armour[ac] = value;
+			}
+			fMatch = true;
+			break;
+		}
 
 		if (!str_cmp(word, "Aura"))
 		{
@@ -2792,10 +2825,10 @@ void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
 		fprintf(fp, "Type %s~\n", flag_string(armour_types, armor->armor_type));
 		fprintf(fp, "Strength %s~\n", flag_string(armour_strength_table, armor->armor_strength));
 
-		fprintf(fp, "Bash %d\n", armor->bash);
-		fprintf(fp, "Pierce %d\n", armor->pierce);
-		fprintf(fp, "Slash %d\n", armor->slash);
-		fprintf(fp, "Magic %d\n", armor->magic);
+		for(int i = 0; i < ARMOR_MAX; i++)
+		{
+			fprintf(fp, "Protection %s~ %d\n", flag_string(armour_protection_types, i), armor->protection[i]);
+		}
 
 		fprintf(fp, "MaxAdornments %d\n", armor->max_adornments);
 		if (armor->max_adornments > 0 && armor->adornments != NULL)
@@ -3811,12 +3844,7 @@ ARMOR_DATA *fread_obj_armor_data(FILE *fp)
 				}
 				break;
 
-			case 'B':
-				KEY("Bash", data->bash, fread_number(fp));
-				break;
-
 			case 'M':
-				KEY("Magic", data->magic, fread_number(fp));
 				if (!str_cmp(word, "MaxAdornments"))
 				{
 					int max = fread_number(fp);
@@ -3842,11 +3870,20 @@ ARMOR_DATA *fread_obj_armor_data(FILE *fp)
 				break;
 
 			case 'P':
-				KEY("Pierce", data->pierce, fread_number(fp));
+				if (!str_cmp(word,"Protection"))
+				{
+					int rating = stat_lookup(fread_string(fp),armour_protection_types,NO_FLAG);
+					int value = fread_number(fp);
+
+					if (rating != NO_FLAG)
+						data->protection[rating] = value;
+
+					fMatch = true;
+					break;
+				}
 				break;
 
 			case 'S':
-				KEY("Slash", data->slash, fread_number(fp));
 				KEY("Strength", data->armor_strength, stat_lookup(fread_string(fp), armour_strength_table, OBJ_ARMOUR_NOSTRENGTH));
 				break;
 
