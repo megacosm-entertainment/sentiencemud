@@ -442,6 +442,9 @@ ENT_FIELD entity_object[] = {
 	{"islockered",		ENTITY_OBJ_ISLOCKERED,			ENT_BOOLEAN },
 	{"isstached",		ENTITY_OBJ_ISSTACHED,			ENT_BOOLEAN },
 	{"material",		ENTITY_OBJ_MATERIAL,		ENT_MATERIAL },
+	{"class",			ENTITY_OBJ_CLASS,			ENT_CLASS },
+	{"classtype",		ENTITY_OBJ_CLASSTYPE,		ENT_STAT },
+	{"race",			ENTITY_OBJ_RACE,			ENT_RACE },
 	{"ammo_data",		ENTITY_OBJ_TYPE_AMMO,		ENT_OBJECT_AMMO},
 	{"book_page",		ENTITY_OBJ_TYPE_PAGE,		ENT_BOOK_PAGE},			// This is unique in that it is not handled internally like other type
 	{"book_data",		ENTITY_OBJ_TYPE_BOOK,		ENT_OBJECT_BOOK},

@@ -1335,6 +1335,24 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
 	fprintf(fp, "Extra4Flags %ld\n", obj->extra[3]);
 	fprintf(fp, "WearFlags %ld\n", obj->wear_flags);
 
+	if (IS_VALID(obj->clazz))
+		fprintf(fp, "Class %s~\n", obj->clazz->name);
+	
+	if (obj->clazz_type != CLASS_NONE)
+		fprintf(fp, "ClassType %s~\n", flag_string(class_types, obj->clazz_type));
+
+	if (list_size(obj->race) > 0)
+	{
+		ITERATOR rit;
+		RACE_DATA *race;
+		iterator_start(&rit, obj->race);
+		while((race = (RACE_DATA *)iterator_nextdata(&rit)))
+		{
+			fprintf(fp, "Race %s~\n", race->name);
+		}
+		iterator_stop(&rit);
+	}
+
 	fprintf(fp, "Values");
 	for (i = 0; i < MAX_OBJVALUES; i++) fprintf(fp, " %ld", obj->value[i]);
 	fprintf(fp, "\n");
@@ -4546,6 +4564,8 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 			break;
 
 	    case 'C':
+			KEY("Class", obj->clazz, get_class_data(fread_string(fp)));
+			KEY("ClassType", obj->clazz_type, stat_lookup(fread_string(fp), class_types, CLASS_NONE));
 			KEYS("CreatorSig", obj->creator_sig,	fread_string(fp));
 			KEY("Cost",	obj->cost,	fread_number(fp));
 			KEY("Condition",	obj->condition,	fread_number(fp));
@@ -4692,6 +4712,16 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 			break;
 
 	    case 'R':
+			if (!str_cmp(word, "Race")) {
+				char *name = fread_string(fp);
+				RACE_DATA *race = get_race_data(name);
+
+				if (IS_VALID(race))
+					list_appendlink(obj->race, race);
+
+				fMatch = true;
+				break;
+			}
 			break;
 
 	    case 'S':

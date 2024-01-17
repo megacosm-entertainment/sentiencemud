@@ -5496,6 +5496,20 @@ bool is_wearable(OBJ_DATA *obj)
 	return true;
 }
 
+bool allowed_to_wear(CHAR_DATA *ch, OBJ_DATA *obj)
+{
+	if (!IS_NPC(ch) && IS_IMMORTAL(ch) && IS_SET(ch->act[1], PLR_HOLYAURA))
+		return true;
+
+	CLASS_DATA *clazz = get_current_class(ch);
+
+	if (IS_VALID(obj->clazz) && obj->clazz != clazz) return false;
+	if (obj->clazz_type != CLASS_NONE && (!IS_VALID(clazz) || obj->clazz_type != clazz->type)) return false;
+	if (list_size(obj->race) > 0 && !list_contains(obj->race, ch->race, NULL)) return false;
+
+	return true;
+}
+
 
 /* is anyone resting, sleeping, etc on the obj? */
 bool is_using_anyone(OBJ_DATA *obj)

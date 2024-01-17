@@ -557,8 +557,41 @@ bool __func_identify(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
 
 	add_buf(buffer, buf);
 
-	sprintf(buf, "{MIt is made out of {x%s{M.\n\r", IS_VALID(obj->material)?obj->material->name:"nothing");
+	sprintf(buf, "{MIt is made out of {x%s{M.{x\n\r", IS_VALID(obj->material)?obj->material->name:"nothing");
 	add_buf(buffer, buf);
+
+	if (IS_VALID(obj->clazz))
+	{
+		sprintf(buf, "{MCan only be worn by {x{+%s{M class.{x\n\r", obj->clazz->display[ch->sex]);
+		add_buf(buffer, buf);
+	}
+
+	if (obj->clazz_type != CLASS_NONE)
+	{
+		sprintf(buf, "{MCan only be worn by {x{+%s{M class type.{x\n\r", flag_string(class_types, obj->clazz_type));
+		add_buf(buffer, buf);
+	}
+
+	if (list_size(obj->race) > 0)
+	{
+		// TODO: Add plural for races?
+		strcpy(buf, "{MCan only be worn by {x");
+		ITERATOR rit;
+		RACE_DATA *race;
+		bool first = true;
+		iterator_start(&rit, obj->race);
+		while((race = (RACE_DATA *)iterator_nextdata(&rit)))
+		{
+			if (!first)
+				strcat(buf, "{M, {x");
+			strcat(buf, "{+");
+			strcat(buf, race->name);
+			first = false;
+		}
+		iterator_stop(&rit);
+		strcat(buf, "{M.{x\n\r");
+		add_buf(buffer, buf);
+	}
 
 	// Sages know where items come from, if from the mortal world
 	if (IS_SAGE(ch) || IS_IMMORTAL(ch)) {

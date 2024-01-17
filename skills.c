@@ -8243,5 +8243,23 @@ void do_setclass(CHAR_DATA *ch, char *argument)
 	if (ch->pcdata->current_class->clazz->enter)
 		(*ch->pcdata->current_class->clazz->enter)(ch);
 
+	OBJ_DATA *obj, *obj_next;
+	for (obj = ch->carrying; obj != NULL; obj = obj_next)
+	{
+		obj_next = obj->next_content;
+
+		// Unequip gear that's too high level for your new class
+		// TODO: Add other checks, such as class type
+		if (obj->wear_loc != WEAR_NONE &&
+			WEAR_AUTOEQUIP(obj->wear_loc) &&
+			(level->level < obj->level || !allowed_to_wear(ch, obj)))
+		{
+			unequip_char(ch, obj, true);
+		}
+	}
+
+	// TODO: Check gearsets
+	
+
 	return;
 }

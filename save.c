@@ -3359,35 +3359,53 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
     if (obj->in_room != NULL)
     	fprintf(fp, "Room %s\n",	widevnum_string_room(obj->in_room, NULL)	    );
     if (IS_SET(obj->extra[1], ITEM_ENCHANTED))
-	fprintf(fp,"Enchanted_times %d\n", obj->num_enchanted);
+		fprintf(fp,"Enchanted_times %d\n", obj->num_enchanted);
 
     /*
     if (obj->weight != obj->pIndexData->weight)
         fprintf(fp, "Wt   %d\n",	obj->weight		    );
     */
     if (obj->condition != obj->pIndexData->condition)
-	fprintf(fp, "Cond %d\n",	obj->condition		    );
+		fprintf(fp, "Cond %d\n",	obj->condition		    );
     if (obj->times_fixed > 0)
         fprintf(fp, "Fixed %d\n",      obj->times_fixed	    );
     if (obj->owner != NULL)
-	fprintf(fp, "Owner %s~\n",      obj->owner            );
+		fprintf(fp, "Owner %s~\n",      obj->owner            );
     if (obj->old_name != NULL)
-	fprintf(fp, "OldName %s~\n",   obj->old_name  );
+		fprintf(fp, "OldName %s~\n",   obj->old_name  );
     if (obj->old_short_descr != NULL)
-	fprintf(fp, "OldShort %s~\n",   obj->old_short_descr  );
+		fprintf(fp, "OldShort %s~\n",   obj->old_short_descr  );
     if (obj->old_description != NULL)
         fprintf(fp, "OldDescr %s~\n",   obj->old_description  );
     if (obj->old_full_description != NULL)
-	fprintf(fp, "OldFullDescr %s~\n", obj->old_full_description);
+		fprintf(fp, "OldFullDescr %s~\n", obj->old_full_description);
     if (obj->loaded_by != NULL)
         fprintf(fp, "LoadedBy %s~\n",   obj->loaded_by  );
 
     if (obj->fragility != obj->pIndexData->fragility)
-	fprintf(fp, "Fragility %d\n", obj->fragility);
+		fprintf(fp, "Fragility %d\n", obj->fragility);
     if (obj->times_allowed_fixed != obj->pIndexData->times_allowed_fixed)
-	fprintf(fp, "TimesAllowedFixed %d\n", obj->times_allowed_fixed);
-    if (obj->locker == true)
-    	fprintf(fp, "Locker %d\n", obj->locker);
+		fprintf(fp, "TimesAllowedFixed %d\n", obj->times_allowed_fixed);
+
+    if (obj->locker == true) fprintf(fp, "Locker %d\n", obj->locker);
+
+	if (IS_VALID(obj->clazz))
+	    fprintf(fp, "Class %s~\n", obj->clazz->name);
+	
+	if (obj->clazz_type != CLASS_NONE)
+		fprintf(fp, "ClassType %s~\n", flag_string(class_types, obj->clazz_type));
+
+	if (list_size(obj->race) > 0)
+	{
+		ITERATOR rit;
+		RACE_DATA *race;
+		iterator_start(&rit, obj->race);
+		while((race = (RACE_DATA *)iterator_nextdata(&rit)))
+		{
+			fprintf(fp, "Race %s~\n", race->name);
+		}
+		iterator_stop(&rit);
+	}
 
 	/*
     if (obj->lock) {
@@ -5419,6 +5437,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 	obj->version	= VERSION_OBJECT_000;
 	obj->id[0] = obj->id[1] = 0;
+	list_clear(obj->race);	// Remove what the index gives, because the saved copy might have.. other restrictions...
 
 	fVnum		= true;
 	iNest		= 0;
@@ -5451,15 +5470,14 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				fMatch = true;
 				break;
 			}
-
-			if (!str_cmp(word, "#TOKEN"))
+			else if (!str_cmp(word, "#TOKEN"))
 			{
 				TOKEN_DATA *token = fread_token(fp);
 				token_to_obj(token, obj);
 				fMatch		= true;
 				break;
 			}
-			if (!str_cmp(word, "#TYPEAMMO"))
+			else if (!str_cmp(word, "#TYPEAMMO"))
 			{
 				if (IS_AMMO(obj)) free_ammo_data(AMMO(obj));
 
@@ -5467,7 +5485,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				fMatch = true;
 				break;
 			}
-			if (!str_cmp(word, "#TYPEARMOR"))
+			else if (!str_cmp(word, "#TYPEARMOR"))
 			{
 				if (IS_ARMOR(obj)) free_armor_data(ARMOR(obj));
 
@@ -5475,7 +5493,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				fMatch = true;
 				break;
 			}
-			if (!str_cmp(word, "#TYPEBOOK"))
+			else if (!str_cmp(word, "#TYPEBOOK"))
 			{
 				if (IS_BOOK(obj)) free_book_data(BOOK(obj));
 
@@ -5483,7 +5501,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				fMatch = true;
 				break;
 			}
-			if (!str_cmp(word, "#TYPECONTAINER"))
+			else if (!str_cmp(word, "#TYPECONTAINER"))
 			{
 				if (IS_CONTAINER(obj)) free_container_data(CONTAINER(obj));
 
@@ -5491,7 +5509,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				fMatch = true;
 				break;
 			}
-			if (!str_cmp(word, "#TYPEFLUIDCONTAINER"))
+			else if (!str_cmp(word, "#TYPEFLUIDCONTAINER"))
 			{
 				if (IS_FLUID_CON(obj)) free_fluid_container_data(FLUID_CON(obj));
 
@@ -5499,7 +5517,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				fMatch = true;
 				break;
 			}
-			if (!str_cmp(word, "#TYPEFOOD"))
+			else if (!str_cmp(word, "#TYPEFOOD"))
 			{
 				if (IS_FOOD(obj)) free_food_data(FOOD(obj));
 
@@ -5507,7 +5525,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				fMatch = true;
 				break;
 			}
-			if (!str_cmp(word, "#TYPEFURNITURE"))
+			else if (!str_cmp(word, "#TYPEFURNITURE"))
 			{
 				if (IS_FURNITURE(obj)) free_furniture_data(FURNITURE(obj));
 
@@ -5516,7 +5534,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				fMatch = true;
 				break;
 			}
-			if (!str_cmp(word, "#TYPEINK"))
+			else if (!str_cmp(word, "#TYPEINK"))
 			{
 				if (IS_INK(obj)) free_ink_data(INK(obj));
 
@@ -5524,7 +5542,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				fMatch = true;
 				break;
 			}
-			if (!str_cmp(word, "#TYPEINSTRUMENT"))
+			else if (!str_cmp(word, "#TYPEINSTRUMENT"))
 			{
 				if (IS_INSTRUMENT(obj)) free_instrument_data(INSTRUMENT(obj));
 
@@ -5532,7 +5550,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				fMatch = true;
 				break;
 			}
-			if (!str_cmp(word, "#TYPEJEWELRY"))
+			else if (!str_cmp(word, "#TYPEJEWELRY"))
 			{
 				if (IS_JEWELRY(obj)) free_jewelry_data(JEWELRY(obj));
 
@@ -5540,7 +5558,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				fMatch = true;
 				break;
 			}
-			if (!str_cmp(word, "#TYPELIGHT"))
+			else if (!str_cmp(word, "#TYPELIGHT"))
 			{
 				if (IS_LIGHT(obj)) free_light_data(LIGHT(obj));
 
@@ -5548,7 +5566,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				fMatch = true;
 				break;
 			}
-			if (!str_cmp(word, "#TYPEMIST"))
+			else if (!str_cmp(word, "#TYPEMIST"))
 			{
 				if (IS_MIST(obj)) free_mist_data(MIST(obj));
 
@@ -5556,7 +5574,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				fMatch = true;
 				break;
 			}
-			if (!str_cmp(word, "#TYPEMONEY"))
+			else if (!str_cmp(word, "#TYPEMONEY"))
 			{
 				if (IS_MONEY(obj)) free_money_data(MONEY(obj));
 
@@ -5564,7 +5582,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				fMatch = true;
 				break;
 			}
-			if (!str_cmp(word, "#TYPEPAGE"))
+			else if (!str_cmp(word, "#TYPEPAGE"))
 			{
 				if (IS_PAGE(obj)) free_book_page(PAGE(obj));
 
@@ -5572,7 +5590,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				fMatch = true;
 				break;
 			}
-			if (!str_cmp(word, "#TYPEPORTAL"))
+			else if (!str_cmp(word, "#TYPEPORTAL"))
 			{
 				if (IS_PORTAL(obj)) free_portal_data(PORTAL(obj));
 
@@ -5580,7 +5598,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				fMatch = true;
 				break;
 			}
-			if (!str_cmp(word, "#TYPESCROLL"))
+			else if (!str_cmp(word, "#TYPESCROLL"))
 			{
 				if (IS_SCROLL(obj)) free_scroll_data(SCROLL(obj));
 
@@ -5588,7 +5606,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				fMatch = true;
 				break;
 			}
-			if (!str_cmp(word, "#TYPETATTOO"))
+			else if (!str_cmp(word, "#TYPETATTOO"))
 			{
 				if (IS_TATTOO(obj)) free_tattoo_data(TATTOO(obj));
 
@@ -5596,7 +5614,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				fMatch = true;
 				break;
 			}
-			if (!str_cmp(word, "#TYPEWAND"))
+			else if (!str_cmp(word, "#TYPEWAND"))
 			{
 				if (IS_WAND(obj)) free_wand_data(WAND(obj));
 
@@ -5604,7 +5622,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				fMatch = true;
 				break;
 			}
-			if (!str_cmp(word, "#TYPEWEAPON"))
+			else if (!str_cmp(word, "#TYPEWEAPON"))
 			{
 				if (IS_WEAPON(obj)) free_weapon_data(WEAPON(obj));
 
@@ -5914,6 +5932,8 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				fMatch = true;
 				break;
 			}
+			KEY("Class", obj->clazz, get_class_data(fread_string(fp)));
+			KEY("ClassType", obj->clazz_type, stat_lookup(fread_string(fp), class_types, CLASS_NONE));
 			KEY("Cond",	obj->condition,		fread_number(fp));
 			KEY("Cost",	obj->cost,		fread_number(fp));
 			break;
@@ -6181,6 +6201,16 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			break;
 
 		case 'R':
+			if (!str_cmp(word, "Race")) {
+				char *name = fread_string(fp);
+				RACE_DATA *race = get_race_data(name);
+
+				if (IS_VALID(race) && !list_contains(obj->race, race, NULL))
+					list_appendlink(obj->race, race);
+
+				fMatch = true;
+				break;
+			}
 			if (!str_cmp(word, "Room"))
 			{
 				ROOM_INDEX_DATA *room;

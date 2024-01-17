@@ -364,6 +364,10 @@ DECLARE_OLC_FUN( oedit_varclear	);
 DECLARE_OLC_FUN( oedit_persist  );
 DECLARE_OLC_FUN( oedit_lock		);
 DECLARE_OLC_FUN( oedit_waypoints	);
+DECLARE_OLC_FUN( oedit_class );
+DECLARE_OLC_FUN( oedit_class_type );
+DECLARE_OLC_FUN( oedit_race );
+
 
 DECLARE_OLC_FUN( oedit_type_ammo );
 DECLARE_OLC_FUN( oedit_type_armor );

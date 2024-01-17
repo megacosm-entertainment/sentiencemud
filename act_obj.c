@@ -3857,16 +3857,64 @@ void wear_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool fReplace)
 		return;
     }
 
-	if (!IS_IMMORTAL(ch) && !IS_NPC(ch)) {
-		/* If the object is not a mortal object
-		   -or- is higher object level and the item is not flagged all_remort or the char is not remort */
-		if ((obj->level > LEVEL_HERO) ||
-			((ch->tot_level < obj->level) && !(IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)))) {
+	if (!IS_NPC(ch) && !(IS_IMMORTAL(ch) && IS_SET(ch->act[1], PLR_HOLYAURA))) {
+		CLASS_LEVEL *cl = get_class_level(ch, NULL);
+		CLASS_DATA *clazz = cl ? cl->clazz : NULL;
+		int level = cl ? cl->level : 1;
+
+		// NIB: Removed the LEVEL_HERO check and the Remort check
+		if (level < obj->level) {
 			sprintf(buf, "You must be level %d to use this object.\n\r", obj->level);
 			send_to_char(buf, ch);
 			act("$n tries to use $p, but is too inexperienced.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 			return;
 		}
+
+		if (IS_VALID(obj->clazz) && obj->clazz != clazz)
+		{
+			sprintf(buf, "You must be %s %s to use this object.\n\r", get_article(obj->clazz->display[ch->sex], false), obj->clazz->display[ch->sex]);
+			send_to_char(buf, ch);
+			//act("$n tries to use $p, but is the wrong class.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+			return;
+		}
+
+		if (obj->clazz_type != CLASS_NONE && (!IS_VALID(clazz) || obj->clazz_type != clazz->type))
+		{
+			char *type = flag_string(class_types, obj->clazz_type);
+			sprintf(buf, "You must be %s %s to use this object.\n\r", get_article(type, false), type);
+			send_to_char(buf, ch);
+			//act("$n tries to use $p, but is the wrong class.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+			return;
+		}
+
+		if (list_size(obj->race) > 0 && !list_contains(obj->race, ch->race, NULL))
+		{
+			int i = 1;
+
+			strcpy(buf, "You must be");
+			ITERATOR rit;
+			RACE_DATA *race;
+			iterator_start(&rit, obj->race);
+			while((race = (RACE_DATA *)iterator_nextdata(&rit)))
+			{
+				if (i > 1)
+				{
+					if (i == list_size(obj->race))
+						strcat(buf, " or ");
+					else
+						strcat(buf, ",");
+				}
+				strcat(buf, formatf(" %s %s", get_article(race->name, false), race->name));
+				++i;
+			}
+			iterator_stop(&rit);
+			strcat(buf, " to use this object.\n\r");
+			send_to_char(buf, ch);
+			//act("$n tries to use $p, but is the wrong race.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+			return;
+		}
+
+
 	}
 
 	if (IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && !IS_REMORT(ch) && !IS_NPC(ch)) {
@@ -4302,6 +4350,9 @@ void do_wear(CHAR_DATA *ch, char *argument)
 		return;
     }
 
+	CLASS_LEVEL *cl = get_class_level(ch, NULL);
+	int level = cl ? cl->level : 1;
+
     if (!str_cmp(arg, "all"))
     {
 		OBJ_DATA *obj_next = NULL;
@@ -4318,7 +4369,8 @@ void do_wear(CHAR_DATA *ch, char *argument)
 				WEAR_AUTOEQUIP(obj->last_wear_loc) &&
 				can_see_obj(ch, obj) &&
 				obj->wear_loc == WEAR_NONE &&
-				ch->tot_level >= obj->level) {
+				allowed_to_wear(ch, obj) &&
+				level >= obj->level) {
 			if (both_hands_full(ch)
 			&& (CAN_WEAR(obj, ITEM_WEAR_SHIELD)
 				 || CAN_WEAR(obj, ITEM_HOLD)
@@ -4338,6 +4390,7 @@ void do_wear(CHAR_DATA *ch, char *argument)
 			obj_next = obj->next_content;
 			if (obj->wear_loc == WEAR_NONE
 			&& can_see_obj(ch, obj)
+			&& allowed_to_wear(ch, obj)
 			&& is_wearable(obj))
 			{
 

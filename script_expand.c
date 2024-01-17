@@ -3089,6 +3089,24 @@ EXPAND_TYPE(object)
 		arg->d.material = self ? self->material : NULL;
 		break;
 
+	case ENTITY_OBJ_CLASS:
+		arg->type = ENT_CLASS;
+		arg->d.clazz = self ? self->clazz : NULL;
+		break;
+
+	case ENTITY_OBJ_CLASSTYPE:
+		arg->type = ENT_STAT;
+		arg->d.stat.value = self ? self->clazz_type : CLASS_NONE;
+		arg->d.stat.table = class_types;
+		arg->d.stat.def_value = NO_FLAG;
+		break;
+
+	// TODO: FIX
+	case ENTITY_OBJ_RACE:
+		arg->type = ENT_RACE;
+		arg->d.race = NULL;
+		break;
+
 	// Multi-typing
 	case ENTITY_OBJ_TYPE_AMMO:
 		arg->type = ENT_OBJECT_AMMO;
@@ -3306,6 +3324,28 @@ EXPAND_TYPE(object_id)
 	case ENTITY_OBJ_ISSTACHED:
 		arg->type = ENT_BOOLEAN;
 		arg->d.boolean = false;
+		break;
+
+	case ENTITY_OBJ_MATERIAL:
+		arg->type = ENT_MATERIAL;
+		arg->d.material = NULL;
+		break;
+
+	case ENTITY_OBJ_CLASS:
+		arg->type = ENT_CLASS;
+		arg->d.clazz = NULL;
+		break;
+
+	case ENTITY_OBJ_CLASSTYPE:
+		arg->type = ENT_STAT;
+		arg->d.stat.value = CLASS_NONE;
+		arg->d.stat.table = class_types;
+		arg->d.stat.def_value = NO_FLAG;
+		break;
+
+	case ENTITY_OBJ_RACE:
+		arg->type = ENT_RACE;
+		arg->d.race = NULL;
 		break;
 
 	// Multi-typing

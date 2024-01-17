@@ -231,6 +231,8 @@ const struct olc_cmd_type oedit_table[] =
 	{ "ammo",			oedit_type_ammo			},
 	{ "armor",			oedit_type_armor		},
 	{ "book", 			oedit_type_book			},
+	{ "class",			oedit_class				},
+	{ "classtype",		oedit_class_type		},
 	{ "commands",		show_commands			},
 	{ "comments",		oedit_comments			},
 	{ "condition",		oedit_condition			},
@@ -266,6 +268,7 @@ const struct olc_cmd_type oedit_table[] =
 	{ "persist",		oedit_persist			},
 	{ "portal",			oedit_type_portal		},
 	{ "prev",			oedit_prev				},
+	{ "race",			oedit_race				},
 	{ "scriptkwd",		oedit_skeywds			},
 	{ "scroll",			oedit_type_scroll		},
 	{ "short",			oedit_short				},
@@ -2918,6 +2921,9 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
 	new_obj->fragility = old_obj->fragility;
 	new_obj->times_allowed_fixed = old_obj->times_allowed_fixed;
 	new_obj->comments = old_obj->comments;
+	new_obj->clazz = old_obj->clazz;
+	new_obj->clazz_type = old_obj->clazz_type;
+	new_obj->race = list_copy(old_obj->race);
 
 	for (i = 0; i < MAX_OBJVALUES; i++)
 		new_obj->value[i] = old_obj->value[i];
@@ -2934,15 +2940,25 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
 	}
 	*/
 
+	AMMO(new_obj) = copy_ammo_data(AMMO(old_obj));
+	ARMOR(new_obj) = copy_armor_data(ARMOR(old_obj));
 	BOOK(new_obj) = copy_book_data(BOOK(old_obj));
 	CONTAINER(new_obj) = copy_container_data(CONTAINER(old_obj));
 	FLUID_CON(new_obj) = copy_fluid_container_data(FLUID_CON(old_obj));
 	FOOD(new_obj) = copy_food_data(FOOD(old_obj));
 	FURNITURE(new_obj) = copy_furniture_data(FURNITURE(old_obj));
+	INK(new_obj) = copy_ink_data(INK(old_obj));
+	INSTRUMENT(new_obj) = copy_instrument_data(INSTRUMENT(old_obj));
+	JEWELRY(new_obj) = copy_jewelry_data(JEWELRY(old_obj));
 	LIGHT(new_obj) = copy_light_data(LIGHT(old_obj));
+	MIST(new_obj) = copy_mist_data(MIST(old_obj));
 	MONEY(new_obj) = copy_money_data(MONEY(old_obj));
 	PAGE(new_obj) = copy_book_page(PAGE(old_obj));
-	PORTAL(new_obj) = copy_portal_data(PORTAL(old_obj), true);
+	PORTAL(new_obj) = copy_portal_data(PORTAL(old_obj), false);
+	SCROLL(new_obj) = copy_scroll_data(SCROLL(old_obj));
+	TATTOO(new_obj) = copy_tattoo_data(TATTOO(old_obj));
+	WAND(new_obj) = copy_wand_data(WAND(old_obj));
+	WEAPON(new_obj) = copy_weapon_data(WEAPON(old_obj));
 
 	// Only copy impsig if imp (to block cheaters)
 	if (get_trust(ch) == MAX_LEVEL)

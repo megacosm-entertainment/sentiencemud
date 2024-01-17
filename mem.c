@@ -483,6 +483,9 @@ OBJ_DATA *new_obj(void)
     obj->lstache = list_create(false);
 	obj->lock = NULL;
 	obj->waypoints = NULL;
+    obj->clazz_type    = CLASS_NONE;
+    obj->clazz         = NULL;
+    obj->race          = list_create(false);
 
     VALIDATE(obj);
     return obj;
@@ -586,6 +589,8 @@ void free_obj(OBJ_DATA *obj)
 		list_destroy(obj->waypoints);
 		obj->waypoints = NULL;
 	}
+
+    list_destroy(obj->race);
 
     free_ammo_data(AMMO(obj));
     free_armor_data(ARMOR(obj));
@@ -2131,6 +2136,9 @@ OBJ_INDEX_DATA *new_obj_index( void )
     pObj->comments      = &str_empty[0];
     pObj->lock			= NULL;
     pObj->waypoints		= NULL;
+    pObj->clazz_type    = CLASS_NONE;
+    pObj->clazz         = NULL;
+    pObj->race          = list_create(false);
 
     return pObj;
 }
@@ -2165,6 +2173,8 @@ void free_obj_index( OBJ_INDEX_DATA *pObj )
 		list_destroy(pObj->waypoints);
 		pObj->waypoints = NULL;
 	}
+
+    list_destroy(pObj->race);
 
     // Item Multi-typing data
     free_container_data(CONTAINER(pObj));

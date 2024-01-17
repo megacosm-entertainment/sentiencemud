@@ -5762,10 +5762,6 @@ struct	obj_index_data
     MATERIAL *material;
     int16_t		item_type;
     long        extra[4];
-//    long 		extra_flags;
-//    long 		extra2_flags;
-//    long		extra3_flags;
-//    long		extra4_flags;
     long		wear_flags;
     int16_t		level;
     int16_t 		condition;
@@ -5784,6 +5780,11 @@ struct	obj_index_data
     char *		skeywds; /* Script keywords */
     char *      comments;
     pVARIABLE		index_vars;
+
+    // Restrictions
+    int16_t     clazz_type;
+    CLASS_DATA  *clazz;
+    LLIST   *race;
 
 	int light;		/* Inherent light [-1000 to 1000] */
 	int alpha;		/* Transparency of object [0,1000] (0.0% to 100.0%) */
@@ -5906,6 +5907,11 @@ struct	obj_data
     int 		value	[MAX_OBJVALUES];
     SPELL_DATA		*spells;
     WNUM		orig_wnum;
+
+    // Restrictions
+    int16_t     clazz_type;
+    CLASS_DATA  *clazz;
+    LLIST *race;
 
     LOCK_STATE		*lock;
 
@@ -10155,6 +10161,7 @@ bool is_darked( ROOM_INDEX_DATA *room );
 bool is_dead( CHAR_DATA *ch );
 void deduct_move( CHAR_DATA *ch, int amount );
 bool is_wearable( OBJ_DATA *obj );
+bool allowed_to_wear(CHAR_DATA *ch, OBJ_DATA *obj);
 bool is_using_anyone( OBJ_DATA *obj );
 void return_from_maze( CHAR_DATA *ch );
 CHAR_DATA *get_char_world_vnum( CHAR_DATA *ch, long vnum );

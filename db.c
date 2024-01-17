@@ -3976,6 +3976,10 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
     obj->weight		= pObjIndex->weight;
     obj->cost           = pObjIndex->cost;
     obj->timer		= pObjIndex->timer;
+	
+	obj->clazz_type = pObjIndex->clazz_type;
+	obj->clazz      = pObjIndex->clazz;
+	obj->race       = list_copy(pObjIndex->race);
 
     if( pObjIndex->lock )
     {

@@ -2354,6 +2354,31 @@ void do_ostat(CHAR_DATA *ch, char *argument)
                 obj->in_wilds->uid, obj->in_wilds->name, obj->x, obj->y);
     add_buf(buffer, buf);
 
+	sprintf(buf, "{BClass: {x%s{B Class Type: {x%s{B Race:{x",
+		IS_VALID(obj->clazz) ? obj->clazz->name : "(none)",
+		(obj->clazz_type != CLASS_NONE) ? flag_string(class_types, obj->clazz_type) : "(none)");
+	if (list_size(obj->race) > 0)
+	{
+		ITERATOR rit;
+		RACE_DATA *race;
+		bool first = true;
+		iterator_start(&rit, obj->race);
+		while((race = (RACE_DATA *)iterator_nextdata(&rit)))
+		{
+			if (first)
+				strcat(buf, " ");
+			else
+				strcat(buf, ", ");
+			strcat(buf, race->name);
+			first = false;
+		}
+		iterator_stop(&rit);
+	}
+	else
+		strcat(buf, " (none)");
+	strcat(buf, "\n\r");
+	add_buf(buffer, buf);
+
 	send_to_char("{BValues:{x",ch);
 	for(int i = 0; i < MAX_OBJVALUES; i++)
 	{

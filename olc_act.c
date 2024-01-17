@@ -7827,23 +7827,28 @@ OEDIT(oedit_show)
 		pObj->extra[3], extra4_flags));
 	add_buf(buffer, buf);
 
-	/*
-    sprintf(buf, "Extra flags:  {B[{x%s{B]{x\n\r",
-	flag_string(extra_flags, pObj->extra[0]));
-    add_buf(buffer, buf);
+	sprintf(buf, "Class:        {B[{x%s{B]{x\n\r", IS_VALID(pObj->clazz) ? pObj->clazz->name : "none");
+	add_buf(buffer, buf);
 
-    sprintf(buf, "Extra2 flags: {B[{x%s{B]{x\n\r",
-		    flag_string(extra2_flags, pObj->extra[1]));
-    add_buf(buffer, buf);
+	sprintf(buf, "Class Type:   {B[{x%s{B]{x\n\r", flag_string(class_types, pObj->clazz_type));
+	add_buf(buffer, buf);
 
-    sprintf(buf, "Extra3 flags: {B[{x%s{B]{x\n\r",
-		    flag_string(extra3_flags, pObj->extra[2]));
-    add_buf(buffer, buf);
-
-    sprintf(buf, "Extra4 flags: {B[{x%s{B]{x\n\r",
-		    flag_string(extra4_flags, pObj->extra[3]));
-    add_buf(buffer, buf);
-	*/
+	add_buf(buffer, "Race:\n\r");
+	if (list_size(pObj->race) > 0)
+	{
+		int i = 0;
+		ITERATOR rit;
+		RACE_DATA *race;
+		iterator_start(&rit, pObj->race);
+		while((race = (RACE_DATA *)iterator_nextdata(&rit)))
+		{
+			sprintf(buf, " %-2d %s\n\r", ++i, race->name);
+			add_buf(buffer, buf);
+		}
+		iterator_stop(&rit);
+	}
+	else
+		add_buf(buffer, "  None\n\r");
 
     sprintf(buf, "OUpdate:      {B[{x%s{B]{x\n\r",
     	pObj->update == true ? "Yes" : "No");
@@ -16276,6 +16281,146 @@ OEDIT(oedit_level)
     }
 
     return true;
+}
+
+OEDIT(oedit_class)
+{
+	OBJ_INDEX_DATA *pObj;
+
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  class <class name>\n\r", ch);
+		return false;
+	}
+
+	if(!str_prefix(argument, "none"))
+	{
+		pObj->clazz = NULL;
+		send_to_char("Class cleared.\n\r", ch);
+	}
+	else
+	{
+		CLASS_DATA *clazz = get_class_data(argument);
+		if (!IS_VALID(clazz))
+		{
+			send_to_char("No such class by that name.\n\r", ch);
+			return false;
+		}
+
+		pObj->clazz = clazz;
+		send_to_char("Class changed.\n\r", ch);
+	}
+	return true;
+}
+
+OEDIT(oedit_class_type)
+{
+	OBJ_INDEX_DATA *pObj;
+
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  classtype <class type>\n\r", ch);
+		return false;
+	}
+
+	if (!str_prefix(argument, "none"))
+	{
+		pObj->clazz_type = CLASS_NONE;
+		send_to_char("Class Type cleared.\n\r", ch);
+	}
+	else
+	{
+		int type;
+		if ((type = stat_lookup(argument, class_types, NO_FLAG)) == NO_FLAG)
+		{
+			send_to_char("Invalid class type.  Use '? classtypes' for valid list.\n\r", ch);
+			show_flag_cmds(ch, class_types);
+			return false;
+		}
+
+		pObj->clazz_type = type;
+		send_to_char("Class Type changed.\n\r", ch);
+	}
+	return true;
+}
+
+OEDIT(oedit_race)
+{
+	OBJ_INDEX_DATA *pObj;
+
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  race add <race name>\n\r", ch);
+		send_to_char("         race remove <#>\n\r", ch);
+		send_to_char("Syntax:  race clear\n\r", ch);
+		return false;
+	}
+
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+
+	if (!str_prefix(arg, "add"))
+	{
+		RACE_DATA *race = get_race_data(argument);
+		if (!IS_VALID(race))
+		{
+			send_to_char("No such race by that name.\n\r", ch);
+			return false;
+		}
+
+		if (!race->playable)
+		{
+			send_to_char("Only playable races allowed.\n\r", ch);
+			return false;
+		}
+
+		if (list_contains(pObj->race, race, NULL))
+		{
+			send_to_char("That race is already in the list.\n\r", ch);
+			return false;
+		}
+
+		list_appendlink(pObj->race, race);
+		send_to_char("Race added.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "remove"))
+	{
+		if (list_size(pObj->race) < 1)
+		{
+			send_to_char("Race list is already empty.\n\r", ch);
+			return false;
+		}
+
+		int index;
+		if (!is_number(argument) || (index = atoi(argument)) < 1 || index > list_size(pObj->race))
+		{
+			send_to_char(formatf("Please provide a number from 1 to %d.\n\r", list_size(pObj->race)), ch);
+			return false;
+		}
+
+		list_remnthlink(pObj->race, index, false);
+		send_to_char("Race removed.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "clear"))
+	{
+		list_clear(pObj->race);
+		send_to_char("Race list cleared.\n\r", ch);		
+		return true;
+	}
+
+	oedit_race(ch, "");
+	return false;
 }
 
 
