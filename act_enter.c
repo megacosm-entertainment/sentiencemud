@@ -685,13 +685,16 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 	} else if(IS_SET(PORTAL(portal)->flags,GATE_SNEAK)) {
 		if(!MOUNTED(ch) && !ch->fighting && !IS_AFFECTED(ch,AFF_SNEAK) &&
 			(number_percent() < get_skill(ch,gsk_sneak))) {
+
+			CLASS_LEVEL *cl = get_class_level(ch, NULL);
+
 			AFFECT_DATA af;
 			memset(&af,0,sizeof(af));
 			af.where     = TO_AFFECTS;
 			af.group     = AFFGROUP_PHYSICAL;
 			af.skill     = gsk_sneak;
-			af.level     = ch->level;
-			af.duration  = ch->level;
+			af.level     = cl ? cl->level : MAX_CLASS_LEVEL;
+			af.duration  = cl ? cl->level : MAX_CLASS_LEVEL;
 			af.location  = APPLY_NONE;
  			af.modifier  = 0;
 			af.bitvector = AFF_SNEAK;

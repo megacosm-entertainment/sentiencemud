@@ -194,12 +194,30 @@ static void __init_player_versioning_009(struct __player_data_version_009 *data)
 		data->armour[i] = 0;
 }
 
+#define OLD_LEVEL_MINIGOD		150
+#define OLD_LEVEL_GOD			151
+#define OLD_LEVEL_ASCENDANT		152
+#define OLD_LEVEL_SUPREMACY		153
+#define OLD_LEVEL_CREATOR		154
+#define OLD_LEVEL_IMPLEMENTOR	155
+struct __player_data_version_010
+{
+	int invis_level;
+	int incog_level;
+};
+
+static void __init_player_versioning_010(struct __player_data_version_010 *data)
+{
+	data->invis_level = 0;
+	data->incog_level = 0;
+}
 
 struct __player_data_versioning
 {
 	struct __player_data_version_007 _007;
 	struct __player_data_version_008 _008;
 	struct __player_data_version_009 _009;
+	struct __player_data_version_010 _010;
 };
 
 static void __init_player_versioning(struct __player_data_versioning *data)
@@ -207,6 +225,7 @@ static void __init_player_versioning(struct __player_data_versioning *data)
 	__init_player_versioning_007(&data->_007);
 	__init_player_versioning_008(&data->_008);
 	__init_player_versioning_009(&data->_009);
+	__init_player_versioning_010(&data->_010);
 }
 
 void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__versioning);
@@ -429,6 +448,9 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     fprintf(fp, "LogO %ld\n", (long int)current_time		);
     fprintf(fp, "LogI %ld\n", (long int) ch->pcdata->last_login	);
 
+	if(!IS_NPC(ch))
+		fprintf(fp, "StaffRank %s~\n", flag_string(staff_ranks, ch->pcdata->staff_rank));
+
     if (ch->dead) {
 	fprintf(fp, "DeathTimeLeft %d\n", ch->time_left_death);
         fprintf(fp, "Dead\n");
@@ -486,7 +508,6 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 
     if (ch->pcdata->email != NULL)
 	fprintf(fp, "Email %s~\n",  ch->pcdata->email	);
-    fprintf(fp, "Levl %d\n",	ch->level		);
     fprintf(fp, "TLevl %d\n",	ch->tot_level		);
     fprintf(fp, "Sec  %d\n",    ch->pcdata->security	);	/* OLC */
     fprintf(fp, "ChDelay %d\n", ch->pcdata->challenge_delay);
@@ -724,9 +745,9 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     if (ch->wiznet)
     	fprintf(fp, "Wizn %s\n",   print_flags(ch->wiznet));
     if (ch->invis_level)
-	fprintf(fp, "Invi %d\n", 	ch->invis_level	);
+		fprintf(fp, "Wizinvis %s\n", flag_string(staff_ranks, ch->invis_level));
     if (ch->incog_level)
-	fprintf(fp,"Inco %d\n",ch->incog_level);
+		fprintf(fp, "Incognito %s\n", flag_string(staff_ranks, ch->incog_level));
     fprintf(fp, "Pos  %d\n",
 	ch->position == POS_FIGHTING ? POS_STANDING : ch->position);
     if (ch->practice != 0)
@@ -1079,7 +1100,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
        is logged in. On game shutdown it is written to ../data/world/staff.dat. When
        the player logs in, a pointer to the immortal staff entry is set up for them
        here. */
-    if (ch->tot_level >= LEVEL_IMMORTAL) {
+    if (get_staff_rank(ch) > STAFF_PLAYER) {
 	/* If their immortal isn't found, give them a blank one so we don't segfault. */
 		if ((immortal = find_immortal(ch->name)) == NULL) {
 			sprintf(buf, "load_char_obj: no immortal_data found for immortal character %s!", ch->name);
@@ -1101,8 +1122,14 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 			//ch->tot_level = immortal->level;
 		}
 	    immortal->pc = ch->pcdata;
-
     }
+	else if ((immortal = find_immortal(ch->name)) != NULL)
+	{
+		log_string(formatf("load_char_obj: resolving immortal data for %s.\n\r", ch->name));
+		ch->pcdata->staff_rank = STAFF_IMMORTAL;
+		ch->pcdata->immortal = immortal;
+		immortal->pc = ch->pcdata;
+	}
 
 
     // Fix char.
@@ -2026,8 +2053,13 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 	    KEY("Immune", ch->imm_flags,	fread_flag(fp));
 	    KEY("ImmunePerm", ch->imm_flags_perm,	fread_flag(fp));
 
-	    KEY("Inco",	ch->incog_level,	fread_number(fp));
-	    KEY("Invi",	ch->invis_level,	fread_number(fp));
+		if (ch->version < VERSION_PLAYER_010)
+		{
+			KEY("Inco",	__versioning->_010.incog_level,	fread_number(fp));
+			KEY("Invi",	__versioning->_010.invis_level,	fread_number(fp));
+		}
+
+		KEY("Incognito", ch->incog_level, stat_lookup(fread_string(fp), staff_ranks, STAFF_PLAYER));
 
 	    if (!str_cmp(word, "Ignore"))
 	    {
@@ -2051,9 +2083,6 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 	case 'L':
 	    KEY("LastLevel",	ch->pcdata->last_level, fread_number(fp));
 	    KEY("LLev",	ch->pcdata->last_level, fread_number(fp));
-	    KEY("Level",	ch->level,		fread_number(fp));
-	    KEY("Lev",		ch->level,		fread_number(fp));
-	    KEY("Levl",	ch->level,		fread_number(fp));
 	    KEY("LogO",	lastlogoff,		fread_number(fp));
 	    KEY("LogI",	ch->pcdata->last_login,	fread_number(fp));
 	    KEY("LongDescr",	ch->long_descr,		fread_string(fp));
@@ -2455,6 +2484,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 	    break;
 
 	case 'S':
+		KEY("StaffRank", ch->pcdata->staff_rank, stat_lookup(fread_string(fp),staff_ranks,STAFF_PLAYER));
 	    KEY("SavingThrow",	ch->saving_throw,	fread_number(fp));
 	    KEY("Save",	ch->saving_throw,	fread_number(fp));
 	    KEY("Scro",	ch->lines,		fread_number(fp));
@@ -2618,8 +2648,6 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
             KEY("TrueSex",     ch->pcdata->true_sex,  	fread_number(fp));
 	    KEY("TSex",	ch->pcdata->true_sex,   fread_number(fp));
 	    KEY("Trai",	ch->train,		fread_number(fp));
-	    KEY("Trust",	ch->trust,		fread_number(fp));
-	    KEY("Tru",		ch->trust,		fread_number(fp));
 	    KEY("TLevl",	ch->tot_level,		fread_number(fp));
 
 	    if (!str_prefix("Toxn", word))
@@ -2730,6 +2758,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
  	    KEY("WarsWon",	ch->wars_won,	fread_number(fp));
 	    KEY("Wimpy",	ch->wimpy,		fread_number(fp));
 	    KEY("Wimp",	ch->wimpy,		fread_number(fp));
+		KEY("Wizinvis", ch->invis_level, stat_lookup(fread_string(fp), staff_ranks, STAFF_PLAYER));
 	    KEY("Wizn",	ch->wiznet,		fread_flag(fp));
 
 	    break;
@@ -6580,9 +6609,8 @@ static inline void __add_class_level(CHAR_DATA *ch, int sub_class, struct __play
 	long xp = 0;
 	if (!IS_IMMORTAL(ch) && sub_class == __versioning->_007.sub_class_current)
 	{
-		level = ch->level;	// Local class level
-		xp = ch->exp;		// Current experience
-		// TODO: will need to rescale it based upon 1-40 range, only
+		level = 1;
+		xp = 0;		// Current experience
 	}
 
 	CLASS_DATA *clazz = get_class_data(__sub_class_table[sub_class].name[0]);
@@ -6825,12 +6853,65 @@ void fix_character(CHAR_DATA *ch, struct __player_data_versioning *__versioning)
 		ch->version = VERSION_PLAYER_008;
 	}
 
+	if (ch->version < VERSION_PLAYER_010)
+	{
+		if (ch->tot_level >= OLD_LEVEL_MINIGOD)
+		{
+			switch(ch->tot_level)
+			{
+			default:					ch->pcdata->staff_rank = STAFF_IMMORTAL; break;
+			case OLD_LEVEL_ASCENDANT:	ch->pcdata->staff_rank = STAFF_ASCENDANT; break;
+			case OLD_LEVEL_SUPREMACY:	ch->pcdata->staff_rank = STAFF_SUPREMACY; break;
+			case OLD_LEVEL_CREATOR:		ch->pcdata->staff_rank = STAFF_CREATOR; break;
+			case OLD_LEVEL_IMPLEMENTOR:	ch->pcdata->staff_rank = STAFF_IMPLEMENTOR; break;
+			}
+		}
+		else
+			ch->pcdata->staff_rank = STAFF_PLAYER;
+
+
+		switch(__versioning->_010.invis_level)
+		{
+			default:					ch->invis_level = STAFF_PLAYER; break;
+			case OLD_LEVEL_MINIGOD:		ch->invis_level = STAFF_IMMORTAL; break;
+			case OLD_LEVEL_GOD:			ch->invis_level = STAFF_IMMORTAL; break;
+			case OLD_LEVEL_ASCENDANT:	ch->invis_level = STAFF_ASCENDANT; break;
+			case OLD_LEVEL_SUPREMACY:	ch->invis_level = STAFF_SUPREMACY; break;
+			case OLD_LEVEL_CREATOR:		ch->invis_level = STAFF_CREATOR; break;
+			case OLD_LEVEL_IMPLEMENTOR:	ch->invis_level = STAFF_IMPLEMENTOR; break;
+		}
+
+		switch(__versioning->_010.incog_level)
+		{
+			default:					ch->incog_level = STAFF_PLAYER; break;
+			case OLD_LEVEL_MINIGOD:		ch->incog_level = STAFF_IMMORTAL; break;
+			case OLD_LEVEL_GOD:			ch->incog_level = STAFF_IMMORTAL; break;
+			case OLD_LEVEL_ASCENDANT:	ch->incog_level = STAFF_ASCENDANT; break;
+			case OLD_LEVEL_SUPREMACY:	ch->incog_level = STAFF_SUPREMACY; break;
+			case OLD_LEVEL_CREATOR:		ch->incog_level = STAFF_CREATOR; break;
+			case OLD_LEVEL_IMPLEMENTOR:	ch->incog_level = STAFF_IMPLEMENTOR; break;
+		}
+
+		ch->tot_level = 0;
+		ITERATOR lit;
+		CLASS_LEVEL *level;
+		iterator_start(&lit, ch->pcdata->classes);
+		while((level = (CLASS_LEVEL *)iterator_nextdata(&lit)))
+		{
+			if (!IS_SET(level->clazz->flags, CLASS_NO_LEVEL))
+			{
+				ch->tot_level += level->level;
+			}
+		}
+		iterator_stop(&lit);
+	}
+
     if (IS_IMMORTAL(ch))
     {
 		i = 0;
 		while (wiznet_table[i].name != NULL)
 		{
-			if (ch->tot_level < wiznet_table[i].level)
+			if (get_staff_rank(ch) < wiznet_table[i].rank)
 			{
 			REMOVE_BIT(ch->wiznet, wiznet_table[i].flag);
 			}

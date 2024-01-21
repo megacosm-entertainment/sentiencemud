@@ -1303,8 +1303,8 @@ void close_socket(DESCRIPTOR_DATA *dclose)
 	/* cut down on wiznet spam when rebooting */
 	if (dclose->connected == CON_PLAYING && !merc_down)
 	{
-	    if (ch->invis_level < LEVEL_IMMORTAL)
-		act("$n has lost $s link.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	    if (ch->invis_level < STAFF_IMMORTAL)
+			act("$n has lost $s link.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		wiznet("$N has lost $S link.",ch,NULL,WIZ_LINKS,0,0);
 
 	    ch->desc = NULL;
@@ -1510,14 +1510,11 @@ void read_from_buffer(DESCRIPTOR_DATA *d)
 			sprintf(log_buf, "%s input spamming!", d->host);
 			log_string(log_buf);
 
-			wiznet("Spam spam spam $N spam spam spam!",
-				d->character,NULL,WIZ_SPAM,0,get_trust(d->character));
+			wiznet("Spam spam spam $N spam spam spam!", d->character,NULL,WIZ_SPAM,0,get_staff_rank(d->character));
 			if (d->incomm[0] == '!')
-				wiznet(d->inlast,d->character,NULL,WIZ_SPAM,0,
-				get_trust(d->character));
+				wiznet(d->inlast,d->character,NULL,WIZ_SPAM,0,get_staff_rank(d->character));
 			else
-				wiznet(d->incomm,d->character,NULL,WIZ_SPAM,0,
-				get_trust(d->character));
+				wiznet(d->incomm,d->character,NULL,WIZ_SPAM,0,get_staff_rank(d->character));
 
 			d->repeat = 0;
 
@@ -2295,7 +2292,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 					sprintf(log_buf, "Denying access to %s@%s (bad password).",
 					ch->name, d->host);
 					log_string(log_buf);
-					wiznet(log_buf,NULL,NULL,WIZ_LOGINS,0,get_trust(ch));
+					wiznet(log_buf,NULL,NULL,WIZ_LOGINS,0,get_staff_rank(ch));
 					write_to_buffer(d, "Wrong password.\n\r", 0);
 					close_socket(d);
 					return;
@@ -2309,7 +2306,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 				/* Log bad password attempts */
 				sprintf(log_buf, "Denying access to %s@%s (bad password).", ch->name, d->host);
 				log_string(log_buf);
-				wiznet(log_buf,NULL,NULL,WIZ_LOGINS,0,get_trust(ch));
+				wiznet(log_buf,NULL,NULL,WIZ_LOGINS,0,get_staff_rank(ch));
 				write_to_buffer(d, "Wrong password.\n\r", 0);
 				close_socket(d);
 				return;
@@ -2348,7 +2345,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		{
 			send_to_char("{BWelcome, Immortal.{x\n\r\n\r", ch);
 			do_function(ch, &do_imotd, "");
-			if(ch->tot_level >= MAX_LEVEL) {
+			if(IS_IMPLEMENTOR(ch)) {
 				if(wizlock) send_to_char("\n\r{b-{B==={C=={W[ {YWIZLOCK ACTIVE{W ]{C=={B==={b-{x\n\r", ch);
 				if(newlock) send_to_char("\n\r{b-{B==={C=={W[ {GNEWLOCK ACTIVE{W ]{C=={B==={b-{x\n\r", ch);
 			}
@@ -2554,7 +2551,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		write_to_buffer(d, "\n\r", 2);
 
 		wiznet("Newbie alert!  $N sighted.",ch,NULL,WIZ_NEWBIE,0,0);
-		/* wiznet(log_buf,NULL,NULL,WIZ_NEWBIE,0,get_trust(ch));*/
+		/* wiznet(log_buf,NULL,NULL,WIZ_NEWBIE,0,get_staff_rank(ch));*/
 
 		send_to_char("\n\r{YChoose an alignment ({GGood/Neutral/Evil{Y):{x ", ch);
 		d->connected = CON_GET_ALIGNMENT;
@@ -2793,7 +2790,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		/* Set up default toggles*/
 		for (i = 0; pc_set_table[i].name != NULL; i++)
 		{
-			if (pc_set_table[i].default_state == SETTING_ON && ch->tot_level >= pc_set_table[i].min_level)
+			if (pc_set_table[i].default_state == SETTING_ON && get_staff_rank(ch) >= pc_set_table[i].min_rank)
 			{
 				if (pc_set_table[i].vector != 0)
 				{
@@ -2824,7 +2821,6 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			}
 		}
 
-		ch->level     = 0;
 		ch->tot_level = 0;
 
 		d->connected = CON_READ_MOTD;
@@ -3132,7 +3128,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 
 		///////////////////////////////////////////////
 		// New player
-		if (ch->level == 0)
+		if (ch->tot_level == 0)
 		{
 			ch->exp	= 0;
 			ch->hit	= ch->max_hit;
@@ -3144,13 +3140,12 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			if (fBootstrap)
 			{
 				log_string("Bootstrapping game");
-				// Bootstrap the building process and make this player a MAX_LEVEL
+				// Bootstrap the building process and make this player an Implementor
 				send_to_char("{WBOOTSTRAPPING SENTIENCE!{x\n\r", ch);
-				sprintf(buf, "Upgrading you to level {Y%d{x.\n\r", MAX_LEVEL);
-				send_to_char(buf, ch);
+				send_to_char("Upgrading you to {YIMPLEMENTOR{x.\n\r", ch);
 
-				ch->level = MAX_LEVEL;
-				ch->tot_level = MAX_LEVEL;
+				ch->tot_level = 1;
+				ch->pcdata->staff_rank = STAFF_IMPLEMENTOR;
 				ch->pcdata->security = 9;
 			    free_string(ch->prompt);
     			ch->prompt = str_dup("{x[%o][%O] %R - %h> %c");
@@ -3244,7 +3239,6 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 					}
 				}
 
-				ch->level = 1;
 				ch->tot_level = 1;
 			}
 		}

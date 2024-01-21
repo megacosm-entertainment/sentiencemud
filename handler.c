@@ -446,8 +446,10 @@ int get_skill(CHAR_DATA *ch, SKILL_DATA *skill)
     }
 	*/
 
+	CLASS_LEVEL *cl = get_class_level(ch, NULL);
+
     if (!IS_VALID(skill)) /* shorthand for level based skills */
-        rating = ch->level * 5 / 2;
+        rating = (cl ? cl->level : ch->tot_level) * 5 / 2;
     else if (!IS_NPC(ch))
     {
 		SKILL_ENTRY *entry = skill_entry_findskill(ch->sorted_skills, skill);
@@ -625,11 +627,11 @@ int get_weapon_skill(CHAR_DATA *ch, SKILL_DATA *skill)
     if (IS_NPC(ch))
     {
 		if (!IS_VALID(skill))
-			rating = 3 * ch->level;
+			rating = 3 * ch->tot_level;
 		else if (skill == gsk_hand_to_hand)
-			rating = 40 + 2 * ch->level;
+			rating = 40 + 2 * ch->tot_level;
 		else
-			rating = 40 + 5 * ch->level / 2;
+			rating = 40 + 5 * ch->tot_level / 2;
     }
     else
     {
@@ -824,20 +826,11 @@ void reset_char(CHAR_DATA *ch)
 	ch->sex = ch->pcdata->true_sex;
 }
 
-
-/*
- * Retrieve a character's trusted level for permission checking.
- */
-int get_trust(CHAR_DATA *ch)
+int get_staff_rank(CHAR_DATA *ch)
 {
-    if (ch == NULL)
-	return 0;
+	if (!IS_VALID(ch) || IS_NPC(ch)) return STAFF_PLAYER;	// Treat NPCs as players in this situation
 
-
-    if (IS_NPC(ch))
-	return (URANGE(1,ch->tot_level,149));
-    else
-	return ch->tot_level;
+	return URANGE(STAFF_PLAYER,ch->pcdata->staff_rank,STAFF_IMPLEMENTOR);
 }
 
 
@@ -903,8 +896,8 @@ int get_max_train(CHAR_DATA *ch, int stat)
 {
     int max;
 
-    if (IS_NPC(ch) || ch->level > LEVEL_IMMORTAL)
-	return 25;
+    if (IS_NPC(ch) || get_staff_rank(ch) >= STAFF_IMMORTAL)
+		return 25;
 
     max = ch->race->max_stats[stat];
 /* nrrk! disabling this, too! -- Areo
@@ -929,7 +922,7 @@ int get_max_train(CHAR_DATA *ch, int stat)
  */
 int can_carry_n(CHAR_DATA *ch)
 {
-    if (!IS_NPC(ch) && ch->level >= LEVEL_IMMORTAL)
+    if (!IS_NPC(ch) && get_staff_rank(ch) > STAFF_PLAYER)
 	return 1000;
 
     if (IS_NPC(ch) && IS_SET(ch->act[0], ACT_PET))
@@ -946,7 +939,7 @@ int can_carry_w(CHAR_DATA *ch)
 {
     int weight;
 
-    if (!IS_NPC(ch) && ch->level >= LEVEL_IMMORTAL)
+    if (!IS_NPC(ch) && get_staff_rank(ch) > STAFF_PLAYER)
 	return 10000000;
 
     if (IS_NPC(ch) && IS_SET(ch->act[0], ACT_PET))
@@ -2454,14 +2447,20 @@ void equip_char(CHAR_DATA *ch, OBJ_DATA *obj, int iWear)
 	return;
     */
 
+	CLASS_LEVEL *cl = get_class_level(ch, NULL);
+
     if (!IS_IMMORTAL(ch) && !IS_NPC(ch)) {
-        /* If the object is not a mortal object
-        -or- is higher object level and the item is not flagged all_remort or the char is not remort */
-        if ((obj->level > LEVEL_HERO) ||
-        ((ch->tot_level < obj->level) && !(IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)))) {
-            return;
-        }
+		if (obj->pIndexData->immortal)
+			return;
+		// If the object is too high level for your current class
+        if (IS_VALID(cl) && cl->level < obj->level)
+			return;
+		if (!IS_VALID(cl) && ch->tot_level < obj->level)
+			return;
     }
+
+	if (!allowed_to_wear(ch, obj))
+		return;
 
 
     if ((IS_OBJ_STAT(obj, ITEM_ANTI_EVIL)    && IS_EVIL(ch)   )
@@ -4416,7 +4415,7 @@ bool room_is_private(ROOM_INDEX_DATA *pRoomIndex, CHAR_DATA *looker)
     int count;
     int max_lev = 0;
 
-    if (looker && !IS_NPC(looker) && looker->tot_level == MAX_LEVEL)
+    if (looker && !IS_NPC(looker) && IS_IMPLEMENTOR(looker) && IS_SET(looker->act[1], PLR_HOLYWARP))
 	return false;
 
     count = 0;
@@ -4475,13 +4474,13 @@ bool can_see_imm(CHAR_DATA *ch, CHAR_DATA *victim)
 		}
 	}
 
-	if (ch->tot_level < victim->invis_level)
+	if (get_staff_rank(ch) < victim->invis_level)
 		return false;
 
 	if (!IS_IMMORTAL(ch) && IS_NPC(victim) && IS_SET(victim->act[1], ACT2_WIZI_MOB) && !IS_SET(ch->act[1], ACT2_SEE_WIZI))
 		return false;
 
-	if (get_trust(ch) < victim->incog_level && ch->in_room != victim->in_room)
+	if (get_staff_rank(ch) < victim->incog_level && ch->in_room != victim->in_room)
 		return false;
 
 	return true;
@@ -4498,7 +4497,7 @@ bool can_see(CHAR_DATA *ch, CHAR_DATA *victim)
 		return false;
 
 	/* imms w/ holylight can see everyone except higher level invis imms */
-	if (!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT) && victim->invis_level <= get_trust(ch))
+	if (!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT) && victim->invis_level <= get_staff_rank(ch))
 		return true;
 
 	// Different compartments
@@ -4572,13 +4571,13 @@ bool can_see(CHAR_DATA *ch, CHAR_DATA *victim)
 		}
 	}
 
-	if (ch->tot_level < victim->invis_level)
+	if (get_staff_rank(ch) < victim->invis_level)
 		return false;
 
 	if (!IS_IMMORTAL(ch) && IS_NPC(victim) && IS_SET(victim->act[1], ACT2_WIZI_MOB) && !IS_SET(ch->act[1], ACT2_SEE_WIZI))
 		return false;
 
-	if (get_trust(ch) < victim->incog_level && ch->in_room != victim->in_room)
+	if (get_staff_rank(ch) < victim->incog_level && ch->in_room != victim->in_room)
 		return false;
 
 	return true;
@@ -4588,16 +4587,13 @@ bool can_see(CHAR_DATA *ch, CHAR_DATA *victim)
 /* visibility on a room -- for entering and exits */
 bool can_see_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
 {
-    if (IS_SET(pRoomIndex->room_flag[0], ROOM_IMP_ONLY)
-    &&  get_trust(ch) < MAX_LEVEL)
+    if (IS_SET(pRoomIndex->room_flag[0], ROOM_IMP_ONLY) && !IS_STAFF(ch, STAFF_IMPLEMENTOR))
 	return false;
 
-    if (IS_SET(pRoomIndex->room_flag[0], ROOM_GODS_ONLY)
-    &&  !IS_IMMORTAL(ch))
+    if (IS_SET(pRoomIndex->room_flag[0], ROOM_GODS_ONLY) && !IS_IMMORTAL(ch))
 	return false;
 
-    if (IS_SET(pRoomIndex->room_flag[0],ROOM_NEWBIES_ONLY)
-    &&  ch->level > 10 && !IS_IMMORTAL(ch))
+    if (IS_SET(pRoomIndex->room_flag[0],ROOM_NEWBIES_ONLY) && ch->tot_level > 10 && !IS_IMMORTAL(ch))
 	return false;
 
     return true;
@@ -6610,7 +6606,7 @@ bool can_drop_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool silent)
 	return false;
     }
 
-    if (!IS_NPC(ch) && ch->tot_level >= LEVEL_IMMORTAL)
+    if (!IS_NPC(ch) && get_staff_rank(ch) > STAFF_PLAYER)
 	return true;
 
     if (IS_SOCIAL(ch))
@@ -9364,7 +9360,7 @@ bool area_has_read_access(CHAR_DATA *ch, AREA_DATA *area)
 	if(IS_BUILDER(ch, area)) return true;
 
 	// Max rank can read anything
-	if(ch->tot_level >= MAX_LEVEL) return true;
+	if(IS_IMPLEMENTOR(ch)) return true;
 
 	return false;
 }
@@ -9388,7 +9384,7 @@ bool area_has_write_access(CHAR_DATA *ch, AREA_DATA *area)
 	if(IS_BUILDER(ch, area)) return true;
 
 	// Only a max rank, fully secured imm can write to ANYTHING
-	if(ch->tot_level < MAX_LEVEL || ch->pcdata->security < 9) return false;
+	if(!IS_IMPLEMENTOR(ch) || ch->pcdata->security < 9) return false;
 
 	return true;
 }

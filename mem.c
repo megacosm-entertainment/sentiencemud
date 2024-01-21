@@ -77,7 +77,6 @@ PROG_LIST *rprog_free;
 MISSION_DATA *mission_free;
 MISSION_PART_DATA *mission_part_free;
 QUEST_INDEX_DATA *quest_index_free;
-QUEST_INDEX_PART_DATA *quest_index_part_free;
 QUEST_LIST *quest_list_free;
 RESET_DATA *reset_free;
 ROOM_INDEX_DATA *room_index_free;
@@ -3081,31 +3080,405 @@ void free_ambush( AMBUSH_DATA *ambush )
 }
 
 
+QUEST_INDEX_SKILL_REQUIREMENT *quest_skill_requirement_free;
+QUEST_INDEX_SKILL_REQUIREMENT *new_quest_skill_requirement()
+{
+    QUEST_INDEX_SKILL_REQUIREMENT *req;
+    if (quest_skill_requirement_free)
+    {
+        req = quest_skill_requirement_free;
+        quest_skill_requirement_free = quest_skill_requirement_free->next;
+    }
+    else
+        req = alloc_mem(sizeof(QUEST_INDEX_SKILL_REQUIREMENT));
+    
+    memset(req, 0, sizeof(*req));
+
+    req->min_rating = -1;
+    req->max_rating = -1;
+
+    return req;
+}
+
+QUEST_INDEX_SKILL_REQUIREMENT *copy_quest_skill_requirement(QUEST_INDEX_SKILL_REQUIREMENT *src)
+{
+    QUEST_INDEX_SKILL_REQUIREMENT *req;
+    if (quest_skill_requirement_free)
+    {
+        req = quest_skill_requirement_free;
+        quest_skill_requirement_free = quest_skill_requirement_free->next;
+    }
+    else
+        req = alloc_mem(sizeof(QUEST_INDEX_SKILL_REQUIREMENT));
+    
+    memset(req, 0, sizeof(*req));
+
+    req->skill = src->skill;
+    req->min_rating = src->min_rating;
+    req->max_rating = src->max_rating;
+
+    return req;
+}
+
+void free_quest_skill_requirement(QUEST_INDEX_SKILL_REQUIREMENT *req)
+{
+    req->next = quest_skill_requirement_free;
+    quest_skill_requirement_free = req;
+}
+
+QUEST_INDEX_SONG_REQUIREMENT *quest_song_requirement_free;
+QUEST_INDEX_SONG_REQUIREMENT *new_quest_song_requirement()
+{
+    QUEST_INDEX_SONG_REQUIREMENT *req;
+    if (quest_song_requirement_free)
+    {
+        req = quest_song_requirement_free;
+        quest_song_requirement_free = quest_song_requirement_free->next;
+    }
+    else
+        req = alloc_mem(sizeof(QUEST_INDEX_SONG_REQUIREMENT));
+    
+    memset(req, 0, sizeof(*req));
+
+    req->min_rating = -1;
+    req->max_rating = -1;
+
+    return req;
+}
+
+QUEST_INDEX_SONG_REQUIREMENT *copy_quest_song_requirement(QUEST_INDEX_SONG_REQUIREMENT *src)
+{
+    QUEST_INDEX_SONG_REQUIREMENT *req;
+    if (quest_song_requirement_free)
+    {
+        req = quest_song_requirement_free;
+        quest_song_requirement_free = quest_song_requirement_free->next;
+    }
+    else
+        req = alloc_mem(sizeof(QUEST_INDEX_SONG_REQUIREMENT));
+    
+    memset(req, 0, sizeof(*req));
+
+    req->song = src->song;
+    req->min_rating = src->min_rating;
+    req->max_rating = src->max_rating;
+
+    return req;
+}
+
+void free_quest_song_requirement(QUEST_INDEX_SONG_REQUIREMENT *req)
+{
+    req->next = quest_song_requirement_free;
+    quest_song_requirement_free = req;
+}
+
+
+QUEST_INDEX_ITEM_REWARD *quest_item_reward_free;
+QUEST_INDEX_ITEM_REWARD *new_quest_item_reward()
+{
+    QUEST_INDEX_ITEM_REWARD *reward;
+
+    if (quest_item_reward_free)
+    {
+        reward = quest_item_reward_free;
+        quest_item_reward_free = quest_item_reward_free->next;
+    }
+    else
+        reward = alloc_mem(sizeof(*reward));
+    memset(reward, 0, sizeof(*reward));
+
+    return reward;
+}
+
+QUEST_INDEX_ITEM_REWARD *copy_quest_item_reward(QUEST_INDEX_ITEM_REWARD *src)
+{
+    QUEST_INDEX_ITEM_REWARD *reward;
+
+    if (quest_item_reward_free)
+    {
+        reward = quest_item_reward_free;
+        quest_item_reward_free = quest_item_reward_free->next;
+    }
+    else
+        reward = alloc_mem(sizeof(*reward));
+    memset(reward, 0, sizeof(*reward));
+
+    // No need to copy the wnum field, that is only used on load.
+    reward->pObj = src->pObj;
+    reward->min_count = src->min_count;
+    reward->max_count = src->max_count;
+
+    return reward;
+}
+
+void free_quest_item_reward(QUEST_INDEX_ITEM_REWARD *reward)
+{
+    reward->next = quest_item_reward_free;
+    quest_item_reward_free = reward;
+}
+
+QUEST_INDEX_SKILL_REWARD *quest_skill_reward_free;
+QUEST_INDEX_SKILL_REWARD *new_quest_skill_reward()
+{
+    QUEST_INDEX_SKILL_REWARD *reward;
+    if (quest_skill_reward_free)
+    {
+        reward = quest_skill_reward_free;
+        quest_skill_reward_free = quest_skill_reward_free->next;
+    }
+    else
+        reward = alloc_mem(sizeof(QUEST_INDEX_SKILL_REWARD));
+    
+    memset(reward, 0, sizeof(*reward));
+    
+    return reward;
+}
+
+QUEST_INDEX_SKILL_REWARD *copy_quest_skill_reward(QUEST_INDEX_SKILL_REWARD *src)
+{
+    QUEST_INDEX_SKILL_REWARD *reward;
+    if (quest_skill_reward_free)
+    {
+        reward = quest_skill_reward_free;
+        quest_skill_reward_free = quest_skill_reward_free->next;
+    }
+    else
+        reward = alloc_mem(sizeof(QUEST_INDEX_SKILL_REWARD));
+    
+    memset(reward, 0, sizeof(*reward));
+
+    reward->skill = src->skill;
+    reward->rating = src->rating;
+    
+    return reward;
+}
+
+void free_quest_skill_reward(QUEST_INDEX_SKILL_REWARD *reward)
+{
+    reward->next = quest_skill_reward_free;
+    quest_skill_reward_free = reward;
+}
+
+QUEST_INDEX_SONG_REWARD *quest_song_reward_free;
+QUEST_INDEX_SONG_REWARD *new_quest_song_reward()
+{
+    QUEST_INDEX_SONG_REWARD *reward;
+    if (quest_song_reward_free)
+    {
+        reward = quest_song_reward_free;
+        quest_song_reward_free = quest_song_reward_free->next;
+    }
+    else
+        reward = alloc_mem(sizeof(QUEST_INDEX_SONG_REWARD));
+    
+    memset(reward, 0, sizeof(*reward));
+    
+    return reward;
+}
+
+QUEST_INDEX_SONG_REWARD *copy_quest_song_reward(QUEST_INDEX_SONG_REWARD *src)
+{
+    QUEST_INDEX_SONG_REWARD *reward;
+    if (quest_song_reward_free)
+    {
+        reward = quest_song_reward_free;
+        quest_song_reward_free = quest_song_reward_free->next;
+    }
+    else
+        reward = alloc_mem(sizeof(QUEST_INDEX_SONG_REWARD));
+    
+    memset(reward, 0, sizeof(*reward));
+
+    reward->song = src->song;
+    reward->rating = src->rating;
+    
+    return reward;
+}
+
+void free_quest_song_reward(QUEST_INDEX_SONG_REWARD *reward)
+{
+    reward->next = quest_song_reward_free;
+    quest_song_reward_free = reward;
+}
+
+static void *clone_quest_skill_requirement(void *ptr)
+{
+    return copy_quest_skill_requirement((QUEST_INDEX_SKILL_REQUIREMENT *)ptr);
+}
+
+static void delete_quest_skill_requirement(void *ptr)
+{
+    free_quest_skill_requirement((QUEST_INDEX_SKILL_REQUIREMENT *)ptr);
+}
+
+static void *clone_quest_song_requirement(void *ptr)
+{
+    return copy_quest_song_requirement((QUEST_INDEX_SONG_REQUIREMENT *)ptr);
+}
+
+static void delete_quest_song_requirement(void *ptr)
+{
+    free_quest_song_requirement((QUEST_INDEX_SONG_REQUIREMENT *)ptr);
+}
+
+static void *clone_quest_item_reward(void *ptr)
+{
+    return copy_quest_item_reward((QUEST_INDEX_ITEM_REWARD *)ptr);
+}
+
+static void delete_quest_item_reward(void *ptr)
+{
+    free_quest_item_reward((QUEST_INDEX_ITEM_REWARD *)ptr);
+}
+
+static void *clone_quest_skill_reward(void *ptr)
+{
+    return copy_quest_skill_reward((QUEST_INDEX_SKILL_REWARD *)ptr);
+}
+
+static void delete_quest_skill_reward(void *ptr)
+{
+    free_quest_skill_reward((QUEST_INDEX_SKILL_REWARD *)ptr);
+}
+
+static void *clone_quest_song_reward(void *ptr)
+{
+    return copy_quest_song_reward((QUEST_INDEX_SONG_REWARD *)ptr);
+}
+
+static void delete_quest_song_reward(void *ptr)
+{
+    free_quest_song_reward((QUEST_INDEX_SONG_REWARD *)ptr);
+}
+
 QUEST_INDEX_DATA *new_quest_index( void )
 {
     QUEST_INDEX_DATA *quest_index;
 
     if (!quest_index_free)
     {
-	quest_index = alloc_perm(sizeof(*quest_index) );
+    	quest_index = alloc_perm(sizeof(*quest_index) );
     }
     else
     {
-	quest_index      = quest_index_free;
-	quest_index_free = quest_index_free->next;
+        quest_index      = quest_index_free;
+        quest_index_free = quest_index_free->next;
     }
 
-    quest_index->vnum = 0;
-    quest_index->area = NULL;
+    memset(quest_index, 0, sizeof(*quest_index));
+
+    quest_index->prerequisites = list_create(false);    // Will get changed to have a deleter in the load function
+    quest_index->next_quests = list_create(false);
+    quest_index->stages = list_create(false);           // Nothing yet.
+
     quest_index->name = str_dup("no name");
+    quest_index->description = str_dup("");
+    quest_index->clazz_type = CLASS_NONE;
+
+    quest_index->min_reputation_rank = -1;
+    quest_index->max_reputation_rank = -1;
+
+    quest_index->skills = list_createx(false, clone_quest_skill_requirement, delete_quest_skill_requirement);
+    quest_index->songs = list_createx(false, clone_quest_song_requirement, delete_quest_song_requirement);
+
+    quest_index->reputation_reward_rank = -1;
+
+    quest_index->item_rewards = list_createx(false, clone_quest_item_reward,delete_quest_item_reward);
+    quest_index->skill_rewards = list_createx(false, clone_quest_skill_reward, delete_quest_skill_reward);
+    quest_index->song_rewards = list_createx(false, clone_quest_song_reward, delete_quest_song_reward);
+
+    quest_index->reward_script_description = str_dup("");
 
     return quest_index;
 }
 
+QUEST_INDEX_DATA *copy_quest_index(QUEST_INDEX_DATA *src)
+{
+    QUEST_INDEX_DATA *quest_index;
+
+    if (!quest_index_free)
+    {
+    	quest_index = alloc_perm(sizeof(*quest_index) );
+    }
+    else
+    {
+        quest_index      = quest_index_free;
+        quest_index_free = quest_index_free->next;
+    }
+
+    memset(quest_index, 0, sizeof(*quest_index));
+
+    // area and vnum are assigned after copying
+    quest_index->prerequisites = list_copy(src->prerequisites);
+    quest_index->next_quests = list_copy(src->next_quests);
+    quest_index->stages = list_copy(src->stages);
+
+    quest_index->name = str_dup(src->name);
+    quest_index->description = str_dup(src->description);
+
+    quest_index->flags = src->flags;
+
+    quest_index->clazz = src->clazz;
+    quest_index->clazz_type = src->clazz_type;
+    quest_index->class_level = src->class_level;
+
+    quest_index->race = src->race;
+    quest_index->race_level = src->race_level;
+
+    quest_index->reputation = src->reputation;
+    quest_index->min_reputation_rank = src->min_reputation_rank;
+    quest_index->max_reputation_rank = src->max_reputation_rank;
+
+    quest_index->skills = list_copy(src->skills);
+    quest_index->songs = list_copy(src->songs);
+    for(int i = 0; i < MAX_STATS; i++)
+    {
+        quest_index->stats[i][0] = src->stats[i][0];
+        quest_index->stats[i][1] = src->stats[i][1];
+    }
+
+    quest_index->repeat_cooldown = src->repeat_cooldown;
+
+    quest_index->target_clazz = src->target_clazz;
+
+    quest_index->exp_reward = src->exp_reward;
+    quest_index->mp_reward = src->mp_reward;
+    quest_index->prac_reward = src->prac_reward;
+    quest_index->train_reward = src->train_reward;
+    quest_index->gold_reward = src->gold_reward;
+    quest_index->silver_reward = src->silver_reward;
+    quest_index->pneuma_reward = src->pneuma_reward;
+    quest_index->deity_reward = src->deity_reward;
+
+    quest_index->reputation_reward = src->reputation_reward;
+    quest_index->reputation_reward_rank = src->reputation_reward_rank;
+    quest_index->reputation_points = src->reputation_points;
+    quest_index->paragon_levels = src->paragon_levels;
+
+    quest_index->item_rewards = list_copy(src->item_rewards);
+    quest_index->skill_rewards = list_copy(src->skill_rewards);
+    quest_index->song_rewards = list_copy(src->song_rewards);
+
+    quest_index->reward_script = src->reward_script;
+    quest_index->reward_script_description = str_dup(src->reward_script_description);
+
+    return quest_index;
+}
 
 void free_quest_index( QUEST_INDEX_DATA *quest_index )
 {
     free_string( quest_index->name );
+    free_string( quest_index->description );
+    free_string( quest_index->reward_script_description );
+
+    list_destroy( quest_index->prerequisites );
+    list_destroy( quest_index->next_quests );
+    list_destroy( quest_index->stages );
+    list_destroy( quest_index->skills );
+    list_destroy( quest_index->songs );
+    list_destroy( quest_index->item_rewards );
+    list_destroy( quest_index->skill_rewards );
+    list_destroy( quest_index->song_rewards );
 
     quest_index->next = quest_index_free;
     quest_index_free = quest_index;

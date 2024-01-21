@@ -185,7 +185,7 @@ static int olc_script_typeifc[] = {
 bool script_security_check(CHAR_DATA *ch)
 {
 	if(port == PORT_NORMAL)
-		return (bool)(!IS_NPC(ch) && ch->tot_level >= (MAX_LEVEL-1));
+		return (bool)(!IS_NPC(ch) && IS_STAFF(ch, STAFF_CREATOR));
 	else
 		return true;
 }
@@ -193,9 +193,9 @@ bool script_security_check(CHAR_DATA *ch)
 bool script_imp_check(CHAR_DATA *ch)
 {
 	if(port == PORT_NORMAL)
-		return (bool)(!IS_NPC(ch) && ch->tot_level == MAX_LEVEL);
+		return (bool)(!IS_NPC(ch) && IS_IMPLEMENTOR(ch));
 	else
-		return (bool)(!IS_NPC(ch) && ch->tot_level >= (MAX_LEVEL-1));
+		return (bool)(!IS_NPC(ch) && IS_STAFF(ch, STAFF_CREATOR));
 }
 
 void mpedit( CHAR_DATA *ch, char *argument)
@@ -1321,7 +1321,7 @@ SCRIPTEDIT(scriptedit_compile)
 			return false;
 		}
 
-		if (ch->tot_level < (MAX_LEVEL-1))
+		if (!IS_STAFF(ch, STAFF_CREATOR))
 			pCode->flags |= SCRIPT_INSPECT;
 
 		if (pCode->src && pCode->edit_src && ((pCode->src == pCode->edit_src) || !str_cmp(pCode->src,pCode->edit_src))) {

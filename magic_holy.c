@@ -178,9 +178,9 @@ SPELL_FUNC(spell_exorcism)
 	act("{Y$n performs an exorcism on you!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 	act("{Y$n performs an exorcism on $N!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
 
-	lvl = victim->tot_level - ch->tot_level;
-	if(IS_REMORT(victim)) lvl += LEVEL_HERO;	// If the victim is remort, it will require MORE catalyst
-	if(IS_REMORT(ch)) lvl -= LEVEL_HERO;		// If the caster is remort, it will require LESS catalyst
+	CLASS_LEVEL *cl = get_class_level(ch, NULL);
+	CLASS_LEVEL *vcl = get_class_level(victim, NULL);
+	lvl = (IS_VALID(vcl) ? vcl->level : victim->tot_level) - (IS_VALID(cl) ? cl->level : ch->tot_level);
 	lvl = (lvl > 19) ? (lvl / 10) : 1;
 
 	catalyst = use_catalyst(ch,NULL,CATALYST_HOLY,CATALYST_HOLD,600,true);
@@ -196,11 +196,15 @@ SPELL_FUNC(spell_exorcism)
 	}
 
 	// TODO: Rework
+	#if 0
 	if (victim->tot_level <= LEVEL_HERO/5) area = find_area("Maze-Level1");
 	else if (victim->tot_level <= LEVEL_HERO/3) area = find_area("Maze-Level2");
 	else if (victim->tot_level <= (2*LEVEL_HERO)/3) area = find_area("Maze-Level3");
 	else if (victim->tot_level <= (3*LEVEL_HERO)/4) area = find_area("Maze-Level4");
 	else area = find_area("Maze-Level5");
+	#else
+	area = find_area("Maze-Level1");
+	#endif
 
 	if (!area) {
 		bug("No area for exorcism!", 0);

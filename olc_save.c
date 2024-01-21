@@ -71,7 +71,7 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
 		send_to_char("  asave projects   - saves the project database\n\r", ch);
 		send_to_char("  asave persist    - saves all persistant entities\n\r", ch);
 
-		if (ch->tot_level == MAX_LEVEL)
+		if (IS_IMPLEMENTOR(ch))
 			send_to_char("  asave staff      - saves the immortal staff information\n\r", ch);
 
 		//send_to_char("  asave wilds    - saves wilderness templates (imps only)\n\r", ch);
@@ -82,7 +82,7 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
 	if (!str_cmp("world", arg1))
 	{
 		/* Only for imps since it causes mucho lag */
-		if (ch->tot_level < MAX_LEVEL)
+		if (!IS_IMPLEMENTOR(ch))
 		{
 			send_to_char("Insufficient security to save world - action logged.\n\r", ch);
 			return;
@@ -139,7 +139,7 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
 				{
 					if (!is_test_port)
 					{
-						if (ch->tot_level < MAX_LEVEL)
+						if (!IS_IMPLEMENTOR(ch))
 						{
 							sprintf(buf, "%24s - '%s' NOT SAVED (testport area)\n\r",
 							pArea->name, pArea->file_name);
@@ -425,7 +425,7 @@ void save_area_new(AREA_DATA *area)
 	save_blueprints(fp, area);
 	save_ships(fp, area);
 	save_dungeons(fp, area);
-
+	save_quests(fp, area);
 
 /*    if (str_prefix("Maze-Level", area->name) && str_cmp("Geldoff's Maze", area->name)
     && str_cmp("Netherworld", area->name)
@@ -465,7 +465,6 @@ void save_mobiles_new(FILE *fp, AREA_DATA *area)
 		for (mob = area->mob_index_hash[i];mob;mob = mob->next)
 			save_mobile_new(fp, mob);
     }
-
 }
 
 
@@ -1325,6 +1324,9 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
 	fprintf(fp, "ImpSig %s~\n", obj->imp_sig);
 	if(obj->persist)
 		fprintf(fp, "Persist\n");
+	// Only save if the object is not in an immortal area
+	if(obj->immortal && !IS_SET(obj->area->area_flags, AREA_IMMORTAL))
+		fprintf(fp, "Immortal\n");
 	fprintf(fp, "CreatorSig %s~\n", obj->creator_sig);
 	fprintf(fp, "SKeywds %s~\n", obj->skeywds);
 	fprintf(fp, "TimesAllowedFixed %d Fragility %d Points %d Update %d Timer %d\n", obj->times_allowed_fixed, obj->fragility, obj->points, obj->update, obj->timer);
@@ -2107,6 +2109,18 @@ AREA_DATA *read_area_new(FILE *fp)
 
 			dng->area = area;
 			area->top_dungeon_vnum = UMAX(area->top_dungeon_vnum, dng->vnum);
+			fMatch = true;
+		}
+		else if (!str_cmp(word, "#QUEST"))
+		{
+			QUEST_INDEX_DATA *quest = read_quest(fp, area);
+			int iHash = quest->vnum % MAX_KEY_HASH;
+
+			quest->next = area->quest_index_hash[iHash];
+			area->quest_index_hash[iHash] = quest;
+
+			quest->area = area;
+			area->top_quest_vnum = UMAX(area->top_quest_vnum, quest->vnum);
 			fMatch = true;
 		}
 		else if (!str_cmp(word, "#ROOMPROG"))
@@ -4587,6 +4601,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 			break;
 
 	    case 'I':
+			KEY("Immmortal",	obj->immortal,	true);
 			KEYS("ImpSig",		obj->imp_sig,	fread_string(fp));
 
 			if (!str_cmp(word, "ItemType")) {
@@ -5188,6 +5203,10 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 	// Remove when all item multi-typing is complete
 	for(int i = 0; i < MAX_OBJVALUES; i++)
 		obj->value[i] = values[i];
+
+	// Any object in an immortal area is automatically flagged as an immortal object
+	if (IS_SET(area->area_flags, AREA_IMMORTAL))
+		obj->immortal = true;
 
     return obj;
 }

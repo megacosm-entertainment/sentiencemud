@@ -251,6 +251,7 @@ const struct olc_cmd_type oedit_table[] =
 	{ "food",			oedit_type_food			},
 	{ "fragility",		oedit_fragility			},
 	{ "furniture",		oedit_type_furniture	},
+	{ "immortal",		oedit_immortal			},
 	{ "ink",			oedit_type_ink			},
 	{ "instrument",		oedit_type_instrument	},
 	{ "jewelry",		oedit_type_jewelry		},
@@ -1028,7 +1029,7 @@ bool edit_done(CHAR_DATA *ch)
 
 bool has_access_area(CHAR_DATA *ch, AREA_DATA *area)
 {
-	if (ch->tot_level == MAX_LEVEL)
+	if (IS_IMPLEMENTOR(ch))
 	return true;
 
 	if (!IS_BUILDER(ch, area))
@@ -1051,7 +1052,7 @@ void aedit(CHAR_DATA *ch, char *argument)
 	strcpy(arg, argument);
 	argument = one_argument(argument, command);
 
-	if (get_trust(ch) < MAX_LEVEL - 1)
+	if (!IS_STAFF(ch, STAFF_CREATOR))
 	{
 	send_to_char("AEdit:  Insufficient security to edit area - action logged.\n\r", ch);
 	edit_done(ch);
@@ -1272,7 +1273,7 @@ void tedit(CHAR_DATA *ch, char *argument)
 	strcpy(arg, argument);
 	argument = one_argument(argument, command);
 
-	if (ch->tot_level < LEVEL_IMMORTAL)
+	if (get_staff_rank(ch) < STAFF_IMMORTAL)
 	{
 	send_to_char("TEdit:  Insufficient security - action logged.\n\r", ch);
 	edit_done(ch);
@@ -1320,7 +1321,7 @@ void pedit(CHAR_DATA *ch, char *argument)
 	strcpy(arg, argument);
 	argument = one_argument(argument, command);
 
-	if (get_trust(ch) < MAX_LEVEL)
+	if (!IS_IMPLEMENTOR(ch))
 	{
 	send_to_char("PEdit:  Insufficient security to edit projects - action logged.\n\r", ch);
 	edit_done(ch);
@@ -1437,7 +1438,7 @@ void do_aedit(CHAR_DATA *ch, char *argument)
 	int value;
 	char arg[MAX_STRING_LENGTH];
 
-	if (get_trust(ch) < MAX_LEVEL - 1)
+	if (!IS_STAFF(ch, STAFF_CREATOR))
 	{
 	send_to_char("AEdit : Insufficient security to edit area - action logged.\n\r", ch);
 	return;
@@ -1469,7 +1470,7 @@ void do_aedit(CHAR_DATA *ch, char *argument)
 	if (!str_cmp(arg, "create"))
 	{
 		// TODO: Immortal Roles system
-		if (ch->pcdata->security < 9 || get_trust(ch) < 154)
+		if (ch->pcdata->security < 9 || !IS_STAFF(ch, STAFF_CREATOR))
 		{
 			send_to_char("AEdit : Insufficient security to edit area - action logged.\n\r", ch);
 			return;
@@ -1685,7 +1686,7 @@ void do_pedit(CHAR_DATA *ch, char *argument)
 	int i;
 	char arg[MAX_STRING_LENGTH];
 
-	if (get_trust(ch) < MAX_LEVEL)
+	if (!IS_IMPLEMENTOR(ch))
 	{
 	send_to_char("PEdit: Insufficient security to edit projects - action logged.\n\r", ch);
 	return;
@@ -1729,7 +1730,7 @@ void do_pedit(CHAR_DATA *ch, char *argument)
 	else
 	if (!str_cmp(arg, "create"))
 	{
-	if (get_trust(ch) < MAX_LEVEL)
+	if (!IS_IMPLEMENTOR(ch))
 	{
 		send_to_char("PEdit: Insufficient security to create project - action logged.\n\r", ch);
 		return;
@@ -2586,13 +2587,6 @@ void hedit(CHAR_DATA *ch, char *argument)
 
 void do_hedit(CHAR_DATA *ch, char *argument)
 {
-	/* 2006-07-21 Removed as per Areo's suggestion (Syn)
-	if (get_trust(ch) < MAX_LEVEL - 4) {
-	send_to_char("Insufficient security to edit helpfiles. Action logged.\n\r", ch);
-	return;
-	}
-	*/
-
 	ch->pcdata->immortal->last_olc_command = current_time;
 	olc_set_editor(ch, ED_HELP, NULL);
 	ch->desc->hCat = topHelpCat;
@@ -2961,7 +2955,7 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
 	WEAPON(new_obj) = copy_weapon_data(WEAPON(old_obj));
 
 	// Only copy impsig if imp (to block cheaters)
-	if (get_trust(ch) == MAX_LEVEL)
+	if (IS_IMPLEMENTOR(ch))
 	new_obj->imp_sig = str_dup(old_obj->imp_sig);
 	else
 	new_obj->imp_sig = str_dup("none");
@@ -4076,6 +4070,7 @@ void obj_index_reset_multitype(OBJ_INDEX_DATA *pObjIndex)
 	free_container_data(CONTAINER(pObjIndex));			CONTAINER(pObjIndex) = NULL;
 	free_fluid_container_data(FLUID_CON(pObjIndex));	FLUID_CON(pObjIndex) = NULL;
 	free_food_data(FOOD(pObjIndex));					FOOD(pObjIndex) = NULL;
+	free_furniture_data(FURNITURE(pObjIndex));			FURNITURE(pObjIndex) = NULL;
 	free_ink_data(INK(pObjIndex));						INK(pObjIndex) = NULL;
 	free_instrument_data(INSTRUMENT(pObjIndex));		INSTRUMENT(pObjIndex) = NULL;
 	free_jewelry_data(JEWELRY(pObjIndex));				JEWELRY(pObjIndex) = NULL;
@@ -4179,7 +4174,7 @@ void liqedit(CHAR_DATA *ch, char *argument)
 	strcpy(arg, argument);
 	argument = one_argument(argument, command);
 
-	if (get_trust(ch) < MAX_LEVEL)
+	if (!IS_IMPLEMENTOR(ch))
 	{
 		send_to_char("LiqEdit:  Insufficient security to edit liquids - action logged.\n\r", ch);
 		edit_done(ch);
@@ -4292,7 +4287,7 @@ void matedit(CHAR_DATA *ch, char *argument)
 	strcpy(arg, argument);
 	argument = one_argument(argument, command);
 
-	if (get_trust(ch) < MAX_LEVEL)
+	if (!IS_IMPLEMENTOR(ch))
 	{
 		send_to_char("MatEdit:  Insufficient security to edit materials - action logged.\n\r", ch);
 		edit_done(ch);
@@ -4432,7 +4427,7 @@ void skedit(CHAR_DATA *ch, char *argument)
 	strcpy(arg, argument);
 	argument = one_argument(argument, command);
 
-	if (get_trust(ch) < MAX_LEVEL)
+	if (!IS_IMPLEMENTOR(ch))
 	{
 		send_to_char("SkEdit:  Insufficient security to edit skills - action logged.\n\r", ch);
 		edit_done(ch);
@@ -4617,7 +4612,7 @@ void sgedit(CHAR_DATA *ch, char *argument)
 	strcpy(arg, argument);
 	argument = one_argument(argument, command);
 
-	if (get_trust(ch) < MAX_LEVEL)
+	if (!IS_IMPLEMENTOR(ch))
 	{
 		send_to_char("SGEdit:  Insufficient security to edit skill groups - action logged.\n\r", ch);
 		edit_done(ch);
@@ -4729,7 +4724,7 @@ void songedit(CHAR_DATA *ch, char *argument)
 	strcpy(arg, argument);
 	argument = one_argument(argument, command);
 
-	if (get_trust(ch) < MAX_LEVEL)
+	if (!IS_IMPLEMENTOR(ch))
 	{
 		send_to_char("SONGEdit:  Insufficient security to edit songs - action logged.\n\r", ch);
 		edit_done(ch);

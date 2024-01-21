@@ -193,12 +193,12 @@ void do_heal(CHAR_DATA *ch, char *argument)
     // TODO: make this a spell?  Perhaps "enervate"?  It "transfers" some of your mana to the target
     if (spell == NULL)  /* restore mana trap...kinda hackish */
     {
-	ch->mana += dice(2,8) + mob->level / 3;
+	ch->mana += dice(2,8) + mob->tot_level / 3;
 	ch->mana = UMIN(ch->mana,ch->max_mana);
 	send_to_char("A warm glow passes through you.\n\r",ch);
 	return;
      }
 
     if (IS_VALID(skill))
-        spell(skill,mob->level,mob,ch,TARGET_CHAR, WEAR_NONE);
+        spell(skill,mob->tot_level,mob,ch,TARGET_CHAR, WEAR_NONE);
 }

@@ -4423,10 +4423,8 @@ REDIT(redit_oreset)
 
 	add_reset(pRoom, pReset, 0/* Last slot*/);
 
-	olevel  = URANGE(0, to_mob->level - 2, LEVEL_HERO);
-        newobj = create_object(pObjIndex, number_fuzzy(olevel), true);
-
-	    newobj = create_object(pObjIndex, number_fuzzy(olevel), true);
+	olevel  = UMAX(0, to_mob->tot_level - 2);
+	newobj = create_object(pObjIndex, number_fuzzy(olevel), true);
 
 
 	obj_to_char(newobj, to_mob);
@@ -4460,7 +4458,7 @@ REDIT(redit_persist)
 
 
 	if (!str_cmp(argument,"on")) {
-	    if (ch->tot_level < (MAX_LEVEL-1)) {
+	    if (!IS_STAFF(ch, STAFF_CREATOR)) {
 			send_to_char("Insufficient security.  Department of Homeland Security has been notified.\n\r", ch);
 			return false;
 	    }
@@ -7592,7 +7590,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			}
 			if( value > 50 )
 			{
-				if( !has_imp_sig(NULL, pObj) && ch->tot_level < MAX_LEVEL )
+				if( !has_imp_sig(NULL, pObj) && !IS_IMPLEMENTOR(ch) )
 				{
 					send_to_char("An imp sig is required to set the TELESCOPE MAXIMUM DISTANCE greater than 50.\n\r", ch);
 					return false;
@@ -7613,7 +7611,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			}
 			if( value > 10 )
 			{
-				if( !has_imp_sig(NULL, pObj) && ch->tot_level < MAX_LEVEL )
+				if( !has_imp_sig(NULL, pObj) && !IS_IMPLEMENTOR(ch) )
 				{
 					send_to_char("An imp sig is required to set the TELESCOPE BONUSVIEW greater than 50.\n\r", ch);
 					return false;
@@ -7797,9 +7795,11 @@ OEDIT(oedit_show)
 	flag_string(type_flags, pObj->item_type));
     add_buf(buffer, buf);
 
+	sprintf(buf, "Immortal:     {B[%s{B]{x\n\r", (pObj->immortal ? "{WON" : "{Doff"));
+	add_buf(buffer, buf);
+
     sprintf(buf, "Persist:      {B[%s{B]{x\n\r", (pObj->persist ? "{WON" : "{Doff"));
     add_buf(buffer, buf);
-
 
     sprintf(buf, "Level:        {B[{x%7d{B]{x\n\r", pObj->level);
     add_buf(buffer, buf);
@@ -8264,7 +8264,7 @@ OEDIT(oedit_addimmune)
 
 	if( where == TO_IMMUNE )
 	{
-	    if (!str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL)
+	    if (!str_cmp(pObj->imp_sig, "none") && !IS_IMPLEMENTOR(ch))
 	    {
 			send_to_char("You can't do this without an IMP's permission.\n\r", ch);
 			return false;
@@ -8493,7 +8493,7 @@ OEDIT(oedit_addskill)
 
     EDIT_OBJ(ch, pObj);
 
-    if (ch->tot_level < MAX_LEVEL && !has_imp_sig(NULL, pObj))
+    if (!IS_IMPLEMENTOR(ch) && !has_imp_sig(NULL, pObj))
     {
 	send_to_char("You can't do this without an IMP's permission.\n\r", ch);
 	return false;
@@ -8569,7 +8569,7 @@ OEDIT(oedit_addcatalyst)
 
     EDIT_OBJ(ch, pObj);
 
-    if (ch->tot_level < MAX_LEVEL && !has_imp_sig(NULL, pObj))
+    if (!IS_IMPLEMENTOR(ch) && !has_imp_sig(NULL, pObj))
     {
 	send_to_char("You can't do this without an IMP's permission.\n\r", ch);
 	return false;
@@ -9108,7 +9108,7 @@ OEDIT(oedit_persist)
 
 
 	if (!str_cmp(argument,"on")) {
-	    if (!str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL) {
+	    if (!str_cmp(pObj->imp_sig, "none") && !IS_IMPLEMENTOR(ch)) {
 			send_to_char("You can't do this without an IMP's permission.\n\r", ch);
 			return false;
 	    }
@@ -9303,7 +9303,7 @@ OEDIT(oedit_sign)
 
     EDIT_OBJ(ch, pObj);
 
-    if (ch->tot_level < MAX_LEVEL)
+    if (!IS_IMPLEMENTOR(ch))
     {
 	send_to_char("This is not for you to do.\n\r" , ch);
 	return false;
@@ -9931,7 +9931,7 @@ OEDIT(oedit_type)
 				 value == ITEM_ROOM_ROOMSHIELD ||
 				 value == ITEM_CATALYST ||
 				 value == ITEM_SHRINE) &&
-				ch->tot_level < MAX_LEVEL)
+				!IS_IMPLEMENTOR(ch))
 			{
 				send_to_char("Sorry, only an IMP can set that item-type.\n\r",ch);
 				return false;
@@ -10340,9 +10340,9 @@ OEDIT( oedit_type_armor )
 				}
 
 				int level;
-				if (!is_number(argument) || (level = atoi(argument)) < 1 || level > get_trust(ch))
+				if (!is_number(argument) || (level = atoi(argument)) < 1 || level > MAX_CLASS_LEVEL)
 				{
-					send_to_char(formatf("Level range is 1-%d.\n\r", get_trust(ch)), ch);
+					send_to_char(formatf("Level range is 1-%d.\n\r", MAX_CLASS_LEVEL), ch);
 					return false;
 				}
 
@@ -10531,9 +10531,9 @@ OEDIT( oedit_type_armor )
 			if (!str_prefix(arg, "level"))
 			{
 				int level;
-				if (!is_number(argument) || (level = atoi(argument)) < 1 || level > get_trust(ch))
+				if (!is_number(argument) || (level = atoi(argument)) < 1 || level > MAX_CLASS_LEVEL)
 				{
-					send_to_char(formatf("Level range is 1-%d.\n\r", get_trust(ch)), ch);
+					send_to_char(formatf("Level range is 1-%d.\n\r", MAX_CLASS_LEVEL), ch);
 					return false;
 				}
 
@@ -12094,9 +12094,9 @@ OEDIT(oedit_type_fluid_container)
 					}
 				}
 
-				if (!is_number(argument) || (level = atoi(argument)) < 1 || level > get_trust(ch))
+				if (!is_number(argument) || (level = atoi(argument)) < 1 || level > MAX_CLASS_LEVEL)
 				{
-					sprintf(buf, "Level range is 1-%d.\n\r", get_trust(ch));
+					sprintf(buf, "Level range is 1-%d.\n\r", MAX_CLASS_LEVEL);
 					send_to_char(buf, ch);
 					return false;
 				}
@@ -13535,9 +13535,9 @@ OEDIT(oedit_type_jewelry)
 					}
 				}
 
-				if (!is_number(argument) || (level = atoi(argument)) < 1 || level > get_trust(ch))
+				if (!is_number(argument) || (level = atoi(argument)) < 1 || level > MAX_CLASS_LEVEL)
 				{
-					send_to_char(formatf("Level range is 1-%d.\n\r", get_trust(ch)), ch);
+					send_to_char(formatf("Level range is 1-%d.\n\r", MAX_CLASS_LEVEL), ch);
 					return false;
 				}
 
@@ -15046,9 +15046,9 @@ OEDIT(oedit_type_portal)
 				}
 
 				int level = atoi(arg3);
-				if (level < 1 || level > get_trust(ch))
+				if (level < 1 || level > MAX_CLASS_LEVEL)
 				{
-					sprintf(buf, "Please specify a level from 1 to %d.\n\r", get_trust(ch));
+					sprintf(buf, "Please specify a level from 1 to %d.\n\r", MAX_CLASS_LEVEL);
 					send_to_char(buf, ch);
 					return false;
 				}
@@ -15242,9 +15242,9 @@ OEDIT(oedit_type_scroll)
 					}
 				}
 
-				if (!is_number(argument) || (level = atoi(argument)) < 1 || level > get_trust(ch))
+				if (!is_number(argument) || (level = atoi(argument)) < 1 || level > MAX_CLASS_LEVEL)
 				{
-					sprintf(buf, "Level range is 1-%d.\n\r", get_trust(ch));
+					sprintf(buf, "Level range is 1-%d.\n\r", MAX_CLASS_LEVEL);
 					send_to_char(buf, ch);
 					return false;
 				}
@@ -15455,9 +15455,9 @@ OEDIT(oedit_type_tattoo)
 					}
 				}
 
-				if (!is_number(argument) || (level = atoi(argument)) < 1 || level > get_trust(ch))
+				if (!is_number(argument) || (level = atoi(argument)) < 1 || level > MAX_CLASS_LEVEL)
 				{
-					sprintf(buf, "Level range is 1-%d.\n\r", get_trust(ch));
+					sprintf(buf, "Level range is 1-%d.\n\r", MAX_CLASS_LEVEL);
 					send_to_char(buf, ch);
 					return false;
 				}
@@ -15715,9 +15715,9 @@ OEDIT(oedit_type_wand)
 					}
 				}
 
-				if (!is_number(argument) || (level = atoi(argument)) < 1 || level > get_trust(ch))
+				if (!is_number(argument) || (level = atoi(argument)) < 1 || level > MAX_CLASS_LEVEL)
 				{
-					sprintf(buf, "Level range is 1-%d.\n\r", get_trust(ch));
+					sprintf(buf, "Level range is 1-%d.\n\r", MAX_CLASS_LEVEL);
 					send_to_char(buf, ch);
 					return false;
 				}
@@ -16140,9 +16140,9 @@ OEDIT( oedit_type_weapon )
 					}
 				}
 
-				if (!is_number(argument) || (level = atoi(argument)) < 1 || level > get_trust(ch))
+				if (!is_number(argument) || (level = atoi(argument)) < 1 || level > MAX_CLASS_LEVEL)
 				{
-					sprintf(buf, "Level range is 1-%d.\n\r", get_trust(ch));
+					sprintf(buf, "Level range is 1-%d.\n\r", MAX_CLASS_LEVEL);
 					send_to_char(buf, ch);
 					return false;
 				}
@@ -16246,7 +16246,6 @@ OEDIT(oedit_material)
 OEDIT(oedit_level)
 {
     OBJ_INDEX_DATA *pObj;
-    char buf[MAX_STRING_LENGTH];
 
     EDIT_OBJ(ch, pObj);
 
@@ -16256,20 +16255,24 @@ OEDIT(oedit_level)
 	return false;
     }
 
-    pObj->level = atoi(argument);
+	int level = atoi(argument);
+	if (level < 0 || level > MAX_CLASS_LEVEL)
+	{
+		send_to_char(formatf("Please specify a level from 0 to %d.\n\r", MAX_CLASS_LEVEL), ch);
+		return false;
+	}
 
-    send_to_char("Level set.\n\r", ch);
+    pObj->level = level;
+	send_to_char("Level set.\n\r", ch);
 
-    pObj->points = (int)pObj->level/10;
-    sprintf(buf, "This object is now assigned {Y%d{x points.\n\r",
-		    pObj->points);
-    send_to_char(buf, ch);
+    pObj->points = (int)3 * pObj->level / 10;
+    send_to_char(formatf("This object is now assigned {Y%d{x points.\n\r", pObj->points), ch);
 
     /* auto setting weapon dice stuff */
-    if (pObj->item_type == ITEM_WEAPON)
+    if (IS_WEAPON(pObj))
     {
         set_weapon_dice(pObj);
-	send_to_char("Damage dice set.\n\r", ch);
+		send_to_char("Damage dice set.\n\r", ch);
     }
 
 
@@ -16281,6 +16284,31 @@ OEDIT(oedit_level)
     }
 
     return true;
+}
+
+OEDIT(oedit_immortal)
+{
+	OBJ_INDEX_DATA *pObj;
+
+	EDIT_OBJ(ch, pObj);
+
+	if (!str_cmp(argument,"on")) {
+		pObj->immortal = true;
+		send_to_char("Object is now an Immortal object.\n\r", ch);
+	} else if (!str_cmp(argument,"off")) {
+		if (IS_SET(pObj->area->area_flags, AREA_IMMORTAL))
+		{
+			send_to_char("Area is flagged as Immortal; cannot unset the immortal state.\n\r", ch);
+			return false;
+		}
+		pObj->immortal = false;
+		send_to_char("Object is no longer an immortal object.\n\r", ch);
+	} else {
+		send_to_char("Syntax:  immortal on|off\n\r", ch);
+		return false;
+	}
+
+	return true;
 }
 
 OEDIT(oedit_class)
@@ -16461,7 +16489,7 @@ OEDIT(oedit_fragility)
 	if (!str_cmp(argument, "Solid"))
 	{
 	    if (!str_cmp(pObj->imp_sig, "none")
-	    && ch->tot_level < MAX_LEVEL)
+	    && !IS_IMPLEMENTOR(ch))
 	    {
 		send_to_char("You can't do this without an IMP's "
 			"permission.\n\r", ch);
@@ -17440,7 +17468,7 @@ MEDIT(medit_persist)
 
 
 	if (!str_cmp(argument,"on")) {
-	    if (!str_cmp(pMob->sig, "none") && ch->tot_level < MAX_LEVEL) {
+	    if (!str_cmp(pMob->sig, "none") && !IS_IMPLEMENTOR(ch)) {
 			send_to_char("You can't do this without an IMP's permission.\n\r", ch);
 			return false;
 	    }
@@ -17467,7 +17495,7 @@ MEDIT(medit_boss)
 	EDIT_MOB(ch, pMob);
 
 	if (!str_cmp(argument,"on")) {
-	    if (!str_cmp(pMob->sig, "none") && ch->tot_level < MAX_LEVEL) {
+	    if (!str_cmp(pMob->sig, "none") && !IS_IMPLEMENTOR(ch)) {
 			send_to_char("You can't do this without an IMP's permission.\n\r", ch);
 			return false;
 	    }
@@ -23084,7 +23112,7 @@ MEDIT(medit_missionary)
 
 	if (!str_prefix(arg,"add"))
 	{
-	    if (!str_cmp(pMob->sig, "none") && ch->tot_level < MAX_LEVEL)
+	    if (!str_cmp(pMob->sig, "none") && !IS_IMPLEMENTOR(ch))
 	    {
 			send_to_char("You can't do this without an IMP's permission.\n\r", ch);
 			return false;
@@ -23102,7 +23130,7 @@ MEDIT(medit_missionary)
 		return true;
 
 	} else if (!str_prefix(arg,"remove")) {
-	    if (!str_cmp(pMob->sig, "none") && ch->tot_level < MAX_LEVEL)
+	    if (!str_cmp(pMob->sig, "none") && !IS_IMPLEMENTOR(ch))
 	    {
 			send_to_char("You can't do this without an IMP's permission.\n\r", ch);
 			return false;

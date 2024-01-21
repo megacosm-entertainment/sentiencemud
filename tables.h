@@ -506,5 +506,9 @@ extern const struct flag_type armour_types[];
 extern const struct flag_type armour_protection_types[];
 extern const struct flag_type adornment_types[];
 
+extern const struct flag_type staff_ranks[];
+
+extern const struct flag_type command_types[];
+
 #endif
 

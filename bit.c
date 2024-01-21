@@ -127,6 +127,8 @@ const struct flag_stat_type flag_stat_table[] =
     {   armour_types,               true    },
     {   adornment_types,            true    },
     {   armour_protection_types,    true    },
+    {   command_types,              true    },
+    {   staff_ranks,                true    },
     {	0,							0		}
 };
 

@@ -832,7 +832,8 @@ void save_dungeons(FILE *fp, AREA_DATA *area)
 
 bool can_edit_dungeons(CHAR_DATA *ch)
 {
-	return !IS_NPC(ch) && (ch->pcdata->security >= 9) && (ch->tot_level >= MAX_LEVEL);
+	// Add dungeoneering certification for imms
+	return !IS_NPC(ch) && (ch->pcdata->security >= 9) && (IS_IMPLEMENTOR(ch));
 }
 
 DUNGEON_INDEX_DATA *get_dungeon_index_wnum(WNUM wuid)
@@ -7898,7 +7899,7 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 		send_to_char("Syntax:  dungeon leave\n\r", ch);
 		if (IS_DEAD(ch))
 			send_to_char("         dungeon release\n\r", ch);
-		if( ch->tot_level >= MAX_LEVEL )
+		if( !IS_IMPLEMENTOR(ch) )
 		{
 			send_to_char("         dungeon list\n\r", ch);
 			send_to_char("         dungeon unload #\n\r", ch);
@@ -8090,7 +8091,7 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 	}
 
 
-	if( ch->tot_level >= MAX_LEVEL )
+	if( IS_IMPLEMENTOR(ch) )
 	{
 		if( !str_prefix(arg1, "list") )
 		{

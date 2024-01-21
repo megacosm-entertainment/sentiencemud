@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <time.h>
 #include "merc.h"
+#include "interp.h"
 #include "tables.h"
 #include "scripts.h"
 #include "magic.h"
@@ -1053,6 +1054,7 @@ const struct flag_type area_flags[] =
     {	"blueprint",	AREA_BLUEPRINT,		true	},
     {	"locked",		AREA_LOCKED,		true	},
     {   "low_level",    AREA_LOW_LEVEL,     true    },
+    {   "immortal",     AREA_IMMORTAL,      true    },
     {	NULL,			0,			0	}
 };
 
@@ -4110,6 +4112,7 @@ const struct gcl_type gcl_table[] =
     { "bard",           &gcl_bard },
     { "blacksmith",     &gcl_blacksmith },
     { "botanist",       &gcl_botanist },
+    { "carpenter",      &gcl_carpenter },
     { "crusader",       &gcl_crusader },
     { "culinarian",     &gcl_culinarian },
     { "destroyer",      &gcl_destroyer },
@@ -4121,6 +4124,7 @@ const struct gcl_type gcl_table[] =
     { "gladiator",      &gcl_gladiator },
     { "highwayman",     &gcl_highwayman },
     { "illusionist",    &gcl_illusionist },
+    { "inscription",    &gcl_inscription },
     { "jewelcrafter",   &gcl_jewelcrafter },
     { "leatherworker",  &gcl_leatherworker },
     { "marauder",       &gcl_marauder },
@@ -4130,9 +4134,11 @@ const struct gcl_type gcl_table[] =
     { "necromancer",    &gcl_necromancer },
     { "ninja",          &gcl_ninja },
     { "paladin",        &gcl_paladin },
+    { "priest",         &gcl_priest },
     { "ranger",         &gcl_ranger },
     { "rogue",          &gcl_rogue },
     { "sage",           &gcl_sage },
+    { "shaman",         &gcl_shaman },
     { "skinner",        &gcl_skinner },
     { "sorcerer",       &gcl_sorcerer },
     { "stonemason",     &gcl_stonemason },
@@ -4252,3 +4258,44 @@ const struct flag_type adornment_types[] =
     {"gem",         ADORNMENT_GEM,          true},
     {NULL,          0,                      false}
 };
+
+const struct flag_type staff_ranks[] =
+{
+    {"player",      STAFF_PLAYER,           true},
+    {"gimp",        STAFF_GIMP,             true},
+    {"immortal",    STAFF_IMMORTAL,         true},
+    {"ascendant",   STAFF_ASCENDANT,        true},
+    {"supremacy",   STAFF_SUPREMACY,        true},
+    {"creator",     STAFF_CREATOR,          true},
+    {"implementor", STAFF_IMPLEMENTOR,      true},
+
+    {NULL,          0,                      false}
+};
+
+const struct flag_type command_types[] =
+{
+	{ "none",		CMDTYPE_NONE,	    true },
+	{ "move",		CMDTYPE_MOVE,	    true },
+	{ "combat",		CMDTYPE_COMBAT,	    true },
+	{ "object",		CMDTYPE_OBJECT,	    true },
+	{ "info",		CMDTYPE_INFO,	    true },
+	{ "comm",		CMDTYPE_COMM,	    true },
+	{ "racial",		CMDTYPE_RACIAL,	    true },
+	{ "ooc",		CMDTYPE_OOC,	    true },
+	{ "immortal",	CMDTYPE_IMMORTAL,	true },
+	{ "olc",		CMDTYPE_OLC,	    true },
+	{ "admin",		CMDTYPE_ADMIN,	    true },
+    {NULL,          0,                  false}
+
+};
+#define CMDTYPE_NONE            0       // Treated as the catchall / general / miscellaneous group
+#define CMDTYPE_MOVE            1
+#define CMDTYPE_COMBAT          2
+#define CMDTYPE_OBJECT          3
+#define CMDTYPE_INFO            4
+#define CMDTYPE_COMM            5
+#define CMDTYPE_RACIAL          6
+#define CMDTYPE_OOC             7
+#define CMDTYPE_IMMORTAL        8
+#define CMDTYPE_OLC             9
+#define CMDTYPE_ADMIN           10

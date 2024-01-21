@@ -28,8 +28,7 @@ void do_locker(CHAR_DATA *ch, char* argument)
 
 	// locker forgive <player>
 	// if they have a locker and it is expired, it will set it active with one month.
-	// Level requirements: 153+
-	if( !IS_NPC(ch) && IS_IMMORTAL(ch) && IS_TRUSTED(ch, (MAX_LEVEL - 2)) )
+	if( IS_IMMORTAL(ch) && IS_STAFF(ch,STAFF_SUPREMACY))
 	{
 		if( !str_cmp(arg1, "forgive") )
 		{

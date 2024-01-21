@@ -228,7 +228,7 @@ void parse_note(CHAR_DATA *ch, char *argument, int type)
         return;
     }
 
-    if (!str_prefix(arg, "delete") && get_trust(ch) >= MAX_LEVEL - 1)
+    if (!str_prefix(arg, "delete") && IS_STAFF(ch, STAFF_CREATOR))
     {
         if (!is_number(argument))
         {
@@ -674,8 +674,8 @@ bool is_note_to(CHAR_DATA *ch, NOTE_DATA *pnote)
     && is_name(ch->church->name, pnote->to_list))
         return true;
 
-    if (ch->tot_level == MAX_LEVEL
-    &&  (is_exact_name(pnote->to_list, "coder")
+    if (IS_IMPLEMENTOR(ch) &&
+        (is_exact_name(pnote->to_list, "coder")
          || is_exact_name(pnote->to_list, "coders")
          || is_exact_name(pnote->to_list, "imp")
          || is_exact_name(pnote->to_list, "implementor")

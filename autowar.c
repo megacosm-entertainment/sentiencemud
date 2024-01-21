@@ -133,13 +133,12 @@ void do_war(CHAR_DATA *ch, char *argument)
 
 	    for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
 	    {
-		sprintf( buf, "{B[%s%-3ld%%{B] {B[{G%-3d{B:{G%3d{B] {B[ {R%-10s {B] {G%-36s{x\n\r",
+		sprintf( buf, "{B[%s%-3ld%%{B] {B[{G%3d{B] {B[ {R%-10s {B] {G%-36s{x\n\r",
 			wch->hit < wch->max_hit * 2 / 3 ?
 			( wch->hit < wch->max_hit / 2  ?
 			  (wch->hit < wch->max_hit / 3 ? "{r" : "{R" ) : "{Y" )
 			: "{G",
 			((100 * wch->hit) / wch->max_hit),
-			wch->level,
 			wch->tot_level,
 			capitalize( wch->race->name ),
 			wch->name);
@@ -168,13 +167,12 @@ void do_war(CHAR_DATA *ch, char *argument)
 
 	    for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
 	    {
-		sprintf( buf, "{B[%s%-3d%%{B] {B[{G%-3d{B:{G%3d{B] {B[ {R%-10s {B] {G%-36s{x\n\r",
+		sprintf( buf, "{B[%s%-3d%%{B] {B[{G%3d{B] {B[ {R%-10s {B] {G%-36s{x\n\r",
 			wch->hit < wch->max_hit * 2 / 3 ?
 			( wch->hit < wch->max_hit / 2  ?
 			  (wch->hit < wch->max_hit / 3 ? "{r" : "{R" ) : "{Y" )
 			: "{G",
 			(int)(wch->hit / wch->max_hit * 100),
-			wch->level,
 			wch->tot_level,
 			capitalize( wch->race->name ),
 			wch->name

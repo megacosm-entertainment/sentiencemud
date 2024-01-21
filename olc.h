@@ -336,6 +336,7 @@ DECLARE_OLC_FUN( oedit_desc		);
 DECLARE_OLC_FUN( oedit_ed		);
 DECLARE_OLC_FUN( oedit_extra            );
 DECLARE_OLC_FUN( oedit_fragility	);
+DECLARE_OLC_FUN( oedit_immortal		);
 DECLARE_OLC_FUN( oedit_level            );
 DECLARE_OLC_FUN( oedit_long		);
 DECLARE_OLC_FUN( oedit_material		);

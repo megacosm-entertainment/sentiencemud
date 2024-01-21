@@ -965,7 +965,7 @@ bool spec_thief( CHAR_DATA *ch )
 	v_next = victim->next_in_room;
 
 	if ( IS_NPC(victim)
-	||   victim->tot_level >= LEVEL_IMMORTAL
+	||   get_staff_rank(victim) > STAFF_PLAYER
 	||   number_bits( 5 ) != 0
 	||   !can_see(ch,victim))
 	    continue;

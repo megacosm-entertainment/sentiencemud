@@ -1478,8 +1478,12 @@ void check_improve_song_show( CHAR_DATA *ch, SONG_DATA *song, bool success, int 
 	if(!IS_SET(entry->flags, SKILL_IMPROVE))
 		return;
 
+	CLASS_LEVEL *cl = get_class_level(ch, NULL);
+	if (!cl)
+		return;
+
 	// Only bards, as songs may only be played while as a bard
-	if (!IS_IMMORTAL(ch) && get_current_class(ch) != gcl_bard)
+	if (!IS_IMMORTAL(ch) && cl->clazz != gcl_bard)
 		return;
 
     if (entry->rating <= 0 || entry->rating == 100)
@@ -1491,7 +1495,7 @@ void check_improve_song_show( CHAR_DATA *ch, SONG_DATA *song, bool success, int 
     chance      = 10 * int_app[get_curr_stat(ch, STAT_INT)].learn;
     multiplier  = UMAX(multiplier,1);
     chance     /= (multiplier * diff * 2);	// Songs should be easier than skills
-    chance     += ch->level;
+    chance     += cl->level;
 
 	//if (IS_IMMORTAL(ch))
 	//{

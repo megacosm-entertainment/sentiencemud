@@ -49,7 +49,10 @@ void do_mount(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (mount->level - 50 > ch->tot_level)
+    CLASS_LEVEL *cl = get_class_level(ch, NULL);
+    int level = cl ? cl->level : 0;
+
+    if (mount->tot_level > level)
     {
 	send_to_char("That beast is too powerful for you to ride.", ch);
 	return;

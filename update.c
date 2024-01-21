@@ -373,7 +373,6 @@ void gain_exp(CHAR_DATA *ch, CLASS_DATA *clazz, int gain)
 			if( !p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,TRIG_LEVEL, NULL,0,0,0,0,0) ) {
 				ch->exp = 0;
 
-				ch->level += 1;
 				ch->tot_level += 1;
 			}
 		}
@@ -438,7 +437,7 @@ int hit_gain(CHAR_DATA *ch)
 
 	if (IS_NPC(ch))
 	{
-		gain =  5 + ch->level;
+		gain =  5 + ch->tot_level;
 		if (IS_AFFECTED(ch,AFF_REGENERATION))
 			gain *= 2;
 
@@ -452,7 +451,11 @@ int hit_gain(CHAR_DATA *ch)
 	}
 	else
 	{
-		gain = UMAX(3,get_curr_stat(ch,STAT_CON) - 3 + ch->tot_level/2);
+		CLASS_LEVEL *cl = get_class_level(ch, NULL);
+		int level = cl ? cl->level : 0;
+
+		gain = UMAX(3,get_curr_stat(ch,STAT_CON) - 3 + level/2);
+
 		//gain += class_table[get_profession(ch, CLASS_CURRENT)].hp_max - 10;
 		number = number_percent();
 		if (number < get_skill(ch, gsk_fast_healing))
@@ -528,7 +531,7 @@ int mana_gain(CHAR_DATA *ch)
 
 	if (IS_NPC(ch))
 	{
-		gain = 5 + ch->level;
+		gain = 5 + ch->tot_level;
 		switch (ch->position)
 		{
 		default:			gain /= 2;			break;
@@ -628,7 +631,7 @@ int move_gain(CHAR_DATA *ch)
 
     if (IS_NPC(ch))
     {
-		gain = ch->level;
+		gain = ch->tot_level;
 
 		switch(ch->position)
 		{
@@ -640,7 +643,10 @@ int move_gain(CHAR_DATA *ch)
 	}
     else
     {
-		gain = UMAX(15, ch->level);
+		CLASS_LEVEL *cl = get_class_level(ch, NULL);
+		int level = cl ? cl->level : 0;
+
+		gain = UMAX(15, level);
 
 		switch (ch->position)
 		{
@@ -707,7 +713,7 @@ int toxin_gain(CHAR_DATA *ch, int toxin)
 
 	if (IS_NPC(ch))
 	{
-		gain =  5 + ch->level;
+		gain =  5 + ch->tot_level;
 		if (IS_AFFECTED(ch,AFF_REGENERATION))
 			gain *= 2;
 
@@ -774,7 +780,7 @@ void gain_condition(CHAR_DATA *ch, int iCond, int value)
 		return;
     }
 
-    if (value == 0 || IS_NPC(ch) || ch->level >= LEVEL_IMMORTAL)
+    if (value == 0 || IS_NPC(ch) || get_staff_rank(ch) > STAFF_PLAYER)
 		return;
 
     condition = ch->pcdata->condition[iCond];
@@ -1607,7 +1613,7 @@ void char_update(void)
 		}
 
 		// Updates for NON-IMM players who aren't dead.
-		if (!IS_NPC(ch) && ch->tot_level < LEVEL_IMMORTAL && !IS_DEAD(ch))
+		if (!IS_NPC(ch) && get_staff_rank(ch) == STAFF_PLAYER && !IS_DEAD(ch))
 		{
 		    OBJ_DATA *obj, *obj_next;
 
@@ -1690,7 +1696,7 @@ void char_update(void)
 					act("{D$n disappears into the void.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 					send_to_char("{DYou disappear into the void.\n\r{x", ch);
 
-					if (ch->level > 1)
+					if (ch->tot_level > 1)
 						save_char_obj(ch);
 
 					char_from_room(ch);
@@ -3161,7 +3167,7 @@ void aggr_update(void)
     */
 	// Stop there for NPCs; for mortal PCs, aggress
 	if (IS_NPC(wch)
-	||  wch->level >= LEVEL_IMMORTAL
+	||  get_staff_rank(wch) > STAFF_PLAYER
 	||  wch->in_room == NULL
 	||  !can_room_update(wch->in_room))
 	    continue;
@@ -3215,8 +3221,10 @@ void aggr_update(void)
 				}
 				else
 				{
-					if (!IS_NPC(vch) && vch->level < LEVEL_IMMORTAL &&
-						ch->level >= vch->level - 5 &&
+					// TODO: Fix the level comparison
+					if (!IS_NPC(vch) && get_staff_rank(vch) == STAFF_PLAYER &&
+						/*ch->level >= vch->level - 5 &&*/
+						ch->tot_level >= (vch->tot_level - 5) &&
 						(!IS_SET(ch->act[0], ACT_WIMPY) || !IS_AWAKE(vch)) &&
 						can_see(ch, vch))
 					{
@@ -3914,7 +3922,7 @@ void scare_update(CHAR_DATA *ch)
 	&&  victim->tot_level <= ch->tot_level
 	&&  victim->fighting == NULL
 	&&  victim->position == POS_STANDING
-	&&  ch->invis_level < LEVEL_IMMORTAL
+	&&  ch->invis_level < STAFF_IMMORTAL
 	&&  !is_same_group(victim, ch)
         &&  victim != MOUNTED(ch))
 	{
@@ -4105,7 +4113,7 @@ void msdp_update( void )
 
             MSDPSetNumber( d, eMSDP_HEALTH, d->character->hit );
             MSDPSetNumber( d, eMSDP_HEALTH_MAX, d->character->max_hit );
-            MSDPSetNumber( d, eMSDP_LEVEL, d->character->level );
+            MSDPSetNumber( d, eMSDP_LEVEL, (level ? level->level : 0) );
 /*
             MSDPSetNumber( d, eMSDP_RACE, TBD );
             MSDPSetNumber( d, eMSDP_CLASS, TBD );
@@ -4134,10 +4142,11 @@ void msdp_update( void )
             /* This would be better moved elsewhere */
             if ( pOpponent != NULL )
             {
+				CLASS_LEVEL *olevel = get_class_level(pOpponent, NULL);
                 int hit_points = (pOpponent->hit * 100) / pOpponent->max_hit;
                 MSDPSetNumber( d, eMSDP_OPPONENT_HEALTH, hit_points );
                 MSDPSetNumber( d, eMSDP_OPPONENT_HEALTH_MAX, 100 );
-                MSDPSetNumber( d, eMSDP_OPPONENT_LEVEL, pOpponent->level );
+                MSDPSetNumber( d, eMSDP_OPPONENT_LEVEL, (olevel ? olevel->level : 0) );
                 MSDPSetString( d, eMSDP_OPPONENT_NAME, pOpponent->name );
             }
             else /* Clear the values */
@@ -4241,6 +4250,8 @@ void gmcp_update( void )
 			CHAR_DATA *enemy = d->character->fighting;
 			AFFECT_DATA *paf;
 
+			CLASS_LEVEL *level = get_class_level(d->character, NULL);
+
 			UpdateGMCPString( d, GMCP_NAME, d->character->name );
 			UpdateGMCPString( d, GMCP_RACE, d->character->race->name );
 			UpdateGMCPString( d, GMCP_CLASS, (IS_VALID(d->character->pcdata->current_class) ? d->character->pcdata->current_class->clazz->name : "unknown") );
@@ -4274,7 +4285,8 @@ void gmcp_update( void )
 			UpdateGMCPNumber( d, GMCP_ALIGNMENT, d->character->alignment );
 			UpdateGMCPNumber( d, GMCP_XP, d->character->exp );
 			UpdateGMCPNumber( d, GMCP_XP_MAX, exp_per_level( d->character, NULL, d->character->pcdata->points) );
-			UpdateGMCPNumber( d, GMCP_XP_TNL, ( ( d->character->level + 1 ) * exp_per_level( d->character, NULL, d->character->pcdata->points ) - d->character->exp ) );
+
+			UpdateGMCPNumber( d, GMCP_XP_TNL, ( exp_per_level( d->character, NULL, d->character->pcdata->points ) - (IS_VALID(level)?level->xp:0) ) );
 			UpdateGMCPNumber( d, GMCP_PRACTICE, d->character->practice );
 			UpdateGMCPNumber( d, GMCP_MONEY, d->character->gold );
 
@@ -4354,17 +4366,17 @@ void gmcp_update( void )
 					{
 						enemy = ch;
 						#ifndef COLOR_CODE_FIX
-						if ( buf[0] == '\0' ) sprintf( buf, "[ { \"name\": \"%s\", \"level\": \"%d\", \"hp\": \"%ld\", \"maxhp\": \"%ld\" }", enemy->name, enemy->level, enemy->hit, enemy->max_hit );
+						if ( buf[0] == '\0' ) sprintf( buf, "[ { \"name\": \"%s\", \"level\": \"%d\", \"hp\": \"%ld\", \"maxhp\": \"%ld\" }", enemy->name, enemy->tot_level, enemy->hit, enemy->max_hit );
 						else
 						{
-							sprintf( buf2, ", { \"name\": \"%s\", \"level\": \"%d\", \"hp\": \"%ld\", \"maxhp\": \"%ld\" }", enemy->name, enemy->level, enemy->hit, enemy->max_hit );
+							sprintf( buf2, ", { \"name\": \"%s\", \"level\": \"%d\", \"hp\": \"%ld\", \"maxhp\": \"%ld\" }", enemy->name, enemy->tot_level, enemy->hit, enemy->max_hit );
 							strcat( buf, buf2 );
 						}
 						#else
-						if ( buf[0] == '\0' ) sprintf( buf, "[ {{ \"name\": \"%s\", \"level\": \"%d\", \"hp\": \"%ld\", \"maxhp\": \"%ld\" }", enemy->name, enemy->level, enemy->hit, enemy->max_hit );
+						if ( buf[0] == '\0' ) sprintf( buf, "[ {{ \"name\": \"%s\", \"level\": \"%d\", \"hp\": \"%ld\", \"maxhp\": \"%ld\" }", enemy->name, enemy->tot_level, enemy->hit, enemy->max_hit );
 						else
 						{
-							sprintf( buf2, ", {{ \"name\": \"%s\", \"level\": \"%d\", \"hp\": \"%ld\", \"maxhp\": \"%ld\" }", enemy->name, enemy->level, enemy->hit, enemy->max_hit );
+							sprintf( buf2, ", {{ \"name\": \"%s\", \"level\": \"%d\", \"hp\": \"%ld\", \"maxhp\": \"%ld\" }", enemy->name, enemy->tot_level, enemy->hit, enemy->max_hit );
 							strcat( buf, buf2 );
 						}
 						#endif

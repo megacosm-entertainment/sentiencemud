@@ -4553,7 +4553,7 @@ void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet, int mode)
 	}
 	else if( mode == TRANSFER_MODE_MOVEMENT )
 	{
-		if (show && !IS_AFFECTED(ch, AFF_SNEAK) && ch->invis_level < LEVEL_HERO) {
+		if (show && !IS_AFFECTED(ch, AFF_SNEAK) && ch->invis_level < STAFF_IMMORTAL) {
 			if( IS_VALID(in_dungeon) && !IS_VALID(to_dungeon) )
 			{
 				WNUM dng_wnum;
@@ -9312,16 +9312,18 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 		switch(arg->type) {
 		case ENT_NUMBER: level = arg->d.num; break;
 		case ENT_STRING: level = arg->d.str ? atoi(arg->d.str) : 0; break;
-		case ENT_MOBILE: level = arg->d.mob ? get_trust(arg->d.mob) : 0; break;
+		case ENT_MOBILE:
+		{
+			CLASS_LEVEL *mcl = arg->d.mob ? get_class_level(arg->d.mob, NULL) : NULL;
+			level = mcl ? mcl->level : (arg->d.mob ? arg->d.mob->tot_level : 0); break;
+		}
+
 		case ENT_OBJECT: level = arg->d.obj ? arg->d.obj->pIndexData->level : 0; break;
 		default: level = 0; break;
 		}
 
-		if(info->mob)
-		{
-			if(level <= 0 || level > get_trust(info->mob))
-				level = get_trust(info->mob);
-		}
+		if(level <= 0 || level > pObjIndex->level)
+			level = pObjIndex->level;
 
 		if(rest && *rest) {
 			argument = rest;
@@ -9376,10 +9378,11 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 			}
 		}
 
-	} else if(info->mob)
-		level = get_trust(info->mob);
-	else
+	} else
 		level = 0;
+
+	if (level <= 0 || level > pObjIndex->level)
+		level = pObjIndex->level;
 
 	obj = create_object(pObjIndex, level, true);
 	if( !IS_VALID(obj) )

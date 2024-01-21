@@ -42,8 +42,8 @@ void do_help(CHAR_DATA *ch, char *argument)
 
 	// Category lookup - must be exact
 	if ((hcat = find_help_category_exact(argument, topHelpCat)) != NULL &&
-		get_trust(ch) >= hcat->min_level &&
-		lookup_help_exact(argument, get_trust(ch), topHelpCat) == NULL) {
+		get_staff_rank(ch) >= hcat->min_level &&
+		lookup_help_exact(argument, get_staff_rank(ch), topHelpCat) == NULL) {
 
 		buffer = new_buf();
 
@@ -76,7 +76,7 @@ void do_help(CHAR_DATA *ch, char *argument)
 
 		i = 1;
 		for (hcatnest = hcat->inside_cats; hcatnest != NULL; hcatnest = hcatnest->next) {
-			if (get_trust(ch) >= hcatnest->min_level) {
+			if (get_staff_rank(ch) >= hcatnest->min_level) {
 				sprintf(buf2, "%s", hcatnest->name);
 
 
@@ -96,7 +96,7 @@ void do_help(CHAR_DATA *ch, char *argument)
 		}
 
 		for (help = hcat->inside_helps; help != NULL; help = help->next) {
-			if (get_trust(ch) >= help->min_level) {
+			if (get_staff_rank(ch) >= help->min_level) {
 				sprintf(buf, "{b[{B%-3d{b]{x %-20.20s %s", help->index, help->keyword,
 								i % 3 == 0 ? "\n\r" : "");
 				add_buf(buffer, buf);
@@ -123,7 +123,7 @@ void do_help(CHAR_DATA *ch, char *argument)
 			send_to_char("That help index is out of range.\n\r", ch);
 			return;
 		} else
-			help = lookup_help_index(index, get_trust(ch), topHelpCat);
+			help = lookup_help_index(index, get_staff_rank(ch), topHelpCat);
 
 		if (help == NULL)
 			send_to_char("No help found with that index.\n\r", ch);
@@ -141,19 +141,19 @@ void do_help(CHAR_DATA *ch, char *argument)
 	// Lookup by keyword
 
 	// Handle multiple entries w/ same keyword
-	if (count_num_helps(argument, get_trust(ch), topHelpCat) > 1) {
+	if (count_num_helps(argument, get_staff_rank(ch), topHelpCat) > 1) {
 		act("{YMultiple entries found with keyword $t:{x", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);
 		buffer = new_buf();
 
-		lookup_help_multiple(argument, get_trust(ch), topHelpCat, buffer);
+		lookup_help_multiple(argument, get_staff_rank(ch), topHelpCat, buffer);
 		page_to_char(buf_string(buffer), ch);
 		free_buf(buffer);
 		return;
 	}
 
-	help = lookup_help(argument, get_trust(ch), topHelpCat);
+	help = lookup_help(argument, get_staff_rank(ch), topHelpCat);
 
-	if (help == NULL || help->hCat->min_level > get_trust(ch))
+	if (help == NULL || help->hCat->min_level > get_staff_rank(ch))
 		act("No help or category found with keyword $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);
 	else
 		show_help_to_ch(ch, help);

@@ -3,11 +3,8 @@ obj/act_comm.o: act_comm.c merc.h protocol.h sha256.h interp.h recycle.h \
 obj/act_enter.o: act_enter.c merc.h protocol.h sha256.h interp.h wilds.h
 obj/act_info.o: act_info.c merc.h protocol.h sha256.h interp.h magic.h \
  recycle.h tables.h db.h wilds.h scripts.h
-obj/act_info2.o: act_info2.c /usr/include/mysql/mysql.h \
- /usr/include/mysql/mariadb_com.h /usr/include/mysql/mariadb_version.h \
- /usr/include/mysql/ma_list.h /usr/include/mysql/mariadb_ctype.h \
- /usr/include/mysql/mariadb_stmt.h merc.h protocol.h sha256.h interp.h \
- magic.h recycle.h tables.h db.h
+obj/act_info2.o: act_info2.c merc.h protocol.h sha256.h interp.h magic.h \
+ recycle.h tables.h db.h
 obj/act_move.o: act_move.c merc.h protocol.h sha256.h interp.h olc.h wilds.h \
  scripts.h tables.h
 obj/act_obj.o: act_obj.c merc.h protocol.h sha256.h magic.h interp.h \
@@ -148,8 +145,8 @@ obj/script_comp.o: script_comp.c merc.h protocol.h sha256.h db.h recycle.h \
  tables.h scripts.h debug.h
 obj/script_const.o: script_const.c merc.h protocol.h sha256.h tables.h \
  scripts.h
-obj/script_expand.o: script_expand.c merc.h protocol.h sha256.h scripts.h \
- tables.h recycle.h wilds.h debug.h
+obj/script_expand.o: script_expand.c strings.h merc.h protocol.h sha256.h \
+ scripts.h tables.h recycle.h wilds.h debug.h
 obj/script_ifc.o: script_ifc.c merc.h protocol.h sha256.h tables.h scripts.h \
  wilds.h
 obj/script_mpcmds.o: script_mpcmds.c merc.h protocol.h sha256.h scripts.h \
@@ -160,10 +157,10 @@ obj/script_rpcmds.o: script_rpcmds.c merc.h protocol.h sha256.h scripts.h \
  tables.h recycle.h wilds.h debug.h
 obj/script_tpcmds.o: script_tpcmds.c merc.h protocol.h sha256.h scripts.h \
  tables.h recycle.h wilds.h debug.h
-obj/script_vars.o: script_vars.c merc.h protocol.h sha256.h db.h recycle.h \
- scripts.h tables.h wilds.h
-obj/scripts.o: scripts.c merc.h protocol.h sha256.h tables.h scripts.h \
- recycle.h wilds.h olc.h debug.h
+obj/script_vars.o: script_vars.c strings.h merc.h protocol.h sha256.h db.h \
+ recycle.h scripts.h tables.h wilds.h
+obj/scripts.o: scripts.c strings.h merc.h protocol.h sha256.h tables.h \
+ scripts.h recycle.h wilds.h olc.h debug.h
 obj/shoot.o: shoot.c merc.h protocol.h sha256.h interp.h
 obj/skills.o: skills.c merc.h protocol.h sha256.h interp.h magic.h classes.h \
  recycle.h tables.h db.h olc.h scripts.h
@@ -174,8 +171,8 @@ obj/staff.o: staff.c merc.h protocol.h sha256.h tables.h olc.h recycle.h \
 obj/stats.o: stats.c merc.h protocol.h sha256.h db.h recycle.h
 obj/string.o: string.c merc.h protocol.h sha256.h tables.h olc.h scripts.h \
  interp.h
-obj/tables.o: tables.c merc.h protocol.h sha256.h tables.h scripts.h magic.h \
- music.h classes.h
+obj/tables.o: tables.c merc.h protocol.h sha256.h interp.h tables.h scripts.h \
+ magic.h music.h classes.h
 obj/treasuremap.o: treasuremap.c merc.h protocol.h sha256.h interp.h \
  recycle.h tables.h olc.h wilds.h
 obj/update.o: update.c merc.h protocol.h sha256.h interp.h recycle.h \

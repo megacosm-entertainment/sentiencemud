@@ -1257,7 +1257,7 @@ SCRIPT_CMD(do_mpcast)
 		if (!obj) return;
 		to = obj;
 	}
-	(*skill->spell_fun)(skill, info->mob->level, info->mob, to, skill->target, WEAR_NONE);
+	(*skill->spell_fun)(skill, info->mob->tot_level, info->mob, to, skill->target, WEAR_NONE);
 	return;
 }
 
@@ -2258,7 +2258,7 @@ SCRIPT_CMD(do_mpforce)
 	if (fAll) {
 		for (victim = info->mob->in_room->people; victim; victim = next) {
 			next = victim->next_in_room;
-			if (get_trust(victim) < get_trust(info->mob)
+			if (get_staff_rank(victim) < get_staff_rank(info->mob)
 				&& can_see(info->mob, victim)
 				&& (IS_NPC(victim) || !IS_IMMORTAL(victim))) {
 				forced_command = true;
@@ -2470,7 +2470,7 @@ SCRIPT_CMD(do_mpgforce)
 	for (vch = info->mob->in_room->people; vch; vch = next) {
 		next = vch->next_in_room;
 		if (is_same_group(victim,vch) &&
-			get_trust(vch) < get_trust(info->mob)
+			get_staff_rank(vch) < get_staff_rank(info->mob)
 			&& can_see(info->mob, vch)
 			&& (IS_NPC(vch) || !IS_IMMORTAL(vch)))
 			interpret(vch, buf_string(buffer));
@@ -2891,13 +2891,18 @@ SCRIPT_CMD(do_mpoload)
 		switch(arg->type) {
 		case ENT_NUMBER: level = arg->d.num; break;
 		case ENT_STRING: level = arg->d.str ? atoi(arg->d.str) : 0; break;
-		case ENT_MOBILE: level = arg->d.mob ? get_trust(arg->d.mob) : 0; break;
+		case ENT_MOBILE:
+		{
+			CLASS_LEVEL *mcl = arg->d.mob ? get_class_level(arg->d.mob, NULL) : NULL;
+			level = mcl ? mcl->level : (arg->d.mob ? arg->d.mob->tot_level : 0); break;
+		}
 		case ENT_OBJECT: level = arg->d.obj ? arg->d.obj->pIndexData->level : 0; break;
 		default: level = 0; break;
 		}
 
-		if(level <= 0 || level > get_trust(info->mob))
-			level = get_trust(info->mob);
+		CLASS_LEVEL *cl = get_class_level(info->mob, NULL);
+		if (level <= 0 || (IS_VALID(cl) && level > cl->level) || (!IS_VALID(cl) && level > info->mob->tot_level) )
+			level = IS_VALID(cl) ? cl->level : info->mob->tot_level;
 
 		if(rest && *rest) {
 			argument = rest;
@@ -2952,8 +2957,13 @@ SCRIPT_CMD(do_mpoload)
 			}
 		}
 
-	} else
-		level = get_trust(info->mob);
+	}
+	else
+	{
+		CLASS_LEVEL *cl = get_class_level(info->mob, NULL);
+
+		level = IS_VALID(cl) ? cl->level : info->mob->tot_level;
+	}
 
 	obj = create_object(pObjIndex, level, true);
 	if( to_room )
@@ -3585,7 +3595,7 @@ SCRIPT_CMD(do_mpvforce)
 	for (vch = info->mob->in_room->people; vch; vch = next) {
 		next = vch->next_in_room;
 		if (IS_NPC(vch) && vch->pIndexData->vnum == vnum &&
-			get_trust(vch) < get_trust(info->mob)
+			get_staff_rank(vch) < get_staff_rank(info->mob)
 			&& can_see(info->mob, vch)
 			&& (IS_NPC(vch) || !IS_IMMORTAL(vch)))
 			interpret(vch, buf_string(buffer));
@@ -4437,7 +4447,7 @@ SCRIPT_CMD(do_mpaltermob)
 	else if(!str_cmp(field,"silver"))	ptr = (int*)&mob->silver;
 	else if(!str_cmp(field,"size"))		{ ptr = (int*)&mob->size; min = SIZE_TINY; max = SIZE_GIANT; hasmin = hasmax = true; flags = size_flags; }
 	else if(!str_cmp(field,"skillchance"))	ptr = (int*)&mob->skill_chance;
-	else if(!str_cmp(field,"sublevel"))	ptr = (int*)&mob->level;
+	//else if(!str_cmp(field,"sublevel"))	ptr = (int*)&mob->level;
 	else if(!str_cmp(field,"tempstore1"))	ptr = (int*)&mob->tempstore[0];
 	else if(!str_cmp(field,"tempstore2"))	ptr = (int*)&mob->tempstore[1];
 	else if(!str_cmp(field,"tempstore3"))	ptr = (int*)&mob->tempstore[2];

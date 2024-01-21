@@ -3945,8 +3945,26 @@ DECL_IFC_FUN(ifc_maxxp)
 
 DECL_IFC_FUN(ifc_sublevel)
 {
-	*ret = ISARG_MOB(0) ? ARG_MOB(0)->level : 0;
+	*ret = 0;
+	if (ISARG_MOB(0))
+	{
+		CLASS_DATA *clazz = NULL;
+		if (ISARG_STR(1))
+			clazz = get_class_data(ARG_STR(1));
+
+		CLASS_LEVEL *cl = get_class_level(ARG_MOB(0), clazz);
+
+		*ret = cl ? cl->level : 0;
+	}
+
 	return true;
+
+
+
+
+
+
+	
 }
 
 DECL_IFC_FUN(ifc_mobsize)

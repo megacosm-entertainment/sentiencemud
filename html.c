@@ -255,7 +255,7 @@ BUFFER *get_players_html()
      * Set default arguments.
      */
     iLevelLower = 0;
-    iLevelUpper = MAX_LEVEL;
+    iLevelUpper = MAX_CLASS_LEVEL;
 
     /*
      * Now show matching chars.
@@ -306,7 +306,7 @@ BUFFER *get_players_html()
 
 	if (wch->tot_level < iLevelLower
 		|| wch->tot_level > iLevelUpper
-		|| (fImmortalOnly && wch->tot_level < LEVEL_IMMORTAL)
+		|| (fImmortalOnly && get_staff_rank(wch) == STAFF_PLAYER)
 		|| (fChurchOnly && wch->church != church ))
 	    continue;
 
@@ -315,36 +315,25 @@ BUFFER *get_players_html()
 	else
 		class = "            ";
 
-	switch (wch->level)
+	switch (wch->pcdata->staff_rank)
 	{
 	    default:
 		break;
-		{
-		    case MAX_LEVEL - 0:
+	    case STAFF_IMPLEMENTOR:
 			class = "  {w-{W=I{DM{WP={w-{x   ";
 			break;
-		    case MAX_LEVEL - 1:
+		case STAFF_CREATOR:
 			class = "  {RC{rr{Re{ra{Rt{ro{RR{x   ";
 			break;
-		    case MAX_LEVEL - 2:
+		case STAFF_SUPREMACY:
 			class = " {WSup{Drem{WacY{x  ";
 			break;
-		    case MAX_LEVEL - 3:
-			class = " {bAsc{Bend{bant  ";
+		case STAFF_ASCENDANT:
+			class = " {bAsc{Bend{bant{x  ";
 			break;
-		    case MAX_LEVEL - 4:
-			if ( wch->sex == SEX_FEMALE )
-			    class = "  {wGo{Wdde{wss   ";
-			else
-			    class = "    {wG{Wo{wd     ";
+	    case STAFF_IMMORTAL:
+			class = "  {rIm{Rmor{rtal{x ";
 			break;
-		    case MAX_LEVEL - 5:
-			class = "  {BM{Ci{MN{Di{YG{Go{Wd   ";
-			break;
-		    case MAX_LEVEL - 6:
-			class = "  {x-{m=G{xIM{mP={x-  ";
-			break;
-		}
 	}
 
 	/*
@@ -359,24 +348,22 @@ BUFFER *get_players_html()
 	area_type = get_char_where(wch);
 	sprintf(buf,
 		"<tr>"
-		"<td>{G%-3d{x</td>"
-		"<td>{G%-3d{x</td>"
-		"<td>{M%s{x</td>"
+		"<td>{G%3d{x</td>"
+		"<td>{M%c{x</td>"
 		"<td>{Y%6s{x</td>"
 		"<td>{R%12s{x</td>"
 		"<td>{C%-6s{x</td> "
 		"<td>%s%s%s%s{G%-12s{x</td>"
 		"</tr>",
-		wch->level,
 		wch->tot_level,
-		wch->sex == 0 ? "N" : (wch->sex == 1 ? "M" : "F"),
+		("NMFB"[URANGE(0,wch->sex,3)]),
 		IS_VALID(wch->race) ? racestr : "      ",
 		class,
 		area_type,
 		(IS_DEAD(wch) /*&& !IS_DEMON(wch) && !IS_ANGEL(wch)*/) ?
 		"{D(Dead) {x" : "",
-		wch->incog_level >= LEVEL_HERO ? "{D(Incog) {x" : "",
-		wch->invis_level >= LEVEL_HERO ? "{W(Wizi) {x" : "",
+		wch->incog_level >= STAFF_IMMORTAL ? "{D(Incog) {x" : "",
+		wch->invis_level >= STAFF_IMMORTAL ? "{W(Wizi) {x" : "",
 		//IS_SET(wch->comm, COMM_AFK) ? "{M[AFK] {x" : "",
 		//IS_SET(wch->comm, COMM_QUIET) ? "{R[Q] {x" : "",
 		IS_SET(wch->act[0], PLR_BOTTER) ? "{G[BOTTER] {x" : "",

@@ -461,7 +461,10 @@ SPELL_FUNC(spell_toxin_venom)
 		return false;
 	}
 
-	if (IS_AFFECTED(victim, AFF_SLEEP) || victim->level > victim->bitten_level*2) {
+	CLASS_LEVEL *vcl = get_class_level(victim, NULL);
+	int vlevel = vcl ? vcl->level : 0;
+
+	if (IS_AFFECTED(victim, AFF_SLEEP) || vlevel > victim->bitten_level*2) {
 		send_to_char("The poison has no effect on you.\n\r", victim);
 		act("The poison has no effect on $n.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		return false;

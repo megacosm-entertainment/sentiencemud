@@ -119,6 +119,7 @@ CLASS_DATA *gcl_assassin;
 CLASS_DATA *gcl_bard;
 CLASS_DATA *gcl_blacksmith;
 CLASS_DATA *gcl_botanist;
+CLASS_DATA *gcl_carpenter;
 CLASS_DATA *gcl_crusader;
 CLASS_DATA *gcl_culinarian;
 CLASS_DATA *gcl_destroyer;
@@ -130,6 +131,7 @@ CLASS_DATA *gcl_geomancer;
 CLASS_DATA *gcl_gladiator;
 CLASS_DATA *gcl_highwayman;
 CLASS_DATA *gcl_illusionist;
+CLASS_DATA *gcl_inscription;
 CLASS_DATA *gcl_jewelcrafter;
 CLASS_DATA *gcl_leatherworker;
 CLASS_DATA *gcl_marauder;
@@ -139,9 +141,11 @@ CLASS_DATA *gcl_monk;
 CLASS_DATA *gcl_necromancer;
 CLASS_DATA *gcl_ninja;
 CLASS_DATA *gcl_paladin;
+CLASS_DATA *gcl_priest;
 CLASS_DATA *gcl_ranger;
 CLASS_DATA *gcl_rogue;
 CLASS_DATA *gcl_sage;
+CLASS_DATA *gcl_shaman;
 CLASS_DATA *gcl_skinner;
 CLASS_DATA *gcl_sorcerer;
 CLASS_DATA *gcl_stonemason;
@@ -2978,7 +2982,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 			pMob->home_room = pRoom;
 
 			LastMob = pMob;
-			level  = URANGE(0, pMob->level - 2, LEVEL_HERO - 1); /* -1 ROM */
+			level  = UMAX(0, pMob->tot_level);
 			last = true;
 			objRepop = true;
 			p_percent_trigger(pMob, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
@@ -3020,7 +3024,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 				break;
 			}
 
-			pObj = create_object(pObjIndex, UMIN(number_fuzzy(level), LEVEL_HERO -1) , true);
+			pObj = create_object(pObjIndex, UMAX(0, number_fuzzy(level)) , true);
 			if( instanced )
 				SET_BIT(pObj->extra[2], ITEM_INSTANCE_OBJ);
 			pObj->cost = 0;
@@ -3099,7 +3103,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 
 				if (pObjIndex->count < limit || number_range(0,4) == 0)
 				{
-					pObj = create_object(pObjIndex, UMIN(number_fuzzy(level), LEVEL_HERO - 1), true);
+					pObj = create_object(pObjIndex, UMAX(0, number_fuzzy(level)), true);
 				}
 				else
 					break;
@@ -3345,7 +3349,6 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 	mob->affected_by[0]		= pMobIndex->affected_by[0];
 	mob->affected_by[1]		= pMobIndex->affected_by[1];
 	mob->alignment			= pMobIndex->alignment;
-	mob->level				= pMobIndex->level;
 	mob->tot_level			= pMobIndex->level;
 	mob->hitroll			= pMobIndex->hitroll;
 	mob->damroll			= pMobIndex->damage.bonus;
@@ -3400,7 +3403,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
 
 	for (i = 0; i < MAX_STATS; i ++)
-		set_perm_stat_range(mob, i, 11 + mob->level/4, 0, 25);
+		set_perm_stat_range(mob, i, 11 + mob->tot_level/4, 0, 25);
 
 	if (IS_SET(mob->act[0],ACT_WARRIOR))
 	{
@@ -3447,6 +3450,8 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		}
 
 
+		int level = level;
+
 		memset(&af,0,sizeof(af));
 		af.slot	= WEAR_NONE;	// None of the subsequent affects are from worn objects
 
@@ -3456,10 +3461,10 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 			af.group		= IS_SET(race->aff[0],AFF_INVISIBLE)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_invis;
-			af.level		= mob->level;
+			af.level		= level;
 			af.duration		= -1;
 			af.location		= 0;
-			af.modifier		= (mob->level - 4) / 7;
+			af.modifier		= (level - 4) / 7;
 			if( af.modifier < 1 ) af.modifier = 1;
 			af.bitvector	= AFF_INVISIBLE;
 			af.bitvector2	= 0;
@@ -3471,7 +3476,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 			af.group		= IS_SET(race->aff[0],AFF_DETECT_INVIS)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_detect_invis;
-			af.level		= mob->level;
+			af.level		= level;
 			af.duration		= -1;
 			af.location		= 0;
 			af.modifier		= 0;
@@ -3485,7 +3490,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 			af.group		= IS_SET(race->aff[0],AFF_DETECT_HIDDEN)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_detect_hidden;
-			af.level		= mob->level;
+			af.level		= level;
 			af.duration		= -1;
 			af.location		= 0;
 			af.modifier		= 0;
@@ -3499,7 +3504,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 			af.group		= IS_SET(race->aff[0],AFF_SANCTUARY)?AFFGROUP_RACIAL:AFFGROUP_DIVINE;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_sanctuary;
-			af.level		= mob->level;
+			af.level		= level;
 			af.duration		= -1;
 			af.location		= APPLY_NONE;
 			af.modifier		= 0;
@@ -3513,7 +3518,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 			af.group		= IS_SET(race->aff[0],AFF_INFRARED)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_infravision;
-			af.level		= mob->level;
+			af.level		= level;
 			af.duration		= -1;
 			af.location		= APPLY_NONE;
 			af.modifier		= 0;
@@ -3527,7 +3532,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 			af.group		= IS_SET(race->aff[0],AFF_DEATH_GRIP)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_death_grip;
-			af.level		= mob->level;
+			af.level		= level;
 			af.duration		= -1;
 			af.location		= APPLY_NONE;
 			af.modifier		= 0;
@@ -3541,7 +3546,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 			af.group		= IS_SET(race->aff[0],AFF_FLYING)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_fly;
-			af.level		= mob->level;
+			af.level		= level;
 			af.duration		= -1;
 			af.location		= APPLY_NONE;
 			af.modifier		= 0;
@@ -3555,7 +3560,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 			af.group		= IS_SET(race->aff[0],AFF_PASS_DOOR)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_pass_door;
-			af.level		= mob->level;
+			af.level		= level;
 			af.duration		= -1;
 			af.location		= APPLY_NONE;
 			af.modifier		= 0;
@@ -3569,10 +3574,10 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 			af.group		= IS_SET(race->aff[0],AFF_HASTE)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_haste;
-			af.level		= mob->level;
+			af.level		= level;
 			af.duration		= -1;
 			af.location		= APPLY_DEX;
-			af.modifier		= (mob->level - 4) / 7;
+			af.modifier		= (level - 4) / 7;
 			if( af.modifier < 1 ) af.modifier = 1;
 			af.bitvector	= AFF_HASTE;
 			af.bitvector2	= 0;
@@ -3584,7 +3589,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 			af.group		= AFFGROUP_PHYSICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_warcry;
-			af.level		= mob->level;
+			af.level		= level;
 			af.duration		= -1;
 			af.location		= 0;
 			af.modifier		= 0;
@@ -3598,7 +3603,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 			af.group		= IS_SET(race->aff[1],AFF2_LIGHT_SHROUD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_light_shroud;
-			af.level		= mob->level;
+			af.level		= level;
 			af.duration		= -1;
 			af.location		= 0;
 			af.modifier		= 0;
@@ -3612,7 +3617,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 			af.group		= IS_SET(race->aff[1],AFF2_HEALING_AURA)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_healing_aura;
-			af.level		= mob->level;
+			af.level		= level;
 			af.duration		= -1;
 			af.location		= 0;
 			af.modifier		= 0;
@@ -3626,7 +3631,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 			af.group		= IS_SET(race->aff[1],AFF2_ENERGY_FIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_energy_field;
-			af.level		= mob->level;
+			af.level		= level;
 			af.duration		= -1;
 			af.location		= 0;
 			af.modifier		= 0;
@@ -3640,7 +3645,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 			af.group		= IS_SET(race->aff[1],AFF2_SPELL_SHIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_spell_shield;
-			af.level		= mob->level;
+			af.level		= level;
 			af.duration		= -1;
 			af.location		= 0;
 			af.modifier		= 0;
@@ -3654,7 +3659,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 			af.group		= IS_SET(race->aff[1],AFF2_SPELL_DEFLECTION)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_spell_deflection;
-			af.level		= mob->level;
+			af.level		= level;
 			af.duration		= -1;
 			af.location		= 0;
 			af.modifier		= 0;
@@ -3668,7 +3673,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 			af.group		= IS_SET(race->aff[1],AFF2_AVATAR_SHIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_avatar_shield;
-			af.level		= mob->level;
+			af.level		= level;
 			af.duration		= -1;
 			af.location		= 0;
 			af.modifier		= 0;
@@ -3682,7 +3687,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 			af.group		= IS_SET(race->aff[1],AFF2_ELECTRICAL_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_electrical_barrier;
-			af.level		= mob->level;
+			af.level		= level;
 			af.duration		= -1;
 			af.location		= 0;
 			af.modifier		= 0;
@@ -3697,7 +3702,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 			af.group		= IS_SET(race->aff[1],AFF2_FIRE_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_fire_barrier;
-			af.level		= mob->level;
+			af.level		= level;
 			af.duration		= -1;
 			af.location		= 0;
 			af.modifier		= 0;
@@ -3711,7 +3716,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 			af.group		= IS_SET(race->aff[1],AFF2_FROST_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_frost_barrier;
-			af.level		= mob->level;
+			af.level		= level;
 			af.duration		= -1;
 			af.location		= 0;
 			af.modifier		= 0;
@@ -3725,7 +3730,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 			af.group		= IS_SET(race->aff[1],AFF2_IMPROVED_INVIS)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_improved_invisibility;
-			af.level		= mob->level;
+			af.level		= level;
 			af.duration		= -1;
 			af.location		= 0;
 			af.modifier		= 0;
@@ -3739,7 +3744,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 			af.group		= IS_SET(race->aff[1],AFF2_STONE_SKIN)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
 			af.skill		= gsk_stone_skin;
-			af.level		= mob->level;
+			af.level		= level;
 			af.duration		= -1;
 			af.location		= 0;
 			af.modifier		= 0;
@@ -3818,9 +3823,7 @@ CHAR_DATA *clone_mobile(CHAR_DATA *parent)
     clone->sex		= parent->sex;
     /*clone->cclass	= parent->class;*/
     clone->race		= parent->race;
-    clone->level	= parent->level;
-    clone->tot_level	= parent->level;
-    clone->trust	= 0;
+    clone->tot_level	= parent->tot_level;
     clone->timer	= parent->timer;
     clone->wait		= parent->wait;
     clone->hit		= parent->hit;
@@ -7193,7 +7196,6 @@ void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
 	fprintf(fp, "Desc %s~\n", fix_string(ch->description));
 	fprintf(fp, "Race %s~\n", ch->race->name);
 	fprintf(fp, "Sex  %d\n", ch->sex);
-	fprintf(fp, "Levl %d\n", ch->level);
 	fprintf(fp, "TLevl %d\n", ch->tot_level);
 
 
@@ -8863,7 +8865,6 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 			case 'K':
 				break;
 			case 'L':
-				KEY("Levl",			ch->level,		fread_number(fp));
 				SKEY("LnD",			ch->long_descr);
 				KEY("LostParts",	ch->lostparts,	fread_flag(fp));
 				break;

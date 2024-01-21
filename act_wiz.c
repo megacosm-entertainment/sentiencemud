@@ -503,7 +503,7 @@ void do_wiznet(CHAR_DATA *ch, char *argument)
 
 	for (flag = 0; wiznet_table[flag].name != NULL; flag++)
 	{
-	    if (wiznet_table[flag].level <= get_trust(ch))
+	    if (wiznet_table[flag].rank <= get_staff_rank(ch))
 	    {
 	    	strcat(buf,wiznet_table[flag].name);
 	    	strcat(buf," ");
@@ -519,7 +519,7 @@ void do_wiznet(CHAR_DATA *ch, char *argument)
 
     flag = wiznet_lookup(argument);
 
-    if (flag == -1 || get_trust(ch) < wiznet_table[flag].level)
+    if (flag == -1 || get_staff_rank(ch) < wiznet_table[flag].rank)
     {
 	send_to_char("No such option.\n\r",ch);
 	return;
@@ -545,33 +545,32 @@ void do_wiznet(CHAR_DATA *ch, char *argument)
 }
 
 
-void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj,
-	    long flag, long flag_skip, int min_level)
+void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj, long flag, long flag_skip, int min_rank)
 {
-    DESCRIPTOR_DATA *d;
+	DESCRIPTOR_DATA *d;
 
-    for (d = descriptor_list; d != NULL; d = d->next)
-    {
-        if (d->connected == CON_PLAYING
-	&&  IS_IMMORTAL(d->character)
-	&&  IS_SET(d->character->wiznet,WIZ_ON)
-	&&  (!flag || IS_SET(d->character->wiznet,flag))
-	&&  (!flag_skip || !IS_SET(d->character->wiznet,flag_skip))
-	&&  get_trust(d->character) >= min_level
-	&&  d->character != ch)
-        {
-	    /* Higher level imms can see lower level imms sign on wizi, but not vice versa. */
-            if (ch != NULL && flag == WIZ_LOGINS) {
-		if (d->character->tot_level < ch->tot_level
-		&&  ch->invis_level >= LEVEL_IMMORTAL)
-		    continue;
-	    }
+	for (d = descriptor_list; d != NULL; d = d->next)
+	{
+		if (d->connected == CON_PLAYING &&
+			IS_IMMORTAL(d->character) &&
+			IS_SET(d->character->wiznet,WIZ_ON) &&
+			(!flag || IS_SET(d->character->wiznet,flag)) &&
+			(!flag_skip || !IS_SET(d->character->wiznet,flag_skip)) &&
+			get_staff_rank(d->character) >= min_rank &&
+			d->character != ch)
+		{
+			// Higher level imms can see lower level imms sign on wizi, but not vice versa.
+			if (ch != NULL && flag == WIZ_LOGINS)
+			{
+				if (get_staff_rank(d->character) < ch->invis_level && ch->invis_level > STAFF_PLAYER)
+					continue;
+			}
 
-	    if (IS_SET(d->character->wiznet,WIZ_PREFIX))
-	  	send_to_char("{B({MSE{B){G-->{x ",d->character);
-            act_new(string,d->character,ch,NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
-        }
-    }
+			if (IS_SET(d->character->wiznet,WIZ_PREFIX))
+				send_to_char("{B({MSE{B){G-->{x ",d->character);
+			act_new(string,d->character,ch,NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
+		}
+	}
 }
 
 
@@ -589,7 +588,7 @@ void do_zot(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (ch->tot_level == MAX_LEVEL && !str_cmp(arg, "room"))
+    if (IS_IMPLEMENTOR(ch) && !str_cmp(arg, "room"))
     {
     	for (victim = ch->in_room->people; victim != NULL; victim = victim->next_in_room)
 	{
@@ -629,7 +628,7 @@ void do_zot(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (IS_NPC(victim) && ch->tot_level < MAX_LEVEL)
+    if (IS_NPC(victim) && !IS_IMPLEMENTOR(ch))
     {
 	send_to_char("Try zotting players instead.\n\r", ch);
 	return;
@@ -684,7 +683,7 @@ void do_nochannels(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (get_trust(victim) >= get_trust(ch))
+    if (get_staff_rank(victim) >= get_staff_rank(ch))
     {
         send_to_char("You failed.\n\r", ch);
         return;
@@ -795,7 +794,7 @@ void do_deny(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (get_trust(victim) >= get_trust(ch))
+    if (get_staff_rank(victim) >= get_staff_rank(ch))
     {
 	send_to_char("You failed.\n\r", ch);
 	return;
@@ -886,7 +885,7 @@ void do_echo(CHAR_DATA *ch, char *argument)
     {
 	if (d->connected == CON_PLAYING)
 	{
-	    if (IS_IMMORTAL(d->character) && get_trust(d->character) >= get_trust(ch) && IS_SET(d->character->act[0], PLR_HOLYLIGHT))
+	    if (IS_IMMORTAL(d->character) && get_staff_rank(d->character) >= get_staff_rank(ch) && IS_SET(d->character->act[0], PLR_HOLYLIGHT))
 			send_to_char("global> ",d->character);
 	    send_to_char(argument, d->character);
 	    send_to_char("\n\r",   d->character);
@@ -909,7 +908,7 @@ void do_recho(CHAR_DATA *ch, char *argument)
 	{
 		if (d->connected == CON_PLAYING && d->character->in_room == ch->in_room)
 		{
-			if (IS_IMMORTAL(d->character) && get_trust(d->character) >= get_trust(ch) && IS_SET(d->character->act[0], PLR_HOLYLIGHT))
+			if (IS_IMMORTAL(d->character) && get_staff_rank(d->character) >= get_staff_rank(ch) && IS_SET(d->character->act[0], PLR_HOLYLIGHT))
 				send_to_char("local> ",d->character);
 			send_to_char(argument, d->character);
 			send_to_char("\n\r",   d->character);
@@ -936,7 +935,7 @@ void do_zecho(CHAR_DATA *ch, char *argument)
 			ch->in_room != NULL &&
 			d->character->in_room->area == ch->in_room->area)
 		{
-		    if (IS_IMMORTAL(d->character) && get_trust(d->character) >= get_trust(ch) && IS_SET(d->character->act[0], PLR_HOLYLIGHT))
+		    if (IS_IMMORTAL(d->character) && get_staff_rank(d->character) >= get_staff_rank(ch) && IS_SET(d->character->act[0], PLR_HOLYLIGHT))
 				send_to_char("zone> ",d->character);
 		    send_to_char(argument,d->character);
 		    send_to_char("\n\r",d->character);
@@ -964,7 +963,7 @@ void do_pecho(CHAR_DATA *ch, char *argument)
 		return;
     }
 
-	if (IS_IMMORTAL(victim) && get_trust(victim) >= get_trust(ch) && get_trust(ch) != MAX_LEVEL && IS_SET(victim->act[0], PLR_HOLYLIGHT))
+	if (IS_IMMORTAL(victim) && get_staff_rank(victim) >= get_staff_rank(ch) && !IS_IMPLEMENTOR(ch) && IS_SET(victim->act[0], PLR_HOLYLIGHT))
         send_to_char("personal> ",victim);
     send_to_char(argument,victim);
     send_to_char("\n\r",victim);
@@ -1025,8 +1024,7 @@ void do_transfer(CHAR_DATA *ch, char *argument)
 	    return;
 	}
 
-	if (!is_room_owner(ch,location) && room_is_private(location, ch)
-	&&  get_trust(ch) < MAX_LEVEL)
+	if (!is_room_owner(ch,location) && room_is_private(location, ch) && (!IS_IMPLEMENTOR(ch) || !IS_SET(ch->act[1], PLR_HOLYWARP)))
 	{
 	    send_to_char("That room is private right now.\n\r", ch);
 	    return;
@@ -1109,8 +1107,8 @@ void do_at(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!is_room_owner(ch,location) && room_is_private(location, ch) &&
-		get_trust(ch) < MAX_LEVEL) {
+	if (!is_room_owner(ch,location) && room_is_private(location, ch) && (!IS_IMPLEMENTOR(ch) || !IS_SET(ch->act[1], PLR_HOLYWARP)))
+	{
 		send_to_char("That room is private right now.\n\r", ch);
 		return;
 	}
@@ -1176,11 +1174,10 @@ void do_goto(CHAR_DATA *ch, char *argument)
     }
 
     count = 0;
-    for (rch = location->people; rch != NULL; rch = rch->next_in_room)
-        count++;
+    for (rch = location->people; rch != NULL; rch = rch->next_in_room) count++;
 
-    if (!is_room_owner(ch,location) && room_is_private(location, ch) &&
-		(count > 1 || get_trust(ch) < MAX_LEVEL))
+	if (!is_room_owner(ch,location) && room_is_private(location, ch) &&
+		(count > 1 || (!IS_IMPLEMENTOR(ch) || !IS_SET(ch->act[1], PLR_HOLYWARP))))
     {
 		send_to_char("That room is private right now.\n\r", ch);
 		return;
@@ -1194,9 +1191,9 @@ void do_goto(CHAR_DATA *ch, char *argument)
 //	if (get_trust(rch) >= ch->invis_level)
 //	{
 	    if (ch->pcdata != NULL && ch->pcdata->immortal != NULL &&  ch->pcdata->immortal->bamfout[0] != '\0')
-		act("$t",ch,rch, NULL, NULL, NULL,ch->pcdata->immortal->bamfout, NULL,TO_VICT);
+			act("$t",ch,rch, NULL, NULL, NULL,ch->pcdata->immortal->bamfout, NULL,TO_VICT);
 	    else
-		act("$n leaves in a swirling mist.",ch,rch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
+			act("$n leaves in a swirling mist.",ch,rch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
 //	}
     }
 
@@ -1316,7 +1313,7 @@ void do_goxy (CHAR_DATA * ch, char *argument)
 
     for (rch = ch->in_room->people; rch != NULL; rch = rch->next_in_room)
     {
-        if (get_trust (rch) >= ch->invis_level)
+        if (get_staff_rank (rch) >= ch->invis_level)
         {
             if (ch->pcdata != NULL)
             {
@@ -1346,7 +1343,7 @@ void do_goxy (CHAR_DATA * ch, char *argument)
 
     for (rch = ch->in_room->people; rch != NULL; rch = rch->next_in_room)
     {
-        if (get_trust (rch) >= ch->invis_level)
+        if (get_staff_rank (rch) >= ch->invis_level)
         {
             if (ch->pcdata != NULL && IS_IMMORTAL(ch) && ch->pcdata->immortal->bamfin[0] != '\0')
                 act ("$t", ch, rch, NULL, NULL, NULL, ch->pcdata->immortal->bamfin, NULL, TO_VICT);
@@ -2318,7 +2315,7 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 		item_name(obj->item_type));
     add_buf(buffer, buf);
 
-    if (obj->loaded_by != NULL && ch->tot_level >= LEVEL_IMMORTAL)
+    if (obj->loaded_by != NULL && get_staff_rank(ch) > STAFF_PLAYER)
     {
 		sprintf(buf, "{BItem loaded by {x%s\n\r", obj->loaded_by);
 	    add_buf(buffer, buf);
@@ -4023,7 +4020,7 @@ void do_switch(CHAR_DATA *ch, char *argument)
     }
 
     sprintf(buf,"$N switches into %s",victim->short_descr);
-    wiznet(buf,ch,NULL,WIZ_SWITCHES,WIZ_SECURE,get_trust(ch));
+    wiznet(buf,ch,NULL,WIZ_SWITCHES,WIZ_SECURE,get_staff_rank(ch));
 
     ch->desc->character = victim;
     ch->desc->original  = ch;
@@ -4068,7 +4065,7 @@ void do_return(CHAR_DATA *ch, char *argument)
     if (IS_IMMORTAL(ch))
     {
         sprintf(buf,"$N returns from %s.",ch->short_descr);
-        wiznet(buf,ch->desc->original,0,WIZ_SWITCHES,WIZ_SECURE,get_trust(ch->desc->original));
+        wiznet(buf,ch->desc->original,0,WIZ_SWITCHES,WIZ_SECURE,get_staff_rank(ch->desc->original));
     }
 
     REMOVE_BIT(ch->act[0], PLR_COLOUR);
@@ -4157,7 +4154,7 @@ void do_clone(CHAR_DATA *ch, char *argument)
 
 	act("$n has created $p.",ch, NULL, NULL,clone,NULL, NULL, NULL,TO_ROOM);
 	act("You clone $p.",ch, NULL, NULL,clone, NULL, NULL, NULL,TO_CHAR);
-	wiznet("$N clones $p.",ch,clone,WIZ_LOAD,WIZ_SECURE,get_trust(ch));
+	wiznet("$N clones $p.",ch,clone,WIZ_LOAD,WIZ_SECURE,get_staff_rank(ch));
 	return;
     }
     else if (mob != NULL)
@@ -4186,7 +4183,7 @@ void do_clone(CHAR_DATA *ch, char *argument)
         act("$n has created $N.",ch,clone, NULL, NULL, NULL, NULL, NULL,TO_ROOM);
         act("You clone $N.",ch,clone, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
 	sprintf(buf,"$N clones %s.",clone->short_descr);
-	wiznet(buf,ch,NULL,WIZ_LOAD,WIZ_SECURE,get_trust(ch));
+	wiznet(buf,ch,NULL,WIZ_LOAD,WIZ_SECURE,get_staff_rank(ch));
         return;
     }
 }
@@ -4286,7 +4283,7 @@ void do_mload(CHAR_DATA *ch, char *argument)
 
     act("$n has created $N!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
     sprintf(buf,"$N loads %s.",victim->short_descr);
-    wiznet(buf,ch,NULL,WIZ_LOAD,WIZ_SECURE,get_trust(ch));
+    wiznet(buf,ch,NULL,WIZ_LOAD,WIZ_SECURE,get_staff_rank(ch));
 }
 
 
@@ -4377,7 +4374,7 @@ void do_oload(CHAR_DATA *ch, char *argument)
 		act("$n has created $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 		sprintf(buf, "Loaded $p (%ld#%ld)", obj->pIndexData->area->uid, obj->pIndexData->vnum);
 		act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		wiznet("$N loads $p.",ch,obj,WIZ_LOAD,WIZ_SECURE,get_trust(ch));
+		wiznet("$N loads $p.",ch,obj,WIZ_LOAD,WIZ_SECURE,get_staff_rank(ch));
 
 		obj->loaded_by = str_dup(ch->name);
 
@@ -4403,7 +4400,7 @@ void do_oload(CHAR_DATA *ch, char *argument)
 		    amt, pObjIndex->short_descr, pObjIndex->area->uid, pObjIndex->vnum);
 		act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		sprintf(buf, "{Y({G%d{Y){x $N loads %s.", amt, pObjIndex->short_descr);
-		wiznet(buf, ch, NULL, WIZ_LOAD, WIZ_SECURE, get_trust(ch));
+		wiznet(buf, ch, NULL, WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch));
     }
 }
 
@@ -4492,6 +4489,7 @@ void do_purge(CHAR_DATA *ch, char *argument)
 /* Adding some new stuff to advance, for new immortals. It'll now display an intro screen to them. Perhaps the intro would be better as a helpfile, along the same lines as do_greeting? -- Areo 2006-08-23 */
 void do_advance(CHAR_DATA *ch, char *argument)
 {
+#if 0
     char buf[MAX_STRING_LENGTH];
     char arg1[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
@@ -4678,11 +4676,13 @@ void do_advance(CHAR_DATA *ch, char *argument)
 		  /** UMAX(1, victim->level);*/
     victim->trust = 0;
     save_char_obj(victim);
+#endif
 }
 
 
 void do_trust(CHAR_DATA *ch, char *argument)
 {
+#if 0
     char arg1[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
     char buf[MAX_STRING_LENGTH];
@@ -4718,6 +4718,7 @@ void do_trust(CHAR_DATA *ch, char *argument)
     }
 
     victim->trust = level;
+#endif
 }
 
 
@@ -4740,14 +4741,14 @@ void do_restore(CHAR_DATA *ch, char *argument)
 
 
         sprintf(buf, "$N restored room %ld.", ch->in_room->vnum);
-        wiznet(buf, ch, NULL, WIZ_RESTORE, WIZ_SECURE, get_trust(ch));
+        wiznet(buf, ch, NULL, WIZ_RESTORE, WIZ_SECURE, get_staff_rank(ch));
 
         send_to_char("Room restored.\n\r",ch);
         return;
     }
 
     /* restore all */
-    if ((ch->tot_level >= MAX_LEVEL - 2) && !str_cmp(arg,"all"))
+	if (IS_STAFF(ch, STAFF_SUPREMACY) && !str_cmp(arg,"all"))
     {
         for (d = descriptor_list; d != NULL; d = d->next)
         {
@@ -4773,9 +4774,7 @@ void do_restore(CHAR_DATA *ch, char *argument)
     act("Restored $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
     sprintf(buf, "$N restored %s.", IS_NPC(victim) ? victim->short_descr : victim->name);
-    wiznet(buf,ch,NULL,WIZ_RESTORE,WIZ_SECURE,get_trust(ch));
-
-
+    wiznet(buf,ch,NULL,WIZ_RESTORE,WIZ_SECURE,get_staff_rank(ch));
 }
 
 
@@ -4804,7 +4803,7 @@ void do_freeze(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (get_trust(victim) >= get_trust(ch))
+    if (get_staff_rank(victim) >= get_staff_rank(ch))
     {
 	send_to_char("You failed.\n\r", ch);
 	return;
@@ -4839,10 +4838,10 @@ void do_log(CHAR_DATA *ch, char *argument)
     one_argument(argument, arg);
 
     /* This command is strict */
-    if (ch->tot_level < MAX_LEVEL)
+    if (!IS_IMPLEMENTOR(ch))
     {
-	send_to_char("Huh?\n\r", ch);
-	return;
+		send_to_char("Huh?\n\r", ch);
+		return;
     }
 
     if (arg[0] == '\0')
@@ -4915,7 +4914,7 @@ void do_notell(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (get_trust(victim) >= get_trust(ch))
+    if (get_staff_rank(victim) >= get_staff_rank(ch))
     {
 	send_to_char("You failed.\n\r", ch);
 	return;
@@ -7075,7 +7074,7 @@ void do_force(CHAR_DATA *ch, char *argument)
 	DESCRIPTOR_DATA *desc;
 	DESCRIPTOR_DATA *desc_next;
 
-	if (ch->tot_level < MAX_LEVEL - 2)
+	if (!IS_STAFF(ch, STAFF_SUPREMACY))
 	{
 	    send_to_char("Not at your level!\n\r",ch);
 	    return;
@@ -7086,7 +7085,7 @@ void do_force(CHAR_DATA *ch, char *argument)
 	    desc_next = desc->next;
 
 	    if (desc->connected == CON_PLAYING
-	    &&  get_trust(desc->character) < get_trust(ch))
+	    &&  get_staff_rank(desc->character) < get_staff_rank(ch))
 	    {
 		act(buf, ch, desc->character, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 		interpret(desc->character, argument);
@@ -7097,9 +7096,9 @@ void do_force(CHAR_DATA *ch, char *argument)
     {
         DESCRIPTOR_DATA *desc,*desc_next;
 
-        if (ch->tot_level < MAX_LEVEL - 1)
+        if (!IS_STAFF(ch, STAFF_CREATOR))
 	{
-            send_to_char("Not at your level!\n\r",ch);
+            send_to_char("Not at your rank!\n\r",ch);
 	    return;
         }
 
@@ -7108,8 +7107,8 @@ void do_force(CHAR_DATA *ch, char *argument)
             desc_next = desc->next;
 
 	    if (desc->connected==CON_PLAYING
-	    &&  get_trust(desc->character) < get_trust(ch)
-            &&  desc->character->level >= LEVEL_HERO)
+	    &&  get_staff_rank(desc->character) < get_staff_rank(ch)
+            &&  get_staff_rank(desc->character) >= STAFF_IMMORTAL)
 	    {
 		act(buf, ch, desc->character, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 		interpret(desc->character, argument);
@@ -7140,9 +7139,7 @@ void do_force(CHAR_DATA *ch, char *argument)
             return;
         }
 
-	if (get_trust(victim) >= get_trust(ch)
-	&&   ch->tot_level < MAX_LEVEL
-	&&   !IS_NPC(victim))
+	if (!IS_NPC(victim) && get_staff_rank(victim) >= get_staff_rank(ch) && !IS_IMPLEMENTOR(ch))
 	{
 	    send_to_char("Do it yourself!\n\r", ch);
 	    return;
@@ -7168,36 +7165,44 @@ void do_invis(CHAR_DATA *ch, char *argument)
     one_argument(argument, arg);
 
     if (arg[0] == '\0')
+	{
     /* take the default path */
 
-      if (ch->invis_level)
-      {
-	  ch->invis_level = 0;
-	  act("$n slowly fades into existence.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	  send_to_char("You slowly fade back into existence.\n\r", ch);
-      }
-      else
-      {
-	  ch->invis_level = get_trust(ch);
-	  act("$n slowly fades into thin air.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	  send_to_char("You slowly vanish into thin air.\n\r", ch);
-      }
+		if (ch->invis_level)
+		{
+			ch->invis_level = 0;
+			act("$n slowly fades into existence.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			send_to_char("You slowly fade back into existence.\n\r", ch);
+		}
+		else
+		{
+			ch->invis_level = get_staff_rank(ch);
+			act("$n slowly fades into thin air.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			send_to_char("You slowly vanish into thin air.\n\r", ch);
+		}
+	}
     else
     /* do the level thing */
     {
-      level = atoi(arg);
-      if (level < 2 || level > get_trust(ch))
-      {
-	send_to_char("Invis level must be between 2 and your level.\n\r",ch);
-        return;
-      }
-      else
-      {
-	  ch->reply = NULL;
-          ch->invis_level = level;
-          act("$n slowly fades into thin air.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-          send_to_char("You slowly vanish into thin air.\n\r", ch);
-      }
+		int rank = get_staff_rank(ch);
+		level = stat_lookup(arg, staff_ranks, NO_FLAG);
+		if (level == NO_FLAG || level > rank)
+		{
+			send_to_char("Invis level must be one of the following:\n\r",ch);
+			for(int i = 0; staff_ranks[i].name && staff_ranks[i].bit <= rank; i++)
+			{
+				if (staff_ranks[i].settable)
+					send_to_char(formatf(" %s\n\r", staff_ranks[i].name), ch);
+			}
+			return;
+		}
+		else
+		{
+			ch->reply = NULL;
+			ch->invis_level = level;
+			act("$n slowly fades into thin air.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			send_to_char("You slowly vanish into thin air.\n\r", ch);
+		}
     }
 
     return;
@@ -7212,36 +7217,43 @@ void do_incognito(CHAR_DATA *ch, char *argument)
     one_argument(argument, arg);
 
     if (arg[0] == '\0')
-    /* take the default path */
-
-      if (ch->incog_level)
-      {
-          ch->incog_level = 0;
-          act("$n is no longer cloaked.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-          send_to_char("You are no longer cloaked.\n\r", ch);
-      }
-      else
-      {
-          ch->incog_level = get_trust(ch);
-          act("$n cloaks $s presence.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-          send_to_char("You cloak your presence.\n\r", ch);
-      }
+	{
+		/* take the default path */
+		if (ch->incog_level)
+		{
+			ch->incog_level = 0;
+			act("$n is no longer cloaked.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			send_to_char("You are no longer cloaked.\n\r", ch);
+		}
+		else
+		{
+			ch->incog_level = get_staff_rank(ch);
+			act("$n cloaks $s presence.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			send_to_char("You cloak your presence.\n\r", ch);
+		}
+	}
     else
     /* do the level thing */
     {
-      level = atoi(arg);
-      if (level < 2 || level > get_trust(ch))
-      {
-        send_to_char("Incog level must be between 2 and your level.\n\r",ch);
-        return;
-      }
-      else
-      {
-          ch->reply = NULL;
-          ch->incog_level = level;
-          act("$n cloaks $s presence.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-          send_to_char("You cloak your presence.\n\r", ch);
-      }
+		int rank = get_staff_rank(ch);
+		level = stat_lookup(arg, staff_ranks, NO_FLAG);
+		if (level == NO_FLAG || level > rank)
+		{
+			send_to_char("Incog level must be one of the following:\n\r",ch);
+			for(int i = 0; staff_ranks[i].name && staff_ranks[i].bit <= rank; i++)
+			{
+				if (staff_ranks[i].settable)
+					send_to_char(formatf(" %s\n\r", staff_ranks[i].name), ch);
+			}
+			return;
+		}
+		else
+		{
+			ch->reply = NULL;
+			ch->incog_level = level;
+			act("$n cloaks $s presence.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			send_to_char("You cloak your presence.\n\r", ch);
+		}
     }
 
     return;
@@ -7412,6 +7424,8 @@ void do_olevel(CHAR_DATA *ch, char *argument)
 }
 
 
+
+// 20240120: NIB: Changed this to ONLY look at NPCs.
 void do_mlevel(CHAR_DATA *ch, char *argument)
 {
 	char buf[MAX_INPUT_LENGTH];
@@ -7426,21 +7440,21 @@ void do_mlevel(CHAR_DATA *ch, char *argument)
 		send_to_char("Syntax: mlevel <level>\n\r",ch);
 		return;
 	}
+	int level = atoi(argument);
 	found = false;
 	buffer = new_buf();
 	iterator_start(&vit, loaded_chars);
 	while(( victim = (CHAR_DATA *)iterator_nextdata(&vit)))
 	{
-		if (victim->in_room != NULL &&
-			atoi(argument) == victim->level) {
+		if (IS_NPC(victim) &&
+			victim->in_room != NULL &&
+			level == victim->tot_level) {
 			found = true;
 			count++;
 			sprintf(buf, "%3d) [%5ld] %-28s [%5ld] %s\n\r",
 					count,
-					IS_NPC(victim) ?
-					victim->pIndexData->vnum : 0,
-					IS_NPC(victim) ?
-					victim->short_descr : victim->name,
+					victim->pIndexData->vnum ,
+					victim->short_descr,
 					victim->in_room->vnum,
 					victim->in_room->name);
 			add_buf(buffer,buf);
@@ -8207,7 +8221,7 @@ void do_assignhelper(CHAR_DATA * ch, char *argument)
     char arg[MAX_STRING_LENGTH];
     CHAR_DATA * victim;
     argument = one_argument(argument, arg);
-    if (ch->tot_level < MAX_LEVEL - 1)
+    if (!IS_STAFF(ch, STAFF_CREATOR))
     {
 	send_to_char("Huh?\n\r", ch);
 	return;
@@ -8378,7 +8392,7 @@ void do_addcommand(CHAR_DATA *ch, char *argument)
     for (i = 0; cmd_table[i].name[0] != '\0'; i++)
     {
         if (!str_prefix(arg2, cmd_table[i].name)
-	&&  cmd_table[i].level <= ch->tot_level)
+	&&  cmd_table[i].rank <= get_staff_rank(ch))
 	{
 	    found = true;
 	    break;
@@ -8390,8 +8404,8 @@ void do_addcommand(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (cmd_table[i].level <= vch->tot_level) {
-        act("$N can already use that command due to $S level.", ch, vch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    if (cmd_table[i].rank <= get_staff_rank(vch)) {
+        act("$N can already use that command due to $S rank.", ch, vch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	return;
     }
 
@@ -8589,7 +8603,7 @@ void do_token(CHAR_DATA *ch, char *argument)
 		}
 
 		if (!str_cmp(arg, "give")) {
-			if(ch->tot_level < (MAX_LEVEL - 1) && ch != victim && !IS_NPC(victim)) {
+			if(!IS_STAFF(ch, STAFF_CREATOR) && ch != victim && !IS_NPC(victim)) {
 				send_to_char("You may not give tokens to other players.\n\r",ch);
 				return;
 			}
@@ -8625,7 +8639,7 @@ void do_token(CHAR_DATA *ch, char *argument)
 			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_GIVEN, NULL,0,0,0,0,0);
 
 		} else if (!str_cmp(arg, "junk")) {
-			if(ch->tot_level < (MAX_LEVEL - 1) && ch != victim && !IS_NPC(victim)) {
+			if(!IS_STAFF(ch, STAFF_CREATOR) && ch != victim && !IS_NPC(victim)) {
 				send_to_char("You may not take tokens take other people.\n\r",ch);
 				return;
 			}

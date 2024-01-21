@@ -247,7 +247,8 @@ void get_obj( CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container )
     {
 		if (container->pIndexData == obj_index_pit)
 		{
-			if (get_trust(ch) < obj->level)
+			CLASS_LEVEL *cl = get_class_level(ch, NULL);
+			if ((IS_VALID(cl) && cl->level < obj->level) || (!IS_VALID(cl) && ch->tot_level < obj->level))
 			{
 				send_to_char("You are not powerful enough to use it.\n\r",ch);
 				return;
@@ -5590,12 +5591,11 @@ void do_steal(CHAR_DATA *ch, char *argument)
     if (is_safe(ch,victim, true))
 	return;
 
-    if (IS_NPC(victim)
-    &&  victim->position == POS_FIGHTING)
+    if (IS_NPC(victim) && victim->position == POS_FIGHTING)
     {
-	send_to_char( "Kill stealing is not permitted.\n\r"
-		       "You'd better not -- you might get hit.\n\r",ch);
-	return;
+		send_to_char("Kill stealing is not permitted.\n\r"
+					 "You'd better not -- you might get hit.\n\r",ch);
+		return;
     }
 
     WAIT_STATE(ch, gsk_steal->beats);
@@ -5607,6 +5607,7 @@ void do_steal(CHAR_DATA *ch, char *argument)
     	percent += 25;
     else
     {
+		// TODO: Make into a trait
 		if (ch->pcdata->current_class->clazz == gcl_highwayman)
         {
 		    if (ch->heldup == victim)
@@ -5618,81 +5619,78 @@ void do_steal(CHAR_DATA *ch, char *argument)
 		    percent += 50;
     }
 
-    if (percent > get_skill(ch, gsk_steal)
-         || (!IS_NPC(victim)
-	     && number_percent() < get_skill(victim, gsk_deception))
-         || (!IS_NPC(ch)
-	      && !IS_NPC(victim)
-	      && !IS_SET(ch->in_room->room_flag[0], ROOM_CHAOTIC|ROOM_PK)))	// Require full CPK
+    if (percent > get_skill(ch, gsk_steal) || (!IS_NPC(victim) &&
+		number_percent() < get_skill(victim, gsk_deception)) ||
+		(!IS_NPC(ch) && !IS_NPC(victim) &&
+		!IS_SET(ch->in_room->room_flag[0], ROOM_CHAOTIC|ROOM_PK)))	// Require full CPK
     {
-	send_to_char("Oops.\n\r", ch);
-	affect_strip(ch, gsk_sneak);
-	REMOVE_BIT(ch->affected_by[0],AFF_SNEAK);
+		send_to_char("Oops.\n\r", ch);
+		affect_strip(ch, gsk_sneak);
+		REMOVE_BIT(ch->affected_by[0],AFF_SNEAK);
 
-	act("$n tried to steal from you.\n\r", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT   );
-	act("$n tried to steal from $N.\n\r",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-	switch(number_range(0,3))
-	{
-	case 0 :
-	   sprintf(buf, "%s is a lousy thief!", ch->name);
-	   break;
-        case 1 :
-	   sprintf(buf, "%s couldn't rob %s way out of a paper bag!",
-		    ch->name,(ch->sex == 2) ? "her" : "his");
-	   break;
-	case 2 :
-	    sprintf(buf,"%s tried to rob me!",ch->name);
-	    break;
-	case 3 :
-	    sprintf(buf,"Keep your hands out of there, %s!",ch->name);
-	    break;
+		act("$n tried to steal from you.\n\r", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT   );
+		act("$n tried to steal from $N.\n\r",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+		switch(number_range(0,3))
+		{
+		case 0:
+			sprintf(buf, "%s is a lousy thief!", ch->name);
+			break;
+		case 1:
+			sprintf(buf, "%s couldn't rob %s way out of a paper bag!", ch->name,(ch->sex == SEX_FEMALE) ? "her" : "his");
+			break;
+		case 2:
+			sprintf(buf,"%s tried to rob me!",ch->name);
+			break;
+		case 3:
+			sprintf(buf,"Keep your hands out of there, %s!",ch->name);
+			break;
         }
         if (!IS_AWAKE(victim))
             do_function(victim, &do_wake, "");
-	if (IS_AWAKE(victim))
-	    do_function(victim, &do_yell, buf);
-	if (!IS_NPC(ch))
-	{
-	    if (IS_NPC(victim))
-	    {
-	        check_improve(ch,gsk_steal,false,2);
-			multi_hit(victim, ch, NULL, TYPE_UNDEFINED);
-	    }
-	}
+		if (IS_AWAKE(victim))
+			do_function(victim, &do_yell, buf);
+		if (!IS_NPC(ch))
+		{
+			if (IS_NPC(victim))
+			{
+				check_improve(ch,gsk_steal,false,2);
+				multi_hit(victim, ch, NULL, TYPE_UNDEFINED);
+			}
+		}
 
-	return;
+		return;
     }
 
-    if (!str_cmp(arg1, "coin" )
-    ||   !str_cmp(arg1, "coins")
-    ||   !str_cmp(arg1, "gold" )
-    ||	 !str_cmp(arg1, "silver"))
+    if (!str_cmp(arg1, "coin" ) ||
+		!str_cmp(arg1, "coins") ||
+		!str_cmp(arg1, "gold" ) ||
+		!str_cmp(arg1, "silver"))
     {
-	int gold, silver;
+		// Was VALUE * number_range(1, ch->level) / MAX_LEVEL
+		int gold = victim->gold * number_percent() / 200;
+		int silver = victim->silver * number_percent() / 200;
 
-	gold = victim->gold * number_range(1, ch->level) / MAX_LEVEL;
-	silver = victim->silver * number_range(1,ch->level) / MAX_LEVEL;
-	if (gold <= 0 && silver <= 0)
-	{
-	    send_to_char("You couldn't get any coins.\n\r", ch);
-	    return;
-	}
+		if (gold <= 0 && silver <= 0)
+		{
+			send_to_char("You couldn't get any coins.\n\r", ch);
+			return;
+		}
 
-	ch->gold     	+= gold;
-	ch->silver   	+= silver;
-	victim->silver 	-= silver;
-	victim->gold 	-= gold;
-	if (silver <= 0)
-	    sprintf(buf, "Bingo!  You got %d gold coins.\n\r", gold);
-	else if (gold <= 0)
-	    sprintf(buf, "Bingo!  You got %d silver coins.\n\r",silver);
-	else
-	    sprintf(buf, "Bingo!  You got %d silver and %d gold coins.\n\r",
-		    silver,gold);
+		ch->gold     	+= gold;
+		ch->silver   	+= silver;
+		victim->silver 	-= silver;
+		victim->gold 	-= gold;
 
-	send_to_char(buf, ch);
-	check_improve(ch,gsk_steal,true,2);
-	return;
+		if (silver <= 0)
+		    sprintf(buf, "Bingo!  You got %d gold coins.\n\r", gold);
+		else if (gold <= 0)
+		    sprintf(buf, "Bingo!  You got %d silver coins.\n\r",silver);
+		else
+		    sprintf(buf, "Bingo!  You got %d silver and %d gold coins.\n\r", silver,gold);
+
+		send_to_char(buf, ch);
+		check_improve(ch,gsk_steal,true,2);
+		return;
     }
 
     if ((obj = get_obj_carry(victim, arg1, ch)) == NULL)
@@ -8068,7 +8066,7 @@ void do_skull(CHAR_DATA *ch, char *argument)
 	    return;
 	}
 
-	if (obj->level >= LEVEL_IMMORTAL) {
+	if (obj->pIndexData->immortal) {
 	    act("$p is protected by powers from above.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 	    return;
 	}
@@ -9866,7 +9864,7 @@ void do_conceal(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!IS_IMMORTAL(ch) && obj->level > LEVEL_HERO) {
+	if (!IS_IMMORTAL(ch) && obj->pIndexData->immortal) {
 		send_to_char("Powerful forces prevent you from concealing that.\n\r", ch);
 		return;
 	}

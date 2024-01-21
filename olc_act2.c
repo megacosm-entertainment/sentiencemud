@@ -346,7 +346,7 @@ OEDIT(oedit_update)
 
     EDIT_OBJ(ch, pObj);
 
-    if (ch->tot_level < MAX_LEVEL - 2)
+    if (!IS_STAFF(ch, STAFF_SUPREMACY))
     {
 	send_to_char("Insufficient security to toggle update.\n\r", ch);
 	return false;
@@ -1015,7 +1015,7 @@ HEDIT(hedit_name)
 	return false;
     }
 
-    if (ch->tot_level < MAX_LEVEL && ch->desc->hCat == topHelpCat) {
+    if (!IS_IMPLEMENTOR(ch) && ch->desc->hCat == topHelpCat) {
 	send_to_char("You can't rename the root category.\n\r", ch);
 	return false;
     }
@@ -1044,7 +1044,7 @@ HEDIT(hedit_description)
 	return false;
     }
 
-    if (ch->tot_level < MAX_LEVEL && ch->desc->hCat == topHelpCat) {
+    if (!IS_IMPLEMENTOR(ch) && ch->desc->hCat == topHelpCat) {
 	send_to_char("You can't change the description of the root category.\n\r", ch);
 	return false;
     }
@@ -1132,7 +1132,7 @@ HEDIT(hedit_security)
     HELP_DATA *help;
     int arg;
 
-    if (ch->tot_level < MAX_LEVEL) {
+    if (!IS_IMPLEMENTOR(ch)) {
 	send_to_char("You don't have the clearance to do this.\n\r", ch);
 	return false;
     }
@@ -1150,7 +1150,7 @@ HEDIT(hedit_security)
 	    return false;
 	}
 
-        if (ch->desc->hCat == topHelpCat && ch->tot_level < MAX_LEVEL) {
+        if (ch->desc->hCat == topHelpCat && !IS_IMPLEMENTOR(ch)) {
 	    send_to_char("You can't change the security of the root category.\n\r", ch);
 	    return false;
 	}
@@ -1177,7 +1177,7 @@ HEDIT(hedit_builder)
     char name[MAX_STRING_LENGTH];
     char buf[MAX_STRING_LENGTH];
 
-    if (ch->tot_level < MAX_LEVEL - 1) {
+    if (!IS_STAFF(ch, STAFF_CREATOR)) {
 	send_to_char("You don't have the clearance to do this.\n\r", ch);
 	return false;
     }
@@ -1434,7 +1434,7 @@ HEDIT(hedit_delete)
     HELP_DATA *pHelp;
     HELP_DATA *prev_pHelp = NULL;
 
-    if (ch->tot_level < MAX_LEVEL - 4) {
+    if (!IS_STAFF(ch, STAFF_ASCENDANT)) {
 	send_to_char("You don't have the clearance to delete help files.\n\r", ch);
 	return false;
     }
@@ -1728,16 +1728,6 @@ TEDIT(tedit_type)
 	send_to_char("That token type doesn't exist.\n\r", ch);
 	return false;
     }
-
-	if(i == TOKEN_SPELL && ch->tot_level < MAX_LEVEL) {
-		send_to_char("Only IMPs can make spell tokens.\n\r", ch);
-		return false;
-	}
-
-	if(i == TOKEN_SONG && ch->tot_level < MAX_LEVEL) {
-		send_to_char("Only IMPs can make song tokens.\n\r", ch);
-		return false;
-	}
 
     token_index->type = token_table[i].type;
     act("Set token type to $t.", ch, NULL, NULL, NULL, NULL, token_table[i].name, NULL, TO_CHAR);

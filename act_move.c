@@ -453,7 +453,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow, bool fleeing)
 	drunk_walk(ch, door);
 	*/
 
-	if (IS_SET(pexit->exit_info, EX_HIDDEN) && (ch->level <= LEVEL_IMMORTAL) && (!IS_AFFECTED(ch, AFF_PASS_DOOR))) {
+	if (IS_SET(pexit->exit_info, EX_HIDDEN) && (get_staff_rank(ch) < STAFF_IMMORTAL) && (!IS_AFFECTED(ch, AFF_PASS_DOOR))) {
 		send_to_char("{ROuch!{w You found a secret passage!{x\n\r", ch);
 		REMOVE_BIT(pexit->exit_info, EX_HIDDEN);
 	}
@@ -562,7 +562,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow, bool fleeing)
 	}
 
 	/* echo messages */
-	if (!IS_AFFECTED(ch, AFF_SNEAK) &&  ch->invis_level < 150) {
+	if (!IS_AFFECTED(ch, AFF_SNEAK) &&  ch->invis_level < STAFF_IMMORTAL) {
 		if (in_room->sector_type == SECT_WATER_NOSWIM)
 			act("{W$n swims $T.{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_ROOM);
 		else if (PULLING_CART(ch))
@@ -619,7 +619,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow, bool fleeing)
 
 	INSTANCE *to_instance = get_room_instance(to_room);
 
-	if (!IS_AFFECTED(ch, AFF_SNEAK) && ch->invis_level < LEVEL_HERO) {
+	if (!IS_AFFECTED(ch, AFF_SNEAK) && ch->invis_level < STAFF_IMMORTAL) {
 		if( IS_VALID(in_dungeon) && !IS_VALID(to_dungeon) )
 		{
 			WNUM wnum;
@@ -3795,11 +3795,12 @@ memset(&af,0,sizeof(af));
     if (number_percent() < get_skill(ch, gsk_sneak))
     {
 	check_improve(ch,gsk_sneak,true,3);
+	CLASS_LEVEL *cl = get_class_level(ch, NULL);
 	af.where     = TO_AFFECTS;
 	af.group     = AFFGROUP_PHYSICAL;
 	af.skill     = gsk_sneak;
-	af.level     = ch->level;
-	af.duration  = ch->level;
+	af.level     = cl ? cl->level : MAX_CLASS_LEVEL;
+	af.duration  = cl ? cl->level : MAX_CLASS_LEVEL;
 	af.location  = APPLY_NONE;
 	af.modifier  = 0;
 	af.bitvector = AFF_SNEAK;

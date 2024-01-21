@@ -520,18 +520,21 @@ SPELL_FUNC(spell_spell_trap)
 {
 	OBJ_DATA *trap;
 
+	CLASS_LEVEL *cl = get_class_level(ch, NULL);
+	int lvl = cl ? cl->level : 0;
+
 	for (trap = ch->in_room->contents; trap; trap = trap->next_content) {
 		if (trap->item_type == ITEM_SPELL_TRAP) {
 			act("{W$p shimmers briefly.{x",ch, NULL, NULL, trap, NULL, NULL, NULL, TO_ALL);
-			trap->level += ch->level/2;
-			trap->timer += number_range(0,(ch->level/30));
+			trap->level += lvl/2;
+			trap->timer += number_range(0,(lvl/10));
 			return true;
 		}
 	}
 
 	trap = create_object(obj_index_spell_trap, level, true);
 	trap->timer = 4;
-	trap->level = ch->tot_level;
+	trap->level = cl ? cl->level : MAX_CLASS_LEVEL;
 	obj_to_room(trap, ch->in_room);
 
 	act("{W$n forms a small glass orb in $s palm and places it on the ground.{x",ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);

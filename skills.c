@@ -2492,6 +2492,8 @@ void check_improve_show( CHAR_DATA *ch, SKILL_DATA *skill, bool success, int mul
 		return;	
 
 	CLASS_LEVEL *current = ch->pcdata->current_class;
+	if (!IS_VALID(current))
+		return;
 
 	if (list_size(skill->levels) > 0)
 	{
@@ -2536,12 +2538,13 @@ void check_improve_show( CHAR_DATA *ch, SKILL_DATA *skill, bool success, int mul
     if (entry->rating <= 0 || entry->rating == 100)
 		return;
 
+
     // check to see if the character has a chance to learn
     chance      = 10 * int_app[get_curr_stat(ch, STAT_INT)].learn;
     multiplier  = UMAX(multiplier,1);
 //    multiplier  = UMIN(multiplier + 3, 8);
     chance     /= (multiplier * skill->difficulty * 4);
-    chance     += ch->level;
+    chance     += current->level;
 
     if (number_range(1,1000) > chance)
 	return;
@@ -4944,7 +4947,7 @@ int skill_entry_mod(CHAR_DATA *ch, SKILL_ENTRY *entry)
 int skill_entry_level (CHAR_DATA *ch, SKILL_ENTRY *entry)
 {
 	if( IS_IMMORTAL(ch) )
-		return LEVEL_IMMORTAL;
+		return MAX_CLASS_LEVEL;
 
 	if (IS_VALID(entry->skill))
 	{
@@ -5522,7 +5525,7 @@ SKEDIT( skedit_show )
 			add_buf(buffer, "\n\r");
 		}
 		else
-			add_buf(buffer, formatf("%s: %d\n\r", MXPCreateSend(ch->desc, "level", "Level"), skill->default_level));
+			add_buf(buffer, formatf("%s: %d\n\r", MXPCreateSend(ch->desc, "level default", "Level"), skill->default_level));
 
 		add_buf(buffer, formatf("Difficulty: %d\n\r", skill->difficulty));
 		add_buf(buffer, formatf("Primary Stat: %s\n\r", flag_string(stat_types, skill->primary_stat)));
@@ -6285,13 +6288,39 @@ SKEDIT( skedit_level )
 
 	if (argument[0] == '\0')
 	{
-		send_to_char("Syntax:  skedit level {R<class>{x <level>|none\n\r", ch);
-		send_to_char("Please select a class.  Use '? classes' to get a list of classes.\n\r", ch);
+		if (list_size(skill->levels) > 0)
+		{
+			send_to_char("Syntax:  skedit level {R<class>{x <level>|none\n\r", ch);
+			send_to_char("Please select a class.  Use '? classes' to get a list of classes.\n\r", ch);
+		}
+		else
+		{
+			send_to_char("Syntax:  skedit level {R<class>{x <level>|none\n\r", ch);
+			send_to_char("         skedit level {Rdefault{x <level>\n\r", ch);
+			send_to_char("Please select a class or {Wdefault{x.  Use '? classes' to get a list of classes.\n\r", ch);
+		}
 		return false;
 	}
 
 	char arg[MIL];
 	argument = one_argument(argument, arg);
+
+	if (list_size(skill->levels) < 1)
+	{
+		if(!str_prefix(arg, "default"))
+		{
+			int default_level;
+			if (!is_number(argument) || (default_level = atoi(argument)) < 1)
+			{
+				send_to_char("Please specify a positive number.\n\r", ch);
+				return false;
+			}
+
+			skill->default_level = default_level;
+			send_to_char("Default level changed.\n\r", ch);
+			return true;
+		}
+	}
 	
 	CLASS_DATA *clazz = get_class_data(arg);
 	if (!IS_VALID(clazz))
@@ -7672,12 +7701,14 @@ bool has_class_level(CHAR_DATA *ch, CLASS_DATA *clazz)
 
 void insert_class_level(CHAR_DATA *ch, CLASS_LEVEL *cl)
 {
+	char *name = cl->clazz->display[ch->sex];
+
 	ITERATOR it;
 	CLASS_LEVEL *level;
 	iterator_start(&it, ch->pcdata->classes);
 	while((level = (CLASS_LEVEL *)iterator_nextdata(&it)))
 	{
-		int cmp = str_cmp(cl->clazz->name, level->clazz->name);
+		int cmp = str_cmp(name, level->clazz->display[ch->sex]);
 		if (cmp < 0)
 		{
 			iterator_insert_before(&it, cl);
@@ -7903,20 +7934,12 @@ CLSEDIT( clsedit_display )
 	if (argument[0] == '\0')
 	{
 		send_to_char("Syntax:  clsedit display <sex> <who string>\n\r", ch);
-		send_to_char("Valid sex: neuter, male, female, either\n\r", ch);
+		send_to_char("Valid sex: neuter, male, female, either, or all\n\r", ch);
 		return false;
 	}
 
 	char arg[MIL];
 	argument = one_argument(argument, arg);
-	
-	int sex;
-	if ((sex = sex_lookup(arg)) == -1)
-	{
-		send_to_char("Syntax:  clsedit display <sex> <who string>\n\r", ch);
-		send_to_char("Valid sex: neuter, male, female, either\n\r", ch);
-		return false;
-	}
 
 	smash_tilde(argument);
 	if (argument[0] == '\0')
@@ -7925,10 +7948,31 @@ CLSEDIT( clsedit_display )
 		return false;
 	}
 
-	free_string(clazz->display[sex]);
-	clazz->display[sex] = str_dup(argument);
-	send_to_char(formatf("DISPLAY string set for {+%s.\n\r", flag_string(sex_table, sex)), ch);
-	return false;
+	if (!str_prefix(arg, "all"))
+	{
+		for(int sex = 0; sex < SEX_MAX; sex++)
+		{
+			free_string(clazz->display[sex]);
+			clazz->display[sex] = str_dup(argument);
+		}
+
+		send_to_char("DISPLAY string set for all sexes.\n\r", ch);
+	}
+	else
+	{
+		int sex;
+		if ((sex = sex_lookup(arg)) == -1)
+		{
+			send_to_char("Syntax:  clsedit display <sex> <who string>\n\r", ch);
+			send_to_char("Valid sex: neuter, male, female, either, or all\n\r", ch);
+			return false;
+		}
+
+		free_string(clazz->display[sex]);
+		clazz->display[sex] = str_dup(argument);
+		send_to_char(formatf("DISPLAY string set for {+%s.\n\r", flag_string(sex_table, sex)), ch);
+	}
+	return true;
 }
 
 CLSEDIT( clsedit_type )
@@ -8057,7 +8101,7 @@ CLSEDIT( clsedit_skills )
 	}
 
 	clsedit_skills(ch, "");
-	return false;
+	return true;
 }
 
 CLSEDIT( clsedit_who )
@@ -8069,20 +8113,12 @@ CLSEDIT( clsedit_who )
 	if (argument[0] == '\0')
 	{
 		send_to_char("Syntax:  clsedit who <sex> <who string>\n\r", ch);
-		send_to_char("Valid sex: neuter, male, female, either\n\r", ch);
+		send_to_char("Valid sex: neuter, male, female, either, or all.\n\r", ch);
 		return false;
 	}
 
 	char arg[MIL];
 	argument = one_argument(argument, arg);
-	
-	int sex;
-	if ((sex = sex_lookup(arg)) == -1)
-	{
-		send_to_char("Syntax:  clsedit who <sex> <who string>\n\r", ch);
-		send_to_char("Valid sex: neuter, male, female, either\n\r", ch);
-		return false;
-	}
 
 	smash_tilde(argument);
 	if (argument[0] == '\0')
@@ -8098,10 +8134,31 @@ CLSEDIT( clsedit_who )
 		return false;
 	}
 
-	free_string(clazz->who[sex]);
-	clazz->who[sex] = str_dup(argument);
-	send_to_char(formatf("WHO string set for {+%s.\n\r", flag_string(sex_table, sex)), ch);
-	return false;
+	if (!str_prefix(arg, "all"))
+	{
+		for(int sex = 0; sex < SEX_MAX; sex++)
+		{
+			free_string(clazz->who[sex]);
+			clazz->who[sex] = str_dup(argument);
+		}
+
+		send_to_char("WHO string set for all sexes.\n\r", ch);
+	}
+	else
+	{
+		int sex;
+		if ((sex = sex_lookup(arg)) == -1)
+		{
+			send_to_char("Syntax:  clsedit who <sex> <who string>\n\r", ch);
+			send_to_char("Valid sex: neuter, male, female, either, or all\n\r", ch);
+			return false;
+		}
+
+		free_string(clazz->who[sex]);
+		clazz->who[sex] = str_dup(argument);
+		send_to_char(formatf("WHO string set for {+%s.\n\r", flag_string(sex_table, sex)), ch);
+	}
+	return true;
 }
 
 CLSEDIT( clsedit_gcl )
@@ -8156,7 +8213,7 @@ CLSEDIT( clsedit_gcl )
 	}
 
 	clsedit_gcl(ch, "");
-	return false;
+	return true;
 }
 
 CLSEDIT( clsedit_flags )

@@ -189,7 +189,8 @@ void do_evict(CHAR_DATA *ch, char *argument)
     CHAR_DATA *victim;
     DESCRIPTOR_DATA d;
 
-    if (ch->tot_level < MAX_LEVEL - 1)
+	// TODO: Add housing imm role
+    if (!IS_STAFF(ch, STAFF_CREATOR))
     {
 	send_to_char("You don't have clearance to do this.\n\r", ch );
 	return;
@@ -258,7 +259,8 @@ void do_housemove(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg);
     argument = one_argument_norm(argument, arg2);
 
-    if ( ch->tot_level < MAX_LEVEL)
+	// TODO: Add housing imm role
+    if (!IS_IMPLEMENTOR(ch))
     {
 	send_to_char("You don't have clearance to do this.\n\r", ch );
 	return;

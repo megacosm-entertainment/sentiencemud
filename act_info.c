@@ -752,7 +752,7 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
 		strcat(buf, "{Y[Lost Link]{G ");
     if (IS_SET(victim->comm, COMM_AFK))
 		strcat(buf, "{Y[AFK] {G");
-    if (victim->invis_level >= LEVEL_HERO)
+    if (victim->invis_level >= STAFF_IMMORTAL)
 		strcat(buf, "{B({WW{Ri{Yz{Gi{B) {G");
     if (IS_NPC(victim) && IS_SET(victim->act[1], ACT2_WIZI_MOB))
  		strcat(buf, "{B({WW{Ri{Yz{Gi{GMOB{B) {G");
@@ -1054,7 +1054,7 @@ void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch, bool examine)
     int percent;
 
 
-    if (can_see(victim, ch) && ch->invis_level < 150)
+    if (can_see(victim, ch) && ch->invis_level < STAFF_IMMORTAL)
     {
 	if (ch == victim)
 	    act("$n looks at $mself.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -1235,7 +1235,7 @@ void show_char_to_char(CHAR_DATA *list, CHAR_DATA *ch, CHAR_DATA *victim)
 		    && RIDDEN(rch) != ch))
 		continue;
 
-	    if (get_trust(ch) < rch->invis_level && !can_see_imm(ch,rch))
+	    if (get_staff_rank(ch) < rch->invis_level && !can_see_imm(ch,rch))
 		continue;
 
 	    if (mist && number_percent() < mist->value[1])
@@ -2200,7 +2200,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 				{
 					if (ch != victim)
 					{
-						if(can_see(victim, ch) && ch->invis_level < LEVEL_IMMORTAL)
+						if(can_see(victim, ch) && ch->invis_level < STAFF_IMMORTAL)
 						{
 							act("$n looks at $p on you.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_VICT);
 							act("$n looks at $p on $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
@@ -2820,7 +2820,7 @@ void do_examine(CHAR_DATA * ch, char *argument)
 					if (ch != victim)
 					{
 
-						if(can_see(victim, ch) && ch->invis_level < LEVEL_IMMORTAL)
+						if(can_see(victim, ch) && ch->invis_level < STAFF_IMMORTAL)
 						{
 							act("$n examines $p on you.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_VICT);
 							act("$n examines $p on $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
@@ -3090,10 +3090,6 @@ void do_score(CHAR_DATA * ch, char *argument)
     char subclass[MIL];
     int i;
     char tbuf[MAX_STRING_LENGTH];
-    //int pierce_s;
-    //int bash_s;
-    //int slash_s;
-    //int exotic_s;
 
     if (IS_NPC(ch))
 	return;
@@ -3130,12 +3126,14 @@ void do_score(CHAR_DATA * ch, char *argument)
 		strcpy(buf2, ch->name);
 	}
 
+	CLASS_LEVEL *current = get_class_level(ch, NULL);
+
     /* LINE 2 *** */
     sprintf(buf, "| {G%s {B[{x%s{B] [{x%s{B] [{x%s{B]{x",
 	    buf2,
 	    ch->sex == SEX_NEUTRAL ? "sexless" : ch->sex == SEX_MALE ? "male" : "female",
 		IS_VALID(ch->race) ? ch->race->name : "unknown",
-	    IS_NPC(ch) ? "mobile" : (IS_VALID(ch->pcdata->current_class) ? ch->pcdata->current_class->clazz->display[ch->sex] : "unknown"));
+	    IS_NPC(ch) ? "mobile" : (IS_VALID(current) ? current->clazz->display[ch->sex] : "unknown"));
 
     for (i = strlen_no_colours(buf); i < 75; i++)
 	strcat(buf, " ");
@@ -3208,7 +3206,11 @@ void do_score(CHAR_DATA * ch, char *argument)
 	strcat(buf, " ");
     send_to_char(buf, ch);
 
-    sprintf(buf, "{BLevel: {x%d", ch->level);
+	CLASS_LEVEL *cl = get_class_level(ch, NULL);
+	if(cl)
+    	sprintf(buf, "{BLevel: {x%d", cl->level);
+	else
+		sprintf(buf, "{BLevel: {x---");
     for (i = strlen_no_colours(buf); i < 25; i++)
 	strcat(buf, " ");
     send_to_char(buf, ch);
@@ -3217,7 +3219,7 @@ void do_score(CHAR_DATA * ch, char *argument)
     send_to_char("{C|\n\r", ch);
 
     /* LINE 7 *** */
-    if(IS_IMMORTAL(ch))
+    if(IS_IMMORTAL(ch) && IS_SET(ch->act[1], PLR_HOLYPERSONA))
     	sprintf(buf, "| {BAge: {XAgeless{X");
     else
 	    sprintf(buf, "| {BAge: {x%d", get_age(ch));
@@ -3231,28 +3233,26 @@ void do_score(CHAR_DATA * ch, char *argument)
 	strcat(buf, " ");
     send_to_char(buf, ch);
 
-    if (!IS_NPC(ch) && ch->level < LEVEL_HERO)
+    if (!IS_NPC(ch) && IS_VALID(current) && current->level < current->clazz->max_level)
     {
 	sprintf(buf, "{BExp to Level: {x%ld",
-		(exp_per_level(ch, NULL, ch->pcdata->points) - ch->exp));
+		(exp_per_level(ch, NULL, ch->pcdata->points) - current->xp));
 	for (i = strlen_no_colours(buf); i < 25; i++)
 	    strcat(buf, " ");
 	send_to_char(buf, ch);
     }
     else
     {
-	for (i = 0; i < 25; i++)
-	    send_to_char(" ", ch);
+		send_to_char(formatf("%-25s", ""), ch);
     }
     send_to_char("{C|\n\r", ch);
 
     /* LINE 8 *** */
 
-    if(IS_IMMORTAL(ch))
-	sprintf(buf, "| {BHrs: {XForever");
+    if(IS_IMMORTAL(ch) && IS_SET(ch->act[1], PLR_HOLYPERSONA))
+		sprintf(buf, "| {BHrs: {XForever");
     else
-	sprintf(buf, "| {BHrs: {x%d",
-	    ((ch->played + (int) (current_time - ch->logon)) / 3600));
+		sprintf(buf, "| {BHrs: {x%d", ((ch->played + (int) (current_time - ch->logon)) / 3600));
 
     for (i = strlen_no_colours(buf); i < 25; i++)
 	strcat(buf, " ");
@@ -3508,9 +3508,10 @@ void do_score(CHAR_DATA * ch, char *argument)
     send_to_char(buf, ch);
 
     /* Show Subclasses */
-    if (!IS_IMMORTAL(ch))
+    if (!IS_IMMORTAL(ch) || !IS_SET(ch->act[1], PLR_HOLYPERSONA))
     {
 		send_to_char("{xYou are proficient in the following classes:\n\r", ch);
+		int width = 0;
 		ITERATOR lit;
 		CLASS_LEVEL *cl;
 		iterator_start(&lit, ch->pcdata->classes);
@@ -3518,6 +3519,13 @@ void do_score(CHAR_DATA * ch, char *argument)
 		{
 		    sprintf(buf, "{B[{x%s{B]{x", cl->clazz->display[ch->sex]);
 		    send_to_char(buf, ch);
+
+			width += strlen_no_colours(buf);
+			if (width > 77)
+			{
+				send_to_char("\n\r", ch);
+				width = 0;
+			}
 		}
 		iterator_stop(&lit);
 
@@ -3759,6 +3767,8 @@ void do_score(CHAR_DATA * ch, char *argument)
 
     if (IS_IMMORTAL(ch))
     {
+		send_to_char(formatf("Rank: {+%s\n\r", flag_string(staff_ranks, ch->pcdata->staff_rank)), ch);
+
 		send_to_char("Holy: ", ch);
 		send_to_char(MXPCreateSend(ch->desc,"holyaura", (IS_SET(ch->act[1], PLR_HOLYAURA) ? "{WAURA{x" : "{DAURA{x")), ch);
 		send_to_char(" ", ch);
@@ -3774,18 +3784,18 @@ void do_score(CHAR_DATA * ch, char *argument)
 			send_to_char(formatf("Invisible: level %d  [ ", ch->invis_level), ch);
 			send_to_char(MXPCreateSend(ch->desc,"wizinvis", "off"), ch);
 
-			if (ch->invis_level > 2)
+			if (ch->invis_level > STAFF_PLAYER)
 			{
 				send_to_char(" ", ch);
 				send_to_char(MXPCreateSend(ch->desc,formatf("wizinvis %d", ch->invis_level - 1), "down"), ch);
 			}
 
-			if (ch->invis_level < get_trust(ch))
+			if (ch->invis_level < get_staff_rank(ch))
 			{
 				send_to_char(" ", ch);
 				send_to_char(MXPCreateSend(ch->desc,formatf("wizinvis %d", ch->invis_level + 1), "up"), ch);
 				send_to_char(" ", ch);
-				send_to_char(MXPCreateSend(ch->desc,formatf("wizinvis %d", get_trust(ch)), "max"), ch);
+				send_to_char(MXPCreateSend(ch->desc,formatf("wizinvis %d", get_staff_rank(ch)), "max"), ch);
 			}
 
 		}
@@ -3803,18 +3813,18 @@ void do_score(CHAR_DATA * ch, char *argument)
 			send_to_char(formatf("  Incognito: level %d  [ ", ch->incog_level), ch);
 			send_to_char(MXPCreateSend(ch->desc,"incognito", "off"), ch);
 
-			if (ch->incog_level > 2)
+			if (ch->incog_level > STAFF_PLAYER)
 			{
 				send_to_char(" ", ch);
 				send_to_char(MXPCreateSend(ch->desc,formatf("incognito %d", ch->incog_level - 1), "down"), ch);
 			}
 
-			if (ch->incog_level < get_trust(ch))
+			if (ch->incog_level < get_staff_rank(ch))
 			{
 				send_to_char(" ", ch);
 				send_to_char(MXPCreateSend(ch->desc,formatf("incognito %d", ch->incog_level + 1), "up"), ch);
 				send_to_char(" ", ch);
-				send_to_char(MXPCreateSend(ch->desc,formatf("incognito %d", get_trust(ch)), "max"), ch);
+				send_to_char(MXPCreateSend(ch->desc,formatf("incognito %d", get_staff_rank(ch)), "max"), ch);
 			}
 		}
 		else
@@ -4555,7 +4565,7 @@ void do_who_new(CHAR_DATA * ch, char *argument)
     char racestr[MAX_STRING_LENGTH];
 
     iLevelLower = 0;
-    iLevelUpper = MAX_LEVEL;
+    iLevelUpper = MAX_CLASS_LEVEL;
 
 
     argument = one_argument(argument, arg);
@@ -4603,21 +4613,18 @@ void do_who_new(CHAR_DATA * ch, char *argument)
     {
 		wch = (d->original != NULL) ? d->original : d->character;
 
+		CLASS_LEVEL *wcl = get_class_level(wch, NULL);
+
 		if (d->connected != CON_PLAYING || (IS_IMMORTAL(wch) && !can_see_imm(ch, wch))) {
 		    continue;
 		}
 
-
-//	if (!can_see(ch, wch)) {
-//	    continue;
-//	}
-
 		if ((iLevelLower != 0 &&  wch->tot_level >= iLevelLower && wch->tot_level <= iLevelUpper) ||
 			arg[0] =='\0' || !str_prefix(arg, wch->name) ||
-			((!str_cmp(arg, "immortal") || !str_cmp(arg, "immortals") || !str_cmp(arg, "imm")) && wch->tot_level >= LEVEL_IMMORTAL) ||
+			((!str_cmp(arg, "immortal") || !str_cmp(arg, "immortals") || !str_cmp(arg, "imm")) && get_staff_rank(wch) >= STAFF_IMMORTAL) ||
 			(church != NULL && wch->church == church) ||
 			!str_prefix(arg, wch->race->name) ||
-			(IS_VALID(wch->pcdata->current_class) && !str_prefix(arg, wch->pcdata->current_class->clazz->display[wch->sex])))
+			(IS_VALID(wcl) && !str_prefix(arg, wcl->clazz->display[wch->sex])))
 			;
 		else
 			continue;
@@ -4626,11 +4633,11 @@ void do_who_new(CHAR_DATA * ch, char *argument)
 		char clazz_color = 'x';
         if (IS_IMMORTAL(wch) && IS_SET(wch->act[1], PLR_HOLYPERSONA))
 		    clazzptr = wch->pcdata->immortal->imm_flag;
-		else if (IS_VALID(wch->pcdata->current_class))
+		else if (IS_VALID(wcl))
 		{
-	    	clazzptr = wch->pcdata->current_class->clazz->who[wch->sex];
+	    	clazzptr = wcl->clazz->who[wch->sex];
 
-			switch(wch->pcdata->current_class->clazz->type)
+			switch(wcl->clazz->type)
 			{
 			case CLASS_CLERIC:		clazz_color = 'Y'; break;
 			case CLASS_CRAFTING:	clazz_color = 'C'; break;
@@ -4671,26 +4678,24 @@ void do_who_new(CHAR_DATA * ch, char *argument)
 		area_type = get_char_where(wch);
 
         if (IS_IMMORTAL(wch) && IS_SET(wch->act[1], PLR_HOLYPERSONA))
-		    sprintf(level, "{W  IMM  {x");
+		    sprintf(level, "{WIMM{x");
 		else
 		{
-			CLASS_LEVEL *current = get_class_level(wch, NULL);
-			if (IS_VALID(current))
-		    	sprintf(level, "%-3d{B:{G%-3d", current->level, wch->tot_level);
+			if (IS_VALID(wcl))
+		    	sprintf(level, "%3d", wcl->level);
 			else
-		    	sprintf(level, "---{B:{G%-3d", wch->tot_level);
+		    	sprintf(level, "---");
 		}
 
 		sprintf(buf,
-        	"{B[{G%s{B][{M%s{B][ {Y%-*.*s {%c%-*.*s {C%-6s {B] %s%s%s%s{G%-12s{x",
+        	"{B[{G%s{B][ {Y%-*.*s {%c%-*.*s {C%-6s {B] %s%s%s%s{G%-12s{x",
 			level,
-			wch->sex == 0 ? "N" : (wch->sex == 1 ? "M" : "F"),
 			racelen,racelen,racestr,
 			clazz_color,classlen,classlen,classstr,
 			area_type,
 			IS_DEAD(wch) ? "{D(Dead) {x" : "",
-			wch->incog_level > LEVEL_HERO ? "{D(Incog) {x" : "",
-			wch->invis_level > LEVEL_HERO ? "{W(Wizi) {x" : "",
+			wch->incog_level > STAFF_PLAYER ? "{D(Incog) {x" : "",
+			wch->invis_level > STAFF_PLAYER ? "{W(Wizi) {x" : "",
 			IS_SET(wch->act[0], PLR_BOTTER) ? "{G[BOTTER] {x" : "",
 			wch->name);
 
@@ -4778,7 +4783,7 @@ void do_whois(CHAR_DATA * ch, char *argument)
 	    class = IS_VALID(wch->pcdata->current_class) ? wch->pcdata->current_class->clazz->name : "unknown";
 
 		// TODO: Add HOLY flag that can be used to show this
-        if (wch->tot_level >= LEVEL_IMMORTAL)
+        if (get_staff_rank(wch) >= STAFF_IMMORTAL)
 		    class = wch->pcdata->immortal->imm_flag;
 
 	if(!IS_IMMORTAL(wch)) {
@@ -5538,10 +5543,11 @@ void do_botter(CHAR_DATA* ch, char *argument)
 
     argument = one_argument(argument, arg);
 
-    if (ch->tot_level < MAX_LEVEL)
+	// TODO: Add command access via roles
+    if (!IS_IMPLEMENTOR(ch))
     {
-	send_to_char("Huh?\n\r", ch);
-	return;
+		send_to_char("Huh?\n\r", ch);
+		return;
     }
 
     if (arg[0] == '\0')

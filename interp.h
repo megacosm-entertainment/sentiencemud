@@ -39,6 +39,7 @@ void do_function args((CHAR_DATA *ch, DO_FUN *do_fun, char *argument));
 
 void command_under_construction(CHAR_DATA *ch);
 
+#if 0
 /* for command types */
 #define ML 	MAX_LEVEL	/* implementor */
 #define L1	MAX_LEVEL - 1  	/* creator */
@@ -49,9 +50,21 @@ void command_under_construction(CHAR_DATA *ch);
 #define L6	MAX_LEVEL - 6	/* gimp */
 #define IM	LEVEL_IMMORTAL 	/* immortal */
 #define HE	LEVEL_HERO	/* hero */
+#endif
 
 #define COM_INGORE	1
 
+#define CMDTYPE_NONE            0       // Treated as the catchall / general / miscellaneous group
+#define CMDTYPE_MOVE            1
+#define CMDTYPE_COMBAT          2
+#define CMDTYPE_OBJECT          3
+#define CMDTYPE_INFO            4
+#define CMDTYPE_COMM            5
+#define CMDTYPE_RACIAL          6
+#define CMDTYPE_OOC             7
+#define CMDTYPE_IMMORTAL        8
+#define CMDTYPE_OLC             9
+#define CMDTYPE_ADMIN           10
 
 /*
  * Structure for a command in the command lookup table.
@@ -59,12 +72,13 @@ void command_under_construction(CHAR_DATA *ch);
 struct	cmd_type
 {
     char * const	name;	   /* command name */
-    DO_FUN *		do_fun;	   /* do_function */
-    int16_t		position;  /* minimum position required */
-    int16_t		level;     /* min. level required */
-    int16_t		log;       /* log when? */
-    int16_t              show;      /* show? */
-    bool		is_ooc;		// Command is purely OOC - certain things won't break when doing these commands
+    int16_t     cmd_type;
+    DO_FUN *        do_fun;	   /* do_function */
+    int16_t     position;  /* minimum position required */
+    int16_t     rank;     /* min. rank required */
+    int16_t     log;       /* log when? */
+    bool        show;      /* show? */
+    bool        is_ooc;		// Command is purely OOC - certain things won't break when doing these commands
 };
 
 /* the command table itself */
@@ -419,13 +433,13 @@ DECLARE_DO_FUN( do_scroll	);
 DECLARE_DO_FUN( do_scry         );
 //DECLARE_DO_FUN( do_scuttle	);
 DECLARE_DO_FUN( do_sdelete	);
+DECLARE_DO_FUN( do_sdemote );
 DECLARE_DO_FUN( do_sduty	);
 DECLARE_DO_FUN( do_seal     );
 DECLARE_DO_FUN(	do_search	);
 DECLARE_DO_FUN(	do_secondary	);
 DECLARE_DO_FUN(	do_sell		);
 DECLARE_DO_FUN( do_set		);
-DECLARE_DO_FUN( do_sexual	);	/* What? hahaha*/
 DECLARE_DO_FUN( do_sflag	);
 DECLARE_DO_FUN( do_shape	);
 DECLARE_DO_FUN( do_shift	);
@@ -442,8 +456,6 @@ DECLARE_DO_FUN( do_skull	);
 DECLARE_DO_FUN(	do_slay		);
 DECLARE_DO_FUN(	do_sleep	);
 DECLARE_DO_FUN(	do_slevel	);
-/*DECLARE_DO_FUN( do_spromote	);
-DECLARE_DO_FUN( do_sdemote	);*/
 DECLARE_DO_FUN( do_slist	);
 DECLARE_DO_FUN(	do_slit		);
 DECLARE_DO_FUN(	do_sload	);
@@ -461,6 +473,7 @@ DECLARE_DO_FUN( do_spells	);
 DECLARE_DO_FUN(	do_split	);
 DECLARE_DO_FUN(	do_sset		);
 DECLARE_DO_FUN( do_songset  );
+DECLARE_DO_FUN( do_spromote );
 DECLARE_DO_FUN( do_ssupervisor  );
 DECLARE_DO_FUN( do_staff	);
 DECLARE_DO_FUN( do_stake	);

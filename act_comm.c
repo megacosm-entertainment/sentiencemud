@@ -69,7 +69,7 @@ void do_delete(CHAR_DATA *ch, char *argument)
 
 	if (IS_NPC(ch)) return;
 
-	if (ch->tot_level > 15 || IS_REMORT(ch)) {
+	if (IS_IMMORTAL(ch) || ch->tot_level > 15 || IS_REMORT(ch)) {
 		send_to_char("To have your character deleted contact the Immortals.\n\r"
 				"For security purposes those over level 15 may not delete themselves.\n\r", ch);
 		return;
@@ -82,7 +82,7 @@ void do_delete(CHAR_DATA *ch, char *argument)
 		} else {
 			sprintf( strsave, "%s%c/%s",PLAYER_DIR,tolower(ch->name[0]),
 			capitalize( ch->name ) );
-			wiznet("$N turns $Mself into line noise.",ch,NULL,0,0,0);
+			wiznet("$N turns $Mself into line noise.",ch,NULL,0,0,STAFF_PLAYER);
 			stop_fighting(ch,true);
 			do_function(ch, &do_quit, NULL);
 			unlink(strsave);
@@ -99,7 +99,8 @@ void do_delete(CHAR_DATA *ch, char *argument)
 	send_to_char("{RWARNING: this command is irreversible.{x\n\r",ch);
 	send_to_char("Typing delete with an argument will undo delete status.\n\r", ch);
 	ch->pcdata->confirm_delete = true;
-	wiznet("$N is contemplating deletion.",ch,NULL,0,0,get_trust(ch));
+	// NIB: Was get_trust(ch), changed to STAFF_PLAYER since only players can delete themselves.
+	wiznet("$N is contemplating deletion.",ch,NULL,0,0,STAFF_PLAYER);
 }
 
 /*  Lists all channels and their status */
@@ -855,7 +856,7 @@ void do_tell(CHAR_DATA *ch, char *argument)
 	}
 
 	/* AO 010217 respect wizi only */
-	if (IS_IMMORTAL(victim) && victim->invis_level > ch->tot_level) {
+	if (IS_IMMORTAL(victim) && victim->invis_level > get_staff_rank(ch)) {
 		send_to_char("They aren't here.\n\r", ch);
 		return;
 	}
@@ -1209,8 +1210,7 @@ void do_quit(CHAR_DATA *ch, char *argument)
 	sprintf(log_buf, "%s has quit.", ch->name);
 
 	log_string(log_buf);
-	wiznet("$N rejoins the real world.",
-	ch, NULL, WIZ_LOGINS, 0, get_trust(ch));
+	wiznet("$N rejoins the real world.", ch, NULL, WIZ_LOGINS, 0, get_staff_rank(ch));
 
 	/* save wearing info */
 	save_last_wear(ch);
@@ -1226,8 +1226,7 @@ void do_quit(CHAR_DATA *ch, char *argument)
 	}
 
 	/* Reset imms bank accounts */
-	if (IS_IMMORTAL(ch)
-	&&  ch->tot_level < MAX_LEVEL)
+	if (IS_IMMORTAL(ch) && !IS_IMPLEMENTOR(ch))
 	{
 	ch->gold = 0;
 	ch->silver = 0;
@@ -1568,7 +1567,7 @@ void do_order(CHAR_DATA *ch, char *argument)
 	}
 
 	if (!IS_AFFECTED(victim, AFF_CHARM) || victim->master != ch
-	||  (IS_IMMORTAL(victim) && victim->trust >= ch->trust))
+	||  (IS_IMMORTAL(victim) && get_staff_rank(victim) >= get_staff_rank(ch)))
 	{
 	act("$N has no interest in taking orders from you.",
 	ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -1632,12 +1631,14 @@ void do_group(CHAR_DATA *ch, char *argument)
 			if (is_same_group(gch, ch) || gch == ch) {
 				char name[MSL];
 
+				CLASS_LEVEL *cl = get_class_level(gch, NULL);
+
 				// TODO: show relative location
 				sprintf(name, "%s", pers(gch, ch)) ;
 				name[0] = UPPER(name[0]);
 				sprintf(buf,
 					"{B[{G%3d {Y%-6.6s{B] {G%-15.15s {w%6ld{B/{w%ld {Bhp {w%6ld{B/{w%ld {Bmana {w%6ld{B/{w%ld {Bmv{x\n\r",
-					gch->level,
+					(cl ? cl->level : gch->tot_level),
 					IS_NPC(gch) ? " NPC  " : (IS_VALID(gch->race) ? gch->race->who : "      "),
 					name,
 					gch->hit,   gch->max_hit,
@@ -2485,7 +2486,7 @@ void do_toggle(CHAR_DATA *ch, char *argument)
 
 		for (i = 0; pc_set_table[i].name != NULL; i++)
 		{
-			if (ch->tot_level >= pc_set_table[i].min_level)
+			if (get_staff_rank(ch) >= pc_set_table[i].min_rank)
 			{
 				if (pc_set_table[i].vector != 0)
 				{
@@ -2540,7 +2541,7 @@ void do_toggle(CHAR_DATA *ch, char *argument)
 	for (i = 0; pc_set_table[i].name != NULL; i++)
 	{
 		if (!str_prefix(arg, pc_set_table[i].name) &&
-			ch->tot_level >= pc_set_table[i].min_level) {
+			get_staff_rank(ch) >= pc_set_table[i].min_rank) {
 			found = true;
 			break;
 		}

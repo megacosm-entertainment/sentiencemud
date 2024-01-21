@@ -3603,7 +3603,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 		(has_head?"HEAD":"HEADLESS"),
 		(messages?"MESSAGES":"SILENT"),
 		corpse_type);
-	wiznet(buf,NULL,NULL,WIZ_DEATHS,0,MAX_LEVEL);
+	wiznet(buf,NULL,NULL,WIZ_DEATHS,0,STAFF_IMPLEMENTOR);
 
 	/* If someone has died then unbanish them */
 	victim->maze_time_left = 0;
@@ -5828,7 +5828,7 @@ void do_burgle(CHAR_DATA *ch, char *argument)
 	check_improve(ch,gsk_burgle,true,5);
 	chance = get_skill(ch, gsk_burgle) / 10;
 
-	if (ch->level > LEVEL_HERO)
+	if (get_staff_rank(ch) >= STAFF_IMMORTAL)
 		chance = 100;
 
 	if (number_percent() < chance) {
@@ -6033,7 +6033,7 @@ void do_blackjack(CHAR_DATA *ch, char *argument)
 
 	if (is_safe(ch, victim, true)) return;
 
-	if (!IS_NPC(ch) && (skill < 100) && IS_IMMORTAL(victim) && (victim->tot_level == MAX_LEVEL)) {
+	if (!IS_NPC(ch) && (skill < 100) && IS_IMPLEMENTOR(victim)) {
 		act("It's IMPOSSIBLE!!! $N's power levels are FAR too high!\n\r", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return;
 	}
@@ -6354,8 +6354,9 @@ int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue)
 			ch->pursuit_by = ch->fighting;
 
 		// Stop "flee-killing".
+		// TODO: Deal with the level specifications
 		if (ch->fighting != NULL && IS_NPC(ch->fighting) && !IS_IMMORTAL(ch) &&
-			(ch->tot_level > 50 || IS_REMORT(ch)) && ch->fighting->level > ch->tot_level - 5 &&
+			/*(ch->tot_level > 50 || IS_REMORT(ch)) && ch->fighting->level > ch->tot_level - 5 &&*/
 				number_percent() > 33 && can_see(ch->fighting, ch))
 		{
 			act("You sense something approaching from the $t.", ch, NULL, NULL, NULL, NULL, dir_name[rev_dir[door]], NULL, TO_CHAR);
@@ -6736,7 +6737,7 @@ void do_slay(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!IS_NPC(victim) && victim->tot_level >= get_trust(ch)) {
+	if (!IS_NPC(victim) && get_staff_rank(victim) >= get_staff_rank(ch)) {
 		send_to_char("You failed.\n\r", ch);
 		return;
 	}

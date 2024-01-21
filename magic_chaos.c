@@ -164,9 +164,9 @@ SPELL_FUNC(spell_slow)
 	int lvl, catalyst;
 	memset(&af,0,sizeof(af));
 
-	lvl = victim->tot_level - ch->tot_level;
-	if(IS_REMORT(victim)) lvl += LEVEL_HERO;	// If the victim is remort, it will require MORE catalyst
-	if(IS_REMORT(ch)) lvl -= LEVEL_HERO;		// If the caster is remort, it will require LESS catalyst
+	CLASS_LEVEL *cl = get_class_level(ch, NULL);
+	CLASS_LEVEL *vcl = get_class_level(victim, NULL);
+	lvl = (IS_VALID(vcl) ? vcl->level : victim->tot_level) - (IS_VALID(cl) ? cl->level : ch->tot_level);
 	lvl = (lvl > 19) ? (lvl / 10) : 1;
 
 	catalyst = has_catalyst(ch,NULL,CATALYST_BODY,CATALYST_INVENTORY);

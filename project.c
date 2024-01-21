@@ -61,10 +61,10 @@ void do_project(CHAR_DATA *ch, char *argument)
 	send_to_char("Syntax:  project list\n\r"
 		     "         project show [project]\n\r"
 		     "         project inquiry [project] [list|add|view #|edit #|reply #|close #]\n\r", ch);
-	if (ch->tot_level >= MAX_LEVEL - 1)
+	if (IS_STAFF(ch, STAFF_CREATOR))
 	    send_to_char("         project inquiry [project] [close #|open #|delete #]\n\r", ch);
 
-	if (ch->tot_level == MAX_LEVEL)
+	if (IS_IMPLEMENTOR(ch))
 	    send_to_char("         project delete [project]", ch);
 
     }
@@ -202,7 +202,7 @@ void do_pdelete(CHAR_DATA *ch, char *argument)
 
 bool has_access_project(CHAR_DATA *ch, PROJECT_DATA *project)
 {
-    if (ch->tot_level == MAX_LEVEL)
+    if (IS_IMPLEMENTOR(ch))
 		return true;
 
     if (!str_cmp(ch->name, project->leader))
@@ -331,7 +331,7 @@ void do_pinquiry(CHAR_DATA *ch, char *argument)
 
     if (!str_cmp(arg2, "close"))
     {
-	if (ch->tot_level < MAX_LEVEL - 1 && str_cmp(ch->name, pinq->project->leader))
+	if (!IS_STAFF(ch, STAFF_CREATOR) && str_cmp(ch->name, pinq->project->leader))
 	{
 	    add_buf(buffer, "Only the project leader or your group leader can close an inquiry on this project.\n\r");
 	    EXIT_PROJECT_FUNCTION;
@@ -352,7 +352,7 @@ void do_pinquiry(CHAR_DATA *ch, char *argument)
 	    EXIT_PROJECT_FUNCTION;
 	}
 
-	if (ch->tot_level < MAX_LEVEL - 1 && str_cmp(ch->name, pinq->project->leader))
+	if (!IS_STAFF(ch, STAFF_CREATOR) && str_cmp(ch->name, pinq->project->leader))
 	{
 	    add_buf(buffer, "Only the project leader or your group leader can close an inquiry on this project.\n\r");
 	    EXIT_PROJECT_FUNCTION;
@@ -405,7 +405,7 @@ void do_pinquiry(CHAR_DATA *ch, char *argument)
 
     if (!str_cmp(arg2, "delete"))
     {
-	if (ch->tot_level < MAX_LEVEL)
+	if (!IS_IMPLEMENTOR(ch))
 	{
 	    add_buf(buffer, "Only an implementor can delete project inquiries.\n\r");
 	    EXIT_PROJECT_FUNCTION;
@@ -663,8 +663,8 @@ bool can_view_project(CHAR_DATA *ch, PROJECT_DATA *project)
 {
     PROJECT_BUILDER_DATA *pb;
 
-    // All 154+ can view any project
-    if (ch->tot_level >= MAX_LEVEL - 1)
+    // All CREATOR+ can view any project
+    if (IS_STAFF(ch, STAFF_CREATOR))
 	return true;
 
     if (ch->pcdata->security >= project->security)
@@ -681,7 +681,7 @@ bool can_view_project(CHAR_DATA *ch, PROJECT_DATA *project)
 
 bool can_edit_project(CHAR_DATA *ch, PROJECT_DATA *project)
 {
-    if (ch->tot_level == MAX_LEVEL)
+    if (IS_IMPLEMENTOR(ch))
 	return true;
 
     if (!str_cmp(ch->name, project->leader))
@@ -742,7 +742,7 @@ PEDIT(pedit_create)
     PROJECT_DATA *project;
     PROJECT_DATA *project_tmp;
 
-    if (ch->tot_level < MAX_LEVEL) {
+    if (!IS_IMPLEMENTOR(ch)) {
 	send_to_char("Currently, only Implementors can create projects.\n\r", ch);
 	return false;
     }
@@ -1057,7 +1057,7 @@ PEDIT(pedit_completed)
 	return false;
     }
 
-    if (ch->tot_level < MAX_LEVEL && str_cmp(ch->name, project->leader)) {
+    if (!IS_IMPLEMENTOR(ch) && str_cmp(ch->name, project->leader)) {
 	send_to_char("Sorry, only the project leader, the head builder, or an implementor can adjust project completion status.\n\r", ch);
 	return false;
     }

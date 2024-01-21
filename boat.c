@@ -7145,7 +7145,8 @@ const struct olc_cmd_type shedit_table[] =
 
 bool can_edit_ships(CHAR_DATA *ch)
 {
-	return !IS_NPC(ch) && (ch->pcdata->security >= 9) && (ch->tot_level >= MAX_LEVEL);
+	// Add shipwright certification for imms
+	return !IS_NPC(ch) && (ch->pcdata->security >= 9) && IS_IMPLEMENTOR(ch);
 }
 
 void list_ship_indexes(CHAR_DATA *ch, char *argument)

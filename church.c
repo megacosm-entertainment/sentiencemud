@@ -1349,7 +1349,7 @@ void do_chdelete(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg);
 
 	/* Add in a requirement for HEAD CHURCH SHAPER*/
-    if(IS_NPC(ch) || !IS_IMMORTAL(ch) || (ch->tot_level < MAX_LEVEL || ch->pcdata->security < 9)) {
+    if(IS_NPC(ch) || !IS_IMMORTAL(ch) || (!IS_IMPLEMENTOR(ch) || ch->pcdata->security < 9)) {
 	send_to_char("You can't do that.\n\r", ch);
 	return;
     }
@@ -1996,7 +1996,7 @@ void do_chinfo(CHAR_DATA *ch, char *argument)
 	}
 
 	/* imms can look up info on churches for convenience*/
-	if (ch->tot_level >= MAX_LEVEL - 3)
+	if (IS_STAFF(ch, STAFF_ASCENDANT))
 	{
 	    if ((church = find_church(atoi(arg))) == NULL)
 	    {

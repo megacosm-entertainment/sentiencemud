@@ -300,6 +300,8 @@ struct sound_type {
 
 #define VERSION_PLAYER_009  0x01000008
 
+#define VERSION_PLAYER_010  0x01000009
+
 #define VERSION_OBJECT_001	0x01000000
 
 #define VERSION_OBJECT_002	0x01000001
@@ -379,7 +381,7 @@ struct sound_type {
 #define VERSION_MOBILE		0x01000000
 #define VERSION_OBJECT		VERSION_OBJECT_016
 #define VERSION_ROOM		VERSION_ROOM_002
-#define VERSION_PLAYER		VERSION_PLAYER_009
+#define VERSION_PLAYER		VERSION_PLAYER_010
 #define VERSION_TOKEN		0x01000000
 #define VERSION_AFFECT		0x01000000
 #define VERSION_SCRIPT		0x02000000
@@ -461,7 +463,6 @@ typedef struct  prog_data		PROG_DATA;
 typedef struct  prog_code               PROG_CODE;
 typedef struct  prog_list              	PROG_LIST;
 typedef struct  quest_index_data        QUEST_INDEX_DATA;
-typedef struct  quest_index_part_data   QUEST_INDEX_PART_DATA;
 typedef struct  quest_list		QUEST_LIST;
 typedef struct  race_data       RACE_DATA;
 typedef struct  stat_data		STAT_DATA;
@@ -1131,9 +1132,9 @@ struct olc_point_area_data {
  * Game parameters.
  */
 #define AUCTION_LENGTH          5
-#define LEVEL_HERO		120
-#define LEVEL_IMMORTAL		150
-#define LEVEL_NEWBIE		10
+//#define LEVEL_HERO		120
+//#define LEVEL_IMMORTAL		150
+#define LEVEL_NEWBIE		10          // TODO: Need to determine what constitutes a newbie.
 #define MAX_TREASURES           1
 #define MAX_IMMORTAL_GROUPS     6
 #define MAX_ALIAS	        80
@@ -1150,7 +1151,7 @@ struct olc_point_area_data {
 #define MAX_IN_CHAT_ROOM	50
 #define MAX_IN_GROUP		40
 #define MAX_ITEMS_IN_LOCKER	30
-#define MAX_LEVEL		155
+//#define MAX_LEVEL		155
 #define MAX_MOB_SKILL_LEVEL	1000
 #define MAX_NPC_SHIP_MOBS	10
 #define MAX_PC_RACE		27
@@ -1972,7 +1973,7 @@ struct  player_setting_type
     long	vector2;
     long	vector_comm;
     bool	inverted;
-    int		min_level;
+    int		min_rank;
     int		default_state;
 };
 
@@ -2008,7 +2009,7 @@ struct wiznet_type
 {
     char *	name;
     long 	flag;
-    int		level;
+    int		rank;
 };
 
 struct attack_type
@@ -3501,6 +3502,7 @@ enum {
 #define AREA_BLUEPRINT		(L)		// Area is used to hold rooms used for Blueprints.  Will block VLINKs
 #define AREA_LOCKED			(M)		// Area requires the player to unlock the area first
 #define AREA_LOW_LEVEL      (N)     // Area is considered low level
+#define AREA_IMMORTAL       (O)     // Area is an immortal zone.
 #define AREA_NO_SAVE		(Z)
 
 /*
@@ -4025,24 +4027,215 @@ struct mission_part_data
 };
 
 
+#define QUEST_STAGE_NONE        0
+#define QUEST_STAGE_FETCH       1   // Collect N Items. Need the "Fetch 10 Bear Asses" quest.
+#define QUEST_STAGE_SLAY        2   // Kill N Mobiles
+
+typedef struct  quest_index_stage_header_data  QUEST_INDEX_STAGE_HEADER;
+typedef struct  quest_index_stage_fetch_data  QUEST_INDEX_STAGE_FETCH;
+typedef struct  quest_index_stage_slay_data  QUEST_INDEX_STAGE_SLAY;
+typedef struct  quest_index_stage_escort_data  QUEST_INDEX_STAGE_ESCORT;
+
+#define __QUEST_STAGE_HEADER__ \
+    bool valid; \
+    char *name; \
+    char *description; \
+    long flags; \
+    int16_t type;
+
+
+// Stage Header
+struct quest_index_stage_header_data {
+    QUEST_INDEX_STAGE_HEADER *next;
+
+    __QUEST_STAGE_HEADER__
+
+    WNUM_LOAD load_wnum;
+    WNUM wnum;              // Target of stage
+
+    int count;              // How many of WNUM is required for the stage?
+                            //   Ignored when the stage only focuses on one mobile or object
+    
+    LOCATION load_destination;
+    ROOM_INDEX_DATA *destination;
+};
+
+// Collect N items
+// TODO: Break this apart
+struct quest_index_stage_fetch_data
+{
+    QUEST_INDEX_STAGE_FETCH *next;
+
+    __QUEST_STAGE_HEADER__
+
+    // Objective
+    WNUM_LOAD wnum_obj;             // Loaded wnum of object
+    OBJ_INDEX_DATA *obj;            // What object needs to be collected
+    int count;                      // How many is needed
+
+    // Parameters
+    WNUM_LOAD wnum_mob;             // Loaded vnum of mobile
+    MOB_INDEX_DATA *drop_mob;       // What mobile drops the object
+    AREA_REGION *mob_spawn_region;  // What region will the mobiles spawn in?
+    int mob_count;                  // Maximum count spawned at a time.
+    int mob_respawn_rate;           // How fast to respawn the mobiles, 0 = disabled.
+
+    LOCATION load_obj_destination;      // Loaded location for object destination when there is only one place.
+    ROOM_INDEX_DATA *obj_destination;   // Place where a single object is located.
+    WNUM_LOAD load_obj_spawn_region;    // HACK for area region loading (vnum == region uid)
+    AREA_REGION *obj_spawn_region;       // Where the objects will spawn
+    int obj_count;                      // Maximum count spawned at a time.
+    int obj_respawn_rate;               // How fast to respawn the objects, 0 = disabled.
+
+    // TODO: What else?
+};
+
+// Kill N mobs
+struct quest_index_stage_slay_data
+{
+    QUEST_INDEX_STAGE_FETCH *next;
+
+    __QUEST_STAGE_HEADER__
+
+    WNUM_LOAD wnum;
+    MOB_INDEX_DATA *pMob;
+    int count;
+};
+
+typedef struct quest_index_skill_requirement_data QUEST_INDEX_SKILL_REQUIREMENT;
+
+struct quest_index_skill_requirement_data {
+    QUEST_INDEX_SKILL_REQUIREMENT *next;
+
+    SKILL_DATA *skill;
+    int min_rating;
+    int max_rating;
+};
+
+typedef struct quest_index_song_requirement_data QUEST_INDEX_SONG_REQUIREMENT;
+
+struct quest_index_song_requirement_data {
+    QUEST_INDEX_SONG_REQUIREMENT *next;
+
+    SONG_DATA *song;
+    int min_rating;
+    int max_rating;
+};
+
+typedef struct quest_index_item_reward_data QUEST_INDEX_ITEM_REWARD;
+
+struct quest_index_item_reward_data
+{
+    QUEST_INDEX_ITEM_REWARD *next;
+
+    WNUM_LOAD wnum;             // Resolved after boot up
+    OBJ_INDEX_DATA *pObj;
+    int min_count;
+    int max_count;
+};
+
+typedef struct quest_index_skill_reward_data QUEST_INDEX_SKILL_REWARD;
+
+struct quest_index_skill_reward_data
+{
+    QUEST_INDEX_SKILL_REWARD *next;
+
+    SKILL_DATA *skill;
+    int rating;
+};
+
+typedef struct quest_index_song_reward_data QUEST_INDEX_SONG_REWARD;
+
+struct quest_index_song_reward_data
+{
+    QUEST_INDEX_SONG_REWARD *next;
+
+    SONG_DATA *song;
+    int rating;
+};
+
+
+#define QUEST_REPEATABLE        (A)     // Quest is repeatable
+#define QUEST_DAILY             (B)     // Quest will reset at the daily reset.  Requires REPEATABLE.
+
 /* For immortal/builder-made quests (can only be done once per char) */
 struct quest_index_data
 {
     QUEST_INDEX_DATA *next;
+ 
     AREA_DATA *area;
-    QUEST_INDEX_PART_DATA *parts;
 
     long vnum;
-    char *name;
-    long exp_reward;
-    int qp_reward;
-    int prac_reward;
-    int train_reward;
-    int gold_reward;
-    int silver_reward;
 
-    // Pneuma reward?
-    // Reputation reward?
+    LLIST *prerequisites;       // Start off as a WNUM_LOAD list, will be ordered by WNUM
+    LLIST *next_quests;         // Filled on load after prerequisites are resolved, will be ordered by WNUM.
+
+    LLIST *stages;
+    
+    char *name;
+    char *description;       // Show when asked to accept / decline the quest
+
+    long flags;
+
+
+    // Class restriction
+    CLASS_DATA *clazz;      // Restricted by class?
+    int16_t clazz_type;     // Restricted by class type?
+    int class_level;        // Level required in class/class type
+
+    // Racial requirements
+    RACE_DATA *race;        // Restricted by race?
+    int race_level;         // Total level (race must be valid)
+
+    // Reputation Requirements
+    WNUM_LOAD load_reputation;
+    REPUTATION_INDEX_DATA   *reputation;
+    int min_reputation_rank;
+    int max_reputation_rank;
+
+    // Skill/Song Requirements
+    LLIST *skills;          // List of QUEST_INDEX_SKILL_REQUIREMENT
+    LLIST *songs;           // List of QUEST_INDEX_SONG_REQUIREMENT
+                            // Requires the clazz to be Bard
+    
+    // Stats requirements
+    int stats[MAX_STATS][2];    // Must have your stats within these ranges.
+
+    int repeat_cooldown;    // How many minutes until you can do the quest again.
+                            // Requires REPEATABLE.
+                            // If set to 0, it is immediately repeatable.
+                            // If flagged as DAILY, is ignored.
+
+    
+    CLASS_DATA *target_clazz;   // What class you will get EXPERIENCE in.  NULL is current class.
+                                // If set, it will require that you be IN that class to turn it in.
+
+    long exp_reward;            // How much experience in the target class?
+    int mp_reward;              // How many mission points will you receive?
+    int prac_reward;            // How many practices will you receive?
+    int train_reward;           // How many trains will you receive?
+    int gold_reward;            // How much gold will you receive?
+    int silver_reward;          // How much silver will you receive?
+    int pneuma_reward;          // How much pneuma will you receive?
+    int deity_reward;           // How many deity points will you receive?
+
+    WNUM_LOAD load_reputation_reward;
+    REPUTATION_INDEX_DATA *reputation_reward;   // Target reputation you get rewarded rank/points in.
+    int reputation_reward_rank;                 // What rank will you be set to.  -1 means ignore.
+    int reputation_points;                      // How many reputation points will you get?
+    int paragon_levels;                         // How many paragon levels (if applicable) will you get?
+
+    LLIST *item_rewards;        // List of QUEST_INDEX_ITEM_REWARD's
+
+    LLIST *skill_rewards;       // List of QUEST_INDEX_SKILL_REWARD
+    LLIST *song_rewards;        // List of QUEST_INDEX_SONG_REWARD
+                                // Requires the target_clazz to be the Bard
+
+    // What is the script space?
+    long reward_script;                 // Must be local to the same area as the quest
+    char *reward_script_description;    // Description of what the script will do, for display purposes.
+
+    // TODO: Completion followup
 };
 
 
@@ -4057,14 +4250,6 @@ struct quest_index_data
 #define QUEST_PART_RESCUE_MOB	8
 #define QUEST_PART_SLAY_MOB	9
 #define QUEST_PART_BRING_MOB	10
-
-struct quest_index_part_data
-{
-    QUEST_INDEX_PART_DATA *next;
-
-    int type;
-    long phrase[7];
-};
 
 
 /* used in pMobIndex */
@@ -4453,9 +4638,9 @@ struct	char_data
 
     RACE_DATA   *race;
     int			orace;
-    int			level;
+    //int			level;
     int			tot_level;
-    int			trust;
+    //int			trust;
     int			played;
     int			lines;  /* for the pager */
 
@@ -4841,6 +5026,14 @@ struct ready_check_state
     bool ready;
 };
 
+#define STAFF_PLAYER        0       // Pesky Mortal (Default)
+#define STAFF_GIMP          1       // Heh, Gimp...
+#define STAFF_IMMORTAL      2
+#define STAFF_ASCENDANT     3
+#define STAFF_SUPREMACY     4
+#define STAFF_CREATOR       5
+#define STAFF_IMPLEMENTOR   6
+
 /*
  * Data which only PC's have.
  */
@@ -4870,6 +5063,8 @@ struct	pc_data
     time_t		last_login;
     time_t		last_project_inquiry;
     time_t      last_ready_check;
+
+    int         staff_rank;
 
     LLIST *classes;
 
@@ -4921,18 +5116,6 @@ struct	pc_data
     LOCATION		room_before_arena;
     STRING_DATA		*vis_to_people; /* vis to this list of names */
     STRING_DATA		*quiet_people; /* these people can tell w/ quiet */
-
-    /*QUEST_INDEX_DATA    *quests; / keep track of indexed quests and their parts
-
-    char *  	    	owner_of_boat_before_logoff;
-  long  	 	vnum_of_boat_before_logoff;
-
-
-    int 		rank[3];
-    int 		reputation[3];
-    long  	ship_quest_points[3];
-    long		bounty[3];
-     */
 
     int 		convert_church; /* convert church? */
     int 		need_change_pw; /* for when we need to force people to change pw's */
@@ -5752,6 +5935,7 @@ struct	obj_index_data
     AFFECT_DATA *	catalyst;
     AREA_DATA *		area;
     bool	persist;
+    bool    immortal;   // Flags the object as an immortal object
 
     LLIST **	progs;
     char *		name;
@@ -6160,6 +6344,7 @@ struct area_data {
     int version_blueprints;
     int version_ships;
     int version_dungeons;
+    int version_quests;
 
 	SHIP_DATA *ship_list;
 	TRADE_ITEM *trade_list;
@@ -6188,6 +6373,7 @@ struct area_data {
     DUNGEON_INDEX_DATA *dungeon_index_hash[MAX_KEY_HASH];
     SHIP_INDEX_DATA *ship_index_hash[MAX_KEY_HASH];
     REPUTATION_INDEX_DATA *reputation_index_hash[MAX_KEY_HASH];
+    QUEST_INDEX_DATA *quest_index_hash[MAX_KEY_HASH];
 	SCRIPT_DATA *mprog_list;
 	SCRIPT_DATA *oprog_list;
 	SCRIPT_DATA *rprog_list;
@@ -6218,6 +6404,7 @@ struct area_data {
     long top_ship_vnum;
     long top_dungeon_vnum;
     long top_reputation_vnum;
+    long top_quest_vnum;
 
     long top_region_uid;
 
@@ -9000,11 +9187,11 @@ extern int16_t grn_unique;
 #define IS_NPC(ch)		(IS_SET((ch)->act[0], ACT_IS_NPC))
 #define IS_BOSS(ch)		(IS_NPC(ch) && ((ch)->pIndexData->boss))
 #define IS_NPC_SHIP(ship)	(ship->npc_ship != NULL)
-#define IS_IMMORTAL(ch)		(get_trust(ch) >= LEVEL_IMMORTAL && !IS_NPC(ch) && (ch)->pcdata->immortal != NULL)
-#define IS_IMPLEMENTOR(ch)  (IS_IMMORTAL(ch) && ((ch)->tot_level >= MAX_LEVEL))
+#define IS_IMMORTAL(ch)		(!IS_NPC(ch) && (ch)->pcdata->immortal != NULL)
+#define IS_IMPLEMENTOR(ch)  (IS_IMMORTAL(ch) && ((ch)->pcdata->staff_rank >= STAFF_IMPLEMENTOR))
 #define IS_SECURITY(ch,sec) ((ch)->pcdata->security >= (sec))
-#define IS_HERO(ch)		(get_trust(ch) >= LEVEL_HERO)
-#define IS_TRUSTED(ch,level)	(get_trust((ch)) >= (level))
+//#define IS_TRUSTED(ch,level)	(get_trust((ch)) >= (level))
+#define IS_STAFF(ch,rank)       (get_staff_rank((ch)) >= (rank))
 #define IS_AFFECTED(ch, sn)	(IS_SET((ch)->affected_by[0], (sn)))
 #define IS_AFFECTED2(ch, sn)	(IS_SET((ch)->affected_by[1], (sn)))
 #define IN_NATURAL_FORM(ch)	(ch->natural_form)
@@ -9635,7 +9822,7 @@ int gconfig_read(void);
 int gconfig_write(void);
 void do_chset( CHAR_DATA *ch, char *argument );
 void save_shares	args( ( void ) );
-void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj, long flag, long flag_skip, int min_level );
+void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj, long flag, long flag_skip, int min_rank );
 
 /* alias.c */
 void 	substitute_alias args( (DESCRIPTOR_DATA *d, char *input) );
@@ -9914,6 +10101,21 @@ PROG_LIST *new_trigger(void);
 MISSION_DATA *new_mission( void );
 MISSION_PART_DATA *new_mission_part(void);
 QUEST_INDEX_DATA *new_quest_index( void );
+QUEST_INDEX_SKILL_REQUIREMENT *new_quest_skill_requirement();
+QUEST_INDEX_SKILL_REQUIREMENT *copy_quest_skill_requirement(QUEST_INDEX_SKILL_REQUIREMENT *src);
+void free_quest_skill_requirement(QUEST_INDEX_SKILL_REQUIREMENT *req);
+QUEST_INDEX_SONG_REQUIREMENT *new_quest_song_requirement();
+QUEST_INDEX_SONG_REQUIREMENT *copy_quest_song_requirement(QUEST_INDEX_SONG_REQUIREMENT *src);
+void free_quest_song_requirement(QUEST_INDEX_SONG_REQUIREMENT *req);
+QUEST_INDEX_ITEM_REWARD *new_quest_item_reward();
+QUEST_INDEX_ITEM_REWARD *copy_quest_item_reward(QUEST_INDEX_ITEM_REWARD *src);
+void free_quest_item_reward(QUEST_INDEX_ITEM_REWARD *reward);
+QUEST_INDEX_SKILL_REWARD *new_quest_skill_reward();
+QUEST_INDEX_SKILL_REWARD *copy_quest_skill_reward(QUEST_INDEX_SKILL_REWARD *src);
+void free_quest_skill_reward(QUEST_INDEX_SKILL_REWARD *reward);
+QUEST_INDEX_SONG_REWARD *new_quest_song_reward();
+QUEST_INDEX_SONG_REWARD *copy_quest_song_reward(QUEST_INDEX_SONG_REWARD *src);
+void free_quest_song_reward(QUEST_INDEX_SONG_REWARD *reward);
 QUEST_LIST *new_quest_list( void );
 MISSIONARY_DATA *new_missionary_data( void );
 RESET_DATA *new_reset_data( void );
@@ -10044,7 +10246,7 @@ SKILL_DATA *get_objweapon_sn	args( (OBJ_DATA *obj) );
 int	get_weapon_skill args(( CHAR_DATA *ch, SKILL_DATA *skill ) );
 int     get_age         args( ( CHAR_DATA *ch ) );
 void	reset_char	args( ( CHAR_DATA *ch )  );
-int	get_trust	args( ( CHAR_DATA *ch ) );
+int get_staff_rank(CHAR_DATA *ch);
 
 void set_mod_stat(CHAR_DATA *ch, int stat, int value);
 void add_mod_stat(CHAR_DATA *ch, int stat, int adjust);
@@ -10495,6 +10697,7 @@ void save_area args( ( AREA_DATA *pArea ) );
 void save_help( void );
 void save_quest( FILE *fp, QUEST_INDEX_DATA *pQuestIndex );
 void save_quests( FILE *fp, AREA_DATA *pArea );
+QUEST_INDEX_DATA *read_quest( FILE *fp, AREA_DATA *pArea );
 char *fwrite_flag( long flags, char buf[] );
 
 /* wilderness.c */
@@ -11548,6 +11751,7 @@ extern CLASS_DATA *gcl_assassin;
 extern CLASS_DATA *gcl_bard;
 extern CLASS_DATA *gcl_blacksmith;
 extern CLASS_DATA *gcl_botanist;
+extern CLASS_DATA *gcl_carpenter;
 extern CLASS_DATA *gcl_crusader;
 extern CLASS_DATA *gcl_culinarian;
 extern CLASS_DATA *gcl_destroyer;
@@ -11559,6 +11763,7 @@ extern CLASS_DATA *gcl_geomancer;
 extern CLASS_DATA *gcl_gladiator;
 extern CLASS_DATA *gcl_highwayman;
 extern CLASS_DATA *gcl_illusionist;
+extern CLASS_DATA *gcl_inscription;
 extern CLASS_DATA *gcl_jewelcrafter;
 extern CLASS_DATA *gcl_leatherworker;
 extern CLASS_DATA *gcl_marauder;
@@ -11568,9 +11773,11 @@ extern CLASS_DATA *gcl_monk;
 extern CLASS_DATA *gcl_necromancer;
 extern CLASS_DATA *gcl_ninja;
 extern CLASS_DATA *gcl_paladin;
+extern CLASS_DATA *gcl_priest;
 extern CLASS_DATA *gcl_ranger;
 extern CLASS_DATA *gcl_rogue;
 extern CLASS_DATA *gcl_sage;
+extern CLASS_DATA *gcl_shaman;
 extern CLASS_DATA *gcl_skinner;
 extern CLASS_DATA *gcl_sorcerer;
 extern CLASS_DATA *gcl_stonemason;

@@ -1873,7 +1873,11 @@ SCRIPT_CMD(do_rpoload)
 		switch(arg->type) {
 		case ENT_NUMBER: level = arg->d.num; break;
 		case ENT_STRING: level = arg->d.str ? atoi(arg->d.str) : 0; break;
-		case ENT_MOBILE: level = arg->d.mob ? get_trust(arg->d.mob) : 0; break;
+		case ENT_MOBILE:
+		{
+			CLASS_LEVEL *mcl = arg->d.mob ? get_class_level(arg->d.mob, NULL) : NULL;
+			level = mcl ? mcl->level : (arg->d.mob ? arg->d.mob->tot_level : 0); break;
+		}
 		case ENT_OBJECT: level = arg->d.obj ? arg->d.obj->pIndexData->level : 0; break;
 		default: level = 0; break;
 		}
@@ -3164,7 +3168,7 @@ SCRIPT_CMD(do_rpaltermob)
 	else if(!str_cmp(field,"silver"))	ptr = (int*)&mob->silver;
 	else if(!str_cmp(field,"size"))		{ ptr = (int*)&mob->size; min = SIZE_TINY; max = SIZE_GIANT; hasmin = hasmax = true; flags = size_flags; }
 	else if(!str_cmp(field,"skillchance"))	ptr = (int*)&mob->skill_chance;
-	else if(!str_cmp(field,"sublevel"))	ptr = (int*)&mob->level;
+//	else if(!str_cmp(field,"sublevel"))	ptr = (int*)&mob->level;
 	else if(!str_cmp(field,"tempstore1"))	ptr = (int*)&mob->tempstore[0];
 	else if(!str_cmp(field,"tempstore2"))	ptr = (int*)&mob->tempstore[1];
 	else if(!str_cmp(field,"tempstore3"))	ptr = (int*)&mob->tempstore[2];

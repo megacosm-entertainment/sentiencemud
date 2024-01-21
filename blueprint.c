@@ -2989,7 +2989,8 @@ const struct olc_cmd_type bsedit_table[] =
 
 bool can_edit_blueprints(CHAR_DATA *ch)
 {
-	return !IS_NPC(ch) && (ch->pcdata->security >= 9) && (ch->tot_level >= MAX_LEVEL);
+	// TODO: Add blueprint certification for imms
+	return !IS_NPC(ch) && (ch->pcdata->security >= 9) && IS_IMPLEMENTOR(ch);
 }
 
 void list_blueprint_sections(CHAR_DATA *ch, char *argument)

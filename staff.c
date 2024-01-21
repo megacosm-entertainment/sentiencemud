@@ -56,6 +56,16 @@ void do_staff(CHAR_DATA *ch, char *argument)
 	return;
     }
 
+    if (!str_cmp(arg, "promote")) {
+	do_function(ch, &do_spromote, argument);
+	return;
+    }
+
+    if (!str_cmp(arg, "demote")) {
+	do_function(ch, &do_sdemote, argument);
+	return;
+    }
+    
     if (!str_cmp(arg, "delete")) {
 	do_function(ch, &do_sdelete, argument);
 	return;
@@ -78,26 +88,40 @@ void do_slist(CHAR_DATA *ch, char *argument)
 
 }
 
-
 void do_sadd(CHAR_DATA *ch, char *argument)
 {
+    CHAR_DATA *player;
     IMMORTAL_DATA *immortal;
     char buf[MSL];
 
-    if (argument[0] == '\0' || strlen(argument) < 3) {
-	send_to_char("Syntax:  staff add [player name]\n\r",  ch);
-	return;
-    }
-
-    if (!player_exists(argument))
+    if (argument[0] == '\0' || strlen(argument) < 3)
     {
-	send_to_char("That character doesn't exist.\n\r", ch);
-	return;
+        send_to_char("Syntax:  staff add [player name]\n\r",  ch);
+        return;
     }
 
-    if (find_immortal(argument) != NULL) {
-	send_to_char("There is already an immortal by that name.\n\r", ch);
-	return;
+    if ((player = get_char_world(ch, argument)) == NULL)
+    {
+        send_to_char("No such character online.\n\r", ch);
+        return;
+    }
+
+    if (IS_NPC(player))
+    {
+        send_to_char("Nice try.  Only players can become immortal.\n\r", ch);
+        return;
+    }
+
+    if (get_staff_rank(player) > STAFF_PLAYER)
+    {
+        send_to_char("There is already an immortal by that name.\n\r", ch);
+        return;
+    }
+
+    if (find_immortal(argument) != NULL)
+    {
+        send_to_char("There is already an immortal by that name.\n\r", ch);
+        return;
     }
 
     sprintf(buf, "%s", argument);
@@ -108,11 +132,31 @@ void do_sadd(CHAR_DATA *ch, char *argument)
     immortal->imm_flag = str_dup("{RImmortal{x");
     immortal->created = current_time;
     immortal->duties = 0;
-
+    immortal->pc = player->pcdata;
+    player->pcdata->immortal = immortal;
     add_immortal(immortal);
+
+    send_to_char("{B================================================================================{x\n\r", player);
+    send_to_char("{B|{C****************************{WWelcome, new Immortal!{C****************************{B|{x\n\r",player);
+    send_to_char("{B================================================================================{x\n\r", player);
+    send_to_char("\n\r", player);
+    send_to_char("Welcome to the Sentience Immortal Staff. Please read {WHELP IMMORTAL RULES{x now. In addition\n\r", player);
+    send_to_char("  to this, please type wizhelp to see a full list of your available immortal commands. You may\n\r", player);
+    send_to_char("  use '{Rimmtalk <message>{X' or '{R: <message>{X' to communicate on the immortal channel.\n\r", player);
+    send_to_char("  {WHELP IMMORTAL{x will list available helpfiles for your level.\n\r\n\r", player);
+    player->pcdata->staff_rank = STAFF_IMMORTAL;
+    player->invis_level = STAFF_IMMORTAL;
+    SET_BIT(player->act[1], PLR_HOLYAURA);
+    SET_BIT(player->act[0], PLR_HOLYLIGHT);
+    SET_BIT(player->act[1], PLR_HOLYPERSONA);
+    SET_BIT(player->act[1], PLR_HOLYWARP);
+    player->prompt = str_dup("{W[{R%o{W][{g%O{W] Room: {a%R {W({a%r{W) - {X%h{W>{X%c");
+    sprintf(buf, "\n\rYou have been set to wizinvis {W%s{x.\n\r", flag_string(staff_ranks, player->invis_level));
+    send_to_char(buf,player);
 
     act("Created new immortal $T.", ch, NULL, NULL, NULL, NULL, NULL, immortal->name, TO_CHAR);
     save_immstaff();
+    save_char_obj(ch);
 }
 
 
@@ -203,42 +247,205 @@ IMMORTAL_DATA *find_immortal(char *argument)
     return immortal;
 }
 
+void do_sdemote(CHAR_DATA *ch, char *argument)
+{
+    CHAR_DATA *player;
+    char arg[MIL];
+
+    if (argument[0] == '\0')
+    {
+        send_to_char("Syntax:  sdemote <immortal>[ <rank>]\n\r", ch);
+        return;
+    }
+
+    argument = one_argument(argument, arg);
+    if ((player = get_char_world(ch, arg)) == NULL)
+    {
+        send_to_char("No one by that name found.\n\r", ch);
+        return;
+    }
+
+    if (IS_NPC(player))
+    {
+        send_to_char("Nice try.\n\r", ch);
+        return;
+    }
+
+    if (!IS_IMMORTAL(player))
+    {
+        send_to_char("That is not an immortal.\n\r", ch);
+        return;
+    }
+
+    if (get_staff_rank(player) >= get_staff_rank(ch))
+    {
+        send_to_char("Nice try.\n\r", ch);
+        return;
+    }
+
+    if (get_staff_rank(player) == STAFF_GIMP)
+    {
+        send_to_char("That is the lowest staff rank.  If you want to demote them lower, sdelete them.\n\r", ch);
+        return;
+    }
+
+    int old_rank = get_staff_rank(player);
+    int new_rank = old_rank - 1;
+    if (argument[0] != '\0')
+    {
+        if ((new_rank = stat_lookup(argument, staff_ranks, NO_FLAG)) == NO_FLAG ||
+            new_rank < STAFF_GIMP || new_rank >= old_rank)
+        {
+            send_to_char("Invalid staff rank.\n\r", ch);
+            send_to_char("Please select one of the following:\n\r", ch);
+            for(int i = 0; staff_ranks[i].name; i++)
+            {
+                if (staff_ranks[i].settable && staff_ranks[i].bit > STAFF_PLAYER && staff_ranks[i].bit < old_rank)
+                {
+                    send_to_char(formatf(" %s\n\r", staff_ranks[i].name), ch);
+                }
+            }
+            return;
+        }
+    }
+    
+    player->pcdata->staff_rank = new_rank;
+    save_char_obj(player);
+
+    send_to_char(formatf("You have been demoted to {W{+%s{x.\n\r", flag_string(staff_ranks, new_rank)), player);
+    send_to_char(formatf("{+%s demoted to {W{+%s{x.\n\r", player->name, flag_string(staff_ranks, new_rank)), ch);
+}
+
+
+void do_spromote(CHAR_DATA *ch, char *argument)
+{
+    CHAR_DATA *player;
+    char arg[MIL];
+
+    if (argument[0] == '\0')
+    {
+        send_to_char("Syntax:  spromote <immortal>[ <rank>]\n\r", ch);
+        return;
+    }
+
+    argument = one_argument(argument, arg);
+    if ((player = get_char_world(ch, arg)) == NULL)
+    {
+        send_to_char("No one by that name found.\n\r", ch);
+        return;
+    }
+
+    if (IS_NPC(player))
+    {
+        send_to_char("Nice try.\n\r", ch);
+        return;
+    }
+
+    if (!IS_IMMORTAL(player))
+    {
+        send_to_char("That is not an immortal.\n\r", ch);
+        return;
+    }
+
+    if (get_staff_rank(player) >= get_staff_rank(ch))
+    {
+        send_to_char("Nice try.\n\r", ch);
+        return;
+    }
+
+    int old_rank = get_staff_rank(player);
+    int new_rank = old_rank + 1;
+    if (argument[0] != '\0')
+    {
+        if ((new_rank = stat_lookup(argument, staff_ranks, NO_FLAG)) == NO_FLAG ||
+            new_rank >= get_staff_rank(ch) || new_rank <= old_rank)
+        {
+            send_to_char("No such staff rank.\n\r", ch);
+            send_to_char("Please select one of the following:\n\r", ch);
+            for(int i = 0; staff_ranks[i].name; i++)
+            {
+                if (staff_ranks[i].settable && staff_ranks[i].bit > old_rank && staff_ranks[i].bit < get_staff_rank(ch))
+                {
+                    send_to_char(formatf(" %s\n\r", staff_ranks[i].name), ch);
+                }
+            }
+            return;
+        }
+    }
+    
+    player->pcdata->staff_rank = new_rank;
+    save_char_obj(player);
+
+    send_to_char(formatf("You have been promoted to {W{+%s{x.\n\r", flag_string(staff_ranks, new_rank)), player);
+    send_to_char(formatf("{+%s promoted to {W{+%s{x.\n\r", player->name, flag_string(staff_ranks, new_rank)), ch);
+}
 
 void do_sdelete(CHAR_DATA *ch, char *argument)
 {
-    char arg[MSL];
+    CHAR_DATA *player;
     IMMORTAL_DATA *immortal, *tmp, *last;
 
-    argument = one_argument(argument, arg);
-
-    if (arg[0] == '\0') {
-	send_to_char("Syntax:  staff delete [immortal]"
-		     "\n\r{RWARNING:{x all information associated with this immortal will be wiped!\n\r", ch);
-	return;
+    if (argument[0] == '\0' || strlen(argument) < 3)
+    {
+        send_to_char("Syntax:  staff delete [immortal name]\n\r", ch);
+        send_to_char("{RWARNING:{x all information associated with this immortal, including the pfile, will be wiped!\n\r", ch);
+        return;
     }
 
-    if ((immortal = find_immortal(arg)) == NULL) {
-	send_to_char("No such immortal.\n\r", ch);
-	return;
+    if ((player = get_char_world(ch, argument)) == NULL)
+    {
+        send_to_char("They are not online.\n\r", ch);
+        return;
     }
 
-    act("$T's immortal priveleges have been terminated.", ch, NULL, NULL, NULL, NULL, NULL, immortal->name, TO_CHAR);
+    if (IS_NPC(player))
+    {
+        send_to_char("Nice try.\n\r", ch);
+        return;
+    }
+
+    if (get_staff_rank(player) == STAFF_PLAYER)
+    {
+        send_to_char("That player is not an immortal.\n\r", ch);
+        return;
+    }
+
+    if (get_staff_rank(player) >= get_staff_rank(ch))
+    {
+        send_to_char("Nice try.\n\r", ch);
+        return;
+    }
+
+    immortal = player->pcdata->immortal;
+    if (!immortal)
+    {
+        send_to_char("Missing immortal data on the player.\n\r", ch);
+        return;
+    }
+
+    act("$N's immortal priveleges have been terminated.", ch, player, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
     /* Remove it from the global list */
     last = NULL;
     for (tmp = immortal_list; tmp != NULL; tmp = tmp->next) {
-	if (tmp == immortal)
-	    break;
+    	if (tmp == immortal)
+    	    break;
 
-	last = tmp;
+    	last = tmp;
     }
 
     if (last != NULL)
-	last->next = immortal->next;
+	    last->next = immortal->next;
     else
-	immortal_list = immortal->next;
+	    immortal_list = immortal->next;
 
     free_immortal(immortal);
     save_immstaff();
+
+    char strsave[MSL];
+    sprintf( strsave, "%s%c/%s",PLAYER_DIR,tolower(player->name[0]), capitalize( player->name ) );
+    stop_fighting(player,true);
+    do_function(player, &do_quit, NULL);
+    unlink(strsave);
 }
 
 
@@ -447,4 +654,5 @@ IMMORTAL_DATA *read_immortal(FILE *fp)
     log_string(buf);
     return immortal;
 }
+
 

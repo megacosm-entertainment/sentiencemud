@@ -601,8 +601,7 @@ void do_chat_delete(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (ch->in_room->chat_room->permanent == true
-    && ch->tot_level < MAX_LEVEL)
+    if (ch->in_room->chat_room->permanent == true && !IS_IMPLEMENTOR(ch))
     {
 	send_to_char(
 	    "You may not delete a permanent chat room.\n\r"
