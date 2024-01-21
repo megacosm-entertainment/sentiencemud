@@ -4617,6 +4617,8 @@ void do_who_new(CHAR_DATA * ch, char *argument)
 		    continue;
 		}
 
+		CLASS_LEVEL *wcl = get_class_level(wch, NULL);
+
 		if ((iLevelLower != 0 &&  wch->tot_level >= iLevelLower && wch->tot_level <= iLevelUpper) ||
 			arg[0] =='\0' || !str_prefix(arg, wch->name) ||
 			((!str_cmp(arg, "immortal") || !str_cmp(arg, "immortals") || !str_cmp(arg, "imm")) && get_staff_rank(wch) >= STAFF_IMMORTAL) ||
@@ -4627,8 +4629,6 @@ void do_who_new(CHAR_DATA * ch, char *argument)
 		else
 			continue;
 
-
-		CLASS_LEVEL *wcl = get_class_level(wch, NULL);
 		char *clazzptr;
 		char clazz_color = 'x';
         if (IS_IMMORTAL(wch) && IS_SET(wch->act[1], PLR_HOLYPERSONA))
