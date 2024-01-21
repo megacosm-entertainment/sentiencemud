@@ -7398,10 +7398,11 @@ void fread_skill(FILE *fp, CHAR_DATA *ch, bool is_song)
     char *word;
     bool fMatch;
 
+	char *skill_name = fread_string(fp);
 	if (is_song)
-		song = get_song_data(fread_string(fp));
+		song = get_song_data(skill_name);
 	else
-		skill = get_skill_data(fread_string(fp));
+		skill = get_skill_data(skill_name);
 
     for (; ;)
     {
@@ -7409,6 +7410,16 @@ void fread_skill(FILE *fp, CHAR_DATA *ch, bool is_song)
 		fMatch = false;
 
 		if (!str_cmp(word, "End")) {
+			if (!song && !skill)
+			{
+				// No skill nor song
+				if (IS_VALID(token))
+					free_token(token);
+
+				log_stringf("fread_skill: no %s named '%s' found.\n\r", (is_song?"song":"skill"), skill_name);
+				return;
+			}
+
 			if(IS_VALID(token))
 				token_to_char(token, ch);
 

@@ -4613,8 +4613,6 @@ void do_who_new(CHAR_DATA * ch, char *argument)
     {
 		wch = (d->original != NULL) ? d->original : d->character;
 
-		CLASS_LEVEL *wcl = get_class_level(wch, NULL);
-
 		if (d->connected != CON_PLAYING || (IS_IMMORTAL(wch) && !can_see_imm(ch, wch))) {
 		    continue;
 		}
@@ -4629,6 +4627,8 @@ void do_who_new(CHAR_DATA * ch, char *argument)
 		else
 			continue;
 
+
+		CLASS_LEVEL *wcl = get_class_level(wch, NULL);
 		char *clazzptr;
 		char clazz_color = 'x';
         if (IS_IMMORTAL(wch) && IS_SET(wch->act[1], PLR_HOLYPERSONA))

@@ -6775,7 +6775,7 @@ void do_slay(CHAR_DATA *ch, char *argument)
 	victim->set_death_type = DEATHTYPE_ALIVE;
 
 	sprintf(buf, "%s slayed %s!", ch->name, IS_NPC(victim) ? victim->short_descr : victim->name);
-	raw_kill(victim, false, true, corpse_type);
+	raw_kill(victim, true, true, corpse_type);
 
 	wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
 	log_string(buf);
