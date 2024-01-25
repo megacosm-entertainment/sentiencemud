@@ -4588,7 +4588,7 @@ void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet, int mode)
 						act("{W$n materializes.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM);
 				}
 			}
-			else if (in_room->sector_type == SECT_WATER_NOSWIM)
+			else if (in_room->sector->sector_class == SECTCLASS_WATER && IS_SET(in_room->sector_flags, SECTOR_DEEP_WATER))
 				act("{W$n swims in.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 			else if (PULLING_CART(ch))
 				act("{W$n has arrived, pulling $p.{x", ch, NULL, NULL, PULLING_CART(ch), NULL, NULL, NULL, TO_ROOM);
@@ -4667,7 +4667,7 @@ void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet, int mode)
 
 		/* Druids regenerate in nature */
 		// TODO: Turn into a trait
-		if (get_current_class(ch) == gcl_druid && is_in_nature(ch)) {
+		if (get_current_class(ch) == gcl_druid && is_in_nature(ch->in_room)) {
 			ch->move += number_range(1,3);
 			ch->move = UMIN(ch->move, ch->max_move);
 			ch->hit += number_range(1,3);

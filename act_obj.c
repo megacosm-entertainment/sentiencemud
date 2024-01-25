@@ -1952,11 +1952,18 @@ void do_drop(CHAR_DATA *ch, char *argument)
 	    extract_obj(obj);
 	}
 
-	else if (obj && ch->in_room->sector_type == SECT_ENCHANTED_FOREST)
+	else if (obj)
 	{
-	    act("$p crumbles into dust.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-	    act("$p crumbles into dust.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	    extract_obj(obj);
+		if (IS_SET(ch->in_room->sector_flags, SECTOR_CRUMBLES))
+		{
+		    act("$p crumbles into dust.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
+		    extract_obj(obj);
+		}
+		else if (IS_SET(ch->in_room->sector_flags, SECTOR_MELTS))
+		{
+		    act("$p melts and dissolves into nothingness.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
+		    extract_obj(obj);
+		}
 	}
     }
     else
@@ -2028,10 +2035,11 @@ void do_drop(CHAR_DATA *ch, char *argument)
 
 
 		    if (IS_SET(obj->extra[0], ITEM_MELT_DROP))
-			extract_obj(obj);
-
-		    else if (ch->in_room->sector_type == SECT_ENCHANTED_FOREST)
-			extract_obj(obj);
+				extract_obj(obj);
+			else if (IS_SET(ch->in_room->sector_flags, SECTOR_CRUMBLES))
+				extract_obj(obj);
+			else if (IS_SET(ch->in_room->sector_flags, SECTOR_MELTS))
+				extract_obj(obj);
 		}
 
 		if (i > 0 && match_obj != NULL)
@@ -2050,13 +2058,18 @@ void do_drop(CHAR_DATA *ch, char *argument)
 			act(buf, ch, NULL, NULL, match_obj, NULL, NULL, NULL, TO_ROOM);
 		    }
 
-		    else if (ch->in_room->sector_type == SECT_ENCHANTED_FOREST)
-		    {
-			short_descr[0] = UPPER(short_descr[0]);
-			sprintf(buf, "{Y({G%2d{Y) {x%s crumbles into dust.", i, short_descr);
-			act(buf, ch, NULL, NULL, match_obj, NULL, NULL, NULL, TO_ROOM);
-			act(buf, ch, NULL, NULL, match_obj, NULL, NULL, NULL, TO_CHAR);
-		    }
+			else if (IS_SET(ch->in_room->sector_flags, SECTOR_CRUMBLES))
+			{
+				short_descr[0] = UPPER(short_descr[0]);
+				sprintf(buf, "{Y({G%2d{Y) {x%s crumbles into dust.", i, short_descr);
+				act(buf, ch, NULL, NULL, match_obj, NULL, NULL, NULL, TO_ALL);
+			}
+			else if (IS_SET(ch->in_room->sector_flags, SECTOR_MELTS))
+			{
+				short_descr[0] = UPPER(short_descr[0]);
+				sprintf(buf, "{Y({G%2d{Y) {x%s melts and dissolves into nothingness.", i, short_descr);
+				act(buf, ch, NULL, NULL, match_obj, NULL, NULL, NULL, TO_ALL);
+			}
 		}
 	    }
 	    else if (!any)

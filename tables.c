@@ -1245,7 +1245,7 @@ const struct flag_type *room_flagbank[] =
 
 
 
-const struct flag_type sector_flags[] =
+const struct flag_type sector_types[] =
 {
     {	"inside",		SECT_INSIDE,		true	},
     {	"city",			SECT_CITY,		true	},
@@ -4288,14 +4288,67 @@ const struct flag_type command_types[] =
     {NULL,          0,                  false}
 
 };
-#define CMDTYPE_NONE            0       // Treated as the catchall / general / miscellaneous group
-#define CMDTYPE_MOVE            1
-#define CMDTYPE_COMBAT          2
-#define CMDTYPE_OBJECT          3
-#define CMDTYPE_INFO            4
-#define CMDTYPE_COMM            5
-#define CMDTYPE_RACIAL          6
-#define CMDTYPE_OOC             7
-#define CMDTYPE_IMMORTAL        8
-#define CMDTYPE_OLC             9
-#define CMDTYPE_ADMIN           10
+
+const struct flag_type sector_flags[] =
+{
+	{ "aerial", 		SECTOR_AERIAL,  	true },
+	{ "briars",	    	SECTOR_BRIARS,  	true },
+    { "city_lights",    SECTOR_CITY_LIGHTS, true },
+	{ "crumbles",		SECTOR_CRUMBLES,	true },
+	{ "deep_water",		SECTOR_DEEP_WATER,	true },
+    { "drain_mana",     SECTOR_DRAIN_MANA,  true },
+	{ "flame",  		SECTOR_FLAME,   	true },
+	{ "frozen", 		SECTOR_FROZEN,  	true },
+	{ "hard_magic",		SECTOR_HARD_MAGIC,	true },
+	{ "indoors",		SECTOR_INDOORS, 	true },
+    { "melts",          SECTOR_MELTS,       true },
+    { "nature",         SECTOR_NATURE,      true },
+    { "no_fade",        SECTOR_NO_FADE,     true },
+    { "no_gate",        SECTOR_NO_GATE,     true },
+    { "no_gohall",      SECTOR_NO_GOHALL,   true },
+    { "no_hide_obj",    SECTOR_NO_HIDE_OBJ, true },
+	{ "no_magic",		SECTOR_NO_MAGIC,	true },
+	{ "no_soil",		SECTOR_NO_SOIL, 	true },
+    { "sleep_drain",    SECTOR_SLEEP_DRAIN, true },
+	{ "slow_magic",		SECTOR_SLOW_MAGIC,	true },
+	{ "toxic",		    SECTOR_TOXIC,   	true },
+	{ "underwater",		SECTOR_UNDERWATER,	true },
+    {NULL,              0,                  false}
+};
+
+const struct flag_type sector_classes[] =
+{
+	{ "none",          	SECTCLASS_NONE,         true },
+	{ "abyss",          SECTCLASS_ABYSS,        true },
+	{ "air",            SECTCLASS_AIR,          true },
+	{ "arctic",         SECTCLASS_ARCTIC,       true },
+	{ "city",          	SECTCLASS_CITY,         true },
+	{ "desert",         SECTCLASS_DESERT,       true },
+	{ "dungeon",        SECTCLASS_DUNGEON,      true },
+	{ "forest",         SECTCLASS_FOREST,       true },
+	{ "hazardous",      SECTCLASS_HAZARDOUS,    true },
+	{ "hills",          SECTCLASS_HILLS,        true },
+	{ "jungle",         SECTCLASS_JUNGLE,       true },
+	{ "mountains",      SECTCLASS_MOUNTAINS,    true },
+    { "nether",         SECTCLASS_NETHER,       true },
+	{ "plains",         SECTCLASS_PLAINS,       true },
+	{ "roads",          SECTCLASS_ROADS,        true },
+	{ "subarctic",      SECTCLASS_SUBARCTIC,    true },
+	{ "swamp",          SECTCLASS_SWAMP,        true },
+	{ "underground",    SECTCLASS_UNDERGROUND,  true },
+	{ "vulcan",         SECTCLASS_VULCAN,       true },
+	{ "water",          SECTCLASS_WATER,        true },
+    {NULL,              0,                      false}
+};
+
+const struct global_sector_type global_sector_table[] =
+{
+    {"city",                &gsct_city },
+    {"inside",              &gsct_inside },
+    {"underwater_noswim",   &gsct_underwater_noswim },
+    {"underwater_swim",     &gsct_underwater_swim },
+    {"water_noswim",        &gsct_water_noswim },
+    {"water_swim",          &gsct_water_swim },
+    {NULL,                  NULL }
+};
+

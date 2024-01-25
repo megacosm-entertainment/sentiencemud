@@ -4382,11 +4382,11 @@ bool room_is_dark(ROOM_INDEX_DATA *pRoomIndex)
 	return false;
 
     if (IS_SET(pRoomIndex->room_flag[0], ROOM_DARK))
-	return true;
+		return true;
 
-    if (pRoomIndex->sector_type == SECT_INSIDE ||
-	pRoomIndex->sector_type == SECT_CITY)
-	return false;
+	// Used to be Inside and City
+	if (IS_SET(pRoomIndex->sector_flags, SECTOR_CITY_LIGHTS))
+		return false;
 
     if (/*weather_info.sunlight == SUN_SET
     || */  weather_info.sunlight == SUN_DARK)
@@ -6136,33 +6136,15 @@ bool dislink_room(ROOM_INDEX_DATA *pRoom)
 
 
 // Used for druids.
-bool is_in_nature(CHAR_DATA *ch)
+bool is_in_nature(ROOM_INDEX_DATA *room)
 {
-    if (ch == NULL)
+    if (room == NULL)
     {
-	bug("is_in_nature: ch null", 0);
-	return false;
+		bug("is_in_nature: room null", 0);
+		return false;
     }
-
-    if (ch->in_room == NULL)
-    {
-	bug("is_in_nature: ch->in_room null", 0);
-	return false;
-    }
-
-    switch(ch->in_room->sector_type)
-    {
-	case SECT_FIELD:
-	case SECT_FOREST:
-	case SECT_HILLS:
-	case SECT_MOUNTAIN:
-	case SECT_WATER_SWIM:
-	case SECT_TUNDRA:
-	    return true;
-
-	default:
-	    return false;
-    }
+	
+	return (IS_SET(room->sector_flags, SECTOR_NATURE)) ? true : false;
 }
 
 
@@ -8918,6 +8900,27 @@ void list_clear(LLIST *lp)
 		list_cull(lp);
 	}
 }
+
+
+void *list_randomdata(LLIST *lp)
+{
+	register LLIST_LINK *link = NULL;
+	register int nth = 0;
+
+	if(lp && lp->valid) {
+		nth = number_range(1, lp->size);
+		if( nth < 0 ) nth = lp->size + nth + 1;
+		for(link = lp->head; link && nth > 0; link = link->next)
+			if(link->data)
+			{
+				--nth;
+				if( !nth ) break;
+			}
+	}
+
+	return (link && !nth) ? link->data : NULL;
+}
+
 
 void *list_nthdata(LLIST *lp, register int nth)
 {

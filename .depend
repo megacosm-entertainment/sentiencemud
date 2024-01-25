@@ -161,6 +161,8 @@ obj/script_vars.o: script_vars.c strings.h merc.h protocol.h sha256.h db.h \
  recycle.h scripts.h tables.h wilds.h
 obj/scripts.o: scripts.c strings.h merc.h protocol.h sha256.h tables.h \
  scripts.h recycle.h wilds.h olc.h debug.h
+obj/sectors.o: sectors.c merc.h protocol.h sha256.h recycle.h tables.h \
+ scripts.h olc.h
 obj/shoot.o: shoot.c merc.h protocol.h sha256.h interp.h
 obj/skills.o: skills.c merc.h protocol.h sha256.h interp.h magic.h classes.h \
  recycle.h tables.h db.h olc.h scripts.h

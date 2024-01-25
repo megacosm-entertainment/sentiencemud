@@ -680,6 +680,29 @@ ENT_FIELD entity_array_exits[] = {
 	{NULL,			0,							ENT_UNKNOWN }
 };
 
+ENT_FIELD entity_sector[] = {
+	{"name",			ENTITY_SECTOR_NAME,			ENT_STRING },
+	{"description",		ENTITY_SECTOR_DESCRIPTION,	ENT_STRING },
+	{"comments",		ENTITY_SECTOR_COMMENTS,		ENT_STRING },
+	{"class",			ENTITY_SECTOR_CLASS,		ENT_STAT },
+	{"flags",			ENTITY_SECTOR_FLAGS,		ENT_BITVECTOR },
+	{"move_cost",		ENTITY_SECTOR_MOVE_COST,	ENT_NUMBER },
+	{"hp_regen",		ENTITY_SECTOR_HP_REGEN,		ENT_NUMBER },
+	{"mana_regen",		ENTITY_SECTOR_MANA_REGEN,	ENT_NUMBER },
+	{"move_regen",		ENTITY_SECTOR_MOVE_REGEN,	ENT_NUMBER },
+	{"soil",			ENTITY_SECTOR_SOIL,			ENT_NUMBER },
+	{"affinity",		ENTITY_SECTOR_AFFINITY,		ENT_AFFINITIES },
+	{"hidemsgs",		ENTITY_SECTOR_HIDEMSGS,		ENT_PLLIST_STR },
+	{NULL,				0,							ENT_UNKNOWN }
+};
+
+ENT_FIELD entity_affinity[] = {
+	{"type",			ENTITY_AFFINITY_TYPE,		ENT_STAT },
+	{"size",			ENTITY_AFFINITY_SIZE,		ENT_NUMBER },
+	{NULL,				0,							ENT_UNKNOWN }
+};
+
+
 ENT_FIELD entity_exit[] = {
 	{"name",		ENTITY_EXIT_NAME,	ENT_STRING	},
 	{"door",		ENTITY_EXIT_DOOR,	ENT_NUMBER	},
@@ -842,12 +865,7 @@ ENT_FIELD entity_skill[] = {
 	{"brew_mana",	ENTITY_SKILL_MANA_BREW,		ENT_NUMBER	},
 	{"scribe_mana",	ENTITY_SKILL_MANA_SCRIBE,		ENT_NUMBER	},
 	{"imbue_mana",	ENTITY_SKILL_MANA_IMBUE,		ENT_NUMBER	},
-	{"inktype1",	ENTITY_SKILL_INK_TYPE1,		ENT_NUMBER	},
-	{"inksize1",	ENTITY_SKILL_INK_SIZE1,		ENT_NUMBER	},
-	{"inktype2",	ENTITY_SKILL_INK_TYPE2,		ENT_NUMBER	},
-	{"inksize2",	ENTITY_SKILL_INK_SIZE2,		ENT_NUMBER	},
-	{"inktype3",	ENTITY_SKILL_INK_TYPE3,		ENT_NUMBER	},
-	{"inksize3",	ENTITY_SKILL_INK_SIZE3,		ENT_NUMBER	},
+	{"inks",		ENTITY_SKILL_INKS,		ENT_INK_TYPES	},
 	{"values",		ENTITY_SKILL_VALUES,		ENT_SKILL_VALUES },
 	{"valuenames",	ENTITY_SKILL_VALUENAMES,	ENT_SKILL_VALUENAMES },
 	{NULL,		0,			ENT_UNKNOWN	}
@@ -1277,6 +1295,8 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_ATTACK,		ENT_ATTACK,			entity_attack_type,			false,	false },
 	{ ENT_LIQUID,		ENT_LIQUID,			entity_liquid,				false,	false },
 	{ ENT_MATERIAL,		ENT_MATERIAL,		entity_material,			false,	false },
+	{ ENT_SECTOR,		ENT_SECTOR,			entity_sector,				false,	false },
+	{ ENT_AFFINITY,		ENT_AFFINITY,		entity_affinity,			false,	false },
 	{ ENT_EXTRADESC,	ENT_EXTRADESC,		NULL,						false,	false },
 	{ ENT_HELP,			ENT_HELP,			NULL,						false,	false },
 	{ ENT_PRIOR,		ENT_PRIOR,			entity_prior,				false,	false },

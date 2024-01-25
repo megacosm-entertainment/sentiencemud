@@ -59,6 +59,7 @@
 
 #define ED_CLSEDIT	28
 #define ED_RACEEDIT	29
+#define ED_SECTOREDIT	30
 
 #define AEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define HEDIT( fun )            bool fun( CHAR_DATA *ch, char *argument )
@@ -86,6 +87,7 @@
 
 #define CLSEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define RACEEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
+#define SECTOREDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 
 /*
  * Interpreter Prototypes
@@ -125,6 +127,8 @@ void	matedit  ( CHAR_DATA *ch, char *argument );
 
 void	clsedit  ( CHAR_DATA *ch, char *argument );
 void	raceedit  ( CHAR_DATA *ch, char *argument );
+
+void	sectoredit  ( CHAR_DATA *ch, char *argument );
 
 /*
  * OLC Constants
@@ -197,6 +201,7 @@ extern const struct olc_cmd_type		repedit_table[];
 extern const struct olc_cmd_type		matedit_table[];
 extern const struct olc_cmd_type		clsedit_table[];
 extern const struct olc_cmd_type		raceedit_table[];
+extern const struct olc_cmd_type		sectoredit_table[];
 
 /*
  * Editor Commands.
@@ -228,6 +233,8 @@ DECLARE_DO_FUN( do_repedit );
 DECLARE_DO_FUN( do_matedit );
 DECLARE_DO_FUN( do_clsedit );
 DECLARE_DO_FUN( do_raceedit );
+
+DECLARE_DO_FUN( do_sectoredit );
 
 /*
  * Area Editor Prototypes
@@ -789,6 +796,23 @@ DECLARE_OLC_FUN( raceedit_align );
 DECLARE_OLC_FUN( raceedit_starting );
 DECLARE_OLC_FUN( raceedit_skills );
 
+
+DECLARE_OLC_FUN( sectoredit_show );
+DECLARE_OLC_FUN( sectoredit_affinity );
+DECLARE_OLC_FUN( sectoredit_class );
+DECLARE_OLC_FUN( sectoredit_comments );
+DECLARE_OLC_FUN( sectoredit_create );
+DECLARE_OLC_FUN( sectoredit_description );
+DECLARE_OLC_FUN( sectoredit_flags );
+DECLARE_OLC_FUN( sectoredit_gsct );
+DECLARE_OLC_FUN( sectoredit_health );
+DECLARE_OLC_FUN( sectoredit_hidemsgs );
+DECLARE_OLC_FUN( sectoredit_mana );
+DECLARE_OLC_FUN( sectoredit_move );
+DECLARE_OLC_FUN( sectoredit_movecost );
+DECLARE_OLC_FUN( sectoredit_name );
+DECLARE_OLC_FUN( sectoredit_soil );
+
 /*
  * Macros
  */
@@ -830,6 +854,8 @@ DECLARE_OLC_FUN( raceedit_skills );
 
 #define EDIT_CLASS(ch, cls)			( cls = (CLASS_DATA *)ch->desc->pEdit )
 #define EDIT_RACE(ch, race)			( race = (RACE_DATA *)ch->desc->pEdit )
+
+#define EDIT_SECTOR(ch, sector)		( sector = (SECTOR_DATA *)ch->desc->pEdit )
 
 /*
  * Prototypes

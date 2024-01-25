@@ -374,13 +374,16 @@ struct sound_type {
 //  Change #1: lock states
 
 #define VERSION_ROOM_002	0x01000002
-//	Change #2: forgot persistent exits
+//	Change #1: forgot persistent exits
+
+#define VERSION_ROOM_003    0x01000003
+//  Change #1: Changed "Sector" from a number to a SECTOR_DATA *
 
 #define VERSION_DB			VERSION_DB_001
 #define VERSION_AREA		VERSION_AREA_003
 #define VERSION_MOBILE		0x01000000
 #define VERSION_OBJECT		VERSION_OBJECT_016
-#define VERSION_ROOM		VERSION_ROOM_002
+#define VERSION_ROOM		VERSION_ROOM_003
 #define VERSION_PLAYER		VERSION_PLAYER_010
 #define VERSION_TOKEN		0x01000000
 #define VERSION_AFFECT		0x01000000
@@ -489,6 +492,8 @@ typedef struct list_link_room_data LLIST_ROOM_DATA;
 typedef struct list_link_exit_data LLIST_EXIT_DATA;
 typedef struct list_link_skill_data LLIST_SKILL_DATA;
 typedef struct iterator_type ITERATOR;
+
+typedef struct sector_data SECTOR_DATA;
 
 typedef struct adornment_data ADORNMENT_DATA;
 typedef struct obj_ammo_data AMMO_DATA;
@@ -1639,7 +1644,7 @@ struct	descriptor_data
     AREA_DATA *last_area;
     AREA_REGION *last_area_region;      // Last area region assigned to a room.  If NULL, it will not do anything.
                                         // Will NULL when you change to start editting a room that is not in the same area.
-    int last_room_sector;               
+    SECTOR_DATA *last_room_sector;               
     long last_room_flag[2];
 
     /* Input function */
@@ -2954,7 +2959,8 @@ struct affliction_type {
 #define ITEM_NEEDLE				77		// Used to sew things
 #define ITEM_BODY_PART			78
 #define ITEM_PAGE               79
-#define ITEM__MAX               80
+#define ITEM_COFFER             80
+#define ITEM__MAX               81
 
 /*
  * Extra flags.
@@ -3539,6 +3545,79 @@ enum {
 #define SECT_PAVED_ROAD 26
 #define SECT_DIRT_ROAD  27
 #define SECT_MAX		28
+
+#define SECTCLASS_NONE          0
+#define SECTCLASS_CITY          1
+#define SECTCLASS_ROADS         2
+#define SECTCLASS_PLAINS        3
+#define SECTCLASS_FOREST        4
+#define SECTCLASS_JUNGLE        5
+#define SECTCLASS_HILLS         6
+#define SECTCLASS_MOUNTAINS     7
+#define SECTCLASS_SUBARCTIC     8
+#define SECTCLASS_ARCTIC        9
+#define SECTCLASS_SWAMP         10
+#define SECTCLASS_WATER         11
+#define SECTCLASS_UNDERGROUND   12
+#define SECTCLASS_VULCAN        13
+#define SECTCLASS_ABYSS         14
+#define SECTCLASS_DUNGEON       15
+#define SECTCLASS_DESERT        16
+#define SECTCLASS_HAZARDOUS     17
+#define SECTCLASS_AIR           18
+#define SECTCLASS_NETHER        19
+
+#define SECTOR_NO_MAGIC     (A)     // Sector doesn't allow magic, inherently
+#define SECTOR_HARD_MAGIC   (B)     // Sector makes magic difficult.
+#define SECTOR_SLOW_MAGIC   (C)     // Sector makes casting take longer.
+#define SECTOR_DEEP_WATER   (D)     // Sector is deep water.
+#define SECTOR_UNDERWATER   (E)     // Sector is underwater.
+#define SECTOR_FLAME        (F)     // Sector is on fire, ignites and burns things when savagery in the room is high enough.
+#define SECTOR_FROZEN       (G)     // Sector is frozen, cause freezing issues when savagery in the room is high enough.
+#define SECTOR_AERIAL       (H)     // Sector is in the air with nothing to stand on.
+#define SECTOR_INDOORS      (I)     // Sector is inside.
+#define SECTOR_BRIARS       (J)     // Sector does minor damage to mobiles in the room every tick.
+#define SECTOR_TOXIC        (K)     // Sector contains a source of toxic fumes.
+#define SECTOR_NO_SOIL      (L)     // Sector does not contain any soil.
+#define SECTOR_CRUMBLES     (M)     // Items dropped in the sector crumble into dust.
+#define SECTOR_MELTS        (N)     // Objects are melted when dropped
+#define SECTOR_NO_HIDE_OBJ  (O)     // Cannot hide objects in this sector
+#define SECTOR_NO_FADE      (P)     // Cannot fade from or into this sector
+#define SECTOR_NO_GOHALL    (Q)     // Cannot church gohall from this sector
+#define SECTOR_CITY_LIGHTS  (R)     // Sector is illuminated by civilization
+#define SECTOR_NO_GATE      (S)     // Sector does not allow gating.
+#define SECTOR_SLEEP_DRAIN  (T)     // Sector drains vitals while sleeping
+#define SECTOR_DRAIN_MANA   (U)     // Sector drains mana
+#define SECTOR_NATURE       (V)     // Sector is a nature sector.
+
+#define SECTOR_MAX_AFFINITIES   3
+
+struct sector_data
+{
+    SECTOR_DATA *next;
+
+    SECTOR_DATA **gsct;
+
+    char *name;
+    char *description;
+    char *comments;
+
+    int16_t sector_class;
+
+    long flags;
+
+    int16_t move_cost;
+
+    int16_t hp_regen;
+    int16_t mana_regen;
+    int16_t move_regen;
+
+    int16_t soil;
+
+    int affinities[SECTOR_MAX_AFFINITIES][2];   // Elemental affinities and their strengths
+
+    LLIST *hide_msgs;
+};
 
 
 #define WEAR_PARAM_SEEN		0
@@ -6915,7 +6994,8 @@ struct	room_index_data
     long		vnum;
     long		room_flag[2];
     int			light;
-    int			sector_type;
+    SECTOR_DATA *sector;
+    long        sector_flags;       // Copied from the sector on change in redit, alterroom or during room resets
     int			heal_rate;
     int 		mana_rate;
     int			move_rate;
@@ -7599,6 +7679,8 @@ struct skill_class_level
     int16_t level;       // Level when you will get the skill for this class
 };
 
+#define SKILL_MAX_INKS  3
+
 struct skill_data
 {
     SKILL_DATA *next;
@@ -7680,8 +7762,10 @@ struct skill_data
     char *  msg_defl_refl_vict;
     char *  msg_defl_refl_room;
     
+    int16_t ink_types[SKILL_MAX_INKS];
+    int16_t ink_amounts[SKILL_MAX_INKS];
 
-    int		inks[3][2];     // Elemental ink types needed for tattooing and scribing.
+    int16_t	inks[3][2];     // Elemental ink types needed for tattooing and scribing.
 
     int16_t	cast_mana;		// Mana required to cast
     int16_t  brew_mana;      // Amount of mana capacity required in the brewing liquid.
@@ -9171,7 +9255,7 @@ extern int16_t grn_unique;
 
 #define IS_OUTSIDE(ch)	( (ch)->in_room->wilds || \
 		(!IS_SET((ch)->in_room->room_flag[0],ROOM_INDOORS) && \
-			(ch)->in_room->sector_type != SECT_INSIDE && (ch)->in_room->sector_type != SECT_NETHERWORLD ) )
+            !IS_SET((ch)->in_room->sector_flags, SECTOR_INDOORS)) )
 
 #define IS_SOCIAL(ch)	  (IS_SET((ch)->comm, COMM_SOCIAL))
 #define IS_PK(ch)         (((ch)->church != NULL &&     \
@@ -9625,6 +9709,7 @@ char *	crypt		args( ( const char *key, const char *salt ) );
 #define CLASSES_FILE        SYSTEM_DIR "classes.dat"
 #define RACES_FILE          SYSTEM_DIR "races.dat"
 #define SONGS_FILE         SYSTEM_DIR "songs.dat"
+#define SECTORS_FILE        SYSTEM_DIR "sectors.dat"
 /*Notes of all kinds */
 #define NOTE_FILE       NOTE_DIR "notes.not"		/* For 'notes'*/
 /*#define PENALTY_FILE	NOTE_DIR "penal.not"		Unused */
@@ -9674,7 +9759,7 @@ void echo_around     args( ( ROOM_INDEX_DATA *pRoom, char *message) );
 void gecho		args( ( char *message ) );
 void nuke_pets	args( ( CHAR_DATA *ch ) );
 void room_echo       args( ( ROOM_INDEX_DATA *pRoom, char *message) );
-void sector_echo     args( ( AREA_DATA *pArea, char *message, int sector) );
+void sector_echo     args( ( AREA_DATA *pArea, char *message, SECTOR_DATA *sector) );
 void area_echo     args( ( AREA_DATA *pArea, char *message) );
 void stop_follower	args( ( CHAR_DATA *ch, bool show ) );
 void stop_grouped	args( ( CHAR_DATA *ch ) );
@@ -10385,7 +10470,7 @@ bool is_room_pk( ROOM_INDEX_DATA *room, bool arena );
 bool is_pk( CHAR_DATA *ch );
 int get_num_dir( char *arg );
 bool dislink_room( ROOM_INDEX_DATA *pRoom );
-bool is_in_nature( CHAR_DATA *ch );
+bool is_in_nature( ROOM_INDEX_DATA *room );
 int is_pk_safe_range( ROOM_INDEX_DATA *room, int depth, int reverse_dir );
 void stop_hunt( CHAR_DATA *ch, bool dead );
 bool is_pulling_relic( CHAR_DATA *ch );
@@ -11082,6 +11167,7 @@ bool list_addlink(LLIST *lp, void *data);
 bool list_appendlink(LLIST *lp, void *data);
 bool list_appendlist(LLIST *lp, LLIST *src);
 void list_remlink(LLIST *lp, void *data, bool del);
+void *list_randomdata(LLIST *lp);
 void *list_nthdata(LLIST *lp, int nth);
 void list_remnthlink(LLIST *lp, register int nth, bool del);
 bool list_contains(LLIST *lp, register void *ptr, int (*cmp)(void *a, void *b));
@@ -11861,6 +11947,17 @@ extern RACE_DATA *gr_vampire;
 extern RACE_DATA *gr_wraith;
 RACE_DATA *get_race_data(const char *name);
 RACE_DATA *get_race_uid(const int16_t uid);
+
+extern LLIST *sectors_list;
+extern SECTOR_DATA *gsct_inside;
+extern SECTOR_DATA *gsct_city;
+extern SECTOR_DATA *gsct_water_noswim;
+extern SECTOR_DATA *gsct_water_swim;
+extern SECTOR_DATA *gsct_underwater_noswim;
+extern SECTOR_DATA *gsct_underwater_swim;
+SECTOR_DATA *get_sector_data(char *name);
+bool load_sectors();
+void save_sectors();
 
 extern GLOBAL_DATA gconfig;
 

@@ -624,7 +624,7 @@ void do_cast(CHAR_DATA *ch, char *argument)
 
 		chance = 0;
 		if (IS_SET(ch->in_room->room_flag[1], ROOM_HARD_MAGIC)) chance += 2;
-		if (ch->in_room->sector_type == SECT_CURSED_SANCTUM) chance += 2;
+		if (IS_SET(ch->in_room->sector_flags, SECTOR_HARD_MAGIC)) chance += 2;
 
 		// TODO: Add trigger for custom room stuff for harder magic
 		// TODO: Add trigger for custom mob stuff for harder magic
@@ -725,7 +725,7 @@ void do_cast(CHAR_DATA *ch, char *argument)
 		ch->cast_successful = MAGICCAST_SUCCESS;
 		chance = 0;
 		if (IS_SET(ch->in_room->room_flag[1], ROOM_HARD_MAGIC)) chance += 2;
-		if (ch->in_room->sector_type == SECT_CURSED_SANCTUM) chance += 2;
+		if (IS_SET(ch->in_room->sector_flags, SECTOR_HARD_MAGIC)) chance += 2;
 
 		// TODO: Add trigger for custom room stuff for harder magic
 		// TODO: Add trigger for custom mob stuff for harder magic
@@ -769,7 +769,7 @@ void do_cast(CHAR_DATA *ch, char *argument)
 		p_percent_trigger(NULL,NULL,ch->in_room,NULL,ch,NULL,NULL, NULL, NULL, TRIG_PRECAST,"beats",0,0,0,0,0);
 		i = ch->tempstore[0];
 		if(IS_SET(ch->in_room->room_flag[1],ROOM_SLOW_MAGIC)) i += number_range(500,1000);
-		if(ch->in_room->sector_type == SECT_CURSED_SANCTUM) i += number_range(500,1000);
+		if(IS_SET(ch->in_room->sector_flags, SECTOR_SLOW_MAGIC)) i += number_range(500,1000);
 	} else
 		i = 1000;
 
@@ -1443,7 +1443,7 @@ bool can_gate(CHAR_DATA *ch, CHAR_DATA *victim)
 	/* take care of the wilderness case */
 	if (IN_WILDERNESS(ch)) {
 		// TODO: Allow catalysts to remove this problem?
-		if (ch->in_room->sector_type == SECT_WATER_NOSWIM) {
+		if (IS_SET(ch->in_room->sector_flags, SECTOR_NO_GATE)) {
 			send_to_char("The deep ocean waters cancel out your magic.\n\r", ch);
 			return false;
 		}

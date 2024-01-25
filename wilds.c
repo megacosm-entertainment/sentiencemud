@@ -280,7 +280,8 @@ ROOM_INDEX_DATA *create_vroom(WILDS_DATA *pWilds,
     pRoomIndex->owner           = NULL;
     pRoomIndex->room_flag[0]      = pTerrain->template->room_flag[0];
     pRoomIndex->room_flag[1]	= pTerrain->template->room_flag[1]|ROOM_VIRTUAL_ROOM;
-    pRoomIndex->sector_type     = pTerrain->template->sector_type;
+    pRoomIndex->sector     = pTerrain->template->sector;
+    pRoomIndex->sector_flags = pRoomIndex->sector->flags;
     pRoomIndex->parent_template = pTerrain;
     pRoomIndex->heal_rate       = 100;
     pRoomIndex->mana_rate       = 100;
@@ -1021,7 +1022,7 @@ WILDS_TERRAIN *fread_terrain (FILE *fp, WILDS_DATA *pWilds)
                 {
                     plogf("wilds.c, fread_terrain(): Found #ROOM record.");
                     // need to use sent's current room reading logic
-                    pTerrain->template = read_room_new(fp, NULL, ROOMTYPE_TERRAIN);
+                    pTerrain->template = read_room_new(fp, pWilds->pArea, ROOMTYPE_TERRAIN);
                 }
 
                 break;

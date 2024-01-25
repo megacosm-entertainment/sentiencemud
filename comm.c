@@ -671,6 +671,9 @@ int main(int argc, char **argv)
 	if (!init_scripting()) exit(1);
 	log_string("scripting initialized.");
 
+	if (!load_sectors()) exit(1);
+	log_string("sectors loaded.");
+
 	if (!load_materials()) exit(1);
 	log_string("materials loaded.");
 
@@ -741,6 +744,7 @@ int main(int argc, char **argv)
 	save_materials();
 	save_skills();
 	save_songs();
+	save_sectors();
 
 	list_destroy(race_list);
 	list_destroy(liquid_list);
@@ -750,6 +754,7 @@ int main(int argc, char **argv)
 	list_destroy(skill_groups_list);
 	free_skill_group_data(global_skills);
 	list_destroy(songs_list);
+	list_destroy(sectors_list);
 
 	terminate_scripting();
 

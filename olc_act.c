@@ -90,6 +90,7 @@ struct olc_help_type
 #define STRUCT_ARTIFICING		27
 #define STRUCT_GCL				28
 #define STRUCT_GR				29
+#define STRUCT_GSCT				30
 
 struct trigger_type dummy_triggers[1];
 
@@ -134,6 +135,7 @@ const struct olc_help_type help_table[] =
 	{	"form",					STRUCT_FLAGS,		form_flags,					"Mobile body form."	},
 	{	"furniture",			STRUCT_FLAGS,		furniture_flags,			"Furniture types."	},
 	{	"gcl",					STRUCT_GCL,			NULL,						"Global classes"},
+	{	"gsct",					STRUCT_GSCT,		NULL,						"Global Sectors"},
 	{	"gsn",					STRUCT_GSN,			NULL,						"Global Skill Numbers."},
 	{	"gr",					STRUCT_GR,			NULL,						"Global Races" },
 	{	"imbue_func",			STRUCT_ARTIFICING,	imbue_func_table,			"Imbue Functions."	},
@@ -183,7 +185,9 @@ const struct olc_help_type help_table[] =
 	{	"scroll",				STRUCT_FLAGS,		scroll_flags,				"Scroll flags."	},
 	{	"section_flags",		STRUCT_FLAGS,		blueprint_section_flags,	"Blueprint Section Flags"	},
 	{	"section_type",			STRUCT_FLAGS,		blueprint_section_types,	"Blueprint Section Types"	},
-	{	"sector",				STRUCT_FLAGS,		sector_flags,				"Sector types, terrain."	},
+	{	"sector",				STRUCT_FLAGS,		sector_flags,				"Sector flags."	},
+	{	"sectorclass",			STRUCT_FLAGS,		sector_classes,				"Sector Classes." },
+//	{	"sectortypes",			STRUCT_FLAGS,		sector_types,				"Sector types." },
 	{	"sex",					STRUCT_FLAGS,		sex_flags,					"Sexes."	},
 	{	"ship",					STRUCT_FLAGS,		ship_flags,					"Ship flags"	},
 	{	"shipclass",			STRUCT_FLAGS,		ship_class_types,			"Ship class types"	},
@@ -479,6 +483,30 @@ void show_grs(CHAR_DATA *ch)
     return;
 }
 
+void show_gscts(CHAR_DATA *ch)
+{
+    char buf  [ MAX_STRING_LENGTH ];
+    char buf1 [ MAX_STRING_LENGTH ];
+    int  col;
+
+    buf1[0] = '\0';
+    col = 0;
+    send_to_char("Global Sectors available for use:\n\r", ch);
+    for (int i = 0; global_sector_table[i].name != NULL; i++)
+    {
+		sprintf(buf, "%-19.18s", global_sector_table[i].name);
+		strcat(buf1, buf);
+		if (++col % 4 == 0)
+	    	strcat(buf1, "\n\r");
+    }
+
+    if (col % 4 != 0)
+	strcat(buf1, "\n\r");
+
+    send_to_char(buf1, ch);
+    return;
+}
+
 void show_classes(CHAR_DATA *ch)
 {
     char buf  [ MAX_STRING_LENGTH ];
@@ -632,6 +660,10 @@ bool show_help(CHAR_DATA *ch, char *argument)
 
 				case STRUCT_GR:
 					show_grs(ch);
+					break;
+
+				case STRUCT_GSCT:
+					show_gscts(ch);
 					break;
 
 				case STRUCT_FLAGS:
@@ -2706,12 +2738,12 @@ REDIT(redit_show)
         sprintf(buf, "Vnum:         {r[{x%5ld{r]{x\n\r"
                      "Sector:       {r[{x%s{r]{x\n\r"
                      "Map Coordinate at ({W%ld{x, {W%ld{x, {W%ld{x), in wilds uid ({W%ld{x) '{W%s{x'\n\r",
-	        pRoom->vnum, flag_string(sector_flags, pRoom->sector_type),
+	        pRoom->vnum, pRoom->sector->name,
 	        pRoom->x, pRoom->y, pRoom->z, pRoom->viewwilds->uid, pRoom->viewwilds->name);
     else
         sprintf(buf, "Vnum:         {r[{x%5ld{r]{x\n\r"
                      "Sector:       {r[{x%s{r]{x\n\r",
-	        pRoom->vnum, flag_string(sector_flags, pRoom->sector_type));
+	        pRoom->vnum, pRoom->sector->name);
 
     add_buf(buf1, buf);
 
@@ -3995,7 +4027,7 @@ REDIT(redit_create)
 		{
 			ch->desc->last_area = pRoom->area;
 			ch->desc->last_area_region = NULL;
-			ch->desc->last_room_sector = SECT_NONE;
+			ch->desc->last_room_sector = NULL;
 			ch->desc->last_room_flag[0] = 0;
 			ch->desc->last_room_flag[0] = 0;
 		}
@@ -4027,9 +4059,9 @@ REDIT(redit_create)
 
 	if (IS_SET(ch->act[0], PLR_AUTOOLC))
 	{
-		if (ch->desc->last_room_sector != SECT_NONE)
+		if (ch->desc->last_room_sector != NULL)
 		{
-			pRoom->sector_type = ch->desc->last_room_sector;
+			pRoom->sector = ch->desc->last_room_sector;
 		}
 
 		pRoom->room_flag[0] = ch->desc->last_room_flag[0];
@@ -21542,29 +21574,26 @@ REDIT(redit_room)
 REDIT(redit_sector)
 {
     ROOM_INDEX_DATA *room;
-    int value;
 
     EDIT_ROOM(ch, room);
 
-    // Another hack because the SECT_INSIDE is 0 or the same as FLAG_NONE
-    if (!str_cmp(argument, "inside"))
-	value = 0;
-    else
-    if ((value = flag_value(sector_flags, argument)) == NO_FLAG)
-    {
-	send_to_char("Syntax: sector [type]\n\r", ch);
-	return false;
-    }
+	SECTOR_DATA *sector = get_sector_data(argument);
+	if (!sector)
+	{
+		send_to_char("Syntax:  sector <sector>\n\r", ch);
+		send_to_char("Invalid sector.  Use 'sectorlist' for list of valid sectors.\n\r", ch);
+		return false;
+	}
 
-    room->sector_type = value;
+    room->sector = sector;
+	room->sector_flags = sector->flags;
 
 	if (IS_SET(ch->act[0], PLR_AUTOOLC))
 	{
-		ch->desc->last_room_sector = room->sector_type;
+		ch->desc->last_room_sector = sector;
 	}
 
     send_to_char("Sector type set.\n\r", ch);
-
     return true;
 }
 
@@ -22225,7 +22254,8 @@ void correct_vrooms(WILDS_DATA *pWilds, WILDS_TERRAIN *pTerrain)
 			vroom->name = str_dup(pTerrain->template->name);
 			vroom->room_flag[0] = pTerrain->template->room_flag[0];
 			vroom->room_flag[1] = pTerrain->template->room_flag[1]|ROOM_VIRTUAL_ROOM;
-				vroom->sector_type = pTerrain->template->sector_type;
+				vroom->sector = pTerrain->template->sector;
+				vroom->sector_flags = pTerrain->template->sector->flags;
 		}
 	}
 
@@ -22502,7 +22532,7 @@ WEDIT ( wedit_terrain )
             sprintf(buf, " '{W%c{x'   '%s{x'   {W%-15s{x  {W%-15s{x  {W%s%s, %s{x\n\r",
                      pTerrain->mapchar, pTerrain->showchar,
                      pTerrain->showname ? pTerrain->showname : "(Not Set)",
-                     flag_string(sector_flags, pTerrain->template->sector_type),
+					 pTerrain->template->sector->name,
                      pTerrain->nonroom ? "  Yes    " : "  No     ",
                      flag_string(room_flags, pTerrain->template->room_flag[0]),
                      flag_string(room2_flags, pTerrain->template->room_flag[1]));
@@ -22667,15 +22697,16 @@ WEDIT ( wedit_terrain )
 
     if (!str_cmp(arg2, "sector"))
     {
-	if ((value = flag_value(sector_flags, argument)) == NO_FLAG)
-	{
-	    send_to_char("Syntax: terrain <token> sector <sector>\n\r", ch);
-	    return false;
-	}
+		SECTOR_DATA *sector = get_sector_data(argument);
+		if (!sector)
+		{
+			send_to_char("Syntax: terrain <token> sector <sector>\n\r", ch);
+			return false;
+		}
 
-	pTerrain->template->sector_type =  value;
-	correct_vrooms(pWilds, pTerrain);
-	send_to_char("Sector set.\n\r", ch);
+		pTerrain->template->sector =  sector;
+		correct_vrooms(pWilds, pTerrain);
+		send_to_char("Sector set.\n\r", ch);
         return true;
     }
 

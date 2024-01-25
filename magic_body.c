@@ -258,7 +258,7 @@ SPELL_FUNC(spell_cure_toxic)
 
 	if (number_percent() < chance) {
 		if(IS_IMMORTAL(ch) || (!IS_SET(victim->in_room->room_flag[1], ROOM_TOXIC_BOG) &&
-			(victim->in_room->sector_type != SECT_TOXIC_BOG))) {
+			(!IS_SET(victim->in_room->sector_flags, SECTOR_TOXIC)))) {
 			affect_strip(victim, gsk_toxic_fumes);
 			send_to_char(gsk_toxic_fumes->msg_off, victim);
 			send_to_char("\n\r", victim);

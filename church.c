@@ -872,7 +872,7 @@ void do_chgohall(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (IN_WILDERNESS(ch) && ch->in_room->sector_type == SECT_WATER_NOSWIM)
+    if (IN_WILDERNESS(ch) && IS_SET(ch->in_room->sector_flags, SECTOR_NO_GOHALL))
     {
         send_to_char("The magic binding you to your church is powerless over water.\n\r", ch);
         return;

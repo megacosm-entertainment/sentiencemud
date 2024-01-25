@@ -134,6 +134,7 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "scriptwait",			do_opscriptwait,		false,	true	},
 	{ "selfdestruct",		do_opselfdestruct,		false,	false	},
 	{ "sendfloor",			scriptcmd_sendfloor,		false,	true	},
+	{ "setclasslevel",		scriptcmd_setclasslevel,	true,	true	},
 	{ "setoutbound",		scriptcmd_setoutbound,		true,	true	},
 	{ "setposition",		scriptcmd_setposition,		true,	true	},
 	{ "setrace",			scriptcmd_setrace,			true,	true	},
@@ -5130,6 +5131,7 @@ SCRIPT_CMD(do_opalterroom)
 	bool allow_empty = false;
 	bool allowarith = true;
 	bool allowbitwise = true;
+	bool check_sector = false;
 	const struct flag_type *flags = NULL;
 	const struct flag_type **bank = NULL;
 	long temp_flags[4];
@@ -5264,7 +5266,8 @@ SCRIPT_CMD(do_opalterroom)
 
 	if(!str_cmp(field,"flags"))			{ ptr = (int*)room->room_flag; bank = room_flagbank; }
 	else if(!str_cmp(field,"light"))	ptr = (int*)&room->light;
-	else if(!str_cmp(field,"sector"))	ptr = (int*)&room->sector_type;
+	else if(!str_cmp(field,"sector"))	check_sector = true;
+	else if(!str_cmp(field,"sectorflags"))	{ ptr = (int *)&room->sector_flags; flags = sector_flags; allowarith = false; }
 	else if(!str_cmp(field,"heal"))		{ ptr = (int*)&room->heal_rate; min_sec = 9; }
 	else if(!str_cmp(field,"mana"))		{ ptr = (int*)&room->mana_rate; min_sec = 9; }
 	else if(!str_cmp(field,"move"))		{ ptr = (int*)&room->move_rate; min_sec = 1; }
@@ -5282,6 +5285,21 @@ SCRIPT_CMD(do_opalterroom)
 		sprintf(buf,"OpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 		bug(buf, 0);
+		return;
+	}
+
+	if (check_sector)
+	{
+		if (arg->type != ENT_STRING ) return;
+
+		SECTOR_DATA *sector = get_sector_data(arg->d.str);
+		if (!sector)
+		{
+			return;
+		}
+
+		room->sector = sector;
+		room->sector_flags = sector->flags;
 		return;
 	}
 

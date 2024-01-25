@@ -43,93 +43,64 @@
  ****************************************************************************/
 
  // TODO: There's no need to make this a special list.. just have it if it is included in this list, it is a stat
-const struct flag_stat_type flag_stat_table[] =
+const struct flag_type *flag_stat_table[] =
 {
-/*  {	structure					stat	}, */
-	{	token_flags,				false	},
-	{	area_flags,					false	},
-    {   area_region_flags,          false   },
-	{	sex_flags,					true	},
-	{	exit_flags,					false	},
-	{	door_resets,				true	},
-	{	room_flags,					false	},
-	{	sector_flags,				true	},
-    {   sex_table,                  true    },
-	{	type_flags,					true	},
-	{	extra_flags,				false	},
-	{	wear_flags,					false	},
-	{	act_flags,					false	},
-	{	act2_flags,					false	},
-	{	affect_flags,				false	},
-	{	affect2_flags,				false	},
-	{	apply_flags,				true	},
-	{	wear_loc_flags,				true	},
-	{	wear_loc_strings,			true	},
-	{	wear_loc_names,				true	},
-	{	container_flags,			false	},
-	{	fluid_con_flags,			false	},
-
-/* ROM specific flags: */
-
-    {	form_flags,					false	},
-    {	part_flags,					false	},
-    {	ac_type,					true	},
-    {	size_flags,					true	},
-    {	position_flags,				true	},
-    {	spell_position_flags,		true	},
-    {	off_flags,					false	},
-    {	imm_flags,					false	},
-    {	res_flags,					false	},
-    {	vuln_flags,					false	},
-    {	weapon_class,				true	},
-    {	weapon_type2,				false	},
-    {	apply_types,				true	},
-    {   damage_classes,             true    },
-    {	food_buff_types,			true	},
-    {	ranged_weapon_class,		true	},
-    {	script_flags,				false	},
-    {	catalyst_types,				true	},
-    {	affgroup_mobile_flags,		true	},
-    {	affgroup_object_flags,		true	},
-    {	catalyst_types,				true	},
-    {	boolean_types,				true	},
-    {	moon_phases,				true	},
-    {	spell_target_types,			true	},
-    {	area_who_titles,			true	},
-    {	area_who_display,			true	},
-    {	instrument_types,			true	},
-    {	place_flags,				true	},
-    {	corpse_types,				true	},
-    {	variable_types,				true	},
-	{	blueprint_section_types,	true	},
-	{	transfer_modes,				true	},
-	{	ship_class_types,			true	},
-    {   portal_gatetype,            true    },
-    {   wilderness_regions,         true    },
-    {   death_release_modes,        true    },
-    {   trigger_slots,              true    },
-    {   builtin_trigger_types,      true    },
-    {   script_spaces,              false   },
-    {   light_flags,                false   },
-    {   stock_types,                true    },
-    {   scroll_flags,               false   },
-    {   tattoo_loc_flags,           true    },
-    {   song_flags,                 false   },
-    {   song_target_types,          true    },
-    {   reputation_rank_flags,      false   },
-    {   ammo_types,                 true    },
-    {   material_classes,           true    },
-    {   class_types,                true    },
-    {   stat_types,                 true    },
-    {   vital_types,                true    },
-    {   missionary_types,           true    },
-    {   armour_strength_table,      true    },
-    {   armour_types,               true    },
-    {   adornment_types,            true    },
-    {   armour_protection_types,    true    },
-    {   command_types,              true    },
-    {   staff_ranks,                true    },
-    {	0,							0		}
+	sex_flags,
+	door_resets,
+	sector_types,
+	sex_table,
+	type_flags,
+	apply_flags,
+	wear_loc_flags,
+	wear_loc_strings,
+	wear_loc_names,
+	ac_type,
+	size_flags,
+	position_flags,
+	spell_position_flags,
+	weapon_class,
+	apply_types,
+	damage_classes,
+	food_buff_types,
+	ranged_weapon_class,
+	catalyst_types,
+	affgroup_mobile_flags,
+	affgroup_object_flags,
+	catalyst_types,
+	boolean_types,
+	moon_phases,
+	spell_target_types,
+	area_who_titles,
+	area_who_display,
+	instrument_types,
+	place_flags,
+	corpse_types,
+	variable_types,
+	blueprint_section_types,
+	transfer_modes,
+	ship_class_types,
+	portal_gatetype,
+	wilderness_regions,
+	death_release_modes,
+	trigger_slots,
+	builtin_trigger_types,
+	stock_types,
+	tattoo_loc_flags,
+	song_target_types,
+	ammo_types,
+	material_classes,
+	class_types,
+	stat_types,
+	vital_types,
+	missionary_types,
+	armour_strength_table,
+	armour_types,
+	adornment_types,
+	armour_protection_types,
+	command_types,
+	staff_ranks,
+	sector_classes,
+    NULL
 };
 
 
@@ -139,15 +110,16 @@ const struct flag_stat_type flag_stat_table[] =
  Called by:	flag_value and flag_string.
  Note:		This function is local and used only in bit.c.
  ****************************************************************************/
-bool is_stat( const struct flag_type *flag_table )
+bool is_stat( register const struct flag_type *flag_table )
 {
-    int flag;
+    register const struct flag_type **f = flag_stat_table;
 
-    for (flag = 0; flag_stat_table[flag].structure; flag++)
+    while(*f)
     {
-	if ( flag_stat_table[flag].structure == flag_table
-	  && flag_stat_table[flag].stat )
-	    return true;
+        if (*f == flag_table)
+            return true;
+
+        f++;
     }
     return false;
 }

@@ -329,6 +329,7 @@ enum variable_enum {
 	VAR_SONG,			// References a bard song
 	VAR_AREA_REGION,
 	VAR_AREA_REGION_ID,
+	VAR_SECTOR,
 
 	VAR_MOBINDEX,
 	VAR_OBJINDEX,
@@ -610,6 +611,9 @@ enum entity_type_enum {
 	ENT_LIQUID,
 	ENT_SPELL,
 	ENT_MATERIAL,
+	ENT_SECTOR,
+	ENT_AFFINITIES,
+	ENT_AFFINITY,
 
 	// Multi-typing
 	ENT_OBJECT_AMMO,
@@ -1220,6 +1224,7 @@ enum entity_room_enum {
 	ENTITY_ROOM_DUNGEON,
 	ENTITY_ROOM_SHIP,
 	ENTITY_ROOM_SECTOR,
+	ENTITY_ROOM_SECTORFLAGS,
 };
 
 enum entity_array_exits_enum {
@@ -1443,12 +1448,7 @@ enum entity_skill_enum {
 	ENTITY_SKILL_MANA_BREW,
 	ENTITY_SKILL_MANA_SCRIBE,
 	ENTITY_SKILL_MANA_IMBUE,
-	ENTITY_SKILL_INK_TYPE1,
-	ENTITY_SKILL_INK_SIZE1,
-	ENTITY_SKILL_INK_TYPE2,
-	ENTITY_SKILL_INK_SIZE2,
-	ENTITY_SKILL_INK_TYPE3,
-	ENTITY_SKILL_INK_SIZE3,
+	ENTITY_SKILL_INKS,
 	ENTITY_SKILL_VALUES,
 	ENTITY_SKILL_VALUENAMES,
 };
@@ -1563,6 +1563,26 @@ enum entity_material_enum {
 	ENTITY_MATERIAL_VALUE,
 	ENTITY_MATERIAL_BURNED,
 	ENTITY_MATERIAL_CORRODED,
+};
+
+enum entity_sector {
+	ENTITY_SECTOR_NAME = ESCAPE_EXTRA,
+	ENTITY_SECTOR_DESCRIPTION,
+	ENTITY_SECTOR_COMMENTS,
+	ENTITY_SECTOR_CLASS,
+	ENTITY_SECTOR_FLAGS,
+	ENTITY_SECTOR_MOVE_COST,
+	ENTITY_SECTOR_HP_REGEN,
+	ENTITY_SECTOR_MANA_REGEN,
+	ENTITY_SECTOR_MOVE_REGEN,
+	ENTITY_SECTOR_SOIL,
+	ENTITY_SECTOR_AFFINITY,
+	ENTITY_SECTOR_HIDEMSGS,
+};
+
+enum entity_affinity {
+	ENTITY_AFFINITY_TYPE = ESCAPE_EXTRA,
+	ENTITY_AFFINITY_SIZE,
 };
 
 enum entity_song_enum {
@@ -2139,7 +2159,24 @@ struct script_parameter {
 		REPUTATION_INDEX_DATA *repIndex;
 		REPUTATION_INDEX_RANK_DATA *repRank;
 		MATERIAL *material;
+		SECTOR_DATA *sector;
 
+		struct {
+			SECTOR_DATA *sector;
+			int16_t index;
+		} affinity;
+
+		struct {
+			int16_t *types;
+			int16_t *amounts;
+			int16_t total;
+		} inks;
+
+		struct {
+			int16_t type;
+			int16_t amount;
+		} ink;
+		
 		RACE_DATA *race;
 		CLASS_DATA *clazz;
 		CLASS_LEVEL *level;
@@ -3639,6 +3676,7 @@ SCRIPT_CMD(scriptcmd_addstache);
 SCRIPT_CMD(scriptcmd_remstache);
 
 SCRIPT_CMD(scriptcmd_setoutbound);
+SCRIPT_CMD(scriptcmd_setclasslevel);
 
 bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);
 bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);

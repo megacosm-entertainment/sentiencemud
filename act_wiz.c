@@ -1614,9 +1614,9 @@ void do_rstat(CHAR_DATA *ch, char *argument)
     {
 
     sprintf(buf,
-	"{BVnum:{x %ld  {BSector:{x %d  {BLight:{x %d  {BHealing:{x %d  {BMana:{x %d\n\r",
+	"{BVnum:{x %ld  {BSector:{x %s  {BLight:{x %d  {BHealing:{x %d  {BMana:{x %d\n\r",
 	location->vnum,
-	location->sector_type,
+	location->sector->name,
                 location->light,
                 location->heal_rate,
                 location->mana_rate);
@@ -1624,12 +1624,12 @@ void do_rstat(CHAR_DATA *ch, char *argument)
     else
     {
         sprintf(buf, "{YWilds uid:{x %ld '%s'\n\r"
-                     "{YCoors:{x (%ld, %ld)  {YSector:{x %d  {YLight:{x %d  {YHealing:{x %d  {YMana:{x %d\n\r",
+                     "{YCoors:{x (%ld, %ld)  {YSector:{x %s  {YLight:{x %d  {YHealing:{x %d  {YMana:{x %d\n\r",
                 location->wilds->uid,
                 location->wilds->name,
                 location->x,
                 location->y,
-                location->sector_type,
+                location->sector->name,
                 location->light,
                 location->heal_rate,
                 location->mana_rate);
@@ -6838,7 +6838,7 @@ void do_rset(CHAR_DATA *ch, char *argument)
 	send_to_char("Syntax:\n\r",ch);
 	send_to_char("  set room <location> <field> <value>\n\r",ch);
 	send_to_char("  Field being one of:\n\r",			ch);
-	send_to_char("    flags sector\n\r",				ch);
+	send_to_char("    flags\n\r",				ch);
 	return;
     }
 
@@ -6871,12 +6871,6 @@ void do_rset(CHAR_DATA *ch, char *argument)
     if (!str_prefix(arg2, "flags"))
     {
 	location->room_flag[0]	= value;
-	return;
-    }
-
-    if (!str_prefix(arg2, "sector"))
-    {
-	location->sector_type	= value;
 	return;
     }
 

@@ -98,6 +98,18 @@ OLC_POINT_BOOST *olc_point_boost_free;
 SHIP_INDEX_DATA *ship_index_free;
 SHIP_DATA *ship_free;
 
+void *copy_string(void *ptr)
+{
+    if (!ptr) return NULL;
+
+    return str_dup((char *)ptr);
+}
+
+void delete_string(void *ptr)
+{
+    free_string((char *)ptr);
+}
+
 WNUM *new_wnum_data()
 {
     return alloc_mem(sizeof(WNUM));
@@ -322,7 +334,7 @@ DESCRIPTOR_DATA *new_descriptor(void)
 
     d->last_area = NULL;
     d->last_area_region = NULL;
-    d->last_room_sector = SECT_NONE;
+    d->last_room_sector = NULL;
     d->last_room_flag[0] = 0;
     d->last_room_flag[0] = 0;
 
@@ -1883,7 +1895,8 @@ ROOM_INDEX_DATA *new_room_index( void )
     pRoom->room_flag[0]       =   0;
     pRoom->room_flag[1]      =   0;
     pRoom->light            =   0;
-    pRoom->sector_type      =   0;
+    pRoom->sector           =   gsct_inside;
+    pRoom->sector_flags     =   gsct_inside->flags;
     pRoom->heal_rate	    =   100;
     pRoom->mana_rate	    =   100;
     pRoom->visited = 0;
@@ -6965,7 +6978,7 @@ SKILL_DATA *new_skill_data()
 
     for(int i = 0; i < MAX_CLASS; i++)
     {
-        data->skill_level[i] = 41;  // TODO: Replace with constant
+        data->skill_level[i] = MAX_CLASS_LEVEL + 1;
         data->rating[i] = 1;
     }
 
@@ -7624,4 +7637,47 @@ SKILL_CLASS_LEVEL *new_skill_class_level()
 void free_skill_class_level(SKILL_CLASS_LEVEL *data)
 {
     free_mem(data, sizeof(SKILL_CLASS_LEVEL));
+}
+
+
+
+SECTOR_DATA *sector_data_free;
+SECTOR_DATA *new_sector_data()
+{
+    SECTOR_DATA *sector;
+    if (sector_data_free)
+    {
+        sector = sector_data_free;
+        sector_data_free = sector_data_free->next;
+    }
+    else
+        sector = alloc_mem(sizeof(SECTOR_DATA));
+    memset(sector, 0, sizeof(*sector));
+
+    sector->name = &str_empty[0];
+    sector->description = &str_empty[0];
+    sector->comments = &str_empty[0];
+
+    sector->hp_regen = 100;
+    sector->mana_regen = 100;
+    sector->move_regen = 100;
+
+    for(int i = 0; i < SECTOR_MAX_AFFINITIES; i++)
+        sector->affinities[i][0] = CATALYST_NONE;
+
+    sector->hide_msgs = list_createx(false, copy_string, delete_string);
+
+    return sector;
+}
+
+void free_sector_data(SECTOR_DATA *sector)
+{
+    free_string(sector->name);
+    free_string(sector->description);
+    free_string(sector->comments);
+
+    list_destroy(sector->hide_msgs);
+
+    sector->next = sector_data_free;
+    sector_data_free = sector;
 }

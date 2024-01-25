@@ -238,6 +238,9 @@ void free_ship_crew_index(SHIP_CREW_INDEX_DATA *crew);
 AURA_DATA *new_aura_data();
 void free_aura_data(AURA_DATA *aura);
 
+SECTOR_DATA *new_sector_data();
+void free_sector_data(SECTOR_DATA *sector);
+
 // Item Multi-typing
 
 // Ammo

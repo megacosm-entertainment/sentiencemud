@@ -667,3 +667,7 @@ DECLARE_DO_FUN( do_clsshow );
 DECLARE_DO_FUN( do_racelist );
 DECLARE_DO_FUN( do_raceedit );
 DECLARE_DO_FUN( do_raceshow );
+
+DECLARE_DO_FUN( do_sectorlist );
+DECLARE_DO_FUN( do_sectoredit );
+DECLARE_DO_FUN( do_sectorshow );

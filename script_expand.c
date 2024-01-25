@@ -3564,10 +3564,14 @@ EXPAND_TYPE(room)
 		break;
 
 	case ENTITY_ROOM_SECTOR:
-		arg->type = ENT_STAT;
-		arg->d.stat.value = room ? room->sector_type : NO_FLAG;
-		arg->d.stat.table = sector_flags;
-		arg->d.stat.def_value = SECT_NONE;
+		arg->type = ENT_SECTOR;
+		arg->d.sector = room ? room->sector : NULL;
+		break;
+
+	case ENTITY_ROOM_SECTORFLAGS:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = room ? room->sector_flags : 0;
+		arg->d.bv.table = sector_flags;
 		break;
 
 	default: return NULL;
@@ -3757,6 +3761,129 @@ EXPAND_TYPE(exit)
 	default: return NULL;
 	}
 
+	return str+1;
+}
+
+EXPAND_TYPE(sector)
+{
+	SECTOR_DATA *sector = arg->d.sector;
+
+	switch(*str) {
+	case ENTITY_SECTOR_NAME:
+		arg->type = ENT_STRING;
+		arg->d.str = sector ? sector->name : "";
+		break;
+
+	case ENTITY_SECTOR_DESCRIPTION:
+		arg->type = ENT_STRING;
+		arg->d.str = sector ? sector->description : "";
+		break;
+
+	case ENTITY_SECTOR_COMMENTS:
+		arg->type = ENT_STRING;
+		arg->d.str = sector ? sector->comments : "";
+		break;
+
+	case ENTITY_SECTOR_CLASS:
+		arg->type = ENT_STAT;
+		arg->d.stat.value = sector ? sector->sector_class : NO_FLAG;
+		arg->d.stat.table = sector_classes;
+		arg->d.stat.def_value = SECTCLASS_NONE;
+		break;
+
+	case ENTITY_SECTOR_FLAGS:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = sector ? sector->flags : 0;
+		arg->d.bv.table = sector_flags;
+		break;
+
+	case ENTITY_SECTOR_MOVE_COST:
+		arg->type = ENT_NUMBER;
+		arg->d.num = sector ? sector->move_cost : 0;
+		break;
+
+	case ENTITY_SECTOR_HP_REGEN:
+		arg->type = ENT_NUMBER;
+		arg->d.num = sector ? sector->hp_regen : 0;
+		break;
+
+	case ENTITY_SECTOR_MANA_REGEN:
+		arg->type = ENT_NUMBER;
+		arg->d.num = sector ? sector->mana_regen : 0;
+		break;
+
+	case ENTITY_SECTOR_MOVE_REGEN:
+		arg->type = ENT_NUMBER;
+		arg->d.num = sector ? sector->move_regen : 0;
+		break;
+
+	case ENTITY_SECTOR_SOIL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = sector ? sector->soil : 0;
+		break;
+
+	case ENTITY_SECTOR_AFFINITY:
+		arg->type = ENT_AFFINITIES;
+		// Uses arg->d.sector
+		break;
+
+	case ENTITY_SECTOR_HIDEMSGS:
+		arg->type = ENT_PLLIST_STR;
+		arg->d.blist = sector ? sector->hide_msgs : NULL;
+		break;
+
+	default:
+		return NULL;
+	}
+	return str+1;
+}
+
+EXPAND_TYPE(affinities)
+{
+	SECTOR_DATA *sector = arg->d.sector;
+
+	switch(*str)
+	{
+		case ESCAPE_EXPRESSION:
+		{
+			int index;
+			str = expand_argument_expression(info,str+1,&index);
+			if (!str) return NULL;
+
+			if (index < 1 || index > SECTOR_MAX_AFFINITIES) return NULL;
+
+			arg->type = ENT_AFFINITY;
+			arg->d.affinity.sector = sector;
+			arg->d.affinity.index = index - 1;
+			return str;
+		}
+
+		default:
+			return NULL;
+	}
+}
+
+EXPAND_TYPE(affinity)
+{
+	SECTOR_DATA *sector = arg->d.affinity.sector;
+	int16_t index = arg->d.affinity.index;
+
+	switch(*str) {
+	case ENTITY_AFFINITY_TYPE:
+		arg->type = ENT_STAT;
+		arg->d.stat.value = (sector && index >= 0 && index < SECTOR_MAX_AFFINITIES) ? sector->affinities[index][0] : NO_FLAG;
+		arg->d.stat.table = catalyst_types;
+		arg->d.stat.def_value = CATALYST_NONE;
+		break;
+	
+	case ENTITY_AFFINITY_SIZE:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (sector && index >= 0 && index < SECTOR_MAX_AFFINITIES) ? sector->affinities[index][1] : 0;
+		break;
+
+	default:
+		return NULL;
+	}
 	return str+1;
 }
 
@@ -4606,34 +4733,20 @@ EXPAND_TYPE(skill)
 		arg->d.num = IS_VALID(skill) ? skill->imbue_mana : 0;
 		break;
 
-	case ENTITY_SKILL_INK_TYPE1:
-		arg->type = ENT_NUMBER;
-		arg->d.num = IS_VALID(skill) ? skill->inks[0][0] : 0;
-		break;
-
-	case ENTITY_SKILL_INK_TYPE2:
-		arg->type = ENT_NUMBER;
-		arg->d.num = IS_VALID(skill) ? skill->inks[1][0] : 0;
-		break;
-
-	case ENTITY_SKILL_INK_TYPE3:
-		arg->type = ENT_NUMBER;
-		arg->d.num = IS_VALID(skill) ? skill->inks[2][0] : 0;
-		break;
-
-	case ENTITY_SKILL_INK_SIZE1:
-		arg->type = ENT_NUMBER;
-		arg->d.num = IS_VALID(skill) ? skill->inks[0][1] : 0;
-		break;
-
-	case ENTITY_SKILL_INK_SIZE2:
-		arg->type = ENT_NUMBER;
-		arg->d.num = IS_VALID(skill) ? skill->inks[1][1] : 0;
-		break;
-
-	case ENTITY_SKILL_INK_SIZE3:
-		arg->type = ENT_NUMBER;
-		arg->d.num = IS_VALID(skill) ? skill->inks[2][1] : 0;
+	case ENTITY_SKILL_INKS:
+		arg->type = ENT_INK_TYPES;
+		if (IS_VALID(skill))
+		{
+			arg->d.inks.types = skill->ink_types;
+			arg->d.inks.amounts = skill->ink_amounts;
+			arg->d.inks.total = SKILL_MAX_INKS;
+		}
+		else
+		{
+			arg->d.inks.types = NULL;
+			arg->d.inks.amounts = NULL;
+			arg->d.inks.total = 0;
+		}
 		break;
 
 	case ENTITY_SKILL_VALUES:
@@ -8349,9 +8462,25 @@ EXPAND_TYPE(object_furniture)
 
 EXPAND_TYPE(object_ink)
 {
+	OBJ_DATA *obj = arg->d.obj;
+	INK_DATA *ink = IS_VALID(obj) ? INK(obj) : NULL;
 	switch(*str) {
 	case ENTITY_OBJ_INK_TYPES:
 		arg->type = ENT_INK_TYPES;
+		if (IS_VALID(ink))
+		{
+			arg->d.inks.types = ink->types;
+			arg->d.inks.amounts = ink->amounts;
+			arg->d.inks.total = MAX_INK_TYPES;
+		}
+		else
+		{
+			arg->d.inks.types = NULL;
+			arg->d.inks.amounts = NULL;
+			arg->d.inks.total = 0;
+		}
+		break;
+
 		// Still uses the object
 		break;
 
@@ -8363,7 +8492,9 @@ EXPAND_TYPE(object_ink)
 
 EXPAND_TYPE(ink_types)
 {
-	OBJ_DATA *obj = arg->d.obj;
+	int16_t *types = arg->d.inks.types;
+	int16_t *amounts = arg->d.inks.amounts;
+	int16_t total = arg->d.inks.total;
 
 	switch(*str)
 	{
@@ -8374,8 +8505,17 @@ EXPAND_TYPE(ink_types)
 			if (!str) return NULL;
 
 			arg->type = ENT_INK_TYPE;
-			arg->d.obj_type.obj = obj;
-			arg->d.obj_type.type = index;
+			if (types && amounts && index >= 1 && index <= total)
+			{
+				arg->d.ink.type = types[index - 1];
+				arg->d.ink.amount = amounts[index - 1];
+			}
+			else
+			{
+				arg->d.ink.type = NO_FLAG;
+				arg->d.ink.amount = -1;
+			}
+
 			return str;
 		}
 
@@ -8387,22 +8527,21 @@ EXPAND_TYPE(ink_types)
 
 EXPAND_TYPE(ink_type)
 {
-	OBJ_DATA *obj = arg->d.obj_type.obj;
-	INK_DATA *ink = IS_VALID(obj) && IS_INK(obj) ? INK(obj) : NULL;
-	int type = arg->d.obj_type.type;
+	int16_t type = arg->d.ink.type;
+	int16_t amount = arg->d.ink.amount;
 
 	switch(*str)
 	{
 		case ENTITY_INK_TYPE_CATALYST:
 			arg->type = ENT_STAT;
-			arg->d.stat.value = IS_VALID(ink) && (type >= 1 && type <= MAX_INK_TYPES) ? ink->types[type] : NO_FLAG;
+			arg->d.stat.value = type;
 			arg->d.stat.table = catalyst_types;
 			arg->d.stat.def_value = CATALYST_NONE;
 			break;
 
 		case ENTITY_INK_TYPE_AMOUNT:
 			arg->type = ENT_NUMBER;
-			arg->d.num = IS_VALID(ink) && (type >= 1 && type <= MAX_INK_TYPES) ? ink->amounts[type] : -1;
+			arg->d.num = amount;
 			break;
 
 		default:
@@ -9625,6 +9764,9 @@ EXPAND(expand_argument_entity)
 		ENTITY_CASE(SEX_STRING_TABLE,sex_string_table)
 		ENTITY_CASE(STATS_TABLE,stats_table)
 		ENTITY_CASE(VITALS_TABLE,vitals_table)
+		ENTITY_CASE(SECTOR,sector)
+		ENTITY_CASE(AFFINITIES,affinities)
+		ENTITY_CASE(AFFINITY,affinity)
 
 		case ENT_NULL:
 			next = str+1;

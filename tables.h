@@ -180,6 +180,12 @@ struct class_enter_type
 	CLASS_ENTER_FUN *func;
 };
 
+struct global_sector_type
+{
+	char *name;
+	SECTOR_DATA **gsct;
+};
+
 struct npc_ship_type
 {
 	int npc_ship_type;
@@ -358,7 +364,7 @@ extern 	const	struct  flag_type	mprog_flags[];
 extern	const	struct	flag_type	oprog_flags[];
 extern	const	struct	flag_type	rprog_flags[];
 extern  const   struct  flag_type	room_condition_flags[];
-extern	const	struct	flag_type	sector_flags[];
+extern	const	struct	flag_type	sector_types[];
 extern	const	struct	flag_type	door_resets[];
 extern	const struct flag_type wear_loc_names[];
 extern	const	struct	flag_type	wear_loc_strings[];
@@ -509,6 +515,9 @@ extern const struct flag_type adornment_types[];
 extern const struct flag_type staff_ranks[];
 
 extern const struct flag_type command_types[];
+extern const struct flag_type sector_flags[];
+extern const struct flag_type sector_classes[];
+extern const struct global_sector_type global_sector_table[];
 
 #endif
 

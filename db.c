@@ -184,6 +184,13 @@ RACE_DATA *gr_titan;
 RACE_DATA *gr_vampire;
 RACE_DATA *gr_wraith;
 
+LLIST *sectors_list = NULL;
+SECTOR_DATA *gsct_inside;
+SECTOR_DATA *gsct_city;
+SECTOR_DATA *gsct_water_noswim;
+SECTOR_DATA *gsct_water_swim;
+SECTOR_DATA *gsct_underwater_noswim;
+SECTOR_DATA *gsct_underwater_swim;
 
 void free_room_index( ROOM_INDEX_DATA *pRoom );
 void load_instances();
@@ -1722,13 +1729,15 @@ void boot_db(void)
 			if (strArea[0] == '$')
 				break;
 
+			log_string(strArea);
+
 			// Skip these, they are loaded separately
 			if (!str_cmp(strArea, "help.are") || !str_cmp(strArea, "social.are"))
 				continue;
 
 			if ((fpArea = fopen(strArea, "r")) == NULL) {
 				perror(strArea);
-				exit(1);
+				exit(2);		// NIBS: changed this so we know it exited because of this
 			}
 
 			sprintf(log_buf, "Loading areafile '%s'", strArea);
@@ -3139,6 +3148,9 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 			break;
 		}
 	}
+
+	if (!pRoom->sector) pRoom->sector = gsct_inside;
+	pRoom->sector_flags = pRoom->sector->flags;
 
 	p_percent_trigger(NULL, NULL, pRoom, NULL, NULL, NULL, NULL,NULL, NULL, TRIG_RESET, NULL,0,0,0,0,0);
 }
@@ -6285,7 +6297,7 @@ ROOM_INDEX_DATA *create_virtual_room_nouid(ROOM_INDEX_DATA *source, bool objects
 	vroom->room_flag[0] = source->room_flag[0];
 	vroom->room_flag[1] = source->room_flag[1] | ROOM_VIRTUAL_ROOM;
 	REMOVE_BIT(vroom->room_flag[1], ROOM_BLUEPRINT);					// Clones can never be "blueprint" rooms
-	vroom->sector_type = source->sector_type;
+	vroom->sector = source->sector;
 	vroom->viewwilds = source->viewwilds;
 	vroom->w = source->w;
 	vroom->x = source->x;
@@ -7466,7 +7478,7 @@ void persist_save_room(FILE *fp, ROOM_INDEX_DATA *room)
 	fprintf(fp, "Locale %ld\n", room->locale);
 	fprintf(fp, "RoomFlags %s~\n", flag_string(room_flags, room->room_flag[0]));
 	fprintf(fp, "RoomFlags2 %s~\n", flag_string(room2_flags, room->room_flag[1]));
-	fprintf(fp, "Sector %s~\n", flag_string(sector_flags, room->sector_type));
+	fprintf(fp, "Sector %s~\n", room->sector->name);
 
 	if (room->heal_rate != 100) fprintf(fp, "HealRate %d\n", room->heal_rate);
 	if (room->mana_rate != 100) fprintf(fp, "ManaRate %d\n", room->mana_rate);
@@ -9550,7 +9562,14 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 				}
 				break;
 			case 'S':
-				FVDKEY("Sector", room->sector_type, fread_string(fp), sector_flags, NO_FLAG, SECT_INSIDE);
+				if (!str_cmp(word, "Sector"))
+				{
+					room->sector = get_sector_data(fread_string(fp));
+					if (!room->sector) room->sector = gsct_inside;
+
+					fMatch = true;
+					break;
+				}
 				break;
 			case 'T':
 				break;

@@ -443,9 +443,19 @@ void do_hunt( CHAR_DATA *ch, char *argument )
     argument = one_argument( argument, arg );
     argument = one_argument( argument, arg2 );
 
-    // TODO: Change the Sith/Naga race checks to a racial trait
-    if (!IS_NPC(ch) && ch->race != gr_sith && ch->race != gr_naga &&
-        get_skill(ch, gsk_hunt) == 0 )
+    bool has_hunt = true;
+
+    if (!IS_NPC(ch))
+    {
+        // TODO: Change the Sith/Naga race checks to a racial trait?
+        if (!IS_SITH(ch) || !IS_SET(ch->parts, PART_LONG_TONGUE))
+            has_hunt = false;
+
+        if (get_skill(ch, gsk_hunt) > 0)
+            has_hunt = true;
+    }
+
+    if (!has_hunt)
     {
         send_to_char("Huh?\n\r",ch);
         return;
@@ -524,11 +534,7 @@ void do_hunt( CHAR_DATA *ch, char *argument )
     // For trackless step skill
     if (get_skill( victim, gsk_trackless_step ) > 0
     //&& victim->pcdata->second_sub_class_cleric == CLASS_CLERIC_RANGER
-    && ( victim->in_room->sector_type == SECT_FIELD
-         || victim->in_room->sector_type == SECT_FOREST
-         || victim->in_room->sector_type == SECT_HILLS
-         || victim->in_room->sector_type == SECT_MOUNTAIN
-         || victim->in_room->sector_type == SECT_TUNDRA ) )
+    && is_in_nature(victim->in_room) )
     {
 	if ( number_percent() < get_skill( victim, gsk_trackless_step ) )
 	{
@@ -537,10 +543,10 @@ void do_hunt( CHAR_DATA *ch, char *argument )
 	}
     }
 
-    if (!IS_SITH(ch))
-	act( "$n carefully sniffs the air.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+    if (!IS_SITH(ch) || !IS_SET(ch->parts, PART_LONG_TONGUE))
+    	act( "$n scans $s environment.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
     else
-	act("$n's forked tongue whips out and tastes the air.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	    act("$n's forked tongue whips out and tastes the air.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
 
     // Max rooms so people can track across areas without megalag
@@ -561,12 +567,15 @@ void do_hunt( CHAR_DATA *ch, char *argument )
 	    return;
 
 	act("You begin hunting $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-	act("$n poises $mself stealthily and sniffs the air.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+    if (!IS_SITH(ch) || !IS_SET(ch->parts, PART_LONG_TONGUE))
+    	act("$n poises $mself stealthily and scans the area.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+    else
+    	act("$n poises $mself stealthily and sniffs the air.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
 	ch->hunting = victim;
 	return;
     }
 
-    if ( direction < 0 || direction > 9 )
+    if ( direction < 0 || direction >= MAX_DIR )
     {
 	send_to_char( "Hmm... Something seems to be wrong.\n\r", ch );
 	return;
@@ -574,7 +583,7 @@ void do_hunt( CHAR_DATA *ch, char *argument )
 
     if (!IS_NPC(ch))
     {
-        int skill = IS_SITH(ch) ? 100 : get_skill(ch, gsk_hunt);
+        int skill = (IS_SITH(ch) && IS_SET(ch->parts, PART_LONG_TONGUE)) ? 100 : get_skill(ch, gsk_hunt);
         if (number_percent() > skill)
         {
             send_to_char("You can't find the trail.\n\r", ch);

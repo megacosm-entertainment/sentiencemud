@@ -460,7 +460,8 @@ void move_char(CHAR_DATA *ch, int door, bool follow, bool fleeing)
 
 	move = 0; /* for NPCs only */
 	if (!IS_NPC(ch)) {
-		if (in_room->sector_type == SECT_AIR || to_room->sector_type == SECT_AIR) {
+		if (IS_SET(in_room->sector_flags, SECTOR_AERIAL) || IS_SET(to_room->sector_flags, SECTOR_AERIAL))
+		{
 			if (MOUNTED(ch)) {
 				if (!IS_AFFECTED(MOUNTED(ch), AFF_FLYING)) {
 					send_to_char("Your mount can't fly.\n\r", ch);
@@ -474,27 +475,27 @@ void move_char(CHAR_DATA *ch, int door, bool follow, bool fleeing)
 			}
 		}
 
-		if ((in_room->sector_type == SECT_WATER_NOSWIM || to_room->sector_type == SECT_WATER_NOSWIM) &&
+		if ((IS_SET(in_room->sector_flags, SECTOR_DEEP_WATER) || IS_SET(to_room->sector_flags, SECTOR_DEEP_WATER)) &&
 			MOUNTED(ch) && !IS_AFFECTED(MOUNTED(ch), AFF_FLYING)) {
 			sprintf(buf,"You can't take your mount there.\n\r");
 			send_to_char(buf, ch);
 			return;
 		}
 
-		if (in_room->sector_type == SECT_WATER_NOSWIM && !IS_SET(ch->parts, PART_FINS) && !IS_IMMORTAL(ch)) {
+		if (IS_SET(in_room->sector_flags, SECTOR_DEEP_WATER) && !IS_SET(ch->parts, PART_FINS) && !IS_IMMORTAL(ch)) {
 			if(IS_SET(in_room->room_flag[1],ROOM_CITYMOVE))
 				WAIT_STATE(ch, 4);
 			else
 				WAIT_STATE(ch, 8);
 		}
 
-		if ((in_room->sector_type != SECT_WATER_NOSWIM && to_room->sector_type == SECT_WATER_NOSWIM) &&
+		if ((IS_SET(in_room->sector_flags, SECTOR_DEEP_WATER) || IS_SET(to_room->sector_flags, SECTOR_DEEP_WATER)) &&
 			!IS_AFFECTED(ch,AFF_FLYING)) {
 			act("You dive into the deep water and begin to swim.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			act("$n dives into the deep water and begins to swim.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		}
 
-		if (in_room->sector_type == SECT_WATER_NOSWIM && to_room->sector_type != SECT_WATER_NOSWIM &&
+		if (IS_SET(in_room->sector_flags, SECTOR_DEEP_WATER) && !IS_SET(to_room->sector_flags, SECTOR_DEEP_WATER) &&
 			!IS_AFFECTED(ch,AFF_FLYING)) {
 			act("You can touch the ground here.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			act("$n stops swimming and stands.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -502,19 +503,29 @@ void move_char(CHAR_DATA *ch, int door, bool follow, bool fleeing)
 
 		{	/* City-move will reduce movement, if greater, to city movement */
 			// FINS changed NOSWIM to SWIM
-			int m1, m2;
+			SECTOR_DATA *s1, *s2;
 
-			m1 = UMIN(SECT_MAX-1, in_room->sector_type);
-			if(IS_SET(ch->parts, PART_FINS) && m1 == SECT_WATER_NOSWIM) m1 = SECT_WATER_SWIM;
-			if(IS_SET(in_room->room_flag[1],ROOM_CITYMOVE) && movement_loss[m1] > movement_loss[SECT_CITY]) m1 = SECT_CITY;
+			s1 = in_room->sector;
+			if(IS_SET(ch->parts, PART_FINS))
+			{
+ 				if (s1 == gsct_water_noswim) s1 = gsct_water_swim;
+				else if (s1 == gsct_underwater_noswim) s1 = gsct_underwater_swim;
+			}
+			if(IS_SET(in_room->room_flag[1],ROOM_CITYMOVE) && (!s1 || s1->move_cost > gsct_city->move_cost)) s1 = gsct_city;
 
-			m2 = UMIN(SECT_MAX-1, to_room->sector_type);
-			if(IS_SET(ch->parts, PART_FINS) && m2 == SECT_WATER_NOSWIM) m2 = SECT_WATER_SWIM;
-			if(IS_SET(to_room->room_flag[1],ROOM_CITYMOVE) && movement_loss[m2] > movement_loss[SECT_CITY]) m2 = SECT_CITY;
-
+			s2 = to_room->sector;
+			if(IS_SET(ch->parts, PART_FINS))
+			{
+ 				if (s2 == gsct_water_noswim) s2 = gsct_water_swim;
+				else if (s2 == gsct_underwater_noswim) s2 = gsct_underwater_swim;
+			}
+			if(IS_SET(to_room->room_flag[1],ROOM_CITYMOVE) && (!s2 || s2->move_cost > gsct_city->move_cost)) s2 = gsct_city;
 
 			/* Average movement between different sector types */
-			move = (movement_loss[m1] + movement_loss[m2]) / 2;
+			int m1 = s1 ? s1->move_cost : 0;
+			int m2 = s2 ? s2->move_cost : 0;
+
+			move = (m1 + m2) / 2;
 		}
 
 		/* If currently crusader, 25% less movement in the wilds */
@@ -563,7 +574,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow, bool fleeing)
 
 	/* echo messages */
 	if (!IS_AFFECTED(ch, AFF_SNEAK) &&  ch->invis_level < STAFF_IMMORTAL) {
-		if (in_room->sector_type == SECT_WATER_NOSWIM)
+		if (IS_SET(in_room->sector_flags, SECTOR_DEEP_WATER))
 			act("{W$n swims $T.{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_ROOM);
 		else if (PULLING_CART(ch))
 			act("{W$n leaves $T, pulling $p.{x", ch, NULL, NULL, PULLING_CART(ch), NULL, NULL, dir_name[door], TO_ROOM);
@@ -655,7 +666,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow, bool fleeing)
 					act("{W$n materializes.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM);
 			}
 		}
-		else if (in_room->sector_type == SECT_WATER_NOSWIM)
+		else if (IS_SET(in_room->sector_flags, SECTOR_DEEP_WATER))
 			act("{W$n swims in.{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_ROOM);
 		else if (PULLING_CART(ch))
 			act("{W$n has arrived, pulling $p.{x", ch, NULL, NULL, PULLING_CART(ch), NULL, NULL, NULL, TO_ROOM);
@@ -744,7 +755,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow, bool fleeing)
 
 	/* Druids regenerate in nature */
 	// TODO: Change into a trait
-	if (get_current_class(ch) == gcl_druid && is_in_nature(ch)) {
+	if (get_current_class(ch) == gcl_druid && is_in_nature(ch->in_room)) {
 		ch->move += number_range(1,3);
 		ch->move = UMIN(ch->move, ch->max_move);
 		ch->hit += number_range(1,3);
@@ -3832,9 +3843,7 @@ void do_hide(CHAR_DATA *ch, char *argument)
 
 		if ((obj = get_obj_carry(ch, arg1, ch)) != NULL)
 		{
-			char buf[MAX_STRING_LENGTH];
 			char buf2[MAX_STRING_LENGTH];
-			int chance;
 			CHAR_DATA *others;
 
 			if (!can_drop_obj(ch, obj, true) || IS_SET(obj->extra[1], ITEM_KEPT)) {
@@ -3941,84 +3950,31 @@ void do_hide(CHAR_DATA *ch, char *argument)
 			}
 			else
 			{
-				if (ch->in_room->sector_type == SECT_WATER_NOSWIM)
+				if (IS_SET(ch->in_room->sector_flags, SECTOR_DEEP_WATER))
 				{
 					send_to_char("You would never see it again.\n\r", ch);
 					return;
 				}
 
-				if (ch->in_room->sector_type == SECT_AIR)
+				if (IS_SET(ch->in_room->sector_flags, SECTOR_AERIAL))
 				{
 					send_to_char("Nowhere to hide it when you're floating...\n\r", ch);
 					return;
 				}
 
-				chance = number_range (0, 4);
-
-				switch(ch->in_room->sector_type)
+				if (IS_SET(ch->in_room->sector_flags, SECTOR_NO_HIDE_OBJ))
 				{
-					case SECT_INSIDE:
-				case SECT_CITY:
-					if (chance == 0)
-						sprintf(buf2, "in the corner");
-					else if (chance == 1)
-						sprintf(buf2, "amidst the shadows");
-					else if (chance == 2)
-						sprintf(buf2, "beneath some forgotten trash");
-					else if (chance == 3)
-						sprintf(buf2, "in a poorly lit area");
-					else
-						sprintf(buf2, "from view");
-					break;
-				case SECT_FIELD:
-					if (chance == 0)
-						sprintf(buf2, "among the grasses");
-					else if (chance == 1)
-						sprintf(buf2, "in a bed of flowers");
-					else if (chance == 2)
-						sprintf(buf2, "under a pile of stones");
-					else if (chance == 3)
-						sprintf(buf2, "in a small hole");
-					else
-						sprintf(buf2, "from sight");
-					break;
-				case SECT_FOREST:
-					if (chance == 0)
-						sprintf(buf2, "inside a tree");
-					else if (chance == 1)
-						sprintf(buf2, "under a stump");
-					else if (chance == 2)
-						sprintf(buf2, "in the thick vegetation");
-					else if (chance == 3)
-						sprintf(buf2, "in the branches of a tree");
-					else
-						sprintf(buf, "from sight");
-					break;
-				case SECT_HILLS:
-					if (chance == 0)
-						sprintf(buf2, "under a large rock");
-					else
-						sprintf(buf2, "from sight");
-					break;
-				case SECT_MOUNTAIN:
-					sprintf(buf2, "in the deep mountain crags");
-					break;
-				case SECT_WATER_SWIM:
-					sprintf(buf2, "in the sands beneath your feet");
-					break;
-				case SECT_TUNDRA:
-					sprintf(buf2, "beneath a large pile of snow");
-					break;
-				case SECT_DESERT:
-					sprintf(buf2, "under a pile of desert sand");
-					break;
-				case SECT_NETHERWORLD:
-					sprintf(buf2, "beneath a pile of bones");
-					break;
-				case SECT_DOCK:
-					sprintf(buf2, "under a couple of planks");
-					break;
+					send_to_char("There is nowhere to hide it here.\n\r", ch);
+					return;
 				}
+
+				if (list_size(ch->in_room->sector->hide_msgs) > 0)
+				{
+					char *hm = (char *)list_randomdata(ch->in_room->sector->hide_msgs);
+					strcpy(buf2, hm);
+				}
+				else
+					strcpy(buf2, "from view");
 
 				act("You deftly hide $p $t.", ch, NULL, NULL, obj, NULL, buf2, NULL, TO_CHAR);
 				for (others = ch->in_room->people;
@@ -4350,11 +4306,11 @@ bool move_success(CHAR_DATA *ch)
 		return false;
     }
 
-	if (ch->in_room && (ch->in_room->sector_type == SECT_WATER_NOSWIM ||
-		ch->in_room->sector_type == SECT_WATER_SWIM)) {
+	if( ch->in_room && IS_SET(ch->in_room->sector_flags, SECTOR_NO_FADE) )
+    {
 		act("Magical interference stops your ability to fade.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return false;
-	}
+    }
 
 	if (!IS_NPC(ch) && (p_exit_trigger(ch, door, PRG_MPROG,0,0,0,0,0) || p_exit_trigger(ch, door, PRG_OPROG,0,0,0,0,0) || p_exit_trigger(ch, door, PRG_RPROG,0,0,0,0,0)))
 		return false;
@@ -4383,6 +4339,18 @@ bool move_success(CHAR_DATA *ch)
 		send_to_char ("Alas, you cannot go that way.\n\r", ch);
 		return false;
 	}
+
+	if( IS_SET(to_room->area->area_flags, AREA_NO_FADING) )
+    {
+		act("Magical interference stops your ability to fade.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return false;
+    }
+
+	if( IS_SET(to_room->sector_flags, SECTOR_NO_FADE) )
+    {
+		act("Magical interference stops your ability to fade.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return false;
+    }
 
 	char_from_room(ch);
 	/* VIZZWILDS */
@@ -4937,10 +4905,7 @@ void do_land(CHAR_DATA *ch, char *argument)
 
 		if(!p_percent_trigger(MOUNTED(ch), NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LAND,NULL,0,0,0,0,0)) {
 			if(is_affected(ch, gsk_flight)) {
-				if(	ch->in_room->sector_type == SECT_WATER_NOSWIM ||
-					ch->in_room->sector_type == SECT_WATER_SWIM ||
-					ch->in_room->sector_type == SECT_UNDERWATER ||
-					ch->in_room->sector_type == SECT_DEEP_UNDERWATER) {
+				if (ch->in_room->sector->sector_class == SECTCLASS_WATER) {
 					act("Diving down, you descend to the water below.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 					act("Diving down, $n descends to the water below.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 				} else {
@@ -4948,10 +4913,7 @@ void do_land(CHAR_DATA *ch, char *argument)
 					act("Diving down, $n descends to the ground below.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 				}
 			} else {
-				if(	ch->in_room->sector_type == SECT_WATER_NOSWIM ||
-					ch->in_room->sector_type == SECT_WATER_SWIM ||
-					ch->in_room->sector_type == SECT_UNDERWATER ||
-					ch->in_room->sector_type == SECT_DEEP_UNDERWATER) {
+				if (ch->in_room->sector->sector_class == SECTCLASS_WATER) {
 					act("You slowly descend to the water below.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 					act("$n slowly descends to the water below.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 				} else {
@@ -4978,10 +4940,7 @@ void do_land(CHAR_DATA *ch, char *argument)
 
 		if(!p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LAND,NULL,0,0,0,0,0)) {
 			if(is_affected(ch, gsk_flight)) {
-				if(	ch->in_room->sector_type == SECT_WATER_NOSWIM ||
-					ch->in_room->sector_type == SECT_WATER_SWIM ||
-					ch->in_room->sector_type == SECT_UNDERWATER ||
-					ch->in_room->sector_type == SECT_DEEP_UNDERWATER) {
+				if (ch->in_room->sector->sector_class == SECTCLASS_WATER) {
 					act("Diving down, you descend to the water below.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 					act("Diving down, $n descends to the water below.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 				} else {
@@ -4989,10 +4948,7 @@ void do_land(CHAR_DATA *ch, char *argument)
 					act("Diving down, $n descends to the ground below.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 				}
 			} else {
-				if(	ch->in_room->sector_type == SECT_WATER_NOSWIM ||
-					ch->in_room->sector_type == SECT_WATER_SWIM ||
-					ch->in_room->sector_type == SECT_UNDERWATER ||
-					ch->in_room->sector_type == SECT_DEEP_UNDERWATER) {
+				if (ch->in_room->sector->sector_class == SECTCLASS_WATER) {
 					act("You slowly descend to the water below.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 					act("$n slowly descends to the water below.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 				} else {

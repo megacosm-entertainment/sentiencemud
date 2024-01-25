@@ -596,7 +596,8 @@ void save_room_new(FILE *fp, ROOM_INDEX_DATA *room, int recordtype)
 
     fprintf(fp, "Room_flags %ld\n", room->room_flag[0]);
     fprintf(fp, "Room2_flags %ld\n", room->room_flag[1]);
-    fprintf(fp, "Sector_type %d\n", room->sector_type);
+    fprintf(fp, "Sector %s\n", room->sector->name);
+	fprintf(fp, " - Sector Flags: %s\n", flag_string(sector_flags, room->sector_flags));
 
     if (room->heal_rate != 100)
 	fprintf(fp, "HealRate %d\n", room->heal_rate);
@@ -2591,8 +2592,38 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 		break;
 
 	    case 'S':
-	        KEY("Sector_type",	room->sector_type,	fread_number(fp));
-		break;
+			if (!str_cmp(word, "Sector"))
+			{
+				if(area->version_room < VERSION_ROOM_003)
+				{
+					int old_type = fread_number(fp);
+					char *old_name = flag_string(sector_types, old_type);
+					room->sector = get_sector_data(old_name);
+				}
+				else
+				{
+					room->sector = get_sector_data(fread_string(fp));
+				}
+				if (!room->sector) room->sector = gsct_inside;
+				room->sector_flags = room->sector->flags;
+				fMatch = true;
+				break;
+			}
+
+			if(area->version_room < VERSION_ROOM_003)
+			{
+				if (!str_cmp(word, "Sector_type"))
+				{
+					int old_type = fread_number(fp);
+					char *old_name = flag_string(sector_types, old_type);
+					room->sector = get_sector_data(old_name);
+					if (!room->sector) room->sector = gsct_inside;
+					room->sector_flags = room->sector->flags;
+					fMatch = true;
+					break;
+				}
+			}
+			break;
 
 	    case 'V':
 			if (olc_load_index_vars(fp, word, &room->index_vars, area))
@@ -2617,6 +2648,7 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 	if (!fMatch) {
 	    sprintf(buf, "read_room_new: no match for word %s", word);
 	    bug(buf, 0);
+		fread_to_eol(fp);
 	}
     }
 

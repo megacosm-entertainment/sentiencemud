@@ -64,6 +64,7 @@ char *editor_name_table[] = {
 	"MatEdit",
 	"ClsEdit",
 	"RaceEdit",
+	"SectorEdit",
 };
 
 int editor_max_tabs_table[] = {
@@ -97,6 +98,7 @@ int editor_max_tabs_table[] = {
 	0,		// MatEdit
 	0,		// ClsEdit
 	0,		// RaceEdit
+	0,		// SectorEdit
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -127,6 +129,7 @@ const struct editor_cmd_type editor_table[] =
 	{ "material",	do_matedit	},
 	{ "class",		do_clsedit  },
 	{ "race",		do_raceedit },
+	{ "sector",		do_sectoredit },
 	{ NULL,			0,			}
 };
 
@@ -585,6 +588,10 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
 		raceedit(d->character, d->incomm);
 		break;
 
+	case ED_SECTOREDIT:
+		sectoredit(d->character, d->incomm);
+		break;
+
 	default:
 		return false;
 	}
@@ -657,6 +664,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 	MATERIAL *material;
 	CLASS_DATA *clazz;
 	RACE_DATA *race;
+	SECTOR_DATA *sector;
 	static char buf[MIL];
 	char buf2[MSL];
 
@@ -834,6 +842,15 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 			strcpy(buf, "--");
 		break;
 
+	case ED_SECTOREDIT:
+		sector = (SECTOR_DATA *)ch->desc->pEdit;
+		if (sector)
+			sprintf(buf, "%s", sector->name);
+		else
+			strcpy(buf, "--");
+		break;
+
+
 	default:
 		sprintf(buf, " ");
 		break;
@@ -979,6 +996,10 @@ bool show_commands(CHAR_DATA *ch, char *argument)
 
 	case ED_RACEEDIT:
 		show_olc_cmds(ch, raceedit_table);
+		break;
+
+	case ED_SECTOREDIT:
+		show_olc_cmds(ch, sectoredit_table);
 		break;
 	}
 
@@ -1546,16 +1567,9 @@ void do_redit(CHAR_DATA *ch, char *argument)
 		// Set the last OLC stuff to the current room you are editting when you explicitly do "redit <widevnum>"
 		if (IS_SET(ch->act[0], PLR_AUTOOLC))
 		{
-//			sprintf(buf, "AUTOOLC: saving area (%s), region (%s), sector (%s), room (%s), room2 (%s)\n\r",
-//				pRoom->area->name,
-//				pRoom->region ? pRoom->region->name : "(null)",
-//				flag_string(sector_flags, pRoom->sector_type),
-//				flag_string(room_flags, pRoom->room_flag[0]),
-//				flag_string(room2_flags, pRoom->room_flag[1]));
-//			send_to_char(buf, ch);
 			ch->desc->last_area = pRoom->area;
 			ch->desc->last_area_region = pRoom->region;
-			ch->desc->last_room_sector = pRoom->sector_type;
+			ch->desc->last_room_sector = pRoom->sector;
 			ch->desc->last_room_flag[0] = pRoom->room_flag[0];
 			ch->desc->last_room_flag[1] = pRoom->room_flag[1];
 		}
@@ -1575,16 +1589,9 @@ void do_redit(CHAR_DATA *ch, char *argument)
 		// Set the last OLC stuff to the current room you are editting when you explicitly do "redit <widevnum>"
 		if (IS_SET(ch->act[0], PLR_AUTOOLC))
 		{
-//			sprintf(buf, "AUTOOLC: saving area (%s), region (%s), sector (%s), room (%s), room2 (%s)\n\r",
-//				pRoom->area->name,
-//				pRoom->region ? pRoom->region->name : "(null)",
-//				flag_string(sector_flags, pRoom->sector_type),
-//				flag_string(room_flags, pRoom->room_flag[0]),
-//				flag_string(room2_flags, pRoom->room_flag[1]));
-//			send_to_char(buf, ch);
 			ch->desc->last_area = pRoom->area;
 			ch->desc->last_area_region = pRoom->region;
-			ch->desc->last_room_sector = pRoom->sector_type;
+			ch->desc->last_room_sector = pRoom->sector;
 			ch->desc->last_room_flag[0] = pRoom->room_flag[0];
 			ch->desc->last_room_flag[1] = pRoom->room_flag[1];
 		}
@@ -2678,7 +2685,8 @@ void do_rcopy(CHAR_DATA *ch, char *argument)
 	new_room->owner = str_dup(old_room->owner);
 	new_room->room_flag[0] = old_room->room_flag[0];
 	new_room->room_flag[1] = old_room->room_flag[1];
-	new_room->sector_type = old_room->sector_type;
+	new_room->sector = old_room->sector;
+	new_room->sector_flags = old_room->sector->flags;
 	new_room->heal_rate = old_room->heal_rate;
 	new_room->mana_rate = old_room->mana_rate;
 	new_room->move_rate = old_room->move_rate;
@@ -5077,7 +5085,6 @@ void do_clsshow(CHAR_DATA *ch, char *argument)
 
 const struct olc_cmd_type raceedit_table[] =
 {
-
 	{	"?",			show_help			},
 	{	"act",			raceedit_act		},
 	{	"aff",			raceedit_aff		},
@@ -5181,7 +5188,6 @@ void raceedit(CHAR_DATA *ch, char *argument)
 	interpret(ch, arg);
 }
 
-
 void do_raceshow(CHAR_DATA *ch, char *argument)
 {
 	RACE_DATA *race;
@@ -5201,6 +5207,123 @@ void do_raceshow(CHAR_DATA *ch, char *argument)
 	olc_show_item(ch, race, raceedit_show, argument);
 	return;
 }
+
+const struct olc_cmd_type sectoredit_table[] =
+{
+	{	"?",			show_help			},
+	{	"affinity",		sectoredit_affinity	},
+	{	"class",		sectoredit_class	},
+	{	"commands",		show_commands		},
+	{	"comments",		sectoredit_comments },
+	{	"create",		sectoredit_create	},
+	{	"description",	sectoredit_description	},
+	{	"flags",		sectoredit_flags	},
+	{	"gsct",			sectoredit_gsct		},
+	{	"health",		sectoredit_health	},
+	{	"hidemsgs",		sectoredit_hidemsgs	},
+	{	"mana",			sectoredit_mana		},
+	{	"move",			sectoredit_move		},
+	{	"movecost",		sectoredit_movecost	},
+	{	"name",			sectoredit_name		},
+	{	"show",			sectoredit_show		},
+	{	"soil",			sectoredit_soil		},
+	{	NULL,			NULL				}
+};
+
+
+void do_sectoredit(CHAR_DATA *ch, char *argument)
+{
+	SECTOR_DATA *sector;
+	char arg1[MSL];
+
+	argument = one_argument(argument, arg1);
+
+	if (IS_NPC(ch))
+		return;
+
+	if (arg1[0] != '\0')
+	{
+		if (!str_cmp(arg1, "create"))
+		{
+			if (sectoredit_create(ch, argument))
+				ch->desc->editor = ED_SECTOREDIT;
+
+			return;
+		}
+
+		sector = get_sector_data(arg1);
+		if (!sector)
+		{
+			send_to_char("No such sector by that name.\n\r", ch);
+			return;
+		}
+
+		ch->pcdata->immortal->last_olc_command = current_time;
+		olc_set_editor(ch, ED_SECTOREDIT, sector);
+		return;
+	}
+
+	send_to_char("SectorEdit:  There is no default sector to edit.\n\r", ch);
+}
+
+void sectoredit(CHAR_DATA *ch, char *argument)
+{
+	char command[MAX_INPUT_LENGTH];
+	char arg[MAX_STRING_LENGTH];
+	int  cmd;
+
+	smash_tilde(argument);
+	strcpy(arg, argument);
+	argument = one_argument(argument, command);
+
+	if (!str_cmp(command, "done"))
+	{
+		edit_done(ch);
+		return;
+	}
+
+	ch->pcdata->immortal->last_olc_command = current_time;
+	if (command[0] == '\0')
+	{
+		sectoredit_show(ch, argument);
+		return;
+	}
+
+	for (cmd = 0; sectoredit_table[cmd].name != NULL; cmd++)
+	{
+		if (!str_prefix(command, sectoredit_table[cmd].name))
+		{
+			if ((*sectoredit_table[cmd].olc_fun) (ch, argument))
+			{
+				save_sectors();
+			}
+			return;
+		}
+	}
+
+	interpret(ch, arg);
+}
+
+void do_sectorshow(CHAR_DATA *ch, char *argument)
+{
+	SECTOR_DATA *sector;
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  sectorshow <sector name>\n\r", ch);
+		return;
+	}
+
+	if (!(sector = get_sector_data(argument)))
+	{
+		send_to_char("That sector does not exist.\n\r", ch);
+		return;
+	}
+
+	olc_show_item(ch, sector, sectoredit_show, argument);
+	return;
+}
+
 
 void olc_show_progs(BUFFER *buffer, LLIST **progs, int type, const char *title)
 {

@@ -499,7 +499,7 @@ int hit_gain(CHAR_DATA *ch)
 
 	// Druids get 33% more in nature
 	// TODO: Turn into a trait
-	if (get_current_class(ch) == gcl_druid && is_in_nature(ch))
+	if (get_current_class(ch) == gcl_druid && is_in_nature(ch->in_room))
 		gain += gain/3;
 
 	/* If you have the relic you get 25% more */
@@ -591,7 +591,7 @@ int mana_gain(CHAR_DATA *ch)
 		gain /= 2;
 
 	// Druids get 33% more in nature
-	if (get_current_class(ch) == gcl_druid && is_in_nature(ch))
+	if (get_current_class(ch) == gcl_druid && is_in_nature(ch->in_room))
 		gain += gain/3;
 
 	if (ch->church && objindex_in_treasure_room(ch->church, obj_index_relic_mana_regen))
@@ -681,7 +681,7 @@ int move_gain(CHAR_DATA *ch)
 		gain /= 2;
 
 	// Druids get 33% more in nature
-	if (get_current_class(ch) == gcl_druid && is_in_nature(ch))
+	if (get_current_class(ch) == gcl_druid && is_in_nature(ch->in_room))
 		gain += gain/3;
 
 	if (ch->tot_level < 31 && !IS_REMORT(ch))
@@ -1278,7 +1278,7 @@ void time_update(void)
 	{
 	    if (d->connected == CON_PLAYING
 		    &&   (d->character->in_room != NULL &&
-			d->character->in_room->sector_type != SECT_INSIDE)//IS_OUTSIDE(d->character)
+			IS_SET(d->character->in_room->sector_flags, SECTOR_INDOORS))
 		    && !IN_EDEN(d->character)
 		    && !IN_NETHERWORLD(d->character)
 		    &&   IS_AWAKE(d->character)) {
@@ -1294,7 +1294,7 @@ void time_update(void)
 	    {
 		if (d->connected == CON_PLAYING
 		&& d->character->in_room != NULL
-		&& d->character->in_room->sector_type != SECT_INSIDE
+		&& !IS_SET(d->character->in_room->sector_flags, SECTOR_INDOORS)
 		&&   IS_AWAKE(d->character))
 		{
 		    if (number_percent() < 50)
@@ -1719,7 +1719,7 @@ void char_update(void)
 				}
 
 				if (ch->in_room != NULL &&
-					ch->in_room->sector_type != SECT_INSIDE &&
+					!IS_SET(ch->in_room->sector_flags, SECTOR_INDOORS) &&
 					!IS_SET(ch->in_room->room_flag[0], ROOM_INDOORS))
 				{
 					switch(num)
@@ -1820,7 +1820,7 @@ void char_update(void)
 				}
 
 			// No magical flying over the ocean.  Physical flight is ok
-			if (ch->in_room->sector_type == SECT_WATER_NOSWIM &&
+			if (ch->in_room->sector == gsct_water_noswim &&
 				!IS_NPC(ch) && is_affected(ch, gsk_fly))
 			{
 				act("{MThe air sparks as the ocean's magical shield dispels your ability to fly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -1868,10 +1868,7 @@ void char_update(void)
 
 				if(fall) {
 					affect_strip(ch, gsk_flight);
-					if(	ch->in_room->sector_type == SECT_WATER_NOSWIM ||
-						ch->in_room->sector_type == SECT_WATER_SWIM ||
-						ch->in_room->sector_type == SECT_UNDERWATER ||
-						ch->in_room->sector_type == SECT_DEEP_UNDERWATER) {
+					if( ch->in_room->sector->sector_class == SECTCLASS_WATER ) {
 						act("$t, you plummet into the water below.", ch, NULL, NULL, NULL, NULL, reason, NULL, TO_CHAR);
 						act("$t, $n plummets into the water below.", ch, NULL, NULL, NULL, NULL, reason, NULL, TO_ROOM);
 						damage(ch, ch, number_range(10,100), NULL, TYPE_UNDEFINED, IS_AFFECTED(ch,AFF_SWIM)?DAM_WATER:DAM_DROWNING, false);
@@ -1887,7 +1884,7 @@ void char_update(void)
 
 
 			// Drown them!
-			if (ch->in_room->sector_type == SECT_WATER_NOSWIM && !IS_NPC(ch) &&
+			if (ch->in_room->sector == gsct_water_noswim && !IS_NPC(ch) &&
 				ch->move <= 50 && !IS_AFFECTED(ch, AFF_FLYING))
 			{
 				act("Completely exhausted, you find little energy to keep swimming.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -1910,7 +1907,7 @@ void char_update(void)
 		    }
 
 			// The enchanted forest saps hit,mana, and move.
-		    if (ch->in_room->sector_type == SECT_ENCHANTED_FOREST && ch->position == POS_SLEEPING)
+		    if (IS_SET(ch->in_room->sector_flags, SECTOR_SLEEP_DRAIN) && ch->position == POS_SLEEPING)
 	    	{
 				ch->hit = ch->hit - ch->max_hit/3;
 
@@ -1931,6 +1928,7 @@ void char_update(void)
 		    }
 
 		    // non-demons without a light in the demon area get fucked
+			// TODO: Turn this into a racial trait
 		    if (IS_SET(ch->in_room->room_flag[0], ROOM_ATTACK_IF_DARK) && !IS_DEMON(ch))
 		    {
 				if (!IS_SET(ch->act[0], PLR_HOLYLIGHT))
@@ -2686,12 +2684,12 @@ void aggr_update(void)
 				// is the mobile in a Toxic Bog?
 				if(wch->in_room &&
 					(IS_SET(wch->in_room->room_flag[1], ROOM_TOXIC_BOG) ||
-					(wch->in_room->sector_type == SECT_TOXIC_BOG) ||
+					(IS_SET(wch->in_room->sector_flags, SECTOR_TOXIC)) ||
 					mist != NULL)) {
 					bool dec;
 
 					if(IS_SET(wch->in_room->room_flag[1], ROOM_TOXIC_BOG)) chance += 10;
-					if(wch->in_room->sector_type == SECT_TOXIC_BOG) chance += 10;
+					if(IS_SET(wch->in_room->sector_flags, SECTOR_TOXIC)) chance += 10;
 					if(mist != NULL) chance += MIST(mist)->toxic;
 
 					dec = (number_percent() < chance);
@@ -2742,7 +2740,7 @@ void aggr_update(void)
 				}
 			} else {
 				if(IS_SET(wch->in_room->room_flag[1], ROOM_TOXIC_BOG)) chance += 50;
-				if(wch->in_room->sector_type == SECT_TOXIC_BOG) chance += 50;
+				if(IS_SET(wch->in_room->sector_flags, SECTOR_TOXIC)) chance += 50;
 				if(mist != NULL) chance += MIST(mist)->toxic;
 
 				if(chance > 0 && number_percent() < chance)
@@ -2752,7 +2750,7 @@ void aggr_update(void)
 
 		if(IS_SET(wch->in_room->room_flag[1], ROOM_DRAIN_MANA)) {
 			wch->mana -= number_range(5,15);
-			if(wch->in_room->sector_type == SECT_CURSED_SANCTUM)
+			if(IS_SET(wch->in_room->sector_flags, SECTOR_DRAIN_MANA))
 				wch->mana -= number_range(5,15);
 			if(wch->mana < 0) wch->mana = 0;
 			if(!number_percent())
@@ -2761,7 +2759,7 @@ void aggr_update(void)
 
 		chance = 0;
 		if(IS_SET(wch->in_room->room_flag[1], ROOM_BRIARS)) chance += 5;
-		if(wch->in_room->sector_type == SECT_BRAMBLE) chance += 5;
+		if(IS_SET(wch->in_room->sector_flags, SECTOR_BRIARS)) chance += 5;
 
 		if(chance > 0 && number_percent() < chance) {
 			if(number_percent() < 2)
@@ -4207,7 +4205,7 @@ void msdp_update( void )
                         "VNUM", pRoom->vnum,
                         "NAME", pRoom->name,
                         "AREA", pRoom->area->name,
-                        "TERRAIN", flag_string(sector_flags, pRoom->sector_type));
+                        "TERRAIN", pRoom->sector->name);
 
                 MSDPSendTable( d, eMSDP_ROOM, buf );
             }

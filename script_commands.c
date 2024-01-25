@@ -5270,6 +5270,66 @@ SCRIPT_CMD(scriptcmd_setclass)
 {
 }
 
+// SETCLASSLEVEL $PLAYER $CLASSNAME[ $LEVEL]
+SCRIPT_CMD(scriptcmd_setclasslevel)
+{
+	char *rest = argument;
+	
+	SETRETURN(0);
+
+	if (script_security < 5)
+		return;
+
+	PARSE_ARGTYPE(MOBILE);
+	CHAR_DATA *victim = arg->d.mob;
+	if (IS_NPC(victim)) return;
+
+	PARSE_ARGTYPE(STRING);
+
+	if (!str_prefix(arg->d.str, "current"))
+	{
+		if (script_security < 9)
+			return;
+
+		CLASS_LEVEL *cl = get_class_level(victim, NULL);
+		if (!cl) return;	// Don't have a current class?
+
+		PARSE_ARGTYPE(NUMBER);
+		int level = arg->d.num;
+
+		if (level < cl->level || level > cl->clazz->max_level)
+			return;
+
+		add_class_level(victim, cl->clazz, level);
+	}
+	else
+	{
+		CLASS_DATA *clazz = get_class_data(arg->d.str);
+		if (!IS_VALID(clazz)) return;
+
+		int level = 1;
+		if (rest && *rest)
+		{
+			PARSE_ARGTYPE(NUMBER);
+			level = arg->d.num;
+
+			if (level < 1 || level > clazz->max_level) return;
+
+			if (level > 1 && script_security < 9)
+				return;
+
+			// Cannot *lower* a class's level
+			CLASS_LEVEL *cl = get_class_level(victim, clazz);
+			if (cl && level < cl->level)
+				return;
+		}
+
+		add_class_level(victim, clazz, level);
+	}
+
+	SETRETURN(1);
+}
+
 // SETRACE $PLAYER $RACE
 // If $PLAYER is level 0, the command requires no security.
 SCRIPT_CMD(scriptcmd_setrace)

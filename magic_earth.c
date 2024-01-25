@@ -22,7 +22,8 @@ SPELL_FUNC(spell_earth_walk)
 	char buf[MIL];
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
 	int distance, catalyst;
-	int t1, t2, s1, s2;
+	SECTOR_DATA *s1, *s2;
+	int t1, t2;
 
 	if (victim == NULL) {
 		send_to_char("Nobody like that is around.\n\r", ch);
@@ -70,8 +71,8 @@ SPELL_FUNC(spell_earth_walk)
 	return;
 #endif
 
-	t1 = ch->in_room->sector_type;
-	t2 = victim->in_room->sector_type;
+	s1 = ch->in_room->sector;
+	s2 = victim->in_room->sector;
 
 #if 0
 	sprintf(buf,"t1: %d\n\r", t1);
@@ -81,6 +82,7 @@ SPELL_FUNC(spell_earth_walk)
 	return;
 #endif
 
+	// TODO: FIX THIS
 	if (!str_cmp(ch->in_room->area->name, "Netherworld") ||
 		!str_cmp(ch->in_room->area->name, "Eden") ||
 		!str_cmp(victim->in_room->area->name, "Netherworld") ||
@@ -105,43 +107,39 @@ SPELL_FUNC(spell_earth_walk)
 		return false;
 	}
 
-	switch(t1) {
-	case SECT_FOREST:
-	case SECT_JUNGLE:
-	case SECT_ENCHANTED_FOREST:
-	case SECT_BRAMBLE:
-		s1 = 1; break;
-	case SECT_DESERT:
-		s1 = 2; break;
-	case SECT_HILLS:
-	case SECT_MOUNTAIN:
-	case SECT_CAVE:
-		s1 = 3; break;
-	case SECT_SWAMP:
-		s1 = 4; break;
-	case SECT_FIELD:
-		s1 = 5; break;
+	switch(s1->sector_class) {
+	case SECTCLASS_FOREST:
+	case SECTCLASS_JUNGLE:
+		t1 = 1; break;
+	case SECTCLASS_DESERT:
+		t1 = 2; break;
+	case SECTCLASS_HILLS:
+	case SECTCLASS_MOUNTAINS:
+	case SECTCLASS_UNDERGROUND:
+		t1 = 3; break;
+	case SECTCLASS_SWAMP:
+		t1 = 4; break;
+	case SECTCLASS_PLAINS:
+		t1 = 5; break;
 	default:
 		send_to_char("You aren't near earthen terrain.\n\r", ch);
 		return false;
 	}
 
-	switch(t2) {
-	case SECT_FOREST:
-	case SECT_JUNGLE:
-	case SECT_ENCHANTED_FOREST:
-	case SECT_BRAMBLE:
-		s2 = 1; break;
-	case SECT_DESERT:
-		s2 = 2; break;
-	case SECT_HILLS:
-	case SECT_MOUNTAIN:
-	case SECT_CAVE:
-		s2 = 3; break;
-	case SECT_SWAMP:
-		s2 = 4; break;
-	case SECT_FIELD:
-		s2 = 5; break;
+	switch(s2->sector_class) {
+	case SECTCLASS_FOREST:
+	case SECTCLASS_JUNGLE:
+		t2 = 1; break;
+	case SECTCLASS_DESERT:
+		t2 = 2; break;
+	case SECTCLASS_HILLS:
+	case SECTCLASS_MOUNTAINS:
+	case SECTCLASS_UNDERGROUND:
+		t2 = 3; break;
+	case SECTCLASS_SWAMP:
+		t2 = 4; break;
+	case SECTCLASS_PLAINS:
+		t2 = 5; break;
 	default:
 		send_to_char("You can't find earthen terrain to lock onto.\n\r", ch);
 		return false;
@@ -149,7 +147,7 @@ SPELL_FUNC(spell_earth_walk)
 
 
 	// Requires a catalyst if different types of terrain
-	if(s1 != s2) {
+	if(t1 != t2) {
 		// Add distance calculations
 		distance = 1;
 
@@ -163,7 +161,7 @@ SPELL_FUNC(spell_earth_walk)
 	} else
 		catalyst = 0;
 
-	switch(s1) {
+	switch(t1) {
 	case 1:	// Forest/Wooded
 		act("{g$n fades into the brush.{x",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
 		send_to_char("{gYou fade into the brush.\n\r{x",ch);
@@ -191,7 +189,7 @@ SPELL_FUNC(spell_earth_walk)
 
 	act("\n\r{WYou feel your spirit rush toward $N through the earth...{x\n\r",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
 
-	switch(s2) {
+	switch(t2) {
 	case 1:	// Forest/Wooded
 		act("{G$n steps out from the brush.{x",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
 		send_to_char("{gYou step out from the brush.\n\r{x",ch);
@@ -332,10 +330,7 @@ SPELL_FUNC(spell_stone_spikes)
 	int door;
 	ROOM_INDEX_DATA *to_room;
 
-	if (ch->in_room->sector_type == SECT_AIR ||
-		ch->in_room->sector_type == SECT_NETHERWORLD ||
-		ch->in_room->sector_type == SECT_WATER_SWIM ||
-		ch->in_room->sector_type == SECT_WATER_NOSWIM) {
+	if (!is_in_nature(ch->in_room)) {
 		send_to_char("You fail to invoke your elemental magic here.\n\r", ch);
 		return false;
 	}
@@ -360,10 +355,7 @@ SPELL_FUNC(spell_stone_spikes)
 	for (door=0; door < MAX_DIR; door++) {
 		if ((pExit = ch->in_room->exit[door]) &&
 			(to_room = pExit->u1.to_room) &&
-			!(to_room->sector_type == SECT_AIR ||
-			to_room->sector_type == SECT_NETHERWORLD ||
-			to_room->sector_type == SECT_WATER_SWIM ||
-			to_room->sector_type == SECT_WATER_NOSWIM)) {
+			is_in_nature(to_room)) {
 			room_echo(to_room,"Three huge stone spikes jut up from the ground!\n\r");
 			for (victim = to_room->people; victim; victim = victim_next) {
 				victim_next = victim->next_in_room;

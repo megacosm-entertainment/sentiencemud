@@ -325,9 +325,9 @@ void save_skill(FILE *fp, SKILL_DATA *skill)
 	fprintf(fp, "MsgDeflReflRoom %s~\n", fix_string(skill->msg_defl_refl_room));
 
 	fprintf(fp, "Inks");
-	for(int j = 0; j < 3; j++)
+	for(int j = 0; j < SKILL_MAX_INKS; j++)
 	{
-		fprintf(fp, " %s~ %d", flag_string(catalyst_types, skill->inks[j][0]), skill->inks[j][1]);
+		fprintf(fp, " %s~ %d", flag_string(catalyst_types, skill->ink_types[j]), skill->ink_amounts[j]);
 	}
 	fprintf(fp, "\n");
 
@@ -645,10 +645,10 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 				}
 				if (!str_cmp(word, "Inks"))
 				{
-					for (int i = 0; i < 3; i++)
+					for (int i = 0; i < SKILL_MAX_INKS; i++)
 					{
-						skill->inks[i][0] = stat_lookup(fread_string(fp), catalyst_types, CATALYST_NONE);
-						skill->inks[i][1] = fread_number(fp);
+						skill->ink_types[i] = stat_lookup(fread_string(fp), catalyst_types, CATALYST_NONE);
+						skill->ink_amounts[i] = fread_number(fp);
 					}
 					fMatch = true;
 					break;
@@ -5593,7 +5593,7 @@ SKEDIT( skedit_show )
 		add_buf(buffer, "Inks:\n\r");
 		for(int i = 0; i < 3; i++)
 		{
-			sprintf(buf, " {W%s{x) [{W%2d{x] {Y%s{x\n\r", MXPCreateSend(ch->desc, formatf("inks %d", i + 1), formatf("%d", i + 1)), skill->inks[i][1], flag_string(catalyst_types, skill->inks[i][0]));
+			sprintf(buf, " {W%s{x) [{W%2d{x] {Y%s{x\n\r", MXPCreateSend(ch->desc, formatf("inks %d", i + 1), formatf("%d", i + 1)), skill->ink_amounts[i], flag_string(catalyst_types, skill->ink_types[i]));
 			add_buf(buffer, buf);
 		}
 
@@ -6835,11 +6835,11 @@ SKEDIT( skedit_inks )
 
 	int index;
 	argument = one_argument(argument, arg);
-	if (!is_number(arg) || (index = atoi(arg)) < 1 || index > 3)
+	if (!is_number(arg) || (index = atoi(arg)) < 1 || index > SKILL_MAX_INKS)
 	{
-		send_to_char("Syntax: skedit inks {R<1-3>{x none\n\r", ch);
-		send_to_char("        skedit inks {R<1-3>{x <catalyst>[ <amount+>]\n\r", ch);
-		send_to_char("Please specify a number from 1 to 3.\n\r", ch);
+		send_to_char(formatf("Syntax: skedit inks {R<1-%d>{x none\n\r", SKILL_MAX_INKS), ch);
+		send_to_char(formatf("        skedit inks {R<1-%d>{x <catalyst>[ <amount+>]\n\r", SKILL_MAX_INKS), ch);
+		send_to_char(formatf("Please specify a number from 1 to %d.\n\r", SKILL_MAX_INKS), ch);
 		return false;
 	}
 
@@ -6847,8 +6847,8 @@ SKEDIT( skedit_inks )
 	argument = one_argument(argument, arg);
 	if ((catalyst = stat_lookup(arg, catalyst_types, NO_FLAG)) == NO_FLAG)
 	{
-		send_to_char("Syntax: skedit inks <1-3> {Rnone{x\n\r", ch);
-		send_to_char("        skedit inks <1-3> {R<catalyst>{x[ <amount+>]\n\r", ch);
+		send_to_char(formatf("Syntax: skedit inks <1-%d> {Rnone{x\n\r", SKILL_MAX_INKS), ch);
+		send_to_char(formatf("        skedit inks <1-%d> {R<catalyst>{x[ <amount+>]\n\r", SKILL_MAX_INKS), ch);
 		send_to_char("Invalid catalyst type.  Use '? catalyst' for list of catalyst types.\n\r", ch);
 		return false;
 	}
@@ -6864,8 +6864,8 @@ SKEDIT( skedit_inks )
 		}
 	}
 
-	skill->inks[index - 1][0] = catalyst;
-	skill->inks[index - 1][1] = amount;
+	skill->ink_types[index - 1] = catalyst;
+	skill->ink_amounts[index - 1] = amount;
 	sprintf(buf, "Skill Ink %d set.\n\r", index);
 	send_to_char(buf, ch);
 	return true;
@@ -7346,6 +7346,10 @@ CLASS_DATA *load_class(FILE *fp)
 				KEYS("DisplayFemale", data->display[SEX_FEMALE], fread_string(fp));
 				KEYS("DisplayMale", data->display[SEX_MALE], fread_string(fp));
 				KEYS("DisplayNeutral", data->display[SEX_NEUTRAL], fread_string(fp));
+				break;
+
+			case 'F':
+				KEY("Flags", data->flags, fread_flag(fp));
 				break;
 
 			case 'G':

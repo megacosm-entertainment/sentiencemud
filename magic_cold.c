@@ -159,7 +159,7 @@ SPELL_FUNC(spell_ice_shards)
 		act("{W$n throw out $s hand, hurling shards of ice at $N!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
 	}
 
-	if (IS_SET(ch->in_room->room_flag[1], ROOM_FIRE) || ch->in_room->sector_type == SECT_LAVA) {
+	if (IS_SET(ch->in_room->room_flag[1], ROOM_FIRE) || IS_SET(ch->in_room->sector_flags, SECTOR_FLAME)) {
 		act("{RThe intense heat in the area melts the shards with a sizzle.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
 		return false;
 	}
@@ -205,7 +205,7 @@ int get_room_heat(ROOM_INDEX_DATA *room, int catalyst)
 
 	if(room) {
 		if (IS_SET(room->room_flag[1], ROOM_FIRE)) heat += 25;
-		if (room->sector_type == SECT_LAVA) heat += 60;
+		if (IS_SET(room->sector_flags, SECTOR_FLAME)) heat += 60;
 
 		for (obj = room->contents; obj != NULL; obj = obj->next_content) {
 			if (IS_MIST(obj) && MIST(obj)->fiery > 0 ) heat += 15;
@@ -391,14 +391,14 @@ SPELL_FUNC(spell_ice_storm)
 	ROOM_INDEX_DATA *room;
 
 
-	if (IS_SET(ch->in_room->room_flag[1], ROOM_FIRE)) {
+	if (IS_SET(ch->in_room->room_flag[1], ROOM_FIRE) || IS_SET(ch->in_room->sector_flags, SECTOR_FLAME)) {
 		send_to_char("The intense heat in the area melts your ice storm as soon as it appears.\n\r", ch);
 		act("$n summons an ice storm, but it melts instantly.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		return false;
 	}
 
 	room = ch->in_room;
-	if (room->sector_type == SECT_AIR || room->sector_type == SECT_NETHERWORLD) {
+	if (room->sector->sector_class == SECTCLASS_AIR || room->sector->sector_class == SECTCLASS_ABYSS) {
 		send_to_char("You can't seem to summon the powers of ice here.\n\r", ch);
 		return false;
 	}

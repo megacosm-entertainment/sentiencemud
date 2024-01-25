@@ -116,6 +116,7 @@ C_FILES = \
 	script_tpcmds.c \
 	script_vars.c \
 	scripts.c \
+	sectors.c \
 	shoot.c \
 	skills.c \
 	social.c \
@@ -225,6 +226,7 @@ O_FILES = \
 	$(OBJDIR)/script_tpcmds.o \
 	$(OBJDIR)/script_vars.o \
 	$(OBJDIR)/scripts.o \
+	$(OBJDIR)/sectors.o \
 	$(OBJDIR)/sha256.o \
 	$(OBJDIR)/shoot.o \
 	$(OBJDIR)/skills.o \

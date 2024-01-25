@@ -2178,7 +2178,7 @@ void do_formstate(CHAR_DATA *ch, char *argument)
 
 
 /*  Echos to all rooms in an area with the given sector.*/
-void sector_echo(AREA_DATA *area, char *message, int sector)
+void sector_echo(AREA_DATA *area, char *message, SECTOR_DATA *sector)
 {
 	DESCRIPTOR_DATA *d;
 
@@ -2192,7 +2192,7 @@ void sector_echo(AREA_DATA *area, char *message, int sector)
 			!room_is_clone(d->character->in_room) &&
 			!IS_VALID(d->character->in_room->instance_section) &&
 			d->character->in_room->area == area &&
-			d->character->in_room->sector_type == sector)
+			d->character->in_room->sector == sector)
 		{
 			if (IS_IMMORTAL(d->character))
 				send_to_char("SECTOR ECHO> ", d->character);

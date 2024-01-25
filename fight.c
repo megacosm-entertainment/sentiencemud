@@ -5416,34 +5416,10 @@ void do_dirt(CHAR_DATA *ch, char *argument)
 	if (!(chance % 5)) ++chance;
 
 	// the right terrain helps
-	switch(ch->in_room->sector_type) {
-	case SECT_INSIDE:		chance -= 20;	break;
-	case SECT_CITY:			chance -= 10;	break;
-	case SECT_FIELD:		chance += 5;	break;
-	case SECT_FOREST:				break;
-	case SECT_HILLS:				break;
-	case SECT_MOUNTAIN:		chance -= 10;	break;
-	case SECT_WATER_SWIM:		chance = 0;	break;
-	case SECT_WATER_NOSWIM:		chance = 0;	break;
-	case SECT_TUNDRA:		chance = 0;	break;
-	case SECT_AIR:			chance = 0;	break;
-	case SECT_DESERT:		chance += 10;	break;
-	case SECT_NETHERWORLD:		chance = 0;	break;
-	case SECT_DOCK:			chance -= 10;	break;
-	case SECT_ENCHANTED_FOREST:			break;
-	case SECT_TOXIC_BOG:		chance = 0;	break;
-	case SECT_CURSED_SANCTUM:	chance -= 20;	break;
-	case SECT_BRAMBLE:				break;
-	case SECT_SWAMP:		chance = 0;	break;
-	case SECT_ACID:			chance = 0;	break;
-	case SECT_LAVA:			chance = 0;	break;
-	case SECT_SNOW:			chance = 0;	break;
-	case SECT_ICE:			chance = 0;	break;
-	case SECT_CAVE:			chance -= 5;	break;
-	case SECT_UNDERWATER:		chance = 0;	break;
-	case SECT_DEEP_UNDERWATER:	chance = 0;	break;
-	case SECT_JUNGLE:				break;
-	}
+	if (IS_SET(ch->in_room->sector_flags, SECTOR_NO_SOIL))
+		chance = 0;
+	else
+		chance += ch->in_room->sector->soil;
 
 	if (!chance) {
 		send_to_char("There isn't any dirt to kick.\n\r",ch);

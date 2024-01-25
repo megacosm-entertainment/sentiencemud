@@ -486,6 +486,20 @@ char *compile_entity(char *str,int type, char **store, int *entity_type)
 			compile_error_show(buf);
 			return NULL;
 
+		} else if(ent == ENT_AFFINITIES) {
+			if (*str == '[')
+			{
+				str = compile_expression(str+1,type, &p);
+				if( !str ) return NULL;
+
+				ent = ENT_AFFINITY;
+				continue;
+			}
+
+			sprintf(buf,"Line %d: Expecting '[' after ENT_AFFINITIES in $().", compile_current_line);
+			compile_error_show(buf);
+			return NULL;
+
 		} else {
 			if (script_entity_allow_index(ent))
 			{
@@ -563,6 +577,7 @@ char *compile_entity(char *str,int type, char **store, int *entity_type)
 				*p++ = ENTITY_VAR_BOOLEAN;
 				next_ent = ENT_BOOLEAN;
 			}
+
 		} else if(ent == ENT_SEX_STRING_TABLE) {
 			if(suffix[0]) {
 				sprintf(buf,"Line %d: type suffix is only allowed for variable fields.", compile_current_line);
