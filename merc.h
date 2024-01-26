@@ -9879,7 +9879,7 @@ bool is_mana_regen_relic_in_room args( (ROOM_INDEX_DATA *room) );
 bool remove_obj( CHAR_DATA *ch, int iWear, bool fReplace );
 bool has_stock_reputation(CHAR_DATA *ch, SHOP_STOCK_DATA *stock);
 bool can_see_stock_reputation(CHAR_DATA *ch, SHOP_STOCK_DATA *stock);
-CHAR_DATA *find_keeper( CHAR_DATA *ch );
+CHAR_DATA *find_keeper( CHAR_DATA *ch, char *arg );
 int get_cost( CHAR_DATA *keeper, OBJ_DATA *obj, bool fBuy );
 long adjust_keeper_price(CHAR_DATA *keeper, long price, bool fBuy);
 bool get_stock_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, SHOP_REQUEST_DATA *request, char *argument);

@@ -5783,16 +5783,22 @@ bool can_see_stock_reputation(CHAR_DATA *ch, SHOP_STOCK_DATA *stock)
 }
 
 
-CHAR_DATA *find_keeper(CHAR_DATA *ch)
+CHAR_DATA *find_keeper(CHAR_DATA *ch, char *arg)
 {
     /*char buf[MAX_STRING_LENGTH];*/
     CHAR_DATA *keeper;
     SHOP_DATA *pShop;
 
+	if (arg[0] == '\0')
+	{
+		send_to_char("Please specify a shopkeeper.\n\r", ch);
+		return NULL;
+	}
+
     pShop = NULL;
     for (keeper = ch->in_room->people; keeper; keeper = keeper->next_in_room)
     {
-		if (IS_NPC(keeper) && (pShop = keeper->shop) != NULL)
+		if (IS_NPC(keeper) && (pShop = keeper->shop) != NULL && is_name(arg, keeper->name))
 		{
 			if (IS_VALID(pShop->reputation))
 			{
@@ -6166,6 +6172,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 	char buf[MAX_STRING_LENGTH];
 	long cost;
 	int roll;
+	char arg_keeper[MIL];
     char arg[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
     bool haggled = false;
@@ -6189,7 +6196,9 @@ void do_buy(CHAR_DATA *ch, char *argument)
 		SHOP_REQUEST_DATA request;
 		int number, count = 1;
 
-		if ((keeper = find_keeper(ch)) == NULL)
+		argument = one_argument(argument, arg_keeper);
+
+		if ((keeper = find_keeper(ch, arg_keeper)) == NULL)
 			return;
 
 		check_mob_factions(ch, keeper);
@@ -6976,8 +6985,11 @@ void do_list(CHAR_DATA *ch, char *argument)
 		int cost,count;
 		bool found;
 		char arg[MAX_INPUT_LENGTH];
+		char arg_keeper[MIL];
 
-		if ((keeper = find_keeper(ch)) == NULL)
+		argument = one_argument(argument, arg_keeper);
+
+		if ((keeper = find_keeper(ch, arg_keeper)) == NULL)
 		    return;
 
 		check_mob_factions(ch, keeper);
@@ -7218,12 +7230,14 @@ void do_list(CHAR_DATA *ch, char *argument)
 void do_inspect(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
+	char arg_keeper[MIL];
     CHAR_DATA *keeper;
 	SHOP_REQUEST_DATA request;
 
+	argument = one_argument(argument, arg_keeper);
     one_argument(argument, arg);
 
-    if ((keeper = find_keeper(ch)) == NULL)
+    if ((keeper = find_keeper(ch, arg_keeper)) == NULL)
 		return;
 
 	check_mob_factions(ch, keeper);
@@ -7327,10 +7341,12 @@ void do_sell(CHAR_DATA *ch, char *argument)
 {
 	char buf[MAX_STRING_LENGTH];
 	char arg[MAX_INPUT_LENGTH];
+	char arg_keeper[MIL];
 	CHAR_DATA *keeper = NULL;
 	OBJ_DATA *obj = NULL;
 	int cost,roll;
 
+	argument = one_argument(argument, arg_keeper);
 	one_argument(argument, arg);
 
 	if (arg[0] == '\0')
@@ -7339,7 +7355,7 @@ void do_sell(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if ((keeper = find_keeper(ch)) == NULL)
+	if ((keeper = find_keeper(ch, arg_keeper)) == NULL)
 	{
 		send_to_char("You can't do that here.\n\r", ch);
 		return;
@@ -7560,10 +7576,12 @@ void do_value(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
+	char arg_keeper[MIL];
     CHAR_DATA *keeper;
     OBJ_DATA *obj;
     int cost;
 
+	argument = one_argument(argument, arg_keeper);
     one_argument(argument, arg);
 
     if (arg[0] == '\0')
@@ -7572,7 +7590,7 @@ void do_value(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if ((keeper = find_keeper(ch)) == NULL)
+    if ((keeper = find_keeper(ch, arg_keeper)) == NULL)
 	return;
 
     if ((obj = get_obj_carry(ch, arg, ch)) == NULL)
