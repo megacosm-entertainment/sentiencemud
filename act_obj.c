@@ -4373,20 +4373,26 @@ void do_steal(CHAR_DATA *ch, char *argument)
 }
 
 /* MOVED: object/shop.c*/
-CHAR_DATA *find_keeper(CHAR_DATA *ch)
+CHAR_DATA *find_keeper(CHAR_DATA *ch, char *arg)
 {
     /*char buf[MAX_STRING_LENGTH];*/
     CHAR_DATA *keeper;
     SHOP_DATA *pShop;
 
+	if (arg[0] == '\0')
+	{
+		send_to_char("Please specify a shopkeeper.\n\r", ch);
+		return NULL;
+	}
+
     pShop = NULL;
     for (keeper = ch->in_room->people; keeper; keeper = keeper->next_in_room)
     {
-	if (IS_NPC(keeper) && (pShop = keeper->shop) != NULL)
+	if (IS_NPC(keeper) && (pShop = keeper->shop) != NULL && (is_name(arg,keeper->name)))
 	    break;
     }
 
-    if (pShop == NULL)
+    if (pShop == NULL || keeper == NULL)
     {
 	send_to_char("You can't do that here.\n\r", ch);
 	return NULL;
@@ -4744,6 +4750,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
     CHAR_DATA *trader;
     char arg[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
+	char arg_keeper[MIL];
     bool haggled = false;
 
  //   plane_tunneler = NULL;
@@ -5099,7 +5106,9 @@ void do_buy(CHAR_DATA *ch, char *argument)
 		SHOP_REQUEST_DATA request;
 		int number, count = 1;
 
-		if ((keeper = find_keeper(ch)) == NULL)
+		argument = one_argument(argument, arg_keeper);
+
+		if ((keeper = find_keeper(ch, arg_keeper)) == NULL)
 			return;
 
 		argument = one_argument(argument, arg);
@@ -5866,6 +5875,7 @@ void do_list(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
 
+
 /* Keeping in case they get fixed
     CHAR_DATA *salesman;
 
@@ -6108,8 +6118,11 @@ void do_list(CHAR_DATA *ch, char *argument)
 		int cost,count;
 		bool found;
 		char arg[MAX_INPUT_LENGTH];
+		char arg_keeper[MIL];
 
-		if ((keeper = find_keeper(ch)) == NULL)
+		argument = one_argument(argument, arg_keeper);
+
+		if ((keeper = find_keeper(ch, arg_keeper)) == NULL)
 		    return;
 
         one_argument(argument,arg);
@@ -6303,12 +6316,14 @@ void do_list(CHAR_DATA *ch, char *argument)
 void do_inspect(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
+	char arg_keeper[MIL];
     CHAR_DATA *keeper;
 	SHOP_REQUEST_DATA request;
 
+	argument = one_argument(argument, arg_keeper);
     one_argument(argument, arg);
 
-    if ((keeper = find_keeper(ch)) == NULL)
+    if ((keeper = find_keeper(ch, arg_keeper)) == NULL)
 		return;
 
 
@@ -6411,12 +6426,14 @@ void do_sell(CHAR_DATA *ch, char *argument)
 {
 	char buf[MAX_STRING_LENGTH];
 	char arg[MAX_INPUT_LENGTH];
+	char arg_keeper[MIL];
 	CHAR_DATA *keeper = NULL;
 	CHAR_DATA *trader = NULL;
 	CHAR_DATA *mob = NULL;
 	OBJ_DATA *obj = NULL;
 	int cost,roll;
 
+	argument = one_argument(argument, arg_keeper);
 	one_argument(argument, arg);
 
 	if (arg[0] == '\0')
@@ -6500,7 +6517,7 @@ void do_sell(CHAR_DATA *ch, char *argument)
 		return;
     }
 
-	if (trader == NULL && (keeper = find_keeper(ch)) == NULL)
+	if (trader == NULL && (keeper = find_keeper(ch, arg_keeper)) == NULL)
 		return;
 
 	if ((obj = get_obj_carry(ch, arg, ch)) == NULL)
@@ -6716,10 +6733,12 @@ void do_value(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
+	char arg_keeper[MIL];
     CHAR_DATA *keeper;
     OBJ_DATA *obj;
     int cost;
 
+	argument = one_argument(argument, arg_keeper);
     one_argument(argument, arg);
 
     if (arg[0] == '\0')
@@ -6728,7 +6747,7 @@ void do_value(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if ((keeper = find_keeper(ch)) == NULL)
+    if ((keeper = find_keeper(ch, arg_keeper)) == NULL)
 	return;
 
     if ((obj = get_obj_carry(ch, arg, ch)) == NULL)
