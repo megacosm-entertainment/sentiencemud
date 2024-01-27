@@ -77,8 +77,8 @@ extern bool wiznet_script;
 #define ISARG_BM(x)			((argv[(x)]->type == ENT_BITMATRIX) && argv[(x)]->d.bv.table)
 #define ISARG_STAT(x)		((argv[(x)]->type == ENT_STAT) && argv[(x)]->d.bv.table)
 #define ISARG_REPUTATION(x)	ISARG_TYPE(x,ENT_REPUTATION,reputation)
-#define ISARG_REPINDEX(x)	ISARG_TYPE(x,ENT_REPUTATION,repIndex)
-#define ISARG_REPRANK(x)	ISARG_TYPE(x,ENT_REPUTATION,repRank)
+#define ISARG_REPINDEX(x)	ISARG_TYPE(x,ENT_REPUTATION_INDEX,repIndex)
+#define ISARG_REPRANK(x)	ISARG_TYPE(x,ENT_REPUTATION_RANK,repRank)
 
 
 #define ARG_NUM(x)	ARG_TYPE(x,num)
@@ -4965,9 +4965,11 @@ DECL_IFC_FUN(ifc_iswnum)
 	else if (ISARG_INSTANCE(0)) { pArea = ARG_INSTANCE(0)->blueprint->area; vnum = ARG_INSTANCE(0)->blueprint->vnum; }
 	else if (ISARG_DUNGEON(0)) { pArea = ARG_DUNGEON(0)->index->area; vnum = ARG_DUNGEON(0)->index->vnum; }
 	else if (ISARG_REPUTATION(0)) { pArea = ARG_REPUTATION(0)->pIndexData->area; vnum = ARG_REPUTATION(0)->pIndexData->vnum; }
+	else if (ISARG_REPINDEX(0)) { pArea = ARG_REPINDEX(0)->area; vnum = ARG_REPINDEX(0)->vnum; }
 
 	if (pArea && vnum > 0)
 	{
+		//wiznet(formatf("ISWNUM: Checking pArea (%ld) and vnum (%ld)", pArea->uid, vnum),NULL,NULL,WIZ_SCRIPTS,0,0);
 		AREA_DATA *area = NULL;
 		if (ISARG_STR(1))
 			area = find_area(ARG_STR(1));
@@ -4975,6 +4977,8 @@ DECL_IFC_FUN(ifc_iswnum)
 			area = get_area_from_uid(ARG_NUM(1));
 		else if (ISARG_AREA(1))
 			area = ARG_AREA(1);
+
+		//wiznet(formatf("ISWNUM: area == %ld", area ? area->uid : 0),NULL,NULL,WIZ_SCRIPTS,0,0);
 
 		// Is it even the same area?
 		//  NULL area will be treated as a No.
@@ -4984,9 +4988,15 @@ DECL_IFC_FUN(ifc_iswnum)
 			{
 				// Range version
 				if (ISARG_NUM(3))
+				{
+					//wiznet(formatf("ISWNUM: vnum range [%ld, %ld]", ARG_NUM(2), ARG_NUM(3)),NULL,NULL,WIZ_SCRIPTS,0,0);
 					*ret = vnum >= ARG_NUM(2) && vnum <= ARG_NUM(3);
+				}
 				else
+				{
+					//wiznet(formatf("ISWNUM: vnum == %ld", ARG_NUM(2)),NULL,NULL,WIZ_SCRIPTS,0,0);
 					*ret = vnum == ARG_NUM(2);
+				}
 			}
 		}
 	}

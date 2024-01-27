@@ -1758,6 +1758,8 @@ bool variable_copy(ppVARIABLE list,char *oldname,char *newname)
 	case VAR_CHURCH:		newv->_.church = oldv->_.church; break;
 	case VAR_VARIABLE:		newv->_.variable = oldv->_.variable; break;
 	case VAR_REPUTATION:	newv->_.reputation = oldv->_.reputation; break;
+	case VAR_REPUTATION_INDEX:	newv->_.reputation_index = oldv->_.reputation_index; break;
+	case VAR_REPUTATION_RANK:	newv->_.reputation_rank = oldv->_.reputation_rank; break;
 
 	case VAR_PLLIST_STR:
 	case VAR_PLLIST_CONN:
@@ -1832,6 +1834,8 @@ bool variable_copyto(ppVARIABLE from,ppVARIABLE to,char *oldname,char *newname, 
 	case VAR_VARIABLE:		newv->_.variable = oldv->_.variable; break;
 	case VAR_DICE:			newv->_.dice = oldv->_.dice; break;
 	case VAR_REPUTATION:	newv->_.reputation = oldv->_.reputation; break;
+	case VAR_REPUTATION_INDEX:	newv->_.reputation_index = oldv->_.reputation_index; break;
+	case VAR_REPUTATION_RANK:	newv->_.reputation_rank = oldv->_.reputation_rank; break;
 
 	case VAR_PLLIST_STR:
 	case VAR_PLLIST_CONN:
@@ -1903,6 +1907,8 @@ bool variable_copylist(ppVARIABLE from,ppVARIABLE to,bool index)
 		case VAR_VARIABLE:		newv->_.variable = oldv->_.variable; break;
 		case VAR_DICE:			newv->_.dice = oldv->_.dice; break;
 		case VAR_REPUTATION:	newv->_.reputation = oldv->_.reputation; break;
+	case VAR_REPUTATION_INDEX:	newv->_.reputation_index = oldv->_.reputation_index; break;
+	case VAR_REPUTATION_RANK:	newv->_.reputation_rank = oldv->_.reputation_rank; break;
 
 		case VAR_PLLIST_STR:
 		case VAR_PLLIST_CONN:
@@ -1974,6 +1980,8 @@ pVARIABLE variable_copyvar(pVARIABLE oldv)
 	case VAR_VARIABLE:		newv->_.variable = oldv->_.variable; break;
 	case VAR_DICE:			newv->_.dice = oldv->_.dice; break;
 	case VAR_REPUTATION:	newv->_.reputation = oldv->_.reputation; break;
+	case VAR_REPUTATION_INDEX:	newv->_.reputation_index = oldv->_.reputation_index; break;
+	case VAR_REPUTATION_RANK:	newv->_.reputation_rank = oldv->_.reputation_rank; break;
 
 	case VAR_PLLIST_STR:
 	case VAR_PLLIST_CONN:
@@ -2058,6 +2066,18 @@ void variable_clearfield(int type, void *ptr)
 			if (cur->_.reputation == ptr)
 			{
 				cur->_.reputation = NULL;
+			}
+			break;
+		case VAR_REPUTATION_INDEX:
+			if (cur->_.reputation_index == ptr)
+			{
+				cur->_.reputation_index = NULL;
+			}
+			break;
+		case VAR_REPUTATION_RANK:
+			if (cur->_.reputation_rank == ptr)
+			{
+				cur->_.reputation_rank = NULL;
 			}
 			break;
 		case VAR_AFFECT:
@@ -4196,6 +4216,26 @@ void pstat_variable_list(CHAR_DATA *ch, pVARIABLE vars)
 			}
 			else
 				sprintf(arg, "Name [%-20s] Type[REPUTATION] Save[%c] -null-\n\r", var->name,var->save?'Y':'N');
+			break;
+		}
+
+		case VAR_REPUTATION_INDEX: {
+			if (var->_.reputation_index)
+			{
+				sprintf(arg, "Name [%-20s] Type[REPINDEX] Save[%c] %s (%ld#%ld)\n\r", var->name,var->save?'Y':'N', var->_.reputation_index->name, var->_.reputation_index->area->uid, var->_.reputation_index->vnum);
+			}
+			else
+				sprintf(arg, "Name [%-20s] Type[REPINDEX] Save[%c] -null-\n\r", var->name,var->save?'Y':'N');
+			break;
+		}
+
+		case VAR_REPUTATION_RANK: {
+			if (var->_.reputation_rank)
+			{
+				sprintf(arg, "Name [%-20s] Type[REPRANK] Save[%c] %s (#%d)\n\r", var->name,var->save?'Y':'N', var->_.reputation_rank->name, var->_.reputation_rank->ordinal);
+			}
+			else
+				sprintf(arg, "Name [%-20s] Type[REPRANK] Save[%c] -null-\n\r", var->name,var->save?'Y':'N');
 			break;
 		}
 		default:

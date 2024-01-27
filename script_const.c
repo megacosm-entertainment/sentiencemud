@@ -143,7 +143,9 @@ ENT_FIELD entity_types[] = {
 	{"mission",			ENTITY_VAR_MISSION,			ENT_MISSION},
 	{"missionpart",		ENTITY_VAR_MISSION_PART,	ENT_MISSION_PART},
 	{"reputation",		ENTITY_VAR_REPUTATION,		ENT_REPUTATION},
-	{NULL,				0,							ENT_UNKNOWN	}
+	{"repindex",		ENTITY_VAR_REPUTATION_INDEX,	ENT_REPUTATION_INDEX},
+	{"reprank",			ENTITY_VAR_REPUTATION_RANK,		ENT_REPUTATION_RANK},
+	{NULL,				0,								ENT_UNKNOWN	}
 };
 
 ENT_FIELD entity_prior[] = {

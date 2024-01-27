@@ -579,6 +579,8 @@ EXPAND(expand_argument_variable)
 		case VAR_MISSION:	arg->type = ENT_MISSION; arg->d.mission = var->_.mission; break;
 		case VAR_MISSION_PART:	arg->type = ENT_MISSION_PART; arg->d.mp.mission = var->_.mp.mission; arg->d.mp.part = var->_.mp.part; break;
 		case VAR_REPUTATION:	arg->type = ENT_REPUTATION; arg->d.reputation = var->_.reputation; break;
+		case VAR_REPUTATION_INDEX:	arg->type = ENT_REPUTATION_INDEX; arg->d.repIndex = var->_.reputation_index; break;
+		case VAR_REPUTATION_RANK:	arg->type = ENT_REPUTATION_RANK; arg->d.repRank = var->_.reputation_rank; break;
 
 		case VAR_CONNECTION:	arg->type = ENT_CONN; arg->d.conn = var->_.conn; break;
 
@@ -1003,6 +1005,24 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 			return NULL;
 		
 		arg->type = ENT_REPUTATION;
+		break;
+
+	case ENTITY_VAR_REPUTATION_INDEX:
+		if (var && var->type == VAR_REPUTATION_INDEX)
+			arg->d.repIndex = var->_.reputation_index;
+		else
+			return NULL;
+		
+		arg->type = ENT_REPUTATION_INDEX;
+		break;
+
+	case ENTITY_VAR_REPUTATION_RANK:
+		if (var && var->type == VAR_REPUTATION_RANK)
+			arg->d.repRank = var->_.reputation_rank;
+		else
+			return NULL;
+		
+		arg->type = ENT_REPUTATION_RANK;
 		break;
 
 	case ENTITY_VAR_SECTION:
@@ -10277,8 +10297,16 @@ char *expand_string_variable(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 			add_buf(buffer,(var->_.reputation ? var->_.reputation->pIndexData->name : SOMETHING));
 			break;
 
+		case VAR_REPUTATION_INDEX:
+			add_buf(buffer,(var->_.reputation_index ? var->_.reputation_index->name : SOMETHING));
+			break;
+
+		case VAR_REPUTATION_RANK:
+			add_buf(buffer,(var->_.reputation_rank ? var->_.reputation_rank->name : SOMETHING));
+			break;
+
 		default:
-			add_buf(buffer,"(null)");
+			add_buf(buffer,formatf("(%d-null)", var->type));
 			break;
 		}
 	}
