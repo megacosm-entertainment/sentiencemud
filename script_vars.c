@@ -4187,6 +4187,17 @@ void pstat_variable_list(CHAR_DATA *ch, pVARIABLE vars)
 				sprintf(arg, "Name [%-20s] Type[OBJLST] Save[%c]\n\r", var->name,var->save?'Y':'N');
 			break;
 		}
+
+		case VAR_REPUTATION: {
+			if (var->_.reputation)
+			{
+				REPUTATION_INDEX_DATA *repIndex = var->_.reputation->pIndexData;
+				sprintf(arg, "Name [%-20s] Type[REPUTATION] Save[%c] %s (%ld#%ld)\n\r", var->name,var->save?'Y':'N', repIndex->name, repIndex->area->uid, repIndex->vnum);
+			}
+			else
+				sprintf(arg, "Name [%-20s] Type[REPUTATION] Save[%c] -null-\n\r", var->name,var->save?'Y':'N');
+			break;
+		}
 		default:
 			sprintf(arg, "Name [%-20s] Type %d not displayed yet.\n\r", var->name,(int)var->type);
 			break;

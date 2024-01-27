@@ -9913,6 +9913,10 @@ char *expand_string_entity(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 	case ENT_CLASS:
 		add_buf(buffer, IS_VALID(arg->d.clazz) ? arg->d.clazz->name : "");
 		break;
+
+	case ENT_REPUTATION:
+		add_buf(buffer, IS_VALID(arg->d.reputation) ? arg->d.reputation->pIndexData->name : "");
+		break;
 	}
 
 	free_script_param(arg);
@@ -10267,6 +10271,10 @@ char *expand_string_variable(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 
 		case VAR_CONNECTION:
 			add_buf(buffer,((var->_.conn && var->_.conn->character) ? var->_.conn->character->name : SOMEONE));
+			break;
+
+		case VAR_REPUTATION:
+			add_buf(buffer,(var->_.reputation ? var->_.reputation->pIndexData->name : SOMETHING));
 			break;
 
 		default:

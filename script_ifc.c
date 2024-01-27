@@ -5213,3 +5213,27 @@ DECL_IFC_FUN(ifc_isvalid)
 
 	return true;
 }
+
+// HASREPUTATION $MOBILE $WIDEVNUM
+// HASREPUTATION $MOBILE $REPINDEX
+// HASREPUTATION $MOBILE $REPUTATION
+DECL_IFC_FUN(ifc_hasreputation)
+{
+	*ret = false;
+	if (ISARG_MOB(0) && IS_VALID(ARG_MOB(0)))
+	{
+		REPUTATION_INDEX_DATA *repIndex = NULL;
+
+		if (ISARG_WNUM(1))
+			repIndex = get_reputation_index(ARG_WNUM(1).pArea, ARG_WNUM(1).vnum);
+		else if (ISARG_REPINDEX(1))
+			repIndex = ARG_REPINDEX(1);
+		else if (ISARG_REPUTATION(1))
+			repIndex = ARG_REPUTATION(1)->pIndexData;
+
+		if (IS_VALID(repIndex))
+			*ret = has_reputation(ARG_MOB(0), repIndex);
+	}
+
+	return true;
+}
