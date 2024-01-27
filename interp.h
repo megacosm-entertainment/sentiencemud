@@ -244,7 +244,6 @@ DECLARE_DO_FUN(	do_group	);
 DECLARE_DO_FUN( do_groups	);
 DECLARE_DO_FUN(	do_gtell	);
 DECLARE_DO_FUN( do_hands	);
-DECLARE_DO_FUN( do_heal		);
 DECLARE_DO_FUN( do_hedit	);
 DECLARE_DO_FUN(	do_help		);
 DECLARE_DO_FUN( do_helper	);

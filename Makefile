@@ -49,7 +49,6 @@ C_FILES = \
 	fight2.c \
 	gq.c \
 	handler.c \
-	healer.c \
 	help.c \
 	house.c \
 	html.c \
@@ -159,7 +158,6 @@ O_FILES = \
 	$(OBJDIR)/fight2.o \
 	$(OBJDIR)/gq.o \
 	$(OBJDIR)/handler.o \
-	$(OBJDIR)/healer.o \
 	$(OBJDIR)/help.o \
 	$(OBJDIR)/house.o \
 	$(OBJDIR)/html.o \

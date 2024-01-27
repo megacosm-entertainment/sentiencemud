@@ -2391,7 +2391,7 @@ struct affliction_type {
 #define ACT_IS_RESTRINGER		(X)
 #define ACT_INDOORS				(Y)
 //                              Z
-#define ACT_IS_HEALER			(aa)
+//                              aa
 #define ACT_STAY_LOCALE			(bb)
 #define ACT_UPDATE_ALWAYS		(cc)
 #define ACT_IS_CHANGER			(dd)

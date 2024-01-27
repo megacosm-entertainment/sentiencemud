@@ -215,7 +215,6 @@ const	struct	cmd_type	cmd_table	[] =
 	{ "group",				CMDTYPE_INFO,		do_group,				POS_SLEEPING,	STAFF_PLAYER,		LOG_NORMAL, true,	false },
 	{ "gtell",				CMDTYPE_COMM,		do_gtell,				POS_DEAD,		STAFF_PLAYER,		LOG_NEVER,	true,	true },
 	{ "hands",				CMDTYPE_NONE,		do_hands,				POS_RESTING,	STAFF_PLAYER,		LOG_NORMAL, true,	false },
-	{ "heal",				CMDTYPE_NONE,		do_heal,				POS_RESTING,	STAFF_PLAYER,		LOG_NORMAL, true,	false },
 	{ "hedit",				CMDTYPE_OLC,		do_hedit,				POS_DEAD,		STAFF_ASCENDANT,	LOG_ALWAYS,	true,	true },
 	{ "help",				CMDTYPE_INFO,		do_help,				POS_DEAD,		STAFF_PLAYER,		LOG_NORMAL, true,	true },
 	{ "helper",				CMDTYPE_COMM,		do_helper,			 	POS_SLEEPING,	STAFF_PLAYER,		LOG_NORMAL, true,	true },

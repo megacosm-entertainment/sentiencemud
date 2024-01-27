@@ -524,7 +524,6 @@ const struct position_type position_table[] =
 
 const struct flag_type sex_table[] =
 {
-   {	"none",     SEX_NEUTRAL,    false },
    {    "neuter",   SEX_NEUTRAL,    true },
    {	"male",		SEX_MALE,       true },
    {	"female",	SEX_FEMALE,     true },
@@ -571,7 +570,6 @@ const struct flag_type act_flags[] =
     {	"outdoors",				ACT_OUTDOORS,			true	},
     {   "restringer",			ACT_IS_RESTRINGER,		true	},
     {	"indoors",				ACT_INDOORS,			true	},
-    {	"healer",				ACT_IS_HEALER,			true	},
     {	"stay_locale",			ACT_STAY_LOCALE,		true	},
     {	"update_always",		ACT_UPDATE_ALWAYS,		true	},
     {	"changer",				ACT_IS_CHANGER,			true	},
