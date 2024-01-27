@@ -405,3 +405,13 @@ void free_practice_entry_data(PRACTICE_ENTRY_DATA *entry_data);
 PRACTICE_DATA *new_practice_data();
 PRACTICE_DATA *copy_practice_data(PRACTICE_DATA *src);
 void free_practice_data(PRACTICE_DATA *data);
+
+
+REALM_DATA *new_realm_data();
+void free_realm_data(REALM_DATA *data);
+PLANE_DATA *new_plane_data();
+void free_plane_data(PLANE_DATA *data);
+WORLD_DATA *new_world_data();
+void free_world_data(WORLD_DATA *data);
+CONSTELLATION_DATA *new_constellation_data();
+void free_constellation_data(CONSTELLATION_DATA *data);

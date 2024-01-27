@@ -465,6 +465,7 @@ typedef struct  mail_data		MAIL_DATA;
 typedef struct  prog_data		PROG_DATA;
 typedef struct  prog_code               PROG_CODE;
 typedef struct  prog_list              	PROG_LIST;
+typedef struct  dialogue_index_data     DIALOGUE_INDEX_DATA;
 typedef struct  quest_index_data        QUEST_INDEX_DATA;
 typedef struct  quest_list		QUEST_LIST;
 typedef struct  race_data       RACE_DATA;
@@ -494,6 +495,10 @@ typedef struct list_link_skill_data LLIST_SKILL_DATA;
 typedef struct iterator_type ITERATOR;
 
 typedef struct sector_data SECTOR_DATA;
+typedef struct constellation_data CONSTELLATION_DATA;
+typedef struct world_data WORLD_DATA;
+typedef struct plane_data PLANE_DATA;
+typedef struct realm_data REALM_DATA;
 
 typedef struct adornment_data ADORNMENT_DATA;
 typedef struct obj_ammo_data AMMO_DATA;
@@ -3617,6 +3622,86 @@ struct sector_data
     int affinities[SECTOR_MAX_AFFINITIES][2];   // Elemental affinities and their strengths
 
     LLIST *hide_msgs;
+};
+
+// REALM
+
+struct realm_data
+{
+    REALM_DATA *next;
+
+    char *name;
+    char *description;
+    char *comments;
+
+    LLIST *planes;
+    LLIST *worlds;
+    LLIST *areas;       // Areas associated with this realm
+};
+
+// PLANE stuff
+
+struct plane_data
+{
+    PLANE_DATA *next;
+
+    char *name;
+    char *description;
+    char *comments;
+
+    // Cosmic address
+    REALM_DATA *realm;
+
+    LLIST *worlds;
+    LLIST *areas;       // Areas associated with this plane
+};
+
+// WORLD stuff
+
+struct constellation_data
+{
+    CONSTELLATION_DATA *next;
+    bool valid;
+
+    char *name;
+    char *description;
+    char *comments;
+
+    char *ascii;                // ASCII art display
+
+    long right_ascension;
+    long declination;
+
+    // Various constellation aspects that might affect stuff
+};
+
+struct world_data
+{
+    WORLD_DATA *next;
+
+    long vnum;
+
+    char *name;
+    char *description;
+    char *comments;
+
+    // Cosmic Address
+    REALM_DATA *realm;
+    PLANE_DATA *plane;
+
+    // Orbital information
+    WORLD_DATA *parent;
+    long period;
+    long offset;
+
+    LLIST *moons;       // WORLD_DATA *
+
+    int16_t tilt;       // Axial tilt
+
+    LLIST *areas;       // Areas associated with this world
+
+    // Stellar
+    LLIST *constellations;
 };
 
 

@@ -2926,7 +2926,7 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 	sprintf(buf, "{BVnum:{x %ld  {BRace:{x %s  {BSex:{x %s  {BRoom:{x %ld\n\r",
 				 VNUM(victim),
 				 victim->race->name,
-				 sex_table[victim->sex].name,
+				 flag_string(sex_table, victim->sex),
 				 victim->in_room == NULL ? 0 : victim->in_room->vnum);
 	send_to_char(buf, ch);
 

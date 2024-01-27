@@ -4818,10 +4818,12 @@ void do_whois(CHAR_DATA * ch, char *argument)
 	{
 	    sprintf(idle_time, "Active");
 	}
+		char title[MIL];
+		sprintf(title, string_replace_static(wch->pcdata->title, "$n", "{+%s"), wch->name);
 
         sprintf(buf, "\n\r{x"
-	             "Name         : %s%s\n\r{x"
-		     "Sex          : %s\n\r{x"
+	             "Name         : %s\n\r{x"
+		     "Sex          : {+%s\n\r{x"
 		     "Church       : %s\n\r{x"
 		     "Rank         : %s\n\r{x"
                	     "Race         : %s\n\r{x"
@@ -4832,9 +4834,8 @@ void do_whois(CHAR_DATA * ch, char *argument)
 		     "CPK Kills    : {r%d{x\n\r"
 	             "Idle         : %s\n\r"
 		     "\n\rDescription:\n\r",
-		     wch->name,
-		     (wch->pcdata->title != NULL) ? wch->pcdata->title : "",
-		     wch->sex == SEX_NEUTRAL ? "None" : (wch->sex == SEX_MALE ? "Male" : "Female"),
+		     title,
+			 flag_string(sex_table, wch->sex),
 		     (wch->church != NULL) ? wch->church_name : "None",
 		     (wch->church != NULL && wch->church_member != NULL) ? get_chrank(wch->church_member) : "None",
                      racestr,

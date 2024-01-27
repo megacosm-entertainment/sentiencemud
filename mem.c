@@ -7681,3 +7681,158 @@ void free_sector_data(SECTOR_DATA *sector)
     sector->next = sector_data_free;
     sector_data_free = sector;
 }
+
+// REALM
+REALM_DATA *realm_data_free;
+REALM_DATA *new_realm_data()
+{
+    REALM_DATA *data;
+    if (realm_data_free)
+    {
+        data = realm_data_free;
+        realm_data_free = realm_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(REALM_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    data->name = &str_empty[0];
+    data->description = &str_empty[0];
+    data->comments = &str_empty[0];
+
+    data->planes = list_create(false);
+    data->worlds = list_create(false);
+    data->areas = list_create(false);
+
+    return data;
+}
+
+void free_realm_data(REALM_DATA *data)
+{
+    free_string(data->name);
+    free_string(data->description);
+    free_string(data->comments);
+
+    list_destroy(data->planes);
+    list_destroy(data->worlds);
+    list_destroy(data->areas);
+
+    data->next = realm_data_free;
+    realm_data_free = data;
+}
+
+
+// PLANE
+PLANE_DATA *plane_data_free;
+PLANE_DATA *new_plane_data()
+{
+    PLANE_DATA *data;
+    if (plane_data_free)
+    {
+        data = plane_data_free;
+        plane_data_free = plane_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(PLANE_DATA));
+
+    memset(data, 0, sizeof(*data));
+
+    data->name = &str_empty[0];
+    data->description = &str_empty[0];
+    data->comments = &str_empty[0];
+
+    data->worlds = list_create(false);
+    data->areas = list_create(false);
+
+    return data;
+}
+
+void free_plane_data(PLANE_DATA *data)
+{
+    free_string(data->name);
+    free_string(data->description);
+    free_string(data->comments);
+
+    list_destroy(data->worlds);
+    list_destroy(data->areas);
+
+    data->next = plane_data_free;
+    plane_data_free = data;
+}
+
+// WORLD
+WORLD_DATA *world_data_free;
+WORLD_DATA *new_world_data()
+{
+    WORLD_DATA *data;
+    if (world_data_free)
+    {
+        data = world_data_free;
+        world_data_free = world_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(WORLD_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    data->name = &str_empty[0];
+    data->description = &str_empty[0];
+    data->comments = &str_empty[0];
+
+    data->moons = list_create(false);
+    data->constellations = list_create(false);
+    data->areas = list_create(false);
+
+    return data;
+}
+
+void free_world_data(WORLD_DATA *data)
+{
+    free_string(data->name);
+    free_string(data->description);
+    free_string(data->comments);
+
+    list_destroy(data->moons);
+    list_destroy(data->constellations);
+    list_destroy(data->areas);
+
+    data->next = world_data_free;
+    world_data_free = data;
+}
+
+// CONSTELLATION
+CONSTELLATION_DATA *constellation_data_free;
+CONSTELLATION_DATA *new_constellation_data()
+{
+    CONSTELLATION_DATA *data;
+    if (constellation_data_free)
+    {
+        data = constellation_data_free;
+        constellation_data_free = constellation_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(CONSTELLATION_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    data->name = &str_empty[0];
+    data->description = &str_empty[0];
+    data->comments = &str_empty[0];
+
+    data->ascii = &str_empty[0];
+
+    return data;
+}
+
+void free_constellation_data(CONSTELLATION_DATA *data)
+{
+    free_string(data->name);
+    free_string(data->description);
+    free_string(data->comments);
+
+    free_string(data->ascii);
+
+    data->next = constellation_data_free;
+    constellation_data_free = data;
+}
