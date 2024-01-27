@@ -2703,7 +2703,7 @@ DECL_OPC_FUN(opc_switch)
 		}
 
 		// Skip to the end of the switch
-		return opc_skip_block(block,OP_ENDSWITCH,block->cur_line->level);
+		return opc_skip_to_label(block,OP_ENDSWITCH,block->cur_line->level, true);
 	}
 
 	// To get to here means something bad happened
@@ -2720,7 +2720,7 @@ DECL_OPC_FUN(opc_endswitch)
 DECL_OPC_FUN(opc_exitswitch)
 {
 	// Skip to the end of the switch
-	return opc_skip_block(block,OP_ENDSWITCH,block->cur_line->level);
+	return opc_skip_to_label(block,OP_ENDSWITCH,block->cur_line->level, true);
 }
 
 DECL_OPC_FUN(opc_mob)
