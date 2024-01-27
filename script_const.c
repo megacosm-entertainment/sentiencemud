@@ -142,7 +142,8 @@ ENT_FIELD entity_types[] = {
 	{"liquid",			ENTITY_VAR_LIQUID,			ENT_LIQUID},
 	{"mission",			ENTITY_VAR_MISSION,			ENT_MISSION},
 	{"missionpart",		ENTITY_VAR_MISSION_PART,	ENT_MISSION_PART},
-	{NULL,				0,						ENT_UNKNOWN	}
+	{"reputation",		ENTITY_VAR_REPUTATION,		ENT_REPUTATION},
+	{NULL,				0,							ENT_UNKNOWN	}
 };
 
 ENT_FIELD entity_prior[] = {

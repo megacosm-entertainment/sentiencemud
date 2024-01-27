@@ -578,6 +578,7 @@ EXPAND(expand_argument_variable)
 		case VAR_LIQUID:	arg->type = ENT_LIQUID; arg->d.liquid = var->_.liquid; break;
 		case VAR_MISSION:	arg->type = ENT_MISSION; arg->d.mission = var->_.mission; break;
 		case VAR_MISSION_PART:	arg->type = ENT_MISSION_PART; arg->d.mp.mission = var->_.mp.mission; arg->d.mp.part = var->_.mp.part; break;
+		case VAR_REPUTATION:	arg->type = ENT_REPUTATION; arg->d.reputation = var->_.reputation; break;
 
 		case VAR_CONNECTION:	arg->type = ENT_CONN; arg->d.conn = var->_.conn; break;
 
@@ -993,6 +994,15 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 		else return NULL;
 
 		arg->type = ENT_CLASSLEVEL;
+		break;
+
+	case ENTITY_VAR_REPUTATION:
+		if (var && var->type == VAR_REPUTATION)
+			arg->d.reputation = var->_.reputation;
+		else
+			return NULL;
+		
+		arg->type = ENT_REPUTATION;
 		break;
 
 	case ENTITY_VAR_SECTION:
