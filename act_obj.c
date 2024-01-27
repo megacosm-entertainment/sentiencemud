@@ -5758,6 +5758,8 @@ void do_steal(CHAR_DATA *ch, char *argument)
 
 bool has_stock_reputation(CHAR_DATA *ch, SHOP_STOCK_DATA *stock)
 {
+	if (!stock) return false;
+
 	if (!IS_VALID(stock->reputation)) return true;	// No requirements, so ignore.
 
 	REPUTATION_DATA *rep = find_reputation_char(ch, stock->reputation);
@@ -6237,7 +6239,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 		}
 
 		// Check that they meet the reputation requirements.
-		if (!has_stock_reputation(ch, request.stock))
+		if (request.stock && !has_stock_reputation(ch, request.stock))
 		{
 			act("{R$n tells you 'You may not buy that.'{x",
 				keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
