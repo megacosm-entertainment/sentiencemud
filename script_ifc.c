@@ -5247,3 +5247,27 @@ DECL_IFC_FUN(ifc_hasreputation)
 
 	return true;
 }
+
+// HASFACTION $NPC $WNUM
+// HASFACTION $NPC $REPINDEX
+// HASFACTION $NPC $REPUTATION
+DECL_IFC_FUN(ifc_hasfaction)
+{
+	*ret = false;
+	if (VALID_NPC(0))
+	{
+		REPUTATION_INDEX_DATA *repIndex = NULL;
+
+		if (ISARG_WNUM(1))
+			repIndex = get_reputation_index(ARG_WNUM(1).pArea, ARG_WNUM(1).vnum);
+		else if (ISARG_REPINDEX(1))
+			repIndex = ARG_REPINDEX(1);
+		else if (ISARG_REPUTATION(1))
+			repIndex = ARG_REPUTATION(1)->pIndexData;
+
+		if (IS_VALID(repIndex))
+			*ret = list_contains(ARG_MOB(0)->factions, repIndex, NULL);
+	}
+
+	return true;
+}

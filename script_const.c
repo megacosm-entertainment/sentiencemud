@@ -1725,6 +1725,7 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "hascheckpoint",		IFC_ANY,	"ES",	false,	ifc_hascheckpoint,		"ifcheck hascheckpoint" },
 	{ "hasclass",			IFC_ANY,	"ES",	false,	ifc_hasclass,			"ifcheck hasclass" },
 	{ "hasenviroment",		IFC_ANY,	"ES",	true,	ifc_hasenvironment,		"ifcheck hasenvironment" },
+	{ "hasfaction",			IFC_ANY,	"E",	false,	ifc_hasfaction,			"ifcheck hasfaction" },
 	{ "hasprompt",			IFC_ANY,	"E",	false,	ifc_hasprompt,			"ifcheck hasprompt" },
 	{ "hasqueue",			IFC_ANY,	"E",	false,	ifc_hasqueue,			"ifcheck hasqueue" },
 	{ "hasreputation",		IFC_ANY,	"E",	false,	ifc_hasreputation,		"ifcheck hasreputation" },
