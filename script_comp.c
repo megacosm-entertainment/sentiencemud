@@ -402,6 +402,7 @@ int compile_entity_listbasetype(int ent)
 	case ENT_ILLIST_SKILLGROUPS:		ent = ENT_SKILLGROUP; break;
 	case ENT_ILLIST_CLASSES:		ent = ENT_CLASSLEVEL; break;
 	case ENT_ILLIST_MISSIONS:		ent = ENT_MISSION; break;
+	case ENT_ILLIST_WAYPOINTS:		ent = ENT_WAYPOINT; break;
 
 	case ENT_SKILL_VALUES:		ent = ENT_NUMBER; break;
 	case ENT_SKILL_VALUENAMES:	ent = ENT_STRING; break;
@@ -866,6 +867,8 @@ char *compile_entity(char *str,int type, char **store, int *entity_type)
 			case ENT_ILLIST_SKILLS:		ent = ENT_SKILL; break;
 			case ENT_ILLIST_SKILLGROUPS:	ent = ENT_SKILLGROUP; break;
 			case ENT_ILLIST_CLASSES:		ent = ENT_CLASSLEVEL; break;
+			case ENT_ILLIST_MISSIONS:		ent = ENT_MISSION; break;
+			case ENT_ILLIST_WAYPOINTS:		ent = ENT_WAYPOINT; break;
 
 			case ENT_ARRAY_EXITS:		ent = ENT_EXIT; break;
 

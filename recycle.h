@@ -266,6 +266,11 @@ BOOK_DATA *new_book_data();
 BOOK_DATA *copy_book_data(BOOK_DATA *src);
 void free_book_data(BOOK_DATA *data);
 
+// Compass
+COMPASS_DATA *new_compass_data();
+COMPASS_DATA *copy_compass_data(COMPASS_DATA *src);
+void free_compass_data(COMPASS_DATA *data);
+
 // Container
 CONTAINER_FILTER *new_container_filter();
 void free_container_filter(CONTAINER_FILTER *filter);
@@ -315,6 +320,11 @@ LIGHT_DATA *new_light_data();
 LIGHT_DATA *copy_light_data(LIGHT_DATA *src);
 void free_light_data(LIGHT_DATA *data);
 
+// Map
+MAP_DATA *new_map_data();
+MAP_DATA *copy_map_data(MAP_DATA *src);
+void free_map_data(MAP_DATA *data);
+
 // Mist
 MIST_DATA *new_mist_data();
 MIST_DATA *copy_mist_data(MIST_DATA *src);
@@ -335,10 +345,20 @@ SCROLL_DATA *new_scroll_data();
 SCROLL_DATA *copy_scroll_data(SCROLL_DATA *src);
 void free_scroll_data(SCROLL_DATA *data);
 
+// Sextant
+SEXTANT_DATA *new_sextant_data();
+SEXTANT_DATA *copy_sextant_data(SEXTANT_DATA *src);
+void free_sextant_data(SEXTANT_DATA *data);
+
 // Tattoo
 TATTOO_DATA *new_tattoo_data();
 TATTOO_DATA *copy_tattoo_data(TATTOO_DATA *src);
 void free_tattoo_data(TATTOO_DATA *data);
+
+// Telescope
+TELESCOPE_DATA *new_telescope_data();
+TELESCOPE_DATA *copy_telescope_data(TELESCOPE_DATA *src);
+void free_telescope_data(TELESCOPE_DATA *data);
 
 // Wand
 WAND_DATA *new_wand_data();

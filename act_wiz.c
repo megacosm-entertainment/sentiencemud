@@ -2472,6 +2472,20 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 	    add_buf(buffer, buf);
 	}
 
+	if (IS_COMPASS(obj))
+	{
+		COMPASS_DATA *compass = COMPASS(obj);
+		WILDS_DATA *wilds = get_wilds_from_uid(NULL, compass->wuid);
+
+		sprintf(buf, "{CCompass: {BAccuracy: {x%d{B%% Target: {x%s{x\n\r",
+			compass->accuracy,
+			(compass->wuid > 0&& compass->x >= 0 && compass->y >= 0) ?
+				(wilds ?
+					formatf("{x%s{B ({x%ld{B) at ({x%ld{B,{x%ld{B)",  wilds->name, wilds->uid, compass->x, compass->y) :
+					formatf("{D-invalid-{B ({D???{B) at ({x%ld{B,{x%ld{B)", compass->x, compass->y)) : "none");
+		add_buf(buffer, buf);
+	}
+
 	if (IS_CONTAINER(obj))
 	{
 		sprintf(buf, "{CContainer[{x%s{C / {x%s{C]: {BFlags: {x%s {BMax Weight:{x %d {BWeight Multiplier:{x %d {BMax Volume:{x %d {BTotal Weight:{x %d {BTotal Volume:{x %d\n\r",
@@ -2620,6 +2634,42 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 		iterator_stop(&it);
 	}
 
+	if (IS_MAP(obj))
+	{
+		MAP_DATA *map = MAP(obj);
+		WILDS_DATA *wilds = get_wilds_from_uid(NULL, map->wuid);
+
+		sprintf(buf, "{CMap: {BTarget: {x%s{x\n\r",
+			(map->wuid > 0&& map->x >= 0 && map->y >= 0) ?
+				(wilds ?
+					formatf("{x%s{B ({x%ld{B) at ({x%ld{B,{x%ld{B)",  wilds->name, wilds->uid, map->x, map->y) :
+					formatf("{D-invalid-{B ({D???{B) at ({x%ld{B,{x%ld{B)", map->x, map->y)) : "none");
+		add_buf(buffer, buf);
+
+		if (list_size(map->waypoints) > 0)
+		{
+			int cnt = 0;
+			ITERATOR wit;
+			WAYPOINT_DATA *wp;
+			WILDS_DATA *wilds;
+
+			iterator_start(&wit, map->waypoints);
+			while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
+			{
+				wilds = get_wilds_from_uid(NULL, wp->w);
+
+				char *wname = wilds ? wilds->name : "{D(null){x";
+
+				sprintf(buf, "  {BWaypoint %d: Wilds: {x%s{B ({x%ld{B) South: {x%d{B East: {x%d {BName: {x%s\n\r",
+					++cnt,
+					wname, (wilds ? wilds->uid : 0),
+					wp->y, wp->x, wp->name);
+				add_buf(buffer, buf);
+			}
+			iterator_stop(&wit);
+		}
+	}
+
 	if (IS_MIST(obj))
 	{
 		MIST_DATA *mist = MIST(obj);
@@ -2692,6 +2742,14 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 		iterator_stop(&sit);
 	}
 
+	if (IS_SEXTANT(obj))
+	{
+		SEXTANT_DATA *sextant = SEXTANT(obj);
+
+		sprintf(buf, "{CSextant: {BAccuracu: {x%d{B%%{x\n\r", sextant->accuracy);
+		add_buf(buffer, buf);
+	}
+
 	if (IS_TATTOO(obj))
 	{
 		char touches[2*MIL];
@@ -2716,6 +2774,16 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 			add_buf(buffer, buf);
 		}
 		iterator_stop(&sit);
+	}
+
+	if (IS_TELESCOPE(obj))
+	{
+		TELESCOPE_DATA *telescope = TELESCOPE(obj);
+
+		sprintf(buf, "{CTelescope: {BDistance: {x%d{B (%d{B to {x%d{B) Bonus View: {x%d{B Heading: {x%s\n\r",
+			telescope->distance, telescope->min_distance, telescope->max_distance, telescope->bonus_view,
+			((telescope->heading < 0) ? "none" : formatf("%d{B degrees{x", telescope->heading)));
+		add_buf(buffer, buf);
 	}
 
 	if (IS_WAND(obj))

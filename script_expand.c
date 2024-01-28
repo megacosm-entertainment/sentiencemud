@@ -581,6 +581,7 @@ EXPAND(expand_argument_variable)
 		case VAR_REPUTATION:	arg->type = ENT_REPUTATION; arg->d.reputation = var->_.reputation; break;
 		case VAR_REPUTATION_INDEX:	arg->type = ENT_REPUTATION_INDEX; arg->d.repIndex = var->_.reputation_index; break;
 		case VAR_REPUTATION_RANK:	arg->type = ENT_REPUTATION_RANK; arg->d.repRank = var->_.reputation_rank; break;
+		case VAR_WAYPOINT:			arg->type = ENT_WAYPOINT; arg->d.waypoint = var->_.waypoint; break;
 
 		case VAR_CONNECTION:	arg->type = ENT_CONN; arg->d.conn = var->_.conn; break;
 
@@ -972,6 +973,14 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 		else return NULL;
 
 		arg->type = ENT_SKILLGROUP;
+		break;
+
+	case ENTITY_VAR_WAYPOINT:
+		if (var && var->type == VAR_WAYPOINT)
+			arg->d.waypoint = var->_.waypoint;
+		else return NULL;
+
+		arg->type = ENT_WAYPOINT;
 		break;
 
 	case ENTITY_VAR_RACE:
@@ -3148,6 +3157,11 @@ EXPAND_TYPE(object)
 		// Uses self
 		break;
 
+	case ENTITY_OBJ_TYPE_COMPASS:
+		arg->type = ENT_OBJECT_COMPASS;
+		// Uses self
+		break;
+
 	case ENTITY_OBJ_TYPE_CONTAINER:
 		arg->type = ENT_OBJECT_CONTAINER;
 		// Uses self
@@ -3188,6 +3202,11 @@ EXPAND_TYPE(object)
 		// Uses self
 		break;
 
+	case ENTITY_OBJ_TYPE_MAP:
+		arg->type = ENT_OBJECT_MAP;
+		// Uses self
+		break;
+
 	case ENTITY_OBJ_TYPE_MIST:
 		arg->type = ENT_OBJECT_MIST;
 		// Uses self
@@ -3213,8 +3232,18 @@ EXPAND_TYPE(object)
 		// Uses self
 		break;
 
+	case ENTITY_OBJ_TYPE_SEXTANT:
+		arg->type = ENT_OBJECT_COMPASS;
+		// Uses self
+		break;
+
 	case ENTITY_OBJ_TYPE_TATTOO:
 		arg->type = ENT_OBJECT_TATTOO;
+		// Uses self
+		break;
+
+	case ENTITY_OBJ_TYPE_TELESCOPE:
+		arg->type = ENT_OBJECT_TELESCOPE;
 		// Uses self
 		break;
 
@@ -3384,6 +3413,11 @@ EXPAND_TYPE(object_id)
 		// Uses self
 		break;
 
+	case ENTITY_OBJ_TYPE_COMPASS:
+		arg->type = ENT_OBJECT_COMPASS;
+		// Uses self
+		break;
+
 	case ENTITY_OBJ_TYPE_CONTAINER:
 		arg->type = ENT_OBJECT_CONTAINER;
 		// Uses self
@@ -3419,6 +3453,11 @@ EXPAND_TYPE(object_id)
 		// Uses self
 		break;
 
+	case ENTITY_OBJ_TYPE_MAP:
+		arg->type = ENT_OBJECT_MAP;
+		// Uses self
+		break;
+
 	case ENTITY_OBJ_TYPE_MONEY:
 		arg->type = ENT_OBJECT_MONEY;
 		// Uses self
@@ -3439,8 +3478,18 @@ EXPAND_TYPE(object_id)
 		// Uses self
 		break;
 
+	case ENTITY_OBJ_TYPE_SEXTANT:
+		arg->type = ENT_OBJECT_SEXTANT;
+		// Uses self
+		break;
+
 	case ENTITY_OBJ_TYPE_TATTOO:
 		arg->type = ENT_OBJECT_TATTOO;
+		// Uses self
+		break;
+
+	case ENTITY_OBJ_TYPE_TELESCOPE:
+		arg->type = ENT_OBJECT_TELESCOPE;
 		// Uses self
 		break;
 
@@ -8314,6 +8363,57 @@ EXPAND_TYPE(object_book)
 	return str+1;
 }
 
+EXPAND_TYPE(object_compass)
+{
+	COMPASS_DATA *compass = IS_VALID(arg->d.obj) && IS_COMPASS(arg->d.obj) ? COMPASS(arg->d.obj) : NULL;
+
+	switch(*str)
+	{
+		case ENTITY_OBJ_COMPASS_ACCURACY:
+			arg->type = ENT_NUMBER;
+			arg->d.num = compass ? compass->accuracy : -1;
+			break;
+
+		case ENTITY_OBJ_COMPASS_WILDS:
+			arg->type = ENT_WILDS;
+			arg->d.wilds = compass ? get_wilds_from_uid(NULL, compass->wuid) : NULL;
+			break;
+
+		case ENTITY_OBJ_COMPASS_X:
+			arg->type = ENT_NUMBER;
+			arg->d.num = compass ? compass->x : -1;
+			break;
+
+		case ENTITY_OBJ_COMPASS_Y:
+			arg->type = ENT_NUMBER;
+			arg->d.num = compass ? compass->y : -1;
+			break;
+
+		case ENTITY_OBJ_COMPASS_TARGET:
+			arg->type = ENT_ROOM;
+			if (compass)
+			{
+				ROOM_INDEX_DATA *vroom = NULL;
+				WILDS_DATA *wilds = compass ? get_wilds_from_uid(NULL, compass->wuid) : NULL;
+				if (wilds)
+				{
+					vroom = get_wilds_vroom(wilds,compass->x,compass->y);
+					if(!vroom)
+						vroom = create_wilds_vroom(wilds,compass->x,compass->y);
+				}
+				arg->d.room = vroom;
+			}
+			else
+				arg->d.room = NULL;
+			break;
+
+		default:
+			return NULL;
+	}
+
+	return str+1;
+}
+
 EXPAND_TYPE(object_container)
 {
 	CONTAINER_DATA *container = IS_VALID(arg->d.obj) && IS_CONTAINER(arg->d.obj) ? CONTAINER(arg->d.obj) : NULL;
@@ -8724,6 +8824,57 @@ EXPAND_TYPE(object_light)
 	return str+1;
 }
 
+EXPAND_TYPE(object_map)
+{
+	MAP_DATA *map = IS_VALID(arg->d.obj) && IS_MAP(arg->d.obj) ? MAP(arg->d.obj) : NULL;
+
+	switch(*str)
+	{
+		case ENTITY_OBJ_MAP_WILDS:
+			arg->type = ENT_WILDS;
+			arg->d.wilds = map ? get_wilds_from_uid(NULL, map->wuid) : NULL;
+			break;
+
+		case ENTITY_OBJ_MAP_X:
+			arg->type = ENT_NUMBER;
+			arg->d.num = map ? map->x : -1;
+			break;
+
+		case ENTITY_OBJ_MAP_Y:
+			arg->type = ENT_NUMBER;
+			arg->d.num = map ? map->y : -1;
+			break;
+
+		case ENTITY_OBJ_MAP_TARGET:
+			arg->type = ENT_ROOM;
+			if (map)
+			{
+				ROOM_INDEX_DATA *vroom = NULL;
+				WILDS_DATA *wilds = map ? get_wilds_from_uid(NULL, map->wuid) : NULL;
+				if (wilds)
+				{
+					vroom = get_wilds_vroom(wilds,map->x,map->y);
+					if(!vroom)
+						vroom = create_wilds_vroom(wilds,map->x,map->y);
+				}
+				arg->d.room = vroom;
+			}
+			else
+				arg->d.room = NULL;
+			break;
+
+		case ENTITY_OBJ_MAP_WAYPOINTS:
+			arg->type = ENT_ILLIST_WAYPOINTS;
+			arg->d.blist = map ? map->waypoints : NULL;
+			break;
+
+		default:
+			return NULL;
+	}
+
+	return str+1;
+}
+
 
 EXPAND_TYPE(object_mist)
 {
@@ -8921,6 +9072,24 @@ EXPAND_TYPE(object_scroll)
 	return str+1;
 }
 
+EXPAND_TYPE(object_sextant)
+{
+	SEXTANT_DATA *sextant = IS_VALID(arg->d.obj) && IS_SEXTANT(arg->d.obj) ? SEXTANT(arg->d.obj) : NULL;
+
+	switch(*str)
+	{
+		case ENTITY_OBJ_SEXTANT_ACCURACY:
+			arg->type = ENT_NUMBER;
+			arg->d.num = sextant ? sextant->accuracy : -1;
+			break;
+
+		default:
+			return NULL;
+	}
+
+	return str+1;
+}
+
 EXPAND_TYPE(object_tattoo)
 {
 	TATTOO_DATA *tattoo = IS_VALID(arg->d.obj) && IS_TATTOO(arg->d.obj) ? TATTOO(arg->d.obj) : NULL;
@@ -8947,6 +9116,44 @@ EXPAND_TYPE(object_tattoo)
 		break;
 
 	default: return NULL;
+	}
+
+	return str+1;
+}
+
+EXPAND_TYPE(object_telescope)
+{
+	TELESCOPE_DATA *telescope = IS_VALID(arg->d.obj) && IS_TELESCOPE(arg->d.obj) ? TELESCOPE(arg->d.obj) : NULL;
+
+	switch(*str)
+	{
+		case ENTITY_OBJ_TELESCOPE_DISTANCE:
+			arg->type = ENT_NUMBER;
+			arg->d.num = telescope ? telescope->distance : 0;
+			break;
+
+		case ENTITY_OBJ_TELESCOPE_MIN_DISTANCE:
+			arg->type = ENT_NUMBER;
+			arg->d.num = telescope ? telescope->min_distance : 0;
+			break;
+
+		case ENTITY_OBJ_TELESCOPE_MAX_DISTANCE:
+			arg->type = ENT_NUMBER;
+			arg->d.num = telescope ? telescope->max_distance : 0;
+			break;
+
+		case ENTITY_OBJ_TELESCOPE_BONUS_VIEW:
+			arg->type = ENT_NUMBER;
+			arg->d.num = telescope ? telescope->bonus_view : 0;
+			break;
+
+		case ENTITY_OBJ_TELESCOPE_HEADING:
+			arg->type = ENT_NUMBER;
+			arg->d.num = telescope ? telescope->heading : -1;
+			break;
+
+		default:
+			return NULL;
 	}
 
 	return str+1;
@@ -9600,6 +9807,57 @@ EXPAND_TYPE(mission_part)
 	return str+1;
 }
 
+EXPAND_TYPE(waypoint)
+{
+	WAYPOINT_DATA *wp = arg->d.waypoint;
+
+	switch(*str)
+	{
+		case ENTITY_WAYPOINT_NAME:
+			arg->type = ENT_STRING;
+			arg->d.str = wp ? wp->name : SOMETHING;
+			break;
+
+		case ENTITY_WAYPOINT_WILDS:
+			arg->type = ENT_WILDS;
+			arg->d.wilds = wp ? get_wilds_from_uid(NULL, wp->w) : NULL;
+			break;
+
+		case ENTITY_WAYPOINT_X:
+			arg->type = ENT_NUMBER;
+			arg->d.num = wp ? wp->x : -1;
+			break;
+
+		case ENTITY_WAYPOINT_Y:
+			arg->type = ENT_NUMBER;
+			arg->d.num = wp ? wp->y : -1;
+			break;
+
+		case ENTITY_WAYPOINT_TARGET:
+			arg->type = ENT_ROOM;
+			if (wp)
+			{
+				ROOM_INDEX_DATA *vroom = NULL;
+				WILDS_DATA *wilds = wp ? get_wilds_from_uid(NULL, wp->w) : NULL;
+				if (wilds)
+				{
+					vroom = get_wilds_vroom(wilds,wp->x,wp->y);
+					if(!vroom)
+						vroom = create_wilds_vroom(wilds,wp->x,wp->y);
+				}
+				arg->d.room = vroom;
+			}
+			else
+				arg->d.room = NULL;
+			break;
+
+		default:
+			return NULL;
+	}
+
+	return str+1;
+}
+
 EXPAND_TYPE(sex_string_table)
 {
 	char **table = arg->d.strings.table;
@@ -9752,6 +10010,7 @@ EXPAND(expand_argument_entity)
 		// Multi-typing
 		ENTITY_CASE(OBJECT_AMMO,object_ammo)
 		ENTITY_CASE(OBJECT_BOOK,object_book)
+		ENTITY_CASE(OBJECT_COMPASS,object_compass)
 		ENTITY_CASE(OBJECT_CONTAINER,object_container)
 		ENTITY_CASE(OBJECT_FLUID_CONTAINER,object_fluid_container)
 		ENTITY_CASE(OBJECT_FOOD,object_food)
@@ -9760,12 +10019,15 @@ EXPAND(expand_argument_entity)
 		ENTITY_CASE(OBJECT_INSTRUMENT,object_instrument)
 		ENTITY_CASE(OBJECT_JEWELRY,object_jewelry)
 		ENTITY_CASE(OBJECT_LIGHT,object_light)
+		ENTITY_CASE(OBJECT_MAP,object_map)
 		ENTITY_CASE(OBJECT_MIST,object_mist)
 		ENTITY_CASE(OBJECT_MONEY,object_money)
 		ENTITY_CASE(OBJECT_PAGE,object_page)
 		ENTITY_CASE(OBJECT_PORTAL,object_portal)
 		ENTITY_CASE(OBJECT_SCROLL,object_scroll)
+		ENTITY_CASE(OBJECT_SEXTANT,object_sextant)
 		ENTITY_CASE(OBJECT_TATTOO,object_tattoo)
+		ENTITY_CASE(OBJECT_TELESCOPE,object_telescope)
 		ENTITY_CASE(OBJECT_WAND,object_wand)
 		ENTITY_CASE(OBJECT_WEAPON,object_weapon)
 
@@ -9791,6 +10053,7 @@ EXPAND(expand_argument_entity)
 		ENTITY_CASE(RACE,race)
 		ENTITY_CASE(CLASS,class)
 		ENTITY_CASE(CLASSLEVEL,classlevel)
+		ENTITY_CASE(WAYPOINT,waypoint)
 		ENTITY_CASE(SEX_STRING_TABLE,sex_string_table)
 		ENTITY_CASE(STATS_TABLE,stats_table)
 		ENTITY_CASE(VITALS_TABLE,vitals_table)

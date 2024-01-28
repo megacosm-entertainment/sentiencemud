@@ -288,6 +288,12 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 		// TODO: Finish this
 	}
 
+	if (IS_COMPASS(obj))
+	{
+		// TODO: Finish this
+		add_buf(buffer, formatf("{MThis compass has an accuracy of {W%d{M%%.{x\n\r", COMPASS(obj)->accuracy));
+	}
+
 	if (IS_CONTAINER(obj))
 	{
 		sprintf(buf,"{MItems: {x%d{M/{x%d{M  Weight: {x%d/%d{M  flags: {x%s{M\n\r",
@@ -405,14 +411,17 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 
 	if (IS_LIGHT(obj))
 	{
-		// TODO: NYI
-		add_buf(buffer, "{MLight: {WNOT YET IMPLEMENTED{x\n\r");
+		// TODO: Finish this
+	}
+
+	if (IS_MAP(obj))
+	{
+		// TODO: Finish this
 	}
 
 	if (IS_MIST(obj))
 	{
-		// TODO: NYI
-		add_buf(buffer, "{MMist: {WNOT YET IMPLEMENTED{x\n\r");
+		// TODO: Finish this
 	}
 
 	if (IS_SCROLL(obj))
@@ -433,6 +442,11 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 		}
 	}
 
+	if (IS_SEXTANT(obj))
+	{
+		add_buf(buffer, formatf("{MThis sextant has an accuracy of {W%d{M%%.{x\n\r", SEXTANT(obj)->accuracy));
+	}
+
 	if (IS_TATTOO(obj))
 	{
 		if (list_size(TATTOO(obj)->spells) > 0)
@@ -449,6 +463,11 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 			}
 			iterator_stop(&it);
 		}
+	}
+
+	if (IS_TELESCOPE(obj))
+	{
+		// TODO: Finish this
 	}
 
 	if (IS_WAND(obj))

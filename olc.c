@@ -238,6 +238,7 @@ const struct olc_cmd_type oedit_table[] =
 	{ "classtype",		oedit_class_type		},
 	{ "commands",		show_commands			},
 	{ "comments",		oedit_comments			},
+	{ "compass",		oedit_type_compass		},
 	{ "condition",		oedit_condition			},
 	{ "container",		oedit_type_container	},
 	{ "cost",			oedit_cost				},
@@ -263,6 +264,7 @@ const struct olc_cmd_type oedit_table[] =
 	{ "lock",			oedit_lock				},
 	{ "long",			oedit_long				},
 	{ "material",		oedit_material			},
+	{ "map",			oedit_type_map			},
 	{ "mist",			oedit_type_mist			},
 	{ "money",			oedit_type_money		},
 	{ "name",			oedit_name				},
@@ -275,10 +277,12 @@ const struct olc_cmd_type oedit_table[] =
 	{ "race",			oedit_race				},
 	{ "scriptkwd",		oedit_skeywds			},
 	{ "scroll",			oedit_type_scroll		},
+	{ "sextant",		oedit_type_sextant		},
 	{ "short",			oedit_short				},
 	{ "show",			oedit_show				},
 	{ "sign",			oedit_sign				},
 	{ "tattoo",			oedit_type_tattoo		},
+	{ "telescope",		oedit_type_telescope	},
 	{ "timer",			oedit_timer				},
 	{ "type",			oedit_type				},
 	{ "v0",				oedit_value0			},
@@ -292,7 +296,6 @@ const struct olc_cmd_type oedit_table[] =
 	{ "varclear",		oedit_varclear			},
 	{ "varset",			oedit_varset			},
 	{ "wand",			oedit_type_wand			},
-	{ "waypoints",		oedit_waypoints			},
 	{ "weapon",			oedit_type_weapon		},
 	{ "wear",			oedit_wear				},
 	{ "weight",			oedit_weight			},
@@ -2945,6 +2948,7 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
 	AMMO(new_obj) = copy_ammo_data(AMMO(old_obj));
 	ARMOR(new_obj) = copy_armor_data(ARMOR(old_obj));
 	BOOK(new_obj) = copy_book_data(BOOK(old_obj));
+	COMPASS(new_obj) = copy_compass_data(COMPASS(old_obj));
 	CONTAINER(new_obj) = copy_container_data(CONTAINER(old_obj));
 	FLUID_CON(new_obj) = copy_fluid_container_data(FLUID_CON(old_obj));
 	FOOD(new_obj) = copy_food_data(FOOD(old_obj));
@@ -2953,12 +2957,15 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
 	INSTRUMENT(new_obj) = copy_instrument_data(INSTRUMENT(old_obj));
 	JEWELRY(new_obj) = copy_jewelry_data(JEWELRY(old_obj));
 	LIGHT(new_obj) = copy_light_data(LIGHT(old_obj));
+	MAP(new_obj) = copy_map_data(MAP(old_obj));
 	MIST(new_obj) = copy_mist_data(MIST(old_obj));
 	MONEY(new_obj) = copy_money_data(MONEY(old_obj));
 	PAGE(new_obj) = copy_book_page(PAGE(old_obj));
 	PORTAL(new_obj) = copy_portal_data(PORTAL(old_obj), false);
 	SCROLL(new_obj) = copy_scroll_data(SCROLL(old_obj));
+	SEXTANT(new_obj) = copy_sextant_data(SEXTANT(old_obj));
 	TATTOO(new_obj) = copy_tattoo_data(TATTOO(old_obj));
+	TELESCOPE(new_obj) = copy_telescope_data(TELESCOPE(old_obj));
 	WAND(new_obj) = copy_wand_data(WAND(old_obj));
 	WEAPON(new_obj) = copy_weapon_data(WEAPON(old_obj));
 
@@ -4075,6 +4082,7 @@ void obj_index_reset_multitype(OBJ_INDEX_DATA *pObjIndex)
 	free_ammo_data(AMMO(pObjIndex));					AMMO(pObjIndex) = NULL;
 	free_armor_data(ARMOR(pObjIndex));					ARMOR(pObjIndex) = NULL;
 	free_book_data(BOOK(pObjIndex));					BOOK(pObjIndex) = NULL;
+	free_compass_data(COMPASS(pObjIndex));				COMPASS(pObjIndex) = NULL;
 	free_container_data(CONTAINER(pObjIndex));			CONTAINER(pObjIndex) = NULL;
 	free_fluid_container_data(FLUID_CON(pObjIndex));	FLUID_CON(pObjIndex) = NULL;
 	free_food_data(FOOD(pObjIndex));					FOOD(pObjIndex) = NULL;
@@ -4083,12 +4091,15 @@ void obj_index_reset_multitype(OBJ_INDEX_DATA *pObjIndex)
 	free_instrument_data(INSTRUMENT(pObjIndex));		INSTRUMENT(pObjIndex) = NULL;
 	free_jewelry_data(JEWELRY(pObjIndex));				JEWELRY(pObjIndex) = NULL;
 	free_light_data(LIGHT(pObjIndex));					LIGHT(pObjIndex) = NULL;
+	free_map_data(MAP(pObjIndex));						MAP(pObjIndex) = NULL;
 	free_mist_data(MIST(pObjIndex));					MIST(pObjIndex) = NULL;
 	free_money_data(MONEY(pObjIndex));					MONEY(pObjIndex) = NULL;
 	free_book_page(PAGE(pObjIndex));					PAGE(pObjIndex) = NULL;
 	free_portal_data(PORTAL(pObjIndex));				PORTAL(pObjIndex) = NULL;
 	free_scroll_data(SCROLL(pObjIndex));				SCROLL(pObjIndex) = NULL;
+	free_sextant_data(SEXTANT(pObjIndex));				SEXTANT(pObjIndex) = NULL;
 	free_tattoo_data(TATTOO(pObjIndex));				TATTOO(pObjIndex) = NULL;
+	free_telescope_data(TELESCOPE(pObjIndex));			TELESCOPE(pObjIndex) = NULL;
 	free_wand_data(WAND(pObjIndex));					WAND(pObjIndex) = NULL;
 	free_weapon_data(WEAPON(pObjIndex));				WEAPON(pObjIndex) = NULL;
 }
@@ -4103,6 +4114,7 @@ void obj_index_set_primarytype(OBJ_INDEX_DATA *pObjIndex, int item_type)
 		case ITEM_AMMO:			AMMO(pObjIndex) = new_ammo_data(); break;
 		case ITEM_ARMOUR:		ARMOR(pObjIndex) = new_armor_data(); break;
 		case ITEM_BOOK:			BOOK(pObjIndex) = new_book_data(); break;
+		case ITEM_COMPASS:		COMPASS(pObjIndex) = new_compass_data(); break;
 		case ITEM_CONTAINER:	CONTAINER(pObjIndex) = new_container_data(); break;
 		case ITEM_FLUID_CONTAINER:	FLUID_CON(pObjIndex) = new_fluid_container_data(); break;
 		case ITEM_FOOD:			FOOD(pObjIndex) = new_food_data(); break;
@@ -4111,12 +4123,15 @@ void obj_index_set_primarytype(OBJ_INDEX_DATA *pObjIndex, int item_type)
 		case ITEM_INSTRUMENT:	INSTRUMENT(pObjIndex) = new_instrument_data(); break;
 		case ITEM_JEWELRY:		JEWELRY(pObjIndex) = new_jewelry_data(); break;
 		case ITEM_LIGHT:		LIGHT(pObjIndex) = new_light_data(); break;
+		case ITEM_MAP:			MAP(pObjIndex) = new_map_data(); break;
 		case ITEM_MIST:			MIST(pObjIndex) = new_mist_data(); break;
 		case ITEM_MONEY:		MONEY(pObjIndex) = new_money_data(); break;
 		case ITEM_PAGE:			PAGE(pObjIndex) = new_book_page(); break;
 		case ITEM_PORTAL:		PORTAL(pObjIndex) = new_portal_data(); break;
 		case ITEM_SCROLL:		SCROLL(pObjIndex) = new_scroll_data(); break;
+		case ITEM_SEXTANT:		SEXTANT(pObjIndex) = new_sextant_data(); break;
 		case ITEM_TATTOO:		TATTOO(pObjIndex) = new_tattoo_data(); break;
+		case ITEM_TELESCOPE:	TELESCOPE(pObjIndex) = new_telescope_data(); break;
 		case ITEM_WAND:			WAND(pObjIndex) = new_wand_data(); break;
 		case ITEM_WEAPON:		WEAPON(pObjIndex) = new_weapon_data(); break;
 	}

@@ -2338,19 +2338,19 @@ void do_look(CHAR_DATA * ch, char *argument)
 					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL,0,0,0,0,0);
 					check_improve(ch, gsk_lore, true, 10);
 
-					if( obj->item_type == ITEM_SEXTANT )
+					if( IS_SEXTANT(obj) )
 					{
 						look_sextant(ch, obj);
 					}
-					else if(obj->item_type == ITEM_MAP)
+					else if(IS_MAP(obj))
 					{
 						look_map(ch, obj);
 					}
-					else if(obj->item_type == ITEM_TELESCOPE)
+					else if(IS_TELESCOPE(obj))
 					{
 						look_through_telescope(ch, obj, argument);
 					}
-					else if(obj->item_type == ITEM_COMPASS)
+					else if(IS_COMPASS(obj))
 					{
 						look_compass(ch, obj);
 					}
@@ -2564,17 +2564,22 @@ void do_look(CHAR_DATA * ch, char *argument)
 					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL,0,0,0,0,0);
 					check_improve(ch, gsk_lore, true, 10);
 
-					if( obj->item_type == ITEM_TELESCOPE )
+
+					if( IS_SEXTANT(obj) )
+					{
+						look_sextant(ch, obj);
+					}
+					else if(IS_MAP(obj))
+					{
+						look_map(ch, obj);
+					}
+					else if(IS_TELESCOPE(obj))
 					{
 						look_through_telescope(ch, obj, argument);
 					}
-					else if(obj->item_type == ITEM_COMPASS)
+					else if(IS_COMPASS(obj))
 					{
 						look_compass(ch, obj);
-					}
-					else if(obj->item_type == ITEM_MAP)
-					{
-						look_map(ch, obj);
 					}
 					else if(IS_PORTAL(obj))
 					{
@@ -8255,7 +8260,7 @@ void show_basic_mob_lore(CHAR_DATA *ch, CHAR_DATA *victim)
 void do_expand(CHAR_DATA *ch, char *argument)
 {
 	char arg[MIL];
-	OBJ_DATA *telescope;
+	OBJ_DATA *obj;
 
 	if( IS_NULLSTR(argument) )
 	{
@@ -8265,51 +8270,65 @@ void do_expand(CHAR_DATA *ch, char *argument)
 
 	argument = one_argument(argument, arg);
 
-	if( (telescope = get_obj_carry(ch, arg, ch)) == NULL )
+	if( (obj = get_obj_carry(ch, arg, ch)) == NULL )
 	{
 		send_to_char("You don't see that.\n\r", ch);
 		return;
 	}
 
+	if (!IS_TELESCOPE(obj))
+	{
+		send_to_char("That is not a telescope.\n\r", ch);
+		return;
+	}
+
+	TELESCOPE_DATA *telescope = TELESCOPE(obj);
+
 	int distance;
-	if( is_number(argument) )
+	if( telescope->distance < telescope->max_distance && is_number(argument) )
 	{
 		distance = atoi(argument);
-		if( distance < telescope->value[1] ||
-			distance > telescope->value[2] )
+		if( distance <= telescope->distance ||
+			distance > telescope->max_distance )
 		{
 			char buf[MSL];
 			sprintf(buf, "{xCannot expand $p{x to that distance.  Please pick a value from %d to %d.",
-				telescope->value[1], telescope->value[2]);
+				telescope->distance + 1, telescope->max_distance);
 
-			act(buf, ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
+			act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 			return;
 		}
-
 	}
 	else
-		distance = telescope->value[2];
+		distance = telescope->max_distance;
 
-	if( distance > telescope->value[0] )
+	int ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREEXPAND, NULL, distance,0,0,0,0);
+	if (ret)
 	{
-		telescope->value[0] = distance;
-    	act("{xYou expand $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
-    	act("{x$n expands $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_ROOM);
+		if (ret != PRET_SILENT)
+		{
+			act("Unable to expand $p{x.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
 	}
-	else if( distance < telescope->value[0] )
+
+	if( distance > telescope->distance )
 	{
-		act("{x$p{x is already expanded further.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
+		telescope->distance = distance;
+    	act("{xYou expand $p{x.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+    	act("{x$n expands $p{x.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EXPAND, NULL, 0,0,0,0,0);
 	}
 	else
 	{
-		act("{x$p{x is already expanded that far.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
+		act("{x$p{x is already expanded that far.{x.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 	}
 }
 
 void do_collapse(CHAR_DATA *ch, char *argument)
 {
 	char arg[MIL];
-	OBJ_DATA *telescope;
+	OBJ_DATA *obj;
 
 	if( IS_NULLSTR(argument) )
 	{
@@ -8319,54 +8338,66 @@ void do_collapse(CHAR_DATA *ch, char *argument)
 
 	argument = one_argument(argument, arg);
 
-	if( (telescope = get_obj_carry(ch, arg, ch)) == NULL )
+	if( (obj = get_obj_carry(ch, arg, ch)) == NULL )
 	{
 		send_to_char("You don't see that.\n\r", ch);
 		return;
 	}
 
+	if (!IS_TELESCOPE(obj))
+	{
+		send_to_char("That is not a telescope.\n\r", ch);
+		return;
+	}
+
+	TELESCOPE_DATA *telescope = TELESCOPE(obj);
+
 	int distance;
-	if( is_number(argument) )
+	if( telescope->distance > telescope->min_distance && is_number(argument) )
 	{
 		distance = atoi(argument);
-		if( distance < telescope->value[1] ||
-			distance > telescope->value[2] )
+		if( distance < telescope->min_distance ||
+			distance >= telescope->distance )
 		{
 			char buf[MSL];
 			sprintf(buf, "{xCannot collapse $p{x to that distance.  Please pick a value from %d to %d.",
-				telescope->value[1], telescope->value[2]);
+				telescope->min_distance, telescope->distance - 1);
 
-			act(buf, ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
+			act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 			return;
 		}
-
 	}
 	else
-		distance = 0;
+		distance = telescope->min_distance;
 
-	if( distance > telescope->value[0] )
+	int ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRECOLLAPSE, NULL, distance,0,0,0,0);
+	if (ret)
 	{
-		if( telescope->value[0] > 0 )
-			act("{x$p{x is already collapsed further.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
-		else
-			act("{xYou cannot collapse $p{x any further.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
+		if (ret != PRET_SILENT)
+		{
+			act("Unable to collapse $p{x.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
 	}
-	else if( distance < telescope->value[0] )
+
+	if( distance < telescope->distance )
 	{
-		telescope->value[0] = distance;
-    	act("{xYou collapse $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
-    	act("{x$n collapses $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_ROOM);
+		telescope->distance = distance;
+    	act("{xYou collapse $p{x.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+    	act("{x$n collapses $p{x.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_COLLAPSE, NULL, 0,0,0,0,0);
 	}
 	else
-	{
-		act("{x$p{x is already collapsed that far.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
-	}
+		act("{x$p{x is already collapsed that far.{x.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 }
 
-void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant)
+void look_sextant(CHAR_DATA *ch, OBJ_DATA *obj)
 {
-	if( IS_VALID(sextant) && sextant->item_type == ITEM_SEXTANT &&
-		(IN_WILDERNESS(ch) || ON_SHIP(ch)) && ch->in_room != NULL )
+	if (!IS_VALID(obj)) return;
+
+	SEXTANT_DATA *sextant = SEXTANT(obj);
+
+	if( IS_VALID(sextant) && (IN_WILDERNESS(ch) || ON_SHIP(ch)) && ch->in_room != NULL )
 	{
 		long x, y;
 		SHIP_DATA *ship = get_room_ship(ch->in_room);
@@ -8399,7 +8430,7 @@ void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant)
 			}
 
 			success = (number_percent() < skill);
-			if (!success || number_percent() >= sextant->value[0])
+			if (!success || number_percent() >= sextant->accuracy)
 			{
 				x = x + number_range(-30, 30);
 				y = y + number_range(-30, 30);
@@ -8441,7 +8472,7 @@ void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant)
 			}
 
 			success = (number_percent() < skill);
-			if (!success || number_percent() >= sextant->value[0])
+			if (!success || number_percent() >= sextant->accuracy)
 			{
 				x = x + number_range(-30, 30);
 				y = y + number_range(-30, 30);
@@ -8470,30 +8501,36 @@ void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant)
 
 }
 
-void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
+void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *obj, char *argument)
 {
-	if( !IS_VALID(telescope) || telescope->item_type != ITEM_TELESCOPE )
+	if( !IS_VALID(obj) || !IS_TELESCOPE(obj) )
 	{
 		return;
 	}
 
-	if( telescope->value[0] <= 0 )
+	TELESCOPE_DATA *telescope = TELESCOPE(obj);
+
+	if( telescope->distance <= 0 )
 	{
 		send_to_char("{DThe telescope is fully collapsed.\n\r", ch);
 		return;
 	}
 
 	int heading;
+	bool stationary = !CAN_WEAR(obj, ITEM_TAKE);
 	bool can_fudge = true;
 	if( argument[0] == '\0' )
 	{
-		if( CAN_WEAR(telescope, ITEM_TAKE) || telescope->value[4] < 0 )
+		// Don't show anything if not stationary
+		if (!stationary) return;
+
+		if(telescope->heading < 0 )
 		{
 			send_to_char("{RThe telescope is pointing nowhere.\n\r", ch);
 			return;
 		}
 
-		heading = telescope->value[4];
+		heading = telescope->heading;
 		can_fudge = false;
 	}
 	else if( is_number(argument) )
@@ -8521,6 +8558,19 @@ void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
 		case DIR_NORTHWEST:			heading = 315; break;
 		default:
 			return;
+		}
+	}
+
+	if (stationary && can_fudge)
+	{
+		int ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREORIENT, NULL, heading,0,0,0,0);
+		if (ret)
+		{
+			if (ret != PRET_SILENT)
+			{
+				act("Unable to orient $p{x in that direction.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				return;
+			}
 		}
 	}
 
@@ -8583,14 +8633,14 @@ void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
 		if( wilds )
 		{
 			// Telescope position
-			int tx = x + (int)(telescope->value[0] * sin(3.14159 * heading / 180));
-			int ty = y - (int)(telescope->value[0] * cos(3.14159 * heading / 180));
+			int tx = x + (int)(telescope->distance * sin(3.14159 * heading / 180));
+			int ty = y - (int)(telescope->distance * cos(3.14159 * heading / 180));
 
 			// Bonusview size
-			int bvx = telescope->value[3];
+			int bvx = telescope->bonus_view;
 			int bvy = 2 * bvx / 3;
 
-			act("{xPeering through $p{x, you see:{x", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
+			act("{xPeering through $p{x, you see:{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 			show_map_to_char_wyx(wilds, tx, ty, ch, x, y, bvx, bvy, false);
 		}
 
@@ -8602,11 +8652,14 @@ void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
 	}
 
 	// Stationary telescopes can save their heading
-	if( !CAN_WEAR(telescope, ITEM_TAKE) )
-		telescope->value[4] = heading;
+	if( stationary && can_fudge )
+	{
+		telescope->heading = heading;
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ORIENT, NULL, 0,0,0,0,0);
+	}
 }
 
-void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
+void look_compass(CHAR_DATA *ch, OBJ_DATA *obj)
 {
 	char buf[MSL], arg[MIL];
 	ROOM_INDEX_DATA *here = ch->in_room;
@@ -8614,6 +8667,17 @@ void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
 	int heading = -1;
 	SKILL_DATA *gsk = NULL;
 	int skill;
+	COMPASS_DATA *compass = COMPASS(obj);
+
+	int ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRECOMPASS, NULL, 0,0,0,0,0);
+	if (ret)
+	{
+		if (ret != PRET_SILENT)
+		{
+			act("{xThe needle on $p{x can't decide where to point.{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
+	}
 
 	if( IS_VALID(ship) )
 	{
@@ -8653,7 +8717,7 @@ void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
 	if( skill < 1 )
 		return;
 
-	if( compass->value[1] > 0 )
+	if( compass->wuid > 0 )
 	{
 		if( IS_VALID(ship) )
 		{
@@ -8665,10 +8729,10 @@ void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
 			return;
 		}
 
-		if( here->wilds->uid == compass->value[1] )
+		if( here->wilds->uid == compass->wuid )
 		{
-			int dx = compass->value[2] - here->x;
-			int dy = here->y - compass->value[3];
+			int dx = compass->x- here->x;
+			int dy = here->y - compass->y;
 
 			if( dx != 0 || dy != 0 )
 			{
@@ -8685,13 +8749,17 @@ void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
 	else
 		return;
 
+	obj->tempstore[0] = heading;
+	p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_COMPASS, NULL, 0,0,0,0,0);
+	heading = obj->tempstore[0];
+
 	if( heading < 0 )
 	{
-		act("{xThe needle on $p{x is spinning.{x", ch, NULL, NULL, compass, NULL, NULL, NULL, TO_CHAR);
+		act("{xThe needle on $p{x is spinning.{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 		return;
 	}
 
-	if( number_percent() >= compass->value[0] )
+	if( number_percent() >= compass->accuracy )
 	{
 		heading += number_range(-30, 30);
 		if( heading < 0 ) heading += 360;
@@ -8756,12 +8824,12 @@ void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
 		}
 
 		sprintf(buf, "{xThe needle on $p{x points %s.", arg);
-		act(buf, ch, NULL, NULL, compass, NULL, NULL, NULL, TO_CHAR);
+		act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 		success = true;
 	}
 	else
 	{
-		act("{xYou have trouble reading the needle on $p{x.", ch, NULL, NULL, compass, NULL, NULL, NULL, TO_CHAR);
+		act("{xYou have trouble reading the needle on $p{x.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 		success = false;
 	}
 
@@ -8772,10 +8840,15 @@ void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
 	}
 }
 
-void look_map(CHAR_DATA *ch, OBJ_DATA *map)
+void look_map(CHAR_DATA *ch, OBJ_DATA *obj)
 {
 	bool success;
 	int skill = get_skill(ch, gsk_navigation);
+	MAP_DATA *map = MAP(obj);
+
+	if (!IS_VALID(map)) return;
+
+	// TODO: Add some way of being able to see this list?
 
 	if( list_size(map->waypoints) > 0 )
 	{
@@ -8820,7 +8893,7 @@ void look_map(CHAR_DATA *ch, OBJ_DATA *map)
 		}
 		else
 		{
-			act("{MYou don't understand the numbers written on {x$p{M.{x", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR);
+			act("{MYou don't understand the numbers written on {x$p{M.{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 
 			success = false;
 		}

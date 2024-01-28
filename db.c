@@ -4010,6 +4010,7 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
 		AMMO(obj) = copy_ammo_data(AMMO(pObjIndex));
 		ARMOR(obj) = copy_armor_data(ARMOR(pObjIndex));
 		BOOK(obj) = copy_book_data(BOOK(pObjIndex));
+		COMPASS(obj) = copy_compass_data(COMPASS(pObjIndex));
 		CONTAINER(obj) = copy_container_data(CONTAINER(pObjIndex));
 		FLUID_CON(obj) = copy_fluid_container_data(FLUID_CON(pObjIndex));
 		FOOD(obj) = copy_food_data(FOOD(pObjIndex));
@@ -4018,12 +4019,15 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
 		INSTRUMENT(obj) = copy_instrument_data(INSTRUMENT(pObjIndex));
 		JEWELRY(obj) = copy_jewelry_data(JEWELRY(pObjIndex));
 		LIGHT(obj) = copy_light_data(LIGHT(pObjIndex));
+		MAP(obj) = copy_map_data(MAP(pObjIndex));
 		MIST(obj) = copy_mist_data(MIST(pObjIndex));
 		MONEY(obj) = copy_money_data(MONEY(pObjIndex));
 		PAGE(obj) = copy_book_page(PAGE(pObjIndex));
 		PORTAL(obj) = copy_portal_data(PORTAL(pObjIndex), false);
 		SCROLL(obj) = copy_scroll_data(SCROLL(pObjIndex));
+		SEXTANT(obj) = copy_sextant_data(SEXTANT(pObjIndex));
 		TATTOO(obj) = copy_tattoo_data(TATTOO(pObjIndex));
+		TELESCOPE(obj) = copy_telescope_data(TELESCOPE(pObjIndex));
 		WAND(obj) = copy_wand_data(WAND(pObjIndex));
 		WEAPON(obj) = copy_weapon_data(WEAPON(pObjIndex));
 	}
@@ -4120,11 +4124,6 @@ OBJ_DATA *create_object(OBJ_INDEX_DATA *pObjIndex, int level, bool affects)
 			obj->extra_descr			= ed_new;
 		}
 
-		if( pObjIndex->waypoints )
-		{
-			obj->waypoints = list_copy(pObjIndex->waypoints);
-		}
-
     	get_obj_id(obj);
 	}
 
@@ -4156,11 +4155,6 @@ void clone_object(OBJ_DATA *parent, OBJ_DATA *clone)
 
     clone->affected = NULL;
     clone->catalyst = NULL;
-    if( clone->waypoints )
-    {
-		list_destroy(clone->waypoints);
-		clone->waypoints = NULL;
-	}
 
     /* start fixing the object */
     clone->name 	= str_dup(parent->name);
@@ -4202,11 +4196,6 @@ void clone_object(OBJ_DATA *parent, OBJ_DATA *clone)
 			free_extra_descr(ed);
 		}
 		clone->extra_descr = NULL;
-	}
-
-	if( parent->waypoints )
-	{
-		clone->waypoints = list_copy(parent->waypoints);
 	}
 
     /* extended desc */
@@ -6994,6 +6983,7 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 	}
 	*/
 
+	/*
 	if( obj->waypoints )
 	{
 		ITERATOR wit;
@@ -7006,6 +6996,7 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 		}
 		iterator_stop(&wit);
 	}
+	*/
 
 	if (obj->spells)
 		save_spell(fp, obj->spells);		// SpellNew **
@@ -7804,6 +7795,7 @@ TOKEN_DATA *persist_load_token(FILE *fp)
 AMMO_DATA *fread_obj_ammo_data(FILE *fp);
 ARMOR_DATA *fread_obj_armor_data(FILE *fp);
 BOOK_DATA *fread_obj_book_data(FILE *fp);
+COMPASS_DATA *fread_obj_compass_data(FILE *fp);
 CONTAINER_DATA *fread_obj_container_data(FILE *fp);
 FLUID_CONTAINER_DATA *fread_obj_fluid_container_data(FILE *fp);
 FOOD_DATA *fread_obj_food_data(FILE *fp);
@@ -7812,12 +7804,15 @@ INK_DATA *fread_obj_ink_data(FILE *fp);
 INSTRUMENT_DATA *fread_obj_instrument_data(FILE *fp);
 JEWELRY_DATA *fread_obj_jewelry_data(FILE *fp);
 LIGHT_DATA *fread_obj_light_data(FILE *fp);
+MAP_DATA *fread_obj_map_data(FILE *fp);
 MIST_DATA *fread_obj_mist_data(FILE *fp);
 MONEY_DATA *fread_obj_money_data(FILE *fp);
 BOOK_PAGE *fread_book_page(FILE *fp, char *closer);
 PORTAL_DATA *fread_obj_portal_data(FILE *fp);
 SCROLL_DATA *fread_obj_scroll_data(FILE *fp);
+SEXTANT_DATA *fread_obj_sextant_data(FILE *fp);
 TATTOO_DATA *fread_obj_tattoo_data(FILE *fp);
+TELESCOPE_DATA *fread_obj_telescope_data(FILE *fp);
 WAND_DATA *fread_obj_wand_data(FILE *fp);
 WEAPON_DATA *fread_obj_weapon_data(FILE *fp);
 
@@ -7969,6 +7964,14 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					fMatch = true;
 					break;
 				}
+				if (!str_cmp(word, "#TYPEMAP"))
+				{
+					if (IS_MAP(obj)) free_map_data(MAP(obj));
+
+					MAP(obj) = fread_obj_map_data(fp);
+					fMatch = true;
+					break;
+				}
 				if (!str_cmp(word, "#TYPEMIST"))
 				{
 					if (IS_MIST(obj)) free_mist_data(MIST(obj));
@@ -8009,11 +8012,27 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					fMatch = true;
 					break;
 				}
+				if (!str_cmp(word, "#TYPESEXTANT"))
+				{
+					if (IS_SEXTANT(obj)) free_sextant_data(SEXTANT(obj));
+
+					SEXTANT(obj) = fread_obj_sextant_data(fp);
+					fMatch = true;
+					break;
+				}
 				if (!str_cmp(word, "#TYPETATTOO"))
 				{
 					if (IS_TATTOO(obj)) free_tattoo_data(TATTOO(obj));
 
 					TATTOO(obj) = fread_obj_tattoo_data(fp);
+					fMatch = true;
+					break;
+				}
+				if (!str_cmp(word, "#TYPETELESCOPE"))
+				{
+					if (IS_TELESCOPE(obj)) free_telescope_data(TELESCOPE(obj));
+
+					TELESCOPE(obj) = fread_obj_telescope_data(fp);
 					fMatch = true;
 					break;
 				}
@@ -8385,6 +8404,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 				KEY("LongDesc",		obj->description,	fread_string(fp));
 				break;
 			case 'M':
+				/*
 				if( !str_cmp(word, "MapWaypoint") )
 				{
 					WAYPOINT_DATA *wp = new_waypoint();
@@ -8404,6 +8424,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					fMatch = true;
 					break;
 				}
+				*/
 				break;
 			case 'N':
 				KEY("Name",		obj->name,			fread_string(fp));

@@ -516,6 +516,7 @@ typedef struct obj_ink_data INK_DATA;
 typedef struct obj_instrument_data INSTRUMENT_DATA;
 typedef struct obj_jewelry_data JEWELRY_DATA;
 typedef struct obj_light_data LIGHT_DATA;
+typedef struct obj_map_data MAP_DATA;
 typedef struct obj_mist_data MIST_DATA;
 typedef struct obj_money_data MONEY_DATA;
 typedef struct book_page_data BOOK_PAGE;
@@ -3048,7 +3049,7 @@ struct affliction_type {
 #define ITEM_NO_ANIMATE		(G)	// Similar to ITEM_NO_RESURRECT, but designed for animate dead, instead
 #define ITEM_RIFT_UPDATE	(H)	// Allows the item to update in the rift.
 #define ITEM_SHOW_IN_WILDS	(I)	// Show object in the wilderness maps.
-
+#define ITEM_STOLEN         (J) // Item has been stolen
 #define ITEM_INSTANCE_OBJ	(Z)	// Object is part of an instance
 
 /* Extra4 */
@@ -5605,6 +5606,11 @@ struct obj_book_data {
 struct obj_compass_data {
     COMPASS_DATA *next;
     bool valid;
+
+    int16_t accuracy;
+    long wuid;
+    long x;
+    long y;
 };
 
 // =========[ CONTAINER ]==========
@@ -5848,6 +5854,21 @@ struct obj_light_data {
     int duration;       // Ticks remaining.  Negative is infinite
 };
 
+// =============[ MAP ]============
+#define MAP(obj)            ((obj)->_map)
+#define IS_MAP(obj)         IS_VALID(MAP(obj))
+
+struct obj_map_data {
+    MAP_DATA *next;
+    bool valid;
+
+    long wuid;
+    long x;
+    long y;
+
+	LLIST *waypoints;
+};
+
 // ============[ MIST ]============
 #define MIST(obj)           ((obj)->_mist)
 #define IS_MIST(obj)        IS_VALID(MIST(obj))
@@ -5969,16 +5990,19 @@ struct obj_tattoo_data
 
 // =========[ TELESCOPE ]==========
 #define TELESCOPE(obj)      ((obj)->_telescope)
-#define IS_TELESCOPE(obj)   IS_VALID(TEleScOPE(obj))
+#define IS_TELESCOPE(obj)   IS_VALID(TELESCOPE(obj))
 
 struct obj_telescope_data {
     TELESCOPE_DATA *next;
     bool valid;
 
-    // TODO: Allow collapsing?
     int16_t distance;
     int16_t min_distance;
     int16_t max_distance;
+
+    int16_t bonus_view;         // How much does the telescope add to the view?
+
+    int16_t heading;
 };
 
 // ===========[ WAND ]=============
@@ -6147,11 +6171,10 @@ struct	obj_index_data
 
 	LOCK_STATE *lock;
 
-	LLIST *waypoints;
-
     AMMO_DATA *_ammo;
     ARMOR_DATA *_armor;
     BOOK_DATA *_book;
+    COMPASS_DATA *_compass;
     CONTAINER_DATA *_container;
     FLUID_CONTAINER_DATA *_fluid_container;
     FOOD_DATA *_food;
@@ -6160,12 +6183,15 @@ struct	obj_index_data
     INSTRUMENT_DATA *_instrument;
     JEWELRY_DATA *_jewelry;
     LIGHT_DATA *_light;
+    MAP_DATA *_map;
     MIST_DATA *_mist;
     MONEY_DATA *_money;
     BOOK_PAGE *_page;
     PORTAL_DATA *_portal;
     SCROLL_DATA *_scroll;
+    SEXTANT_DATA *_sextant;
     TATTOO_DATA *_tattoo;
+    TELESCOPE_DATA *_telescope;
     WAND_DATA *_wand;
     WEAPON_DATA *_weapon;
 };
@@ -6266,6 +6292,7 @@ struct	obj_data
     AMMO_DATA *_ammo;
     ARMOR_DATA *_armor;
     BOOK_DATA *_book;
+    COMPASS_DATA *_compass;
     CONTAINER_DATA *_container;
     FLUID_CONTAINER_DATA *_fluid_container;
     FOOD_DATA *_food;
@@ -6274,17 +6301,19 @@ struct	obj_data
     INSTRUMENT_DATA *_instrument;
     JEWELRY_DATA *_jewelry;
     LIGHT_DATA *_light;
+    MAP_DATA *_map;
     MIST_DATA *_mist;
     MONEY_DATA *_money;
     BOOK_PAGE *_page;
     PORTAL_DATA *_portal;
     SCROLL_DATA *_scroll;
+    SEXTANT_DATA *_sextant;
     TATTOO_DATA *_tattoo;
+    TELESCOPE_DATA *_telescope;
     WAND_DATA *_wand;
     WEAPON_DATA *_weapon;
 
     SHIP_DATA		*ship;
-    LLIST			*waypoints;
 
     int			trap_dam;
     int 		last_wear_loc;
@@ -8077,7 +8106,9 @@ enum trigger_index_enum {
 	TRIG_CHECK_DAMAGE,
 	TRIG_CLONE_EXTRACT,
 	TRIG_CLOSE,
+    TRIG_COLLAPSE,
 	TRIG_COMBAT_STYLE,
+    TRIG_COMPASS,
 	TRIG_COMPLETED,
 	TRIG_CONTRACT_COMPLETE,
 	TRIG_CUSTOM_PRICE,		// Called when a stock item has custom pricing
@@ -8100,6 +8131,7 @@ enum trigger_index_enum {
 	TRIG_EXALL,
 	TRIG_EXAMINE,
 	TRIG_EXIT,
+    TRIG_EXPAND,
 	TRIG_EXPIRE,		/* NIB : 20070124 : token expiration */
     TRIG_EXTINGUISH,
 	TRIG_EXTRACT,
@@ -8148,6 +8180,7 @@ enum trigger_index_enum {
 	TRIG_MOVEGAIN,
 	TRIG_MULTICLASS,	// Called when a player multiclasses
 	TRIG_OPEN,
+    TRIG_ORIENT,
 	TRIG_POSTMISSION,			// Called after all quest rewards and messages are given
     TRIG_POUR,
 	TRIG_PRACTICE,
@@ -8160,12 +8193,15 @@ enum trigger_index_enum {
 	TRIG_PREBUY,
 	TRIG_PREBUY_OBJ,
 	TRIG_PRECAST,
+    TRIG_PRECOLLAPSE,
+    TRIG_PRECOMPASS,
 	TRIG_PREDEATH,
 	TRIG_PREDISMOUNT,
 	TRIG_PREDRINK,
 	TRIG_PREDROP,
 	TRIG_PREEAT,
 	TRIG_PREENTER,
+    TRIG_PREEXPAND,
     TRIG_PREEXTINGUISH,
 	TRIG_PREFLEE,
 	TRIG_PREGET,
@@ -8176,6 +8212,7 @@ enum trigger_index_enum {
     TRIG_PRELOCK,
 	TRIG_PREMISSION,			// Allows custom checking for missions, also allows setting the number of mission parts.
 	TRIG_PREMOUNT,
+    TRIG_PREORIENT,
 	TRIG_PREPRACTICE,
 	TRIG_PREPRACTICEOTHER,
 	TRIG_PREPRACTICETHAT,

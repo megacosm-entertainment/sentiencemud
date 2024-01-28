@@ -21,7 +21,7 @@
 #include "olc.h"
 #include "wilds.h"
 
-OBJ_DATA *create_wilderness_map(WILDS_DATA *pWilds, int vx, int vy, OBJ_DATA *scroll, int offset, char *marker)
+OBJ_DATA *create_wilderness_map(WILDS_DATA *pWilds, int vx, int vy, OBJ_DATA *map, int offset, char *marker)
 {
 	int distance;
 	AREA_REGION *bestRegion = NULL;
@@ -29,7 +29,7 @@ OBJ_DATA *create_wilderness_map(WILDS_DATA *pWilds, int vx, int vy, OBJ_DATA *sc
 	int bestDistance = 200;
 
 	if( !pWilds ) return NULL;
-	if( !scroll ) return NULL;
+	if( !map ) return NULL;
 
 	int w = get_squares_to_show_x(0) - 1;
 	int h = get_squares_to_show_y(0) - 1;
@@ -68,14 +68,14 @@ OBJ_DATA *create_wilderness_map(WILDS_DATA *pWilds, int vx, int vy, OBJ_DATA *sc
 
 	}
 
-	if (scroll != NULL)
+	if (map != NULL && IS_MAP(map))
 	{
 		BUFFER *buffer = new_buf();
 
 		get_wilds_mapstring(buffer, pWilds, wx, wy, vx, vy, 0, 0, marker);
 
-		if (scroll->full_description != NULL)
-			free_string(scroll->full_description);
+		if (map->full_description != NULL)
+			free_string(map->full_description);
 
 		if( IS_VALID(bestRegion) )
 		{
@@ -92,18 +92,16 @@ OBJ_DATA *create_wilderness_map(WILDS_DATA *pWilds, int vx, int vy, OBJ_DATA *sc
 			add_buf(buffer, "\n\r{RX{x marks the spot!\n\r");
 		}
 
-		scroll->full_description = str_dup(buffer->string);
+		map->full_description = str_dup(buffer->string);
 
 		free_buf(buffer);
 
-		if( scroll->item_type == ITEM_MAP )
-		{
-			scroll->value[0] = wx;
-			scroll->value[1] = wy;
-		}
+		MAP(map)->wuid = pWilds->uid;
+		MAP(map)->x = wx;
+		MAP(map)->y = wy;
 	}
 
-	return scroll;
+	return map;
 }
 
 inline static bool __treasure_area_region_valid(AREA_REGION *region, WILDS_DATA *wilds)
@@ -159,7 +157,7 @@ bool valid_area_for_treasure(AREA_DATA *pArea)
 OBJ_DATA *create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea, OBJ_DATA *treasure)
 {
 	ROOM_INDEX_DATA *pRoom = NULL;
-	OBJ_DATA *scroll;
+	OBJ_DATA *map;
 	int vx, vy;
 
 	if( !IS_VALID(treasure) ) return NULL;
@@ -237,9 +235,9 @@ OBJ_DATA *create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea, OBJ_DATA *tr
 	}
 
 	// create the scroll
-	scroll = create_object(obj_index_treasure_map, 0, true);
+	map = create_object(obj_index_treasure_map, 0, true);
 
-	return create_wilderness_map(pWilds, vx, vy, scroll, 5, "{RX{x");
+	return create_wilderness_map(pWilds, vx, vy, map, 5, "{RX{x");
 }
 
 void do_spawntreasuremap(CHAR_DATA *ch, char *argument)

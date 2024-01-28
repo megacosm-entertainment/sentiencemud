@@ -913,19 +913,15 @@ void save_object_multityping(FILE *fp, OBJ_INDEX_DATA *obj)
 		fprintf(fp, "#-TYPEBOOK\n");
 	}
 
-	if (IS_PAGE(obj))
+	if (IS_COMPASS(obj))
 	{
-		fprintf(fp, "#TYPEPAGE %d\n", PAGE(obj)->page_no);
-		fprintf(fp, "Title %s~\n", fix_string(PAGE(obj)->title));
-		fprintf(fp, "Text %s~\n", fix_string(PAGE(obj)->text));
-		if (PAGE(obj)->book.auid > 0 && PAGE(obj)->book.vnum > 0)
-		{
-			if (PAGE(obj)->book.auid == obj->area->uid)
-				fprintf(fp, "Book #%ld\n", PAGE(obj)->book.vnum);
-			else
-				fprintf(fp, "Book %ld#%ld\n", PAGE(obj)->book.auid, PAGE(obj)->book.vnum);
-		}
-		fprintf(fp, "#-TYPEPAGE\n");
+		COMPASS_DATA *compass = COMPASS(obj);
+		fprintf(fp, "#TYPECOMPASS\n");
+		fprintf(fp, "Accuracy %d\n", compass->accuracy);
+		fprintf(fp, "Wilds %ld\n", compass->wuid);
+		fprintf(fp, "X %ld\n", compass->x);
+		fprintf(fp, "Y %ld\n", compass->y);
+		fprintf(fp, "#-TYPECOMPASS\n");
 	}
 
 	if (IS_CONTAINER(obj))
@@ -1139,6 +1135,24 @@ void save_object_multityping(FILE *fp, OBJ_INDEX_DATA *obj)
 		fprintf(fp, "#-TYPELIGHT\n");
 	}
 
+	if (IS_MAP(obj))
+	{
+		fprintf(fp, "#TYPEMAP\n");
+		fprintf(fp, "Wilds %ld\n", MAP(obj)->wuid);
+		fprintf(fp, "X %ld\n", MAP(obj)->x);
+		fprintf(fp, "Y %ld\n", MAP(obj)->y);
+
+		ITERATOR wit;
+		WAYPOINT_DATA *wp;
+		iterator_start(&wit, MAP(obj)->waypoints);
+		while((wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)))
+		{
+			fprintf(fp, "Waypoint %lu %d %d %s~\n", wp->w, wp->x, wp->y, fix_string(wp->name));
+		}
+		iterator_stop(&wit);
+		fprintf(fp, "#-TYPEMAP\n");
+	}
+
 	if (IS_MIST(obj))
 	{
 		fprintf(fp, "#TYPEMIST\n");
@@ -1165,6 +1179,21 @@ void save_object_multityping(FILE *fp, OBJ_INDEX_DATA *obj)
 		fprintf(fp, "Silver %d\n", MONEY(obj)->silver);
 		fprintf(fp, "Gold %d\n", MONEY(obj)->gold);
 		fprintf(fp, "#-TYPEMONEY\n");
+	}
+
+	if (IS_PAGE(obj))
+	{
+		fprintf(fp, "#TYPEPAGE %d\n", PAGE(obj)->page_no);
+		fprintf(fp, "Title %s~\n", fix_string(PAGE(obj)->title));
+		fprintf(fp, "Text %s~\n", fix_string(PAGE(obj)->text));
+		if (PAGE(obj)->book.auid > 0 && PAGE(obj)->book.vnum > 0)
+		{
+			if (PAGE(obj)->book.auid == obj->area->uid)
+				fprintf(fp, "Book #%ld\n", PAGE(obj)->book.vnum);
+			else
+				fprintf(fp, "Book %ld#%ld\n", PAGE(obj)->book.auid, PAGE(obj)->book.vnum);
+		}
+		fprintf(fp, "#-TYPEPAGE\n");
 	}
 
 	if (IS_PORTAL(obj))
@@ -1214,6 +1243,15 @@ void save_object_multityping(FILE *fp, OBJ_INDEX_DATA *obj)
 		fprintf(fp, "#-TYPESCROLL\n");
 	}
 
+	if (IS_SEXTANT(obj))
+	{
+		SEXTANT_DATA *sextant = SEXTANT(obj);
+
+		fprintf(fp, "#TYPESEXTANT\n");
+		fprintf(fp, "Accuracy %d\n", sextant->accuracy);
+		fprintf(fp, "#-TYPESEXTANT\n");
+	}
+
 	if (IS_TATTOO(obj))
 	{
 		fprintf(fp, "#TYPETATTOO\n");
@@ -1232,6 +1270,19 @@ void save_object_multityping(FILE *fp, OBJ_INDEX_DATA *obj)
 		iterator_stop(&sit);
 
 		fprintf(fp, "#-TYPETATTOO\n");
+	}
+
+	if (IS_TELESCOPE(obj))
+	{
+		TELESCOPE_DATA *telescope = TELESCOPE(obj);
+		fprintf(fp, "#TYPETELESCOPE\n");
+		fprintf(fp, "Distance %d\n", telescope->distance);
+		fprintf(fp, "MinDistance %d\n", telescope->min_distance);
+		fprintf(fp, "MaxDistance %d\n", telescope->max_distance);
+		fprintf(fp, "BonusView %d\n", telescope->bonus_view);
+		if (telescope->heading >= 0)
+			fprintf(fp, "Heading %d\n", telescope->heading);
+		fprintf(fp, "#-TYPETELESCOPE\n");
 	}
 
 	if (IS_WAND(obj))
@@ -1369,6 +1420,7 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
 	if(obj->comments)
 		fprintf(fp, "Comments %s~\n", fix_string(obj->comments));
 
+	#if 0
 	if( obj->waypoints )
 	{
 		ITERATOR wit;
@@ -1381,6 +1433,7 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
 		}
 		iterator_stop(&wit);
 	}
+	#endif
 
 	// Affects
 	for (af = obj->affected; af != NULL; af = af->next) {
@@ -3402,6 +3455,48 @@ BOOK_DATA *read_object_book_data(FILE *fp, AREA_DATA *area)
 	return book;
 }
 
+
+COMPASS_DATA *read_object_compass_data(FILE *fp)
+{
+	COMPASS_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_compass_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPECOMPASS"))
+	{
+		fMatch = false;
+
+		switch(word[0])
+		{
+			case 'A':
+				KEY("Accuracy", data->accuracy, fread_number(fp));
+				break;
+
+			case 'W':
+				KEY("Wilds", data->wuid, fread_number(fp));
+				break;
+			
+			case 'X':
+				KEY("X", data->x, fread_number(fp));
+				break;
+			
+			case 'Y':
+				KEY("Y", data->y, fread_number(fp));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_object_compass_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
 CONTAINER_DATA *read_object_container_data(FILE *fp)
 {
 	CONTAINER_DATA *data = NULL;
@@ -4020,6 +4115,56 @@ LIGHT_DATA *read_object_light_data(FILE *fp)
 	return data;
 }
 
+MAP_DATA *read_object_map_data(FILE *fp)
+{
+	MAP_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_map_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPEMAP"))
+	{
+		fMatch = false;
+
+		switch(word[0])
+		{
+			case 'W':
+				if (!str_cmp(word, "Waypoint"))
+				{
+					WAYPOINT_DATA *wp = new_waypoint();
+
+					wp->w = fread_number(fp);
+					wp->x = fread_number(fp);
+					wp->y = fread_number(fp);
+					wp->name = fread_string(fp);
+
+					list_appendlink(data->waypoints, wp);
+					fMatch = true;
+					break;
+				}
+				KEY("Wilds", data->wuid, fread_number(fp));
+				break;
+			
+			case 'X':
+				KEY("X", data->x, fread_number(fp));
+				break;
+			
+			case 'Y':
+				KEY("Y", data->y, fread_number(fp));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_object_map_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
 MIST_DATA *read_object_mist_data(FILE *fp)
 {
 	MIST_DATA *data = NULL;
@@ -4272,6 +4417,35 @@ SCROLL_DATA *read_object_scroll_data(FILE *fp)
 	return data;
 }
 
+SEXTANT_DATA *read_object_sextant_data(FILE *fp)
+{
+	SEXTANT_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_sextant_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPESEXTANT"))
+	{
+		fMatch = false;
+
+		switch(word[0])
+		{
+			case 'A':
+				KEY("Accuracy", data->accuracy, fread_number(fp));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_object_sextant_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
 TATTOO_DATA *read_object_tattoo_data(FILE *fp)
 {
 	TATTOO_DATA *data = NULL;
@@ -4322,6 +4496,48 @@ TATTOO_DATA *read_object_tattoo_data(FILE *fp)
 
 		if (!fMatch) {
 			sprintf(buf, "read_object_tattoo_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+TELESCOPE_DATA *read_object_telescope_data(FILE *fp)
+{
+	TELESCOPE_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_telescope_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPETELESCOPE"))
+	{
+		fMatch = false;
+
+		switch(word[0])
+		{
+			case 'B':
+				KEY("BonusView", data->bonus_view, fread_number(fp));
+				break;
+
+			case 'D':
+				KEY("Distance", data->distance, fread_number(fp));
+				break;
+
+			case 'H':
+				KEY("Heading", data->heading, fread_number(fp));
+				break;
+
+			case 'M':
+				KEY("MaxDistance", data->max_distance, fread_number(fp));
+				KEY("MinDistance", data->min_distance, fread_number(fp));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_object_telescope_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4571,6 +4787,10 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 				if (IS_LIGHT(obj)) free_light_data(LIGHT(obj));
 				LIGHT(obj) = read_object_light_data(fp);
 				fMatch = true;
+			} else if (!str_cmp(word, "#TYPEMAP")) {
+				if (IS_MAP(obj)) free_map_data(MAP(obj));
+				MAP(obj) = read_object_map_data(fp);
+				fMatch = true;
 			} else if (!str_cmp(word, "#TYPEMIST")) {
 				if (IS_MIST(obj)) free_mist_data(MIST(obj));
 				MIST(obj) = read_object_mist_data(fp);
@@ -4591,9 +4811,17 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 				if (IS_SCROLL(obj)) free_scroll_data(SCROLL(obj));
 				SCROLL(obj) = read_object_scroll_data(fp);
 				fMatch = true;
+			} else if (!str_cmp(word, "#TYPESEXTANT")) {
+				if (IS_SEXTANT(obj)) free_sextant_data(SEXTANT(obj));
+				SEXTANT(obj) = read_object_sextant_data(fp);
+				fMatch = true;
 			} else if (!str_cmp(word, "#TYPETATTOO")) {
 				if (IS_TATTOO(obj)) free_tattoo_data(TATTOO(obj));
 				TATTOO(obj) = read_object_tattoo_data(fp);
+				fMatch = true;
+			} else if (!str_cmp(word, "#TYPETELESCOPE")) {
+				if (IS_TELESCOPE(obj)) free_telescope_data(TELESCOPE(obj));
+				TELESCOPE(obj) = read_object_telescope_data(fp);
 				fMatch = true;
 			} else if (!str_cmp(word, "#TYPEWAND")) {
 				if (IS_WAND(obj)) free_wand_data(WAND(obj));
@@ -4666,6 +4894,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 			break;
 
 	    case 'M':
+			/*
 			if( !str_cmp(word, "MapWaypoint") )
 			{
 				WAYPOINT_DATA *wp = new_waypoint();
@@ -4685,6 +4914,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 				fMatch = true;
 				break;
 			}
+			*/
 
 			if (!str_cmp(word, "Material"))
 			{

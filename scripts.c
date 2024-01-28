@@ -810,6 +810,8 @@ void script_loop_cleanup(SCRIPT_CB *block, int level)
 			case ENT_ILLIST_SKILLS:
 			case ENT_ILLIST_SKILLGROUPS:
 			case ENT_ILLIST_CLASSES:
+			case ENT_ILLIST_MISSIONS:
+			case ENT_ILLIST_WAYPOINTS:
 				iterator_stop(&block->loops[i].d.l.list.it);
 				break;
 			}
@@ -1153,6 +1155,7 @@ DECL_OPC_FUN(opc_list)
 	REPUTATION_INDEX_DATA *repIndex;
 	REPUTATION_INDEX_RANK_DATA *rank;
 	MISSION_DATA *mission;
+	WAYPOINT_DATA *waypoint;
 
 	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
 		return opc_skip_block(block,block->cur_line->level-1,false);
@@ -2501,6 +2504,33 @@ DECL_OPC_FUN(opc_list)
 			variables_set_mission(block->info.var,block->loops[lp].var_name,mission);
 			break;
 
+
+		case ENT_ILLIST_WAYPOINTS:
+			//log_stringf("opc_list: list type ENT_ILLIST_WAYPOINTS");
+			if(!IS_VALID(arg->d.blist))
+			{
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+			}
+
+			block->loops[lp].d.l.type = ENT_ILLIST_WAYPOINTS;
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+			waypoint = (WAYPOINT_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+			if( !waypoint ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+			}
+
+			// Set the variable
+			variables_set_waypoint(block->info.var,block->loops[lp].var_name,waypoint);
+			break;
+
 		default:
 			//log_stringf("opc_list: list_type INVALID");
 			block->ret_val = PRET_BADSYNTAX;
@@ -3337,6 +3367,21 @@ DECL_OPC_FUN(opc_list)
 			variables_set_mission(block->info.var,block->loops[lp].var_name,mission);
 
 			if( !mission ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				skip = true;
+				break;
+			}
+			break;
+
+		case ENT_ILLIST_WAYPOINTS:
+			//log_stringf("opc_list: list type ENT_ILLIST_WAYPOINTS");
+			waypoint = (WAYPOINT_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+			//log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
+
+			// Set the variable
+			variables_set_waypoint(block->info.var,block->loops[lp].var_name,waypoint);
+
+			if( !waypoint ) {
 				iterator_stop(&block->loops[lp].d.l.list.it);
 				skip = true;
 				break;

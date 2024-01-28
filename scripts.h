@@ -357,6 +357,8 @@ enum variable_enum {
 	VAR_MISSION,
 	VAR_MISSION_PART,
 
+	VAR_WAYPOINT,
+
 	VAR_BLLIST_FIRST,
 	////////////////////////
 
@@ -501,6 +503,7 @@ enum entity_type_enum {
 	ENT_RACE,
 	ENT_CLASS,
 	ENT_CLASSLEVEL,
+	ENT_WAYPOINT,
 
 	ENT_SEX_STRING_TABLE,		// TABLE.neuter, TABLE.male, TABLE.female, TABLE.either -> ENT_STRING, encode the parsing as a sex index (0 - 3)
 	ENT_STATS_TABLE,			// TABLE.strength.... -> ENT_NUMBER, encodes the parsing as the STAT_* define
@@ -575,6 +578,7 @@ enum entity_type_enum {
 	ENT_ILLIST_SKILLGROUPS,
 	ENT_ILLIST_CLASSES,
 	ENT_ILLIST_MISSIONS,
+	ENT_ILLIST_WAYPOINTS,
 	ENT_ILLIST_MAX,
 	//////////////////////////////
 
@@ -623,6 +627,7 @@ enum entity_type_enum {
 	// Multi-typing
 	ENT_OBJECT_AMMO,
 	ENT_OBJECT_BOOK,
+	ENT_OBJECT_COMPASS,
 	ENT_OBJECT_CONTAINER,
 	ENT_OBJECT_FLUID_CONTAINER,
 	ENT_OBJECT_FOOD,
@@ -631,12 +636,15 @@ enum entity_type_enum {
 	ENT_OBJECT_INSTRUMENT,
 	ENT_OBJECT_JEWELRY,
 	ENT_OBJECT_LIGHT,
+	ENT_OBJECT_MAP,
 	ENT_OBJECT_MIST,
 	ENT_OBJECT_MONEY,
 	ENT_OBJECT_PAGE,
 	ENT_OBJECT_PORTAL,
 	ENT_OBJECT_SCROLL,
+	ENT_OBJECT_SEXTANT,
 	ENT_OBJECT_TATTOO,
+	ENT_OBJECT_TELESCOPE,
 	ENT_OBJECT_WAND,
 	ENT_OBJECT_WEAPON,
 
@@ -724,6 +732,7 @@ enum entity_variable_types_enum {
 	ENTITY_VAR_SHIPINDEX,
 	ENTITY_VAR_MISSION,
 	ENTITY_VAR_MISSION_PART,
+	ENTITY_VAR_WAYPOINT,
 
 	ENTITY_VAR_BLLIST_ROOM,
 	ENTITY_VAR_BLLIST_MOB,
@@ -998,6 +1007,7 @@ enum entity_object_enum {
 	ENTITY_OBJ_RACE,
 	ENTITY_OBJ_TYPE_AMMO,
 	ENTITY_OBJ_TYPE_BOOK,
+	ENTITY_OBJ_TYPE_COMPASS,
 	ENTITY_OBJ_TYPE_CONTAINER,
 	ENTITY_OBJ_TYPE_FLUID_CONTAINER,
 	ENTITY_OBJ_TYPE_FOOD,
@@ -1006,12 +1016,15 @@ enum entity_object_enum {
 	ENTITY_OBJ_TYPE_INSTRUMENT,
 	ENTITY_OBJ_TYPE_JEWELRY,
 	ENTITY_OBJ_TYPE_LIGHT,
+	ENTITY_OBJ_TYPE_MAP,
 	ENTITY_OBJ_TYPE_MIST,
 	ENTITY_OBJ_TYPE_MONEY,
 	ENTITY_OBJ_TYPE_PAGE,
 	ENTITY_OBJ_TYPE_PORTAL,
 	ENTITY_OBJ_TYPE_SCROLL,
+	ENTITY_OBJ_TYPE_SEXTANT,
 	ENTITY_OBJ_TYPE_TATTOO,
+	ENTITY_OBJ_TYPE_TELESCOPE,
 	ENTITY_OBJ_TYPE_WAND,
 	ENTITY_OBJ_TYPE_WEAPON,
 };
@@ -1036,6 +1049,15 @@ enum entity_object_book_enum
 	ENTITY_OBJ_BOOK_OPENER,
 	ENTITY_OBJ_BOOK_PAGES,
 	ENTITY_OBJ_BOOK_LOCK,
+};
+
+enum entity_object_compass_enum
+{
+	ENTITY_OBJ_COMPASS_ACCURACY = ESCAPE_EXTRA,
+	ENTITY_OBJ_COMPASS_WILDS,
+	ENTITY_OBJ_COMPASS_X,
+	ENTITY_OBJ_COMPASS_Y,
+	ENTITY_OBJ_COMPASS_TARGET,
 };
 
 enum entity_object_container_enum
@@ -1111,6 +1133,14 @@ enum entity_object_light_enum {
 	ENTITY_OBJ_LIGHT_FLAGS,
 };
 
+enum entty_object_map_enum {
+	ENTITY_OBJ_MAP_WILDS = ESCAPE_EXTRA,
+	ENTITY_OBJ_MAP_X,
+	ENTITY_OBJ_MAP_Y,
+	ENTITY_OBJ_MAP_TARGET,
+	ENTITY_OBJ_MAP_WAYPOINTS,
+};
+
 enum entity_object_mist_enum {
 	ENTITY_OBJ_MIST_OBSCURE_MOBILES = ESCAPE_EXTRA,
 	ENTITY_OBJ_MIST_OBSCURE_OBJECTS,
@@ -1152,11 +1182,23 @@ enum entity_object_scroll_enum {
 	ENTITY_OBJ_SCROLL_SPELLS,	
 };
 
+enum entity_object_sextant_enum {
+	ENTITY_OBJ_SEXTANT_ACCURACY = ESCAPE_EXTRA,
+};
+
 enum entity_object_tattoo_enum {
 	ENTITY_OBJ_TATTOO_TOUCHES = ESCAPE_EXTRA,
 	ENTITY_OBJ_TATTOO_FADE,
 	ENTITY_OBJ_TATTOO_FADING,
 	ENTITY_OBJ_TATTOO_SPELLS,
+};
+
+enum entity_object_telescope_enum {
+	ENTITY_OBJ_TELESCOPE_DISTANCE = ESCAPE_EXTRA,
+	ENTITY_OBJ_TELESCOPE_MIN_DISTANCE,
+	ENTITY_OBJ_TELESCOPE_MAX_DISTANCE,
+	ENTITY_OBJ_TELESCOPE_BONUS_VIEW,
+	ENTITY_OBJ_TELESCOPE_HEADING,
 };
 
 enum entity_object_wand_enum {
@@ -1593,6 +1635,14 @@ enum entity_affinity {
 	ENTITY_AFFINITY_SIZE,
 };
 
+enum entity_waypoint {
+	ENTITY_WAYPOINT_NAME = ESCAPE_EXTRA,
+	ENTITY_WAYPOINT_WILDS,
+	ENTITY_WAYPOINT_X,
+	ENTITY_WAYPOINT_Y,
+	ENTITY_WAYPOINT_TARGET,
+};
+
 enum entity_song_enum {
 	ENTITY_SONG_NAME = ESCAPE_EXTRA,
 	ENTITY_SONG_UID,
@@ -1940,6 +1990,7 @@ struct script_var_type {
 		REPUTATION_DATA *reputation;
 		REPUTATION_INDEX_DATA *reputation_index;
 		REPUTATION_INDEX_RANK_DATA *reputation_rank;
+		WAYPOINT_DATA *waypoint;
 		struct {
 			CHAR_DATA *owner;
 			TOKEN_DATA *token;
@@ -2168,6 +2219,7 @@ struct script_parameter {
 		REPUTATION_INDEX_RANK_DATA *repRank;
 		MATERIAL *material;
 		SECTOR_DATA *sector;
+		WAYPOINT_DATA *waypoint;
 
 		struct {
 			SECTOR_DATA *sector;
@@ -3104,6 +3156,8 @@ bool variables_set_mission (ppVARIABLE list,char *name,MISSION_DATA *mission);
 bool variables_setsave_mission (ppVARIABLE list,char *name,MISSION_DATA *mission, sent_bool save);
 bool variables_set_mission_part (ppVARIABLE list,char *name,MISSION_DATA *mission, MISSION_PART_DATA *part);
 bool variables_setsave_mission_part (ppVARIABLE list,char *name,MISSION_DATA *mission, MISSION_PART_DATA *part, sent_bool save);
+bool variables_set_waypoint (ppVARIABLE list,char *name,WAYPOINT_DATA *waypoint);
+bool variables_setsave_waypoint (ppVARIABLE list,char *name,WAYPOINT_DATA *waypoint, sent_bool save);
 
 int variable_fread_type(char *str);
 pVARIABLE variable_create(ppVARIABLE list,char *name, bool index, bool clear);

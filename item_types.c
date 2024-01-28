@@ -57,7 +57,7 @@
 // ITEM_STAFF				Deleted (to be merged with WEAPON)
 // ITEM_WEAPON				No
 // ITEM_TREASURE			No
-// ITEM_ARMOUR				No
+// ITEM_ARMOUR				Yes
 // ITEM_POTION				Fluid Container
 // ITEM_CLOTHING			No
 // ITEM_FURNITURE			Yes
@@ -79,11 +79,11 @@
 // ITEM_CATALYST			To be deleted
 // ITEM_ROOM_KEY			To be deleted
 // ITEM_GEM					No
-// ITEM_JEWELRY				No
+// ITEM_JEWELRY				Yes
 // ITEM_JUKEBOX				No
 // ITEM_ARTIFACT			No
 // ITEM_SHARECERT			To be deleted
-// ITEM_ROOM_FLAME			No (MIST)
+// ITEM_ROOM_FLAME			Mist
 // ITEM_INSTRUMENT			Yes
 // ITEM_SEED				No
 // ITEM_CART				No
@@ -95,18 +95,18 @@
 // ITEM_ROOM_ROOMSHIELD		To be converted to a room affect
 // ITEM_BOOK				Yes
 // ITEM_SMOKE_BOMB			No
-// ITEM_STINKING_CLOUD		No (MIST)
+// ITEM_STINKING_CLOUD		Mist
 // ITEM_HERB				No
 // ITEM_SPELL_TRAP			No
-// ITEM_WITHERING_CLOUD		No (MIST)
+// ITEM_WITHERING_CLOUD		Mist
 // ITEM_BANK				No
 // ITEM_KEYRING				Container
 // ITEM_TRADE_TYPE			No
-// ITEM_ICE_STORM			No (MIST)
+// ITEM_ICE_STORM			Mist
 // ITEM_FLOWER				No
 // ITEM_EMPTY_VIAL			Fluid Container / Deleted
 // ITEM_BLANK_SCROLL		Scroll / Deleted
-// ITEM_MIST				No (MIST)
+// ITEM_MIST				Yes
 // ITEM_SHRINE				To be deleted
 // ITEM_WHISTLE				No
 // ITEM_SHOVEL				No

@@ -493,7 +493,6 @@ OBJ_DATA *new_obj(void)
 	obj->lclonerooms = list_create(false);
     obj->lstache = list_create(false);
 	obj->lock = NULL;
-	obj->waypoints = NULL;
     obj->clazz_type    = CLASS_NONE;
     obj->clazz         = NULL;
     obj->race          = list_create(false);
@@ -595,17 +594,12 @@ void free_obj(OBJ_DATA *obj)
 		obj->lock = NULL;
 	}
 
-	if(obj->waypoints)
-	{
-		list_destroy(obj->waypoints);
-		obj->waypoints = NULL;
-	}
-
     list_destroy(obj->race);
 
     free_ammo_data(AMMO(obj));
     free_armor_data(ARMOR(obj));
     free_book_data(BOOK(obj));
+    free_compass_data(COMPASS(obj));
     free_container_data(CONTAINER(obj));
     free_fluid_container_data(FLUID_CON(obj));
     free_food_data(FOOD(obj));
@@ -618,7 +612,9 @@ void free_obj(OBJ_DATA *obj)
     free_book_page(PAGE(obj));
     free_portal_data(PORTAL(obj));
     free_scroll_data(SCROLL(obj));
+    free_sextant_data(SEXTANT(obj));
     free_tattoo_data(TATTOO(obj));
+    free_telescope_data(TELESCOPE(obj));
     free_wand_data(WAND(obj));
     free_weapon_data(WEAPON(obj));
 
@@ -2147,7 +2143,6 @@ OBJ_INDEX_DATA *new_obj_index( void )
         pObj->value[value]  =   0;
     pObj->comments      = &str_empty[0];
     pObj->lock			= NULL;
-    pObj->waypoints		= NULL;
     pObj->clazz_type    = CLASS_NONE;
     pObj->clazz         = NULL;
     pObj->race          = list_create(false);
@@ -2179,12 +2174,6 @@ void free_obj_index( OBJ_INDEX_DATA *pObj )
         free_extra_descr( pExtra );
 
     free_lock_state( pObj->lock );
-
-    if( pObj->waypoints )
-    {
-		list_destroy(pObj->waypoints);
-		pObj->waypoints = NULL;
-	}
 
     list_destroy(pObj->race);
 
@@ -2657,6 +2646,8 @@ WAYPOINT_DATA *new_waypoint( void )
 void free_waypoint( WAYPOINT_DATA *waypoint )
 {
 	if( !IS_VALID(waypoint) ) return;
+
+    variable_clearfield(VAR_WAYPOINT, waypoint);
 
 	free_string(waypoint->name);
 
@@ -5848,6 +5839,56 @@ void free_book_data(BOOK_DATA *data)
     INVALIDATE(data);
 }
 
+// ==========[ COMPASS ]===========
+COMPASS_DATA *compass_data_free;
+COMPASS_DATA *new_compass_data()
+{
+    COMPASS_DATA *data;
+    if (compass_data_free)
+    {
+        data = compass_data_free;
+        compass_data_free = compass_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(COMPASS_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    VALIDATE(data);
+    return data;
+}
+
+COMPASS_DATA *copy_compass_data(COMPASS_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    COMPASS_DATA *data;
+    if (compass_data_free)
+    {
+        data = compass_data_free;
+        compass_data_free = compass_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(COMPASS_DATA));
+    
+    memset(data, 0, sizeof(*data));
+    data->accuracy = src->accuracy;
+    data->wuid = src->wuid;
+    data->x = src->x;
+    data->y = src->y;
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_compass_data(COMPASS_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    INVALIDATE(data);
+    data->next = compass_data_free;
+    compass_data_free = data;
+}
 
 // =========[ CONTAINER ]==========
 CONTAINER_FILTER *new_container_filter()
@@ -6515,6 +6556,62 @@ void free_light_data(LIGHT_DATA *data)
     light_data_free = data;
 }
 
+// ============[ MAP ]=============
+MAP_DATA *map_data_free;
+MAP_DATA *new_map_data()
+{
+    MAP_DATA *data;
+    if (map_data_free)
+    {
+        data = map_data_free;
+        map_data_free = map_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(MAP_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    data->waypoints = list_createx(false, copy_waypoint, delete_waypoint);
+
+    VALIDATE(data);
+    return data;
+}
+
+MAP_DATA *copy_map_data(MAP_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    MAP_DATA *data;
+    if (map_data_free)
+    {
+        data = map_data_free;
+        map_data_free = map_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(MAP_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    data->wuid = src->wuid;
+    data->x = src->x;
+    data->y = src->y;
+    data->waypoints = list_copy(src->waypoints);
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_map_data(MAP_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    list_destroy(data->waypoints);
+
+    INVALIDATE(data);
+    data->next = map_data_free;
+    map_data_free = data;
+}
+
 // ============[ MIST ]============
 MIST_DATA *mist_data_free;
 MIST_DATA *new_mist_data()
@@ -6691,9 +6788,6 @@ void free_portal_data(PORTAL_DATA *data)
 }
 
 
-
-
-
 // Scroll
 SCROLL_DATA *scroll_data_free;
 SCROLL_DATA *new_scroll_data()
@@ -6748,6 +6842,56 @@ void free_scroll_data(SCROLL_DATA *data)
     scroll_data_free = data;
 }
 
+// ==========[ SEXTANT ]===========
+SEXTANT_DATA *sextant_data_free;
+SEXTANT_DATA *new_sextant_data()
+{
+    SEXTANT_DATA *data;
+    if (sextant_data_free)
+    {
+        data = sextant_data_free;
+        sextant_data_free = sextant_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(SEXTANT_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    VALIDATE(data);
+    return data;
+}
+
+SEXTANT_DATA *copy_sextant_data(SEXTANT_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    SEXTANT_DATA *data;
+    if (sextant_data_free)
+    {
+        data = sextant_data_free;
+        sextant_data_free = sextant_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(SEXTANT_DATA));
+    
+    memset(data, 0, sizeof(*data));
+    data->accuracy = src->accuracy;
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_sextant_data(SEXTANT_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    INVALIDATE(data);
+    data->next = sextant_data_free;
+    sextant_data_free = data;
+}
+
+
+
 // Tattoo
 TATTOO_DATA *tattoo_data_free;
 TATTOO_DATA *new_tattoo_data()
@@ -6801,6 +6945,62 @@ void free_tattoo_data(TATTOO_DATA *data)
     INVALIDATE(data);
     data->next = tattoo_data_free;
     tattoo_data_free = data;
+}
+
+// Telescope
+TELESCOPE_DATA *telescope_data_free;
+TELESCOPE_DATA *new_telescope_data()
+{
+    TELESCOPE_DATA *data;
+    if (telescope_data_free)
+    {
+        data = telescope_data_free;
+        telescope_data_free = telescope_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(TELESCOPE_DATA));
+    
+    memset(data, 0, sizeof(*data));
+    data->distance = 1;
+    data->min_distance = 1;
+    data->max_distance = 1;
+    data->heading = -1;
+
+    VALIDATE(data);
+    return data;
+}
+
+TELESCOPE_DATA *copy_telescope_data(TELESCOPE_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    TELESCOPE_DATA *data;
+    if (telescope_data_free)
+    {
+        data = telescope_data_free;
+        telescope_data_free = telescope_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(TELESCOPE_DATA));
+    
+    memset(data, 0, sizeof(*data));
+    data->distance = src->distance;
+    data->min_distance = src->min_distance;
+    data->max_distance = src->max_distance;
+    data->bonus_view = src->bonus_view;
+    data->heading = src->heading;
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_telescope_data(TELESCOPE_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    INVALIDATE(data);
+    data->next = telescope_data_free;
+    telescope_data_free = data;
 }
 
 // Wand

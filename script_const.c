@@ -101,6 +101,7 @@ ENT_FIELD entity_types[] = {
 	{"book_page",		ENTITY_VAR_BOOK_PAGE,	ENT_BOOK_PAGE	},
 	{"food_buff",		ENTITY_VAR_FOOD_BUFF,	ENT_FOOD_BUFF	},
 	{"compartment",		ENTITY_VAR_COMPARTMENT,	ENT_COMPARTMENT },
+	{"waypoint",		ENTITY_VAR_WAYPOINT,	ENT_WAYPOINT	},
 	{"conn",			ENTITY_VAR_CONN,		ENT_CONN		},
 	{"church",			ENTITY_VAR_CHURCH,		ENT_CHURCH		},
 	{"var",				ENTITY_VAR_VARIABLE,	ENT_VARIABLE	},
@@ -451,6 +452,7 @@ ENT_FIELD entity_object[] = {
 	{"ammo_data",		ENTITY_OBJ_TYPE_AMMO,		ENT_OBJECT_AMMO},
 	{"book_page",		ENTITY_OBJ_TYPE_PAGE,		ENT_BOOK_PAGE},			// This is unique in that it is not handled internally like other type
 	{"book_data",		ENTITY_OBJ_TYPE_BOOK,		ENT_OBJECT_BOOK},
+	{"compass_data",	ENTITY_OBJ_TYPE_COMPASS,	ENT_OBJECT_COMPASS},
 	{"container_data",	ENTITY_OBJ_TYPE_CONTAINER,	ENT_OBJECT_CONTAINER},
 	{"fluid_data",		ENTITY_OBJ_TYPE_FLUID_CONTAINER,	ENT_OBJECT_FLUID_CONTAINER },
 	{"food_data",		ENTITY_OBJ_TYPE_FOOD,		ENT_OBJECT_FOOD},
@@ -459,11 +461,14 @@ ENT_FIELD entity_object[] = {
 	{"instrument_data",	ENTITY_OBJ_TYPE_INSTRUMENT,	ENT_OBJECT_INSTRUMENT},
 	{"jewelry_data",	ENTITY_OBJ_TYPE_JEWELRY,	ENT_OBJECT_JEWELRY},
 	{"light_data",		ENTITY_OBJ_TYPE_LIGHT,		ENT_OBJECT_LIGHT},
+	{"map_data",		ENTITY_OBJ_TYPE_MAP,		ENT_OBJECT_MAP},
 	{"mist_data",		ENTITY_OBJ_TYPE_MIST,		ENT_OBJECT_MIST},
 	{"money_data",		ENTITY_OBJ_TYPE_MONEY,		ENT_OBJECT_MONEY},
 	{"portal_data",		ENTITY_OBJ_TYPE_PORTAL,		ENT_OBJECT_PORTAL},
 	{"scroll_data",		ENTITY_OBJ_TYPE_SCROLL,		ENT_OBJECT_SCROLL},
+	{"sextant_data",	ENTITY_OBJ_TYPE_SEXTANT,	ENT_OBJECT_SEXTANT},
 	{"tattoo_data",		ENTITY_OBJ_TYPE_TATTOO,		ENT_OBJECT_TATTOO},
+	{"telescope_data",	ENTITY_OBJ_TYPE_TELESCOPE,	ENT_OBJECT_TELESCOPE},
 	{"wand_data",		ENTITY_OBJ_TYPE_WAND,		ENT_OBJECT_WAND},
 	{"weapon_data",		ENTITY_OBJ_TYPE_WEAPON,		ENT_OBJECT_WEAPON},
 	{NULL,			0,			ENT_UNKNOWN	}
@@ -486,6 +491,15 @@ ENT_FIELD entity_object_book[] = {
 	{"opener",				ENTITY_OBJ_BOOK_OPENER,		ENT_BOOK_PAGE },
 	{"pages",				ENTITY_OBJ_BOOK_PAGES,		ENT_PLLIST_BOOK_PAGE },
 	{"lock",				ENTITY_OBJ_BOOK_LOCK,		ENT_LOCK_STATE },
+	{NULL,			0,			ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_object_compass[] = {
+	{"accuracy",	ENTITY_OBJ_COMPASS_ACCURACY, 		ENT_NUMBER },
+	{"wilds",		ENTITY_OBJ_COMPASS_WILDS,			ENT_WILDS },
+	{"x",			ENTITY_OBJ_COMPASS_X,				ENT_NUMBER },
+	{"y",			ENTITY_OBJ_COMPASS_Y,				ENT_NUMBER },
+	{"target",		ENTITY_OBJ_COMPASS_TARGET,			ENT_ROOM },
 	{NULL,			0,			ENT_UNKNOWN	}
 };
 
@@ -555,6 +569,15 @@ ENT_FIELD entity_object_light[] = {
 	{NULL,			0,			ENT_UNKNOWN	}
 };
 
+ENT_FIELD entity_object_map[] = {
+	{"wilds",		ENTITY_OBJ_MAP_WILDS,			ENT_WILDS },
+	{"x",			ENTITY_OBJ_MAP_X,				ENT_NUMBER },
+	{"y",			ENTITY_OBJ_MAP_Y,				ENT_NUMBER },
+	{"target",		ENTITY_OBJ_MAP_TARGET,			ENT_ROOM },
+	{"waypoints",	ENTITY_OBJ_MAP_WAYPOINTS,		ENT_ILLIST_WAYPOINTS },
+	{NULL,			0,			ENT_UNKNOWN	}
+};
+
 ENT_FIELD entity_object_mist[] = {
 	{"mobiles",		ENTITY_OBJ_MIST_OBSCURE_MOBILES,	ENT_NUMBER },
 	{"objects",		ENTITY_OBJ_MIST_OBSCURE_OBJECTS,	ENT_NUMBER },
@@ -602,12 +625,26 @@ ENT_FIELD entity_object_scroll[] = {
 	{NULL,			0,								ENT_UNKNOWN	}
 };
 
+ENT_FIELD entity_object_sextant[] = {
+	{"accuracy",	ENTITY_OBJ_SEXTANT_ACCURACY,	ENT_NUMBER		},
+	{NULL,			0,								ENT_UNKNOWN	}
+};
+
 ENT_FIELD entity_object_tattoo[] = {
 	{"touches",		ENTITY_OBJ_TATTOO_TOUCHES,		ENT_NUMBER },
 	{"fade",		ENTITY_OBJ_TATTOO_FADE,			ENT_NUMBER },
 	{"fading",		ENTITY_OBJ_TATTOO_FADING,		ENT_NUMBER },
 	{"spells",		ENTITY_OBJ_TATTOO_SPELLS,		ENT_ILLIST_SPELLS },
 	{NULL,			0,								ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_object_telescope[] = {
+	{"distance",	ENTITY_OBJ_TELESCOPE_DISTANCE,		ENT_NUMBER },
+	{"min",			ENTITY_OBJ_TELESCOPE_MIN_DISTANCE,	ENT_NUMBER },
+	{"max",			ENTITY_OBJ_TELESCOPE_MAX_DISTANCE,	ENT_NUMBER },
+	{"bonusview",	ENTITY_OBJ_TELESCOPE_BONUS_VIEW,	ENT_NUMBER },
+	{"heading",		ENTITY_OBJ_TELESCOPE_HEADING,		ENT_NUMBER },
+	{NULL,			0,									ENT_UNKNOWN	}
 };
 
 ENT_FIELD entity_object_wand[] = {
@@ -1129,6 +1166,14 @@ ENT_FIELD entity_mission_part[] = {
 	{NULL,			0,									ENT_UNKNOWN		}
 };
 
+ENT_FIELD entity_waypoint[] = {
+	{"name",		ENTITY_WAYPOINT_NAME,				ENT_STRING },
+	{"wilds",		ENTITY_WAYPOINT_WILDS,				ENT_WILDS },
+	{"x",			ENTITY_WAYPOINT_X,					ENT_NUMBER },
+	{"y",			ENTITY_WAYPOINT_Y,					ENT_NUMBER },
+	{"target",		ENTITY_WAYPOINT_TARGET,				ENT_ROOM },
+	{NULL,			0,									ENT_UNKNOWN		}
+};
 
 ENT_FIELD entity_group[] = {
 	{"owner",		ENTITY_GROUP_OWNER,		ENT_MOBILE	},
@@ -1300,6 +1345,7 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_MATERIAL,		ENT_MATERIAL,		entity_material,			false,	false },
 	{ ENT_SECTOR,		ENT_SECTOR,			entity_sector,				false,	false },
 	{ ENT_AFFINITY,		ENT_AFFINITY,		entity_affinity,			false,	false },
+	{ ENT_WAYPOINT,		ENT_WAYPOINT,		entity_waypoint,			false,	false },
 	{ ENT_EXTRADESC,	ENT_EXTRADESC,		NULL,						false,	false },
 	{ ENT_HELP,			ENT_HELP,			NULL,						false,	false },
 	{ ENT_PRIOR,		ENT_PRIOR,			entity_prior,				false,	false },
@@ -1335,6 +1381,7 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_WIDEVNUM,		ENT_WIDEVNUM,		entity_widevnum,			false,	false },
 	{ ENT_OBJECT_AMMO, ENT_OBJECT_AMMO, entity_object_ammo, false,	false },
 	{ ENT_OBJECT_BOOK, ENT_OBJECT_BOOK, entity_object_book, false,	false },
+	{ ENT_OBJECT_COMPASS, ENT_OBJECT_COMPASS, entity_object_compass, false,	false },
 	{ ENT_OBJECT_CONTAINER, ENT_OBJECT_CONTAINER, entity_object_container, false,	false },
 	{ ENT_OBJECT_FLUID_CONTAINER, ENT_OBJECT_FLUID_CONTAINER, entity_object_fluid_container, false, false },
 	{ ENT_OBJECT_FOOD, ENT_OBJECT_FOOD, entity_object_food, false,	false },
@@ -1343,12 +1390,15 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_OBJECT_INSTRUMENT, ENT_OBJECT_INSTRUMENT, entity_object_instrument, false,	false },
 	{ ENT_OBJECT_JEWELRY, ENT_OBJECT_JEWELRY, entity_object_jewelry, false,	false },
 	{ ENT_OBJECT_LIGHT, ENT_OBJECT_LIGHT, entity_object_light, false,	false },
+	{ ENT_OBJECT_MAP, ENT_OBJECT_MAP, entity_object_map, false,	false },
 	{ ENT_OBJECT_MIST, ENT_OBJECT_MIST, entity_object_mist, false,	false },
 	{ ENT_OBJECT_MONEY, ENT_OBJECT_MONEY, entity_object_money, false,	false },
 	{ ENT_OBJECT_PAGE, ENT_OBJECT_PAGE, entity_book_page, false,	false },
 	{ ENT_OBJECT_PORTAL, ENT_OBJECT_PORTAL, entity_object_portal, false,	false },
 	{ ENT_OBJECT_SCROLL, ENT_OBJECT_SCROLL, entity_object_scroll, false,	false },
+	{ ENT_OBJECT_SEXTANT, ENT_OBJECT_SEXTANT, entity_object_sextant, false,	false },
 	{ ENT_OBJECT_TATTOO, ENT_OBJECT_TATTOO, entity_object_tattoo, false,	false },
+	{ ENT_OBJECT_TELESCOPE, ENT_OBJECT_TELESCOPE, entity_object_telescope, false,	false },
 	{ ENT_OBJECT_WAND, ENT_OBJECT_WAND, entity_object_wand, false,	false },
 	{ ENT_OBJECT_WEAPON, ENT_OBJECT_WEAPON, entity_object_weapon, false,	false },
 	{ ENT_SKILL_VALUES, ENT_SKILL_VALUES, NULL, false, true },

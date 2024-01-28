@@ -6757,6 +6757,9 @@ SCRIPT_CMD(scriptcmd_wildernessmap)
 	if( !(rest = expand_argument(info, rest, arg)) && arg->type != ENT_OBJECT )
 		return;
 
+	if (!IS_MAP(arg->d.obj))
+		return;
+
 	map = arg->d.obj;
 
 	if( !(rest = expand_argument(info, rest, arg)) && arg->type != ENT_NUMBER )

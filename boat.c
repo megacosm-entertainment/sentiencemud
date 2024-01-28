@@ -5308,13 +5308,13 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		if( map->item_type != ITEM_MAP )
+		if( !IS_MAP(map) )
 		{
 			send_to_char("That is not a map.\n\r", ch);
 			return;
 		}
 
-		if( list_size(map->waypoints) < 1 )
+		if( list_size(MAP(map)->waypoints) < 1 )
 		{
 			act("{xThere are no waypoints on $p{x.", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR);
 			return;
@@ -5324,7 +5324,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 		int updated = 0;
 		ITERATOR wit;
 		WAYPOINT_DATA *wp;
-		iterator_start(&wit, map->waypoints);
+		iterator_start(&wit, MAP(map)->waypoints);
 		while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
 		{
 			WILDS_DATA *wilds = get_wilds_from_uid(NULL, wp->w);
@@ -5467,24 +5467,17 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			if( IS_SCROLL(map) && list_size(SCROLL(map)->spells) < 1 )
+			if( !IS_MAP(map) )
 			{
-				// Replace blank scroll with map object
-				extract_obj(map);
-				map = create_object(obj_index_navigational_chart, 0, false);
-				obj_to_char(map, ch);
-			}
-			else if( map->item_type != ITEM_MAP )
-			{
-				send_to_char("That is not a map nor a blank scroll.\n\r", ch);
+				send_to_char("That is not a map.\n\r", ch);
 				return;
 			}
 
-			if( map->waypoints )
+			if( list_size(MAP(map)->waypoints) > 0 )
 			{
 				ITERATOR it;
 				WAYPOINT_DATA *wm;
-				iterator_start(&it, map->waypoints);
+				iterator_start(&it, MAP(map)->waypoints);
 				while( (wm = (WAYPOINT_DATA *)iterator_nextdata(&it)) )
 				{
 					if( wp->w == wm->w && wp->x == wm->x && wp->y == wm->y )
@@ -5501,14 +5494,9 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 
 		}
 
-		if( !map->waypoints )
-		{
-			map->waypoints = new_waypoints_list();
-		}
-
 		wp = clone_waypoint(wp);
 
-		list_appendlink(map->waypoints, wp);
+		list_appendlink(MAP(map)->waypoints, wp);
 
 		if( use_navigator )
 		{

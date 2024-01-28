@@ -5009,6 +5009,26 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		add_buf(buffer, buf);
 	}
 
+	if (IS_COMPASS(obj))
+	{
+		COMPASS_DATA *compass = COMPASS(obj);
+
+		add_buf(buffer, "\n\r{GCompass:{x\n\r");
+		sprintf(buf, "{B[{WAccuracy         {B]:  {x%d{B%%{x\n\r", compass->accuracy);
+		add_buf(buffer, buf);
+
+		if (compass->wuid > 0 && compass->x >= 0 && compass->y >= 0)
+		{
+			WILDS_DATA *wilds = get_wilds_from_uid(NULL, compass->wuid);
+
+			if (IS_VALID(wilds))
+				sprintf(buf, "{B[{WTarget           {B]:  {x%s{B ({x%ld{B) at ({x%ld{B,{x%ld{B){x\n\r", wilds->name, wilds->uid, compass->x, compass->y);
+			else
+				sprintf(buf, "{B[{WTarget           {B]:  {D-invalid-{B ({D???{B) at ({x%ld{B,{x%ld{B){x\n\r", compass->x, compass->y);
+			add_buf(buffer, buf);
+		}
+	}
+
 	if (IS_CONTAINER(obj))
 	{
 		add_buf(buffer, "\n\r{GContainer:{x\n\r");
@@ -5424,6 +5444,59 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		add_buf(buffer, buf);
 	}
 
+	if (IS_MAP(obj))
+	{
+		MAP_DATA *map = MAP(obj);
+
+		add_buf(buffer, "\n\r{GMap:{x\n\r");
+
+		if (map->wuid > 0 && map->x >= 0 && map->y >= 0)
+		{
+			WILDS_DATA *wilds = get_wilds_from_uid(NULL, map->wuid);
+
+			if (IS_VALID(wilds))
+				sprintf(buf, "{B[{WTarget           {B]:  {x%s{B ({x%ld{B) at ({x%ld{B,{x%ld{B){x\n\r", wilds->name, wilds->uid, map->x, map->y);
+			else
+				sprintf(buf, "{B[{WTarget           {B]:  {D-invalid-{B ({D???{B) at ({x%ld{B,{x%ld{B){x\n\r", map->x, map->y);
+		}
+		else
+			sprintf(buf, "{B[{WTarget           {B]:  {xnone\n\r");
+		add_buf(buffer, buf);
+
+		if (list_size(map->waypoints) > 0)
+		{
+			int cnt = 0;
+			ITERATOR wit;
+			WAYPOINT_DATA *wp;
+			WILDS_DATA *wilds;
+
+			add_buf(buffer, "{BCartographer Waypoints:{x\n\r\n\r");
+			add_buf(buffer, "{B     [     Wilderness     ] [ South ] [  East ] [        Name        ]{x\n\r");
+			add_buf(buffer, "{B======================================================================={x\n\r");
+
+			iterator_start(&wit, map->waypoints);
+			while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
+			{
+				wilds = get_wilds_from_uid(NULL, wp->w);
+
+				char *wname = wilds ? wilds->name : "{D(null){x";
+
+				int wwidth = get_colour_width(wname) + 20;
+
+				sprintf(buf, "{B%3d{b)  {W%-*.*s    {G%5d     %5d    {Y%s{x\n\r",
+					++cnt,
+					wwidth, wwidth, wname,
+					wp->y, wp->x, wp->name);
+
+				add_buf(buffer, buf);
+			}
+
+			iterator_stop(&wit);
+
+			add_buf(buffer, "\n\r");
+		}
+	}
+
 	if (IS_MIST(obj))
 	{
 		MIST_DATA *mist = MIST(obj);
@@ -5537,6 +5610,15 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		}
 	}
 
+	if (IS_SEXTANT(obj))
+	{
+		SEXTANT_DATA *sextant = SEXTANT(obj);
+
+		add_buf(buffer, "\n\r{GSextant:{x\n\r");
+		sprintf(buf, "{B[{WAccuracy         {B]:  {x%d{B%%{x\n\r", sextant->accuracy);
+		add_buf(buffer, buf);
+	}
+
 	if (IS_TATTOO(obj))
 	{
 		TATTOO_DATA *tattoo = TATTOO(obj);
@@ -5576,6 +5658,26 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 				cnt++;
 			}
 		}
+	}
+
+	if (IS_TELESCOPE(obj))
+	{
+		TELESCOPE_DATA *telescope = TELESCOPE(obj);
+
+		add_buf(buffer, "\n\r{GTelescope:{x\n\r");
+		sprintf(buf, "{B[{WDistance     {B]:  {x%d\n\r", telescope->distance);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WMin Distance {B]:  {x%d\n\r", telescope->min_distance);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WMax Distance {B]:  {x%d\n\r", telescope->max_distance);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WBonus View   {B]:  {x%d\n\r", telescope->bonus_view);
+		add_buf(buffer, buf);
+		if (telescope->heading < 0)
+			sprintf(buf, "{B[{WHeading      {B]:  {xnone\n\r");
+		else
+			sprintf(buf, "{B[{WHeading      {B]:  {x%d{B degrees (when stationary)\n\r", telescope->heading);
+		add_buf(buffer, buf);
 	}
 
 	if (IS_WAND(obj))
@@ -5798,12 +5900,14 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	    break;
 	*/
 
+	/*
 	case ITEM_SEXTANT:
             sprintf(buf,
 		"{B[  {Wv0{B]{G Percentage of working:{x  [%ld]\n\r",
 		obj->value[0]);
 	    add_buf(buffer, buf);
 	    break;
+		*/
 
 	case ITEM_SEED:
             sprintf(buf,
@@ -6011,6 +6115,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	    break;
 	*/
 
+	/*
 	case ITEM_TELESCOPE:
 		if( obj->value[4] < 0 )
 			sprintf(buf,
@@ -6062,6 +6167,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		}
 	    add_buf(buffer, buf);
 		break;
+		*/
 
 	case ITEM_BODY_PART:
 	{
@@ -6931,7 +7037,6 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 {
 	long i = 0;
 	BUFFER *buffer;
-	char buf[MSL];
 
 	switch(pObj->item_type)
 	{
@@ -7572,6 +7677,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		break;
 		*/
 
+	/*
 	case ITEM_TELESCOPE:
 		switch (value_num)
 		{
@@ -7767,7 +7873,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			break;
 		}
 		break;
-
+	*/
 	case ITEM_BODY_PART:
 		switch(value_num)
 		{
@@ -8068,40 +8174,6 @@ OEDIT(oedit_show)
 			add_buf(buffer, buf);
 		}
     }
-
-    if (list_size(pObj->waypoints) > 0)
-    {
-		int cnt = 0;
-		ITERATOR wit;
-		WAYPOINT_DATA *wp;
-		WILDS_DATA *wilds;
-
-		add_buf(buffer, "{BCartographer Waypoints:{x\n\r\n\r");
-		add_buf(buffer, "{B     [     Wilderness     ] [ South ] [  East ] [        Name        ]{x\n\r");
-		add_buf(buffer, "{B======================================================================={x\n\r");
-
-		iterator_start(&wit, pObj->waypoints);
-		while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
-		{
-			wilds = get_wilds_from_uid(NULL, wp->w);
-
-			char *wname = wilds ? wilds->name : "{D(null){x";
-
-			int wwidth = get_colour_width(wname) + 20;
-
-			sprintf(buf, "{B%3d{b)  {W%-*.*s    {G%5d     %5d    {Y%s{x\n\r",
-				++cnt,
-				wwidth, wwidth, wname,
-				wp->y, wp->x, wp->name);
-
-			add_buf(buffer, buf);
-		}
-
-		iterator_stop(&wit);
-
-		add_buf(buffer, "\n\r");
-	}
-
 
 
     if (pObj->progs)
@@ -8798,171 +8870,6 @@ OEDIT(oedit_next)
 	olc_set_editor(ch, ED_OBJECT, nextObj);
     }
     return false;
-}
-
-OEDIT(oedit_waypoints)
-{
-	char buf[MSL];
-	char arg[MIL];
-	OBJ_INDEX_DATA *pObj;
-
-	EDIT_OBJ(ch, pObj);
-
-	if( pObj->item_type != ITEM_MAP )
-	{
-		send_to_char("Only MAP objects can have waypoints.\n\r", ch);
-		return false;
-	}
-
-	if( argument[0] == '\0' )
-	{
-		send_to_char("Syntax:  waypoints list\n\r", ch);
-		send_to_char("         waypoints add <wilds> <south> <east>[ <name>]\n\r", ch);
-		send_to_char("         waypoints delete <#>\n\r", ch);
-		return false;
-	}
-
-	argument = one_argument(argument, arg);
-
-	if( !str_prefix(arg, "list") )
-	{
-		if (list_size(pObj->waypoints) > 0)
-		{
-			int cnt = 0;
-			ITERATOR wit;
-			WAYPOINT_DATA *wp;
-			WILDS_DATA *wilds;
-
-			BUFFER *buffer = new_buf();
-
-			add_buf(buffer, "{BCartographer Waypoints:{x\n\r\n\r");
-			add_buf(buffer, "{B     [     Wilderness     ] [ South ] [  East ] [        Name        ]{x\n\r");
-			add_buf(buffer, "{B======================================================================={x\n\r");
-
-			iterator_start(&wit, pObj->waypoints);
-			while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
-			{
-				wilds = get_wilds_from_uid(NULL, wp->w);
-
-				char *wname = wilds ? wilds->name : "{D(null){x";
-
-				int wwidth = get_colour_width(wname) + 20;
-
-				sprintf(buf, "{B%3d{b)  {W%-*.*s    {G%5d     %5d    {Y%s{x\n\r",
-					++cnt,
-					wwidth, wwidth, wname,
-					wp->y, wp->x, wp->name);
-
-				add_buf(buffer, buf);
-			}
-
-			iterator_stop(&wit);
-
-			add_buf(buffer, "\n\r");
-
-			page_to_char(buffer->string, ch);
-
-			free_buf(buffer);
-		}
-		else
-			send_to_char("No waypoints to display.\n\r", ch);
-
-		return false;
-	}
-
-	if( !str_prefix(arg, "add") )
-	{
-		char arg2[MIL];
-		char arg3[MIL];
-		char arg4[MIL];
-
-		long uid;
-		WILDS_DATA *wilds;
-		int x, y;
-
-		argument = one_argument(argument, arg2);
-		argument = one_argument(argument, arg3);
-		argument = one_argument(argument, arg4);
-
-		if( !is_number(arg2) || !is_number(arg3) || !is_number(arg4) )
-		{
-			send_to_char("That is not a number.\n\r", ch);
-			return false;
-		}
-
-		uid = atol(arg2);
-		wilds = get_wilds_from_uid(NULL, uid);
-		if( !wilds )
-		{
-			send_to_char("No such wilderness.\n\r", ch);
-			return false;
-		}
-
-		y = atoi(arg3);
-		x = atoi(arg4);
-
-		if( y < 0 || y >= wilds->map_size_y )
-		{
-			sprintf(buf, "South coordinate is out of bounds.  Please limit from 0 to %d.\n\r", wilds->map_size_y - 1);
-			send_to_char(buf, ch);
-			return false;
-		}
-
-		if( x < 0 || x >= wilds->map_size_x )
-		{
-			sprintf(buf, "East coordinate is out of bounds.  Please limit from 0 to %d.\n\r", wilds->map_size_x - 1);
-			send_to_char(buf, ch);
-			return false;
-		}
-
-		WAYPOINT_DATA *wp = new_waypoint();
-
-		free_string(wp->name);
-		wp->name = nocolour(argument);
-		wp->w = uid;
-		wp->x = x;
-		wp->y = y;
-
-		if( !pObj->waypoints )
-		{
-			pObj->waypoints = new_waypoints_list();
-		}
-
-		list_appendlink(pObj->waypoints, wp);
-		send_to_char("Waypoint added.\n\r", ch);
-		return true;
-	}
-
-	if( !str_prefix(arg, "delete") )
-	{
-		int value;
-
-		if( !is_number(argument) )
-		{
-			send_to_char("That is not a number.\n\r", ch);
-			return false;
-		}
-
-		if( !IS_VALID(pObj->waypoints) )
-		{
-			send_to_char("There are no waypoints to delete.\n\r", ch);
-			return false;
-		}
-
-		value = atoi(argument);
-		if( value < 1 || value > list_size(pObj->waypoints) )
-		{
-			send_to_char("No such waypoint.\n\r", ch);
-			return false;
-		}
-
-		list_remnthlink(pObj->waypoints, value, true);
-		send_to_char("Waypoint deleted.\n\r", ch);
-		return true;
-	}
-
-	oedit_waypoints(ch, "");
-	return false;
 }
 
 OEDIT(oedit_lock)
@@ -9977,22 +9884,18 @@ OEDIT(oedit_type)
 				pObj->value[i] = 0;
 			}
 
+			/*
 			// Defaults
 			if( pObj->item_type == ITEM_TELESCOPE )
 			{
 				pObj->value[4] = -1;
 			}
+			*/
 
 			if( pObj->lock )
 			{
 				free_lock_state(pObj->lock);
 				pObj->lock = NULL;
-			}
-
-			if( pObj->waypoints )
-			{
-				list_destroy(pObj->waypoints);
-				pObj->waypoints = NULL;
 			}
 
 			send_to_char("Primary type set.\n\r", ch);
@@ -11183,6 +11086,156 @@ OEDIT(oedit_type_book)
 	oedit_type_book(ch, "");
 	return false;
 }
+
+
+OEDIT(oedit_type_compass)
+{
+	OBJ_INDEX_DATA *pObj;
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_COMPASS(pObj))
+		{
+			send_to_char("Syntax:  compass accuracy <percent>\n\r", ch);
+			send_to_char("         compass location set <wilds uid> <x> <y>\n\r", ch);
+			send_to_char("         compass location set here\n\r", ch);
+			send_to_char("         compass location clear\n\r", ch);
+
+			if (pObj->item_type != ITEM_COMPASS)
+				send_to_char("         compass remove\n\r", ch);
+		}
+		else
+		{
+			send_to_char("Syntax:  compass add\n\r", ch);
+		}
+		return false;
+	}
+
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+
+	if (IS_COMPASS(pObj))
+	{
+		if (!str_prefix(arg, "accuracy"))
+		{
+			int16_t accuracy;
+			if (!is_number(argument) || (accuracy = atoi(argument)) < 0 || accuracy > 100)
+			{
+				send_to_char("Please provide a percent.\n\r", ch);
+				return false;
+			}
+
+			COMPASS(pObj)->accuracy = accuracy;
+			send_to_char("COMPASS Accuracy changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "location"))
+		{
+			argument = one_argument(argument, arg);
+
+			if (!str_prefix(arg, "set"))
+			{
+				argument = one_argument(argument, arg);
+	
+				if (!str_prefix(arg, "here"))
+				{
+					if (ch->in_room->wilds)
+					{
+						COMPASS(pObj)->wuid = ch->in_room->wilds->uid;
+						COMPASS(pObj)->x = ch->in_room->x;
+						COMPASS(pObj)->y = ch->in_room->y;
+
+						send_to_char(formatf("COMPASS Location set to %s (%ld) at (%ld, %ld).\n\r", ch->in_room->wilds->name, ch->in_room->wilds->uid, ch->in_room->x, ch->in_room->y), ch);
+						return true;
+					}
+
+					send_to_char("You must be in a wilderness room to do this.\n\r", ch);
+					return false;
+				}
+
+				long wuid = 0;
+				if(!is_number(arg) || (wuid = atol(arg)) < 1)
+				{
+					send_to_char("Please provide a positive number.\n\r", ch);
+					return false;
+				}
+
+				WILDS_DATA *wilds = get_wilds_from_uid(NULL, wuid);
+				if (!wilds)
+				{
+					send_to_char("No such wilds exists.\n\r", ch);
+					return false;
+				}
+
+				argument = one_argument(argument, arg);
+
+				long x;
+				if (!is_number(arg) || (x = atol(arg)) < 0 || x > wilds->map_size_x)
+				{
+					send_to_char(formatf("Please provide a number from 0 to %d.\n\r", wilds->map_size_x), ch);
+					return false;
+				}
+
+				long y;
+				if (!is_number(arg) || (y = atol(arg)) < 0 || x > wilds->map_size_y)
+				{
+					send_to_char(formatf("Please provide a number from 0 to %d.\n\r", wilds->map_size_y), ch);
+					return false;
+				}
+
+				COMPASS(pObj)->wuid = wuid;
+				COMPASS(pObj)->x = x;
+				COMPASS(pObj)->y = y;
+				send_to_char(formatf("COMPASS Location set to %s (%ld) at (%ld, %ld).\n\r", wilds->name, wilds->uid, x, y), ch);
+				return true;
+			}
+			else if (!str_prefix(arg, "clear"))
+			{
+				COMPASS(pObj)->wuid = 0;
+				COMPASS(pObj)->x = 0;
+				COMPASS(pObj)->y = 0;
+				send_to_char("COMPASS Location cleared.\n\r", ch);
+				return true;
+			}
+
+			send_to_char("Syntax:  compass location set <wilds uid> <x> <y>\n\r", ch);
+			send_to_char("         compass location set here\n\r", ch);
+			send_to_char("         compass location clear\n\r", ch);
+			return false;
+		}
+
+		if (pObj->item_type != ITEM_COMPASS)
+		{
+			if(!str_prefix(arg, "remove"))
+			{
+				free_compass_data(COMPASS(pObj));
+				COMPASS(pObj) = NULL;
+
+				send_to_char("COMPASS type removed.\n\r\n\r", ch);
+				return true;
+			}
+		}
+	}
+	else if(!str_prefix(arg, "add"))
+	{
+		if (!obj_index_can_add_item_type(pObj, ITEM_COMPASS))
+		{
+			send_to_char("You cannot add this item type to this object.\n\r", ch);
+			return false;
+		}
+		
+		COMPASS(pObj) = new_compass_data();
+		send_to_char("COMPASS type added.\n\r\n\r", ch);
+		return true;
+	}
+
+	oedit_type_compass(ch, "");
+	return false;
+}
+
 
 void oedit_type_container_showlist(CHAR_DATA *ch, LLIST *list, char *name, char color)
 {
@@ -13747,6 +13800,285 @@ OEDIT(oedit_type_light)
 	return false;
 }
 
+
+OEDIT(oedit_type_map)
+{
+	OBJ_INDEX_DATA *pObj;
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_MAP(pObj))
+		{
+			send_to_char("Syntax:  map location set <wuid> <x> <y>\n\r", ch);
+			send_to_char("         map location set here\n\r", ch);
+			send_to_char("         map location clear\n\r", ch);
+			send_to_char("         map waypoints list\n\r", ch);
+			send_to_char("         map waypoints add <wilds> <south> <east>[ <name>]\n\r", ch);
+			send_to_char("         map waypoints delete <#>\n\r", ch);
+
+			if (pObj->item_type != ITEM_MAP)
+				send_to_char("         map remove\n\r", ch);
+		}
+		else
+		{
+			send_to_char("Syntax:  map add\n\r", ch);
+		}
+		return false;
+	}
+
+	char buf[MSL];
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+
+	if (IS_MAP(pObj))
+	{
+		if (!str_prefix(arg, "location"))
+		{
+			argument = one_argument(argument, arg);
+
+			if (!str_prefix(arg, "set"))
+			{
+				argument = one_argument(argument, arg);
+	
+				if (!str_prefix(arg, "here"))
+				{
+					if (ch->in_room->wilds)
+					{
+						MAP(pObj)->wuid = ch->in_room->wilds->uid;
+						MAP(pObj)->x = ch->in_room->x;
+						MAP(pObj)->y = ch->in_room->y;
+
+						send_to_char(formatf("MAP Location set to %s (%ld) at (%ld, %ld).\n\r", ch->in_room->wilds->name, ch->in_room->wilds->uid, ch->in_room->x, ch->in_room->y), ch);
+						return true;
+					}
+
+					send_to_char("You must be in a wilderness room to do this.\n\r", ch);
+					return false;
+				}
+
+				long wuid = 0;
+				if(!is_number(arg) || (wuid = atol(arg)) < 1)
+				{
+					send_to_char("Please provide a positive number.\n\r", ch);
+					return false;
+				}
+
+				WILDS_DATA *wilds = get_wilds_from_uid(NULL, wuid);
+				if (!wilds)
+				{
+					send_to_char("No such wilds exists.\n\r", ch);
+					return false;
+				}
+
+				argument = one_argument(argument, arg);
+
+				long x;
+				if (!is_number(arg) || (x = atol(arg)) < 0 || x > wilds->map_size_x)
+				{
+					send_to_char(formatf("Please provide a number from 0 to %d.\n\r", wilds->map_size_x), ch);
+					return false;
+				}
+
+				long y;
+				if (!is_number(arg) || (y = atol(arg)) < 0 || x > wilds->map_size_y)
+				{
+					send_to_char(formatf("Please provide a number from 0 to %d.\n\r", wilds->map_size_y), ch);
+					return false;
+				}
+
+				MAP(pObj)->wuid = wuid;
+				MAP(pObj)->x = x;
+				MAP(pObj)->y = y;
+				send_to_char(formatf("MAP Location set to %s (%ld) at (%ld, %ld).\n\r", wilds->name, wilds->uid, x, y), ch);
+				return true;
+			}
+			else if (!str_prefix(arg, "clear"))
+			{
+				MAP(pObj)->wuid = 0;
+				MAP(pObj)->x = 0;
+				MAP(pObj)->y = 0;
+				send_to_char("MAP Location cleared.\n\r", ch);
+				return true;
+			}
+
+			send_to_char("Syntax:  map location set <wilds uid> <x> <y>\n\r", ch);
+			send_to_char("         map location set here\n\r", ch);
+			send_to_char("         map location clear\n\r", ch);
+			return false;
+		}
+
+		if (!str_prefix(arg, "waypoints"))
+		{
+			argument = one_argument(argument, arg);
+
+			if( !str_prefix(arg, "list") )
+			{
+				if (list_size(MAP(pObj)->waypoints) > 0)
+				{
+					int cnt = 0;
+					ITERATOR wit;
+					WAYPOINT_DATA *wp;
+					WILDS_DATA *wilds;
+
+					BUFFER *buffer = new_buf();
+
+					add_buf(buffer, "{BCartographer Waypoints:{x\n\r\n\r");
+					add_buf(buffer, "{B     [     Wilderness     ] [ South ] [  East ] [        Name        ]{x\n\r");
+					add_buf(buffer, "{B======================================================================={x\n\r");
+
+					iterator_start(&wit, MAP(pObj)->waypoints);
+					while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
+					{
+						wilds = get_wilds_from_uid(NULL, wp->w);
+
+						char *wname = wilds ? wilds->name : "{D(null){x";
+
+						int wwidth = get_colour_width(wname) + 20;
+
+						sprintf(buf, "{B%3d{b)  {W%-*.*s    {G%5d     %5d    {Y%s{x\n\r",
+							++cnt,
+							wwidth, wwidth, wname,
+							wp->y, wp->x, wp->name);
+
+						add_buf(buffer, buf);
+					}
+
+					iterator_stop(&wit);
+
+					add_buf(buffer, "\n\r");
+
+					page_to_char(buffer->string, ch);
+
+					free_buf(buffer);
+				}
+				else
+					send_to_char("No waypoints to display.\n\r", ch);
+
+				return false;
+			}
+
+			if( !str_prefix(arg, "add") )
+			{
+				char arg2[MIL];
+				char arg3[MIL];
+				char arg4[MIL];
+
+				long uid;
+				WILDS_DATA *wilds;
+				int x, y;
+
+				argument = one_argument(argument, arg2);
+				argument = one_argument(argument, arg3);
+				argument = one_argument(argument, arg4);
+
+				if( !is_number(arg2) || !is_number(arg3) || !is_number(arg4) )
+				{
+					send_to_char("That is not a number.\n\r", ch);
+					return false;
+				}
+
+				uid = atol(arg2);
+				wilds = get_wilds_from_uid(NULL, uid);
+				if( !wilds )
+				{
+					send_to_char("No such wilderness.\n\r", ch);
+					return false;
+				}
+
+				y = atoi(arg3);
+				x = atoi(arg4);
+
+				if( y < 0 || y >= wilds->map_size_y )
+				{
+					sprintf(buf, "South coordinate is out of bounds.  Please limit from 0 to %d.\n\r", wilds->map_size_y - 1);
+					send_to_char(buf, ch);
+					return false;
+				}
+
+				if( x < 0 || x >= wilds->map_size_x )
+				{
+					sprintf(buf, "East coordinate is out of bounds.  Please limit from 0 to %d.\n\r", wilds->map_size_x - 1);
+					send_to_char(buf, ch);
+					return false;
+				}
+
+				WAYPOINT_DATA *wp = new_waypoint();
+
+				free_string(wp->name);
+				wp->name = nocolour(argument);
+				wp->w = uid;
+				wp->x = x;
+				wp->y = y;
+
+				list_appendlink(MAP(pObj)->waypoints, wp);
+				send_to_char("Waypoint added.\n\r", ch);
+				return true;
+			}
+
+			if( !str_prefix(arg, "delete") )
+			{
+				int value;
+
+				if( !is_number(argument) )
+				{
+					send_to_char("That is not a number.\n\r", ch);
+					return false;
+				}
+
+				if( list_size(MAP(pObj)->waypoints) < 1 )
+				{
+					send_to_char("There are no waypoints to delete.\n\r", ch);
+					return false;
+				}
+
+				value = atoi(argument);
+				if( value < 1 || value > list_size(MAP(pObj)->waypoints) )
+				{
+					send_to_char("No such waypoint.\n\r", ch);
+					return false;
+				}
+
+				list_remnthlink(MAP(pObj)->waypoints, value, true);
+				send_to_char("Waypoint deleted.\n\r", ch);
+				return true;
+			}
+
+			oedit_type_map(ch, "");
+			return false;
+		}
+
+		if (pObj->item_type != ITEM_MAP)
+		{
+			if(!str_prefix(arg, "remove"))
+			{
+				free_map_data(MAP(pObj));
+				MAP(pObj) = NULL;
+
+				send_to_char("MAP type removed.\n\r\n\r", ch);
+				return true;
+			}
+		}
+	}
+	else if(!str_prefix(arg, "add"))
+	{
+		if (!obj_index_can_add_item_type(pObj, ITEM_MAP))
+		{
+			send_to_char("You cannot add this item type to this object.\n\r", ch);
+			return false;
+		}
+		
+		MAP(pObj) = new_map_data();
+		send_to_char("MAP type added.\n\r\n\r", ch);
+		return true;
+	}
+
+	oedit_type_map(ch, "");
+	return false;
+}
+
+
 #define PARSE_PERCENT(v,s,f,msg)	\
 	if (!str_prefix((v),(s))) \
 	{ \
@@ -15356,6 +15688,77 @@ OEDIT(oedit_type_scroll)
 	return false;
 }
 
+OEDIT(oedit_type_sextant)
+{
+	OBJ_INDEX_DATA *pObj;
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_SEXTANT(pObj))
+		{
+			send_to_char("Syntax:  sextant accuracy <percent>\n\r", ch);
+
+			if (pObj->item_type != ITEM_SEXTANT)
+				send_to_char("         sextant remove\n\r", ch);
+		}
+		else
+		{
+			send_to_char("Syntax:  sextant add\n\r", ch);
+		}
+		return false;
+	}
+
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+
+	if (IS_SEXTANT(pObj))
+	{
+		if (!str_prefix(arg, "accuracy"))
+		{
+			int16_t accuracy;
+			if (!is_number(argument) || (accuracy = atoi(argument)) < 0 || accuracy > 100)
+			{
+				send_to_char("Please provide a percent.\n\r", ch);
+				return false;
+			}
+
+			SEXTANT(pObj)->accuracy = accuracy;
+			send_to_char("SEXTANT Accuracy changed.\n\r", ch);
+			return true;
+		}
+
+		if (pObj->item_type != ITEM_SEXTANT)
+		{
+			if(!str_prefix(arg, "remove"))
+			{
+				free_sextant_data(SEXTANT(pObj));
+				SEXTANT(pObj) = NULL;
+
+				send_to_char("SEXTANT type removed.\n\r\n\r", ch);
+				return true;
+			}
+		}
+	}
+	else if(!str_prefix(arg, "add"))
+	{
+		if (!obj_index_can_add_item_type(pObj, ITEM_SEXTANT))
+		{
+			send_to_char("You cannot add this item type to this object.\n\r", ch);
+			return false;
+		}
+		
+		SEXTANT(pObj) = new_sextant_data();
+		send_to_char("SEXTANT type added.\n\r\n\r", ch);
+		return true;
+	}
+
+	oedit_type_sextant(ch, "");
+	return false;
+}
+
+
 bool olc_can_touch_spell(SKILL_DATA *skill)
 {
 	if (!is_skill_spell(skill)) return false;
@@ -15566,6 +15969,167 @@ OEDIT(oedit_type_tattoo)
 	}
 
 	oedit_type_tattoo(ch, "");
+	return false;
+}
+
+OEDIT(oedit_type_telescope)
+{
+	OBJ_INDEX_DATA *pObj;
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_TELESCOPE(pObj))
+		{
+			send_to_char("Syntax:  telescope distance <distance+>\n\r", ch);
+			send_to_char("         telescope mindistance <distance+>\n\r", ch);
+			send_to_char("         telescope maxdistance <distance+>\n\r", ch);
+			send_to_char("         telescope bonusview <bonus>\n\r", ch);
+			send_to_char("         telescope heading <0-359|none>\n\r", ch);
+
+			if (pObj->item_type != ITEM_TELESCOPE)
+				send_to_char("         telescope remove\n\r", ch);
+		}
+		else
+		{
+			send_to_char("Syntax:  telescope add\n\r", ch);
+		}
+		return false;
+	}
+
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+
+	if (IS_TELESCOPE(pObj))
+	{
+		if (!str_prefix(arg, "distance"))
+		{
+			int16_t distance;
+			if (!is_number(argument) || (distance = atoi(argument)) < 1)
+			{
+				send_to_char("Please provide a positive number.\n\r", ch);
+				return false;
+			}
+
+			if (distance < TELESCOPE(pObj)->min_distance)
+			{
+				send_to_char("Distance must be at least the Minimum Distance.\n\r", ch);
+				return false;
+			}
+
+			if (distance > TELESCOPE(pObj)->max_distance)
+			{
+				send_to_char("Distance must be atmost the Maximum Distance.\n\r", ch);
+				return false;
+			}
+
+			TELESCOPE(pObj)->distance = distance;
+			send_to_char("TELESCOPE Distance changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "maxdistance"))
+		{
+			int max;
+			if (!is_number(argument) || (max = atoi(argument)) < 1)
+			{
+				send_to_char("Please provide a positive number.\n\r", ch);
+				return false;
+			}
+
+			if (max < TELESCOPE(pObj)->min_distance)
+			{
+				send_to_char("Minimum Distance cannot exceed Maximum Distance.\n\r", ch);
+				return false;
+			}
+
+			TELESCOPE(pObj)->max_distance = max;
+			if (max < TELESCOPE(pObj)->distance)
+				TELESCOPE(pObj)->distance = max;
+			send_to_char("TELESCOPE Maximum Distance changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "mindistance"))
+		{
+			int min;
+			if (!is_number(argument) || (min = atoi(argument)) < 1)
+			{
+				send_to_char("Please provide a positive number.\n\r", ch);
+				return false;
+			}
+
+			if (min > TELESCOPE(pObj)->max_distance)
+			{
+				send_to_char("Minimum Distance cannot exceed Maximum Distance.\n\r", ch);
+				return false;
+			}
+
+			TELESCOPE(pObj)->min_distance = min;
+			if (min > TELESCOPE(pObj)->distance)
+				TELESCOPE(pObj)->distance = min;
+			send_to_char("TELESCOPE Minimum Distance changed.\n\r", ch);
+			return true;
+		}
+
+
+		if (!str_prefix(arg, "bonusview"))
+		{
+			int bonus;
+			if (!is_number(argument) || (bonus = atoi(argument)) < 0)
+			{
+				send_to_char("Please provide a nonnegative number.\n\r", ch);
+				return false;
+			}
+
+			TELESCOPE(pObj)->bonus_view = bonus;
+			send_to_char("TELESCOPE Bonus View changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "heading"))
+		{
+			int heading;
+			if (!str_prefix(argument, "none"))
+				heading = -1;
+			else if (!is_number(argument) || (heading = atoi(argument)) < 0 || heading > 359)
+			{
+				send_to_char("Please provide a number from 0 to 359, or none.\n\r", ch);
+				return false;
+			}
+
+			TELESCOPE(pObj)->heading = heading;
+			send_to_char("TELESCOPE Heading changed.\n\r", ch);
+			return true;
+		}
+
+		if (pObj->item_type != ITEM_TELESCOPE)
+		{
+			if(!str_prefix(arg, "remove"))
+			{
+				free_telescope_data(TELESCOPE(pObj));
+				TELESCOPE(pObj) = NULL;
+
+				send_to_char("TELESCOPE type removed.\n\r\n\r", ch);
+				return true;
+			}
+		}
+	}
+	else if(!str_prefix(arg, "add"))
+	{
+		if (!obj_index_can_add_item_type(pObj, ITEM_TELESCOPE))
+		{
+			send_to_char("You cannot add this item type to this object.\n\r", ch);
+			return false;
+		}
+		
+		TELESCOPE(pObj) = new_telescope_data();
+		send_to_char("TELESCOPE type added.\n\r\n\r", ch);
+		return true;
+	}
+
+	oedit_type_telescope(ch, "");
 	return false;
 }
 
