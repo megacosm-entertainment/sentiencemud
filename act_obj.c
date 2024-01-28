@@ -5751,6 +5751,7 @@ void do_steal(CHAR_DATA *ch, char *argument)
     obj_from_char(obj);
     obj_to_char(obj, ch);
 	REMOVE_BIT(obj->extra[1], ITEM_KEPT);
+	SET_BIT(obj->extra[2], ITEM_STOLEN);
     act("You pocket $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
     check_improve(ch,gsk_steal,true,2);
     send_to_char("{WGot it!{x\n\r", ch);
