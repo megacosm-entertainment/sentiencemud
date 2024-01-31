@@ -792,6 +792,11 @@ void gain_condition(CHAR_DATA *ch, int iCond, int value)
 		(number_percent() < get_curr_stat(ch, STAT_CON)))
 		return;
 
+	// When getting drunk and under the affect of regeneration, they have a CON% chance of not accumulating it.
+	if( (value > 0) && (iCond == COND_DRUNK) && IS_AFFECTED(ch, AFF_REGENERATION) &&
+		(number_percent() < get_curr_stat(ch, STAT_CON)) )
+		return;
+
     ch->pcdata->condition[iCond] = URANGE(0, condition + value, 48);
     /* Removing this for now - Tieryo 2023-03-06
     if (ch->pcdata->condition[iCond] == 0)
