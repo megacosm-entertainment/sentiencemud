@@ -15981,8 +15981,8 @@ OEDIT(oedit_type_telescope)
 	{
 		if (IS_TELESCOPE(pObj))
 		{
-			send_to_char("Syntax:  telescope distance <distance+>\n\r", ch);
-			send_to_char("         telescope mindistance <distance+>\n\r", ch);
+			send_to_char("Syntax:  telescope distance <distance>\n\r", ch);
+			send_to_char("         telescope mindistance <distance>\n\r", ch);
 			send_to_char("         telescope maxdistance <distance+>\n\r", ch);
 			send_to_char("         telescope bonusview <bonus>\n\r", ch);
 			send_to_char("         telescope heading <0-359|none>\n\r", ch);
@@ -16006,9 +16006,9 @@ OEDIT(oedit_type_telescope)
 		if (!str_prefix(arg, "distance"))
 		{
 			int16_t distance;
-			if (!is_number(argument) || (distance = atoi(argument)) < 1)
+			if (!is_number(argument) || (distance = atoi(argument)) < 0)
 			{
-				send_to_char("Please provide a positive number.\n\r", ch);
+				send_to_char("Please provide a non-negative number.\n\r", ch);
 				return false;
 			}
 
@@ -16054,9 +16054,9 @@ OEDIT(oedit_type_telescope)
 		if (!str_prefix(arg, "mindistance"))
 		{
 			int min;
-			if (!is_number(argument) || (min = atoi(argument)) < 1)
+			if (!is_number(argument) || (min = atoi(argument)) < 0)
 			{
-				send_to_char("Please provide a positive number.\n\r", ch);
+				send_to_char("Please provide a non-negative number.\n\r", ch);
 				return false;
 			}
 

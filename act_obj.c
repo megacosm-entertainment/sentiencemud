@@ -10507,6 +10507,51 @@ void do_page(CHAR_DATA *ch, char *argument)
 		act("You turn $p to the previous page.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 		act("$n flips $p back a page.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 	}
+	else if (!str_prefix(argument, "list"))
+	{
+		if (list_size(BOOK(obj)->pages) > 0)
+		{
+			BUFFER *buffer = new_buf();
+			int page_no = 1;
+			ITERATOR it;
+			BOOK_PAGE *page;
+			iterator_start(&it, BOOK(obj)->pages);
+			while((page = (BOOK_PAGE *)iterator_nextdata(&it)))
+			{
+				// Is this page after the expected page?
+				if (page->page_no > page_no)
+				{
+					// Show missing pages
+					for(;page_no < page->page_no; page_no++)
+					{
+						add_buf(buffer, formatf("[{Y%3d{x] {D-missing-{x\n\r"));
+					}
+				}
+
+				add_buf(buffer, formatf("[{Y%3d{x] %s\n\r", page_no++, page->title));
+
+			}
+			iterator_stop(&it);
+
+			if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+			{
+				act("$p is too thick to list all the pages without scrolling enabled.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			}
+			else
+			{
+				act("$n flips through $p quickly.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+				act("{YYou flip through $p quickly:{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				page_to_char(buffer->string, ch);
+			}
+
+			free_buf(buffer);
+		}
+		else
+		{
+			send_to_char("That book has no pages.\n\r", ch);
+		}
+		return;
+	}
 	else if (!is_number(argument))
 	{
 		send_to_char("Please specify a number.\n\r", ch);
