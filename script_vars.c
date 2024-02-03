@@ -317,6 +317,8 @@ void variable_free (pVARIABLE v)
 	}
 	if(v->global_next) v->global_next->global_prev = v->global_prev;
 
+	// TODO: Fix freeing of variables that *NEED* to have memory freed up
+
 	v->global_prev = NULL;
 	v->global_next = NULL;
 	v->type = VAR_UNKNOWN;
@@ -448,6 +450,7 @@ varset(book_page,BOOK_PAGE,BOOK_PAGE*,book_page,book_page)
 varset(food_buff,FOOD_BUFF,FOOD_BUFF_DATA*,food_buff,food_buff)
 varset(compartment,COMPARTMENT,FURNITURE_COMPARTMENT*,compartment,compartment)
 varset(liquid,LIQUID,LIQUID *,liquid,liquid)
+varset(material,MATERIAL,MATERIAL *,material,material)
 varset(variable,VARIABLE,pVARIABLE,v,variable)
 varset(instance_section,SECTION,INSTANCE_SECTION *,section,section)
 varset(instance,INSTANCE,INSTANCE *,instance,instance)
@@ -1530,6 +1533,87 @@ bool variables_setindex_song (ppVARIABLE list,char *name,SONG_DATA *song, bool s
 	return true;
 }
 
+bool variables_setindex_race (ppVARIABLE list,char *name,RACE_DATA *race, bool saved)
+{
+	pVARIABLE var = variable_create(list,name,true,true);
+
+	if(!var) return false;
+
+	var->type = VAR_RACE;
+	var->_.race = race;
+	var->save = saved;
+
+	return true;
+}
+
+bool variables_setindex_class (ppVARIABLE list,char *name,CLASS_DATA *clazz, bool saved)
+{
+	pVARIABLE var = variable_create(list,name,true,true);
+
+	if(!var) return false;
+
+	var->type = VAR_CLASS;
+	var->_.clazz = clazz;
+	var->save = saved;
+
+	return true;
+}
+
+bool variables_setindex_reputation_index (ppVARIABLE list,char *name,WNUM_LOAD wnum, bool saved)
+{
+	pVARIABLE var = variable_create(list,name,true,true);
+
+	if(!var) return false;
+
+	var->type = VAR_REPUTATION_INDEX;
+	if(fBootDb)
+		var->_.wnum_load = wnum;
+	else
+		var->_.reputation_index = get_reputation_index_auid(wnum.auid, wnum.vnum);
+	var->save = saved;
+
+	return true;
+}
+
+bool variables_setindex_dungeon_index (ppVARIABLE list,char *name,DUNGEON_INDEX_DATA *dngIndex, bool saved)
+{
+	pVARIABLE var = variable_create(list,name,true,true);
+
+	if(!var) return false;
+
+	var->type = VAR_DUNGEONINDEX;
+	var->_.dngindex = dngIndex;
+	var->save = saved;
+
+	return true;
+}
+
+bool variables_setindex_liquid (ppVARIABLE list,char *name,LIQUID *liquid, bool saved)
+{
+	pVARIABLE var = variable_create(list,name,true,true);
+
+	if(!var) return false;
+
+	var->type = VAR_LIQUID;
+	var->_.liquid = liquid;
+	var->save = saved;
+
+	return true;
+}
+
+bool variables_setindex_material (ppVARIABLE list,char *name,MATERIAL *material, bool saved)
+{
+	pVARIABLE var = variable_create(list,name,true,true);
+
+	if(!var) return false;
+
+	var->type = VAR_MATERIAL;
+	var->_.material = material;
+	var->save = saved;
+
+	return true;
+}
+
 
 // Only reason this is seperate is the shared handling
 bool variables_set_string(ppVARIABLE list,char *name,char *str,bool shared)
@@ -1747,7 +1831,13 @@ bool variable_copy(ppVARIABLE list,char *oldname,char *newname)
 	case VAR_SKILL:			newv->_.skill = oldv->_.skill; break;
 	case VAR_SKILLINFO:		newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.skill = oldv->_.sk.skill; break;
 	case VAR_SKILLGROUP:	newv->_.skill_group = oldv->_.skill_group; break;
+	case VAR_RACE:			newv->_.race = oldv->_.race; break;
+	case VAR_CLASS:			newv->_.clazz = oldv->_.clazz; break;
+	case VAR_LIQUID:		newv->_.liquid = oldv->_.liquid; break;
+	case VAR_MATERIAL:		newv->_.material = oldv->_.material; break;
 	case VAR_CLASSLEVEL:	newv->_.level = oldv->_.level; break;
+	case VAR_MISSION:		newv->_.mission = oldv->_.mission; break;
+	case VAR_MISSION_PART:	newv->_.mp.mission = oldv->_.mp.mission; newv->_.mp.part = oldv->_.mp.part; break;
 	case VAR_SONG:			newv->_.song = oldv->_.song; break;
 	case VAR_AFFECT:		newv->_.aff = oldv->_.aff; break;
 	case VAR_BOOK_PAGE:		newv->_.book_page = oldv->_.book_page; break;
@@ -1822,7 +1912,13 @@ bool variable_copyto(ppVARIABLE from,ppVARIABLE to,char *oldname,char *newname, 
 	case VAR_AREA_REGION:	newv->_.ar = oldv->_.ar; break;
 	case VAR_SKILL:		newv->_.skill = oldv->_.skill; break;
 	case VAR_SKILLGROUP:	newv->_.skill_group = oldv->_.skill_group; break;
+	case VAR_RACE:			newv->_.race = oldv->_.race; break;
+	case VAR_CLASS:			newv->_.clazz = oldv->_.clazz; break;
+	case VAR_LIQUID:		newv->_.liquid = oldv->_.liquid; break;
+	case VAR_MATERIAL:		newv->_.material = oldv->_.material; break;
 	case VAR_CLASSLEVEL:	newv->_.level = oldv->_.level; break;
+	case VAR_MISSION:		newv->_.mission = oldv->_.mission; break;
+	case VAR_MISSION_PART:	newv->_.mp.mission = oldv->_.mp.mission; newv->_.mp.part = oldv->_.mp.part; break;
 	case VAR_SKILLINFO:	newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.skill = oldv->_.sk.skill; break;
 	case VAR_SONG:		newv->_.song = oldv->_.song; break;
 	case VAR_AFFECT:	newv->_.aff = oldv->_.aff; break;
@@ -1896,7 +1992,13 @@ bool variable_copylist(ppVARIABLE from,ppVARIABLE to,bool index)
 		case VAR_TOKEN:		newv->_.t = oldv->_.t; break;
 		case VAR_SKILL:		newv->_.skill = oldv->_.skill; break;
 		case VAR_SKILLGROUP:	newv->_.skill_group = oldv->_.skill_group; break;
+		case VAR_RACE:			newv->_.race = oldv->_.race; break;
+		case VAR_CLASS:			newv->_.clazz = oldv->_.clazz; break;
+		case VAR_LIQUID:		newv->_.liquid = oldv->_.liquid; break;
+		case VAR_MATERIAL:		newv->_.material = oldv->_.material; break;
 		case VAR_CLASSLEVEL:	newv->_.level = oldv->_.level; break;
+		case VAR_MISSION:		newv->_.mission = oldv->_.mission; break;
+		case VAR_MISSION_PART:	newv->_.mp.mission = oldv->_.mp.mission; newv->_.mp.part = oldv->_.mp.part; break;
 		case VAR_SKILLINFO:	newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.skill = oldv->_.sk.skill; break;
 		case VAR_SONG:		newv->_.song = oldv->_.song; break;
 		case VAR_AFFECT:	newv->_.aff = oldv->_.aff; break;
@@ -1970,7 +2072,13 @@ pVARIABLE variable_copyvar(pVARIABLE oldv)
 	case VAR_AREA_REGION:	newv->_.ar = oldv->_.ar; break;
 	case VAR_SKILL:			newv->_.skill = oldv->_.skill; break;
 	case VAR_SKILLGROUP:	newv->_.skill_group = oldv->_.skill_group; break;
+	case VAR_RACE:			newv->_.race = oldv->_.race; break;
+	case VAR_CLASS:			newv->_.clazz = oldv->_.clazz; break;
+	case VAR_LIQUID:		newv->_.liquid = oldv->_.liquid; break;
+	case VAR_MATERIAL:		newv->_.material = oldv->_.material; break;
 	case VAR_CLASSLEVEL:	newv->_.level = oldv->_.level; break;
+	case VAR_MISSION:		newv->_.mission = oldv->_.mission; break;
+	case VAR_MISSION_PART:	newv->_.mp.mission = oldv->_.mp.mission; newv->_.mp.part = oldv->_.mp.part; break;
 	case VAR_SKILLINFO:		newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.skill = oldv->_.sk.skill; break;
 	case VAR_SONG:			newv->_.song = oldv->_.song; break;
 	case VAR_AFFECT:		newv->_.aff = oldv->_.aff; break;
@@ -2458,6 +2566,19 @@ void variable_index_fix(void)
 				wnum_load.auid, wnum_load.vnum,
 				cur->_.r ? cur->_.r->name : "(invalid)");
 		}
+		else if(cur->type == VAR_REPUTATION_INDEX)
+		{
+			WNUM_LOAD wnum_load = cur->_.wnum_load;
+
+			if(wnum_load.auid > 0 && wnum_load.vnum > 0)
+				cur->_.reputation_index = get_reputation_index_auid(cur->_.wnum_load.auid, cur->_.wnum_load.vnum);
+			else
+				cur->_.reputation_index = NULL;
+			log_stringf("variable_index_fix: REPUTATION variable '%s', WNUM %ld#%ld, Reputation '%s'",
+				cur->name,
+				wnum_load.auid, wnum_load.vnum,
+				cur->_.reputation_index ? cur->_.reputation_index->name : "(invalid)");
+		}
 		cur = cur->global_next;
 	}
 }
@@ -2482,6 +2603,14 @@ void variable_fix(pVARIABLE var)
 			var->_.r = get_room_index_auid(var->_.wnum_load.auid, var->_.wnum_load.vnum);
 		else
 			var->_.r = NULL;
+
+	} else if(fBootDb && var->type == VAR_REPUTATION_INDEX) {
+		WNUM_LOAD wnum_load = var->_.wnum_load;
+
+		if(wnum_load.auid > 0 && wnum_load.vnum > 0)
+			var->_.reputation_index = get_reputation_index_auid(var->_.wnum_load.auid, var->_.wnum_load.vnum);
+		else
+			var->_.reputation_index = NULL;
 
 	} else if(var->type == VAR_CLONE_ROOM) {	// Dynamic
 		if(var->_.cr.r && (room = get_clone_room(var->_.cr.r, var->_.cr.a, var->_.cr.b)) ) {
@@ -3291,30 +3420,62 @@ void variable_fwrite(pVARIABLE var, FILE *fp)
 	case VAR_MOBINDEX:
 		if (var->_.mindex)
 			fprintf(fp, "VarMobIndex %ld#%ld\n", var->_.mindex->area->uid, var->_.mindex->vnum);
+		break;
 
 	case VAR_OBJINDEX:
 		if (var->_.oindex)
 			fprintf(fp, "VarObjIndex %ld#%ld\n", var->_.oindex->area->uid, var->_.oindex->vnum);
+		break;
 
 	case VAR_TOKENINDEX:
 		if (var->_.tindex)
 			fprintf(fp, "VarTokenIndex %ld#%ld\n", var->_.tindex->area->uid, var->_.tindex->vnum);
+		break;
 
 	case VAR_BLUEPRINT:
 		if (var->_.bp)
 			fprintf(fp, "VarBlueprint %ld#%ld\n", var->_.bp->area->uid, var->_.bp->vnum);
+		break;
 
 	case VAR_BLUEPRINT_SECTION:
 		if (var->_.bs)
 			fprintf(fp, "VarBlueprintSection %ld#%ld\n", var->_.bs->area->uid, var->_.bs->vnum);
+		break;
 
 	case VAR_DUNGEONINDEX:
 		if (var->_.dngindex)
 			fprintf(fp, "VarDungeonIndex %ld#%ld\n", var->_.dngindex->area->uid, var->_.dngindex->vnum);
+		break;
 
 	case VAR_SHIPINDEX:
 		if (var->_.shipindex)
 			fprintf(fp, "VarShipIndex %ld#%ld\n", var->_.shipindex->area->uid, var->_.shipindex->vnum);
+		break;
+
+	case VAR_LIQUID:
+		if (var->_.liquid)
+			fprintf(fp, "VarLiquid %s~\n", var->_.liquid->name);
+		break;
+
+	case VAR_MATERIAL:
+		if (var->_.material)
+			fprintf(fp, "VarMaterial %s~\n", var->_.material->name);
+		break;
+
+	case VAR_RACE:
+		if (var->_.race)
+			fprintf(fp, "VarRace %s~\n", var->_.race->name);
+		break;
+
+	case VAR_CLASS:
+		if (var->_.clazz)
+			fprintf(fp, "VarClass %s~\n", var->_.clazz->name);
+		break;
+
+	case VAR_REPUTATION_INDEX:
+		if (var->_.reputation_index)
+			fprintf(fp, "VarRepIndex %ld#%ld\n", var->_.reputation_index->area->uid, var->_.reputation_index->vnum);
+		break;
 
 	// Everything else doesn't save
 	}
@@ -3527,45 +3688,67 @@ bool variable_fread_skill_list(ppVARIABLE vars, char *name, FILE *fp)
 
 }
 
+struct vartype_type
+{
+	char *name;
+	int type;
+};
+
+const struct vartype_type vartypes[] = {
+	{ "VarBool",		VAR_BOOLEAN },
+	{ "VarInt",			VAR_INTEGER },
+	{ "VarStr",			VAR_STRING_S },
+	{ "VarRoom",		VAR_ROOM },
+	{ "VarRoomC",		VAR_CLONE_ROOM },
+	{ "VarCRoom",		VAR_CLONE_ROOM },
+	{ "VarRoomV",		VAR_WILDS_ROOM },
+	{ "VarVRoom",		VAR_WILDS_ROOM },
+	{ "VarExit",		VAR_DOOR },
+	{ "VarExitC",		VAR_CLONE_DOOR },
+	{ "VarCExit",		VAR_CLONE_DOOR },
+	{ "VarExitV",		VAR_WILDS_DOOR },
+	{ "VarVExit",		VAR_WILDS_DOOR },
+	{ "VarMob",			VAR_MOBILE_ID },
+	{ "VarObj",			VAR_OBJECT_ID },
+	{ "VarTok",			VAR_TOKEN_ID },
+	{ "VarArea",		VAR_AREA_ID },
+	{ "VarAreaRegion",	VAR_AREA_REGION_ID },
+	{ "VarWilds",		VAR_WILDS_ID },
+	{ "VarChurch",		VAR_CHURCH_ID },
+	{ "VarSkill",		VAR_SKILL },
+	{ "VarSkInfo",		VAR_SKILLINFO_ID },
+	{ "VarListMob",		VAR_BLLIST_MOB },
+	{ "VarListObj",		VAR_BLLIST_OBJ },
+	{ "VarListTok",		VAR_BLLIST_TOK },
+	{ "VarListRoom",	VAR_BLLIST_ROOM },
+	{ "VarListExit",	VAR_BLLIST_EXIT },
+	{ "VarListSkill",	VAR_BLLIST_SKILL },
+	{ "VarListStr",		VAR_PLLIST_STR },
+	{ "VarListArea",	VAR_BLLIST_AREA },
+	{ "VarListAreaRegion",	VAR_BLLIST_AREA_REGION },
+	{ "VarListWilds",	VAR_BLLIST_WILDS },
+	{ "VarDice",		VAR_DICE },
+	{ "VarSong",		VAR_SONG },
+	{ "VarMobIndex",	VAR_MOBINDEX },
+	{ "VarObjIndex",	VAR_OBJINDEX },
+	{ "VarTokenIndex",	VAR_TOKENINDEX },
+	{ "VarBlueprint",	VAR_BLUEPRINT },
+	{ "VarBlueprintSection",	VAR_BLUEPRINT_SECTION },
+	{ "VarDungeonIndex",	VAR_DUNGEONINDEX },
+	{ "VarShipIndex",	VAR_SHIPINDEX },
+	{ "VarRace",		VAR_RACE },
+	{ "VarClass",		VAR_CLASS },
+	{ "VarRepIndex",	VAR_REPUTATION_INDEX },
+	{ "VarLiquid",		VAR_LIQUID },
+	{ "VarMaterial",	VAR_MATERIAL },
+	{ NULL,				VAR_UNKNOWN }
+};
+
 int variable_fread_type(char *str)
 {
-	if( !str_cmp( str, "VarBool" ) ) return VAR_BOOLEAN;
-	if( !str_cmp( str, "VarInt" ) ) return VAR_INTEGER;
-	if( !str_cmp( str, "VarStr" ) ) return VAR_STRING_S;
-	if( !str_cmp( str, "VarRoom" ) ) return VAR_ROOM;
-	if( !str_cmp( str, "VarCRoom" ) || !str_cmp( str, "VarRoomC" ) ) return VAR_CLONE_ROOM;
-	if( !str_cmp( str, "VarVRoom" ) || !str_cmp( str, "VarRoomV" ) ) return VAR_WILDS_ROOM;
-	if( !str_cmp( str, "VarExit" ) ) return VAR_DOOR;
-	if( !str_cmp( str, "VarCExit" ) || !str_cmp( str, "VarExitC" ) ) return VAR_CLONE_DOOR;
-	if( !str_cmp( str, "VarVExit" ) || !str_cmp( str, "VarExitV" ) ) return VAR_WILDS_DOOR;
-	if( !str_cmp( str, "VarMob" ) ) return VAR_MOBILE_ID;
-	if( !str_cmp( str, "VarObj" ) ) return VAR_OBJECT_ID;
-	if( !str_cmp( str, "VarTok" ) ) return VAR_TOKEN_ID;
-	if( !str_cmp( str, "VarArea" ) ) return VAR_AREA_ID;
-	if( !str_cmp( str, "VarAreaRegion" ) ) return VAR_AREA_REGION_ID;
-	if( !str_cmp( str, "VarWilds" ) ) return VAR_WILDS_ID;
-	if( !str_cmp( str, "VarChurch" ) ) return VAR_CHURCH_ID;
-	if( !str_cmp( str, "VarSkill" ) ) return VAR_SKILL;
-	if( !str_cmp( str, "VarSkInfo" ) ) return VAR_SKILLINFO_ID;
-	if( !str_cmp( str, "VarListMob" ) ) return VAR_BLLIST_MOB;
-	if( !str_cmp( str, "VarListObj" ) ) return VAR_BLLIST_OBJ;
-	if( !str_cmp( str, "VarListTok" ) ) return VAR_BLLIST_TOK;
-	if( !str_cmp( str, "VarListRoom" ) ) return VAR_BLLIST_ROOM;
-	if( !str_cmp( str, "VarListExit" ) ) return VAR_BLLIST_EXIT;
-	if( !str_cmp( str, "VarListSkill" ) ) return VAR_BLLIST_SKILL;
-	if( !str_cmp( str, "VarListStr" ) ) return VAR_PLLIST_STR;
-	if( !str_cmp( str, "VarListArea" ) ) return VAR_BLLIST_AREA;
-	if( !str_cmp( str, "VarListAreaRegion" ) ) return VAR_BLLIST_AREA_REGION;
-	if( !str_cmp( str, "VarListWilds" ) ) return VAR_BLLIST_WILDS;
-	if( !str_cmp( str, "VarDice" ) ) return VAR_DICE;
-	if( !str_cmp( str, "VarSong" ) ) return VAR_SONG;
-	if( !str_cmp( str, "VarMobIndex" ) ) return VAR_MOBINDEX;
-	if( !str_cmp( str, "VarObjIndex" ) ) return VAR_OBJINDEX;
-	if( !str_cmp( str, "VarTokenIndex" ) ) return VAR_TOKENINDEX;
-	if( !str_cmp( str, "VarBlueprint" ) ) return VAR_BLUEPRINT;
-	if( !str_cmp( str, "VarBlueprintSection" ) ) return VAR_BLUEPRINT_SECTION;
-	if( !str_cmp( str, "VarDungeonIndex" ) ) return VAR_DUNGEONINDEX;
-	if( !str_cmp( str, "VarShipIndex" ) ) return VAR_SHIPINDEX;
+	for(register int i = 0; vartypes[i].name; i++)
+		if (!str_cmp(str, vartypes[i].name))
+			return vartypes[i].type;
 
 	return VAR_UNKNOWN;
 }
@@ -3786,6 +3969,38 @@ bool variable_fread(ppVARIABLE vars, int type, FILE *fp)
 		return variables_setsave_dungeonindex_load(vars, name, fread_widevnum(fp, 0), true);
 	case VAR_SHIPINDEX:
 		return variables_setsave_shipindex_load(vars, name, fread_widevnum(fp, 0), true);
+	
+	case VAR_RACE:
+		{
+			RACE_DATA *race = get_race_data(fread_string(fp));
+			return race && variables_setsave_race(vars, name, race, true);
+		}
+
+	case VAR_CLASS:
+		{
+			CLASS_DATA *clazz = get_class_data(fread_string(fp));
+			return clazz && variables_setsave_class(vars, name, clazz, true);
+		}
+	
+	case VAR_REPUTATION_INDEX:
+		{
+			WNUM_LOAD wnum = fread_widevnum(fp, 0);
+			REPUTATION_INDEX_DATA *repIndex = get_reputation_index_auid(wnum.auid, wnum.vnum);
+			return repIndex && variables_setsave_reputation_index(vars, name, repIndex, true);
+		}
+	
+	case VAR_LIQUID:
+		{
+			LIQUID *liquid = liquid_lookup(fread_string(fp));
+			return liquid && variables_setsave_liquid(vars, name, liquid, true);
+		}
+	
+	case VAR_MATERIAL:
+		{
+			MATERIAL *material = material_lookup(fread_string(fp));
+			return material && variables_setsave_material(vars, name, material, true);
+		}
+
 
 	}
 
@@ -3822,7 +4037,7 @@ bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silen
     bool saved;
 
     if (argument[0] == '\0') {
-	if (!silent) send_to_char("Syntax:  varset <name> <number|string|room> <yes|no> <value>\n\r", ch);
+	if (!silent) send_to_char("Syntax:  varset <name> <type> <yes|no> <value>\n\r", ch);
 	return false;
     }
 
@@ -3887,6 +4102,50 @@ bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silen
 		}
 		
 		variables_setindex_song(index_vars,name,song,saved);
+	}
+	else if(!str_cmp(type,"race"))
+	{
+		RACE_DATA *race = get_race_data(argument);
+		if (!IS_VALID(race))
+		{
+			send_to_char("No such race exists.\n\r", ch);
+			return false;
+		}
+		
+		variables_setindex_race(index_vars,name,race,saved);
+	}
+	else if(!str_cmp(type,"class"))
+	{
+		CLASS_DATA *clazz = get_class_data(argument);
+		if (!IS_VALID(clazz))
+		{
+			send_to_char("No such class exists.\n\r", ch);
+			return false;
+		}
+		
+		variables_setindex_class(index_vars,name,clazz,saved);
+	}
+	else if(!str_cmp(type,"liquid"))
+	{
+		LIQUID *liquid = liquid_lookup(argument);
+		if (!IS_VALID(liquid))
+		{
+			send_to_char("No such liquid exists.\n\r", ch);
+			return false;
+		}
+		
+		variables_setindex_liquid(index_vars,name,liquid,saved);
+	}
+	else if(!str_cmp(type,"material"))
+	{
+		MATERIAL *material = material_lookup(argument);
+		if (!IS_VALID(material))
+		{
+			send_to_char("No such material exists.\n\r", ch);
+			return false;
+		}
+		
+		variables_setindex_material(index_vars,name,material,saved);
 	}
 	else
 	{
@@ -3968,11 +4227,29 @@ void olc_show_index_vars(BUFFER *buffer, pVARIABLE index_vars)
 					else
 						sprintf(buf, "{x%-20.20s {GSKILL GROUP{Y%c   {W-invalid-{x\n\r", var->name,var->save?'Y':'N');
 					break;
-				case VAR_CLASSLEVEL:
-					if(IS_VALID(var->_.level))
-						sprintf(buf, "{x%-20.20s {GCLASS LEVEL{Y%c   {W%s{x : {W%d{x\n\r", var->name,var->save?'Y':'N', var->_.level->clazz->name, var->_.level->level);
+				case VAR_RACE:
+					if(IS_VALID(var->_.race))
+						sprintf(buf, "{x%-20.20s {GRACE       {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N', var->_.race->name);
 					else
-						sprintf(buf, "{x%-20.20s {GCLASS LEVEL{Y%c   {W-invalid-{x\n\r", var->name,var->save?'Y':'N');
+						sprintf(buf, "{x%-20.20s {GRACE       {Y%c   {W-invalid-{x\n\r", var->name,var->save?'Y':'N');
+					break;
+				case VAR_CLASS:
+					if(IS_VALID(var->_.clazz))
+						sprintf(buf, "{x%-20.20s {GCLASS      {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N', var->_.clazz->name);
+					else
+						sprintf(buf, "{x%-20.20s {GCLASS      {Y%c   {W-invalid-{x\n\r", var->name,var->save?'Y':'N');
+					break;
+				case VAR_LIQUID:
+					if(IS_VALID(var->_.liquid))
+						sprintf(buf, "{x%-20.20s {GLIQUID     {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N', var->_.liquid->name);
+					else
+						sprintf(buf, "{x%-20.20s {GLIQUID     {Y%c   {W-invalid-{x\n\r", var->name,var->save?'Y':'N');
+					break;
+				case VAR_MATERIAL:
+					if(IS_VALID(var->_.material))
+						sprintf(buf, "{x%-20.20s {GMATERIAL   {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N', var->_.material->name);
+					else
+						sprintf(buf, "{x%-20.20s {GMATERIAL   {Y%c   {W-invalid-{x\n\r", var->name,var->save?'Y':'N');
 					break;
 
 				default:
@@ -3998,6 +4275,16 @@ void olc_save_index_vars(FILE *fp, pVARIABLE index_vars, AREA_DATA *pRefArea)
 				fprintf(fp, "VarSkill %s~ %d '%s'\n", var->name, var->save, var->_.skill->name);
 			else if(var->type == VAR_SONG && IS_VALID(var->_.song) )
 				fprintf(fp, "VarSong %s~ %d '%s'\n", var->name, var->save, var->_.song->name);
+			else if(var->type == VAR_RACE && IS_VALID(var->_.race) )
+				fprintf(fp, "VarRace %s~ %d '%s'\n", var->name, var->save, var->_.race->name);
+			else if(var->type == VAR_CLASS && IS_VALID(var->_.clazz) )
+				fprintf(fp, "VarClass %s~ %d '%s'\n", var->name, var->save, var->_.clazz->name);
+			else if(var->type == VAR_LIQUID && IS_VALID(var->_.liquid) )
+				fprintf(fp, "VarLiquid %s~ %d '%s'\n", var->name, var->save, var->_.liquid->name);
+			else if(var->type == VAR_MATERIAL && IS_VALID(var->_.material) )
+				fprintf(fp, "VarMaterial %s~ %d '%s'\n", var->name, var->save, var->_.material->name);
+			else if(var->type == VAR_REPUTATION_INDEX && IS_VALID(var->_.reputation_index) )
+				fprintf(fp, "VarRepIndex %s~ %d %s", var->name, var->save, widevnum_string(var->_.reputation_index->area, var->_.reputation_index->vnum, pRefArea));
 		}
 	}
 }
@@ -4070,6 +4357,79 @@ bool olc_load_index_vars(FILE *fp, char *word, ppVARIABLE index_vars, AREA_DATA 
 
 		if (IS_VALID(song))
 			variables_setindex_song(index_vars,name,song,saved);
+		return true;
+	}
+
+	if (!str_cmp(word, "VarRace"))
+	{
+		char *name;
+		RACE_DATA *race;
+		bool saved;
+
+		name = fread_string(fp);
+		saved = fread_number(fp);
+		race = get_race_data(fread_word(fp));
+
+		if (IS_VALID(race))
+			variables_setindex_race(index_vars,name,race,saved);
+		return true;
+	}
+
+	if (!str_cmp(word, "VarClass"))
+	{
+		char *name;
+		CLASS_DATA *clazz;
+		bool saved;
+
+		name = fread_string(fp);
+		saved = fread_number(fp);
+		clazz = get_class_data(fread_word(fp));
+
+		if (IS_VALID(clazz))
+			variables_setindex_class(index_vars,name,clazz,saved);
+		return true;
+	}
+
+	if (!str_cmp(word, "VarLiquid"))
+	{
+		char *name;
+		LIQUID *liquid;
+		bool saved;
+
+		name = fread_string(fp);
+		saved = fread_number(fp);
+		liquid = liquid_lookup(fread_word(fp));
+
+		if (IS_VALID(liquid))
+			variables_setindex_liquid(index_vars,name,liquid,saved);
+		return true;
+	}
+
+	if (!str_cmp(word, "VarMaterial"))
+	{
+		char *name;
+		MATERIAL *material;
+		bool saved;
+
+		name = fread_string(fp);
+		saved = fread_number(fp);
+		material = material_lookup(fread_word(fp));
+
+		if (IS_VALID(material))
+			variables_setindex_material(index_vars,name,material,saved);
+		return true;
+	}
+
+	if (!str_cmp(word, "VarRepIndex")) {
+		char *name;
+		WNUM_LOAD value;
+		bool saved;
+
+		name = fread_string(fp);
+		saved = fread_number(fp);
+		value = fread_widevnum(fp, pRefArea ? pRefArea->uid : 0);
+
+		variables_setindex_reputation_index (index_vars,name,value,saved);
 		return true;
 	}
 
@@ -4249,6 +4609,34 @@ void pstat_variable_list(CHAR_DATA *ch, pVARIABLE vars)
 				sprintf(arg, "Name [%-20s] Type[REPRANK] Save[%c] -null-\n\r", var->name,var->save?'Y':'N');
 			break;
 		}
+
+		case VAR_LIQUID:
+			if (var->_.liquid)
+				sprintf(arg, "Name [%-20s] Type[LIQUID] Save[%c] %s\n\r", var->name,var->save?'Y':'N', var->_.liquid->name);
+			else
+				sprintf(arg, "Name [%-20s] Type[LIQUID] Save[%c] -null-\n\r", var->name,var->save?'Y':'N');
+			break;
+
+		case VAR_MATERIAL:
+			if (var->_.material)
+				sprintf(arg, "Name [%-20s] Type[MATERIAL] Save[%c] %s\n\r", var->name,var->save?'Y':'N', var->_.material->name);
+			else
+				sprintf(arg, "Name [%-20s] Type[MATERIAL] Save[%c] -null-\n\r", var->name,var->save?'Y':'N');
+			break;
+
+		case VAR_RACE:
+			if (var->_.liquid)
+				sprintf(arg, "Name [%-20s] Type[RACE] Save[%c] %s\n\r", var->name,var->save?'Y':'N', var->_.race->name);
+			else
+				sprintf(arg, "Name [%-20s] Type[RACE] Save[%c] -null-\n\r", var->name,var->save?'Y':'N');
+			break;
+
+		case VAR_CLASS:
+			if (var->_.clazz)
+				sprintf(arg, "Name [%-20s] Type[CLASS] Save[%c] %s\n\r", var->name,var->save?'Y':'N', var->_.clazz->name);
+			else
+				sprintf(arg, "Name [%-20s] Type[CLASS] Save[%c] -null-\n\r", var->name,var->save?'Y':'N');
+			break;
 
 		default:
 			sprintf(arg, "Name [%-20s] Type %d not displayed yet.\n\r", var->name,(int)var->type);

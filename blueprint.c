@@ -157,8 +157,8 @@ BLUEPRINT_SECTION *load_blueprint_section(FILE *fp, AREA_DATA *pArea)
 	bs->vnum = fread_number(fp);
 	bs->area = pArea;
 
-	if( bs->vnum > pArea->top_blueprint_section_vnum)
-		pArea->top_blueprint_section_vnum = bs->vnum;
+	pArea->bottom_blueprint_section_vnum = UMIN(pArea->bottom_blueprint_section_vnum, bs->vnum);
+	pArea->top_blueprint_section_vnum = UMAX(pArea->top_blueprint_section_vnum, bs->vnum);
 
 	while (str_cmp((word = fread_word(fp)), "#-SECTION"))
 	{
@@ -506,8 +506,8 @@ BLUEPRINT *load_blueprint(FILE *fp, AREA_DATA *pArea)
 	bp->vnum = fread_number(fp);
 	bp->area = pArea;
 
-	if( bp->vnum > pArea->top_blueprint_vnum)
-		pArea->top_blueprint_vnum = bp->vnum;
+	pArea->bottom_blueprint_vnum = UMAX(pArea->bottom_blueprint_vnum, bp->vnum);
+	pArea->top_blueprint_vnum = UMAX(pArea->top_blueprint_vnum, bp->vnum);
 
 	while (str_cmp((word = fread_word(fp)), "#-BLUEPRINT"))
 	{
@@ -3419,8 +3419,8 @@ BSEDIT( bsedit_create )
 	wnum.pArea->blueprint_section_hash[iHash]	= bs;
 	olc_set_editor(ch, ED_BPSECT, bs);
 
-	if( bs->vnum > wnum.pArea->top_blueprint_section_vnum)
-		wnum.pArea->top_blueprint_section_vnum = bs->vnum;
+	wnum.pArea->bottom_blueprint_section_vnum = UMIN(wnum.pArea->bottom_blueprint_section_vnum, bs->vnum);
+	wnum.pArea->top_blueprint_section_vnum = UMAX(wnum.pArea->top_blueprint_section_vnum, bs->vnum);
 
     return true;
 }
@@ -5697,8 +5697,8 @@ BPEDIT( bpedit_create )
 	wnum.pArea->blueprint_hash[iHash]			= bp;
 	olc_set_editor(ch, ED_BLUEPRINT, bp);
 
-	if( bp->vnum > wnum.pArea->top_blueprint_vnum)
-		wnum.pArea->top_blueprint_vnum = bp->vnum;
+	wnum.pArea->bottom_blueprint_vnum = UMIN(wnum.pArea->bottom_blueprint_vnum, bp->vnum);
+	wnum.pArea->top_blueprint_vnum = UMAX(wnum.pArea->top_blueprint_vnum, bp->vnum);
 
     return true;
 

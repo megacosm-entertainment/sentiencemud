@@ -525,6 +525,7 @@ typedef struct obj_scroll_data SCROLL_DATA;
 typedef struct obj_sextant_data SEXTANT_DATA;
 typedef struct obj_tattoo_data TATTOO_DATA;
 typedef struct obj_telescope_data TELESCOPE_DATA;
+typedef struct obj_tool_data TOOL_DATA;
 typedef struct obj_wand_data WAND_DATA;
 typedef struct obj_weapon_data WEAPON_DATA;
 
@@ -6005,6 +6006,62 @@ struct obj_telescope_data {
     int16_t heading;
 };
 
+// ===========[ TOOL ]=============
+#define TOOL(obj)           ((obj)->_tool)
+#define IS_TOOL(obj)        IS_VALID(TOOL(obj))
+
+#define ITEM_SHOVEL 	     	     63
+#define ITEM_WHETSTONE			72		// Sharpening weapons
+#define ITEM_CHISEL				73 		// Carving gems
+#define ITEM_PICK				74		// Picking locks
+#define ITEM_TINDERBOX			75		// Light fires or pipes
+#define ITEM_DRYING_CLOTH		76		// Used to dry plants for smoking!
+#define ITEM_NEEDLE				77		// Used to sew things
+
+#define TOOL_NONE                   0
+
+// Gathering tools
+#define TOOL_PICKAXE                1       // Mining
+#define TOOL_SLEDGEHAMMER           2       // Mining
+#define TOOL_HATCHET                3       // Botany
+#define TOOL_SCYTHE                 4       // Botany
+#define TOOL_FISHING_ROD            5       // Fishing
+#define TOOL_FISHING_SPEAR          6       // Fishing
+#define TOOL_SKINNING_KNIFE         7       // Skinning
+
+// Crafting tools
+#define TOOL_ALEMBIC                21      // Alchemy
+#define TOOL_ARCANE_ROD             22      // Enchanting
+#define TOOL_AWL                    23      // Leatherworking
+#define TOOL_CAULDRON               24      // Alchemy
+#define TOOL_CHISEL                 25      // Carpentry, Jewelcrafting, Masonry
+#define TOOL_CRYSTAL_FOCUS          26      // Enchanting
+#define TOOL_HAMMER_CLAW            27      // Carpentry
+#define TOOL_HAMMER_CROSSPEIN       28      // Blacksmithing
+#define TOOL_HAMMER_RAISING         29      // Armorer
+#define TOOL_FILE                   30      // Armorer, Blacksmith, Carpentry
+#define TOOL_FRYING_PAN             31      // Culinarian
+#define TOOL_GRINDING_WHEEL         32      // Jewelcrafting
+#define TOOL_KNIFE_COOKING          33      // Culinarian
+#define TOOL_KNIFE_ROUND            34      // Leatherworking
+#define TOOL_LOUPE                  35      // Jewelcrafting
+#define TOOL_MALLET                 36      // Jewelcrafting
+#define TOOL_MORTAR                 37      // Alchemy
+#define TOOL_NEEDLE                 38      // Leatherworking, Weaving
+#define TOOL_PLIERS                 39      // Armorer, Blacksmithing, Jewelcrafting
+#define TOOL_PUNCH                  40      // Leatherworking
+#define TOOL_SAW                    41      // Carpentry
+#define TOOL_TONGS                  42      // Armorer / Blacksmith
+
+struct obj_tool_data
+{
+    TOOL_DATA *next;
+    bool valid;
+
+    int16_t type;
+    int16_t tier;
+};
+
 // ===========[ WAND ]=============
 #define WAND(obj)           ((obj)->_wand)
 #define IS_WAND(obj)        IS_VALID(WAND(obj))
@@ -6598,6 +6655,26 @@ struct area_data {
     long top_dungeon_vnum;
     long top_reputation_vnum;
     long top_quest_vnum;
+
+	long bottom_mprog_index;
+	long bottom_oprog_index;
+	long bottom_rprog_index;
+	long bottom_tprog_index;
+    long bottom_aprog_index;
+    long bottom_iprog_index;
+    long bottom_dprog_index;
+	long bottom_vnum_mob;
+	long bottom_vnum_npc_ship;
+	long bottom_vnum_obj;
+	long bottom_vnum_room;
+    long bottom_vnum_token;
+	long bottom_vroom;
+    long bottom_blueprint_section_vnum;
+    long bottom_blueprint_vnum;
+    long bottom_ship_vnum;
+    long bottom_dungeon_vnum;
+    long bottom_reputation_vnum;
+    long bottom_quest_vnum;
 
     long top_region_uid;
 

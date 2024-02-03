@@ -4396,6 +4396,8 @@ void do_time(CHAR_DATA * ch, char *argument)
     buf[0] = '\0';
 
 	if (IS_OUTSIDE(ch)) {
+		// TODO: Make it where it uses the current world's moon(s)
+		// Be able to specify which moon (if applicable)
 		if(!str_cmp(argument,"moon")) {
 			draw_moon(ch,(reckoning_timer > 0));
 			lunar = true;

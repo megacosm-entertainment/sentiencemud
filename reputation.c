@@ -1399,8 +1399,8 @@ REPEDIT( repedit_create )
 	pRep->area = wnum.pArea;
 	pRep->vnum = wnum.vnum;
 
-	if (wnum.vnum > wnum.pArea->top_reputation_vnum)
-		wnum.pArea->top_reputation_vnum = wnum.vnum;
+	wnum.pArea->bottom_reputation_vnum = UMIN(wnum.pArea->bottom_reputation_vnum, wnum.vnum);
+	wnum.pArea->top_reputation_vnum = UMAX(wnum.pArea->top_reputation_vnum, wnum.vnum);
 
 	int iHash = wnum.vnum % MAX_KEY_HASH;
 	pRep->next = wnum.pArea->reputation_index_hash[iHash];

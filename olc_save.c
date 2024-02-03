@@ -2058,6 +2058,7 @@ AREA_DATA *read_area_new(FILE *fp)
 			iHash = vnum % MAX_KEY_HASH;
 			rep->next = area->reputation_index_hash[iHash];
 			area->reputation_index_hash[iHash] = rep;
+			area->bottom_reputation_vnum = UMIN(area->bottom_reputation_vnum, vnum);
 			area->top_reputation_vnum = UMAX(area->top_reputation_vnum, vnum);
 			fMatch = true;
 		}
@@ -2076,6 +2077,7 @@ AREA_DATA *read_area_new(FILE *fp)
 		    list_appendlink(area->room_list, room);	// Add to the area room list
 		    area->room_index_hash[iHash]  = room;
 		    area->top_room++;
+		    area->bottom_vnum_room = UMIN(area->bottom_vnum_room, vnum); /* OLC */
 		    area->top_vnum_room = UMAX(area->top_vnum_room, vnum); /* OLC */
 			fMatch = true;
 		}
@@ -2088,6 +2090,7 @@ AREA_DATA *read_area_new(FILE *fp)
 		    area->mob_index_hash[iHash] = mob;
 		    mob->area = area;
 		    area->top_mob_index++;
+			area->bottom_vnum_mob = UMIN(area->bottom_vnum_mob, vnum);
 		    area->top_vnum_mob = UMAX(area->top_vnum_mob, vnum);
 			fMatch = true;
 		}
@@ -2104,6 +2107,7 @@ AREA_DATA *read_area_new(FILE *fp)
 		    area->obj_index_hash[iHash] = obj;
 		    obj->area = area;
 		    area->top_obj_index++;
+			area->bottom_vnum_obj = UMIN(area->bottom_vnum_obj, vnum);
 		    area->top_vnum_obj = UMAX(area->top_vnum_obj, vnum);
 			fMatch = true;
 		}
@@ -2126,6 +2130,7 @@ AREA_DATA *read_area_new(FILE *fp)
 			area->blueprint_section_hash[iHash] = bs;
 
 			bs->area = area;
+			area->bottom_blueprint_section_vnum = UMIN(area->bottom_blueprint_section_vnum, bs->vnum);
 			area->top_blueprint_section_vnum = UMAX(area->top_blueprint_section_vnum, bs->vnum);
 			fMatch = true;
 		}
@@ -2138,6 +2143,7 @@ AREA_DATA *read_area_new(FILE *fp)
 			area->blueprint_hash[iHash] = bp;
 
 			bp->area = area;
+			area->bottom_blueprint_vnum = UMIN(area->bottom_blueprint_vnum, bp->vnum);
 			area->top_blueprint_vnum = UMAX(area->top_blueprint_vnum, bp->vnum);
 			fMatch = true;
 		}
@@ -2150,6 +2156,7 @@ AREA_DATA *read_area_new(FILE *fp)
 			area->ship_index_hash[iHash] = ship;
 
 			ship->area = area;
+			area->bottom_ship_vnum = UMIN(area->bottom_ship_vnum, ship->vnum);
 			area->top_ship_vnum = UMAX(area->top_ship_vnum, ship->vnum);
 			fMatch = true;
 		}
@@ -2162,6 +2169,7 @@ AREA_DATA *read_area_new(FILE *fp)
 			area->dungeon_index_hash[iHash] = dng;
 
 			dng->area = area;
+			area->bottom_dungeon_vnum = UMIN(area->bottom_dungeon_vnum, dng->vnum);
 			area->top_dungeon_vnum = UMAX(area->top_dungeon_vnum, dng->vnum);
 			fMatch = true;
 		}
@@ -2174,6 +2182,7 @@ AREA_DATA *read_area_new(FILE *fp)
 			area->quest_index_hash[iHash] = quest;
 
 			quest->area = area;
+			area->bottom_quest_vnum = UMIN(area->bottom_quest_vnum, quest->vnum);
 			area->top_quest_vnum = UMAX(area->top_quest_vnum, quest->vnum);
 			fMatch = true;
 		}
@@ -2184,8 +2193,8 @@ AREA_DATA *read_area_new(FILE *fp)
 				rpr->next = area->rprog_list;
 				area->rprog_list = rpr;
 
-				if (rpr->vnum > area->top_rprog_index)
-					area->top_rprog_index = rpr->vnum;
+				area->bottom_rprog_index = UMIN(area->bottom_rprog_index, rpr->vnum);
+				area->top_rprog_index = UMAX(area->top_rprog_index, rpr->vnum);
 		    }
 			fMatch = true;
 		}
@@ -2196,8 +2205,8 @@ AREA_DATA *read_area_new(FILE *fp)
 			    mpr->next = area->mprog_list;
 			    area->mprog_list = mpr;
 
-				if (mpr->vnum > area->top_mprog_index)
-					area->top_mprog_index = mpr->vnum;
+				area->bottom_mprog_index = UMIN(area->bottom_mprog_index, mpr->vnum);
+				area->top_mprog_index = UMAX(area->top_mprog_index, mpr->vnum);
 		    }
 			fMatch = true;
 		}
@@ -2208,8 +2217,8 @@ AREA_DATA *read_area_new(FILE *fp)
 				opr->next = area->oprog_list;
 				area->oprog_list = opr;
 
-				if (opr->vnum > area->top_oprog_index)
-					area->top_oprog_index = opr->vnum;
+				area->bottom_oprog_index = UMIN(area->bottom_oprog_index, opr->vnum);
+				area->top_oprog_index = UMAX(area->top_oprog_index, opr->vnum);
 		    }
 			fMatch = true;
 		}
@@ -2220,8 +2229,8 @@ AREA_DATA *read_area_new(FILE *fp)
 				tpr->next = area->tprog_list;
 				area->tprog_list = tpr;
 
-				if (tpr->vnum > area->top_tprog_index)
-					area->top_tprog_index = tpr->vnum;
+				area->bottom_tprog_index = UMIN(area->bottom_tprog_index, tpr->vnum);
+				area->top_tprog_index = UMAX(area->top_tprog_index, tpr->vnum);
 		    }
 			fMatch = true;
 		}
@@ -2232,8 +2241,8 @@ AREA_DATA *read_area_new(FILE *fp)
 				apr->next = area->aprog_list;
 				area->aprog_list = apr;
 
-				if (apr->vnum > area->top_aprog_index)
-					area->top_aprog_index = apr->vnum;
+				area->bottom_aprog_index = UMIN(area->bottom_aprog_index, apr->vnum);
+				area->top_aprog_index = UMAX(area->top_aprog_index, apr->vnum);
 		    }
 			fMatch = true;
 		}
@@ -2244,8 +2253,8 @@ AREA_DATA *read_area_new(FILE *fp)
 				dpr->next = area->dprog_list;
 				area->dprog_list = dpr;
 
-				if (dpr->vnum > area->top_dprog_index)
-					area->top_dprog_index = dpr->vnum;
+				area->bottom_dprog_index = UMIN(area->bottom_dprog_index, dpr->vnum);
+				area->top_dprog_index = UMAX(area->top_dprog_index, dpr->vnum);
 		    }
 			fMatch = true;
 		}
@@ -2256,8 +2265,8 @@ AREA_DATA *read_area_new(FILE *fp)
 				ipr->next = area->iprog_list;
 				area->iprog_list = ipr;
 
-				if (ipr->vnum > area->top_iprog_index)
-					area->top_iprog_index = ipr->vnum;
+				area->bottom_iprog_index = UMIN(area->bottom_iprog_index, ipr->vnum);
+				area->top_iprog_index = UMAX(area->top_iprog_index, ipr->vnum);
 		    }
 			fMatch = true;
 		}
@@ -2487,8 +2496,8 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
     {
         room->vnum = fread_number(fp);
 
-		if (room->vnum > area->top_vnum_room)
-			area->top_vnum_room = room->vnum;
+		area->bottom_vnum_room = UMIN(area->bottom_vnum_room, room->vnum);
+		area->top_vnum_room = UMAX(area->top_vnum_room, room->vnum);
     }
     room->persist = false;
 
@@ -2789,8 +2798,8 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
     mob = new_mob_index();
     mob->vnum = fread_number(fp);
 
-	if (mob->vnum > area->top_vnum_mob)
-		area->top_vnum_mob = mob->vnum;
+	area->bottom_vnum_mob = UMIN(area->bottom_vnum_mob, mob->vnum);
+	area->top_vnum_mob = UMAX(area->top_vnum_mob, mob->vnum);
 
     mob->persist = false;
 
@@ -4717,8 +4726,9 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 
     obj = new_obj_index();
     obj->vnum = fread_number(fp);
-	if (obj->vnum > area->top_vnum_obj)
-		area->top_vnum_obj = obj->vnum;
+
+	area->bottom_vnum_obj = UMIN(area->bottom_vnum_obj, obj->vnum);
+	area->top_vnum_obj = UMAX(area->top_vnum_obj, obj->vnum);
 
     obj->persist = false;
 	long values[MAX_OBJVALUES];
@@ -6361,8 +6371,9 @@ TOKEN_INDEX_DATA *read_token(FILE *fp, AREA_DATA *area)
 
     token = new_token_index();
     token->vnum = fread_number(fp);
-	if (token->vnum > area->top_vnum_token)
-		area->top_vnum_token = token->vnum;
+
+	area->bottom_vnum_token = UMIN(area->bottom_vnum_token, token->vnum);
+	area->top_vnum_token = UMAX(area->top_vnum_token, token->vnum);
 
     while (str_cmp((word = fread_word(fp)), "#-TOKEN")) {
 	fMatch = false;

@@ -346,12 +346,14 @@ enum variable_enum {
 	VAR_SHIPINDEX,
 	VAR_REPUTATION,
 	VAR_REPUTATION_INDEX,
+	VAR_REPUTATION_INDEX_ID,	// Used while loading
 	VAR_REPUTATION_RANK,
 	
 	VAR_BOOK_PAGE,
 	VAR_FOOD_BUFF,
 	VAR_COMPARTMENT,
 	VAR_LIQUID,
+	VAR_MATERIAL,
 	VAR_LOCK_STATE,
 
 	VAR_MISSION,
@@ -714,6 +716,7 @@ enum entity_variable_types_enum {
 	ENTITY_VAR_FOOD_BUFF,
 	ENTITY_VAR_COMPARTMENT,
 	ENTITY_VAR_LIQUID,
+	ENTITY_VAR_MATERIAL,
 	ENTITY_VAR_LOCK_STATE,
 	ENTITY_VAR_CHURCH,
 	ENTITY_VAR_VARIABLE,
@@ -1961,6 +1964,7 @@ struct script_var_type {
 		FOOD_BUFF_DATA *food_buff;
 		FURNITURE_COMPARTMENT *compartment;
 		LIQUID *liquid;
+		MATERIAL *material;
 		SPELL_DATA *spell;
 		LOCK_STATE *lockstate;
 		DESCRIPTOR_DATA *conn;
@@ -3068,6 +3072,7 @@ bool variables_set_skill_group(ppVARIABLE list,char *name,SKILL_GROUP *skill_gro
 bool variables_set_skillinfo(ppVARIABLE list,char *name,CHAR_DATA *owner,SKILL_DATA *skill, TOKEN_DATA *token);
 bool variables_set_spell(ppVARIABLE list,char *name,SPELL_DATA *spell);
 bool variables_set_liquid(ppVARIABLE list,char *name,LIQUID *liquid);
+bool variables_set_material(ppVARIABLE list,char *name,MATERIAL *material);
 bool variables_set_lockstate(ppVARIABLE list,char *name,LOCK_STATE *lockstate);
 bool variables_set_song(ppVARIABLE list,char *name,SONG_DATA *song);
 bool variables_set_string(ppVARIABLE list,char *name,char *str,bool shared);
@@ -3097,6 +3102,12 @@ bool variables_setindex_room(ppVARIABLE list,char *name,WNUM_LOAD wnum_load, boo
 bool variables_setindex_string(ppVARIABLE list,char *name,char *str,bool shared, bool saved);
 bool variables_setindex_skill(ppVARIABLE list,char *name,SKILL_DATA *skill, bool saved);
 bool variables_setindex_song(ppVARIABLE list,char *name,SONG_DATA *song, bool saved);
+bool variables_setindex_race (ppVARIABLE list,char *name,RACE_DATA *race, bool saved);
+bool variables_setindex_class (ppVARIABLE list,char *name,CLASS_DATA *clazz, bool saved);
+bool variables_setindex_reputation_index (ppVARIABLE list,char *name,WNUM_LOAD wnum, bool saved);
+bool variables_setindex_dungeon_index (ppVARIABLE list,char *name,DUNGEON_INDEX_DATA *dngIndex, bool saved);
+bool variables_setindex_liquid (ppVARIABLE list,char *name,LIQUID *liquid, bool saved);
+bool variables_setindex_material (ppVARIABLE list,char *name,MATERIAL *material, bool saved);
 bool variables_setsave_book_page (ppVARIABLE list,char *name,BOOK_PAGE *book_page, sent_bool save);
 bool variables_setsave_food_buff (ppVARIABLE list,char *name,FOOD_BUFF_DATA* food_buff, sent_bool save);
 bool variables_setsave_compartment (ppVARIABLE list,char *name,FURNITURE_COMPARTMENT* compartment, sent_bool save);
@@ -3114,6 +3125,7 @@ bool variables_setsave_skill_group(ppVARIABLE list,char *name, SKILL_GROUP *skil
 bool variables_setsave_skillinfo(ppVARIABLE list,char *name,CHAR_DATA *owner,SKILL_DATA *skill, TOKEN_DATA *token, sent_bool save);
 bool variables_setsave_spell(ppVARIABLE list,char *name,SPELL_DATA *spell, sent_bool save);
 bool variables_setsave_liquid(ppVARIABLE list,char *name,LIQUID *liquid, sent_bool save);
+bool variables_setsave_material(ppVARIABLE list,char *name,MATERIAL *material, sent_bool save);
 bool variables_setsave_lockstate(ppVARIABLE list,char *name,LOCK_STATE *lockstate, sent_bool save);
 bool variables_setsave_song(ppVARIABLE list,char *name,SONG_DATA *song, sent_bool save);
 bool variables_setsave_string(ppVARIABLE list,char *name,char *str,bool shared, sent_bool save);

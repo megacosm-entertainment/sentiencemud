@@ -782,6 +782,7 @@ void script_loop_cleanup(SCRIPT_CB *block, int level)
 			case ENT_OBJECT:
 			case ENT_TOKEN:
 			case ENT_AFFECT:
+			case ENT_ARRAY_EXITS:
 				break;
 
 			case ENT_PLLIST_STR:
@@ -1245,6 +1246,38 @@ DECL_OPC_FUN(opc_list)
 				for(i=arg->d.door.door + 1; i < MAX_DIR && !here->exit[i]; i++);
 				block->loops[lp].d.l.next.door = i;
 			}
+			// Set the variable
+			variables_set_exit(block->info.var,block->loops[lp].var_name,ex);
+			break;
+
+		case ENT_ARRAY_EXITS:
+			//log_stringf("opc_list: list type ENT_EXIT");
+			if(!arg->d.room)
+			{
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+			}
+
+			here = arg->d.room;
+			// Find first exit in the room, if any
+			for(i = 0; i < MAX_DIR && !here->exit[i]; i++);
+
+			// No exits in the room to list over
+			if (i >= MAX_DIR)
+			{
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+			}
+
+			ex = here->exit[i];
+			block->loops[lp].d.l.type = ENT_ARRAY_EXITS;
+			block->loops[lp].d.l.cur.door = i;
+			block->loops[lp].d.l.owner = arg->d.room;
+			block->loops[lp].d.l.owner_type = ENT_ARRAY_EXITS;
+
+			for(++i; i < MAX_DIR && !here->exit[i]; i++);
+			block->loops[lp].d.l.next.door = i;
+
 			// Set the variable
 			variables_set_exit(block->info.var,block->loops[lp].var_name,ex);
 			break;
@@ -2569,6 +2602,7 @@ DECL_OPC_FUN(opc_list)
 
 
 		case ENT_EXIT:
+		case ENT_ARRAY_EXITS:
 			//log_stringf("opc_list: list type ENT_EXIT");
 			i = block->loops[lp].d.l.cur.door = block->loops[lp].d.l.next.door;
 
@@ -8639,10 +8673,10 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		else
 			variables_set_exit(vars,name,start_room->exit[dir]);
 
-	// AREA uid
-	// AREA name
-	// AREA room
-	// AREA area
+	// Format: AREA uid
+	// Format: AREA name
+	// Format: AREA room
+	// Format: AREA area
 	} else if(!str_cmp(buf,"area")) {
 		AREA_DATA *area;
 
@@ -8656,6 +8690,82 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 
 		if( area )
 			variables_set_area(vars,name,area);
+
+	// Format: AREAREGION <AREA> <REGIONUID>
+	// Format: AREAREGION <REGION>
+	} else if(!str_cmp(buf,"arearegion")) {
+		if (arg->type == ENT_AREA)
+		{
+			AREA_DATA *area = arg->d.area;
+			if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
+				return;
+
+			AREA_REGION *region = get_area_region_by_uid(area, arg->d.num);
+			if (region)
+				variables_set_area_region(vars,name,region);
+
+		}
+		else if (arg->type == ENT_AREA_REGION)
+		{
+			variables_set_area_region(vars,name,arg->d.aregion);
+		}
+
+	// Format: CLASS <name>
+	// Format: CLASS <class>
+	} else if(!str_cmp(buf,"class")) {
+		if (arg->type == ENT_STRING)
+		{
+			CLASS_DATA *clazz = get_class_data(arg->d.str);
+			if (clazz)
+				variables_set_class(vars,name,clazz);
+		}
+		else if (arg->type == ENT_CLASS)
+		{
+			variables_set_class(vars,name,arg->d.clazz);
+		}
+
+	// Format: RACE <name>
+	// Format: RACE <race>
+	} else if(!str_cmp(buf,"race")) {
+		if (arg->type == ENT_STRING)
+		{
+			RACE_DATA *race = get_race_data(arg->d.str);
+			if (race)
+				variables_set_race(vars,name,race);
+		}
+		else if (arg->type == ENT_RACE)
+		{
+			variables_set_race(vars,name,arg->d.race);
+		}
+
+	// Format: REPINDEX <widevnum>
+	// Format: REPINDEX <reputation>
+	// Format: REPINDEX <reputation index>
+	} else if (!str_cmp(buf, "repindex")) {
+		REPUTATION_INDEX_DATA *repIndex = NULL;
+		if (arg->type == ENT_WIDEVNUM)
+		{
+			repIndex = get_reputation_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
+		}
+		else if (arg->type == ENT_REPUTATION)
+		{
+			repIndex = arg->d.reputation->pIndexData;
+		}
+		else if (arg->type == ENT_REPUTATION_INDEX)
+		{
+			repIndex = arg->d.repIndex;
+		}
+
+		if (repIndex)
+			variables_set_reputation_index(vars,name,repIndex);
+
+	// Format: REPUTATION <mobile> <widevnum>
+	// Format: REPUTATION <mobile> <reputation index>
+	} else if(!str_cmp(buf, "reputation")) {
+		REPUTATION_DATA *reputation = NULL;
+
+		if (reputation)
+			variables_set_reputation(vars,name,reputation);
 
 	// Format: MOBLIST add <mobile>
 	// Format: MOBLIST remove <index>|<mobile>

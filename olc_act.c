@@ -4003,8 +4003,8 @@ REDIT(redit_create)
 
 	list_appendlink(wnum.pArea->room_list, pRoom);	// Add to the area room list
     pRoom->vnum = wnum.vnum;
-    if (wnum.vnum > wnum.pArea->top_vnum_room)
-        wnum.pArea->top_vnum_room = wnum.vnum;
+	wnum.pArea->bottom_vnum_room = UMIN(wnum.pArea->bottom_vnum_room, wnum.vnum);
+	wnum.pArea->top_vnum_room = UMAX(wnum.pArea->top_vnum_room, wnum.vnum);
 
 	// Check whether to automatically set the room as blueprint
     if( redit_blueprint_oncreate )
@@ -9527,8 +9527,8 @@ OEDIT(oedit_create)
     pObj->area	      = wnum.pArea;
     pObj->creator_sig = str_dup(ch->name);
 
-    if (wnum.vnum > wnum.pArea->top_vnum_obj)
-		wnum.pArea->top_vnum_obj = wnum.vnum;
+	wnum.pArea->bottom_vnum_obj = UMIN(wnum.pArea->bottom_vnum_obj, wnum.vnum);
+	wnum.pArea->top_vnum_obj = UMAX(wnum.pArea->top_vnum_obj, wnum.vnum);
 
     iHash                 = wnum.vnum % MAX_KEY_HASH;
     pObj->next		  = wnum.pArea->obj_index_hash[iHash];
@@ -18221,8 +18221,8 @@ MEDIT(medit_create)
     pMob->vnum			= wnum.vnum;
     pMob->area			= wnum.pArea;
 
-    if (wnum.vnum > wnum.pArea->top_vnum_mob)
-	wnum.pArea->top_vnum_mob = wnum.vnum;
+	wnum.pArea->bottom_vnum_mob = UMIN(wnum.pArea->bottom_vnum_mob, wnum.vnum);
+	wnum.pArea->top_vnum_mob = UMAX(wnum.pArea->top_vnum_mob, wnum.vnum);
 
     pMob->act[0]			= ACT_IS_NPC;
     pMob->act[1]			= 0;

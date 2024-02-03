@@ -74,7 +74,7 @@
 // ITEM_FOUNTAIN			Fluid Container
 // ITEM_PILL				No
 // ITEM_PROTECT				To be deleted
-// ITEM_MAP					No
+// ITEM_MAP					Yes
 // ITEM_PORTAL				Yes
 // ITEM_CATALYST			To be deleted
 // ITEM_ROOM_KEY			To be deleted
@@ -90,7 +90,7 @@
 // ITEM_SHIP				No
 // ITEM_ROOM_DARKNESS		To be converted to a room affect
 // ITEM_RANGED_WEAPON		No (WEAPON)
-// ITEM_SEXTANT				No
+// ITEM_SEXTANT				Yes
 // ITEM_WEAPON_CONTAINER	Container
 // ITEM_ROOM_ROOMSHIELD		To be converted to a room affect
 // ITEM_BOOK				Yes
@@ -109,21 +109,21 @@
 // ITEM_MIST				Yes
 // ITEM_SHRINE				To be deleted
 // ITEM_WHISTLE				No
-// ITEM_SHOVEL				No
+// ITEM_SHOVEL				Tool
 // ITEM_TOOL				No
 // ITEM_PIPE				No
 // ITEM_TATTOO				Yes
 // ITEM_INK					Yes
 // ITEM_PART				No
 // ITEM_COMMODITY			No
-// ITEM_TELESCOPE			No
-// ITEM_COMPASS				No
-// ITEM_WHETSTONE			No
-// ITEM_CHISEL				No
-// ITEM_PICK				No
-// ITEM_TINDERBOX			No
-// ITEM_NEEDLE				No
-// ITEM_DRYING_CLOTH		No
+// ITEM_TELESCOPE			Yes
+// ITEM_COMPASS				Yes
+// ITEM_WHETSTONE			Tool
+// ITEM_CHISEL				Tool
+// ITEM_PICK				Tool
+// ITEM_TINDERBOX			Tool
+// ITEM_NEEDLE				Tool
+// ITEM_DRYING_CLOTH		Tool
 // ITEM_BODY_PART			No
 // ITEM_PAGE				Yes
 

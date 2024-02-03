@@ -1503,8 +1503,8 @@ TEDIT(tedit_create)
     token_index->vnum = wnum.vnum;
     token_index->area = wnum.pArea;
 
-	if (wnum.vnum > wnum.pArea->top_vnum_token)
-		wnum.pArea->top_vnum_token = wnum.vnum;
+	wnum.pArea->bottom_vnum_token = UMIN(wnum.pArea->bottom_vnum_token, wnum.vnum);
+	wnum.pArea->top_vnum_token = UMAX(wnum.pArea->top_vnum_token, wnum.vnum);
 
     iHash = wnum.vnum % MAX_KEY_HASH;
     token_index->next = wnum.pArea->token_index_hash[iHash];

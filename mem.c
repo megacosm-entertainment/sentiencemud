@@ -1637,6 +1637,8 @@ static void delete_area_region(void *ptr)
     free_area_region((AREA_REGION *)ptr);
 }
 
+#define MAX_INT64       9223372036854775807L
+
 AREA_DATA *new_area( void )
 {
     AREA_DATA *pArea;
@@ -1698,6 +1700,28 @@ AREA_DATA *new_area( void )
     pArea->region.players = list_create(false);
     pArea->region.valid = true;
     pArea->top_region_uid = 0;  // Pre-incremented before use
+
+    // Set up the "bottom" values to be at the top of the ints
+	pArea->bottom_mprog_index = MAX_INT64;
+	pArea->bottom_oprog_index = MAX_INT64;
+	pArea->bottom_rprog_index = MAX_INT64;
+	pArea->bottom_tprog_index = MAX_INT64;
+    pArea->bottom_aprog_index = MAX_INT64;
+    pArea->bottom_iprog_index = MAX_INT64;
+    pArea->bottom_dprog_index = MAX_INT64;
+	pArea->bottom_vnum_mob = MAX_INT64;
+	pArea->bottom_vnum_npc_ship = MAX_INT64;
+	pArea->bottom_vnum_obj = MAX_INT64;
+	pArea->bottom_vnum_room = MAX_INT64;
+    pArea->bottom_vnum_token = MAX_INT64;
+	pArea->bottom_vroom = MAX_INT64;
+    pArea->bottom_blueprint_section_vnum = MAX_INT64;
+    pArea->bottom_blueprint_vnum = MAX_INT64;
+    pArea->bottom_ship_vnum = MAX_INT64;
+    pArea->bottom_dungeon_vnum = MAX_INT64;
+    pArea->bottom_reputation_vnum = MAX_INT64;
+    pArea->bottom_quest_vnum = MAX_INT64;
+
 
     return pArea;
 }

@@ -290,6 +290,9 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp, AREA_DATA *area)
 	dng = new_dungeon_index();
 	dng->vnum = fread_number(fp);
 
+	area->bottom_dungeon_vnum = UMIN(area->bottom_dungeon_vnum, dng->vnum);
+	area->top_dungeon_vnum = UMAX(area->top_dungeon_vnum, dng->vnum);
+
 	while (str_cmp((word = fread_word(fp)), "#-DUNGEON"))
 	{
 		fMatch = false;
@@ -3002,8 +3005,8 @@ DNGEDIT( dngedit_create )
 	wnum.pArea->dungeon_index_hash[iHash]	= dng;
 	olc_set_editor(ch, ED_DUNGEON, dng);
 
-	if( dng->vnum > wnum.pArea->top_dungeon_vnum)
-		wnum.pArea->top_dungeon_vnum = dng->vnum;
+	wnum.pArea->bottom_dungeon_vnum = UMIN(wnum.pArea->bottom_dungeon_vnum, dng->vnum);
+	wnum.pArea->top_dungeon_vnum = UMAX(wnum.pArea->top_dungeon_vnum, dng->vnum);
 
     return true;
 }

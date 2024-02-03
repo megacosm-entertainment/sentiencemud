@@ -896,6 +896,7 @@ MPEDIT (mpedit_create)
     pMcode->area			= wnum.pArea;
     wnum.pArea->mprog_list	= pMcode;
 	olc_set_editor(ch, ED_MPCODE, pMcode);
+	wnum.pArea->bottom_mprog_index = UMIN(wnum.pArea->bottom_mprog_index, wnum.vnum);
 	wnum.pArea->top_mprog_index = UMAX(wnum.pArea->top_mprog_index, wnum.vnum);
 
     send_to_char("MobProgram Code Created.\n\r",ch);
@@ -950,6 +951,7 @@ OPEDIT (opedit_create)
     pOcode->area			= wnum.pArea;
     wnum.pArea->oprog_list	= pOcode;
 	olc_set_editor(ch, ED_OPCODE, pOcode);
+	wnum.pArea->bottom_oprog_index = UMIN(wnum.pArea->bottom_oprog_index, wnum.vnum);
 	wnum.pArea->top_oprog_index = UMAX(wnum.pArea->top_oprog_index, wnum.vnum);
 
     send_to_char("ObjProgram Code Created.\n\r",ch);
@@ -1004,6 +1006,7 @@ RPEDIT (rpedit_create)
     pRcode->area			= wnum.pArea;
     wnum.pArea->rprog_list	= pRcode;
 	olc_set_editor(ch, ED_RPCODE, pRcode);
+	wnum.pArea->bottom_rprog_index = UMIN(wnum.pArea->bottom_rprog_index, wnum.vnum);
 	wnum.pArea->top_rprog_index = UMAX(wnum.pArea->top_rprog_index, wnum.vnum);
 
     send_to_char("RoomProgram Code Created.\n\r",ch);
@@ -1058,6 +1061,7 @@ TPEDIT (tpedit_create)
     pTcode->area			= wnum.pArea;
     wnum.pArea->tprog_list	= pTcode;
 	olc_set_editor(ch, ED_TPCODE, pTcode);
+	wnum.pArea->bottom_tprog_index = UMIN(wnum.pArea->bottom_tprog_index, wnum.vnum);
 	wnum.pArea->top_tprog_index = UMAX(wnum.pArea->top_tprog_index, wnum.vnum);
 
     send_to_char("TokenProgram Code Created.\n\r",ch);
@@ -1114,6 +1118,7 @@ APEDIT (apedit_create)
     pAcode->area			= wnum.pArea;
     wnum.pArea->aprog_list	= pAcode;
 	olc_set_editor(ch, ED_APCODE, pAcode);
+	wnum.pArea->bottom_aprog_index = UMIN(wnum.pArea->bottom_aprog_index, wnum.vnum);
 	wnum.pArea->top_aprog_index = UMAX(wnum.pArea->top_aprog_index, wnum.vnum);
 
     send_to_char("AreaProgram Code Created.\n\r",ch);
@@ -1168,6 +1173,7 @@ IPEDIT (ipedit_create)
     pIcode->area			= wnum.pArea;
     wnum.pArea->iprog_list	= pIcode;
 	olc_set_editor(ch, ED_IPCODE, pIcode);
+	wnum.pArea->bottom_iprog_index = UMIN(wnum.pArea->bottom_iprog_index, wnum.vnum);
 	wnum.pArea->top_iprog_index = UMAX(wnum.pArea->top_iprog_index, wnum.vnum);
 
     send_to_char("InstanceProgram Code Created.\n\r",ch);
@@ -1222,6 +1228,7 @@ DPEDIT (dpedit_create)
     pDcode->area			= wnum.pArea;
     wnum.pArea->dprog_list	= pDcode;
 	olc_set_editor(ch, ED_DPCODE, pDcode);
+	wnum.pArea->bottom_dprog_index = UMIN(wnum.pArea->bottom_dprog_index, wnum.vnum);
 	wnum.pArea->top_dprog_index = UMAX(wnum.pArea->top_dprog_index, wnum.vnum);
 
     send_to_char("DungeonProgram Code Created.\n\r",ch);

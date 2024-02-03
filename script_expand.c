@@ -33,7 +33,7 @@ RESERVED_AREA *search_reserved_area(char *name);
 #define EXPAND_TYPE(e)		EXPAND( expand_entity_##e )
 #define EXPAND_STR(f)	char * f (SCRIPT_VARINFO *info,char *str,BUFFER *buffer)
 
-char *expand_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,pVARIABLE *var);
+char *expand_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,pVARIABLE *var, bool *expand);
 char *expand_string_expression(SCRIPT_VARINFO *info,char *str,BUFFER *store);
 EXPAND(expand_argument_entity);
 
@@ -189,10 +189,30 @@ char *expand_variable_recursive(SCRIPT_VARINFO *info, char *str,BUFFER *buffer)
 	}
 */
 
-	var = variable_get(infovar,buf_string(name_buffer));
+	char *name = buf_string(name_buffer);
+	bool expand = false;
+	if (name[0] == '=')
+	{
+		var = variable_get(infovar,name + 1);
+		expand = true;
+	}
+	else
+		var = variable_get(infovar,name);
 	if(var) {
 		if((var->type == VAR_STRING || var->type == VAR_STRING_S) && var->_.s && *var->_.s) {
-			add_buf(buffer,var->_.s);
+			if (expand)
+			{
+				int length;
+				char *comp_str = compile_string(var->_.s,IFC_ANY,&length,false);	// TODO: Check whether the doquotes needs to be true
+
+				if (comp_str)
+				{
+					expand_string(info,comp_str,buffer);
+					free_string(comp_str);
+				}
+			}
+			else
+				add_buf(buffer,var->_.s);
 		} else if(var->type == VAR_INTEGER) {
 			sprintf(buf, "%d", var->_.i);
 			add_buf(buffer, buf);
@@ -216,7 +236,7 @@ char *expand_variable_recursive(SCRIPT_VARINFO *info, char *str,BUFFER *buffer)
 	return str+1;
 }
 
-char *expand_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,pVARIABLE *var)
+char *expand_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,pVARIABLE *var, bool *expand)
 {
 	BUFFER *buffer;
 	bool deref = false;
@@ -274,7 +294,15 @@ char *expand_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,pVARIABLE *
 	//	wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
 	//}
 
-	v = variable_get(vars,buf_string(buffer));
+	char *name = buf_string(buffer);
+	if (expand) *expand = false;
+	if (name[0] == '=')
+	{
+		v = variable_get(vars,name + 1);
+		if (expand) *expand = true;
+	}
+	else
+		v = variable_get(vars,name);
 	if(deref) {
 		while(v && v->type == VAR_VARIABLE)
 			v = v->_.variable;
@@ -403,7 +431,8 @@ char *expand_argument_expression(SCRIPT_VARINFO *info, char *str,int *num)
 				break;
 			}
 
-			str = expand_variable(info,vars,str+1,&var);
+			bool expand = false;
+			str = expand_variable(info,vars,str+1,&var,&expand);
 			if(!str) {
 				break;
 			}
@@ -411,7 +440,26 @@ char *expand_argument_expression(SCRIPT_VARINFO *info, char *str,int *num)
 				if(var->type == VAR_INTEGER)
 					value = var->_.i;
 				else if(var->type == VAR_STRING || var->type ==  VAR_STRING_S)
-					value = is_number(var->_.s) ? atoi(var->_.s) : 0;
+				{
+					if (expand)
+					{
+						int length;
+						char *comp_str = compile_string(var->_.s,IFC_ANY,&length,false);	// TODO: Check whether the doquotes needs to be true
+
+						if (comp_str)
+						{
+							BUFFER *buffer = new_buf();
+							expand_string(info,comp_str,buffer);
+							value = is_number(buffer->string) ? atoi(buffer->string) : 0;
+							free_buf(buffer);
+							free_string(comp_str);
+						}
+						else
+							value = 0;
+					}
+					else
+						value = is_number(var->_.s) ? atoi(var->_.s) : 0;
+				}
 				else
 					value = 0;
 			} else
@@ -516,7 +564,8 @@ EXPAND(expand_argument_variable)
 {
 	pVARIABLE var;
 
-	str = expand_variable(info,(info?*(info->var):NULL),str,&var);
+	bool expand = false;
+	str = expand_variable(info,(info?*(info->var):NULL),str,&var,&expand);
 	if(!str) return NULL;
 
 	if(!var) {
@@ -535,7 +584,26 @@ EXPAND(expand_argument_variable)
 		default: arg->type = ENT_NUMBER; arg->d.num = 0; break;
 		case VAR_INTEGER:	arg->type = ENT_NUMBER; arg->d.num = var->_.i; break;
 		case VAR_STRING:
-		case VAR_STRING_S:	arg->type = ENT_STRING; arg->d.str = var->_.s; break;
+		case VAR_STRING_S:
+			arg->type = ENT_STRING; 
+			if (expand)
+			{
+				int length;
+				char *comp_str = compile_string(var->_.s,IFC_ANY,&length,false);	// TODO: Check whether the doquotes needs to be true
+
+				if (comp_str)
+				{
+					clear_buf(arg->buffer);
+					expand_string(info,comp_str,arg->buffer);
+					arg->d.str = arg->buffer->string;
+					free_string(comp_str);
+				}
+				else
+					arg->d.str = &str_empty[0];
+			}
+			else
+				arg->d.str = var->_.s;
+			break;
 		case VAR_MOBILE:	arg->type = ENT_MOBILE; arg->d.mob = var->_.m; break;
 		case VAR_OBJECT:	arg->type = ENT_OBJECT; arg->d.obj = var->_.o; break;
 		case VAR_ROOM:		arg->type = ENT_ROOM; arg->d.room = var->_.r; break;
@@ -576,6 +644,7 @@ EXPAND(expand_argument_variable)
 		case VAR_SPELL:		arg->type = ENT_SPELL; arg->d.spell = var->_.spell; break;
 		case VAR_LOCK_STATE:	arg->type = ENT_LOCK_STATE; arg->d.lockstate = var->_.lockstate; break;
 		case VAR_LIQUID:	arg->type = ENT_LIQUID; arg->d.liquid = var->_.liquid; break;
+		case VAR_MATERIAL:	arg->type = ENT_MATERIAL; arg->d.material = var->_.material; break;
 		case VAR_MISSION:	arg->type = ENT_MISSION; arg->d.mission = var->_.mission; break;
 		case VAR_MISSION_PART:	arg->type = ENT_MISSION_PART; arg->d.mp.mission = var->_.mp.mission; arg->d.mp.part = var->_.mp.part; break;
 		case VAR_REPUTATION:	arg->type = ENT_REPUTATION; arg->d.reputation = var->_.reputation; break;
@@ -739,7 +808,8 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 {
 	int type;
 	pVARIABLE var, orig;
-	str = expand_variable(info,vars,str,&var);
+	bool expand = false;
+	str = expand_variable(info,vars,str,&var,&expand);
 	if(!str) return NULL;
 
 	// Descend down the rabbit hole, fully redirecting down
@@ -759,7 +829,25 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 	case ENTITY_VAR_STR:
 		if(!var) arg->d.str = NULL;
 		else if(var->type == VAR_STRING || var->type == VAR_STRING_S)
-			arg->d.str = var->_.s;
+		{
+			if (expand)
+			{
+				int length;
+				char *comp_str = compile_string(var->_.s,IFC_ANY,&length,false);	// TODO: Check whether the doquotes needs to be true
+
+				if (comp_str)
+				{
+					clear_buf(arg->buffer);
+					expand_string(info,comp_str,arg->buffer);
+					arg->d.str = arg->buffer->string;
+					free_string(comp_str);
+				}
+				else
+					arg->d.str = &str_empty[0];
+			}
+			else
+				arg->d.str = var->_.s;
+		}
 		else return NULL;
 
 		if(!arg->d.str) arg->d.str = &str_empty[0];
@@ -1182,6 +1270,11 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 	case ENTITY_VAR_LIQUID:
 		arg->d.liquid = (var && var->type == VAR_LIQUID) ? var->_.liquid : NULL;
 		arg->type = ENT_LIQUID;
+		break;
+	
+	case ENTITY_VAR_MATERIAL:
+		arg->d.material = (var && var->type == VAR_MATERIAL) ? var->_.material : NULL;
+		arg->type = ENT_MATERIAL;
 		break;
 	
 	case ENTITY_VAR_LOCK_STATE:
@@ -10496,7 +10589,8 @@ char *expand_string_variable(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 	pVARIABLE var;
 	char buf[MIL];
 
-	str = expand_variable(info,(info ? *(info->var) : NULL),str, &var);
+	bool expand = false;
+	str = expand_variable(info,(info ? *(info->var) : NULL),str, &var, &expand);
 	if(!str) return NULL;
 
 	if(!var) {
@@ -10526,7 +10620,21 @@ char *expand_string_variable(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 		case VAR_STRING:
 		case VAR_STRING_S:
 			if(var->_.s && *var->_.s)
-				add_buf(buffer,var->_.s);
+			{
+				if (expand)
+				{
+					int length;
+					char *comp_str = compile_string(var->_.s,IFC_ANY,&length,false);	// TODO: Check whether the doquotes needs to be true
+
+					if (comp_str)
+					{
+						expand_string(info,comp_str,buffer);
+						free_string(comp_str);
+					}
+				}
+				else
+					add_buf(buffer,var->_.s);
+			}
 			break;
 		case VAR_ROOM:
 			sprintf(buf,"%d",var->_.r ? (int)var->_.r->vnum : 0);

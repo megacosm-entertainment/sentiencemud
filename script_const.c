@@ -141,6 +141,7 @@ ENT_FIELD entity_types[] = {
 	{"lockstate",		ENTITY_VAR_LOCK_STATE,		ENT_LOCK_STATE},
 	{"spell",			ENTITY_VAR_SPELL,			ENT_SPELL},
 	{"liquid",			ENTITY_VAR_LIQUID,			ENT_LIQUID},
+	{"material",		ENTITY_VAR_MATERIAL,		ENT_MATERIAL},
 	{"mission",			ENTITY_VAR_MISSION,			ENT_MISSION},
 	{"missionpart",		ENTITY_VAR_MISSION_PART,	ENT_MISSION_PART},
 	{"reputation",		ENTITY_VAR_REPUTATION,		ENT_REPUTATION},

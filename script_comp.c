@@ -297,6 +297,10 @@ char *compile_variable(char *str, char **store, int type, bool bracket, bool any
 {
 	char *p = *store;
 	*p++ = ESCAPE_VARIABLE;
+	// This allows for $<=NAME> set up, as well as $<NAME<=NAME>> for recursion
+	if (str && *str == '=')
+		*p++ = *str++;
+
 	while(str && *str && *str != '>') {
 		if(ISALPHA(*str)) *p++ = *str++;
 		else if(*str == '<') {

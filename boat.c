@@ -470,8 +470,8 @@ SHIP_INDEX_DATA *read_ship_index(FILE *fp, AREA_DATA *area)
 	ship->vnum = fread_number(fp);
 	ship->area = area;
 
-	if (ship->vnum > area->top_ship_vnum)
-		area->top_ship_vnum = ship->vnum;
+	area->bottom_ship_vnum = UMIN(area->bottom_ship_vnum, ship->vnum);
+	area->top_ship_vnum = UMAX(area->top_ship_vnum, ship->vnum);
 
 	while (str_cmp((word = fread_word(fp)), "#-SHIP"))
 	{
@@ -7477,8 +7477,8 @@ SHEDIT( shedit_create )
 	pArea->ship_index_hash[iHash]			= ship;
 	olc_set_editor(ch, ED_SHIP, ship);
 
-	if( ship->vnum > pArea->top_ship_vnum)
-		pArea->top_ship_vnum = ship->vnum;
+	pArea->bottom_ship_vnum = UMAX(pArea->bottom_ship_vnum, ship->vnum);
+	pArea->top_ship_vnum = UMAX(pArea->top_ship_vnum, ship->vnum);
 
     return true;
 }
