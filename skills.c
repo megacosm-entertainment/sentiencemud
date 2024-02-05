@@ -1330,11 +1330,13 @@ bool load_skills(void)
 	gsk__auction.name = str_dup("auction");
 	gsk__auction.display = str_dup("auction info");
 	gsk__auction.uid = gsn__auction = -1;
+	gsk__auction.valid = true;
 	
 	memset(&gsk__inspect, 0, sizeof(gsk__inspect));
 	gsk__inspect.name = str_dup("inspect");
 	gsk__inspect.display = str_dup("inspection");
 	gsk__inspect.uid = gsn__inspect = -2;
+	gsk__inspect.valid = true;
 
 	memset(&gsk__well_fed, 0, sizeof(gsk__well_fed));
 	gsk__well_fed.name = str_dup("well fed");
@@ -1344,6 +1346,7 @@ bool load_skills(void)
 	gsk__well_fed.msg_disp = str_dup("You are no longer well fed.");
 	gsk__well_fed.msg_obj = str_dup("");
 	gsk__well_fed.msg_off = str_dup("You are no longer well fed.");
+	gsk__well_fed.valid = true;
 
 	resolve_skill_classes();
 

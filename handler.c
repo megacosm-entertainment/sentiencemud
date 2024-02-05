@@ -7227,22 +7227,26 @@ void token_from_char(TOKEN_DATA *token)
 		HANDLE(token->player), IS_NPC(token->player) ? token->player->pIndexData->vnum : 0);
 	log_string(buf);
 
-	AFFECT_DATA *paf, *paf_next;
-	for(paf = token->player->affected; paf; paf = paf_next)
+	if (token->pIndexData->type == TOKEN_AFFECT)
 	{
-		paf_next = paf->next;
-
-		if (paf->token == token)
+		// Only need to do this when the token is an affect token
+		AFFECT_DATA *paf, *paf_next;
+		for(paf = token->player->affected; paf; paf = paf_next)
 		{
-			if (IS_VALID(paf->skill) && paf->skill->msg_off) {
-				if (IS_VALID(paf->skill) && paf->skill->msg_off)
-				{
-					send_to_char(paf->skill->msg_off, token->player);
-					send_to_char("\n\r", token->player);
-				}
-			}
+			paf_next = paf->next;
 
-			affect_remove(token->player, paf);
+			if (paf->token == token)
+			{
+				if (IS_VALID(paf->skill) && paf->skill->msg_off) {
+					if (IS_VALID(paf->skill) && paf->skill->msg_off)
+					{
+						send_to_char(paf->skill->msg_off, token->player);
+						send_to_char("\n\r", token->player);
+					}
+				}
+
+				affect_remove(token->player, paf);
+			}
 		}
 	}
 
@@ -7333,21 +7337,24 @@ void token_from_obj(TOKEN_DATA *token)
 		token->name, token->pIndexData->vnum, token->object->short_descr, VNUM(token->object));
 	log_string(buf);
 
-	AFFECT_DATA *paf, *paf_next;
-	for(paf = token->object->affected; paf; paf = paf_next)
+	if (token->pIndexData->type == TOKEN_AFFECT)
 	{
-		paf_next = paf->next;
-
-		if (paf->token == token)
+		AFFECT_DATA *paf, *paf_next;
+		for(paf = token->object->affected; paf; paf = paf_next)
 		{
-			if (IS_VALID(paf->skill) && paf->skill->msg_obj) {
-				if (token->object->carried_by != NULL) {
-					act(paf->skill->msg_obj, token->object->carried_by, NULL, NULL, token->object, NULL, NULL, NULL, TO_CHAR);
-				} else if (token->object->in_room && token->object->in_room->people) {
-					act(paf->skill->msg_obj, token->object->in_room->people, NULL, NULL, token->object, NULL, NULL, NULL, TO_ALL);
+			paf_next = paf->next;
+
+			if (paf->token == token)
+			{
+				if (IS_VALID(paf->skill) && paf->skill->msg_obj) {
+					if (token->object->carried_by != NULL) {
+						act(paf->skill->msg_obj, token->object->carried_by, NULL, NULL, token->object, NULL, NULL, NULL, TO_CHAR);
+					} else if (token->object->in_room && token->object->in_room->people) {
+						act(paf->skill->msg_obj, token->object->in_room->people, NULL, NULL, token->object, NULL, NULL, NULL, TO_ALL);
+					}
 				}
+				affect_remove_obj(token->object, paf);
 			}
-			affect_remove_obj(token->object, paf);
 		}
 	}
 
@@ -7423,6 +7430,8 @@ void token_from_room(TOKEN_DATA *token)
 	sprintf(buf, "token_from_obj: removed token %s(%ld) from room %s(%ld)",
 		token->name, token->pIndexData->vnum, token->room->name, token->room->vnum);
 	log_string(buf);
+
+	// TODO: Handle AFFECT Tokens on rooms whenever rooms get affects
 
 	list_remlink(token->object->ltokens, token, false);
 

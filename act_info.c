@@ -3849,9 +3849,18 @@ bool are_affects_same_type(AFFECT_DATA *a, AFFECT_DATA *b)
 
 		return a->token == b->token;
 	}
+	else if (a->custom_name)
+	{
+		if (!b->custom_name) return false;
+		if (b->token) return false;
+
+		// The reason I'm not string comparing is that the custom names need to be registered
+		return a->custom_name == b->custom_name;
+	}
 	else
 	{
 		if (b->token) return false;
+		if (b->custom_name) return false;
 
 		return a->skill == b->skill;
 	}
@@ -3863,7 +3872,8 @@ char *get_affect_name(AFFECT_DATA *paf)
 
 	if (paf->custom_name) return paf->custom_name;
 
-	if (paf->token) return paf->token->name;
+	if (paf->token && !IS_SET(paf->token->flags, TOKEN_HIDE_NAME))
+		return paf->token->pIndexData->name;
 
 	if (IS_VALID(paf->skill))
 	{

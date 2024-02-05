@@ -2147,6 +2147,7 @@ const struct flag_type	token_flags[] =
     {	"see_all",			TOKEN_SEE_ALL,			true	},
     {	"permanent",		TOKEN_PERMANENT,		true	},
     {	"spellbeats",		TOKEN_SPELLBEATS,		true	},
+    {   "hide_name",        TOKEN_HIDE_NAME,        true    },
     {	NULL,			0,				false	}
 };
 

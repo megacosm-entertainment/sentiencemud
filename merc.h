@@ -4469,6 +4469,7 @@ struct token_index_data
 #define TOKEN_SINGULAR		(I)
 #define TOKEN_SEE_ALL		(J)	// Allows the token to ignore SIGHT rules
 #define TOKEN_SPELLBEATS	(K)	// Allows the spell token to fire TRIG_SPELLBEATs while casting (as this can be spammy)
+#define TOKEN_HIDE_NAME     (L) // Used by AFFECT tokens to not using the token's name when getting the affect's name
 #define TOKEN_PERMANENT		(Z)	/* May not be removed unless the source is extracted. \
 									For players, this will be make them removable only by editting pfiles or through specific calls in the code */
 
