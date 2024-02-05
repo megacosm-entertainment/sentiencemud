@@ -64,6 +64,7 @@ const struct flag_type *flag_stat_table[] =
 	food_buff_types,
 	ranged_weapon_class,
 	catalyst_types,
+    affgroup_flags,
 	affgroup_mobile_flags,
 	affgroup_object_flags,
 	catalyst_types,

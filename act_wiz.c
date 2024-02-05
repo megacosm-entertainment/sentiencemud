@@ -3205,27 +3205,35 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 
 	for (paf = victim->affected; paf != NULL; paf = paf->next) if(!paf->custom_name)
 	{
-		sprintf(buf, "{C* {BLevel {W%3d {Baffect {x%-20.20s{B modifies {x%-12s{B by {x%2d{B for {x%2d{B hours with bits {x%s{B on slot {x%s\n\r",
+		sprintf(buf, "{C* {BLevel {W%3d {Baffect {x%-20.20s{B modifies {x%-12s{B by {x%2d{B for {x%2d{B hours with bits {x%s{B on slot {x%s%s\n\r",
 					 paf->level,
 					 get_affect_name(paf),
 					 affect_loc_name(paf->location),
 					 paf->modifier,
 					 paf->duration,
 					 affects_bit_name(paf->bitvector, paf->bitvector2),
-					 flag_string(wear_loc_names, paf->slot));
+					 flag_string(wear_loc_names, paf->slot),
+					 IS_VALID(paf->token) ?
+					 	formatf(" {Btoken {x%s {B({x%ld{B#{x%ld{B){x", paf->token->pIndexData->name,
+						 	paf->token->pIndexData->area->uid, paf->token->pIndexData->vnum) :
+						"");
 		send_to_char(buf, ch);
 	}
 
 	for (paf = victim->affected; paf != NULL; paf = paf->next) if(paf->custom_name)
 	{
-		sprintf(buf, "{C* {BLevel {W%3d {Baffect {x%-20.20s{B modifies {x%-12s{B by {x%2d{B for {x%2d{B hours with bits {x%s{B on slot {x%s\n\r",
+		sprintf(buf, "{C* {BLevel {W%3d {Baffect {x%-20.20s{B modifies {x%-12s{B by {x%2d{B for {x%2d{B hours with bits {x%s{B on slot {x%s%s\n\r",
 					 paf->level,
 					 paf->custom_name,
 					 affect_loc_name(paf->location),
 					 paf->modifier,
 					 paf->duration,
 					 affects_bit_name(paf->bitvector, paf->bitvector2),
-					 flag_string(wear_loc_names, paf->slot));
+					 flag_string(wear_loc_names, paf->slot),
+					 IS_VALID(paf->token) ?
+					 	formatf(" {Btoken {x%s {B({x%ld{B#{x%ld{B){x", paf->token->pIndexData->name,
+						 	paf->token->pIndexData->area->uid, paf->token->pIndexData->vnum) :
+						"");
 		send_to_char(buf, ch);
 	}
 

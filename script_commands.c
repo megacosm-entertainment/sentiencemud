@@ -366,8 +366,7 @@ void do_dpdump(CHAR_DATA *ch, char *argument)
 //////////////////////////////////////
 // A
 
-// ADDAFFECT mobile|object apply-type(string) affect-group(string) skill(string) level(number) location(string) modifier(number) duration(number) bitvector(string) bitvector2(string)[ wear-location(object)]
-// ADDAFFECT mobile|object apply-type(string) affect-group(string) skill(string) level(number) location(string) modifier(number) duration(number) bitvector(string) bitvector2(string)[ wear-location(object)]
+// ADDAFFECT mobile|object apply-type(string) affect-group(string) skill(string) level(number) location(string) modifier(number) duration(number) bitvector(string) bitvector2(string)[ wear-location(object)][ affect token(token)]
 SCRIPT_CMD(scriptcmd_addaffect)
 {
 	char *rest;
@@ -376,6 +375,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 	long bv, bv2;
 	CHAR_DATA *mob = NULL;
 	OBJ_DATA *obj = NULL;
+	TOKEN_DATA *token = NULL;
 	int wear_loc = WEAR_NONE;
 
 	AFFECT_DATA af;
@@ -450,6 +450,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 
 	switch(arg->type) {
 	case ENT_STRING: skill = get_skill_data(arg->d.str); break;
+	case ENT_SKILL: skill = arg->d.skill; break;
 	default: return;
 	}
 
@@ -670,11 +671,30 @@ SCRIPT_CMD(scriptcmd_addaffect)
 		}
 
 		switch(arg->type) {
-		case ENT_OBJECT: wear_loc = arg->d.obj ? arg->d.obj->wear_loc : WEAR_NONE; break;
+		case ENT_OBJECT:
+		{
+			wear_loc = arg->d.obj ? arg->d.obj->wear_loc : WEAR_NONE;
+
+			if(rest && *rest) {
+				if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_TOKEN) {
+					bug("Addaffect - Error in parsing.",0);
+					return;
+				}
+
+				token = arg->d.token;
+			}
+			break;
+		}
+		case ENT_TOKEN: token = arg->d.token; break;
 		default: return;
 		}
 	}
 
+	// Only allow affect tokens
+	if (token && token->pIndexData->type != TOKEN_AFFECT)
+		return;
+
+	memset(&af, 0, sizeof(af));
 	af.group	= group;
 	af.where     = where;
 	af.skill      = skill;
@@ -687,11 +707,12 @@ SCRIPT_CMD(scriptcmd_addaffect)
 	af.bitvector2 = bv2;
 	af.custom_name = NULL;
 	af.slot = wear_loc;
+	af.token = token;
 	if(mob) affect_join_full(mob, &af);
 	else affect_join_full_obj(obj,&af);
 }
 
-// ADDAFFECTNAME mobile|object apply-type(string) affect-group(string) name(string) level(number) location(string) modifier(number) duration(number) bitvector(string) bitvector2(string)[ wear-location(object)]
+// ADDAFFECTNAME mobile|object apply-type(string) affect-group(string) name(string) level(number) location(string) modifier(number) duration(number) bitvector(string) bitvector2(string)[ wear-location(object)][ affect token(token)]
 SCRIPT_CMD(scriptcmd_addaffectname)
 {
 	char *rest, *name = NULL;
@@ -699,6 +720,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 	long bv, bv2;
 	CHAR_DATA *mob = NULL;
 	OBJ_DATA *obj = NULL;
+	TOKEN_DATA *token = NULL;
 	int wear_loc = WEAR_NONE;
 
 	AFFECT_DATA af;
@@ -994,15 +1016,33 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 	// Get WEAR-LOCATION of object
 	if(rest && *rest) {
 		if(!(rest = expand_argument(info,rest,arg))) {
-			bug("AddAffectName - Error in parsing.",0);
+			bug("Addaffect - Error in parsing.",0);
 			return;
 		}
 
 		switch(arg->type) {
-		case ENT_OBJECT: wear_loc = arg->d.obj ? arg->d.obj->wear_loc : WEAR_NONE; break;
+		case ENT_OBJECT:
+		{
+			wear_loc = arg->d.obj ? arg->d.obj->wear_loc : WEAR_NONE;
+
+			if(rest && *rest) {
+				if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_TOKEN) {
+					bug("Addaffect - Error in parsing.",0);
+					return;
+				}
+
+				token = arg->d.token;
+			}
+			break;
+		}
+		case ENT_TOKEN: token = arg->d.token; break;
 		default: return;
 		}
 	}
+
+	// Only allow affect tokens
+	if (token && token->pIndexData->type != TOKEN_AFFECT)
+		return;
 
 	af.group	= group;
 	af.where     = where;
@@ -1016,6 +1056,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 	af.bitvector2 = bv2;
 	af.custom_name = name;
 	af.slot = wear_loc;
+	af.token = token;
 	if(mob) affect_join_full(mob, &af);
 	else affect_join_full_obj(obj,&af);
 }
@@ -9810,7 +9851,7 @@ SCRIPT_CMD(scriptcmd_stringobjmt)
 		return;
 	}
 
-	if(!str) {
+	if(!check_material && !str) {
 		sprintf(msg, "StringObj - Invalid field '%s' on %s entity.", field, entitytype);
 		scriptcmd_bug(info, msg);
 		return;

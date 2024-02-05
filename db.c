@@ -6866,6 +6866,25 @@ void persist_save_location(FILE *fp, LOCATION *loc, char *prefix)
 	fprintf(fp, "%s %ld %ld %ld %ld %ld\n", prefix, loc->area ? loc->area->uid : 0, loc->wuid, loc->id[0], loc->id[1], loc->id[2]);
 }
 
+void persist_save_affect(FILE *fp, AFFECT_DATA *paf)
+{
+	fprintf(fp, "#AFFECT\n");
+	if (paf->custom_name)
+		fprintf(fp, "Name %s~\n", paf->custom_name);
+	if (IS_VALID(paf->skill))
+		fprintf(fp, "Skill %s~\n", paf->skill->name);
+	fprintf(fp, "Group %s~\n", flag_string(affgroup_flags,paf->group));
+	fprintf(fp, "Where %s~\n", flag_string(apply_types,paf->where));
+	fprintf(fp, "Level %d\n", paf->level);
+	fprintf(fp, "Duration %d\n", paf->duration);
+	fprintf(fp, "Modifier %d\n", paf->modifier);
+	fprintf(fp, "Location %s~\n", flag_string(apply_flags,paf->location));
+	fprintf(fp, "BitVector %s\n", print_flags(paf->bitvector));
+	fprintf(fp, "BitVector2 %s\n", print_flags(paf->bitvector2));
+	fprintf(fp, "Slot %s~\n", flag_string(wear_loc_flags,paf->slot));
+	fprintf(fp, "#-AFFECT\n");
+}
+
 void persist_save_token(FILE *fp, TOKEN_DATA *token)
 {
 	int i;
@@ -6884,6 +6903,19 @@ void persist_save_token(FILE *fp, TOKEN_DATA *token)
 
 	if( token->progs )
 		persist_save_scriptdata(fp,token->progs);
+	
+	// All affects associated with tokens
+	ITERATOR it;
+	AFFECT_DATA *paf;
+	iterator_start(&it, token->affects);
+	while((paf = (AFFECT_DATA *)iterator_nextdata(&it)))
+	{
+		if (!paf->custom_name && !IS_VALID(paf->skill))
+			continue;
+
+		persist_save_affect(fp, paf);
+	}
+	iterator_stop(&it);
 
 	fprintf(fp, "#-TOKEN\n\n");
 
@@ -7001,101 +7033,12 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 	if (obj->spells)
 		save_spell(fp, obj->spells);		// SpellNew **
 
-	// This is for spells on the objects.
 	for (paf = obj->affected; paf != NULL; paf = paf->next) {
-		if (!IS_VALID(paf->skill) || paf->custom_name)
-			continue;
+		if (!IS_VALID(paf->skill) && !paf->custom_name) continue;
 
-		if(paf->location >= APPLY_SKILL) {
-			SKILL_DATA *skill = get_skill_data_uid(paf->location - APPLY_SKILL);
-			if(!IS_VALID(skill)) continue;
-			fprintf(fp, "AffObjSk '%s' %3d %3d %3d %3d %3d %3d '%s' %10ld %10ld\n",
-				skill->name,
-				paf->where,
-				paf->group,
-				paf->level,
-				paf->duration,
-				paf->modifier,
-				APPLY_SKILL,
-				skill->name,
-				paf->bitvector,
-				paf->bitvector2);	// **
-		} else {
-			fprintf(fp, "AffObjSk '%s' %3d %3d %3d %3d %3d %3d %10ld %10ld\n",
-				paf->skill->name,
-				paf->where,
-				paf->group,
-				paf->level,
-				paf->duration,
-				paf->modifier,
-				paf->location,
-				paf->bitvector,
-				paf->bitvector2);	// **
-		}
-	}
+		if (IS_VALID(paf->token)) continue;
 
-	for (paf = obj->affected; paf != NULL; paf = paf->next) {
-		if (!paf->custom_name) continue;
-
-		if(paf->location >= APPLY_SKILL) {
-			SKILL_DATA *skill = get_skill_data_uid(paf->location - APPLY_SKILL);
-			if(!IS_VALID(skill)) continue;
-			fprintf(fp, "AffObjNm '%s' %3d %3d %3d %3d %3d %3d '%s' %10ld %10ld\n",
-				paf->custom_name,
-				paf->where,
-				paf->group,
-				paf->level,
-				paf->duration,
-				paf->modifier,
-				APPLY_SKILL,
-				skill->name,
-				paf->bitvector,
-				paf->bitvector2);	// **
-		} else {
-			fprintf(fp, "AffObjNm '%s' %3d %3d %3d %3d %3d %3d %10ld %10ld\n",
-				paf->custom_name,
-				paf->where,
-				paf->group,
-				paf->level,
-				paf->duration,
-				paf->modifier,
-				paf->location,
-				paf->bitvector,
-				paf->bitvector2);	// **
-		}
-	}
-
-	// for random affect eq
-	for (paf = obj->affected; paf != NULL; paf = paf->next) {
-		/* filter out "none" and "unknown" affects, as well as custom named affects */
-		if (IS_VALID(paf->skill) || paf->custom_name != NULL
-			|| ((paf->location < APPLY_SKILL) && !str_cmp(flag_string(apply_flags, paf->location), "none")))
-			continue;
-
-		if(paf->location >= APPLY_SKILL) {
-			SKILL_DATA *skill = get_skill_data_uid(paf->location - APPLY_SKILL);
-			if(!IS_VALID(skill)) continue;
-			fprintf(fp, "AffMob %3d %3d %3d %3d %3d %3d '%s' %10ld %10ld\n",
-				paf->where,
-				paf->group,
-				paf->level,
-				paf->duration,
-				paf->modifier,
-				APPLY_SKILL,
-				skill->name,
-				paf->bitvector,
-				paf->bitvector2);	// **
-		} else {
-			fprintf(fp, "AffMob %3d %3d %3d %3d %3d %3d %10ld %10ld\n",
-				paf->where,
-				paf->group,
-				paf->level,
-				paf->duration,
-				paf->modifier,
-				paf->location,
-				paf->bitvector,
-				paf->bitvector2);	// **
-		}
+		persist_save_affect(fp, paf);
 	}
 
 	// for catalysts
@@ -7282,18 +7225,10 @@ void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
 		if (!paf->custom_name && !IS_VALID(paf->skill))
 			continue;
 
-		fprintf(fp, "%s '%s' '%s' %3d %3d %3d %3d %3d %10ld %10ld %3d\n",
-			(paf->custom_name?"Affcgn":"Affcg"),
-			(paf->custom_name?paf->custom_name:(paf->skill ? paf->skill->name : "none")),
-			flag_string(affgroup_mobile_flags,paf->group),
-			paf->where,
-			paf->level,
-			paf->duration,
-			paf->modifier,
-			paf->location,
-			paf->bitvector,
-			paf->bitvector2,
-			paf->slot);
+		if (IS_VALID(paf->token))
+			continue;
+
+		persist_save_affect(fp, paf);
 	}
 
 
@@ -7705,6 +7640,71 @@ void persist_fix_object_lockstate(OBJ_DATA *obj)
 	}
 }
 
+AFFECT_DATA *persist_load_affect(FILE *fp)
+{
+    AFFECT_DATA *paf;
+    char buf[MSL];
+    char *word;
+    bool fMatch;
+
+	paf = new_affect();
+	paf->catalyst_type = -1;
+
+    for (; ;)
+    {
+		word   = feof(fp) ? "#-AFFECT" : fread_word(fp);
+		fMatch = false;
+
+		if (!str_cmp(word, "#-AFFECT")) {
+			return paf;
+		}
+
+		switch(word[0])
+		{
+			case 'B':
+				KEY("BitVector", paf->bitvector, fread_flag(fp));
+				KEY("BitVector2", paf->bitvector2, fread_flag(fp));
+				break;
+
+			case 'D':
+				KEY("Duration", paf->duration, fread_number(fp));
+				break;
+
+			case 'G':
+				KEY("Group", paf->group, stat_lookup(fread_string(fp),affgroup_mobile_flags,AFFGROUP_MAGICAL));
+				break;
+
+			case 'L':
+				KEY("Level", paf->level, fread_number(fp));
+				KEY("Location", paf->location, stat_lookup(fread_string(fp),apply_flags,APPLY_NONE));
+				break;
+
+			case 'M':
+				KEY("Modifier", paf->modifier, fread_number(fp));
+				break;
+
+			case 'N':
+				KEYS("Name", paf->custom_name, create_affect_cname(fread_string(fp)));
+				break;
+
+			case 'S':
+				KEY("Skill", paf->skill, get_skill_data(fread_string(fp)));
+				KEY("Slot", paf->slot, stat_lookup(fread_string(fp),wear_loc_flags,WEAR_NONE));
+				break;
+
+			case 'W':
+				KEY("Where", paf->where, stat_lookup(fread_string(fp),apply_types,TO_AFFECTS));
+				break;
+		}
+
+	    if (!fMatch) {
+		    sprintf(buf, "persist_load_affect: no match for word %s", word);
+		    bug(buf, 0);
+		    fread_to_eol(fp);
+	    }
+	}
+}
+
 TOKEN_DATA *persist_load_token(FILE *fp)
 {
 	TOKEN_DATA *token;
@@ -7749,6 +7749,17 @@ TOKEN_DATA *persist_load_token(FILE *fp)
 		log_stringf("%s: %s", __FUNCTION__, word);
 
 		switch (UPPER(word[0])) {
+			case '#':
+				if (!str_cmp(word, "#AFFECT"))
+				{
+					AFFECT_DATA *paf = persist_load_affect(fp);
+					paf->token = token;
+					list_appendlink(token->affects, paf);
+					fMatch = true;
+					break;
+				}
+				break;
+
 			case 'T':
 				KEY("Timer",	token->timer,		fread_number(fp));
 				break;
@@ -7862,6 +7873,14 @@ OBJ_DATA *persist_load_object(FILE *fp)
 
 			// Load up subentities
 			case '#':
+				if (!str_cmp(word, "#AFFECT")) {
+					AFFECT_DATA *paf = persist_load_affect(fp);
+					paf->next = obj->affected;
+					obj->affected = paf;
+					fMatch = true;
+					break;
+				}
+
 				if (!str_cmp(word,"#OBJECT")) {
 					OBJ_DATA *item = persist_load_object(fp);
 
@@ -8058,7 +8077,20 @@ OBJ_DATA *persist_load_object(FILE *fp)
 
 					fMatch = true;
 					if( token )
+					{
 						token_to_obj(token, obj);
+
+						// Add all affects on the token to the character
+						ITERATOR ait;
+						AFFECT_DATA *taf;
+						iterator_start(&ait, token->affects);
+						while((taf = (AFFECT_DATA *)iterator_nextdata(&ait)))
+						{
+							taf->next = obj->affected;
+							obj->affected = taf;
+						}
+						iterator_stop(&ait);
+					}
 					else
 						good = false;
 
@@ -8636,6 +8668,14 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 
 			// Load up subentities
 			case '#':
+				if (!str_cmp(word, "#AFFECT")) {
+					AFFECT_DATA *paf = persist_load_affect(fp);
+					paf->next = ch->affected;
+					ch->affected = paf;
+					fMatch = true;
+					break;
+				}
+
 				if (!str_cmp(word,"#OBJECT")) {
 					OBJ_DATA *item = persist_load_object(fp);
 
@@ -8656,7 +8696,20 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 
 					fMatch = true;
 					if( token )
+					{
 						token_to_char(token, ch);
+
+						// Add all affects on the token to the character
+						ITERATOR ait;
+						AFFECT_DATA *taf;
+						iterator_start(&ait, token->affects);
+						while((taf = (AFFECT_DATA *)iterator_nextdata(&ait)))
+						{
+							taf->next = ch->affected;
+							ch->affected = taf;
+						}
+						iterator_stop(&ait);
+					}
 					else
 						good = false;
 
@@ -9408,7 +9461,9 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 
 					fMatch = true;
 					if( token )
+					{
 						token_to_room(token, room);
+					}
 					else
 						good = false;
 

@@ -2712,6 +2712,23 @@ const struct flag_type tattoo_loc_flags[] =
     {	NULL,		0,		0	}
 };
 
+const struct flag_type affgroup_flags[] =
+{
+	{ "racial",     AFFGROUP_RACIAL,	true	},
+	{ "metaracial",	AFFGROUP_METARACIAL,	true	},
+	{ "biological",	AFFGROUP_BIOLOGICAL,	true	},
+	{ "mental",     AFFGROUP_MENTAL,	true	},
+	{ "divine",     AFFGROUP_DIVINE,	true	},
+	{ "magical",	AFFGROUP_MAGICAL,	true	},
+	{ "physical",	AFFGROUP_PHYSICAL,	true	},
+	{ "inherent",	AFFGROUP_INHERENT,	true	},
+	{ "enchant",	AFFGROUP_ENCHANT,	true	},
+	{ "weapon",     AFFGROUP_WEAPON,	true	},
+	{ "portal",     AFFGROUP_PORTAL,	true	},
+	{ "container",	AFFGROUP_CONTAINER,	true	},
+	{ NULL,		0,			false	}
+};
+
 
 const struct flag_type affgroup_mobile_flags[] =
 {

@@ -461,6 +461,10 @@ void free_affect(AFFECT_DATA *af)
     af->next = affect_free;
     affect_free = af;
 
+	if (IS_VALID(af->token))
+		list_remlink(af->token->affects, af, false);
+    af->token = NULL;
+
     af->custom_name = NULL;
 
     variable_clearfield(VAR_AFFECT, af);
@@ -3812,6 +3816,8 @@ TOKEN_DATA *new_token()
 
     memset(token, 0, sizeof(*token));
 
+    token->affects = list_create(false);
+
     token->progs = NULL;
     SET_MEMTYPE(token,MEMTYPE_TOKEN);
     VALIDATE(token);
@@ -3837,6 +3843,8 @@ void free_token(TOKEN_DATA *token)
 
     token->events = NULL;
     token->events_tail = NULL;
+
+    list_destroy(token->affects);
 
     variable_clearfield(VAR_TOKEN, token);
     script_clear_token(token);

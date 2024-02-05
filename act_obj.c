@@ -274,8 +274,9 @@ void get_obj( CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container )
 
     obj_to_char( obj, ch );
 
-    p_give_trigger( NULL, obj, NULL, ch, obj, TRIG_GET ,0,0,0,0,0);
-    p_give_trigger( NULL, NULL, ch->in_room, ch, obj, TRIG_GET ,0,0,0,0,0);
+    p_give_trigger( ch, NULL, NULL, ch, obj, TRIG_GET ,1,0,0,0,0);
+    p_give_trigger( NULL, obj, NULL, ch, obj, TRIG_GET ,2,0,0,0,0);
+    p_give_trigger( NULL, NULL, ch->in_room, ch, obj, TRIG_GET ,3,0,0,0,0);
 
     return;
 }
@@ -459,7 +460,9 @@ void loot_corpse(CHAR_DATA *ch, OBJ_DATA *corpse)
 					obj_from_obj(obj);
 					obj_to_char(obj, ch);
 
-					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL,0,0,0,0,0);
+					p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_GET, NULL,4,0,0,0,0);
+					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL,5,0,0,0,0);
+					p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, NULL, TRIG_GET, NULL,6,0,0,0,0);
 				}
 				iterator_stop(&it);
 			}
@@ -586,7 +589,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 			// Let the script know how much was taken
 			container->tempstore[0] = gold ? amount : 0;
 			container->tempstore[1] = gold ? 0 : amount;
-			int ret = p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL,0,0,0,0,0);
+			int ret = p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL,7,0,0,0,0);
 
 			if(!MONEY(container)->silver && !MONEY(container)->gold)
 				extract_obj(container);
@@ -688,7 +691,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 			// Let the script know how much was taken
 			container->tempstore[0] = gold ? amount : 0;
 			container->tempstore[1] = gold ? 0 : amount;
-			int ret = p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL,0,0,0,0,0);
+			int ret = p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL,8,0,0,0,0);
 
 			if(!MONEY(money)->silver && !MONEY(money)->gold)
 				extract_obj(money);
@@ -748,7 +751,9 @@ void do_get(CHAR_DATA *ch, char *argument)
 			obj_from_room(obj);
 			obj_to_char(obj, ch);
 
-			p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL,0,0,0,0,0);
+			p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_GET, NULL,9,0,0,0,0);
+			p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL,10,0,0,0,0);
+			p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, NULL, TRIG_GET, NULL,11,0,0,0,0);
 
 			church_announce_theft(ch, NULL);
 
@@ -837,7 +842,9 @@ void do_get(CHAR_DATA *ch, char *argument)
 						}
 
 						if (!found && match_obj != NULL) {
-							p_percent_trigger(NULL, match_obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL,0,0,0,0,0);
+							p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, match_obj, NULL, TRIG_GET, NULL,12,0,0,0,0);
+							p_percent_trigger(NULL, match_obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL,13,0,0,0,0);
+							p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, match_obj, NULL, TRIG_GET, NULL,14,0,0,0,0);
 
 							return;
 						}
@@ -850,8 +857,9 @@ void do_get(CHAR_DATA *ch, char *argument)
 						sprintf(buf, "{Y({G%2d{Y) {xYou get $p.", i);
 						act(buf, ch, NULL, NULL, match_obj, NULL, NULL, NULL, TO_CHAR);
 
-						p_percent_trigger(NULL, match_obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL,0,0,0,0,0);
-
+						p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, match_obj, NULL, TRIG_GET, NULL,15,0,0,0,0);
+						p_percent_trigger(NULL, match_obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL,16,0,0,0,0);
+						p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, match_obj, NULL, TRIG_GET, NULL,17,0,0,0,0);
 
 					} else if (!any) {
 						if (arg1[3] == '\0')
@@ -899,8 +907,10 @@ void do_get(CHAR_DATA *ch, char *argument)
 		obj_from_obj(obj);
 		obj_to_char(obj, ch);
 
-		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, container, NULL, TRIG_GET, NULL,0,0,0,0,0);
-		p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_GET, NULL,0,0,0,0,0);
+		p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, obj, container, TRIG_GET, NULL,18,0,0,0,0);
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, container, NULL, TRIG_GET, NULL,19,0,0,0,0);
+		p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_GET, NULL,20,0,0,0,0);
+		p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, container, TRIG_GET, NULL,21,0,0,0,0);
 
 		if (!container->contains)
 		{
@@ -999,8 +1009,11 @@ void do_get(CHAR_DATA *ch, char *argument)
 							if (container->item_type == ITEM_CORPSE_PC || container->item_type == ITEM_CORPSE_NPC)
 								reset_obj(obj);
 
-							p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, container, NULL, TRIG_GET, NULL,0,0,0,0,0);
-							p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_GET, NULL,0,0,0,0,0);
+
+							p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, obj, container, TRIG_GET, NULL,22,0,0,0,0);
+							p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, container, NULL, TRIG_GET, NULL,23,0,0,0,0);
+							p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_GET, NULL,24,0,0,0,0);
+							p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, container, TRIG_GET, NULL,25,0,0,0,0);
 						}
 
 						gotten = true;

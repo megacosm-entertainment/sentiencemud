@@ -1157,6 +1157,7 @@ DECL_OPC_FUN(opc_list)
 	REPUTATION_INDEX_RANK_DATA *rank;
 	MISSION_DATA *mission;
 	WAYPOINT_DATA *waypoint;
+	AFFECT_DATA *aff;
 
 	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
 		return opc_skip_block(block,block->cur_line->level-1,false);
@@ -2230,6 +2231,34 @@ DECL_OPC_FUN(opc_list)
 			variables_set_variable(block->info.var,block->loops[lp].var_name,variable);
 			break;
 
+		case ENT_ILLIST_AFFECTS:
+			//log_stringf("opc_list: list type ENT_ILLIST_AFFECTS");
+			if(!IS_VALID(arg->d.blist))
+			{
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+			}
+
+			block->loops[lp].d.l.type = ENT_ILLIST_AFFECTS;
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+			aff = (AFFECT_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+			//log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
+
+			if( !aff ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+			}
+
+			// Set the variable
+			variables_set_affect(block->info.var,block->loops[lp].var_name,aff);
+			break;
+
 		case ENT_ILLIST_SECTIONS:
 			if(!IS_VALID(arg->d.blist))
 			{
@@ -3181,6 +3210,7 @@ DECL_OPC_FUN(opc_list)
 			}
 
 			break;
+
 		case ENT_ILLIST_VARIABLE:
 			//log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
 			variable = (VARIABLE *)iterator_nextdata(&block->loops[lp].d.l.list.it);
@@ -3190,6 +3220,22 @@ DECL_OPC_FUN(opc_list)
 			variables_set_variable(block->info.var,block->loops[lp].var_name,variable);
 
 			if( !variable) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				skip = true;
+				break;
+			}
+
+			break;
+
+		case ENT_ILLIST_AFFECTS:
+			//log_stringf("opc_list: list type ENT_ILLIST_AFFECTS");
+			aff = (AFFECT_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+			//log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
+
+			// Set the variable
+			variables_set_affect(block->info.var,block->loops[lp].var_name,aff);
+
+			if( !aff) {
 				iterator_stop(&block->loops[lp].d.l.list.it);
 				skip = true;
 				break;
@@ -5551,7 +5597,7 @@ int p_act_trigger(char *argument, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA
 	CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type,
 	int register1, int register2, int register3, int register4, int register5)
 {
-	return test_string_trigger(argument, "*", match_substr, type, mob, obj, room, ch, victim, victim2, obj1, obj1, register1, register2, register3, register4, register5);
+	return test_string_trigger(argument, "*", match_substr, type, mob, obj, room, ch, victim, victim2, obj1, obj2, register1, register2, register3, register4, register5);
 }
 
 // Similar to p_act_trigger, except it does EXACT match
@@ -5567,7 +5613,7 @@ int p_exact_trigger(char *argument, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DA
 		wiznet(buf, NULL, NULL, WIZ_SCRIPTS, 0, 0);
 	}
 	*/
-	return test_string_trigger(argument, "*", match_exact_name, type, mob, obj, room, ch, victim, victim2, obj1, obj1, register1, register2, register3, register4, register5);
+	return test_string_trigger(argument, "*", match_exact_name, type, mob, obj, room, ch, victim, victim2, obj1, obj2, register1, register2, register3, register4, register5);
 }
 
 // Similar to p_act_trigger, except it uses is_name
@@ -5575,7 +5621,7 @@ int p_name_trigger(char *argument, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DAT
 	CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type,
 	int register1, int register2, int register3, int register4, int register5)
 {
-	return test_string_trigger(argument, "*", match_name, type, mob, obj, room, ch, victim, victim2, obj1, obj1, register1, register2, register3, register4, register5);
+	return test_string_trigger(argument, "*", match_name, type, mob, obj, room, ch, victim, victim2, obj1, obj2, register1, register2, register3, register4, register5);
 }
 
 
@@ -6011,14 +6057,14 @@ int p_percent_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKE
 	CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase,
 	int register1, int register2, int register3, int register4, int register5)
 {
-	return test_number_trigger(0, 0, match_percent, type, mob, obj, room, token, NULL, NULL, NULL, ch, victim, victim2, obj1, obj1, NULL, phrase, register1, register2, register3, register4, register5);
+	return test_number_trigger(0, 0, match_percent, type, mob, obj, room, token, NULL, NULL, NULL, ch, victim, victim2, obj1, obj2, NULL, phrase, register1, register2, register3, register4, register5);
 }
 
 int p_percent2_trigger(AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon,
 	CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase,
 	int register1, int register2, int register3, int register4, int register5)
 {
-	return test_number_trigger(0, 0, match_percent, type, NULL, NULL, NULL, NULL, area, instance, dungeon, ch, victim, victim2, obj1, obj1, NULL, phrase, register1, register2, register3, register4, register5);
+	return test_number_trigger(0, 0, match_percent, type, NULL, NULL, NULL, NULL, area, instance, dungeon, ch, victim, victim2, obj1, obj2, NULL, phrase, register1, register2, register3, register4, register5);
 }
 
 
@@ -6026,7 +6072,7 @@ int p_percent_token_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room
 	CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, TOKEN_DATA *tok, int type, char *phrase,
 	int register1, int register2, int register3, int register4, int register5)
 {
-	return test_number_trigger(0, 0, match_percent, type, mob, obj, room, token, NULL, NULL, NULL, ch, victim, victim2, obj1, obj1, tok, phrase, register1, register2, register3, register4, register5);
+	return test_number_trigger(0, 0, match_percent, type, mob, obj, room, token, NULL, NULL, NULL, ch, victim, victim2, obj1, obj2, tok, phrase, register1, register2, register3, register4, register5);
 }
 
 
@@ -6035,7 +6081,7 @@ int p_number_trigger(int number, int wildcard, CHAR_DATA *mob, OBJ_DATA *obj, RO
 	CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase,
 	int register1, int register2, int register3, int register4, int register5)
 {
-	return test_number_trigger(number, wildcard, match_equal, type, mob, obj, room, token, NULL, NULL, NULL, ch, victim, victim2, obj1, obj1, NULL, phrase, register1, register2, register3, register4, register5);
+	return test_number_trigger(number, wildcard, match_equal, type, mob, obj, room, token, NULL, NULL, NULL, ch, victim, victim2, obj1, obj2, NULL, phrase, register1, register2, register3, register4, register5);
 }
 
 int p_bribe_trigger(CHAR_DATA *mob, CHAR_DATA *ch, int amount,

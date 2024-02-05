@@ -1324,6 +1324,9 @@ void affect_to_char(CHAR_DATA *ch, AFFECT_DATA *paf)
     *paf_new		= *paf;
     VALIDATE(paf_new);	/* in case we missed it when we set up paf */
 
+	if (IS_VALID(paf_new->token))
+		list_appendlink(paf_new->token->affects, paf_new);
+
     paf_new->next	= ch->affected;
     ch->affected	= paf_new;
 
@@ -1344,6 +1347,9 @@ void affect_to_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
     VALIDATE(paf);	/* in case we missed it when we set up paf */
     paf_new->next	= obj->affected;
     obj->affected	= paf_new;
+
+	if (IS_VALID(paf_new->token))
+		list_appendlink(paf_new->token->affects, paf_new);
 
     if ((wear_loc = obj->wear_loc) != WEAR_NONE && obj->carried_by != NULL)
 	affect_modify(obj->carried_by, paf_new, true);
@@ -1396,6 +1402,7 @@ void catalyst_to_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
     VALIDATE(paf);	/* in case we missed it when we set up paf */
     paf_new->next	= obj->catalyst;
     obj->catalyst	= paf_new;
+	// TODO: What?
     paf_new->duration = (paf_new->modifier > 0) ? paf_new->modifier : -1;
 }
 
@@ -1526,22 +1533,16 @@ void affect_strip(CHAR_DATA *ch, SKILL_DATA *skill)
     {
 		paf_next = paf->next;
 		if (paf->skill == skill)
+		{
+			TOKEN_DATA *token = paf->token;
 		    affect_remove(ch, paf);
-    }
-}
 
-void affect_strip_token(CHAR_DATA *ch, TOKEN_INDEX_DATA *token)
-{
-    AFFECT_DATA *paf;
-    AFFECT_DATA *paf_next;
-
-	if (!token) return;
-
-    for (paf = ch->affected; paf != NULL; paf = paf_next)
-    {
-		paf_next = paf->next;
-		if (paf->token == token)
-			affect_remove(ch, paf);
+			if (IS_VALID(token))
+			{
+				if (list_size(token->affects) < 1)
+					extract_token(token);
+			}
+		}
     }
 }
 
@@ -1559,7 +1560,16 @@ void affect_strip_name(CHAR_DATA *ch, char *name)
     {
 		paf_next = paf->next;
 		if (paf->custom_name == name)
-	    	affect_remove(ch, paf);
+		{
+			TOKEN_DATA *token = paf->token;
+		    affect_remove(ch, paf);
+
+			if (IS_VALID(token))
+			{
+				if (list_size(token->affects) < 1)
+					extract_token(token);
+			}
+		}
     }
 }
 
@@ -1574,7 +1584,16 @@ void affect_stripall_wearloc(CHAR_DATA *ch, int wear_loc)
     {
 		paf_next = paf->next;
 		if (paf->slot == wear_loc)
-	    	affect_remove(ch, paf);
+		{
+			TOKEN_DATA *token = paf->token;
+		    affect_remove(ch, paf);
+
+			if (IS_VALID(token))
+			{
+				if (list_size(token->affects) < 1)
+					extract_token(token);
+			}
+		}
     }
 }
 
@@ -1592,7 +1611,16 @@ void affect_strip_obj(OBJ_DATA *obj, SKILL_DATA *skill)
     {
 		paf_next = paf->next;
 		if (paf->skill == skill)
-	    	affect_remove_obj(obj, paf);
+		{
+			TOKEN_DATA *token = paf->token;
+		    affect_remove_obj(obj, paf);
+
+			if (IS_VALID(token))
+			{
+				if (list_size(token->affects) < 1)
+					extract_token(token);
+			}
+		}
     }
 }
 
@@ -1608,9 +1636,18 @@ void affect_strip_name_obj(OBJ_DATA *obj, char *name)
 
     for (paf = obj->affected; paf != NULL; paf = paf_next)
     {
-	paf_next = paf->next;
-	if (paf->custom_name == name)
-	    affect_remove_obj(obj, paf);
+		paf_next = paf->next;
+		if (paf->custom_name == name)
+		{
+			TOKEN_DATA *token = paf->token;
+		    affect_remove_obj(obj, paf);
+
+			if (IS_VALID(token))
+			{
+				if (list_size(token->affects) < 1)
+					extract_token(token);
+			}
+		}
     }
 }
 
@@ -1699,6 +1736,7 @@ void affect_join(CHAR_DATA *ch, AFFECT_DATA *paf)
 
 	if(paf->custom_name) {
 		for (paf_old = ch->affected; paf_old != NULL; paf_old = paf_old->next) {
+			if (paf_old->token != paf->token) continue;
 			if (paf_old->custom_name && paf_old->custom_name == paf->custom_name) {
 				paf->level = (paf->level + paf_old->level) / 2;
 				paf->duration += paf_old->duration;
@@ -1709,6 +1747,7 @@ void affect_join(CHAR_DATA *ch, AFFECT_DATA *paf)
 		}
 	} else {
 		for (paf_old = ch->affected; paf_old != NULL; paf_old = paf_old->next) {
+			if (paf_old->token != paf->token) continue;
 			if (!paf_old->custom_name && paf_old->skill == paf->skill) {
 				paf->level = (paf->level + paf_old->level) / 2;
 				paf->duration += paf_old->duration;
@@ -1733,6 +1772,7 @@ void affect_join_full(CHAR_DATA *ch, AFFECT_DATA *paf)
 
 	if(paf->custom_name) {
 		for (paf_old = ch->affected; paf_old != NULL; paf_old = paf_old->next) {
+			if (paf_old->token != paf->token) continue;
 			if (paf_old->custom_name && paf_old->custom_name == paf->custom_name &&
 				paf_old->location == paf->location &&
 				paf_old->bitvector == paf->bitvector &&
@@ -1746,6 +1786,7 @@ void affect_join_full(CHAR_DATA *ch, AFFECT_DATA *paf)
 		}
 	} else {
 		for (paf_old = ch->affected; paf_old != NULL; paf_old = paf_old->next) {
+			if (paf_old->token != paf->token) continue;
 			if (!paf_old->custom_name && paf_old->skill == paf->skill &&
 				paf_old->location == paf->location &&
 				paf_old->bitvector == paf->bitvector &&
@@ -1773,6 +1814,7 @@ void affect_join_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
 
 	if(paf->custom_name) {
 		for (paf_old = obj->affected; paf_old != NULL; paf_old = paf_old->next) {
+			if (paf_old->token != paf->token) continue;
 			if (paf_old->custom_name && paf_old->custom_name == paf->custom_name) {
 				paf->level = (paf->level + paf_old->level) / 2;
 				paf->duration += paf_old->duration;
@@ -1783,6 +1825,7 @@ void affect_join_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
 		}
 	} else {
 		for (paf_old = obj->affected; paf_old != NULL; paf_old = paf_old->next) {
+			if (paf_old->token != paf->token) continue;
 			if (!paf_old->custom_name && paf_old->skill == paf->skill) {
 				paf->level = (paf->level + paf_old->level) / 2;
 				paf->duration += paf_old->duration;
@@ -1806,6 +1849,7 @@ void affect_join_full_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
 
 	if(paf->custom_name) {
 		for (paf_old = obj->affected; paf_old != NULL; paf_old = paf_old->next) {
+			if (paf_old->token != paf->token) continue;
 			if (paf_old->custom_name && paf_old->custom_name == paf->custom_name &&
 				paf_old->location == paf->location &&
 				paf_old->bitvector == paf->bitvector &&
@@ -1819,6 +1863,7 @@ void affect_join_full_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
 		}
 	} else {
 		for (paf_old = obj->affected; paf_old != NULL; paf_old = paf_old->next) {
+			if (paf_old->token != paf->token) continue;
 			if (!paf_old->custom_name && paf_old->skill == paf->skill &&
 				paf_old->location == paf->location &&
 				paf_old->bitvector == paf->bitvector &&
@@ -7182,6 +7227,25 @@ void token_from_char(TOKEN_DATA *token)
 		HANDLE(token->player), IS_NPC(token->player) ? token->player->pIndexData->vnum : 0);
 	log_string(buf);
 
+	AFFECT_DATA *paf, *paf_next;
+	for(paf = token->player->affected; paf; paf = paf_next)
+	{
+		paf_next = paf->next;
+
+		if (paf->token == token)
+		{
+			if (IS_VALID(paf->skill) && paf->skill->msg_off) {
+				if (IS_VALID(paf->skill) && paf->skill->msg_off)
+				{
+					send_to_char(paf->skill->msg_off, token->player);
+					send_to_char("\n\r", token->player);
+				}
+			}
+
+			affect_remove(token->player, paf);
+		}
+	}
+
 	list_remlink(token->player->ltokens, token, false);
 
 	if (token_prev == NULL)
@@ -7268,6 +7332,24 @@ void token_from_obj(TOKEN_DATA *token)
 	sprintf(buf, "token_from_obj: removed token %s(%ld) from object %s(%ld)",
 		token->name, token->pIndexData->vnum, token->object->short_descr, VNUM(token->object));
 	log_string(buf);
+
+	AFFECT_DATA *paf, *paf_next;
+	for(paf = token->object->affected; paf; paf = paf_next)
+	{
+		paf_next = paf->next;
+
+		if (paf->token == token)
+		{
+			if (IS_VALID(paf->skill) && paf->skill->msg_obj) {
+				if (token->object->carried_by != NULL) {
+					act(paf->skill->msg_obj, token->object->carried_by, NULL, NULL, token->object, NULL, NULL, NULL, TO_CHAR);
+				} else if (token->object->in_room && token->object->in_room->people) {
+					act(paf->skill->msg_obj, token->object->in_room->people, NULL, NULL, token->object, NULL, NULL, NULL, TO_ALL);
+				}
+			}
+			affect_remove_obj(token->object, paf);
+		}
+	}
 
 	list_remlink(token->object->ltokens, token, false);
 

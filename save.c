@@ -123,6 +123,8 @@ int 		nest_level;
 
 void fread_stache(FILE *fp, LLIST *lstache);
 void fwrite_stache_obj(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp);
+void fwrite_affect(FILE *fp, AFFECT_DATA *paf);
+AFFECT_DATA *fread_affect(FILE *fp);
 void fread_reputation(FILE *fp, CHAR_DATA *ch);
 void insert_class_level(CHAR_DATA *ch, CLASS_LEVEL *cl);
 
@@ -424,6 +426,26 @@ void fwrite_mission_part(FILE *fp, MISSION_PART_DATA *part)
 
 	fprintf(fp, "Description %s~\n", fix_string(part->description));
 	fprintf(fp, "#-MISSIONPART\n");
+}
+
+
+void fwrite_affect(FILE *fp, AFFECT_DATA *paf)
+{
+	fprintf(fp, "#AFFECT\n");
+	if (paf->custom_name)
+		fprintf(fp, "Name %s~\n", paf->custom_name);
+	if (IS_VALID(paf->skill))
+		fprintf(fp, "Skill %s~\n", paf->skill->name);
+	fprintf(fp, "Group %s~\n", flag_string(affgroup_flags,paf->group));
+	fprintf(fp, "Where %s~\n", flag_string(apply_types,paf->where));
+	fprintf(fp, "Level %d\n", paf->level);
+	fprintf(fp, "Duration %d\n", paf->duration);
+	fprintf(fp, "Modifier %d\n", paf->modifier);
+	fprintf(fp, "Location %s~\n", flag_string(apply_flags,paf->location));
+	fprintf(fp, "BitVector %s\n", print_flags(paf->bitvector));
+	fprintf(fp, "BitVector2 %s\n", print_flags(paf->bitvector2));
+	fprintf(fp, "Slot %s~\n", flag_string(wear_loc_flags,paf->slot));
+	fprintf(fp, "#-AFFECT\n");
 }
 
 
@@ -864,21 +886,14 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 
     for (paf = ch->affected; paf != NULL; paf = paf->next)
     {
-	if (!paf->custom_name && !IS_VALID(paf->skill))
-	    continue;
+		if (!paf->custom_name && !IS_VALID(paf->skill))
+		    continue;
 
-	fprintf(fp, "%s '%s' '%s' %3d %3d %3d %3d %3d %10ld %10ld %d\n",
-	    (paf->custom_name?"Affcgn":"Affcg"),
-	    (paf->custom_name?paf->custom_name:paf->skill->name),
-	    flag_string(affgroup_mobile_flags,paf->group),
-	    paf->where,
-	    paf->level,
-	    paf->duration,
-	    paf->modifier,
-	    paf->location,
-	    paf->bitvector,
-	    paf->bitvector2,
-	    paf->slot);
+		// Saved with tokens
+		if (IS_VALID(paf->token))
+			continue;
+
+		fwrite_affect(fp, paf);
     }
 
     ITERATOR sit;
@@ -1058,6 +1073,17 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 			} else if (!str_cmp(word, "TOKEN")) {
 				token = fread_token(fp);
 				token_to_char(token, ch);
+
+				// Add all affects on the token to the character
+				ITERATOR ait;
+				AFFECT_DATA *taf;
+				iterator_start(&ait, token->affects);
+				while((taf = (AFFECT_DATA *)iterator_nextdata(&ait)))
+				{
+					taf->next = ch->affected;
+					ch->affected = taf;
+				}
+				iterator_stop(&ait);
 			} else if (!str_cmp(word, "REPUTATION")) {
 				fread_reputation(fp, ch);
 			} else if (!str_cmp(word, "SKILLENTRY")) {
@@ -1344,6 +1370,71 @@ MISSION_DATA *fread_mission(FILE *fp)
 
 }
 
+AFFECT_DATA *fread_affect(FILE *fp)
+{
+    AFFECT_DATA *paf;
+    char buf[MSL];
+    char *word;
+    bool fMatch;
+
+	paf = new_affect();
+	paf->catalyst_type = -1;
+
+    for (; ;)
+    {
+		word   = feof(fp) ? "#-AFFECT" : fread_word(fp);
+		fMatch = false;
+
+		if (!str_cmp(word, "#-AFFECT")) {
+			return paf;
+		}
+
+		switch(word[0])
+		{
+			case 'B':
+				KEY("BitVector", paf->bitvector, fread_flag(fp));
+				KEY("BitVector2", paf->bitvector2, fread_flag(fp));
+				break;
+
+			case 'D':
+				KEY("Duration", paf->duration, fread_number(fp));
+				break;
+
+			case 'G':
+				KEY("Group", paf->group, stat_lookup(fread_string(fp),affgroup_mobile_flags,AFFGROUP_MAGICAL));
+				break;
+
+			case 'L':
+				KEY("Level", paf->level, fread_number(fp));
+				KEY("Location", paf->location, stat_lookup(fread_string(fp),apply_flags,APPLY_NONE));
+				break;
+
+			case 'M':
+				KEY("Modifier", paf->modifier, fread_number(fp));
+				break;
+
+			case 'N':
+				KEYS("Name", paf->custom_name, create_affect_cname(fread_string(fp)));
+				break;
+
+			case 'S':
+				KEY("Skill", paf->skill, get_skill_data(fread_string(fp)));
+				KEY("Slot", paf->slot, stat_lookup(fread_string(fp),wear_loc_flags,WEAR_NONE));
+				break;
+
+			case 'W':
+				KEY("Where", paf->where, stat_lookup(fread_string(fp),apply_types,TO_AFFECTS));
+				break;
+		}
+
+	    if (!fMatch) {
+		    sprintf(buf, "fread_affect: no match for word %s", word);
+		    bug(buf, 0);
+		    fread_to_eol(fp);
+	    }
+	}
+}
+
 
 /*
  * Read in a char.
@@ -1405,6 +1496,15 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 			fMatch = true;
 			break;
 		}
+		if (!str_cmp(word, "#AFFECT"))
+		{
+			AFFECT_DATA *paf = fread_affect(fp);
+			paf->next = ch->affected;
+			ch->affected = paf;
+			fMatch = true;
+			break;
+		}
+		break;
 
 	case 'A':
 	    KEY("Act",		ch->act[0],		fread_flag(fp));
@@ -3541,6 +3641,16 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
 
 	fwrite_obj_multityping(fp, obj);
 
+	for (paf = obj->affected; paf != NULL; paf = paf->next)
+	{
+		// Saved with tokens
+		if (IS_VALID(paf->token))
+			continue;
+
+		fwrite_affect(fp, paf);
+	}
+
+#if 0
     // This is for spells on the objects.
     for (paf = obj->affected; paf != NULL; paf = paf->next)
     {
@@ -3647,6 +3757,7 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
 		);
 	}
     }
+#endif
 
     // for catalysts
     for (paf = obj->catalyst; paf != NULL; paf = paf->next)
@@ -5715,10 +5826,30 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				fMatch = true;
 				break;
 			}
+			else if (!str_cmp(word, "#AFFECT"))
+			{
+				AFFECT_DATA *paf = fread_affect(fp);
+				paf->next = obj->affected;
+				obj->affected = paf;
+				fMatch = true;
+				break;
+			}
 			else if (!str_cmp(word, "#TOKEN"))
 			{
 				TOKEN_DATA *token = fread_token(fp);
 				token_to_obj(token, obj);
+
+				// Add all affects on the token to the character
+				ITERATOR ait;
+				AFFECT_DATA *taf;
+				iterator_start(&ait, token->affects);
+				while((taf = (AFFECT_DATA *)iterator_nextdata(&ait)))
+				{
+					taf->next = obj->affected;
+					obj->affected = taf;
+				}
+				iterator_stop(&ait);
+
 				fMatch		= true;
 				break;
 			}
@@ -7503,6 +7634,19 @@ void fwrite_token(TOKEN_DATA *token, FILE *fp)
 		}
 	}
 
+	// All affects associated with tokens
+	ITERATOR it;
+	AFFECT_DATA *paf;
+	iterator_start(&it, token->affects);
+	while((paf = (AFFECT_DATA *)iterator_nextdata(&it)))
+	{
+		if (!paf->custom_name && !IS_VALID(paf->skill))
+			continue;
+
+		fwrite_affect(fp, paf);
+	}
+	iterator_stop(&it);
+
 	fprintf(fp, "End\n\n");
 }
 
@@ -7553,6 +7697,17 @@ TOKEN_DATA *fread_token(FILE *fp)
 
 		switch (UPPER(word[0]))
 		{
+			case '#':
+				if (!str_cmp(word, "#AFFECT"))
+				{
+					AFFECT_DATA *paf = fread_affect(fp);
+					paf->token = token;
+					list_appendlink(token->affects, paf);
+					fMatch = true;
+					break;
+				}
+				break;
+
 			case 'T':
 			KEY("Timer",	token->timer,		fread_number(fp));
 			break;

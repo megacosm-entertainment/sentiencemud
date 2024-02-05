@@ -410,6 +410,7 @@ extern  const struct flag_type boolean_types[];
 extern	const struct flag_type tattoo_loc_flags[];
 extern	const char *catalyst_descs[];
 
+extern	const struct flag_type affgroup_flags[];
 extern	const struct flag_type affgroup_mobile_flags[];
 extern	const struct flag_type affgroup_object_flags[];
 extern	const struct flag_type spell_target_types[];

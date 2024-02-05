@@ -4115,10 +4115,10 @@ EXPAND_TYPE(token)
 		arg->type = ENT_SKILLENTRY;
 		arg->d.entry = arg->d.token ? arg->d.token->skill : NULL;
 		break;
-//	case ENTITY_TOKEN_AFFECT:
-//		arg->type = ENT_AFFECT;
-//		arg->d.aff = arg->d.token ? arg->d.token->affect : NULL;
-//		break;
+	case ENTITY_TOKEN_AFFECTS:
+		arg->type = ENT_ILLIST_AFFECTS;
+		arg->d.blist = arg->d.token ? arg->d.token->affects : NULL;
+		break;
 	case ENTITY_TOKEN_REPUTATION:
 		arg->type = ENT_REPUTATION;
 		arg->d.reputation = arg->d.token ? arg->d.token->reputation : NULL;

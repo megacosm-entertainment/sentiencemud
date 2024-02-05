@@ -3962,6 +3962,16 @@ void do_affects(CHAR_DATA * ch, char *argument)
 				}
 			}
 
+			if (IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))
+			{
+				if (IS_VALID(paf->token))
+				{
+					sprintf(buf, " {Btoken {W%s {B({W%ld{B#{W%ld{B){x", paf->token->pIndexData->name,
+						paf->token->pIndexData->area->uid, paf->token->pIndexData->vnum);
+					send_to_char(buf, ch);
+				}
+			}
+
 			send_to_char("\n\r", ch);
 			paf_last = paf;
 		}
@@ -3995,6 +4005,16 @@ void do_affects(CHAR_DATA * ch, char *argument)
 				if (IS_VALID(eq))
 				{
 					sprintf(buf, " {Bprovided by {W%s{x", eq->short_descr);
+					send_to_char(buf, ch);
+				}
+			}
+
+			if (IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))
+			{
+				if (IS_VALID(paf->token))
+				{
+					sprintf(buf, " {Btoken {W%s {B({W%ld{B#{W%ld{B){x", paf->token->pIndexData->name,
+						paf->token->pIndexData->area->uid, paf->token->pIndexData->vnum);
 					send_to_char(buf, ch);
 				}
 			}

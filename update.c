@@ -2013,7 +2013,14 @@ void char_update(void)
 		    		}
 				}
 
+				TOKEN_DATA *token = paf->token;
 				affect_remove(ch, paf);
+
+				if (IS_VALID(token))
+				{
+					if (list_size(token->affects) < 1)
+						extract_token(token);
+				}
 		    }
 		}
 
@@ -2126,7 +2133,15 @@ void obj_update(void)
 							}
 						}
 					}
+
+					TOKEN_DATA *token = paf->token;
 					affect_remove_obj(obj, paf);
+
+					if (IS_VALID(token))
+					{
+						if (list_size(token->affects) < 1)
+							extract_token(token);
+					}
 					/*
 
 					if (paf->type == skill_lookup("third eye"))

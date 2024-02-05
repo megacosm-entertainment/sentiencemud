@@ -2215,7 +2215,7 @@ struct	affect_data
     int16_t		where;
     int16_t      catalyst_type;           // Currently only used by catalysts
     SKILL_DATA *skill;
-    TOKEN_INDEX_DATA *token;    // NIB: Keeping this since I can see getting an affect from a token *independent* of skills/spells
+    TOKEN_DATA *token;    // NIB: Keeping this since I can see getting an affect from a token *independent* of skills/spells
     int16_t		level;
     int16_t		duration;
     int16_t		location;
@@ -4511,7 +4511,7 @@ struct token_data
 	EXTRA_DESCR_DATA	*ed;
 
 	SKILL_ENTRY *skill;		// Is the token used in a skill entry?
-    AFFECT_DATA *affect;
+    LLIST *affects;
     REPUTATION_DATA *reputation;
 
     int			tempstore[MAX_TEMPSTORE];		/* Temporary storage values for script processing */
