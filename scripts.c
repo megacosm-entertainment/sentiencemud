@@ -1834,6 +1834,7 @@ DECL_OPC_FUN(opc_list)
 
 			// Set the variable
 			variables_set_mobile(block->info.var,block->loops[lp].var_name,ch);
+			break;
 
 		case ENT_ILLIST_VARIABLE:
 			//log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
@@ -4710,7 +4711,7 @@ int test_string_trigger(char *string, char *wildcard, MATCH_STRING match, int ty
 int p_act_trigger(char *argument, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room,
 	CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type)
 {
-	return test_string_trigger(argument, "*", match_substr, type, mob, obj, room, ch, victim, victim2, obj1, obj1);
+	return test_string_trigger(argument, "*", match_substr, type, mob, obj, room, ch, victim, victim2, obj1, obj2);
 }
 
 // Similar to p_act_trigger, except it does EXACT match
@@ -4724,14 +4725,14 @@ int p_exact_trigger(char *argument, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DA
 		wiznet(buf, NULL, NULL, WIZ_SCRIPTS, 0, 0);
 	}
 
-	return test_string_trigger(argument, "*", match_exact_name, type, mob, obj, room, ch, victim, victim2, obj1, obj1);
+	return test_string_trigger(argument, "*", match_exact_name, type, mob, obj, room, ch, victim, victim2, obj1, obj2);
 }
 
 // Similar to p_act_trigger, except it uses is_name
 int p_name_trigger(char *argument, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room,
 	CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type)
 {
-	return test_string_trigger(argument, "*", match_name, type, mob, obj, room, ch, victim, victim2, obj1, obj1);
+	return test_string_trigger(argument, "*", match_name, type, mob, obj, room, ch, victim, victim2, obj1, obj2);
 }
 
 
@@ -5163,20 +5164,20 @@ int test_number_trigger(int number, int wildcard, MATCH_NUMBER match, int type,
 int p_percent_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
 	CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase)
 {
-	return test_number_trigger(0, 0, match_percent, type, mob, obj, room, token, NULL, NULL, NULL, ch, victim, victim2, obj1, obj1, NULL, phrase);
+	return test_number_trigger(0, 0, match_percent, type, mob, obj, room, token, NULL, NULL, NULL, ch, victim, victim2, obj1, obj2, NULL, phrase);
 }
 
 int p_percent2_trigger(AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon,
 	CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase)
 {
-	return test_number_trigger(0, 0, match_percent, type, NULL, NULL, NULL, NULL, area, instance, dungeon, ch, victim, victim2, obj1, obj1, NULL, phrase);
+	return test_number_trigger(0, 0, match_percent, type, NULL, NULL, NULL, NULL, area, instance, dungeon, ch, victim, victim2, obj1, obj2, NULL, phrase);
 }
 
 
 int p_percent_token_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
 	CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, TOKEN_DATA *tok, int type, char *phrase)
 {
-	return test_number_trigger(0, 0, match_percent, type, mob, obj, room, token, NULL, NULL, NULL, ch, victim, victim2, obj1, obj1, tok, phrase);
+	return test_number_trigger(0, 0, match_percent, type, mob, obj, room, token, NULL, NULL, NULL, ch, victim, victim2, obj1, obj2, tok, phrase);
 }
 
 
@@ -5184,7 +5185,7 @@ int p_percent_token_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room
 int p_number_trigger(int number, int wildcard, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
 	CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase)
 {
-	return test_number_trigger(number, wildcard, match_equal, type, mob, obj, room, token, NULL, NULL, NULL, ch, victim, victim2, obj1, obj1, NULL, phrase);
+	return test_number_trigger(number, wildcard, match_equal, type, mob, obj, room, token, NULL, NULL, NULL, ch, victim, victim2, obj1, obj2, NULL, phrase);
 }
 
 int p_bribe_trigger(CHAR_DATA *mob, CHAR_DATA *ch, int amount)
