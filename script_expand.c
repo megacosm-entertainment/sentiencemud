@@ -5187,7 +5187,7 @@ char *expand_entity_bitvector(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ESCAPE_VARIABLE:
 		arg->type = ENT_BOOLEAN;
 
-		if(arg->d.bv.table && arg->d.bv.value)
+		if(arg->d.bv.table)
 		{
 			BUFFER *buffer = new_buf();
 			int bit;

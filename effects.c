@@ -174,7 +174,7 @@ void cold_effect(void *vo, int level, int dam, int target)
 	OBJ_DATA *obj, *obj_next;
 
 	/* chill touch effect */
-	if ( number_percent() < 15 )
+	if ( number_percent() < 15 && !saves_spell(level, victim,DAM_COLD) )
 	{
 	    AFFECT_DATA af;
 memset(&af,0,sizeof(af));
@@ -553,7 +553,7 @@ void shock_effect(void *vo,int level, int dam, int target)
 	OBJ_DATA *obj, *obj_next;
 
 	/* daze and confused? */
-	if ( number_percent() < 10 )
+	if ( number_percent() < 10 && !saves_spell(level, victim,DAM_LIGHTNING))
 	{
 	    send_to_char("{YYour muscles stop responding.{x\n\r",victim);
 	    DAZE_STATE(victim, 12);//UMAX(12,level/4 + dam/20));

@@ -153,7 +153,7 @@ SPELL_FUNC(spell_identify)
 	BUFFER *buffer;
 	char buf[2*MAX_STRING_LENGTH];
 	char buf2[MAX_STRING_LENGTH];
-	char extra_flags[MSL];
+	//char extra_flags[MSL];
 	AFFECT_DATA *af;
 	OBJ_DATA *key;
 	int i = 0;
@@ -165,8 +165,8 @@ SPELL_FUNC(spell_identify)
 	}
 
 	buffer = new_buf();
-
-	if (!obj->extra[0] && !obj->extra[0])
+/*
+	if (!obj->extra[0] && !obj->extra[1])
 		sprintf(extra_flags, "none");
 	else {
 		// Extra flags
@@ -185,14 +185,14 @@ SPELL_FUNC(spell_identify)
 
 		// Extra3 and further will be added here
 	}
-
+*/
 	sprintf(buf,
 		"{MObject '{x%s{M' is type {x%s{M, extra flags {x%s{M.\n\r"
 		"Weight is {x%d{M, value is {x%ld{M, level is {x%d{M.\n\r"
 		"{MFragility is {x%s{M, condition is {x%d%%{M. It has been repaired {x%d{M/{x%d {Mtimes.{x\n\r" ,
 		obj->name,
 		item_name(obj->item_type),
-		extra_flags,
+		bitmatrix_string(extra_flagbank, obj->extra),
 		obj->weight,
 		obj->cost,
 		obj->level,
