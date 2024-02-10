@@ -3212,6 +3212,13 @@ void update_hunting_pc(CHAR_DATA *ch)
 	return;
     }
 
+	if (IN_WILDERNESS(ch) || IN_WILDERNESS(victim))
+	{
+		send_to_char("You lost the trail.\n\r", ch);
+		ch->hunting = NULL;
+		return;
+	}
+	
     // Chance of failing
     chance = get_skill(ch, gsn_hunt) * 3/4
              + (get_curr_stat(ch, STAT_INT)
