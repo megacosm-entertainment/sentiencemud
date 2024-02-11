@@ -333,6 +333,7 @@ ENT_FIELD entity_mobile[] = {
 	{"mount",					ENTITY_MOB_MOUNT,			ENT_MOBILE	},
 	{"name",					ENTITY_MOB_NAME,			ENT_STRING	},
 	{"next",					ENTITY_MOB_NEXT,			ENT_MOBILE	},
+	{"numgrouped",				ENTITY_MOB_NUMGROUPED,		ENT_NUMBER	},
 	{"on",						ENTITY_MOB_FURNITURE,		ENT_OBJECT	},
 	{"opponent",				ENTITY_MOB_OPPONENT,		ENT_MOBILE	},
 	{"owner",					ENTITY_MOB_OWNER,			ENT_MOBILE	},
@@ -366,6 +367,7 @@ ENT_FIELD entity_mobile[] = {
 	{"reputation",				ENTITY_MOB_REPUTATION,		ENT_REPUTATION },
 	{"factions",				ENTITY_MOB_FACTIONS,		ENT_ILLIST_REPUTATION_INDEX },
 	{"missions",				ENTITY_MOB_MISSIONS,		ENT_ILLIST_MISSIONS },
+	{"compartment",				ENTITY_MOB_COMPARTMENT,		ENT_COMPARTMENT },
 	{NULL,				0,							ENT_UNKNOWN	}
 };
 
@@ -453,6 +455,7 @@ ENT_FIELD entity_object[] = {
 	{"ammo_data",		ENTITY_OBJ_TYPE_AMMO,		ENT_OBJECT_AMMO},
 	{"book_page",		ENTITY_OBJ_TYPE_PAGE,		ENT_BOOK_PAGE},			// This is unique in that it is not handled internally like other type
 	{"book_data",		ENTITY_OBJ_TYPE_BOOK,		ENT_OBJECT_BOOK},
+	{"cart_data",		ENTITY_OBJ_TYPE_CART,		ENT_OBJECT_CART},
 	{"compass_data",	ENTITY_OBJ_TYPE_COMPASS,	ENT_OBJECT_COMPASS},
 	{"container_data",	ENTITY_OBJ_TYPE_CONTAINER,	ENT_OBJECT_CONTAINER},
 	{"fluid_data",		ENTITY_OBJ_TYPE_FLUID_CONTAINER,	ENT_OBJECT_FLUID_CONTAINER },
@@ -492,6 +495,13 @@ ENT_FIELD entity_object_book[] = {
 	{"opener",				ENTITY_OBJ_BOOK_OPENER,		ENT_BOOK_PAGE },
 	{"pages",				ENTITY_OBJ_BOOK_PAGES,		ENT_PLLIST_BOOK_PAGE },
 	{"lock",				ENTITY_OBJ_BOOK_LOCK,		ENT_LOCK_STATE },
+	{NULL,			0,			ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_object_cart[] = {
+	{"flags",				ENTITY_OBJ_CART_FLAGS,			ENT_BITVECTOR },
+	{"minstrength",			ENTITY_OBJ_CART_MIN_STRENGTH,	ENT_NUMBER },
+	{"movedelay",			ENTITY_OBJ_CART_MOVE_DELAY,		ENT_NUMBER },
 	{NULL,			0,			ENT_UNKNOWN	}
 };
 
@@ -1382,6 +1392,7 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_WIDEVNUM,		ENT_WIDEVNUM,		entity_widevnum,			false,	false },
 	{ ENT_OBJECT_AMMO, ENT_OBJECT_AMMO, entity_object_ammo, false,	false },
 	{ ENT_OBJECT_BOOK, ENT_OBJECT_BOOK, entity_object_book, false,	false },
+	{ ENT_OBJECT_CART, ENT_OBJECT_CART, entity_object_cart, false,	false },
 	{ ENT_OBJECT_COMPASS, ENT_OBJECT_COMPASS, entity_object_compass, false,	false },
 	{ ENT_OBJECT_CONTAINER, ENT_OBJECT_CONTAINER, entity_object_container, false,	false },
 	{ ENT_OBJECT_FLUID_CONTAINER, ENT_OBJECT_FLUID_CONTAINER, entity_object_fluid_container, false, false },

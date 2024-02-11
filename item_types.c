@@ -67,7 +67,7 @@
 // ITEM_KEY					No
 // ITEM_FOOD				Yes
 // ITEM_MONEY				Yes
-// ITEM_BOAT				No
+// ITEM_BOAT				Deleted
 // ITEM_CORPSE_NPC			No
 // ITEM_CORPSE_PC			No
 // ITEM_FLUID_CONTAINER		Yes
@@ -86,8 +86,8 @@
 // ITEM_ROOM_FLAME			Mist
 // ITEM_INSTRUMENT			Yes
 // ITEM_SEED				No
-// ITEM_CART				No
-// ITEM_SHIP				No
+// ITEM_CART				Yes
+// ITEM_SHIP				No -> Void type that doesn't need anything as it is handled by shipedit.
 // ITEM_ROOM_DARKNESS		To be converted to a room affect
 // ITEM_RANGED_WEAPON		No (WEAPON)
 // ITEM_SEXTANT				Yes
@@ -294,6 +294,7 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 
 		case ITEM_LIGHT:
 			if (item_type == ITEM_ARMOUR) return true;
+			if (item_type == ITEM_CART) return true;
 			if (item_type == ITEM_CONTAINER) return true;
 			if (item_type == ITEM_FLUID_CONTAINER) return true;
 			if (item_type == ITEM_FURNITURE) return true;

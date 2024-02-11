@@ -166,7 +166,6 @@ const struct item_type		item_table	[]	=
     {	ITEM_KEY,		"key"				},
     {	ITEM_FOOD,		"food"				},
     {	ITEM_MONEY,		"money"				},
-    {	ITEM_BOAT,		"boat"				},
     {	ITEM_CORPSE_NPC,	"npc_corpse"			},
     {	ITEM_CORPSE_PC,		"pc_corpse"			},
     {	ITEM_PILL,		"pill"				},

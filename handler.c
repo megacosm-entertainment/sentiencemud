@@ -397,6 +397,7 @@ int check_immune(CHAR_DATA *ch, int16_t dam_type)
 	case(DAM_EARTH):	bit = IMM_EARTH;	break;	// @@@NIB : 20070125
 	case(DAM_PLANT):	bit = IMM_PLANT;	break;	// @@@NIB : 20070125
 	case(DAM_SUFFOCATING):	bit = IMM_SUFFOCATION;	break;
+	case(DAM_DEATH):		bit = IMM_KILL;	break;
 	default:		return def;
     }
 
@@ -726,6 +727,10 @@ void reset_char(CHAR_DATA *ch)
     ch->hitroll		= 0;
     ch->damroll		= 0;
     ch->saving_throw	= 0;
+	ch->xpboost = 0;
+	
+	for(i = 0; i < DAM_MAX; i++)
+		ch->saves_modifier[i] = 0;
 
     /* now start adding back the effects */
     for (loc = 0; loc < MAX_WEAR; loc++)
@@ -757,7 +762,20 @@ void reset_char(CHAR_DATA *ch)
 					break;
 		case APPLY_HITROLL:     ch->hitroll             += mod; break;
 		case APPLY_DAMROLL:     ch->damroll             += mod; break;
+		case APPLY_XPBOOST:       ch->xpboost			+= mod; break;
 		default:
+			if(af->location >= APPLY_SAVES && af->location < APPLY_SAVES_MAX)
+			{
+				int dam_type = af->location - APPLY_SAVES;
+
+				if (dam_type >= DAM_NONE && dam_type < DAM_MAX)
+				{
+					ch->saves_modifier[dam_type] += mod;
+				}
+
+				break;
+			}
+
 			if(!IS_NPC(ch) && af->location >= APPLY_SKILL) {
 				SKILL_DATA *skill = get_skill_data_uid(af->location - APPLY_SKILL);
 				
@@ -800,7 +818,20 @@ void reset_char(CHAR_DATA *ch)
 				    break;
 	    case APPLY_HITROLL:     ch->hitroll             += mod; break;
 	    case APPLY_DAMROLL:     ch->damroll             += mod; break;
+		case APPLY_XPBOOST:       ch->xpboost			+= mod; break;
 		default:
+			if(af->location >= APPLY_SAVES && af->location < APPLY_SAVES_MAX)
+			{
+				int dam_type = af->location - APPLY_SAVES;
+
+				if (dam_type >= DAM_NONE && dam_type < DAM_MAX)
+				{
+					ch->saves_modifier[dam_type] += mod;
+				}
+
+				break;
+			}
+
 			if(!IS_NPC(ch) && af->location >= APPLY_SKILL) {
 				SKILL_DATA *skill = get_skill_data_uid(af->location - APPLY_SKILL);
 				
@@ -1172,6 +1203,18 @@ void affect_modify(CHAR_DATA *ch, AFFECT_DATA *paf, bool fAdd)
 	case APPLY_XPBOOST:       ch->xpboost			+= mod; break;
 	case APPLY_SPELL_AFFECT:  					break;
 	default:
+		if(paf->location >= APPLY_SAVES && paf->location < APPLY_SAVES_MAX)
+		{
+			int dam_type = paf->location - APPLY_SAVES;
+
+			if (dam_type >= DAM_NONE && dam_type < DAM_MAX)
+			{
+				ch->saves_modifier[dam_type] += mod;
+			}
+
+			break;
+		}
+
 		if(!IS_NPC(ch) && paf->location >= APPLY_SKILL) {
 			SKILL_DATA *skill = get_skill_data_uid(paf->location - APPLY_SKILL);
 			
@@ -2876,9 +2919,15 @@ void obj_from_room(OBJ_DATA *obj)
 		return;
 	}
 
-	for (ch = in_room->people; ch != NULL; ch = ch->next_in_room)
-		if (ch->on == obj)
-			ch->on = NULL;
+	if (!IS_FURNITURE(obj) || !IS_SET(FURNITURE(obj)->flags, FURNITURE_KEEP_OCCUPANTS))
+	{
+		for (ch = in_room->people; ch != NULL; ch = ch->next_in_room)
+			if (ch->on == obj)
+			{
+				ch->on = NULL;
+				ch->on_compartment = NULL;
+			}
+	}
 
 	list_remlink(in_room->lcontents, obj, false);
 	list_remlink(in_room->lentity, obj, false);
@@ -5957,6 +6006,7 @@ bool is_same_place(ROOM_INDEX_DATA *from, ROOM_INDEX_DATA *to)
 }
 
 
+// TODO: convert to a flag_type table?
 int get_continent( const char *name )
 {
 	if( IS_NULLSTR(name) ) return -1;
@@ -6736,7 +6786,8 @@ bool can_get_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 		}
 		*/
 
-		if (container->item_type == ITEM_CART && get_cart_pulled(container) != ch)
+		/* TODO: Need to fix instances where a cart is being pulled by a mount/team animal
+		if (IS_CART(container) && get_cart_pulled(container) != ch)
 		{
 			if (!silent)
 			{
@@ -6745,6 +6796,7 @@ bool can_get_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 
 			return false;
 		}
+		*/
 
 		if (IS_CONTAINER(container) && IS_SET(CONTAINER(container)->flags, CONT_CLOSED))
 		{
@@ -6798,7 +6850,7 @@ bool can_get_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 			}
 		}
 
-		if (obj->item_type == ITEM_CART)
+		if (IS_CART(obj))
 		{
 			if (!silent)
 				act("$p is far too heavy.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
@@ -8068,19 +8120,52 @@ int use_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int amo
 
 void move_cart(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool delay)
 {
-	if (PULLING_CART(ch))
+	OBJ_DATA *obj = PULLING_CART(ch);
+
+	if (obj)
 	{
-		obj_from_room(PULLING_CART(ch));
+		ROOM_INDEX_DATA *old_room = obj_room(obj);
+		obj_from_room(obj);
 
 		if(room->wilds)
-			obj_to_vroom(PULLING_CART(ch), room->wilds, room->x, room->y);
+			obj_to_vroom(obj, room->wilds, room->x, room->y);
 		else
-			obj_to_room(PULLING_CART(ch), room);
+			obj_to_room(obj, room);
+
+		// TODO: Now copy all of this... in scripting
+		// Cart is also a piece of furniture
+		if (IS_FURNITURE(obj) && IS_SET(FURNITURE(obj)->flags, FURNITURE_KEEP_OCCUPANTS) && old_room)
+		{
+			CHAR_DATA *rch, *rch_next;
+
+			// Move all occupants to new room
+			for(rch = old_room->people; rch; rch = rch_next)
+			{
+				rch_next = rch->next_in_room;
+
+				if (rch->on == obj)
+				{
+					char_from_room(rch);
+
+					if (room->wilds)
+						char_to_vroom(rch, room->wilds, room->x, room->y);
+					else
+						char_to_room(rch, room);
+
+					if (!rch->on_compartment ||
+						!IS_SET(rch->on_compartment->flags, COMPARTMENT_INSIDE) ||
+						IS_SET(rch->on_compartment->flags, COMPARTMENT_TRANSPARENT))
+					{
+						do_function(rch, &do_look, "auto");
+					}
+				}
+			}
+		}
 
 		if(delay) {
 			int wait_amount;
 
-			wait_amount = PULLING_CART(ch)->value[1];
+			wait_amount = CART(obj)->move_delay;
 
 			if (MOUNTED(ch))
 				WAIT_STATE(ch, wait_amount/2);
@@ -9927,7 +10012,7 @@ bool is_pullable(OBJ_DATA *obj)
 	if(!IS_VALID(obj))
 		return false;
 
-	if( obj->item_type == ITEM_CART ) return true;
+	if( IS_CART(obj) ) return true;
 	// if( obj->item_type == ITEM_CORPSE_NPC ) return true;
 	// if( obj->item_type == ITEM_CORPSE_PC ) return true;
 

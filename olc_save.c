@@ -913,6 +913,16 @@ void save_object_multityping(FILE *fp, OBJ_INDEX_DATA *obj)
 		fprintf(fp, "#-TYPEBOOK\n");
 	}
 
+	if (IS_CART(obj))
+	{
+		CART_DATA *cart = CART(obj);
+		fprintf(fp, "#TYPECART\n");
+		fprintf(fp, "Flags %s\n", print_flags(cart->flags));
+		fprintf(fp, "MinStrength %d\n", cart->min_strength);
+		fprintf(fp, "MoveDelay %d\n", cart->move_delay);
+		fprintf(fp, "#-TYPECART\n");
+	}
+
 	if (IS_COMPASS(obj))
 	{
 		COMPASS_DATA *compass = COMPASS(obj);
@@ -1045,6 +1055,7 @@ void save_object_multityping(FILE *fp, OBJ_INDEX_DATA *obj)
 		FURNITURE_COMPARTMENT *compartment;
 
 		fprintf(fp, "#TYPEFURNITURE\n");
+		fprintf(fp, "Flags %s\n", print_flags(FURNITURE(obj)->flags));
 		fprintf(fp, "MainCompartment %d\n", FURNITURE(obj)->main_compartment);
 
 		iterator_start(&it, FURNITURE(obj)->compartments);
@@ -3464,6 +3475,39 @@ BOOK_DATA *read_object_book_data(FILE *fp, AREA_DATA *area)
 	return book;
 }
 
+CART_DATA *read_object_cart_data(FILE *fp)
+{
+	CART_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_cart_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPECART"))
+	{
+		fMatch = false;
+
+		switch(word[0])
+		{
+			case 'F':
+				KEY("Flags", data->flags, fread_flag(fp));
+				break;
+
+			case 'M':
+				KEY("MinStrength", data->min_strength, fread_number(fp));
+				KEY("MoveDelay", data->move_delay, fread_number(fp));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_object_cart_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
 
 COMPASS_DATA *read_object_compass_data(FILE *fp)
 {
@@ -3894,6 +3938,10 @@ FURNITURE_DATA *read_object_furniture_data(FILE *fp)
 					fMatch = true;
 					break;
 				}
+				break;
+
+			case 'F':
+				KEY("Flags", data->flags, fread_flag(fp));
 				break;
 
 			case 'M':
@@ -4764,6 +4812,14 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 			} else if (!str_cmp(word, "#TYPEBOOK")) {
 				if (IS_BOOK(obj)) free_book_data(BOOK(obj));
 				BOOK(obj) = read_object_book_data(fp, area);
+				fMatch = true;
+			} else if (!str_cmp(word, "#TYPECART")) {
+				if (IS_CART(obj)) free_cart_data(CART(obj));
+				CART(obj) = read_object_cart_data(fp);
+				fMatch = true;
+			} else if (!str_cmp(word, "#TYPECOMPASS")) {
+				if (IS_COMPASS(obj)) free_compass_data(COMPASS(obj));
+				COMPASS(obj) = read_object_compass_data(fp);
 				fMatch = true;
 			} else if (!str_cmp(word, "#TYPECONTAINER")) {
 				if (IS_CONTAINER(obj)) free_container_data(CONTAINER(obj));

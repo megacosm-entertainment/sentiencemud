@@ -560,7 +560,7 @@ const struct flag_type act_flags[] =
     {	"crew_seller",			ACT_CREW_SELLER,		true	},
     {   "no_lore",				ACT_NO_LORE,			true	},
     {	"undead",				ACT_UNDEAD,				true	},
-// (P)
+    {   "team_animal",          ACT_TEAM_ANIMAL,        true    },
     {	"cleric",				ACT_CLERIC,				true	},
     {	"mage",					ACT_MAGE,				true	},
     {	"thief",				ACT_THIEF,				true	},
@@ -574,6 +574,7 @@ const struct flag_type act_flags[] =
     {	"update_always",		ACT_UPDATE_ALWAYS,		true	},
     {	"changer",				ACT_IS_CHANGER,			true	},
     {   "banker",				ACT_IS_BANKER,			true    },
+    {   "can_be_led",           ACT_CAN_BE_LED,         true    },
     {	NULL,					0,	false	}
 };
 
@@ -1293,7 +1294,6 @@ const struct flag_type type_flags[] =
     {	"key",			ITEM_KEY,		true	},
     {	"food",			ITEM_FOOD,		true	},
     {	"money",		ITEM_MONEY,		true	},
-    {	"boat",			ITEM_BOAT,		true	},
     {	"npccorpse",		ITEM_CORPSE_NPC,	true	},
     {	"pc corpse",		ITEM_CORPSE_PC,		false	},
     {	"pill",			ITEM_PILL,		true	},
@@ -1502,6 +1502,7 @@ const struct flag_type apply_flags[] =
     {	"skill",		    APPLY_SKILL,		false	},
     {	"spellaffect",		APPLY_SPELL_AFFECT,	false	},
     {   "xpboost",          APPLY_XPBOOST,      true    },
+    {   "saves",            APPLY_SAVES,        false   },
     {	NULL,			0,			0	}
 };
 
@@ -1913,8 +1914,14 @@ const struct flag_type portal_flags[]=
     {   NULL,		0,			0	}
 };
 
-
 const struct flag_type furniture_flags[]=
+{
+    {   "keep_occupants",    FURNITURE_KEEP_OCCUPANTS, true },
+    {	NULL,		0,		0	}
+};
+
+
+const struct flag_type furniture_action_flags[]=
 {
     {   "above",    FURNITURE_ABOVE, true },
     {   "at",       FURNITURE_AT, true },
@@ -2136,18 +2143,18 @@ const struct flag_type      place_flags[]           =
 
 const struct flag_type	token_flags[] =
 {
+    {   "hide_name",        TOKEN_HIDE_NAME,        true    },
+    {	"no_skill_test",	TOKEN_NOSKILLTEST,		true	},
+    {	"permanent",		TOKEN_PERMANENT,		true	},
     {	"purge_death",		TOKEN_PURGE_DEATH,		true	},
     {	"purge_idle",		TOKEN_PURGE_IDLE,		true	},
     {	"purge_quit",		TOKEN_PURGE_QUIT,		true	},
     {	"purge_reboot",		TOKEN_PURGE_REBOOT,		true	},
     {	"purge_rift",		TOKEN_PURGE_RIFT,		true	},
     {	"reverse_timer",	TOKEN_REVERSETIMER,		true	},
-    {	"no_skill_test",	TOKEN_NOSKILLTEST,		true	},
-    {	"singular",			TOKEN_SINGULAR,			true	},
     {	"see_all",			TOKEN_SEE_ALL,			true	},
-    {	"permanent",		TOKEN_PERMANENT,		true	},
+    {	"singular",			TOKEN_SINGULAR,			true	},
     {	"spellbeats",		TOKEN_SPELLBEATS,		true	},
-    {   "hide_name",        TOKEN_HIDE_NAME,        true    },
     {	NULL,			0,				false	}
 };
 
@@ -2225,6 +2232,7 @@ const struct flag_type damage_classes[] = {
 	{"sound", DAM_SOUND, true},
 	{"water", DAM_WATER, true},
     {"suffocating", DAM_SUFFOCATING, true},
+    {"death", DAM_DEATH, true},
 	{NULL, 0, 0}
 };
 
@@ -2667,6 +2675,7 @@ const int dam_to_corpse[DAM_MAX][11] = {
 	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_PLANT
 	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_AIR
     { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_SUFFOCATING
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_DEATH
 };
 
 // When this becomes a linked list..... yeah
@@ -3169,6 +3178,7 @@ const struct flag_type builtin_trigger_types[] =
     { "hidden",		        TRIG_HIDDEN,	true },
     { "hide",		        TRIG_HIDE,	true },
     { "hit",		        TRIG_HIT,	true },
+    { "hitch",		        TRIG_HITCH,	true },
     { "hitgain",		    TRIG_HITGAIN,	true },
     { "hpcnt",		        TRIG_HPCNT,	true },
     { "identify",		    TRIG_IDENTIFY,	true },
@@ -3179,6 +3189,7 @@ const struct flag_type builtin_trigger_types[] =
     { "knock",		        TRIG_KNOCK,	true },
     { "knocking",		    TRIG_KNOCKING,	true },
     { "land",		        TRIG_LAND,	true },
+    { "lead",		        TRIG_LEAD,	true },
     { "level",		        TRIG_LEVEL,	true },
     { "lock",		        TRIG_LOCK,	true },
     { "login",		        TRIG_LOGIN,	true },
@@ -3223,8 +3234,10 @@ const struct flag_type builtin_trigger_types[] =
     { "preget",		        TRIG_PREGET,	true },
     { "prehide",		    TRIG_PREHIDE,	true },
     { "prehide_in",		    TRIG_PREHIDE_IN,	true },
+    { "prehitch",           TRIG_PREHITCH,   true },
     { "preignite",          TRIG_PREIGNITE,    true },
     { "prekill",		    TRIG_PREKILL,	true },
+    { "prelead",		    TRIG_PRELEAD,	true },
     { "prelock",		    TRIG_PRELOCK,	true },
     { "premission",		    TRIG_PREMISSION,	true },
     { "premount",		    TRIG_PREMOUNT,	true },
@@ -3233,6 +3246,7 @@ const struct flag_type builtin_trigger_types[] =
     { "prepracticeother",	TRIG_PREPRACTICEOTHER,	true },
     { "prepracticethat",	TRIG_PREPRACTICETHAT,	true },
     { "prepracticetoken",	TRIG_PREPRACTICETOKEN,	true },
+    { "prepull",            TRIG_PREPULL,   true },
     { "preput",		        TRIG_PREPUT,	true },
     { "prerecall",		    TRIG_PRERECALL,	true },
     { "prerecite",		    TRIG_PRERECITE,	true },
@@ -3251,10 +3265,14 @@ const struct flag_type builtin_trigger_types[] =
     { "prestepoff",		    TRIG_PRESTEPOFF,	true },
     { "pretrain",		    TRIG_PRETRAIN,	true },
     { "pretraintoken",		TRIG_PRETRAINTOKEN,	true },
+    { "preunhitch",         TRIG_PREUNHITCH,   true },
+    { "preunlead",		    TRIG_PREUNLEAD,	true },
     { "preunlock",		    TRIG_PREUNLOCK,	true },
+    { "preunyoke",          TRIG_PREUNYOKE,   true },
     { "prewake",		    TRIG_PREWAKE,	true },
     { "prewear",		    TRIG_PREWEAR,	true },
     { "prewimpy",		    TRIG_PREWIMPY,	true },
+    { "preyoke",            TRIG_PREYOKE,   true },
     { "prezap",             TRIG_PREZAP,    true },
     { "pull",		        TRIG_PULL,	true },
     { "pull_on",		    TRIG_PULL_ON,	true },
@@ -3339,7 +3357,10 @@ const struct flag_type builtin_trigger_types[] =
     { "turn",		        TRIG_TURN,	true },
     { "turn_on",		    TRIG_TURN_ON,	true },
     { "ungrouped",		    TRIG_UNGROUPED,	true },
+    { "unhitch",            TRIG_UNHITCH,   true },
+    { "unlead",		        TRIG_UNLEAD,	true },
     { "unlock",		        TRIG_UNLOCK,	true },
+    { "unyoke",             TRIG_UNYOKE,   true },
     { "use",		        TRIG_USE,	true },
     { "usewith",		    TRIG_USEWITH,	true },
     { "verb",		        TRIG_VERB,	true },
@@ -3354,6 +3375,7 @@ const struct flag_type builtin_trigger_types[] =
     { "xpbonus",		    TRIG_XPBONUS,	true },
     { "xpcompute",		    TRIG_XPCOMPUTE,	true },
     { "xpgain",		        TRIG_XPGAIN,	true },
+    { "yoke",               TRIG_YOKE,   true },
     { "zap",		        TRIG_ZAP,	true },
     { NULL,                 -1,         false }
 };
@@ -3381,6 +3403,7 @@ const struct flag_type light_flags[] =
 const struct flag_type compartment_flags[] =
 {
     { "allow_move",     COMPARTMENT_ALLOW_MOVE,     true },
+    { "brief",          COMPARTMENT_BRIEF,          true },
     { "closeable",      COMPARTMENT_CLOSEABLE,      true },
     { "closed",         COMPARTMENT_CLOSED,         true },
     { "closelock",      COMPARTMENT_CLOSELOCK,      true },
@@ -4377,3 +4400,9 @@ const struct global_sector_type global_sector_table[] =
     {NULL,                  NULL }
 };
 
+const struct flag_type cart_flags[] =
+{
+    {"mount_only",          CART_MOUNT_ONLY,        true},
+    {"team_animal_only",    CART_TEAM_ANIMAL_ONLY,  true},
+    {NULL,                  0,                      false}
+};

@@ -115,6 +115,7 @@ const struct olc_help_type help_table[] =
 	{	"book",					STRUCT_FLAGS,		book_flags,					"Book flags."	},
 	{	"brandish_func",		STRUCT_ARTIFICING,	brandish_func_table,		"Brandish Functions."	},
 	{	"brew_func",			STRUCT_ARTIFICING,	brew_func_table,			"Brew Functions (SkEdit)"},
+	{	"cart",					STRUCT_FLAGS,		cart_flags,					"Cart flags."},
 	{	"catalyst",				STRUCT_FLAGS,		catalyst_types,				"Catalyst types."	},
 	{	"class",				STRUCT_FLAGS,		class_flags,				"Class flags." },
 	{	"classes",				STRUCT_CLASSES,		NULL,						"Classes" },
@@ -133,7 +134,8 @@ const struct olc_help_type help_table[] =
 	{	"fluid_con",			STRUCT_FLAGS,		fluid_con_flags,			"Fluid Container status."	},
 	{   "foodbuffs",			STRUCT_FLAGS,		food_buff_types,			"Food Buff types" },
 	{	"form",					STRUCT_FLAGS,		form_flags,					"Mobile body form."	},
-	{	"furniture",			STRUCT_FLAGS,		furniture_flags,			"Furniture types."	},
+	{	"furniture",			STRUCT_FLAGS,		furniture_flags,			"Furniture flags."	},
+	{	"furnitureaction",		STRUCT_FLAGS,		furniture_action_flags,		"Furniture action flags."	},
 	{	"gcl",					STRUCT_GCL,			NULL,						"Global classes"},
 	{	"gsct",					STRUCT_GSCT,		NULL,						"Global Sectors"},
 	{	"gsn",					STRUCT_GSN,			NULL,						"Global Skill Numbers."},
@@ -5009,6 +5011,18 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		add_buf(buffer, buf);
 	}
 
+	if (IS_CART(obj))
+	{
+		CART_DATA *cart = CART(obj);
+		add_buf(buffer, "\n\r{GCart:{x\n\r");
+		sprintf(buf, "{B[{WFlags            {B]:  {x%s\n\r", flag_string(cart_flags, cart->flags));
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WMinimum Strength {B]:  {x%d\n\r", cart->min_strength);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WMove Delay       {B]:  {x%d\n\r", cart->move_delay);
+		add_buf(buffer, buf);
+	}
+
 	if (IS_COMPASS(obj))
 	{
 		COMPASS_DATA *compass = COMPASS(obj);
@@ -5038,11 +5052,18 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		add_buf(buffer, buf);
 		sprintf(buf, "{B[{WFlags            {B]:  {x%s\n\r", flag_string(container_flags, CONTAINER(obj)->flags));
 		add_buf(buffer, buf);
-		sprintf(buf, "{B[{WMax Weight       {B]:  {x%d\n\r", CONTAINER(obj)->max_weight);
+		if (CONTAINER(obj)->max_weight < 0)
+			sprintf(buf, "{B[{WMax Weight       {B]:  {xUnlimited\n\r");
+		else
+			sprintf(buf, "{B[{WMax Weight       {B]:  {x%d\n\r", CONTAINER(obj)->max_weight);
 		add_buf(buffer, buf);
 		sprintf(buf, "{B[{WWeight Multiplier{B]:  {x%d\n\r", CONTAINER(obj)->weight_multiplier);
 		add_buf(buffer, buf);
-		sprintf(buf, "{B[{WMax Volume       {B]:  {x%d\n\r", CONTAINER(obj)->max_volume);
+
+		if (CONTAINER(obj)->max_volume < 0)
+			sprintf(buf, "{B[{WMax Volume       {B]:  {xUnlimited\n\r");
+		else
+			sprintf(buf, "{B[{WMax Volume       {B]:  {x%d\n\r", CONTAINER(obj)->max_volume);
 		add_buf(buffer, buf);
 
 		if (list_size(CONTAINER(obj)->whitelist) > 0)
@@ -5274,6 +5295,9 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	if (IS_FURNITURE(obj))
 	{
 		add_buf(buffer, "\n\r{GFurniture:{x\n\r");
+		sprintf(buf, "{B[{WFlags           {B]:  {x%s\n\r", flag_string(furniture_flags, FURNITURE(obj)->flags));
+		add_buf(buffer, buf);
+
 		if (FURNITURE(obj)->main_compartment > 0)
 		{
 			FURNITURE_COMPARTMENT *cmpt = (FURNITURE_COMPARTMENT *)list_nthdata(FURNITURE(obj)->compartments, FURNITURE(obj)->main_compartment);
@@ -5316,15 +5340,15 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 					sprintf(buf, "    {C[{WWeight      {C]:  {x%dkg maximum\n\r", compartment->max_weight);
 				add_buf(buffer, buf);
 
-				sprintf(buf, "    {C[{WStanding    {C]:  {x%s\n\r", flag_string(furniture_flags, compartment->standing));
+				sprintf(buf, "    {C[{WStanding    {C]:  {x%s\n\r", flag_string(furniture_action_flags, compartment->standing));
 				add_buf(buffer, buf);
-				sprintf(buf, "    {C[{WHanging     {C]:  {x%s\n\r", flag_string(furniture_flags, compartment->hanging));
+				sprintf(buf, "    {C[{WHanging     {C]:  {x%s\n\r", flag_string(furniture_action_flags, compartment->hanging));
 				add_buf(buffer, buf);
-				sprintf(buf, "    {C[{WSitting     {C]:  {x%s\n\r", flag_string(furniture_flags, compartment->sitting));
+				sprintf(buf, "    {C[{WSitting     {C]:  {x%s\n\r", flag_string(furniture_action_flags, compartment->sitting));
 				add_buf(buffer, buf);
-				sprintf(buf, "    {C[{WResting     {C]:  {x%s\n\r", flag_string(furniture_flags, compartment->resting));
+				sprintf(buf, "    {C[{WResting     {C]:  {x%s\n\r", flag_string(furniture_action_flags, compartment->resting));
 				add_buf(buffer, buf);
-				sprintf(buf, "    {C[{WSleeping    {C]:  {x%s\n\r", flag_string(furniture_flags, compartment->sleeping));
+				sprintf(buf, "    {C[{WSleeping    {C]:  {x%s\n\r", flag_string(furniture_action_flags, compartment->sleeping));
 				add_buf(buffer, buf);
 
 				sprintf(buf, "    {C[{WHealth Regen{C]:  {x%d\n\r", compartment->health_regen);
@@ -5990,6 +6014,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	    add_buf(buffer, buf);
 	    break;
 
+	/*
 	case ITEM_CART:
 	    sprintf(buf,
 		"{B[  {Wv0{B]{G Weight:{x     [%ld kg]\n\r"
@@ -6004,6 +6029,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
                 obj->value[4]);
 	    add_buf(buffer, buf);
 	    break;
+	*/
 
 	case ITEM_TRADE_TYPE:
 	    sprintf(buf,
@@ -7354,6 +7380,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		break;
 		*/
 
+	/*
 	case ITEM_CART:
 		switch (value_num)
 		{
@@ -7386,6 +7413,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			break;
 		}
 		break;
+	*/
 
 	case ITEM_TRADE_TYPE:
 		switch(value_num)
@@ -8196,7 +8224,7 @@ OEDIT(oedit_addaffect)
     OBJ_INDEX_DATA *pObj;
     AFFECT_DATA *pAf, *pAf_tmp;
     int pMod;
-    bool pAdd = false;
+    bool pNeg = false;
     char loc[MAX_STRING_LENGTH];
     char mod[MAX_STRING_LENGTH];
     char randm[MAX_STRING_LENGTH];
@@ -8205,8 +8233,6 @@ OEDIT(oedit_addaffect)
     EDIT_OBJ(ch, pObj);
 
     argument = one_argument(argument, loc);
-    argument = one_argument(argument, mod);
-    argument = one_argument(argument, randm);
 
     if (loc[0] == '\0'
     || mod[0] == '\0'
@@ -8215,6 +8241,7 @@ OEDIT(oedit_addaffect)
     || !is_number(mod))
     {
 	send_to_char("Syntax:  addaffect [location] [#xmod] [#rand]\n\r", ch);
+	send_to_char("Syntax:  addaffect saves [damageclass] [#xmod] [#rand]\n\r", ch);
 	return false;
     }
 
@@ -8224,6 +8251,35 @@ OEDIT(oedit_addaffect)
 	show_help(ch, "apply");
 	return false;
     }
+
+	if (value == APPLY_SAVES)
+	{
+		char dt[MIL];
+
+		argument = one_argument(argument, dt);
+		int dam_type = stat_lookup(dt, damage_classes, NO_FLAG);
+
+		if (dam_type != NO_FLAG)
+		{
+			if (dam_type == DAM_NONE)
+			{
+				send_to_char("{Wnone{x damage class is not allowed.  Try a different damage class.\n\r", ch);
+				show_flag_cmds(ch, damage_classes);
+				return false;
+			}
+
+			value += dam_type;
+		}
+		else
+		{
+			send_to_char("Invalid damage class.  Use '? damageclass' for list of classes.\n\r", ch);
+			show_flag_cmds(ch, damage_classes);
+			return false;
+		}
+	}
+
+    argument = one_argument(argument, mod);
+    argument = one_argument(argument, randm);
 
     for (pAf = pObj->affected; pAf != NULL; pAf = pAf->next)
     {
@@ -8242,12 +8298,12 @@ OEDIT(oedit_addaffect)
 	case APPLY_MANA:
 		pMod = (int) atoi(mod)/10;
 		if (pMod == 0) pMod = 1;
-		if (atoi(mod) < 0) pAdd = true;
+		if (atoi(mod) < 0) pNeg = true;
 		break;
 	case APPLY_MOVE:
 		pMod = (int) atoi(mod)/20;
 		if (pMod == 0) pMod = 1;
-		if (atoi(mod) < 0) pAdd = true;
+		if (atoi(mod) < 0) pNeg = true;
 		break;
 	case APPLY_DEX:
 	case APPLY_WIS:
@@ -8255,27 +8311,36 @@ OEDIT(oedit_addaffect)
 	case APPLY_STR:
 	case APPLY_CON:
 		pMod = atoi(mod);
-		if (atoi(mod) < 0) pAdd = true;
+		if (atoi(mod) < 0) pNeg = true;
 		break;
 	case APPLY_AC:
 		pMod = (int) atoi(mod)/10;
 		if (pMod == 0) pMod = 1;
-		if (atoi(mod) < 0) pAdd = true;
+		if (atoi(mod) < 0) pNeg = true;
 		break;
 	case APPLY_HITROLL:
 	case APPLY_DAMROLL:
 		pMod = (int) atoi(mod)/2;
 		if (pMod == 0) pMod = 1;
-		if (atoi(mod) < 0) pAdd = true;
+		if (atoi(mod) < 0) pNeg = true;
 		break;
 	case APPLY_XPBOOST:
 		pMod = atoi(mod);
 		if (pMod == 0) pMod = 1;
-		if (atoi(mod) < 0) pAdd = true;
+		if (atoi(mod) > 0) pNeg = true;
 		break;
 	default:
-		pMod = 1;
-		pAdd = false;
+		if (value >= APPLY_SAVES && value < APPLY_SAVES_MAX)
+		{
+			pMod = atoi(mod);
+			if (pMod == 0) pMod = 1;
+			if (atoi(mod) < 0) pNeg = true;
+		}
+		else
+		{
+			pMod = 1;
+			pNeg = false;
+		}
 		break;
     }
 
@@ -8283,7 +8348,7 @@ OEDIT(oedit_addaffect)
      * Modify based on random. This prevents people adding 123123
      * negative affects which dont ever actually repop on the item.
      */
-    if (pAdd)
+    if (pNeg)
     {
         if (atoi(randm) < 10) pMod = 0;
         else if (atoi(randm) < 25) pMod = (int) pMod/4;
@@ -8293,16 +8358,16 @@ OEDIT(oedit_addaffect)
 
     pMod = abs(pMod);
 
-    if (!pAdd && (pObj->points - pMod) < 0)
+    if (!pNeg && (pObj->points - pMod) < 0)
     {
         send_to_char("You've already added enough positive affects.\n\r", ch);
         return false;
     }
 
-    if (!pAdd)
-        pObj->points -= pMod;
-    else
+    if (pNeg)
         pObj->points += pMod;
+    else
+        pObj->points -= pMod;
 
     pAf             =   new_affect();
     pAf->next	    =   NULL;
@@ -11088,6 +11153,107 @@ OEDIT(oedit_type_book)
 }
 
 
+OEDIT(oedit_type_cart)
+{
+	OBJ_INDEX_DATA *pObj;
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_CART(pObj))
+		{
+			send_to_char("Syntax:  cart flags <flags>\n\r", ch);
+			send_to_char("         cart minstrength <strength>\n\r", ch);
+			send_to_char("         cart movedelay <delay>\n\r", ch);
+
+			if (pObj->item_type != ITEM_CART)
+				send_to_char("         cart remove\n\r", ch);
+		}
+		else
+		{
+			send_to_char("Syntax:  cart add\n\r", ch);
+		}
+		return false;
+	}
+
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+
+	if (IS_CART(pObj))
+	{
+		if (!str_prefix(arg, "flags"))
+		{
+			long value;
+			if ((value = flag_value(cart_flags, argument)) == NO_FLAG)
+			{
+				send_to_char("Invalid cart flags.  Use '? cart' for list of valid flags.\n\r", ch);
+				show_flag_cmds(ch, cart_flags);
+				return false;
+			}
+
+			TOGGLE_BIT(CART(pObj)->flags, value);
+			send_to_char("CART Flags toggled.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "minstrength"))
+		{
+			int minstr;
+			if (!is_number(argument) || (minstr = atoi(argument)) < 0)
+			{
+				send_to_char("Please provide a non-negative number.\n\r", ch);
+				return false;
+			}
+
+			CART(pObj)->min_strength = minstr;
+			send_to_char("CART Minimum Strength changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "movedelay"))
+		{
+			int delay;
+			if (!is_number(argument) || (delay = atoi(argument)) < 0)
+			{
+				send_to_char("Please provide a non-negative number.\n\r", ch);
+				return false;
+			}
+
+			CART(pObj)->move_delay = delay;
+			send_to_char("CART Move Delay changed.\n\r", ch);
+			return true;
+		}
+
+		if (pObj->item_type != ITEM_CART)
+		{
+			if(!str_prefix(arg, "remove"))
+			{
+				free_cart_data(CART(pObj));
+				CART(pObj) = NULL;
+
+				send_to_char("CART type removed.\n\r\n\r", ch);
+				return true;
+			}
+		}
+	}
+	else if(!str_prefix(arg, "add"))
+	{
+		if (!obj_index_can_add_item_type(pObj, ITEM_CART))
+		{
+			send_to_char("You cannot add this item type to this object.\n\r", ch);
+			return false;
+		}
+		
+		CART(pObj) = new_cart_data();
+		send_to_char("CART type added.\n\r\n\r", ch);
+		return true;
+	}
+
+	oedit_type_cart(ch, "");
+	return false;
+}
+
 OEDIT(oedit_type_compass)
 {
 	OBJ_INDEX_DATA *pObj;
@@ -12591,7 +12757,8 @@ OEDIT(oedit_type_furniture)
 	{
 		if (IS_FURNITURE(pObj))
 		{
-			send_to_char("Syntax:  furniture main <compartment#|none>\n\r", ch);
+			send_to_char("Syntax:  furniture flags <flags>\n\r", ch);
+			send_to_char("         furniture main <compartment#|none>\n\r", ch);
 			send_to_char("         furniture compartment list\n\r", ch);
 			send_to_char("         furniture compartment clear\n\r", ch);
 			send_to_char("         furniture compartment add <name>\n\r", ch);
@@ -12638,6 +12805,21 @@ OEDIT(oedit_type_furniture)
 	argument = one_argument(argument, arg);
 	if (IS_FURNITURE(pObj))
 	{
+		if (!str_prefix(arg, "flags"))
+		{
+			long value;
+			if ((value = flag_value(furniture_flags, argument)) == NO_FLAG)
+			{
+				send_to_char("Invalid furniture flags.\n\r", ch);
+				send_to_char("Type '? furniture' to see list of flags.\n\r", ch);
+				return false;
+			}
+
+			TOGGLE_BIT(FURNITURE(pObj)->flags, value);
+			send_to_char("FURNITURE Flags toggled.\n\r", ch);
+			return true;
+		}
+
 		if (!str_prefix(arg, "main"))
 		{
 			if (argument[0] != '\0')
@@ -12725,15 +12907,15 @@ OEDIT(oedit_type_furniture)
 								sprintf(buf, "   Max Weight: %d\n\r", compartment->max_weight);
 							add_buf(buffer, buf);
 
-							sprintf(buf, "   Standing: %s\n\r", flag_string(furniture_flags, compartment->standing));
+							sprintf(buf, "   Standing: %s\n\r", flag_string(furniture_action_flags, compartment->standing));
 							add_buf(buffer, buf);
-							sprintf(buf, "   Hanging:  %s\n\r", flag_string(furniture_flags, compartment->hanging));
+							sprintf(buf, "   Hanging:  %s\n\r", flag_string(furniture_action_flags, compartment->hanging));
 							add_buf(buffer, buf);
-							sprintf(buf, "   Sitting:  %s\n\r", flag_string(furniture_flags, compartment->sitting));
+							sprintf(buf, "   Sitting:  %s\n\r", flag_string(furniture_action_flags, compartment->sitting));
 							add_buf(buffer, buf);
-							sprintf(buf, "   Resting:  %s\n\r", flag_string(furniture_flags, compartment->resting));
+							sprintf(buf, "   Resting:  %s\n\r", flag_string(furniture_action_flags, compartment->resting));
 							add_buf(buffer, buf);
-							sprintf(buf, "   Sleeping: %s\n\r", flag_string(furniture_flags, compartment->sleeping));
+							sprintf(buf, "   Sleeping: %s\n\r", flag_string(furniture_action_flags, compartment->sleeping));
 							add_buf(buffer, buf);
 
 							sprintf(buf, "   Health Regen: %d\n\r", compartment->health_regen);
@@ -13076,7 +13258,7 @@ OEDIT(oedit_type_furniture)
 					if (!str_prefix(arg3, "standing"))
 					{
 						long value;
-						if ((value = flag_value(furniture_flags, argument)) == NO_FLAG)
+						if ((value = flag_value(furniture_action_flags, argument)) == NO_FLAG)
 						{
 							send_to_char("Invalid standing flags.\n\r", ch);
 							send_to_char("Type '? furniture' to see list of flags.\n\r", ch);
@@ -13091,7 +13273,7 @@ OEDIT(oedit_type_furniture)
 					if (!str_prefix(arg3, "hanging"))
 					{
 						long value;
-						if ((value = flag_value(furniture_flags, argument)) == NO_FLAG)
+						if ((value = flag_value(furniture_action_flags, argument)) == NO_FLAG)
 						{
 							send_to_char("Invalid hanging flags.\n\r", ch);
 							send_to_char("Type '? furniture' to see list of flags.\n\r", ch);
@@ -13106,7 +13288,7 @@ OEDIT(oedit_type_furniture)
 					if (!str_prefix(arg3, "sitting"))
 					{
 						long value;
-						if ((value = flag_value(furniture_flags, argument)) == NO_FLAG)
+						if ((value = flag_value(furniture_action_flags, argument)) == NO_FLAG)
 						{
 							send_to_char("Invalid sitting flags.\n\r", ch);
 							send_to_char("Type '? furniture' to see list of flags.\n\r", ch);
@@ -13121,7 +13303,7 @@ OEDIT(oedit_type_furniture)
 					if (!str_prefix(arg3, "resting"))
 					{
 						long value;
-						if ((value = flag_value(furniture_flags, argument)) == NO_FLAG)
+						if ((value = flag_value(furniture_action_flags, argument)) == NO_FLAG)
 						{
 							send_to_char("Invalid resting flags.\n\r", ch);
 							send_to_char("Type '? furniture' to see list of flags.\n\r", ch);
@@ -13136,7 +13318,7 @@ OEDIT(oedit_type_furniture)
 					if (!str_prefix(arg3, "sleeping"))
 					{
 						long value;
-						if ((value = flag_value(furniture_flags, argument)) == NO_FLAG)
+						if ((value = flag_value(furniture_action_flags, argument)) == NO_FLAG)
 						{
 							send_to_char("Invalid sleeping flags.\n\r", ch);
 							send_to_char("Type '? furniture' to see list of flags.\n\r", ch);

@@ -378,6 +378,7 @@ extern	const	struct	flag_type	area_who_titles[];
 extern	const	struct	flag_type	area_who_display[];
 extern	const	struct	flag_type	sex_flags[];
 extern	const	struct	flag_type	furniture_flags[];
+extern	const	struct	flag_type	furniture_action_flags[];
 extern	const	struct	flag_type	weapon_class[];
 extern	const	struct	flag_type	ranged_weapon_class[];
 extern	const	struct	flag_type	apply_types[];
@@ -519,6 +520,8 @@ extern const struct flag_type command_types[];
 extern const struct flag_type sector_flags[];
 extern const struct flag_type sector_classes[];
 extern const struct global_sector_type global_sector_table[];
+
+extern const struct flag_type cart_flags[];
 
 #endif
 

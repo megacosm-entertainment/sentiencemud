@@ -4206,7 +4206,7 @@ void act_new(char *format, CHAR_DATA *ch,
                           else bug("Act: bad code $T for 'arg2'",0);
                           break;
                 case 'v': if (vch2&&to) {
-                          if (see_all || (to->tot_level >= 150 && !IS_NPC(vch2)))
+                          if (see_all || (IS_IMMORTAL(to) && !IS_NPC(vch2)))
 							i = ch->name;
                           else
 							i = pers(vch2,  to );
@@ -4214,7 +4214,7 @@ void act_new(char *format, CHAR_DATA *ch,
                           else bug("Act: bad code $v for 'vch2' or 'to'",0);
                           break;
                 case 'n': if (ch&&to) {
-                          if (see_all || (to->tot_level >= 150 && !IS_NPC(ch)))
+                          if (see_all || (IS_IMMORTAL(to) && !IS_NPC(ch)))
 							i = ch->name;
                           else
 							i = pers(ch,  to );
@@ -4222,7 +4222,7 @@ void act_new(char *format, CHAR_DATA *ch,
                           else bug("Act: bad code $n for 'ch' or 'to'",0);
                           break;
                 case 'N': if (vch&&to) {
-                          if (see_all || (to->tot_level >= 150 && !IS_NPC(vch)))
+                          if (see_all || (IS_IMMORTAL(to) && !IS_NPC(vch)))
 							i = vch->name;
                           else
 							i = pers(vch,  to );

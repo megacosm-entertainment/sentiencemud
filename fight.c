@@ -1490,7 +1490,8 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, SKI
 	victim->hit_type = dt;
 	victim->hit_class = dam_type;
 	victim->hit_skill = skill;
-	p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, weapon, NULL, TRIG_CHECK_DAMAGE, show?"visible":"hidden",0,0,0,0,0);
+	p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, weapon, NULL, TRIG_CHECK_DAMAGE, NULL,show,immune,0,0,0);
+	p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, weapon, NULL, TRIG_CHECK_DAMAGE, NULL,show,immune,0,0,0);
 
 	// Reset the damage down to zero if immune
 	if( immune ) dam = 0;

@@ -5871,6 +5871,58 @@ void free_book_data(BOOK_DATA *data)
     INVALIDATE(data);
 }
 
+// ============[ CART ]============
+CART_DATA *cart_data_free;
+CART_DATA *new_cart_data()
+{
+    CART_DATA *data;
+    if (cart_data_free)
+    {
+        data = cart_data_free;
+        cart_data_free = cart_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(CART_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    VALIDATE(data);
+    return data;
+}
+
+CART_DATA *copy_cart_data(CART_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    CART_DATA *data;
+    if (cart_data_free)
+    {
+        data = cart_data_free;
+        cart_data_free = cart_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(CART_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    data->flags = src->flags;
+    data->min_strength = src->min_strength;
+    data->move_delay = src->move_delay;
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_cart_data(CART_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    INVALIDATE(data);
+    data->next = cart_data_free;
+    cart_data_free = data;
+}
+
+
 // ==========[ COMPASS ]===========
 COMPASS_DATA *compass_data_free;
 COMPASS_DATA *new_compass_data()
@@ -6361,6 +6413,7 @@ FURNITURE_DATA *copy_furniture_data(FURNITURE_DATA *src)
         data = alloc_mem(sizeof(FURNITURE_DATA));
 
     // No need to memset here as all data fields are initialized
+    data->flags = src->flags;
     data->compartments = list_copy(src->compartments);
     data->main_compartment = src->main_compartment;
 

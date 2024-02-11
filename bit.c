@@ -273,6 +273,18 @@ char *affect_loc_name( int location )
 	case APPLY_SPELL_AFFECT:	return "none";
     case APPLY_XPBOOST:     return "XP %boost";
 	default:
+        if(location >= APPLY_SAVES && location < APPLY_SAVES_MAX)
+        {
+            int dam_type = location - APPLY_SAVES;
+            char *name = flag_string(damage_classes, dam_type);
+
+            if (dam_type > DAM_NONE && dam_type < DAM_MAX && str_cmp(name, "none"))
+                sprintf(buf[i], "saves against %s damage", name);
+            else
+                sprintf(buf[i], "saves against ??? damage");
+            return buf[i];
+        }
+
         // TODO: Need to fix this
 		if(location >= APPLY_SKILL) {
             SKILL_DATA *skill = get_skill_data_uid(location - APPLY_SKILL);

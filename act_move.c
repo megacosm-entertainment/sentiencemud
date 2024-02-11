@@ -389,7 +389,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow, bool fleeing)
 	if(p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_MOVE_CHAR, dir_name[ch->tempstore[0]],0,0,0,0,0))
 		return;
 
-	ch->in_room->tempstore[0] = URANGE(0,ch->tempstore[0],(MAX_DIR-1));;
+	ch->in_room->tempstore[0] = URANGE(0,ch->tempstore[0],(MAX_DIR-1));
 	if(p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_MOVE_CHAR, dir_name[ch->in_room->tempstore[0]],0,0,0,0,0))
 		return;
 
@@ -4961,4 +4961,316 @@ void do_land(CHAR_DATA *ch, char *argument)
 		affect_strip(ch, gsk_flight);
 		affect_strip(ch, gsk_fly);
 	}
+}
+
+// yoke <team animal> <team leader>
+void do_yoke(CHAR_DATA *ch, char *argument)
+{
+	int ret;
+	char arg[MIL];
+	CHAR_DATA *animal;
+	CHAR_DATA *leader;
+
+    if (argument[0] == '\0')
+    {
+		send_to_char("What do you want to yoke?\n\r", ch);
+		return;
+    }
+
+    if (IS_DEAD(ch))
+	{
+		send_to_char("You can't yoke anything while dead.\n\r", ch);
+		return;
+    }
+
+	argument = one_argument(argument, arg);
+
+	if ((animal = get_char_room(ch, NULL, arg)) == NULL)
+	{
+		send_to_char("You don't see that here.\n\r", ch);
+		return;
+	}
+
+	if (!IS_NPC(animal))
+	{
+		send_to_char("That... is not an animal.\n\r", ch);
+		return;
+	}
+
+	if (!IS_SET(animal->act[0], ACT_TEAM_ANIMAL))
+	{
+		send_to_char("Only team animals can be yoked in the first place.\n\r", ch);
+		return;
+	}
+
+	if (RIDDEN(animal))
+	{
+		act("$N is currently being ridden.", ch, animal, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (animal->leader != NULL)
+	{
+		act("$N is already in a group.", ch, animal, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (animal->master != NULL)
+	{
+		act("$N is already following someone else.", ch, animal, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if ((leader = get_char_room(ch, NULL, argument)) == NULL)
+	{
+		send_to_char("You don't see that here.\n\r", ch);
+		return;
+	}
+
+	if (!IS_NPC(leader))
+	{
+		send_to_char("That... is not an animal.\n\r", ch);
+		return;
+	}
+
+	if (!IS_SET(leader->act[0], ACT_TEAM_ANIMAL))
+	{
+		send_to_char("Only team animals can be yoked in the first place.\n\r", ch);
+		return;
+	}
+
+	if (RIDDEN(leader))
+	{
+		act("$N is currently being ridden.", ch, leader, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (leader->leader != NULL)
+	{
+		act("$N is already in a group.", ch, leader, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	// Following someone else and is not already in a pack.
+	if (leader->master != NULL && leader->num_grouped < 1)
+	{
+		act("$N is already following someone else.", ch, leader, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	// TODO: Possible restriction for yoking
+
+	ret = p_percent_trigger(animal, NULL, NULL, NULL, ch, NULL, leader, NULL, NULL, TRIG_PREYOKE, NULL,0,0,0,0,0);
+	if (ret)
+	{
+		if (ret != PRET_SILENT)
+			act("You cannot yoke $N with $v.", ch, animal, leader, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+	ret = p_percent_trigger(leader, NULL, NULL, NULL, ch, animal, NULL, NULL, NULL, TRIG_PREYOKE, NULL,0,0,0,0,0);
+	if (ret)
+	{
+		if (ret != PRET_SILENT)
+			act("You cannot yoke $N with $v.", ch, animal, leader, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (add_grouped(animal, leader, false))
+	{
+		add_follower(animal, leader, false);
+
+		act("You yoke $N with $v.", ch, animal, leader, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$n yokes you with $v.", ch, animal, leader, NULL, NULL, NULL, NULL, TO_VICT);
+		act("$n yokes $N with you.", ch, animal, leader, NULL, NULL, NULL, NULL, TO_THIRD);
+		act("$n yokes $N with $v.", ch, animal, leader, NULL, NULL, NULL, NULL, TO_NOTTHIRD);
+
+		p_percent_trigger(animal, NULL, NULL, NULL, ch, NULL, leader, NULL, NULL, TRIG_YOKE, NULL,0,0,0,0,0);
+		p_percent_trigger(leader, NULL, NULL, NULL, ch, animal, NULL, NULL, NULL, TRIG_YOKE, NULL,0,0,0,0,0);
+	}
+	else
+		act("You cannot yoke $N with $v.", ch, animal, leader, NULL, NULL, NULL, NULL, TO_CHAR);
+}
+
+// unyoke <team animal>
+void do_unyoke(CHAR_DATA *ch, char *argument)
+{
+	int ret;
+	CHAR_DATA *animal;
+
+    if (argument[0] == '\0')
+    {
+		send_to_char("What do you want to unyoke?\n\r", ch);
+		return;
+    }
+
+    if (IS_DEAD(ch))
+	{
+		send_to_char("You can't unyoke anything while dead.\n\r", ch);
+		return;
+    }
+
+	if ((animal = get_char_room(ch, NULL, argument)) == NULL)
+	{
+		send_to_char("You don't see that here.\n\r", ch);
+		return;
+	}
+
+	if (!IS_NPC(animal))
+	{
+		send_to_char("That... is not an animal.\n\r", ch);
+		return;
+	}
+
+	if (!IS_SET(animal->act[0], ACT_TEAM_ANIMAL))
+	{
+		send_to_char("Only team animals can be yoked in the first place.\n\r", ch);
+		return;
+	}
+
+	if (RIDDEN(animal))
+	{
+		act("$N is currently being ridden.", ch, animal, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (animal->leader == NULL)
+	{
+		act("$N is not yoked with anything.", ch, animal, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (animal->num_grouped > 0)
+	{
+		act("$N is the team leader.  Please unyoke the other animals first.", ch, animal, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	// TODO: Possible restriction for unyoking
+
+	ret = p_percent_trigger(animal, NULL, NULL, NULL, ch, NULL, animal->leader, NULL, NULL, TRIG_PREUNYOKE, NULL,0,0,0,0,0);
+	if (ret)
+	{
+		if (ret != PRET_SILENT)
+			act("You cannot unyoke $N from $v.", ch, animal, animal->leader, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+	ret = p_percent_trigger(animal->leader, NULL, NULL, NULL, ch, animal, NULL, NULL, NULL, TRIG_PREUNYOKE, NULL,0,0,0,0,0);
+	if (ret)
+	{
+		if (ret != PRET_SILENT)
+			act("You cannot unyoke $N from $v.", ch, animal, animal->leader, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	CHAR_DATA *leader = animal->leader;
+	stop_follower(animal, false);
+
+	act("You unyoke $N from $v.", ch, animal, leader, NULL, NULL, NULL, NULL, TO_CHAR);
+	act("$n unyokes you from $v.", ch, animal, leader, NULL, NULL, NULL, NULL, TO_VICT);
+	act("$n unyokes $N from you.", ch, animal, leader, NULL, NULL, NULL, NULL, TO_THIRD);
+	act("$n unyokes $N from $v.", ch, animal, leader, NULL, NULL, NULL, NULL, TO_NOTTHIRD);
+
+	p_percent_trigger(animal, NULL, NULL, NULL, ch, NULL, leader, NULL, NULL, TRIG_UNYOKE, NULL,0,0,0,0,0);
+	p_percent_trigger(leader, NULL, NULL, NULL, ch, animal, NULL, NULL, NULL, TRIG_UNYOKE, NULL,0,0,0,0,0);
+}
+
+
+// LEAD <mobile>
+// This is basically the counterpart to "follow".
+void do_lead(CHAR_DATA *ch, char *argument)
+{
+	int ret;
+	CHAR_DATA *mob;
+
+    if (argument[0] == '\0')
+    {
+		send_to_char("What do you want to lead?\n\r", ch);
+		return;
+    }
+
+    if (IS_DEAD(ch))
+	{
+		send_to_char("You can't lead anything while dead.\n\r", ch);
+		return;
+    }
+
+	if ((mob = get_char_room(ch, NULL, argument)) == NULL)
+	{
+		send_to_char("You don't see that here.\n\r", ch);
+		return;
+	}
+
+	if (!IS_NPC(mob))
+	{
+		send_to_char("Good luck leading that.\n\r", ch);
+		return;
+	}
+
+	if (!IS_SET(mob->act[0], ACT_CAN_BE_LED))
+	{
+		act("$N cannot be led.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (mob->master != NULL)
+	{
+		act("$N is following someone else.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	ret = p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRELEAD, NULL,0,0,0,0,0);
+	if (ret)
+	{
+		if (ret != PRET_SILENT)
+			act("$N doesn't want to follow you.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	add_follower(mob, ch, true);
+
+	p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LEAD, NULL,0,0,0,0,0);
+}
+
+// UNLEAD <follower>
+// If they were grouped with you, they will also drop group in the process.
+void do_unlead(CHAR_DATA *ch, char *argument)
+{
+	int ret;
+	CHAR_DATA *mob;
+
+    if (argument[0] == '\0')
+    {
+		send_to_char("What do you want to unlead?\n\r", ch);
+		return;
+    }
+
+    if (IS_DEAD(ch))
+	{
+		send_to_char("You can't unlead anything while dead.\n\r", ch);
+		return;
+    }
+
+	if ((mob = get_char_room(ch, NULL, argument)) == NULL)
+	{
+		send_to_char("You don't see that here.\n\r", ch);
+		return;
+	}
+
+	if (mob->master != ch)
+	{
+		act("$N isn't following you.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	ret = p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREUNLEAD, NULL,0,0,0,0,0);
+	if (ret)
+	{
+		if (ret != PRET_SILENT)
+			act("$N doesn't want to stop following you.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	stop_follower(mob, true);
+
+	p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_UNLEAD, NULL,0,0,0,0,0);
 }

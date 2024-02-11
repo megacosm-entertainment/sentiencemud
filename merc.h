@@ -504,6 +504,7 @@ typedef struct adornment_data ADORNMENT_DATA;
 typedef struct obj_ammo_data AMMO_DATA;
 typedef struct obj_armor_data ARMOR_DATA;
 typedef struct obj_book_data BOOK_DATA;
+typedef struct obj_cart_data CART_DATA;
 typedef struct obj_compass_data COMPASS_DATA;
 typedef struct container_filter_data CONTAINER_FILTER;
 typedef struct obj_container_data CONTAINER_DATA;
@@ -2382,7 +2383,7 @@ struct affliction_type {
 #define ACT_CREW_SELLER			(M)
 #define ACT_NO_LORE             (N)
 #define ACT_UNDEAD				(O)
-//								(P)
+#define ACT_TEAM_ANIMAL			(P)
 #define ACT_CLERIC				(Q)
 #define ACT_MAGE				(R)
 #define ACT_THIEF				(S)
@@ -2392,7 +2393,7 @@ struct affliction_type {
 #define ACT_OUTDOORS			(W)
 #define ACT_IS_RESTRINGER		(X)
 #define ACT_INDOORS				(Y)
-//                              Z
+#define ACT_CAN_BE_LED          (Z)
 //                              aa
 #define ACT_STAY_LOCALE			(bb)
 #define ACT_UPDATE_ALWAYS		(cc)
@@ -2406,7 +2407,7 @@ struct affliction_type {
 #define ACT2_NO_HUNT			(D)
 #define ACT2_AIRSHIP_SELLER     (E)
 #define ACT2_WIZI_MOB			(F)
-#define ACT2_TRADER				(G)
+#define ACT2_TRADER				(G)             // TODO: Replace with shop functionality?
 #define ACT2_LOREMASTER			(H)
 #define ACT2_NO_RESURRECT       (I)
 #define ACT2_DROP_EQ			(J)
@@ -2416,13 +2417,13 @@ struct affliction_type {
 #define ACT2_RESET_ONCE			(N)
 #define ACT2_SEE_ALL			(O)
 #define ACT2_NO_CHASE			(P)
-#define ACT2_TAKES_SKULLS		(Q)
-#define ACT2_PIRATE				(R)
+#define ACT2_TAKES_SKULLS		(Q)             // TODO: Replace with a trigger?
+#define ACT2_PIRATE				(R)             // TODO: Recycle?
 #define ACT2_PLAYER_HUNTER 		(S)
-#define ACT2_INVASION_LEADER 	(T)
-#define ACT2_INVASION_MOB    	(U)
+#define ACT2_INVASION_LEADER 	(T)             // TODO: Recycle?
+#define ACT2_INVASION_MOB    	(U)             // TODO: Recycle?
 #define ACT2_SEE_WIZI			(V)
-#define ACT2_SOUL_DEPOSIT		(W)
+#define ACT2_SOUL_DEPOSIT		(W)             // TODO: Replace with a verb trigger?
 #define ACT2_USE_SKILLS_ONLY	(X)
 #define ACT2_SHOW_IN_WILDS		(Y)
 #define ACT2_INSTANCE_MOB		(Z)				// Mob is spawned by the instance, does not get added to the dungeon lists
@@ -2467,7 +2468,8 @@ struct affliction_type {
 #define DAM_PLANT		26	/* @@@NIB : 20070124 */
 #define DAM_AIR			27	/* @@@NIB : 20070124 */
 #define DAM_SUFFOCATING 28
-#define DAM_MAX			29
+#define DAM_DEATH       29
+#define DAM_MAX			30
 
 /* OFF bits for mobiles */
 #define OFF_AREA_ATTACK         (A)
@@ -2907,7 +2909,7 @@ struct affliction_type {
 #define ITEM_KEY		     18
 #define ITEM_FOOD		     19
 #define ITEM_MONEY		     20
-#define ITEM_BOAT		     22
+//#define ITEM_BOAT		     22
 #define ITEM_CORPSE_NPC		     23
 #define ITEM_CORPSE_PC		     24
 //#define ITEM_FOUNTAIN		     25
@@ -3216,11 +3218,12 @@ struct affliction_type {
 #define APPLY_SKILL_LEARN       27      // Mobiles
 #define APPLY_PRACTICE_GAIN     28      // Mobiles
 #define APPLY_DEFENSE           29      // Mobiles
-#define APPLY_SPELL_AFFECT		50
+#define APPLY_SAVES             30      // Mobiles
+#define APPLY_SAVES_MAX         (APPLY_SAVES + DAM_MAX)
+#define APPLY_SPELL_AFFECT		(APPLY_SAVES_MAX + 1)
+#define APPLY_SKILL			(APPLY_SPELL_AFFECT + 50)
 
-#define APPLY_SKILL			100
-
-#define APPLY_MAX		     20
+#define APPLY_MAX		     (APPLY_SKILL + 1)
 
 /*
  * Values for containers (value[1]).
@@ -4962,6 +4965,8 @@ struct	char_data
     int			wimpy;
     int         xpboost;
 
+    int         saves_modifier[DAM_MAX];
+
     LLIST       *auras;
 
     /* stats */
@@ -5601,6 +5606,25 @@ struct obj_book_data {
     LOCK_STATE *lock;
 };
 
+// ============[ CART ]============
+#define CART(obj)               ((obj)->_cart)
+#define IS_CART(obj)            IS_VALID(CART(obj))
+
+#define CART_MOUNT_ONLY         (A)     // Only an NPC flagged as a MOUNT can pull the cart
+#define CART_TEAM_ANIMAL_ONLY   (B)     // Only an NPC flagged as a TEAM_ANIMAL can pull the cart
+
+struct obj_cart_data {
+    CART_DATA *next;
+    bool valid;
+
+    long flags;
+
+    int16_t min_strength;
+    int16_t move_delay;
+
+    // Anything else?
+};
+
 // ==========[ COMPASS ]===========
 #define COMPASS(obj)            ((obj)->_compass)
 #define IS_COMPASS(obj)         IS_VALID(COMPASS(obj))
@@ -5715,6 +5739,7 @@ struct obj_food_data {
 #define COMPARTMENT_CLOSED      (C)     // Compartment is closed
 #define COMPARTMENT_PUSHOPEN    (G)     // Need to push the compartment to open it
 #define COMPARTMENT_CLOSELOCK   (H)     // When you close the compartment, it locks automatically
+#define COMPARTMENT_BRIEF       (I)     // When in the compartment, it will act as if you have the BRIEF flag set
 #define COMPARTMENT_UNDERWATER  (W)     // Compartment is considered underwater
 #define COMPARTMENT_TRANSPARENT (X)     // Compartment can show the outside or be seen into regardless if the compartment is closed
 #define COMPARTMENT_ALLOW_MOVE  (Y)     // Compartment lets you move while on it.  Will automatically take you off the furniture.
@@ -5725,6 +5750,8 @@ struct obj_food_data {
 #define FURNITURE_AT            (C)
 #define FURNITURE_ABOVE         (D)
 #define FURNITURE_UNDER         (E)
+
+#define FURNITURE_KEEP_OCCUPANTS       (A) // Keep occupants when moved
 
 struct furniture_compartment_data {
     FURNITURE_COMPARTMENT *next;
@@ -5758,6 +5785,7 @@ struct obj_furniture_data {
     FURNITURE_DATA *next;
     bool valid;
 
+    long flags;
     LLIST *compartments;
     int main_compartment;
 };
@@ -6232,6 +6260,7 @@ struct	obj_index_data
     AMMO_DATA *_ammo;
     ARMOR_DATA *_armor;
     BOOK_DATA *_book;
+    CART_DATA *_cart;
     COMPASS_DATA *_compass;
     CONTAINER_DATA *_container;
     FLUID_CONTAINER_DATA *_fluid_container;
@@ -6350,6 +6379,7 @@ struct	obj_data
     AMMO_DATA *_ammo;
     ARMOR_DATA *_armor;
     BOOK_DATA *_book;
+    CART_DATA *_cart;
     COMPASS_DATA *_compass;
     CONTAINER_DATA *_container;
     FLUID_CONTAINER_DATA *_fluid_container;
@@ -8230,6 +8260,7 @@ enum trigger_index_enum {
 	TRIG_HIDDEN,		// After the mob has hidden (mob and token only)
 	TRIG_HIDE,			// Act of hiding (mob, object and token)
 	TRIG_HIT,
+    TRIG_HITCH,
 	TRIG_HITGAIN,
 	TRIG_HPCNT,
 	TRIG_IDENTIFY,
@@ -8241,6 +8272,7 @@ enum trigger_index_enum {
 	TRIG_KNOCK,
 	TRIG_KNOCKING,
 	TRIG_LAND,
+    TRIG_LEAD,
 	TRIG_LEVEL,
     TRIG_LOCK,
 	TRIG_LOGIN,
@@ -8285,8 +8317,10 @@ enum trigger_index_enum {
 	TRIG_PREGET,
 	TRIG_PREHIDE,			// NIB 20140522 - trigger for testing if you can hide yourself or the object in question
 	TRIG_PREHIDE_IN,		// NIB 20140522 - trigger for testing if the container or mob you are trying to hide an object in will allow it
+    TRIG_PREHITCH,
     TRIG_PREIGNITE,
 	TRIG_PREKILL,
+    TRIG_PRELEAD,
     TRIG_PRELOCK,
 	TRIG_PREMISSION,			// Allows custom checking for missions, also allows setting the number of mission parts.
 	TRIG_PREMOUNT,
@@ -8295,6 +8329,7 @@ enum trigger_index_enum {
 	TRIG_PREPRACTICEOTHER,
 	TRIG_PREPRACTICETHAT,
 	TRIG_PREPRACTICETOKEN,
+    TRIG_PREPULL,
 	TRIG_PREPUT,
 	TRIG_PRERECALL,
 	TRIG_PRERECITE,
@@ -8313,10 +8348,14 @@ enum trigger_index_enum {
     TRIG_PRESTEPOFF,
 	TRIG_PRETRAIN,
 	TRIG_PRETRAINTOKEN,
+    TRIG_PREUNHITCH,
+    TRIG_PREUNLEAD,
     TRIG_PREUNLOCK,
+    TRIG_PREUNYOKE,
 	TRIG_PREWAKE,
 	TRIG_PREWEAR,
 	TRIG_PREWIMPY,
+    TRIG_PREYOKE,
     TRIG_PREZAP,
 	TRIG_PULL,
 	TRIG_PULL_ON,		/* NIB : 20070121 */
@@ -8403,7 +8442,10 @@ enum trigger_index_enum {
 	TRIG_TURN,
 	TRIG_TURN_ON,		/* NIB : 20070121 */
 	TRIG_UNGROUPED,
+    TRIG_UNHITCH,
+    TRIG_UNLEAD,
     TRIG_UNLOCK,
+    TRIG_UNYOKE,
 	TRIG_USE,
 	TRIG_USEWITH,
 	TRIG_VERB,
@@ -8419,6 +8461,7 @@ enum trigger_index_enum {
     TRIG_XPBONUS,
     TRIG_XPCOMPUTE,
 	TRIG_XPGAIN,
+    TRIG_YOKE,
 	TRIG_ZAP,
     TRIG__MAX
 };

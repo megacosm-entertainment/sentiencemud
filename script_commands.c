@@ -45,6 +45,7 @@ const struct script_cmd_type area_cmd_table[] = {
 	{ "addaura",			scriptcmd_addaura,			true,	true	},
 	{ "bribetrigger",			scriptcmd_bribetrigger,	true,	false	},
 	{ "call",				scriptcmd_call,				false,	true	},
+	{ "churchannouncetheft",	scriptcmd_churchannouncetheft,	true, true },
 	{ "directiontrigger",		scriptcmd_directiontrigger,	true,	false	},
 	{ "dungeoncommence",	scriptcmd_dungeoncommence,	true,	true	},
 	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
@@ -97,6 +98,7 @@ const struct script_cmd_type instance_cmd_table[] = {
 	{ "addaura",			scriptcmd_addaura,			true,	true	},
 	{ "bribetrigger",			scriptcmd_bribetrigger,	true,	false	},
 	{ "call",				scriptcmd_call,				false,	true	},
+	{ "churchannouncetheft",	scriptcmd_churchannouncetheft,	true, true },
 	{ "directiontrigger",		scriptcmd_directiontrigger,	true,	false	},
 	{ "dungeoncommence",	scriptcmd_dungeoncommence,	true,	true	},
 	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
@@ -155,6 +157,7 @@ const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "addaura",			scriptcmd_addaura,			true,	true	},
 	{ "bribetrigger",			scriptcmd_bribetrigger,	true,	false	},
 	{ "call",				scriptcmd_call,				false,	true	},
+	{ "churchannouncetheft",	scriptcmd_churchannouncetheft,	true, true },
 	{ "directiontrigger",		scriptcmd_directiontrigger,	true,	false	},
 	{ "dungeoncommence",	scriptcmd_dungeoncommence,	true,	true	},
 	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
@@ -489,7 +492,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 	if (loc == APPLY_SKILL)
 	{
 		if(!(rest = expand_argument(info,rest,arg))) {
-			bug("AddAffectName - Error in parsing.",0);
+			bug("AddAffect - Error in parsing.",0);
 			return;
 		}
 
@@ -500,6 +503,22 @@ SCRIPT_CMD(scriptcmd_addaffect)
 			loc += sk->uid;
 		else
 			loc = APPLY_NONE;
+	}
+	else if (loc == APPLY_SAVES)
+	{
+		if(!(rest = expand_argument(info,rest,arg))) {
+			bug("AddAffect - Error in parsing.",0);
+			return;
+		}
+
+		if (arg->type != ENT_STRING) return;
+
+		int dam_type = stat_lookup(arg->d.str, damage_classes, DAM_NONE);
+
+		if (dam_type == DAM_NONE)
+			loc = APPLY_NONE;
+		else
+			loc += dam_type;
 	}
 
 	//
@@ -850,6 +869,22 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 			loc += sk->uid;
 		else
 			loc = APPLY_NONE;
+	}
+	else if (loc == APPLY_SAVES)
+	{
+		if(!(rest = expand_argument(info,rest,arg))) {
+			bug("AddAffect - Error in parsing.",0);
+			return;
+		}
+
+		if (arg->type != ENT_STRING) return;
+
+		int dam_type = stat_lookup(arg->d.str, damage_classes, DAM_NONE);
+
+		if (dam_type == DAM_NONE)
+			loc = APPLY_NONE;
+		else
+			loc += dam_type;
 	}
 
 
@@ -1722,6 +1757,30 @@ SCRIPT_CMD(scriptcmd_call)
 	script_call_depth = depth;
 }
 
+SCRIPT_CMD(scriptcmd_churchannouncetheft)
+{
+	char *rest = argument;
+	CHAR_DATA *thief;
+	OBJ_DATA *stolen;
+
+	if (!info) return;
+
+	SETRETURN(0);
+
+	PARSE_ARGTYPE(MOBILE);
+	thief = arg->d.mob;
+
+	stolen = NULL;
+	if (rest && *rest)
+	{
+		PARSE_ARGTYPE(OBJECT);
+		stolen = arg->d.obj;
+	}
+
+	church_announce_theft(thief, stolen);
+	SETRETURN(1);
+}
+
 //////////////////////////////////////
 // D
 
@@ -2217,7 +2276,7 @@ SCRIPT_CMD(scriptcmd_dungeonfailure)
 //////////////////////////////////////
 // E
 
-// ECHOAT $MOBILE|ROOM|$AREA|INSTANCE|DUNGEON string
+// ECHOAT $MOBILE|ROOM|$AREA|INSTANCE|DUNGEON|CHURCH string
 SCRIPT_CMD(scriptcmd_echoat)
 {
 	char *rest;
@@ -2226,6 +2285,7 @@ SCRIPT_CMD(scriptcmd_echoat)
 	AREA_DATA *area = NULL;
 	INSTANCE *instance = NULL;
 	DUNGEON *dungeon = NULL;
+	CHURCH_DATA *church = NULL;
 
 	if(!info) return;
 
@@ -2240,6 +2300,7 @@ SCRIPT_CMD(scriptcmd_echoat)
 	case ENT_AREA: area = arg->d.area; break;
 	case ENT_INSTANCE: instance = arg->d.instance; break;
 	case ENT_DUNGEON: dungeon = arg->d.dungeon; break;
+	case ENT_CHURCH: church = arg->d.church; break;
 	default: return;
 	}
 
@@ -2256,6 +2317,8 @@ SCRIPT_CMD(scriptcmd_echoat)
 			instance_echo(instance, buffer->string);
 		else if( IS_VALID(dungeon) )
 			dungeon_echo(dungeon, buffer->string);
+		else if( church )
+			church_echo(church, buffer->string);
 		else if( area )
 			area_echo(area, buffer->string);
 		else if( room )
@@ -9283,11 +9346,11 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		if(!str_cmp(field,"flags"))				{ ptr = (int *)&compartment->flags; flags = compartment_flags; allowarith = false; allowbitwise = true; }
 		else if(!str_cmp(field,"occupants"))	{ ptr = (int *)&compartment->max_occupants; allowarith = true; allowbitwise = false; min = 0; hasmin = true; }
 		else if(!str_cmp(field,"weight"))		{ ptr = (int *)&compartment->max_weight; allowarith = true; allowbitwise = false; min = 0; hasmin = true; }
-		else if(!str_cmp(field,"standing"))		{ ptr = (int *)&compartment->standing; flags = furniture_flags; allowarith = false; allowbitwise = true; }
-		else if(!str_cmp(field,"hanging"))		{ ptr = (int *)&compartment->hanging; flags = furniture_flags; allowarith = false; allowbitwise = true; }
-		else if(!str_cmp(field,"sitting"))		{ ptr = (int *)&compartment->sitting; flags = furniture_flags; allowarith = false; allowbitwise = true; }
-		else if(!str_cmp(field,"resting"))		{ ptr = (int *)&compartment->resting; flags = furniture_flags; allowarith = false; allowbitwise = true; }
-		else if(!str_cmp(field,"sleeping"))		{ ptr = (int *)&compartment->sleeping; flags = furniture_flags; allowarith = false; allowbitwise = true; }
+		else if(!str_cmp(field,"standing"))		{ ptr = (int *)&compartment->standing; flags = furniture_action_flags; allowarith = false; allowbitwise = true; }
+		else if(!str_cmp(field,"hanging"))		{ ptr = (int *)&compartment->hanging; flags = furniture_action_flags; allowarith = false; allowbitwise = true; }
+		else if(!str_cmp(field,"sitting"))		{ ptr = (int *)&compartment->sitting; flags = furniture_action_flags; allowarith = false; allowbitwise = true; }
+		else if(!str_cmp(field,"resting"))		{ ptr = (int *)&compartment->resting; flags = furniture_action_flags; allowarith = false; allowbitwise = true; }
+		else if(!str_cmp(field,"sleeping"))		{ ptr = (int *)&compartment->sleeping; flags = furniture_action_flags; allowarith = false; allowbitwise = true; }
 		else if(!str_cmp(field,"health"))		{ ptr = (int *)&compartment->health_regen; allowarith = true; allowbitwise = false; min = 0; hasmin = true; }
 		else if(!str_cmp(field,"mana"))			{ ptr = (int *)&compartment->mana_regen; allowarith = true; allowbitwise = false; min = 0; hasmin = true; }
 		else if(!str_cmp(field,"move"))			{ ptr = (int *)&compartment->move_regen; allowarith = true; allowbitwise = false; min = 0; hasmin = true; }

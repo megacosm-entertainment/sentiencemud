@@ -379,6 +379,7 @@ DECLARE_OLC_FUN( oedit_race );
 DECLARE_OLC_FUN( oedit_type_ammo );
 DECLARE_OLC_FUN( oedit_type_armor );
 DECLARE_OLC_FUN( oedit_type_book );
+DECLARE_OLC_FUN( oedit_type_cart );
 DECLARE_OLC_FUN( oedit_type_compass );
 DECLARE_OLC_FUN( oedit_type_container );
 DECLARE_OLC_FUN( oedit_type_fluid_container );

@@ -630,6 +630,7 @@ enum entity_type_enum {
 	// Multi-typing
 	ENT_OBJECT_AMMO,
 	ENT_OBJECT_BOOK,
+	ENT_OBJECT_CART,
 	ENT_OBJECT_COMPASS,
 	ENT_OBJECT_CONTAINER,
 	ENT_OBJECT_FLUID_CONTAINER,
@@ -922,6 +923,7 @@ enum entity_mobile_enum {
 	ENTITY_MOB_CHECKPOINT,
 	ENTITY_MOB_VARIABLES,
 	ENTITY_MOB_GROUP,
+	ENTITY_MOB_NUMGROUPED,
 	ENTITY_MOB_DAMAGEDICE,
 	ENTITY_MOB_INDEX,
 	ENTITY_MOB_ACT,
@@ -940,6 +942,7 @@ enum entity_mobile_enum {
 	ENTITY_MOB_REPUTATION,
 	ENTITY_MOB_FACTIONS,
 	ENTITY_MOB_MISSIONS,
+	ENTITY_MOB_COMPARTMENT,
 };
 
 enum entity_reputation_enum
@@ -1011,6 +1014,7 @@ enum entity_object_enum {
 	ENTITY_OBJ_RACE,
 	ENTITY_OBJ_TYPE_AMMO,
 	ENTITY_OBJ_TYPE_BOOK,
+	ENTITY_OBJ_TYPE_CART,
 	ENTITY_OBJ_TYPE_COMPASS,
 	ENTITY_OBJ_TYPE_CONTAINER,
 	ENTITY_OBJ_TYPE_FLUID_CONTAINER,
@@ -1053,6 +1057,13 @@ enum entity_object_book_enum
 	ENTITY_OBJ_BOOK_OPENER,
 	ENTITY_OBJ_BOOK_PAGES,
 	ENTITY_OBJ_BOOK_LOCK,
+};
+
+enum entity_object_cart_enum
+{
+	ENTITY_OBJ_CART_FLAGS = ESCAPE_EXTRA,
+	ENTITY_OBJ_CART_MIN_STRENGTH,
+	ENTITY_OBJ_CART_MOVE_DELAY,
 };
 
 enum entity_object_compass_enum
@@ -3754,6 +3765,7 @@ SCRIPT_CMD(scriptcmd_remstache);
 
 SCRIPT_CMD(scriptcmd_setoutbound);
 SCRIPT_CMD(scriptcmd_setclasslevel);
+SCRIPT_CMD(scriptcmd_churchannouncetheft);
 
 bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);
 bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);

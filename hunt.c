@@ -18,9 +18,12 @@ void bcopy(register char *s1,register char *s2,int len);
 void bzero(register char *sp,int len);
 #endif
 
+typedef long long hashkey_t;
+typedef unsigned long long uhashkey_t;
+
 struct hash_link
 {
-    long long	key;
+    hashkey_t	key;
     struct hash_link	*next;
     void		*data;
 };
@@ -29,7 +32,7 @@ struct hash_header
 {
     int			rec_size;
     int			table_size;
-    long long		*keylist;
+    hashkey_t		*keylist;
     int     klistsize, klistlen; /* this is really lame,
 							  AMAZINGLY lame */
     struct hash_link	**buckets;
@@ -37,8 +40,8 @@ struct hash_header
 
 
 #define WORLD_SIZE	30000
-#define MAKEKEY(a, v) (long long)((((long long)(a))<<32) + (long long)(v))
-#define	HASH_KEY(ht,key)((int)((((unsigned long long)(key))*17)%(ht)->table_size))
+#define MAKEKEY(a, v) (hashkey_t)((((hashkey_t)(a))<<32) + (hashkey_t)(v))
+#define	HASH_KEY(ht,key)((int)((((uhashkey_t)(key))*17)%(ht)->table_size))
 
 struct hunting_data
 {
@@ -53,15 +56,6 @@ struct room_q
     struct room_q	*next_q;
 };
 
-struct nodes
-{
-    int	visited;
-    int	ancestor;
-};
-
-#define IS_DIR		(get_room_index(q_head->area_nr, q_head->room_nr)->exit[i])
-#define GO_OK		(!IS_SET( IS_DIR->exit_info, EX_CLOSED ))
-#define GO_OK_SMARTER	1
 
 #if defined( NO_BCOPY )
 void bcopy(register char *s1,register char *s2,int len)
@@ -82,14 +76,8 @@ void init_hash_table(struct hash_header	*ht,int rec_size,int table_size)
     ht->rec_size	= rec_size;
     ht->table_size= table_size;
     ht->buckets	= (void*)calloc(sizeof(struct hash_link**),table_size);
-    ht->keylist	= (void*)malloc(sizeof(long long)*(ht->klistsize=128));
+    ht->keylist	= (void*)malloc(sizeof(hashkey_t)*(ht->klistsize=128));
     ht->klistlen	= 0;
-}
-
-void init_world(ROOM_INDEX_DATA *room_db[])
-{
-    /* zero out the world */
-    bzero((char *)room_db,sizeof(ROOM_INDEX_DATA *)*WORLD_SIZE);
 }
 
 void destroy_hash_table(struct hash_header *ht,void (*gman)())
@@ -109,166 +97,100 @@ void destroy_hash_table(struct hash_header *ht,void (*gman)())
     free(ht->keylist);
 }
 
-void _hash_enter(struct hash_header *ht,long long key,void *data)
+void _hash_enter(struct hash_header *ht,hashkey_t key,void *data)
 {
     /* precondition: there is no entry for <key> yet */
-    struct hash_link	*temp;
-    int			i;
+    int i;
+    struct hash_link *temp = (struct hash_link *)malloc(sizeof(struct hash_link));
 
-    temp		= (struct hash_link *)malloc(sizeof(struct hash_link));
-  temp->key	= key;
-  temp->next	= ht->buckets[HASH_KEY(ht,key)];
-  temp->data	= data;
-  ht->buckets[HASH_KEY(ht,key)] = temp;
-  if(ht->klistlen>=ht->klistsize)
+    temp->key	= key;
+    temp->next	= ht->buckets[HASH_KEY(ht,key)];
+    temp->data	= data;
+    ht->buckets[HASH_KEY(ht,key)] = temp;
+
+    // Resize the keylist
+    if(ht->klistlen>=ht->klistsize)
     {
-      ht->keylist = (void*)realloc(ht->keylist,sizeof(long long)*
-				   (ht->klistsize*=2));
+        ht->keylist = (void*)realloc(ht->keylist,sizeof(hashkey_t)*(ht->klistsize*=2));
     }
-  for(i=ht->klistlen;i>=0;i--)
+    // Iterate over keylist to insert the keys in a sorted manner
+    // This had i >= 0, but that could have lead to looking outside the allocated memory
+    for(i=ht->klistlen; i>0; i--)
     {
-      if(ht->keylist[i-1]<key)
-	{
-	  ht->keylist[i] = key;
-	  break;
-	}
-      ht->keylist[i] = ht->keylist[i-1];
+        // Insert once we found a place
+        if(ht->keylist[i-1]<key)
+        {
+            ht->keylist[i] = key;
+            break;
+        }
+        // Move element up one to make room
+        ht->keylist[i] = ht->keylist[i-1];
     }
-  ht->klistlen++;
+    // If it reaches this point, the key belongs at the beginning of the array.
+    if (i == 0)
+        ht->keylist[0] = key;
+    ht->klistlen++;
 }
 
-ROOM_INDEX_DATA *room_find(ROOM_INDEX_DATA *room_db[],int key)
+void *hash_find(struct hash_header *ht,hashkey_t key)
 {
-  return((key<WORLD_SIZE&&key>-1)?room_db[key]:0);
+    struct hash_link *scan;
+
+    scan = ht->buckets[HASH_KEY(ht,key)];
+
+    while(scan && scan->key!=key)
+        scan = scan->next;
+
+    return scan ? scan->data : NULL;
 }
 
-void *hash_find(struct hash_header *ht,long long key)
-{
-  struct hash_link *scan;
-
-  scan = ht->buckets[HASH_KEY(ht,key)];
-
-  while(scan && scan->key!=key)
-    scan = scan->next;
-
-  return scan ? scan->data : NULL;
-}
-
-int room_enter(ROOM_INDEX_DATA *rb[],int key,ROOM_INDEX_DATA *rm)
-{
-  ROOM_INDEX_DATA *temp;
-
-  temp = room_find(rb,key);
-  if(temp) return(0);
-
-  rb[key] = rm;
-  return(1);
-}
-
-int hash_enter(struct hash_header *ht,long long key,void *data)
+bool hash_enter(struct hash_header *ht,hashkey_t key,void *data)
 {
     void *temp;
 
     temp = hash_find(ht,key);
-    if(temp) return 0;
+    if(temp) return false;
 
     _hash_enter(ht,key,data);
-    return 1;
+    return true;
 }
 
-
-ROOM_INDEX_DATA *room_find_or_create(ROOM_INDEX_DATA *rb[],int key)
+void *hash_remove(struct hash_header *ht,hashkey_t key)
 {
-    ROOM_INDEX_DATA *rv;
+    // This needs to be double pointer because it needs to update pointers
+    struct hash_link **scan;
 
-    rv = room_find(rb,key);
-    if(rv) return rv;
+    scan = ht->buckets+HASH_KEY(ht,key);
 
-    rv = (ROOM_INDEX_DATA *)malloc(sizeof(ROOM_INDEX_DATA));
-    rb[key] = rv;
+    while(*scan && (*scan)->key!=key)
+        scan = &(*scan)->next;
 
-    return rv;
-}
-
-
-void *hash_find_or_create(struct hash_header *ht,long long key)
-{
-    void *rval;
-
-    rval = hash_find(ht, key);
-    if(rval) return rval;
-
-    rval = (void*)malloc(ht->rec_size);
-    _hash_enter(ht,key,rval);
-
-    return rval;
-}
-
-
-int room_remove(ROOM_INDEX_DATA *rb[],int key)
-{
-    ROOM_INDEX_DATA *tmp;
-
-    tmp = room_find(rb,key);
-    if(tmp)
+    if(*scan)
     {
-	rb[key] = 0;
-	free(tmp);
-    }
-    return(0);
-}
+        int i;
+        struct hash_link *temp, *aux;
 
+        temp = (*scan)->data;
+        aux	= *scan;
+        *scan	= aux->next;
+        free(aux);
 
-void *hash_remove(struct hash_header *ht,long long key)
-{
-  struct hash_link **scan;
+        for(i=0;i<ht->klistlen;i++)
+            if(ht->keylist[i]==key)
+                break;
 
-  scan = ht->buckets+HASH_KEY(ht,key);
+        if(i<ht->klistlen)
+        {
+            bcopy((char *)ht->keylist+i+1,(char *)ht->keylist+i,
+                    (ht->klistlen-i)*sizeof(hashkey_t));
+            ht->klistlen--;
+        }
 
-  while(*scan && (*scan)->key!=key)
-    scan = &(*scan)->next;
-
-  if(*scan)
-    {
-      int		i;
-      struct hash_link	*temp, *aux;
-
-      temp	= (*scan)->data;
-      aux	= *scan;
-      *scan	= aux->next;
-      free(aux);
-
-      for(i=0;i<ht->klistlen;i++)
-	if(ht->keylist[i]==key)
-	  break;
-
-      if(i<ht->klistlen)
-	{
-	  bcopy((char *)ht->keylist+i+1,(char *)ht->keylist+i,(ht->klistlen-i)
-		*sizeof(long long));
-	  ht->klistlen--;
-	}
-
-      return temp;
+        return temp;
     }
 
-  return NULL;
+    return NULL;
 }
-
-
-void room_iterate(ROOM_INDEX_DATA *rb[],void (*func)(),void *cdata)
-{
-    register int i;
-
-    for( i = 0; i < WORLD_SIZE; i++ )
-    {
-	ROOM_INDEX_DATA *temp;
-
-	temp = room_find(rb,i);
-	if(temp) (*func)(i,temp,cdata);
-    }
-}
-
 
 void hash_iterate(struct hash_header *ht,void (*func)(),void *cdata)
 {
@@ -276,23 +198,21 @@ void hash_iterate(struct hash_header *ht,void (*func)(),void *cdata)
 
     for( i = 0 ; i < ht->klistlen; i++ )
     {
-	void		*temp;
-	register long long	key;
+        register hashkey_t key = ht->keylist[i];
+        void *temp = hash_find(ht,key);
 
-	key = ht->keylist[i];
-	temp = hash_find(ht,key);
-	(*func)(key,temp,cdata);
-	if(ht->keylist[i]!=key) /* They must have deleted this room */
-	    i--;		      /* Hit this slot again. */
+        (*func)(key,temp,cdata);
+
+        // Check if the function deleted the room, if so, reuse the index
+        if(ht->keylist[i]!=key)
+            i--;
     }
 }
 
 
-int exit_ok( EXIT_DATA *pexit )
+bool exit_ok( EXIT_DATA *pexit )
 {
-  ROOM_INDEX_DATA *to_room;
-
-  return ( pexit && (to_room = pexit->u1.to_room ) && !IS_SET(pexit->exit_info,EX_NOHUNT) );
+    return ( pexit && pexit->u1.to_room && !IS_SET(pexit->exit_info,EX_NOHUNT) );
 }
 
 
@@ -315,18 +235,16 @@ int find_path( AREA_DATA *in_area, long in_room_vnum, AREA_DATA *out_area, long 
 
     if ( depth <0 )
     {
-	thru_doors = true;
-	depth = -depth;
+    	thru_doors = true;
+    	depth = -depth;
     }
     else
-    {
-	thru_doors = false;
-    }
+    	thru_doors = false;
 
     startp = get_room_index( in_area, in_room_vnum );
 
     init_hash_table( &x_room, sizeof(int), 2048 );
-    hash_enter( &x_room, MAKEKEY(in_area->uid, in_room_vnum), (void *) - 1 );
+    hash_enter( &x_room, MAKEKEY(in_area->uid, in_room_vnum), (void *)-1 );
 
     /* initialize queue */
     q_head = (struct room_q *) malloc(sizeof(struct room_q));
@@ -337,95 +255,97 @@ int find_path( AREA_DATA *in_area, long in_room_vnum, AREA_DATA *out_area, long 
 
     while(q_head)
     {
-	herep = get_room_index( q_head->area_nr, q_head->room_nr );
-	/* for each room test all directions */
-	if( herep->area == startp->area || !in_zone )
-	{
-	    /* only look in this zone...
-	       saves cpu time and  makes world safer for players  */
-	    for( i = 0; i < MAX_DIR; i++ )
-	    {
-		exitp = herep->exit[i];
-		if( exit_ok(exitp) && ( thru_doors ? GO_OK_SMARTER : GO_OK ) )
-		{
-		    /* next room */
-            tmp_area = herep->exit[i]->u1.to_room->area;
-		    tmp_room = herep->exit[i]->u1.to_room->vnum;
-		    if( tmp_area != out_area || tmp_room != out_room_vnum )
-		    {
-			/* shall we add room to queue ?
-			   count determines total breadth and depth */
-			if( !hash_find( &x_room, tmp_room )
-				&& ( count < depth ) )
-			    /* && !IS_SET( RM_FLAGS(tmp_room), DEATH ) ) */
-			{
-			    count++;
-			    /* mark room as visted and put on queue */
+    	herep = get_room_index( q_head->area_nr, q_head->room_nr );
+        /* for each room test all directions */
+        if( herep->area == startp->area || !in_zone )
+        {
+            /* only look in this zone...
+            saves cpu time and  makes world safer for players  */
+            for( i = 0; i < MAX_DIR; i++ )
+            {
+                exitp = herep->exit[i];
+                if( exit_ok(exitp) && ( thru_doors || !IS_SET(exitp->exit_info, EX_CLOSED) ) )
+                {
+                    /* next room */
 
-			    tmp_q = (struct room_q *)
-				malloc(sizeof(struct room_q));
-                tmp_q->area_nr = tmp_area;
-			    tmp_q->room_nr = tmp_room;
-			    tmp_q->next_q = 0;
-			    q_tail->next_q = tmp_q;
-			    q_tail = tmp_q;
+                    // TODO: Does this go into wilderness?
 
-			    /* ancestor for first layer is the direction */
-			    hash_enter( &x_room, tmp_room,
-				    (hash_find(&x_room,MAKEKEY(q_head->area_nr->uid, q_head->room_nr)) == (void*)-1) ?
-				    (void*)(size_t)(i+1) :
-				    hash_find(&x_room,MAKEKEY(q_head->area_nr->uid, q_head->room_nr)));
-			}
-		    }
-		    else
-		    {
-			/* have reached our goal so free queue */
-            tmp_area = q_head->area_nr;
-			tmp_room = q_head->room_nr;
-			for(;q_head;q_head = tmp_q)
-			{
-			    tmp_q = q_head->next_q;
-			    free(q_head);
-			}
-			/* return direction if first layer */
-			if (hash_find(&x_room,MAKEKEY(tmp_area->uid, tmp_room))==(void *)-1)
-			{
-			    if (x_room.buckets)
-			    {
-				/* junk left over from a previous track */
-				destroy_hash_table(&x_room, donothing);
-			    }
-			    return(i);
-			}
-			else
-			{
-			    /* else return the ancestor */
-			    int i;
+                    tmp_area = herep->exit[i]->u1.to_room->area;
+                    tmp_room = herep->exit[i]->u1.to_room->vnum;
+                    hashkey_t k = MAKEKEY(tmp_area->uid, tmp_room);
+                    void *thp = hash_find(&x_room,k);
+                    if( tmp_area != out_area || tmp_room != out_room_vnum )
+                    {
+                        /* shall we add room to queue ?
+                        count determines total breadth and depth */
+                        if( !thp &&             /* Not found */
+                            ( count < depth )   /* Within depth range of scanning */ )
+                        {
+                            count++;
+                            /* mark room as visted and put on queue */
 
-			    i = (int)(size_t)hash_find(&x_room,MAKEKEY(tmp_area->uid, tmp_room));
-			    if (x_room.buckets)
-			    {
-				/* junk left over from a previous track */
-				destroy_hash_table(&x_room, donothing);
-			    }
-			    return( -1+i);
-			}
-		    }
-		}
-	    }
-	}
+                            tmp_q = (struct room_q *) malloc(sizeof(struct room_q));
+                            tmp_q->area_nr = tmp_area;
+                            tmp_q->room_nr = tmp_room;
+                            tmp_q->next_q = NULL;
+                            q_tail->next_q = tmp_q;
+                            q_tail = tmp_q;
 
-	/* free queue head and point to next entry */
-	tmp_q = q_head->next_q;
-	free(q_head);
-	q_head = tmp_q;
+                            /* ancestor for first layer is the direction */
+                            hashkey_t k = MAKEKEY(q_head->area_nr->uid, q_head->room_nr);
+                            void *hp = hash_find(&x_room,k);
+
+                            hash_enter( &x_room, tmp_room, (hp == (void*)-1) ? (void*)(size_t)(i+1) : hp);
+                        }
+                    }
+                    else
+                    {
+                        /* have reached our goal so free queue */
+                        tmp_area = q_head->area_nr;
+                        tmp_room = q_head->room_nr;
+                        for(;q_head;q_head = tmp_q)
+                        {
+                            tmp_q = q_head->next_q;
+                            free(q_head);
+                        }
+                        /* return direction if first layer */
+                        int dir = (int)(size_t)thp;
+                        if (dir == -1)
+                        {
+                            // This is returned if this is the FIRST point, ie.. the destination is literally adjacent to the starting room exitwise.
+                            if (x_room.buckets)
+                            {
+                                /* junk left over from a previous track */
+                                destroy_hash_table(&x_room, donothing);
+                            }
+                            return i;
+                        }
+                        else
+                        {
+                            /* else return the ancestor */
+                            if (x_room.buckets)
+                            {
+                                /* junk left over from a previous track */
+                                destroy_hash_table(&x_room, donothing);
+                            }
+                            return dir-1;
+                        }
+                    }
+                }
+            }
+        }
+
+        /* free queue head and point to next entry */
+        tmp_q = q_head->next_q;
+        free(q_head);
+        q_head = tmp_q;
     }
 
     /* couldn't find path */
     if( x_room.buckets )
     {
-	/* junk left over from a previous track */
-	destroy_hash_table( &x_room, donothing );
+    	/* junk left over from a previous track */
+	    destroy_hash_table( &x_room, donothing );
     }
     return -1;
 }
@@ -463,15 +383,15 @@ void do_hunt( CHAR_DATA *ch, char *argument )
 
     if ( ch->hunting != NULL )
     {
-	send_to_char("You stop hunting.\n\r", ch );
-	ch->hunting = NULL;
-	return;
+        send_to_char("You stop hunting.\n\r", ch );
+        ch->hunting = NULL;
+        return;
     }
 
     if (IN_WILDERNESS(ch))
     {
-	send_to_char("Not here.\n\r", ch);
-	return;
+        send_to_char("Not here.\n\r", ch);
+        return;
     }
 
     if (is_dead(ch))
@@ -479,75 +399,72 @@ void do_hunt( CHAR_DATA *ch, char *argument )
 
     if( arg[0] == '\0' )
     {
-	send_to_char( "Whom are you trying to hunt?\n\r", ch );
-	return;
+    	send_to_char( "Whom are you trying to hunt?\n\r", ch );
+    	return;
     }
 
     if ( !str_cmp( arg2, "auto" ) )
-	fAuto = true;
+    	fAuto = true;
 
     if ( ( victim = (CHAR_DATA *)get_char_area( ch, arg ) ) == NULL )
     {
-	victim = get_char_world( ch, arg );
-	if ( victim == NULL )
-	{
-	    send_to_char("No-one around by that name.\n\r", ch );
-	    return;
-	}
+    	victim = get_char_world( ch, arg );
+        if ( victim == NULL )
+        {
+            send_to_char("No-one around by that name.\n\r", ch );
+            return;
+        }
     }
 
     if ( !can_hunt( ch, victim ) )
     {
-	act("$N has magically covered $S tracks.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return;
+    	act("$N has magically covered $S tracks.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    	return;
     }
 
     if ( ch->in_room == victim->in_room )
     {
-	act( "$N is here!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-	return;
+    	act( "$N is here!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+    	return;
     }
 
     if ( IN_WILDERNESS( ch ) )
     {
-	act( "You can't track people out in the wilderness.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-	return;
+    	act( "You can't track people out in the wilderness.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+    	return;
     }
 
     if ( IN_WILDERNESS( victim ) )
     {
-	act( "You can't track people who are out in the wilderness.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-	return;
+    	act( "You can't track people who are out in the wilderness.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+    	return;
     }
 
    /*
     * Deduct some movement.
     */
     if( IS_NPC(ch) || ch->move > 2 )
-	deduct_move( ch, 3 );
+	    deduct_move( ch, 3 );
     else
     {
-	send_to_char( "You're too exhausted to hunt for anyone!\n\r", ch );
-	return;
+        send_to_char( "You're too exhausted to hunt for anyone!\n\r", ch );
+        return;
     }
 
     // For trackless step skill
-    if (get_skill( victim, gsk_trackless_step ) > 0
-    //&& victim->pcdata->second_sub_class_cleric == CLASS_CLERIC_RANGER
-    && is_in_nature(victim->in_room) )
+    if (get_skill( victim, gsk_trackless_step ) > 0 && is_in_nature(victim->in_room) )
     {
-	if ( number_percent() < get_skill( victim, gsk_trackless_step ) )
-	{
-	    act("$N has covered $S tracks too well for you to follow.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	    return;
-	}
+        if ( number_percent() < get_skill( victim, gsk_trackless_step ) )
+        {
+            act("$N has covered $S tracks too well for you to follow.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+            return;
+        }
     }
 
     if (!IS_SITH(ch) || !IS_SET(ch->parts, PART_LONG_TONGUE))
     	act( "$n scans $s environment.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
     else
 	    act("$n's forked tongue whips out and tastes the air.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-
 
     // Max rooms so people can track across areas without megalag
     direction = find_path( ch->in_room->area, ch->in_room->vnum,
@@ -556,29 +473,29 @@ void do_hunt( CHAR_DATA *ch, char *argument )
 
     if( direction == -1 || (IS_NPC(victim) && IS_SET(victim->act[1], ACT2_NO_HUNT)))
     {
-	act("You couldn't find a path to $N from here.\n\r", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return;
+    	act("You couldn't find a path to $N from here.\n\r", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    	return;
     }
 
     // Auto-Hunt ?
     if ( fAuto )
     {
-	if ( IS_NPC( ch ) )
-	    return;
+    	if ( IS_NPC( ch ) )
+    	    return;
 
-	act("You begin hunting $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-    if (!IS_SITH(ch) || !IS_SET(ch->parts, PART_LONG_TONGUE))
-    	act("$n poises $mself stealthily and scans the area.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
-    else
-    	act("$n poises $mself stealthily and sniffs the air.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
-	ch->hunting = victim;
-	return;
+        act("You begin hunting $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+        if (!IS_SITH(ch) || !IS_SET(ch->parts, PART_LONG_TONGUE))
+            act("$n poises $mself stealthily and scans the area.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+        else
+            act("$n poises $mself stealthily and sniffs the air.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+        ch->hunting = victim;
+        return;
     }
 
     if ( direction < 0 || direction >= MAX_DIR )
     {
-	send_to_char( "Hmm... Something seems to be wrong.\n\r", ch );
-	return;
+    	send_to_char( "Hmm... Something seems to be wrong.\n\r", ch );
+    	return;
     }
 
     if (!IS_NPC(ch))
@@ -589,7 +506,6 @@ void do_hunt( CHAR_DATA *ch, char *argument )
             send_to_char("You can't find the trail.\n\r", ch);
             return;
         }
-
     }
 
     /*

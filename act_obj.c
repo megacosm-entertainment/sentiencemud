@@ -7879,13 +7879,13 @@ void do_pull(CHAR_DATA *ch, char *argument)
 
     if (arg[0] == '\0')
     {
-	send_to_char("What do you want to pull?\n\r", ch);
-	return;
+		send_to_char("What do you want to pull?\n\r", ch);
+		return;
     }
 
     if (IS_DEAD(ch)) {
-	send_to_char("You can't pull anything while dead.\n\r", ch);
-	return;
+		send_to_char("You can't pull anything while dead.\n\r", ch);
+		return;
     }
 
 	if((mob = get_char_room(ch, NULL, arg)) == NULL) {
@@ -7897,6 +7897,123 @@ void do_pull(CHAR_DATA *ch, char *argument)
 		}
 	}
 
+    int ret = p_percent_trigger(mob, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREPULL, NULL,0,0,0,0,0);
+	if (ret)
+	{
+		if (ret != PRET_SILENT)
+		{
+			send_to_char("You can't pull that.\n\r", ch);
+		}
+		return;
+	}
+
+	if(obj) {
+		if (obj->carried_by == ch &&
+			(obj->wear_loc == WEAR_LODGED_HEAD ||
+			obj->wear_loc == WEAR_LODGED_TORSO ||
+			obj->wear_loc == WEAR_LODGED_ARM_L ||
+			obj->wear_loc == WEAR_LODGED_ARM_R ||
+			obj->wear_loc == WEAR_LODGED_LEG_L ||
+			obj->wear_loc == WEAR_LODGED_LEG_R)) {
+			if(IS_SET(obj->extra[0], ITEM_NOREMOVE))
+				act("You can't dislodge $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			else if(!unequip_char(ch,obj,true)) {
+				act("$n dislodges $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+				act("You dislodge $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				if(IS_WEAPON_STAT(obj,WEAPON_BARBED)) {
+					act("{R$p{R tears away flesh from $n.{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+					act("{R$p{R tears away some of your flesh.{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+					damage(ch, ch, UMIN(ch->hit,25), NULL, TYPE_UNDEFINED, DAM_PIERCE, true);
+				}
+			}
+			return;
+		}
+
+		if (IS_CART(obj))
+		{
+			if (obj->carried_by != NULL) {
+				send_to_char("You'll have to drop it first.\n\r", ch);
+				return;
+			}
+
+			/* make sure someone isn't pulling it!*/
+			if (obj->pulled_by) {
+				if (obj->pulled_by != ch)
+					act("$N appears to be pulling $p at the moment.",
+						ch, obj->pulled_by, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				else
+					act("You're already pulling $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+
+				return;
+			}
+
+			if (IS_AFFECTED(ch, AFF_SNEAK))
+			{
+				send_to_char("You stop moving silently.\n\r", ch);
+				affect_strip(ch, gsk_sneak);
+			}
+
+			if (ch->pulled_cart != NULL)
+			{
+				act("But you're already pulling $p!",
+					ch, NULL, NULL, ch->pulled_cart, NULL, NULL, NULL, TO_CHAR);
+				return;
+			}
+
+			if (IS_SET(CART(obj)->flags, CART_MOUNT_ONLY) &&
+				!MOUNTED(ch) && (!IS_NPC(ch) || !IS_SET(ch->act[0], ACT_MOUNT)))
+			{
+				act("Only mounts can pull $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				return;
+			}
+
+			if (IS_SET(CART(obj)->flags, CART_TEAM_ANIMAL_ONLY) &&
+				(!IS_NPC(ch) || !IS_SET(ch->act[0], ACT_TEAM_ANIMAL)))
+			{
+				act("Only team animals can pull $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				return;
+			}
+
+			if (CART(obj)->min_strength > get_curr_stat(ch, STAT_STR) && !MOUNTED(ch))
+			{
+				act("You aren't strong enough to pull $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				act("$n attempts to pull $p but is too weak.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+				return;
+			}
+			else
+			{
+				if (MOUNTED(ch))
+				{
+					act("You hitch $p onto $N.", ch, MOUNTED(ch), NULL, obj, NULL, NULL, NULL, TO_CHAR);
+					act("$n hitches $p onto $N.", ch, MOUNTED(ch), NULL, obj, NULL, NULL, NULL, TO_ROOM);
+				}
+				else
+				{
+					act("You start pulling $p.", ch, NULL, NULL, obj, NULL, NULL, NULL,TO_CHAR);
+					act("$n starts pulling $p.", ch, NULL, NULL, obj, NULL, NULL, NULL,TO_ROOM);
+				}
+			}
+
+			// TODO: Need to move this whole thing into a PREPULL script
+			if (is_relic(obj->pIndexData))
+			{
+				if (ch->church == NULL)
+				{
+					act("{YA huge arc of lightning leaps out from $p striking you!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+					act("{YA huge arc of lightning leaps out from $p striking $n!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+					damage(ch, ch, 30000, NULL, TYPE_UNDEFINED, DAM_LIGHTNING, false);
+					return;
+				}
+				else
+					church_announce_theft(ch, obj);
+			}
+
+			ch->pulled_cart = obj;
+			obj->pulled_by = ch;
+			return;
+		}
+	}
+
     /* @@@NIB : 20070121 : Added for the new trigger type*/
     /*	Also allows for PULL/PULL_ON scripts to drop to the CART code*/
     if (argument[0]) {
@@ -7905,98 +8022,173 @@ void do_pull(CHAR_DATA *ch, char *argument)
 	    if(p_percent_trigger(mob, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PULL, NULL,0,0,0,0,0)) return;
     }
 
-	if(obj) {
-    if (obj->carried_by == ch &&
-	    (obj->wear_loc == WEAR_LODGED_HEAD ||
-		obj->wear_loc == WEAR_LODGED_TORSO ||
-		obj->wear_loc == WEAR_LODGED_ARM_L ||
-		obj->wear_loc == WEAR_LODGED_ARM_R ||
-		obj->wear_loc == WEAR_LODGED_LEG_L ||
-		obj->wear_loc == WEAR_LODGED_LEG_R)) {
-	if(IS_SET(obj->extra[0], ITEM_NOREMOVE))
-		act("You can't dislodge $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	else if(!unequip_char(ch,obj,true)) {
-		act("$n dislodges $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-		act("You dislodge $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		if(IS_WEAPON_STAT(obj,WEAPON_BARBED)) {
-			act("{R$p{R tears away flesh from $n.{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-			act("{R$p{R tears away some of your flesh.{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-			damage(ch, ch, UMIN(ch->hit,25), NULL, TYPE_UNDEFINED, DAM_PIERCE, true);
-		}
-	}
-	return;
-    }
-
-    if (obj->item_type == ITEM_CART)
-    {
-	if (obj->carried_by != NULL) {
-	    send_to_char("You'll have to drop it first.\n\r", ch);
-	    return;
-	}
-
-        /* make sure someone isn't pulling it!*/
-	if (obj->pulled_by) {
-		if (obj->pulled_by != ch)
-			act("$N appears to be pulling $p at the moment.",
-				ch, obj->pulled_by, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		else
-			act("You're already pulling $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-
-		return;
-	}
-
-        if (IS_AFFECTED(ch, AFF_SNEAK))
-	{
-	    send_to_char("You stop moving silently.\n\r", ch);
-	    affect_strip(ch, gsk_sneak);
-	}
-
-	if (ch->pulled_cart != NULL)
-	{
-	    act("But you're already pulling $p!",
-	    	ch, NULL, NULL, ch->pulled_cart, NULL, NULL, NULL, TO_CHAR);
-	    return;
-	}
-
-	if (obj->value[2] > get_curr_stat(ch, STAT_STR) && !MOUNTED(ch))
-	{
-  	    act("You aren't strong enough to pull $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	    act("$n attempts to pull $p but is too weak.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-	    return;
-	}
-	else
-	{
-	    if (MOUNTED(ch))
-	    {
-	        act("You hitch $p onto $N.", ch, MOUNTED(ch), NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	        act("$n hitches $p onto $N.", ch, MOUNTED(ch), NULL, obj, NULL, NULL, NULL, TO_ROOM);
-	    }
-	    else
-	    {
-	        act("You start pulling $p.", ch, NULL, NULL, obj, NULL, NULL, NULL,TO_CHAR);
-	        act("$n starts pulling $p.", ch, NULL, NULL, obj, NULL, NULL, NULL,TO_ROOM);
-	    }
-	}
-
-        if (is_relic(obj->pIndexData))
-	{
-	    if (ch->church == NULL)
-	    {
-	        act("{YA huge arc of lightning leaps out from $p striking you!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	        act("{YA huge arc of lightning leaps out from $p striking $n!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-	        damage(ch, ch, 30000, NULL, TYPE_UNDEFINED, DAM_LIGHTNING, false);
-		return;
-	    }
-	    else
-			church_announce_theft(ch, obj);
-	}
-
-	ch->pulled_cart = obj;
-	obj->pulled_by = ch;
-	return;
-    }
-}
     send_to_char("You can't pull that.\n\r", ch);
+}
+
+
+// hitch <cart> <mount/team animal>
+void do_hitch(CHAR_DATA *ch, char *argument)
+{
+	char arg[MIL];
+	OBJ_DATA *obj;
+	CHAR_DATA *animal;
+
+    argument = one_argument(argument, arg);
+
+    if (arg[0] == '\0')
+    {
+		send_to_char("What do you want to hitch?\n\r", ch);
+		return;
+    }
+
+    if (IS_DEAD(ch))
+	{
+		send_to_char("You can't hitch anything while dead.\n\r", ch);
+		return;
+    }
+
+	if ((obj = get_obj_list(ch, arg, ch->in_room->contents)) == NULL)
+	{
+		send_to_char ("You can't find it.\n\r",ch);
+		return;
+	}
+
+	if (!IS_CART(obj))
+	{
+		send_to_char("You cannot hitch that.\n\r", ch);
+		return;
+	}
+
+	if ((animal = get_char_room(ch, NULL, argument)) == NULL)
+	{
+		send_to_char("You don't see that here.\n\r", ch);
+		return;
+	}
+
+	// Bit of cheeky checks
+	if (animal == ch)
+	{
+		send_to_char("Not the way I would suggest getting hitched, but you do you.\n\r", ch);
+		return;
+	}
+
+	if (!IS_NPC(animal))
+	{
+		send_to_char("You cannot hitch onto players.\n\r", ch);
+		return;
+	}
+
+	if (IS_SET(CART(obj)->flags, CART_MOUNT_ONLY) && !IS_SET(animal->act[0], ACT_MOUNT))
+	{
+		act("You can only hitch $p onto mounts.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		return;		
+	}
+
+	if (IS_SET(CART(obj)->flags, CART_TEAM_ANIMAL_ONLY) && !IS_SET(animal->act[0], ACT_TEAM_ANIMAL))
+	{
+		act("You can only hitch $p onto team animals.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		return;		
+	}
+
+	if (PULLING_CART(animal))
+	{
+		act("$N is already pulling something.", ch, animal, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;		
+	}
+
+	if (obj->pulled_by != NULL)
+	{
+		act("$p is already being pulled.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (IS_SET(animal->act[0], ACT_TEAM_ANIMAL) && animal->leader != NULL)
+	{
+		act("$N is not the team leader.  Please hitch to $v.", ch, animal, animal->leader, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;		
+	}
+
+
+    int ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, animal, NULL, NULL, NULL, TRIG_PREHITCH, NULL,0,0,0,0,0);
+	if (ret)
+	{
+		if (ret != PRET_SILENT)
+		{
+			act("You can't hitch that onto $N.", ch, animal, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		}
+		return;
+	}
+
+	obj->pulled_by = animal;
+	animal->pulled_cart = obj;
+
+	act("You hitch $p onto $N.", ch, animal, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+	act("$n hitches $p onto you.", ch, animal, NULL, obj, NULL, NULL, NULL, TO_VICT);
+	act("$n hitches $p onto $N.", ch, animal, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
+
+	p_percent_trigger(NULL, obj, NULL, NULL, ch, animal, NULL, NULL, NULL, TRIG_HITCH, NULL,0,0,0,0,0);
+}
+
+// UNHITCH <cart>
+void do_unhitch(CHAR_DATA *ch, char *argument)
+{
+	char arg[MIL];
+	OBJ_DATA *obj;
+
+    argument = one_argument(argument, arg);
+
+    if (arg[0] == '\0')
+    {
+		send_to_char("What do you want to hitch?\n\r", ch);
+		return;
+    }
+
+    if (IS_DEAD(ch))
+	{
+		send_to_char("You can't hitch anything while dead.\n\r", ch);
+		return;
+    }
+
+	if ((obj = get_obj_list(ch, arg, ch->in_room->contents)) == NULL)
+	{
+		send_to_char ("You can't find it.\n\r",ch);
+		return;
+	}
+
+	if (!IS_CART(obj))
+	{
+		send_to_char("You cannot hitch that.\n\r", ch);
+		return;
+	}
+
+	if (obj->pulled_by == NULL)
+	{
+		send_to_char("That is not being pulled by anything.\n\r", ch);
+		return;
+	}
+
+	// TODO: Add checks such as ownership and whatnot?
+
+    int ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, obj->pulled_by, NULL, NULL, NULL, TRIG_PREUNHITCH, NULL,0,0,0,0,0);
+	if (ret)
+	{
+		if (ret != PRET_SILENT)
+		{
+			act("You can't unhitch that from $N.", ch, obj->pulled_by, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		}
+		return;
+	}
+
+	CHAR_DATA *animal = obj->pulled_by;
+
+	act("You unhitch $p from $N.", ch, animal, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+	act("$n unhitches $p from you.", ch, animal, NULL, obj, NULL, NULL, NULL, TO_VICT);
+	act("$n unhitches $p from $N.", ch, animal, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
+
+	animal->pulled_cart = NULL;
+	obj->pulled_by = NULL;
+
+	p_percent_trigger(NULL, obj, NULL, NULL, ch, animal, NULL, NULL, NULL, TRIG_UNHITCH, NULL,0,0,0,0,0);
 }
 
 

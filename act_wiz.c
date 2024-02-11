@@ -2465,11 +2465,13 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 			ostat_lock_state(BOOK(obj)->lock, buffer);
 	}
 
-	if (IS_PAGE(obj))
+	if (IS_CART(obj))
 	{
-		sprintf(buf, "{CPage[{x%d{C]: {BTitle:{x %s {BText:{x\n\r%s{x\n\r",
-			PAGE(obj)->page_no, PAGE(obj)->title, string_indent(PAGE(obj)->text, 3));
-	    add_buf(buffer, buf);
+		CART_DATA *cart = CART(obj);
+		sprintf(buf, "{CCart: {BFlags: {x%s{B Mininum Strength: {x%d{B Move Delay: {x%d\n\r",
+			flag_string(cart_flags, cart->flags),
+			cart->min_strength, cart->move_delay);
+		add_buf(buffer, buf);
 	}
 
 	if (IS_COMPASS(obj))
@@ -2570,10 +2572,9 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 
 	if (IS_FURNITURE(obj))
 	{
-		if (FURNITURE(obj)->main_compartment > 0)
-			sprintf(buf, "{CFurniture: {BMain Compartment:{x %d\n\r", FURNITURE(obj)->main_compartment);
-		else
-			sprintf(buf, "{CFurniture: {BMain Compartment:{x (none)\n\r");
+		sprintf(buf, "{CFurniture: {BMain Compartment: {x%s{B Flags: {x%s\n\r",
+			(FURNITURE(obj)->main_compartment > 0) ? formatf("%d", FURNITURE(obj)->main_compartment) : "(none)",
+			flag_string(furniture_flags, FURNITURE(obj)->flags));
 	    add_buf(buffer, buf);
 
 		int cnt = 1;
@@ -2603,15 +2604,15 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 				sprintf(buf, " {BMax Weight:{x %d\n\r", compartment->max_weight);
 			add_buf(buffer, buf);
 
-			sprintf(buf, "   {BStanding:{x %s", flag_string(furniture_flags, compartment->standing));
+			sprintf(buf, "   {BStanding:{x %s", flag_string(furniture_action_flags, compartment->standing));
 			add_buf(buffer, buf);
-			sprintf(buf, " {BHanging:{x %s", flag_string(furniture_flags, compartment->hanging));
+			sprintf(buf, " {BHanging:{x %s", flag_string(furniture_action_flags, compartment->hanging));
 			add_buf(buffer, buf);
-			sprintf(buf, " {BSitting:{x %s", flag_string(furniture_flags, compartment->sitting));
+			sprintf(buf, " {BSitting:{x %s", flag_string(furniture_action_flags, compartment->sitting));
 			add_buf(buffer, buf);
-			sprintf(buf, " {BResting:{x %s", flag_string(furniture_flags, compartment->resting));
+			sprintf(buf, " {BResting:{x %s", flag_string(furniture_action_flags, compartment->resting));
 			add_buf(buffer, buf);
-			sprintf(buf, " {BSleeping:{x %s\n\r", flag_string(furniture_flags, compartment->sleeping));
+			sprintf(buf, " {BSleeping:{x %s\n\r", flag_string(furniture_action_flags, compartment->sleeping));
 			add_buf(buffer, buf);
 
 			sprintf(buf, "   {BHealth Regen:{x %d", compartment->health_regen);
@@ -2691,6 +2692,13 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 	if (IS_MONEY(obj))
 	{
 		sprintf(buf, "{CMoney: {Y%dg {W%ds{x\n\r", MONEY(obj)->gold, MONEY(obj)->silver);
+	    add_buf(buffer, buf);
+	}
+
+	if (IS_PAGE(obj))
+	{
+		sprintf(buf, "{CPage[{x%d{C]: {BTitle:{x %s {BText:{x\n\r%s{x\n\r",
+			PAGE(obj)->page_no, PAGE(obj)->title, string_indent(PAGE(obj)->text, 3));
 	    add_buf(buffer, buf);
 	}
 
@@ -3344,7 +3352,10 @@ void do_tstat(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL], buf[MSL], buf2[MSL], arg2[MSL], arg3[MSL];
     TOKEN_DATA *token = NULL;
-    CHAR_DATA *victim;
+	TOKEN_DATA *tokens = NULL;
+	CHAR_DATA *victim = NULL;
+	OBJ_DATA *object = NULL;
+	ROOM_INDEX_DATA *room = NULL;
     int i;
     long count;
 	WNUM wnum = wnum_zero;
@@ -3355,34 +3366,63 @@ void do_tstat(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg2);
 
     if (arg[0] == '\0') {
-	send_to_char("Syntax:  stat token <character> [token widevnum]\n\r", ch);
+	send_to_char("Syntax:  stat token <mob name|obj name|room> [token widevnum]\n\r", ch);
 	return;
     }
 
-    if ((victim = get_char_world(NULL, arg)) == NULL) {
-	send_to_char("Character not found.\n\r", ch);
-	return;
-    }
-
-	count = number_argument(arg2, arg3);
-    if (arg3[0] != '\0') {
-		if (!parse_widevnum(arg3, NULL, &wnum))
-		{
-			send_to_char("Syntax:  stat token <character> [token widevnum]\n\r", ch);
+	if (!str_cmp(arg,"mob")) {
+		if ((victim = get_char_world(NULL, arg2)) == NULL) {
+			send_to_char("Mobile not found.\n\r", ch);
 			return;
 		}
 
-		TOKEN_INDEX_DATA *pTokenIndex = get_token_index(wnum.pArea, wnum.vnum);
-		if (pTokenIndex == NULL) {
+		tokens = victim->tokens;
+
+		count = number_argument(argument, arg3);
+	} else if(!str_cmp(arg, "obj")) {
+		if ((object = get_obj_world(NULL, arg2)) == NULL) {
+			send_to_char("Object not found.\n\r", ch);
+			return;
+		}
+
+		tokens = object->tokens;
+
+		count = number_argument(argument, arg3);
+	} else if(!str_cmp(arg, "room")) {
+		room = ch->in_room;
+
+		tokens = room->tokens;
+
+		count = number_argument(arg2, arg3);
+	} else {
+		send_to_char("Syntax:  stat token <mob name|obj name|room> [token widevnum]\n\r", ch);
+		return;
+	}
+
+	if (arg3[0] != '\0' && parse_widevnum(arg3, ch->in_room->area, &wnum)) {
+		TOKEN_INDEX_DATA *tindex;
+		
+
+		if ((tindex = get_token_index(wnum.pArea, wnum.vnum)) == NULL) {
 			send_to_char("That token vnum does not exist.\n\r", ch);
 			return;
 		}
 
-		if ((token = get_token_char(victim, pTokenIndex, count)) == NULL) {
+		if (victim && !(token = get_token_char(victim, tindex, count))) {
 			act("$N doesn't have that token.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			return;
 		}
-    }
+
+		if (object && !(token = get_token_obj(object, tindex, count))) {
+			act("$p doesn't have that token.", ch, NULL, NULL, object, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
+
+		if (room && !(token = get_token_room(room, tindex, count))) {
+			send_to_char("The room doesn't have that token.", ch);
+			return;
+		}
+	}
 
     buffer = new_buf();
 
@@ -3397,42 +3437,44 @@ void do_tstat(CHAR_DATA *ch, char *argument)
 
     add_buf(buffer, "{x\n\r");
 
-    if (token == NULL) {
-	if (victim->tokens == NULL)
-	    add_buf(buffer, "None.\n\r");
-	else
+    if (token == NULL)
 	{
-	    for (token = victim->tokens; token != NULL; token = token->next) {
-		buf[0] = '\0';
-		sprintf(buf2, "{Y[{x%7s{Y]{x %-20.20s %-6d ",
-			widevnum_string_token(token->pIndexData, NULL), token->name, token->timer);
+		if (tokens == NULL)
+		    add_buf(buffer, "None.\n\r");
+		else
+		{
+		    for (token = tokens; token != NULL; token = token->next)
+			{
+				buf[0] = '\0';
+				sprintf(buf2, "{Y[{x%7s{Y]{x %-20.20s %-6d ",
+					widevnum_string_token(token->pIndexData, NULL), token->name, token->timer);
 
-		strcat(buf, buf2);
-		for (i = 0; i < MAX_TOKEN_VALUES; i++) {
-		    sprintf(buf2, "{b[{x%-7.7s{b]{x %-9ld ", token_index_getvaluename(token->pIndexData, i), token->value[i]);
-		    strcat(buf, buf2);
+				strcat(buf, buf2);
+				for (i = 0; i < MAX_TOKEN_VALUES; i++) {
+					sprintf(buf2, "{b[{x%-7.7s{b]{x %-9ld ", token_index_getvaluename(token->pIndexData, i), token->value[i]);
+					strcat(buf, buf2);
+				}
+
+				strcat(buf, "\n\r");
+				add_buf(buffer, buf);
+			}
 		}
-
-		strcat(buf, "\n\r");
-		add_buf(buffer, buf);
-	    }
-	}
     }
     else
     {
-	buf[0] = '\0';
-	sprintf(buf2, "{Y[{x%7ld{Y]{x %-20.20s %-6d ",
-		token->pIndexData->vnum, token->name, token->timer);
+		buf[0] = '\0';
+		sprintf(buf2, "{Y[{x%7ld{Y]{x %-20.20s %-6d ",
+			token->pIndexData->vnum, token->name, token->timer);
 
-	strcat(buf, buf2);
-	for (i = 0; i < MAX_TOKEN_VALUES; i++) {
-	    sprintf(buf2, "{b[{x%-7.7s{b]{x %-9ld ", token_index_getvaluename(token->pIndexData, i), token->value[i]);
-	    strcat(buf, buf2);
-	}
+		strcat(buf, buf2);
+		for (i = 0; i < MAX_TOKEN_VALUES; i++) {
+			sprintf(buf2, "{b[{x%-7.7s{b]{x %-9ld ", token_index_getvaluename(token->pIndexData, i), token->value[i]);
+			strcat(buf, buf2);
+		}
 
-	strcat(buf, "\n\r");
+		strcat(buf, "\n\r");
 
-	add_buf(buffer, buf);
+		add_buf(buffer, buf);
     }
 
     page_to_char(buf_string(buffer), ch);
@@ -4512,7 +4554,7 @@ void do_purge(CHAR_DATA *ch, char *argument)
 	{
 	    obj_next = obj->next_content;
 
-	    if (obj->item_type == ITEM_CART) {
+	    if (IS_CART(obj)) {
 		    if(obj->pulled_by) {
 			    obj->pulled_by->pulled_cart = NULL;
 			    obj->pulled_by = NULL;
@@ -4543,7 +4585,7 @@ void do_purge(CHAR_DATA *ch, char *argument)
     if ((obj = get_obj_list(ch, arg, ch->in_room->contents)) != NULL
     &&     !IS_SET(obj->extra[0], ITEM_NOPURGE))
     {
-	if (obj->item_type == ITEM_CART)
+	if (IS_CART(obj))
 	{
 		    if(obj->pulled_by) {
 			    obj->pulled_by->pulled_cart = NULL;

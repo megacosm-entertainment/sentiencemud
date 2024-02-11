@@ -2199,6 +2199,10 @@ EXPAND_TYPE(mobile)
 		arg->type = ENT_OBJECT;
 		arg->d.obj = self ? self->on : NULL;
 		break;
+	case ENTITY_MOB_COMPARTMENT:
+		arg->type = ENT_COMPARTMENT;
+		arg->d.compartment = (self && self->on && self->on_compartment) ? self->on_compartment : NULL;
+		break;
 	case ENTITY_MOB_TARGET:
 		arg->d.mob = (self && self->progs) ? self->progs->target : NULL;
 		break;
@@ -2478,6 +2482,11 @@ EXPAND_TYPE(mobile)
 		arg->d.group_owner = self;
 		break;
 
+	case ENTITY_MOB_NUMGROUPED:
+		arg->type = ENT_NUMBER;
+		arg->d.num = self ? self->num_grouped : 0;
+		break;
+
 	case ENTITY_MOB_DAMAGEDICE:
 		arg->type = ENT_DICE;
 		arg->d.dice = self ? &self->damage : NULL;;
@@ -2690,6 +2699,10 @@ EXPAND_TYPE(mobile_id)
 		arg->type = ENT_OBJECT;
 		arg->d.obj = NULL;
 		break;
+	case ENTITY_MOB_COMPARTMENT:
+		arg->type = ENT_COMPARTMENT;
+		arg->d.compartment = NULL;
+		break;
 	case ENTITY_MOB_TARGET:
 		arg->d.mob = NULL;
 		break;
@@ -2822,7 +2835,12 @@ EXPAND_TYPE(mobile_id)
 
 	case ENTITY_MOB_GROUP:
 		arg->type = ENT_GROUP;
-		arg->d.mob = NULL;
+		arg->d.group_owner = NULL;
+		break;
+
+	case ENTITY_MOB_NUMGROUPED:
+		arg->type = ENT_NUMBER;
+		arg->d.num = 0;
 		break;
 
 	case ENTITY_MOB_DAMAGEDICE:
@@ -3250,6 +3268,11 @@ EXPAND_TYPE(object)
 		// Uses self
 		break;
 
+	case ENTITY_OBJ_TYPE_CART:
+		arg->type = ENT_OBJECT_CART;
+		// Uses self
+		break;
+
 	case ENTITY_OBJ_TYPE_COMPASS:
 		arg->type = ENT_OBJECT_COMPASS;
 		// Uses self
@@ -3326,7 +3349,7 @@ EXPAND_TYPE(object)
 		break;
 
 	case ENTITY_OBJ_TYPE_SEXTANT:
-		arg->type = ENT_OBJECT_COMPASS;
+		arg->type = ENT_OBJECT_SEXTANT;
 		// Uses self
 		break;
 
@@ -5360,31 +5383,31 @@ EXPAND_TYPE(compartment)
 	case ENTITY_COMPARTMENT_STANDING:
 		arg->type = ENT_BITVECTOR;
 		arg->d.bv.value = IS_VALID(arg->d.compartment) ? arg->d.compartment->standing : 0;
-		arg->d.bv.table = IS_VALID(arg->d.compartment) ? furniture_flags : NULL;
+		arg->d.bv.table = IS_VALID(arg->d.compartment) ? furniture_action_flags : NULL;
 		break;
 
 	case ENTITY_COMPARTMENT_HANGING:
 		arg->type = ENT_BITVECTOR;
 		arg->d.bv.value = IS_VALID(arg->d.compartment) ? arg->d.compartment->hanging : 0;
-		arg->d.bv.table = IS_VALID(arg->d.compartment) ? furniture_flags : NULL;
+		arg->d.bv.table = IS_VALID(arg->d.compartment) ? furniture_action_flags : NULL;
 		break;
 
 	case ENTITY_COMPARTMENT_SITTING:
 		arg->type = ENT_BITVECTOR;
 		arg->d.bv.value = IS_VALID(arg->d.compartment) ? arg->d.compartment->sitting : 0;
-		arg->d.bv.table = IS_VALID(arg->d.compartment) ? furniture_flags : NULL;
+		arg->d.bv.table = IS_VALID(arg->d.compartment) ? furniture_action_flags : NULL;
 		break;
 
 	case ENTITY_COMPARTMENT_RESTING:
 		arg->type = ENT_BITVECTOR;
 		arg->d.bv.value = IS_VALID(arg->d.compartment) ? arg->d.compartment->resting : 0;
-		arg->d.bv.table = IS_VALID(arg->d.compartment) ? furniture_flags : NULL;
+		arg->d.bv.table = IS_VALID(arg->d.compartment) ? furniture_action_flags : NULL;
 		break;
 
 	case ENTITY_COMPARTMENT_SLEEPING:
 		arg->type = ENT_BITVECTOR;
 		arg->d.bv.value = IS_VALID(arg->d.compartment) ? arg->d.compartment->sleeping : 0;
-		arg->d.bv.table = IS_VALID(arg->d.compartment) ? furniture_flags : NULL;
+		arg->d.bv.table = IS_VALID(arg->d.compartment) ? furniture_action_flags : NULL;
 		break;
 	
 	case ENTITY_COMPARTMENT_HEALTH:
@@ -7453,7 +7476,7 @@ EXPAND_TYPE(group)
 
 	case ENTITY_GROUP_SIZE:
 		arg->type = ENT_NUMBER;
-
+		arg->d.num = arg->d.group_owner ? list_size(arg->d.group_owner->lgroup) + 1 : 0;
 		break;
 
 	default: return NULL;
@@ -8451,6 +8474,35 @@ EXPAND_TYPE(object_book)
 		break;
 
 	default: return NULL;
+	}
+
+	return str+1;
+}
+
+EXPAND_TYPE(object_cart)
+{
+	CART_DATA *cart = IS_VALID(arg->d.obj) && IS_CART(arg->d.obj) ? CART(arg->d.obj) : NULL;
+
+	switch(*str)
+	{
+		case ENTITY_OBJ_CART_FLAGS:
+			arg->type = ENT_BITVECTOR;
+			arg->d.bv.value = cart ? cart->flags : 0;
+			arg->d.bv.table = cart_flags;
+			break;
+
+		case ENTITY_OBJ_CART_MIN_STRENGTH:
+			arg->type = ENT_NUMBER;
+			arg->d.num = cart ? cart->min_strength : 0;
+			break;
+
+		case ENTITY_OBJ_CART_MOVE_DELAY:
+			arg->type = ENT_NUMBER;
+			arg->d.num = cart ? cart->move_delay : 0;
+			break;
+
+		default:
+			return NULL;
 	}
 
 	return str+1;
@@ -10103,6 +10155,7 @@ EXPAND(expand_argument_entity)
 		// Multi-typing
 		ENTITY_CASE(OBJECT_AMMO,object_ammo)
 		ENTITY_CASE(OBJECT_BOOK,object_book)
+		ENTITY_CASE(OBJECT_CART,object_cart)
 		ENTITY_CASE(OBJECT_COMPASS,object_compass)
 		ENTITY_CASE(OBJECT_CONTAINER,object_container)
 		ENTITY_CASE(OBJECT_FLUID_CONTAINER,object_fluid_container)

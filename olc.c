@@ -234,6 +234,7 @@ const struct olc_cmd_type oedit_table[] =
 	{ "ammo",			oedit_type_ammo			},
 	{ "armor",			oedit_type_armor		},
 	{ "book", 			oedit_type_book			},
+	{ "cart",			oedit_type_cart			},
 	{ "class",			oedit_class				},
 	{ "classtype",		oedit_class_type		},
 	{ "commands",		show_commands			},
@@ -2948,6 +2949,7 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
 	AMMO(new_obj) = copy_ammo_data(AMMO(old_obj));
 	ARMOR(new_obj) = copy_armor_data(ARMOR(old_obj));
 	BOOK(new_obj) = copy_book_data(BOOK(old_obj));
+	CART(new_obj) = copy_cart_data(CART(old_obj));
 	COMPASS(new_obj) = copy_compass_data(COMPASS(old_obj));
 	CONTAINER(new_obj) = copy_container_data(CONTAINER(old_obj));
 	FLUID_CON(new_obj) = copy_fluid_container_data(FLUID_CON(old_obj));
@@ -4082,6 +4084,7 @@ void obj_index_reset_multitype(OBJ_INDEX_DATA *pObjIndex)
 	free_ammo_data(AMMO(pObjIndex));					AMMO(pObjIndex) = NULL;
 	free_armor_data(ARMOR(pObjIndex));					ARMOR(pObjIndex) = NULL;
 	free_book_data(BOOK(pObjIndex));					BOOK(pObjIndex) = NULL;
+	free_cart_data(CART(pObjIndex));					CART(pObjIndex) = NULL;
 	free_compass_data(COMPASS(pObjIndex));				COMPASS(pObjIndex) = NULL;
 	free_container_data(CONTAINER(pObjIndex));			CONTAINER(pObjIndex) = NULL;
 	free_fluid_container_data(FLUID_CON(pObjIndex));	FLUID_CON(pObjIndex) = NULL;
@@ -4114,6 +4117,7 @@ void obj_index_set_primarytype(OBJ_INDEX_DATA *pObjIndex, int item_type)
 		case ITEM_AMMO:			AMMO(pObjIndex) = new_ammo_data(); break;
 		case ITEM_ARMOUR:		ARMOR(pObjIndex) = new_armor_data(); break;
 		case ITEM_BOOK:			BOOK(pObjIndex) = new_book_data(); break;
+		case ITEM_CART:			CART(pObjIndex) = new_cart_data(); break;
 		case ITEM_COMPASS:		COMPASS(pObjIndex) = new_compass_data(); break;
 		case ITEM_CONTAINER:	CONTAINER(pObjIndex) = new_container_data(); break;
 		case ITEM_FLUID_CONTAINER:	FLUID_CON(pObjIndex) = new_fluid_container_data(); break;

@@ -4010,6 +4010,7 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
 		AMMO(obj) = copy_ammo_data(AMMO(pObjIndex));
 		ARMOR(obj) = copy_armor_data(ARMOR(pObjIndex));
 		BOOK(obj) = copy_book_data(BOOK(pObjIndex));
+		CART(obj) = copy_cart_data(CART(pObjIndex));
 		COMPASS(obj) = copy_compass_data(COMPASS(pObjIndex));
 		CONTAINER(obj) = copy_container_data(CONTAINER(pObjIndex));
 		FLUID_CON(obj) = copy_fluid_container_data(FLUID_CON(pObjIndex));
@@ -7806,6 +7807,7 @@ TOKEN_DATA *persist_load_token(FILE *fp)
 AMMO_DATA *fread_obj_ammo_data(FILE *fp);
 ARMOR_DATA *fread_obj_armor_data(FILE *fp);
 BOOK_DATA *fread_obj_book_data(FILE *fp);
+CART_DATA *fread_obj_cart_data(FILE *fp);
 COMPASS_DATA *fread_obj_compass_data(FILE *fp);
 CONTAINER_DATA *fread_obj_container_data(FILE *fp);
 FLUID_CONTAINER_DATA *fread_obj_fluid_container_data(FILE *fp);
@@ -7915,6 +7917,22 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_BOOK(obj)) free_book_data(BOOK(obj));
 
 					BOOK(obj) = fread_obj_book_data(fp);
+					fMatch = true;
+					break;
+				}
+				if (!str_cmp(word, "#TYPECART"))
+				{
+					if (IS_CART(obj)) free_cart_data(CART(obj));
+
+					CART(obj) = fread_obj_cart_data(fp);
+					fMatch = true;
+					break;
+				}
+				if (!str_cmp(word, "#TYPECOMPASS"))
+				{
+					if (IS_COMPASS(obj)) free_compass_data(COMPASS(obj));
+
+					COMPASS(obj) = fread_obj_compass_data(fp);
 					fMatch = true;
 					break;
 				}

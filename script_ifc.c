@@ -79,7 +79,7 @@ extern bool wiznet_script;
 #define ISARG_REPUTATION(x)	ISARG_TYPE(x,ENT_REPUTATION,reputation)
 #define ISARG_REPINDEX(x)	ISARG_TYPE(x,ENT_REPUTATION_INDEX,repIndex)
 #define ISARG_REPRANK(x)	ISARG_TYPE(x,ENT_REPUTATION_RANK,repRank)
-
+#define ISARG_COMPARTMENT(x)	ISARG_TYPE(x,ENT_COMPARTMENT,compartment)
 
 #define ARG_NUM(x)	ARG_TYPE(x,num)
 #define ARG_STR(x)	ARG_TYPE(x,str)
@@ -115,6 +115,7 @@ extern bool wiznet_script;
 #define ARG_REPUTATION(x) ARG_TYPE(x,reputation)
 #define ARG_REPINDEX(x) ARG_TYPE(x,repIndex)
 #define ARG_REPRANK(x) ARG_TYPE(x,repRank)
+#define ARG_COMPARTMENT(x) ARG_TYPE(x,compartment)
 
 #define SHIFT_MOB()	do { if(ISARG_MOB(0)) { mob = ARG_MOB(0); ++argv; --argc; } } while(0)
 #define SHIFT_OBJ()	do { if(ISARG_OBJ(0)) { obj = ARG_OBJ(0); ++argv; --argc; } } while(0)
@@ -564,10 +565,11 @@ DECL_IFC_FUN(ifc_fullness)
 	return true;
 }
 
+// TODO: Deprecated
 DECL_IFC_FUN(ifc_furniture)
 {
-	*ret = ISARG_OBJ(0) && ARG_OBJ(0)->item_type == ITEM_FURNITURE &&
-		IS_SET(ARG_OBJ(0)->value[2], flag_value_ifcheck(furniture_flags,ARG_STR(1)));
+	*ret = false;//ISARG_OBJ(0) && ARG_OBJ(0)->item_type == ITEM_FURNITURE &&
+		//IS_SET(ARG_OBJ(0)->value[2], flag_value_ifcheck(furniture_action_flags,ARG_STR(1)));
 	return true;
 }
 
@@ -750,7 +752,8 @@ DECL_IFC_FUN(ifc_identical)
 	else if(ISARG_ROOM(0) && ISARG_ROOM(1)) *ret = ARG_ROOM(0) == ARG_ROOM(1);
 	else if(ISARG_TOK(0) && ISARG_TOK(1)) *ret = ARG_TOK(0) == ARG_TOK(1);
 	else if(ISARG_EXIT(0) && ISARG_EXIT(1)) *ret = (ARG_EXIT(0).r == ARG_EXIT(1).r) && (ARG_EXIT(0).door == ARG_EXIT(1).door);
-	else if(ISARG_AREA(0) && ISARG_AREA(1)) *ret = ARG_AREA(0) == ARG_AREA(1);
+	else if(ISARG_AREA(0) && ISARG_AREA(1)) *ret = (ARG_AREA(0) == ARG_AREA(1));
+	else if(ISARG_COMPARTMENT(0) && ISARG_COMPARTMENT(1)) *ret = (ARG_COMPARTMENT(0) == ARG_COMPARTMENT(1));
 	else *ret = false;
 
 	return true;
@@ -4147,22 +4150,24 @@ DECL_IFC_FUN(ifc_iscrosszone)
 	return true;
 }
 
-// if isinchurch $<mobile|church|name>[ $<mobile|name>]
+// if inchurch $MOBILE[ $CHURCH|name]
 DECL_IFC_FUN(ifc_inchurch)
 {
-	CHURCH_DATA *church = NULL;
-
 	*ret = false;
 
-	if(ISARG_MOB(0)) church = ARG_MOB(0)->church;
-	else if(ISARG_CHURCH(0)) church = ARG_CHURCH(0);
-	else if(ISARG_STR(0)) church = find_church_name(ARG_STR(0));
+	if (ISARG_MOB(0))
+	{
+		CHAR_DATA *m = ARG_MOB(0);
 
-	if(church) {
-		if(ISARG_MOB(1)) mob = ARG_MOB(1);
-		else if(ISARG_STR(1)) mob = get_player(ARG_STR(1));
-
-		if(mob && mob->church == church)
+		if (ISARG_CHURCH(1))
+			*ret = m && m->church == ARG_CHURCH(1);
+		else if (ISARG_STR(1))
+		{
+			CHURCH_DATA *church = find_church_name(ARG_STR(1));
+			if (church)
+				*ret = m && m->church == church;
+		}
+		else if (m->church != NULL)
 			*ret = true;
 	}
 

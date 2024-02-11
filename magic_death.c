@@ -315,7 +315,7 @@ SPELL_FUNC(spell_kill)
 		return false;
 	}
 
-	if (saves_spell(level,victim,DAM_OTHER) || IS_SHIFTED_SLAYER(victim)) {
+	if (saves_spell(level,victim,DAM_DEATH) || IS_SHIFTED_SLAYER(victim)) {
 		send_to_char("Nothing happens.\n\r", ch);
 		return false;
 	}

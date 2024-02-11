@@ -46,6 +46,7 @@ const struct script_cmd_type mob_cmd_table[] = {
 	{ "chargebank",			do_mpchargebank,			false,	true	},
 	{ "chargemoney",		do_mpchargemoney,			false,	true	},
 	{ "checkpoint",			do_mpcheckpoint,			false,	true	},
+	{ "churchannouncetheft",	scriptcmd_churchannouncetheft,	true, true },
 	{ "cloneroom",			do_mpcloneroom,				true,	true	},
 	{ "condition",			do_mpcondition,				false,	true	},
 	{ "crier",				do_mpcrier,					false,	true	},
@@ -3026,6 +3027,8 @@ SCRIPT_CMD(do_mpotransfer)
 		return;
 	}
 
+	ROOM_INDEX_DATA *old_room = NULL;
+
 	if (obj->carried_by) {
 		if (obj->wear_loc != WEAR_NONE)
 			unequip_char(obj->carried_by, obj, true);
@@ -3033,16 +3036,97 @@ SCRIPT_CMD(do_mpotransfer)
 	} else if(obj->in_obj)
 		obj_from_obj(obj);
 	else
+	{
+		old_room = obj_room(obj);
 		obj_from_room(obj);
+	}
 
 	if(dest) {
 		if(dest->wilds)
 			obj_to_vroom(obj, dest->wilds, dest->x, dest->y);
 		else
 			obj_to_room(obj, dest);
-	} else if(container)
+
+		if (IS_FURNITURE(obj) && IS_SET(FURNITURE(obj)->flags, FURNITURE_KEEP_OCCUPANTS) && old_room)
+		{
+			if (argument && *argument)
+			{
+				if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_STRING) {
+					return;
+				}
+
+				// Optional "occupants"
+				if (!str_prefix(arg->d.str, "occupants"))
+				{
+					bool show = false;
+					if(!(rest = expand_argument(info,argument,arg)))
+						return;
+
+					if (arg->type == ENT_BOOLEAN)
+						show = arg->d.boolean;
+					else if (arg->type == ENT_STRING)
+						show = !str_prefix(arg->d.str, "show");
+
+					CHAR_DATA *rch, *rch_next;
+					for (rch = old_room->people; rch != NULL; rch = rch_next)
+					{
+						rch_next = rch->next_in_room;
+						if (rch->on == obj)
+						{
+							char_from_room(rch);
+
+							if(dest->wilds)
+								char_to_vroom(rch, dest->wilds, dest->x, dest->y);
+							else
+								char_to_room(rch, dest);
+
+							if (show)
+								do_function(rch, &do_look, "auto");
+						}
+					}
+					return;
+				}
+			}
+		}
+
+		if (old_room)
+		{
+			for (CHAR_DATA *rch = old_room->people; rch != NULL; rch = rch->next_in_room)
+				if (rch->on == obj)
+				{
+					rch->on = NULL;
+					rch->on_compartment = NULL;
+				}
+		}
+	}
+	else if(container)
+	{
+		// Kick off occupants if not staying in a room
+		if (old_room)
+		{
+			for (CHAR_DATA *rch = old_room->people; rch != NULL; rch = rch->next_in_room)
+				if (rch->on == obj)
+				{
+					rch->on = NULL;
+					rch->on_compartment = NULL;
+				}
+		}
+
 		obj_to_obj(obj, container);
-	else if(carrier) {
+	}
+	else if(carrier)
+	{
+		// Kick off occupants if not staying in a room
+		if (old_room)
+		{
+			for (CHAR_DATA *rch = old_room->people; rch != NULL; rch = rch->next_in_room)
+				if (rch->on == obj)
+				{
+					rch->on = NULL;
+					rch->on_compartment = NULL;
+				}
+		}
+
 		obj_to_char(obj, carrier);
 		if(wear_loc != WEAR_NONE)
 			equip_char(carrier, obj, wear_loc);

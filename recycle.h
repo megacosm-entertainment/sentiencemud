@@ -266,6 +266,11 @@ BOOK_DATA *new_book_data();
 BOOK_DATA *copy_book_data(BOOK_DATA *src);
 void free_book_data(BOOK_DATA *data);
 
+// Cart
+CART_DATA *new_cart_data();
+CART_DATA *copy_cart_data(CART_DATA *src);
+void free_cart_data(CART_DATA *data);
+
 // Compass
 COMPASS_DATA *new_compass_data();
 COMPASS_DATA *copy_compass_data(COMPASS_DATA *src);

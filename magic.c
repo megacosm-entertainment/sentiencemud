@@ -290,6 +290,10 @@ bool saves_spell(int level, CHAR_DATA *victim, int16_t dam_type)
 	case IS_VULNERABLE:	chance -= 10; break;
     }
 
+	// Add in affects that gave saves
+	if (dam_type >= 0 && dam_type < DAM_MAX)
+		chance += victim->saves_modifier[dam_type];
+
     /* if you are asleep you get less */
     if (victim->position < POS_RESTING)
     {

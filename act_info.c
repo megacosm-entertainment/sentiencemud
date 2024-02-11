@@ -376,7 +376,7 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
     {
 	if (obj->description != NULL)
 	{
-	    if (obj->item_type == ITEM_CART
+	    if (IS_CART(obj)
 	    && get_cart_pulled(obj) != NULL)
 	    {
 		sprintf(buf, "{B%s is here, pulled by %s.{x",
@@ -1916,7 +1916,11 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	}
 	send_to_char("{x\n\r", ch);
 
-	if (!automatic || ((!IS_NPC(ch) || IS_SWITCHED(ch)) && !IS_SET(ch->comm, COMM_BRIEF))) {
+	bool is_brief = false;
+	if (IS_SET(ch->comm, COMM_BRIEF)) is_brief = true;
+	if (ch->on && ch->on_compartment && IS_SET(ch->on_compartment->flags, COMPARTMENT_BRIEF)) is_brief = true;
+
+	if (!automatic || ((!IS_NPC(ch) || IS_SWITCHED(ch)) && !is_brief)) {
 		if (IS_WILDERNESS(room) || IS_SET(room->room_flag[0], ROOM_VIEWWILDS)) {
 			send_to_char("\n\r", ch);
 		} else {
@@ -1975,18 +1979,14 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 				send_to_char("\n\r", ch);
 			}
 
-#if 1
 			if (!IS_SET(ch->comm, COMM_NOMAP) && /*!ON_SHIP(ch) &&*/
 				!IS_SET(room->room_flag[0], ROOM_NOMAP) &&
 				!IS_SET(room->area->area_flags, AREA_NOMAP))
 				show_map_and_description(ch, room);
 			else {
-#endif
 				send_to_char("  ", ch);
 				show_room_description(ch, room);
-#if 1
 			}
-#endif
 		}
 	}
 
@@ -2003,7 +2003,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	/* VIZZWILDS - Check if char is in a wilderness room, and if so display wilds map */
 	if (room->wilds && ((automatic && ((!IS_NPC(ch) &&
 		IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM) &&
-		!IS_SET(ch->comm, COMM_BRIEF)))) ||
+		!is_brief))) ||
 		(!automatic && !IS_NPC(ch) &&
 		IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM)))) {
 		int vp_x, vp_y;
@@ -2015,7 +2015,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 
 	if(!IS_NPC(ch) /*&& !IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM)*/ &&
 		IS_SET(room->room_flag[0], ROOM_VIEWWILDS) &&
-		(!automatic || !IS_SET(ch->comm, COMM_BRIEF))) {
+		(!automatic || !is_brief)) {
 		int vp_x, vp_y;
 		int x, y;
 		WILDS_DATA *viewwilds = NULL;

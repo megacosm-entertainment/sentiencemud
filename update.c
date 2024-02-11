@@ -166,8 +166,8 @@ void update_handler(void)
 	//update_invasion_quest(); Syn - don't do this. it seems to eat a lot of CPU time.
 	obj_update();
 	mission_update();
-    	pneuma_relic_update();
-	relic_update();
+    	//pneuma_relic_update();
+	//relic_update();
 	update_area_trade();
 	instance_update();
 	dungeon_update();
@@ -3376,21 +3376,21 @@ void update_hunting_pc(CHAR_DATA *ch)
 
     if (victim == NULL)
     {
-	bug("update_hunting_pc: null victim = ch->hunting", 0);
-	return;
+		bug("update_hunting_pc: null victim = ch->hunting", 0);
+		return;
     }
 
     if (victim->in_room == NULL)
     {
-	bug("update_hunting_pc: victim in_room null!", 0);
-	ch->hunting = NULL;
-	return;
+		bug("update_hunting_pc: victim in_room null!", 0);
+		ch->hunting = NULL;
+		return;
     }
 
     if (ch->position != POS_STANDING)
     {
-	ch->hunting = NULL;
-	return;
+		ch->hunting = NULL;
+		return;
     }
 
     // Chance of failing
@@ -3401,11 +3401,28 @@ void update_hunting_pc(CHAR_DATA *ch)
 
     if (number_percent() > chance && number_percent() < 25)
     {
-	send_to_char("You lost the trail.\n\r", ch);
-	act("$n has lost the trail.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	ch->hunting = NULL;
-	return;
+		send_to_char("You lost the trail.\n\r", ch);
+		act("$n has lost the trail.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		ch->hunting = NULL;
+		return;
     }
+
+    if ( IN_WILDERNESS( ch ) )
+    {
+		send_to_char("You lost the trail.\n\r", ch);
+		act("$n has lost the trail.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		ch->hunting = NULL;
+		return;
+    }
+
+    if ( IN_WILDERNESS( victim ) )
+    {
+		send_to_char("You lost the trail.\n\r", ch);
+		act("$n has lost the trail.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		ch->hunting = NULL;
+		return;
+    }
+
 
     direction = find_path(ch->in_room->area, ch->in_room->vnum, victim->in_room->area, victim->in_room->vnum, ch, -500, false);
 
@@ -3479,6 +3496,20 @@ void update_hunting_pc(CHAR_DATA *ch)
 
 // Update the pneuma relic. Add another pneuma to its stash.
 // TODO: Just make this a script on the relic itself
+/*
+if rand 80
+ obj load $(game.reserved_obj.objbottledsoul) 0 room
+ switch $[1:3]
+ case 1:
+  obj echo $(self.short.capital) glows gently then neatly drops a bottled soul.
+ case 2:
+  obj echo A bottled soul materializes before $(self.short).
+ case 3:
+  obj echo The wails of the dead coalesces into a bottled soul before $(self.short).
+ endswitch
+endif
+*/
+#if 0
 void pneuma_relic_update(void)
 {
     OBJ_DATA *pneuma;
@@ -3512,9 +3543,11 @@ void pneuma_relic_update(void)
 	}
     }
 }
-
+#endif
 
 // Update relics, find out if they need to vanish.
+#if 0
+// TODO: Move all of this to RANDOM scripts
 void relic_update(void)
 {
 	log_string("Update all relics...");
@@ -3533,9 +3566,33 @@ void relic_update(void)
     if (mana_regen_relic != NULL)
 	check_relic_vanish(mana_regen_relic);
 }
-
+#endif
 
 // Check if a relic needs to vanish from a treasure room.
+// TODO: Just make this a script?
+/*
+if timer $(self) < 10
+ if vardefined vanish
+  obj echo $<=vanish>
+ else
+  obj echo {M$(self.short.capital) vanishes in a swirl of purple mist.{x
+ endif
+ ** {MCheck if the relic is inside a church treasure room.{x
+ list abc ch $(game.churches)
+  if istreasureroom $<ch> $(here)
+   if vardefined church
+    obj echoat $<ch> $<=church>
+   else
+    obj echoat $<ch> {Y[You feel an ancient power depart your church as $(self.short) vanishes from your treasure room.]{x
+   endif
+  endif
+ endlist abc
+ obj varset dest randroom $(null) any
+ obj otransfer $(self) $<dest>
+ obj alterobj $(self) timer = $[(180:43200)+10]
+endif
+*/
+#if 0
 void check_relic_vanish(OBJ_DATA *relic)
 {
 	ITERATOR cit, rit, oit;
@@ -3585,7 +3642,7 @@ void check_relic_vanish(OBJ_DATA *relic)
 		log_string(buf);
     }
 }
-
+#endif
 
 // Update people bitten by a sith.
 void bitten_update(CHAR_DATA *ch)

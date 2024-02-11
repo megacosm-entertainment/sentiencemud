@@ -815,6 +815,11 @@ void script_loop_cleanup(SCRIPT_CB *block, int level)
 			case ENT_ILLIST_WAYPOINTS:
 				iterator_stop(&block->loops[i].d.l.list.it);
 				break;
+
+			case ENT_ILLIST_MOB_GROUP:
+				iterator_stop(&block->loops[i].d.l.list.it);
+				list_destroy(block->loops[i].d.l.list.lp);
+				break;
 			}
 
 			block->loops[i].valid = false;
@@ -2202,6 +2207,7 @@ DECL_OPC_FUN(opc_list)
 
 			// Set the variable
 			variables_set_mobile(block->info.var,block->loops[lp].var_name,ch);
+			break;
 
 		case ENT_ILLIST_VARIABLE:
 			//log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
@@ -3261,6 +3267,8 @@ DECL_OPC_FUN(opc_list)
 
 			if( !ch ) {
 				iterator_stop(&block->loops[lp].d.l.list.it);
+				// This needs to be destroyed
+				list_destroy(block->loops[lp].d.l.list.lp);
 				skip = true;
 				break;
 			}
@@ -8924,14 +8932,19 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 				variables_set_mobile(vars,name,vch);
 		}
 
-	// RANDROOM <player> <continent>
+	// RANDROOM <player|null> <continent>
 	} else if(!str_cmp(buf,"randroom")) {
 		ROOM_INDEX_DATA *loc;
 
-		if( arg->type != ENT_MOBILE || !IS_VALID(arg->d.mob) || IS_NPC(arg->d.mob) )
-			return;
+		if (arg->type == ENT_NULL)
+			vch = NULL;
+		else
+		{
+			if( arg->type != ENT_MOBILE || !IS_VALID(arg->d.mob) || IS_NPC(arg->d.mob) )
+				return;
 
-		vch = arg->d.mob;
+			vch = arg->d.mob;
+		}
 
 		if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
 			return;
