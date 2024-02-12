@@ -7485,10 +7485,10 @@ void token_from_room(TOKEN_DATA *token)
 
 	// TODO: Handle AFFECT Tokens on rooms whenever rooms get affects
 
-	list_remlink(token->object->ltokens, token, false);
+	list_remlink(token->room->ltokens, token, false);
 
 	if (token_prev == NULL)
-		token_tmp->object->tokens = token_tmp->next;
+		token_tmp->room->tokens = token_tmp->next;
 	else
 		token_prev->next = token->next;
 
