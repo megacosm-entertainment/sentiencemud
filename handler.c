@@ -6926,10 +6926,10 @@ void token_from_room(TOKEN_DATA *token)
 		token->name, token->pIndexData->vnum, token->room->name, token->room->vnum);
 	log_string(buf);
 
-	list_remlink(token->object->ltokens, token);
+	list_remlink(token->room->ltokens, token);
 
 	if (token_prev == NULL)
-		token_tmp->object->tokens = token_tmp->next;
+		token_tmp->room->tokens = token_tmp->next;
 	else
 		token_prev->next = token->next;
 
