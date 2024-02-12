@@ -2723,6 +2723,12 @@ char *expand_entity_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.ship = (arg->d.instance && IS_VALID(arg->d.instance->ship)) ? arg->d.instance->ship : NULL;
 		break;
 
+	case ENTITY_ROOM_FLAGS:
+		arg->type = ENT_BITMATRIX;
+		arg->d.bm.values = room ? room->room_flag : NULL;
+		arg->d.bm.bank = room_flagbank;
+		break;
+
 	default: return NULL;
 	}
 

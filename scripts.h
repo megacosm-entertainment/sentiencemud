@@ -795,6 +795,7 @@ enum entity_room_enum {
 	ENTITY_ROOM_INSTANCE,
 	ENTITY_ROOM_DUNGEON,
 	ENTITY_ROOM_SHIP,
+	ENTITY_ROOM_FLAGS,
 };
 
 enum entity_exit_enum {

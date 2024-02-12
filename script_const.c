@@ -357,6 +357,7 @@ ENT_FIELD entity_room[] = {
 	{"environment",	ENTITY_ROOM_ENVIRON,		ENT_ROOM	},
 	{"extern",		ENTITY_ROOM_ENVIRON,		ENT_ROOM	},
 	{"mobiles",		ENTITY_ROOM_MOBILES,		ENT_OLLIST_MOB	},
+	{"flags",		ENTITY_ROOM_FLAGS,			ENT_BITMATRIX },
 	{"name",		ENTITY_ROOM_NAME,			ENT_STRING	},
 	{"north",		ENTITY_ROOM_NORTH,			ENT_EXIT	},
 	{"northeast",	ENTITY_ROOM_NORTHEAST,		ENT_EXIT	},
