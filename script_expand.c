@@ -2024,6 +2024,11 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.group_owner = arg->d.mob;
 		break;
 
+	case ENTITY_MOB_NUMGROUPED:
+		arg->type = ENT_NUMBER;
+		arg->d.num = self ? self->num_grouped : 0;
+		break;
+
 	case ENTITY_MOB_DAMAGEDICE:
 		arg->type = ENT_DICE;
 		arg->d.dice = arg->d.mob ? &arg->d.mob->damage : NULL;;
@@ -2316,7 +2321,12 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 	case ENTITY_MOB_GROUP:
 		arg->type = ENT_GROUP;
-		arg->d.mob = NULL;
+		arg->d.group_owner = NULL;
+		break;
+
+	case ENTITY_MOB_NUMGROUPED:
+		arg->type = ENT_NUMBER;
+		arg->d.num = 0;
 		break;
 
 	case ENTITY_MOB_DAMAGEDICE:
@@ -4608,6 +4618,7 @@ char *expand_entity_group(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 	case ENTITY_GROUP_SIZE:
 		arg->type = ENT_NUMBER;
+		arg->d.num = arg->d.group_owner ? list_size(arg->d.group_owner->lgroup) + 1 : 0;
 
 		break;
 

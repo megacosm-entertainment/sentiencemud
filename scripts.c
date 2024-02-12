@@ -729,6 +729,11 @@ void script_loop_cleanup(SCRIPT_CB *block, int level)
 			case ENT_ILLIST_VARIABLE:
 				iterator_stop(&block->loops[i].d.l.list.it);
 				break;
+
+			case ENT_ILLIST_MOB_GROUP:
+				iterator_stop(&block->loops[i].d.l.list.it);
+				list_destroy(block->loops[i].d.l.list.lp);
+				break;
 			}
 
 			block->loops[i].valid = false;
@@ -2532,6 +2537,8 @@ DECL_OPC_FUN(opc_list)
 
 			if( !ch ) {
 				iterator_stop(&block->loops[lp].d.l.list.it);
+				// This needs to be destroyed
+				list_destroy(block->loops[lp].d.l.list.lp);
 				skip = true;
 				break;
 			}

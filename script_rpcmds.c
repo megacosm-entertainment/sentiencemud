@@ -3103,6 +3103,7 @@ SCRIPT_CMD(do_rpaltermob)
 	bool allowarith = true;
 	bool allowbitwise = true;
 	bool lookuprace = false;
+	bool lookup_attack_type = false;
 	bool hasmin = false;
 	bool hasmax = false;
 	const struct flag_type *flags = NULL;
@@ -3172,6 +3173,7 @@ SCRIPT_CMD(do_rpaltermob)
 	else if(!str_cmp(field,"cast"))		ptr = (int*)&mob->cast;
 	else if(!str_cmp(field,"comm"))		{ ptr = IS_NPC(mob)?NULL:(int*)&mob->comm; allowpc = true; allowarith = false; min_sec = 7; flags = comm_flags; }		// 20140512NIB - Allows for scripted fun with player communications, only bit operators allowed
 	else if(!str_cmp(field,"damroll"))	ptr = (int*)&mob->damroll;
+	else if(!str_cmp(field,"damtype"))	{ ptr = (int*)&mob->dam_type; allowpc = false; allowarith = false; min_sec = 7; lookup_attack_type = true; }
 	else if(!str_cmp(field,"danger"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->danger_range; allowpc = true; }
 	else if(!str_cmp(field,"daze"))		ptr = (int*)&mob->daze;
 	else if(!str_cmp(field,"death"))	{ ptr = (IS_NPC(mob) || !IS_DEAD(mob))?NULL:(int*)&mob->time_left_death; allowpc = true; }
@@ -3271,6 +3273,15 @@ SCRIPT_CMD(do_rpaltermob)
 		allowarith = false;
 		allowbitwise = false;
 		value = race_lookup(arg->d.str);
+	}
+	else if( lookup_attack_type )
+	{
+		if( arg->type != ENT_STRING ) return;
+
+		// This is an attack type, can only be assigned.
+		allowarith = false;
+		allowbitwise = false;
+		value = attack_lookup(arg->d.str);
 	}
 	else if( bank != NULL )
 	{

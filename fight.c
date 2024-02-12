@@ -914,10 +914,9 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt, bool secondary)
 	victim->hit_damage = dam;
 	victim->hit_type = dam_type;
 
-	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, wield, NULL, TRIG_HIT, NULL)) {
-		tail_chain();
-		return true;
-	}
+	p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, wield, NULL, TRIG_ATTACK, NULL);
+
+	p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, wield, NULL, TRIG_HIT, NULL);
 
 	dam = victim->hit_damage;
 	victim->hit_damage = 0;
@@ -1450,6 +1449,7 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 	victim->hit_type = dt;
 	victim->hit_class = dam_type;
 	p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, weapon, NULL, TRIG_CHECK_DAMAGE, show?"visible":"hidden");
+	p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, weapon, NULL, TRIG_CHECK_DAMAGE, show?"visible":"hidden");
 
 	// Reset the damage down to zero if immune
 	if( immune ) dam = 0;
@@ -3564,7 +3564,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 	TOKEN_DATA *token, *token_next;
 //    long repop_room = 0;
 
-	sprintf(buf,"raw_kill(%s:%lu:%lu,%s,%s,%d)",
+	sprintf(buf,"raw_kill(Vict: %s, ID: %lu:%lu, Head: %s, Silent: %s, Corpse Type: %d)",
 		(char*)((IS_NPC(victim) || victim->morphed) ? victim->short_descr : capitalize(victim->name)),
 		victim->id[0],victim->id[1],
 		(has_head?"HEAD":"HEADLESS"),

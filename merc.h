@@ -5788,6 +5788,7 @@ enum trigger_index_enum {
 	TRIG_AFTERKILL,		/* Called after someome kills a target.  TODO: Damage will become forbidden in this trigger. */
 	TRIG_ANIMATE,
 	TRIG_ASSIST,
+    TRIG_ATTACK,
 	TRIG_ATTACK_BACKSTAB,
 	TRIG_ATTACK_BASH,
 	TRIG_ATTACK_BEHEAD,

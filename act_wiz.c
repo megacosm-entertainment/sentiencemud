@@ -2211,7 +2211,10 @@ void do_tstat(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL], buf[MSL], buf2[MSL], arg2[MSL], arg3[MSL];
     TOKEN_DATA *token = NULL;
-    CHAR_DATA *victim;
+	TOKEN_DATA *tokens = NULL;
+	CHAR_DATA *victim = NULL;
+	OBJ_DATA *object = NULL;
+	ROOM_INDEX_DATA *room = NULL;
     int i;
     long vnum = 0, count;
 
@@ -2221,16 +2224,34 @@ void do_tstat(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg2);
 
     if (arg[0] == '\0') {
-	send_to_char("Syntax:  stat token <character> [token vnum]\n\r", ch);
+	send_to_char("Syntax:  stat token <mob name|obj name|room> [token vnum]\n\r", ch);
 	return;
     }
 
-    if ((victim = get_char_world(NULL, arg)) == NULL) {
-	send_to_char("Character not found.\n\r", ch);
-	return;
-    }
+	if (!str_cmp(arg,"mob")) {
+		if ((victim = get_char_world(NULL, arg2)) == NULL) {
+			send_to_char("Mobile not found.\n\r", ch);
+			return;
+		}
+		tokens = victim->tokens;
+		count = number_argument(argument, arg3);
+	} else if(!str_cmp(arg, "obj")) {
+		if ((object = get_obj_world(NULL, arg2)) == NULL) {
+			send_to_char("Object not found.\n\r", ch);
+			return;
+		}
 
-	count = number_argument(arg2, arg3);
+		tokens = object->tokens;
+		count = number_argument(argument, arg3);
+	} else if(!str_cmp(arg, "room")) {
+		room = ch->in_room;
+		tokens = room->tokens;
+		count = number_argument(arg2, arg3);
+	} else {
+		send_to_char("Syntax:  stat token <mob name|obj name|room> [token vnum]\n\r", ch);
+		return;
+	}
+
     if (arg3[0] != '\0') {
 		vnum = atol(arg3);
 
@@ -2239,8 +2260,18 @@ void do_tstat(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		if ((token = get_token_char(victim, vnum, count)) == NULL) {
+		if (victim  && !(token= get_token_char(victim, vnum, count))) {
 			act("$N doesn't have that token.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
+
+		if (object && !(token = get_token_obj(object, vnum, count))) {
+			act("$p doesn't have that token.", ch, NULL, NULL, object, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
+
+		if (room && !(token = get_token_room(room, vnum, count))) {
+			send_to_char("The room doesn't have that token.", ch);
 			return;
 		}
     }
@@ -2258,26 +2289,28 @@ void do_tstat(CHAR_DATA *ch, char *argument)
 
     add_buf(buffer, "{x\n\r");
 
-    if (token == NULL) {
-	if (victim->tokens == NULL)
-	    add_buf(buffer, "None.\n\r");
-	else
+    if (token == NULL) 
 	{
-	    for (token = victim->tokens; token != NULL; token = token->next) {
-		buf[0] = '\0';
-		sprintf(buf2, "{Y[{x%7ld{Y]{x %-20.20s %-6d ",
-			token->pIndexData->vnum, token->name, token->timer);
+		if (tokens == NULL)
+	    	add_buf(buffer, "None.\n\r");
+		else
+		{
+	    	for (token = tokens; token != NULL; token = token->next) 
+			{
+				buf[0] = '\0';
+			sprintf(buf2, "{Y[{x%7ld{Y]{x %-20.20s %-6d ",
+				token->pIndexData->vnum, token->name, token->timer);
 
-		strcat(buf, buf2);
-		for (i = 0; i < MAX_TOKEN_VALUES; i++) {
-		    sprintf(buf2, "{b[{x%-7.7s{b]{x %-9ld ", token_index_getvaluename(token->pIndexData, i), token->value[i]);
-		    strcat(buf, buf2);
+			strcat(buf, buf2);
+			for (i = 0; i < MAX_TOKEN_VALUES; i++) {
+		    	sprintf(buf2, "{b[{x%-7.7s{b]{x %-9ld ", token_index_getvaluename(token->pIndexData, i), token->value[i]);
+		    	strcat(buf, buf2);
+			}
+
+			strcat(buf, "\n\r");
+			add_buf(buffer, buf);
+	    	}
 		}
-
-		strcat(buf, "\n\r");
-		add_buf(buffer, buf);
-	    }
-	}
     }
     else
     {

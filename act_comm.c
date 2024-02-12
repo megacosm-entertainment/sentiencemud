@@ -1487,7 +1487,7 @@ void stop_follower(CHAR_DATA *ch, bool show)
 	}
 	}
 
-	if (IS_VALID(ch->master->pet))
+	if (IS_VALID(ch->master->pet) && ch->master->pet == ch)
 	ch->master->pet = NULL;
 
 	ch->master = NULL;
