@@ -1483,7 +1483,7 @@ void do_rstat(CHAR_DATA *ch, char *argument)
 
     sprintf(buf,
             "{YRoom flags:{x %s.\n\r{YDescription:{x\n\r%s\n\r",
-            flagbank_string(room_flagbank, location->room_flag),
+            bitmatrix_string(room_flagbank, location->room_flag),
             location->description);
     add_buf(output, buf);
 
