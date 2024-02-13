@@ -1903,7 +1903,7 @@ const	struct	pc_race_type	pc_race_table	[]	=
 		{"crippling touch", "rending", "scry", "spirit rack", "resurrect", "fade", NULL},
 		{13, 13, 13, 13, 13},
 		{20, 25, 25, 18, 25},
-		{2850, 4350, 3000},
+		{2850, 4600, 3000},
 		SIZE_MEDIUM,
 		ALIGN_NONE,
 		&gprn_wraith,

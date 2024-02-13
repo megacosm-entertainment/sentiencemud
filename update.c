@@ -2690,8 +2690,8 @@ void aggr_update(void)
 			}
 		}
 		chance = 0;
-		if(IS_SET(wch->in_room->room_flag[1], ROOM_DRAIN_MANA)) chance += 8;
-		if (wch->in_room->sector_type == SECT_CURSED_SANCTUM) chance += 8;
+		if(IS_SET(wch->in_room->room_flag[1], ROOM_DRAIN_MANA)) chance += 18;
+		if (wch->in_room->sector_type == SECT_CURSED_SANCTUM) chance += 18;
 
 		if (chance > 0 && number_percent() < chance) {
 
