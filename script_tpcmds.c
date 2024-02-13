@@ -22,7 +22,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "alterexit",			do_tpalterexit,				false,	true	},
 	{ "altermob",			do_tpaltermob,				true,	true	},
 	{ "alterobj",			scriptcmd_alterobj,				true,	true	},
-	{ "alterroom",			do_tpalterroom,				true,	true	},
+	{ "alterroom",			scriptcmd_alterroom,				true,	true	},
 	{ "applytoxin",			scriptcmd_applytoxin,		false,	true	},
 	{ "asound",				do_tpasound,				false,	true	},
 	{ "attach",				scriptcmd_attach,			true,	true	},
@@ -105,6 +105,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "remove",				do_tpremove,				false,	true	},
 	{ "remspell",			do_tpremspell,				true,	true	},
 	{ "resetdice",			do_tpresetdice,				true,	true	},
+	{ "resetroom",			scriptcmd_resetroom,		true,	true	},
 	{ "restore",			do_tprestore,				true,	true	},
 	{ "revokeskill",		scriptcmd_revokeskill,		false,	true	},
 	{ "saveplayer",			do_tpsaveplayer,			false,	true	},
@@ -5329,6 +5330,7 @@ SCRIPT_CMD(do_tpcloneroom)
 }
 
 // alterroom <room> <field> <parameters>
+/*
 SCRIPT_CMD(do_tpalterroom)
 {
 	char buf[MSL+2],field[MIL],*rest;
@@ -5703,6 +5705,7 @@ SCRIPT_CMD(do_tpalterroom)
 		}
 	}
 }
+*/
 
 // destroyroom <vnum> <id1> <id2>
 // destroyroom <room>

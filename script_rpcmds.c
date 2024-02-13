@@ -23,7 +23,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "alterexit",			do_rpalterexit,			false,	true	},
 	{ "altermob",			do_rpaltermob,			true,	true	},
 	{ "alterobj",			scriptcmd_alterobj,			true,	true	},
-	{ "alterroom",			do_rpalterroom,			true,	true	},
+	{ "alterroom",			scriptcmd_alterroom,			true,	true	},
 	{ "applytoxin",			scriptcmd_applytoxin,	false,	true	},
 	{ "asound",				do_rpasound,			false,	true	},
 	{ "at",					do_rpat,				false,	true	},
@@ -102,6 +102,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "remove",				do_rpremove,			false,	true	},
 	{ "remspell",			do_rpremspell,			true,	true	},
 	{ "resetdice",			do_rpresetdice,			true,	true	},
+	{ "resetroom",			scriptcmd_resetroom,	true,	true	},
 	{ "restore",			do_rprestore,			true,	true	},
 	{ "revokeskill",		scriptcmd_revokeskill,	false,	true	},
 	{ "saveplayer",			do_rpsaveplayer,		false,	true	},
@@ -4867,6 +4868,7 @@ SCRIPT_CMD(do_rpcloneroom)
 }
 
 // alterroom <room> <field> <parameters>
+/*
 SCRIPT_CMD(do_rpalterroom)
 {
 	char buf[MSL+2],field[MIL],*rest;
@@ -5241,6 +5243,7 @@ SCRIPT_CMD(do_rpalterroom)
 		}
 	}
 }
+*/
 
 // destroyroom <vnum> <id> <id>
 // destroyroom <room>

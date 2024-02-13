@@ -1457,7 +1457,7 @@ void reset_area(AREA_DATA *pArea)
 	for (vnum = pArea->min_vnum; vnum <= pArea->max_vnum; vnum++)
 	{
 	    if ((pRoom = get_room_index(vnum)))
-			reset_room(pRoom);
+			reset_room(pRoom, false);
 	}
 }
 
@@ -1665,7 +1665,7 @@ void migrate_shopkeeper_resets(AREA_DATA *area)
 }
 
 
-void reset_room(ROOM_INDEX_DATA *pRoom)
+void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 {
 	RESET_DATA  *pReset;
 	CHAR_DATA   *pMob;
@@ -1681,12 +1681,28 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 	int i;
 	int c;
 
-	// Invalid room or the room is persistant
-	if (!pRoom || pRoom->persist)
+	// Invalid room or the room is persistant (and not forced)
+	if (!pRoom || (pRoom->persist && !force))
 		return;
 
 	pMob = NULL;
 	last = false;
+
+	// Reset all of the mutable things
+	pRoom->room_flag[0] = pRoom->rs_room_flag[0];
+	pRoom->room_flag[1] = pRoom->rs_room_flag[1];
+	pRoom->heal_rate = pRoom->rs_heal_rate;
+	pRoom->mana_rate = pRoom->rs_mana_rate;
+	pRoom->move_rate = pRoom->rs_move_rate;
+	pRoom->sector_type = pRoom->rs_sector_type;
+	if (!pRoom->sector_type) pRoom->sector_type = SECT_INSIDE;
+	if (rs_location_isset(&pRoom->rs_recall))
+	{
+		pRoom->recall.wuid = pRoom->rs_recall.wuid;
+		pRoom->recall.id[0] = pRoom->rs_recall.id[0];
+		pRoom->recall.id[1] = pRoom->rs_recall.id[1];
+		pRoom->recall.id[2] = pRoom->rs_recall.id[2];
+	}
 
 	for (iExit = 0;  iExit < MAX_DIR;  iExit++)
 	{

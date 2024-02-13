@@ -1130,7 +1130,7 @@ void instance_section_reset_rooms(INSTANCE_SECTION *section)
 	iterator_start(&rit, section->rooms);
 	while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
 	{
-		reset_room(room);
+		reset_room(room, false);
 	}
 
 	iterator_stop(&rit);

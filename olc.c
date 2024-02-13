@@ -1272,7 +1272,7 @@ void do_redit(CHAR_DATA *ch, char *argument)
 	    return;
 	}
 
-	reset_room(pRoom);
+	reset_room(pRoom, true);
 	send_to_char("Room reset.\n\r", ch);
 	return;
     }

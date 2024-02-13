@@ -21,7 +21,7 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "alterexit",			do_opalterexit,			false,	true	},
 	{ "altermob",			do_opaltermob,			true,	true	},
 	{ "alterobj",			scriptcmd_alterobj,			true,	true	},
-	{ "alterroom",			do_opalterroom,			true,	true	},
+	{ "alterroom",			scriptcmd_alterroom,			true,	true	},
 	{ "applytoxin",			scriptcmd_applytoxin,	false,	true	},
 	{ "asound",				do_opasound,			false,	true	},
 	{ "at",					do_opat,				false,	true	},
@@ -104,6 +104,7 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "remove",				do_opremove,			false,	true	},
 	{ "remspell",			do_opremspell,			true,	true	},
 	{ "resetdice",			do_opresetdice,			true,	true	},
+	{ "resetroom",			scriptcmd_resetroom,	true,	true	},
 	{ "restore",			do_oprestore,			true,	true	},
 	{ "revokeskill",		scriptcmd_revokeskill,	false,	true	},
 	{ "saveplayer",			do_opsaveplayer,		false,	true	},
@@ -5193,6 +5194,7 @@ SCRIPT_CMD(do_opcloneroom)
 }
 
 // alterroom <room> <field> <parameters>
+/*
 SCRIPT_CMD(do_opalterroom)
 {
 	char buf[MSL+2],field[MIL],*rest;
@@ -5569,6 +5571,7 @@ SCRIPT_CMD(do_opalterroom)
 		}
 	}
 }
+*/
 
 // destroyroom <vnum> <id> <id>
 // destroyroom <room>

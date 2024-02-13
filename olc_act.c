@@ -2039,19 +2039,19 @@ REDIT(redit_show)
 	    pRoom->name, pRoom->area->anum, pRoom->area->name);
     add_buf(buf1, buf);
 
-    if (IS_SET(pRoom->room_flag[1], ROOM_VIRTUAL_ROOM))
+    if (IS_SET(pRoom->rs_room_flag[1], ROOM_VIRTUAL_ROOM))
         sprintf (buf, "VRoom at ({W%ld{x, {W%ld{x), in wilds uid ({W%ld{x) '{W%s{x'\n\r",
                  pRoom->x, pRoom->y, pRoom->wilds->uid, pRoom->wilds->name);
     else if(pRoom->viewwilds)
         sprintf(buf, "Vnum:         {r[{x%5ld{r]{x\n\r"
                      "Sector:       {r[{x%s{r]{x\n\r"
                      "Map Coordinate at ({W%ld{x, {W%ld{x, {W%ld{x), in wilds uid ({W%ld{x) '{W%s{x'\n\r",
-	        pRoom->vnum, flag_string(sector_flags, pRoom->sector_type),
+	        pRoom->vnum, flag_string(sector_flags, pRoom->rs_sector_type),
 	        pRoom->x, pRoom->y, pRoom->z, pRoom->viewwilds->uid, pRoom->viewwilds->name);
     else
         sprintf(buf, "Vnum:         {r[{x%5ld{r]{x\n\r"
                      "Sector:       {r[{x%s{r]{x\n\r",
-	        pRoom->vnum, flag_string(sector_flags, pRoom->sector_type));
+	        pRoom->vnum, flag_string(sector_flags, pRoom->rs_sector_type));
 
     add_buf(buf1, buf);
 
@@ -2059,20 +2059,20 @@ REDIT(redit_show)
     add_buf(buf1, buf);
 
     sprintf(buf, "Room flags:   {r[{x%s{r]{x\n\r",
-	    bitmatrix_string(room_flagbank, pRoom->room_flag));
+	    bitmatrix_string(room_flagbank, pRoom->rs_room_flag));
     add_buf(buf1, buf);
 /*
     sprintf(buf, "Room2 flags:  {r[{x%s{r]{x\n\r",
 	    flag_string(room2_flags, pRoom->room2_flags));
     add_buf(buf1, buf);
 */
-    if (pRoom->heal_rate != 100 || pRoom->mana_rate != 100 || pRoom->heal_rate != 100)
+    if (pRoom->rs_heal_rate != 100 || pRoom->rs_mana_rate != 100 || pRoom->rs_move_rate != 100)
     {
 	sprintf(buf,
 	         "Health rec:   {r[{x%d{r]{x\n\r"
 		 "Mana rec:     {r[{x%d{r]{x\n\r"
 		 "Move rec:     {r[{x%d{r]{x\n\r",
-		pRoom->heal_rate , pRoom->mana_rate, pRoom->move_rate);
+		pRoom->rs_heal_rate , pRoom->rs_mana_rate, pRoom->rs_move_rate);
         add_buf(buf1, buf);
     }
 
@@ -3421,7 +3421,7 @@ REDIT(redit_heal)
 
     if (is_number(argument))
        {
-          pRoom->heal_rate = atoi (argument);
+          pRoom->rs_heal_rate = atoi (argument);
           send_to_char ("Heal rate set.\n\r", ch);
           return true;
        }
@@ -3439,7 +3439,7 @@ REDIT(redit_mana)
 
     if (is_number(argument))
        {
-          pRoom->mana_rate = atoi (argument);
+          pRoom->rs_mana_rate = atoi (argument);
           send_to_char ("Mana rate set.\n\r", ch);
           return true;
        }
@@ -3457,7 +3457,7 @@ REDIT(redit_move)
 
     if (is_number(argument))
     {
-	pRoom->move_rate = atoi (argument);
+	pRoom->rs_move_rate = atoi (argument);
 	send_to_char ("Movement regen rate set.\n\r", ch);
 	return true;
     }
@@ -11202,73 +11202,71 @@ REDIT(redit_room)
     ROOM_INDEX_DATA *room;
     //long value;
 
-    if (argument[0] != '\0')
-    {
-			EDIT_ROOM(ch, room);
+		EDIT_ROOM(ch, room);
 
 		long bits[2];
-		if (bitvector_lookup(argument, 2, bits, room_flags, room2_flags))
+		if (!bitmatrix_lookup(argument, room_flagbank, bits))
 		{
+			send_to_char("Syntax:  room <flags>\n\r", ch);
+			send_to_char("Type '? room' for list of flags.\n\r", ch);
+			return false;
+		}
+		
 
-		    if( IS_SET(bits[1], ROOM_BLUEPRINT) )
-    		{
-				// Only those that can edit blueprints can toggle this flag
-				if( !can_edit_blueprints(ch) )
-				{
-					bits[1] &= ~ROOM_BLUEPRINT;
-
-					if( !bits[1] )
-					{
-						send_to_char("Syntax: room [flags]\n\r", ch);
-						return false;
-					}
-				}
-				else if( !IS_SET(bits[1], ROOM_NOCLONE) && IS_SET(room->room_flag[1], ROOM_NOCLONE) )
-				{
-					send_to_char("No-clone room cannot be used in blueprints.\n\r", ch);
-					return false;
-				}
-				else if( IS_SET(bits[1], ROOM_NOCLONE) && !IS_SET(room->room_flag[1], ROOM_NOCLONE) )
-				{
-					send_to_char("BLUEPRINT and NO_CLONE cannot mix.\n\r", ch);
-					return false;
-				}
-			}
-
-			if( IS_SET(bits[1], ROOM_NOCLONE) )
+		if( IS_SET(bits[1], ROOM_BLUEPRINT) )
+    	{
+			// Only those that can edit blueprints can toggle this flag
+			if( !can_edit_blueprints(ch) )
 			{
-				if( !IS_SET(bits[1], ROOM_BLUEPRINT) && IS_SET(room->room_flag[1], ROOM_BLUEPRINT) )
-				{
-					send_to_char("Blueprint rooms cannot be no-clone.\n\r", ch);
-					return false;
-				}
+				bits[1] &= ~ROOM_BLUEPRINT;
 
-				// Check if room is already used in a section
-				if( get_blueprint_section_byroom(room->vnum) )
+				if( !bits[1] )
 				{
-					send_to_char("Room is currently used in a blueprint.\n\r", ch);
-					// Clear it out, JIC
-					if( IS_SET(room->room_flag[1], ROOM_NOCLONE) )
-					{
-			    		REMOVE_BIT(room->room_flag[1], ROOM_NOCLONE);
-			    		return true;
-					}
-
+					send_to_char("Syntax: room [flags]\n\r", ch);
 					return false;
 				}
 			}
+			else if( !IS_SET(bits[1], ROOM_NOCLONE) && IS_SET(room->rs_room_flag[1], ROOM_NOCLONE) )
+			{
+				send_to_char("No-clone room cannot be used in blueprints.\n\r", ch);
+				return false;
+			}
+			else if( IS_SET(bits[1], ROOM_NOCLONE) && !IS_SET(room->rs_room_flag[1], ROOM_NOCLONE) )
+			{
+				send_to_char("BLUEPRINT and NO_CLONE cannot mix.\n\r", ch);
+				return false;
+			}
+		}
 
-			TOGGLE_BIT(room->room_flag[0], bits[0]);
-			TOGGLE_BIT(room->room_flag[1], bits[1]);
+		if( IS_SET(bits[1], ROOM_NOCLONE) )
+		{
+			if( !IS_SET(bits[1], ROOM_BLUEPRINT) && IS_SET(room->rs_room_flag[1], ROOM_BLUEPRINT) )
+			{
+				send_to_char("Blueprint rooms cannot be no-clone.\n\r", ch);
+				return false;
+			}
 
-			send_to_char("Room flag(s) toggled.\n\r", ch);
-			return true;
-	}
-    }
+			// Check if room is already used in a section
+			if( get_blueprint_section_byroom(room->vnum) )
+			{
+				send_to_char("Room is currently used in a blueprint.\n\r", ch);
+				// Clear it out, JIC
+				if( IS_SET(room->rs_room_flag[1], ROOM_NOCLONE) )
+				{
+		    		REMOVE_BIT(room->rs_room_flag[1], ROOM_NOCLONE);
+		    		return true;
+				}
 
-    send_to_char("Syntax: room [flag]\n\r"
-		  "Type '? room' for a list of flags.\n\r", ch);
-    return false;
+				return false;
+			}
+		}
+
+		for(int i = 0; i < 2; i++)
+   			TOGGLE_BIT(room->rs_room_flag[i], bits[i]);
+
+		send_to_char("Room flag(s) toggled.\n\r", ch);
+		return true;
+	
 }
 
 /*
@@ -11356,7 +11354,7 @@ REDIT(redit_sector)
 	return false;
     }
 
-    room->sector_type = value;
+    room->rs_sector_type = value;
     send_to_char("Sector type set.\n\r", ch);
 
     return true;

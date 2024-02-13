@@ -854,7 +854,8 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 				obj_to_locker(obj, ch);
 			} else if (!str_cmp(word, "TOKEN")) {
 				token = fread_token(fp);
-				token_to_char(token, ch);
+				if (token)
+					token_to_char(token, ch);
 			} else if (!str_cmp(word, "SKILL")) {
 				fread_skill(fp, ch);
 			} else if (!str_cmp(word, "END"))
@@ -2615,7 +2616,8 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			if (!str_cmp(word, "#TOKEN"))
 			{
 				TOKEN_DATA *token = fread_token(fp);
-				token_to_obj(token, obj);
+				if (token)
+					token_to_obj(token, obj);
 				fMatch		= true;
 				break;
 			}
@@ -4570,6 +4572,7 @@ void fread_skill(FILE *fp, CHAR_DATA *ch)
 			if( IS_KEY("#TOKEN") ) {
 				token = fread_token(fp);
 				fMatch = true;
+				break;
 			}
 			break;
 

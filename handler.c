@@ -8777,6 +8777,11 @@ void location_set(LOCATION *loc, unsigned long a, unsigned long b, unsigned long
 	// if a == 0 and b == 0, then it is nowhere
 }
 
+bool rs_location_isset(RS_LOCATION *loc)
+{
+	return loc && (loc->wuid || loc->id[0]);
+}
+
 bool location_isset(LOCATION *loc)
 {
 	return loc && (loc->wuid || loc->id[0]);

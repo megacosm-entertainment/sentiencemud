@@ -2226,14 +2226,16 @@ SCRIPT_CMD(do_mpaltermob);
 SCRIPT_CMD(do_opaltermob);
 SCRIPT_CMD(do_rpaltermob);
 SCRIPT_CMD(do_tpaltermob);
-//SCRIPT_CMD(do_mpalterobj);
-//SCRIPT_CMD(do_opalterobj);
-//SCRIPT_CMD(do_rpalterobj);
-//SCRIPT_CMD(do_tpalterobj);
+/*
+SCRIPT_CMD(do_mpalterobj);
+SCRIPT_CMD(do_opalterobj);
+SCRIPT_CMD(do_rpalterobj);
+SCRIPT_CMD(do_tpalterobj);
 SCRIPT_CMD(do_mpalterroom);
 SCRIPT_CMD(do_opalterroom);
 SCRIPT_CMD(do_rpalterroom);
 SCRIPT_CMD(do_tpalterroom);
+*/
 SCRIPT_CMD(do_mpasound);
 SCRIPT_CMD(do_opasound);
 SCRIPT_CMD(do_rpasound);
@@ -2680,6 +2682,8 @@ SCRIPT_CMD(scriptcmd_loadinstanced);
 SCRIPT_CMD(scriptcmd_startreckoning);
 SCRIPT_CMD(scriptcmd_stopreckoning);
 SCRIPT_CMD(scriptcmd_alterobj);
+SCRIPT_CMD(scriptcmd_alterroom);
+SCRIPT_CMD(scriptcmd_resetroom);
 
 bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);
 bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);
