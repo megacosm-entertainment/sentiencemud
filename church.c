@@ -884,6 +884,10 @@ void do_chgohall(CHAR_DATA *ch, char *argument)
         return;
     }
 
+	if ( !can_escape(ch) )
+		return;
+
+
     pneuma_cost = 500;
     dp_cost = 50000;
 
