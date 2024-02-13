@@ -3766,6 +3766,8 @@ SCRIPT_CMD(scriptcmd_remstache);
 SCRIPT_CMD(scriptcmd_setoutbound);
 SCRIPT_CMD(scriptcmd_setclasslevel);
 SCRIPT_CMD(scriptcmd_churchannouncetheft);
+SCRIPT_CMD(scriptcmd_alterroom);
+SCRIPT_CMD(scriptcmd_resetroom);
 
 bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);
 bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);

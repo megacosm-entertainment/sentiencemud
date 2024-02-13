@@ -1072,18 +1072,21 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 				fread_stache(fp, ch->lstache);
 			} else if (!str_cmp(word, "TOKEN")) {
 				token = fread_token(fp);
-				token_to_char(token, ch);
-
-				// Add all affects on the token to the character
-				ITERATOR ait;
-				AFFECT_DATA *taf;
-				iterator_start(&ait, token->affects);
-				while((taf = (AFFECT_DATA *)iterator_nextdata(&ait)))
+				if (token)
 				{
-					taf->next = ch->affected;
-					ch->affected = taf;
+					token_to_char(token, ch);
+
+					// Add all affects on the token to the character
+					ITERATOR ait;
+					AFFECT_DATA *taf;
+					iterator_start(&ait, token->affects);
+					while((taf = (AFFECT_DATA *)iterator_nextdata(&ait)))
+					{
+						taf->next = ch->affected;
+						ch->affected = taf;
+					}
+					iterator_stop(&ait);
 				}
-				iterator_stop(&ait);
 			} else if (!str_cmp(word, "REPUTATION")) {
 				fread_reputation(fp, ch);
 			} else if (!str_cmp(word, "SKILLENTRY")) {
@@ -5887,18 +5890,21 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			else if (!str_cmp(word, "#TOKEN"))
 			{
 				TOKEN_DATA *token = fread_token(fp);
-				token_to_obj(token, obj);
-
-				// Add all affects on the token to the character
-				ITERATOR ait;
-				AFFECT_DATA *taf;
-				iterator_start(&ait, token->affects);
-				while((taf = (AFFECT_DATA *)iterator_nextdata(&ait)))
+				if (token)
 				{
-					taf->next = obj->affected;
-					obj->affected = taf;
+					token_to_obj(token, obj);
+
+					// Add all affects on the token to the character
+					ITERATOR ait;
+					AFFECT_DATA *taf;
+					iterator_start(&ait, token->affects);
+					while((taf = (AFFECT_DATA *)iterator_nextdata(&ait)))
+					{
+						taf->next = obj->affected;
+						obj->affected = taf;
+					}
+					iterator_stop(&ait);
 				}
-				iterator_stop(&ait);
 
 				fMatch		= true;
 				break;
@@ -7730,9 +7736,9 @@ TOKEN_DATA *fread_token(FILE *fp)
 
 	wnum = fread_widevnum(fp, 0);
     if ((token_index = get_token_index_auid(wnum.auid, wnum.vnum)) == NULL) {
-//	sprintf(buf, "fread_token: no token index found for vnum %ld", vnum);
-//	bug(buf, 0);
-	return NULL;
+		sprintf(buf, "fread_token: no token index found for widevnum %ld#%ld", wnum.auid, wnum.vnum);
+		bug(buf, 0);
+		return NULL;
     }
 
     token = new_token();
@@ -7908,6 +7914,7 @@ void fread_skill(FILE *fp, CHAR_DATA *ch, bool is_song)
 			if( IS_KEY("#TOKEN") ) {
 				token = fread_token(fp);
 				fMatch = true;
+				break;
 			}
 			break;
 

@@ -2666,7 +2666,7 @@ void reset_area(AREA_DATA *pArea)
 	{
 		for(pRoom = pArea->room_index_hash[iHash]; pRoom; pRoom = pRoom->next)
 		{
-			reset_room(pRoom);
+			reset_room(pRoom, false);
 		}
 	}
 }
@@ -2878,7 +2878,7 @@ void migrate_shopkeeper_resets(AREA_DATA *area)
 }
 
 
-void reset_room(ROOM_INDEX_DATA *pRoom)
+void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 {
 	RESET_DATA  *pReset;
 	CHAR_DATA   *pMob;
@@ -2891,12 +2891,31 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 	bool last;
 	bool instanced = false;
 
-	// Invalid room or the room is persistant
-	if (!pRoom || pRoom->persist)
+	// Invalid room or the room is persistant (and not forced)
+	if (!pRoom || (pRoom->persist && !force))
 		return;
 
 	pMob = NULL;
 	last = false;
+
+	// Reset all of the mutable things
+	pRoom->room_flag[0] = pRoom->rs_room_flag[0];
+	pRoom->room_flag[1] = pRoom->rs_room_flag[1];
+	pRoom->heal_rate = pRoom->rs_heal_rate;
+	pRoom->mana_rate = pRoom->rs_mana_rate;
+	pRoom->move_rate = pRoom->rs_move_rate;
+	pRoom->savage_level = pRoom->rs_savage_level;
+	pRoom->sector = pRoom->rs_sector;
+	if (!pRoom->sector) pRoom->sector = gsct_inside;
+	pRoom->sector_flags = pRoom->sector->flags;
+	if (rs_location_isset(&pRoom->rs_recall))
+	{
+		pRoom->recall.area = get_area_from_uid(pRoom->rs_recall.auid);
+		pRoom->recall.wuid = pRoom->rs_recall.wuid;
+		pRoom->recall.id[0] = pRoom->rs_recall.id[0];
+		pRoom->recall.id[1] = pRoom->rs_recall.id[1];
+		pRoom->recall.id[2] = pRoom->rs_recall.id[2];
+	}
 
 	for (iExit = 0;  iExit < MAX_DIR;  iExit++)
 	{
@@ -3148,9 +3167,6 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 			break;
 		}
 	}
-
-	if (!pRoom->sector) pRoom->sector = gsct_inside;
-	pRoom->sector_flags = pRoom->sector->flags;
 
 	p_percent_trigger(NULL, NULL, pRoom, NULL, NULL, NULL, NULL,NULL, NULL, TRIG_RESET, NULL,0,0,0,0,0);
 }
@@ -9659,7 +9675,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 				if (!str_cmp(word, "Sector"))
 				{
 					room->sector = get_sector_data(fread_string(fp));
-					if (!room->sector) room->sector = gsct_inside;
+					if (!room->rs_sector) room->sector = gsct_inside;
 
 					fMatch = true;
 					break;

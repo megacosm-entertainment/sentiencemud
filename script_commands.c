@@ -43,6 +43,7 @@ void reset_reckoning();
 const struct script_cmd_type area_cmd_table[] = {
 	{ "acttrigger",				scriptcmd_acttrigger,	true,	false	},
 	{ "addaura",			scriptcmd_addaura,			true,	true	},
+	{ "alterroom",			scriptcmd_alterroom,				true,	true	},
 	{ "bribetrigger",			scriptcmd_bribetrigger,	true,	false	},
 	{ "call",				scriptcmd_call,				false,	true	},
 	{ "churchannouncetheft",	scriptcmd_churchannouncetheft,	true, true },
@@ -69,6 +70,7 @@ const struct script_cmd_type area_cmd_table[] = {
 	{ "reassign",			scriptcmd_reassign,			true,	false	},
 	{ "reckoning",			scriptcmd_reckoning,		true,	true	},
 	{ "remaura",			scriptcmd_remaura,			true,	true	},
+	{ "resetroom",			scriptcmd_resetroom,				true,	true	},
 	{ "sendfloor",			scriptcmd_sendfloor,		false,	true	},
 	{ "setposition",		scriptcmd_setposition,		true,	true	},
 	{ "settitle",			scriptcmd_settitle,			true,	true	},
@@ -96,6 +98,7 @@ const struct script_cmd_type area_cmd_table[] = {
 const struct script_cmd_type instance_cmd_table[] = {
 	{ "acttrigger",				scriptcmd_acttrigger,	true,	false	},
 	{ "addaura",			scriptcmd_addaura,			true,	true	},
+	{ "alterroom",			scriptcmd_alterroom,				true,	true	},
 	{ "bribetrigger",			scriptcmd_bribetrigger,	true,	false	},
 	{ "call",				scriptcmd_call,				false,	true	},
 	{ "churchannouncetheft",	scriptcmd_churchannouncetheft,	true, true },
@@ -127,6 +130,7 @@ const struct script_cmd_type instance_cmd_table[] = {
 	{ "reassign",			scriptcmd_reassign,			true,	false	},
 	{ "reckoning",			scriptcmd_reckoning,		true,	true	},
 	{ "remaura",			scriptcmd_remaura,			true,	true	},
+	{ "resetroom",			scriptcmd_resetroom,				true,	true	},
 	{ "sendfloor",			scriptcmd_sendfloor,		false,	true	},
 	{ "setposition",		scriptcmd_setposition,		true,	true	},
 	{ "settitle",			scriptcmd_settitle,			true,	true	},
@@ -155,6 +159,7 @@ const struct script_cmd_type instance_cmd_table[] = {
 const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "acttrigger",				scriptcmd_acttrigger,	true,	false	},
 	{ "addaura",			scriptcmd_addaura,			true,	true	},
+	{ "alterroom",			scriptcmd_alterroom,				true,	true	},
 	{ "bribetrigger",			scriptcmd_bribetrigger,	true,	false	},
 	{ "call",				scriptcmd_call,				false,	true	},
 	{ "churchannouncetheft",	scriptcmd_churchannouncetheft,	true, true },
@@ -184,6 +189,7 @@ const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "reassign",			scriptcmd_reassign,			true,	false	},
 	{ "reckoning",			scriptcmd_reckoning,		true,	true	},
 	{ "remaura",			scriptcmd_remaura,			true,	true	},
+	{ "resetroom",			scriptcmd_resetroom,				true,	true	},
 	{ "sendfloor",			scriptcmd_sendfloor,		false,	true	},
 	{ "setposition",		scriptcmd_setposition,		true,	true	},
 	{ "settitle",			scriptcmd_settitle,			true,	true	},
@@ -11218,4 +11224,441 @@ SCRIPT_CMD(scriptcmd_setoutbound)
 
 	mob->outbound_object = obj;
 	SETRETURN(1);
+}
+
+
+// alterroom <room> <field> <parameters>
+SCRIPT_CMD(scriptcmd_alterroom)
+{
+	char buf[MSL+2],field[MIL],*rest;
+	int value = 0, min_sec = MIN_SCRIPT_SECURITY;
+	ROOM_INDEX_DATA *room;
+	WILDS_DATA *wilds;
+
+	int *ptr = NULL;
+	int16_t *sptr = NULL;
+	char **str;
+	bool allow_empty = false;
+	bool allowarith = true;
+	bool allowbitwise = true;
+	bool check_sector = false;
+	bool allow_static = true;
+	bool hasmin = false, hasmax = false;
+	int min = 0, max = 0;
+	const struct flag_type *flags = NULL;
+	const struct flag_type **bank = NULL;
+	SECTOR_DATA **psector = NULL;
+	long temp_flags[4];
+
+	if(!info) return;
+
+	if(!(rest = expand_argument(info,argument,arg))) {
+		bug("AlterRoom - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg->type) {
+	case ENT_ROOM:
+		room = arg->d.room;
+		break;
+	case ENT_WIDEVNUM:
+		room = get_room_index_wnum(arg->d.wnum);
+		break;
+	default: room = NULL; break;
+	}
+
+	if(!room) return;
+
+	if(!*rest) {
+		bug("AlterRoom - Missing field type.",0);
+		return;
+	}
+
+	if(!(rest = expand_argument(info,rest,arg))) {
+		bug("AlterRoom - Error in parsing.",0);
+		return;
+	}
+
+	field[0] = 0;
+
+	switch(arg->type) {
+	case ENT_STRING: strncpy(field,arg->d.str,MIL-1); break;
+	default: return;
+	}
+
+	if(!field[0]) return;
+
+	if(!str_cmp(field,"mapid")) {
+		if(!(rest = expand_argument(info,rest,arg))) {
+			bug("AlterRoom - Error in parsing.",0);
+			return;
+		}
+		switch(arg->type) {
+		case ENT_STRING:
+			if(!str_cmp(arg->d.str,"none")) { room->viewwilds = NULL; }
+			break;
+		case ENT_NUMBER:
+			wilds = get_wilds_from_uid(NULL,arg->d.num);
+			if(!wilds) {
+				bug("Not a valid wilds uid",0);
+				return;
+			}
+			room->viewwilds=wilds;
+		break;
+		default: return;
+		}
+	}
+
+	// Setting the environment of a clone room
+	if(!str_cmp(field,"environment") || !str_cmp(field,"environ") ||
+		!str_cmp(field,"extern") || !str_cmp(field,"outside")) {
+		
+		// Must be a clone room
+		if (!room_is_clone(room)) return;
+
+		if(!(rest = expand_argument(info,rest,arg))) {
+			bug("AlterRoom - Error in parsing.",0);
+			return;
+		}
+
+		switch(arg->type) {
+		case ENT_ROOM:
+			room_from_environment(room);
+			room_to_environment(room,NULL,NULL,arg->d.room, NULL);
+			break;
+		case ENT_MOBILE:
+			room_from_environment(room);
+			room_to_environment(room,arg->d.mob,NULL,NULL, NULL);
+			break;
+		case ENT_OBJECT:
+			room_from_environment(room);
+			room_to_environment(room,NULL,arg->d.obj,NULL, NULL);
+			break;
+		case ENT_TOKEN:
+			room_from_environment(room);
+			room_to_environment(room,NULL,NULL,NULL,arg->d.token);
+			break;
+		case ENT_STRING:
+			if(!str_cmp(arg->d.str, "none"))
+				room_from_environment(room);
+			break;
+		}
+
+		return;
+	}
+
+	str = NULL;
+	if(!str_cmp(field,"name"))			str = &room->name;
+	else if(!str_cmp(field,"desc"))		{ str = &room->description; allow_empty = true; }
+	else if(!str_cmp(field,"owner"))	{ str = &room->owner; allow_empty = true; min_sec = 9; }
+
+	if(str) {
+		// Can only change this on clone rooms
+		if (!room_is_clone(room)) return;
+
+		if(script_security < min_sec) {
+			sprintf(buf,"AlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+			wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
+			bug(buf, 0);
+			return;
+		}
+
+		BUFFER *buffer = new_buf();
+		expand_string(info,rest,buffer);
+
+		if(!allow_empty && !buf_string(buffer)[0]) {
+			bug("AlterRoom - Empty string used.",0);
+			free_buf(buffer);
+			return;
+		}
+
+		free_string(*str);
+		*str = str_dup(buf_string(buffer));
+		free_buf(buffer);
+		return;
+	}
+
+	argument = one_argument(rest,buf);
+
+	if(!(rest = expand_argument(info,argument,arg))) {
+		bug("AlterRoom - Error in parsing.",0);
+		return;
+	}
+
+	if(!str_cmp(field,"flags"))				{ ptr = (int*)room->room_flag; bank = room_flagbank; }
+	else if(!str_cmp(field,"light"))		{ ptr = (int*)&room->light; }
+	else if(!str_cmp(field,"savage"))		{ ptr = (int*)&room->savage_level; min_sec = 1; hasmin = true; min = -1; hasmax = true; max = 5; allowbitwise = false; }
+	else if(!str_cmp(field,"sector"))		{ check_sector = true; psector = (SECTOR_DATA **)&room->sector; }
+	else if(!str_cmp(field,"sectorflags"))	{ ptr = (int*)&room->sector_flags; flags = sector_flags; allowarith = false; }
+	else if(!str_cmp(field,"heal"))			{ ptr = (int*)&room->heal_rate; min_sec = 9; }
+	else if(!str_cmp(field,"mana"))			{ ptr = (int*)&room->mana_rate; min_sec = 9; }
+	else if(!str_cmp(field,"move"))			{ ptr = (int*)&room->move_rate; min_sec = 1; }
+	else if(!str_cmp(field,"mapx"))			{ ptr = (int*)&room->x; min_sec = 5; allow_static = false; }
+	else if(!str_cmp(field,"mapy"))			{ ptr = (int*)&room->y; min_sec = 5; allow_static = false; }
+	else if(!str_cmp(field,"rsflags"))		{ ptr = (int*)room->rs_room_flag; bank = room_flagbank; allow_static = false; }
+	else if(!str_cmp(field,"rssector"))		{ check_sector = true; psector = (SECTOR_DATA **)&room->rs_sector; allow_static = false; }
+	else if(!str_cmp(field,"rsheal"))		{ ptr = (int*)&room->rs_heal_rate; min_sec = 9; allow_static = false; }
+	else if(!str_cmp(field,"rsmana"))		{ ptr = (int*)&room->rs_mana_rate; min_sec = 9; allow_static = false; }
+	else if(!str_cmp(field,"rsmove"))		{ ptr = (int*)&room->rs_move_rate; min_sec = 1; allow_static = false; }
+	else if(!str_cmp(field,"rssavage"))		{ ptr = (int*)&room->rs_savage_level; min_sec = 1; allow_static = false; hasmin = true; min = -1; hasmax = true; max = 5; allowbitwise = false; }
+	else if(!str_cmp(field,"tempstore1"))	{ ptr = (int*)&room->tempstore[0]; }
+	else if(!str_cmp(field,"tempstore2"))	{ ptr = (int*)&room->tempstore[1]; }
+	else if(!str_cmp(field,"tempstore3"))	{ ptr = (int*)&room->tempstore[2]; }
+	else if(!str_cmp(field,"tempstore4"))	{ ptr = (int*)&room->tempstore[3]; }
+	else if(!str_cmp(field,"tempstore5"))	{ ptr = (int*)&room->tempstore[5]; }
+
+	if(!ptr && !sptr) return;
+
+	if(script_security < min_sec) {
+		sprintf(buf,"AlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
+		bug(buf, 0);
+		return;
+	}
+
+	if (!allow_static && !room_is_clone(room))
+		return;
+
+	if (check_sector)
+	{
+		if (arg->type != ENT_STRING ) return;
+
+		SECTOR_DATA *sector = get_sector_data(arg->d.str);
+		if (!sector)
+			return;
+
+		*psector = sector;
+		// Putting it on the live data
+		if (allow_static)
+			room->sector_flags = sector->flags;
+		return;
+	}
+
+	memset(temp_flags, 0, sizeof(temp_flags));
+
+	if( bank != NULL )
+	{
+		if( arg->type != ENT_STRING ) return;
+
+		allowarith = false;	// This is a bit vector, no arithmetic operators.
+		if (!script_bitmatrix_lookup(arg->d.str, bank, temp_flags))
+			return;
+
+		if (bank == room_flagbank)
+		{
+			REMOVE_BIT(temp_flags[1], ROOM_NOCLONE);
+			REMOVE_BIT(temp_flags[1], ROOM_VIRTUAL_ROOM);
+			REMOVE_BIT(temp_flags[1], ROOM_BLUEPRINT);
+
+			if( buf[0] == '=' || buf[0] == '&' )
+			{
+				if( IS_SET(ptr[1], ROOM_NOCLONE) ) SET_BIT(temp_flags[1], ROOM_NOCLONE);
+				if( IS_SET(ptr[1], ROOM_VIRTUAL_ROOM) ) SET_BIT(temp_flags[1], ROOM_VIRTUAL_ROOM);
+				if( IS_SET(ptr[1], ROOM_BLUEPRINT) ) SET_BIT(temp_flags[1], ROOM_BLUEPRINT);
+			}
+		}		
+	}
+	else if( flags != NULL )
+	{
+		if( arg->type != ENT_STRING ) return;
+
+		allowarith = false;	// This is a bit vector, no arithmetic operators.
+		value = script_flag_value(flags, arg->d.str);
+
+		if( value == NO_FLAG ) value = 0;
+
+		// No special filtering
+	}
+	else
+	{
+		switch(arg->type) {
+		case ENT_STRING:
+			if( is_number(arg->d.str) )
+				value = atoi(arg->d.str);
+			else
+				return;
+			break;
+
+		case ENT_NUMBER: value = arg->d.num; break;
+		default: return;
+		}
+	}
+
+
+	if(ptr) {
+		switch (buf[0]) {
+		case '+':
+			if( !allowarith ) {
+				bug("AlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+				return;
+			}
+
+			*ptr += value; break;
+
+		case '-':
+			if( !allowarith ) {
+				bug("AlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+				return;
+			}
+
+			*ptr -= value; break;
+
+		case '*':
+			if( !allowarith ) {
+				bug("AlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+				return;
+			}
+
+			*ptr *= value; break;
+
+		case '/':
+			if( !allowarith ) {
+				bug("AlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+				return;
+			}
+
+			if (!value) {
+				bug("AlterRoom - alterroom called with operator / and value 0", 0);
+				return;
+			}
+			*ptr /= value; break;
+
+		case '%':
+			if( !allowarith ) {
+				bug("AlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+				return;
+			}
+
+			if (!value) {
+				bug("AlterRoom - alterroom called with operator % and value 0", 0);
+				return;
+			}
+
+			*ptr %= value; break;
+
+		case '=':
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] = temp_flags[i];
+			}
+			else
+				*ptr = value;
+			break;
+
+		case '&':
+			if( !allowbitwise ) {
+				bug("AlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+				return;
+			}
+
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] &= temp_flags[i];
+			}
+			else
+				*ptr &= value;
+			break;
+
+		case '|':
+			if( !allowbitwise ) {
+				bug("AlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+				return;
+			}
+
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] |= temp_flags[i];
+			}
+			else
+				*ptr |= value;
+			break;
+
+		case '!':
+			if( !allowbitwise ) {
+				bug("AlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+				return;
+			}
+
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] &= ~temp_flags[i];
+			}
+			else
+				*ptr &= ~value;
+			break;
+
+		case '^':
+			if( !allowbitwise ) {
+				bug("AlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+				return;
+			}
+
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] ^= temp_flags[i];
+			}
+			else
+				*ptr ^= value;
+			break;
+
+		default:
+			return;
+		}
+
+		if (hasmin && *ptr < min)
+			*ptr = min;
+		if(hasmax && *ptr > max)
+			*ptr = max;
+	} else {
+		switch (buf[0]) {
+		case '+': *sptr += value; break;
+		case '-': *sptr -= value; break;
+		case '*': *sptr *= value; break;
+		case '/':
+			if (!value) {
+				bug("AlterRoom - adjust called with operator / and value 0", 0);
+				return;
+			}
+			*sptr /= value;
+			break;
+		case '%':
+			if (!value) {
+				bug("AlterRoom - adjust called with operator % and value 0", 0);
+				return;
+			}
+			*sptr %= value;
+			break;
+
+		case '=': *sptr = value; break;
+		case '&': *sptr &= value; break;
+		case '|': *sptr |= value; break;
+		case '!': *sptr &= ~value; break;
+		case '^': *sptr ^= value; break;
+		default:
+			return;
+		}
+
+		if (hasmin && *sptr < min)
+			*sptr = min;
+		if(hasmax && *sptr > max)
+			*sptr = max;
+	}
+}
+
+// RESETROOM $ROOM
+// Forces the room to reset
+SCRIPT_CMD(scriptcmd_resetroom)
+{
+	char *rest = argument;
+
+	if (!info) return;
+
+	PARSE_ARGTYPE(ROOM);
+
+	reset_room(arg->d.room, true);
 }

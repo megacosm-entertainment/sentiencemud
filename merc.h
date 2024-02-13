@@ -667,6 +667,12 @@ typedef struct entity_field_type ENT_FIELD;
 typedef struct script_var_type VARIABLE, *pVARIABLE, **ppVARIABLE;
 typedef struct script_boolexp BOOLEXP;
 
+typedef struct rs_location_type {
+    long auid;
+	unsigned long wuid;
+	unsigned long id[3];
+} RS_LOCATION;
+
 typedef struct location_type {
     AREA_DATA *area;
 	unsigned long wuid;
@@ -7214,6 +7220,17 @@ struct	room_index_data
     char *		owner;
     char *      comments;
     long		vnum;
+
+    // OLC Reset data
+    long        rs_room_flag[2];
+    SECTOR_DATA *rs_sector;
+    int			rs_heal_rate;
+    int 		rs_mana_rate;
+    int			rs_move_rate;
+    int         rs_savage_level;
+	RS_LOCATION rs_recall;
+
+    // Live data
     long		room_flag[2];
     int			light;
     SECTOR_DATA *sector;
@@ -7222,6 +7239,7 @@ struct	room_index_data
     int 		mana_rate;
     int			move_rate;
     int         savage_level;
+	LOCATION recall;
 
     WILDS_TERRAIN *	parent_template;
     WILDS_DATA *        viewwilds;
@@ -7260,8 +7278,6 @@ struct	room_index_data
 		} clone;
 	} environ;
 	bool force_destruct;
-
-	LOCATION recall;
 
     int			tempstore[MAX_TEMPSTORE];		/* Temporary storage values for script processing */
 };
@@ -10192,7 +10208,7 @@ TOKEN_INDEX_DATA *get_token_index_auid(long auid, long vnum);
 TOKEN_INDEX_DATA *get_token_index(AREA_DATA *pArea, long vnum);
 bool is_singular_token(TOKEN_INDEX_DATA *index);
 void	reset_area      args( ( AREA_DATA * pArea ) );
-void	reset_room	args( ( ROOM_INDEX_DATA *pRoom ) );
+void	reset_room	args( ( ROOM_INDEX_DATA *pRoom, bool force ) );
 char *	print_flags	args( ( long flag ));
 void	boot_db		args( ( void ) );
 void	area_update	args( ( bool fBoot ) );
@@ -11355,6 +11371,7 @@ ROOM_INDEX_DATA *get_recall_room(CHAR_DATA *ch);
 void location_clear(LOCATION *loc);
 void location_set(LOCATION *loc, AREA_DATA *area, unsigned long a, unsigned long b, unsigned long c, unsigned long d);
 bool location_isset(LOCATION *loc);
+bool rs_location_isset(RS_LOCATION *loc);
 
 void strip_newline(char *buf, bool append);
 

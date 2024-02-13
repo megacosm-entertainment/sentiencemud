@@ -594,19 +594,31 @@ void save_room_new(FILE *fp, ROOM_INDEX_DATA *room, int recordtype)
 		fprintf(fp, "Region %ld\n", room->region->uid);
 	}
 
-    fprintf(fp, "Room_flags %ld\n", room->room_flag[0]);
-    fprintf(fp, "Room2_flags %ld\n", room->room_flag[1]);
-    fprintf(fp, "Sector %s\n", room->sector->name);
-	fprintf(fp, " - Sector Flags: %s\n", flag_string(sector_flags, room->sector_flags));
+    fprintf(fp, "Room_flags %ld\n", room->rs_room_flag[0]);
+    fprintf(fp, "Room2_flags %ld\n", room->rs_room_flag[1]);
+    fprintf(fp, "Sector %s\n", room->rs_sector->name);
+	//fprintf(fp, " - Sector Flags: %s\n", flag_string(sector_flags, room->sector_flags));
 
-    if (room->heal_rate != 100)
-	fprintf(fp, "HealRate %d\n", room->heal_rate);
+    if (room->rs_heal_rate != 100)
+		fprintf(fp, "HealRate %d\n", room->rs_heal_rate);
 
-    if (room->mana_rate != 100)
-	fprintf(fp, "ManaRate %d\n", room->mana_rate);
+    if (room->rs_mana_rate != 100)
+		fprintf(fp, "ManaRate %d\n", room->rs_mana_rate);
 
-    if (room->move_rate != 100)
-	fprintf(fp, "MoveRate %d\n", room->move_rate);
+    if (room->rs_move_rate != 100)
+		fprintf(fp, "MoveRate %d\n", room->rs_move_rate);
+
+	fprintf(fp, "SavageLevel %d\n", room->rs_savage_level);
+
+	if (rs_location_isset(&room->rs_recall))
+	{
+		fprintf(fp, "Recall %ld %ld %ld %ld %ld\n",
+			room->rs_recall.auid,
+			room->rs_recall.wuid,
+			room->rs_recall.id[0],
+			room->rs_recall.id[1],
+			room->rs_recall.id[2]);
+	}
 
     if (room->owner != NULL && room->owner[0] != '\0')
 	fprintf(fp, "Owner %s~\n", room->owner);
@@ -2569,13 +2581,13 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 	        KEYS("Description", room->description, fread_string(fp));
 		break;
 	    case 'H':
-	        KEY("HealRate",	room->heal_rate, 	fread_number(fp));
+	        KEY("HealRate",	room->rs_heal_rate, 	fread_number(fp));
 		KEYS("Home_owner", room->home_owner,	fread_string(fp));
 		break;
 
 	    case 'M':
-		KEY("ManaRate",	room->mana_rate,	fread_number(fp));
-		KEY("MoveRate",	room->move_rate,	fread_number(fp));
+		KEY("ManaRate",	room->rs_mana_rate,	fread_number(fp));
+		KEY("MoveRate",	room->rs_move_rate,	fread_number(fp));
 		break;
 
 	    case 'N':
@@ -2595,6 +2607,16 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 			break;
 
 	    case 'R':
+			if(!str_cmp(word, "Recall"))
+			{
+				room->rs_recall.auid = fread_number(fp);
+				room->rs_recall.wuid = fread_number(fp);
+				room->rs_recall.id[0] = fread_number(fp);
+				room->rs_recall.id[1] = fread_number(fp);
+				room->rs_recall.id[2] = fread_number(fp);
+				fMatch = true;
+				break;
+			}
 			if(!str_cmp(word, "Region"))
 			{
 				long uid = fread_number(fp);
@@ -2611,8 +2633,8 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 				fMatch = true;
 				break;
 			}
-		KEY("Room_flags", 	room->room_flag[0], 	fread_number(fp));
-		KEY("Room2_flags", 	room->room_flag[1], 	fread_number(fp));
+		KEY("Room_flags", 	room->rs_room_flag[0], 	fread_number(fp));
+		KEY("Room2_flags", 	room->rs_room_flag[1], 	fread_number(fp));
 
 		if (!str_cmp(word, "RoomProg")) {
 		    char *p;
@@ -2671,14 +2693,13 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 				{
 					int old_type = fread_number(fp);
 					char *old_name = flag_string(sector_types, old_type);
-					room->sector = get_sector_data(old_name);
+					room->rs_sector = get_sector_data(old_name);
 				}
 				else
 				{
-					room->sector = get_sector_data(fread_string(fp));
+					room->rs_sector = get_sector_data(fread_string(fp));
 				}
-				if (!room->sector) room->sector = gsct_inside;
-				room->sector_flags = room->sector->flags;
+				if (!room->rs_sector) room->rs_sector = gsct_inside;
 				fMatch = true;
 				break;
 			}
@@ -2689,9 +2710,8 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 				{
 					int old_type = fread_number(fp);
 					char *old_name = flag_string(sector_types, old_type);
-					room->sector = get_sector_data(old_name);
-					if (!room->sector) room->sector = gsct_inside;
-					room->sector_flags = room->sector->flags;
+					room->rs_sector = get_sector_data(old_name);
+					if (!room->rs_sector) room->rs_sector = gsct_inside;
 					fMatch = true;
 					break;
 				}
@@ -2732,6 +2752,27 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 			// No region defined yet, place in the default region
 			room->region = &area->region;
 			list_appendlink(area->region.rooms, room);
+		}
+	}
+
+	if (recordtype == ROOMTYPE_TERRAIN)
+	{
+		room->room_flag[0] = room->rs_room_flag[0];
+		room->room_flag[1] = room->rs_room_flag[1];
+		room->heal_rate = room->rs_heal_rate;
+		room->mana_rate = room->rs_mana_rate;
+		room->move_rate = room->rs_move_rate;
+		room->savage_level = room->rs_savage_level;
+		room->sector = room->rs_sector;
+		if (!room->sector) room->sector = gsct_inside;
+		room->sector_flags = room->sector->flags;
+		if (rs_location_isset(&room->rs_recall))
+		{
+			room->recall.area = get_area_from_uid(room->rs_recall.auid);
+			room->recall.wuid = room->rs_recall.wuid;
+			room->recall.id[0] = room->rs_recall.id[0];
+			room->recall.id[1] = room->rs_recall.id[1];
+			room->recall.id[2] = room->rs_recall.id[2];
 		}
 	}
 

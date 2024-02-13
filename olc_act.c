@@ -2733,19 +2733,19 @@ REDIT(redit_show)
 	    pRoom->name, pRoom->area->uid, pRoom->area->name);
     add_buf(buf1, buf);
 
-    if (IS_SET(pRoom->room_flag[1], ROOM_VIRTUAL_ROOM))
+    if (IS_SET(pRoom->rs_room_flag[1], ROOM_VIRTUAL_ROOM))
         sprintf (buf, "VRoom at ({W%ld{x, {W%ld{x), in wilds uid ({W%ld{x) '{W%s{x'\n\r",
                  pRoom->x, pRoom->y, pRoom->wilds->uid, pRoom->wilds->name);
     else if(pRoom->viewwilds)
         sprintf(buf, "Vnum:         {r[{x%5ld{r]{x\n\r"
                      "Sector:       {r[{x%s{r]{x\n\r"
                      "Map Coordinate at ({W%ld{x, {W%ld{x, {W%ld{x), in wilds uid ({W%ld{x) '{W%s{x'\n\r",
-	        pRoom->vnum, pRoom->sector->name,
+	        pRoom->vnum, pRoom->rs_sector->name,
 	        pRoom->x, pRoom->y, pRoom->z, pRoom->viewwilds->uid, pRoom->viewwilds->name);
     else
         sprintf(buf, "Vnum:         {r[{x%5ld{r]{x\n\r"
                      "Sector:       {r[{x%s{r]{x\n\r",
-	        pRoom->vnum, pRoom->sector->name);
+	        pRoom->vnum, pRoom->rs_sector->name);
 
     add_buf(buf1, buf);
 
@@ -2756,20 +2756,20 @@ REDIT(redit_show)
 		bitmatrix_string(room_flagbank, pRoom->room_flag));
     add_buf(buf1, buf);
 
-    if (pRoom->heal_rate != 100 || pRoom->mana_rate != 100 || pRoom->heal_rate != 100)
+    if (pRoom->rs_heal_rate != 100 || pRoom->rs_mana_rate != 100 || pRoom->rs_heal_rate != 100)
     {
 	sprintf(buf,
 	         "Health rec:   {r[{x%d{r]{x\n\r"
 		 "Mana rec:     {r[{x%d{r]{x\n\r"
 		 "Move rec:     {r[{x%d{r]{x\n\r",
-		pRoom->heal_rate , pRoom->mana_rate, pRoom->move_rate);
+		pRoom->rs_heal_rate , pRoom->rs_mana_rate, pRoom->rs_move_rate);
         add_buf(buf1, buf);
     }
 
-	if (pRoom->savage_level < 0)
+	if (pRoom->rs_savage_level < 0)
 		sprintf(buf, "Savagery:     {r[{Y-area-{r]{x\n\r");
 	else
-		sprintf(buf, "Savagery:     {r[{x%d{r]{x\n\r", pRoom->savage_level);
+		sprintf(buf, "Savagery:     {r[{x%d{r]{x\n\r", pRoom->rs_savage_level);
 	add_buf(buf1, buf);
 
 	if (IS_VALID(pRoom->region))
@@ -4066,8 +4066,8 @@ REDIT(redit_create)
 			pRoom->sector = ch->desc->last_room_sector;
 		}
 
-		pRoom->room_flag[0] = ch->desc->last_room_flag[0];
-		pRoom->room_flag[1] = ch->desc->last_room_flag[1];
+		pRoom->rs_room_flag[0] = ch->desc->last_room_flag[0];
+		pRoom->rs_room_flag[1] = ch->desc->last_room_flag[1];
 	}
 
     iHash = wnum.vnum % MAX_KEY_HASH;
@@ -4145,7 +4145,7 @@ REDIT(redit_heal)
 
     if (is_number(argument))
        {
-          pRoom->heal_rate = atoi (argument);
+          pRoom->rs_heal_rate = atoi (argument);
           send_to_char ("Heal rate set.\n\r", ch);
           return true;
        }
@@ -4163,7 +4163,7 @@ REDIT(redit_mana)
 
     if (is_number(argument))
        {
-          pRoom->mana_rate = atoi (argument);
+          pRoom->rs_mana_rate = atoi (argument);
           send_to_char ("Mana rate set.\n\r", ch);
           return true;
        }
@@ -4181,7 +4181,7 @@ REDIT(redit_move)
 
     if (is_number(argument))
     {
-	pRoom->move_rate = atoi (argument);
+	pRoom->rs_move_rate = atoi (argument);
 	send_to_char ("Movement regen rate set.\n\r", ch);
 	return true;
     }
@@ -22249,12 +22249,12 @@ REDIT(redit_room)
 				return false;
 			}
 		}
-		else*/ if( !IS_SET(bits[1], ROOM_NOCLONE) && IS_SET(room->room_flag[1], ROOM_NOCLONE) )
+		else*/ if( !IS_SET(bits[1], ROOM_NOCLONE) && IS_SET(room->rs_room_flag[1], ROOM_NOCLONE) )
 		{
 			send_to_char("No-clone room cannot be used in blueprints.\n\r", ch);
 			return false;
 		}
-		else if( IS_SET(bits[1], ROOM_NOCLONE) && !IS_SET(room->room_flag[1], ROOM_NOCLONE) )
+		else if( IS_SET(bits[1], ROOM_NOCLONE) && !IS_SET(room->rs_room_flag[1], ROOM_NOCLONE) )
 		{
 			send_to_char("BLUEPRINT and NO_CLONE cannot mix.\n\r", ch);
 			return false;
@@ -22263,7 +22263,7 @@ REDIT(redit_room)
 
 	if( IS_SET(bits[1], ROOM_NOCLONE) )
 	{
-		if( !IS_SET(bits[1], ROOM_BLUEPRINT) && IS_SET(room->room_flag[1], ROOM_BLUEPRINT) )
+		if( !IS_SET(bits[1], ROOM_BLUEPRINT) && IS_SET(room->rs_room_flag[1], ROOM_BLUEPRINT) )
 		{
 			send_to_char("Blueprint rooms cannot be no-clone.\n\r", ch);
 			return false;
@@ -22274,9 +22274,9 @@ REDIT(redit_room)
 		{
 			send_to_char("Room is currently used in a blueprint.\n\r", ch);
 			// Clear it out, JIC
-			if( IS_SET(room->room_flag[1], ROOM_NOCLONE) )
+			if( IS_SET(room->rs_room_flag[1], ROOM_NOCLONE) )
 			{
-			    REMOVE_BIT(room->room_flag[1], ROOM_NOCLONE);
+			    REMOVE_BIT(room->rs_room_flag[1], ROOM_NOCLONE);
 			    return true;
 			}
 
@@ -22286,14 +22286,14 @@ REDIT(redit_room)
 
 
 	for(int i = 0; i < 2; i++)
-    	TOGGLE_BIT(room->room_flag[i], bits[i]);
+    	TOGGLE_BIT(room->rs_room_flag[i], bits[i]);
 
 	// Now that we've gotten passed the validation:
 	// Check for toggling blueprints on and off
 	if (IS_SET(bits[1], ROOM_BLUEPRINT))
 	{
 		// Turned on
-		if (IS_SET(room->room_flag[1], ROOM_BLUEPRINT))
+		if (IS_SET(room->rs_room_flag[1], ROOM_BLUEPRINT))
 		{
 			// Blueprint rooms have *no* regions whatsoever
 			__region_remove_room(room);
@@ -22308,8 +22308,8 @@ REDIT(redit_room)
 
 	if (IS_SET(ch->act[0], PLR_AUTOOLC))
 	{
-		ch->desc->last_room_flag[0] = room->room_flag[0];
-		ch->desc->last_room_flag[1] = room->room_flag[1];
+		ch->desc->last_room_flag[0] = room->rs_room_flag[0];
+		ch->desc->last_room_flag[1] = room->rs_room_flag[1];
 	}
 
     send_to_char("Room flags toggled.\n\r", ch);
@@ -22331,8 +22331,7 @@ REDIT(redit_sector)
 		return false;
 	}
 
-    room->sector = sector;
-	room->sector_flags = sector->flags;
+    room->rs_sector = sector;
 
 	if (IS_SET(ch->act[0], PLR_AUTOOLC))
 	{
@@ -22517,7 +22516,7 @@ REDIT (redit_savage)
 
 	if (!str_prefix(argument, "auto"))
 	{
-		room->savage_level = -1;
+		room->rs_savage_level = -1;
 	}
 	else if (!is_number(argument))
 	{
@@ -22533,7 +22532,7 @@ REDIT (redit_savage)
 			return false;
 		}
 
-		room->savage_level = level;
+		room->rs_savage_level = level;
 	}
 
 	send_to_char("Savage level set.\n\r", ch);
