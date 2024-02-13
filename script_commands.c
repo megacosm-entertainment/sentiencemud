@@ -4999,7 +4999,7 @@ SCRIPT_CMD(scriptcmd_alterroom)
 
 	if(!str_cmp(field,"flags"))				{ ptr = (int*)room->room_flag; bank = room_flagbank; }
 	else if(!str_cmp(field,"light"))		{ ptr = (int*)&room->light; }
-	else if(!str_cmp(field,"sector"))		ptr = (int*)&room->sector_type;
+	else if(!str_cmp(field,"sector"))		{ ptr = (int*)&room->sector_type; flags = sector_flags; }
 	else if(!str_cmp(field,"heal"))			{ ptr = (int*)&room->heal_rate; min_sec = 9; }
 	else if(!str_cmp(field,"mana"))			{ ptr = (int*)&room->mana_rate; min_sec = 9; }
 	else if(!str_cmp(field,"move"))			{ ptr = (int*)&room->move_rate; min_sec = 1; }
@@ -5010,12 +5010,10 @@ SCRIPT_CMD(scriptcmd_alterroom)
 	else if(!str_cmp(field,"rsheal"))		{ ptr = (int*)&room->rs_heal_rate; min_sec = 9; allow_static = false; }
 	else if(!str_cmp(field,"rsmana"))		{ ptr = (int*)&room->rs_mana_rate; min_sec = 9; allow_static = false; }
 	else if(!str_cmp(field,"rsmove"))		{ ptr = (int*)&room->rs_move_rate; min_sec = 1; allow_static = false; }
-	else if(!str_cmp(field,"rssavage"))		{ ptr = (int*)&room->rs_savage_level; min_sec = 1; allow_static = false; hasmin = true; min = -1; hasmax = true; max = 5; allowbitwise = false; }
 	else if(!str_cmp(field,"tempstore1"))	{ ptr = (int*)&room->tempstore[0]; }
 	else if(!str_cmp(field,"tempstore2"))	{ ptr = (int*)&room->tempstore[1]; }
 	else if(!str_cmp(field,"tempstore3"))	{ ptr = (int*)&room->tempstore[2]; }
 	else if(!str_cmp(field,"tempstore4"))	{ ptr = (int*)&room->tempstore[3]; }
-	else if(!str_cmp(field,"tempstore5"))	{ ptr = (int*)&room->tempstore[5]; }
 
 	if(!ptr && !sptr) return;
 
