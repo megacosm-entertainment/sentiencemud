@@ -2753,10 +2753,10 @@ REDIT(redit_show)
     add_buf(buf1, buf);
 
     sprintf(buf, "Room flags:   {r[{x%s{r]{x\n\r",
-		bitmatrix_string(room_flagbank, pRoom->room_flag));
+		bitmatrix_string(room_flagbank, pRoom->rs_room_flag));
     add_buf(buf1, buf);
 
-    if (pRoom->rs_heal_rate != 100 || pRoom->rs_mana_rate != 100 || pRoom->rs_heal_rate != 100)
+    if (pRoom->rs_heal_rate != 100 || pRoom->rs_mana_rate != 100 || pRoom->rs_move_rate != 100)
     {
 	sprintf(buf,
 	         "Health rec:   {r[{x%d{r]{x\n\r"
