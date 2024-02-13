@@ -6512,13 +6512,12 @@ ROOM_INDEX_DATA *token_room(TOKEN_DATA *token)
 	if(token->player)
 		return token->player->in_room;
 
-/*	// Not yet!!
-	if(token->obj)
-		return obj_room(token->obj);
+	if(token->object)
+		return obj_room(token->object);
 
 	if(token->room)
 		return token->room;
-*/
+
 	return NULL;
 }
 
