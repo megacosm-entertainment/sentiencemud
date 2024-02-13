@@ -3560,10 +3560,10 @@ SCRIPT_CMD(do_opaltermob)
 	else if(!str_cmp(field,"size"))		{ ptr = (int*)&mob->size; min = SIZE_TINY; max = SIZE_GIANT; hasmin = hasmax = true; flags = size_flags; }
 	else if(!str_cmp(field,"skillchance"))	ptr = (int*)&mob->skill_chance;
 	else if(!str_cmp(field,"sublevel"))	ptr = (int*)&mob->level;
-	else if(!str_cmp(field,"tempstore1"))	ptr = (int*)&mob->tempstore[0];
-	else if(!str_cmp(field,"tempstore2"))	ptr = (int*)&mob->tempstore[1];
-	else if(!str_cmp(field,"tempstore3"))	ptr = (int*)&mob->tempstore[2];
-	else if(!str_cmp(field,"tempstore4"))	ptr = (int*)&mob->tempstore[3];
+	else if(!str_cmp(field,"tempstore1"))	{ ptr = (int*)&mob->tempstore[0]; allowpc = true; }
+	else if(!str_cmp(field,"tempstore2"))	{ ptr = (int*)&mob->tempstore[1]; allowpc = true; }
+	else if(!str_cmp(field,"tempstore3"))	{ ptr = (int*)&mob->tempstore[2]; allowpc = true; }
+	else if(!str_cmp(field,"tempstore4"))	{ ptr = (int*)&mob->tempstore[3]; allowpc = true; }
 	else if(!str_cmp(field,"thirst"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_THIRST]; allowpc = true; }
 	else if(!str_cmp(field,"toxinneuro"))	ptr = (int*)&mob->toxin[TOXIN_NEURO];
 	else if(!str_cmp(field,"toxinpara"))	ptr = (int*)&mob->toxin[TOXIN_PARALYZE];

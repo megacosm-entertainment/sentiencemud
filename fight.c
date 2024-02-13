@@ -4031,8 +4031,7 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim)
 			if (ch->leader != NULL && get_skill(ch->leader, gsn_leadership) < number_percent()) {
 				pc_xp *= 1.05;
 			}
-			sprintf(buf, "{BYou receive {C%d {Bexperience points.\n\r{x", pc_xp);
-			send_to_char(buf, gch);
+
 			gain_exp(gch, pc_xp);
 		}
 

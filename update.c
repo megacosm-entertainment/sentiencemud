@@ -357,6 +357,11 @@ void gain_exp(CHAR_DATA *ch, int gain)
 	if( ch->tempstore[0] < gain )
 		gain = ch->tempstore[0];
 
+	if (gain > 0) {
+		sprintf(buf, "{BYou receive {C%d {Bexperience points.\n\r{x", gain);
+		send_to_char(buf, ch);
+	}
+
 	if (IS_IMMORTAL(ch)) return;
 
 	if(IS_NPC(ch)) {
@@ -2695,8 +2700,8 @@ void aggr_update(void)
 				if(wch->in_room->sector_type == SECT_CURSED_SANCTUM)
 					wch->mana -= number_range(5,15);
 				if(wch->mana < 0) wch->mana = 0;
-				if(!number_percent() < 5)
-				send_to_char("You feel your magical essence slipping away from you.\n\r", wch);
+				if(number_percent() < 5)
+					send_to_char("You feel your magical essence slipping away from you.\n\r", wch);
 			}
 		}
 
