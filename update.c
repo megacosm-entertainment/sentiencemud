@@ -2684,14 +2684,20 @@ void aggr_update(void)
 					toxic_fumes_effect(wch,NULL);
 			}
 		}
+		chance = 0;
+		if(IS_SET(wch->in_room->room_flag[1], ROOM_DRAIN_MANA)) chance += 8;
+		if (wch->in_room->sector_type == SECT_CURSED_SANCTUM) chance += 8;
 
-		if(IS_SET(wch->in_room->room_flag[1], ROOM_DRAIN_MANA)) {
-			wch->mana -= number_range(5,15);
-			if(wch->in_room->sector_type == SECT_CURSED_SANCTUM)
+		if (chance > 0 && number_percent() < chance) {
+
+			if(IS_SET(wch->in_room->room_flag[1], ROOM_DRAIN_MANA)) {
 				wch->mana -= number_range(5,15);
-			if(wch->mana < 0) wch->mana = 0;
-			if(!number_percent())
-				send_to_char("You feel your magical essense slipping away from you.\n\r", wch);
+				if(wch->in_room->sector_type == SECT_CURSED_SANCTUM)
+					wch->mana -= number_range(5,15);
+				if(wch->mana < 0) wch->mana = 0;
+				if(!number_percent() < 5)
+				send_to_char("You feel your magical essence slipping away from you.\n\r", wch);
+			}
 		}
 
 		chance = 0;
