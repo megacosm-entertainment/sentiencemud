@@ -3630,7 +3630,8 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 		return NULL;
 	}
 
-	recall = victim->in_room->area->recall;
+	//recall = victim->in_room->area->recall;
+	location_from_room(&victim->recall, get_recall_room(victim, true));
 
 	if (!IS_NPC(victim) && location_isset(&victim->recall))
 	{

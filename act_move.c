@@ -3204,7 +3204,7 @@ void do_recall(CHAR_DATA *ch, char *argument)
 
     act("$n prays for transportation!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-    if (!(location = get_recall_room(ch))) {
+    if (!(location = get_recall_room(ch, false))) {
 	send_to_char("You are completely lost.\n\r", ch);
 	return;
     }

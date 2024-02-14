@@ -1527,6 +1527,17 @@ void area_update(bool fBoot)
 		/* Increment the area's age*/
 		pArea->age++;
 
+		p_percent2_trigger(pArea, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL);
+
+		// Prereckoning
+		if (pre_reckoning > 0 && reckoning_timer > 0)
+			p_percent2_trigger(pArea, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECKONING, NULL);
+
+		// Reckoning
+		if (!pre_reckoning && reckoning_timer > 0)
+			p_percent2_trigger(pArea, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECKONING, NULL);
+
+
 		/* Check area's age and reset if necessary*/
 		if (fBoot || (pArea->age >= pArea->repop || (pArea->repop == 0 && pArea->age > 15) || pArea->age >= 120))
 		{

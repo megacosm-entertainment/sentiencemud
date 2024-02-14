@@ -8490,11 +8490,13 @@ bool area_has_write_access(CHAR_DATA *ch, AREA_DATA *area);
 
 ROOM_INDEX_DATA *location_to_room(LOCATION *loc);
 void location_from_room(LOCATION *loc,ROOM_INDEX_DATA *room);
-ROOM_INDEX_DATA *get_recall_room(CHAR_DATA *ch);
+ROOM_INDEX_DATA *get_recall_room(CHAR_DATA *ch, bool death);
 void location_clear(LOCATION *loc);
 void location_set(LOCATION *loc, unsigned long a, unsigned long b, unsigned long c, unsigned long d);
 bool location_isset(LOCATION *loc);
 bool rs_location_isset(RS_LOCATION *loc);
+void rs_location_clear(RS_LOCATION *loc);
+void rs_location_set(RS_LOCATION *loc, unsigned long a, unsigned long b, unsigned long c, unsigned long d);
 
 
 void strip_newline(char *buf, bool append);

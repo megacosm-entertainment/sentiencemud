@@ -661,7 +661,7 @@ SPELL_FUNC(spell_word_of_recall)
 		p_percent_trigger(NULL, NULL, ch->in_room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECALL, NULL))
 		return false;
 
-	location = get_recall_room(ch);
+	location = get_recall_room(ch, false);
 
 	if (location == NULL) {
 		send_to_char("You are completely lost.\n\r",victim);

@@ -8729,7 +8729,7 @@ void location_from_room(LOCATION *loc, ROOM_INDEX_DATA *room)
 }
 
 
-ROOM_INDEX_DATA *get_recall_room(CHAR_DATA *ch)
+ROOM_INDEX_DATA *get_recall_room(CHAR_DATA *ch, bool death)
 {
 	ROOM_INDEX_DATA *loc;
 
@@ -8739,10 +8739,11 @@ ROOM_INDEX_DATA *get_recall_room(CHAR_DATA *ch)
 
 	// Do not reset the recall point here, as it may have been set by other means.
 	// Simply call the recall triggers to see if they MODIFY it.
-
+	if (!death)
+	{
 	if(!p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECALL, NULL))
 		p_percent_trigger(NULL, NULL, ch->in_room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECALL, NULL);
-
+	}
 	loc = location_to_room(&ch->recall);
 	memset(&ch->recall,0,sizeof(LOCATION));
 
@@ -8764,6 +8765,27 @@ void location_clear(LOCATION *loc)
 }
 
 void location_set(LOCATION *loc, unsigned long a, unsigned long b, unsigned long c, unsigned long d)
+{
+	loc->wuid = a;
+	loc->id[0] = b;
+	loc->id[1] = c;
+	loc->id[2] = d;
+
+	// if a != 0, then <b,c,d> is the xyz location on wilderness 'a'
+	// if a == 0 and b != 0 and c:d == 0, then is the static room 'b'
+	// if a == 0 and b != 0 and c:d != 0, then is the clone of room 'b' with id c:d
+	// if a == 0 and b == 0, then it is nowhere
+}
+
+void rs_location_clear(RS_LOCATION *loc)
+{
+	loc->wuid = 0;
+	loc->id[0] = 0;
+	loc->id[1] = 0;
+	loc->id[2] = 0;
+}
+
+void rs_location_set(RS_LOCATION *loc, unsigned long a, unsigned long b, unsigned long c, unsigned long d)
 {
 	loc->wuid = a;
 	loc->id[0] = b;

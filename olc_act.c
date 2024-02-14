@@ -2021,6 +2021,7 @@ REDIT(redit_show)
     ROOM_INDEX_DATA *pRoom;
     char buf[MAX_STRING_LENGTH];
     BUFFER *buf1;
+	ROOM_INDEX_DATA *recall;
 //    ITERATOR it;
 //    PROG_LIST *trigger;
     int door;
@@ -2075,6 +2076,21 @@ REDIT(redit_show)
 		pRoom->rs_heal_rate , pRoom->rs_mana_rate, pRoom->rs_move_rate);
         add_buf(buf1, buf);
     }
+	if (rs_location_isset(&pRoom->rs_recall))
+	{
+		if(pRoom->rs_recall.wuid) {
+			WILDS_DATA *wilds = get_wilds_from_uid(NULL,pRoom->rs_recall.wuid);
+			if(wilds)
+				sprintf(buf, "{WRecall:      Wilds {X%s {R[{X%lu{R]{X} at {R<{X%lu,%lu,%lu{R>{X\n\r", wilds->name, pRoom->rs_recall.wuid,
+					pRoom->rs_recall.id[0],pRoom->rs_recall.id[1],pRoom->rs_recall.id[2]);
+			else
+				sprintf(buf, "{WRecall:      Wilds {X??? {R[{X%lu{R]{X\n\r", pRoom->rs_recall.wuid);
+		} else if(pRoom->rs_recall.id[0] > 0 && (recall = get_room_index(pRoom->rs_recall.id[0]))) {
+				sprintf(buf, "{WRecall:      Room {R[{X%5ld{R]{X {X%s\n\r", pRoom->rs_recall.id[0], recall->name);
+		} else
+				sprintf(buf, "{WRecall:      {R[{X%lu{R]{X none\n\r", pRoom->rs_recall.id[0]);
+		add_buf(buf1, buf);
+	}
 
     if (pRoom->locale) {
 	sprintf(buf, "Locale:       {r[{x%ld{r]{x\n\r", pRoom->locale);
@@ -3410,6 +3426,59 @@ REDIT(redit_comments)
 
     send_to_char("Syntax:  comment\n\r", ch);
     return false;
+}
+
+REDIT(redit_recall)
+{
+	ROOM_INDEX_DATA *pRoom;
+	char arg1[MIL];
+	char arg2[MIL];
+	char arg3[MIL];
+	char arg4[MIL];
+	int vnum, x, y, z;
+
+	EDIT_ROOM(ch, pRoom);
+
+	argument = one_argument(argument, arg1);
+	argument = one_argument(argument, arg2);
+	argument = one_argument(argument, arg3);
+	argument = one_argument(argument, arg4);
+
+	if (!is_number(arg1) || !arg1[0]) {
+		send_to_char("Syntax:  recall <vnum>\n\r", ch);
+		send_to_char("         recall <wuid> <x> <y> <z>\n\r", ch);
+		return false;
+	}
+
+	vnum = atoi(arg1);
+
+	if(vnum < 1) {
+		rs_location_clear(&pRoom->rs_recall);
+		send_to_char("Recall cleared.\n\r", ch);
+	} else if(!arg2[0]) {
+		if(!get_room_index(vnum)) {
+			send_to_char("AEdit:  Room vnum does not exist.\n\r", ch);
+			return false;
+		}
+
+		rs_location_set(&pRoom->rs_recall,0,vnum,0,0);
+		send_to_char("Recall set.\n\r", ch);
+	} else if(!arg3[0] || !arg4[0] || !is_number(arg2) || !is_number(arg3) || !is_number(arg4)) {
+		send_to_char("Syntax:  recall <vnum>\n\r", ch);
+		send_to_char("         recall <wuid> <x> <y> <z>\n\r", ch);
+		return false;
+	} else if(!get_wilds_from_uid(NULL,vnum)) {
+		send_to_char("AEdit:  Wilderness UID does not exist.\n\r", ch);
+		return false;
+	} else {
+		x = atoi(arg2);
+		y = atoi(arg3);
+		z = atoi(arg4);
+		rs_location_set(&pRoom->rs_recall,vnum,x,y,z);
+		send_to_char("Recall set.\n\r", ch);
+	}
+
+	return true;
 }
 
 

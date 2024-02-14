@@ -1424,7 +1424,7 @@ void do_rstat(CHAR_DATA *ch, char *argument)
     BUFFER *output;
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
-    ROOM_INDEX_DATA *location, *clone;
+    ROOM_INDEX_DATA *location, *clone, *recall;
     OBJ_DATA *obj;
     CHAR_DATA *rch;
     int door;
@@ -1480,6 +1480,22 @@ void do_rstat(CHAR_DATA *ch, char *argument)
     }
 
     add_buf(output, buf);
+
+	if (location_isset(&location->recall))
+	{
+		if(location->recall.wuid) {
+			WILDS_DATA *wilds = get_wilds_from_uid(NULL,location->recall.wuid);
+			if(wilds)
+				sprintf(buf, "{WRecall:      Wilds {X%s {R[{X%lu{R]{X} at {R<{X%lu,%lu,%lu{R>{X\n\r", wilds->name, location->recall.wuid,
+					location->recall.id[0],location->recall.id[1],location->recall.id[2]);
+			else
+				sprintf(buf, "{WRecall:      Wilds {X??? {R[{X%lu{R]{X\n\r", location->recall.wuid);
+		} else if(location->recall.id[0] > 0 && (recall = get_room_index(location->recall.id[0]))) {
+				sprintf(buf, "{WRecall:      Room {R[{X%5ld{R]{X {X%s\n\r", location->recall.id[0], recall->name);
+		} else
+				sprintf(buf, "{WRecall:      {R[{X%lu{R]{X none\n\r", location->recall.id[0]);
+		add_buf(output, buf);
+	}
 
     sprintf(buf,
             "{YRoom flags:{x %s.\n\r{YDescription:{x\n\r%s\n\r",

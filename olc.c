@@ -149,6 +149,7 @@ const struct olc_cmd_type redit_table[] =
     {	"oreset",	redit_oreset					},
     {   "owner",	redit_owner					},
     {	"persist",	redit_persist					},
+    {   "recall",   redit_recall                },
     {	"room",		redit_room					},
     //{	"room2",	redit_room2					},
     {	"sector",	redit_sector					},
