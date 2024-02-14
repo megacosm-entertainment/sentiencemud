@@ -2684,6 +2684,7 @@ SCRIPT_CMD(scriptcmd_stopreckoning);
 SCRIPT_CMD(scriptcmd_alterobj);
 SCRIPT_CMD(scriptcmd_alterroom);
 SCRIPT_CMD(scriptcmd_resetroom);
+SCRIPT_CMD(scriptcmd_churchannouncetheft);
 
 bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);
 bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);

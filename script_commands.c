@@ -28,6 +28,7 @@ void reset_reckoning();
 const struct script_cmd_type area_cmd_table[] = {
 	{ "alterroom",			scriptcmd_alterroom,		true,	true	},
 	{ "call",				scriptcmd_call,				false,	true	},
+	{ "churchannouncetheft",	scriptcmd_churchannouncetheft,	true, true },
 	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
 	{ "echoat",				scriptcmd_echoat,			false,	true	},
 	{ "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
@@ -58,6 +59,7 @@ const struct script_cmd_type area_cmd_table[] = {
 const struct script_cmd_type instance_cmd_table[] = {
 	{ "alterroom",			scriptcmd_alterroom,		true,	true	},
 	{ "call",				scriptcmd_call,				false,	true	},
+	{ "churchannouncetheft",	scriptcmd_churchannouncetheft,	true, true },
 	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
 	{ "echoat",				scriptcmd_echoat,			false,	true	},
 	{ "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
@@ -90,6 +92,7 @@ const struct script_cmd_type instance_cmd_table[] = {
 const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "alterroom",			scriptcmd_alterroom,		true,	true	},
 	{ "call",				scriptcmd_call,				false,	true	},
+	{ "churchannouncetheft",	scriptcmd_churchannouncetheft,	true, true },
 	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
 	{ "echoat",				scriptcmd_echoat,			false,	true	},
 	{ "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
@@ -1410,6 +1413,30 @@ SCRIPT_CMD(scriptcmd_call)
 	script_call_depth = depth;
 }
 
+SCRIPT_CMD(scriptcmd_churchannouncetheft)
+{
+	char *rest = argument;
+	CHAR_DATA *thief;
+	OBJ_DATA *stolen;
+
+	if (!info) return;
+
+	SETRETURN(0);
+
+	PARSE_ARGTYPE(MOBILE);
+	thief = arg->d.mob;
+
+	stolen = NULL;
+	if (rest && *rest)
+	{
+		PARSE_ARGTYPE(OBJECT);
+		stolen = arg->d.obj;
+	}
+
+	church_announce_theft(thief, stolen);
+	SETRETURN(1);
+}
+
 //////////////////////////////////////
 // D
 
@@ -1804,7 +1831,7 @@ SCRIPT_CMD(scriptcmd_dungeoncomplete)
 //////////////////////////////////////
 // E
 
-// ECHOAT $MOBILE|ROOM|$AREA|INSTANCE|DUNGEON string
+// ECHOAT $MOBILE|ROOM|$AREA|INSTANCE|DUNGEON|CHURCH string
 SCRIPT_CMD(scriptcmd_echoat)
 {
 	char *rest;
@@ -1813,6 +1840,7 @@ SCRIPT_CMD(scriptcmd_echoat)
 	AREA_DATA *area = NULL;
 	INSTANCE *instance = NULL;
 	DUNGEON *dungeon = NULL;
+	CHURCH_DATA *church = NULL;
 
 	if(!info) return;
 
@@ -1827,6 +1855,7 @@ SCRIPT_CMD(scriptcmd_echoat)
 	case ENT_AREA: area = arg->d.area; break;
 	case ENT_INSTANCE: instance = arg->d.instance; break;
 	case ENT_DUNGEON: dungeon = arg->d.dungeon; break;
+	case ENT_CHURCH: church = arg->d.church; break;
 	default: return;
 	}
 
@@ -1843,6 +1872,8 @@ SCRIPT_CMD(scriptcmd_echoat)
 			instance_echo(instance, buffer->string);
 		else if( IS_VALID(dungeon) )
 			dungeon_echo(dungeon, buffer->string);
+		else if ( church )
+			church_echo(church, buffer->string);
 		else if( area )
 			area_echo(area, buffer->string);
 		else if( room )

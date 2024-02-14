@@ -41,6 +41,7 @@ const struct script_cmd_type mob_cmd_table[] = {
 	{ "chargebank",			do_mpchargebank,			false,	true	},
 	{ "chargemoney",		do_mpchargemoney,			false,	true	},
 	{ "checkpoint",			do_mpcheckpoint,			false,	true	},
+	{ "churchannouncetheft",	scriptcmd_churchannouncetheft,	true, true },
 	{ "cloneroom",			do_mpcloneroom,				true,	true	},
 	{ "condition",			do_mpcondition,				false,	true	},
 	{ "crier",				do_mpcrier,					false,	true	},

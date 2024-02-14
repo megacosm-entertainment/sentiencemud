@@ -3999,22 +3999,24 @@ DECL_IFC_FUN(ifc_iscrosszone)
 	return true;
 }
 
-// if isinchurch $<mobile|church|name>[ $<mobile|name>]
+// if inchurch $MOBILE [ $CHURCH|name ]
 DECL_IFC_FUN(ifc_inchurch)
 {
-	CHURCH_DATA *church = NULL;
-
 	*ret = false;
 
-	if(ISARG_MOB(0)) church = ARG_MOB(0)->church;
-	else if(ISARG_CHURCH(0)) church = ARG_CHURCH(0);
-	else if(ISARG_STR(0)) church = find_church_name(ARG_STR(0));
+	if (ISARG_MOB(0))
+	{
+		CHAR_DATA *m = ARG_MOB(0);
 
-	if(church) {
-		if(ISARG_MOB(1)) mob = ARG_MOB(1);
-		else if(ISARG_STR(1)) mob = get_player(ARG_STR(1));
-
-		if(mob && mob->church == church)
+		if (ISARG_CHURCH(1))
+			*ret = m && m->church == ARG_CHURCH(1);
+		else if (ISARG_STR(1))
+		{
+			CHURCH_DATA *church = find_church_name(ARG_STR(1));
+			if (church)
+				*ret = m && m->church == church;
+		}
+		else if (m->church != NULL)
 			*ret = true;
 	}
 

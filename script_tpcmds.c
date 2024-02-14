@@ -33,6 +33,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "castrecover",		do_tpcastrecover,			false,	true	},
 	{ "chargebank",			do_tpchargebank,			false,	true	},
 	{ "checkpoint",			do_tpcheckpoint,			false,	true	},
+	{ "churchannouncetheft",	scriptcmd_churchannouncetheft,	true, true },
 	{ "cloneroom",			do_tpcloneroom,				true,	true	},
 	{ "condition",			do_tpcondition,				false,	true	},
 	{ "crier",				do_tpcrier,					false,	true	},

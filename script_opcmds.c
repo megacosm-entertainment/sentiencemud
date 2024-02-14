@@ -33,6 +33,7 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "cast",       		do_opcast,				false,	true	},
 	{ "chargebank",			do_opchargebank,		false,	true	},
 	{ "checkpoint",			do_opcheckpoint,		false,	true	},
+	{ "churchannouncetheft",	scriptcmd_churchannouncetheft,	true, true },
 	{ "cloneroom",			do_opcloneroom,			true,	true	},
 	{ "condition",			do_opcondition,			false,	true	},
 	{ "crier",				do_opcrier,				false,	true	},

@@ -7835,7 +7835,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 
 
 
-	// RANDROOM <player> <continent>
+	// RANDROOM <area|player|null> <continent>
 	} else if(!str_cmp(buf,"randroom")) {
 		ROOM_INDEX_DATA *loc;
 
@@ -7846,10 +7846,15 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 			variables_set_room(vars,name,loc);
 		}
 		else
-		if( arg->type != ENT_MOBILE || !IS_VALID(arg->d.mob) || IS_NPC(arg->d.mob) )
-			return;
+		if (arg->type == ENT_NULL)
+			vch = NULL;
+		else
+		{
+			if( arg->type != ENT_MOBILE || !IS_VALID(arg->d.mob) || IS_NPC(arg->d.mob) )
+				return;
 
-		vch = arg->d.mob;
+			vch = arg->d.mob;
+		}
 
 		if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
 			return;

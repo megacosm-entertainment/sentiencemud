@@ -34,6 +34,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "cancel",				do_rpcancel,			false,	false	},
 	{ "chargebank",			do_rpchargebank,		false,	true	},
 	{ "checkpoint",			do_rpcheckpoint,		false,	true	},
+	{ "churchannouncetheft",	scriptcmd_churchannouncetheft,	true, true },
 	{ "cloneroom",			do_rpcloneroom,			true,	true	},
 	{ "condition",			do_rpcondition,			false,	true	},
 	{ "crier",				do_rpcrier,				false,	true	},
