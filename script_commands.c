@@ -4539,7 +4539,7 @@ SCRIPT_CMD(scriptcmd_xcall)
 SCRIPT_CMD(scriptcmd_alterobj)
 {
 	char buf[2*MIL],field[MIL],*rest;
-	int value, num, min_sec = MIN_SCRIPT_SECURITY;
+	int value = 0, num, min_sec = MIN_SCRIPT_SECURITY;
 	OBJ_DATA *obj = NULL;
 	int min = 0, max = 0;
 	bool hasmin = false, hasmax = false;

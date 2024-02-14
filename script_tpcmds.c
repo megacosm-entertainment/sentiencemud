@@ -3557,7 +3557,7 @@ SCRIPT_CMD(do_tpstringobj)
 SCRIPT_CMD(do_tpaltermob)
 {
 	char buf[MSL],field[MIL],*rest;
-	int value, min_sec = MIN_SCRIPT_SECURITY, min = 0, max = 0;
+	int value = 0, min_sec = MIN_SCRIPT_SECURITY, min = 0, max = 0;
 	CHAR_DATA *mob = NULL;
 
 	int *ptr = NULL;

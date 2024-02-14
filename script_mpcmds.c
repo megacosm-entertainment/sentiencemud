@@ -4386,7 +4386,7 @@ SCRIPT_CMD(do_mpstringobj)
 SCRIPT_CMD(do_mpaltermob)
 {
 	char buf[MSL],field[MIL],*rest;
-	int value, min_sec = MIN_SCRIPT_SECURITY, min = 0, max = 0;
+	int value = 0, min_sec = MIN_SCRIPT_SECURITY, min = 0, max = 0;
 	CHAR_DATA *mob = NULL;
 	int *ptr = NULL;
 	bool allowpc = false;
@@ -7057,7 +7057,7 @@ SCRIPT_CMD(do_mpsetrecall)
 
 	victim = NULL;
 	room = NULL;
-	
+
 	switch(arg->type) {
 	case ENT_STRING:
 		victim = get_char_world(info->mob, arg->d.str);

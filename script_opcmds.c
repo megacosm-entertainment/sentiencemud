@@ -3423,7 +3423,7 @@ SCRIPT_CMD(do_opstringobj)
 SCRIPT_CMD(do_opaltermob)
 {
 	char buf[MSL],field[MIL],*rest;
-	int value, min_sec = MIN_SCRIPT_SECURITY, min = 0, max = 0;
+	int value = 0, min_sec = MIN_SCRIPT_SECURITY, min = 0, max = 0;
 	CHAR_DATA *mob = NULL;
 
 	int *ptr = NULL;
@@ -6063,7 +6063,7 @@ SCRIPT_CMD(do_opsetrecall)
 
 	victim = NULL;
 	room = NULL;
-	
+
 	switch(arg->type) {
 	case ENT_STRING:
 		victim = get_char_world(NULL, arg->d.str);
