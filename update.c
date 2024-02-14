@@ -344,7 +344,7 @@ void advance_level(CHAR_DATA *ch, bool hide)
 
 
 // Give a character exp
-void gain_exp(CHAR_DATA *ch, int gain)
+void gain_exp(CHAR_DATA *ch, int gain, bool show)
 {
 	char buf[MAX_STRING_LENGTH];
 
@@ -357,7 +357,7 @@ void gain_exp(CHAR_DATA *ch, int gain)
 	if( ch->tempstore[0] < gain )
 		gain = ch->tempstore[0];
 
-	if (gain > 0) {
+	if (gain > 0 && show) {
 		sprintf(buf, "{BYou receive {C%d {Bexperience points.\n\r{x", gain);
 		send_to_char(buf, ch);
 	}

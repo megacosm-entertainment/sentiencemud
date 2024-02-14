@@ -819,10 +819,10 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
 		if(ch->tot_level < 120)
 		{
-			sprintf(buf, "You gain %d experience points!\n\r", expreward);
-			send_to_char(buf, ch);
+			//sprintf(buf, "You gain %d experience points!\n\r", expreward);
+			//send_to_char(buf, ch);
 
-			gain_exp(ch, expreward);
+			gain_exp(ch, expreward, true);
 		}
 /* Syn - disabling
   send_to_char("You receive 1 military quest point!\n\r", ch);

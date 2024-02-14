@@ -4033,7 +4033,7 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim)
 				pc_xp *= 1.05;
 			}
 
-			gain_exp(gch, pc_xp);
+			gain_exp(gch, pc_xp, true);
 		}
 
 		for (obj = gch->carrying; obj != NULL; obj = obj_next)

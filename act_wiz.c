@@ -6973,7 +6973,7 @@ void do_alevel(CHAR_DATA *ch, char *argument)
     }
 
     xp = exp_per_level(victim, victim->pcdata->points) - victim->exp;
-    gain_exp(victim, xp);
+    gain_exp(victim, xp, false);
 
     return;
 }

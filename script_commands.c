@@ -1207,7 +1207,7 @@ SCRIPT_CMD(scriptcmd_award)
 			field_name = "quest points";
 
 		} else if( !str_prefix(field, "experience") || !str_cmp(field, "xp") ) {
-			gain_exp(victim, amount);
+			gain_exp(victim, amount, true);
 			field_name = "experience";
 
 		} else

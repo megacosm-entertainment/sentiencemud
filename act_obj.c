@@ -2818,7 +2818,7 @@ void do_eat(CHAR_DATA *ch, char *argument)
         long xp;
 
 	xp = exp_per_level(ch, ch->pcdata->points) - ch->exp;
-	gain_exp(ch, xp);
+	gain_exp(ch, xp, false);
 	extract_obj(obj);
 	return;
     }
