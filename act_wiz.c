@@ -1486,7 +1486,7 @@ void do_rstat(CHAR_DATA *ch, char *argument)
 		if(location->recall.wuid) {
 			WILDS_DATA *wilds = get_wilds_from_uid(NULL,location->recall.wuid);
 			if(wilds)
-				sprintf(buf, "{WRecall:      Wilds {X%s {R[{X%lu{R]{X} at {R<{X%lu,%lu,%lu{R>{X\n\r", wilds->name, location->recall.wuid,
+				sprintf(buf, "{WRecall:      Wilds {X%s {R[{X%lu{R]{X at {R<{X%lu,%lu,%lu{R>{X\n\r", wilds->name, location->recall.wuid,
 					location->recall.id[0],location->recall.id[1],location->recall.id[2]);
 			else
 				sprintf(buf, "{WRecall:      Wilds {X??? {R[{X%lu{R]{X\n\r", location->recall.wuid);

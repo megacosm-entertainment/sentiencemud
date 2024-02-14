@@ -5719,7 +5719,7 @@ SCRIPT_CMD(do_rpsetrecall)
 {
 	char /*buf[MSL],*/ *rest;
 	CHAR_DATA *victim;
-	ROOM_INDEX_DATA *location;
+	ROOM_INDEX_DATA *location, *room;
 //	int amount = 0;
 
 
@@ -5730,16 +5730,20 @@ SCRIPT_CMD(do_rpsetrecall)
 		return;
 	}
 
+	victim = NULL;
+	room = NULL;
+	
 	switch(arg->type) {
 	case ENT_STRING:
 		victim = get_char_world(NULL, arg->d.str);
 		break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
+	case ENT_ROOM: room = arg->d.room; break;
 	default: victim = NULL; break;
 	}
 
 
-	if (!victim) {
+	if (!victim && !room) {
 		bug("RpSetRecall - Null victim from vnum %ld.", info->room->vnum);
 		return;
 	}
@@ -5751,22 +5755,25 @@ SCRIPT_CMD(do_rpsetrecall)
 		return;
 	}
 
-	if(location->wilds) {
-		victim->recall.wuid = location->wilds->uid;
-		victim->recall.id[0] = location->x;
-		victim->recall.id[1] = location->y;
-		victim->recall.id[2] = location->z;
-	} else {
-		victim->recall.wuid = 0;
-		victim->recall.id[0] = location->vnum;
-		if(location->source) {
-			victim->recall.id[1] = location->id[0];
-			victim->recall.id[2] = location->id[1];
-		} else {
-			victim->recall.id[1] = 0;
-			victim->recall.id[2] = 0;
-		}
+	if (victim)
+	{
+		if(location->wilds)
+			location_set(&victim->recall,location->wilds->uid,location->x,location->y,location->z);
+		else if(location->source)
+			location_set(&victim->recall,0,location->vnum,0,0);
+		else
+			location_set(&victim->recall,0,location->vnum,location->id[0],location->id[1]);
 	}
+
+	if (room)
+	{
+		if(location->wilds)
+			location_set(&room->recall,location->wilds->uid,location->x,location->y,location->z);
+		else if(location->source)
+			location_set(&room->recall,0,location->vnum,0,0);
+		else
+			location_set(&room->recall,0,location->vnum,location->id[0],location->id[1]);
+	}	
 }
 
 // do_rpclearrecall

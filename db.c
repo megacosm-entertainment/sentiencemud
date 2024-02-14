@@ -1707,6 +1707,10 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 	pRoom->move_rate = pRoom->rs_move_rate;
 	pRoom->sector_type = pRoom->rs_sector_type;
 	if (!pRoom->sector_type) pRoom->sector_type = SECT_INSIDE;
+	if (location_isset(&pRoom->recall))
+	{
+		location_clear(&pRoom->recall);
+	}
 	if (rs_location_isset(&pRoom->rs_recall))
 	{
 		pRoom->recall.wuid = pRoom->rs_recall.wuid;

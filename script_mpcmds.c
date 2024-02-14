@@ -7043,6 +7043,7 @@ SCRIPT_CMD(do_mpsetrecall)
 {
 	char /*buf[MSL], - Unused???*/ *rest;
 	CHAR_DATA *victim;
+	ROOM_INDEX_DATA *room;
 	ROOM_INDEX_DATA *location;
 //	int amount = 0; - Unused???
 
@@ -7054,16 +7055,20 @@ SCRIPT_CMD(do_mpsetrecall)
 		return;
 	}
 
+	victim = NULL;
+	room = NULL;
+	
 	switch(arg->type) {
 	case ENT_STRING:
 		victim = get_char_world(info->mob, arg->d.str);
 		break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
-	default: victim = NULL; break;
+	case ENT_ROOM: room = arg->d.room; break;
+	default: victim = NULL; room = NULL; break;
 	}
 
 
-	if (!victim) {
+	if (!victim && !room) {
 		bug("MpSetRecall - Null victim from vnum %ld.", VNUM(info->mob));
 		return;
 	}
@@ -7075,13 +7080,27 @@ SCRIPT_CMD(do_mpsetrecall)
 		return;
 	}
 
-	if(location->wilds)
-		location_set(&victim->recall,location->wilds->uid,location->x,location->y,location->z);
-	else if(location->source)
-		location_set(&victim->recall,0,location->vnum,0,0);
-	else
-		location_set(&victim->recall,0,location->vnum,location->id[0],location->id[1]);
+	if (victim)
+	{
+		if(location->wilds)
+			location_set(&victim->recall,location->wilds->uid,location->x,location->y,location->z);
+		else if(location->source)
+			location_set(&victim->recall,0,location->vnum,0,0);
+		else
+			location_set(&victim->recall,0,location->vnum,location->id[0],location->id[1]);
+	}
+
+	if (room)
+	{
+		if(location->wilds)
+			location_set(&room->recall,location->wilds->uid,location->x,location->y,location->z);
+		else if(location->source)
+			location_set(&room->recall,0,location->vnum,0,0);
+		else
+			location_set(&room->recall,0,location->vnum,location->id[0],location->id[1]);
+	}		
 }
+
 
 // do_mpclearrecall
 // mob clearrecall $MOBILE

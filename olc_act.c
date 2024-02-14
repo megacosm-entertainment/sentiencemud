@@ -2081,7 +2081,7 @@ REDIT(redit_show)
 		if(pRoom->rs_recall.wuid) {
 			WILDS_DATA *wilds = get_wilds_from_uid(NULL,pRoom->rs_recall.wuid);
 			if(wilds)
-				sprintf(buf, "{WRecall:      Wilds {X%s {R[{X%lu{R]{X} at {R<{X%lu,%lu,%lu{R>{X\n\r", wilds->name, pRoom->rs_recall.wuid,
+				sprintf(buf, "{WRecall:      Wilds {X%s {R[{X%lu{R]{X at {R<{X%lu,%lu,%lu{R>{X\n\r", wilds->name, pRoom->rs_recall.wuid,
 					pRoom->rs_recall.id[0],pRoom->rs_recall.id[1],pRoom->rs_recall.id[2]);
 			else
 				sprintf(buf, "{WRecall:      Wilds {X??? {R[{X%lu{R]{X\n\r", pRoom->rs_recall.wuid);
