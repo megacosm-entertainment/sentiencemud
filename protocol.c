@@ -912,6 +912,9 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
             case 'f':
                pCopyFrom = "\033[7m";
                break;
+            case '|':
+               pCopyFrom = "\n\r";
+               break;
             case '\0':
                bTerminate = true;
                break;
