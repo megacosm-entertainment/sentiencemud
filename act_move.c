@@ -3431,6 +3431,12 @@ bool move_success(CHAR_DATA *ch)
 		return false;
 	}
 
+	if(!is_room_unlocked(ch, to_room) )
+	{
+		send_to_char("You cannot enter that place yet.\n\r", ch);
+		return false;
+	}
+
 	if(!can_see_room (ch, to_room)) {
 		send_to_char ("Alas, you cannot go that way.\n\r", ch);
 		return false;
