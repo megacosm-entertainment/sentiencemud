@@ -1088,7 +1088,7 @@ void save_script_new(FILE *fp, AREA_DATA *area,SCRIPT_DATA *scr,char *type)
 {
 	fprintf(fp, "#%sPROG %ld\n", type, (long int)scr->vnum);
 	fprintf(fp, "Name %s~\n", scr->name ? scr->name : "");
-	fprintf(fp, "Code %s~\n", scr->code ? scr->src : scr->edit_src);
+	fprintf(fp, "Code %s~\n", fix_string(scr->code ? scr->src : scr->edit_src));
 	fprintf(fp, "Flags %s~\n", flag_string(script_flags, scr->flags));
 	fprintf(fp, "Depth %d\n", scr->depth);
 	fprintf(fp, "Security %d\n", scr->security);
