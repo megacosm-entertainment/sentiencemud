@@ -8140,6 +8140,7 @@ NPC_SHIP_DATA *get_npc_ship_data args( ( long vnum ) );
 bool	run_olc_editor	args( ( DESCRIPTOR_DATA *d ) );
 char	*olc_ed_name	args( ( CHAR_DATA *ch ) );
 char	*olc_ed_vnum	args( ( CHAR_DATA *ch ) );
+char    *olc_show_script_status args( ( SCRIPT_DATA *prog, int type ) );
 int calc_obj_armour args ( (int level, int strength) );
 void set_weapon_dice( OBJ_INDEX_DATA *objIndex );
 void set_weapon_dice_obj( OBJ_DATA *obj );

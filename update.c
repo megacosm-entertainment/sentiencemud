@@ -938,7 +938,7 @@ void mobile_update(void)
 		if( IS_NPC(ch) && IS_SET(ch->act[1], ACT2_HIRED) )
 		{
 			// If hired, check whether their timer has expired OR are no longer grouped (important)
-			if( ch->hired_to > 0 && (current_time < ch->hired_to || ch->leader == NULL) )
+			if( ch->hired_to > 0 && (current_time > ch->hired_to || ch->leader == NULL) )
 			{
 				// CONTRACT_COMPLETE can allow the mob to remain in existence
 				// - when a script gets executed, you need to return a zero to extract the mob

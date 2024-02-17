@@ -10157,6 +10157,28 @@ MEDIT(medit_shop)
 				return true;
 			}
 
+			if(!str_prefix(arg2, "duration"))
+			{
+				if(!is_number(argument))
+				{
+					send_to_char("Syntax:  shop stock [#] duration [ticks]\n\r", ch);
+					return false;
+				}
+
+				int duration = atoi(argument);
+
+				if(duration < 1)
+				{
+					stock->duration = 0;
+					send_to_char("Stock duration set to permanent.\n\r", ch);
+					return true;
+				}
+
+				stock->duration = duration;
+				send_to_char("Stock duration changed.\n\r", ch);
+				return true;
+			}
+
 			if(!str_prefix(arg2, "level"))
 			{
 				if(!is_number(argument))

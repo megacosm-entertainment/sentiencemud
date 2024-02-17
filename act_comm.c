@@ -1677,17 +1677,40 @@ void do_group(CHAR_DATA *ch, char *argument)
 		{
 			if (is_same_group(gch, ch) || gch == ch) {
 				char name[MSL];
+				char race[MSL];
+				char hired_time[100];
 
 				sprintf(name, "%s", pers(gch, ch)) ;
 				name[0] = UPPER(name[0]);
+
+				if( IS_NPC(gch))
+				{
+					
+					sprintf(race, "%s", race_table[gch->race].name);
+					race[0] = UPPER(race[0]);
+				}
+
+				if (!IS_NPC(gch))
+				{
+					sprintf(race, "%s", pc_race_table[gch->race].name);
+					race[0] = UPPER(race[0]);
+				}
+
+				if( IS_NPC(gch) && IS_SET(gch->act[1], ACT2_HIRED) )
+				{
+					strftime(hired_time, 100, "%Y-%m-%d %X %Z", localtime(&gch->hired_to));
+				}
 				sprintf(buf,
-					"{B[{G%3d {Y%-6.6s{B] {G%-15.15s {w%6ld{B/{w%ld {Bhp {w%6ld{B/{w%ld {Bmana {w%6ld{B/{w%ld {Bmv{x\n\r",
+					"{B[{G%3d %s%-6.6s{B] {G%-15.15s {w%6ld{B/{w%ld {Bhp {w%6ld{B/{w%ld {Bmana {w%6ld{B/{w%ld {Bmv{x %s%s{X\n\r",
 					gch->tot_level,
-					IS_NPC(gch) ? " NPC  " : pc_race_table[gch->race].who_name,
+					IS_NPC(gch) ? "{A" : "{Y",
+					race,
 					name,
 					gch->hit,   gch->max_hit,
 					gch->mana,  gch->max_mana,
-					gch->move,  gch->max_move);
+					gch->move,  gch->max_move,
+					IS_SET(gch->act[1], ACT2_HIRED) ? "{BUntil:{W " : "",
+					IS_SET(gch->act[1], ACT2_HIRED) ? hired_time : "");
 				send_to_char(buf, ch);
 			}
 		}

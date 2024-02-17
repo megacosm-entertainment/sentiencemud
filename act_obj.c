@@ -5593,6 +5593,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 								strcat(buf, pricestr);
 							}
 							strcat(buf, ".");
+							first = false;
 
 							act(buf,ch, NULL, NULL, t_obj, NULL, NULL,NULL,TO_CHAR);
 						}
@@ -6158,9 +6159,17 @@ void do_list(CHAR_DATA *ch, char *argument)
 					char *descr =
 						IS_NULLSTR(stock->custom_descr) ? stock->obj->short_descr : stock->custom_descr;
 
-					if( stock->max_quantity > 0 )
+					if ( stock->max_quantity > 0 && (stock->duration > 0 || stock->obj->timer > 0))
+					{
+						sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s {Y[EXPIRES]{X\n\r", level,pwidth,pricing,stock->quantity,descr);
+					}
+					else if( stock->max_quantity > 0 )
 					{
 						sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s\n\r", level,pwidth,pricing,stock->quantity,descr);
+					}
+					else if (stock->duration > 0)
+					{
+						sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s {Y[EXPIRES]{X\n\r", level,pwidth,pricing,descr);
 					}
 					else
 					{
@@ -6195,10 +6204,17 @@ void do_list(CHAR_DATA *ch, char *argument)
 
 					char *descr =
 						IS_NULLSTR(stock->custom_descr) ? stock->mob->short_descr : stock->custom_descr;
-
-					if( stock->max_quantity > 0 )
+					if (stock->max_quantity > 0 && stock->duration > 0)
+					{
+						sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s {Y[HIRELING]{x\n\r", level,pwidth,pricing,stock->quantity,descr);
+					}
+					else if( stock->max_quantity > 0 )
 					{
 						sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s\n\r", level,pwidth,pricing,stock->quantity,descr);
+					}
+					else if (stock->duration > 0)
+					{
+						sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s {Y[HIRELING]{x\n\r", level,pwidth,pricing,descr);
 					}
 					else
 					{
@@ -6317,6 +6333,8 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
 	char arg_keeper[MIL];
+	char buf[MSL];
+	time_t hiring_time = time(NULL);
     CHAR_DATA *keeper;
 	SHOP_REQUEST_DATA request;
 
@@ -6365,6 +6383,11 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 				act("You ask $N for some information about $p.", ch, keeper, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 				act("$n asks $N for some information about $p.", ch, keeper, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 				obj_to_char(obj, ch);
+				if (request.stock->duration > 0)
+				{
+					sprintf(buf, "{YExpires After{y:{X %d hours{x\n\r", request.stock->duration);
+					send_to_char(buf, ch);
+				}
 				spell_identify(gsn__inspect, ch->tot_level, ch, obj, TARGET_OBJ, WEAR_NONE);
 			}
 			extract_obj(obj);
@@ -6396,6 +6419,14 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 				else
 				{
 					act("{GGUARD{g:{x $N", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				}
+				if (request.stock->duration > 0)
+				{
+					char hired_time[100];
+					hiring_time = current_time + request.stock->duration * 60;
+					strftime(hired_time, 100, "%a %b %d %X %Z %Y", localtime(&hiring_time));
+					sprintf(buf, "{AHired Until{a:{X %s{x\n\r", hired_time);
+					send_to_char(buf, ch);
 				}
 
 				show_basic_mob_lore(ch, mob);

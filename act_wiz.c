@@ -2117,6 +2117,14 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 				 victim->pulled_cart ? victim->pulled_cart->short_descr : "(none)");
 	send_to_char(buf, ch);
 
+	if (victim->hired_to)
+	{
+		char hired_time[100];
+		strftime(hired_time, 100, "%a %b %d %X %Z %Y", localtime(&victim->hired_to));
+		sprintf(buf, "{BHired to:{x %s\n\r", hired_time);
+		send_to_char(buf, ch);
+	}
+
 	if (!IS_NPC(victim))
 	{
 		sprintf(buf, "{BSecurity:{x %d.\n\r", victim->pcdata->security);

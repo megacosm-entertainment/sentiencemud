@@ -223,7 +223,7 @@ bool			objRepop;
    is necesarry because I put the triggering mechanism in obj_to_char() and
    obj_to_room(). When the object is given to a char or a room, this variable
    is toggled off, and the object will then no longer trigger repop scripts. */
-int16_t gsn__auction_info;
+int16_t gsn__auction;
 int16_t gsn__inspect;
 
 int16_t	gsn_acid_blast;
@@ -824,7 +824,7 @@ void boot_db(void)
 	}
 
 	// Special internal use only gsns
-	gsn__auction_info = -2;
+	gsn__auction = -2;
 	gsn__inspect = -1;
 
 	for (lev = 0; lev != MAX_MOB_SKILL_LEVEL; lev++)

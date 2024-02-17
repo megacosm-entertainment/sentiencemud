@@ -153,6 +153,7 @@ SPELL_FUNC(spell_identify)
 	BUFFER *buffer;
 	char buf[2*MAX_STRING_LENGTH];
 	char buf2[MAX_STRING_LENGTH];
+	char objtimer[MSL];
 	//char extra_flags[MSL];
 	AFFECT_DATA *af;
 	OBJ_DATA *key;
@@ -186,6 +187,11 @@ SPELL_FUNC(spell_identify)
 		// Extra3 and further will be added here
 	}
 */
+	if (obj->timer > 0)
+	{
+		sprintf(objtimer, "{MIt will expire after{X %d{M hours.{X\n\r", obj->timer);
+	}
+
 	sprintf(buf,
 		"{MObject '{x%s{M' is type {x%s{M, extra flags {x%s{M.\n\r"
 		"Weight is {x%d{M, value is {x%ld{M, level is {x%d{M.\n\r"
@@ -199,9 +205,16 @@ SPELL_FUNC(spell_identify)
 		fragile_table[obj->fragility].name,
 		obj->condition,
 		obj->times_fixed,
-		obj->times_allowed_fixed);
+		obj->times_allowed_fixed
+		);
 
 	add_buf(buffer, buf);
+
+	if (obj->timer > 0)
+	{
+		sprintf(objtimer, "{MIt will expire after{X %d{M hours.{X\n\r", obj->timer);
+		add_buf(buffer, objtimer);
+	}
 
 	sprintf(buf, "{MIt is made out of {x%s{M.\n\r", obj->material);
 	add_buf(buffer, buf);
@@ -473,7 +486,9 @@ SPELL_FUNC(spell_identify)
 	page_to_char(buf_string(buffer), ch);
 	free_buf(buffer);
 
-	if(sn == gsn_lore)
+	if (sn == gsn__auction || sn == gsn__inspect)
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_INSPECT, NULL);
+	else if(sn == gsn_lore)
 		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE, NULL);
 	else if(sn == gsn_identify)
 		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_IDENTIFY, NULL);

@@ -3990,20 +3990,22 @@ void olc_show_progs(BUFFER *buffer, LLIST **progs, int type, const char *title)
 		if(list_size(progs[slot]) > 0) ++cnt;
 
 	if (cnt > 0) {
-		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "Number", "MobProg Vnum", "Trigger", "Phrase");
+		sprintf(buf, "{R%-6s %-12s %-10s %-10s %-9s %-20s\n\r{x", "Number", "Vnum      ", "Trigger", "Phrase", "Status      ", " Name");
 		add_buf(buffer, buf);
 
-		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "------", "-------------", "-------", "------");
+		sprintf(buf, "{R%-6s %-12s %-10s %-10s %-9s %-20s\n\r{x", "------", "-----------", "-------", "------", "------------", " -----");
 		add_buf(buffer, buf);
 
 		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
             ITERATOR it;
             PROG_LIST *trigger;
+            SCRIPT_DATA *prog;
 			iterator_start(&it, progs[slot]);
 			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-				sprintf(buf, "{C[{W%4d{C]{x %-20ld %-10s %-6s\n\r", cnt,
-					trigger->vnum,trigger_name(trigger->trig_type),
-					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, false, false));
+                prog = get_script_index(trigger->vnum, type);                
+				sprintf(buf, "{C[{W%4d{C]{x %-12ld %-10s %-10s %-9s %-5s\n\r", cnt,
+					trigger->vnum, trigger_name(trigger->trig_type),
+					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, false, false), olc_show_script_status(prog, type), prog ? prog->name : "Unknown");
 				add_buf(buffer, buf);
 				cnt++;
 			}
@@ -4012,4 +4014,26 @@ void olc_show_progs(BUFFER *buffer, LLIST **progs, int type, const char *title)
 	}
 }
 
+// Rewrite the below function to return a string to the above function
+char *olc_show_script_status(SCRIPT_DATA *prog, int type)
+{
+    static char status[20];
+
+    if (prog) {
+
+        if(IS_SET(prog->flags,SCRIPT_DISABLED))
+			sprintf(status, "{D[DISABLED]{x   ");
+		else if(prog->lines > 1 && prog->src != prog->edit_src)
+			sprintf(status, "{G[MODIFIED]{x   ");
+		else if(prog->lines == 1)
+			sprintf(status, "{W[BLANK]{x      ");
+		else if(prog->code)
+			sprintf(status, "{x[COMPILED]{x   ");
+		else
+			sprintf(status, "{R[UNCOMPILED]{x ");
+
+        return status;
+    }
+    else return "Unknown";
+}
 /* Used for handling projects. */

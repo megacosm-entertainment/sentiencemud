@@ -1107,6 +1107,15 @@ void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch, bool examine)
 	send_to_char(buf, ch);
     }
 
+	if (IS_SET(victim->act[1], ACT2_HIRED) && victim->leader == ch)
+	{
+		char hired_time[100];
+		strftime(hired_time, 100, "%a %b %d %X %Z %Y", localtime(&victim->hired_to));
+		//char *hired_time = strtok((ctime(time_t *)&victim->hired_to), "\n");
+		sprintf(buf, "{A%s is under contract until %s.\n\r", victim->short_descr, hired_time);
+		buf[2] = UPPER(buf[2]);
+		send_to_char(buf, ch);
+	}
 
     if (victim->max_hit > 0)
 	percent = (100 * victim->hit) / victim->max_hit;
