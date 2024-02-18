@@ -2310,7 +2310,7 @@ SCRIPT_CMD(scriptcmd_echoat)
 	default: return;
 	}
 
-	if ((!victim || !victim->in_room) && !room && !area && !instance && !dungeon)
+	if ((!victim || !victim->in_room) && !room && !area && !instance && !dungeon && !church)
 		return;
 
 	// Expand the message
