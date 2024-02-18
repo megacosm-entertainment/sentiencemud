@@ -51,6 +51,9 @@ void do_auction( CHAR_DATA *ch, char * argument )
     argument = one_argument( argument, arg1 );
     argument = one_argument( argument, arg2 );
 
+	if (check_social_status(ch))
+		return;
+
     if ( ch == NULL || IS_NPC(ch) )
 	return;
 

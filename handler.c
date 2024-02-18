@@ -9488,3 +9488,14 @@ char *get_article(char *text, bool upper)
 	return upper ? "A" : "a";
 
 }
+
+bool check_social_status(CHAR_DATA *ch)
+{
+	if (IS_SOCIAL(ch))
+	{
+		send_to_char("You can't do that while socializing.\n\r", ch);
+		return true;
+	}
+
+	return false;
+}

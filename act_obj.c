@@ -2657,6 +2657,9 @@ void do_drink(CHAR_DATA *ch, char *argument)
 
     one_argument(argument, arg);
 
+	if (check_social_status(ch))
+		return;
+
     if (arg[0] == '\0')
     {
 	for (obj = ch->in_room->contents; obj; obj = obj->next_content)
@@ -2789,6 +2792,10 @@ void do_eat(CHAR_DATA *ch, char *argument)
     SPELL_DATA *spell;
 
     one_argument(argument, arg);
+
+	if (check_social_status(ch))
+		return;
+
     if (arg[0] == '\0')
     {
 	send_to_char("Eat what?\n\r", ch);
@@ -3412,6 +3419,9 @@ void do_wear(CHAR_DATA *ch, char *argument)
 
     one_argument(argument, arg);
 
+	if (check_social_status(ch))
+		return;
+
     if (IS_SHIFTED_SLAYER(ch) || IS_SHIFTED_WEREWOLF(ch))
     {
 		send_to_char("You can't do that in your current form.\n\r", ch);
@@ -3517,6 +3527,9 @@ void do_remove(CHAR_DATA *ch, char *argument)
     char arg[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
     OBJ_DATA *obj;
+
+	if (check_social_status(ch))
+		return;
 
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
@@ -3745,6 +3758,12 @@ void do_quaff(CHAR_DATA *ch, char *argument)
 
     one_argument(argument, arg);
 
+	if (IS_SOCIAL(ch))
+	{
+		send_to_char("You can't do that while socializing.\n\r", ch);
+		return;
+	}
+
     if (arg[0] == '\0')
     {
 	send_to_char("Quaff what?\n\r", ch);
@@ -3818,6 +3837,9 @@ void do_recite(CHAR_DATA *ch, char *argument)
 
 	argument = one_argument(argument, arg1);
 	argument = one_argument(argument, arg2);
+
+	if (check_social_status(ch))
+		return;
 
 	if ((scroll = get_obj_carry(ch, arg1, ch)) == NULL)
 	{
@@ -6823,6 +6845,9 @@ void do_secondary(CHAR_DATA *ch, char *argument)
     OBJ_DATA *weapon;
     char buf[MAX_STRING_LENGTH];
 
+	if (check_social_status(ch))
+		return;
+
     if (argument[0] == '\0')
     {
         send_to_char ("Wear which weapon in your off-hand?\n\r",ch);
@@ -8211,6 +8236,9 @@ void do_use(CHAR_DATA *ch, char *argument)
 
 	argument = one_argument(argument, arg);
 
+	if (check_social_status(ch))
+		return;
+
 	if (!arg[0]) {
 		send_to_char("What do you want to use?\n\r", ch);
 		return;
@@ -8246,6 +8274,9 @@ void do_conceal(CHAR_DATA *ch, char *argument)
 	char arg[MAX_STRING_LENGTH];
 	OBJ_DATA *obj;
 	CHAR_DATA *rch;
+
+	if (check_social_status(ch))
+		return;
 
 	one_argument(argument, arg);
 

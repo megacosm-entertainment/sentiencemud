@@ -552,10 +552,8 @@ void do_cast(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (IS_SOCIAL(ch)) {
-		send_to_char("You can't cast spells here.\n\r", ch);
+	if (check_social_status(ch))
 		return;
-	}
 
 	if (!arg1[0]) {
 		send_to_char("Cast which what where?\n\r", ch);

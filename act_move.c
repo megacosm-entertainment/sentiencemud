@@ -2873,6 +2873,9 @@ void do_hide(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
 
+	if (check_social_status(ch))
+		return;
+
     /* take care of hide <obj> */
     if (argument[0] != '\0')
     {

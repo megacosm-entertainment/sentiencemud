@@ -80,10 +80,8 @@ void do_play(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (IS_SOCIAL(ch)) {
-		send_to_char("You can't play songs here.\n\r", ch);
+	if (check_social_status(ch))
 		return;
-	}
 
 	obj = NULL;
 	for (instrument = ch->carrying; instrument != NULL; instrument = instrument->next_content )
