@@ -17668,10 +17668,10 @@ MEDIT(medit_show)
 		pShop = pMob->pShop;
 
 		sprintf(buf,
-			"Shop data for {C[{x%5ld{C]{x:\n\r"
+			"Shop data:\n\r"
 			"  Markup for purchaser: %d%%\n\r"
 			"  Markdown for seller:  %d%%\n\r",
-			pShop->keeper, pShop->profit_buy, pShop->profit_sell);
+			pShop->profit_buy, pShop->profit_sell);
 		add_buf(buffer, buf);
 		sprintf(buf, "  Hours: %d to %d.\n\r", pShop->open_hour, pShop->close_hour);
 		add_buf(buffer, buf);
@@ -17917,7 +17917,7 @@ MEDIT(medit_show)
 						}
 					}
 
-					if( pStock->qp > 0 )
+					if( pStock->mp > 0 )
 					{
 						if( pj > 0 )
 						{
@@ -17925,7 +17925,7 @@ MEDIT(medit_show)
 							pricing[pj++] = ' ';
 						}
 
-						pj += sprintf(pricing+pj, "{x%ld{Gqp{x", pStock->qp);
+						pj += sprintf(pricing+pj, "{x%ld{Gmp{x", pStock->mp);
 					}
 
 					if( pStock->dp > 0 )
@@ -18867,6 +18867,7 @@ MEDIT(medit_shop)
 		send_to_char("         shop stock add [type] [value]\n\r", ch);
 		send_to_char("         shop stock [#] discount [0-100]\n\r", ch);
 		send_to_char("         shop stock [#] description [description]\n\r", ch);
+		send_to_char("         shop stock [#] duration [#hours|none]\n\r", ch);
 		send_to_char("         shop stock [#] level [level]\n\r", ch);
 		send_to_char("         shop stock [#] price <silver|qp|dp|pneuma|reputation|paragon|custom>[ <check price script (for custom only)>] <value>\n\r", ch);
 		send_to_char("         shop stock [#] quantity unlimited\n\r", ch);
@@ -19172,8 +19173,6 @@ MEDIT(medit_shop)
 			shop_last->next	= pMob->pShop;
 		shop_last		= pMob->pShop;
 
-		pMob->pShop->keeper	= pMob->vnum;
-
 		send_to_char("New shop assigned to mobile.\n\r", ch);
 		return true;
     }
@@ -19262,6 +19261,7 @@ MEDIT(medit_shop)
 			send_to_char("         shop stock add custom [keyword]\n\r", ch);
 			send_to_char("         shop stock [#] discount [0-100]\n\r", ch);
 			send_to_char("         shop stock [#] description [description]\n\r", ch);
+			send_to_char("         shop stock [#] duration [#hours|none]\n\r", ch);
 			send_to_char("         shop stock [#] level [level]\n\r", ch);
 			send_to_char("         shop stock [#] price <silver|qp|dp|pneuma|reputation|paragon|custom>[ <check price script (for custom only)>] [value]\n\r", ch);
 			send_to_char("         shop stock [#] quantity unlimited\n\r", ch);
@@ -19315,6 +19315,7 @@ MEDIT(medit_shop)
 					}
 
 					stock->type = STOCK_OBJECT;
+					stock->shop = pMob->pShop;
 					stock->wnum = wnum;
 					stock->silver = item->cost;
 					stock->discount = pMob->pShop->discount;
@@ -19350,6 +19351,7 @@ MEDIT(medit_shop)
 					}
 
 					stock->type = STOCK_PET;
+					stock->shop = pMob->pShop;
 					stock->wnum = wnum;
 					stock->silver = 10 * mob->level * mob->level;
 					stock->level = mob->level;
@@ -19386,6 +19388,7 @@ MEDIT(medit_shop)
 					}
 
 					stock->type = STOCK_MOUNT;
+					stock->shop = pMob->pShop;
 					stock->wnum = wnum;
 					stock->silver = 25 * mob->level * mob->level;
 					stock->level = mob->level;
@@ -19422,6 +19425,7 @@ MEDIT(medit_shop)
 					}
 
 					stock->type = STOCK_GUARD;
+					stock->shop = pMob->pShop;
 					stock->wnum = wnum;
 					stock->silver = 50 * mob->level * mob->level;
 					stock->level = mob->level;
@@ -19464,6 +19468,7 @@ MEDIT(medit_shop)
 					}
 
 					stock->type = STOCK_CREW;
+					stock->shop = pMob->pShop;
 					stock->wnum = wnum;
 					stock->silver = 50 * mob->level * mob->level;
 					stock->level = mob->level;
@@ -19516,6 +19521,7 @@ MEDIT(medit_shop)
 					}
 
 					stock->type = STOCK_SHIP;
+					stock->shop = pMob->pShop;
 					stock->wnum = wnum;
 					stock->silver = 100000;	// Default 1000gold
 					stock->level = 1;
@@ -19561,6 +19567,7 @@ MEDIT(medit_shop)
 					}
 
 					stock->type = STOCK_CUSTOM;
+					stock->shop = pMob->pShop;
 					stock->custom_keyword = str_dup(argument);
 					stock->discount = 0;		// They do not handle discounts.
 												// If you wish to do discounts, that has to be scripted.
@@ -19595,6 +19602,22 @@ MEDIT(medit_shop)
 				return false;
 			}
 
+			if(!str_prefix(arg2, "duration"))
+			{
+				int duration;
+				if (!str_prefix(argument, "none"))
+					duration = 0;
+				else if (!is_number(argument) || (duration = atoi(argument)) < 1)
+				{
+					send_to_char("Please provide a positive number or none.\n\r", ch);
+					return false;
+				}
+
+				stock->duration = duration;
+				send_to_char("Stock duration changed.\n\r", ch);
+				return true;
+			}
+
 			if(!str_prefix(arg2, "price"))
 			{
 				char arg3[MIL];
@@ -19623,17 +19646,17 @@ MEDIT(medit_shop)
 					return true;
 				}
 
-				if(!str_prefix(arg3, "qp"))
+				if(!str_prefix(arg3, "mp"))
 				{
 					if(!is_number(argument))
 					{
-						send_to_char("Quest point price must be a number.\n\r", ch);
+						send_to_char("Mission point price must be a number.\n\r", ch);
 						return false;
 					}
 
-					int qp = atoi(argument);
+					int mp = atoi(argument);
 
-					stock->qp = UMAX(qp, 0);
+					stock->mp = UMAX(mp, 0);
 					if( !IS_NULLSTR(stock->custom_price) )
 					{
 						stock->discount = pMob->pShop->discount;
@@ -19641,7 +19664,7 @@ MEDIT(medit_shop)
 						stock->custom_price = &str_empty[0];
 						stock->check_price = NULL;
 					}
-					send_to_char("Stock quest point price changed.\n\r", ch);
+					send_to_char("Stock mission point price changed.\n\r", ch);
 					return true;
 				}
 
@@ -19765,7 +19788,7 @@ MEDIT(medit_shop)
 					}
 
 					stock->silver = 0;
-					stock->qp = 0;
+					stock->mp = 0;
 					stock->dp = 0;
 					stock->pneuma = 0;
 					stock->rep_points = 0;
@@ -21445,17 +21468,17 @@ MEDIT (medit_practice)
 								send_to_char("Trains set on cost point.\n\r", ch);
 								return true;
 							}
-							if (!str_prefix(arg, "qp"))
+							if (!str_prefix(arg, "mp"))
 							{
-								int qp;
-								if (!is_number(argument) || (qp = atoi(argument)) < 0)
+								int mp;
+								if (!is_number(argument) || (mp = atoi(argument)) < 0)
 								{
 									send_to_char("Please specify a non-negative number.\n\r", ch);
 									return false;
 								}
 
-								cost->qp = qp;
-								send_to_char("Questpoint set on cost point.\n\r", ch);
+								cost->mp = mp;
+								send_to_char("Missionpoint set on cost point.\n\r", ch);
 								return true;
 							}
 							if (!str_prefix(arg, "dp"))
@@ -21561,7 +21584,7 @@ MEDIT (medit_practice)
 								cost->silver = 0;
 								cost->practices = 0;
 								cost->trains = 0;
-								cost->qp = 0;
+								cost->mp = 0;
 								cost->dp = 0;
 								cost->pneuma = 0;
 								cost->rep_points = 0;
@@ -21859,7 +21882,7 @@ MEDIT (medit_practice)
 									pr += sprintf(&price[pr], "%ld{Gt{x", cost->trains);
 								}
 
-								if (cost->qp > 0)
+								if (cost->mp > 0)
 								{
 									if (pr > 0)
 									{
@@ -21867,7 +21890,7 @@ MEDIT (medit_practice)
 										price[pr++] = ' ';
 									}
 
-									pr += sprintf(&price[pr], "%ld{Yqp{x", cost->qp);
+									pr += sprintf(&price[pr], "%ld{Yqp{x", cost->mp);
 								}
 
 								if (cost->dp > 0)

@@ -43,7 +43,7 @@ void reset_reckoning();
 const struct script_cmd_type area_cmd_table[] = {
 	{ "acttrigger",				scriptcmd_acttrigger,	true,	false	},
 	{ "addaura",			scriptcmd_addaura,			true,	true	},
-	{ "alterroom",			scriptcmd_alterroom,				true,	true	},
+	{ "alter",				scriptcmd_alter,			true, true },
 	{ "bribetrigger",			scriptcmd_bribetrigger,	true,	false	},
 	{ "call",				scriptcmd_call,				false,	true	},
 	{ "churchannouncetheft",	scriptcmd_churchannouncetheft,	true, true },
@@ -98,7 +98,7 @@ const struct script_cmd_type area_cmd_table[] = {
 const struct script_cmd_type instance_cmd_table[] = {
 	{ "acttrigger",				scriptcmd_acttrigger,	true,	false	},
 	{ "addaura",			scriptcmd_addaura,			true,	true	},
-	{ "alterroom",			scriptcmd_alterroom,				true,	true	},
+	{ "alter",				scriptcmd_alter,			true, true },
 	{ "bribetrigger",			scriptcmd_bribetrigger,	true,	false	},
 	{ "call",				scriptcmd_call,				false,	true	},
 	{ "churchannouncetheft",	scriptcmd_churchannouncetheft,	true, true },
@@ -159,7 +159,7 @@ const struct script_cmd_type instance_cmd_table[] = {
 const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "acttrigger",				scriptcmd_acttrigger,	true,	false	},
 	{ "addaura",			scriptcmd_addaura,			true,	true	},
-	{ "alterroom",			scriptcmd_alterroom,				true,	true	},
+	{ "alter",				scriptcmd_alter,			true, true },
 	{ "bribetrigger",			scriptcmd_bribetrigger,	true,	false	},
 	{ "call",				scriptcmd_call,				false,	true	},
 	{ "churchannouncetheft",	scriptcmd_churchannouncetheft,	true, true },
@@ -488,7 +488,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 	}
 
 	switch(arg->type) {
-	case ENT_STRING: loc = flag_find(arg->d.str,apply_flags); break;
+	case ENT_STRING: loc = flag_value(apply_flags,arg->d.str); break;
 	default: return;
 	}
 
@@ -854,7 +854,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 	}
 
 	switch(arg->type) {
-	case ENT_STRING: loc = flag_find(arg->d.str,apply_flags); break;
+	case ENT_STRING: loc = flag_value(apply_flags,arg->d.str); break;
 	default: return;
 	}
 
@@ -8753,7 +8753,7 @@ SCRIPT_CMD(scriptcmd_remspell)
 }
 
 
-
+#if 0
 SCRIPT_CMD(scriptcmd_alterobj)
 {
 	char buf[2*MIL],field[MIL],*rest;
@@ -9075,18 +9075,16 @@ SCRIPT_CMD(scriptcmd_alterobj)
 			return;
 		}
 
-		if( ptr )
-		{
-			if(hasmin && *ptr < min)
-				*ptr = min;
+		if(hasmin && *ptr < min)
+			*ptr = min;
 
-			if(hasmax && *ptr > max)
-				*ptr = max;
-		}
+		if(hasmax && *ptr > max)
+			*ptr = max;
 	}
 
 	SETRETURN(1);
 }
+#endif
 
 // ADDTYPE $OBJECT $STRING
 // LASTRETURN == 0 for failure
@@ -9221,11 +9219,12 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 {
 	char msg[MSL];
 	char buf[2*MIL],field[MIL],*rest;
-	int value = 0, min_sec = MIN_SCRIPT_SECURITY;
+	long value = 0;
+	int min_sec = MIN_SCRIPT_SECURITY;
 	OBJ_DATA *obj;
-	int min = 0, max = 0;
+	long min = 0, max = 0;
 	bool hasmin = false, hasmax = false;
-	int assignmin = 0, assignmax = 0;
+	long assignmin = 0, assignmax = 0;
 	bool hasassignmin = false, hasassignmax = false;
 	bool allowarith = true;
 	bool allowbitwise = true;
@@ -9236,6 +9235,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 	long temp_flags[4];
 	int sec_flags[4];
 	int *ptr = NULL;
+	long *lptr = NULL;
 
 	if(!info) return;
 
@@ -9260,7 +9260,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 
 		if(!str_cmp(field,"cond"))				{ ptr = (int*)&obj->condition; allowarith = true; allowbitwise = false; }
 		else if(!str_cmp(field,"cost"))			{ ptr = (int*)&obj->cost; min_sec = 5; allowarith = true; allowbitwise = false; }
-		else if(!str_cmp(field,"extra"))		{ ptr = (int*)obj->extra; bank = extra_flagbank; sec_flags[1] = sec_flags[2] = sec_flags[3] = 7; allowarith = false; allowbitwise = true; }
+		else if(!str_cmp(field,"extra"))		{ lptr = obj->extra; bank = extra_flagbank; sec_flags[1] = sec_flags[2] = sec_flags[3] = 7; allowarith = false; allowbitwise = true; }
 		else if(!str_cmp(field,"fixes"))		{ ptr = (int*)&obj->times_allowed_fixed; min_sec = 5; allowarith = true; allowbitwise = false; }
 		else if(!str_cmp(field,"level"))		{ ptr = (int*)&obj->level; min_sec = 5; allowarith = true; allowbitwise = false; }
 		else if(!str_cmp(field,"repairs"))		{ ptr = (int*)&obj->times_fixed; allowarith = true; allowbitwise = false; }
@@ -9270,7 +9270,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		else if(!str_cmp(field,"tempstore4"))	ptr = (int*)&obj->tempstore[3];		// bitwise left TRISTATE to allow both arithmetic and bitwise operations
 		else if(!str_cmp(field,"tempstore5"))	ptr = (int*)&obj->tempstore[4];		// bitwise left TRISTATE to allow both arithmetic and bitwise operations
 		else if(!str_cmp(field,"timer"))		{ ptr = (int*)&obj->timer; allowarith = true; allowbitwise = false; }
-		else if(!str_cmp(field,"wear"))			{ ptr = (int*)&obj->wear_flags; flags = wear_flags; allowarith = false; allowbitwise = true; }
+		else if(!str_cmp(field,"wear"))			{ lptr = &obj->wear_flags; flags = wear_flags; allowarith = false; allowbitwise = true; }
 		else if(!str_cmp(field,"wearloc"))		{ ptr = (int*)&obj->wear_loc; flags = wear_loc_flags; allowarith = false; allowbitwise = false; }
 		else if(!str_cmp(field,"weight"))		{ ptr = (int*)&obj->weight;  allowarith = true; allowbitwise = false;}
 		break;
@@ -9283,7 +9283,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		strncpy(field, arg->d.str, MIL-1);
 
 		if (!str_cmp(field, "current"))			{ ptr = (int *)&(BOOK(obj)->current_page); allowarith = true; allowbitwise = false; min = 1; hasmin = true; max = book_max_pages(BOOK(obj)); hasmax = true; }
-		else if (!str_cmp(field, "flags"))		{ ptr = (int *)&(BOOK(obj)->flags); flags = book_flags; allowarith = false; allowbitwise = true; }
+		else if (!str_cmp(field, "flags"))		{ lptr = &(BOOK(obj)->flags); flags = book_flags; allowarith = false; allowbitwise = true; }
 		else if (!str_cmp(field, "opener"))		{ ptr = (int *)&(BOOK(obj)->open_page); allowarith = true; allowbitwise = false; min = 1; hasmin = true; max = book_max_pages(BOOK(obj)); hasmax = true; }
 
 		break;
@@ -9295,7 +9295,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		PARSE_ARGTYPE(STRING);
 		strncpy(field, arg->d.str, MIL-1);
 
-		if (!str_cmp(field, "flags"))			{ ptr = (int *)&(CONTAINER(obj)->flags); flags = container_flags; allowarith = false; allowbitwise = true; }
+		if (!str_cmp(field, "flags"))			{ lptr = &(CONTAINER(obj)->flags); flags = container_flags; allowarith = false; allowbitwise = true; }
 		else if (!str_cmp(field, "volume"))		{ ptr = (int *)&(CONTAINER(obj)->max_volume); allowarith = true; allowbitwise = false; min = 0; hasmin = true; }
 		else if (!str_cmp(field, "weight"))		{ ptr = (int *)&(CONTAINER(obj)->max_weight); allowarith = true; allowbitwise = false; min = 0; hasmin = true; }
 		else if (!str_cmp(field, "weight%"))	{ ptr = (int *)&(CONTAINER(obj)->weight_multiplier); allowarith = true; allowbitwise = false; min = 0; hasmin = true; max = 100; hasmax = true; }
@@ -9309,7 +9309,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		strncpy(field, arg->d.str, MIL-1);
 
 		if (!str_cmp(field, "liquid"))			{ ptr = (int *)(&FLUID_CON(obj)->liquid); isliquid = true; allowarith = false; allowbitwise = false; }
-		else if (!str_cmp(field, "flags"))		{ ptr = (int *)(&FLUID_CON(obj)->liquid); flags = fluid_con_flags; allowarith = false; allowbitwise = true; }
+		else if (!str_cmp(field, "flags"))		{ lptr = &(FLUID_CON(obj)->flags); flags = fluid_con_flags; allowarith = false; allowbitwise = true; }
 		else if (!str_cmp(field, "capacity"))	{ ptr = (int *)(&FLUID_CON(obj)->capacity); allowarith = true; allowbitwise = false; hasmin = true; min = -1; }
 		else if (!str_cmp(field, "amount"))		{ ptr = (int *)(&FLUID_CON(obj)->amount); allowarith = true; allowbitwise = false; hasmin = hasmax = true; if (FLUID_CON(obj)->capacity < 0) { min = max = -1; } else { min = 0; max = FLUID_CON(obj)->capacity; } }
 		else if (!str_cmp(field, "refillrate"))	{ ptr = (int *)(&FLUID_CON(obj)->refill_rate); allowarith = true; allowbitwise = false; hasmin = true; min = 0; }
@@ -9338,6 +9338,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		strncpy(field, arg->d.str, MIL-1);
 
 		if(!str_cmp(field, "main"))			{ ptr = (int *)(&FURNITURE(obj)->main_compartment); allowarith = false; allowbitwise = false; min = 0; hasmin = true; max = list_size(FURNITURE(obj)->compartments); hasmax = true; }
+		else if (!str_cmp(field, "flags"))	{ lptr = &(FURNITURE(obj)->flags); flags = furniture_flags; allowarith = false; allowbitwise = true; }
 		break;
 
 	case ENT_COMPARTMENT:
@@ -9349,14 +9350,14 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		PARSE_ARGTYPE(STRING);
 		strncpy(field, arg->d.str, MIL-1);
 
-		if(!str_cmp(field,"flags"))				{ ptr = (int *)&compartment->flags; flags = compartment_flags; allowarith = false; allowbitwise = true; }
+		if(!str_cmp(field,"flags"))				{ lptr = &compartment->flags; flags = compartment_flags; allowarith = false; allowbitwise = true; }
 		else if(!str_cmp(field,"occupants"))	{ ptr = (int *)&compartment->max_occupants; allowarith = true; allowbitwise = false; min = 0; hasmin = true; }
 		else if(!str_cmp(field,"weight"))		{ ptr = (int *)&compartment->max_weight; allowarith = true; allowbitwise = false; min = 0; hasmin = true; }
-		else if(!str_cmp(field,"standing"))		{ ptr = (int *)&compartment->standing; flags = furniture_action_flags; allowarith = false; allowbitwise = true; }
-		else if(!str_cmp(field,"hanging"))		{ ptr = (int *)&compartment->hanging; flags = furniture_action_flags; allowarith = false; allowbitwise = true; }
-		else if(!str_cmp(field,"sitting"))		{ ptr = (int *)&compartment->sitting; flags = furniture_action_flags; allowarith = false; allowbitwise = true; }
-		else if(!str_cmp(field,"resting"))		{ ptr = (int *)&compartment->resting; flags = furniture_action_flags; allowarith = false; allowbitwise = true; }
-		else if(!str_cmp(field,"sleeping"))		{ ptr = (int *)&compartment->sleeping; flags = furniture_action_flags; allowarith = false; allowbitwise = true; }
+		else if(!str_cmp(field,"standing"))		{ lptr = &compartment->standing; flags = furniture_action_flags; allowarith = false; allowbitwise = true; }
+		else if(!str_cmp(field,"hanging"))		{ lptr = &compartment->hanging; flags = furniture_action_flags; allowarith = false; allowbitwise = true; }
+		else if(!str_cmp(field,"sitting"))		{ lptr = &compartment->sitting; flags = furniture_action_flags; allowarith = false; allowbitwise = true; }
+		else if(!str_cmp(field,"resting"))		{ lptr = &compartment->resting; flags = furniture_action_flags; allowarith = false; allowbitwise = true; }
+		else if(!str_cmp(field,"sleeping"))		{ lptr = &compartment->sleeping; flags = furniture_action_flags; allowarith = false; allowbitwise = true; }
 		else if(!str_cmp(field,"health"))		{ ptr = (int *)&compartment->health_regen; allowarith = true; allowbitwise = false; min = 0; hasmin = true; }
 		else if(!str_cmp(field,"mana"))			{ ptr = (int *)&compartment->mana_regen; allowarith = true; allowbitwise = false; min = 0; hasmin = true; }
 		else if(!str_cmp(field,"move"))			{ ptr = (int *)&compartment->move_regen; allowarith = true; allowbitwise = false; min = 0; hasmin = true; }
@@ -9371,7 +9372,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		strncpy(field, arg->d.str, MIL-1);
 
 		if (!str_cmp(field, "type"))			{ ptr = (int *)&(INSTRUMENT(obj)->type); allowarith = false; allowbitwise = false; flags = instrument_types; }
-		else if (!str_cmp(field, "flags"))		{ ptr = (int *)&(INSTRUMENT(obj)->flags); allowarith = false; allowbitwise = true; flags = instrument_flags; }
+		else if (!str_cmp(field, "flags"))		{ lptr = &(INSTRUMENT(obj)->flags); allowarith = false; allowbitwise = true; flags = instrument_flags; }
 		else if (!str_cmp(field, "beatsmin"))	{ ptr = (int *)&(INSTRUMENT(obj)->beats_min); allowarith = true; allowbitwise = false; hasmin = true; min = 1; hasmax = true; max = 200; }
 		else if (!str_cmp(field, "beatsmax"))	{ ptr = (int *)&(INSTRUMENT(obj)->beats_max); allowarith = true; allowbitwise = false; hasmin = true; min = 1; hasmax = true; max = 200; }
 		else if (!str_cmp(field, "manamin"))	{ ptr = (int *)&(INSTRUMENT(obj)->mana_min); allowarith = true; allowbitwise = false; hasmin = true; min = 1; hasmax = true; max = 200; }
@@ -9386,7 +9387,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		strncpy(field, arg->d.str, MIL-1);
 
 		if(!str_cmp(field,"duration"))		{ ptr = (int *)(&LIGHT(obj)->duration); allowarith = true; allowbitwise = false; }
-		else if(!str_cmp(field,"flags"))	{ ptr = (int *)(&LIGHT(obj)->flags); flags = light_flags; allowarith = false; allowbitwise = true; }
+		else if(!str_cmp(field,"flags"))	{ lptr = (&LIGHT(obj)->flags); flags = light_flags; allowarith = false; allowbitwise = true; }
 		break;
 
 	case ENT_OBJECT_MONEY:
@@ -9420,7 +9421,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 
 		if (!str_cmp(field, "charges"))		{ ptr = (int *)&(PORTAL(obj)->charges); allowarith = true; allowbitwise = false; min = 0; hasmin = true; assignmin = -1; hasassignmin = true; }
 		else if (!str_cmp(field, "exit"))	{ ptr = (int *)&(PORTAL(obj)->exit); flags = portal_exit_flags; allowarith = false; allowbitwise = true; }
-		else if (!str_cmp(field, "flags"))	{ ptr = (int *)&(PORTAL(obj)->flags); flags = portal_flags; allowarith = false; allowbitwise = true; }
+		else if (!str_cmp(field, "flags"))	{ lptr = &(PORTAL(obj)->flags); flags = portal_flags; allowarith = false; allowbitwise = true; }
 		else if (!str_cmp(field, "param1"))	{ ptr = (int *)&(PORTAL(obj)->params[0]); allowarith = false; allowbitwise = false; }
 		else if (!str_cmp(field, "param2"))	{ ptr = (int *)&(PORTAL(obj)->params[1]); allowarith = false; allowbitwise = false; }
 		else if (!str_cmp(field, "param3"))	{ ptr = (int *)&(PORTAL(obj)->params[2]); allowarith = false; allowbitwise = false; }
@@ -9604,202 +9605,402 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		}
 	}
 
-	switch (buf[0]) {
-	case '+':
-		if( !allowarith ) {
-			sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-				buf[0], field);
-			scriptcmd_bug(info, msg);
+	if (lptr) {
+		switch (buf[0]) {
+		case '+':
+			if( !allowarith ) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			*lptr += value;
+			break;
+
+		case '-':
+			if( !allowarith ) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			*lptr -= value;
+			break;
+
+		case '*':
+			if( !allowarith ) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			*lptr *= value;
+			break;
+
+		case '/':
+			if( !allowarith ) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (!value) {
+				bug("Alterobj - adjust called with operator / and value 0", 0);
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+			*lptr /= value;
+			break;
+		case '%':
+			if( !allowarith ) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (!value) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				bug("Alterobj - adjust called with operator % and value 0", 0);
+				return;
+			}
+			*lptr %= value;
+			break;
+
+		case '>':
+			if( !allowarith ) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (value > *lptr)
+				*lptr = value;
+			break;
+
+		case '<':
+			if( !allowarith ) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (value < *lptr)
+				*lptr = value;
+			break;
+
+		case '=':
+			if (liquid != NULL)
+			{
+				*((LIQUID **)lptr) = liquid;
+			}
+			else if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] = temp_flags[i];
+			}
+			else
+				*lptr = value;
+
+			// When explicitly assigning, allow different ranges
+			if (hasassignmin)
+			{
+				hasmin = true;
+				min = assignmin;
+			}
+
+			if (hasassignmax)
+			{
+				hasmax = true;
+				max = assignmax;
+			}
+			break;
+
+		case '&':
+			if( !allowbitwise ) {
+				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] &= temp_flags[i];
+			}
+			else
+				*lptr &= value;
+			break;
+		case '|':
+			if( !allowbitwise ) {
+				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] |= temp_flags[i];
+			}
+			else
+				*lptr |= value;
+			break;
+		case '!':
+			if( !allowbitwise ) {
+				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] &= ~temp_flags[i];
+			}
+			else
+				*lptr &= ~value;
+			break;
+		case '^':
+			if( !allowbitwise ) {
+				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] ^= temp_flags[i];
+			}
+			else
+				*lptr ^= value;
+
+			break;
+		default:
 			return;
 		}
 
-		*ptr += value;
-		break;
-
-	case '-':
-		if( !allowarith ) {
-			sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-				buf[0], field);
-			scriptcmd_bug(info, msg);
-			return;
-		}
-
-		*ptr -= value;
-		break;
-
-	case '*':
-		if( !allowarith ) {
-			sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-				buf[0], field);
-			scriptcmd_bug(info, msg);
-			return;
-		}
-
-		*ptr *= value;
-		break;
-
-	case '/':
-		if( !allowarith ) {
-			sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-				buf[0], field);
-			scriptcmd_bug(info, msg);
-			return;
-		}
-
-		if (!value) {
-			bug("Alterobj - adjust called with operator / and value 0", 0);
-			sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-				buf[0], field);
-			scriptcmd_bug(info, msg);
-			return;
-		}
-		*ptr /= value;
-		break;
-	case '%':
-		if( !allowarith ) {
-			sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-				buf[0], field);
-			scriptcmd_bug(info, msg);
-			return;
-		}
-
-		if (!value) {
-			sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-				buf[0], field);
-			scriptcmd_bug(info, msg);
-			bug("Alterobj - adjust called with operator % and value 0", 0);
-			return;
-		}
-		*ptr %= value;
-		break;
-
-	case '>':
-		if( !allowarith ) {
-			sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-				buf[0], field);
-			scriptcmd_bug(info, msg);
-			return;
-		}
-
-		if (value > *ptr)
-			*ptr = value;
-		break;
-
-	case '<':
-		if( !allowarith ) {
-			sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-				buf[0], field);
-			scriptcmd_bug(info, msg);
-			return;
-		}
-
-		if (value < *ptr)
-			*ptr = value;
-		break;
-
-	case '=':
-		if (liquid != NULL)
+		if( lptr )
 		{
-			*((LIQUID **)ptr) = liquid;
-		}
-		else if (bank != NULL)
-		{
-			for(int i = 0; bank[i]; i++)
-				ptr[i] = temp_flags[i];
-		}
-		else
-			*ptr = value;
+			if(hasmin && *lptr < min)
+				*lptr = min;
 
-		// When explicitly assigning, allow different ranges
-		if (hasassignmin)
-		{
-			hasmin = true;
-			min = assignmin;
+			if(hasmax && *lptr > max)
+				*lptr = max;
 		}
+	} else {
+		switch (buf[0]) {
+		case '+':
+			if( !allowarith ) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
 
-		if (hasassignmax)
-		{
-			hasmax = true;
-			max = assignmax;
-		}
-		break;
+			*ptr += value;
+			break;
 
-	case '&':
-		if( !allowbitwise ) {
-			sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
-				buf[0], field);
-			scriptcmd_bug(info, msg);
+		case '-':
+			if( !allowarith ) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			*ptr -= value;
+			break;
+
+		case '*':
+			if( !allowarith ) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			*ptr *= value;
+			break;
+
+		case '/':
+			if( !allowarith ) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (!value) {
+				bug("Alterobj - adjust called with operator / and value 0", 0);
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+			*ptr /= value;
+			break;
+		case '%':
+			if( !allowarith ) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (!value) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				bug("Alterobj - adjust called with operator % and value 0", 0);
+				return;
+			}
+			*ptr %= value;
+			break;
+
+		case '>':
+			if( !allowarith ) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (value > *ptr)
+				*ptr = value;
+			break;
+
+		case '<':
+			if( !allowarith ) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (value < *ptr)
+				*ptr = value;
+			break;
+
+		case '=':
+			if (liquid != NULL)
+			{
+				*((LIQUID **)ptr) = liquid;
+			}
+			else if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] = temp_flags[i];
+			}
+			else
+				*ptr = value;
+
+			// When explicitly assigning, allow different ranges
+			if (hasassignmin)
+			{
+				hasmin = true;
+				min = assignmin;
+			}
+
+			if (hasassignmax)
+			{
+				hasmax = true;
+				max = assignmax;
+			}
+			break;
+
+		case '&':
+			if( !allowbitwise ) {
+				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] &= temp_flags[i];
+			}
+			else
+				*ptr &= value;
+			break;
+		case '|':
+			if( !allowbitwise ) {
+				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] |= temp_flags[i];
+			}
+			else
+				*ptr |= value;
+			break;
+		case '!':
+			if( !allowbitwise ) {
+				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] &= ~temp_flags[i];
+			}
+			else
+				*ptr &= ~value;
+			break;
+		case '^':
+			if( !allowbitwise ) {
+				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] ^= temp_flags[i];
+			}
+			else
+				*ptr ^= value;
+
+			break;
+		default:
 			return;
 		}
 
-		if (bank != NULL)
+		if( ptr )
 		{
-			for(int i = 0; bank[i]; i++)
-				ptr[i] &= temp_flags[i];
-		}
-		else
-			*ptr &= value;
-		break;
-	case '|':
-		if( !allowbitwise ) {
-			sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
-				buf[0], field);
-			scriptcmd_bug(info, msg);
-			return;
-		}
+			if(hasmin && *ptr < min)
+				*ptr = (int)min;
 
-		if (bank != NULL)
-		{
-			for(int i = 0; bank[i]; i++)
-				ptr[i] |= temp_flags[i];
+			if(hasmax && *ptr > max)
+				*ptr = (int)max;
 		}
-		else
-			*ptr |= value;
-		break;
-	case '!':
-		if( !allowbitwise ) {
-			sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
-				buf[0], field);
-			scriptcmd_bug(info, msg);
-			return;
-		}
-
-		if (bank != NULL)
-		{
-			for(int i = 0; bank[i]; i++)
-				ptr[i] &= ~temp_flags[i];
-		}
-		else
-			*ptr &= ~value;
-		break;
-	case '^':
-		if( !allowbitwise ) {
-			sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
-				buf[0], field);
-			scriptcmd_bug(info, msg);
-			return;
-		}
-
-		if (bank != NULL)
-		{
-			for(int i = 0; bank[i]; i++)
-				ptr[i] ^= temp_flags[i];
-		}
-		else
-			*ptr ^= value;
-
-		break;
-	default:
-		return;
-	}
-
-	if( ptr )
-	{
-		if(hasmin && *ptr < min)
-			*ptr = min;
-
-		if(hasmax && *ptr > max)
-			*ptr = max;
 	}
 
 	SETRETURN(1);
@@ -11231,20 +11432,23 @@ SCRIPT_CMD(scriptcmd_setoutbound)
 SCRIPT_CMD(scriptcmd_alterroom)
 {
 	char buf[MSL+2],field[MIL],*rest;
-	int value = 0, min_sec = MIN_SCRIPT_SECURITY;
+	long value = 0;
+	int min_sec = MIN_SCRIPT_SECURITY;
 	ROOM_INDEX_DATA *room;
 	WILDS_DATA *wilds;
 
+	long *lptr = NULL;
 	int *ptr = NULL;
 	int16_t *sptr = NULL;
 	char **str;
 	bool allow_empty = false;
 	bool allowarith = true;
 	bool allowbitwise = true;
+	bool needvalue = false;
 	bool check_sector = false;
 	bool allow_static = true;
 	bool hasmin = false, hasmax = false;
-	int min = 0, max = 0;
+	long min = 0, max = 0;
 	const struct flag_type *flags = NULL;
 	const struct flag_type **bank = NULL;
 	SECTOR_DATA **psector = NULL;
@@ -11378,24 +11582,30 @@ SCRIPT_CMD(scriptcmd_alterroom)
 		return;
 	}
 
-	argument = one_argument(rest,buf);
-
-	if(!(rest = expand_argument(info,argument,arg))) {
-		bug("AlterRoom - Error in parsing.",0);
+	rest = one_argument(rest,buf);
+	int op = cmd_operator_lookup(buf);
+	if (op == OPR_UNKNOWN)
 		return;
+
+	if (cmd_operator_info[op][OPR_NEEDS_VALUE])
+	{
+		if(!(rest = expand_argument(info,rest,arg))) {
+			bug("AlterRoom - Error in parsing.",0);
+			return;
+		}
 	}
 
-	if(!str_cmp(field,"flags"))				{ ptr = (int*)room->room_flag; bank = room_flagbank; }
-	else if(!str_cmp(field,"light"))		{ ptr = (int*)&room->light; }
+	if(!str_cmp(field,"flags"))				{ lptr = room->room_flag; bank = room_flagbank; }
+	else if(!str_cmp(field,"light"))		{ ptr = (int*)&room->light; hasmin = true; min = 0; allowbitwise = false;}
 	else if(!str_cmp(field,"savage"))		{ ptr = (int*)&room->savage_level; min_sec = 1; hasmin = true; min = -1; hasmax = true; max = 5; allowbitwise = false; }
 	else if(!str_cmp(field,"sector"))		{ check_sector = true; psector = (SECTOR_DATA **)&room->sector; }
-	else if(!str_cmp(field,"sectorflags"))	{ ptr = (int*)&room->sector_flags; flags = sector_flags; allowarith = false; }
-	else if(!str_cmp(field,"heal"))			{ ptr = (int*)&room->heal_rate; min_sec = 9; }
-	else if(!str_cmp(field,"mana"))			{ ptr = (int*)&room->mana_rate; min_sec = 9; }
+	else if(!str_cmp(field,"sectorflags"))	{ lptr = &room->sector_flags; flags = sector_flags; allowarith = false; }
+	else if(!str_cmp(field,"heal"))			{ ptr = (int*)&room->heal_rate; min_sec = 1; }
+	else if(!str_cmp(field,"mana"))			{ ptr = (int*)&room->mana_rate; min_sec = 1; }
 	else if(!str_cmp(field,"move"))			{ ptr = (int*)&room->move_rate; min_sec = 1; }
 	else if(!str_cmp(field,"mapx"))			{ ptr = (int*)&room->x; min_sec = 5; allow_static = false; }
 	else if(!str_cmp(field,"mapy"))			{ ptr = (int*)&room->y; min_sec = 5; allow_static = false; }
-	else if(!str_cmp(field,"rsflags"))		{ ptr = (int*)room->rs_room_flag; bank = room_flagbank; allow_static = false; }
+	else if(!str_cmp(field,"rsflags"))		{ lptr = room->rs_room_flag; bank = room_flagbank; allow_static = false; }
 	else if(!str_cmp(field,"rssector"))		{ check_sector = true; psector = (SECTOR_DATA **)&room->rs_sector; allow_static = false; }
 	else if(!str_cmp(field,"rsheal"))		{ ptr = (int*)&room->rs_heal_rate; min_sec = 9; allow_static = false; }
 	else if(!str_cmp(field,"rsmana"))		{ ptr = (int*)&room->rs_mana_rate; min_sec = 9; allow_static = false; }
@@ -11405,9 +11615,22 @@ SCRIPT_CMD(scriptcmd_alterroom)
 	else if(!str_cmp(field,"tempstore2"))	{ ptr = (int*)&room->tempstore[1]; }
 	else if(!str_cmp(field,"tempstore3"))	{ ptr = (int*)&room->tempstore[2]; }
 	else if(!str_cmp(field,"tempstore4"))	{ ptr = (int*)&room->tempstore[3]; }
-	else if(!str_cmp(field,"tempstore5"))	{ ptr = (int*)&room->tempstore[5]; }
+	else if(!str_cmp(field,"tempstore5"))	{ ptr = (int*)&room->tempstore[4]; }
 
-	if(!ptr && !sptr) return;
+	// Automatically disable arithmetic operators and require values if using flags
+	if (bank != NULL || flags != NULL)
+	{
+		allowarith = false;
+		needvalue = true;
+	}
+	else if (check_sector)
+	{
+		allowarith = false;
+		allowbitwise = false;
+		needvalue = true;
+	}
+
+	if(!lptr && !ptr && !sptr) return;
 
 	if(script_security < min_sec) {
 		sprintf(buf,"AlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
@@ -11418,9 +11641,30 @@ SCRIPT_CMD(scriptcmd_alterroom)
 
 	if (!allow_static && !room_is_clone(room))
 		return;
+	
+	if (needvalue && !cmd_operator_info[op][OPR_NEEDS_VALUE])
+	{
+		bug("AlterRoom - alterroom called with a unary operator on a valued field.", 0);
+		return;
+	}
+
+	if (cmd_operator_info[op][OPR_ARITHMETIC] && !allowarith)
+	{
+		bug("AlterRoom - alterroom called with arithmetic operator on a non-arithmetic field.", 0);
+		return;
+	}
+
+	if (cmd_operator_info[op][OPR_BITWISE] && !allowbitwise)
+	{
+		bug("AlterRoom - alterroom called with bitwise operator on a non-bitwise field.", 0);
+		return;
+	}
 
 	if (check_sector)
 	{
+		// Require assignment
+		if (op != OPR_ASSIGN) return;
+
 		if (arg->type != ENT_STRING ) return;
 
 		SECTOR_DATA *sector = get_sector_data(arg->d.str);
@@ -11450,13 +11694,13 @@ SCRIPT_CMD(scriptcmd_alterroom)
 			REMOVE_BIT(temp_flags[1], ROOM_VIRTUAL_ROOM);
 			REMOVE_BIT(temp_flags[1], ROOM_BLUEPRINT);
 
-			if( buf[0] == '=' || buf[0] == '&' )
+			if( op == OPR_ASSIGN || op == OPR_AND )
 			{
 				if( IS_SET(ptr[1], ROOM_NOCLONE) ) SET_BIT(temp_flags[1], ROOM_NOCLONE);
 				if( IS_SET(ptr[1], ROOM_VIRTUAL_ROOM) ) SET_BIT(temp_flags[1], ROOM_VIRTUAL_ROOM);
 				if( IS_SET(ptr[1], ROOM_BLUEPRINT) ) SET_BIT(temp_flags[1], ROOM_BLUEPRINT);
 			}
-		}		
+		}
 	}
 	else if( flags != NULL )
 	{
@@ -11484,51 +11728,114 @@ SCRIPT_CMD(scriptcmd_alterroom)
 		}
 	}
 
+	if(lptr) {
+		switch (op) {
+		case OPR_ADD:
+			*lptr += value; break;
 
-	if(ptr) {
-		switch (buf[0]) {
-		case '+':
-			if( !allowarith ) {
-				bug("AlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+		case OPR_SUB:
+			*lptr -= value; break;
+
+		case OPR_MULT:
+			*lptr *= value; break;
+
+		case OPR_DIV:
+			if (!value) {
+				bug("AlterRoom - alterroom called with operator / and value 0", 0);
 				return;
 			}
+			*lptr /= value; break;
 
+		case OPR_MOD:
+			if (!value) {
+				bug("AlterRoom - alterroom called with operator % and value 0", 0);
+				return;
+			}
+			*lptr %= value; break;
+
+		case OPR_INC: (*lptr) += 1; break;
+		case OPR_DEC: (*lptr) += 1; break;
+		case OPR_MIN: *lptr = UMIN(*lptr, value); break;
+		case OPR_MAX: *lptr = UMAX(*lptr, value); break;
+
+		case OPR_ASSIGN:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] = temp_flags[i];
+			}
+			else
+				*lptr = value;
+			break;
+
+		case OPR_AND:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] &= temp_flags[i];
+			}
+			else
+				*lptr &= value;
+			break;
+
+		case OPR_OR:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] |= temp_flags[i];
+			}
+			else
+				*lptr |= value;
+			break;
+
+		case OPR_NOT:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] &= ~temp_flags[i];
+			}
+			else
+				*lptr &= ~value;
+			break;
+
+		case OPR_XOR:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] ^= temp_flags[i];
+			}
+			else
+				*lptr ^= value;
+			break;
+
+		default:
+			return;
+		}
+
+		if (hasmin && *lptr < min)
+			*lptr = min;
+		if(hasmax && *lptr > max)
+			*lptr = max;
+
+	} else if(ptr) {
+		switch (op) {
+		case OPR_ADD:
 			*ptr += value; break;
 
-		case '-':
-			if( !allowarith ) {
-				bug("AlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
-				return;
-			}
-
+		case OPR_SUB:
 			*ptr -= value; break;
 
-		case '*':
-			if( !allowarith ) {
-				bug("AlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
-				return;
-			}
-
+		case OPR_MULT:
 			*ptr *= value; break;
 
-		case '/':
-			if( !allowarith ) {
-				bug("AlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
-				return;
-			}
-
+		case OPR_DIV:
 			if (!value) {
 				bug("AlterRoom - alterroom called with operator / and value 0", 0);
 				return;
 			}
 			*ptr /= value; break;
 
-		case '%':
-			if( !allowarith ) {
-				bug("AlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
-				return;
-			}
-
+		case OPR_MOD:
 			if (!value) {
 				bug("AlterRoom - alterroom called with operator % and value 0", 0);
 				return;
@@ -11536,7 +11843,12 @@ SCRIPT_CMD(scriptcmd_alterroom)
 
 			*ptr %= value; break;
 
-		case '=':
+		case OPR_INC: (*ptr) += 1; break;
+		case OPR_DEC: (*ptr) += 1; break;
+		case OPR_MIN: *ptr = UMIN(*ptr, value); break;
+		case OPR_MAX: *ptr = UMAX(*ptr, value); break;
+
+		case OPR_ASSIGN:
 			if (bank != NULL)
 			{
 				for(int i = 0; bank[i]; i++)
@@ -11546,12 +11858,7 @@ SCRIPT_CMD(scriptcmd_alterroom)
 				*ptr = value;
 			break;
 
-		case '&':
-			if( !allowbitwise ) {
-				bug("AlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
-				return;
-			}
-
+		case OPR_AND:
 			if (bank != NULL)
 			{
 				for(int i = 0; bank[i]; i++)
@@ -11561,12 +11868,7 @@ SCRIPT_CMD(scriptcmd_alterroom)
 				*ptr &= value;
 			break;
 
-		case '|':
-			if( !allowbitwise ) {
-				bug("AlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
-				return;
-			}
-
+		case OPR_OR:
 			if (bank != NULL)
 			{
 				for(int i = 0; bank[i]; i++)
@@ -11576,27 +11878,19 @@ SCRIPT_CMD(scriptcmd_alterroom)
 				*ptr |= value;
 			break;
 
-		case '!':
-			if( !allowbitwise ) {
-				bug("AlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
-				return;
-			}
-
+		case OPR_NOT:
 			if (bank != NULL)
 			{
 				for(int i = 0; bank[i]; i++)
+				{
 					ptr[i] &= ~temp_flags[i];
+				}
 			}
 			else
 				*ptr &= ~value;
 			break;
 
-		case '^':
-			if( !allowbitwise ) {
-				bug("AlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
-				return;
-			}
-
+		case OPR_XOR:
 			if (bank != NULL)
 			{
 				for(int i = 0; bank[i]; i++)
@@ -11611,22 +11905,22 @@ SCRIPT_CMD(scriptcmd_alterroom)
 		}
 
 		if (hasmin && *ptr < min)
-			*ptr = min;
+			*ptr = (int)min;
 		if(hasmax && *ptr > max)
-			*ptr = max;
-	} else {
-		switch (buf[0]) {
-		case '+': *sptr += value; break;
-		case '-': *sptr -= value; break;
-		case '*': *sptr *= value; break;
-		case '/':
+			*ptr = (int)max;
+	} else if (sptr) {
+		switch (op) {
+		case OPR_ADD: *sptr += value; break;
+		case OPR_SUB: *sptr -= value; break;
+		case OPR_MULT: *sptr *= value; break;
+		case OPR_DIV:
 			if (!value) {
 				bug("AlterRoom - adjust called with operator / and value 0", 0);
 				return;
 			}
 			*sptr /= value;
 			break;
-		case '%':
+		case OPR_MOD:
 			if (!value) {
 				bug("AlterRoom - adjust called with operator % and value 0", 0);
 				return;
@@ -11634,19 +11928,24 @@ SCRIPT_CMD(scriptcmd_alterroom)
 			*sptr %= value;
 			break;
 
-		case '=': *sptr = value; break;
-		case '&': *sptr &= value; break;
-		case '|': *sptr |= value; break;
-		case '!': *sptr &= ~value; break;
-		case '^': *sptr ^= value; break;
+		case OPR_INC: (*sptr) += 1; break;
+		case OPR_DEC: (*sptr) += 1; break;
+		case OPR_MIN: *sptr = UMIN(*sptr, value); break;
+		case OPR_MAX: *sptr = UMAX(*sptr, value); break;
+
+		case OPR_ASSIGN: *sptr = value; break;
+		case OPR_AND: *sptr &= value; break;
+		case OPR_OR: *sptr |= value; break;
+		case OPR_NOT: *sptr &= ~value; break;
+		case OPR_XOR: *sptr ^= value; break;
 		default:
 			return;
 		}
 
 		if (hasmin && *sptr < min)
-			*sptr = min;
+			*sptr = (int16_t)min;
 		if(hasmax && *sptr > max)
-			*sptr = max;
+			*sptr = (int16_t)max;
 	}
 }
 
@@ -11661,4 +11960,3070 @@ SCRIPT_CMD(scriptcmd_resetroom)
 	PARSE_ARGTYPE(ROOM);
 
 	reset_room(arg->d.room, true);
+}
+
+// ALTEREXIT $ROOM $DOOR field[ op] value
+// ALTEREXIT $EXIT field[ op] value
+
+SCRIPT_CMD(scriptcmd_alterexit)
+{
+	char buf[MSL+2],field[MIL],*rest = argument;
+	long value = 0;
+	int min_sec = MIN_SCRIPT_SECURITY, door;
+	ROOM_INDEX_DATA *room = NULL;
+	EXIT_DATA *ex = NULL;
+	long *lptr = NULL;
+	int *ptr = NULL;
+	int16_t *sptr = NULL;
+	char **str;
+	long min = 0, max = 0;
+	bool hasmin = false, hasmax = false;
+	bool allowarith = true;
+	bool allowbitwise = true;
+	bool needvalue = false;
+	bool check_material = false;
+	const struct flag_type *flags = NULL;
+
+	if(!info) return;
+
+	if(!(rest = expand_argument(info,rest,arg))) {
+		bug("AlterExit - Error in parsing.",0);
+		return;
+	}
+
+
+	switch(arg->type) {
+	case ENT_ROOM:
+		room = arg->d.room;
+		break;
+	case ENT_WIDEVNUM:
+		room = get_room_index_wnum(arg->d.wnum);
+		break;
+	case ENT_EXIT:
+		ex = arg->d.door.r ? arg->d.door.r->exit[arg->d.door.door] : NULL;
+		break;
+	default: room = NULL; break;
+	}
+
+	if(room)
+	{
+		if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING) {
+			bug("AlterExit - Error in parsing.",0);
+			return;
+		}
+		door = get_num_dir(arg->d.str);
+		ex = (door < 0) ? NULL : room->exit[door];
+	}
+
+	if(!ex) return;
+
+	if(!*rest) {
+		bug("AlterExit - Missing field type.",0);
+		return;
+	}
+
+	if(!(rest = expand_argument(info,rest,arg))) {
+		bug("AlterExit - Error in parsing.",0);
+		return;
+	}
+
+	field[0] = 0;
+
+	switch(arg->type) {
+	case ENT_STRING: strncpy(field,arg->d.str,MIL-1); break;
+	default: return;
+	}
+
+	if(!field[0]) return;
+
+	if(!str_cmp(field,"room") || !str_prefix(field,"destination")) {
+		if(!(rest = expand_argument(info,rest,arg))) {
+			bug("AlterExit - Error in parsing.",0);
+			return;
+		}
+
+		switch(arg->type) {
+		case ENT_WIDEVNUM:	room = get_room_index_wnum(arg->d.wnum); break;
+		case ENT_ROOM:		room = arg->d.room; break;
+		case ENT_MOBILE:	room = arg->d.mob->in_room; break;
+		case ENT_OBJECT:	room = obj_room(arg->d.obj); break;
+		case ENT_EXIT:		room = (arg->d.door.r && arg->d.door.r->exit[arg->d.door.door]) ? arg->d.door.r->exit[arg->d.door.door]->u1.to_room : NULL; break;
+		default: return;
+		}
+
+		if(!room) return;
+
+		ex->u1.to_room = room;
+		return;
+	}
+
+	str = NULL;
+	if(!str_cmp(field,"keyword"))		str = &ex->keyword;
+	else if(!str_cmp(field,"long"))		str = &ex->long_desc;
+	else if(!str_cmp(field,"material"))	check_material = true;
+	else if(!str_cmp(field,"short"))	str = &ex->short_desc;
+
+	if (check_material)
+	{
+		BUFFER *buffer = new_buf();
+		expand_string(info,rest,buffer);
+
+		MATERIAL *material = material_lookup(buf_string(buffer));
+
+		if(!IS_VALID(material)) {
+			scriptcmd_bug(info, "AlterExit - Invalid material.");
+			free_buf(buffer);
+			return;
+		}
+
+		ex->door.material = material;
+		free_buf(buffer);
+		return;
+	}
+	if(str) {
+		BUFFER *buffer = new_buf();
+		expand_string(info,rest,buffer);
+
+		if(!buf_string(buffer)[0]) {
+			bug("AlterExit - Empty string used.",0);
+			free_buf(buffer);
+			return;
+		}
+
+		free_string(*str);
+		*str = str_dup(buf_string(buffer));
+		free_buf(buffer);
+		return;
+	}
+
+	argument = one_argument(rest,buf);
+	int op = cmd_operator_lookup(buf);
+	if (op == OPR_UNKNOWN) return;
+
+	if(!(rest = expand_argument(info,argument,arg))) {
+		bug("AlterExit - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg->type) {
+	case ENT_STRING: value = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+	case ENT_NUMBER: value = arg->d.num; break;
+	default: return;
+	}
+
+	if(!str_cmp(field,"flags"))					{ ptr = &ex->exit_info; flags = exit_flags; }
+	else if(!str_cmp(field,"resets"))			{ ptr = &ex->rs_flags; flags = exit_flags; min_sec = 7; }
+	else if(!str_cmp(field,"strength"))			sptr = (int16_t*)&ex->door.strength;
+
+	// Automatically disable arithmetic operators and require values if using flags
+	if (flags != NULL)
+	{
+		allowarith = false;
+		needvalue = true;
+	}
+
+	if(!lptr && !ptr && !sptr) return;
+
+	if(script_security < min_sec) {
+		sprintf(buf,"AlterExit - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
+		bug(buf, 0);
+		return;
+	}
+
+	if( flags != NULL )
+	{
+		if( arg->type != ENT_STRING || !ptr ) return;
+
+		allowarith = false;	// This is a bit vector, no arithmetic operators.
+		value = script_flag_value(flags, arg->d.str);
+
+		if( value == NO_FLAG ) value = 0;
+
+		if( flags == exit_flags )
+		{
+			// Scripted exits cannot change NOUNLINK|PREVFLOOR|NEXTFLOOR
+			REMOVE_BIT(value, (EX_NOUNLINK|EX_PREVFLOOR|EX_NEXTFLOOR));
+
+			if( (buf[0] == '=') || (buf[0] == '&') )
+			{
+				value |= (*ptr & (EX_NOUNLINK|EX_PREVFLOOR|EX_NEXTFLOOR));
+			}
+		}
+	}
+	else
+	{
+		switch(arg->type) {
+		case ENT_STRING:
+			if( is_number(arg->d.str) )
+				value = atoi(arg->d.str);
+			else
+				return;
+
+			break;
+		case ENT_NUMBER: value = arg->d.num; break;
+		default: return;
+		}
+	}
+
+	if (needvalue && !cmd_operator_info[op][OPR_NEEDS_VALUE])
+	{
+		return;
+	}
+
+	if (cmd_operator_info[op][OPR_ARITHMETIC] && !allowarith)
+	{
+		return;
+	}
+
+	if (cmd_operator_info[op][OPR_BITWISE] && !allowbitwise)
+	{
+		return;
+	}
+
+	if(lptr) {
+		switch (op) {
+		case OPR_ADD:
+			*lptr += value;
+			break;
+
+		case OPR_SUB: 
+			*lptr -= value;
+			break;
+
+		case OPR_MULT:
+			*lptr *= value;
+			break;
+
+		case OPR_DIV:
+			if (!value) {
+				bug("AlterExit - adjust called with operator / and value 0", 0);
+				return;
+			}
+			*lptr /= value;
+			break;
+
+		case OPR_MOD:
+			if (!value) {
+				bug("AlterExit - adjust called with operator % and value 0", 0);
+				return;
+			}
+			*lptr %= value;
+			break;
+
+		case OPR_INC:
+			(*lptr) += 1;
+			break;
+
+		case OPR_DEC:
+			(*lptr) -= 1;
+			break;
+		
+		case OPR_MIN:
+			*lptr = UMIN(*lptr, value);
+			break;
+		
+		case OPR_MAX:
+			*lptr = UMAX(*lptr, value);
+			break;
+
+		case OPR_ASSIGN: *lptr = value; break;
+		case OPR_AND: *lptr &= value; break;
+		case OPR_OR: *lptr |= value; break;
+		case OPR_NOT: *lptr &= ~value; break;
+		case OPR_XOR: *lptr ^= value; break;
+		default:
+			return;
+		}
+
+		if(hasmin && *lptr < min)
+			*lptr = (int)min;
+
+		if(hasmax && *lptr > max)
+			*lptr = (int)max;
+
+	} else if(ptr) {
+		switch (op) {
+		case OPR_ADD:
+			*ptr += value;
+			break;
+
+		case OPR_SUB:
+			*ptr -= value;
+			break;
+
+		case OPR_MULT:
+			*ptr *= value;
+			break;
+
+		case OPR_DIV:
+			if (!value) {
+				bug("AlterExit - adjust called with operator / and value 0", 0);
+				return;
+			}
+			*ptr /= value;
+			break;
+
+		case OPR_MOD:
+			if (!value) {
+				bug("AlterExit - adjust called with operator % and value 0", 0);
+				return;
+			}
+			*ptr %= value;
+			break;
+
+		case OPR_INC:
+			(*ptr) += 1;
+			break;
+
+		case OPR_DEC:
+			(*ptr) -= 1;
+			break;
+		
+		case OPR_MIN:
+			*ptr = UMIN(*ptr, value);
+			break;
+		
+		case OPR_MAX:
+			*ptr = UMAX(*ptr, value);
+			break;
+
+		case OPR_ASSIGN: *ptr = value; break;
+		case OPR_AND: *ptr &= value; break;
+		case OPR_OR: *ptr |= value; break;
+		case OPR_NOT: *ptr &= ~value; break;
+		case OPR_XOR: *ptr ^= value; break;
+		default:
+			return;
+		}
+
+		if(hasmin && *ptr < min)
+			*ptr = (int)min;
+
+		if(hasmax && *ptr > max)
+			*ptr = (int)max;
+
+	} else {
+		switch (op) {
+		case OPR_ADD: *sptr += value; break;
+		case OPR_SUB: *sptr -= value; break;
+		case OPR_MULT: *sptr *= value; break;
+		case OPR_DIV:
+			if (!value) {
+				bug("AlterExit - adjust called with operator / and value 0", 0);
+				return;
+			}
+			*sptr /= value;
+			break;
+		case OPR_MOD:
+			if (!value) {
+				bug("AlterExit - adjust called with operator % and value 0", 0);
+				return;
+			}
+			*sptr %= value;
+			break;
+
+		case OPR_INC:
+			(*sptr) += 1;
+			break;
+
+		case OPR_DEC:
+			(*sptr) -= 1;
+			break;
+		
+		case OPR_MIN:
+			*sptr = UMIN(*sptr, value);
+			break;
+		
+		case OPR_MAX:
+			*sptr = UMAX(*sptr, value);
+			break;
+
+		case OPR_ASSIGN: *sptr = value; break;
+		case OPR_AND: *sptr &= value; break;
+		case OPR_OR: *sptr |= value; break;
+		case OPR_NOT: *sptr &= ~value; break;
+		case OPR_XOR: *sptr ^= value; break;
+		default:
+			return;
+		}
+
+		if(hasmin && *sptr < min)
+			*sptr = (int16_t)min;
+
+		if(hasmax && *sptr > max)
+			*sptr = (int16_t)max;
+	}
+}
+
+
+SCRIPT_CMD(scriptcmd_altermob)
+{
+	char buf[MSL],field[MIL],*rest;
+	long value = 0;
+	int min_sec = MIN_SCRIPT_SECURITY, min = 0, max = 0;
+	CHAR_DATA *mob = NULL;
+	long *lptr = NULL;
+	int *ptr = NULL;
+	bool allowpc = false;
+	bool allowarith = true;
+	bool allowbitwise = true;
+	bool needvalue = false;
+	bool hasmin = false;
+	bool hasmax = false;
+	bool check_catalyst = false;
+	const struct flag_type *flags = NULL;
+	const struct flag_type **bank = NULL;
+	long temp_flags[4];
+	int dirty_stat = -1;
+	int catalyst = CATALYST_NONE;
+
+	if(!info) return;
+
+	if(!(rest = expand_argument(info,argument,arg))) {
+		bug("AlterMob - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg->type) {
+	case ENT_STRING:
+		mob = script_get_char_room(info, arg->d.str, true);
+		break;
+	case ENT_MOBILE:
+		mob = arg->d.mob;
+		break;
+	default: break;
+	}
+
+	if(!mob) {
+		bug("AlterMob - NULL mobile.", 0);
+		return;
+	}
+
+	if(!*rest) {
+		bug("AlterMob - Missing field type.",0);
+		return;
+	}
+
+	if(!(rest = expand_argument(info,rest,arg))) {
+		bug("AlterMob - Error in parsing.",0);
+		return;
+	}
+
+	field[0] = 0;
+
+	switch(arg->type) {
+	case ENT_STRING: strncpy(field,arg->d.str,MIL-1); break;
+	default: return;
+	}
+
+	if(!field[0]) return;
+
+	if(!str_cmp(field,"acbash"))				ptr = (int*)&mob->armour[AC_BASH];
+	else if(!str_cmp(field,"acexotic"))			ptr = (int*)&mob->armour[AC_EXOTIC];
+	else if(!str_cmp(field,"acpierce"))			ptr = (int*)&mob->armour[AC_PIERCE];
+	else if(!str_cmp(field,"acslash"))			ptr = (int*)&mob->armour[AC_SLASH];
+	else if(!str_cmp(field,"act"))				{ lptr = mob->act; bank = IS_NPC(mob) ? act_flagbank : plr_flagbank; }
+	else if(!str_cmp(field,"affect"))			{ lptr = mob->affected_by; bank = affect_flagbank; }
+	else if(!str_cmp(field,"alignment"))		ptr = (int*)&mob->alignment;
+	else if(!str_cmp(field,"bashed"))			ptr = (int*)&mob->bashed;
+	else if(!str_cmp(field,"bind"))				ptr = (int*)&mob->bind;
+	else if(!str_cmp(field,"bomb"))				ptr = (int*)&mob->bomb;
+	else if(!str_cmp(field,"brew"))				ptr = (int*)&mob->brew;
+	else if(!str_cmp(field,"cast"))				ptr = (int*)&mob->cast;
+	else if(!str_cmp(field,"catalystusage"))	{ check_catalyst = true; }
+	else if(!str_cmp(field,"comm"))				{ lptr = IS_NPC(mob)?NULL:&mob->comm; allowpc = true; allowarith = false; min_sec = 7; flags = comm_flags; }		// 20140512NIB - Allows for scripted fun with player communications, only bit operators allowed
+	else if(!str_cmp(field,"damroll"))			ptr = (int*)&mob->damroll;
+	else if(!str_cmp(field,"danger"))			{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->danger_range; allowpc = true; }
+	else if(!str_cmp(field,"daze"))				ptr = (int*)&mob->daze;
+	else if(!str_cmp(field,"death"))			{ ptr = (IS_NPC(mob) || !IS_DEAD(mob))?NULL:(int*)&mob->time_left_death; allowpc = true; }
+	else if(!str_cmp(field,"dicenumber"))		{ ptr = IS_NPC(mob)?&mob->damage.number:NULL; }
+	else if(!str_cmp(field,"dicetype"))			{ ptr = IS_NPC(mob)?&mob->damage.size:NULL; }
+	else if(!str_cmp(field,"dicebonus"))		{ ptr = IS_NPC(mob)?&mob->damage.bonus:NULL; }
+	else if(!str_cmp(field,"drunk"))			{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_DRUNK]; allowpc = true; }
+//	else if(!str_cmp(field,"exitdir"))			{ ptr = (int*)&mob->exit_dir; allowpc = true; }
+	else if(!str_cmp(field,"exp"))				lptr = &mob->exp;
+	else if(!str_cmp(field,"fade"))				ptr = (int*)&mob->fade;
+	else if(!str_cmp(field,"form"))				{ lptr = &mob->form; flags = form_flags; }
+	else if(!str_cmp(field,"fullness"))			{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_FULL]; allowpc = true; }
+	else if(!str_cmp(field,"gold"))				lptr = &mob->gold;
+	else if(!str_cmp(field,"hide"))				ptr = (int*)&mob->hide;
+	else if(!str_cmp(field,"hit"))				lptr = &mob->hit;
+	else if(!str_cmp(field,"hitdamage"))		ptr = (int*)&mob->hit_damage;
+	else if(!str_cmp(field,"hitroll"))			ptr = (int*)&mob->hitroll;
+	else if(!str_cmp(field,"hunger"))			{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_HUNGER]; allowpc = true; }
+	else if(!str_cmp(field,"imm"))				{ lptr = &mob->imm_flags; allowarith = false; flags = imm_flags; }
+	else if(!str_cmp(field,"level"))			ptr = (int*)&mob->tot_level;
+	else if(!str_cmp(field,"lostparts"))		{ lptr = &mob->lostparts; allowarith = false; flags = part_flags; }
+	else if(!str_cmp(field,"mana"))				lptr = &mob->mana;
+	else if(!str_cmp(field,"manastore"))		{ ptr = (int*)&mob->manastore; allowpc = true; }
+	else if(!str_cmp(field,"maxexp"))			lptr = &mob->maxexp;
+	else if(!str_cmp(field,"maxhit"))			lptr = &mob->max_hit;
+	else if(!str_cmp(field,"maxmana"))			lptr = &mob->max_mana;
+	else if(!str_cmp(field,"maxmove"))			lptr = &mob->max_move;
+	else if(!str_cmp(field,"mazed"))			{ ptr = (IS_NPC(mob))?NULL:(int*)&mob->maze_time_left; allowpc = true; }
+	else if(!str_cmp(field,"modcon"))			{ ptr = (int*)&mob->mod_stat[STAT_CON]; allowpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_CON; }
+	else if(!str_cmp(field,"moddex"))			{ ptr = (int*)&mob->mod_stat[STAT_DEX]; allowpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_DEX; }
+	else if(!str_cmp(field,"modint"))			{ ptr = (int*)&mob->mod_stat[STAT_INT]; allowpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_INT; }
+	else if(!str_cmp(field,"modstr"))			{ ptr = (int*)&mob->mod_stat[STAT_STR]; allowpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_STR; }
+	else if(!str_cmp(field,"modwis"))			{ ptr = (int*)&mob->mod_stat[STAT_WIS]; allowpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_WIS; }
+	else if(!str_cmp(field,"move"))				lptr = &mob->move;
+	else if(!str_cmp(field,"music"))			ptr = (int*)&mob->music;
+	else if(!str_cmp(field,"norecall"))			ptr = (int*)&mob->no_recall;
+	else if(!str_cmp(field,"panic"))			ptr = (int*)&mob->panic;
+	else if(!str_cmp(field,"paralyzed"))		ptr = (int*)&mob->paralyzed;
+	else if(!str_cmp(field,"paroxysm"))			ptr = (int*)&mob->paroxysm;
+	else if(!str_cmp(field,"parts"))			{ lptr = &mob->parts; allowarith = false; flags = part_flags; }
+	else if(!str_cmp(field,"permaffects"))		{ lptr = mob->affected_by_perm; allowarith = false; bank = affect_flagbank; }
+	else if(!str_cmp(field,"permimm"))			{ lptr = &mob->imm_flags_perm; allowarith = false; flags = imm_flags; }
+	else if(!str_cmp(field,"permres"))			{ lptr = &mob->res_flags_perm; allowarith = false; flags = imm_flags; }
+	else if(!str_cmp(field,"permvuln"))			{ lptr = &mob->vuln_flags_perm; allowarith = false; flags = imm_flags; }
+	else if(!str_cmp(field,"pktimer"))			ptr = (int*)&mob->pk_timer;
+	else if(!str_cmp(field,"pneuma"))			lptr = &mob->pneuma;
+	//else if(!str_cmp(field,"practice"))			ptr = &mob->practice;
+	//else if(!str_cmp(field,"race"))				{ min_sec = 7; allowarith = false; lookuprace = true; }
+	else if(!str_cmp(field,"ranged"))			ptr = (int*)&mob->ranged;
+	else if(!str_cmp(field,"recite"))			ptr = (int*)&mob->recite;
+	else if(!str_cmp(field,"res"))				{ lptr = &mob->res_flags;  allowarith = false; flags = imm_flags; }
+	else if(!str_cmp(field,"resurrect"))		ptr = (int*)&mob->resurrect;
+	else if(!str_cmp(field,"reverie"))			ptr = (int*)&mob->reverie;
+	else if(!str_cmp(field,"scribe"))			ptr = (int*)&mob->scribe;
+	else if(!str_cmp(field,"sex"))				{ ptr = (int*)&mob->sex; min = SEX_NEUTRAL; max = SEX_EITHER; hasmin = hasmax = true; flags = sex_flags; }
+	else if(!str_cmp(field,"silver"))			lptr = &mob->silver;
+	else if(!str_cmp(field,"size"))				{ ptr = (int*)&mob->size; min = SIZE_TINY; max = SIZE_GIANT; hasmin = hasmax = true; flags = size_flags; }
+	else if(!str_cmp(field,"skillchance"))		ptr = (int*)&mob->skill_chance;
+	//else if(!str_cmp(field,"sublevel"))		ptr = (int*)&mob->level;
+	else if(!str_cmp(field,"tempstore1"))		{ ptr = (int*)&mob->tempstore[0]; allowpc = true; }
+	else if(!str_cmp(field,"tempstore2"))		{ ptr = (int*)&mob->tempstore[1]; allowpc = true; }
+	else if(!str_cmp(field,"tempstore3"))		{ ptr = (int*)&mob->tempstore[2]; allowpc = true; }
+	else if(!str_cmp(field,"tempstore4"))		{ ptr = (int*)&mob->tempstore[3]; allowpc = true; }
+	else if(!str_cmp(field,"tempstore5"))		{ ptr = (int*)&mob->tempstore[4]; allowpc = true; }
+	else if(!str_cmp(field,"thirst"))			{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_THIRST]; allowpc = true; }
+	else if(!str_cmp(field,"toxinneuro"))		ptr = (int*)&mob->toxin[TOXIN_NEURO];
+	else if(!str_cmp(field,"toxinpara"))		ptr = (int*)&mob->toxin[TOXIN_PARALYZE];
+	else if(!str_cmp(field,"toxinvenom"))		ptr = (int*)&mob->toxin[TOXIN_VENOM];
+	else if(!str_cmp(field,"toxinweak"))		ptr = (int*)&mob->toxin[TOXIN_WEAKNESS];
+	else if(!str_cmp(field,"train"))			ptr = &mob->train;
+	else if(!str_cmp(field,"trance"))			ptr = (int*)&mob->trance;
+	else if(!str_cmp(field,"vuln"))				{ lptr = &mob->vuln_flags; allowarith = false; flags = imm_flags; }
+	else if(!str_cmp(field,"wait"))				ptr = (int*)&mob->wait;
+	else if(!str_cmp(field,"wildviewx"))		ptr = (int*)&mob->wildview_bonus_x;
+	else if(!str_cmp(field,"wildviewy"))		ptr = (int*)&mob->wildview_bonus_y;
+	else if(!str_cmp(field,"wimpy"))			ptr = (int*)&mob->wimpy;
+
+	// Special handling for catalystusage
+	if (check_catalyst)
+	{
+		// Get the catalyst type
+		if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_STRING) {
+			bug("AlterMob - Error in parsing.",0);
+			return;
+		}
+
+		catalyst = stat_lookup(arg->d.str, catalyst_types, CATALYST_NONE);
+		if (catalyst == CATALYST_NONE)
+		{
+			bug("AlterMob - Invalid catalyst type selected for catalystusage.",0);
+			return;
+		}
+
+		ptr = &mob->catalyst_usage[catalyst];
+		allowpc = true;
+		allowarith = true;
+		allowbitwise = false;
+	}
+
+	// Automatically disable arithmetic operators and require values if using flags
+	if (bank != NULL || flags != NULL)
+	{
+		allowarith = false;
+		needvalue = true;
+	}
+
+	if(!lptr && !ptr) return;
+
+	rest = one_argument(rest,buf);
+	int op = cmd_operator_lookup(buf);
+	if (op == OPR_UNKNOWN)
+		return;
+
+	if(!(rest = expand_argument(info,rest,arg))) {
+		bug("AlterMob - Error in parsing.",0);
+		return;
+	}
+
+	// MINIMUM to alter ANYTHING not allowed on players on a player
+	if(!allowpc && !IS_NPC(mob)) min_sec = 9;
+
+	if(script_security < min_sec) {
+		sprintf(buf,"AlterMob - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+		bug(buf, 0);
+		return;
+	}
+
+	memset(temp_flags, 0, sizeof(temp_flags));
+
+	if( bank != NULL )
+	{
+		if( arg->type != ENT_STRING ) return;
+
+		allowarith = false;	// This is a bit vector, no arithmetic operators.
+		if (!script_bitmatrix_lookup(arg->d.str, bank, temp_flags))
+			return;
+
+		if (bank == act_flagbank)
+		{
+			REMOVE_BIT(temp_flags[1], ACT2_INSTANCE_MOB);
+
+			if( op == OPR_ASSIGN || op == OPR_AND )
+			{
+				if( IS_SET(lptr[1], ACT2_INSTANCE_MOB) ) SET_BIT(temp_flags[1], ACT2_INSTANCE_MOB);
+			}
+		}		
+	}
+	else if( flags != NULL )
+	{
+		if( arg->type != ENT_STRING ) return;
+
+		allowarith = false;	// This is a bit vector, no arithmetic operators.
+		value = script_flag_value(flags, arg->d.str);
+
+		if( value == NO_FLAG ) value = 0;
+	}
+	else
+	{
+
+		switch(arg->type) {
+		case ENT_STRING:
+			if( is_number(arg->d.str) )
+				value = atoi(arg->d.str);
+			else
+				return;
+
+			break;
+		case ENT_NUMBER:
+			value = arg->d.num;
+			break;
+		default: return;
+		}
+	}
+
+	if (needvalue && !cmd_operator_info[op][OPR_NEEDS_VALUE])
+	{
+		return;
+	}
+
+	if (cmd_operator_info[op][OPR_ARITHMETIC] && !allowarith)
+	{
+		return;
+	}
+
+	if (cmd_operator_info[op][OPR_BITWISE] && !allowbitwise)
+	{
+		return;
+	}
+
+	if (lptr) {
+		switch (op) {
+		case OPR_ADD:
+			*lptr += value;
+			break;
+
+		case OPR_SUB:
+			*lptr -= value;
+			break;
+
+		case OPR_MULT:
+			*lptr *= value;
+			break;
+
+		case OPR_DIV:
+			if (!value) {
+				bug("AlterMob - altermob called with operator / and value 0", 0);
+				return;
+			}
+			*lptr /= value;
+			break;
+
+		case OPR_MOD:
+			if (!value) {
+				bug("AlterMob - altermob called with operator % and value 0", 0);
+				return;
+			}
+			*lptr %= value;
+			break;
+
+		case OPR_INC:
+			*lptr += 1;
+			break;
+		
+		case OPR_DEC:
+			*lptr -= 1;
+			break;
+		
+		case OPR_MIN:
+			*lptr = UMIN(*lptr, value);
+			break;
+		
+		case OPR_MAX:
+			*lptr = UMAX(*lptr, value);
+			break;
+
+		case OPR_ASSIGN:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] = temp_flags[i];
+			}
+			else
+				*lptr = value;
+			break;
+
+		case OPR_AND:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] &= temp_flags[i];
+			}
+			else
+				*lptr &= value;
+			break;
+
+		case OPR_OR:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] |= temp_flags[i];
+			}
+			else
+				*lptr |= value;
+			break;
+
+		case OPR_NOT:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] &= ~temp_flags[i];
+			}
+			else
+				*lptr &= ~value;
+			break;
+
+		case OPR_XOR:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] ^= temp_flags[i];
+			}
+			else
+				*lptr ^= value;
+
+			break;
+		default:
+			return;
+		}
+
+		if(hasmin && *lptr < min)
+			*lptr = min;
+
+		if(hasmax && *lptr > max)
+			*lptr = max;
+
+	} else if (ptr) {
+		switch (op) {
+		case OPR_ADD:
+			*ptr += value;
+			break;
+
+		case OPR_SUB:
+			*ptr -= value;
+			break;
+
+		case OPR_MULT:
+			*ptr *= value;
+			break;
+
+		case OPR_DIV:
+			if (!value) {
+				bug("AlterMob - altermob called with operator / and value 0", 0);
+				return;
+			}
+			*ptr /= value;
+			break;
+
+		case OPR_MOD:
+			if (!value) {
+				bug("AlterMob - altermob called with operator % and value 0", 0);
+				return;
+			}
+			*ptr %= value;
+			break;
+
+		case OPR_INC:
+			*ptr += 1;
+			break;
+		
+		case OPR_DEC:
+			*ptr -= 1;
+			break;
+		
+		case OPR_MIN:
+			*ptr = UMIN(*ptr, value);
+			break;
+		
+		case OPR_MAX:
+			*ptr = UMAX(*ptr, value);
+			break;
+
+		case OPR_ASSIGN:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] = temp_flags[i];
+			}
+			else
+				*ptr = value;
+			break;
+
+		case OPR_AND:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] &= temp_flags[i];
+			}
+			else
+				*ptr &= value;
+			break;
+
+		case OPR_OR:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] |= temp_flags[i];
+			}
+			else
+				*ptr |= value;
+			break;
+
+		case OPR_NOT:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] &= ~temp_flags[i];
+			}
+			else
+				*ptr &= ~value;
+			break;
+
+		case OPR_XOR:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] ^= temp_flags[i];
+			}
+			else
+				*ptr ^= value;
+
+			break;
+		default:
+			return;
+		}
+
+		if(hasmin && *ptr < min)
+			*ptr = (int)min;
+
+		if(hasmax && *ptr > max)
+			*ptr = (int)max;
+	}
+
+	if(dirty_stat >= 0 && dirty_stat < MAX_STATS)
+		mob->dirty_stat[dirty_stat] = true;
+}
+
+
+#define IS_FIELD(f)		(!str_cmp(field, (f)))
+// ALTER $MOBILE <field>[ <op>][ <value>]
+// ALTER $OBJECT <field>[ <op>][ <value>]
+// ALTER $OBJECT_MULTITYPE <field>[ <op>][ <value>]
+// ALTER $ROOM <field>[ <op>][ <value>]
+// ALTER $EXIT <field>[ <op>][ <value>]
+// ALTER $TOKEN <field>[ <op>][ <value>]
+// ALTER $AFFECT <field>[ <op>][ <value>]
+// ALTER $CHURCH <field>[ <op>][ <value>]
+// ALTER $SHIP <field>[ <op>][ <value>]
+// What else?
+SCRIPT_CMD(scriptcmd_alter)
+{
+	char buf[MSL],field[MIL],*rest;
+	long value = 0, min = 0, max = 0, assign_min = 0, assign_max = 0;
+	int min_sec = MIN_SCRIPT_SECURITY;
+	CHAR_DATA *mob = NULL;
+	OBJ_DATA *obj = NULL;
+	ROOM_INDEX_DATA *room = NULL;
+	EXIT_DATA *ex = NULL;
+	TOKEN_DATA *token = NULL;
+	MATERIAL **pmaterial = NULL;
+	SECTOR_DATA **psector = NULL;
+	LIQUID **pliquid = NULL;
+	char **str = NULL;
+	long *lptr = NULL;
+	int *ptr = NULL;
+	int16_t *sptr = NULL;
+	char *cptr = NULL;
+	bool unlockpc = false;
+	bool mobonly = false;
+	bool allowstatic = true;
+	bool allowarith = true;
+	bool allowbitwise = true;
+	bool needvalue = false;
+	bool hasmin = false;
+	bool hasmax = false;
+	bool hasassignmin = false;
+	bool hasassignmax = false;
+	bool check_catalyst = false;
+	bool newlines = false;
+	bool allow_empty = false;
+	bool is_attack = false;
+	bool is_wilds_uid = false;
+	const struct flag_type *flags = NULL;
+	const struct flag_type **bank = NULL;
+	long temp_flags[4];
+	int sec_flags[4];
+	int dirty_stat = -1;
+	int catalyst = CATALYST_NONE;
+
+	if (!info) return;
+
+	if(!(rest = expand_argument(info,argument,arg))) {
+		bug("AlterMob - Error in parsing.",0);
+		return;
+	}
+
+	for(int i = 0; i < 4; i++)
+	{
+		temp_flags[i] = 0;
+		sec_flags[i] = 0;
+	}
+
+	switch(arg->type) {
+	case ENT_MOBILE:
+		if (!IS_VALID(arg->d.mob)) return;
+		mob = arg->d.mob;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if(IS_FIELD("acbash"))				ptr = &mob->armour[AC_BASH];
+		else if(IS_FIELD("acexotic"))		ptr = &mob->armour[AC_EXOTIC];
+		else if(IS_FIELD("acpierce"))		ptr = &mob->armour[AC_PIERCE];
+		else if(IS_FIELD("acslash"))		ptr = &mob->armour[AC_SLASH];
+		else if(IS_FIELD("act"))			{ lptr = mob->act; bank = IS_NPC(mob) ? act_flagbank : plr_flagbank; }
+		else if(IS_FIELD("affect"))			{ lptr = mob->affected_by; bank = affect_flagbank; }
+		else if(IS_FIELD("alignment"))		ptr = &mob->alignment;
+		else if(IS_FIELD("bashed"))			ptr = &mob->bashed;
+		else if(IS_FIELD("bind"))			ptr = &mob->bind;
+		else if(IS_FIELD("bomb"))			ptr = &mob->bomb;
+		else if(IS_FIELD("brew"))			ptr = &mob->brew;
+		else if(IS_FIELD("cast"))			ptr = &mob->cast;
+		else if(IS_FIELD("catalystusage"))	{ check_catalyst = true; }
+		else if(IS_FIELD("comm"))			{ lptr = IS_NPC(mob)?NULL:&mob->comm; unlockpc = true; allowarith = false; min_sec = 7; flags = comm_flags; }		// 20140512NIB - Allows for scripted fun with player communications, only bit operators allowed
+		else if(IS_FIELD("damroll"))		ptr = &mob->damroll;
+		else if(IS_FIELD("danger"))			{ ptr = IS_NPC(mob)?NULL:&mob->pcdata->danger_range; unlockpc = true; }
+		else if(IS_FIELD("daze"))			ptr = &mob->daze;
+		else if(IS_FIELD("death"))			{ ptr = (IS_NPC(mob) || !IS_DEAD(mob))?NULL:&mob->time_left_death; unlockpc = true; }
+		else if(IS_FIELD("dicenumber"))		{ ptr = IS_NPC(mob)?&mob->damage.number:NULL; }
+		else if(IS_FIELD("dicetype"))		{ ptr = IS_NPC(mob)?&mob->damage.size:NULL; }
+		else if(IS_FIELD("dicebonus"))		{ ptr = IS_NPC(mob)?&mob->damage.bonus:NULL; }
+		else if(IS_FIELD("drunk"))			{ ptr = IS_NPC(mob)?NULL:&mob->pcdata->condition[COND_DRUNK]; unlockpc = true; }
+		else if(IS_FIELD("exp"))			{ lptr = &mob->exp; mobonly = true; }
+		else if(IS_FIELD("fade"))			ptr = &mob->fade;
+		else if(IS_FIELD("form"))			{ lptr = &mob->form; flags = form_flags; }
+		else if(IS_FIELD("fullness"))		{ ptr = IS_NPC(mob)?NULL:&mob->pcdata->condition[COND_FULL]; unlockpc = true; }
+		else if(IS_FIELD("gold"))			lptr = &mob->gold;
+		else if(IS_FIELD("hide"))			ptr = &mob->hide;
+		else if(IS_FIELD("hit"))			lptr = &mob->hit;
+		else if(IS_FIELD("hitdamage"))		ptr = &mob->hit_damage;
+		else if(IS_FIELD("hitroll"))		ptr = &mob->hitroll;
+		else if(IS_FIELD("hunger"))			{ ptr = IS_NPC(mob)?NULL:&mob->pcdata->condition[COND_HUNGER]; unlockpc = true; }
+		else if(IS_FIELD("imm"))			{ lptr = &mob->imm_flags; allowarith = false; flags = imm_flags; }
+		else if(IS_FIELD("level"))			ptr = &mob->tot_level;
+		else if(IS_FIELD("lostparts"))		{ lptr = &mob->lostparts; allowarith = false; flags = part_flags; }
+		else if(IS_FIELD("mana"))			lptr = &mob->mana;
+		else if(IS_FIELD("manastore"))		{ ptr = &mob->manastore; unlockpc = true; }
+		else if(IS_FIELD("maxexp"))			{ lptr = &mob->maxexp; mobonly = true; }
+		else if(IS_FIELD("maxhit"))			lptr = &mob->max_hit;
+		else if(IS_FIELD("maxmana"))		lptr = &mob->max_mana;
+		else if(IS_FIELD("maxmove"))		lptr = &mob->max_move;
+		else if(IS_FIELD("mazed"))			{ ptr = (IS_NPC(mob))?NULL:&mob->maze_time_left; unlockpc = true; }
+		else if(IS_FIELD("modcon"))			{ ptr = &mob->mod_stat[STAT_CON]; unlockpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_CON; }
+		else if(IS_FIELD("moddex"))			{ ptr = &mob->mod_stat[STAT_DEX]; unlockpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_DEX; }
+		else if(IS_FIELD("modint"))			{ ptr = &mob->mod_stat[STAT_INT]; unlockpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_INT; }
+		else if(IS_FIELD("modstr"))			{ ptr = &mob->mod_stat[STAT_STR]; unlockpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_STR; }
+		else if(IS_FIELD("modwis"))			{ ptr = &mob->mod_stat[STAT_WIS]; unlockpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_WIS; }
+		else if(IS_FIELD("move"))			lptr = &mob->move;
+		else if(IS_FIELD("music"))			ptr = &mob->music;
+		else if(IS_FIELD("norecall"))		ptr = &mob->no_recall;
+		else if(IS_FIELD("panic"))			ptr = &mob->panic;
+		else if(IS_FIELD("paralyzed"))		ptr = &mob->paralyzed;
+		else if(IS_FIELD("paroxysm"))		ptr = &mob->paroxysm;
+		else if(IS_FIELD("parts"))			{ lptr = &mob->parts; allowarith = false; flags = part_flags; }
+		else if(IS_FIELD("permaffects"))	{ lptr = mob->affected_by_perm; allowarith = false; bank = affect_flagbank; }
+		else if(IS_FIELD("permimm"))		{ lptr = &mob->imm_flags_perm; allowarith = false; flags = imm_flags; }
+		else if(IS_FIELD("permres"))		{ lptr = &mob->res_flags_perm; allowarith = false; flags = imm_flags; }
+		else if(IS_FIELD("permvuln"))		{ lptr = &mob->vuln_flags_perm; allowarith = false; flags = imm_flags; }
+		else if(IS_FIELD("pktimer"))		ptr = &mob->pk_timer;
+		else if(IS_FIELD("pneuma"))			lptr = &mob->pneuma;
+		else if(IS_FIELD("ranged"))			ptr = &mob->ranged;
+		else if(IS_FIELD("recite"))			ptr = &mob->recite;
+		else if(IS_FIELD("res"))			{ lptr = &mob->res_flags;  allowarith = false; flags = imm_flags; }
+		else if(IS_FIELD("resurrect"))		ptr = &mob->resurrect;
+		else if(IS_FIELD("reverie"))		ptr = &mob->reverie;
+		else if(IS_FIELD("scribe"))			ptr = &mob->scribe;
+		else if(IS_FIELD("sex"))			{ ptr = &mob->sex; min = SEX_NEUTRAL; max = SEX_EITHER; hasmin = hasmax = true; flags = sex_flags; }
+		else if(IS_FIELD("silver"))			lptr = &mob->silver;
+		else if(IS_FIELD("size"))			{ ptr = &mob->size; min = SIZE_TINY; max = SIZE_GIANT; hasmin = hasmax = true; flags = size_flags; }
+		else if(IS_FIELD("skillchance"))	ptr = &mob->skill_chance;
+		else if(IS_FIELD("tempstore1"))		{ ptr = &mob->tempstore[0]; unlockpc = true; }
+		else if(IS_FIELD("tempstore2"))		{ ptr = &mob->tempstore[1]; unlockpc = true; }
+		else if(IS_FIELD("tempstore3"))		{ ptr = &mob->tempstore[2]; unlockpc = true; }
+		else if(IS_FIELD("tempstore4"))		{ ptr = &mob->tempstore[3]; unlockpc = true; }
+		else if(IS_FIELD("tempstore5"))		{ ptr = &mob->tempstore[4]; unlockpc = true; }
+		else if(IS_FIELD("thirst"))			{ ptr = IS_NPC(mob)?NULL:&mob->pcdata->condition[COND_THIRST]; unlockpc = true; }
+		else if(IS_FIELD("toxinneuro"))		ptr = &mob->toxin[TOXIN_NEURO];
+		else if(IS_FIELD("toxinpara"))		ptr = &mob->toxin[TOXIN_PARALYZE];
+		else if(IS_FIELD("toxinvenom"))		ptr = &mob->toxin[TOXIN_VENOM];
+		else if(IS_FIELD("toxinweak"))		ptr = &mob->toxin[TOXIN_WEAKNESS];
+		else if(IS_FIELD("train"))			ptr = &mob->train;
+		else if(IS_FIELD("trance"))			ptr = &mob->trance;
+		else if(IS_FIELD("vuln"))			{ lptr = &mob->vuln_flags; allowarith = false; flags = imm_flags; }
+		else if(IS_FIELD("wait"))			ptr = &mob->wait;
+		else if(IS_FIELD("wildviewx"))		ptr = &mob->wildview_bonus_x;
+		else if(IS_FIELD("wildviewy"))		ptr = &mob->wildview_bonus_y;
+		else if(IS_FIELD("wimpy"))			ptr = &mob->wimpy;
+
+		// Special handling for catalystusage
+		if (check_catalyst)
+		{
+			// Get the catalyst type
+			if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_STRING) {
+				bug("Alter - Error in parsing.",0);
+				return;
+			}
+
+			catalyst = stat_lookup(arg->d.str, catalyst_types, CATALYST_NONE);
+			if (catalyst == CATALYST_NONE)
+			{
+				bug("Alter - Invalid catalyst type selected for catalystusage.",0);
+				return;
+			}
+
+			ptr = &mob->catalyst_usage[catalyst];
+			unlockpc = true;
+			allowarith = true;
+			allowbitwise = false;
+		}
+
+		if (!IS_NPC(mob) && !unlockpc)
+			min_sec = 9;
+
+		if (mobonly && !IS_NPC(mob))		
+			return;
+		break;
+
+	case ENT_OBJECT:	// Base level object stuff
+		if (!IS_VALID(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if(IS_FIELD("cond"))				{ ptr = &obj->condition; allowarith = true; allowbitwise = false; }
+		else if(IS_FIELD("cost"))			{ lptr = &obj->cost; min_sec = 5; allowarith = true; allowbitwise = false; }
+		else if(IS_FIELD("extra"))			{ lptr = obj->extra; bank = extra_flagbank; sec_flags[1] = sec_flags[2] = sec_flags[3] = 7; allowarith = false; allowbitwise = true; }
+		else if(IS_FIELD("fixes"))			{ ptr = &obj->times_allowed_fixed; min_sec = 5; allowarith = true; allowbitwise = false; }
+		else if(IS_FIELD("full"))			{ if (obj->old_full_description) return; str = &obj->full_description; }
+		else if(IS_FIELD("level"))			{ ptr = &obj->level; min_sec = 5; allowarith = true; allowbitwise = false; }
+		else if(IS_FIELD("long"))			{ if (obj->old_description) return; str = &obj->description; }
+		else if(IS_FIELD("material"))		pmaterial = &obj->material;
+		else if(IS_FIELD("name"))			{ if (obj->old_short_descr) return; str = &obj->name; }
+		else if(IS_FIELD("owner"))			{ str = &obj->owner; }
+		else if(IS_FIELD("repairs"))		{ ptr = &obj->times_fixed; allowarith = true; allowbitwise = false; }
+		else if(IS_FIELD("short"))			{ if (obj->old_short_descr) return; str = &obj->short_descr; }
+		else if(IS_FIELD("tempstore1"))		ptr = &obj->tempstore[0];		// bitwise left TRISTATE to allow both arithmetic and bitwise operations
+		else if(IS_FIELD("tempstore2"))		ptr = &obj->tempstore[1];		// bitwise left TRISTATE to allow both arithmetic and bitwise operations
+		else if(IS_FIELD("tempstore3"))		ptr = &obj->tempstore[2];		// bitwise left TRISTATE to allow both arithmetic and bitwise operations
+		else if(IS_FIELD("tempstore4"))		ptr = &obj->tempstore[3];		// bitwise left TRISTATE to allow both arithmetic and bitwise operations
+		else if(IS_FIELD("tempstore5"))		ptr = &obj->tempstore[4];		// bitwise left TRISTATE to allow both arithmetic and bitwise operations
+		else if(IS_FIELD("timer"))			{ ptr = &obj->timer; allowarith = true; allowbitwise = false; }
+		else if(IS_FIELD("wear"))			{ lptr = &obj->wear_flags; flags = wear_flags; allowarith = false; allowbitwise = true; }
+		else if(IS_FIELD("wearloc"))		{ ptr = &obj->wear_loc; flags = wear_loc_flags; allowarith = false; allowbitwise = false; }
+		else if(IS_FIELD("weight"))			{ ptr = &obj->weight;  allowarith = true; allowbitwise = false;}
+		break;
+
+	case ENT_OBJECT_AMMO:
+		if (!IS_VALID(arg->d.obj) || !IS_AMMO(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("damagetype"))			{ ptr = &(AMMO(obj)->damage_type); is_attack = true; }
+		else if (IS_FIELD("flags"))			{ lptr = &(AMMO(obj)->flags); flags = weapon_type2; }
+		else if (IS_FIELD("msgbreak"))		{ str = &AMMO(obj)->msg_break; }
+		else if (IS_FIELD("type"))			{ sptr = &(AMMO(obj)->type); flags = ammo_types; }
+		break;
+
+	case ENT_OBJECT_ARMOR:
+		if (!IS_VALID(arg->d.obj) || !IS_ARMOR(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("protection"))
+		{
+			PARSE_ARGTYPE(STRING);
+
+			int type = stat_lookup(arg->d.str,armour_protection_types,NO_FLAG);
+			if (type == NO_FLAG)
+				return;
+
+			sptr = &(ARMOR(obj)->protection[type]);
+			hasmin = true;
+			min = 0;
+		}
+		else if (IS_FIELD("strength"))		{ sptr = &(ARMOR(obj)->armor_strength); flags = armour_strength_table; }
+		else if (IS_FIELD("type"))			{ sptr = &(ARMOR(obj)->armor_type); flags = armour_types; }
+		break;
+
+	case ENT_OBJECT_BOOK:
+		if (!IS_VALID(arg->d.obj) || !IS_BOOK(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("current"))		{ ptr = &(BOOK(obj)->current_page); allowarith = true; allowbitwise = false; min = 1; hasmin = true; max = book_max_pages(BOOK(obj)); hasmax = true; }
+		else if (IS_FIELD("flags"))		{ lptr = &(BOOK(obj)->flags); flags = book_flags; allowarith = false; allowbitwise = true; }
+		else if (IS_FIELD("name"))		{ str = &BOOK(obj)->name; }
+		else if (IS_FIELD("opener"))	{ ptr = &(BOOK(obj)->open_page); allowarith = true; allowbitwise = false; min = 1; hasmin = true; max = book_max_pages(BOOK(obj)); hasmax = true; }
+		else if (IS_FIELD("short"))		{ str = &BOOK(obj)->short_descr; }
+		break;
+
+	case ENT_OBJECT_CART:
+		if (!IS_VALID(arg->d.obj) || !IS_CART(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("flags"))				{ lptr = &(CART(obj)->flags); flags = cart_flags; }
+		else if (IS_FIELD("minstrength"))	{ sptr = &(CART(obj)->min_strength); hasmin = true; min = 0; }
+		else if (IS_FIELD("movedelay"))		{ sptr = &(CART(obj)->move_delay); hasmin = true; min = 0; }
+		break;
+
+	case ENT_OBJECT_COMPASS:
+	{
+		if (!IS_VALID(arg->d.obj) || !IS_COMPASS(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		WILDS_DATA *mapwilds = get_wilds_from_uid(NULL, COMPASS(obj)->wuid);
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("accuracy"))		{ sptr = &(COMPASS(obj)->accuracy); hasmin = true; min = 0; hasmax = true; max = 100; }
+		else if (IS_FIELD("mapid"))		{ lptr = &(COMPASS(obj)->wuid); is_wilds_uid = true; }
+		else if (IS_FIELD("x"))			{ lptr = &(MAP(obj)->x); hasmin = true; min = 0; hasmax = (mapwilds != NULL); max = (mapwilds ? mapwilds->map_size_x - 1 : 0); }
+		else if (IS_FIELD("y"))			{ lptr = &(MAP(obj)->y); hasmin = true; min = 0; hasmax = (mapwilds != NULL); max = (mapwilds ? mapwilds->map_size_y - 1 : 0); }
+		break;
+	}
+
+	case ENT_OBJECT_CONTAINER:
+		if (!IS_VALID(arg->d.obj) || !IS_CONTAINER(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("flags"))			{ lptr = &(CONTAINER(obj)->flags); flags = container_flags; allowarith = false; allowbitwise = true; }
+		else if (IS_FIELD("name"))		{ str = &CONTAINER(obj)->name; }
+		else if (IS_FIELD("short"))		{ str = &CONTAINER(obj)->short_descr; }
+		else if (IS_FIELD("volume"))	{ ptr = &(CONTAINER(obj)->max_volume); allowarith = true; allowbitwise = false; min = 0; hasmin = true; }
+		else if (IS_FIELD("weight"))	{ ptr = &(CONTAINER(obj)->max_weight); allowarith = true; allowbitwise = false; min = 0; hasmin = true; }
+		else if (IS_FIELD("weight%"))	{ ptr = &(CONTAINER(obj)->weight_multiplier); allowarith = true; allowbitwise = false; min = 0; hasmin = true; max = 100; hasmax = true; }
+		break;
+
+	case ENT_OBJECT_FLUID_CONTAINER:
+		if (!IS_VALID(arg->d.obj) || !IS_FLUID_CON(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("liquid"))				{ pliquid = (&FLUID_CON(obj)->liquid); allowarith = false; allowbitwise = false; }
+		else if (IS_FIELD("flags"))			{ lptr = &(FLUID_CON(obj)->flags); flags = fluid_con_flags; allowarith = false; allowbitwise = true; }
+		else if (IS_FIELD("capacity"))		{ sptr = (&FLUID_CON(obj)->capacity); allowarith = true; allowbitwise = false; hasmin = true; min = -1; }
+		else if (IS_FIELD("amount"))		{ sptr = (&FLUID_CON(obj)->amount); allowarith = true; allowbitwise = false; hasmin = hasmax = true; if (FLUID_CON(obj)->capacity < 0) { min = max = -1; } else { min = 0; max = FLUID_CON(obj)->capacity; } }
+		else if (IS_FIELD("refillrate"))	{ sptr = (&FLUID_CON(obj)->refill_rate); allowarith = true; allowbitwise = false; hasmin = true; min = 0; }
+		else if (IS_FIELD("poison"))		{ sptr = (&FLUID_CON(obj)->poison); allowarith = true; allowbitwise = false; hasmin = hasmax = true; min = 0; max = 100; }
+		else if (IS_FIELD("poisonrate"))	{ sptr = (&FLUID_CON(obj)->poison_rate); allowarith = true; allowbitwise = false; hasmin = true; min = 0; }
+		break;
+
+	case ENT_OBJECT_FOOD:
+		if (!IS_VALID(arg->d.obj) || !IS_FOOD(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("hunger"))			{ ptr = (&FOOD(obj)->hunger); allowarith = true; allowbitwise = false; hasmin = true; min = 0; }
+		else if (IS_FIELD("full"))		{ ptr = (&FOOD(obj)->full); allowarith = true; allowbitwise = false; hasmin = true; min = 0; }
+		else if (IS_FIELD("poison"))	{ ptr = (&FOOD(obj)->poison); allowarith = true; allowbitwise = false; hasmin = true; min = 0; hasmax = true; max = 100; }
+		break;
+
+	case ENT_OBJECT_FURNITURE:
+		if (!IS_VALID(arg->d.obj) || !IS_FURNITURE(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("main"))			{ ptr = (&FURNITURE(obj)->main_compartment); allowarith = false; allowbitwise = false; min = 0; hasmin = true; max = list_size(FURNITURE(obj)->compartments); hasmax = true; }
+		else if (IS_FIELD("flags"))		{ lptr = &(FURNITURE(obj)->flags); flags = furniture_flags; allowarith = false; allowbitwise = true; }
+		break;
+
+	case ENT_OBJECT_INK:
+		// Nothing to alter
+		break;
+
+	case ENT_OBJECT_INSTRUMENT:
+		if (!IS_VALID(arg->d.obj) || !IS_INSTRUMENT(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("type"))			{ ptr = &(INSTRUMENT(obj)->type); allowarith = false; allowbitwise = false; flags = instrument_types; }
+		else if (IS_FIELD("flags"))		{ lptr = &(INSTRUMENT(obj)->flags); allowarith = false; allowbitwise = true; flags = instrument_flags; }
+		else if (IS_FIELD("beatsmin"))	{ ptr = &(INSTRUMENT(obj)->beats_min); allowarith = true; allowbitwise = false; hasmin = true; min = 1; hasmax = true; max = 200; }
+		else if (IS_FIELD("beatsmax"))	{ ptr = &(INSTRUMENT(obj)->beats_max); allowarith = true; allowbitwise = false; hasmin = true; min = 1; hasmax = true; max = 200; }
+		else if (IS_FIELD("manamin"))	{ ptr = &(INSTRUMENT(obj)->mana_min); allowarith = true; allowbitwise = false; hasmin = true; min = 1; hasmax = true; max = 200; }
+		else if (IS_FIELD("manamax"))	{ ptr = &(INSTRUMENT(obj)->mana_max); allowarith = true; allowbitwise = false; hasmin = true; min = 1; hasmax = true; max = 200; }
+		break;
+
+	case ENT_OBJECT_JEWELRY:
+		if (!IS_VALID(arg->d.obj) || !IS_JEWELRY(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("maxmana"))		{ ptr = &(JEWELRY(obj)->max_mana); hasmin = true; min = 0; }
+		break;
+
+	case ENT_OBJECT_LIGHT:
+		if (!IS_VALID(arg->d.obj) || !IS_LIGHT(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("duration"))		{ ptr = (&LIGHT(obj)->duration); allowbitwise = false; }
+		else if (IS_FIELD("flags"))		{ lptr = (&LIGHT(obj)->flags); flags = light_flags; allowarith = false; allowbitwise = true; }
+		break;
+
+	case ENT_OBJECT_MAP:
+	{
+		if (!IS_VALID(arg->d.obj) || !IS_MAP(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		WILDS_DATA *mapwilds = get_wilds_from_uid(NULL, MAP(obj)->wuid);
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("mapid"))			{ lptr = &(MAP(obj)->wuid); is_wilds_uid = true; }
+		else if (IS_FIELD("x"))			{ lptr = &(MAP(obj)->x); hasmin = true; min = 0; hasmax = (mapwilds != NULL); max = (mapwilds ? mapwilds->map_size_x - 1 : 0); }
+		else if (IS_FIELD("y"))			{ lptr = &(MAP(obj)->y); hasmin = true; min = 0; hasmax = (mapwilds != NULL); max = (mapwilds ? mapwilds->map_size_y - 1 : 0); }
+		break;
+	}
+
+	case ENT_OBJECT_MIST:
+		if (!IS_VALID(arg->d.obj) || !IS_MIST(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("acidic"))					{ cptr = &(MIST(obj)->acidic); hasmin = true; min = 0; hasmax = true; max = 100;}
+		else if (IS_FIELD("fiery"))				{ cptr = &(MIST(obj)->fiery); hasmin = true; min = 0; hasmax = true; max = 100;}
+		else if (IS_FIELD("fog"))				{ cptr = &(MIST(obj)->fog); hasmin = true; min = 0; hasmax = true; max = 100;}
+		else if (IS_FIELD("icy"))				{ cptr = &(MIST(obj)->icy); hasmin = true; min = 0; hasmax = true; max = 100;}
+		else if (IS_FIELD("obscuremobs"))		{ cptr = &(MIST(obj)->obscure_mobs); hasmin = true; min = 0; hasmax = true; max = 100;}
+		else if (IS_FIELD("obscureobjs"))		{ cptr = &(MIST(obj)->obscure_objs); hasmin = true; min = 0; hasmax = true; max = 100;}
+		else if (IS_FIELD("obscureroom"))		{ cptr = &(MIST(obj)->obscure_room); hasmin = true; min = 0; hasmax = true; max = 100;}
+		else if (IS_FIELD("shock"))				{ cptr = &(MIST(obj)->shock); hasmin = true; min = 0; hasmax = true; max = 100;}
+		else if (IS_FIELD("sleep"))				{ cptr = &(MIST(obj)->sleep); hasmin = true; min = 0; hasmax = true; max = 100;}
+		else if (IS_FIELD("stink"))				{ cptr = &(MIST(obj)->stink); hasmin = true; min = 0; hasmax = true; max = 100;}
+		else if (IS_FIELD("toxic"))				{ cptr = &(MIST(obj)->toxic); hasmin = true; min = 0; hasmax = true; max = 100;}
+		else if (IS_FIELD("wither"))			{ cptr = &(MIST(obj)->wither); hasmin = true; min = 0; hasmax = true; max = 100;}
+		break;
+
+	case ENT_OBJECT_MONEY:
+		if (!IS_VALID(arg->d.obj) || !IS_MONEY(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("gold"))			{ ptr = &(MONEY(obj)->gold); min_sec = 5; max = (script_security - 4) * 1000; hasmax = true; }
+		else if (IS_FIELD("silver"))	{ ptr = &(MONEY(obj)->silver); min_sec = 5; max = (script_security - 4) * 100000; hasmax = true; }
+
+		break;
+
+	case ENT_OBJECT_PAGE:
+		if (!IS_VALID(arg->d.obj) || !IS_PAGE(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("number"))			{ ptr = &PAGE(obj)->page_no; min = 1; hasmin = true; }
+		else if (IS_FIELD("text"))		{ str = &PAGE(obj)->text; newlines = true; }
+		else if (IS_FIELD("title"))		{ str = &PAGE(obj)->title; }
+		break;
+
+	case ENT_OBJECT_PORTAL:
+		if (!IS_VALID(arg->d.obj) || !IS_PORTAL(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("charges"))		{ ptr = &(PORTAL(obj)->charges); allowarith = true; allowbitwise = false; min = 0; hasmin = true; assign_min = -1; hasassignmin = true; }
+		else if (IS_FIELD("exit"))		{ lptr = &(PORTAL(obj)->exit); flags = portal_exit_flags; allowarith = false; allowbitwise = true; }
+		else if (IS_FIELD("flags"))		{ lptr = &(PORTAL(obj)->flags); flags = portal_flags; allowarith = false; allowbitwise = true; }
+		else if (IS_FIELD("name"))		{ str = &PORTAL(obj)->name; }
+		else if (IS_FIELD("param1"))	{ lptr = &(PORTAL(obj)->params[0]); allowarith = false; allowbitwise = false; }
+		else if (IS_FIELD("param2"))	{ lptr = &(PORTAL(obj)->params[1]); allowarith = false; allowbitwise = false; }
+		else if (IS_FIELD("param3"))	{ lptr = &(PORTAL(obj)->params[2]); allowarith = false; allowbitwise = false; }
+		else if (IS_FIELD("param4"))	{ lptr = &(PORTAL(obj)->params[3]); allowarith = false; allowbitwise = false; }
+		else if (IS_FIELD("param5"))	{ lptr = &(PORTAL(obj)->params[4]); allowarith = false; allowbitwise = false; }
+		else if (IS_FIELD("short"))		{ str = &PORTAL(obj)->short_descr; }
+		else if (IS_FIELD("type"))		{ ptr = &(PORTAL(obj)->type); flags = portal_gatetype; allowarith = false; allowbitwise = false; }
+		break;
+
+	case ENT_OBJECT_SCROLL:
+		if (!IS_VALID(arg->d.obj) || !IS_SCROLL(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("flags"))			{ lptr = &(SCROLL(obj)->flags); flags = scroll_flags; }
+		else if (IS_FIELD("maxmana"))	{ ptr = &(SCROLL(obj)->max_mana); allowarith = true; allowbitwise = false; hasmin = true; min = 0; }
+		break;
+
+	case ENT_OBJECT_SEXTANT:
+		if (!IS_VALID(arg->d.obj) || !IS_SEXTANT(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("accuracy"))		{ sptr = &(SEXTANT(obj)->accuracy); hasmin = true; min = 0; hasmax = true; max = 100; }
+		break;
+
+	case ENT_OBJECT_TATTOO:
+		if (!IS_VALID(arg->d.obj) || !IS_TATTOO(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("touches"))		{ ptr = &(TATTOO(obj)->touches); allowarith = true; allowbitwise = false; hasmin = true; min = 0; hasassignmin = true; assign_min = -1; }
+		else if (IS_FIELD("fade"))		{ ptr = &(TATTOO(obj)->fading_chance); allowarith = true; allowbitwise = false; hasmin = true; min = 0; hasmax = true; max = 100; }
+		else if (IS_FIELD("fading"))	{ ptr = &(TATTOO(obj)->fading_rate); allowarith = true; allowbitwise = false; hasmin = true; min = 0; hasmax = true; max = 100; }
+		break;
+
+	case ENT_OBJECT_TELESCOPE:
+		if (!IS_VALID(arg->d.obj) || !IS_TELESCOPE(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("bonus"))				{ sptr = &(TELESCOPE(obj)->bonus_view); hasmin = true; min = 0; }
+		else if (IS_FIELD("distance"))		{ sptr = &(TELESCOPE(obj)->distance); hasmin = true; min = TELESCOPE(obj)->min_distance; hasmax = true; max = TELESCOPE(obj)->max_distance; }
+		else if (IS_FIELD("heading"))		{ sptr = &(TELESCOPE(obj)->heading); hasmin = true; min = 0; hasmax = true; max = 359; }
+		else if (IS_FIELD("maxdistance"))	{ sptr = &(TELESCOPE(obj)->max_distance); hasmin = true; min = TELESCOPE(obj)->min_distance; }
+		else if (IS_FIELD("mindistance"))	{ sptr = &(TELESCOPE(obj)->min_distance); hasmin = true; min = 0; hasmax = true; max = TELESCOPE(obj)->max_distance; }
+		break;
+
+	case ENT_OBJECT_WAND:
+		if (!IS_VALID(arg->d.obj) || !IS_WAND(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("charges"))			{ ptr = &(WAND(obj)->charges); allowarith = true; allowbitwise = false; if(WAND(obj)->max_charges >= 0) {hasmin = true; min = 0; hasassignmin = true; assign_min = -1; hasmax = true; max = WAND(obj)->max_charges;} else {hasmin = hasmax = true; min = max = -1;} }
+		else if (IS_FIELD("maxcharges"))	{ ptr = &(WAND(obj)->max_charges); allowarith = true; allowbitwise = false; hasmin = true; min = 0; hasassignmin = true; assign_min = -1; }
+		else if (IS_FIELD("cooldown"))		{ ptr = &(WAND(obj)->charges); allowarith = true; allowbitwise = false; if(WAND(obj)->recharge_time > 0) {hasmin = true; min = 0; hasmax = true; max = WAND(obj)->recharge_time;} else {hasmin = hasmax = true; min = max = 0;} }
+		else if (IS_FIELD("recharge"))		{ ptr = &(WAND(obj)->recharge_time); allowarith = true; allowbitwise = false; hasmin = true; min = 0; hasassignmin = true; assign_min = -1; }
+		break;
+
+	case ENT_OBJECT_WEAPON:
+		if (!IS_VALID(arg->d.obj) || !IS_TELESCOPE(arg->d.obj)) return;
+		obj = arg->d.obj;
+		
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		// ATTACKS are done via ENT_WEAPON_ATTACK
+		if (IS_FIELD("ammo"))				{ ptr = &(WEAPON(obj)->ammo); flags = ammo_types; }
+		else if (IS_FIELD("charges"))		{ ptr = &(WEAPON(obj)->charges); hasassignmin = true; assign_min = -1; hasassignmax = true; assign_max = WEAPON(obj)->max_charges; hasmin = true; min = 0; hasmax = true; max = UMAX(0,WEAPON(obj)->max_charges); }
+		else if (IS_FIELD("class"))			{ sptr = &(WEAPON(obj)->weapon_class); flags = weapon_class; }
+		else if (IS_FIELD("cooldown"))		{ ptr = &(WEAPON(obj)->charges); hasmin = true; min = 0; hasmax = true; max = UMAX(0,WEAPON(obj)->recharge_time); }
+		else if (IS_FIELD("maxcharges"))	{ ptr = &(WEAPON(obj)->max_charges); hasassignmin = true; assign_min = -1; hasmin = true; min = 0; }
+		else if (IS_FIELD("maxmana"))		{ ptr = &(WEAPON(obj)->max_mana); hasmin = true; min = 0; }
+		else if (IS_FIELD("range"))			{ ptr = &(WEAPON(obj)->range); hasmin = true; min = 0; }
+		else if (IS_FIELD("recharge"))		{ ptr = &(WEAPON(obj)->recharge_time); hasmin = true; min = 0; }
+		break;
+
+	case ENT_WEAPON_ATTACK:
+	{
+		if (!IS_VALID(arg->d.obj_type.obj) || !IS_WEAPON(arg->d.obj_type.obj)) return;
+		if (arg->d.obj_type.type < 0 || arg->d.obj_type.type >= MAX_ATTACK_POINTS) return;
+	
+		obj = arg->d.obj_type.obj;
+		int type = arg->d.obj_type.type;
+		WEAPON_ATTACK_POINT *attack = &(WEAPON(obj)->attacks[type]);
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		// DAMAGE can be done under ENT_DICE
+		if (IS_FIELD("flags"))			{ lptr = &attack->flags; flags = weapon_type2; }
+		else if (IS_FIELD("name"))		{ str = &attack->name; }
+		else if (IS_FIELD("short"))		{ str = &attack->short_descr; }
+		else if (IS_FIELD("type"))		{ sptr = &attack->type; is_attack = true; }
+		break;
+	}
+
+	case ENT_ADORNMENT:
+	{
+		if (!IS_VALID(arg->d.obj_type.obj) || !IS_ARMOR(arg->d.obj_type.obj)) return;
+
+		int index = arg->d.obj_type.type;
+		if (index < 1 || index > ARMOR(arg->d.obj_type.obj)->max_adornments) return;
+		if (!ARMOR(arg->d.obj_type.obj)->adornments) return;
+
+		ADORNMENT_DATA *adornment = ARMOR(arg->d.obj_type.obj)->adornments[index - 1];
+
+		if (IS_FIELD("description"))	{ str = &adornment->description; allow_empty = true; }
+		else if (IS_FIELD("name"))		{ str = &adornment->name; }
+		else if (IS_FIELD("short"))		{ str = &adornment->short_descr; }
+		// SPELL can be accessed via ENT_SPELL
+		else if (IS_FIELD("type"))		{ sptr = &adornment->type; flags = adornment_types; }
+		break;
+	}
+
+	case ENT_SPELL:
+	{
+		if(!arg->d.spell) return;
+		SPELL_DATA *spell = arg->d.spell;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("level"))		{ ptr = &spell->level; hasmin = true; min = 1; }
+		// Nothing else to alter
+
+		min_sec = 9;
+		break;
+	}
+
+	case ENT_DICE:
+	{
+		if (!arg->d.dice) return;
+		DICE_DATA *dice = arg->d.dice;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("bonus"))			{ ptr = &dice->bonus; }
+		else if (IS_FIELD("number"))	{ ptr = &dice->number; hasmin = true; min = 0; }
+		else if (IS_FIELD("size"))		{ ptr = &dice->size; hasmin = true; min = 0; }
+		break;
+	}
+
+	case ENT_COMPARTMENT:
+	{
+		FURNITURE_COMPARTMENT *compartment = arg->d.compartment;
+		if (!IS_VALID(compartment))
+			return;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if(IS_FIELD("flags"))				{ lptr = &compartment->flags; flags = compartment_flags; allowarith = false; allowbitwise = true; }
+		else if(IS_FIELD("occupants"))	{ ptr = &compartment->max_occupants; allowarith = true; allowbitwise = false; min = 0; hasmin = true; }
+		else if(IS_FIELD("weight"))		{ ptr = &compartment->max_weight; allowarith = true; allowbitwise = false; min = 0; hasmin = true; }
+		else if(IS_FIELD("standing"))		{ lptr = &compartment->standing; flags = furniture_action_flags; allowarith = false; allowbitwise = true; }
+		else if(IS_FIELD("hanging"))		{ lptr = &compartment->hanging; flags = furniture_action_flags; allowarith = false; allowbitwise = true; }
+		else if(IS_FIELD("sitting"))		{ lptr = &compartment->sitting; flags = furniture_action_flags; allowarith = false; allowbitwise = true; }
+		else if(IS_FIELD("resting"))		{ lptr = &compartment->resting; flags = furniture_action_flags; allowarith = false; allowbitwise = true; }
+		else if(IS_FIELD("sleeping"))		{ lptr = &compartment->sleeping; flags = furniture_action_flags; allowarith = false; allowbitwise = true; }
+		else if(IS_FIELD("health"))		{ ptr = &compartment->health_regen; allowarith = true; allowbitwise = false; min = 0; hasmin = true; }
+		else if(IS_FIELD("mana"))			{ ptr = &compartment->mana_regen; allowarith = true; allowbitwise = false; min = 0; hasmin = true; }
+		else if(IS_FIELD("move"))			{ ptr = &compartment->move_regen; allowarith = true; allowbitwise = false; min = 0; hasmin = true; }
+		break;
+	}
+
+	case ENT_INK_TYPE:
+	{
+		if (!IS_VALID(arg->d.obj_type.obj) || !IS_INK(arg->d.obj_type.obj)) return;
+		if (arg->d.obj_type.type < 1 || arg->d.obj_type.type > MAX_INK_TYPES) return;
+		obj = arg->d.obj;
+		
+		int type = arg->d.obj_type.type;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("type"))			{ sptr = &(INK(obj)->types[type]); allowarith = false; allowbitwise = false; flags = catalyst_types; }
+		else if (IS_FIELD("amount"))	{ sptr = &(INK(obj)->amounts[type]); allowarith = true; allowbitwise = false; hasmin = true; min = 0; }
+		break;
+	}
+
+	case ENT_INSTRUMENT_RESERVOIR:
+	{
+		if (!IS_VALID(arg->d.obj_type.obj) || !IS_INSTRUMENT(arg->d.obj_type.obj)) return;
+		if (arg->d.obj_type.type < 1 || arg->d.obj_type.type > INSTRUMENT_MAX_CATALYSTS) return;
+		obj = arg->d.obj;
+
+		int type = arg->d.obj_type.type;
+		INSTRUMENT_CATALYST *reservoir = &INSTRUMENT(obj)->reservoirs[type];
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("type"))				{ sptr = &(reservoir->type); allowarith = false; allowbitwise = false; flags = catalyst_types; }
+		else if (IS_FIELD("amount"))		{ sptr = &(reservoir->amount); allowarith = true; allowbitwise = false; if(reservoir->capacity > 0) { hasmin = true; min = 0; hasmax = true; max = reservoir->capacity; } else { hasmin = hasmax = true; min = max = 0; } }
+		else if (IS_FIELD("capacity"))		{ sptr = &(reservoir->capacity); allowarith = true; allowbitwise = false; hasmin = true; min = 0; }
+		break;
+	}
+
+	case ENT_ROOM:
+		if (!arg->d.room) return;
+		room = arg->d.room;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		// Special fields for clone rooms
+		if(IS_FIELD("mapid")) {
+			if (!room_is_clone(room)) return;
+
+			if(!PARSE_ARG) {
+				bug("Alter - Error in parsing.",0);
+				return;
+			}
+			WILDS_DATA *wilds;
+			switch(arg->type) {
+			case ENT_STRING:
+				if(!str_cmp(arg->d.str,"none")) { room->viewwilds = NULL; }
+				break;
+			case ENT_NUMBER:
+				wilds = get_wilds_from_uid(NULL,arg->d.num);
+				if(!wilds) {
+					bug("Not a valid wilds uid",0);
+					return;
+				}
+				room->viewwilds=wilds;
+				break;
+			}
+
+			return;
+		}
+
+		// Setting the environment of a clone room
+		if(IS_FIELD("environment") || IS_FIELD("environ") ||
+			IS_FIELD("extern") || IS_FIELD("outside")) {
+			
+			// Must be a clone room
+			if (!room_is_clone(room)) return;
+
+			if(!PARSE_ARG) {
+				bug("AlterRoom - Error in parsing.",0);
+				return;
+			}
+
+			switch(arg->type) {
+			case ENT_ROOM:
+				room_from_environment(room);
+				room_to_environment(room,NULL,NULL,arg->d.room, NULL);
+				break;
+			case ENT_MOBILE:
+				room_from_environment(room);
+				room_to_environment(room,arg->d.mob,NULL,NULL, NULL);
+				break;
+			case ENT_OBJECT:
+				room_from_environment(room);
+				room_to_environment(room,NULL,arg->d.obj,NULL, NULL);
+				break;
+			case ENT_TOKEN:
+				room_from_environment(room);
+				room_to_environment(room,NULL,NULL,NULL,arg->d.token);
+				break;
+			case ENT_STRING:
+				if(!str_cmp(arg->d.str, "none"))
+					room_from_environment(room);
+				break;
+			}
+
+			return;
+		}
+
+		if(IS_FIELD("desc"))				{ str = &room->description; allow_empty = true; allowstatic = false; }
+		else if(IS_FIELD("flags"))			{ lptr = room->room_flag; bank = room_flagbank; }
+		else if(IS_FIELD("light"))			{ ptr = &room->light; hasmin = true; min = 0; allowbitwise = false;}
+		else if(IS_FIELD("savage"))			{ ptr = &room->savage_level; min_sec = 1; hasmin = true; min = -1; hasmax = true; max = 5; allowbitwise = false; }
+		else if(IS_FIELD("sector"))			{ psector = (SECTOR_DATA **)&room->sector; lptr = &room->sector_flags; }
+		else if(IS_FIELD("sectorflags"))	{ lptr = &room->sector_flags; flags = sector_flags; allowarith = false; }
+		else if(IS_FIELD("heal"))			{ ptr = &room->heal_rate; min_sec = 1; }
+		else if(IS_FIELD("mana"))			{ ptr = &room->mana_rate; min_sec = 1; }
+		else if(IS_FIELD("move"))			{ ptr = &room->move_rate; min_sec = 1; }
+		else if(IS_FIELD("mapx"))			{ lptr = &room->x; min_sec = 5; allowstatic = false; }
+		else if(IS_FIELD("mapy"))			{ lptr = &room->y; min_sec = 5; allowstatic = false; }
+		else if(IS_FIELD("name"))			{ str = &room->name; allowstatic = false; }
+		else if(IS_FIELD("owner"))			{ str = &room->owner; allow_empty = true; min_sec = 9; }
+		else if(IS_FIELD("rsflags"))		{ lptr = room->rs_room_flag; bank = room_flagbank; allowstatic = false; }
+		else if(IS_FIELD("rssector"))		{ psector = (SECTOR_DATA **)&room->rs_sector; allowstatic = false; }
+		else if(IS_FIELD("rsheal"))			{ ptr = &room->rs_heal_rate; min_sec = 9; allowstatic = false; }
+		else if(IS_FIELD("rsmana"))			{ ptr = &room->rs_mana_rate; min_sec = 9; allowstatic = false; }
+		else if(IS_FIELD("rsmove"))			{ ptr = &room->rs_move_rate; min_sec = 1; allowstatic = false; }
+		else if(IS_FIELD("rssavage"))		{ ptr = &room->rs_savage_level; min_sec = 1; allowstatic = false; hasmin = true; min = -1; hasmax = true; max = 5; allowbitwise = false; }
+		else if(IS_FIELD("tempstore1"))		{ ptr = &room->tempstore[0]; }
+		else if(IS_FIELD("tempstore2"))		{ ptr = &room->tempstore[1]; }
+		else if(IS_FIELD("tempstore3"))		{ ptr = &room->tempstore[2]; }
+		else if(IS_FIELD("tempstore4"))		{ ptr = &room->tempstore[3]; }
+		else if(IS_FIELD("tempstore5"))		{ ptr = &room->tempstore[4]; }
+
+		if (!allowstatic && !room_is_clone(room))
+			return;
+		break;
+
+	case ENT_EXIT:
+		if (!arg->d.door.r || arg->d.door.door < 0 || arg->d.door.door >= MAX_DIR) return;
+		ex = arg->d.door.r->exit[arg->d.door.door];
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if(IS_FIELD("flags"))				{ ptr = &ex->exit_info; flags = exit_flags; }
+		else if(IS_FIELD("resets"))			{ ptr = &ex->rs_flags; flags = exit_flags; min_sec = 7; }
+		else if(IS_FIELD("strength"))		sptr = (int16_t*)&ex->door.strength;
+		else if(IS_FIELD("material"))		pmaterial = &ex->door.material;
+		// LOCKS are messed with using the lock state commands as they have extra processing ALTER Will not handle
+		break;
+
+	case ENT_TOKEN:
+	{
+		if (!IS_VALID(arg->d.token)) return;
+		token = arg->d.token;
+
+		if (!PARSE_ARG) return;
+
+		int tval = -1;
+		if (arg->type == ENT_STRING)
+		{
+			strncpy(field, arg->d.str, MIL-1);
+
+			if(is_number(field))				tval = atoi(arg->d.str);
+			else if(IS_FIELD("flags"))			{ lptr = &token->flags; flags = token_flags; }
+			else if(IS_FIELD("tempstore1"))		ptr = &token->tempstore[0];
+			else if(IS_FIELD("tempstore2"))		ptr = &token->tempstore[1];
+			else if(IS_FIELD("tempstore3"))		ptr = &token->tempstore[2];
+			else if(IS_FIELD("tempstore4"))		ptr = &token->tempstore[3];
+			else if(IS_FIELD("tempstore5"))		ptr = &token->tempstore[4];
+			else if(IS_FIELD("timer"))			{ ptr = &token->timer; hasmin = true; min = 0; hasassignmin = true; assign_min = -1; }
+		}
+		else if (arg->type == ENT_NUMBER)
+		{
+			tval = arg->d.num;
+		}
+
+		if (tval >= 0 && tval < MAX_TOKEN_VALUES)
+			lptr = &token->value[tval];
+
+		break;
+	}
+
+	default: break;
+	}
+
+	if (!lptr && !ptr && !sptr && !cptr && !str && !pmaterial && !pliquid && !psector)
+		return;
+
+	//
+	// Assignment Only
+	////////////////////////////////
+	if (str)
+	{
+		BUFFER *buffer = new_buf();
+		expand_string(info,rest,buffer);
+
+		if(allow_empty || buf_string(buffer)[0]) {
+			char *p = buf_string(buffer);
+			strip_newline(p, newlines);
+
+			free_string(*str);
+			*str = str_dup(p);
+		}
+		else
+			bug("Alter - Empty string used.",0);
+
+		free_buf(buffer);
+		return;
+	}
+
+	if (pmaterial)
+	{
+		BUFFER *buffer = new_buf();
+		expand_string(info,rest,buffer);
+
+		MATERIAL *material = material_lookup(buffer->string);
+
+		if (IS_VALID(material))
+			*pmaterial = material;
+
+		free_buf(buffer);
+		return;
+	}
+
+	if (pliquid)
+	{
+		BUFFER *buffer = new_buf();
+		expand_string(info,rest,buffer);
+
+		LIQUID *liquid = liquid_lookup(buffer->string);
+		if (liquid)
+			*pliquid = liquid;
+
+		free_buf(buffer);
+		return;
+	}
+
+	if (psector)
+	{
+		BUFFER *buffer = new_buf();
+		expand_string(info,rest,buffer);
+
+		SECTOR_DATA *sector = get_sector_data(buffer->string);
+		if (sector)
+		{
+			*psector = sector;
+			if (lptr) *lptr = sector->flags;
+		}
+
+		free_buf(buffer);
+		return;
+	}
+
+	if (is_attack)
+	{
+		BUFFER *buffer = new_buf();
+		expand_string(info,rest,buffer);
+
+		int dt = attack_lookup(buffer->string);
+		if (dt != 0)
+		{
+			if (ptr) *ptr = dt;
+			else if (sptr) *sptr = (int16_t)dt;
+		}
+		
+		free_buf(buffer);
+		return;
+	}
+
+	if (is_wilds_uid)
+	{
+		if (!lptr) return;
+
+		PARSE_ARGTYPE(NUMBER);
+
+		WILDS_DATA *w = get_wilds_from_uid(NULL,arg->d.num);
+		if (w)
+		{
+			*lptr = w->uid;
+		}
+
+		return;
+	}
+	////////////////////////////////
+
+	if (bank != NULL || flags != NULL)
+	{
+		allowarith = false;
+		needvalue = true;
+	}
+
+	rest = one_argument(rest,buf);
+	int op = cmd_operator_lookup(buf);
+	if (op == OPR_UNKNOWN)
+		return;
+
+	if (cmd_operator_info[op][OPR_NEEDS_VALUE])
+	{
+		if(!PARSE_ARG) {
+			bug("Alter - Error in parsing.",0);
+			return;
+		}
+	}
+	else if(needvalue)
+		return;
+
+	if (cmd_operator_info[op][OPR_ARITHMETIC] && !allowarith)
+	{
+		return;
+	}
+
+	if (cmd_operator_info[op][OPR_BITWISE] && !allowbitwise)
+	{
+		return;
+	}
+
+	// Replace the min/max if assignment, as they might have different ranges
+	if (op == OPR_ASSIGN)
+	{
+		if (hasassignmin)
+		{
+			hasmin = true;
+			min = assign_min;
+		}
+
+		if (hasassignmax)
+		{
+			hasmax = true;
+			max = assign_max;
+		}
+	}
+
+
+	if( bank != NULL )
+	{
+		if( arg->type != ENT_STRING ) return;
+
+		allowarith = false;	// This is a bit vector, no arithmetic operators.
+		if (!script_bitmatrix_lookup(arg->d.str, bank, temp_flags))
+			return;
+
+
+		if( op == OPR_ASSIGN || op == OPR_AND )
+		{
+			for(int i = 0; bank[i]; i++)
+			{
+				if (script_security < sec_flags[i])
+				{
+					if (lptr)
+						temp_flags[i] = lptr[i];
+					else if (ptr)
+						temp_flags[i] = ptr[i];
+					else if (sptr)
+						temp_flags[i] = sptr[i];
+					else if (cptr)
+						temp_flags[i] = cptr[i];
+				}
+			}
+		}
+		else
+		{
+			for(int i = 0; bank[i]; i++)
+			{
+				if (script_security < sec_flags[i])
+				{
+					temp_flags[i] = 0;
+				}
+			}
+		}
+
+
+		if (bank == room_flagbank)
+		{
+			REMOVE_BIT(temp_flags[1], ROOM_NOCLONE);
+			REMOVE_BIT(temp_flags[1], ROOM_VIRTUAL_ROOM);
+			REMOVE_BIT(temp_flags[1], ROOM_BLUEPRINT);
+
+			if( op == OPR_ASSIGN || op == OPR_AND )
+			{
+				if( IS_SET(ptr[1], ROOM_NOCLONE) ) SET_BIT(temp_flags[1], ROOM_NOCLONE);
+				if( IS_SET(ptr[1], ROOM_VIRTUAL_ROOM) ) SET_BIT(temp_flags[1], ROOM_VIRTUAL_ROOM);
+				if( IS_SET(ptr[1], ROOM_BLUEPRINT) ) SET_BIT(temp_flags[1], ROOM_BLUEPRINT);
+			}
+		}
+		else if (bank == act_flagbank)
+		{
+			REMOVE_BIT(temp_flags[1], ACT2_INSTANCE_MOB);
+
+			if( op == OPR_ASSIGN || op == OPR_AND )
+			{
+				if( IS_SET(lptr[1], ACT2_INSTANCE_MOB) ) SET_BIT(temp_flags[1], ACT2_INSTANCE_MOB);
+			}
+		}
+		else if (bank == extra_flagbank)
+		{
+			REMOVE_BIT(temp_flags[2], ITEM_INSTANCE_OBJ);
+
+			if( op == OPR_ASSIGN || op == OPR_AND )
+			{
+				if( IS_SET(ptr[2], ITEM_INSTANCE_OBJ) ) SET_BIT(temp_flags[2], ITEM_INSTANCE_OBJ);
+			}
+		}
+	}
+	else if( flags != NULL )
+	{
+		if (script_security < min_sec)
+		{
+			sprintf(buf,"Alter - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+			bug(buf, 0);
+			return;
+		}
+
+		if( arg->type != ENT_STRING ) return;
+
+		allowarith = false;	// This is a bit vector, no arithmetic operators.
+		value = script_flag_value(flags, arg->d.str);
+
+		if( value == NO_FLAG ) value = 0;
+
+		// No special filtering
+	}
+	else
+	{
+		if (script_security < min_sec)
+		{
+			sprintf(buf,"Alter - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+			bug(buf, 0);
+			return;
+		}
+
+		switch(arg->type) {
+		case ENT_STRING:
+			if( is_number(arg->d.str) )
+				value = atoi(arg->d.str);
+			else
+				return;
+			break;
+
+		case ENT_NUMBER: value = arg->d.num; break;
+		default: return;
+		}
+	}
+
+	if(lptr) {
+		// LONG pointers
+
+		switch (op) {
+		case OPR_ADD:
+			*lptr += value;
+			break;
+
+		case OPR_SUB: 
+			*lptr -= value;
+			break;
+
+		case OPR_MULT:
+			*lptr *= value;
+			break;
+
+		case OPR_DIV:
+			if (!value) {
+				bug("AlterExit - adjust called with operator / and value 0", 0);
+				return;
+			}
+			*lptr /= value;
+			break;
+
+		case OPR_MOD:
+			if (!value) {
+				bug("AlterExit - adjust called with operator % and value 0", 0);
+				return;
+			}
+			*lptr %= value;
+			break;
+
+		case OPR_INC:
+			(*lptr) += 1;
+			break;
+
+		case OPR_DEC:
+			(*lptr) -= 1;
+			break;
+		
+		case OPR_MIN:
+			*lptr = UMIN(*lptr, value);
+			break;
+		
+		case OPR_MAX:
+			*lptr = UMAX(*lptr, value);
+			break;
+
+		case OPR_ASSIGN: *lptr = value; break;
+		case OPR_AND: *lptr &= value; break;
+		case OPR_OR: *lptr |= value; break;
+		case OPR_NOT: *lptr &= ~value; break;
+		case OPR_XOR: *lptr ^= value; break;
+		default:
+			return;
+		}
+
+		if(hasmin && *lptr < min)
+			*lptr = (int)min;
+
+		if(hasmax && *lptr > max)
+			*lptr = (int)max;
+
+	} else if(ptr) {
+		// INT pointers
+
+		switch (op) {
+		case OPR_ADD:
+			*ptr += value;
+			break;
+
+		case OPR_SUB:
+			*ptr -= value;
+			break;
+
+		case OPR_MULT:
+			*ptr *= value;
+			break;
+
+		case OPR_DIV:
+			if (!value) {
+				bug("AlterExit - adjust called with operator / and value 0", 0);
+				return;
+			}
+			*ptr /= value;
+			break;
+
+		case OPR_MOD:
+			if (!value) {
+				bug("AlterExit - adjust called with operator % and value 0", 0);
+				return;
+			}
+			*ptr %= value;
+			break;
+
+		case OPR_INC:
+			(*ptr) += 1;
+			break;
+
+		case OPR_DEC:
+			(*ptr) -= 1;
+			break;
+		
+		case OPR_MIN:
+			*ptr = UMIN(*ptr, value);
+			break;
+		
+		case OPR_MAX:
+			*ptr = UMAX(*ptr, value);
+			break;
+
+		case OPR_ASSIGN: *ptr = value; break;
+		case OPR_AND: *ptr &= value; break;
+		case OPR_OR: *ptr |= value; break;
+		case OPR_NOT: *ptr &= ~value; break;
+		case OPR_XOR: *ptr ^= value; break;
+		default:
+			return;
+		}
+
+		if(hasmin && *ptr < min)
+			*ptr = (int)min;
+
+		if(hasmax && *ptr > max)
+			*ptr = (int)max;
+
+	} else if (sptr) {
+		// SHORT pointers
+
+		switch (op) {
+		case OPR_ADD: *sptr += value; break;
+		case OPR_SUB: *sptr -= value; break;
+		case OPR_MULT: *sptr *= value; break;
+		case OPR_DIV:
+			if (!value) {
+				bug("Alter - adjust called with operator / and value 0", 0);
+				return;
+			}
+			*sptr /= value;
+			break;
+		case OPR_MOD:
+			if (!value) {
+				bug("Alter - adjust called with operator % and value 0", 0);
+				return;
+			}
+			*sptr %= value;
+			break;
+
+		case OPR_INC:
+			(*sptr) += 1;
+			break;
+
+		case OPR_DEC:
+			(*sptr) -= 1;
+			break;
+		
+		case OPR_MIN:
+			*sptr = UMIN(*sptr, value);
+			break;
+		
+		case OPR_MAX:
+			*sptr = UMAX(*sptr, value);
+			break;
+
+		case OPR_ASSIGN: *sptr = value; break;
+		case OPR_AND: *sptr &= value; break;
+		case OPR_OR: *sptr |= value; break;
+		case OPR_NOT: *sptr &= ~value; break;
+		case OPR_XOR: *sptr ^= value; break;
+		default:
+			return;
+		}
+
+		if(hasmin && *sptr < min)
+			*sptr = (int16_t)min;
+
+		if(hasmax && *sptr > max)
+			*sptr = (int16_t)max;
+
+	} else if (cptr) {
+		// BYTE/CHAR pointers
+
+		switch (op) {
+		case OPR_ADD: *cptr += value; break;
+		case OPR_SUB: *cptr -= value; break;
+		case OPR_MULT: *cptr *= value; break;
+		case OPR_DIV:
+			if (!value) {
+				bug("Alter - adjust called with operator / and value 0", 0);
+				return;
+			}
+			*cptr /= value;
+			break;
+		case OPR_MOD:
+			if (!value) {
+				bug("Alter - adjust called with operator % and value 0", 0);
+				return;
+			}
+			*cptr %= value;
+			break;
+
+		case OPR_INC:
+			(*cptr) += 1;
+			break;
+
+		case OPR_DEC:
+			(*cptr) -= 1;
+			break;
+		
+		case OPR_MIN:
+			*cptr = UMIN(*cptr, value);
+			break;
+		
+		case OPR_MAX:
+			*cptr = UMAX(*cptr, value);
+			break;
+
+		case OPR_ASSIGN: *cptr = value; break;
+		case OPR_AND: *cptr &= value; break;
+		case OPR_OR: *cptr |= value; break;
+		case OPR_NOT: *cptr &= ~value; break;
+		case OPR_XOR: *cptr ^= value; break;
+		default:
+			return;
+		}
+
+		if(hasmin && *cptr < min)
+			*cptr = (char)min;
+
+		if(hasmax && *cptr > max)
+			*cptr = (char)max;
+	}
+
+	if(mob && dirty_stat >= 0 && dirty_stat < MAX_STATS)
+		mob->dirty_stat[dirty_stat] = true;
+}
+
+/// SHOP $MOBILE ADD
+/// SHOP $MOBILE DEPLETE
+/// SHOP $MOBILE DISCOUNT $PERCENT $RESET(boolean)
+/// SHOP $MOBILE FLAGS $OP(string) $FLAGS(string)
+/// SHOP $MOBILE HOURS $OPENING(0-23) $CLOSING(0-23)
+/// SHOP $MOBILE PROFIT $BUY(%) $SELL(%)
+/// SHOP $MOBILE REMOVE
+/// SHOP $MOBILE REPUTATION $REPUTATION $RANK(number) or $NULL (to clear)
+/// SHOP $MOBILE RESTOCK $MINUTES(number) or FORCE[ FULL(boolean)] (to force it to restock NOW)
+/// SHOP $MOBILE SHIPYARD $NULL or CLEAR
+/// SHOP $MOBILE SHIPYARD $WILDS/$WUID $X1 $Y1 $X2 $Y2 $DESCRIPTION(string)
+/// SHOP $MOBILE STOCK ADD $TYPE(string) $VALUE
+/// SHOP $MOBILE STOCK CLEAR
+/// SHOP $MOBILE STOCK # DEPLETE
+/// SHOP $MOBILE STOCK # DISCOUNT $PERCENT
+/// SHOP $MOBILE STOCK # DESCRIPTION $STRING
+/// SHOP $MOBILE STOCK # DURATION $HOURS(number)/none
+/// SHOP $MOBILE STOCK # LEVEL $LEVEL(number)
+/// SHOP $MOBILE STOCK # PRICE $TYPE(silver|mp|dp|pneuma|reputation|paragon|custom)[ $SCRIPT(custom only)] $VALUE
+/// SHOP $MOBILE STOCK # QUANTITY UNlIMITED
+/// SHOP $MOBILE STOCK # QUANTITY $CURRENT(number) $TOTAL(number) $RESETRATE(number)
+/// SHOP $MOBILE STOCK # REMOVE
+/// SHOP $MOBILE STOCK # REPUTATION $REPUTATION[ $MINRANK|$NULL|none $MAXRANK|$NULL|none[ $MINSHOWRANK|$NULL|none $MAXSHOWRANK|$NULL|none]]
+/// SHOP $MOBILE STOCK # REPUTATION $NULL
+/// SHOP $MOBILE STOCK # SINGULAR[ $BOOLEAN]
+/// SHOP $MOBILE TYPE #(1-N) $TYPE(string)
+
+#define NUMBER_OR_NONE(f)	\
+	if (!PARSE_ARG) return; \
+	if (arg->type == ENT_NUMBER) \
+		(f) = arg->d.num; \
+	else if (arg->type == ENT_STRING) \
+	{ \
+		if (!str_prefix(arg->d.str, "none")) \
+			(f) = 0; \
+		else \
+			return; \
+	} \
+	else if (arg->type == ENT_NULL) \
+		(f) = 0; \
+	else \
+		return;
+
+#define IF_CMD(f)		if (!str_prefix(arg->d.str, (f)))
+
+static void __scriptcmd_shop_stock(SCRIPT_VARINFO *info, char *rest, SCRIPT_PARAM *arg, SHOP_STOCK_DATA *stock)
+{
+	if (!stock) return;
+	int ret = 1;
+
+	PARSE_ARGTYPE(STRING);
+
+	IF_CMD("deplete")
+	{
+		if (stock->max_quantity > 0)
+			stock->quantity = 0;
+	}
+	else IF_CMD("discount")
+	{
+		PARSE_ARGTYPE(NUMBER);
+		int percent = arg->d.num;
+
+		if (percent < 0 || percent > 100) return;
+
+		stock->discount = percent;
+	}
+	else IF_CMD("description")
+	{
+		BUFFER *buffer = new_buf();
+		expand_string(info,rest,buffer);
+
+		if (buffer->state == BUFFER_SAFE)
+		{
+			free_string(stock->custom_descr);
+			stock->custom_descr = str_dup(buffer->string);
+		}
+		else
+			ret = 0;
+
+		free_buf(buffer);
+	}
+	else IF_CMD("duration")
+	{
+		if (!PARSE_ARG) return;
+
+		if (arg->type == ENT_NUMBER)
+		{
+			if (arg->d.num < 0) return;
+
+			stock->duration = arg->d.num;
+		}
+		else if (arg->type == ENT_STRING)
+		{
+			if (!str_prefix(arg->d.str, "none"))
+				stock->duration = 0;
+			else
+				return;
+		}
+		else
+			return;
+	}
+	else IF_CMD("level")
+	{
+		PARSE_ARGTYPE(NUMBER);
+
+		if (arg->d.num < 1 || arg->d.num > MAX_CLASS_LEVEL) return;
+
+		stock->level = arg->d.num;
+	}
+	else IF_CMD("price")
+	{
+		PARSE_ARGTYPE(STRING);
+		
+		if (!str_prefix(arg->d.str, "silver"))
+		{
+			PARSE_ARGTYPE(NUMBER);
+
+			stock->silver = UMAX(arg->d.num, 0);
+			if( !IS_NULLSTR(stock->custom_price) )
+			{
+				stock->discount = stock->shop->discount;
+				free_string(stock->custom_price);
+				stock->custom_price = &str_empty[0];
+				stock->check_price = NULL;
+			}
+		}
+		else if (!str_prefix(arg->d.str, "mp"))
+		{
+			PARSE_ARGTYPE(NUMBER);
+
+			stock->mp = UMAX(arg->d.num, 0);
+			if( !IS_NULLSTR(stock->custom_price) )
+			{
+				stock->discount = stock->shop->discount;
+				free_string(stock->custom_price);
+				stock->custom_price = &str_empty[0];
+				stock->check_price = NULL;
+			}
+		}
+		else if (!str_prefix(arg->d.str, "dp"))
+		{
+			PARSE_ARGTYPE(NUMBER);
+
+			stock->dp = UMAX(arg->d.num, 0);
+			if( !IS_NULLSTR(stock->custom_price) )
+			{
+				stock->discount = stock->shop->discount;
+				free_string(stock->custom_price);
+				stock->custom_price = &str_empty[0];
+				stock->check_price = NULL;
+			}
+		}
+		else if (!str_prefix(arg->d.str, "pneuma"))
+		{
+			PARSE_ARGTYPE(NUMBER);
+
+			stock->pneuma = UMAX(arg->d.num, 0);
+			if( !IS_NULLSTR(stock->custom_price) )
+			{
+				stock->discount = stock->shop->discount;
+				free_string(stock->custom_price);
+				stock->custom_price = &str_empty[0];
+				stock->check_price = NULL;
+			}
+		}
+		else if (!str_prefix(arg->d.str, "reputation"))
+		{
+			PARSE_ARGTYPE(NUMBER);
+
+			stock->rep_points = UMAX(arg->d.num, 0);
+			if( !IS_NULLSTR(stock->custom_price) )
+			{
+				stock->discount = stock->shop->discount;
+				free_string(stock->custom_price);
+				stock->custom_price = &str_empty[0];
+				stock->check_price = NULL;
+			}
+		}
+		else if (!str_prefix(arg->d.str, "paragon"))
+		{
+			PARSE_ARGTYPE(NUMBER);
+
+			stock->paragon_levels = UMAX(arg->d.num, 0);
+			if( !IS_NULLSTR(stock->custom_price) )
+			{
+				stock->discount = stock->shop->discount;
+				free_string(stock->custom_price);
+				stock->custom_price = &str_empty[0];
+				stock->check_price = NULL;
+			}
+		}
+		else if (!str_prefix(arg->d.str, "custom"))
+		{
+			PARSE_ARGTYPE(WIDEVNUM);
+
+			SCRIPT_DATA *script = get_script_index_wnum(arg->d.wnum, PRG_MPROG);
+			if (!script) return;
+
+			BUFFER *buffer = new_buf();
+			expand_string(info,rest,buffer);
+
+			if (buffer->state == BUFFER_SAFE)
+			{
+				stock->silver = 0;
+				stock->mp = 0;
+				stock->dp = 0;
+				stock->pneuma = 0;
+				stock->rep_points = 0;
+				stock->paragon_levels = 0;
+				stock->discount = 0;
+				stock->check_price = script;
+				free_string(stock->custom_price);
+				stock->custom_price = str_dup(buffer->string);
+			}
+			else
+				ret = 0;
+
+			free_buf(buffer);
+		}
+	}
+	else IF_CMD("quantity")
+	{
+		if (!PARSE_ARG) return;
+
+		if (arg->type == ENT_NUMBER)
+		{
+			int current = arg->d.num;
+
+			PARSE_ARGTYPE(NUMBER);
+
+			int max = arg->d.num;
+			if (max < 1) return;
+			if (current < 0) return;
+
+			int restock = 0;
+			if (rest && *rest)
+			{
+				PARSE_ARGTYPE(NUMBER);
+				restock = arg->d.num;
+			}
+
+			if (restock < 0) return;
+
+			stock->quantity = UMIN(current,max);
+			stock->max_quantity = max;
+			stock->restock_rate = restock;
+		}
+		else if (arg->type == ENT_STRING)
+		{
+			if (!str_prefix(arg->d.str, "unlimited"))
+			{
+				stock->quantity = 0;
+				stock->max_quantity = 0;
+				stock->restock_rate = 0;
+			}
+			else
+				return;
+		}
+		else
+			return;
+	}
+	else IF_CMD("remove")
+	{
+		SHOP_STOCK_DATA *prev = NULL;
+		SHOP_DATA *shop = stock->shop;
+
+		for(SHOP_STOCK_DATA *s = shop->stock; s && s != stock; prev = s, s = s->next);
+
+		if (prev == NULL)
+			shop->stock = stock->next;
+		else
+			prev->next = stock->next;
+
+		free_shop_stock(stock);
+	}
+	else IF_CMD("reputation")
+	{
+		if (!PARSE_ARG) return;
+
+		if (arg->type == ENT_NULL)
+		{
+			stock->reputation = NULL;
+			stock->min_reputation_rank = 0;
+			stock->max_reputation_rank = 0;
+			stock->min_show_rank = 0;
+			stock->max_show_rank = 0;
+		}
+		else if (arg->type == ENT_REPUTATION_INDEX)
+		{
+			REPUTATION_INDEX_DATA *rep = arg->d.repIndex;
+
+			int min_rank = 0;
+			int max_rank = 0;
+			int min_show = 0;
+			int max_show = 0;
+
+			if (rest && *rest)
+			{
+				NUMBER_OR_NONE(min_rank);
+
+				NUMBER_OR_NONE(max_rank);
+
+				if (rest && *rest)
+				{
+					NUMBER_OR_NONE(min_show);
+
+					NUMBER_OR_NONE(max_show);
+				}
+			}
+
+			stock->reputation = rep;
+			stock->min_reputation_rank = UMAX(min_rank, 0);
+			stock->max_reputation_rank = UMAX(max_rank, 0);
+			stock->min_show_rank = UMAX(min_show, 0);
+			stock->max_show_rank = UMAX(max_show, 0);
+		}
+		else
+			return;
+	}
+	else IF_CMD("singular")
+	{
+		bool state = !stock->singular;
+		if (rest && *rest)
+		{
+			PARSE_ARGTYPE(BOOLEAN);
+
+			state = arg->d.boolean;
+		}
+
+		stock->singular = state;
+	}
+	else
+		return;
+
+	SETRETURN(ret);
+}
+
+SCRIPT_CMD(scriptcmd_shop)
+{
+	char *rest = argument;
+	CHAR_DATA *mob;
+
+	if (!info) return;
+	SETRETURN(0);
+
+	if (!PARSE_ARG) return;
+
+	if (arg->type == ENT_MOBILE)
+	{
+		mob = arg->d.mob;
+
+		// Maybe later
+		if (!IS_NPC(mob))
+			return;
+
+		PARSE_ARGTYPE(STRING);
+
+		SHOP_DATA *shop = mob->shop;
+
+		IF_CMD("add")
+		{
+			// Already is a shopkeeper
+			if (mob->shop)
+				return;
+
+			mob->shop = new_shop();
+			mob->shop->keeper = mob;
+		}
+		else IF_CMD("deplete")
+		{
+			// Empties all stock that has a limited quantity
+			if (!shop) return;
+
+			for(SHOP_STOCK_DATA *stock = shop->stock; stock; stock = stock->next)
+			{
+				if (stock->max_quantity > 0)
+					stock->quantity = 0;
+			}
+		}
+		else IF_CMD("discount")
+		{
+			// DISCOUNT <percent>[ reset|<boolean>]
+			if (!shop) return;
+
+			PARSE_ARGTYPE(NUMBER);
+			int percent = arg->d.num;
+			if (percent < 0 || percent > 100) return;
+
+			if (!PARSE_ARG)
+				return;
+
+			bool breset;
+			if (arg->type == ENT_STRING)
+				breset = !str_prefix(arg->d.str, "reset");
+			else if (arg->type == ENT_BOOLEAN)
+				breset = arg->d.boolean;
+			else
+				return;
+			
+			shop->discount = percent;
+			if (breset && shop->stock != NULL)
+			{
+				for(SHOP_STOCK_DATA *stock = shop->stock; stock; stock = stock->next)
+					if( IS_NULLSTR(stock->custom_keyword) )
+						stock->discount = shop->discount;
+			}
+		}
+		else IF_CMD("flags")
+		{
+			if (!shop) return;
+			// FLAGS <op> <flags>
+			char ops[MIL];
+
+			rest = one_argument(rest, ops);
+			int op = cmd_operator_lookup(ops);
+			if (op == OPR_UNKNOWN) return;
+
+			PARSE_ARGTYPE(STRING);
+			long value = script_flag_value(shop_flags, arg->d.str);
+			if (value == NO_FLAG)
+				return;
+
+			switch(op)
+			{
+			case OPR_ASSIGN:	shop->flags = value; break;
+			case OPR_AND:		shop->flags &= value; break;
+			case OPR_OR:		shop->flags |= value; break;
+			case OPR_NOT:		shop->flags &= ~value; break;
+			case OPR_XOR:		shop->flags ^= value; break;
+			}
+		}
+		else IF_CMD("hours")
+		{
+			if (!shop) return;
+
+			PARSE_ARGTYPE(NUMBER);
+			int open = arg->d.num;
+			if (open < 0 || open > 23) return;
+
+			PARSE_ARGTYPE(NUMBER);
+			int close = arg->d.num;
+			if (close < 0 || close > 23) return;
+
+			shop->open_hour = open;
+			shop->close_hour = close;
+		}
+		else IF_CMD("profit")
+		{
+			if (!shop) return;
+
+			PARSE_ARGTYPE(NUMBER);
+			int buy = arg->d.num;
+			if (buy < 0 || buy > 200) return;
+
+			PARSE_ARGTYPE(NUMBER);
+			int sell = arg->d.num;
+			if (sell < 0 || sell > 200) return;
+
+			shop->profit_buy = buy;
+			shop->profit_sell = sell;
+		}
+		else IF_CMD("remove")
+		{
+			if (!mob->shop)
+				return;
+
+			free_shop(mob->shop);
+			mob->shop = NULL;
+		}
+		else IF_CMD("reputation")
+		{
+			if (!shop) return;
+
+			if (!PARSE_ARG) return;
+
+
+			if (arg->type == ENT_NULL)
+			{
+				shop->reputation = NULL;
+				shop->min_reputation_rank = 0;
+			}
+			else if (arg->type == ENT_REPUTATION_INDEX)
+			{
+				REPUTATION_INDEX_DATA *rep = arg->d.repIndex;
+
+				int min_rank = 0;
+				if (rep && rest && *rest)
+				{
+					PARSE_ARGTYPE(NUMBER);
+					min_rank = arg->d.num;
+
+					if (min_rank > list_size(rep->ranks))
+						return;
+				}
+
+				if (min_rank < 0) return;
+
+				shop->reputation = rep;
+				shop->min_reputation_rank = min_rank;
+			}
+			else
+				return;
+		}
+		else IF_CMD("restock")
+		{
+			if (!shop) return;
+
+			if (!PARSE_ARG) return;
+
+			if (arg->type == ENT_NUMBER)
+			{
+				// This will set the restocking interval
+				if (arg->d.num < 0) return;
+
+				shop->restock_interval = arg->d.num;
+			}
+			else if(arg->type == ENT_STRING)
+			{
+				// This can restock a shop that doesn't automatically restock.
+				// Use the optional boolean afterward to force it to restock to maximum, reguardless if the stock restocks. 
+				if(!str_prefix(arg->d.str, "force"))
+				{
+					bool in_full = false;
+					if (rest && *rest)
+					{
+						PARSE_ARGTYPE(BOOLEAN);
+						in_full = arg->d.boolean;
+					}
+
+					bool restocked = false;
+					for(SHOP_STOCK_DATA *stock = shop->stock; stock; stock = stock->next)
+					{
+						if( stock->max_quantity > 0 && stock->quantity < stock->max_quantity)
+						{
+							if (in_full)
+							{
+								stock->quantity = stock->max_quantity;
+								restocked = true;
+							}
+							else if (stock->restock_rate > 0)
+							{
+								stock->quantity += stock->restock_rate;
+								stock->quantity = UMIN(stock->quantity, stock->max_quantity);
+								restocked = true;
+							}
+						}
+					}
+
+					if( restocked )
+						p_percent_trigger(mob, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RESTOCKED, NULL,0,0,0,0,0);
+
+					if (shop->restock_interval > 0)
+						shop->next_restock = current_time + shop->restock_interval * 60;
+				}
+				else
+					return;
+			}
+			else
+				return;
+		}
+		else IF_CMD("shipyard")
+		{
+			if (!shop) return;
+			
+			if (!PARSE_ARG) return;
+
+			if (arg->type == ENT_NULL)
+			{
+				shop->shipyard = 0;
+				shop->shipyard_region[0][0] = 0;
+				shop->shipyard_region[0][1] = 0;
+				shop->shipyard_region[1][0] = 0;
+				shop->shipyard_region[1][1] = 0;
+
+				free_string(shop->shipyard_description);
+				shop->shipyard_description = &str_empty[0];
+			}
+			else if (arg->type == ENT_STRING)
+			{
+				if (!str_prefix(arg->d.str, "clear"))
+				{
+					shop->shipyard = 0;
+					shop->shipyard_region[0][0] = 0;
+					shop->shipyard_region[0][1] = 0;
+					shop->shipyard_region[1][0] = 0;
+					shop->shipyard_region[1][1] = 0;
+
+					free_string(shop->shipyard_description);
+					shop->shipyard_description = &str_empty[0];
+				}
+				else
+					return;
+			}
+			else
+			{
+				WILDS_DATA *wilds = NULL;
+
+				if (arg->type == ENT_WILDS)
+					wilds = arg->d.wilds;
+				else if (arg->type == ENT_NUMBER)
+					wilds = get_wilds_from_uid(NULL, arg->d.num);
+				else
+					return;
+				
+				if (wilds)
+				{
+					int x1, y1, x2, y2;
+					
+					PARSE_ARGTYPE(NUMBER);
+					x1 = arg->d.num;
+					if (x1 < 0 || x1 >= wilds->map_size_x) return;
+					
+					PARSE_ARGTYPE(NUMBER);
+					y1 = arg->d.num;
+					if (y1 < 0 || y1 >= wilds->map_size_y) return;
+					
+					PARSE_ARGTYPE(NUMBER);
+					x2 = arg->d.num;
+					if (x2 < 0 || x2 >= wilds->map_size_x) return;
+					
+					PARSE_ARGTYPE(NUMBER);
+					y2 = arg->d.num;
+					if (y2 < 0 || y2 >= wilds->map_size_y) return;
+
+					BUFFER *buffer = new_buf();
+					expand_string(info,rest,buffer);
+
+					if (buffer->state == BUFFER_SAFE)
+					{
+						shop->shipyard = wilds->uid;
+						shop->shipyard_region[0][0] = UMIN(x1,x2);
+						shop->shipyard_region[0][1] = UMIN(y1,y2);
+						shop->shipyard_region[1][0] = UMAX(x1,x2);
+						shop->shipyard_region[1][1] = UMAX(y1,y2);
+
+						free_string(shop->shipyard_description);
+						shop->shipyard_description = str_dup(buffer->string);
+					}
+
+					free_buf(buffer);
+				}
+				else
+				{
+					shop->shipyard = 0;
+					shop->shipyard_region[0][0] = 0;
+					shop->shipyard_region[0][1] = 0;
+					shop->shipyard_region[1][0] = 0;
+					shop->shipyard_region[1][1] = 0;
+
+					free_string(shop->shipyard_description);
+					shop->shipyard_description = &str_empty[0];
+				}
+			}
+		}
+		else IF_CMD("stock")
+		{
+			if (!shop) return;
+
+			if (!PARSE_ARG) return;
+
+			if (arg->type == ENT_NUMBER)
+			{
+				SHOP_STOCK_DATA *stock;
+				int nth = arg->d.num;
+
+				if (nth < 1) return;
+
+				for(stock = shop->stock; (--nth) > 0 && stock; stock = stock->next);
+
+				__scriptcmd_shop_stock(info,rest,arg,stock);
+				return;
+			}
+			else if (arg->type == ENT_STRING)
+			{
+				IF_CMD("add")
+				{
+					SHOP_STOCK_DATA *stock = NULL;
+
+					PARSE_ARGTYPE(STRING);
+					int type = stat_lookup(arg->d.str, stock_types, NO_FLAG);
+					if (type == NO_FLAG) return;
+
+					switch(type)
+					{
+						case STOCK_CUSTOM:
+						{
+							BUFFER *buffer = new_buf();
+							expand_string(info,rest,buffer);
+
+							if (buffer->state == BUFFER_SAFE && !IS_NULLSTR(buffer->string))
+							{
+								SHOP_STOCK_DATA *st;
+								for(st = shop->stock; st; st = st->next)
+								{
+									if( (st->type == STOCK_CUSTOM) &&
+										!str_cmp(buffer->string, st->custom_keyword) )
+									{
+										break;
+									}
+								}
+
+								if (!st)
+								{
+									stock = new_shop_stock();
+									if (stock)
+									{
+										stock->shop = shop;
+										stock->custom_keyword = str_dup(buffer->string);
+										stock->discount = 0;
+										stock->next = shop->stock;
+										shop->stock = stock;
+									}
+								}
+							}
+
+							free_buf(buffer);
+							break;
+						}
+
+						case STOCK_GUARD:
+						case STOCK_PET:
+						case STOCK_MOUNT:
+						case STOCK_CREW:
+						{
+							if (!PARSE_ARG) return;
+
+							MOB_INDEX_DATA *m = NULL;
+							if (arg->type == ENT_WIDEVNUM)
+								m = get_mob_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
+							else if (arg->type == ENT_MOBILE)
+								m = (IS_VALID(arg->d.mob) && IS_NPC(arg->d.mob)) ? arg->d.mob->pIndexData : NULL;
+							else if (arg->type == ENT_MOBINDEX)
+								m = arg->d.mobindex;
+
+							if (!m) return;
+
+							stock = new_shop_stock();
+							if (!stock) return;
+							stock->shop = shop;
+							stock->type = type;
+							stock->mob = m;
+							stock->wnum.pArea = m->area;
+							stock->wnum.vnum = m->vnum;
+							if (type == STOCK_PET)
+								stock->silver = 10 * m->level * m->level;
+							else if (type == STOCK_MOUNT)
+								stock->silver = 25 * m->level * m->level;
+							else
+								stock->silver = 50 * m->level * m->level;
+							stock->discount = shop->discount;
+
+							stock->next = shop->stock;
+							shop->stock = stock;
+							break;
+						}
+
+						case STOCK_OBJECT:
+						{
+							if (!PARSE_ARG) return;
+
+							OBJ_INDEX_DATA *o = NULL;
+							if (arg->type == ENT_WIDEVNUM)
+								o = get_obj_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
+							else if (arg->type == ENT_OBJECT)
+								o = IS_VALID(arg->d.obj) ? arg->d.obj->pIndexData : NULL;
+							else if (arg->type == ENT_OBJINDEX)
+								o = arg->d.objindex;
+
+							if (!o) return;
+
+							if (IS_MONEY(o)) return;	// Can't do money
+
+							stock = new_shop_stock();
+							if(!stock) return;
+
+							stock->type = STOCK_OBJECT;
+							stock->shop = shop;
+							stock->wnum.pArea = o->area;
+							stock->wnum.vnum = o->vnum;
+							stock->silver = o->cost;
+							stock->discount = shop->discount;
+
+							stock->next = shop->stock;
+							shop->stock = stock;
+							break;
+						}
+
+						case STOCK_SHIP:
+						{
+							if (!PARSE_ARG) return;
+
+							SHIP_INDEX_DATA *s = NULL;
+							if (arg->type == ENT_WIDEVNUM)
+								s = get_ship_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
+							else if (arg->type == ENT_SHIP)
+								s = IS_VALID(arg->d.ship) ? arg->d.ship->index : NULL;
+							else if (arg->type == ENT_SHIPINDEX)
+								s = arg->d.shipindex;
+
+							if (!s) return;
+
+							stock = new_shop_stock();
+							if (!stock) return;
+
+							stock->type = STOCK_SHIP;
+							stock->shop = shop;
+							stock->wnum.pArea = s->area;
+							stock->wnum.vnum = s->vnum;
+							stock->silver = 100000;	// Default 1000gold
+							stock->level = 1;
+							stock->discount = shop->discount;
+
+							stock->next = shop->stock;
+							shop->stock = stock;
+							break;
+						}
+					}
+					
+					// Nothing was added
+					if (!stock)
+						return;
+				}
+				else IF_CMD("clear")
+				{
+					SHOP_STOCK_DATA *stock, *stock_next;
+
+					for(stock = shop->stock; stock; stock = stock_next)
+					{
+						stock_next = stock->next;
+						free_shop_stock(stock);
+					}
+
+					shop->stock = NULL;
+				}
+				else
+					return;
+			}
+			else
+				return;
+		}
+		else IF_CMD("type")
+		{
+			if (!shop) return;
+
+			PARSE_ARGTYPE(NUMBER);
+			int index = arg->d.num;
+
+			if (index < 1 || index > MAX_TRADE)
+				return;
+
+			PARSE_ARGTYPE(STRING);
+			int type = stat_lookup(arg->d.str, type_flags, NO_FLAG);
+			if (type == NO_FLAG) return;
+
+			shop->buy_type[index - 1] = type;
+		}
+		else
+			return;
+
+		SETRETURN(1);
+	}
+	else if (arg->type == ENT_SHOP_STOCK)
+	{
+		// Handle processing for the stock item
+		__scriptcmd_shop_stock(info,rest,arg,arg->d.stock);
+	}
 }

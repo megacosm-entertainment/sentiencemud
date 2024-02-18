@@ -1788,7 +1788,7 @@ struct  practice_cost_data
 	long silver;
     long practices;
     long trains;
-	long qp;
+	long mp;
 	long dp;
 	long pneuma;
     long rep_points;
@@ -1855,11 +1855,12 @@ struct  practice_data
 #define SHOPFLAG_STOCK_ONLY		(A)		// Only allow buyback of listed stock
 #define SHOPFLAG_HIDE_SHOP		(B)		// Hides shop from the minimap
 #define SHOPFLAG_NO_HAGGLE		(C)		// Block haggling
+#define SHOPFLAG_DISABLED       (D)     // Disables the entire shop
 
 struct	shop_data
 {
     SHOP_DATA *	next;			/* Next shop in list		*/
-    long	keeper;			/* Vnum of shop keeper mob	*/
+    CHAR_DATA *keeper;			/* shop keeper mob - only set on the live version */
     int16_t	buy_type [MAX_TRADE];	/* Item types shop will buy	*/
     int16_t	profit_buy;		/* Cost multiplier for buying	*/
     int16_t	profit_sell;		/* Cost multiplier for selling	*/
@@ -1895,6 +1896,7 @@ struct	shop_data
 struct shop_stock_data
 {
 	SHOP_STOCK_DATA *next;
+    SHOP_DATA *shop;
 
 	int level;					// Minimum level required to buy it
 								// If level is less than 1..
@@ -1902,7 +1904,7 @@ struct shop_stock_data
 								//   - else => clamped 1
 
 	long silver;
-	long qp;
+	long mp;                    // Mission points
 	long dp;
 	long pneuma;
     long rep_points;
@@ -3442,6 +3444,8 @@ enum {
 #define EX_NOSEARCH				(Y)		// Makes hidden exits unsearchable
 #define EX_MUSTSEE				(Z)		// Requires the exit be visible to use it
 #define EX_TRANSPARENT          (aa)    // Can see through it when closed
+#define EX_NOMOB                (bb)    // NPCs cannot go through the exit, at all.
+#define EX_NOWANDER             (cc)    // NPCs cannot wander through the exit.
 
 /*
  * Area Who Flags
@@ -6360,7 +6364,7 @@ struct	obj_data
 //    long		extra2_flags;
 //    long		extra3_flags;
 //    long		extra4_flags;
-    int 		wear_flags;
+    long 		wear_flags;
     int			wear_loc;
     int			weight;
     long		cost;
@@ -8279,6 +8283,7 @@ enum trigger_index_enum {
     TRIG_HITCH,
 	TRIG_HITGAIN,
 	TRIG_HPCNT,
+    TRIG_HUNT_FOUND,        // Called when a hunting mob finds its target.
 	TRIG_IDENTIFY,
     TRIG_IGNITE,
 	TRIG_INSPECT,
@@ -8308,6 +8313,7 @@ enum trigger_index_enum {
 	TRIG_OPEN,
     TRIG_ORIENT,
 	TRIG_POSTMISSION,			// Called after all quest rewards and messages are given
+    TRIG_POSTRECKONING,
     TRIG_POUR,
 	TRIG_PRACTICE,
 	TRIG_PRACTICETOKEN,
@@ -8407,6 +8413,7 @@ enum trigger_index_enum {
     TRIG_ROOM_HEADER,
 	TRIG_SAVE,
 	TRIG_SAYTO,		/* NIB : 20070121 */
+    TRIG_SHOP_OPEN,
     TRIG_SHOWCOMMANDS,
     TRIG_SHOWEXIT,
 	TRIG_SIT,
@@ -10099,6 +10106,7 @@ BUFFER *get_stats( int type );
 
 /* act_move.c */
 bool can_move( CHAR_DATA *ch, ROOM_INDEX_DATA *room );
+bool can_move_pulling(CHAR_DATA *ch, bool show);
 bool can_move_room( CHAR_DATA *ch, int door, ROOM_INDEX_DATA *room );
 bool check_ice( CHAR_DATA *ch, bool show );
 bool room_check( CHAR_DATA *ch, ROOM_INDEX_DATA *room );
@@ -11488,7 +11496,7 @@ void church_announce_theft(CHAR_DATA *ch, OBJ_DATA *obj);
 
 int get_colour_width(char *text);
 char *get_shop_stock_price(SHOP_STOCK_DATA *stock);
-char *get_shop_purchase_price(long silver, long qp, long dp, long pneuma);
+char *get_shop_purchase_price(long silver, long mp, long dp, long pneuma);
 long haggle_price(CHAR_DATA *ch, CHAR_DATA *keeper, int chance, int number, long base_price, long funds, int discount, bool *haggled, bool silent);
 char *get_stock_description(SHOP_STOCK_DATA *stock);
 void show_basic_mob_lore(CHAR_DATA *ch, CHAR_DATA *victim);

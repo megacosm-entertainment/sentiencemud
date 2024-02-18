@@ -5816,6 +5816,9 @@ CHAR_DATA *find_keeper(CHAR_DATA *ch, char *arg)
     {
 		if (IS_NPC(keeper) && (pShop = keeper->shop) != NULL && is_name(arg, keeper->name))
 		{
+			// Allows the shop to be turned off.
+			if (IS_SET(pShop->flags, SHOPFLAG_DISABLED)) continue;
+
 			if (IS_VALID(pShop->reputation))
 			{
 				// If shopkeeper has a reputation requirement, make sure they meet it.
@@ -5843,16 +5846,26 @@ CHAR_DATA *find_keeper(CHAR_DATA *ch, char *arg)
     /*
      * Shop hours.
      */
+	int ret = p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SHOP_OPEN, NULL, 0,0,0,0,0);
+	if (ret)
+	{
+		if (ret != PRET_SILENT)
+		{
+			do_function(keeper, &do_say, "Sorry, I am closed. Come back later.");
+		}
+		return NULL;
+	}
+
     if (time_info.hour < pShop->open_hour)
     {
-	do_function(keeper, &do_say, "Sorry, I am closed. Come back later.");
-	return NULL;
+		do_function(keeper, &do_say, "Sorry, I am closed. Come back later.");
+		return NULL;
     }
 
     if (time_info.hour > pShop->close_hour)
     {
-	do_function(keeper, &do_say, "Sorry, I am closed. Come back tomorrow.");
-	return NULL;
+		do_function(keeper, &do_say, "Sorry, I am closed. Come back tomorrow.");
+		return NULL;
     }
 
     /*
@@ -5860,8 +5873,8 @@ CHAR_DATA *find_keeper(CHAR_DATA *ch, char *arg)
      */
     if (!can_see(keeper, ch))
     {
-	do_function(keeper, &do_say, "I don't trade with folks I can't see.");
-	return NULL;
+		do_function(keeper, &do_say, "I don't trade with folks I can't see.");
+		return NULL;
     }
 
     return keeper;
@@ -6595,8 +6608,8 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				if( silver < 0 )
 					return;
 
-				long qp = haggle_price(ch, keeper, chance, number, stock->qp, ch->missionpoints, stock->discount, &haggled, false);
-				if( qp < 0 )
+				long mp = haggle_price(ch, keeper, chance, number, stock->mp, ch->missionpoints, stock->discount, &haggled, false);
+				if( mp < 0 )
 					return;
 
 				long dp = haggle_price(ch, keeper, chance, number, stock->dp, ch->deitypoints, stock->discount, &haggled, false);
@@ -6621,9 +6634,9 @@ void do_buy(CHAR_DATA *ch, char *argument)
 					keeper->silver += silver - (silver/100) * 100;
 				}
 
-				if( qp > 0 )
+				if( mp > 0 )
 				{
-					ch->missionpoints -= qp;
+					ch->missionpoints -= mp;
 				}
 
 				if( dp > 0 )
@@ -6636,10 +6649,10 @@ void do_buy(CHAR_DATA *ch, char *argument)
 					ch->pneuma -= pneuma;
 				}
 
-				new_value = silver + qp + (dp / 100) + pneuma;	// Get some kind of value for resale
+				new_value = silver + mp + (dp / 100) + pneuma;	// Get some kind of value for resale
 
 				// Default messaging
-				strncpy(pricestr, get_shop_purchase_price(silver, qp, dp, pneuma), MIL);
+				strncpy(pricestr, get_shop_purchase_price(silver, mp, dp, pneuma), MIL);
 				pricestr[MIL] = '\0';
 			}
 			else
@@ -7445,8 +7458,8 @@ void do_sell(CHAR_DATA *ch, char *argument)
 
 
 				// Add some way to limit these?
-				long qp = adjust_keeper_price(keeper, stock->qp, false);
-				if( qp > 0 )
+				long mp = adjust_keeper_price(keeper, stock->mp, false);
+				if( mp > 0 )
 				{
 					if( !IS_SET(keeper->shop->flags, SHOPFLAG_NO_HAGGLE) )
 					{
@@ -7454,8 +7467,8 @@ void do_sell(CHAR_DATA *ch, char *argument)
 						if (roll < chance)
 						{
 							haggled = true;
-							qp += stock->qp * roll / 200;
-							qp = UMIN(qp,95 * stock->qp / 100);
+							mp += stock->mp * roll / 200;
+							mp = UMIN(mp,95 * stock->mp / 100);
 						}
 					}
 				}
@@ -7497,12 +7510,12 @@ void do_sell(CHAR_DATA *ch, char *argument)
 					check_improve(ch,gsk_haggle,true,4);
 				}
 
-				sprintf(buf, "You sell $p for%s.", get_shop_purchase_price(silver, qp, dp, pneuma));
+				sprintf(buf, "You sell $p for%s.", get_shop_purchase_price(silver, mp, dp, pneuma));
 				act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 
 				ch->gold		+= silver/100;
 				ch->silver		+= silver%100;
-				ch->missionpoints	+= qp;
+				ch->missionpoints	+= mp;
 				ch->deitypoints	+= dp;
 				ch->pneuma		+= pneuma;
 
@@ -7974,24 +7987,15 @@ void do_pull(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			if (CART(obj)->min_strength > get_curr_stat(ch, STAT_STR) && !MOUNTED(ch))
+			if (MOUNTED(ch))
 			{
-				act("You aren't strong enough to pull $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-				act("$n attempts to pull $p but is too weak.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-				return;
+				act("You hitch $p onto $N.", ch, MOUNTED(ch), NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				act("$n hitches $p onto $N.", ch, MOUNTED(ch), NULL, obj, NULL, NULL, NULL, TO_ROOM);
 			}
 			else
 			{
-				if (MOUNTED(ch))
-				{
-					act("You hitch $p onto $N.", ch, MOUNTED(ch), NULL, obj, NULL, NULL, NULL, TO_CHAR);
-					act("$n hitches $p onto $N.", ch, MOUNTED(ch), NULL, obj, NULL, NULL, NULL, TO_ROOM);
-				}
-				else
-				{
-					act("You start pulling $p.", ch, NULL, NULL, obj, NULL, NULL, NULL,TO_CHAR);
-					act("$n starts pulling $p.", ch, NULL, NULL, obj, NULL, NULL, NULL,TO_ROOM);
-				}
+				act("You start pulling $p.", ch, NULL, NULL, obj, NULL, NULL, NULL,TO_CHAR);
+				act("$n starts pulling $p.", ch, NULL, NULL, obj, NULL, NULL, NULL,TO_ROOM);
 			}
 
 			// TODO: Need to move this whole thing into a PREPULL script

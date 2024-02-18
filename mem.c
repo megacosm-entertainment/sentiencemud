@@ -2036,7 +2036,7 @@ SHOP_STOCK_DATA *new_shop_stock()
 
 	pStock->next = NULL;
 	pStock->silver = 0;
-	pStock->qp = 0;
+	pStock->mp = 0;
 	pStock->dp = 0;
 	pStock->pneuma = 0;
 	pStock->custom_price = &str_empty[0];
@@ -2061,6 +2061,8 @@ SHOP_STOCK_DATA *new_shop_stock()
 void free_shop_stock(SHOP_STOCK_DATA *pStock)
 {
 	if(!pStock) return;
+
+    variable_clearfield(VAR_SHOP_STOCK, pStock);
 
 	free_string(pStock->custom_price);
 	free_string(pStock->custom_keyword);
@@ -2089,7 +2091,7 @@ SHOP_DATA *new_shop( void )
     memset(pShop, 0, sizeof(*pShop));
 
     pShop->next         =   NULL;
-    pShop->keeper       =   0;
+    pShop->keeper       =   NULL;
 
     for ( buy=0; buy<MAX_TRADE; buy++ )
         pShop->buy_type[buy]    =   0;
@@ -7598,7 +7600,7 @@ PRACTICE_COST_DATA *copy_practice_cost_data(PRACTICE_COST_DATA *src)
     data->silver = src->silver;
     data->practices = src->practices;
     data->trains = src->trains;
-    data->qp = src->qp;
+    data->mp = src->mp;
     data->dp = src->dp;
     data->pneuma = src->pneuma;
     data->rep_points = src->rep_points;

@@ -78,6 +78,9 @@ void do_disembark( CHAR_DATA *ch, char *argument)
 		}
     }
 
+	if (!can_move_pulling((MOUNTED(ch) ? MOUNTED(ch) : ch), true))
+		return;
+
     location = ship->ship->in_room;
     ship_obj = ship->ship;
 
@@ -548,6 +551,9 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 
 	    if ( location )
 	    {
+			if (!can_move_pulling((MOUNTED(ch) ? MOUNTED(ch) : ch), true))
+				return;
+
 			/* CHAR_DATA *pMob; */
 			act("{WYou board {x$p{W.{x\n\r", ch, NULL, NULL, portal, NULL, NULL, NULL, TO_CHAR);
 			act("{W$n boards {x$p{W.{x\n\r", ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM);
@@ -616,6 +622,9 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 		return;
 
 	if(p_percent_trigger(NULL, portal, NULL, NULL, ch, NULL, NULL,NULL, NULL,TRIG_PREENTER, NULL,0,0,0,0,0))
+		return;
+
+	if (!can_move_pulling((MOUNTED(ch) ? MOUNTED(ch) : ch), true))
 		return;
 
  	/* @@@NIB : 20070126 : added the check */

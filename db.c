@@ -2838,6 +2838,7 @@ void migrate_shopkeeper_resets(AREA_DATA *area)
 
 						// Generate stock entry
 						stock->type = STOCK_OBJECT;
+						stock->shop = last_mob->pShop;
 						stock->wnum.pArea = obj->area;
 						stock->wnum.vnum = obj->vnum;
 						stock->silver = obj->cost;
@@ -3192,9 +3193,10 @@ void copy_shop_stock(SHOP_DATA *to_shop, SHOP_STOCK_DATA *from_stock)
 		copy_shop_stock(to_shop, from_stock->next);
 
 	SHOP_STOCK_DATA *to_stock = new_shop_stock();
+	to_stock->shop = to_shop;
 
 	to_stock->silver = from_stock->silver;
-	to_stock->qp = from_stock->qp;
+	to_stock->mp = from_stock->mp;
 	to_stock->dp = from_stock->dp;
 	to_stock->pneuma = from_stock->pneuma;
 	to_stock->rep_points = from_stock->rep_points;
@@ -3250,7 +3252,6 @@ void copy_shop_stock(SHOP_DATA *to_shop, SHOP_STOCK_DATA *from_stock)
 void copy_shop(SHOP_DATA *to_shop, SHOP_DATA *from_shop)
 {
 	int iTrade;
-	to_shop->keeper = from_shop->keeper;
 	for(iTrade = 0; iTrade < MAX_TRADE; iTrade++)
 		to_shop->buy_type[iTrade] = from_shop->buy_type[iTrade];
 
@@ -3469,6 +3470,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		if(pMobIndex->pShop != NULL)
 		{
 			mob->shop = new_shop();
+			mob->shop->keeper = mob;
 			copy_shop(mob->shop, pMobIndex->pShop);
 		}
 
@@ -6967,7 +6969,7 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 	fprintf(fp, "Extra2 %ld\n", obj->extra[1]);				// **
 	fprintf(fp, "Extra3 %ld\n", obj->extra[2]);				// **
 	fprintf(fp, "Extra4 %ld\n", obj->extra[3]);				// **
-	fprintf(fp, "WearFlags %d\n", obj->wear_flags);				// **
+	fprintf(fp, "WearFlags %ld\n", obj->wear_flags);				// **
 	fprintf(fp, "ItemType %d\n", obj->item_type);				// **
 
 	// Save location
@@ -8764,7 +8766,10 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 
 					fMatch = true;
 					if( shop )
+					{
 						ch->shop = shop;
+						ch->shop->keeper = ch;
+					}
 					else
 						good = false;
 

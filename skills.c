@@ -3122,7 +3122,7 @@ static char *__practice_cost_get_string(PRACTICE_COST_DATA *cost)
 			pi += sprintf(p + pi, "%ld{Gt{x", cost->trains);
 		}
 
-		if (cost->qp > 0)
+		if (cost->mp > 0)
 		{
 			if (pi > 0)
 			{
@@ -3130,7 +3130,7 @@ static char *__practice_cost_get_string(PRACTICE_COST_DATA *cost)
 				p[pi++] = ' ';
 			}
 
-			pi += sprintf(p + pi, "%ld{Yqp{x", cost->qp);
+			pi += sprintf(p + pi, "%ld{Ymp{x", cost->mp);
 		}
 
 		if (cost->dp > 0)
@@ -3243,7 +3243,7 @@ static char *__practice_cost_get_string_error(PRACTICE_COST_DATA *cost)
 			pi += sprintf(p + pi, "%ldt", cost->trains);
 		}
 
-		if (cost->qp > 0)
+		if (cost->mp > 0)
 		{
 			if (pi > 0)
 			{
@@ -3251,7 +3251,7 @@ static char *__practice_cost_get_string_error(PRACTICE_COST_DATA *cost)
 				p[pi++] = ' ';
 			}
 
-			pi += sprintf(p + pi, "%ldqp", cost->qp);
+			pi += sprintf(p + pi, "%ldmp", cost->mp);
 		}
 
 		if (cost->dp > 0)
@@ -3317,7 +3317,7 @@ static bool __practice_cost_has_value(PRACTICE_COST_DATA *cost)
 		if (cost->silver > 0) return true;
 		if (cost->practices > 0) return true;
 		if (cost->trains > 0) return true;
-		if (cost->qp > 0) return true;
+		if (cost->mp > 0) return true;
 		if (cost->dp > 0) return true;
 		if (cost->pneuma > 0) return true;
 		if (cost->rep_points > 0) return true;
@@ -3634,7 +3634,7 @@ void do_practice( CHAR_DATA *ch, char *argument )
 			long silver = cost->silver;
 			long practices = cost->practices;
 			long trains = cost->trains;
-			long qp = cost->qp;
+			long mp = cost->mp;
 			long dp = cost->dp;
 			long pneuma = cost->pneuma;
 			long points = IS_VALID(pe->reputation) ? cost->rep_points : 0;
@@ -3672,11 +3672,11 @@ void do_practice( CHAR_DATA *ch, char *argument )
 					haggled = true;
 				}
 
-				// Haggle qp
-				if (qp > 0 && (roll = number_percent()) < haggle)
+				// Haggle mp
+				if (mp > 0 && (roll = number_percent()) < haggle)
 				{
-					qp -= (qp * roll) / 200;
-					qp = UMAX(qp, 1);
+					mp -= (mp * roll) / 200;
+					mp = UMAX(mp, 1);
 					haggled = true;
 				}
 
@@ -3746,10 +3746,10 @@ void do_practice( CHAR_DATA *ch, char *argument )
 				add_buf(buffer, formatf("You need {Y%ld{x trains.\n\r", trains));
 			}
 
-			if (ch->missionpoints < qp)
+			if (ch->missionpoints < mp)
 			{
 				success = false;
-				add_buf(buffer, formatf("You need {Y%ld{x mission points.\n\r", qp));
+				add_buf(buffer, formatf("You need {Y%ld{x mission points.\n\r", mp));
 			}
 
 			if (ch->deitypoints < dp)
@@ -3831,10 +3831,10 @@ void do_practice( CHAR_DATA *ch, char *argument )
 					add_buf(buffer, formatf("You paid {Y%ld{x trains.\n\r", trains));
 				}
 
-				if( qp > 0 )
+				if( mp > 0 )
 				{
-					ch->missionpoints -= qp;
-					add_buf(buffer, formatf("You paid {Y%ld{x mission points.\n\r", qp));
+					ch->missionpoints -= mp;
+					add_buf(buffer, formatf("You paid {Y%ld{x mission points.\n\r", mp));
 				}
 
 				if( dp > 0 )

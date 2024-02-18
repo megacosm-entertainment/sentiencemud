@@ -6235,7 +6235,7 @@ int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue)
 					|| (IS_SET(pexit->exit_info, EX_AERIAL) && !flying)
 					|| (IS_NPC(ch) && (IS_SET(pexit->exit_info, EX_VLINK)))
 					|| number_range(0,ch->daze) != 0
-					|| (IS_NPC(ch) && (IS_SET(pexit->u1.to_room->room_flag[0], ROOM_NO_MOB) || IS_SET(pexit->u1.to_room->room_flag[0], ROOM_SAFE))))
+					|| (IS_NPC(ch) && (IS_SET(pexit->exit_info, EX_NOMOB) || IS_SET(pexit->u1.to_room->room_flag[0], ROOM_NO_MOB) || IS_SET(pexit->u1.to_room->room_flag[0], ROOM_SAFE))))
 					continue;
 			}
 			else
@@ -6262,7 +6262,7 @@ int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue)
 				|| (IS_SET(pexit->exit_info, EX_AERIAL) && !flying)
 				|| (IS_NPC(ch) && (IS_SET(pexit->exit_info, EX_VLINK)))
 				|| number_range(0,ch->daze) != 0
-				|| (IS_NPC(ch) && (IS_SET(pexit->u1.to_room->room_flag[0], ROOM_NO_MOB) || IS_SET(pexit->u1.to_room->room_flag[0], ROOM_SAFE)))) {
+				|| (IS_NPC(ch) && (IS_SET(pexit->exit_info, EX_NOMOB) || IS_SET(pexit->u1.to_room->room_flag[0], ROOM_NO_MOB) || IS_SET(pexit->u1.to_room->room_flag[0], ROOM_SAFE)))) {
 				door = -1;
 			}
 		}

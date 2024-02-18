@@ -1084,12 +1084,7 @@ const struct flag_type exit_flags[] =
 {
     {   "door",			EX_ISDOOR,		true    },
     {	"closed",		EX_CLOSED,		true	},
-//    {	"locked",		EX_LOCKED,		true	},
-//    {	"pickproof",		EX_PICKPROOF,		true	},
     {   "nopass",		EX_NOPASS,		true	},
-//    {   "easy",			EX_EASY,		true	},
-//    {   "hard",			EX_HARD,		true	},
-//    {	"infuriating",		EX_INFURIATING,		true	},
     {	"noclose",		EX_NOCLOSE,		true	},
     {	"nolock",		EX_NOLOCK,		true	},
     {   "hidden",		EX_HIDDEN,		true	},
@@ -1109,6 +1104,8 @@ const struct flag_type exit_flags[] =
     {	"nosearch",			EX_NOSEARCH,		true	},
     {	"mustsee",			EX_MUSTSEE,			true	},
     {   "transparent",      EX_TRANSPARENT,     true    },
+    {   "nomob",            EX_NOMOB,           true    },
+    {   "nowander",         EX_NOWANDER,        true    },
     {	NULL,			0,			0	}
 };
 
@@ -1133,15 +1130,9 @@ const struct flag_type portal_exit_flags[] =
 {
     {   "door",			EX_ISDOOR,		true    },
     {	"closed",		EX_CLOSED,		true	},
-//    {	"locked",		EX_LOCKED,		true	},
-//    {	"pickproof",		EX_PICKPROOF,		true	},
     {   "nopass",		EX_NOPASS,		true	},
-//    {   "easy",			EX_EASY,		true	},
-//    {   "hard",			EX_HARD,		true	},
-//    {	"infuriating",		EX_INFURIATING,		true	},
     {	"noclose",		EX_NOCLOSE,		true	},
     {	"nolock",		EX_NOLOCK,		true	},
-//    {   "hidden",		EX_HIDDEN,		true	},			// Portals can be made hidden in other ways
     {   "found",		EX_FOUND,		true	},
     {   "broken",		EX_BROKEN,		true	},
     {   "nobash",		EX_NOBASH,		true    },
@@ -1156,6 +1147,7 @@ const struct flag_type portal_exit_flags[] =
     {	"nosearch",			EX_NOSEARCH,		true	},
     {	"mustsee",			EX_MUSTSEE,			true	},
     {   "transparent",      EX_TRANSPARENT,     true    },
+    {   "nomob",            EX_NOMOB,           true    },
     {	NULL,			0,			0	}
 };
 
@@ -2908,9 +2900,10 @@ const struct flag_type skill_entry_flags[] = {
 
 const struct flag_type shop_flags[] =
 {
-	{ "stock_only",		SHOPFLAG_STOCK_ONLY,	true	},
+    { "disabled",       SHOPFLAG_DISABLED,      true    },
 	{ "hide_shop",		SHOPFLAG_HIDE_SHOP,		true	},
 	{ "no_haggle",		SHOPFLAG_NO_HAGGLE,		true	},
+	{ "stock_only",		SHOPFLAG_STOCK_ONLY,	true	},
 	{ NULL,				0,						false	}
 };
 
@@ -3181,6 +3174,7 @@ const struct flag_type builtin_trigger_types[] =
     { "hitch",		        TRIG_HITCH,	true },
     { "hitgain",		    TRIG_HITGAIN,	true },
     { "hpcnt",		        TRIG_HPCNT,	true },
+    { "hunt_found",         TRIG_HUNT_FOUND,    true },
     { "identify",		    TRIG_IDENTIFY,	true },
     { "ignite",             TRIG_IGNITE,    true },
     { "inspect",		    TRIG_INSPECT,	true },
@@ -3209,6 +3203,7 @@ const struct flag_type builtin_trigger_types[] =
     { "open",		        TRIG_OPEN,	true },
     { "orient",             TRIG_ORIENT, true },
     { "postmission",	    TRIG_POSTMISSION,	true },
+    { "postreckoning",      TRIG_POSTRECKONING, true },
     { "pour",               TRIG_POUR,  true },
     { "practice",		    TRIG_PRACTICE,	true },
     { "practicetoken",		TRIG_PRACTICETOKEN,	true },
@@ -3308,6 +3303,7 @@ const struct flag_type builtin_trigger_types[] =
     { "room_header",		TRIG_ROOM_HEADER,	true },
     { "save",		        TRIG_SAVE,	true },
     { "sayto",		        TRIG_SAYTO,	true },
+    { "shop_open",          TRIG_SHOP_OPEN, true},
     { "showcommands",		TRIG_SHOWCOMMANDS,	true },
     { "showexit",		    TRIG_SHOWEXIT,	true },
     { "sit",		        TRIG_SIT,	true },

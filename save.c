@@ -3547,7 +3547,7 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
 	fprintf(fp, "Ext3F %ld\n",	obj->extra[2]	    );
 	fprintf(fp, "Ext4F %ld\n",	obj->extra[3]	    );
     if (obj->wear_flags != obj->pIndexData->wear_flags)
-        fprintf(fp, "WeaF %d\n",	obj->wear_flags		    );
+        fprintf(fp, "WeaF %ld\n",	obj->wear_flags		    );
     if (obj->item_type != obj->pIndexData->item_type)
         fprintf(fp, "Ityp %d\n",	obj->item_type		    );
     if (obj->in_room != NULL)

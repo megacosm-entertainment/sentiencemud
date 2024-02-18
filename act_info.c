@@ -7428,14 +7428,15 @@ char determine_room_type(ROOM_INDEX_DATA *room)
 	return 'P';
 
     for (ch = room->people; ch != NULL; ch = ch->next_in_room) {
-	pMob = ch->pIndexData;
-	if (pMob == NULL) {
-	    continue;
-	}
+		pMob = ch->pIndexData;
+		if (pMob == NULL) {
+		    continue;
+		}
 
-	if (ch->shop != NULL && !IS_SET(ch->shop->flags,SHOPFLAG_HIDE_SHOP)) {
-	    return 'N';
-	}
+		// Shop must be visible and *not* disabled.
+		if (ch->shop != NULL && !IS_SET(ch->shop->flags,SHOPFLAG_HIDE_SHOP) && !IS_SET(ch->shop->flags, SHOPFLAG_DISABLED)) {
+		    return 'N';
+		}
     }
 
     if (IS_SET(room->room_flag[0], ROOM_SAFE))

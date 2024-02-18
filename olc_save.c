@@ -1723,7 +1723,7 @@ void save_practice_cost_data(FILE *fp, PRACTICE_COST_DATA *data, AREA_DATA *area
 	fprintf(fp, "Silver %ld\n", data->silver);
 	fprintf(fp, "Practices %ld\n", data->practices);
 	fprintf(fp, "Trains %ld\n", data->trains);
-	fprintf(fp, "QuestPnts %ld\n", data->qp);
+	fprintf(fp, "MissionPnts %ld\n", data->mp);
 	fprintf(fp, "DeityPnts %ld\n", data->dp);
 	fprintf(fp, "Pneuma %ld\n", data->pneuma);
 	fprintf(fp, "RepPoints %ld\n", data->rep_points);
@@ -1805,7 +1805,7 @@ void save_shop_stock_new(FILE *fp, SHOP_STOCK_DATA *stock, AREA_DATA *pRefArea)
 
 	// Pricing
 	fprintf(fp, "Silver %ld\n", stock->silver);
-	fprintf(fp, "QuestPnts %ld\n", stock->qp);
+	fprintf(fp, "MissionPnts %ld\n", stock->mp);
 	fprintf(fp, "DeityPnts %ld\n", stock->dp);
 	fprintf(fp, "Pneuma %ld\n", stock->pneuma);
 	fprintf(fp, "RepPoints %ld\n", stock->rep_points);
@@ -1815,6 +1815,7 @@ void save_shop_stock_new(FILE *fp, SHOP_STOCK_DATA *stock, AREA_DATA *pRefArea)
 
 	// Quantity
 	fprintf(fp, "Quantity %d\n", stock->quantity);
+	fprintf(fp, "MaxQuantity %d\n", stock->max_quantity);
 	fprintf(fp, "RestockRate %d\n", stock->restock_rate);
 	if(stock->singular)
 	{
@@ -1866,7 +1867,6 @@ void save_shop_new(FILE *fp, SHOP_DATA *shop, AREA_DATA *pRefArea)
     int i;
 
     fprintf(fp, "#SHOP\n");
-    fprintf(fp, "Keeper %ld\n", shop->keeper);
     fprintf(fp, "ProfitBuy %d\n", shop->profit_buy);
     fprintf(fp, "ProfitSell %d\n", shop->profit_sell);
     fprintf(fp, "HourOpen %d\n", shop->open_hour);
@@ -6016,6 +6016,7 @@ PRACTICE_COST_DATA *read_practice_cost_data(FILE *fp, AREA_DATA *area)
 
 		case 'M':
 			KEY("MinRating", data->min_rating, fread_number(fp));
+			KEY("MissionPnts", data->mp, fread_number(fp));
 			break;
 
 		case 'O':
@@ -6026,10 +6027,6 @@ PRACTICE_COST_DATA *read_practice_cost_data(FILE *fp, AREA_DATA *area)
 			KEY("Paragon", data->paragon_levels, fread_number(fp));
 			KEY("Pneuma", data->pneuma, fread_number(fp));
 			KEY("Practices", data->practices, fread_number(fp));
-			break;
-
-		case 'Q':
-			KEY("QuestPnts", data->qp, fread_number(fp));
 			break;
 
 		case 'R':
@@ -6230,6 +6227,8 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp, AREA_DATA *area)
 			KEY("Level", stock->level, fread_number(fp));
 			break;
 		case 'M':
+			KEY("MaxQuantity", stock->max_quantity, fread_number(fp));
+			KEY("MissionPnts", stock->mp, fread_number(fp));
 			if(!str_cmp(word, "Mount"))
 			{
 				fMatch = true;
@@ -6261,7 +6260,6 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp, AREA_DATA *area)
 			break;
 		case 'Q':
 			KEY("Quantity", stock->quantity, fread_number(fp));
-			KEY("QuestPnts", stock->qp, fread_number(fp));
 			break;
 		case 'R':
 			KEY("RepPoints", stock->rep_points, fread_number(fp));
@@ -6380,6 +6378,7 @@ SHOP_DATA *read_shop_new(FILE *fp, AREA_DATA *area)
 				SHOP_STOCK_DATA *stock = read_shop_stock_new(fp, area);
 
 				if(stock) {
+					stock->shop = shop;
 					stock->next = shop->stock;
 					shop->stock = stock;
 				}
@@ -6395,10 +6394,6 @@ SHOP_DATA *read_shop_new(FILE *fp, AREA_DATA *area)
 	    case 'H':
 	        KEY("HourOpen",	shop->open_hour,	fread_number(fp));
 	        KEY("HourClose",	shop->close_hour,	fread_number(fp));
-		break;
-
-	    case 'K':
-	        KEY("Keeper",	shop->keeper,	fread_number(fp));
 		break;
 
 	    case 'P':

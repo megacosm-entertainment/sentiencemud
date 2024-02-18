@@ -18,6 +18,7 @@
 
 LLIST *trigger_list = NULL;
 int top_trigger_type = TRIG__MAX;
+extern const char *cmd_operator_table[];
 
 int script_security = INIT_SCRIPT_SECURITY;
 int script_call_depth = 0;
@@ -531,6 +532,9 @@ int ifcheck_comparison(SCRIPT_VARINFO *info, short param, char *rest, SCRIPT_PAR
 		if (arg->type == ENT_AREA)
 			return (arg->d.area != NULL) ? 1 : 0;
 
+		if (arg->type == ENT_AREA_REGION)
+			return (arg->d.aregion ? 1 : 0);
+
 		if (arg->type == ENT_INSTANCE)
 			return IS_VALID(arg->d.instance) ? 1 : 0;
 		
@@ -539,6 +543,36 @@ int ifcheck_comparison(SCRIPT_VARINFO *info, short param, char *rest, SCRIPT_PAR
 
 		if (arg->type == ENT_SHIP)
 			return IS_VALID(arg->d.ship) ? 1 : 0;
+
+		if (arg->type == ENT_SHOP)
+			return arg->d.shop ? 1 : 0;
+
+		if (arg->type == ENT_LIQUID)
+			return IS_VALID(arg->d.liquid) ? 1 : 0;
+
+		if (arg->type == ENT_MATERIAL)
+			return IS_VALID(arg->d.material) ? 1 : 0;
+
+		if (arg->type == ENT_MOBINDEX)
+			return arg->d.mobindex ? 1 : 0;
+		
+		if (arg->type == ENT_OBJINDEX)
+			return arg->d.objindex ? 1 : 0;
+		
+		if (arg->type == ENT_TOKENINDEX)
+			return arg->d.tokindex ? 1 : 0;
+
+		if (arg->type == ENT_BLUEPRINT)
+			return arg->d.bp ? 1 : 0;
+		
+		if (arg->type == ENT_DUNGEONINDEX)
+			return arg->d.dngindex ? 1 : 0;
+		
+		if (arg->type == ENT_SHIPINDEX)
+			return arg->d.shipindex ? 1 : 0;
+
+		if (arg->type == ENT_WILDS)
+			return arg->d.wilds ? 1 : 0;
 
 		if (arg->type == ENT_STAT)
 		{
@@ -1286,6 +1320,24 @@ DECL_OPC_FUN(opc_list)
 
 			// Set the variable
 			variables_set_exit(block->info.var,block->loops[lp].var_name,ex);
+			break;
+
+		case ENT_OLLIST_SHOP_STOCK:
+			//log_stringf("opc_list: list type ENT_SHOP_STOCK");
+			if(!arg->d.list.ptr.stock || !*arg->d.list.ptr.stock)
+			{
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+			}
+
+			block->loops[lp].d.l.type = ENT_SHOP_STOCK;
+			block->loops[lp].d.l.cur.stock = *arg->d.list.ptr.stock;
+			block->loops[lp].d.l.next.stock = block->loops[lp].d.l.cur.stock->next;
+			block->loops[lp].d.l.owner = arg->d.list.owner;
+			block->loops[lp].d.l.owner_type = ENT_SHOP;
+
+			// Set the variable
+			variables_set_shop_stock(block->info.var,block->loops[lp].var_name,*arg->d.list.ptr.stock);
 			break;
 
 		case ENT_OLLIST_MOB:
@@ -2673,6 +2725,31 @@ DECL_OPC_FUN(opc_list)
 			for(i++; i < MAX_DIR && !here->exit[i]; i++);
 
 			block->loops[lp].d.l.next.door = i;
+			break;
+
+		case ENT_SHOP_STOCK:
+			//log_stringf("opc_list: list type ENT_SHOP_STOCK");
+			block->loops[lp].d.l.cur.stock = block->loops[lp].d.l.next.stock;
+			// Set the variable
+			variables_set_shop_stock(block->info.var,block->loops[lp].var_name,block->loops[lp].d.l.cur.stock);
+
+			/*
+			if(block->loops[lp].d.l.cur.m) {
+				ch = block->loops[lp].d.l.cur.m;
+				if(!IS_NPC(ch))
+					log_stringf("opc_list: player(%s,%ld,%ld)", ch->name, ch->id[0], ch->id[1]);
+				else
+					log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
+			} else
+				log_stringf("opc_list: mobile(<END>)");
+				*/
+
+			if(!block->loops[lp].d.l.cur.stock) {
+				skip = true;
+				break;
+			}
+
+			block->loops[lp].d.l.next.stock = block->loops[lp].d.l.cur.stock->next;
 			break;
 
 		case ENT_MOBILE:
@@ -10435,4 +10512,13 @@ PROG_LIST *find_trigger_data(LLIST **progs, int trigger_type, int count)
 	iterator_stop(&it);
 
 	return pr;
+}
+
+int cmd_operator_lookup(const char *str)
+{
+	for(int i = 0; cmd_operator_table[i]; i++)
+		if (!str_cmp(str, cmd_operator_table[i]))
+			return i;
+	
+	return OPR_UNKNOWN;
 }

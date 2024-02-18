@@ -566,6 +566,9 @@ void move_char(CHAR_DATA *ch, int door, bool follow, bool fleeing)
 		return;
 	}
 
+	if (!can_move_pulling((MOUNTED(ch) ? MOUNTED(ch) : ch), true))
+		return;
+
 	if (!MOUNTED(ch)) {
 		if (!IS_IMMORTAL(ch) && !is_float_user(ch)) ch->move -= move;
 	} else {
@@ -971,6 +974,36 @@ void check_room_shield_source(CHAR_DATA *ch, bool show)
 	}
 }
 
+bool can_move_pulling(CHAR_DATA *ch, bool show)
+{
+	OBJ_DATA *pulling = PULLING_CART(ch);
+	bool success = true;
+
+	if (IS_VALID(pulling))
+	{
+		if (IS_CART(pulling))
+		{
+			if (CART(pulling)->min_strength > get_curr_group_stat(ch, STAT_STR))
+			{
+				success = false;
+			}
+		}
+	}
+
+	if (show)
+	{
+		if (!success)
+		{
+			act("$p won't budge.", ch, NULL, NULL, pulling, NULL, NULL, NULL, TO_CHAR);
+			act("$n attempts to pull $p but it won't budge.", ch, NULL, NULL, pulling, NULL, NULL, NULL, TO_ROOM);
+		}
+
+		// No idea if we need to show successful movement
+	}
+
+	return success;
+}
+
 bool can_move_room(CHAR_DATA *ch, int door, ROOM_INDEX_DATA *room)
 {
 	OBJ_DATA *obj;
@@ -1027,7 +1060,9 @@ bool can_move_room(CHAR_DATA *ch, int door, ROOM_INDEX_DATA *room)
 	/* Syn - why the hell wasn't this ever here in the first place? */
 	// Changed to so that mobs that aren't following anyone will obey no_mob.
 	// Those that are following others will be allowed through.
-	if (IS_NPC(ch) && (!IS_VALID(ch->master) || ch->master == ch) && IS_SET(room->room_flag[0], ROOM_NO_MOB))
+	// NIB - Added NOMOB exit flag
+	if (IS_NPC(ch) && (!IS_VALID(ch->master) || ch->master == ch) &&
+		(IS_SET(room->room_flag[0], ROOM_NO_MOB) || IS_SET(pexit->exit_info, EX_NOMOB)))
 		return false;
 
 	if (IS_AFFECTED(ch, AFF_WEB)) {

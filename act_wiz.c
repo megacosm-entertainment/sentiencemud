@@ -1636,6 +1636,9 @@ void do_rstat(CHAR_DATA *ch, char *argument)
     }
 
     add_buf(output, buf);
+	sprintf(buf, "{YSector Flags:{x %s\n\r",
+		flag_string(sector_flags, location->sector_flags));
+	add_buf(output, buf);
 
     sprintf(buf,
             "{YRoom flags:{x %s.\n\r{YDescription:{x\n\r%s\n\r",

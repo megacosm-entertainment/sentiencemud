@@ -9917,7 +9917,7 @@ char *get_shop_stock_price(SHOP_STOCK_DATA *stock)
 			}
 		}
 
-		if( stock->qp > 0 )
+		if( stock->mp > 0 )
 		{
 			if( pj > 0 )
 			{
@@ -9925,7 +9925,7 @@ char *get_shop_stock_price(SHOP_STOCK_DATA *stock)
 				pricing[pj++] = ' ';
 			}
 
-			pj += sprintf(pricing+pj, "{x%ld{Gqp{x", stock->qp);
+			pj += sprintf(pricing+pj, "{x%ld{Gmp{x", stock->mp);
 		}
 
 		if( stock->dp > 0 )
@@ -9961,7 +9961,7 @@ char *get_shop_stock_price(SHOP_STOCK_DATA *stock)
 	return pricing;
 }
 
-char *get_shop_purchase_price(long silver, long qp, long dp, long pneuma)
+char *get_shop_purchase_price(long silver, long mp, long dp, long pneuma)
 {
 	static char buf[4][MSL];
 	static int count = 0;
@@ -9991,9 +9991,9 @@ char *get_shop_purchase_price(long silver, long qp, long dp, long pneuma)
 
 		added = true;
 	}
-	if( qp > 0 )
+	if( mp > 0 )
 	{
-		pj += sprintf(pricing + pj, "%s%ld quest points", (added?", ":" "), qp);
+		pj += sprintf(pricing + pj, "%s%ld mission points", (added?", ":" "), mp);
 		added = true;
 	}
 	if( dp > 0 )

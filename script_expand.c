@@ -651,6 +651,7 @@ EXPAND(expand_argument_variable)
 		case VAR_REPUTATION_INDEX:	arg->type = ENT_REPUTATION_INDEX; arg->d.repIndex = var->_.reputation_index; break;
 		case VAR_REPUTATION_RANK:	arg->type = ENT_REPUTATION_RANK; arg->d.repRank = var->_.reputation_rank; break;
 		case VAR_WAYPOINT:			arg->type = ENT_WAYPOINT; arg->d.waypoint = var->_.waypoint; break;
+		case VAR_SHOP_STOCK:		arg->type = ENT_SHOP_STOCK; arg->d.stock = var->_.stock; break;
 
 		case VAR_CONNECTION:	arg->type = ENT_CONN; arg->d.conn = var->_.conn; break;
 
@@ -1069,6 +1070,14 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 		else return NULL;
 
 		arg->type = ENT_WAYPOINT;
+		break;
+
+	case ENTITY_VAR_SHOP_STOCK:
+		if (var && var->type == VAR_SHOP_STOCK)
+			arg->d.stock = var->_.stock;
+		else return NULL;
+
+		arg->type = ENT_SHOP_STOCK;
 		break;
 
 	case ENTITY_VAR_RACE:
@@ -2581,6 +2590,11 @@ EXPAND_TYPE(mobile)
 		arg->d.blist = self ? self->missions : NULL;
 		break;
 
+	case ENTITY_MOB_SHOP:
+		arg->type = ENT_SHOP;
+		arg->d.shop = self ? self->shop : NULL;
+		break;
+
 	default: return NULL;
 	}
 
@@ -2749,13 +2763,13 @@ EXPAND_TYPE(mobile_id)
 	case ENTITY_MOB_EQ_TATTOO_UPPER_LEG2:
 	case ENTITY_MOB_EQ_TATTOO_BACK:
 	case ENTITY_MOB_EQ_TATTOO_NECK:
-        case ENTITY_MOB_EQ_TATTOO_LOWER_ARM1:
-        case ENTITY_MOB_EQ_TATTOO_LOWER_ARM2:
-        case ENTITY_MOB_EQ_TATTOO_LOWER_LEG1:
-        case ENTITY_MOB_EQ_TATTOO_LOWER_LEG2:
-        case ENTITY_MOB_EQ_TATTOO_SHOULDER1:
-        case ENTITY_MOB_EQ_TATTOO_SHOULDER2:
-        case ENTITY_MOB_EQ_LODGED_HEAD:
+	case ENTITY_MOB_EQ_TATTOO_LOWER_ARM1:
+	case ENTITY_MOB_EQ_TATTOO_LOWER_ARM2:
+	case ENTITY_MOB_EQ_TATTOO_LOWER_LEG1:
+	case ENTITY_MOB_EQ_TATTOO_LOWER_LEG2:
+	case ENTITY_MOB_EQ_TATTOO_SHOULDER1:
+	case ENTITY_MOB_EQ_TATTOO_SHOULDER2:
+	case ENTITY_MOB_EQ_LODGED_HEAD:
 	case ENTITY_MOB_EQ_LODGED_TORSO:
 	case ENTITY_MOB_EQ_LODGED_ARM1:
 	case ENTITY_MOB_EQ_LODGED_ARM2:
@@ -2912,7 +2926,318 @@ EXPAND_TYPE(mobile_id)
 		arg->d.blist = NULL;
 		break;
 
+	case ENTITY_MOB_SHOP:
+		arg->type = ENT_SHOP;
+		arg->d.shop = NULL;
+		break;
+
 	default: return NULL;
+	}
+
+	return str+1;
+}
+
+EXPAND_TYPE(shop)
+{
+	SHOP_DATA *shop = arg->d.shop;
+
+	switch(*str)
+	{
+	case ENTITY_SHOP_PROFIT_BUY:
+		arg->type = ENT_NUMBER;
+		arg->d.num = shop ? shop->profit_buy : 0;
+		break;
+
+	case ENTITY_SHOP_PROFIT_SELL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = shop ? shop->profit_sell : 0;
+		break;
+
+	case ENTITY_SHOP_HOUR_OPEN:
+		arg->type = ENT_NUMBER;
+		arg->d.num = shop ? shop->open_hour : -1;
+		break;
+
+	case ENTITY_SHOP_HOUR_CLOSED:
+		arg->type = ENT_NUMBER;
+		arg->d.num = shop ? shop->close_hour : -1;
+		break;
+
+	case ENTITY_SHOP_BUYTYPE:
+		arg->type = ENTITY_SHOP_BUYTYPE;
+		// Uses arg->d.shop;
+		break;
+
+	case ENTITY_SHOP_RESTOCK:
+		arg->type = ENTITY_SHOP_RESTOCK;
+		arg->d.num = shop ? shop->restock_interval : 0;
+		break;
+
+	case ENTITY_SHOP_FLAGS:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = shop ? shop->flags : 0;
+		arg->d.bv.table = shop_flags;
+		break;
+
+	case ENTITY_SHOP_DISCOUNT:
+		arg->type = ENT_NUMBER;
+		arg->d.num = shop ? shop->discount : 0;
+		break;
+
+	case ENTITY_SHOP_SHIPYARD:
+		arg->type = ENT_SHOP_SHIPYARD;
+		// Uses arg->d.shop;
+		break;
+
+	case ENTITY_SHOP_REPUTATION:
+		arg->type = ENT_REPUTATION_INDEX;
+		arg->d.repIndex = shop ? shop->reputation : NULL;
+		break;
+
+	case ENTITY_SHOP_REPUTATION_RANK:
+		arg->type = ENT_REPUTATION_RANK;
+		arg->d.repRank = (shop && shop->reputation) ? get_reputation_rank(shop->reputation, shop->min_reputation_rank) : NULL;
+		break;
+
+	case ENTITY_SHOP_STOCK:
+		arg->type = ENT_OLLIST_SHOP_STOCK;
+		arg->d.list.ptr.stock = shop ? &shop->stock : NULL;
+		arg->d.list.owner = shop;
+		arg->d.list.owner_type = ENT_UNKNOWN;
+		break;
+
+	case ENTITY_SHOP_KEEPER:
+		arg->type = ENT_MOBILE;
+		arg->d.mob = shop ? shop->keeper : NULL;
+		break;
+
+	default:
+		return NULL;
+	}
+
+	return str+1;
+}
+
+EXPAND_TYPE(shop_buytypes)
+{
+	SHOP_DATA *shop = arg->d.shop;
+
+	switch(*str)
+	{
+		case ESCAPE_EXPRESSION:
+		{
+			int type;
+			str = expand_argument_expression(info,str+1,&type);
+			if (!str) return NULL;
+
+			arg->type = ENT_STAT;
+			arg->d.stat.value = (shop && type >= 1 && type <= MAX_TRADE) ? shop->buy_type[type - 1] : 0;
+			arg->d.stat.table = type_flags;
+			arg->d.stat.def_value = NO_FLAG;
+			return str;
+		}
+
+		default:
+			return NULL;
+	}
+
+	return str+1;
+}
+
+EXPAND_TYPE(shop_shipyard)
+{
+	SHOP_DATA *shop = arg->d.shop;
+
+	switch(*str)
+	{
+	case ENTITY_SHIPYARD_WILDS:
+		arg->type = ENT_WILDS;
+		arg->d.wilds = shop ? get_wilds_from_uid(NULL, shop->shipyard) : NULL;
+		break;
+
+	case ENTITY_SHIPYARD_X1:
+		arg->type = ENT_NUMBER;
+		arg->d.num = shop ? shop->shipyard_region[0][0] : -1;
+		break;
+		
+	case ENTITY_SHIPYARD_Y1:
+		arg->type = ENT_NUMBER;
+		arg->d.num = shop ? shop->shipyard_region[0][1] : -1;
+		break;
+		
+	case ENTITY_SHIPYARD_X2:
+		arg->type = ENT_NUMBER;
+		arg->d.num = shop ? shop->shipyard_region[1][0] : -1;
+		break;
+		
+	case ENTITY_SHIPYARD_Y2:
+		arg->type = ENT_NUMBER;
+		arg->d.num = shop ? shop->shipyard_region[1][1] : -1;
+		break;
+		
+	case ENTITY_SHIPYARN_DESCRIPTION:
+		arg->type = ENT_STRING;
+		arg->d.str = shop ? shop->shipyard_description : "";
+		break;
+		
+	default:
+		return NULL;
+	}
+
+	return str+1;
+}
+
+EXPAND_TYPE(shop_stock)
+{
+	SHOP_STOCK_DATA *stock = arg->d.stock;
+
+	switch(*str)
+	{
+	case ENTITY_STOCK_LEVEL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = stock ? stock->level : 0;
+		break;
+
+	case ENTITY_STOCK_SILVER:
+		arg->type = ENT_NUMBER;
+		arg->d.num = stock ? stock->silver : 0;
+		break;
+
+	case ENTITY_STOCK_MP:
+		arg->type = ENT_NUMBER;
+		arg->d.num = stock ? stock->mp : 0;
+		break;
+
+	case ENTITY_STOCK_DP:
+		arg->type = ENT_NUMBER;
+		arg->d.num = stock ? stock->dp : 0;
+		break;
+
+	case ENTITY_STOCK_PNEUMA:
+		arg->type = ENT_NUMBER;
+		arg->d.num = stock ? stock->pneuma : 0;
+		break;
+
+	case ENTITY_STOCK_REP_POINTS:
+		arg->type = ENT_NUMBER;
+		arg->d.num = stock ? stock->rep_points : 0;
+		break;
+
+	case ENTITY_STOCK_PARAGON_LEVELS:
+		arg->type = ENT_NUMBER;
+		arg->d.num = stock ? stock->paragon_levels : 0;
+		break;
+
+	case ENTITY_STOCK_CUSTOM_PRICE:
+		arg->type = ENT_STRING;
+		arg->d.str = stock ? stock->custom_price : "";
+		break;
+
+	case ENTITY_STOCK_CHECK_PRICE:
+		arg->type = ENT_WIDEVNUM;
+		if (stock && stock->check_price)
+		{
+			arg->d.wnum.pArea = stock->check_price->area;
+			arg->d.wnum.vnum = stock->check_price->vnum;
+		}
+		else
+			arg->d.wnum = wnum_zero;
+		break;
+
+	case ENTITY_STOCK_DISCOUNT:
+		arg->type = ENT_NUMBER;
+		arg->d.num = stock ? stock->discount : 0;
+		break;
+
+	case ENTITY_STOCK_QUANTITY:
+		arg->type = ENT_NUMBER;
+		arg->d.num = stock ? stock->quantity : 0;
+		break;
+
+	case ENTITY_STOCK_MAX_QUANTITY:
+		arg->type = ENT_NUMBER;
+		arg->d.num = stock ? stock->max_quantity : 0;
+		break;
+
+	case ENTITY_STOCK_RESTOCK_RATE:
+		arg->type = ENT_NUMBER;
+		arg->d.num = stock ? stock->restock_rate : 0;
+		break;
+
+	case ENTITY_STOCK_MOBILE:
+		arg->type = ENT_MOBINDEX;
+		arg->d.mobindex = stock ? stock->mob : NULL;
+		break;
+
+	case ENTITY_STOCK_OBJECT:
+		arg->type = ENT_OBJINDEX;
+		arg->d.objindex = stock ? stock->obj : NULL;
+		break;
+
+	case ENTITY_STOCK_SHIP:
+		arg->type = ENT_SHIPINDEX;
+		arg->d.shipindex = stock ? stock->ship : NULL;
+		break;
+
+	case ENTITY_STOCK_TYPE:
+		arg->type = ENT_STAT;
+		arg->d.stat.value = stock ? stock->type : 0;
+		arg->d.stat.table = stock_types;
+		arg->d.stat.def_value = NO_FLAG;
+		break;
+
+	case ENTITY_STOCK_DURATION:
+		arg->type = ENT_NUMBER;
+		arg->d.num = stock ? stock->duration : 0;
+		break;
+
+	case ENTITY_STOCK_CUSTOM_KEYWORD:
+		arg->type = ENT_STRING;
+		arg->d.str = stock ? stock->custom_keyword : "";
+		break;
+
+	case ENTITY_STOCK_CUSTOM_DESCRIPTION:
+		arg->type = ENT_STRING;
+		arg->d.str = stock ? stock->custom_descr : "";
+		break;
+
+	case ENTITY_STOCK_SINGULAR:
+		arg->type = ENT_BOOLEAN;
+		arg->d.boolean = stock ? stock->singular : false;
+		break;
+
+	case ENTITY_STOCK_REPUTATION:
+		arg->type = ENT_REPUTATION_INDEX;
+		arg->d.repIndex = stock ? stock->reputation : NULL;
+		break;
+
+	case ENTITY_STOCK_MIN_RANK:
+		arg->type = ENT_REPUTATION_RANK;
+		arg->d.repRank = (stock && stock->reputation) ? get_reputation_rank(stock->reputation, stock->min_reputation_rank) : NULL;
+		break;
+
+	case ENTITY_STOCK_MAX_RANK:
+		arg->type = ENT_REPUTATION_RANK;
+		arg->d.repRank = (stock && stock->reputation) ? get_reputation_rank(stock->reputation, stock->max_reputation_rank) : NULL;
+		break;
+
+	case ENTITY_STOCK_MIN_SHOW_RANK:
+		arg->type = ENT_REPUTATION_RANK;
+		arg->d.repRank = (stock && stock->reputation) ? get_reputation_rank(stock->reputation, stock->min_show_rank) : NULL;
+		break;
+
+	case ENTITY_STOCK_MAX_SHOW_RANK:
+		arg->type = ENT_REPUTATION_RANK;
+		arg->d.repRank = (stock && stock->reputation) ? get_reputation_rank(stock->reputation, stock->max_show_rank) : NULL;
+		break;
+
+	case ENTITY_STOCK_SHOP:
+		arg->type = ENT_SHOP;
+		arg->d.shop = stock ? stock->shop : NULL;
+		break;
+
+	default:
+		return NULL;
 	}
 
 	return str+1;
@@ -8432,6 +8757,43 @@ EXPAND_TYPE(object_ammo)
 	return str+1;
 }
 
+EXPAND_TYPE(object_armor)
+{
+	ARMOR_DATA *armor = IS_VALID(arg->d.obj) && IS_ARMOR(arg->d.obj) ? ARMOR(arg->d.obj) : NULL;
+
+	switch(*str)
+	{
+	case ENTITY_OBJ_ARMOR_TYPE:
+		arg->type = ENT_STAT;
+		arg->d.stat.value = armor ? armor->armor_type : ARMOR_TYPE_NONE;
+		arg->d.stat.table = armour_types;
+		arg->d.stat.def_value = NO_FLAG;
+		break;
+
+	case ENTITY_OBJ_ARMOR_STRENGTH:
+		arg->type = ENT_STAT;
+		arg->d.stat.value = armor ? armor->armor_strength : OBJ_ARMOUR_NOSTRENGTH;
+		arg->d.stat.table = armour_strength_table;
+		arg->d.stat.def_value = NO_FLAG;
+		break;
+
+	case ENTITY_OBJ_ARMOR_PROTECTIONS:
+		arg->type = ENT_ARMOR_PROTECTIONS;
+		// Uses the arg->d.obj
+		break;
+
+	case ENTITY_OBJ_ARMOR_ADORNMENTS:
+		arg->type = ENT_ADORNMENTS;
+		// Uses the arg->d.obj
+		break;
+
+	default:
+		return NULL;
+	}
+
+	return str+1;
+}
+
 EXPAND_TYPE(object_book)
 {
 	BOOK_DATA *book = IS_VALID(arg->d.obj) && IS_BOOK(arg->d.obj) ? BOOK(arg->d.obj) : NULL;
@@ -10048,6 +10410,100 @@ EXPAND_TYPE(vitals_table)
 	return str+1;
 }
 
+EXPAND_TYPE(armor_protections)
+{
+	ARMOR_DATA *armor = IS_VALID(arg->d.obj) && IS_ARMOR(arg->d.obj) ? ARMOR(arg->d.obj) : NULL;
+
+	int type = *str - ESCAPE_EXTRA;
+
+	if (type < 0 || type >= ARMOR_MAX)
+		return NULL;
+
+	arg->type = ENT_NUMBER;
+	arg->d.num = armor ? armor->protection[type] : 0;
+
+	return str+1;
+}
+
+EXPAND_TYPE(adornments)
+{
+	OBJ_DATA *obj = arg->d.obj;
+	ARMOR_DATA *armor = IS_VALID(obj) && IS_ARMOR(obj) ? ARMOR(obj) : NULL;
+
+	switch(*str)
+	{
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		arg->type = ENT_ADORNMENT;
+		arg->d.obj_type.obj = obj;
+		if (armor && index >= 1 && index <= armor->max_adornments)
+		{
+			arg->d.obj_type.type = index;
+		}
+		else
+		{
+			arg->d.obj_type.type = -1;
+		}
+		return str;
+	}
+
+	case ENTITY_ADORNMENTS_MAX:
+		arg->type = ENT_NUMBER;
+		arg->d.num = armor ? armor->max_adornments : 0;
+		break;
+	}
+
+	return str+1;
+}
+
+EXPAND_TYPE(adornment)
+{
+	OBJ_DATA *obj = arg->d.obj_type.obj;
+	int index = arg->d.obj_type.type;
+
+	ADORNMENT_DATA *adornment = (IS_VALID(obj) && IS_ARMOR(obj) && index >= 1 && index <= ARMOR(obj)->max_adornments && ARMOR(obj)->adornments) ? ARMOR(obj)->adornments[index - 1] : NULL;
+
+	switch(*str)
+	{
+	case ENTITY_ADORNMENT_TYPE:
+		arg->type = ENT_STAT;
+		arg->d.stat.value = adornment ? adornment->type : ADORNMENT_NONE;
+		arg->d.stat.table = adornment_types;
+		arg->d.stat.def_value = NO_FLAG;
+		break;
+
+	case ENTITY_ADORNMENT_NAME:
+		arg->type = ENT_STRING;
+		arg->d.str = adornment ? adornment->name : "";
+		break;
+
+	case ENTITY_ADORNMENT_SHORT:
+		arg->type = ENT_STRING;
+		arg->d.str = adornment ? adornment->short_descr : "";
+		break;
+
+	case ENTITY_ADORNMENT_DESCRIPTION:
+		arg->type = ENT_STRING;
+		arg->d.str = adornment ? adornment->description : "";
+		break;
+
+	case ENTITY_ADORNMENT_SPELL:
+		arg->type = ENT_SPELL;
+		arg->d.spell = adornment ? adornment->spell : NULL;
+		break;
+
+	default:
+		return NULL;
+	}
+
+	return str+1;
+}
+
+
 
 #define ENTITY_CASE(e,f)	case ENT_##e:	next = expand_entity_##f (info,str,arg); break;
 
@@ -10154,6 +10610,7 @@ EXPAND(expand_argument_entity)
 
 		// Multi-typing
 		ENTITY_CASE(OBJECT_AMMO,object_ammo)
+		ENTITY_CASE(OBJECT_ARMOR,object_armor)
 		ENTITY_CASE(OBJECT_BOOK,object_book)
 		ENTITY_CASE(OBJECT_CART,object_cart)
 		ENTITY_CASE(OBJECT_COMPASS,object_compass)
@@ -10206,6 +10663,13 @@ EXPAND(expand_argument_entity)
 		ENTITY_CASE(SECTOR,sector)
 		ENTITY_CASE(AFFINITIES,affinities)
 		ENTITY_CASE(AFFINITY,affinity)
+		ENTITY_CASE(ARMOR_PROTECTIONS,armor_protections)
+		ENTITY_CASE(ADORNMENTS,adornments)
+		ENTITY_CASE(ADORNMENT,adornment)
+		ENTITY_CASE(SHOP,shop)
+		ENTITY_CASE(SHOP_BUYTYPES,shop_buytypes)
+		ENTITY_CASE(SHOP_SHIPYARD,shop_shipyard)
+		ENTITY_CASE(SHOP_STOCK,shop_stock)
 
 		case ENT_NULL:
 			next = str+1;

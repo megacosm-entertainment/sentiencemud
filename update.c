@@ -1076,6 +1076,8 @@ void mobile_update(void)
 			&&  !IS_SET(pexit->exit_info, EX_CLOSED)
 			&&  !IS_SET(pexit->u1.to_room->room_flag[0], ROOM_NO_MOB)
 			&&  !IS_SET(pexit->u1.to_room->room_flag[0], ROOM_NO_WANDER)
+			&&  !IS_SET(pexit->exit_info, EX_NOMOB)
+			&&  !IS_SET(pexit->exit_info, EX_NOWANDER)
 			&&  (!IS_SET(ch->act[1], ACT_STAY_LOCALE) ||
 				(pexit->u1.to_room->area == ch->in_room->area &&
 					(!ch->in_room->locale || !pexit->u1.to_room->locale || ch->in_room->locale == pexit->u1.to_room->locale)))
@@ -1275,6 +1277,8 @@ void time_update(void)
 		gecho("{MAs quickly as it appeared, the hazy purple mist dissipates. The reckoning has ended.{x\n\r");
 
 		reset_reckoning();
+
+		// TODO: Fire POSTRECKONINGs?
 	}
 
     if (buf[0] != '\0')
@@ -3311,17 +3315,22 @@ void update_hunting(void)
             // Mob has found player
   	    if (mob->in_room == mob->hunting->in_room)
 	    {
-		if (IS_SET(mob->in_room->room_flag[0],ROOM_SAFE)
-		||  IS_AFFECTED(mob, AFF_CALM)
-		||  IS_AFFECTED(mob, AFF_CHARM)
-		||  !IS_AWAKE(mob)
-		||  !can_see(mob, mob->hunting)
-		||  number_bits(1) == 0
-		||  check_evasion(mob->hunting) == true)
-		    continue;
+			if (IS_AFFECTED(mob, AFF_CALM) ||
+				IS_AFFECTED(mob, AFF_CHARM) ||
+				!IS_AWAKE(mob) ||
+				!can_see(mob, mob->hunting) ||
+				number_bits(1) == 0)
+				continue;
 
-		multi_hit(mob, mob->hunting, NULL, TYPE_UNDEFINED);
-		continue;
+			if (p_percent_trigger(mob, NULL, NULL, NULL, mob, mob->hunting, NULL, NULL, NULL, TRIG_HUNT_FOUND, NULL, 0,0,0,0,0))
+				continue;
+
+			if (IS_SET(mob->in_room->room_flag[0],ROOM_SAFE) ||
+				check_evasion(mob->hunting) == true)
+				continue;
+
+			multi_hit(mob, mob->hunting, NULL, TYPE_UNDEFINED);
+			continue;
 	    }
 
 	    if (mob->in_room == NULL || mob->hunting == NULL || mob->hunting->in_room == NULL)

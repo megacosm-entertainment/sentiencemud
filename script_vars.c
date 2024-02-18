@@ -480,6 +480,7 @@ varset(race,RACE,RACE_DATA *,race,race);
 varset(class,CLASS,CLASS_DATA *,clazz,clazz);
 varset(classlevel,CLASSLEVEL,CLASS_LEVEL *,level,level);
 varset(waypoint,WAYPOINT,WAYPOINT_DATA *,waypoint,waypoint);
+varset(shop_stock,SHOP_STOCK,SHOP_STOCK_DATA *,stock,stock);
 
 bool variables_set_dice (ppVARIABLE list,char *name,DICE_DATA *d)
 {
@@ -1852,6 +1853,7 @@ bool variable_copy(ppVARIABLE list,char *oldname,char *newname)
 	case VAR_REPUTATION_INDEX:	newv->_.reputation_index = oldv->_.reputation_index; break;
 	case VAR_REPUTATION_RANK:	newv->_.reputation_rank = oldv->_.reputation_rank; break;
 	case VAR_WAYPOINT:		newv->_.waypoint = oldv->_.waypoint; break;
+	case VAR_SHOP_STOCK:	newv->_.stock = oldv->_.stock; break;
 
 	case VAR_PLLIST_STR:
 	case VAR_PLLIST_CONN:
@@ -1935,6 +1937,7 @@ bool variable_copyto(ppVARIABLE from,ppVARIABLE to,char *oldname,char *newname, 
 	case VAR_REPUTATION_INDEX:	newv->_.reputation_index = oldv->_.reputation_index; break;
 	case VAR_REPUTATION_RANK:	newv->_.reputation_rank = oldv->_.reputation_rank; break;
 	case VAR_WAYPOINT:		newv->_.waypoint = oldv->_.waypoint; break;
+	case VAR_SHOP_STOCK:	newv->_.stock = oldv->_.stock; break;
 
 	case VAR_PLLIST_STR:
 	case VAR_PLLIST_CONN:
@@ -2015,6 +2018,7 @@ bool variable_copylist(ppVARIABLE from,ppVARIABLE to,bool index)
 		case VAR_REPUTATION_INDEX:	newv->_.reputation_index = oldv->_.reputation_index; break;
 		case VAR_REPUTATION_RANK:	newv->_.reputation_rank = oldv->_.reputation_rank; break;
 		case VAR_WAYPOINT:		newv->_.waypoint = oldv->_.waypoint; break;
+		case VAR_SHOP_STOCK:	newv->_.stock = oldv->_.stock; break;
 
 		case VAR_PLLIST_STR:
 		case VAR_PLLIST_CONN:
@@ -2095,6 +2099,7 @@ pVARIABLE variable_copyvar(pVARIABLE oldv)
 	case VAR_REPUTATION_INDEX:	newv->_.reputation_index = oldv->_.reputation_index; break;
 	case VAR_REPUTATION_RANK:	newv->_.reputation_rank = oldv->_.reputation_rank; break;
 	case VAR_WAYPOINT:		newv->_.waypoint = oldv->_.waypoint; break;
+	case VAR_SHOP_STOCK:	newv->_.stock = oldv->_.stock; break;
 
 	case VAR_PLLIST_STR:
 	case VAR_PLLIST_CONN:
@@ -2197,6 +2202,12 @@ void variable_clearfield(int type, void *ptr)
 			if (cur->_.waypoint == ptr)
 			{
 				cur->_.waypoint = NULL;
+			}
+			break;
+		case VAR_SHOP_STOCK:
+			if (cur->_.stock == ptr)
+			{
+				cur->_.stock = NULL;
 			}
 			break;
 		case VAR_AFFECT:

@@ -106,6 +106,30 @@ enum {
 	DONE	/* done processing the stack */
 };
 
+enum cmd_operators_enum {
+	OPR_UNKNOWN = -1,		// Error
+	OPR_ASSIGN = 0,			// Assignment
+	OPR_ADD,				// Addition
+	OPR_SUB,				// Subtraction
+	OPR_MULT,				// Multiplication
+	OPR_DIV,				// Division
+	OPR_MOD,				// Modulo Division
+	OPR_INC,				// Increment
+	OPR_DEC,				// Decrement
+	OPR_MIN,				// Minimum
+	OPR_MAX,				// Maximum
+	OPR_AND,				// Bitwise AND (mask)
+	OPR_OR,					// Bitwise OR (set)
+	OPR_NOT,				// Bitwise NOT (reset)
+	OPR_XOR,				// Bitwise XOR (toggle)
+
+	OPR_END
+};
+
+#define OPR_NEEDS_VALUE		0	// Operator requires a value (must have a value if true, must not if false)
+#define OPR_ARITHMETIC		1	// Operator is arithmetic (allow_arith must be true)
+#define OPR_BITWISE			2	// Operator is bitwise (allow_bitwise must be true)
+
 enum ifcheck_enum {
 	/* A */
 	CHK_ABS=0,
@@ -360,6 +384,7 @@ enum variable_enum {
 	VAR_MISSION_PART,
 
 	VAR_WAYPOINT,
+	VAR_SHOP_STOCK,
 
 	VAR_BLLIST_FIRST,
 	////////////////////////
@@ -506,6 +531,9 @@ enum entity_type_enum {
 	ENT_CLASS,
 	ENT_CLASSLEVEL,
 	ENT_WAYPOINT,
+	ENT_ADORNMENTS,
+	ENT_ADORNMENT,
+	ENT_ARMOR_PROTECTIONS,
 
 	ENT_SEX_STRING_TABLE,		// TABLE.neuter, TABLE.male, TABLE.female, TABLE.either -> ENT_STRING, encode the parsing as a sex index (0 - 3)
 	ENT_STATS_TABLE,			// TABLE.strength.... -> ENT_NUMBER, encodes the parsing as the STAT_* define
@@ -514,6 +542,11 @@ enum entity_type_enum {
 	ENT_MOBINDEX,
 	ENT_OBJINDEX,
 	ENT_TOKENINDEX,
+
+	ENT_SHOP,
+	ENT_SHOP_BUYTYPES,
+	ENT_SHOP_SHIPYARD,
+	ENT_SHOP_STOCK,
 
 	//////////////////////////////
 	// Bucket? lists
@@ -560,6 +593,7 @@ enum entity_type_enum {
 	ENT_OLLIST_TOK,
 	ENT_OLLIST_AFF,
 	ENT_OLLIST_MISSION_PARTS,
+	ENT_OLLIST_SHOP_STOCK,
 	ENT_OLLIST_MAX,
 	//////////////////////////////
 
@@ -629,6 +663,7 @@ enum entity_type_enum {
 
 	// Multi-typing
 	ENT_OBJECT_AMMO,
+	ENT_OBJECT_ARMOR,
 	ENT_OBJECT_BOOK,
 	ENT_OBJECT_CART,
 	ENT_OBJECT_COMPASS,
@@ -738,6 +773,7 @@ enum entity_variable_types_enum {
 	ENTITY_VAR_MISSION,
 	ENTITY_VAR_MISSION_PART,
 	ENTITY_VAR_WAYPOINT,
+	ENTITY_VAR_SHOP_STOCK,
 
 	ENTITY_VAR_BLLIST_ROOM,
 	ENTITY_VAR_BLLIST_MOB,
@@ -943,6 +979,7 @@ enum entity_mobile_enum {
 	ENTITY_MOB_FACTIONS,
 	ENTITY_MOB_MISSIONS,
 	ENTITY_MOB_COMPARTMENT,
+	ENTITY_MOB_SHOP,
 };
 
 enum entity_reputation_enum
@@ -1013,6 +1050,7 @@ enum entity_object_enum {
 	ENTITY_OBJ_CLASSTYPE,
 	ENTITY_OBJ_RACE,
 	ENTITY_OBJ_TYPE_AMMO,
+	ENTITY_OBJ_TYPE_ARMOR,
 	ENTITY_OBJ_TYPE_BOOK,
 	ENTITY_OBJ_TYPE_CART,
 	ENTITY_OBJ_TYPE_COMPASS,
@@ -1047,6 +1085,28 @@ enum entity_object_ammo_enum {
 	ENTITY_OBJ_AMMO_MESSAGE_BREAK,
 };
 
+enum entity_object_armor_enum
+{
+	ENTITY_OBJ_ARMOR_TYPE = ESCAPE_EXTRA,
+	ENTITY_OBJ_ARMOR_STRENGTH,
+	ENTITY_OBJ_ARMOR_PROTECTIONS,
+	ENTITY_OBJ_ARMOR_ADORNMENTS,
+};
+
+enum entity_adornments_enum
+{
+	ENTITY_ADORNMENTS_MAX = ESCAPE_EXTRA,
+	// ESCAPE_EXPRESSION will be used to index for the actual adornment
+};
+
+enum entity_adornment_enum
+{
+	ENTITY_ADORNMENT_TYPE = ESCAPE_EXTRA,
+	ENTITY_ADORNMENT_NAME,
+	ENTITY_ADORNMENT_SHORT,
+	ENTITY_ADORNMENT_DESCRIPTION,
+	ENTITY_ADORNMENT_SPELL,
+};
 
 enum entity_object_book_enum
 {
@@ -1857,6 +1917,61 @@ enum entity_fleet_enum {
 };
 */
 
+enum entity_shop_enum {
+	ENTITY_SHOP_PROFIT_BUY = ESCAPE_EXTRA,
+	ENTITY_SHOP_PROFIT_SELL,
+	ENTITY_SHOP_HOUR_OPEN,
+	ENTITY_SHOP_HOUR_CLOSED,
+	ENTITY_SHOP_BUYTYPE,
+	ENTITY_SHOP_RESTOCK,
+	ENTITY_SHOP_FLAGS,
+	ENTITY_SHOP_DISCOUNT,
+	ENTITY_SHOP_SHIPYARD,
+	ENTITY_SHOP_REPUTATION,
+	ENTITY_SHOP_REPUTATION_RANK,
+	ENTITY_SHOP_STOCK,
+	ENTITY_SHOP_KEEPER,
+};
+
+enum entity_shop_shipyard_enum {
+	ENTITY_SHIPYARD_WILDS = ESCAPE_EXTRA,
+	ENTITY_SHIPYARD_X1,
+	ENTITY_SHIPYARD_Y1,
+	ENTITY_SHIPYARD_X2,
+	ENTITY_SHIPYARD_Y2,
+	ENTITY_SHIPYARN_DESCRIPTION,
+};
+
+enum entity_shop_stock_enum {
+	ENTITY_STOCK_LEVEL = ESCAPE_EXTRA,
+	ENTITY_STOCK_SILVER,
+	ENTITY_STOCK_MP,
+	ENTITY_STOCK_DP,
+	ENTITY_STOCK_PNEUMA,
+	ENTITY_STOCK_REP_POINTS,
+	ENTITY_STOCK_PARAGON_LEVELS,
+	ENTITY_STOCK_CUSTOM_PRICE,
+	ENTITY_STOCK_CHECK_PRICE,		// Get's the widevnum of the script
+	ENTITY_STOCK_DISCOUNT,
+	ENTITY_STOCK_QUANTITY,
+	ENTITY_STOCK_MAX_QUANTITY,
+	ENTITY_STOCK_RESTOCK_RATE,
+	ENTITY_STOCK_MOBILE,
+	ENTITY_STOCK_OBJECT,
+	ENTITY_STOCK_SHIP,				// TODO: Need a SHIPINDEX entity type
+	ENTITY_STOCK_TYPE,
+	ENTITY_STOCK_DURATION,
+	ENTITY_STOCK_CUSTOM_KEYWORD,
+	ENTITY_STOCK_CUSTOM_DESCRIPTION,
+	ENTITY_STOCK_SINGULAR,
+	ENTITY_STOCK_REPUTATION,
+	ENTITY_STOCK_MIN_RANK,
+	ENTITY_STOCK_MAX_RANK,
+	ENTITY_STOCK_MIN_SHOW_RANK,
+	ENTITY_STOCK_MAX_SHOW_RANK,
+	ENTITY_STOCK_SHOP,
+};
+
 /* Single letter $* codes ($i, $n) */
 #define ESCAPE_UA		0x80
 #define ESCAPE_UB		0x81
@@ -2007,6 +2122,7 @@ struct script_var_type {
 		REPUTATION_INDEX_DATA *reputation_index;
 		REPUTATION_INDEX_RANK_DATA *reputation_rank;
 		WAYPOINT_DATA *waypoint;
+		SHOP_STOCK_DATA *stock;
 		struct {
 			CHAR_DATA *owner;
 			TOKEN_DATA *token;
@@ -2140,6 +2256,7 @@ struct loop_data {
 				EXTRA_DESCR_DATA *ed;
 				SPELL_DATA *spell;
 				MISSION_PART_DATA *part;
+				SHOP_STOCK_DATA *stock;
 			} cur, next;
 			struct {
 				LLIST *lp;
@@ -2237,6 +2354,9 @@ struct script_parameter {
 		SECTOR_DATA *sector;
 		WAYPOINT_DATA *waypoint;
 
+		SHOP_DATA *shop;
+		SHOP_STOCK_DATA *stock;
+
 		struct {
 			SECTOR_DATA *sector;
 			int16_t index;
@@ -2285,6 +2405,7 @@ struct script_parameter {
 				AFFECT_DATA **aff;
 				EXTRA_DESCR_DATA **ed;
 				MISSION_PART_DATA **part;
+				SHOP_STOCK_DATA **stock;
 			} ptr;
 			void *owner;
 			int owner_type;
@@ -3182,6 +3303,8 @@ bool variables_set_mission_part (ppVARIABLE list,char *name,MISSION_DATA *missio
 bool variables_setsave_mission_part (ppVARIABLE list,char *name,MISSION_DATA *mission, MISSION_PART_DATA *part, sent_bool save);
 bool variables_set_waypoint (ppVARIABLE list,char *name,WAYPOINT_DATA *waypoint);
 bool variables_setsave_waypoint (ppVARIABLE list,char *name,WAYPOINT_DATA *waypoint, sent_bool save);
+bool variables_set_shop_stock (ppVARIABLE list,char *name,SHOP_STOCK_DATA *stock);
+bool variables_setsave_shop_stock (ppVARIABLE list,char *name,SHOP_STOCK_DATA *stock, sent_bool save);
 
 int variable_fread_type(char *str);
 pVARIABLE variable_create(ppVARIABLE list,char *name, bool index, bool clear);
@@ -3768,6 +3891,9 @@ SCRIPT_CMD(scriptcmd_setclasslevel);
 SCRIPT_CMD(scriptcmd_churchannouncetheft);
 SCRIPT_CMD(scriptcmd_alterroom);
 SCRIPT_CMD(scriptcmd_resetroom);
+SCRIPT_CMD(scriptcmd_alterexit);
+SCRIPT_CMD(scriptcmd_altermob);
+SCRIPT_CMD(scriptcmd_alter);
 
 bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);
 bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);
@@ -3782,6 +3908,9 @@ void trigger_type_delete_use(struct trigger_type *tt);
 
 void scriptcmd_bug(SCRIPT_VARINFO *info, char *message);
 PROG_LIST *find_trigger_data(LLIST **progs, int trigger_type, int count);
+int cmd_operator_lookup(const char *str);
+
+extern const bool cmd_operator_info[OPR_END][3];
 
 #include "tables.h"
 

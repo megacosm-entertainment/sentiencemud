@@ -102,6 +102,7 @@ ENT_FIELD entity_types[] = {
 	{"food_buff",		ENTITY_VAR_FOOD_BUFF,	ENT_FOOD_BUFF	},
 	{"compartment",		ENTITY_VAR_COMPARTMENT,	ENT_COMPARTMENT },
 	{"waypoint",		ENTITY_VAR_WAYPOINT,	ENT_WAYPOINT	},
+	{"stock",			ENTITY_VAR_SHOP_STOCK,	ENT_SHOP_STOCK	},
 	{"conn",			ENTITY_VAR_CONN,		ENT_CONN		},
 	{"church",			ENTITY_VAR_CHURCH,		ENT_CHURCH		},
 	{"var",				ENTITY_VAR_VARIABLE,	ENT_VARIABLE	},
@@ -368,6 +369,7 @@ ENT_FIELD entity_mobile[] = {
 	{"factions",				ENTITY_MOB_FACTIONS,		ENT_ILLIST_REPUTATION_INDEX },
 	{"missions",				ENTITY_MOB_MISSIONS,		ENT_ILLIST_MISSIONS },
 	{"compartment",				ENTITY_MOB_COMPARTMENT,		ENT_COMPARTMENT },
+	{"shop",					ENTITY_MOB_SHOP,			ENT_SHOP},
 	{NULL,				0,							ENT_UNKNOWN	}
 };
 
@@ -453,6 +455,7 @@ ENT_FIELD entity_object[] = {
 	{"classtype",		ENTITY_OBJ_CLASSTYPE,		ENT_STAT },
 	{"race",			ENTITY_OBJ_RACE,			ENT_RACE },
 	{"ammo_data",		ENTITY_OBJ_TYPE_AMMO,		ENT_OBJECT_AMMO},
+	{"armor_data",		ENTITY_OBJ_TYPE_ARMOR,		ENT_OBJECT_ARMOR},
 	{"book_page",		ENTITY_OBJ_TYPE_PAGE,		ENT_BOOK_PAGE},			// This is unique in that it is not handled internally like other type
 	{"book_data",		ENTITY_OBJ_TYPE_BOOK,		ENT_OBJECT_BOOK},
 	{"cart_data",		ENTITY_OBJ_TYPE_CART,		ENT_OBJECT_CART},
@@ -485,6 +488,28 @@ ENT_FIELD entity_object_ammo[] = {
 	{"damage",			ENTITY_OBJ_AMMO_DAMAGE,			ENT_DICE },
 	{"msgbreak",		ENTITY_OBJ_AMMO_MESSAGE_BREAK,	ENT_STRING },
 	{NULL,			0,			ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_object_armor[] = {
+	{"type",			ENTITY_OBJ_ARMOR_TYPE,			ENT_STAT },
+	{"strength",		ENTITY_OBJ_ARMOR_STRENGTH,		ENT_STAT },
+	{"protections",		ENTITY_OBJ_ARMOR_PROTECTIONS,	ENT_ARMOR_PROTECTIONS },
+	{"adornments",		ENTITY_OBJ_ARMOR_ADORNMENTS,	ENT_ADORNMENTS },
+	{NULL,			0,			ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_adornments[] = {
+	{"max",				ENTITY_ADORNMENTS_MAX,			ENT_NUMBER },
+	{NULL,				0,			ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_adornment[] = {
+	{"type",			ENTITY_ADORNMENT_TYPE,			ENT_STAT },
+	{"name",			ENTITY_ADORNMENT_NAME,			ENT_STRING },
+	{"short",			ENTITY_ADORNMENT_SHORT,			ENT_STRING },
+	{"description",		ENTITY_ADORNMENT_DESCRIPTION,	ENT_STRING },
+	{"spell",			ENTITY_ADORNMENT_SPELL,			ENT_SPELL },
+	{NULL,				0,			ENT_UNKNOWN	}
 };
 
 ENT_FIELD entity_object_book[] = {
@@ -1320,6 +1345,65 @@ ENT_FIELD entity_quest[] = {
 	{NULL,				0,								ENT_UNKNOWN			}
 };
 
+ENT_FIELD entity_shop[] = {
+	{"buy",				ENTITY_SHOP_PROFIT_BUY,			ENT_NUMBER			},
+	{"sell",			ENTITY_SHOP_PROFIT_SELL,		ENT_NUMBER			},
+	{"open",			ENTITY_SHOP_HOUR_OPEN,			ENT_NUMBER			},
+	{"closed",			ENTITY_SHOP_HOUR_CLOSED,		ENT_NUMBER			},
+	{"buytype",			ENTITY_SHOP_BUYTYPE,			ENT_SHOP_BUYTYPES	},
+	{"restock",			ENTITY_SHOP_RESTOCK,			ENT_NUMBER			},
+	{"flags",			ENTITY_SHOP_FLAGS,				ENT_BITVECTOR		},
+	{"discount",		ENTITY_SHOP_DISCOUNT,			ENT_NUMBER			},
+	{"shipyard",		ENTITY_SHOP_SHIPYARD,			ENT_SHOP_SHIPYARD	},
+	{"reputation",		ENTITY_SHOP_REPUTATION,			ENT_REPUTATION_INDEX},
+	{"rank",			ENTITY_SHOP_REPUTATION_RANK,	ENT_REPUTATION_RANK	},
+	{"stock",			ENTITY_SHOP_STOCK,				ENT_OLLIST_SHOP_STOCK},
+	{"keeper",			ENTITY_SHOP_KEEPER,				ENT_MOBILE			},
+	{NULL,				0,								ENT_UNKNOWN			}
+};
+
+ENT_FIELD entity_shop_shipyard[] = {
+	{"wilds",			ENTITY_SHIPYARD_WILDS,			ENT_WILDS			},
+	{"x1",				ENTITY_SHIPYARD_X1,				ENT_NUMBER			},
+	{"y1",				ENTITY_SHIPYARD_Y1,				ENT_NUMBER			},
+	{"x2",				ENTITY_SHIPYARD_X2,				ENT_NUMBER			},
+	{"y2",				ENTITY_SHIPYARD_Y2,				ENT_NUMBER			},
+	{"description",		ENTITY_SHIPYARN_DESCRIPTION,	ENT_STRING			},
+	{NULL,				0,								ENT_UNKNOWN			}
+};
+
+ENT_FIELD entity_shop_stock[] = {
+	{"level",			ENTITY_STOCK_LEVEL,				ENT_NUMBER			},
+	{"silver",			ENTITY_STOCK_SILVER,			ENT_NUMBER			},
+	{"mp",				ENTITY_STOCK_MP,				ENT_NUMBER			},
+	{"dp",				ENTITY_STOCK_DP,				ENT_NUMBER			},
+	{"pneuma",			ENTITY_STOCK_PNEUMA,			ENT_NUMBER			},
+	{"reppoints",		ENTITY_STOCK_REP_POINTS,		ENT_NUMBER			},
+	{"paragon",			ENTITY_STOCK_PARAGON_LEVELS,	ENT_NUMBER			},
+	{"custom",			ENTITY_STOCK_CUSTOM_PRICE,		ENT_STRING			},
+	{"check",			ENTITY_STOCK_CHECK_PRICE,		ENT_WIDEVNUM		},
+	{"discount",		ENTITY_STOCK_DISCOUNT,			ENT_NUMBER			},
+	{"quantity",		ENTITY_STOCK_QUANTITY,			ENT_NUMBER			},
+	{"maxquantity",		ENTITY_STOCK_MAX_QUANTITY,		ENT_NUMBER			},
+	{"restock",			ENTITY_STOCK_RESTOCK_RATE,		ENT_NUMBER			},
+	{"mobile",			ENTITY_STOCK_MOBILE,			ENT_MOBINDEX		},
+	{"object",			ENTITY_STOCK_OBJECT,			ENT_OBJINDEX		},
+	{"ship",			ENTITY_STOCK_SHIP,				ENT_SHIPINDEX		},
+	{"type",			ENTITY_STOCK_TYPE,				ENT_STAT			},
+	{"duration",		ENTITY_STOCK_DURATION,			ENT_NUMBER			},
+	{"keyword",			ENTITY_STOCK_CUSTOM_KEYWORD,	ENT_STRING			},
+	{"description",		ENTITY_STOCK_CUSTOM_DESCRIPTION,ENT_STRING			},
+	{"singular",		ENTITY_STOCK_SINGULAR,			ENT_BOOLEAN			},
+	{"reputation",		ENTITY_STOCK_REPUTATION,		ENT_REPUTATION_INDEX},
+	{"minrank",			ENTITY_STOCK_MIN_RANK,			ENT_REPUTATION_RANK	},
+	{"maxrank",			ENTITY_STOCK_MAX_RANK,			ENT_REPUTATION_RANK	},
+	{"minshow",			ENTITY_STOCK_MIN_SHOW_RANK,		ENT_REPUTATION_RANK	},
+	{"maxshow",			ENTITY_STOCK_MAX_SHOW_RANK,		ENT_REPUTATION_RANK	},
+	{"shop",			ENTITY_STOCK_SHOP,				ENT_SHOP			},
+	{NULL,				0,								ENT_UNKNOWN			}
+};
+
+
 struct _entity_type_info entity_type_info[] = {
 	{ ENT_PRIMARY,		ENT_PRIMARY,		entity_primary,				true,	false },
 	{ ENT_BOOLEAN,		ENT_BOOLEAN,		entity_boolean,				false,	false },
@@ -1352,6 +1436,11 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_INSTRUMENT_RESERVOIR, ENT_INSTRUMENT_RESERVOIR, entity_instrument_reservoir, false, false },
 	{ ENT_WEAPON_ATTACK,	ENT_WEAPON_ATTACK,	entity_weapon_attack,	false,	false },
 	{ ENT_ATTACK,		ENT_ATTACK,			entity_attack_type,			false,	false },
+	{ ENT_ADORNMENTS,	ENT_ADORNMENTS,		entity_adornments,			false,	false },
+	{ ENT_ADORNMENT,	ENT_ADORNMENT,		entity_adornment,			false,	false },
+	{ ENT_SHOP,			ENT_SHOP,			entity_shop,				false,	false },
+	{ ENT_SHOP_SHIPYARD,	ENT_SHOP_SHIPYARD,	entity_shop_shipyard,	false,	false },
+	{ ENT_SHOP_STOCK,	ENT_SHOP_STOCK,		entity_shop_stock,			false,	false },
 	{ ENT_LIQUID,		ENT_LIQUID,			entity_liquid,				false,	false },
 	{ ENT_MATERIAL,		ENT_MATERIAL,		entity_material,			false,	false },
 	{ ENT_SECTOR,		ENT_SECTOR,			entity_sector,				false,	false },
@@ -1391,6 +1480,7 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_DUNGEONINDEX,		ENT_DUNGEONINDEX,		entity_dungeon_index,				false,	false },
 	{ ENT_WIDEVNUM,		ENT_WIDEVNUM,		entity_widevnum,			false,	false },
 	{ ENT_OBJECT_AMMO, ENT_OBJECT_AMMO, entity_object_ammo, false,	false },
+	{ ENT_OBJECT_ARMOR, ENT_OBJECT_ARMOR, entity_object_armor, false,	false },
 	{ ENT_OBJECT_BOOK, ENT_OBJECT_BOOK, entity_object_book, false,	false },
 	{ ENT_OBJECT_CART, ENT_OBJECT_CART, entity_object_cart, false,	false },
 	{ ENT_OBJECT_COMPASS, ENT_OBJECT_COMPASS, entity_object_compass, false,	false },
@@ -2206,4 +2296,40 @@ const struct flag_type interrupt_action_types[] = {
 	{	"trance",	INTERRUPT_TRANCE,	true },
 	{	"silent",	INTERRUPT_SILENT,	true },
 	{	NULL,		0,			false }
+};
+
+const char *cmd_operator_table[] = {
+	"=",	// OPR_ASSIGN
+	"+",	// OPR_ADD
+	"-",	// OPR_SUB
+	"*",	// OPR_MULT
+	"/",	// OPR_DIV
+	"%",	// OPR_MOD
+	"++",	// OPR_INC
+	"--",	// OPR_DEC
+	"<",	// OPR_MIN
+	">",	// OPR_MAX
+	"&",	// OPR_AND
+	"|",	// OPR_OR
+	"!",	// OPR_NOT
+	"^",	// OPR_XOR
+	NULL
+};
+
+const bool cmd_operator_info[OPR_END][3] = {
+//	needs_value,	arith,	bitwise,
+	{true,			false,	false},		// OPR_ASSIGN
+	{true,			true,	false},		// OPR_ADD
+	{true,			true,	false},		// OPR_SUB
+	{true,			true,	false},		// OPR_MULT
+	{true,			true,	false},		// OPR_DIV
+	{true,			true,	false},		// OPR_MOD
+	{false,			true,	false},		// OPR_INC
+	{false,			true,	false},		// OPR_DEC
+	{true,			false,	false},		// OPR_MIN
+	{true,			false,	false},		// OPR_MAX
+	{true,			false,	true},		// OPR_AND
+	{true,			false,	true},		// OPR_OR
+	{true,			false,	true},		// OPR_NOT
+	{true,			false,	true},		// OPR_XOR
 };

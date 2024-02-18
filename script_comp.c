@@ -505,6 +505,30 @@ char *compile_entity(char *str,int type, char **store, int *entity_type)
 			compile_error_show(buf);
 			return NULL;
 
+		} else if(ent == ENT_ADORNMENTS) {
+			if (*str == '[')
+			{
+				str = compile_expression(str+1,type, &p);
+				if( !str ) return NULL;
+
+				ent = ENT_ADORNMENT;
+				continue;
+			}
+
+		} else if(ent == ENT_SHOP_BUYTYPES) {
+			if (*str == '[')
+			{
+				str = compile_expression(str+1,type, &p);
+				if( !str ) return NULL;
+
+				ent = ENT_STAT;
+				continue;
+			}
+
+			sprintf(buf,"Line %d: Expecting '[' after ENT_SHOP_BUYTYPES in $().", compile_current_line);
+			compile_error_show(buf);
+			return NULL;
+
 		} else {
 			if (script_entity_allow_index(ent))
 			{
@@ -582,6 +606,24 @@ char *compile_entity(char *str,int type, char **store, int *entity_type)
 				*p++ = ENTITY_VAR_BOOLEAN;
 				next_ent = ENT_BOOLEAN;
 			}
+
+		} else if(ent == ENT_ARMOR_PROTECTIONS) {
+			if(suffix[0]) {
+				sprintf(buf,"Line %d: type suffix is only allowed for variable fields.", compile_current_line);
+				compile_error_show(buf);
+				return NULL;
+			}
+
+			int type = stat_lookup(field,armour_protection_types,NO_FLAG);
+			if (type == NO_FLAG)
+			{
+				sprintf(buf,"Line %d: invalid protection type in ARMOR PROTECTIONS.", compile_current_line);
+				compile_error_show(buf);
+				return NULL;
+			}
+			
+			*p++ = ESCAPE_EXTRA + type;
+			next_ent = ENT_NUMBER;
 
 		} else if(ent == ENT_SEX_STRING_TABLE) {
 			if(suffix[0]) {
