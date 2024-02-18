@@ -6647,9 +6647,9 @@ bool can_give_obj(CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim, bool silent)
 
 bool can_drop_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool silent)
 {
-    if (!ch)
+    if (!ch && !silent)
     {
-	bug("can_drop_obj: ch NULL.", 0);
+	bug("can_drop_obj: ch NULL while not silent.", 0);
 	return false;
     }
 
@@ -6659,7 +6659,7 @@ bool can_drop_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool silent)
 	return false;
     }
 
-    if (!can_see_obj(ch, obj))
+    if (ch && !can_see_obj(ch, obj))
 	return false;
 
 /*  Syn - this shouldn't be here, since it essentially allows people to select
@@ -6682,23 +6682,26 @@ bool can_drop_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool silent)
 	return false;
     }
 
-    if (!IS_NPC(ch) && get_staff_rank(ch) > STAFF_PLAYER)
-	return true;
+	if (ch)
+	{
+		if (!IS_NPC(ch) && get_staff_rank(ch) > STAFF_PLAYER)
+			return true;
 
-    if (IS_SOCIAL(ch))
-    {
-	if (!silent)
-	    send_to_char("You can't drop items here.\n\r", ch);
+		if (IS_SOCIAL(ch))
+		{
+			if (!silent)
+				send_to_char("You can't drop items here.\n\r", ch);
 
-	return false;
-    }
+			return false;
+		}
+	}
 
     if (IS_SET(obj->extra[0], ITEM_NODROP))
     {
-	if (!silent)
-	    act("You can't let go of $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		if (!silent)
+			act("You can't let go of $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 
-	return false;
+		return false;
     }
 
     return true;
@@ -6867,9 +6870,9 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
     char buf[MAX_STRING_LENGTH];
     int weight;
 
-    if (!ch)
+    if (!ch && !silent)
     {
-	bug("can_put_obj: ch NULL.", 0);
+	bug("can_put_obj: ch NULL when not silent.", 0);
 	return false;
     }
 
@@ -6983,10 +6986,14 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 		{
 			if (IS_SET(obj->extra[0], ITEM_NOKEYRING))
 			{
-				if (IS_CONTAINER(container) && IS_SET(CONTAINER(container)->flags, CONT_PUT_ON))
-					act("You can't put $p on $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
-				else
-					act("You can't put $p in $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
+				if (!silent)
+				{
+					if (IS_CONTAINER(container) && IS_SET(CONTAINER(container)->flags, CONT_PUT_ON))
+						act("You can't put $p on $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
+					else
+						act("You can't put $p in $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
+				}
+				return false;
 			}
 		}
 
@@ -6994,10 +7001,13 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 		{
 			if (!container_check_duplicate(container, obj))
 			{
-				if (IS_SET(CONTAINER(container)->flags, CONT_PUT_ON))
-					act("$p is already on $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
-				else
-					act("$p is already in $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
+				if (!silent)
+				{
+					if (IS_SET(CONTAINER(container)->flags, CONT_PUT_ON))
+						act("$p is already on $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
+					else
+						act("$p is already in $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
+				}
 				return false;
 			}
 		}
@@ -7016,6 +7026,8 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 			return false;
 		}
 		*/
+
+		return !p_percent_trigger(NULL,container,NULL,NULL,ch, NULL, NULL,obj,NULL,TRIG_PREPUT,silent?"silent":NULL,0,0,0,0,0);
     }
     else
     {
@@ -7053,18 +7065,31 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 			return false;
 		}
 
+		bool valid = true;
 		if (count_weight_mail(mail) + weight > MAX_POSTAL_WEIGHT)
-			MSG(send_to_char("Postal weight limit has been reached.\n\r", ch))
+		{
+			if (!silent)
+			{
+				MSG(send_to_char("Postal weight limit has been reached.\n\r", ch))
+			}
+			valid = false;
+		}
 
 		if (count_items_list_nest(mail->objects)
 			+ count_items_list_nest(obj->contains) + 1 > MAX_POSTAL_ITEMS)
 		{
-			sprintf(buf, "Postal limit of %d items per package has been reached.\n\r", MAX_POSTAL_ITEMS);
-			MSG(send_to_char(buf, ch))
+			if (!silent)
+			{
+				sprintf(buf, "Postal limit of %d items per package has been reached.\n\r", MAX_POSTAL_ITEMS);
+				MSG(send_to_char(buf, ch))
+			}
+			valid = false;
 		}
+
+		return valid;
     }
 
-    return !p_percent_trigger(NULL,container,NULL,NULL,ch, NULL, NULL,obj,NULL,TRIG_PREPUT,silent?"silent":NULL,0,0,0,0,0);
+    return false;
 }
 
 

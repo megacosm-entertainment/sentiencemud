@@ -3903,6 +3903,8 @@ SCRIPT_CMD(scriptcmd_resetroom);
 SCRIPT_CMD(scriptcmd_alterexit);
 SCRIPT_CMD(scriptcmd_altermob);
 SCRIPT_CMD(scriptcmd_alter);
+SCRIPT_CMD(scriptcmd_shop);
+SCRIPT_CMD(scriptcmd_mail);
 
 bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);
 bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);
