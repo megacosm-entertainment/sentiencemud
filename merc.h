@@ -8768,6 +8768,8 @@ char *flagbank_string(const struct flag_type **bank, ...);
 
 void display_resets(CHAR_DATA *ch);
 
+bool check_social_status(CHAR_DATA *ch);
+
 /*
  Introducing some variables to keep compiler from complaining. These are used in do_version.
 */
