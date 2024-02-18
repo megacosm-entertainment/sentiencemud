@@ -552,6 +552,11 @@ void do_cast(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
+	if (IS_SOCIAL(ch)) {
+		send_to_char("You can't cast spells here.\n\r", ch);
+		return;
+	}
+
 	if (!arg1[0]) {
 		send_to_char("Cast which what where?\n\r", ch);
 		return;
@@ -883,7 +888,7 @@ void cast_end(CHAR_DATA *ch)
 				CHAR_DATA *dam_vict;
 
 				act("{R$p shatters explosively!{x", ch, NULL, NULL, trap, NULL, NULL, NULL, TO_ALL);
-				if (!IS_SET(ch->in_room->room_flag[0], ROOM_SAFE) && !IN_CHAT(ch)) {
+				if (!IS_SET(ch->in_room->room_flag[0], ROOM_SAFE) && !IS_SOCIAL(ch)) {
 					for (dam_vict = ch->in_room->people; dam_vict; dam_vict = dam_vict->next_in_room) {
 						if (is_pk(dam_vict)) {
 							act("{RYou are struck by $p's shards!", dam_vict, NULL, NULL, trap, NULL, NULL, NULL, TO_CHAR);

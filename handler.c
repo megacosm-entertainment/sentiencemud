@@ -1981,6 +1981,7 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
     if (ch->in_room->chat_room != NULL)
 	ch->in_room->chat_room->curr_people++;
 
+/* Phased out in favour of an AREA_SOCIAL flag on social zones. 
     if (!str_cmp(ch->in_room->area->name, "Elysium")
     && !IS_SOCIAL(ch))
 		SET_BIT(ch->comm, COMM_SOCIAL);
@@ -1988,6 +1989,7 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
     if (str_cmp(ch->in_room->area->name, "Elysium")
     && IS_SOCIAL(ch))
 		REMOVE_BIT(ch->comm, COMM_SOCIAL);
+*/
 
 	if( IS_VALID(pRoomIndex->instance_section) && IS_VALID(pRoomIndex->instance_section->instance) )
 	{

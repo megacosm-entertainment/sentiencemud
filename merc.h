@@ -3216,7 +3216,7 @@ enum {
 #define COMM_NOANNOUNCE         (F)
 #define COMM_NOHELPER           (G)
 #define COMM_NOCT		(H)
-#define COMM_SOCIAL		(I)
+#define COMM_SOCIAL		(I) // DEPRECATED in favour of checking AREA_SOCIAL.
 #define COMM_NOTIFY		(J)
 #define COMM_NOHINTS		(K)
 #define COMM_COMPACT		(L)
@@ -6754,7 +6754,7 @@ extern int16_t grn_unique;
 		(!IS_SET((ch)->in_room->room_flag[0],ROOM_INDOORS) && \
 			(ch)->in_room->sector_type != SECT_INSIDE && (ch)->in_room->sector_type != SECT_NETHERWORLD ) )
 
-#define IS_SOCIAL(ch)	  (IS_SET((ch)->comm, COMM_SOCIAL))
+#define IS_SOCIAL(ch)	  (IS_SET((ch)->in_room->area->area_flags, AREA_SOCIAL))
 #define IS_PK(ch)         (((ch)->church != NULL &&     \
 			   (ch)->church->pk == true ) || IS_SET((ch)->act[0],PLR_PK))
 #define IS_QUESTING(ch)	        ( ch->quest != NULL )

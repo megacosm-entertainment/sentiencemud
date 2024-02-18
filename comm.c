@@ -1515,7 +1515,7 @@ void bust_a_prompt(CHAR_DATA *ch)
        return;
    }
 
-   if (IS_SET(ch->comm,COMM_SOCIAL))
+   if (IS_SOCIAL(ch))
    {
        if (ch->in_room->chat_room != NULL)
        {

@@ -492,6 +492,7 @@ CHAR_DATA *get_random_mob_area( CHAR_DATA *ch, AREA_DATA *area)
         	!IS_SET(mob->in_room->room_flag[0], ROOM_CPK) &&
         	!IS_SET(mob->in_room->room_flag[1], ROOM_NO_GET_RANDOM) &&
 			!IS_SET(mob->in_room->area->area_flags, AREA_NO_GET_RANDOM) &&
+			!IS_SET(mob->in_room->room_flag[0], ROOM_NO_QUEST) &&
 			mob->in_room->area->open &&
 			!is_area_unlocked(ch, area) )
 	    break;

@@ -1817,8 +1817,7 @@ bool is_safe(CHAR_DATA *ch, CHAR_DATA *victim, bool show)
 	}
 
 	// Can't kill anyone in social
-	if (!str_cmp(victim->in_room->name, "Elysium")
-	||   IS_SOCIAL(ch) || IS_SOCIAL(victim))
+	if (IS_SOCIAL(ch) || IS_SOCIAL(victim))
 	return true;
 
 	// Immortals can attack anybody, if they have HOLYAURA on
