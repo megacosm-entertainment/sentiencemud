@@ -3281,9 +3281,8 @@ void show_church_info(CHURCH_DATA *church, CHAR_DATA *ch)
 		add_buf(buffer, buf);
 
 		sprintf(buf, "{YKey:{x %ld - %s\n\r",
-			church->key,
-		get_obj_index(church->hall_area, church->key) == NULL ?
-			"none" : get_obj_index(church->hall_area, church->key)->short_descr);
+			(church->key == NULL ? 0 : church->key->vnum),
+			(church->key == NULL ? "none" : church->key->short_descr));
 		add_buf(buffer, buf);
 	}
 
@@ -3644,7 +3643,7 @@ void write_church(CHURCH_DATA *church, FILE *fp)
     fprintf(fp, "Founder %s~\n", church->founder);
     fprintf(fp, "LastLoginFounder %ld\n", (long int)church->founder_last_login);
     fprintf(fp, "Gold %ld\n", church->gold);
-    fprintf(fp, "Key %ld\n", church->key);
+    fprintf(fp, "Key %ld\n", church->key ? church->key->vnum : 0);
     fprintf(fp, "MaxPositions %d\n", church->max_positions);
     fprintf(fp, "PKLosses %ld\n", church->pk_losses);
     fprintf(fp, "PKWins %ld\n", church->pk_wins);
@@ -3831,12 +3830,19 @@ CHURCH_DATA *read_church(FILE *fp)
 	        KEYS("Info",		church->info,			fread_string(fp));
 
 	    case 'K':
-	        KEY("Key",		church->key,			fread_number(fp));
-		break;
+			if (!str_cmp(word, "Key"))
+			{
+				long vnum = fread_number(fp);
 
-            case 'L':
+				church->key = get_obj_index(church->hall_area, vnum);
+				fMatch = true;
+				break;
+			}
+			break;
+
+		case 'L':
 	        KEY("LastLoginFounder", church->founder_last_login,	fread_number(fp));
-		break;
+			break;
 
             case 'M':
 	        KEY("MaxPositions",	church->max_positions,		fread_number(fp));

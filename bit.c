@@ -101,6 +101,8 @@ const struct flag_type *flag_stat_table[] =
 	command_types,
 	staff_ranks,
 	sector_classes,
+    skill_sources,
+    church_sizes,
     NULL
 };
 

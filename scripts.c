@@ -390,7 +390,7 @@ ENT_FIELD *entity_type_lookup(char *name, ENT_FIELD *list)
 	for(i=0;list[i].name;i++) {
 //		compile_error_show(buf);
 //		sprintf(buf,"entity_type_lookup: '%s' '%s'",list[i].name,name);
-		if(!str_cmp(name,list[i].name)) {
+		if(!str_cmp(name,list[i].name) && list[i].code > 0) {
 //			sprintf(buf,"entity_type_lookup: '%s' found",name);
 //			compile_error_show(buf);
 			return &list[i];

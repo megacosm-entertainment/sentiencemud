@@ -1638,14 +1638,10 @@ EXPAND_TYPE(church)
 		break;
 
 	case ENTITY_CHURCH_SIZE:
-		arg->type = ENT_STRING;
-		if( arg->d.church ) {
-			clear_buf(arg->buffer);
-			add_buf(arg->buffer, get_chsize_from_number(arg->d.church->size));
-			arg->d.str = buf_string(arg->buffer);
-		} else
-			arg->d.str = &str_empty[0];
-
+		arg->type = ENT_STAT;
+		arg->d.stat.value = arg->d.church ? arg->d.church->size : 0;
+		arg->d.stat.table = church_sizes;
+		arg->d.stat.def_value = NO_FLAG;
 		break;
 
 	case ENTITY_CHURCH_FLAG:
@@ -1709,8 +1705,8 @@ EXPAND_TYPE(church)
 		arg->d.blist = (arg->d.church) ? arg->d.church->treasure_rooms : NULL;
 		break;
 	case ENTITY_CHURCH_KEY:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.church && (script_security >= MAX_SCRIPT_SECURITY)) ? arg->d.church->key : 0;
+		arg->type = ENT_OBJINDEX;
+		arg->d.objindex = (arg->d.church) ? arg->d.church->key : NULL;
 		break;
 	case ENTITY_CHURCH_ONLINE:
 		arg->type = ENT_PLLIST_MOB;
@@ -1736,8 +1732,10 @@ EXPAND_TYPE(church_id)
 		break;
 
 	case ENTITY_CHURCH_SIZE:
-		arg->type = ENT_STRING;
-		arg->d.str = &str_empty[0];
+		arg->type = ENT_STAT;
+		arg->d.stat.value = 0;
+		arg->d.stat.table = church_sizes;
+		arg->d.stat.def_value = NO_FLAG;
 		break;
 
 	case ENTITY_CHURCH_FLAG:
@@ -1770,8 +1768,8 @@ EXPAND_TYPE(church_id)
 		arg->d.blist = NULL;
 		break;
 	case ENTITY_CHURCH_KEY:
-		arg->type = ENT_NUMBER;
-		arg->d.num = 0;
+		arg->type = ENT_OBJINDEX;
+		arg->d.objindex = NULL;
 		break;
 	case ENTITY_CHURCH_ONLINE:
 		arg->type = ENT_PLLIST_MOB;
@@ -5204,46 +5202,8 @@ EXPAND_TYPE(skill)
 		arg->d.num = IS_VALID(skill) ? skill->beats : 0;
 		break;
 
-	case ENTITY_SKILL_LEVEL_WARRIOR:
-		arg->type = ENT_NUMBER;
-		arg->d.num = IS_VALID(skill) ? skill->skill_level[CLASS_WARRIOR] : 0;
-		break;
+	// TODO: Update for class changes
 
-	case ENTITY_SKILL_LEVEL_CLERIC:
-		arg->type = ENT_NUMBER;
-		arg->d.num = IS_VALID(skill) ? skill->skill_level[CLASS_CLERIC] : 0;
-		break;
-
-	case ENTITY_SKILL_LEVEL_MAGE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = IS_VALID(skill) ? skill->skill_level[CLASS_MAGE] : 0;
-		break;
-
-	case ENTITY_SKILL_LEVEL_THIEF:
-		arg->type = ENT_NUMBER;
-		arg->d.num = IS_VALID(skill) ? skill->skill_level[CLASS_THIEF] : 0;
-		break;
-
-
-	case ENTITY_SKILL_DIFFICULTY_WARRIOR:
-		arg->type = ENT_NUMBER;
-		arg->d.num = IS_VALID(skill) ? skill->rating[CLASS_WARRIOR] : 0;
-		break;
-
-	case ENTITY_SKILL_DIFFICULTY_CLERIC:
-		arg->type = ENT_NUMBER;
-		arg->d.num = IS_VALID(skill) ? skill->rating[CLASS_CLERIC] : 0;
-		break;
-
-	case ENTITY_SKILL_DIFFICULTY_MAGE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = IS_VALID(skill) ? skill->rating[CLASS_MAGE] : 0;
-		break;
-
-	case ENTITY_SKILL_DIFFICULTY_THIEF:
-		arg->type = ENT_NUMBER;
-		arg->d.num = IS_VALID(skill) ? skill->rating[CLASS_THIEF] : 0;
-		break;
 
 	case ENTITY_SKILL_TARGET:
 		arg->type = ENT_STAT;
@@ -5415,8 +5375,10 @@ EXPAND_TYPE(skillentry)
 		break;
 
 	case ENTITY_SKILLENTRY_SOURCE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = entry ? entry->source : -1;
+		arg->type = ENT_STAT;
+		arg->d.stat.value = entry ? entry->source : -1;
+		arg->d.stat.table = skill_sources;
+		arg->d.stat.def_value = NO_FLAG;
 		break;
 
 	case ENTITY_SKILLENTRY_FLAGS:
@@ -9145,6 +9107,17 @@ EXPAND_TYPE(object_furniture)
 		break;
 	}
 
+	case ENTITY_OBJ_FURNITURE_FLAGS:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = furniture ? furniture->flags : 0;
+		arg->d.bv.table = furniture_flags;
+		break;
+
+	case ENTITY_OBJ_FURNITURE_COMPARTMENTS:
+		arg->type = ENT_PLLIST_COMPARTMENT;
+		arg->d.blist = furniture ? furniture->compartments : NULL;
+		break;
+
 	default: return NULL;
 	}
 
@@ -10057,14 +10030,10 @@ EXPAND_TYPE(race)
 		arg->d.ints.max = 3;
 		break;
 
-	case ENTITY_RACE_MIN_SIZE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = IS_VALID(race) ? race->min_size : 0;
-		break;
-
-	case ENTITY_RACE_MAX_SIZE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = IS_VALID(race) ? race->max_size : 0;
+	case ENTITY_RACE_SIZE:
+		arg->type = ENT_RANGE;
+		arg->d.range.min = IS_VALID(race) ? race->min_size : 0;
+		arg->d.range.max = IS_VALID(race) ? race->max_size : 0;
 		break;
 
 	case ENTITY_RACE_DEFAULT_ALIGNMENT:

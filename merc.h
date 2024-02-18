@@ -1499,7 +1499,7 @@ struct church_data
 
     LOCATION 		recall_point;
     LLIST *treasure_rooms;
-    long 		key;
+    OBJ_INDEX_DATA *key;
 
     long 		pk_wins;
     long 		pk_losses;

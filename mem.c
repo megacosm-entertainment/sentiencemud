@@ -1525,7 +1525,7 @@ CHURCH_DATA *new_church( void )
     pChurch->pk = 0;
     pChurch->settings = 0;
     pChurch->treasure_rooms = list_createx(false, NULL, delete_church_treasure_room);
-    pChurch->key = 0;
+    pChurch->key = NULL;
 
     pChurch->pk_wins = 0;
     pChurch->pk_losses = 0;

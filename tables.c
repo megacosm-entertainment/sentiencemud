@@ -4402,3 +4402,21 @@ const struct flag_type cart_flags[] =
     {"team_animal_only",    CART_TEAM_ANIMAL_ONLY,  true},
     {NULL,                  0,                      false}
 };
+
+const struct flag_type skill_sources[] =
+{
+    {"normal",              SKILLSRC_NORMAL,        true },
+    {"script",              SKILLSRC_SCRIPT,        true },
+    {"script_perm",         SKILLSRC_SCRIPT_PERM,   true },
+    {"affect",              SKILLSRC_AFFECT,        true },
+    {NULL,                  0,                      false}
+};
+
+const struct flag_type church_sizes[] =
+{
+    {"band",            CHURCH_SIZE_BAND,           true },
+    {"cult",            CHURCH_SIZE_CULT,           true },
+    {"order",           CHURCH_SIZE_ORDER,          true },
+    {"church",          CHURCH_SIZE_CHURCH,         true },
+    {NULL,              0,                          false}
+};

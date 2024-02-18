@@ -6086,10 +6086,10 @@ void do_chset(CHAR_DATA *ch, char *argument)
 		sprintf(buf, "You have set {Y%s{x's key to {W%s{x ({G%ld{x in {G%s{x).\n\r",
 			church->name,
 			key->short_descr,
-			vnum,
+			key->vnum,
 			church->hall_area->name);
 		send_to_char(buf, ch);
-		church->key = vnum;
+		church->key = key;
 		return;
     }
 

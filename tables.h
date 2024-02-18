@@ -522,6 +522,8 @@ extern const struct flag_type sector_classes[];
 extern const struct global_sector_type global_sector_table[];
 
 extern const struct flag_type cart_flags[];
+extern const struct flag_type skill_sources[];
+extern const struct flag_type church_sizes[];
 
 #endif
 

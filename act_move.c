@@ -1810,7 +1810,7 @@ void use_key(CHAR_DATA *ch, OBJ_DATA *key, LOCK_STATE *lock)
 	/* can only use a church-temple key if you're in that church */
 	for (church = church_list; church != NULL; church = church->next)
 	{
-		if (church->hall_area == key->pIndexData->area && church->key == key->pIndexData->vnum && ch->church != church)
+		if (church->hall_area == key->pIndexData->area && church->key == key->pIndexData && ch->church != church)
 		{
 			sprintf(buf, "Rent by the spiritual powers of %s, $p dissipates into nothingness.\n\r", church->name);
 			act(buf, ch, NULL, NULL, key, NULL, NULL, NULL, TO_CHAR);
