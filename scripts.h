@@ -479,6 +479,7 @@ struct entity_field_type {
 	unsigned char code;
 	unsigned char type;
 	char *description;
+	bool deprecated;
 };
 
 enum entity_type_enum {
@@ -2213,6 +2214,7 @@ struct ifcheck_data {
 	bool numeric;			/* Return type */
 	IFC_FUNC func;			/* Processing function */
 	char *help;			/* Help keywords (for accessing the help file) */
+	bool deprecated;		// Ifcheck is being deprecated
 };
 
 #define BOOLEXP_TRUE	0	// Evaluates the logical value of LEFT == (LEFT)
@@ -2492,6 +2494,7 @@ struct script_cmd_type {
 	void (*func) (SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg);
 	bool restricted;
 	bool required;		// Indicates whether the argument must exist
+	bool deprecated;	// Indicates whether the command is being deprecated
 };
 
 struct _entity_type_info {
