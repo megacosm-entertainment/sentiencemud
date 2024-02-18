@@ -15140,8 +15140,6 @@ SCRIPT_CMD(scriptcmd_mail)
 			iterator_stop(&it);
 		}
 	}
-	else
-		ret = 0;
 
 	list_destroy(packages);
 	free_buf(message);
@@ -15161,8 +15159,11 @@ SCRIPT_CMD(scriptcmd_mail)
 		mail->sent_date = current_time;
 		mail->status = MAIL_BEING_DELIVERED;
 	}
-	else if (mail)
-		free_mail(mail);
+	else
+	{
+		if (mail) free_mail(mail);
+		ret = 0;
+	}
 
 	SETRETURN(ret);
 }
