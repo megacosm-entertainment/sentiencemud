@@ -2594,6 +2594,11 @@ EXPAND_TYPE(mobile)
 		arg->type = ENT_SHOP;
 		arg->d.shop = self ? self->shop : NULL;
 		break;
+	
+	case ENTITY_MOB_CREW:
+		arg->type = ENT_CREW;
+		// Uses arg->d.mob;
+		break;
 
 	default: return NULL;
 	}
@@ -2931,6 +2936,11 @@ EXPAND_TYPE(mobile_id)
 		arg->d.shop = NULL;
 		break;
 
+	case ENTITY_MOB_CREW:
+		arg->type = ENT_CREW;
+		arg->d.mob = NULL;
+		break;
+
 	default: return NULL;
 	}
 
@@ -3234,6 +3244,50 @@ EXPAND_TYPE(shop_stock)
 	case ENTITY_STOCK_SHOP:
 		arg->type = ENT_SHOP;
 		arg->d.shop = stock ? stock->shop : NULL;
+		break;
+
+	default:
+		return NULL;
+	}
+
+	return str+1;
+}
+
+EXPAND_TYPE(crew)
+{
+	CHAR_DATA *mob = arg->d.mob;
+	SHIP_CREW_DATA *crew = IS_VALID(mob) && IS_NPC(mob) ? mob->crew : NULL;
+
+	switch(*str)
+	{
+	case ENTITY_CREW_SCOUTING:
+		arg->type = ENT_NUMBER;
+		arg->d.num = crew ? crew->scouting : 0;
+		break;
+
+	case ENTITY_CREW_GUNNING:
+		arg->type = ENT_NUMBER;
+		arg->d.num = crew ? crew->gunning : 0;
+		break;
+
+	case ENTITY_CREW_OARRING:
+		arg->type = ENT_NUMBER;
+		arg->d.num = crew ? crew->oarring : 0;
+		break;
+
+	case ENTITY_CREW_MECHANICS:
+		arg->type = ENT_NUMBER;
+		arg->d.num = crew ? crew->mechanics : 0;
+		break;
+
+	case ENTITY_CREW_NAVIGATION:
+		arg->type = ENT_NUMBER;
+		arg->d.num = crew ? crew->navigation : 0;
+		break;
+
+	case ENTITY_CREW_LEADERSHIP:
+		arg->type = ENT_NUMBER;
+		arg->d.num = crew ? crew->leadership : 0;
 		break;
 
 	default:
@@ -10670,6 +10724,7 @@ EXPAND(expand_argument_entity)
 		ENTITY_CASE(SHOP_BUYTYPES,shop_buytypes)
 		ENTITY_CASE(SHOP_SHIPYARD,shop_shipyard)
 		ENTITY_CASE(SHOP_STOCK,shop_stock)
+		ENTITY_CASE(CREW,crew)
 
 		case ENT_NULL:
 			next = str+1;

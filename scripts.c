@@ -544,6 +544,9 @@ int ifcheck_comparison(SCRIPT_VARINFO *info, short param, char *rest, SCRIPT_PAR
 		if (arg->type == ENT_SHIP)
 			return IS_VALID(arg->d.ship) ? 1 : 0;
 
+		if (arg->type == ENT_CREW)
+			return IS_VALID(arg->d.mob) && IS_NPC(arg->d.mob) && IS_VALID(arg->d.mob->crew) ? 1 : 0;
+
 		if (arg->type == ENT_SHOP)
 			return arg->d.shop ? 1 : 0;
 

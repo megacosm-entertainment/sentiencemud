@@ -1403,6 +1403,15 @@ ENT_FIELD entity_shop_stock[] = {
 	{NULL,				0,								ENT_UNKNOWN			}
 };
 
+ENT_FIELD entity_crew[] = {
+	{"scouting",			ENTITY_CREW_SCOUTING,		ENT_NUMBER			},
+	{"gunning",				ENTITY_CREW_GUNNING,		ENT_NUMBER			},
+	{"oarring",				ENTITY_CREW_OARRING,		ENT_NUMBER			},
+	{"mechanics",			ENTITY_CREW_MECHANICS,		ENT_NUMBER			},
+	{"navigation",			ENTITY_CREW_NAVIGATION,		ENT_NUMBER			},
+	{"leadership",			ENTITY_CREW_LEADERSHIP,		ENT_NUMBER			},
+	{NULL,				0,								ENT_UNKNOWN			}
+};
 
 struct _entity_type_info entity_type_info[] = {
 	{ ENT_PRIMARY,		ENT_PRIMARY,		entity_primary,				true,	false },
@@ -1441,6 +1450,7 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_SHOP,			ENT_SHOP,			entity_shop,				false,	false },
 	{ ENT_SHOP_SHIPYARD,	ENT_SHOP_SHIPYARD,	entity_shop_shipyard,	false,	false },
 	{ ENT_SHOP_STOCK,	ENT_SHOP_STOCK,		entity_shop_stock,			false,	false },
+	{ ENT_CREW,			ENT_CREW,			entity_crew,				false,	false },
 	{ ENT_LIQUID,		ENT_LIQUID,			entity_liquid,				false,	false },
 	{ ENT_MATERIAL,		ENT_MATERIAL,		entity_material,			false,	false },
 	{ ENT_SECTOR,		ENT_SECTOR,			entity_sector,				false,	false },

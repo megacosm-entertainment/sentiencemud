@@ -548,6 +548,8 @@ enum entity_type_enum {
 	ENT_SHOP_SHIPYARD,
 	ENT_SHOP_STOCK,
 
+	ENT_CREW,
+
 	//////////////////////////////
 	// Bucket? lists
 	// ALL lists here are designed to be saved
@@ -980,6 +982,7 @@ enum entity_mobile_enum {
 	ENTITY_MOB_MISSIONS,
 	ENTITY_MOB_COMPARTMENT,
 	ENTITY_MOB_SHOP,
+	ENTITY_MOB_CREW,
 };
 
 enum entity_reputation_enum
@@ -1970,6 +1973,15 @@ enum entity_shop_stock_enum {
 	ENTITY_STOCK_MIN_SHOW_RANK,
 	ENTITY_STOCK_MAX_SHOW_RANK,
 	ENTITY_STOCK_SHOP,
+};
+
+enum entity_crew_enum {
+	ENTITY_CREW_SCOUTING = ESCAPE_EXTRA,
+	ENTITY_CREW_GUNNING,
+	ENTITY_CREW_OARRING,
+	ENTITY_CREW_MECHANICS,
+	ENTITY_CREW_NAVIGATION,
+	ENTITY_CREW_LEADERSHIP,
 };
 
 /* Single letter $* codes ($i, $n) */
