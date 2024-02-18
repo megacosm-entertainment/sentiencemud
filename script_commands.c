@@ -15156,6 +15156,7 @@ SCRIPT_CMD(scriptcmd_mail)
 			mail_tmp->next = mail;
 		else
 			mail_list = mail;
+		mail->scripted = true;			// Prevents it from being returned
 		mail->sent_date = current_time;
 		mail->status = MAIL_BEING_DELIVERED;
 	}

@@ -4102,6 +4102,7 @@ struct mail_data
     time_t 	sent_date; 	/* when sent */
     char 	*message; 	/* message included */
     bool	picked_up;	/* has it been picked up ? */
+    bool    scripted;
     int		status;		/* for keeping track of the mail is */
 };
 
