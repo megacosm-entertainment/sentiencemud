@@ -9345,6 +9345,7 @@ MEDIT(medit_shop)
 		send_to_char("         shop stock add [type] [value]\n\r", ch);
 		send_to_char("         shop stock [#] discount [0-100]\n\r", ch);
 		send_to_char("         shop stock [#] description [description]\n\r", ch);
+		send_to_char("         shop stock [#] duration [#hours|none]\n\r", ch);
 		send_to_char("         shop stock [#] level [level]\n\r", ch);
 		send_to_char("         shop stock [#] price [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
 		send_to_char("         shop stock [#] quantity unlimited\n\r", ch);
@@ -9684,6 +9685,7 @@ MEDIT(medit_shop)
 			send_to_char("         shop stock add custom [keyword]\n\r", ch);
 			send_to_char("         shop stock [#] discount [0-100]\n\r", ch);
 			send_to_char("         shop stock [#] description [description]\n\r", ch);
+			send_to_char("         shop stock [#] duration [#hours|none]\n\r", ch);
 			send_to_char("         shop stock [#] level [level]\n\r", ch);
 			send_to_char("         shop stock [#] price [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
 			send_to_char("         shop stock [#] quantity unlimited\n\r", ch);
@@ -10014,6 +10016,23 @@ MEDIT(medit_shop)
 				return false;
 			}
 
+
+			if(!str_prefix(arg2, "duration"))
+			{
+				int duration;
+				if (!str_prefix(argument, "none"))
+					duration = 0;
+				else if (!is_number(argument) || (duration = atoi(argument)) < 1)
+				{
+					send_to_char("Please provide a positive number or none.\n\r", ch);
+					return false;
+				}
+
+				stock->duration = duration;
+				send_to_char("Stock duration changed.\n\r", ch);
+				return true;
+			}
+
 			if(!str_prefix(arg2, "price"))
 			{
 				char arg3[MIL];
@@ -10154,28 +10173,6 @@ MEDIT(medit_shop)
 
 				stock->discount = disc;
 				send_to_char("Stock discount changed.\n\r", ch);
-				return true;
-			}
-
-			if(!str_prefix(arg2, "duration"))
-			{
-				if(!is_number(argument))
-				{
-					send_to_char("Syntax:  shop stock [#] duration [ticks]\n\r", ch);
-					return false;
-				}
-
-				int duration = atoi(argument);
-
-				if(duration < 1)
-				{
-					stock->duration = 0;
-					send_to_char("Stock duration set to permanent.\n\r", ch);
-					return true;
-				}
-
-				stock->duration = duration;
-				send_to_char("Stock duration changed.\n\r", ch);
 				return true;
 			}
 
