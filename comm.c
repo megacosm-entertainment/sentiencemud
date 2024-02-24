@@ -692,6 +692,9 @@ int main(int argc, char **argv)
 	if (!load_races()) exit(1);
 	log_string("races loaded");
 
+	if (!load_corpses()) exit(1);
+	log_string("corpses loaded");
+
     /*
      * Run the game.
      */
@@ -738,6 +741,7 @@ int main(int argc, char **argv)
 	imc_shutdown(false, server);
 	#endif
 
+	save_corpses();
 	save_races();
 	save_classes(false);
 	save_liquids();
@@ -746,6 +750,7 @@ int main(int argc, char **argv)
 	save_songs();
 	save_sectors();
 
+	list_destroy(corpse_list);
 	list_destroy(race_list);
 	list_destroy(liquid_list);
 	list_destroy(material_list);

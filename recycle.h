@@ -440,3 +440,10 @@ WORLD_DATA *new_world_data();
 void free_world_data(WORLD_DATA *data);
 CONSTELLATION_DATA *new_constellation_data();
 void free_constellation_data(CONSTELLATION_DATA *data);
+
+
+CORPSE_DAMAGE *new_corpse_damage();
+void free_corpse_damage(CORPSE_DAMAGE *data);
+
+CORPSE_DATA *new_corpse_data();
+void free_corpse_data(CORPSE_DATA *data);

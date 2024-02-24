@@ -1246,7 +1246,7 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, SKI
 	OBJ_DATA *vObj;
 	OBJ_DATA *obj;
 	char buf[MAX_STRING_LENGTH];
-	int corpse_type = RAWKILL_NORMAL;
+	CORPSE_DATA *corpse_type = victim->corpse_type;
 	bool immune;
 	bool kill_in_room = false;
 	long vid[2], cid[2];
@@ -1720,13 +1720,11 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, SKI
 
 		kill_in_room = (victim->in_room == ch->in_room);
 
-		corpse_type = damage_to_corpse(dam_type);
-
 		// Do the actual killing.
 		if (dam_type == DAM_VORPAL || !victim->has_head || !IS_SET(victim->parts,PART_HEAD))
-			corpse = raw_kill(victim, false, true, corpse_type);
+			corpse = raw_kill(victim, false, true, corpse_type, dam_type);
 		else
-			corpse = raw_kill(victim, true, true, corpse_type);
+			corpse = raw_kill(victim, true, true, corpse_type, dam_type);
 
 		// Check if slain victim was part of a quest. Checks if your horse got the kill, too.
 		if (!IS_NPC(ch)) {
@@ -2959,7 +2957,7 @@ void stop_fighting(CHAR_DATA *ch, bool fBoth)
 	return;
 }
 
-void set_corpse_data(OBJ_DATA *corpse, int corpse_type)
+void set_corpse_data(OBJ_DATA *corpse, CORPSE_DATA *corpse_type)
 {
 	char buf[MAX_STRING_LENGTH];
 	char *name;
@@ -2979,16 +2977,16 @@ void set_corpse_data(OBJ_DATA *corpse, int corpse_type)
 			short_desc = name;
 		else
 			short_desc = corpse->owner_short;
-		min = corpse_info_table[corpse_type].decay_npctimer_min;
-		max = corpse_info_table[corpse_type].decay_npctimer_max;
+		min = corpse_type->decay_npctimer_min;
+		max = corpse_type->decay_npctimer_max;
 	} else if(corpse->item_type == ITEM_CORPSE_PC) {
 		name = corpse->owner;
 		short_desc = corpse->owner;
-		min = corpse_info_table[corpse_type].decay_pctimer_min;
-		max = corpse_info_table[corpse_type].decay_pctimer_max;
+		min = corpse_type->decay_pctimer_min;
+		max = corpse_type->decay_pctimer_max;
 	} else return;
 
-	sprintf(buf, corpse_info_table[corpse_type].name, name);
+	sprintf(buf, corpse_type->keywords, name);
 	free_string(corpse->name);
 	corpse->name = str_dup(buf);
 
@@ -2996,10 +2994,10 @@ void set_corpse_data(OBJ_DATA *corpse, int corpse_type)
 	if(max < 0) max *= -corpse->level;
 	corpse->timer = number_range(min, max);
 	corpse->timer = UMAX(corpse->timer, 1);	// Must have some decay time on it.
-	CORPSE_RESURRECT(corpse) = corpse_info_table[corpse_type].resurrect_chance;
-	CORPSE_ANIMATE(corpse) = corpse_info_table[corpse_type].animation_chance;
+	CORPSE_RESURRECT(corpse) = corpse_type->resurrect_chance;
+	CORPSE_ANIMATE(corpse) = corpse_type->animation_chance;
 
-	if(corpse_info_table[corpse_type].headless) {
+	if(corpse_type->headless) {
 //		SET_BIT(corpse->extra[0], ITEM_NOSKULL);
 		REMOVE_BIT(CORPSE_PARTS(corpse),PART_HEAD);
 		REMOVE_BIT(CORPSE_PARTS(corpse),PART_BRAINS);
@@ -3012,36 +3010,36 @@ void set_corpse_data(OBJ_DATA *corpse, int corpse_type)
 		REMOVE_BIT(CORPSE_PARTS(corpse),PART_TUSKS);
 	}
 
-	if(corpse_info_table[corpse_type].lost_bodyparts)
-		REMOVE_BIT(CORPSE_PARTS(corpse),corpse_info_table[corpse_type].lost_bodyparts);
+	if(corpse_type->lost_bodyparts)
+		REMOVE_BIT(CORPSE_PARTS(corpse),corpse_type->lost_bodyparts);
 
 	if (IS_SET(CORPSE_PARTS(corpse),PART_HEAD)) {
-		sprintf(buf, corpse_info_table[corpse_type].short_descr, short_desc);
+		sprintf(buf, corpse_type->short_descr, short_desc);
 		free_string(corpse->short_descr);
 		corpse->short_descr = str_dup(buf);
 
-		sprintf(buf, corpse_info_table[corpse_type].long_descr, short_desc);
+		sprintf(buf, corpse_type->long_descr, short_desc);
 		free_string(corpse->description);
 		corpse->description = str_dup(buf);
 
-		sprintf(buf, corpse_info_table[corpse_type].full_descr, short_desc);
+		sprintf(buf, corpse_type->full_descr, short_desc);
 		free_string(corpse->full_description);
 		corpse->full_description = str_dup(buf);
 	} else {
-		sprintf(buf, corpse_info_table[corpse_type].short_headless, short_desc);
+		sprintf(buf, corpse_type->short_headless, short_desc);
 		free_string(corpse->short_descr);
 		corpse->short_descr = str_dup(buf);
 
-		sprintf(buf, corpse_info_table[corpse_type].long_headless, short_desc);
+		sprintf(buf, corpse_type->long_headless, short_desc);
 		free_string(corpse->description);
 		corpse->description = str_dup(buf);
 
-		sprintf(buf, corpse_info_table[corpse_type].full_headless, short_desc);
+		sprintf(buf, corpse_type->full_headless, short_desc);
 		free_string(corpse->full_description);
 		corpse->full_description = str_dup(buf);
 	}
 
-	CORPSE_TYPE(corpse) = corpse_type;
+	CORPSE_TYPE(corpse) = corpse_type->uid;
 }
 
 int blend_corpsetypes (int t1, int t2)
@@ -3072,8 +3070,9 @@ int blend_corpsetypes (int t1, int t2)
  * Make a corpse out of a character.
  * Has_head: Make a corpse with flag beheaded if false
  */
-OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messages)
+OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, CORPSE_DATA *corpse_type, int damage_type, bool messages)
 {
+	char buf[MSL];
 	OBJ_DATA *corpse;
 	OBJ_DATA *obj;
 	OBJ_DATA *obj_next;
@@ -3082,9 +3081,23 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
 	char *name;
 	char *short_desc;
 
-	corpse_type = blend_corpsetypes(ch->corpse_type,corpse_type);
+	sprintf(buf,"make_corpse(%s:%lu:%lu,%s,%s,%s,%s)",
+		(char*)((IS_NPC(ch) || ch->morphed) ? ch->short_descr : capitalize(ch->name)),
+		ch->id[0],ch->id[1],
+		(has_head ? "HEAD" : "HEADLESS"),
+		(messages ? "MESSAGES" : "SILENT"),
+		(corpse_type ? corpse_type->name : "(nocorpse)"),
+		flag_string(damage_classes, damage_type));
+	wiznet(buf,NULL,NULL,WIZ_DEATHS,0,STAFF_IMPLEMENTOR);
 
-	if(corpse_type < RAWKILL_NORMAL) return NULL;
+	corpse_type = apply_damage_to_corpse(corpse_type, damage_type);
+
+	sprintf(buf,"make_corpse(%s:%lu:%lu,damage applied,%s)",
+		(char*)((IS_NPC(ch) || ch->morphed) ? ch->short_descr : capitalize(ch->name)),
+		ch->id[0],ch->id[1],
+		(corpse_type ? corpse_type->name : "(nocorpse)"));
+
+	if(!IS_VALID(corpse_type)) return NULL;
 
 	// NPCs
 	if (IS_NPC(ch))
@@ -3175,9 +3188,9 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
 	corpse->level = ch->tot_level;
 	CORPSE_PARTS(corpse) = ch->parts;
 
-	CORPSE_TYPE(corpse) = corpse_type;
+	CORPSE_TYPE(corpse) = corpse_type->uid;
 
-	if(corpse_info_table[corpse_type].headless || !IS_SET(ch->parts,PART_HEAD)) {
+	if(corpse_type->headless || !IS_SET(ch->parts,PART_HEAD)) {
 //		SET_BIT(corpse->extra[0], ITEM_NOSKULL);
 		REMOVE_BIT(CORPSE_PARTS(corpse),PART_HEAD);
 		REMOVE_BIT(CORPSE_PARTS(corpse),PART_BRAINS);
@@ -3240,12 +3253,12 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
 	obj_to_room(corpse, ch->in_room);
 
 	if(messages) {
-	MOBtrigger = false;
-	if(corpse_info_table[corpse_type].victim_message)
-		act(corpse_info_table[corpse_type].victim_message, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	if(corpse_info_table[corpse_type].room_message)
-		act(corpse_info_table[corpse_type].room_message, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	MOBtrigger = true;
+		MOBtrigger = false;
+		if(corpse_type->victim_message)
+			act(corpse_type->victim_message, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		if(corpse_type->room_message)
+			act(corpse_type->room_message, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		MOBtrigger = true;
 	}
 
 	return corpse;
@@ -3586,7 +3599,7 @@ void death_sight_echo(CHAR_DATA *victim)
 	}
 }
 
-OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_type)
+OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, CORPSE_DATA *corpse_type, int damage_type)
 {
 	CHAR_DATA *temp;
 	char buf[MAX_STRING_LENGTH];
@@ -3597,12 +3610,13 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 	TOKEN_DATA *token, *token_next;
 //    long repop_room = 0;
 
-	sprintf(buf,"raw_kill(%s:%lu:%lu,%s,%s,%d)",
+	sprintf(buf,"raw_kill(%s:%lu:%lu,%s,%s,%s,%s)",
 		(char*)((IS_NPC(victim) || victim->morphed) ? victim->short_descr : capitalize(victim->name)),
 		victim->id[0],victim->id[1],
 		(has_head?"HEAD":"HEADLESS"),
 		(messages?"MESSAGES":"SILENT"),
-		corpse_type);
+		(corpse_type ? corpse_type->name : "(nocorpse)"),
+		flag_string(damage_classes, damage_type));
 	wiznet(buf,NULL,NULL,WIZ_DEATHS,0,STAFF_IMPLEMENTOR);
 
 	/* If someone has died then unbanish them */
@@ -3767,12 +3781,29 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 	death_cry(victim, has_head, messages);
 
 	if ((!IS_NPC(victim) && IS_DEAD(victim)) || (IS_NPC(victim) && IS_SET(victim->act[1], ACT2_DROP_EQ)))
-		corpse_type = RAWKILL_NOCORPSE;
+		corpse_type = NULL;
 
-	if (corpse_type > RAWKILL_NOCORPSE)
-		corpse = make_corpse(victim, has_head, corpse_type,messages);
+	sprintf(buf,"raw_kill(%s:%lu:%lu,resulting corpse type,%s,%s)",
+		(char*)((IS_NPC(victim) || victim->morphed) ? victim->short_descr : capitalize(victim->name)),
+		victim->id[0],victim->id[1],
+		(corpse_type ? corpse_type->name : "(nocorpse)"),
+		flag_string(damage_classes, damage_type));
+	wiznet(buf,NULL,NULL,WIZ_DEATHS,0,STAFF_IMPLEMENTOR);
 
-	if (IS_NPC(victim) && (IS_SET(victim->act[1], ACT2_DROP_EQ) || (corpse_type == RAWKILL_NOCORPSE))) {
+
+	if (IS_VALID(corpse_type))
+	{
+		corpse = make_corpse(victim, has_head, corpse_type, damage_type, messages);
+	}
+
+	sprintf(buf,"raw_kill(%s:%lu:%lu,resulting corpse,%s)",
+		(char*)((IS_NPC(victim) || victim->morphed) ? victim->short_descr : capitalize(victim->name)),
+		victim->id[0],victim->id[1],
+		corpse ? corpse->short_descr : "(null)");
+	wiznet(buf,NULL,NULL,WIZ_DEATHS,0,STAFF_IMPLEMENTOR);
+
+
+	if (IS_NPC(victim) && (IS_SET(victim->act[1], ACT2_DROP_EQ) || !IS_VALID(corpse_type))) {
 		OBJ_DATA *obj_next;
 
 		for (obj = victim->carrying; obj != NULL; obj = obj_next)
@@ -5816,7 +5847,7 @@ void do_burgle(CHAR_DATA *ch, char *argument)
 		send_to_char("{MOh No, the Guards caught you, and now they're going to kill you!\n\r", ch);
 		send_to_char("{RThe bank guards linch you on the closest tree\n\r", ch);
 
-		raw_kill(ch, true, true, RAWKILL_NORMAL);
+		raw_kill(ch, true, true, gcrp_normal, DAM_NONE);
 	}
 }
 
@@ -6695,7 +6726,8 @@ void do_slay(CHAR_DATA *ch, char *argument)
 	CHAR_DATA *victim;
 	char arg[MAX_INPUT_LENGTH];
 	char buf[MSL];
-	int corpse_type;
+	CORPSE_DATA *corpse_type;
+	int damage_type;
 
 	argument = one_argument(argument, arg);
 	if (!arg[0]) {
@@ -6723,12 +6755,23 @@ void do_slay(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if(argument[0]) {
+	argument = one_argument(argument, arg);
+
+	if(arg[0]) {
 		act("{RYou slay $M in cold blood!{x",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR   );
 		act("{R$n slays you in cold blood!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT   );
 		act("{R$n slays $N in cold blood!{x",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-		corpse_type = flag_lookup(argument,corpse_types);
-		if(corpse_type == NO_FLAG) corpse_type = RAWKILL_NORMAL;
+		corpse_type = get_corpse_data(arg);
+		if(!IS_VALID(corpse_type)) corpse_type = gcrp_normal;
+
+		if (argument[0] && str_prefix(argument, "none"))
+		{
+			damage_type = stat_lookup(argument, damage_classes, NO_FLAG);
+			if (damage_type == NO_FLAG)
+				damage_type = DAM_NONE;
+		}
+		else
+			damage_type = DAM_NONE;
 /*
 	} else if (!str_cmp(ch->name, "Syn")) {
 		act("{RYou focus your godly powers on $N and $E explodes in a blazing inferno!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -6740,7 +6783,8 @@ void do_slay(CHAR_DATA *ch, char *argument)
 		act("{RYou slay $M in cold blood!{x",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR   );
 		act("{R$n slays you in cold blood!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT   );
 		act("{R$n slays $N in cold blood!{x",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-		corpse_type = RAWKILL_NORMAL;
+		corpse_type = gcrp_normal;
+		damage_type = DAM_NONE;
 	}
 	if (!IS_NPC(ch) && !IS_NPC(victim))
 		player_kill(ch, victim);
@@ -6751,7 +6795,7 @@ void do_slay(CHAR_DATA *ch, char *argument)
 	victim->set_death_type = DEATHTYPE_ALIVE;
 
 	sprintf(buf, "%s slayed %s!", ch->name, IS_NPC(victim) ? victim->short_descr : victim->name);
-	raw_kill(victim, true, true, corpse_type);
+	raw_kill(victim, true, true, corpse_type, damage_type);
 
 	wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
 	log_string(buf);

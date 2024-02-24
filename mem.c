@@ -692,6 +692,7 @@ CHAR_DATA *new_char( void )
     ch->imm_flags_perm     =   0;
     ch->res_flags_perm     =   0;
     ch->vuln_flags_perm    =   0;
+    ch->corpse_type = gcrp_normal;
 
     ch->cast_target_name 	= NULL;
     ch->casting_failure_message = NULL;
@@ -2286,6 +2287,7 @@ MOB_INDEX_DATA *new_mob_index( void )
     pMob->reputations = NULL;
     pMob->factions = list_create(false);    // REPUTATION_INDEX_DATA *
     pMob->factions_load = list_createx(false, NULL, delete_list_wnum_load);
+    pMob->corpse_type = gcrp_normal;
 
     return pMob;
 }
@@ -8122,4 +8124,118 @@ void free_constellation_data(CONSTELLATION_DATA *data)
 
     data->next = constellation_data_free;
     constellation_data_free = data;
+}
+
+static void delete_corpse_blending(void *ptr)
+{
+    free_mem(ptr, sizeof(CORPSE_BLENDING));
+}
+
+
+CORPSE_DAMAGE *corpse_damage_free;
+CORPSE_DAMAGE *new_corpse_damage()
+{
+    CORPSE_DAMAGE *data;
+    if (corpse_damage_free)
+    {
+        data = corpse_damage_free;
+        corpse_damage_free = corpse_damage_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(CORPSE_DAMAGE));
+
+    memset(data, 0, sizeof(*data));
+
+    data->blending = list_createx(false, NULL, delete_corpse_blending);
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_corpse_damage(CORPSE_DAMAGE *data)
+{
+    if (!IS_VALID(data)) return;
+
+    list_destroy(data->blending);
+
+    INVALIDATE(data);
+    data->next = corpse_damage_free;
+    corpse_damage_free = data;
+}
+
+static void delete_corpse_damage(void *ptr)
+{
+    free_corpse_damage((CORPSE_DAMAGE *)ptr);
+}
+
+
+CORPSE_DATA *corpse_data_free;
+CORPSE_DATA *new_corpse_data()
+{
+    CORPSE_DATA *data;
+    if (corpse_data_free)
+    {
+        data = corpse_data_free;
+        corpse_data_free = corpse_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(CORPSE_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    data->comments = &str_empty[0];
+	data->name = &str_empty[0];
+    data->keywords = &str_empty[0];
+	data->short_descr = &str_empty[0];
+	data->long_descr = &str_empty[0];
+	data->full_descr = &str_empty[0];
+	data->short_headless = &str_empty[0];
+	data->long_headless = &str_empty[0];
+	data->full_headless = &str_empty[0];
+	data->animate_name = &str_empty[0];
+	data->animate_long = &str_empty[0];
+	data->animate_descr = &str_empty[0];
+	data->victim_message = &str_empty[0];
+	data->room_message = &str_empty[0];
+	data->decay_message = &str_empty[0];
+	data->skull_success = &str_empty[0];
+	data->skull_success_other = &str_empty[0];
+	data->skull_fail = &str_empty[0];
+	data->skull_fail_other = &str_empty[0];
+
+    data->damage_table = list_createx(false, NULL, delete_corpse_damage);
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_corpse_data(CORPSE_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    free_string(data->comments);
+    free_string(data->name);
+    free_string(data->keywords);
+    free_string(data->short_descr);
+    free_string(data->long_descr);
+    free_string(data->full_descr);
+    free_string(data->short_headless);
+    free_string(data->long_headless);
+    free_string(data->full_headless);
+    free_string(data->animate_name);
+    free_string(data->animate_long);
+    free_string(data->animate_descr);
+    free_string(data->victim_message);
+    free_string(data->room_message);
+    free_string(data->decay_message);
+    free_string(data->skull_success);
+    free_string(data->skull_success_other);
+    free_string(data->skull_fail);
+    free_string(data->skull_fail_other);
+
+    list_destroy(data->damage_table);
+
+    INVALIDATE(data);
+    data->next = corpse_data_free;
+    corpse_data_free = data;
 }

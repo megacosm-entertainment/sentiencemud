@@ -92,6 +92,12 @@ extern	LLIST *loaded_dungeons;
 extern	LLIST *loaded_ships;
 LLIST *loaded_special_keys;
 
+LLIST *corpse_list = NULL;
+CORPSE_DATA gcrp__nocorpse;		// Will have nothing in it
+CORPSE_DATA *gcrp_normal = NULL;
+CORPSE_DATA *gcrp_incinerate = NULL;
+long top_corpse_uid = 0;
+
 LLIST *material_list = NULL;
 MATERIAL *gm_iron = NULL;
 MATERIAL *gm_silver = NULL;
@@ -1569,7 +1575,7 @@ void load_notes(void);
 void load_bans(void);
 void fix_rooms(void);
 void fix_mobiles(void);
-void reset_area(AREA_DATA * pArea);
+void reset_area(AREA_DATA * pArea, bool fBoot);
 void chance_create_mob(ROOM_INDEX_DATA *pRoom, MOB_INDEX_DATA *pMobIndex, int chance);
 void reset_npc_sailing_boats (void);
 void fix_tokenprogs(void);
@@ -1850,6 +1856,7 @@ void boot_db(void)
     //generate_poa_resets(-1);
     log_string("Doing area_update");
     area_update(true);
+
     log_string("Doing load_notes");
     load_notes();
     log_string("Doing load_bans");
@@ -2651,8 +2658,23 @@ void reset_wilds(WILDS_DATA *pWilds)
     return;
 }
 
+void reset_area_region(AREA_REGION *pRegion)
+{
+	if (!IS_SET(pRegion->flags, AREA_REGION_KEEP_LIVE))
+	{
+		pRegion->place_flags = pRegion->rs_place_flags;
+		pRegion->savage_level = pRegion->rs_savage_level;
+		pRegion->recall = pRegion->rs_recall;
+		pRegion->x = pRegion->rs_x;
+		pRegion->y = pRegion->rs_y;
 
-void reset_area(AREA_DATA *pArea)
+		pRegion->land_x = pRegion->rs_land_x;
+		pRegion->land_y = pRegion->rs_land_y;
+		pRegion->airship_land_spot = pRegion->rs_airship_land_spot;
+	}
+}
+
+void reset_area(AREA_DATA *pArea, bool fBoot)
 {
     ROOM_INDEX_DATA *pRoom;
 
@@ -2660,13 +2682,30 @@ void reset_area(AREA_DATA *pArea)
     if (global)
 		global_reset();
 
+	if ((fBoot && !IS_SET(pArea->area_flags, AREA_PERSIST)) ||	// First time update, 
+		!IS_SET(pArea->area_flags, AREA_KEEP_LIVE))
+	{
+		pArea->repop = pArea->rs_repop;
+
+		reset_area_region(&pArea->region);
+
+		ITERATOR it;
+		AREA_REGION *region;
+		iterator_start(&it, pArea->regions);
+		while((region = (AREA_REGION *)iterator_nextdata(&it)))
+		{
+			reset_area_region(region);
+		}
+		iterator_stop(&it);
+	}
+
     p_percent2_trigger(pArea, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RESET, NULL,0,0,0,0,0);
 
 	for(int iHash = 0; iHash < MAX_KEY_HASH; iHash++)
 	{
 		for(pRoom = pArea->room_index_hash[iHash]; pRoom; pRoom = pRoom->next)
 		{
-			reset_room(pRoom, false);
+			reset_room(pRoom, fBoot);
 		}
 	}
 }
@@ -2741,7 +2780,7 @@ void area_update(bool fBoot)
 		if (fBoot || (pArea->age >= pArea->repop || (pArea->repop == 0 && pArea->age > 15) || pArea->age >= 120))
 		{
 			plogf("db.c, area_update: Resetting area %s.", pArea->name);
-			reset_area(pArea);
+			reset_area(pArea, fBoot);
 			sprintf(buf,"%s has just been reset.",pArea->name);
 			wiznet(buf,NULL,NULL,WIZ_RESETS,0,0);
 			pArea->age = 0;
@@ -7209,8 +7248,8 @@ void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
 	fprintf(fp, "Size %d\n", ch->size);
 	if (IS_VALID(ch->material))
 		fprintf(fp, "Material %s~\n", ch->material->name);
-	if (ch->corpse_type)
-		fprintf(fp, "CorpseType %ld\n", (long int)ch->corpse_type);
+	if (IS_VALID(ch->corpse_type))
+		fprintf(fp, "Corpse %s~\n", ch->corpse_type->name);
 	if (ch->corpse_wnum.auid > 0 && ch->corpse_wnum.vnum > 0)
 		fprintf(fp, "CorpseWnum %ld#%ld\n", ch->corpse_wnum.auid, ch->corpse_wnum.vnum);
 
@@ -7498,6 +7537,54 @@ bool check_persist_environment( CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *r
 	return false;
 }
 
+void persist_save_area_region(FILE *fp, AREA_REGION *region)
+{
+	fprintf(fp, "#REGION %ld\n", region->uid);
+
+	fprintf(fp, "Place %s\n", print_flags(region->place_flags));
+	fprintf(fp, "Savage %d\n", region->savage_level);
+
+    fprintf(fp, "XCoord %d\n", region->x);
+    fprintf(fp, "YCoord %d\n", region->y);
+    fprintf(fp, "XLand %d\n", region->land_x);
+    fprintf(fp, "YLand %d\n", region->land_y);
+
+    fprintf(fp, "AirshipLand %ld\n", region->airship_land_spot);
+
+    if(region->recall.wuid)
+		fprintf(fp, "RecallW %lu %lu %lu %lu\n", region->recall.wuid, region->recall.id[0], region->recall.id[1], region->recall.id[2]);
+    else
+		fprintf(fp, "Recall %ld\n", region->recall.id[0]);
+
+	fprintf(fp, "#-REGION\n");
+}
+
+void persist_save_area(FILE *fp, AREA_DATA *area)
+{
+	fprintf(fp, "#AREA %ld\n", area->uid);
+
+	// Variables (always save)
+	persist_save_scriptdata(fp, area->progs);
+
+	// Live data
+	if (IS_SET(area->area_flags, AREA_PERSIST))
+	{
+		fprintf(fp, "Repop %d\n", area->repop);
+		persist_save_area_region(fp, &area->region);
+
+		ITERATOR rit;
+		AREA_REGION *region;
+		iterator_start(&rit, area->regions);
+		while((region = (AREA_REGION *)iterator_nextdata(&rit)))
+		{
+			persist_save_area_region(fp, region);
+		}
+		iterator_stop(&rit);
+	}
+
+	fprintf(fp, "#-AREA\n");
+}
+
 // Rules for when a persistant entity is saved:
 // * Persistant Entities are only saved if they are in a NON-PERSISTANT environment.
 // * Persistant Objects save everything.
@@ -7516,6 +7603,11 @@ void persist_save(void)
 	if (!(fp = fopen(PERSIST_FILE, "w"))) {
 		bug("persist.save: Couldn't open file.",0);
 	} else {
+		// Save area live data and any persist data
+		for (AREA_DATA *area = area_first; area; area = area->next)
+			persist_save_area(fp, area);
+
+
 		// Save objects
 		iterator_start(&it, persist_objs);
 		while(( obj = (OBJ_DATA *)iterator_nextdata(&it) )) {
@@ -7656,6 +7748,139 @@ void persist_fix_object_lockstate(OBJ_DATA *obj)
 		OBJ_DATA *content;
 		for (content = obj->contains; content != NULL; content = content->next_content)
 			persist_fix_object_lockstate(content);
+	}
+}
+
+void persist_load_area_region(FILE *fp, AREA_DATA *area)
+{
+    char buf[MSL];
+    char *word;
+    bool fMatch;
+
+	long uid = fread_number(fp);
+	AREA_REGION *region;
+	if (!uid)
+		region = &area->region;
+	else
+	{
+		region = get_area_region_by_uid(area, uid);
+		if (!region)
+			log_stringf("persist_load_area_region: No such area region with UID %ld for Area %ld.", uid, area->uid);
+	}
+
+    while(str_cmp((word = feof(fp) ? "#-REGION" : fread_word(fp)), "#-REGION"))
+    {
+		fMatch = false;
+
+		if (region)
+		{
+			switch(word[0])
+			{
+				case 'A':
+					KEY("AirshipLand", region->airship_land_spot, fread_number(fp));
+					break;
+
+				case 'P':
+					KEY("Place", region->place_flags, fread_flag(fp));
+					break;
+
+				case 'R':
+					if (!str_cmp(word, "Recall"))
+					{
+						location_set(&region->recall, area, 0, fread_number(fp), 0, 0);
+						fMatch = true;
+						break;
+					}
+					if (!str_cmp(word, "RecallW"))
+					{
+						long w = fread_number(fp);
+						long x = fread_number(fp);
+						long y = fread_number(fp);
+						long z = fread_number(fp);
+						location_set(&region->recall, area, w, x, y, z);
+						fMatch = true;
+						break;
+					}
+					break;
+				
+				case 'S':
+					KEY("Savage", region->savage_level, fread_number(fp));
+					break;
+
+				case 'X':
+					KEY("XCoord", region->x, fread_number(fp));
+					KEY("XLand", region->land_x, fread_number(fp));
+					break;
+
+				case 'Y':
+					KEY("YCoord", region->y, fread_number(fp));
+					KEY("YLand", region->land_y, fread_number(fp));
+					break;
+			}
+
+			if (!fMatch) {
+				sprintf(buf, "persist_load_area_region: no match for word %s", word);
+				bug(buf, 0);
+				fread_to_eol(fp);
+			}
+		}
+		else
+			fread_to_eol(fp);
+	}
+}
+
+void persist_load_area(FILE *fp)
+{
+    char buf[MSL];
+    char *word;
+    bool fMatch;
+	int vtype;
+
+	long uid = fread_number(fp);
+	AREA_DATA *area = get_area_from_uid(uid);
+
+	if (!area)
+		log_stringf("persist_load_area: No such area with UID %ld.", uid);
+
+    while(str_cmp((word = feof(fp) ? "#-AREA" : fread_word(fp)), "#-AREA"))
+    {
+		fMatch = false;
+
+		if (area)
+		{
+			switch(word[0])
+			{
+				case '#':
+					if (!str_cmp(word, "#REGION"))
+					{
+						persist_load_area_region(fp, area);
+
+						fMatch = true;
+						break;
+					}
+					break;
+				
+				case 'R':
+					KEY("Repop", area->repop, fread_number(fp));
+					break;
+
+				case 'V':
+					if( (vtype = variable_fread_type(word)) != VAR_UNKNOWN ) {
+						variable_fread(&area->progs->vars, vtype, fp);
+						fMatch = true;
+						break;
+					}
+					break;
+			}
+
+			if (!fMatch) {
+				sprintf(buf, "persist_load_area: no match for word %s", word);
+				bug(buf, 0);
+				fread_to_eol(fp);
+			}
+		}
+		else
+			fread_to_eol(fp);
 	}
 }
 
@@ -8907,7 +9132,8 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 					fMatch = true;
 				}
 				KEY("Comm",			ch->comm,			fread_flag(fp));
-				KEY("CorpseType",	ch->corpse_type,	fread_number(fp));
+				//KEY("CorpseType",	ch->corpse_type,	fread_number(fp));
+				KEY("Corpse",		ch->corpse_type,	get_corpse_data(fread_string(fp)));
 				KEY("CorpseWnum",	ch->corpse_wnum,	fread_widevnum(fp, 0));
 //				KEY("CorpseZombie",	ch->zombie,		fread_number(fp));
 				break;
@@ -9694,6 +9920,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 				if( (vtype = variable_fread_type(word)) != VAR_UNKNOWN ) {
 					variable_fread(&room->progs->vars, vtype, fp);
 					fMatch = true;
+					break;
 				}
 				if( !str_cmp(word, "ViewWilds") ) {
 					w = fread_number(fp);
@@ -9837,7 +10064,10 @@ bool persist_load(void)
 		while(good) {
 			word = fread_word(fp);
 
-			if(!str_cmp(word,"#ROOM")) {
+			if(!str_cmp(word,"#AREA")) {
+				persist_load_area(fp);
+
+			} else if(!str_cmp(word,"#ROOM")) {
 				room = persist_load_room(fp, 'R');
 				if(!room) good = false;
 

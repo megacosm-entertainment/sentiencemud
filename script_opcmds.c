@@ -4028,15 +4028,14 @@ SCRIPT_CMD(do_opskimprove)
 SCRIPT_CMD(do_oprawkill)
 {
 	char *rest;
-	int type;
+	CORPSE_DATA *type;
 	bool has_head, show_msg;
 	CHAR_DATA *mob = NULL;
-
 
 	if(!info || !info->obj) return;
 
 	if(!(rest = expand_argument(info,argument,arg))) {
-		bug("TpRawkill - Error in parsing.",0);
+		bug("OpRawkill - Error in parsing.",0);
 		return;
 	}
 
@@ -4057,17 +4056,14 @@ SCRIPT_CMD(do_oprawkill)
 
 	if(IS_IMMORTAL(mob)) return;
 
-	if(!(rest = expand_argument(info,rest,arg))) {
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING) {
 		bug("OpRawkill - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg->type) {
-	case ENT_STRING: type = flag_lookup(arg->d.str,corpse_types); break;
-	default: return;
-	}
-
-	if(type < 0 || type == NO_FLAG) return;
+	type = get_corpse_data(arg->d.str);
+	if (!IS_VALID(type))
+		return;
 
 	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpRawkill - Error in parsing.",0);
@@ -4098,6 +4094,22 @@ SCRIPT_CMD(do_oprawkill)
 	default: return;
 	}
 
+	int dt = DAM_NONE;
+	if (rest && *rest)
+	{
+		if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING) {
+			bug("OpRawkill - Error in parsing.",0);
+			return;
+		}
+
+		if (!str_prefix(arg->d.str, "none"))
+			dt = DAM_NONE;
+		else
+			dt = stat_lookup(arg->d.str, damage_classes, NO_FLAG);
+		if (dt == NO_FLAG)
+			return;
+	}
+
 	{
 		ROOM_INDEX_DATA *here = mob->in_room;
 		mob->position = POS_STANDING;
@@ -4105,7 +4117,7 @@ SCRIPT_CMD(do_oprawkill)
 			p_percent_trigger(NULL, NULL, here, NULL, mob, mob, NULL, NULL, NULL, TRIG_DEATH, NULL,0,0,0,0,0);
 	}
 
-	raw_kill(mob, has_head, show_msg, type);
+	raw_kill(mob, has_head, show_msg, type, dt);
 }
 
 

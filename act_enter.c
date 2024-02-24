@@ -416,9 +416,9 @@ ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool al
 
 				if( floor < 1 )
 				{
-					if( IS_SET(portal->value[1], EX_PREVFLOOR) )
+					if( IS_SET(_portal->exit, EX_PREVFLOOR) )
 						floor = in_instance->floor - 1;
-					else if( IS_SET(portal->value[1], EX_NEXTFLOOR) )
+					else if( IS_SET(_portal->exit, EX_NEXTFLOOR) )
 						floor = in_instance->floor + 1;
 					else
 						floor = 0;
@@ -598,7 +598,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 	location = get_portal_destination(ch, portal, true);
 
   	if (!location || location == old_room || !can_see_room(ch,location) ||
-  		(!IS_SET(portal->value[2],GATE_NOPRIVACY) && room_is_private(location, ch))) {
+  		(!IS_SET(PORTAL(portal)->flags,GATE_NOPRIVACY) && room_is_private(location, ch))) {
 	    act("$p doesn't seem to go anywhere.",ch, NULL, NULL,portal,NULL, NULL, NULL,TO_CHAR);
 	    return;
 	}
@@ -795,7 +795,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 	{
 	    fch_next = fch->next_in_room;
 
-	    if (portal == NULL || portal->value[0] == -1)
+	    if (portal == NULL || PORTAL(portal)->charges < 0)
 		/* no following through dead portals */
 		continue;
 

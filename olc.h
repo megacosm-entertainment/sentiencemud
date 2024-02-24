@@ -60,6 +60,7 @@
 #define ED_CLSEDIT	28
 #define ED_RACEEDIT	29
 #define ED_SECTOREDIT	30
+#define ED_CORPSEDIT	31
 
 #define AEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define HEDIT( fun )            bool fun( CHAR_DATA *ch, char *argument )
@@ -88,6 +89,8 @@
 #define CLSEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define RACEEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define SECTOREDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
+#define CORPSEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
+
 
 /*
  * Interpreter Prototypes
@@ -129,6 +132,7 @@ void	clsedit  ( CHAR_DATA *ch, char *argument );
 void	raceedit  ( CHAR_DATA *ch, char *argument );
 
 void	sectoredit  ( CHAR_DATA *ch, char *argument );
+void	corpsedit  ( CHAR_DATA *ch, char *argument );
 
 /*
  * OLC Constants
@@ -202,6 +206,7 @@ extern const struct olc_cmd_type		matedit_table[];
 extern const struct olc_cmd_type		clsedit_table[];
 extern const struct olc_cmd_type		raceedit_table[];
 extern const struct olc_cmd_type		sectoredit_table[];
+extern const struct olc_cmd_type		corpsedit_table[];
 
 /*
  * Editor Commands.
@@ -235,6 +240,7 @@ DECLARE_DO_FUN( do_clsedit );
 DECLARE_DO_FUN( do_raceedit );
 
 DECLARE_DO_FUN( do_sectoredit );
+DECLARE_DO_FUN( do_corpsedit );
 
 /*
  * Area Editor Prototypes
@@ -817,6 +823,27 @@ DECLARE_OLC_FUN( sectoredit_movecost );
 DECLARE_OLC_FUN( sectoredit_name );
 DECLARE_OLC_FUN( sectoredit_soil );
 
+// CORPSEDIT
+DECLARE_OLC_FUN( corpsedit_create );
+DECLARE_OLC_FUN( corpsedit_show );
+DECLARE_OLC_FUN( corpsedit_comments );
+DECLARE_OLC_FUN( corpsedit_gcrp );
+DECLARE_OLC_FUN( corpsedit_name );
+DECLARE_OLC_FUN( corpsedit_keywords );
+DECLARE_OLC_FUN( corpsedit_short );
+DECLARE_OLC_FUN( corpsedit_long );
+DECLARE_OLC_FUN( corpsedit_description );
+DECLARE_OLC_FUN( corpsedit_headless );		// yes/no, short, long, description
+DECLARE_OLC_FUN( corpsedit_animate );		// name, long, description, headless
+DECLARE_OLC_FUN( corpsedit_message );		// decay, room and victim
+DECLARE_OLC_FUN( corpsedit_skull );			// success, successother, fail, failother
+DECLARE_OLC_FUN( corpsedit_owner_loot );
+DECLARE_OLC_FUN( corpsedit_chance );		// resurrect, animation, skulling
+DECLARE_OLC_FUN( corpsedit_decay );			// type, rate, timer, spill
+DECLARE_OLC_FUN( corpsedit_lost );
+DECLARE_OLC_FUN( corpsedit_damage );
+
+
 /*
  * Macros
  */
@@ -838,7 +865,6 @@ DECLARE_OLC_FUN( sectoredit_soil );
 #define EDIT_TPCODE(ch, code)   ( code = (SCRIPT_DATA*)ch->desc->pEdit )
 #define EDIT_PROJECT(ch, project) ( project = (PROJECT_DATA *)ch->desc->pEdit)
 #define EDIT_SCRIPT(ch, code)   ( code = (SCRIPT_DATA*)ch->desc->pEdit )
-/* VIZZWILDS */
 #define EDIT_WILDS(ch, Wilds)   ( Wilds = (WILDS_DATA *)ch->desc->pEdit )
 #define EDIT_VLINK(ch, VLink)   ( VLink = (WILDS_VLINK *)ch->desc->pEdit )
 
@@ -860,6 +886,7 @@ DECLARE_OLC_FUN( sectoredit_soil );
 #define EDIT_RACE(ch, race)			( race = (RACE_DATA *)ch->desc->pEdit )
 
 #define EDIT_SECTOR(ch, sector)		( sector = (SECTOR_DATA *)ch->desc->pEdit )
+#define EDIT_CORPSE(ch, corpse)		( corpse = (CORPSE_DATA *)ch->desc->pEdit )
 
 /*
  * Prototypes

@@ -6803,7 +6803,6 @@ SCRIPT_CMD(scriptcmd_varset)
 
 SCRIPT_CMD(scriptcmd_varseton)
 {
-
 	VARIABLE **vars;
 
 	if(!info) return;
@@ -12857,6 +12856,8 @@ SCRIPT_CMD(scriptcmd_altermob)
 // ALTER $AFFECT <field>[ <op>][ <value>]
 // ALTER $CHURCH <field>[ <op>][ <value>]
 // ALTER $SHIP <field>[ <op>][ <value>]
+// ALTER $AREA <field>[ <op>][ <value>]
+// ALTER $AREGION <field>[ <op>][ <value>]
 // What else?
 SCRIPT_CMD(scriptcmd_alter)
 {
@@ -13665,6 +13666,45 @@ SCRIPT_CMD(scriptcmd_alter)
 		if (tval >= 0 && tval < MAX_TOKEN_VALUES)
 			lptr = &token->value[tval];
 
+		break;
+	}
+
+	case ENT_AREA:
+	{
+		if (!arg->d.area) return;
+		AREA_DATA *area = arg->d.area;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("airship"))		{ lptr = &area->region.airship_land_spot; hasmin = true; min = 0; }
+		else if (IS_FIELD("landx"))			{ ptr = &area->region.land_x; }
+		else if (IS_FIELD("landy"))			{ ptr = &area->region.land_y; }
+		else if (IS_FIELD("place"))			{ ptr = &area->region.place_flags; flags = place_flags; }
+		else if (IS_FIELD("savage"))		{ ptr = &area->region.savage_level; hasmin = true; min = 0; hasmax = true; max = 5; }
+		else if (IS_FIELD("landx"))			{ ptr = &area->region.land_x; }
+		else if (IS_FIELD("repop"))			{ ptr = &area->repop; hasmin = true; min = 0; }
+		else if (IS_FIELD("x"))				{ ptr = &area->region.x; }
+		else if (IS_FIELD("y"))				{ ptr = &area->region.y; }
+		break;
+	}
+
+	case ENT_AREA_REGION:
+	{
+		if (!arg->d.aregion) return;
+		AREA_REGION *region = arg->d.aregion;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (IS_FIELD("airship"))		{ lptr = &region->airship_land_spot; hasmin = true; min = 0; }
+		else if (IS_FIELD("landx"))			{ ptr = &region->land_x; }
+		else if (IS_FIELD("landy"))			{ ptr = &region->land_y; }
+		else if (IS_FIELD("place"))			{ ptr = &region->place_flags; flags = place_flags; }
+		else if (IS_FIELD("savage"))		{ ptr = &region->savage_level; hasmin = true; min = 0; hasmax = true; max = 5; }
+		else if (IS_FIELD("landx"))			{ ptr = &region->land_x; }
+		else if (IS_FIELD("x"))				{ ptr = &region->x; }
+		else if (IS_FIELD("y"))				{ ptr = &region->y; }
 		break;
 	}
 

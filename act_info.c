@@ -7414,8 +7414,6 @@ char determine_room_type(ROOM_INDEX_DATA *room)
 	return 'K';
     if (room_is_dark(room))
 	return 'D';
-    if (IS_SET(room->room_flag[0], ROOM_MOUNT_SHOP))
-	return 'M';
     if (IS_SET(room->room_flag[0], ROOM_BANK))
 	return 'B';
     if (IS_SET(room->room_flag[0], ROOM_PK))
@@ -8939,14 +8937,18 @@ void look_map(CHAR_DATA *ch, OBJ_DATA *obj)
 	}
 }
 
-void look_portal(CHAR_DATA *ch, OBJ_DATA *portal)
+void look_portal(CHAR_DATA *ch, OBJ_DATA *obj)
 {
 	if (IS_NPC(ch)) return;
 
-	if (IS_SET(portal->value[1], EX_CLOSED) && !IS_SET(portal->value[1], EX_TRANSPARENT))
+	if (!IS_PORTAL(obj)) return;
+
+	PORTAL_DATA *portal = PORTAL(obj);
+
+	if (IS_SET(portal->exit, EX_CLOSED) && !IS_SET(portal->exit, EX_TRANSPARENT))
 		return;
 
-	ROOM_INDEX_DATA *location = get_portal_destination(ch, portal, false);
+	ROOM_INDEX_DATA *location = get_portal_destination(ch, obj, false);
 
 	if (location)
 	{

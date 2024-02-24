@@ -1912,7 +1912,7 @@ void char_update(void)
 			// Fire off deathtraps.
 		    if (IS_SET(ch->in_room->room_flag[0], ROOM_DEATH_TRAP) &&
 		    	!IS_SET(ch->in_room->room_flag[0], ROOM_CHAOTIC)) {		// no chaotic-deathtraps
-					raw_kill(ch, true, false, RAWKILL_NORMAL);
+					raw_kill(ch, true, false, gcrp_normal, DAM_NONE);
 		    }
 
 			// The enchanted forest saps hit,mana, and move.
@@ -1926,7 +1926,7 @@ void char_update(void)
 				{
 				    send_to_char("You feel yourself disintegrate into dust.\n\r", ch);
 				    act("$n disintegrates into dust.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-				    raw_kill(ch, false, true, RAWKILL_INCINERATE);
+				    raw_kill(ch, false, true, gcrp_incinerate, DAM_NONE);
 				}
 
 				ch->mana = ch->mana - ch->max_mana/4;
@@ -2471,7 +2471,9 @@ void obj_update(void)
 			// Corpse decaying
 			case ITEM_CORPSE_NPC:
 			case ITEM_CORPSE_PC:
-				message = corpse_info_table[CORPSE_TYPE(obj)].decay_message;
+			{
+				CORPSE_DATA *corpse = get_corpse_data_uid(CORPSE_TYPE(obj));
+				message = corpse->decay_message;
 
 				if (obj->carried_by)
 					act(message, obj->carried_by, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
@@ -2479,14 +2481,15 @@ void obj_update(void)
 					act(message, obj->in_room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
 				message = NULL;
 
-				if(corpse_info_table[CORPSE_TYPE(obj)].decay_type != RAWKILL_NOCORPSE) {
-					spill_contents = corpse_info_table[CORPSE_TYPE(obj)].decay_spill_chance;
-					set_corpse_data(obj,corpse_info_table[CORPSE_TYPE(obj)].decay_type);
-					spill_contents += corpse_info_table[CORPSE_TYPE(obj)].decay_spill_chance;
+				if(IS_VALID(corpse->decay_type)) {
+					spill_contents = corpse->decay_spill_chance;
+					set_corpse_data(obj,corpse->decay_type);
+					spill_contents += corpse->decay_type->decay_spill_chance;
 					spill_contents /= 2;	// Split the difference
 					nuke_obj = false;
 				}
 				break;
+			}
 
 			case ITEM_CONTAINER:
 				if (CAN_WEAR(obj,ITEM_WEAR_FLOAT)) {

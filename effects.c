@@ -655,9 +655,9 @@ void damage_vampires( CHAR_DATA *ch, int dam )
         ch->move -= dam/4;
 
     if ( ch->hit - dam/4 < 1 )
-	raw_kill( ch, false, false, RAWKILL_INCINERATE );
+		raw_kill( ch, false, false, gcrp_incinerate, DAM_NONE );
     else
-	ch->hit -= dam/4;
+		ch->hit -= dam/4;
 }
 
 void hurt_vampires( CHAR_DATA *ch)

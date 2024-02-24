@@ -284,21 +284,21 @@ void save_area_region(FILE *fp, AREA_DATA *area, AREA_REGION *region)
 
 	fprintf(fp, "Flags %ld\n", region->flags);
 	fprintf(fp, "Who %d\n", region->area_who);
-	fprintf(fp, "Place %d\n", region->place_flags);
-	fprintf(fp, "Savage %d\n", region->savage_level);
+	fprintf(fp, "Place %d\n", region->rs_place_flags);
+	fprintf(fp, "Savage %d\n", region->rs_savage_level);
 	fprintf(fp, "PostOffice %ld\n", region->post_office);
 
-    fprintf(fp, "XCoord %d\n", region->x);
-    fprintf(fp, "YCoord %d\n", region->y);
-    fprintf(fp, "XLand %d\n", region->land_x);
-    fprintf(fp, "YLand %d\n", region->land_y);
+    fprintf(fp, "XCoord %d\n", region->rs_x);
+    fprintf(fp, "YCoord %d\n", region->rs_y);
+    fprintf(fp, "XLand %d\n", region->rs_land_x);
+    fprintf(fp, "YLand %d\n", region->rs_land_y);
 
-    fprintf(fp, "AirshipLand %ld\n", 	region->airship_land_spot);
+    fprintf(fp, "AirshipLand %ld\n", 	region->rs_airship_land_spot);
 
-    if(region->recall.wuid)
-		fprintf(fp, "RecallW %lu %lu %lu %lu\n", 	region->recall.wuid, region->recall.id[0], region->recall.id[1], region->recall.id[2]);
+    if(region->rs_recall.wuid)
+		fprintf(fp, "RecallW %lu %lu %lu %lu\n", 	region->rs_recall.wuid, region->rs_recall.id[0], region->rs_recall.id[1], region->rs_recall.id[2]);
     else
-		fprintf(fp, "Recall %ld\n", 	region->recall.id[0]);
+		fprintf(fp, "Recall %ld\n", 	region->rs_recall.id[0]);
 
 
 	fprintf(fp, "#-REGION\n");
@@ -354,7 +354,7 @@ void save_area_new(AREA_DATA *area)
     fprintf(fp, "Credits %s~\n",	area->credits);
     fprintf(fp, "Security %d\n",       	area->security);
     fprintf(fp, "Open %d\n", 	  	area->open);
-    fprintf(fp, "Repop %d\n",		area->repop);
+    fprintf(fp, "Repop %d\n",		area->rs_repop);
 	fprintf(fp, "Description %s~\n", fix_string(area->description));
 	if(!IS_NULLSTR(area->comments))
 		fprintf(fp, "Comments %s~\n", fix_string(area->comments));
@@ -757,8 +757,8 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
 	mob->parts, mob->size);
 	if (IS_VALID(mob->material))
     	fprintf(fp, "Material %s~\n", mob->material->name);
-    if (mob->corpse_type)
-	fprintf(fp, "CorpseType %ld\n", (long int)mob->corpse_type);
+    if (IS_VALID(mob->corpse_type))
+		fprintf(fp, "Corpse %s~\n", mob->corpse_type->name);
     if (mob->corpse.auid > 0 && mob->corpse.vnum > 0)
 	{
 		if (mob->area->uid != mob->corpse.auid)
@@ -1945,7 +1945,7 @@ void read_area_region(FILE *fp, AREA_DATA *area)
 		switch(word[0])
 		{
 			case 'A':
-				KEY("AirshipLand",		region->airship_land_spot,	fread_number(fp));
+				KEY("AirshipLand",		region->rs_airship_land_spot,	fread_number(fp));
 				break;
 
 			case 'C':
@@ -1965,28 +1965,28 @@ void read_area_region(FILE *fp, AREA_DATA *area)
 				break;
 
 			case 'P':
-				KEY("Place",			region->place_flags,		fread_number(fp));
+				KEY("Place",			region->rs_place_flags,		fread_number(fp));
 				KEY("PostOffice",		region->post_office,		fread_number(fp));
 				break;
 
 			case 'R':
 				if(!str_cmp(word, "Recall"))
 				{
-					location_clear(&region->recall);
+					location_clear(&region->rs_recall);
 
-					region->recall.id[0] = fread_number(fp);
+					region->rs_recall.id[0] = fread_number(fp);
 
 					fMatch = true;
 					break;
 				}
 				if (!str_cmp(word, "RecallW"))
 				{
-					location_clear(&region->recall);
+					location_clear(&region->rs_recall);
 
-					region->recall.wuid = fread_number(fp);
-					region->recall.id[0] = fread_number(fp);
-					region->recall.id[1] = fread_number(fp);
-					region->recall.id[2] = fread_number(fp);
+					region->rs_recall.wuid = fread_number(fp);
+					region->rs_recall.id[0] = fread_number(fp);
+					region->rs_recall.id[1] = fread_number(fp);
+					region->rs_recall.id[2] = fread_number(fp);
 
 					fMatch = true;
 					break;
@@ -1994,7 +1994,7 @@ void read_area_region(FILE *fp, AREA_DATA *area)
 				break;
 			
 			case 'S':
-				KEY("Savage",			region->savage_level,		fread_number(fp));
+				KEY("Savage",			region->rs_savage_level,		fread_number(fp));
 				break;
 
 			case 'W':
@@ -2002,13 +2002,13 @@ void read_area_region(FILE *fp, AREA_DATA *area)
 				break;
 
 			case 'X':
-				KEY("XCoord",			region->x,					fread_number(fp));
-				KEY("XLand",			region->land_x,				fread_number(fp));
+				KEY("XCoord",			region->rs_x,					fread_number(fp));
+				KEY("XLand",			region->rs_land_x,				fread_number(fp));
 				break;
 			
 			case 'Y':
-				KEY("YCoord",			region->y,					fread_number(fp));
-				KEY("YLand",			region->land_y,				fread_number(fp));
+				KEY("YCoord",			region->rs_y,					fread_number(fp));
+				KEY("YLand",			region->rs_land_y,				fread_number(fp));
 				break;
 		}
 
@@ -2361,7 +2361,7 @@ AREA_DATA *read_area_new(FILE *fp)
 		KEY("AreaWhoFlags",	dummy,	fread_number(fp));
 		KEY("AreaWhoFlags2",	dummy,	fread_number(fp));
 		KEY("AreaWho",		area->region.area_who,	fread_number(fp));
-		KEY("AirshipLand",	area->region.airship_land_spot, fread_number(fp));
+		KEY("AirshipLand",	area->region.rs_airship_land_spot, fread_number(fp));
 		break;
 
 	    case 'B':
@@ -2387,19 +2387,19 @@ AREA_DATA *read_area_new(FILE *fp)
 
 	    case 'P':
 	        KEY("PostOffice",	area->region.post_office,	fread_number(fp));
-		KEY("PlaceType",	area->region.place_flags,	fread_number(fp));
+		KEY("PlaceType",	area->region.rs_place_flags,	fread_number(fp));
 		break;
 
 	    case 'R':
 		if (!str_cmp(word, "Recall")) {
-			location_set(&area->region.recall,area,0,fread_number(fp),0,0);
+			location_set(&area->region.rs_recall,area,0,fread_number(fp),0,0);
 			fMatch = true;
 		}
 		if (!str_cmp(word, "RecallW")) {
-			location_set(&area->region.recall,NULL,fread_number(fp),fread_number(fp),fread_number(fp),fread_number(fp));
+			location_set(&area->region.rs_recall,NULL,fread_number(fp),fread_number(fp),fread_number(fp),fread_number(fp));
 			fMatch = true;
 		}
-		KEY("Repop",		area->repop,		fread_number(fp));
+		KEY("Repop",		area->rs_repop,		fread_number(fp));
 		break;
 
 	    case 'S':
@@ -2441,14 +2441,14 @@ AREA_DATA *read_area_new(FILE *fp)
 		KEY("WildsVnum",	area->wilds_uid, fread_number(fp));
 
 	    case 'X':
-		KEY("XCoord",		area->region.x,		fread_number(fp));
-		KEY("XLand",		area->region.land_x,		fread_number(fp));
+		KEY("XCoord",		area->region.rs_x,		fread_number(fp));
+		KEY("XLand",		area->region.rs_land_x,		fread_number(fp));
 
 		break;
 
 	    case 'Y':
-		KEY("YCoord",		area->region.y,		fread_number(fp));
-		KEY("YLand",		area->region.land_y,		fread_number(fp));
+		KEY("YCoord",		area->region.rs_y,		fread_number(fp));
+		KEY("YLand",		area->region.rs_land_y,		fread_number(fp));
 		break;
 	}
 
@@ -2908,7 +2908,8 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 
 	    case 'C':
 	        KEYS("CreatorSig", mob->creator_sig,	fread_string(fp));
-	        KEY("CorpseType", mob->corpse_type,	fread_number(fp));
+	        //KEY("CorpseType", mob->corpse_type,	fread_number(fp));	// Nothing really has a corpse defined
+			KEY("Corpse", mob->corpse_type, get_corpse_data(fread_string(fp)));
 	        KEY("CorpseWnum", mob->corpse,	fread_widevnum(fp, area->uid));
 	        KEY("CorpseZombie", mob->zombie,	fread_widevnum(fp, area->uid));
 			KEY("Comments", mob->comments, fread_string(fp));

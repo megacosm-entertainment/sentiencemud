@@ -350,7 +350,7 @@ SPELL_FUNC(spell_kill)
 	else if (!IS_NPC(ch) && IS_NPC(victim))
 		ch->monster_kills++;
 
-	raw_kill(victim, true, true, RAWKILL_NORMAL); /* 1= has head, 0= no head */
+	raw_kill(victim, true, true, gcrp_normal, DAM_NONE); /* 1= has head, 0= no head */
 
 	// Check if slain victim was part of a quest. Checks if your horse got the kill, too.
 	if (!IS_NPC(ch)) {

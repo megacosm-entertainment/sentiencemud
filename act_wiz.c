@@ -60,6 +60,7 @@ extern RESERVED_WNUM reserved_obj_wnums[];
 extern RESERVED_WNUM reserved_mob_wnums[];
 extern RESERVED_WNUM reserved_rprog_wnums[];
 extern RESERVED_AREA reserved_areas[];
+void show_flag_cmds(CHAR_DATA *ch, const struct flag_type *flag_table);
 
 
 RESERVED_WNUM *search_reserved(RESERVED_WNUM *reserved, char *name)
@@ -559,7 +560,7 @@ void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj, long flag, long flag_ski
 			get_staff_rank(d->character) >= min_rank &&
 			d->character != ch)
 		{
-			// Higher level imms can see lower level imms sign on wizi, but not vice versa.
+			// Higher level imms can see lowner level imms sign on wizi, but not vice versa.
 			if (ch != NULL && flag == WIZ_LOGINS)
 			{
 				if (get_staff_rank(d->character) < ch->invis_level && ch->invis_level > STAFF_PLAYER)
@@ -4670,10 +4671,10 @@ void do_advance(CHAR_DATA *ch, char *argument)
     if (level == victim->level) return;
 
     /*
-     * Lower level:
+     * Lowner level:
      *   Reset to level 1.
      *   Then raise again.
-     *   Currently, an imp can lower another imp.
+     *   Currently, an imp can lowner another imp.
      *   -- Swiftest
      */
     if (level < victim->level)
@@ -4710,7 +4711,7 @@ void do_advance(CHAR_DATA *ch, char *argument)
 		}
 	}
 
-	send_to_char("Lowering a player's level!\n\r", ch);
+	send_to_char("Lownering a player's level!\n\r", ch);
 	send_to_char("**** OOOOHHHHHHHHHH  NNNNOOOO ****\n\r", victim);
 	temp_prac = victim->practice;
 	victim->level    = 1;
@@ -8033,7 +8034,7 @@ void do_areset(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    reset_area(area);
+    reset_area(area, false);
     area->age = 0;
     sprintf(buf, "Reset %s.\n\r", area->name);
     send_to_char(buf, ch);
@@ -10435,7 +10436,6 @@ void insert_material(MATERIAL *material)
 	iterator_start(&it, material_list);
 	while((mat = (MATERIAL *)iterator_nextdata(&it)))
 	{
-		// Why is this inaccessible?
 		int cmp = str_cmp(material->name, mat->name);
 		if(cmp < 0)
 		{
@@ -10534,3 +10534,1835 @@ bool load_materials()
 
 	return true;
 }
+
+
+
+//////////////////
+// CORPSE STUFF
+
+CORPSE_DATA **gcrp_from_name(char *name)
+{
+	for(int i = 0; global_corpses[i].name; i++)
+		if (!str_prefix(name, global_corpses[i].name))
+			return global_corpses[i].gcrp;
+	
+	return NULL;
+}
+
+char *gcrp_to_name(CORPSE_DATA **gcrp)
+{
+	for(int i = 0; global_corpses[i].name; i++)
+		if (global_corpses[i].gcrp == gcrp)
+			return global_corpses[i].name;
+	
+	return NULL;
+}
+
+char *gcrp_to_display(CORPSE_DATA **gcrp)
+{
+	for(int i = 0; global_corpses[i].name; i++)
+		if (global_corpses[i].gcrp == gcrp)
+			return global_corpses[i].name;
+	
+	return "(unset)";
+}
+
+
+CORPSE_DATA *get_corpse_data(char *name)
+{
+	ITERATOR it;
+	CORPSE_DATA *corpse;
+
+	iterator_start(&it, corpse_list);
+	while((corpse = (CORPSE_DATA *)iterator_nextdata(&it)))
+	{
+		if (!str_prefix(name, corpse->name))
+			break;
+	}
+	iterator_stop(&it);
+
+	return corpse;
+}
+
+CORPSE_DATA *get_corpse_data_uid(long uid)
+{
+	ITERATOR it;
+	CORPSE_DATA *corpse;
+
+	iterator_start(&it, corpse_list);
+	while((corpse = (CORPSE_DATA *)iterator_nextdata(&it)))
+	{
+		if (corpse->uid == uid)
+			break;
+	}
+	iterator_stop(&it);
+
+	return corpse;
+}
+
+CORPSE_DAMAGE *get_corpse_damage(CORPSE_DATA *corpse, int damage_type)
+{
+	if (!IS_VALID(corpse)) return NULL;
+
+	ITERATOR it;
+	CORPSE_DAMAGE *damage;
+
+	iterator_start(&it, corpse->damage_table);
+	while((damage = (CORPSE_DAMAGE *)iterator_nextdata(&it)))
+	{
+		if (damage->damage_type == damage_type)
+			break;
+	}
+	iterator_stop(&it);
+
+	return damage;
+}
+
+CORPSE_DATA *apply_damage_to_corpse(CORPSE_DATA *corpse, int damage_type)
+{
+	CORPSE_DAMAGE *damage = get_corpse_damage(corpse, damage_type);
+
+	// Nothing changes
+	if (!IS_VALID(damage)) return corpse;
+
+	int w = number_range(1, damage->total_weight);
+	ITERATOR it;
+	CORPSE_BLENDING *blend;
+	iterator_start(&it, damage->blending);
+	while((blend = (CORPSE_BLENDING *)iterator_nextdata(&it)))
+	{
+		if (w <= blend->weight)
+			break;
+
+		w -= blend->weight;
+	}
+	iterator_stop(&it);
+
+	if (blend)
+		return IS_VALID(blend->result) ? blend->result : NULL;
+
+	return corpse;
+}
+
+void save_corpse_damage(FILE *fp, CORPSE_DAMAGE *damage)
+{
+	fprintf(fp, "#DAMAGE\n");
+
+	fprintf(fp, "Type %s~\n", attack_table[damage->damage_type].name);
+
+	ITERATOR bit;
+	CORPSE_BLENDING *blend;
+	iterator_start(&bit, damage->blending);
+	while((blend = (CORPSE_BLENDING *)iterator_nextdata(&bit)))
+	{
+		if (IS_VALID(blend->result))
+			fprintf(fp, "Blend %d %ld\n", blend->weight, blend->result->uid);
+		else
+			fprintf(fp, "Blend %d -1\n", blend->weight);
+	}
+	iterator_stop(&bit);
+
+	fprintf(fp, "#-DAMAGE\n");
+}
+
+void save_corpse(FILE *fp, CORPSE_DATA *corpse)
+{
+	fprintf(fp, "#CORPSE %ld\n", corpse->uid);
+	fprintf(fp, "Name %s~\n", corpse->name);
+	if (corpse->gcrp)
+		fprintf(fp, "GCRP %s~\n", gcrp_to_name(corpse->gcrp));
+	
+	if (!IS_NULLSTR(corpse->keywords))				fprintf(fp, "Keywords %s~\n", fix_string(corpse->keywords));
+	if (!IS_NULLSTR(corpse->short_descr))			fprintf(fp, "ShortDesc %s~\n", fix_string(corpse->short_descr));
+	if (!IS_NULLSTR(corpse->long_descr))			fprintf(fp, "LongDesc %s~\n", fix_string(corpse->long_descr));
+	if (!IS_NULLSTR(corpse->full_descr))			fprintf(fp, "FullDesc %s~\n", fix_string(corpse->full_descr));
+	if (!IS_NULLSTR(corpse->short_headless))		fprintf(fp, "ShortHeadless %s~\n", fix_string(corpse->short_headless));
+	if (!IS_NULLSTR(corpse->long_headless))			fprintf(fp, "LongHeadless %s~\n", fix_string(corpse->long_headless));
+	if (!IS_NULLSTR(corpse->full_headless))			fprintf(fp, "FullHeadless %s~\n", fix_string(corpse->full_headless));
+	if (!IS_NULLSTR(corpse->animate_name))			fprintf(fp, "AnimateName %s~\n", fix_string(corpse->animate_name));
+	if (!IS_NULLSTR(corpse->animate_long))			fprintf(fp, "AnimateLong %s~\n", fix_string(corpse->animate_long));
+	if (!IS_NULLSTR(corpse->animate_descr))			fprintf(fp, "AnimateDesc %s~\n", fix_string(corpse->animate_descr));
+	if (!IS_NULLSTR(corpse->victim_message))		fprintf(fp, "VictimMessage %s~\n", fix_string(corpse->victim_message));
+	if (!IS_NULLSTR(corpse->room_message))			fprintf(fp, "RoomMessage %s~\n", fix_string(corpse->room_message));
+	if (!IS_NULLSTR(corpse->decay_message))			fprintf(fp, "DecayMessage %s~\n", fix_string(corpse->decay_message));
+	if (!IS_NULLSTR(corpse->skull_success))			fprintf(fp, "SkullSuccess %s~\n", fix_string(corpse->skull_success));
+	if (!IS_NULLSTR(corpse->skull_success_other))	fprintf(fp, "SkullSuccessOther %s~\n", fix_string(corpse->skull_success_other));
+	if (!IS_NULLSTR(corpse->skull_fail))			fprintf(fp, "SkullFail %s~\n", fix_string(corpse->skull_fail));
+	if (!IS_NULLSTR(corpse->skull_fail_other))		fprintf(fp, "SkullFailOther %s~\n", fix_string(corpse->skull_fail_other));
+
+	if (corpse->owner_loot)			fprintf(fp, "OwnerLoot\n");
+	if (corpse->headless)			fprintf(fp, "Headless\n");
+	if (corpse->animate_headless)	fprintf(fp, "AnimateHeadless\n");
+
+	fprintf(fp, "ResurrectChance %d\n", corpse->resurrect_chance);
+	fprintf(fp, "AnimationChance %d\n", corpse->animation_chance);
+	fprintf(fp, "SkullingChance %d\n", corpse->skulling_chance);
+
+	if (corpse->decay_type)			fprintf(fp, "DecayType %ld\n", corpse->decay_type->uid);
+	fprintf(fp, "DecayRate %d\n", corpse->decay_rate);
+
+	fprintf(fp, "DecayNPCTimer %d %d\n", corpse->decay_npctimer_min, corpse->decay_npctimer_max);
+	fprintf(fp, "DecayPCTimer %d %d\n", corpse->decay_pctimer_min, corpse->decay_pctimer_max);
+
+	fprintf(fp, "DecaySpillChance %d\n", corpse->decay_spill_chance);
+	fprintf(fp, "LostBodyParts %s\n", print_flags(corpse->lost_bodyparts));
+
+	// Damages
+	ITERATOR dit;
+	CORPSE_DAMAGE *damage;
+	iterator_start(&dit, corpse->damage_table);
+	while((damage = (CORPSE_DAMAGE *)iterator_nextdata(&dit)))
+	{
+		save_corpse_damage(fp, damage);
+	}
+	iterator_stop(&dit);
+
+	fprintf(fp, "#-CORPSE\n");
+}
+
+void save_corpses()
+{
+	FILE *fp;
+
+	log_string("save_corpses: saving " CORPSE_FILE);
+	if ((fp = fopen(CORPSE_FILE, "w")) == NULL)
+	{
+		bug("save_corpses: fopen", 0);
+		perror(CORPSE_FILE);
+	}
+	else
+	{
+		ITERATOR it;
+		CORPSE_DATA *corpse;
+
+		iterator_start(&it, corpse_list);
+		while((corpse = (CORPSE_DATA *)iterator_nextdata(&it)))
+		{
+			save_corpse(fp, corpse);
+		}
+		iterator_stop(&it);
+
+		fprintf(fp, "End\n");
+		fclose(fp);
+	}
+}
+
+CORPSE_DAMAGE *load_corpse_damage(FILE *fp)
+{
+	CORPSE_DAMAGE *damage = new_corpse_damage();
+	char buf[MSL];
+	char *word;
+	bool fMatch;
+
+	damage->total_weight = 0;
+
+    while (str_cmp((word = fread_word(fp)), "#-DAMAGE"))
+	{
+		fMatch = false;
+		switch(word[0])
+		{
+			case 'B':
+				if (!str_cmp(word, "Blend"))
+				{
+					int weight = fread_number(fp);
+					long uid = fread_number(fp);
+
+					CORPSE_BLENDING *blend = alloc_mem(sizeof(CORPSE_BLENDING));
+					blend->weight = weight;
+					blend->uid = uid;
+
+					damage->total_weight += weight;
+
+					list_appendlink(damage->blending, blend);
+					fMatch = true;
+					break;
+				}
+				break;
+
+			case 'T':
+				KEY("Type", damage->damage_type, attack_lookup(fread_string(fp)));
+				break;
+		}
+
+		if (!fMatch)
+		{
+			sprintf(buf, "load_corpse_damage: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return damage;
+}
+
+CORPSE_DATA *load_corpse(FILE *fp)
+{
+	CORPSE_DATA *corpse = new_corpse_data();
+	char buf[MSL];
+	char *word;
+	bool fMatch;
+
+	corpse->uid = fread_number(fp);
+
+    while (str_cmp((word = fread_word(fp)), "#-CORPSE"))
+	{
+		fMatch = false;
+		switch(word[0])
+		{
+			case '#':
+				if (!str_cmp(word, "#DAMAGE"))
+				{
+					CORPSE_DAMAGE *damage = load_corpse_damage(fp);
+
+					list_appendlink(corpse->damage_table, damage);
+
+					fMatch = true;
+					break;
+				}
+				break;
+
+			case 'A':
+				KEY("AnimationChance", corpse->animation_chance, fread_number(fp));
+				KEYS("AnimateDesc", corpse->animate_descr, fread_string(fp));
+				KEY("AnimateHeadless", corpse->animate_headless, true);
+				KEYS("AnimateLong", corpse->animate_long, fread_string(fp));
+				KEYS("AnimateName", corpse->animate_name, fread_string(fp));
+				break;
+
+			case 'D':
+				KEYS("DecayMessage", corpse->decay_message, fread_string(fp));
+				if (!str_cmp(word, "DecayNPCTimer"))
+				{
+					corpse->decay_npctimer_min = fread_number(fp);
+					corpse->decay_npctimer_max = fread_number(fp);
+					fMatch = true;
+					break;
+				}
+				if (!str_cmp(word, "DecayPCTimer"))
+				{
+					corpse->decay_pctimer_min = fread_number(fp);
+					corpse->decay_pctimer_max = fread_number(fp);
+					fMatch = true;
+					break;
+				}
+				KEY("DecayRate", corpse->decay_rate, fread_number(fp));
+				KEY("DecaySpillChance", corpse->decay_spill_chance, fread_number(fp));
+				KEY("DecayType", corpse->decay_type_uid, fread_number(fp));
+				break;
+
+			case 'F':
+				KEYS("FullDesc", corpse->full_descr, fread_string(fp));
+				KEYS("FullHeadless", corpse->full_headless, fread_string(fp));
+				break;
+
+			case 'G':
+				KEY("GCRP", corpse->gcrp, gcrp_from_name(fread_string(fp)));
+				break;
+
+			case 'H':
+				KEY("Headless", corpse->headless, true);
+				break;
+
+			case 'K':
+				KEYS("Keywords", corpse->keywords, fread_string(fp));
+				break;
+
+			case 'L':
+				KEYS("LongDesc", corpse->long_descr, fread_string(fp));
+				KEYS("LongHeadless", corpse->long_headless, fread_string(fp));
+				KEY("LostBodyParts", corpse->lost_bodyparts, fread_flag(fp));
+				break;
+
+			case 'N':
+				KEYS("Name", corpse->name, fread_string(fp));
+				break;
+
+			case 'O':
+				KEY("OwnerLoot", corpse->owner_loot, true);
+				break;
+
+			case 'R':
+				KEY("ResurrectChance", corpse->resurrect_chance, fread_number(fp));
+				KEYS("RoomMessage", corpse->room_message, fread_string(fp));
+				break;
+
+			case 'S':
+				KEYS("ShortDesc", corpse->short_descr, fread_string(fp));
+				KEYS("ShortHeadless", corpse->short_headless, fread_string(fp));
+				KEY("SkullingChance", corpse->skulling_chance, fread_number(fp));
+				KEYS("SkullFail", corpse->skull_fail, fread_string(fp));
+				KEYS("SkullFailOther", corpse->skull_fail_other, fread_string(fp));
+				KEYS("SkullSuccess", corpse->skull_success, fread_string(fp));
+				KEYS("SkullSuccessOther", corpse->skull_success_other, fread_string(fp));
+				break;
+
+			case 'V':
+				KEYS("VictimMessage", corpse->victim_message, fread_string(fp));
+				break;
+		}
+
+		if (!fMatch)
+		{
+			sprintf(buf, "load_corpse: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+	
+	return corpse;
+}
+
+void insert_corpse(CORPSE_DATA *corpse)
+{
+	ITERATOR it;
+	CORPSE_DATA *c;
+
+	iterator_start(&it, corpse_list);
+	while((c = (CORPSE_DATA *)iterator_nextdata(&it)))
+	{
+		int cmp = str_cmp(corpse->name, c->name);
+		if (cmp < 0)
+		{
+			iterator_insert_before(&it, corpse);
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	if (!c)
+	{
+		list_appendlink(corpse_list, corpse);
+	}
+}
+
+static void delete_corpse_data(void *ptr)
+{
+	free_corpse_data((CORPSE_DATA *)ptr);
+}
+
+bool load_corpses()
+{
+	FILE *fp;
+	char buf[MSL];
+	char *word;
+	bool fMatch;
+	bool fSave = false;
+
+	log_string("load_corpses: creating corpse_list");
+	corpse_list = list_createx(false, NULL, delete_corpse_data);
+	if (!IS_VALID(corpse_list))
+	{
+		log_string("corpse_list was not created.");
+		return false;
+	}
+
+	top_corpse_uid = 0;
+	log_string("load_corpses: loading " CORPSE_FILE);
+	if ((fp = fopen(CORPSE_FILE, "r")) == NULL)
+	{
+		log_string("load_corpses: '" CORPSE_FILE "' file not found.  Bootstrapping corpses.");
+
+		for(int i = 0; corpse_info_table[i].name; i++)
+		{
+			const struct corpse_info *crps = &corpse_info_table[i];
+
+			CORPSE_DATA *corpse = new_corpse_data();
+
+			corpse->name = str_dup(flag_string(corpse_types, i));
+			corpse->uid = ++top_corpse_uid;		// Effectively i + 1
+
+			if (i == RAWKILL_NORMAL)
+				corpse->gcrp = &gcrp_normal;
+			else if (i == RAWKILL_INCINERATE)
+				corpse->gcrp = &gcrp_incinerate;
+
+			if (!IS_NULLSTR(crps->name))				corpse->keywords = str_dup(crps->name);
+			if (!IS_NULLSTR(crps->short_descr))			corpse->short_descr = str_dup(crps->short_descr);
+			if (!IS_NULLSTR(crps->long_descr))			corpse->long_descr = str_dup(crps->long_descr);
+			if (!IS_NULLSTR(crps->full_descr))			corpse->full_descr = str_dup(crps->full_descr);
+			if (!IS_NULLSTR(crps->short_headless))		corpse->short_headless = str_dup(crps->short_headless);
+			if (!IS_NULLSTR(crps->long_headless))		corpse->long_headless = str_dup(crps->long_headless);
+			if (!IS_NULLSTR(crps->full_headless))		corpse->full_headless = str_dup(crps->full_headless);
+			if (!IS_NULLSTR(crps->animate_name))		corpse->animate_name = str_dup(crps->animate_name);
+			if (!IS_NULLSTR(crps->animate_long))		corpse->animate_long = str_dup(crps->animate_long);
+			if (!IS_NULLSTR(crps->animate_descr))		corpse->animate_descr = str_dup(crps->animate_descr);
+			if (!IS_NULLSTR(crps->victim_message))		corpse->victim_message = str_dup(crps->victim_message);
+			if (!IS_NULLSTR(crps->room_message))		corpse->room_message = str_dup(crps->room_message);
+			if (!IS_NULLSTR(crps->decay_message))		corpse->decay_message = str_dup(crps->decay_message);
+			if (!IS_NULLSTR(crps->skull_success))		corpse->skull_success = str_dup(crps->skull_success);
+			if (!IS_NULLSTR(crps->skull_success_other))	corpse->skull_success_other = str_dup(crps->skull_success_other);
+			if (!IS_NULLSTR(crps->skull_fail))			corpse->skull_fail = str_dup(crps->skull_fail);
+			if (!IS_NULLSTR(crps->skull_fail_other))	corpse->skull_fail_other = str_dup(crps->skull_fail_other);
+
+			corpse->owner_loot = crps->owner_loot;
+			corpse->headless = crps->headless;
+			corpse->animate_headless = crps->animate_headless;
+			corpse->resurrect_chance = crps->resurrect_chance;
+			corpse->animation_chance = crps->animation_chance;
+			corpse->skulling_chance = crps->skulling_chance;
+
+			corpse->decay_type_uid = crps->decay_type + 1;		// NOCORPSE will become 0
+			corpse->decay_rate = crps->decay_rate;
+
+			corpse->decay_npctimer_min = crps->decay_npctimer_min * 100;
+			corpse->decay_npctimer_max = crps->decay_npctimer_max * 100;
+			corpse->decay_pctimer_min = crps->decay_pctimer_min * 100;
+			corpse->decay_pctimer_max = crps->decay_pctimer_max * 100;
+			corpse->decay_spill_chance = crps->decay_spill_chance;
+			corpse->lost_bodyparts = crps->lost_bodyparts;
+
+			insert_corpse(corpse);
+		}
+
+		fSave = true;
+	}
+	else
+	{
+		while (str_cmp((word = fread_word(fp)), "End"))
+		{
+			fMatch = false;
+
+			switch(word[0])
+			{
+				case '#':
+					if (!str_cmp(word, "#CORPSE"))
+					{
+						CORPSE_DATA *corpse = load_corpse(fp);
+						if (corpse)
+						{
+							if (corpse->uid > top_corpse_uid)
+								top_corpse_uid = corpse->uid;
+
+							insert_corpse(corpse);
+						}
+						else
+							log_string("Failed to load a corpse.");
+						fMatch = true;
+						break;
+					}
+					break;
+			}
+
+			if (!fMatch) {
+				sprintf(buf, "load_corpses: no match for word %s", word);
+				bug(buf, 0);
+			}
+		}
+		log_string("Corpses loaded.");
+	}
+
+	// Resolve all corpses
+	for(int i = 0; global_corpses[i].name; i++)
+	{
+		if(global_corpses[i].gcrp) *(global_corpses[i].gcrp) = NULL;
+	}
+
+	ITERATOR it;
+	CORPSE_DATA *c;
+	iterator_start(&it, corpse_list);
+	while((c = (CORPSE_DATA *)iterator_nextdata(&it)))
+	{
+		if (!c->uid)
+		{
+			c->uid = ++top_corpse_uid;
+			fSave = true;
+		}
+
+		if (c->gcrp) *(c->gcrp) = c;
+
+		if (c->decay_type_uid > 0)
+			c->decay_type = get_corpse_data_uid(c->decay_type_uid);
+
+		ITERATOR dit, bit;
+		CORPSE_DAMAGE *damage;
+		CORPSE_BLENDING *blend;
+		iterator_start(&dit, c->damage_table);
+		while((damage = (CORPSE_DAMAGE *)iterator_nextdata(&dit)))
+		{
+			iterator_start(&bit, damage->blending);
+			while((blend = (CORPSE_BLENDING *)iterator_nextdata(&bit)))
+			{
+				if (blend->uid < 0)
+					blend->result = NULL;
+				else
+				{
+					CORPSE_DATA *bc = get_corpse_data_uid(blend->uid);
+					if (!IS_VALID(bc))
+						iterator_remcurrent(&bit);
+					else
+						blend->result = bc;
+				}
+			}
+			iterator_stop(&bit);
+		}
+		iterator_stop(&dit);
+	}
+	iterator_stop(&it);
+
+	if (fSave)
+		save_corpses();
+
+	return true;
+}
+
+////////////////
+// CORPSEDIT
+//
+
+void do_corpsedit(CHAR_DATA *ch, char *argument)
+{
+	CORPSE_DATA *corpse;
+    char command[MSL];
+
+    argument = one_argument(argument, command);
+
+	if ((corpse = get_corpse_data(command)))
+	{
+		olc_set_editor(ch, ED_CORPSEDIT, corpse);
+		return;
+	}
+
+	if (!str_cmp(command, "create"))
+	{
+		corpsedit_create(ch, argument);
+		return;
+	}
+
+	send_to_char("Syntax:  corpsedit <name>\n\r", ch);
+	send_to_char("         corpsedit create <name>\n\r", ch);
+}
+
+const struct olc_cmd_type corpsedit_table[] =
+{
+	{ "?",				show_help			},
+	{ "animate",		corpsedit_animate	},
+	{ "chance"	,		corpsedit_chance	},
+	{ "commands",		show_commands		},
+	{ "comments",		corpsedit_comments	},
+	{ "create",			corpsedit_create	},
+	{ "damage",			corpsedit_damage	},
+	{ "decay",			corpsedit_decay		},
+	{ "description",	corpsedit_description	},
+	{ "gcrp",			corpsedit_gcrp		},
+	{ "headless",		corpsedit_headless	},
+	{ "keywords",		corpsedit_keywords	},
+	{ "lost",			corpsedit_lost		},
+	{ "long",			corpsedit_long		},
+	{ "message",		corpsedit_message	},
+	{ "name",			corpsedit_name		},
+	{ "ownerloot",		corpsedit_owner_loot	},
+	{ "short",			corpsedit_short		},
+	{ "show",			corpsedit_show		},
+	{ "skull",			corpsedit_skull		},
+	{ NULL,				NULL				}
+};
+
+void corpsedit(CHAR_DATA *ch, char *argument)
+{
+	char command[MIL];
+	char arg[MIL];
+	int  cmd;
+
+	smash_tilde(argument);
+	strcpy(arg, argument);
+	argument = one_argument(argument, command);
+
+	if (!IS_IMPLEMENTOR(ch))
+	{
+		send_to_char("CorpsEdit:  Insufficient security to edit corpses - action logged.\n\r", ch);
+		edit_done(ch);
+		return;
+	}
+
+	if (!str_cmp(command, "done"))
+	{
+		edit_done(ch);
+		return;
+	}
+
+	ch->pcdata->immortal->last_olc_command = current_time;
+
+	if (command[0] == '\0')
+	{
+		corpsedit_show(ch, argument);
+		return;
+	}
+
+	for (cmd = 0; corpsedit_table[cmd].name != NULL; cmd++)
+	{
+		if (!str_prefix(command, corpsedit_table[cmd].name))
+		{
+			if ((*corpsedit_table[cmd].olc_fun) (ch, argument))
+			{
+				// Save the materials
+				save_corpses();
+			}
+			return;
+		}
+	}
+
+	interpret(ch, arg);
+}
+
+void do_corpselist(CHAR_DATA *ch, char *argument)
+{
+	char buf[MSL];
+	BUFFER *buffer = new_buf();
+
+	ITERATOR it;
+	CORPSE_DATA *corpse;
+	int i = 0;
+
+	iterator_start(&it, corpse_list);
+	while((corpse = (CORPSE_DATA *)iterator_nextdata(&it)))
+	{
+		sprintf(buf, "%3d) %s\n\r", ++i, MXPCreateSend(ch->desc,formatf("corpseshow %s", corpse->name),corpse->name));
+		add_buf(buffer, buf);
+	}
+	iterator_stop(&it);
+
+	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(buffer->string, ch);
+	}
+
+	free_buf(buffer);
+}
+
+void do_corpseshow(CHAR_DATA *ch, char *argument)
+{
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  corpseshow <corpse name>\n\r", ch);
+		return;
+	}
+
+	CORPSE_DATA *corpse = get_corpse_data(argument);
+	if (!corpse)
+	{
+		send_to_char("There is no corpse type with that name.\n\r", ch);
+		return;		
+	}
+
+	olc_show_item(ch, corpse, corpsedit_show, "");
+}
+
+
+CORPSEDIT( corpsedit_create )
+{
+	CORPSE_DATA *corpse;
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  corpsedit create <name>\n\r", ch);
+		send_to_char("Please provide a name.\n\r", ch);
+		return false;
+	}
+
+	if ((corpse = get_corpse_data(argument)))
+	{
+		send_to_char("That name is already in use.\n\r", ch);
+		return false;
+	}
+
+	corpse = new_corpse_data();
+	smash_tilde(argument);
+	corpse->name = str_dup(argument);
+	insert_corpse(corpse);
+	save_corpses();
+
+	olc_set_editor(ch, ED_CORPSEDIT, corpse);
+
+	send_to_char("Corpse created.\n\r", ch);
+	return true;
+}
+
+CORPSEDIT( corpsedit_show )
+{
+	CORPSE_DATA *corpse;
+	EDIT_CORPSE(ch, corpse);
+
+	BUFFER *buffer = new_buf();
+
+	add_buf(buffer, formatf("{yCORPSE{Y[{W%s{Y]{y: {W%ld{x\n\r", corpse->name, corpse->uid));
+	if (corpse->gcrp)
+		add_buf(buffer, formatf("{Y[{WGSCP{Y]{y: {W%s{x\n\r", gcrp_to_display(corpse->gcrp)));
+	else
+		add_buf(buffer, "{Y[{WGSCP{Y]{y: {D(unset){x\n\r");
+
+	if (!IS_NULLSTR(corpse->comments))
+		add_buf(buffer, formatf("  -----\n\r  {WBuilders' Comments:{X\n\r  %s{x\n\r  -----\n\r\n\r", corpse->comments));
+
+	add_buf(buffer, formatf("{Y[{WKeywords{Y]{y: {W%s{x\n\r", corpse->keywords));
+	add_buf(buffer, formatf("{Y[{WShort Description{Y]{y: {W%s{x\n\r", corpse->short_descr));
+	add_buf(buffer, formatf("{Y[{WLong Description{Y]{y: {W%s{x\n\r", corpse->long_descr));
+	add_buf(buffer, formatf("{Y[{WDescription{Y]{y:{x\n\r%s\n\r", string_indent(corpse->full_descr, 3)));
+	add_buf(buffer, "\n\r");
+
+	add_buf(buffer, formatf("{Y[{WHeadless?{Y]{y: %s{x\n\r", (corpse->headless ? "{WYES" : "{DNO")));
+	add_buf(buffer, formatf("{Y[{WHeadless Can Be Animated?{Y]{y: %s{x\n\r", (corpse->animate_headless ? "{WYES" : "{DNO")));
+	add_buf(buffer, formatf("{Y[{WHeadless Short Description{Y]{y: {W%s{x\n\r", corpse->short_headless));
+	add_buf(buffer, formatf("{Y[{WHeadless Long Description{Y]{y: {W%s{x\n\r", corpse->long_headless));
+	add_buf(buffer, formatf("{Y[{WHeadless Description{Y]{y:{x\n\r%s\n\r", string_indent(corpse->full_headless, 3)));
+	add_buf(buffer, "\n\r");
+
+	add_buf(buffer, formatf("{Y[{WResurrection Chance{Y]{y: {W%d%%{x\n\r", corpse->resurrect_chance));
+	add_buf(buffer, formatf("{Y[{WAnimation Chance{Y]{y: {W%d%%{x\n\r", corpse->animation_chance));
+	add_buf(buffer, formatf("{Y[{WAnimated Name{Y]{y: {W%s{x\n\r", corpse->animate_name));
+	add_buf(buffer, formatf("{Y[{WAnimated Long Description{Y]{y: {W%s{x\n\r", corpse->animate_long));
+	add_buf(buffer, formatf("{Y[{WAnimated Description{Y]{y:{x\n\r%s\n\r", string_indent(corpse->animate_descr, 3)));
+	add_buf(buffer, "\n\r");
+
+	add_buf(buffer, formatf("{Y[{WVictim Death Message{Y]{y: {W%s{x\n\r", corpse->victim_message));
+	add_buf(buffer, formatf("{Y[{WRoom Death Message{Y]{y: {W%s{x\n\r", corpse->room_message));
+	add_buf(buffer, formatf("{Y[{WDecay Message{Y]{y: {W%s{x\n\r", corpse->decay_message));
+	add_buf(buffer, "\n\r");
+
+	add_buf(buffer, formatf("{Y[{WSkulling Chance{Y]{y: {W%d%%{x\n\r", corpse->skulling_chance));
+	add_buf(buffer, formatf("{Y[{WSkull Success Message{Y]{y: {W%s{x\n\r", corpse->skull_success));
+	add_buf(buffer, formatf("{Y[{WSkull Success Room Message{Y]{y: {W%s{x\n\r", corpse->skull_success_other));
+	add_buf(buffer, formatf("{Y[{WSkull Failure Message{Y]{y: {W%s{x\n\r", corpse->skull_fail));
+	add_buf(buffer, formatf("{Y[{WSkull Failure Room Message{Y]{y: {W%s{x\n\r", corpse->skull_fail_other));
+	add_buf(buffer, "\n\r");
+
+	add_buf(buffer, formatf("{Y[{WOwner Loot{Y]{y: %s{x\n\r", (corpse->owner_loot ? "{WYES" : "{DNO")));
+	
+	if (IS_VALID(corpse->decay_type))
+		add_buf(buffer, formatf("{Y[{WCorpse Decays Into{Y]{y: {W%s{x\n\r", corpse->decay_type->name));
+	else
+		add_buf(buffer, "{Y[{WCorpse Decays Into{Y]{y: {D(nothing){x\n\r");
+
+	if (corpse->decay_rate > 100)
+		add_buf(buffer, formatf("{Y[{WCorpse Degradation Rate{Y]{y: {W%d%%{y per tick with {W%d%%{y chance for an additional percent{x\n\r", (corpse->decay_rate / 100), (corpse->decay_rate % 100)));
+	else if (corpse->decay_rate == 100)
+		add_buf(buffer, "{Y[{WCorpse Degradation Rate{Y]{y: {W1%%{y per tick{x\n\r");
+	else if (corpse->decay_rate > 0)	
+		add_buf(buffer, formatf("{Y[{WCorpse Degradation Rate{Y]{y: {W%d%%{y chance to degrade {W1%%{y per tick{x\n\r", corpse->decay_rate));
+	else
+		add_buf(buffer, "{Y[{WCorpse Degradation Rate{Y]{y: {D(never){x\n\r");
+
+	add_buf(buffer, formatf("{Y[{WNPC Corpse Decay Timer{Y]{y: {W%d{y to {W%d{y ticks{x\n\r", corpse->decay_npctimer_min, corpse->decay_npctimer_max));
+	add_buf(buffer, formatf("{Y[{WPC Corpse Decay Timer{Y]{y: {W%d{y to {W%d{y ticks{x\n\r", corpse->decay_pctimer_min, corpse->decay_pctimer_max));
+	add_buf(buffer, formatf("{Y[{WDecay Spill Chance{Y]{y: {W%d%%{x\n\r", corpse->decay_spill_chance));
+	add_buf(buffer, formatf("{Y[{WBodyparts Lost{Y]{y: {W%s{x\n\r", flag_string(part_flags, corpse->lost_bodyparts)));
+
+	if (list_size(corpse->damage_table) > 0)
+	{
+		add_buf(buffer, "{Y[{WDamage Table{Y]{y:{x\n\r");
+		int d = 0;
+		int b;
+		ITERATOR dit, bit;
+		CORPSE_DAMAGE *damage;
+		CORPSE_BLENDING *blend;
+		iterator_start(&dit, corpse->damage_table);
+		while((damage = (CORPSE_DAMAGE *)iterator_nextdata(&dit)))
+		{
+			add_buf(buffer, formatf("%3d) %s\n\r", ++d, flag_string(damage_classes, damage->damage_type)));
+			
+			b = 0;
+			iterator_start(&bit, damage->blending);
+			while((blend = (CORPSE_BLENDING *)iterator_nextdata(&bit)))
+			{
+				if (IS_VALID(blend->result))
+					add_buf(buffer, formatf("     %3d)  %s\n\r", ++b, MXPCreateSend(ch->desc, formatf("corpseshow %s", blend->result->name), blend->result->name)));
+				else
+					add_buf(buffer, formatf("     %3d)  {Dnocorpse{x\n\r", ++b));
+			}
+			iterator_stop(&bit);
+		}
+		iterator_stop(&dit);
+	}
+
+	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(buffer->string, ch);
+	}
+
+	free_buf(buffer);
+	return false;
+}
+
+CORPSEDIT( corpsedit_gcrp )
+{
+	CORPSE_DATA *corpse;
+	EDIT_CORPSE(ch, corpse);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  gcrp set <name>\n\r", ch);
+		send_to_char("         gcrp clear\n\r", ch);
+		return false;
+	}
+
+	char arg[MIL];
+	argument = one_argument(argument, arg);
+
+	if (!str_prefix(arg, "set"))
+	{
+		CORPSE_DATA **gcrp = gcrp_from_name(argument);
+
+		if (!gcrp)
+		{
+			send_to_char("No such global corpse pointer by that name.\n\r", ch);
+			return false;
+		}
+
+		if (*gcrp) (*gcrp)->gcrp = NULL;
+		*gcrp = corpse;
+		corpse->gcrp = gcrp;
+
+		send_to_char("Global Corpse Pointer updated.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "clear"))
+	{
+		if (corpse->gcrp)
+		{
+			*(corpse->gcrp) = NULL;
+			corpse->gcrp = NULL;
+		}
+
+		send_to_char("Global Corpse Pointer cleared.\n\r", ch);
+		return true;
+	}
+
+	corpsedit_gcrp(ch, "");
+	return false;
+}
+
+CORPSEDIT( corpsedit_comments )
+{
+	CORPSE_DATA *corpse;
+	EDIT_CORPSE(ch, corpse);
+
+	if (argument[0])
+	{
+		send_to_char("Syntax:  comments (opens string editor)\n\r", ch);
+		return false;
+	}
+
+	string_append(ch, &corpse->comments);
+	return true;
+}
+
+CORPSEDIT( corpsedit_name )
+{
+	CORPSE_DATA *corpse, *other;
+	EDIT_CORPSE(ch, corpse);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  corpsedit name <name>\n\r", ch);
+		send_to_char("Please specify a name.\n\r", ch);
+		return false;
+	}
+	smash_tilde(argument);
+
+	other = get_corpse_data(argument);
+	if (IS_VALID(other) && corpse != other)
+	{
+		send_to_char("That name is already in use.\n\r", ch);
+		return false;
+	}
+
+	free_string(corpse->name);
+	corpse->name = str_dup(argument);
+
+	// Reposition corpse
+	list_remlink(corpse_list, corpse, false);
+	insert_corpse(corpse);
+
+	send_to_char("Corpse name set.\n\r", ch);
+	return true;
+}
+
+CORPSEDIT( corpsedit_keywords )
+{
+	CORPSE_DATA *corpse;
+	EDIT_CORPSE(ch, corpse);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  keywords <string>\n\r", ch);
+		return false;
+	}
+
+	smash_tilde(argument);
+	free_string(corpse->keywords);
+	corpse->keywords = str_dup(argument);
+	send_to_char("Corpse Keywords changed.\n\r", ch);
+	return true;
+}
+
+CORPSEDIT( corpsedit_short )
+{
+	CORPSE_DATA *corpse;
+	EDIT_CORPSE(ch, corpse);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  short <string>\n\r", ch);
+		return false;
+	}
+
+	smash_tilde(argument);
+	free_string(corpse->short_descr);
+	corpse->short_descr = str_dup(argument);
+	send_to_char("Corpse Short Description changed.\n\r", ch);
+	return true;
+}
+
+CORPSEDIT( corpsedit_long )
+{
+	CORPSE_DATA *corpse;
+	EDIT_CORPSE(ch, corpse);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  long <string>\n\r", ch);
+		return false;
+	}
+
+	smash_tilde(argument);
+	free_string(corpse->long_descr);
+	corpse->long_descr = str_dup(argument);
+	send_to_char("Corpse Long Description changed.\n\r", ch);
+	return true;
+}
+
+CORPSEDIT( corpsedit_description )
+{
+	CORPSE_DATA *corpse;
+	EDIT_CORPSE(ch, corpse);
+
+	if (argument[0])
+	{
+		send_to_char("Syntax:  description (opens string editor)\n\r", ch);
+		return false;
+	}
+
+	string_append(ch, &corpse->full_descr);
+	return true;
+}
+
+// yes/no, short, long, description
+CORPSEDIT( corpsedit_headless )
+{
+	CORPSE_DATA *corpse;
+	EDIT_CORPSE(ch, corpse);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  corspedit headless <boolean>\n\r", ch);
+		send_to_char("         corspedit headless short <string>\n\r", ch);
+		send_to_char("         corspedit headless long <string>\n\r", ch);
+		send_to_char("         corspedit headless description (opens string editor)\n\r", ch);
+		return false;
+	}
+
+	char arg[MIL];
+	argument = one_argument(argument, arg);
+
+	if (!str_prefix(arg, "short"))
+	{
+		if (argument[0] == '\0')
+		{
+			send_to_char("Syntax:  headless short <string>\n\r", ch);
+			return false;
+		}
+		smash_tilde(argument);
+
+		free_string(corpse->short_headless);
+		corpse->short_headless = str_dup(argument);
+		send_to_char("Corpse Headless Short description changed.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "long"))
+	{
+		if (argument[0] == '\0')
+		{
+			send_to_char("Syntax:  headless long <string>\n\r", ch);
+			return false;
+		}
+		smash_tilde(argument);
+
+		free_string(corpse->long_headless);
+		corpse->long_headless = str_dup(argument);
+		send_to_char("Corpse Headless Long description changed.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "description"))
+	{
+		if (argument[0])
+		{
+			send_to_char("Syntax:  description\n\r", ch);
+			return false;
+		}
+
+		string_append(ch, &corpse->full_headless);
+		return true;
+	}
+
+	bool state;
+	if (!str_prefix(arg, "true") || !str_prefix(arg, "yes") || !str_prefix(arg, "on"))
+		state = true;
+	else if (!str_prefix(arg, "false") || !str_prefix(arg, "no") || !str_prefix(arg, "off"))
+		state = false;
+	else
+	{
+		send_to_char("Please specify either short, long, description or provide a boolean value.\n\r", ch);
+		return false;
+	}
+
+	corpse->headless = state;
+	send_to_char("Corpse Headless state changed\n\r", ch);
+	return true;
+}
+
+// name, long, description, headlesss
+CORPSEDIT( corpsedit_animate )
+{
+	CORPSE_DATA *corpse;
+	EDIT_CORPSE(ch, corpse);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  animate name <name>\n\r", ch);
+		send_to_char("         animate long <string>\n\r", ch);
+		send_to_char("         animate description (opens string editor)\n\r", ch);
+		send_to_char("         animate headless <boolean>\n\r", ch);
+		return false;
+	}
+
+	char arg[MIL];
+	argument = one_argument(argument, arg);
+
+	if (!str_prefix(arg, "name"))
+	{
+		if (argument[0] == '\0')
+		{
+			send_to_char("Syntax:  animate name <name>\n\r", ch);
+			send_to_char("Please provide a name.\n\r", ch);
+			return false;
+		}
+		smash_tilde(argument);
+
+		free_string(corpse->animate_name);
+		corpse->animate_name = str_dup(argument);
+		send_to_char("Corpse Animated Name changed.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "long"))
+	{
+		if (argument[0] == '\0')
+		{
+			send_to_char("Syntax:  animate long <string>\n\r", ch);
+			send_to_char("Please provide a room description.\n\r", ch);
+			return false;
+		}
+		smash_tilde(argument);
+
+		free_string(corpse->animate_long);
+		corpse->animate_long = str_dup(argument);
+		send_to_char("Corpse Animated Long Description changed.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "description"))
+	{
+		if (argument[0] != '\0')
+		{
+			send_to_char("Syntax:  animate description (opens string editor)\n\r", ch);
+			return false;
+		}
+
+		string_append(ch, &corpse->animate_descr);
+		return true;
+	}
+
+	if (!str_prefix(arg, "headless"))
+	{
+		if (argument[0] == '\0')
+		{
+			send_to_char("Syntax:  animate headless <boolean>\n\r", ch);
+			send_to_char("Please provide a boolean value (true/false, yes/no, on/off).\n\r", ch);
+			return false;
+		}
+
+		bool state;
+		if (!str_prefix(argument, "true") || !str_prefix(argument, "yes") || !str_prefix(argument, "on"))
+			state = true;
+		else if (!str_prefix(argument, "false") || !str_prefix(argument, "no") || !str_prefix(argument, "off"))
+			state = false;
+		else
+		{
+			send_to_char("Syntax:  animate headless <boolean>\n\r", ch);
+			send_to_char("Please provide a boolean value (true/false, yes/no, on/off).\n\r", ch);
+			return false;
+		}
+
+		corpse->animate_headless = state;
+		send_to_char("Corpse Allow Animated Headless changed.\n\r", ch);
+		return true;
+	}
+
+	corpsedit_animate(ch, "");
+	return false;
+}
+
+// decay, room and victim
+CORPSEDIT( corpsedit_message )
+{
+	CORPSE_DATA *corpse;
+	EDIT_CORPSE(ch, corpse);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  message decay set <string>\n\r", ch);
+		send_to_char("         message decay clear\n\r", ch);
+		send_to_char("         message room set <string>\n\r", ch);
+		send_to_char("         message room clear\n\r", ch);
+		send_to_char("         message victim set <string>\n\r", ch);
+		send_to_char("         message victim clear\n\r", ch);
+		return false;
+	}
+
+	char arg[MIL];
+	argument = one_argument(argument, arg);
+
+	if (!str_prefix(arg, "decay"))
+	{
+		if (argument[0] == '\0')
+		{
+			send_to_char("Syntax:  message decay set <string>\n\r", ch);
+			send_to_char("         message decay clear\n\r", ch);
+			return false;
+		}
+
+		argument = one_argument(argument, arg);
+
+		if (!str_prefix(arg, "set"))
+		{
+			if (argument[0] == '\0')
+			{
+				send_to_char("Syntax:  message decay set <string>\n\r", ch);
+				send_to_char("Please provide a decay message.\n\r", ch);
+				return false;
+			}
+			smash_tilde(argument);
+
+			free_string(corpse->decay_message);
+			corpse->decay_message = str_dup(argument);
+			send_to_char("Corpse Decay Message changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "clear"))
+		{
+			free_string(corpse->decay_message);
+			corpse->decay_message = NULL;
+			send_to_char("Corpse Decay Message cleared.\n\r", ch);
+			return true;
+		}
+
+		corpsedit_message(ch, "decay");
+		return false;
+	}
+
+	if (!str_prefix(arg, "room"))
+	{
+		if (argument[0] == '\0')
+		{
+			send_to_char("Syntax:  message room set <string>\n\r", ch);
+			send_to_char("         message room clear\n\r", ch);
+			return false;
+		}
+
+		argument = one_argument(argument, arg);
+
+		if (!str_prefix(arg, "set"))
+		{
+			if (argument[0] == '\0')
+			{
+				send_to_char("Syntax:  message room set <string>\n\r", ch);
+				send_to_char("Please provide a room death message.\n\r", ch);
+				return false;
+			}
+			smash_tilde(argument);
+
+			free_string(corpse->room_message);
+			corpse->room_message = str_dup(argument);
+			send_to_char("Corpse Room Death Message changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "clear"))
+		{
+			free_string(corpse->room_message);
+			corpse->room_message = NULL;
+			send_to_char("Corpse Room Death Message cleared.\n\r", ch);
+			return true;
+		}
+
+		corpsedit_message(ch, "room");
+		return false;
+	}
+
+	if (!str_prefix(arg, "victim"))
+	{
+		if (argument[0] == '\0')
+		{
+			send_to_char("Syntax:  message victim set <string>\n\r", ch);
+			send_to_char("         message victim clear\n\r", ch);
+			return false;
+		}
+
+		argument = one_argument(argument, arg);
+
+		if (!str_prefix(arg, "set"))
+		{
+			if (argument[0] == '\0')
+			{
+				send_to_char("Syntax:  message victim set <string>\n\r", ch);
+				send_to_char("Please provide a victim death message.\n\r", ch);
+				return false;
+			}
+			smash_tilde(argument);
+
+			free_string(corpse->victim_message);
+			corpse->victim_message = str_dup(argument);
+			send_to_char("Corpse Victim Death Message changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "clear"))
+		{
+			free_string(corpse->victim_message);
+			corpse->victim_message = NULL;
+			send_to_char("Corpse Victim Death Message cleared.\n\r", ch);
+			return true;
+		}
+
+		corpsedit_message(ch, "victim");
+		return false;
+	}
+
+	corpsedit_message(ch, "");
+	return false;
+}
+
+// success, successother, fail, failother
+CORPSEDIT( corpsedit_skull )
+{
+	CORPSE_DATA *corpse;
+	EDIT_CORPSE(ch, corpse);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  skull success <message>\n\r", ch);
+		send_to_char("         skull successother <message>\n\r", ch);
+		send_to_char("         skull fail <message>\n\r", ch);
+		send_to_char("         skull failother <message>\n\r", ch);
+		return false;
+	}
+
+	char arg[MIL];
+	argument = one_argument(argument, arg);
+
+	if (!str_prefix(arg, "success"))
+	{
+		if (argument[0] == '\0')
+		{
+			send_to_char("Syntax:  skull success <message>\n\r", ch);
+			send_to_char("Please provide a skull success message.\n\r", ch);
+			return false;
+		}
+		smash_tilde(argument);
+
+		free_string(corpse->skull_success);
+		corpse->skull_success = str_dup(argument);
+		send_to_char("Corpse Skull Success Message changed.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "successother"))
+	{
+		if (argument[0] == '\0')
+		{
+			send_to_char("Syntax:  skull successother <message>\n\r", ch);
+			send_to_char("Please provide a skull success room message.\n\r", ch);
+			return false;
+		}
+		smash_tilde(argument);
+
+		free_string(corpse->skull_success_other);
+		corpse->skull_success_other = str_dup(argument);
+		send_to_char("Corpse Skull Success Room Message changed.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "fail"))
+	{
+		if (argument[0] == '\0')
+		{
+			send_to_char("Syntax:  skull fail <message>\n\r", ch);
+			send_to_char("Please provide a skull fail message.\n\r", ch);
+			return false;
+		}
+		smash_tilde(argument);
+
+		free_string(corpse->skull_fail);
+		corpse->skull_fail = str_dup(argument);
+		send_to_char("Corpse Skull Failure Message changed.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "failother"))
+	{
+		if (argument[0] == '\0')
+		{
+			send_to_char("Syntax:  skull failother <message>\n\r", ch);
+			send_to_char("Please provide a skull fail room message.\n\r", ch);
+			return false;
+		}
+		smash_tilde(argument);
+
+		free_string(corpse->skull_fail_other);
+		corpse->skull_fail_other = str_dup(argument);
+		send_to_char("Corpse Skull Failure Room Message changed.\n\r", ch);
+		return true;
+	}
+
+	corpsedit_skull(ch, "");
+	return false;
+}
+
+CORPSEDIT( corpsedit_owner_loot )
+{
+	CORPSE_DATA *corpse;
+	EDIT_CORPSE(ch, corpse);
+
+	if (argument[0] == '\0')
+	{
+		corpse->owner_loot = !corpse->owner_loot;
+		send_to_char("Corpse Owner Loot toggled.\n\r", ch);
+		return true;
+	}
+
+	bool value;
+	if (!str_prefix(argument, "true") || !str_prefix(argument, "yes") || !str_prefix(argument, "on"))
+		value = true;
+	else if (!str_prefix(argument, "false") || !str_prefix(argument, "no") || !str_prefix(argument, "off"))
+		value = false;
+	else
+	{
+		send_to_char("Please provide a boolean value (true/false, yes/no or on/off).\n\r", ch);
+		return false;
+	}
+
+	corpse->owner_loot = value;
+	send_to_char("Corpse Owner Loot changed.\n\r", ch);
+	return true;
+}
+
+// resurrect, animation, skulling
+CORPSEDIT( corpsedit_chance )
+{
+	CORPSE_DATA *corpse;
+	EDIT_CORPSE(ch, corpse);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  chance animation <percent>\n\r", ch);
+		send_to_char("         chance resurrect <percent>\n\r", ch);
+		send_to_char("         chance skulling <percent>\n\r", ch);
+		return false;
+	}
+
+	char arg[MIL];
+	argument = one_argument(argument, arg);
+
+	if (!str_prefix(arg, "animation"))
+	{
+		int percent;
+		if (!is_number(argument) || (percent = atoi(argument)) < 0 || percent > 100)
+		{
+			send_to_char("Syntax:  chance animation <percent>\n\r", ch);
+			send_to_char("Please provide a percentage (0 to 100).\n\r", ch);
+			return false;
+		}
+
+		corpse->animation_chance = percent;
+		send_to_char("Corpse Animation Chance changed.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "resurrect"))
+	{
+		int percent;
+		if (!is_number(argument) || (percent = atoi(argument)) < 0 || percent > 100)
+		{
+			send_to_char("Syntax:  chance resurrect <percent>\n\r", ch);
+			send_to_char("Please provide a percentage (0 to 100).\n\r", ch);
+			return false;
+		}
+
+		corpse->resurrect_chance = percent;
+		send_to_char("Corpse Resurrection Chance changed.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "skulling"))
+	{
+		int percent;
+		if (!is_number(argument) || (percent = atoi(argument)) < 0 || percent > 100)
+		{
+			send_to_char("Syntax:  chance skulling <percent>\n\r", ch);
+			send_to_char("Please provide a percentage (0 to 100).\n\r", ch);
+			return false;
+		}
+
+		corpse->skulling_chance = percent;
+		send_to_char("Corpse Skulling Chance changed.\n\r", ch);
+		return true;
+	}
+
+	corpsedit_chance(ch, "");
+	return false;
+}
+
+// type, rate, timer, spill
+CORPSEDIT( corpsedit_decay )
+{
+	CORPSE_DATA *corpse;
+	EDIT_CORPSE(ch, corpse);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  decay type <corpse type>\n\r", ch);
+		send_to_char("         decay rate <rate>\n\r", ch);
+		send_to_char("         decay timer npc|pc <min ticks> <max ticks>\n\r", ch);
+		send_to_char("         decay spill <percent>\n\r", ch);
+		return false;
+	}
+
+	char arg[MIL];
+	argument = one_argument(argument, arg);
+
+	if (!str_prefix(arg, "type"))
+	{
+		if (argument[0] == '\0')
+		{
+			send_to_char("Syntax:  decay type set <corpse type>\n\r", ch);
+			send_to_char("Syntax:  decay type clear\n\r", ch);
+			send_to_char("For list of corpse types, do 'corpselist'.\n\r", ch);
+			return false;
+		}
+
+		argument = one_argument(argument, arg);
+
+		if (!str_prefix(arg, "set"))
+		{
+			CORPSE_DATA *decay = get_corpse_data(argument);
+			if (!IS_VALID(decay))
+			{
+				send_to_char("No such corpse type by that name.\n\r", ch);
+				return false;
+			}
+
+			corpse->decay_type = decay;
+			send_to_char("Corpse Decay Type changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "clear"))
+		{
+			corpse->decay_type = NULL;
+			send_to_char("Corpse Decay Type cleared.\n\r", ch);
+			return true;
+		}
+
+		corpsedit_decay(ch, "type");
+		return false;
+	}
+
+	if (!str_prefix(arg, "rate"))
+	{
+		if (argument[0] == '\0')
+		{
+			send_to_char("Syntax:  decay rate <rate>\n\r", ch);
+			send_to_char("Every 100% rate causes a 1% of corpse degredation per tick.\n\r", ch);
+			send_to_char("All excess results in a percent chance of the final 1% loss.\n\r", ch);
+			return false;
+		}
+
+		int rate;
+		if (!is_number(argument) || (rate = atoi(argument)) < 0)
+		{
+			send_to_char("Please provide a non-negative number.\n\r", ch);
+			send_to_char("Every 100% rate causes a 1% of corpse degredation per tick.\n\r", ch);
+			send_to_char("All excess results in a percent chance of the final 1% loss.\n\r", ch);
+			return false;
+		}
+
+		corpse->decay_rate = rate;
+		send_to_char("Corpse Decay Rate changed.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "timer"))
+	{
+		if (argument[0] == '\0')
+		{
+			send_to_char("Syntax:  decay npc|pc <min ticks> <max ticks>\n\r", ch);
+			return false;
+		}
+
+		argument = one_argument(argument, arg);
+
+		bool pc;
+		if (!str_prefix(arg, "npc"))
+			pc = false;
+		else if (!str_prefix(arg, "pc"))
+			pc = true;
+		else
+		{
+			send_to_char("Syntax:  decay npc|pc <min ticks> <max ticks>\n\r", ch);
+			send_to_char("Specify either npc or pc.\n\r", ch);
+			return false;
+		}
+
+		argument = one_argument(argument, arg);
+
+		int mn;
+		if (!is_number(arg) || (mn = atoi(arg)) < 1)
+		{
+			send_to_char("Please specify a positive number.\n\r", ch);
+			return false;
+		}
+
+		int mx;
+		if (!is_number(argument) || (mx = atoi(argument)) < 1)
+		{
+			send_to_char("Please specify a positive number.\n\r", ch);
+			return false;
+		}
+
+		if (pc)
+		{
+			corpse->decay_pctimer_min = UMIN(mn,mx);
+			corpse->decay_pctimer_max = UMAX(mn,mx);
+			send_to_char("Corpse Decay Timer (PC Corpse) changed.\n\r", ch);
+		}
+		else
+		{
+			corpse->decay_npctimer_min = UMIN(mn,mx);
+			corpse->decay_npctimer_max = UMAX(mn,mx);
+			send_to_char("Corpse Decay Timer (NPC Corpse) changed.\n\r", ch);
+		}
+
+		return true;
+	}
+
+	if (!str_prefix(arg, "spill"))
+	{
+		int spill;
+		if (!is_number(argument) || (spill = atoi(argument)) < 0 || spill > 100)
+		{
+			send_to_char("Syntax:  decay spill <percent>\n\r", ch);
+			send_to_char("Please provide a percentage.\n\r", ch);
+			return false;
+		}
+
+		corpse->decay_spill_chance = spill;
+		send_to_char("Corpse Decay Spill Chance changed.\n\r", ch);
+		return true;
+	}
+
+	corpsedit_decay(ch, "");
+	return false;
+}
+
+CORPSEDIT( corpsedit_lost )
+{
+	CORPSE_DATA *corpse;
+	EDIT_CORPSE(ch, corpse);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  lost <parts>\n\r", ch);
+		show_flag_cmds(ch, part_flags);
+		return false;
+	}
+
+	long value;
+	if ((value = flag_value(part_flags, argument)) == NO_FLAG)
+	{
+		send_to_char("Invalid parts flag.\n\r", ch);
+		show_flag_cmds(ch, part_flags);
+		return false;
+	}
+
+	TOGGLE_BIT(corpse->lost_bodyparts, value);
+	send_to_char("Lost bodyparts toggled.\n\r", ch);
+	return true;
+}
+
+CORPSEDIT( corpsedit_damage )
+{
+	CORPSE_DATA *corpse;
+	EDIT_CORPSE(ch, corpse);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  damage add <damage class>\n\r", ch);
+		send_to_char("         damage clear\n\r", ch);
+		send_to_char("         damage remove #\n\r", ch);
+		send_to_char("         damage # add <corpse type> <weight>\n\r", ch);
+		send_to_char("         damage # add <corpse type> <weight>\n\r", ch);
+		send_to_char("         damage # clear\n\r", ch);
+		send_to_char("         damage # remove #\n\r", ch);
+		return false;
+	}
+
+	char arg[MIL];
+	argument = one_argument(argument, arg);
+
+	CORPSE_DAMAGE *damage;
+	if (!str_prefix(arg, "add"))
+	{
+		int dc;
+
+		if ((dc = stat_lookup(argument, damage_classes, NO_FLAG)) == NO_FLAG)
+		{
+			send_to_char("Syntax:  damage add <damage class>\n\r", ch);
+			send_to_char("Invalid damage class.  Use '? damageclass' for valid classes.\n\r", ch);
+			show_flag_cmds(ch, damage_classes);
+			return false;
+		}
+
+		damage = get_corpse_damage(corpse, dc);
+		if (IS_VALID(damage))
+		{
+			send_to_char("The corpse already has that damage class in its damage table.\n\r", ch);
+			return false;
+		}
+		
+		damage = new_corpse_damage();
+		damage->damage_type = dc;
+
+		list_appendlink(corpse->damage_table, damage);
+		send_to_char("Damage Class added to Corpse Damage Table.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "clear"))
+	{
+		list_clear(corpse->damage_table);
+		send_to_char("Corpse Damage Table cleared.\n\r", ch);
+		return true;
+	}
+
+	int index;
+	if (!str_prefix(arg, "remove"))
+	{
+		if (!is_number(argument) || (index = atoi(argument)) < 1 || index > list_size(corpse->damage_table))
+		{
+			send_to_char(formatf("Please specify a number from 1 to %d.\n\r", list_size(corpse->damage_table)), ch);
+			return false;
+		}
+
+		list_remnthlink(corpse->damage_table, index, true);
+		send_to_char(formatf("Damage Entry #%d removed from Corpse Damage Table.\n\r", index), ch);
+		return true;
+	}
+
+	if (!is_number(arg) || (index = atoi(arg)) < 1 || index > list_size(corpse->damage_table))
+	{
+		send_to_char(formatf("Please specify a number from 1 to %d.\n\r", list_size(corpse->damage_table)), ch);
+		return false;
+	}
+
+	damage = (CORPSE_DAMAGE *)list_nthdata(corpse->damage_table, index);
+
+	argument = one_argument(argument, arg);
+	if (!str_prefix(arg, "add"))
+	{
+		if (argument[0] == '\0')
+		{
+			send_to_char(formatf("Syntax:  damage %d add <corpse type> <weight>\n\r", index), ch);
+			send_to_char("Please specify a corpse type.  Use 'corpselist' for list of valid types.\n\r", ch);
+			return false;
+		}
+
+		argument = one_argument(argument, arg);
+		
+		CORPSE_DATA *bc;
+		if (!str_prefix(arg, "nocorpse"))
+			bc = NULL;
+		else
+		{
+			bc = get_corpse_data(arg);
+			if (!IS_VALID(bc))
+			{
+				send_to_char("No such corpse by that name.\n\r", ch);
+				return false;
+			}
+		}
+
+		int weight;
+		if (!is_number(argument) || (weight = atoi(argument)) < 1)
+		{
+			send_to_char("Please provide a positive number.\n\r", ch);
+			return false;
+		}
+
+		CORPSE_BLENDING *blend = alloc_mem(sizeof(CORPSE_BLENDING));
+		blend->weight = weight;
+		blend->result = bc;
+
+		list_appendlink(damage->blending, blend);
+		damage->total_weight += weight;
+		send_to_char(formatf("Blending added to Damage Entry #%d for Corpse Damage Table.\n\r", index), ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "clear"))
+	{
+		list_clear(damage->blending);
+		damage->total_weight = 0;
+		send_to_char(formatf("Blending cleared for Damage Entry #%d of Corpse Damage Table.\n\r", index), ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "remove"))
+	{
+		int blend;
+		if (!is_number(argument) || (blend = atoi(argument)) < 1 || blend > list_size(damage->blending))
+		{
+			send_to_char(formatf("Please specify a number from 1 to %d.\n\r", list_size(damage->blending)), ch);
+			return false;
+		}
+
+		CORPSE_BLENDING *blending = (CORPSE_BLENDING *)list_nthdata(damage->blending, blend);
+
+		list_remnthlink(damage->blending, blend, true);
+		damage->total_weight -= blending->weight;
+		send_to_char(formatf("Blending #%d removed from Damage Entry #%d of Corpse Damage Table.\n\r", blend, index), ch);
+		return true;
+	}
+
+	corpsedit_damage(ch, "");
+	return false;
+}
+

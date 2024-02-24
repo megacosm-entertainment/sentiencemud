@@ -65,6 +65,7 @@ char *editor_name_table[] = {
 	"ClsEdit",
 	"RaceEdit",
 	"SectorEdit",
+	"CorpsEdit",
 };
 
 int editor_max_tabs_table[] = {
@@ -99,6 +100,7 @@ int editor_max_tabs_table[] = {
 	0,		// ClsEdit
 	0,		// RaceEdit
 	0,		// SectorEdit
+	0,		// CorpsEdit
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -130,6 +132,7 @@ const struct editor_cmd_type editor_table[] =
 	{ "class",		do_clsedit  },
 	{ "race",		do_raceedit },
 	{ "sector",		do_sectoredit },
+	{ "corpse",		do_corpsedit },
 	{ NULL,			0,			}
 };
 
@@ -596,6 +599,10 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
 		sectoredit(d->character, d->incomm);
 		break;
 
+	case ED_CORPSEDIT:
+		corpsedit(d->character, d->incomm);
+		break;
+
 	default:
 		return false;
 	}
@@ -669,6 +676,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 	CLASS_DATA *clazz;
 	RACE_DATA *race;
 	SECTOR_DATA *sector;
+	CORPSE_DATA *corpse;
 	static char buf[MIL];
 	char buf2[MSL];
 
@@ -853,7 +861,14 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 		else
 			strcpy(buf, "--");
 		break;
-
+	
+	case ED_CORPSEDIT:
+		corpse = (CORPSE_DATA *)ch->desc->pEdit;
+		if (corpse)
+			sprintf(buf, "%s", corpse->name);
+		else
+			strcpy(buf, "--");
+		break;
 
 	default:
 		sprintf(buf, " ");
@@ -1004,6 +1019,10 @@ bool show_commands(CHAR_DATA *ch, char *argument)
 
 	case ED_SECTOREDIT:
 		show_olc_cmds(ch, sectoredit_table);
+		break;
+
+	case ED_CORPSEDIT:
+		show_olc_cmds(ch, corpsedit_table);
 		break;
 	}
 

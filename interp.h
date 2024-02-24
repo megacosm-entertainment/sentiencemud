@@ -677,3 +677,7 @@ DECLARE_DO_FUN( do_sectorshow );
 
 DECLARE_DO_FUN( do_lead );
 DECLARE_DO_FUN( do_unlead );
+
+DECLARE_DO_FUN( do_corpsedit );
+DECLARE_DO_FUN( do_corpselist );
+DECLARE_DO_FUN( do_corpseshow );

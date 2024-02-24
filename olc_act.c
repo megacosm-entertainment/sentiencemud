@@ -810,20 +810,20 @@ static void __aedit_show_region(BUFFER *buffer, AREA_DATA *pArea, AREA_REGION *r
     sprintf(buf, "  AreaWho:     [%s] [%s]\n\r", flag_string(area_who_titles, region->area_who), flag_string(area_who_display, region->area_who));
 	add_buf(buffer, buf);
 
-    sprintf(buf, "  Savagery:    [%d]\n\r", region->savage_level);
+    sprintf(buf, "  Savagery:    [%d]\n\r", region->rs_savage_level);
 	add_buf(buffer, buf);
 
-    sprintf(buf, "  PlaceType:   [%s]\n\r", flag_string(place_flags, region->place_flags));
+    sprintf(buf, "  PlaceType:   [%s]\n\r", flag_string(place_flags, region->rs_place_flags));
 	add_buf(buffer, buf);
 
-    sprintf(buf, "  X : Y:       [%d, %d]\n\r", region->x, region->y);
+    sprintf(buf, "  X : Y:       [%d, %d]\n\r", region->rs_x, region->rs_y);
 	add_buf(buffer, buf);
 
-    sprintf(buf, "  Land X:Y:    [%d, %d]\n\r", region->land_x, region->land_y);
+    sprintf(buf, "  Land X:Y:    [%d, %d]\n\r", region->rs_land_x, region->rs_land_y);
 	add_buf(buffer, buf);
 
-    sprintf(buf, "  AirshipLand: [%s (%ld)]\n\r", get_room_index(pArea, region->airship_land_spot) == NULL ? "None" :
-        get_room_index(pArea,region->airship_land_spot)->name, region->airship_land_spot);
+    sprintf(buf, "  AirshipLand: [%s (%ld)]\n\r", get_room_index(pArea, region->rs_airship_land_spot) == NULL ? "None" :
+        get_room_index(pArea,region->rs_airship_land_spot)->name, region->rs_airship_land_spot);
 	add_buf(buffer, buf);
 
 	sprintf(buf, "  PostOffice:  [%s (%ld)]\n\r",
@@ -856,7 +856,7 @@ AEDIT(aedit_show)
     sprintf(buf, "Age:         [%d]\n\r",	pArea->age);
 	add_buf(buffer, buf);
 
-    sprintf(buf, "Repop:       [%d minutes]\n\r", pArea->repop);
+    sprintf(buf, "Repop:       [%d minutes]\n\r", pArea->rs_repop);
 	add_buf(buffer, buf);
 
     sprintf(buf, "Players:     [%d]\n\r", pArea->nplayer);
@@ -987,7 +987,7 @@ AEDIT(aedit_x)
 	return false;
     }
 
-    pArea->region.x = atoi(argument);
+    pArea->region.rs_x = atoi(argument);
     send_to_char("X Coordinate of Area set.\n\r", ch);
 
     return true;
@@ -1005,7 +1005,7 @@ AEDIT(aedit_y)
 	return false;
     }
 
-    pArea->region.y = atoi(argument);
+    pArea->region.rs_y = atoi(argument);
     send_to_char("Y Coordinate of Area set.\n\r", ch);
 
     return true;
@@ -1024,7 +1024,7 @@ AEDIT(aedit_land_x)
 	return false;
     }
 
-    pArea->region.land_x = atoi(argument);
+    pArea->region.rs_land_x = atoi(argument);
     send_to_char("X Coordinate set.\n\r", ch);
 
     return true;
@@ -1043,7 +1043,7 @@ AEDIT(aedit_land_y)
 	return false;
     }
 
-    pArea->region.land_y = atoi(argument);
+    pArea->region.rs_land_y = atoi(argument);
     send_to_char("Y Coordinate set.\n\r", ch);
 
     return true;
@@ -1103,7 +1103,7 @@ AEDIT(aedit_airshipland)
 		return false;
 	}
 
-    pArea->region.airship_land_spot = atol(argument);
+    pArea->region.rs_airship_land_spot = atol(argument);
     sprintf(buf, "Set airship land spot of %s to %ld - %s\n\r",
         pArea->name, atol(argument), get_room_index(pArea,atol(argument))->name);
     send_to_char(buf, ch);
@@ -1371,11 +1371,11 @@ AEDIT(aedit_regions)
 
 		// Copy some settings from the default region
 		region->area_who = pArea->region.area_who;
-		region->place_flags = pArea->region.place_flags;
-		region->x = pArea->region.x;
-		region->y = pArea->region.y;
-		region->land_x = pArea->region.land_x;
-		region->land_y = pArea->region.land_y;
+		region->rs_place_flags = pArea->region.rs_place_flags;
+		region->rs_x = pArea->region.rs_x;
+		region->rs_y = pArea->region.rs_y;
+		region->rs_land_x = pArea->region.rs_land_x;
+		region->rs_land_y = pArea->region.rs_land_y;
 
 		list_appendlink(pArea->regions, region);
 		sprintf(buf, "Region %d added.\n\r", list_size(pArea->regions));
@@ -1687,7 +1687,7 @@ AEDIT(aedit_regions)
 			}
 		}
 
-		location_set(&region->recall, pArea, 0, recall, 0, 0);
+		location_set(&region->rs_recall, pArea, 0, recall, 0, 0);
 		send_to_char("Region Recall point changed.\n\r", ch);
 		return true;
 	}
@@ -1723,7 +1723,7 @@ AEDIT(aedit_regions)
 
 		if (!str_prefix(argument, "none"))
 		{
-			region->airship_land_spot = 0;	// Clear it
+			region->rs_airship_land_spot = 0;	// Clear it
 		}
 		else if (!is_number(argument))
 		{
@@ -1754,7 +1754,7 @@ AEDIT(aedit_regions)
 				return false;
 			}
 
-			region->airship_land_spot = room->vnum;
+			region->rs_airship_land_spot = room->vnum;
 		}
 
 		send_to_char("Region Airship landing room changed.\n\r", ch);
@@ -1794,8 +1794,8 @@ AEDIT(aedit_regions)
 
 		if (!str_prefix(argument, "none"))
 		{
-			region->land_x = -1;
-			region->land_y = -1;
+			region->rs_land_x = -1;
+			region->rs_land_y = -1;
 		}
 		else
 		{
@@ -1819,8 +1819,8 @@ AEDIT(aedit_regions)
 				return false;
 			}
 
-			region->land_x = x;
-			region->land_y = y;
+			region->rs_land_x = x;
+			region->rs_land_y = y;
 		}
 
 		send_to_char("Region landing coordinates changed.\n\r", ch);
@@ -1859,14 +1859,14 @@ AEDIT(aedit_regions)
 
 		if(!str_cmp(argument, "none"))
 		{
-			region->place_flags = PLACE_NOWHERE;
+			region->rs_place_flags = PLACE_NOWHERE;
 
 			send_to_char("Region place type cleared.\n\r", ch);
 			return true;
 		}
 		else if ((value = flag_value(place_flags, argument)) != NO_FLAG)
 		{
-			region->place_flags = value;
+			region->rs_place_flags = value;
 
 			send_to_char("Region place type set.\n\r", ch);
 			return true;
@@ -1990,7 +1990,7 @@ AEDIT(aedit_regions)
 			return false;
 		}
 
-		region->savage_level = level;
+		region->rs_savage_level = level;
 
 		send_to_char("Region Savagery changed.\n\r", ch);
 		return true;
@@ -2086,8 +2086,8 @@ AEDIT(aedit_regions)
 
 		if (!str_prefix(argument, "none"))
 		{
-			region->land_x = -1;
-			region->land_y = -1;
+			region->rs_x = -1;
+			region->rs_y = -1;
 		}
 		else
 		{
@@ -2111,8 +2111,8 @@ AEDIT(aedit_regions)
 				return false;
 			}
 
-			region->land_x = x;
-			region->land_y = y;
+			region->rs_x = x;
+			region->rs_y = y;
 		}
 
 		send_to_char("Region coordinates changed.\n\r", ch);
@@ -2148,7 +2148,7 @@ AEDIT(aedit_savage)
 		return false;
 	}
 
-	pArea->region.savage_level = level;
+	pArea->region.rs_savage_level = level;
 	send_to_char("Savage level set.\n\r", ch);
 	return true;
 }
@@ -2230,7 +2230,7 @@ AEDIT(aedit_repop)
 	return false;
     }
 
-    pArea->repop = value;
+    pArea->rs_repop = value;
     send_to_char("Repop time set.\n\r", ch);
     return true;
 }
@@ -2303,12 +2303,12 @@ AEDIT(aedit_placetype)
 		EDIT_AREA(ch, pArea);
 
 		if(!str_cmp(argument, "none")) {
-			pArea->region.place_flags = PLACE_NOWHERE;
+			pArea->region.rs_place_flags = PLACE_NOWHERE;
 
 			send_to_char("Area place type cleared.\n\r", ch);
 			return true;
 		} else if ((value = flag_value(place_flags, argument)) != NO_FLAG) {
-			pArea->region.place_flags = value;
+			pArea->region.rs_place_flags = value;
 
 			send_to_char("Area place type set.\n\r", ch);
 			return true;
@@ -2415,7 +2415,7 @@ AEDIT(aedit_recall)
 	vnum = atoi(arg1);
 
 	if(vnum < 1) {
-		location_clear(&pArea->region.recall);
+		location_clear(&pArea->region.rs_recall);
 		send_to_char("Recall cleared.\n\r", ch);
 	} else if(!arg2[0]) {
 		if(!get_room_index(pArea,vnum)) {
@@ -2423,7 +2423,7 @@ AEDIT(aedit_recall)
 			return false;
 		}
 
-		location_set(&pArea->region.recall,pArea,0,vnum,0,0);
+		location_set(&pArea->region.rs_recall,pArea,0,vnum,0,0);
 		send_to_char("Recall set.\n\r", ch);
 	} else if(!arg3[0] || !arg4[0] || !is_number(arg2) || !is_number(arg3) || !is_number(arg4)) {
 		send_to_char("Syntax:  recall <vnum>\n\r", ch);
@@ -2436,7 +2436,7 @@ AEDIT(aedit_recall)
 		x = atoi(arg2);
 		y = atoi(arg3);
 		z = atoi(arg4);
-		location_set(&pArea->region.recall,NULL,vnum,x,y,z);
+		location_set(&pArea->region.rs_recall,NULL,vnum,x,y,z);
 		send_to_char("Recall set.\n\r", ch);
 	}
 
@@ -17488,7 +17488,10 @@ MEDIT(medit_show)
 		add_buf(buffer, buf);
 	}
 
-	sprintf(buf, "Corpse Type:  {C[{x%s{C]{x\n\r", flag_string(corpse_types, pMob->corpse_type));
+	if (IS_VALID(pMob->corpse_type))
+		sprintf(buf, "Corpse Type:  {C[{x%s{C]{x\n\r", pMob->corpse_type->name);
+	else
+		sprintf(buf, "Corpse Type:  {C[{Dnothing{C]{x\n\r");
 	add_buf(buffer, buf);
 
 	if (pMob->corpse.auid > 0 && pMob->corpse.vnum > 0) {
@@ -18735,19 +18738,25 @@ MEDIT(medit_varclear)
 MEDIT(medit_corpsetype)
 {
     MOB_INDEX_DATA *pMob;
-    int value;
 
     if (argument[0] != '\0')
     {
 		EDIT_MOB(ch, pMob);
 
-		if (!str_cmp(argument, "normal") || !str_cmp(argument, "none")) {
-			pMob->corpse_type = RAWKILL_NORMAL;
 
-			 send_to_char("Corpse type set.\n\r", ch);
+		if (!str_cmp(argument, "none")) {
+			pMob->corpse_type = NULL;
+
+			 send_to_char("Corpse type cleared.\n\r", ch);
 			return true;
-		} else if ((value = flag_value(corpse_types, argument)) != NO_FLAG) {
-			pMob->corpse_type = value;
+		} else {
+			CORPSE_DATA *corpse = get_corpse_data(argument);
+			if (!corpse)
+			{
+				send_to_char("No corpse data by that name.\n\r", ch);
+				return false;
+			}
+			pMob->corpse_type = corpse;
 
 			 send_to_char("Corpse type set.\n\r", ch);
 			return true;
@@ -18755,7 +18764,7 @@ MEDIT(medit_corpsetype)
     }
 
     send_to_char("Syntax: corpsetype [type]\n\r"
-		  "Type '? corpsetypes' for a list of flags.\n\r", ch);
+		  "Use 'corpselist' for a list of corpse types.\n\r", ch);
     return false;
 }
 

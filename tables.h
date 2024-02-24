@@ -186,6 +186,12 @@ struct global_sector_type
 	SECTOR_DATA **gsct;
 };
 
+struct global_corpse_type
+{
+	char *name;
+	CORPSE_DATA **gcrp;
+};
+
 struct npc_ship_type
 {
 	int npc_ship_type;
@@ -524,6 +530,8 @@ extern const struct global_sector_type global_sector_table[];
 extern const struct flag_type cart_flags[];
 extern const struct flag_type skill_sources[];
 extern const struct flag_type church_sizes[];
+
+extern const struct global_corpse_type global_corpses[];
 
 #endif
 

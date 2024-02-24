@@ -1054,6 +1054,8 @@ const struct flag_type area_flags[] =
     {	"locked",		AREA_LOCKED,		true	},
     {   "low_level",    AREA_LOW_LEVEL,     true    },
     {   "immortal",     AREA_IMMORTAL,      true    },
+    {   "persist",      AREA_PERSIST,       true    },
+    {   "keep_live",    AREA_KEEP_LIVE,     true    },
     {	NULL,			0,			0	}
 };
 
@@ -1086,7 +1088,6 @@ const struct flag_type exit_flags[] =
     {	"closed",		EX_CLOSED,		true	},
     {   "nopass",		EX_NOPASS,		true	},
     {	"noclose",		EX_NOCLOSE,		true	},
-    {	"nolock",		EX_NOLOCK,		true	},
     {   "hidden",		EX_HIDDEN,		true	},
     {   "found",		EX_FOUND,		true	},
     {   "broken",		EX_BROKEN,		true	},
@@ -1132,7 +1133,6 @@ const struct flag_type portal_exit_flags[] =
     {	"closed",		EX_CLOSED,		true	},
     {   "nopass",		EX_NOPASS,		true	},
     {	"noclose",		EX_NOCLOSE,		true	},
-    {	"nolock",		EX_NOLOCK,		true	},
     {   "found",		EX_FOUND,		true	},
     {   "broken",		EX_BROKEN,		true	},
     {   "nobash",		EX_NOBASH,		true    },
@@ -1163,34 +1163,32 @@ const struct flag_type door_resets[] =
 
 const struct flag_type room_flags[] =
 {
+	{	"arena",			ROOM_ARENA,				true	},
+	{	"bank",				ROOM_BANK,				true	},
+	{	"chaotic",			ROOM_CHAOTIC,			true	},
 	{	"dark",				ROOM_DARK,				true	},
+	{	"dark_attack",		ROOM_ATTACK_IF_DARK,	true	},
+	{	"death_trap",		ROOM_DEATH_TRAP,		true	},
 	{	"gods_only",		ROOM_GODS_ONLY,			true	},
+	{	"helm",				ROOM_SHIP_HELM,			true	},
 	{	"imp_only",			ROOM_IMP_ONLY,			true	},
 	{	"indoors",			ROOM_INDOORS,			true	},
+	{	"locker",			ROOM_LOCKER,			true	},
 	{	"newbies_only",		ROOM_NEWBIES_ONLY,		true	},
 	{	"no_map",			ROOM_NOMAP,				true	},
 	{	"no_mob",			ROOM_NO_MOB,			true	},
 	{	"no_recall",		ROOM_NO_RECALL,			true	},
 	{	"no_wander",		ROOM_NO_WANDER,			true	},
-	{	"noview",			ROOM_NOVIEW,			true	},
-	{	"pet_shop",			ROOM_PET_SHOP,			true	},
-	{	"private",			ROOM_PRIVATE,			true	},
-	{	"safe",				ROOM_SAFE,				true	},
-	{	"solitary",			ROOM_SOLITARY,			true	},
-	{	"arena",			ROOM_ARENA,				true	},
-	{	"bank",				ROOM_BANK,				true	},
-	{	"chaotic",			ROOM_CHAOTIC,			true	},
-	{	"dark_attack",		ROOM_ATTACK_IF_DARK,	true	},
-	{	"death_trap",		ROOM_DEATH_TRAP,		true	},
-	{	"helm",				ROOM_SHIP_HELM,			true	},
-	{	"locker",			ROOM_LOCKER,			true	},
 	{	"nocomm",			ROOM_NOCOMM,			true	},
 	{	"nomagic",			ROOM_NOMAGIC,			true	},
 	{	"nowhere",			ROOM_NOWHERE,			true	},
+	{	"noview",			ROOM_NOVIEW,			true	},
 	{	"pk",				ROOM_PK,				true	},
+	{	"private",			ROOM_PRIVATE,			true	},
 	{	"real_estate",		ROOM_HOUSE_UNSOLD,		true	},
 	{	"rocks",			ROOM_ROCKS,				true	},
-	{	"ship_shop",		ROOM_SHIP_SHOP,			true	},
+	{	"safe",				ROOM_SAFE,				true	},
+	{	"solitary",			ROOM_SOLITARY,			true	},
 	{	"underwater",		ROOM_UNDERWATER,		true	},
 	{	"view_wilds",		ROOM_VIEWWILDS,			true	},
 	{	NULL,	0,	0	}
@@ -1200,29 +1198,30 @@ const struct flag_type room_flags[] =
 const struct flag_type room2_flags[] =
 {
     {	"alchemy",				ROOM_ALCHEMY,			true	},
+    {	"always_update",		ROOM_ALWAYS_UPDATE,		true	},
     {	"bar",					ROOM_BAR,				true	},
+    {	"blueprint",			ROOM_BLUEPRINT, 		true	},
     {	"briars",				ROOM_BRIARS,			true	},
     {	"citymove",				ROOM_CITYMOVE,			true	},
+    {	"clone_persist",		ROOM_CLONE_PERSIST,		true	},
     {	"drain_mana",			ROOM_DRAIN_MANA,		true	},
-    {	"hard_magic",			ROOM_HARD_MAGIC,		true	},
-    {	"multiplay",			ROOM_MULTIPLAY,			true	},
-    {	"slow_magic",			ROOM_SLOW_MAGIC,		true	},
-    {	"toxic_bog",			ROOM_TOXIC_BOG,			true	},
-    {	"virtual_room",			ROOM_VIRTUAL_ROOM,		false	},
     {   "fire",					ROOM_FIRE,				true    },
+    {	"hard_magic",			ROOM_HARD_MAGIC,		true	},
     {   "icy",					ROOM_ICY,				true    },
+    {   "keep_live",            ROOM_KEEP_LIVE,         true    },
+    {	"multiplay",			ROOM_MULTIPLAY,			true	},
+    {	"no_clone",				ROOM_NOCLONE,			true	},
+    {	"no_floor",				ROOM_NOFLOOR,			true	},
+    {	"no_get_random",		ROOM_NO_GET_RANDOM,		true	},
     {   "no_quest",				ROOM_NO_QUEST,			true    },
     {   "no_quit",				ROOM_NO_QUIT,			true 	},
     {   "post_office",			ROOM_POST_OFFICE,		true	},
-    {	"underground",			ROOM_UNDERGROUND,		true	},
-    {	"vis_on_map",			ROOM_VISIBLE_ON_MAP,	true	},
-    {	"no_floor",				ROOM_NOFLOOR,			true	},
-    {	"clone_persist",		ROOM_CLONE_PERSIST,		true	},
-    {	"blueprint",			ROOM_BLUEPRINT, 		true	},
-    {	"no_clone",				ROOM_NOCLONE,			true	},
-    {	"no_get_random",		ROOM_NO_GET_RANDOM,		true	},
-    {	"always_update",		ROOM_ALWAYS_UPDATE,		true	},
     {	"safe_harbor",			ROOM_SAFE_HARBOR,		true	},
+    {	"slow_magic",			ROOM_SLOW_MAGIC,		true	},
+    {	"toxic_bog",			ROOM_TOXIC_BOG,			true	},
+    {	"underground",			ROOM_UNDERGROUND,		true	},
+    {	"virtual_room",			ROOM_VIRTUAL_ROOM,		false	},
+    {	"vis_on_map",			ROOM_VISIBLE_ON_MAP,	true	},
     {	NULL,			0,			0	}
 
 };
@@ -2511,7 +2510,9 @@ const struct corpse_info corpse_info_table[] = {
 		"{R$n tries to remove the skull from $p, but mutilates it in the process.{x",
 		false,false,false,80,100,95,RAWKILL_SKELETAL,0,3,6,1,5,100,
 		PART_HIDE|PART_SCALES
-	},
+	}, {
+        NULL,
+    }
 };
 
 const struct flag_type time_of_day_flags[] = {
@@ -3031,6 +3032,7 @@ const struct flag_type wilderness_regions[] =
 
 const struct flag_type area_region_flags[] =
 {
+    { "keep_live",      AREA_REGION_KEEP_LIVE,      true    },
     { "no_recall",      AREA_REGION_NO_RECALL,      true    },
     { NULL,             0,             false }
 };
@@ -4419,4 +4421,11 @@ const struct flag_type church_sizes[] =
     {"order",           CHURCH_SIZE_ORDER,          true },
     {"church",          CHURCH_SIZE_CHURCH,         true },
     {NULL,              0,                          false}
+};
+
+const struct global_corpse_type global_corpses[] =
+{
+    {"normal",          &gcrp_normal},
+    {"incinerate",      &gcrp_incinerate},
+    {NULL,              NULL}
 };

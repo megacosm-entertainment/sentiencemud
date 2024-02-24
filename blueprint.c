@@ -2532,33 +2532,39 @@ void reset_instance(INSTANCE *instance)
 	iterator_stop(&it);
 }
 
-inline static void __instance_set_portal_room(OBJ_DATA *portal, ROOM_INDEX_DATA *room)
+inline static void __instance_set_portal_room(OBJ_DATA *obj, ROOM_INDEX_DATA *room)
 {
-	portal->value[3] = GATETYPE_NORMAL;
+	if (!IS_PORTAL(obj)) return;
+	PORTAL_DATA *portal = PORTAL(obj);
+
+	portal->type = GATETYPE_NORMAL;
 
 	if (room)
 	{
 		if (room->source)
 		{
-			portal->value[5] = room->source->area->uid;
-			portal->value[6] = room->source->vnum;
-			portal->value[7] = room->id[0];
-			portal->value[8] = room->id[1];
+			portal->params[0] = room->source->area->uid;
+			portal->params[1] = room->source->vnum;
+			portal->params[2] = room->id[0];
+			portal->params[3] = room->id[1];
+			portal->params[4] = 0;
 		}
 		else
 		{
-			portal->value[5] = room->area->uid;
-			portal->value[6] = room->vnum;
-			portal->value[7] = 0;
-			portal->value[8] = 0;
+			portal->params[0] = room->area->uid;
+			portal->params[1] = room->vnum;
+			portal->params[2] = 0;
+			portal->params[3] = 0;
+			portal->params[4] = 0;
 		}
 	}
 	else
 	{
-		portal->value[5] = 0;
-		portal->value[6] = 0;
-		portal->value[7] = 0;
-		portal->value[8] = 0;
+		portal->params[0] = 0;
+		portal->params[1] = 0;
+		portal->params[2] = 0;
+		portal->params[3] = 0;
+		portal->params[4] = 0;
 	}
 }
 

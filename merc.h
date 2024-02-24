@@ -842,6 +842,77 @@ struct script_varinfo {
     int trigger_type;
 };
 
+typedef struct corpse_data CORPSE_DATA;
+typedef struct corpse_damage_data CORPSE_DAMAGE;
+typedef struct corpse_blending_data CORPSE_BLENDING;
+
+struct corpse_blending_data {
+    int weight;
+    union {
+        CORPSE_DATA *result;
+        long uid;
+    };
+};
+
+struct corpse_damage_data {
+    CORPSE_DAMAGE *next;
+    bool valid;
+
+    int damage_type;
+    int total_weight;
+
+    LLIST *blending;
+};
+
+struct corpse_data {
+    CORPSE_DATA *next;
+    bool valid;
+
+    char *name;
+
+    long uid;
+    CORPSE_DATA **gcrp;
+    char *comments;
+
+	char *keywords;
+	char *short_descr;
+	char *long_descr;
+	char *full_descr;
+	char *short_headless;
+	char *long_headless;
+	char *full_headless;
+	char *animate_name;
+	char *animate_long;
+	char *animate_descr;
+	char *victim_message;
+	char *room_message;
+	char *decay_message;
+	char *skull_success;
+	char *skull_success_other;
+	char *skull_fail;
+	char *skull_fail_other;
+	bool owner_loot;            // Only the other of this corpse can loot it
+	bool headless;              // Corpse is inherently headless
+	bool animate_headless;      // Allow animation if headless
+	int resurrect_chance;
+	int animation_chance;       // Ability to animate the corpse
+	int skulling_chance;        // Ability to skull the corpse
+	CORPSE_DATA *decay_type;    // Type corpse it switches into upon decay (or none)
+    long decay_type_uid;
+	int decay_rate;             // Chance of the corpse deteriorating some each tick
+				 	            //  For each 100 rate, the condition will decrease 1%.
+                                //  Any leftover chance will fall onto a random
+                                //  percent roll.
+	int decay_npctimer_min;
+	int decay_npctimer_max;
+	int decay_pctimer_min;
+	int decay_pctimer_max;
+	int decay_spill_chance;     // Chance an object will drop from the corpse on decay
+	long lost_bodyparts;
+
+    LLIST *damage_table;        // Table taking the initial corpse type and applying the damage
+};
+
 struct corpse_info {
 	char *name;
 	char *short_descr;
@@ -3330,67 +3401,72 @@ enum {
 /*
  * Room flags.
  */
-#define ROOM_DARK		(A)
-#define ROOM_BANK		(B)
-#define ROOM_NO_MOB		(C)
-#define ROOM_INDOORS		(D)
-#define ROOM_NO_WANDER		(E)
-#define ROOM_SHIP_HELM		(F)
-#define ROOM_NOCOMM		(G)
-#define ROOM_VIEWWILDS		(H)
-#define ROOM_SHIP_SHOP		(I)
-#define ROOM_PRIVATE		(J)
-#define ROOM_SAFE		(K)
-#define ROOM_SOLITARY		(L)
-#define ROOM_PET_SHOP		(M)
-#define ROOM_NO_RECALL		(N)
-#define ROOM_IMP_ONLY		(O)
-#define ROOM_GODS_ONLY		(P)
-#define ROOM_NOVIEW  		(Q)
-#define ROOM_NEWBIES_ONLY	(R)
-#define ROOM_NOMAP		(S)
-#define ROOM_NOWHERE		(T)
-#define ROOM_PK		        (U)
-#define ROOM_CHAOTIC		(V)
-#define ROOM_ARENA		(W)
-#define ROOM_UNDERWATER		(X)
-#define ROOM_ROCKS	        (Y)
-#define ROOM_ATTACK_IF_DARK	(Z)
-#define ROOM_DEATH_TRAP		(aa)
-#define ROOM_LOCKER		(bb)
-#define ROOM_HOUSE_UNSOLD	(cc)
-#define ROOM_NOMAGIC		(dd)
-#define ROOM_MOUNT_SHOP		(ee)
+#define ROOM_DARK	    	(A)     // Room requires a light to see
+#define ROOM_BANK	    	(B)     // Access to the BANK system
+#define ROOM_NO_MOB	    	(C)     // Mobiles may not go to the room
+#define ROOM_INDOORS		(D)     // Room is inside
+#define ROOM_NO_WANDER		(E)     // Mobiles may not wander into the room
+#define ROOM_SHIP_HELM		(F)     // Can perform helm commands on a ship
+#define ROOM_NOCOMM		    (G)     // Unable to use channels in this room
+#define ROOM_VIEWWILDS		(H)     // Shows the wilderness in this room
+//                          (I)
+#define ROOM_PRIVATE		(J)     // Only two people may be in this room
+#define ROOM_SAFE		    (K)     // Safe from combat related actions (not damage)
+#define ROOM_SOLITARY		(L)     // Only one person may be in this room
+//                          (M)
+#define ROOM_NO_RECALL		(N)     // Unable to recall out of the room
+#define ROOM_IMP_ONLY		(O)     // Only implementors can be in this room
+#define ROOM_GODS_ONLY		(P)     // Only immortals can be in this room
+#define ROOM_NOVIEW  		(Q)     // Unable to remotely view the room
+#define ROOM_NEWBIES_ONLY	(R)     // Only newbies can be in this room
+#define ROOM_NOMAP		    (S)     // The minimap will not display
+#define ROOM_NOWHERE		(T)     // Will not show up in the WHERE command
+#define ROOM_PK		        (U)     // Player Killing is allowed here.
+#define ROOM_CHAOTIC		(V)     // Dying will leave items behind on your corpse
+#define ROOM_ARENA		    (W)     // Player Killing is allowed here.  Instant respawn.
+#define ROOM_UNDERWATER		(X)     // Room is underwater.  Can drown if you don't have gills or underwater breathing
+#define ROOM_ROCKS	        (Y)     // Rocks fall upon entry.
+#define ROOM_ATTACK_IF_DARK	(Z)     // Non-demon deathtrap if the room is dark
+#define ROOM_DEATH_TRAP		(aa)    // Kills everyone in the room on the tick
+#define ROOM_LOCKER		    (bb)    // Access to the LOCKER system
+#define ROOM_HOUSE_UNSOLD	(cc)    // Room is an unbought house
+#define ROOM_NOMAGIC		(dd)    // Cannot perform magic.
+//                          (ee)
 
 /*
  * Room2 flags
  */
-#define ROOM_NO_QUIT		(A)
-#define ROOM_NO_QUEST		(B)
-#define ROOM_ICY		(C)
-#define ROOM_FIRE		(D)
-#define ROOM_POST_OFFICE	(E)
-#define ROOM_ALCHEMY		(F)
-#define ROOM_BAR    		(G)
-#define ROOM_BRIARS		(H)	/* @@@NIB : 20070126  */
-#define ROOM_TOXIC_BOG		(I)	/* @@@NIB : 20070126 */
-#define ROOM_SLOW_MAGIC		(J)	/* @@@NIB : 20070126 : makes magic take longer to cast */
-#define ROOM_HARD_MAGIC		(K)	/* @@@NIB : 20070126 : makes magic harder to cast */
-#define ROOM_DRAIN_MANA		(L)	/* @@@NIB : 20070126 : drains mana */
-#define ROOM_MULTIPLAY		(M)
-#define ROOM_CITYMOVE		(N)
-/* VIZZWILDS */
-#define ROOM_VIRTUAL_ROOM		(O)
-#define ROOM_PURGE_EMPTY	(P)
-#define ROOM_UNDERGROUND	(Q)
-#define ROOM_VISIBLE_ON_MAP	(R)	/* Used with coords - will show people in room on VMAP, even if !ROOM_VIEWWILDS */
-#define ROOM_NOFLOOR		(S)	/* The room requires you to be flying, on non-takable furniture or floating furniture */
-#define ROOM_CLONE_PERSIST	(T)	/* Set on rooms that can be cloned.  If set, allows clone rooms to be made persistant */
-#define ROOM_BLUEPRINT		(U)	// Room is used in a blueprint.  Allows setting the coordinates without the wilderness
-#define ROOM_NOCLONE		(V)	// Room cannot be used for cloning
-#define ROOM_NO_GET_RANDOM	(W)	// Room cannot be selected on a random search
-#define ROOM_SAFE_HARBOR	(X)	// Room is part of a harbor and considered ship safe
-#define ROOM_ALWAYS_UPDATE	(Z)	/* Allows the room to perform scripting even if the area is empty */
+#define ROOM_NO_QUIT		(A)     // Unable to quit in the room
+#define ROOM_NO_QUEST		(B)     // Room will not be targeted for quests
+#define ROOM_ICY	    	(C)     // Causes slips and falls due to ice
+#define ROOM_FIRE	    	(D)     // Causes fire damage and possible blindness
+#define ROOM_POST_OFFICE	(E)     // Can access the MAIL system in the room
+#define ROOM_ALCHEMY		(F)     // Improves alchemicial actions, like brewing
+#define ROOM_BAR    		(G)     // Not used for anything
+#define ROOM_BRIARS	    	(H)	    // Constantly damages
+#define ROOM_TOXIC_BOG		(I)	    // Inflicts the toxic fumes affect
+#define ROOM_SLOW_MAGIC		(J)	    // Makes magic take longer to cast
+#define ROOM_HARD_MAGIC		(K)	    // Makes magic harder to cast
+#define ROOM_DRAIN_MANA		(L)     // Constantly drains mana
+#define ROOM_MULTIPLAY		(M)     // Allows people to attack the same target without having to be in the same group
+#define ROOM_CITYMOVE		(N)     // Uses the movement cost of the CITY sector
+#define ROOM_VIRTUAL_ROOM	(O)     /* VIZZWILDS */
+//                          (P)
+#define ROOM_UNDERGROUND	(Q)     // Not used
+#define ROOM_VISIBLE_ON_MAP	(R) 	// Used with coords - will show people in room on VMAP, even if !ROOM_VIEWWILDS
+#define ROOM_NOFLOOR		(S) 	// The room requires you to be flying, on non-takable furniture or floating furniture
+#define ROOM_CLONE_PERSIST	(T) 	// Set on rooms that can be cloned.  If set, allows clone rooms to be made persistant
+#define ROOM_BLUEPRINT		(U) 	// Room is used in a blueprint.  Allows setting the coordinates without the wilderness
+#define ROOM_NOCLONE		(V) 	// Room cannot be used for cloning
+#define ROOM_NO_GET_RANDOM	(W) 	// Room cannot be selected on a random search
+#define ROOM_SAFE_HARBOR	(X) 	// Room is part of a harbor and considered ship safe
+//                          (Y)
+#define ROOM_ALWAYS_UPDATE	(Z) 	// Allows the room to perform scripting even if the area is empty
+#define ROOM_KEEP_LIVE      (aa)    // Room's live data will not get overwritten by resets
+//                          (bb)
+//                          (cc)
+//                          (dd)
+//                          (ee)
 
 #define ENVIRON_NONE		0	// Special case to indicate the clone room is free floating
 #define ENVIRON_ROOM		1
@@ -3407,45 +3483,46 @@ enum {
 #define DIR_WEST		      3
 #define DIR_UP			      4
 #define DIR_DOWN		      5
-#define DIR_NORTHEAST		      6
-#define DIR_NORTHWEST		      7
-#define DIR_SOUTHEAST		      8
-#define DIR_SOUTHWEST		      9
+#define DIR_NORTHEAST		  6
+#define DIR_NORTHWEST		  7
+#define DIR_SOUTHEAST		  8
+#define DIR_SOUTHWEST		  9
 
 /*
  * Exit flags.
  * Used in #ROOMS.
  */
-#define EX_ISDOOR		      (A)
-#define EX_CLOSED		      (B)
-#define EX_LOCKED		      (C)
-#define EX_HIDDEN		      (D)
-#define EX_FOUND		      (E)
-#define EX_PICKPROOF		      (F)
-#define EX_NOPASS		      (G)
-#define EX_EASY			      (H)
-#define EX_HARD			      (I)
-#define EX_INFURIATING		      (J)
-#define EX_NOCLOSE		      (K)
-#define EX_NOLOCK		      (L)
-#define EX_BROKEN		      (M)
-#define EX_BARRED		      (N)
-#define EX_NOBASH		      (O)
-#define EX_WALKTHROUGH		      (P)
-#define EX_NOBAR		      (Q)
-/* VIZZWILDS */
-#define EX_VLINK                      (R)
-#define EX_AERIAL			(S)
-#define EX_NOHUNT			(T)
-#define EX_ENVIRONMENT			(U)
-#define EX_NOUNLINK				(V)
-#define EX_PREVFLOOR			(W)
-#define EX_NEXTFLOOR			(X)
+#define EX_ISDOOR		        (A)     // Exit can be open / closed
+#define EX_CLOSED		        (B)     // Exit is closed
+//                              (C)
+#define EX_HIDDEN		        (D)     // Exit is hidden.  Can be found using SEARCH
+#define EX_FOUND		        (E)     // Exit has been found by SEARCH
+//                              (F)
+#define EX_NOPASS		        (G)     // Cannot go through the door with PASS DOOR
+//                              (H)
+//                              (I)
+//                              (J)
+#define EX_NOCLOSE		        (K)     // Door cannot be closed
+//                              (L)
+#define EX_BROKEN		        (M)     // Door has been broken, usually with BASH
+#define EX_BARRED		        (N)     // Door has been barred shut.  Cannot open it.
+#define EX_NOBASH		        (O)     // Cannot bash the door
+#define EX_WALKTHROUGH		    (P)     // Can just walk through the doorway.  TODO: Not implemented
+#define EX_NOBAR		        (Q)     // Cannot bar the door.
+#define EX_VLINK                (R)     // Exit is a VLINK to/from a WILDERNESS
+#define EX_AERIAL			    (S)     // Must be flying to go through the exit
+#define EX_NOHUNT			    (T)     // Hunting will not pathfind through this exit.
+#define EX_ENVIRONMENT			(U)     // Exit leads to the environment of the room
+#define EX_NOUNLINK				(V)     // Prevents scripting from deleting the exit.
+#define EX_PREVFLOOR			(W)     // Used in dungeons to go to the previous floor.
+#define EX_NEXTFLOOR			(X)     // Used in dungeons to go to the next floor.
 #define EX_NOSEARCH				(Y)		// Makes hidden exits unsearchable
 #define EX_MUSTSEE				(Z)		// Requires the exit be visible to use it
 #define EX_TRANSPARENT          (aa)    // Can see through it when closed
 #define EX_NOMOB                (bb)    // NPCs cannot go through the exit, at all.
 #define EX_NOWANDER             (cc)    // NPCs cannot wander through the exit.
+//                              (dd)
+//                              (ee)
 
 /*
  * Area Who Flags
@@ -3529,6 +3606,8 @@ enum {
 #define AREA_LOCKED			(M)		// Area requires the player to unlock the area first
 #define AREA_LOW_LEVEL      (N)     // Area is considered low level
 #define AREA_IMMORTAL       (O)     // Area is an immortal zone.
+#define AREA_KEEP_LIVE      (X)     // Area's live data will not be overwritten when the area resets
+#define AREA_PERSIST        (Y)     // Area's live data will save to persist data
 #define AREA_NO_SAVE		(Z)
 
 /*
@@ -4079,7 +4158,7 @@ struct	mob_index_data
     pVARIABLE		index_vars;
     WNUM_LOAD		corpse;
     WNUM_LOAD		zombie;	/* Animated corpse */
-    int			corpse_type;
+    CORPSE_DATA *corpse_type;
     char *      comments;
 
 	MOB_INDEX_SKILL_DATA *skills;
@@ -5098,7 +5177,7 @@ struct	char_data
     int			death_type;		/* How you died last (0 for alive!) */
     int			set_death_type;
 
-    int			corpse_type;
+    CORPSE_DATA *corpse_type;
     WNUM_LOAD  	corpse_wnum;
 
     /* @@@NIB */
@@ -6556,14 +6635,35 @@ struct area_region_data {
     char *description;
     char *comments;
 
-    int savage_level;       // 0-5
-
     int area_who;
-    int place_flags;
-    
+   
     long post_office;
 
     long flags;
+
+
+    LLIST *players;
+
+    LLIST *rooms;   // Will not include rooms flagged for blueprints
+
+    // OLC data
+    int rs_place_flags;
+    int rs_savage_level;       // 0-5
+
+	LOCATION rs_recall;
+
+	int rs_x;
+	int rs_y;
+
+	/* Areas have a landing coord in the wilds. This will be useful if we want flying
+	 creatures that travel around. */
+	int rs_land_x;
+	int rs_land_y;
+	long rs_airship_land_spot;
+
+    // Live Data - 
+    int place_flags;
+    int savage_level;       // 0-5
 
 	LOCATION recall;
 
@@ -6576,12 +6676,10 @@ struct area_region_data {
 	int land_y;
 	long airship_land_spot;
 
-    LLIST *players;
-
-    LLIST *rooms;   // Will not include rooms flagged for blueprints
 };
 
 #define AREA_REGION_NO_RECALL       (A) // Cannot recall in the region
+#define AREA_REGION_KEEP_LIVE       (B)
 
 /*
  * Area definition.
@@ -6625,7 +6723,6 @@ struct area_data {
 	int endx;
 	int endy;
 	bool reset_once;
-	int repop; /* repop time in minutes */
 	int version_area;
 	int version_mobile;
 	int version_object;
@@ -6731,6 +6828,12 @@ struct area_data {
 
     PROG_DATA *		progs;
     pVARIABLE		index_vars;
+
+    // OLC Data
+    int rs_repop;
+
+    // Live Data
+	int repop; /* repop time in minutes */
 };
 
 struct storm_data
@@ -9977,6 +10080,7 @@ char *	crypt		args( ( const char *key, const char *salt ) );
 #define RACES_FILE          SYSTEM_DIR "races.dat"
 #define SONGS_FILE         SYSTEM_DIR "songs.dat"
 #define SECTORS_FILE        SYSTEM_DIR "sectors.dat"
+#define CORPSE_FILE         SYSTEM_DIR "corpse.dat"
 /*Notes of all kinds */
 #define NOTE_FILE       NOTE_DIR "notes.not"		/* For 'notes'*/
 /*#define PENALTY_FILE	NOTE_DIR "penal.not"		Unused */
@@ -10216,7 +10320,7 @@ TOKEN_INDEX_DATA *get_token_index_wnum(WNUM wnum);
 TOKEN_INDEX_DATA *get_token_index_auid(long auid, long vnum);
 TOKEN_INDEX_DATA *get_token_index(AREA_DATA *pArea, long vnum);
 bool is_singular_token(TOKEN_INDEX_DATA *index);
-void	reset_area      args( ( AREA_DATA * pArea ) );
+void	reset_area      args( ( AREA_DATA * pArea, bool fBoot ) );
 void	reset_room	args( ( ROOM_INDEX_DATA *pRoom, bool force ) );
 char *	print_flags	args( ( long flag ));
 void	boot_db		args( ( void ) );
@@ -10356,14 +10460,14 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages );
 void death_mob_echo( CHAR_DATA *victim );
 OBJ_DATA *disarm( CHAR_DATA *ch, CHAR_DATA *victim );
 void group_gain( CHAR_DATA *ch, CHAR_DATA *victim, int percent );
-void set_corpse_data(OBJ_DATA *corpse, int corpse_type);
+void set_corpse_data(OBJ_DATA *corpse, CORPSE_DATA *corpse_type);
 int blend_corpsetypes (int t1, int t2);
-OBJ_DATA *make_corpse( CHAR_DATA *ch, bool has_head, int corpse_type, bool messages );
+OBJ_DATA *make_corpse( CHAR_DATA *ch, bool has_head, CORPSE_DATA *corpse_type, int damage_type, bool messages );
 void mob_hit( CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, int dt );
 void multi_hit( CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, int dt );
 void player_kill( CHAR_DATA *ch, CHAR_DATA *victim );
 int damage_to_corpse(int dam_type);
-OBJ_DATA *raw_kill( CHAR_DATA *victim, bool has_head, bool messages, int corpse_type);
+OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, CORPSE_DATA *corpse_type, int damage_type);
 void resurrect_end( CHAR_DATA *ch );
 void enter_combat(CHAR_DATA *ch, CHAR_DATA *victim, bool silent);
 bool set_fighting( CHAR_DATA *ch, CHAR_DATA *victim);
@@ -12229,5 +12333,20 @@ bool load_sectors();
 void save_sectors();
 
 extern GLOBAL_DATA gconfig;
+
+extern LLIST *corpse_list;
+extern CORPSE_DATA gcrp__nocorpse;
+extern CORPSE_DATA *gcrp_normal;
+extern CORPSE_DATA *gcrp_incinerate;
+extern long top_corpse_uid;
+
+bool load_corpses();
+void save_corpses();
+
+CORPSE_DATA *get_corpse_data(char *name);
+CORPSE_DATA *get_corpse_data_uid(long uid);
+CORPSE_DAMAGE *get_corpse_damage(CORPSE_DATA *corpse, int damage_type);
+CORPSE_DATA *apply_damage_to_corpse(CORPSE_DATA *corpse, int damage_type);
+
 
 #endif /* !def __merc_h__ */
