@@ -7250,6 +7250,8 @@ void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
 		fprintf(fp, "Material %s~\n", ch->material->name);
 	if (IS_VALID(ch->corpse_type))
 		fprintf(fp, "Corpse %s~\n", ch->corpse_type->name);
+	else
+		fprintf(fp, "NoCorpse\n");
 	if (ch->corpse_wnum.auid > 0 && ch->corpse_wnum.vnum > 0)
 		fprintf(fp, "CorpseWnum %ld#%ld\n", ch->corpse_wnum.auid, ch->corpse_wnum.vnum);
 
@@ -9226,6 +9228,38 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 					fMatch = true;
 					break;
 				}
+				KEY("MissionPnts",	ch->missionpoints,		fread_number(fp));
+
+				break;
+			case 'N':
+				SKEY("Name",		ch->name);
+				KEY("NoCorpse",		ch->corpse_type,	NULL);
+				break;
+			case 'O':
+				KEY("OffFlags",		ch->off_flags,	fread_flag(fp));
+				SKEY("Owner",		ch->owner);
+				break;
+			case 'P':
+				KEY("Parts",		ch->parts,		fread_number(fp));
+				FKEY("Persist",		ch->persist);
+				KEY("Pneuma",		ch->pneuma,		fread_number(fp));
+				KEY("Pos",			ch->position,	fread_number(fp));
+				KEY("Prac",			ch->practice,	fread_number(fp));
+				break;
+			case 'Q':
+				break;
+			case 'R':
+				if(IS_KEY("Race")) {
+					char *name = fread_string(fp);
+
+					// Default to Human if the race is not found.
+					RACE_DATA *race = get_race_data(name);
+					if( !IS_VALID(race) )
+						ch->race = gr_human;
+
+					fMatch = true;
+					break;
+				}
 				if (!str_cmp(word, "Reputation"))
 				{
 					WNUM_LOAD wnum_load = fread_widevnum(fp, index->area->uid);
@@ -9248,37 +9282,6 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 						rep->next = new_rep;
 					else
 						ch->mob_reputations = new_rep;
-
-					fMatch = true;
-					break;
-				}
-
-				break;
-			case 'N':
-				SKEY("Name",		ch->name);
-				break;
-			case 'O':
-				KEY("OffFlags",		ch->off_flags,	fread_flag(fp));
-				SKEY("Owner",		ch->owner);
-				break;
-			case 'P':
-				KEY("Parts",		ch->parts,		fread_number(fp));
-				FKEY("Persist",		ch->persist);
-				KEY("Pneuma",		ch->pneuma,		fread_number(fp));
-				KEY("Pos",			ch->position,	fread_number(fp));
-				KEY("Prac",			ch->practice,	fread_number(fp));
-				break;
-			case 'Q':
-				KEY("MissionPnts",	ch->missionpoints,		fread_number(fp));
-				break;
-			case 'R':
-				if(IS_KEY("Race")) {
-					char *name = fread_string(fp);
-
-					// Default to Human if the race is not found.
-					RACE_DATA *race = get_race_data(name);
-					if( !IS_VALID(race) )
-						ch->race = gr_human;
 
 					fMatch = true;
 					break;

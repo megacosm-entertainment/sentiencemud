@@ -759,6 +759,8 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
     	fprintf(fp, "Material %s~\n", mob->material->name);
     if (IS_VALID(mob->corpse_type))
 		fprintf(fp, "Corpse %s~\n", mob->corpse_type->name);
+	else
+		fprintf(fp, "NoCorpse\n");
     if (mob->corpse.auid > 0 && mob->corpse.vnum > 0)
 	{
 		if (mob->area->uid != mob->corpse.auid)
@@ -3031,6 +3033,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 
 	    case 'N':
 	        KEYS("Name",	mob->player_name,	fread_string(fp));
+			KEY("NoCorpse",	mob->corpse_type,	NULL);
 		break;
 
 	    case 'O':
