@@ -357,6 +357,8 @@ void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj,
 	    long flag, long flag_skip, int min_level)
 {
     DESCRIPTOR_DATA *d;
+	char wiz_buf[MSL];
+	char wiz_channel[MIL];
 
     for (d = descriptor_list; d != NULL; d = d->next)
     {
@@ -375,10 +377,30 @@ void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj,
 		    continue;
 	    }
 
+		int flag_pos = 0;
+		for (int i = 0; wiznet_table[i].name != NULL; i++)
+		{
+			if (wiznet_table[i].flag == flag)
+			{
+				flag_pos = i;
+				break;
+			}
+		}
+		
 	    if (IS_SET(d->character->wiznet,WIZ_PREFIX))
-	  	send_to_char("{B({MSE{B){G-->{x ",d->character);
-            act_new(string,d->character,ch,NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
-        }
+		{
+			strcpy(wiz_channel, wiznet_table[flag_pos].name);
+			for (int i = 0; wiz_channel[i] != '\0'; i++)
+			{
+				wiz_channel[i] = toupper(wiz_channel[i]);
+			}
+
+			sprintf(wiz_buf, "{B({MWIZ-{W%s{B){G-->{x %s\n\r", wiz_channel, string);
+		    send_to_char(wiz_buf,d->character);
+		}
+		else
+			act_new(string,d->character,ch,NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
+		}
     }
 }
 

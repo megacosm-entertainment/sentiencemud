@@ -52,6 +52,7 @@ const struct script_cmd_type area_cmd_table[] = {
 	{ "varsaveon",			scriptcmd_varsaveon,		false,	true	},
 	{ "varset",				scriptcmd_varset,			false,	true	},
 	{ "varseton",			scriptcmd_varseton,			false,	true	},
+	{ "wiznet",				scriptcmd_wiznet,			false,	true    },
 	{ "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
 	{ "xcall",				scriptcmd_xcall,			false,	true	},
 	{ NULL,					NULL,						false,	false	}
@@ -87,6 +88,7 @@ const struct script_cmd_type instance_cmd_table[] = {
 	{ "varset",				scriptcmd_varset,			false,	true	},
 	{ "varseton",			scriptcmd_varseton,			false,	true	},
 	{ "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
+	{ "wiznet",				scriptcmd_wiznet,			false,	true    },
 	{ "xcall",				scriptcmd_xcall,			false,	true	},
 	{ NULL,					NULL,						false,	false	}
 };
@@ -121,6 +123,7 @@ const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "varset",				scriptcmd_varset,			false,	true	},
 	{ "varseton",			scriptcmd_varseton,			false,	true	},
 	{ "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
+	{ "wiznet",				scriptcmd_wiznet,			false,	true    },
 	{ "xcall",				scriptcmd_xcall,			false,	true	},
 	{ NULL,					NULL,						false,	false	}
 };
@@ -5439,4 +5442,46 @@ SCRIPT_CMD(scriptcmd_mail)
 	}
 
 	SETRETURN(ret);
+}
+
+// Sends an expanded string to the given wiznet channel.
+// Syntax: wiznet <channel> <string>
+SCRIPT_CMD(scriptcmd_wiznet)
+{
+	char *rest = argument;
+	char wiznet_name[MIL];
+	int wiznet_flag = 0;
+	int i;
+	bool valid = false;
+
+	if (!info) return;
+
+	PARSE_ARGTYPE(STRING);
+	strncpy(wiznet_name, arg->d.str, MIL - 1);
+
+	for (i = 0; wiznet_table[i].name; i++)
+	{
+		if (!str_prefix(wiznet_name, wiznet_table[i].name))
+		{
+			wiznet_flag = wiznet_table[i].flag;
+			valid = true;
+			break;
+		}
+	}
+
+	if (!str_cmp(wiznet_name, "on") || !str_cmp(wiznet_name, "prefix")) 
+		valid = false;
+
+	if (!valid) return;
+
+	// Expand the message
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
+
+	// Broadcast the message
+	if(buffer->string)
+	{
+		wiznet(buffer->string, NULL, NULL, wiznet_flag, 0, 0);
+	}
+	free_buf(buffer);
 }

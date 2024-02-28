@@ -142,6 +142,7 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "varseton",			do_opvarseton,			false,	true	},
 	{ "vforce",				do_opvforce,			false,	true	},
 	{ "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
+	{ "wiznet",				scriptcmd_wiznet,			false,	true    },
 	{ "wiretransfer",		do_opwiretransfer,		false,	true	},
 	{ "xcall",				do_opxcall,				false,	true	},
 	{ "zecho",				do_opzecho,				false,	true	},

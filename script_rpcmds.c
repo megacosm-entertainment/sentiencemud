@@ -139,6 +139,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "vforce",				do_rpvforce,			false,	true	},
 	{ "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
 	{ "wiretransfer",		do_rpwiretransfer,		false,	true	},
+	{ "wiznet",				scriptcmd_wiznet,			false,	true    },
 	{ "xcall",				do_rpxcall,				false,	true	},
 	{ "zecho",				do_rpzecho,				false,	true	},
 	{ "zot",				do_rpzot,				true,	true	},

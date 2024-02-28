@@ -2869,8 +2869,8 @@ MAIL_DATA *new_mail( void )
     mail->sender = NULL;
     mail->recipient = NULL;
     mail->message = NULL;
-    mail->expire_date = NULL;
-    mail->deliver_date = NULL;
+    mail->expire_date = 0;
+    mail->deliver_date = 0;
     mail->return_service = false;
     mail->timestamp_expiration = false;
     mail->collect_script = 0;

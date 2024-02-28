@@ -157,6 +157,7 @@ const struct script_cmd_type mob_cmd_table[] = {
 	{ "vforce",				do_mpvforce,				false,	true	},
 	{ "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
 	{ "wiretransfer",		do_mpwiretransfer,			false,	true	},
+	{ "wiznet",				scriptcmd_wiznet,			false,	true    },
 	{ "xcall",				do_mpxcall,					false,	true	},
 	{ "zecho",				do_mpzecho,					false,	true	},
 	{ "zot",				do_mpzot,					true,	true	},

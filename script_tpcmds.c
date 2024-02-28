@@ -143,6 +143,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "vforce",				do_tpvforce,				false,	true	},
 	{ "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
 	{ "wiretransfer",		do_tpwiretransfer,			false,	true	},
+	{ "wiznet", 			scriptcmd_wiznet,			false,  true	},
 	{ "xcall",				do_tpxcall,					false,	true	},
 	{ "zecho",				do_tpzecho,					false,	true	},
 	{ "zot",				do_tpzot,					true,	true	},
