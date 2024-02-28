@@ -274,6 +274,7 @@ ENT_FIELD entity_mobile[] = {
 	{"instrument",		ENTITY_MOB_INSTRUMENT,		ENT_OBJECT	},
 	{"inv",				ENTITY_MOB_CARRYING,		ENT_OLLIST_OBJ	},
 	{"leader",			ENTITY_MOB_LEADER,			ENT_MOBILE	},
+	{"level",			ENTITY_MOB_LEVEL,			ENT_NUMBER	},
 	{"long",			ENTITY_MOB_LONG,			ENT_STRING	},
 	{"master",			ENTITY_MOB_MASTER,			ENT_MOBILE	},
 	{"mount",			ENTITY_MOB_MOUNT,			ENT_MOBILE	},
@@ -323,6 +324,7 @@ ENT_FIELD entity_object[] = {
 	{"inv",			ENTITY_OBJ_CONTENTS,	ENT_OLLIST_OBJ	},
 	{"items",		ENTITY_OBJ_CONTENTS,	ENT_OLLIST_OBJ	},
 	{"long",		ENTITY_OBJ_LONG,	ENT_STRING	},
+	{"level",		ENTITY_OBJ_LEVEL,	ENT_NUMBER	},
 	{"name",		ENTITY_OBJ_NAME,	ENT_STRING	},
 	{"next",		ENTITY_OBJ_NEXT,	ENT_OBJECT	},
 	{"on",			ENTITY_OBJ_FURNITURE,	ENT_OBJECT	},
@@ -574,11 +576,13 @@ ENT_FIELD entity_dice[] = {
 
 ENT_FIELD entity_mobindex[] = {
 	{"vnum",			ENTITY_MOBINDEX_VNUM,			ENT_NUMBER },
+	{"level",			ENTITY_MOBINDEX_LEVEL,			ENT_NUMBER },
 	{"loaded",			ENTITY_MOBINDEX_LOADED,			ENT_NUMBER },
 };
 
 ENT_FIELD entity_objindex[] = {
 	{"vnum",			ENTITY_OBJINDEX_VNUM,			ENT_NUMBER },
+	{"level",			ENTITY_OBJINDEX_LEVEL,			ENT_NUMBER },
 	{"loaded",			ENTITY_OBJINDEX_LOADED,			ENT_NUMBER },
 	{"inrooms",			ENTITY_OBJINDEX_INROOMS,		ENT_NUMBER },
 	{"inmail",			ENTITY_OBJINDEX_INMAIL,			ENT_NUMBER },

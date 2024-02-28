@@ -1004,8 +1004,8 @@ void boot_db(void)
 
 /*    load_sailing_boats();*/
 /*    load_npc_ships();*/
-//    log_string("Doing read_mail");
-//    read_mail();
+    log_string("Doing read_mail");
+    read_mail();
 /*  reset_npc_sailing_boats();*/
 	stats_load_time = current_time;
     load_statistics();

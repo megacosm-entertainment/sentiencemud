@@ -89,6 +89,7 @@ const struct script_cmd_type mob_cmd_table[] = {
 	{ "loadinstanced",		scriptcmd_loadinstanced,	true,	true	},
 	{ "lockadd",			scriptcmd_lockadd,			false,	true	},
 	{ "lockremove",			scriptcmd_lockremove,		false,	true	},
+	{ "mail",				scriptcmd_mail,				true,	true	},
 	{ "mload",				do_mpmload,					false,	true	},
 	{ "mute",				scriptcmd_mute,				false,	true	},
 	{ "oload",				do_mpoload,					false,	true	},

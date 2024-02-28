@@ -733,6 +733,7 @@ enum entity_mobile_enum {
 	ENTITY_MOB_RESIST,
 	ENTITY_MOB_VULN,
 	ENTITY_MOB_TEMPSTRING,
+	ENTITY_MOB_LEVEL,
 };
 
 enum entity_object_enum {
@@ -761,6 +762,7 @@ enum entity_object_enum {
 	ENTITY_OBJ_EXTRA4,
 	ENTITY_OBJ_WEAR,
 	ENTITY_OBJ_SHIP,
+	ENTITY_OBJ_LEVEL,
 };
 
 enum entity_room_enum {
@@ -1000,6 +1002,7 @@ enum entity_dice_enum {
 enum entity_mobindex_enum {
 	ENTITY_MOBINDEX_VNUM = ESCAPE_EXTRA,
 	ENTITY_MOBINDEX_LOADED,
+	ENTITY_MOBINDEX_LEVEL,
 };
 
 enum entity_objindex_enum {
@@ -1010,6 +1013,7 @@ enum entity_objindex_enum {
 	ENTITY_OBJINDEX_CARRIED,
 	ENTITY_OBJINDEX_LOCKERED,
 	ENTITY_OBJINDEX_INCONTAINER,
+	ENTITY_OBJINDEX_LEVEL,
 };
 
 
@@ -2685,6 +2689,7 @@ SCRIPT_CMD(scriptcmd_alterobj);
 SCRIPT_CMD(scriptcmd_alterroom);
 SCRIPT_CMD(scriptcmd_resetroom);
 SCRIPT_CMD(scriptcmd_churchannouncetheft);
+SCRIPT_CMD(scriptcmd_mail);
 
 bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);
 bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);

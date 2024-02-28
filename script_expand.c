@@ -2080,6 +2080,11 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.mobindex = (arg->d.mob && IS_NPC(arg->d.mob)) ? arg->d.mob->pIndexData : NULL;
 		break;
 
+	case ENTITY_MOB_LEVEL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (arg->d.mob && IS_NPC(arg->d.mob)) ? arg->d.mob->level : arg->d.mob->tot_level;
+		break;
+
 	default: return NULL;
 	}
 
@@ -2483,6 +2488,11 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.variables = (arg->d.obj && arg->d.obj->progs) ? &arg->d.obj->progs->vars : NULL;
 		break;
 
+	case ENTITY_OBJ_LEVEL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = arg->d.obj ? arg->d.obj->level : 0;
+		break;
+
 	// SPELLS?
 	default: return NULL;
 	}
@@ -2588,6 +2598,7 @@ char *expand_entity_object_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_SHIP;
 		arg->d.ship = NULL;
 		break;
+		
 
 	case ENTITY_OBJ_VARIABLES:
 		arg->type = ENT_ILLIST_VARIABLE;
@@ -4836,6 +4847,10 @@ char *expand_entity_mobindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_NUMBER;
 		arg->d.num = arg->d.mobindex ? arg->d.mobindex->count : 0;
 		break;
+	case ENTITY_MOBINDEX_LEVEL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = arg->d.mobindex ? arg->d.mobindex->level : 0;
+		break;
 
 	default: return NULL;
 	}
@@ -4875,6 +4890,10 @@ char *expand_entity_objindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_OBJINDEX_INCONTAINER:
 		arg->type = ENT_NUMBER;
 		arg->d.num = arg->d.objindex ? arg->d.objindex->incontainer : 0;
+		break;
+	case ENTITY_OBJINDEX_LEVEL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = arg->d.objindex ? arg->d.objindex->level : 0;
 		break;
 
 	default: return NULL;

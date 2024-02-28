@@ -3446,8 +3446,15 @@ struct mail_data
     char 	*sender; 	/* who sent it */
     char 	*recipient; 	/* who receives it */
     time_t 	sent_date; 	/* when sent */
+    time_t 	expire_date; 	/* when it expires */
+    time_t  deliver_date; 	/* when it will be delivered */
     char 	*message; 	/* message included */
     bool	picked_up;	/* has it been picked up ? */
+    bool    scripted; // Has the mail been scripted?
+    bool    return_service; // Should the mail be returned if not picked up?
+    bool    timestamp_expiration;   // Should the mail use timestamp instead of status for expiration?
+    long    collect_script; // Script to run when the mail is collected
+    long    expire_script; // Script to run when the mail expires
     int		status;		/* for keeping track of the mail is */
 };
 

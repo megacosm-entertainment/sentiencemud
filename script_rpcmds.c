@@ -76,6 +76,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "loadinstanced",		scriptcmd_loadinstanced,	true,	true	},
 	{ "lockadd",			scriptcmd_lockadd,			false,	true	},
 	{ "lockremove",			scriptcmd_lockremove,		false,	true	},
+	{ "mail",				scriptcmd_mail,				true,	true	},
 	{ "mload",				do_rpmload,				false,	true	},
 	{ "mute",				scriptcmd_mute,				false,	true	},
 	{ "oload",				do_rpoload,				false,	true	},

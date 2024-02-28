@@ -32,6 +32,7 @@ const struct script_cmd_type area_cmd_table[] = {
 	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
 	{ "echoat",				scriptcmd_echoat,			false,	true	},
 	{ "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
+	{ "mail",				scriptcmd_mail,				true,	true	},
 	{ "mload",				scriptcmd_mload,			false,	true	},
 	{ "mute",				scriptcmd_mute,				false,	true	},
 	{ "oload",				scriptcmd_oload,			false,	true	},
@@ -64,6 +65,7 @@ const struct script_cmd_type instance_cmd_table[] = {
 	{ "echoat",				scriptcmd_echoat,			false,	true	},
 	{ "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
 	{ "loadinstanced",		scriptcmd_loadinstanced,	true,	true	},
+	{ "mail",				scriptcmd_mail,				true,	true	},
 	{ "makeinstanced",		scriptcmd_makeinstanced,	true,	true	},
 	{ "mload",				scriptcmd_mload,			false,	true	},
 	{ "mute",				scriptcmd_mute,				false,	true	},
@@ -97,6 +99,7 @@ const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "echoat",				scriptcmd_echoat,			false,	true	},
 	{ "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
 	{ "loadinstanced",		scriptcmd_loadinstanced,	true,	true	},
+	{ "mail",				scriptcmd_mail,				true,	true	},
 	{ "makeinstanced",		scriptcmd_makeinstanced,	true,	true	},
 	{ "mload",				scriptcmd_mload,			false,	true	},
 	{ "mute",				scriptcmd_mute,				false,	true	},
@@ -5300,4 +5303,140 @@ SCRIPT_CMD(scriptcmd_resetroom)
 	PARSE_ARGTYPE(ROOM);
 
 	reset_room(arg->d.room, true);
+}
+
+/*
+		"mail to <person>  (start a mail package)\n\r"
+		"mail show         (show what is currently in the package)\n\r"
+		"mail put <object> (add an object to the package)\n\r"
+		"mail get <object> (remove an object from the package)\n\r"
+		"mail write        (write a message)\n\r"
+		"mail cancel       (cancel the mail)\n\r"
+		"mail send         (pay postage and send the package)\n\r"
+		"mail check        (check your mail)\n\r"
+		"mail info         (see the status of mail you've sent/received)\n\r", ch);
+*/
+
+// MAIL $SENDER(string) $PERSON(string) $MESSAGE(string)[ ...$OBJECT]
+SCRIPT_CMD(scriptcmd_mail)
+{
+	char *rest = argument;
+	char sender[MIL];
+	char person[MIL];
+	int ret = 1;
+	bool valid = true;	
+	MAIL_DATA *mail = NULL;
+	ITERATOR it;
+	OBJ_DATA *package;
+
+	if (!info || script_security < 9) return;
+
+	SETRETURN(0);
+
+	PARSE_ARGTYPE(STRING);
+	strncpy(sender, arg->d.str, MIL - 1);
+	
+	PARSE_ARGTYPE(STRING);
+	strncpy(person, arg->d.str, MIL - 1);
+	if (!player_exists(person)) return;
+
+	if (!PARSE_ARG) return;
+	
+
+	BUFFER *message = new_buf();
+
+	if (arg->type == ENT_STRING)
+		add_buf(message, arg->d.str);
+	else if (arg->type == ENT_NULL)
+		clear_buf(message);
+	else
+		valid = false;
+
+	if (message->state != BUFFER_SAFE)
+		valid = false;
+
+	LLIST *packages = list_create(false);
+
+	int total_weight = 0;
+	while(valid && rest && *rest)
+	{
+		if (!PARSE_ARG || arg->type != ENT_OBJECT)
+			valid = false;
+		else if(arg->d.obj->in_mail || arg->d.obj->locker || arg->d.obj->pulled_by)
+			valid = false;
+		else if (!list_appendlink(packages, arg->d.obj))
+			valid = false;
+		else
+		{
+			total_weight += arg->d.obj->weight;
+			if (total_weight > MAX_POSTAL_WEIGHT) valid = false;
+			if (list_size(packages) > MAX_POSTAL_ITEMS) valid = false;
+		}
+	}
+
+	if (valid)
+	{
+		// Send the mail
+		mail = new_mail();
+		mail->sender = str_dup(sender);
+		mail->recipient = str_dup(person);
+		mail->message = str_dup(message->string);
+		
+		/*
+		iterator_start(&it, packages);
+		while((package = (OBJ_DATA *)iterator_nextdata(&it)))
+		{
+			// This will check for whether the object is elegible to be put into mail, not whether it will fit
+			if (!can_put_obj(NULL, package, NULL, mail, true))
+			{
+				valid = false;
+				break;
+			}
+		}
+		iterator_stop(&it);
+*/
+		if (valid)
+		{
+			iterator_start(&it, packages);
+			while((package = (OBJ_DATA *)iterator_nextdata(&it)))
+			{
+				if (package->carried_by)
+					obj_from_char(package);
+				else if (package->in_obj)
+					obj_from_obj(package);
+				else if (package->in_room)
+					obj_from_room(package);
+
+				obj_to_mail(package, mail);
+			}
+			iterator_stop(&it);
+		}
+	}
+
+	list_destroy(packages);
+	free_buf(message);
+
+	if (valid && mail)
+	{
+		// Send the actual mail
+		MAIL_DATA *mail_tmp;
+		for (mail_tmp = mail_list; mail_tmp && mail_tmp->next; mail_tmp = mail_tmp->next);
+
+		/* hook it up to the list */
+		mail->next = NULL;
+		if (mail_list != NULL)
+			mail_tmp->next = mail;
+		else
+			mail_list = mail;
+		mail->scripted = true;
+		mail->sent_date = current_time;
+		mail->status = MAIL_BEING_DELIVERED;
+	}
+	else
+	{
+		if (mail) free_mail(mail);
+		ret = 0;
+	}
+
+	SETRETURN(ret);
 }

@@ -660,6 +660,7 @@ void write_mail(void)
 	fprintf(fp, "Sent %ld\n", (long int)mail->sent_date);
 	fprintf(fp, "Status %d\n", mail->status);
 	fprintf(fp, "PickedUp %d\n", mail->picked_up);
+	fprintf(fp, "Scripted %d\n", mail->scripted);
 	if (mail->message != NULL)
 	    fprintf(fp, "Message %s~\n\n", fix_string(mail->message));
 
@@ -729,7 +730,10 @@ void read_mail(void)
 		    mail->status = fread_number(fp);
 		else
 		if (!str_cmp(word, "PickedUp"))
-		    mail->picked_up = fread_number(fp);
+		    mail->picked_up = fread_number(fp) ? true : false;
+		else
+		if (!str_cmp(word, "Scripted"))
+		    mail->scripted = fread_number(fp) ? true : false;
 		else
 		if (!str_cmp(word, "#END"))
 		    break;
@@ -899,7 +903,7 @@ void do_mailinfo(CHAR_DATA *ch, char *argument)
 
     for (mail = mail_list; mail != NULL; mail = mail->next)
     {
-	if (!str_cmp(mail->sender, ch->name)
+	if ((!mail->scripted && !str_cmp(mail->sender, ch->name))
 	|| !str_cmp(mail->recipient, ch->name))
 	{
 	    if (mail->status < MAIL_DELIVERED)
@@ -940,39 +944,41 @@ void mail_update(void)
 
     for (mail = mail_list; mail != NULL; mail = mail_next)
     {
-	mail_next = mail->next;
+		mail_next = mail->next;
 
-	mail->status++;
-	sprintf(buf, "mail status from %d(%s->%s) to %d\n\r", mail->status - 1, mail->sender, mail->recipient, mail->status);
+		mail->status++;
+		sprintf(buf, "mail status from %d(%s->%s) to %d\n\r", mail->status - 1, mail->sender, mail->recipient, mail->status);
 
-	wiznet(buf, NULL, NULL, WIZ_TESTING, 0, 155);
+		wiznet(buf, NULL, NULL, WIZ_TESTING, 0, MAX_LEVEL);
 
-	if (mail->status >= MAIL_BEING_DELIVERED
-	&& mail->status < MAIL_DELIVERED)
-	    continue;
+		if (mail->status >= MAIL_BEING_DELIVERED && mail->status < MAIL_DELIVERED)
+	    	continue;
 
-	if (mail->status >= MAIL_DELETE)
-	{
-	    if (mail->picked_up)
-	    {
-		sprintf(buf, "mail_update: deleted mail from %s to %s",
-			mail->sender, mail->recipient);
-		log_string(buf);
+		if (mail->status >= MAIL_DELETE)
+		{
+			if (mail->picked_up)
+			{
+			sprintf(buf, "mail_update: deleted mail from %s to %s",
+				mail->sender, mail->recipient);
+			log_string(buf);
 
-		mail_from_list(mail);
-		free_mail(mail);
-	    }
-	}
+			mail_from_list(mail);
+			free_mail(mail);
+			}
+		}
 
-	if (mail->status == MAIL_RETURN)
-	{
-	    free_string(mail->recipient);
-	    free_string(mail->message);
-	    mail->message = str_dup("{RRETURNED MAIL:{x Package not picked up by recipient.\n\r");
-	    mail->recipient = str_dup(mail->sender);
-	    mail->status = MAIL_BEING_DELIVERED;
-	    write_mail();
-	}
+		if (mail->status >= MAIL_RETURN)
+		{
+			if (!mail->scripted)
+			{
+				free_string(mail->recipient);
+				free_string(mail->message);
+				mail->message = str_dup("{RRETURNED MAIL:{x Package not picked up by recipient.\n\r");
+				mail->recipient = str_dup(mail->sender);
+				mail->status = MAIL_BEING_DELIVERED;
+				write_mail();
+			}
+		}
     }
 }
 

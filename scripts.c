@@ -7668,6 +7668,34 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		default: return;
 		}
 
+/*
+	// Format: MOBINDEX <VNUM>
+	//         MOBINDEX <MOBINDEX>
+	} else if(!str_cmp(buf,"mobindex")) {
+		switch(arg->type) {
+		case ENT_NUMBER:
+			variables_set_mobindex(vars,name,get_mob_index(arg->d.num));
+			break;
+		case ENT_MOBINDEX:
+			variables_set_mobindex(vars,name,arg->d.mobindex);
+			break;
+		default: return;
+		}
+
+	// Format: OBJINDEX <VNUM>
+	//         OBJINDEX <OBJINDEX>
+	} else if(!str_cmp(buf,"objindex")) {
+		switch(arg->type) {
+		case ENT_NUMBER:
+			variables_set_objindex(vars,name,get_obj_index(arg->d.num));
+			break;
+		case ENT_OBJINDEX:
+			variables_set_objindex(vars,name,arg->d.objindex);
+			break;
+		default: return;
+		}
+
+*/
 	// Format: FINDPATH <ROOM> <ROOM> <DEPTH> <IN-ZONE> <DOORS> - returns the EXIT entity
 	} else if(!str_cmp(buf,"findpath")) {
 		ROOM_INDEX_DATA *start_room = NULL, *end_room = NULL;
