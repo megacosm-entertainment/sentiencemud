@@ -1824,7 +1824,26 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if ((obj = get_obj_world(ch, argument)) == NULL)
+
+	if (is_number(arg))
+	{
+		argument = one_argument(argument, arg);
+		if (argument[0] != '\0' && is_number(arg) && is_number(argument))
+		{
+			if ((obj = idfind_object(atoi(arg), atoi(argument))) == NULL)
+			{
+				send_to_char("Object not found.\n\r", ch);
+				return;
+			}
+		}
+		else
+		{
+			send_to_char("Syntax: stat obj <name|IDa IDb>",ch);
+			return;
+		}	
+				
+	}
+	else if ((obj = get_obj_world(ch, argument)) == NULL)
     {
 	send_to_char("Object not found.\n\r", ch);
 	return;
@@ -1946,7 +1965,26 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if ((victim = get_char_world(ch, argument)) == NULL)
+	
+	if (is_number(arg))
+	{
+		argument = one_argument(argument, arg);
+		if (argument[0] != '\0' && is_number(arg) && is_number(argument))
+		{
+			if ((victim = idfind_mobile(atoi(arg), atoi(argument))) == NULL)
+			{
+				send_to_char("They aren't here.\n\r", ch);
+				return;
+			}
+		}
+		else
+		{
+			send_to_char("Syntax: stat mob <name|IDa IDb>",ch);
+			return;
+		}	
+				
+	}
+	else  if ((victim = get_char_world(ch, argument)) == NULL)
 	{
 		send_to_char("They aren't here.\n\r", ch);
 		return;
@@ -2648,23 +2686,23 @@ void do_owhere(CHAR_DATA *ch, char *argument)
         if (in_obj->carried_by != NULL &&
         	can_see(ch,in_obj->carried_by) &&
         	in_obj->carried_by->in_room != NULL) {
-            sprintf(buf, "{Y%3d){x %s (vnum %ld) is carried by %s [Room %ld]\n\r",
-                number, obj->short_descr,
+            sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (vnum %ld) is carried by %s [Room %ld]\n\r",
+                number, (long)obj->id[0], (long)obj->id[1], obj->short_descr,
 			obj->pIndexData->vnum,
 			pers(in_obj->carried_by, ch),
 			in_obj->carried_by->in_room->vnum);
 		} else if (in_obj->in_room != NULL && can_see_room(ch,in_obj->in_room)) {
-            sprintf(buf, "{Y%3d){x %s (vnum %ld) is in %s [Room %ld]\n\r",
-                number, obj->short_descr,
+            sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (vnum %ld) is in %s [Room %ld]\n\r",
+                number, (long)obj->id[0], (long)obj->id[1], obj->short_descr,
 				obj->pIndexData->vnum,
 				in_obj->in_room->name,
 				in_obj->in_room->vnum);
 		} else if (in_obj->in_mail != NULL) {
-            sprintf(buf, "{Y%3d){x %s (vnum %ld) is in a mail package\n\r", number,
-			    obj->short_descr, obj->pIndexData->vnum);
+            sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (vnum %ld) is in a mail package\n\r", number,
+			    (long)obj->id[0], (long)obj->id[1], obj->short_descr, obj->pIndexData->vnum);
 		} else {
-            sprintf(buf, "{Y%3d){x %s (vnum %ld) is somewhere\n\r", number,
-			    obj->short_descr, obj->pIndexData->vnum);
+            sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (vnum %ld) is somewhere\n\r", number,
+			    (long)obj->id[0], (long)obj->id[1], obj->short_descr, obj->pIndexData->vnum);
 		}
 
         buf[0] = UPPER(buf[0]);
@@ -2706,12 +2744,12 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
                     count++;
 
 					if (d->original != NULL)
-						sprintf(buf,"{Y%3d){x %s (in the body of %s) is in %s [%ld]\n\r",
-							count, d->original->name,victim->short_descr,
+						sprintf(buf,"{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (in the body of %s) is in %s [%ld]\n\r",
+							count, (long)victim->id[0], (long)victim->id[1], d->original->name,victim->short_descr,
 							victim->in_room->name,victim->in_room->vnum);
 					else
-						sprintf(buf,"{Y%3d){x %s is in %s [%ld]\n\r",
-							count, victim->name,victim->in_room->name,
+						sprintf(buf,"{Y%3d) {WID{X: [{W%ld %ld{X]{x %s is in %s [%ld]\n\r",
+							count, (long)victim->id[0], (long)victim->id[1], victim->name,victim->in_room->name,
 							victim->in_room->vnum);
 					add_buf(buffer,buf);
 			    } else {
@@ -2720,13 +2758,13 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
                     count++;
 
                     if (d->original != NULL)
-                        sprintf(buf,"{Y%3d){x %s (in the body of %s) is in wilds '%s', %s (%ld, %ld)\n\r",
-							count, d->original->name,victim->short_descr,
+                        sprintf(buf,"{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (in the body of %s) is in wilds '%s', %s (%ld, %ld)\n\r",
+							count, (long)victim->id[0], (long)victim->id[1], d->original->name,victim->short_descr,
 							victim->in_room->name,
 							victim->in_wilds->name, victim->in_room->x, victim->in_room->y);
                     else
-						sprintf(buf,"{Y%3d){x %s is in wilds '%s', %s (%ld, %ld)\n\r",
-							count, victim->name,
+						sprintf(buf,"{Y%3d) {WID{X: [{W%ld %ld{X]{x %s is in wilds '%s', %s (%ld, %ld)\n\r",
+							count, (long)victim->id[0], (long)victim->id[1], victim->name,
 							victim->in_wilds->name,
 							victim->in_room->name,
 							victim->in_room->x, victim->in_room->y);
@@ -2753,7 +2791,8 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
             if (victim->in_room==NULL) {
                 found = true;
                 count++;
-                sprintf(buf, "{Y%3d){x [%5ld] %-28s %lx\n\r", count,
+                sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x [%5ld] %-28s %lx\n\r", count,
+					(long)victim->id[0], (long)victim->id[1],
                     IS_NPC(victim) ? victim->pIndexData->vnum : 0,
                     IS_NPC(victim) ? victim->short_descr : victim->name,
                     (long)victim);
@@ -2781,7 +2820,8 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
 			is_name(argument, victim->name)) {
 			found = true;
 			count++;
-			sprintf(buf, "{Y%3d){x [%5ld] %-28s [%5ld] %s\n\r", count,
+			sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x [%5ld] %-28s [%5ld] %s\n\r", count,
+			(long)victim->id[0], (long)victim->id[1],
 			IS_NPC(victim) ? victim->pIndexData->vnum : 0,
 			IS_NPC(victim) ? victim->short_descr : victim->name,
 			victim->in_room->vnum,
