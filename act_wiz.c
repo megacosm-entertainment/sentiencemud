@@ -395,10 +395,10 @@ void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj,
 				wiz_channel[i] = toupper(wiz_channel[i]);
 			}
 
-			sprintf(wiz_buf, "{B({MWIZ-{W%s{B){G-->{x %s\n\r", wiz_channel, string);
+			sprintf(wiz_buf, "{B({MWIZ-{W%s{B){G-->{x ", wiz_channel);
 		    send_to_char(wiz_buf,d->character);
 		}
-		else
+		
 			act_new(string,d->character,ch,NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
 		}
     }
