@@ -947,9 +947,9 @@ void mail_update(void)
 		mail_next = mail->next;
 
 		mail->status++;
-		sprintf(buf, "mail status from %d(%s->%s) to %d\n\r", mail->status - 1, mail->sender, mail->recipient, mail->status);
+//		sprintf(buf, "mail status from %d(%s->%s) to %d\n\r", mail->status - 1, mail->sender, mail->recipient, mail->status);
 
-		wiznet(buf, NULL, NULL, WIZ_TESTING, 0, MAX_LEVEL);
+//		wiznet(buf, NULL, NULL, WIZ_TESTING, 0, MAX_LEVEL);
 
 		if (mail->status >= MAIL_BEING_DELIVERED && mail->status < MAIL_DELIVERED)
 	    	continue;
