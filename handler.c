@@ -6186,9 +6186,9 @@ bool can_give_obj(CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim, bool silent)
 
 bool can_drop_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool silent)
 {
-    if (!ch)
+    if (!ch && !silent)
     {
-	bug("can_drop_obj: ch NULL.", 0);
+	bug("can_drop_obj: ch NULL while not silent.", 0);
 	return false;
     }
 
@@ -6385,9 +6385,9 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
     char buf[MAX_STRING_LENGTH];
     int weight;
 
-    if (!ch)
+    if (!ch && !silent)
     {
-	bug("can_put_obj: ch NULL.", 0);
+	bug("can_put_obj: ch NULL when not silent.", 0);
 	return false;
     }
 

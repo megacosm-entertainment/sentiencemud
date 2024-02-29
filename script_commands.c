@@ -5385,7 +5385,7 @@ SCRIPT_CMD(scriptcmd_mail)
 		mail->recipient = str_dup(person);
 		mail->message = str_dup(message->string);
 		
-		/*
+		
 		iterator_start(&it, packages);
 		while((package = (OBJ_DATA *)iterator_nextdata(&it)))
 		{
@@ -5397,7 +5397,7 @@ SCRIPT_CMD(scriptcmd_mail)
 			}
 		}
 		iterator_stop(&it);
-*/
+
 		if (valid)
 		{
 			iterator_start(&it, packages);

@@ -3455,6 +3455,8 @@ struct mail_data
     bool    timestamp_expiration;   // Should the mail use timestamp instead of status for expiration?
     long    collect_script; // Script to run when the mail is collected
     long    expire_script; // Script to run when the mail expires
+    long    from_location; // Origination point for the mail, vnum
+    long    to_location; // Destination point for the mail, vnum
     int		status;		/* for keeping track of the mail is */
 };
 
