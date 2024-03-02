@@ -1980,7 +1980,7 @@ DECL_OPC_FUN(opc_area);
 DECL_OPC_FUN(opc_instance);
 DECL_OPC_FUN(opc_dungeon);
 
-void pstat_variable_list(CHAR_DATA *ch, pVARIABLE vars);
+void pstat_variable_list(BUFFER *buffer, pVARIABLE vars);
 
 /* General */
 long script_flag_value( const struct flag_type *flag_table, char *argument);

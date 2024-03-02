@@ -4777,6 +4777,19 @@ const struct group_type group_table [MAX_GROUP] =
 };
 
 
+const struct script_type script_type_table[] =
+{
+/* Script Types and their commands */
+	{ PRG_MPROG, "MobProg", "mp"},
+	{ PRG_OPROG, "ObjProg", "op"},
+	{ PRG_RPROG, "RoomProg", "rp"},
+	{ PRG_TPROG, "TokenProg", "tp"},
+	{ PRG_APROG, "AreaProg", "ap"},
+	{ PRG_IPROG, "InstanceProg", "ip"},
+	{ PRG_DPROG, "DungeonProg", "dp"},
+	{ -1, NULL, NULL }
+};
+
 /* MSP sounds (for the future)*/
 const struct sound_type sound_table[] =
 {

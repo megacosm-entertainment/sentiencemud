@@ -2300,7 +2300,19 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
     if (obj->in_room != NULL)
     	fprintf(fp, "Room %ld\n",	obj->in_room->vnum	    );
     if (IS_SET(obj->extra[1], ITEM_ENCHANTED))
-	fprintf(fp,"Enchanted_times %d\n", obj->num_enchanted);
+		fprintf(fp,"Enchanted_times %d\n", obj->num_enchanted);
+
+
+	if (obj->script_created)
+	{
+		fprintf(fp, "Created_script_type %d\n", obj->created_script_type);
+		fprintf(fp, "Created_script_vnum %ld\n", obj->created_script_vnum);
+	}
+
+	if (obj->creation_time)
+	{
+		fprintf(fp, "Creation_time %ld\n", obj->creation_time);
+	}
 
     /*
     if (obj->weight != obj->pIndexData->weight)
@@ -2358,7 +2370,7 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
      ||  obj->value[5] != obj->pIndexData->value[5]
      ||  obj->value[6] != obj->pIndexData->value[6]
      ||  obj->value[7] != obj->pIndexData->value[7])
-    	fprintf(fp, "Val  %d %d %d %d %d %d %d %d\n",
+    	fprintf(fp, "Val  %ld %ld %ld %ld %ld %ld %ld %ld\n",
 	    obj->value[0], obj->value[1], obj->value[2], obj->value[3],
 	    obj->value[4], obj->value[5], obj->value[6], obj->value[7] );
 
@@ -2923,6 +2935,23 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			}
 			KEY("Cond",	obj->condition,		fread_number(fp));
 			KEY("Cost",	obj->cost,		fread_number(fp));
+
+			if (!str_cmp(word, "Created_script_type"))
+			{
+				obj->created_script_type = fread_number(fp);
+				obj->script_created = true;
+				fMatch = true;
+				break;
+			}
+
+			if (!str_cmp(word, "Created_script_vnum"))
+			{
+				obj->created_script_vnum = fread_number(fp);
+				obj->script_created = true;
+				fMatch = true;
+				break;
+			}
+			KEY("Creation_time", obj->creation_time, fread_number(fp));
 			break;
 
 		case 'D':

@@ -124,6 +124,12 @@ struct sound_type {
     char *tag;
 };
 
+struct script_type {
+    int type;
+    char *prog_type;
+    char *prog_command;
+};
+
 /* Combat */
 #define         SOUND_HIT_1		0
 #define         SOUND_HIT_2		1
@@ -3455,6 +3461,8 @@ struct mail_data
     bool    timestamp_expiration;   // Should the mail use timestamp instead of status for expiration?
     long    collect_script; // Script to run when the mail is collected
     long    expire_script; // Script to run when the mail expires
+    long    originating_script; // Script that sent the mail, if any.
+    int     orig_script_type; // Type of script that sent the mail, if any.
     long    from_location; // Origination point for the mail, vnum
     long    to_location; // Destination point for the mail, vnum
     int		status;		/* for keeping track of the mail is */
@@ -4524,6 +4532,10 @@ struct	obj_data
     char *		old_description;
     char *		old_full_description;
     char *		loaded_by;
+	bool        script_created;
+	long        created_script_vnum;
+	int         created_script_type;
+    time_t      creation_time;
     int			item_type;
     long        extra[4];
     //long		extra_flags;
@@ -4541,7 +4553,7 @@ struct	obj_data
     int 		fragility;
     int			times_allowed_fixed;
     int			times_fixed;
-    int 		value	[8];
+    long 		value	[8];
     SPELL_DATA		*spells;
     long		orig_vnum;
 
@@ -7040,6 +7052,7 @@ extern	const	struct	sound_type	sound_table	[];
 extern  const   struct  newbie_eq_type  newbie_eq_table [];
 extern  const   struct  toxin_type      toxin_table     [MAX_TOXIN];
 extern  const   struct  herb_type       herb_table      [MAX_HERB];
+extern const    struct  script_type     script_type_table [];
 extern  	struct  boost_type	boost_table	[];
 extern  STAT_DATA		stat_table	[10];
 extern  IMMORTAL_DATA *immortal_groups[MAX_IMMORTAL_GROUPS];
@@ -8708,6 +8721,7 @@ extern long top_dprog_index;
 bool is_area_unlocked(CHAR_DATA *ch, AREA_DATA *area);
 bool is_room_unlocked(CHAR_DATA *ch, ROOM_INDEX_DATA *room);
 void player_unlock_area(CHAR_DATA *ch, AREA_DATA *area);
+void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer);
 
 
 void load_ships();

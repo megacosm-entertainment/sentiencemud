@@ -2164,7 +2164,7 @@ void obj_to_char(OBJ_DATA *obj, CHAR_DATA *ch)
 
 	    if (members > 1 && (obj->value[0] > 1 || obj->value[1]))
 	    {
-		sprintf(buffer,"%d %d",obj->value[0],obj->value[1]);
+		sprintf(buffer,"%ld %ld",obj->value[0],obj->value[1]);
 		do_function(ch, &do_split, buffer);
 	    }
 	}

@@ -188,7 +188,7 @@ void do_mailshow(CHAR_DATA *ch, char *argument)
 	    sprintf(buf, "{Y%2d{x %-36s %-4d\n\r", i, obj->short_descr, get_obj_weight(obj));
         else
 	{
-	    sprintf(buf, "{Y%2d{x %-30.30s{Y[{x%-2d{Y]{x   %-4d\n\r", i, obj->short_descr,
+	    sprintf(buf, "{Y%2d{x %-30.30s{Y[{x%-2d{Y]{x   %-4ld\n\r", i, obj->short_descr,
 	        count_items_list_nest(obj->contains), (get_obj_weight_container(obj) * WEIGHT_MULT(obj))/100);
 	}
 
@@ -661,6 +661,10 @@ void write_mail(void)
 	fprintf(fp, "Status %d\n", mail->status);
 	fprintf(fp, "PickedUp %d\n", mail->picked_up);
 	fprintf(fp, "Scripted %d\n", mail->scripted);
+	if (mail->originating_script != 0)
+	    fprintf(fp, "OriginatingScript %ld~\n", mail->originating_script);
+	if (mail->orig_script_type != NULL)
+	    fprintf(fp, "OrigScriptType %d~\n", mail->orig_script_type);
 	if (mail->message != NULL)
 	    fprintf(fp, "Message %s~\n\n", fix_string(mail->message));
 
@@ -734,6 +738,12 @@ void read_mail(void)
 		else
 		if (!str_cmp(word, "Scripted"))
 		    mail->scripted = fread_number(fp) ? true : false;
+		else
+		if (!str_cmp(word, "OriginatingScript"))
+		    mail->originating_script = fread_number(fp);
+		else
+		if (!str_cmp(word, "OrigScriptType"))
+		    mail->orig_script_type = fread_number(fp);
 		else
 		if (!str_cmp(word, "#END"))
 		    break;

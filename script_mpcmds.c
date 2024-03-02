@@ -240,6 +240,8 @@ void do_mpstat(CHAR_DATA *ch, char *argument)
 	PROG_LIST *mprg;
 	CHAR_DATA *victim;
 	int i, slot;
+	bool usemxp = false;
+	BUFFER *output = new_buf();
 
 	one_argument(argument, arg);
 
@@ -248,7 +250,29 @@ void do_mpstat(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!(victim = get_char_world(ch, arg))) {
+	if (ch->desc->pProtocol->bMXP)
+		usemxp = true;
+
+
+	if (is_number(arg))
+	{
+		argument = one_argument(argument, arg);
+		if (argument[0] != '\0' && is_number(arg) && is_number(argument))
+		{
+			if ((victim = idfind_mobile(atoi(arg), atoi(argument))) == NULL)
+			{
+				send_to_char("No such creature\n\r", ch);
+				return;
+			}
+		}
+		else
+		{
+			send_to_char("Syntax: mpstat <name|IDa IDb>",ch);
+			return;
+		}	
+				
+	} 
+	else if (!(victim = get_char_world(ch, arg))) {
 		send_to_char("No such creature.\n\r", ch);
 		return;
 	}
@@ -259,22 +283,22 @@ void do_mpstat(CHAR_DATA *ch, char *argument)
 	}
 
 	sprintf(arg, "Mobile #%-6ld [%s] ID [%9d:%9d]\n\r", victim->pIndexData->vnum, victim->short_descr, (int)victim->id[0], (int)victim->id[1]);
-	send_to_char(arg, ch);
+	add_buf(output, arg);
 
 	if( !IS_NULLSTR(victim->pIndexData->comments) )
 	{
 		sprintf(arg, "Comments:\n\r%s\n\r", victim->pIndexData->comments);
-		send_to_char(arg, ch);
+		add_buf(output, arg);
 	}
 
 	sprintf(arg, "Delay   %-6d [%s]\n\r",
 	victim->progs->delay,
 	victim->progs->target ? victim->progs->target->name : "No target");
 
-	send_to_char(arg, ch);
+	add_buf(output,arg);
 
 	if (!victim->pIndexData->progs)
-		send_to_char("[No programs set]\n\r", ch);
+		add_buf(output, "[No programs set]\n\r");
 	else
 		for(i = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
 			iterator_start(&it, victim->pIndexData->progs[slot]);
@@ -283,13 +307,23 @@ void do_mpstat(CHAR_DATA *ch, char *argument)
 					++i, trigger_name(mprg->trig_type),
 					mprg->vnum,
 					trigger_phrase(mprg->trig_type,mprg->trig_phrase));
-				send_to_char(arg, ch);
+				add_buf(output, arg);
 			}
 			iterator_stop(&it);
 		}
 
 	if(victim->progs->vars)
-		pstat_variable_list(ch, victim->progs->vars);
+		pstat_variable_list(output, victim->progs->vars);
+
+	if( !ch->lines && strlen(output->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(output->string, ch);
+	}
+
 }
 
 
@@ -2794,6 +2828,7 @@ SCRIPT_CMD(do_mpmload)
 // Syntax: mob oload <vnum> [<level>] [room|wear|$ENTITY]
 SCRIPT_CMD(do_mpoload)
 {
+	/*
 	char buf[MIL], *rest;
 	long vnum, level;
 	bool fToroom = false, fWear = false;
@@ -2842,17 +2877,17 @@ SCRIPT_CMD(do_mpoload)
 			if(!(rest = expand_argument(info,argument,arg)))
 				return;
 
-			/*
-			 * Added 3rd argument
-			 * omitted - load to mobile's inventory
-			 * 'none'  - load to mobile's inventory
-			 * 'room'  - load to room
-			 * 'wear'  - load to mobile and force wear
-			 * MOBILE  - load to target mobile
-			 *         - 'W' automatically wear
-			 * OBJECT  - load to target object
-			 * ROOM    - load to target room
-			 */
+			//
+			// Added 3rd argument
+			// omitted - load to mobile's inventory
+			// 'none'  - load to mobile's inventory
+			// 'room'  - load to room
+			// 'wear'  - load to mobile and force wear
+			// MOBILE  - load to target mobile
+			//         - 'W' automatically wear
+			// OBJECT  - load to target object
+			// ROOM    - load to target room
+			 
 
 			switch(arg->type) {
 			case ENT_STRING:
@@ -2909,6 +2944,8 @@ SCRIPT_CMD(do_mpoload)
 
 	if(rest && *rest) variables_set_object(info->var,rest,obj);
 	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+	*/
+	script_oload(info,argument,arg, false);
 }
 
 // do_mpotransfer

@@ -193,6 +193,7 @@ void do_rpstat(CHAR_DATA *ch, char *argument)
 	PROG_LIST *rprg;
 	ROOM_INDEX_DATA *room;
 	int i, slot;
+	BUFFER *output = new_buf();
 
 	one_argument(argument, arg);
 
@@ -207,22 +208,22 @@ void do_rpstat(CHAR_DATA *ch, char *argument)
 	}
 
 	sprintf(arg, "Room #%-6ld [%s]\n\r", room->vnum, room->name);
-	send_to_char(arg, ch);
+	add_buf(output, arg);
 
 	if( !IS_NULLSTR(room->comments) )
 	{
 		sprintf(arg, "Comments:\n\r%s\n\r", room->comments);
-		send_to_char(arg, ch);
+		add_buf(output, arg);
 	}
 
 	sprintf(arg, "Delay   %-6d [%s]\n\r",
 		room->progs->delay,
 		room->progs->target ? room->progs->target->name : "No target");
 
-	send_to_char(arg, ch);
+	add_buf(output, arg);
 
 	if (!room->progs->progs)
-		send_to_char("[No programs set]\n\r", ch);
+		add_buf(output, "[No programs set]\n\r");
 	else
 	for(i = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
 		iterator_start(&it, room->progs->progs[slot]);
@@ -231,13 +232,22 @@ void do_rpstat(CHAR_DATA *ch, char *argument)
 				++i, trigger_name(rprg->trig_type),
 				rprg->vnum,
 				trigger_phrase(rprg->trig_type,rprg->trig_phrase));
-			send_to_char(arg, ch);
+			add_buf(output, arg);
 		}
 		iterator_stop(&it);
 	}
 
 	if(room->progs->vars)
-		pstat_variable_list(ch, room->progs->vars);
+		pstat_variable_list(output, room->progs->vars);
+
+	if( !ch->lines && strlen(output->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(output->string, ch);
+	}
 }
 
 
@@ -1766,6 +1776,7 @@ SCRIPT_CMD(do_rpmload)
 
 SCRIPT_CMD(do_rpoload)
 {
+	/*
 	char buf[MIL], *rest;
 	long vnum, level;
 	bool fWear = false;
@@ -1813,14 +1824,14 @@ SCRIPT_CMD(do_rpoload)
 			if(!(rest = expand_argument(info,argument,arg)))
 				return;
 
-			/*
-			 * Added 3rd argument
-			 * omitted - load to current room
-			 * MOBILE  - load to target mobile
-			 *         - 'W' automatically wear the item if possible
-			 * OBJECT  - load to target object
-			 * ROOM    - load to target room
-			 */
+			//
+			// Added 3rd argument
+			// omitted - load to current room
+			// MOBILE  - load to target mobile
+			//         - 'W' automatically wear the item if possible
+			// OBJECT  - load to target object
+			// ROOM    - load to target room
+			 
 
 			switch(arg->type) {
 			case ENT_MOBILE:
@@ -1870,6 +1881,8 @@ SCRIPT_CMD(do_rpoload)
 
 	if(rest && *rest) variables_set_object(info->var,rest,obj);
 	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+	*/
+	script_oload(info,argument,arg, false);
 }
 
 SCRIPT_CMD(do_rpotransfer)

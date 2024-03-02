@@ -2823,6 +2823,10 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects)
     obj->old_short_descr 	= NULL;
     obj->old_description        = NULL;
     obj->loaded_by      = NULL;
+	obj->script_created = false;
+	obj->created_script_vnum = 0;
+	obj->created_script_type = 0;
+	obj->creation_time = current_time;
     obj->material	= str_dup(pObjIndex->material);
     obj->condition	= pObjIndex->condition;
     obj->times_allowed_fixed	= pObjIndex->times_allowed_fixed;
@@ -5626,7 +5630,7 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 	fprintf(fp, "Cost %ld\n", obj->cost);					// **
 
 	for(i = 0; i < 8; i++)
-		fprintf(fp, "Value %d %d\n", i, obj->value[i]);			// **
+		fprintf(fp, "Value %d %ld\n", i, obj->value[i]);			// **
 
 	if( obj->lock )
 	{

@@ -217,6 +217,9 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
 	PROG_LIST *tprg;
 	int i, slot, count;
 	long vnum = 0;
+	bool id_lookup = false;
+	bool usemxp = false;
+	BUFFER *output = new_buf();
 
 	argument = one_argument(argument, arg);
 	argument = one_argument(argument, arg2);
@@ -226,7 +229,31 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!str_cmp(arg,"mob")) {
+	if (ch->desc->pProtocol->bMXP)
+	usemxp = true;
+
+
+	if (is_number(arg))
+	{
+		if (arg[0] != '\0' && is_number(arg) && is_number(arg2))
+		{
+			if ((token = idfind_token(atoi(arg), atoi(arg2))) == NULL)
+			{
+				send_to_char("No such token\n\r", ch);
+				return;
+			}
+			else
+			{
+				id_lookup = true;
+			}
+		}
+		else
+		{
+			send_to_char("Syntax:  tpstat <mobile name|object name|room|ida idb> [[<count>.]<token vnum>]",ch);
+			return;
+		}	
+				
+	} else if (!str_cmp(arg,"mob")) {
 		if ((victim = get_char_world(NULL, arg2)) == NULL) {
 			send_to_char("Mobile not found.\n\r", ch);
 			return;
@@ -244,11 +271,11 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
 		room = ch->in_room;
 		count = number_argument(arg2, arg3);
 	} else {
-		send_to_char("Syntax:  tpstat <mobile name|object name|room> [<count>.]<token vnum>\n\r", ch);
+		send_to_char("Syntax:  tpstat <mobile name|object name|room|ida idb> [[<count>.]<token vnum>]>\n\r", ch);
 		return;
 	}
 
-	if (arg3[0] != '\0') {
+	if (arg3[0] != '\0' && !id_lookup) {
 		vnum = atol(arg3);
 
 		if (get_token_index(vnum) == NULL) {
@@ -278,7 +305,7 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
 		return;
 	}
 	sprintf(arg, "Token #%-6ld [%s] ID [%09d:%09d]\n\r", token->pIndexData->vnum, token->pIndexData->name, (int)token->id[0], (int)token->id[1]);
-	send_to_char(arg, ch);
+	add_buf(output, arg);
 
 	if( !IS_NULLSTR(token->pIndexData->comments) )
 	{
@@ -290,10 +317,10 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
 		token->progs->delay,
 		token->progs->target ? token->progs->target->name : "No target");
 
-	send_to_char(arg, ch);
+	add_buf(output, arg);
 
 	if (!token->pIndexData->progs)
-		send_to_char("[No programs set]\n\r", ch);
+		add_buf(output, "[No programs set]\n\r");
 	else
 	for(i = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
 		iterator_start(&it, token->pIndexData->progs[slot]);
@@ -302,13 +329,23 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
 				++i, trigger_name(tprg->trig_type),
 				tprg->vnum,
 				trigger_phrase(tprg->trig_type,tprg->trig_phrase));
-			send_to_char(arg, ch);
+			add_buf(output, arg);
 		}
 		iterator_stop(&it);
 	}
 
 	if(token->progs->vars)
-		pstat_variable_list(ch, token->progs->vars);
+		pstat_variable_list(output, token->progs->vars);
+
+	if( !ch->lines && strlen(output->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(output->string, ch);
+	}
+
 }
 
 char *tp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **room)
@@ -3212,6 +3249,7 @@ SCRIPT_CMD(do_tpmload)
 
 SCRIPT_CMD(do_tpoload)
 {
+	/*
 	char buf[MIL], *rest;
 	long vnum, level;
 	bool fWear = false;
@@ -3260,14 +3298,14 @@ SCRIPT_CMD(do_tpoload)
 			if(!(rest = expand_argument(info,argument,arg)))
 				return;
 
-			/*
-			 * Added 3rd argument
-			 * omitted - load to current room
-			 * MOBILE  - load to target mobile
-			 *         - 'W' automatically wear the item if possible
-			 * OBJECT  - load to target object
-			 * ROOM    - load to target room
-			 */
+			 //
+			 // Added 3rd argument
+			 // omitted - load to current room
+			 // MOBILE  - load to target mobile
+			 //         - 'W' automatically wear the item if possible
+			 // OBJECT  - load to target object
+			 // ROOM    - load to target room
+			 //
 
 			switch(arg->type) {
 
@@ -3316,6 +3354,8 @@ SCRIPT_CMD(do_tpoload)
 
 	if(rest && *rest) variables_set_object(info->var,rest,obj);
 	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+	*/
+	script_oload(info,argument,arg, false);
 }
 
 SCRIPT_CMD(do_tpforce)

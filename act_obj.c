@@ -1958,7 +1958,6 @@ void do_donate(CHAR_DATA *ch, char *argument)
     act("$n donates $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
     act("You donate $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 
-    if (!is_quest_item(obj))
 	obj->cost = 0;
 
     obj_from_char(obj);

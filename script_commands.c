@@ -5384,6 +5384,9 @@ SCRIPT_CMD(scriptcmd_mail)
 		mail->sender = str_dup(sender);
 		mail->recipient = str_dup(person);
 		mail->message = str_dup(message->string);
+		mail->originating_script = info->block->script->vnum;
+		mail->orig_script_type = info->block->script->type;
+		
 		
 		
 		iterator_start(&it, packages);

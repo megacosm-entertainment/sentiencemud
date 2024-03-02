@@ -52,6 +52,7 @@ extern void affect_fix_char(CHAR_DATA *ch);
 extern bool newlock;
 extern bool wizlock;
 extern bool is_test_port;
+void pstat_variable_list(BUFFER *buffer, pVARIABLE vars);
 
 
 int gconfig_read (void)
@@ -1283,8 +1284,8 @@ void do_stat(CHAR_DATA *ch, char *argument)
 	send_to_char("  stat obj <name>\n\r",ch);
 	send_to_char("  stat mob <name>\n\r",ch);
 	send_to_char("  stat room <number>\n\r",ch);
-	send_to_char("  stat aff <character or object>\n\r", ch);
-	send_to_char("  stat token <character>\n\r", ch);
+	//send_to_char("  stat aff <character or object>\n\r", ch);
+	send_to_char("  stat token <mob <name>|obj <name>|room> [count.]<token vnum>\n\r", ch);
 	return;
     }
 
@@ -1294,7 +1295,7 @@ void do_stat(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (!str_cmp(arg,"obj"))
+    if (!str_cmp(arg,"obj") || !str_cmp(arg,"object"))
     {
 	do_function(ch, &do_ostat, string);
 	return;
@@ -1811,10 +1812,14 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
+	char script_cmd[10];
     AFFECT_DATA *paf;
     OBJ_DATA *obj;
     EVENT_DATA *ev;
     ROOM_INDEX_DATA *room;
+	TOKEN_DATA *token;
+	BUFFER *output = new_buf();
+	bool usemxp = false;
 
     one_argument(argument, arg);
 
@@ -1823,6 +1828,9 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 	send_to_char("Stat what?\n\r", ch);
 	return;
     }
+
+	if (ch->desc->pProtocol->bMXP)
+		usemxp = true;
 
 
 	if (is_number(arg))
@@ -1849,103 +1857,307 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    sprintf(buf, "{BShort desc: {x%s {BName(s):{x %s\n\r",
-	obj->short_descr, obj->name);
-    send_to_char(buf, ch);
+	/*
+	Short desc: a soldier's broadsword Name(s): soldier broad sword broadsword
+	Vnum: 4009 Area: Reza Type: weapon
+	Long description: A massive broadsword of steel lies, discarded on the ground here.
+	Full description:
+ 	A massive broadsword of steel lies, discarded on the ground here.
+	Wear bits: take wield
+	Extra bits: glow bless burnproof
+	Number: 1/1 Weight: 7
+	Level: 65 Cost: 3200 Condition: 100 Timer: 0 Owner: (null)
+	In room: 0 In object: (none) Carried by: rezian soldier In mail: No Wear_loc: 16
+	Values: 1 9 22 3 8 0 0 0
+	Affects strength     by   1, level  65.
+	*/
 
-    sprintf(buf, "{BVnum:{x %ld {BArea: {x%s {BType:{x %s\n\r",
-	obj->pIndexData->vnum, obj->pIndexData->area->name,
-	item_name(obj->item_type));
-    send_to_char(buf, ch);
 
-    if (obj->loaded_by != NULL && ch->tot_level >= LEVEL_IMMORTAL)
+	//TODO: Rework the MXP here.
+	/* Some quick checks to set colour object values that differ from index */
+
+	sprintf(buf, "Basic information about %s\n\r", obj->short_descr);
+	add_buf(output, buf);
+
+	// Keywords, ID, VNUM, Area
+	if (usemxp){
+		sprintf(buf, "{%sKeywords{X: %s{X {BID{X: %ld %ld {BVNUM{X: \t<send href='oshow %ld' hint='Show index data for object'>%ld\t</send> ({W%s (%ld){X)\n\r",
+		(!str_cmp(obj->name, obj->pIndexData->name)) ? "B" : "Y", obj->name, obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, obj->pIndexData->area->name, obj->pIndexData->area->uid);
+	}
+	else
+	{
+		sprintf(buf, "{%sKeywords{X: %s{X {BID{X: %ld %ld {BVNUM{X: %ld ({WArea: %s (%ld){X)\n\r",
+		(!str_cmp(obj->name, obj->pIndexData->name)) ? "B" : "Y", obj->name, obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->area->name, obj->pIndexData->area->uid);
+	}
+	add_buf(output, buf);
+
+	if (obj->loaded_by != NULL && ch->tot_level >= LEVEL_IMMORTAL)
     {
-	sprintf(buf, "{BItem loaded by {x%s\n\r", obj->loaded_by);
-	send_to_char(buf, ch);
+	sprintf(buf, "{YItem loaded by: {x%s\n\r", obj->loaded_by);
+	add_buf(output, buf);
     }
+	else if (obj->script_created && ch->tot_level >= LEVEL_IMMORTAL)
+	{
+		if (usemxp)
+			sprintf(buf, "{YItem created by \t<send \"%sdump %ld|%sedit %ld\" hint=\"Dump code for %s %ld|Edit %s %ld\">%s %ld\t</send>.\n\r", 
+			script_type_table[obj->created_script_type].prog_command, obj->created_script_vnum,
+			script_type_table[obj->created_script_type].prog_command, obj->created_script_vnum,
+			script_type_table[obj->created_script_type].prog_type, obj->created_script_vnum, 
+			script_type_table[obj->created_script_type].prog_type, obj->created_script_vnum,
+			script_type_table[obj->created_script_type].prog_type, obj->created_script_vnum);
+		else	
+			sprintf(buf, "{YItem created by %s %ld. (%sdump %ld)\n\r", script_type_table[obj->created_script_type].prog_type, obj->created_script_vnum, script_type_table[obj->created_script_type].prog_command, obj->created_script_vnum);
+		add_buf(output, buf);
+	}
+	
+	char created_time[100];
+	strftime(created_time, 100, "%a %b %d %X %Z %Y", localtime(&obj->creation_time));
+	sprintf(buf, "{BCreated at:{x %s\n\r", created_time);
+	add_buf(output, buf);
 
-    sprintf(buf, "{BLong description:{x %s\n\r{BFull description:\n\r {x%s",
-	obj->description, obj->full_description);
-    send_to_char(buf, ch);
+	// Level, Cost, Condition, Timer, Weight
+	sprintf(buf, "{%sLevel{X: %d{X {%sCost{X: %ld{X {%sCondition{X: %d{X {%sTimer{X: %d{X {%sWeight{X: %d{X\n\r",
+	(obj->level == obj->pIndexData->level) ? "B" : "Y", obj->level,
+	(obj->cost == obj->pIndexData->cost) ? "B" : "Y", obj->cost,
+	(obj->condition == obj->pIndexData->condition) ? "B" : "Y", obj->condition,
+	(obj->timer == obj->pIndexData->timer) ? "B" : "Y", obj->timer,
+	(obj->weight == obj->pIndexData->weight) ? "B" : "Y", obj->weight);
+	add_buf(output, buf);
 
-    sprintf(buf, "{BWear bits: {x%s\n\r{BExtra bits:{x %s\n\r",
-	wear_bit_name(obj->wear_flags), bitmatrix_string(extra_flagbank, obj->extra));
-    send_to_char(buf, ch);
+	// Type, Wear flags, Owner
+	sprintf(buf, "{%sType{X: %s{X {%sWear{X: %s {%sOwner{X: %s{X\n\r",
+	(obj->item_type == obj->pIndexData->item_type) ? "B": "Y", item_name(obj->item_type), 
+	(!str_cmp(wear_bit_name(obj->wear_flags), wear_bit_name(obj->pIndexData->wear_flags))) ? "B" : "Y", wear_bit_name(obj->wear_flags), 
+	(obj->owner == NULL) ? "B" : "Y", (obj->owner == NULL) ? "None" : obj->owner);
+	add_buf(output, buf);
 
-    sprintf(buf, "{BNumber:{x %d/%d {BWeight:{x %d\n\r",
-	1,           get_obj_number(obj),
-	get_obj_weight(obj));
-    send_to_char(buf, ch);
+	// Extra flags
+	sprintf(buf, "{%sExtra Flags{X: %s\n\r",
+	(!str_cmp(bitmatrix_string(extra_flagbank, obj->extra), bitmatrix_string(extra_flagbank, obj->pIndexData->extra))) ? "B" : "Y", bitmatrix_string(extra_flagbank, obj->extra));
+	add_buf(output, buf);
 
-    sprintf(buf, "{BLevel:{x %d {BCost:{x %ld {BCondition:{x %d {BTimer:{x %d {BOwner:{x %s\n\r",
-	obj->level, obj->cost, obj->condition, obj->timer, obj->owner);
-    send_to_char(buf, ch);
+	if (obj->value)
+	{
+		sprintf(buf, "{W\n\rItem Values:");
+		add_buf(output, buf);
+		print_live_obj_values(obj, output);
+	}
 
-    if (obj->in_wilds == NULL)
-    sprintf(buf,
-	"{BIn room:{x %ld {BIn object:{x %s {BCarried by:{x %s {BIn mail:{x %s {BWear_loc:{x %d\n\r",
-	obj->carried_by == NULL && obj->in_room != NULL ? obj->in_room->vnum : 0,
-	obj->in_obj     == NULL ? "(none)" : obj->in_obj->short_descr,
-	obj->carried_by == NULL ? "(none)" : obj->carried_by->name,
-	obj->in_mail == NULL ? "No" : "Yes",
-	obj->wear_loc);
-    else
-        sprintf(buf,
-                "In wilds: %ld - '%s', at (%d, %d).\n\r",
-                obj->in_wilds->uid, obj->in_wilds->name, obj->x, obj->y);
+	if (obj->affected)
+	{
+		sprintf(buf, "{W\n\rAffects:{X\n\r");
+		add_buf(output, buf);
+		for (paf = obj->affected; paf != NULL; paf = paf->next)
+    	{
+			sprintf(buf, "{BAffects{x %-12s {Bby{x %3d{B, level{x %3d",
+	    	affect_loc_name(paf->location), paf->modifier,paf->level);
+			add_buf(output, buf);
+			if (paf->duration > -1)
+	    		sprintf(buf,", %d {Bhours.{x\n\r",paf->duration);
+			else
+	    		sprintf(buf,"{B.{x\n\r");
+			add_buf(output, buf);
+    	}
+	}
 
-    send_to_char(buf, ch);
+	sprintf(buf, "\n\r{WLocation:{X\n\r");
+	add_buf(output, buf);
 
-    sprintf(buf, "{BValues:{x %d %d %d %d %d %d %d %d\n\r",
-	obj->value[0], obj->value[1], obj->value[2], obj->value[3],
-	obj->value[4], obj->value[5], obj->value[6], obj->value[7]);
-    send_to_char(buf, ch);
+	if (obj->in_wilds != NULL)
+	{
+		if (usemxp)
+			sprintf(buf,"{BIn wilds{X: \t<send href='goxy %d %d %ld'>'%s' (%ld) (at %d, %d)\t</send>{X\n\r", obj->x, obj->y, obj->in_wilds->uid, obj->in_wilds->name, obj->in_wilds->uid, obj->x, obj->y);
+		else
+			sprintf(buf,"{BIn wilds{X: '%s' (%ld), at (%d, %d){X\n\r", obj->in_wilds->name, obj->in_wilds->uid, obj->x, obj->y);
+	}
+	else if (obj->in_room != NULL)
+	{
+		if (usemxp)
+			sprintf(buf, "{BIn room{X: \t<send href='rshow %ld'>%ld\t</send>{X\n\r", obj->in_room->vnum, obj->in_room->vnum);
+		else
+			sprintf(buf, "{BIn room{X: %ld{X\n\r", obj->in_room->vnum);
+		add_buf(output, buf);
+	}
+	if (obj->in_obj != NULL)
+	{
+		if (usemxp)
+			sprintf(buf, "{BIn object{X: \t<send href='stat obj %ld %ld'>%s (%ld)\t</send>{X\n\r", obj->in_obj->id[0], obj->in_obj->id[1], obj->in_obj->short_descr, obj->in_obj->pIndexData->vnum);
+		else
+			sprintf(buf, "{BIn object{X: %s (%ld){X\n\r", obj->in_obj->short_descr, obj->in_obj->pIndexData->vnum);
+		add_buf(output, buf);
+	}
+	if (obj->carried_by != NULL)
+	{
+		if (usemxp)
+			if (IS_NPC(obj->carried_by))
+				sprintf(buf, "{BCarried by{X: \t<send href='stat mob %ld %ld'>%s (%ld)\t</send>{X\n\r", obj->carried_by->id[0], obj->carried_by->id[1], obj->carried_by->name, obj->carried_by->pIndexData->vnum);
+			else
+				sprintf(buf, "{BCarried by{X: \t<send href='stat char %s'>%s\t</send>{X\n\r", obj->carried_by->name, obj->carried_by->name);
+		else
+			sprintf(buf, "{BCarried by{X: %s{X\n\r", obj->carried_by->name);
+		add_buf(output, buf);
+	}
+	if (obj->in_mail != NULL)
+	{
+
+		if (obj->in_mail->scripted)
+		{
+			switch(obj->in_mail->orig_script_type)
+			{
+				case PRG_MPROG:
+					sprintf(script_cmd, "mpdump");
+					break;
+				case PRG_OPROG:
+					sprintf(script_cmd, "opdump");
+					break;
+				case PRG_RPROG:
+					sprintf(script_cmd, "rpdump");
+					break;
+				case PRG_TPROG:
+					sprintf(script_cmd, "tpdump");
+					break;
+				case PRG_APROG:
+					sprintf(script_cmd, "apdump");
+					break;
+				case PRG_IPROG:
+					sprintf(script_cmd, "ipdump");
+					break;
+				case PRG_DPROG:
+					sprintf(script_cmd, "dpdump");
+					break;
+				default: break;
+			}
+			if (usemxp)
+				sprintf(buf, "{BIn mail{X: \t<send href=\"%s %ld\">Scripted to %s - ({W%s %ld{X)\t</send>{X\n\r", script_cmd, obj->in_mail->originating_script, obj->in_mail->recipient, script_cmd, obj->in_mail->originating_script);
+			else
+				sprintf(buf, "{BIn mail{X: Scripted ({W%s %ld{X) to %s{X\n\r}", script_cmd, obj->in_mail->originating_script, obj->in_mail->recipient);
+			
+		}
+		else
+			sprintf(buf, "{BIn mail{X: From %s to %s\n\r{X", obj->in_mail->sender, obj->in_mail->recipient);
+		add_buf(output, buf);
+	}
+
+	if (obj->wear_loc != WEAR_NONE)
+	{
+		sprintf(buf, "{BWear Location{X: %s\n\r", flag_string(wear_loc_strings,obj->wear_loc));
+		add_buf(output, buf);
+	}
+
+	if (!obj->in_room && !obj->in_obj && !obj->carried_by && !obj->in_mail && !obj->in_wilds)
+	{
+		sprintf(buf, "Object is currently {Rnowhere{X.\n\r");
+		add_buf(output, buf);
+	}
+
+	sprintf(buf, "\n\r{WDescriptions:{X\n\r");
+	add_buf(output, buf);
+
+	sprintf(buf, "{%sShort Desc{X: %s{X\n\r{%sLong Desc{X: %s{X\n\r{%sFull Desc{X:\n\r %s{X\n\r",
+	(!str_cmp(obj->short_descr, obj->pIndexData->short_descr)) ? "B" : "Y", obj->short_descr, 
+	(!str_cmp(obj->description, obj->pIndexData->description)) ? "B" : "Y", obj->description, 
+	(!str_cmp(obj->full_description, obj->pIndexData->full_description)) ? "B" : "Y", obj->full_description);
+	add_buf(output, buf);
 
     if (obj->extra_descr != NULL || obj->pIndexData->extra_descr != NULL)
     {
 	EXTRA_DESCR_DATA *ed;
 
-	send_to_char("{BExtra description keywords: {x", ch);
+	add_buf(output, "{BExtra description keywords: {x");
 
 	for (ed = obj->extra_descr; ed != NULL; ed = ed->next)
 	{
-	    send_to_char(ed->keyword, ch);
+	    add_buf(output, ed->keyword);
 	    if (ed->next != NULL)
-	    	send_to_char(" ", ch);
+	    	add_buf(output, " ");
 	}
 
 	for (ed = obj->pIndexData->extra_descr; ed != NULL; ed = ed->next)
 	{
-	    send_to_char(ed->keyword, ch);
+	    add_buf(output, ed->keyword);
 	    if (ed->next != NULL)
-		send_to_char(" ", ch);
+		add_buf(output, " ");
 	}
 
-	send_to_char("\n\r", ch);
+	add_buf(output, "\n\r");
     }
 
-    for (paf = obj->affected; paf != NULL; paf = paf->next)
-    {
-	sprintf(buf, "{BAffects{x %-12s {Bby{x %3d{B, level{x %3d",
-	    affect_loc_name(paf->location), paf->modifier,paf->level);
-	send_to_char(buf,ch);
-	if (paf->duration > -1)
-	    sprintf(buf,", %d {Bhours.{x\n\r",paf->duration);
+	if (obj->events)
+	{
+		sprintf(buf, "\n\r{WEvents:{X\n\r");
+		add_buf(output, buf);
+    	for (ev = obj->events; ev != NULL; ev = ev->next_event) 
+		{
+			sprintf(buf, "{M* {BEvent {x%-53.52s {B[{x%7.3f{B seconds{B]{x\n\r", ev->args, (float) ev->delay/2);
+			add_buf(output, buf);
+		}
+    }
+
+	if (obj->clone_rooms)
+	{
+		sprintf(buf, "\n\r{WClone Rooms:{X\n\r");
+		add_buf(output, buf);
+    	for (room = obj->clone_rooms; room; room = room->next_clone) {
+			sprintf(buf, "{M* {CClone {W%ld {C[{W%lu{C:{W%lu{C]{x\n\r", room->source->vnum, room->id[0], room->id[1]);
+			add_buf(output, buf);
+		}
+    }
+	if (obj->tokens)
+	{
+		sprintf(buf, "\n\r{WTokens:{X\n\r");
+		add_buf(output, buf);
+		for (token = obj->tokens; token != NULL; token = token->next) {
+			if (usemxp)
+				sprintf(buf, "{M* {CToken \t<send href=\"stat token %lu %lu|token junk %lu %lu\" hint=\"Stat token %lu %lu on %s|Remove token %lu %lu on %s\">{W%s\t</send>{X (\t<send href=\"tshow %ld|tedit %ld\" hint=\"Show token %ld|Edit token %ld\">{W%ld\t<send>{X - ID: {W%lu %lu{X){x\n\r", 
+				token->id[0], token->id[1], token->id[0], token->id[1], token->id[0], token->id[1], obj->short_descr, token->id[0], token->id[1], 
+				obj->short_descr, token->pIndexData->name, token->pIndexData->vnum, token->pIndexData->vnum, token->pIndexData->vnum, token->pIndexData->vnum,
+				token->pIndexData->vnum, token->id[0], token->id[1]);
+			else
+				sprintf(buf, "{M* {CToken {W%s {X({W%ld{X - ID: {W%lu %lu{X){x\n\r", token->pIndexData->name, token->pIndexData->vnum, token->id[0], token->id[1]);
+			add_buf(output, buf);
+		}
+	}
+
+	if(obj->progs->vars)
+	{
+		sprintf(buf, "\n\r{WVariables:{X\n\r");
+		add_buf(output, buf);
+		pstat_variable_list(output, obj->progs->vars);
+	}
+
+/*
+	sprintf(buf, "Delay   %-6d [%s]\n\r",
+		obj->progs->delay,
+		obj->progs->target ? obj->progs->target->name : "No target");
+
+	add_buf(output, buf);
+
+	if (obj->pIndexData->progs)
+	for(i = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
+		iterator_start(&it, obj->pIndexData->progs[slot]);
+		while(( oprg = (PROG_LIST *)iterator_nextdata(&it))) {
+			sprintf(buf, "[%2d] Trigger [%-8s] Program [%4ld] Phrase [%s]\n\r",
+				++i, trigger_name(oprg->trig_type),
+				oprg->vnum,
+				trigger_phrase(oprg->trig_type,oprg->trig_phrase));
+			add_buf(output, buf);
+		}
+		iterator_stop(&it);
+	}
+
+	if(obj->progs->vars)
+		pstat_variable_list(ch, obj->progs->vars);
+*/
+	if( !ch->lines && strlen(output->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
 	else
-	    sprintf(buf,"{B.{x\n\r");
-	send_to_char(buf, ch);
-    }
+	{
+		page_to_char(output->string, ch);
+	}
 
-    for (ev = obj->events; ev != NULL; ev = ev->next_event) {
-	sprintf(buf, "{M* {BEvent {x%-53.52s {B[{x%7.3f{B seconds{B]{x\n\r", ev->args, (float) ev->delay/2);
-	send_to_char(buf, ch);
-    }
-
-
-    for (room = obj->clone_rooms; room; room = room->next_clone) {
-	sprintf(buf, "{M* {CClone {W%ld {C[{W%lu{C:{W%lu{C]{x\n\r", room->source->vnum, room->id[0], room->id[1]);
-	send_to_char(buf, ch);
-    }
+	free_buf(output);
 }
 
 
@@ -2301,6 +2513,8 @@ void do_tstat(CHAR_DATA *ch, char *argument)
 	ROOM_INDEX_DATA *room = NULL;
     int i;
     long vnum = 0, count;
+	bool id_lookup = false;
+	bool usemxp = false;
 
     BUFFER *buffer;
 
@@ -2312,7 +2526,32 @@ void do_tstat(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-	if (!str_cmp(arg,"mob")) {
+	
+	if (ch->desc->pProtocol->bMXP)
+	usemxp = true;
+
+
+	if (is_number(arg))
+	{
+		if (arg[0] != '\0' && is_number(arg) && is_number(arg2))
+		{
+			if ((token = idfind_token(atoi(arg), atoi(arg2))) == NULL)
+			{
+				send_to_char("No such token\n\r", ch);
+				return;
+			}
+			else
+			{
+				id_lookup = true;
+			}
+		}
+		else
+		{
+			send_to_char("Syntax:  tpstat <mobile name|object name|room|ida idb> [[<count>.]<token vnum>]",ch);
+			return;
+		}	
+				
+	} else if (!str_cmp(arg,"mob")) {
 		if ((victim = get_char_world(NULL, arg2)) == NULL) {
 			send_to_char("Mobile not found.\n\r", ch);
 			return;
@@ -2331,12 +2570,12 @@ void do_tstat(CHAR_DATA *ch, char *argument)
 		room = ch->in_room;
 		tokens = room->tokens;
 		count = number_argument(arg2, arg3);
-	} else {
+	} else if (!id_lookup) {
 		send_to_char("Syntax:  stat token <mob name|obj name|room> [token vnum]\n\r", ch);
 		return;
 	}
 
-    if (arg3[0] != '\0') {
+    if (arg3[0] != '\0' && !id_lookup) {
 		vnum = atol(arg3);
 
 		if (get_token_index(vnum) == NULL) {
@@ -2652,11 +2891,12 @@ void do_rwhere(CHAR_DATA *ch, char *argument)
 
 void do_owhere(CHAR_DATA *ch, char *argument)
 {
-    char buf[MAX_INPUT_LENGTH];
+    char buf[MIL*2];
     BUFFER *buffer;
     OBJ_DATA *obj;
     OBJ_DATA *in_obj;
     bool found;
+	bool usemxp = false;
     int number = 0, max_found;
     ITERATOR it;
 
@@ -2672,6 +2912,9 @@ void do_owhere(CHAR_DATA *ch, char *argument)
 	return;
     }
 
+	if (ch->desc->pProtocol->bMXP)
+		usemxp = true;
+
 	iterator_start(&it, loaded_objects);
 	while(( obj = (OBJ_DATA *)iterator_nextdata(&it)))
     {
@@ -2683,39 +2926,114 @@ void do_owhere(CHAR_DATA *ch, char *argument)
 
         for (in_obj = obj; in_obj->in_obj != NULL; in_obj = in_obj->in_obj) ;
 
-        if (in_obj->carried_by != NULL &&
-        	can_see(ch,in_obj->carried_by) &&
-        	in_obj->carried_by->in_room != NULL) {
-            sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (vnum %ld) is carried by %s [Room %ld]\n\r",
+        if (in_obj->carried_by != NULL && can_see(ch,in_obj->carried_by) && in_obj->carried_by->in_room != NULL) 
+		{
+			if (usemxp)
+				if (IS_NPC(in_obj->carried_by))
+				{
+					sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld\" hint=\"Show information for this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld|oedit %ld\" hint=\"Show index for %s|Edit %s\">%s\t</send> is carried by \t<send href=\"stat mob %ld %ld|mshow %ld|medit %ld\" hint=\"View info for %s|Show index for %s|Edit %s\">%s\t</send> [\t<send href=\"rshow %ld|redit %ld|goto %ld\" hint=\"View room %ld|Edit room %ld|Go to room %ld\">Room %ld\t</send>]\n\r",
+					number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, obj->short_descr, obj->short_descr,
+					obj->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->id[0] : obj->carried_by->id[0], (obj->in_obj != NULL) ? obj->in_obj->carried_by->id[1] : obj->carried_by->id[1], 
+					(obj->in_obj != NULL) ? obj->in_obj->carried_by->pIndexData->vnum : obj->carried_by->pIndexData->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->pIndexData->vnum : obj->carried_by->pIndexData->vnum,
+					(obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr,
+					(obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr,
+					(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, 
+					(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum,
+					(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum,
+					(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum);
+					add_buf(buffer, buf);
+				}
+				else
+				{
+					sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld\" hint=\"Show information for this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld|oedit %ld\" hint=\"Show index for %s|Edit %s\">%s\t</send> is carried by \t<send href=\"stat char %s\">%s\t</send> [\t<send href=\"rshow %ld|redit %ld|goto %ld\" hint=\"View room %ld|Edit room %ld|Go to room %ld\">Room %ld\t</send>]\n\r",
+					number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, 
+					obj->short_descr, obj->short_descr, obj->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->name : obj->carried_by->name, (obj->in_obj != NULL) ? obj->in_obj->carried_by->name : obj->carried_by->name, 
+					(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, 
+					(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum,
+					(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum,
+					(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum);
+					add_buf(buffer, buf);
+				}
+			else
+			{
+            	sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (vnum %ld) is carried by %s [Room %ld]\n\r",
                 number, (long)obj->id[0], (long)obj->id[1], obj->short_descr,
-			obj->pIndexData->vnum,
-			pers(in_obj->carried_by, ch),
-			in_obj->carried_by->in_room->vnum);
-		} else if (in_obj->in_room != NULL && can_see_room(ch,in_obj->in_room)) {
-            sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (vnum %ld) is in %s [Room %ld]\n\r",
+				obj->pIndexData->vnum,
+				pers(in_obj->carried_by, ch),
+				in_obj->carried_by->in_room->vnum);
+				add_buf(buffer, buf);
+			}
+		} 
+		else if (in_obj->in_room != NULL && can_see_room(ch,in_obj->in_room)) 
+		{
+			if (usemxp)
+			{
+				sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld\" hint=\"Show information for this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld|oedit %ld\" hint=\"Show index for %s|Edit %s\">%s\t</send> is in %s [\t<send href=\"rshow %ld|redit %ld|goto %ld\" hint=\"View room %ld|Edit room %ld|Go to room %ld\">Room %ld\t</send>]\n\r",
+				number, (long)obj->id[0], (long)obj->id[1], (long)obj->id[0], (long)obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, 
+				obj->short_descr, obj->short_descr, obj->short_descr, in_obj->in_room->name, in_obj->in_room->vnum, in_obj->in_room->vnum, 
+				in_obj->in_room->vnum, in_obj->in_room->vnum, in_obj->in_room->vnum, in_obj->in_room->vnum, in_obj->in_room->vnum);
+				add_buf(buffer, buf);
+			}
+			else
+			{
+            	sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (vnum %ld) is in %s [Room %ld]\n\r",
                 number, (long)obj->id[0], (long)obj->id[1], obj->short_descr,
 				obj->pIndexData->vnum,
 				in_obj->in_room->name,
 				in_obj->in_room->vnum);
-		} else if (in_obj->in_mail != NULL) {
-            sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (vnum %ld) is in a mail package\n\r", number,
+				add_buf(buffer, buf);
+			}
+		} 
+		else if (in_obj->in_mail != NULL) 
+		{
+			if (usemxp)
+			{
+				sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld\" hint=\"Show information for this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld|oedit %ld\" hint=\"Show index for %s|Edit %s\">%s\t</send> is in a mail package\n\r",
+				number, (long)obj->id[0], (long)obj->id[1], (long)obj->id[0], (long)obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, obj->short_descr, obj->short_descr, obj->short_descr);
+				add_buf(buffer, buf);
+			}
+			else
+			{
+            	sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (vnum %ld) is in a mail package\n\r", number,
 			    (long)obj->id[0], (long)obj->id[1], obj->short_descr, obj->pIndexData->vnum);
-		} else {
-            sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (vnum %ld) is somewhere\n\r", number,
+				add_buf(buffer, buf);
+			}
+		} 
+		else 
+		{
+			if (usemxp)
+			{
+				sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld\" hint=\"Show information for this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld\" hint=\"Show index of obj %ld\">%s\t</send> is somewhere\n\r",
+				number, (long)obj->id[0], (long)obj->id[1], (long)obj->id[0], (long)obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, obj->short_descr);
+				add_buf(buffer, buf);
+			}
+			else
+			{
+            	sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (vnum %ld) is somewhere\n\r", number,
 			    (long)obj->id[0], (long)obj->id[1], obj->short_descr, obj->pIndexData->vnum);
+				add_buf(buffer, buf);
+			}
 		}
-
+/*
         buf[0] = UPPER(buf[0]);
         add_buf(buffer,buf);
-
+*/
         if (number >= max_found)
             break;
     }
 
     if (!found)
+	{
         send_to_char("Nothing like that in heaven or earth.\n\r", ch);
-    else
-        page_to_char(buf_string(buffer),ch);
+	}
+	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(buf_string(buffer), ch);
+	}
 
     free_buf(buffer);
 }
@@ -8004,4 +8322,483 @@ void do_reloadstats(CHAR_DATA *ch, char *argument)
 {
 	load_statistics();
 	stats_load_time = current_time;
+}
+
+// send obj values to a buffer
+void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
+{
+    char buf[MAX_STRING_LENGTH];
+
+    add_buf(buffer, "\n\r");
+	
+    switch(obj->item_type)
+    {
+	default:	// No values
+	    break;
+	case ITEM_LIGHT:
+
+            if (obj->value[2] == -1)
+		sprintf(buf, "{B[  {Wv2{B]{%s Light:{x  Infinite[-1]\n\r", (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y");
+            else
+		sprintf(buf, "{B[  {Wv2{B]{%s Light:{x  [%ld]\n\r", (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2]);
+
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_WAND:
+	case ITEM_STAFF:
+            sprintf(buf,
+		"{B[  {Wv0{B]{%s Level:{x          [%ld]\n\r"
+		"{B[  {Wv1{B]{%s Charges Total:{x  [%ld]\n\r"
+		"{B[  {Wv2{B]{%s Charges Left:{x   [%ld]\n\r",
+		(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
+		(obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
+		(obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2]);
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_PORTAL:
+		if( IS_SET(obj->value[2], GATE_DUNGEON) )
+		{
+			// DUNGEON portal
+			sprintf(buf,
+				"{B[  {Wv0{B]{%s Charges:{x           [%ld]\n\r"
+				"{B[  {Wv1{B]{%s Exit Flags:{x        %s\n\r"
+				"{B[  {Wv2{B]{%s Portal Flags:{x      %s\n\r"
+				"{B[  {Wv3{B]{%s Goes to (dungeon):{x [%ld]\n\r"
+				"{B[  {Wv4{B]{%s Key:{x               [%ld] %s\n\r"
+				"{B[  {Wv5{B]{%s Goes to (floor):  {x [%ld]\n\r",
+				(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
+				(obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(portal_exit_flags, obj->value[1]),
+				(obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(portal_flags, obj->value[2]),
+				(obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
+				(obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4], get_obj_index(obj->value[4]) ? get_obj_index(obj->value[4])->short_descr : "none",
+				(obj->value[5] == obj->pIndexData->value[5]) ? "B" : "Y", obj->value[5]);
+		}
+		else if( IS_SET(obj->value[2], GATE_AREARANDOM) || obj->value[3] == -1 )
+		{
+			// AREARANDOM portal
+			sprintf(buf,
+				"{B[  {Wv0{B]{%s Charges:{x        [%ld]\n\r"
+				"{B[  {Wv1{B]{%s Exit Flags:{x     %s\n\r"
+				"{B[  {Wv2{B]{%s Portal Flags:{x   %s\n\r"
+				"{B[  {Wv4{B]{%s Key:{x            [%ld] %s\n\r"
+				"{B[  {Wv5{B]{%s Goes to (area id):{x [%ld]\n\r",
+				(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
+				(obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(portal_exit_flags, obj->value[1]),
+				(obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(portal_flags, obj->value[2]),
+				(obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[4], get_obj_index(obj->value[4]) ? get_obj_index(obj->value[4])->short_descr : "none",
+				(obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[5]);
+		}
+		else if(obj->value[3] > 0)
+		{
+			// STATIC portal
+			sprintf(buf,
+				"{B[  {Wv0{B]{%s Charges:{x        [%ld]\n\r"
+				"{B[  {Wv1{B]{%s Exit Flags:{x     %s\n\r"
+				"{B[  {Wv2{B]{%s Portal Flags:{x   %s\n\r"
+				"{B[  {Wv3{B]{%s Goes to (vnum):{x [%ld]\n\r"
+				"{B[  {Wv4{B]{%s Key:{x            [%ld] %s\n\r",
+				(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
+				(obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(portal_exit_flags, obj->value[1]),
+				(obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(portal_flags, obj->value[2]),
+				(obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
+				(obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4], get_obj_index(obj->value[4]) ? get_obj_index(obj->value[4])->short_descr : "none");
+		}
+		else
+		{
+			// WILDERNESS portal
+			sprintf(buf,
+				"{B[  {Wv0{B]{%s Charges:{x        [%ld]\n\r"
+				"{B[  {Wv1{B]{%s Exit Flags:{x     %s\n\r"
+				"{B[  {Wv2{B]{%s Portal Flags:{x   %s\n\r"
+				"{B[  {Wv4{B]{%s Key:{x            [%ld] %s\n\r"
+				"{B[  {Wv5{B]{%s Goes to (map):{x  [%ld]\n\r"
+				"{B[  {Wv6{B]{%s Goes to (mapx):{x [%ld]\n\r"
+				"{B[  {Wv7{B]{%s Goes to (mapy):{x [%ld]\n\r",
+				(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
+				(obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(portal_exit_flags, obj->value[1]),
+				(obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(portal_flags, obj->value[2]),
+				(obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4], get_obj_index(obj->value[4]) ? get_obj_index(obj->value[4])->short_descr : "none",
+				(obj->value[5] == obj->pIndexData->value[5]) ? "B" : "Y", obj->value[5], 
+				(obj->value[6] == obj->pIndexData->value[6]) ? "B" : "Y", obj->value[6],
+				(obj->value[6] == obj->pIndexData->value[7]) ? "B" : "Y", obj->value[7]);
+		}
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_FURNITURE:
+	    sprintf(buf,
+	        "{B[  {Wv0{B]{%s Max people:{x      [%ld]\n\r"
+	        "{B[  {Wv1{B]{%s Max weight:{x      [%ld]\n\r"
+	        "{B[  {Wv2{B]{%s Furniture Flags:{x %s\n\r"
+	        "{B[  {Wv3{B]{%s Heal bonus:{x      [%ld]\n\r"
+	        "{B[  {Wv4{B]{%s Mana bonus:{x      [%ld]\n\r"
+			"{B[  {Wv5{B]{%s Move bonus:{x      [%ld]\n\r",
+	        (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
+	        (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
+	        (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(furniture_flags, obj->value[2]),
+	        (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
+	        (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4],
+			(obj->value[5] == obj->pIndexData->value[5]) ? "B" : "Y", obj->value[5]);
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_HERB:
+	    sprintf(buf,
+	    "{B[  {Wv0{B]{%s Type:{x            [%s]\n\r"
+		"{B[  {Wv1{B]{%s Healing:{x         [%ld%%]\n\r"
+		"{B[  {Wv2{B]{%s Regenerative:{x    [%ld%%]\n\r"
+		"{B[  {Wv3{B]{%s Refreshing:{x      [%ld%%]\n\r"
+		"{B[  {Wv4{B]{%s Immunity:{x        [%s]\n\r"
+		"{B[  {Wv5{B]{%s Resistance:{x      [%s]\n\r"
+		"{B[  {Wv6{B]{%s Vulnerability:{x   [%s]\n\r"
+		"{B[  {Wv7{B]{%s Spell:{x           [%s]\n\r",
+		(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", herb_table[obj->value[0]].name,
+		(obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
+		(obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2],
+		(obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
+		(obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", flag_string(imm_flags, obj->value[4]),
+		(obj->value[5] == obj->pIndexData->value[5]) ? "B" : "Y", flag_string(res_flags, obj->value[5]),
+		(obj->value[6] == obj->pIndexData->value[6]) ? "B" : "Y", flag_string(vuln_flags, obj->value[6]),
+		(obj->value[7] == obj->pIndexData->value[7]) ? "B" : "Y", skill_table[obj->value[7]].name);
+
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_SCROLL:
+	case ITEM_PILL:
+	    break;
+
+	case ITEM_POTION:
+        sprintf(buf,
+            	"{B[  {Wv5{B]{%s Charges:{x                [%ld]\n\r",
+            	(obj->value[5] == obj->pIndexData->value[5]) ? "B" : "Y", obj->value[5]);
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_TATTOO:
+            sprintf(buf,
+            		"{B[  {Wv0{B]{%s Touches:{x                [%ld]\n\r"
+            		"{B[  {Wv1{B]{%s Chance of Fading:{x       [%ld]\n\r",
+            		(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
+					(obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1]);
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_INK:
+            sprintf(buf, "{B[  {Wv0{B]{%s Type 1:{x                 [%s]\n\r", 
+			(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", flag_string(catalyst_types, obj->value[0]));
+	    add_buf(buffer, buf);
+            sprintf(buf, "{B[  {Wv1{B]{%s Type 2:{x                 [%s]\n\r", 
+			(obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(catalyst_types, obj->value[1]));
+	    add_buf(buffer, buf);
+            sprintf(buf, "{B[  {Wv2{B]{%s Type 3:{x                 [%s]\n\r", 
+			(obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(catalyst_types, obj->value[2]));
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_SEXTANT:
+            sprintf(buf,
+		"{B[  {Wv0{B]{%s Percentage of working:{x  [%ld]\n\r",
+		(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0]);
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_SEED:
+            sprintf(buf,
+		"{B[  {Wv0{B]{%s Time before growth:{x     [%ld]\n\r"
+		"{B[  {Wv1{B]{%s Turns into object vnum:{x [%ld]\n\r",
+		(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
+		(obj->value[1] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[1]);
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_ARMOUR:
+	    sprintf(buf,
+		"{B[  {Wv0{B] {%sAc pierce       {x[%ld]\n\r"
+		"{B[  {Wv1{B] {%sAc bash         {x[%ld]\n\r"
+		"{B[  {Wv2{B] {%sAc slash        {x[%ld]\n\r"
+		"{B[  {Wv3{B] {%sAc exotic       {x[%ld]\n\r"
+		"{B[  {Wv4{B] {%sArmour strength  {x%s\n\r",
+		(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
+		(obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
+		(obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2],
+		(obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
+		(obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", armour_strength_table[obj->value[4]].name);
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_ARTIFACT:
+	    break;
+
+	case ITEM_RANGED_WEAPON:
+            sprintf(buf, "{B[  {Wv0{B]{%s Ranged Weapon class:{x   %s\n\r",
+		     (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", flag_string(ranged_weapon_class, obj->value[0]));
+	    add_buf(buffer, buf);
+
+	    sprintf(buf, "{B[  {Wv1{B]{%s Number of dice:{x [%ld]\n\r", 
+		(obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1]);
+	    add_buf(buffer, buf);
+	    sprintf(buf, "{B[  {Wv2{B]{%s Type of dice:{x   [%ld]\n\r", 
+		(obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2]);
+	    add_buf(buffer, buf);
+
+	    sprintf(buf, "{B[  {Wv3{B]{%s Projectile Distance:{x [%ld]\n\r", 
+		(obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3]);
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_WEAPON:
+            sprintf(buf, "{B[  {Wv0{B]{%s Weapon class:{x   %s\n\r",
+		     (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", flag_string(weapon_class, obj->value[0]));
+	    add_buf(buffer, buf);
+	    sprintf(buf, "{B[  {Wv1{B]{%s Number of dice:{x [%ld]\n\r", 
+		(obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1]);
+	    add_buf(buffer, buf);
+	    sprintf(buf, "{B[  {Wv2{B]{%s Type of dice:{x   [%ld]\n\r", 
+		(obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2]);
+	    add_buf(buffer, buf);
+	    sprintf(buf, "{B[  {Wv3{B]{%s Type:{x           %s\n\r",
+		    (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", attack_table[obj->value[3]].name);
+	    add_buf(buffer, buf);
+ 	    sprintf(buf, "{B[  {Wv4{B]{%s Special type:{x   %s\n\r",
+		     (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", flag_string(weapon_type2,  obj->value[4]));
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_SHIP:
+	    sprintf(buf,
+		"{B[  {Wv0{B]{%s Weight:{x     [%ld kg]\n\r"
+		"{B[  {Wv1{B]{%s Move delay:{x [%ld]\n\r"
+		"{B[  {Wv2{B]{%s Min Crew:{x   [%ld]\n\r"
+		"{B[  {Wv3{B]{%s Capacity:{x   [%ld]\n\r"
+		"{B[  {Wv4{B]{%s Max Crew:{x   [%ld]\n\r"
+		"{B[  {Wv5{B]{%s First Room:{x [%ld]\n\r"
+		"{B[  {Wv6{B]{%s Hit Points:{x [%ld]\n\r"
+		"{B[  {Wv7{B]{%s Max Guns:{x   [%ld]\n\r",
+		(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
+		(obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
+		(obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2],
+        (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
+        (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4],
+        (obj->value[5] == obj->pIndexData->value[5]) ? "B" : "Y", obj->value[5],
+        (obj->value[6] == obj->pIndexData->value[6]) ? "B" : "Y", obj->value[6],
+        (obj->value[7] == obj->pIndexData->value[7]) ? "B" : "Y", obj->value[7]);
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_CART:
+	    sprintf(buf,
+		"{B[  {Wv0{B]{%s Weight:{x     [%ld kg]\n\r"
+		"{B[  {Wv1{B]{%s Move delay:{x [%ld]\n\r"
+		"{B[  {Wv2{B]{%s Strength:{x   [%ld]\n\r"
+		"{B[  {Wv3{B]{%s Capacity:{x    [%ld]\n\r"
+		"{B[  {Wv4{B]{%s Weight Mult:{x [%ld]\n\r",
+		(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
+		(obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
+		(obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2],
+        (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
+        (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4]);
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_TRADE_TYPE:
+	    sprintf(buf,
+		"{B[  {Wv0{B]{%s Trade Type:{x     [%s]\n\r",
+		(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", trade_table[ obj->value[0] ].name);
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_CONTAINER:
+	    sprintf(buf,
+		"{B[  {Wv0{B]{%s Weight:{x     [%ld kg]\n\r"
+		"{B[  {Wv1{B]{%s Flags:{x      [%s]\n\r"
+		"{B[  {Wv2{B]{%s Key:{x     %s [%ld]\n\r"
+		"{B[  {Wv3{B]{%s Capacity:{x    [%ld]\n\r"
+		"{B[  {Wv4{B]{%s Weight Mult:{x [%ld]\n\r",
+		(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
+		(obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(container_flags, obj->value[1]),
+		(obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", 
+                get_obj_index(obj->value[2])
+                    ? get_obj_index(obj->value[2])->short_descr
+                    : "none",
+        obj->value[2],
+        (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
+        (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4]);
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_WEAPON_CONTAINER:
+	    sprintf(buf,
+		"{B[  {Wv0{B]{%s Weight:{x     [%ld kg]\n\r"
+		"{B[  {Wv1{B]{%s Weapon Type:{x [%s]\n\r"
+		"{B[  {Wv3{B]{%s Capacity:{x   [%ld]\n\r"
+		"{B[  {Wv4{B]{%s Weight Mult:{x[%ld]\n\r",
+		(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
+		(obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(weapon_class, obj->value[1]),
+        (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
+        (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4]);
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_DRINK_CON:
+	    sprintf(buf,
+	        "{B[  {Wv0{B]{%s Liquid Total:{x [%ld]\n\r"
+	        "{B[  {Wv1{B]{%s Liquid Left:{x  [%ld]\n\r"
+	        "{B[  {Wv2{B]{%s Liquid:{x       %s\n\r"
+	        "{B[  {Wv3{B]{%s Poisoned:{x     %s\n\r",
+	        (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
+	        (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
+	        (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", liq_table[obj->value[2]].liq_name,
+	        (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3] != 0 ? "Yes" : "No");
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_FOUNTAIN:
+	    sprintf(buf,
+	        "{B[  {Wv0{B]{%s Liquid Total:{x [%ld]\n\r"
+	        "{B[  {Wv1{B]{%s Liquid Left:{x  [%ld]\n\r"
+	        "{B[  {Wv2{B]{%s Liquid:{x     %s\n\r",
+	        (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
+	        (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
+	        (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", liq_table[obj->value[2]].liq_name);
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_FOOD:
+	    sprintf(buf,
+		"{B[  {Wv0{B]{%s Food hours:{x [%ld]\n\r"
+		"{B[  {Wv1{B]{%s Full hours:{x [%ld]\n\r"
+		"{B[  {Wv3{B]{%s Poisoned  :{x  %s\n\r"
+		"{B[  {Wv4{B]{%s Timer     :{x [%ld]\n\r",
+		(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
+		(obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
+		(obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3] != 0 ? "Yes" : "No",
+		(obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4]);
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_MONEY:
+            sprintf(buf, "{B[  {Wv0{B]{%s Silver:{x [%ld]\n\r", 
+			(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0]);
+	    add_buf(buffer, buf);
+	    sprintf(buf, "{B[  {Wv1{B]{%s Gold:{x   [%ld]\n\r", 
+		(obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1]);
+	    add_buf(buffer, buf);
+	    break;
+
+        case ITEM_MIST:
+	    sprintf(buf, "{B[  {Wv0{B]{%s %%HideObjects:{x    [%ld]\n\r", 
+		(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0]);
+	    add_buf(buffer, buf);
+	    sprintf(buf, "{B[  {Wv1{B]{%s %%HideCharacters:{x [%ld]\n\r", 
+		(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[1]);
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_CORPSE_NPC:
+	    sprintf(buf,
+	        "{B[  {Wv0{B]{%s Type:{x           %s\n\r"
+	        "{B[  {Wv1{B]{%s Resurrection:{x   %d%%\n\r"
+	        "{B[  {Wv2{B]{%s Animation:{x      %d%%\n\r"
+	        "{B[  {Wv3{B]{%s Body Parts:{x     %s\n\r"
+	        "{B[  {Wv5{B]{%s Mobile (vnum):{x  %d\n\r",
+	        (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", flag_string(corpse_types,obj->value[0]),
+	        (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", (int)obj->value[1],
+			(obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", (int)obj->value[2],
+	        (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", flag_string(part_flags, obj->value[3]),
+	        (obj->value[5] == obj->pIndexData->value[5]) ? "B" : "Y", (int)obj->value[5]);
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_INSTRUMENT:
+	    sprintf(buf,
+	        "{B[  {Wv0{B]{%s Type:{x            %s\n\r"
+	        "{B[  {Wv1{B]{%s Flags:{x           %s\n\r"
+	        "{B[  {Wv2{B]{%s Min Time Factor:{x %ld%%\n\r"
+	        "{B[  {Wv3{B]{%s Max Time Factor:{x %ld%%\n\r",
+	        (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", flag_string(instrument_types, obj->value[0]),
+	        (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(instrument_flags, obj->value[1]),
+	        (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2],
+			(obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3]);
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_BOOK:
+	    sprintf(buf,
+		"{B[  {Wv1{B]{%s Flags:{x      [%s]\n\r"
+		"{B[  {Wv2{B]{%s Key:{x     %s [%ld]\n\r",
+		(obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", 
+		flag_string(container_flags, obj->value[1]),
+		(obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", 
+                get_obj_index(obj->value[2])
+                    ? get_obj_index(obj->value[2])->short_descr
+                    : "none",
+                obj->value[2]);
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_TELESCOPE:
+		if( obj->value[4] < 0 )
+			sprintf(buf,
+				"{B[  {Wv0{B]{%s Current Distance:{x  [%ld]\n\r"
+				"{B[  {Wv1{B]{%s Minimum Distance:{x  [%ld]\n\r"
+				"{B[  {Wv2{B]{%s Maximum Distance:{x  [%ld]\n\r"
+				"{B[  {Wv3{B]{%s Bonusview Size:{x    [%ld]\n\r"
+				"{B[  {Wv4{B]{B Current Heading:{x   [none]\n\r",
+					(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
+					(obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
+					(obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2],
+					(obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3]);
+		else
+			sprintf(buf,
+				"{B[  {Wv0{B]{%s Current Distance:{x  [%ld]\n\r"
+				"{B[  {Wv1{B]{%s Minimum Distance:{x  [%ld]\n\r"
+				"{B[  {Wv2{B]{%s Maximum Distance:{x  [%ld]\n\r"
+				"{B[  {Wv3{B]{%s Bonusview Size:{x    [%ld]\n\r"
+				"{B[  {Wv4{B]{%s Current Heading:{x   [%ld]\n\r",
+					(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
+					(obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
+					(obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2],
+					(obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
+					(obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4]);
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_COMPASS:
+		if( obj->value[1] > 0 )
+		{
+			WILDS_DATA *pWilds = get_wilds_from_uid(NULL,obj->value[1]);
+
+			sprintf(buf,
+				"{B[  {Wv0{B]{%s Accuracy:{x      [%ld]\n\r"
+				"{B[  {Wv1{B]{%s Wilderness:{x    [%ld] %s\n\r"
+				"{B[  {Wv2{B]{%s X Coordinate:{x  [%ld]\n\r"
+				"{B[  {Wv3{B]{%s Y Coordinate:{x  [%ld]\n\r",
+					(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
+					(obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1], (pWilds?pWilds->name:"???"),
+					(obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2],
+					(obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3]);
+		}
+		else
+		{
+			sprintf(buf,
+				"{B[  {Wv0{B]{%s Accuracy:{x      [%ld]\n\r"
+				"{B[  {Wv1{B]{B Wilderness:{x    [none]\n\r",
+					(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0]);
+		}
+	    add_buf(buffer, buf);
+		break;
+
+	case ITEM_BODY_PART:
+		sprintf(buf,
+				"{B[  {Wv0{B]{%s Body Parts:{x    %s\n\r"
+				"{B[  {Wv1{B]{%s Race:{x          %s\n\r",
+				(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", flag_string(part_flags, obj->value[0]),
+				(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", race_table[obj->value[1]].name);
+
+		add_buf(buffer, buf);
+		break;
+    }
 }

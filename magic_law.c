@@ -247,12 +247,12 @@ SPELL_FUNC(spell_identify)
 		default: 			add_buf(buffer, "unknown{M.{x\n\r");	break;
 		}
 
-		sprintf(buf,"{MDamage is {x%dd%d {M(average {Y%d{M).\n\r{x",
+		sprintf(buf,"{MDamage is {x%ldd%ld {M(average {Y%ld{M).\n\r{x",
 			obj->value[1],obj->value[2],
 			(1 + obj->value[2]) * obj->value[1] / 2);
 		add_buf(buffer, buf);
 
-		sprintf(buf, "{MRange is {x%d{M rooms.\n\r", obj->value[3]);
+		sprintf(buf, "{MRange is {x%ld{M rooms.\n\r", obj->value[3]);
 		add_buf(buffer, buf);
 		break;
 
@@ -274,7 +274,7 @@ SPELL_FUNC(spell_identify)
 
 	case ITEM_POTION:
 		if (obj->value[5] > 0) {
-			sprintf(buf, "{MThis potion has {x%d{M remaining charge%s.{x\n\r",
+			sprintf(buf, "{MThis potion has {x%ld{M remaining charge%s.{x\n\r",
 				obj->value[5], obj->value[5] == 1 ? "" : "s");
 			add_buf(buffer, buf);
 		}
@@ -282,13 +282,13 @@ SPELL_FUNC(spell_identify)
 
 	case ITEM_TATTOO:
 		if (obj->value[0] > 0) {
-			sprintf(buf, "{MThis tattoo has {x%d{M remaining charge%s.{x\n\r",
+			sprintf(buf, "{MThis tattoo has {x%ld{M remaining charge%s.{x\n\r",
 				obj->value[0], obj->value[0] == 1 ? "" : "s");
 			add_buf(buffer, buf);
 		}
 
 		if ((IS_SAGE(ch) || IS_IMMORTAL(ch)) && obj->value[1] > 0) {
-			sprintf(buf, "{MThere is a %d%% chance that the tattoo will fade with each touch{x\n\r", obj->value[1]);
+			sprintf(buf, "{MThere is a %ld%% chance that the tattoo will fade with each touch{x\n\r", obj->value[1]);
 			add_buf(buffer, buf);
 		}
 		break;
@@ -310,7 +310,7 @@ SPELL_FUNC(spell_identify)
 
 	case ITEM_WAND:
 	case ITEM_STAFF:
-		sprintf(buf, "{MHas {x%d{M/{x%d {Mcharges.{x\n\r",
+		sprintf(buf, "{MHas {x%ld{M/{x%ld {Mcharges.{x\n\r",
 			obj->value[2], obj->value[1]);
 		add_buf(buffer, buf);
 		break;
@@ -323,26 +323,26 @@ SPELL_FUNC(spell_identify)
 		break;
 
 	case ITEM_WEAPON_CONTAINER:
-		sprintf(buf,"{MHolds {x%d{M/{x%d {M%ss and {x%d{M/{x%d{M weight\n\r",
+		sprintf(buf,"{MHolds {x%d{M/{x%ld {M%ss and {x%d{M/{x%ld{M weight\n\r",
 			get_number_in_container(obj), obj->value[3],
 			weapon_name(obj->value[1]),
 			get_obj_weight_container(obj),
 			obj->value[0]);
 		add_buf(buffer,buf);
 		if (obj->value[3] != 100) {
-			sprintf(buf,"{MWeight multiplier: {x%d{M%%\n\r", obj->value[4]);
+			sprintf(buf,"{MWeight multiplier: {x%ld{M%%\n\r", obj->value[4]);
 			add_buf(buffer,buf);
 		}
 		break;
 
 	case ITEM_CONTAINER:
-		sprintf(buf,"{MItems: {x%d{M/{x%d{M  Weight: {x%d/%d{M  flags: {x%s{M\n\r",
+		sprintf(buf,"{MItems: {x%d{M/{x%ld{M  Weight: {x%ld/%ld{M  flags: {x%s{M\n\r",
 			get_number_in_container(obj), obj->value[3],
 			(get_obj_weight_container(obj) * WEIGHT_MULT(obj))/100,
 			obj->value[0], cont_bit_name(obj->value[1]));
 		add_buf(buffer,buf);
 		if (obj->value[4] != 100) {
-			sprintf(buf,"{MWeight multiplier: {x%d{M%%\n\r", obj->value[4]);
+			sprintf(buf,"{MWeight multiplier: {x%ld{M%%\n\r", obj->value[4]);
 			add_buf(buffer,buf);
 		}
 		break;
@@ -372,7 +372,7 @@ SPELL_FUNC(spell_identify)
 		sprintf(buf, " with attack type {x%s{M.{x\n\r", attack_table[obj->value[3]].noun);
 		add_buf(buffer, buf);
 
-		sprintf(buf,"{MDamage is {x%dd%d {M(average {Y%d{M).\n\r{x",
+		sprintf(buf,"{MDamage is {x%ldd%ld {M(average {Y%ld{M).\n\r{x",
 			obj->value[1],obj->value[2], (1 + obj->value[2]) * obj->value[1] / 2);
 		add_buf(buffer, buf);
 		if (obj->value[4]) {
@@ -382,7 +382,7 @@ SPELL_FUNC(spell_identify)
 		break;
 
 	case ITEM_ARMOUR:
-		sprintf(buf, "{MArmour class is {x%d {Mpierce, {x%d {Mbash, {x%d {Mslash, and {x%d {Mvs. magic.\n\r",
+		sprintf(buf, "{MArmour class is {x%ld {Mpierce, {x%ld {Mbash, {x%ld {Mslash, and {x%ld {Mvs. magic.\n\r",
 			obj->value[0], obj->value[1], obj->value[2], obj->value[3]);
 		add_buf(buffer, buf);
 		break;

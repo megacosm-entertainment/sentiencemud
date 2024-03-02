@@ -3506,7 +3506,7 @@ bool olc_load_index_vars(FILE *fp, char *word, ppVARIABLE index_vars, AREA_DATA 
 	return false;
 }
 
-void pstat_variable_list(CHAR_DATA *ch, pVARIABLE vars)
+void pstat_variable_list(BUFFER *buffer, pVARIABLE vars)
 {
 	char arg[MSL];
 	pVARIABLE var;
@@ -3601,7 +3601,7 @@ void pstat_variable_list(CHAR_DATA *ch, pVARIABLE vars)
 				iterator_start(&it, mob_list);
 				while(( data = (LLIST_UID_DATA *)iterator_nextdata(&it)))
 				{
-					send_to_char(arg, ch);
+					add_buf(buffer, arg);
 
 					CHAR_DATA *m = (CHAR_DATA *)data->ptr;
 					if(IS_VALID(m))
@@ -3634,7 +3634,7 @@ void pstat_variable_list(CHAR_DATA *ch, pVARIABLE vars)
 				iterator_start(&it, obj_list);
 				while(( data = (LLIST_UID_DATA *)iterator_nextdata(&it)))
 				{
-					send_to_char(arg, ch);
+					add_buf(buffer,arg);
 
 					OBJ_DATA *o = (OBJ_DATA *)data->ptr;
 					if(IS_VALID(o))
@@ -3653,7 +3653,7 @@ void pstat_variable_list(CHAR_DATA *ch, pVARIABLE vars)
 			break;
 		}
 
-		send_to_char(arg, ch);
+		add_buf(buffer,arg);
 	}
 
 }

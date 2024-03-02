@@ -8535,5 +8535,9 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 
 	info->progs->lastreturn = 1;
 
+	obj->script_created = true;
+	obj->created_script_vnum = info->block->script->vnum;
+	obj->created_script_type = info->block->script->type;
+
 	return obj;
 }

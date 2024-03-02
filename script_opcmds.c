@@ -199,6 +199,8 @@ void do_opstat(CHAR_DATA *ch, char *argument)
 	OBJ_DATA *obj;
 	ITERATOR it;
 	int i, slot;
+	bool usemxp;
+	BUFFER *output = new_buf();
 
 	one_argument(argument, arg);
 
@@ -207,28 +209,49 @@ void do_opstat(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!(obj = get_obj_world(ch, arg))) {
-		send_to_char("No such object.\n\r", ch);
+	if (ch->desc->pProtocol->bMXP)
+	usemxp = true;
+
+
+	if (is_number(arg))
+	{
+		argument = one_argument(argument, arg);
+		if (argument[0] != '\0' && is_number(arg) && is_number(argument))
+		{
+			if ((obj = idfind_object(atoi(arg), atoi(argument))) == NULL)
+			{
+				send_to_char("Object not found.\n\r", ch);
+				return;
+			}
+		}
+		else
+		{
+			send_to_char("Syntax: opstat <name|IDa IDb>",ch);
+			return;
+		}	
+				
+	} else if (!(obj = get_obj_world(ch, arg))) {
+		add_buf(output, "No such object.\n\r");
 		return;
 	}
 
 	sprintf(arg, "Object #%-6ld [%s] ID [%9d:%9d]\n\r", obj->pIndexData->vnum, obj->short_descr, (int)obj->id[0], (int)obj->id[1]);
-	send_to_char(arg, ch);
+	add_buf(output, arg);
 
 	if( !IS_NULLSTR(obj->pIndexData->comments) )
 	{
 		sprintf(arg, "Comments:\n\r%s\n\r", obj->pIndexData->comments);
-		send_to_char(arg, ch);
+		add_buf(output, arg);
 	}
 
 	sprintf(arg, "Delay   %-6d [%s]\n\r",
 		obj->progs->delay,
 		obj->progs->target ? obj->progs->target->name : "No target");
 
-	send_to_char(arg, ch);
+	add_buf(output, arg);
 
 	if (!obj->pIndexData->progs)
-		send_to_char("[No programs set]\n\r", ch);
+		add_buf(output, "[No programs set]\n\r");
 	else
 	for(i = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
 		iterator_start(&it, obj->pIndexData->progs[slot]);
@@ -237,13 +260,22 @@ void do_opstat(CHAR_DATA *ch, char *argument)
 				++i, trigger_name(oprg->trig_type),
 				oprg->vnum,
 				trigger_phrase(oprg->trig_type,oprg->trig_phrase));
-			send_to_char(arg, ch);
+			add_buf(output, arg);
 		}
 		iterator_stop(&it);
 	}
 
 	if(obj->progs->vars)
-		pstat_variable_list(ch, obj->progs->vars);
+		pstat_variable_list(output, obj->progs->vars);
+
+	if( !ch->lines && strlen(output->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(output->string, ch);
+	}
 }
 
 
@@ -1991,6 +2023,7 @@ SCRIPT_CMD(do_opmload)
 // do_opoload
 SCRIPT_CMD(do_opoload)
 {
+	/*
 	char buf[MIL], *rest;
 	long vnum, level;
 	bool fInside = false;
@@ -2040,15 +2073,15 @@ SCRIPT_CMD(do_opoload)
 			if(!(rest = expand_argument(info,argument,arg)))
 				return;
 
-			/*
-			 * Added 3rd argument
-			 * omitted - load to current room
-			 * 'I'     - load to object's container
-			 * MOBILE  - load to target mobile
-			 *         - 'W' automatically wear the item if possible
-			 * OBJECT  - load to target object
-			 * ROOM    - load to target room
-			 */
+			//
+			// Added 3rd argument
+			// omitted - load to current room
+			// 'I'     - load to object's container
+			// MOBILE  - load to target mobile
+			//         - 'W' automatically wear the item if possible
+			// OBJECT  - load to target object
+			// ROOM    - load to target room
+			 
 
 			switch(arg->type) {
 			case ENT_STRING:
@@ -2112,6 +2145,8 @@ SCRIPT_CMD(do_opoload)
 
 	if(rest && *rest) variables_set_object(info->var,rest,obj);
 	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+	*/
+	script_oload(info,argument,arg, false);
 }
 
 // do_opotransfer
