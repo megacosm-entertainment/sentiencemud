@@ -2500,6 +2500,19 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 		sprintf(buf, "{M* {BEvent {x%-53.52s {B[{x%7.3f{B seconds{B]{x\n\r", ev->args, (float) ev->delay/2);
 		send_to_char(buf, ch);
 	}
+
+/*
+	if( !ch->lines && strlen(output->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(output->string, ch);
+	}
+
+	free_buf(output);
+*/
 }
 
 
@@ -2931,8 +2944,8 @@ void do_owhere(CHAR_DATA *ch, char *argument)
 			if (usemxp)
 				if (IS_NPC(in_obj->carried_by))
 				{
-					sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld\" hint=\"Show information for this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld|oedit %ld\" hint=\"Show index for %s|Edit %s\">%s\t</send> is carried by \t<send href=\"stat mob %ld %ld|mshow %ld|medit %ld\" hint=\"View info for %s|Show index for %s|Edit %s\">%s\t</send> [\t<send href=\"rshow %ld|redit %ld|goto %ld\" hint=\"View room %ld|Edit room %ld|Go to room %ld\">Room %ld\t</send>]\n\r",
-					number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, obj->short_descr, obj->short_descr,
+					sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld|oedit %ld\" hint=\"Show index for %s|Edit %s\">%s\t</send> is carried by \t<send href=\"stat mob %ld %ld|mshow %ld|medit %ld\" hint=\"View info for %s|Show index for %s|Edit %s\">%s\t</send> [\t<send href=\"rshow %ld|redit %ld|goto %ld\" hint=\"View room %ld|Edit room %ld|Go to room %ld\">Room %ld\t</send>]\n\r",
+					number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, obj->short_descr, obj->short_descr,
 					obj->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->id[0] : obj->carried_by->id[0], (obj->in_obj != NULL) ? obj->in_obj->carried_by->id[1] : obj->carried_by->id[1], 
 					(obj->in_obj != NULL) ? obj->in_obj->carried_by->pIndexData->vnum : obj->carried_by->pIndexData->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->pIndexData->vnum : obj->carried_by->pIndexData->vnum,
 					(obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr,
@@ -2945,8 +2958,8 @@ void do_owhere(CHAR_DATA *ch, char *argument)
 				}
 				else
 				{
-					sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld\" hint=\"Show information for this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld|oedit %ld\" hint=\"Show index for %s|Edit %s\">%s\t</send> is carried by \t<send href=\"stat char %s\">%s\t</send> [\t<send href=\"rshow %ld|redit %ld|goto %ld\" hint=\"View room %ld|Edit room %ld|Go to room %ld\">Room %ld\t</send>]\n\r",
-					number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, 
+					sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld|oedit %ld\" hint=\"Show index for %s|Edit %s\">%s\t</send> is carried by \t<send href=\"stat char %s\">%s\t</send> [\t<send href=\"rshow %ld|redit %ld|goto %ld\" hint=\"View room %ld|Edit room %ld|Go to room %ld\">Room %ld\t</send>]\n\r",
+					number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, 
 					obj->short_descr, obj->short_descr, obj->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->name : obj->carried_by->name, (obj->in_obj != NULL) ? obj->in_obj->carried_by->name : obj->carried_by->name, 
 					(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, 
 					(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum,
@@ -2957,7 +2970,7 @@ void do_owhere(CHAR_DATA *ch, char *argument)
 			else
 			{
             	sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (vnum %ld) is carried by %s [Room %ld]\n\r",
-                number, (long)obj->id[0], (long)obj->id[1], obj->short_descr,
+                number, obj->id[0], obj->id[1], obj->short_descr,
 				obj->pIndexData->vnum,
 				pers(in_obj->carried_by, ch),
 				in_obj->carried_by->in_room->vnum);
@@ -2968,8 +2981,8 @@ void do_owhere(CHAR_DATA *ch, char *argument)
 		{
 			if (usemxp)
 			{
-				sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld\" hint=\"Show information for this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld|oedit %ld\" hint=\"Show index for %s|Edit %s\">%s\t</send> is in %s [\t<send href=\"rshow %ld|redit %ld|goto %ld\" hint=\"View room %ld|Edit room %ld|Go to room %ld\">Room %ld\t</send>]\n\r",
-				number, (long)obj->id[0], (long)obj->id[1], (long)obj->id[0], (long)obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, 
+				sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld|oedit %ld\" hint=\"Show index for %s|Edit %s\">%s\t</send> is in %s [\t<send href=\"rshow %ld|redit %ld|goto %ld\" hint=\"View room %ld|Edit room %ld|Go to room %ld\">Room %ld\t</send>]\n\r",
+				number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, 
 				obj->short_descr, obj->short_descr, obj->short_descr, in_obj->in_room->name, in_obj->in_room->vnum, in_obj->in_room->vnum, 
 				in_obj->in_room->vnum, in_obj->in_room->vnum, in_obj->in_room->vnum, in_obj->in_room->vnum, in_obj->in_room->vnum);
 				add_buf(buffer, buf);
@@ -2977,7 +2990,7 @@ void do_owhere(CHAR_DATA *ch, char *argument)
 			else
 			{
             	sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (vnum %ld) is in %s [Room %ld]\n\r",
-                number, (long)obj->id[0], (long)obj->id[1], obj->short_descr,
+                number, obj->id[0], obj->id[1], obj->short_descr,
 				obj->pIndexData->vnum,
 				in_obj->in_room->name,
 				in_obj->in_room->vnum);
@@ -2988,14 +3001,14 @@ void do_owhere(CHAR_DATA *ch, char *argument)
 		{
 			if (usemxp)
 			{
-				sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld\" hint=\"Show information for this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld|oedit %ld\" hint=\"Show index for %s|Edit %s\">%s\t</send> is in a mail package\n\r",
-				number, (long)obj->id[0], (long)obj->id[1], (long)obj->id[0], (long)obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, obj->short_descr, obj->short_descr, obj->short_descr);
+				sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld|oedit %ld\" hint=\"Show index for %s|Edit %s\">%s\t</send> is in a mail package\n\r",
+				number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, obj->short_descr, obj->short_descr, obj->short_descr);
 				add_buf(buffer, buf);
 			}
 			else
 			{
             	sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (vnum %ld) is in a mail package\n\r", number,
-			    (long)obj->id[0], (long)obj->id[1], obj->short_descr, obj->pIndexData->vnum);
+			    obj->id[0], obj->id[1], obj->short_descr, obj->pIndexData->vnum);
 				add_buf(buffer, buf);
 			}
 		} 
@@ -3003,14 +3016,14 @@ void do_owhere(CHAR_DATA *ch, char *argument)
 		{
 			if (usemxp)
 			{
-				sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld\" hint=\"Show information for this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld\" hint=\"Show index of obj %ld\">%s\t</send> is somewhere\n\r",
-				number, (long)obj->id[0], (long)obj->id[1], (long)obj->id[0], (long)obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, obj->short_descr);
+				sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld\" hint=\"Show index of obj %ld\">%s\t</send> is somewhere\n\r",
+				number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, obj->short_descr);
 				add_buf(buffer, buf);
 			}
 			else
 			{
             	sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (vnum %ld) is somewhere\n\r", number,
-			    (long)obj->id[0], (long)obj->id[1], obj->short_descr, obj->pIndexData->vnum);
+			    obj->id[0], obj->id[1], obj->short_descr, obj->pIndexData->vnum);
 				add_buf(buffer, buf);
 			}
 		}
@@ -3816,81 +3829,209 @@ void do_purge(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
+	char arg3[MIL];
     CHAR_DATA *victim;
     OBJ_DATA *obj;
+	bool forced = false;
 
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
 
-    if (arg[0] == '\0')
-    {
-	CHAR_DATA *vnext;
-	OBJ_DATA  *obj_next;
 
-	for (victim = ch->in_room->people; victim != NULL; victim = vnext)
+    if (arg[0] == '\0' || ( str_cmp(arg,"room") && arg2[0] == '\0'))
 	{
-	    vnext = victim->next_in_room;
-	    if (IS_NPC(victim)
-	    && !IS_SET(victim->act[0],ACT_NOPURGE)
-	    && victim != ch /* safety precaution */
-	    && victim != ch->rider
-	    && victim != ch->mount) {
-		extract_char(victim, true);
-	    }
+		send_to_char ("Syntax: purge <object|mob> <keyword|ida idb> [force]\n\r", ch);
+		send_to_char ("Syntax: purge room [force]\n\r", ch);
+		return;
 	}
-
-	for (obj = ch->in_room->contents; obj != NULL; obj = obj_next)
-	{
-	    obj_next = obj->next_content;
-
-	    if (obj->item_type == ITEM_CART) {
-		    if(obj->pulled_by) {
-			    obj->pulled_by->pulled_cart = NULL;
-			    obj->pulled_by = NULL;
-		    }
-	    }
-
-	    extract_obj(obj);
-	}
-
-	act("$n purges the room!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	act("Purged $T.", ch, NULL, NULL, NULL, NULL, NULL, ch->in_room->name, TO_CHAR);
-	return;
-    }
-
-    if ((victim = get_char_room(ch, NULL, arg)) != NULL)
+	else
     {
-	if (!IS_NPC(victim))
-	{
-	    send_to_char("You can't purge a player character.\n\r", ch);
-	    return;
-	}
+		if (!str_cmp(arg, "mob"))
+		{
+			victim = NULL;
+			if (is_number(arg2))
+			{ 
+				argument = one_argument(argument, arg3);
+				if (is_number(arg3))
+				{
+					if((victim = idfind_mobile(atoi(arg2), atoi(arg3))) == NULL)
+					{
+						send_to_char("No mob has that vnum.\n\r", ch);
+						return;
+					}
+					else if (!IS_NPC(victim))
+					{
+						send_to_char("You can't purge a player character.\n\r", ch);
+						return;
+					}
 
-	act("Extracted $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	extract_char(victim, true);
-	return;
-    }
-    else
-    if ((obj = get_obj_list(ch, arg, ch->in_room->contents)) != NULL
-    &&     !IS_SET(obj->extra[0], ITEM_NOPURGE))
-    {
-	if (obj->item_type == ITEM_CART)
-	{
-		    if(obj->pulled_by) {
-			    obj->pulled_by->pulled_cart = NULL;
-			    obj->pulled_by = NULL;
-		    }
-	}
+					if (argument[0] != '\0' && !str_cmp(argument, "force"))
+					{
+						if (ch->tot_level != MAX_LEVEL)
+						{
+							send_to_char("You must be max level to use the 'force' argument.\n\r", ch);
+							return;
+						}
+						else
+							forced = true;
+					}
+				}
+			}
+			else if ((victim = get_char_room(ch, NULL, arg2)) != NULL)
+    		{
+				if (!IS_NPC(victim))
+				{
+	    			send_to_char("You can't purge a player character.\n\r", ch);
+	    			return;
+				}
+				if (arg3[0] != '\0' && !str_cmp(arg3, "force"))
+				{
+					if (ch->tot_level != MAX_LEVEL)
+					{
+						send_to_char("You must be max level to use the 'force' argument.\n\r", ch);
+						return;
+					}
+					else
+						forced = true;
+				}
+    		}
 
-	act("Extracted $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	extract_obj(obj);
-	return;
-    }
-    else
-    {
-	act("Target not found.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return;
-    }
+			if (victim != NULL && IS_SET(victim->act[0],ACT_NOPURGE) && !forced)
+			{
+				act("$N is flagged 'no_purge' - Try again with the 'force' argument.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				return;
+			} else
+			{
+				act("Extracted $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				extract_char(victim, true);
+				return;
+			}
+
+		}
+		else if (!str_cmp(arg, "object") || !str_cmp(arg, "obj"))
+		{
+			obj = NULL;
+			if (is_number(arg2))
+			{
+				argument = one_argument(argument, arg3);
+				if (is_number(arg3))
+				{
+					if ((obj = idfind_object(atoi(arg2), atoi(arg3))) == NULL)
+					{
+						send_to_char("No object has that ID.\n\r", ch);
+						return;
+					}
+
+					if (argument[0] != '\0' && !str_cmp(argument, "force"))
+					{
+						if (ch->tot_level != MAX_LEVEL)
+						{
+							send_to_char("You must be max level to use the 'force' argument.\n\r", ch);
+							return;
+						}
+						else
+							forced = true;
+					}
+				}
+			}
+			else if ((obj = get_obj_list(ch, arg2, ch->in_room->contents)) != NULL)
+			{
+				if (argument[0] != '\0' && !str_cmp(argument, "force"))
+				{
+					if (ch->tot_level != MAX_LEVEL)
+					{
+						send_to_char("You must be max level to use the 'force' argument.\n\r", ch);
+						return;
+					}
+					else
+						forced = true;
+				}
+			}
+			else 
+			{
+				send_to_char("Object not found.\n\r", ch);
+					return;
+			}
+
+			if (obj != NULL && IS_SET(obj->extra[0], ITEM_NOPURGE) && !forced)
+			{
+				act("You can't purge $p without the 'force' argument.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				return;
+			} else
+			{
+				if (obj->item_type == ITEM_CART)
+				{
+	    			if(obj->pulled_by) 
+					{
+		    			obj->pulled_by->pulled_cart = NULL;
+		    			obj->pulled_by = NULL;
+	    			}
+				}
+				act("Extracted $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				extract_obj(obj);
+				return;
+			}
+		}
+		else if (!str_cmp(arg, "room"))
+		{
+	
+			CHAR_DATA *vnext;
+			CHAR_DATA *victim;
+			OBJ_DATA  *obj_next;
+
+			if (arg2 != '\0' && !str_cmp(arg2, "force"))
+			{
+				if (ch->tot_level != MAX_LEVEL)
+				{
+					send_to_char("You must be max level to use the 'force' argument.\n\r", ch);
+					return;
+				}
+				else
+					forced = true;
+			}
+
+			for (victim = ch->in_room->people; victim != NULL; victim = vnext)
+			{
+	    		vnext = victim->next_in_room;
+				if (IS_SET(victim->act[0],ACT_NOPURGE) && !forced)
+				{
+					act("$N is flagged 'no_purge' - Try again with the 'force' argument.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+					continue;
+				}
+	    		if (IS_NPC(victim)
+	    		&& !IS_SET(victim->act[0],ACT_NOPURGE)
+	    		&& victim != ch /* safety precaution */
+	    		&& victim != ch->rider
+	    		&& victim != ch->mount) 
+				{
+					extract_char(victim, true);
+	    		}
+			}
+		
+			for (obj = ch->in_room->contents; obj != NULL; obj = obj_next)
+			{
+	    		obj_next = obj->next_content;
+				if (IS_SET(obj->extra[0], ITEM_NOPURGE) && !forced)
+				{
+					act("You can't purge $p without the 'force' argument.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+					continue;
+				}
+
+			    if (obj->item_type == ITEM_CART) 
+				{
+		    		if(obj->pulled_by) {
+			    		obj->pulled_by->pulled_cart = NULL;
+			    		obj->pulled_by = NULL;
+		    		}
+	    		}
+				extract_obj(obj);
+			}
+
+			act("$n purges the room!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			act("Purged $T.", ch, NULL, NULL, NULL, NULL, NULL, ch->in_room->name, TO_CHAR);
+			return;
+    	}
+	}
 }
 
 /* Adding some new stuff to advance, for new immortals. It'll now display an intro screen to them. Perhaps the intro would be better as a helpfile, along the same lines as do_greeting? -- Areo 2006-08-23 */
