@@ -663,7 +663,7 @@ void write_mail(void)
 	fprintf(fp, "Scripted %d\n", mail->scripted);
 	if (mail->originating_script != 0)
 	    fprintf(fp, "OriginatingScript %ld~\n", mail->originating_script);
-	if (mail->orig_script_type != NULL)
+	if (mail->orig_script_type > -1)
 	    fprintf(fp, "OrigScriptType %d~\n", mail->orig_script_type);
 	if (mail->message != NULL)
 	    fprintf(fp, "Message %s~\n\n", fix_string(mail->message));
