@@ -3884,7 +3884,7 @@ void do_purge(CHAR_DATA *ch, char *argument)
 	    			send_to_char("You can't purge a player character.\n\r", ch);
 	    			return;
 				}
-				if (arg3[0] != '\0' && !str_cmp(arg3, "force"))
+				if (argument[0] != '\0' && !str_cmp(argument, "force"))
 				{
 					if (ch->tot_level != MAX_LEVEL)
 					{
@@ -3898,7 +3898,7 @@ void do_purge(CHAR_DATA *ch, char *argument)
 
 			if (victim != NULL && IS_SET(victim->act[0],ACT_NOPURGE) && !forced)
 			{
-				act("$N is flagged 'no_purge' - Try again with the 'force' argument.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				act("$N is flagged 'nopurge' - Try again with the 'force' argument.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 				return;
 			} else
 			{
@@ -3955,7 +3955,7 @@ void do_purge(CHAR_DATA *ch, char *argument)
 
 			if (obj != NULL && IS_SET(obj->extra[0], ITEM_NOPURGE) && !forced)
 			{
-				act("You can't purge $p without the 'force' argument.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				act("$p is flagged 'nopurge' - Try again with the 'force' argument.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 				return;
 			} else
 			{
@@ -3995,11 +3995,11 @@ void do_purge(CHAR_DATA *ch, char *argument)
 	    		vnext = victim->next_in_room;
 				if (IS_SET(victim->act[0],ACT_NOPURGE) && !forced)
 				{
-					act("$N is flagged 'no_purge' - Try again with the 'force' argument.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+					act("$N is flagged 'nopurge' - Try again with the 'force' argument.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 					continue;
 				}
 	    		if (IS_NPC(victim)
-	    		&& !IS_SET(victim->act[0],ACT_NOPURGE)
+	    		
 	    		&& victim != ch /* safety precaution */
 	    		&& victim != ch->rider
 	    		&& victim != ch->mount) 
@@ -4013,7 +4013,7 @@ void do_purge(CHAR_DATA *ch, char *argument)
 	    		obj_next = obj->next_content;
 				if (IS_SET(obj->extra[0], ITEM_NOPURGE) && !forced)
 				{
-					act("You can't purge $p without the 'force' argument.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+					act("$p is flagged 'nopurge' - Try again with the 'force' argument.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 					continue;
 				}
 

@@ -544,7 +544,7 @@ char *act_bit_name( int act_type, long act_flags )
 		if (act_flags & ACT_MAGE	) strcat(buf, " mage");
 		if (act_flags & ACT_THIEF	) strcat(buf, " thief");
 		if (act_flags & ACT_WARRIOR	) strcat(buf, " warrior");
-		if (act_flags & ACT_NOPURGE	) strcat(buf, " no_purge");
+		if (act_flags & ACT_NOPURGE	) strcat(buf, " nopurge");
 		if (act_flags & ACT_IS_HEALER	) strcat(buf, " healer");
 		if (act_flags & ACT_IS_BANKER   ) strcat(buf, " banker");
 		if (act_flags & ACT_IS_RESTRINGER) strcat(buf, " restringer");
