@@ -4649,6 +4649,34 @@ SCRIPT_CMD(scriptcmd_alterobj)
 			return;
 		}
 
+		switch (buf[0]) {
+		case '+': obj->value[num] += value; break;
+		case '-': obj->value[num] -= value; break;
+		case '*': obj->value[num] *= value; break;
+		case '/':
+			if (!value) {
+				bug("AlterObj - adjust called with operator / and value 0", 0);
+				return;
+			}
+			obj->value[num] /= value;
+			break;
+		case '%':
+			if (!value) {
+				bug("AlterObj - adjust called with operator % and value 0", 0);
+				return;
+			}
+			obj->value[num] %= value;
+			break;
+
+		case '=': obj->value[num] = value; break;
+		case '&': obj->value[num] &= value; break;
+		case '|': obj->value[num] |= value; break;
+		case '!': obj->value[num] &= ~value; break;
+		case '^': obj->value[num] ^= value; break;
+		default:
+			return;
+		}
+
 	} else {
 		
 
@@ -4668,7 +4696,12 @@ SCRIPT_CMD(scriptcmd_alterobj)
 		else if(!str_cmp(field,"wearloc"))		{ ptr = (int*)&obj->wear_loc; flags = wear_loc_flags; allowarith = false; allowbitwise = false; }
 		else if(!str_cmp(field,"weight"))		{ ptr = (int*)&obj->weight; allowarith = true; allowbitwise = false; }
 
-		if(!ptr) return;
+		if(!ptr && !lptr) return;
+
+		if(!(rest = expand_argument(info,argument,arg))) {
+		scriptcmd_bug(info, "Alterobj - Error in parsing.");
+		return;
+		}
 
 		if(script_security < min_sec) {
 			sprintf(buf,"AlterObj - Attempting to alter '%s' with security %d.\n\r", field, script_security);
@@ -4751,395 +4784,396 @@ SCRIPT_CMD(scriptcmd_alterobj)
 			default: return;
 			}
 		}
-	}
+	
 
-	if (lptr) {
-		switch (buf[0]) {
-		case '+':
-			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
+		if (lptr) {
+			switch (buf[0]) {
+			case '+':
+				if( !allowarith ) {
+					sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					return;
+				}
+
+				*lptr += value;
+				break;
+
+			case '-':
+				if( !allowarith ) {
+					sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					return;
+				}
+
+				*lptr -= value;
+				break;
+
+			case '*':
+				if( !allowarith ) {
+					sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					return;
+				}
+
+				*lptr *= value;
+				break;
+
+			case '/':
+				if( !allowarith ) {
+					sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					return;
+				}
+
+				if (!value) {
+					bug("Alterobj - adjust called with operator / and value 0", 0);
+					sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					return;
+				}
+				*lptr /= value;
+				break;
+			case '%':
+				if( !allowarith ) {
+					sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					return;
+				}
+
+				if (!value) {
+					sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					bug("Alterobj - adjust called with operator % and value 0", 0);
+					return;
+				}
+				*lptr %= value;
+				break;
+
+			case '>':
+				if( !allowarith ) {
+					sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					return;
+				}
+
+				if (value > *lptr)
+					*lptr = value;
+				break;
+
+			case '<':
+				if( !allowarith ) {
+					sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					return;
+				}
+
+				if (value < *lptr)
+					*lptr = value;
+				break;
+
+			case '=':
+				if (bank != NULL)
+				{
+					for(int i = 0; bank[i]; i++)
+						lptr[i] = temp_flags[i];
+				}
+				else
+					*lptr = value;
+
+				// When explicitly assigning, allow different ranges
+				if (hasassignmin)
+				{
+					hasmin = true;
+					min = assignmin;
+				}
+
+				if (hasassignmax)
+				{
+					hasmax = true;
+					max = assignmax;
+				}
+				break;
+
+			case '&':
+				if( !allowbitwise ) {
+					sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					return;
+				}
+
+				if (bank != NULL)
+				{
+					for(int i = 0; bank[i]; i++)
+						lptr[i] &= temp_flags[i];
+				}
+				else
+					*lptr &= value;
+				break;
+			case '|':
+				if( !allowbitwise ) {
+					sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					return;
+				}
+
+				if (bank != NULL)
+				{
+					for(int i = 0; bank[i]; i++)
+						lptr[i] |= temp_flags[i];
+				}
+				else
+					*lptr |= value;
+				break;
+			case '!':
+				if( !allowbitwise ) {
+					sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					return;
+				}
+
+				if (bank != NULL)
+				{
+					for(int i = 0; bank[i]; i++)
+						lptr[i] &= ~temp_flags[i];
+				}
+				else
+					*lptr &= ~value;
+				break;
+			case '^':
+				if( !allowbitwise ) {
+					sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					return;
+				}
+
+				if (bank != NULL)
+				{
+					for(int i = 0; bank[i]; i++)
+						lptr[i] ^= temp_flags[i];
+				}
+				else
+					*lptr ^= value;
+
+				break;
+			default:
 				return;
 			}
 
-			*lptr += value;
-			break;
-
-		case '-':
-			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
-				return;
-			}
-
-			*lptr -= value;
-			break;
-
-		case '*':
-			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
-				return;
-			}
-
-			*lptr *= value;
-			break;
-
-		case '/':
-			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
-				return;
-			}
-
-			if (!value) {
-				bug("Alterobj - adjust called with operator / and value 0", 0);
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
-				return;
-			}
-			*lptr /= value;
-			break;
-		case '%':
-			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
-				return;
-			}
-
-			if (!value) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
-				bug("Alterobj - adjust called with operator % and value 0", 0);
-				return;
-			}
-			*lptr %= value;
-			break;
-
-		case '>':
-			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
-				return;
-			}
-
-			if (value > *lptr)
-				*lptr = value;
-			break;
-
-		case '<':
-			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
-				return;
-			}
-
-			if (value < *lptr)
-				*lptr = value;
-			break;
-
-		case '=':
-			if (bank != NULL)
+			if( lptr )
 			{
-				for(int i = 0; bank[i]; i++)
-					lptr[i] = temp_flags[i];
-			}
-			else
-				*lptr = value;
+				if(hasmin && *lptr < min)
+					*lptr = min;
 
-			// When explicitly assigning, allow different ranges
-			if (hasassignmin)
+				if(hasmax && *lptr > max)
+					*lptr = max;
+			}
+		} else {
+			switch (buf[0]) {
+			case '+':
+				if( !allowarith ) {
+					sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					return;
+				}
+
+				*ptr += value;
+				break;
+
+			case '-':
+				if( !allowarith ) {
+					sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					return;
+				}
+
+				*ptr -= value;
+				break;
+
+			case '*':
+				if( !allowarith ) {
+					sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					return;
+				}
+
+				*ptr *= value;
+				break;
+
+			case '/':
+				if( !allowarith ) {
+					sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					return;
+				}
+
+				if (!value) {
+					bug("Alterobj - adjust called with operator / and value 0", 0);
+					sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					return;
+				}
+				*ptr /= value;
+				break;
+			case '%':
+				if( !allowarith ) {
+					sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					return;
+				}
+
+				if (!value) {
+					sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					bug("Alterobj - adjust called with operator % and value 0", 0);
+					return;
+				}
+				*ptr %= value;
+				break;
+
+			case '>':
+				if( !allowarith ) {
+					sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					return;
+				}
+
+				if (value > *ptr)
+					*ptr = value;
+				break;
+
+			case '<':
+				if( !allowarith ) {
+					sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					return;
+				}
+
+				if (value < *ptr)
+					*ptr = value;
+				break;
+
+			case '=':
+				if (bank != NULL)
+				{
+					for(int i = 0; bank[i]; i++)
+						ptr[i] = temp_flags[i];
+				}
+				else
+					*ptr = value;
+
+				// When explicitly assigning, allow different ranges
+				if (hasassignmin)
+				{
+					hasmin = true;
+					min = assignmin;
+				}
+
+				if (hasassignmax)
+				{
+					hasmax = true;
+					max = assignmax;
+				}
+				break;
+
+			case '&':
+				if( !allowbitwise ) {
+					sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					return;
+				}
+
+				if (bank != NULL)
+				{
+					for(int i = 0; bank[i]; i++)
+						ptr[i] &= temp_flags[i];
+				}
+				else
+					*ptr &= value;
+				break;
+			case '|':
+				if( !allowbitwise ) {
+					sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					return;
+				}	
+
+				if (bank != NULL)
+				{
+					for(int i = 0; bank[i]; i++)
+						ptr[i] |= temp_flags[i];
+				}
+				else
+					*ptr |= value;
+				break;
+			case '!':
+				if( !allowbitwise ) {
+					sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					return;
+				}
+
+				if (bank != NULL)
+				{
+					for(int i = 0; bank[i]; i++)
+						ptr[i] &= ~temp_flags[i];
+				}
+				else
+					*ptr &= ~value;
+				break;
+			case '^':
+				if( !allowbitwise ) {
+					sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+						buf[0], field);
+					scriptcmd_bug(info, msg);
+					return;
+				}
+
+				if (bank != NULL)
+				{
+					for(int i = 0; bank[i]; i++)
+						ptr[i] ^= temp_flags[i];
+				}
+				else
+					*ptr ^= value;
+
+				break;
+			default:
+				return;
+			}
+
+			if( ptr )
 			{
-				hasmin = true;
-				min = assignmin;
+				if(hasmin && *ptr < min)
+					*ptr = (int)min;
+
+				if(hasmax && *ptr > max)
+					*ptr = (int)max;
 			}
-
-			if (hasassignmax)
-			{
-				hasmax = true;
-				max = assignmax;
-			}
-			break;
-
-		case '&':
-			if( !allowbitwise ) {
-				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
-				return;
-			}
-
-			if (bank != NULL)
-			{
-				for(int i = 0; bank[i]; i++)
-					lptr[i] &= temp_flags[i];
-			}
-			else
-				*lptr &= value;
-			break;
-		case '|':
-			if( !allowbitwise ) {
-				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
-				return;
-			}
-
-			if (bank != NULL)
-			{
-				for(int i = 0; bank[i]; i++)
-					lptr[i] |= temp_flags[i];
-			}
-			else
-				*lptr |= value;
-			break;
-		case '!':
-			if( !allowbitwise ) {
-				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
-				return;
-			}
-
-			if (bank != NULL)
-			{
-				for(int i = 0; bank[i]; i++)
-					lptr[i] &= ~temp_flags[i];
-			}
-			else
-				*lptr &= ~value;
-			break;
-		case '^':
-			if( !allowbitwise ) {
-				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
-				return;
-			}
-
-			if (bank != NULL)
-			{
-				for(int i = 0; bank[i]; i++)
-					lptr[i] ^= temp_flags[i];
-			}
-			else
-				*lptr ^= value;
-
-			break;
-		default:
-			return;
-		}
-
-		if( lptr )
-		{
-			if(hasmin && *lptr < min)
-				*lptr = min;
-
-			if(hasmax && *lptr > max)
-				*lptr = max;
-		}
-	} else {
-		switch (buf[0]) {
-		case '+':
-			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
-				return;
-			}
-
-			*ptr += value;
-			break;
-
-		case '-':
-			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
-				return;
-			}
-
-			*ptr -= value;
-			break;
-
-		case '*':
-			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
-				return;
-			}
-
-			*ptr *= value;
-			break;
-
-		case '/':
-			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
-				return;
-			}
-
-			if (!value) {
-				bug("Alterobj - adjust called with operator / and value 0", 0);
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
-				return;
-			}
-			*ptr /= value;
-			break;
-		case '%':
-			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
-				return;
-			}
-
-			if (!value) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
-				bug("Alterobj - adjust called with operator % and value 0", 0);
-				return;
-			}
-			*ptr %= value;
-			break;
-
-		case '>':
-			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
-				return;
-			}
-
-			if (value > *ptr)
-				*ptr = value;
-			break;
-
-		case '<':
-			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
-				return;
-			}
-
-			if (value < *ptr)
-				*ptr = value;
-			break;
-
-		case '=':
-			if (bank != NULL)
-			{
-				for(int i = 0; bank[i]; i++)
-					ptr[i] = temp_flags[i];
-			}
-			else
-				*ptr = value;
-
-			// When explicitly assigning, allow different ranges
-			if (hasassignmin)
-			{
-				hasmin = true;
-				min = assignmin;
-			}
-
-			if (hasassignmax)
-			{
-				hasmax = true;
-				max = assignmax;
-			}
-			break;
-
-		case '&':
-			if( !allowbitwise ) {
-				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
-				return;
-			}
-
-			if (bank != NULL)
-			{
-				for(int i = 0; bank[i]; i++)
-					ptr[i] &= temp_flags[i];
-			}
-			else
-				*ptr &= value;
-			break;
-		case '|':
-			if( !allowbitwise ) {
-				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
-				return;
-			}
-
-			if (bank != NULL)
-			{
-				for(int i = 0; bank[i]; i++)
-					ptr[i] |= temp_flags[i];
-			}
-			else
-				*ptr |= value;
-			break;
-		case '!':
-			if( !allowbitwise ) {
-				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
-				return;
-			}
-
-			if (bank != NULL)
-			{
-				for(int i = 0; bank[i]; i++)
-					ptr[i] &= ~temp_flags[i];
-			}
-			else
-				*ptr &= ~value;
-			break;
-		case '^':
-			if( !allowbitwise ) {
-				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
-					buf[0], field);
-				scriptcmd_bug(info, msg);
-				return;
-			}
-
-			if (bank != NULL)
-			{
-				for(int i = 0; bank[i]; i++)
-					ptr[i] ^= temp_flags[i];
-			}
-			else
-				*ptr ^= value;
-
-			break;
-		default:
-			return;
-		}
-
-		if( ptr )
-		{
-			if(hasmin && *ptr < min)
-				*ptr = (int)min;
-
-			if(hasmax && *ptr > max)
-				*ptr = (int)max;
 		}
 	}
 
