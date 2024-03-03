@@ -3170,12 +3170,15 @@ SCRIPT_CMD(do_rpaltermob)
 
 	if(!field[0]) return;
 
+/*
 	argument = one_argument(rest,buf);
 
 	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("RpAlterMob - Error in parsing.",0);
 		return;
 	}
+
+*/
 
 	if(!str_cmp(field,"acbash"))		ptr = (int*)&mob->armour[AC_BASH];
 	else if(!str_cmp(field,"acexotic"))	ptr = (int*)&mob->armour[AC_EXOTIC];

@@ -3599,7 +3599,8 @@ SCRIPT_CMD(do_tpstringobj)
 SCRIPT_CMD(do_tpaltermob)
 {
 	char buf[MSL],field[MIL],*rest;
-	int value = 0, min_sec = MIN_SCRIPT_SECURITY, min = 0, max = 0;
+	long value = 0; 
+	int min_sec = MIN_SCRIPT_SECURITY, min = 0, max = 0;
 	CHAR_DATA *mob = NULL;
 
 	int *ptr = NULL;
@@ -3657,13 +3658,14 @@ SCRIPT_CMD(do_tpaltermob)
 
 	if(!field[0]) return;
 
+/*
 	argument = one_argument(rest,buf);
 
 	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("TpAlterMob - Error in parsing.",0);
 		return;
 	}
-
+*/
 	if(!str_cmp(field,"acbash"))		ptr = (int*)&mob->armour[AC_BASH];
 	else if(!str_cmp(field,"acexotic"))	ptr = (int*)&mob->armour[AC_EXOTIC];
 	else if(!str_cmp(field,"acpierce"))	ptr = (int*)&mob->armour[AC_PIERCE];
@@ -3767,7 +3769,6 @@ SCRIPT_CMD(do_tpaltermob)
 		bug("AlterMob - Error in parsing.",0);
 		return;
 	}
-
 
 	// MINIMUM to alter ANYTHING not allowed on players on a player
 	if(!allowpc && !IS_NPC(mob)) min_sec = 9;

@@ -3518,13 +3518,14 @@ SCRIPT_CMD(do_opaltermob)
 
 	if(!field[0]) return;
 
+/*
 	argument = one_argument(rest,buf);
 
 	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpAlterMob - Error in parsing.",0);
 		return;
 	}
-
+*/
 	if(!str_cmp(field,"acbash"))		ptr = (int*)&mob->armour[AC_BASH];
 	else if(!str_cmp(field,"acexotic"))	ptr = (int*)&mob->armour[AC_EXOTIC];
 	else if(!str_cmp(field,"acpierce"))	ptr = (int*)&mob->armour[AC_PIERCE];
