@@ -4559,16 +4559,22 @@ SCRIPT_CMD(scriptcmd_xcall)
 
 SCRIPT_CMD(scriptcmd_alterobj)
 {
+	char msg[MSL];
 	char buf[2*MIL],field[MIL],*rest;
 	int value = 0, num, min_sec = MIN_SCRIPT_SECURITY;
 	OBJ_DATA *obj = NULL;
 	int min = 0, max = 0;
 	bool hasmin = false, hasmax = false;
+	long assignmin = 0, assignmax = 0;
+	bool hasassignmin = false, hasassignmax = false;
 	bool allowarith = true;
+	bool allowbitwise = true;
 	const struct flag_type *flags = NULL;
 	const struct flag_type **bank = NULL;
 	long temp_flags[4];
 	int sec_flags[4];
+	int *ptr = NULL;
+	long *lptr = NULL;
 
 	if(!info) return;
 
@@ -4643,52 +4649,24 @@ SCRIPT_CMD(scriptcmd_alterobj)
 			return;
 		}
 
-		switch (buf[0]) {
-		case '+': obj->value[num] += value; break;
-		case '-': obj->value[num] -= value; break;
-		case '*': obj->value[num] *= value; break;
-		case '/':
-			if (!value) {
-				bug("AlterObj - adjust called with operator / and value 0", 0);
-				return;
-			}
-			obj->value[num] /= value;
-			break;
-		case '%':
-			if (!value) {
-				bug("AlterObj - adjust called with operator % and value 0", 0);
-				return;
-			}
-			obj->value[num] %= value;
-			break;
-
-		case '=': obj->value[num] = value; break;
-		case '&': obj->value[num] &= value; break;
-		case '|': obj->value[num] |= value; break;
-		case '!': obj->value[num] &= ~value; break;
-		case '^': obj->value[num] ^= value; break;
-		default:
-			return;
-		}
 	} else {
-		long *ptr = NULL;
+		
 
-		if(!str_cmp(field,"cond"))				ptr = (long*)&obj->condition;
-		else if(!str_cmp(field,"cost"))			{ ptr = (long*)&obj->cost; min_sec = 5; }
-		else if(!str_cmp(field,"extra"))		{ ptr = (long*)obj->extra; bank = extra_flagbank; sec_flags[1] = sec_flags[2] = sec_flags[3] = 5; }
-		else if(!str_cmp(field,"fixes"))		{ ptr = (long*)&obj->times_allowed_fixed; min_sec = 5; }
-		else if(!str_cmp(field,"level"))		{ ptr = (long*)&obj->level; min_sec = 5; }
-		else if(!str_cmp(field,"repairs"))		ptr = (long*)&obj->times_fixed;
-		else if(!str_cmp(field,"tempstore1"))	ptr = (long*)&obj->tempstore[0];
-		else if(!str_cmp(field,"tempstore2"))	ptr = (long*)&obj->tempstore[1];
-		else if(!str_cmp(field,"tempstore3"))	ptr = (long*)&obj->tempstore[2];
-		else if(!str_cmp(field,"tempstore4"))	ptr = (long*)&obj->tempstore[3];
-		else if(!str_cmp(field,"tempstore5"))	ptr = (long*)&obj->tempstore[4];
-		else if(!str_cmp(field,"timer"))		ptr = (long*)&obj->timer;
-		else if(!str_cmp(field,"type"))			{ ptr = (long*)&obj->item_type; flags = type_flags; min_sec = 7; }
-		else if(!str_cmp(field,"wear"))			{ ptr = (long*)&obj->wear_flags; flags = wear_flags; }
-		else if(!str_cmp(field,"wearloc"))		{ ptr = (long*)&obj->wear_loc; flags = wear_loc_flags; }
-		else if(!str_cmp(field,"weight"))		ptr = (long*)&obj->weight;
+		if(!str_cmp(field,"cond"))				{ ptr = (int*)&obj->condition; allowarith = true; allowbitwise = false; }
+		else if(!str_cmp(field,"cost"))			{ ptr = (int*)&obj->cost; min_sec = 5; allowarith = true; allowbitwise = false; }
+		else if(!str_cmp(field,"extra"))		{ lptr = obj->extra; bank = extra_flagbank; sec_flags[1] = sec_flags[2] = sec_flags[3] = 5; allowarith = false; allowbitwise = true; }
+		else if(!str_cmp(field,"fixes"))		{ ptr = (int*)&obj->times_allowed_fixed; min_sec = 5; allowarith = true; allowbitwise = false; }
+		else if(!str_cmp(field,"level"))		{ ptr = (int*)&obj->level; min_sec = 5; allowarith = true; allowbitwise = false; }
+		else if(!str_cmp(field,"repairs"))		{ ptr = (int*)&obj->times_fixed; allowarith = true; allowbitwise = false; }
+		else if(!str_cmp(field,"tempstore1"))	ptr = (int*)&obj->tempstore[0];
+		else if(!str_cmp(field,"tempstore2"))	ptr = (int*)&obj->tempstore[1];
+		else if(!str_cmp(field,"tempstore3"))	ptr = (int*)&obj->tempstore[2];
+		else if(!str_cmp(field,"tempstore4"))	ptr = (int*)&obj->tempstore[3];
+		else if(!str_cmp(field,"timer"))		{ ptr = (int*)&obj->timer; allowarith = true; allowbitwise = false; }
+		else if(!str_cmp(field,"type"))			{ ptr = (int*)&obj->item_type; flags = type_flags; min_sec = 7; }
+		else if(!str_cmp(field,"wear"))			{ ptr = (int*)&obj->wear_flags; flags = wear_flags; allowarith = false; allowbitwise = true; }
+		else if(!str_cmp(field,"wearloc"))		{ ptr = (int*)&obj->wear_loc; flags = wear_loc_flags; allowarith = false; allowbitwise = false; }
+		else if(!str_cmp(field,"weight"))		{ ptr = (int*)&obj->weight; allowarith = true; allowbitwise = false; }
 
 		if(!ptr) return;
 
@@ -4773,11 +4751,209 @@ SCRIPT_CMD(scriptcmd_alterobj)
 			default: return;
 			}
 		}
+	}
 
+	if (lptr) {
 		switch (buf[0]) {
 		case '+':
 			if( !allowarith ) {
-				bug("AlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			*lptr += value;
+			break;
+
+		case '-':
+			if( !allowarith ) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			*lptr -= value;
+			break;
+
+		case '*':
+			if( !allowarith ) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			*lptr *= value;
+			break;
+
+		case '/':
+			if( !allowarith ) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (!value) {
+				bug("Alterobj - adjust called with operator / and value 0", 0);
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+			*lptr /= value;
+			break;
+		case '%':
+			if( !allowarith ) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (!value) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				bug("Alterobj - adjust called with operator % and value 0", 0);
+				return;
+			}
+			*lptr %= value;
+			break;
+
+		case '>':
+			if( !allowarith ) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (value > *lptr)
+				*lptr = value;
+			break;
+
+		case '<':
+			if( !allowarith ) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (value < *lptr)
+				*lptr = value;
+			break;
+
+		case '=':
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] = temp_flags[i];
+			}
+			else
+				*lptr = value;
+
+			// When explicitly assigning, allow different ranges
+			if (hasassignmin)
+			{
+				hasmin = true;
+				min = assignmin;
+			}
+
+			if (hasassignmax)
+			{
+				hasmax = true;
+				max = assignmax;
+			}
+			break;
+
+		case '&':
+			if( !allowbitwise ) {
+				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] &= temp_flags[i];
+			}
+			else
+				*lptr &= value;
+			break;
+		case '|':
+			if( !allowbitwise ) {
+				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] |= temp_flags[i];
+			}
+			else
+				*lptr |= value;
+			break;
+		case '!':
+			if( !allowbitwise ) {
+				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] &= ~temp_flags[i];
+			}
+			else
+				*lptr &= ~value;
+			break;
+		case '^':
+			if( !allowbitwise ) {
+				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] ^= temp_flags[i];
+			}
+			else
+				*lptr ^= value;
+
+			break;
+		default:
+			return;
+		}
+
+		if( lptr )
+		{
+			if(hasmin && *lptr < min)
+				*lptr = min;
+
+			if(hasmax && *lptr > max)
+				*lptr = max;
+		}
+	} else {
+		switch (buf[0]) {
+		case '+':
+			if( !allowarith ) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
 				return;
 			}
 
@@ -4786,7 +4962,9 @@ SCRIPT_CMD(scriptcmd_alterobj)
 
 		case '-':
 			if( !allowarith ) {
-				bug("AlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
 				return;
 			}
 
@@ -4795,7 +4973,9 @@ SCRIPT_CMD(scriptcmd_alterobj)
 
 		case '*':
 			if( !allowarith ) {
-				bug("AlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
 				return;
 			}
 
@@ -4804,27 +4984,61 @@ SCRIPT_CMD(scriptcmd_alterobj)
 
 		case '/':
 			if( !allowarith ) {
-				bug("AlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
 				return;
 			}
 
 			if (!value) {
-				bug("AlterObj - adjust called with operator / and value 0", 0);
+				bug("Alterobj - adjust called with operator / and value 0", 0);
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
 				return;
 			}
 			*ptr /= value;
 			break;
 		case '%':
 			if( !allowarith ) {
-				bug("AlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
 				return;
 			}
 
 			if (!value) {
-				bug("AlterObj - adjust called with operator % and value 0", 0);
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				bug("Alterobj - adjust called with operator % and value 0", 0);
 				return;
 			}
 			*ptr %= value;
+			break;
+
+		case '>':
+			if( !allowarith ) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (value > *ptr)
+				*ptr = value;
+			break;
+
+		case '<':
+			if( !allowarith ) {
+				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
+			if (value < *ptr)
+				*ptr = value;
 			break;
 
 		case '=':
@@ -4835,9 +5049,29 @@ SCRIPT_CMD(scriptcmd_alterobj)
 			}
 			else
 				*ptr = value;
+
+			// When explicitly assigning, allow different ranges
+			if (hasassignmin)
+			{
+				hasmin = true;
+				min = assignmin;
+			}
+
+			if (hasassignmax)
+			{
+				hasmax = true;
+				max = assignmax;
+			}
 			break;
 
 		case '&':
+			if( !allowbitwise ) {
+				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
 			if (bank != NULL)
 			{
 				for(int i = 0; bank[i]; i++)
@@ -4847,6 +5081,13 @@ SCRIPT_CMD(scriptcmd_alterobj)
 				*ptr &= value;
 			break;
 		case '|':
+			if( !allowbitwise ) {
+				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
 			if (bank != NULL)
 			{
 				for(int i = 0; bank[i]; i++)
@@ -4856,6 +5097,13 @@ SCRIPT_CMD(scriptcmd_alterobj)
 				*ptr |= value;
 			break;
 		case '!':
+			if( !allowbitwise ) {
+				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
 			if (bank != NULL)
 			{
 				for(int i = 0; bank[i]; i++)
@@ -4865,6 +5113,13 @@ SCRIPT_CMD(scriptcmd_alterobj)
 				*ptr &= ~value;
 			break;
 		case '^':
+			if( !allowbitwise ) {
+				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+					buf[0], field);
+				scriptcmd_bug(info, msg);
+				return;
+			}
+
 			if (bank != NULL)
 			{
 				for(int i = 0; bank[i]; i++)
@@ -4881,10 +5136,10 @@ SCRIPT_CMD(scriptcmd_alterobj)
 		if( ptr )
 		{
 			if(hasmin && *ptr < min)
-				*ptr = min;
+				*ptr = (int)min;
 
 			if(hasmax && *ptr > max)
-				*ptr = max;
+				*ptr = (int)max;
 		}
 	}
 
@@ -4901,7 +5156,8 @@ SCRIPT_CMD(scriptcmd_alterroom)
 	ROOM_INDEX_DATA *room;
 	WILDS_DATA *wilds;
 
-	long *ptr = NULL;
+	long *lptr = NULL;
+	int *ptr = NULL;
 	int16_t *sptr = NULL;
 	char **str;
 	bool allow_empty = false;
@@ -5042,30 +5298,36 @@ SCRIPT_CMD(scriptcmd_alterroom)
 		return;
 	}
 
-	argument = one_argument(rest,buf);
-
-	if(!(rest = expand_argument(info,argument,arg))) {
-		bug("AlterRoom - Error in parsing.",0);
+	rest = one_argument(rest,buf);
+	int op = cmd_operator_lookup(buf);
+	if (op == OPR_UNKNOWN)
 		return;
+
+	if (cmd_operator_info[op][OPR_NEEDS_VALUE])
+	{
+		if(!(rest = expand_argument(info,rest,arg))) {
+			bug("AlterRoom - Error in parsing.",0);
+			return;
+		}
 	}
 
-	if(!str_cmp(field,"flags"))				{ ptr = (long*)room->room_flag; bank = room_flagbank; }
-	else if(!str_cmp(field,"light"))		{ ptr = (long*)&room->light; }
-	else if(!str_cmp(field,"sector"))		{ ptr = (long*)&room->sector_type; flags = sector_flags; }
-	else if(!str_cmp(field,"heal"))			{ ptr = (long*)&room->heal_rate; min_sec = 9; }
-	else if(!str_cmp(field,"mana"))			{ ptr = (long*)&room->mana_rate; min_sec = 9; }
-	else if(!str_cmp(field,"move"))			{ ptr = (long*)&room->move_rate; min_sec = 1; }
-	else if(!str_cmp(field,"mapx"))			{ ptr = (long*)&room->x; min_sec = 5; allow_static = false; }
-	else if(!str_cmp(field,"mapy"))			{ ptr = (long*)&room->y; min_sec = 5; allow_static = false; }
-	else if(!str_cmp(field,"rsflags"))		{ ptr = (long*)room->rs_room_flag; bank = room_flagbank; allow_static = false; }
-	else if(!str_cmp(field,"rssector"))		{ ptr = (long*)&room->rs_sector_type; allow_static = false; }
-	else if(!str_cmp(field,"rsheal"))		{ ptr = (long*)&room->rs_heal_rate; min_sec = 9; allow_static = false; }
-	else if(!str_cmp(field,"rsmana"))		{ ptr = (long*)&room->rs_mana_rate; min_sec = 9; allow_static = false; }
-	else if(!str_cmp(field,"rsmove"))		{ ptr = (long*)&room->rs_move_rate; min_sec = 1; allow_static = false; }
-	else if(!str_cmp(field,"tempstore1"))	{ ptr = (long*)&room->tempstore[0]; }
-	else if(!str_cmp(field,"tempstore2"))	{ ptr = (long*)&room->tempstore[1]; }
-	else if(!str_cmp(field,"tempstore3"))	{ ptr = (long*)&room->tempstore[2]; }
-	else if(!str_cmp(field,"tempstore4"))	{ ptr = (long*)&room->tempstore[3]; }
+	if(!str_cmp(field,"flags"))				{ lptr = room->room_flag; bank = room_flagbank; }
+	else if(!str_cmp(field,"light"))		{ ptr = (int*)&room->light; hasmin = true; min = 0; allowbitwise = false; }
+	else if(!str_cmp(field,"sector"))		{ ptr = (int*)&room->sector_type; flags = sector_flags; }
+	else if(!str_cmp(field,"heal"))			{ ptr = (int*)&room->heal_rate; min_sec = 1; }
+	else if(!str_cmp(field,"mana"))			{ ptr = (int*)&room->mana_rate; min_sec = 1; }
+	else if(!str_cmp(field,"move"))			{ ptr = (int*)&room->move_rate; min_sec = 1; }
+	else if(!str_cmp(field,"mapx"))			{ ptr = (int*)&room->x; min_sec = 5; allow_static = false; }
+	else if(!str_cmp(field,"mapy"))			{ ptr = (int*)&room->y; min_sec = 5; allow_static = false; }
+	else if(!str_cmp(field,"rsflags"))		{ lptr = room->rs_room_flag; bank = room_flagbank; allow_static = false; }
+	else if(!str_cmp(field,"rssector"))		{ ptr = (int*)&room->rs_sector_type; allow_static = false; }
+	else if(!str_cmp(field,"rsheal"))		{ ptr = (int*)&room->rs_heal_rate; min_sec = 9; allow_static = false; }
+	else if(!str_cmp(field,"rsmana"))		{ ptr = (int*)&room->rs_mana_rate; min_sec = 9; allow_static = false; }
+	else if(!str_cmp(field,"rsmove"))		{ ptr = (int*)&room->rs_move_rate; min_sec = 1; allow_static = false; }
+	else if(!str_cmp(field,"tempstore1"))	{ ptr = (int*)&room->tempstore[0]; }
+	else if(!str_cmp(field,"tempstore2"))	{ ptr = (int*)&room->tempstore[1]; }
+	else if(!str_cmp(field,"tempstore3"))	{ ptr = (int*)&room->tempstore[2]; }
+	else if(!str_cmp(field,"tempstore4"))	{ ptr = (int*)&room->tempstore[3]; }
 
 	if(!ptr && !sptr) return;
 
@@ -5130,50 +5392,114 @@ SCRIPT_CMD(scriptcmd_alterroom)
 	}
 
 
-	if(ptr) {
-		switch (buf[0]) {
-		case '+':
-			if( !allowarith ) {
-				bug("AlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+	if(lptr) {
+		switch (op) {
+		case OPR_ADD:
+			*lptr += value; break;
+
+		case OPR_SUB:
+			*lptr -= value; break;
+
+		case OPR_MULT:
+			*lptr *= value; break;
+
+		case OPR_DIV:
+			if (!value) {
+				bug("AlterRoom - alterroom called with operator / and value 0", 0);
 				return;
 			}
+			*lptr /= value; break;
 
+		case OPR_MOD:
+			if (!value) {
+				bug("AlterRoom - alterroom called with operator % and value 0", 0);
+				return;
+			}
+			*lptr %= value; break;
+
+		case OPR_INC: (*lptr) += 1; break;
+		case OPR_DEC: (*lptr) += 1; break;
+		case OPR_MIN: *lptr = UMIN(*lptr, value); break;
+		case OPR_MAX: *lptr = UMAX(*lptr, value); break;
+
+		case OPR_ASSIGN:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] = temp_flags[i];
+			}
+			else
+				*lptr = value;
+			break;
+
+		case OPR_AND:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] &= temp_flags[i];
+			}
+			else
+				*lptr &= value;
+			break;
+
+		case OPR_OR:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] |= temp_flags[i];
+			}
+			else
+				*lptr |= value;
+			break;
+
+		case OPR_NOT:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] &= ~temp_flags[i];
+			}
+			else
+				*lptr &= ~value;
+			break;
+
+		case OPR_XOR:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] ^= temp_flags[i];
+			}
+			else
+				*lptr ^= value;
+			break;
+
+		default:
+			return;
+		}
+
+		if (hasmin && *lptr < min)
+			*lptr = min;
+		if(hasmax && *lptr > max)
+			*lptr = max;
+
+	} else if(ptr) {
+		switch (op) {
+		case OPR_ADD:
 			*ptr += value; break;
 
-		case '-':
-			if( !allowarith ) {
-				bug("AlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
-				return;
-			}
-
+		case OPR_SUB:
 			*ptr -= value; break;
 
-		case '*':
-			if( !allowarith ) {
-				bug("AlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
-				return;
-			}
-
+		case OPR_MULT:
 			*ptr *= value; break;
 
-		case '/':
-			if( !allowarith ) {
-				bug("AlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
-				return;
-			}
-
+		case OPR_DIV:
 			if (!value) {
 				bug("AlterRoom - alterroom called with operator / and value 0", 0);
 				return;
 			}
 			*ptr /= value; break;
 
-		case '%':
-			if( !allowarith ) {
-				bug("AlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
-				return;
-			}
-
+		case OPR_MOD:
 			if (!value) {
 				bug("AlterRoom - alterroom called with operator % and value 0", 0);
 				return;
@@ -5181,7 +5507,12 @@ SCRIPT_CMD(scriptcmd_alterroom)
 
 			*ptr %= value; break;
 
-		case '=':
+		case OPR_INC: (*ptr) += 1; break;
+		case OPR_DEC: (*ptr) += 1; break;
+		case OPR_MIN: *ptr = UMIN(*ptr, value); break;
+		case OPR_MAX: *ptr = UMAX(*ptr, value); break;
+
+		case OPR_ASSIGN:
 			if (bank != NULL)
 			{
 				for(int i = 0; bank[i]; i++)
@@ -5191,12 +5522,7 @@ SCRIPT_CMD(scriptcmd_alterroom)
 				*ptr = value;
 			break;
 
-		case '&':
-			if( !allowbitwise ) {
-				bug("AlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
-				return;
-			}
-
+		case OPR_AND:
 			if (bank != NULL)
 			{
 				for(int i = 0; bank[i]; i++)
@@ -5206,12 +5532,7 @@ SCRIPT_CMD(scriptcmd_alterroom)
 				*ptr &= value;
 			break;
 
-		case '|':
-			if( !allowbitwise ) {
-				bug("AlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
-				return;
-			}
-
+		case OPR_OR:
 			if (bank != NULL)
 			{
 				for(int i = 0; bank[i]; i++)
@@ -5221,27 +5542,19 @@ SCRIPT_CMD(scriptcmd_alterroom)
 				*ptr |= value;
 			break;
 
-		case '!':
-			if( !allowbitwise ) {
-				bug("AlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
-				return;
-			}
-
+		case OPR_NOT:
 			if (bank != NULL)
 			{
 				for(int i = 0; bank[i]; i++)
+				{
 					ptr[i] &= ~temp_flags[i];
+				}
 			}
 			else
 				*ptr &= ~value;
 			break;
 
-		case '^':
-			if( !allowbitwise ) {
-				bug("AlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
-				return;
-			}
-
+		case OPR_XOR:
 			if (bank != NULL)
 			{
 				for(int i = 0; bank[i]; i++)
@@ -5256,22 +5569,22 @@ SCRIPT_CMD(scriptcmd_alterroom)
 		}
 
 		if (hasmin && *ptr < min)
-			*ptr = min;
+			*ptr = (int)min;
 		if(hasmax && *ptr > max)
-			*ptr = max;
-	} else {
-		switch (buf[0]) {
-		case '+': *sptr += value; break;
-		case '-': *sptr -= value; break;
-		case '*': *sptr *= value; break;
-		case '/':
+			*ptr = (int)max;
+	} else if (sptr) {
+		switch (op) {
+		case OPR_ADD: *sptr += value; break;
+		case OPR_SUB: *sptr -= value; break;
+		case OPR_MULT: *sptr *= value; break;
+		case OPR_DIV:
 			if (!value) {
 				bug("AlterRoom - adjust called with operator / and value 0", 0);
 				return;
 			}
 			*sptr /= value;
 			break;
-		case '%':
+		case OPR_MOD:
 			if (!value) {
 				bug("AlterRoom - adjust called with operator % and value 0", 0);
 				return;
@@ -5279,19 +5592,24 @@ SCRIPT_CMD(scriptcmd_alterroom)
 			*sptr %= value;
 			break;
 
-		case '=': *sptr = value; break;
-		case '&': *sptr &= value; break;
-		case '|': *sptr |= value; break;
-		case '!': *sptr &= ~value; break;
-		case '^': *sptr ^= value; break;
+		case OPR_INC: (*sptr) += 1; break;
+		case OPR_DEC: (*sptr) += 1; break;
+		case OPR_MIN: *sptr = UMIN(*sptr, value); break;
+		case OPR_MAX: *sptr = UMAX(*sptr, value); break;
+
+		case OPR_ASSIGN: *sptr = value; break;
+		case OPR_AND: *sptr &= value; break;
+		case OPR_OR: *sptr |= value; break;
+		case OPR_NOT: *sptr &= ~value; break;
+		case OPR_XOR: *sptr ^= value; break;
 		default:
 			return;
 		}
 
 		if (hasmin && *sptr < min)
-			*sptr = min;
+			*sptr = (int16_t)min;
 		if(hasmax && *sptr > max)
-			*sptr = max;
+			*sptr = (int16_t)max;
 	}
 }
 

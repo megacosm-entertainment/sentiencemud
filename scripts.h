@@ -104,6 +104,30 @@ enum {
 	DONE	/* done processing the stack */
 };
 
+enum cmd_operators_enum {
+	OPR_UNKNOWN = -1,		// Error
+	OPR_ASSIGN = 0,			// Assignment
+	OPR_ADD,				// Addition
+	OPR_SUB,				// Subtraction
+	OPR_MULT,				// Multiplication
+	OPR_DIV,				// Division
+	OPR_MOD,				// Modulo Division
+	OPR_INC,				// Increment
+	OPR_DEC,				// Decrement
+	OPR_MIN,				// Minimum
+	OPR_MAX,				// Maximum
+	OPR_AND,				// Bitwise AND (mask)
+	OPR_OR,					// Bitwise OR (set)
+	OPR_NOT,				// Bitwise NOT (reset)
+	OPR_XOR,				// Bitwise XOR (toggle)
+
+	OPR_END
+};
+
+#define OPR_NEEDS_VALUE		0	// Operator requires a value (must have a value if true, must not if false)
+#define OPR_ARITHMETIC		1	// Operator is arithmetic (allow_arith must be true)
+#define OPR_BITWISE			2	// Operator is bitwise (allow_bitwise must be true)
+
 enum ifcheck_enum {
 	/* A */
 	CHK_ABS=0,CHK_ACT,CHK_ACT2,
@@ -2697,6 +2721,11 @@ bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool sil
 void olc_show_index_vars(BUFFER *buffer, pVARIABLE index_vars);
 void olc_save_index_vars(FILE *fp, pVARIABLE index_vars, AREA_DATA *pRefArea);
 bool olc_load_index_vars(FILE *fp, char *word, ppVARIABLE index_vars, AREA_DATA *pRefArea);
+
+void scriptcmd_bug(SCRIPT_VARINFO *info, char *message);
+int cmd_operator_lookup(const char *str);
+
+extern const bool cmd_operator_info[OPR_END][3];
 
 #include "tables.h"
 

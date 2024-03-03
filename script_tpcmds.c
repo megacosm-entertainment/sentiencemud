@@ -3602,7 +3602,8 @@ SCRIPT_CMD(do_tpaltermob)
 	int value = 0, min_sec = MIN_SCRIPT_SECURITY, min = 0, max = 0;
 	CHAR_DATA *mob = NULL;
 
-	long *ptr = NULL;
+	int *ptr = NULL;
+	long *lptr = NULL;
 	bool allowpc = false;
 	bool allowarith = true;
 	bool allowbitwise = true;
@@ -3663,101 +3664,109 @@ SCRIPT_CMD(do_tpaltermob)
 		return;
 	}
 
-	if(!str_cmp(field,"acbash"))		ptr = (long*)&mob->armour[AC_BASH];
-	else if(!str_cmp(field,"acexotic"))	ptr = (long*)&mob->armour[AC_EXOTIC];
-	else if(!str_cmp(field,"acpierce"))	ptr = (long*)&mob->armour[AC_PIERCE];
-	else if(!str_cmp(field,"acslash"))	ptr = (long*)&mob->armour[AC_SLASH];
-	else if(!str_cmp(field,"act"))		{ ptr = (long*)&mob->act; bank = IS_NPC(mob) ? act_flagbank : plr_flagbank; }
-	//else if(!str_cmp(field,"act2"))		{ ptr = (long*)&mob->act2; flags = IS_NPC(mob) ? act2_flags : plr2_flags; }
-	else if(!str_cmp(field,"affect"))	{ ptr = (long*)&mob->affected_by; bank = affect_flagbank; }
-	//else if(!str_cmp(field,"affect2"))	{ ptr = (long*)&mob->affected_by2; flags = affect2_flags; }
-	else if(!str_cmp(field,"alignment"))	ptr = (long*)&mob->alignment;
-	else if(!str_cmp(field,"bashed"))	ptr = (long*)&mob->bashed;
-	else if(!str_cmp(field,"bind"))		ptr = (long*)&mob->bind;
-	else if(!str_cmp(field,"bomb"))		ptr = (long*)&mob->bomb;
-	else if(!str_cmp(field,"brew"))		ptr = (long*)&mob->brew;
-	else if(!str_cmp(field,"cast"))		ptr = (long*)&mob->cast;
-	else if(!str_cmp(field,"comm"))		{ ptr = IS_NPC(mob)?NULL:(long*)&mob->comm; allowpc = true; allowarith = false; min_sec = 7; flags = comm_flags; }		// 20140512NIB - Allows for scripted fun with player communications, only bit operators allowed
-	else if(!str_cmp(field,"damroll"))	ptr = (long*)&mob->damroll;
-	else if(!str_cmp(field,"damtype"))	{ ptr = (long*)&mob->dam_type; allowpc = false; allowarith = false; min_sec = 7; lookup_attack_type = true; }
-	else if(!str_cmp(field,"danger"))	{ ptr = IS_NPC(mob)?NULL:(long*)&mob->pcdata->danger_range; allowpc = true; }
-	else if(!str_cmp(field,"daze"))		ptr = (long*)&mob->daze;
-	else if(!str_cmp(field,"death"))	{ ptr = (IS_NPC(mob) || !IS_DEAD(mob))?NULL:(long*)&mob->time_left_death; allowpc = true; }
-	else if(!str_cmp(field,"dicenumber"))	{ ptr = IS_NPC(mob)?(long*)&mob->damage.number:NULL; }
-	else if(!str_cmp(field,"dicetype"))	{ ptr = IS_NPC(mob)?(long*)&mob->damage.size:NULL; }
-	else if(!str_cmp(field,"dicebonus"))	{ ptr = IS_NPC(mob)?(long*)&mob->damage.bonus:NULL; }
-	else if(!str_cmp(field,"drunk"))	{ ptr = IS_NPC(mob)?NULL:(long*)&mob->pcdata->condition[COND_DRUNK]; allowpc = true; }
+	if(!str_cmp(field,"acbash"))		ptr = (int*)&mob->armour[AC_BASH];
+	else if(!str_cmp(field,"acexotic"))	ptr = (int*)&mob->armour[AC_EXOTIC];
+	else if(!str_cmp(field,"acpierce"))	ptr = (int*)&mob->armour[AC_PIERCE];
+	else if(!str_cmp(field,"acslash"))	ptr = (int*)&mob->armour[AC_SLASH];
+	else if(!str_cmp(field,"act"))		{ lptr = mob->act; bank = IS_NPC(mob) ? act_flagbank : plr_flagbank; }
+	else if(!str_cmp(field,"affect"))	{ lptr = mob->affected_by; bank = affect_flagbank; }
+	else if(!str_cmp(field,"alignment"))	ptr = (int*)&mob->alignment;
+	else if(!str_cmp(field,"bashed"))	ptr = (int*)&mob->bashed;
+	else if(!str_cmp(field,"bind"))		ptr = (int*)&mob->bind;
+	else if(!str_cmp(field,"bomb"))		ptr = (int*)&mob->bomb;
+	else if(!str_cmp(field,"brew"))		ptr = (int*)&mob->brew;
+	else if(!str_cmp(field,"cast"))		ptr = (int*)&mob->cast;
+	else if(!str_cmp(field,"comm"))		{ lptr = IS_NPC(mob)?NULL:&mob->comm; allowpc = true; allowarith = false; min_sec = 7; flags = comm_flags; }		// 20140512NIB - Allows for scripted fun with player communications, only bit operators allowed
+	else if(!str_cmp(field,"damroll"))	ptr = (int*)&mob->damroll;
+	else if(!str_cmp(field,"damtype"))	{ ptr = (int*)&mob->dam_type; allowpc = false; allowarith = false; min_sec = 7; lookup_attack_type = true; }
+	else if(!str_cmp(field,"danger"))	{ ptr = (int*)IS_NPC(mob)?NULL:&mob->pcdata->danger_range; allowpc = true; }
+	else if(!str_cmp(field,"daze"))		ptr = (int*)&mob->daze;
+	else if(!str_cmp(field,"death"))	{ ptr = (IS_NPC(mob) || !IS_DEAD(mob))?NULL:(int*)&mob->time_left_death; allowpc = true; }
+	else if(!str_cmp(field,"dicenumber"))	{ ptr = IS_NPC(mob)?(int*)&mob->damage.number:NULL; }
+	else if(!str_cmp(field,"dicetype"))	{ ptr = IS_NPC(mob)?(int*)&mob->damage.size:NULL; }
+	else if(!str_cmp(field,"dicebonus"))	{ ptr = IS_NPC(mob)?(int*)&mob->damage.bonus:NULL; }
+	else if(!str_cmp(field,"drunk"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_DRUNK]; allowpc = true; }
 //	else if(!str_cmp(field,"exitdir"))	{ ptr = (long*)&mob->exit_dir; allowpc = true; }
-	else if(!str_cmp(field,"exp"))		{ ptr = (long*)&mob->exp; allowpc = true; }
-	else if(!str_cmp(field,"fade"))		ptr = (long*)&mob->fade;
-	else if(!str_cmp(field,"fullness"))	{ ptr = IS_NPC(mob)?NULL:(long*)&mob->pcdata->condition[COND_FULL]; allowpc = true; }
-	else if(!str_cmp(field,"gold"))		ptr = (long*)&mob->gold;
-	else if(!str_cmp(field,"hide"))		ptr = (long*)&mob->hide;
-	else if(!str_cmp(field,"hit"))		ptr = (long*)&mob->hit;
-	else if(!str_cmp(field,"hitdamage"))	ptr = (long*)&mob->hit_damage;
-	else if(!str_cmp(field,"hitroll"))	ptr = (long*)&mob->hitroll;
-	else if(!str_cmp(field,"hunger"))	{ ptr = IS_NPC(mob)?NULL:(long*)&mob->pcdata->condition[COND_HUNGER]; allowpc = true; }
-	else if(!str_cmp(field,"imm"))		{ ptr = (long*)&mob->imm_flags; allowarith = false; flags = imm_flags; }
-	else if(!str_cmp(field,"level"))	ptr = (long*)&mob->tot_level;
-	else if(!str_cmp(field,"lostparts"))	{ ptr = (long*)&mob->lostparts; allowarith = false; flags = part_flags; }
-	else if(!str_cmp(field,"mana"))		ptr = (long*)&mob->mana;
-	else if(!str_cmp(field,"manastore"))	{ ptr = (long*)&mob->manastore; allowpc = true; }
+	else if(!str_cmp(field,"exp"))		{ lptr = &mob->exp; allowpc = true; }
+	else if(!str_cmp(field,"fade"))		ptr = (int*)&mob->fade;
+	else if(!str_cmp(field,"fullness"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_FULL]; allowpc = true; }
+	else if(!str_cmp(field,"gold"))		lptr = &mob->gold;
+	else if(!str_cmp(field,"hide"))		ptr = (int*)&mob->hide;
+	else if(!str_cmp(field,"hit"))		lptr = &mob->hit;
+	else if(!str_cmp(field,"hitdamage"))	ptr = (int*)&mob->hit_damage;
+	else if(!str_cmp(field,"hitroll"))	ptr = (int*)&mob->hitroll;
+	else if(!str_cmp(field,"hunger"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_HUNGER]; allowpc = true; }
+	else if(!str_cmp(field,"imm"))		{ lptr = &mob->imm_flags; allowarith = false; flags = imm_flags; }
+	else if(!str_cmp(field,"level"))	ptr = (int*)&mob->tot_level;
+	else if(!str_cmp(field,"lostparts"))	{ lptr = &mob->lostparts; allowarith = false; flags = part_flags; }
+	else if(!str_cmp(field,"mana"))		lptr = &mob->mana;
+	else if(!str_cmp(field,"manastore"))	{ ptr = (int*)&mob->manastore; allowpc = true; }
 //	else if(!str_cmp(field,"material"))	ptr = (long*)&mob->material;
-	else if(!str_cmp(field,"maxexp"))	ptr = (long*)&mob->maxexp;
-	else if(!str_cmp(field,"maxhit"))	ptr = (long*)&mob->max_hit;
-	else if(!str_cmp(field,"maxmana"))	ptr = (long*)&mob->max_mana;
-	else if(!str_cmp(field,"maxmove"))	ptr = (long*)&mob->max_move;
-	else if(!str_cmp(field,"mazed"))	{ ptr = (IS_NPC(mob))?NULL:(long*)&mob->maze_time_left; allowpc = true; }
-	else if(!str_cmp(field,"modcon"))	{ ptr = (long*)&mob->mod_stat[STAT_CON]; allowpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_CON; }
-	else if(!str_cmp(field,"moddex"))	{ ptr = (long*)&mob->mod_stat[STAT_DEX]; allowpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_DEX; }
-	else if(!str_cmp(field,"modint"))	{ ptr = (long*)&mob->mod_stat[STAT_INT]; allowpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_INT; }
-	else if(!str_cmp(field,"modstr"))	{ ptr = (long*)&mob->mod_stat[STAT_STR]; allowpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_STR; }
-	else if(!str_cmp(field,"modwis"))	{ ptr = (long*)&mob->mod_stat[STAT_WIS]; allowpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_WIS; }
-	else if(!str_cmp(field,"move"))		ptr = (long*)&mob->move;
-	else if(!str_cmp(field,"music"))	ptr = (long*)&mob->music;
-	else if(!str_cmp(field,"norecall"))	ptr = (long*)&mob->no_recall;
-	else if(!str_cmp(field,"panic"))	ptr = (long*)&mob->panic;
-	else if(!str_cmp(field,"paralyzed"))	ptr = (long*)&mob->paralyzed;
-	else if(!str_cmp(field,"paroxysm"))	ptr = (long*)&mob->paroxysm;
-	else if(!str_cmp(field,"parts"))	{ ptr = (long*)&mob->parts; allowarith = false; flags = part_flags; }
-	else if(!str_cmp(field,"permaffects"))	{ ptr = (long*)&mob->affected_by_perm; bank = affect_flagbank; }
-//	else if(!str_cmp(field,"permaffects2"))	{ ptr = (long*)&mob->affected_by_perm[1]; allowarith = false; flags = affect2_flags; }
-	else if(!str_cmp(field,"permimm"))	{ ptr = (long*)&mob->imm_flags_perm; allowarith = false; flags = imm_flags; }
-	else if(!str_cmp(field,"permres"))	{ ptr = (long*)&mob->res_flags_perm; allowarith = false; flags = imm_flags; }
-	else if(!str_cmp(field,"permvuln"))	{ ptr = (long*)&mob->vuln_flags_perm; allowarith = false; flags = imm_flags; }
-	else if(!str_cmp(field,"pktimer"))	ptr = (long*)&mob->pk_timer;
-	else if(!str_cmp(field,"pneuma"))	ptr = (long*)&mob->pneuma;
-	else if(!str_cmp(field,"practice"))	ptr = (long*)&mob->practice;
-	else if(!str_cmp(field,"race"))		{ ptr = (long*)&mob->race; min_sec = 7; allowarith = false; lookuprace = true; }
-	else if(!str_cmp(field,"ranged"))	ptr = (long*)&mob->ranged;
-	else if(!str_cmp(field,"recite"))	ptr = (long*)&mob->recite;
-	else if(!str_cmp(field,"res"))		{ ptr = (long*)&mob->res_flags;  allowarith = false; flags = imm_flags; }
-	else if(!str_cmp(field,"resurrect"))	ptr = (long*)&mob->resurrect;
-	else if(!str_cmp(field,"reverie"))	ptr = (long*)&mob->reverie;
-	else if(!str_cmp(field,"scribe"))	ptr = (long*)&mob->scribe;
-	else if(!str_cmp(field,"sex"))		{ ptr = (long*)&mob->sex; min = 0; max = 2; hasmin = hasmax = true; flags = sex_flags; }
-	else if(!str_cmp(field,"silver"))	ptr = (long*)&mob->silver;
-	else if(!str_cmp(field,"size"))		{ ptr = (long*)&mob->size; min = SIZE_TINY; max = SIZE_GIANT; hasmin = hasmax = true; flags = size_flags; }
-	else if(!str_cmp(field,"skillchance"))	ptr = (long*)&mob->skill_chance;
-	else if(!str_cmp(field,"sublevel"))	ptr = (long*)&mob->level;
-	else if(!str_cmp(field,"tempstore1"))	{ ptr = (long*)&mob->tempstore[0]; allowpc = true; }
-	else if(!str_cmp(field,"tempstore2"))	{ ptr = (long*)&mob->tempstore[1]; allowpc = true; }
-	else if(!str_cmp(field,"tempstore3"))	{ ptr = (long*)&mob->tempstore[2]; allowpc = true; }
-	else if(!str_cmp(field,"tempstore4"))	{ ptr = (long*)&mob->tempstore[3]; allowpc = true; }
-	else if(!str_cmp(field,"thirst"))	{ ptr = IS_NPC(mob)?NULL:(long*)&mob->pcdata->condition[COND_THIRST]; allowpc = true; }
-	else if(!str_cmp(field,"toxinneuro"))	ptr = (long*)&mob->toxin[TOXIN_NEURO];
-	else if(!str_cmp(field,"toxinpara"))	ptr = (long*)&mob->toxin[TOXIN_PARALYZE];
-	else if(!str_cmp(field,"toxinvenom"))	ptr = (long*)&mob->toxin[TOXIN_VENOM];
-	else if(!str_cmp(field,"toxinweak"))	ptr = (long*)&mob->toxin[TOXIN_WEAKNESS];
-	else if(!str_cmp(field,"train"))	ptr = (long*)&mob->train;
-	else if(!str_cmp(field,"trance"))	ptr = (long*)&mob->trance;
-	else if(!str_cmp(field,"vuln"))		{ ptr = (long*)&mob->vuln_flags; allowarith = false; flags = imm_flags; }
-	else if(!str_cmp(field,"wait"))		ptr = (long*)&mob->wait;
-	else if(!str_cmp(field,"wildviewx"))	ptr = (long*)&mob->wildview_bonus_x;
-	else if(!str_cmp(field,"wildviewy"))	ptr = (long*)&mob->wildview_bonus_y;
-	else if(!str_cmp(field,"wimpy"))	ptr = (long*)&mob->wimpy;
+	else if(!str_cmp(field,"maxexp"))	lptr = &mob->maxexp;
+	else if(!str_cmp(field,"maxhit"))	lptr = &mob->max_hit;
+	else if(!str_cmp(field,"maxmana"))	lptr = &mob->max_mana;
+	else if(!str_cmp(field,"maxmove"))	lptr = &mob->max_move;
+	else if(!str_cmp(field,"mazed"))	{ ptr = (IS_NPC(mob))?NULL:(int*)&mob->maze_time_left; allowpc = true; }
+	else if(!str_cmp(field,"modcon"))	{ ptr = (int*)&mob->mod_stat[STAT_CON]; allowpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_CON; }
+	else if(!str_cmp(field,"moddex"))	{ ptr = (int*)&mob->mod_stat[STAT_DEX]; allowpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_DEX; }
+	else if(!str_cmp(field,"modint"))	{ ptr = (int*)&mob->mod_stat[STAT_INT]; allowpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_INT; }
+	else if(!str_cmp(field,"modstr"))	{ ptr = (int*)&mob->mod_stat[STAT_STR]; allowpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_STR; }
+	else if(!str_cmp(field,"modwis"))	{ ptr = (int*)&mob->mod_stat[STAT_WIS]; allowpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_WIS; }
+	else if(!str_cmp(field,"move"))		lptr = &mob->move;
+	else if(!str_cmp(field,"music"))	ptr = (int*)&mob->music;
+	else if(!str_cmp(field,"norecall"))	ptr = (int*)&mob->no_recall;
+	else if(!str_cmp(field,"panic"))	ptr = (int*)&mob->panic;
+	else if(!str_cmp(field,"paralyzed"))	ptr = (int*)&mob->paralyzed;
+	else if(!str_cmp(field,"paroxysm"))	ptr = (int*)&mob->paroxysm;
+	else if(!str_cmp(field,"parts"))	{ lptr = &mob->parts; allowarith = false; flags = part_flags; }
+	else if(!str_cmp(field,"permaffects"))	{ lptr = &mob->affected_by_perm; bank = affect_flagbank; }
+	//else if(!str_cmp(field,"permaffects2"))	{ ptr = (long*)&mob->affected_by_perm[1]; allowarith = false; flags = affect2_flags; }
+	else if(!str_cmp(field,"permimm"))	{ lptr = &mob->imm_flags_perm; allowarith = false; flags = imm_flags; }
+	else if(!str_cmp(field,"permres"))	{ lptr = &mob->res_flags_perm; allowarith = false; flags = imm_flags; }
+	else if(!str_cmp(field,"permvuln"))	{ lptr = &mob->vuln_flags_perm; allowarith = false; flags = imm_flags; }
+	else if(!str_cmp(field,"pktimer"))	ptr = (int*)&mob->pk_timer;
+	else if(!str_cmp(field,"pneuma"))	lptr = &mob->pneuma;
+	else if(!str_cmp(field,"practice"))	ptr = &mob->practice;
+	else if(!str_cmp(field,"race"))		{ ptr = (int*)&mob->race; min_sec = 7; allowarith = false; lookuprace = true; }
+	else if(!str_cmp(field,"ranged"))	ptr = (int*)&mob->ranged;
+	else if(!str_cmp(field,"recite"))	ptr = (int*)&mob->recite;
+	else if(!str_cmp(field,"res"))		{ lptr = &mob->res_flags;  allowarith = false; flags = imm_flags; }
+	else if(!str_cmp(field,"resurrect"))	ptr = (int*)&mob->resurrect;
+	else if(!str_cmp(field,"reverie"))	ptr = (int*)&mob->reverie;
+	else if(!str_cmp(field,"scribe"))	ptr = (int*)&mob->scribe;
+	else if(!str_cmp(field,"sex"))		{ ptr = (int*)&mob->sex; min = 0; max = 2; hasmin = hasmax = true; flags = sex_flags; }
+	else if(!str_cmp(field,"silver"))	lptr = &mob->silver;
+	else if(!str_cmp(field,"size"))		{ ptr = (int*)&mob->size; min = SIZE_TINY; max = SIZE_GIANT; hasmin = hasmax = true; flags = size_flags; }
+	else if(!str_cmp(field,"skillchance"))	ptr = (int*)&mob->skill_chance;
+	else if(!str_cmp(field,"sublevel"))	ptr = (int*)&mob->level;
+	else if(!str_cmp(field,"tempstore1"))	{ ptr = (int*)&mob->tempstore[0]; allowpc = true; }
+	else if(!str_cmp(field,"tempstore2"))	{ ptr = (int*)&mob->tempstore[1]; allowpc = true; }
+	else if(!str_cmp(field,"tempstore3"))	{ ptr = (int*)&mob->tempstore[2]; allowpc = true; }
+	else if(!str_cmp(field,"tempstore4"))	{ ptr = (int*)&mob->tempstore[3]; allowpc = true; }
+	else if(!str_cmp(field,"thirst"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_THIRST]; allowpc = true; }
+	else if(!str_cmp(field,"toxinneuro"))	ptr = (int*)&mob->toxin[TOXIN_NEURO];
+	else if(!str_cmp(field,"toxinpara"))	ptr = (int*)&mob->toxin[TOXIN_PARALYZE];
+	else if(!str_cmp(field,"toxinvenom"))	ptr = (int*)&mob->toxin[TOXIN_VENOM];
+	else if(!str_cmp(field,"toxinweak"))	ptr = (int*)&mob->toxin[TOXIN_WEAKNESS];
+	else if(!str_cmp(field,"train"))	ptr = &mob->train;
+	else if(!str_cmp(field,"trance"))	ptr = (int*)&mob->trance;
+	else if(!str_cmp(field,"vuln"))		{ lptr = &mob->vuln_flags; allowarith = false; flags = imm_flags; }
+	else if(!str_cmp(field,"wait"))		ptr = (int*)&mob->wait;
+	else if(!str_cmp(field,"wildviewx"))	ptr = (int*)&mob->wildview_bonus_x;
+	else if(!str_cmp(field,"wildviewy"))	ptr = (int*)&mob->wildview_bonus_y;
+	else if(!str_cmp(field,"wimpy"))	ptr = (int*)&mob->wimpy;
 
-	if(!ptr) return;
+	if(!lptr && !ptr) return;
+
+	rest = one_argument(rest,buf);
+	int op = cmd_operator_lookup(buf);
+	if (op == OPR_UNKNOWN)
+		return;
+
+	if(!(rest = expand_argument(info,rest,arg))) {
+		bug("AlterMob - Error in parsing.",0);
+		return;
+	}
 
 
 	// MINIMUM to alter ANYTHING not allowed on players on a player
@@ -3842,129 +3851,218 @@ SCRIPT_CMD(do_tpaltermob)
 		}
 	}
 
-	switch (buf[0]) {
-	case '+':
-		if( !allowarith ) {
-			bug("TpAlterMob - altermob called with arithmetic operator on a non-arithmetic field.", 0);
+	if (lptr) {
+		switch (op) {
+		case OPR_ADD:
+			*lptr += value;
+			break;
+
+		case OPR_SUB:
+			*lptr -= value;
+			break;
+
+		case OPR_MULT:
+			*lptr *= value;
+			break;
+
+		case OPR_DIV:
+			if (!value) {
+				bug("AlterMob - altermob called with operator / and value 0", 0);
+				return;
+			}
+			*lptr /= value;
+			break;
+
+		case OPR_MOD:
+			if (!value) {
+				bug("AlterMob - altermob called with operator % and value 0", 0);
+				return;
+			}
+			*lptr %= value;
+			break;
+
+		case OPR_INC:
+			*lptr += 1;
+			break;
+		
+		case OPR_DEC:
+			*lptr -= 1;
+			break;
+		
+		case OPR_MIN:
+			*lptr = UMIN(*lptr, value);
+			break;
+		
+		case OPR_MAX:
+			*lptr = UMAX(*lptr, value);
+			break;
+
+		case OPR_ASSIGN:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] = temp_flags[i];
+			}
+			else
+				*lptr = value;
+			break;
+
+		case OPR_AND:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] &= temp_flags[i];
+			}
+			else
+				*lptr &= value;
+			break;
+
+		case OPR_OR:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] |= temp_flags[i];
+			}
+			else
+				*lptr |= value;
+			break;
+
+		case OPR_NOT:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] &= ~temp_flags[i];
+			}
+			else
+				*lptr &= ~value;
+			break;
+
+		case OPR_XOR:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					lptr[i] ^= temp_flags[i];
+			}
+			else
+				*lptr ^= value;
+
+			break;
+		default:
 			return;
 		}
 
-		*ptr += value; break;
-	case '-':
-		if( !allowarith ) {
-			bug("TpAlterMob - altermob called with arithmetic operator on a non-arithmetic field.", 0);
+		if(hasmin && *lptr < min)
+			*lptr = min;
+
+		if(hasmax && *lptr > max)
+			*lptr = max;
+
+	} else if (ptr) {
+		switch (op) {
+		case OPR_ADD:
+			*ptr += value;
+			break;
+
+		case OPR_SUB:
+			*ptr -= value;
+			break;
+
+		case OPR_MULT:
+			*ptr *= value;
+			break;
+
+		case OPR_DIV:
+			if (!value) {
+				bug("AlterMob - altermob called with operator / and value 0", 0);
+				return;
+			}
+			*ptr /= value;
+			break;
+
+		case OPR_MOD:
+			if (!value) {
+				bug("AlterMob - altermob called with operator % and value 0", 0);
+				return;
+			}
+			*ptr %= value;
+			break;
+
+		case OPR_INC:
+			*ptr += 1;
+			break;
+		
+		case OPR_DEC:
+			*ptr -= 1;
+			break;
+		
+		case OPR_MIN:
+			*ptr = UMIN(*ptr, value);
+			break;
+		
+		case OPR_MAX:
+			*ptr = UMAX(*ptr, value);
+			break;
+
+		case OPR_ASSIGN:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] = temp_flags[i];
+			}
+			else
+				*ptr = value;
+			break;
+
+		case OPR_AND:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] &= temp_flags[i];
+			}
+			else
+				*ptr &= value;
+			break;
+
+		case OPR_OR:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] |= temp_flags[i];
+			}
+			else
+				*ptr |= value;
+			break;
+
+		case OPR_NOT:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] &= ~temp_flags[i];
+			}
+			else
+				*ptr &= ~value;
+			break;
+
+		case OPR_XOR:
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] ^= temp_flags[i];
+			}
+			else
+				*ptr ^= value;
+
+			break;
+		default:
 			return;
 		}
 
-		*ptr -= value; break;
-	case '*':
-		if( !allowarith ) {
-			bug("TpAlterMob - altermob called with arithmetic operator on a non-arithmetic field.", 0);
-			return;
-		}
+		if(hasmin && *ptr < min)
+			*ptr = (int)min;
 
-		*ptr *= value; break;
-	case '/':
-		if( !allowarith ) {
-			bug("TpAlterMob - altermob called with arithmetic operator on a non-arithmetic field.", 0);
-			return;
-		}
-
-		if (!value) {
-			bug("TpAlterMob - altermob called with operator / and value 0", 0);
-			return;
-		}
-		*ptr /= value;
-		break;
-	case '%':
-		if( !allowarith ) {
-			bug("TpAlterMob - altermob called with arithmetic operator on a non-arithmetic field.", 0);
-			return;
-		}
-
-		if (!value) {
-			bug("TpAlterMob - altermob called with operator % and value 0", 0);
-			return;
-		}
-		*ptr %= value;
-		break;
-
-	case '=':
-		if (bank != NULL)
-		{
-			for(int i = 0; bank[i]; i++)
-				ptr[i] = temp_flags[i];
-		}
-		else
-			*ptr = value;
-		break;
-
-	case '&':
-		if( !allowbitwise ) {
-			bug("TpAlterMob - altermob called with bitwise operator on a non-bitvector field.", 0);
-			return;
-		}
-
-		if (bank != NULL)
-		{
-			for(int i = 0; bank[i]; i++)
-				ptr[i] &= temp_flags[i];
-		}
-		else
-			*ptr &= value;
-		break;
-	case '|':
-		if( !allowbitwise ) {
-			bug("TpAlterMob - altermob called with bitwise operator on a non-bitvector field.", 0);
-			return;
-		}
-
-		if (bank != NULL)
-		{
-			for(int i = 0; bank[i]; i++)
-				ptr[i] |= temp_flags[i];
-		}
-		else
-			*ptr |= value;
-		break;
-	case '!':
-		if( !allowbitwise ) {
-			bug("TpAlterMob - altermob called with bitwise operator on a non-bitvector field.", 0);
-			return;
-		}
-
-		if (bank != NULL)
-		{
-			for(int i = 0; bank[i]; i++)
-				ptr[i] &= ~temp_flags[i];
-		}
-		else
-			*ptr &= ~value;
-		break;
-	case '^':
-		if( !allowbitwise ) {
-			bug("TpAlterMob - altermob called with bitwise operator on a non-bitvector field.", 0);
-			return;
-		}
-
-		if (bank != NULL)
-		{
-			for(int i = 0; bank[i]; i++)
-				ptr[i] ^= temp_flags[i];
-		}
-		else
-			*ptr ^= value;
-		break;
-
-	default:
-		return;
+		if(hasmax && *ptr > max)
+			*ptr = (int)max;
 	}
-
-	if(hasmin && *ptr < min)
-		*ptr = min;
-
-	if(hasmax && *ptr > max)
-		*ptr = max;
 
 	if(dirty_stat >= 0 && dirty_stat < MAX_STATS)
 		mob->dirty_stat[dirty_stat] = true;

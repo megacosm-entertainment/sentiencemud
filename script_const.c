@@ -1434,3 +1434,39 @@ const struct flag_type interrupt_action_types[] = {
 	{	"silent",	INTERRUPT_SILENT,	true },
 	{	NULL,		0,			false }
 };
+
+const char *cmd_operator_table[] = {
+	"=",	// OPR_ASSIGN
+	"+",	// OPR_ADD
+	"-",	// OPR_SUB
+	"*",	// OPR_MULT
+	"/",	// OPR_DIV
+	"%",	// OPR_MOD
+	"++",	// OPR_INC
+	"--",	// OPR_DEC
+	"<",	// OPR_MIN
+	">",	// OPR_MAX
+	"&",	// OPR_AND
+	"|",	// OPR_OR
+	"!",	// OPR_NOT
+	"^",	// OPR_XOR
+	NULL
+};
+
+const bool cmd_operator_info[OPR_END][3] = {
+//	needs_value,	arith,	bitwise,
+	{true,			false,	false},		// OPR_ASSIGN
+	{true,			true,	false},		// OPR_ADD
+	{true,			true,	false},		// OPR_SUB
+	{true,			true,	false},		// OPR_MULT
+	{true,			true,	false},		// OPR_DIV
+	{true,			true,	false},		// OPR_MOD
+	{false,			true,	false},		// OPR_INC
+	{false,			true,	false},		// OPR_DEC
+	{true,			false,	false},		// OPR_MIN
+	{true,			false,	false},		// OPR_MAX
+	{true,			false,	true},		// OPR_AND
+	{true,			false,	true},		// OPR_OR
+	{true,			false,	true},		// OPR_NOT
+	{true,			false,	true},		// OPR_XOR
+};

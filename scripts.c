@@ -14,6 +14,8 @@
 //#define DEBUG_MODULE
 #include "debug.h"
 
+extern const char *cmd_operator_table[];
+
 int script_security = INIT_SCRIPT_SECURITY;
 int script_call_depth = 0;
 int script_lastreturn = PRET_EXECUTED;
@@ -8540,4 +8542,24 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 	obj->created_script_type = info->block->script->type;
 
 	return obj;
+}
+
+void scriptcmd_bug(SCRIPT_VARINFO *info, char *message)
+{
+	char buf[2 * MSL];
+
+	sprintf(buf, "Script:%ld#%d:Line:%d:%s\n\r",
+		info->block->script->area->uid, info->block->script->vnum,
+		info->block->line,
+		message);
+	bug(buf, 0);
+}
+
+int cmd_operator_lookup(const char *str)
+{
+	for(int i = 0; cmd_operator_table[i]; i++)
+		if (!str_cmp(str, cmd_operator_table[i]))
+			return i;
+	
+	return OPR_UNKNOWN;
 }
