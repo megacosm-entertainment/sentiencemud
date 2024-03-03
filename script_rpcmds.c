@@ -3235,7 +3235,7 @@ SCRIPT_CMD(do_rpaltermob)
 	else if(!str_cmp(field,"paralyzed"))	ptr = (int*)&mob->paralyzed;
 	else if(!str_cmp(field,"paroxysm"))	ptr = (int*)&mob->paroxysm;
 	else if(!str_cmp(field,"parts"))	{ lptr = &mob->parts; allowarith = false; flags = part_flags; }
-	else if(!str_cmp(field,"permaffects"))	{ lptr = &mob->affected_by_perm; bank = affect_flagbank; }
+	else if(!str_cmp(field,"permaffects"))	{ lptr = mob->affected_by_perm; bank = affect_flagbank; }
 	//else if(!str_cmp(field,"permaffects2"))	{ ptr = (long*)&mob->affected_by_perm[1]; allowarith = false; flags = affect2_flags; }
 	else if(!str_cmp(field,"permimm"))	{ lptr = &mob->imm_flags_perm; allowarith = false; flags = imm_flags; }
 	else if(!str_cmp(field,"permres"))	{ lptr = &mob->res_flags_perm; allowarith = false; flags = imm_flags; }
