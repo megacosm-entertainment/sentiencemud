@@ -1874,30 +1874,30 @@ SCRIPT_CMD(scriptcmd_echoat)
 
 	if( !IS_NULLSTR(buffer->string) )
 	{
+		int i = 0;
+		i = strlen(buffer->string);
+		if (buffer->string[i-2] != '\n')
+			strcat(buffer->string,"\n\r");
+		
 		if( IS_VALID(instance) )
 		{
 			instance_echo(instance, buffer->string);
-			instance_echo(instance, "\n\r");
 		}
 		else if( IS_VALID(dungeon) )
 		{
 			dungeon_echo(dungeon, buffer->string);
-			dungeon_echo(dungeon, "\n\r");
 		}
 		else if ( church )
 		{
 			church_echo(church, buffer->string);
-			church_echo(church, "\n\r");
 		}
 		else if( area )
 		{
 			area_echo(area, buffer->string);
-			area_echo(area, "\n\r");
 		}
 		else if( room )
 		{
 			room_echo(room, buffer->string);
-			room_echo(room, "\n\r");
 		}
 		else
 			act(buffer->string, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
