@@ -474,6 +474,7 @@ CHAR_DATA *get_random_mob_area( CHAR_DATA *ch, AREA_DATA *area)
 	    || IS_SET(mIndex->act[1], ACT2_AIRSHIP_SELLER)
 	    || IS_SET(mIndex->act[1], ACT2_WIZI_MOB)
 	    || IS_SET(mIndex->act[1], ACT2_LOREMASTER )
+		|| IS_AFFECTED(mIndex, AFF_CHARM)
 	    || mIndex->pShop != NULL
 	    || mIndex->level > ( ch->tot_level + 20))
 		continue;
