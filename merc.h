@@ -3246,33 +3246,33 @@ enum {
 
 
 /* WIZnet flags */
-#define WIZ_ON			(A)
-#define WIZ_TICKS		(B)
-#define WIZ_LOGINS		(C)
-/* #define WIZ_SITES		(D) */
-#define WIZ_LINKS		(E)
-#define WIZ_DEATHS		(F)
-#define WIZ_RESETS		(G)
-#define WIZ_MOBDEATHS		(H)
-/* #define WIZ_FLAGS		(I) */
-#define WIZ_PENALTIES		(J)
-/* #define WIZ_SACCING		(K) */
-#define WIZ_LEVELS		(L)
-#define WIZ_SECURE		(M)
-#define WIZ_SWITCHES		(N)
-#define WIZ_SNOOPS		(O)
-#define WIZ_RESTORE		(P)
-#define WIZ_LOAD		(Q)
-#define WIZ_NEWBIE		(R)
-#define WIZ_PREFIX		(S)
-#define WIZ_SPAM		(T)
-#define WIZ_MEMCHECK		(U)
-#define WIZ_IMMLOG		(V)
-#define WIZ_TESTING		(W)
-#define WIZ_BUILDING		(X)
-#define WIZ_SCRIPTS		(Y)
-#define WIZ_SHIPS		(Z)
-#define WIZ_BUGS		(aa)
+#define WIZ_ON			(A) // Toggled by 'wiznet' command. Used to determine if you have wiznet active at all.
+#define WIZ_TICKS		(B) // Fires once per tick in update.c - Lets you know a tick has passed.
+#define WIZ_LOGINS		(C) // Fires when someone logs in, quits, or enters a bad password.
+/* #define WIZ_SITES		(D) */ // Unused.
+#define WIZ_LINKS		(E) // Fires when someone loses link or reconnects.
+#define WIZ_DEATHS		(F) // Fires when players die. For mobs, MOBDEATHS is used.
+#define WIZ_RESETS		(G) // Fires when an area reset happens (in area_update).
+#define WIZ_MOBDEATHS		(H) // Fires when mobs die. For players, DEATHS is used.
+/* #define WIZ_FLAGS		(I) */ // Unused.
+#define WIZ_PENALTIES		(J) // Fires on penalty commands, or their revocation (nochan, notell, deny, freeze)
+/* #define WIZ_SACCING		(K) */ // Unused.
+#define WIZ_LEVELS		(L) // Fires when someone levels up.
+#define WIZ_SECURE		(M) // Fires on nochan, notell, deny, freeze, snoop, switch, return, clone, load, and restore.
+#define WIZ_SWITCHES		(N) // Fires when an imm uses switch or return.
+#define WIZ_SNOOPS		(O) // Fires when an imm uses snoop (deprecated).
+#define WIZ_RESTORE		(P) // Fires when an imm uses restore.
+#define WIZ_LOAD		(Q) // Fires when loading or cloning mobs or objs.
+#define WIZ_NEWBIE		(R) // Fires when someone is making a new char.
+#define WIZ_PREFIX		(S) // Adds (WIZ-<channel>)--> to the beginning of all wiznet messages.
+#define WIZ_SPAM		(T) // Fires if someone repeats the same command enough to get disconnected for spam.
+#define WIZ_MEMCHECK		(U) // Unused
+#define WIZ_IMMLOG		(V) // Fires when imms use drop, give, zot, or slay.
+#define WIZ_TESTING		(W) // Used for testing code changes. Currently used when resetting rooms in instances, making dungeons, and saving persistent objects.
+#define WIZ_BUILDING		(X) // Currently only fires if an imm has 'building' active on a project and goes more than 30 minutes without entering an olc command.
+#define WIZ_SCRIPTS		(Y) // Fires when a script is run, if the script has the 'wiznet' flag. Gives debugging info about ifchecks and commands run.
+#define WIZ_SHIPS		(Z) // Unused
+#define WIZ_BUGS		(aa) // Unused
 
 /*
  * Autowars

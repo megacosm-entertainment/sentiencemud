@@ -1750,7 +1750,7 @@ void write_to_buffer(DESCRIPTOR_DATA *d, const char *txt, int length)
     {
 	char *outbuf;
 
-        if (d->outsize >= 32000)
+        if (d->outsize >= 128000)
 	{
 	    bug("Buffer overflow. Closing.\n\r",0);
 	    close_socket(d);
