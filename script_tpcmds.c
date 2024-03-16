@@ -218,7 +218,6 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
 	int i, slot, count;
 	long vnum = 0;
 	bool id_lookup = false;
-	bool usemxp = false;
 	BUFFER *output = new_buf();
 
 	argument = one_argument(argument, arg);
@@ -228,10 +227,6 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
 		send_to_char("Syntax:  tpstat <mobile name|object name|room> [<count>.]<token vnum>\n\r", ch);
 		return;
 	}
-
-	if (ch->desc->pProtocol->bMXP)
-	usemxp = true;
-
 
 	if (is_number(arg))
 	{

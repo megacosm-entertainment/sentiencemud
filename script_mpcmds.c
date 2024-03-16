@@ -240,7 +240,6 @@ void do_mpstat(CHAR_DATA *ch, char *argument)
 	PROG_LIST *mprg;
 	CHAR_DATA *victim;
 	int i, slot;
-	bool usemxp = false;
 	BUFFER *output = new_buf();
 
 	one_argument(argument, arg);
@@ -249,11 +248,7 @@ void do_mpstat(CHAR_DATA *ch, char *argument)
 		send_to_char("Mpstat whom?\n\r", ch);
 		return;
 	}
-
-	if (ch->desc->pProtocol->bMXP)
-		usemxp = true;
-
-
+	
 	if (is_number(arg))
 	{
 		argument = one_argument(argument, arg);

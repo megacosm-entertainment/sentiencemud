@@ -1819,7 +1819,6 @@ void do_ostat(CHAR_DATA *ch, char *argument)
     ROOM_INDEX_DATA *room;
 	TOKEN_DATA *token;
 	BUFFER *output = new_buf();
-	bool usemxp = false;
 
     one_argument(argument, arg);
 
@@ -1828,10 +1827,6 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 	send_to_char("Stat what?\n\r", ch);
 	return;
     }
-
-	if (ch->desc->pProtocol->bMXP)
-		usemxp = true;
-
 
 	if (is_number(arg))
 	{
@@ -1880,15 +1875,9 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 	add_buf(output, buf);
 
 	// Keywords, ID, VNUM, Area
-	if (usemxp){
-		sprintf(buf, "{%sKeywords{X: %s{X {BID{X: %ld %ld {BVNUM{X: \t<send href='oshow %ld' hint='Show index data for object'>%ld\t</send> ({W%s (%ld){X)\n\r",
-		(!str_cmp(obj->name, obj->pIndexData->name)) ? "B" : "Y", obj->name, obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, obj->pIndexData->area->name, obj->pIndexData->area->uid);
-	}
-	else
-	{
-		sprintf(buf, "{%sKeywords{X: %s{X {BID{X: %ld %ld {BVNUM{X: %ld ({WArea: %s (%ld){X)\n\r",
-		(!str_cmp(obj->name, obj->pIndexData->name)) ? "B" : "Y", obj->name, obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->area->name, obj->pIndexData->area->uid);
-	}
+	sprintf(buf, "{%sKeywords{X: %s{X {BID{X: %ld %ld {BVNUM{X: \t<send href='oshow %ld' hint='Show index data for object'>%ld\t</send> ({W%s (%ld){X)\n\r",
+	(!str_cmp(obj->name, obj->pIndexData->name)) ? "B" : "Y", obj->name, obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, obj->pIndexData->area->name, obj->pIndexData->area->uid);
+
 	add_buf(output, buf);
 
 	if (obj->loaded_by != NULL && ch->tot_level >= LEVEL_IMMORTAL)
@@ -1897,16 +1886,14 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 	add_buf(output, buf);
     }
 	else if (obj->script_created && ch->tot_level >= LEVEL_IMMORTAL)
-	{
-		if (usemxp)
-			sprintf(buf, "{YItem created by \t<send \"%sdump %ld|%sedit %ld\" hint=\"Dump code for %s %ld|Edit %s %ld\">%s %ld\t</send>.\n\r", 
-			script_type_table[obj->created_script_type].prog_command, obj->created_script_vnum,
-			script_type_table[obj->created_script_type].prog_command, obj->created_script_vnum,
-			script_type_table[obj->created_script_type].prog_type, obj->created_script_vnum, 
-			script_type_table[obj->created_script_type].prog_type, obj->created_script_vnum,
-			script_type_table[obj->created_script_type].prog_type, obj->created_script_vnum);
-		else	
-			sprintf(buf, "{YItem created by %s %ld. (%sdump %ld)\n\r", script_type_table[obj->created_script_type].prog_type, obj->created_script_vnum, script_type_table[obj->created_script_type].prog_command, obj->created_script_vnum);
+	{		
+		sprintf(buf, "{YItem created by \t<send \"%sdump %ld|%sedit %ld\" hint=\"Dump code for %s %ld|Edit %s %ld\">%s %ld\t</send>.\n\r", 
+		script_type_table[obj->created_script_type].prog_command, obj->created_script_vnum,
+		script_type_table[obj->created_script_type].prog_command, obj->created_script_vnum,
+		script_type_table[obj->created_script_type].prog_type, obj->created_script_vnum, 
+		script_type_table[obj->created_script_type].prog_type, obj->created_script_vnum,
+		script_type_table[obj->created_script_type].prog_type, obj->created_script_vnum);
+		
 		add_buf(output, buf);
 	}
 	
@@ -1965,36 +1952,25 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 
 	if (obj->in_wilds != NULL)
 	{
-		if (usemxp)
-			sprintf(buf,"{BIn wilds{X: \t<send href='goxy %d %d %ld'>'%s' (%ld) (at %d, %d)\t</send>{X\n\r", obj->x, obj->y, obj->in_wilds->uid, obj->in_wilds->name, obj->in_wilds->uid, obj->x, obj->y);
-		else
-			sprintf(buf,"{BIn wilds{X: '%s' (%ld), at (%d, %d){X\n\r", obj->in_wilds->name, obj->in_wilds->uid, obj->x, obj->y);
+		sprintf(buf,"{BIn wilds{X: \t<send href='goxy %d %d %ld'>'%s' (%ld) (at %d, %d)\t</send>{X\n\r", obj->x, obj->y, obj->in_wilds->uid, obj->in_wilds->name, obj->in_wilds->uid, obj->x, obj->y);
+		add_buf(output, buf);
 	}
 	else if (obj->in_room != NULL)
 	{
-		if (usemxp)
-			sprintf(buf, "{BIn room{X: \t<send href='rshow %ld'>%ld\t</send>{X\n\r", obj->in_room->vnum, obj->in_room->vnum);
-		else
-			sprintf(buf, "{BIn room{X: %ld{X\n\r", obj->in_room->vnum);
+		sprintf(buf, "{BIn room{X: \t<send href='rshow %ld'>%ld\t</send>{X\n\r", obj->in_room->vnum, obj->in_room->vnum);
 		add_buf(output, buf);
 	}
 	if (obj->in_obj != NULL)
 	{
-		if (usemxp)
-			sprintf(buf, "{BIn object{X: \t<send href='stat obj %ld %ld'>%s (%ld)\t</send>{X\n\r", obj->in_obj->id[0], obj->in_obj->id[1], obj->in_obj->short_descr, obj->in_obj->pIndexData->vnum);
-		else
-			sprintf(buf, "{BIn object{X: %s (%ld){X\n\r", obj->in_obj->short_descr, obj->in_obj->pIndexData->vnum);
+		sprintf(buf, "{BIn object{X: \t<send href='stat obj %ld %ld'>%s (%ld)\t</send>{X\n\r", obj->in_obj->id[0], obj->in_obj->id[1], obj->in_obj->short_descr, obj->in_obj->pIndexData->vnum);
 		add_buf(output, buf);
 	}
 	if (obj->carried_by != NULL)
 	{
-		if (usemxp)
-			if (IS_NPC(obj->carried_by))
-				sprintf(buf, "{BCarried by{X: \t<send href='stat mob %ld %ld'>%s (%ld)\t</send>{X\n\r", obj->carried_by->id[0], obj->carried_by->id[1], obj->carried_by->name, obj->carried_by->pIndexData->vnum);
-			else
-				sprintf(buf, "{BCarried by{X: \t<send href='stat char %s'>%s\t</send>{X\n\r", obj->carried_by->name, obj->carried_by->name);
+		if (IS_NPC(obj->carried_by))
+			sprintf(buf, "{BCarried by{X: \t<send href='stat mob %ld %ld'>%s (%ld)\t</send>{X\n\r", obj->carried_by->id[0], obj->carried_by->id[1], obj->carried_by->name, obj->carried_by->pIndexData->vnum);
 		else
-			sprintf(buf, "{BCarried by{X: %s{X\n\r", obj->carried_by->name);
+			sprintf(buf, "{BCarried by{X: \t<send href='stat char %s'>%s\t</send>{X\n\r", obj->carried_by->name, obj->carried_by->name);
 		add_buf(output, buf);
 	}
 	if (obj->in_mail != NULL)
@@ -2027,10 +2003,7 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 					break;
 				default: break;
 			}
-			if (usemxp)
-				sprintf(buf, "{BIn mail{X: \t<send href=\"%s %ld\">Scripted to %s - ({W%s %ld{X)\t</send>{X\n\r", script_cmd, obj->in_mail->originating_script, obj->in_mail->recipient, script_cmd, obj->in_mail->originating_script);
-			else
-				sprintf(buf, "{BIn mail{X: Scripted ({W%s %ld{X) to %s{X\n\r}", script_cmd, obj->in_mail->originating_script, obj->in_mail->recipient);
+			sprintf(buf, "{BIn mail{X: \t<send href=\"%s %ld\">Scripted to %s - ({W%s %ld{X)\t</send>{X\n\r", script_cmd, obj->in_mail->originating_script, obj->in_mail->recipient, script_cmd, obj->in_mail->originating_script);
 			
 		}
 		else
@@ -2107,13 +2080,10 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 		sprintf(buf, "\n\r{WTokens:{X\n\r");
 		add_buf(output, buf);
 		for (token = obj->tokens; token != NULL; token = token->next) {
-			if (usemxp)
-				sprintf(buf, "{M* {CToken \t<send href=\"stat token %lu %lu|token junk %lu %lu\" hint=\"Stat token %lu %lu on %s|Remove token %lu %lu on %s\">{W%s\t</send>{X (\t<send href=\"tshow %ld|tedit %ld\" hint=\"Show token %ld|Edit token %ld\">{W%ld\t<send>{X - ID: {W%lu %lu{X){x\n\r", 
-				token->id[0], token->id[1], token->id[0], token->id[1], token->id[0], token->id[1], obj->short_descr, token->id[0], token->id[1], 
-				obj->short_descr, token->pIndexData->name, token->pIndexData->vnum, token->pIndexData->vnum, token->pIndexData->vnum, token->pIndexData->vnum,
-				token->pIndexData->vnum, token->id[0], token->id[1]);
-			else
-				sprintf(buf, "{M* {CToken {W%s {X({W%ld{X - ID: {W%lu %lu{X){x\n\r", token->pIndexData->name, token->pIndexData->vnum, token->id[0], token->id[1]);
+			sprintf(buf, "{M* {CToken \t<send href=\"stat token %lu %lu|token junk %lu %lu\" hint=\"Stat token %lu %lu on %s|Remove token %lu %lu on %s\">{W%s\t</send>{X (\t<send href=\"tshow %ld|tedit %ld\" hint=\"Show token %ld|Edit token %ld\">{W%ld\t<send>{X - ID: {W%lu %lu{X){x\n\r", 
+			token->id[0], token->id[1], token->id[0], token->id[1], token->id[0], token->id[1], obj->short_descr, token->id[0], token->id[1], 
+			obj->short_descr, token->pIndexData->name, token->pIndexData->vnum, token->pIndexData->vnum, token->pIndexData->vnum, token->pIndexData->vnum,
+			token->pIndexData->vnum, token->id[0], token->id[1]);
 			add_buf(output, buf);
 		}
 	}
@@ -2527,7 +2497,6 @@ void do_tstat(CHAR_DATA *ch, char *argument)
     int i;
     long vnum = 0, count;
 	bool id_lookup = false;
-	bool usemxp = false;
 
     BUFFER *buffer;
 
@@ -2538,11 +2507,6 @@ void do_tstat(CHAR_DATA *ch, char *argument)
 	send_to_char("Syntax:  stat token <mob name|obj name|room> [token vnum]\n\r", ch);
 	return;
     }
-
-	
-	if (ch->desc->pProtocol->bMXP)
-	usemxp = true;
-
 
 	if (is_number(arg))
 	{
@@ -2909,7 +2873,6 @@ void do_owhere(CHAR_DATA *ch, char *argument)
     OBJ_DATA *obj;
     OBJ_DATA *in_obj;
     bool found;
-	bool usemxp = false;
     int number = 0, max_found;
     ITERATOR it;
 
@@ -2925,9 +2888,6 @@ void do_owhere(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-	if (ch->desc->pProtocol->bMXP)
-		usemxp = true;
-
 	iterator_start(&it, loaded_objects);
 	while(( obj = (OBJ_DATA *)iterator_nextdata(&it)))
     {
@@ -2941,91 +2901,53 @@ void do_owhere(CHAR_DATA *ch, char *argument)
 
         if (in_obj->carried_by != NULL && can_see(ch,in_obj->carried_by) && in_obj->carried_by->in_room != NULL) 
 		{
-			if (usemxp)
-				if (IS_NPC(in_obj->carried_by))
-				{
-					sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld|oedit %ld\" hint=\"Show index for %s|Edit %s\">%s\t</send> is carried by \t<send href=\"stat mob %ld %ld|mshow %ld|medit %ld\" hint=\"View info for %s|Show index for %s|Edit %s\">%s\t</send> [\t<send href=\"rshow %ld|redit %ld|goto %ld\" hint=\"View room %ld|Edit room %ld|Go to room %ld\">Room %ld\t</send>]\n\r",
-					number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, obj->short_descr, obj->short_descr,
-					obj->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->id[0] : obj->carried_by->id[0], (obj->in_obj != NULL) ? obj->in_obj->carried_by->id[1] : obj->carried_by->id[1], 
-					(obj->in_obj != NULL) ? obj->in_obj->carried_by->pIndexData->vnum : obj->carried_by->pIndexData->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->pIndexData->vnum : obj->carried_by->pIndexData->vnum,
-					(obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr,
-					(obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr,
-					(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, 
-					(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum,
-					(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum,
-					(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum);
-					add_buf(buffer, buf);
-				}
-				else
-				{
-					sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld|oedit %ld\" hint=\"Show index for %s|Edit %s\">%s\t</send> is carried by \t<send href=\"stat char %s\">%s\t</send> [\t<send href=\"rshow %ld|redit %ld|goto %ld\" hint=\"View room %ld|Edit room %ld|Go to room %ld\">Room %ld\t</send>]\n\r",
-					number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, 
-					obj->short_descr, obj->short_descr, obj->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->name : obj->carried_by->name, (obj->in_obj != NULL) ? obj->in_obj->carried_by->name : obj->carried_by->name, 
-					(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, 
-					(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum,
-					(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum,
-					(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum);
-					add_buf(buffer, buf);
-				}
+			if (IS_NPC(in_obj->carried_by))
+			{
+				sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld|oedit %ld\" hint=\"Show index for %s|Edit %s\">%s\t</send> is carried by \t<send href=\"stat mob %ld %ld|mshow %ld|medit %ld\" hint=\"View info for %s|Show index for %s|Edit %s\">%s\t</send> [\t<send href=\"rshow %ld|redit %ld|goto %ld\" hint=\"View room %ld|Edit room %ld|Go to room %ld\">Room %ld\t</send>]\n\r",
+				number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, obj->short_descr, obj->short_descr,
+				obj->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->id[0] : obj->carried_by->id[0], (obj->in_obj != NULL) ? obj->in_obj->carried_by->id[1] : obj->carried_by->id[1], 
+				(obj->in_obj != NULL) ? obj->in_obj->carried_by->pIndexData->vnum : obj->carried_by->pIndexData->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->pIndexData->vnum : obj->carried_by->pIndexData->vnum,
+				(obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr,
+				(obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr,
+				(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, 
+				(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum,
+				(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum,
+				(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum);
+				add_buf(buffer, buf);
+			}
 			else
 			{
-            	sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (vnum %ld) is carried by %s [Room %ld]\n\r",
-                number, obj->id[0], obj->id[1], obj->short_descr,
-				obj->pIndexData->vnum,
-				pers(in_obj->carried_by, ch),
-				in_obj->carried_by->in_room->vnum);
+				sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld|oedit %ld\" hint=\"Show index for %s|Edit %s\">%s\t</send> is carried by \t<send href=\"stat char %s\">%s\t</send> [\t<send href=\"rshow %ld|redit %ld|goto %ld\" hint=\"View room %ld|Edit room %ld|Go to room %ld\">Room %ld\t</send>]\n\r",
+				number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, 
+				obj->short_descr, obj->short_descr, obj->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->name : obj->carried_by->name, (obj->in_obj != NULL) ? obj->in_obj->carried_by->name : obj->carried_by->name, 
+				(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, 
+				(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum,
+				(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum, (obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum,
+				(obj->in_obj != NULL) ? obj->in_obj->carried_by->in_room->vnum : obj->carried_by->in_room->vnum);
 				add_buf(buffer, buf);
 			}
 		} 
 		else if (in_obj->in_room != NULL && can_see_room(ch,in_obj->in_room)) 
 		{
-			if (usemxp)
-			{
-				sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld|oedit %ld\" hint=\"Show index for %s|Edit %s\">%s\t</send> is in %s [\t<send href=\"rshow %ld|redit %ld|goto %ld\" hint=\"View room %ld|Edit room %ld|Go to room %ld\">Room %ld\t</send>]\n\r",
-				number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, 
-				obj->short_descr, obj->short_descr, obj->short_descr, in_obj->in_room->name, in_obj->in_room->vnum, in_obj->in_room->vnum, 
-				in_obj->in_room->vnum, in_obj->in_room->vnum, in_obj->in_room->vnum, in_obj->in_room->vnum, in_obj->in_room->vnum);
-				add_buf(buffer, buf);
-			}
-			else
-			{
-            	sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (vnum %ld) is in %s [Room %ld]\n\r",
-                number, obj->id[0], obj->id[1], obj->short_descr,
-				obj->pIndexData->vnum,
-				in_obj->in_room->name,
-				in_obj->in_room->vnum);
-				add_buf(buffer, buf);
-			}
+			sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld|oedit %ld\" hint=\"Show index for %s|Edit %s\">%s\t</send> is in %s [\t<send href=\"rshow %ld|redit %ld|goto %ld\" hint=\"View room %ld|Edit room %ld|Go to room %ld\">Room %ld\t</send>]\n\r",
+			number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, 
+			obj->short_descr, obj->short_descr, obj->short_descr, in_obj->in_room->name, in_obj->in_room->vnum, in_obj->in_room->vnum, 
+			in_obj->in_room->vnum, in_obj->in_room->vnum, in_obj->in_room->vnum, in_obj->in_room->vnum, in_obj->in_room->vnum);
+			add_buf(buffer, buf);
+			
 		} 
 		else if (in_obj->in_mail != NULL) 
 		{
-			if (usemxp)
-			{
-				sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld|oedit %ld\" hint=\"Show index for %s|Edit %s\">%s\t</send> is in a mail package\n\r",
-				number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, obj->short_descr, obj->short_descr, obj->short_descr);
-				add_buf(buffer, buf);
-			}
-			else
-			{
-            	sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (vnum %ld) is in a mail package\n\r", number,
-			    obj->id[0], obj->id[1], obj->short_descr, obj->pIndexData->vnum);
-				add_buf(buffer, buf);
-			}
+			sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld|oedit %ld\" hint=\"Show index for %s|Edit %s\">%s\t</send> is in a mail package\n\r",
+			number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, obj->short_descr, obj->short_descr, obj->short_descr);
+			add_buf(buffer, buf);
 		} 
 		else 
 		{
-			if (usemxp)
-			{
-				sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld\" hint=\"Show index of obj %ld\">%s\t</send> is somewhere\n\r",
-				number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, obj->short_descr);
-				add_buf(buffer, buf);
-			}
-			else
-			{
-            	sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (vnum %ld) is somewhere\n\r", number,
-			    obj->id[0], obj->id[1], obj->short_descr, obj->pIndexData->vnum);
-				add_buf(buffer, buf);
-			}
+			sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %ld\" hint=\"Show index of obj %ld\">%s\t</send> is somewhere\n\r",
+			number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->pIndexData->vnum, obj->pIndexData->vnum, obj->short_descr);
+			add_buf(buffer, buf);
+
 		}
 /*
         buf[0] = UPPER(buf[0]);

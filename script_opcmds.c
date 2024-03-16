@@ -199,7 +199,6 @@ void do_opstat(CHAR_DATA *ch, char *argument)
 	OBJ_DATA *obj;
 	ITERATOR it;
 	int i, slot;
-	bool usemxp;
 	BUFFER *output = new_buf();
 
 	one_argument(argument, arg);
@@ -208,10 +207,6 @@ void do_opstat(CHAR_DATA *ch, char *argument)
 		send_to_char("Opstat what?\n\r", ch);
 		return;
 	}
-
-	if (ch->desc->pProtocol->bMXP)
-	usemxp = true;
-
 
 	if (is_number(arg))
 	{
