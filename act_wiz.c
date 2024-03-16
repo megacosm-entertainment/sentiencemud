@@ -7711,7 +7711,7 @@ void do_vislist(CHAR_DATA *ch, char *argument)
     if (arg[0] == '\0' || !str_cmp(arg, "show"))
     {
 	send_to_char("{YYou are currently visible to:{x\n\r", ch);
-	line(ch, 45);
+	line(ch, 45, NULL, NULL);
 	i = 0;
 	for (string = ch->pcdata->vis_to_people; string != NULL;
 	      string = string->next)
@@ -7724,7 +7724,7 @@ void do_vislist(CHAR_DATA *ch, char *argument)
 	if (i == 0)
 	    send_to_char("Nobody.\n\r", ch);
 
-	line(ch, 45);
+	line(ch, 45, NULL, NULL);
 
 	return;
     }

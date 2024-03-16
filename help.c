@@ -31,6 +31,10 @@ void do_help(CHAR_DATA *ch, char *argument)
 	char *p;
 	int index;
 	int i;
+	bool usemxp;
+
+	if (ch->desc->pProtocol->bMXP)
+		usemxp = true;
 
 	if (argument[0] == '\0')
 	{
@@ -166,6 +170,10 @@ void show_help_to_ch(CHAR_DATA *ch, HELP_DATA *help)
     BUFFER *buffer;
     STRING_DATA *topic;
     int i;
+	bool usemxp;
+
+	if (ch->desc->pProtocol->bMXP)
+		usemxp = true;
 
     buffer = new_buf();
 
@@ -184,7 +192,10 @@ void show_help_to_ch(CHAR_DATA *ch, HELP_DATA *help)
 
     i = 0;
     for (topic = help->related_topics; topic != NULL; topic = topic->next) {
-		sprintf(buf, "%s", topic->string);
+		if (usemxp)
+			sprintf(buf, "\t<send href=\"help #%d\">%s\t</send>{x", lookup_help_exact(topic->string,0,topHelpCat)->index, topic->string);
+		else
+			sprintf(buf, "%s", topic->string);
 		add_buf(buffer, buf);
 
 		if (topic->next != NULL)

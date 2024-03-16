@@ -1751,7 +1751,7 @@ void show_chlist_to_char(CHAR_DATA *ch)
     send_to_char("{YRegistered Factions within Sentience:{x\n\r", ch);
     send_to_char(
     "{YNo. PK  Name                          Max   Alignment    Size{x\n\r", ch);
-    line(ch , 83);
+    line(ch , 83, NULL, NULL);
     i = 0;
     for (church = church_list; church != NULL; church = church->next)
     {
@@ -1780,7 +1780,7 @@ void show_chlist_to_char(CHAR_DATA *ch)
 	    send_to_char(buf, ch);
 	}
 
-	line (ch, 83);
+	line (ch, 83, NULL, NULL);
 	sprintf(buf, "{Y%d group(s) found.{x\n\r", i);
 
 	send_to_char(buf, ch);
@@ -2161,7 +2161,7 @@ void do_chinfo(CHAR_DATA *ch, char *argument)
 	    "{Y #  %-12s %-10s %-10s %-10s %-8s %-8s %-4s{x\n\r",
 	    "Name", "Pneuma", "Karma", "Gold", "PK", "CPK", "Wars");
 	send_to_char(buf, ch);
-	line(ch,78);
+	line(ch,78, NULL, NULL);
 	i = 0;
 
 	for (member = church->people; member != NULL; member = member->next)
@@ -2188,7 +2188,7 @@ void do_chinfo(CHAR_DATA *ch, char *argument)
 	    send_to_char(buf, ch);
 	}
 
-	line(ch,78);
+	line(ch,78, NULL, NULL);
     }
     else
     {
@@ -2196,7 +2196,7 @@ void do_chinfo(CHAR_DATA *ch, char *argument)
 	    "{Y #  %-12s %-10s %-10s %-10s{x\n\r",
 	    "Name", "Pneuma", "Karma", "Gold");
 	send_to_char(buf, ch);
-	line(ch, 55);
+	line(ch, 55, NULL, NULL);
 	i = 0;
 
 	for (member = church->people; member != NULL; member = member->next)
@@ -2214,7 +2214,7 @@ void do_chinfo(CHAR_DATA *ch, char *argument)
 	    send_to_char(buf, ch);
 	}
 
-	line(ch, 55);
+	line(ch, 55, NULL, NULL);
     }
 
     CHURCH_TREASURE_ROOM *treasure;
@@ -3049,7 +3049,7 @@ void do_chtrust(CHAR_DATA *ch, char *argument)
 	sprintf(buf, "{Y%s is entrusted with the following commands:{x\n\r",
 	    church_player->name);
 	send_to_char(buf, ch);
-	line(ch, 50);
+	line(ch, 50, NULL, NULL);
 
 	i = 0;
 	for (string = church_player->commands; string != NULL; string = string->next)
@@ -3063,7 +3063,7 @@ void do_chtrust(CHAR_DATA *ch, char *argument)
 	if (i == 0)
 	    send_to_char("No commands.\n\r", ch);
 
-	line(ch, 50);
+	line(ch, 50, NULL, NULL);
 
 	return;
     }
