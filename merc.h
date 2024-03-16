@@ -3222,7 +3222,7 @@ enum {
 #define COMM_NOANNOUNCE         (F)
 #define COMM_NOHELPER           (G)
 #define COMM_NOCT		(H)
-#define COMM_SOCIAL		(I) // DEPRECATED in favour of checking AREA_SOCIAL.
+#define COMM_MXP		(I) // MXP is a protocol for enhanced mud clients.
 #define COMM_NOTIFY		(J)
 #define COMM_NOHINTS		(K)
 #define COMM_COMPACT		(L)
@@ -7844,6 +7844,7 @@ void hunt_char 		args( (CHAR_DATA *ch, CHAR_DATA *victim ) );
 void	resurrect_pc   args ( ( CHAR_DATA *ch ) );
 bool is_global_mob( CHAR_DATA *ch );
 void line( CHAR_DATA *ch, int length, char *colour, char *character);
+char *pad_string(char *string, int length, char *colour, char *character);
 char *pers( CHAR_DATA *ch, CHAR_DATA *looker );
 bool can_see_shift( CHAR_DATA *ch, CHAR_DATA *victim );
 char *extra2_bit_name( long extra2_flags );

@@ -414,6 +414,7 @@ const  struct player_setting_type    pc_set_table[] =
     {   "holylight",	PLR_HOLYLIGHT,	 0,		0,		false,	IM,	SETTING_OFF	},
     {   "holywarp",	0,		PLR_HOLYWARP,	 0,		false,	IM,	SETTING_OFF	},
     {	"map",		0,		 0,		COMM_NOMAP,	true,	0,	SETTING_OFF	},
+	{	"mxp",		0,		0,		COMM_MXP,	false,	0,	SETTING_ON	},
     {	"nochallenge",	PLR_NO_CHALLENGE,0,		0,		false,	0,	SETTING_OFF	},
     {	"nofollow",	PLR_NOFOLLOW,	 0,		0,		false,	0,	SETTING_OFF	},
     {   "nolore",	0,		PLR_NOLORE,	 0,		false,	0,	SETTING_OFF	},

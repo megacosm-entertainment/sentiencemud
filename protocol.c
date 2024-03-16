@@ -612,7 +612,7 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
                pProtocol->bBlockMXP = false;
                break;
             case '<':
-               if ( !pProtocol->bBlockMXP && pProtocol->pVariables[eMSDP_MXP]->ValueInt )
+               if ( !pProtocol->bBlockMXP && pProtocol->pVariables[eMSDP_MXP]->ValueInt && IS_SET(apDescriptor->character->comm, COMM_MXP) )
                {
                   pCopyFrom = MXPStart;
                   bUseMXP = true;
