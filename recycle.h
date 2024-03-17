@@ -187,3 +187,5 @@ void free_ship_route(SHIP_ROUTE *route);
 SHIP_CREW_INDEX_DATA *new_ship_crew_index();
 void free_ship_crew_index(SHIP_CREW_INDEX_DATA *crew);
 
+CMD_DATA *new_cmd();
+void free_cmd(CMD_DATA *cmd);

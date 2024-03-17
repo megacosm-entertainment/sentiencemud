@@ -8669,6 +8669,158 @@ void iterator_stop(ITERATOR *it)
 	}
 }
 
+bool iterator_insert_before(ITERATOR *it, void *data)
+{
+	if (it && it->list && it->current)
+	{
+		// This spot is already blank
+		if(!it->current->data)
+			it->current->data = data;
+
+		// Previous spot is already blank
+		else if (it->current->prev && !it->current->prev->data)
+			it->current->prev->data = data;
+		else
+		{
+			LLIST_LINK *link = alloc_mem(sizeof(LLIST_LINK));
+			if(!link) return false;
+
+			link->prev = it->current->prev;
+
+			if (it->current->prev)
+				it->current->prev->next = link;
+			else
+				it->list->head = link;
+
+			link->next = it->current;
+			it->current->prev = link;
+
+			link->data = data;
+		}
+
+		it->list->size++;
+		return true;
+	}
+
+	return false;
+}
+
+bool iterator_insert_after(ITERATOR *it, void *data)
+{
+	if (it && it->list && it->current)
+	{
+		// This spot is already blank
+		if(!it->current->data)
+			it->current->data = data;
+
+		// Next spot is already blank
+		else if (it->current->next && !it->current->next->data)
+			it->current->next->data = data;
+		else
+		{
+			LLIST_LINK *link = alloc_mem(sizeof(LLIST_LINK));
+			if(!link) return false;
+
+			link->next = it->current->next;
+			if (it->current->next)
+				it->current->next->prev = link;
+			else
+				it->list->tail = link;
+
+			link->prev = it->current;
+			it->current->next = link;
+
+			link->data = data;
+		}
+
+		it->list->size++;
+		return true;
+	}
+
+	return false;
+}
+
+inline static void __list_quicksort_rotate(LLIST_LINK **arr, int start, int end)
+{
+	LLIST_LINK *save = arr[start];
+
+	for(int i = start; i < end; i++)
+		arr[i] = arr[i + 1];
+	
+	arr[end] = save;
+}
+
+static void __list_quicksort_partition(LLIST_LINK **arr, int start, int end, register int (*cmp)(void *a, void *b))
+{
+	if (start == end) return;
+
+	int pivot = end;
+
+	for(int i = start; i < end; i++)
+	{
+		if (arr[i]->data)
+		{
+			// Only move data if the pivot is valid
+			if (arr[pivot]->data)
+			{
+				int c = (*cmp)(arr[pivot]->data, arr[i]->data);
+
+				if (c <= 0)
+				{
+					// Pivot is less than or equal to the selection, move selection to the right side
+					__list_quicksort_rotate(arr, i, end);
+					pivot--;	// Pivot moved to the left
+				}
+			}
+		}
+		else
+		{
+			__list_quicksort_rotate(arr, i, end);
+			pivot--;	// Pivot moved to the left
+		}
+	}
+
+	if (pivot > start)
+		__list_quicksort_partition(arr, start, pivot - 1, cmp);
+	
+	if (pivot < end)
+		__list_quicksort_partition(arr, pivot + 1, end, cmp);
+}
+
+bool list_quicksort(LLIST *lp, int (*cmp)(void *a, void *b))
+{
+	if (!IS_VALID(lp) && cmp)
+	{
+		LLIST_LINK *cur;
+		int count;
+
+		for(count = 0, cur = lp->head; cur; cur = cur->next)
+			count++;
+
+		if (count < 1) return false;			
+
+		LLIST_LINK **arr = alloc_mem(sizeof(LLIST_LINK *) * count);
+		for(count = 0, cur = lp->head; cur; cur = cur->next)
+			arr[count] = cur;
+
+		// Start recursive sorting
+		__list_quicksort_partition(arr, 0, count - 1, cmp);
+
+		// Relink everything
+		for(int i = 0; i < count; i++)
+		{
+			if (i > 0) arr[i]->prev = arr[i-1];
+			if (i < (count - 1)) arr[i]->next = arr[i+1];
+		}
+		lp->head = arr[0];
+		lp->tail = arr[count - 1];
+
+		free_mem(arr, sizeof(LLIST_LINK *) * count);
+	}
+
+	return false;
+}
+
 
 ///////////////////////////////////////////
 //
@@ -9515,6 +9667,21 @@ char *get_article(char *text, bool upper)
 
 	return upper ? "A" : "a";
 
+}
+
+char *formatf(const char *fmt, ...)
+{
+	static int i = 0;
+    static char buf[10][MSL*3];
+
+	i = (i + 1) % 10;
+
+	va_list args;
+	va_start(args, fmt);
+	vsnprintf(buf[i], MSL*3, fmt, args);
+	va_end(args);
+
+	return buf[i];
 }
 
 bool check_social_status(CHAR_DATA *ch)

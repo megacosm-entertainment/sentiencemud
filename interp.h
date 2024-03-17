@@ -37,6 +37,8 @@
 /* wrapper function for safe command execution */
 void do_function args((CHAR_DATA *ch, DO_FUN *do_fun, char *argument));
 
+void cmd_under_construction(CHAR_DATA *ch);
+
 /* for command types */
 #define ML 	MAX_LEVEL	/* implementor */
 #define L1	MAX_LEVEL - 1  	/* creator */
@@ -63,6 +65,7 @@ struct	cmd_type
     int16_t		log;       /* log when? */
     int16_t              show;      /* show? */
     bool		is_ooc;		// Command is purely OOC - certain things won't break when doing these commands
+    char * const        help_keywords; // Message to display when trying to use an OOC command in an IC room
 };
 
 /* the command table itself */
@@ -97,7 +100,7 @@ DECLARE_DO_FUN( do_asave_new	);
 DECLARE_DO_FUN( do_asearch	);
 DECLARE_DO_FUN( do_assignhelper	);
 DECLARE_DO_FUN(	do_at		);
-DECLARE_DO_FUN(	do_auction	);
+DECLARE_DO_FUN( do_auction	);
 DECLARE_DO_FUN( do_autoassist	);
 DECLARE_DO_FUN( do_autoexit	);
 DECLARE_DO_FUN( do_autoeq       );
@@ -593,6 +596,7 @@ DECLARE_DO_FUN( do_collapse	);
 DECLARE_DO_FUN( do_spawntreasuremap );
 DECLARE_DO_FUN( do_activate );
 DECLARE_DO_FUN( do_reloadstats );
+DECLARE_DO_FUN( do_cmdlist );
 //DECLARE_DO_FUN( do_speed	);
 //DECLARE_DO_FUN( do_steer	);
 //DECLARE_DO_FUN( do_navigate );

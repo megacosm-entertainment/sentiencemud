@@ -7666,7 +7666,7 @@ void do_expand(CHAR_DATA *ch, char *argument)
 			distance > telescope->value[2] )
 		{
 			char buf[MSL];
-			sprintf(buf, "{xCannot expand $p{x to that distance.  Please pick a value from %d to %d.",
+			sprintf(buf, "{xCannot expand $p{x to that distance.  Please pick a value from %ld to %ld.",
 				telescope->value[1], telescope->value[2]);
 
 			act(buf, ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
@@ -7720,7 +7720,7 @@ void do_collapse(CHAR_DATA *ch, char *argument)
 			distance > telescope->value[2] )
 		{
 			char buf[MSL];
-			sprintf(buf, "{xCannot collapse $p{x to that distance.  Please pick a value from %d to %d.",
+			sprintf(buf, "{xCannot collapse $p{x to that distance.  Please pick a value from %ld to %ld.",
 				telescope->value[1], telescope->value[2]);
 
 			act(buf, ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);

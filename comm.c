@@ -470,6 +470,9 @@ int main(int argc, char **argv)
     gconfig = gconfig_zero;
     if (gconfig_read()==1) exit(1);
 
+	if (!load_commands()) exit(1);
+	log_string("commands loaded.");
+
     /*
      * Run the game.
      */
@@ -509,6 +512,9 @@ int main(int argc, char **argv)
 	for( server = first_server; server; server = server->next )
 	imc_shutdown(false, server);
 	#endif
+
+	save_commands();
+	list_destroy(commands_list);
 
     if (gconfig_write()==1)
     {

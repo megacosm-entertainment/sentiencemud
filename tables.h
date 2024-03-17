@@ -151,6 +151,12 @@ struct	bit_type
 	char *				help;
 };
 
+struct do_func_type
+{
+	char *name;
+	DO_FUN *func;
+};
+
 
 
 /* game tables */
@@ -285,5 +291,7 @@ extern	const struct flag_type ship_flags[];
 
 extern	const	struct	flag_type	stock_types[];
 extern	const	struct	flag_type	prog_entity_flags[];
+
+extern const struct do_func_type do_func_table[];
 
 #endif

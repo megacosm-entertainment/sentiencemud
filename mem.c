@@ -13,6 +13,7 @@
 #include <time.h>
 #include "merc.h"
 #include "recycle.h"
+#include "interp.h"
 #include "scripts.h"
 
 //#define DEBUG_MODULE
@@ -4335,3 +4336,43 @@ void free_ship_crew_index(SHIP_CREW_INDEX_DATA *crew)
 
 }
 
+CMD_DATA *cmd_data_free;
+CMD_DATA *new_cmd()
+{
+    CMD_DATA *cmd;
+    if (cmd_data_free)
+    {
+        cmd = cmd_data_free;
+        cmd_data_free = cmd_data_free->next;
+    }
+    else
+        cmd = alloc_perm(sizeof(CMD_DATA));
+    
+    memset(cmd, 0, sizeof(*cmd));
+
+    cmd->name = NULL;
+    cmd->function = NULL;
+    cmd->level = 0;
+    cmd->log = 0;
+    cmd->position = POS_DEAD;
+    cmd->show = 1;
+    cmd->help_keywords = &str_empty[0];
+    cmd->description = &str_empty[0];
+    cmd->comments = &str_empty[0];
+
+    return cmd;
+}
+
+void free_cmd(CMD_DATA *cmd)
+{
+    if (!cmd)
+        return;
+
+    free_string(cmd->name);
+    free_string(cmd->help_keywords);
+    free_string(cmd->description);
+    free_string(cmd->comments);
+
+    cmd->next = cmd_data_free;
+    cmd_data_free = cmd;
+}

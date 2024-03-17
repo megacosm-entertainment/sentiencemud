@@ -366,6 +366,7 @@ typedef struct olc_point_usage_data OLC_POINT_USAGE;
 typedef struct olc_point_area_data OLC_POINT_AREA;
 
 typedef struct dice_data DICE_DATA;
+typedef struct cmd_data CMD_DATA;
 
 /* VIZZWILDS */
 typedef struct    wilds_vlink      WILDS_VLINK;
@@ -630,6 +631,7 @@ struct random_string_data {
 
 struct list_link_type {
 	LLIST_LINK *next;
+    LLIST_LINK *prev;
 	void *data;
 };
 
@@ -3249,12 +3251,12 @@ enum {
 #define WIZ_ON			(A) // Toggled by 'wiznet' command. Used to determine if you have wiznet active at all.
 #define WIZ_TICKS		(B) // Fires once per tick in update.c - Lets you know a tick has passed.
 #define WIZ_LOGINS		(C) // Fires when someone logs in, quits, or enters a bad password.
-/* #define WIZ_SITES		(D) */ // Unused.
+#define WIZ_HELPS		(D) // Unused.
 #define WIZ_LINKS		(E) // Fires when someone loses link or reconnects.
 #define WIZ_DEATHS		(F) // Fires when players die. For mobs, MOBDEATHS is used.
 #define WIZ_RESETS		(G) // Fires when an area reset happens (in area_update).
 #define WIZ_MOBDEATHS		(H) // Fires when mobs die. For players, DEATHS is used.
-/* #define WIZ_FLAGS		(I) */ // Unused.
+#define WIZ_VERBS		(I)  // Unused.
 #define WIZ_PENALTIES		(J) // Fires on penalty commands, or their revocation (nochan, notell, deny, freeze)
 /* #define WIZ_SACCING		(K) */ // Unused.
 #define WIZ_LEVELS		(L) // Fires when someone levels up.
@@ -3694,6 +3696,25 @@ struct command_data
     COMMAND_DATA	*next;
 
     char 		*name;
+};
+
+struct cmd_data
+{
+    CMD_DATA *next;
+
+    char *name;
+    
+    char *description;
+    char *comments;
+
+    int16_t level;
+    int16_t position;
+    int16_t log;
+    bool show;
+    bool enabled;
+
+    DO_FUN *function;
+    char *help_keywords;
 };
 
 
@@ -7038,6 +7059,7 @@ extern  const   struct  item_type       token_table     [];
 extern	const	struct	player_setting_type	pc_set_table	[];
 extern	const	struct	wiznet_type	wiznet_table	[];
 extern	const	struct	attack_type	attack_table	[];
+//extern  const   struct  cmd_type    cmd_table   [];
 extern  const	struct  race_type	race_table	[];
 extern	const	struct	pc_race_type	pc_race_table	[];
 extern  const	struct	spec_type	spec_table	[];
@@ -7171,6 +7193,7 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
 #define DUNGEONS_FILE		WORLD_DIR "dungeons.dat"
 #define INSTANCES_FILE		WORLD_DIR "instances.dat"
 #define SHIPS_FILE			WORLD_DIR "ships.dat"
+#define COMMANDS_FILE       SYSTEM_DIR "commands.dat"
 
 /* POST msg queue */
 #define MSGQUEUE	1111
@@ -8505,6 +8528,7 @@ void obj_set_nest_clones(OBJ_DATA *obj, bool add);
 void obj_update_nest_clones(OBJ_DATA *obj);
 void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, bool automatic);
 
+char *formatf(const char *fmt, ...);
 void log_stringf(const char *fmt,...);
 bool interrupt_script( CHAR_DATA *ch, bool silent );
 CHAR_DATA *obj_carrier(OBJ_DATA *obj);
@@ -8587,6 +8611,9 @@ void *iterator_nextdata(ITERATOR *it);
 void iterator_remcurrent(ITERATOR *it);
 void iterator_reset(ITERATOR *it);
 void iterator_stop(ITERATOR *it);
+bool iterator_insert_before(ITERATOR *it, void *data);
+bool iterator_insert_after(ITERATOR *it, void *data);
+bool list_quicksort(LLIST *lp, int (*cmp)(void *a, void *b));
 
 bool list_isvalid(LLIST *lp);
 
@@ -8791,6 +8818,11 @@ char *bitmatrix_string(const struct flag_type **bank, const long *flags);
 char *flagbank_string(const struct flag_type **bank, ...);
 
 void display_resets(CHAR_DATA *ch);
+
+
+extern LLIST *commands_list;
+bool load_commands();
+void save_commands();
 
 bool check_social_status(CHAR_DATA *ch);
 

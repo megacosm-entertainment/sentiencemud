@@ -91,6 +91,7 @@ extern	LLIST *loaded_instances;
 extern	LLIST *loaded_dungeons;
 extern	LLIST *loaded_ships;
 LLIST *loaded_special_keys;
+LLIST *commands_list = NULL;
 
 void free_room_index( ROOM_INDEX_DATA *pRoom );
 void load_instances();
@@ -665,6 +666,7 @@ LLIST *loaded_objects;
 LLIST *persist_mobs;
 LLIST *persist_objs;
 LLIST *persist_rooms;
+
 
 TOKEN_DATA *global_tokens = NULL;
 
