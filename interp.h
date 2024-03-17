@@ -65,7 +65,6 @@ struct	cmd_type
     int16_t		log;       /* log when? */
     int16_t              show;      /* show? */
     bool		is_ooc;		// Command is purely OOC - certain things won't break when doing these commands
-    char * const        help_keywords; // Message to display when trying to use an OOC command in an IC room
 };
 
 /* the command table itself */

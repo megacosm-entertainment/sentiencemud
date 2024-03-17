@@ -8145,16 +8145,43 @@ void list_destroy(LLIST *lp)
 
 void list_cull(LLIST *lp)
 {
-	register LLIST_LINK **prev, *cur;
+	register LLIST_LINK /***prev,*/ *cur, *next;
 
 	if(lp && lp->ref < 1) {
 		// Cull any null data nodes
+		for(cur = lp->head;cur;)
+		{
+			if (!cur->data)
+			{
+				next = cur->next;
+				if (cur->prev)
+					cur->prev->next = next;
+				else
+					lp->head = next;
+
+				if (cur->next)
+					cur->next->prev = cur->prev;
+				else
+					lp->tail = cur->prev;
+
+				free_mem(cur, sizeof(LLIST_LINK));
+				cur = next;
+			}
+			else
+			{
+				cur = cur->next;
+			}
+		}
+
+/*
 		for(prev = &lp->head, cur = lp->head; cur;) {
 			if(!cur->data) {
 				do {
 					if( lp->tail == cur )
-						lp->tail = NULL;
+						lp->tail = lp->tail->prev;
 					*prev = cur->next;
+
+
 					free_mem(cur,sizeof(LLIST_LINK));
 					cur = *prev;
 				} while(cur && !cur->data);
@@ -8163,13 +8190,19 @@ void list_cull(LLIST *lp)
 				cur = *prev;
 			}
 		}
+*/
 
 		if(!lp->tail && lp->head ) {
 			if( lp->head->next ) {
-				for(cur = lp->head; cur->next; cur = cur->next );
+				for(cur = lp->head; cur->next;cur = cur->next )
+				{
+					cur->next->prev = cur;	// Reset the double linkage
+				}
 				lp->tail = cur;
 			} else
 				lp->tail = lp->head;
+			lp->head->prev = NULL;
+			lp->tail->next = NULL;
 		}
 	}
 }
@@ -8216,7 +8249,10 @@ bool list_addlink(LLIST *lp, void *data)
 		link->next = lp->head;
 		if( !lp->head )
 			lp->tail = link;
+		else
+			lp->head->prev = link;
 		lp->head = link;
+		link->prev = NULL;
 
 		link->data = data;
 		lp->size++;
@@ -8230,12 +8266,13 @@ bool list_appendlink(LLIST *lp, void *data)
 	LLIST_LINK *link;
 
 	if(lp && lp->valid && (link = alloc_mem(sizeof(LLIST_LINK)))) {
-//		log_stringf("list_appendlink: Adding data %016X to list %016X.", lp, data);
+		log_stringf("list_appendlink: Adding data %016X to list %016X.", lp, data);
 		// First one?
 		if( !lp->head )
 			lp->head = link;
 		else
 			lp->tail->next = link;
+		link->prev = lp->tail;
 		lp->tail = link;
 
 		link->data = data;
@@ -8274,7 +8311,7 @@ bool list_appendlist(LLIST *lp, LLIST *src)
 
 bool list_movelink(LLIST *lp, int from, int to)
 {
-	LLIST_LINK *old, *link, *prev;
+	LLIST_LINK *old, *link, *new_link;
 
 	if( from < 0 ) from = lp->size + from;
 	if( to < 0 ) to = lp->size + to;
@@ -8302,7 +8339,7 @@ bool list_movelink(LLIST *lp, int from, int to)
 		if( !old )
 			return false;
 
-		for(prev = NULL, link = lp->head; link && to > 0; prev = link, link = link->next )
+		for(link = lp->head; link && to > 0; link = link->next )
 		{
 			if(link != old)
 			{
@@ -8318,22 +8355,24 @@ bool list_movelink(LLIST *lp, int from, int to)
 				{
 					if( !--to )
 					{
-						link = alloc_mem(sizeof(LLIST_LINK));
-						if( !link )
+						new_link = alloc_mem(sizeof(LLIST_LINK));
+						if( !new_link )
 							return false;
 
-						link->data = old->data;
+						new_link->data = old->data;
 						old->data = NULL;
 
-						if( prev )
+						if( link->prev )
 						{
-							link->next = prev->next;
-							prev->next = link;
+							new_link->next = link;
+							link->prev->next = new_link;
+							link->prev = new_link;
 						}
 						else
 						{
-							link->next = lp->head;
-							lp->head = link;
+							new_link->next = lp->head;
+							lp->head = new_link;
+							new_link->prev = NULL;
 						}
 
 						return true;
@@ -8353,6 +8392,7 @@ bool list_movelink(LLIST *lp, int from, int to)
 				lp->head = link;
 			else
 				lp->tail->next = link;
+			link->prev = lp->tail;
 			lp->tail = link;
 
 			link->data = old->data;
@@ -8365,7 +8405,7 @@ bool list_movelink(LLIST *lp, int from, int to)
 
 bool list_insertlink(LLIST *lp, void *data, int to)
 {
-	LLIST_LINK *link, *prev;
+	LLIST_LINK *link, *new_link;
 
 	if( to < 0 ) to = lp->size + to;
 
@@ -8373,7 +8413,7 @@ bool list_insertlink(LLIST *lp, void *data, int to)
 
 	if( lp )
 	{
-		for(prev = NULL, link = lp->head; link && to > 0; prev = link, link = link->next )
+		for(link = lp->head; link && to > 0; link = link->next )
 		{
 			if( (to == 1) && (!link->data) )
 			{
@@ -8387,21 +8427,23 @@ bool list_insertlink(LLIST *lp, void *data, int to)
 			{
 				if( !--to )
 				{
-					link = alloc_mem(sizeof(LLIST_LINK));
-					if( !link )
+					new_link = alloc_mem(sizeof(LLIST_LINK));
+					if( !new_link )
 						return false;
 
-					link->data = data;
+					new_link->data = data;
 
-					if( prev )
+					if( link->prev )
 					{
-						link->next = prev->next;
-						prev->next = link;
+						new_link->next = link;
+						link->prev->next = new_link;
+						link->prev = new_link;
 					}
 					else
 					{
-						link->next = lp->head;
+						new_link->next = lp->head;
 						lp->head = link;
+						link->prev = NULL;
 					}
 
 					lp->size++;
@@ -8422,6 +8464,7 @@ bool list_insertlink(LLIST *lp, void *data, int to)
 				lp->head = link;
 			else
 				lp->tail->next = link;
+			link->prev = lp->tail;
 			lp->tail = link;
 			link->data = data;
 			lp->size++;
@@ -8582,7 +8625,7 @@ void iterator_start_nth(ITERATOR *it, LLIST *lp, int nth)
 		if(lp && lp->valid) {
 			it->list = lp;
 
-			if( nth < 0 ) nth = lp->size + nth;
+			if( nth < 0 ) nth = lp->size + nth +1;
 
 			for(link = lp->head; link && nth > 0; link = link->next)
 				if(link->data)
@@ -8617,6 +8660,25 @@ LLIST_LINK *iterator_next(ITERATOR *it)
 	return link;
 }
 
+void *iterator_prevdata(ITERATOR *it)
+{
+	register LLIST_LINK *link = NULL;
+	//register LLIST_LINK *next = NULL;
+	if(it && it->list && it->list->valid && it->current) {
+		if( it->moved ) {
+			for(link = it->current->prev; link && !link->data; link = link->prev);
+		} else {
+			for(link = it->current; link && !link->data; link = link->prev);
+
+			it->moved = true;
+		}
+		it->current = link;
+	}
+
+	return link ? link->data : NULL;
+
+}
+
 void *iterator_nextdata(ITERATOR *it)
 {
 	register LLIST_LINK *link = NULL;
@@ -8635,6 +8697,21 @@ void *iterator_nextdata(ITERATOR *it)
 	return link ? link->data : NULL;
 }
 
+void iterator_setcurrent(ITERATOR *it, void *data)
+{
+	if (it && it->list && it->list->valid && it->current)
+	{
+		// Delete the current data using specific deleter if it is defined
+		if( it->list->deleter )
+			(*it->list->deleter)(it->current->data);
+		
+		if (!it->current->data)
+			it->list->size++;
+
+		it->current->data = data;
+	}
+}
+
 void iterator_remcurrent(ITERATOR *it)
 {
 	if(it && it->list && it->current && it->current->data)
@@ -8644,6 +8721,7 @@ void iterator_remcurrent(ITERATOR *it)
 			(*it->list->deleter)(it->current->data);
 
 		it->current->data = NULL;
+		it->list->size--;
 	}
 }
 

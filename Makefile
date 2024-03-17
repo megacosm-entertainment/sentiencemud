@@ -1,5 +1,5 @@
 CC      = gcc
-PROF    = -Wall -O -g -pg -ggdb -g 
+PROF    = -Wall -O -g -pg -ggdb
 OBJDIR	= obj
 VPATH   = .:obj
 LIBS = -lpthread -lz -lm -lrt -lssl -lcrypto -ldl -lcrypt

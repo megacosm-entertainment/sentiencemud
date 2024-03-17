@@ -97,16 +97,15 @@ FUNC_LOOKUPS(do, DO_FUN,(!func || func == cmd_under_construction))
 void save_command(FILE *fp, CMD_DATA *command)
 {
     fprintf(fp, "#COMMAND %s~\n", command->name);
-    //fprintf(fp, "Name %s~\n", command->name);
-    fprintf(fp, "Comments %s~\n", command->comments);
-    fprintf(fp, "Description %s~\n", command->description);
     fprintf(fp, "Enabled %d\n", command->enabled);
-    fprintf(fp, "HelpKeywords %s~\n", command->help_keywords);
     fprintf(fp, "Function %s~\n", do_func_name(command->function));
     fprintf(fp, "Level %d\n", command->level);
     fprintf(fp, "Log %d\n", command->log);
     fprintf(fp, "Position %d\n", command->position);
     fprintf(fp, "Show %d\n", command->show);
+    fprintf(fp, "Comments %s~\n", command->comments);
+    fprintf(fp, "Description %s~\n", command->description);
+    fprintf(fp, "HelpKeywords %s~\n", command->help_keywords);
     fprintf(fp, "#-COMMAND\n");
 }
 
@@ -114,7 +113,7 @@ void save_commands()
 {
     FILE *fp;
 
-    log_string("save_sectors: saving " COMMANDS_FILE);
+    log_string("save_commands: saving " COMMANDS_FILE);
     if ((fp = fopen(COMMANDS_FILE, "w")) == NULL)
     {
         bug("save_commands: fopen", 0);
@@ -122,8 +121,20 @@ void save_commands()
     }
     else
     {
+        log_string(formatf("save_commands: Saving %ld commands", commands_list->size));
+        
         ITERATOR it;
         CMD_DATA *command;
+
+        int count = 0;
+        iterator_start(&it, commands_list);
+        while((command = (CMD_DATA *)iterator_nextdata(&it)))
+        {
+            count++;
+        }
+        iterator_stop(&it);
+        log_string(formatf("Found %d commands from iterating. (save_commands)", count));
+
         iterator_start(&it, commands_list);
         while((command = (CMD_DATA *)iterator_nextdata(&it)))
         {
@@ -147,24 +158,30 @@ void insert_command(CMD_DATA *command)
         if (cmp < 0)
         {
             iterator_insert_before(&it, command);
+            log_string(formatf("DBG2 Inserted command '%s', commands_list is now %ld entries long", command->name, commands_list->size));
             break;
         }
     }
     iterator_stop(&it);
 
     if (!cmd)
+    {
         list_appendlink(commands_list, command);
+        log_string(formatf("DBG1 Inserted command '%s', commands_list is now %ld entries long", command->name, commands_list->size));
+    }
+
+    
 
 }
 
 CMD_DATA *load_command(FILE *fp)
 {
-    CMD_DATA *command = new_cmd();
+    CMD_DATA *command;
     char *word;
     bool fMatch;
 
 
-//    command = new_cmd();
+    command = new_cmd();
     command->name = fread_string(fp);
 
     while(str_cmp((word = fread_word(fp)), "#-COMMAND"))
@@ -251,15 +268,11 @@ bool load_commands()
             command->position = cmd_table[i].position;
             command->show = cmd_table[i].show;
             command->function = cmd_table[i].do_fun;
-            if (cmd_table[i].help_keywords)
-                command->help_keywords = str_dup(cmd_table[i].help_keywords);
-            else
-                command->help_keywords = str_dup("");
+
             command->enabled = true;
 
             insert_command(command);
-            
-            //list = list_appendlink(commands_list, command);
+            log_string(formatf("DBG3 Bootstrapped command '%s', commands_list is now %ld entries long", command->name, commands_list->size));
         }
         save_commands();
     }
@@ -293,6 +306,17 @@ bool load_commands()
             }
         }
     }
+    log_string(formatf("load_commands: Loaded %ld commands", commands_list->size));
+    ITERATOR it;
+            int count = 0;
+        iterator_start(&it, commands_list);
+        while((command = (CMD_DATA *)iterator_nextdata(&it)))
+        {
+            count++;
+        }
+        iterator_stop(&it);
+        log_string(formatf("Found %d commands from iterating. (load_commands)", count));
+
     return true;
 }
 
