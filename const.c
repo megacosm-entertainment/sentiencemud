@@ -380,7 +380,6 @@ const   struct wiznet_type      wiznet_table    [] =
    {	"levels",	WIZ_LEVELS,	IM },
    {	"load",		WIZ_LOAD,	L2 },
    {	"restore",	WIZ_RESTORE,	L2 },
-   {	"snoops",	WIZ_SNOOPS,	ML },
    {	"switches",	WIZ_SWITCHES,	L2 },
    {	"secure",	WIZ_SECURE,	ML },
    {	"memcheck",	WIZ_MEMCHECK,	L1 },
@@ -390,6 +389,8 @@ const   struct wiznet_type      wiznet_table    [] =
    {	"scripts",	WIZ_SCRIPTS,	L1 },
    {	"ships",	WIZ_SHIPS,	IM },
    {	"bugs",	WIZ_BUGS,	ML },
+   {	"helps",	WIZ_HELPS,	IM },
+   {    "commands", WIZ_VERBS, IM},
    {	NULL,		0,		0  }
 };
 

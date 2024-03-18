@@ -478,9 +478,6 @@ int main(int argc, char **argv)
     control = init_socket(port);
     boot_db();
 
-	if (!load_commands()) exit(1);
-	log_string("commands loaded.");
-
     sprintf(log_buf, "Sentience is up on port %d.", port);
     log_string(log_buf);
     #ifdef IMC

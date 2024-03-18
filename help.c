@@ -152,7 +152,12 @@ void do_help(CHAR_DATA *ch, char *argument)
 	help = lookup_help(argument, get_trust(ch), topHelpCat);
 
 	if (help == NULL || help->hCat->min_level > get_trust(ch))
+	{
 		act("No help or category found with keyword $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);
+		sprintf(buf, "%s attempted to get help for '%s' but no helpfile was found.", ch->name, argument);
+		log_string(buf);
+		wiznet(buf, ch, NULL, WIZ_HELPS, 0, 0);
+	}
 	else
 		show_help_to_ch(ch, help);
 }

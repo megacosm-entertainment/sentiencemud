@@ -583,7 +583,7 @@ bool check_verbs(CHAR_DATA *ch, char *command, char *argument)
 	int slot;
 	int ret_val = PRET_NOSCRIPT, ret; // @@@NIB Default for a trigger loop is NO SCRIPT
 
-	log_stringf("check_verbs: ch(%s), command(%s), argument(%s)", ch->name, command, argument);
+//	log_stringf("check_verbs: ch(%s), command(%s), argument(%s)", ch->name, command, argument);
 //	printf_to_char(ch, "check_verbs: ch(%s), command(%s), argument(%s)", ch->name, command, argument);
 
 	slot = TRIGSLOT_VERB;
@@ -596,14 +596,14 @@ bool check_verbs(CHAR_DATA *ch, char *command, char *argument)
 	iterator_start(&tit, ch->ltokens);
 	while(( token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
 		if(token->pIndexData->progs) {
-			log_stringf("check_verbs: ch(%s) token(%ld, %s)", ch->name, token->pIndexData->vnum, token->name);
+//			log_stringf("check_verbs: ch(%s) token(%ld, %s)", ch->name, token->pIndexData->vnum, token->name);
 			script_token_addref(token);
 			script_destructed = false;
 			iterator_start(&pit, token->pIndexData->progs[slot]);
 			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-				log_stringf("check_verbs: ch(%s) token(%ld, %s) trigger(%s, %s)", ch->name, token->pIndexData->vnum, token->name, trigger_name(prg->trig_type), prg->trig_phrase);
+//				log_stringf("check_verbs: ch(%s) token(%ld, %s) trigger(%s, %s)", ch->name, token->pIndexData->vnum, token->name, trigger_name(prg->trig_type), prg->trig_phrase);
 				if (is_trigger_type(prg->trig_type,TRIG_VERBSELF) && !str_prefix(command, prg->trig_phrase)) {
-					log_stringf("check_verbs: ch(%s) token(%ld, %s) trigger(%s, %s) executing", ch->name, token->pIndexData->vnum, token->name, trigger_name(prg->trig_type), prg->trig_phrase);
+//					log_stringf("check_verbs: ch(%s) token(%ld, %s) trigger(%s, %s) executing", ch->name, token->pIndexData->vnum, token->name, trigger_name(prg->trig_type), prg->trig_phrase);
 					ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,argument,prg->trig_phrase,0,0,0,0,0);
 					if( ret != PRET_NOSCRIPT) {
 						iterator_stop(&pit);
@@ -816,6 +816,7 @@ void interpret( CHAR_DATA *ch, char *argument )
     char buf[MSL];
 //    const struct cmd_type* selected_command = NULL;
 	CMD_DATA *selected_command = NULL;
+	CMD_DATA *cmd = NULL;
 
     // Strip leading spaces
     while (ISSPACE(*argument))
@@ -1281,24 +1282,21 @@ void interpret( CHAR_DATA *ch, char *argument )
 		}
     }
 */
-
-	selected_command = get_cmd_data(command);
-
-	if (!selected_command)
-	{
-		send_to_char("Huh?\n\r", ch);
-		return;
-	}
-
-	if (selected_command)
-	{
-		if ((!forced_command || selected_command->level < LEVEL_IMMORTAL) && 
-		(selected_command->level <= trust || is_granted_command(ch, selected_command->name)))
+    ITERATOR it;
+    iterator_start(&it, commands_list);
+	while(( cmd = (CMD_DATA *)iterator_nextdata(&it)))
+	{	
+		if ( command[0] == cmd->name[0] && 
+		!str_prefix(command, cmd->name) && 
+		(!forced_command || cmd->level < LEVEL_IMMORTAL) && 
+		(cmd->level <= trust || is_granted_command(ch, cmd->name)))
 		{
+			selected_command = cmd;
 			found = true;
+			break;
 		}
 	}
-
+	iterator_stop(&it);
 
     allowed = is_allowed(command);
 
@@ -1318,7 +1316,7 @@ void interpret( CHAR_DATA *ch, char *argument )
 /*	
     if (IS_AFFECTED(ch, AFF_HIDE) && !(allowed || (selected_command != NULL && selected_command->is_ooc)))
 */
-    if (IS_AFFECTED(ch, AFF_HIDE) && !(allowed || (selected_command && IS_SET(selected_command->command_flags,CMD_IS_OOC))))
+    if (IS_AFFECTED(ch, AFF_HIDE) && !(allowed || (found && IS_SET(selected_command->command_flags,CMD_IS_OOC))))
     {
         affect_strip(ch, gsn_hide);
 		REMOVE_BIT(ch->affected_by[0], AFF_HIDE);
@@ -1451,44 +1449,47 @@ void interpret( CHAR_DATA *ch, char *argument )
     }
 
     // Stop abuse.
-    if (IS_NPC(ch) && selected_command->level > LEVEL_IMMORTAL)
-    {
-	sprintf(buf, "interpret: mob %s(%ld) tried immortal command %s",
-	    ch->short_descr, ch->pIndexData->vnum, selected_command->name);
-	log_string(buf);
-	return;
-    }
-
-    // Log and snoop.
-    if ( selected_command->log == LOG_NEVER )
-	strcpy( logline, "" );
-
-    if (/*ch->tot_level < MAX_LEVEL    Syn - phasing this out.
-    &&*/ ((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_LOG)) || logAll || selected_command->log == LOG_ALWAYS))
-    {
-	char s[2 * MAX_INPUT_LENGTH];
-	char *ps;
-	int i;
-
-	ps = s;
-	sprintf( log_buf, "Log %s: %s",
-	    IS_NPC(ch) ? ch->short_descr : ch->name, logline );
-
-	// Make sure that was is displayed is what is typed
-	for ( i = 0; log_buf[i]; i++ )
+	if (selected_command != NULL && found)
 	{
-	    *ps++ = log_buf[i];
-	    if ( log_buf[i] == '$' )
-		*ps++ = '$';
-	    if ( log_buf[i] == '{' )
-		*ps++ = '{';
-	}
+    	if (IS_NPC(ch) && selected_command->level >= LEVEL_IMMORTAL)
+    	{
+			sprintf(buf, "interpret: mob %s(%ld) tried immortal command %s",
+	    	ch->short_descr, ch->pIndexData->vnum, selected_command->name);
+			log_string(buf);
+			return;
+    	}
 
-	*ps = 0;
-	wiznet( s, ch, NULL, WIZ_SECURE, 0, get_trust(ch));
-	if ( logline[0] != '\0' )
-	    log_string( log_buf );
-    }
+    	// Log and snoop.
+    	if ( selected_command->log == LOG_NEVER )
+		strcpy( logline, "" );
+
+    	if (/*ch->tot_level < MAX_LEVEL    Syn - phasing this out.
+    	&&*/ ((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_LOG)) || logAll || selected_command->log == LOG_ALWAYS))
+    	{
+			char s[2 * MAX_INPUT_LENGTH];
+			char *ps;
+			int i;
+
+			ps = s;
+			sprintf( log_buf, "Log %s: %s",
+	    	IS_NPC(ch) ? ch->short_descr : ch->name, logline );
+
+			// Make sure that was is displayed is what is typed
+			for ( i = 0; log_buf[i]; i++ )
+			{
+	    		*ps++ = log_buf[i];
+	    		if ( log_buf[i] == '$' )
+					*ps++ = '$';
+	    		if ( log_buf[i] == '{' )
+					*ps++ = '{';
+			}
+
+			*ps = 0;
+			wiznet( s, ch, NULL, WIZ_SECURE, 0, get_trust(ch));
+			if ( logline[0] != '\0' )
+	    		log_string( log_buf );
+    	}
+	}
 
     if ( ch->desc != NULL && ch->desc->snoop_by != NULL )
     {
@@ -1509,11 +1510,14 @@ void interpret( CHAR_DATA *ch, char *argument )
 		return;
 	#endif
 
-	if (check_social(ch, command, argument))
+		if (check_social(ch, command, argument))
 		return;
 
-	send_to_char( "Huh?\n\r", ch);
-	return;
+		send_to_char( "Huh?\n\r", ch);
+		sprintf(buf, "%s tried to use the command '%s' but it didn't exist.", ch->name, command);
+		log_string(buf);
+		wiznet(buf, ch, NULL, WIZ_VERBS, 0, 0);
+		return;
     }
 
     // Command found, let's execute it

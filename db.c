@@ -851,6 +851,9 @@ void boot_db(void)
 	loaded_ships = list_create(false);
 	loaded_special_keys = list_create(false);
 
+	if (!load_commands()) exit(1);
+	log_string("commands loaded.");
+
     /*
      * Read in all the area files.
      */
