@@ -8239,3 +8239,49 @@ void free_corpse_data(CORPSE_DATA *data)
     data->next = corpse_data_free;
     corpse_data_free = data;
 }
+
+
+CMD_DATA *cmd_data_free;
+CMD_DATA *new_cmd()
+{
+    CMD_DATA *cmd;
+    if (cmd_data_free)
+    {
+        cmd = cmd_data_free;
+        cmd_data_free = cmd_data_free->next;
+    }
+    else
+        cmd = alloc_perm(sizeof(CMD_DATA));
+    
+    memset(cmd, 0, sizeof(*cmd));
+
+    cmd->name = NULL;
+    cmd->function = NULL;
+    cmd->type = 0;
+    cmd->rank = 0;
+    cmd->log = 0;
+    cmd->position = POS_DEAD;
+    cmd->help_keywords = new_string_data();
+    cmd->description = &str_empty[0];
+    cmd->comments = &str_empty[0];
+    cmd->reason = NULL;
+    cmd->summary = NULL;
+
+    return cmd;
+}
+
+void free_cmd(CMD_DATA *cmd)
+{
+    if (!cmd)
+        return;
+
+    free_string(cmd->name);
+    free_string_data(cmd->help_keywords);
+    free_string(cmd->description);
+    free_string(cmd->comments);
+    free_string(cmd->reason);
+    free_string(cmd->summary);
+
+    cmd->next = cmd_data_free;
+    cmd_data_free = cmd;
+}

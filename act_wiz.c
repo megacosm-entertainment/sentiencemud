@@ -8481,6 +8481,7 @@ void do_addcommand(CHAR_DATA *ch, char *argument)
     COMMAND_DATA *cmd;
     int i;
     bool found = false;
+	CMD_DATA *command;
 
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
@@ -8505,32 +8506,34 @@ void do_addcommand(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    for (i = 0; cmd_table[i].name[0] != '\0'; i++)
-    {
-        if (!str_prefix(arg2, cmd_table[i].name)
-	&&  cmd_table[i].rank <= get_staff_rank(ch))
+	ITERATOR it;
+	iterator_start(&it, commands_list);
+	while(( command = (CMD_DATA *)iterator_nextdata(&it)))
 	{
-	    found = true;
-	    break;
+		if (!str_prefix(arg2, command->name)
+		&&  command->rank <= get_staff_rank(ch))
+		{
+			found = true;
+			break;
+		}
 	}
-    }
 
     if (!found) {
         send_to_char("Command not found.\n\r", ch);
 	return;
     }
 
-    if (cmd_table[i].rank <= get_staff_rank(vch)) {
+    if (command->rank <= get_staff_rank(vch)) {
         act("$N can already use that command due to $S rank.", ch, vch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	return;
     }
 
     cmd = new_command();
-    cmd->name = str_dup(cmd_table[i].name);
+    cmd->name = str_dup(command->name);
     cmd->next = vch->pcdata->commands;
     vch->pcdata->commands = cmd;
 
-    sprintf(buf, "Granted command \"%s\" to %s.\n\r", cmd_table[i].name, vch->name);
+    sprintf(buf, "Granted command \"%s\" to %s.\n\r", command->name, vch->name);
     send_to_char(buf, ch);
 }
 

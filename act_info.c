@@ -3753,13 +3753,23 @@ void do_score(CHAR_DATA * ch, char *argument)
 	COMMAND_DATA *cmd;
 	int i;
 	char buf2[MSL];
+	CMD_DATA *command;
 
 	send_to_char("{YYou have been granted the following commands:{x\n\r", ch);
 
 	i = 0;
 	for (cmd = ch->pcdata->commands; cmd != NULL; cmd = cmd->next) {
 	    i++;
-	    sprintf(buf2, "%-15s", cmd->name);
+		command = get_cmd_data(cmd->name);
+
+			if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)")) && !IS_NULLSTR(command->summary))
+				sprintf(buf2, "\t<send href=\"%s|help %s\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, command->help_keywords->string, command->summary, command->name, command->name, pad_string(command->name, 15, NULL, NULL));
+			else if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)")) && IS_NULLSTR(command->summary))
+				sprintf(buf2, "\t<send href=\"%s|help %s\" hint=\"Execute %s|View '%s' helpfile\">{X%s\t</send>%s", command->name, command->help_keywords->string, command->name, command->name, command->name, pad_string(command->name, 15, NULL, NULL));
+			else if ((command->help_keywords == NULL || !str_cmp(command->help_keywords->string, "(null)")) && !IS_NULLSTR(command->summary))
+				sprintf(buf2, "\t<send href=\"%s\" hint=\"%s\">{X%s\t</send>%s", command->name, command->summary, command->name, pad_string(command->name, 15, NULL, NULL));
+			else
+				sprintf(buf2, "\t<send href=\"%s\" hint=\"Execute %s\">{X%s\t</send>%s", command->name, command->name, command->name, pad_string(command->name, 15, NULL, NULL));
 	    if (i % 4 == 0)
 		strcat(buf2, "\n\r");
 

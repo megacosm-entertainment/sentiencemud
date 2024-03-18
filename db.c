@@ -198,6 +198,9 @@ SECTOR_DATA *gsct_water_swim;
 SECTOR_DATA *gsct_underwater_noswim;
 SECTOR_DATA *gsct_underwater_swim;
 
+LLIST *commands_list = NULL;
+
+
 void free_room_index( ROOM_INDEX_DATA *pRoom );
 void load_instances();
 INSTANCE *instance_load(FILE *fp);

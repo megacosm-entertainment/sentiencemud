@@ -681,3 +681,6 @@ DECLARE_DO_FUN( do_unlead );
 DECLARE_DO_FUN( do_corpsedit );
 DECLARE_DO_FUN( do_corpselist );
 DECLARE_DO_FUN( do_corpseshow );
+
+DECLARE_DO_FUN( do_cmdlist );
+DECLARE_DO_FUN( do_cmdedit  );

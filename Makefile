@@ -37,6 +37,7 @@ C_FILES = \
 	blueprint.c \
 	boat.c \
 	church.c \
+	cmdedit.c \
 	comm.c \
 	const.c \
 	db.c \
@@ -146,6 +147,7 @@ O_FILES = \
 	$(OBJDIR)/blueprint.o \
 	$(OBJDIR)/boat.o \
 	$(OBJDIR)/church.o \
+	$(OBJDIR)/cmdedit.o \
 	$(OBJDIR)/comm.o \
 	$(OBJDIR)/const.o \
 	$(OBJDIR)/db.o \

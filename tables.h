@@ -308,6 +308,11 @@ struct	bit_type
 	char *				help;
 };
 
+struct do_func_type
+{
+	char *name;
+	DO_FUN *func;
+};
 
 
 /* game tables */
@@ -532,6 +537,10 @@ extern const struct flag_type skill_sources[];
 extern const struct flag_type church_sizes[];
 
 extern const struct global_corpse_type global_corpses[];
+
+extern const struct do_func_type do_func_table[];
+extern const struct flag_type	command_flags[];
+extern const struct flag_type	log_flags[];
 
 #endif
 

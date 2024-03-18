@@ -702,6 +702,10 @@ int main(int argc, char **argv)
 	sprintf(log_buf, "Socket bound to port %d.", port);
 	log_string(log_buf);
     boot_db();
+
+	if (!load_commands()) exit(1);
+	log_string("commands loaded.");
+
     sprintf(log_buf, "Sentience is up on port %d.", port);
     log_string(log_buf);
     #ifdef IMC
@@ -762,6 +766,9 @@ int main(int argc, char **argv)
 	list_destroy(sectors_list);
 
 	terminate_scripting();
+
+		save_commands();
+	list_destroy(commands_list);
 
     if (gconfig_write()==1)
     {
@@ -2054,7 +2061,7 @@ void write_to_buffer(DESCRIPTOR_DATA *d, const char *txt, int length)
     {
 	char *outbuf;
 
-        if (d->outsize >= 32000)
+        if (d->outsize >= 128000)
 	{
 	    bug("Buffer overflow. Closing.\n\r",0);
 	    close_socket(d);

@@ -246,6 +246,21 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
 	return;
     }
 
+	if (!str_cmp(arg1, "commands"))
+	{
+		if (!IS_IMPLEMENTOR(ch))
+		{
+			send_to_char("Insufficient security to save commands - action logged.\n\r", ch);
+			return;
+		}
+		else
+		{
+			save_commands();
+			send_to_char("Commands saved.\n\r", ch);
+			return;
+		}
+	}
+
     // Show syntax
     do_asave_new(ch, "");
 }

@@ -43,15 +43,6 @@
 #include "interp.h"
 #include "scripts.h"
 
-
-// Command logging types
-#define LOG_NORMAL	0
-#define LOG_ALWAYS	1
-#define LOG_NEVER	2
-
-
-void do_mxptest(CHAR_DATA *ch, char *argument);
-
 // Log-all switch
 bool				logAll		= false;
 
@@ -138,6 +129,8 @@ const	struct	cmd_type	cmd_table	[] =
 	{ "clsedit",			CMDTYPE_OLC,		do_clsedit,				POS_DEAD,		STAFF_IMPLEMENTOR,	LOG_ALWAYS,	true,	true },
 	{ "clslist",			CMDTYPE_OLC,		do_clslist,				POS_DEAD,		STAFF_IMMORTAL,		LOG_NORMAL, true,	true },
 	{ "clsshow",			CMDTYPE_OLC,		do_clsshow,				POS_DEAD,		STAFF_IMMORTAL,		LOG_NORMAL, true,	true },
+	{ "cmdedit",			CMDTYPE_OLC,		do_cmdedit,				POS_DEAD,		STAFF_IMPLEMENTOR,	LOG_NORMAL,	true,	true },
+	{ "cmdlist", 			CMDTYPE_OLC,		do_cmdlist, 			POS_DEAD, 		STAFF_IMPLEMENTOR, 	LOG_NORMAL, true, 	true },
 	{ "collapse",			CMDTYPE_OBJECT,		do_collapse,			POS_RESTING,	STAFF_PLAYER,		LOG_NORMAL, true,	false },
 	{ "color",				CMDTYPE_INFO,		do_colour,				POS_DEAD,		STAFF_PLAYER,		LOG_NORMAL, true,	true },
 	{ "colour",				CMDTYPE_INFO,		do_colour,				POS_DEAD,		STAFF_PLAYER,		LOG_NORMAL, true,	true },
@@ -961,7 +954,8 @@ void interpret( CHAR_DATA *ch, char *argument )
     bool found, allowed;
     char cmd_copy[MAX_INPUT_LENGTH] ;
     char buf[MSL];
-    const struct cmd_type* selected_command = NULL;
+    //const struct cmd_type* selected_command = NULL;
+	CMD_DATA *selected_command = NULL;
 
     // Strip leading spaces
     while (ISSPACE(*argument))
@@ -1434,24 +1428,47 @@ void interpret( CHAR_DATA *ch, char *argument )
 		rank = get_staff_rank(ch->desc->original);
 	}
 
-	selected_command = NULL;
-    for ( cmd = 0; cmd_table[cmd].name[0] != '\0'; cmd++ )
-    {
-		if ( command[0] == cmd_table[cmd].name[0] &&
-			!str_prefix( command, cmd_table[cmd].name ) &&
-			(!forced_command || (cmd_table[cmd].rank == STAFF_PLAYER)) &&  // 20070511NIB - used to prevent script forces from doing imm commands
-			(cmd_table[cmd].rank <= rank || is_granted_command(ch, cmd_table[cmd].name)))
+	selected_command = get_cmd_data(command);
+
+	if (!selected_command)
+	{
+		send_to_char("Huh?\n\r", ch);
+		return;
+	}
+
+	if (selected_command)
+	{
+		if ((!forced_command || selected_command->rank == STAFF_PLAYER) && 
+		(selected_command->rank <= rank || is_granted_command(ch, selected_command->name)))
 		{
-			selected_command = &cmd_table[cmd];
 			found = true;
-			break;
 		}
-    }
+	}
+
+//    for ( cmd = 0; cmd_table[cmd].name[0] != '\0'; cmd++ )
+//    {
+//		if ( command[0] == cmd_table[cmd].name[0] &&
+//			!str_prefix( command, cmd_table[cmd].name ) &&
+//			(!forced_command || (cmd_table[cmd].rank == STAFF_PLAYER)) &&  // 20070511NIB - used to prevent script forces from doing imm commands
+//			(cmd_table[cmd].rank <= rank || is_granted_command(ch, cmd_table[cmd].name)))
+//		{
+//			selected_command = &cmd_table[cmd];
+//			found = true;
+//			break;
+//		}
+//    }
 
     allowed = is_allowed(command);
 
+	if (!selected_command->enabled && found)
+	{
+		sprintf(buf,"%s is currently disabled. Reason: %s.\n\r", selected_command->name, selected_command->reason ? selected_command->reason : "No Reason Provided");
+		send_to_char(buf,ch);
+		return;
+	}
+
     // Check stuff relevant to interpretation.
-    if (IS_AFFECTED(ch, AFF_HIDE) && !(allowed || (selected_command != NULL && selected_command->is_ooc)))
+    if (IS_AFFECTED(ch, AFF_HIDE) && !(allowed || (selected_command && IS_SET(selected_command->command_flags,CMD_IS_OOC))))
     {
         affect_strip(ch, gsk_hide);
 		REMOVE_BIT(ch->affected_by[0], AFF_HIDE);
@@ -1588,19 +1605,19 @@ void interpret( CHAR_DATA *ch, char *argument )
     }
 
     // Stop abuse.
-    if (IS_NPC(ch) && cmd_table[cmd].rank > STAFF_PLAYER)
+    if (IS_NPC(ch) && selected_command->rank > STAFF_PLAYER)
     {
 	sprintf(buf, "interpret: mob %s(%ld) tried immortal command %s",
-	    ch->short_descr, ch->pIndexData->vnum, cmd_table[cmd].name);
+	    ch->short_descr, ch->pIndexData->vnum, selected_command->name);
 	log_string(buf);
 	return;
     }
 
     // Log.
-    if ( cmd_table[cmd].log == LOG_NEVER )
+    if ( selected_command->log == LOG_NEVER )
 	strcpy( logline, "" );
 
-    if (((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_LOG)) || logAll || cmd_table[cmd].log == LOG_ALWAYS))
+    if (((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_LOG)) || logAll || selected_command->log == LOG_ALWAYS))
     {
 	char s[2 * MAX_INPUT_LENGTH];
 	char *ps;
@@ -1649,7 +1666,7 @@ void interpret( CHAR_DATA *ch, char *argument )
     if (ch->position == POS_FEIGN)
     {
 	do_function( ch, &do_feign, "");
-	if ( !str_cmp( cmd_table[cmd].name, "feign") )
+	if ( !str_cmp( selected_command->name, "feign") )
 	    return;
     }
 
@@ -1668,7 +1685,7 @@ void interpret( CHAR_DATA *ch, char *argument )
     }
 
     // Character not in position for command?
-    if ( ch->position < cmd_table[cmd].position )
+    if ( ch->position < selected_command->position )
     {
 	switch( ch->position )
 	{
@@ -1706,7 +1723,7 @@ void interpret( CHAR_DATA *ch, char *argument )
     }
 
     // Dispatch the command
-    (*cmd_table[cmd].do_fun) ( ch, argument );
+    (*selected_command->function) ( ch, argument );
 
     tail_chain();
 }
@@ -2007,15 +2024,39 @@ static int cmd_cmp(void *a, void *b)
 // Output a table of commands.
 void do_commands( CHAR_DATA *ch, char *argument )
 {
-    char buf[MAX_STRING_LENGTH];
+    char buf[MAX_STRING_LENGTH], mxp_str[1024];
     int cmd;
     int col;
+	CMD_DATA *command;
 
 	if (IS_NPC(ch)) return;
 
 	ch->pcdata->extra_commands = list_createx(false, NULL, delete_extra_commands);
 
     col = 0;
+
+	ITERATOR cit;
+	iterator_start(&cit, commands_list);
+	while((command = (CMD_DATA *)iterator_nextdata(&cit)))
+	{
+		if (command->rank <= STAFF_PLAYER && !IS_SET(command->command_flags, CMD_HIDE_LISTS))
+		{
+			if (!list_contains(ch->pcdata->extra_commands, command->name, cmd_cmp))
+			{
+				if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)")) && !IS_NULLSTR(command->summary))
+					sprintf(mxp_str, "\t<send href=\"%s|help %s\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, command->help_keywords->string, command->summary, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+				else if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)")) && IS_NULLSTR(command->summary))
+					sprintf(mxp_str, "\t<send href=\"%s|help %s\" hint=\"Execute %s|View '%s' helpfile\">{X%s\t</send>%s", command->name, command->help_keywords->string, command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+				else if ((command->help_keywords == NULL || !str_cmp(command->help_keywords->string, "(null)")) && !IS_NULLSTR(command->summary))
+					sprintf(mxp_str, "\t<send href=\"%s\" hint=\"%s\">{X%s\t</send>%s", command->name, command->summary, command->name, pad_string(command->name, 13, NULL, NULL));
+				else
+					sprintf(mxp_str, "\t<send href=\"%s\" hint=\"Execute %s\">{X%s\t</send>%s", command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+				
+				list_appendlink(ch->pcdata->extra_commands, str_dup(mxp_str));
+			}
+		}
+	}
+	/*
     for ( cmd = 0; cmd_table[cmd].name[0] != '\0'; cmd++ )
     {
         if ( cmd_table[cmd].rank <= STAFF_PLAYER &&
@@ -2023,10 +2064,12 @@ void do_commands( CHAR_DATA *ch, char *argument )
 		{
 			if (!list_contains(ch->pcdata->extra_commands, cmd_table[cmd].name, cmd_cmp))
 			{
+
 				list_appendlink(ch->pcdata->extra_commands, str_dup(cmd_table[cmd].name));
 			}
 		}
     }
+	*/
 
 	// Get all the verbs it can find
 	//  There may be duplicate strings in the list, that can't be helped
@@ -2039,7 +2082,7 @@ void do_commands( CHAR_DATA *ch, char *argument )
 		iterator_start(&it, ch->pcdata->extra_commands);
 		while((cmd_str = (char *)iterator_nextdata(&it)))
 		{
-			sprintf( buf, "%-12s", cmd_str);
+			sprintf( buf, "%s", cmd_str);
 			send_to_char( buf, ch );
 			if ( ++col % 6 == 0 )
 				send_to_char( "\n\r", ch );
@@ -2061,21 +2104,31 @@ void do_wizhelp( CHAR_DATA *ch, char *argument )
     char buf[MAX_STRING_LENGTH];
     int cmd;
     int col;
+	CMD_DATA *command;
 
     col = 0;
-    for ( cmd = 0; cmd_table[cmd].name[0] != '\0'; cmd++ )
-    {
-        if ( cmd_table[cmd].rank >= STAFF_IMMORTAL
-        &&   cmd_table[cmd].rank <= get_staff_rank( ch )
-	&&   cmd_table[cmd].show)
-	{
-            sprintf( buf, "%-12s", cmd_table[cmd].name );
-            send_to_char( buf, ch );
 
-	    if ( ++col % 6 == 0 )
-		send_to_char( "\n\r", ch );
+	ITERATOR it;
+	iterator_start(&it, commands_list);
+	while ((command = (CMD_DATA *)iterator_nextdata(&it)))
+	{
+		if (command->rank >= STAFF_IMMORTAL && command->rank <= get_staff_rank(ch) && !IS_SET(command->command_flags, CMD_HIDE_LISTS))
+		{
+			if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)")) && !IS_NULLSTR(command->summary))
+				sprintf(buf, "\t<send href=\"%s|help %s\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, command->help_keywords->string, command->summary, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+			else if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)")) && IS_NULLSTR(command->summary))
+				sprintf(buf, "\t<send href=\"%s|help %s\" hint=\"Execute %s|View '%s' helpfile\">{X%s\t</send>%s", command->name, command->help_keywords->string, command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+			else if ((command->help_keywords == NULL || !str_cmp(command->help_keywords->string, "(null)")) && !IS_NULLSTR(command->summary))
+				sprintf(buf, "\t<send href=\"%s\" hint=\"%s\">{X%s\t</send>%s", command->name, command->summary, command->name, pad_string(command->name, 13, NULL, NULL));
+			else
+				sprintf(buf, "\t<send href=\"%s\" hint=\"Execute %s\">{X%s\t</send>%s", command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+
+			send_to_char( buf, ch );
+			if ( ++col % 6 == 0 )
+				send_to_char( "\n\r", ch );
+			
+		}
 	}
-    }
 
     if ( col % 6 != 0 )
 	send_to_char( "\n\r", ch );

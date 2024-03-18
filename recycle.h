@@ -447,3 +447,7 @@ void free_corpse_damage(CORPSE_DAMAGE *data);
 
 CORPSE_DATA *new_corpse_data();
 void free_corpse_data(CORPSE_DATA *data);
+
+
+CMD_DATA *new_cmd();
+void free_cmd(CMD_DATA *cmd);

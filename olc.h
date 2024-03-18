@@ -61,6 +61,7 @@
 #define ED_RACEEDIT	29
 #define ED_SECTOREDIT	30
 #define ED_CORPSEDIT	31
+#define ED_CMDEDIT		32
 
 #define AEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define HEDIT( fun )            bool fun( CHAR_DATA *ch, char *argument )
@@ -90,6 +91,7 @@
 #define RACEEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define SECTOREDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define CORPSEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
+#define CMDEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 
 
 /*
@@ -133,6 +135,8 @@ void	raceedit  ( CHAR_DATA *ch, char *argument );
 
 void	sectoredit  ( CHAR_DATA *ch, char *argument );
 void	corpsedit  ( CHAR_DATA *ch, char *argument );
+
+void	cmdedit		(CHAR_DATA *ch, char *argument );
 
 /*
  * OLC Constants
@@ -207,6 +211,7 @@ extern const struct olc_cmd_type		clsedit_table[];
 extern const struct olc_cmd_type		raceedit_table[];
 extern const struct olc_cmd_type		sectoredit_table[];
 extern const struct olc_cmd_type		corpsedit_table[];
+extern const struct olc_cmd_type		cmdedit_table[];
 
 /*
  * Editor Commands.
@@ -241,6 +246,7 @@ DECLARE_DO_FUN( do_raceedit );
 
 DECLARE_DO_FUN( do_sectoredit );
 DECLARE_DO_FUN( do_corpsedit );
+DECLARE_DO_FUN( do_cmdedit );
 
 /*
  * Area Editor Prototypes
@@ -844,6 +850,23 @@ DECLARE_OLC_FUN( corpsedit_lost );
 DECLARE_OLC_FUN( corpsedit_damage );
 
 
+DECLARE_OLC_FUN( cmdedit_create ); 
+DECLARE_OLC_FUN( cmdedit_show ); 
+DECLARE_OLC_FUN( cmdedit_delete );
+DECLARE_OLC_FUN( cmdedit_name ); 
+DECLARE_OLC_FUN( cmdedit_description );
+DECLARE_OLC_FUN( cmdedit_comments ); 
+DECLARE_OLC_FUN( cmdedit_type );
+DECLARE_OLC_FUN( cmdedit_rank );
+DECLARE_OLC_FUN( cmdedit_position ); 
+DECLARE_OLC_FUN( cmdedit_log );
+DECLARE_OLC_FUN( cmdedit_enabled ); 
+DECLARE_OLC_FUN( cmdedit_reason );
+DECLARE_OLC_FUN( cmdedit_flags );
+DECLARE_OLC_FUN( cmdedit_function );
+DECLARE_OLC_FUN( cmdedit_help ); 
+DECLARE_OLC_FUN( cmdedit_summary );
+
 /*
  * Macros
  */
@@ -887,7 +910,7 @@ DECLARE_OLC_FUN( corpsedit_damage );
 
 #define EDIT_SECTOR(ch, sector)		( sector = (SECTOR_DATA *)ch->desc->pEdit )
 #define EDIT_CORPSE(ch, corpse)		( corpse = (CORPSE_DATA *)ch->desc->pEdit )
-
+#define EDIT_CMD(ch, command)		( command = (CMD_DATA *)ch->desc->pEdit )
 /*
  * Prototypes
  */

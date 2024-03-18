@@ -66,6 +66,7 @@ char *editor_name_table[] = {
 	"RaceEdit",
 	"SectorEdit",
 	"CorpsEdit",
+	"CMDEdit",
 };
 
 int editor_max_tabs_table[] = {
@@ -101,6 +102,7 @@ int editor_max_tabs_table[] = {
 	0,		// RaceEdit
 	0,		// SectorEdit
 	0,		// CorpsEdit
+	0,		// CMDEdit
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -133,6 +135,7 @@ const struct editor_cmd_type editor_table[] =
 	{ "race",		do_raceedit },
 	{ "sector",		do_sectoredit },
 	{ "corpse",		do_corpsedit },
+	{ "command",	do_cmdedit	},
 	{ NULL,			0,			}
 };
 
@@ -603,6 +606,10 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
 		corpsedit(d->character, d->incomm);
 		break;
 
+	case ED_CMDEDIT:
+        cmdedit(d->character, d->incomm);
+        break;
+
 	default:
 		return false;
 	}
@@ -677,6 +684,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 	RACE_DATA *race;
 	SECTOR_DATA *sector;
 	CORPSE_DATA *corpse;
+	CMD_DATA *command;
 	static char buf[MIL];
 	char buf2[MSL];
 
@@ -870,6 +878,14 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 			strcpy(buf, "--");
 		break;
 
+    case ED_CMDEDIT:
+        command = (CMD_DATA *)ch->desc->pEdit;
+        if (command)
+            sprintf(buf, "%s", command->name);
+        else
+            sprintf(buf, "--");
+        break;
+
 	default:
 		sprintf(buf, " ");
 		break;
@@ -1024,6 +1040,10 @@ bool show_commands(CHAR_DATA *ch, char *argument)
 	case ED_CORPSEDIT:
 		show_olc_cmds(ch, corpsedit_table);
 		break;
+
+    case ED_CMDEDIT:
+        show_olc_cmds(ch, cmdedit_table);
+        break;
 	}
 
 	return false;
@@ -5567,4 +5587,118 @@ int olc_buffer_show_flags(CHAR_DATA *ch, BUFFER *buffer,
 		const char *colors)
 {
 	return olc_buffer_show_flags_ex(ch, buffer, flag_table, value, command, heading, 77, 16, 5, colors);
+}
+
+const struct olc_cmd_type cmdedit_table[] =
+{
+    { "?",      show_help           },
+    { "comments",   cmdedit_comments },
+    { "create",     cmdedit_create  },
+    { "description",    cmdedit_description },
+	{ "delete",			cmdedit_delete },
+    { "enabled",        cmdedit_enabled },
+	{ "flags",			cmdedit_flags	},
+    { "function",       cmdedit_function },
+    { "help",           cmdedit_help },
+    { "log",            cmdedit_log },
+    { "name",           cmdedit_name },
+    { "position",    cmdedit_position },
+	{ "rank",		cmdedit_rank },
+	{ "reason",		cmdedit_reason },
+    { "show",      cmdedit_show },
+	{ "summary",	cmdedit_summary },
+	{ "type",		cmdedit_type },
+};
+
+void do_cmdedit(CHAR_DATA *ch, char *argument)
+{
+	CMD_DATA *command;
+	char arg1[MSL];
+
+	argument = one_argument(argument, arg1);
+
+	if (IS_NPC(ch))
+		return;
+
+	if (arg1[0] != '\0')
+	{
+		if (!str_cmp(arg1, "create"))
+		{
+			if (cmdedit_create(ch, argument))
+				ch->desc->editor = ED_CMDEDIT;
+
+			return;
+		}
+
+		command = get_cmd_data(arg1);
+		if (!command)
+		{
+			send_to_char("No command by that name.\n\r", ch);
+			return;
+		}
+
+		ch->pcdata->immortal->last_olc_command = current_time;
+		olc_set_editor(ch, ED_CMDEDIT, command);
+		return;
+	}
+
+	send_to_char("CMDEdit:  There is no default command to edit.\n\r", ch);
+}
+
+void cmdedit(CHAR_DATA *ch, char *argument)
+{
+	char command[MAX_INPUT_LENGTH];
+	char arg[MAX_STRING_LENGTH];
+	int  cmd;
+
+	smash_tilde(argument);
+	strcpy(arg, argument);
+	argument = one_argument(argument, command);
+
+	if (!str_cmp(command, "done"))
+	{
+		edit_done(ch);
+		return;
+	}
+
+	ch->pcdata->immortal->last_olc_command = current_time;
+	if (command[0] == '\0')
+	{
+		cmdedit_show(ch, argument);
+		return;
+	}
+
+	for (cmd = 0; cmdedit_table[cmd].name != NULL; cmd++)
+	{
+		if (!str_prefix(command, cmdedit_table[cmd].name))
+		{
+			if ((*cmdedit_table[cmd].olc_fun) (ch, argument))
+			{
+				save_commands();
+			}
+			return;
+		}
+	}
+
+	interpret(ch, arg);
+}
+
+void do_cmdshow(CHAR_DATA *ch, char *argument)
+{
+	CMD_DATA *command;
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  cmdshow <command name>\n\r", ch);
+		return;
+	}
+
+	if (!(command = get_cmd_data(argument)))
+	{
+		send_to_char("That command does not exist.\n\r", ch);
+		return;
+	}
+
+	olc_show_item(ch, command, cmdedit_show, argument);
+	return;
 }

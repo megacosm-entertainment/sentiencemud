@@ -541,6 +541,8 @@ typedef struct skill_data SKILL_DATA;
 typedef struct skill_group_data SKILL_GROUP;
 typedef struct song_data SONG_DATA;
 
+typedef struct cmd_data CMD_DATA;
+
 typedef struct reputation_index_data REPUTATION_INDEX_DATA;
 typedef struct reputation_data REPUTATION_DATA;
 
@@ -4618,6 +4620,38 @@ struct command_data
 
     char 		*name;
 };
+
+// Command logging types
+#define LOG_NORMAL	0
+#define LOG_ALWAYS	1
+#define LOG_NEVER	2
+
+
+struct cmd_data
+{
+    CMD_DATA *next;
+
+    char        *name;          // Command Name
+    
+    char        *description;   // Description of command.
+    char        *comments;      // Comments on command. May be deprecated later.
+
+    int16_t     type;           // Command type
+    int16_t     rank;           // Minimum rank to use command.
+    int16_t     position;       // Minimum position to use command.
+    int16_t     log;            // Command log level.
+    bool        enabled;        // Is the command enabled?
+    char        *reason;        // Reason command is disabled.
+    long        command_flags;  // Various command flags.
+
+    DO_FUN      *function;      // What does this function DO?!
+    STRING_DATA *help_keywords; // Helpfile topics for this command.
+    char        *summary;       // Used for MXP hints, quick one-liner about command.
+};
+
+
+#define CMD_HIDE_LISTS      (A) // Command is hidden from lists (equiv to cmd_table's 'show' being false)
+#define CMD_IS_OOC          (B) // Command is considered OOC (equiv to cmd_table's 'is_ooc' being true)
 
 
 /* For looking up classes in get_profession */
@@ -10081,6 +10115,7 @@ char *	crypt		args( ( const char *key, const char *salt ) );
 #define SONGS_FILE         SYSTEM_DIR "songs.dat"
 #define SECTORS_FILE        SYSTEM_DIR "sectors.dat"
 #define CORPSE_FILE         SYSTEM_DIR "corpse.dat"
+#define COMMANDS_FILE       SYSTEM_DIR "commands.dat"
 /*Notes of all kinds */
 #define NOTE_FILE       NOTE_DIR "notes.not"		/* For 'notes'*/
 /*#define PENALTY_FILE	NOTE_DIR "penal.not"		Unused */
@@ -10794,6 +10829,7 @@ void hunt_char 		args( (CHAR_DATA *ch, CHAR_DATA *victim ) );
 void	resurrect_pc   args ( ( CHAR_DATA *ch ) );
 bool is_global_mob( CHAR_DATA *ch );
 void line( CHAR_DATA *ch, int length );
+char *pad_string(char *string, int length, char *colour, char *character);
 char *pers( CHAR_DATA *ch, CHAR_DATA *looker );
 bool can_see_shift( CHAR_DATA *ch, CHAR_DATA *victim );
 char *extra2_bit_name( long extra2_flags );
@@ -12348,5 +12384,15 @@ CORPSE_DATA *get_corpse_data_uid(long uid);
 CORPSE_DAMAGE *get_corpse_damage(CORPSE_DATA *corpse, int damage_type);
 CORPSE_DATA *apply_damage_to_corpse(CORPSE_DATA *corpse, int damage_type);
 
+extern LLIST *commands_list;
+CMD_DATA *get_cmd_data(char *name);
+//DO_FUN * do_func_lookup(char *name);
+//char do_func_name(DO_FUN *func);
+//char do_func_display(DO_FUN *func);
+
+
+bool load_commands();
+void save_commands();
+void do_mxptest(CHAR_DATA *ch, char *argument);
 
 #endif /* !def __merc_h__ */
