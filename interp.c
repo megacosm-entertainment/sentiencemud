@@ -1514,7 +1514,10 @@ void interpret( CHAR_DATA *ch, char *argument )
 		return;
 
 		send_to_char( "Huh?\n\r", ch);
-		sprintf(buf, "%s tried to use the command '%s' but it didn't exist.", ch->name, command);
+		if (IS_NPC(ch))
+			sprintf(buf, "NPC \t<send href=\"stat mob %ld %ld|mshow %ld|medit %ld\">%s\t</send> (%ld) tried to use the command '%s' but it didn't exist.", ch->id[0], ch->id[1], ch->pIndexData->vnum, ch->pIndexData->vnum, ch->short_descr, ch->pIndexData->vnum, command);
+		else
+			sprintf(buf, "%s tried to use the command '%s' but it didn't exist.", ch->name, command);
 		log_string(buf);
 		wiznet(buf, ch, NULL, WIZ_VERBS, 0, 0);
 		return;
