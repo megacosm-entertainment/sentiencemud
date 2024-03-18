@@ -550,9 +550,12 @@ CMDEDIT (cmdedit_show)
     add_buf(buffer, formatf("Position:      %s\n\r", position_table[command->position].name));
     add_buf(buffer, formatf("Log:           %s\n\r", log_flags[command->log].name));
     add_buf(buffer, formatf("Enabled:       %s\n\r", command->enabled ? "Yes" : "No"));
+    if (!command->enabled || !IS_NULLSTR(command->reason)) 
+        add_buf(buffer, formatf("{rDisabled Reason{X: %s\n\r", !IS_NULLSTR(command->reason) ? command->reason : "(none)"));
+
     add_buf(buffer, formatf("Function:      %s\n\r", command->function ? do_func_name(command->function) : "None"));
     if (command->help_keywords != NULL && lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) != NULL)
-        add_buf(buffer, formatf("Help Keywords: '\t<send href=\"help %s\">%s\t</send>'\n\r", command->help_keywords->string, command->help_keywords->string));
+        add_buf(buffer, formatf("Help Keywords: '\t<send href=\"help %s\">{W%s{X\t</send>'\n\r", command->help_keywords->string, command->help_keywords->string));
     else if (command->help_keywords != NULL && lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) == NULL)
         add_buf(buffer, formatf("Help Keywords: {R%s{X\n\r", command->help_keywords->string));
     else
@@ -768,7 +771,7 @@ CMDEDIT( cmdedit_enabled )
 	if (!str_cmp(argument,"yes")) {
 		command->enabled = true;
 		send_to_char("Command has been enabled.\n\r", ch);
-	} else if (!str_cmp(argument,"off")) {
+	} else if (!str_cmp(argument,"no")) {
         if (!command->function)
 		{
 			send_to_char("Command must have a function assigned before it can be enabled.\n\r", ch);
@@ -777,7 +780,7 @@ CMDEDIT( cmdedit_enabled )
 		command->enabled = false;
 		send_to_char("Command has been disabled.\n\r", ch);
 	} else {
-		send_to_char("Syntax:  enabled on|off\n\r", ch);
+		send_to_char("Syntax:  enabled yes|no\n\r", ch);
 		return false;
 	}
 
