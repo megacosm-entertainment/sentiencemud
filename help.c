@@ -188,7 +188,10 @@ void show_help_to_ch(CHAR_DATA *ch, HELP_DATA *help)
 
     i = 0;
     for (topic = help->related_topics; topic != NULL; topic = topic->next) {
-		sprintf(buf, "\t<send href=\"help #%d\">%s\t</send>{x", lookup_help_exact(topic->string,get_trust(ch),topHelpCat)->index, topic->string);
+		if (lookup_help_exact(topic->string, get_trust(ch), topHelpCat) != NULL)
+			sprintf(buf, "\t<send href=\"help #%d\">%s\t</send>{x", lookup_help_exact(topic->string,get_trust(ch),topHelpCat)->index, topic->string);
+		else
+			sprintf(buf, "{R%s{X", topic->string);
 		add_buf(buffer, buf);
 
 		if (topic->next != NULL)

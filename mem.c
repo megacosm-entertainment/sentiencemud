@@ -4357,7 +4357,7 @@ CMD_DATA *new_cmd()
     cmd->level = 0;
     cmd->log = 0;
     cmd->position = POS_DEAD;
-    cmd->help_keywords = new_string_data();
+    cmd->help_keywords = NULL;
     cmd->description = &str_empty[0];
     cmd->comments = &str_empty[0];
     cmd->reason = NULL;

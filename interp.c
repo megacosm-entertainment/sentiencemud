@@ -1888,11 +1888,11 @@ void do_commands( CHAR_DATA *ch, char *argument )
 		{
 //			if (!list_contains(ch->pcdata->extra_commands, command->name, cmd_cmp))
 //			{
-			if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)")) && !IS_NULLSTR(command->summary))
-				sprintf(mxp_str, "\t<send href=\"%s|help %s\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, command->help_keywords->string, command->summary, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
-			else if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)")) && IS_NULLSTR(command->summary))
-				sprintf(mxp_str, "\t<send href=\"%s|help %s\" hint=\"Execute %s|View '%s' helpfile\">{X%s\t</send>%s", command->name, command->help_keywords->string, command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
-			else if ((command->help_keywords == NULL || !str_cmp(command->help_keywords->string, "(null)")) && !IS_NULLSTR(command->summary))
+			if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) != NULL) && !IS_NULLSTR(command->summary))
+				sprintf(mxp_str, "\t<send href=\"%s|help #%d\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat)->index, command->summary, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+			else if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) != NULL ) && IS_NULLSTR(command->summary))
+				sprintf(mxp_str, "\t<send href=\"%s|help #%d\" hint=\"Execute %s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat)->index, command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+			else if ((command->help_keywords == NULL || !str_cmp(command->help_keywords->string, "(null)") || lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) == NULL) && !IS_NULLSTR(command->summary))
 				sprintf(mxp_str, "\t<send href=\"%s\" hint=\"%s\">{X%s\t</send>%s", command->name, command->summary, command->name, pad_string(command->name, 13, NULL, NULL));
 			else
 				sprintf(mxp_str, "\t<send href=\"%s\" hint=\"Execute %s\">{X%s\t</send>%s", command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
@@ -1964,11 +1964,11 @@ for ( lvl = 150; lvl <= get_trust(ch); lvl++ )
 		{
 			if (command->level == lvl && !IS_SET(command->command_flags, CMD_HIDE_LISTS))
 			{
-				if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)")) && !IS_NULLSTR(command->summary))
-					sprintf(buf, "\t<send href=\"%s|help %s\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, command->help_keywords->string, command->summary, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
-				else if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)")) && IS_NULLSTR(command->summary))
-					sprintf(buf, "\t<send href=\"%s|help %s\" hint=\"Execute %s|View '%s' helpfile\">{X%s\t</send>%s", command->name, command->help_keywords->string, command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
-				else if ((command->help_keywords == NULL || !str_cmp(command->help_keywords->string, "(null)")) && !IS_NULLSTR(command->summary))
+				if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) != NULL) && !IS_NULLSTR(command->summary))
+					sprintf(buf, "\t<send href=\"%s|help #%d\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat)->index, command->summary, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+				else if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) != NULL) && IS_NULLSTR(command->summary))
+					sprintf(buf, "\t<send href=\"%s|help #%d\" hint=\"Execute %s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat)->index, command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+				else if ((command->help_keywords == NULL || !str_cmp(command->help_keywords->string, "(null)") || lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) == NULL) && !IS_NULLSTR(command->summary))
 					sprintf(buf, "\t<send href=\"%s\" hint=\"%s\">{X%s\t</send>%s", command->name, command->summary, command->name, pad_string(command->name, 13, NULL, NULL));
 				else
 					sprintf(buf, "\t<send href=\"%s\" hint=\"Execute %s\">{X%s\t</send>%s", command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));

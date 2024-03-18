@@ -161,11 +161,11 @@ void save_command(FILE *fp, CMD_DATA *command)
     fprintf(fp, "Flags %ld\n", command->command_flags);
     fprintf(fp, "Comments %s~\n", command->comments);
     fprintf(fp, "Description %s~\n", command->description);
-    if (command->help_keywords != NULL)
+    if (command->help_keywords != NULL && !IS_NULLSTR(command->help_keywords->string))
 	    fprintf(fp, "HelpKeywords %s~\n", command->help_keywords->string);
-    if (command->reason != NULL)
+    if (!IS_NULLSTR(command->reason))
         fprintf(fp, "Reason %s~\n", command->reason);
-    if (command->summary != NULL)
+    if (!IS_NULLSTR(command->summary))
         fprintf(fp, "Summary %s~\n", command->summary);
     fprintf(fp, "#-COMMAND\n");
 }
@@ -305,6 +305,18 @@ CMD_DATA *load_command(FILE *fp)
             fread_to_eol(fp);
         }
     }
+    /*
+    if (!str_cmp(command->help_keywords->string, "(null)"))
+    {
+        free_string_data(command->help_keywords);
+        command->help_keywords = NULL;
+    }
+    if (!str_cmp(command->reason, "(null)"))
+    {
+        free_string(command->reason);
+        command->reason = NULL;
+    }
+    */
     return command;
 }
 
@@ -539,8 +551,14 @@ CMDEDIT (cmdedit_show)
     add_buf(buffer, formatf("Log:           %s\n\r", log_flags[command->log].name));
     add_buf(buffer, formatf("Enabled:       %s\n\r", command->enabled ? "Yes" : "No"));
     add_buf(buffer, formatf("Function:      %s\n\r", command->function ? do_func_name(command->function) : "None"));
-    add_buf(buffer, formatf("Help Keywords: '\t<send href=\"help %s\">%s\t</send>'\n\r", command->help_keywords->string, command->help_keywords->string));
-    add_buf(buffer, formatf("Summary:       %s\n\r", command->summary));
+    if (command->help_keywords != NULL && lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) != NULL)
+        add_buf(buffer, formatf("Help Keywords: '\t<send href=\"help %s\">%s\t</send>'\n\r", command->help_keywords->string, command->help_keywords->string));
+    else if (command->help_keywords != NULL && lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) == NULL)
+        add_buf(buffer, formatf("Help Keywords: {R%s{X\n\r", command->help_keywords->string));
+    else
+        add_buf(buffer, formatf("Help Keywords: %s\n\r", "(none set)"));
+    
+    add_buf(buffer, formatf("Summary:       %s\n\r", command->summary ? command->summary : "(none)"));
     add_buf(buffer, formatf("Command Flags: %s\n\r", flag_string(command_flags, command->command_flags)));
 
     add_buf(buffer, formatf("\n\rDescription:\n\r   %s\n\r", string_indent(command->description,3)));
