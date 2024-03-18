@@ -411,13 +411,14 @@ void do_cmdlist(CHAR_DATA *ch, char *argument)
     char buf[MSL];
     char cmd_colour[3];
     char line_colour[3];
+    char helpstatus[15];
 
         CMD_DATA *command;
         int count = 0;
 
         add_buf(buffer, "Commands:\n");
-        add_buf(buffer, "Name                      Rank   Position  Log   Enabled  Function\n");
-        add_buf(buffer, "----                      -----  --------  ---   -------  --------\n");
+        add_buf(buffer, "Name                   Level  Position    Log    Enabled  Function       Help  \n");
+        add_buf(buffer, "----                   -----  --------  ------   -------  --------     --------\n");
 
         ITERATOR it;
         iterator_start(&it, commands_list);
@@ -474,7 +475,16 @@ void do_cmdlist(CHAR_DATA *ch, char *argument)
                 sprintf(line_colour, "{X");
             }
 
-            sprintf(buf, "\t<send href=\"cmdshow %s|cmdedit %s\" hint=\"Show %s|Edit %s\">%s%s%s\t</send>%s%s %10d  %8s  %6s  %8s  %s{X\n",
+            if ((command->help_keywords == NULL || lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) == NULL) && command->summary == NULL) 
+                sprintf(helpstatus, "{None{X");
+            else if ((command->help_keywords == NULL || lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) == NULL) && command->summary != NULL)
+                sprintf(helpstatus, "{YSummary{X");
+            else if ((command->help_keywords != NULL && lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) != NULL) && command->summary == NULL)
+                sprintf(helpstatus, "{YKeywords{X");
+            else
+                sprintf(helpstatus, "{GBoth{X");
+
+            sprintf(buf, "\t<send href=\"cmdshow %s|cmdedit %s\" hint=\"Show %s|Edit %s\">%s%s%s\t</send>%s%s %3d  %8s  %6s  %8s  %-12.12s %-12s{X\n\r",
                 command->name,
                 command->name,
                 command->name,
@@ -482,13 +492,14 @@ void do_cmdlist(CHAR_DATA *ch, char *argument)
                 cmd_colour,
                 command->name,
                 line_colour,
-                pad_string(command->name, 20, NULL, NULL),
+                pad_string(command->name, 24, NULL, NULL),
                 line_colour,
                 command->level,
                 position_table[command->position].name,
                 log_flags[command->log].name,
                 command->enabled ? "Enabled" : "Disabled",
-                command->function ? do_func_name(command->function) : "None");
+                command->function ? do_func_name(command->function) : "None",
+                helpstatus);
             add_buf(buffer, buf);
             count++;
         }
