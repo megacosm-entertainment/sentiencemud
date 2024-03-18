@@ -1953,7 +1953,7 @@ void do_wizhelp( CHAR_DATA *ch, char *argument )
 	}
     }
 */
-for ( lvl = 150; lvl <= MAX_LEVEL; lvl++ )
+for ( lvl = 150; lvl <= get_trust(ch); lvl++ )
 	{
 		sprintf( buf, "\n\r===== Commands for Level %d =====\n\r", lvl);
 		send_to_char( buf, ch );
@@ -1962,7 +1962,7 @@ for ( lvl = 150; lvl <= MAX_LEVEL; lvl++ )
 		iterator_start(&it, commands_list);
 		while ((command = (CMD_DATA *)iterator_nextdata(&it)))
 		{
-			if (command->level >= LEVEL_IMMORTAL && command->level <= get_trust(ch) && !IS_SET(command->command_flags, CMD_HIDE_LISTS))
+			if (command->level == lvl && !IS_SET(command->command_flags, CMD_HIDE_LISTS))
 			{
 				if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)")) && !IS_NULLSTR(command->summary))
 					sprintf(buf, "\t<send href=\"%s|help %s\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, command->help_keywords->string, command->summary, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
