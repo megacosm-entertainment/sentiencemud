@@ -476,7 +476,7 @@ void do_cmdlist(CHAR_DATA *ch, char *argument)
             }
 
             if ((command->help_keywords == NULL || lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) == NULL) && command->summary == NULL) 
-                sprintf(helpstatus, "{None{X");
+                sprintf(helpstatus, "{RNone{X");
             else if ((command->help_keywords == NULL || lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) == NULL) && command->summary != NULL)
                 sprintf(helpstatus, "{YSummary{X");
             else if ((command->help_keywords != NULL && lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) != NULL) && command->summary == NULL)
