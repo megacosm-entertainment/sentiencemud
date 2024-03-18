@@ -769,23 +769,49 @@ CMDEDIT( cmdedit_enabled )
 CMDEDIT ( cmdedit_reason )
 {
     CMD_DATA *command;
+    char arg[MAX_INPUT_LENGTH];
 
     EDIT_CMD(ch, command);
 
     if (argument[0] == '\0')
     {
-	send_to_char("Syntax:  reason [string]\n\r", ch);
+	send_to_char("Syntax:  reason <set <string>|clear>\n\r", ch);
 	return false;
     }
 
-    free_string(command->reason);
-	if (str_suffix("{x", argument))
-	    strcat(argument, "{x");
-    command->reason = str_dup(argument);
-    command->reason[0] = UPPER(command->reason[0] );
+    argument = one_argument(argument, arg);
 
-    send_to_char("Command disabled reason set.\n\r", ch);
-    return true;
+    if (!str_cmp(arg, "clear"))
+    {
+        free_string(command->reason);
+        command->reason = str_dup("");
+        send_to_char("Command disabled reason cleared.\n\r", ch);
+        return true;
+    }
+    else if (!str_cmp(arg, "set"))
+    {
+        if (argument[0] == '\0')
+        {
+            send_to_char("Syntax:  reason set <string>\n\r", ch);
+            return false;
+        }
+            
+        free_string(command->reason);
+	    if (str_suffix("{x", argument))
+	        strcat(argument, "{x");
+        command->reason = str_dup(argument);
+        command->reason[0] = UPPER(command->reason[0] );
+
+        send_to_char("Command disabled reason set.\n\r", ch);
+        return true;
+
+    }
+    else
+    {
+        send_to_char("Syntax:  reason <set <string>|clear>\n\r", ch);
+        return false;
+    }
+    return false;
 }
 
 CMDEDIT( cmdedit_flags )
