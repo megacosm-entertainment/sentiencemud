@@ -157,6 +157,12 @@ struct do_func_type
 	DO_FUN *func;
 };
 
+struct spell_func_type
+{
+	char *name;
+	SPELL_FUN *func;
+};
+
 
 
 /* game tables */
@@ -293,5 +299,10 @@ extern	const	struct	flag_type	stock_types[];
 extern	const	struct	flag_type	prog_entity_flags[];
 
 extern const struct do_func_type do_func_table[];
+
+extern const struct do_func_type do_func_table[];
+extern const struct flag_type	command_flags[];
+extern const struct flag_type	log_flags[];
+extern const struct flag_type command_types[];
 
 #endif

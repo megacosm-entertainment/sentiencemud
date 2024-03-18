@@ -5503,19 +5503,19 @@ void persist_addroom(register ROOM_INDEX_DATA *room)
 
 void persist_removemobile(register CHAR_DATA *mob)
 {
-	list_remlink(persist_mobs, mob);
+	list_remlink(persist_mobs, mob, false);
 	mob->persist = false;
 }
 
 void persist_removeobject(register OBJ_DATA *obj)
 {
-	list_remlink(persist_objs, obj);
+	list_remlink(persist_objs, obj, false);
 	obj->persist = false;
 }
 
 void persist_removeroom(register ROOM_INDEX_DATA *room)
 {
-	list_remlink(persist_rooms, room);
+	list_remlink(persist_rooms, room, false);
 	room->persist = false;
 }
 

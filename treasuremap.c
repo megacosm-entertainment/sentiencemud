@@ -277,7 +277,7 @@ void do_spawntreasuremap(CHAR_DATA *ch, char *argument)
 				extract_obj(treasure);
 			else
 			{
-				list_remlink(loaded_objects, treasure);
+				list_remlink(loaded_objects, treasure, false);
 				--treasure->pIndexData->count;
 				free_obj(treasure);
 			}

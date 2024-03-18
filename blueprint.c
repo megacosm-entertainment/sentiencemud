@@ -1372,7 +1372,7 @@ void extract_instance(INSTANCE *instance)
 	}
 	iterator_stop(&it);
 
-	list_remlink(loaded_instances, instance);
+	list_remlink(loaded_instances, instance, true);
 
 	free_instance(instance);
 }
@@ -3277,7 +3277,7 @@ BPEDIT( bpedit_section )
 			return false;
 		}
 
-		list_remnthlink(bp->sections, index);
+		list_remnthlink(bp->sections, index, true);
 
 		send_to_char("Blueprint section removed.\n\r", ch);
 		if( bp->mode == BLUEPRINT_MODE_STATIC )
@@ -3457,7 +3457,7 @@ BPEDIT( bpedit_static )
 
 			if( !str_prefix(argument, "remove") || !str_prefix(argument, "delete") )
 			{
-				list_remnthlink(bp->special_rooms, index);
+				list_remnthlink(bp->special_rooms, index, true);
 				send_to_char("Special Room removed.\n\r", ch);
 				return true;
 			}
@@ -4164,7 +4164,7 @@ void do_instance(CHAR_DATA *ch, char *argument)
 		}
 
 		/*
-		list_remlink(loaded_instances, instance);
+		list_remlink(loaded_instances, instance, true);
 
 		if( ch->in_room->instance_section->instance == instance )
 		{

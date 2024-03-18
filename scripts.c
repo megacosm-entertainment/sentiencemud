@@ -7785,7 +7785,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 			if( !var || var->type != VAR_BLLIST_MOB || !IS_VALID(var->_.list) )
 				return;
 
-			list_remnthlink(var->_.list, arg->d.num);
+			list_remnthlink(var->_.list, arg->d.num, false);
 
 		// MOBLIST clear
 		} else if( !str_cmp(arg->d.str, "clear") ) {
@@ -7823,7 +7823,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 			if( !var || var->type != VAR_BLLIST_OBJ || !IS_VALID(var->_.list) )
 				return;
 
-			list_remnthlink(var->_.list, arg->d.num);
+			list_remnthlink(var->_.list, arg->d.num, false);
 
 		// OBJLIST clear
 		} else if( !str_cmp(arg->d.str, "clear") ) {
@@ -8525,7 +8525,7 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 		//extract_obj(obj);
 
 		// This is the minimum actions necessary for a phantom object extraction
-		list_remlink(loaded_objects, obj);
+		list_remlink(loaded_objects, obj, false);
 	    --obj->pIndexData->count;
 	    free_obj(obj);
 	    return NULL;

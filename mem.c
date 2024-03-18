@@ -716,7 +716,7 @@ void free_char( CHAR_DATA *ch )
 
     if (ch->church != NULL)
     {
-		list_remlink(ch->church->online_players, ch);
+		list_remlink(ch->church->online_players, ch, false);
 	if (ch->church_member != NULL)
 		ch->church_member->ch = NULL;
 	ch->church = NULL;
@@ -4242,7 +4242,7 @@ void free_special_key(SPECIAL_KEY_DATA *sk)
 {
 	if( !IS_VALID(sk) ) return;
 
-	list_remlink(loaded_special_keys, sk);
+	list_remlink(loaded_special_keys, sk, false);
 
 	list_destroy(sk->list);
 
@@ -4336,6 +4336,7 @@ void free_ship_crew_index(SHIP_CREW_INDEX_DATA *crew)
 
 }
 
+
 CMD_DATA *cmd_data_free;
 CMD_DATA *new_cmd()
 {
@@ -4352,13 +4353,15 @@ CMD_DATA *new_cmd()
 
     cmd->name = NULL;
     cmd->function = NULL;
+    cmd->type = 0;
     cmd->level = 0;
     cmd->log = 0;
     cmd->position = POS_DEAD;
-    cmd->show = 1;
-    cmd->help_keywords = &str_empty[0];
+    cmd->help_keywords = new_string_data();
     cmd->description = &str_empty[0];
     cmd->comments = &str_empty[0];
+    cmd->reason = NULL;
+    cmd->summary = NULL;
 
     return cmd;
 }
@@ -4369,9 +4372,11 @@ void free_cmd(CMD_DATA *cmd)
         return;
 
     free_string(cmd->name);
-    free_string(cmd->help_keywords);
+    free_string_data(cmd->help_keywords);
     free_string(cmd->description);
     free_string(cmd->comments);
+    free_string(cmd->reason);
+    free_string(cmd->summary);
 
     cmd->next = cmd_data_free;
     cmd_data_free = cmd;

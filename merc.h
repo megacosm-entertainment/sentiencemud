@@ -420,6 +420,7 @@ struct special_key_data
 
 /* Functions */
 typedef	void DO_FUN	(CHAR_DATA *ch, char *argument);
+typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 typedef bool SPEC_FUN	(CHAR_DATA *ch);
 typedef bool SPELL_FUN	(int sn, int level, CHAR_DATA *ch, void *vo, int target, int obj_wear_loc);
 typedef void OBJ_FUN	(OBJ_DATA *obj, char *argument);
@@ -1328,6 +1329,8 @@ struct	descriptor_data
     unsigned char *     out_compress_buf;
 
     void *              pEdit;		/* OLC */
+    int                 nEditTab;
+    int                 nMaxEditTabs;
     HELP_CATEGORY	*hCat;		/* hedit */
     char **             pString;	/* OLC */
     int			editor;		/* OLC */
@@ -3698,24 +3701,38 @@ struct command_data
     char 		*name;
 };
 
+
+// Command logging types
+#define LOG_NORMAL	0
+#define LOG_ALWAYS	1
+#define LOG_NEVER	2
+
+
 struct cmd_data
 {
     CMD_DATA *next;
 
-    char *name;
+    char        *name;          // Command Name
     
-    char *description;
-    char *comments;
+    char        *description;   // Description of command.
+    char        *comments;      // Comments on command. May be deprecated later.
 
-    int16_t level;
-    int16_t position;
-    int16_t log;
-    bool show;
-    bool enabled;
+    int16_t     type;           // Command type
+    int16_t     level;          // Minimum level to use command.
+    int16_t     position;       // Minimum position to use command.
+    int16_t     log;            // Command log level.
+    bool        enabled;        // Is the command enabled?
+    char        *reason;        // Reason command is disabled.
+    long        command_flags;  // Various command flags.
 
-    DO_FUN *function;
-    char *help_keywords;
+    DO_FUN      *function;      // What does this function DO?!
+    STRING_DATA *help_keywords; // Helpfile topics for this command.
+    char        *summary;       // Used for MXP hints, quick one-liner about command.
 };
+
+
+#define CMD_HIDE_LISTS      (A) // Command is hidden from lists (equiv to cmd_table's 'show' being false)
+#define CMD_IS_OOC          (B) // Command is considered OOC (equiv to cmd_table's 'is_ooc' being true)
 
 
 /* For looking up classes in get_profession */
@@ -6810,6 +6827,7 @@ extern int16_t grn_unique;
 #define IS_BOSS(ch)		(IS_NPC(ch) && ((ch)->pIndexData->boss))
 #define IS_NPC_SHIP(ship)	(ship->npc_ship != NULL)
 #define IS_IMMORTAL(ch)		(get_trust(ch) >= LEVEL_IMMORTAL && !IS_NPC(ch) && ch->pcdata->immortal != NULL)
+#define IS_IMPLEMENTOR(ch)  (IS_IMMORTAL(ch) && ((ch)->level == MAX_LEVEL))
 #define IS_HERO(ch)		(get_trust(ch) >= LEVEL_HERO)
 #define IS_TRUSTED(ch,level)	(get_trust((ch)) >= (level))
 #define IS_AFFECTED(ch, sn)	(IS_SET((ch)->affected_by[0], (sn)))
@@ -8171,6 +8189,7 @@ void	do_buy_mount	args( ( CHAR_DATA *ch, char *argument ) );
 /* string.c */
 void	string_edit	args( ( CHAR_DATA *ch, char **pString ) );
 void    string_append   args( ( CHAR_DATA *ch, char **pString ) );
+char *  string_indent   args( ( const char *src, int indent ) );
 char *	string_replace_static	args( ( char * orig, char * old, char * new ) );
 char *	string_replace	args( ( char * orig, char * old, char * new ) );
 void    string_add      args( ( CHAR_DATA *ch, char *argument ) );
@@ -8186,6 +8205,9 @@ NPC_SHIP_DATA *get_npc_ship_data args( ( long vnum ) );
 bool	run_olc_editor	args( ( DESCRIPTOR_DATA *d ) );
 char	*olc_ed_name	args( ( CHAR_DATA *ch ) );
 char	*olc_ed_vnum	args( ( CHAR_DATA *ch ) );
+int olc_ed_tabs(CHAR_DATA *ch);
+void olc_set_editor(CHAR_DATA *ch, int editor, void *data);
+void olc_show_item(CHAR_DATA *ch, void *data, OLC_FUN *show_fun, char *argument);
 char    *olc_show_script_status args( ( SCRIPT_DATA *prog, int type ) );
 int calc_obj_armour args ( (int level, int strength) );
 void set_weapon_dice( OBJ_INDEX_DATA *objIndex );
@@ -8596,9 +8618,9 @@ void list_remref(LLIST *lp);
 bool list_addlink(LLIST *lp, void *data);
 bool list_appendlink(LLIST *lp, void *data);
 bool list_appendlist(LLIST *lp, LLIST *src);
-void list_remlink(LLIST *lp, void *data);
+void list_remlink(LLIST *lp, void *data, bool del);
 void *list_nthdata(LLIST *lp, int nth);
-void list_remnthlink(LLIST *lp, register int nth);
+void list_remnthlink(LLIST *lp, register int nth, bool del);
 bool list_hasdata(LLIST *lp, register void *ptr);
 int list_size(LLIST *lp);
 int list_getindex(LLIST *lp, void *data);
@@ -8821,6 +8843,7 @@ void display_resets(CHAR_DATA *ch);
 
 
 extern LLIST *commands_list;
+CMD_DATA *get_cmd_data(char *name);
 bool load_commands();
 void save_commands();
 

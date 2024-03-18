@@ -53,6 +53,18 @@ void cmd_under_construction(CHAR_DATA *ch);
 #define COM_INGORE	1
 
 
+#define CMDTYPE_NONE            0       // Treated as the catchall / general / miscellaneous group
+#define CMDTYPE_MOVE            1
+#define CMDTYPE_COMBAT          2
+#define CMDTYPE_OBJECT          3
+#define CMDTYPE_INFO            4
+#define CMDTYPE_COMM            5
+#define CMDTYPE_RACIAL          6
+#define CMDTYPE_OOC             7
+#define CMDTYPE_IMMORTAL        8
+#define CMDTYPE_OLC             9
+#define CMDTYPE_ADMIN           10
+
 /*
  * Structure for a command in the command lookup table.
  */
@@ -596,6 +608,8 @@ DECLARE_DO_FUN( do_spawntreasuremap );
 DECLARE_DO_FUN( do_activate );
 DECLARE_DO_FUN( do_reloadstats );
 DECLARE_DO_FUN( do_cmdlist );
+DECLARE_DO_FUN( do_cmdedit );
+DECLARE_DO_FUN( do_cmdshow );
 //DECLARE_DO_FUN( do_speed	);
 //DECLARE_DO_FUN( do_steer	);
 //DECLARE_DO_FUN( do_navigate );

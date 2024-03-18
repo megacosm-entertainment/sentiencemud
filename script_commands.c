@@ -2644,9 +2644,9 @@ SCRIPT_CMD(scriptcmd_makeinstanced)
 			SET_BIT(arg->d.mob->act[1], ACT2_INSTANCE_MOB);
 
 
-			list_remlink(instance->mobiles, arg->d.mob);
+			list_remlink(instance->mobiles, arg->d.mob, false);
 			if( IS_VALID(instance->dungeon) )
-				list_remlink(instance->dungeon->mobiles, arg->d.mob);
+				list_remlink(instance->dungeon->mobiles, arg->d.mob, false);
 		}
 	}
 	else if( arg->type == ENT_OBJECT )
@@ -2672,9 +2672,9 @@ SCRIPT_CMD(scriptcmd_makeinstanced)
 		{
 			SET_BIT(arg->d.obj->extra[2], ITEM_INSTANCE_OBJ);
 
-			list_remlink(instance->objects, arg->d.obj);
+			list_remlink(instance->objects, arg->d.obj, false);
 			if( IS_VALID(instance->dungeon) )
-				list_remlink(instance->dungeon->objects, arg->d.obj);
+				list_remlink(instance->dungeon->objects, arg->d.obj, false);
 		}
 	}
 	else

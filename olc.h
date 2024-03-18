@@ -55,6 +55,7 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define ED_APCODE	19
 #define ED_IPCODE	20
 #define ED_DPCODE	21
+#define ED_CMDEDIT  22
 
 
 
@@ -74,6 +75,7 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define BSEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define BPEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define DNGEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
+#define CMDEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 
 /*
  * Interpreter Prototypes
@@ -102,6 +104,8 @@ void	dngedit ( CHAR_DATA *ch, char *argument );	// Dungeons
 void	apedit	( CHAR_DATA *ch, char *argument );
 void	ipedit	( CHAR_DATA *ch, char *argument );
 void	dpedit	( CHAR_DATA *ch, char *argument );
+
+void	cmdedit	( CHAR_DATA *ch, char *argument );
 
 
 /*
@@ -167,6 +171,7 @@ extern const struct olc_cmd_type	dngedit_table[];
 extern const struct olc_cmd_type        apedit_table[];
 extern const struct olc_cmd_type        ipedit_table[];
 extern const struct olc_cmd_type        dpedit_table[];
+extern const struct olc_cmd_type        cmdedit_table[];
 
 
 /*
@@ -189,6 +194,7 @@ DECLARE_DO_FUN( do_wedit        );
 DECLARE_DO_FUN( do_vledit       );
 DECLARE_DO_FUN( do_bsedit       );
 DECLARE_DO_FUN( do_dngedit       );
+DECLARE_DO_FUN( do_cmdedit      );
 
 
 /*
@@ -563,6 +569,24 @@ DECLARE_OLC_FUN( ipedit_create		);
 DECLARE_OLC_FUN( dpedit_list		);
 DECLARE_OLC_FUN( dpedit_create		);
 
+
+DECLARE_OLC_FUN( cmdedit_create ); 
+DECLARE_OLC_FUN( cmdedit_show ); 
+DECLARE_OLC_FUN( cmdedit_delete );
+DECLARE_OLC_FUN( cmdedit_name ); 
+DECLARE_OLC_FUN( cmdedit_description );
+DECLARE_OLC_FUN( cmdedit_comments ); 
+DECLARE_OLC_FUN( cmdedit_type );
+DECLARE_OLC_FUN( cmdedit_level );
+DECLARE_OLC_FUN( cmdedit_position ); 
+DECLARE_OLC_FUN( cmdedit_log );
+DECLARE_OLC_FUN( cmdedit_enabled ); 
+DECLARE_OLC_FUN( cmdedit_reason );
+DECLARE_OLC_FUN( cmdedit_flags );
+DECLARE_OLC_FUN( cmdedit_function );
+DECLARE_OLC_FUN( cmdedit_help ); 
+DECLARE_OLC_FUN( cmdedit_summary );
+
 /*
  * Macros
  */
@@ -593,6 +617,7 @@ DECLARE_OLC_FUN( dpedit_create		);
 #define EDIT_DUNGEON(ch, dng)	( dng = (DUNGEON_INDEX_DATA *)ch->desc->pEdit )
 
 #define EDIT_SHIP(ch, ship)     ( ship = (SHIP_INDEX_DATA *)ch->desc->pEdit )
+#define EDIT_CMD(ch, command)   ( command = (CMD_DATA *)ch->desc->pEdit )
 
 /*
  * Prototypes

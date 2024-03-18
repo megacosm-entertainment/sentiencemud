@@ -580,13 +580,13 @@ void extract_dungeon(DUNGEON *dungeon)
 	iterator_stop(&it);
 
 
-	list_remlink(loaded_dungeons, dungeon);
+	list_remlink(loaded_dungeons, dungeon, false);
 
 	// Remove instances from loaded list
 	iterator_start(&it, dungeon->floors);
 	while( (instance = (INSTANCE *)iterator_nextdata(&it)) )
 	{
-		list_remlink(loaded_instances, instance);
+		list_remlink(loaded_instances, instance, true);
 	}
 	iterator_stop(&it);
 
@@ -1460,7 +1460,7 @@ DNGEDIT( dngedit_floors )
 			return false;
 		}
 
-		list_remnthlink(dng->floors, index);
+		list_remnthlink(dng->floors, index, false);
 
 		ITERATOR it;
 		DUNGEON_INDEX_SPECIAL_ROOM *special;
@@ -1743,7 +1743,7 @@ DNGEDIT( dngedit_special )
 
 		if( !str_prefix(arg2, "remove") || !str_prefix(arg2, "delete") )
 		{
-			list_remnthlink(dng->special_rooms, index);
+			list_remnthlink(dng->special_rooms, index, true);
 
 			send_to_char("Special room deleted.\n\r", ch);
 			return true;

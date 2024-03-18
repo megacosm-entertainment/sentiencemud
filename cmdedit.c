@@ -48,10 +48,65 @@
 #include "math.h"
 #include "recycle.h"
 #include "tables.h"
+#include "olc.h"
 #include "olc_save.h"
 #include "scripts.h"
 #include "wilds.h"
 
+void show_flag_cmds(CHAR_DATA *ch, const struct flag_type *flag_table);
+
+
+CMD_DATA *get_cmd_data(char *name)
+{
+	ITERATOR it;
+	CMD_DATA *command;
+	iterator_start(&it, commands_list);
+	while((command = (CMD_DATA *)iterator_nextdata(&it)))
+	{
+		if (!str_prefix(name, command->name))
+			break;
+	}
+	iterator_stop(&it);
+
+	return command;
+}
+
+/*
+DO_FUN * do_func_lookup(char *name)
+{ 
+	for (int i = 0; do_func_table[i].name != NULL; i++)
+	{
+		if (!str_cmp(name, do_func_table[i].name))
+			return do_func_table[i].func;
+	}
+
+	return NULL;
+}
+
+char do_func_name(DO_FUN *func)
+{
+	for (int i = 0; do_func_table[i].name != NULL; i++)
+	{
+		if (do_func_table[i].func == func)
+			return do_func_table[i].name;
+	}
+
+	return NULL;
+}
+
+char do_func_display(DO_FUN *func)
+{
+	if ( !func ) return NULL;
+
+	for (int i = 0; do_func_table[i].name != NULL; i++)
+	{
+		if (do_func_table[i].func == func)
+			return do_func_table[i].name;
+	}
+
+	return "(invalid)";
+}
+*/
 
 #define FUNC_LOOKUPS(f,t,n) \
 t * f##_func_lookup(char *name) \
@@ -90,7 +145,7 @@ char *f##_func_display(t *func) \
 } \
  \
 
-FUNC_LOOKUPS(do, DO_FUN,(!func || func == cmd_under_construction))
+FUNC_LOOKUPS(do, DO_FUN,(!func))
 
 // Create a function to load commands from a command file. If the command file does not exist, boostrap one from the cmd_table.
 
@@ -102,10 +157,16 @@ void save_command(FILE *fp, CMD_DATA *command)
     fprintf(fp, "Level %d\n", command->level);
     fprintf(fp, "Log %d\n", command->log);
     fprintf(fp, "Position %d\n", command->position);
-    fprintf(fp, "Show %d\n", command->show);
+    fprintf(fp, "Type %d\n", command->type);
+    fprintf(fp, "Flags %ld\n", command->command_flags);
     fprintf(fp, "Comments %s~\n", command->comments);
     fprintf(fp, "Description %s~\n", command->description);
-    fprintf(fp, "HelpKeywords %s~\n", command->help_keywords);
+    if (command->help_keywords != NULL)
+	    fprintf(fp, "HelpKeywords %s~\n", command->help_keywords->string);
+    if (command->reason != NULL)
+        fprintf(fp, "Reason %s~\n", command->reason);
+    if (command->summary != NULL)
+        fprintf(fp, "Summary %s~\n", command->summary);
     fprintf(fp, "#-COMMAND\n");
 }
 
@@ -200,16 +261,26 @@ CMD_DATA *load_command(FILE *fp)
                 KEY("Enabled", command->enabled, fread_number(fp));
                 break;
             case 'H':
-                KEY("HelpKeywords", command->help_keywords, fread_string(fp));
+                if (!str_cmp(word, "HelpKeywords"))
+                {
+		            STRING_DATA *help;
+
+                    help = new_string_data();
+		            help->string = fread_string(fp);
+			        command->help_keywords = help;
+                        fMatch = true;
+                        break;
+                }
                 break;
             case 'F':
-            if (!str_cmp(word, "Function"))
-            {
-                char *name = fread_string(fp);
-                command->function = do_func_lookup(name);
-                fMatch = true;
-                break;
-            }
+                KEY("Flags", command->command_flags, fread_number(fp));
+                if (!str_cmp(word, "Function"))
+                {
+                    char *name = fread_string(fp);
+                    command->function = do_func_lookup(name);
+                    fMatch = true;
+                    break;
+                }
                 break;
             case 'L':
                 KEY("Level", command->level, fread_number(fp));
@@ -218,8 +289,13 @@ CMD_DATA *load_command(FILE *fp)
             case 'P':
                 KEY("Position", command->position, fread_number(fp));
                 break;
+            case 'R':
+                KEY("Reason", command->reason, fread_string(fp));
             case 'S':
-                KEY("Show", command->show, fread_number(fp));
+                KEY("Summary", command->summary, fread_string(fp));
+                break;
+            case 'T':
+                KEY("Type", command->type, fread_number(fp));
                 break;
         }
 
@@ -255,7 +331,7 @@ bool load_commands()
     {
         log_string("load_commands: " COMMANDS_FILE " not found. Bootstrapping from cmd_table.");
 
-        for (int i = 0; cmd_table[i].name; i++)
+        for (int i = 0; !IS_NULLSTR(cmd_table[i].name); i++)
         {
             if (*cmd_table[i].name == '\0')
                 continue;
@@ -263,11 +339,17 @@ bool load_commands()
             log_string(formatf("Bootstrapping command '%s'", cmd_table[i].name));
             command = new_cmd();
             command->name = str_dup(cmd_table[i].name);
+//            command->type = cmd_table[i].cmd_type;
             command->level = cmd_table[i].level;
             command->log = cmd_table[i].log;
             command->position = cmd_table[i].position;
-            command->show = cmd_table[i].show;
             command->function = cmd_table[i].do_fun;
+
+            if (!cmd_table[i].show)
+                TOGGLE_BIT(command->command_flags, CMD_HIDE_LISTS);
+
+            if (cmd_table[i].is_ooc)
+                TOGGLE_BIT(command->command_flags, CMD_IS_OOC);
 
             command->enabled = true;
 
@@ -307,15 +389,6 @@ bool load_commands()
         }
     }
     log_string(formatf("load_commands: Loaded %ld commands", commands_list->size));
-    ITERATOR it;
-            int count = 0;
-        iterator_start(&it, commands_list);
-        while((command = (CMD_DATA *)iterator_nextdata(&it)))
-        {
-            count++;
-        }
-        iterator_stop(&it);
-        log_string(formatf("Found %d commands from iterating. (load_commands)", count));
 
     return true;
 }
@@ -324,27 +397,85 @@ void do_cmdlist(CHAR_DATA *ch, char *argument)
 {
     BUFFER *buffer = new_buf();
     char buf[MSL];
+    char cmd_colour[3];
+    char line_colour[3];
 
-    if (IS_NULLSTR(argument))
-    {
         CMD_DATA *command;
         int count = 0;
 
         add_buf(buffer, "Commands:\n");
-        add_buf(buffer, "Name                 Level  Position  Log  Show  Enabled  Function\n");
-        add_buf(buffer, "----                 -----  --------  ---  ----  -------  --------\n");
+        add_buf(buffer, "Name                      Rank   Position  Log   Enabled  Function\n");
+        add_buf(buffer, "----                      -----  --------  ---   -------  --------\n");
 
         ITERATOR it;
         iterator_start(&it, commands_list);
         while((command = (CMD_DATA *)iterator_nextdata(&it)))
         {
-            sprintf(buf, "%-20s %5d  %8s  %3d  %4d  %7s  %s\n",
+
+            switch(command->type)
+            {
+                case CMDTYPE_NONE:
+                    sprintf(cmd_colour, "{X");
+                    break;
+                case CMDTYPE_MOVE:
+                    sprintf(cmd_colour, "{Y");
+                    break;
+                case CMDTYPE_COMBAT:
+                    sprintf(cmd_colour, "{R");
+                    break;
+                case CMDTYPE_OBJECT:
+                    sprintf(cmd_colour, "{J");
+                    break;
+                case CMDTYPE_INFO:
+                    sprintf(cmd_colour, "{C");
+                    break;
+                case CMDTYPE_COMM:
+                    sprintf(cmd_colour, "{M");
+                    break;
+                case CMDTYPE_RACIAL:
+                    sprintf(cmd_colour, "{B");
+                    break;
+                case CMDTYPE_OOC:
+                    sprintf(cmd_colour, "{G");
+                    break;
+                case CMDTYPE_IMMORTAL:
+                    sprintf(cmd_colour, "{A");
+                    break;
+                case CMDTYPE_OLC:
+                    sprintf(cmd_colour, "{P");
+                    break;
+                case CMDTYPE_ADMIN:
+                    sprintf(cmd_colour, "{O");
+                    break;
+                default:
+                    sprintf(cmd_colour, "{X");
+                    break;
+            }
+
+            if (!command->enabled)
+            {
+                cmd_colour[1] = LOWER(cmd_colour[1]);
+                sprintf(line_colour, "{D");
+            }
+            else
+            {
+                sprintf(line_colour, "{X");
+            }
+
+            sprintf(buf, "\t<send href=\"cmdshow %s|cmdedit %s\" hint=\"Show %s|Edit %s\">%s%s%s\t</send>%s%s %10d  %8s  %6s  %8s  %s{X\n",
                 command->name,
+                command->name,
+                command->name,
+                command->name,
+                cmd_colour,
+                command->name,
+                line_colour,
+                pad_string(command->name, 20, NULL, NULL),
+                line_colour,
                 command->level,
                 position_table[command->position].name,
-                command->log,
-                command->show,
-                command->enabled ? "Yes" : "No",
+                log_flags[command->log].name,
+                command->enabled ? "Enabled" : "Disabled",
                 command->function ? do_func_name(command->function) : "None");
             add_buf(buffer, buf);
             count++;
@@ -353,42 +484,7 @@ void do_cmdlist(CHAR_DATA *ch, char *argument)
 
         sprintf(buf, "\n%d commands found.\n", count);
         add_buf(buffer, buf);
-    }
-    else
-    {
-        CMD_DATA *command;
-        bool found = false;
-
-        ITERATOR it;
-        iterator_start(&it, commands_list);
-        while((command = (CMD_DATA *)iterator_nextdata(&it)))
-        {
-            if (!str_prefix(argument, command->name))
-            {
-                found = true;
-                sprintf(buf, "Name: %s\n", command->name);
-                add_buf(buffer, buf);
-                sprintf(buf, "Level: %d\n", command->level);
-                add_buf(buffer, buf);
-                sprintf(buf, "Position: %s\n", position_table[command->position].name);
-                add_buf(buffer, buf);
-                sprintf(buf, "Log: %d\n", command->log);
-                add_buf(buffer, buf);
-                sprintf(buf, "Show: %d\n", command->show);
-                add_buf(buffer, buf);
-                sprintf(buf, "Enabled: %s\n", command->enabled ? "Yes" : "No");
-                add_buf(buffer, buf);
-                sprintf(buf, "Function: %s\n", command->function ? do_func_name(command->function) : "None");
-                add_buf(buffer, buf);
-                sprintf(buf, "Comments: %s\n", command->comments);
-                add_buf(buffer, buf);
-                sprintf(buf, "Description: %s\n", command->description);
-                add_buf(buffer, buf);
-                sprintf(buf, "Help Keywords: %s\n", command->help_keywords);
-                add_buf(buffer, buf);
-            }
-        }
-    }
+    
 
     if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
 	{
@@ -400,4 +496,428 @@ void do_cmdlist(CHAR_DATA *ch, char *argument)
 	}
 
 	free_buf(buffer);
+}
+
+CMDEDIT( cmdedit_create )
+{
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  create <name>\n\r", ch);
+		return false;
+	}
+
+	smash_tilde(argument);
+	if (get_cmd_data(argument) != NULL)
+	{
+		send_to_char("That name is already in use.\n\r", ch);
+		return false;
+	}
+
+	CMD_DATA *command = new_cmd();
+	command->name = str_dup(argument);
+	insert_command(command);
+
+	ch->pcdata->immortal->last_olc_command = current_time;
+	olc_set_editor(ch, ED_CMDEDIT, command);
+
+	send_to_char("Command created.\n\r", ch);
+	return true;
+}
+
+CMDEDIT (cmdedit_show)
+{
+    CMD_DATA *command;
+
+    EDIT_CMD(ch, command);
+
+    BUFFER *buffer = new_buf();
+
+    add_buf(buffer, formatf("Name:          %s\n\r", command->name));
+    add_buf(buffer, formatf("Type:          %s\n\r", command_types[command->type].name));
+    add_buf(buffer, formatf("Level:         %d\n\r", command->level));
+    add_buf(buffer, formatf("Position:      %s\n\r", position_table[command->position].name));
+    add_buf(buffer, formatf("Log:           %s\n\r", log_flags[command->log].name));
+    add_buf(buffer, formatf("Enabled:       %s\n\r", command->enabled ? "Yes" : "No"));
+    add_buf(buffer, formatf("Function:      %s\n\r", command->function ? do_func_name(command->function) : "None"));
+    add_buf(buffer, formatf("Help Keywords: '\t<send href=\"help %s\">%s\t</send>'\n\r", command->help_keywords->string, command->help_keywords->string));
+    add_buf(buffer, formatf("Summary:       %s\n\r", command->summary));
+    add_buf(buffer, formatf("Command Flags: %s\n\r", flag_string(command_flags, command->command_flags)));
+
+    add_buf(buffer, formatf("\n\rDescription:\n\r   %s\n\r", string_indent(command->description,3)));
+
+    add_buf(buffer, "\n\r-----\n\r{WCoders' Comments:{X\n\r");
+	add_buf(buffer, command->comments);
+	add_buf(buffer, "\n\r-----\n\r");
+
+    if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(buffer->string, ch);
+	}
+
+	free_buf(buffer);
+	return false;
+}
+
+CMDEDIT( cmdedit_delete )
+{
+    send_to_char("WIP\n\r",ch);
+    return false;
+}
+
+CMDEDIT( cmdedit_name )
+{
+	CMD_DATA *command;
+
+	EDIT_CMD(ch, command);
+
+	smash_tilde(argument);
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  name <name>\n\r", ch);
+		return false;
+	}
+
+	CMD_DATA *other = get_cmd_data(argument);
+	if (other && other != command)
+	{
+		send_to_char("That name is already in use.\n\r", ch);
+		return false;
+	}
+
+	free_string(command->name);
+	command->name = str_dup(argument);
+	list_remlink(commands_list, command, false);
+	insert_command(command);
+
+	send_to_char("COMMAND Name set.\n\r", ch);
+	return true;
+}
+
+CMDEDIT( cmdedit_description )
+{
+	CMD_DATA *command;
+
+	EDIT_CMD(ch, command);
+
+	if (argument[0] == '\0')
+	{
+		string_append(ch, &command->description);
+		return true;
+	}
+
+	send_to_char("Syntax:  description\n\r", ch);
+	return false;
+}
+
+CMDEDIT( cmdedit_comments )
+{
+	CMD_DATA *command;
+
+	EDIT_CMD(ch, command);
+
+	if (argument[0] == '\0')
+	{
+		string_append(ch, &command->comments);
+		return true;
+	}
+
+	send_to_char("Syntax:  comments\n\r", ch);
+	return false;
+}
+
+CMDEDIT( cmdedit_type )
+{
+    CMD_DATA *command;
+    EDIT_CMD( ch, command );
+    char buf[MAX_STRING_LENGTH];
+
+    if (argument[0] == '\0')
+    {
+        send_to_char("Syntax:  type <type>\n\r", ch);
+        send_to_char("Please select one of the following:\n\r", ch);
+        for(int i = 0; command_types[i].name; i++)
+        {
+            send_to_char(formatf(" %s\n\r", command_types[i].name), ch);
+        }
+        return false;
+    }
+
+    int type;
+    if ((type = flag_value(command_types, argument)) == NO_FLAG)
+    {
+        send_to_char("Invalid type.\n\r", ch);
+        return false;
+    }
+
+    command->type = type;
+    sprintf(buf, "Type set to %s.\n\r", command_types[type].name);
+    send_to_char(buf,ch);
+    return true;
+}
+
+CMDEDIT (cmdedit_level)
+{
+    CMD_DATA *command;
+    EDIT_CMD( ch, command );
+    char buf[MAX_STRING_LENGTH];
+
+    if (argument[0] == '\0')
+    {
+        send_to_char("Syntax:  level <level>\n\r", ch);
+        return false;
+    }
+
+    int level;
+    if (!is_number(argument) || (level = atoi(argument)) < 0 || level > MAX_LEVEL)
+    {
+        send_to_char("Invalid level.\n\r", ch);
+        return false;
+    }
+
+    command->level = level;
+    sprintf(buf, "Level set to %d.\n\r", level);
+    send_to_char(buf,ch);
+    return true;
+}
+
+CMDEDIT (cmdedit_position )
+{
+    CMD_DATA *command;
+    char arg[MAX_INPUT_LENGTH];
+    int value;
+
+	EDIT_CMD(ch, command);
+    argument = one_argument(argument, arg);
+    if (arg[0] == '\0')
+    {
+        send_to_char("Syntax:  position [position]\n\r", ch);
+        send_to_char("Type '\t<send href=\"? position\">? position\t</send>' for a list of positions.\n\r", ch);
+        return false;
+    }
+
+    if (argument[0] == '\0')
+    {
+        if ((value = flag_value(position_flags, arg)) == NO_FLAG)
+            return false;
+
+        command->position = value;
+        send_to_char("Minimum command position set.\n\r", ch);
+        return true;
+    }
+    return false;
+}
+
+CMDEDIT (cmdedit_log )
+{
+
+    CMD_DATA *command;
+    EDIT_CMD( ch, command );
+
+    if (argument[0] == '\0')
+    {
+        send_to_char("Syntax:  log <level>\n\r", ch);
+        send_to_char("Please select one of the following:\n\r", ch);
+        for(int i = 0; log_flags[i].name; i++)
+        {
+            send_to_char(formatf(" %s\n\r", log_flags[i].name), ch);
+        }
+        return false;
+    }
+
+    int log;
+    if ((log = flag_value(log_flags, argument)) == NO_FLAG)
+    {
+        send_to_char("Invalid log level.\n\r", ch);
+        return false;
+    }
+
+    command->log = log;
+    send_to_char("Log level set.\n\r", ch);
+    return true;
+
+}
+
+CMDEDIT( cmdedit_enabled )
+{
+	CMD_DATA *command;
+
+	EDIT_CMD(ch, command);
+
+	if (!str_cmp(argument,"yes")) {
+		command->enabled = true;
+		send_to_char("Command has been enabled.\n\r", ch);
+	} else if (!str_cmp(argument,"off")) {
+        if (!command->function)
+		{
+			send_to_char("Command must have a function assigned before it can be enabled.\n\r", ch);
+			return false;
+		}
+		command->enabled = false;
+		send_to_char("Command has been disabled.\n\r", ch);
+	} else {
+		send_to_char("Syntax:  enabled on|off\n\r", ch);
+		return false;
+	}
+
+	return true;
+}
+
+CMDEDIT ( cmdedit_reason )
+{
+    CMD_DATA *command;
+
+    EDIT_CMD(ch, command);
+
+    if (argument[0] == '\0')
+    {
+	send_to_char("Syntax:  reason [string]\n\r", ch);
+	return false;
+    }
+
+    free_string(command->reason);
+	if (str_suffix("{x", argument))
+	    strcat(argument, "{x");
+    command->reason = str_dup(argument);
+    command->reason[0] = UPPER(command->reason[0] );
+
+    send_to_char("Command disabled reason set.\n\r", ch);
+    return true;
+}
+
+CMDEDIT( cmdedit_flags )
+{
+	CMD_DATA *command;
+
+	EDIT_CMD(ch, command);
+
+	long value;
+	if ((value = flag_value(command_flags, argument)) == NO_FLAG)
+	{
+		send_to_char("Invalid command flag.  Use '\t<send href=\"? cmd\">? cmd\t</send>' for valid list.\n\r", ch);
+		show_flag_cmds(ch, command_flags);
+		return false;
+	}
+
+	TOGGLE_BIT(command->command_flags, value);
+
+	send_to_char("Command Flags toggled.\n\r", ch);
+	return true;
+}
+
+CMDEDIT (cmdedit_function )
+{
+    char arg[MIL];
+    CMD_DATA *command;
+    char buf[MAX_STRING_LENGTH];
+
+    EDIT_CMD(ch, command);
+
+    if (argument[0] == '\0')
+    {
+        send_to_char("Syntax: function <set <name>|clear>\n\r", ch);
+        return false;
+    }
+
+    argument = one_argument(argument, arg);
+
+    if (!str_prefix(arg, "set"))
+    {
+        if (argument[0] == '\0')
+        {
+            send_to_char("Syntax: function set <name>\n\r", ch);
+            send_to_char("Invalid do_ function. Use '\t<send href=\"? do_func\">? do_func\t</send>' for a list of functions.\n\r", ch);
+            return false;
+        }
+    
+    
+        DO_FUN *func = do_func_lookup(argument);
+        if (!func)
+        {
+            send_to_char("Syntax: function set <name>\n\r", ch);
+            send_to_char("Invalid do_ function. Use '\t<send href=\"? do_func\">? do_func\t</send>' for a list of functions.", ch);
+            return false;
+        }
+
+        command->function = func;
+        sprintf(buf, "Function set to %s.\n\r", argument);
+        send_to_char(buf, ch);
+        return true;
+    }
+    
+    else if (!str_prefix(arg, "clear"))
+    {
+        command->function = NULL;
+        command->enabled = false;
+        send_to_char("Command function cleared. Command disabled.\n\r", ch);
+        return true;
+    }
+
+    else
+    {
+        send_to_char("Syntax: function <set <name>|clear>\n\r", ch);
+        return false;
+    }
+
+    //send_to_char("WIP\n\r", ch);
+    return false;
+}
+
+CMDEDIT (cmdedit_help )
+{
+
+    CMD_DATA *command;
+    EDIT_CMD( ch, command );
+    STRING_DATA *help;
+    char buf[MAX_STRING_LENGTH];
+
+    if (argument[0] == '\0')
+    {
+        send_to_char("Syntax: help [keywords]\n\r",ch);
+        return false;
+    }
+
+    if (lookup_help_exact(argument, ch->tot_level, topHelpCat) == NULL)
+    {
+	act("There is no helpfile with keywords $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);
+	return false;
+    }
+
+    int i = 0;
+    while (argument[i] != '\0')
+    {
+	argument[i] = UPPER(argument[i]);
+	i++;
+    }
+
+    help = new_string_data();
+    help->string = str_dup(argument);
+    command->help_keywords = help;
+    sprintf(buf, "Help keywords set to %s.\n\r", argument);
+    send_to_char(buf, ch);
+    return true;
+}
+
+CMDEDIT ( cmdedit_summary )
+{
+    CMD_DATA *command;
+
+    EDIT_CMD(ch, command);
+
+    if (argument[0] == '\0')
+    {
+	send_to_char("Syntax:  summary [string]\n\r", ch);
+	return false;
+    }
+
+    free_string(command->summary);
+
+    command->summary = str_dup(argument);
+    command->summary[0] = UPPER(command->summary[0] );
+
+    send_to_char("Command summary set.\n\r", ch);
+    return true;
 }

@@ -49,6 +49,33 @@ char *editor_name_table[] = {
 	"ApEdit",
 	"IpEdit",
 	"DpEdit",
+    "CMDEdit",
+};
+
+int editor_max_tabs_table[] = {
+	0,		// -----
+	0,		// AEdit
+	0,		// REdit
+	0,		// OEdit
+	0,		// MEdit
+	0,		// MpEdit
+	0,		// OpEdit
+	0,		// RpEdit
+	0,		// ShEdit
+	0,		// HEdit
+	0,		// TpEdit
+	0,		// TEdit
+	0,		// PEdit
+	0,		// RSGEdit
+	0,		// WEdit
+	0,		// VLEdit
+	0,		// BSEdit
+	0,		// BPEdit
+	0,		// DNGEdit
+	0,		// ApEdit
+	0,		// IpEdit
+	0,		// DpEdit
+	0,		// CMDEdit
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -73,6 +100,7 @@ const struct editor_cmd_type editor_table[] =
     { "dprog",		do_dpedit	},
     { "wilderness",    do_wedit	},
     { "vlink",		do_vledit	},
+    { "command",    do_cmdedit  },
     { NULL,			0,			}
 };
 
@@ -480,6 +508,9 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
 	case ED_DPCODE:
 	    dpedit(d->character, d->incomm);
 	    break;
+    case ED_CMDEDIT:
+        cmdedit(d->character, d->incomm);
+        break;
 
 	default:
 	    return false;
@@ -497,6 +528,35 @@ char *olc_ed_name(CHAR_DATA *ch)
 	return editor_name_table[0];
 }
 
+int olc_ed_tabs(CHAR_DATA *ch)
+{
+	if(ch->desc->editor > 0 && ch->desc->editor < elementsof(editor_name_table))
+		return editor_max_tabs_table[ch->desc->editor];
+
+	return 0;
+}
+
+void olc_set_editor(CHAR_DATA *ch, int editor, void *data)
+{
+	ch->desc->pEdit = data;
+	ch->desc->editor = editor;
+	ch->desc->nEditTab = 0;
+	ch->desc->nMaxEditTabs = olc_ed_tabs(ch);
+}
+
+void olc_show_item(CHAR_DATA *ch, void *data, OLC_FUN *show_fun, char *argument)
+{
+	int old_tab = ch->desc->nEditTab;
+	void *old_data = ch->desc->pEdit;
+
+	ch->desc->nEditTab = 0;
+	ch->desc->pEdit = data;
+
+	(*show_fun)(ch, argument);
+
+	ch->desc->nEditTab = old_tab;
+	ch->desc->pEdit = old_data;
+}
 
 // Return the edit vnum of character's editor (%O in prompt)
 char *olc_ed_vnum(CHAR_DATA *ch)
@@ -515,6 +575,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
     BLUEPRINT_SECTION *bpsect;
     BLUEPRINT *blueprint;
     DUNGEON_INDEX_DATA *dungeon;
+    CMD_DATA *command;
     static char buf[20];
     char buf2[MSL];
 
@@ -631,6 +692,14 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 	    sprintf(buf, "%ld", dungeon ? dungeon->vnum : 0);
 	    break;
 
+    case ED_CMDEDIT:
+        command = (CMD_DATA *)ch->desc->pEdit;
+        if (command)
+            sprintf(buf, "%s", command->name);
+        else
+            sprintf(buf, "--");
+        break;
+
 	default:
 	    sprintf(buf, " ");
 	    break;
@@ -745,6 +814,10 @@ bool show_commands(CHAR_DATA *ch, char *argument)
 	case ED_DPCODE:
 		show_olc_cmds(ch, dpedit_table);
 		break;
+
+    case ED_CMDEDIT:
+        show_olc_cmds(ch, cmdedit_table);
+        break;
 	}
 
 	return false;
@@ -4037,3 +4110,119 @@ char *olc_show_script_status(SCRIPT_DATA *prog, int type)
     else return "Unknown";
 }
 /* Used for handling projects. */
+
+const struct olc_cmd_type cmdedit_table[] =
+{
+    { "?",      show_help           },
+    { "comments",   cmdedit_comments },
+    { "create",     cmdedit_create  },
+    { "description",    cmdedit_description },
+	{ "delete",			cmdedit_delete },
+    { "enabled",        cmdedit_enabled },
+	{ "flags",			cmdedit_flags	},
+    { "function",       cmdedit_function },
+    { "sethelp",           cmdedit_help },
+    { "level",          cmdedit_level},
+    { "log",            cmdedit_log },
+    { "name",           cmdedit_name },
+    { "position",    cmdedit_position },
+	{ "reason",		cmdedit_reason },
+    { "show",      cmdedit_show },
+	{ "summary",	cmdedit_summary },
+	{ "type",		cmdedit_type },
+};
+
+void do_cmdedit(CHAR_DATA *ch, char *argument)
+{
+	CMD_DATA *command;
+	char arg1[MSL];
+
+//    ch->desc->editor = ED_CMDEDIT;
+
+	argument = one_argument(argument, arg1);
+
+	if (IS_NPC(ch))
+		return;
+
+	if (arg1[0] != '\0')
+	{
+		if (!str_cmp(arg1, "create"))
+		{
+			if (cmdedit_create(ch, argument))
+				ch->desc->editor = ED_CMDEDIT;
+
+			return;
+		}
+
+		command = get_cmd_data(arg1);
+		if (!command)
+		{
+			send_to_char("No command by that name.\n\r", ch);
+			return;
+		}
+
+		ch->pcdata->immortal->last_olc_command = current_time;
+		olc_set_editor(ch, ED_CMDEDIT, command);
+		return;
+	}
+
+	send_to_char("CMDEdit:  There is no default command to edit.\n\r", ch);
+}
+
+void cmdedit(CHAR_DATA *ch, char *argument)
+{
+	char command[MAX_INPUT_LENGTH];
+	char arg[MAX_STRING_LENGTH];
+	int  cmd;
+
+	smash_tilde(argument);
+	strcpy(arg, argument);
+	argument = one_argument(argument, command);
+
+	if (!str_cmp(command, "done"))
+	{
+		edit_done(ch);
+		return;
+	}
+
+	ch->pcdata->immortal->last_olc_command = current_time;
+	if (command[0] == '\0')
+	{
+		cmdedit_show(ch, argument);
+		return;
+	}
+
+	for (cmd = 0; cmdedit_table[cmd].name != NULL; cmd++)
+	{
+		if (!str_prefix(command, cmdedit_table[cmd].name))
+		{
+			if ((*cmdedit_table[cmd].olc_fun) (ch, argument))
+			{
+				save_commands();
+			}
+			return;
+		}
+	}
+
+	interpret(ch, arg);
+}
+
+void do_cmdshow(CHAR_DATA *ch, char *argument)
+{
+	CMD_DATA *command;
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  cmdshow <command name>\n\r", ch);
+		return;
+	}
+
+	if (!(command = get_cmd_data(argument)))
+	{
+		send_to_char("That command does not exist.\n\r", ch);
+		return;
+	}
+
+	olc_show_item(ch, command, cmdedit_show, argument);
+	return;
+}

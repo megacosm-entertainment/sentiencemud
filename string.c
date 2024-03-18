@@ -904,3 +904,34 @@ bool string_argremove_phrase(char *src, char *phrase, char *buf)
 
 	return true;
 }
+
+char *string_indent(const char *src, int indent)
+{
+	static char buf[4][MSL * 2];
+	static int cnt = 0;
+
+	if (++cnt == 4) cnt = 0;
+
+	bool do_indent = true;
+	char *start = buf[cnt];
+	char *p = start;
+	while(*src)
+	{
+		if (do_indent)
+		{
+			if(*src != '\n' && *src != '\r')
+			{
+				for(int i = 0; i < indent; i++)
+					*p++ = ' ';
+				do_indent = false;
+			}
+		}
+
+		*p++ = *src++;
+		if (*src == '\n' || *src == '\r')
+			do_indent = true;
+	}
+
+	*p = '\0';
+	return start;
+}

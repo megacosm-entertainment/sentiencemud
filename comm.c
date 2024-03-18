@@ -481,8 +481,6 @@ int main(int argc, char **argv)
 	if (!load_commands()) exit(1);
 	log_string("commands loaded.");
 
-
-
     sprintf(log_buf, "Sentience is up on port %d.", port);
     log_string(log_buf);
     #ifdef IMC
@@ -4436,10 +4434,10 @@ void connection_remove(DESCRIPTOR_DATA *d)
 
 		if(ch && !IS_NPC(ch)) {
 			if(IS_IMMORTAL(ch))
-				list_remlink(conn_immortals, d);
+				list_remlink(conn_immortals, d, false);
 			else
-				list_remlink(conn_players, d);
-			list_remlink(conn_online, d);
+				list_remlink(conn_players, d, false);
+			list_remlink(conn_online, d, false);
 		}
 	}
 }

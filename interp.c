@@ -43,13 +43,12 @@
 #include "interp.h"
 #include "scripts.h"
 
-
-
+/*
 // Command logging types
 #define LOG_NORMAL	0
 #define LOG_ALWAYS	1
 #define LOG_NEVER	2
-
+*/
 
 // Log-all switch
 bool				logAll		= false;
@@ -564,6 +563,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "spawntreasuremap", do_spawntreasuremap, POS_DEAD, L5, LOG_NORMAL, 1, true },
 	{ "statsreload", do_reloadstats,	POS_DEAD, MAX_LEVEL, LOG_NORMAL, 1, true },
 	{ "cmdlist", do_cmdlist, POS_DEAD, MAX_LEVEL, LOG_NORMAL, 1, true },
+	{ "cmdedit", do_cmdedit, POS_DEAD, MAX_LEVEL, LOG_NORMAL, 1, true },
 
     { "",		0,		POS_DEAD,     0,  LOG_NORMAL, 0, false }
 };
@@ -809,12 +809,13 @@ void interpret( CHAR_DATA *ch, char *argument )
 {
     char command[MAX_INPUT_LENGTH];
     char logline[MAX_INPUT_LENGTH];
-    int cmd;
+//    int cmd;
     int trust;
     bool found, allowed;
     char cmd_copy[MAX_INPUT_LENGTH] ;
     char buf[MSL];
-    const struct cmd_type* selected_command = NULL;
+//    const struct cmd_type* selected_command = NULL;
+	CMD_DATA *selected_command = NULL;
 
     // Strip leading spaces
     while (ISSPACE(*argument))
@@ -1264,7 +1265,7 @@ void interpret( CHAR_DATA *ch, char *argument )
 		trust = get_trust( ch->desc->original );
 	}
 
-	//Update the below loop to use a pointer to the command in loaded_commands, instead of the cmd_table.
+/*
 	selected_command = NULL;
     for ( cmd = 0; cmd_table[cmd].name[0] != '\0'; cmd++ )
     {
@@ -1272,18 +1273,52 @@ void interpret( CHAR_DATA *ch, char *argument )
 			!str_prefix( command, cmd_table[cmd].name ) &&
 			(!forced_command || (cmd_table[cmd].level < LEVEL_IMMORTAL)) &&  // 20070511NIB - used to prevent script forces from doing imm commands
 			(cmd_table[cmd].level <= trust || is_granted_command(ch, cmd_table[cmd].name)
-			|| (port == PORT_RAE && (!str_cmp(ch->name,"Rae") || !str_cmp(ch->name, "Arlox"))))) /* AO 010417 For easy debugging on my port; dont judge me, im lazy :P */
+			|| (port == PORT_RAE && (!str_cmp(ch->name,"Rae") || !str_cmp(ch->name, "Arlox"))))) // AO 010417 For easy debugging on my port; dont judge me, im lazy :P
 		{
 			selected_command = &cmd_table[cmd];
 			found = true;
 			break;
 		}
     }
+*/
+
+	selected_command = get_cmd_data(command);
+
+	if (!selected_command)
+	{
+		send_to_char("Huh?\n\r", ch);
+		return;
+	}
+
+	if (selected_command)
+	{
+		if ((!forced_command || selected_command->level < LEVEL_IMMORTAL) && 
+		(selected_command->level <= trust || is_granted_command(ch, selected_command->name)))
+		{
+			found = true;
+		}
+	}
+
 
     allowed = is_allowed(command);
 
+	if (!selected_command->enabled && found)
+	{
+		sprintf(buf,"%s is currently disabled.\n\r", selected_command->name);
+		send_to_char(buf,ch);
+		if (!IS_NULLSTR(selected_command->reason))
+		{
+			sprintf(buf,"{RReason: {X%s{x\n\r",selected_command->reason);
+			send_to_char(buf,ch);
+		}
+		return;
+	}
+
     // Check stuff relevant to interpretation.
+/*	
     if (IS_AFFECTED(ch, AFF_HIDE) && !(allowed || (selected_command != NULL && selected_command->is_ooc)))
+*/
+    if (IS_AFFECTED(ch, AFF_HIDE) && !(allowed || (selected_command && IS_SET(selected_command->command_flags,CMD_IS_OOC))))
     {
         affect_strip(ch, gsn_hide);
 		REMOVE_BIT(ch->affected_by[0], AFF_HIDE);
@@ -1416,20 +1451,20 @@ void interpret( CHAR_DATA *ch, char *argument )
     }
 
     // Stop abuse.
-    if (IS_NPC(ch) && cmd_table[cmd].level > LEVEL_IMMORTAL)
+    if (IS_NPC(ch) && selected_command->level > LEVEL_IMMORTAL)
     {
 	sprintf(buf, "interpret: mob %s(%ld) tried immortal command %s",
-	    ch->short_descr, ch->pIndexData->vnum, cmd_table[cmd].name);
+	    ch->short_descr, ch->pIndexData->vnum, selected_command->name);
 	log_string(buf);
 	return;
     }
 
     // Log and snoop.
-    if ( cmd_table[cmd].log == LOG_NEVER )
+    if ( selected_command->log == LOG_NEVER )
 	strcpy( logline, "" );
 
     if (/*ch->tot_level < MAX_LEVEL    Syn - phasing this out.
-    &&*/ ((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_LOG)) || logAll || cmd_table[cmd].log == LOG_ALWAYS))
+    &&*/ ((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_LOG)) || logAll || selected_command->log == LOG_ALWAYS))
     {
 	char s[2 * MAX_INPUT_LENGTH];
 	char *ps;
@@ -1485,7 +1520,7 @@ void interpret( CHAR_DATA *ch, char *argument )
     if (ch->position == POS_FEIGN)
     {
 	do_function( ch, &do_feign, "");
-	if ( !str_cmp( cmd_table[cmd].name, "feign") )
+	if ( !str_cmp( selected_command->name, "feign") )
 	    return;
     }
 
@@ -1504,7 +1539,7 @@ void interpret( CHAR_DATA *ch, char *argument )
     }
 
     // Character not in position for command?
-    if ( ch->position < cmd_table[cmd].position )
+    if ( ch->position < selected_command->position )
     {
 	switch( ch->position )
 	{
@@ -1542,7 +1577,7 @@ void interpret( CHAR_DATA *ch, char *argument )
     }
 
     // Dispatch the command
-    (*cmd_table[cmd].do_fun) ( ch, argument );
+    (*selected_command->function) ( ch, argument );
 
     tail_chain();
 }
@@ -1832,11 +1867,39 @@ char *one_caseful_argument (char *argument, char *arg_first)
 // Output a table of commands.
 void do_commands( CHAR_DATA *ch, char *argument )
 {
-    char buf[MAX_STRING_LENGTH];
-    int cmd;
+    char buf[MAX_STRING_LENGTH], mxp_str[1024];
+//    int cmd;
     int col;
+	CMD_DATA *command;
 
     col = 0;
+	ITERATOR cit;
+	iterator_start(&cit, commands_list);
+	while((command = (CMD_DATA *)iterator_nextdata(&cit)))
+	{
+		if (command->level < LEVEL_HERO && !IS_SET(command->command_flags, CMD_HIDE_LISTS))
+		{
+//			if (!list_contains(ch->pcdata->extra_commands, command->name, cmd_cmp))
+//			{
+			if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)")) && !IS_NULLSTR(command->summary))
+				sprintf(mxp_str, "\t<send href=\"%s|help %s\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, command->help_keywords->string, command->summary, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+			else if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)")) && IS_NULLSTR(command->summary))
+				sprintf(mxp_str, "\t<send href=\"%s|help %s\" hint=\"Execute %s|View '%s' helpfile\">{X%s\t</send>%s", command->name, command->help_keywords->string, command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+			else if ((command->help_keywords == NULL || !str_cmp(command->help_keywords->string, "(null)")) && !IS_NULLSTR(command->summary))
+				sprintf(mxp_str, "\t<send href=\"%s\" hint=\"%s\">{X%s\t</send>%s", command->name, command->summary, command->name, pad_string(command->name, 13, NULL, NULL));
+			else
+				sprintf(mxp_str, "\t<send href=\"%s\" hint=\"Execute %s\">{X%s\t</send>%s", command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+				
+//				list_appendlink(ch->pcdata->extra_commands, str_dup(mxp_str));
+//			}
+	    	sprintf( buf, "%s", mxp_str );
+	    	send_to_char( buf, ch );
+	    	if ( ++col % 6 == 0 )
+			send_to_char( "\n\r", ch );
+
+		}
+	}
+/*	
     for ( cmd = 0; cmd_table[cmd].name[0] != '\0'; cmd++ )
     {
         if ( cmd_table[cmd].level <  LEVEL_HERO
@@ -1849,7 +1912,7 @@ void do_commands( CHAR_DATA *ch, char *argument )
 		send_to_char( "\n\r", ch );
 	}
     }
-
+*/
     if ( col % 6 != 0 )
 	send_to_char( "\n\r", ch );
 }
@@ -1858,13 +1921,14 @@ void do_commands( CHAR_DATA *ch, char *argument )
 void do_wizhelp( CHAR_DATA *ch, char *argument )
 {
     char buf[MAX_STRING_LENGTH];
-    int cmd;
+//    int cmd;
     int col;
 	int lvl;
+	CMD_DATA *command;
 
     col = 0;
 	lvl = 0;
-
+/*
 	for ( lvl = 150; lvl <= MAX_LEVEL; lvl++ )
 	{
 		sprintf( buf, "\n\r===== Commands for Level %d =====\n\r", lvl);
@@ -1881,7 +1945,33 @@ void do_wizhelp( CHAR_DATA *ch, char *argument )
 		send_to_char( "\n\r", ch );
 	}
     }
-	
+*/
+for ( lvl = 150; lvl <= MAX_LEVEL; lvl++ )
+	{
+		sprintf( buf, "\n\r===== Commands for Level %d =====\n\r", lvl);
+		send_to_char( buf, ch );
+
+		ITERATOR it;
+		iterator_start(&it, commands_list);
+		while ((command = (CMD_DATA *)iterator_nextdata(&it)))
+		{
+			if (command->level >= LEVEL_IMMORTAL && command->level <= get_trust(ch) && !IS_SET(command->command_flags, CMD_HIDE_LISTS))
+			{
+				if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)")) && !IS_NULLSTR(command->summary))
+					sprintf(buf, "\t<send href=\"%s|help %s\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, command->help_keywords->string, command->summary, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+				else if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)")) && IS_NULLSTR(command->summary))
+					sprintf(buf, "\t<send href=\"%s|help %s\" hint=\"Execute %s|View '%s' helpfile\">{X%s\t</send>%s", command->name, command->help_keywords->string, command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+				else if ((command->help_keywords == NULL || !str_cmp(command->help_keywords->string, "(null)")) && !IS_NULLSTR(command->summary))
+					sprintf(buf, "\t<send href=\"%s\" hint=\"%s\">{X%s\t</send>%s", command->name, command->summary, command->name, pad_string(command->name, 13, NULL, NULL));
+				else
+					sprintf(buf, "\t<send href=\"%s\" hint=\"Execute %s\">{X%s\t</send>%s", command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+
+				send_to_char( buf, ch );
+				if ( ++col % 6 == 0 )
+					send_to_char( "\n\r", ch );
+			
+			}
+		}
 
     if ( col % 6 != 0 )
 	send_to_char( "\n\r", ch );

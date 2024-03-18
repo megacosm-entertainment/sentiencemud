@@ -57,6 +57,7 @@ struct olc_help_type
 #define STRUCT_ATTACK	5
 #define STRUCT_MATERIAL	6
 #define STRUCT_SKILL	7
+#define STRUCT_SPELLFUNC	8
 
 
 // This table contains help commands and a brief description of each.
@@ -142,10 +143,12 @@ const struct olc_help_type help_table[] =
 	{	"areawho",				STRUCT_FLAGS,		area_who_titles,			"Type of area for who."	},
 	{	"armour",				STRUCT_FLAGS,		ac_type,					"Ac for different attacks."	},
 	{	"catalyst",				STRUCT_FLAGS,		catalyst_types,				"Catalyst types."	},
+	{	"cmd",					STRUCT_FLAGS,		command_flags,				"Command Flags (CMDEdit)"},
 	{	"condition",			STRUCT_FLAGS,		room_condition_flags,		"Room Condition types."	},
 	{	"container",			STRUCT_FLAGS,		container_flags,			"Container status."	},
 	{	"corpsetypes",			STRUCT_FLAGS,		corpse_types,				"Corpse types."	},
 	{	"damageclass",			STRUCT_FLAGS,		damage_classes,				"Types of damages."},
+	{	"do_func",				STRUCT_SPELLFUNC,	do_func_table,				"Do_ functions (CMDEdit)"},
 	{	"dprog",				STRUCT_TRIGGERS,	trigger_table,				"DungeonProgram types."	},
 	{	"dungeon",				STRUCT_FLAGS,		dungeon_flags,				"Dungeon Flags"	},
 	{	"exit",					STRUCT_FLAGS,		exit_flags,					"Exit types."	},
@@ -158,6 +161,7 @@ const struct olc_help_type help_table[] =
 	{	"instruments",			STRUCT_FLAGS,		instrument_types,			"Instrument Types"	},
 	{	"iprog",				STRUCT_TRIGGERS,	trigger_table,				"InstanceProgram types."	},
 	{	"liquid",				STRUCT_LIQUID,		liq_table,					"Liquid types."	},
+	{   "log",					STRUCT_FLAGS,		log_flags,					"Log levels (CMDEdit)"},
 	{	"lock",					STRUCT_FLAGS,		lock_flags,					"Lock state types."	},
 	{	"material",				STRUCT_MATERIAL,	material_table,				"Object materials."	},
 	{	"mprog",				STRUCT_TRIGGERS,	trigger_table,				"MobProgram types."	},
@@ -309,6 +313,30 @@ void show_spec_cmds(CHAR_DATA *ch)
 	strcat(buf1, buf);
 	if (++col % 4 == 0)
 	    strcat(buf1, "\n\r");
+    }
+
+    if (col % 4 != 0)
+	strcat(buf1, "\n\r");
+
+    send_to_char(buf1, ch);
+    return;
+}
+
+void show_spell_funcs(CHAR_DATA *ch, const struct spell_func_type *table)
+{
+    char buf  [ MAX_STRING_LENGTH ];
+    char buf1 [ MAX_STRING_LENGTH ];
+    int  col;
+
+    buf1[0] = '\0';
+    col = 0;
+    send_to_char("Functions available for use:\n\r", ch);
+    for (int i = 0; table[i].name != NULL; i++)
+    {
+		sprintf(buf, "%-19.18s", table[i].name);
+		strcat(buf1, buf);
+		if (++col % 4 == 0)
+	    	strcat(buf1, "\n\r");
     }
 
     if (col % 4 != 0)
@@ -590,6 +618,9 @@ bool show_help(CHAR_DATA *ch, char *argument)
 					else
 						send_to_char("Syntax:  ? spell [ignore/attack/defend/self/object/all]\n\r", ch);
 
+					break;
+				case STRUCT_SPELLFUNC:
+					show_spell_funcs(ch, (const struct spell_func_type *)help_table[cnt].structure);
 					break;
 				case STRUCT_TRIGGERS:
 	    			if (help_table[cnt].structure == trigger_table)
@@ -6700,7 +6731,7 @@ OEDIT(oedit_waypoints)
 			return false;
 		}
 
-		list_remnthlink(pObj->waypoints, value);
+		list_remnthlink(pObj->waypoints, value, true);
 		send_to_char("Waypoint deleted.\n\r", ch);
 		return true;
 	}
