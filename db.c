@@ -726,6 +726,7 @@ void boot_db(void)
 {
     int i;
     FILE *fp;
+	static GLOBAL_DATA gconfig_zero;
 
     /*
      * Init some data space stuff.
@@ -739,6 +740,9 @@ void boot_db(void)
 	top_string	= string_space;
 	fBootDb		= true;
     }
+
+	gconfig = gconfig_zero;
+    if (gconfig_read()==1) exit(1);
 
     /*
      * Init random number generator.
@@ -6323,7 +6327,7 @@ TOKEN_DATA *persist_load_token(FILE *fp)
 	char *word;
 	bool fMatch;
 
-	log_string("persist_load: #TOKEN");
+//	log_string("persist_load: #TOKEN");
 
 	vnum = fread_number(fp);
 	if ((token_index = get_token_index(vnum)) == NULL) {
@@ -6354,7 +6358,7 @@ TOKEN_DATA *persist_load_token(FILE *fp)
 		if (!str_cmp(word, "#-TOKEN"))
 			break;
 
-		log_stringf("%s: %s", __FUNCTION__, word);
+//		log_stringf("%s: %s", __FUNCTION__, word);
 
 		switch (UPPER(word[0])) {
 			case 'T':
@@ -6395,7 +6399,7 @@ TOKEN_DATA *persist_load_token(FILE *fp)
 	variable_dynamic_fix_token(token);
 	persist_fix_environment_token(token);
 
-	log_string("persist_load: #-TOKEN");
+//	log_string("persist_load: #-TOKEN");
 
 	return token;
 }
@@ -6412,7 +6416,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 	int vtype;
 	bool good = true, fMatch;
 
-	log_string("persist_load: #OBJECT");
+	//log_string("persist_load: #OBJECT");
 
 	vnum = fread_number(fp);
 	obj_index = get_obj_index(vnum);
@@ -6432,7 +6436,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 		if (!str_cmp(word, "#-OBJECT"))
 			break;
 
-		log_stringf("%s: %s", __FUNCTION__, word);
+		//log_stringf("%s: %s", __FUNCTION__, word);
 
 		switch (UPPER(word[0])) {
 			case '*':
@@ -6917,7 +6921,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 	variable_dynamic_fix_object(obj);
 	persist_fix_environment_object(obj);
 
-	log_string("persist_load: #-OBJECT");
+	//log_string("persist_load: #-OBJECT");
 
 	return obj;
 }
@@ -6976,7 +6980,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 	int vtype;
 	bool good = true, fMatch;
 
-	log_string("persist_load: #MOBILE");
+	//log_string("persist_load: #MOBILE");
 
 	vnum = fread_number(fp);
 	index = get_mob_index(vnum);
@@ -6998,7 +7002,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 		if (!str_cmp(word, "#-MOBILE"))
 			break;
 
-		log_stringf("%s: %s", __FUNCTION__, word);
+		//log_stringf("%s: %s", __FUNCTION__, word);
 
 		switch (UPPER(word[0])) {
 			case '*':
@@ -7410,7 +7414,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 	variable_dynamic_fix_mobile(ch);
 	persist_fix_environment_mobile(ch);
 
-	log_string("persist_load: #-MOBILE");
+	//log_string("persist_load: #-MOBILE");
 
 	return ch;
 }
@@ -7422,19 +7426,19 @@ EXIT_DATA *persist_load_exit(FILE *fp)
 	char *word;
 	bool fMatch;
 
-	log_string("persist_load: #EXIT");
+	//log_string("persist_load: #EXIT");
 
 	ex = new_exit();
 	if( !ex ) return NULL;
 
 	ex->orig_door = parse_direction(fread_word(fp));
-	log_stringf("%s: ex->orig_door = %d", __FUNCTION__, ex->orig_door);
+	//log_stringf("%s: ex->orig_door = %d", __FUNCTION__, ex->orig_door);
 
 	for (;;) {
 		word = feof(fp) ? "#-EXIT" : fread_word(fp);
 		fMatch = false;
 
-		log_stringf("%s: %s", __FUNCTION__, word);
+		//log_stringf("%s: %s", __FUNCTION__, word);
 
 		if (!str_cmp(word, "#-EXIT"))
 			break;
@@ -7589,7 +7593,7 @@ EXIT_DATA *persist_load_exit(FILE *fp)
 			fread_to_eol(fp);
 	}
 
-	log_string("persist_load: #-EXIT");
+	//log_string("persist_load: #-EXIT");
 
 	return ex;
 }
@@ -7607,7 +7611,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 	bool fMatch;
 
 	if( rtype == 'R' ) {
-		log_string("persist_load: #ROOM");
+		//log_string("persist_load: #ROOM");
 		vnum = fread_number(fp);
 
 		room = get_room_index(vnum);
@@ -7618,7 +7622,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 			return NULL;
 		}
 	} else if( rtype == 'V' ) {
-		log_string("persist_load: #VROOM");
+		//log_string("persist_load: #VROOM");
 		w = fread_number(fp);
 		x = fread_number(fp);
 		y = fread_number(fp);
@@ -7647,7 +7651,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 	} else if( rtype == 'C' ) {
 		ROOM_INDEX_DATA *source;
 
-		log_string("persist_load: #CROOM");
+		//log_string("persist_load: #CROOM");
 
 		vnum = fread_number(fp);
 
@@ -7687,7 +7691,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 		word = feof(fp) ? "#-ROOM" : fread_word(fp);
 		fMatch = false;
 
-		log_stringf("%s: %s", __FUNCTION__, word);
+		//log_stringf("%s: %s", __FUNCTION__, word);
 
 		if (!str_cmp(word, "#-ROOM"))
 			break;
@@ -8045,7 +8049,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 
 	if(room->persist) persist_addroom(room);
 
-	log_string("persist_load: #-ROOM");
+	//log_string("persist_load: #-ROOM");
 
 	return room;
 }

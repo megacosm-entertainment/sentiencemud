@@ -1,5 +1,5 @@
 {
-    "image": "ghcr.io/megacosm-entertainment/sentience-bullseye:latest",
+    "image": "ghcr.io/megacosm-entertainment/sentience_bookworm:latest",
     "forwardPorts": [9999],
     "mounts": ["source=${localWorkspaceFolder}/../,target=/sentience/,type=bind"],
     "runArgs": ["--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined"],

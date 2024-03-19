@@ -81,6 +81,13 @@ int gconfig_read (void)
     gconfig.next_church_uid = 1;
     gconfig.db_version = VERSION_DB_000;
 
+	gconfig.email_port = 0;
+	gconfig.email_username = "";
+	gconfig.email_host = "";
+	gconfig.email_password = "";
+	gconfig.email_from_addr = "";
+	gconfig.email_from_name = "";
+
 	disconnect_timeout = 30;
 	limbo_timeout = 12;
 
@@ -101,6 +108,12 @@ int gconfig_read (void)
 				break;
 
            case 'E':
+		   		KEY ("EmailUser", gconfig.email_username, fread_string(fp));
+				KEY ("EmailPassword", gconfig.email_password, fread_string(fp));
+				KEY ("EmailHost", gconfig.email_host, fread_string(fp));
+				KEY ("EmailPort", gconfig.email_port, fread_number(fp));
+				KEY ("EmailFromAddr", gconfig.email_from_addr, fread_string(fp));
+				KEY ("EmailFromName", gconfig.email_from_name, fread_string(fp));
                 if (!str_cmp(word, "END"))
                 {
 					gconfig.next_mob_uid[3] = gconfig.next_mob_uid[1];
@@ -227,6 +240,12 @@ int gconfig_write(void)
     }
 
 	fprintf(fp, "DBversion %ld\n", (long)VERSION_DB);
+	fprintf(fp, "EmailUser %s~\n", gconfig.email_username);
+	fprintf(fp, "EmailPassword %s~\n", gconfig.email_password);
+	fprintf(fp, "EmailHost %s~\n", gconfig.email_host);
+	fprintf(fp, "EmailPort %d\n", gconfig.email_port);
+	fprintf(fp, "EmailFromAddr %s~\n", gconfig.email_from_addr);
+	fprintf(fp, "EmailFromName %s~\n", gconfig.email_from_name);
     fprintf(fp, "NextMobUID %ld %ld\n", gconfig.next_mob_uid[2], gconfig.next_mob_uid[3]);
     fprintf(fp, "NextObjUID %ld %ld\n", gconfig.next_obj_uid[2], gconfig.next_obj_uid[3]);
     fprintf(fp, "NextTokenUID %ld %ld\n", gconfig.next_token_uid[2], gconfig.next_token_uid[3]);

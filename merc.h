@@ -59,6 +59,7 @@
 #include "protocol.h"
 #include "sha256.h"
 
+
 #define STR_HELPER(x) #x
 #define __STR(x) STR_HELPER(x)
 
@@ -69,7 +70,6 @@
 #define DECLARE_OBJ_FUN( fun )		OBJ_FUN	  fun
 #define DECLARE_ROOM_FUN( fun )		ROOM_FUN  fun
 #define SPELL_FUNC(s)	bool s (int sn, int level, CHAR_DATA *ch, void *vo, int target, int obj_wear_loc)
-
 
 
 /* System calls */
@@ -1072,6 +1072,12 @@ struct	time_info_data
 /* Vizz - track unique instances of entities */
 struct global_data
 {
+    char    *email_username;
+    char    *email_password;
+    char    *email_host;
+    int     email_port;
+    char    *email_from_addr;
+    char    *email_from_name;
     long	next_area_uid;
     long	next_wilds_uid;
     long	next_vlink_uid;

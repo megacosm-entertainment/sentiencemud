@@ -194,12 +194,12 @@ void save_commands()
             count++;
         }
         iterator_stop(&it);
-        log_string(formatf("Found %d commands from iterating. (save_commands)", count));
+    //log_string(formatf("Found %d commands from iterating. (save_commands)", count));
 
         iterator_start(&it, commands_list);
         while((command = (CMD_DATA *)iterator_nextdata(&it)))
         {
-            log_string(formatf("Saving command '%s'", command->name));
+    //        log_string(formatf("Saving command '%s'", command->name));
             save_command(fp, command);
         }
         iterator_stop(&it);
@@ -219,7 +219,7 @@ void insert_command(CMD_DATA *command)
         if (cmp < 0)
         {
             iterator_insert_before(&it, command);
-            log_string(formatf("DBG2 Inserted command '%s', commands_list is now %ld entries long", command->name, commands_list->size));
+//            log_string(formatf("DBG2 Inserted command '%s', commands_list is now %ld entries long", command->name, commands_list->size));
             break;
         }
     }
@@ -228,7 +228,7 @@ void insert_command(CMD_DATA *command)
     if (!cmd)
     {
         list_appendlink(commands_list, command);
-        log_string(formatf("DBG1 Inserted command '%s', commands_list is now %ld entries long", command->name, commands_list->size));
+//        log_string(formatf("DBG1 Inserted command '%s', commands_list is now %ld entries long", command->name, commands_list->size));
     }
 
     
@@ -366,7 +366,7 @@ bool load_commands()
             command->enabled = true;
 
             insert_command(command);
-            log_string(formatf("DBG3 Bootstrapped command '%s', commands_list is now %ld entries long", command->name, commands_list->size));
+//            log_string(formatf("DBG3 Bootstrapped command '%s', commands_list is now %ld entries long", command->name, commands_list->size));
         }
         save_commands();
     }

@@ -4372,11 +4372,14 @@ void free_cmd(CMD_DATA *cmd)
         return;
 
     free_string(cmd->name);
-    free_string_data(cmd->help_keywords);
+    if (cmd->help_keywords)
+        free_string_data(cmd->help_keywords);
     free_string(cmd->description);
     free_string(cmd->comments);
-    free_string(cmd->reason);
-    free_string(cmd->summary);
+    if (cmd->reason)
+        free_string(cmd->reason);
+    if (cmd->summary)
+        free_string(cmd->summary);
 
     cmd->next = cmd_data_free;
     cmd_data_free = cmd;

@@ -8266,7 +8266,7 @@ bool list_appendlink(LLIST *lp, void *data)
 	LLIST_LINK *link;
 
 	if(lp && lp->valid && (link = alloc_mem(sizeof(LLIST_LINK)))) {
-		log_stringf("list_appendlink: Adding data %016X to list %016X.", lp, data);
+		//log_stringf("list_appendlink: Adding data %016X to list %016X.", lp, data);
 		// First one?
 		if( !lp->head )
 			lp->head = link;

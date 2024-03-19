@@ -323,7 +323,7 @@ bool parse_options(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
-    static GLOBAL_DATA gconfig_zero;
+    
     struct timeval now_time;
     int control;
     ITERATOR iter;
@@ -467,8 +467,8 @@ int main(int argc, char **argv)
     RedirectOutput();
 
     /* Vizz - load up our list of UIDs. Without this, we cannot assign unique UIDs to things */
-    gconfig = gconfig_zero;
-    if (gconfig_read()==1) exit(1);
+    //gconfig = gconfig_zero;
+    //if (gconfig_read()==1) exit(1);
 
 
 
