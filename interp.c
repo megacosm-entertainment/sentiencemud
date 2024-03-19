@@ -1933,7 +1933,7 @@ void do_wizhelp( CHAR_DATA *ch, char *argument )
 	int lvl;
 	CMD_DATA *command;
 
-    col = 0;
+
 	lvl = 0;
 /*
 	for ( lvl = 150; lvl <= MAX_LEVEL; lvl++ )
@@ -1955,6 +1955,7 @@ void do_wizhelp( CHAR_DATA *ch, char *argument )
 */
 for ( lvl = 150; lvl <= get_trust(ch); lvl++ )
 	{
+		col = 0;
 		sprintf( buf, "\n\r===== Commands for Level %d =====\n\r", lvl);
 		send_to_char( buf, ch );
 
@@ -1979,9 +1980,6 @@ for ( lvl = 150; lvl <= get_trust(ch); lvl++ )
 			
 			}
 		}
-
-    if ( col % 6 != 0 )
-	send_to_char( "\n\r", ch );
 	}
 }
 
