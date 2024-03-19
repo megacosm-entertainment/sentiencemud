@@ -566,7 +566,7 @@ CMDEDIT (cmdedit_show)
 
     add_buf(buffer, formatf("Function:      %s\n\r", command->function ? do_func_name(command->function) : "None"));
     if (command->help_keywords != NULL && lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) != NULL)
-        add_buf(buffer, formatf("Help Keywords: '\t<send href=\"help %s\">{W%s{X\t</send>'\n\r", command->help_keywords->string, command->help_keywords->string));
+        add_buf(buffer, formatf("Help Keywords: '\t<send href=\"help #%d\">{W%s{X\t</send>'\n\r", lookup_help_exact(command->help_keywords->string, get_trust(ch), topHelpCat)->index, command->help_keywords->string));
     else if (command->help_keywords != NULL && lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) == NULL)
         add_buf(buffer, formatf("Help Keywords: {R%s{X\n\r", command->help_keywords->string));
     else
