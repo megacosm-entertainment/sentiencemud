@@ -4166,6 +4166,15 @@ void gmcp_update( void )
 					if ( !room->exit[i] )
 						continue;
 
+					if (room->exit[i]->u1.to_room == NULL)
+					{
+						if (room->source)
+							log_stringf("BUG: Clone Room %ld (%ld %ld) has a NULL exit %d", room->source->vnum, room->id[0], room->id[1], i);
+						else
+							log_stringf("BUG: Room %ld has a NULL exit %d", room->vnum, i);
+						continue;
+					}
+
 					if (room->exit[i]->wilds.x)
 					{
 						sprintf (buf, "\"%s\": \"%d,%d\"", exit[i], room->exit[i]->wilds.x, room->exit[i]->wilds.y);
@@ -4185,7 +4194,21 @@ void gmcp_update( void )
 						{
 							sprintf(buf, "\"%s\": \"%d, %d\"", exit[i], room->exit[i]->wilds.x, room->exit[i]->wilds.y);
 						}
+						else if (room->exit[i]->u1.to_room == NULL)
+						{
+							if (room->source)
+								log_stringf("BUG: Clone Room %ld (%ld %ld) has a NULL exit %d", room->source->vnum, room->id[0], room->id[1], i);
 							else
+								log_stringf("BUG: Room %ld has a NULL exit %d", room->vnum, i);
+
+							sprintf(buf2, "\"%s\": \"???\"", exit[i]);
+						}
+						else if (room->source)
+						{
+							sprintf(buf, "\"%s\": \"%ld\"", exit[i], room->exit[i]->u1.to_room->source->vnum);
+						}
+
+						else
 						{
 							sprintf( buf2, ", \"%s\": \"%ld\"", exit[i], room->exit[i]->u1.to_room->vnum );
 						}
