@@ -322,27 +322,37 @@ void show_spec_cmds(CHAR_DATA *ch)
     return;
 }
 
-void show_spell_funcs(CHAR_DATA *ch, const struct spell_func_type *table)
+void show_spell_funcs(CHAR_DATA *ch, const struct do_func_type *table)
 {
     char buf  [ MAX_STRING_LENGTH ];
     char buf1 [ MAX_STRING_LENGTH ];
     int  col;
+	BUFFER *buffer = new_buf();
 
     buf1[0] = '\0';
     col = 0;
-    send_to_char("Functions available for use:\n\r", ch);
+    add_buf(buffer, "Functions available for use:\n\r");
     for (int i = 0; table[i].name != NULL; i++)
     {
 		sprintf(buf, "%-19.18s", table[i].name);
-		strcat(buf1, buf);
+		add_buf(buffer, buf);
 		if (++col % 4 == 0)
-	    	strcat(buf1, "\n\r");
+	    	add_buf(buffer, "\n\r");
     }
 
     if (col % 4 != 0)
-	strcat(buf1, "\n\r");
+	add_buf(buffer, "\n\r");
 
-    send_to_char(buf1, ch);
+    if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(buffer->string, ch);
+	}
+
+	free_buf(buffer);
     return;
 }
 
@@ -620,7 +630,7 @@ bool show_help(CHAR_DATA *ch, char *argument)
 
 					break;
 				case STRUCT_SPELLFUNC:
-					show_spell_funcs(ch, (const struct spell_func_type *)help_table[cnt].structure);
+					show_spell_funcs(ch, (const struct do_func_type *)help_table[cnt].structure);
 					break;
 				case STRUCT_TRIGGERS:
 	    			if (help_table[cnt].structure == trigger_table)

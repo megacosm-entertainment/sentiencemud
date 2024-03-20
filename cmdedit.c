@@ -937,7 +937,7 @@ CMDEDIT (cmdedit_help )
 
     if (argument[0] == '\0')
     {
-        send_to_char("Syntax: help [keywords]\n\r",ch);
+        send_to_char("Syntax: sethelp [keywords]\n\r",ch);
         return false;
     }
 
