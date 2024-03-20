@@ -57,6 +57,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <quickmail.h>
+#include <pthread.h>
 #include "protocol.h"
 #include "sha256.h"
 
@@ -7993,6 +7994,7 @@ int use_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int amo
 void move_cart(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool delay);
 void visit_rooms(ROOM_INDEX_DATA *room, VISIT_FUNC *func, int depth, void *argv[], int argc, bool closed);
 void send_email(CHAR_DATA *ch, char *email, char *subject, char *message);
+void send_email_async(CHAR_DATA *ch, char *email, char *subject, char *message);
 void generate_reset_code(char* str, int len);
 
 /* help.c */

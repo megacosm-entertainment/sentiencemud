@@ -9844,6 +9844,45 @@ void send_email(CHAR_DATA *ch, char *email, char *subject, char *message)
 
 }
 
+// Define a structure to hold email-related data
+struct EmailData {
+    CHAR_DATA *ch;
+    char *email;
+    char *subject;
+    char *message;
+};
+
+// Function executed by the email thread
+void *send_email_thread(void *arg) {
+    struct EmailData *emailData = (struct EmailData *)arg;
+
+	send_email(emailData->ch, emailData->email, emailData->subject, emailData->message);
+
+    // Clean up and exit the thread
+    free(emailData->subject);
+    free(emailData->message);
+    free(emailData);
+    pthread_exit(NULL);
+}
+
+// Function to send an email asynchronously
+void send_email_async(CHAR_DATA *ch, char *email, char *subject, char *message) {
+    // Allocate memory for the email data
+    struct EmailData *emailData = (struct EmailData *)malloc(sizeof(struct EmailData));
+    emailData->ch = ch;
+    emailData->email = email;
+    emailData->subject = strdup(subject); // Duplicate the subject string
+    emailData->message = strdup(message); // Duplicate the message string
+
+    // Create a new thread for email dispatching
+    pthread_t emailThread;
+    if (pthread_create(&emailThread, NULL, send_email_thread, emailData) != 0) {
+        fprintf(stderr, "Error creating email thread\n");
+        // Handle error (e.g., retry or log)
+    }
+}
+
+
 // Function to return a random character from a given index
 char random_char(int index) {
     char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";

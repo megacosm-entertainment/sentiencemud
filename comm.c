@@ -2276,7 +2276,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 				sprintf(reset_subject, "Password Reset for %s", d->character->name);
 				sprintf(reset_msg, "Your password reset code is: %s.\nPlease note that this code will expire after 24 hours.\n\r", d->character->pcdata->reset_code);
 
-				send_email(d->character, d->character->pcdata->email, reset_subject, reset_msg);
+				send_email_async(d->character, d->character->pcdata->email, reset_subject, reset_msg);
 				d->connected = CON_GET_OLD_PASSWORD;
 				return;
 			}

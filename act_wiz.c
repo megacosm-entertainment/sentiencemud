@@ -9014,7 +9014,7 @@ void do_pwreset(CHAR_DATA *ch, char *argument)
 
 					if (email[0] != '\0')
 					{
-						send_email(d.character, email, reset_subject, reset_msg);
+						send_email_async(d.character, email, reset_subject, reset_msg);
 						sprintf(buf, "Password reset code has been sent to %s for %s.\n\r", email, plr);
 						send_to_char(buf, ch);
 					}
@@ -9026,7 +9026,7 @@ void do_pwreset(CHAR_DATA *ch, char *argument)
 							return;
 						}
 
-						send_email(d.character, d.character->pcdata->email, reset_subject, reset_msg);
+						send_email_async(d.character, d.character->pcdata->email, reset_subject, reset_msg);
 						sprintf(buf, "Password reset code has been sent to %s for %s.\n\r", d.character->pcdata->email, plr);
 						send_to_char(buf, ch);
 					}

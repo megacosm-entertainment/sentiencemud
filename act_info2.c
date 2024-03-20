@@ -19,7 +19,6 @@
 #include "tables.h"
 #include "db.h"
 #include <quickmail.h>
-#include <curl/curl.h>
 
 //extern long int   __BUILD_DATE;
 extern char __BUILD_DATE;
