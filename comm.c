@@ -2142,7 +2142,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 				close_socket(d);
 				return;
 			}
-			else
+			if (!str_cmp(argument, ch->pcdata->reset_code))
 			{
 				ch->pcdata->reset_state = NO_RESET;
 				free_string(ch->pcdata->reset_code);
@@ -2933,6 +2933,22 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		{
 			free_string(ch->pcdata->old_pwd);
 			ch->pcdata->old_pwd = NULL;
+		}
+
+		if (ch->pcdata->reset_code != NULL)
+		{
+			free_string(ch->pcdata->reset_code);
+			ch->pcdata->reset_code = NULL;
+		}
+
+		if (ch->pcdata->reset_time != 0)
+		{
+			ch->pcdata->reset_time = 0;
+		}
+
+		if (ch->pcdata->reset_state != 0)
+		{
+			ch->pcdata->reset_state = 0;
 		}
 
 		reset_char(ch);
