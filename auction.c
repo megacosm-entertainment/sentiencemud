@@ -51,17 +51,10 @@ void do_auction( CHAR_DATA *ch, char * argument )
     argument = one_argument( argument, arg1 );
     argument = one_argument( argument, arg2 );
 
-	if (check_social_status(ch))
-		return;
-
     if ( ch == NULL || IS_NPC(ch) )
 	return;
 
-    if ( IS_DEAD(ch) )
-    {
-	send_to_char("You can't, you are dead.\n\r", ch);
-	return;
-    }
+
 
    /*
     * Toggle the auction channel
@@ -80,6 +73,20 @@ void do_auction( CHAR_DATA *ch, char * argument )
 	return;
     }
 
+
+	if (str_prefix(arg1, "info"))
+	{
+	
+		if (check_social_status(ch))
+		return;
+
+    	if ( IS_DEAD(ch) )
+    	{
+		send_to_char("You can't, you are dead.\n\r", ch);
+		return;
+    	}
+
+	}
 
    /*
     * info
