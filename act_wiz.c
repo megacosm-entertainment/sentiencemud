@@ -6254,6 +6254,7 @@ void do_sockets( CHAR_DATA *ch, char *argument )
               case CON_CHANGE_PASSWORD:	     st = "Change Password";	break;
               case CON_CHANGE_PASSWORD_CONFIRM:	st = "Confirm PassChg";	break;
               case CON_GET_EMAIL:			 st = "   Get Email   ";	break;
+			  case CON_CONFIRM_EMAIL_FOR_RESET: st = " Confirm Email ";	break;
               default:                       st = "   !UNKNOWN!   ";    break;
            }
            count++;
@@ -8906,3 +8907,145 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
 		break;
     }
 }
+
+void do_pwreset(CHAR_DATA *ch, char *argument)
+{
+	CHAR_DATA *victim;
+	char type[MAX_INPUT_LENGTH];
+	char buf[MAX_STRING_LENGTH];
+	char plr[MAX_INPUT_LENGTH];
+	char email[MAX_INPUT_LENGTH];
+	char reset_msg[MSL], reset_subject[MSL];
+	char tmp_reset_code[16];
+	DESCRIPTOR_DATA d;
+
+
+	argument = one_argument(argument, type);
+	argument = one_argument(argument, plr);
+	
+
+	if (type[0] == '\0')
+	{
+		send_to_char("Reset who's password?\n\rSyntax: pwreset <local|email> <character> [email]", ch);
+		return;
+	}
+
+	if (!str_cmp(type, "local"))
+	{
+		if ((player_exists(plr)))
+		{
+			if ((victim = get_char_world(ch, plr)) == NULL)
+			{
+				if (!load_char_obj(&d, plr))
+				{
+					send_to_char("That player does not exist.\n\r", ch);
+					return;
+				}
+				else
+				{
+					d.character->desc = NULL;
+					if (d.character->pcdata->reset_code[0] != '\0')
+					{
+						free_string(d.character->pcdata->reset_code);
+						d.character->pcdata->reset_code = str_dup("");
+					}
+
+					generate_reset_code(tmp_reset_code, 15);
+
+					d.character->pcdata->reset_code = str_dup(tmp_reset_code);
+
+					d.character->pcdata->reset_state = RESET_PENDING;
+					d.character->pcdata->reset_time = current_time;
+
+					sprintf(buf, "Password reset code has been set to %s for %s.\n\r", d.character->pcdata->reset_code, d.character->name);
+					send_to_char(buf, ch);
+
+					save_char_obj(d.character);
+					free_char(d.character);
+				}
+			}
+			else
+			{
+				send_to_char("That player is already online.\n\r", ch);
+				return;
+			}
+			// Replace this with a random string generator later.
+
+		}
+		else
+		{
+			send_to_char("That player does not exist.\n\r", ch);
+			return;
+		}
+	}
+
+	else if (!str_cmp(type, "email"))
+	{
+		one_argument(argument, email);
+
+		if ((player_exists(plr)))
+		{
+			if ((victim = get_char_world(ch, plr)) == NULL)
+			{
+				if (!load_char_obj(&d, plr))
+				{
+					send_to_char("That player does not exist.\n\r", ch);
+					return;
+				}
+				else
+				{
+					d.character->desc = NULL;
+					if (d.character->pcdata->reset_code[0] != '\0')
+					{
+						free_string(d.character->pcdata->reset_code);
+						d.character->pcdata->reset_code = str_dup("");
+					}
+
+					generate_reset_code(tmp_reset_code, 15);
+
+					d.character->pcdata->reset_code = str_dup(tmp_reset_code);
+
+
+					d.character->pcdata->reset_state = RESET_PENDING;
+					d.character->pcdata->reset_time = current_time;
+
+					sprintf(reset_subject, "Password Reset for %s", d.character->name);
+					sprintf(reset_msg, "Your password reset code is: %s.\nPlease note that this code will expire after 24 hours.", d.character->pcdata->reset_code);
+
+					if (email[0] != '\0')
+					{
+						send_email(d.character, email, reset_subject, reset_msg);
+						sprintf(buf, "Password reset code has been sent to %s for %s.\n\r", email, plr);
+						send_to_char(buf, ch);
+					}
+					else
+					{
+						if (d.character->pcdata->email[0] == '\0')
+						{
+							send_to_char("No email address set for this player. You must use the 'local' option instead.\n\r", ch);
+							return;
+						}
+
+						send_email(d.character, d.character->pcdata->email, reset_subject, reset_msg);
+						sprintf(buf, "Password reset code has been sent to %s for %s.\n\r", d.character->pcdata->email, plr);
+						send_to_char(buf, ch);
+					}
+
+					save_char_obj(d.character);
+					free_char(d.character);
+				}
+			}
+			else
+			{
+				send_to_char("That player is already online.\n\r", ch);
+				return;
+			}
+		}
+		else
+		{
+			send_to_char("That player does not exist.\n\r", ch);
+			return;
+		}
+	}
+}
+

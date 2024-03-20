@@ -3421,4 +3421,5 @@ const struct do_func_type do_func_table[] =
         { "do_cmdedit",                 do_cmdedit },
         { "do_cmdshow",                 do_cmdshow },
         { "do_testemail",                do_testemail },
+        { "do_pwreset",                 do_pwreset  },
 };

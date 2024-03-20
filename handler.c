@@ -9772,3 +9772,97 @@ bool check_social_status(CHAR_DATA *ch)
 
 	return false;
 }
+
+void send_email(CHAR_DATA *ch, char *email, char *subject, char *message)
+{
+	char buf[MSL];
+	char subj_buf[256];
+	char body_buf[MSL*2];
+	char body_buf_html[MSL*5];
+
+	extern GLOBAL_DATA gconfig;
+
+
+	quickmail_initialize();
+
+	if (subject[0] != '\0')
+		sprintf(subj_buf, "%s", subject);
+	else
+		sprintf(subj_buf, "Email from SentienceMUD");
+
+	quickmail mailobj = quickmail_create(gconfig.email_from_name, gconfig.email_from_addr, subj_buf);
+
+	quickmail_add_to(mailobj, email);
+
+	quickmail_add_header(mailobj, "Importance: Low");
+	quickmail_add_header(mailobj, "X-Priority: 5");
+	quickmail_add_header(mailobj, "X-MSMail-Priority: Low");
+
+	sprintf(body_buf, "Hello %s,\n\n%s\n\nSincerely,\n\nThe SentienceMUD Staff", ch->name, message);
+	sprintf(body_buf_html, "Hello %s,<br/><br/>%s<br/><br/>Sincerely,<br/><br/>The SentienceMUD Staff", ch->name, message);
+
+	quickmail_set_body(mailobj, body_buf);
+	quickmail_add_body_memory(mailobj, "text/html", body_buf_html, strlen(body_buf_html), 0);
+
+	const char* errmsg;
+
+	if ((errmsg = quickmail_send(mailobj, gconfig.email_host, gconfig.email_port, gconfig.email_username, gconfig.email_password)) != NULL)
+    	fprintf(stderr, "Error sending e-mail: %s\n", errmsg);
+  	quickmail_destroy(mailobj);
+  	quickmail_cleanup();
+/*
+  quickmail_add_to(mailobj, ch->pcdata->email);
+#ifdef TO
+  quickmail_add_to(mailobj, ch->pcdata->email);
+#endif
+#ifdef CC
+  quickmail_add_cc(mailobj, CC);
+#endif
+#ifdef BCC
+  quickmail_add_bcc(mailobj, BCC);
+#endif
+*/
+/**/
+  //quickmail_add_attachment_file(mailobj, "test_quickmail.c", NULL);
+  //quickmail_add_attachment_file(mailobj, "test_quickmail.cbp", NULL);
+  //quickmail_add_attachment_memory(mailobj, "test.log", NULL, "Test\n123", 8, 0);
+/**/
+/*/
+  quickmail_fsave(mailobj, stdout);
+
+  int i;
+  i = 0;
+  quickmail_list_attachments(mailobj, list_attachment_callback, &i);
+
+  quickmail_remove_attachment(mailobj, "test_quickmail.cbp");
+  i = 0;
+  quickmail_list_attachments(mailobj, list_attachment_callback, &i);
+
+  quickmail_destroy(mailobj);
+  return 0;
+/**/
+
+}
+
+// Function to return a random character from a given index
+char random_char(int index) {
+    char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    return charset[index];
+}
+
+// Function to generate a random string of a specified length
+void generate_reset_code(char* str, int str_len) {
+    srand(time(NULL)); // Seed the random number generator
+
+    // Pick the first character in the range 1..15
+    *str = random_char(number_range(1,26));
+    str++; // Move to the next character
+
+    // Generate the remaining characters
+    for (int i = 1; i < str_len; i++) {
+        *str = random_char(number_range(1,52)); // Following characters in the range 0..15
+        str++;
+    }
+    str--; // Move back to the last character
+    *str = '\0'; // Add the null character at the end
+}

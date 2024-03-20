@@ -893,7 +893,7 @@ CMDEDIT (cmdedit_function )
     
     
         DO_FUN *func = do_func_lookup(argument);
-        if (!func)
+        if (func == NULL)
         {
             send_to_char("Syntax: function set <name>\n\r", ch);
             send_to_char("Invalid do_ function. Use '\t<send href=\"? do_func\">? do_func\t</send>' for a list of functions.", ch);

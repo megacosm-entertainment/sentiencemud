@@ -21,10 +21,6 @@
 #include <quickmail.h>
 #include <curl/curl.h>
 
-
-extern GLOBAL_DATA gconfig;
-
-
 //extern long int   __BUILD_DATE;
 extern char __BUILD_DATE;
 extern long int   __BUILD_NUMBER;
@@ -87,6 +83,8 @@ void list_attachment_callback (quickmail mailobj, const char* filename, quickmai
 
 void do_testemail (CHAR_DATA *ch, char *argument)
 {
+
+  extern GLOBAL_DATA gconfig;
 
   char buf[MAX_STRING_LENGTH];
 

@@ -1947,6 +1947,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 	long playernum;
 	HELP_DATA *help;
 	long vector, *field;
+	
 
 	iClass = -1;
 
@@ -2020,7 +2021,10 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		/* Old player */
 		if (fOld)
 		{
-			write_to_buffer(d, "Password: ", 0);
+			if (d->character->pcdata->reset_state == RESET_PENDING)
+				write_to_buffer(d, "Password or Reset Code: ", 0);
+			else
+				write_to_buffer(d, "Password: ", 0);
 			ProtocolNoEcho(d,true);
 			d->connected = CON_GET_OLD_PASSWORD;
 
@@ -2084,21 +2088,89 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 
 	case CON_GET_OLD_PASSWORD:
 		write_to_buffer(d, "\n\r", 2);
-		if (ch->pcdata->pwd_vers < 1) {
-		if (strcmp(crypt(argument, ch->pcdata->pwd), ch->pcdata->pwd))
+
+		if (d->login_attempts > 2)
 		{
-			if (strcmp(argument, ch->pcdata->pwd))
+			write_to_buffer(d, "Too many login attempts. Goodbye.\n\r", 0);
+			close_socket(d);
+			return;
+		}
+
+		if(!strcmp(argument, "resetpassword"))
 			{
-				/* Log bad password attempts*/
-				sprintf(log_buf, "Denying access to %s@%s (bad password).",
-				ch->name, d->host);
-				log_string(log_buf);
-				wiznet(log_buf,NULL,NULL,WIZ_LOGINS,0,get_trust(ch));
-				write_to_buffer(d, "Wrong password.\n\r", 0);
+				if (ch->pcdata->reset_state == RESET_PENDING)
+				{
+					write_to_buffer(d, "You have already requested a password reset. Please enter the reset code.\n\r", 0);
+					d->connected = CON_GET_OLD_PASSWORD;
+					return;
+				}
+				else
+				{
+					if (ch->pcdata->email[0] == '\0')
+					{
+						write_to_buffer(d, "You must have an email address set to reset your password. Please reach out to staff for a manual reset.\n\r", 0);
+						d->connected = CON_GET_OLD_PASSWORD;
+						return;
+					}
+					else
+					{
+						write_to_buffer(d, "Please confirm your email address: \n\r", 0);
+						d->connected = CON_CONFIRM_EMAIL_FOR_RESET;
+						return;
+					}
+
+				}
+			}
+				
+
+		if (d->character->pcdata->reset_state == RESET_PENDING)
+		{
+			if (strcmp(argument, ch->pcdata->reset_code) && strcmp(sha256_crypt(argument), ch->pcdata->pwd) && strcmp(crypt(argument, ch->pcdata->pwd), ch->pcdata->pwd) && strcmp(argument, ch->pcdata->pwd))
+			{
+				write_to_buffer(d, "Wrong reset code.\n\r", 0);
+				d->login_attempts++;
+				d->connected = CON_GET_OLD_PASSWORD;
+				return;
+			}
+			if ((current_time - d->character->pcdata->reset_time) > 86400)
+			{
+				write_to_buffer(d, "Reset code has expired. Please try resetting again.\n\r", 0);
+				d->character->pcdata->reset_state = NO_RESET;
+				free_string(ch->pcdata->reset_code);
+				ch->pcdata->reset_time = 0;
+				save_char_obj(ch);
 				close_socket(d);
 				return;
 			}
+			else
+			{
+				ch->pcdata->reset_state = NO_RESET;
+				free_string(ch->pcdata->reset_code);
+				ch->pcdata->reset_code = str_dup("");
+				ch->pcdata->reset_time = 0;
+				save_char_obj(ch);
+				write_to_buffer(d, "Reset code accepted. You are required to set a new password.\n\r", 0);
+				ch->pcdata->old_pwd = str_dup(ch->pcdata->pwd);
+				d->connected = CON_CHANGE_PASSWORD;
+				return;
+			}
 		}
+		if (ch->pcdata->pwd_vers < 1) {
+			if (strcmp(crypt(argument, ch->pcdata->pwd), ch->pcdata->pwd))
+			{
+				if (strcmp(argument, ch->pcdata->pwd))
+				{
+					/* Log bad password attempts*/
+					sprintf(log_buf, "Denying access to %s@%s (bad password).",
+					ch->name, d->host);
+					log_string(log_buf);
+					wiznet(log_buf,NULL,NULL,WIZ_LOGINS,0,get_trust(ch));
+					write_to_buffer(d, "Wrong password. Please try again, or use 'resetpassword' to attempt a reset.\n\r", 0);
+					d->login_attempts++;
+					d->connected = CON_GET_OLD_PASSWORD;
+					return;
+				}
+			}
 		}
 		else
 		{
@@ -2109,8 +2181,9 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 				ch->name, d->host);
 				log_string(log_buf);
 				wiznet(log_buf,NULL,NULL,WIZ_LOGINS,0,get_trust(ch));
-				write_to_buffer(d, "Wrong password.\n\r", 0);
-				close_socket(d);
+				write_to_buffer(d, "Wrong password. Please try again, or use 'resetpassword' to attempt a reset.\n\r", 0);
+				d->login_attempts++;
+				d->connected = CON_GET_OLD_PASSWORD;
 				return;
 			}
 		}
@@ -2139,7 +2212,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			return;
 		}
         if (ch->pcdata->need_change_pw == true || ch->pcdata->pwd_vers < 1) {
-	        send_to_char("\n\rYou are required to set a new password. Please do so now.\n\rPassword: ",ch);
+	        send_to_char("\n\rYou are required to set a new password. Please do so now.\n\r",ch);
 	        d->connected = CON_CHANGE_PASSWORD;
 	        return;
         }
@@ -2164,25 +2237,77 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 
 		break;
 
-	case CON_CHANGE_PASSWORD:
-//		send_to_char("\n\rPassword: ", ch);
+	case CON_CONFIRM_EMAIL_FOR_RESET:
 
-		if (argument[0] == '\0')
-			return;
-		if (ch->pcdata->pwd_vers < 1) {
-		if (!strcmp(crypt(argument, ch->pcdata->old_pwd), ch->pcdata->old_pwd))
+		char reset_msg[MSL], reset_subject[MSL];
+		
+		
+		if(d->login_attempts > 2)
 		{
-			send_to_char("Password must be DIFFERENT from your current password!\n\rPassword: ", ch);
+			write_to_buffer(d, "Too many attempts. Please try again later.\n\r", 0);
+			close_socket(d);
 			return;
 		}
+		if (argument[0] == '\0')
+		{
+			write_to_buffer(d, "Invalid email address. Please try again.\n\r", 0);
+			d->login_attempts++;
+			d->connected = CON_CONFIRM_EMAIL_FOR_RESET;
+			return;
+		}
+		else
+		{
+			if (strcmp(argument, ch->pcdata->email))
+			{
+				write_to_buffer(d, "Email address does not match. Please try again.\n\r", 0);
+				d->login_attempts++;
+				d->connected = CON_CONFIRM_EMAIL_FOR_RESET;
+				return;
+			}
+			else
+			{
+				write_to_buffer(d, "Email address confirmed. A reset code will be sent to you for login.\n\r", 0);
+				write_to_buffer(d, "Password or Reset Code: ", 0);
+				ch->pcdata->reset_state = RESET_PENDING;
+				generate_reset_code(ch->pcdata->reset_code,15);
+				ch->pcdata->reset_time = current_time;
+				save_char_obj(ch);
+
+				sprintf(reset_subject, "Password Reset for %s", d->character->name);
+				sprintf(reset_msg, "Your password reset code is: %s.\nPlease note that this code will expire after 24 hours.\n\r", d->character->pcdata->reset_code);
+
+				send_email(d->character, d->character->pcdata->email, reset_subject, reset_msg);
+				d->connected = CON_GET_OLD_PASSWORD;
+				return;
+			}
+		}
+		break;
+
+	case CON_CHANGE_PASSWORD:
+		send_to_char("\n\rPassword: ", ch);
+
+		if (argument[0] == '\0')
+		{
+			d->connected = CON_CHANGE_PASSWORD;
+			return;
+		}
+		if (ch->pcdata->pwd_vers < 1) 
+		{
+			if (!strcmp(crypt(argument, ch->pcdata->old_pwd), ch->pcdata->old_pwd))
+			{
+				send_to_char("Password must be DIFFERENT from your current password!\n\rPassword: ", ch);
+				d->connected = CON_CHANGE_PASSWORD;
+				return;
+			}
 		}
 		else
 		{
 			if (!strcmp(sha256_crypt(argument), ch->pcdata->old_pwd))
-		{
-			send_to_char("Password must be DIFFERENT from your current password!\n\rPassword: ", ch);
-			return;
-		}
+			{
+				send_to_char("Password must be DIFFERENT from your current password!\n\rPassword: ", ch);
+				d->connected = CON_CHANGE_PASSWORD;
+				return;
+			}
 		}
 
 

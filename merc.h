@@ -56,9 +56,9 @@
 #include <sys/resource.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <quickmail.h>
 #include "protocol.h"
 #include "sha256.h"
-
 
 #define STR_HELPER(x) #x
 #define __STR(x) STR_HELPER(x)
@@ -169,6 +169,9 @@ struct script_type {
 #define         SOUND_BIRD_3    	31
 #define         SOUND_OWL       	32
 #define         SOUND_OFF       	33
+
+#define NO_RESET        0
+#define RESET_PENDING   1
 
 /*
  * String and memory management parameters.
@@ -1240,6 +1243,7 @@ struct church_treasure_room_data
 #define CON_CHANGE_PASSWORD		20
 #define CON_CHANGE_PASSWORD_CONFIRM     21
 #define CON_GET_EMAIL			22
+#define CON_CONFIRM_EMAIL_FOR_RESET 23
 
 
 /* Places */
@@ -1325,6 +1329,7 @@ struct	descriptor_data
     char *		outbuf;
     int			outsize;
     int			outtop;
+    int         login_attempts;
     char *		showstr_head;
     char *		showstr_point;
     long                bits;           /* MSP, MXP, etc. */
@@ -4300,6 +4305,9 @@ struct	pc_data
     char *		afk_message;
     char *		email;	/* person's email address */
     char *		flag;
+    char *      reset_code;
+    bool        reset_state;
+    time_t        reset_time;
     long	        channel_flags;
     long		creation_date;
     time_t              last_note;
@@ -7984,6 +7992,8 @@ int use_catalyst_here(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int amount,in
 int use_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int amount,int min_strength, int max_strength, bool show);
 void move_cart(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool delay);
 void visit_rooms(ROOM_INDEX_DATA *room, VISIT_FUNC *func, int depth, void *argv[], int argc, bool closed);
+void send_email(CHAR_DATA *ch, char *email, char *subject, char *message);
+void generate_reset_code(char* str, int len);
 
 /* help.c */
 HELP_DATA *find_helpfile( char *keyword, HELP_CATEGORY *hcat );
