@@ -2149,7 +2149,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 				ch->pcdata->reset_code = str_dup("");
 				ch->pcdata->reset_time = 0;
 				save_char_obj(ch);
-				write_to_buffer(d, "Reset code accepted. You are required to set a new password.\n\r", 0);
+				write_to_buffer(d, "Reset code accepted. You are required to set a new password.\n\rPassword: ", 0);
 				ch->pcdata->old_pwd = str_dup(ch->pcdata->pwd);
 				d->connected = CON_CHANGE_PASSWORD;
 				return;
@@ -2266,10 +2266,13 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			}
 			else
 			{
+				char tmp_reset_code[16];
 				write_to_buffer(d, "Email address confirmed. A reset code will be sent to you for login.\n\r", 0);
 				write_to_buffer(d, "Password or Reset Code: ", 0);
 				ch->pcdata->reset_state = RESET_PENDING;
-				generate_reset_code(ch->pcdata->reset_code,15);
+				
+				generate_reset_code(tmp_reset_code, 15);
+				ch->pcdata->reset_code = str_dup(tmp_reset_code);
 				ch->pcdata->reset_time = current_time;
 				save_char_obj(ch);
 
@@ -2284,7 +2287,6 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		break;
 
 	case CON_CHANGE_PASSWORD:
-		send_to_char("\n\rPassword: ", ch);
 
 		if (argument[0] == '\0')
 		{
@@ -2318,7 +2320,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 
 		free_string(ch->pcdata->pwd);
 		ch->pcdata->pwd	= str_dup(pwdnew);
-		write_to_buffer(d, "Please retype new password: ", 0);
+		write_to_buffer(d, "\n\rPlease retype new password: ", 0);
 
 		ch->pcdata->need_change_pw = false;
 		d->connected = CON_CHANGE_PASSWORD_CONFIRM;
