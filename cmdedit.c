@@ -210,6 +210,7 @@ void save_commands()
 
 void insert_command(CMD_DATA *command)
 {
+    /*
     ITERATOR it;
     CMD_DATA *cmd;
     iterator_start(&it, commands_list);
@@ -226,10 +227,10 @@ void insert_command(CMD_DATA *command)
     iterator_stop(&it);
 
     if (!cmd)
-    {
+    {*/
         list_appendlink(commands_list, command);
 //        log_string(formatf("DBG1 Inserted command '%s', commands_list is now %ld entries long", command->name, commands_list->size));
-    }
+    //}
 
     
 
@@ -417,8 +418,8 @@ void do_cmdlist(CHAR_DATA *ch, char *argument)
         int count = 0;
 
         add_buf(buffer, "Commands:\n");
-        add_buf(buffer, "Name                   Level  Position    Log    Enabled  Function       Help  \n");
-        add_buf(buffer, "----                   -----  --------  ------   -------  --------     --------\n");
+        add_buf(buffer, "####  Name               Level  Position    Log    Enabled  Function       Help  \n");
+        add_buf(buffer, "----  ----               -----  --------  ------   -------  --------     --------\n");
 
         ITERATOR it;
         iterator_start(&it, commands_list);
@@ -484,7 +485,8 @@ void do_cmdlist(CHAR_DATA *ch, char *argument)
             else
                 sprintf(helpstatus, "{GBoth{X");
 
-            sprintf(buf, "\t<send href=\"cmdshow %s|cmdedit %s\" hint=\"Show %s|Edit %s\">%s%s%s\t</send>%s%s %3d  %8s  %6s  %8s  %-12.12s %-12s{X\n\r",
+            sprintf(buf, "{W%3d{X)  \t<send href=\"cmdshow %s|cmdedit %s\" hint=\"Show %s|Edit %s\">%s%s%s\t</send>%s%s %3d  %8s  %6s  %8s  %-12.12s %-12s{X\n\r",
+                list_getindex(commands_list, command),
                 command->name,
                 command->name,
                 command->name,
@@ -492,7 +494,7 @@ void do_cmdlist(CHAR_DATA *ch, char *argument)
                 cmd_colour,
                 command->name,
                 line_colour,
-                pad_string(command->name, 24, NULL, NULL),
+                pad_string(command->name, 20, NULL, NULL),
                 line_colour,
                 command->level,
                 position_table[command->position].name,
@@ -560,6 +562,7 @@ CMDEDIT (cmdedit_show)
     add_buf(buffer, formatf("Level:         %d\n\r", command->level));
     add_buf(buffer, formatf("Position:      %s\n\r", position_table[command->position].name));
     add_buf(buffer, formatf("Log:           %s\n\r", log_flags[command->log].name));
+    add_buf(buffer, formatf("Order:         %d\n\r", list_getindex(commands_list, command)));
     add_buf(buffer, formatf("Enabled:       %s\n\r", command->enabled ? "Yes" : "No"));
     if (!command->enabled || !IS_NULLSTR(command->reason)) 
         add_buf(buffer, formatf("{rDisabled Reason{X: %s\n\r", !IS_NULLSTR(command->reason) ? command->reason : "(none)"));
@@ -977,5 +980,36 @@ CMDEDIT ( cmdedit_summary )
     command->summary[0] = UPPER(command->summary[0] );
 
     send_to_char("Command summary set.\n\r", ch);
+    return true;
+}
+
+CMDEDIT ( cmdedit_order )
+{
+    CMD_DATA *command;
+
+    EDIT_CMD(ch, command);
+
+    if (argument[0] == '\0')
+    {
+    send_to_char("Syntax:  order [number]\n\r", ch);
+    return false;
+    }
+
+    int value;
+    if (!is_number(argument))
+    {
+    send_to_char("Invalid number.\n\r", ch);
+    return false;
+    }
+
+    value = atoi(argument);
+    if (value < 0 || value > list_size(commands_list))
+    {
+    send_to_char("Invalid number.\n\r", ch);
+    return false;
+    }
+
+    list_movelink(commands_list, list_getindex(commands_list,command), value);
+    send_to_char("Command order set.\n\r", ch);
     return true;
 }

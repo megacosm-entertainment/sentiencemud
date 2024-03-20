@@ -578,6 +578,7 @@ DECLARE_OLC_FUN( cmdedit_description );
 DECLARE_OLC_FUN( cmdedit_comments ); 
 DECLARE_OLC_FUN( cmdedit_type );
 DECLARE_OLC_FUN( cmdedit_level );
+DECLARE_OLC_FUN( cmdedit_order );
 DECLARE_OLC_FUN( cmdedit_position ); 
 DECLARE_OLC_FUN( cmdedit_log );
 DECLARE_OLC_FUN( cmdedit_enabled ); 
