@@ -2946,17 +2946,36 @@ const struct flag_type prog_entity_flags[] =
 
 const struct flag_type command_types[] =
 {
-	{ "none",		CMDTYPE_NONE,	    true },
-	{ "move",		CMDTYPE_MOVE,	    true },
+	{ "unsorted",		CMDTYPE_NONE,	    true },
+	{ "movement",		CMDTYPE_MOVE,	    true },
 	{ "combat",		CMDTYPE_COMBAT,	    true },
 	{ "object",		CMDTYPE_OBJECT,	    true },
-	{ "info",		CMDTYPE_INFO,	    true },
-	{ "comm",		CMDTYPE_COMM,	    true },
+	{ "information",		CMDTYPE_INFO,	    true },
+	{ "communication",		CMDTYPE_COMM,	    true },
 	{ "racial",		CMDTYPE_RACIAL,	    true },
-	{ "ooc",		CMDTYPE_OOC,	    true },
+	{ "configuration",		CMDTYPE_OOC,	    true },
 	{ "immortal",	CMDTYPE_IMMORTAL,	true },
 	{ "olc",		CMDTYPE_OLC,	    true },
 	{ "admin",		CMDTYPE_ADMIN,	    true },
+    { "newbie",		CMDTYPE_NEWBIE,	    true },
+    {NULL,          0,                  false}
+
+};
+
+const struct flag_type command_addl_types[] =
+{
+	{ "unsorted",		CMD_TYPE_NONE,	    true },
+	{ "movement",		CMD_TYPE_MOVE,	    true },
+	{ "combat",		CMD_TYPE_COMBAT,	    true },
+	{ "object",		CMD_TYPE_OBJECT,	    true },
+	{ "information",		CMD_TYPE_INFO,	    true },
+	{ "communication",		CMD_TYPE_COMM,	    true },
+	{ "racial",		CMD_TYPE_RACIAL,	    true },
+	{ "configuration",		CMD_TYPE_OOC,	    true },
+	{ "immortal",	CMD_TYPE_IMMORTAL,	true },
+	{ "olc",		CMD_TYPE_OLC,	    true },
+	{ "admin",		CMD_TYPE_ADMIN,	    true },
+    { "newbie",		CMD_TYPE_NEWBIE,	    true },
     {NULL,          0,                  false}
 
 };

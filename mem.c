@@ -4362,6 +4362,8 @@ CMD_DATA *new_cmd()
     cmd->comments = &str_empty[0];
     cmd->reason = NULL;
     cmd->summary = NULL;
+    cmd->command_flags = 0;
+    cmd->addl_types = 0;
 
     return cmd;
 }

@@ -157,7 +157,8 @@ void save_command(FILE *fp, CMD_DATA *command)
     fprintf(fp, "Level %d\n", command->level);
     fprintf(fp, "Log %d\n", command->log);
     fprintf(fp, "Position %d\n", command->position);
-    fprintf(fp, "Type %d\n", command->type);
+    fprintf(fp, "Type %ld\n", command->type);
+    fprintf(fp, "Addl_Types %ld\n", command->addl_types);
     fprintf(fp, "Flags %ld\n", command->command_flags);
     fprintf(fp, "Comments %s~\n", command->comments);
     fprintf(fp, "Description %s~\n", command->description);
@@ -252,6 +253,9 @@ CMD_DATA *load_command(FILE *fp)
 
         switch(word[0])
         {
+            case 'A':
+                KEY("Addl_Types", command->addl_types, fread_number(fp));
+                break;
             case 'C':
                 KEY("Comments", command->comments, fread_string(fp));
                 break;
@@ -305,6 +309,11 @@ CMD_DATA *load_command(FILE *fp)
             bug(formatf("load_command: no match for '%s'\n\r", word), 0);
             fread_to_eol(fp);
         }
+    }
+
+    if (command->addl_types == 0 && command->type != 0)
+    {
+        TOGGLE_BIT(command->addl_types, flag_value(command_addl_types, flag_name(command_types, command->type)));
     }
     /*
     if (!str_cmp(command->help_keywords->string, "(null)"))
@@ -559,6 +568,7 @@ CMDEDIT (cmdedit_show)
 
     add_buf(buffer, formatf("Name:          %s\n\r", command->name));
     add_buf(buffer, formatf("Type:          %s\n\r", command_types[command->type].name));
+    add_buf(buffer, formatf("Add'l Types    %s\n\r", flag_string(command_addl_types, command->addl_types)));
     add_buf(buffer, formatf("Level:         %d\n\r", command->level));
     add_buf(buffer, formatf("Position:      %s\n\r", position_table[command->position].name));
     add_buf(buffer, formatf("Log:           %s\n\r", log_flags[command->log].name));
@@ -681,14 +691,20 @@ CMDEDIT( cmdedit_type )
         return false;
     }
 
-    int type;
+    long type;
     if ((type = flag_value(command_types, argument)) == NO_FLAG)
     {
         send_to_char("Invalid type.\n\r", ch);
         return false;
     }
 
+
+
     command->type = type;
+
+    if (!IS_SET(command->addl_types, flag_value(command_addl_types, flag_name(command_types, command->type))))
+        TOGGLE_BIT(command->addl_types, flag_value(command_addl_types, flag_name(command_types, command->type)));
+
     sprintf(buf, "Type set to %s.\n\r", command_types[type].name);
     send_to_char(buf,ch);
     return true;
@@ -1012,4 +1028,24 @@ CMDEDIT ( cmdedit_order )
     list_movelink(commands_list, list_getindex(commands_list,command), value);
     send_to_char("Command order set.\n\r", ch);
     return true;
+}
+
+CMDEDIT( cmdedit_additional )
+{
+	CMD_DATA *command;
+
+	EDIT_CMD(ch, command);
+
+	long value;
+	if ((value = flag_value(command_addl_types, argument)) == NO_FLAG)
+	{
+		send_to_char("Invalid command flag.  Use '\t<send href=\"? cmd_types\">? cmd_types\t</send>' for valid list.\n\r", ch);
+		show_flag_cmds(ch, command_types);
+		return false;
+	}
+
+	TOGGLE_BIT(command->addl_types, value);
+
+	send_to_char("Additional command types toggled.\n\r", ch);
+	return true;
 }

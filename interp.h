@@ -64,6 +64,8 @@ void cmd_under_construction(CHAR_DATA *ch);
 #define CMDTYPE_IMMORTAL        8
 #define CMDTYPE_OLC             9
 #define CMDTYPE_ADMIN           10
+#define CMDTYPE_NEWBIE          11
+#define MAX_COMMAND_TYPES       12
 
 /*
  * Structure for a command in the command lookup table.

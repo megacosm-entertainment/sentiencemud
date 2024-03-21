@@ -1872,40 +1872,110 @@ char *one_caseful_argument (char *argument, char *arg_first)
 
 
 // Output a table of commands.
+
 void do_commands( CHAR_DATA *ch, char *argument )
 {
     char buf[MAX_STRING_LENGTH], mxp_str[1024];
 //    int cmd;
     int col;
+	long cmdtype = 0;
 	CMD_DATA *command;
 
     col = 0;
-	ITERATOR cit;
-	iterator_start(&cit, commands_list);
-	while((command = (CMD_DATA *)iterator_nextdata(&cit)))
+	send_to_char("Commands available to you:\n\r", ch);
+
+
+
+	if (argument[0] == '\0')
 	{
-		if (command->level < LEVEL_HERO && !IS_SET(command->command_flags, CMD_HIDE_LISTS))
+		for (cmdtype = 0; cmdtype < MAX_COMMAND_TYPES; cmdtype++ )
 		{
+			if (cmdtype == CMDTYPE_ADMIN || cmdtype == CMDTYPE_IMMORTAL || cmdtype == CMDTYPE_OLC || cmdtype == CMDTYPE_NEWBIE)
+			continue;
+
+			sprintf(buf, "\n\r{X===== {W{+%s Commands{X ====={x\n\r", command_types[cmdtype].name);
+			send_to_char(buf, ch);
+			ITERATOR cit;
+			iterator_start(&cit, commands_list);
+		
+			while((command = (CMD_DATA *)iterator_nextdata(&cit)))
+			{
+				if (command->type != cmdtype)
+					continue;
+
+				if (command->level < LEVEL_HERO && !IS_SET(command->command_flags, CMD_HIDE_LISTS))
+				{
 //			if (!list_contains(ch->pcdata->extra_commands, command->name, cmd_cmp))
 //			{
-			if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) != NULL) && !IS_NULLSTR(command->summary))
-				sprintf(mxp_str, "\t<send href=\"%s|help #%d\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat)->index, command->summary, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
-			else if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) != NULL ) && IS_NULLSTR(command->summary))
-				sprintf(mxp_str, "\t<send href=\"%s|help #%d\" hint=\"Execute %s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat)->index, command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
-			else if ((command->help_keywords == NULL || !str_cmp(command->help_keywords->string, "(null)") || lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) == NULL) && !IS_NULLSTR(command->summary))
-				sprintf(mxp_str, "\t<send href=\"%s\" hint=\"%s\">{X%s\t</send>%s", command->name, command->summary, command->name, pad_string(command->name, 13, NULL, NULL));
-			else
-				sprintf(mxp_str, "\t<send href=\"%s\" hint=\"Execute %s\">{X%s\t</send>%s", command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+					if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) != NULL) && !IS_NULLSTR(command->summary))
+						sprintf(mxp_str, "\t<send href=\"%s|help #%d\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat)->index, command->summary, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+					else if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) != NULL ) && IS_NULLSTR(command->summary))
+						sprintf(mxp_str, "\t<send href=\"%s|help #%d\" hint=\"Execute %s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat)->index, command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+					else if ((command->help_keywords == NULL || !str_cmp(command->help_keywords->string, "(null)") || lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) == NULL) && !IS_NULLSTR(command->summary))
+						sprintf(mxp_str, "\t<send href=\"%s\" hint=\"%s\">{X%s\t</send>%s", command->name, command->summary, command->name, pad_string(command->name, 13, NULL, NULL));
+					else
+						sprintf(mxp_str, "\t<send href=\"%s\" hint=\"Execute %s\">{X%s\t</send>%s", command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
 				
 //				list_appendlink(ch->pcdata->extra_commands, str_dup(mxp_str));
 //			}
-	    	sprintf( buf, "%s", mxp_str );
-	    	send_to_char( buf, ch );
-	    	if ( ++col % 6 == 0 )
-			send_to_char( "\n\r", ch );
+	   		 		sprintf( buf, "%s", mxp_str );
+	    			send_to_char( buf, ch );
+	    			if ( ++col % 6 == 0 )
+					send_to_char( "\n\r", ch );
 
+				}
+			}
+			iterator_stop(&cit);
 		}
 	}
+	else
+	{
+		if ((cmdtype = flag_value(command_types, argument)) == NO_FLAG)
+		{
+			send_to_char("Invalid command type.\n\r", ch);
+			return;
+		}
+
+		cmdtype = flag_value(command_types, argument);
+		if (cmdtype == CMDTYPE_ADMIN || cmdtype == CMDTYPE_IMMORTAL || cmdtype == CMDTYPE_OLC || cmdtype == CMDTYPE_NONE)
+		{
+			send_to_char("This command list is only for player commands\n\r", ch);
+			return;	
+		}
+			sprintf(buf, "\n\r{X===== {W{+%s Commands{X ====={x\n\r", command_types[cmdtype].name);
+			send_to_char(buf, ch);
+
+	ITERATOR cit;
+
+	iterator_start(&cit, commands_list);
+			while((command = (CMD_DATA *)iterator_nextdata(&cit)))
+			{
+				if (command->level < LEVEL_HERO && !IS_SET(command->command_flags, CMD_HIDE_LISTS) && IS_SET(command->addl_types, flag_value(command_addl_types, argument)))
+				{
+//			if (!list_contains(ch->pcdata->extra_commands, command->name, cmd_cmp))
+//			{
+					if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) != NULL) && !IS_NULLSTR(command->summary))
+						sprintf(mxp_str, "\t<send href=\"%s|help #%d\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat)->index, command->summary, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+					else if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) != NULL ) && IS_NULLSTR(command->summary))
+						sprintf(mxp_str, "\t<send href=\"%s|help #%d\" hint=\"Execute %s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat)->index, command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+					else if ((command->help_keywords == NULL || !str_cmp(command->help_keywords->string, "(null)") || lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) == NULL) && !IS_NULLSTR(command->summary))
+						sprintf(mxp_str, "\t<send href=\"%s\" hint=\"%s\">{X%s\t</send>%s", command->name, command->summary, command->name, pad_string(command->name, 13, NULL, NULL));
+					else
+						sprintf(mxp_str, "\t<send href=\"%s\" hint=\"Execute %s\">{X%s\t</send>%s", command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+				
+//				list_appendlink(ch->pcdata->extra_commands, str_dup(mxp_str));
+//			}
+	   		 		sprintf( buf, "%s", mxp_str );
+	    			send_to_char( buf, ch );
+	    			if ( ++col % 6 == 0 )
+					send_to_char( "\n\r", ch );
+
+				}
+			}
+			iterator_stop(&cit);
+	}
+
+
 /*	
     for ( cmd = 0; cmd_table[cmd].name[0] != '\0'; cmd++ )
     {
@@ -1920,8 +1990,8 @@ void do_commands( CHAR_DATA *ch, char *argument )
 	}
     }
 */
-    if ( col % 6 != 0 )
-	send_to_char( "\n\r", ch );
+	    if ( col % 6 != 0 )
+		send_to_char( "\n\r", ch );
 }
 
 // Output a table of imm-only commands.
@@ -1930,6 +2000,7 @@ void do_wizhelp( CHAR_DATA *ch, char *argument )
     char buf[MAX_STRING_LENGTH];
 //    int cmd;
     int col;
+	long cmdtype = -1;
 	int lvl;
 	CMD_DATA *command;
 
@@ -1953,16 +2024,39 @@ void do_wizhelp( CHAR_DATA *ch, char *argument )
 	}
     }
 */
+
+		if (argument[0] != '\0')
+		{
+			cmdtype = flag_value(command_types, argument);
+			sprintf(buf, "{B*{G*{B* {XFiltering for {W{+%s{X commands {B*{G*{B*{X\n\r", command_types[cmdtype].name);
+			send_to_char(buf,ch);
+		}
+
+
+		if (cmdtype == NO_FLAG)
+		{
+			send_to_char("Invalid command type.\n\r", ch);
+			return;
+		}
+
 for ( lvl = 150; lvl <= get_trust(ch); lvl++ )
 	{
 		col = 0;
 		sprintf( buf, "\n\r===== Commands for Level %d =====\n\r", lvl);
 		send_to_char( buf, ch );
 
+
+
+
+
+
 		ITERATOR it;
 		iterator_start(&it, commands_list);
 		while ((command = (CMD_DATA *)iterator_nextdata(&it)))
 		{
+			if (cmdtype != -1 && !IS_SET(command->addl_types, cmdtype))
+				continue;
+			
 			if (command->level == lvl && !IS_SET(command->command_flags, CMD_HIDE_LISTS))
 			{
 				if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) != NULL) && !IS_NULLSTR(command->summary))

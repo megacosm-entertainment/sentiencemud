@@ -4114,6 +4114,7 @@ char *olc_show_script_status(SCRIPT_DATA *prog, int type)
 const struct olc_cmd_type cmdedit_table[] =
 {
     { "?",      show_help           },
+    { "additional", cmdedit_additional },
     { "comments",   cmdedit_comments },
     { "create",     cmdedit_create  },
     { "description",    cmdedit_description },

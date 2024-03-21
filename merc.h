@@ -3729,7 +3729,8 @@ struct cmd_data
     char        *description;   // Description of command.
     char        *comments;      // Comments on command. May be deprecated later.
 
-    int16_t     type;           // Command type
+    long     type;           // Command type
+    long        addl_types;     // Additional command types, for use as arguments to the 'commands' command.
     int16_t     level;          // Minimum level to use command.
     int16_t     position;       // Minimum position to use command.
     int16_t     log;            // Command log level.
@@ -3742,6 +3743,18 @@ struct cmd_data
     char        *summary;       // Used for MXP hints, quick one-liner about command.
 };
 
+#define CMD_TYPE_NONE            (A)       // Treated as the catchall / general / miscellaneous group
+#define CMD_TYPE_MOVE            (B)
+#define CMD_TYPE_COMBAT          (C)
+#define CMD_TYPE_OBJECT          (D)
+#define CMD_TYPE_INFO            (E)
+#define CMD_TYPE_COMM            (F)
+#define CMD_TYPE_RACIAL          (G)
+#define CMD_TYPE_OOC             (H)
+#define CMD_TYPE_IMMORTAL        (I)
+#define CMD_TYPE_OLC             (J)
+#define CMD_TYPE_ADMIN           (K)
+#define CMD_TYPE_NEWBIE          (L)
 
 #define CMD_HIDE_LISTS      (A) // Command is hidden from lists (equiv to cmd_table's 'show' being false)
 #define CMD_IS_OOC          (B) // Command is considered OOC (equiv to cmd_table's 'is_ooc' being true)

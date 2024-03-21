@@ -915,6 +915,12 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
             case '|':
                pCopyFrom = "\n\r";
                break;
+            case '+':
+               toupper(apData[j+2]);
+               break;
+            case '-':
+               tolower(apData[j+2]);
+               break;
             case '\0':
                bTerminate = true;
                break;

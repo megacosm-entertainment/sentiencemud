@@ -570,6 +570,7 @@ DECLARE_OLC_FUN( dpedit_list		);
 DECLARE_OLC_FUN( dpedit_create		);
 
 
+
 DECLARE_OLC_FUN( cmdedit_create ); 
 DECLARE_OLC_FUN( cmdedit_show ); 
 DECLARE_OLC_FUN( cmdedit_delete );
@@ -587,6 +588,7 @@ DECLARE_OLC_FUN( cmdedit_flags );
 DECLARE_OLC_FUN( cmdedit_function );
 DECLARE_OLC_FUN( cmdedit_help ); 
 DECLARE_OLC_FUN( cmdedit_summary );
+DECLARE_OLC_FUN( cmdedit_additional );
 
 /*
  * Macros
