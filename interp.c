@@ -1880,14 +1880,11 @@ void do_commands( CHAR_DATA *ch, char *argument )
     int col;
 	long cmdtype = 0;
 	CMD_DATA *command;
-
-    col = 0;
-	send_to_char("Commands available to you:\n\r", ch);
-
-
+	col = 0;
 
 	if (argument[0] == '\0')
 	{
+		
 		for (cmdtype = 0; cmdtype < MAX_COMMAND_TYPES; cmdtype++ )
 		{
 			if (cmdtype == CMDTYPE_ADMIN || cmdtype == CMDTYPE_IMMORTAL || cmdtype == CMDTYPE_OLC || cmdtype == CMDTYPE_NEWBIE)
@@ -1897,7 +1894,7 @@ void do_commands( CHAR_DATA *ch, char *argument )
 			send_to_char(buf, ch);
 			ITERATOR cit;
 			iterator_start(&cit, commands_list);
-		
+			col = 0;
 			while((command = (CMD_DATA *)iterator_nextdata(&cit)))
 			{
 				if (command->type != cmdtype)
@@ -1926,10 +1923,12 @@ void do_commands( CHAR_DATA *ch, char *argument )
 				}
 			}
 			iterator_stop(&cit);
+			send_to_char( "\n\r", ch );
 		}
 	}
 	else
 	{
+		
 		if ((cmdtype = flag_value(command_types, argument)) == NO_FLAG)
 		{
 			send_to_char("Invalid command type.\n\r", ch);
@@ -1948,6 +1947,7 @@ void do_commands( CHAR_DATA *ch, char *argument )
 	ITERATOR cit;
 
 	iterator_start(&cit, commands_list);
+	col = 0;
 			while((command = (CMD_DATA *)iterator_nextdata(&cit)))
 			{
 				if (command->level < LEVEL_HERO && !IS_SET(command->command_flags, CMD_HIDE_LISTS) && IS_SET(command->addl_types, flag_value(command_addl_types, argument)))
@@ -1973,6 +1973,7 @@ void do_commands( CHAR_DATA *ch, char *argument )
 				}
 			}
 			iterator_stop(&cit);
+			send_to_char( "\n\r", ch );
 	}
 
 
