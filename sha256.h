@@ -33,25 +33,26 @@
  *                                                                         *
  **************************************************************************/
 
-#ifndef _SHA256_H_
-#define _SHA256_H_
+#ifndef _sent_SHA256_H_
+#define _sent_SHA256_H_
 
 #include <sys/types.h>
+
 
 typedef struct SHA256Context
 {
    int state[8];
    int count[2];
    unsigned char buf[64];
-} SHA256_CTX;
+} sent_SHA256_CTX;
 
-void SHA256_Init( SHA256_CTX * );
-void SHA256_Update( SHA256_CTX *, const unsigned char *, size_t );
-void SHA256_Final( unsigned char [32], SHA256_CTX * );
-char *SHA256_End( SHA256_CTX *, char * );
-char *SHA256_File( const char *, char * );
-char *SHA256_FileChunk( const char *, char *, off_t, off_t );
-char *SHA256_Data( const unsigned char *, unsigned int, char * );
-char *sha256_crypt( const char *pwd );
+void sent_SHA256_Init( sent_SHA256_CTX * );
+void sent_SHA256_Update( sent_SHA256_CTX *, const unsigned char *, size_t );
+void sent_SHA256_Final( unsigned char [32], sent_SHA256_CTX * );
+char *sent_SHA256_End( sent_SHA256_CTX *, char * );
+char *sent_SHA256_File( const char *, char * );
+char *sent_SHA256_FileChunk( const char *, char *, off_t, off_t );
+char *sent_SHA256_Data( const unsigned char *, unsigned int, char * );
+char *sent_SHA256_crypt( const char *pwd );
 
-#endif /* !_SHA256_H_ */
+#endif /* !_sent_SHA256_H_ */

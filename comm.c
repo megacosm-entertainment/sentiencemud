@@ -131,16 +131,18 @@ time_t		    current_time;	/* time of this pulse */
 time_t			stats_load_time;
 bool		    MOBtrigger = true;  /* act() switch                 */
 LLIST *loaded_areas;
+SSL_CTX *ctx;
 
 /*
  * OS-dependent local functions.
  */
-void	game_loop		args((int control));
+void	game_loop		args((int control, int control_secure));
 int	init_socket		args((int port));
-void	init_descriptor		args((int control));
+int init_secure_socket args((int port_tls));
+void	init_descriptor		args((int control, bool secure));
 bool	read_from_descriptor	args((DESCRIPTOR_DATA *d));
 bool	write_to_descriptor	args((DESCRIPTOR_DATA *d, char *txt, int length));
-bool	write_to_descriptor_2	args((int desc, char *txt, int length));
+bool	write_to_descriptor_2	args((DESCRIPTOR_DATA *d, char *txt, int length));
 
 
 /*
@@ -280,9 +282,9 @@ bool parse_options(int argc, char **argv)
 				fprintf(stderr, "Port number must be above 1024.");
 				return false;
 			}
-
 			port = p;
 		}
+
 		else if ( argv[i][0] == '-' && (strlen(argv[i]) == 2) )
 		{
 			switch( argv[i][1] )
@@ -326,6 +328,7 @@ int main(int argc, char **argv)
     
     struct timeval now_time;
     int control;
+	int control_secure;
     ITERATOR iter;
     void *data;
 
@@ -424,7 +427,7 @@ int main(int argc, char **argv)
      * Get the port number.
      */
     port = 9000;
-	port_tls = 9001;
+	port_tls = port+10;
     is_test_port = false;
     newlock = false;
     wizlock = false;
@@ -476,6 +479,13 @@ int main(int argc, char **argv)
      * Run the game.
      */
     control = init_socket(port);
+	control_secure = init_secure_socket(port_tls);
+
+	if (control_secure < 0)
+	{
+		fprintf(stderr, "Error initializing secure socket on port %d\n", port_tls);
+		control_secure = -1;
+	}
     boot_db();
 
     sprintf(log_buf, "Sentience is up on port %d.", port);
@@ -483,7 +493,7 @@ int main(int argc, char **argv)
     #ifdef IMC
     imc_startup( false, -1, false );
     #endif
-    game_loop(control);
+    game_loop(control, control_secure);
 	list_destroy(conn_players);
 	list_destroy(conn_immortals);
 	list_destroy(conn_online);
@@ -612,7 +622,48 @@ int init_socket(int port)
     return fd;
 }
 
-void game_loop(int control)
+int init_secure_socket(int port_tls) {
+    int sock;
+    struct sockaddr_in sa;
+    SSL_CTX *ctx;
+
+    // Initialize the OpenSSL library
+    SSL_library_init();
+    OpenSSL_add_all_algorithms();
+    SSL_load_error_strings();
+
+    // Create a new SSL context
+    ctx = SSL_CTX_new(TLS_server_method());
+    if (ctx == NULL) {
+        // Handle error
+    }
+
+    // Set the SSL context options
+    SSL_CTX_set_options(ctx, SSL_OP_SINGLE_DH_USE);
+
+    // Load the server's certificate and private key
+    if (SSL_CTX_use_certificate_file(ctx, CERTS_DIR "server.crt", SSL_FILETYPE_PEM) <= 0 ||
+        SSL_CTX_use_PrivateKey_file(ctx, CERTS_DIR"server.key", SSL_FILETYPE_PEM) <= 0) {
+        // Handle error
+    }
+
+    // Create the socket and set it to non-blocking mode
+    sock = socket(AF_INET, SOCK_STREAM, 0);
+    fcntl(sock, F_SETFL, O_NONBLOCK);
+
+    // Bind the socket to the port
+    memset(&sa, '\0', sizeof(sa));
+    sa.sin_family = AF_INET;
+    sa.sin_port = htons(port);
+    bind(sock, (struct sockaddr*)&sa, sizeof(sa));
+
+    // Listen for connections on the socket
+    listen(sock, 3);
+
+    return sock;
+}
+
+void game_loop(int control, int control_secure)
 {
     static struct timeval null_time;
     struct timeval last_time;
@@ -627,6 +678,9 @@ void game_loop(int control)
 	fd_set in_set;
 	fd_set out_set;
 	fd_set exc_set;
+	fd_set in_set_secure;
+	fd_set out_set_secure;
+	fd_set exc_set_secure;
 	DESCRIPTOR_DATA *d;
 	int maxdesc;
 
@@ -642,6 +696,12 @@ void game_loop(int control)
 	FD_ZERO(&out_set);
 	FD_ZERO(&exc_set);
 	FD_SET(control, &in_set);
+	FD_ZERO(&in_set_secure);
+	FD_ZERO(&out_set_secure);
+	FD_ZERO(&exc_set_secure);
+	FD_SET(control_secure, &in_set_secure);
+	FD_SET(control_secure, &out_set_secure);
+	FD_SET(control_secure, &exc_set_secure);
 	maxdesc	= control;
 	for (d = descriptor_list; d; d = d->next)
 	{
@@ -686,7 +746,11 @@ void game_loop(int control)
 	 * New connection?
 	 */
 	if (FD_ISSET(control, &in_set))
-	    init_descriptor(control);
+	    init_descriptor(control, false);
+
+    if (FD_ISSET(control_secure, &in_set)) {
+        init_descriptor(control_secure, true);
+    }
 
 	/*
 	 * Kick out the freaky folks.
@@ -886,7 +950,7 @@ imc_loop();
 }
 
 
-void init_descriptor(int control)
+void init_descriptor(int control, bool is_secure)
 {
     char buf[MAX_STRING_LENGTH];
     DESCRIPTOR_DATA *dnew;
@@ -920,6 +984,18 @@ void init_descriptor(int control)
 
     dnew->descriptor	= desc;
     dnew->connected	= CON_GET_NAME;
+
+    dnew->is_secure = is_secure;  // Add this line to indicate whether the connection is secure
+
+    if (is_secure) {
+        // Set up the SSL session
+        dnew->ssl = SSL_new(ctx);
+        SSL_set_fd(dnew->ssl, desc);
+        if (SSL_accept(dnew->ssl) <= 0) {
+            // Handle error
+        }
+    }
+
     dnew->showstr_head	= NULL;
     dnew->showstr_point = NULL;
     dnew->outsize	= 2000;
@@ -965,7 +1041,7 @@ void init_descriptor(int control)
      */
     if (check_ban(dnew->host,BAN_ALL))
     {
-	write_to_descriptor_2(desc,
+	write_to_descriptor_2(dnew,
 	    "Your site has been banned from Sentience.\n\r", 0);
 	close(desc);
 	free_descriptor(dnew);
@@ -1111,6 +1187,11 @@ bool read_from_descriptor(DESCRIPTOR_DATA *d)
 		break;
 	}
 */
+	if (d->is_secure){
+		nRead = SSL_read( d->ssl, read_buf + iStart,
+	    sizeof(read_buf) - 10 - iStart );
+
+	}
 	nRead = read( d->descriptor, read_buf + iStart,
 	    sizeof(read_buf) - 10 - iStart );
 	if ( nRead > 0 )
@@ -1784,7 +1865,7 @@ void write_to_buffer(DESCRIPTOR_DATA *d, const char *txt, int length)
  * If this gives errors on very long blocks (like 'ofind all'),
  *   try lowering the max block size.
  */
-bool write_to_descriptor_2(int desc, char *txt, int length)
+bool write_to_descriptor_2(DESCRIPTOR_DATA *d, char *txt, int length)
 {
     int iStart;
     int nWrite;
@@ -1796,8 +1877,17 @@ bool write_to_descriptor_2(int desc, char *txt, int length)
     for (iStart = 0; iStart < length; iStart += nWrite)
     {
 	nBlock = UMIN(length - iStart, 4096);
-	if ((nWrite = write(desc, txt + iStart, nBlock)) < 0)
-	    { perror("Write_to_descriptor"); return false; }
+
+	if (d->is_secure)
+	{
+		if ((nWrite = SSL_write(d->ssl, txt + iStart, nBlock)) < 0)
+	    	{ perror("Write_to_descriptor"); return false; }
+	}
+	else
+	{
+		if ((nWrite = write(d->descriptor, txt + iStart, nBlock)) < 0)
+	    	{ perror("Write_to_descriptor"); return false; }
+	}
     }
 
     return true;
@@ -1810,7 +1900,7 @@ bool write_to_descriptor(DESCRIPTOR_DATA *d, char *txt, int length)
     if (d->out_compress)
         return writeCompressed(d, txt, length);
     else
-        return write_to_descriptor_2(d->descriptor, txt, length);
+        return write_to_descriptor_2(d, txt, length);
 }
 
 
@@ -2125,7 +2215,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 
 		if (d->character->pcdata->reset_state == RESET_PENDING)
 		{
-			if (strcmp(argument, ch->pcdata->reset_code) && strcmp(sha256_crypt(argument), ch->pcdata->pwd) && strcmp(crypt(argument, ch->pcdata->pwd), ch->pcdata->pwd) && strcmp(argument, ch->pcdata->pwd))
+			if (strcmp(argument, ch->pcdata->reset_code) && strcmp(sent_SHA256_crypt(argument), ch->pcdata->pwd) && strcmp(crypt(argument, ch->pcdata->pwd), ch->pcdata->pwd) && strcmp(argument, ch->pcdata->pwd))
 			{
 				write_to_buffer(d, "Wrong reset code.\n\r", 0);
 				d->login_attempts++;
@@ -2174,7 +2264,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		}
 		else
 		{
-			if (strcmp(sha256_crypt(argument), ch->pcdata->pwd))
+			if (strcmp(sent_SHA256_crypt(argument), ch->pcdata->pwd))
 			{
 				/* Log bad password attempts */
 				sprintf(log_buf, "Denying access to %s@%s (bad password).",
@@ -2304,7 +2394,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		}
 		else
 		{
-			if (!strcmp(sha256_crypt(argument), ch->pcdata->old_pwd))
+			if (!strcmp(sent_SHA256_crypt(argument), ch->pcdata->old_pwd))
 			{
 				send_to_char("Password must be DIFFERENT from your current password!\n\rPassword: ", ch);
 				d->connected = CON_CHANGE_PASSWORD;
@@ -2316,7 +2406,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		if (!acceptablePassword(d, argument))
 			return;
 
-		pwdnew = sha256_crypt(argument);
+		pwdnew = sent_SHA256_crypt(argument);
 
 		free_string(ch->pcdata->pwd);
 		ch->pcdata->pwd	= str_dup(pwdnew);
@@ -2327,7 +2417,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		break;
 
 	case CON_CHANGE_PASSWORD_CONFIRM:
-		if (strcmp(sha256_crypt(argument), ch->pcdata->pwd))
+		if (strcmp(sent_SHA256_crypt(argument), ch->pcdata->pwd))
 		{
 			write_to_buffer(d, "Passwords don't match.\n\rPassword: ", 0);
 			d->connected = CON_CHANGE_PASSWORD;
@@ -2427,7 +2517,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		if (!acceptablePassword(d, argument))
 			return;
 
-		pwdnew = sha256_crypt(argument);
+		pwdnew = sent_SHA256_crypt(argument);
 
 		free_string(ch->pcdata->pwd);
 		ch->pcdata->pwd	= str_dup(pwdnew);
@@ -2441,7 +2531,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 	case CON_CONFIRM_NEW_PASSWORD:
 		write_to_buffer(d, "\n\r", 2);
 
-		if (strcmp(sha256_crypt(argument), ch->pcdata->pwd))
+		if (strcmp(sent_SHA256_crypt(argument), ch->pcdata->pwd))
 		{
 			write_to_buffer(d, "Passwords don't match.\n\r\n\rRetype password: ", 0);
 			d->connected = CON_GET_NEW_PASSWORD;

@@ -58,6 +58,7 @@
 #include <stdint.h>
 #include <quickmail.h>
 #include <pthread.h>
+#include <openssl/ssl.h>
 #include "protocol.h"
 #include "sha256.h"
 
@@ -1359,6 +1360,8 @@ struct	descriptor_data
     TOKEN_DATA *	input_tok;
 
     unsigned int		muted;			// All text heading to the output will be blocked
+    bool is_secure;
+    SSL *ssl;
 
 };
 
@@ -7201,6 +7204,7 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
 #define DUMP_DIR		"../data/dump/"
 #define STATS_DIR		"../data/stats/"
 #define HELP_DIR		"../data/help/"
+#define CERTS_DIR       "../data/system/certs/"
 
 /*World files - Regarding things specifically for the game world. */
 #define PROJECTS_FILE	WORLD_DIR "projects.dat"

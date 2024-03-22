@@ -131,7 +131,7 @@ be32dec_vect(int *dst, const unsigned char *src, size_t len)
  * the 512-bit input block to produce a new state.
  */
 static void
-SHA256_Transform(int * state, const unsigned char block[64])
+sent_SHA256_Transform(int * state, const unsigned char block[64])
 {
 	int W[64];
 	int S[8];
@@ -226,7 +226,7 @@ static unsigned char PAD[64] = {
 
 /* Add padding and terminating bit-count. */
 static void
-SHA256_Pad(SHA256_CTX * ctx)
+sent_SHA256_Pad(sent_SHA256_CTX * ctx)
 {
 	unsigned char len[8];
 	int r, plen;
@@ -240,14 +240,14 @@ SHA256_Pad(SHA256_CTX * ctx)
 	/* Add 1--64 bytes so that the resulting length is 56 mod 64 */
 	r = (ctx->count[1] >> 3) & 0x3f;
 	plen = (r < 56) ? (56 - r) : (120 - r);
-	SHA256_Update(ctx, PAD, (size_t)plen);
+	sent_SHA256_Update(ctx, PAD, (size_t)plen);
 
 	/* Add the terminating bit-count */
-	SHA256_Update(ctx, len, 8);
+	sent_SHA256_Update(ctx, len, 8);
 }
 
 /* SHA-256 initialization.  Begins a SHA-256 operation. */
-void SHA256_Init(SHA256_CTX * ctx)
+void sent_SHA256_Init(sent_SHA256_CTX * ctx)
 {
 	/* Zero bits processed so far */
 	ctx->count[0] = ctx->count[1] = 0;
@@ -264,7 +264,7 @@ void SHA256_Init(SHA256_CTX * ctx)
 }
 
 /* Add bytes into the hash */
-void SHA256_Update(SHA256_CTX * ctx, const unsigned char *src, size_t len)
+void sent_SHA256_Update(sent_SHA256_CTX * ctx, const unsigned char *src, size_t len)
 {
 	int bitlen[2];
 	size_t r;
@@ -289,13 +289,13 @@ void SHA256_Update(SHA256_CTX * ctx, const unsigned char *src, size_t len)
 
 	/* Finish the current block */
 	memcpy(&ctx->buf[r], src, 64 - r);
-	SHA256_Transform(ctx->state, ctx->buf);
+	sent_SHA256_Transform(ctx->state, ctx->buf);
 	src += 64 - r;
 	len -= 64 - r;
 
 	/* Perform complete blocks */
 	while (len >= 64) {
-		SHA256_Transform(ctx->state, src);
+		sent_SHA256_Transform(ctx->state, src);
 		src += 64;
 		len -= 64;
 	}
@@ -308,10 +308,10 @@ void SHA256_Update(SHA256_CTX * ctx, const unsigned char *src, size_t len)
  * SHA-256 finalization.  Pads the input data, exports the hash value,
  * and clears the context state.
  */
-void SHA256_Final(unsigned char digest[32], SHA256_CTX * ctx)
+void sent_SHA256_Final(unsigned char digest[32], sent_SHA256_CTX * ctx)
 {
 	/* Add padding */
-	SHA256_Pad(ctx);
+	sent_SHA256_Pad(ctx);
 
 	/* Write the hash */
 	be32enc_vect(digest, ctx->state, 32);
@@ -320,16 +320,16 @@ void SHA256_Final(unsigned char digest[32], SHA256_CTX * ctx)
 	memset((void *)ctx, 0, sizeof(*ctx));
 }
 
-char *sha256_crypt( const char *pwd )
+char *sent_SHA256_crypt( const char *pwd )
 {
-   SHA256_CTX context;
+   sent_SHA256_CTX context;
    static char output[65];
    unsigned char sha256sum[32];
    unsigned int j;
 
-   SHA256_Init( &context );
-   SHA256_Update( &context, (const unsigned char *) pwd, strlen(pwd) );
-   SHA256_Final( sha256sum, &context );
+   sent_SHA256_Init( &context );
+   sent_SHA256_Update( &context, (const unsigned char *) pwd, strlen(pwd) );
+   sent_SHA256_Final( sha256sum, &context );
 
    for( j = 0; j < 32; ++j )
    {

@@ -3305,7 +3305,7 @@ void imc_process_authentication( char *packet, SERVER_DATA *server )
        */
       auth_value = atol( pw );
       snprintf( pwd, SMST, "%ld%s%s", auth_value, server->clientpw, server->serverpw );
-      cryptpwd = sha256_crypt( pwd );
+      cryptpwd = sent_SHA256_crypt( pwd );
 
       snprintf( response, LGST, "SHA256-AUTH-RESP %s %s version=%d", this_imcmud->localname, cryptpwd, IMC_VERSION );
       imc_write_buffer( response, server );
@@ -7499,7 +7499,7 @@ serverc = imc_find_network( p );
       char *hash;
 
       snprintf( cryptpw, LGST, "%ld%s", imc_sequencenumber + 1, pwd );
-      hash = sha256_crypt( cryptpw );
+      hash = sent_SHA256_crypt( cryptpw );
       imc_addtopacket( p, "hash=%s", hash );
    }
    imc_write_packet( p );

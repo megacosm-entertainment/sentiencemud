@@ -5169,7 +5169,7 @@ void do_password(CHAR_DATA *ch, char *argument)
     }
 	} else
 	{
-		if (strcmp(sha256_crypt(arg1), ch->pcdata->pwd)) {
+		if (strcmp(sent_SHA256_crypt(arg1), ch->pcdata->pwd)) {
 			WAIT_STATE(ch, 40);
 			send_to_char("Wrong password. Wait 10 seconds.\n\r", ch);
 			return;
@@ -5187,7 +5187,7 @@ void do_password(CHAR_DATA *ch, char *argument)
     /*
      * No tilde allowed because of player file format.
      */
-    pwdnew = sha256_crypt(arg2);
+    pwdnew = sent_SHA256_crypt(arg2);
     for (p = pwdnew; *p != '\0'; p++) {
 	if (*p == '~') {
 	    send_to_char("New password not acceptable, try again.\n\r",
