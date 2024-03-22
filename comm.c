@@ -658,7 +658,7 @@ int init_secure_socket(int port_tls) {
     if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
     (char *) &x, sizeof(x)) < 0)
     {
-	perror("Init_socket: SO_REUSEADDR");
+	perror("Init_socket_secure: SO_REUSEADDR");
 	close(fd);
 	exit(1);
     }
