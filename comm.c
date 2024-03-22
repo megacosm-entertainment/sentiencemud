@@ -683,13 +683,13 @@ int init_secure_socket(int port_tls) {
 
     sa		    = sa_zero;
     sa.sin_family   = AF_INET;
-    sa.sin_port	    = htons(port);
+    sa.sin_port	    = htons(port_tls);
 
     if (bind(fd, (struct sockaddr *) &sa, sizeof(sa)) < 0)
     {
 	perror("Init socket: bind");
 	close(fd);
-	exit(1);
+	//exit(1);
     }
 
 
@@ -697,7 +697,7 @@ int init_secure_socket(int port_tls) {
     {
 	perror("Init socket: listen");
 	close(fd);
-	exit(1);
+	//exit(1);
     }
 
     return fd;
