@@ -624,8 +624,10 @@ int init_socket(int port)
 }
 
 int init_secure_socket(int port_tls) {
-    int sock;
+    static struct sockaddr_in sa_zero;
     struct sockaddr_in sa;
+    int x = 1;
+    int fd;
     SSL_CTX *ctx;
 
     // Initialize the OpenSSL library
@@ -647,21 +649,59 @@ int init_secure_socket(int port_tls) {
         SSL_CTX_use_PrivateKey_file(ctx, CERTS_DIR"server.key", SSL_FILETYPE_PEM) <= 0) {
         // Handle error
     }
+    if ((fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    {
+	perror("Init_socket: socket");
+	exit(1);
+    }
 
-    // Create the socket and set it to non-blocking mode
-    sock = socket(AF_INET, SOCK_STREAM, 0);
-    fcntl(sock, F_SETFL, O_NONBLOCK);
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
+    (char *) &x, sizeof(x)) < 0)
+    {
+	perror("Init_socket: SO_REUSEADDR");
+	close(fd);
+	exit(1);
+    }
 
-    // Bind the socket to the port
-    memset(&sa, '\0', sizeof(sa));
-    sa.sin_family = AF_INET;
-    sa.sin_port = htons(port);
-    bind(sock, (struct sockaddr*)&sa, sizeof(sa));
 
-    // Listen for connections on the socket
-    listen(sock, 3);
+#if defined(SO_DONTLINGER) && !defined(SYSV)
+    {
+	struct	linger	ld;
 
-    return sock;
+	ld.l_onoff  = 1;
+	ld.l_linger = 1000;
+
+	if (setsockopt(fd, SOL_SOCKET, SO_DONTLINGER,
+	(char *) &ld, sizeof(ld)) < 0)
+	{
+	    perror("Init_socket: SO_DONTLINGER");
+	    close(fd);
+	    exit(1);
+	}
+    }
+#endif
+
+    sa		    = sa_zero;
+    sa.sin_family   = AF_INET;
+    sa.sin_port	    = htons(port);
+
+    if (bind(fd, (struct sockaddr *) &sa, sizeof(sa)) < 0)
+    {
+	perror("Init socket: bind");
+	close(fd);
+	exit(1);
+    }
+
+
+    if (listen(fd, 3) < 0)
+    {
+	perror("Init socket: listen");
+	close(fd);
+	exit(1);
+    }
+
+    return fd;
+
 }
 
 void game_loop(int control, int control_secure)
