@@ -789,7 +789,7 @@ void game_loop(int control, int control_secure)
 	if (FD_ISSET(control, &in_set))
 	    init_descriptor(control, false);
 
-    if (FD_ISSET(control_secure, &secure_in_set)) {
+    if (FD_ISSET(control_secure, &in_set_secure)) {
         init_descriptor(control_secure, true);
     }
 
