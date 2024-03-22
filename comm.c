@@ -283,6 +283,7 @@ bool parse_options(int argc, char **argv)
 				return false;
 			}
 			port = p;
+			port_tls = port + 10;
 		}
 
 		else if ( argv[i][0] == '-' && (strlen(argv[i]) == 2) )
