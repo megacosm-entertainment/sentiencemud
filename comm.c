@@ -741,8 +741,9 @@ void game_loop(int control, int control_secure)
 	FD_ZERO(&out_set_secure);
 	FD_ZERO(&exc_set_secure);
 	FD_SET(control_secure, &in_set_secure);
-	FD_SET(control_secure, &out_set_secure);
-	FD_SET(control_secure, &exc_set_secure);
+	FD_ZERO(&in_set_secure);
+	FD_ZERO(&out_set_secure);
+	FD_ZERO(&exc_set_secure);
 	maxdesc	= control;
 	for (d = descriptor_list; d; d = d->next)
 	{
@@ -822,24 +823,46 @@ void game_loop(int control, int control_secure)
 
 	    if (FD_ISSET(d->descriptor, &in_set))
 	    {
-		if (d->character != NULL)
-		    d->character->timer = 0;
+			if (d->character != NULL)
+		    	d->character->timer = 0;
 
-		if (!read_from_descriptor(d))
-		{
-		    FD_CLR(d->descriptor, &out_set);
+			if (!read_from_descriptor(d))
+			{
+		    	FD_CLR(d->descriptor, &out_set);
 
-		    if (d->character != NULL
-			    &&   d->connected == CON_PLAYING)
-			save_char_obj(d->character);
+		    	if (d->character != NULL
+			    	&&   d->connected == CON_PLAYING)
+				save_char_obj(d->character);
 
-		    d->outtop	= 0;
-		    close_socket(d);
-		    continue;
-		}
+		    	d->outtop	= 0;
+		    	close_socket(d);
+		    	continue;
+			}
 
-		    d->muted = 0;		// Force it to unmute every time they give any kind of command
+		    	d->muted = 0;		// Force it to unmute every time they give any kind of command
 	    }
+		else if (FD_ISSET(d->descriptor, &in_set_secure))
+		{
+
+			if (d->character != NULL)
+		    	d->character->timer = 0;
+
+			if (!read_from_descriptor(d))
+			{
+		    	FD_CLR(d->descriptor, &out_set_secure);
+
+		    	if (d->character != NULL
+			    	&&   d->connected == CON_PLAYING)
+				save_char_obj(d->character);
+
+		    	d->outtop	= 0;
+		    	close_socket(d);
+		    	continue;
+			}
+
+		    	d->muted = 0;		// Force it to unmute every time they give any kind of command
+
+		}
 
 	    if (d->character != NULL && d->character->wait > 0)
 	    {
@@ -903,7 +926,7 @@ imc_loop();
 	d_next = d->next;
 
 	if ((d->fcommand || d->outtop > 0)
-		&&   FD_ISSET(d->descriptor, &out_set))
+		&&   (FD_ISSET(d->descriptor, &out_set) || FD_ISSET(d->descriptor, &out_set_secure)))
 	{
 	    if (!process_output(d, true))
 	    {
@@ -1029,12 +1052,20 @@ void init_descriptor(int control, bool is_secure)
     dnew->is_secure = is_secure;  // Add this line to indicate whether the connection is secure
 
     if (is_secure) {
-        // Set up the SSL session
-        dnew->ssl = SSL_new(ctx);
-        SSL_set_fd(dnew->ssl, desc);
-        if (SSL_accept(dnew->ssl) <= 0) {
-            // Handle error
-        }
+    if (dnew->ssl == NULL) {
+        // Handle error
+        return;
+    }
+
+    if (SSL_set_fd(dnew->ssl, desc) == 0) {
+        // Handle error
+        return;
+    }
+
+    if (SSL_accept(dnew->ssl) <= 0) {
+        // Handle error
+        return;
+    }
     }
 
     dnew->showstr_head	= NULL;
