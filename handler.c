@@ -5209,15 +5209,21 @@ char *pad_string(char *string, int length, char *colour, char *character)
     return str_dup(buf);
 }
 
-/* send a yellow line of length 'length' to a character */
-void line(CHAR_DATA *ch, int length)
+/* send a line of length 'length' to a character, allow custom colour and character */
+void line(CHAR_DATA *ch, int length, char *colour, char *character)
 {
     int i;
 
-    send_to_char("{Y", ch);
+	if (colour == NULL)
+		colour = "{Y";
+
+	if (character == NULL)
+		character = "-";
+
+    send_to_char(colour, ch);
     for (i = 0; i < length; i++)
     {
-	send_to_char("-", ch);
+	send_to_char(character, ch);
     }
     send_to_char("{x\n\r", ch);
 }

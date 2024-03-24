@@ -478,44 +478,36 @@ void do_wiznet(CHAR_DATA *ch, char *argument)
     /* show wiznet status */
     if (!str_prefix(argument,"status"))
     {
-	buf[0] = '\0';
+		buf[0] = '\0';
 
-	if (!IS_SET(ch->wiznet,WIZ_ON))
-	    strcat(buf,"off ");
+		if (!IS_SET(ch->wiznet,WIZ_ON))
+	    	strcat(buf,"off ");
 
-	for (flag = 0; wiznet_table[flag].name != NULL; flag++)
-	    if (IS_SET(ch->wiznet,wiznet_table[flag].flag))
-	    {
-		strcat(buf,wiznet_table[flag].name);
-		strcat(buf," ");
-	    }
+		for (flag = 0; wiznet_table[flag].name != NULL; flag++)
+	    	if (IS_SET(ch->wiznet,wiznet_table[flag].flag))
+	    	{
+			strcat(buf,wiznet_table[flag].name);
+			strcat(buf," ");
+	    	}
 
-	strcat(buf,"\n\r");
+		line(ch, 23, "{B", "_");
+		send_to_char("{B|    {WWiznet Status{B    |{X\n\r",ch);
+		line(ch, 23, "{B", "-");
 
-	send_to_char("Wiznet status:\n\r",ch);
-	send_to_char(buf,ch);
-	return;
-    }
+		for (flag = 0; wiznet_table[flag].name != NULL; flag++)
+		{
+		    if (wiznet_table[flag].rank <= get_staff_rank(ch))
+				sprintf(buf, "{B| {W%-15s{X \t<send href=\"wiznet %s\" hint=\"Toggle '%s' wiznet channel\">%s {B|{X\n\r", wiznet_table[flag].name, wiznet_table[flag].name, wiznet_table[flag].name, IS_SET(ch->wiznet, wiznet_table[flag].flag) ? "{GON{x\t</send> " : "{ROFF{x\t</send>");
+			else
+				sprintf(buf, "{B| {D%-15s{X, {rOFF{x {B|{X\n\r", wiznet_table[flag].name);
+			send_to_char(buf, ch);
+		}
+		line(ch, 23, "{B", "-");
+		send_to_char("\n\r", ch);
 
-    if (!str_prefix(argument,"show"))
-    /* list of all wiznet options */
-    {
-	buf[0] = '\0';
-
-	for (flag = 0; wiznet_table[flag].name != NULL; flag++)
-	{
-	    if (wiznet_table[flag].rank <= get_staff_rank(ch))
-	    {
-	    	strcat(buf,wiznet_table[flag].name);
-	    	strcat(buf," ");
-	    }
-	}
-
-	strcat(buf,"\n\r");
-
-	send_to_char("Wiznet options available to you are:\n\r",ch);
-	send_to_char(buf,ch);
-	return;
+	//send_to_char("Wiznet status:\n\r",ch);
+	//send_to_char(buf,ch);
+		return;
     }
 
     flag = wiznet_lookup(argument);
@@ -549,6 +541,8 @@ void do_wiznet(CHAR_DATA *ch, char *argument)
 void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj, long flag, long flag_skip, int min_rank)
 {
 	DESCRIPTOR_DATA *d;
+	char wiz_buf[MSL];
+	char wiz_channel[MIL];
 
 	for (d = descriptor_list; d != NULL; d = d->next)
 	{
@@ -567,8 +561,27 @@ void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj, long flag, long flag_ski
 					continue;
 			}
 
-			if (IS_SET(d->character->wiznet,WIZ_PREFIX))
-				send_to_char("{B({MSE{B){G-->{x ",d->character);
+			int flag_pos = 0;
+			for (int i = 0; wiznet_table[i].name != NULL; i++)
+			{
+				if (wiznet_table[i].flag == flag)
+				{
+					flag_pos = i;
+					break;
+				}
+			}
+
+	    	if (IS_SET(d->character->wiznet,WIZ_PREFIX))
+			{
+				strcpy(wiz_channel, wiznet_table[flag_pos].name);
+				for (int i = 0; wiz_channel[i] != '\0'; i++)
+				{
+					wiz_channel[i] = toupper(wiz_channel[i]);
+				}
+
+				sprintf(wiz_buf, "{B({MWIZ-{W%s{B){G-->{x ", wiz_channel);
+		    	send_to_char(wiz_buf,d->character);
+			}
 			act_new(string,d->character,ch,NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
 		}
 	}
@@ -8213,7 +8226,7 @@ void do_vislist(CHAR_DATA *ch, char *argument)
     if (arg[0] == '\0' || !str_cmp(arg, "show"))
     {
 	send_to_char("{YYou are currently visible to:{x\n\r", ch);
-	line(ch, 45);
+	line(ch, 45, NULL, NULL);
 	i = 0;
 	for (string = ch->pcdata->vis_to_people; string != NULL;
 	      string = string->next)
@@ -8226,7 +8239,7 @@ void do_vislist(CHAR_DATA *ch, char *argument)
 	if (i == 0)
 	    send_to_char("Nobody.\n\r", ch);
 
-	line(ch, 45);
+	line(ch, 45, NULL, NULL);
 
 	return;
     }

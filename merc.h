@@ -10843,7 +10843,7 @@ int get_carry_weight	args( ( CHAR_DATA *ch ) );
 void hunt_char 		args( (CHAR_DATA *ch, CHAR_DATA *victim ) );
 void	resurrect_pc   args ( ( CHAR_DATA *ch ) );
 bool is_global_mob( CHAR_DATA *ch );
-void line( CHAR_DATA *ch, int length );
+void line(CHAR_DATA *ch, int length, char *colour, char *character);
 char *pad_string(char *string, int length, char *colour, char *character);
 char *pers( CHAR_DATA *ch, CHAR_DATA *looker );
 bool can_see_shift( CHAR_DATA *ch, CHAR_DATA *victim );
