@@ -307,33 +307,51 @@ void do_wiznet(CHAR_DATA *ch, char *argument)
     {
 		buf[0] = '\0';
 
-		if (!IS_SET(ch->wiznet,WIZ_ON))
-	    	strcat(buf,"off ");
-
-		for (flag = 0; wiznet_table[flag].name != NULL; flag++)
-	    	if (IS_SET(ch->wiznet,wiznet_table[flag].flag))
-	    	{
-			strcat(buf,wiznet_table[flag].name);
-			strcat(buf," ");
-	    	}
-
-		line(ch, 23, "{B", "_");
-		send_to_char("{B|    {WWiznet Status{B    |{X\n\r",ch);
-		line(ch, 23, "{B", "-");
-
-		for (flag = 0; wiznet_table[flag].name != NULL; flag++)
+		if (IS_SET(ch->comm, COMM_COMPACT))
 		{
-		    if (wiznet_table[flag].level <= get_trust(ch))
-				sprintf(buf, "{B| {W%-15s{X \t<send href=\"wiznet %s\" hint=\"Toggle '%s' wiznet channel\">%s {B|{X\n\r", wiznet_table[flag].name, wiznet_table[flag].name, wiznet_table[flag].name, IS_SET(ch->wiznet, wiznet_table[flag].flag) ? "{GON{x\t</send> " : "{ROFF{x\t</send>");
-			else
-				sprintf(buf, "{B| {D%-15s{X, {rOFF{x {B|{X\n\r", wiznet_table[flag].name);
-			send_to_char(buf, ch);
-		}
-		line(ch, 23, "{B", "-");
-		send_to_char("\n\r", ch);
+			send_to_char("Wiznet status: ", ch);
+			for (flag = 0; wiznet_table[flag].name != NULL; flag++)
+			{
+				if (wiznet_table[flag].level <= get_trust(ch))
+				{
+					if (!str_cmp(wiznet_table[flag].name, "on"))
+						sprintf(buf, "\t<send href=\"wiznet\" hint=\"Toggle wiznet\">%s%s{X", IS_SET(ch->wiznet, wiznet_table[flag].flag) ? "{G" : "{R", wiznet_table[flag].name);
+					else
+						sprintf(buf, "\t<send href=\"wiznet %s\" hint=\"Toggle '%s' wiznet channel\">%s%s{X", wiznet_table[flag].name, wiznet_table[flag].name, IS_SET(ch->wiznet, wiznet_table[flag].flag) ? "{G" : "{R", wiznet_table[flag].name);
+				}	
+				else
+					sprintf(buf, "{D%s{X", wiznet_table[flag].name);
+				strcat(buf, " ");
+				send_to_char(buf, ch);
+			}
 
-	//send_to_char("Wiznet status:\n\r",ch);
-	//send_to_char(buf,ch);
+			send_to_char("\n\r", ch);
+		}
+		else
+		{
+			for (flag = 0; wiznet_table[flag].name != NULL; flag++)
+			{
+				line(ch, 23, "{B", "_");
+				send_to_char("{B|    {WWiznet Status{B    |{X\n\r",ch);
+				line(ch, 23, "{B", "-");
+
+				for (flag = 0; wiznet_table[flag].name != NULL; flag++)
+				{
+		    		if (wiznet_table[flag].level <= get_trust(ch))
+					{
+						if (!str_cmp(wiznet_table[flag].name, "on"))
+							sprintf(buf, "{B| {W%-15s{X \t<send href=\"wiznet\" hint=\"Toggle wiznet\">%s {B|{X\n\r", wiznet_table[flag].name, IS_SET(ch->wiznet, wiznet_table[flag].flag) ? "{GON{x\t</send> " : "{ROFF{x\t</send>");
+						else
+							sprintf(buf, "{B| {W%-15s{X \t<send href=\"wiznet %s\" hint=\"Toggle '%s' wiznet channel\">%s {B|{X\n\r", wiznet_table[flag].name, wiznet_table[flag].name, wiznet_table[flag].name, IS_SET(ch->wiznet, wiznet_table[flag].flag) ? "{GON{x\t</send> " : "{ROFF{x\t</send>");
+					}
+					else
+						sprintf(buf, "{B| {D%-15s{X, {rOFF{x {B|{X\n\r", wiznet_table[flag].name);
+					send_to_char(buf, ch);
+				}
+				line(ch, 23, "{B", "-");
+				send_to_char("\n\r", ch);
+			}
+		}
 		return;
     }
 /*
