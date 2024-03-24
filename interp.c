@@ -2105,11 +2105,10 @@ void do_commands( CHAR_DATA *ch, char *argument )
 
 		list_destroy(ch->pcdata->extra_commands);
 		ch->pcdata->extra_commands = NULL;
+		if ( ++col % 6 != 0 )
+			send_to_char( "\n\r", ch );
 		}
 
-
-    	if ( col % 6 != 0 )
-			send_to_char( "\n\r", ch );
 		// Get our extra commands, repeat the process.
 		ch->pcdata->extra_commands = list_createx(false, NULL, delete_extra_commands);
 		collect_verbs(ch);
