@@ -1900,7 +1900,7 @@ void do_commands( CHAR_DATA *ch, char *argument )
 				if (command->type != cmdtype)
 					continue;
 
-				if (command->level < LEVEL_HERO && !IS_SET(command->command_flags, CMD_HIDE_LISTS))
+				if (command->level <= LEVEL_HERO && !IS_SET(command->command_flags, CMD_HIDE_LISTS))
 				{
 //			if (!list_contains(ch->pcdata->extra_commands, command->name, cmd_cmp))
 //			{
@@ -2000,39 +2000,17 @@ void do_wizhelp( CHAR_DATA *ch, char *argument )
 {
     char buf[MAX_STRING_LENGTH];
 //    int cmd;
-    int col;
+    int col = 0;
 	long cmdtype = -1;
-	int lvl;
 	CMD_DATA *command;
+	int level = 0;
 
-
-	lvl = 0;
-/*
-	for ( lvl = 150; lvl <= MAX_LEVEL; lvl++ )
+	if (argument[0] != '\0')
 	{
-		sprintf( buf, "\n\r===== Commands for Level %d =====\n\r", lvl);
-		send_to_char( buf, ch );
-    for ( cmd = 0; cmd_table[cmd].name[0] != '\0'; cmd++ )
-    {
-        if ( cmd_table[cmd].level == lvl 
-			&&   cmd_table[cmd].show)
-	{
-            sprintf( buf, "%s%-12s{X", (cmd_table[cmd].level <= get_trust(ch) || is_granted_command(ch, cmd_table[cmd].name)) ? "{W" : "{D" , cmd_table[cmd].name );
-            send_to_char( buf, ch );
-
-	    if ( ++col % 6 == 0 )
-		send_to_char( "\n\r", ch );
+		cmdtype = flag_value(command_types, argument);
+		sprintf(buf, "{B*{G*{B* {XFiltering for {W{+%s{X commands {B*{G*{B*{X\n\r", command_types[cmdtype].name);
+		send_to_char(buf,ch);
 	}
-    }
-*/
-
-		if (argument[0] != '\0')
-		{
-			cmdtype = flag_value(command_types, argument);
-			sprintf(buf, "{B*{G*{B* {XFiltering for {W{+%s{X commands {B*{G*{B*{X\n\r", command_types[cmdtype].name);
-			send_to_char(buf,ch);
-		}
-
 
 		if (cmdtype == NO_FLAG)
 		{
@@ -2040,25 +2018,21 @@ void do_wizhelp( CHAR_DATA *ch, char *argument )
 			return;
 		}
 
-for ( lvl = 150; lvl <= get_trust(ch); lvl++ )
+	
+	for ( level = LEVEL_IMMORTAL; level <= get_trust(ch); level++ )
 	{
 		col = 0;
-		sprintf( buf, "\n\r===== Commands for Level %d =====\n\r", lvl);
-		send_to_char( buf, ch );
-
-
-
-
-
+		sprintf(buf, "\n\r{B*{G*{B* {XCommands for level {W%d{X {B*{G*{B*{X\n\r", level);
+		send_to_char(buf,ch);
 
 		ITERATOR it;
 		iterator_start(&it, commands_list);
 		while ((command = (CMD_DATA *)iterator_nextdata(&it)))
 		{
-			if (cmdtype != -1 && !IS_SET(command->addl_types, cmdtype))
+			if (cmdtype != -1 && !IS_SET(command->addl_types, flag_value(command_addl_types, argument)))
 				continue;
-			
-			if (command->level == lvl && !IS_SET(command->command_flags, CMD_HIDE_LISTS))
+
+			if (command->level == level && command->level <= get_trust(ch) && !IS_SET(command->command_flags, CMD_HIDE_LISTS))
 			{
 				if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) != NULL) && !IS_NULLSTR(command->summary))
 					sprintf(buf, "\t<send href=\"%s|help #%d\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat)->index, command->summary, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
@@ -2072,10 +2046,16 @@ for ( lvl = 150; lvl <= get_trust(ch); lvl++ )
 				send_to_char( buf, ch );
 				if ( ++col % 6 == 0 )
 					send_to_char( "\n\r", ch );
+				
 			
 			}
 		}
+		iterator_stop(&it);
+		send_to_char( "\n\r", ch );
 	}
+
+    if ( col % 6 != 0 )
+	send_to_char( "\n\r", ch );
 }
 
 
