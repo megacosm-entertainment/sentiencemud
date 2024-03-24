@@ -579,7 +579,7 @@ CMDEDIT (cmdedit_show)
 
     add_buf(buffer, formatf("Function:      %s\n\r", command->function ? do_func_name(command->function) : "None"));
     if (command->help_keywords != NULL && lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) != NULL)
-        add_buf(buffer, formatf("Help Keywords: '\t<send href=\"help #%d\">{W%s{X\t</send>'\n\r", lookup_help_exact(command->help_keywords->string, get_trust(ch), topHelpCat)->index, command->help_keywords->string));
+        add_buf(buffer, formatf("Help Keywords: '\t<send href=\"help #%d\">{W%s{X\t</send>' ({W#%d{X)\n\r", lookup_help_exact(command->help_keywords->string, get_trust(ch), topHelpCat)->index, command->help_keywords->string, lookup_help_exact(command->help_keywords->string, get_trust(ch), topHelpCat)->index));
     else if (command->help_keywords != NULL && lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) == NULL)
         add_buf(buffer, formatf("Help Keywords: {R%s{X\n\r", command->help_keywords->string));
     else
@@ -950,6 +950,7 @@ CMDEDIT (cmdedit_help )
     EDIT_CMD( ch, command );
     STRING_DATA *help;
     char buf[MAX_STRING_LENGTH];
+    HELP_DATA *pHelp;
 
     if (argument[0] == '\0')
     {
@@ -957,10 +958,40 @@ CMDEDIT (cmdedit_help )
         return false;
     }
 
-    if (lookup_help_exact(argument, ch->tot_level, topHelpCat) == NULL)
+    if (!str_cmp(argument, "clear"))
     {
-	act("There is no helpfile with keywords $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);
-	return false;
+        free_string_data(command->help_keywords);
+        command->help_keywords = NULL;
+        send_to_char("Help keywords cleared.\n\r", ch);
+        return true;
+    }
+
+    if (argument[0] == '#')
+    {
+        argument++;
+        int index;
+		if ((index = atoi(argument)) < 0 || index > 32000)
+        {
+			send_to_char("That help index is out of range.\n\r", ch);
+			return false;
+		} else 
+            pHelp = lookup_help_index(index, get_trust(ch), topHelpCat);
+        
+        if (pHelp == NULL)
+        {
+            act("There is no helpfile with index $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);
+            return false;            
+        }
+        
+    }
+    else
+    {
+        pHelp = lookup_help_exact(argument, get_trust(ch), topHelpCat);
+        if (pHelp == NULL)
+        {
+	        act("There is no helpfile with keywords $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);
+	        return false;
+        }
     }
 
     int i = 0;
@@ -971,9 +1002,9 @@ CMDEDIT (cmdedit_help )
     }
 
     help = new_string_data();
-    help->string = str_dup(argument);
+    help->string = str_dup(pHelp->keyword);
     command->help_keywords = help;
-    sprintf(buf, "Help keywords set to %s.\n\r", argument);
+    sprintf(buf, "Help keywords set to %s.\n\r", pHelp->keyword);
     send_to_char(buf, ch);
     return true;
 }
@@ -1001,32 +1032,106 @@ CMDEDIT ( cmdedit_summary )
 
 CMDEDIT ( cmdedit_order )
 {
+
+
+    send_to_char("Disabled pending further work.\n\r", ch);
+    return false;
+
+
     CMD_DATA *command;
 
     EDIT_CMD(ch, command);
+    int curorder = list_getindex(commands_list,command);
+    char buf[MSL], arg2[MIL], arg3[MIL];
+    //sprintf(buf, "Current order: %d, desired order %d\n\r", curorder, atoi(argument));
+    //send_to_char(buf, ch);
 
-    if (argument[0] == '\0')
+    
+    argument = one_argument(argument, arg2);
+
+    if (!is_number(arg2))
     {
-    send_to_char("Syntax:  order [number]\n\r", ch);
-    return false;
+        send_to_char("Invalid number.\n\r", ch);
+        return false;
     }
 
-    int value;
-    if (!is_number(argument))
+    int index = atoi(arg2);
+    if (index < 0 || index > list_size(commands_list))
     {
-    send_to_char("Invalid number.\n\r", ch);
-    return false;
+        sprintf(buf, "Invalid number.  Must be between 0 and %d.\n\r", list_size(commands_list));
+        send_to_char(buf, ch);
+        return false;
     }
 
-    value = atoi(argument);
-    if (value < 0 || value > list_size(commands_list))
+    if (index != curorder)
     {
-    send_to_char("Invalid number.\n\r", ch);
-    return false;
+        send_to_char("Invalid current position for command.\n\r", ch);
+        return false;
     }
 
-    list_movelink(commands_list, list_getindex(commands_list,command), value);
-    send_to_char("Command order set.\n\r", ch);
+    int to_index = -1;
+    argument = one_argument(argument, arg3);
+    if (is_number(arg3))
+    {
+        to_index = atoi(arg3);
+        if (to_index < 0 || to_index > list_size(commands_list))
+        {
+            sprintf(buf, "Invalid number.  Must be between 0 and %d.\n\r", list_size(commands_list));
+            send_to_char(buf, ch);
+            return false;
+        }
+    }
+    else if (!str_prefix(arg3, "up"))
+    {
+        if (index <= 1)
+        {
+            sprintf(buf, "%s is already at the top of the list.\n\r", command->name);
+            return false;
+        }
+        to_index = index - 1;
+    }
+    else if (!str_prefix(arg3, "down"))
+    {
+        if (index >= list_size(commands_list))
+        {
+            sprintf(buf, "%s is already at the bottom of the list.\n\r", command->name);
+            return false;
+        }
+        to_index = index + 1;
+    }
+    else if (!str_prefix(arg3, "top") || !str_prefix(arg3, "first"))
+    {
+        if (index <= 1)
+        {
+            sprintf(buf, "%s is already at the top of the list.\n\r", command->name);
+            return false;
+        }
+        to_index = 1;
+    }
+    else if (!str_prefix(arg3, "bottom") || !str_prefix(arg3, "last"))
+    {
+        if (index >= list_size(commands_list))
+        {
+            sprintf(buf, "%s is already at the bottom of the list.\n\r", command->name);
+            return false;
+        }
+        to_index = list_size(commands_list);
+    }
+    else
+    {
+        send_to_char("Syntax: order <index> <up|down|top|first|bottom|last|index>\n\r", ch);
+        return false;
+    }
+
+    if (index == to_index)
+    {
+        sprintf(buf, "%s is already at the desired position.\n\r", command->name);
+        return false;
+    }
+
+    list_movelink(commands_list, index, to_index);
+    sprintf(buf, "Attempted to move %s from position %d to position %d. Actually moved to %d\n\r", command->name, index, to_index, list_getindex(commands_list, command));
+    send_to_char(buf, ch);
     return true;
 }
 

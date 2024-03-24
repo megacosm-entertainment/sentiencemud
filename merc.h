@@ -3266,12 +3266,12 @@ enum {
 #define WIZ_ON			(A) // Toggled by 'wiznet' command. Used to determine if you have wiznet active at all.
 #define WIZ_TICKS		(B) // Fires once per tick in update.c - Lets you know a tick has passed.
 #define WIZ_LOGINS		(C) // Fires when someone logs in, quits, or enters a bad password.
-#define WIZ_HELPS		(D) // Unused.
+#define WIZ_HELPS		(D) // Fires on failed help lookups.
 #define WIZ_LINKS		(E) // Fires when someone loses link or reconnects.
 #define WIZ_DEATHS		(F) // Fires when players die. For mobs, MOBDEATHS is used.
 #define WIZ_RESETS		(G) // Fires when an area reset happens (in area_update).
 #define WIZ_MOBDEATHS		(H) // Fires when mobs die. For players, DEATHS is used.
-#define WIZ_VERBS		(I)  // Unused.
+#define WIZ_VERBS		(I)  // Fires on failed command lookups.
 #define WIZ_PENALTIES		(J) // Fires on penalty commands, or their revocation (nochan, notell, deny, freeze)
 /* #define WIZ_SACCING		(K) */ // Unused.
 #define WIZ_LEVELS		(L) // Fires when someone levels up.
@@ -8650,8 +8650,10 @@ bool list_addlink(LLIST *lp, void *data);
 bool list_appendlink(LLIST *lp, void *data);
 bool list_appendlist(LLIST *lp, LLIST *src);
 void list_remlink(LLIST *lp, void *data, bool del);
+void *list_randomdata(LLIST *lp);
 void *list_nthdata(LLIST *lp, int nth);
 void list_remnthlink(LLIST *lp, register int nth, bool del);
+bool list_contains(LLIST *lp, register void *ptr, int (*cmp)(void *a, void *b));
 bool list_hasdata(LLIST *lp, register void *ptr);
 int list_size(LLIST *lp);
 int list_getindex(LLIST *lp, void *data);

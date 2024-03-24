@@ -8054,6 +8054,7 @@ LLIST *list_create(bool purge)
 		lp->size = 0;
 		lp->valid = true;
 		lp->purge = purge;
+		lp->copier = NULL;
 		lp->deleter = NULL;
 	}
 
@@ -8313,8 +8314,8 @@ bool list_movelink(LLIST *lp, int from, int to)
 {
 	LLIST_LINK *old, *link, *new_link;
 
-	if( from < 0 ) from = lp->size + from;
-	if( to < 0 ) to = lp->size + to;
+	if( from < 0 ) from = lp->size + from + 1;
+	if( to < 0 ) to = lp->size + to + 1;
 
 	if( !from || !to ) return false;
 
@@ -8407,7 +8408,7 @@ bool list_insertlink(LLIST *lp, void *data, int to)
 {
 	LLIST_LINK *link, *new_link;
 
-	if( to < 0 ) to = lp->size + to;
+	if( to < 0 ) to = lp->size + to + 1;
 
 	if( !to ) return false;
 
@@ -8438,6 +8439,7 @@ bool list_insertlink(LLIST *lp, void *data, int to)
 						new_link->next = link;
 						link->prev->next = new_link;
 						link->prev = new_link;
+						
 					}
 					else
 					{
@@ -8480,35 +8482,61 @@ bool list_insertlink(LLIST *lp, void *data, int to)
 // It will NOT cull the list
 void list_remlink(LLIST *lp, void *data, bool del)
 {
-	LLIST_LINK *link;
+	LLIST_LINK *link, *link_next;
 
 	if(lp && data) {
-		for(link = lp->head; link; link = link->next)
+		for(link = lp->head; link; link = link_next)
+		{
+			link_next = link->next;
 			if(link->data == data) {
 				list_remdata(lp, link, del);
 			}
+		}
 	}
 }
 
 // Clears out the entire list
 void list_clear(LLIST *lp)
 {
-	LLIST_LINK *link;
-	if(lp) {
-		for(link = lp->head; link; link = link->next) {
+	LLIST_LINK *link, *link_next;
+	if(lp && lp->valid) {
+		for(link = lp->head; link; link = link_next) {
+			link_next = link->next;
 			list_remdata(lp, link, true);
 		}
 
 		lp->size = 0;
+		list_cull(lp);
 	}
 }
+
+
+void *list_randomdata(LLIST *lp)
+{
+	register LLIST_LINK *link = NULL;
+	register int nth = 0;
+
+	if(lp && lp->valid) {
+		nth = number_range(1, lp->size);
+		if( nth < 0 ) nth = lp->size + nth + 1;
+		for(link = lp->head; link && nth > 0; link = link->next)
+			if(link->data)
+			{
+				--nth;
+				if( !nth ) break;
+			}
+	}
+
+	return (link && !nth) ? link->data : NULL;
+}
+
 
 void *list_nthdata(LLIST *lp, register int nth)
 {
 	register LLIST_LINK *link = NULL;
 
 	if(lp && lp->valid) {
-		if( nth < 0 ) nth = lp->size + nth;
+		if( nth < 0 ) nth = lp->size + nth + 1;
 		for(link = lp->head; link && nth > 0; link = link->next)
 			if(link->data)
 			{
@@ -8525,7 +8553,7 @@ void list_remnthlink(LLIST *lp, register int nth, bool del)
 	register LLIST_LINK *link = NULL;
 
 	if(lp && lp->valid) {
-		if( nth < 0 ) nth = lp->size + nth;
+		if( nth < 0 ) nth = lp->size + nth + 1;
 		for(link = lp->head; link && nth > 0; link = link->next)
 			if(link->data)
 			{
@@ -8537,6 +8565,32 @@ void list_remnthlink(LLIST *lp, register int nth, bool del)
 	if( link && !nth ) {
 		list_remdata(lp, link, del);
 	}
+}
+
+bool list_contains(LLIST *lp, register void *ptr, int (*cmp)(void *a, void *b))
+{
+	ITERATOR it;
+	void *data;
+
+	if(!lp || !lp->valid || !ptr) return false;
+
+	iterator_start(&it, lp);
+	if (cmp != NULL)
+	{
+		while((data = iterator_nextdata(&it)))
+		{
+			if (!cmp(data, ptr))
+				break;
+		}
+	}
+	else
+	{
+		while((data = iterator_nextdata(&it)) && (data != ptr));
+	}
+
+	iterator_stop(&it);
+
+	return data && true;
 }
 
 bool list_hasdata(LLIST *lp, register void *ptr)
@@ -8625,7 +8679,7 @@ void iterator_start_nth(ITERATOR *it, LLIST *lp, int nth)
 		if(lp && lp->valid) {
 			it->list = lp;
 
-			if( nth < 0 ) nth = lp->size + nth +1;
+			if( nth < 0 ) nth = lp->size + nth + 1;
 
 			for(link = lp->head; link && nth > 0; link = link->next)
 				if(link->data)
@@ -8722,6 +8776,7 @@ void iterator_remcurrent(ITERATOR *it)
 
 		it->current->data = NULL;
 		it->list->size--;
+
 	}
 }
 
