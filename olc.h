@@ -866,6 +866,9 @@ DECLARE_OLC_FUN( cmdedit_flags );
 DECLARE_OLC_FUN( cmdedit_function );
 DECLARE_OLC_FUN( cmdedit_help ); 
 DECLARE_OLC_FUN( cmdedit_summary );
+DECLARE_OLC_FUN( cmdedit_order );
+DECLARE_OLC_FUN( cmdedit_additional );
+
 
 /*
  * Macros

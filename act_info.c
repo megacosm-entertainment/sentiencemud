@@ -3769,7 +3769,7 @@ void do_score(CHAR_DATA * ch, char *argument)
 			else if ((command->help_keywords == NULL || !str_cmp(command->help_keywords->string, "(null)")) && !IS_NULLSTR(command->summary))
 				sprintf(buf2, "\t<send href=\"%s\" hint=\"%s\">{X%s\t</send>%s", command->name, command->summary, command->name, pad_string(command->name, 15, NULL, NULL));
 			else
-				sprintf(buf2, "\t<send href=\"%s\" hint=\"Execute %s\">{X%s\t</send>%s", command->name, command->name, command->name, pad_string(command->name, 15, NULL, NULL));
+				sprintf(buf2, "\t<send href=\"%s\" hint=\"Execute %s\">{X%s\t</send>%s", command->name, command->name, command->name, pad_string(command->name, 15, NULL, NULL));		
 	    if (i % 4 == 0)
 		strcat(buf2, "\n\r");
 

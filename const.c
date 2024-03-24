@@ -336,6 +336,8 @@ const   struct wiznet_type      wiznet_table    [] =
 	{ "scripts",	WIZ_SCRIPTS,	STAFF_CREATOR },
 	{ "ships",		WIZ_SHIPS,		STAFF_IMMORTAL },
 	{ "bugs",		WIZ_BUGS,		STAFF_IMPLEMENTOR },
+    { "helps",		WIZ_HELPS,		STAFF_IMMORTAL },
+    { "commands", 	WIZ_VERBS, 		STAFF_IMMORTAL },
 	{ NULL,			0,				0  }
 };
 
@@ -362,6 +364,7 @@ const  struct player_setting_type    pc_set_table[] =
     {   "holypersona",		0,					PLR_HOLYPERSONA,	0,						false,		STAFF_IMMORTAL,	SETTING_ON	},
     {   "holywarp",			0,					PLR_HOLYWARP,		0,						false,		STAFF_IMMORTAL,	SETTING_ON	},
     {	"map",				0,					0,					COMM_NOMAP,				true,		STAFF_PLAYER,	SETTING_OFF	},
+	{	"mxp",				0,					0,					COMM_MXP,				false,		STAFF_PLAYER,	SETTING_ON	},
     {	"nochallenge",		PLR_NO_CHALLENGE,	0,					0,						false,		STAFF_PLAYER,	SETTING_OFF	},
     {	"nofollow",			PLR_NOFOLLOW,		0,					0,						false,		STAFF_PLAYER,	SETTING_OFF	},
     {   "nolore",			0,					PLR_NOLORE,			0,						false,		STAFF_PLAYER,	SETTING_OFF	},

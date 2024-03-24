@@ -695,7 +695,7 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
                break;
             case '<':
             case MXP_BEGIN_TAG:
-               if ( !pProtocol->bBlockMXP && pProtocol->pVariables[eMSDP_MXP]->ValueInt )
+               if ( !pProtocol->bBlockMXP && pProtocol->pVariables[eMSDP_MXP]->ValueInt && IS_SET(apDescriptor->character->comm, COMM_MXP))
                {
                   pCopyFrom = MXPStart;
                   bUseMXP = true;
@@ -996,6 +996,15 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
                break;
             case 'f':
                pCopyFrom = "\033[7m";
+               break;
+            case '|':
+               pCopyFrom = "\n\r";
+               break;
+            case '+':
+               toupper(apData[j+2]);
+               break;
+            case '-':
+               tolower(apData[j+2]);
                break;
             case '\0':
                bTerminate = true;

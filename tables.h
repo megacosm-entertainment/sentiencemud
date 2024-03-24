@@ -541,6 +541,7 @@ extern const struct global_corpse_type global_corpses[];
 extern const struct do_func_type do_func_table[];
 extern const struct flag_type	command_flags[];
 extern const struct flag_type	log_flags[];
+extern const struct flag_type command_addl_types[];
 
 #endif
 

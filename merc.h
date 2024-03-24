@@ -3967,7 +3967,7 @@ struct world_data
 #define COMM_NOQUOTE			(Y)
 #define COMM_AFK				(Z)
 #define COMM_NOBATTLESPAM		(aa)
-// bb
+#define COMM_MXP                (bb)
 #define COMM_NOMAP				(cc)
 #define COMM_NOTELLS			(dd)
 #define COMM_SHOW_FORM_STATE    (ee)
@@ -3977,12 +3977,12 @@ struct world_data
 #define WIZ_ON			(A)
 #define WIZ_TICKS		(B)
 #define WIZ_LOGINS		(C)
-/* #define WIZ_SITES		(D) */
+#define WIZ_HELPS		(D)
 #define WIZ_LINKS		(E)
 #define WIZ_DEATHS		(F)
 #define WIZ_RESETS		(G)
 #define WIZ_MOBDEATHS		(H)
-/* #define WIZ_FLAGS		(I) */
+#define WIZ_VERBS		(I)
 #define WIZ_PENALTIES		(J)
 /* #define WIZ_SACCING		(K) */
 #define WIZ_LEVELS		(L)
@@ -4637,7 +4637,8 @@ struct cmd_data
     char        *comments;      // Comments on command. May be deprecated later.
 
     int16_t     type;           // Command type
-    int16_t     rank;           // Minimum rank to use command.
+    long        addl_types;     // Additional command types, for use as arguments to the 'commands' command.
+    int16_t     rank;          // Minimum level to use command.
     int16_t     position;       // Minimum position to use command.
     int16_t     log;            // Command log level.
     bool        enabled;        // Is the command enabled?
@@ -4648,6 +4649,19 @@ struct cmd_data
     STRING_DATA *help_keywords; // Helpfile topics for this command.
     char        *summary;       // Used for MXP hints, quick one-liner about command.
 };
+
+#define CMD_TYPE_NONE            (A)       // Treated as the catchall / general / miscellaneous group
+#define CMD_TYPE_MOVE            (B)
+#define CMD_TYPE_COMBAT          (C)
+#define CMD_TYPE_OBJECT          (D)
+#define CMD_TYPE_INFO            (E)
+#define CMD_TYPE_COMM            (F)
+#define CMD_TYPE_RACIAL          (G)
+#define CMD_TYPE_OOC             (H)
+#define CMD_TYPE_IMMORTAL        (I)
+#define CMD_TYPE_OLC             (J)
+#define CMD_TYPE_ADMIN           (K)
+#define CMD_TYPE_NEWBIE          (L)
 
 
 #define CMD_HIDE_LISTS      (A) // Command is hidden from lists (equiv to cmd_table's 'show' being false)
@@ -5329,6 +5343,7 @@ struct ready_check_state
 #define STAFF_SUPREMACY     4
 #define STAFF_CREATOR       5
 #define STAFF_IMPLEMENTOR   6
+#define MAX_STAFF_RANK      7
 
 /*
  * Data which only PC's have.

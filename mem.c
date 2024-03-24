@@ -8261,11 +8261,13 @@ CMD_DATA *new_cmd()
     cmd->rank = 0;
     cmd->log = 0;
     cmd->position = POS_DEAD;
-    cmd->help_keywords = new_string_data();
+    cmd->help_keywords = NULL;
     cmd->description = &str_empty[0];
     cmd->comments = &str_empty[0];
     cmd->reason = NULL;
     cmd->summary = NULL;
+    cmd->command_flags = 0;
+    cmd->addl_types = 0;
 
     return cmd;
 }
