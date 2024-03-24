@@ -305,27 +305,40 @@ void do_wiznet(CHAR_DATA *ch, char *argument)
     /* show wiznet status */
     if (!str_prefix(argument,"status"))
     {
-	buf[0] = '\0';
+		buf[0] = '\0';
 
-	if (!IS_SET(ch->wiznet,WIZ_ON))
-	    strcat(buf,"off ");
+		if (!IS_SET(ch->wiznet,WIZ_ON))
+	    	strcat(buf,"off ");
 
-	for (flag = 0; wiznet_table[flag].name != NULL; flag++)
-	    if (IS_SET(ch->wiznet,wiznet_table[flag].flag))
-	    {
-		strcat(buf,wiznet_table[flag].name);
-		strcat(buf," ");
-	    }
+		for (flag = 0; wiznet_table[flag].name != NULL; flag++)
+	    	if (IS_SET(ch->wiznet,wiznet_table[flag].flag))
+	    	{
+			strcat(buf,wiznet_table[flag].name);
+			strcat(buf," ");
+	    	}
 
-	strcat(buf,"\n\r");
+		line(ch, 23, "{B", "_");
+		send_to_char("{B|    {WWiznet Status{B    |{X\n\r",ch);
+		line(ch, 23, "{B", "-");
 
-	send_to_char("Wiznet status:\n\r",ch);
-	send_to_char(buf,ch);
-	return;
+		for (flag = 0; wiznet_table[flag].name != NULL; flag++)
+		{
+		    if (wiznet_table[flag].level <= get_trust(ch))
+				sprintf(buf, "{B| {W%-15s{X \t<send href=\"wiznet %s\" hint=\"Toggle '%s' wiznet channel\">%s {B|{X\n\r", wiznet_table[flag].name, wiznet_table[flag].name, wiznet_table[flag].name, IS_SET(ch->wiznet, wiznet_table[flag].flag) ? "{GON{x\t</send> " : "{ROFF{x\t</send>");
+			else
+				sprintf(buf, "{B| {D%-15s{X, {rOFF{x {B|{X\n\r", wiznet_table[flag].name);
+			send_to_char(buf, ch);
+		}
+		line(ch, 23, "{B", "-");
+		send_to_char("\n\r", ch);
+
+	//send_to_char("Wiznet status:\n\r",ch);
+	//send_to_char(buf,ch);
+		return;
     }
-
+/*
     if (!str_prefix(argument,"show"))
-    /* list of all wiznet options */
+    // list of all wiznet options
     {
 	buf[0] = '\0';
 
@@ -344,14 +357,20 @@ void do_wiznet(CHAR_DATA *ch, char *argument)
 	send_to_char(buf,ch);
 	return;
     }
-
+*/
     flag = wiznet_lookup(argument);
 
-    if (flag == -1 || get_trust(ch) < wiznet_table[flag].level)
+    if (flag == -1)
     {
-	send_to_char("No such option.\n\r",ch);
-	return;
+		send_to_char("No such option.\n\r",ch);
+		return;
     }
+
+	if (get_trust(ch) < wiznet_table[flag].level)
+	{
+		send_to_char("You are not a high enough level to use that option.\n\r", ch);
+		return;
+	}
 
     if (IS_SET(ch->wiznet,wiznet_table[flag].flag))
     {
