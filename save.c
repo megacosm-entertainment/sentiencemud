@@ -355,7 +355,7 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 
     fprintf(fp, "Need_change_pw %d\n", ch->pcdata->need_change_pw);
 
-    fprintf(fp, "Plyd %d\n", !str_cmp(ch->name, "Syn") ? 0 : ch->played + (int) (current_time - ch->logon));
+    fprintf(fp, "Plyd %d\n", ch->played + (int) (current_time - ch->logon));
 
     if (location_isset(&ch->pcdata->room_before_arena)) {
 	if(ch->pcdata->room_before_arena.wuid)

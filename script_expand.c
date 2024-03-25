@@ -2098,6 +2098,18 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? arg->d.mob->pcdata->last_login : 0;
 		break;
+	case ENTITY_MOB_PLAYED:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? arg->d.mob->played + (int) current_time - arg->d.mob->pcdata->last_login : 0;
+		break;
+	case ENTITY_MOB_SESSIONTIME:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? (int) current_time - arg->d.mob->pcdata->last_login : 0;
+		break;
+	case ENTITY_MOB_CREATED:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? arg->d.mob->pcdata->creation_date : arg->d.mob->creation_time;
+		break;
 	default: return NULL;
 	}
 

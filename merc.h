@@ -4102,6 +4102,7 @@ struct	char_data
     int			start_pos;
     int			default_pos;
     time_t      	hired_to;
+    time_t          creation_time;
 
     /* mount */
     CHAR_DATA *		mount;
