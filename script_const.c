@@ -1046,6 +1046,7 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "grpsize",			IFC_ANY,	"E",	true,	ifc_grpsize,			"ifcheck grpsize" },
 	{ "handsfull",			IFC_ANY,	"E",	false,	ifc_handsfull,			"ifcheck handsfull" },
 	{ "has",				IFC_ANY,	"ES",	false,	ifc_has,				"ifcheck has" },
+	{ "haschurch",			IFC_ANY,	"ES",	false,	ifc_haschurch,			"ifcheck haschurch"},
 	{ "hascatalyst",		IFC_ANY,	"ES",	true,	ifc_hascatalyst,		"ifcheck hascatalyst" },
 	{ "hascheckpoint",		IFC_ANY,	"ES",	true,	ifc_hascheckpoint,		"ifcheck hascheckpoint" },
 	{ "hasenviroment",		IFC_ANY,	"ES",	true,	ifc_hasenvironment,		"ifcheck hasenvironment" },

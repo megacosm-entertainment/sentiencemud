@@ -4360,6 +4360,13 @@ DECL_IFC_FUN(ifc_playerexists)
 	return true;
 }
 
+DECL_IFC_FUN(ifc_haschurch)
+{
+	*ret = ISARG_MOB(0) && ARG_MOB(0)->church;
+	return true;
+
+}
+
 // hascheckpoint $PLAYER
 // - checks whether the player's checkpoint has been set.
 DECL_IFC_FUN(ifc_hascheckpoint)

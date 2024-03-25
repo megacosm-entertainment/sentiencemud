@@ -1989,6 +1989,7 @@ DECL_IFC_FUN(ifc_reckoningintensity);
 
 DECL_IFC_FUN(ifc_isowner);
 DECL_IFC_FUN(ifc_shiptype);
+DECL_IFC_FUN(ifc_haschurch);
 
 
 /* Opcode functions */
