@@ -110,7 +110,7 @@ void do_help(CHAR_DATA *ch, char *argument)
 		{
 			send_to_char("\n\r", ch);
 			send_to_char("Syntax: help <keyword(s)>\n\r"
-					"        help <category name>\n\r"
+					"        help <category name|summary>\n\r"
 					"        help #<index>\n\r", ch);
 		
 		}
