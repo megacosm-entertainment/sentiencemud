@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     container: 
       image: ghcr.io/megacosm-entertainment/sentience_bookworm:latest
-      options: --user sentiencemud
+      options: --user root
     permissions:
       actions: read
       contents: read
