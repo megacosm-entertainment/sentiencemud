@@ -166,6 +166,7 @@ ENT_FIELD entity_game[] = {
 	{"hprelic",			ENTITY_GAME_RELIC_HEALTH,		ENT_OBJECT	},
 	{"relicmagic",		ENTITY_GAME_RELIC_MAGIC,		ENT_OBJECT	},
 	{"manarelic",		ENTITY_GAME_RELIC_MAGIC,		ENT_OBJECT	},
+	{"time_human",		ENTITY_GAME_TIME_HUMAN,			ENT_STRING	},
 
 	{NULL,			0,							ENT_UNKNOWN	}
 };
@@ -212,6 +213,8 @@ ENT_FIELD entity_mobile[] = {
 	{"clonerooms",		ENTITY_MOB_CLONEROOMS,		ENT_BLLIST_ROOM	},
 	{"connection",		ENTITY_MOB_CONNECTION,		ENT_CONN	},
 	{"created",			ENTITY_MOB_CREATED,			ENT_NUMBER  },
+	{"created_delta",	ENTITY_MOB_CREATED_DELTA,	ENT_NUMBER  },
+	{"created_human",	ENTITY_MOB_CREATED_HUMAN,	ENT_STRING  },
 	{"eq_about",		ENTITY_MOB_EQ_ABOUT,		ENT_OBJECT	},
 	{"eq_ankle1",		ENTITY_MOB_EQ_ANKLE1,		ENT_OBJECT	},
 	{"eq_ankle2",		ENTITY_MOB_EQ_ANKLE2,		ENT_OBJECT	},
@@ -275,7 +278,11 @@ ENT_FIELD entity_mobile[] = {
 	{"instrument",		ENTITY_MOB_INSTRUMENT,		ENT_OBJECT	},
 	{"inv",				ENTITY_MOB_CARRYING,		ENT_OLLIST_OBJ	},
 	{"last_login",		ENTITY_MOB_LASTLOGIN,		ENT_NUMBER	},
+	{"last_login_delta", ENTITY_MOB_LASTLOGIN_DELTA, ENT_NUMBER	},
+	{"last_login_human", ENTITY_MOB_LASTLOGIN_HUMAN,	ENT_STRING },
 	{"last_logoff",		ENTITY_MOB_LASTLOGOFF,		ENT_NUMBER	},
+	{"last_logoff_delta", ENTITY_MOB_LASTLOGOFF_DELTA, ENT_NUMBER	},
+	{"last_logoff_human", ENTITY_MOB_LASTLOGOFF_HUMAN,	ENT_STRING},
 	{"leader",			ENTITY_MOB_LEADER,			ENT_MOBILE	},
 	{"level",			ENTITY_MOB_LEVEL,			ENT_NUMBER	},
 	{"long",			ENTITY_MOB_LONG,			ENT_STRING	},
@@ -467,6 +474,7 @@ ENT_FIELD entity_church[] = {
 	{"flag",		ENTITY_CHURCH_FLAG,			ENT_STRING	},
 	{"founder",		ENTITY_CHURCH_FOUNDER,		ENT_MOBILE	},
 	{"founder_login",	ENTITY_CHURCH_FOUNDER_LOGIN,	ENT_NUMBER	},
+	{"founder_login_human",	ENTITY_CHURCH_FOUNDER_LOGIN_HUMAN,	ENT_STRING	},
 	{"founder_name",ENTITY_CHURCH_FOUNDER_NAME,	ENT_STRING	},
 	{"motd",		ENTITY_CHURCH_MOTD,			ENT_STRING	},
 	{"rules",		ENTITY_CHURCH_RULES,		ENT_STRING	},

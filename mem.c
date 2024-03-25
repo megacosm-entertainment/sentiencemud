@@ -575,6 +575,7 @@ CHAR_DATA *new_char( void )
     ch->imm_flags_perm     =   0;
     ch->res_flags_perm     =   0;
     ch->vuln_flags_perm    =   0;
+    ch->creation_time       = current_time;
 
     ch->cast_target_name 	= NULL;
     ch->casting_failure_message = NULL;

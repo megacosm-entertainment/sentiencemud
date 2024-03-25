@@ -2317,7 +2317,6 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 	mob->imm_flags_perm		= pMobIndex->imm_flags;
 	mob->res_flags_perm		= pMobIndex->res_flags;
 	mob->vuln_flags_perm	= pMobIndex->vuln_flags;
-	mob->creation_time		= current_time;
 
 
 	for (i = 0; i < MAX_STATS; i ++)

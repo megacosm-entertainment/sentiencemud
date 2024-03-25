@@ -6,6 +6,7 @@
  *                                                                         *
  **************************************************************************/
 
+#include <time.h>
 #include "strings.h"
 #include "merc.h"
 #include "scripts.h"
@@ -1145,6 +1146,14 @@ char *expand_entity_game(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_OBJECT;
 		arg->d.obj = mana_regen_relic;
 		break;
+	
+	case ENTITY_GAME_TIME_HUMAN:
+		arg->type = ENT_STRING;
+		struct tm *local_time = localtime(&current_time);
+		char time_str[100];
+		strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", local_time);
+		arg->d.str = strdup(time_str);
+		break;
 
 	default: return NULL;
 	}
@@ -1239,6 +1248,7 @@ char *expand_entity_wilds_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_church(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
+	char time_str[100];
 	switch(*str) {
 	case ENTITY_CHURCH_NAME:
 		arg->type = ENT_STRING;
@@ -1279,6 +1289,13 @@ char *expand_entity_church(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_CHURCH_FOUNDER_LOGIN:
 		arg->type = ENT_NUMBER;
 		arg->d.num = ( arg->d.church ) ? (arg->d.church->founder_last_login) : 0;
+		break;
+
+	case ENTITY_CHURCH_FOUNDER_LOGIN_HUMAN:
+		arg->type = ENT_STRING;
+		struct tm *founder_time = localtime(&arg->d.church->founder_last_login);
+		strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", founder_time);
+		arg->d.str = (arg->d.mob) ? str_dup(time_str) : (char *)&str_empty[0];
 		break;
 
 	case ENTITY_CHURCH_FOUNDER_NAME:
@@ -1649,6 +1666,7 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	CHAR_DATA *self = arg->d.mob;
 	char *p;
+	char time_str[100];
 	switch(*str) {
 	case ENTITY_MOB_NAME:
 		arg->type = ENT_STRING;
@@ -2109,6 +2127,36 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_MOB_CREATED:
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? arg->d.mob->pcdata->creation_date : arg->d.mob->creation_time;
+		break;
+	case ENTITY_MOB_LASTLOGOFF_HUMAN:
+		arg->type = ENT_STRING;
+		struct tm *logoff_time = localtime(&arg->d.mob->pcdata->last_logoff);
+		strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", logoff_time);
+		arg->d.str = (arg->d.mob && !IS_NPC(arg->d.mob)) ? str_dup(time_str) : (char *)&str_empty[0];
+		break;
+	case ENTITY_MOB_LASTLOGIN_HUMAN:
+		arg->type = ENT_STRING;
+		struct tm *login_time = localtime(&arg->d.mob->pcdata->last_login);
+		strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", login_time);
+		arg->d.str = (arg->d.mob && !IS_NPC(arg->d.mob)) ? str_dup(time_str) : (char *)&str_empty[0];
+		break;
+	case ENTITY_MOB_CREATED_HUMAN:
+		arg->type = ENT_STRING;
+		struct tm *creation_time = localtime(&arg->d.mob->pcdata->creation_date);
+		strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", creation_time);
+		arg->d.str = (arg->d.mob && !IS_NPC(arg->d.mob)) ? str_dup(time_str) : (char *)&str_empty[0];
+		break;
+	case ENTITY_MOB_LASTLOGOFF_DELTA:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? current_time - arg->d.mob->pcdata->last_logoff : 0;
+		break;
+	case ENTITY_MOB_LASTLOGIN_DELTA:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? current_time - arg->d.mob->pcdata->last_login : 0;
+		break;
+	case ENTITY_MOB_CREATED_DELTA:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? current_time - arg->d.mob->pcdata->creation_date : current_time - arg->d.mob->creation_time;
 		break;
 	default: return NULL;
 	}
