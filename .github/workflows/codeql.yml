@@ -24,7 +24,9 @@ jobs:
   analyze:
     name: Analyze
     runs-on: ubuntu-latest
-    container: ghcr.io/megacosm-entertainment/sentience_bookworm:latest
+    container: 
+      image: ghcr.io/megacosm-entertainment/sentience_bookworm:latest
+      options: --user sentiencemud
     permissions:
       actions: read
       contents: read
