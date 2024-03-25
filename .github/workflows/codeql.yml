@@ -24,6 +24,7 @@ jobs:
   analyze:
     name: Analyze
     runs-on: ubuntu-latest
+    container: ghcr.io/megacosm-entertainment/sentience_bookworm:latest
     permissions:
       actions: read
       contents: read
@@ -68,7 +69,6 @@ jobs:
     #   echo "Run, Build Application using script"
     #   ./location_of_script_within_repo/buildscript.sh
     - run: |
-        sudo apt install build-essential zlib1g-dev libmariadb-dev-compat libssl-dev
         make
 
     - name: Perform CodeQL Analysis

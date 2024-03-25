@@ -9086,3 +9086,59 @@ void do_pwreset(CHAR_DATA *ch, char *argument)
 	}
 }
 
+void do_lvlaudit(CHAR_DATA *ch, char *argument)
+{
+	ITERATOR it;
+	AREA_DATA *area;
+	int count = 0;
+	int sum = 0;
+	CHAR_DATA *victim;
+	char buf[MAX_STRING_LENGTH];
+
+	iterator_start(&it, loaded_chars);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax: lvlaudit <area>\n\r", ch);
+		return;
+	}
+
+	area = find_area_kwd(argument);
+
+	if (area == NULL)
+	{
+		send_to_char("That area does not exist.\n\r", ch);
+		return;
+	}
+
+	while ((victim = (CHAR_DATA *)iterator_nextdata(&it)) != NULL)
+	{
+		if (!IS_NPC(victim))
+			continue;
+
+		if (victim->in_room->area != area)
+			continue;
+
+		if (IS_SET(victim->act[0], ACT_PET) || IS_SET(victim->act[0], ACT_PROTECTED) || IS_SET(victim->act[0], ACT_TRAIN) ||
+		IS_SET(victim->act[0], ACT_PRACTICE) || IS_SET(victim->act[0], ACT_IS_HEALER) || IS_SET(victim->act[0], ACT_CREW_SELLER) ||
+		IS_SET(victim->act[0], ACT_IS_BANKER) || IS_SET(victim->act[0], ACT_IS_CHANGER) || IS_SET(victim->act[1], ACT2_CHURCHMASTER) ||
+		IS_SET(victim->act[1], ACT2_PLANE_TUNNELER) || IS_SET(victim->act[1], ACT2_AIRSHIP_SELLER) || IS_SET(victim->act[1], ACT2_WIZI_MOB) ||
+		IS_SET(victim->act[1], ACT2_TRADER) || IS_SET(victim->act[1], ACT2_LOREMASTER) || IS_SET(victim->act[1], ACT2_GQ_MASTER) ||
+		IS_SET(victim->act[1], ACT2_SHIP_QUESTMASTER) || IS_SET(victim->act[1], ACT2_PIRATE) || IS_SET(victim->act[1], ACT2_INVASION_LEADER) ||
+		IS_SET(victim->act[1], ACT2_INVASION_MOB) || IS_SET(victim->act[1], ACT2_SOUL_DEPOSIT) || IS_SET(victim->act[1], ACT2_INSTANCE_MOB) ||
+		IS_SET(victim->act[1], ACT2_HIRED) || IS_SET(victim->act[1], ACT2_RENEWER) || IS_SET(victim->act[1], ACT2_ADVANCED_TRAINER) || IS_SET(victim->in_room->room_flag[0], ROOM_SAFE) ||
+		victim->shop != NULL || victim->pIndexData->pQuestor != NULL)
+			continue;
+
+		count++;
+		sum += victim->level;
+		
+	}
+	iterator_stop(&it);
+
+	sprintf(buf, "Total mobs in %s: %d\n\r", area->name, count);
+	send_to_char(buf, ch);
+	sprintf(buf, "Average level of available mobs: %d\n\r", sum / count);
+	send_to_char(buf, ch);
+	return;
+}

@@ -617,3 +617,4 @@ DECLARE_DO_FUN( do_cmdshow );
 //DECLARE_DO_FUN( do_navigate );
 DECLARE_DO_FUN( do_testemail );
 DECLARE_DO_FUN( do_pwreset );
+DECLARE_DO_FUN( do_lvlaudit );
