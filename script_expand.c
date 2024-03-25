@@ -1276,6 +1276,11 @@ char *expand_entity_church(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.mob = ( arg->d.church ) ? get_player(arg->d.church->founder) : NULL;
 		break;
 
+	case ENTITY_CHURCH_FOUNDER_LOGIN:
+		arg->type = ENT_NUMBER;
+		arg->d.num = ( arg->d.church ) ? (arg->d.church->founder_last_login) : 0;
+		break;
+
 	case ENTITY_CHURCH_FOUNDER_NAME:
 		arg->type = ENT_STRING;
 		if( arg->d.church && arg->d.church->founder && arg->d.church->founder[0] ) {
@@ -2089,7 +2094,10 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? arg->d.mob->pcdata->last_logoff : 0;
 		break;
-
+	case ENTITY_MOB_LASTLOGIN:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? arg->d.mob->pcdata->last_login : 0;
+		break;
 	default: return NULL;
 	}
 
