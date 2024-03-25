@@ -1876,7 +1876,7 @@ SCRIPT_CMD(scriptcmd_echoat)
 	{
 		int i = 0;
 		i = strlen(buffer->string);
-		if (buffer->string[i-2] != '\n')
+		if (buffer->string[i-2] != '\n' && !victim)
 			strcat(buffer->string,"\n\r");
 		
 		if( IS_VALID(instance) )

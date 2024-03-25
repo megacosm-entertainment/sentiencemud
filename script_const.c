@@ -273,6 +273,7 @@ ENT_FIELD entity_mobile[] = {
 	{"hunting",			ENTITY_MOB_HUNTING,			ENT_MOBILE	},
 	{"instrument",		ENTITY_MOB_INSTRUMENT,		ENT_OBJECT	},
 	{"inv",				ENTITY_MOB_CARRYING,		ENT_OLLIST_OBJ	},
+	{"last_logoff",		ENTITY_MOB_LASTLOGOFF,		ENT_NUMBER	},
 	{"leader",			ENTITY_MOB_LEADER,			ENT_MOBILE	},
 	{"level",			ENTITY_MOB_LEVEL,			ENT_NUMBER	},
 	{"long",			ENTITY_MOB_LONG,			ENT_STRING	},
@@ -452,6 +453,7 @@ ENT_FIELD entity_conn[] = {
 	{"host",		ENTITY_CONN_HOST,			ENT_STRING	},
 	{"connection",	ENTITY_CONN_CONNECTION,		ENT_NUMBER	},
 	{"snooper",		ENTITY_CONN_SNOOPER,		ENT_CONN	},
+	{"client",		ENTITY_CONN_CLIENT,			ENT_STRING	},
 	{NULL,		0,			ENT_UNKNOWN	}
 };
 

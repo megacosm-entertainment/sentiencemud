@@ -1997,7 +1997,7 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_MOB_CONNECTION:
 		arg->type = ENT_CONN;
-		arg->d.conn = arg->d.mob ? arg->d.mob->desc : NULL;	// Works for PCs and switched NPCs
+		arg->d.conn = (arg->d.mob && !IS_NPC(arg->d.mob)) ? arg->d.mob->desc : NULL;	// Works for PCs and switched NPCs
 		break;
 	case ENTITY_MOB_CHURCH:
 		arg->type = ENT_CHURCH;
@@ -2083,6 +2083,11 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_MOB_LEVEL:
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.mob && IS_NPC(arg->d.mob)) ? arg->d.mob->level : arg->d.mob->tot_level;
+		break;
+
+	case ENTITY_MOB_LASTLOGOFF:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? arg->d.mob->pcdata->last_logoff : 0;
 		break;
 
 	default: return NULL;
@@ -3411,6 +3416,10 @@ char *expand_entity_conn(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_CONN_SNOOPER:
 		arg->type = ENT_CONN;
 		arg->d.conn = (arg->d.conn && (script_security >= MAX_SCRIPT_SECURITY)) ? arg->d.conn->snoop_by : NULL;
+		break;
+	case ENTITY_CONN_CLIENT:
+		arg->type = ENT_STRING;
+		arg->d.str = (arg->d.conn && (script_security >= MAX_SCRIPT_SECURITY)) ? arg->d.conn->pProtocol->pVariables[eMSDP_CLIENT_ID]->pValueString : "Unknown";
 		break;
 	default: return NULL;
 	}

@@ -758,6 +758,7 @@ enum entity_mobile_enum {
 	ENTITY_MOB_VULN,
 	ENTITY_MOB_TEMPSTRING,
 	ENTITY_MOB_LEVEL,
+	ENTITY_MOB_LASTLOGOFF,
 };
 
 enum entity_object_enum {
@@ -928,6 +929,7 @@ enum entity_conn_enum {
 	ENTITY_CONN_HOST,
 	ENTITY_CONN_CONNECTION,
 	ENTITY_CONN_SNOOPER,
+	ENTITY_CONN_CLIENT,
 };
 
 enum entity_list_enum {

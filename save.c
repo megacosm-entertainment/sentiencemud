@@ -1588,7 +1588,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 	    KEY("Level",	ch->level,		fread_number(fp));
 	    KEY("Lev",		ch->level,		fread_number(fp));
 	    KEY("Levl",	ch->level,		fread_number(fp));
-	    KEY("LogO",	lastlogoff,		fread_number(fp));
+	    //KEY("LogO",	lastlogoff,		fread_number(fp));
 	    KEY("LogI",	ch->pcdata->last_login,	fread_number(fp));
 	    KEY("LongDescr",	ch->long_descr,		fread_string(fp));
 	    KEY("LnD",		ch->long_descr,		fread_string(fp));
