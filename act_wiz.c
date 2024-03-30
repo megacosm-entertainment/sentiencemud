@@ -123,6 +123,13 @@ int gconfig_read (void)
 
     gconfig.db_version = VERSION_DB_000;
 
+	gconfig.email_port = 0;
+	gconfig.email_username = "";
+	gconfig.email_host = "";
+	gconfig.email_password = "";
+	gconfig.email_from_addr = "";
+	gconfig.email_from_name = "";
+
 	gconfig.max_mission_allowance = 100;
 	gconfig.inc_missions = 6;		// Per day
 	gconfig.max_missions = 25;
@@ -159,6 +166,12 @@ int gconfig_read (void)
 				break;
 
            case 'E':
+		   		KEY ("EmailUser", gconfig.email_username, fread_string(fp));
+				KEY ("EmailPassword", gconfig.email_password, fread_string(fp));
+				KEY ("EmailHost", gconfig.email_host, fread_string(fp));
+				KEY ("EmailPort", gconfig.email_port, fread_number(fp));
+				KEY ("EmailFromAddr", gconfig.email_from_addr, fread_string(fp));
+				KEY ("EmailFromName", gconfig.email_from_name, fread_string(fp));
                 if (!str_cmp(word, "END"))
                 {
 					gconfig.next_mob_uid[3] = gconfig.next_mob_uid[1];
@@ -407,6 +420,12 @@ int gconfig_write(void)
     }
 
 	fprintf(fp, "DBversion %ld\n", (long)VERSION_DB);
+	fprintf(fp, "EmailUser %s~\n", gconfig.email_username);
+	fprintf(fp, "EmailPassword %s~\n", gconfig.email_password);
+	fprintf(fp, "EmailHost %s~\n", gconfig.email_host);
+	fprintf(fp, "EmailPort %d\n", gconfig.email_port);
+	fprintf(fp, "EmailFromAddr %s~\n", gconfig.email_from_addr);
+	fprintf(fp, "EmailFromName %s~\n", gconfig.email_from_name);
 	gconfig_write_nextuid(fp, gconfig.next_mob_uid, "NextMobUID");
 	gconfig_write_nextuid(fp, gconfig.next_obj_uid, "NextObjUID");
 	gconfig_write_nextuid(fp, gconfig.next_token_uid, "NextTokenUID");
@@ -4978,7 +4997,7 @@ void do_purge(CHAR_DATA *ch, char *argument)
 			CHAR_DATA *victim;
 			OBJ_DATA  *obj_next;
 
-			if (arg2 != '\0' && !str_cmp(arg2, "force"))
+			if (!str_cmp(arg2, "force"))
 			{
 				if (!IS_IMPLEMENTOR(ch))
 				{
@@ -7526,6 +7545,7 @@ void do_sockets( CHAR_DATA *ch, char *argument )
               case CON_CHANGE_PASSWORD:	     st = "Change Password";	break;
               case CON_CHANGE_PASSWORD_CONFIRM:	st = "Confirm PassChg";	break;
               case CON_GET_EMAIL:			 st = "   Get Email   ";	break;
+			  case CON_CONFIRM_EMAIL_FOR_RESET: st = " Confirm Email ";	break;
               default:                       st = "   !UNKNOWN!   ";    break;
            }
            count++;
@@ -12944,4 +12964,204 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
 		add_buf(buffer, buf);
 		break;
     }
+}
+
+
+
+void do_pwreset(CHAR_DATA *ch, char *argument)
+{
+	CHAR_DATA *victim;
+	char type[MAX_INPUT_LENGTH];
+	char buf[MAX_STRING_LENGTH];
+	char plr[MAX_INPUT_LENGTH];
+	char email[MAX_INPUT_LENGTH];
+	char reset_msg[MSL], reset_subject[MSL];
+	char tmp_reset_code[16];
+	DESCRIPTOR_DATA d;
+
+
+	argument = one_argument(argument, type);
+	argument = one_argument(argument, plr);
+	
+
+	if (type[0] == '\0')
+	{
+		send_to_char("Reset who's password?\n\rSyntax: pwreset <local|email> <character> [email]", ch);
+		return;
+	}
+
+	if (!str_cmp(type, "local"))
+	{
+		if ((player_exists(plr)))
+		{
+			if ((victim = get_char_world(ch, plr)) == NULL)
+			{
+				if (!load_char_obj(&d, plr))
+				{
+					send_to_char("That player does not exist.\n\r", ch);
+					return;
+				}
+				else
+				{
+					d.character->desc = NULL;
+					if (d.character->pcdata->reset_code[0] != '\0')
+					{
+						free_string(d.character->pcdata->reset_code);
+						d.character->pcdata->reset_code = str_dup("");
+					}
+
+					generate_reset_code(tmp_reset_code, 15);
+
+					d.character->pcdata->reset_code = str_dup(tmp_reset_code);
+
+					d.character->pcdata->reset_state = RESET_PENDING;
+					d.character->pcdata->reset_time = current_time;
+
+					sprintf(buf, "Password reset code has been set to %s for %s.\n\r", d.character->pcdata->reset_code, d.character->name);
+					send_to_char(buf, ch);
+
+					save_char_obj(d.character);
+					free_char(d.character);
+				}
+			}
+			else
+			{
+				send_to_char("That player is already online.\n\r", ch);
+				return;
+			}
+			// Replace this with a random string generator later.
+
+		}
+		else
+		{
+			send_to_char("That player does not exist.\n\r", ch);
+			return;
+		}
+	}
+
+	else if (!str_cmp(type, "email"))
+	{
+		one_argument(argument, email);
+
+		if ((player_exists(plr)))
+		{
+			if ((victim = get_char_world(ch, plr)) == NULL)
+			{
+				if (!load_char_obj(&d, plr))
+				{
+					send_to_char("That player does not exist.\n\r", ch);
+					return;
+				}
+				else
+				{
+					d.character->desc = NULL;
+					if (d.character->pcdata->reset_code[0] != '\0')
+					{
+						free_string(d.character->pcdata->reset_code);
+						d.character->pcdata->reset_code = str_dup("");
+					}
+
+					generate_reset_code(tmp_reset_code, 15);
+
+					d.character->pcdata->reset_code = str_dup(tmp_reset_code);
+
+
+					d.character->pcdata->reset_state = RESET_PENDING;
+					d.character->pcdata->reset_time = current_time;
+
+					sprintf(reset_subject, "Password Reset for %s", d.character->name);
+					sprintf(reset_msg, "Your password reset code is: %s.\nPlease note that this code will expire after 24 hours.", d.character->pcdata->reset_code);
+
+					if (email[0] != '\0')
+					{
+						send_email_async(d.character, email, reset_subject, reset_msg);
+						sprintf(buf, "Password reset code has been sent to %s for %s.\n\r", email, plr);
+						send_to_char(buf, ch);
+					}
+					else
+					{
+						if (d.character->pcdata->email[0] == '\0')
+						{
+							send_to_char("No email address set for this player. You must use the 'local' option instead.\n\r", ch);
+							return;
+						}
+
+						send_email_async(d.character, d.character->pcdata->email, reset_subject, reset_msg);
+						sprintf(buf, "Password reset code has been sent to %s for %s.\n\r", d.character->pcdata->email, plr);
+						send_to_char(buf, ch);
+					}
+
+					save_char_obj(d.character);
+					free_char(d.character);
+				}
+			}
+			else
+			{
+				send_to_char("That player is already online.\n\r", ch);
+				return;
+			}
+		}
+		else
+		{
+			send_to_char("That player does not exist.\n\r", ch);
+			return;
+		}
+	}
+}
+
+void do_lvlaudit(CHAR_DATA *ch, char *argument)
+{
+	ITERATOR it;
+	AREA_DATA *area;
+	int count = 0;
+	int sum = 0;
+	CHAR_DATA *victim;
+	char buf[MAX_STRING_LENGTH];
+
+	iterator_start(&it, loaded_chars);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax: lvlaudit <area>\n\r", ch);
+		return;
+	}
+
+	area = find_area_kwd(argument);
+
+	if (area == NULL)
+	{
+		send_to_char("That area does not exist.\n\r", ch);
+		return;
+	}
+
+	while ((victim = (CHAR_DATA *)iterator_nextdata(&it)) != NULL)
+	{
+		if (!IS_NPC(victim))
+			continue;
+
+		if (victim->in_room->area != area)
+			continue;
+
+		if (IS_SET(victim->act[0], ACT_PET) || IS_SET(victim->act[0], ACT_PROTECTED) || IS_SET(victim->act[0], ACT_TRAIN) ||
+		IS_SET(victim->act[0], ACT_PRACTICE) /*|| IS_SET(victim->act[0], ACT_IS_HEALER)*/ || IS_SET(victim->act[0], ACT_CREW_SELLER) ||
+		IS_SET(victim->act[0], ACT_IS_BANKER) || IS_SET(victim->act[0], ACT_IS_CHANGER) || IS_SET(victim->act[1], ACT2_CHURCHMASTER) ||
+		/*IS_SET(victim->act[1], ACT2_PLANE_TUNNELER) ||*/ IS_SET(victim->act[1], ACT2_AIRSHIP_SELLER) || IS_SET(victim->act[1], ACT2_WIZI_MOB) ||
+		IS_SET(victim->act[1], ACT2_TRADER) || IS_SET(victim->act[1], ACT2_LOREMASTER) || IS_SET(victim->act[1], ACT2_GQ_MASTER) ||
+		IS_SET(victim->act[1], ACT2_SHIP_QUESTMASTER) || IS_SET(victim->act[1], ACT2_PIRATE) || IS_SET(victim->act[1], ACT2_INVASION_LEADER) ||
+		IS_SET(victim->act[1], ACT2_INVASION_MOB) || IS_SET(victim->act[1], ACT2_SOUL_DEPOSIT) || IS_SET(victim->act[1], ACT2_INSTANCE_MOB) ||
+		IS_SET(victim->act[1], ACT2_HIRED) || IS_SET(victim->act[1], ACT2_RENEWER) || /*IS_SET(victim->act[1], ACT2_ADVANCED_TRAINER) ||*/ IS_SET(victim->in_room->room_flag[0], ROOM_SAFE) ||
+		victim->shop != NULL || victim->pIndexData->pMissionary != NULL)
+			continue;
+
+		count++;
+		sum += victim->tot_level;
+		
+	}
+	iterator_stop(&it);
+
+	sprintf(buf, "Total mobs in %s: %d\n\r", area->name, count);
+	send_to_char(buf, ch);
+	sprintf(buf, "Average level of available mobs: %d\n\r", sum / count);
+	send_to_char(buf, ch);
+	return;
 }

@@ -1466,13 +1466,14 @@ void do_chlist(CHAR_DATA *ch, char *argument)
 	    }
 
 	    counter++;
-	    sprintf(buf, "{G%-3d %s{Y%-21s %-15s %s{x\n\r",
+	    sprintf(buf, "{G%-3d %s{Y%-21s %-15s %s%s{x\n\r",
 		    counter,
 	 	    online ? "{M*" : " ",
 		    member->name,
 		    get_chrank(member),
 		    IS_SET(member->flags, CHURCH_PLAYER_EXCOMMUNICATED) ? "{RExcommunicated{x"
-			     : "");
+			     : "",
+			!str_cmp(member->name, church->founder) ? "{G[F]{X" : "");
 	    send_to_char(buf, ch);
 	}
 

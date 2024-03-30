@@ -3610,7 +3610,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, CORPSE_DATA 
 	TOKEN_DATA *token, *token_next;
 //    long repop_room = 0;
 
-	sprintf(buf,"raw_kill(Vict: %s, ID: %lu:%lu, Head: %s, Silent: %s, Corpse Type: %d)",
+	sprintf(buf,"raw_kill(Vict: %s, ID: %lu:%lu, Head: %s, Silent: %s, Corpse Type: %s, Damage Type: %s)",
 		(char*)((IS_NPC(victim) || victim->morphed) ? victim->short_descr : capitalize(victim->name)),
 		victim->id[0],victim->id[1],
 		(has_head?"HEAD":"HEADLESS"),

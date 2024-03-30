@@ -7136,7 +7136,7 @@ void do_list(CHAR_DATA *ch, char *argument)
 					}
 					else
 					{
-						sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s%s\n\r", level,pwidth,pricing,descr, repName,expiry);
+						sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s%s%s\n\r", level,pwidth,pricing,descr, repName,expiry);
 					}
 
 					send_to_char(buf, ch);

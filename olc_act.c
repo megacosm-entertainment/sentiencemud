@@ -396,11 +396,11 @@ void show_trigger_types(CHAR_DATA *ch, char *header, int prog)
 void show_spell_funcs(CHAR_DATA *ch, const struct spell_func_type *table)
 {
     char buf  [ MAX_STRING_LENGTH ];
-    char buf1 [ MAX_STRING_LENGTH ];
+//    char buf1 [ MAX_STRING_LENGTH ];
     int  col;
 	BUFFER *buffer = new_buf();
 
-    buf1[0] = '\0';
+//    buf1[0] = '\0';
     col = 0;
     add_buf(buffer, "Functions available for use:\n\r");
     for (int i = 0; table[i].name != NULL; i++)
@@ -430,11 +430,11 @@ void show_spell_funcs(CHAR_DATA *ch, const struct spell_func_type *table)
 void show_do_funcs(CHAR_DATA *ch, const struct do_func_type *table)
 {
     char buf  [ MAX_STRING_LENGTH ];
-    char buf1 [ MAX_STRING_LENGTH ];
+//    char buf1 [ MAX_STRING_LENGTH ];
     int  col;
 	BUFFER *buffer = new_buf();
 
-    buf1[0] = '\0';
+//    buf1[0] = '\0';
     col = 0;
     add_buf(buffer, "Functions available for use:\n\r");
     for (int i = 0; table[i].name != NULL; i++)
@@ -895,8 +895,8 @@ AEDIT(aedit_show)
 {
     AREA_DATA *pArea;
     char buf  [MAX_STRING_LENGTH];
-	ITERATOR it;
-	PROG_LIST *trigger;
+//	ITERATOR it;
+//	PROG_LIST *trigger;
 	BUFFER *buffer;
 	buffer = new_buf();
 
@@ -2915,7 +2915,7 @@ REDIT(redit_show)
 					pRoom->rs_recall.id[0],pRoom->rs_recall.id[1],pRoom->rs_recall.id[2]);
 			else
 				sprintf(buf, "{WRecall:      Wilds {X??? {R[{X%lu{R]{X\n\r", pRoom->rs_recall.wuid);
-		} else if(pRoom->rs_recall.id[0] > 0 && (recall = get_room_index(pRoom->rs_recall.auid, pRoom->rs_recall.id[0]))) {
+		} else if(pRoom->rs_recall.id[0] > 0 && (recall = get_room_index(get_area_from_uid(pRoom->rs_recall.auid), pRoom->rs_recall.id[0]))) {
 				sprintf(buf, "{WRecall:      Room {R[{X%5ld{R]{X {X%s\n\r", pRoom->rs_recall.id[0], recall->name);
 		} else
 				sprintf(buf, "{WRecall:      {R[{X%lu{R]{X none\n\r", pRoom->rs_recall.id[0]);

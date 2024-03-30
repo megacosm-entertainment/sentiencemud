@@ -6,6 +6,7 @@
  *                                                                         *
  **************************************************************************/
 
+#include <time.h>
 #include "strings.h"
 #include "merc.h"
 #include "scripts.h"
@@ -1533,6 +1534,14 @@ EXPAND_TYPE(game)
 		arg->type = ENT_RESERVED_ROOM;
 		break;
 
+	case ENTITY_GAME_TIME_HUMAN:
+		arg->type = ENT_STRING;
+		struct tm *local_time = localtime(&current_time);
+		char time_str[100];
+		strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", local_time);
+		arg->d.str = strdup(time_str);
+		break;
+
 	default: return NULL;
 	}
 
@@ -1626,6 +1635,7 @@ EXPAND_TYPE(wilds_id)
 
 EXPAND_TYPE(church)
 {
+	char time_str[100];
 	switch(*str) {
 	case ENTITY_CHURCH_NAME:
 		arg->type = ENT_STRING;
@@ -1658,6 +1668,19 @@ EXPAND_TYPE(church)
 		arg->type = ENT_MOBILE;
 		arg->d.mob = ( arg->d.church ) ? get_player(arg->d.church->founder) : NULL;
 		break;
+
+	case ENTITY_CHURCH_FOUNDER_LOGIN:
+		arg->type = ENT_NUMBER;
+		arg->d.num = ( arg->d.church ) ? (arg->d.church->founder_last_login) : 0;
+		break;
+
+	case ENTITY_CHURCH_FOUNDER_LOGIN_HUMAN:
+		arg->type = ENT_STRING;
+		struct tm *founder_time = localtime(&arg->d.church->founder_last_login);
+		strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", founder_time);
+		arg->d.str = (arg->d.mob) ? str_dup(time_str) : (char *)&str_empty[0];
+		break;
+
 
 	case ENTITY_CHURCH_FOUNDER_NAME:
 		arg->type = ENT_STRING;
@@ -2091,6 +2114,8 @@ EXPAND_TYPE(mobile)
 {
 	CHAR_DATA *self = arg->d.mob;
 	char *p;
+	char time_str[100];
+
 	switch(*str) {
 	case ENTITY_MOB_NAME:
 		arg->type = ENT_STRING;
@@ -2554,6 +2579,67 @@ EXPAND_TYPE(mobile)
 	case ENTITY_MOB_LEVEL:
 		arg->type = ENT_NUMBER;
 		arg->d.num = (IS_VALID(self) && IS_NPC(self)) ? self->tot_level : self->tot_level;
+		break;
+
+	case ENTITY_MOB_LASTLOGOFF:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (IS_VALID(self) && !IS_NPC(self)) ? self->pcdata->last_logoff : 0;
+		break;
+
+	case ENTITY_MOB_LASTLOGIN:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (IS_VALID(self) && !IS_NPC(self)) ? self->pcdata->last_login : 0;
+		break;
+
+	case ENTITY_MOB_PLAYED:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (IS_VALID(self) && !IS_NPC(self)) ? self->played + (int) current_time - self->pcdata->last_login : 0;
+		break;
+
+	case ENTITY_MOB_SESSIONTIME:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (IS_VALID(self) && !IS_NPC(self)) ? (int) current_time - self->pcdata->last_login : 0;
+		break;
+
+	case ENTITY_MOB_CREATED:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (IS_VALID(self) && !IS_NPC(self)) ? self->pcdata->creation_date : self->creation_time;
+		break;
+
+	case ENTITY_MOB_LASTLOGOFF_HUMAN:
+		arg->type = ENT_STRING;
+		struct tm *logoff_time = localtime(&self->pcdata->last_logoff);
+		strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", logoff_time);
+		arg->d.str = (IS_VALID(self) && !IS_NPC(self)) ? str_dup(time_str) : (char *)&str_empty[0];
+		break;
+
+	case ENTITY_MOB_LASTLOGIN_HUMAN:
+		arg->type = ENT_STRING;
+		struct tm *login_time = localtime(&self->pcdata->last_login);
+		strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", login_time);
+		arg->d.str = (IS_VALID(self) && !IS_NPC(self)) ? str_dup(time_str) : (char *)&str_empty[0];
+		break;
+
+	case ENTITY_MOB_CREATED_HUMAN:
+		arg->type = ENT_STRING;
+		struct tm *creation_time = localtime(&self->pcdata->creation_date);
+		strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", creation_time);
+		arg->d.str = (IS_VALID(self) && !IS_NPC(self)) ? str_dup(time_str) : (char *)&str_empty[0];
+		break;
+
+	case ENTITY_MOB_LASTLOGOFF_DELTA:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (IS_VALID(self) && !IS_NPC(self)) ? current_time - self->pcdata->last_logoff : 0;
+		break;
+
+	case ENTITY_MOB_LASTLOGIN_DELTA:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (IS_VALID(self) && !IS_NPC(self)) ? current_time - self->pcdata->last_login : 0;
+		break;
+		
+	case ENTITY_MOB_CREATED_DELTA:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (IS_VALID(self) && !IS_NPC(self)) ? current_time - self->pcdata->creation_date : current_time - self->creation_time;
 		break;
 
 	case ENTITY_MOB_INDEX:
@@ -5517,6 +5603,10 @@ EXPAND_TYPE(conn)
 	case ENTITY_CONN_CONNECTION:
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.conn && (script_security >= MAX_SCRIPT_SECURITY)) ? arg->d.conn->connected : -1;
+		break;
+	case ENTITY_CONN_CLIENT:
+		arg->type = ENT_STRING;
+		arg->d.str = (arg->d.conn && (script_security >= MAX_SCRIPT_SECURITY)) ? arg->d.conn->pProtocol->pVariables[eMSDP_CLIENT_ID]->pValueString : "Unknown";
 		break;
 	default: return NULL;
 	}

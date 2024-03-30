@@ -556,7 +556,7 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 
     fprintf(fp, "Need_change_pw %d\n", ch->pcdata->need_change_pw);
 
-    fprintf(fp, "Plyd %d\n", !str_cmp(ch->name, "Syn") ? 0 : ch->played + (int) (current_time - ch->logon));
+    fprintf(fp, "Plyd %d\n", ch->played + (int) (current_time - ch->logon));
 
     if (location_isset(&ch->pcdata->room_before_arena)) {
 	if(ch->pcdata->room_before_arena.wuid)
@@ -812,6 +812,13 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     {
 		fprintf(fp, "Pass %s~\n",	ch->pcdata->pwd		);
 		fprintf(fp, "PassVers %d\n", ch->pcdata->pwd_vers);
+		if (ch->pcdata->reset_code != NULL)
+			fprintf(fp, "ResetCode %s~\n", ch->pcdata->reset_code);
+
+		if (ch->pcdata->reset_time != 0)
+			fprintf(fp, "Reset_Time %ld\n", ch->pcdata->reset_time);
+
+		fprintf(fp, "ResetState %d\n", ch->pcdata->reset_state);
 		/*if (ch->pcdata->immortal->bamfin[0] != '\0')
 			fprintf(fp, "Bin  %s~\n",	ch->pcdata->immortal->bamfin);
 		if (ch->pcdata->immortal->bamfout[0] != '\0')
@@ -964,6 +971,9 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     ch->pcdata->confirm_delete		= false;
     ch->pcdata->pwd			= str_dup("");
 	ch->pcdata->pwd_vers	= 0;
+	ch->pcdata->reset_code	= str_dup("");
+	//ch->pcdata->reset_time	= 0;
+	ch->pcdata->reset_state	= 0;
     //ch->pcdata->bamfin			= str_dup("");
     //ch->pcdata->bamfout			= str_dup("");
     ch->pcdata->title			= str_dup("");
@@ -2184,7 +2194,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 	case 'L':
 	    KEY("LastLevel",	ch->pcdata->last_level, fread_number(fp));
 	    KEY("LLev",	ch->pcdata->last_level, fread_number(fp));
-	    KEY("LogO",	lastlogoff,		fread_number(fp));
+	    //KEY("LogO",	lastlogoff,		fread_number(fp));
 	    KEY("LogI",	ch->pcdata->last_login,	fread_number(fp));
 	    KEY("LongDescr",	ch->long_descr,		fread_string(fp));
 	    KEY("LnD",		ch->long_descr,		fread_string(fp));
@@ -2490,6 +2500,10 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		location_set(&ch->recall,NULL,wuid,x,y,z);
 		fMatch = true;
 	    }
+
+			KEY("ResetCode",	ch->pcdata->reset_code,		fread_string(fp));
+			KEY("Reset_Time",	ch->pcdata->reset_time,		fread_number(fp));
+			KEY("ResetState",	ch->pcdata->reset_state,		fread_number(fp));
 
             if (!str_cmp(word, "Room_before_arena")) {
 				long auid = fread_number(fp);

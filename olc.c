@@ -5397,10 +5397,10 @@ void olc_show_progs(BUFFER *buffer, LLIST **progs, int type, const char *title)
 		if(list_size(progs[slot]) > 0) ++cnt;
 
 	if (cnt > 0) {
-		sprintf(buf, "{R%-6s %-20s %-20s %-10s\n\r{x", "Number", title, "Trigger", "Phrase", "Status      ", " Name");
+		sprintf(buf, "{R%-6s %-20s %-20s %-10s %-9s %-20s\n\r{x", "Number", title, "Trigger", "Phrase", "Status      ", " Name");
 		add_buf(buffer, buf);
 
-		sprintf(buf, "{R%-6s %-20s %-20s %-10s\n\r{x", "------", "--------------------", "--------------------", "----------", "------------", " -----");
+		sprintf(buf, "{R%-6s %-20s %-20s %-10s %-9s %-20s\n\r{x", "------", "--------------------", "--------------------", "----------", "------------", " -----");
 		add_buf(buffer, buf);
 
 		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {

@@ -74,7 +74,7 @@ void do_auction( CHAR_DATA *ch, char * argument )
     }
 
 
-	if ( str_cmp( arg1, "info"))
+	if ( str_prefix( arg1, "info"))
 	{
 		if (check_social_status(ch))
 			return;

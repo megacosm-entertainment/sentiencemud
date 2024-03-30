@@ -1614,6 +1614,7 @@ void boot_db(void)
 {
     int i;
     FILE *fp;
+	static GLOBAL_DATA gconfig_zero;
 
 	wnum_zero.pArea = NULL;
 	wnum_zero.vnum = 0;
@@ -1624,6 +1625,9 @@ void boot_db(void)
     {
 	fBootDb		= true;
     }
+
+	gconfig = gconfig_zero;
+    if (gconfig_read()==1) exit(1);
 
     /*
      * Init random number generator.
@@ -3487,6 +3491,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 	mob->imm_flags_perm		= pMobIndex->imm_flags;
 	mob->res_flags_perm		= pMobIndex->res_flags;
 	mob->vuln_flags_perm	= pMobIndex->vuln_flags;
+	//mob->creation_time		= current_time;
 
 
 	for (i = 0; i < MAX_STATS; i ++)

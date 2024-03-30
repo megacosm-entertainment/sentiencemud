@@ -692,6 +692,7 @@ CHAR_DATA *new_char( void )
     ch->imm_flags_perm     =   0;
     ch->res_flags_perm     =   0;
     ch->vuln_flags_perm    =   0;
+    ch->creation_time       = current_time;
     ch->corpse_type = gcrp_normal;
 
     ch->cast_target_name 	= NULL;
@@ -5331,7 +5332,9 @@ void free_dungeon(DUNGEON *dng)
 
     // Automatically remove it from the list
     if (dng->index)
+    {
         list_remlink(dng->index->loaded, dng, false);
+    }
 
 	INVALIDATE(dng);
 	dng->next = dungeon_free;
@@ -8288,11 +8291,14 @@ void free_cmd(CMD_DATA *cmd)
         return;
 
     free_string(cmd->name);
-    free_string_data(cmd->help_keywords);
+    if (cmd->help_keywords)
+        free_string_data(cmd->help_keywords);
     free_string(cmd->description);
     free_string(cmd->comments);
-    free_string(cmd->reason);
-    free_string(cmd->summary);
+    if (cmd->reason)
+        free_string(cmd->reason);
+    if (cmd->summary)
+        free_string(cmd->summary);
 
     cmd->next = cmd_data_free;
     cmd_data_free = cmd;

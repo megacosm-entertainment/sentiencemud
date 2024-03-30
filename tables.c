@@ -686,6 +686,9 @@ const struct flag_type plr2_flags[] =
     {   "no_reckoning",     PLR_NORECKONING,   false   },
     {   "no_lore",     PLR_NOLORE,   false   },
     {	"holypersona",		PLR_HOLYPERSONA,		false	},
+    {   "autoafk",      PLR_AUTOAFK,        false   },
+    {   "hide_idle",    PLR_HIDE_IDLE,      false   },
+    {   "show_timestamps",  PLR_SHOW_TIMESTAMPS,    false},
     {	NULL,			0,	0			}
 };
 
@@ -4489,7 +4492,9 @@ const struct do_func_type do_func_table[] =
         { "do_apdump",                  do_apdump },
         { "do_apedit",                  do_apedit },
         { "do_aplist",                  do_aplist },
+        { "do_area",                    do_area   },
         { "do_arealinks",                       do_arealinks },
+        { "do_areas",                   do_areas },
         { "do_areset",                  do_areset },
         { "do_asave_new",                       do_asave_new },
         { "do_asearch",                 do_asearch },
@@ -4956,4 +4961,7 @@ const struct do_func_type do_func_table[] =
         { "do_zap",                     do_zap },
         { "do_zecho",                   do_zecho },
         { "do_zot",                     do_zot },
+        { "do_testemail",                do_testemail },
+        { "do_pwreset",                 do_pwreset },
+        { "do_lvlaudit",                do_lvlaudit },
 };

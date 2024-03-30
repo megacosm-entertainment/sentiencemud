@@ -33,12 +33,7 @@ void do_help(CHAR_DATA *ch, char *argument)
 	int i;
 
 	if (argument[0] == '\0')
-	{
-		send_to_char("Syntax: help <keyword(s)>\n\r"
-					"        help <category name|summary>\n\r"
-					"        help #<index>\n\r", ch);
-		return;
-	}
+		find_help_category_exact("summary", topHelpCat);
 
 	// Category lookup - must be exact
 	if ((hcat = find_help_category_exact(argument, topHelpCat)) != NULL &&
@@ -111,7 +106,16 @@ void do_help(CHAR_DATA *ch, char *argument)
 		if ((i - 1) > 0) {
 			page_to_char(buf_string(buffer), ch);
 			free_buf(buffer);
-			return;
+		
+		if (hcat == topHelpCat && argument[0] == '\0')
+		{
+			send_to_char("\n\r", ch);
+			send_to_char("Syntax: help <keyword(s)>\n\r"
+					"        help <category name|summary>\n\r"
+					"        help #<index>\n\r", ch);
+		
+		}
+		return;
 		}
 	}
 

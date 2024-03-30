@@ -2038,7 +2038,7 @@ static int cmd_cmp(void *a, void *b)
 void do_commands( CHAR_DATA *ch, char *argument )
 {
     char buf[MAX_STRING_LENGTH], mxp_str[1024];
-    int cmd;
+    //int cmd;
     int col;
 	int cmdtype = 0;
 	CMD_DATA *command;

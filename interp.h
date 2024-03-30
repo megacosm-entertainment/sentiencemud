@@ -691,3 +691,6 @@ DECLARE_DO_FUN( do_cmdshow  );
 DECLARE_DO_FUN( do_area     );
 DECLARE_DO_FUN( do_areas    );
 DECLARE_DO_FUN( do_reloadstats );
+DECLARE_DO_FUN( do_testemail );
+DECLARE_DO_FUN( do_pwreset );
+DECLARE_DO_FUN( do_lvlaudit );

@@ -731,7 +731,6 @@ CMDEDIT (cmdedit_rank )
         return false;
     }
 
-    int old_rank = command->rank;
     int new_rank;
     if ((new_rank = flag_value(staff_ranks, argument)) == NO_FLAG)
     {

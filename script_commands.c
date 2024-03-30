@@ -2332,7 +2332,7 @@ SCRIPT_CMD(scriptcmd_echoat)
 
 		int i = 0;
 		i = strlen(buffer->string);
-		if (buffer->string[i-2] != '\n')
+		if (buffer->string[i-2] != '\n' && !victim)
 			strcat(buffer->string,"\n\r");
 			
 		if( IS_VALID(instance) )
@@ -15156,11 +15156,13 @@ SCRIPT_CMD(scriptcmd_mail)
 	if (valid)
 	{
 		// Send the mail
+		char orig_script_wnum[MSL];
 		mail = new_mail();
 		mail->sender = str_dup(sender);
 		mail->recipient = str_dup(person);
 		mail->message = str_dup(message->string);
-		mail->originating_script = widevnum_string_script(info->block->script, info->block->script->area);
+		sprintf(orig_script_wnum, widevnum_string_script(info->block->script, NULL));
+		mail->originating_script = str_dup(orig_script_wnum);
 		mail->orig_script_type = info->block->script->type;
 		
 		iterator_start(&it, packages);

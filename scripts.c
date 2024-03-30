@@ -9726,8 +9726,10 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 
 	SET_BIT(obj->extra[1], ITEM_CREATED);
 
+	char orig_script_wnum[MSL];
 	obj->script_created = true;
-	obj->created_script_wnum = widevnum_string_script(info->block->script, info->block->script->area);
+	sprintf(orig_script_wnum, widevnum_string_script(info->block->script, NULL));
+	obj->created_script_wnum = str_dup(orig_script_wnum);
 	obj->created_script_type = info->block->script->type;
 
 	return obj;
