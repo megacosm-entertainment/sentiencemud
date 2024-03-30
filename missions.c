@@ -945,10 +945,10 @@ void do_mission(CHAR_DATA *ch, char *argument)
 		// TODO: Change to a test, as we might add a way for players to disable XP gain
 		if(level->level < level->clazz->max_level)
 		{
-			sprintf(buf, "You gain %d experience points!\n\r", expreward);
-			send_to_char(buf, ch);
+		//	sprintf(buf, "You gain %d experience points!\n\r", expreward);
+		//	send_to_char(buf, ch);
 
-			gain_exp(ch, NULL, expreward);
+			gain_exp(ch, NULL, expreward, true);
 		}
 
 		tempstores[0] = 10;

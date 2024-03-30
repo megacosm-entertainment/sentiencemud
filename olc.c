@@ -111,20 +111,20 @@ const struct editor_cmd_type editor_table[] =
 	{ "room",		do_redit	},
 	{ "object",		do_oedit	},
 	{ "mobile",		do_medit	},
-	{ "mpcode",		do_mpedit	},
-	{ "opcode",		do_opedit	},
-	{ "rpcode",		do_rpedit	},
+	{ "mprog",		do_mpedit	},
+	{ "oprog",		do_opedit	},
+	{ "rprog",		do_rpedit	},
 	{ "ship",		do_shedit	},
 	{ "help",		do_hedit	},
 	{ "token",		do_tedit	},
-	{ "tpcode",		do_tpedit	},
+	{ "tprog",		do_tpedit	},
 	{ "project",	do_pedit	},
 	{ "bpsect",		do_bsedit	},
 	{ "blueprint",	do_bpedit	},
 	{ "dungeon",	do_dngedit	},
-	{ "apcode",		do_apedit	},
-	{ "ipcode",		do_ipedit	},
-	{ "dpcode",		do_dpedit	},
+	{ "aprog",		do_apedit	},
+	{ "iprog",		do_ipedit	},
+	{ "dprog",		do_dpedit	},
 	{ "skill",		do_skedit	},
 	{ "liquid",		do_liqedit	},
 	{ "skillgroup",	do_sgedit	},
@@ -136,6 +136,8 @@ const struct editor_cmd_type editor_table[] =
 	{ "sector",		do_sectoredit },
 	{ "corpse",		do_corpsedit },
 	{ "command",	do_cmdedit	},
+	{ "wilderness",	do_wedit	},
+	{ "vlink",		do_vledit	},
 	{ NULL,			0,			}
 };
 
@@ -160,7 +162,9 @@ const struct olc_cmd_type aedit_table[] =
 	{	"flags",		aedit_flags			},
 	{	"landx",		aedit_land_x		},
 	{	"landy",		aedit_land_y		},
+    {   "levels",       aedit_levels        },
 	{	"name",			aedit_name			},
+    {   "notes",        aedit_notes         },
 	{	"open",			aedit_open			},
 	{	"placetype",    aedit_placetype		},
 	{	"postoffice",   aedit_postoffice	},
@@ -211,6 +215,7 @@ const struct olc_cmd_type redit_table[] =
 	{	"oreset",	redit_oreset					},
 	{   "owner",	redit_owner					},
 	{	"persist",	redit_persist					},
+	{	"recall",	redit_recall			},
 	{	"region",	redit_region				},
 	{	"room",		redit_room					},
 	{	"savage",	redit_savage				},
@@ -5392,22 +5397,25 @@ void olc_show_progs(BUFFER *buffer, LLIST **progs, int type, const char *title)
 		if(list_size(progs[slot]) > 0) ++cnt;
 
 	if (cnt > 0) {
-		sprintf(buf, "{R%-6s %-20s %-20s %-10s\n\r{x", "Number", title, "Trigger", "Phrase");
+		sprintf(buf, "{R%-6s %-20s %-20s %-10s\n\r{x", "Number", title, "Trigger", "Phrase", "Status      ", " Name");
 		add_buf(buffer, buf);
 
-		sprintf(buf, "{R%-6s %-20s %-20s %-10s\n\r{x", "------", "--------------------", "--------------------", "----------");
+		sprintf(buf, "{R%-6s %-20s %-20s %-10s\n\r{x", "------", "--------------------", "--------------------", "----------", "------------", " -----");
 		add_buf(buffer, buf);
 
 		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
 			ITERATOR it;
 			PROG_LIST *trigger;
+            SCRIPT_DATA *prog;
+
 			iterator_start(&it, progs[slot]);
 			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
 				char wnum[MIL];
+                prog = get_script_index(trigger->wnum.pArea, trigger->wnum.vnum, type);                
 				sprintf(wnum, "%ld#%ld", trigger->wnum.pArea ? trigger->wnum.pArea->uid : 0, trigger->wnum.vnum);
-				sprintf(buf, "{C[{W%4d{C]{x %-20s %-20s %s\n\r", cnt,
+				sprintf(buf, "{C[{W%4d{C]{x %-12s %-10s %-10s %-9s %-5s\n\r", cnt,
 					wnum,trigger_name(trigger->trig_type),
-					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, (type == PRG_RPROG), (type == PRG_TPROG)));
+					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, (type == PRG_RPROG), (type == PRG_TPROG)), olc_show_script_status(prog, type), prog ? prog->name : "Unknown");
 				add_buf(buffer, buf);
 				cnt++;
 			}
@@ -5703,4 +5711,26 @@ void do_cmdshow(CHAR_DATA *ch, char *argument)
 
 	olc_show_item(ch, command, cmdedit_show, argument);
 	return;
+}
+
+char *olc_show_script_status(SCRIPT_DATA *prog, int type)
+{
+    static char status[20];
+
+    if (prog) {
+
+        if(IS_SET(prog->flags,SCRIPT_DISABLED))
+			sprintf(status, "{D[DISABLED]{x   ");
+		else if(prog->lines > 1 && prog->src != prog->edit_src)
+			sprintf(status, "{G[MODIFIED]{x   ");
+		else if(prog->lines == 1)
+			sprintf(status, "{W[BLANK]{x      ");
+		else if(prog->code)
+			sprintf(status, "{x[COMPILED]{x   ");
+		else
+			sprintf(status, "{R[UNCOMPILED]{x ");
+
+        return status;
+    }
+    else return "Unknown";
 }

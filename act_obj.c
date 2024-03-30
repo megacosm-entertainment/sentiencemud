@@ -3567,6 +3567,9 @@ void do_sip(CHAR_DATA *ch, char *argument)
 
     one_argument(argument, arg);
 
+	if (check_social_status(ch))
+		return;
+
     if (arg[0] == '\0')
     {
 		for (obj = ch->in_room->contents; obj; obj = obj->next_content)
@@ -3599,6 +3602,9 @@ void do_drink(CHAR_DATA *ch, char *argument)
     OBJ_DATA *obj;
 
     one_argument(argument, arg);
+
+	if (check_social_status(ch))
+		return;
 
     if (arg[0] == '\0')
     {
@@ -3633,6 +3639,9 @@ void do_quaff(CHAR_DATA *ch, char *argument)
 
     one_argument(argument, arg);
 
+	if (check_social_status(ch))
+		return;
+
     if (arg[0] == '\0')
     {
 		for (obj = ch->in_room->contents; obj; obj = obj->next_content)
@@ -3666,6 +3675,9 @@ void do_eat(CHAR_DATA *ch, char *argument)
     OBJ_DATA *obj;
     //SPELL_DATA *spell;
 	int ret;
+
+	if (check_social_status(ch))
+		return;
 
     one_argument(argument, arg);
     if (arg[0] == '\0')
@@ -4359,6 +4371,9 @@ void do_wear(CHAR_DATA *ch, char *argument)
 
     one_argument(argument, arg);
 
+	if (check_social_status(ch))
+		return;
+
     if (IS_SHIFTED_SLAYER(ch) || IS_SHIFTED_WEREWOLF(ch))
     {
 		send_to_char("You can't do that in your current form.\n\r", ch);
@@ -4467,6 +4482,9 @@ void do_remove(CHAR_DATA *ch, char *argument)
     char arg[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
     OBJ_DATA *obj;
+
+	if (check_social_status(ch))
+		return;
 
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
@@ -4698,6 +4716,9 @@ void do_recite(CHAR_DATA *ch, char *argument)
 
 	argument = one_argument(argument, arg1);
 	argument = one_argument(argument, arg2);
+
+	if (check_social_status(ch))
+		return;
 
 	if ((scroll = get_obj_carry(ch, arg1, ch)) == NULL)
 	{
@@ -6723,6 +6744,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 								strcat(buf, pricestr);
 							}
 							strcat(buf, ".");
+							first = false;
 
 							act(buf,ch, NULL, NULL, t_obj, NULL, NULL,NULL,TO_CHAR);
 						}
@@ -7061,6 +7083,13 @@ void do_list(CHAR_DATA *ch, char *argument)
 					char *descr =
 						IS_NULLSTR(stock->custom_descr) ? stock->obj->short_descr : stock->custom_descr;
 
+					char expiry[15];
+					expiry[0] = '\0';
+					if (stock->duration > 0 || stock->obj->timer > 0)
+					{
+						sprintf(expiry, " {Y[EXPIRES]{X");
+					}
+
 					char repName[MIL];
 					repName[0] = '\0';
 					if (!has_rep && IS_VALID(stock->reputation))
@@ -7103,11 +7132,11 @@ void do_list(CHAR_DATA *ch, char *argument)
 
 					if( stock->max_quantity > 0 )
 					{
-						sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s%s\n\r", level,pwidth,pricing,stock->quantity,descr, repName);
+						sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s%s%s\n\r", level,pwidth,pricing,stock->quantity,descr, repName,expiry);
 					}
 					else
 					{
-						sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s%s\n\r", level,pwidth,pricing,descr, repName);
+						sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s%s\n\r", level,pwidth,pricing,descr, repName,expiry);
 					}
 
 					send_to_char(buf, ch);
@@ -7139,13 +7168,20 @@ void do_list(CHAR_DATA *ch, char *argument)
 					char *descr =
 						IS_NULLSTR(stock->custom_descr) ? stock->mob->short_descr : stock->custom_descr;
 
+					char hireling[16];
+					hireling[0] = '\0';
+					if( stock->duration > 0)
+					{
+						sprintf(hireling, " {Y[HIRELING]{X");
+					}
+
 					if( stock->max_quantity > 0 )
 					{
-						sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s\n\r", level,pwidth,pricing,stock->quantity,descr);
+						sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s%s\n\r", level,pwidth,pricing,stock->quantity,descr,hireling);
 					}
 					else
 					{
-						sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s\n\r", level,pwidth,pricing,descr);
+						sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s%s\n\r", level,pwidth,pricing,descr,hireling);
 					}
 
 					send_to_char(buf, ch);
@@ -7260,6 +7296,8 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
 	char arg_keeper[MIL];
+	char buf[MSL];
+	time_t hiring_time = time(NULL);
     CHAR_DATA *keeper;
 	SHOP_REQUEST_DATA request;
 
@@ -7291,6 +7329,11 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 
 		act("You ask $N for some information about $p.", ch, keeper, NULL, request.obj, NULL, NULL, NULL, TO_CHAR);
 		act("$n asks $N for some information about $p.", ch, keeper, NULL, request.obj, NULL, NULL, NULL, TO_ROOM);
+		if (request.stock->duration > 0)
+		{
+			sprintf(buf, "{YExpires After{y:{X %d hours{x\n\r", request.stock->duration);
+			send_to_char(buf, ch);
+		}
 		spell_identify(&gsk__inspect, ch->tot_level, ch, request.obj, TARGET_OBJ, WEAR_NONE);
 	}
 	else if( request.stock != NULL )
@@ -7340,6 +7383,15 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 				else
 				{
 					act("{GGUARD{g:{x $N", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				}
+
+				if (request.stock->duration > 0)
+				{
+					char hired_time[100];
+					hiring_time = current_time + request.stock->duration * 60;
+					strftime(hired_time, 100, "%a %b %d %X %Z %Y", localtime(&hiring_time));
+					sprintf(buf, "{AHired Until{a:{X %s{x\n\r", hired_time);
+					send_to_char(buf, ch);
 				}
 
 				show_basic_mob_lore(ch, mob);
@@ -7663,6 +7715,9 @@ void do_secondary(CHAR_DATA *ch, char *argument)
     OBJ_DATA *obj;
     OBJ_DATA *weapon;
     char buf[MAX_STRING_LENGTH];
+
+	if (check_social_status(ch))
+		return;
 
     if (argument[0] == '\0')
     {
@@ -7999,6 +8054,7 @@ void do_pull(CHAR_DATA *ch, char *argument)
 			}
 
 			// TODO: Need to move this whole thing into a PREPULL script
+			/*
 			if (is_relic(obj->pIndexData))
 			{
 				if (ch->church == NULL)
@@ -8011,6 +8067,7 @@ void do_pull(CHAR_DATA *ch, char *argument)
 				else
 					church_announce_theft(ch, obj);
 			}
+			*/
 
 			ch->pulled_cart = obj;
 			obj->pulled_by = ch;
@@ -10041,6 +10098,9 @@ void do_use(CHAR_DATA *ch, char *argument)
 	OBJ_DATA *obj, *tobj = NULL;
 	CHAR_DATA *vch = NULL;
 
+	if (check_social_status(ch))
+		return;
+
 
 	argument = one_argument(argument, arg);
 
@@ -10079,6 +10139,9 @@ void do_conceal(CHAR_DATA *ch, char *argument)
 	char arg[MAX_STRING_LENGTH];
 	OBJ_DATA *obj;
 	CHAR_DATA *rch;
+
+	if (check_social_status(ch))
+		return;
 
 	one_argument(argument, arg);
 

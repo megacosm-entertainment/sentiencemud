@@ -1670,6 +1670,8 @@ AREA_DATA *new_area( void )
     pArea->builders         =   str_dup( "None" );
     pArea->min_vnum         =   0;
     pArea->max_vnum         =   0;
+    pArea->min_level        =   0;
+    pArea->max_level        =   0;
     pArea->age              =   0;
     pArea->repop	    =   0;
     pArea->nplayer          =   0;
@@ -1683,6 +1685,7 @@ AREA_DATA *new_area( void )
     pArea->room_list = list_create(false);
     pArea->comments =   &str_empty[0];
     pArea->description  =   &str_empty[0];
+    pArea->notes        =   &str_empty[0];
 
     pArea->points		= NULL;
 
@@ -3567,6 +3570,13 @@ MAIL_DATA *new_mail( void )
     mail->sender = NULL;
     mail->recipient = NULL;
     mail->message = NULL;
+    mail->originating_script = NULL;
+    mail->expire_date = 0;
+    mail->deliver_date = 0;
+    mail->return_service = false;
+    mail->timestamp_expiration = false;
+    mail->collect_script = 0;
+    mail->expire_script = 0;
     mail->status = 0;
     mail->picked_up = false;
 

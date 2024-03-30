@@ -334,6 +334,7 @@ ENT_FIELD entity_mobile[] = {
 	{"instrument",				ENTITY_MOB_INSTRUMENT,				ENT_OBJECT,			"Instrument used while playing music" },
 	{"inv",						ENTITY_MOB_CARRYING,				ENT_OLLIST_OBJ,		"Inventory" },
 	{"leader",					ENTITY_MOB_LEADER,					ENT_MOBILE,			"Leader of group" },
+	{"level",					ENTITY_MOB_LEVEL,					ENT_NUMBER,			"Level" },
 	{"long",					ENTITY_MOB_LONG,					ENT_STRING,			"Room description" },
 	{"master",					ENTITY_MOB_MASTER,					ENT_MOBILE,			"Mobile currently following" },
 	{"mount",					ENTITY_MOB_MOUNT,					ENT_MOBILE,			"Mobile currently riding" },
@@ -437,6 +438,7 @@ ENT_FIELD entity_object[] = {
 	{"inv",				ENTITY_OBJ_CONTENTS,				ENT_OLLIST_OBJ,				"Contents of object" },
 	{"items",			ENTITY_OBJ_CONTENTS,				ENT_OLLIST_OBJ,				"Contents of object" },
 	{"long",			ENTITY_OBJ_LONG,					ENT_STRING,					"Room description" },
+	{"level",			ENTITY_OBJ_LEVEL,					ENT_NUMBER,					"Level" },
 	{"name",			ENTITY_OBJ_NAME,					ENT_STRING,					"Keywords of object" },
 	{"next",			ENTITY_OBJ_NEXT,					ENT_OBJECT,					"Next object in list" },
 	{"on",				ENTITY_OBJ_FURNITURE,				ENT_OBJECT,					"Furniture object is on (disabled)" },
@@ -856,6 +858,8 @@ ENT_FIELD entity_area[] = {
 	{"age",			ENTITY_AREA_AGE,			ENT_NUMBER,				"Current age of area (used for repop)" },
 	{"isempty",		ENTITY_AREA_ISEMPTY,		ENT_BOOLEAN,			"Indicates whether the area has no players" },
 	{"isopen",		ENTITY_AREA_ISOPEN,			ENT_BOOLEAN,			"Indicates whether the area is open to players" },
+	{"minlevel",	ENTITY_AREA_MINLEVEL,		ENT_NUMBER,				"Minimum recommended level." },
+	{"maxlevel",	ENTITY_AREA_MAXLEVEL,		ENT_NUMBER,				"Maximum recommended level." },
 	{"rooms",		ENTITY_AREA_ROOMS,			ENT_PLLIST_ROOM,		"List of rooms in area" },
 	{NULL,			0,							ENT_UNKNOWN,			NULL }
 };
@@ -1249,12 +1253,14 @@ ENT_FIELD entity_range[] = {
 
 ENT_FIELD entity_mobindex[] = {
 	{"wnum",			ENTITY_MOBINDEX_WNUM,			ENT_WIDEVNUM,	"Widevnum of mobile" },
+	{"level",			ENTITY_MOBINDEX_LEVEL,			ENT_NUMBER,		"Level" },
 	{"loaded",			ENTITY_MOBINDEX_LOADED,			ENT_NUMBER,		"Number of mobiles loaded for this index" },
 	{NULL,				0,								ENT_UNKNOWN,	NULL }
 };
 
 ENT_FIELD entity_objindex[] = {
 	{"wnum",			ENTITY_OBJINDEX_WNUM,			ENT_WIDEVNUM,		"Widevnum of object" },
+	{"level",			ENTITY_OBJINDEX_LEVEL,			ENT_NUMBER,			"Level" },
 	{"loaded",			ENTITY_OBJINDEX_LOADED,			ENT_NUMBER,			"Number of objects loaded for this index" },
 	{"inrooms",			ENTITY_OBJINDEX_INROOMS,		ENT_NUMBER,			"Number of objects in rooms" },
 	{"inmail",			ENTITY_OBJINDEX_INMAIL,			ENT_NUMBER,			"Number of objects in the mail system" },
@@ -1539,6 +1545,7 @@ struct trigger_type trigger_table	[] = {
 {	"afterkill",			NULL,		TRIG_AFTERKILL,			TRIGSLOT_FIGHT,			(PRG_MPROG|PRG_OPROG|PRG_RPROG|PRG_TPROG)	},
 {	"animate",				NULL,		TRIG_ANIMATE,			TRIGSLOT_ANIMATE,		(PRG_MPROG|PRG_TPROG)	},
 {	"assist",				NULL,		TRIG_ASSIST,			TRIGSLOT_FIGHT,			(PRG_MPROG|PRG_TPROG)	},
+{	"attack",				NULL,		TRIG_ATTACK,			TRIGSLOT_FIGHT,			(PRG_MPROG|PRG_TPROG)	},
 {	"attack_backstab",		NULL,		TRIG_ATTACK_BACKSTAB,	TRIGSLOT_ATTACKS,		(PRG_MPROG|PRG_TPROG)	},
 {	"attack_bash",			NULL,		TRIG_ATTACK_BASH,		TRIGSLOT_ATTACKS,		(PRG_MPROG|PRG_TPROG)	},
 {	"attack_behead",		NULL,		TRIG_ATTACK_BEHEAD,		TRIGSLOT_ATTACKS,		(PRG_MPROG|PRG_TPROG)	},

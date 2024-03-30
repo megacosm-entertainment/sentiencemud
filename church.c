@@ -884,6 +884,9 @@ void do_chgohall(CHAR_DATA *ch, char *argument)
         return;
     }
 
+	if ( !can_escape(ch) )
+		return;
+
     pneuma_cost = 500;
     dp_cost = 50000;
 
@@ -3284,6 +3287,22 @@ void show_church_info(CHURCH_DATA *church, CHAR_DATA *ch)
 			(church->key == NULL ? 0 : church->key->vnum),
 			(church->key == NULL ? "none" : church->key->short_descr));
 		add_buf(buffer, buf);
+
+		sprintf(buf, "{YTreasure Room(s):{x\n\r");
+		add_buf(buffer, buf);
+
+    	CHURCH_TREASURE_ROOM *treasure;
+    	ITERATOR it;
+		iterator_start(&it, church->treasure_rooms);
+		while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it)) ) {
+			if( treasure->room != NULL )
+			{
+				ROOM_INDEX_DATA *room = treasure->room;
+				sprintf(buf, "{x\t\t%s - %s{x\n\r", widevnum_string_room(room, NULL), room->name);
+				add_buf(buffer,buf);
+			}
+	}
+	iterator_stop(&it);
 	}
 
     sprintf(buf, "{YPK record:{x %ld wins, %ld losses\n\r",

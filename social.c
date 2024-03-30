@@ -211,7 +211,7 @@ void do_chat_enter(CHAR_DATA *ch, char *argument)
     char_to_room(ch, room_index_chat);
     act("{W$n has entered chat.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-    SET_BIT(ch->comm, COMM_SOCIAL);
+    //SET_BIT(ch->comm, COMM_SOCIAL);
 }
 
 
@@ -235,7 +235,7 @@ void do_chat_exit(CHAR_DATA *ch, char *argument)
 
 	room = room_index_temple;
 
-	REMOVE_BIT(ch->comm, COMM_SOCIAL);
+	//REMOVE_BIT(ch->comm, COMM_SOCIAL);
 
 	char_from_room(ch);
 
@@ -246,7 +246,7 @@ void do_chat_exit(CHAR_DATA *ch, char *argument)
     act("{W$n has left chat.{x",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
     act("{WYou exit chat.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
-    REMOVE_BIT(ch->comm, COMM_SOCIAL);
+    //REMOVE_BIT(ch->comm, COMM_SOCIAL);
 
     char_from_room(ch);
     char_to_room(ch, room);

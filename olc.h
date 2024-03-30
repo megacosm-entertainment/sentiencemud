@@ -284,6 +284,9 @@ DECLARE_OLC_FUN( aedit_addaprog		);
 DECLARE_OLC_FUN( aedit_delaprog		);
 DECLARE_OLC_FUN( aedit_wilds		);
 DECLARE_OLC_FUN( aedit_regions      );
+DECLARE_OLC_FUN( aedit_notes    );
+DECLARE_OLC_FUN( aedit_levels       );
+
 
 /*
  * Room Editor Prototypes
@@ -313,6 +316,7 @@ DECLARE_OLC_FUN( redit_northeast	);
 DECLARE_OLC_FUN( redit_northwest	);
 DECLARE_OLC_FUN( redit_oreset		);
 DECLARE_OLC_FUN( redit_owner		);
+DECLARE_OLC_FUN( redit_recall		);
 DECLARE_OLC_FUN( redit_room		);
 DECLARE_OLC_FUN( redit_room2		);
 DECLARE_OLC_FUN( redit_sector		);

@@ -187,6 +187,7 @@ const struct script_cmd_type mob_cmd_table[] = {
 	{ "vforce",				do_mpvforce,				false,	true	},
 	{ "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
 	{ "wiretransfer",		do_mpwiretransfer,			false,	true	},
+	{ "wiznet",				scriptcmd_wiznet,			false,	true    },
 	{ "xcall",				do_mpxcall,					false,	true	},
 	{ "zecho",				do_mpzecho,					false,	true	},
 	{ "zot",				do_mpzot,					true,	true	},
@@ -273,6 +274,7 @@ void do_mpstat(CHAR_DATA *ch, char *argument)
 	PROG_LIST *mprg;
 	CHAR_DATA *victim;
 	int i, slot;
+	BUFFER *buffer = new_buf();
 
 	one_argument(argument, arg);
 
@@ -281,7 +283,25 @@ void do_mpstat(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!(victim = get_char_world(ch, arg))) {
+	if (is_number(arg))
+	{
+		argument = one_argument(argument, arg);
+		if (argument[0] != '\0' && is_number(arg) && is_number(argument))
+		{
+			if ((victim = idfind_mobile(atoi(arg), atoi(argument))) == NULL)
+			{
+				send_to_char("No such creature\n\r", ch);
+				return;
+			}
+		}
+		else
+		{
+			send_to_char("Syntax: mpstat <name|IDa IDb>",ch);
+			return;
+		}	
+				
+	} 
+	else if (!(victim = get_char_world(ch, arg))) {
 		send_to_char("No such creature.\n\r", ch);
 		return;
 	}
@@ -291,23 +311,23 @@ void do_mpstat(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	sprintf(arg, "Mobile %ld#%ld [%s] ID [%8X:%8X]\n\r", victim->pIndexData->area->uid, victim->pIndexData->vnum, victim->short_descr, (int)victim->id[0], (int)victim->id[1]);
-	send_to_char(arg, ch);
+	sprintf(arg, "Mobile %ld#%ld [%s] ID [%9d:%9d]\n\r", victim->pIndexData->area->uid, victim->pIndexData->vnum, victim->short_descr, (int)victim->id[0], (int)victim->id[1]);
+	add_buf(buffer, arg);
 
 	if( !IS_NULLSTR(victim->pIndexData->comments) )
 	{
 		sprintf(arg, "Comments:\n\r%s\n\r", victim->pIndexData->comments);
-		send_to_char(arg, ch);
+		add_buf(buffer, arg);
 	}
 
 	sprintf(arg, "Delay   %-6d [%s]\n\r",
 	victim->progs->delay,
 	victim->progs->target ? victim->progs->target->name : "No target");
 
-	send_to_char(arg, ch);
+	add_buf(buffer, arg);
 
 	if (!victim->pIndexData->progs)
-		send_to_char("[No programs set]\n\r", ch);
+		add_buf(buffer, "[No programs set]\n\r");
 	else
 		for(i = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
 			iterator_start(&it, victim->pIndexData->progs[slot]);
@@ -317,13 +337,22 @@ void do_mpstat(CHAR_DATA *ch, char *argument)
 					mprg->wnum.pArea->uid,
 					mprg->wnum.vnum,
 					trigger_phrase(mprg->trig_type,mprg->trig_phrase));
-				send_to_char(arg, ch);
+				add_buf(buffer, arg);
 			}
 			iterator_stop(&it);
 		}
 
 	if(victim->progs->vars)
-		pstat_variable_list(ch, victim->progs->vars);
+		pstat_variable_list(buffer, victim->progs->vars);
+
+	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(buffer->string, ch);
+	}
 }
 
 
@@ -2851,6 +2880,7 @@ SCRIPT_CMD(do_mpmload)
 // Syntax: mob oload <vnum> [<level>] [room|wear|$ENTITY]
 SCRIPT_CMD(do_mpoload)
 {
+	/*
 	char buf[MIL], *rest;
 	long level;
 	WNUM wnum = wnum_zero;
@@ -2911,7 +2941,7 @@ SCRIPT_CMD(do_mpoload)
 			if(!(rest = expand_argument(info,argument,arg)))
 				return;
 
-			/*
+			*
 			 * Added 3rd argument
 			 * omitted - load to mobile's inventory
 			 * 'none'  - load to mobile's inventory
@@ -2921,7 +2951,7 @@ SCRIPT_CMD(do_mpoload)
 			 *         - 'W' automatically wear
 			 * OBJECT  - load to target object
 			 * ROOM    - load to target room
-			 */
+			 *
 
 			switch(arg->type) {
 			case ENT_STRING:
@@ -2984,6 +3014,9 @@ SCRIPT_CMD(do_mpoload)
 
 	if(rest && *rest) variables_set_object(info->var,rest,obj);
 	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
+	*/
+	script_oload(info,argument,arg, false);
+
 }
 
 // do_mpotransfer
@@ -7062,6 +7095,7 @@ SCRIPT_CMD(do_mpsetrecall)
 {
 	char /*buf[MSL], - Unused???*/ *rest;
 	CHAR_DATA *victim;
+	ROOM_INDEX_DATA *room;
 	ROOM_INDEX_DATA *location;
 //	int amount = 0; - Unused???
 
@@ -7073,16 +7107,20 @@ SCRIPT_CMD(do_mpsetrecall)
 		return;
 	}
 
+	victim = NULL;
+	room = NULL;
+
 	switch(arg->type) {
 	case ENT_STRING:
 		victim = get_char_world(info->mob, arg->d.str);
 		break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
-	default: victim = NULL; break;
+	case ENT_ROOM: room = arg->d.room; break;
+	default: victim = NULL; room = NULL; break;
 	}
 
 
-	if (!victim) {
+	if (!victim && !room) {
 		bug("MpSetRecall - Null victim from vnum %ld.", VNUM(info->mob));
 		return;
 	}
@@ -7094,12 +7132,25 @@ SCRIPT_CMD(do_mpsetrecall)
 		return;
 	}
 
-	if(location->wilds)
-		location_set(&victim->recall,NULL,location->wilds->uid,location->x,location->y,location->z);
-	else if(location->source)
-		location_set(&victim->recall,location->area,0,location->vnum,0,0);
-	else
-		location_set(&victim->recall,location->area,0,location->vnum,location->id[0],location->id[1]);
+	if (victim)
+	{
+		if(location->wilds)
+			location_set(&victim->recall,location->area,location->wilds->uid,location->x,location->y,location->z);
+		else if(location->source)
+			location_set(&victim->recall,location->area,0,location->vnum,0,0);
+		else
+			location_set(&victim->recall,location->area,0,location->vnum,location->id[0],location->id[1]);
+	}
+
+	if (room)
+	{
+		if(location->wilds)
+			location_set(&room->recall,location->area,location->wilds->uid,location->x,location->y,location->z);
+		else if(location->source)
+			location_set(&room->recall,location->area,0,location->vnum,0,0);
+		else
+			location_set(&room->recall,location->area,0,location->vnum,location->id[0],location->id[1]);
+	}		
 }
 
 // do_mpclearrecall

@@ -990,7 +990,6 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     found = false;
     fclose(fpReserve);
 
-    #if defined(unix)
     /* decompress if .gz file exists */
     sprintf(strsave, "%s%c/%s%s", PLAYER_DIR, tolower(name[0]), capitalize(name),".gz");
     if ((fp = fopen(strsave, "r")) != NULL)
@@ -999,7 +998,6 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 		sprintf(buf,"gzip -dfq %s",strsave);
 		system(buf);
     }
-    #endif
 
     sprintf(strsave, "%s%c/%s", PLAYER_DIR, tolower(name[0]), capitalize(name));
     if ((fp = fopen(strsave, "r")) != NULL) {
@@ -3554,6 +3552,16 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
     	fprintf(fp, "Room %s\n",	widevnum_string_room(obj->in_room, NULL)	    );
     if (IS_SET(obj->extra[1], ITEM_ENCHANTED))
 		fprintf(fp,"Enchanted_times %d\n", obj->num_enchanted);
+	if (obj->script_created)
+	{
+		fprintf(fp, "Created_script_type %d\n", obj->created_script_type);
+		fprintf(fp, "Created_script_wnum %s\n", obj->created_script_wnum);
+	}
+
+	if (obj->creation_time)
+	{
+		fprintf(fp, "Creation_time %ld\n", obj->creation_time);
+	}
 
     /*
     if (obj->weight != obj->pIndexData->weight)
@@ -6408,6 +6416,23 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			KEY("ClassType", obj->clazz_type, stat_lookup(fread_string(fp), class_types, CLASS_NONE));
 			KEY("Cond",	obj->condition,		fread_number(fp));
 			KEY("Cost",	obj->cost,		fread_number(fp));
+
+			if (!str_cmp(word, "Created_script_type"))
+			{
+				obj->created_script_type = fread_number(fp);
+				obj->script_created = true;
+				fMatch = true;
+				break;
+			}
+
+			if (!str_cmp(word, "Created_script_wnum"))
+			{
+				obj->created_script_wnum = fread_string(fp);
+				obj->script_created = true;
+				fMatch = true;
+				break;
+			}
+			KEY("Creation_time", obj->creation_time, fread_number(fp));
 			break;
 
 		case 'D':

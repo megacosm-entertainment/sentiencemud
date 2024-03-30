@@ -175,6 +175,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "vforce",				do_tpvforce,				false,	true	},
 	{ "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
 	{ "wiretransfer",		do_tpwiretransfer,			false,	true	},
+	{ "wiznet",				scriptcmd_wiznet,			false,	true    },
 	{ "xcall",				do_tpxcall,					false,	true	},
 	{ "zecho",				do_tpzecho,					false,	true	},
 	{ "zot",				do_tpzot,					true,	true	},
@@ -255,6 +256,8 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
 	PROG_LIST *tprg;
 	int i, slot, count;
 	WNUM wnum = wnum_zero;
+	bool id_lookup = false;
+	BUFFER *output = new_buf();
 
 	argument = one_argument(argument, arg);
 	argument = one_argument(argument, arg2);
@@ -264,7 +267,27 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!str_cmp(arg,"mob")) {
+	if (is_number(arg))
+	{
+		if (arg[0] != '\0' && is_number(arg) && is_number(arg2))
+		{
+			if ((token = idfind_token(atoi(arg), atoi(arg2))) == NULL)
+			{
+				send_to_char("No such token\n\r", ch);
+				return;
+			}
+			else
+			{
+				id_lookup = true;
+			}
+		}
+		else
+		{
+			send_to_char("Syntax:  tpstat <mobile name|object name|room|ida idb> [[<count>.]<token vnum>]",ch);
+			return;
+		}	
+				
+	} else if (!str_cmp(arg,"mob")) {
 		if ((victim = get_char_world(NULL, arg2)) == NULL) {
 			send_to_char("Mobile not found.\n\r", ch);
 			return;
@@ -282,11 +305,11 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
 		room = ch->in_room;
 		count = number_argument(arg2, arg3);
 	} else {
-		send_to_char("Syntax:  tpstat <mobile name|object name|room> [<count>.]<token widevnum>\n\r", ch);
+		send_to_char("Syntax:  tpstat <mobile name|object name|room|ida idb> [[<count>.]<token vnum>]>\n\r", ch);
 		return;
 	}
 
-	if (arg3[0] != '\0' && parse_widevnum(arg3, ch->in_room->area, &wnum)) {
+	if (arg3[0] != '\0' && parse_widevnum(arg3, ch->in_room->area, &wnum) && !id_lookup) {
 		TOKEN_INDEX_DATA *tindex;
 		
 
@@ -315,23 +338,23 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
 		send_to_char("Token not found.\n\r", ch);
 		return;
 	}
-	sprintf(arg, "Token %ld#%-6ld [%s] ID [%08X:%08X]\n\r", token->pIndexData->area->uid, token->pIndexData->vnum, token->pIndexData->name, (int)token->id[0], (int)token->id[1]);
-	send_to_char(arg, ch);
+	sprintf(arg, "Token %ld#%-6ld [%s] ID [%9d:%9d]\n\r", token->pIndexData->area->uid, token->pIndexData->vnum, token->pIndexData->name, (int)token->id[0], (int)token->id[1]);
+	add_buf(output, arg);
 
 	if( !IS_NULLSTR(token->pIndexData->comments) )
 	{
 		sprintf(arg, "Comments:\n\r%s\n\r", token->pIndexData->comments);
-		send_to_char(arg, ch);
+		add_buf(output, arg);
 	}
 
 	sprintf(arg, "Delay   %-6d [%s]\n\r",
 		token->progs->delay,
 		token->progs->target ? token->progs->target->name : "No target");
 
-	send_to_char(arg, ch);
+	add_buf(output, arg);
 
 	if (!token->pIndexData->progs)
-		send_to_char("[No programs set]\n\r", ch);
+		add_buf(output, "[No programs set]\n\r");
 	else
 	for(i = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
 		iterator_start(&it, token->pIndexData->progs[slot]);
@@ -341,13 +364,22 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
 				tprg->wnum.pArea ? tprg->wnum.pArea->uid : 0,
 				tprg->wnum.vnum,
 				trigger_phrase(tprg->trig_type,tprg->trig_phrase));
-			send_to_char(arg, ch);
+			add_buf(output, arg);
 		}
 		iterator_stop(&it);
 	}
 
 	if(token->progs->vars)
-		pstat_variable_list(ch, token->progs->vars);
+		pstat_variable_list(output, token->progs->vars);
+
+	if( !ch->lines && strlen(output->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(output->string, ch);
+	}
 }
 
 char *tp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **room)
@@ -3361,6 +3393,7 @@ SCRIPT_CMD(do_tpmload)
 
 SCRIPT_CMD(do_tpoload)
 {
+	/*
 	char buf[MIL], *rest;
 	long level;
 	WNUM wnum = wnum_zero;
@@ -3420,14 +3453,14 @@ SCRIPT_CMD(do_tpoload)
 			if(!(rest = expand_argument(info,argument,arg)))
 				return;
 
-			/*
+			*
 			 * Added 3rd argument
 			 * omitted - load to current room
 			 * MOBILE  - load to target mobile
 			 *         - 'W' automatically wear the item if possible
 			 * OBJECT  - load to target object
 			 * ROOM    - load to target room
-			 */
+			 *
 
 			switch(arg->type) {
 
@@ -3477,6 +3510,9 @@ SCRIPT_CMD(do_tpoload)
 
 	if(rest && *rest) variables_set_object(info->var,rest,obj);
 	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
+	*/
+	script_oload(info,argument,arg, false);
+
 }
 
 SCRIPT_CMD(do_tpforce)
@@ -6219,7 +6255,7 @@ SCRIPT_CMD(do_tpsetrecall)
 {
 	char /*buf[MSL],*/ *rest;
 	CHAR_DATA *victim;
-	ROOM_INDEX_DATA *location;
+	ROOM_INDEX_DATA *location, *room;
 //	int amount = 0;
 
 
@@ -6230,16 +6266,20 @@ SCRIPT_CMD(do_tpsetrecall)
 		return;
 	}
 
+	victim = NULL;
+	room = NULL;
+
 	switch(arg->type) {
 	case ENT_STRING:
 		victim = get_char_world(NULL, arg->d.str);
 		break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
-	default: victim = NULL; break;
+	case ENT_ROOM: room = arg->d.room; break;
+	default: victim = NULL; room = NULL; break;
 	}
 
 
-	if (!victim) {
+	if (!victim && !room) {
 		bug("TpSetRecall - Null victim from vnum %ld.", VNUM(info->token));
 		return;
 	}
@@ -6251,22 +6291,25 @@ SCRIPT_CMD(do_tpsetrecall)
 		return;
 	}
 
-	if(location->wilds) {
-		victim->recall.wuid = location->wilds->uid;
-		victim->recall.id[0] = location->x;
-		victim->recall.id[1] = location->y;
-		victim->recall.id[2] = location->z;
-	} else {
-		victim->recall.wuid = 0;
-		victim->recall.id[0] = location->vnum;
-		if(location->source) {
-			victim->recall.id[1] = location->id[0];
-			victim->recall.id[2] = location->id[1];
-		} else {
-			victim->recall.id[1] = 0;
-			victim->recall.id[2] = 0;
-		}
+	if (victim)
+	{
+		if(location->wilds)
+			location_set(&victim->recall,location->area,location->wilds->uid,location->x,location->y,location->z);
+		else if(location->source)
+			location_set(&victim->recall,location->area,0,location->vnum,0,0);
+		else
+			location_set(&victim->recall,location->area,0,location->vnum,location->id[0],location->id[1]);
 	}
+
+	if (room)
+	{
+		if(location->wilds)
+			location_set(&room->recall,location->area,location->wilds->uid,location->x,location->y,location->z);
+		else if(location->source)
+			location_set(&room->recall,location->area,0,location->vnum,0,0);
+		else
+			location_set(&room->recall,location->area,0,location->vnum,location->id[0],location->id[1]);
+	}	
 }
 
 // do_tpclearrecall

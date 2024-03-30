@@ -985,6 +985,7 @@ enum entity_mobile_enum {
 	ENTITY_MOB_COMPARTMENT,
 	ENTITY_MOB_SHOP,
 	ENTITY_MOB_CREW,
+	ENTITY_MOB_LEVEL,
 };
 
 enum entity_reputation_enum
@@ -1078,6 +1079,7 @@ enum entity_object_enum {
 	ENTITY_OBJ_TYPE_TELESCOPE,
 	ENTITY_OBJ_TYPE_WAND,
 	ENTITY_OBJ_TYPE_WEAPON,
+	ENTITY_OBJ_LEVEL,
 };
 
 
@@ -1425,6 +1427,8 @@ enum entity_area_enum {
 	ENTITY_AREA_AGE,
 	ENTITY_AREA_ISEMPTY,
 	ENTITY_AREA_ISOPEN,
+	ENTITY_AREA_MINLEVEL,
+	ENTITY_AREA_MAXLEVEL,
 	ENTITY_AREA_ROOMS,
 };
 
@@ -1807,6 +1811,7 @@ enum entity_range_enum {
 enum entity_mobindex_enum {
 	ENTITY_MOBINDEX_WNUM = ESCAPE_EXTRA,
 	ENTITY_MOBINDEX_LOADED,
+	ENTITY_MOBINDEX_LEVEL,
 };
 
 enum entity_objindex_enum {
@@ -1817,6 +1822,7 @@ enum entity_objindex_enum {
 	ENTITY_OBJINDEX_CARRIED,
 	ENTITY_OBJINDEX_LOCKERED,
 	ENTITY_OBJINDEX_INCONTAINER,
+	ENTITY_OBJINDEX_LEVEL,
 };
 
 enum entity_tokenindex_enum {
@@ -3062,7 +3068,7 @@ DECL_OPC_FUN(opc_dungeon);
 
 
 /* General */
-void pstat_variable_list(CHAR_DATA *ch, pVARIABLE vars);
+void pstat_variable_list(BUFFER *buffer, pVARIABLE vars);
 
 int script_flag_lookup (const char *name, const struct flag_type *flag_table);
 long script_stat_lookup (const char *name, const struct flag_type *flag_table, const long def_value);
@@ -3905,6 +3911,8 @@ SCRIPT_CMD(scriptcmd_altermob);
 SCRIPT_CMD(scriptcmd_alter);
 SCRIPT_CMD(scriptcmd_shop);
 SCRIPT_CMD(scriptcmd_mail);
+SCRIPT_CMD(scriptcmd_wiznet);
+
 
 bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);
 bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);

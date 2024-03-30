@@ -169,6 +169,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "vforce",				do_rpvforce,			false,	true	},
 	{ "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
 	{ "wiretransfer",		do_rpwiretransfer,		false,	true	},
+	{ "wiznet",				scriptcmd_wiznet,			false,	true    },
 	{ "xcall",				do_rpxcall,				false,	true	},
 	{ "zecho",				do_rpzecho,				false,	true	},
 	{ "zot",				do_rpzot,				true,	true	},
@@ -230,6 +231,8 @@ void do_rpstat(CHAR_DATA *ch, char *argument)
 	ROOM_INDEX_DATA *room;
 	int i, slot;
 	WNUM wnum;
+	BUFFER *output = new_buf();
+
 
 	one_argument(argument, arg);
 
@@ -244,22 +247,22 @@ void do_rpstat(CHAR_DATA *ch, char *argument)
 	}
 
 	sprintf(arg, "Room %ld#%-6ld [%s]\n\r", room->area->uid, room->vnum, room->name);
-	send_to_char(arg, ch);
+	add_buf(output, arg);
 
 	if( !IS_NULLSTR(room->comments) )
 	{
 		sprintf(arg, "Comments:\n\r%s\n\r", room->comments);
-		send_to_char(arg, ch);
+		add_buf(output, arg);
 	}
 
 	sprintf(arg, "Delay   %-6d [%s]\n\r",
 		room->progs->delay,
 		room->progs->target ? room->progs->target->name : "No target");
 
-	send_to_char(arg, ch);
+	add_buf(output, arg);
 
 	if (!room->progs->progs)
-		send_to_char("[No programs set]\n\r", ch);
+		add_buf(output, "[No programs set]\n\r");
 	else
 	for(i = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
 		iterator_start(&it, room->progs->progs[slot]);
@@ -269,13 +272,22 @@ void do_rpstat(CHAR_DATA *ch, char *argument)
 				rprg->wnum.pArea->uid,
 				rprg->wnum.vnum,
 				trigger_phrase(rprg->trig_type,rprg->trig_phrase));
-			send_to_char(arg, ch);
+			add_buf(output, arg);
 		}
 		iterator_stop(&it);
 	}
 
 	if(room->progs->vars)
-		pstat_variable_list(ch, room->progs->vars);
+		pstat_variable_list(output, room->progs->vars);
+
+	if( !ch->lines && strlen(output->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(output->string, ch);
+	}
 }
 
 
@@ -1833,6 +1845,7 @@ SCRIPT_CMD(do_rpmload)
 
 SCRIPT_CMD(do_rpoload)
 {
+	/*
 	char buf[MIL], *rest;
 	long level;
 	bool fWear = false;
@@ -1891,14 +1904,14 @@ SCRIPT_CMD(do_rpoload)
 			if(!(rest = expand_argument(info,argument,arg)))
 				return;
 
-			/*
+			*
 			 * Added 3rd argument
 			 * omitted - load to current room
 			 * MOBILE  - load to target mobile
 			 *         - 'W' automatically wear the item if possible
 			 * OBJECT  - load to target object
 			 * ROOM    - load to target room
-			 */
+			 *
 
 			switch(arg->type) {
 			case ENT_MOBILE:
@@ -1949,6 +1962,9 @@ SCRIPT_CMD(do_rpoload)
 
 	if(rest && *rest) variables_set_object(info->var,rest,obj);
 	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
+	*/
+	script_oload(info,argument,arg, false);
+
 }
 
 SCRIPT_CMD(do_rpotransfer)
@@ -5735,7 +5751,7 @@ SCRIPT_CMD(do_rpsetrecall)
 {
 	char /*buf[MSL],*/ *rest;
 	CHAR_DATA *victim;
-	ROOM_INDEX_DATA *location;
+	ROOM_INDEX_DATA *location, *room;
 //	int amount = 0;
 
 
@@ -5746,16 +5762,20 @@ SCRIPT_CMD(do_rpsetrecall)
 		return;
 	}
 
+	victim = NULL;
+	room = NULL;
+
 	switch(arg->type) {
 	case ENT_STRING:
 		victim = get_char_world(NULL, arg->d.str);
 		break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
-	default: victim = NULL; break;
+	case ENT_ROOM: room = arg->d.room; break;
+	default: victim = NULL; room = NULL; break;
 	}
 
 
-	if (!victim) {
+	if (!victim && !room) {
 		bug("RpSetRecall - Null victim from vnum %ld.", info->room->vnum);
 		return;
 	}
@@ -5767,22 +5787,25 @@ SCRIPT_CMD(do_rpsetrecall)
 		return;
 	}
 
-	if(location->wilds) {
-		victim->recall.wuid = location->wilds->uid;
-		victim->recall.id[0] = location->x;
-		victim->recall.id[1] = location->y;
-		victim->recall.id[2] = location->z;
-	} else {
-		victim->recall.wuid = 0;
-		victim->recall.id[0] = location->vnum;
-		if(location->source) {
-			victim->recall.id[1] = location->id[0];
-			victim->recall.id[2] = location->id[1];
-		} else {
-			victim->recall.id[1] = 0;
-			victim->recall.id[2] = 0;
-		}
+	if (victim)
+	{
+		if(location->wilds)
+			location_set(&victim->recall,location->area,location->wilds->uid,location->x,location->y,location->z);
+		else if(location->source)
+			location_set(&victim->recall,location->area,0,location->vnum,0,0);
+		else
+			location_set(&victim->recall,location->area,0,location->vnum,location->id[0],location->id[1]);
 	}
+
+	if (room)
+	{
+		if(location->wilds)
+			location_set(&room->recall,location->area,location->wilds->uid,location->x,location->y,location->z);
+		else if(location->source)
+			location_set(&room->recall,location->area,0,location->vnum,0,0);
+		else
+			location_set(&room->recall,location->area,0,location->vnum,location->id[0],location->id[1]);
+	}	
 }
 
 // do_rpclearrecall

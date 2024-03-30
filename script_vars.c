@@ -4447,7 +4447,7 @@ bool olc_load_index_vars(FILE *fp, char *word, ppVARIABLE index_vars, AREA_DATA 
 	return false;
 }
 
-void pstat_variable_list(CHAR_DATA *ch, pVARIABLE vars)
+void pstat_variable_list(BUFFER *buffer, pVARIABLE vars)
 {
 	char arg[MSL];
 	pVARIABLE var;
@@ -4476,7 +4476,7 @@ void pstat_variable_list(CHAR_DATA *ch, pVARIABLE vars)
 				if( var->_.r->wilds )
 					sprintf(arg, "Name [%-20s] Type[ROOM  ] Save[%c] Value[%ld <%d,%d,%d>]\n\r", var->name,var->save?'Y':'N',var->_.r->wilds->uid,(int)var->_.r->x,(int)var->_.r->y,(int)var->_.r->z);
 				else if( var->_.r->source )
-					sprintf(arg, "Name [%-20s] Type[ROOM  ] Save[%c] Value[%s (%d %08X:%08X)]\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->source->vnum,(int)var->_.r->id[0],(int)var->_.r->id[1]);
+					sprintf(arg, "Name [%-20s] Type[ROOM  ] Save[%c] Value[%s (%d %9d:%9d)]\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->source->vnum,(int)var->_.r->id[0],(int)var->_.r->id[1]);
 				else
 					sprintf(arg, "Name [%-20s] Type[ROOM  ] Save[%c] Value[%s (%d)]\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->vnum);
 			} else
@@ -4487,7 +4487,7 @@ void pstat_variable_list(CHAR_DATA *ch, pVARIABLE vars)
 				if( var->_.door.r->wilds)
 					sprintf(arg, "Name [%-20s] Type[EXIT  ] Save[%c] Value[%s at %ld <%d,%d,%d>]\n\r", var->name,var->save?'Y':'N',dir_name[var->_.door.door],var->_.door.r->wilds->uid,(int)var->_.door.r->x,(int)var->_.door.r->y,(int)var->_.door.r->z);
 				else if( var->_.door.r->source )
-					sprintf(arg, "Name [%-20s] Type[EXIT  ] Save[%c] Value[%s in %s (%d %08X:%08X)]\n\r", var->name,var->save?'Y':'N',dir_name[var->_.door.door],var->_.door.r->name,(int)var->_.door.r->source->vnum,(int)var->_.door.r->id[0],(int)var->_.door.r->id[1]);
+					sprintf(arg, "Name [%-20s] Type[EXIT  ] Save[%c] Value[%s in %s (%d %9d:%9d)]\n\r", var->name,var->save?'Y':'N',dir_name[var->_.door.door],var->_.door.r->name,(int)var->_.door.r->source->vnum,(int)var->_.door.r->id[0],(int)var->_.door.r->id[1]);
 				else
 					sprintf(arg, "Name [%-20s] Type[EXIT  ] Save[%c] Value[%s in %s (%d)]\n\r", var->name,var->save?'Y':'N',dir_name[var->_.door.door],var->_.door.r->name,(int)var->_.door.r->vnum);
 			} else
@@ -4496,21 +4496,21 @@ void pstat_variable_list(CHAR_DATA *ch, pVARIABLE vars)
 		case VAR_MOBILE:
 			if(var->_.m) {
 				if(IS_NPC(var->_.m))
-					sprintf(arg, "Name [%-20s] Type[MOBILE] Save[%c] Value[%s (%d)] ID[%08X:%08X]\n\r", var->name,var->save?'Y':'N',var->_.m->short_descr,(int)var->_.m->pIndexData->vnum,(int)var->_.m->id[0],(int)var->_.m->id[1]);
+					sprintf(arg, "Name [%-20s] Type[MOBILE] Save[%c] Value[%s (%d)] ID[%9d:%9d]\n\r", var->name,var->save?'Y':'N',var->_.m->short_descr,(int)var->_.m->pIndexData->vnum,(int)var->_.m->id[0],(int)var->_.m->id[1]);
 				else
-					sprintf(arg, "Name [%-20s] Type[PLAYER] Save[%c] Value[%s] ID[%08X:%08X]\n\r", var->name,var->save?'Y':'N',var->_.m->name,(int)var->_.m->id[0],(int)var->_.m->id[1]);
+					sprintf(arg, "Name [%-20s] Type[PLAYER] Save[%c] Value[%s] ID[%9d:%9d]\n\r", var->name,var->save?'Y':'N',var->_.m->name,(int)var->_.m->id[0],(int)var->_.m->id[1]);
 			} else
 				sprintf(arg, "Name [%-20s] Type[MOBILE] Save[%c] Value[-no-mobile-]\n\r", var->name,var->save?'Y':'N');
 			break;
 		case VAR_OBJECT:
 			if(var->_.o)
-				sprintf(arg, "Name [%-20s] Type[OBJECT] Save[%c] Value[%s (%d)] ID[%08X:%08X]\n\r", var->name,var->save?'Y':'N',var->_.o->short_descr,(int)var->_.o->pIndexData->vnum,(int)var->_.o->id[0],(int)var->_.o->id[1]);
+				sprintf(arg, "Name [%-20s] Type[OBJECT] Save[%c] Value[%s (%d)] ID[%9d:%9d]\n\r", var->name,var->save?'Y':'N',var->_.o->short_descr,(int)var->_.o->pIndexData->vnum,(int)var->_.o->id[0],(int)var->_.o->id[1]);
 			else
 				sprintf(arg, "Name [%-20s] Type[OBJECT] Save[%c] Value[-no-object-]\n\r", var->name,var->save?'Y':'N');
 			break;
 		case VAR_TOKEN:
 			if(var->_.t)
-				sprintf(arg, "Name [%-20s] Type[TOKEN ] Save[%c] Value[%s (%d)] ID[%08X:%08X]\n\r", var->name,var->save?'Y':'N',var->_.t->name,(int)var->_.t->pIndexData->vnum,(int)var->_.t->id[0],(int)var->_.t->id[1]);
+				sprintf(arg, "Name [%-20s] Type[TOKEN ] Save[%c] Value[%s (%d)] ID[%9d:%9d]\n\r", var->name,var->save?'Y':'N',var->_.t->name,(int)var->_.t->pIndexData->vnum,(int)var->_.t->id[0],(int)var->_.t->id[1]);
 			else
 				sprintf(arg, "Name [%-20s] Type[TOKEN ] Save[%c] Value[-no-token-]\n\r", var->name,var->save?'Y':'N');
 			break;
@@ -4521,13 +4521,13 @@ void pstat_variable_list(CHAR_DATA *ch, pVARIABLE vars)
 				sprintf(arg, "Name [%-20s] Type[AREA  ] Save[%c] Value[-no-area-]\n\r", var->name,var->save?'Y':'N');
 			break;
 		case VAR_MOBILE_ID:
-			sprintf(arg, "Name [%-20s] Type[MOBILE] Save[%c] Value[???] ID[%08X:%08X]\n\r", var->name,var->save?'Y':'N',(int)var->_.mid.a,(int)var->_.mid.b);
+			sprintf(arg, "Name [%-20s] Type[MOBILE] Save[%c] Value[???] ID[%9d:%9d]\n\r", var->name,var->save?'Y':'N',(int)var->_.mid.a,(int)var->_.mid.b);
 			break;
 		case VAR_OBJECT_ID:
-			sprintf(arg, "Name [%-20s] Type[OBJECT] Save[%c] Value[???] ID[%08X:%08X]\n\r", var->name,var->save?'Y':'N',(int)var->_.oid.a,(int)var->_.oid.b);
+			sprintf(arg, "Name [%-20s] Type[OBJECT] Save[%c] Value[???] ID[%9d:%9d]\n\r", var->name,var->save?'Y':'N',(int)var->_.oid.a,(int)var->_.oid.b);
 			break;
 		case VAR_TOKEN_ID:
-			sprintf(arg, "Name [%-20s] Type[TOKEN ] Save[%c] Value[???] ID[%08X:%08X]\n\r", var->name,var->save?'Y':'N',(int)var->_.tid.a,(int)var->_.tid.b);
+			sprintf(arg, "Name [%-20s] Type[TOKEN ] Save[%c] Value[???] ID[%9d:%9d]\n\r", var->name,var->save?'Y':'N',(int)var->_.tid.a,(int)var->_.tid.b);
 			break;
 		case VAR_BLLIST_MOB: {
 			LLIST *mob_list = var->_.list;
@@ -4542,18 +4542,18 @@ void pstat_variable_list(CHAR_DATA *ch, pVARIABLE vars)
 				iterator_start(&it, mob_list);
 				while(( data = (LLIST_UID_DATA *)iterator_nextdata(&it)))
 				{
-					send_to_char(arg, ch);
+					add_buf(buffer, arg);
 
 					CHAR_DATA *m = (CHAR_DATA *)data->ptr;
 					if(IS_VALID(m))
 					{
 						if( IS_NPC(m) )
-							sprintf(arg,"      - MOBILE[%s (%d)] ID[%08X:%08X]\n\r", m->short_descr, (int)m->pIndexData->vnum, (int)m->id[0],(int)m->id[1]);
+							sprintf(arg,"      - MOBILE[%s (%d)] ID[%9d:%9d]\n\r", m->short_descr, (int)m->pIndexData->vnum, (int)m->id[0],(int)m->id[1]);
 						else
-							sprintf(arg,"      - PLAYER[%s] ID[%08X:%08X]\n\r", m->name, (int)m->id[0], (int)m->id[1]);
+							sprintf(arg,"      - PLAYER[%s] ID[%9d:%9d]\n\r", m->name, (int)m->id[0], (int)m->id[1]);
 					}
 					else
-						sprintf(arg,"      - MOBILE[???] ID[%08X:%08X]\n\r", (int)data->id[0],(int)data->id[1]);
+						sprintf(arg,"      - MOBILE[???] ID[%9d:%9d]\n\r", (int)data->id[0],(int)data->id[1]);
 				}
 				iterator_stop(&it);
 			}
@@ -4575,13 +4575,13 @@ void pstat_variable_list(CHAR_DATA *ch, pVARIABLE vars)
 				iterator_start(&it, obj_list);
 				while(( data = (LLIST_UID_DATA *)iterator_nextdata(&it)))
 				{
-					send_to_char(arg, ch);
+					add_buf(buffer, arg);
 
 					OBJ_DATA *o = (OBJ_DATA *)data->ptr;
 					if(IS_VALID(o))
-						sprintf(arg,"      - OBJECT[%s (%d)] ID[%08X:%08X]\n\r", o->short_descr, (int)o->pIndexData->vnum, (int)o->id[0], (int)o->id[1]);
+						sprintf(arg,"      - OBJECT[%s (%d)] ID[%9d:%9d]\n\r", o->short_descr, (int)o->pIndexData->vnum, (int)o->id[0], (int)o->id[1]);
 					else
-						sprintf(arg,"      - OBJECT[???] ID[%08X:%08X] -empty-\n\r", (int)data->id[0], (int)data->id[1]);
+						sprintf(arg,"      - OBJECT[???] ID[%9d:%9d] -empty-\n\r", (int)data->id[0], (int)data->id[1]);
 				}
 				iterator_stop(&it);
 			}
@@ -4654,7 +4654,7 @@ void pstat_variable_list(CHAR_DATA *ch, pVARIABLE vars)
 			break;
 		}
 
-		send_to_char(arg, ch);
+		add_buf(buffer, arg);
 	}
 
 }

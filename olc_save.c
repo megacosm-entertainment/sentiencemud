@@ -365,6 +365,7 @@ void save_area_new(AREA_DATA *area)
     fprintf(fp, "Uid %ld\n",		area->uid);
     fprintf(fp, "AreaFlags %ld\n", 	area->area_flags);
     fprintf(fp, "Builders %s~\n",      	fix_string(area->builders));
+	fprintf(fp, "Levels %d %d\n", area->min_level, area->max_level);
     fprintf(fp, "WildsVnum %ld\n",	area->wilds_uid);
     fprintf(fp, "Credits %s~\n",	area->credits);
     fprintf(fp, "Security %d\n",       	area->security);
@@ -373,6 +374,8 @@ void save_area_new(AREA_DATA *area)
 	fprintf(fp, "Description %s~\n", fix_string(area->description));
 	if(!IS_NULLSTR(area->comments))
 		fprintf(fp, "Comments %s~\n", fix_string(area->comments));
+	if(area->notes)
+		fprintf(fp, "Notes %s~\n", fix_string(area->notes));
 
 	save_area_region(fp, area, &area->region);
 	ITERATOR rit;
@@ -2398,6 +2401,18 @@ AREA_DATA *read_area_new(FILE *fp)
 	        KEYS("FileName",	area->file_name,	fread_string(fp));
 		break;
 
+		case 'L':
+			if (!str_cmp(word, "Levels")) {
+		    	area->min_level = fread_number(fp);
+		    	area->max_level = fread_number(fp);
+		    	fMatch = TRUE;
+			}
+		break;
+
+		case 'N':
+		KEYS("Notes", area->notes, fread_string(fp));
+		break;
+
 	    case 'O':
 		KEY("Open",		area->open,		fread_number(fp));
 		break;
@@ -2626,7 +2641,7 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 	    case 'R':
 			if(!str_cmp(word, "Recall"))
 			{
-				room->rs_recall.auid = fread_number(fp);
+
 				room->rs_recall.wuid = fread_number(fp);
 				room->rs_recall.id[0] = fread_number(fp);
 				room->rs_recall.id[1] = fread_number(fp);

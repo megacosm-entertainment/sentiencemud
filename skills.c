@@ -2561,7 +2561,7 @@ void check_improve_show( CHAR_DATA *ch, SKILL_DATA *skill, bool success, int mul
 	    sprintf(buf,"{WYou have become better at %s!{x\n\r", skill->name);
 	    send_to_char(buf,ch);
 	    entry->rating++;
-	    //gain_exp(ch, NULL, 2 * skill->difficulty);		// Removed for now
+	    //gain_exp(ch, NULL, 2 * skill->difficulty, true);		// Removed for now
 	}
     }
     else
@@ -2575,7 +2575,7 @@ void check_improve_show( CHAR_DATA *ch, SKILL_DATA *skill, bool success, int mul
 	    send_to_char(buf, ch);
 	    entry->rating += number_range(1,3);
 	    entry->rating = UMIN(entry->rating,100);
-	    //gain_exp(ch, NULL,2 * skill->difficulty);	// Removed for now
+	    //gain_exp(ch, NULL,2 * skill->difficulty, true);	// Removed for now
 	}
     }
 }

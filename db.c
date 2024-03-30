@@ -1903,9 +1903,10 @@ void boot_db(void)
 
 /*    load_sailing_boats();*/
 /*    load_npc_ships();*/
-//    log_string("Doing read_mail");
-//    read_mail();
+    log_string("Doing read_mail");
+    read_mail();
 /*  reset_npc_sailing_boats();*/
+	stats_load_time = current_time;
     load_statistics();
 
     /* set global attributes*/
@@ -2779,6 +2780,17 @@ void area_update(bool fBoot)
 		/* Increment the area's age*/
 		pArea->age++;
 
+
+		p_percent2_trigger(pArea, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL,0,0,0,0,0);
+
+		// Prereckoning
+		if (pre_reckoning > 0 && reckoning_timer > 0)
+			p_percent2_trigger(pArea, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECKONING, NULL,0,0,0,0,0);
+
+		// Reckoning
+		if (!pre_reckoning && reckoning_timer > 0)
+			p_percent2_trigger(pArea, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECKONING, NULL,0,0,0,0,0);
+
 		/* Check area's age and reset if necessary*/
 		if (fBoot || (pArea->age >= pArea->repop || (pArea->repop == 0 && pArea->age > 15) || pArea->age >= 120))
 		{
@@ -2951,6 +2963,10 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 	pRoom->sector = pRoom->rs_sector;
 	if (!pRoom->sector) pRoom->sector = gsct_inside;
 	pRoom->sector_flags = pRoom->sector->flags;
+	if (location_isset(&pRoom->recall))
+	{
+		location_clear(&pRoom->recall);
+	}
 	if (rs_location_isset(&pRoom->rs_recall))
 	{
 		pRoom->recall.area = get_area_from_uid(pRoom->rs_recall.auid);
@@ -4036,6 +4052,10 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
     obj->old_short_descr 	= NULL;
     obj->old_description        = NULL;
     obj->loaded_by      = NULL;
+	obj->script_created = false;
+	obj->created_script_wnum = NULL;
+	obj->created_script_type = 0;
+	obj->creation_time = current_time;
     obj->material	= pObjIndex->material;
     obj->condition	= pObjIndex->condition;
     obj->times_allowed_fixed	= pObjIndex->times_allowed_fixed;
@@ -6852,10 +6872,10 @@ void persist_addmobile(register CHAR_DATA *mob)
 
 void persist_addobject(register OBJ_DATA *obj)
 {
-	log_stringf("persist_addobject: Adding object %ld to persistance.", obj->pIndexData->vnum);
+	//log_stringf("persist_addobject: Adding object %ld to persistance.", obj->pIndexData->vnum);
 
 	if( list_hasdata(persist_objs, obj)) {
-		log_stringf("persist_addobject: Object %ld already in persistance.", obj->pIndexData->vnum);
+		//log_stringf("persist_addobject: Object %ld already in persistance.", obj->pIndexData->vnum);
 		return;
 	}
 
@@ -6865,7 +6885,7 @@ void persist_addobject(register OBJ_DATA *obj)
 			abort();
 	} else {
 		obj->persist = true;
-		log_stringf("persist_addobject: Object %ld flagged as persistant.", obj->pIndexData->vnum);
+		//log_stringf("persist_addobject: Object %ld flagged as persistant.", obj->pIndexData->vnum);
 	}
 }
 
@@ -9659,7 +9679,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 		if( !room ) {
 			room = create_virtual_room_nouid( source, false, false, false );
 			if( !room ) {
-				sprintf(buf, "persist_load_room: could not create clone room for %ld#%ld with uid %08X:%08X.", wnum.auid, wnum.vnum, x, y);
+				sprintf(buf, "persist_load_room: could not create clone room for %ld#%ld with uid %9d:%9d.", wnum.auid, wnum.vnum, x, y);
 				bug(buf,0);
 				return NULL;
 			}

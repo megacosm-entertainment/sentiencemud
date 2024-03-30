@@ -98,6 +98,13 @@ void update_handler(void)
 	save_projects();
 	save_immstaff();
 	save_instances();
+
+	// Load stats every 12 hours.
+	if (current_time >= stats_load_time + 43200) 
+	{
+	    load_statistics();
+		stats_load_time = current_time;
+    }
     }
 
     if (--pulse_auction <= 0)
@@ -348,7 +355,7 @@ void advance_level(CHAR_DATA *ch, bool hide)
 
 
 // Give a character exp
-void gain_exp(CHAR_DATA *ch, CLASS_DATA *clazz, int gain)
+void gain_exp(CHAR_DATA *ch, CLASS_DATA *clazz, int gain, bool show)
 {
 	char buf[MAX_STRING_LENGTH];
 
@@ -362,6 +369,11 @@ void gain_exp(CHAR_DATA *ch, CLASS_DATA *clazz, int gain)
 	// Only update gain IF the value is less than what was originally put in, don't allow scripts to boost the XP at this point.
 	if( ch->tempstore[0] < gain )
 		gain = ch->tempstore[0];
+
+	if (gain > 0 && show) {
+		sprintf(buf, "{BYou receive {C%d {Bexperience points.\n\r{x", gain);
+		send_to_char(buf, ch);
+	}
 
 	if (IS_IMMORTAL(ch)) return;
 
@@ -957,7 +969,7 @@ void mobile_update(void)
 		if( IS_NPC(ch) && IS_SET(ch->act[1], ACT2_HIRED) )
 		{
 			// If hired, check whether their timer has expired OR are no longer grouped (important)
-			if( ch->hired_to > 0 && (current_time < ch->hired_to || ch->leader == NULL) )
+			if( ch->hired_to > 0 && (current_time > ch->hired_to || ch->leader == NULL) )
 			{
 				// CONTRACT_COMPLETE can allow the mob to remain in existence
 				// - when a script gets executed, you need to return a zero to extract the mob
@@ -1794,7 +1806,7 @@ void char_update(void)
 				// Find someone to SLAUGHTER
 				for (player = ch->in_room->people; player != NULL; player = player->next_in_room)
 				{
-					if (player->fighting == NULL && !is_safe(ch, player,false) && player->alignment < 150 && !is_same_group(player,ch))
+					if (player->fighting == NULL && !is_safe(ch, player,false) && player->alignment < 150 && !is_same_group(player,ch) && !IS_IMMORTAL(player))
 						break;
 				}
 
@@ -1911,9 +1923,14 @@ void char_update(void)
 
 			// Fire off deathtraps.
 		    if (IS_SET(ch->in_room->room_flag[0], ROOM_DEATH_TRAP) &&
-		    	!IS_SET(ch->in_room->room_flag[0], ROOM_CHAOTIC)) {		// no chaotic-deathtraps
+		    	!IS_SET(ch->in_room->room_flag[0], ROOM_CHAOTIC)) 
+			{		// no chaotic-deathtraps
+				ROOM_INDEX_DATA *here = ch->in_room;
+				ch->position = POS_STANDING;
+				if(!p_percent_trigger(ch, NULL, NULL, NULL, ch, ch, NULL, NULL, NULL, TRIG_DEATH, NULL,0,0,0,0,0))
+					p_percent_trigger(NULL, NULL, here, NULL, ch, ch, NULL, NULL, NULL, TRIG_DEATH, NULL,0,0,0,0,0);
 					raw_kill(ch, true, false, gcrp_normal, DAM_NONE);
-		    }
+	    	}
 
 			// The enchanted forest saps hit,mana, and move.
 		    if (IS_SET(ch->in_room->sector_flags, SECTOR_SLEEP_DRAIN) && ch->position == POS_SLEEPING)
@@ -2146,11 +2163,11 @@ void obj_update(void)
 						if (list_size(token->affects) < 1)
 							extract_token(token);
 					}
-					/*
+					
 
-					if (paf->type == skill_lookup("third eye"))
+					if (paf->skill == gsk_third_eye)
 					{
-		    			if (obj->pIndexData->vnum == OBJ_VNUM_SKULL)
+		    			if (obj->pIndexData == obj_index_skull)
 		    			{
 							if ((rch = obj->carried_by) != NULL)
 			    			act("$p flares and vanishes.", rch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
@@ -2188,7 +2205,7 @@ void obj_update(void)
 							}
 		    			}
 					}
-					*/
+					
 				}
 			}
 		}
@@ -2775,13 +2792,22 @@ void aggr_update(void)
 			}
 		}
 
-		if(IS_SET(wch->in_room->room_flag[1], ROOM_DRAIN_MANA)) {
-			wch->mana -= number_range(5,15);
-			if(IS_SET(wch->in_room->sector_flags, SECTOR_DRAIN_MANA))
+		chance = 0;
+		if(IS_SET(wch->in_room->room_flag[1], ROOM_DRAIN_MANA)) chance += 16;
+		if (wch->in_room->sector_flags == SECTOR_DRAIN_MANA) chance += 16;
+		if (chance > 0 && number_percent() < chance) {
+
+
+			if(IS_SET(wch->in_room->room_flag[1], ROOM_DRAIN_MANA)) 
+			{
 				wch->mana -= number_range(5,15);
-			if(wch->mana < 0) wch->mana = 0;
-			if(!number_percent())
-				send_to_char("You feel your magical essense slipping away from you.\n\r", wch);
+				if(IS_SET(wch->in_room->sector_flags, SECTOR_DRAIN_MANA))
+					wch->mana -= number_range(5,15);
+				if(wch->mana < 0) 
+					wch->mana = 0;
+				if(number_percent() < 10)
+					send_to_char("You feel your magical essense slipping away from you.\n\r", wch);
+			}
 		}
 
 		chance = 0;

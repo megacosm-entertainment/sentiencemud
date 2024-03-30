@@ -87,7 +87,7 @@ void do_deposit(CHAR_DATA *ch, char *argument)
 
 	    ch->missionpoints += qp;
 	    ch->practice += prac;
-	    gain_exp(ch, NULL, exp);
+	    gain_exp(ch, NULL, exp, true);
 	    ch->silver += silver;
 	    ch->gold += gold;
 	}

@@ -379,7 +379,6 @@ memset(&af,0,sizeof(af));
         while (ch->affected)
             affect_remove(ch, ch->affected);
 
-		REMOVE_BIT(ch->affected_by[0], AFF_INFRARED);
         ch->affected_by[0] = ch->race->aff[0];
         ch->affected_by[1] = ch->race->aff[1];
 
@@ -479,6 +478,7 @@ memset(&af,0,sizeof(af));
 	affect_to_char(ch, &af);
 
 	af.where     = TO_AFFECTS;
+	af.group	 = AFFGROUP_METARACIAL;
 	af.skill     = gsk_haste;
 	af.level     = ch->tot_level * 2;
 	af.duration = -1;
@@ -489,7 +489,8 @@ memset(&af,0,sizeof(af));
 	affect_to_char(ch, &af);
 
 	/* make it worth it */
-        af.where = TO_AFFECTS;
+    af.where = TO_AFFECTS;
+	af.group = AFFGROUP_METARACIAL;
 	af.skill= gsk_regeneration;
 	af.level = ch->tot_level;
 	af.duration = -1;

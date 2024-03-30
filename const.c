@@ -377,7 +377,7 @@ const  struct player_setting_type    pc_set_table[] =
     {	"pursuit",			PLR_PURSUIT,		0,					0,						false,		STAFF_PLAYER,	SETTING_OFF	},
     {	"quiet",			0,					0,					COMM_QUIET,				false,		STAFF_PLAYER,	SETTING_OFF	},
     {	"sacrifice_all",	0,					PLR_SACRIFICE_ALL,	0,						false,		STAFF_PLAYER,	SETTING_OFF	},
-    {	"showdamage",		PLR_SHOWDAMAGE,		0,					0,						false,		STAFF_IMMORTAL,	SETTING_OFF	},
+    {	"showdamage",		PLR_SHOWDAMAGE,		0,					0,						false,		STAFF_PLAYER,	SETTING_OFF	},
     {	"mobile",			PLR_MOBILE,			0,					0,						false,		STAFF_PLAYER,	SETTING_OFF },
     {	"favskills",		0,					PLR_FAVSKILLS,		0,						false,		STAFF_PLAYER,	SETTING_OFF },
 	{	"compass",			0,					PLR_COMPASS,		0,						false,		STAFF_PLAYER,	SETTING_ON},
@@ -4699,6 +4699,19 @@ const struct group_type group_table [MAX_GROUP] =
     }
 };
 #endif
+
+const struct script_type script_type_table[] =
+{
+/* Script Types and their commands */
+	{ PRG_MPROG, "MobProg", "mp"},
+	{ PRG_OPROG, "ObjProg", "op"},
+	{ PRG_RPROG, "RoomProg", "rp"},
+	{ PRG_TPROG, "TokenProg", "tp"},
+	{ PRG_APROG, "AreaProg", "ap"},
+	{ PRG_IPROG, "InstanceProg", "ip"},
+	{ PRG_DPROG, "DungeonProg", "dp"},
+	{ -1, NULL, NULL }
+};
 
 /* MSP sounds (for the future)*/
 const struct sound_type sound_table[] =

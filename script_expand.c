@@ -2551,6 +2551,11 @@ EXPAND_TYPE(mobile)
 		}
 		break;
 
+	case ENTITY_MOB_LEVEL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (IS_VALID(self) && IS_NPC(self)) ? self->tot_level : self->tot_level;
+		break;
+
 	case ENTITY_MOB_INDEX:
 		arg->type = ENT_MOBINDEX;
 		arg->d.mobindex = (self && IS_NPC(self)) ? self->pIndexData : NULL;
@@ -3594,6 +3599,11 @@ EXPAND_TYPE(object)
 	case ENTITY_OBJ_STACHE:
 		arg->type = ENT_PLLIST_OBJ;
 		arg->d.blist = self ? self->lstache : NULL;
+		break;
+
+	case ENTITY_OBJ_LEVEL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = self ? self->level : 0;
 		break;
 
 	case ENTITY_OBJ_VARIABLES:
@@ -4652,6 +4662,14 @@ EXPAND_TYPE(area)
 	case ENTITY_AREA_ISOPEN:
 		arg->type = ENT_BOOLEAN;
 		arg->d.boolean = area ? area->open : false;	// NULL areas are... "closed"
+		break;
+	case ENTITY_AREA_MINLEVEL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = arg->d.area ? arg->d.area->min_level : 0;
+		break;
+	case ENTITY_AREA_MAXLEVEL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = arg->d.area ? arg->d.area->max_level : 0;
 		break;
 
 	case ENTITY_AREA_REGION:
@@ -8068,6 +8086,10 @@ EXPAND_TYPE(mobindex)
 		arg->type = ENT_NUMBER;
 		arg->d.num = mobindex ? mobindex->count : 0;
 		break;
+	case ENTITY_MOBINDEX_LEVEL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = mobindex ? mobindex->level : 0;
+		break;
 
 	default: return NULL;
 	}
@@ -8109,6 +8131,10 @@ EXPAND_TYPE(objindex)
 	case ENTITY_OBJINDEX_INCONTAINER:
 		arg->type = ENT_NUMBER;
 		arg->d.num = objindex ? objindex->incontainer : 0;
+		break;
+	case ENTITY_OBJINDEX_LEVEL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = objindex ? objindex->level : 0;
 		break;
 
 	default: return NULL;

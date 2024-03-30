@@ -94,159 +94,6 @@ const   char    msp_do          [] = { IAC, DO, TELOPT_MSP, '\0' };
 const   char    msp_dont        [] = { IAC, DONT, TELOPT_MSP, '\0' };
 
 
-/*
- * OS-dependent declarations.
- */
-#if	defined(_AIX)
-#include <sys/select.h>
-int	accept		args((int s, struct sockaddr *addr, int *addrlen));
-int	bind		args((int s, struct sockaddr *name, int namelen));
-void	bzero		args((char *b, int length));
-int	getpeername	args((int s, struct sockaddr *name, int *namelen));
-int	getsockname	args((int s, struct sockaddr *name, int *namelen));
-int	gettimeofday	args((struct timeval *tp, struct timezone *tzp));
-int	listen		args((int s, int backlog));
-int	setsockopt	args((int s, int level, int optname, void *optval,
-			    int optlen));
-int	socket		args((int domain, int type, int protocol));
-#endif
-
-#if	defined(apollo)
-#include <unistd.h>
-void	bzero		args((char *b, int length));
-#endif
-
-#if	defined(__hpux)
-int	accept		args((int s, void *addr, int *addrlen));
-int	bind		args((int s, const void *addr, int addrlen));
-void	bzero		args((char *b, int length));
-int	getpeername	args((int s, void *addr, int *addrlen));
-int	getsockname	args((int s, void *name, int *addrlen));
-int	gettimeofday	args((struct timeval *tp, struct timezone *tzp));
-int	listen		args((int s, int backlog));
-int	setsockopt	args((int s, int level, int optname,
- 				const void *optval, int optlen));
-int	socket		args((int domain, int type, int protocol));
-#endif
-
-#if	defined(interactive)
-#include <net/errno.h>
-#include <sys/fnctl.h>
-#endif
-
-#if	defined(linux)
-/*
-    Linux shouldn't need these. If you have a problem compiling, try
-    uncommenting these functions.
-*/
-/*
-int accept    args( ( int s, struct sockaddr *addr, int *addrlen ) );
-int bind    args( ( int s, struct sockaddr *name, int namelen ) );
-int getpeername args( ( int s, struct sockaddr *name, int *namelen ) );
-int getsockname args( ( int s, struct sockaddr *name, int *namelen ) );
-int listen    args( ( int s, int backlog ) );
-*/
-
-int	close		args((int fd));
-/* int	gettimeofday	args((struct timeval *tp, struct timezone *tzp)); */
-/*int	read		args((int fd, char *buf, int nbyte));*/
-int	select		args((int width, fd_set *readfds, fd_set *writefds,
-			    fd_set *exceptfds, struct timeval *timeout));
-int	socket		args((int domain, int type, int protocol));
-/*int	write		args((int fd, char *buf, int nbyte));*/
-#endif
-
-#if	defined(MIPS_OS)
-extern	int		errno;
-#endif
-
-#if	defined(NeXT)
-int	close		args((int fd));
-int	fcntl		args((int fd, int cmd, int arg));
-#if	!defined(htons)
-u_short	htons		args((u_short hostshort));
-#endif
-#if	!defined(ntohl)
-u_long	ntohl		args((u_long hostlong));
-#endif
-int	read		args((int fd, char *buf, int nbyte));
-int	select		args((int width, fd_set *readfds, fd_set *writefds,
-			    fd_set *exceptfds, struct timeval *timeout));
-int	write		args((int fd, char *buf, int nbyte));
-#endif
-
-#if	defined(sequent)
-int	accept		args((int s, struct sockaddr *addr, int *addrlen));
-int	bind		args((int s, struct sockaddr *name, int namelen));
-int	close		args((int fd));
-int	fcntl		args((int fd, int cmd, int arg));
-int	getpeername	args((int s, struct sockaddr *name, int *namelen));
-int	getsockname	args((int s, struct sockaddr *name, int *namelen));
-int	gettimeofday	args((struct timeval *tp, struct timezone *tzp));
-#if	!defined(htons)
-u_short	htons		args((u_short hostshort));
-#endif
-int	listen		args((int s, int backlog));
-#if	!defined(ntohl)
-u_long	ntohl		args((u_long hostlong));
-#endif
-int	read		args((int fd, char *buf, int nbyte));
-int	select		args((int width, fd_set *readfds, fd_set *writefds,
-			    fd_set *exceptfds, struct timeval *timeout));
-int	setsockopt	args((int s, int level, int optname, caddr_t optval,
-
-			    int optlen));
-int	socket		args((int domain, int type, int protocol));
-int	write		args((int fd, char *buf, int nbyte));
-#endif
-
-/* This includes Solaris Sys V as well */
-#if defined(sun)
-int	accept		args((int s, struct sockaddr *addr, int *addrlen));
-int	bind		args((int s, struct sockaddr *name, int namelen));
-void	bzero		args((char *b, int length));
-int	close		args((int fd));
-int	getpeername	args((int s, struct sockaddr *name, int *namelen));
-int	getsockname	args((int s, struct sockaddr *name, int *namelen));
-int	listen		args((int s, int backlog));
-int	read		args((int fd, char *buf, int nbyte));
-int	select		args((int width, fd_set *readfds, fd_set *writefds,
-			    fd_set *exceptfds, struct timeval *timeout));
-
-#if !defined(__SVR4)
-int	gettimeofday	args((struct timeval *tp, struct timezone *tzp));
-
-#if defined(SYSV)
-int setsockopt		args((int s, int level, int optname,
-			    const char *optval, int optlen));
-#else
-int	setsockopt	args((int s, int level, int optname, void *optval,
-			    int optlen));
-#endif
-#endif
-int	socket		args((int domain, int type, int protocol));
-int	write		args((int fd, char *buf, int nbyte));
-#endif
-
-#if defined(ultrix)
-int	accept		args((int s, struct sockaddr *addr, int *addrlen));
-int	bind		args((int s, struct sockaddr *name, int namelen));
-void	bzero		args((char *b, int length));
-int	close		args((int fd));
-int	getpeername	args((int s, struct sockaddr *name, int *namelen));
-int	getsockname	args((int s, struct sockaddr *name, int *namelen));
-int	gettimeofday	args((struct timeval *tp, struct timezone *tzp));
-int	listen		args((int s, int backlog));
-int	read		args((int fd, char *buf, int nbyte));
-int	select		args((int width, fd_set *readfds, fd_set *writefds,
-			    fd_set *exceptfds, struct timeval *timeout));
-int	setsockopt	args((int s, int level, int optname, void *optval,
-			    int optlen));
-int	socket		args((int domain, int type, int protocol));
-int	write		args((int fd, char *buf, int nbyte));
-#endif
-
-
 void show_form_state(CHAR_DATA *ch);
 /* VIZZWILDS */
 void join_world args ((DESCRIPTOR_DATA * d));
@@ -298,13 +145,14 @@ bool		    wizlock;		/* Game is wizlocked		*/
 bool		    newlock;		/* Game is newlocked		*/
 char		    str_boot_time[MAX_INPUT_LENGTH];
 time_t		    current_time;	/* time of this pulse */
+time_t			stats_load_time;
 bool		    MOBtrigger = true;  /* act() switch                 */
 LLIST *loaded_areas;
 
 /*
  * OS-dependent local functions.
  */
-void	game_loop_unix		args((int control));
+void	game_loop		args((int control));
 int	init_socket		args((int port));
 void	init_descriptor		args((int control));
 bool	read_from_descriptor	args((DESCRIPTOR_DATA *d));
@@ -711,7 +559,7 @@ int main(int argc, char **argv)
     #ifdef IMC
     imc_startup( false, -1, false );
     #endif
-    game_loop_unix(control);
+    game_loop(control);
 	list_destroy(conn_players);
 	list_destroy(conn_immortals);
 	list_destroy(conn_online);
@@ -866,7 +714,7 @@ int init_socket(int port)
     return fd;
 }
 
-void game_loop_unix(int control)
+void game_loop(int control)
 {
     static struct timeval null_time;
     struct timeval last_time;
@@ -1295,7 +1143,7 @@ void init_descriptor(int control)
     write_to_buffer(dnew, compress_will, 0);
 
     /* msp: tell the client we support msp */
-    write_to_buffer(dnew, msp_will, 0);
+    //write_to_buffer(dnew, msp_will, 0);
 
     if (help_greeting[0] == '.')
 	write_to_buffer(dnew, help_greeting+1, 0);
@@ -1479,6 +1327,7 @@ void read_from_buffer(DESCRIPTOR_DATA *d)
 	    --k;
 	else if (ISASCII(d->inbuf[i]) && ISPRINT(d->inbuf[i]))
 	    d->incomm[k++] = d->inbuf[i];
+/*
         else if (d->inbuf[i] == (signed char)IAC) {
             if (!memcmp(&d->inbuf[i], compress_do, strlen(compress_do))) {
                 i += strlen(compress_do) - 1;
@@ -1500,6 +1349,7 @@ void read_from_buffer(DESCRIPTOR_DATA *d)
             }
 
         }
+*/
     }
 
     /*
@@ -1806,7 +1656,7 @@ void bust_a_prompt(CHAR_DATA *ch)
        return;
    }
 
-   if (IS_SET(ch->comm,COMM_SOCIAL))
+   if (IS_SOCIAL(ch))
    {
        if (ch->in_room->chat_room != NULL)
        {
@@ -2151,8 +2001,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 	long playernum;
 	HELP_DATA *help;
 	long vector, *field;
-    char strsave[MAX_INPUT_LENGTH];
-    FILE *fp;
+
 
 	while (ISSPACE(*argument))
 		argument++;
@@ -2175,15 +2024,6 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		argument[0] = UPPER(argument[0]);
 		if (!check_parse_name(argument)) {
 			write_to_buffer(d, "Illegal name, try another.\n\rName: ", 0);
-			return;
-		}
-
-		/* Ban old names -- Gairun - 20111219 */
-		sprintf(strsave, "%s%c/%s", OLD_PLAYER_DIR, tolower(argument[0]), capitalize(argument));
-		if ((fp = fopen(strsave, "r")) != NULL)
-		{
-			fclose(fp);
-			write_to_buffer(d, "Old names are not allowed.\n\rName: ", 0);
 			return;
 		}
 
@@ -2296,9 +2136,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		break;
 
 	case CON_GET_OLD_PASSWORD:
-#if defined(unix)
 		write_to_buffer(d, "\n\r", 2);
-#endif
 		if (ch->pcdata->pwd_vers < 1)
 		{
 			if (strcmp(crypt(argument, ch->pcdata->pwd), ch->pcdata->pwd))
@@ -2511,9 +2349,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		break;
 
 	case CON_GET_NEW_PASSWORD:
-#if defined(unix)
 		write_to_buffer(d, "\n\r", 2);
-#endif
 		if (!acceptablePassword(d, argument))
 			return;
 
@@ -2529,9 +2365,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		break;
 
 	case CON_CONFIRM_NEW_PASSWORD:
-#if defined(unix)
 		write_to_buffer(d, "\n\r", 2);
-#endif
 
 		if (strcmp(sha256_crypt(argument), ch->pcdata->pwd))
 		{

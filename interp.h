@@ -687,3 +687,7 @@ DECLARE_DO_FUN( do_corpseshow );
 DECLARE_DO_FUN( do_cmdlist );
 DECLARE_DO_FUN( do_cmdedit  );
 DECLARE_DO_FUN( do_cmdshow  );
+
+DECLARE_DO_FUN( do_area     );
+DECLARE_DO_FUN( do_areas    );
+DECLARE_DO_FUN( do_reloadstats );

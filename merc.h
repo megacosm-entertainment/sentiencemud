@@ -184,6 +184,12 @@ struct sound_type {
     char *tag;
 };
 
+struct script_type {
+    int type;
+    char *prog_type;
+    char *prog_command;
+};
+
 /* Combat */
 #define         SOUND_HIT_1		0
 #define         SOUND_HIT_2		1
@@ -3611,6 +3617,8 @@ enum {
 #define AREA_KEEP_LIVE      (X)     // Area's live data will not be overwritten when the area resets
 #define AREA_PERSIST        (Y)     // Area's live data will save to persist data
 #define AREA_NO_SAVE		(Z)
+#define AREA_SOCIAL         (aa)    // Area is meant for socializing.
+#define AREA_HOUSING        (bb)    // Area is meant for housing.
 
 /*
  * Sector types.
@@ -3940,6 +3948,9 @@ struct world_data
 #define PLR_NOLORE			(I)
 #define PLR_HOLYPERSONA     (J)
 #define PLR_COMPASS         (K)
+#define PLR_AUTOAFK         (L)
+#define PLR_HIDE_IDLE       (M)
+#define PLR_SHOW_TIMESTAMPS (N)
 
 #define COMM_QUIET              (A)
 #define COMM_NOMUSIC           	(B)
@@ -3949,7 +3960,7 @@ struct world_data
 #define COMM_NOANNOUNCE         (F)
 #define COMM_NOHELPER           (G)
 #define COMM_NOCT				(H)
-#define COMM_SOCIAL				(I)
+#define COMM_SOCIAL				(I) // Deprecated in favour of checking current location with IS_SOCIAL
 #define COMM_NOTIFY				(J)
 #define COMM_NOHINTS			(K)
 #define COMM_COMPACT			(L)
@@ -4181,9 +4192,19 @@ struct mail_data
     char 	*sender; 	/* who sent it */
     char 	*recipient; 	/* who receives it */
     time_t 	sent_date; 	/* when sent */
+    time_t 	expire_date; 	/* when it expires */
+    time_t  deliver_date; 	/* when it will be delivered */
     char 	*message; 	/* message included */
     bool	picked_up;	/* has it been picked up ? */
-    bool    scripted;
+    bool    scripted; // Has the mail been scripted?
+    bool    return_service; // Should the mail be returned if not picked up?
+    bool    timestamp_expiration;   // Should the mail use timestamp instead of status for expiration?
+    long    collect_script; // Script to run when the mail is collected
+    long    expire_script; // Script to run when the mail expires
+    char    *originating_script; // Script that sent the mail, if any.
+    int     orig_script_type; // Type of script that sent the mail, if any.
+    long    from_location; // Origination point for the mail, vnum
+    long    to_location; // Destination point for the mail, vnum
     int		status;		/* for keeping track of the mail is */
 };
 
@@ -6487,6 +6508,10 @@ struct	obj_data
     char *		old_description;
     char *		old_full_description;
     char *		loaded_by;
+	bool        script_created;
+	char        *created_script_wnum;
+	int         created_script_type;
+    time_t      creation_time;
     int			item_type;
     long        extra[4];
 //    long		extra_flags;
@@ -6749,12 +6774,15 @@ struct area_data {
 	char *credits;
     char *  description;
     char *  comments;
+    char *  notes;
 	int16_t age;
 	int16_t nplayer;
 	int16_t low_range;
 	int16_t high_range;
 	long min_vnum;              // Deprecated
 	long max_vnum;              // Deprecated
+    int16_t min_level;
+    int16_t max_level;
 	bool empty;
 	char *builders;
 	long anum;
@@ -8338,6 +8366,7 @@ enum trigger_index_enum {
 	TRIG_ANIMATE,
     TRIG_APPLY_AFFECT,
 	TRIG_ASSIST,
+    TRIG_ATTACK,
 	TRIG_ATTACK_BACKSTAB,
 	TRIG_ATTACK_BASH,
 	TRIG_ATTACK_BEHEAD,
@@ -9676,7 +9705,7 @@ extern int16_t grn_unique;
 		(!IS_SET((ch)->in_room->room_flag[0],ROOM_INDOORS) && \
             !IS_SET((ch)->in_room->sector_flags, SECTOR_INDOORS)) )
 
-#define IS_SOCIAL(ch)	  (IS_SET((ch)->comm, COMM_SOCIAL))
+#define IS_SOCIAL(ch)	  (IS_SET((ch)->in_room->area->area_flags, AREA_SOCIAL))
 #define IS_PK(ch)         (((ch)->church != NULL &&     \
 			   (ch)->church->pk == true ) || IS_SET((ch)->act[0],PLR_PK))
 #define ON_MISSION(ch)          ( list_size( (ch)->missions ) > 1 )
@@ -9760,7 +9789,7 @@ extern int16_t grn_unique;
 #define SHIP_STATE(ch, npulse)  ((ch)->ship_move = UMAX((ch)->ship_move, (npulse)))
 #define SHIP_ATTACK_STATE(ch, npulse)  ((ch)->ship_attack = UMAX((ch)->ship_attack, (npulse)))
 #define REVERIE_STATE(ch, npulse)  ((ch)->reverie = UMAX((ch)->reverie, (npulse)))
-#define COIN_WEIGHT(ch) 	((ch)->gold/200 + (ch)->silver/800)
+#define COIN_WEIGHT(ch) 	((ch)->gold/300 + (ch)->silver/800)
 #define get_carry_weight(ch)	((ch)->carry_weight + COIN_WEIGHT(ch))
 #define PULLING_CART(ch) \
 		((!IS_NPC(ch) && ch->pulled_cart) ? ch->pulled_cart : NULL)
@@ -9964,6 +9993,7 @@ extern	const	struct	rep_type	rating_table	[];
 extern	const	struct	sound_type	sound_table	[];
 extern  const   struct  toxin_type      toxin_table     [MAX_TOXIN];
 extern  const   struct  herb_type       herb_table      [MAX_HERB];
+extern const    struct  script_type     script_type_table [];
 extern  	struct  boost_type	boost_table	[];
 extern  STAT_DATA		stat_table	[10];
 extern  IMMORTAL_DATA *immortal_groups[MAX_IMMORTAL_GROUPS];
@@ -9991,6 +10021,7 @@ extern		bool			logAll;
 extern		char			bug_buf		[];
 extern		char			log_buf		[];
 extern		time_t			current_time;
+extern      time_t          stats_load_time;
 extern          SCRIPT_DATA       *     mprog_list;
 extern          SCRIPT_DATA       *     oprog_list;
 extern          SCRIPT_DATA       *     rprog_list;
@@ -10016,62 +10047,6 @@ extern		long			charSpace;
 extern		IMMORTAL_DATA		*immortal_list;
 extern		IMMORTAL_DATA		*unassigned_immortal_list;
 
-
-/*
- * OS-dependent declarations.
- * These are all very standard library functions,
- *  but some systems have incomplete or non-ansi header files.
- */
-#if	defined(linux)
-char *	crypt		args( ( const char *key, const char *salt ) );
-#endif
-
-#if	defined(MIPS_OS)
-char *	crypt		args( ( const char *key, const char *salt ) );
-#endif
-
-#if	defined(NeXT)
-char *	crypt		args( ( const char *key, const char *salt ) );
-#endif
-
-#if	defined(sequent)
-char *	crypt		args( ( const char *key, const char *salt ) );
-int	fclose		args( ( FILE *stream ) );
-int	fprintf		args( ( FILE *stream, const char *format, ... ) );
-int	fread		args( ( void *ptr, int size, int n, FILE *stream ) );
-int	fseek		args( ( FILE *stream, long offset, int ptrname ) );
-void	perror		args( ( const char *s ) );
-int	ungetc		args( ( int c, FILE *stream ) );
-#endif
-
-#if	defined(sun)
-char *	crypt		args( ( const char *key, const char *salt ) );
-int	fclose		args( ( FILE *stream ) );
-int	fprintf		args( ( FILE *stream, const char *format, ... ) );
-#if	defined(SYSV)
-siz_t	fread		args( ( void *ptr, size_t size, size_t n,
-			    FILE *stream) );
-#elif !defined(__SVR4)
-int	fread		args( ( void *ptr, int size, int n, FILE *stream ) );
-#endif
-int	fseek		args( ( FILE *stream, long offset, int ptrname ) );
-void	perror		args( ( const char *s ) );
-int	ungetc		args( ( int c, FILE *stream ) );
-#endif
-
-#if	defined(ultrix)
-char *	crypt		args( ( const char *key, const char *salt ) );
-#endif
-
-/*
- * The crypt(3) function is not available on some operating systems.
- * In particular, the U.S. Government prohibits its export from the
- *   United States to foreign countries.
- * Turn on NOCRYPT to keep passwords in plain text.
- */
-#if	defined(NOCRYPT)
-#define crypt(s1, s2)	(s1)
-#endif
 
 
 /*
@@ -10938,6 +10913,7 @@ int use_catalyst_here(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int amount,bo
 int use_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int amount,bool show);
 void move_cart(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool delay);
 void visit_rooms(ROOM_INDEX_DATA *room, VISIT_FUNC *func, int depth, void *argv[], int argc, bool closed);
+bool check_social_status(CHAR_DATA *ch);
 
 /* help.c */
 HELP_DATA *find_helpfile( char *keyword, HELP_CATEGORY *hcat );
@@ -11122,7 +11098,7 @@ RID *	room_by_name	args( ( char *target, int level, bool error) );
 /* update.c */
 void	healing_locket_update args( ( CHAR_DATA *ch ) );
 void	advance_level	args( ( CHAR_DATA *ch, bool hide ) );
-void	gain_exp	args( ( CHAR_DATA *ch, CLASS_DATA *clazz, int gain ) );
+void	gain_exp	args( ( CHAR_DATA *ch, CLASS_DATA *clazz, int gain, bool show ) );
 void	gain_condition	args( ( CHAR_DATA *ch, int iCond, int value ) );
 void	update_handler	args( ( void ) );
 void    pneuma_relic_update args( ( void ) );
@@ -11174,6 +11150,7 @@ char	*olc_ed_vnum	args( ( CHAR_DATA *ch ) );
 int olc_ed_tabs(CHAR_DATA *ch);
 void olc_set_editor(CHAR_DATA *ch, int editor, void *data);
 void olc_show_item(CHAR_DATA *ch, void *data, OLC_FUN *show_fun, char *argument);
+char    *olc_show_script_status args( ( SCRIPT_DATA *prog, int type ) );
 int calc_obj_armour args ( (int level, int type, int strength) );
 void set_weapon_dice( OBJ_INDEX_DATA *objIndex );
 void set_weapon_dice_obj( OBJ_DATA *obj );
@@ -11194,6 +11171,7 @@ void use_imp_sig( MOB_INDEX_DATA *mob, OBJ_INDEX_DATA *obj );
 AREA_DATA *get_vnum_area( long vnum );
 bool rp_change_exit args( ( ROOM_INDEX_DATA *pRoom, char *argument, int door));
 int get_armour_strength(char *argument);
+void display_resets(CHAR_DATA *ch);
 
 /* olc_act2.c */
 char *condition_type_to_name ( int type );
@@ -11531,11 +11509,13 @@ bool area_has_write_access(CHAR_DATA *ch, AREA_DATA *area);
 
 ROOM_INDEX_DATA *location_to_room(LOCATION *loc);
 void location_from_room(LOCATION *loc,ROOM_INDEX_DATA *room);
-ROOM_INDEX_DATA *get_recall_room(CHAR_DATA *ch);
+ROOM_INDEX_DATA *get_recall_room(CHAR_DATA *ch, bool death);
 void location_clear(LOCATION *loc);
 void location_set(LOCATION *loc, AREA_DATA *area, unsigned long a, unsigned long b, unsigned long c, unsigned long d);
 bool location_isset(LOCATION *loc);
 bool rs_location_isset(RS_LOCATION *loc);
+void rs_location_clear(RS_LOCATION *loc);
+void rs_location_set(RS_LOCATION *loc, unsigned long a, unsigned long b, unsigned long c, unsigned long d);
 
 void strip_newline(char *buf, bool append);
 
@@ -11760,6 +11740,8 @@ void detach_instances_player(CHAR_DATA *ch);
 bool is_area_unlocked(CHAR_DATA *ch, AREA_DATA *area);
 bool is_room_unlocked(CHAR_DATA *ch, ROOM_INDEX_DATA *room);
 void player_unlock_area(CHAR_DATA *ch, AREA_DATA *area);
+void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer);
+
 
 
 SHIP_INDEX_DATA *read_ship_index(FILE *fp, AREA_DATA *area);
@@ -12311,6 +12293,25 @@ extern LLIST *gc_tokens;
 extern int disconnect_timeout;
 extern int limbo_timeout;
 extern int top_trigger_type;
+
+/*
+ Introducing some variables to keep compiler from complaining. These are used in do_version.
+*/
+#ifndef BUILD_NUMBER
+#define BUILD_NUMBER "UNKNOWN"
+#endif
+
+#ifndef COMMIT
+#define COMMIT "UNKNOWN"
+#endif
+
+#ifndef VERSION
+#define VERSION "UNKNOWN"
+#endif
+
+#ifndef BUILD_DATE
+#define BUILD_DATE "UNKNOWN"
+#endif
 
 REPUTATION_INDEX_DATA *load_reputation_index(FILE *fp, AREA_DATA *area);
 void save_reputation_indexes(FILE *fp, AREA_DATA *pArea);

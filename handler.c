@@ -2101,6 +2101,7 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
     if (ch->in_room->chat_room != NULL)
 	ch->in_room->chat_room->curr_people++;
 
+/*
     if (!str_cmp(ch->in_room->area->name, "Elysium")
     && !IS_SOCIAL(ch))
 	SET_BIT(ch->comm, COMM_SOCIAL);
@@ -2108,7 +2109,7 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
     if (str_cmp(ch->in_room->area->name, "Elysium")
     && IS_SOCIAL(ch))
 	REMOVE_BIT(ch->comm, COMM_SOCIAL);
-
+*/
 	DUNGEON *dungeon = NULL;
 	if( IS_VALID(pRoomIndex->instance_section) && IS_VALID(pRoomIndex->instance_section->instance) )
 	{
@@ -4408,7 +4409,7 @@ int get_obj_weight(OBJ_DATA *obj)
 /* return weight of x silver and y gold */
 int get_weight_coins(long silver, long gold)
 {
-    return silver/50 + gold/30;
+    return silver/800 + gold/300;
 }
 
 
@@ -4770,7 +4771,10 @@ char *upper_first(char *arg)
     if (*arg == '\n')
 	return arg;
     else
-	if (*arg == '{')
+	if (*arg == COLOUR_CHAR && *(arg + 1) == '[')
+		*(arg + 7) = UPPER(*(arg + 7));
+	else
+	if (*arg == COLOUR_CHAR)
 	    *(arg + 2) = UPPER(*(arg + 2));
 	else
 	    *arg = UPPER(*arg);
@@ -9661,7 +9665,7 @@ void location_from_room(LOCATION *loc, ROOM_INDEX_DATA *room)
 }
 
 
-ROOM_INDEX_DATA *get_recall_room(CHAR_DATA *ch)
+ROOM_INDEX_DATA *get_recall_room(CHAR_DATA *ch, bool death)
 {
 	ROOM_INDEX_DATA *loc;
 
@@ -9672,8 +9676,11 @@ ROOM_INDEX_DATA *get_recall_room(CHAR_DATA *ch)
 	// Do not reset the recall point here, as it may have been set by other means.
 	// Simply call the recall triggers to see if they MODIFY it.
 
-	if(!p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECALL, NULL,0,0,0,0,0))
-		p_percent_trigger(NULL, NULL, ch->in_room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECALL, NULL,0,0,0,0,0);
+	if (!death)
+	{
+		if(!p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECALL, NULL,0,0,0,0,0))
+			p_percent_trigger(NULL, NULL, ch->in_room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECALL, NULL,0,0,0,0,0);
+	}
 
 	loc = location_to_room(&ch->recall);
 	memset(&ch->recall,0,sizeof(LOCATION));
@@ -9713,7 +9720,27 @@ void location_clear(LOCATION *loc)
 
 void location_set(LOCATION *loc, AREA_DATA *area, unsigned long a, unsigned long b, unsigned long c, unsigned long d)
 {
-	loc->area = area;
+	loc->wuid = a;
+	loc->id[0] = b;
+	loc->id[1] = c;
+	loc->id[2] = d;
+
+	// if a != 0, then <b,c,d> is the xyz location on wilderness 'a'
+	// if a == 0 and b != 0 and c:d == 0, then is the static room 'b'
+	// if a == 0 and b != 0 and c:d != 0, then is the clone of room 'b' with id c:d
+	// if a == 0 and b == 0, then it is nowhere
+}
+
+void rs_location_clear(RS_LOCATION *loc)
+{
+	loc->wuid = 0;
+	loc->id[0] = 0;
+	loc->id[1] = 0;
+	loc->id[2] = 0;
+}
+
+void rs_location_set(RS_LOCATION *loc, unsigned long a, unsigned long b, unsigned long c, unsigned long d)
+{
 	loc->wuid = a;
 	loc->id[0] = b;
 	loc->id[1] = c;
@@ -10691,4 +10718,16 @@ bool token_should_save(TOKEN_DATA *token)
 	//if (token->affect) return false;
 
 	return true;
+}
+
+
+bool check_social_status(CHAR_DATA *ch)
+{
+	if (IS_SOCIAL(ch))
+	{
+		send_to_char("You can't do that while socializing.\n\r", ch);
+		return true;
+	}
+
+	return false;
 }

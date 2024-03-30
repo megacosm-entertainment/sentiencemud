@@ -563,7 +563,7 @@ char *act_bit_name( int act_type, long act_flags )
 		if (act_flags & ACT_MAGE	) strcat(buf, " mage");
 		if (act_flags & ACT_THIEF	) strcat(buf, " thief");
 		if (act_flags & ACT_WARRIOR	) strcat(buf, " warrior");
-		if (act_flags & ACT_NOPURGE	) strcat(buf, " no_purge");
+		if (act_flags & ACT_NOPURGE	) strcat(buf, " nopurge");
 		if (act_flags & ACT_IS_BANKER   ) strcat(buf, " banker");
 		if (act_flags & ACT_IS_RESTRINGER) strcat(buf, " restringer");
 		if (act_flags & ACT_IS_CHANGER  ) strcat(buf, " changer");
@@ -621,6 +621,9 @@ char *act_bit_name( int act_type, long act_flags )
 		if (act_flags & PLR_NOLORE		) strcat(buf, " no_lore");
 		if (act_flags & PLR_HOLYPERSONA	) strcat(buf, " holy_persona");
         if (act_flags & PLR_COMPASS     ) strcat(buf, " compass");
+        if (act_flags & PLR_AUTOAFK     ) strcat(buf, " autoafk");
+        if (act_flags & PLR_HIDE_IDLE   ) strcat(buf, " hide_idle");
+        if (act_flags & PLR_SHOW_TIMESTAMPS   ) strcat(buf, " show_timestamps");
 		break;
 	}
     return ( buf[0] != '\0' ) ? buf+1 : "none";
