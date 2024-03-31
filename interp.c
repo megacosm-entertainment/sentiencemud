@@ -1462,13 +1462,14 @@ void interpret( CHAR_DATA *ch, char *argument )
 
 	if (!selected_command->enabled && found)
 	{
-		sprintf(buf,"%s is currently disabled.\n\r",selected_command->name);
+		sprintf(buf,"%s is currently disabled.\n\r", selected_command->name);
 		send_to_char(buf,ch);
 		if (!IS_NULLSTR(selected_command->reason))
 		{
-			sprintf(buf,"Reason: %s\n\r",selected_command->reason);
+			sprintf(buf,"{RReason: {X%s{X\n\r",selected_command->reason);
 			send_to_char(buf,ch);
 		}
+		return;
 	}
 
     // Check stuff relevant to interpretation.
@@ -2242,15 +2243,18 @@ void do_wizhelp( CHAR_DATA *ch, char *argument )
 	if (argument[0] != '\0')
 	{
 		cmdtype = flag_value(command_types, argument);
-		sprintf(buf, "{B*{G*{B* {XFiltering for {W{+%s{X commands {B*{G*{B*{X\n\r", command_types[cmdtype].name);
-		send_to_char(buf,ch);
-	}
 
 		if (cmdtype == NO_FLAG)
 		{
 			send_to_char("Invalid command type.\n\r", ch);
 			return;
 		}
+		
+		sprintf(buf, "{B*{G*{B* {XFiltering for {W{+%s{X commands {B*{G*{B*{X\n\r", command_types[cmdtype].name);
+		send_to_char(buf,ch);
+	}
+
+
 
 	
 	for ( rank = STAFF_IMMORTAL; rank <= get_staff_rank(ch); rank++ )
