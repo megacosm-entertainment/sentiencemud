@@ -8132,6 +8132,9 @@ struct skill_data
     char *	name;                       // Name of skill
     char *  display;                    // Display name, usually the same as the skill name
 
+    STRING_DATA *help_keywords; // Helpfile topics for this command.
+    char        *summary;       // Used for MXP hints, quick one-liner about command.
+    
     long flags;
 
     int16_t	skill_level[MAX_CLASS];	/* Level needed by class	*/

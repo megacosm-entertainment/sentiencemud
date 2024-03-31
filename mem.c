@@ -7274,6 +7274,9 @@ SKILL_DATA *new_skill_data()
     data->name = str_dup("");
     data->display = str_dup("");
 
+    data->summary = str_dup("");
+    data->help_keywords = NULL;
+
     data->levels = list_createx(false, NULL, delete_skill_class_level);
     data->difficulty = 1;
     data->primary_stat = STAT_NONE;
@@ -7326,6 +7329,9 @@ void free_skill_data(SKILL_DATA *data)
     free_string(data->msg_disp);
     free_string(data->msg_obj);
     free_string(data->msg_off);
+
+    if (data->help_keywords)
+        free_string(data->help_keywords->string);
 
     list_destroy(data->levels);
 
@@ -8292,7 +8298,7 @@ void free_cmd(CMD_DATA *cmd)
 
     free_string(cmd->name);
     if (cmd->help_keywords)
-        free_string_data(cmd->help_keywords);
+        free_string(cmd->help_keywords->string);
     free_string(cmd->description);
     free_string(cmd->comments);
     if (cmd->reason)

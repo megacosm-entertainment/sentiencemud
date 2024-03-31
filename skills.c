@@ -221,6 +221,17 @@ void save_skill(FILE *fp, SKILL_DATA *skill)
 
 	fprintf(fp, "Flags %s\n", print_flags(skill->flags));
 
+    if (skill->help_keywords != NULL && !IS_NULLSTR(skill->help_keywords->string))
+	{
+	    fprintf(fp, "HelpKeywords %s~\n", skill->help_keywords->string);
+	}
+
+    if (!IS_NULLSTR(skill->summary))
+	{
+        fprintf(fp, "Summary %s~\n", skill->summary);
+	}
+
+
 	if (skill->token)
 	{
 		// Tokens use triggers instead of the special functions
@@ -614,6 +625,18 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 					break;
 				}
 				break;
+            case 'H':
+                if (!str_cmp(word, "HelpKeywords"))
+                {
+		            STRING_DATA *help;
+
+                    help = new_string_data();
+		            help->string = fread_string(fp);
+			        skill->help_keywords = help;
+                        fMatch = true;
+                        break;
+                }
+                break;
 			
 			case 'I':
 				if (!str_cmp(word, "ImbueFunc"))
@@ -871,6 +894,7 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 					fMatch = true;
 					break;
 				}
+                KEY("Summary", skill->summary, fread_string(fp));
 				break;
 
 			case 'T':
@@ -2258,6 +2282,7 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
 	bool found = false;
 	bool favonly = false;
 	char buf[MAX_STRING_LENGTH];
+	char mxp_str[1000];
 	char arg[MSL];
 	int i;
 	char color, *name;
@@ -2329,7 +2354,7 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
 		}
 	} else {
 		char min_mana[MIL];
-		char eff_name[MIL];
+		char eff_name[1024];
 		for(entry = ch->sorted_skills; entry; entry = entry->next) {
 			if( favonly && !IS_SET(entry->flags, SKILL_FAVOURITE) ) continue;
 
@@ -2351,7 +2376,16 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
 
 				color = ( IS_IMMORTAL(ch) && IS_VALID(entry->token) ) ? 'G' : 'Y';
 
-				sprintf(eff_name, "{%c%s", color, name);
+				if ((entry->skill->help_keywords != NULL && str_cmp(entry->skill->help_keywords->string, "(null)") && lookup_help_exact(entry->skill->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL) && !IS_NULLSTR(entry->skill->summary))
+					sprintf(mxp_str, "\t<send href=\"help #%d|help #%d\" hint=\"%s|View '%s' helpfile\">%s\t</send>%s", lookup_help_exact(entry->skill->help_keywords->string,get_staff_rank(ch),topHelpCat)->index, lookup_help_exact(entry->skill->help_keywords->string,get_staff_rank(ch),topHelpCat)->index, entry->skill->summary, name, name, pad_string(name, 26, NULL, NULL));
+				else if ((entry->skill->help_keywords != NULL && str_cmp(entry->skill->help_keywords->string, "(null)") && lookup_help_exact(entry->skill->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL ) && IS_NULLSTR(entry->skill->summary))
+					sprintf(mxp_str, "\t<send href=\"help #%d|help #%d\" hint=\"|View '%s' helpfile\">%s\t</send>%s", lookup_help_exact(entry->skill->help_keywords->string,get_staff_rank(ch),topHelpCat)->index, lookup_help_exact(entry->skill->help_keywords->string,get_staff_rank(ch),topHelpCat)->index, name, name, pad_string(name, 26, NULL, NULL));
+				else if ((entry->skill->help_keywords == NULL || !str_cmp(entry->skill->help_keywords->string, "(null)") || lookup_help_exact(entry->skill->help_keywords->string,get_staff_rank(ch),topHelpCat) == NULL) && !IS_NULLSTR(entry->skill->summary))
+					sprintf(mxp_str, "\t<send href=\"\" hint=\"%s\">%s\t</send>%s", entry->skill->summary, name, pad_string(name, 26, NULL, NULL));
+				else
+					sprintf(mxp_str, "%s%s", name, pad_string(name, 26, NULL, NULL));
+
+				sprintf(eff_name, "{%c%-26s", color, mxp_str);
 
 				// Don't have it yet
 				if( show_spells ) {
@@ -2361,47 +2395,47 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
 						strcpy(min_mana, "---");
 
 					if( level < 0 )
-						sprintf(buf, " %3d     %-8s %-26s    {xUnlocks at {W%d", i, min_mana, eff_name, -level);
+						sprintf(buf, " %3d     %-8s %-s    {xUnlocks at {W%d", i, min_mana, eff_name, -level);
 					else {
 						rating = skill + mod;
 						rating = URANGE(0,rating,100);
 
 						if( rating >= 100 ) {	// MASTER
 							if( mod )
-								sprintf(buf, " %3d     %-8s %-26s    {MMaster {W(%+d%%)", i, min_mana, eff_name, mod);
+								sprintf(buf, " %3d     %-8s %-s    {MMaster {W(%+d%%)", i, min_mana, eff_name, mod);
 							else
-								sprintf(buf, " %3d     %-8s %-26s    {MMaster", i, min_mana, eff_name);
+								sprintf(buf, " %3d     %-8s %-s    {MMaster", i, min_mana, eff_name);
 						} else if( mod )
 							if ( show_learn_amount )
-								sprintf(buf, " %3d     %-8s %-26s    {G%d%% {W(%+d%%) {C- Gain %d%% per prac{X", i, min_mana, eff_name, rating, mod, learn);
+								sprintf(buf, " %3d     %-8s %-s    {G%d%% {W(%+d%%) {C- Gain %d%% per prac{X", i, min_mana, eff_name, rating, mod, learn);
 							else
-								sprintf(buf, " %3d     %-8s %-26s    {G%d%% {W(%+d%%)", i, min_mana, eff_name, rating, mod);
+								sprintf(buf, " %3d     %-8s %-s    {G%d%% {W(%+d%%)", i, min_mana, eff_name, rating, mod);
 						else if ( show_learn_amount )
-							sprintf(buf, " %3d     %-8s %-26s    {G%d%% {C- Gain %d%% per prac{X", i, min_mana,  eff_name, rating, learn);
+							sprintf(buf, " %3d     %-8s %-s    {G%d%% {C- Gain %d%% per prac{X", i, min_mana,  eff_name, rating, learn);
 						else
-							sprintf(buf, " %3d     %-8s %-26s    {G%d%%", i, min_mana,  eff_name, rating);
+							sprintf(buf, " %3d     %-8s %-s    {G%d%%", i, min_mana,  eff_name, rating);
 					}
 				} else {
 					if( level < 0 )
-						sprintf(buf, " %3d     %-26s    {xUnlocks at {W%d", i, eff_name, -level);
+						sprintf(buf, " %3d     %-s    {xUnlocks at {W%d", i, eff_name, -level);
 					else {
 						rating = skill + mod;
 						rating = URANGE(0,rating,100);
 
 						if( rating >= 100 ) {	// MASTER
 							if( mod )
-								sprintf(buf, " %3d     %-26s    {MMaster {W(%+d%%)", i, eff_name, mod);
+								sprintf(buf, " %3d     %-s    {MMaster {W(%+d%%)", i, eff_name, mod);
 							else
-								sprintf(buf, " %3d     %-26s    {MMaster", i, eff_name);
+								sprintf(buf, " %3d     %-s    {MMaster", i, eff_name);
 						} else if( mod )
 							if (show_learn_amount )
-								sprintf(buf, " %3d     %-26s    {G%d%% {W(%+d%%) {C- Gain %d%% per prac{X", i, eff_name, rating, mod, learn);
+								sprintf(buf, " %3d     %-s    {G%d%% {W(%+d%%) {C- Gain %d%% per prac{X", i, eff_name, rating, mod, learn);
 							else
-								sprintf(buf, " %3d     %-26s    {G%d%% {W(%+d%%)", i, eff_name, rating, mod);
+								sprintf(buf, " %3d     %-s    {G%d%% {W(%+d%%)", i, eff_name, rating, mod);
 						else if ( show_learn_amount )
-							sprintf(buf, " %3d     %-26s    {G%d%% {C- Gain %d%% per prac{X", i, eff_name, rating, learn);
+							sprintf(buf, " %3d     %-s    {G%d%% {C- Gain %d%% per prac{X", i, eff_name, rating, learn);
 						else
-							sprintf(buf, " %3d     %-26s    {G%d%%", i, eff_name, rating);
+							sprintf(buf, " %3d     %-s    {G%d%%", i, eff_name, rating);
 					}
 				}
 
@@ -5511,6 +5545,15 @@ SKEDIT( skedit_show )
 			add_buf(buffer, buf);
 		}
 
+    	if (skill->help_keywords != NULL && lookup_help_exact(skill->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL)
+        	add_buf(buffer, formatf("Help Keywords: '\t<send href=\"help #%d\">{W%s{X\t</send>' ({W#%d{X)\n\r", lookup_help_exact(skill->help_keywords->string, get_staff_rank(ch), topHelpCat)->index, skill->help_keywords->string, lookup_help_exact(skill->help_keywords->string, get_staff_rank(ch), topHelpCat)->index));
+    	else if (skill->help_keywords != NULL && lookup_help_exact(skill->help_keywords->string,get_staff_rank(ch),topHelpCat) == NULL)
+        	add_buf(buffer, formatf("Help Keywords: {R%s{X\n\r", skill->help_keywords->string));
+    	else
+        	add_buf(buffer, formatf("Help Keywords: %s\n\r", "(none set)"));
+    
+    	add_buf(buffer, formatf("Summary:       %s\n\r", skill->summary ? skill->summary : "(none)"));
+
 		if (list_size(skill->levels) > 0)
 		{
 			add_buf(buffer, "\n\rLevels:\n\r");
@@ -6964,6 +7007,93 @@ SKEDIT( skedit_valuename )
 	sprintf(buf, "         skedit valuename 1-%d {Rclear{x\n\r", MAX_SKILL_VALUES);
 	send_to_char(buf, ch);
 	return false;
+}
+
+SKEDIT ( skedit_sethelp )
+{
+
+    SKILL_DATA *skill;
+    EDIT_SKILL( ch, skill );
+    STRING_DATA *help;
+    char buf[MAX_STRING_LENGTH];
+    HELP_DATA *pHelp;
+
+    if (argument[0] == '\0')
+    {
+        send_to_char("Syntax: sethelp [keywords]\n\r",ch);
+        return false;
+    }
+
+    if (!str_cmp(argument, "clear"))
+    {
+        free_string_data(skill->help_keywords);
+        skill->help_keywords = NULL;
+        send_to_char("Help keywords cleared.\n\r", ch);
+        return true;
+    }
+
+    if (argument[0] == '#')
+    {
+        argument++;
+        int index;
+		if ((index = atoi(argument)) < 0 || index > 32000)
+        {
+			send_to_char("That help index is out of range.\n\r", ch);
+			return false;
+		} else 
+            pHelp = lookup_help_index(index, get_staff_rank(ch), topHelpCat);
+        
+        if (pHelp == NULL)
+        {
+            act("There is no helpfile with index $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);
+            return false;            
+        }
+        
+    }
+    else
+    {
+        pHelp = lookup_help_exact(argument, get_staff_rank(ch), topHelpCat);
+        if (pHelp == NULL)
+        {
+	        act("There is no helpfile with keywords $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);
+	        return false;
+        }
+    }
+
+    int i = 0;
+    while (argument[i] != '\0')
+    {
+	argument[i] = UPPER(argument[i]);
+	i++;
+    }
+
+    help = new_string_data();
+    help->string = str_dup(pHelp->keyword);
+    skill->help_keywords = help;
+    sprintf(buf, "Help keywords set to %s.\n\r", pHelp->keyword);
+    send_to_char(buf, ch);
+    return true;
+}
+
+SKEDIT ( skedit_summary )
+{
+    SKILL_DATA *skill;
+
+    EDIT_SKILL(ch, skill);
+
+    if (argument[0] == '\0')
+    {
+	send_to_char("Syntax:  summary [string]\n\r", ch);
+	return false;
+    }
+
+    free_string(skill->summary);
+
+    skill->summary = str_dup(argument);
+    skill->summary[0] = UPPER(skill->summary[0] );
+
+    send_to_char("Skill summary set.\n\r", ch);
+    return true;
 }
 
 

@@ -734,6 +734,8 @@ DECLARE_OLC_FUN( skedit_inks );     // For tattooing and scribing
 DECLARE_OLC_FUN( skedit_value );
 DECLARE_OLC_FUN( skedit_valuename );
 DECLARE_OLC_FUN( skedit_flags );
+DECLARE_OLC_FUN( skedit_summary);
+DECLARE_OLC_FUN( skedit_sethelp );
 
 DECLARE_OLC_FUN( sgedit_create );
 DECLARE_OLC_FUN( sgedit_show );

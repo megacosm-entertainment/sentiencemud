@@ -1059,6 +1059,9 @@ const struct flag_type area_flags[] =
     {   "immortal",     AREA_IMMORTAL,      true    },
     {   "persist",      AREA_PERSIST,       true    },
     {   "keep_live",    AREA_KEEP_LIVE,     true    },
+    {   "social",       AREA_SOCIAL,        true    },
+    {   "housing",      AREA_HOUSING,       true    },
+    {   "immortal",     AREA_IMMORTAL,      true    },
     {	NULL,			0,			0	}
 };
 
