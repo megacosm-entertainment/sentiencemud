@@ -4376,7 +4376,7 @@ void free_cmd(CMD_DATA *cmd)
 
     free_string(cmd->name);
     if (cmd->help_keywords)
-        free_string_data(cmd->help_keywords);
+        free_string(cmd->help_keywords->string);
     free_string(cmd->description);
     free_string(cmd->comments);
     if (cmd->reason)
