@@ -3812,6 +3812,7 @@ void ParseGMCP( descriptor_t *apDescriptor, char *string )
 		{
 			char buf[MAX_PROTOCOL_BUFFER];
 			int j;
+         buf[0] = '\0';
 
 			for ( i = 2; i < t[1].size + 2; i++ )
 			{
