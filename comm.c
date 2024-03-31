@@ -3912,13 +3912,31 @@ void page_to_char(const char *txt, CHAR_DATA *ch)
 	send_to_char(txt,ch);
 	return;
     }
-
+/*
     ch->desc->showstr_head = malloc(strlen(txt) + 1);
     strcpy(ch->desc->showstr_head,txt);
     ch->desc->showstr_point = ch->desc->showstr_head;
 
     show_string(ch->desc,"");
-
+*/
+	if (ch->desc->showstr_head && (strlen(txt)+strlen(ch->desc->showstr_head)+1) < 128000)
+	{
+		char *temp=alloc_mem(strlen(txt) + strlen(ch->desc->showstr_head) + 1);
+		strcpy(temp, ch->desc->showstr_head);
+		strcat(temp, txt);
+		ch->desc->showstr_point = temp + (ch->desc->showstr_point - ch->desc->showstr_head);
+		free_mem(ch->desc->showstr_head, strlen(ch->desc->showstr_head) + 1);
+		ch->desc->showstr_head=temp;
+	}
+	else
+	{
+		if (ch->desc->showstr_head)
+			free_mem(ch->desc->showstr_head, strlen(ch->desc->showstr_head)+1);
+		ch->desc->showstr_head = alloc_mem(strlen(txt) + 1);
+		strcpy(ch->desc->showstr_head,txt);
+		ch->desc->showstr_point = ch->desc->showstr_head;
+		show_string(ch->desc,"");
+		}
 }
 
 /*
