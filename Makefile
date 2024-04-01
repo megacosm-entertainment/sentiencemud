@@ -2,7 +2,7 @@ CC      = gcc
 PROF    = -Wall -O -g -pg -ggdb -g 
 OBJDIR	= obj
 VPATH   = .:obj
-LIBS = -lpthread -lz -lm -lrt -lssl -lcrypto -ldl -lcrypt -lquickmail
+LIBS = -lpthread -lz -lm -lrt -lssl -lcrypto -ldl -lcrypt -lquickmail -lcotp -lqrencode
 C_FLAGS = $(PROF) -fcommon -DMALLOC_STDLIB -fstack-protector  -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer -DVERSION=\"$(GIT_VERSION)\" -DBUILD_DATE=\"$(CUR_BUILD_DATE)\" -DBUILD_NUMBER=\"$(CUR_BUILD_NUMBER)\" -DCOMMIT=\"$(GIT_URL)\"
 L_FLAGS =  $(PROF) $(LIBS)
 EXE	= sent
@@ -21,6 +21,7 @@ DIFF_TXT = diff_$(VERSION1)_$(VERSION2).txt
 DIFF_C = $(patsubst $(PATH1)/%.c,%_c.diff,$(wildcard $(PATH1)/*.c)) $(patsubst $(PATH1)/%.h,%_h.diff,$(wildcard $(PATH1)/*.h))
 
 C_FILES = \
+	account/otp.c \
 	act_comm.c \
 	act_enter.c \
 	act_info.c \
@@ -131,6 +132,7 @@ C_FILES = \
 	wilds.c \
 
 O_FILES = \
+	$(OBJDIR)/account/otp.o \
 	$(OBJDIR)/act_comm.o \
 	$(OBJDIR)/act_enter.o \
 	$(OBJDIR)/act_info.o \
@@ -262,7 +264,8 @@ install: all
 
 objdir:
 	-mkdir obj
-	-chmod 775 obj
+	-mkdir obj/account
+	-chmod 775 obj obj/account
 
 $(EXE): $(O_FILES) $(BUILD_NUMBER_FILE)
 	rm -f $(EXE)

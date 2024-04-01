@@ -819,6 +819,8 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 			fprintf(fp, "Reset_Time %ld\n", ch->pcdata->reset_time);
 
 		fprintf(fp, "ResetState %d\n", ch->pcdata->reset_state);
+		if (ch->pcdata->mfa_key != NULL)
+			fprintf(fp, "MFA_Key %s~\n", ch->pcdata->mfa_key);
 		/*if (ch->pcdata->immortal->bamfin[0] != '\0')
 			fprintf(fp, "Bin  %s~\n",	ch->pcdata->immortal->bamfin);
 		if (ch->pcdata->immortal->bamfout[0] != '\0')
@@ -989,6 +991,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     ch->pcdata->condition[COND_STONED]	= 0;
     ch->pcdata->security		= 0;
     ch->pcdata->challenge_delay		= 0;
+	ch->pcdata->mfa_key = str_dup("");
     ch->morphed = false;
     ch->locker_rent = 0;
     ch->deathsight_vision = 0;
@@ -2229,6 +2232,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 			KEY("Mc2",		 __versioning->_007.class_thief,		fread_number(fp));
 			KEY("Mc3",		 __versioning->_007.class_warrior,		fread_number(fp));
 		}
+		KEY("MFA_KEY",		ch->pcdata->mfa_key,		fread_string(fp));
 		KEY("MissionNext",   ch->nextmission,          fread_number(fp));
 		KEY("MissionPnts",   ch->missionpoints,        fread_number(fp));
 		KEY("MissionsCompleted", ch->pcdata->missions_completed, fread_number(fp));

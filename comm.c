@@ -2274,6 +2274,13 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 	        d->connected = CON_CHANGE_PASSWORD;
 	        return;
         }
+		if (!IS_NULLSTR(ch->pcdata->mfa_key))
+		{
+			send_to_char("\n\rPlease enter your MFA code: ", ch);
+			d->connected = CON_GET_MFA;
+			return;
+		}
+
 		if (IS_IMMORTAL(ch))
 		{
 			send_to_char("{BWelcome, Immortal.{x\n\r\n\r", ch);
@@ -2293,6 +2300,45 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			d->connected = CON_READ_MOTD;
 		}
 
+		break;
+
+	case CON_GET_MFA:
+		if (check_mfa(ch, argument))
+		{
+			if (IS_IMMORTAL(ch))
+			{
+				send_to_char("{BWelcome, Immortal.{x\n\r\n\r", ch);
+				do_function(ch, &do_imotd, "");
+				if(IS_IMPLEMENTOR(ch)) 
+				{
+					if(wizlock) 
+						send_to_char("\n\r{b-{B==={C=={W[ {YWIZLOCK ACTIVE{W ]{C=={B==={b-{x\n\r", ch);
+					if(newlock) 
+						send_to_char("\n\r{b-{B==={C=={W[ {GNEWLOCK ACTIVE{W ]{C=={B==={b-{x\n\r", ch);
+				}
+				send_to_char("\n\r{WCurrent active projects:{x\n\r", ch);
+				do_function(ch, &do_project, "list open");
+				send_to_char("[Hit Return to continue]\n\r", ch);
+				d->connected = CON_READ_IMOTD;
+			}
+			else
+			{
+				do_function(ch, &do_motd, "");
+				d->connected = CON_READ_MOTD;
+			}
+		}
+		else
+		{
+			if (d->login_attempts > 2)
+			{
+				write_to_buffer(d, "Too many attempts. Please try again later.\n\r", 0);
+				close_socket(d);
+				return;
+			}
+			d->login_attempts++;
+			d->connected = CON_GET_MFA;
+			return;
+		}
 		break;
 
 	case CON_CONFIRM_EMAIL_FOR_RESET:

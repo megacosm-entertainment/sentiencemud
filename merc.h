@@ -1645,6 +1645,7 @@ struct church_treasure_room_data
 #define CON_CHANGE_PASSWORD_CONFIRM     21
 #define CON_GET_EMAIL			22
 #define CON_CONFIRM_EMAIL_FOR_RESET 23
+#define CON_GET_MFA            24
 
 
 /* Places */
@@ -5380,6 +5381,41 @@ struct ready_check_state
 #define STAFF_IMPLEMENTOR   6
 #define MAX_STAFF_RANK      7
 
+
+/*
+* Data for accounts
+*/
+
+struct account_data
+{
+//    ACCOUNT_DATA * next;
+    bool valid;
+    char * username;
+    char * password;
+    char * old_password;
+    char * email;
+    char * creation_ip;
+    char * last_ip;
+    time_t creation_date;
+    time_t last_login;
+    char * last_login_host;
+    char * reset_code;
+    bool reset_state;
+    time_t reset_time;
+    int failed_attempts;
+    int character_count;
+    int character_limit;
+    bool staff_account;
+    BAN_DATA * bans;
+//    PENALTY_DATA * penalties;
+//    BONUS_DATA * bonuses;
+    long misc_flags;
+    LLIST * characters;
+    LLIST * notes;
+    LLIST * changes;
+    LLIST * avail_races;
+};
+
 /*
  * Data which only PC's have.
  */
@@ -5412,6 +5448,7 @@ struct	pc_data
     time_t		last_login;
     time_t		last_project_inquiry;
     time_t      last_ready_check;
+    char *      mfa_key;
 
     int         staff_rank;
 
@@ -12433,5 +12470,7 @@ CMD_DATA *get_cmd_data(char *name);
 bool load_commands();
 void save_commands();
 void do_mxptest(CHAR_DATA *ch, char *argument);
+void generate_key(CHAR_DATA *ch, char *key);
+bool check_mfa(CHAR_DATA *ch, char *argument);
 
 #endif /* !def __merc_h__ */
