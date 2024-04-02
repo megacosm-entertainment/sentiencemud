@@ -1616,6 +1616,7 @@ void boot_db(void)
     FILE *fp;
 	static GLOBAL_DATA gconfig_zero;
 
+
 	wnum_zero.pArea = NULL;
 	wnum_zero.vnum = 0;
 

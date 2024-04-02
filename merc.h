@@ -424,6 +424,7 @@ typedef struct	exit_data		EXIT_DATA;
 typedef struct	destination_data	DESTINATION_DATA;
 typedef struct	extra_descr_data	EXTRA_DESCR_DATA;
 typedef struct	global_data		GLOBAL_DATA;
+typedef struct  game_settings_data   GAME_SETTINGS_DATA;
 typedef struct	help_category		HELP_CATEGORY;
 typedef struct	help_data		HELP_DATA;
 typedef struct liquid_type LIQUID;
@@ -1491,6 +1492,199 @@ struct global_data
     int     inc_missions;           // How many missions will a player accrue when their mission allowance ticks over?
     int     max_missions;           // How many missions can a player have running at the same time?
 };
+
+struct game_settings_data
+{
+    /* Email Settings */
+    bool    enable_email;
+    char    *email_username;                // The username for the email account.
+    char    *email_password;                // The password for the email account.
+    char    *email_host;                    // The hostname of the email server.
+    int     email_port;                     // The port that the email server is listening on.
+    char    *email_from_addr;               // The email address that will appear in the 'from' field of emails sent by the game.
+    char    *email_from_name;               // The name that will appear in the 'from' field of emails sent by the game.
+
+    /* Mission Settings */
+    int     max_mission_allowance;          // How many mission allowances can a player have?
+    int     inc_missions;                   // How many missions will a player accrue when their mission allowance ticks over?
+    int     max_missions;                   // How many missions can a player have running at the same time?
+
+    /* Global Settings */
+    char    *game_name;                     // Name of the game, used in MSSP.
+    char    *login_string;                  // Login string to present on connection.
+    char    *server_description;            // Description of server, eg. "2.0 Public Test Server"
+    bool    testport;                       // Is this a testport?
+    bool    wizlock;                        // Deny non-staff character logins?
+    char    *wizlock_msg;                   // Message to display to players when they try to login if game is wizlocked.
+    bool    new_acct_lock;                  // Deny making new accounts?
+    char    *new_acct_lock_msg;             // Message to display to players when they try to create a new account if game is new_acct_locked.
+    bool    new_char_lock;                  // Deny making new characters on existing accounts?
+    char    *new_char_lock_msg;             // Message to display to players if they try to create a new character if game is new_char_locked.
+    bool    logall;                         // Log everything?
+    bool    require_email_verification;     // Require email verification for accounts?
+    bool    require_2fa_all;                // Require all accounts to have multifactor auth?
+    bool    require_2fa_staff;              // Require accounts with staff characters to either have mfa at account or character level?
+    bool    require_uniq_pass_staff;        // Require staff characters to have player-level password?
+    bool    allow_multiplay_acct_all;       // Allow multiple characters logged in from one account?
+    bool    allow_multiplay_acct_staff;     // Allow multiple logins from staff accounts? (only if allow_multiplay_account_all is true, and account does not have deny_multiplay set)
+    bool    allow_multiplay_host_all;       // Allow multiple accounts to be logged in from one host?
+    bool    allow_multiplay_host_staff;     // Allow multiple accounts to be logged in from one host if one is staff?
+    int     max_login_attempts;             // How many login attempts are allowed before disconnecting?
+    int     idle_time;                      // How many ticks until a user is considered idle?
+    int     idle_disconnect_time;           // How many ticks until an idle user is disconnected?
+    int     max_alias;                      // How many aliases can a player have?
+    int     max_characters;                 // How many characters can a player have (can be overridden by account data);
+    int     max_orgs;                       // How many organizations can exist?
+    bool    enable_telnet;                  // Do we allow plaintext?
+    int     telnet_port;                    // Plaintext telnet port.
+    bool    enable_tls;                     // Do we allow tls connections?
+    int     tls_port;                       // TLS port.
+//    bool    enable_websocket_plain;         // Do we allow websocket connections?
+//    int     websocket_port;                 // Websocket port.
+//    bool    enable_websocket_tls;           // Do we allow tls websocket connections?
+//    int     websocket_tls_port;             // TLS websocket port.
+//    bool    enable_web;                     // Do we allow web connections?
+    char    *ssl_cert_path;                      // Path to SSL certificate.
+    char    *ssl_key_path;                       // Path to SSL key.
+    bool    enable_insecure_warning;               // Do we show a warning for insecure connections?
+    char    *insecure_warning_msg;          // What message do we display for insecure users? (requires insecure_warning)
+    int     max_logfile_size;               // What size do we start rotating logs at (in MB)?
+    /* MSSP Settings */
+    int mssp_players;                            // Automatically updated by the game.
+    int mssp_uptime;                             // Automatically updated by the game.
+    int mssp_crawl_delay;                        // How often do we want crawlers to come back? -1 for crawler default. Recommended values: -1, 1, 5, 11, 23
+    char *mssp_hostname;                         // Server hostname
+    int mssp_port;                               // Server Port
+    int mssp_tls_port;                           // TLS Server Port
+    char *mssp_codebase;                         // Name of the codebase, eg Merc 2.1. You can report multiple codebases using the array format, make sure to report the current codebase last.
+    char *mssp_contact;                          // Email address for contacting the mud.
+    int mssp_created;                            // Year the MUD was created.
+    char *mssp_ip;                               // Current or new IP address.
+    char *mssp_language;                         // English name of the language used, eg German or English
+    char *mssp_location;                         // English short name of the country where the server is located, using ISO 3166.
+    int mssp_minimum_age;                        // Current minimum age requirement, omit if not applicable.
+    char *mssp_website;                          // URL to MUD website, this should include the http:// or https:// prefix.
+    char *mssp_family;                           // AberMUD, CoffeeMUD, DikuMUD, Evennia, LPMud, MajorMUD, MOO, Mordor, SocketMud, TinyMUD, TinyMUCK, TinyMUSH, Custom. Report Custom unless it's a well established family. You can report multiple generic codebases using the array format, make sure to report the most distant codebase (aka the family) last. Check the MUD family tree for naming and capitalization.
+    char *mssp_genre;                            // Adult, Fantasy, Historical, Horror, Modern, Mystery, None, Romance, Science Fiction, Spiritual
+    char *mssp_status;                           // Alpha, Closed Beta, Open Beta, Live
+    char *mssp_gamesystem;                       // D&D, d20 System, World of Darkness, Etc.
+    char *mssp_intermud;                         // AberChat, I3, IMC2, MudNet, Etc. Can be used multiple times if you support several protocols, most important protocol last. Leave empty or omit if no Intermud protocol is supported.
+    char *mssp_subgenre;                         //Alternate History, Anime, Cyberpunk, Detective, Discworld, Dragonlance, Christian Fiction, Classical Fantasy, Crime, Dark Fantasy, Epic Fantasy, Erotic, Exploration, Forgotten Realms, Frankenstein, Gothic, High Fantasy, Magical Realism, Medieval Fantasy, Multiverse, Paranormal, Post-Apocalyptic, Military Science Fiction, Mythology, Pulp, Star Wars, Steampunk, Suspense, Time Travel, Weird Fiction, World War II, Urban Fantasy, Etc.
+    char *mssp_discord_server;                   // URL to a Discord server, this should include the https:// prefix.
+    int mssp_areas;                              // Current number of areas (open only? let mud generate?)
+    int mssp_helpfiles;                          // Current number of helpfiles (player-only? let mud generate?)
+    int mssp_mobiles;                            // Current number of unique mobs (open areas only?)
+    int mssp_objects;                            // Current number of unique objects (open areas only? non-immortal?)
+    int mssp_rooms;                              // Current number of unique rooms (open areas only?)
+    int mssp_classes;                            // Number of player classes, use 0 if classless.
+    int mssp_levels;                             // Number of player levels, use 0 if level-less.
+    int mssp_races;                              // Number of player races, use 0 if raceless.
+    int mssp_skills;                             // Number of player skills, use 0 if skill-less.
+    int mssp_dbsize;                             //
+
+    bool mssp_ansi;                              // ANSI color code support?
+    bool mssp_gmcp;                              // GMCP (Generic Mud Communication Protocol) support? 
+    bool mssp_mccp;                              // MCCP (Mud Client Compression Protocol 2) support?
+    bool mssp_mcp;                               // MCP support?
+    bool mssp_msdp;                              // MSDP support?
+    bool mssp_msp;                               // MSP (Mud Sound Protocol) support?
+    bool mssp_mxp;                               // MXP (Mud eXtension Protocol) support?
+    bool mssp_pueb;                              // Pueblo/UE support?
+    bool mssp_utf8;                              // UTF-8 support?
+    bool mssp_vt100;                             // VT100 support?
+    bool mssp_xterm256;                          // 256 color support?
+    bool mssp_xtermtrue;                         // True color support?
+    bool mssp_atcp;                              // ATCP (Achaea Telnet Client Protocol) support?
+    bool mssp_ssl;                               // SSL support?
+    bool mssp_pay2play;                          // Pay to play?
+    bool mssp_pay4perks;                         // Pay for perks?
+    bool mssp_hiring_builders;                   // Looking for builders?
+    bool mssp_hiring_coders;                     // Looking for coders?
+    bool mssp_adult_material;                    // Does MUD contain mature content?
+    bool mssp_multiclass;                        // Multiclassing allowed?
+    bool mssp_newbie_friendly;                   // Newbie friendly?
+    bool mssp_player_cities;                     // Player cities?
+    bool mssp_player_clans;                      // Player clans?
+    bool mssp_player_crafting;                   // Player crafting?
+    bool mssp_player_guilds;                     // Player guilds?
+    char *mssp_equipment_system;                 // Equipment system, eg. Diku, ROM, SMAUG, etc.
+    char *mssp_multiplaying;                     // Multiplaying allowed?
+    bool mssp_playerkilling;                     // Player killing allowed?
+    bool mssp_quest_system;                      // Quest system?
+    bool mssp_roleplaying;                       // Roleplaying enforced?
+    bool mssp_training_system;                   // Training system?
+    bool mssp_world_originality;                 // Based on an established setting?
+};
+/*
+struct mssp_data
+{
+    // MSSP Settings
+    int mssp_players;                            // Automatically updated by the game.
+    int mssp_uptime;                             // Automatically updated by the game.
+    int mssp_crawl_delay;                        // How often do we want crawlers to come back? -1 for crawler default. Recommended values: -1, 1, 5, 11, 23
+    char *mssp_hostname;                         // Server hostname
+    int mssp_port;                               // Server Port
+    int mssp_tls_port;                           // TLS Server Port
+    char *mssp_codebase;                         // Name of the codebase, eg Merc 2.1. You can report multiple codebases using the array format, make sure to report the current codebase last.
+    char *mssp_contact;                          // Email address for contacting the mud.
+    int mssp_created;                            // Year the MUD was created.
+    char *mssp_ip;                               // Current or new IP address.
+    char *mssp_language;                         // English name of the language used, eg German or English
+    char *mssp_location;                         // English short name of the country where the server is located, using ISO 3166.
+    int mssp_minimum_age;                        // Current minimum age requirement, omit if not applicable.
+    char *mssp_website;                          // URL to MUD website, this should include the http:// or https:// prefix.
+    char *mssp_family;                           // AberMUD, CoffeeMUD, DikuMUD, Evennia, LPMud, MajorMUD, MOO, Mordor, SocketMud, TinyMUD, TinyMUCK, TinyMUSH, Custom. Report Custom unless it's a well established family. You can report multiple generic codebases using the array format, make sure to report the most distant codebase (aka the family) last. Check the MUD family tree for naming and capitalization.
+    char *mssp_genre;                            // Adult, Fantasy, Historical, Horror, Modern, Mystery, None, Romance, Science Fiction, Spiritual
+    char *mssp_status;                           // Alpha, Closed Beta, Open Beta, Live
+    char *mssp_gamesystem;                       // D&D, d20 System, World of Darkness, Etc.
+    char *mssp_intermud;                         // AberChat, I3, IMC2, MudNet, Etc. Can be used multiple times if you support several protocols, most important protocol last. Leave empty or omit if no Intermud protocol is supported.
+    char *mssp_subgenre;                         //Alternate History, Anime, Cyberpunk, Detective, Discworld, Dragonlance, Christian Fiction, Classical Fantasy, Crime, Dark Fantasy, Epic Fantasy, Erotic, Exploration, Forgotten Realms, Frankenstein, Gothic, High Fantasy, Magical Realism, Medieval Fantasy, Multiverse, Paranormal, Post-Apocalyptic, Military Science Fiction, Mythology, Pulp, Star Wars, Steampunk, Suspense, Time Travel, Weird Fiction, World War II, Urban Fantasy, Etc.
+    char *mssp_discord_server;                   // URL to a Discord server, this should include the https:// prefix.
+    int mssp_areas;                              // Current number of areas (open only? let mud generate?)
+    int mssp_helpfiles;                          // Current number of helpfiles (player-only? let mud generate?)
+    int mssp_mobiles;                            // Current number of unique mobs (open areas only?)
+    int mssp_objects;                            // Current number of unique objects (open areas only? non-immortal?)
+    int mssp_rooms;                              // Current number of unique rooms (open areas only?)
+    int mssp_classes;                            // Number of player classes, use 0 if classless.
+    int mssp_levels;                             // Number of player levels, use 0 if level-less.
+    int mssp_races;                              // Number of player races, use 0 if raceless.
+    int mssp_skills;                             // Number of player skills, use 0 if skill-less.
+    int mssp_dbsize;                             //
+
+    bool mssp_ansi;                              // ANSI color code support?
+    bool mssp_gmcp;                              // GMCP (Generic Mud Communication Protocol) support? 
+    bool mssp_mccp;                              // MCCP (Mud Client Compression Protocol 2) support?
+    bool mssp_mcp;                               // MCP support?
+    bool mssp_msdp;                              // MSDP support?
+    bool mssp_msp;                               // MSP (Mud Sound Protocol) support?
+    bool mssp_mxp;                               // MXP (Mud eXtension Protocol) support?
+    bool mssp_pueb;                              // Pueblo/UE support?
+    bool mssp_utf8;                              // UTF-8 support?
+    bool mssp_vt100;                             // VT100 support?
+    bool mssp_xterm256;                          // 256 color support?
+    bool mssp_xtermtrue;                         // True color support?
+    bool mssp_atcp;                              // ATCP (Achaea Telnet Client Protocol) support?
+    bool mssp_ssl;                               // SSL support?
+    bool mssp_pay2play;                          // Pay to play?
+    bool mssp_pay4perks;                         // Pay for perks?
+    bool mssp_hiring_builders;                   // Looking for builders?
+    bool mssp_hiring_coders;                     // Looking for coders?
+    bool mssp_adult_material;                    // Does MUD contain mature content?
+    bool mssp_multiclass;                        // Multiclassing allowed?
+    bool mssp_newbie_friendly;                   // Newbie friendly?
+    bool mssp_player_cities;                     // Player cities?
+    bool mssp_player_clans;                      // Player clans?
+    bool mssp_player_crafting;                   // Player crafting?
+    bool mssp_player_guilds;                     // Player guilds?
+    char *mssp_equipment_system;                 // Equipment system, eg. Diku, ROM, SMAUG, etc.
+    char *mssp_multiplaying;                     // Multiplaying allowed?
+    bool mssp_playerkilling;                     // Player killing allowed?
+    bool mssp_quest_system;                      // Quest system?
+    bool mssp_roleplaying;                       // Roleplaying enforced?
+    bool mssp_training_system;                   // Training system?
+    bool mssp_world_originality;                 // Based on an established setting?
+};
+*/
 
 struct bounty_data
 {
@@ -10163,6 +10357,7 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
 #define SECTORS_FILE        SYSTEM_DIR "sectors.dat"
 #define CORPSE_FILE         SYSTEM_DIR "corpse.dat"
 #define COMMANDS_FILE       SYSTEM_DIR "commands.dat"
+#define GAME_SETTINGS_FILE  SYSTEM_DIR "game_settings.dat"
 /*Notes of all kinds */
 #define NOTE_FILE       NOTE_DIR "notes.not"		/* For 'notes'*/
 /*#define PENALTY_FILE	NOTE_DIR "penal.not"		Unused */
@@ -10359,6 +10554,8 @@ void reset_obj( OBJ_DATA *obj );
 /* act_wiz.c */
 int gconfig_read(void);
 int gconfig_write(void);
+int game_settings_read(void);
+int game_settings_write(void);
 void do_chset( CHAR_DATA *ch, char *argument );
 void save_shares	args( ( void ) );
 void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj, long flag, long flag_skip, int min_rank );
@@ -12445,6 +12642,7 @@ bool load_sectors();
 void save_sectors();
 
 extern GLOBAL_DATA gconfig;
+extern GAME_SETTINGS_DATA game_settings;
 
 extern LLIST *corpse_list;
 extern CORPSE_DATA gcrp__nocorpse;

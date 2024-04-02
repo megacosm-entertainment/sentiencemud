@@ -133,6 +133,7 @@ void save_races();
 bool			is_test_port;
 int 		    port;
 GLOBAL_DATA         gconfig;		/* Vizz - UID Tracking, and any other persistent global config info */
+GAME_SETTINGS_DATA	game_settings;
 LLIST *conn_players;
 LLIST *conn_immortals;
 LLIST *conn_online;
@@ -344,6 +345,7 @@ int main(int argc, char **argv)
     int control;
     ITERATOR iter;
     void *data;
+	static GAME_SETTINGS_DATA game_settings_zero;
 
     /*
      * Memory debugging if needed.
@@ -448,7 +450,6 @@ int main(int argc, char **argv)
 
 	init_string_space();
 
-
     /*
      * Init time.
      */
@@ -465,10 +466,14 @@ int main(int argc, char **argv)
 		exit(1);
     }
 
+	game_settings = game_settings_zero;
+	if (game_settings_read()==1) exit(1);
+	log_string("Global game settings loaded.");
+
     /*
      * Get the port number.
      */
-    port = 9000;
+	port = 9000;
     is_test_port = false;
     newlock = false;
     wizlock = false;
@@ -1831,6 +1836,9 @@ void bust_a_prompt(CHAR_DATA *ch)
 			sprintf(buf2, "%s", ch->in_room->area->name);
 		else
 			sprintf(buf2, " ");
+		i = buf2; break;
+	case '+':
+		sprintf(buf2, game_settings.server_description);
 		i = buf2; break;
 	case '%' :
 		sprintf(buf2, "%%");
