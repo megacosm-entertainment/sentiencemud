@@ -1375,6 +1375,7 @@ if (ret <= 0) {
 	if (!IS_NULLSTR(game_settings.login_string))
 	{
 		write_to_buffer(dnew, game_settings.login_string, 0);
+		write_to_buffer(dnew, "\n\r", 0);
 	}
 	else
 	{

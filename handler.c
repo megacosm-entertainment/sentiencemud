@@ -10740,7 +10740,7 @@ void send_email(CHAR_DATA *ch, char *email, char *subject, char *message)
 	char body_buf[MSL*2];
 	char body_buf_html[MSL*5];
 
-	extern GLOBAL_DATA gconfig;
+	extern GAME_SETTINGS_DATA game_settings;
 
 
 	quickmail_initialize();
@@ -10750,7 +10750,7 @@ void send_email(CHAR_DATA *ch, char *email, char *subject, char *message)
 	else
 		sprintf(subj_buf, "Email from SentienceMUD");
 
-	quickmail mailobj = quickmail_create(gconfig.email_from_name, gconfig.email_from_addr, subj_buf);
+	quickmail mailobj = quickmail_create(game_settings.email_from_name, game_settings.email_from_addr, subj_buf);
 
 	quickmail_add_to(mailobj, email);
 
@@ -10766,7 +10766,7 @@ void send_email(CHAR_DATA *ch, char *email, char *subject, char *message)
 
 	const char* errmsg;
 
-	if ((errmsg = quickmail_send(mailobj, gconfig.email_host, gconfig.email_port, gconfig.email_username, gconfig.email_password)) != NULL)
+	if ((errmsg = quickmail_send(mailobj, game_settings.email_host, game_settings.email_port, game_settings.email_username, game_settings.email_password)) != NULL)
     	fprintf(stderr, "Error sending e-mail: %s\n", errmsg);
   	quickmail_destroy(mailobj);
   	quickmail_cleanup();

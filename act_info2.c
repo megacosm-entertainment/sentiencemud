@@ -81,14 +81,14 @@ void list_attachment_callback (quickmail mailobj, const char* filename, quickmai
 void do_testemail (CHAR_DATA *ch, char *argument)
 {
 
-  extern GLOBAL_DATA gconfig;
+  extern GAME_SETTINGS_DATA game_settings;
 
   char buf[MAX_STRING_LENGTH];
 
-  if (IS_NULLSTR(gconfig.email_host) || gconfig.email_port == 0 || IS_NULLSTR(gconfig.email_username) || IS_NULLSTR(gconfig.email_password) || IS_NULLSTR(gconfig.email_from_addr))
+  if (IS_NULLSTR(game_settings.email_host) || game_settings.email_port == 0 || IS_NULLSTR(game_settings.email_username) || IS_NULLSTR(game_settings.email_password) || IS_NULLSTR(game_settings.email_from_addr))
   {
     send_to_char("One or more email configuration items is missing.\n\r",ch);
-    sprintf(buf, "Host: %s\n\rPort: %d\n\rUsername: %s\n\rPassword: %s\n\rFrom Address: %s\n\r", gconfig.email_host, gconfig.email_port, gconfig.email_username, gconfig.email_password, gconfig.email_from_addr);
+    sprintf(buf, "Host: %s\n\rPort: %d\n\rUsername: %s\n\rPassword: %s\n\rFrom Address: %s\n\r", game_settings.email_host, game_settings.email_port, game_settings.email_username, game_settings.email_password, game_settings.email_from_addr);
     send_to_char(buf,ch);
     return;
   }
@@ -102,7 +102,7 @@ void do_testemail (CHAR_DATA *ch, char *argument)
   else
     sprintf(subjline, "Test Email");
 
-  quickmail mailobj = quickmail_create(gconfig.email_from_name, gconfig.email_from_addr, subjline);
+  quickmail mailobj = quickmail_create(game_settings.email_from_name, game_settings.email_from_addr, subjline);
 
   quickmail_add_to(mailobj, ch->pcdata->email);
 #ifdef TO
@@ -142,7 +142,7 @@ void do_testemail (CHAR_DATA *ch, char *argument)
 
   const char* errmsg;
   //quickmail_set_debug_log(mailobj, stderr);
-  if ((errmsg = quickmail_send(mailobj, gconfig.email_host, gconfig.email_port, gconfig.email_username, gconfig.email_password)) != NULL)
+  if ((errmsg = quickmail_send(mailobj, game_settings.email_host, game_settings.email_port, game_settings.email_username, game_settings.email_password)) != NULL)
     fprintf(stderr, "Error sending e-mail: %s\n", errmsg);
   quickmail_destroy(mailobj);
   quickmail_cleanup();
