@@ -8074,8 +8074,9 @@ void do_sockets( CHAR_DATA *ch, char *argument )
            else
               sprintf( idle, "  " );
 
-           sprintf(buf, "{D[{x%3d %s %7s{g %2s{D]{W %-12s{x %-50.50s\n\r",
-              d->descriptor,
+           sprintf(buf, "{D[{x%s%3d{X %s %7s{g %2s{D]{W %-12s{x %-50.50s\n\r",
+              d->ssl ? "{G": "{X",
+			  d->descriptor,
               st,
               s,
               idle,

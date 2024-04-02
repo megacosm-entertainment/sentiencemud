@@ -59,8 +59,10 @@
 #include <stdint.h>
 #include <quickmail.h>
 #include <pthread.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 #include "protocol.h"
-#include "sha256.h"
+
 
 #define STR_HELPER(x) #x
 #define __STR(x) STR_HELPER(x)
@@ -1965,6 +1967,8 @@ struct	descriptor_data
     bool skip_blank_lines;       // Use this to cause the string editor to ignore empty lines when numbering them
 
     unsigned int		muted;			// All text heading to the output will be blocked
+    bool    tls_handshake_in_progress;
+    SSL *ssl;
 
 };
 
@@ -12670,5 +12674,10 @@ void save_commands();
 void do_mxptest(CHAR_DATA *ch, char *argument);
 void generate_key(CHAR_DATA *ch, char *key);
 bool check_mfa(CHAR_DATA *ch, char *argument);
+char *sha256_crypt( const char *pwd );
+void configure_context(SSL_CTX *ctx);
+SSL_CTX* create_context(void);
+void init_openssl_library(void);
+
 
 #endif /* !def __merc_h__ */

@@ -861,6 +861,7 @@ ENT_FIELD entity_conn[] = {
 	{"host",		ENTITY_CONN_HOST,			ENT_STRING,		"Host string" },
 	{"connection",	ENTITY_CONN_CONNECTION,		ENT_NUMBER,		"Connection number" },
 	{"client",		ENTITY_CONN_CLIENT,			ENT_STRING,		"Client name"	},
+	{"secure",		ENTITY_CONN_SECURE,			ENT_BOOLEAN,	"Is the user on a secure connection?"},
 	{NULL,			0,							ENT_UNKNOWN,	NULL }
 };
 

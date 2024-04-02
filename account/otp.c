@@ -60,10 +60,13 @@
 #include <signal.h>
 #include <time.h>
 #include <zlib.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 /* VIZZWILDS - support for plogf() and printf_to_char() functions*/
 #include <stdarg.h>
 #include <cotp.h>
 #include <qrencode.h>
+
 
 #include "../strings.h"
 #include "../merc.h"
@@ -72,7 +75,6 @@
 #include "../scripts.h"
 #include "../tables.h"
 #include "../wilds.h"
-#include "../sha256.h"
 #include "../protocol.h"
 
 void do_keygen(CHAR_DATA *ch, char *argument)

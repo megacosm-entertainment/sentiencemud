@@ -126,6 +126,7 @@ C_FILES = \
 	stats.c \
 	string.c \
 	tables.c \
+	tls.c \
 	treasuremap.c \
 	update.c \
 	weather.c \
@@ -229,7 +230,6 @@ O_FILES = \
 	$(OBJDIR)/script_vars.o \
 	$(OBJDIR)/scripts.o \
 	$(OBJDIR)/sectors.o \
-	$(OBJDIR)/sha256.o \
 	$(OBJDIR)/shoot.o \
 	$(OBJDIR)/skills.o \
 	$(OBJDIR)/social.o \
@@ -238,6 +238,7 @@ O_FILES = \
 	$(OBJDIR)/stats.o \
 	$(OBJDIR)/string.o \
 	$(OBJDIR)/tables.o \
+	$(OBJDIR)/tls.o \
 	$(OBJDIR)/treasuremap.o \
 	$(OBJDIR)/update.o \
 	$(OBJDIR)/weather.o \

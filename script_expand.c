@@ -1460,7 +1460,7 @@ EXPAND_TYPE(game)
 
 	case ENTITY_GAME_PORT:
 		arg->type = ENT_NUMBER;
-		arg->d.num = port;
+		arg->d.num = game_settings.telnet_port;
 		break;
 
 	case ENTITY_GAME_PLAYERS:
@@ -5374,6 +5374,9 @@ EXPAND_TYPE(conn)
 		arg->type = ENT_STRING;
 		arg->d.str = (arg->d.conn && (script_security >= MAX_SCRIPT_SECURITY)) ? arg->d.conn->pProtocol->pVariables[eMSDP_CLIENT_ID]->pValueString : "Unknown";
 		break;
+	case ENTITY_CONN_SECURE:
+		arg->type = ENT_BOOLEAN;
+		arg->d.boolean = (arg->d.conn && (script_security >= MAX_SCRIPT_SECURITY) && arg->d.conn->ssl) ? true : false;
 	default: return NULL;
 	}
 

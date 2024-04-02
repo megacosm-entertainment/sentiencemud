@@ -40,6 +40,8 @@
 #include <ctype.h>
 #include <time.h>
 #include <math.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 #include "strings.h"
 #include "merc.h"
 #include "interp.h"
@@ -50,7 +52,6 @@
 /* VIZZWILDS - Include wilds.h header */
 #include "wilds.h"
 #include "scripts.h"
-#include "sha256.h"
 
 bool can_see_imm(CHAR_DATA *ch, CHAR_DATA *victim);
 void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument);
