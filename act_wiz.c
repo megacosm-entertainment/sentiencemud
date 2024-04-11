@@ -6039,20 +6039,42 @@ void do_peace(CHAR_DATA *ch, char *argument)
 
 void do_wizlock(CHAR_DATA *ch, char *argument)
 {
-    wizlock = !wizlock;
 
-    if (wizlock)
-    {
-	wiznet("$N has wizlocked the game.",ch,NULL,0,0,0);
-	send_to_char("Game wizlocked.\n\r", ch);
-    }
-    else
-    {
-	wiznet("$N removes wizlock.",ch,NULL,0,0,0);
-	send_to_char("Game un-wizlocked.\n\r", ch);
-    }
+	if (argument[0] == '\0')
+	{
+    	if (!game_settings.wizlock)
+    	{
+			wiznet("$N has wizlocked the game.",ch,NULL,0,0,0);
+			send_to_char("Game wizlocked.\n\r", ch);
+			game_settings.wizlock = true;
+    	}
+    	else
+    	{
+			wiznet("$N removes wizlock.",ch,NULL,0,0,0);
+			send_to_char("Game un-wizlocked.\n\r", ch);
+			game_settings.wizlock = false;
+    	}
+	}
+	else if (!str_cmp(argument, "clear"))
+	{
+		if (!IS_NULLSTR(game_settings.wizlock_msg))
+		{
+			free_string(game_settings.wizlock_msg);
+			game_settings.wizlock_msg = str_dup("");
+		}
+	}
+	else
+	{
+		if (!IS_NULLSTR(game_settings.wizlock_msg))
+		{
+			free_string(game_settings.wizlock_msg);
+		}
+		game_settings.wizlock_msg = str_dup(argument);
+		wiznet("$N sets wizlock message.",ch,NULL,0,0,0);
+		send_to_char("Wizlock message set.\n\r", ch);
+	}
 
-	gconfig_write();
+		game_settings_write();
 
 }
 
@@ -6060,19 +6082,91 @@ void do_wizlock(CHAR_DATA *ch, char *argument)
 void do_newlock(CHAR_DATA *ch, char *argument)
 {
     newlock = !newlock;
+	char arg[MIL];
 
-    if (newlock)
-    {
-	wiznet("$N locks out new characters.",ch,NULL,0,0,0);
-        send_to_char("New characters have been locked out.\n\r", ch);
-    }
-    else
-    {
-	wiznet("$N allows new characters back in.",ch,NULL,0,0,0);
-        send_to_char("Newlock removed.\n\r", ch);
-    }
+	if (argument[0] == '\0')
+	{
+    	send_to_char("Syntax: newlock <char|acct> [$message|clear]\n\r", ch);
+		return;
+	}
+	else
+	{
+		argument = one_argument(argument, arg);
+		if (!str_cmp(arg, "char"))
+		{
+			if (argument[0] == '\0')
+			{
+				if (!game_settings.new_char_lock)
+				{
+					wiznet("$N locks out new characters.",ch,NULL,0,0,0);
+					send_to_char("New characters have been locked out.\n\r", ch);
+					game_settings.new_char_lock = true;
+				}
+				else
+				{
+					wiznet("$N allows new characters back in.",ch,NULL,0,0,0);
+					send_to_char("New characters are no longer locked out.\n\r", ch);
+					game_settings.new_char_lock = false;
+				}
+			}
+			else if (!str_cmp(argument, "clear"))
+			{
+				if (!IS_NULLSTR(game_settings.new_char_lock_msg))
+				{
+					free_string(game_settings.new_char_lock_msg);
+					game_settings.new_char_lock_msg = str_dup("");
+				}
+			}
+			else
+			{
+				if (!IS_NULLSTR(game_settings.new_char_lock_msg))
+				{
+					free_string(game_settings.new_char_lock_msg);
+				}
+				game_settings.new_char_lock_msg = str_dup(argument);
+				wiznet("$N sets new character message.",ch,NULL,0,0,0);
+				send_to_char("New character message set.\n\r", ch);
+			}
+		}
+		else if (!str_cmp(arg, "acct"))
+		{
+			if (argument[0] == '\0')
+			{
+				if (!game_settings.new_acct_lock)
+				{
+					wiznet("$N locks out new accounts.",ch,NULL,0,0,0);
+					send_to_char("New accounts have been locked out.\n\r", ch);
+					game_settings.new_acct_lock = true;
+				}
+				else
+				{
+					wiznet("$N allows new accounts back in.",ch,NULL,0,0,0);
+					send_to_char("New accounts are no longer locked out.\n\r", ch);
+					game_settings.new_acct_lock = false;
+				}
+			}
+			else if (!str_cmp(argument, "clear"))
+			{
+				if (!IS_NULLSTR(game_settings.new_acct_lock_msg))
+				{
+					free_string(game_settings.new_acct_lock_msg);
+					game_settings.new_acct_lock_msg = str_dup("");
+				}
+			}
+			else
+			{
+				if (!IS_NULLSTR(game_settings.new_acct_lock_msg))
+				{
+					free_string(game_settings.new_acct_lock_msg);
+				}
+				game_settings.new_acct_lock_msg = str_dup(argument);
+				wiznet("$N sets new account message.",ch,NULL,0,0,0);
+				send_to_char("New account message set.\n\r", ch);
+			}
+		}
+		game_settings_write();
+	}
 
-	gconfig_write();
 }
 
 void do_testport(CHAR_DATA *ch, char *argument)
