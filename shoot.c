@@ -959,6 +959,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	return;
     }
 
+	// TODO: Fix this
     dam = dice( obj->value[1], obj->value[2] )
 	+ 40*log(GET_DAMROLL( ch ));
 
@@ -968,6 +969,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	act("$N throws $S $p at $n!",  victim, ch, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
 	act("You throw $p at $N!",     ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 
+	// TODO: Fix this
 	if ( damage( ch, victim, dam, gsk_throw, TYPE_UNDEFINED, obj->value[3], true ) == false )
 	    victim = NULL;
 
@@ -1043,6 +1045,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	    /* generate miss messages */
             if (ch->in_room == victim->in_room)
             {
+				// TODO: Fix this
 	        damage( ch, victim, 0, gsk_throw, TYPE_UNDEFINED, obj->value[3], true );
             }
 	    else
@@ -1077,6 +1080,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	}
 
 	/* do damage and generate messages */
+	// TODO: Fix this
 	if ( damage( ch, victim, dam, gsk_throw, TYPE_UNDEFINED , attack_table[obj->value[3]].damage,  true ) == false )
 	{
 	    victim = NULL;

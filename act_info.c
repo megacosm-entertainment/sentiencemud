@@ -667,7 +667,7 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
     /* Do feign. */
     for (victim = ch->in_room->people; victim != NULL; victim = victim->next_in_room)
     {
-	if (mist && number_percent() < mist->value[0])
+	if (mist && number_percent() < MIST(mist)->obscure_objs)
 	    continue;
 
 	if ((victim->position == POS_FEIGN) && (victim != ch) && !fShort)
@@ -1238,7 +1238,7 @@ void show_char_to_char(CHAR_DATA *list, CHAR_DATA *ch, CHAR_DATA *victim)
 	    if (get_staff_rank(ch) < rch->invis_level && !can_see_imm(ch,rch))
 		continue;
 
-	    if (mist && number_percent() < mist->value[1])
+	    if (mist && number_percent() < MIST(mist)->obscure_mobs)
 		continue;
 
             if (IS_AFFECTED(rch, AFF_HIDE)
@@ -2176,8 +2176,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 				send_to_char("That is not a container.\n\r", ch);
 				break;
 
-			case ITEM_CORPSE_NPC:
-			case ITEM_CORPSE_PC:
+			case ITEM_CORPSE:
 				act("$p holds:", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 				show_list_to_char(obj->contains, ch, true, true);
 				break;

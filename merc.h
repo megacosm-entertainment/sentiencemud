@@ -370,6 +370,9 @@ struct sound_type {
 #define VERSION_OBJECT_016  0x01000015
 //  Change #1: Change the order of the fragility to allow for natural modification
 
+#define VERSION_OBJECT_017  0x01000016
+//  Change #1: Convert OLC body part objects into multityping.
+
 #define VERSION_ROOM_001	0x01000001
 //  Change #1: lock states
 
@@ -382,7 +385,7 @@ struct sound_type {
 #define VERSION_DB			VERSION_DB_001
 #define VERSION_AREA		VERSION_AREA_003
 #define VERSION_MOBILE		0x01000000
-#define VERSION_OBJECT		VERSION_OBJECT_016
+#define VERSION_OBJECT		VERSION_OBJECT_017
 #define VERSION_ROOM		VERSION_ROOM_003
 #define VERSION_PLAYER		VERSION_PLAYER_010
 #define VERSION_TOKEN		0x01000000
@@ -503,11 +506,13 @@ typedef struct realm_data REALM_DATA;
 typedef struct adornment_data ADORNMENT_DATA;
 typedef struct obj_ammo_data AMMO_DATA;
 typedef struct obj_armor_data ARMOR_DATA;
+typedef struct obj_body_part_data BODY_PART_DATA;
 typedef struct obj_book_data BOOK_DATA;
 typedef struct obj_cart_data CART_DATA;
 typedef struct obj_compass_data COMPASS_DATA;
 typedef struct container_filter_data CONTAINER_FILTER;
 typedef struct obj_container_data CONTAINER_DATA;
+typedef struct obj_corpse_data CORPSE_DATA;
 typedef struct obj_fluid_container_data FLUID_CONTAINER_DATA;
 typedef struct food_buff_data FOOD_BUFF_DATA;
 typedef struct obj_food_data FOOD_DATA;
@@ -842,14 +847,14 @@ struct script_varinfo {
     int trigger_type;
 };
 
-typedef struct corpse_data CORPSE_DATA;
+typedef struct corpse_type CORPSE_TYPE;
 typedef struct corpse_damage_data CORPSE_DAMAGE;
 typedef struct corpse_blending_data CORPSE_BLENDING;
 
 struct corpse_blending_data {
     int weight;
     union {
-        CORPSE_DATA *result;
+        CORPSE_TYPE *result;
         long uid;
     };
 };
@@ -864,14 +869,14 @@ struct corpse_damage_data {
     LLIST *blending;
 };
 
-struct corpse_data {
-    CORPSE_DATA *next;
+struct corpse_type {
+    CORPSE_TYPE *next;
     bool valid;
 
     char *name;
 
     long uid;
-    CORPSE_DATA **gcrp;
+    CORPSE_TYPE **gcrp;
     char *comments;
 
 	char *keywords;
@@ -897,7 +902,7 @@ struct corpse_data {
 	int resurrect_chance;
 	int animation_chance;       // Ability to animate the corpse
 	int skulling_chance;        // Ability to skull the corpse
-	CORPSE_DATA *decay_type;    // Type corpse it switches into upon decay (or none)
+	CORPSE_TYPE *decay_type;    // Type corpse it switches into upon decay (or none)
     long decay_type_uid;
 	int decay_rate;             // Chance of the corpse deteriorating some each tick
 				 	            //  For each 100 rate, the condition will decrease 1%.
@@ -2709,8 +2714,8 @@ struct affliction_type {
 #define FORM_DRAGON             (Z)
 #define FORM_AMPHIBIAN          (aa)
 #define FORM_FISH               (bb)
-#define FORM_COLD_BLOOD		(cc)
-#define FORM_OBJECT		(dd)
+#define FORM_COLD_BLOOD     	(cc)
+#define FORM_OBJECT     		(dd)
 
 /* body parts */
 #define PART_HEAD               (A)
@@ -2739,6 +2744,7 @@ struct affliction_type {
 #define PART_TUSKS		(Y)
 #define PART_HIDE		(Z)
 #define PART_LUNGS      (aa)
+#define PART_SKULL      (bb)
 
 /*
  * Bits for 'affected_by'.
@@ -2989,6 +2995,7 @@ struct affliction_type {
 #define ITEM_FOOD		     19
 #define ITEM_MONEY		     20
 //#define ITEM_BOAT		     22
+#define ITEM_CORPSE             22
 #define ITEM_CORPSE_NPC		     23
 #define ITEM_CORPSE_PC		     24
 //#define ITEM_FOUNTAIN		     25
@@ -4027,16 +4034,6 @@ struct world_data
 #define RAWKILL_FLAY		(12)	/* Tears the outer layer of flesh off */
 #define RAWKILL_MAX		(13)
 
-#define CORPSE_CHAOTICDEATH		(A)	/* The corpse was killed in CPK */
-#define CORPSE_OWNERLOOT	(B)	/* Only allows the owner of the corpse to loot before full decay */
-#define CORPSE_CHARRED		(C)
-#define CORPSE_FROZEN		(D)
-#define CORPSE_MELTED		(E)
-#define CORPSE_WITHERED		(F)
-#define CORPSE_PKDEATH		(G)	// The corpse was killed in a room with PK allowed, or player was flagged PK
-#define CORPSE_ARENADEATH	(H)
-#define CORPSE_IMMORTAL		(Z)	/* Corpse came from an immortal */
-
 #define DEATHTYPE_ALIVE		0
 #define DEATHTYPE_ATTACK	1
 #define DEATHTYPE_RAWKILL	2	/* Any rawkill (scripted or slays) */
@@ -4158,8 +4155,11 @@ struct	mob_index_data
     pVARIABLE		index_vars;
     WNUM_LOAD		corpse;
     WNUM_LOAD		zombie;	/* Animated corpse */
-    CORPSE_DATA *corpse_type;
+    CORPSE_TYPE *corpse_type;
     char *      comments;
+
+    SCRIPT_DATA *script_visible;
+    WNUM_LOAD wnum_visible;
 
 	MOB_INDEX_SKILL_DATA *skills;
 
@@ -5177,7 +5177,7 @@ struct	char_data
     int			death_type;		/* How you died last (0 for alive!) */
     int			set_death_type;
 
-    CORPSE_DATA *corpse_type;
+    CORPSE_TYPE *corpse_type;
     WNUM_LOAD  	corpse_wnum;
 
     /* @@@NIB */
@@ -5662,6 +5662,20 @@ struct obj_armor_data {
     ADORNMENT_DATA **adornments;    // Just make it an array
 };
 
+// ==========[ BODY PART ]=========
+#define BODY_PART(obj)          ((obj)->_body_part)
+#define IS_BODY_PART(obj)       IS_VALID(BODY_PART(obj))
+
+struct obj_body_part_data {
+    BODY_PART_DATA *next;
+    bool valid;
+
+    RACE_DATA *race;
+    long parts;         // parts_flags
+
+    long id[2];         // ID of mobile/player
+};
+
 // ============[ BOOK ]============
 #define PAGE(obj)               ((obj)->_page)
 #define IS_PAGE(obj)            IS_VALID(PAGE(obj))
@@ -5756,6 +5770,36 @@ struct obj_container_data {
     LOCK_STATE *lock;
 };
 
+
+// ===========[ CORPSE ]===========
+#define CORPSE(obj)         ((obj)->_corpse)
+#define IS_CORPSE(obj)      IS_VALID(CORPSE(obj))
+
+#define CORPSE_CHAOTICDEATH		(A)	// The corpse was killed in CHAOTIC room
+#define CORPSE_PKDEATH			(B)	// The corpse was killed in a room with PK allowed, or player was flagged PK
+#define CORPSE_ARENADEATH		(C)
+#define CORPSE_OWNERLOOT		(Y)	/* Only allows the owner of the corpse to loot before full decay */
+#define CORPSE_IMMORTAL			(Z)	/* Corpse came from an immortal */
+
+struct obj_corpse_data {
+    CORPSE_DATA *next;
+    bool valid;
+
+    bool player;
+    CORPSE_TYPE *type;      // Loaded corpse type
+    RACE_DATA *race;        // Which race is this?
+
+    long flags;
+
+    int resurrect;          // Resurrection chance
+    int animate;            // Animation chance
+
+    long parts;             // Body parts still available on the corpse
+
+    MOB_INDEX_DATA *mobile;
+    WNUM_LOAD mobile_load;
+};
+
 // ======[ FLUID CONTAINER ]=======
 #define FLUID_CON(obj)      ((obj)->_fluid_container)
 #define IS_FLUID_CON(obj)   IS_VALID(FLUID_CON(obj))
@@ -5783,8 +5827,6 @@ struct obj_fluid_container_data
 
     LLIST *spells;          // SPELL_DATA, used for "potions"
 };
-
-
 // ============[ FOOD ]============
 #define FOOD(obj)           ((obj)->_food)
 #define IS_FOOD(obj)        IS_VALID(FOOD(obj))
@@ -6329,6 +6371,9 @@ struct	obj_index_data
     char *      comments;
     pVARIABLE		index_vars;
 
+    SCRIPT_DATA *script_visible;
+    WNUM_LOAD wnum_visible;
+
     // Restrictions
     int16_t     clazz_type;
     CLASS_DATA  *clazz;
@@ -6349,10 +6394,12 @@ struct	obj_index_data
 
     AMMO_DATA *_ammo;
     ARMOR_DATA *_armor;
+    BODY_PART_DATA *_body_part;
     BOOK_DATA *_book;
     CART_DATA *_cart;
     COMPASS_DATA *_compass;
     CONTAINER_DATA *_container;
+    CORPSE_DATA *_corpse;
     FLUID_CONTAINER_DATA *_fluid_container;
     FOOD_DATA *_food;
     FURNITURE_DATA *_furniture;
@@ -6468,10 +6515,12 @@ struct	obj_data
 
     AMMO_DATA *_ammo;
     ARMOR_DATA *_armor;
+    BODY_PART_DATA *_body_part;
     BOOK_DATA *_book;
     CART_DATA *_cart;
     COMPASS_DATA *_compass;
     CONTAINER_DATA *_container;
+    CORPSE_DATA *_corpse;
     FLUID_CONTAINER_DATA *_fluid_container;
     FOOD_DATA *_food;
     FURNITURE_DATA *_furniture;
@@ -8307,6 +8356,7 @@ enum trigger_index_enum {
 	TRIG_ATTACK_TAILKICK,
 	TRIG_ATTACK_TRAMPLE,
 	TRIG_ATTACK_TURN,
+    TRIG_BAR,
 	TRIG_BARRIER,
     TRIG_BLOCK_AGGRESSION,
 	TRIG_BLOW,
@@ -8416,6 +8466,7 @@ enum trigger_index_enum {
 	TRIG_MULTICLASS,	// Called when a player multiclasses
 	TRIG_OPEN,
     TRIG_ORIENT,
+    TRIG_PICK,
 	TRIG_POSTMISSION,			// Called after all quest rewards and messages are given
     TRIG_POSTRECKONING,
     TRIG_POUR,
@@ -8424,6 +8475,7 @@ enum trigger_index_enum {
     TRIG_PREAGGRESSIVE,
 	TRIG_PREANIMATE,
 	TRIG_PREASSIST,
+    TRIG_PREBAR,
 	TRIG_PREBITE,
     TRIG_PREBRANDISH,
 	TRIG_PREBUY,
@@ -8451,6 +8503,7 @@ enum trigger_index_enum {
 	TRIG_PREMISSION,			// Allows custom checking for missions, also allows setting the number of mission parts.
 	TRIG_PREMOUNT,
     TRIG_PREORIENT,
+    TRIG_PREPICK,
 	TRIG_PREPRACTICE,
 	TRIG_PREPRACTICEOTHER,
 	TRIG_PREPRACTICETHAT,
@@ -8513,6 +8566,7 @@ enum trigger_index_enum {
 	TRIG_RESTOCKED,
 	TRIG_RESTORE,
 	TRIG_RESURRECT,
+    TRIG_REVEAL,                // Called when something wishes to reveal a mob or obj.  Register 1 will have the "cause" enum.
     TRIG_ROOM_FOOTER,
     TRIG_ROOM_HEADER,
 	TRIG_SAVE,
@@ -9644,6 +9698,7 @@ extern int16_t grn_unique;
 #define IS_IMMORTAL(ch)		(!IS_NPC(ch) && (ch)->pcdata->immortal != NULL)
 #define IS_IMPLEMENTOR(ch)  (IS_IMMORTAL(ch) && ((ch)->pcdata->staff_rank >= STAFF_IMPLEMENTOR))
 #define IS_SECURITY(ch,sec) ((ch)->pcdata->security >= (sec))
+#define IS_IMPLEMENTOR9(ch) (IS_IMPLEMENTOR(ch) && IS_SECURITY(ch, 9))
 //#define IS_TRUSTED(ch,level)	(get_trust((ch)) >= (level))
 #define IS_STAFF(ch,rank)       (get_staff_rank((ch)) >= (rank))
 #define IS_AFFECTED(ch, sn)	(IS_SET((ch)->affected_by[0], (sn)))
@@ -9784,12 +9839,12 @@ extern int16_t grn_unique;
 #define IS_WEAPON_NSTAT(obj,n,stat)    (IS_WEAPON((obj)) && IS_SET(WEAPON((obj))->attacks[(n)].flags,(stat)))
 #define WEIGHT_MULT(obj)	((obj)->item_type == ITEM_CONTAINER ? \
 	(obj)->value[4] : 100)
-#define CORPSE_TYPE(obj)	((obj)->value[0])
-#define CORPSE_RESURRECT(obj)	((obj)->value[1])
-#define CORPSE_ANIMATE(obj)	((obj)->value[2])
-#define CORPSE_PARTS(obj)	((obj)->value[3])
-#define CORPSE_FLAGS(obj)	((obj)->value[4])
-#define CORPSE_MOBILE(obj)	((obj)->value[5])       // Local vnum only?
+//#define CORPSE_TYPE(obj)	((obj)->value[0])
+//#define CORPSE_RESURRECT(obj)	((obj)->value[1])
+//#define CORPSE_ANIMATE(obj)	((obj)->value[2])
+//#define CORPSE_PARTS(obj)	((obj)->value[3])
+//#define CORPSE_FLAGS(obj)	((obj)->value[4])
+//#define CORPSE_MOBILE(obj)	((obj)->value[5])       // Local vnum only?
 
 /*
  * Description macros.
@@ -9875,6 +9930,7 @@ extern	const	struct	dex_app_type	dex_app		[52];
 extern	const	struct	con_app_type	con_app		[52];
 extern	const		char *  	words_table	[];
 extern	const	int	size_weight[];
+extern	const	int	size_move_delay[];
 extern	const	struct	trade_type	trade_table	[];
 extern	const		long  		plith_docks_table[];
 extern	const		long  		treasure_table[];
@@ -10460,14 +10516,14 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages );
 void death_mob_echo( CHAR_DATA *victim );
 OBJ_DATA *disarm( CHAR_DATA *ch, CHAR_DATA *victim );
 void group_gain( CHAR_DATA *ch, CHAR_DATA *victim, int percent );
-void set_corpse_data(OBJ_DATA *corpse, CORPSE_DATA *corpse_type);
+void set_corpse_type(OBJ_DATA *corpse, CORPSE_TYPE *corpse_type);
 int blend_corpsetypes (int t1, int t2);
-OBJ_DATA *make_corpse( CHAR_DATA *ch, bool has_head, CORPSE_DATA *corpse_type, int damage_type, bool messages );
+OBJ_DATA *make_corpse( CHAR_DATA *ch, bool has_head, CORPSE_TYPE *corpse_type, int damage_type, bool messages );
 void mob_hit( CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, int dt );
 void multi_hit( CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, int dt );
 void player_kill( CHAR_DATA *ch, CHAR_DATA *victim );
 int damage_to_corpse(int dam_type);
-OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, CORPSE_DATA *corpse_type, int damage_type);
+OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, CORPSE_TYPE *corpse_type, int damage_type);
 void resurrect_end( CHAR_DATA *ch );
 void enter_combat(CHAR_DATA *ch, CHAR_DATA *victim, bool silent);
 bool set_fighting( CHAR_DATA *ch, CHAR_DATA *victim);
@@ -12335,18 +12391,18 @@ void save_sectors();
 extern GLOBAL_DATA gconfig;
 
 extern LLIST *corpse_list;
-extern CORPSE_DATA gcrp__nocorpse;
-extern CORPSE_DATA *gcrp_normal;
-extern CORPSE_DATA *gcrp_incinerate;
+extern CORPSE_TYPE gcrp__nocorpse;
+extern CORPSE_TYPE *gcrp_normal;
+extern CORPSE_TYPE *gcrp_incinerate;
 extern long top_corpse_uid;
 
 bool load_corpses();
 void save_corpses();
 
-CORPSE_DATA *get_corpse_data(char *name);
-CORPSE_DATA *get_corpse_data_uid(long uid);
-CORPSE_DAMAGE *get_corpse_damage(CORPSE_DATA *corpse, int damage_type);
-CORPSE_DATA *apply_damage_to_corpse(CORPSE_DATA *corpse, int damage_type);
+CORPSE_TYPE *get_corpse_type(char *name);
+CORPSE_TYPE *get_corpse_type_uid(long uid);
+CORPSE_DAMAGE *get_corpse_damage(CORPSE_TYPE *corpse, int damage_type);
+CORPSE_TYPE *apply_damage_to_corpse(CORPSE_TYPE *corpse, int damage_type);
 
 
 #endif /* !def __merc_h__ */

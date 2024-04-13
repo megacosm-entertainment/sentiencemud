@@ -214,6 +214,7 @@ int material_lookup (register const char *name)
 
 char *get_weapon_class(OBJ_INDEX_DATA *obj)
 {
+    // TODO: Fix this
 	char *name = flag_name(weapon_class, obj->value[0]);
 
 	return name ? name : "unknown";

@@ -189,7 +189,7 @@ struct global_sector_type
 struct global_corpse_type
 {
 	char *name;
-	CORPSE_DATA **gcrp;
+	CORPSE_TYPE **gcrp;
 };
 
 struct npc_ship_type

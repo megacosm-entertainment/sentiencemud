@@ -68,8 +68,8 @@
 // ITEM_FOOD				Yes
 // ITEM_MONEY				Yes
 // ITEM_BOAT				Deleted
-// ITEM_CORPSE_NPC			No
-// ITEM_CORPSE_PC			No
+// ITEM_CORPSE_NPC			Corpse
+// ITEM_CORPSE_PC			Corpse
 // ITEM_FLUID_CONTAINER		Yes
 // ITEM_FOUNTAIN			Fluid Container
 // ITEM_PILL				No
@@ -266,6 +266,10 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 			if (item_type == ITEM_FURNITURE) return true;
 			if (item_type == ITEM_LIGHT) return true;
 			if (item_type == ITEM_PORTAL) return true;
+			return false;
+
+		case ITEM_CORPSE:
+			if (item_type == ITEM_CART) return true;	// Corpses can have cart data put onto them, but not vice versa
 			return false;
 
 		case ITEM_FURNITURE:

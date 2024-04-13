@@ -55,6 +55,16 @@
 #include "scripts.h"
 #include "olc.h"
 
+#define VERSION_RACES_000		0x00000000
+
+#define VERSION_RACES_001		0x00000001
+// Change #1: Added versioning
+// Change #2: Added 'skull' body part to all playable races
+
+#define VERSION_RACES			VERSION_RACES_001
+
+int version_races;
+
 void show_flag_cmds(CHAR_DATA *ch, const struct flag_type *flag_table);
 
 RACE_DATA *get_race_data(const char *name)
@@ -210,6 +220,8 @@ void save_races()
 		perror(RACES_FILE);
 		return;
 	}
+
+	fprintf(fp, "Version %d\n", VERSION_RACES);
 
 	ITERATOR it;
 	RACE_DATA *race;
@@ -421,6 +433,8 @@ bool load_races()
 	RACE_DATA *race;
 	top_race_uid = 0;
 
+	version_races = VERSION_RACES_000;
+
 	log_string("load_races: creating race_list");
 	race_list = list_createx(false, NULL, delete_race_data);
 	if (!IS_VALID(race_list))
@@ -465,6 +479,8 @@ bool load_races()
 			race->vuln = __race_table[i].vuln;
 			race->form = __race_table[i].form;
 			race->parts = __race_table[i].parts;
+			if (race->playable && IS_SET(race->parts, PART_HEAD))
+				SET_BIT(race->parts, PART_SKULL);
 
 			if (race->playable && __race_table[i].pgprn)
 			{
@@ -555,10 +571,14 @@ bool load_races()
 					break;
 				}
 				break;
+
+			case 'V':
+				KEY("Version", version_races, fread_number(fp));
+				break;
 			}
 
 			if (!fMatch) {
-				sprintf(buf, "load_classes: no match for word %s", word);
+				sprintf(buf, "load_races: no match for word %s", word);
 				bug(buf, 0);
 			}
 		}
@@ -587,6 +607,12 @@ bool load_races()
 				race->premort = get_race_data(race->load_remort);
 				free_string(race->load_remort);
 				race->load_remort = NULL;
+			}
+
+			if (version_races < VERSION_RACES_001 && race->playable && IS_SET(race->parts,PART_HEAD))
+			{
+				SET_BIT(race->parts, PART_SKULL);
+				save = true;
 			}
 		}
 		iterator_stop(&it);

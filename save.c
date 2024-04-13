@@ -2987,6 +2987,21 @@ void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
 		fprintf(fp, "#-TYPEARMOR\n");
 	}
 
+	if (IS_BODY_PART(obj))
+	{
+		BODY_PART_DATA *bp = BODY_PART(obj);
+		fprintf(fp, "#TYPEBODYPART\n");
+		if (IS_VALID(bp->race))
+			fprintf(fp, "Race %s~\n", bp->race->name);
+		fprintf(fp, "Parts %s\n", print_flags(bp->parts));
+
+		if (bp->id[0] > 0 || bp->id[1] > 0)
+		{
+			fprintf(fp, "ID %ld %ld\n", bp->id[0], bp->id[1]);
+		}
+		fprintf(fp, "#-TYPEBODYPART\n");
+	}
+
 	if (IS_BOOK(obj))
 	{
 		BOOK_DATA *book = BOOK(obj);
@@ -3090,6 +3105,25 @@ void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
 			fwrite_lock_state(fp, CONTAINER(obj)->lock);
 
 		fprintf(fp, "#-TYPECONTAINER\n");
+	}
+
+	if (IS_CORPSE(obj))
+	{
+		CORPSE_DATA *corpse = CORPSE(obj);
+		fprintf(fp, "#TYPECORPSE\n");
+		if (IS_VALID(corpse->type))
+			fprintf(fp, "Type %s~\n", corpse->type->name);
+		if (IS_VALID(corpse->race))
+			fprintf(fp, "Race %s~\n", corpse->race->name);
+		fprintf(fp, "Flags %s\n", print_flags(corpse->flags));
+		if (corpse->player)
+			fprintf(fp, "Player\n");
+		fprintf(fp, "Resurrect %d\n", corpse->resurrect);
+		fprintf(fp, "Animate %d\n", corpse->animate);
+		fprintf(fp, "Parts %s\n", print_flags(corpse->parts));
+		if (corpse->mobile)
+			fprintf(fp, "Mobile %s\n", widevnum_string(corpse->mobile->area, corpse->mobile->vnum, NULL));
+		fprintf(fp, "#-TYPECORPSE\n");
 	}
 
 	if (IS_FLUID_CON(obj))
@@ -4126,6 +4160,53 @@ ARMOR_DATA *fread_obj_armor_data(FILE *fp)
 	return data;
 }
 
+BODY_PART_DATA *fread_obj_body_part_data(FILE *fp)
+{
+	BODY_PART_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_body_part_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPEBODYPART"))
+	{
+		fMatch = false;
+
+		switch(word[0])
+		{
+			case 'I':
+				if (!str_cmp(word, "ID"))
+				{
+					long id0 = fread_number(fp);
+					long id1 = fread_number(fp);
+
+					data->id[0] = id0;
+					data->id[1] = id1;
+
+					fMatch = true;
+					break;
+				}
+				break;
+			case 'P':
+				KEY("Parts", data->parts, fread_flag(fp));
+				break;
+
+			case 'R':
+				KEY("Race", data->race, get_race_data(fread_string(fp)));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "fread_obj_body_part_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+
 BOOK_PAGE *fread_book_page(FILE *fp, char *closer)
 {
 	BOOK_PAGE *page = new_book_page();
@@ -4407,6 +4488,82 @@ CONTAINER_DATA *fread_obj_container_data(FILE *fp)
 
 	return data;
 }
+
+CORPSE_DATA *fread_obj_corpse_data(FILE *fp)
+{
+	CORPSE_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_corpse_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPECORPSE"))
+	{
+		fMatch = false;
+
+		switch(word[0])
+		{
+			case 'A':
+				KEY("Animate", data->animate, fread_number(fp));
+				break;
+
+			case 'F':
+				KEY("Flags", data->flags, fread_flag(fp));
+				break;
+
+			case 'M':
+				if (!str_cmp(word, "Mobile"))
+				{
+					WNUM_LOAD wnum = fread_widevnum(fp, 0);
+
+					if (wnum.auid > 0 && wnum.vnum > 0)
+					{
+						MOB_INDEX_DATA *mob = get_mob_index_auid(wnum.auid, wnum.vnum);
+
+						if (mob)
+						{
+							data->mobile = mob;
+						}
+						else
+						{
+							// TODO: Complain
+						}
+
+					}
+					else
+						data->mobile = NULL;
+
+					fMatch = true;
+					break;
+				}
+				KEY("Mobile", data->mobile_load, fread_widevnum(fp, 0));
+				break;
+
+			case 'P':
+				KEY("Parts", data->parts, fread_flag(fp));
+				KEY("Player", data->player, true);
+				break;
+
+			case 'R':
+				KEY("Race", data->race, get_race_data(fread_string(fp)));
+				KEY("Resurrect", data->resurrect, fread_number(fp));
+				break;
+
+			case 'T':
+				KEY("Type", data->type, get_corpse_type(fread_string(fp)));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "fread_obj_corpse_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
 
 FLUID_CONTAINER_DATA *fread_obj_fluid_container_data(FILE *fp)
 {
@@ -5525,8 +5682,11 @@ void fread_obj_reset_multityping(OBJ_DATA *obj)
 {
 	free_ammo_data(AMMO(obj));				AMMO(obj) = NULL;
 	free_armor_data(ARMOR(obj));			ARMOR(obj) = NULL;
+	free_body_part_data(BODY_PART(obj));	BODY_PART(obj) = NULL;
 	free_book_data(BOOK(obj));				BOOK(obj) = NULL;
+	free_compass_data(COMPASS(obj));		COMPASS(obj) = NULL;
 	free_container_data(CONTAINER(obj));	CONTAINER(obj) = NULL;
+	free_corpse_data(CORPSE(obj));			CORPSE(obj) = NULL;
 	free_fluid_container_data(FLUID_CON(obj));	FLUID_CON(obj) = NULL;
 	free_food_data(FOOD(obj));				FOOD(obj) = NULL;
 	free_furniture_data(FURNITURE(obj));	FURNITURE(obj) = NULL;
@@ -5541,6 +5701,7 @@ void fread_obj_reset_multityping(OBJ_DATA *obj)
 	free_portal_data(PORTAL(obj));			PORTAL(obj) = NULL;
 	free_scroll_data(SCROLL(obj));			SCROLL(obj) = NULL;
 	free_tattoo_data(TATTOO(obj));			TATTOO(obj) = NULL;
+	free_telescope_data(TELESCOPE(obj));	TELESCOPE(obj) = NULL;
 	free_wand_data(WAND(obj));				WAND(obj) = NULL;
 	free_weapon_data(WEAPON(obj));			WEAPON(obj) = NULL;
 }
@@ -5925,6 +6086,14 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				fMatch = true;
 				break;
 			}
+			else if (!str_cmp(word, "#TYPEBODYPART"))
+			{
+				if (IS_BODY_PART(obj)) free_body_part_data(BODY_PART(obj));
+
+				BODY_PART(obj) = fread_obj_body_part_data(fp);
+				fMatch = true;
+				break;
+			}
 			else if (!str_cmp(word, "#TYPEBOOK"))
 			{
 				if (IS_BOOK(obj)) free_book_data(BOOK(obj));
@@ -5954,6 +6123,14 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_CONTAINER(obj)) free_container_data(CONTAINER(obj));
 
 				CONTAINER(obj) = fread_obj_container_data(fp);
+				fMatch = true;
+				break;
+			}
+			else if (!str_cmp(word, "#TYPECORPSE"))
+			{
+				if (IS_CORPSE(obj)) free_corpse_data(CORPSE(obj));
+
+				CORPSE(obj) = fread_obj_corpse_data(fp);
 				fMatch = true;
 				break;
 			}
@@ -7016,7 +7193,8 @@ void fix_lockstate(LOCK_STATE *state)
 
 void fix_object_lockstate(OBJ_DATA *obj)
 {
-	// IS_BOOK
+	if (IS_BOOK(obj) && BOOK(obj)->lock)
+		fix_lockstate(BOOK(obj)->lock);
 
 	if (IS_CONTAINER(obj) && CONTAINER(obj)->lock)
 		fix_lockstate(CONTAINER(obj)->lock);
@@ -7034,8 +7212,8 @@ void fix_object_lockstate(OBJ_DATA *obj)
 		iterator_stop(&it);
 	}
 
-	// IS_PORTAL
-
+	if (IS_PORTAL(obj) && PORTAL(obj)->lock)
+		fix_lockstate(PORTAL(obj)->lock);
 
 	if (obj->contains)
 	{

@@ -2948,7 +2948,7 @@ SCRIPT_CMD(do_mpoload)
 						if (container_is_valid_item_type(arg->d.obj, pObjIndex->item_type, subtype))
 							to_obj = arg->d.obj;
 					}
-					else if(arg->d.obj->item_type == ITEM_CORPSE_NPC || arg->d.obj->item_type == ITEM_CORPSE_PC)
+					else if(IS_CORPSE(arg->d.obj))
 						to_obj = arg->d.obj;
 					else
 						return;	// Trying to put the item into a non-container won't work
@@ -5050,7 +5050,7 @@ SCRIPT_CMD(do_mpinput)
 SCRIPT_CMD(do_mprawkill)
 {
 	char *rest;
-	CORPSE_DATA *type;
+	CORPSE_TYPE *type;
 	bool has_head, show_msg;
 	CHAR_DATA *mob = NULL;
 
@@ -5083,7 +5083,7 @@ SCRIPT_CMD(do_mprawkill)
 		return;
 	}
 
-	type = get_corpse_data(arg->d.str);
+	type = get_corpse_type(arg->d.str);
 	if (!IS_VALID(type))
 		return;
 

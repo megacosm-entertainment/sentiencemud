@@ -269,7 +269,7 @@ void get_obj( CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container )
 		obj_from_room( obj );
     }
 
-    if ( container == NULL || container->item_type == ITEM_CORPSE_PC || container->item_type == ITEM_CORPSE_NPC )
+    if ( container == NULL || IS_CORPSE(container) )
 	reset_obj( obj );
 
     obj_to_char( obj, ch );
@@ -616,7 +616,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		if (IS_CONTAINER(container) || container->item_type == ITEM_CORPSE_NPC || container->item_type == ITEM_CORPSE_PC)
+		if (IS_CONTAINER(container) || IS_CORPSE(container))
 		{
 			// Look for a money object in the container
 			OBJ_DATA *money;
@@ -899,7 +899,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 		if (!can_get_obj(ch, obj, container, NULL, false))
 			return;
 
-		if (container->item_type == ITEM_CORPSE_PC || container->item_type == ITEM_CORPSE_NPC)
+		if (IS_CORPSE(container))
 			reset_obj(obj);
 
 		act("You get $p from $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
@@ -920,12 +920,14 @@ void do_get(CHAR_DATA *ch, char *argument)
 		// If the container is in the current room
 		if( !container->carried_by && !container->in_obj && container->in_room != NULL )
 		{
-			// Ignore player corpses
-			if( container->item_type == ITEM_CORPSE_PC ) return;
+			if( IS_CORPSE(container)) {
+				// Ignore player corpses
+				if (CORPSE(container)->player) return;
 
-			// Ignore mob corpses that have a timer
-			//  - static mob corpses can exist, but they won't have a timer on them
-			if( container->item_type == ITEM_CORPSE_NPC && container->timer > 0 ) return;
+				// Ignore mob corpses that have a timer
+				//  - static mob corpses can exist, but they won't have a timer on them
+				if (container->timer > 0) return;				
+			}
 
 			church_announce_theft(ch, NULL);
 		}
@@ -1006,7 +1008,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 							obj_to_char(obj, ch);
 							i++;
 
-							if (container->item_type == ITEM_CORPSE_PC || container->item_type == ITEM_CORPSE_NPC)
+							if (IS_CORPSE(container))
 								reset_obj(obj);
 
 
@@ -1047,14 +1049,17 @@ void do_get(CHAR_DATA *ch, char *argument)
 					p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_EMPTIED, NULL,CONTEXT_CONTAINER,0,0,0,0);
 				}
 
-				if (!container->carried_by && !container->in_obj && container->in_room != NULL ) {
+				if (!container->carried_by && !container->in_obj && container->in_room != NULL )
+				{
+					if (IS_CORPSE(container))
+					{
+						// Ignore player corpses
+						if( CORPSE(container)->player ) return;
 
-					// Ignore player corpses
-					if( container->item_type == ITEM_CORPSE_PC ) return;
-
-					// Ignore mob corpses that have a timer
-					//  - static mob corpses can exist, but they won't have a timer on them
-					if( container->item_type == ITEM_CORPSE_NPC && container->timer > 0 ) return;
+						// Ignore mob corpses that have a timer
+						//  - static mob corpses can exist, but they won't have a timer on them
+						if( container->timer > 0 ) return;
+					}
 
 					church_announce_theft(ch, NULL);
 				}
@@ -2472,8 +2477,7 @@ void do_donate(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (obj->item_type == ITEM_CORPSE_NPC
-    || obj->item_type == ITEM_CORPSE_PC
+    if (IS_CORPSE(obj)
     || obj->owner     != NULL
     || IS_OBJ_STAT(obj,ITEM_MELT_DROP)
     || obj->timer > 0)
@@ -2943,7 +2947,7 @@ void do_envenom(CHAR_DATA *ch, char *argument)
 		}
 
 		act("You fail to poison $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-		if (!obj->value[3])
+		if ((IS_FOOD(obj) && !FOOD(obj)->poison) || (IS_FLUID_CON(obj) && !FLUID_CON(obj)->poison))
 			check_improve(ch,gsk_envenom,false,4);
 		WAIT_STATE(ch,gsk_envenom->beats);
 		return;
@@ -2967,12 +2971,12 @@ void do_envenom(CHAR_DATA *ch, char *argument)
             return;
         }
 
-	if (obj->value[3] < 0
-	||  attack_table[obj->value[3]].damage == DAM_BASH)
-	{
-	    send_to_char("You can only envenom edged weapons.\n\r",ch);
-	    return;
-	}
+		// TODO: Fix this
+		if (obj->value[3] < 0 || attack_table[obj->value[3]].damage == DAM_BASH)
+		{
+			send_to_char("You can only envenom edged weapons.\n\r",ch);
+			return;
+		}
 
         if (IS_WEAPON_STAT(obj,WEAPON_POISON))
         {
@@ -4285,6 +4289,7 @@ void wear_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool fReplace)
 			return;
 		}
 
+		// TODO: Fix the weapon stuff
 		if (ch->size < SIZE_HUGE &&
 			(get_eq_char(ch, WEAR_SECONDARY) != NULL) &&
 				(get_eq_char(ch, WEAR_SECONDARY)->value[0] == WEAPON_POLEARM ||
@@ -4738,13 +4743,7 @@ void do_recite(CHAR_DATA *ch, char *argument)
 		}
 	}
 
-	int beats;
-	if (scroll->value[2] == 0)
-		beats = 10;
-	else if (scroll->value[3] == 0)
-		beats = 14;
-	else
-		beats = 18;
+	int beats = list_size(SCROLL(obj)->spells) * 4 + 6;
 
 	// TODO: Fix these so they utilize the return value
 	// 0: allow
@@ -4754,18 +4753,33 @@ void do_recite(CHAR_DATA *ch, char *argument)
 	// Both scripts MUST provide a reason.
 	// Does the scroll forbid it?
 	scroll->tempstore[0] = beats;
-	if(p_percent_trigger( NULL, scroll, NULL, NULL, ch, victim, NULL,obj, NULL, TRIG_PRERECITE, NULL,0,0,0,0,0))
+	int ret = p_percent_trigger( NULL, scroll, NULL, NULL, ch, victim, NULL,obj, NULL, TRIG_PRERECITE, NULL,0,0,0,0,0);
+	if (ret)
+	{
+		if (ret != PRET_SILENT)
+			send_to_char("You can't recite that.\n\r", ch);
 		return;
+	}
 
 	// Does the ROOM forbid it?
 	ch->in_room->tempstore[0] = scroll->tempstore[0];
-	if(p_percent_trigger( NULL, NULL, ch->in_room, NULL, ch, victim, NULL, obj, scroll, TRIG_PRERECITE, NULL,0,0,0,0,0))
+	ret = p_percent_trigger( NULL, NULL, ch->in_room, NULL, ch, victim, NULL, obj, scroll, TRIG_PRERECITE, NULL,0,0,0,0,0);
+	if (ret)
+	{
+		if (ret != PRET_SILENT)
+			send_to_char("You can't recite that here.\n\r", ch);
 		return;
+	}
 
 	// Does the PLAYER (TOKENS) forbid it?
 	ch->tempstore[0] = ch->in_room->tempstore[0];
-	if(p_percent_trigger( ch, NULL, NULL, NULL, ch, victim, NULL, obj, scroll, TRIG_PRERECITE, NULL,0,0,0,0,0))
+	ret = p_percent_trigger( ch, NULL, NULL, NULL, ch, victim, NULL, obj, scroll, TRIG_PRERECITE, NULL,0,0,0,0,0);
+	if (ret)
+	{
+		if (ret != PRET_SILENT)
+			send_to_char("You can't recite that right now.\n\r", ch);
 		return;
+	}
 
 	beats = ch->tempstore[0];
 	beats = UMAX(beats, 1);
@@ -7728,6 +7742,7 @@ void do_secondary(CHAR_DATA *ch, char *argument)
         return;
     }
 
+	// TODO: Fix the weapon stuff
     /* you can't dual wield spears/polearms */
     if (weapon != NULL
     && (IS_WEAPON_STAT(weapon,WEAPON_TWO_HANDS)
@@ -8277,7 +8292,8 @@ void do_skull(CHAR_DATA *ch, char *argument)
     OBJ_DATA *obj;
     OBJ_DATA *skull;
     int i;
-    int chance, corpse;
+    int chance;
+	CORPSE_TYPE *corpse;
 
     argument = one_argument(argument, arg);
 
@@ -8298,128 +8314,138 @@ void do_skull(CHAR_DATA *ch, char *argument)
 
     if ((obj = get_obj_here(ch, NULL, arg)) != NULL)
     {
-	if (obj->item_type != ITEM_CORPSE_PC)
-	{
-	    send_to_char("You can only take the skull from a player's corpse.\n\r", ch);
-	    return;
-	}
+		if (!IS_CORPSE(obj) || !CORPSE(obj)->player)
+		{
+			send_to_char("You can only take the skull from a player's corpse.\n\r", ch);
+			return;
+		}
 
-	if (!IS_SET(CORPSE_PARTS(obj),PART_HEAD)) {
-	    send_to_char("There is no skull to take.\n\r", ch);
-	    return;
-	}
+		if (!IS_SET(CORPSE(obj)->parts,PART_SKULL)) {
+			send_to_char("There is no skull to take.\n\r", ch);
+			return;
+		}
 
-	if (obj->pIndexData->immortal) {
-	    act("$p is protected by powers from above.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	    return;
-	}
+		if (obj->pIndexData->immortal) {
+			act("$p is protected by powers from above.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
 
-	corpse = CORPSE_TYPE(obj);
+		CORPSE_DATA *cd = CORPSE(obj);
+		corpse = cd->type;
 
-	/* Used for corpse types that are impossible to skull even if there is a head...*/
-	if (corpse_info_table[corpse].skulling_chance < 0) {
-		send_to_char("You can't seem to remove its skull.  It doesn't want to budge.\n\r", ch);
-		return;
-	}
+		/* Used for corpse types that are impossible to skull even if there is a head...*/
+		if (corpse->skulling_chance <= 0) {
+			send_to_char("You can't seem to remove its skull.  It doesn't want to budge.\n\r", ch);
+			return;
+		}
 
-	if (IS_NPC(ch))
-	    chance = (ch->tot_level * 3)/4 - obj->level/10;
-	else
-	    chance = get_skill(ch, gsk_skull) - 3;
+		if (IS_NPC(ch))
+			chance = (ch->tot_level * 3)/4 - obj->level/10;
+		else
+		    chance = get_skill(ch, gsk_skull) - 3;
 
-	chance *= corpse_info_table[corpse].skulling_chance;
+		chance *= corpse->skulling_chance;
 
-	if (number_range(1,10000) > chance)
-	{
-	    act(corpse_info_table[corpse].skull_fail, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	    act(corpse_info_table[corpse].skull_fail_other, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-	    check_improve(ch, gsk_skull, false, 1);
-//	    SET_BIT(obj->extra[0], ITEM_NOSKULL);
-	    REMOVE_BIT(CORPSE_PARTS(obj),PART_HEAD);
-	    REMOVE_BIT(CORPSE_PARTS(obj),PART_BRAINS);
-	    REMOVE_BIT(CORPSE_PARTS(obj),PART_EAR);
-	    REMOVE_BIT(CORPSE_PARTS(obj),PART_EYE);
-	    REMOVE_BIT(CORPSE_PARTS(obj),PART_LONG_TONGUE);
-	    REMOVE_BIT(CORPSE_PARTS(obj),PART_EYESTALKS);
-	    REMOVE_BIT(CORPSE_PARTS(obj),PART_FANGS);
-	    REMOVE_BIT(CORPSE_PARTS(obj),PART_HORNS);
-	    REMOVE_BIT(CORPSE_PARTS(obj),PART_TUSKS);
+		if (number_range(1,10000) > chance)
+		{
+			act(corpse->skull_fail, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			act(corpse->skull_fail_other, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+			check_improve(ch, gsk_skull, false, 1);
+//		    SET_BIT(obj->extra[0], ITEM_NOSKULL);
+			REMOVE_BIT(cd->parts,PART_HEAD);
+			REMOVE_BIT(cd->parts,PART_SKULL);
+			REMOVE_BIT(cd->parts,PART_BRAINS);
+			REMOVE_BIT(cd->parts,PART_EAR);
+			REMOVE_BIT(cd->parts,PART_EYE);
+			REMOVE_BIT(cd->parts,PART_LONG_TONGUE);
+			REMOVE_BIT(cd->parts,PART_EYESTALKS);
+			REMOVE_BIT(cd->parts,PART_FANGS);
+			REMOVE_BIT(cd->parts,PART_HORNS);
+			REMOVE_BIT(cd->parts,PART_TUSKS);
 
-	    sprintf(buf, corpse_info_table[corpse].short_headless, obj->owner);
-	    free_string(obj->short_descr);
-	    obj->short_descr = str_dup(buf);
+			sprintf(buf, corpse->short_headless, obj->owner);
+			free_string(obj->short_descr);
+			obj->short_descr = str_dup(buf);
 
-	    sprintf(buf, corpse_info_table[corpse].long_headless, obj->owner);
-	    free_string(obj->description);
-	    obj->description = str_dup(buf);
+			sprintf(buf, corpse->long_headless, obj->owner);
+			free_string(obj->description);
+			obj->description = str_dup(buf);
 
-	    sprintf(buf, corpse_info_table[corpse].full_headless, obj->owner);
-	    free_string(obj->full_description);
-	    obj->full_description = str_dup(buf);
-	    return;
-	}
+			sprintf(buf, corpse->full_headless, obj->owner);
+			free_string(obj->full_description);
+			obj->full_description = str_dup(buf);
+			return;
+		}
 
 
-	/* 20070521 : NIB : Changed to check based upon where the CORPSE was created,*/
-	/*			for when corpses can be dragged.  Used to keep people*/
-	/*			from using CPK rooms to skull goldens.  This will have*/
-	/*			no affect on looting as object placement is done at the*/
-	/*			time of death.*/
-	if (IS_SET(CORPSE_FLAGS(obj), CORPSE_CHAOTICDEATH))
-	    skull = create_object(obj_index_gold_skull, 0, false);
-	else
-	    skull = create_object(obj_index_skull, 0, false);
+		/* 20070521 : NIB : Changed to check based upon where the CORPSE was created,*/
+		/*			for when corpses can be dragged.  Used to keep people*/
+		/*			from using CPK rooms to skull goldens.  This will have*/
+		/*			no affect on looting as object placement is done at the*/
+		/*			time of death.*/
+		if (IS_SET(cd->flags, CORPSE_CHAOTICDEATH))
+			skull = create_object(obj_index_gold_skull, 0, false);
+		else
+			skull = create_object(obj_index_skull, 0, false);
 
-//	SET_BIT(obj->extra[0], ITEM_NOSKULL);
-	REMOVE_BIT(CORPSE_PARTS(obj),PART_HEAD);
-	REMOVE_BIT(CORPSE_PARTS(obj),PART_BRAINS);
-	REMOVE_BIT(CORPSE_PARTS(obj),PART_EAR);
-	REMOVE_BIT(CORPSE_PARTS(obj),PART_EYE);
-	REMOVE_BIT(CORPSE_PARTS(obj),PART_LONG_TONGUE);
-	REMOVE_BIT(CORPSE_PARTS(obj),PART_EYESTALKS);
-	REMOVE_BIT(CORPSE_PARTS(obj),PART_FANGS);
-	REMOVE_BIT(CORPSE_PARTS(obj),PART_HORNS);
-	REMOVE_BIT(CORPSE_PARTS(obj),PART_TUSKS);
+		// Make sure the skull is an actual body part
+		if (!IS_BODY_PART(skull))
+			BODY_PART(skull) = new_body_part_data();
 
-	sprintf(buf, skull->short_descr, obj->owner);
-	free_string(skull->short_descr);
-	skull->short_descr = str_dup(buf);
+		BODY_PART(skull)->parts = PART_SKULL;
+		BODY_PART(skull)->race = cd->race;
 
-	sprintf(buf, skull->description, obj->owner);
-	free_string(skull->description);
-	skull->description = str_dup(buf);
+//		SET_BIT(obj->extra[0], ITEM_NOSKULL);
+		REMOVE_BIT(cd->parts,PART_HEAD);
+		REMOVE_BIT(cd->parts,PART_SKULL);
+		REMOVE_BIT(cd->parts,PART_BRAINS);
+		REMOVE_BIT(cd->parts,PART_EAR);
+		REMOVE_BIT(cd->parts,PART_EYE);
+		REMOVE_BIT(cd->parts,PART_LONG_TONGUE);
+		REMOVE_BIT(cd->parts,PART_EYESTALKS);
+		REMOVE_BIT(cd->parts,PART_FANGS);
+		REMOVE_BIT(cd->parts,PART_HORNS);
+		REMOVE_BIT(cd->parts,PART_TUSKS);
 
-	sprintf(buf, skull->full_description, obj->owner);
-	free_string(skull->full_description);
-	skull->full_description = str_dup(buf);
+		sprintf(buf, skull->short_descr, obj->owner);
+		free_string(skull->short_descr);
+		skull->short_descr = str_dup(buf);
 
-	sprintf(buf, "skull %s", obj->owner);
-	for (i = 0; buf[i] != '\0'; i++)
-	    buf[i] = LOWER(buf[i]);
+		sprintf(buf, skull->description, obj->owner);
+		free_string(skull->description);
+		skull->description = str_dup(buf);
 
-	free_string(skull->name);
-	skull->name = str_dup(buf);
+		sprintf(buf, skull->full_description, obj->owner);
+		free_string(skull->full_description);
+		skull->full_description = str_dup(buf);
 
-	skull->owner = str_dup(obj->owner);
+		sprintf(buf, "skull %s", obj->owner);
+		for (i = 0; buf[i] != '\0'; i++)
+			buf[i] = LOWER(buf[i]);
 
-	sprintf(buf, corpse_info_table[corpse].short_headless, obj->owner);
-	free_string(obj->short_descr);
-	obj->short_descr = str_dup(buf);
+		free_string(skull->name);
+		skull->name = str_dup(buf);
 
-	sprintf(buf, corpse_info_table[corpse].long_headless, obj->owner);
-	free_string(obj->description);
-	obj->description = str_dup(buf);
+		skull->owner = str_dup(obj->owner);
 
-	sprintf(buf, corpse_info_table[corpse].full_headless, obj->owner);
-	free_string(obj->full_description);
-	obj->full_description = str_dup(buf);
+		sprintf(buf, corpse->short_headless, obj->owner);
+		free_string(obj->short_descr);
+		obj->short_descr = str_dup(buf);
 
-	sprintf(buf, corpse_info_table[corpse].skull_success, obj->owner);
-	act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	sprintf(buf, corpse_info_table[corpse].skull_success_other, obj->owner);
-	act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	obj_to_char(skull, ch);
-	check_improve(ch, gsk_skull, true, 1);
+		sprintf(buf, corpse->long_headless, obj->owner);
+		free_string(obj->description);
+		obj->description = str_dup(buf);
+
+		sprintf(buf, corpse->full_headless, obj->owner);
+		free_string(obj->full_description);
+		obj->full_description = str_dup(buf);
+
+		sprintf(buf, corpse->skull_success, obj->owner);
+		act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		sprintf(buf, corpse->skull_success_other, obj->owner);
+		act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		obj_to_char(skull, ch);
+		check_improve(ch, gsk_skull, true, 1);
     }
     else
         act("There's no $t here.", ch, NULL, NULL, NULL, NULL, arg, NULL, TO_CHAR);

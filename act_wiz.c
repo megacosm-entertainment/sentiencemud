@@ -2441,6 +2441,7 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 		}
 	}
 
+	// IS_BODY_PART
 
 	if (IS_BOOK(obj))
 	{
@@ -2506,6 +2507,8 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 		if (CONTAINER(obj)->lock)
 			ostat_lock_state(CONTAINER(obj)->lock, buffer);
 	}
+
+	// IS_CORPSE
 
 	if (IS_FLUID_CON(obj))
 	{
@@ -10540,7 +10543,7 @@ bool load_materials()
 //////////////////
 // CORPSE STUFF
 
-CORPSE_DATA **gcrp_from_name(char *name)
+CORPSE_TYPE **gcrp_from_name(char *name)
 {
 	for(int i = 0; global_corpses[i].name; i++)
 		if (!str_prefix(name, global_corpses[i].name))
@@ -10549,7 +10552,7 @@ CORPSE_DATA **gcrp_from_name(char *name)
 	return NULL;
 }
 
-char *gcrp_to_name(CORPSE_DATA **gcrp)
+char *gcrp_to_name(CORPSE_TYPE **gcrp)
 {
 	for(int i = 0; global_corpses[i].name; i++)
 		if (global_corpses[i].gcrp == gcrp)
@@ -10558,7 +10561,7 @@ char *gcrp_to_name(CORPSE_DATA **gcrp)
 	return NULL;
 }
 
-char *gcrp_to_display(CORPSE_DATA **gcrp)
+char *gcrp_to_display(CORPSE_TYPE **gcrp)
 {
 	for(int i = 0; global_corpses[i].name; i++)
 		if (global_corpses[i].gcrp == gcrp)
@@ -10568,13 +10571,13 @@ char *gcrp_to_display(CORPSE_DATA **gcrp)
 }
 
 
-CORPSE_DATA *get_corpse_data(char *name)
+CORPSE_TYPE *get_corpse_type(char *name)
 {
 	ITERATOR it;
-	CORPSE_DATA *corpse;
+	CORPSE_TYPE *corpse;
 
 	iterator_start(&it, corpse_list);
-	while((corpse = (CORPSE_DATA *)iterator_nextdata(&it)))
+	while((corpse = (CORPSE_TYPE *)iterator_nextdata(&it)))
 	{
 		if (!str_prefix(name, corpse->name))
 			break;
@@ -10584,13 +10587,13 @@ CORPSE_DATA *get_corpse_data(char *name)
 	return corpse;
 }
 
-CORPSE_DATA *get_corpse_data_uid(long uid)
+CORPSE_TYPE *get_corpse_type_uid(long uid)
 {
 	ITERATOR it;
-	CORPSE_DATA *corpse;
+	CORPSE_TYPE *corpse;
 
 	iterator_start(&it, corpse_list);
-	while((corpse = (CORPSE_DATA *)iterator_nextdata(&it)))
+	while((corpse = (CORPSE_TYPE *)iterator_nextdata(&it)))
 	{
 		if (corpse->uid == uid)
 			break;
@@ -10600,7 +10603,7 @@ CORPSE_DATA *get_corpse_data_uid(long uid)
 	return corpse;
 }
 
-CORPSE_DAMAGE *get_corpse_damage(CORPSE_DATA *corpse, int damage_type)
+CORPSE_DAMAGE *get_corpse_damage(CORPSE_TYPE *corpse, int damage_type)
 {
 	if (!IS_VALID(corpse)) return NULL;
 
@@ -10618,7 +10621,7 @@ CORPSE_DAMAGE *get_corpse_damage(CORPSE_DATA *corpse, int damage_type)
 	return damage;
 }
 
-CORPSE_DATA *apply_damage_to_corpse(CORPSE_DATA *corpse, int damage_type)
+CORPSE_TYPE *apply_damage_to_corpse(CORPSE_TYPE *corpse, int damage_type)
 {
 	CORPSE_DAMAGE *damage = get_corpse_damage(corpse, damage_type);
 
@@ -10665,7 +10668,7 @@ void save_corpse_damage(FILE *fp, CORPSE_DAMAGE *damage)
 	fprintf(fp, "#-DAMAGE\n");
 }
 
-void save_corpse(FILE *fp, CORPSE_DATA *corpse)
+void save_corpse(FILE *fp, CORPSE_TYPE *corpse)
 {
 	fprintf(fp, "#CORPSE %ld\n", corpse->uid);
 	fprintf(fp, "Name %s~\n", corpse->name);
@@ -10733,10 +10736,10 @@ void save_corpses()
 	else
 	{
 		ITERATOR it;
-		CORPSE_DATA *corpse;
+		CORPSE_TYPE *corpse;
 
 		iterator_start(&it, corpse_list);
-		while((corpse = (CORPSE_DATA *)iterator_nextdata(&it)))
+		while((corpse = (CORPSE_TYPE *)iterator_nextdata(&it)))
 		{
 			save_corpse(fp, corpse);
 		}
@@ -10794,9 +10797,9 @@ CORPSE_DAMAGE *load_corpse_damage(FILE *fp)
 	return damage;
 }
 
-CORPSE_DATA *load_corpse(FILE *fp)
+CORPSE_TYPE *load_corpse(FILE *fp)
 {
-	CORPSE_DATA *corpse = new_corpse_data();
+	CORPSE_TYPE *corpse = new_corpse_type();
 	char buf[MSL];
 	char *word;
 	bool fMatch;
@@ -10910,13 +10913,13 @@ CORPSE_DATA *load_corpse(FILE *fp)
 	return corpse;
 }
 
-void insert_corpse(CORPSE_DATA *corpse)
+void insert_corpse(CORPSE_TYPE *corpse)
 {
 	ITERATOR it;
-	CORPSE_DATA *c;
+	CORPSE_TYPE *c;
 
 	iterator_start(&it, corpse_list);
-	while((c = (CORPSE_DATA *)iterator_nextdata(&it)))
+	while((c = (CORPSE_TYPE *)iterator_nextdata(&it)))
 	{
 		int cmp = str_cmp(corpse->name, c->name);
 		if (cmp < 0)
@@ -10933,9 +10936,9 @@ void insert_corpse(CORPSE_DATA *corpse)
 	}
 }
 
-static void delete_corpse_data(void *ptr)
+static void delete_corpse_type(void *ptr)
 {
-	free_corpse_data((CORPSE_DATA *)ptr);
+	free_corpse_type((CORPSE_TYPE *)ptr);
 }
 
 bool load_corpses()
@@ -10947,7 +10950,7 @@ bool load_corpses()
 	bool fSave = false;
 
 	log_string("load_corpses: creating corpse_list");
-	corpse_list = list_createx(false, NULL, delete_corpse_data);
+	corpse_list = list_createx(false, NULL, delete_corpse_type);
 	if (!IS_VALID(corpse_list))
 	{
 		log_string("corpse_list was not created.");
@@ -10964,7 +10967,7 @@ bool load_corpses()
 		{
 			const struct corpse_info *crps = &corpse_info_table[i];
 
-			CORPSE_DATA *corpse = new_corpse_data();
+			CORPSE_TYPE *corpse = new_corpse_type();
 
 			corpse->name = str_dup(flag_string(corpse_types, i));
 			corpse->uid = ++top_corpse_uid;		// Effectively i + 1
@@ -11025,7 +11028,7 @@ bool load_corpses()
 				case '#':
 					if (!str_cmp(word, "#CORPSE"))
 					{
-						CORPSE_DATA *corpse = load_corpse(fp);
+						CORPSE_TYPE *corpse = load_corpse(fp);
 						if (corpse)
 						{
 							if (corpse->uid > top_corpse_uid)
@@ -11056,9 +11059,9 @@ bool load_corpses()
 	}
 
 	ITERATOR it;
-	CORPSE_DATA *c;
+	CORPSE_TYPE *c;
 	iterator_start(&it, corpse_list);
-	while((c = (CORPSE_DATA *)iterator_nextdata(&it)))
+	while((c = (CORPSE_TYPE *)iterator_nextdata(&it)))
 	{
 		if (!c->uid)
 		{
@@ -11069,7 +11072,7 @@ bool load_corpses()
 		if (c->gcrp) *(c->gcrp) = c;
 
 		if (c->decay_type_uid > 0)
-			c->decay_type = get_corpse_data_uid(c->decay_type_uid);
+			c->decay_type = get_corpse_type_uid(c->decay_type_uid);
 
 		ITERATOR dit, bit;
 		CORPSE_DAMAGE *damage;
@@ -11084,7 +11087,7 @@ bool load_corpses()
 					blend->result = NULL;
 				else
 				{
-					CORPSE_DATA *bc = get_corpse_data_uid(blend->uid);
+					CORPSE_TYPE *bc = get_corpse_type_uid(blend->uid);
 					if (!IS_VALID(bc))
 						iterator_remcurrent(&bit);
 					else
@@ -11109,12 +11112,12 @@ bool load_corpses()
 
 void do_corpsedit(CHAR_DATA *ch, char *argument)
 {
-	CORPSE_DATA *corpse;
+	CORPSE_TYPE *corpse;
     char command[MSL];
 
     argument = one_argument(argument, command);
 
-	if ((corpse = get_corpse_data(command)))
+	if ((corpse = get_corpse_type(command)))
 	{
 		olc_set_editor(ch, ED_CORPSEDIT, corpse);
 		return;
@@ -11208,11 +11211,11 @@ void do_corpselist(CHAR_DATA *ch, char *argument)
 	BUFFER *buffer = new_buf();
 
 	ITERATOR it;
-	CORPSE_DATA *corpse;
+	CORPSE_TYPE *corpse;
 	int i = 0;
 
 	iterator_start(&it, corpse_list);
-	while((corpse = (CORPSE_DATA *)iterator_nextdata(&it)))
+	while((corpse = (CORPSE_TYPE *)iterator_nextdata(&it)))
 	{
 		sprintf(buf, "%3d) %s\n\r", ++i, MXPCreateSend(ch->desc,formatf("corpseshow %s", corpse->name),corpse->name));
 		add_buf(buffer, buf);
@@ -11239,7 +11242,7 @@ void do_corpseshow(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	CORPSE_DATA *corpse = get_corpse_data(argument);
+	CORPSE_TYPE *corpse = get_corpse_type(argument);
 	if (!corpse)
 	{
 		send_to_char("There is no corpse type with that name.\n\r", ch);
@@ -11252,7 +11255,7 @@ void do_corpseshow(CHAR_DATA *ch, char *argument)
 
 CORPSEDIT( corpsedit_create )
 {
-	CORPSE_DATA *corpse;
+	CORPSE_TYPE *corpse;
 
 	if (argument[0] == '\0')
 	{
@@ -11261,13 +11264,13 @@ CORPSEDIT( corpsedit_create )
 		return false;
 	}
 
-	if ((corpse = get_corpse_data(argument)))
+	if ((corpse = get_corpse_type(argument)))
 	{
 		send_to_char("That name is already in use.\n\r", ch);
 		return false;
 	}
 
-	corpse = new_corpse_data();
+	corpse = new_corpse_type();
 	smash_tilde(argument);
 	corpse->name = str_dup(argument);
 	insert_corpse(corpse);
@@ -11281,7 +11284,7 @@ CORPSEDIT( corpsedit_create )
 
 CORPSEDIT( corpsedit_show )
 {
-	CORPSE_DATA *corpse;
+	CORPSE_TYPE *corpse;
 	EDIT_CORPSE(ch, corpse);
 
 	BUFFER *buffer = new_buf();
@@ -11390,7 +11393,7 @@ CORPSEDIT( corpsedit_show )
 
 CORPSEDIT( corpsedit_gcrp )
 {
-	CORPSE_DATA *corpse;
+	CORPSE_TYPE *corpse;
 	EDIT_CORPSE(ch, corpse);
 
 	if (argument[0] == '\0')
@@ -11405,7 +11408,7 @@ CORPSEDIT( corpsedit_gcrp )
 
 	if (!str_prefix(arg, "set"))
 	{
-		CORPSE_DATA **gcrp = gcrp_from_name(argument);
+		CORPSE_TYPE **gcrp = gcrp_from_name(argument);
 
 		if (!gcrp)
 		{
@@ -11439,7 +11442,7 @@ CORPSEDIT( corpsedit_gcrp )
 
 CORPSEDIT( corpsedit_comments )
 {
-	CORPSE_DATA *corpse;
+	CORPSE_TYPE *corpse;
 	EDIT_CORPSE(ch, corpse);
 
 	if (argument[0])
@@ -11454,7 +11457,7 @@ CORPSEDIT( corpsedit_comments )
 
 CORPSEDIT( corpsedit_name )
 {
-	CORPSE_DATA *corpse, *other;
+	CORPSE_TYPE *corpse, *other;
 	EDIT_CORPSE(ch, corpse);
 
 	if (argument[0] == '\0')
@@ -11465,7 +11468,7 @@ CORPSEDIT( corpsedit_name )
 	}
 	smash_tilde(argument);
 
-	other = get_corpse_data(argument);
+	other = get_corpse_type(argument);
 	if (IS_VALID(other) && corpse != other)
 	{
 		send_to_char("That name is already in use.\n\r", ch);
@@ -11485,7 +11488,7 @@ CORPSEDIT( corpsedit_name )
 
 CORPSEDIT( corpsedit_keywords )
 {
-	CORPSE_DATA *corpse;
+	CORPSE_TYPE *corpse;
 	EDIT_CORPSE(ch, corpse);
 
 	if (argument[0] == '\0')
@@ -11503,7 +11506,7 @@ CORPSEDIT( corpsedit_keywords )
 
 CORPSEDIT( corpsedit_short )
 {
-	CORPSE_DATA *corpse;
+	CORPSE_TYPE *corpse;
 	EDIT_CORPSE(ch, corpse);
 
 	if (argument[0] == '\0')
@@ -11521,7 +11524,7 @@ CORPSEDIT( corpsedit_short )
 
 CORPSEDIT( corpsedit_long )
 {
-	CORPSE_DATA *corpse;
+	CORPSE_TYPE *corpse;
 	EDIT_CORPSE(ch, corpse);
 
 	if (argument[0] == '\0')
@@ -11539,7 +11542,7 @@ CORPSEDIT( corpsedit_long )
 
 CORPSEDIT( corpsedit_description )
 {
-	CORPSE_DATA *corpse;
+	CORPSE_TYPE *corpse;
 	EDIT_CORPSE(ch, corpse);
 
 	if (argument[0])
@@ -11555,7 +11558,7 @@ CORPSEDIT( corpsedit_description )
 // yes/no, short, long, description
 CORPSEDIT( corpsedit_headless )
 {
-	CORPSE_DATA *corpse;
+	CORPSE_TYPE *corpse;
 	EDIT_CORPSE(ch, corpse);
 
 	if (argument[0] == '\0')
@@ -11631,7 +11634,7 @@ CORPSEDIT( corpsedit_headless )
 // name, long, description, headlesss
 CORPSEDIT( corpsedit_animate )
 {
-	CORPSE_DATA *corpse;
+	CORPSE_TYPE *corpse;
 	EDIT_CORPSE(ch, corpse);
 
 	if (argument[0] == '\0')
@@ -11723,7 +11726,7 @@ CORPSEDIT( corpsedit_animate )
 // decay, room and victim
 CORPSEDIT( corpsedit_message )
 {
-	CORPSE_DATA *corpse;
+	CORPSE_TYPE *corpse;
 	EDIT_CORPSE(ch, corpse);
 
 	if (argument[0] == '\0')
@@ -11864,7 +11867,7 @@ CORPSEDIT( corpsedit_message )
 // success, successother, fail, failother
 CORPSEDIT( corpsedit_skull )
 {
-	CORPSE_DATA *corpse;
+	CORPSE_TYPE *corpse;
 	EDIT_CORPSE(ch, corpse);
 
 	if (argument[0] == '\0')
@@ -11949,7 +11952,7 @@ CORPSEDIT( corpsedit_skull )
 
 CORPSEDIT( corpsedit_owner_loot )
 {
-	CORPSE_DATA *corpse;
+	CORPSE_TYPE *corpse;
 	EDIT_CORPSE(ch, corpse);
 
 	if (argument[0] == '\0')
@@ -11978,7 +11981,7 @@ CORPSEDIT( corpsedit_owner_loot )
 // resurrect, animation, skulling
 CORPSEDIT( corpsedit_chance )
 {
-	CORPSE_DATA *corpse;
+	CORPSE_TYPE *corpse;
 	EDIT_CORPSE(ch, corpse);
 
 	if (argument[0] == '\0')
@@ -12044,7 +12047,7 @@ CORPSEDIT( corpsedit_chance )
 // type, rate, timer, spill
 CORPSEDIT( corpsedit_decay )
 {
-	CORPSE_DATA *corpse;
+	CORPSE_TYPE *corpse;
 	EDIT_CORPSE(ch, corpse);
 
 	if (argument[0] == '\0')
@@ -12073,7 +12076,7 @@ CORPSEDIT( corpsedit_decay )
 
 		if (!str_prefix(arg, "set"))
 		{
-			CORPSE_DATA *decay = get_corpse_data(argument);
+			CORPSE_TYPE *decay = get_corpse_type(argument);
 			if (!IS_VALID(decay))
 			{
 				send_to_char("No such corpse type by that name.\n\r", ch);
@@ -12195,7 +12198,7 @@ CORPSEDIT( corpsedit_decay )
 
 CORPSEDIT( corpsedit_lost )
 {
-	CORPSE_DATA *corpse;
+	CORPSE_TYPE *corpse;
 	EDIT_CORPSE(ch, corpse);
 
 	if (argument[0] == '\0')
@@ -12220,7 +12223,7 @@ CORPSEDIT( corpsedit_lost )
 
 CORPSEDIT( corpsedit_damage )
 {
-	CORPSE_DATA *corpse;
+	CORPSE_TYPE *corpse;
 	EDIT_CORPSE(ch, corpse);
 
 	if (argument[0] == '\0')
@@ -12307,12 +12310,12 @@ CORPSEDIT( corpsedit_damage )
 
 		argument = one_argument(argument, arg);
 		
-		CORPSE_DATA *bc;
+		CORPSE_TYPE *bc;
 		if (!str_prefix(arg, "nocorpse"))
 			bc = NULL;
 		else
 		{
-			bc = get_corpse_data(arg);
+			bc = get_corpse_type(arg);
 			if (!IS_VALID(bc))
 			{
 				send_to_char("No such corpse by that name.\n\r", ch);

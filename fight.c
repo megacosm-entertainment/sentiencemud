@@ -1246,7 +1246,7 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, SKI
 	OBJ_DATA *vObj;
 	OBJ_DATA *obj;
 	char buf[MAX_STRING_LENGTH];
-	CORPSE_DATA *corpse_type = victim->corpse_type;
+	CORPSE_TYPE *corpse_type = victim->corpse_type;
 	bool immune;
 	bool kill_in_room = false;
 	long vid[2], cid[2];
@@ -1737,7 +1737,7 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, SKI
 
 		// Autoloot
 		if (!IS_NPC(ch) && kill_in_room && (corpse != NULL) &&
-			corpse->item_type == ITEM_CORPSE_NPC && can_see_obj(ch,corpse)) {
+			IS_CORPSE(corpse) && !CORPSE(corpse)->player && can_see_obj(ch,corpse)) {
 
 			if (IS_SET(ch->act[0], PLR_AUTOLOOT) && corpse)
 			{
@@ -2957,14 +2957,24 @@ void stop_fighting(CHAR_DATA *ch, bool fBoth)
 	return;
 }
 
-void set_corpse_data(OBJ_DATA *corpse, CORPSE_DATA *corpse_type)
+void set_corpse_type(OBJ_DATA *corpse, CORPSE_TYPE *corpse_type)
 {
 	char buf[MAX_STRING_LENGTH];
 	char *name;
 	char *short_desc;
 	int min,max;
 
-	if(corpse->item_type == ITEM_CORPSE_NPC) {
+	if(IS_CORPSE(corpse))
+		return;
+
+	CORPSE_DATA *cd = CORPSE(corpse);
+
+	if(cd->player) {
+		name = corpse->owner;
+		short_desc = corpse->owner;
+		min = corpse_type->decay_pctimer_min;
+		max = corpse_type->decay_pctimer_max;
+	} else {
 		MOB_INDEX_DATA *mob = get_mob_index_wnum(corpse->orig_wnum);
 
 		// Check if the corpse has owner name/short information
@@ -2979,12 +2989,7 @@ void set_corpse_data(OBJ_DATA *corpse, CORPSE_DATA *corpse_type)
 			short_desc = corpse->owner_short;
 		min = corpse_type->decay_npctimer_min;
 		max = corpse_type->decay_npctimer_max;
-	} else if(corpse->item_type == ITEM_CORPSE_PC) {
-		name = corpse->owner;
-		short_desc = corpse->owner;
-		min = corpse_type->decay_pctimer_min;
-		max = corpse_type->decay_pctimer_max;
-	} else return;
+	}
 
 	sprintf(buf, corpse_type->keywords, name);
 	free_string(corpse->name);
@@ -2994,26 +2999,27 @@ void set_corpse_data(OBJ_DATA *corpse, CORPSE_DATA *corpse_type)
 	if(max < 0) max *= -corpse->level;
 	corpse->timer = number_range(min, max);
 	corpse->timer = UMAX(corpse->timer, 1);	// Must have some decay time on it.
-	CORPSE_RESURRECT(corpse) = corpse_type->resurrect_chance;
-	CORPSE_ANIMATE(corpse) = corpse_type->animation_chance;
+	cd->resurrect = corpse_type->resurrect_chance;
+	cd->animate = corpse_type->animation_chance;
 
 	if(corpse_type->headless) {
 //		SET_BIT(corpse->extra[0], ITEM_NOSKULL);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_HEAD);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_BRAINS);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_EAR);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_EYE);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_LONG_TONGUE);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_EYESTALKS);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_FANGS);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_HORNS);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_TUSKS);
+		REMOVE_BIT(cd->parts,PART_HEAD);
+		REMOVE_BIT(cd->parts,PART_SKULL);
+		REMOVE_BIT(cd->parts,PART_BRAINS);
+		REMOVE_BIT(cd->parts,PART_EAR);
+		REMOVE_BIT(cd->parts,PART_EYE);
+		REMOVE_BIT(cd->parts,PART_LONG_TONGUE);
+		REMOVE_BIT(cd->parts,PART_EYESTALKS);
+		REMOVE_BIT(cd->parts,PART_FANGS);
+		REMOVE_BIT(cd->parts,PART_HORNS);
+		REMOVE_BIT(cd->parts,PART_TUSKS);
 	}
 
 	if(corpse_type->lost_bodyparts)
-		REMOVE_BIT(CORPSE_PARTS(corpse),corpse_type->lost_bodyparts);
+		REMOVE_BIT(cd->parts,corpse_type->lost_bodyparts);
 
-	if (IS_SET(CORPSE_PARTS(corpse),PART_HEAD)) {
+	if (IS_SET(cd->parts,PART_HEAD)) {
 		sprintf(buf, corpse_type->short_descr, short_desc);
 		free_string(corpse->short_descr);
 		corpse->short_descr = str_dup(buf);
@@ -3039,7 +3045,7 @@ void set_corpse_data(OBJ_DATA *corpse, CORPSE_DATA *corpse_type)
 		corpse->full_description = str_dup(buf);
 	}
 
-	CORPSE_TYPE(corpse) = corpse_type->uid;
+	cd->type = corpse_type;
 }
 
 int blend_corpsetypes (int t1, int t2)
@@ -3070,7 +3076,7 @@ int blend_corpsetypes (int t1, int t2)
  * Make a corpse out of a character.
  * Has_head: Make a corpse with flag beheaded if false
  */
-OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, CORPSE_DATA *corpse_type, int damage_type, bool messages)
+OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, CORPSE_TYPE *corpse_type, int damage_type, bool messages)
 {
 	char buf[MSL];
 	OBJ_DATA *corpse;
@@ -3107,11 +3113,12 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, CORPSE_DATA *corpse_type, in
 
 		obj_index = (ch->corpse_wnum.auid > 0 && ch->corpse_wnum.vnum > 0) ? get_obj_index_auid(ch->corpse_wnum.auid, ch->corpse_wnum.vnum) : NULL;
 
-		if(!obj_index || obj_index->item_type != ITEM_CORPSE_NPC)
+		if(!obj_index || !IS_CORPSE(obj_index) || CORPSE(obj_index)->player)
 			obj_index = obj_index_corpse_npc;
 
 		corpse = create_object(obj_index, 0, true);
 		// [3,6]
+
 		corpse->orig_wnum.pArea = ch->pIndexData->area;
 		corpse->orig_wnum.vnum = ch->pIndexData->vnum;
 
@@ -3125,6 +3132,7 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, CORPSE_DATA *corpse_type, in
 
 		corpse->cost = 0;
 
+		// TODO: Perhaps move these over to corpse flags?
 		if (IS_SET(ch->act[1], ACT2_NO_RESURRECT))
 		{
 			SET_BIT(corpse->extra[1], ITEM_NO_RESURRECT);
@@ -3152,6 +3160,7 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, CORPSE_DATA *corpse_type, in
 		corpse->owner = str_dup(ch->name);
 
 		corpse->cost = 0;
+		// TODO: Perhaps move this over to corpse flags?
 		if (IS_SET(ch->act[0], PLR_NO_RESURRECT))
 		{
 			SET_BIT(corpse->extra[1], ITEM_NO_RESURRECT);
@@ -3159,12 +3168,12 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, CORPSE_DATA *corpse_type, in
 		}
 
 		if (IS_IMMORTAL(ch))
-			SET_BIT(CORPSE_FLAGS(corpse), CORPSE_IMMORTAL);
+			SET_BIT(CORPSE(corpse)->flags, CORPSE_IMMORTAL);
 		else {
 			if(IS_SET(ch->in_room->room_flag[0], ROOM_CHAOTIC))
-				SET_BIT(CORPSE_FLAGS(corpse), CORPSE_CHAOTICDEATH);
+				SET_BIT(CORPSE(corpse)->flags, CORPSE_CHAOTICDEATH);
 			if(is_room_pk(ch->in_room, true) || is_pk(ch))
-				SET_BIT(CORPSE_FLAGS(corpse), CORPSE_PKDEATH);
+				SET_BIT(CORPSE(corpse)->flags, CORPSE_PKDEATH);
 			if (ch->gold > 1 || ch->silver > 1)
 			{
 				obj_to_obj(create_money(ch->gold/2, ch->silver/2), corpse);
@@ -3186,24 +3195,26 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, CORPSE_DATA *corpse_type, in
 	corpse->owner_short = str_dup(short_desc);
 
 	corpse->level = ch->tot_level;
-	CORPSE_PARTS(corpse) = ch->parts;
+	CORPSE_DATA *cd = CORPSE(corpse);
+	cd->type = corpse_type;
+	cd->race = ch->race;
 
-	CORPSE_TYPE(corpse) = corpse_type->uid;
-
+	cd->parts = ch->parts;
 	if(corpse_type->headless || !IS_SET(ch->parts,PART_HEAD)) {
 //		SET_BIT(corpse->extra[0], ITEM_NOSKULL);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_HEAD);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_BRAINS);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_EAR);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_EYE);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_LONG_TONGUE);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_EYESTALKS);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_FANGS);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_HORNS);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_TUSKS);
+		REMOVE_BIT(cd->parts,PART_HEAD);
+		REMOVE_BIT(cd->parts,PART_SKULL);
+		REMOVE_BIT(cd->parts,PART_BRAINS);
+		REMOVE_BIT(cd->parts,PART_EAR);
+		REMOVE_BIT(cd->parts,PART_EYE);
+		REMOVE_BIT(cd->parts,PART_LONG_TONGUE);
+		REMOVE_BIT(cd->parts,PART_EYESTALKS);
+		REMOVE_BIT(cd->parts,PART_FANGS);
+		REMOVE_BIT(cd->parts,PART_HORNS);
+		REMOVE_BIT(cd->parts,PART_TUSKS);
 	}
 
-	set_corpse_data(corpse, corpse_type);
+	set_corpse_type(corpse, corpse_type);
 
 	for (obj = ch->carrying; obj != NULL; obj = obj_next) {
 		obj_next = obj->next_content;
@@ -3215,11 +3226,11 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, CORPSE_DATA *corpse_type, in
 	if(!IS_NPC(ch) && !IS_DEAD(ch) && !IS_IMMORTAL(ch))
 	{
  		if(IS_SET(ch->in_room->room_flag[0],ROOM_CHAOTIC))
-			SET_BIT(CORPSE_FLAGS(corpse),CORPSE_CHAOTICDEATH);
+			SET_BIT(cd->flags,CORPSE_CHAOTICDEATH);
 		if(is_room_pk(ch->in_room,false) || is_pk(ch))
-			SET_BIT(CORPSE_FLAGS(corpse),CORPSE_PKDEATH);
+			SET_BIT(cd->flags,CORPSE_PKDEATH);
 		if(IS_SET(ch->in_room->room_flag[0], ROOM_ARENA))
-			SET_BIT(CORPSE_FLAGS(corpse),CORPSE_ARENADEATH);
+			SET_BIT(cd->flags,CORPSE_ARENADEATH);
 	}
 
 	// NPC death and CPK death for PCs
@@ -3248,6 +3259,21 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, CORPSE_DATA *corpse_type, in
 			REMOVE_BIT(obj->extra[2], ITEM_FORCE_LOOT);
 			obj_to_obj(obj, corpse);
 		}
+	}
+
+	if (IS_CART(corpse))
+	{
+		CART_DATA *cart = CART(corpse);
+
+		// TODO: Tweak...
+
+		// set cart details
+		// min strength based upon size, map 0-10000 size weight to 0-50 strength
+		int w = size_weight[ch->size];
+		cart->min_strength = 50 * w / 10000;
+
+		// move delay based upon size
+		cart->move_delay = size_move_delay[ch->size];
 	}
 
 	obj_to_room(corpse, ch->in_room);
@@ -3287,6 +3313,7 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
 
 	if ( !has_head && IS_SET(parts,PART_HEAD)) {
 		REMOVE_BIT(parts,PART_HEAD);
+		REMOVE_BIT(parts,PART_SKULL);
 		REMOVE_BIT(parts,PART_BRAINS);
 		REMOVE_BIT(parts,PART_EAR);
 		REMOVE_BIT(parts,PART_EYE);
@@ -3329,6 +3356,7 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
 				msg  = "{R$n's severed head plops on the ground.{x";
 				body_part = head_type;
 				REMOVE_BIT(parts,PART_HEAD);
+				REMOVE_BIT(parts,PART_SKULL);
 				REMOVE_BIT(parts,PART_BRAINS);
 				REMOVE_BIT(parts,PART_EAR);
 				REMOVE_BIT(parts,PART_EYE);
@@ -3393,20 +3421,19 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
 		obj->level = ch->tot_level;
 		obj->timer	= head_time;
 
-		if( obj->item_type == ITEM_BODY_PART )
+		if (!IS_BODY_PART(obj))
+			BODY_PART(obj) = new_body_part_data();
+		
+		BODY_PART(obj)->race = ch->race;
+		if( !IS_NPC(ch) || ch->persist )
 		{
-			obj->value[1] = ch->race->uid;
-			if( !IS_NPC(ch) || ch->persist )
-			{
-				obj->value[2] = ch->id[0];
-				obj->value[3] = ch->id[1];
-			}
-			else
-			{
-				// Remove any previously stored ID.
-				obj->value[2] = 0;
-				obj->value[3] = 0;
-			}
+			BODY_PART(obj)->id[0] = ch->id[0];
+			BODY_PART(obj)->id[1] = ch->id[1];
+		}
+		else
+		{
+			BODY_PART(obj)->id[0] = 0;
+			BODY_PART(obj)->id[1] = 0;
 		}
 
 //		obj->pirate_reputation = get_rating( ch->ships_destroyed );
@@ -3427,7 +3454,8 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
 		free_string(obj->description);
 		obj->description = str_dup(buf2);
 
-		if (IS_FOOD(obj)) {
+		if (IS_FOOD(obj))
+		{
 			if (IS_SET(ch->form,FORM_POISON))
 			{
 				FOOD(obj)->poison = URANGE(1, ch->tot_level / 3, 99);
@@ -3599,7 +3627,7 @@ void death_sight_echo(CHAR_DATA *victim)
 	}
 }
 
-OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, CORPSE_DATA *corpse_type, int damage_type)
+OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, CORPSE_TYPE *corpse_type, int damage_type)
 {
 	CHAR_DATA *temp;
 	char buf[MAX_STRING_LENGTH];
@@ -6726,7 +6754,7 @@ void do_slay(CHAR_DATA *ch, char *argument)
 	CHAR_DATA *victim;
 	char arg[MAX_INPUT_LENGTH];
 	char buf[MSL];
-	CORPSE_DATA *corpse_type;
+	CORPSE_TYPE *corpse_type;
 	int damage_type;
 
 	argument = one_argument(argument, arg);
@@ -6761,7 +6789,7 @@ void do_slay(CHAR_DATA *ch, char *argument)
 		act("{RYou slay $M in cold blood!{x",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR   );
 		act("{R$n slays you in cold blood!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT   );
 		act("{R$n slays $N in cold blood!{x",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-		corpse_type = get_corpse_data(arg);
+		corpse_type = get_corpse_type(arg);
 		if(!IS_VALID(corpse_type)) corpse_type = gcrp_normal;
 
 		if (argument[0] && str_prefix(argument, "none"))
@@ -7057,7 +7085,7 @@ void do_resurrect(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (obj->item_type != ITEM_CORPSE_PC)
+	if (!IS_CORPSE(obj) || !CORPSE(obj)->player)
 	{
 		send_to_char("You can only resurrect a fresh PC corpse.\n\r", ch);
 		return;
@@ -7074,14 +7102,16 @@ void do_resurrect(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	// 20070520 : NIB : Added use of corpse animation percent
-	chance = obj->condition * CORPSE_RESURRECT(obj);
+	CORPSE_DATA *cd = CORPSE(obj);
+
+	// 20070520 : NIB : Added use of corpse resurrect percent
+	chance = obj->condition * cd->resurrect;
 	if(number_range(1,10000) > chance) {
 		act("$p seems to be immune to your divine energies.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 		return;
 	}
 
-	if (!IS_SET(CORPSE_PARTS(obj), PART_HEAD))
+	if (!IS_SET(cd->parts, PART_HEAD))
 	{
 		act("$p is missing its head.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 		return;
@@ -7094,6 +7124,7 @@ void do_resurrect(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
+	// TODO: Move this to the corpse?
 	if (IS_SET(obj->extra[1], ITEM_NO_RESURRECT))
 	{
 		act("$p seems to be immune to your divine energies.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
@@ -7101,7 +7132,7 @@ void do_resurrect(CHAR_DATA *ch, char *argument)
 	}
 
 	// Only allow resurrection of CPK corpses in CPK rooms
-	if( IS_SET(ch->in_room->room_flag[0], ROOM_CHAOTIC) && !IS_SET(CORPSE_FLAGS(obj), CORPSE_CHAOTICDEATH) )
+	if( IS_SET(ch->in_room->room_flag[0], ROOM_CHAOTIC) && !IS_SET(cd->flags, CORPSE_CHAOTICDEATH) )
 	{
 		// Any player, or non-holyaura immortal, attempting to do so will be ZOTTED.
 		if( !IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act[1], PLR_HOLYAURA)))
@@ -7115,7 +7146,7 @@ void do_resurrect(CHAR_DATA *ch, char *argument)
 	}
 
 	// Only allow resurrection of PK corpses in PK rooms...
-	if( is_room_pk(ch->in_room, true) && !IS_SET(CORPSE_FLAGS(obj), CORPSE_PKDEATH) )
+	if( is_room_pk(ch->in_room, true) && !IS_SET(cd->flags, CORPSE_PKDEATH) )
 	{
 		// No penalty here, just failure.
 		act("$p seems to be immune to your divine energies.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
@@ -7192,13 +7223,15 @@ void resurrect_end(CHAR_DATA *ch)
 		return;
 	}
 
-	if (obj->item_type != ITEM_CORPSE_NPC && obj->item_type != ITEM_CORPSE_PC)
+	if (!IS_CORPSE(obj))
 	{
 		send_to_char("This must be done on a fresh corpse.\n\r", ch);
 		return;
 	}
 
-	if (!IS_SET(CORPSE_PARTS(obj), PART_HEAD))
+	CORPSE_DATA *cd = CORPSE(obj);
+
+	if (!IS_SET(cd->parts, PART_HEAD))
 	{
 		act("$p is missing its head.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 		return;

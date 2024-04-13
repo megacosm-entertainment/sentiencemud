@@ -257,6 +257,11 @@ ARMOR_DATA *new_armor_data();
 ARMOR_DATA *copy_armor_data(ARMOR_DATA *src);
 void free_armor_data(ARMOR_DATA *data);
 
+// BODY PART
+BODY_PART_DATA *new_body_part_data();
+BODY_PART_DATA *copy_body_part_data(BODY_PART_DATA *src);
+void free_body_part_data(BODY_PART_DATA *data);
+
 // Book
 BOOK_PAGE *new_book_page();
 BOOK_PAGE *copy_book_page(BOOK_PAGE *src);
@@ -283,6 +288,11 @@ void free_container_filter(CONTAINER_FILTER *filter);
 CONTAINER_DATA *new_container_data();
 CONTAINER_DATA *copy_container_data(CONTAINER_DATA *src);
 void free_container_data(CONTAINER_DATA *data);
+
+// Corpse
+CORPSE_DATA *new_corpse_data();
+CORPSE_DATA *copy_corpse_data(CORPSE_DATA *src);
+void free_corpse_data(CORPSE_DATA *data);
 
 // Fluid Containers
 FLUID_CONTAINER_DATA *new_fluid_container_data();
@@ -445,5 +455,5 @@ void free_constellation_data(CONSTELLATION_DATA *data);
 CORPSE_DAMAGE *new_corpse_damage();
 void free_corpse_damage(CORPSE_DAMAGE *data);
 
-CORPSE_DATA *new_corpse_data();
-void free_corpse_data(CORPSE_DATA *data);
+CORPSE_TYPE *new_corpse_type();
+void free_corpse_type(CORPSE_TYPE *data);

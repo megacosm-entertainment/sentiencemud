@@ -10369,7 +10369,7 @@ void __multitype_book(OBJ_DATA *book, SCRIPT_VARINFO *info, char *rest, SCRIPT_P
 					if (container_is_valid_item_type(arg->d.obj, torn_page->item_type, subtype))
 						to_obj = arg->d.obj;
 				}
-				else if(arg->d.obj->item_type == ITEM_CORPSE_NPC || arg->d.obj->item_type == ITEM_CORPSE_PC)
+				else if(IS_CORPSE(arg->d.obj))
 					to_obj = arg->d.obj;
 			}
 			break;

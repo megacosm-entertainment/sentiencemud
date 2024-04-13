@@ -330,6 +330,7 @@ SPELL_FUNC(spell_holy_sword)
 	if (target == TARGET_OBJ) {
 		obj = (OBJ_DATA *) vo;
 
+		// TODO: Fix this
 		if (obj->item_type != ITEM_WEAPON || obj->value[0] != WEAPON_SWORD) {
 			act("$p is not affected.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 			return false;

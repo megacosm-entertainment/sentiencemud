@@ -605,6 +605,7 @@ void free_obj(OBJ_DATA *obj)
     free_book_data(BOOK(obj));
     free_compass_data(COMPASS(obj));
     free_container_data(CONTAINER(obj));
+    free_corpse_data(CORPSE(obj));
     free_fluid_container_data(FLUID_CON(obj));
     free_food_data(FOOD(obj));
     free_furniture_data(FURNITURE(obj));
@@ -5757,6 +5758,57 @@ void free_armor_data(ARMOR_DATA *data)
     armor_data_free = data;
 }
 
+// =========[ BODY PART ]==========
+BODY_PART_DATA *body_part_free;
+BODY_PART_DATA *new_body_part_data()
+{
+    BODY_PART_DATA *data;
+    if (body_part_free)
+    {
+        data = body_part_free;
+        body_part_free = body_part_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(BODY_PART_DATA));
+
+    memset(data, 0, sizeof(*data));
+
+    VALIDATE(data);
+    return data;
+}
+
+BODY_PART_DATA *copy_body_part_data(BODY_PART_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    BODY_PART_DATA *data;
+    if (body_part_free)
+    {
+        data = body_part_free;
+        body_part_free = body_part_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(BODY_PART_DATA));
+
+    memset(data, 0, sizeof(*data));
+    data->race = src->race;
+    data->parts = src->parts;
+    data->id[0] = src->id[0];
+    data->id[1] = src->id[1];
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_body_part_data(BODY_PART_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    INVALIDATE(data);
+    data->next = body_part_free;
+    body_part_free = data;
+}
+
 
 // ============[ BOOK ]============
 BOOK_PAGE *book_page_free;
@@ -6078,6 +6130,59 @@ void free_container_data(CONTAINER_DATA *data)
     INVALIDATE(data);
     data->next = container_data_free;
     container_data_free = data;
+}
+
+// ===========[ CORPSE ]===========
+CORPSE_DATA *corpse_data_free;
+CORPSE_DATA *new_corpse_data()
+{
+    CORPSE_DATA *data;
+    if (corpse_data_free)
+    {
+        data = corpse_data_free;
+        corpse_data_free = corpse_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(CORPSE_DATA));
+
+    memset(data, 0, sizeof(*data));
+
+    VALIDATE(data);
+    return data;
+}
+
+CORPSE_DATA *copy_corpse_data(CORPSE_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+    CORPSE_DATA *data;
+    if (corpse_data_free)
+    {
+        data = corpse_data_free;
+        corpse_data_free = corpse_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(CORPSE_DATA));
+
+    data->player = src->player;
+    data->type = src->type;
+    data->race = src->race;
+    data->flags = src->flags;
+    data->resurrect = src->resurrect;
+    data->animate = src->animate;
+    data->parts = src->parts;
+    data->mobile = src->mobile;
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_corpse_data(CORPSE_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    INVALIDATE(data);
+    data->next = corpse_data_free;
+    corpse_data_free = data;
 }
 
 // ======[ FLUID CONTAINER ]=======
@@ -8169,17 +8274,17 @@ static void delete_corpse_damage(void *ptr)
 }
 
 
-CORPSE_DATA *corpse_data_free;
-CORPSE_DATA *new_corpse_data()
+CORPSE_TYPE *corpse_type_free;
+CORPSE_TYPE *new_corpse_type()
 {
-    CORPSE_DATA *data;
-    if (corpse_data_free)
+    CORPSE_TYPE *data;
+    if (corpse_type_free)
     {
-        data = corpse_data_free;
-        corpse_data_free = corpse_data_free->next;
+        data = corpse_type_free;
+        corpse_type_free = corpse_type_free->next;
     }
     else
-        data = alloc_mem(sizeof(CORPSE_DATA));
+        data = alloc_mem(sizeof(CORPSE_TYPE));
     
     memset(data, 0, sizeof(*data));
 
@@ -8209,7 +8314,7 @@ CORPSE_DATA *new_corpse_data()
     return data;
 }
 
-void free_corpse_data(CORPSE_DATA *data)
+void free_corpse_type(CORPSE_TYPE *data)
 {
     if (!IS_VALID(data)) return;
 
@@ -8236,6 +8341,6 @@ void free_corpse_data(CORPSE_DATA *data)
     list_destroy(data->damage_table);
 
     INVALIDATE(data);
-    data->next = corpse_data_free;
-    corpse_data_free = data;
+    data->next = corpse_type_free;
+    corpse_type_free = data;
 }

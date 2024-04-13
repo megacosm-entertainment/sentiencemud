@@ -2890,7 +2890,6 @@ void free_wilds (WILDS_DATA * pWilds)
 void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
 {
     ROOM_INDEX_DATA *room;
-    OBJ_DATA *obj;
 
     // Check arguments are valid.
     if (pWilds == NULL)
@@ -2955,11 +2954,14 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
 
     }
     else
+    {
         ++ch->in_wilds->loaded_mobs;
+    }
 
-    if ((obj = get_eq_char (ch, WEAR_LIGHT)) != NULL
-        && obj->item_type == ITEM_LIGHT && obj->value[2] != 0)
-        ++ch->in_room->light;
+	if (light_char_has_light(ch))
+    {
+		ch->in_room->light++;
+    }
 
     if (IS_AFFECTED (ch, AFF_PLAGUE))
     {

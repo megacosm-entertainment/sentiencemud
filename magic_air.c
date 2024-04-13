@@ -52,6 +52,10 @@ SPELL_FUNC(spell_faerie_fog)
 		REMOVE_BIT(tch->affected_by[0], AFF_INVISIBLE);
 		REMOVE_BIT(tch->affected_by[0], AFF_SNEAK);
 
+		// Allow mobs with visibility script hooks to make themselves visible
+		// Register1 = 1 -> faerie fog
+		p_percent_trigger(tch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REVEAL, NULL, 1,0,0,0,0);
+
 		act("$n is revealed!", tch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		send_to_char("You are revealed!\n\r", tch);
 	}

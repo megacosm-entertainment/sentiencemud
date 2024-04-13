@@ -93,9 +93,9 @@ extern	LLIST *loaded_ships;
 LLIST *loaded_special_keys;
 
 LLIST *corpse_list = NULL;
-CORPSE_DATA gcrp__nocorpse;		// Will have nothing in it
-CORPSE_DATA *gcrp_normal = NULL;
-CORPSE_DATA *gcrp_incinerate = NULL;
+CORPSE_TYPE gcrp__nocorpse;		// Will have nothing in it
+CORPSE_TYPE *gcrp_normal = NULL;
+CORPSE_TYPE *gcrp_incinerate = NULL;
 long top_corpse_uid = 0;
 
 LLIST *material_list = NULL;
@@ -2131,6 +2131,11 @@ void fix_mobiles(void)
 		for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
 			for (mob = pArea->mob_index_hash[iHash]; mob != NULL; mob = mob->next)
 			{
+				if (mob->wnum_visible.auid > 0 && mob->wnum_visible.vnum > 0)
+					mob->script_visible = get_script_index_auid(mob->wnum_visible.auid, mob->wnum_visible.vnum, PRG_MPROG);
+				else
+					mob->script_visible = NULL;
+
 				if(mob->pPractice)
 				{
 					ITERATOR peit;
@@ -2284,6 +2289,11 @@ void fix_objects(void)
 		{
 			for (obj = pArea->obj_index_hash[iHash]; obj != NULL; obj = obj->next)
 			{
+				if (obj->wnum_visible.auid > 0 && obj->wnum_visible.vnum > 0)
+					obj->script_visible = get_script_index_auid(obj->wnum_visible.auid, obj->wnum_visible.vnum, PRG_OPROG);
+				else
+					obj->script_visible = NULL;
+
 				// Fix lockstate key reference
 				if (obj->lock)
 				{
@@ -2295,6 +2305,14 @@ void fix_objects(void)
 				}
 
 				// IS_BOOK
+				if (IS_BOOK(obj) && BOOK(obj)->lock)
+				{
+					if (BOOK(obj)->lock->key_load.vnum > 0)
+					{
+						BOOK(obj)->lock->key_wnum.pArea = BOOK(obj)->lock->key_load.auid > 0 ? get_area_from_uid(BOOK(obj)->lock->key_load.auid) : pArea;
+						BOOK(obj)->lock->key_wnum.vnum = BOOK(obj)->lock->key_load.vnum;
+					}
+				}
 
 				if (IS_CONTAINER(obj) && CONTAINER(obj)->lock)
 				{
@@ -2303,6 +2321,14 @@ void fix_objects(void)
 						CONTAINER(obj)->lock->key_wnum.pArea = CONTAINER(obj)->lock->key_load.auid > 0 ? get_area_from_uid(CONTAINER(obj)->lock->key_load.auid) : pArea;
 						CONTAINER(obj)->lock->key_wnum.vnum = CONTAINER(obj)->lock->key_load.vnum;
 					}
+				}
+
+				if (IS_CORPSE(obj))
+				{
+					if (CORPSE(obj)->mobile_load.auid > 0 && CORPSE(obj)->mobile_load.vnum > 0)
+						CORPSE(obj)->mobile = get_mob_index_auid(CORPSE(obj)->mobile_load.auid, CORPSE(obj)->mobile_load.vnum);
+					else
+						CORPSE(obj)->mobile = NULL;
 				}
 
 				if (IS_FURNITURE(obj))
@@ -4066,10 +4092,12 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
 	{
 		AMMO(obj) = copy_ammo_data(AMMO(pObjIndex));
 		ARMOR(obj) = copy_armor_data(ARMOR(pObjIndex));
+		BODY_PART(obj) = copy_body_part_data(BODY_PART(pObjIndex));
 		BOOK(obj) = copy_book_data(BOOK(pObjIndex));
 		CART(obj) = copy_cart_data(CART(pObjIndex));
 		COMPASS(obj) = copy_compass_data(COMPASS(pObjIndex));
 		CONTAINER(obj) = copy_container_data(CONTAINER(pObjIndex));
+		CORPSE(obj) = copy_corpse_data(CORPSE(pObjIndex));
 		FLUID_CON(obj) = copy_fluid_container_data(FLUID_CON(pObjIndex));
 		FOOD(obj) = copy_food_data(FOOD(pObjIndex));
 		FURNITURE(obj) = copy_furniture_data(FURNITURE(pObjIndex));
@@ -6612,7 +6640,7 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
 			for(obj = clone->contents; obj; obj = obj_next) {
 				obj_next = obj->next_content;
 
-				if(obj->item_type == ITEM_CORPSE_NPC || obj->item_type == ITEM_CORPSE_PC || CAN_WEAR(obj, ITEM_TAKE)) {
+				if(IS_CORPSE(obj) || CAN_WEAR(obj, ITEM_TAKE)) {
 					obj_from_room(obj);
 					obj_to_room(obj,environ);
 				} else {
@@ -8051,10 +8079,12 @@ TOKEN_DATA *persist_load_token(FILE *fp)
 
 AMMO_DATA *fread_obj_ammo_data(FILE *fp);
 ARMOR_DATA *fread_obj_armor_data(FILE *fp);
+BODY_PART_DATA *fread_obj_body_part_data(FILE *fp);
 BOOK_DATA *fread_obj_book_data(FILE *fp);
 CART_DATA *fread_obj_cart_data(FILE *fp);
 COMPASS_DATA *fread_obj_compass_data(FILE *fp);
 CONTAINER_DATA *fread_obj_container_data(FILE *fp);
+CORPSE_DATA *fread_obj_corpse_data(FILE *fp);
 FLUID_CONTAINER_DATA *fread_obj_fluid_container_data(FILE *fp);
 FOOD_DATA *fread_obj_food_data(FILE *fp);
 FURNITURE_DATA *fread_obj_furniture_data(FILE *fp);
@@ -8156,7 +8186,14 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					fMatch = true;
 					break;
 				}
+				if (!str_cmp(word, "#TYPEBODYPART"))
+				{
+					if (IS_BODY_PART(obj)) free_body_part_data(BODY_PART(obj));
 
+					BODY_PART(obj) = fread_obj_body_part_data(fp);
+					fMatch = true;
+					break;
+				}
 				if (!str_cmp(word, "#TYPEBOOK"))
 				{
 					if (IS_BOOK(obj)) free_book_data(BOOK(obj));
@@ -8186,6 +8223,14 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_CONTAINER(obj)) free_container_data(CONTAINER(obj));
 
 					CONTAINER(obj) = fread_obj_container_data(fp);
+					fMatch = true;
+					break;
+				}
+				if (!str_cmp(word, "#TYPECORPSE"))
+				{
+					if (IS_CORPSE(obj)) free_corpse_data(CORPSE(obj));
+
+					CORPSE(obj) = fread_obj_corpse_data(fp);
 					fMatch = true;
 					break;
 				}
@@ -9135,7 +9180,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 				}
 				KEY("Comm",			ch->comm,			fread_flag(fp));
 				//KEY("CorpseType",	ch->corpse_type,	fread_number(fp));
-				KEY("Corpse",		ch->corpse_type,	get_corpse_data(fread_string(fp)));
+				KEY("Corpse",		ch->corpse_type,	get_corpse_type(fread_string(fp)));
 				KEY("CorpseWnum",	ch->corpse_wnum,	fread_widevnum(fp, 0));
 //				KEY("CorpseZombie",	ch->zombie,		fread_number(fp));
 				break;

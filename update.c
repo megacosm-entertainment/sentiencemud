@@ -666,10 +666,10 @@ int move_gain(CHAR_DATA *ch)
 	if (ch->in_room->move_rate > 0)
 		gain = gain * ch->in_room->move_rate/100;
 
-	if (ch->on != NULL &&
-		ch->on->item_type == ITEM_FURNITURE &&
-		ch->on->value[5] > 0)
-		gain = gain * ch->on->value[5] / 100;
+	if (ch->on != NULL && ch->on_compartment != NULL &&
+		IS_FURNITURE(ch->on) &&
+		ch->on_compartment->move_regen > 0)
+		gain = gain * ch->on_compartment->move_regen / 100;
 
 	if (IS_AFFECTED(ch, AFF_POISON))
 		gain /= 4;
@@ -2229,7 +2229,7 @@ void obj_update(void)
 		if( IS_SET(obj->extra[0], ITEM_EPHEMERAL ))
 		{
 			// Ephemeral corpses will not be a thing:
-			if (obj->item_type != ITEM_CORPSE_NPC && obj->item_type != ITEM_CORPSE_PC)
+			if (!IS_CORPSE(obj))
 			{
 				if (obj->carried_by)
 					act("$p vanishes.", obj->carried_by, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
@@ -2469,10 +2469,10 @@ void obj_update(void)
 			case ITEM_PORTAL:			message = "$p fades out of existence."; break;
 
 			// Corpse decaying
-			case ITEM_CORPSE_NPC:
-			case ITEM_CORPSE_PC:
+			case ITEM_CORPSE:
 			{
-				CORPSE_DATA *corpse = get_corpse_data_uid(CORPSE_TYPE(obj));
+				CORPSE_DATA *cd = CORPSE(obj);
+				CORPSE_TYPE *corpse = cd->type;
 				message = corpse->decay_message;
 
 				if (obj->carried_by)
@@ -2483,7 +2483,7 @@ void obj_update(void)
 
 				if(IS_VALID(corpse->decay_type)) {
 					spill_contents = corpse->decay_spill_chance;
-					set_corpse_data(obj,corpse->decay_type);
+					set_corpse_type(obj,corpse->decay_type);
 					spill_contents += corpse->decay_type->decay_spill_chance;
 					spill_contents /= 2;	// Split the difference
 					nuke_obj = false;
@@ -2514,7 +2514,7 @@ void obj_update(void)
 		}
 
 		// Spill contents if there is any
-		if (spill_contents > 0 /* && (obj->item_type == ITEM_CORPSE_PC || obj->item_type == ITEM_CORPSE_NPC)*/ && obj->contains) {
+		if (spill_contents > 0 && obj->contains) {
 			OBJ_DATA *t_obj, *next_obj;
 
 			for (t_obj = obj->contains; t_obj != NULL; t_obj = next_obj) {
@@ -2677,7 +2677,7 @@ void aggr_update(void)
 		if (number_percent() < 95)
 		    continue;
 
-		if (obj->item_type == ITEM_CORPSE_PC && IS_SET(CORPSE_PARTS(obj),PART_HEAD))
+		if (IS_CORPSE(obj) && CORPSE(obj)->player && IS_SET(CORPSE(obj)->parts,PART_HEAD))
 		{
 		    sprintf(buf, "%d.corpse", i);
 		    do_function(wch, &do_skull, buf);

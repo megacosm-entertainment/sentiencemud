@@ -711,7 +711,7 @@ bool spec_fido( CHAR_DATA *ch )
     for ( corpse = ch->in_room->contents; corpse != NULL; corpse = c_next )
     {
 	c_next = corpse->next_content;
-	if ( corpse->item_type != ITEM_CORPSE_NPC )
+	if ( !IS_CORPSE(corpse) || CORPSE(corpse)->player )
 	    continue;
 
 	act( "$n savagely devours a corpse.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );

@@ -236,6 +236,7 @@ const struct olc_cmd_type oedit_table[] =
 	{ "allowedfixed",	oedit_allowed_fixed		},
 	{ "ammo",			oedit_type_ammo			},
 	{ "armor",			oedit_type_armor		},
+	{ "bodypart",		oedit_type_body_part	},
 	{ "book", 			oedit_type_book			},
 	{ "cart",			oedit_type_cart			},
 	{ "class",			oedit_class				},
@@ -245,6 +246,7 @@ const struct olc_cmd_type oedit_table[] =
 	{ "compass",		oedit_type_compass		},
 	{ "condition",		oedit_condition			},
 	{ "container",		oedit_type_container	},
+	{ "corpse",			oedit_type_corpse		},
 	{ "cost",			oedit_cost				},
 	{ "create",			oedit_create			},
 	{ "delaffect",		oedit_delaffect			},
@@ -299,6 +301,7 @@ const struct olc_cmd_type oedit_table[] =
 	{ "v7",				oedit_value7			},
 	{ "varclear",		oedit_varclear			},
 	{ "varset",			oedit_varset			},
+	{ "visibility",		oedit_visibility		},
 	{ "wand",			oedit_type_wand			},
 	{ "weapon",			oedit_type_weapon		},
 	{ "wear",			oedit_wear				},
@@ -393,6 +396,7 @@ const struct olc_cmd_type medit_table[] =
 	{	"scriptkwd",		medit_skeywds	},
 	{	"varset",	medit_varset	},
 	{	"varclear",	medit_varclear	},
+	{	"visibility",	medit_visibility	},
 	{	"corpse",	medit_corpse	},
 	{	"corpsetype",	medit_corpsetype	},
 	{	"zombie",	medit_zombie	},
@@ -676,7 +680,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 	CLASS_DATA *clazz;
 	RACE_DATA *race;
 	SECTOR_DATA *sector;
-	CORPSE_DATA *corpse;
+	CORPSE_TYPE *corpse;
 	static char buf[MIL];
 	char buf2[MSL];
 
@@ -863,7 +867,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 		break;
 	
 	case ED_CORPSEDIT:
-		corpse = (CORPSE_DATA *)ch->desc->pEdit;
+		corpse = (CORPSE_TYPE *)ch->desc->pEdit;
 		if (corpse)
 			sprintf(buf, "%s", corpse->name);
 		else
@@ -2424,7 +2428,7 @@ void do_resets(CHAR_DATA *ch, char *argument)
 
 				// TODO: Add other container types, like weapon container and keyring
 				if ((!IS_CONTAINER(temp)) &&
-					(temp->item_type != ITEM_CORPSE_NPC))
+					(!IS_CORPSE(temp)))
 				{
 					send_to_char("Object 2 isn't a container.\n\r", ch);
 					return;
@@ -2967,10 +2971,12 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
 
 	AMMO(new_obj) = copy_ammo_data(AMMO(old_obj));
 	ARMOR(new_obj) = copy_armor_data(ARMOR(old_obj));
+	BODY_PART(new_obj) = copy_body_part_data(BODY_PART(old_obj));
 	BOOK(new_obj) = copy_book_data(BOOK(old_obj));
 	CART(new_obj) = copy_cart_data(CART(old_obj));
 	COMPASS(new_obj) = copy_compass_data(COMPASS(old_obj));
 	CONTAINER(new_obj) = copy_container_data(CONTAINER(old_obj));
+	CORPSE(new_obj) = copy_corpse_data(CORPSE(old_obj));
 	FLUID_CON(new_obj) = copy_fluid_container_data(FLUID_CON(old_obj));
 	FOOD(new_obj) = copy_food_data(FOOD(old_obj));
 	FURNITURE(new_obj) = copy_furniture_data(FURNITURE(old_obj));
@@ -3633,10 +3639,11 @@ void set_weapon_dice(OBJ_INDEX_DATA *objIndex)
 	num = (objIndex->level + 20) / 10;
 	type = (objIndex->level + 20) / 4;
 
+	// TODO: Fix this
 	if (IS_SET(objIndex->value[4], WEAPON_TWO_HANDS))
 	type = (type * 7)/5 - 1;
 
-	switch(objIndex->value[0])
+	switch(WEAPON(objIndex)->weapon_class)
 	{
 	case WEAPON_EXOTIC:			type += 3;	num -= 1; 	break;
 	case WEAPON_SWORD:			type += 1;	num += 1; 	break;
@@ -4102,6 +4109,7 @@ void obj_index_reset_multitype(OBJ_INDEX_DATA *pObjIndex)
 {
 	free_ammo_data(AMMO(pObjIndex));					AMMO(pObjIndex) = NULL;
 	free_armor_data(ARMOR(pObjIndex));					ARMOR(pObjIndex) = NULL;
+	free_body_part_data(BODY_PART(pObjIndex));			BODY_PART(pObjIndex) = NULL;
 	free_book_data(BOOK(pObjIndex));					BOOK(pObjIndex) = NULL;
 	free_cart_data(CART(pObjIndex));					CART(pObjIndex) = NULL;
 	free_compass_data(COMPASS(pObjIndex));				COMPASS(pObjIndex) = NULL;
@@ -4135,10 +4143,12 @@ void obj_index_set_primarytype(OBJ_INDEX_DATA *pObjIndex, int item_type)
 	{
 		case ITEM_AMMO:			AMMO(pObjIndex) = new_ammo_data(); break;
 		case ITEM_ARMOUR:		ARMOR(pObjIndex) = new_armor_data(); break;
+		case ITEM_BODY_PART:	BODY_PART(pObjIndex) = new_body_part_data(); break;
 		case ITEM_BOOK:			BOOK(pObjIndex) = new_book_data(); break;
 		case ITEM_CART:			CART(pObjIndex) = new_cart_data(); break;
 		case ITEM_COMPASS:		COMPASS(pObjIndex) = new_compass_data(); break;
 		case ITEM_CONTAINER:	CONTAINER(pObjIndex) = new_container_data(); break;
+		case ITEM_CORPSE:		CORPSE(pObjIndex) = new_corpse_data(); break;
 		case ITEM_FLUID_CONTAINER:	FLUID_CON(pObjIndex) = new_fluid_container_data(); break;
 		case ITEM_FOOD:			FOOD(pObjIndex) = new_food_data(); break;
 		case ITEM_FURNITURE:	FURNITURE(pObjIndex) = new_furniture_data(); break;

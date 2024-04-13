@@ -4415,9 +4415,8 @@ DECL_IFC_FUN(ifc_canput)
 // where OBJECT is a corpse
 DECL_IFC_FUN(ifc_objcorpse)
 {
-	*ret = ISARG_OBJ(0) && ISARG_STR(1) &&
-		(ARG_OBJ(0)->item_type == ITEM_CORPSE_NPC || ARG_OBJ(0)->item_type == ITEM_CORPSE_PC) &&
-		IS_SET(CORPSE_FLAGS(ARG_OBJ(0)), flag_value_ifcheck(corpse_object_flags,ARG_STR(1)));
+	*ret = ISARG_OBJ(0) && ISARG_STR(1) && IS_CORPSE(ARG_OBJ(0)) &&
+		IS_SET(CORPSE(ARG_OBJ(0))->flags, flag_value_ifcheck(corpse_object_flags,ARG_STR(1)));
 	return true;
 }
 

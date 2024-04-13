@@ -771,8 +771,7 @@ void do_consume(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (!(corpse->item_type == ITEM_CORPSE_PC
-	   || corpse->item_type == ITEM_CORPSE_NPC))
+    if (!IS_CORPSE(corpse))
     {
         send_to_char("You can't consume that.\n\r", ch);
         return;

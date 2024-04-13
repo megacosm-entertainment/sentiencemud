@@ -497,7 +497,7 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 
 
 		// Now... why is this like this?
-		switch (obj->value[0]) {
+		switch (WEAPON(obj)->weapon_class) {
 		case(WEAPON_EXOTIC): 		add_buf(buffer, "exotic{M");		break;
 		case(WEAPON_SWORD): 		add_buf(buffer, "sword{M");		break;
 		case(WEAPON_DAGGER): 		add_buf(buffer, "dagger{M");		break;
@@ -513,6 +513,7 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 		default:			add_buf(buffer, "unknown{M");		break;
 		}
 
+		// TODO: Fix weapon stuff for attack points
 		sprintf(buf, " with attack type {x%s{M.{x\n\r", attack_table[obj->value[3]].noun);
 		add_buf(buffer, buf);
 

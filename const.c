@@ -166,6 +166,7 @@ const struct item_type		item_table	[]	=
     {	ITEM_KEY,		"key"				},
     {	ITEM_FOOD,		"food"				},
     {	ITEM_MONEY,		"money"				},
+	{	ITEM_CORPSE,	"corpse"			},
     {	ITEM_CORPSE_NPC,	"npc_corpse"			},
     {	ITEM_CORPSE_PC,		"pc_corpse"			},
     {	ITEM_PILL,		"pill"				},
@@ -268,6 +269,7 @@ const	struct	weapon_type	ranged_weapon_table	[]	=
 #endif
 
 const	int	size_weight[] = { 0, 10, 50, 120, 450, 4500 };
+const	int size_move_delay[] = { 0, 2, 4, 8, 16, 32 };
 
 
 const	struct	trade_type	trade_table	[]	=

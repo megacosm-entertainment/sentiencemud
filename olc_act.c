@@ -123,6 +123,7 @@ const struct olc_help_type help_table[] =
 	{ 	"compartment",			STRUCT_FLAGS,		compartment_flags,			"Compartment Flags."},
 	{	"condition",			STRUCT_FLAGS,		room_condition_flags,		"Room Condition types."	},
 	{	"container",			STRUCT_FLAGS,		container_flags,			"Container status."	},
+	{	"corpse",				STRUCT_FLAGS,		corpse_object_flags,		"Corpse flags." },
 	{	"corpsetypes",			STRUCT_FLAGS,		corpse_types,				"Corpse types."	},
 	{	"damageclass",			STRUCT_FLAGS,		damage_classes,				"Types of damages."},
 	{	"dprog",				STRUCT_TRIGGERS,	dummy_triggers,				"DungeonProgram types."	},
@@ -4961,6 +4962,20 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		}
 	}
 
+	if (IS_BODY_PART(obj))
+	{
+		BODY_PART_DATA *bp = BODY_PART(obj);
+
+		add_buf(buffer, "\n\r{GBody Part:{x\n\r");
+		if (IS_VALID(bp->race))
+			sprintf(buf, "{B[{WRace             {B]:  {x%s\n\r", bp->race->name);
+		else
+			sprintf(buf, "{B[{WRace             {B]:  {Dnone{x\n\r");
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WParts            {B]:  {x%s\n\r", flag_string(part_flags, bp->parts));
+		add_buf(buffer, buf);
+	}
+
 	if (IS_BOOK(obj))
 	{
 		add_buf(buffer, "\n\r{GBook:{x\n\r");
@@ -5124,6 +5139,38 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 
 		if( CONTAINER(obj)->lock )
 			print_lock_state(CONTAINER(obj)->lock, buffer, "");
+	}
+
+	if (IS_CORPSE(obj))
+	{
+		CORPSE_DATA *corpse = CORPSE(obj);
+		sprintf(buf, "\n\r{G%s Corpse:{x\n\r", (corpse->player?"Player":"Mobile"));
+		add_buf(buffer, buf);
+
+		if (IS_VALID(corpse->type))
+			sprintf(buf, "{B[{WType             {B]:  {x%s\n\r", corpse->type->name);
+		else
+			sprintf(buf, "{B[{WType             {B]:  {Dnone{x\n\r");
+		add_buf(buffer, buf);
+		if (IS_VALID(corpse->race))
+			sprintf(buf, "{B[{WRace             {B]:  {x%s\n\r", corpse->race->name);
+		else
+			sprintf(buf, "{B[{WRace             {B]:  {Dnone{x\n\r");
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WFlags            {B]:  {x%s\n\r", flag_string(corpse_object_flags, corpse->flags));
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WResurrect Chance {B]:  {x%d%%\n\r", corpse->resurrect);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WAnimate Chance   {B]:  {x%d%%\n\r", corpse->animate);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WParts            {B]:  {x%s\n\r", flag_string(part_flags, corpse->parts));
+		add_buf(buffer, buf);
+
+		if (corpse->mobile)
+			sprintf(buf, "{B[{WMobile           {B]:  {x%s\n\r", widevnum_string_mobile(corpse->mobile, obj->area));
+		else
+			sprintf(buf, "{B[{WMobile           {B]:  {Dnone{x\n\r");
+		add_buf(buffer, buf);
 	}
 
 	if (IS_FLUID_CON(obj))
@@ -6105,6 +6152,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	    break;
 	*/
 
+	/*
 	case ITEM_CORPSE_NPC:
 	    sprintf(buf,
 	        "{B[  {Wv0{B]{G Type:{x           %s\n\r"
@@ -6118,7 +6166,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	        (int)obj->value[5]);
 	    add_buf(buffer, buf);
 	    break;
-
+		*/
 	/*
 	case ITEM_INSTRUMENT:
 	    sprintf(buf,
@@ -6195,6 +6243,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		break;
 		*/
 
+	/*
 	case ITEM_BODY_PART:
 	{
 		RACE_DATA *race = get_race_uid(obj->value[1]);
@@ -6207,6 +6256,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		add_buf(buffer, buf);
 		break;
 	}
+	*/
     }
 }
 
@@ -7604,6 +7654,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		break;
 	*/
 
+	/*
 	case ITEM_CORPSE_NPC:
 		switch (value_num)
 		{
@@ -7637,6 +7688,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			break;
 		}
 		break;
+		*/
 
 	/*
 	case ITEM_INSTRUMENT:
@@ -7902,6 +7954,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		}
 		break;
 	*/
+	/*
 	case ITEM_BODY_PART:
 		switch(value_num)
 		{
@@ -7924,6 +7977,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 
 		}
 		break;
+	*/
 	}
 
 	buffer = new_buf();
@@ -8203,6 +8257,11 @@ OEDIT(oedit_show)
 		}
     }
 
+	if (pObj->script_visible)
+		sprintf(buf, "Visibility: %s (%s)\n\r", widevnum_string_script(pObj->script_visible, NULL), pObj->script_visible->name);
+	else
+		sprintf(buf, "Visibility: none\n\r");
+	add_buf(buffer, buf);
 
     if (pObj->progs)
 		olc_show_progs(buffer, pObj->progs, PRG_OPROG, "ObjProg Vnum");
@@ -9911,6 +9970,54 @@ OEDIT(oedit_wear)
     return false;
 }
 
+OEDIT(oedit_visibility)
+{
+	OBJ_INDEX_DATA *pObj;
+
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  visibility set <widevnum>\n\r", ch);
+		send_to_char("         visibility clear\n\r", ch);
+		return false;
+	}
+
+	char arg[MIL];
+	argument = one_argument(argument, arg);
+
+	if (!str_prefix(arg, "set"))
+	{
+		WNUM wnum;
+
+		if (!parse_widevnum(argument, ch->in_room->area, &wnum) || !wnum.pArea || wnum.vnum < 1)
+		{
+			send_to_char("Please provide a widevnum.\n\r", ch);
+			return false;
+		}
+
+		SCRIPT_DATA *script = get_script_index_wnum(wnum, PRG_OPROG);
+		if (!script)
+		{
+			send_to_char("No such object script with that widevnum.\n\r", ch);
+			return false;
+		}
+
+		pObj->script_visible = script;
+		send_to_char("Visibility Script changed.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "clear"))
+	{
+		pObj->script_visible = NULL;
+		send_to_char("Visibility Script cleared.\n\r", ch);
+		return true;
+	}
+
+	oedit_visibility(ch, "");
+	return false;
+}
 
 OEDIT(oedit_type)
 {
@@ -10600,6 +10707,100 @@ void __oedit_book_renumber_pages(BOOK_DATA *book)
 	}
 	iterator_stop(&it);
 }
+
+OEDIT(oedit_type_body_part)
+{
+	OBJ_INDEX_DATA *pObj;
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_BODY_PART(pObj))
+		{
+			send_to_char("Syntax:  bodypart parts <parts>\n\r", ch);
+			send_to_char("         bodypart race <race>\n\r", ch);
+
+			if (pObj->item_type != ITEM_BODY_PART)
+				send_to_char("         bodypart remove\n\r", ch);
+		}
+		else
+		{
+			send_to_char("Syntax:  bodypart add\n\r", ch);
+		}
+		return false;
+	}
+
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+
+	if (IS_BODY_PART(pObj))
+	{
+		if (!str_prefix(arg, "parts"))
+		{
+			long value;
+			if ((value = flag_value(part_flags, argument)) == NO_FLAG)
+			{
+				send_to_char("Invalid part flags.  Use '? part' for list of valid flags.\n\r", ch);
+				show_flag_cmds(ch, part_flags);
+				return false;
+			}
+
+			TOGGLE_BIT(BODY_PART(pObj)->parts, value);
+			send_to_char("BODY_PART parts toggled.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "race"))
+		{
+			if (argument[0] == '\0')
+			{
+				send_to_char("Please specify a race.\n\r", ch);
+				return false;
+			}
+
+			RACE_DATA *race = get_race_data(argument);
+			if (!IS_VALID(race))
+			{
+				send_to_char("No such race by that name.\n\r", ch);
+				return false;
+			}
+
+			BODY_PART(pObj)->race = race;
+			send_to_char("BODY_PART race changed.\n\r", ch);
+			return true;
+			
+		}
+
+		if (pObj->item_type != ITEM_BODY_PART)
+		{
+			if(!str_prefix(arg, "remove"))
+			{
+				free_body_part_data(BODY_PART(pObj));
+				BODY_PART(pObj) = NULL;
+
+				send_to_char("BODY_PART type removed.\n\r\n\r", ch);
+				return true;
+			}
+		}
+	}
+	else if(!str_prefix(arg, "add"))
+	{
+		if (!obj_index_can_add_item_type(pObj, ITEM_BODY_PART))
+		{
+			send_to_char("You cannot add this item type to this object.\n\r", ch);
+			return false;
+		}
+		
+		BODY_PART(pObj) = new_body_part_data();
+		send_to_char("BODY_PART type added.\n\r\n\r", ch);
+		return true;
+	}
+
+	oedit_type_body_part(ch, "");
+	return false;
+}
+
 
 OEDIT(oedit_type_page)
 {
@@ -11943,6 +12144,227 @@ OEDIT(oedit_type_container)
 	oedit_type_container(ch, "");
 	return false;
 }
+
+OEDIT(oedit_type_corpse)
+{
+	OBJ_INDEX_DATA *pObj;
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_CORPSE(pObj))
+		{
+			send_to_char("Syntax:  corpse type <type>\n\r", ch);
+			send_to_char("         corpse race <race>\n\r", ch);
+			send_to_char("         corpse flags <flags>\n\r", ch);
+			if (IS_IMPLEMENTOR9(ch))
+				send_to_char("         corpse player <boolean> (security 9 implementor only)\n\r", ch);
+			send_to_char("         corpse animate <chance>\n\r", ch);
+			send_to_char("         corpse resurrect <chance>\n\r", ch);
+			send_to_char("         corpse parts <parts>\n\r", ch);
+			send_to_char("         corpse mobile <widevnum|none>\n\r", ch);
+
+			if (pObj->item_type != ITEM_CORPSE)
+				send_to_char("         corpse remove\n\r", ch);
+		}
+		else
+		{
+			send_to_char("Syntax:  corpse add\n\r", ch);
+		}
+		return false;
+	}
+
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+
+	if (IS_CORPSE(pObj))
+	{
+		if (!str_prefix(arg, "type"))
+		{
+			if (argument[0] == '\0')
+			{
+				send_to_char("Please provide a corpse type.\n\r", ch);
+				send_to_char("Use 'corpselist' for list of corpse types.\n\r", ch);
+				return false;
+			}
+
+			CORPSE_TYPE *type = get_corpse_type(argument);
+			if (!IS_VALID(type))
+			{
+				send_to_char("No such corpse type by that name.\n\r", ch);
+				return false;
+			}
+
+			CORPSE(pObj)->type = type;
+			send_to_char("CORPSE type changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "race"))
+		{
+			if (argument[0] == '\0')
+			{
+				send_to_char("Please specify a valid race.\n\r", ch);
+				send_to_char("Use 'racelist' for list of valid races.\n\r", ch);
+				return false;
+			}
+
+			RACE_DATA *race = get_race_data(argument);
+			if (!IS_VALID(race))
+			{
+				send_to_char("No such race by that name.\n\r", ch);
+				send_to_char("Use 'racelist' for list of valid races.\n\r", ch);
+				return false;
+			}
+
+			CORPSE(pObj)->race = race;
+			send_to_char("CORPSE Race changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "flags"))
+		{
+			long value;
+			if ((value = flag_value(corpse_object_flags, argument)) == NO_FLAG)
+			{
+				send_to_char("Invalid corpse flag.  Use '? corpse' for valid flags.\n\r", ch);
+				show_flag_cmds(ch, corpse_object_flags);
+				return false;
+			}
+
+			TOGGLE_BIT(CORPSE(pObj)->flags, value);
+			send_to_char("CORPSE flags changed.\n\r", ch);
+			return true;
+		}
+
+		// Security 9 Implementor only.  Only time to ever deal with this is when setting the reserved player corpse object
+		if (!str_prefix(arg, "player") && IS_IMPLEMENTOR9(ch))
+		{
+			if (argument[0] == '\0')
+			{
+				send_to_char("Please provide a boolean (true/false, yes/no, on/off) value.\n\r", ch);
+				return false;
+			}
+
+			bool player;
+			if (!str_prefix(argument, "true") || !str_prefix(argument, "yes") || !str_prefix(argument, "on"))
+				player = true;
+			else if (!str_prefix(argument, "false") || !str_prefix(argument, "no") || !str_prefix(argument, "off"))
+				player = false;
+			else
+			{
+				send_to_char("Please provide a boolean (true/false, yes/no, on/off) value.\n\r", ch);
+				return false;
+			}
+
+			CORPSE(pObj)->player = player;
+			send_to_char("CORPSE Player state changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "animate"))
+		{
+			int chance;
+			if (!is_number(argument) || (chance = atoi(argument)) < 0 || chance > 100)
+			{
+				send_to_char("Please provide a number from 0 to 100.\n\r", ch);
+				return false;
+			}
+
+			CORPSE(pObj)->animate = chance;
+			send_to_char("CORPSE animation chance changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "resurrect"))
+		{
+			int chance;
+			if (!is_number(argument) || (chance = atoi(argument)) < 0 || chance > 100)
+			{
+				send_to_char("Please provide a number from 0 to 100.\n\r", ch);
+				return false;
+			}
+
+			CORPSE(pObj)->resurrect = chance;
+			send_to_char("CORPSE resurrection chance changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "parts"))
+		{
+			long value;
+			if ((value = flag_value(part_flags, argument)) == NO_FLAG)
+			{
+				send_to_char("Invalid part flag.  Use '? parts' for valid flags.\n\r", ch);
+				show_flag_cmds(ch, part_flags);
+				return false;
+			}
+
+			TOGGLE_BIT(CORPSE(pObj)->parts, value);
+			send_to_char("CORPSE body parts changed.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "mobile"))
+		{
+			if (argument[0] == '\0')
+			{
+				send_to_char("Please provide a widevnum or none.\n\r", ch);
+				return false;
+			}
+
+			MOB_INDEX_DATA *mobile;
+			WNUM wnum;
+			if (!str_prefix(argument, "none"))
+				mobile = NULL;
+			else if (!parse_widevnum(argument, ch->in_room->area, &wnum))
+			{
+				send_to_char("Please provide a widevnum.\n\r", ch);
+				return false;
+			}
+			else if (!(mobile = get_mob_index_wnum(wnum)))
+			{
+				send_to_char("No such mobile by that widevnum.\n\r", ch);
+				return false;
+			}
+
+			CORPSE(pObj)->mobile = mobile;
+			send_to_char("CORPSE mobile changed.\n\r", ch);
+			return true;
+		}
+
+		if (pObj->item_type != ITEM_CORPSE)
+		{
+			if(!str_prefix(arg, "remove"))
+			{
+				free_corpse_data(CORPSE(pObj));
+				CORPSE(pObj) = NULL;
+
+				send_to_char("CORPSE type removed.\n\r\n\r", ch);
+				return true;
+			}
+		}
+	}
+	else if(!str_prefix(arg, "add"))
+	{
+		if (!obj_index_can_add_item_type(pObj, ITEM_CORPSE))
+		{
+			send_to_char("You cannot add this item type to this object.\n\r", ch);
+			return false;
+		}
+		
+		CORPSE(pObj) = new_corpse_data();
+		send_to_char("CORPSE type added.\n\r\n\r", ch);
+		return true;
+	}
+
+	oedit_type_corpse(ch, "");
+	return false;
+}
+
+
+
 
 bool olc_can_quaff_spell(SKILL_DATA *skill)
 {
@@ -18201,6 +18623,12 @@ MEDIT(medit_show)
 		add_buf(buffer, "\n\r");
 	}
 
+	if (pMob->script_visible)
+		sprintf(buf, "Visibility: %s (%s)\n\r", widevnum_string_script(pMob->script_visible, NULL), pMob->script_visible->name);
+	else
+		sprintf(buf, "Visibility: none\n\r");
+	add_buf(buffer, buf);
+
     if (pMob->progs)
 		olc_show_progs(buffer, pMob->progs, PRG_MPROG, "MobProg Vnum");
 
@@ -18462,6 +18890,56 @@ MEDIT(medit_spec)
 
     send_to_char("MEdit: No such special function.\n\r", ch);
     return false;
+}
+
+
+MEDIT(medit_visibility)
+{
+	MOB_INDEX_DATA *pMob;
+
+	EDIT_MOB(ch, pMob);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  visibility set <widevnum>\n\r", ch);
+		send_to_char("         visibility clear\n\r", ch);
+		return false;
+	}
+
+	char arg[MIL];
+	argument = one_argument(argument, arg);
+
+	if (!str_prefix(arg, "set"))
+	{
+		WNUM wnum;
+
+		if (!parse_widevnum(argument, ch->in_room->area, &wnum) || !wnum.pArea || wnum.vnum < 1)
+		{
+			send_to_char("Please provide a widevnum.\n\r", ch);
+			return false;
+		}
+
+		SCRIPT_DATA *script = get_script_index_wnum(wnum, PRG_OPROG);
+		if (!script)
+		{
+			send_to_char("No such mobile script with that widevnum.\n\r", ch);
+			return false;
+		}
+
+		pMob->script_visible = script;
+		send_to_char("Visibility Script changed.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "clear"))
+	{
+		pMob->script_visible = NULL;
+		send_to_char("Visibility Script cleared.\n\r", ch);
+		return true;
+	}
+
+	medit_visibility(ch, "");
+	return false;
 }
 
 
@@ -18750,7 +19228,7 @@ MEDIT(medit_corpsetype)
 			 send_to_char("Corpse type cleared.\n\r", ch);
 			return true;
 		} else {
-			CORPSE_DATA *corpse = get_corpse_data(argument);
+			CORPSE_TYPE *corpse = get_corpse_type(argument);
 			if (!corpse)
 			{
 				send_to_char("No corpse data by that name.\n\r", ch);

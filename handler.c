@@ -3368,7 +3368,7 @@ void extract_obj(OBJ_DATA *obj)
 	list_remlink(loaded_objects, obj, false);
 
 	// Clear the most recent corpse data on the player owner
-    if( (obj->item_type == ITEM_CORPSE_PC) && !IS_NULLSTR(obj->owner) )
+    if( (IS_CORPSE(obj) && CORPSE(obj)->player) && !IS_NULLSTR(obj->owner) )
     {
 		CHAR_DATA *victim = get_char_world(NULL, obj->owner);
 
@@ -4616,6 +4616,14 @@ bool can_see(CHAR_DATA *ch, CHAR_DATA *victim)
 	if (is_darked(ch->in_room))
 		return false;
 
+	// Visibility Check, does not work if victim is fighting
+	if (IS_NPC(victim) && victim->pIndexData->script_visible != NULL && victim->fighting == NULL)
+	{
+		// Script must return 0 to be "visible"
+		if (execute_script(victim->pIndexData->script_visible, victim, NULL, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_NONE, 0, 0, 0, 0, 0))
+			return false;
+	}
+
 	if (ch->in_room && IS_SET(ch->in_room->room_flag[0], ROOM_DARK))
 	{
 		//(!IS_AFFECTED(ch, AFF_INFRARED) || has_light(ch)) && IS_AFFECTED2(victim,AFF2_DARK_SHROUD)
@@ -4725,6 +4733,15 @@ bool can_see_obj(CHAR_DATA *ch, OBJ_DATA *obj)
 
     if (!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))
 		return true;
+
+
+	// Visibility Check
+	if (obj->pIndexData->script_visible != NULL)
+	{
+		// Script must return 0 to be "visible"
+		if (execute_script(obj->pIndexData->script_visible, NULL, obj, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_NONE, 0, 0, 0, 0, 0))
+			return false;
+	}
 
     /*
     if (IS_NPC(ch)
@@ -5436,12 +5453,14 @@ bool wields_item_type(CHAR_DATA *ch, int weapon_type)
 
     if ((wield = get_eq_char(ch, WEAR_WIELD)) != NULL)
     {
+		// TODO: Fix this
 	if (wield->value[0] == weapon_type)
 	    return true;
     }
 
     if ((wield2 = get_eq_char(ch, WEAR_SECONDARY)) != NULL)
     {
+		// TODO: Fix this
         if (wield2->value[0] == weapon_type)
 	    return true;
     }
@@ -5707,9 +5726,8 @@ long get_dp_value(OBJ_DATA *obj)
 
     deitypoints = UMAX(1,obj->level * 3 + UMAX(obj->cost/1000, 1));
 
-    if (obj->item_type != ITEM_CORPSE_NPC
-    && obj->item_type != ITEM_CORPSE_PC)
-	deitypoints = UMIN(deitypoints,obj->cost);
+    if (!IS_CORPSE(obj))
+		deitypoints = UMIN(deitypoints,obj->cost);
 
     if (IS_MONEY(obj))
     {
@@ -6758,7 +6776,7 @@ bool can_get_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
     if (container)
     {
 
-		if (!IS_CONTAINER(container) && container->item_type != ITEM_CORPSE_NPC && container->item_type != ITEM_CORPSE_PC)
+		if (!IS_CONTAINER(container) && !IS_CORPSE(container))
 		{
 			if (!silent)
 				send_to_char("That's not a container.\n\r", ch);
@@ -6822,7 +6840,7 @@ bool can_get_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 		// Get an item from the ground or from a container on the ground
 		if (!container || container->carried_by != ch)
 		{
-		if (!IS_SET(obj->wear_flags, ITEM_TAKE) || obj->item_type == ITEM_CORPSE_PC)
+		if (!IS_SET(obj->wear_flags, ITEM_TAKE) || (IS_CORPSE(obj) && CORPSE(obj)->player))
 		{
 			if (!IS_SET(obj->wear_flags, ITEM_TAKE))
 			{
@@ -7100,7 +7118,7 @@ bool can_sacrifice_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool silent)
     if (!can_see_obj(ch, obj))
 	return false;
 
-    if ((!IS_SET(obj->wear_flags, ITEM_TAKE) && obj->item_type != ITEM_CORPSE_NPC && obj->item_type != ITEM_CORPSE_PC)
+    if ((!IS_SET(obj->wear_flags, ITEM_TAKE) && !IS_CORPSE(obj))
     ||  IS_SET(obj->wear_flags, ITEM_NO_SAC)
     ||  (obj->item_type == ITEM_CORPSE_PC && obj->contains))
     {

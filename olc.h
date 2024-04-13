@@ -380,14 +380,17 @@ DECLARE_OLC_FUN( oedit_lock		);
 DECLARE_OLC_FUN( oedit_class );
 DECLARE_OLC_FUN( oedit_class_type );
 DECLARE_OLC_FUN( oedit_race );
+DECLARE_OLC_FUN( oedit_visibility );
 
 
 DECLARE_OLC_FUN( oedit_type_ammo );
 DECLARE_OLC_FUN( oedit_type_armor );
+DECLARE_OLC_FUN( oedit_type_body_part );
 DECLARE_OLC_FUN( oedit_type_book );
 DECLARE_OLC_FUN( oedit_type_cart );
 DECLARE_OLC_FUN( oedit_type_compass );
 DECLARE_OLC_FUN( oedit_type_container );
+DECLARE_OLC_FUN( oedit_type_corpse );
 DECLARE_OLC_FUN( oedit_type_fluid_container );
 DECLARE_OLC_FUN( oedit_type_food );
 DECLARE_OLC_FUN( oedit_type_furniture );
@@ -467,6 +470,7 @@ DECLARE_OLC_FUN( medit_addreputation );
 DECLARE_OLC_FUN( medit_delreputation );
 DECLARE_OLC_FUN( medit_faction	);
 DECLARE_OLC_FUN( medit_practice	);
+DECLARE_OLC_FUN( medit_visibility );
 
 /* Any script editor */
 DECLARE_OLC_FUN( scriptedit_show	);
@@ -886,7 +890,7 @@ DECLARE_OLC_FUN( corpsedit_damage );
 #define EDIT_RACE(ch, race)			( race = (RACE_DATA *)ch->desc->pEdit )
 
 #define EDIT_SECTOR(ch, sector)		( sector = (SECTOR_DATA *)ch->desc->pEdit )
-#define EDIT_CORPSE(ch, corpse)		( corpse = (CORPSE_DATA *)ch->desc->pEdit )
+#define EDIT_CORPSE(ch, corpse)		( corpse = (CORPSE_TYPE *)ch->desc->pEdit )
 
 /*
  * Prototypes

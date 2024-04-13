@@ -78,8 +78,7 @@ void acid_effect(void *vo, int level, int dam, int target)
 	    default:
 		return;
 	    case ITEM_CONTAINER:
-	    case ITEM_CORPSE_PC:
-	    case ITEM_CORPSE_NPC:
+	    case ITEM_CORPSE:
 		msg = "$p fumes and dissolves.";
 		break;
 	    case ITEM_ARMOUR:

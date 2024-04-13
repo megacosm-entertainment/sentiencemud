@@ -9661,7 +9661,7 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 						if (container_is_valid_item_type(arg->d.obj, pObjIndex->item_type, subtype))
 							to_obj = arg->d.obj;
 					}
-					else if(arg->d.obj->item_type == ITEM_CORPSE_NPC || arg->d.obj->item_type == ITEM_CORPSE_PC)
+					else if(IS_CORPSE(arg->d.obj))
 						to_obj = arg->d.obj;
 					else
 						return NULL;	// Trying to put the item into a non-container won't work

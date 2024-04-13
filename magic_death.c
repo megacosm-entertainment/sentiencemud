@@ -25,7 +25,8 @@ SPELL_FUNC(spell_animate_dead)
 	char buf[MAX_STRING_LENGTH];
 	OBJ_DATA *obj;
 	OBJ_DATA *obj_in, *obj_in_next;
-	int i,chance, corpse, catalyst, lvl, percent;
+	int i,chance, catalyst, lvl, percent;
+	CORPSE_TYPE *corpse;
 
 	if (target == TARGET_OBJ) {
 		obj = (OBJ_DATA *) vo;
@@ -33,13 +34,12 @@ SPELL_FUNC(spell_animate_dead)
 		bool keep_mob = true;
 		bool restring_mob = true;
 
-		if (obj->item_type == ITEM_CORPSE_PC) {
-			send_to_char("Player corpses cannot be animated.\n\r", ch);
+		if (!IS_CORPSE(obj)) {
+			send_to_char("Nothing happens.\n\r", ch);
 			return false;
 		}
-
-		if (obj->item_type != ITEM_CORPSE_NPC) {
-			send_to_char("Nothing happens.\n\r", ch);
+		else if (CORPSE(obj)->player) {
+			send_to_char("Player corpses cannot be animated.\n\r", ch);
 			return false;
 		}
 
@@ -48,9 +48,11 @@ SPELL_FUNC(spell_animate_dead)
 			return false;
 		}
 
-		corpse = CORPSE_TYPE(obj);
+		CORPSE_DATA *cd = CORPSE(obj);
 
-		if (!IS_SET(CORPSE_PARTS(obj),PART_HEAD) && !corpse_info_table[corpse].animate_headless) {
+		corpse = cd->type;
+
+		if (!IS_SET(cd->parts,PART_HEAD) && !corpse->animate_headless) {
 			act("Your magic is not powerful enough.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 			return false;
 		}
@@ -59,7 +61,7 @@ SPELL_FUNC(spell_animate_dead)
 		if(catalyst < 0 || catalyst > 4) catalyst = 4;
 		if(catalyst) use_catalyst(ch,NULL,CATALYST_DEATH,CATALYST_CARRY|CATALYST_ROOM,catalyst,true);
 
-		chance = obj->condition * CORPSE_ANIMATE(obj);
+		chance = obj->condition * cd->animate;
 		lvl = ch->tot_level / 2;
 		percent = 50;
 		for(i=0;i < catalyst; i++) {
@@ -78,19 +80,15 @@ SPELL_FUNC(spell_animate_dead)
 			return false;
 		}
 
-		WNUM wnum;
-		if (CORPSE_MOBILE(obj))
+		if (cd->mobile)
 		{
-			// So far, this will be local vnum only
-			wnum.pArea = obj->pIndexData->area;
-			wnum.vnum = CORPSE_MOBILE(obj);
+			index = cd->mobile;
 		}
 		else
 		{
-			wnum = obj->orig_wnum;
+			index = get_mob_index_wnum(obj->orig_wnum);
 		}
 
-		index = get_mob_index(wnum.pArea, wnum.vnum);
 		victim = create_mobile(index, false);
 
 		// Regardless what wealth the normal mob has...
@@ -130,21 +128,21 @@ SPELL_FUNC(spell_animate_dead)
 
 		if( restring_mob )
 		{
-			if(corpse_info_table[corpse].animate_name) {
-				sprintf(buf, corpse_info_table[corpse].animate_name, victim->name);
+			if(!IS_NULLSTR(corpse->animate_name)) {
+				sprintf(buf, corpse->animate_name, victim->name);
 				free_string(victim->name);
 				victim->name = str_dup(buf);
 			}
 
-			if(corpse_info_table[corpse].animate_long) {
-				sprintf(buf, corpse_info_table[corpse].animate_long, victim->short_descr);
+			if(!IS_NULLSTR(corpse->animate_long)) {
+				sprintf(buf, corpse->animate_long, victim->short_descr);
 				free_string(victim->long_descr);
 				victim->long_descr = str_dup(buf);
 			}
 
-			if(corpse_info_table[corpse].animate_descr) {
+			if(!IS_NULLSTR(corpse->animate_descr)) {
 				free_string(victim->description);
-				victim->description = str_dup(corpse_info_table[corpse].animate_descr);
+				victim->description = str_dup(corpse->animate_descr);
 			}
 		}
 
@@ -153,7 +151,7 @@ SPELL_FUNC(spell_animate_dead)
 		SET_BIT(victim->act[0], ACT_ANIMATED);
 		SET_BIT(victim->act[0], ACT_UNDEAD);
 		victim->corpse_wnum = index->zombie;
-		victim->parts = CORPSE_PARTS(obj);
+		victim->parts = cd->parts;
 		char_to_room(victim, ch->in_room);
 		victim->pIndexData->count--;  // Animated mobs dont add to world count.
 		act("$p twitches then thrashes violently before rising to its feet!", victim, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
@@ -376,7 +374,7 @@ SPELL_FUNC(spell_raise_dead)
 	if (target == TARGET_OBJ) {
 		obj = (OBJ_DATA *) vo;
 
-		if (obj->item_type != ITEM_CORPSE_NPC && obj->item_type != ITEM_CORPSE_PC) {
+		if (!IS_CORPSE(obj)) {
 			send_to_char("This spell must be cast on a fresh corpse.\n\r", ch);
 			return false;
 		}
@@ -386,7 +384,9 @@ SPELL_FUNC(spell_raise_dead)
 			return false;
 		}
 
-		if (!IS_SET(CORPSE_PARTS(obj),PART_HEAD)) {
+		CORPSE_DATA *cd = CORPSE(obj);
+
+		if (!IS_SET(cd->parts,PART_HEAD)) {
 			act("$p is missing its head.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 			return false;
 		}
@@ -396,8 +396,7 @@ SPELL_FUNC(spell_raise_dead)
 			return false;
 		}
 
-
-		if (obj->item_type == ITEM_CORPSE_PC) {
+		if (cd->player) {
 			victim = get_char_world(NULL,obj->owner);
 			if (!victim) {
 				sprintf(buf, "The soul of %s is no longer within this world.", obj->owner);
@@ -412,7 +411,7 @@ SPELL_FUNC(spell_raise_dead)
 			}
 
 			// Only allow resurrection of CPK corpses in CPK rooms
-			if( IS_SET(ch->in_room->room_flag[0], ROOM_CHAOTIC) && !IS_SET(CORPSE_FLAGS(obj), CORPSE_CHAOTICDEATH) )
+			if( IS_SET(ch->in_room->room_flag[0], ROOM_CHAOTIC) && !IS_SET(cd->flags, CORPSE_CHAOTICDEATH) )
 			{
 				// Any player, or non-holyaura immortal, attempting to do so will be ZOTTED.
 				if( !IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act[1], PLR_HOLYAURA)))
@@ -426,7 +425,7 @@ SPELL_FUNC(spell_raise_dead)
 			}
 
 			// Only allow resurrection of PK corpses in PK rooms...
-			if( is_room_pk(ch->in_room, true) && !IS_SET(CORPSE_FLAGS(obj), CORPSE_PKDEATH) )
+			if( is_room_pk(ch->in_room, true) && !IS_SET(cd->flags, CORPSE_PKDEATH) )
 			{
 				// No penalty here, just failure.
 				act("$p seems to be immune to your divine energies.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
@@ -471,7 +470,13 @@ SPELL_FUNC(spell_raise_dead)
 		} else {
 			bool keep_mob = true;
 
-			victim = create_mobile(get_mob_index_wnum(obj->orig_wnum), false);
+			MOB_INDEX_DATA *index;
+			if (cd->mobile)
+				index = cd->mobile;
+			else
+				index = get_mob_index_wnum(obj->orig_wnum);
+
+			victim = create_mobile(index, false);
 			// Regardless what wealth the normal mob has...
 			victim->gold = 0;
 			victim->silver = 0;

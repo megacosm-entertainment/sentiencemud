@@ -781,6 +781,9 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
 	if(mob->boss)
 		fprintf(fp, "Boss\n");
 
+	if (mob->script_visible)
+		fprintf(fp, "Visibility %s\n", widevnum_string_script(mob->script_visible, mob->area));
+
 	MOB_REPUTATION_DATA *rep;
 	for(rep = mob->reputations; rep; rep = rep->next)
 	{
@@ -899,6 +902,16 @@ void save_object_multityping(FILE *fp, OBJ_INDEX_DATA *obj)
 		fprintf(fp, "#-TYPEARMOR\n");
 	}
 
+	if (IS_BODY_PART(obj))
+	{
+		BODY_PART_DATA *bp = BODY_PART(obj);
+		fprintf(fp, "#TYPEBODYPART\n");
+		if (IS_VALID(bp->race))
+			fprintf(fp, "Race %s~\n", bp->race->name);
+		fprintf(fp, "Parts %s\n", print_flags(bp->parts));
+		fprintf(fp, "#-TYPEBODYPART\n");
+	}
+
 	if (IS_BOOK(obj))
 	{
 		BOOK_DATA *book = BOOK(obj);
@@ -1002,6 +1015,25 @@ void save_object_multityping(FILE *fp, OBJ_INDEX_DATA *obj)
 			save_object_lockstate(fp, CONTAINER(obj)->lock);
 
 		fprintf(fp, "#-TYPECONTAINER\n");
+	}
+
+	if (IS_CORPSE(obj))
+	{
+		CORPSE_DATA *corpse = CORPSE(obj);
+		fprintf(fp, "#TYPECORPSE\n");
+		if (IS_VALID(corpse->type))
+			fprintf(fp, "Type %s~\n", corpse->type->name);
+		if (IS_VALID(corpse->race))
+			fprintf(fp, "Race %s~\n", corpse->race->name);
+		fprintf(fp, "Flags %s\n", print_flags(corpse->flags));
+		if (corpse->player)
+			fprintf(fp, "Player\n");
+		fprintf(fp, "Resurrect %d\n", corpse->resurrect);
+		fprintf(fp, "Animate %d\n", corpse->animate);
+		fprintf(fp, "Parts %s\n", print_flags(corpse->parts));
+		if (corpse->mobile)
+			fprintf(fp, "Mobile %s\n", widevnum_string(corpse->mobile->area, corpse->mobile->vnum, obj->area));
+		fprintf(fp, "#-TYPECORPSE\n");
 	}
 
 	if (IS_FLUID_CON(obj))
@@ -1419,6 +1451,10 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
 	
 	if (obj->clazz_type != CLASS_NONE)
 		fprintf(fp, "ClassType %s~\n", flag_string(class_types, obj->clazz_type));
+
+	if (obj->script_visible)
+		fprintf(fp, "Visibility %s\n", widevnum_string_script(obj->script_visible, obj->area));
+
 
 	if (list_size(obj->race) > 0)
 	{
@@ -2911,7 +2947,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 	    case 'C':
 	        KEYS("CreatorSig", mob->creator_sig,	fread_string(fp));
 	        //KEY("CorpseType", mob->corpse_type,	fread_number(fp));	// Nothing really has a corpse defined
-			KEY("Corpse", mob->corpse_type, get_corpse_data(fread_string(fp)));
+			KEY("Corpse", mob->corpse_type, get_corpse_type(fread_string(fp)));
 	        KEY("CorpseWnum", mob->corpse,	fread_widevnum(fp, area->uid));
 	        KEY("CorpseZombie", mob->zombie,	fread_widevnum(fp, area->uid));
 			KEY("Comments", mob->comments, fread_string(fp));
@@ -3043,7 +3079,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 	    case 'P':
 	        KEY("Parts",	mob->parts,	fread_number(fp));
 	        KEY("Persist",	mob->persist, true);
-		break;
+			break;
 
 	    case 'R':
 		KEY("ResFlags", 	mob->res_flags, fread_number(fp));
@@ -3112,6 +3148,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 					break;
 				}
 
+			KEY("Visibility",	mob->wnum_visible, fread_widevnum(fp, area->uid));
 	        KEY("VulnFlags",	mob->vuln_flags,	fread_number(fp));
 		break;
 	    case 'W':
@@ -3419,7 +3456,38 @@ ARMOR_DATA *read_object_armor_data(FILE *fp)
 	return data;
 }
 
+BODY_PART_DATA *read_object_body_part_data(FILE *fp)
+{
+	BODY_PART_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
 
+	data = new_body_part_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPEBODYPART"))
+	{
+		fMatch = false;
+
+		switch(word[0])
+		{
+			case 'P':
+				KEY("Parts", data->parts, fread_flag(fp));
+				break;
+
+			case 'R':
+				KEY("Race", data->race, get_race_data(fread_string(fp)));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_object_body_part_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
 
 BOOK_PAGE *read_object_book_page(FILE *fp, char *closer, AREA_DATA *area)
 {
@@ -3691,6 +3759,57 @@ CONTAINER_DATA *read_object_container_data(FILE *fp)
 
 		if (!fMatch) {
 			sprintf(buf, "read_object_container_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+CORPSE_DATA *read_object_corpse_data(FILE *fp, AREA_DATA *refArea)
+{
+	CORPSE_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_corpse_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPECORPSE"))
+	{
+		fMatch = false;
+
+		switch(word[0])
+		{
+			case 'A':
+				KEY("Animate", data->animate, fread_number(fp));
+				break;
+
+			case 'F':
+				KEY("Flags", data->flags, fread_flag(fp));
+				break;
+
+			case 'M':
+				KEY("Mobile", data->mobile_load, fread_widevnum(fp, refArea->uid));
+				break;
+
+			case 'P':
+				KEY("Parts", data->parts, fread_flag(fp));
+				KEY("Player", data->player, true);
+				break;
+
+			case 'R':
+				KEY("Race", data->race, get_race_data(fread_string(fp)));
+				KEY("Resurrect", data->resurrect, fread_number(fp));
+				break;
+
+			case 'T':
+				KEY("Type", data->type, get_corpse_type(fread_string(fp)));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_object_corpse_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4854,6 +4973,10 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 				if (IS_ARMOR(obj)) free_armor_data(ARMOR(obj));
 				ARMOR(obj) = read_object_armor_data(fp);
 				fMatch = true;
+			} else if (!str_cmp(word, "#TYPEBODYPART")) {
+				if (IS_BODY_PART(obj)) free_body_part_data(BODY_PART(obj));
+				BODY_PART(obj) = read_object_body_part_data(fp);
+				fMatch = true;
 			} else if (!str_cmp(word, "#TYPEBOOK")) {
 				if (IS_BOOK(obj)) free_book_data(BOOK(obj));
 				BOOK(obj) = read_object_book_data(fp, area);
@@ -4869,6 +4992,10 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 			} else if (!str_cmp(word, "#TYPECONTAINER")) {
 				if (IS_CONTAINER(obj)) free_container_data(CONTAINER(obj));
 				CONTAINER(obj) = read_object_container_data(fp);
+				fMatch = true;
+			} else if (!str_cmp(word, "#TYPECORPSE")) {
+				if (IS_CORPSE(obj)) free_corpse_data(CORPSE(obj));
+				CORPSE(obj) = read_object_corpse_data(fp, area);
 				fMatch = true;
 			} else if (!str_cmp(word, "#TYPEFLUIDCONTAINER")) {
 				if (IS_FLUID_CON(obj)) free_fluid_container_data(FLUID_CON(obj));
@@ -5164,6 +5291,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 			fMatch = true;
 			break;
 		}
+			KEY("Visibility",	obj->wnum_visible, fread_widevnum(fp, area->uid));
 
 		break;
 
@@ -5571,6 +5699,18 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 		}
 
 		obj->fragility = new_fragility;
+	}
+
+	if (area->version_object < VERSION_OBJECT_017)
+	{
+		if (obj->item_type == ITEM_BODY_PART)
+		{
+			obj_index_reset_multitype(obj);
+			obj_index_set_primarytype(obj, ITEM_BODY_PART);
+
+			BODY_PART(obj)->parts = values[0];
+			BODY_PART(obj)->race = (values[1] > 0) ? get_race_uid(values[1]) : NULL;
+		}
 	}
 
 	// Remove when all item multi-typing is complete

@@ -1112,22 +1112,29 @@ bool can_move_room(CHAR_DATA *ch, int door, ROOM_INDEX_DATA *room)
 	{
 		CHAR_DATA *mount = MOUNTED(ch);
 
-		if (mount)
+		if (IS_CART(ch->pulled_cart))
 		{
-			if (ch->pulled_cart->value[2] > get_curr_stat(mount, STAT_STR)) {
-				act("$N isn't strong enough to pull $p.", ch, mount, NULL, ch->pulled_cart, NULL, NULL, NULL, TO_CHAR);
-				act("$N struggles to pull $p but is too weak.", ch, mount, NULL, ch->pulled_cart, NULL, NULL, NULL, TO_NOTVICT);
-				return false;
+			CART_DATA *cart = CART(ch->pulled_cart);
+
+			if (mount)
+			{
+				if (cart->min_strength > get_curr_group_stat(mount, STAT_STR)) {
+					act("$N isn't strong enough to pull $p.", ch, mount, NULL, ch->pulled_cart, NULL, NULL, NULL, TO_CHAR);
+					act("$N struggles to pull $p but is too weak.", ch, mount, NULL, ch->pulled_cart, NULL, NULL, NULL, TO_NOTVICT);
+					return false;
+				}
+			}
+			else
+			{
+				if (cart->min_strength > get_curr_group_stat(ch, STAT_STR)) {
+					act("You aren't strong enough to pull $p.", ch, NULL, NULL, ch->pulled_cart, NULL, NULL, NULL, TO_CHAR);
+					act("$n attempts to pull $p but is too weak.", ch, NULL, NULL, ch->pulled_cart, NULL, NULL, NULL, TO_ROOM);
+					return false;
+				}
 			}
 		}
-		else
-		{
-			if (ch->pulled_cart->value[2] > get_curr_stat(ch, STAT_STR)) {
-				act("You aren't strong enough to pull $p.", ch, NULL, NULL, ch->pulled_cart, NULL, NULL, NULL, TO_CHAR);
-				act("$n attempts to pull $p but is too weak.", ch, NULL, NULL, ch->pulled_cart, NULL, NULL, NULL, TO_ROOM);
-				return false;
-			}
-		}
+
+		// TODO: Corpses
 	}
 
 
@@ -2424,6 +2431,7 @@ void do_pick(CHAR_DATA *ch, char *argument)
 	char arg[MAX_INPUT_LENGTH];
 	OBJ_DATA *obj;
 	int door;
+	int ret;
 
 	if (IS_NPC(ch))
 	return;
@@ -2459,109 +2467,164 @@ void do_pick(CHAR_DATA *ch, char *argument)
 
 	if ((obj = get_obj_here(ch, NULL, arg)) != NULL)
 	{
-		/* portal stuff */
-		if (obj->item_type == ITEM_PORTAL)
+		if (obj_oclu_ambiguous(obj) && argument[0] == '\0')
 		{
-			if (!IS_SET(obj->value[1],EX_ISDOOR))
+			act("Pick what on $p?", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			obj_oclu_show_parts(ch, obj);
+			return;
+		}
+
+		OCLU_CONTEXT context;
+		if (!oclu_get_context(&context, obj, argument))
+		{
+			act("You do not see that on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
+
+#if 0
+		/* portal stuff */
+		if (context.item_type == ITEM_PORTAL)
+		{
+			PORTAL_DATA *portal = PORTAL(obj);
+
+			if( portal->lock )
+			{
+				if (!IS_SET(portal->exit,EX_ISDOOR))
+				{
+					send_to_char("You can't do that.\n\r",ch);
+					return;
+				}
+
+				if (!IS_SET(portal->exit,EX_CLOSED))
+				{
+					send_to_char("It's not closed.\n\r",ch);
+					return;
+				}
+
+				if (!lockstate_functional(portal->lock))
+				{
+					send_to_char("It can't be unlocked.\n\r",ch);
+					return;
+				}
+
+				if (IS_SET(portal->lock->flags,LOCK_BROKEN))
+				{
+					send_to_char("The lock is broken.\n\r",ch);
+					return;
+				}
+
+				if (IS_SET(portal->lock->flags,LOCK_JAMMED))
+				{
+					send_to_char("The lock has been jammed.\n\r",ch);
+					return;
+				}
+
+				if (!IS_SET(portal->lock->flags, LOCK_LOCKED) )
+				{
+					send_to_char("It's already unlocked.\n\r", ch);
+					return;
+				}
+
+				if (number_percent() >= portal->lock->pick_chance)
+				{
+					send_to_char("You failed.\n\r",ch);
+					return;
+				}
+
+				REMOVE_BIT(portal->lock->flags,LOCK_LOCKED);
+				act("You pick the lock on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+				act("$n picks the lock on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
+				check_improve(ch,gsk_pick_lock,true,2);
+				}
+			else
+				send_to_char("There is nothing to pick.\n\r", ch);
+
+			return;
+		}
+#endif
+
+
+		if( *context.lock )
+		{
+			if (!IS_SET(*context.flags,EX_ISDOOR))
 			{
 				send_to_char("You can't do that.\n\r",ch);
 				return;
 			}
 
-			if (!IS_SET(obj->value[1],EX_CLOSED))
+			if (!IS_SET(*context.flags,EX_CLOSED))
 			{
 				send_to_char("It's not closed.\n\r",ch);
 				return;
 			}
 
-			if (!lockstate_functional(obj->lock))
+			if (!lockstate_functional(*context.lock))
 			{
 				send_to_char("It can't be unlocked.\n\r",ch);
 				return;
 			}
 
-			if (IS_SET(obj->lock->flags,LOCK_BROKEN))
+			if (IS_SET((*context.lock)->flags,LOCK_BROKEN))
 			{
 				send_to_char("The lock is broken.\n\r",ch);
 				return;
 			}
 
-			if (IS_SET(obj->lock->flags,LOCK_JAMMED))
+			if (IS_SET((*context.lock)->flags,LOCK_JAMMED))
 			{
 				send_to_char("The lock has been jammed.\n\r",ch);
 				return;
 			}
 
-			if (!IS_SET(obj->lock->flags, LOCK_LOCKED) )
+			if (!IS_SET((*context.lock)->flags, LOCK_LOCKED) )
 			{
 				send_to_char("It's already unlocked.\n\r", ch);
 				return;
 			}
 
-			if (number_percent() >= obj->lock->pick_chance)
+			ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREPICK, NULL,context.which,0,0,0,0);
+			if (ret)
+			{
+				if (ret != PRET_SILENT)
+					send_to_char("You can't do that.\n\r",ch);
+				return;	
+			}
+
+			if (number_percent() >= (*context.lock)->pick_chance)
 			{
 				send_to_char("You failed.\n\r",ch);
+
+				// TRIG_PICK - failure
+				p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PICK, NULL,context.which,false,0,0,0);
+
+				check_improve(ch,gsk_pick_lock,false,4);
 				return;
 			}
 
-			REMOVE_BIT(obj->lock->flags,LOCK_LOCKED);
-			act("You pick the lock on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-			act("$n picks the lock on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
+			REMOVE_BIT((*context.lock)->flags, LOCK_LOCKED);
+			if (context.is_default)
+			{
+				act("You pick the lock on $p.",ch, NULL, NULL,obj, NULL, NULL, NULL,TO_CHAR);
+				act("$n picks the lock on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+			}
+			else
+			{
+				act("You picks the lock of $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_CHAR);
+				act("$n picks the lock of $t on $p.", ch, NULL, NULL, obj, NULL, context.label, NULL, TO_ROOM);
+			}
+
+			// TRIG_PICK - success
+			p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PICK, NULL,context.which,true,0,0,0);
+
 			check_improve(ch,gsk_pick_lock,true,2);
-			return;
 		}
-
-		if (IS_CONTAINER(obj))
+		else
 		{
-			if (!IS_SET(CONTAINER(obj)->flags, CONT_CLOSED))
-			{
-				send_to_char("It's not closed.\n\r", ch);
-				return;
-			}
+			if (context.is_default)
+				act("There is nothing to pick on $p.",ch, NULL, NULL,obj, NULL, NULL, NULL,TO_CHAR);
+			else
+				act("There is nothing to pick on $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_CHAR);
 		}
-		else if (obj->item_type == ITEM_BOOK)
-		{
-			if (!IS_SET(obj->value[1], CONT_CLOSED))
-			{
-				send_to_char("It's not closed.\n\r", ch);
-				return;
-			}
-		}
-
-		if (!lockstate_functional(obj->lock))
-		{
-			send_to_char("It can't be unlocked.\n\r",ch);
-			return;
-		}
-
-		if (IS_SET(obj->lock->flags,LOCK_BROKEN))
-		{
-			send_to_char("The lock is broken.\n\r",ch);
-			return;
-		}
-
-		if (IS_SET(obj->lock->flags,LOCK_JAMMED))
-		{
-			send_to_char("The lock has been jammed.\n\r",ch);
-			return;
-		}
-
-		if (!IS_SET(obj->lock->flags, LOCK_LOCKED) )
-		{
-			send_to_char("It's already unlocked.\n\r", ch);
-			return;
-		}
-
-		if (number_percent() >= obj->lock->pick_chance)
-		{
-			send_to_char("You failed.\n\r",ch);
-			return;
-		}
-
-		REMOVE_BIT(obj->lock->flags,LOCK_LOCKED);
-		act("You pick the lock on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-		act("$n picks the lock on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
-		check_improve(ch,gsk_pick_lock,true,2);
 		return;
 	}
 
@@ -2599,15 +2662,25 @@ void do_pick(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
+		ret = p_direction_trigger(ch, ch->in_room, door, PRG_RPROG, TRIG_PREPICK,0,0,0,0,0);
+		if (ret)
+		{
+			if (ret != PRET_SILENT)
+				send_to_char("You can't do that.\n\r",ch);
+			return;	
+		}
+
 		if ((number_percent() >= pexit->door.lock.pick_chance) && !IS_IMMORTAL(ch))
 		{
 			send_to_char("You failed.\n\r", ch);
+			p_direction_trigger(ch, ch->in_room, door, PRG_RPROG, TRIG_PICK,false,0,0,0,0);
 			return;
 		}
 
 		REMOVE_BIT(pexit->door.lock.flags, LOCK_LOCKED);
 		send_to_char("*Click*\n\r", ch);
 		act("$n picks the $d.", ch, NULL, NULL, NULL, NULL, NULL, pexit->keyword, TO_ROOM);
+		p_direction_trigger(ch, ch->in_room, door, PRG_RPROG, TRIG_PICK,true,0,0,0,0);
 		check_improve(ch,gsk_pick_lock,true,2);
 
 		/* pick the other side */
@@ -4136,8 +4209,8 @@ void do_recall(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if(p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECALL,NULL,0,0,0,0,0) ||
-	p_percent_trigger(NULL, NULL, ch->in_room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECALL,NULL,0,0,0,0,0))
+    if(p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRERECALL,NULL,0,0,0,0,0) ||
+	p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRERECALL,NULL,0,0,0,0,0))
 	return;
 
 
@@ -4404,6 +4477,7 @@ void do_bar(CHAR_DATA *ch, char *argument)
 	char exit[MSL];
 	OBJ_DATA *obj;
 	int door;
+	int ret;
 
 	one_argument(argument, arg);
 
@@ -4421,36 +4495,70 @@ void do_bar(CHAR_DATA *ch, char *argument)
 
 	if ((obj = get_obj_here(ch, NULL, arg)) != NULL)
 	{
-		if (obj->item_type == ITEM_PORTAL)
+		if (obj_oclu_ambiguous(obj) && argument[0] == '\0')
 		{
-			if (!IS_SET(obj->value[1],EX_ISDOOR) ||
-				IS_SET(obj->value[1],EX_NOCLOSE))
+			act("Bar what on $p?", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			obj_oclu_show_parts(ch, obj);
+			return;
+		}
+
+		OCLU_CONTEXT context;
+		if (!oclu_get_context(&context, obj, argument))
+		{
+			act("You do not see that on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
+
+		if (context.item_type == ITEM_PORTAL)
+		{
+			if (!IS_SET(*context.flags,EX_ISDOOR) ||
+				IS_SET(*context.flags,EX_NOCLOSE))
 			{
 				send_to_char("You can't do that.\n\r",ch);
 				return;
 			}
 
-			if (!IS_SET(obj->value[1],EX_CLOSED))
+			if (!IS_SET(*context.flags,EX_CLOSED))
 			{
 				send_to_char("It's not closed.\n\r",ch);
 				return;
 			}
 
-			if (IS_SET(obj->value[1],EX_BARRED))
+			if (IS_SET(*context.flags,EX_BARRED))
 			{
 				send_to_char("It's already barred.\n\r",ch);
 				return;
 			}
 
-			if (IS_SET(obj->value[1],EX_NOBAR))
+			if (IS_SET(*context.flags,EX_NOBAR))
 			{
 				act("You can't find a way to bar up the $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 				return;
 			}
 
-			SET_BIT(obj->value[1],EX_BARRED);
-			act("You bar up the $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-			act("$n bars up the $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
+			ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREBAR, NULL,0,0,0,0,0);
+			if (ret)
+			{
+				if (ret != PRET_SILENT)
+					send_to_char("You can't do that.\n\r",ch);
+				return;	
+			}
+
+			SET_BIT(*context.flags,EX_BARRED);
+			if (context.is_default)
+			{
+				act("You bar up the $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+				act("$n bars up the $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
+			}
+			else
+			{
+				act("You bar up $t on the $p.",ch, NULL, NULL,obj, NULL, context.label,NULL,TO_CHAR);
+				act("$n bars up $t on the $p.",ch, NULL, NULL,obj, NULL, context.label,NULL,TO_ROOM);
+			}
+
+			// TRIG_BAR - on portal
+			p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BAR, NULL,0,0,0,0,0);
+
 			check_improve(ch, gsk_bar, true, 1);
 			return;
 		}
@@ -4490,11 +4598,24 @@ void do_bar(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
+		ret = p_direction_trigger(ch, ch->in_room, door, PRG_RPROG, TRIG_PREBAR, 0,0,0,0,0);
+		if (ret)
+		{
+			if (ret != PRET_SILENT)
+				send_to_char("You can't bar it.\n\r", ch);
+			
+			return;
+		}
+
 		exit_name(ch->in_room, door, exit);
 
 		SET_BIT(pexit->exit_info, EX_BARRED);
 		act("You bar up the $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_CHAR);
 		act("$n bars the $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_ROOM);
+
+		// TRIG_BAR - on current room
+		p_direction_trigger(ch, ch->in_room, door, PRG_RPROG, TRIG_BAR,0,0,0,0,0);
+
 		check_improve(ch, gsk_bar, true, 1);
 
 		/* bar the other side */
@@ -4503,6 +4624,9 @@ void do_bar(CHAR_DATA *ch, char *argument)
 			pexit_rev->u1.to_room == ch->in_room)
 		{
 			SET_BIT(pexit_rev->exit_info, EX_BARRED);
+
+			// TRIG_BAR - on other side
+			p_direction_trigger(ch, to_room, rev_dir[door], PRG_RPROG, TRIG_BAR,0,0,0,0,0);
 		}
 	}
 }
