@@ -1630,20 +1630,44 @@ void do_group(CHAR_DATA *ch, char *argument)
 		{
 			if (is_same_group(gch, ch) || gch == ch) {
 				char name[MSL];
+				char race[MSL];
+				char hired_time[100];
 
 				CLASS_LEVEL *cl = get_class_level(gch, NULL);
 
 				// TODO: show relative location
 				sprintf(name, "%s", pers(gch, ch)) ;
 				name[0] = UPPER(name[0]);
+
+				if( IS_NPC(gch))
+				{
+					
+					sprintf(race, "%s", gch->race->name);
+					race[0] = UPPER(race[0]);
+				}
+
+				if (!IS_NPC(gch))
+				{
+					sprintf(race, "%s", gch->race->who);
+					race[0] = UPPER(race[0]);
+				}
+
+				if( IS_NPC(gch) && IS_SET(gch->act[1], ACT2_HIRED) )
+				{
+					strftime(hired_time, 100, "%Y-%m-%d %X %Z", localtime(&gch->hired_to));
+				}
+
 				sprintf(buf,
-					"{B[{G%3d {Y%-6.6s{B] {G%-15.15s {w%6ld{B/{w%ld {Bhp {w%6ld{B/{w%ld {Bmana {w%6ld{B/{w%ld {Bmv{x\n\r",
+					"{B[{G%3d %s%-6.6s{B] {G%-15.15s {w%6ld{B/{w%ld {Bhp {w%6ld{B/{w%ld {Bmana {w%6ld{B/{w%ld {Bmv{x %s%s{x\n\r",
 					(cl ? cl->level : gch->tot_level),
-					IS_NPC(gch) ? " NPC  " : (IS_VALID(gch->race) ? gch->race->who : "      "),
+					IS_NPC(gch) ? "{A" : "{Y",
+					race,
 					name,
 					gch->hit,   gch->max_hit,
 					gch->mana,  gch->max_mana,
-					gch->move,  gch->max_move);
+					gch->move,  gch->max_move,
+					IS_SET(gch->act[1], ACT2_HIRED) ? "{BUntil:{W " : "",
+					IS_SET(gch->act[1], ACT2_HIRED) ? hired_time : "");
 				send_to_char(buf, ch);
 			}
 		}
@@ -2040,7 +2064,7 @@ void do_ignore(CHAR_DATA *ch, char *argument)
 	"Person", "Reason");
 	send_to_char(buf, ch);
 
-	line(ch, 35);
+	line(ch, 35, NULL, NULL);
 	for (ignore = ch->pcdata->ignoring; ignore != NULL;
 	ignore = ignore->next)
 	{
@@ -2055,7 +2079,7 @@ void do_ignore(CHAR_DATA *ch, char *argument)
 	if (i == 0)
 	send_to_char("No ignores found.\n\r", ch);
 
-	line(ch, 35);
+	line(ch, 35, NULL, NULL);
 
 	return;
 	}
@@ -2265,7 +2289,7 @@ void do_qlist(CHAR_DATA *ch, char *argument)
 	if (arg[0] == '\0' || !str_cmp(arg, "show"))
 	{
 	send_to_char("{YQuiet list:{x\n\r", ch);
-	line(ch, 45);
+	line(ch, 45, NULL, NULL);
 	i = 0;
 	for (string = ch->pcdata->quiet_people; string != NULL;
 	string = string->next)
@@ -2278,7 +2302,7 @@ void do_qlist(CHAR_DATA *ch, char *argument)
 	if (i == 0)
 	send_to_char("Nobody.\n\r", ch);
 
-	line(ch, 45);
+	line(ch, 45, NULL, NULL);
 
 	return;
 	}
@@ -2482,7 +2506,7 @@ void do_toggle(CHAR_DATA *ch, char *argument)
 		sprintf(buf, "{Y%-15s %s{x\n\r", "Setting", "Status");
 		send_to_char(buf, ch);
 
-		line(ch, 22);
+		line(ch, 22, NULL, NULL);
 
 		for (i = 0; pc_set_table[i].name != NULL; i++)
 		{

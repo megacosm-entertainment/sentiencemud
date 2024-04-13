@@ -2101,6 +2101,7 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
     if (ch->in_room->chat_room != NULL)
 	ch->in_room->chat_room->curr_people++;
 
+/*
     if (!str_cmp(ch->in_room->area->name, "Elysium")
     && !IS_SOCIAL(ch))
 	SET_BIT(ch->comm, COMM_SOCIAL);
@@ -2108,7 +2109,7 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
     if (str_cmp(ch->in_room->area->name, "Elysium")
     && IS_SOCIAL(ch))
 	REMOVE_BIT(ch->comm, COMM_SOCIAL);
-
+*/
 	DUNGEON *dungeon = NULL;
 	if( IS_VALID(pRoomIndex->instance_section) && IS_VALID(pRoomIndex->instance_section->instance) )
 	{
@@ -4408,7 +4409,7 @@ int get_obj_weight(OBJ_DATA *obj)
 /* return weight of x silver and y gold */
 int get_weight_coins(long silver, long gold)
 {
-    return silver/50 + gold/30;
+    return silver/800 + gold/300;
 }
 
 
@@ -4787,7 +4788,10 @@ char *upper_first(char *arg)
     if (*arg == '\n')
 	return arg;
     else
-	if (*arg == '{')
+	if (*arg == COLOUR_CHAR && *(arg + 1) == '[')
+		*(arg + 7) = UPPER(*(arg + 7));
+	else
+	if (*arg == COLOUR_CHAR)
 	    *(arg + 2) = UPPER(*(arg + 2));
 	else
 	    *arg = UPPER(*arg);
@@ -5203,16 +5207,44 @@ bool is_global_mob(CHAR_DATA *mob)
     return false;
 }
 
+// Create a pad function that accepts a string, a length, a colour, and a character to pad with. It should return just the padding for the given string, up to the length supplied.
+char *pad_string(char *string, int length, char *colour, char *character)
+{
+    int i, pad_length;
+    char buf[MAX_STRING_LENGTH];
 
-/* send a yellow line of length 'length' to a character */
-void line(CHAR_DATA *ch, int length)
+    if (colour == NULL)
+		colour = "{X";
+
+    if (character == NULL)
+		character = " ";
+
+	pad_length = length - strlen_no_colours(string);
+
+    for (i = 0; i < pad_length; i++)
+    {
+	buf[i] = character[0];
+    }
+    buf[i] = '\0';
+
+    return str_dup(buf);
+}
+
+/* send a line of length 'length' to a character, allow custom colour and character */
+void line(CHAR_DATA *ch, int length, char *colour, char *character)
 {
     int i;
 
-    send_to_char("{Y", ch);
+	if (colour == NULL)
+		colour = "{Y";
+
+	if (character == NULL)
+		character = "-";
+
+    send_to_char(colour, ch);
     for (i = 0; i < length; i++)
     {
-	send_to_char("-", ch);
+	send_to_char(character, ch);
     }
     send_to_char("{x\n\r", ch);
 }
@@ -9651,7 +9683,7 @@ void location_from_room(LOCATION *loc, ROOM_INDEX_DATA *room)
 }
 
 
-ROOM_INDEX_DATA *get_recall_room(CHAR_DATA *ch)
+ROOM_INDEX_DATA *get_recall_room(CHAR_DATA *ch, bool death)
 {
 	ROOM_INDEX_DATA *loc;
 
@@ -9662,8 +9694,11 @@ ROOM_INDEX_DATA *get_recall_room(CHAR_DATA *ch)
 	// Do not reset the recall point here, as it may have been set by other means.
 	// Simply call the recall triggers to see if they MODIFY it.
 
-	if(!p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECALL, NULL,0,0,0,0,0))
-		p_percent_trigger(NULL, NULL, ch->in_room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECALL, NULL,0,0,0,0,0);
+	if (!death)
+	{
+		if(!p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECALL, NULL,0,0,0,0,0))
+			p_percent_trigger(NULL, NULL, ch->in_room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECALL, NULL,0,0,0,0,0);
+	}
 
 	loc = location_to_room(&ch->recall);
 	memset(&ch->recall,0,sizeof(LOCATION));
@@ -9703,7 +9738,27 @@ void location_clear(LOCATION *loc)
 
 void location_set(LOCATION *loc, AREA_DATA *area, unsigned long a, unsigned long b, unsigned long c, unsigned long d)
 {
-	loc->area = area;
+	loc->wuid = a;
+	loc->id[0] = b;
+	loc->id[1] = c;
+	loc->id[2] = d;
+
+	// if a != 0, then <b,c,d> is the xyz location on wilderness 'a'
+	// if a == 0 and b != 0 and c:d == 0, then is the static room 'b'
+	// if a == 0 and b != 0 and c:d != 0, then is the clone of room 'b' with id c:d
+	// if a == 0 and b == 0, then it is nowhere
+}
+
+void rs_location_clear(RS_LOCATION *loc)
+{
+	loc->wuid = 0;
+	loc->id[0] = 0;
+	loc->id[1] = 0;
+	loc->id[2] = 0;
+}
+
+void rs_location_set(RS_LOCATION *loc, unsigned long a, unsigned long b, unsigned long c, unsigned long d)
+{
 	loc->wuid = a;
 	loc->id[0] = b;
 	loc->id[1] = c;
@@ -10681,4 +10736,166 @@ bool token_should_save(TOKEN_DATA *token)
 	//if (token->affect) return false;
 
 	return true;
+}
+
+
+bool check_social_status(CHAR_DATA *ch)
+{
+	if (IS_SOCIAL(ch))
+	{
+		send_to_char("You can't do that while socializing.\n\r", ch);
+		return true;
+	}
+
+	return false;
+}
+
+
+void send_email(CHAR_DATA *ch, char *email, char *subject, char *message)
+{
+	//char buf[MSL];
+	char subj_buf[256];
+	char body_buf[MSL*2];
+	char body_buf_html[MSL*5];
+
+	extern GAME_SETTINGS_DATA game_settings;
+
+
+	quickmail_initialize();
+
+	if (subject[0] != '\0')
+		sprintf(subj_buf, "%s", subject);
+	else
+		sprintf(subj_buf, "Email from SentienceMUD");
+
+	quickmail mailobj = quickmail_create(game_settings.email_from_name, game_settings.email_from_addr, subj_buf);
+
+	quickmail_add_to(mailobj, email);
+
+	quickmail_add_header(mailobj, "Importance: Low");
+	quickmail_add_header(mailobj, "X-Priority: 5");
+	quickmail_add_header(mailobj, "X-MSMail-Priority: Low");
+
+	sprintf(body_buf, "Hello %s,\n\n%s\n\nSincerely,\n\nThe SentienceMUD Staff", ch->name, message);
+	sprintf(body_buf_html, "Hello %s,<br/><br/>%s<br/><br/>Sincerely,<br/><br/>The SentienceMUD Staff", ch->name, message);
+
+	quickmail_set_body(mailobj, body_buf);
+	quickmail_add_body_memory(mailobj, "text/html", body_buf_html, strlen(body_buf_html), 0);
+
+	const char* errmsg;
+
+	if ((errmsg = quickmail_send(mailobj, game_settings.email_host, game_settings.email_port, game_settings.email_username, game_settings.email_password)) != NULL)
+    	fprintf(stderr, "Error sending e-mail: %s\n", errmsg);
+  	quickmail_destroy(mailobj);
+  	quickmail_cleanup();
+/*
+  quickmail_add_to(mailobj, ch->pcdata->email);
+#ifdef TO
+  quickmail_add_to(mailobj, ch->pcdata->email);
+#endif
+#ifdef CC
+  quickmail_add_cc(mailobj, CC);
+#endif
+#ifdef BCC
+  quickmail_add_bcc(mailobj, BCC);
+#endif
+*/
+/*
+  //quickmail_add_attachment_file(mailobj, "test_quickmail.c", NULL);
+  //quickmail_add_attachment_file(mailobj, "test_quickmail.cbp", NULL);
+  //quickmail_add_attachment_memory(mailobj, "test.log", NULL, "Test\n123", 8, 0);
+*/
+/*
+  quickmail_fsave(mailobj, stdout);
+
+  int i;
+  i = 0;
+  quickmail_list_attachments(mailobj, list_attachment_callback, &i);
+
+  quickmail_remove_attachment(mailobj, "test_quickmail.cbp");
+  i = 0;
+  quickmail_list_attachments(mailobj, list_attachment_callback, &i);
+
+  quickmail_destroy(mailobj);
+  return 0;
+*/
+
+}
+
+// Define a structure to hold email-related data
+struct EmailData {
+    CHAR_DATA *ch;
+    char *email;
+    char *subject;
+    char *message;
+};
+
+// Function executed by the email thread
+void *send_email_thread(void *arg) {
+    struct EmailData *emailData = (struct EmailData *)arg;
+
+	send_email(emailData->ch, emailData->email, emailData->subject, emailData->message);
+
+    // Clean up and exit the thread
+    free(emailData->subject);
+    free(emailData->message);
+    free(emailData);
+    pthread_exit(NULL);
+}
+
+// Function to send an email asynchronously
+void send_email_async(CHAR_DATA *ch, char *email, char *subject, char *message) {
+    // Allocate memory for the email data
+    struct EmailData *emailData = (struct EmailData *)malloc(sizeof(struct EmailData));
+    emailData->ch = ch;
+    emailData->email = email;
+    emailData->subject = strdup(subject); // Duplicate the subject string
+    emailData->message = strdup(message); // Duplicate the message string
+
+    // Create a new thread for email dispatching
+    pthread_t emailThread;
+    if (pthread_create(&emailThread, NULL, send_email_thread, emailData) != 0) {
+        fprintf(stderr, "Error creating email thread\n");
+        // Handle error (e.g., retry or log)
+    }
+}
+
+// Function to return a random character from a given index
+char random_char(int index) {
+    char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    return charset[index];
+}
+
+// Function to generate a random string of a specified length
+void generate_reset_code(char* str, int str_len) {
+    srand(time(NULL)); // Seed the random number generator
+
+    // Pick the first character in the range 1..15
+    *str = random_char(number_range(1,26));
+    str++; // Move to the next character
+
+    // Generate the remaining characters
+    for (int i = 1; i < str_len; i++) {
+        *str = random_char(number_range(1,52)); // Following characters in the range 0..15
+        str++;
+    }
+    str--; // Move back to the last character
+    *str = '\0'; // Add the null character at the end
+}
+char *sha256_crypt( const char *pwd )
+{
+   SHA256_CTX context;
+   static char output[65];
+   unsigned char sha256sum[32];
+   unsigned int j;
+
+   SHA256_Init( &context );
+   SHA256_Update( &context, (const unsigned char *) pwd, strlen(pwd) );
+   SHA256_Final( sha256sum, &context );
+
+   for( j = 0; j < 32; ++j )
+   {
+      snprintf( output + j * 2, 65, "%02x", sha256sum[j] );
+   }
+   return output;
 }

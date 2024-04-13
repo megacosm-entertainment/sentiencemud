@@ -338,6 +338,8 @@ const   struct wiznet_type      wiznet_table    [] =
 	{ "scripts",	WIZ_SCRIPTS,	STAFF_CREATOR },
 	{ "ships",		WIZ_SHIPS,		STAFF_IMMORTAL },
 	{ "bugs",		WIZ_BUGS,		STAFF_IMPLEMENTOR },
+    { "helps",		WIZ_HELPS,		STAFF_IMMORTAL },
+    { "commands", 	WIZ_VERBS, 		STAFF_IMMORTAL },
 	{ NULL,			0,				0  }
 };
 
@@ -364,6 +366,7 @@ const  struct player_setting_type    pc_set_table[] =
     {   "holypersona",		0,					PLR_HOLYPERSONA,	0,						false,		STAFF_IMMORTAL,	SETTING_ON	},
     {   "holywarp",			0,					PLR_HOLYWARP,		0,						false,		STAFF_IMMORTAL,	SETTING_ON	},
     {	"map",				0,					0,					COMM_NOMAP,				true,		STAFF_PLAYER,	SETTING_OFF	},
+	{	"mxp",				0,					0,					COMM_MXP,				false,		STAFF_PLAYER,	SETTING_ON	},
     {	"nochallenge",		PLR_NO_CHALLENGE,	0,					0,						false,		STAFF_PLAYER,	SETTING_OFF	},
     {	"nofollow",			PLR_NOFOLLOW,		0,					0,						false,		STAFF_PLAYER,	SETTING_OFF	},
     {   "nolore",			0,					PLR_NOLORE,			0,						false,		STAFF_PLAYER,	SETTING_OFF	},
@@ -376,7 +379,7 @@ const  struct player_setting_type    pc_set_table[] =
     {	"pursuit",			PLR_PURSUIT,		0,					0,						false,		STAFF_PLAYER,	SETTING_OFF	},
     {	"quiet",			0,					0,					COMM_QUIET,				false,		STAFF_PLAYER,	SETTING_OFF	},
     {	"sacrifice_all",	0,					PLR_SACRIFICE_ALL,	0,						false,		STAFF_PLAYER,	SETTING_OFF	},
-    {	"showdamage",		PLR_SHOWDAMAGE,		0,					0,						false,		STAFF_IMMORTAL,	SETTING_OFF	},
+    {	"showdamage",		PLR_SHOWDAMAGE,		0,					0,						false,		STAFF_PLAYER,	SETTING_OFF	},
     {	"mobile",			PLR_MOBILE,			0,					0,						false,		STAFF_PLAYER,	SETTING_OFF },
     {	"favskills",		0,					PLR_FAVSKILLS,		0,						false,		STAFF_PLAYER,	SETTING_OFF },
 	{	"compass",			0,					PLR_COMPASS,		0,						false,		STAFF_PLAYER,	SETTING_ON},
@@ -4698,6 +4701,19 @@ const struct group_type group_table [MAX_GROUP] =
     }
 };
 #endif
+
+const struct script_type script_type_table[] =
+{
+/* Script Types and their commands */
+	{ PRG_MPROG, "MobProg", "mp"},
+	{ PRG_OPROG, "ObjProg", "op"},
+	{ PRG_RPROG, "RoomProg", "rp"},
+	{ PRG_TPROG, "TokenProg", "tp"},
+	{ PRG_APROG, "AreaProg", "ap"},
+	{ PRG_IPROG, "InstanceProg", "ip"},
+	{ PRG_DPROG, "DungeonProg", "dp"},
+	{ -1, NULL, NULL }
+};
 
 /* MSP sounds (for the future)*/
 const struct sound_type sound_table[] =

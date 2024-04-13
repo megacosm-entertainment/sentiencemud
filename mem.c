@@ -693,6 +693,7 @@ CHAR_DATA *new_char( void )
     ch->imm_flags_perm     =   0;
     ch->res_flags_perm     =   0;
     ch->vuln_flags_perm    =   0;
+    ch->creation_time       = current_time;
     ch->corpse_type = gcrp_normal;
 
     ch->cast_target_name 	= NULL;
@@ -1671,6 +1672,8 @@ AREA_DATA *new_area( void )
     pArea->builders         =   str_dup( "None" );
     pArea->min_vnum         =   0;
     pArea->max_vnum         =   0;
+    pArea->min_level        =   0;
+    pArea->max_level        =   0;
     pArea->age              =   0;
     pArea->repop	    =   0;
     pArea->nplayer          =   0;
@@ -1684,6 +1687,7 @@ AREA_DATA *new_area( void )
     pArea->room_list = list_create(false);
     pArea->comments =   &str_empty[0];
     pArea->description  =   &str_empty[0];
+    pArea->notes        =   &str_empty[0];
 
     pArea->points		= NULL;
 
@@ -3568,6 +3572,13 @@ MAIL_DATA *new_mail( void )
     mail->sender = NULL;
     mail->recipient = NULL;
     mail->message = NULL;
+    mail->originating_script = NULL;
+    mail->expire_date = 0;
+    mail->deliver_date = 0;
+    mail->return_service = false;
+    mail->timestamp_expiration = false;
+    mail->collect_script = 0;
+    mail->expire_script = 0;
     mail->status = 0;
     mail->picked_up = false;
 
@@ -5322,7 +5333,9 @@ void free_dungeon(DUNGEON *dng)
 
     // Automatically remove it from the list
     if (dng->index)
+    {
         list_remlink(dng->index->loaded, dng, false);
+    }
 
 	INVALIDATE(dng);
 	dng->next = dungeon_free;
@@ -7366,6 +7379,9 @@ SKILL_DATA *new_skill_data()
     data->name = str_dup("");
     data->display = str_dup("");
 
+    data->summary = str_dup("");
+    data->help_keywords = NULL;
+
     data->levels = list_createx(false, NULL, delete_skill_class_level);
     data->difficulty = 1;
     data->primary_stat = STAT_NONE;
@@ -7418,6 +7434,9 @@ void free_skill_data(SKILL_DATA *data)
     free_string(data->msg_disp);
     free_string(data->msg_obj);
     free_string(data->msg_off);
+
+    if (data->help_keywords)
+        free_string(data->help_keywords->string);
 
     list_destroy(data->levels);
 
@@ -8343,4 +8362,55 @@ void free_corpse_type(CORPSE_TYPE *data)
     INVALIDATE(data);
     data->next = corpse_type_free;
     corpse_type_free = data;
+}
+
+
+CMD_DATA *cmd_data_free;
+CMD_DATA *new_cmd()
+{
+    CMD_DATA *cmd;
+    if (cmd_data_free)
+    {
+        cmd = cmd_data_free;
+        cmd_data_free = cmd_data_free->next;
+    }
+    else
+        cmd = alloc_perm(sizeof(CMD_DATA));
+    
+    memset(cmd, 0, sizeof(*cmd));
+
+    cmd->name = NULL;
+    cmd->function = NULL;
+    cmd->type = 0;
+    cmd->rank = 0;
+    cmd->log = 0;
+    cmd->position = POS_DEAD;
+    cmd->help_keywords = NULL;
+    cmd->description = &str_empty[0];
+    cmd->comments = &str_empty[0];
+    cmd->reason = NULL;
+    cmd->summary = NULL;
+    cmd->command_flags = 0;
+    cmd->addl_types = 0;
+
+    return cmd;
+}
+
+void free_cmd(CMD_DATA *cmd)
+{
+    if (!cmd)
+        return;
+
+    free_string(cmd->name);
+    if (cmd->help_keywords)
+        free_string(cmd->help_keywords->string);
+    free_string(cmd->description);
+    free_string(cmd->comments);
+    if (cmd->reason)
+        free_string(cmd->reason);
+    if (cmd->summary)
+        free_string(cmd->summary);
+
+    cmd->next = cmd_data_free;
+    cmd_data_free = cmd;
 }

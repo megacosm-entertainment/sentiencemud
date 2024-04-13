@@ -33,12 +33,7 @@ void do_help(CHAR_DATA *ch, char *argument)
 	int i;
 
 	if (argument[0] == '\0')
-	{
-		send_to_char("Syntax: help <keyword(s)>\n\r"
-					"        help <category name|summary>\n\r"
-					"        help #<index>\n\r", ch);
-		return;
-	}
+		find_help_category_exact("summary", topHelpCat);
 
 	// Category lookup - must be exact
 	if ((hcat = find_help_category_exact(argument, topHelpCat)) != NULL &&
@@ -86,10 +81,10 @@ void do_help(CHAR_DATA *ch, char *argument)
 					p++;
 				}
 
-				char buf3[sizeof(buf2)+50];
+				//char buf3[sizeof(buf2)+50];
 
-				sprintf(buf3, "{b[{BC{b]{W   %s{B", buf2);
-				sprintf(buf, "%-36s %s", buf3, i % 3 == 0 ? "\n\r" : "");
+				sprintf(buf, "{b[{BC{b]{W   \t<send href=\"help %s\">%.36s\t</send>%s %s", buf2, buf2, pad_string(buf2, 36, NULL, NULL), i % 3 == 0 ? "\n\r" : "");
+
 				add_buf(buffer, buf);
 				i++;
 			}
@@ -97,8 +92,8 @@ void do_help(CHAR_DATA *ch, char *argument)
 
 		for (help = hcat->inside_helps; help != NULL; help = help->next) {
 			if (get_staff_rank(ch) >= help->min_level) {
-				sprintf(buf, "{b[{B%-3d{b]{x %-20.20s %s", help->index, help->keyword,
-								i % 3 == 0 ? "\n\r" : "");
+				sprintf(buf, "{b[{B%-3d{b]{x \t<send href=\"help #%d\">%.20s\t</send>%s %s", help->index, help->index, help->keyword, pad_string(help->keyword, 20, NULL, NULL), i % 3 == 0 ? "\n\r" : "");
+
 				add_buf(buffer, buf);
 				i++;
 			}
@@ -111,7 +106,16 @@ void do_help(CHAR_DATA *ch, char *argument)
 		if ((i - 1) > 0) {
 			page_to_char(buf_string(buffer), ch);
 			free_buf(buffer);
-			return;
+		
+		if (hcat == topHelpCat && argument[0] == '\0')
+		{
+			send_to_char("\n\r", ch);
+			send_to_char("Syntax: help <keyword(s)>\n\r"
+					"        help <category name|summary>\n\r"
+					"        help #<index>\n\r", ch);
+		
+		}
+		return;
 		}
 	}
 
@@ -184,7 +188,7 @@ void show_help_to_ch(CHAR_DATA *ch, HELP_DATA *help)
 
     i = 0;
     for (topic = help->related_topics; topic != NULL; topic = topic->next) {
-		sprintf(buf, "%s", topic->string);
+		sprintf(buf, "\t<send href=\"help #%d\">%s\t</send>{x", lookup_help_exact(topic->string,0,topHelpCat)->index, topic->string);
 		add_buf(buffer, buf);
 
 		if (topic->next != NULL)
@@ -349,7 +353,7 @@ void lookup_help_multiple(char *keyword, int viewer_level, HELP_CATEGORY *hcat, 
 	&&  viewer_level >= help->min_level
 	&&  viewer_level >= help->hCat->min_level)
 	{
-	    sprintf(buf, "{b[{B%-3d{b] {x%-24s{x\n\r", help->index, help->keyword);
+		sprintf(buf, "{b[{B%-3d{b] \t<send href=\"help #%d\">{W%.24s\t</send>%s{x\n\r", help->index, help->index, help->keyword, pad_string(help->keyword, 24, NULL, NULL));
 	    add_buf(buffer, buf);
 	}
     }

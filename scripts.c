@@ -7481,7 +7481,7 @@ void token_skill_improve( CHAR_DATA *ch, TOKEN_DATA *token, bool success, int mu
 			sprintf(buf,"{WYou have become better at %s!{x\n\r", token->name);
 			send_to_char(buf,ch);
 			token->value[TOKVAL_SPELL_RATING]++;
-			gain_exp(ch, NULL, 2 * diff);
+			gain_exp(ch, NULL, 2 * diff, true);
 		}
 	} else {
 		chance = URANGE(5, per/2, 30);
@@ -7491,7 +7491,7 @@ void token_skill_improve( CHAR_DATA *ch, TOKEN_DATA *token, bool success, int mu
 			token->value[TOKVAL_SPELL_RATING] += number_range(1,3);
 			if(token->value[TOKVAL_SPELL_RATING] >= max_rating)
 				token->value[TOKVAL_SPELL_RATING] = max_rating;
-			gain_exp(ch, NULL,2 * diff);
+			gain_exp(ch, NULL,2 * diff, true);
 		}
 	}
 }
@@ -9018,6 +9018,12 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 
 		if (arg->type == ENT_NULL)
 			vch = NULL;
+		else if (arg->type == ENT_AREA)
+		{
+			loc = get_random_room_area(vch, arg->d.area);
+			if( loc != NULL)
+			variables_set_room(vars,name,loc);
+		}
 		else
 		{
 			if( arg->type != ENT_MOBILE || !IS_VALID(arg->d.mob) || IS_NPC(arg->d.mob) )
@@ -9719,6 +9725,12 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 	info->progs->lastreturn = 1;
 
 	SET_BIT(obj->extra[1], ITEM_CREATED);
+
+	char orig_script_wnum[MSL];
+	obj->script_created = true;
+	sprintf(orig_script_wnum, widevnum_string_script(info->block->script, NULL));
+	obj->created_script_wnum = str_dup(orig_script_wnum);
+	obj->created_script_type = info->block->script->type;
 
 	return obj;
 }

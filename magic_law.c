@@ -547,6 +547,7 @@ bool __func_identify(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
 	BUFFER *buffer;
 	char buf[2*MAX_STRING_LENGTH];
 	char buf2[MAX_STRING_LENGTH];
+	char objtimer[MSL];
 	//char extra_flags[MSL];
 	AFFECT_DATA *af;
 //	OBJ_DATA *key;
@@ -559,7 +560,7 @@ bool __func_identify(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
 	}
 
 	buffer = new_buf();
-
+	
 	sprintf(buf,
 		"{MObject '{x%s{M' is type {x%s{M, extra flags {x%s{M.\n\r"
 		"Weight is {x%d{M, value is {x%ld{M, level is {x%d{M.\n\r"
@@ -576,6 +577,12 @@ bool __func_identify(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
 		obj->times_allowed_fixed);
 
 	add_buf(buffer, buf);
+
+	if (obj->timer > 0)
+	{
+		sprintf(objtimer, "{MIt will expire after{X %d{M hours.{X\n\r", obj->timer);
+		add_buf(buffer, objtimer);
+	}
 
 	sprintf(buf, "{MIt is made out of {x%s{M.{x\n\r", IS_VALID(obj->material)?obj->material->name:"nothing");
 	add_buf(buffer, buf);
@@ -1111,7 +1118,7 @@ SPELL_FUNC(spell_word_of_recall)
 		p_percent_trigger(NULL, NULL, ch->in_room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECALL, NULL,0,0,0,0,0))
 		return false;
 
-	location = get_recall_room(ch);
+	location = get_recall_room(ch, false);
 
 	if (location == NULL) {
 		send_to_char("You are completely lost.\n\r",victim);
@@ -1156,7 +1163,7 @@ RECITE_FUNC( recite_word_of_recall )
 		p_percent_trigger(NULL, NULL, ch->in_room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECALL, NULL,0,0,0,0,0))
 		return false;
 
-	location = get_recall_room(ch);
+	location = get_recall_room(ch, false);
 
 	if (location == NULL) {
 		send_to_char("You are completely lost.\n\r",victim);

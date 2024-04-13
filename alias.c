@@ -92,15 +92,15 @@ void substitute_alias(DESCRIPTOR_DATA *d, char *argument)
 void do_alias(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *rch;
-    char arg[MAX_INPUT_LENGTH],buf[MAX_STRING_LENGTH];
+    char arg[MAX_INPUT_LENGTH],buf[MAX_STRING_LENGTH],alias_colour[10];
     int pos;
 
     smash_tilde(argument);
 
     if (ch->desc == NULL)
-	rch = ch;
+		rch = ch;
     else
-	rch = ch->desc->original ? ch->desc->original : ch;
+		rch = ch->desc->original ? ch->desc->original : ch;
 
     if (IS_NPC(rch))
 	return;
@@ -109,31 +109,44 @@ void do_alias(CHAR_DATA *ch, char *argument)
     
     if (arg[0] == '\0')
     {
-	if (rch->pcdata->alias[0] == NULL)
-	{
-	    send_to_char("You have no aliases defined.\n\r",ch);
-	    return;
-	}
-	send_to_char("Your current aliases are:\n\r",ch);
+		if (rch->pcdata->alias[0] == NULL)
+		{
+	    	send_to_char("You have no aliases defined.\n\r",ch);
+	    	return;
+		}
+		send_to_char("Your current aliases are:\n\r",ch);
 
-	for (pos = 0; pos < MAX_ALIAS; pos++)
-	{
-	    if (rch->pcdata->alias[pos] == NULL
-	    ||	rch->pcdata->alias_sub[pos] == NULL)
-		break;
+		for (pos = 0; pos < MAX_ALIAS; pos++)
+		{
+	    	if (rch->pcdata->alias[pos] == NULL
+	    	||	rch->pcdata->alias_sub[pos] == NULL)
+				break;
 
-	    sprintf(buf,"    %s:  %s\n\r",rch->pcdata->alias[pos],
+	    	sprintf(buf,"    %s:  %s\n\r",rch->pcdata->alias[pos],
 		    rch->pcdata->alias_sub[pos]);
-	    send_to_char(buf,ch);
-	}
-	return;
+	    	send_to_char(buf,ch);
+
+		}
+
+		if (pos < MAX_ALIAS/4) // Currently 20
+	    	sprintf(alias_colour,"{G");
+		else if (pos < MAX_ALIAS/2) // Currently 40
+	    	sprintf(alias_colour,"{Y");
+		else if (pos < MAX_ALIAS/1.2) // Currently ~66
+	    	sprintf(alias_colour,"{M");
+		else
+	    	sprintf(alias_colour,"{R");
+		
+		sprintf (buf, "\n\rYou currently have %s%d{X/{W%d{X aliases defined.\n\r", alias_colour, pos , MAX_ALIAS);
+		send_to_char(buf,ch);
+		return;
     }
 
     if (!str_prefix("una",arg) || !str_cmp("alias",arg)
 		    || !str_prefix("quit",arg))
     {
-	send_to_char("Sorry, that word is reserved.\n\r",ch);
-	return;
+		send_to_char("Sorry, that word is reserved.\n\r",ch);
+		return;
     }
 
     if (strchr(arg,' ')||strchr(arg,'"')||strchr(arg,'\'')) {      

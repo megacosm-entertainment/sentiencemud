@@ -64,7 +64,7 @@ typedef struct descriptor_data descriptor_t;
 
 #define MAX_PROTOCOL_BUFFER            2048
 #define MAX_VARIABLE_LENGTH            4096
-#define MAX_OUTPUT_BUFFER              31999
+#define MAX_OUTPUT_BUFFER              127999
 #define MAX_MSSP_BUFFER                4096
 
 #define SEND                           1

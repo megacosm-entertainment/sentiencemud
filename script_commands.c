@@ -92,6 +92,7 @@ const struct script_cmd_type area_cmd_table[] = {
 	{ "varsaveon",			scriptcmd_varsaveon,		false,	true	},
 	{ "varset",				scriptcmd_varset,			false,	true	},
 	{ "varseton",			scriptcmd_varseton,			false,	true	},
+	{ "wiznet",				scriptcmd_wiznet,			false,	true    },
 	{ "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
 	{ "xcall",				scriptcmd_xcall,			false,	true	},
 	{ NULL,					NULL,						false,	false	}
@@ -155,6 +156,7 @@ const struct script_cmd_type instance_cmd_table[] = {
 	{ "varsaveon",			scriptcmd_varsaveon,		false,	true	},
 	{ "varset",				scriptcmd_varset,			false,	true	},
 	{ "varseton",			scriptcmd_varseton,			false,	true	},
+	{ "wiznet",				scriptcmd_wiznet,			false,	true    },
 	{ "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
 	{ "xcall",				scriptcmd_xcall,			false,	true	},
 	{ NULL,					NULL,						false,	false	}
@@ -218,6 +220,7 @@ const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "varset",				scriptcmd_varset,			false,	true	},
 	{ "varseton",			scriptcmd_varseton,			false,	true	},
 	{ "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
+	{ "wiznet",				scriptcmd_wiznet,			false,	true    },
 	{ "xcall",				scriptcmd_xcall,			false,	true	},
 	{ NULL,					NULL,						false,	false	}
 };
@@ -1562,7 +1565,7 @@ SCRIPT_CMD(scriptcmd_award)
 			field_name = "mission points";
 
 		} else if( !str_prefix(field, "experience") || !str_cmp(field, "xp") ) {
-			gain_exp(victim, NULL, amount);
+			gain_exp(victim, NULL, amount, true);
 			field_name = "experience";
 
 		} else
@@ -2305,6 +2308,7 @@ SCRIPT_CMD(scriptcmd_echoat)
 		return;
 
 
+
 	switch(arg->type) {
 	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, false); break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
@@ -2325,6 +2329,12 @@ SCRIPT_CMD(scriptcmd_echoat)
 
 	if( !IS_NULLSTR(buffer->string) )
 	{
+
+		int i = 0;
+		i = strlen(buffer->string);
+		if (buffer->string[i-2] != '\n' && !victim)
+			strcat(buffer->string,"\n\r");
+			
 		if( IS_VALID(instance) )
 			instance_echo(instance, buffer->string);
 		else if( IS_VALID(dungeon) )
@@ -15146,10 +15156,14 @@ SCRIPT_CMD(scriptcmd_mail)
 	if (valid)
 	{
 		// Send the mail
+		char orig_script_wnum[MSL];
 		mail = new_mail();
 		mail->sender = str_dup(sender);
 		mail->recipient = str_dup(person);
 		mail->message = str_dup(message->string);
+		sprintf(orig_script_wnum, widevnum_string_script(info->block->script, NULL));
+		mail->originating_script = str_dup(orig_script_wnum);
+		mail->orig_script_type = info->block->script->type;
 		
 		iterator_start(&it, packages);
 		while((package = (OBJ_DATA *)iterator_nextdata(&it)))
@@ -15207,4 +15221,45 @@ SCRIPT_CMD(scriptcmd_mail)
 	}
 
 	SETRETURN(ret);
+}
+// Sends an expanded string to the given wiznet channel.
+// Syntax: wiznet <channel> <string>
+SCRIPT_CMD(scriptcmd_wiznet)
+{
+	char *rest = argument;
+	char wiznet_name[MIL];
+	int wiznet_flag = 0;
+	int i;
+	bool valid = false;
+
+	if (!info) return;
+
+	PARSE_ARGTYPE(STRING);
+	strncpy(wiznet_name, arg->d.str, MIL - 1);
+
+	for (i = 0; wiznet_table[i].name; i++)
+	{
+		if (!str_prefix(wiznet_name, wiznet_table[i].name))
+		{
+			wiznet_flag = wiznet_table[i].flag;
+			valid = true;
+			break;
+		}
+	}
+
+	if (!str_cmp(wiznet_name, "on") || !str_cmp(wiznet_name, "prefix")) 
+		valid = false;
+
+	if (!valid) return;
+
+	// Expand the message
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
+
+	// Broadcast the message
+	if(buffer->string)
+	{
+		wiznet(buffer->string, NULL, NULL, wiznet_flag, 0, 0);
+	}
+	free_buf(buffer);
 }

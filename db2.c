@@ -471,6 +471,7 @@ CHAR_DATA *get_random_mob_area( CHAR_DATA *ch, AREA_DATA *area)
 	    || IS_SET(mIndex->act[1], ACT2_WIZI_MOB)
 	    || IS_SET(mIndex->act[1], ACT2_LOREMASTER )
 		|| IS_SET(mIndex->act[1], ACT2_STAY_REGION)
+		|| IS_AFFECTED(mIndex, AFF_CHARM)
 	    || mIndex->pShop != NULL
 	    || mIndex->level > ( ch->tot_level + 20))
 		continue;
@@ -487,7 +488,11 @@ CHAR_DATA *get_random_mob_area( CHAR_DATA *ch, AREA_DATA *area)
         	!IS_SET(mob->in_room->room_flag[0], ROOM_DEATH_TRAP) &&
         	!IS_SET(mob->in_room->room_flag[0], ROOM_SAFE) &&
         	!IS_SET(mob->in_room->room_flag[0], ROOM_CHAOTIC) &&
-        	!IS_SET(mob->in_room->room_flag[1], ROOM_NO_GET_RANDOM) )
+        	!IS_SET(mob->in_room->room_flag[1], ROOM_NO_GET_RANDOM) &&
+			!IS_SET(mob->in_room->area->area_flags, AREA_NO_GET_RANDOM) &&
+			!IS_SET(mob->in_room->room_flag[0], ROOM_NO_QUEST) &&
+			mob->in_room->area->open &&
+			!is_area_unlocked(ch, area) )
 	    break;
     }
 
@@ -669,16 +674,19 @@ char *strip_colors( const char *string )
 	int len = strlen(string);
 
 	for (i = 0, n = 0; i < len && string[i] != '\0';) {
-		if( string[i] == '{' )
+		if( string[i] == COLOUR_CHAR )
 		{
-			if( string[i+1] == '{' )		// Double {{ becomes { when processed, but still counts as two
+			if (string[i+1] == '[')
+				i += 5;
+			if( string[i+1] == COLOUR_CHAR )		// Double {{ becomes { when processed, but still counts as two
 			{
-				buf[n++] = '{';
-				buf[n++] = '{';
+				buf[n++] = COLOUR_CHAR;
+				buf[n++] = COLOUR_CHAR;
 			}
 
 			i+=2;
 		}
+/*
 		else if (string[i] == '`')
 		{
 			if (string[i+1] == '[')
@@ -694,6 +702,7 @@ char *strip_colors( const char *string )
 				i+= 2;
 			}
 		}
+*/
 		else
 			buf[n++] = string[i++];
 	}
@@ -1135,6 +1144,7 @@ void load_area_trade( AREA_DATA *pArea, FILE *fp )
 /* Load report information */
 void load_statistics()
 {
+	stats_load_time = current_time;
     log_string("stats.c, Loading Statistics...");
 
     // Load Top10PKers.info

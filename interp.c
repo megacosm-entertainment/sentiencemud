@@ -43,15 +43,6 @@
 #include "interp.h"
 #include "scripts.h"
 
-
-// Command logging types
-#define LOG_NORMAL	0
-#define LOG_ALWAYS	1
-#define LOG_NEVER	2
-
-
-void do_mxptest(CHAR_DATA *ch, char *argument);
-
 // Log-all switch
 bool				logAll		= false;
 
@@ -138,6 +129,8 @@ const	struct	cmd_type	cmd_table	[] =
 	{ "clsedit",			CMDTYPE_OLC,		do_clsedit,				POS_DEAD,		STAFF_IMPLEMENTOR,	LOG_ALWAYS,	true,	true },
 	{ "clslist",			CMDTYPE_OLC,		do_clslist,				POS_DEAD,		STAFF_IMMORTAL,		LOG_NORMAL, true,	true },
 	{ "clsshow",			CMDTYPE_OLC,		do_clsshow,				POS_DEAD,		STAFF_IMMORTAL,		LOG_NORMAL, true,	true },
+	{ "cmdedit",			CMDTYPE_OLC,		do_cmdedit,				POS_DEAD,		STAFF_IMPLEMENTOR,	LOG_NORMAL,	true,	true },
+	{ "cmdlist", 			CMDTYPE_OLC,		do_cmdlist, 			POS_DEAD, 		STAFF_IMPLEMENTOR, 	LOG_NORMAL, true, 	true },
 	{ "collapse",			CMDTYPE_OBJECT,		do_collapse,			POS_RESTING,	STAFF_PLAYER,		LOG_NORMAL, true,	false },
 	{ "color",				CMDTYPE_INFO,		do_colour,				POS_DEAD,		STAFF_PLAYER,		LOG_NORMAL, true,	true },
 	{ "colour",				CMDTYPE_INFO,		do_colour,				POS_DEAD,		STAFF_PLAYER,		LOG_NORMAL, true,	true },
@@ -956,12 +949,14 @@ void interpret( CHAR_DATA *ch, char *argument )
 {
     char command[MAX_INPUT_LENGTH];
     char logline[MAX_INPUT_LENGTH];
-    int cmd;
+//    int cmd;
     int rank;
     bool found, allowed;
     char cmd_copy[MAX_INPUT_LENGTH] ;
     char buf[MSL];
-    const struct cmd_type* selected_command = NULL;
+    //const struct cmd_type* selected_command = NULL;
+	CMD_DATA *selected_command = NULL;
+	CMD_DATA *cmd = NULL;
 
     // Strip leading spaces
     while (ISSPACE(*argument))
@@ -1434,24 +1429,51 @@ void interpret( CHAR_DATA *ch, char *argument )
 		rank = get_staff_rank(ch->desc->original);
 	}
 
-	selected_command = NULL;
-    for ( cmd = 0; cmd_table[cmd].name[0] != '\0'; cmd++ )
-    {
-		if ( command[0] == cmd_table[cmd].name[0] &&
-			!str_prefix( command, cmd_table[cmd].name ) &&
-			(!forced_command || (cmd_table[cmd].rank == STAFF_PLAYER)) &&  // 20070511NIB - used to prevent script forces from doing imm commands
-			(cmd_table[cmd].rank <= rank || is_granted_command(ch, cmd_table[cmd].name)))
+    ITERATOR it;
+    iterator_start(&it, commands_list);
+	while(( cmd = (CMD_DATA *)iterator_nextdata(&it)))
+	{	
+		if ( command[0] == cmd->name[0] && 
+		!str_prefix(command, cmd->name) && 
+		(!forced_command || cmd->rank == STAFF_PLAYER) && 
+		(cmd->rank <= rank || is_granted_command(ch, cmd->name)))
 		{
-			selected_command = &cmd_table[cmd];
+			selected_command = cmd;
 			found = true;
 			break;
 		}
-    }
+	}
+	iterator_stop(&it);
+
+//    for ( cmd = 0; cmd_table[cmd].name[0] != '\0'; cmd++ )
+//    {
+//		if ( command[0] == cmd_table[cmd].name[0] &&
+//			!str_prefix( command, cmd_table[cmd].name ) &&
+//			(!forced_command || (cmd_table[cmd].rank == STAFF_PLAYER)) &&  // 20070511NIB - used to prevent script forces from doing imm commands
+//			(cmd_table[cmd].rank <= rank || is_granted_command(ch, cmd_table[cmd].name)))
+//		{
+//			selected_command = &cmd_table[cmd];
+//			found = true;
+//			break;
+//		}
+//    }
 
     allowed = is_allowed(command);
 
+	if (!selected_command->enabled && found)
+	{
+		sprintf(buf,"%s is currently disabled.\n\r", selected_command->name);
+		send_to_char(buf,ch);
+		if (!IS_NULLSTR(selected_command->reason))
+		{
+			sprintf(buf,"{RReason: {X%s{X\n\r",selected_command->reason);
+			send_to_char(buf,ch);
+		}
+		return;
+	}
+
     // Check stuff relevant to interpretation.
-    if (IS_AFFECTED(ch, AFF_HIDE) && !(allowed || (selected_command != NULL && selected_command->is_ooc)))
+    if (IS_AFFECTED(ch, AFF_HIDE) && !(allowed || (found && IS_SET(selected_command->command_flags,CMD_IS_OOC))))
     {
         affect_strip(ch, gsk_hide);
 		REMOVE_BIT(ch->affected_by[0], AFF_HIDE);
@@ -1588,43 +1610,46 @@ void interpret( CHAR_DATA *ch, char *argument )
     }
 
     // Stop abuse.
-    if (IS_NPC(ch) && cmd_table[cmd].rank > STAFF_PLAYER)
-    {
-	sprintf(buf, "interpret: mob %s(%ld) tried immortal command %s",
-	    ch->short_descr, ch->pIndexData->vnum, cmd_table[cmd].name);
-	log_string(buf);
-	return;
-    }
-
-    // Log.
-    if ( cmd_table[cmd].log == LOG_NEVER )
-	strcpy( logline, "" );
-
-    if (((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_LOG)) || logAll || cmd_table[cmd].log == LOG_ALWAYS))
-    {
-	char s[2 * MAX_INPUT_LENGTH];
-	char *ps;
-	int i;
-
-	ps = s;
-	sprintf( log_buf, "Log %s: %s",
-	    IS_NPC(ch) ? ch->short_descr : ch->name, logline );
-
-	// Make sure that was is displayed is what is typed
-	for ( i = 0; log_buf[i]; i++ )
+	if (selected_command != NULL && found )
 	{
-	    *ps++ = log_buf[i];
-	    if ( log_buf[i] == '$' )
-		*ps++ = '$';
-	    if ( log_buf[i] == '{' )
-		*ps++ = '{';
-	}
+    	if (IS_NPC(ch) && selected_command->rank > STAFF_PLAYER)
+    	{
+			sprintf(buf, "interpret: mob %s (%s) tried immortal command %s",
+	    	ch->short_descr, widevnum_string_mobile(ch->pIndexData, NULL), selected_command->name);
+			log_string(buf);
+			return;
+    	}
 
-	*ps = 0;
-	wiznet( s, ch, NULL, WIZ_SECURE, 0, get_staff_rank(ch));
-	if ( logline[0] != '\0' )
-	    log_string( log_buf );
-    }
+    	// Log.
+    	if ( selected_command->log == LOG_NEVER )
+		strcpy( logline, "" );
+
+    	if (((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_LOG)) || logAll || selected_command->log == LOG_ALWAYS))
+    	{
+			char s[2 * MAX_INPUT_LENGTH];
+			char *ps;
+			int i;
+
+			ps = s;
+			sprintf( log_buf, "Log %s: %s",
+	    	IS_NPC(ch) ? ch->short_descr : ch->name, logline );
+
+			// Make sure that was is displayed is what is typed
+			for ( i = 0; log_buf[i]; i++ )
+			{
+	    		*ps++ = log_buf[i];
+	    		if ( log_buf[i] == '$' )
+					*ps++ = '$';
+	    		if ( log_buf[i] == '{' )
+				*ps++ = '{';
+			}
+
+			*ps = 0;
+			wiznet( s, ch, NULL, WIZ_SECURE, 0, get_staff_rank(ch));
+			if ( logline[0] != '\0' )
+	    		log_string( log_buf );
+    	}
+	}
 
     // Command not found... try other places.
     // Modified 2010-08-16 - Changed order. Command -> Custom verbs -> IMC -> Socials -- Tieryo
@@ -1642,6 +1667,12 @@ void interpret( CHAR_DATA *ch, char *argument )
 		return;
 
 	send_to_char( "Huh?\n\r", ch);
+	if (IS_NPC(ch))
+		sprintf(buf, "NPC \t<send href=\"stat mob %ld %ld|mshow %ld|medit %ld\">%s\t</send> (%ld) tried to use the command '%s' but it didn't exist.", ch->id[0], ch->id[1], ch->pIndexData->vnum, ch->pIndexData->vnum, ch->short_descr, ch->pIndexData->vnum, command);
+	else
+		sprintf(buf, "%s tried to use the command '%s' but it didn't exist.", ch->name, command);
+	log_string(buf);
+	wiznet(buf, ch, NULL, WIZ_VERBS, 0, 0);
 	return;
     }
 
@@ -1649,7 +1680,7 @@ void interpret( CHAR_DATA *ch, char *argument )
     if (ch->position == POS_FEIGN)
     {
 	do_function( ch, &do_feign, "");
-	if ( !str_cmp( cmd_table[cmd].name, "feign") )
+	if ( !str_cmp( selected_command->name, "feign") )
 	    return;
     }
 
@@ -1668,7 +1699,7 @@ void interpret( CHAR_DATA *ch, char *argument )
     }
 
     // Character not in position for command?
-    if ( ch->position < cmd_table[cmd].position )
+    if ( ch->position < selected_command->position )
     {
 	switch( ch->position )
 	{
@@ -1706,7 +1737,7 @@ void interpret( CHAR_DATA *ch, char *argument )
     }
 
     // Dispatch the command
-    (*cmd_table[cmd].do_fun) ( ch, argument );
+    (*selected_command->function) ( ch, argument );
 
     tail_chain();
 }
@@ -2007,51 +2038,195 @@ static int cmd_cmp(void *a, void *b)
 // Output a table of commands.
 void do_commands( CHAR_DATA *ch, char *argument )
 {
-    char buf[MAX_STRING_LENGTH];
-    int cmd;
+    char buf[MAX_STRING_LENGTH], mxp_str[1024];
+    //int cmd;
     int col;
+	int cmdtype = 0;
+	CMD_DATA *command;
 
 	if (IS_NPC(ch)) return;
 
-	ch->pcdata->extra_commands = list_createx(false, NULL, delete_extra_commands);
+	//ch->pcdata->extra_commands = list_createx(false, NULL, delete_extra_commands);
 
     col = 0;
-    for ( cmd = 0; cmd_table[cmd].name[0] != '\0'; cmd++ )
-    {
-        if ( cmd_table[cmd].rank <= STAFF_PLAYER &&
-			cmd_table[cmd].show )
+
+	if (argument[0] == '\0')
+	{
+		for (cmdtype = 0; cmdtype < MAX_COMMAND_TYPES; cmdtype++)
 		{
-			if (!list_contains(ch->pcdata->extra_commands, cmd_table[cmd].name, cmd_cmp))
+			if (cmdtype == CMDTYPE_ADMIN || cmdtype == CMDTYPE_IMMORTAL || cmdtype == CMDTYPE_OLC || cmdtype == CMDTYPE_NEWBIE)
+			continue;
+
+			ch->pcdata->extra_commands = list_createx(false, NULL, delete_extra_commands);
+
+			sprintf(buf, "\n\r{X===== {W{+%s Commands{X ====={x\n\r", command_types[cmdtype].name);
+			send_to_char(buf, ch);
+			ITERATOR cit;
+			iterator_start(&cit, commands_list);
+			col = 0;
+			while((command = (CMD_DATA *)iterator_nextdata(&cit)))
 			{
-				list_appendlink(ch->pcdata->extra_commands, str_dup(cmd_table[cmd].name));
+				if (command->type != cmdtype)
+					continue;
+
+				if (command->rank <= STAFF_PLAYER && !IS_SET(command->command_flags, CMD_HIDE_LISTS))
+				{
+					if (!list_contains(ch->pcdata->extra_commands, command->name, cmd_cmp))
+					{
+						if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL) && !IS_NULLSTR(command->summary))
+							sprintf(mxp_str, "\t<send href=\"%s|help #%d\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat)->index, command->summary, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+						else if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL ) && IS_NULLSTR(command->summary))
+							sprintf(mxp_str, "\t<send href=\"%s|help #%d\" hint=\"Execute %s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat)->index, command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+						else if ((command->help_keywords == NULL || !str_cmp(command->help_keywords->string, "(null)") || lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) == NULL) && !IS_NULLSTR(command->summary))
+							sprintf(mxp_str, "\t<send href=\"%s\" hint=\"%s\">{X%s\t</send>%s", command->name, command->summary, command->name, pad_string(command->name, 13, NULL, NULL));
+						else
+							sprintf(mxp_str, "\t<send href=\"%s\" hint=\"Execute %s\">{X%s\t</send>%s", command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+
+						list_appendlink(ch->pcdata->extra_commands, str_dup(mxp_str));
+					}
+
+				}
+			}
+			iterator_stop(&cit);
+
+		if (list_size(ch->pcdata->extra_commands) > 0)
+		{
+			ITERATOR it;
+			char *cmd_str;
+			iterator_start(&it, ch->pcdata->extra_commands);
+			while((cmd_str = (char *)iterator_nextdata(&it)))
+			{
+				sprintf( buf, "%s", cmd_str);
+				send_to_char( buf, ch );
+				if ( ++col % 6 == 0 )
+					send_to_char( "\n\r", ch );
+			}
+			iterator_stop(&it);
+		}
+
+		list_destroy(ch->pcdata->extra_commands);
+		ch->pcdata->extra_commands = NULL;
+		if ( ++col % 6 != 0 )
+			send_to_char( "\n\r", ch );
+		}
+
+		// Get our extra commands, repeat the process.
+		ch->pcdata->extra_commands = list_createx(false, NULL, delete_extra_commands);
+		collect_verbs(ch);
+
+		sprintf(buf, "\n\r{X===== {WExtra Commands{X ====={x\n\r");
+		if (list_size(ch->pcdata->extra_commands) > 0)
+		{
+			ITERATOR it;
+			char *cmd_str;
+			iterator_start(&it, ch->pcdata->extra_commands);
+			while((cmd_str = (char *)iterator_nextdata(&it)))
+			{
+				sprintf( buf, "%s", cmd_str);
+				send_to_char( buf, ch );
+				if ( ++col % 6 == 0 )
+					send_to_char( "\n\r", ch );
+			}
+			iterator_stop(&it);
+		}
+
+		list_destroy(ch->pcdata->extra_commands);
+		ch->pcdata->extra_commands = NULL;
+
+    	if ( col % 6 != 0 )
+		send_to_char( "\n\r", ch );
+	}
+	else
+	{
+
+		if (!str_cmp(argument, "extra"))
+		{
+					// Get our extra commands, repeat the process.
+			ch->pcdata->extra_commands = list_createx(false, NULL, delete_extra_commands);
+			collect_verbs(ch);
+
+			sprintf(buf, "\n\r{X===== {WExtra Commands{X ====={x\n\r");
+			if (list_size(ch->pcdata->extra_commands) > 0)
+			{
+				ITERATOR it;
+				char *cmd_str;
+				iterator_start(&it, ch->pcdata->extra_commands);
+				while((cmd_str = (char *)iterator_nextdata(&it)))
+				{
+					sprintf( buf, "%s", cmd_str);
+					send_to_char( buf, ch );
+					if ( ++col % 6 == 0 )
+						send_to_char( "\n\r", ch );
+				}
+				iterator_stop(&it);
+			}
+
+			list_destroy(ch->pcdata->extra_commands);
+			ch->pcdata->extra_commands = NULL;
+			return;
+		}
+
+		if ((cmdtype = flag_value(command_types, argument)) == NO_FLAG)
+		{
+			send_to_char("Invalid command type.\n\r", ch);
+			return;
+		}
+
+		cmdtype = flag_value(command_types, argument);
+		if (cmdtype == CMDTYPE_ADMIN || cmdtype == CMDTYPE_IMMORTAL || cmdtype == CMDTYPE_OLC || cmdtype == CMDTYPE_NEWBIE)
+		{
+			send_to_char("Invalid command type.\n\r", ch);
+			return;
+		}
+			
+		ch->pcdata->extra_commands = list_createx(false, NULL, delete_extra_commands);
+
+		sprintf(buf, "\n\r{X===== {W{+%s Commands{X ====={x\n\r", command_types[cmdtype].name);
+		send_to_char(buf, ch);
+
+		ITERATOR cit;
+		iterator_start(&cit, commands_list);
+		col = 0;
+		while((command = (CMD_DATA *)iterator_nextdata(&cit)))
+		{
+			if (command->rank == STAFF_PLAYER && !IS_SET(command->command_flags, CMD_HIDE_LISTS) && IS_SET(command->addl_types, flag_value(command_addl_types, argument)))
+			{
+				if (!list_contains(ch->pcdata->extra_commands, command->name, cmd_cmp))
+				{
+					if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL) && !IS_NULLSTR(command->summary))
+						sprintf(mxp_str, "\t<send href=\"%s|help #%d\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat)->index, command->summary, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+					else if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL ) && IS_NULLSTR(command->summary))
+						sprintf(mxp_str, "\t<send href=\"%s|help #%d\" hint=\"Execute %s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat)->index, command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+					else if ((command->help_keywords == NULL || !str_cmp(command->help_keywords->string, "(null)") || lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) == NULL) && !IS_NULLSTR(command->summary))
+						sprintf(mxp_str, "\t<send href=\"%s\" hint=\"%s\">{X%s\t</send>%s", command->name, command->summary, command->name, pad_string(command->name, 13, NULL, NULL));
+					else
+						sprintf(mxp_str, "\t<send href=\"%s\" hint=\"Execute %s\">{X%s\t</send>%s", command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+
+					list_appendlink(ch->pcdata->extra_commands, str_dup(mxp_str));
+				}
 			}
 		}
-    }
-
-	// Get all the verbs it can find
-	//  There may be duplicate strings in the list, that can't be helped
-	collect_verbs(ch);
-
-	if (list_size(ch->pcdata->extra_commands) > 0)
-	{
-		ITERATOR it;
-		char *cmd_str;
-		iterator_start(&it, ch->pcdata->extra_commands);
-		while((cmd_str = (char *)iterator_nextdata(&it)))
+		if (list_size(ch->pcdata->extra_commands) > 0)
 		{
-			sprintf( buf, "%-12s", cmd_str);
-			send_to_char( buf, ch );
-			if ( ++col % 6 == 0 )
-				send_to_char( "\n\r", ch );
+			ITERATOR it;
+			char *cmd_str;
+			iterator_start(&it, ch->pcdata->extra_commands);
+			while((cmd_str = (char *)iterator_nextdata(&it)))
+			{
+				sprintf( buf, "%s", cmd_str);
+				send_to_char( buf, ch );
+				if ( ++col % 6 == 0 )
+					send_to_char( "\n\r", ch );
+			}
+			iterator_stop(&it);
 		}
-		iterator_stop(&it);
+
+		list_destroy(ch->pcdata->extra_commands);
+		ch->pcdata->extra_commands = NULL;
+
+    	if ( col % 6 != 0 )
+		send_to_char( "\n\r", ch );
 	}
-
-	list_destroy(ch->pcdata->extra_commands);
-	ch->pcdata->extra_commands = NULL;
-
-    if ( col % 6 != 0 )
-	send_to_char( "\n\r", ch );
 }
 
 
@@ -2059,23 +2234,63 @@ void do_commands( CHAR_DATA *ch, char *argument )
 void do_wizhelp( CHAR_DATA *ch, char *argument )
 {
     char buf[MAX_STRING_LENGTH];
-    int cmd;
-    int col;
+//    int cmd;
+    int col = 0;
+	long cmdtype = -1;
+	CMD_DATA *command;
+	int rank = 0;
 
-    col = 0;
-    for ( cmd = 0; cmd_table[cmd].name[0] != '\0'; cmd++ )
-    {
-        if ( cmd_table[cmd].rank >= STAFF_IMMORTAL
-        &&   cmd_table[cmd].rank <= get_staff_rank( ch )
-	&&   cmd_table[cmd].show)
+	if (argument[0] != '\0')
 	{
-            sprintf( buf, "%-12s", cmd_table[cmd].name );
-            send_to_char( buf, ch );
+		cmdtype = flag_value(command_types, argument);
 
-	    if ( ++col % 6 == 0 )
+		if (cmdtype == NO_FLAG)
+		{
+			send_to_char("Invalid command type.\n\r", ch);
+			return;
+		}
+		
+		sprintf(buf, "{B*{G*{B* {XFiltering for {W{+%s{X commands {B*{G*{B*{X\n\r", command_types[cmdtype].name);
+		send_to_char(buf,ch);
+	}
+
+
+
+	
+	for ( rank = STAFF_IMMORTAL; rank <= get_staff_rank(ch); rank++ )
+	{
+		col = 0;
+		sprintf(buf, "\n\r{B*{G*{B* {XCommands available to {W{+%s{X {B*{G*{B*{X\n\r", staff_ranks[rank].name);
+		send_to_char(buf,ch);
+
+		ITERATOR it;
+		iterator_start(&it, commands_list);
+		while ((command = (CMD_DATA *)iterator_nextdata(&it)))
+		{
+			if (cmdtype != -1 && !IS_SET(command->addl_types, flag_value(command_addl_types, argument)))
+				continue;
+
+			if (command->rank == rank && command->rank <= get_staff_rank(ch) && !IS_SET(command->command_flags, CMD_HIDE_LISTS) && IS_SET(command->addl_types, flag_value(command_addl_types, argument)))
+			{
+				if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL) && !IS_NULLSTR(command->summary))
+					sprintf(buf, "\t<send href=\"%s|help #%d\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat)->index, command->summary, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+				else if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)") && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL) && IS_NULLSTR(command->summary))
+					sprintf(buf, "\t<send href=\"%s|help #%d\" hint=\"Execute %s|View '%s' helpfile\">{X%s\t</send>%s", command->name, lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat)->index, command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+				else if ((command->help_keywords == NULL || !str_cmp(command->help_keywords->string, "(null)") || lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) == NULL) && !IS_NULLSTR(command->summary))
+					sprintf(buf, "\t<send href=\"%s\" hint=\"%s\">{X%s\t</send>%s", command->name, command->summary, command->name, pad_string(command->name, 13, NULL, NULL));
+				else
+					sprintf(buf, "\t<send href=\"%s\" hint=\"Execute %s\">{X%s\t</send>%s", command->name, command->name, command->name, pad_string(command->name, 13, NULL, NULL));
+
+				send_to_char( buf, ch );
+				if ( ++col % 6 == 0 )
+					send_to_char( "\n\r", ch );
+				
+			
+			}
+		}
+		iterator_stop(&it);
 		send_to_char( "\n\r", ch );
 	}
-    }
 
     if ( col % 6 != 0 )
 	send_to_char( "\n\r", ch );

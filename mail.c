@@ -661,6 +661,10 @@ void write_mail(void)
 	fprintf(fp, "Status %d\n", mail->status);
 	fprintf(fp, "PickedUp %d\n", mail->picked_up);
 	fprintf(fp, "Scripted %d\n", mail->scripted);
+	if (mail->originating_script != 0)
+	    fprintf(fp, "OriginatingScript %s~\n", mail->originating_script);
+	if (mail->orig_script_type > -1)
+	    fprintf(fp, "OrigScriptType %d~\n", mail->orig_script_type);
 	if (mail->message != NULL)
 	    fprintf(fp, "Message %s~\n\n", fix_string(mail->message));
 
@@ -734,6 +738,12 @@ void read_mail(void)
 		else
 		if (!str_cmp(word, "Scripted"))
 		    mail->scripted = fread_number(fp) ? true : false;
+		else
+		if (!str_cmp(word, "OriginatingScript"))
+		    mail->originating_script = fread_string(fp);
+		else
+		if (!str_cmp(word, "OrigScriptType"))
+		    mail->orig_script_type = fread_number(fp);
 		else
 		if (!str_cmp(word, "#END"))
 		    break;
@@ -947,9 +957,9 @@ void mail_update(void)
 		mail_next = mail->next;
 
 		mail->status++;
-		sprintf(buf, "mail status from %d(%s->%s) to %d\n\r", mail->status - 1, mail->sender, mail->recipient, mail->status);
+//		sprintf(buf, "mail status from %d(%s->%s) to %d\n\r", mail->status - 1, mail->sender, mail->recipient, mail->status);
 
-		wiznet(buf, NULL, NULL, WIZ_TESTING, 0, STAFF_IMPLEMENTOR);
+//		wiznet(buf, NULL, NULL, WIZ_TESTING, 0, STAFF_IMPLEMENTOR);
 
 		if (mail->status >= MAIL_BEING_DELIVERED && mail->status < MAIL_DELIVERED)
 	    	continue;
@@ -958,12 +968,12 @@ void mail_update(void)
 		{
 			if (mail->picked_up)
 			{
-			sprintf(buf, "mail_update: deleted mail from %s to %s",
-				mail->sender, mail->recipient);
-			log_string(buf);
+				sprintf(buf, "mail_update: deleted mail from %s to %s",
+					mail->sender, mail->recipient);
+				log_string(buf);
 
-			mail_from_list(mail);
-			free_mail(mail);
+				mail_from_list(mail);
+				free_mail(mail);
 			}
 		}
 

@@ -884,6 +884,9 @@ void do_chgohall(CHAR_DATA *ch, char *argument)
         return;
     }
 
+	if ( !can_escape(ch) )
+		return;
+
     pneuma_cost = 500;
     dp_cost = 50000;
 
@@ -1463,13 +1466,14 @@ void do_chlist(CHAR_DATA *ch, char *argument)
 	    }
 
 	    counter++;
-	    sprintf(buf, "{G%-3d %s{Y%-21s %-15s %s{x\n\r",
+	    sprintf(buf, "{G%-3d %s{Y%-21s %-15s %s%s{x\n\r",
 		    counter,
 	 	    online ? "{M*" : " ",
 		    member->name,
 		    get_chrank(member),
 		    IS_SET(member->flags, CHURCH_PLAYER_EXCOMMUNICATED) ? "{RExcommunicated{x"
-			     : "");
+			     : "",
+			!str_cmp(member->name, church->founder) ? "{G[F]{X" : "");
 	    send_to_char(buf, ch);
 	}
 
@@ -1748,7 +1752,7 @@ void show_chlist_to_char(CHAR_DATA *ch)
     send_to_char("{YRegistered Factions within Sentience:{x\n\r", ch);
     send_to_char(
     "{YNo. PK  Name                          Max   Alignment    Size{x\n\r", ch);
-    line(ch , 83);
+    line(ch , 83, NULL, NULL);
     i = 0;
     for (church = church_list; church != NULL; church = church->next)
     {
@@ -1777,7 +1781,7 @@ void show_chlist_to_char(CHAR_DATA *ch)
 	    send_to_char(buf, ch);
 	}
 
-	line (ch, 83);
+	line (ch, 83, NULL, NULL);
 	sprintf(buf, "{Y%d group(s) found.{x\n\r", i);
 
 	send_to_char(buf, ch);
@@ -2158,7 +2162,7 @@ void do_chinfo(CHAR_DATA *ch, char *argument)
 	    "{Y #  %-12s %-10s %-10s %-10s %-8s %-8s %-4s{x\n\r",
 	    "Name", "Pneuma", "Karma", "Gold", "PK", "CPK", "Wars");
 	send_to_char(buf, ch);
-	line(ch,78);
+	line(ch,78, NULL, NULL);
 	i = 0;
 
 	for (member = church->people; member != NULL; member = member->next)
@@ -2185,7 +2189,7 @@ void do_chinfo(CHAR_DATA *ch, char *argument)
 	    send_to_char(buf, ch);
 	}
 
-	line(ch,78);
+	line(ch,78, NULL, NULL);
     }
     else
     {
@@ -2193,7 +2197,7 @@ void do_chinfo(CHAR_DATA *ch, char *argument)
 	    "{Y #  %-12s %-10s %-10s %-10s{x\n\r",
 	    "Name", "Pneuma", "Karma", "Gold");
 	send_to_char(buf, ch);
-	line(ch, 55);
+	line(ch, 55, NULL, NULL);
 	i = 0;
 
 	for (member = church->people; member != NULL; member = member->next)
@@ -2211,7 +2215,7 @@ void do_chinfo(CHAR_DATA *ch, char *argument)
 	    send_to_char(buf, ch);
 	}
 
-	line(ch, 55);
+	line(ch, 55, NULL, NULL);
     }
 
     CHURCH_TREASURE_ROOM *treasure;
@@ -3046,7 +3050,7 @@ void do_chtrust(CHAR_DATA *ch, char *argument)
 	sprintf(buf, "{Y%s is entrusted with the following commands:{x\n\r",
 	    church_player->name);
 	send_to_char(buf, ch);
-	line(ch, 50);
+	line(ch, 50, NULL, NULL);
 
 	i = 0;
 	for (string = church_player->commands; string != NULL; string = string->next)
@@ -3060,7 +3064,7 @@ void do_chtrust(CHAR_DATA *ch, char *argument)
 	if (i == 0)
 	    send_to_char("No commands.\n\r", ch);
 
-	line(ch, 50);
+	line(ch, 50, NULL, NULL);
 
 	return;
     }
@@ -3284,6 +3288,22 @@ void show_church_info(CHURCH_DATA *church, CHAR_DATA *ch)
 			(church->key == NULL ? 0 : church->key->vnum),
 			(church->key == NULL ? "none" : church->key->short_descr));
 		add_buf(buffer, buf);
+
+		sprintf(buf, "{YTreasure Room(s):{x\n\r");
+		add_buf(buffer, buf);
+
+    	CHURCH_TREASURE_ROOM *treasure;
+    	ITERATOR it;
+		iterator_start(&it, church->treasure_rooms);
+		while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it)) ) {
+			if( treasure->room != NULL )
+			{
+				ROOM_INDEX_DATA *room = treasure->room;
+				sprintf(buf, "{x\t\t%s - %s{x\n\r", widevnum_string_room(room, NULL), room->name);
+				add_buf(buffer,buf);
+			}
+	}
+	iterator_stop(&it);
 	}
 
     sprintf(buf, "{YPK record:{x %ld wins, %ld losses\n\r",

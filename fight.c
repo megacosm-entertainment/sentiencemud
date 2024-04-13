@@ -934,7 +934,7 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *dsk, int dt, bool sec
 
 	// Damage boost for globals
 	// Disabling boost for NPCs, this is player only - Tieryo
-	if (!IS_NPC(ch))
+	if (!IS_NPC(ch) && IS_NPC(victim))
 	{
 		if (boost_table[BOOST_DAMAGE].boost != 100) dam = (dam * boost_table[BOOST_DAMAGE].boost)/100;
 	};
@@ -946,7 +946,8 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *dsk, int dt, bool sec
 	victim->hit_damage = dam;
 	victim->hit_type = dam_type;
 
-	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, wield, NULL, TRIG_HIT, NULL,0,0,0,0,0)) {
+	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, wield, NULL, TRIG_HIT, NULL,0,0,0,0,0) || 
+	  p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, wield, NULL, TRIG_ATTACK, NULL)) {
 		tail_chain();
 		return true;
 	}
@@ -1839,8 +1840,7 @@ bool is_safe(CHAR_DATA *ch, CHAR_DATA *victim, bool show)
 	}
 
 	// Can't kill anyone in social
-	if (!str_cmp(victim->in_room->name, "Elysium")
-	||   IS_SOCIAL(ch) || IS_SOCIAL(victim))
+	if (IS_SOCIAL(ch) || IS_SOCIAL(victim))
 	return true;
 
 	// Immortals can attack anybody, if they have HOLYAURA on
@@ -2258,7 +2258,7 @@ bool check_catch(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield)
 	if (get_weapon_sn(victim) != gsk_hand_to_hand)
 		return false;
 
-	if (!can_see(ch,victim))
+	if (!can_see(victim, ch))
 		chance /= 2;
 
 	/* shifted players have more of a chance due to their eXtreeeem fighting skills */
@@ -2344,7 +2344,7 @@ bool check_parry(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield)
 
 	chance -= abs(wield->weight / 5 - weapon->weight / 5);
 
-	if (!can_see(ch,victim))
+	if (!can_see(victim, ch))
 		chance /= 2;
 
 	if (IS_AFFECTED2(victim, AFF2_WARCRY))
@@ -2732,7 +2732,7 @@ bool check_spear_block(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield)
 	chance += get_weapon_skill(victim, get_weapon_sn(victim)) / 7;
 	chance -= get_weapon_skill(ch, get_weapon_sn(ch)) / 8;
 
-	if (!can_see(ch,victim))
+	if (!can_see(victim, ch))
 	chance /= 2;
 
 	if (IS_AFFECTED2(victim, AFF2_WARCRY))
@@ -3638,7 +3638,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, CORPSE_TYPE 
 	TOKEN_DATA *token, *token_next;
 //    long repop_room = 0;
 
-	sprintf(buf,"raw_kill(%s:%lu:%lu,%s,%s,%s,%s)",
+	sprintf(buf,"raw_kill(Vict: %s, ID: %lu:%lu, Head: %s, Silent: %s, Corpse Type: %s, Damage Type: %s)",
 		(char*)((IS_NPC(victim) || victim->morphed) ? victim->short_descr : capitalize(victim->name)),
 		victim->id[0],victim->id[1],
 		(has_head?"HEAD":"HEADLESS"),
@@ -3761,7 +3761,9 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, CORPSE_TYPE 
 	else
 	{
 		// Standard death
-		get_room_recall(victim->in_room, &recall);
+		//get_room_recall(victim->in_room, &recall);
+		location_from_room(&victim->recall, get_recall_room(victim, true));
+
 		//recall = victim->in_room->area->recall;
 
 		if (!IS_NPC(victim) && location_isset(&victim->recall))
@@ -4091,9 +4093,10 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim, int percent)
 			{
 				pc_xp = (100 + ch->xpboost) * pc_xp / 100;
 			}
-			sprintf(buf, "{BYou receive {C%d {Bexperience points.\n\r{x", pc_xp);
-			send_to_char(buf, gch);
-			gain_exp(gch, NULL, pc_xp);
+
+//			sprintf(buf, "{BYou receive {C%d {Bexperience points.\n\r{x", pc_xp);
+//			send_to_char(buf, gch);
+			gain_exp(gch, NULL, pc_xp, true);
 		}
 
 		for (obj = gch->carrying; obj != NULL; obj = obj_next)
@@ -4214,7 +4217,7 @@ int xp_compute(CHAR_DATA *gch, CHAR_DATA *victim)
 
 	if( xp > 0 && bonus_xp > 0 ) {
 		if(!IS_IMMORTAL(gch) && level && level->level < level->clazz->max_level)
-			printf_to_char(gch, "{W%d%% more experience!{x", bonus_xp);
+			printf_to_char(gch, "{W%d%% more experience!{x\n\r", bonus_xp);
 		xp = (100 + bonus_xp) * xp / 100;
 	}
 
@@ -5093,7 +5096,7 @@ void do_bash(CHAR_DATA *ch, char *argument)
 		act("$n slams into you...", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 		act("$n slams into $N...", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
 
-		dam = (ch->tot_level + get_skill(ch, gsk_bash))*7*log10(ch->tot_level);
+		dam = (ch->tot_level + get_skill(ch, gsk_bash))*4*log10(ch->tot_level);
 		if (ch->size > victim->size) dam *= (ch->size - victim->size);
 		if (ch->size < victim->size) dam /= (victim->size - ch->size);
 
@@ -6629,7 +6632,7 @@ void do_kick(CHAR_DATA *ch, char *argument)
 	if (skill > number_percent()) {
 		int dam = 0;
 
-		dam += 15 *number_range(ch->tot_level/2, ch->tot_level);
+		dam += 7 *number_range(ch->tot_level/2, ch->tot_level);
 
 		if (get_skill(ch, gsk_martial_arts) > 0) {
 			dam += (int) dam * (get_skill(ch, gsk_martial_arts) / 100);

@@ -556,7 +556,7 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 
     fprintf(fp, "Need_change_pw %d\n", ch->pcdata->need_change_pw);
 
-    fprintf(fp, "Plyd %d\n", !str_cmp(ch->name, "Syn") ? 0 : ch->played + (int) (current_time - ch->logon));
+    fprintf(fp, "Plyd %d\n", ch->played + (int) (current_time - ch->logon));
 
     if (location_isset(&ch->pcdata->room_before_arena)) {
 	if(ch->pcdata->room_before_arena.wuid)
@@ -812,6 +812,15 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     {
 		fprintf(fp, "Pass %s~\n",	ch->pcdata->pwd		);
 		fprintf(fp, "PassVers %d\n", ch->pcdata->pwd_vers);
+		if (ch->pcdata->reset_code != NULL)
+			fprintf(fp, "ResetCode %s~\n", ch->pcdata->reset_code);
+
+		if (ch->pcdata->reset_time != 0)
+			fprintf(fp, "Reset_Time %ld\n", ch->pcdata->reset_time);
+
+		fprintf(fp, "ResetState %d\n", ch->pcdata->reset_state);
+		if (ch->pcdata->mfa_key != NULL)
+			fprintf(fp, "MFA_Key %s~\n", ch->pcdata->mfa_key);
 		/*if (ch->pcdata->immortal->bamfin[0] != '\0')
 			fprintf(fp, "Bin  %s~\n",	ch->pcdata->immortal->bamfin);
 		if (ch->pcdata->immortal->bamfout[0] != '\0')
@@ -964,6 +973,9 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     ch->pcdata->confirm_delete		= false;
     ch->pcdata->pwd			= str_dup("");
 	ch->pcdata->pwd_vers	= 0;
+	ch->pcdata->reset_code	= str_dup("");
+	//ch->pcdata->reset_time	= 0;
+	ch->pcdata->reset_state	= 0;
     //ch->pcdata->bamfin			= str_dup("");
     //ch->pcdata->bamfout			= str_dup("");
     ch->pcdata->title			= str_dup("");
@@ -979,6 +991,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     ch->pcdata->condition[COND_STONED]	= 0;
     ch->pcdata->security		= 0;
     ch->pcdata->challenge_delay		= 0;
+	ch->pcdata->mfa_key = str_dup("");
     ch->morphed = false;
     ch->locker_rent = 0;
     ch->deathsight_vision = 0;
@@ -990,7 +1003,6 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     found = false;
     fclose(fpReserve);
 
-    #if defined(unix)
     /* decompress if .gz file exists */
     sprintf(strsave, "%s%c/%s%s", PLAYER_DIR, tolower(name[0]), capitalize(name),".gz");
     if ((fp = fopen(strsave, "r")) != NULL)
@@ -999,7 +1011,6 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 		sprintf(buf,"gzip -dfq %s",strsave);
 		system(buf);
     }
-    #endif
 
     sprintf(strsave, "%s%c/%s", PLAYER_DIR, tolower(name[0]), capitalize(name));
     if ((fp = fopen(strsave, "r")) != NULL) {
@@ -2186,7 +2197,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 	case 'L':
 	    KEY("LastLevel",	ch->pcdata->last_level, fread_number(fp));
 	    KEY("LLev",	ch->pcdata->last_level, fread_number(fp));
-	    KEY("LogO",	lastlogoff,		fread_number(fp));
+	    //KEY("LogO",	lastlogoff,		fread_number(fp));
 	    KEY("LogI",	ch->pcdata->last_login,	fread_number(fp));
 	    KEY("LongDescr",	ch->long_descr,		fread_string(fp));
 	    KEY("LnD",		ch->long_descr,		fread_string(fp));
@@ -2221,6 +2232,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 			KEY("Mc2",		 __versioning->_007.class_thief,		fread_number(fp));
 			KEY("Mc3",		 __versioning->_007.class_warrior,		fread_number(fp));
 		}
+		KEY("MFA_KEY",		ch->pcdata->mfa_key,		fread_string(fp));
 		KEY("MissionNext",   ch->nextmission,          fread_number(fp));
 		KEY("MissionPnts",   ch->missionpoints,        fread_number(fp));
 		KEY("MissionsCompleted", ch->pcdata->missions_completed, fread_number(fp));
@@ -2492,6 +2504,10 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		location_set(&ch->recall,NULL,wuid,x,y,z);
 		fMatch = true;
 	    }
+
+			KEY("ResetCode",	ch->pcdata->reset_code,		fread_string(fp));
+			KEY("Reset_Time",	ch->pcdata->reset_time,		fread_number(fp));
+			KEY("ResetState",	ch->pcdata->reset_state,		fread_number(fp));
 
             if (!str_cmp(word, "Room_before_arena")) {
 				long auid = fread_number(fp);
@@ -3588,6 +3604,16 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
     	fprintf(fp, "Room %s\n",	widevnum_string_room(obj->in_room, NULL)	    );
     if (IS_SET(obj->extra[1], ITEM_ENCHANTED))
 		fprintf(fp,"Enchanted_times %d\n", obj->num_enchanted);
+	if (obj->script_created)
+	{
+		fprintf(fp, "Created_script_type %d\n", obj->created_script_type);
+		fprintf(fp, "Created_script_wnum %s\n", obj->created_script_wnum);
+	}
+
+	if (obj->creation_time)
+	{
+		fprintf(fp, "Creation_time %ld\n", obj->creation_time);
+	}
 
     /*
     if (obj->weight != obj->pIndexData->weight)
@@ -6585,6 +6611,23 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			KEY("ClassType", obj->clazz_type, stat_lookup(fread_string(fp), class_types, CLASS_NONE));
 			KEY("Cond",	obj->condition,		fread_number(fp));
 			KEY("Cost",	obj->cost,		fread_number(fp));
+
+			if (!str_cmp(word, "Created_script_type"))
+			{
+				obj->created_script_type = fread_number(fp);
+				obj->script_created = true;
+				fMatch = true;
+				break;
+			}
+
+			if (!str_cmp(word, "Created_script_wnum"))
+			{
+				obj->created_script_wnum = fread_string(fp);
+				obj->script_created = true;
+				fMatch = true;
+				break;
+			}
+			KEY("Creation_time", obj->creation_time, fread_number(fp));
 			break;
 
 		case 'D':

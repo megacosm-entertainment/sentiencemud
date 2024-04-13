@@ -413,6 +413,7 @@ int compile_entity_listbasetype(int ent)
 
 	case ENT_ARRAY_EXITS:		ent = ENT_EXIT;	break;
 	case ENT_CATALYST_USAGE:	ent = ENT_NUMBER; break;
+	case ENT_EQUIPMENT:		ent = ENT_OBJECT; break;
 	case ENT_WEAPON_ATTACKS:	ent = ENT_WEAPON_ATTACK; break;
 
 	default:	ent = ENT_UNKNOWN; break;
@@ -692,6 +693,23 @@ char *compile_entity(char *str,int type, char **store, int *entity_type)
 
 			*p++ = ESCAPE_EXTRA + catalyst - CATALYST_NONE;
 			next_ent = ENT_NUMBER;
+
+		} else if(ent == ENT_EQUIPMENT) {
+			if(suffix[0]) {
+				sprintf(buf,"Line %d: type suffix is only allowed for variable fields.", compile_current_line);
+				compile_error_show(buf);
+				return NULL;
+			}
+			int wearloc = stat_lookup(field, wear_loc_flags, MAX_WEAR);
+			if (wearloc <= 0 || wearloc >= MAX_WEAR)
+			{
+				sprintf(buf,"Line %d: invalid wearloc value in EQUIPMENT.", compile_current_line);
+				compile_error_show(buf);
+				return NULL;
+			}
+
+			*p++ = ESCAPE_EXTRA + wearloc - WEAR_NONE;
+			next_ent = ENT_OBJECT;
 
 		} else if(ent == ENT_RESERVED_MOBILE) {
 			if(suffix[0]) {

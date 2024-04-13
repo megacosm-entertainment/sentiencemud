@@ -91,6 +91,7 @@ struct olc_help_type
 #define STRUCT_GCL				28
 #define STRUCT_GR				29
 #define STRUCT_GSCT				30
+#define STRUCT_DOFUNC			31
 
 struct trigger_type dummy_triggers[1];
 
@@ -120,6 +121,7 @@ const struct olc_help_type help_table[] =
 	{	"class",				STRUCT_FLAGS,		class_flags,				"Class flags." },
 	{	"classes",				STRUCT_CLASSES,		NULL,						"Classes" },
 	{	"classtypes",			STRUCT_FLAGS,		class_types,				"Class Types"},
+	{	"cmd",					STRUCT_FLAGS,		command_flags,				"Command Flags (CMDEdit)"},
 	{ 	"compartment",			STRUCT_FLAGS,		compartment_flags,			"Compartment Flags."},
 	{	"condition",			STRUCT_FLAGS,		room_condition_flags,		"Room Condition types."	},
 	{	"container",			STRUCT_FLAGS,		container_flags,			"Container status."	},
@@ -127,7 +129,8 @@ const struct olc_help_type help_table[] =
 	{	"corpsetypes",			STRUCT_FLAGS,		corpse_types,				"Corpse types."	},
 	{	"damageclass",			STRUCT_FLAGS,		damage_classes,				"Types of damages."},
 	{	"dprog",				STRUCT_TRIGGERS,	dummy_triggers,				"DungeonProgram types."	},
-	{	"death_release",		STRUCT_FLAGS,		death_release_modes,		"Dungeon Death Release mobes."},
+	{	"death_release",		STRUCT_FLAGS,		death_release_modes,		"Dungeon Death Release modes."},
+	{	"do_func",				STRUCT_DOFUNC,		do_func_table,				"Do_ functions (CMDEdit)"},
 	{	"dungeon",				STRUCT_FLAGS,		dungeon_flags,				"Dungeon Flags"	},
 	{	"equip_func",			STRUCT_ARTIFICING,	equip_func_table,			"Equip Functions (SkEdit)"},
 	{	"exit",					STRUCT_FLAGS,		exit_flags,					"Exit types."	},
@@ -151,6 +154,7 @@ const struct olc_help_type help_table[] =
 	{	"iprog",				STRUCT_TRIGGERS,	dummy_triggers,				"InstanceProgram types."	},
 	{	"light",				STRUCT_FLAGS,		light_flags,				"Light flags."	},
 	{	"liquid",				STRUCT_LIQUID,		liq_table,					"Liquid types."	},
+	{   "log",					STRUCT_FLAGS,		log_flags,					"Log levels (CMDEdit)"},
 	{	"lock",					STRUCT_FLAGS,		lock_flags,					"Lock state types."	},
 	{	"matclass",				STRUCT_FLAGS,		material_classes,			"Material classes" },
 	{	"material",				STRUCT_FLAGS,		material_flags,				"Material flags."	},
@@ -393,24 +397,68 @@ void show_trigger_types(CHAR_DATA *ch, char *header, int prog)
 void show_spell_funcs(CHAR_DATA *ch, const struct spell_func_type *table)
 {
     char buf  [ MAX_STRING_LENGTH ];
-    char buf1 [ MAX_STRING_LENGTH ];
+//    char buf1 [ MAX_STRING_LENGTH ];
     int  col;
+	BUFFER *buffer = new_buf();
 
-    buf1[0] = '\0';
+//    buf1[0] = '\0';
     col = 0;
-    send_to_char("Functions available for use:\n\r", ch);
+    add_buf(buffer, "Functions available for use:\n\r");
     for (int i = 0; table[i].name != NULL; i++)
     {
 		sprintf(buf, "%-19.18s", table[i].name);
-		strcat(buf1, buf);
+		add_buf(buffer, buf);
 		if (++col % 4 == 0)
-	    	strcat(buf1, "\n\r");
+	    	add_buf(buffer, "\n\r");
     }
 
     if (col % 4 != 0)
-	strcat(buf1, "\n\r");
+	add_buf(buffer, "\n\r");
 
-    send_to_char(buf1, ch);
+    if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(buffer->string, ch);
+	}
+
+	free_buf(buffer);
+    return;
+}
+
+void show_do_funcs(CHAR_DATA *ch, const struct do_func_type *table)
+{
+    char buf  [ MAX_STRING_LENGTH ];
+//    char buf1 [ MAX_STRING_LENGTH ];
+    int  col;
+	BUFFER *buffer = new_buf();
+
+//    buf1[0] = '\0';
+    col = 0;
+    add_buf(buffer, "Functions available for use:\n\r");
+    for (int i = 0; table[i].name != NULL; i++)
+    {
+		sprintf(buf, "%-19.18s", table[i].name);
+		add_buf(buffer, buf);
+		if (++col % 4 == 0)
+	    	add_buf(buffer, "\n\r");
+    }
+
+    if (col % 4 != 0)
+	add_buf(buffer, "\n\r");
+
+    if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(buffer->string, ch);
+	}
+
+	free_buf(buffer);
     return;
 }
 
@@ -645,6 +693,10 @@ bool show_help(CHAR_DATA *ch, char *argument)
 					show_spell_funcs(ch, (const struct spell_func_type *)help_table[cnt].structure);
 					break;
 
+				case STRUCT_DOFUNC:
+					show_do_funcs(ch, (const struct do_func_type *)help_table[cnt].structure);
+					break;
+
 				case STRUCT_GSN:
 					show_gsns(ch);
 					break;
@@ -844,23 +896,62 @@ AEDIT(aedit_show)
 {
     AREA_DATA *pArea;
     char buf  [MAX_STRING_LENGTH];
-	BUFFER *buffer = new_buf();
+//	ITERATOR it;
+//	PROG_LIST *trigger;
+	BUFFER *buffer;
+	buffer = new_buf();
 
     EDIT_AREA(ch, pArea);
 
-    sprintf(buf, "Name:        [%5ld] %s\n\r", pArea->uid, pArea->name);
+	sprintf(buf, "{X======== {W%s{X ========\n\r", pArea->name);
 	add_buf(buffer, buf);
 
-    sprintf(buf, "File:        %s\n\r", pArea->file_name);
+	sprintf(buf, "{WArea: {R[{X%5ld{R]{X %s {R({WID: {X%ld{R){X\n\r", pArea->anum, pArea->name, pArea->uid);
 	add_buf(buffer, buf);
 
-    sprintf(buf, "Age:         [%d]\n\r",	pArea->age);
+	sprintf(buf, "\n\r{WSystem Infomation:{X\n\r");
 	add_buf(buffer, buf);
 
-    sprintf(buf, "Repop:       [%d minutes]\n\r", pArea->rs_repop);
+    sprintf(buf, "{WFile:        {R[{X%s{R]{X\n\r", pArea->file_name);
 	add_buf(buffer, buf);
 
-    sprintf(buf, "Players:     [%d]\n\r", pArea->nplayer);
+    sprintf(buf, "{WAge:         {R[{X%d{R]{X\n\r",	pArea->age);
+	add_buf(buffer, buf);
+
+    sprintf(buf, "{WRepop:       {R[{X%d minutes{R]{X\n\r", pArea->repop);
+	add_buf(buffer, buf);
+
+    sprintf(buf, "{WPlayers:     {R[{X%d{R]{X\n\r", pArea->nplayer);
+	add_buf(buffer, buf);
+
+	sprintf(buf, "{WCredits:     {R[{X%s{R]{X\n\r", pArea->credits);
+	add_buf(buffer, buf);
+
+    sprintf(buf, "{WFlags:       {R[{X%s{R]{X\n\r",
+		   flag_string(area_flags, pArea->area_flags));
+	add_buf(buffer, buf);
+
+    sprintf(buf, "{WOpen:        {R[{X%s{R]{X\n\r", pArea->open ? "Yes" : "No");
+	add_buf(buffer, buf);
+
+
+//
+// OLC Data
+//
+
+	sprintf(buf, "\n\r{WOLC Info:{X\n\r");
+	add_buf(buffer, buf);
+
+	sprintf(buf, "{WRepop:       {R[{X%d minutes{R]{X\n\r", pArea->repop);
+	add_buf(buffer, buf);
+
+	sprintf(buf, "{WSecurity:    {R[{X%d{R]{X\n\r", pArea->security);
+	add_buf(buffer, buf);
+
+	sprintf(buf, "{WBuilders:    {R[{X%s{R]{X\n\r", pArea->builders);
+	add_buf(buffer, buf);
+
+	sprintf(buf, "{WSuggested Levels:  {R[{X%d-%d{R]{X\n\r", pArea->min_level, pArea->max_level);
 	add_buf(buffer, buf);
 
     sprintf(buf, "Security:    [%d]\n\r", pArea->security);
@@ -875,22 +966,10 @@ AEDIT(aedit_show)
     sprintf(buf, "Flags:       [%s]\n\r", flag_string(area_flags, pArea->area_flags));
 	add_buf(buffer, buf);
 
-    if( pArea->wilds_uid > 0 )
-    {
-		WILDS_DATA *pWilds = get_wilds_from_uid(NULL, pArea->wilds_uid);
-    	sprintf(buf, "Wilderness:  [%ld] %s\n\r", pArea->wilds_uid, pWilds?pWilds->name:"(null)");
-		add_buf(buffer, buf);
-	}
-	else
-	{
-    	sprintf(buf, "Wilderness:  none\n\r");
-		add_buf(buffer, buf);
-	}
-
-    sprintf(buf, "Open:        [%s]\n\r", pArea->open ? "Yes" : "No");
+	sprintf(buf, "Description:\n\r%s\n\r", pArea->description);
 	add_buf(buffer, buf);
 
-	sprintf(buf, "Description:\n\r%s\n\r", pArea->description);
+	sprintf(buf, "\n\r{WPlayer Notes:{X\n\r%s\n\r", pArea->notes);
 	add_buf(buffer, buf);
 
 	if (!IS_NULLSTR(pArea->comments))
@@ -936,6 +1015,12 @@ AEDIT(aedit_show)
 			temp = temp->next;
 		}
     }
+
+	if (pArea->progs->progs)
+		olc_show_progs(buffer, pArea->progs->progs, PRG_APROG, "AreaProg Vnum");
+
+	if (pArea->index_vars)
+		olc_show_index_vars(buffer, pArea->index_vars);
 
 	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
 	{
@@ -2205,6 +2290,21 @@ AEDIT(aedit_comments)
     return false;
 }
 
+AEDIT(aedit_notes)
+{
+    AREA_DATA *pArea;
+
+    EDIT_AREA(ch, pArea);
+
+    if (argument[0] == '\0')
+    {
+	string_append(ch, &pArea->notes);
+	return TRUE;
+    }
+
+    send_to_char("Syntax:  notes\n\r", ch);
+    return FALSE;
+}
 
 AEDIT(aedit_repop)
 {
@@ -2549,6 +2649,46 @@ AEDIT(aedit_builder)
 	return false;
 }
 
+AEDIT(aedit_levels)
+{
+    AREA_DATA *pArea;
+    char lower[MAX_STRING_LENGTH];
+    char upper[MAX_STRING_LENGTH];
+    int  ilower;
+    int  iupper;
+
+    EDIT_AREA(ch, pArea);
+
+    argument = one_argument(argument, lower);
+    one_argument(argument, upper);
+
+    if (!is_number(lower) || lower[0] == '\0'
+    || !is_number(upper) || upper[0] == '\0')
+    {
+	send_to_char("Syntax:  levels [#xlower] [#xupper]\n\r", ch);
+	return FALSE;
+    }
+
+    if ((ilower = atoi(lower)) > (iupper = atoi(upper)))
+    {
+	send_to_char("AEdit:  Upper must be larger then lower.\n\r", ch);
+	return FALSE;
+    }
+
+    if ((ilower = atoi(lower)) > 120 || (iupper = atoi(upper)) < 1)
+    {
+	send_to_char("AEdit:  Range must be between 1 and 120.\n\r", ch);
+	return FALSE;
+    }
+
+    pArea->min_level = ilower;
+    send_to_char("Lower level set.\n\r", ch);
+
+    pArea->max_level = iupper;
+    send_to_char("Upper level set.\n\r", ch);
+
+    return TRUE;
+}
 
 AEDIT(aedit_postoffice)
 {
@@ -2716,6 +2856,7 @@ REDIT(redit_show)
     ROOM_INDEX_DATA *pRoom;
     char buf[MAX_STRING_LENGTH];
     BUFFER *buf1;
+	ROOM_INDEX_DATA *recall;
 
 
     int door;
@@ -2766,6 +2907,21 @@ REDIT(redit_show)
 		pRoom->rs_heal_rate , pRoom->rs_mana_rate, pRoom->rs_move_rate);
         add_buf(buf1, buf);
     }
+	if (rs_location_isset(&pRoom->rs_recall))
+	{
+		if(pRoom->rs_recall.wuid) {
+			WILDS_DATA *wilds = get_wilds_from_uid(NULL,pRoom->rs_recall.wuid);
+			if(wilds)
+				sprintf(buf, "{WRecall:      Wilds {X%s {R[{X%lu{R]{X at {R<{X%lu,%lu,%lu{R>{X\n\r", wilds->name, pRoom->rs_recall.wuid,
+					pRoom->rs_recall.id[0],pRoom->rs_recall.id[1],pRoom->rs_recall.id[2]);
+			else
+				sprintf(buf, "{WRecall:      Wilds {X??? {R[{X%lu{R]{X\n\r", pRoom->rs_recall.wuid);
+		} else if(pRoom->rs_recall.id[0] > 0 && (recall = get_room_index(get_area_from_uid(pRoom->rs_recall.auid), pRoom->rs_recall.id[0]))) {
+				sprintf(buf, "{WRecall:      Room {R[{X%5ld{R]{X {X%s\n\r", pRoom->rs_recall.id[0], recall->name);
+		} else
+				sprintf(buf, "{WRecall:      {R[{X%lu{R]{X none\n\r", pRoom->rs_recall.id[0]);
+		add_buf(buf1, buf);
+	}
 
 	if (pRoom->rs_savage_level < 0)
 		sprintf(buf, "Savagery:     {r[{Y-area-{r]{x\n\r");
@@ -2982,6 +3138,15 @@ REDIT(redit_show)
 
     page_to_char (buf_string(buf1), ch);
     free_buf(buf1);
+
+
+	if (ch->in_room->reset_first)
+	{
+	    send_to_char(
+		"\n\rResets: M = mobile, R = room, O = object, "
+		"P = pet, S = shopkeeper\n\r", ch);
+	    display_resets(ch);
+	}
 
     return false;
 }
@@ -4135,6 +4300,59 @@ REDIT(redit_comments)
 
     send_to_char("Syntax:  comment\n\r", ch);
     return false;
+}
+
+REDIT(redit_recall)
+{
+	ROOM_INDEX_DATA *pRoom;
+	char arg1[MIL];
+	char arg2[MIL];
+	char arg3[MIL];
+	char arg4[MIL];
+	int vnum, x, y, z;
+
+	EDIT_ROOM(ch, pRoom);
+
+	argument = one_argument(argument, arg1);
+	argument = one_argument(argument, arg2);
+	argument = one_argument(argument, arg3);
+	argument = one_argument(argument, arg4);
+
+	if (!is_number(arg1) || !arg1[0]) {
+		send_to_char("Syntax:  recall <vnum>\n\r", ch);
+		send_to_char("         recall <wuid> <x> <y> <z>\n\r", ch);
+		return false;
+	}
+
+	vnum = atoi(arg1);
+
+	if(vnum < 1) {
+		rs_location_clear(&pRoom->rs_recall);
+		send_to_char("Recall cleared.\n\r", ch);
+	} else if(!arg2[0]) {
+		if(!get_room_index(pRoom->area, vnum)) {
+			send_to_char("AEdit:  Room vnum does not exist.\n\r", ch);
+			return false;
+		}
+
+		rs_location_set(&pRoom->rs_recall,0,vnum,0,0);
+		send_to_char("Recall set.\n\r", ch);
+	} else if(!arg3[0] || !arg4[0] || !is_number(arg2) || !is_number(arg3) || !is_number(arg4)) {
+		send_to_char("Syntax:  recall <vnum>\n\r", ch);
+		send_to_char("         recall <wuid> <x> <y> <z>\n\r", ch);
+		return false;
+	} else if(!get_wilds_from_uid(NULL,vnum)) {
+		send_to_char("AEdit:  Wilderness UID does not exist.\n\r", ch);
+		return false;
+	} else {
+		x = atoi(arg2);
+		y = atoi(arg3);
+		z = atoi(arg4);
+		rs_location_set(&pRoom->rs_recall,vnum,x,y,z);
+		send_to_char("Recall set.\n\r", ch);
+	}
+
+	return true;
 }
 
 

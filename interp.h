@@ -65,6 +65,8 @@ void command_under_construction(CHAR_DATA *ch);
 #define CMDTYPE_IMMORTAL        8
 #define CMDTYPE_OLC             9
 #define CMDTYPE_ADMIN           10
+#define CMDTYPE_NEWBIE          11
+#define MAX_COMMAND_TYPES       12
 
 /*
  * Structure for a command in the command lookup table.
@@ -681,3 +683,15 @@ DECLARE_DO_FUN( do_unlead );
 DECLARE_DO_FUN( do_corpsedit );
 DECLARE_DO_FUN( do_corpselist );
 DECLARE_DO_FUN( do_corpseshow );
+
+DECLARE_DO_FUN( do_cmdlist );
+DECLARE_DO_FUN( do_cmdedit  );
+DECLARE_DO_FUN( do_cmdshow  );
+
+DECLARE_DO_FUN( do_area     );
+DECLARE_DO_FUN( do_areas    );
+DECLARE_DO_FUN( do_reloadstats );
+DECLARE_DO_FUN( do_testemail );
+DECLARE_DO_FUN( do_pwreset );
+DECLARE_DO_FUN( do_lvlaudit );
+DECLARE_DO_FUN( do_keygen );

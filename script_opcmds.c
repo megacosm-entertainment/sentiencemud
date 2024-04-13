@@ -174,6 +174,7 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "vforce",				do_opvforce,			false,	true	},
 	{ "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
 	{ "wiretransfer",		do_opwiretransfer,		false,	true	},
+	{ "wiznet",				scriptcmd_wiznet,			false,	true    },
 	{ "xcall",				do_opxcall,				false,	true	},
 	{ "zecho",				do_opzecho,				false,	true	},
 	{ "zot",				do_opzot,				true,	true	},
@@ -236,6 +237,7 @@ void do_opstat(CHAR_DATA *ch, char *argument)
 	OBJ_DATA *obj;
 	ITERATOR it;
 	int i, slot;
+	BUFFER *output = new_buf();
 
 	one_argument(argument, arg);
 
@@ -244,32 +246,49 @@ void do_opstat(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!(obj = get_obj_world(ch, arg))) {
-		send_to_char("No such object.\n\r", ch);
+	if (is_number(arg))
+	{
+		argument = one_argument(argument, arg);
+		if (argument[0] != '\0' && is_number(arg) && is_number(argument))
+		{
+			if ((obj = idfind_object(atoi(arg), atoi(argument))) == NULL)
+			{
+				send_to_char("Object not found.\n\r", ch);
+				return;
+			}
+		}
+		else
+		{
+			send_to_char("Syntax: opstat <name|IDa IDb>",ch);
+			return;
+		}	
+				
+	} else if (!(obj = get_obj_world(ch, arg))) {
+		add_buf(output, "No such object.\n\r");
 		return;
 	}
 
-	sprintf(arg, "Object %ld#%-6ld [%s] ID [%08lX:%08lX]\n\r",
+	sprintf(arg, "Object %ld#%-6ld [%s] ID [%9d:%9d]\n\r",
 		obj->pIndexData->area->uid,
 		obj->pIndexData->vnum,
 		obj->short_descr,
-		obj->id[0], obj->id[1]);
-	send_to_char(arg, ch);
+		(int)obj->id[0], (int)obj->id[1]);
+	add_buf(output, arg);
 
 	if( !IS_NULLSTR(obj->pIndexData->comments) )
 	{
 		sprintf(arg, "Comments:\n\r%s\n\r", obj->pIndexData->comments);
-		send_to_char(arg, ch);
+		add_buf(output, arg);
 	}
 
 	sprintf(arg, "Delay   %-6d [%s]\n\r",
 		obj->progs->delay,
 		obj->progs->target ? obj->progs->target->name : "No target");
 
-	send_to_char(arg, ch);
+	add_buf(output, arg);
 
 	if (!obj->pIndexData->progs)
-		send_to_char("[No programs set]\n\r", ch);
+		add_buf(output, "[No programs set]\n\r");
 	else
 	for(i = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
 		iterator_start(&it, obj->pIndexData->progs[slot]);
@@ -279,13 +298,22 @@ void do_opstat(CHAR_DATA *ch, char *argument)
 				oprg->wnum.pArea->uid,
 				oprg->wnum.vnum,
 				trigger_phrase(oprg->trig_type,oprg->trig_phrase));
-			send_to_char(arg, ch);
+			add_buf(output, arg);
 		}
 		iterator_stop(&it);
 	}
 
 	if(obj->progs->vars)
-		pstat_variable_list(ch, obj->progs->vars);
+		pstat_variable_list(output, obj->progs->vars);
+
+	if( !ch->lines && strlen(output->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(output->string, ch);
+	}
 }
 
 
@@ -2068,6 +2096,7 @@ SCRIPT_CMD(do_opmload)
 // do_opoload
 SCRIPT_CMD(do_opoload)
 {
+	/*
 	char buf[MIL], *rest;
 	long level;
 	WNUM wnum = wnum_zero;
@@ -2128,7 +2157,7 @@ SCRIPT_CMD(do_opoload)
 			if(!(rest = expand_argument(info,argument,arg)))
 				return;
 
-			/*
+			*
 			 * Added 3rd argument
 			 * omitted - load to current room
 			 * 'I'     - load to object's container
@@ -2136,7 +2165,7 @@ SCRIPT_CMD(do_opoload)
 			 *         - 'W' automatically wear the item if possible
 			 * OBJECT  - load to target object
 			 * ROOM    - load to target room
-			 */
+			 *
 
 			switch(arg->type) {
 			case ENT_STRING:
@@ -2199,6 +2228,8 @@ SCRIPT_CMD(do_opoload)
 
 	if(rest && *rest) variables_set_object(info->var,rest,obj);
 	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
+	*/
+	script_oload(info,argument,arg, false);
 }
 
 // do_opotransfer
@@ -6072,6 +6103,7 @@ SCRIPT_CMD(do_opsetrecall)
 {
 	char /*buf[MSL],*/ *rest;
 	CHAR_DATA *victim;
+	ROOM_INDEX_DATA *room;
 	ROOM_INDEX_DATA *location;
 //	int amount = 0;
 
@@ -6083,16 +6115,20 @@ SCRIPT_CMD(do_opsetrecall)
 		return;
 	}
 
+	victim = NULL;
+	room = NULL;
+
 	switch(arg->type) {
 	case ENT_STRING:
 		victim = get_char_world(NULL, arg->d.str);
 		break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
-	default: victim = NULL; break;
+	case ENT_ROOM: room = arg->d.room; break;
+	default: victim = NULL; room = NULL; break;
 	}
 
 
-	if (!victim) {
+	if (!victim && !room) {
 		bug("OpSetRecall - Null victim from vnum %ld.", VNUM(info->obj));
 		return;
 	}
@@ -6104,22 +6140,25 @@ SCRIPT_CMD(do_opsetrecall)
 		return;
 	}
 
-	if(location->wilds) {
-		victim->recall.wuid = location->wilds->uid;
-		victim->recall.id[0] = location->x;
-		victim->recall.id[1] = location->y;
-		victim->recall.id[2] = location->z;
-	} else {
-		victim->recall.wuid = 0;
-		victim->recall.id[0] = location->vnum;
-		if(location->source) {
-			victim->recall.id[1] = location->id[0];
-			victim->recall.id[2] = location->id[1];
-		} else {
-			victim->recall.id[1] = 0;
-			victim->recall.id[2] = 0;
-		}
+	if (victim)
+	{
+		if(location->wilds)
+			location_set(&victim->recall,location->area,location->wilds->uid,location->x,location->y,location->z);
+		else if(location->source)
+			location_set(&victim->recall,location->area,0,location->vnum,0,0);
+		else
+			location_set(&victim->recall,location->area,0,location->vnum,location->id[0],location->id[1]);
 	}
+
+	if (room)
+	{
+		if(location->wilds)
+			location_set(&room->recall,location->area,location->wilds->uid,location->x,location->y,location->z);
+		else if(location->source)
+			location_set(&room->recall,location->area,0,location->vnum,0,0);
+		else
+			location_set(&room->recall,location->area,0,location->vnum,location->id[0],location->id[1]);
+	}	
 }
 
 // do_opclearrecall

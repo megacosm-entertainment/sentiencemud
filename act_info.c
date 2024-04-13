@@ -40,6 +40,8 @@
 #include <ctype.h>
 #include <time.h>
 #include <math.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 #include "strings.h"
 #include "merc.h"
 #include "interp.h"
@@ -50,7 +52,6 @@
 /* VIZZWILDS - Include wilds.h header */
 #include "wilds.h"
 #include "scripts.h"
-#include "sha256.h"
 
 bool can_see_imm(CHAR_DATA *ch, CHAR_DATA *victim);
 void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument);
@@ -1092,6 +1093,15 @@ void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch, bool examine)
 	send_to_char(buf, ch);
     }
 
+	if (IS_SET(victim->act[1], ACT2_HIRED) && victim->leader == ch)
+	{
+		char hired_time[100];
+		strftime(hired_time, 100, "%a %b %d %X %Z %Y", localtime(&victim->hired_to));
+		//char *hired_time = strtok((ctime(time_t *)&victim->hired_to), "\n");
+		sprintf(buf, "{A%s is under contract until %s.\n\r", victim->short_descr, hired_time);
+		buf[2] = UPPER(buf[2]);
+		send_to_char(buf, ch);
+	}
 
     if (victim->max_hit > 0)
 	percent = (100 * victim->hit) / victim->max_hit;
@@ -1328,7 +1338,7 @@ void do_socials(CHAR_DATA * ch, char *argument)
     col = 0;
     for (iSocial = 0; social_table[iSocial].name[0] != '\0'; iSocial++)
     {
-	sprintf(buf, "%-12s", social_table[iSocial].name);
+	sprintf(buf, "%-12.12s", social_table[iSocial].name);
 	send_to_char(buf, ch);
 	if (++col % 6 == 0)
 	    send_to_char("\n\r", ch);
@@ -1605,6 +1615,159 @@ void do_survey(CHAR_DATA *ch, char *argument)
     }
 
     act("You aren't on a boat.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+}
+
+void do_areas(CHAR_DATA *ch, char *argument)
+{
+{
+    char buf[MAX_STRING_LENGTH];
+    AREA_DATA *pArea;
+    BUFFER *buffer;
+    int place_type = 0;
+	int areas_found = 0;
+
+    buffer = new_buf();
+
+    sprintf(buf, "[%-26.26s] (%7s)  [%-8s]\n\r",
+       "Area Name", "Level Range", "Locked?");
+    add_buf(buffer, buf);
+
+    if (argument[0] != '\0'
+    && (place_type = flag_value(place_flags, argument)) == NO_FLAG)
+    {
+	send_to_char("Syntax: areas\n\r"
+	             "        areas [first|second|third|fourth|island|other|abyss|eden]\n\r", ch);
+	return;
+    }
+
+    for (pArea = area_first; pArea; pArea = pArea->next)
+    {
+	if (place_type == 0 || (pArea->region.place_flags == place_type))
+	{
+		if (pArea->open && pArea->region.place_flags != PLACE_NOWHERE)
+		{
+			sprintf(buf, "{X%-26.26s%s  {D ({x%-5d{D-{x%5d{D){X %s{x \n\r",
+	     	pArea->name,
+	     	"{x",
+	     	pArea->min_level,
+	     	pArea->max_level,
+			is_area_unlocked(ch, pArea) ? "{G Unlocked": "{R LOCKED");
+			add_buf(buffer, buf);
+			areas_found++;
+		}
+	}
+    }
+
+	if (areas_found > 0)
+	{
+		sprintf(buf, "%d areas found for this location.\n\r", areas_found);
+		add_buf(buffer, buf);
+	}
+	else
+	{
+		sprintf(buf, "No open areas found for this location.\n\r");
+		add_buf(buffer, buf);
+	}
+
+    page_to_char(buf_string(buffer), ch);
+    free_buf(buffer);
+}
+}
+
+void do_area(CHAR_DATA *ch, char *argument)
+{
+	AREA_DATA *pArea;
+    char arg[MAX_STRING_LENGTH];
+	char buf[MAX_STRING_LENGTH];
+	ROOM_INDEX_DATA *recall;
+
+	pArea = ch->in_room->area;
+
+	argument	= one_argument(argument,arg);
+    if (!str_cmp(arg, ""))
+    {
+        send_to_char("Syntax: area <area name>\n\r", ch);
+		return;
+    }
+	if (arg[0] != '\0' && (pArea = find_area_kwd(arg)) == NULL)
+    {
+	send_to_char("Area not found.\n\r", ch);
+	return;
+    }
+	if (!pArea->open || pArea->region.place_flags == PLACE_NOWHERE)
+	{
+		send_to_char("Area data not accessible.\n\r", ch);
+		return;
+	}
+	else
+	{
+		sprintf(buf, "===== %s =====\n\r\n\r", pArea->name);
+		send_to_char(buf, ch);
+
+		sprintf(buf, "{WImm Credits:{X             %s\n\r", pArea->credits);
+		send_to_char(buf, ch);
+
+		sprintf(buf, "{WRecommended Level Range: {X%d {W-{X %d\n\r", pArea->min_level, pArea->max_level);
+		send_to_char(buf, ch);
+
+		sprintf(buf, "{WRepops every %d minutes.{X\n\r", pArea->repop);
+		send_to_char(buf,ch);
+
+
+
+		sprintf(buf, "\n\r{WLocation Info:{X\n\r");
+		send_to_char(buf, ch);
+
+		sprintf(buf, "{WArea Location:{X           %s\n\r", flag_string(place_flags, pArea->region.place_flags));
+		send_to_char(buf, ch);
+	
+		if( pArea->wilds_uid > 0 )
+    	{
+			WILDS_DATA *pWilds = get_wilds_from_uid(NULL, pArea->wilds_uid);
+    		sprintf(buf, "{WMap:     {X                %s\n\r", pWilds?pWilds->name:"(null)");
+	   	 	send_to_char(buf, ch);
+
+			sprintf(buf, "{WCoordinates (X,Y):       [{X%d, %d{W]{X\n\r", pArea->region.x, pArea->region.y);
+    		send_to_char(buf, ch);
+		}
+
+		if(pArea->region.recall.wuid) 
+		{
+			WILDS_DATA *wilds = get_wilds_from_uid(NULL,pArea->region.recall.wuid);
+			if(wilds)
+				sprintf(buf, "{WRecall:                  Wilds {X%s at <%lu,%lu,%lu>{X\n\r", wilds->name,
+				pArea->region.recall.id[0],pArea->region.recall.id[1],pArea->region.recall.id[2]);
+			else
+				sprintf(buf, "{WRecall:                  Wilds {X%lu at ???{X\n\r", pArea->region.recall.wuid);
+		} 
+		else if(pArea->region.recall.id[0] > 0 && (recall = get_room_index(pArea,pArea->region.recall.id[0]))) 
+		{
+			sprintf(buf, "{WRecall:                  {X%s\n\r", recall->name);
+		} 
+		else
+			sprintf(buf, "{WRecall:                  {Xnone\n\r");
+	
+		send_to_char(buf, ch);
+
+    // One post office per area
+    	sprintf(buf, "{WPost Office              {X%s\n\r",
+        	get_room_index(pArea, pArea->region.post_office) == NULL ? "None" :
+	    	get_room_index(pArea, pArea->region.post_office)->name);
+    		send_to_char(buf, ch);
+
+
+
+
+		sprintf(buf, "\n\r{WDescription:{X\n\r%s\n\r", pArea->description);
+		send_to_char(buf,ch);
+
+		if(pArea->notes)
+		{
+			sprintf(buf, "\n\r{WSpecial Notes:{X\n\r%s\n\r", pArea->notes);
+			send_to_char(buf,ch);
+		}
+
+	}
 }
 
 void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, bool automatic)
@@ -3212,9 +3375,9 @@ void do_score(CHAR_DATA * ch, char *argument)
 
 	CLASS_LEVEL *cl = get_class_level(ch, NULL);
 	if(cl)
-    	sprintf(buf, "{BLevel: {x%d", cl->level);
+    	sprintf(buf, "{BLevel: {x%d (%d)", cl->level, ch->tot_level);
 	else
-		sprintf(buf, "{BLevel: {x---");
+		sprintf(buf, "{BLevel: {x--- (%d)", ch->tot_level);
     for (i = strlen_no_colours(buf); i < 25; i++)
 	strcat(buf, " ");
     send_to_char(buf, ch);
@@ -3752,13 +3915,23 @@ void do_score(CHAR_DATA * ch, char *argument)
 	COMMAND_DATA *cmd;
 	int i;
 	char buf2[MSL];
+	CMD_DATA *command;
 
 	send_to_char("{YYou have been granted the following commands:{x\n\r", ch);
 
 	i = 0;
 	for (cmd = ch->pcdata->commands; cmd != NULL; cmd = cmd->next) {
 	    i++;
-	    sprintf(buf2, "%-15s", cmd->name);
+		command = get_cmd_data(cmd->name);
+
+			if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)")) && !IS_NULLSTR(command->summary))
+				sprintf(buf2, "\t<send href=\"%s|help %s\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, command->help_keywords->string, command->summary, command->name, command->name, pad_string(command->name, 15, NULL, NULL));
+			else if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)")) && IS_NULLSTR(command->summary))
+				sprintf(buf2, "\t<send href=\"%s|help %s\" hint=\"Execute %s|View '%s' helpfile\">{X%s\t</send>%s", command->name, command->help_keywords->string, command->name, command->name, command->name, pad_string(command->name, 15, NULL, NULL));
+			else if ((command->help_keywords == NULL || !str_cmp(command->help_keywords->string, "(null)")) && !IS_NULLSTR(command->summary))
+				sprintf(buf2, "\t<send href=\"%s\" hint=\"%s\">{X%s\t</send>%s", command->name, command->summary, command->name, pad_string(command->name, 15, NULL, NULL));
+			else
+				sprintf(buf2, "\t<send href=\"%s\" hint=\"Execute %s\">{X%s\t</send>%s", command->name, command->name, command->name, pad_string(command->name, 15, NULL, NULL));		
 	    if (i % 4 == 0)
 		strcat(buf2, "\n\r");
 

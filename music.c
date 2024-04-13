@@ -271,6 +271,9 @@ void do_play(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
+	if (check_social_status(ch))
+		return;
+
     entry = skill_entry_findname(ch->sorted_songs, arg);
 
     if (!entry)
@@ -1514,7 +1517,7 @@ void check_improve_song_show( CHAR_DATA *ch, SONG_DATA *song, bool success, int 
 			sprintf(buf,"{WYou have become better at %s!{x\n\r", song->name);
 			send_to_char(buf,ch);
 			entry->rating++;
-			gain_exp(ch, NULL, 2 * diff);
+			gain_exp(ch, NULL, 2 * diff, TRIG_PULSE);
 		}
     }
     else
@@ -1526,7 +1529,7 @@ void check_improve_song_show( CHAR_DATA *ch, SONG_DATA *song, bool success, int 
 			send_to_char(buf, ch);
 			entry->rating += number_range(1,3);
 			entry->rating = UMIN(entry->rating,100);
-			gain_exp(ch, NULL,diff);
+			gain_exp(ch, NULL,diff, true);
 		}
     }
 }

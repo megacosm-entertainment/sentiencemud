@@ -81,7 +81,7 @@ void do_gq(CHAR_DATA *ch, char *argument)
 		sprintf(buf, "{Y#  %-8s %-34s %-5s", "Widevnum", "Name", "Found{x\n\r");
 		send_to_char(buf, ch);
 
-		line(ch, 60);
+		line(ch, 60, NULL, NULL);
 
 		i = 0;
 		if (mob)
@@ -124,7 +124,7 @@ void do_gq(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		line(ch, 60);
+		line(ch, 60, NULL, NULL);
 		return;
 	}
 	/*
@@ -366,7 +366,7 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	sprintf(buf, "{Y#  %-20s %-10s %-20s %-10s %s %s{x\n\r",
 		"Mob Name", "Mob Wnum", "Obj Name", "Obj Vnum", "Class", "Group?");
 	send_to_char(buf, ch);
-	line(ch, 78);
+	line(ch, 78, NULL, NULL);
 
 	i = 1;
 	for (gq_mob = global_quest.mobs; gq_mob != NULL; gq_mob = gq_mob->next)
@@ -395,7 +395,7 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	page_to_char(buf_string(buffer), ch);
 	free_buf (buffer);
 
-	line(ch, 78);
+	line(ch, 78, NULL, NULL);
 	return;
 	}
 
@@ -654,7 +654,7 @@ void do_gq(CHAR_DATA *ch, char *argument)
 		"Silver",
 		"Gold");
 	send_to_char(buf, ch);
-	line(ch, 78);
+	line(ch, 78, NULL, NULL);
 
 	i = 1;
 	for (gq_obj = global_quest.objects; gq_obj != NULL; gq_obj = gq_obj->next)
@@ -682,7 +682,7 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	page_to_char(buf_string(buffer), ch);
 	free_buf (buffer);
 
-	line(ch, 78);
+	line(ch, 78, NULL, NULL);
 
 
 		return;

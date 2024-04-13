@@ -62,6 +62,8 @@
 #include <zlib.h>
 /* VIZZWILDS - support for plogf() and printf_to_char() functions*/
 #include <stdarg.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
 #include "strings.h"
 #include "merc.h"
@@ -70,7 +72,6 @@
 #include "scripts.h"
 #include "tables.h"
 #include "wilds.h"
-#include "sha256.h"
 #include "protocol.h"
 
 /*
@@ -92,159 +93,6 @@ const   char    compress_dont   [] = { IAC, DONT, TELOPT_COMPRESS2, '\0' };
 const   char    msp_will        [] = { IAC, WILL, TELOPT_MSP, '\0' };
 const   char    msp_do          [] = { IAC, DO, TELOPT_MSP, '\0' };
 const   char    msp_dont        [] = { IAC, DONT, TELOPT_MSP, '\0' };
-
-
-/*
- * OS-dependent declarations.
- */
-#if	defined(_AIX)
-#include <sys/select.h>
-int	accept		args((int s, struct sockaddr *addr, int *addrlen));
-int	bind		args((int s, struct sockaddr *name, int namelen));
-void	bzero		args((char *b, int length));
-int	getpeername	args((int s, struct sockaddr *name, int *namelen));
-int	getsockname	args((int s, struct sockaddr *name, int *namelen));
-int	gettimeofday	args((struct timeval *tp, struct timezone *tzp));
-int	listen		args((int s, int backlog));
-int	setsockopt	args((int s, int level, int optname, void *optval,
-			    int optlen));
-int	socket		args((int domain, int type, int protocol));
-#endif
-
-#if	defined(apollo)
-#include <unistd.h>
-void	bzero		args((char *b, int length));
-#endif
-
-#if	defined(__hpux)
-int	accept		args((int s, void *addr, int *addrlen));
-int	bind		args((int s, const void *addr, int addrlen));
-void	bzero		args((char *b, int length));
-int	getpeername	args((int s, void *addr, int *addrlen));
-int	getsockname	args((int s, void *name, int *addrlen));
-int	gettimeofday	args((struct timeval *tp, struct timezone *tzp));
-int	listen		args((int s, int backlog));
-int	setsockopt	args((int s, int level, int optname,
- 				const void *optval, int optlen));
-int	socket		args((int domain, int type, int protocol));
-#endif
-
-#if	defined(interactive)
-#include <net/errno.h>
-#include <sys/fnctl.h>
-#endif
-
-#if	defined(linux)
-/*
-    Linux shouldn't need these. If you have a problem compiling, try
-    uncommenting these functions.
-*/
-/*
-int accept    args( ( int s, struct sockaddr *addr, int *addrlen ) );
-int bind    args( ( int s, struct sockaddr *name, int namelen ) );
-int getpeername args( ( int s, struct sockaddr *name, int *namelen ) );
-int getsockname args( ( int s, struct sockaddr *name, int *namelen ) );
-int listen    args( ( int s, int backlog ) );
-*/
-
-int	close		args((int fd));
-/* int	gettimeofday	args((struct timeval *tp, struct timezone *tzp)); */
-/*int	read		args((int fd, char *buf, int nbyte));*/
-int	select		args((int width, fd_set *readfds, fd_set *writefds,
-			    fd_set *exceptfds, struct timeval *timeout));
-int	socket		args((int domain, int type, int protocol));
-/*int	write		args((int fd, char *buf, int nbyte));*/
-#endif
-
-#if	defined(MIPS_OS)
-extern	int		errno;
-#endif
-
-#if	defined(NeXT)
-int	close		args((int fd));
-int	fcntl		args((int fd, int cmd, int arg));
-#if	!defined(htons)
-u_short	htons		args((u_short hostshort));
-#endif
-#if	!defined(ntohl)
-u_long	ntohl		args((u_long hostlong));
-#endif
-int	read		args((int fd, char *buf, int nbyte));
-int	select		args((int width, fd_set *readfds, fd_set *writefds,
-			    fd_set *exceptfds, struct timeval *timeout));
-int	write		args((int fd, char *buf, int nbyte));
-#endif
-
-#if	defined(sequent)
-int	accept		args((int s, struct sockaddr *addr, int *addrlen));
-int	bind		args((int s, struct sockaddr *name, int namelen));
-int	close		args((int fd));
-int	fcntl		args((int fd, int cmd, int arg));
-int	getpeername	args((int s, struct sockaddr *name, int *namelen));
-int	getsockname	args((int s, struct sockaddr *name, int *namelen));
-int	gettimeofday	args((struct timeval *tp, struct timezone *tzp));
-#if	!defined(htons)
-u_short	htons		args((u_short hostshort));
-#endif
-int	listen		args((int s, int backlog));
-#if	!defined(ntohl)
-u_long	ntohl		args((u_long hostlong));
-#endif
-int	read		args((int fd, char *buf, int nbyte));
-int	select		args((int width, fd_set *readfds, fd_set *writefds,
-			    fd_set *exceptfds, struct timeval *timeout));
-int	setsockopt	args((int s, int level, int optname, caddr_t optval,
-
-			    int optlen));
-int	socket		args((int domain, int type, int protocol));
-int	write		args((int fd, char *buf, int nbyte));
-#endif
-
-/* This includes Solaris Sys V as well */
-#if defined(sun)
-int	accept		args((int s, struct sockaddr *addr, int *addrlen));
-int	bind		args((int s, struct sockaddr *name, int namelen));
-void	bzero		args((char *b, int length));
-int	close		args((int fd));
-int	getpeername	args((int s, struct sockaddr *name, int *namelen));
-int	getsockname	args((int s, struct sockaddr *name, int *namelen));
-int	listen		args((int s, int backlog));
-int	read		args((int fd, char *buf, int nbyte));
-int	select		args((int width, fd_set *readfds, fd_set *writefds,
-			    fd_set *exceptfds, struct timeval *timeout));
-
-#if !defined(__SVR4)
-int	gettimeofday	args((struct timeval *tp, struct timezone *tzp));
-
-#if defined(SYSV)
-int setsockopt		args((int s, int level, int optname,
-			    const char *optval, int optlen));
-#else
-int	setsockopt	args((int s, int level, int optname, void *optval,
-			    int optlen));
-#endif
-#endif
-int	socket		args((int domain, int type, int protocol));
-int	write		args((int fd, char *buf, int nbyte));
-#endif
-
-#if defined(ultrix)
-int	accept		args((int s, struct sockaddr *addr, int *addrlen));
-int	bind		args((int s, struct sockaddr *name, int namelen));
-void	bzero		args((char *b, int length));
-int	close		args((int fd));
-int	getpeername	args((int s, struct sockaddr *name, int *namelen));
-int	getsockname	args((int s, struct sockaddr *name, int *namelen));
-int	gettimeofday	args((struct timeval *tp, struct timezone *tzp));
-int	listen		args((int s, int backlog));
-int	read		args((int fd, char *buf, int nbyte));
-int	select		args((int width, fd_set *readfds, fd_set *writefds,
-			    fd_set *exceptfds, struct timeval *timeout));
-int	setsockopt	args((int s, int level, int optname, void *optval,
-			    int optlen));
-int	socket		args((int domain, int type, int protocol));
-int	write		args((int fd, char *buf, int nbyte));
-#endif
 
 
 void show_form_state(CHAR_DATA *ch);
@@ -284,8 +132,10 @@ void save_races();
  * Global variables.
  */
 bool			is_test_port;
-int 		    port;
+int 		    telnet_port;
+int				tls_port;
 GLOBAL_DATA         gconfig;		/* Vizz - UID Tracking, and any other persistent global config info */
+GAME_SETTINGS_DATA	game_settings;
 LLIST *conn_players;
 LLIST *conn_immortals;
 LLIST *conn_online;
@@ -298,18 +148,22 @@ bool		    wizlock;		/* Game is wizlocked		*/
 bool		    newlock;		/* Game is newlocked		*/
 char		    str_boot_time[MAX_INPUT_LENGTH];
 time_t		    current_time;	/* time of this pulse */
+time_t			stats_load_time;
 bool		    MOBtrigger = true;  /* act() switch                 */
 LLIST *loaded_areas;
+SSL_CTX *ctx;
+
 
 /*
  * OS-dependent local functions.
  */
-void	game_loop_unix		args((int control));
+void	game_loop		args((int control_telnet, int control_tls));
 int	init_socket		args((int port));
-void	init_descriptor		args((int control));
+int init_tls_socket	args((int port));
+void	init_descriptor		args((int control, bool is_tls));
 bool	read_from_descriptor	args((DESCRIPTOR_DATA *d));
 bool	write_to_descriptor	args((DESCRIPTOR_DATA *d, char *txt, int length));
-bool	write_to_descriptor_2	args((int desc, char *txt, int length));
+bool	write_to_descriptor_2	args((DESCRIPTOR_DATA *d, char *txt, int length));
 
 
 /*
@@ -339,9 +193,11 @@ extern bool fBootstrap;
 static void RedirectSTDOUT(void)
 {
 	FILE *newfp;
+	char log_time[100];
 
 	/* Redirect standard input and standard output*/
-	sprintf(logfile_std,"../log/sent%d_%d.log",port,(int)time(NULL));
+	strftime(log_time, 100, "%F-%X", localtime(&current_time));
+	sprintf(logfile_std,"../log/sent_%s.log",log_time);
 	if(!(newfp = freopen(logfile_std,"a",stdout))) { /* This happens on NT*/
 #if !defined(stdout)
 		stdout = fopen(logfile_std,"a");
@@ -359,9 +215,11 @@ static void RedirectSTDOUT(void)
 static void RedirectSTDERR(void)
 {
 	FILE *newfp;
+	char log_time[100];
 
 	/* Redirect standard input and standard output*/
-	sprintf(logfile_err,"../log/sent%d_%d.err",port,(int)time(NULL));
+	strftime(log_time, 100, "%F-%X", localtime(&current_time));
+	sprintf(logfile_err,"../log/sent_%s.err",log_time);
 	if(!(newfp = freopen(logfile_err,"a",stderr))) { /* This happens on NT*/
 #if !defined(stdout)
 		stdout = fopen(logfile_err,"a");
@@ -423,12 +281,12 @@ static void CleanupLogs(void)
 
 static void check_logfile(void)
 {
-	if(ftell(stdout) > MAX_LOGFILE) {
+	if(ftell(stdout) > game_settings.max_logfile_size) {
 		CleanupSTDOUT();
 		RedirectSTDOUT();
 	}
 
-	if(ftell(stderr) > MAX_LOGFILE) {
+	if(ftell(stderr) > game_settings.max_logfile_size) {
 		CleanupSTDERR();
 		RedirectSTDERR();
 	}
@@ -450,7 +308,7 @@ bool parse_options(int argc, char **argv)
 				return false;
 			}
 
-			port = p;
+			telnet_port = p;
 		}
 		else if ( argv[i][0] == '-' && (strlen(argv[i]) == 2) )
 		{
@@ -492,11 +350,12 @@ bool parse_options(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
-    static GLOBAL_DATA gconfig_zero;
     struct timeval now_time;
-    int control;
+    int control_telnet;
+	int control_tls;
     ITERATOR iter;
     void *data;
+	static GAME_SETTINGS_DATA game_settings_zero;
 
     /*
      * Memory debugging if needed.
@@ -601,7 +460,6 @@ int main(int argc, char **argv)
 
 	init_string_space();
 
-
     /*
      * Init time.
      */
@@ -618,10 +476,17 @@ int main(int argc, char **argv)
 		exit(1);
     }
 
+	game_settings = game_settings_zero;
+	if (game_settings_read()==1) exit(1);
+	log_string("Global game settings loaded.");
+
     /*
      * Get the port number.
      */
-    port = 9000;
+	if (game_settings.telnet_port)
+		telnet_port = game_settings.telnet_port;
+	if (game_settings.tls_port)
+		tls_port = game_settings.tls_port;
     is_test_port = false;
     newlock = false;
     wizlock = false;
@@ -664,9 +529,12 @@ int main(int argc, char **argv)
     RedirectOutput();
 
     /* Vizz - load up our list of UIDs. Without this, we cannot assign unique UIDs to things */
+
+/*
     gconfig = gconfig_zero;
     if (gconfig_read()==1) exit(1);
 	log_string("Global config loaded.");
+*/
 
 	if (!init_scripting()) exit(1);
 	log_string("scripting initialized.");
@@ -698,16 +566,36 @@ int main(int argc, char **argv)
     /*
      * Run the game.
      */
-    control = init_socket(port);
-	sprintf(log_buf, "Socket bound to port %d.", port);
-	log_string(log_buf);
+	if ((!game_settings.enable_telnet && game_settings.telnet_port) && (!game_settings.enable_tls && game_settings.tls_port && !IS_NULLSTR(game_settings.ssl_cert_path) && !IS_NULLSTR(game_settings.ssl_key_path)))
+	{
+		fprintf(stderr, "No available connection options. Please set enable_telnet and telnet_port, and/or enable_tls and tls_port, along with ssl_cert_path and ssl_key_path in the game_settings table.\n");
+		exit(1);
+	}
+
+	if (game_settings.enable_telnet)
+	{
+    	control_telnet = init_socket(telnet_port);
+		sprintf(log_buf, "Telnet socket bound to port %d.", telnet_port);
+		log_string(log_buf);
+	}
+	if (game_settings.enable_tls && game_settings.tls_port)
+	{
+		control_tls = init_tls_socket(tls_port);
+		sprintf(log_buf, "TLS socket bound to port %d.", tls_port);
+		log_string(log_buf);
+	}
+
     boot_db();
-    sprintf(log_buf, "Sentience is up on port %d.", port);
+
+	if (!load_commands()) exit(1);
+	log_string("commands loaded.");
+
+    sprintf(log_buf, "Sentience is up on %d.", telnet_port);
     log_string(log_buf);
     #ifdef IMC
     imc_startup( false, -1, false );
     #endif
-    game_loop_unix(control);
+    game_loop(control_telnet, control_tls);
 	list_destroy(conn_players);
 	list_destroy(conn_immortals);
 	list_destroy(conn_online);
@@ -733,7 +621,10 @@ int main(int argc, char **argv)
 	iterator_stop(&iter);
 	list_destroy(loaded_wilds);
 	list_destroy(list_churches);
-    close (control);
+	if (game_settings.enable_telnet)
+    	close (control_telnet);
+	if (game_settings.enable_tls)
+		close(control_tls);
 	#ifdef IMC
 	SERVER_DATA *server;
 	extern SERVER_DATA *first_server;
@@ -762,6 +653,9 @@ int main(int argc, char **argv)
 	list_destroy(sectors_list);
 
 	terminate_scripting();
+
+		save_commands();
+	list_destroy(commands_list);
 
     if (gconfig_write()==1)
     {
@@ -859,7 +753,76 @@ int init_socket(int port)
     return fd;
 }
 
-void game_loop_unix(int control)
+int init_tls_socket(int port)
+{
+    static struct sockaddr_in sa_zero;
+    struct sockaddr_in sa;
+    int x = 1;
+    int fd;
+
+    if ((fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    {
+	perror("Init_socket: socket");
+	exit(1);
+    }
+
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
+    (char *) &x, sizeof(x)) < 0)
+    {
+	perror("Init_socket: SO_REUSEADDR");
+	close(fd);
+	exit(1);
+    }
+
+#if defined(SO_DONTLINGER) && !defined(SYSV)
+    {
+	struct	linger	ld;
+
+	ld.l_onoff  = 1;
+	ld.l_linger = 1000;
+
+	if (setsockopt(fd, SOL_SOCKET, SO_DONTLINGER,
+	(char *) &ld, sizeof(ld)) < 0)
+	{
+	    perror("Init_socket: SO_DONTLINGER");
+	    close(fd);
+	    exit(1);
+	}
+    }
+#endif
+
+    sa		    = sa_zero;
+    sa.sin_family   = AF_INET;
+    sa.sin_port	    = htons(port);
+
+    if (bind(fd, (struct sockaddr *) &sa, sizeof(sa)) < 0)
+    {
+	perror("Init socket: bind");
+	close(fd);
+	exit(1);
+    }
+
+
+    if (listen(fd, 3) < 0)
+    {
+	perror("Init socket: listen");
+	close(fd);
+	exit(1);
+    }
+
+	// Initialize SSL library
+    init_openssl_library();
+
+    // Create SSL context
+    ctx = create_context();
+
+    // Configure SSL context
+    configure_context(ctx);
+
+    return fd;
+}
+
+void game_loop(int control_telnet, int control_tls)
 {
     static struct timeval null_time;
     struct timeval last_time;
@@ -888,8 +851,18 @@ void game_loop_unix(int control)
 	FD_ZERO(&in_set );
 	FD_ZERO(&out_set);
 	FD_ZERO(&exc_set);
-	FD_SET(control, &in_set);
-	maxdesc	= control;
+	if (control_telnet != -1 && game_settings.enable_telnet)
+	{
+		FD_SET(control_telnet, &in_set);
+		maxdesc	= control_telnet;
+	}
+	if (control_tls != -1 && game_settings.enable_tls)
+	{
+		FD_SET(control_tls, &in_set);
+		maxdesc	= control_tls;
+	}
+
+/*
 	for (d = descriptor_list; d; d = d->next)
 	{
 	    maxdesc = UMAX(maxdesc, d->descriptor);
@@ -897,6 +870,21 @@ void game_loop_unix(int control)
 	    FD_SET(d->descriptor, &out_set);
 	    FD_SET(d->descriptor, &exc_set);
 	}
+*/
+for (d = descriptor_list; d; d = d->next)
+{
+    FD_SET(d->descriptor, &in_set);
+    FD_SET(d->descriptor, &out_set);
+	FD_SET(d->descriptor, &exc_set);
+	
+    maxdesc = UMAX(maxdesc, d->descriptor);
+/*
+    if (d->ssl && d->tls_handshake_in_progress) {
+        // If the TLS handshake is in progress, we want to wait for write events
+        FD_SET(d->descriptor, &out_set);
+    }
+*/
+}
 
 	if (select(maxdesc+1, &in_set, &out_set, &exc_set, &null_time) < 0)
 	{
@@ -932,8 +920,11 @@ void game_loop_unix(int control)
 	/*
 	 * New connection?
 	 */
-	if (FD_ISSET(control, &in_set))
-	    init_descriptor(control);
+	if (FD_ISSET(control_telnet, &in_set))
+	    init_descriptor(control_telnet, false);
+	
+	if (FD_ISSET(control_tls, &in_set))
+		init_descriptor(control_tls, true);
 
 	/*
 	 * Kick out the freaky folks.
@@ -964,24 +955,68 @@ void game_loop_unix(int control)
 
 	    if (FD_ISSET(d->descriptor, &in_set))
 	    {
-		if (d->character != NULL)
-		    d->character->timer = 0;
+			if (d->character != NULL)
+		    	d->character->timer = 0;
 
-		if (!read_from_descriptor(d))
-		{
-		    FD_CLR(d->descriptor, &out_set);
+			if (!read_from_descriptor(d))
+			{
+		    	FD_CLR(d->descriptor, &out_set);
 
-		    if (d->character != NULL
-			    &&   d->connected == CON_PLAYING)
-			save_char_obj(d->character);
+	    		if (d->character != NULL
+		    		&&   d->connected == CON_PLAYING)
+				save_char_obj(d->character);
 
-		    d->outtop	= 0;
-		    close_socket(d);
-		    continue;
+	    		d->outtop	= 0;
+	    		close_socket(d);
+	    		continue;
+			}
+
+	    	d->muted = 0;
+
+			if (d->ssl && d->tls_handshake_in_progress && FD_ISSET(d->descriptor, &out_set)) 
+			{
+				int ret = SSL_accept(d->ssl);
+				if (ret == 1)
+					d->tls_handshake_in_progress = false;
+				else if (ret == 0)
+				{
+					close_socket(d);
+					continue;
+				} 
+				else 
+				{
+					int err = SSL_get_error(d->ssl, ret);
+					if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
+						continue;
+					} 
+					else 
+					{
+						close_socket(d);
+						continue;
+					}
+				}
+			}/*
+			else
+			{
+				if (d->character != NULL)
+		    	d->character->timer = 0;
+
+				if (!read_from_descriptor(d))
+				{
+		    		FD_CLR(d->descriptor, &out_set);
+
+		    		if (d->character != NULL
+			    		&&   d->connected == CON_PLAYING)
+					save_char_obj(d->character);
+
+		    		d->outtop	= 0;
+		    		close_socket(d);
+		    		continue;
+				}
+
+		    	d->muted = 0;		// Force it to unmute every time they give any kind of command
+	    	}*/
 		}
-
-		    d->muted = 0;		// Force it to unmute every time they give any kind of command
-	    }
 
 	    if (d->character != NULL && d->character->wait > 0)
 	    {
@@ -1188,7 +1223,7 @@ imc_loop();
 }
 
 
-void init_descriptor(int control)
+void init_descriptor(int control, bool is_tls)
 {
     char buf[MAX_STRING_LENGTH];
     DESCRIPTOR_DATA *dnew;
@@ -1219,6 +1254,41 @@ void init_descriptor(int control)
      * Cons a new descriptor.
      */
     dnew = new_descriptor();
+
+	if (is_tls) {
+		dnew->ssl = SSL_new(ctx);
+		dnew->tls_handshake_in_progress = true;
+		if (dnew->ssl == NULL) {
+			bug("New_descriptor: SSL_new failed", 0);
+			return;
+		}
+
+		if (SSL_set_fd(dnew->ssl, desc) == 0) {
+			bug("New_descriptor: SSL_set_fd failed", 0);
+			return;
+		}
+
+// When you first accept a new TLS connection:
+int ret = SSL_accept(dnew->ssl);
+if (ret <= 0) {
+    int err = SSL_get_error(dnew->ssl, ret);
+    if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
+        // The operation did not complete; the same I/O function should be called again later
+        dnew->tls_handshake_in_progress = true;
+    } else {
+        fprintf(stderr, "SSL error: %d\n", err);
+        ERR_print_errors_fp(stderr);
+        return;
+    }
+} else {
+    // Handshake was successful
+    dnew->tls_handshake_in_progress = false;
+}
+	}
+	else
+	{
+		dnew->ssl = NULL;
+	}
 
     dnew->descriptor	= desc;
     dnew->connected	= CON_GET_NAME;
@@ -1267,8 +1337,9 @@ void init_descriptor(int control)
      */
     if (check_ban(dnew->host,BAN_ALL))
     {
-	write_to_descriptor_2(desc,
-	    "Your site has been banned from Sentience.\n\r", 0);
+		char banmsg[MIL];
+		sprintf(banmsg, "Your site has been banned from %s\n\r", game_settings.game_name);
+	write_to_descriptor_2(dnew, banmsg, 0);
 	close(desc);
 	free_descriptor(dnew);
 	return;
@@ -1288,14 +1359,28 @@ void init_descriptor(int control)
     write_to_buffer(dnew, compress_will, 0);
 
     /* msp: tell the client we support msp */
-    write_to_buffer(dnew, msp_will, 0);
+    //write_to_buffer(dnew, msp_will, 0);
 
     if (help_greeting[0] == '.')
-	write_to_buffer(dnew, help_greeting+1, 0);
+		write_to_buffer(dnew, help_greeting+1, 0);
     else
-	write_to_buffer(dnew, help_greeting  , 0);
+		write_to_buffer(dnew, help_greeting  , 0);
 
-    write_to_buffer(dnew, "By what name do you wish to be known? ", 0);
+	if (!is_tls && game_settings.enable_tls && game_settings.enable_insecure_warning && game_settings.insecure_warning_msg != NULL)
+	{
+		sprintf(buf, "{R%s{x\n\r{XIf your client supports it, encrypted connection is available on port %d\n\r\n\r", game_settings.insecure_warning_msg, game_settings.tls_port);
+		write_to_buffer(dnew, buf, 0);
+	}
+
+	if (!IS_NULLSTR(game_settings.login_string))
+	{
+		write_to_buffer(dnew, game_settings.login_string, 0);
+		write_to_buffer(dnew, "\n\r", 0);
+	}
+	else
+	{
+    	write_to_buffer(dnew, "By what name do you wish to be known? ", 0);
+	}
 }
 
 
@@ -1376,17 +1461,16 @@ bool read_from_descriptor(DESCRIPTOR_DATA *d)
     iStart = 0;
     if(strlen(d->inbuf) >= sizeof(d->inbuf) - 10)
     {
-	sprintf(log_buf, "%s input overflow!", d->host);
-	log_string(log_buf);
-	write_to_descriptor(d,
-	    "\n\r*** PUT A LID ON IT!!! ***\n\r", 0);
-	return false;
+		sprintf(log_buf, "%s input overflow!", d->host);
+		log_string(log_buf);
+		write_to_descriptor(d, "\n\r*** PUT A LID ON IT!!! ***\n\r", 0);
+		return false;
     }
 
     /* Snarf input. */
     for (; ;)
     {
-	int nRead;
+		int nRead;
 /*
 	nRead = read(d->descriptor, d->inbuf + iStart,
 	    sizeof(d->inbuf) - 10 - iStart);
@@ -1397,26 +1481,49 @@ bool read_from_descriptor(DESCRIPTOR_DATA *d)
 		break;
 	}
 */
-	nRead = read( d->descriptor, read_buf + iStart,
-	    sizeof(read_buf) - 10 - iStart );
-	if ( nRead > 0 )
-	{
-	    iStart += nRead;
-	    if ( read_buf[iStart-1] == '\n' || read_buf[iStart-1] == '\r' )
-		break;
-	}
-	else if (nRead == 0)
-	{
-	    log_string("EOF encountered on read.");
-	    return false;
-	}
-	else if (errno == EWOULDBLOCK)
-	    break;
-	else
-	{
-	    perror("Read_from_descriptor");
-	    return false;
-	}
+		if (d->ssl)
+		{
+    		do {
+    	    	nRead = SSL_read(d->ssl, read_buf + iStart, sizeof(read_buf) - 10 - iStart);
+   		     	if (nRead <= 0) {
+   	         		int err = SSL_get_error(d->ssl, nRead);
+            		if (err == SSL_ERROR_WANT_READ) {
+  	              		// The operation did not complete; the same I/O function should be called again later
+	                	break;
+            		} else {
+		                fprintf(stderr, "SSL_read failed with error: %d\n", err);
+    	            	ERR_print_errors_fp(stderr);
+       		         	fprintf(stderr, "SSL state: %s\n", SSL_state_string_long(d->ssl));
+        	        	ERR_print_errors_fp(stderr);
+        	        	return false;
+            		}
+        		}
+    		} while (nRead <= 0);
+	
+		}
+		else
+		{
+			nRead = read( d->descriptor, read_buf + iStart,
+	    		sizeof(read_buf) - 10 - iStart );
+		}
+		if ( nRead > 0 )
+		{
+	    	iStart += nRead;
+	    	if ( read_buf[iStart-1] == '\n' || read_buf[iStart-1] == '\r' )
+			break;
+		}
+		else if (nRead == 0)
+		{
+	    	log_string("EOF encountered on read.");
+	    	return false;
+		}
+		else if (errno == EWOULDBLOCK)
+	    	break;
+		else
+		{
+	    	perror("Read_from_descriptor");
+	    	return false;
+		}
     }
 
 //    d->inbuf[iStart] = '\0';
@@ -1472,6 +1579,7 @@ void read_from_buffer(DESCRIPTOR_DATA *d)
 	    --k;
 	else if (ISASCII(d->inbuf[i]) && ISPRINT(d->inbuf[i]))
 	    d->incomm[k++] = d->inbuf[i];
+/*
         else if (d->inbuf[i] == (signed char)IAC) {
             if (!memcmp(&d->inbuf[i], compress_do, strlen(compress_do))) {
                 i += strlen(compress_do) - 1;
@@ -1493,6 +1601,7 @@ void read_from_buffer(DESCRIPTOR_DATA *d)
             }
 
         }
+*/
     }
 
     /*
@@ -1799,7 +1908,7 @@ void bust_a_prompt(CHAR_DATA *ch)
        return;
    }
 
-   if (IS_SET(ch->comm,COMM_SOCIAL))
+   if (IS_SOCIAL(ch))
    {
        if (ch->in_room->chat_room != NULL)
        {
@@ -1973,6 +2082,9 @@ void bust_a_prompt(CHAR_DATA *ch)
 		else
 			sprintf(buf2, " ");
 		i = buf2; break;
+	case '+':
+		sprintf(buf2, game_settings.server_description);
+		i = buf2; break;
 	case '%' :
 		sprintf(buf2, "%%");
 		i = buf2; break;
@@ -2054,7 +2166,7 @@ void write_to_buffer(DESCRIPTOR_DATA *d, const char *txt, int length)
     {
 	char *outbuf;
 
-        if (d->outsize >= 32000)
+        if (d->outsize >= 128000)
 	{
 	    bug("Buffer overflow. Closing.\n\r",0);
 	    close_socket(d);
@@ -2082,20 +2194,38 @@ void write_to_buffer(DESCRIPTOR_DATA *d, const char *txt, int length)
  * If this gives errors on very long blocks (like 'ofind all'),
  *   try lowering the max block size.
  */
-bool write_to_descriptor_2(int desc, char *txt, int length)
+bool write_to_descriptor_2(DESCRIPTOR_DATA *d, char *txt, int length)
 {
     int iStart;
     int nWrite;
     int nBlock;
 
-    if (length <= 0)
-	length = strlen(txt);
+    if (d->out_compress)
+        return writeCompressed(d, txt, length);
 
     for (iStart = 0; iStart < length; iStart += nWrite)
     {
-	nBlock = UMIN(length - iStart, 4096);
-	if ((nWrite = write(desc, txt + iStart, nBlock)) < 0)
-	    { perror("Write_to_descriptor"); return false; }
+        nBlock = UMIN(length - iStart, 4096);
+        if (d->ssl) {
+            nWrite = SSL_write(d->ssl, txt + iStart, nBlock);
+            if (nWrite <= 0) {
+                int err = SSL_get_error(d->ssl, nWrite);
+                if (err == SSL_ERROR_WANT_WRITE) {
+                    // The operation did not complete; the same I/O function should be called again later
+                    break;
+                } else {
+                    fprintf(stderr, "SSL_write failed with error: %d\n", err);
+                    ERR_print_errors_fp(stderr);
+                    return false;
+                }
+            }
+        } else {
+            nWrite = write(d->descriptor, txt + iStart, nBlock);
+            if (nWrite < 0) {
+                perror("Write_to_descriptor_2");
+                return false;
+            }
+        }
     }
 
     return true;
@@ -2108,7 +2238,7 @@ bool write_to_descriptor(DESCRIPTOR_DATA *d, char *txt, int length)
     if (d->out_compress)
         return writeCompressed(d, txt, length);
     else
-        return write_to_descriptor_2(d->descriptor, txt, length);
+        return write_to_descriptor_2(d, txt, length);
 }
 
 
@@ -2144,8 +2274,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 	long playernum;
 	HELP_DATA *help;
 	long vector, *field;
-    char strsave[MAX_INPUT_LENGTH];
-    FILE *fp;
+
 
 	while (ISSPACE(*argument))
 		argument++;
@@ -2168,15 +2297,6 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		argument[0] = UPPER(argument[0]);
 		if (!check_parse_name(argument)) {
 			write_to_buffer(d, "Illegal name, try another.\n\rName: ", 0);
-			return;
-		}
-
-		/* Ban old names -- Gairun - 20111219 */
-		sprintf(strsave, "%s%c/%s", OLD_PLAYER_DIR, tolower(argument[0]), capitalize(argument));
-		if ((fp = fopen(strsave, "r")) != NULL)
-		{
-			fclose(fp);
-			write_to_buffer(d, "Old names are not allowed.\n\rName: ", 0);
 			return;
 		}
 
@@ -2215,9 +2335,17 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 				fOld = true;
 			else
 			{
-			if (wizlock && !IS_IMMORTAL(ch))
+			if (game_settings.wizlock && !IS_IMMORTAL(ch))
 			{
-				write_to_buffer(d, "The game is wizlocked.\n\r", 0);
+				if (!IS_NULLSTR(game_settings.wizlock_msg))
+					write_to_buffer(d, game_settings.wizlock_msg, 0);
+				else
+					write_to_buffer(d, "The game is wizlocked.\n\r", 0);
+
+				sprintf(buf, "The game is wizlocked, %s tried to connect from %s.", argument, d->host);
+				log_string(buf);
+				sprintf(buf, "Wizlocked: %s tried to connect from %s.", argument, d->host);
+				wiznet(buf, ch, NULL, WIZ_LOGINS, 0, 0);
 				close_socket(d);
 				return;
 			}
@@ -2226,7 +2354,10 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		/* Old player */
 		if (fOld)
 		{
-			write_to_buffer(d, "Password: ", 0);
+			if (d->character->pcdata->reset_state == RESET_PENDING)
+				write_to_buffer(d, "Password or Reset Code: ", 0);
+			else
+				write_to_buffer(d, "Password: ", 0);
 			ProtocolNoEcho(d,true);
 			d->connected = CON_GET_OLD_PASSWORD;
 
@@ -2265,8 +2396,13 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		else
 		{
 			/* New player */
-			if (newlock)
+			/* Todo: Update this for account system */
+			if (game_settings.new_acct_lock || game_settings.new_char_lock)
 			{
+				if (game_settings.new_acct_lock)
+					write_to_buffer(d, game_settings.new_acct_lock_msg, 0);
+				else
+					write_to_buffer(d, "New characters are not allowed.\n\r", 0);
 				write_to_buffer(d, "The game is newlocked.\n\r", 0);
 				close_socket(d);
 				return;
@@ -2279,7 +2415,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 				return;
 			}
 
-			if(port == PORT_ALPHA) newlock = true;	/* Reset the newlock, even if this one fails to do anything...*/
+			if(telnet_port == PORT_ALPHA) newlock = true;	/* Reset the newlock, even if this one fails to do anything...*/
 
 			sprintf(buf, "\n\rDo you want to create a character named %s (Y/N)? ", argument);
 			write_to_buffer(d, buf, 0);
@@ -2289,38 +2425,100 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		break;
 
 	case CON_GET_OLD_PASSWORD:
-#if defined(unix)
 		write_to_buffer(d, "\n\r", 2);
-#endif
-		if (ch->pcdata->pwd_vers < 1)
+
+		if (d->login_attempts >= game_settings.max_login_attempts)
 		{
-			if (strcmp(crypt(argument, ch->pcdata->pwd), ch->pcdata->pwd))
+			write_to_buffer(d, "Too many login attempts. Goodbye.\n\r", 0);
+			close_socket(d);
+			return;
+		}
+		if (game_settings.enable_email)
+		{
+			if(!strcmp(argument, "resetpassword"))
 			{
-				if (strcmp(argument, ch->pcdata->pwd))
+				if (ch->pcdata->reset_state == RESET_PENDING)
 				{
-					/* Log bad password attempts*/
-					sprintf(log_buf, "Denying access to %s@%s (bad password).",
-					ch->name, d->host);
-					log_string(log_buf);
-					wiznet(log_buf,NULL,NULL,WIZ_LOGINS,0,get_staff_rank(ch));
-					write_to_buffer(d, "Wrong password.\n\r", 0);
-					close_socket(d);
+					write_to_buffer(d, "You have already requested a password reset. Please enter the reset code.\n\r", 0);
+					d->connected = CON_GET_OLD_PASSWORD;
 					return;
+				}
+				else
+				{
+					if (ch->pcdata->email[0] == '\0')
+					{
+						write_to_buffer(d, "You must have an email address set to reset your password. Please reach out to staff for a manual reset.\n\r", 0);
+						d->connected = CON_GET_OLD_PASSWORD;
+						return;
+					}
+					else
+					{
+						write_to_buffer(d, "Please confirm your email address: \n\r", 0);
+						d->connected = CON_CONFIRM_EMAIL_FOR_RESET;
+						return;
+					}
 				}
 			}
 		}
-		else
+				
+
+		if (d->character->pcdata->reset_state == RESET_PENDING)
 		{
-			if (strcmp(sha256_crypt(argument), ch->pcdata->pwd))
+			if (strcmp(argument, ch->pcdata->reset_code) && strcmp(sha256_crypt(argument), ch->pcdata->pwd) && strcmp(crypt(argument, ch->pcdata->pwd), ch->pcdata->pwd) && strcmp(argument, ch->pcdata->pwd))
 			{
-				/* Log bad password attempts */
-				sprintf(log_buf, "Denying access to %s@%s (bad password).", ch->name, d->host);
-				log_string(log_buf);
-				wiznet(log_buf,NULL,NULL,WIZ_LOGINS,0,get_staff_rank(ch));
-				write_to_buffer(d, "Wrong password.\n\r", 0);
+				write_to_buffer(d, "Wrong reset code.\n\r", 0);
+				d->login_attempts++;
+				d->connected = CON_GET_OLD_PASSWORD;
+				return;
+			}
+			if ((current_time - d->character->pcdata->reset_time) > 86400)
+			{
+				if (game_settings.enable_email)
+					write_to_buffer(d, "Reset code has expired. Please try resetting again.\n\r", 0);
+				else
+					write_to_buffer(d, "Reset code has expired. Please contact staff for a manual reset.\n\r", 0);
+				d->character->pcdata->reset_state = NO_RESET;
+				free_string(ch->pcdata->reset_code);
+				ch->pcdata->reset_time = 0;
+				save_char_obj(ch);
 				close_socket(d);
 				return;
 			}
+			if (!str_cmp(argument, ch->pcdata->reset_code))
+			{
+				ch->pcdata->reset_state = NO_RESET;
+				free_string(ch->pcdata->reset_code);
+				ch->pcdata->reset_code = str_dup("");
+				ch->pcdata->reset_time = 0;
+				save_char_obj(ch);
+				write_to_buffer(d, "Reset code accepted. You are required to set a new password.\n\r Password: ", 0);
+				ch->pcdata->old_pwd = str_dup(ch->pcdata->pwd);
+				d->connected = CON_CHANGE_PASSWORD;
+				return;
+			}
+		}
+
+		if (strcmp(sha256_crypt(argument), ch->pcdata->pwd))
+		{
+			/* Log bad password attempts */
+			sprintf(log_buf, "Denying access to %s@%s (bad password).",
+			ch->name, d->host);
+			log_string(log_buf);
+			wiznet(log_buf,NULL,NULL,WIZ_LOGINS,0,get_staff_rank(ch));
+			if (game_settings.enable_email)
+				write_to_buffer(d, "Wrong password. Please try again, or use 'resetpassword' to attempt a reset.\n\r", 0);
+			else
+				write_to_buffer(d, "Wrong password. Please try again or reach out to staff for assistance.\n\r", 0);
+			d->login_attempts++;
+			d->connected = CON_GET_OLD_PASSWORD;
+			return;
+		}
+
+		if (!IS_NULLSTR(ch->pcdata->mfa_key))
+		{
+			send_to_char("\n\rPlease enter your MFA code: ", ch);
+			d->connected = CON_GET_MFA;
+			return;
 		}
 
 
@@ -2347,10 +2545,11 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			return;
 		}
         if (ch->pcdata->need_change_pw == true || ch->pcdata->pwd_vers < 1) {
-	        send_to_char("\n\rYou are required to set a new password. Please do so now.\n\rPassword: ",ch);
+	        send_to_char("\n\rYou are required to set a new password. Please do so now.\n\r",ch);
 	        d->connected = CON_CHANGE_PASSWORD;
 	        return;
         }
+
 		if (IS_IMMORTAL(ch))
 		{
 			send_to_char("{BWelcome, Immortal.{x\n\r\n\r", ch);
@@ -2372,25 +2571,124 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 
 		break;
 
-	case CON_CHANGE_PASSWORD:
-//		send_to_char("\n\rPassword: ", ch);
-
-		if (argument[0] == '\0')
-			return;
-		if (ch->pcdata->pwd_vers < 1) {
-		if (!strcmp(crypt(argument, ch->pcdata->old_pwd), ch->pcdata->old_pwd))
+	case CON_GET_MFA:
+		if (check_mfa(ch, argument))
 		{
-			send_to_char("Password must be DIFFERENT from your current password!\n\rPassword: ", ch);
+
+			if (check_playing(d,ch->name))
+			return;
+
+			if (check_reconnect(d, ch->name, true))
+			return;
+			
+			if (IS_IMMORTAL(ch))
+			{
+				send_to_char("{BWelcome, Immortal.{x\n\r\n\r", ch);
+				do_function(ch, &do_imotd, "");
+				if(IS_IMPLEMENTOR(ch)) 
+				{
+					if(game_settings.wizlock) 
+						send_to_char("\n\r{b-{B==={C=={W[ {YWIZLOCK ACTIVE{W ]{C=={B==={b-{x\n\r", ch);
+					if(game_settings.new_acct_lock || game_settings.new_char_lock) 
+						send_to_char("\n\r{b-{B==={C=={W[ {GNEWLOCK ACTIVE{W ]{C=={B==={b-{x\n\r", ch);
+				}
+				send_to_char("\n\r{WCurrent active projects:{x\n\r", ch);
+				do_function(ch, &do_project, "list open");
+				send_to_char("[Hit Return to continue]\n\r", ch);
+				d->connected = CON_READ_IMOTD;
+			}
+			else
+			{
+				do_function(ch, &do_motd, "");
+				d->connected = CON_READ_MOTD;
+			}
+		}
+		else
+		{
+			if (d->login_attempts > 2)
+			{
+				write_to_buffer(d, "Too many attempts. Please try again later.\n\r", 0);
+				close_socket(d);
+				return;
+			}
+			d->login_attempts++;
+			d->connected = CON_GET_MFA;
 			return;
 		}
+		break;
+
+	case CON_CONFIRM_EMAIL_FOR_RESET:
+
+		char reset_msg[MSL], reset_subject[MSL];
+		
+		
+		if(d->login_attempts > 2)
+		{
+			write_to_buffer(d, "Too many attempts. Please try again later.\n\r", 0);
+			close_socket(d);
+			return;
+		}
+		if (argument[0] == '\0')
+		{
+			write_to_buffer(d, "Invalid email address. Please try again.\n\r", 0);
+			d->login_attempts++;
+			d->connected = CON_CONFIRM_EMAIL_FOR_RESET;
+			return;
+		}
+		else
+		{
+			if (strcmp(argument, ch->pcdata->email))
+			{
+				write_to_buffer(d, "Email address does not match. Please try again.\n\r", 0);
+				d->login_attempts++;
+				d->connected = CON_CONFIRM_EMAIL_FOR_RESET;
+				return;
+			}
+			else
+			{
+				char tmp_reset_code[16];
+				write_to_buffer(d, "Email address confirmed. A reset code will be sent to you for login.\n\r", 0);
+				write_to_buffer(d, "Password or Reset Code: ", 0);
+				ch->pcdata->reset_state = RESET_PENDING;
+				generate_reset_code(tmp_reset_code, 15);
+				ch->pcdata->reset_code = str_dup(tmp_reset_code);
+				ch->pcdata->reset_time = current_time;
+				save_char_obj(ch);
+
+				sprintf(reset_subject, "Password Reset for %s", d->character->name);
+				sprintf(reset_msg, "Your password reset code is: %s.\nPlease note that this code will expire after 24 hours.\n\r", d->character->pcdata->reset_code);
+
+				send_email_async(d->character, d->character->pcdata->email, reset_subject, reset_msg);
+				d->connected = CON_GET_OLD_PASSWORD;
+				return;
+			}
+		}
+		break;
+
+	case CON_CHANGE_PASSWORD:
+
+		if (argument[0] == '\0')
+		{
+			d->connected = CON_CHANGE_PASSWORD;
+			return;
+		}
+		if (ch->pcdata->pwd_vers < 1) 
+		{
+			if (!strcmp(crypt(argument, ch->pcdata->old_pwd), ch->pcdata->old_pwd))
+			{
+				send_to_char("Password must be DIFFERENT from your current password!\n\rPassword: ", ch);
+				d->connected = CON_CHANGE_PASSWORD;
+				return;
+			}
 		}
 		else
 		{
 			if (!strcmp(sha256_crypt(argument), ch->pcdata->old_pwd))
-		{
-			send_to_char("Password must be DIFFERENT from your current password!\n\rPassword: ", ch);
-			return;
-		}
+			{
+				send_to_char("Password must be DIFFERENT from your current password!\n\rPassword: ", ch);
+				d->connected = CON_CHANGE_PASSWORD;
+				return;
+			}
 		}
 
 
@@ -2401,7 +2699,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 
 		free_string(ch->pcdata->pwd);
 		ch->pcdata->pwd	= str_dup(pwdnew);
-		write_to_buffer(d, "Please retype new password: ", 0);
+		write_to_buffer(d, "\n\rPlease retype new password: ", 0);
 
 		ch->pcdata->need_change_pw = false;
 		d->connected = CON_CHANGE_PASSWORD_CONFIRM;
@@ -2504,9 +2802,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		break;
 
 	case CON_GET_NEW_PASSWORD:
-#if defined(unix)
 		write_to_buffer(d, "\n\r", 2);
-#endif
 		if (!acceptablePassword(d, argument))
 			return;
 
@@ -2522,9 +2818,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		break;
 
 	case CON_CONFIRM_NEW_PASSWORD:
-#if defined(unix)
 		write_to_buffer(d, "\n\r", 2);
-#endif
 
 		if (strcmp(sha256_crypt(argument), ch->pcdata->pwd))
 		{
@@ -3107,6 +3401,23 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		{
 			free_string(ch->pcdata->old_pwd);
 			ch->pcdata->old_pwd = NULL;
+		}
+
+
+		if (ch->pcdata->reset_code != NULL)
+		{
+			free_string(ch->pcdata->reset_code);
+			ch->pcdata->reset_code = NULL;
+		}
+
+		if (ch->pcdata->reset_time != 0)
+		{
+			ch->pcdata->reset_time = 0;
+		}
+
+		if (ch->pcdata->reset_state != 0)
+		{
+			ch->pcdata->reset_state = 0;
 		}
 
 		reset_char(ch);
@@ -3927,13 +4238,31 @@ void page_to_char(const char *txt, CHAR_DATA *ch)
 	send_to_char(txt,ch);
 	return;
     }
-
+/*
     ch->desc->showstr_head = malloc(strlen(txt) + 1);
     strcpy(ch->desc->showstr_head,txt);
     ch->desc->showstr_point = ch->desc->showstr_head;
 
     show_string(ch->desc,"");
-
+*/
+	if (ch->desc->showstr_head && (strlen(txt)+strlen(ch->desc->showstr_head)+1) < 128000)
+	{
+		char *temp=alloc_mem(strlen(txt) + strlen(ch->desc->showstr_head) + 1);
+		strcpy(temp, ch->desc->showstr_head);
+		strcat(temp, txt);
+		ch->desc->showstr_point = temp + (ch->desc->showstr_point - ch->desc->showstr_head);
+		free_mem(ch->desc->showstr_head, strlen(ch->desc->showstr_head) + 1);
+		ch->desc->showstr_head=temp;
+	}
+	else
+	{
+		if (ch->desc->showstr_head)
+			free_mem(ch->desc->showstr_head, strlen(ch->desc->showstr_head)+1);
+		ch->desc->showstr_head = alloc_mem(strlen(txt) + 1);
+		strcpy(ch->desc->showstr_head,txt);
+		ch->desc->showstr_point = ch->desc->showstr_head;
+		show_string(ch->desc,"");
+		}
 }
 
 /*

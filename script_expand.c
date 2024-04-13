@@ -6,6 +6,7 @@
  *                                                                         *
  **************************************************************************/
 
+#include <time.h>
 #include "strings.h"
 #include "merc.h"
 #include "scripts.h"
@@ -1459,7 +1460,7 @@ EXPAND_TYPE(game)
 
 	case ENTITY_GAME_PORT:
 		arg->type = ENT_NUMBER;
-		arg->d.num = port;
+		arg->d.num = game_settings.telnet_port;
 		break;
 
 	case ENTITY_GAME_PLAYERS:
@@ -1531,6 +1532,14 @@ EXPAND_TYPE(game)
 
 	case ENTITY_GAME_RESERVED_ROOM:
 		arg->type = ENT_RESERVED_ROOM;
+		break;
+
+	case ENTITY_GAME_TIME_HUMAN:
+		arg->type = ENT_STRING;
+		struct tm *local_time = localtime(&current_time);
+		char time_str[100];
+		strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", local_time);
+		arg->d.str = strdup(time_str);
 		break;
 
 	default: return NULL;
@@ -1626,6 +1635,7 @@ EXPAND_TYPE(wilds_id)
 
 EXPAND_TYPE(church)
 {
+	char time_str[100];
 	switch(*str) {
 	case ENTITY_CHURCH_NAME:
 		arg->type = ENT_STRING;
@@ -1658,6 +1668,19 @@ EXPAND_TYPE(church)
 		arg->type = ENT_MOBILE;
 		arg->d.mob = ( arg->d.church ) ? get_player(arg->d.church->founder) : NULL;
 		break;
+
+	case ENTITY_CHURCH_FOUNDER_LOGIN:
+		arg->type = ENT_NUMBER;
+		arg->d.num = ( arg->d.church ) ? (arg->d.church->founder_last_login) : 0;
+		break;
+
+	case ENTITY_CHURCH_FOUNDER_LOGIN_HUMAN:
+		arg->type = ENT_STRING;
+		struct tm *founder_time = localtime(&arg->d.church->founder_last_login);
+		strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", founder_time);
+		arg->d.str = (arg->d.mob) ? str_dup(time_str) : (char *)&str_empty[0];
+		break;
+
 
 	case ENTITY_CHURCH_FOUNDER_NAME:
 		arg->type = ENT_STRING;
@@ -2091,6 +2114,8 @@ EXPAND_TYPE(mobile)
 {
 	CHAR_DATA *self = arg->d.mob;
 	char *p;
+	char time_str[100];
+
 	switch(*str) {
 	case ENTITY_MOB_NAME:
 		arg->type = ENT_STRING;
@@ -2219,206 +2244,6 @@ EXPAND_TYPE(mobile)
 	case ENTITY_MOB_AREA:
 		arg->type = ENT_AREA;
 		arg->d.area = self && self->in_room ? self->in_room->area : NULL;
-		break;
-	case ENTITY_MOB_EQ_LIGHT:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_LIGHT);
-		break;
-	case ENTITY_MOB_EQ_FINGER1:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_FINGER_L);
-		break;
-	case ENTITY_MOB_EQ_FINGER2:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_FINGER_R);
-		break;
-	case ENTITY_MOB_EQ_NECK1:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_NECK_1);
-		break;
-	case ENTITY_MOB_EQ_NECK2:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_NECK_2);
-		break;
-	case ENTITY_MOB_EQ_BODY:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_BODY);
-		break;
-	case ENTITY_MOB_EQ_HEAD:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_HEAD);
-		break;
-	case ENTITY_MOB_EQ_LEGS:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_LEGS);
-		break;
-	case ENTITY_MOB_EQ_FEET:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_FEET);
-		break;
-	case ENTITY_MOB_EQ_HANDS:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_HANDS);
-		break;
-	case ENTITY_MOB_EQ_ARMS:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_ARMS);
-		break;
-	case ENTITY_MOB_EQ_SHIELD:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_SHIELD);
-		break;
-	case ENTITY_MOB_EQ_ABOUT:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_ABOUT);
-		break;
-	case ENTITY_MOB_EQ_WAIST:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_WAIST);
-		break;
-	case ENTITY_MOB_EQ_WRIST1:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_WRIST_L);
-		break;
-	case ENTITY_MOB_EQ_WRIST2:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_WRIST_R);
-		break;
-	case ENTITY_MOB_EQ_WIELD1:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_WIELD);
-		break;
-	case ENTITY_MOB_EQ_HOLD:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_HOLD);
-		break;
-	case ENTITY_MOB_EQ_WIELD2:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_SECONDARY);
-		break;
-	case ENTITY_MOB_EQ_RING:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_RING_FINGER);
-		break;
-	case ENTITY_MOB_EQ_BACK:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_BACK);
-		break;
-	case ENTITY_MOB_EQ_SHOULDER:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_SHOULDER);
-		break;
-	case ENTITY_MOB_EQ_ANKLE1:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_ANKLE_L);
-		break;
-	case ENTITY_MOB_EQ_ANKLE2:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_ANKLE_R);
-		break;
-	case ENTITY_MOB_EQ_EAR1:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_EAR_L);
-		break;
-	case ENTITY_MOB_EQ_EAR2:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_EAR_R);
-		break;
-	case ENTITY_MOB_EQ_EYES:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_EYES);
-		break;
-	case ENTITY_MOB_EQ_FACE:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_FACE);
-		break;
-	case ENTITY_MOB_EQ_TATTOO_HEAD:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_TATTOO_HEAD);
-		break;
-	case ENTITY_MOB_EQ_TATTOO_TORSO:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_TATTOO_TORSO);
-		break;
-	case ENTITY_MOB_EQ_TATTOO_UPPER_ARM1:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_TATTOO_UPPER_ARM_L);
-		break;
-	case ENTITY_MOB_EQ_TATTOO_UPPER_ARM2:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_TATTOO_UPPER_ARM_R);
-		break;
-	case ENTITY_MOB_EQ_TATTOO_UPPER_LEG1:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_TATTOO_UPPER_LEG_L);
-		break;
-	case ENTITY_MOB_EQ_TATTOO_UPPER_LEG2:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_TATTOO_UPPER_LEG_R);
-		break;
-	case ENTITY_MOB_EQ_TATTOO_LOWER_ARM1:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_TATTOO_LOWER_ARM_L);
-		break;
-	case ENTITY_MOB_EQ_TATTOO_LOWER_ARM2:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_TATTOO_LOWER_ARM_R);
-		break;
-	case ENTITY_MOB_EQ_TATTOO_LOWER_LEG1:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_TATTOO_LOWER_LEG_L);
-		break;
-	case ENTITY_MOB_EQ_TATTOO_LOWER_LEG2:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_TATTOO_LOWER_LEG_R);
-		break;
-	case ENTITY_MOB_EQ_TATTOO_SHOULDER1:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_TATTOO_SHOULDER_L);
-		break;
-	case ENTITY_MOB_EQ_TATTOO_SHOULDER2:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_TATTOO_SHOULDER_R);
-		break;
-	case ENTITY_MOB_EQ_TATTOO_BACK:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_TATTOO_BACK);
-		break;
-	case ENTITY_MOB_EQ_TATTOO_NECK:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_TATTOO_NECK);
-		break;
-	case ENTITY_MOB_EQ_LODGED_HEAD:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_LODGED_HEAD);
-		break;
-	case ENTITY_MOB_EQ_LODGED_TORSO:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_LODGED_TORSO);
-		break;
-	case ENTITY_MOB_EQ_LODGED_ARM1:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_LODGED_ARM_L);
-		break;
-	case ENTITY_MOB_EQ_LODGED_ARM2:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_LODGED_ARM_R);
-		break;
-	case ENTITY_MOB_EQ_LODGED_LEG1:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_LODGED_LEG_L);
-		break;
-	case ENTITY_MOB_EQ_LODGED_LEG2:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_LODGED_LEG_R);
-		break;
-	case ENTITY_MOB_EQ_ENTANGLED:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_ENTANGLED);
-		break;
-	case ENTITY_MOB_EQ_CONCEALED:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(self,WEAR_CONCEALED);
 		break;
 	case ENTITY_MOB_NEXT:
 		arg->type = ENT_MOBILE;
@@ -2551,6 +2376,72 @@ EXPAND_TYPE(mobile)
 		}
 		break;
 
+	case ENTITY_MOB_LEVEL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (IS_VALID(self) && IS_NPC(self)) ? self->tot_level : self->tot_level;
+		break;
+
+	case ENTITY_MOB_LASTLOGOFF:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (IS_VALID(self) && !IS_NPC(self)) ? self->pcdata->last_logoff : 0;
+		break;
+
+	case ENTITY_MOB_LASTLOGIN:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (IS_VALID(self) && !IS_NPC(self)) ? self->pcdata->last_login : 0;
+		break;
+
+	case ENTITY_MOB_PLAYED:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (IS_VALID(self) && !IS_NPC(self)) ? self->played + (int) current_time - self->pcdata->last_login : 0;
+		break;
+
+	case ENTITY_MOB_SESSIONTIME:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (IS_VALID(self) && !IS_NPC(self)) ? (int) current_time - self->pcdata->last_login : 0;
+		break;
+
+	case ENTITY_MOB_CREATED:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (IS_VALID(self) && !IS_NPC(self)) ? self->pcdata->creation_date : self->creation_time;
+		break;
+
+	case ENTITY_MOB_LASTLOGOFF_HUMAN:
+		arg->type = ENT_STRING;
+		struct tm *logoff_time = localtime(&self->pcdata->last_logoff);
+		strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", logoff_time);
+		arg->d.str = (IS_VALID(self) && !IS_NPC(self)) ? str_dup(time_str) : (char *)&str_empty[0];
+		break;
+
+	case ENTITY_MOB_LASTLOGIN_HUMAN:
+		arg->type = ENT_STRING;
+		struct tm *login_time = localtime(&self->pcdata->last_login);
+		strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", login_time);
+		arg->d.str = (IS_VALID(self) && !IS_NPC(self)) ? str_dup(time_str) : (char *)&str_empty[0];
+		break;
+
+	case ENTITY_MOB_CREATED_HUMAN:
+		arg->type = ENT_STRING;
+		struct tm *creation_time = localtime(&self->pcdata->creation_date);
+		strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", creation_time);
+		arg->d.str = (IS_VALID(self) && !IS_NPC(self)) ? str_dup(time_str) : (char *)&str_empty[0];
+		break;
+
+	case ENTITY_MOB_LASTLOGOFF_DELTA:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (IS_VALID(self) && !IS_NPC(self)) ? current_time - self->pcdata->last_logoff : 0;
+		break;
+
+	case ENTITY_MOB_LASTLOGIN_DELTA:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (IS_VALID(self) && !IS_NPC(self)) ? current_time - self->pcdata->last_login : 0;
+		break;
+		
+	case ENTITY_MOB_CREATED_DELTA:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (IS_VALID(self) && !IS_NPC(self)) ? current_time - self->pcdata->creation_date : current_time - self->creation_time;
+		break;
+
 	case ENTITY_MOB_INDEX:
 		arg->type = ENT_MOBINDEX;
 		arg->d.mobindex = (self && IS_NPC(self)) ? self->pIndexData : NULL;
@@ -2597,6 +2488,16 @@ EXPAND_TYPE(mobile)
 		arg->type = ENT_CREW;
 		// Uses arg->d.mob;
 		break;
+
+    case ENTITY_MOB_CATALYST_USAGE:
+        arg->type = ENT_CATALYST_USAGE;
+        // Uses arg->d.mob;
+        break;
+
+    case ENTITY_MOB_EQUIPMENT:
+        arg->type = ENT_EQUIPMENT;
+        // Uses arg->d.obj;
+        break;
 
 	default: return NULL;
 	}
@@ -2730,56 +2631,7 @@ EXPAND_TYPE(mobile_id)
 		arg->type = ENT_AREA;
 		arg->d.area = NULL;
 		break;
-	case ENTITY_MOB_EQ_LIGHT:
-	case ENTITY_MOB_EQ_FINGER1:
-	case ENTITY_MOB_EQ_FINGER2:
-	case ENTITY_MOB_EQ_NECK1:
-	case ENTITY_MOB_EQ_NECK2:
-	case ENTITY_MOB_EQ_BODY:
-	case ENTITY_MOB_EQ_HEAD:
-	case ENTITY_MOB_EQ_LEGS:
-	case ENTITY_MOB_EQ_FEET:
-	case ENTITY_MOB_EQ_HANDS:
-	case ENTITY_MOB_EQ_ARMS:
-	case ENTITY_MOB_EQ_SHIELD:
-	case ENTITY_MOB_EQ_ABOUT:
-	case ENTITY_MOB_EQ_WAIST:
-	case ENTITY_MOB_EQ_WRIST1:
-	case ENTITY_MOB_EQ_WRIST2:
-	case ENTITY_MOB_EQ_WIELD1:
-	case ENTITY_MOB_EQ_HOLD:
-	case ENTITY_MOB_EQ_WIELD2:
-	case ENTITY_MOB_EQ_RING:
-	case ENTITY_MOB_EQ_BACK:
-	case ENTITY_MOB_EQ_SHOULDER:
-	case ENTITY_MOB_EQ_ANKLE1:
-	case ENTITY_MOB_EQ_ANKLE2:
-	case ENTITY_MOB_EQ_EAR1:
-	case ENTITY_MOB_EQ_EAR2:
-	case ENTITY_MOB_EQ_EYES:
-	case ENTITY_MOB_EQ_FACE:
-	case ENTITY_MOB_EQ_TATTOO_HEAD:
-	case ENTITY_MOB_EQ_TATTOO_TORSO:
-	case ENTITY_MOB_EQ_TATTOO_UPPER_ARM1:
-	case ENTITY_MOB_EQ_TATTOO_UPPER_ARM2:
-	case ENTITY_MOB_EQ_TATTOO_UPPER_LEG1:
-	case ENTITY_MOB_EQ_TATTOO_UPPER_LEG2:
-	case ENTITY_MOB_EQ_TATTOO_BACK:
-	case ENTITY_MOB_EQ_TATTOO_NECK:
-	case ENTITY_MOB_EQ_TATTOO_LOWER_ARM1:
-	case ENTITY_MOB_EQ_TATTOO_LOWER_ARM2:
-	case ENTITY_MOB_EQ_TATTOO_LOWER_LEG1:
-	case ENTITY_MOB_EQ_TATTOO_LOWER_LEG2:
-	case ENTITY_MOB_EQ_TATTOO_SHOULDER1:
-	case ENTITY_MOB_EQ_TATTOO_SHOULDER2:
-	case ENTITY_MOB_EQ_LODGED_HEAD:
-	case ENTITY_MOB_EQ_LODGED_TORSO:
-	case ENTITY_MOB_EQ_LODGED_ARM1:
-	case ENTITY_MOB_EQ_LODGED_ARM2:
-	case ENTITY_MOB_EQ_LODGED_LEG1:
-	case ENTITY_MOB_EQ_LODGED_LEG2:
-	case ENTITY_MOB_EQ_ENTANGLED:
-	case ENTITY_MOB_EQ_CONCEALED:
+	case ENTITY_MOB_EQUIPMENT:
 		arg->type = ENT_OBJECT;
 		arg->d.obj = NULL;
 		break;
@@ -2938,6 +2790,11 @@ EXPAND_TYPE(mobile_id)
 		arg->type = ENT_CREW;
 		arg->d.mob = NULL;
 		break;
+
+    case ENTITY_MOB_CATALYST_USAGE:
+        arg->type = ENT_CATALYST_USAGE;
+        arg->d.mob = NULL;
+        break;
 
 	default: return NULL;
 	}
@@ -3594,6 +3451,11 @@ EXPAND_TYPE(object)
 	case ENTITY_OBJ_STACHE:
 		arg->type = ENT_PLLIST_OBJ;
 		arg->d.blist = self ? self->lstache : NULL;
+		break;
+
+	case ENTITY_OBJ_LEVEL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = self ? self->level : 0;
 		break;
 
 	case ENTITY_OBJ_VARIABLES:
@@ -4653,6 +4515,14 @@ EXPAND_TYPE(area)
 		arg->type = ENT_BOOLEAN;
 		arg->d.boolean = area ? area->open : false;	// NULL areas are... "closed"
 		break;
+	case ENTITY_AREA_MINLEVEL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = arg->d.area ? arg->d.area->min_level : 0;
+		break;
+	case ENTITY_AREA_MAXLEVEL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = arg->d.area ? arg->d.area->max_level : 0;
+		break;
 
 	case ENTITY_AREA_REGION:
 		arg->type = ENT_AREA_REGION;
@@ -5500,6 +5370,13 @@ EXPAND_TYPE(conn)
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.conn && (script_security >= MAX_SCRIPT_SECURITY)) ? arg->d.conn->connected : -1;
 		break;
+	case ENTITY_CONN_CLIENT:
+		arg->type = ENT_STRING;
+		arg->d.str = (arg->d.conn && (script_security >= MAX_SCRIPT_SECURITY)) ? arg->d.conn->pProtocol->pVariables[eMSDP_CLIENT_ID]->pValueString : "Unknown";
+		break;
+	case ENTITY_CONN_SECURE:
+		arg->type = ENT_BOOLEAN;
+		arg->d.boolean = (arg->d.conn && (script_security >= MAX_SCRIPT_SECURITY) && arg->d.conn->ssl) ? true : false;
 	default: return NULL;
 	}
 
@@ -8068,6 +7945,10 @@ EXPAND_TYPE(mobindex)
 		arg->type = ENT_NUMBER;
 		arg->d.num = mobindex ? mobindex->count : 0;
 		break;
+	case ENTITY_MOBINDEX_LEVEL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = mobindex ? mobindex->level : 0;
+		break;
 
 	default: return NULL;
 	}
@@ -8109,6 +7990,10 @@ EXPAND_TYPE(objindex)
 	case ENTITY_OBJINDEX_INCONTAINER:
 		arg->type = ENT_NUMBER;
 		arg->d.num = objindex ? objindex->incontainer : 0;
+		break;
+	case ENTITY_OBJINDEX_LEVEL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = objindex ? objindex->level : 0;
 		break;
 
 	default: return NULL;
@@ -9908,6 +9793,20 @@ EXPAND_TYPE(catalyst_usage)
 	return NULL;
 }
 
+EXPAND_TYPE(equipment)
+{
+	int wearloc = (*str) + WEAR_NONE - ESCAPE_EXTRA;
+
+	if (wearloc > WEAR_NONE && wearloc < MAX_WEAR)
+	{
+		arg->type = ENT_OBJECT;
+		arg->d.obj = IS_VALID(arg->d.mob) ? get_eq_char(arg->d.mob, wearloc) : 0;
+		return str+1;
+	}
+
+	return NULL;
+}
+
 EXPAND_TYPE(race)
 {
 	RACE_DATA *race = arg->d.race;
@@ -10665,6 +10564,7 @@ EXPAND(expand_argument_entity)
 		ENTITY_CASE(INSTRUMENT_RESERVOIRS,instrument_reservoirs)
 		ENTITY_CASE(INSTRUMENT_RESERVOIR,instrument_reservoir)
 		ENTITY_CASE(CATALYST_USAGE,catalyst_usage)
+		ENTITY_CASE(EQUIPMENT,equipment)
 		ENTITY_CASE(WEAPON_ATTACKS,weapon_attacks)
 		ENTITY_CASE(WEAPON_ATTACK,weapon_attack)
 		ENTITY_CASE(ATTACK,attack_type)

@@ -457,3 +457,7 @@ void free_corpse_damage(CORPSE_DAMAGE *data);
 
 CORPSE_TYPE *new_corpse_type();
 void free_corpse_type(CORPSE_TYPE *data);
+
+
+CMD_DATA *new_cmd();
+void free_cmd(CMD_DATA *cmd);

@@ -61,6 +61,7 @@ extern RESERVED_WNUM reserved_mob_wnums[];
 extern RESERVED_WNUM reserved_rprog_wnums[];
 extern RESERVED_AREA reserved_areas[];
 void show_flag_cmds(CHAR_DATA *ch, const struct flag_type *flag_table);
+void pstat_variable_list(BUFFER *buffer, pVARIABLE vars);
 
 
 RESERVED_WNUM *search_reserved(RESERVED_WNUM *reserved, char *name)
@@ -122,6 +123,13 @@ int gconfig_read (void)
 
     gconfig.db_version = VERSION_DB_000;
 
+	gconfig.email_port = 0;
+	gconfig.email_username = "";
+	gconfig.email_host = "";
+	gconfig.email_password = "";
+	gconfig.email_from_addr = "";
+	gconfig.email_from_name = "";
+
 	gconfig.max_mission_allowance = 100;
 	gconfig.inc_missions = 6;		// Per day
 	gconfig.max_missions = 25;
@@ -158,6 +166,12 @@ int gconfig_read (void)
 				break;
 
            case 'E':
+		   		KEY ("EmailUser", gconfig.email_username, fread_string(fp));
+				KEY ("EmailPassword", gconfig.email_password, fread_string(fp));
+				KEY ("EmailHost", gconfig.email_host, fread_string(fp));
+				KEY ("EmailPort", gconfig.email_port, fread_number(fp));
+				KEY ("EmailFromAddr", gconfig.email_from_addr, fread_string(fp));
+				KEY ("EmailFromName", gconfig.email_from_name, fread_string(fp));
                 if (!str_cmp(word, "END"))
                 {
 					gconfig.next_mob_uid[3] = gconfig.next_mob_uid[1];
@@ -347,6 +361,386 @@ int gconfig_read (void)
 
 }
 
+int game_settings_read (void)
+{
+    FILE *fp;
+    bool fMatch;
+    char *word;
+    char buf[MIL];
+
+
+    log_string("Loading configuration settings from game_settings.dat...");
+
+    fp = fopen(GAME_SETTINGS_FILE,"r");
+    if (!fp)
+    {
+        bug("act_wiz.c, gamesettings_read(): Unable to open game_settings.dat file for reading.",0);
+        return(1); /* Failure*/
+    }
+
+	/* Basic settings */
+
+	game_settings.game_name = "";
+	game_settings.login_string = "";
+	game_settings.server_description = "";
+	game_settings.testport = false;
+	game_settings.wizlock = false;
+	game_settings.new_acct_lock = false;
+	game_settings.new_char_lock = false;
+	game_settings.wizlock_msg = "";
+	game_settings.new_acct_lock_msg = "";
+	game_settings.new_char_lock_msg = "";
+	game_settings.logall = false;
+
+	/* Auth */
+	game_settings.require_uniq_pass_staff = false;
+	game_settings.max_login_attempts = 0;
+
+	/* 2FA */
+	game_settings.require_2fa_all = false;
+	game_settings.require_2fa_staff = false;
+	
+	/* Multiplaying */
+	game_settings.allow_multiplay_acct_all = false;
+	game_settings.allow_multiplay_acct_staff = false;
+	game_settings.allow_multiplay_host_all = false;
+	game_settings.allow_multiplay_host_staff = false;
+
+	/* Timers */
+	game_settings.idle_time = 0;
+	game_settings.idle_disconnect_time = 0;
+
+	/* Misc Maximums */
+	game_settings.max_alias = 0;
+	game_settings.max_characters = 0;
+	game_settings.max_orgs = 0;
+	game_settings.max_logfile_size = 0;
+
+	/* Email */
+	game_settings.enable_email = false;
+	game_settings.require_email_verification = false;
+	game_settings.email_port = 0;
+	game_settings.email_username = "";
+	game_settings.email_host = "";
+	game_settings.email_password = "";
+	game_settings.email_from_addr = "";
+	game_settings.email_from_name = "";
+
+	/* Missions */
+	game_settings.max_mission_allowance = 0;
+	game_settings.inc_missions = 0;		// Per day
+	game_settings.max_missions = 0;
+
+	/* Protocols and Ports*/
+	game_settings.enable_telnet = false;
+	game_settings.telnet_port = 0;
+	game_settings.enable_tls = false;
+	game_settings.tls_port = 0;
+	game_settings.ssl_cert_path = "";
+	game_settings.ssl_key_path = "";
+
+	game_settings.enable_insecure_warning = false;
+	game_settings.insecure_warning_msg = "";
+
+	/* MSSP */
+	game_settings.mssp_players = 0;
+	game_settings.mssp_uptime = 0;
+	game_settings.mssp_crawl_delay = 0;
+	game_settings.mssp_hostname = "";
+	game_settings.mssp_port = 0;
+	game_settings.mssp_tls_port = 0;
+	game_settings.mssp_codebase = "";
+	game_settings.mssp_contact = "";
+	game_settings.mssp_created = 0;
+	game_settings.mssp_ip = "";
+	game_settings.mssp_language = "";
+	game_settings.mssp_location = "";
+	game_settings.mssp_minimum_age = 0;
+	game_settings.mssp_website = "";
+	game_settings.mssp_family = "";
+	game_settings.mssp_genre = "";
+	game_settings.mssp_status = "";
+	game_settings.mssp_gamesystem = "";
+	game_settings.mssp_intermud = "";
+	game_settings.mssp_subgenre = "";
+	game_settings.mssp_discord_server = "";
+	game_settings.mssp_areas = 0;
+	game_settings.mssp_helpfiles = 0;
+	game_settings.mssp_mobiles = 0;
+	game_settings.mssp_objects = 0;
+	game_settings.mssp_rooms = 0;
+	game_settings.mssp_classes = 0;
+	game_settings.mssp_levels = 0;
+	game_settings.mssp_races = 0;
+	game_settings.mssp_skills = 0;
+	game_settings.mssp_dbsize = 0;
+	game_settings.mssp_ansi = false;
+	game_settings.mssp_gmcp = false;
+	game_settings.mssp_mccp = false;
+	game_settings.mssp_mcp = false;
+	game_settings.mssp_msdp = false;
+	game_settings.mssp_msp = false;
+	game_settings.mssp_mxp = false;
+	game_settings.mssp_pueb = false;
+	game_settings.mssp_utf8 = false;
+	game_settings.mssp_vt100 = false;
+	game_settings.mssp_xterm256 = false;
+	game_settings.mssp_xtermtrue = false;
+	game_settings.mssp_atcp = false;
+	game_settings.mssp_ssl = false;
+	game_settings.mssp_pay2play = false;
+	game_settings.mssp_pay4perks = false;
+	game_settings.mssp_hiring_builders = false;
+	game_settings.mssp_hiring_coders = false;
+	game_settings.mssp_adult_material = false;
+	game_settings.mssp_multiclass = false;
+	game_settings.mssp_newbie_friendly = false;
+	game_settings.mssp_player_cities = false;
+	game_settings.mssp_player_clans = false;
+	game_settings.mssp_player_crafting = false;
+	game_settings.mssp_player_guilds = false;
+	game_settings.mssp_equipment_system = "";
+	game_settings.mssp_multiplaying = "";
+	game_settings.mssp_playerkilling = false;
+	game_settings.mssp_quest_system = false;
+	game_settings.mssp_roleplaying = false;
+	game_settings.mssp_training_system = false;
+	game_settings.mssp_world_originality = false;
+
+
+    for(;;)
+    {
+        word = feof (fp) ? "END" : fread_word(fp);
+        fMatch = false;
+
+        switch (UPPER(word[0]))
+        {
+            case '*':
+                fMatch = true;
+                fread_to_eol (fp);
+            break;
+			case 'A':
+				{
+					RESERVED_AREA *ra = search_reserved_area(word);
+
+					if (ra)
+					{
+						ra->auid = fread_number(fp);
+						fMatch = true;
+						break;
+					}
+				}
+				KEY("AllowMultiplayAcctAll", game_settings.allow_multiplay_acct_all, fread_number(fp));
+				KEY("AllowMultiplayAcctStaff", game_settings.allow_multiplay_acct_staff, fread_number(fp));
+				KEY("AllowMultiplayHostAll", game_settings.allow_multiplay_host_all, fread_number(fp));
+				KEY("AllowMultiplayHostStaff", game_settings.allow_multiplay_host_staff, fread_number(fp));
+				break;
+
+           case 'E':
+		   		KEY("Email_Enable", game_settings.enable_email, fread_number(fp));
+		   		KEY("EmailUser", game_settings.email_username, fread_string(fp));
+				KEY("EmailPassword", game_settings.email_password, fread_string(fp));
+				KEY("EmailHost", game_settings.email_host, fread_string(fp));
+				KEY("EmailPort", game_settings.email_port, fread_number(fp));
+				KEY("EmailFromAddr", game_settings.email_from_addr, fread_string(fp));
+				KEY("EmailFromName", game_settings.email_from_name, fread_string(fp));
+                if (!str_cmp(word, "END"))
+                {
+					if (game_settings.idle_disconnect_time <= 0)
+						game_settings.idle_disconnect_time = 30;
+					
+					if (game_settings.idle_time <= 0)
+						game_settings.idle_time = 12;
+
+					if (game_settings.idle_disconnect_time <= game_settings.idle_time)
+						game_settings.idle_disconnect_time = game_settings.idle_time + 5;
+
+					fclose(fp);
+					game_settings_write();
+					return(0); /* Success*/
+				}
+	            break;
+
+			case 'G':
+				KEY("GameName", game_settings.game_name, fread_string(fp));
+				break;
+
+			case 'I':
+				KEY("IdleDisconnectTimeout", game_settings.idle_disconnect_time, fread_number(fp));
+				KEY("IdleTimeout", game_settings.idle_time, fread_number(fp));
+				KEY("IncMissions", game_settings.inc_missions, fread_number(fp));
+				KEY("InsecureWarning_Enable", game_settings.enable_insecure_warning, fread_number(fp));
+				KEY("InsecureWarning_Msg", game_settings.insecure_warning_msg, fread_string(fp));
+				break;
+
+			case 'L':
+				KEY("LogAllConnections", game_settings.logall, fread_number(fp));
+				KEY("LoginString", game_settings.login_string, fread_string(fp));
+				break;
+
+			case 'M':
+				KEY("MaxAlias", game_settings.max_alias, fread_number(fp));
+				KEY("MaxCharacters", game_settings.max_characters, fread_number(fp));
+				KEY("MaxLogfileSize", game_settings.max_logfile_size, fread_number(fp));
+				KEY("MaxLoginAttempts", game_settings.max_login_attempts, fread_number(fp));
+				KEY("MaxMissionAllowance", game_settings.max_mission_allowance, fread_number(fp));
+				KEY("MaxMissions", game_settings.max_missions, fread_number(fp));
+				KEY("MaxOrgs", game_settings.max_orgs, fread_number(fp));
+				KEY("MSSP_HOSTNAME",game_settings.mssp_hostname,fread_string(fp));
+				KEY("MSSP_CODEBASE",game_settings.mssp_codebase,fread_string(fp));
+				KEY("MSSP_CONTACT",game_settings.mssp_contact,fread_string(fp));
+				KEY("MSSP_IP",game_settings.mssp_ip,fread_string(fp));
+				KEY("MSSP_LANGUAGE",game_settings.mssp_language,fread_string(fp));
+				KEY("MSSP_LOCATION",game_settings.mssp_location,fread_string(fp));
+				KEY("MSSP_WEBSITE",game_settings.mssp_website,fread_string(fp));
+				KEY("MSSP_FAMILY",game_settings.mssp_family,fread_string(fp));
+				KEY("MSSP_GENRE",game_settings.mssp_genre,fread_string(fp));
+				KEY("MSSP_STATUS",game_settings.mssp_status,fread_string(fp));
+				KEY("MSSP_GAMESYSTEM",game_settings.mssp_gamesystem,fread_string(fp));
+				KEY("MSSP_INTERMUD",game_settings.mssp_intermud,fread_string(fp));
+				KEY("MSSP_SUBGENRE",game_settings.mssp_subgenre,fread_string(fp));
+				KEY("MSSP_DISCORD_SERVER",game_settings.mssp_discord_server,fread_string(fp));
+				KEY("MSSP_EQUIPMENT_SYSTEM",game_settings.mssp_equipment_system,fread_string(fp));
+				KEY("MSSP_MULTIPLAYING",game_settings.mssp_multiplaying,fread_string(fp));
+                KEY("MSSP_CRAWL_DELAY",game_settings.mssp_crawl_delay,fread_number(fp));
+                KEY("MSSP_PORT",game_settings.mssp_port,fread_number(fp));
+                KEY("MSSP_TLS_PORT",game_settings.mssp_tls_port,fread_number(fp));
+                KEY("MSSP_CREATED",game_settings.mssp_created,fread_number(fp));
+                KEY("MSSP_MINIMUM_AGE",game_settings.mssp_minimum_age,fread_number(fp));
+                KEY("MSSP_AREAS",game_settings.mssp_areas,fread_number(fp));
+                KEY("MSSP_HELPFILES",game_settings.mssp_helpfiles,fread_number(fp));
+                KEY("MSSP_MOBILES",game_settings.mssp_mobiles,fread_number(fp));
+                KEY("MSSP_OBJECTS",game_settings.mssp_objects,fread_number(fp));
+                KEY("MSSP_ROOMS",game_settings.mssp_rooms,fread_number(fp));
+                KEY("MSSP_CLASSES",game_settings.mssp_classes,fread_number(fp));
+                KEY("MSSP_LEVELS",game_settings.mssp_levels,fread_number(fp));
+                KEY("MSSP_RACES",game_settings.mssp_races,fread_number(fp));
+                KEY("MSSP_SKILLS",game_settings.mssp_skills,fread_number(fp));
+                KEY("MSSP_DBSIZE",game_settings.mssp_dbsize,fread_number(fp));
+                KEY("MSSP_VT100",game_settings.mssp_vt100,fread_number(fp));
+                KEY("MSSP_ANSI",game_settings.mssp_ansi,fread_number(fp));
+				KEY("MSSP_ATCP",game_settings.mssp_atcp,fread_number(fp));
+                KEY("MSSP_GMCP",game_settings.mssp_gmcp,fread_number(fp));
+                KEY("MSSP_MCCP",game_settings.mssp_mccp,fread_number(fp));
+                KEY("MSSP_MCP",game_settings.mssp_mcp,fread_number(fp));
+                KEY("MSSP_MSDP",game_settings.mssp_msdp,fread_number(fp));
+                KEY("MSSP_MSP",game_settings.mssp_msp,fread_number(fp));
+                KEY("MSSP_MXP",game_settings.mssp_mxp,fread_number(fp));
+                KEY("MSSP_PUEB",game_settings.mssp_pueb,fread_number(fp));
+                KEY("MSSP_UTF8",game_settings.mssp_utf8,fread_number(fp));
+                KEY("MSSP_VT100",game_settings.mssp_vt100,fread_number(fp));
+                KEY("MSSP_XTERM256",game_settings.mssp_xterm256,fread_number(fp));
+                KEY("MSSP_XTERMTRUE",game_settings.mssp_xtermtrue,fread_number(fp));
+                KEY("MSSP_ATCP",game_settings.mssp_atcp,fread_number(fp));
+                KEY("MSSP_SSL",game_settings.mssp_ssl,fread_number(fp));
+                KEY("MSSP_PAY2PLAY",game_settings.mssp_pay2play,fread_number(fp));
+                KEY("MSSP_PAY4PERKS",game_settings.mssp_pay4perks,fread_number(fp));
+                KEY("MSSP_HIRING_BUILDERS",game_settings.mssp_hiring_builders,fread_number(fp));
+                KEY("MSSP_HIRING_CODERS",game_settings.mssp_hiring_coders,fread_number(fp));
+                KEY("MSSP_ADULT_MATERIAL",game_settings.mssp_adult_material,fread_number(fp));
+                KEY("MSSP_MULTICLASS",game_settings.mssp_multiclass,fread_number(fp));
+                KEY("MSSP_NEWBIE_FRIENDLY",game_settings.mssp_newbie_friendly,fread_number(fp));
+                KEY("MSSP_PLAYER_CITIES",game_settings.mssp_player_cities,fread_number(fp));
+                KEY("MSSP_PLAYER_CLANS",game_settings.mssp_player_clans,fread_number(fp));
+                KEY("MSSP_PLAYER_CRAFTING",game_settings.mssp_player_crafting,fread_number(fp));
+                KEY("MSSP_PLAYER_GUILDS",game_settings.mssp_player_guilds,fread_number(fp));
+                KEY("MSSP_PLAYERKILLING",game_settings.mssp_playerkilling,fread_number(fp));
+                KEY("MSSP_QUEST_SYSTEM",game_settings.mssp_quest_system,fread_number(fp));
+                KEY("MSSP_ROLEPLAYING",game_settings.mssp_roleplaying,fread_number(fp));
+                KEY("MSSP_TRAINING_SYSTEM",game_settings.mssp_training_system,fread_number(fp));
+                KEY("MSSP_WORLD_ORIGINALITY",game_settings.mssp_world_originality,fread_number(fp));
+				
+				{
+					RESERVED_WNUM *mwnum = search_reserved(reserved_mob_wnums, word);
+
+					if (mwnum)
+					{
+						mwnum->auid = fread_number(fp);
+						mwnum->vnum = fread_number(fp);
+						fMatch = true;
+					}
+				}
+				break;
+
+            case 'N':
+				KEY("NewAcctLock",game_settings.new_acct_lock,fread_number(fp));
+				KEY("NewAcctLockMsg",game_settings.new_acct_lock_msg,fread_string(fp));
+				KEY("NewCharLock",game_settings.new_char_lock,fread_number(fp));
+				KEY("NewCharLockMsg",game_settings.new_char_lock_msg,fread_string(fp));
+
+	            break;
+			case 'O':
+				{
+					RESERVED_WNUM *ownum = search_reserved(reserved_obj_wnums, word);
+
+					if (ownum)
+					{
+						ownum->auid = fread_number(fp);
+						ownum->vnum = fread_number(fp);
+						fMatch = true;
+					}
+				}
+				break;
+			case 'R':
+				{
+					RESERVED_WNUM *rwnum = search_reserved(reserved_room_wnums, word);
+
+					if (rwnum)
+					{
+						rwnum->auid = fread_number(fp);
+						rwnum->vnum = fread_number(fp);
+						fMatch = true;
+						break;
+					}
+
+					RESERVED_WNUM *rpwnum = search_reserved(reserved_rprog_wnums, word);
+					if (rpwnum)
+					{
+						rpwnum->auid = fread_number(fp);
+						rpwnum->vnum = fread_number(fp);
+						fMatch = true;
+						break;
+					}
+				}
+				KEY("Require_2FA_All",game_settings.require_2fa_all,fread_number(fp));
+				KEY("Require_2FA_Staff",game_settings.require_2fa_staff,fread_number(fp));
+				KEY("RequireUniqPassStaff",game_settings.require_uniq_pass_staff,fread_number(fp));
+				break;
+
+			case 'S':
+				KEY("ServerDescription", game_settings.server_description, fread_string(fp));
+				KEY("SSL_Cert_Path",game_settings.ssl_cert_path,fread_string(fp));
+				KEY("SSL_Key_Path",game_settings.ssl_key_path,fread_string(fp));
+				break;
+
+			case 'T':
+                KEY("Telnet_Enable", game_settings.enable_telnet, fread_number(fp));
+				KEY("Telnet_Port", game_settings.telnet_port, fread_number(fp));
+				KEY("Testport", game_settings.testport, fread_number(fp));
+				KEY("Tls_Enable", game_settings.enable_tls, fread_number(fp));
+				KEY("Tls_Port", game_settings.tls_port, fread_number(fp));
+				break;
+			case 'W':
+				KEY("Wizlock_Enable", game_settings.wizlock, fread_number(fp));
+				KEY("Wizlock_Msg", game_settings.wizlock_msg, fread_string(fp));
+				break;
+
+        } /* end switch */
+
+        if (!fMatch)
+        {
+	    sprintf(buf, "act_wiz.c, game_settings_read(): no match for '%s'!", word);
+	    bug(buf, 0);
+            fread_to_eol(fp);
+        }
+    } /* end for */
+
+
+}
+
+
+
+
 void write_reserved(FILE *fp, RESERVED_WNUM *reserved)
 {
 	int i;
@@ -406,6 +800,7 @@ int gconfig_write(void)
     }
 
 	fprintf(fp, "DBversion %ld\n", (long)VERSION_DB);
+
 	gconfig_write_nextuid(fp, gconfig.next_mob_uid, "NextMobUID");
 	gconfig_write_nextuid(fp, gconfig.next_obj_uid, "NextObjUID");
 	gconfig_write_nextuid(fp, gconfig.next_token_uid, "NextTokenUID");
@@ -418,14 +813,6 @@ int gconfig_write(void)
     fprintf(fp, "NextVlinkUID %ld\n", gconfig.next_vlink_uid);
     fprintf(fp, "NextChurchUID %ld\n", gconfig.next_church_uid);
 	fprintf(fp, "NextChurchVnumStart %ld\n", gconfig.next_church_vnum_start);
-    if(newlock) fprintf(fp, "Newlock\n");
-    if(wizlock) fprintf(fp, "Wizlock\n");
-    if(is_test_port) fprintf(fp, "Testport\n");
-	fprintf(fp, "DisconnectTimeout %d\n", disconnect_timeout);
-	fprintf(fp, "LimboTimeout %d\n", limbo_timeout);
-	fprintf(fp, "MaxMissionAllowance %d\n", gconfig.max_mission_allowance);
-	fprintf(fp, "IncMissions %d\n", gconfig.inc_missions);
-	fprintf(fp, "MaxMissions %d\n", gconfig.max_missions);
 
 	write_reserved(fp, reserved_room_wnums);
 	write_reserved(fp, reserved_mob_wnums);
@@ -440,6 +827,154 @@ int gconfig_write(void)
     return(0); /* Success*/
 }
 
+
+int game_settings_write(void)
+{
+	FILE *fp;
+
+	fp = fopen(GAME_SETTINGS_FILE,"w");
+	if (!fp)
+	{
+		bug("act_wiz.c, game_settings_write(): Unable to open game_settings.rc file for writing.",0);
+		return(1); /* Failure*/
+	}
+
+    fprintf(fp, "GameName %s~\n",  game_settings.game_name);
+    fprintf(fp, "LoginString %s~\n",  game_settings.login_string);
+	fprintf(fp, "ServerDescription %s~\n",  game_settings.server_description);
+
+	/* Port Settings */
+    fprintf(fp, "Telnet_Enable %d\n",  game_settings.enable_telnet);
+    fprintf(fp, "Telnet_Port %d\n",  game_settings.telnet_port);
+    fprintf(fp, "Tls_Enable %d\n",  game_settings.enable_tls);
+    fprintf(fp, "Tls_Port %d\n",  game_settings.tls_port);
+    fprintf(fp, "SSL_Cert_Path %s~\n", game_settings.ssl_cert_path);
+    fprintf(fp, "SSL_Key_Path %s~\n", game_settings.ssl_key_path);
+	fprintf(fp, "Testport %d\n",  game_settings.testport);
+    fprintf(fp, "InsecureWarning_Enable %d\n",  game_settings.enable_insecure_warning);
+    fprintf(fp, "InsecureWarning_Msg %s~\n",  game_settings.insecure_warning_msg);
+
+	/* Various Locks */
+    fprintf(fp, "Wizlock_Enable %d\n",  game_settings.wizlock);
+    fprintf(fp, "Wizlock_Msg %s~\n",  game_settings.wizlock_msg);
+	fprintf(fp, "NewAcctLock %d\n", game_settings.new_acct_lock);
+	fprintf(fp, "NewAcctLockMsg %s~\n", game_settings.new_acct_lock_msg);
+    fprintf(fp, "NewCharLock %d\n", game_settings.new_char_lock);
+    fprintf(fp, "NewCharLockMsg %s~\n", game_settings.new_char_lock_msg);
+
+	/* Mission Stuff */
+    fprintf(fp, "IncMissions %d\n",  game_settings.inc_missions);
+    fprintf(fp, "MaxMissionAllowance %d\n",  game_settings.max_mission_allowance);
+    fprintf(fp, "MaxMissions %d\n",  game_settings.max_missions);
+
+	/* Multiplaying */
+    fprintf(fp, "AllowMultiplayAcctAll %d\n",  game_settings.allow_multiplay_acct_all);
+    fprintf(fp, "AllowMultiplayAcctStaff %d\n",  game_settings.allow_multiplay_acct_staff);
+    fprintf(fp, "AllowMultiplayHostAll %d\n",  game_settings.allow_multiplay_host_all);
+    fprintf(fp, "AllowMultiplayHostStaff %d\n",  game_settings.allow_multiplay_host_staff);
+
+	/* Auth */
+    fprintf(fp, "Require_2FA_All %d\n", game_settings.require_2fa_all);
+    fprintf(fp, "Require_2FA_Staff %d\n", game_settings.require_2fa_staff);
+    fprintf(fp, "RequireUniqPassStaff %d\n", game_settings.require_uniq_pass_staff);
+
+	/* Timeouts */
+    fprintf(fp, "IdleDisconnectTimeout %d\n",  game_settings.idle_disconnect_time);
+    fprintf(fp, "IdleTimeout %d\n",  game_settings.idle_time);
+
+	/* Misc Values */
+    fprintf(fp, "LogAllConnections %d\n",  game_settings.logall);
+    fprintf(fp, "MaxAlias %d\n",  game_settings.max_alias);
+    fprintf(fp, "MaxCharacters %d\n",  game_settings.max_characters);
+    fprintf(fp, "MaxLogfileSize %d\n",  game_settings.max_logfile_size);
+    fprintf(fp, "MaxLoginAttempts %d\n",  game_settings.max_login_attempts);
+	fprintf(fp, "MaxOrgs %d\n",  game_settings.max_orgs);
+
+	/* Email */
+    fprintf(fp, "Email_Enable %d\n",  game_settings.enable_email);
+    fprintf(fp, "EmailUser %s~\n",  game_settings.email_username);
+    fprintf(fp, "EmailPassword %s~\n",  game_settings.email_password);
+    fprintf(fp, "EmailHost %s~\n",  game_settings.email_host);
+    fprintf(fp, "EmailPort %d\n",  game_settings.email_port);
+    fprintf(fp, "EmailFromAddr %s~\n",  game_settings.email_from_addr);
+    fprintf(fp, "EmailFromName %s~\n",  game_settings.email_from_name);
+
+	/* MSSP */
+    fprintf(fp, "MSSP_HOSTNAME %s~\n", game_settings.mssp_hostname);
+    fprintf(fp, "MSSP_CODEBASE %s~\n", game_settings.mssp_codebase);
+    fprintf(fp, "MSSP_CONTACT %s~\n", game_settings.mssp_contact);
+    fprintf(fp, "MSSP_IP %s~\n", game_settings.mssp_ip);
+    fprintf(fp, "MSSP_LANGUAGE %s~\n", game_settings.mssp_language);
+    fprintf(fp, "MSSP_LOCATION %s~\n", game_settings.mssp_location);
+    fprintf(fp, "MSSP_WEBSITE %s~\n", game_settings.mssp_website);
+    fprintf(fp, "MSSP_FAMILY %s~\n", game_settings.mssp_family);
+    fprintf(fp, "MSSP_GENRE %s~\n", game_settings.mssp_genre);
+    fprintf(fp, "MSSP_STATUS %s~\n", game_settings.mssp_status);
+    fprintf(fp, "MSSP_GAMESYSTEM %s~\n", game_settings.mssp_gamesystem);
+    fprintf(fp, "MSSP_INTERMUD %s~\n", game_settings.mssp_intermud);
+    fprintf(fp, "MSSP_SUBGENRE %s~\n", game_settings.mssp_subgenre);
+    fprintf(fp, "MSSP_DISCORD_SERVER %s~\n", game_settings.mssp_discord_server);
+    fprintf(fp, "MSSP_EQUIPMENT_SYSTEM %s~\n", game_settings.mssp_equipment_system);
+    fprintf(fp, "MSSP_MULTIPLAYING %s~\n", game_settings.mssp_multiplaying);
+    fprintf(fp, "MSSP_CRAWL_DELAY %d\n", game_settings.mssp_crawl_delay);
+    fprintf(fp, "MSSP_PORT %d\n", game_settings.mssp_port);
+    fprintf(fp, "MSSP_TLS_PORT %d\n", game_settings.mssp_tls_port);
+    fprintf(fp, "MSSP_CREATED %d\n", game_settings.mssp_created);
+    fprintf(fp, "MSSP_MINIMUM_AGE %d\n", game_settings.mssp_minimum_age);
+    fprintf(fp, "MSSP_AREAS %d\n", game_settings.mssp_areas);
+    fprintf(fp, "MSSP_HELPFILES %d\n", game_settings.mssp_helpfiles);
+    fprintf(fp, "MSSP_MOBILES %d\n", game_settings.mssp_mobiles);
+    fprintf(fp, "MSSP_OBJECTS %d\n", game_settings.mssp_objects);
+    fprintf(fp, "MSSP_ROOMS %d\n", game_settings.mssp_rooms);
+    fprintf(fp, "MSSP_CLASSES %d\n", game_settings.mssp_classes);
+    fprintf(fp, "MSSP_LEVELS %d\n", game_settings.mssp_levels);
+    fprintf(fp, "MSSP_RACES %d\n", game_settings.mssp_races);
+    fprintf(fp, "MSSP_SKILLS %d\n", game_settings.mssp_skills);
+    fprintf(fp, "MSSP_DBSIZE %d\n", game_settings.mssp_dbsize);
+    fprintf(fp, "MSSP_VT100 %d\n", game_settings.mssp_vt100);
+    fprintf(fp, "MSSP_ANSI %d\n", game_settings.mssp_ansi);
+    fprintf(fp, "MSSP_ATCP %d\n", game_settings.mssp_atcp);
+    fprintf(fp, "MSSP_GMCP %d\n", game_settings.mssp_gmcp);
+    fprintf(fp, "MSSP_MCCP %d\n", game_settings.mssp_mccp);
+    fprintf(fp, "MSSP_MCP %d\n", game_settings.mssp_mcp);
+    fprintf(fp, "MSSP_MSDP %d\n", game_settings.mssp_msdp);
+    fprintf(fp, "MSSP_MSP %d\n", game_settings.mssp_msp);
+    fprintf(fp, "MSSP_MXP %d\n", game_settings.mssp_mxp);
+    fprintf(fp, "MSSP_PUEB %d\n", game_settings.mssp_pueb);
+    fprintf(fp, "MSSP_UTF8 %d\n", game_settings.mssp_utf8);
+    fprintf(fp, "MSSP_VT100 %d\n", game_settings.mssp_vt100);
+    fprintf(fp, "MSSP_XTERM256 %d\n", game_settings.mssp_xterm256);
+    fprintf(fp, "MSSP_XTERMTRUE %d\n", game_settings.mssp_xtermtrue);
+    fprintf(fp, "MSSP_ATCP %d\n", game_settings.mssp_atcp);
+    fprintf(fp, "MSSP_SSL %d\n", game_settings.mssp_ssl);
+    fprintf(fp, "MSSP_PAY2PLAY %d\n", game_settings.mssp_pay2play);
+    fprintf(fp, "MSSP_PAY4PERKS %d\n", game_settings.mssp_pay4perks);
+    fprintf(fp, "MSSP_HIRING_BUILDERS %d\n", game_settings.mssp_hiring_builders);
+    fprintf(fp, "MSSP_HIRING_CODERS %d\n", game_settings.mssp_hiring_coders);
+    fprintf(fp, "MSSP_ADULT_MATERIAL %d\n", game_settings.mssp_adult_material);
+    fprintf(fp, "MSSP_MULTICLASS %d\n", game_settings.mssp_multiclass);
+    fprintf(fp, "MSSP_NEWBIE_FRIENDLY %d\n", game_settings.mssp_newbie_friendly);
+    fprintf(fp, "MSSP_PLAYER_CITIES %d\n", game_settings.mssp_player_cities);
+    fprintf(fp, "MSSP_PLAYER_CLANS %d\n", game_settings.mssp_player_clans);
+    fprintf(fp, "MSSP_PLAYER_CRAFTING %d\n", game_settings.mssp_player_crafting);
+    fprintf(fp, "MSSP_PLAYER_GUILDS %d\n", game_settings.mssp_player_guilds);
+    fprintf(fp, "MSSP_PLAYERKILLING %d\n", game_settings.mssp_playerkilling);
+    fprintf(fp, "MSSP_QUEST_SYSTEM %d\n", game_settings.mssp_quest_system);
+    fprintf(fp, "MSSP_ROLEPLAYING %d\n", game_settings.mssp_roleplaying);
+    fprintf(fp, "MSSP_TRAINING_SYSTEM %d\n", game_settings.mssp_training_system);
+    fprintf(fp, "MSSP_WORLD_ORIGINALITY %d\n", game_settings.mssp_world_originality);
+
+	write_reserved(fp, reserved_room_wnums);
+	write_reserved(fp, reserved_mob_wnums);
+	write_reserved(fp, reserved_obj_wnums);
+	// Tokens?
+	write_reserved(fp, reserved_rprog_wnums);
+	write_reserved_areas(fp);
+
+	fprintf(fp, "END\n");
+	fclose(fp);
+    return(0); /* Success*/
+}
 
 void do_wiznet(CHAR_DATA *ch, char *argument)
 {
@@ -478,44 +1013,54 @@ void do_wiznet(CHAR_DATA *ch, char *argument)
     /* show wiznet status */
     if (!str_prefix(argument,"status"))
     {
-	buf[0] = '\0';
+		buf[0] = '\0';
 
-	if (!IS_SET(ch->wiznet,WIZ_ON))
-	    strcat(buf,"off ");
+		if (IS_SET(ch->comm, COMM_COMPACT))
+		{
+			send_to_char("Wiznet status: ", ch);
+			for (flag = 0; wiznet_table[flag].name != NULL; flag++)
+			{
+				if (wiznet_table[flag].rank <= get_staff_rank(ch))
+				{
+					if (!str_cmp(wiznet_table[flag].name, "on"))
+						sprintf(buf, "\t<send href=\"wiznet\" hint=\"Toggle wiznet\">%s%s{X", IS_SET(ch->wiznet, wiznet_table[flag].flag) ? "{G" : "{R", wiznet_table[flag].name);
+					else
+						sprintf(buf, "\t<send href=\"wiznet %s\" hint=\"Toggle '%s' wiznet channel\">%s%s{X", wiznet_table[flag].name, wiznet_table[flag].name, IS_SET(ch->wiznet, wiznet_table[flag].flag) ? "{G" : "{R", wiznet_table[flag].name);
+				}	
+				else
+					sprintf(buf, "{D%s{X", wiznet_table[flag].name);
+				strcat(buf, " ");
+				send_to_char(buf, ch);
+			}
 
-	for (flag = 0; wiznet_table[flag].name != NULL; flag++)
-	    if (IS_SET(ch->wiznet,wiznet_table[flag].flag))
-	    {
-		strcat(buf,wiznet_table[flag].name);
-		strcat(buf," ");
-	    }
+			send_to_char("\n\r", ch);
+		}
+		else
+		{
+			for (flag = 0; wiznet_table[flag].name != NULL; flag++)
+			{
+				line(ch, 23, "{B", "_");
+				send_to_char("{B|    {WWiznet Status{B    |{X\n\r",ch);
+				line(ch, 23, "{B", "-");
 
-	strcat(buf,"\n\r");
-
-	send_to_char("Wiznet status:\n\r",ch);
-	send_to_char(buf,ch);
-	return;
-    }
-
-    if (!str_prefix(argument,"show"))
-    /* list of all wiznet options */
-    {
-	buf[0] = '\0';
-
-	for (flag = 0; wiznet_table[flag].name != NULL; flag++)
-	{
-	    if (wiznet_table[flag].rank <= get_staff_rank(ch))
-	    {
-	    	strcat(buf,wiznet_table[flag].name);
-	    	strcat(buf," ");
-	    }
-	}
-
-	strcat(buf,"\n\r");
-
-	send_to_char("Wiznet options available to you are:\n\r",ch);
-	send_to_char(buf,ch);
-	return;
+				for (flag = 0; wiznet_table[flag].name != NULL; flag++)
+				{
+		    		if (wiznet_table[flag].rank <= get_staff_rank(ch))
+					{
+						if (!str_cmp(wiznet_table[flag].name, "on"))
+							sprintf(buf, "{B| {W%-15s{X \t<send href=\"wiznet\" hint=\"Toggle wiznet\">%s {B|{X\n\r", wiznet_table[flag].name, IS_SET(ch->wiznet, wiznet_table[flag].flag) ? "{GON{x\t</send> " : "{ROFF{x\t</send>");
+						else
+							sprintf(buf, "{B| {W%-15s{X \t<send href=\"wiznet %s\" hint=\"Toggle '%s' wiznet channel\">%s {B|{X\n\r", wiznet_table[flag].name, wiznet_table[flag].name, wiznet_table[flag].name, IS_SET(ch->wiznet, wiznet_table[flag].flag) ? "{GON{x\t</send> " : "{ROFF{x\t</send>");
+					}
+					else
+						sprintf(buf, "{B| {D%-15s{X, {rOFF{x {B|{X\n\r", wiznet_table[flag].name);
+					send_to_char(buf, ch);
+				}
+				line(ch, 23, "{B", "-");
+				send_to_char("\n\r", ch);
+			}
+		}
+		return;
     }
 
     flag = wiznet_lookup(argument);
@@ -549,6 +1094,8 @@ void do_wiznet(CHAR_DATA *ch, char *argument)
 void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj, long flag, long flag_skip, int min_rank)
 {
 	DESCRIPTOR_DATA *d;
+	char wiz_buf[MSL];
+	char wiz_channel[MIL];
 
 	for (d = descriptor_list; d != NULL; d = d->next)
 	{
@@ -567,8 +1114,27 @@ void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj, long flag, long flag_ski
 					continue;
 			}
 
-			if (IS_SET(d->character->wiznet,WIZ_PREFIX))
-				send_to_char("{B({MSE{B){G-->{x ",d->character);
+			int flag_pos = 0;
+			for (int i = 0; wiznet_table[i].name != NULL; i++)
+			{
+				if (wiznet_table[i].flag == flag)
+				{
+					flag_pos = i;
+					break;
+				}
+			}
+
+	    	if (IS_SET(d->character->wiznet,WIZ_PREFIX))
+			{
+				strcpy(wiz_channel, wiznet_table[flag_pos].name);
+				for (int i = 0; wiz_channel[i] != '\0'; i++)
+				{
+					wiz_channel[i] = toupper(wiz_channel[i]);
+				}
+
+				sprintf(wiz_buf, "{B({MWIZ-{W%s{B){G-->{x ", wiz_channel);
+		    	send_to_char(wiz_buf,d->character);
+			}
 			act_new(string,d->character,ch,NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
 		}
 	}
@@ -1378,7 +1944,7 @@ void do_stat(CHAR_DATA *ch, char *argument)
 	send_to_char("  stat mob <name>\n\r",ch);
 	send_to_char("  stat room <number>\n\r",ch);
 	send_to_char("  stat aff <character or object>\n\r", ch);
-	send_to_char("  stat token <character>\n\r", ch);
+	send_to_char("  stat token <mob <name>|obj <name>|room> [count.]<token vnum>\n\r", ch);
 	return;
     }
 
@@ -1388,7 +1954,7 @@ void do_stat(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (!str_cmp(arg,"obj"))
+    if (!str_cmp(arg,"obj") || !str_cmp(arg,"object"))
     {
 	do_function(ch, &do_ostat, string);
 	return;
@@ -1579,7 +2145,7 @@ void do_rstat(CHAR_DATA *ch, char *argument)
     BUFFER *output;
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
-    ROOM_INDEX_DATA *location, *clone;
+    ROOM_INDEX_DATA *location, *clone, *recall;
     OBJ_DATA *obj;
     CHAR_DATA *rch;
     int door;
@@ -1635,6 +2201,23 @@ void do_rstat(CHAR_DATA *ch, char *argument)
                 location->heal_rate,
                 location->mana_rate);
     }
+
+
+	if (location_isset(&location->recall))
+	{
+		if(location->recall.wuid) {
+			WILDS_DATA *wilds = get_wilds_from_uid(NULL,location->recall.wuid);
+			if(wilds)
+				sprintf(buf, "{WRecall:      Wilds {X%s {R[{X%lu{R]{X at {R<{X%lu,%lu,%lu{R>{X\n\r", wilds->name, location->recall.wuid,
+					location->recall.id[0],location->recall.id[1],location->recall.id[2]);
+			else
+				sprintf(buf, "{WRecall:      Wilds {X??? {R[{X%lu{R]{X\n\r", location->recall.wuid);
+		} else if(location->recall.id[0] > 0 && (recall = get_room_index(location->recall.area, location->recall.id[0]))) {
+				sprintf(buf, "{WRecall:      Room {R[{X%5ld{R]{X {X%s\n\r", location->recall.id[0], recall->name);
+		} else
+				sprintf(buf, "{WRecall:      {R[{X%lu{R]{X none\n\r", location->recall.id[0]);
+		add_buf(output, buf);
+	}
 
     add_buf(output, buf);
 	sprintf(buf, "{YSector Flags:{x %s\n\r",
@@ -2286,10 +2869,12 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 	BUFFER *buffer;
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
+	char script_cmd[10];
     AFFECT_DATA *paf;
     OBJ_DATA *obj;
     EVENT_DATA *ev;
     ROOM_INDEX_DATA *room;
+	TOKEN_DATA *token;
 	ITERATOR it;
 
     one_argument(argument, arg);
@@ -2300,7 +2885,26 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 		return;
     }
 
-    if ((obj = get_obj_world(ch, argument)) == NULL)
+
+	if (is_number(arg))
+	{
+		argument = one_argument(argument, arg);
+		if (argument[0] != '\0' && is_number(arg) && is_number(argument))
+		{
+			if ((obj = idfind_object(atoi(arg), atoi(argument))) == NULL)
+			{
+				send_to_char("Object not found.\n\r", ch);
+				return;
+			}
+		}
+		else
+		{
+			send_to_char("Syntax: stat obj <name|IDa IDb>",ch);
+			return;
+		}	
+				
+	}
+	else if ((obj = get_obj_world(ch, argument)) == NULL)
     {
 		send_to_char("Object not found.\n\r", ch);
 		return;
@@ -2308,56 +2912,74 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 
 	buffer = new_buf();
 
-    sprintf(buf, "{BShort desc: {x%s {BName(s):{x %s\n\r", obj->short_descr, obj->name);
-    add_buf(buffer, buf);
+	/*
+	Short desc: a soldier's broadsword Name(s): soldier broad sword broadsword
+	Vnum: 4009 Area: Reza Type: weapon
+	Long description: A massive broadsword of steel lies, discarded on the ground here.
+	Full description:
+ 	A massive broadsword of steel lies, discarded on the ground here.
+	Wear bits: take wield
+	Extra bits: glow bless burnproof
+	Number: 1/1 Weight: 7
+	Level: 65 Cost: 3200 Condition: 100 Timer: 0 Owner: (null)
+	In room: 0 In object: (none) Carried by: rezian soldier In mail: No Wear_loc: 16
+	Values: 1 9 22 3 8 0 0 0
+	Affects strength     by   1, level  65.
+	*/
 
-	sprintf(buf, "{BPersistance: %s{x\n\r", obj->persist ? "{WON" : "{Doff");
-    add_buf(buffer, buf);
 
-    sprintf(buf, "{BVnum:{x %ld {BArea: {x%s {BType:{x %s\n\r",
-		obj->pIndexData->vnum, obj->pIndexData->area->name,
-		item_name(obj->item_type));
-    add_buf(buffer, buf);
+	//TODO: Rework the MXP here.
+	/* Some quick checks to set colour object values that differ from index */
+
+	sprintf(buf, "Basic information about %s\n\r", obj->short_descr);
+	add_buf(buffer, buf);
+
+	// Keywords, ID, VNUM, Area
+
+	sprintf(buf, "{%sKeywords{X: %s{X {BID{X: %ld %ld {BVNUM{X: \t<send href='oshow %s' hint='Show index data for object'>%s\t</send> ({W%s (%ld){X)\n\r",
+	(!str_cmp(obj->name, obj->pIndexData->name)) ? "B" : "Y", obj->name, obj->id[0], obj->id[1], widevnum_string_object(obj->pIndexData, NULL), widevnum_string_object(obj->pIndexData, NULL), obj->pIndexData->area->name, obj->pIndexData->area->uid);
+
+	add_buf(buffer, buf);
 
     if (obj->loaded_by != NULL && get_staff_rank(ch) > STAFF_PLAYER)
     {
-		sprintf(buf, "{BItem loaded by {x%s\n\r", obj->loaded_by);
-	    add_buf(buffer, buf);
+		sprintf(buf, "{YItem loaded by: {x%s\n\r", obj->loaded_by);
+		add_buf(buffer, buf);
     }
+	else if (obj->script_created && ch->tot_level >= STAFF_IMMORTAL)
+	{
+		sprintf(buf, "{YItem created by \t<send \"%sdump %s|%sedit %s\" hint=\"Dump code for %s %s|Edit %s %s\">%s %s\t</send>.\n\r", 
+		script_type_table[obj->created_script_type].prog_command, obj->created_script_wnum,
+		script_type_table[obj->created_script_type].prog_command, obj->created_script_wnum,
+		script_type_table[obj->created_script_type].prog_type, obj->created_script_wnum, 
+		script_type_table[obj->created_script_type].prog_type, obj->created_script_wnum,
+		script_type_table[obj->created_script_type].prog_type, obj->created_script_wnum);
+		add_buf(buffer, buf);
+	}
+	char created_time[100];
+	strftime(created_time, 100, "%a %b %d %X %Z %Y", localtime(&obj->creation_time));
+	sprintf(buf, "{BCreated at:{x %s\n\r", created_time);
+	add_buf(buffer, buf);
 
-    sprintf(buf, "{BLong description:{x %s\n\r{BFull description:\n\r {x%s", obj->description, string_indent(obj->full_description,3));
-	if (str_suffix("\n\r", buf))
-		strcat(buf, "\n\r");
-    add_buf(buffer, buf);
+	// Level, Cost, Condition, Timer, Weight
+	sprintf(buf, "{%sLevel{X: %d{X {%sCost{X: %ld{X {%sCondition{X: %d{X {%sTimer{X: %d{X {%sWeight{X: %d{X\n\r",
+	(obj->level == obj->pIndexData->level) ? "B" : "Y", obj->level,
+	(obj->cost == obj->pIndexData->cost) ? "B" : "Y", obj->cost,
+	(obj->condition == obj->pIndexData->condition) ? "B" : "Y", obj->condition,
+	(obj->timer == obj->pIndexData->timer) ? "B" : "Y", obj->timer,
+	(obj->weight == obj->pIndexData->weight) ? "B" : "Y", obj->weight);
+	add_buf(buffer, buf);
 
-    sprintf(buf, "{BWear bits: {x%s\n\r{BExtra bits:{x %s\n\r",
-		flag_string(wear_flags, obj->wear_flags),
-		bitmatrix_string(extra_flagbank, obj->extra));
-    add_buf(buffer, buf);
-
-    sprintf(buf, "{BNumber:{x %d/%d {BWeight:{x %d\n\r", 1, get_obj_number(obj), get_obj_weight(obj));
-    add_buf(buffer, buf);
-
-    sprintf(buf, "{BLevel:{x %d {BCost:{x %ld {BCondition:{x %d {BTimer:{x %d {BOwner:{x %s\n\r",
-		obj->level, obj->cost, obj->condition, obj->timer, obj->owner);
-    add_buf(buffer, buf);
-
-    if (obj->in_wilds == NULL)
-	    sprintf(buf, "{BIn room:{x %ld {BIn object:{x %s {BCarried by:{x %s {BIn mail:{x %s {BWear_loc:{x %d\n\r",
-			obj->carried_by == NULL && obj->in_room != NULL ? obj->in_room->vnum : 0,
-			obj->in_obj     == NULL ? "(none)" : obj->in_obj->short_descr,
-			obj->carried_by == NULL ? "(none)" : obj->carried_by->name,
-			obj->in_mail == NULL ? "No" : "Yes",
-			obj->wear_loc);
-    else
-        sprintf(buf,
-                "In wilds: %ld - '%s', at (%d, %d).\n\r",
-                obj->in_wilds->uid, obj->in_wilds->name, obj->x, obj->y);
-    add_buf(buffer, buf);
+	// Type, Wear flags, Owner
+	sprintf(buf, "{%sMain Type{X: %s{X {%sWear{X: %s {%sOwner{X: %s{X\n\r",
+	(obj->item_type == obj->pIndexData->item_type) ? "B": "Y", item_name(obj->item_type), 
+	(!str_cmp(wear_bit_name(obj->wear_flags), wear_bit_name(obj->pIndexData->wear_flags))) ? "B" : "Y", wear_bit_name(obj->wear_flags), 
+	(obj->owner == NULL) ? "B" : "Y", (obj->owner == NULL) ? "None" : obj->owner);
+	add_buf(buffer, buf);
 
 	sprintf(buf, "{BClass: {x%s{B Class Type: {x%s{B Race:{x",
-		IS_VALID(obj->clazz) ? obj->clazz->name : "(none)",
-		(obj->clazz_type != CLASS_NONE) ? flag_string(class_types, obj->clazz_type) : "(none)");
+	IS_VALID(obj->clazz) ? obj->clazz->name : "(none)",
+	(obj->clazz_type != CLASS_NONE) ? flag_string(class_types, obj->clazz_type) : "(none)");
 	if (list_size(obj->race) > 0)
 	{
 		ITERATOR rit;
@@ -2380,13 +3002,10 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 	strcat(buf, "\n\r");
 	add_buf(buffer, buf);
 
-	send_to_char("{BValues:{x",ch);
-	for(int i = 0; i < MAX_OBJVALUES; i++)
-	{
-		sprintf(buf, " %d", obj->value[i]);
-	    add_buf(buffer, buf);
-	}
-	add_buf(buffer, "\n\r");
+	// Extra flags
+	sprintf(buf, "{%sExtra Flags{X: %s\n\r",
+	(!str_cmp(bitmatrix_string(extra_flagbank, obj->extra), bitmatrix_string(extra_flagbank, obj->pIndexData->extra))) ? "B" : "Y", bitmatrix_string(extra_flagbank, obj->extra));
+	add_buf(buffer, buf);
 
 	if (IS_AMMO(obj))
 	{
@@ -2495,7 +3114,7 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 
 	if (IS_CONTAINER(obj))
 	{
-		sprintf(buf, "{CContainer[{x%s{C / {x%s{C]: {BFlags: {x%s {BMax Weight:{x %d {BWeight Multiplier:{x %d {BMax Volume:{x %d {BTotal Weight:{x %d {BTotal Volume:{x %d\n\r",
+		sprintf(buf, "{CContainer[{x%s{C / {x%s{C]:\n\r {BFlags: {x%s {BMax Weight:{x %d {BWeight Multiplier:{x %d {BMax Volume:{x %d {BTotal Weight:{x %d {BTotal Volume:{x %d\n\r",
 			CONTAINER(obj)->name, CONTAINER(obj)->short_descr, flag_string(container_flags,CONTAINER(obj)->flags),
 			CONTAINER(obj)->max_weight,
 			CONTAINER(obj)->weight_multiplier,
@@ -2896,7 +3515,111 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 			add_buf(buffer, buf);
 		}
 		iterator_stop(&sit);
+		
 	}
+
+
+	sprintf(buf, "{W\n\rItem Values:");
+	add_buf(buffer, buf);
+	print_live_obj_values(obj, buffer);
+	add_buf(buffer, "\n\r");
+
+    for (paf = obj->affected; paf != NULL; paf = paf->next)
+    {
+		sprintf(buf, "{BAffects{x %-12s {Bby{x %3d{B, level{x %3d",
+			affect_loc_name(paf->location), paf->modifier,paf->level);
+	    add_buf(buffer, buf);
+		if (paf->duration > -1)
+			sprintf(buf,", %d {Bhours.{x\n\r",paf->duration);
+		else
+			sprintf(buf,"{B.{x\n\r");
+	    add_buf(buffer, buf);
+    }
+
+	sprintf(buf, "\n\r{WLocation:{X\n\r");
+	add_buf(buffer, buf);
+
+	if (obj->in_wilds != NULL)
+	{
+		sprintf(buf,"{BIn wilds{X: \t<send href='goxy %d %d %ld'>'%s' (%ld) (at %d, %d)\t</send>{X\n\r", obj->x, obj->y, obj->in_wilds->uid, obj->in_wilds->name, obj->in_wilds->uid, obj->x, obj->y);
+		add_buf(buffer, buf);
+	}
+
+	else if (obj->in_room != NULL)
+	{
+		sprintf(buf, "{BIn room{X: \t<send href='rshow %s'>%s - (%s)\t</send>{X\n\r", widevnum_string_room(obj->in_room, NULL),  obj->in_room->name, widevnum_string_room(obj->in_room, NULL));
+		add_buf(buffer, buf);
+	}
+	if (obj->in_obj != NULL)
+	{
+		sprintf(buf, "{BIn object{X: \t<send href='stat obj %ld %ld'>%s (%ld)\t</send>{X\n\r", obj->in_obj->id[0], obj->in_obj->id[1], obj->in_obj->short_descr, obj->in_obj->pIndexData->vnum);
+		add_buf(buffer, buf);
+	}
+	if (obj->carried_by != NULL)
+	{
+		if (IS_NPC(obj->carried_by))
+			sprintf(buf, "{BCarried by{X: \t<send href='stat mob %ld %ld'>%s (%s)\t</send>{X\n\r", obj->carried_by->id[0], obj->carried_by->id[1], obj->carried_by->name, widevnum_string_mobile(obj->carried_by->pIndexData, NULL));
+		else
+			sprintf(buf, "{BCarried by{X: \t<send href='stat char %s'>%s\t</send>{X\n\r", obj->carried_by->name, obj->carried_by->name);
+		add_buf(buffer, buf);
+	}
+	if (obj->in_mail != NULL)
+	{
+
+		if (obj->in_mail->scripted)
+		{
+			switch(obj->in_mail->orig_script_type)
+			{
+				case PRG_MPROG:
+					sprintf(script_cmd, "mpdump");
+					break;
+				case PRG_OPROG:
+					sprintf(script_cmd, "opdump");
+					break;
+				case PRG_RPROG:
+					sprintf(script_cmd, "rpdump");
+					break;
+				case PRG_TPROG:
+					sprintf(script_cmd, "tpdump");
+					break;
+				case PRG_APROG:
+					sprintf(script_cmd, "apdump");
+					break;
+				case PRG_IPROG:
+					sprintf(script_cmd, "ipdump");
+					break;
+				case PRG_DPROG:
+					sprintf(script_cmd, "dpdump");
+					break;
+				default: break;
+			}
+			sprintf(buf, "{BIn mail{X: \t<send href=\"%s %s\">Scripted to %s - ({W%s %s{X)\t</send>{X\n\r", script_cmd, obj->in_mail->originating_script, obj->in_mail->recipient, script_cmd, obj->in_mail->originating_script);
+		}
+		else
+			sprintf(buf, "{BIn mail{X: From %s to %s\n\r{X", obj->in_mail->sender, obj->in_mail->recipient);
+		add_buf(buffer, buf);
+	}
+
+	if (obj->wear_loc != WEAR_NONE)
+	{
+		sprintf(buf, "{BWear Location{X: %s\n\r", flag_string(wear_loc_strings,obj->wear_loc));
+		add_buf(buffer, buf);
+	}
+
+	if (!obj->in_room && !obj->in_obj && !obj->carried_by && !obj->in_mail && !obj->in_wilds)
+	{
+		sprintf(buf, "Object is currently {Rnowhere{X.\n\r");
+		add_buf(buffer, buf);
+	}
+
+	sprintf(buf, "\n\r{WDescriptions:{X\n\r");
+	add_buf(buffer, buf);
+
+	sprintf(buf, "{%sShort Desc{X: %s{X\n\r{%sLong Desc{X: %s{X\n\r{%sFull Desc{X:\n\r %s{X\n\r",
+	(!str_cmp(obj->short_descr, obj->pIndexData->short_descr)) ? "B" : "Y", obj->short_descr, 
+	(!str_cmp(obj->description, obj->pIndexData->description)) ? "B" : "Y", obj->description, 
+	(!str_cmp(obj->full_description, obj->pIndexData->full_description)) ? "B" : "Y", obj->full_description);
+	add_buf(buffer, buf);
 
     if (obj->extra_descr != NULL || obj->pIndexData->extra_descr != NULL)
     {
@@ -2921,28 +3644,46 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 	    add_buf(buffer, "\n\r");
     }
 
-    for (paf = obj->affected; paf != NULL; paf = paf->next)
-    {
-		sprintf(buf, "{BAffects{x %-12s {Bby{x %3d{B, level{x %3d",
-			affect_loc_name(paf->location), paf->modifier,paf->level);
-	    add_buf(buffer, buf);
-		if (paf->duration > -1)
-			sprintf(buf,", %d {Bhours.{x\n\r",paf->duration);
-		else
-			sprintf(buf,"{B.{x\n\r");
-	    add_buf(buffer, buf);
+	if (obj->events)
+	{
+		sprintf(buf, "\n\r{WEvents:{X\n\r");
+		add_buf(buffer, buf);
+    	for (ev = obj->events; ev != NULL; ev = ev->next_event) 
+		{
+			sprintf(buf, "{M* {BEvent {x%-53.52s {B[{x%7.3f{B seconds{B]{x\n\r", ev->args, (float) ev->delay/2);
+			add_buf(buffer, buf);
+		}
     }
 
-    for (ev = obj->events; ev != NULL; ev = ev->next_event) {
-		sprintf(buf, "{M* {BEvent {x%-53.52s {B[{x%7.3f{B seconds{B]{x\n\r", ev->args, (float) ev->delay/2);
-	    add_buf(buffer, buf);
+	if (obj->clone_rooms)
+	{
+		sprintf(buf, "\n\r{WClone Rooms:{X\n\r");
+		add_buf(buffer, buf);
+    	for (room = obj->clone_rooms; room; room = room->next_clone) {
+			sprintf(buf, "{M* {CClone {W%ld {C[{W%lu{C:{W%lu{C]{x\n\r", room->source->vnum, room->id[0], room->id[1]);
+			add_buf(buffer, buf);
+		}
     }
 
+	if (obj->tokens)
+	{
+		sprintf(buf, "\n\r{WTokens:{X\n\r");
+		add_buf(buffer, buf);
+		for (token = obj->tokens; token != NULL; token = token->next) {
+			sprintf(buf, "{M* {CToken \t<send href=\"stat token %lu %lu|token junk %lu %lu\" hint=\"Stat token %lu %lu on %s|Remove token %lu %lu on %s\">{W%s\t</send>{X (\t<send href=\"tshow %s|tedit %s\" hint=\"Show token %s|Edit token %s\">{W%s\t<send>{X - ID: {W%lu %lu{X){x\n\r", 
+			token->id[0], token->id[1], token->id[0], token->id[1], token->id[0], token->id[1], obj->short_descr, token->id[0], token->id[1], 
+			obj->short_descr, widevnum_string_token(token->pIndexData, NULL), widevnum_string_token(token->pIndexData, NULL), widevnum_string_token(token->pIndexData, NULL), widevnum_string_token(token->pIndexData, NULL), widevnum_string_token(token->pIndexData, NULL),
+			widevnum_string_token(token->pIndexData, NULL), token->id[0], token->id[1]);
+			add_buf(buffer, buf);
+		}
+	}
 
-    for (room = obj->clone_rooms; room; room = room->next_clone) {
-		sprintf(buf, "{M* {CClone {W%ld {C[{W%lu{C:{W%lu{C]{x\n\r", room->source->vnum, room->id[0], room->id[1]);
-	    add_buf(buffer, buf);
-    }
+	if(obj->progs->vars)
+	{
+		sprintf(buf, "\n\r{WVariables:{X\n\r");
+		add_buf(buffer, buf);
+		pstat_variable_list(buffer, obj->progs->vars);
+	}
 
 	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
 	{
@@ -2973,7 +3714,26 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if ((victim = get_char_world(ch, argument)) == NULL)
+	
+	if (is_number(arg))
+	{
+		argument = one_argument(argument, arg);
+		if (argument[0] != '\0' && is_number(arg) && is_number(argument))
+		{
+			if ((victim = idfind_mobile(atoi(arg), atoi(argument))) == NULL)
+			{
+				send_to_char("They aren't here.\n\r", ch);
+				return;
+			}
+		}
+		else
+		{
+			send_to_char("Syntax: stat mob <name|IDa IDb>",ch);
+			return;
+		}	
+				
+	}
+	else if ((victim = get_char_world(ch, argument)) == NULL)
 	{
 		send_to_char("They aren't here.\n\r", ch);
 		return;
@@ -3172,6 +3932,14 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 				 victim->pulled_cart ? victim->pulled_cart->short_descr : "(none)");
 	send_to_char(buf, ch);
 
+	if (victim->hired_to)
+	{
+		char hired_time[100];
+		strftime(hired_time, 100, "%a %b %d %X %Z %Y", localtime(&victim->hired_to));
+		sprintf(buf, "{BHired to:{x %s\n\r", hired_time);
+		send_to_char(buf, ch);
+	}
+
 	if (!IS_NPC(victim))
 	{
 		sprintf(buf, "{BSecurity:{x %d.\n\r", victim->pcdata->security);
@@ -3352,6 +4120,19 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 		send_to_char(buf, ch);
 	}
 	*/
+
+/*
+	if( !ch->lines && strlen(output->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(output->string, ch);
+	}
+
+	free_buf(output);
+*/
 }
 
 
@@ -3366,6 +4147,7 @@ void do_tstat(CHAR_DATA *ch, char *argument)
     int i;
     long count;
 	WNUM wnum = wnum_zero;
+	bool id_lookup = false;
 
     BUFFER *buffer;
 
@@ -3377,7 +4159,27 @@ void do_tstat(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-	if (!str_cmp(arg,"mob")) {
+	if (is_number(arg))
+	{
+		if (arg[0] != '\0' && is_number(arg) && is_number(arg2))
+		{
+			if ((token = idfind_token(atoi(arg), atoi(arg2))) == NULL)
+			{
+				send_to_char("No such token\n\r", ch);
+				return;
+			}
+			else
+			{
+				id_lookup = true;
+			}
+		}
+		else
+		{
+			send_to_char("Syntax:  tpstat <mobile name|object name|room|ida idb> [[<count>.]<token vnum>]",ch);
+			return;
+		}	
+				
+	} else if (!str_cmp(arg,"mob")) {
 		if ((victim = get_char_world(NULL, arg2)) == NULL) {
 			send_to_char("Mobile not found.\n\r", ch);
 			return;
@@ -3401,12 +4203,12 @@ void do_tstat(CHAR_DATA *ch, char *argument)
 		tokens = room->tokens;
 
 		count = number_argument(arg2, arg3);
-	} else {
-		send_to_char("Syntax:  stat token <mob name|obj name|room> [token widevnum]\n\r", ch);
+	} else if (!id_lookup) {
+		send_to_char("Syntax:  stat token <mob name|obj name|room> [token vnum]\n\r", ch);
 		return;
 	}
 
-	if (arg3[0] != '\0' && parse_widevnum(arg3, ch->in_room->area, &wnum)) {
+	if (arg3[0] != '\0' && !id_lookup && parse_widevnum(arg3, ch->in_room->area, &wnum)) {
 		TOKEN_INDEX_DATA *tindex;
 		
 
@@ -3733,7 +4535,7 @@ void do_rwhere(CHAR_DATA *ch, char *argument)
 
 void do_owhere(CHAR_DATA *ch, char *argument)
 {
-    char buf[MAX_INPUT_LENGTH];
+    char buf[MAX_INPUT_LENGTH*2];
     BUFFER *buffer;
     OBJ_DATA *obj;
     OBJ_DATA *in_obj;
@@ -3764,42 +4566,71 @@ void do_owhere(CHAR_DATA *ch, char *argument)
 
         for (in_obj = obj; in_obj->in_obj != NULL; in_obj = in_obj->in_obj) ;
 
-        if (in_obj->carried_by != NULL &&
-        	can_see(ch,in_obj->carried_by) &&
-        	in_obj->carried_by->in_room != NULL) {
-            sprintf(buf, "{Y%3d){x %s (wnum %ld#%ld) is carried by %s [Room %ld#%ld]\n\r",
-                number, obj->short_descr,
-				obj->pIndexData->area->uid,
-			obj->pIndexData->vnum,
-			pers(in_obj->carried_by, ch),
-			in_obj->carried_by->in_room->area->uid,
-			in_obj->carried_by->in_room->vnum);
-		} else if (in_obj->in_room != NULL && can_see_room(ch,in_obj->in_room)) {
-            sprintf(buf, "{Y%3d){x %s (wnum %ld#%ld) is in %s [Room %ld#%ld]\n\r",
-                number, obj->short_descr,
-				obj->pIndexData->area->uid,
-				obj->pIndexData->vnum,
-				in_obj->in_room->name,
-				in_obj->in_room->area->uid,
-				in_obj->in_room->vnum);
-		} else if (in_obj->in_mail != NULL) {
-            sprintf(buf, "{Y%3d){x %s (wnum %ld#%ld) is in a mail package\n\r", number,
-			    obj->short_descr, obj->pIndexData->area->uid, obj->pIndexData->vnum);
-		} else {
-            sprintf(buf, "{Y%3d){x %s (wnum %ld#%ld) is somewhere\n\r", number,
-			    obj->short_descr, obj->pIndexData->area->uid, obj->pIndexData->vnum);
+        if (in_obj->carried_by != NULL && can_see(ch,in_obj->carried_by) && in_obj->carried_by->in_room != NULL) {
+			if (IS_NPC(in_obj->carried_by))
+			{
+				sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %s|oedit %s\" hint=\"Show index for %s|Edit %s\">%s\t</send> is carried by \t<send href=\"stat mob %ld %ld|mshow %s|medit %s\" hint=\"View info for %s|Show index for %s|Edit %s\">%s\t</send> [\t<send href=\"rshow %s|redit %s|goto %s\" hint=\"View room %s|Edit room %s|Go to room %s\">Room %s\t</send>]\n\r",
+				number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], widevnum_string_object(obj->pIndexData, NULL), widevnum_string_object(obj->pIndexData, NULL), obj->short_descr, obj->short_descr,
+				obj->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->id[0] : obj->carried_by->id[0], (obj->in_obj != NULL) ? obj->in_obj->carried_by->id[1] : obj->carried_by->id[1], 
+				(obj->in_obj != NULL) ? widevnum_string_mobile(obj->in_obj->carried_by->pIndexData, NULL) : widevnum_string_mobile(obj->carried_by->pIndexData, NULL), (obj->in_obj != NULL) ? widevnum_string_mobile(obj->in_obj->carried_by->pIndexData, NULL) : widevnum_string_mobile(obj->carried_by->pIndexData, NULL),
+				(obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr,
+				(obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->short_descr : obj->carried_by->short_descr,
+				(obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL), (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL), 
+				(obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL), (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL),
+				(obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL), (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL),
+				(obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL));
+				add_buf(buffer, buf);
+			}
+			else
+			{
+				sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %s|oedit %s\" hint=\"Show index for %s|Edit %s\">%s\t</send> is carried by \t<send href=\"stat char %s\">%s\t</send> [\t<send href=\"rshow %s|redit %s|goto %s\" hint=\"View room %s|Edit room %s|Go to room %s\">Room %s\t</send>]\n\r",
+				number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], widevnum_string_object(obj->pIndexData, NULL), widevnum_string_object(obj->pIndexData, NULL), 
+				obj->short_descr, obj->short_descr, obj->short_descr, (obj->in_obj != NULL) ? obj->in_obj->carried_by->name : obj->carried_by->name, (obj->in_obj != NULL) ? obj->in_obj->carried_by->name : obj->carried_by->name, 
+				(obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL), (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL), 
+				(obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL), (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL),
+				(obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL), (obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL),
+				(obj->in_obj != NULL) ? widevnum_string_room(obj->in_obj->carried_by->in_room, NULL) : widevnum_string_room(obj->carried_by->in_room, NULL));
+				add_buf(buffer, buf);
+			}
+		}
+		else if (in_obj->in_room != NULL && can_see_room(ch,in_obj->in_room)) 
+		{
+			sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld|||purge obj %ld %ld\" hint=\"Show information for this object||***DANGER***|Purge this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %s|oedit %s\" hint=\"Show index for %s|Edit %s\">%s\t</send> is in %s [\t<send href=\"rshow %s|redit %s|goto %s\" hint=\"View room %s|Edit room %s|Go to room %s\">Room %s\t</send>]\n\r",
+			number, obj->id[0], obj->id[1], obj->id[0], obj->id[1], obj->id[0], obj->id[1], widevnum_string_object(obj->pIndexData, NULL), widevnum_string_object(obj->pIndexData, NULL), 
+			obj->short_descr, obj->short_descr, obj->short_descr, in_obj->in_room->name, widevnum_string_room(in_obj->in_room, NULL), widevnum_string_room(in_obj->in_room, NULL), 
+			widevnum_string_room(in_obj->in_room, NULL), widevnum_string_room(in_obj->in_room, NULL), widevnum_string_room(in_obj->in_room, NULL), widevnum_string_room(in_obj->in_room, NULL), widevnum_string_room(in_obj->in_room, NULL));
+			add_buf(buffer, buf);
 		}
 
-        add_buf(buffer,buf);
+		else if (in_obj->in_mail != NULL) 
+		{
+			sprintf(buf, "{Y%3d) {WID{X: [\t<send href=\"stat obj %ld %ld\" hint=\"Show information for this object\">{W%ld %ld{X\t</send>]{x \t<send href=\"oshow %s|oedit %s\" hint=\"Show index for %s|Edit %s\">%s\t</send> is in a mail package\n\r",
+			number, (long)obj->id[0], (long)obj->id[1], (long)obj->id[0], (long)obj->id[1], widevnum_string_object(obj->pIndexData, NULL), widevnum_string_object(obj->pIndexData, NULL), obj->short_descr, obj->short_descr, obj->short_descr);
+			add_buf(buffer, buf);
+		} 
+		else 
+		{
+            sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (wnum %s) is somewhere\n\r", number,
+			(long)obj->id[0], (long)obj->id[1], obj->short_descr, widevnum_string_object(obj->pIndexData, NULL));
+			add_buf(buffer, buf);
+		}
 
         if (number >= max_found)
             break;
     }
 
     if (!found)
+	{
         send_to_char("Nothing like that in heaven or earth.\n\r", ch);
-    else
-        page_to_char(buf_string(buffer),ch);
+	}
+	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(buf_string(buffer), ch);
+	}
 
     free_buf(buffer);
 }
@@ -3828,14 +4659,14 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
                     count++;
 
 					if (d->original != NULL)
-						sprintf(buf,"{Y%3d){x %s (in the body of %s) is in %s [%ld#%ld]\n\r",
-							count, d->original->name,victim->short_descr,
+						sprintf(buf,"{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (in the body of %s) is in %s [%ld#%ld]\n\r",
+							count, (long)victim->id[0], (long)victim->id[1], d->original->name,victim->short_descr,
 							victim->in_room->name,
 							victim->in_room->area->uid,
 							victim->in_room->vnum);
 					else
-						sprintf(buf,"{Y%3d){x %s is in %s [%ld#%ld]\n\r",
-							count, victim->name,victim->in_room->name,
+						sprintf(buf,"{Y%3d) {WID{X: [{W%ld %ld{X]{x %s is in %s [%ld#%ld]\n\r",
+							count, (long)victim->id[0], (long)victim->id[1], victim->name,victim->in_room->name,
 							victim->in_room->area->uid,
 							victim->in_room->vnum);
 					add_buf(buffer,buf);
@@ -3845,13 +4676,13 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
                     count++;
 
                     if (d->original != NULL)
-                        sprintf(buf,"{Y%3d){x %s (in the body of %s) is in wilds '%s', %s (%ld, %ld)\n\r",
-							count, d->original->name,victim->short_descr,
+                        sprintf(buf,"{Y%3d) {WID{X: [{W%ld %ld{X]{x %s (in the body of %s) is in wilds '%s', %s (%ld, %ld)\n\r",
+							count, (long)victim->id[0], (long)victim->id[1], d->original->name,victim->short_descr,
 							victim->in_room->name,
 							victim->in_wilds->name, victim->in_room->x, victim->in_room->y);
                     else
-						sprintf(buf,"{Y%3d){x %s is in wilds '%s', %s (%ld, %ld)\n\r",
-							count, victim->name,
+						sprintf(buf,"{Y%3d) {WID{X: [{W%ld %ld{X]{x %s is in wilds '%s', %s (%ld, %ld)\n\r",
+							count, (long)victim->id[0], (long)victim->id[1], victim->name,
 							victim->in_wilds->name,
 							victim->in_room->name,
 							victim->in_room->x, victim->in_room->y);
@@ -3878,7 +4709,7 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
             if (victim->in_room==NULL) {
                 found = true;
                 count++;
-                sprintf(buf, "{Y%3d){x [%5ld#%-5ld] %-28s %lx\n\r", count,
+                sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x [%5ld#%-5ld] %-28s %lx\n\r", count, (long)victim->id[0], (long)victim->id[1],
 					IS_NPC(victim) ? victim->pIndexData->area->uid : 0,
                     IS_NPC(victim) ? victim->pIndexData->vnum : 0,
                     IS_NPC(victim) ? victim->short_descr : victim->name,
@@ -3907,7 +4738,7 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
 			is_name(argument, victim->name)) {
 			found = true;
 			count++;
-			sprintf(buf, "{Y%3d){x [%5ld#%-5ld] %-28s [%5ld] %s\n\r", count,
+			sprintf(buf, "{Y%3d) {WID{X: [{W%ld %ld{X]{x [%5ld#%-5ld] %-28s [%5ld] %s\n\r", count, (long)victim->id[0], (long)victim->id[1],
 			IS_NPC(victim) ? victim->pIndexData->area->uid : 0,
 			IS_NPC(victim) ? victim->pIndexData->vnum : 0,
 			IS_NPC(victim) ? victim->short_descr : victim->name,
@@ -4534,81 +5365,208 @@ void do_purge(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
+	char arg3[MIL];
     CHAR_DATA *victim;
     OBJ_DATA *obj;
+	bool forced = false;
 
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
 
-    if (arg[0] == '\0')
-    {
-	CHAR_DATA *vnext;
-	OBJ_DATA  *obj_next;
 
-	for (victim = ch->in_room->people; victim != NULL; victim = vnext)
+    if (arg[0] == '\0' || ( str_cmp(arg,"room") && arg2[0] == '\0'))
 	{
-	    vnext = victim->next_in_room;
-	    if (IS_NPC(victim)
-	    && !IS_SET(victim->act[0],ACT_NOPURGE)
-	    && victim != ch /* safety precaution */
-	    && victim != ch->rider
-	    && victim != ch->mount) {
-		extract_char(victim, true);
-	    }
+		send_to_char ("Syntax: purge <object|mob> <keyword|ida idb> [force]\n\r", ch);
+		send_to_char ("Syntax: purge room [force]\n\r", ch);
+		return;
 	}
-
-	for (obj = ch->in_room->contents; obj != NULL; obj = obj_next)
-	{
-	    obj_next = obj->next_content;
-
-	    if (IS_CART(obj)) {
-		    if(obj->pulled_by) {
-			    obj->pulled_by->pulled_cart = NULL;
-			    obj->pulled_by = NULL;
-		    }
-	    }
-
-	    extract_obj(obj);
-	}
-
-	act("$n purges the room!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	act("Purged $T.", ch, NULL, NULL, NULL, NULL, NULL, ch->in_room->name, TO_CHAR);
-	return;
-    }
-
-    if ((victim = get_char_room(ch, NULL, arg)) != NULL)
+	else
     {
-	if (!IS_NPC(victim))
-	{
-	    send_to_char("You can't purge a player character.\n\r", ch);
-	    return;
-	}
+		if (!str_cmp(arg, "mob"))
+		{
+			victim = NULL;
+			if (is_number(arg2))
+			{ 
+				argument = one_argument(argument, arg3);
+				if (is_number(arg3))
+				{
+					if((victim = idfind_mobile(atoi(arg2), atoi(arg3))) == NULL)
+					{
+						send_to_char("No mob has that vnum.\n\r", ch);
+						return;
+					}
+					else if (!IS_NPC(victim))
+					{
+						send_to_char("You can't purge a player character.\n\r", ch);
+						return;
+					}
 
-	act("Extracted $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	extract_char(victim, true);
-	return;
-    }
-    else
-    if ((obj = get_obj_list(ch, arg, ch->in_room->contents)) != NULL
-    &&     !IS_SET(obj->extra[0], ITEM_NOPURGE))
-    {
-	if (IS_CART(obj))
-	{
-		    if(obj->pulled_by) {
-			    obj->pulled_by->pulled_cart = NULL;
-			    obj->pulled_by = NULL;
-		    }
-	}
+					if (argument[0] != '\0' && !str_cmp(argument, "force"))
+					{
+						if (!IS_IMPLEMENTOR(ch))
+						{
+							send_to_char("You must be max level to use the 'force' argument.\n\r", ch);
+							return;
+						}
+						else
+							forced = true;
+					}
+				}
+			}
+			else if ((victim = get_char_room(ch, NULL, arg2)) != NULL)
+    		{
+				if (!IS_NPC(victim))
+				{
+	    			send_to_char("You can't purge a player character.\n\r", ch);
+	    			return;
+				}
+				if (argument[0] != '\0' && !str_cmp(argument, "force"))
+				{
+					if (!IS_IMPLEMENTOR(ch))
+					{
+						send_to_char("You must be max level to use the 'force' argument.\n\r", ch);
+						return;
+					}
+					else
+						forced = true;
+				}
+    		}
 
-	act("Extracted $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	extract_obj(obj);
-	return;
-    }
-    else
-    {
-	act("Target not found.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return;
-    }
+			if (victim != NULL && IS_SET(victim->act[0],ACT_NOPURGE) && !forced)
+			{
+				act("$N is flagged 'nopurge' - Try again with the 'force' argument.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				return;
+			} else
+			{
+				act("Extracted $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				extract_char(victim, true);
+				return;
+			}
+
+		}
+		else if (!str_cmp(arg, "object") || !str_cmp(arg, "obj"))
+		{
+			obj = NULL;
+			if (is_number(arg2))
+			{
+				argument = one_argument(argument, arg3);
+				if (is_number(arg3))
+				{
+					if ((obj = idfind_object(atoi(arg2), atoi(arg3))) == NULL)
+					{
+						send_to_char("No object has that ID.\n\r", ch);
+						return;
+					}
+
+					if (argument[0] != '\0' && !str_cmp(argument, "force"))
+					{
+						if (!IS_IMPLEMENTOR(ch))
+						{
+							send_to_char("You must be max level to use the 'force' argument.\n\r", ch);
+							return;
+						}
+						else
+							forced = true;
+					}
+				}
+			}
+			else if ((obj = get_obj_list(ch, arg2, ch->in_room->contents)) != NULL)
+			{
+				if (argument[0] != '\0' && !str_cmp(argument, "force"))
+				{
+					if (!IS_IMPLEMENTOR(ch))
+					{
+						send_to_char("You must be max level to use the 'force' argument.\n\r", ch);
+						return;
+					}
+					else
+						forced = true;
+				}
+			}
+			else 
+			{
+				send_to_char("Object not found.\n\r", ch);
+					return;
+			}
+
+			if (obj != NULL && IS_SET(obj->extra[0], ITEM_NOPURGE) && !forced)
+			{
+				act("$p is flagged 'nopurge' - Try again with the 'force' argument.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				return;
+			} else
+			{
+				if (obj->item_type == ITEM_CART)
+				{
+	    			if(obj->pulled_by) 
+					{
+		    			obj->pulled_by->pulled_cart = NULL;
+		    			obj->pulled_by = NULL;
+	    			}
+				}
+				act("Extracted $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				extract_obj(obj);
+				return;
+			}
+		}
+		else if (!str_cmp(arg, "room"))
+		{
+	
+			CHAR_DATA *vnext;
+			CHAR_DATA *victim;
+			OBJ_DATA  *obj_next;
+
+			if (!str_cmp(arg2, "force"))
+			{
+				if (!IS_IMPLEMENTOR(ch))
+				{
+					send_to_char("You must be max level to use the 'force' argument.\n\r", ch);
+					return;
+				}
+				else
+					forced = true;
+			}
+
+			for (victim = ch->in_room->people; victim != NULL; victim = vnext)
+			{
+	    		vnext = victim->next_in_room;
+				if (IS_SET(victim->act[0],ACT_NOPURGE) && !forced)
+				{
+					act("$N is flagged 'nopurge' - Try again with the 'force' argument.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+					continue;
+				}
+	    		if (IS_NPC(victim)
+	    		&& victim != ch /* safety precaution */
+	    		&& victim != ch->rider
+	    		&& victim != ch->mount) 
+				{
+					extract_char(victim, true);
+	    		}
+			}
+		
+			for (obj = ch->in_room->contents; obj != NULL; obj = obj_next)
+			{
+	    		obj_next = obj->next_content;
+				if (IS_SET(obj->extra[0], ITEM_NOPURGE) && !forced)
+				{
+					act("$p is flagged 'nopurge' - Try again with the 'force' argument.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+					continue;
+				}
+
+			    if (obj->item_type == ITEM_CART) 
+				{
+		    		if(obj->pulled_by) {
+			    		obj->pulled_by->pulled_cart = NULL;
+			    		obj->pulled_by = NULL;
+		    		}
+	    		}
+				extract_obj(obj);
+			}
+
+			act("$n purges the room!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			act("Purged $T.", ch, NULL, NULL, NULL, NULL, NULL, ch->in_room->name, TO_CHAR);
+			return;
+    	}
+	}
 }
 
 /* Adding some new stuff to advance, for new immortals. It'll now display an intro screen to them. Perhaps the intro would be better as a helpfile, along the same lines as do_greeting? -- Areo 2006-08-23 */
@@ -5084,20 +6042,42 @@ void do_peace(CHAR_DATA *ch, char *argument)
 
 void do_wizlock(CHAR_DATA *ch, char *argument)
 {
-    wizlock = !wizlock;
 
-    if (wizlock)
-    {
-	wiznet("$N has wizlocked the game.",ch,NULL,0,0,0);
-	send_to_char("Game wizlocked.\n\r", ch);
-    }
-    else
-    {
-	wiznet("$N removes wizlock.",ch,NULL,0,0,0);
-	send_to_char("Game un-wizlocked.\n\r", ch);
-    }
+	if (argument[0] == '\0')
+	{
+    	if (!game_settings.wizlock)
+    	{
+			wiznet("$N has wizlocked the game.",ch,NULL,0,0,0);
+			send_to_char("Game wizlocked.\n\r", ch);
+			game_settings.wizlock = true;
+    	}
+    	else
+    	{
+			wiznet("$N removes wizlock.",ch,NULL,0,0,0);
+			send_to_char("Game un-wizlocked.\n\r", ch);
+			game_settings.wizlock = false;
+    	}
+	}
+	else if (!str_cmp(argument, "clear"))
+	{
+		if (!IS_NULLSTR(game_settings.wizlock_msg))
+		{
+			free_string(game_settings.wizlock_msg);
+			game_settings.wizlock_msg = str_dup("");
+		}
+	}
+	else
+	{
+		if (!IS_NULLSTR(game_settings.wizlock_msg))
+		{
+			free_string(game_settings.wizlock_msg);
+		}
+		game_settings.wizlock_msg = str_dup(argument);
+		wiznet("$N sets wizlock message.",ch,NULL,0,0,0);
+		send_to_char("Wizlock message set.\n\r", ch);
+	}
 
-	gconfig_write();
+		game_settings_write();
 
 }
 
@@ -5105,19 +6085,91 @@ void do_wizlock(CHAR_DATA *ch, char *argument)
 void do_newlock(CHAR_DATA *ch, char *argument)
 {
     newlock = !newlock;
+	char arg[MIL];
 
-    if (newlock)
-    {
-	wiznet("$N locks out new characters.",ch,NULL,0,0,0);
-        send_to_char("New characters have been locked out.\n\r", ch);
-    }
-    else
-    {
-	wiznet("$N allows new characters back in.",ch,NULL,0,0,0);
-        send_to_char("Newlock removed.\n\r", ch);
-    }
+	if (argument[0] == '\0')
+	{
+    	send_to_char("Syntax: newlock <char|acct> [$message|clear]\n\r", ch);
+		return;
+	}
+	else
+	{
+		argument = one_argument(argument, arg);
+		if (!str_cmp(arg, "char"))
+		{
+			if (argument[0] == '\0')
+			{
+				if (!game_settings.new_char_lock)
+				{
+					wiznet("$N locks out new characters.",ch,NULL,0,0,0);
+					send_to_char("New characters have been locked out.\n\r", ch);
+					game_settings.new_char_lock = true;
+				}
+				else
+				{
+					wiznet("$N allows new characters back in.",ch,NULL,0,0,0);
+					send_to_char("New characters are no longer locked out.\n\r", ch);
+					game_settings.new_char_lock = false;
+				}
+			}
+			else if (!str_cmp(argument, "clear"))
+			{
+				if (!IS_NULLSTR(game_settings.new_char_lock_msg))
+				{
+					free_string(game_settings.new_char_lock_msg);
+					game_settings.new_char_lock_msg = str_dup("");
+				}
+			}
+			else
+			{
+				if (!IS_NULLSTR(game_settings.new_char_lock_msg))
+				{
+					free_string(game_settings.new_char_lock_msg);
+				}
+				game_settings.new_char_lock_msg = str_dup(argument);
+				wiznet("$N sets new character message.",ch,NULL,0,0,0);
+				send_to_char("New character message set.\n\r", ch);
+			}
+		}
+		else if (!str_cmp(arg, "acct"))
+		{
+			if (argument[0] == '\0')
+			{
+				if (!game_settings.new_acct_lock)
+				{
+					wiznet("$N locks out new accounts.",ch,NULL,0,0,0);
+					send_to_char("New accounts have been locked out.\n\r", ch);
+					game_settings.new_acct_lock = true;
+				}
+				else
+				{
+					wiznet("$N allows new accounts back in.",ch,NULL,0,0,0);
+					send_to_char("New accounts are no longer locked out.\n\r", ch);
+					game_settings.new_acct_lock = false;
+				}
+			}
+			else if (!str_cmp(argument, "clear"))
+			{
+				if (!IS_NULLSTR(game_settings.new_acct_lock_msg))
+				{
+					free_string(game_settings.new_acct_lock_msg);
+					game_settings.new_acct_lock_msg = str_dup("");
+				}
+			}
+			else
+			{
+				if (!IS_NULLSTR(game_settings.new_acct_lock_msg))
+				{
+					free_string(game_settings.new_acct_lock_msg);
+				}
+				game_settings.new_acct_lock_msg = str_dup(argument);
+				wiznet("$N sets new account message.",ch,NULL,0,0,0);
+				send_to_char("New account message set.\n\r", ch);
+			}
+		}
+		game_settings_write();
+	}
 
-	gconfig_write();
 }
 
 void do_testport(CHAR_DATA *ch, char *argument)
@@ -7105,6 +8157,7 @@ void do_sockets( CHAR_DATA *ch, char *argument )
               case CON_CHANGE_PASSWORD:	     st = "Change Password";	break;
               case CON_CHANGE_PASSWORD_CONFIRM:	st = "Confirm PassChg";	break;
               case CON_GET_EMAIL:			 st = "   Get Email   ";	break;
+			  case CON_CONFIRM_EMAIL_FOR_RESET: st = " Confirm Email ";	break;
               default:                       st = "   !UNKNOWN!   ";    break;
            }
            count++;
@@ -7118,8 +8171,9 @@ void do_sockets( CHAR_DATA *ch, char *argument )
            else
               sprintf( idle, "  " );
 
-           sprintf(buf, "{D[{x%3d %s %7s{g %2s{D]{W %-12s{x %-50.50s\n\r",
-              d->descriptor,
+           sprintf(buf, "{D[{x%s%3d{X %s %7s{g %2s{D]{W %-12s{x %-50.50s\n\r",
+              d->ssl ? "{G": "{X",
+			  d->descriptor,
               st,
               s,
               idle,
@@ -8007,7 +9061,7 @@ void do_alevel(CHAR_DATA *ch, char *argument)
 	CLASS_LEVEL *level = get_class_level(victim, NULL);
 
     xp = exp_per_level(victim, NULL, victim->pcdata->points) - (IS_VALID(level) ? level->xp : victim->exp);
-    gain_exp(victim, NULL, xp);
+    gain_exp(victim, NULL, xp, false);
 
     return;
 }
@@ -8216,7 +9270,7 @@ void do_vislist(CHAR_DATA *ch, char *argument)
     if (arg[0] == '\0' || !str_cmp(arg, "show"))
     {
 	send_to_char("{YYou are currently visible to:{x\n\r", ch);
-	line(ch, 45);
+	line(ch, 45, NULL, NULL);
 	i = 0;
 	for (string = ch->pcdata->vis_to_people; string != NULL;
 	      string = string->next)
@@ -8229,7 +9283,7 @@ void do_vislist(CHAR_DATA *ch, char *argument)
 	if (i == 0)
 	    send_to_char("Nobody.\n\r", ch);
 
-	line(ch, 45);
+	line(ch, 45, NULL, NULL);
 
 	return;
     }
@@ -8482,8 +9536,9 @@ void do_addcommand(CHAR_DATA *ch, char *argument)
     char buf[MSL];
     CHAR_DATA *vch;
     COMMAND_DATA *cmd;
-    int i;
+    //int i;
     bool found = false;
+	CMD_DATA *command;
 
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
@@ -8508,32 +9563,34 @@ void do_addcommand(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    for (i = 0; cmd_table[i].name[0] != '\0'; i++)
-    {
-        if (!str_prefix(arg2, cmd_table[i].name)
-	&&  cmd_table[i].rank <= get_staff_rank(ch))
+	ITERATOR it;
+	iterator_start(&it, commands_list);
+	while(( command = (CMD_DATA *)iterator_nextdata(&it)))
 	{
-	    found = true;
-	    break;
+		if (!str_prefix(arg2, command->name)
+		&&  command->rank <= get_staff_rank(ch))
+		{
+			found = true;
+			break;
+		}
 	}
-    }
 
     if (!found) {
         send_to_char("Command not found.\n\r", ch);
 	return;
     }
 
-    if (cmd_table[i].rank <= get_staff_rank(vch)) {
+    if (command->rank <= get_staff_rank(vch)) {
         act("$N can already use that command due to $S rank.", ch, vch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	return;
     }
 
     cmd = new_command();
-    cmd->name = str_dup(cmd_table[i].name);
+    cmd->name = str_dup(command->name);
     cmd->next = vch->pcdata->commands;
     vch->pcdata->commands = cmd;
 
-    sprintf(buf, "Granted command \"%s\" to %s.\n\r", cmd_table[i].name, vch->name);
+    sprintf(buf, "Granted command \"%s\" to %s.\n\r", command->name, vch->name);
     send_to_char(buf, ch);
 }
 
@@ -12369,3 +13426,355 @@ CORPSEDIT( corpsedit_damage )
 	return false;
 }
 
+void do_reloadstats(CHAR_DATA *ch, char *argument)
+{
+	load_statistics();
+	stats_load_time = current_time;
+}
+
+
+// send obj values to a buffer
+void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
+{
+    char buf[MAX_STRING_LENGTH];
+
+    add_buf(buffer, "\n\r");
+	
+    switch(obj->item_type)
+    {
+	default:	// No values
+	    break;
+	case ITEM_LIGHT:
+
+            if (obj->value[2] == -1)
+		sprintf(buf, "{B[  {Wv2{B]{%s Light:{x  Infinite[-1]\n\r", (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y");
+            else
+		sprintf(buf, "{B[  {Wv2{B]{%s Light:{x  [%d]\n\r", (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2]);
+
+	    add_buf(buffer, buf);
+	    break;
+
+
+
+
+	case ITEM_HERB:
+	    sprintf(buf,
+	    "{B[  {Wv0{B]{%s Type:{x            [%s]\n\r"
+		"{B[  {Wv1{B]{%s Healing:{x         [%d%%]\n\r"
+		"{B[  {Wv2{B]{%s Regenerative:{x    [%d%%]\n\r"
+		"{B[  {Wv3{B]{%s Refreshing:{x      [%d%%]\n\r"
+		"{B[  {Wv4{B]{%s Immunity:{x        [%s]\n\r"
+		"{B[  {Wv5{B]{%s Resistance:{x      [%s]\n\r"
+		"{B[  {Wv6{B]{%s Vulnerability:{x   [%s]\n\r"
+		"{B[  {Wv7{B]{B Spell:{x           [N/A]\n\r",
+		(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", herb_table[obj->value[0]].name,
+		(obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
+		(obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2],
+		(obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
+		(obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", flag_string(imm_flags, obj->value[4]),
+		(obj->value[5] == obj->pIndexData->value[5]) ? "B" : "Y", flag_string(res_flags, obj->value[5]),
+		(obj->value[6] == obj->pIndexData->value[6]) ? "B" : "Y", flag_string(vuln_flags, obj->value[6])
+		//(obj->value[7] == obj->pIndexData->value[7]) ? "B" : "Y", skill_table[obj->value[7]].name
+		);
+
+	    add_buf(buffer, buf);
+	    break;
+
+
+	case ITEM_INK:
+            sprintf(buf, "{B[  {Wv0{B]{%s Type 1:{x                 [%s]\n\r", 
+			(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", flag_string(catalyst_types, obj->value[0]));
+	    add_buf(buffer, buf);
+            sprintf(buf, "{B[  {Wv1{B]{%s Type 2:{x                 [%s]\n\r", 
+			(obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(catalyst_types, obj->value[1]));
+	    add_buf(buffer, buf);
+            sprintf(buf, "{B[  {Wv2{B]{%s Type 3:{x                 [%s]\n\r", 
+			(obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", flag_string(catalyst_types, obj->value[2]));
+	    add_buf(buffer, buf);
+	    break;
+
+
+	case ITEM_SEED:
+            sprintf(buf,
+		"{B[  {Wv0{B]{%s Time before growth:{x     [%d]\n\r"
+		"{B[  {Wv1{B]{%s Turns into object vnum:{x [%d]\n\r",
+		(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
+		(obj->value[1] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[1]);
+	    add_buf(buffer, buf);
+	    break;
+
+
+	case ITEM_SHIP:
+	    sprintf(buf,
+		"{B[  {Wv0{B]{%s Weight:{x     [%d kg]\n\r"
+		"{B[  {Wv1{B]{%s Move delay:{x [%d]\n\r"
+		"{B[  {Wv2{B]{%s Min Crew:{x   [%d]\n\r"
+		"{B[  {Wv3{B]{%s Capacity:{x   [%d]\n\r"
+		"{B[  {Wv4{B]{%s Max Crew:{x   [%d]\n\r"
+		"{B[  {Wv5{B]{%s First Room:{x [%d]\n\r"
+		"{B[  {Wv6{B]{%s Hit Points:{x [%d]\n\r"
+		"{B[  {Wv7{B]{%s Max Guns:{x   [%d]\n\r",
+		(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", obj->value[0],
+		(obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", obj->value[1],
+		(obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2],
+        (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3],
+        (obj->value[4] == obj->pIndexData->value[4]) ? "B" : "Y", obj->value[4],
+        (obj->value[5] == obj->pIndexData->value[5]) ? "B" : "Y", obj->value[5],
+        (obj->value[6] == obj->pIndexData->value[6]) ? "B" : "Y", obj->value[6],
+        (obj->value[7] == obj->pIndexData->value[7]) ? "B" : "Y", obj->value[7]);
+	    add_buf(buffer, buf);
+	    break;
+
+
+	case ITEM_TRADE_TYPE:
+	    sprintf(buf,
+		"{B[  {Wv0{B]{%s Trade Type:{x     [%s]\n\r",
+		(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", trade_table[ obj->value[0] ].name);
+	    add_buf(buffer, buf);
+	    break;
+
+
+
+
+	case ITEM_CORPSE_NPC:
+	    sprintf(buf,
+	        "{B[  {Wv0{B]{%s Type:{x           %s\n\r"
+	        "{B[  {Wv1{B]{%s Resurrection:{x   %d%%\n\r"
+	        "{B[  {Wv2{B]{%s Animation:{x      %d%%\n\r"
+	        "{B[  {Wv3{B]{%s Body Parts:{x     %s\n\r"
+	        "{B[  {Wv5{B]{%s Mobile (vnum):{x  %d\n\r",
+	        (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", flag_string(corpse_types,obj->value[0]),
+	        (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", (int)obj->value[1],
+			(obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", (int)obj->value[2],
+	        (obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", flag_string(part_flags, obj->value[3]),
+	        (obj->value[5] == obj->pIndexData->value[5]) ? "B" : "Y", (int)obj->value[5]);
+	    add_buf(buffer, buf);
+	    break;
+
+	case ITEM_INSTRUMENT:
+	    sprintf(buf,
+	        "{B[  {Wv0{B]{%s Type:{x            %s\n\r"
+	        "{B[  {Wv1{B]{%s Flags:{x           %s\n\r"
+	        "{B[  {Wv2{B]{%s Min Time Factor:{x %d%%\n\r"
+	        "{B[  {Wv3{B]{%s Max Time Factor:{x %d%%\n\r",
+	        (obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", flag_string(instrument_types, obj->value[0]),
+	        (obj->value[1] == obj->pIndexData->value[1]) ? "B" : "Y", flag_string(instrument_flags, obj->value[1]),
+	        (obj->value[2] == obj->pIndexData->value[2]) ? "B" : "Y", obj->value[2],
+			(obj->value[3] == obj->pIndexData->value[3]) ? "B" : "Y", obj->value[3]);
+	    add_buf(buffer, buf);
+	    break;
+
+
+
+	case ITEM_BODY_PART:
+		sprintf(buf,
+				"{B[  {Wv0{B]{%s Body Parts:{x    %s\n\r"
+				"{B[  {Wv1{B]{B Race:{x          N/A\n\r",
+				(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", flag_string(part_flags, obj->value[0])
+//				(obj->value[0] == obj->pIndexData->value[0]) ? "B" : "Y", race_table[obj->value[1]].name
+);
+
+		add_buf(buffer, buf);
+		break;
+    }
+}
+
+
+
+void do_pwreset(CHAR_DATA *ch, char *argument)
+{
+	CHAR_DATA *victim;
+	char type[MAX_INPUT_LENGTH];
+	char buf[MAX_STRING_LENGTH];
+	char plr[MAX_INPUT_LENGTH];
+	char email[MAX_INPUT_LENGTH];
+	char reset_msg[MSL], reset_subject[MSL];
+	char tmp_reset_code[16];
+	DESCRIPTOR_DATA d;
+
+
+	argument = one_argument(argument, type);
+	argument = one_argument(argument, plr);
+	
+
+	if (type[0] == '\0')
+	{
+		send_to_char("Reset who's password?\n\rSyntax: pwreset <local|email> <character> [email]", ch);
+		return;
+	}
+
+	if (!str_cmp(type, "local"))
+	{
+		if ((player_exists(plr)))
+		{
+			if ((victim = get_char_world(ch, plr)) == NULL)
+			{
+				if (!load_char_obj(&d, plr))
+				{
+					send_to_char("That player does not exist.\n\r", ch);
+					return;
+				}
+				else
+				{
+					d.character->desc = NULL;
+					if (d.character->pcdata->reset_code[0] != '\0')
+					{
+						free_string(d.character->pcdata->reset_code);
+						d.character->pcdata->reset_code = str_dup("");
+					}
+
+					generate_reset_code(tmp_reset_code, 15);
+
+					d.character->pcdata->reset_code = str_dup(tmp_reset_code);
+
+					d.character->pcdata->reset_state = RESET_PENDING;
+					d.character->pcdata->reset_time = current_time;
+
+					sprintf(buf, "Password reset code has been set to %s for %s.\n\r", d.character->pcdata->reset_code, d.character->name);
+					send_to_char(buf, ch);
+
+					save_char_obj(d.character);
+					free_char(d.character);
+				}
+			}
+			else
+			{
+				send_to_char("That player is already online.\n\r", ch);
+				return;
+			}
+			// Replace this with a random string generator later.
+
+		}
+		else
+		{
+			send_to_char("That player does not exist.\n\r", ch);
+			return;
+		}
+	}
+
+	else if (!str_cmp(type, "email"))
+	{
+		one_argument(argument, email);
+
+		if ((player_exists(plr)))
+		{
+			if ((victim = get_char_world(ch, plr)) == NULL)
+			{
+				if (!load_char_obj(&d, plr))
+				{
+					send_to_char("That player does not exist.\n\r", ch);
+					return;
+				}
+				else
+				{
+					d.character->desc = NULL;
+					if (d.character->pcdata->reset_code[0] != '\0')
+					{
+						free_string(d.character->pcdata->reset_code);
+						d.character->pcdata->reset_code = str_dup("");
+					}
+
+					generate_reset_code(tmp_reset_code, 15);
+
+					d.character->pcdata->reset_code = str_dup(tmp_reset_code);
+
+
+					d.character->pcdata->reset_state = RESET_PENDING;
+					d.character->pcdata->reset_time = current_time;
+
+					sprintf(reset_subject, "Password Reset for %s", d.character->name);
+					sprintf(reset_msg, "Your password reset code is: %s.\nPlease note that this code will expire after 24 hours.", d.character->pcdata->reset_code);
+
+					if (email[0] != '\0')
+					{
+						send_email_async(d.character, email, reset_subject, reset_msg);
+						sprintf(buf, "Password reset code has been sent to %s for %s.\n\r", email, plr);
+						send_to_char(buf, ch);
+					}
+					else
+					{
+						if (d.character->pcdata->email[0] == '\0')
+						{
+							send_to_char("No email address set for this player. You must use the 'local' option instead.\n\r", ch);
+							return;
+						}
+
+						send_email_async(d.character, d.character->pcdata->email, reset_subject, reset_msg);
+						sprintf(buf, "Password reset code has been sent to %s for %s.\n\r", d.character->pcdata->email, plr);
+						send_to_char(buf, ch);
+					}
+
+					save_char_obj(d.character);
+					free_char(d.character);
+				}
+			}
+			else
+			{
+				send_to_char("That player is already online.\n\r", ch);
+				return;
+			}
+		}
+		else
+		{
+			send_to_char("That player does not exist.\n\r", ch);
+			return;
+		}
+	}
+}
+
+void do_lvlaudit(CHAR_DATA *ch, char *argument)
+{
+	ITERATOR it;
+	AREA_DATA *area;
+	int count = 0;
+	int sum = 0;
+	CHAR_DATA *victim;
+	char buf[MAX_STRING_LENGTH];
+
+	iterator_start(&it, loaded_chars);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax: lvlaudit <area>\n\r", ch);
+		return;
+	}
+
+	area = find_area_kwd(argument);
+
+	if (area == NULL)
+	{
+		send_to_char("That area does not exist.\n\r", ch);
+		return;
+	}
+
+	while ((victim = (CHAR_DATA *)iterator_nextdata(&it)) != NULL)
+	{
+		if (!IS_NPC(victim))
+			continue;
+
+		if (victim->in_room->area != area)
+			continue;
+
+		if (IS_SET(victim->act[0], ACT_PET) || IS_SET(victim->act[0], ACT_PROTECTED) || IS_SET(victim->act[0], ACT_TRAIN) ||
+		IS_SET(victim->act[0], ACT_PRACTICE) /*|| IS_SET(victim->act[0], ACT_IS_HEALER)*/ || IS_SET(victim->act[0], ACT_CREW_SELLER) ||
+		IS_SET(victim->act[0], ACT_IS_BANKER) || IS_SET(victim->act[0], ACT_IS_CHANGER) || IS_SET(victim->act[1], ACT2_CHURCHMASTER) ||
+		/*IS_SET(victim->act[1], ACT2_PLANE_TUNNELER) ||*/ IS_SET(victim->act[1], ACT2_AIRSHIP_SELLER) || IS_SET(victim->act[1], ACT2_WIZI_MOB) ||
+		IS_SET(victim->act[1], ACT2_TRADER) || IS_SET(victim->act[1], ACT2_LOREMASTER) || IS_SET(victim->act[1], ACT2_GQ_MASTER) ||
+		IS_SET(victim->act[1], ACT2_SHIP_QUESTMASTER) || IS_SET(victim->act[1], ACT2_PIRATE) || IS_SET(victim->act[1], ACT2_INVASION_LEADER) ||
+		IS_SET(victim->act[1], ACT2_INVASION_MOB) || IS_SET(victim->act[1], ACT2_SOUL_DEPOSIT) || IS_SET(victim->act[1], ACT2_INSTANCE_MOB) ||
+		IS_SET(victim->act[1], ACT2_HIRED) || IS_SET(victim->act[1], ACT2_RENEWER) || /*IS_SET(victim->act[1], ACT2_ADVANCED_TRAINER) ||*/ IS_SET(victim->in_room->room_flag[0], ROOM_SAFE) ||
+		victim->shop != NULL || victim->pIndexData->pMissionary != NULL)
+			continue;
+
+		count++;
+		sum += victim->tot_level;
+		
+	}
+	iterator_stop(&it);
+
+	sprintf(buf, "Total mobs in %s: %d\n\r", area->name, count);
+	send_to_char(buf, ch);
+	sprintf(buf, "Average level of available mobs: %d\n\r", sum / count);
+	send_to_char(buf, ch);
+	return;
+}

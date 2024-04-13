@@ -3940,6 +3940,10 @@ void do_hide(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
 
+	if (check_social_status(ch))
+		return;
+
+
     /* take care of hide <obj> */
     if (argument[0] != '\0')
     {
@@ -4216,7 +4220,7 @@ void do_recall(CHAR_DATA *ch, char *argument)
 
     act("$n prays for transportation!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-    if (!(location = get_recall_room(ch))) {
+    if (!(location = get_recall_room(ch, false))) {
 	send_to_char("You are completely lost.\n\r", ch);
 	return;
     }
@@ -4440,6 +4444,12 @@ bool move_success(CHAR_DATA *ch)
 
 	if(!(to_room = exit_destination(pexit))) {
 		send_to_char ("Alas, you cannot go that way.\n\r", ch);
+		return false;
+	}
+
+	if(!is_room_unlocked(ch, to_room) )
+	{
+		send_to_char("You cannot enter that place yet.\n\r", ch);
 		return false;
 	}
 

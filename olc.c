@@ -66,6 +66,7 @@ char *editor_name_table[] = {
 	"RaceEdit",
 	"SectorEdit",
 	"CorpsEdit",
+	"CMDEdit",
 };
 
 int editor_max_tabs_table[] = {
@@ -101,6 +102,7 @@ int editor_max_tabs_table[] = {
 	0,		// RaceEdit
 	0,		// SectorEdit
 	0,		// CorpsEdit
+	0,		// CMDEdit
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -109,20 +111,20 @@ const struct editor_cmd_type editor_table[] =
 	{ "room",		do_redit	},
 	{ "object",		do_oedit	},
 	{ "mobile",		do_medit	},
-	{ "mpcode",		do_mpedit	},
-	{ "opcode",		do_opedit	},
-	{ "rpcode",		do_rpedit	},
+	{ "mprog",		do_mpedit	},
+	{ "oprog",		do_opedit	},
+	{ "rprog",		do_rpedit	},
 	{ "ship",		do_shedit	},
 	{ "help",		do_hedit	},
 	{ "token",		do_tedit	},
-	{ "tpcode",		do_tpedit	},
+	{ "tprog",		do_tpedit	},
 	{ "project",	do_pedit	},
 	{ "bpsect",		do_bsedit	},
 	{ "blueprint",	do_bpedit	},
 	{ "dungeon",	do_dngedit	},
-	{ "apcode",		do_apedit	},
-	{ "ipcode",		do_ipedit	},
-	{ "dpcode",		do_dpedit	},
+	{ "aprog",		do_apedit	},
+	{ "iprog",		do_ipedit	},
+	{ "dprog",		do_dpedit	},
 	{ "skill",		do_skedit	},
 	{ "liquid",		do_liqedit	},
 	{ "skillgroup",	do_sgedit	},
@@ -133,6 +135,9 @@ const struct editor_cmd_type editor_table[] =
 	{ "race",		do_raceedit },
 	{ "sector",		do_sectoredit },
 	{ "corpse",		do_corpsedit },
+	{ "command",	do_cmdedit	},
+	{ "wilderness",	do_wedit	},
+	{ "vlink",		do_vledit	},
 	{ NULL,			0,			}
 };
 
@@ -157,7 +162,9 @@ const struct olc_cmd_type aedit_table[] =
 	{	"flags",		aedit_flags			},
 	{	"landx",		aedit_land_x		},
 	{	"landy",		aedit_land_y		},
+    {   "levels",       aedit_levels        },
 	{	"name",			aedit_name			},
+    {   "notes",        aedit_notes         },
 	{	"open",			aedit_open			},
 	{	"placetype",    aedit_placetype		},
 	{	"postoffice",   aedit_postoffice	},
@@ -208,6 +215,7 @@ const struct olc_cmd_type redit_table[] =
 	{	"oreset",	redit_oreset					},
 	{   "owner",	redit_owner					},
 	{	"persist",	redit_persist					},
+	{	"recall",	redit_recall			},
 	{	"region",	redit_region				},
 	{	"room",		redit_room					},
 	{	"savage",	redit_savage				},
@@ -607,6 +615,10 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
 		corpsedit(d->character, d->incomm);
 		break;
 
+	case ED_CMDEDIT:
+        cmdedit(d->character, d->incomm);
+        break;
+
 	default:
 		return false;
 	}
@@ -681,6 +693,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 	RACE_DATA *race;
 	SECTOR_DATA *sector;
 	CORPSE_TYPE *corpse;
+	CMD_DATA *command;
 	static char buf[MIL];
 	char buf2[MSL];
 
@@ -874,6 +887,14 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 			strcpy(buf, "--");
 		break;
 
+    case ED_CMDEDIT:
+        command = (CMD_DATA *)ch->desc->pEdit;
+        if (command)
+            sprintf(buf, "%s", command->name);
+        else
+            sprintf(buf, "--");
+        break;
+
 	default:
 		sprintf(buf, " ");
 		break;
@@ -1028,6 +1049,10 @@ bool show_commands(CHAR_DATA *ch, char *argument)
 	case ED_CORPSEDIT:
 		show_olc_cmds(ch, corpsedit_table);
 		break;
+
+    case ED_CMDEDIT:
+        show_olc_cmds(ch, cmdedit_table);
+        break;
 	}
 
 	return false;
@@ -4414,9 +4439,11 @@ const struct olc_cmd_type skedit_table[] =
 	{	"quaff",		skedit_quafffunc	},
 	{	"race",			skedit_race			},
 	{	"recite",		skedit_recitefunc	},
+	{	"sethelp",		skedit_sethelp		},
 	{	"scribe",		skedit_scribefunc	},
 	{	"show",			skedit_show			},
 	{	"spell",		skedit_spellfunc	},
+	{	"summary",		skedit_summary		},
 	{	"target",		skedit_target		},
 	{	"touch",		skedit_touchfunc	},
 	{	"value",		skedit_value		},
@@ -5382,22 +5409,25 @@ void olc_show_progs(BUFFER *buffer, LLIST **progs, int type, const char *title)
 		if(list_size(progs[slot]) > 0) ++cnt;
 
 	if (cnt > 0) {
-		sprintf(buf, "{R%-6s %-20s %-20s %-10s\n\r{x", "Number", title, "Trigger", "Phrase");
+		sprintf(buf, "{R%-6s %-20s %-20s %-10s %-9s %-20s\n\r{x", "Number", title, "Trigger", "Phrase", "Status      ", " Name");
 		add_buf(buffer, buf);
 
-		sprintf(buf, "{R%-6s %-20s %-20s %-10s\n\r{x", "------", "--------------------", "--------------------", "----------");
+		sprintf(buf, "{R%-6s %-20s %-20s %-10s %-9s %-20s\n\r{x", "------", "--------------------", "--------------------", "----------", "------------", " -----");
 		add_buf(buffer, buf);
 
 		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
 			ITERATOR it;
 			PROG_LIST *trigger;
+            SCRIPT_DATA *prog;
+
 			iterator_start(&it, progs[slot]);
 			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
 				char wnum[MIL];
+                prog = get_script_index(trigger->wnum.pArea, trigger->wnum.vnum, type);                
 				sprintf(wnum, "%ld#%ld", trigger->wnum.pArea ? trigger->wnum.pArea->uid : 0, trigger->wnum.vnum);
-				sprintf(buf, "{C[{W%4d{C]{x %-20s %-20s %s\n\r", cnt,
+				sprintf(buf, "{C[{W%4d{C]{x %-12s %-10s %-10s %-9s %-5s\n\r", cnt,
 					wnum,trigger_name(trigger->trig_type),
-					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, (type == PRG_RPROG), (type == PRG_TPROG)));
+					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, (type == PRG_RPROG), (type == PRG_TPROG)), olc_show_script_status(prog, type), prog ? prog->name : "Unknown");
 				add_buf(buffer, buf);
 				cnt++;
 			}
@@ -5577,4 +5607,142 @@ int olc_buffer_show_flags(CHAR_DATA *ch, BUFFER *buffer,
 		const char *colors)
 {
 	return olc_buffer_show_flags_ex(ch, buffer, flag_table, value, command, heading, 77, 16, 5, colors);
+}
+
+const struct olc_cmd_type cmdedit_table[] =
+{
+    { "?",      show_help           },
+    { "additional", cmdedit_additional },
+    { "comments",   cmdedit_comments },
+    { "create",     cmdedit_create  },
+    { "description",    cmdedit_description },
+	{ "delete",			cmdedit_delete },
+    { "enabled",        cmdedit_enabled },
+	{ "flags",			cmdedit_flags	},
+    { "function",       cmdedit_function },
+    { "log",            cmdedit_log },
+    { "name",           cmdedit_name },
+    { "order",          cmdedit_order },
+    { "position",    cmdedit_position },
+	{ "rank",          cmdedit_rank},
+	{ "reason",		cmdedit_reason },
+    { "sethelp",           cmdedit_help },
+    { "show",      cmdedit_show },
+	{ "summary",	cmdedit_summary },
+	{ "type",		cmdedit_type },
+};
+
+void do_cmdedit(CHAR_DATA *ch, char *argument)
+{
+	CMD_DATA *command;
+	char arg1[MSL];
+
+	argument = one_argument(argument, arg1);
+
+	if (IS_NPC(ch))
+		return;
+
+	if (arg1[0] != '\0')
+	{
+		if (!str_cmp(arg1, "create"))
+		{
+			if (cmdedit_create(ch, argument))
+				ch->desc->editor = ED_CMDEDIT;
+
+			return;
+		}
+
+		command = get_cmd_data(arg1);
+		if (!command)
+		{
+			send_to_char("No command by that name.\n\r", ch);
+			return;
+		}
+
+		ch->pcdata->immortal->last_olc_command = current_time;
+		olc_set_editor(ch, ED_CMDEDIT, command);
+		return;
+	}
+
+	send_to_char("CMDEdit:  There is no default command to edit.\n\r", ch);
+}
+
+void cmdedit(CHAR_DATA *ch, char *argument)
+{
+	char command[MAX_INPUT_LENGTH];
+	char arg[MAX_STRING_LENGTH];
+	int  cmd;
+
+	smash_tilde(argument);
+	strcpy(arg, argument);
+	argument = one_argument(argument, command);
+
+	if (!str_cmp(command, "done"))
+	{
+		edit_done(ch);
+		return;
+	}
+
+	ch->pcdata->immortal->last_olc_command = current_time;
+	if (command[0] == '\0')
+	{
+		cmdedit_show(ch, argument);
+		return;
+	}
+
+	for (cmd = 0; cmdedit_table[cmd].name != NULL; cmd++)
+	{
+		if (!str_prefix(command, cmdedit_table[cmd].name))
+		{
+			if ((*cmdedit_table[cmd].olc_fun) (ch, argument))
+			{
+				save_commands();
+			}
+			return;
+		}
+	}
+
+	interpret(ch, arg);
+}
+
+void do_cmdshow(CHAR_DATA *ch, char *argument)
+{
+	CMD_DATA *command;
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  cmdshow <command name>\n\r", ch);
+		return;
+	}
+
+	if (!(command = get_cmd_data(argument)))
+	{
+		send_to_char("That command does not exist.\n\r", ch);
+		return;
+	}
+
+	olc_show_item(ch, command, cmdedit_show, argument);
+	return;
+}
+
+char *olc_show_script_status(SCRIPT_DATA *prog, int type)
+{
+    static char status[20];
+
+    if (prog) {
+
+        if(IS_SET(prog->flags,SCRIPT_DISABLED))
+			sprintf(status, "{D[DISABLED]{x   ");
+		else if(prog->lines > 1 && prog->src != prog->edit_src)
+			sprintf(status, "{G[MODIFIED]{x   ");
+		else if(prog->lines == 1)
+			sprintf(status, "{W[BLANK]{x      ");
+		else if(prog->code)
+			sprintf(status, "{x[COMPILED]{x   ");
+		else
+			sprintf(status, "{R[UNCOMPILED]{x ");
+
+        return status;
+    }
+    else return "Unknown";
 }
