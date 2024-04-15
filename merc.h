@@ -513,6 +513,7 @@ typedef struct iterator_type ITERATOR;
 
 typedef struct sector_data SECTOR_DATA;
 typedef struct constellation_data CONSTELLATION_DATA;
+typedef struct orbital_data ORBIT;
 typedef struct world_data WORLD_DATA;
 typedef struct plane_data PLANE_DATA;
 typedef struct realm_data REALM_DATA;
@@ -3980,6 +3981,10 @@ struct plane_data
 };
 
 // WORLD stuff
+#define WORLDTYPE_NONE      0
+#define WORLDTYPE_STAR      1
+#define WORLDTYPE_PLANET    2
+#define WORLDTYPE_MOON      3
 
 struct constellation_data
 {
@@ -3998,11 +4003,27 @@ struct constellation_data
     // Various constellation aspects that might affect stuff
 };
 
+struct orbital_data
+{
+    // Elliptical Shape
+    long major;             // Major Axis (in meters)
+    long minor;             // Minor Axis (in meters)
+    
+    long focus;         // Focal distance equals sqrt(A^2 - B^2), rounded (in meters)
+
+    int16_t procession; // Angle of procession (in 0.1 degrees)
+    int16_t tilt;       // Angle of tilt (in 0.1 degrees)
+
+    long offset;        // Time offset (in seconds)
+    long period;        // Length of orbit (in seconds)
+};
+
 struct world_data
 {
     WORLD_DATA *next;
 
     long vnum;
+    int16_t type;
 
     char *name;
     char *description;
@@ -4014,10 +4035,9 @@ struct world_data
 
     // Orbital information
     WORLD_DATA *parent;
-    long period;
-    long offset;
+    ORBIT orbit;
 
-    LLIST *moons;       // WORLD_DATA *
+    LLIST *satellites;       // WORLD_DATA *, VNUM (load)
 
     int16_t tilt;       // Axial tilt
 
@@ -10418,6 +10438,7 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
 #define CORPSE_FILE         SYSTEM_DIR "corpse.dat"
 #define COMMANDS_FILE       SYSTEM_DIR "commands.dat"
 #define GAME_SETTINGS_FILE  SYSTEM_DIR "game_settings.dat"
+#define WORLDS_FILE         SYSTEM_DIR "worlds.dat"
 /*Notes of all kinds */
 #define NOTE_FILE       NOTE_DIR "notes.not"		/* For 'notes'*/
 /*#define PENALTY_FILE	NOTE_DIR "penal.not"		Unused */
@@ -12735,5 +12756,10 @@ void configure_context(SSL_CTX *ctx);
 SSL_CTX* create_context(void);
 void init_openssl_library(void);
 
+extern LLIST *world_list;
+extern long top_world;
+WORLD_DATA *get_world_data(long vnum);
+bool load_worlds();
+void save_worlds();
 
 #endif /* !def __merc_h__ */

@@ -461,3 +461,4 @@ void free_corpse_type(CORPSE_TYPE *data);
 
 CMD_DATA *new_cmd();
 void free_cmd(CMD_DATA *cmd);
+

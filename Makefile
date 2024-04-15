@@ -131,6 +131,7 @@ C_FILES = \
 	update.c \
 	weather.c \
 	wilds.c \
+	worlds.c \
 
 O_FILES = \
 	$(OBJDIR)/account/otp.o \
@@ -243,6 +244,7 @@ O_FILES = \
 	$(OBJDIR)/update.o \
 	$(OBJDIR)/weather.o \
 	$(OBJDIR)/wilds.o \
+	$(OBJDIR)/worlds.o \
 
 
 ifdef IMC

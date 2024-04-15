@@ -200,6 +200,8 @@ SECTOR_DATA *gsct_underwater_swim;
 
 LLIST *commands_list = NULL;
 
+LLIST *world_list;
+long top_world;
 
 void free_room_index( ROOM_INDEX_DATA *pRoom );
 void load_instances();

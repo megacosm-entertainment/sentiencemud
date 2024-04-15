@@ -136,6 +136,30 @@ void delete_wnum_data(void *ptr)
     free_wnum_data((WNUM *)ptr);
 }
 
+long *new_vnum_data()
+{
+    return alloc_mem(sizeof(long));
+}
+
+void *copy_vnum_data(void *ptr)
+{
+    long *src = (long *)ptr;
+    long *data = new_vnum_data();
+
+    *data = *src;
+    return data;
+}
+
+void free_vnum_data(long *data)
+{
+    free_mem(data, sizeof(long));
+}
+
+void delete_vnum_data(void *ptr)
+{
+    free_vnum_data((long *)ptr);
+}
+
 WNUM_LOAD *new_list_wnum_load()
 {
     return alloc_mem(sizeof(WNUM_LOAD));
@@ -178,6 +202,34 @@ void delete_list_uid_data(void *ptr)
 {
 	free_list_uid_data((LLIST_UID_DATA *)ptr);
 }
+
+LLIST_AREA_DATA *new_list_area_data()
+{
+	return alloc_mem(sizeof(LLIST_AREA_DATA));
+}
+
+// NOT DOUBLE FREE SAFE
+void free_list_area_data(LLIST_AREA_DATA *larea)
+{
+	free_mem(larea,sizeof(LLIST_AREA_DATA));
+}
+
+void *copy_list_area_data(void *ptr)
+{
+    LLIST_AREA_DATA *src = (LLIST_AREA_DATA *)ptr;
+    LLIST_AREA_DATA *data = alloc_mem(sizeof(LLIST_AREA_DATA));
+
+    data->uid = src->uid;
+    data->area = src->area;
+
+    return data;
+}
+
+void delete_list_area_data(void *ptr)
+{
+	free_list_area_data((LLIST_AREA_DATA *)ptr);
+}
+
 
 static void *copy_waypoint(void *ptr)
 {
@@ -8174,46 +8226,6 @@ void free_plane_data(PLANE_DATA *data)
     plane_data_free = data;
 }
 
-// WORLD
-WORLD_DATA *world_data_free;
-WORLD_DATA *new_world_data()
-{
-    WORLD_DATA *data;
-    if (world_data_free)
-    {
-        data = world_data_free;
-        world_data_free = world_data_free->next;
-    }
-    else
-        data = alloc_mem(sizeof(WORLD_DATA));
-    
-    memset(data, 0, sizeof(*data));
-
-    data->name = &str_empty[0];
-    data->description = &str_empty[0];
-    data->comments = &str_empty[0];
-
-    data->moons = list_create(false);
-    data->constellations = list_create(false);
-    data->areas = list_create(false);
-
-    return data;
-}
-
-void free_world_data(WORLD_DATA *data)
-{
-    free_string(data->name);
-    free_string(data->description);
-    free_string(data->comments);
-
-    list_destroy(data->moons);
-    list_destroy(data->constellations);
-    list_destroy(data->areas);
-
-    data->next = world_data_free;
-    world_data_free = data;
-}
-
 // CONSTELLATION
 CONSTELLATION_DATA *constellation_data_free;
 CONSTELLATION_DATA *new_constellation_data()
@@ -8248,6 +8260,51 @@ void free_constellation_data(CONSTELLATION_DATA *data)
 
     data->next = constellation_data_free;
     constellation_data_free = data;
+}
+
+static void delete_constellation_data(void *ptr)
+{
+    free_constellation_data((CONSTELLATION_DATA *)ptr);
+}
+
+// WORLD
+WORLD_DATA *world_data_free;
+WORLD_DATA *new_world_data()
+{
+    WORLD_DATA *data;
+    if (world_data_free)
+    {
+        data = world_data_free;
+        world_data_free = world_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(WORLD_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    data->name = &str_empty[0];
+    data->description = &str_empty[0];
+    data->comments = &str_empty[0];
+
+    data->satellites = list_create(false);      // WORLD_DATA *, loaded as VNUM * / must be resolved after loading
+    data->areas = list_create(false);           // AREA_DATA *, loaded as VNUM * / must be resolved after loading
+    data->constellations = list_createx(false, NULL, delete_constellation_data);
+
+    return data;
+}
+
+void free_world_data(WORLD_DATA *data)
+{
+    free_string(data->name);
+    free_string(data->description);
+    free_string(data->comments);
+
+    list_destroy(data->satellites);
+    list_destroy(data->constellations);
+    list_destroy(data->areas);
+
+    data->next = world_data_free;
+    world_data_free = data;
 }
 
 static void delete_corpse_blending(void *ptr)
@@ -8414,3 +8471,4 @@ void free_cmd(CMD_DATA *cmd)
     cmd->next = cmd_data_free;
     cmd_data_free = cmd;
 }
+

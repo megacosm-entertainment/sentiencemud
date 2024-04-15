@@ -4972,3 +4972,13 @@ const struct do_func_type do_func_table[] =
         { "do_lvlaudit",                do_lvlaudit },
         { "do_keygen",                  do_keygen },
 };
+
+const struct flag_type world_types[] =
+{
+    { "star",       WORLDTYPE_STAR,     true },
+    { "planet",     WORLDTYPE_PLANET,   true },
+    { "moon",       WORLDTYPE_MOON,     true },
+    { NULL,         WORLDTYPE_NONE,     false }
+};
+
+ 
