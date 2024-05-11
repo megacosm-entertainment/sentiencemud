@@ -134,6 +134,9 @@ int gconfig_read (void)
 	gconfig.inc_missions = 6;		// Per day
 	gconfig.max_missions = 25;
 
+	gconfig.game_time = 0L;			// If zero, it will get initialized
+	gconfig.time_speed = 15L;		// 15 second per IRL second that passes
+
 	disconnect_timeout = 30;
 	limbo_timeout = 12;
 
@@ -219,6 +222,10 @@ int gconfig_read (void)
 					return(0); /* Success*/
 				}
 	            break;
+
+			case 'G':
+				KEY("GameTime", gconfig.game_time, fread_number(fp));
+				break;
 
 			case 'I':
 				KEY("IncMissions", gconfig.inc_missions, fread_number(fp));
@@ -339,6 +346,7 @@ int gconfig_read (void)
 					fMatch = true;
 					break;
 				}
+				KEY("TimeSpeed", gconfig.time_speed, fread_number(fp));
 				break;
 			case 'W':
                 if(!str_cmp(word,"Wizlock")) {
@@ -820,6 +828,9 @@ int gconfig_write(void)
 	// Tokens?
 	write_reserved(fp, reserved_rprog_wnums);
 	write_reserved_areas(fp);
+
+	fprintf(fp, "GameTime %ld\n", gconfig.game_time);
+	fprintf(fp, "TimeSpeed %ld\n", gconfig.time_speed);
 
     fprintf(fp, "END\n");
     fclose(fp);

@@ -695,3 +695,9 @@ DECLARE_DO_FUN( do_testemail );
 DECLARE_DO_FUN( do_pwreset );
 DECLARE_DO_FUN( do_lvlaudit );
 DECLARE_DO_FUN( do_keygen );
+
+
+DECLARE_DO_FUN( do_worldlist );
+DECLARE_DO_FUN( do_worldedit  );
+DECLARE_DO_FUN( do_worldshow  );
+

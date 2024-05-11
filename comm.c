@@ -128,6 +128,8 @@ void save_classes(bool booting);
 bool load_races();
 void save_races();
 
+void init_trig_tables();
+
 /*
  * Global variables.
  */
@@ -351,8 +353,8 @@ bool parse_options(int argc, char **argv)
 int main(int argc, char **argv)
 {
     struct timeval now_time;
-    int control_telnet;
-	int control_tls;
+    int control_telnet = -1;
+	int control_tls = -1;
     ITERATOR iter;
     void *data;
 	static GAME_SETTINGS_DATA game_settings_zero;
@@ -459,6 +461,7 @@ int main(int argc, char **argv)
 	}
 
 	init_string_space();
+	init_trig_tables();
 
     /*
      * Init time.
@@ -563,6 +566,9 @@ int main(int argc, char **argv)
 	if (!load_corpses()) exit(1);
 	log_string("corpses loaded");
 
+	if (!load_worlds()) exit(1);
+	log_string("worlds loaded");
+
     /*
      * Run the game.
      */
@@ -621,9 +627,9 @@ int main(int argc, char **argv)
 	iterator_stop(&iter);
 	list_destroy(loaded_wilds);
 	list_destroy(list_churches);
-	if (game_settings.enable_telnet)
+	if (game_settings.enable_telnet && control_telnet != -1)
     	close (control_telnet);
-	if (game_settings.enable_tls)
+	if (game_settings.enable_tls && control_tls != -1)
 		close(control_tls);
 	#ifdef IMC
 	SERVER_DATA *server;
@@ -632,6 +638,7 @@ int main(int argc, char **argv)
 	imc_shutdown(false, server);
 	#endif
 
+	save_worlds();
 	save_corpses();
 	save_races();
 	save_classes(false);
@@ -641,6 +648,7 @@ int main(int argc, char **argv)
 	save_songs();
 	save_sectors();
 
+	list_destroy(world_list);
 	list_destroy(corpse_list);
 	list_destroy(race_list);
 	list_destroy(liquid_list);
@@ -826,10 +834,12 @@ void game_loop(int control_telnet, int control_tls)
 {
     static struct timeval null_time;
     struct timeval last_time;
+	time_t previous_time;
 
     signal(SIGPIPE, SIG_IGN);
     gettimeofday(&last_time, NULL);
     current_time = (time_t) last_time.tv_sec;
+	previous_time = current_time;
 
     /* Main loop */
     while (!merc_down)
@@ -838,7 +848,7 @@ void game_loop(int control_telnet, int control_tls)
 	fd_set out_set;
 	fd_set exc_set;
 	DESCRIPTOR_DATA *d;
-	int maxdesc;
+	int maxdesc = 0;
 
 #if defined(MALLOC_DEBUG)
 	if (malloc_verify() != 1)
@@ -1094,6 +1104,62 @@ imc_loop();
 	}
     }
 
+	// Garbage collect
+	if (list_size(gc_mobiles) > 0)
+	{
+		ITERATOR it;
+		CHAR_DATA *mob;
+		iterator_start(&it, gc_mobiles);
+		while((mob = (CHAR_DATA *)iterator_nextdata(&it)))
+		{
+			free_char(mob);
+		}
+		iterator_stop(&it);
+		list_clear(gc_mobiles);
+	}
+
+	if (list_size(gc_objects) > 0)
+	{
+		ITERATOR it;
+		OBJ_DATA *obj;
+		iterator_start(&it, gc_objects);
+		while((obj = (OBJ_DATA *)iterator_nextdata(&it)))
+		{
+			free_obj(obj);
+		}
+		iterator_stop(&it);
+		list_clear(gc_objects);
+	}
+
+	if (list_size(gc_rooms) > 0)
+	{
+		ITERATOR it;
+		ROOM_INDEX_DATA *room;
+		iterator_start(&it, gc_rooms);
+		while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)))
+		{
+			free_room_index(room);
+		}
+		iterator_stop(&it);
+		list_clear(gc_rooms);
+	}
+
+	if (list_size(gc_tokens) > 0)
+	{
+		ITERATOR it;
+		TOKEN_DATA *token;
+		iterator_start(&it, gc_tokens);
+		while((token = (TOKEN_DATA *)iterator_nextdata(&it)))
+		{
+			free_token(token);
+		}
+		iterator_stop(&it);
+		list_clear(gc_tokens);
+	}
+
+	// Garbate collect
+
+
     /*
      * Synchronize to a clock.
      * Sleep(last_time + 1/PULSE_PER_SECOND - now).
@@ -1159,66 +1225,14 @@ imc_loop();
 	    }
 	}
 
-	// Garbage collect
-	if (list_size(gc_mobiles) > 0)
-	{
-		ITERATOR it;
-		CHAR_DATA *mob;
-		iterator_start(&it, gc_mobiles);
-		while((mob = (CHAR_DATA *)iterator_nextdata(&it)))
-		{
-			free_char(mob);
-		}
-		iterator_stop(&it);
-		list_clear(gc_mobiles);
-	}
-
-	if (list_size(gc_objects) > 0)
-	{
-		ITERATOR it;
-		OBJ_DATA *obj;
-		iterator_start(&it, gc_objects);
-		while((obj = (OBJ_DATA *)iterator_nextdata(&it)))
-		{
-			free_obj(obj);
-		}
-		iterator_stop(&it);
-		list_clear(gc_objects);
-	}
-
-	if (list_size(gc_rooms) > 0)
-	{
-		ITERATOR it;
-		ROOM_INDEX_DATA *room;
-		iterator_start(&it, gc_rooms);
-		while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)))
-		{
-			free_room_index(room);
-		}
-		iterator_stop(&it);
-		list_clear(gc_rooms);
-	}
-
-	if (list_size(gc_tokens) > 0)
-	{
-		ITERATOR it;
-		TOKEN_DATA *token;
-		iterator_start(&it, gc_tokens);
-		while((token = (TOKEN_DATA *)iterator_nextdata(&it)))
-		{
-			free_token(token);
-		}
-		iterator_stop(&it);
-		list_clear(gc_tokens);
-	}
-
-	// Garbate collect
-
 	/* Check to see if the logfiles have overflowed*/
 	check_logfile();
 
+	previous_time = current_time;
 	gettimeofday(&last_time, NULL);
 	current_time = (time_t) last_time.tv_sec;
+
+	gconfig.game_time += gconfig.time_speed * (current_time - previous_time);
     }
 }
 

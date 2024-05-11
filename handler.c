@@ -9738,6 +9738,7 @@ void location_clear(LOCATION *loc)
 
 void location_set(LOCATION *loc, AREA_DATA *area, unsigned long a, unsigned long b, unsigned long c, unsigned long d)
 {
+	loc->area = area;
 	loc->wuid = a;
 	loc->id[0] = b;
 	loc->id[1] = c;
@@ -9751,22 +9752,24 @@ void location_set(LOCATION *loc, AREA_DATA *area, unsigned long a, unsigned long
 
 void rs_location_clear(RS_LOCATION *loc)
 {
+	loc->auid = 0;
 	loc->wuid = 0;
 	loc->id[0] = 0;
 	loc->id[1] = 0;
 	loc->id[2] = 0;
 }
 
-void rs_location_set(RS_LOCATION *loc, unsigned long a, unsigned long b, unsigned long c, unsigned long d)
+void rs_location_set(RS_LOCATION *loc, long auid, unsigned long a, unsigned long b, unsigned long c, unsigned long d)
 {
+	loc->auid = auid;
 	loc->wuid = a;
 	loc->id[0] = b;
 	loc->id[1] = c;
 	loc->id[2] = d;
 
 	// if a != 0, then <b,c,d> is the xyz location on wilderness 'a'
-	// if a == 0 and b != 0 and c:d == 0, then is the static room 'b'
-	// if a == 0 and b != 0 and c:d != 0, then is the clone of room 'b' with id c:d
+	// if a == 0 and b != 0 and c:d == 0, then is the static room 'auid#b'
+	// if a == 0 and b != 0 and c:d != 0, then is the clone of room 'auid#b' with id c:d
 	// if a == 0 and b == 0, then it is nowhere
 }
 

@@ -67,6 +67,7 @@ char *editor_name_table[] = {
 	"SectorEdit",
 	"CorpsEdit",
 	"CMDEdit",
+	"WorldEdit",
 };
 
 int editor_max_tabs_table[] = {
@@ -103,6 +104,7 @@ int editor_max_tabs_table[] = {
 	0,		// SectorEdit
 	0,		// CorpsEdit
 	0,		// CMDEdit
+	5,		// WorldEdit
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -138,6 +140,7 @@ const struct editor_cmd_type editor_table[] =
 	{ "command",	do_cmdedit	},
 	{ "wilderness",	do_wedit	},
 	{ "vlink",		do_vledit	},
+	{ "world",		do_worldedit},
 	{ NULL,			0,			}
 };
 
@@ -619,6 +622,10 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
         cmdedit(d->character, d->incomm);
         break;
 
+	case ED_WORLDEDIT:
+		worldedit(d->character, d->incomm);
+		break;
+
 	default:
 		return false;
 	}
@@ -694,6 +701,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 	SECTOR_DATA *sector;
 	CORPSE_TYPE *corpse;
 	CMD_DATA *command;
+	WORLD_DATA *world;
 	static char buf[MIL];
 	char buf2[MSL];
 
@@ -895,6 +903,14 @@ char *olc_ed_vnum(CHAR_DATA *ch)
             sprintf(buf, "--");
         break;
 
+	case ED_WORLDEDIT:
+		world = (WORLD_DATA *)ch->desc->pEdit;
+		if (world)
+			sprintf(buf, "%s:%ld", world->name, world->vnum);
+		else
+			sprintf(buf, "--");
+		break;
+
 	default:
 		sprintf(buf, " ");
 		break;
@@ -1053,6 +1069,10 @@ bool show_commands(CHAR_DATA *ch, char *argument)
     case ED_CMDEDIT:
         show_olc_cmds(ch, cmdedit_table);
         break;
+
+	case ED_WORLDEDIT:
+		show_olc_cmds(ch, worldedit_table);
+		break;
 	}
 
 	return false;
@@ -5491,7 +5511,11 @@ void olc_buffer_show_string(CHAR_DATA *ch, BUFFER *buffer, const char *value, ch
 	char buf[MSL];
 	int l=indent-strlen_no_colours(heading);
 	l=UMAX(l,0);
-	sprintf(buf, formatf("{%c%%s%%%ds", colors[0],l), MXPCreateSend(ch->desc,command, heading), "");
+
+	if (IS_NULLSTR(command))
+		sprintf(buf, formatf("{%c%%s%%%ds", colors[0],l), heading, "");
+	else
+		sprintf(buf, formatf("{%c%%s%%%ds", colors[0],l), MXPCreateSend(ch->desc,command, heading), "");
 	add_buf(buffer, buf);
 
 	if (IS_NULLSTR(value))

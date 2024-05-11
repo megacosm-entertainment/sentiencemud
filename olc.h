@@ -63,6 +63,8 @@
 #define ED_CORPSEDIT	31
 #define ED_CMDEDIT		32
 
+#define ED_WORLDEDIT	33
+
 #define AEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define HEDIT( fun )            bool fun( CHAR_DATA *ch, char *argument )
 #define MEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
@@ -93,6 +95,7 @@
 #define CORPSEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define CMDEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 
+#define WORLDEDIT( fun )	bool fun( CHAR_DATA *ch, char *argument )
 
 /*
  * Interpreter Prototypes
@@ -137,6 +140,8 @@ void	sectoredit  ( CHAR_DATA *ch, char *argument );
 void	corpsedit  ( CHAR_DATA *ch, char *argument );
 
 void	cmdedit		(CHAR_DATA *ch, char *argument );
+
+void	worldedit	(CHAR_DATA *ch, char *argument );
 
 /*
  * OLC Constants
@@ -212,6 +217,7 @@ extern const struct olc_cmd_type		raceedit_table[];
 extern const struct olc_cmd_type		sectoredit_table[];
 extern const struct olc_cmd_type		corpsedit_table[];
 extern const struct olc_cmd_type		cmdedit_table[];
+extern const struct olc_cmd_type		worldedit_table[];
 
 /*
  * Editor Commands.
@@ -247,6 +253,8 @@ DECLARE_DO_FUN( do_raceedit );
 DECLARE_DO_FUN( do_sectoredit );
 DECLARE_DO_FUN( do_corpsedit );
 DECLARE_DO_FUN( do_cmdedit );
+
+DECLARE_DO_FUN( do_worldedit );
 
 /*
  * Area Editor Prototypes
@@ -879,6 +887,25 @@ DECLARE_OLC_FUN( cmdedit_summary );
 DECLARE_OLC_FUN( cmdedit_order );
 DECLARE_OLC_FUN( cmdedit_additional );
 
+DECLARE_OLC_FUN( worldedit_comments );
+DECLARE_OLC_FUN( worldedit_constellations );
+DECLARE_OLC_FUN( worldedit_create );
+DECLARE_OLC_FUN( worldedit_day );
+DECLARE_OLC_FUN( worldedit_deathroom );
+DECLARE_OLC_FUN( worldedit_description );
+DECLARE_OLC_FUN( worldedit_edges );
+DECLARE_OLC_FUN( worldedit_map );
+DECLARE_OLC_FUN( worldedit_mass );
+DECLARE_OLC_FUN( worldedit_name );
+DECLARE_OLC_FUN( worldedit_orbit );
+DECLARE_OLC_FUN( worldedit_plane );
+DECLARE_OLC_FUN( worldedit_realm );
+DECLARE_OLC_FUN( worldedit_regions );
+DECLARE_OLC_FUN( worldedit_satellites );
+DECLARE_OLC_FUN( worldedit_show );
+DECLARE_OLC_FUN( worldedit_tilt );
+DECLARE_OLC_FUN( worldedit_type );
+
 
 /*
  * Macros
@@ -925,6 +952,9 @@ DECLARE_OLC_FUN( cmdedit_additional );
 #define EDIT_CORPSE(ch, corpse)		( corpse = (CORPSE_TYPE *)ch->desc->pEdit )
 
 #define EDIT_CMD(ch, command)		( command = (CMD_DATA *)ch->desc->pEdit )
+
+#define EDIT_WORLD(ch, world)		( world = (WORLD_DATA *)ch->desc->pEdit )
+
 /*
  * Prototypes
  */

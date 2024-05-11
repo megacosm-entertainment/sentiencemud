@@ -211,7 +211,7 @@ void resolve_reserved(RESERVED_WNUM *reserved);
 void resolve_skills();
 void resolve_songs();
 void resolve_reputations();
-
+void resolve_worlds();
 
 /* Reading of keys*/
 #if defined(KEY)
@@ -1650,6 +1650,7 @@ void boot_db(void)
 
 //    logAll = true; /*setting this on for now*/
 
+	// TODO: move to the world.
     /*
      * Set time and weather.
      */
@@ -1851,6 +1852,9 @@ void boot_db(void)
 
 	log_string("Resolving songs");
 	resolve_songs();
+
+	log_string("Resolving worlds");
+	resolve_worlds();
 
     log_string("Loading persistance");
     if(!persist_load()) {
@@ -4583,6 +4587,19 @@ char *fwrite_flag(long flags, char buf[])
     return buf;
 }
 
+double fread_double(FILE *fp)
+{
+	double number;
+
+	if (fscanf(fp, "%lf", &number) != 1)
+	{
+		bug("fread_double: bad format.", 0);
+		exit(1);
+
+	}
+
+	return number;
+}
 
 /*
  * Read a number from a file.

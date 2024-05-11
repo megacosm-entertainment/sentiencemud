@@ -510,6 +510,9 @@ typedef struct list_link_room_data LLIST_ROOM_DATA;
 typedef struct list_link_exit_data LLIST_EXIT_DATA;
 typedef struct list_link_skill_data LLIST_SKILL_DATA;
 typedef struct iterator_type ITERATOR;
+typedef struct vector2d_type VECTOR2D;
+typedef struct vector3d_type VECTOR3D;
+
 
 typedef struct sector_data SECTOR_DATA;
 typedef struct constellation_data CONSTELLATION_DATA;
@@ -587,6 +590,17 @@ typedef struct wide_vnum_load_type {
     long auid;
     long vnum;
 } WNUM_LOAD;
+
+struct vector2d_type {
+    double x;
+    double y;
+};
+
+struct vector3d_type {
+    double x;
+    double y;
+    double z;
+};
 
 
 typedef struct named_special_room_data NAMED_SPECIAL_ROOM;
@@ -1499,6 +1513,9 @@ struct global_data
     int     max_mission_allowance;  // How many mission allowances can a player have?
     int     inc_missions;           // How many missions will a player accrue when their mission allowance ticks over?
     int     max_missions;           // How many missions can a player have running at the same time?
+
+    long    game_time;
+    long    time_speed;             // How many seconds per pulse
 };
 
 struct game_settings_data
@@ -4005,17 +4022,18 @@ struct constellation_data
 
 struct orbital_data
 {
-    // Elliptical Shape
-    long major;             // Major Axis (in meters)
-    long minor;             // Minor Axis (in meters)
-    
-    long focus;         // Focal distance equals sqrt(A^2 - B^2), rounded (in meters)
+    long distance;
 
-    int16_t procession; // Angle of procession (in 0.1 degrees)
-    int16_t tilt;       // Angle of tilt (in 0.1 degrees)
+    int procession; // Angle of procession (in 0.01 degrees)
+    int tilt;       // Angle of tilt (in 0.01 degrees)
 
     long offset;        // Time offset (in seconds)
     long period;        // Length of orbit (in seconds)
+
+    long time;          // Current time in orbit (in seconds)
+
+    int angle;
+    VECTOR3D position;
 };
 
 struct world_data
@@ -4033,18 +4051,33 @@ struct world_data
     REALM_DATA *realm;
     PLANE_DATA *plane;
 
+    union {
+        LOCATION death_room;        // Where you go when you die on this world.
+        RS_LOCATION rs_death_room;
+    };
+
     // Orbital information
     WORLD_DATA *parent;
     ORBIT orbit;
 
     LLIST *satellites;       // WORLD_DATA *, VNUM (load)
 
-    int16_t tilt;       // Axial tilt
+    // Planetary data
+    int16_t tilt;           // Axial tilt (in 0.1 degrees)
+    WILDS_DATA *map;        // Overworld wilderness map
+    long map_uid;           // UID of map (used on load only)
+    double north_edge;     // What latitude is the north edge of the map?
+    double south_edge;     // What latitude is the south edge of the map?
+    int day;            // Length of day (in seconds)
+    double mass;          // Mass (in kg)
 
-    LLIST *areas;       // Areas associated with this world
+    // TODO: Calendar
 
     // Stellar
     LLIST *constellations;
+
+    // 
+    LLIST *regions;           // Area regions associated with this world
 };
 
 
@@ -7071,6 +7104,7 @@ struct area_region_data {
 	int land_y;
 	long airship_land_spot;
 
+    WORLD_DATA *world;          // Assigned when worlds are resolved
 };
 
 #define AREA_REGION_NO_RECALL       (A) // Cannot recall in the region
@@ -10709,6 +10743,7 @@ SCRIPT_DATA *	get_script_index_wnum args( ( WNUM wnum, int type ) );
 SCRIPT_DATA *	get_script_index_auid args( ( long auid, long vnum, int type ) );
 SCRIPT_DATA *	get_script_index args( ( AREA_DATA *pArea, long vnum, int type ) );
 char	fread_letter	args( ( FILE *fp ) );
+double  fread_double    args( ( FILE *fp ) );
 long	fread_number	args( ( FILE *fp ) );
 long 	fread_flag	args( ( FILE *fp ) );
 char *	fread_string	args( ( FILE *fp ) );
@@ -11275,6 +11310,7 @@ HELP_DATA *read_help_new( FILE *fp );
 /* interp.c */
 bool check_social( CHAR_DATA *ch, char *command, char *argument );
 void	interpret	args( ( CHAR_DATA *ch, char *argument ) );
+bool	is_double   args( ( char *arg ) );
 bool	is_number	args( ( char *arg ) );
 bool	is_percent	args( ( char *arg ) );
 int	number_argument	args( ( char *argument, char *arg ) );
@@ -11853,7 +11889,7 @@ void location_set(LOCATION *loc, AREA_DATA *area, unsigned long a, unsigned long
 bool location_isset(LOCATION *loc);
 bool rs_location_isset(RS_LOCATION *loc);
 void rs_location_clear(RS_LOCATION *loc);
-void rs_location_set(RS_LOCATION *loc, unsigned long a, unsigned long b, unsigned long c, unsigned long d);
+void rs_location_set(RS_LOCATION *loc, long auid, unsigned long a, unsigned long b, unsigned long c, unsigned long d);
 
 void strip_newline(char *buf, bool append);
 

@@ -316,7 +316,6 @@ struct do_func_type
 
 
 /* game tables */
-extern  const   float   sin_table[];
 extern  const   struct  npc_ship_type   npc_ship_table[];
 extern	const	struct	npc_ship_hotspot_type	npc_ship_hotspot_table[];
 extern	const	struct	talk_type	vampire_talk_table[];

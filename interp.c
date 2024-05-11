@@ -38,6 +38,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 #include "strings.h"
 #include "merc.h"
 #include "interp.h"
@@ -1839,6 +1840,19 @@ bool check_social( CHAR_DATA *ch, char *command, char *argument )
     return true;
 }
 
+
+// Return true if an argument is a double
+bool is_double( char *arg )
+{
+	char *ptr;
+	double ret;
+
+	if (*arg == '\0') return false;
+
+	ret = strtod(arg, &ptr);
+
+	return (*ptr != '\0') && ret != NAN;
+}
 
 // Return true if an argument is completely numeric.
 bool is_number( char *arg )

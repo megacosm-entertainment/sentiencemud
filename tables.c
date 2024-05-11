@@ -4971,6 +4971,10 @@ const struct do_func_type do_func_table[] =
         { "do_pwreset",                 do_pwreset },
         { "do_lvlaudit",                do_lvlaudit },
         { "do_keygen",                  do_keygen },
+        { "do_worldedit",               do_worldedit },
+        { "do_worldlist",               do_worldlist },
+        { "do_worldshow",               do_worldshow },
+        { NULL,                         NULL }
 };
 
 const struct flag_type world_types[] =

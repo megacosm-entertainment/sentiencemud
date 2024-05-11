@@ -126,6 +126,11 @@ HELP_DATA *	new_help	args( ( void ) );
 LLIST_UID_DATA *new_list_uid_data();
 void free_list_uid_data(LLIST_UID_DATA *luid);
 
+LLIST_AREA_REGION_DATA *new_list_area_region_data();
+void free_list_area_region_data(LLIST_AREA_REGION_DATA *ptr);
+void *copy_list_area_region_data(void *ptr);
+void delete_list_area_region_data(void *ptr);
+
 MISSIONARY_DATA *new_missionary_data();
 void free_missionary_data(MISSIONARY_DATA *q);
 

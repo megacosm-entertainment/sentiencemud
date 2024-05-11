@@ -230,6 +230,34 @@ void delete_list_area_data(void *ptr)
 	free_list_area_data((LLIST_AREA_DATA *)ptr);
 }
 
+LLIST_AREA_REGION_DATA *new_list_area_region_data()
+{
+	return alloc_mem(sizeof(LLIST_AREA_REGION_DATA));
+}
+
+// NOT DOUBLE FREE SAFE
+void free_list_area_region_data(LLIST_AREA_REGION_DATA *ptr)
+{
+	free_mem(ptr,sizeof(LLIST_AREA_REGION_DATA));
+}
+
+void *copy_list_area_region_data(void *ptr)
+{
+    LLIST_AREA_REGION_DATA *src = (LLIST_AREA_REGION_DATA *)ptr;
+    LLIST_AREA_REGION_DATA *data = alloc_mem(sizeof(LLIST_AREA_REGION_DATA));
+
+    data->aregion = src->aregion;
+    data->aid = src->aid;
+    data->rid = src->rid;
+
+    return data;
+}
+
+void delete_list_area_region_data(void *ptr)
+{
+	free_list_area_region_data((LLIST_AREA_REGION_DATA *)ptr);
+}
+
 
 static void *copy_waypoint(void *ptr)
 {
@@ -8287,7 +8315,7 @@ WORLD_DATA *new_world_data()
     data->comments = &str_empty[0];
 
     data->satellites = list_create(false);      // WORLD_DATA *, loaded as VNUM * / must be resolved after loading
-    data->areas = list_create(false);           // AREA_DATA *, loaded as VNUM * / must be resolved after loading
+    data->regions = list_create(false);         // AREA_REGION *, loaded as LLIST_AREA_REGION_DATA * / must be resolved after loading
     data->constellations = list_createx(false, NULL, delete_constellation_data);
 
     return data;
@@ -8301,7 +8329,7 @@ void free_world_data(WORLD_DATA *data)
 
     list_destroy(data->satellites);
     list_destroy(data->constellations);
-    list_destroy(data->areas);
+    list_destroy(data->regions);
 
     data->next = world_data_free;
     world_data_free = data;

@@ -2030,6 +2030,7 @@ void read_area_region(FILE *fp, AREA_DATA *area)
 				{
 					location_clear(&region->rs_recall);
 
+					region->rs_recall.area = area;
 					region->rs_recall.id[0] = fread_number(fp);
 
 					fMatch = true;
@@ -2464,7 +2465,12 @@ AREA_DATA *read_area_new(FILE *fp)
 			fMatch = true;
 		}
 		if (!str_cmp(word, "RecallW")) {
-			location_set(&area->region.rs_recall,NULL,fread_number(fp),fread_number(fp),fread_number(fp),fread_number(fp));
+			long w = fread_number(fp);
+			long x = fread_number(fp);
+			long y = fread_number(fp);
+			long z = fread_number(fp);
+
+			location_set(&area->region.rs_recall,NULL,w,y,x,z);
 			fMatch = true;
 		}
 		KEY("Repop",		area->rs_repop,		fread_number(fp));
@@ -2677,7 +2683,7 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 	    case 'R':
 			if(!str_cmp(word, "Recall"))
 			{
-
+				room->rs_recall.auid = area->uid;
 				room->rs_recall.wuid = fread_number(fp);
 				room->rs_recall.id[0] = fread_number(fp);
 				room->rs_recall.id[1] = fread_number(fp);

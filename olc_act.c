@@ -223,6 +223,7 @@ const struct olc_help_type help_table[] =
 	{	"wear",					STRUCT_FLAGS,		wear_flags,					"Where to wear object."	},
 	{	"wear-loc",				STRUCT_FLAGS,		wear_loc_flags,				"Where mobile wears object."	},
 	{	"wilderness_regions",	STRUCT_FLAGS,		wilderness_regions,			"wilderness region names"},
+	{	"world",				STRUCT_FLAGS,		world_types,				"world types."},
 	{	"wtype",				STRUCT_FLAGS,		weapon_type2,				"Special weapon type."	},
 	{	"zap_func",				STRUCT_ARTIFICING,	zap_func_table,				"Zap Functions (SkEdit)"},
 	{	NULL,					STRUCT_FLAGS,		NULL,						NULL									}
@@ -4335,7 +4336,7 @@ REDIT(redit_recall)
 			return false;
 		}
 
-		rs_location_set(&pRoom->rs_recall,0,vnum,0,0);
+		rs_location_set(&pRoom->rs_recall,pRoom->area->uid,0,vnum,0,0);
 		send_to_char("Recall set.\n\r", ch);
 	} else if(!arg3[0] || !arg4[0] || !is_number(arg2) || !is_number(arg3) || !is_number(arg4)) {
 		send_to_char("Syntax:  recall <vnum>\n\r", ch);
@@ -4348,7 +4349,7 @@ REDIT(redit_recall)
 		x = atoi(arg2);
 		y = atoi(arg3);
 		z = atoi(arg4);
-		rs_location_set(&pRoom->rs_recall,vnum,x,y,z);
+		rs_location_set(&pRoom->rs_recall,0,vnum,x,y,z);
 		send_to_char("Recall set.\n\r", ch);
 	}
 
