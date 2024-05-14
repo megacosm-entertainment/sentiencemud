@@ -210,7 +210,6 @@ void resolve_skills();
 void resolve_songs();
 void resolve_reputations();
 
-
 /* Reading of keys*/
 #if defined(KEY)
 #undef KEY
@@ -1872,7 +1871,6 @@ void boot_db(void)
     //log_string("Doing load_reboot_objs");
     //load_reboot_objs();
 
-
     log_string("Opening projects");
     read_projects();
 
@@ -2230,6 +2228,14 @@ void fix_mobiles(void)
 						}
 					}
 				}
+
+				iterator_start(&it, mob->phasing);
+				PHASING_QUEST_STAGE *pqs;
+				while((pqs = (PHASING_QUEST_STAGE *)iterator_nextdata(&it)))
+				{
+					pqs->quest = get_quest_index_auid(pqs->quest_load.auid, pqs->quest_load.vnum);
+				}
+				iterator_stop(&it);
 
 				WNUM_LOAD *wl;
 				iterator_start(&it, mob->factions_load);

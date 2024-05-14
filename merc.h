@@ -484,6 +484,7 @@ typedef struct  prog_code               PROG_CODE;
 typedef struct  prog_list              	PROG_LIST;
 typedef struct  dialogue_index_data     DIALOGUE_INDEX_DATA;
 typedef struct  quest_index_data        QUEST_INDEX_DATA;
+typedef struct  phasing_quest_stage_type PHASING_QUEST_STAGE;
 typedef struct  quest_list		QUEST_LIST;
 typedef struct  race_data       RACE_DATA;
 typedef struct  stat_data		STAT_DATA;
@@ -4335,6 +4336,7 @@ struct	mob_index_data
     SHIP_CREW_INDEX_DATA *pCrew;
     LLIST **        progs;
     QUEST_LIST *	quests;
+    LLIST *         phasing;
     bool	persist;
 
     AREA_DATA *		area;
@@ -4732,6 +4734,19 @@ struct quest_index_data
     // TODO: Completion followup
 };
 
+
+// Used to tell if a mobile / object / exit is in phase or not to the player
+struct phasing_quest_stage_type
+{
+    PHASING_QUEST_STAGE *next;
+
+    union {
+        QUEST_INDEX_DATA *quest;
+        WNUM_LOAD quest_load;
+    };
+    int16_t min_stage;
+    int16_t max_stage;
+};
 
 #define QUEST_PART_NONE		0
 #define QUEST_PART_GET_OBJ	1
@@ -10995,6 +11010,8 @@ bool is_mission_mob(CHAR_DATA *ch, CHAR_DATA *victim);
 
 /* quest.c */
 QUEST_INDEX_DATA *get_quest_index( AREA_DATA *area, long vnum );
+QUEST_INDEX_DATA *get_quest_index_auid( long auid, long vnum );
+QUEST_INDEX_DATA *get_quest_index_wnum( WNUM wnum );
 
 /* handler.c */
 int get_coord_distance( int x1, int y1, int x2, int y2 );

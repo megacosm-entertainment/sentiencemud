@@ -481,6 +481,7 @@ DECLARE_OLC_FUN( medit_delreputation );
 DECLARE_OLC_FUN( medit_faction	);
 DECLARE_OLC_FUN( medit_practice	);
 DECLARE_OLC_FUN( medit_visibility );
+DECLARE_OLC_FUN( medit_phasing );
 
 /* Any script editor */
 DECLARE_OLC_FUN( scriptedit_show	);

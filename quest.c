@@ -69,6 +69,15 @@ QUEST_INDEX_DATA *get_quest_index(AREA_DATA *area, long vnum)
     return NULL;
 }
 
+QUEST_INDEX_DATA *get_quest_index_auid(long auid, long vnum)
+{
+    return get_quest_index(get_area_from_uid(auid), vnum);
+}
+
+QUEST_INDEX_DATA *get_quest_index_wnum(WNUM wnum)
+{
+    return get_quest_index(wnum.pArea, wnum.vnum);
+}
 
 void save_quest( FILE *fp, QUEST_INDEX_DATA *pQuestIndex )
 {

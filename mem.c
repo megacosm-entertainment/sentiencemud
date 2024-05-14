@@ -98,6 +98,8 @@ OLC_POINT_BOOST *olc_point_boost_free;
 SHIP_INDEX_DATA *ship_index_free;
 SHIP_DATA *ship_free;
 
+void delete_phasing_quest_stage(void *ptr);
+
 void *copy_string(void *ptr)
 {
     if (!ptr) return NULL;
@@ -2293,6 +2295,7 @@ MOB_INDEX_DATA *new_mob_index( void )
     pMob->factions = list_create(false);    // REPUTATION_INDEX_DATA *
     pMob->factions_load = list_createx(false, NULL, delete_list_wnum_load);
     pMob->corpse_type = gcrp_normal;
+    pMob->phasing = list_createx(false, NULL, delete_phasing_quest_stage);
 
     return pMob;
 }
@@ -2333,6 +2336,7 @@ void free_mob_index( MOB_INDEX_DATA *pMob )
 
     list_destroy(pMob->factions);
     list_destroy(pMob->factions_load);
+    list_destroy(pMob->phasing);
 
     pMob->next              = mob_index_free;
     mob_index_free          = pMob;
@@ -3523,6 +3527,58 @@ void free_quest_index( QUEST_INDEX_DATA *quest_index )
 
     quest_index->next = quest_index_free;
     quest_index_free = quest_index;
+}
+
+PHASING_QUEST_STAGE *phasing_quest_stage_free;
+PHASING_QUEST_STAGE *new_phasing_quest_stage()
+{
+    PHASING_QUEST_STAGE *data;
+    if (phasing_quest_stage_free)
+    {
+        data = phasing_quest_stage_free;
+        phasing_quest_stage_free = phasing_quest_stage_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(PHASING_QUEST_STAGE));
+
+    memset(data, 0, sizeof(*data));
+    return data;
+}
+
+PHASING_QUEST_STAGE *copy_phasing_quest_stage(PHASING_QUEST_STAGE *src)
+{
+    if (!src) return NULL;
+
+    PHASING_QUEST_STAGE *data;
+    if (phasing_quest_stage_free)
+    {
+        data = phasing_quest_stage_free;
+        phasing_quest_stage_free = phasing_quest_stage_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(PHASING_QUEST_STAGE));
+
+    memset(data, 0, sizeof(*data));
+
+    data->quest = src->quest;
+    data->quest_load = src->quest_load;
+    data->min_stage = src->min_stage;
+    data->max_stage = src->max_stage;
+
+    return data;
+}
+
+void delete_phasing_quest_stage(void *ptr)
+{
+    free_phasing_quest_stage((PHASING_QUEST_STAGE *)ptr);
+}
+
+void free_phasing_quest_stage(PHASING_QUEST_STAGE *data)
+{
+    if (!data) return;
+
+    data->next = phasing_quest_stage_free;
+    phasing_quest_stage_free = data;
 }
 
 

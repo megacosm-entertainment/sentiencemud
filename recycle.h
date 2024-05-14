@@ -461,3 +461,9 @@ void free_corpse_type(CORPSE_TYPE *data);
 
 CMD_DATA *new_cmd();
 void free_cmd(CMD_DATA *cmd);
+
+
+PHASING_QUEST_STAGE *new_phasing_quest_stage();
+PHASING_QUEST_STAGE *copy_phasing_quest_stage(PHASING_QUEST_STAGE *src);
+void free_phasing_quest_stage(PHASING_QUEST_STAGE *data);
+

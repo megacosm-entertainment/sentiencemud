@@ -802,6 +802,15 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
 	if (mob->script_visible)
 		fprintf(fp, "Visibility %s\n", widevnum_string_script(mob->script_visible, mob->area));
 
+	ITERATOR phit;
+	PHASING_QUEST_STAGE *pqs;
+	iterator_start(&phit, mob->phasing);
+	while((pqs = (PHASING_QUEST_STAGE *)iterator_nextdata(&phit)))
+	{
+		fprintf(fp, "Phasing %s %d %d\n", widevnum_string(pqs->quest->area,pqs->quest->vnum), pqs->min_stage, pqs->max_stage);
+	}
+	iterator_stop(&phit);
+
 	MOB_REPUTATION_DATA *rep;
 	for(rep = mob->reputations; rep; rep = rep->next)
 	{
@@ -3109,6 +3118,23 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 	    case 'P':
 	        KEY("Parts",	mob->parts,	fread_number(fp));
 	        KEY("Persist",	mob->persist, true);
+			if (!str_cmp(word, "Phasing"))
+			{
+				WNUM_LOAD load = fread_widevnum(fp, area->uid);
+				int ns = fread_number(fp);
+				int xs = fread_number(fp);
+
+				PHASING_QUEST_STAGE *pqs = new_phasing_quest_stage();
+				pqs->quest_load = load;
+				pqs->min_stage = ns;
+				pqs->max_stage = xs;
+
+				if ( !list_appendlink(mob->phasing, pqs) )
+					free_phasing_quest_stage(pqs);
+
+				fMatch = true;
+				break;
+			}
 			break;
 
 	    case 'R':

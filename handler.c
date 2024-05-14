@@ -9137,13 +9137,13 @@ void list_remlink(LLIST *lp, void *data, bool del)
 }
 
 // Clears out the entire list
-void list_clear(LLIST *lp)
+void list_clearx(LLIST *lp, bool del)
 {
 	LLIST_LINK *link, *link_next;
 	if(lp && lp->valid) {
 		for(link = lp->head; link; link = link_next) {
 			link_next = link->next;
-			list_remdata(lp, link, true);
+			list_remdata(lp, link, del);
 		}
 
 		lp->size = 0;
@@ -9151,6 +9151,10 @@ void list_clear(LLIST *lp)
 	}
 }
 
+void list_clear(LLIST *lp)
+{
+	list_clearx(lp, true);
+}
 
 void *list_randomdata(LLIST *lp)
 {
