@@ -1843,6 +1843,10 @@ bool is_safe(CHAR_DATA *ch, CHAR_DATA *victim, bool show)
 	if (IS_SOCIAL(ch) || IS_SOCIAL(victim))
 	return true;
 
+	// Can't kill anyone in the middle of a dialogue
+	if (IS_VALID(ch->dialogue))
+		return true;
+
 	// Immortals can attack anybody, if they have HOLYAURA on
 	if (!IS_NPC(ch) && IS_IMMORTAL(ch) && IS_SET(ch->act[1],PLR_HOLYAURA))
 	return false;

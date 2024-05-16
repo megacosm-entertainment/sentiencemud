@@ -444,6 +444,7 @@ void save_area_new(AREA_DATA *area)
 	save_ships(fp, area);
 	save_dungeons(fp, area);
 	save_quests(fp, area);
+	save_dialogues(fp, area);
 
 /*    if (str_prefix("Maze-Level", area->name) && str_cmp("Geldoff's Maze", area->name)
     && str_cmp("Netherworld", area->name)
@@ -2263,6 +2264,18 @@ AREA_DATA *read_area_new(FILE *fp)
 			quest->area = area;
 			area->bottom_quest_vnum = UMIN(area->bottom_quest_vnum, quest->vnum);
 			area->top_quest_vnum = UMAX(area->top_quest_vnum, quest->vnum);
+			fMatch = true;
+		}
+		else if (!str_cmp(word, "#DIALOGUE"))
+		{
+			DIALOGUE_INDEX_DATA *dialogue = read_dialogue_index(fp, area);
+			vnum = dialogue->vnum;
+		    iHash = vnum % MAX_KEY_HASH;
+			dialogue->next = area->dialogue_index_hash[iHash];
+			area->dialogue_index_hash[iHash] = dialogue;
+			dialogue->area = area;
+			area->bottom_dialogue_vnum = UMIN(area->bottom_dialogue_vnum, vnum);
+			area->top_dialogue_vnum = UMAX(area->top_dialogue_vnum, vnum);
 			fMatch = true;
 		}
 		else if (!str_cmp(word, "#ROOMPROG"))

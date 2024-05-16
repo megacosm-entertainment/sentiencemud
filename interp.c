@@ -1060,6 +1060,13 @@ void interpret( CHAR_DATA *ch, char *argument )
 
     // Questions which people must answer before they can go on with life!
 
+	// In the middle of a dialogue choice
+	if (IS_VALID(ch->dialogue) && ch->has_dialogue_choice)
+	{
+		handle_dialogue_choice(ch, command);
+		return;
+	}
+
 	// Sealing a book
 	if (IS_VALID(ch->seal_book))
 	{

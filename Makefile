@@ -43,6 +43,7 @@ C_FILES = \
 	const.c \
 	db.c \
 	db2.c \
+	dialogue.c \
 	drunk.c \
 	dungeon.c \
 	effects.c \
@@ -155,6 +156,7 @@ O_FILES = \
 	$(OBJDIR)/const.o \
 	$(OBJDIR)/db.o \
 	$(OBJDIR)/db2.o \
+	$(OBJDIR)/dialogue.o \
 	$(OBJDIR)/drunk.o \
 	$(OBJDIR)/dungeon.o \
 	$(OBJDIR)/effects.o \

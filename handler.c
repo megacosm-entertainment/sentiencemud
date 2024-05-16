@@ -9815,6 +9815,7 @@ bool is_char_busy(CHAR_DATA *ch)
 	if( ch->ranged > 0 ) return true;
 	if( ch->script_wait > 0 ) return true;
 
+	if( IS_VALID(ch->dialogue) ) return true;
 
 	return false;
 }

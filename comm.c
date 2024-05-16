@@ -1821,6 +1821,13 @@ void bust_a_prompt(CHAR_DATA *ch)
 		return;
 	}
 
+	if (IS_VALID(ch->dialogue) && ch->has_dialogue_choice)
+	{
+		show_dialogue_choices(ch);
+		send_to_char("{x} >\n\r", ch);
+		return;
+	}
+
 	if (IS_VALID(ch->seal_book))
 	{
 		sprintf(buf, "{WSeal {x%s{W so it is no longer writable?{x\n\r", ch->seal_book->short_descr);

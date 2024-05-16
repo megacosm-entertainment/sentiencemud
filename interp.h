@@ -695,3 +695,6 @@ DECLARE_DO_FUN( do_testemail );
 DECLARE_DO_FUN( do_pwreset );
 DECLARE_DO_FUN( do_lvlaudit );
 DECLARE_DO_FUN( do_keygen );
+
+DECLARE_DO_FUN( do_diaglist );
+DECLARE_DO_FUN( do_diagstart );

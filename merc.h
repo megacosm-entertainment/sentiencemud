@@ -482,7 +482,6 @@ typedef struct  mail_data		MAIL_DATA;
 typedef struct  prog_data		PROG_DATA;
 typedef struct  prog_code               PROG_CODE;
 typedef struct  prog_list              	PROG_LIST;
-typedef struct  dialogue_index_data     DIALOGUE_INDEX_DATA;
 typedef struct  quest_index_data        QUEST_INDEX_DATA;
 typedef struct  quest_list		QUEST_LIST;
 typedef struct  race_data       RACE_DATA;
@@ -564,6 +563,16 @@ typedef struct cmd_data CMD_DATA;
 
 typedef struct reputation_index_data REPUTATION_INDEX_DATA;
 typedef struct reputation_data REPUTATION_DATA;
+
+typedef struct dialogue_index_type DIALOGUE_INDEX_DATA;
+typedef struct dialogue_index_node_type DIALOGUE_INDEX_NODE;
+typedef struct dialogue_index_choice_type DIALOGUE_INDEX_CHOICE;
+typedef struct dialogue_index_branch_type DIALOGUE_INDEX_BRANCH;
+typedef struct dialogue_type DIALOGUE;
+typedef struct dialogue_node_type DIALOGUE_NODE;
+typedef struct dialogue_choice_type DIALOGUE_CHOICE;
+typedef struct dialogue_branch_type DIALOGUE_BRANCH;
+typedef void (*DIALOGUE_CALLBACK)(CHAR_DATA *ch, DIALOGUE *dialogue);
 
 /* VIZZWILDS */
 typedef struct    wilds_vlink      WILDS_VLINK;
@@ -978,6 +987,162 @@ struct corpse_blend_type {
 	int result;	/* Resulting type */
 	bool dual;	/* Whether type1/type2 are interchangeable; if so, both ways are checked */
 };
+
+
+struct dialogue_index_type
+{
+	DIALOGUE_INDEX_DATA *next;
+	bool valid;
+
+	AREA_DATA *area;
+	long vnum;
+
+	char *name;
+	char *description;
+	char *comments;
+
+	long flags;
+
+	// Variables?
+
+	// Script hooks
+	//  This will be a mobile script that will be executed ON the player seeing the dialogue.
+	SCRIPT_DATA *initialize;	// could set variables on the dialogue based upon priors
+	WNUM_LOAD initialize_load;
+	SCRIPT_DATA *completed;		// called after a node with no next node is done.
+	WNUM_LOAD completed_load;
+
+	// All dialogue nodes
+	LLIST *nodes;			// List of dialogue index nodes
+	long top_node_uid;
+};
+
+struct dialogue_index_node_type
+{
+	DIALOGUE_INDEX_NODE *next;
+	bool valid;
+
+	DIALOGUE_INDEX_DATA *parent;
+
+	long uid;
+
+	char *nodeText;					// Can use $-codes for the player ($n, $s, $e, etc).
+									//  TODO: Update when/if we add first/last names.
+
+	int16_t type;
+	int delay;						// How long until the next dialogue node is executed.
+									//   Only used by certain types of nodes
+
+	SCRIPT_DATA *script;
+	WNUM_LOAD script_load;
+
+	char *variable;
+	char *value;
+
+	LLIST *options;					// List of options (CHOICE/BRANCH nodes)
+	union {
+		DIALOGUE_INDEX_NODE *child;
+		long child_uid;	
+	};
+};
+
+struct dialogue_index_choice_type
+{
+	DIALOGUE_INDEX_CHOICE *next;
+
+	// Need a script hook to determine *if* you can _see_ this choice
+	SCRIPT_DATA *visible;
+	WNUM_LOAD visible_load;
+
+	char *choiceText;					// Text shown to player for this choice
+	union {
+		DIALOGUE_INDEX_NODE *child;
+		long child_uid;	
+	};
+};
+
+struct dialogue_index_branch_type
+{
+	DIALOGUE_INDEX_BRANCH *next;
+
+	char *description;
+
+	char *variable;				// Which variable to check
+	char *value;				// What value to test against
+	
+	union {
+		DIALOGUE_INDEX_NODE *child;
+		long child_uid;	
+	};
+};
+
+
+struct dialogue_choice_type
+{
+	DIALOGUE_CHOICE *next;
+
+	char *choiceText;					// Text shown to player for this choice
+	DIALOGUE_NODE *child;				// What happens when you select this option
+};
+
+struct dialogue_branch_type
+{
+	DIALOGUE_BRANCH *next;
+
+	char *description;
+
+	char *variable;				// Which variable to check
+	char *value;				// What value to test against
+	
+	DIALOGUE_NODE *child;
+};
+
+struct dialogue_node_type
+{
+	DIALOGUE_NODE *next;
+	bool valid;
+
+	DIALOGUE_INDEX_NODE *index;
+	DIALOGUE *parent;
+
+	long uid;
+
+	char *nodeText;					// Can use $-codes for the player ($n, $s, $e, etc).
+									//  TODO: Update when/if we add first/last names.
+
+	int16_t type;
+	int delay;						// How long until the next dialogue node is executed.
+									//   Only used by certain types of nodes
+
+	LLIST *options;					// List of options (CHOICE/BRANCH nodes)
+	DIALOGUE_NODE *child;			// Next node when there is no choice/branching.
+
+	SCRIPT_DATA *script;			// Script node
+
+	char *variable;					// Set node
+	char *value;					// Set node
+};
+
+struct dialogue_type
+{
+	DIALOGUE *next;
+	bool valid;
+
+	DIALOGUE_INDEX_DATA *index;
+	DIALOGUE_NODE *current_node;
+
+	// Dialogue variables
+	//  - Will only really use certain types of variables: boolean, integer, string
+	pVARIABLE variables;
+
+	int timer;		// Used in pacing the dialogue
+	DIALOGUE_CALLBACK callback;
+
+	LLIST *nodes;		// Filled with DIALOGUE_NODE *
+};
+
+
+
 
 typedef struct random_string_pattern RANDOM_PATTERN;
 typedef struct random_string_class RANDOM_CLASS;
@@ -5146,6 +5311,9 @@ struct	char_data
 	SHIP_CREW_DATA  * crew;
     LOCATION before_dungeon;   // Where were you prior to going to the dungeon?
 
+    DIALOGUE        * dialogue;
+    bool            has_dialogue_choice;
+
     /* VIZZWILDS */
     CHAR_DATA *        prev_in_wilds;
     CHAR_DATA *        next_in_wilds;
@@ -7141,6 +7309,7 @@ struct area_data {
     SHIP_INDEX_DATA *ship_index_hash[MAX_KEY_HASH];
     REPUTATION_INDEX_DATA *reputation_index_hash[MAX_KEY_HASH];
     QUEST_INDEX_DATA *quest_index_hash[MAX_KEY_HASH];
+    DIALOGUE_INDEX_DATA *dialogue_index_hash[MAX_KEY_HASH];
 	SCRIPT_DATA *mprog_list;
 	SCRIPT_DATA *oprog_list;
 	SCRIPT_DATA *rprog_list;
@@ -7172,6 +7341,7 @@ struct area_data {
     long top_dungeon_vnum;
     long top_reputation_vnum;
     long top_quest_vnum;
+    long top_dialogue_vnum;
 
 	long bottom_mprog_index;
 	long bottom_oprog_index;
@@ -7192,6 +7362,7 @@ struct area_data {
     long bottom_dungeon_vnum;
     long bottom_reputation_vnum;
     long bottom_quest_vnum;
+    long bottom_dialogue_vnum;
 
     long top_region_uid;
 
@@ -12734,6 +12905,18 @@ char *sha256_crypt( const char *pwd );
 void configure_context(SSL_CTX *ctx);
 SSL_CTX* create_context(void);
 void init_openssl_library(void);
+
+
+DIALOGUE_INDEX_DATA *get_dialogue_index(AREA_DATA *area, long vnum);
+DIALOGUE_INDEX_DATA *get_dialogue_index_wnum(WNUM wnum);
+DIALOGUE_INDEX_DATA *get_dialogue_index_auid(long auid, long vnum);
+void show_dialogue_choices(CHAR_DATA *ch);
+bool start_dialogue(CHAR_DATA *ch, DIALOGUE_INDEX_DATA *index, DIALOGUE_CALLBACK cb);
+void handle_dialogue(CHAR_DATA *ch);
+void handle_dialogue_choice(CHAR_DATA *ch, char *input);
+
+DIALOGUE_INDEX_DATA *read_dialogue_index(FILE *fp, AREA_DATA *area);
+void save_dialogues(FILE *fp, AREA_DATA *area);
 
 
 #endif /* !def __merc_h__ */

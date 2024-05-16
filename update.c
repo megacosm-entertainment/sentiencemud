@@ -853,6 +853,8 @@ void mobile_update(void)
 
 		// Done to allow for TOKEN random type scripts on players, but only if they have tokens!
 		if (!IS_NPC(ch)) {
+			handle_dialogue(ch);
+
 		    if(ch->tokens) {
 
 			p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL,0,0,0,0,0);

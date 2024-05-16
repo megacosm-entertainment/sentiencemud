@@ -543,5 +543,7 @@ extern const struct flag_type	command_flags[];
 extern const struct flag_type	log_flags[];
 extern const struct flag_type command_addl_types[];
 
+extern const struct flag_type dialogue_node_types[];
+
 #endif
 

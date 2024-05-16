@@ -1731,6 +1731,7 @@ AREA_DATA *new_area( void )
     pArea->bottom_dungeon_vnum = MAX_INT64;
     pArea->bottom_reputation_vnum = MAX_INT64;
     pArea->bottom_quest_vnum = MAX_INT64;
+    pArea->bottom_dialogue_vnum = MAX_INT64;
 
 
     return pArea;

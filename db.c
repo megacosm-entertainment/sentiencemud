@@ -1596,6 +1596,7 @@ void resolve_reserved_rprogs(void);
 //void resolve_reserved_oprogs(void);
 //void resolve_reserved_tprogs(void);
 void resolve_reserved_areas(void);
+void fix_dialogues();
 
 bool persist_load(void);
 
@@ -1832,6 +1833,8 @@ void boot_db(void)
     fix_instanceprogs();
     log_string("Doing fix_dungeonprogs");
     fix_dungeonprogs();
+	log_string("Doing fix_dialogues");
+	fix_dialogues();
 
 	// Resolve the pArea pointers
 	log_string("Resolving reserved widevnums and areas");
