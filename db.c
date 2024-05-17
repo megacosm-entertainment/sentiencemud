@@ -3428,7 +3428,6 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 	mob->spec_fun		= pMobIndex->spec_fun;
 	mob->prompt			= NULL;
 
-	mob->progs			= new_prog_data();
 	mob->progs->progs	= pMobIndex->progs;
 	variable_copylist(&pMobIndex->index_vars,&mob->progs->vars,false);
 

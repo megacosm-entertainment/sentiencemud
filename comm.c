@@ -1815,16 +1815,15 @@ void bust_a_prompt(CHAR_DATA *ch)
     const char *dir_name[] = {"N","E","S","W","U","D","NE","NW","SE","SW"};
     int door;
 
-	if(ch->desc && ch->desc->input && !ch->desc->inputString) {
-		send_to_char(ch->desc->input_prompt ? ch->desc->input_prompt : " >", ch);
-		send_to_char("{x \n\r", ch);
+	if (IS_VALID(ch->dialogue) && ch->has_dialogue_choice)
+	{
+		// This is handled by the dialogue code
 		return;
 	}
 
-	if (IS_VALID(ch->dialogue) && ch->has_dialogue_choice)
-	{
-		show_dialogue_choices(ch);
-		send_to_char("{x} >\n\r", ch);
+	if(ch->desc && ch->desc->input && !ch->desc->inputString) {
+		send_to_char(ch->desc->input_prompt ? ch->desc->input_prompt : " >", ch);
+		send_to_char("{x \n\r", ch);
 		return;
 	}
 

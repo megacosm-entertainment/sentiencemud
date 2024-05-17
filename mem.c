@@ -782,6 +782,8 @@ CHAR_DATA *new_char( void )
 
     ch->missions = list_createx(false, NULL, delete_mission_data);
 
+   	ch->progs = new_prog_data();
+
     return ch;
 }
 
@@ -1933,6 +1935,12 @@ ROOM_INDEX_DATA *new_room_index( void )
     pRoom->visited = 0;
     pRoom->id[0] = pRoom->id[1] = 0;	// Explicitly make this 0,0 until set, or left for static rooms
     pRoom->comments         =   &str_empty[0];
+
+    pRoom->rs_room_flag[0]       =   0;
+    pRoom->rs_room_flag[1]      =   0;
+    pRoom->rs_sector           =   gsct_inside;
+    pRoom->rs_heal_rate	    =   100;
+    pRoom->rs_mana_rate	    =   100;
 
     pRoom->reset_first = NULL;
     pRoom->reset_last = NULL;

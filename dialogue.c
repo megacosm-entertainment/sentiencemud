@@ -499,8 +499,14 @@ DIALOGUE *clone_dialogue(DIALOGUE_INDEX_DATA *index, CHAR_DATA *ch)
 			{
 				if (choice->visible)
 				{
+					log_stringf("Checking visibility: %s", choice->choiceText);
 					// End 0/allow to be visible
-					if (execute_script(choice->visible, ch, NULL, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_NONE, 0, 0, 0, 0, 0) != 0) continue;
+					int ret = execute_script(choice->visible, ch, NULL, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_NONE, 0, 0, 0, 0, 0);
+					log_stringf("Visibility: %s => %d", choice->choiceText, ret);
+					if (ret != 0) {
+						log_stringf("Skipping choice: %s", choice->choiceText);
+						continue;
+					}
 				}
 
 				DIALOGUE_CHOICE *new_choice = new_dialogue_choice();
@@ -771,8 +777,7 @@ void handle_dialogue(CHAR_DATA *ch)
 	if (dialogue->timer > 0)
 	{
 		--dialogue->timer;
-		send_to_char(formatf("Dialogue timer: %d\n", dialogue->timer), ch);
-		
+		//send_to_char(formatf("Dialogue timer: %d\n", dialogue->timer), ch);
 
 		while(IS_VALID(ch->dialogue) && dialogue->timer < 1 && !ch->has_dialogue_choice)
 		{
@@ -836,7 +841,11 @@ void fix_dialogues()
 						while((choice = (DIALOGUE_INDEX_CHOICE *)iterator_nextdata(&oit)))
 						{
 							if (choice->visible_load.auid > 0 && choice->visible_load.vnum > 0)
+							{
 								choice->visible = get_script_index_auid(choice->visible_load.auid, choice->visible_load.vnum, PRG_MPROG);
+								if (choice->visible)
+									log_stringf("Choice Visible: %s", choice->visible->name);
+							}
 						}
 						iterator_stop(&oit);
 					}

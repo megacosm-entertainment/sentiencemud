@@ -3979,11 +3979,14 @@ int execute_script(SCRIPT_DATA *script,
 		return PRET_NOSCRIPT;
 	}
 
+/*
+	// ALLOW PLAYERS TO EXECUTE SCRIPT
 	if (IS_VALID(mob) && !IS_NPC(mob) )
 	{
 //		bug("PROGs: Attempting to run a script with a player actor.", pvnum);
 		return PRET_NOSCRIPT;
 	}
+*/
 
 	if ((mob && obj) || (mob && room) || (mob && token) || (mob && area) || (mob && instance) || (mob && dungeon) ||
 		(obj && room) || (obj && token) || (obj && area) || (obj && instance) || (obj && dungeon) ||
