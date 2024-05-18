@@ -1079,8 +1079,12 @@ struct dialogue_index_choice_type
 	DIALOGUE_INDEX_CHOICE *next;
 
 	// Need a script hook to determine *if* you can _see_ this choice
+    // 0/allow = active
+    // 1/denied = visible (will show the hint)
+    // 2/silent = hidden
 	SCRIPT_DATA *visible;
 	WNUM_LOAD visible_load;
+    char *hint;
 
     NODE_TEXT text;
     DIALOGUE_INDEX_NODE *child;
@@ -1102,6 +1106,8 @@ struct dialogue_index_branch_type
 struct dialogue_choice_type
 {
 	DIALOGUE_CHOICE *next;
+
+    char *hint;                         // If hint is set, the option is disabled
 
     NODE_TEXT text;
 	DIALOGUE_NODE *child;				// What happens when you select this option
@@ -10946,6 +10952,7 @@ ROOM_INDEX_DATA *get_random_room_list_byflags( CHAR_DATA *ch, LLIST *rooms, int 
 ROOM_INDEX_DATA *get_random_room_area_byflags( CHAR_DATA *ch, AREA_DATA *area, int n_room_flags, int n_room2_flags );
 ROOM_INDEX_DATA *get_random_room( CHAR_DATA *ch, int continent );
 char *nocolour(const char *string);
+char *nocolour_static(const char *string);
 char *short_to_name (const char *short_desc);
 int strlen_no_colours( const char *str );
 void fix_short_description( char *short_descr );

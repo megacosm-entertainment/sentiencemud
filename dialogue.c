@@ -177,6 +177,7 @@ DIALOGUE_INDEX_CHOICE *new_dialogue_index_choice()
 	memset(data, 0, sizeof(*data));
 
 	init_node_text(&data->text);
+	data->hint = &str_empty[0];
 	
 	return data;
 }
@@ -186,6 +187,7 @@ void free_dialogue_index_choice(DIALOGUE_INDEX_CHOICE *data)
 	if (!data) return;
 
 	free_node_text(&data->text);
+	free_string(data->hint);
 
 	data->next = dialogue_index_choice_free;
 	dialogue_index_choice_free = data;
@@ -388,6 +390,7 @@ DIALOGUE_CHOICE *new_dialogue_choice()
 	memset(data, 0, sizeof(*data));
 
 	init_node_text(&data->text);
+	data->hint = &str_empty[0];
 
 	return data;
 }
@@ -397,6 +400,7 @@ void free_dialogue_choice(DIALOGUE_CHOICE *data)
 	if (!data) return;
 
 	free_node_text(&data->text);
+	free_string(data->hint);
 
 	data->next = dialogue_choice_free;
 	dialogue_choice_free = data;
@@ -663,13 +667,24 @@ DIALOGUE *clone_dialogue(DIALOGUE_INDEX_DATA *index, CHAR_DATA *ch)
 			iterator_start(&oit, node->options);
 			while((choice = (DIALOGUE_INDEX_CHOICE *)iterator_nextdata(&oit)))
 			{
+				int ret = PRET_ALLOWED;
 				if (choice->visible)
 				{
 					// End 0/allow to be visible
-					if (execute_script(choice->visible, ch, NULL, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_NONE, 0, 0, 0, 0, 0) != 0) continue;
+					ret = execute_script(choice->visible, ch, NULL, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_NONE, 0, 0, 0, 0, 0);
+				}
+
+				if (ret != PRET_ALLOWED)
+				{
+					// Not allowed to click on the choice
+					if (ret != PRET_DENIED || IS_NULLSTR(choice->hint))
+						continue;	// Either it's not the denied value or the choice has no hint defined on it.
 				}
 
 				DIALOGUE_CHOICE *new_choice = new_dialogue_choice();
+
+				if (ret == PRET_DENIED)	// Visible but disabled
+					new_choice->hint = str_dup(choice->hint);
 
 				copy_node_text(&new_choice->text, &choice->text);
 				if (choice->child)
@@ -741,7 +756,7 @@ long get_dialogue_number(DIALOGUE *dialogue, int n)
 	return 0;
 }
 
-void show_node_text(CHAR_DATA *ch, DIALOGUE *dialogue, NODE_TEXT *nt, char *command)
+void show_node_text(CHAR_DATA *ch, DIALOGUE *dialogue, NODE_TEXT *nt, char *command, char *hint)
 {
 	if (IS_NULLSTR(nt->text)) return;
 
@@ -753,6 +768,8 @@ void show_node_text(CHAR_DATA *ch, DIALOGUE *dialogue, NODE_TEXT *nt, char *comm
 	OBJ_INDEX_DATA *o2 = get_dialogue_object(dialogue, nt->object2);
 	ROOM_INDEX_DATA *r = get_dialogue_room(dialogue, nt->room);
 	AREA_DATA *a = get_dialogue_area(dialogue, nt->area);
+
+	bool enabled = IS_NULLSTR(hint) && true;
 
 	char *str = nt->text;
 	while (*str)
@@ -820,18 +837,22 @@ void show_node_text(CHAR_DATA *ch, DIALOGUE *dialogue, NODE_TEXT *nt, char *comm
 				break;
 
 			case DIALOGUE_ENTITY_OBJECT1:
+				add_buf(buffer, "{W");
 				add_buf(buffer, (o1 ? o1->short_descr : SOMETHING));
 				break;
 
 			case DIALOGUE_ENTITY_OBJECT2:
+				add_buf(buffer, "{W");
 				add_buf(buffer, (o2 ? o2->short_descr : SOMETHING));
 				break;
 
 			case DIALOGUE_ENTITY_ROOM:
+				add_buf(buffer, "{W");
 				add_buf(buffer, (r ? r->name : SOMEWHERE));
 				break;
 
 			case DIALOGUE_ENTITY_AREA:
+				add_buf(buffer, "{W");
 				add_buf(buffer, (a ? a->name : SOMEWHERE));
 				break;
 
@@ -845,7 +866,7 @@ void show_node_text(CHAR_DATA *ch, DIALOGUE *dialogue, NODE_TEXT *nt, char *comm
 			case DIALOGUE_ENTITY_7:
 			case DIALOGUE_ENTITY_8:
 			case DIALOGUE_ENTITY_9:
-				add_buf(buffer, formatf("%ld", get_dialogue_number(dialogue, (int)(*str - DIALOGUE_ENTITY_0))));
+				add_buf(buffer, formatf("{G%ld", get_dialogue_number(dialogue, (int)(*str - DIALOGUE_ENTITY_0))));
 				break;
 
 			default:
@@ -856,10 +877,20 @@ void show_node_text(CHAR_DATA *ch, DIALOGUE *dialogue, NODE_TEXT *nt, char *comm
 		++str;
 	}
 
-	if (IS_NULLSTR(command) || !isMXP(ch->desc) || !IS_SET(ch->comm, COMM_MXP))
-		send_to_char(buffer->string, ch);
+	if(enabled)
+	{
+		if (IS_NULLSTR(command) || !isMXP(ch->desc) || !IS_SET(ch->comm, COMM_MXP))
+			send_to_char(buffer->string, ch);
+		else
+			send_to_char(formatf("\t<send href=\"%s\">%s\t</send>", command, buffer->string), ch);
+	}
 	else
-		send_to_char(MXPCreateSend(ch->desc, command, buffer->string), ch);
+	{
+		// Node text is "disabled", so give hint as to why
+		send_to_char(buffer->string, ch);
+		send_to_char("\n\r", ch);
+		send_to_char(string_indent(hint, 8), ch);
+	}
 	send_to_char("\n\r", ch);
 	free_buf(buffer);
 }
@@ -885,7 +916,7 @@ void show_dialogue_choices(CHAR_DATA *ch)
 	DIALOGUE_NODE *node = dialogue->current_node;
 
 	// Show the prompt (if any)
-	show_node_text(ch, dialogue, &node->text, NULL);
+	show_node_text(ch, dialogue, &node->text, NULL, NULL);
 
 	ITERATOR it;
 	DIALOGUE_CHOICE *choice;
@@ -895,9 +926,9 @@ void show_dialogue_choices(CHAR_DATA *ch)
 	{
 		char buf[MIL];
 		++i;
-		send_to_char(formatf("[%2d] ", i), ch);
+		send_to_char(formatf("{x[{%c%2d{x] ", (IS_NULLSTR(choice->hint) ? 'W' : 'D'), i), ch);
 		sprintf(buf, "%d", i);
-		show_node_text(ch, dialogue, &choice->text, buf);
+		show_node_text(ch, dialogue, &choice->text, buf, choice->hint);
 	}
 	iterator_stop(&it);
 }
@@ -1043,7 +1074,7 @@ void execute_dialogue_node(CHAR_DATA *ch)
 	switch(node->type)
 	{
 		case DIALOGUE_TYPE_TEXT:
-			show_node_text(ch, dialogue, &node->text, NULL);
+			show_node_text(ch, dialogue, &node->text, NULL, NULL);
 			next_node = node->child;
 			break;
 
@@ -1128,7 +1159,8 @@ void handle_dialogue_choice(CHAR_DATA *ch, char *input)
 
 	DIALOGUE_CHOICE *choice = (DIALOGUE_CHOICE *)list_nthdata(ch->dialogue->current_node->options, value);
 
-	if(!choice)
+	// Invalid choice or the choice is disabled
+	if(!choice || !IS_NULLSTR(choice->hint))
 	{
 		show_dialogue_choices(ch);
 		return;
@@ -1354,6 +1386,10 @@ DIALOGUE_INDEX_CHOICE *read_dialogue_index_choice(FILE *fp, DIALOGUE_INDEX_DATA 
 
 			case 'C':
 				KEY("Child", choice->child, get_dialogue_index_node(dialogue, fread_number(fp)));
+				break;
+
+			case 'H':
+				KEYS("Hint", choice->hint, fread_string(fp));
 				break;
 
 			case 'V':
@@ -1642,6 +1678,8 @@ void save_dialogue_index_node(FILE *fp, DIALOGUE_INDEX_DATA *dialogue, DIALOGUE_
 				if (choice->visible)
 					fprintf(fp, "Visible %s\n", widevnum_string_script(choice->visible, area));
 				save_node_text(fp, &choice->text);
+				if (!IS_NULLSTR(choice->hint))
+					fprintf(fp, "Hint %s~\n", fix_string(choice->hint));
 				if (choice->child)
 					fprintf(fp, "Child %ld\n", choice->child->uid);
 				fprintf(fp, "#-CHOICE\n");

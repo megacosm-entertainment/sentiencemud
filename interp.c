@@ -1850,19 +1850,22 @@ bool check_social( CHAR_DATA *ch, char *command, char *argument )
 // Return true if an argument is completely numeric.
 bool is_number( char *arg )
 {
-    if ( *arg == '\0' )
-        return false;
+	if ( *arg == '\0' )
+		return false;
 
-    if ( *arg == '+' || *arg == '-' )
-        arg++;
+	if ( *arg == '+' || *arg == '-' )
+		arg++;
 
-    for ( ; *arg != '\0'; arg++ )
-    {
-        if ( !ISDIGIT( *arg ) )
-            return false;
-    }
+	// No digit found
+	if (!ISDIGIT(*arg)) return false;
 
-    return true;
+	for ( ; *arg != '\0'; arg++ )
+	{
+		if ( !ISDIGIT( *arg ) )
+		return false;
+	}
+
+	return true;
 }
 
 bool is_percent( char *arg )
