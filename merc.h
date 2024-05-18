@@ -564,6 +564,7 @@ typedef struct cmd_data CMD_DATA;
 typedef struct reputation_index_data REPUTATION_INDEX_DATA;
 typedef struct reputation_data REPUTATION_DATA;
 
+typedef struct node_text_type NODE_TEXT;
 typedef struct dialogue_index_type DIALOGUE_INDEX_DATA;
 typedef struct dialogue_index_node_type DIALOGUE_INDEX_NODE;
 typedef struct dialogue_index_choice_type DIALOGUE_INDEX_CHOICE;
@@ -988,7 +989,6 @@ struct corpse_blend_type {
 	bool dual;	/* Whether type1/type2 are interchangeable; if so, both ways are checked */
 };
 
-
 struct dialogue_index_type
 {
 	DIALOGUE_INDEX_DATA *next;
@@ -1015,6 +1015,38 @@ struct dialogue_index_type
 	// All dialogue nodes
 	LLIST *nodes;			// List of dialogue index nodes
 	long top_node_uid;
+
+    LLIST *areas;           // Area registry    (AREA_DATA *; prior to fix_dialogues: long *)
+    LLIST *mobiles;         // Mobile registry  (MOB_INDEX_DATA *; prior to fix_dialogues: wnum_load *)
+    LLIST *objects;         // Object registry  (OBJ_INDEX_DATA *; prior to fix_dialogues: wnum_load *)
+    LLIST *rooms;           // Room registry    (ROOM_INDEX_DATA *; prior to fix_dialogues: wnum_load *)
+    long numbers[10];       // Number registry  (limited to $0 to $9 codes)
+};
+
+struct node_text_type
+{
+    char *src;
+    char *text; 					// Uses special codes (compiled)
+                                    // $(player)       - Player watching the dialogue
+                                    // $(player.name)  - player name
+                                    // $(player.his)   - player possessive
+                                    // $(player.he)    - player subjective
+                                    // $(player.him)   - player objective
+    int victim1;                    // $(victim1)      - Victim 1, NULL if 0
+                                    // $(victim1.name) - Victim 1 name
+                                    // $(victim1.his)  - Victim 1 possessive
+                                    // $(victim1.he)   - Victim 1 subjective
+                                    // $(victim1.him)  - Victim 1 objective
+    int victim2;                    // $(victim2)      - Victim 2, NULL if 0
+                                    // $(victim2.name) - Victim 2 name
+                                    // $(victim2.his)  - Victim 2 possessive
+                                    // $(victim2.he)   - Victim 2 subjective
+                                    // $(victim2.him)  - Victim 2 objective
+    int object1;                    // $(object1)      - Object 1 short, NULL if 0
+    int object2;                    // $(object2)      - Object 2 short, NULL if 0
+    int room;                       // $(room)         - Room name, NULL if 0
+    int area;                       // $(area)         - Area name, NULL if 0
+                                    // Number slots use $0 to $9
 };
 
 struct dialogue_index_node_type
@@ -1026,8 +1058,7 @@ struct dialogue_index_node_type
 
 	long uid;
 
-	char *nodeText;					// Can use $-codes for the player ($n, $s, $e, etc).
-									//  TODO: Update when/if we add first/last names.
+    NODE_TEXT text;
 
 	int16_t type;
 	int delay;						// How long until the next dialogue node is executed.
@@ -1040,10 +1071,7 @@ struct dialogue_index_node_type
 	char *value;
 
 	LLIST *options;					// List of options (CHOICE/BRANCH nodes)
-	union {
-		DIALOGUE_INDEX_NODE *child;
-		long child_uid;	
-	};
+    DIALOGUE_INDEX_NODE *child;
 };
 
 struct dialogue_index_choice_type
@@ -1054,11 +1082,8 @@ struct dialogue_index_choice_type
 	SCRIPT_DATA *visible;
 	WNUM_LOAD visible_load;
 
-	char *choiceText;					// Text shown to player for this choice
-	union {
-		DIALOGUE_INDEX_NODE *child;
-		long child_uid;	
-	};
+    NODE_TEXT text;
+    DIALOGUE_INDEX_NODE *child;
 };
 
 struct dialogue_index_branch_type
@@ -1070,10 +1095,7 @@ struct dialogue_index_branch_type
 	char *variable;				// Which variable to check
 	char *value;				// What value to test against
 	
-	union {
-		DIALOGUE_INDEX_NODE *child;
-		long child_uid;	
-	};
+	DIALOGUE_INDEX_NODE *child;
 };
 
 
@@ -1081,7 +1103,7 @@ struct dialogue_choice_type
 {
 	DIALOGUE_CHOICE *next;
 
-	char *choiceText;					// Text shown to player for this choice
+    NODE_TEXT text;
 	DIALOGUE_NODE *child;				// What happens when you select this option
 };
 
@@ -1107,8 +1129,7 @@ struct dialogue_node_type
 
 	long uid;
 
-	char *nodeText;					// Can use $-codes for the player ($n, $s, $e, etc).
-									//  TODO: Update when/if we add first/last names.
+    NODE_TEXT text;
 
 	int16_t type;
 	int delay;						// How long until the next dialogue node is executed.
@@ -1139,6 +1160,12 @@ struct dialogue_type
 	DIALOGUE_CALLBACK callback;
 
 	LLIST *nodes;		// Filled with DIALOGUE_NODE *
+
+    LLIST *areas;           // Area registry    (AREA_DATA *)
+    LLIST *mobiles;         // Mobile registry  (MOB_INDEX_DATA *)
+    LLIST *objects;         // Object registry  (OBJ_INDEX_DATA *)
+    LLIST *rooms;           // Room registry    (ROOM_INDEX_DATA *)
+    long numbers[10];       // Number registry  (limited to $0 to $9 codes)
 };
 
 

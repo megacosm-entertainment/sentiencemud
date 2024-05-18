@@ -98,6 +98,36 @@ OLC_POINT_BOOST *olc_point_boost_free;
 SHIP_INDEX_DATA *ship_index_free;
 SHIP_DATA *ship_free;
 
+long *new_long()
+{
+    return alloc_mem(sizeof(long));
+}
+
+void *copy_long(void *ptr)
+{
+    if (!ptr) return NULL;
+
+    long *s = (long*)ptr;
+    long *d = new_long();
+
+    if (!d) return NULL;
+
+    *d = *s;
+
+    return d;
+}
+
+void free_long(long *l)
+{
+    if (l)
+        free_mem(l, sizeof(long));
+}
+
+void delete_long(void *ptr)
+{
+    free_long((long *)ptr);
+}
+
 void *copy_string(void *ptr)
 {
     if (!ptr) return NULL;
@@ -146,7 +176,7 @@ void free_list_wnum_load(WNUM_LOAD *wnum)
     free_mem(wnum,sizeof(WNUM_LOAD));
 }
 
-static void delete_list_wnum_load(void *ptr)
+void delete_list_wnum_load(void *ptr)
 {
     free_list_wnum_load((WNUM_LOAD *)ptr);
 }

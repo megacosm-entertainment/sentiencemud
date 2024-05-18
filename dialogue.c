@@ -49,6 +49,14 @@
 #include "tables.h"
 #include "scripts.h"
 #include "wilds.h"
+#include "protocol.h"
+
+long *new_long();
+void free_long(long *l);
+void delete_long(void *ptr);
+WNUM_LOAD *new_list_wnum_load();
+void free_list_wnum_load(WNUM_LOAD *wnum);
+void delete_list_wnum_load(void *ptr);
 
 ////////////////////////////////////////
 //                                    //
@@ -62,6 +70,76 @@
 #define DIALOGUE_TYPE_BRANCH		3		// Takes a branch based upon variables set
 #define DIALOGUE_TYPE_SCRIPT		4		// Execute mobile script
 
+#define DIALOGUE_ENTITY_PLAYER			(0xFF)
+#define DIALOGUE_ENTITY_PLAYER_HE		(0xFE)
+#define DIALOGUE_ENTITY_PLAYER_HIS		(0xFD)
+#define DIALOGUE_ENTITY_PLAYER_HIM		(0xFC)
+#define DIALOGUE_ENTITY_PLAYER_HISO		(0xFB)
+#define DIALOGUE_ENTITY_VICTIM1			(0xFA)
+#define DIALOGUE_ENTITY_VICTIM1_HE		(0xF9)
+#define DIALOGUE_ENTITY_VICTIM1_HIS		(0xF8)
+#define DIALOGUE_ENTITY_VICTIM1_HIM		(0xF7)
+#define DIALOGUE_ENTITY_VICTIM1_HISO	(0xF6)
+#define DIALOGUE_ENTITY_VICTIM2			(0xF5)
+#define DIALOGUE_ENTITY_VICTIM2_HE		(0xF4)
+#define DIALOGUE_ENTITY_VICTIM2_HIS		(0xF3)
+#define DIALOGUE_ENTITY_VICTIM2_HIM		(0xF2)
+#define DIALOGUE_ENTITY_VICTIM2_HISO	(0xF1)
+#define DIALOGUE_ENTITY_OBJECT1			(0xF0)
+#define DIALOGUE_ENTITY_OBJECT2			(0xEF)
+#define DIALOGUE_ENTITY_ROOM			(0xEE)
+#define DIALOGUE_ENTITY_AREA			(0xED)
+#define DIALOGUE_ENTITY_0				(0xE0)
+#define DIALOGUE_ENTITY_1				(0xE1)
+#define DIALOGUE_ENTITY_2				(0xE2)
+#define DIALOGUE_ENTITY_3				(0xE3)
+#define DIALOGUE_ENTITY_4				(0xE4)
+#define DIALOGUE_ENTITY_5				(0xE5)
+#define DIALOGUE_ENTITY_6				(0xE6)
+#define DIALOGUE_ENTITY_7				(0xE7)
+#define DIALOGUE_ENTITY_8				(0xE8)
+#define DIALOGUE_ENTITY_9				(0xE9)
+
+struct dialogue_entity_code_type
+{
+	char *text;
+	char code;
+};
+
+struct dialogue_entity_code_type dialogue_entity_codes[] =
+{
+	{ "(player)",			DIALOGUE_ENTITY_PLAYER		},
+	{ "(player.he)",		DIALOGUE_ENTITY_PLAYER_HE	},
+	{ "(player.his)",		DIALOGUE_ENTITY_PLAYER_HIS	},
+	{ "(player.him)",		DIALOGUE_ENTITY_PLAYER_HIM	},
+	{ "(player.hiso)",		DIALOGUE_ENTITY_PLAYER_HISO	},
+	{ "(victim1)",			DIALOGUE_ENTITY_VICTIM1		},
+	{ "(victim1.he)",		DIALOGUE_ENTITY_VICTIM1_HE	},
+	{ "(victim1.his)",		DIALOGUE_ENTITY_VICTIM1_HIS	},
+	{ "(victim1.him)",		DIALOGUE_ENTITY_VICTIM1_HIM	},
+	{ "(victim1.hiso)",		DIALOGUE_ENTITY_VICTIM1_HISO	},
+	{ "(victim2)",			DIALOGUE_ENTITY_VICTIM2		},
+	{ "(victim2.he)",		DIALOGUE_ENTITY_VICTIM2_HE	},
+	{ "(victim2.his)",		DIALOGUE_ENTITY_VICTIM2_HIS	},
+	{ "(victim2.him)",		DIALOGUE_ENTITY_VICTIM2_HIM	},
+	{ "(victim2.hiso)",		DIALOGUE_ENTITY_VICTIM2_HISO	},
+	{ "(object1)",			DIALOGUE_ENTITY_OBJECT1		},
+	{ "(object2)",			DIALOGUE_ENTITY_OBJECT2		},
+	{ "(room)",				DIALOGUE_ENTITY_ROOM		},
+	{ "(area)",				DIALOGUE_ENTITY_AREA		},
+	{ "0",					DIALOGUE_ENTITY_0			},
+	{ "1",					DIALOGUE_ENTITY_1			},
+	{ "2",					DIALOGUE_ENTITY_2			},
+	{ "3",					DIALOGUE_ENTITY_3			},
+	{ "4",					DIALOGUE_ENTITY_4			},
+	{ "5",					DIALOGUE_ENTITY_5			},
+	{ "6",					DIALOGUE_ENTITY_6			},
+	{ "7",					DIALOGUE_ENTITY_7			},
+	{ "8",					DIALOGUE_ENTITY_8			},
+	{ "9",					DIALOGUE_ENTITY_9			},
+	{ NULL,					0x00						}
+};
+
 const struct flag_type dialogue_node_types[] =
 {
 	{ "text",		DIALOGUE_TYPE_TEXT,		true	},
@@ -72,6 +150,17 @@ const struct flag_type dialogue_node_types[] =
 	{ NULL,			-1,						false	}
 };
 
+void init_node_text(NODE_TEXT *nt)
+{
+	nt->src = &str_empty[0];
+	nt->text = &str_empty[0];
+}
+
+void free_node_text(NODE_TEXT *nt)
+{
+	free_string(nt->src);
+	free_string(nt->text);
+}
 
 DIALOGUE_INDEX_CHOICE *dialogue_index_choice_free;
 DIALOGUE_INDEX_CHOICE *new_dialogue_index_choice()
@@ -87,7 +176,7 @@ DIALOGUE_INDEX_CHOICE *new_dialogue_index_choice()
 
 	memset(data, 0, sizeof(*data));
 
-	data->choiceText = &str_empty[0];
+	init_node_text(&data->text);
 	
 	return data;
 }
@@ -96,7 +185,7 @@ void free_dialogue_index_choice(DIALOGUE_INDEX_CHOICE *data)
 {
 	if (!data) return;
 
-	free_string(data->choiceText);
+	free_node_text(&data->text);
 
 	data->next = dialogue_index_choice_free;
 	dialogue_index_choice_free = data;
@@ -161,7 +250,7 @@ DIALOGUE_INDEX_NODE *new_dialogue_index_node(int16_t type)
 	
 	memset(data, 0, sizeof(*data));
 
-	data->nodeText = &str_empty[0];
+	init_node_text(&data->text);
 	data->type = type;
 
 	if (type == DIALOGUE_TYPE_BRANCH)
@@ -180,7 +269,7 @@ void free_dialogue_index_node(DIALOGUE_INDEX_NODE *data)
 {
 	if (!IS_VALID(data)) return;
 
-	free_string(data->nodeText);
+	free_node_text(&data->text);
 	free_string(data->variable);
 	free_string(data->value);
 
@@ -216,6 +305,11 @@ DIALOGUE_INDEX_DATA *new_dialogue_index_data()
 
 	data->nodes = list_createx(false, NULL, delete_dialogue_index_node);
 
+	data->areas = list_create(false);
+	data->mobiles = list_create(false);
+	data->objects = list_create(false);
+	data->rooms = list_create(false);
+	
 	VALIDATE(data);
 	return data;
 }
@@ -230,11 +324,15 @@ void free_dialogue_index_data(DIALOGUE_INDEX_DATA *data)
 
 	list_destroy(data->nodes);
 
+	list_destroy(data->areas);
+	list_destroy(data->mobiles);
+	list_destroy(data->objects);
+	list_destroy(data->rooms);
+
 	INVALIDATE(data);
 	data->next = dialogue_index_free;
 	dialogue_index_free = data;
 }
-
 
 
 DIALOGUE_BRANCH *dialogue_branch_free;
@@ -289,7 +387,7 @@ DIALOGUE_CHOICE *new_dialogue_choice()
 	
 	memset(data, 0, sizeof(*data));
 
-	data->choiceText = &str_empty[0];
+	init_node_text(&data->text);
 
 	return data;
 }
@@ -298,7 +396,7 @@ void free_dialogue_choice(DIALOGUE_CHOICE *data)
 {
 	if (!data) return;
 
-	free_string(data->choiceText);
+	free_node_text(&data->text);
 
 	data->next = dialogue_choice_free;
 	dialogue_choice_free = data;
@@ -323,7 +421,7 @@ DIALOGUE_NODE *new_dialogue_node(int16_t type)
 	
 	memset(data, 0, sizeof(*data));
 
-	data->nodeText = &str_empty[0];
+	init_node_text(&data->text);
 	data->type = type;
 
 	if (type == DIALOGUE_TYPE_BRANCH)
@@ -341,8 +439,8 @@ DIALOGUE_NODE *new_dialogue_node(int16_t type)
 void free_dialogue_node(DIALOGUE_NODE *data)
 {
 	if (!IS_VALID(data)) return;
-
-	free_string(data->nodeText);
+	
+	free_node_text(&data->text);
 	free_string(data->variable);
 	free_string(data->value);
 
@@ -374,6 +472,11 @@ DIALOGUE *new_dialogue()
 
 	data->nodes = list_createx(false, NULL, delete_dialogue_node);
 
+	data->areas = list_create(false);
+	data->mobiles = list_create(false);
+	data->objects = list_create(false);
+	data->rooms = list_create(false);
+
 	VALIDATE(data);
 	return data;	
 }
@@ -385,6 +488,11 @@ void free_dialogue(DIALOGUE *data)
 	variable_freelist(&data->variables);
 
 	list_destroy(data->nodes);
+
+	list_destroy(data->areas);
+	list_destroy(data->mobiles);
+	list_destroy(data->objects);
+	list_destroy(data->rooms);
 
 	INVALIDATE(data);
 	data->next = dialogue_free;
@@ -434,6 +542,64 @@ DIALOGUE_NODE *get_dialogue_node(DIALOGUE *dialogue, long uid)
 	return node;
 }
 
+char *compile_dialogue_entity(BUFFER *buffer, char *input)
+{
+	for(int i = 0; dialogue_entity_codes[i].text; i++)
+	{
+		if (!str_prefix(dialogue_entity_codes[i].text, input))
+		{
+			log_stringf("Compile Node Text: '%s' => %02.2X", dialogue_entity_codes[i].text, dialogue_entity_codes[i].code);
+			add_buf_char(buffer, dialogue_entity_codes[i].code);
+			return input + strlen(dialogue_entity_codes[i].text);
+		}
+	}
+
+	add_buf_char(buffer, *input);
+	return input + 1;
+}
+
+char *compile_dialogue_text(char *input)
+{
+	BUFFER *buffer = new_buf();
+
+	char *start = input;
+
+	while(*input)
+	{
+		if (*input == '$')
+		{
+			input = compile_dialogue_entity(buffer, input + 1);
+			if (!input)
+			{
+				free_buf(buffer);
+				return str_dup(start);
+			}
+		}
+		else
+		{
+			add_buf_char(buffer, *input);
+			++input;
+		}
+	}
+
+	char *str = str_dup(buffer->string);
+	free_buf(buffer);
+
+	return str;
+}
+
+void copy_node_text(NODE_TEXT *d, NODE_TEXT *s)
+{
+	d->src = str_dup(s->src);
+	d->text = str_dup(s->text);
+	d->victim1 = s->victim1;
+	d->victim2 = s->victim2;
+	d->object1 = s->object1;
+	d->object2 = s->object2;
+	d->room = s->room;
+	d->area = s->area;
+}
+
 DIALOGUE *clone_dialogue(DIALOGUE_INDEX_DATA *index, CHAR_DATA *ch)
 {
 	ITERATOR it;
@@ -466,7 +632,7 @@ DIALOGUE *clone_dialogue(DIALOGUE_INDEX_DATA *index, CHAR_DATA *ch)
 
 		new_node->parent = dialogue;
 		new_node->uid = node->uid;
-		new_node->nodeText = str_dup(node->nodeText);
+		copy_node_text(&new_node->text, &node->text);
 		new_node->delay = node->delay;
 
 		if (node->type == DIALOGUE_TYPE_BRANCH)
@@ -499,19 +665,13 @@ DIALOGUE *clone_dialogue(DIALOGUE_INDEX_DATA *index, CHAR_DATA *ch)
 			{
 				if (choice->visible)
 				{
-					log_stringf("Checking visibility: %s", choice->choiceText);
 					// End 0/allow to be visible
-					int ret = execute_script(choice->visible, ch, NULL, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_NONE, 0, 0, 0, 0, 0);
-					log_stringf("Visibility: %s => %d", choice->choiceText, ret);
-					if (ret != 0) {
-						log_stringf("Skipping choice: %s", choice->choiceText);
-						continue;
-					}
+					if (execute_script(choice->visible, ch, NULL, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_NONE, 0, 0, 0, 0, 0) != 0) continue;
 				}
 
 				DIALOGUE_CHOICE *new_choice = new_dialogue_choice();
 
-				new_choice->choiceText = str_dup(choice->choiceText);
+				copy_node_text(&new_choice->text, &choice->text);
 				if (choice->child)
 					new_choice->child = get_dialogue_node(dialogue, choice->child->uid);
 				else
@@ -531,12 +691,177 @@ DIALOGUE *clone_dialogue(DIALOGUE_INDEX_DATA *index, CHAR_DATA *ch)
 		new_node->variable = str_dup(node->variable);
 		new_node->value = str_dup(node->value);
 	}
-	iterator_stop(&it);	
+	iterator_stop(&it);
+
+	dialogue->areas = list_copy(index->areas);
+	dialogue->mobiles = list_copy(index->mobiles);
+	dialogue->objects = list_copy(index->objects);
+	dialogue->rooms = list_copy(index->rooms);
+	for(int i = 0; i < 10; i++)
+		dialogue->numbers[i] = index->numbers[i];
 
 	// First node is always the starting node
 	dialogue->current_node = (DIALOGUE_NODE *)list_nthdata(dialogue->nodes, 1);
 
 	return dialogue;
+}
+
+MOB_INDEX_DATA *get_dialogue_mobile(DIALOGUE *dialogue, int m)
+{
+	if(m > 0) return (MOB_INDEX_DATA *)list_nthdata(dialogue->mobiles, m);
+
+	return NULL;
+}
+
+OBJ_INDEX_DATA *get_dialogue_object(DIALOGUE *dialogue, int o)
+{
+	if(o > 0) return (OBJ_INDEX_DATA *)list_nthdata(dialogue->objects, o);
+
+	return NULL;
+}
+
+ROOM_INDEX_DATA *get_dialogue_room(DIALOGUE *dialogue, int r)
+{
+	if(r > 0) return (ROOM_INDEX_DATA *)list_nthdata(dialogue->rooms, r);
+
+	return NULL;
+}
+
+AREA_DATA *get_dialogue_area(DIALOGUE *dialogue, int a)
+{
+	if(a > 0) return (AREA_DATA *)list_nthdata(dialogue->areas, a);
+
+	return NULL;
+}
+
+long get_dialogue_number(DIALOGUE *dialogue, int n)
+{
+	if (n >= 0 && n < 10) return dialogue->numbers[n];
+
+	return 0;
+}
+
+void show_node_text(CHAR_DATA *ch, DIALOGUE *dialogue, NODE_TEXT *nt, char *command)
+{
+	if (IS_NULLSTR(nt->text)) return;
+
+	BUFFER *buffer = new_buf();
+
+	MOB_INDEX_DATA *v1 = get_dialogue_mobile(dialogue, nt->victim1);
+	MOB_INDEX_DATA *v2 = get_dialogue_mobile(dialogue, nt->victim2);
+	OBJ_INDEX_DATA *o1 = get_dialogue_object(dialogue, nt->object1);
+	OBJ_INDEX_DATA *o2 = get_dialogue_object(dialogue, nt->object2);
+	ROOM_INDEX_DATA *r = get_dialogue_room(dialogue, nt->room);
+	AREA_DATA *a = get_dialogue_area(dialogue, nt->area);
+
+	char *str = nt->text;
+	while (*str)
+	{
+		switch(((int)*str)&0xFF)
+		{
+			case DIALOGUE_ENTITY_PLAYER:
+				add_buf(buffer, ch->name);
+				break;
+
+			case DIALOGUE_ENTITY_PLAYER_HE:
+				add_buf(buffer, (char*)he_she[URANGE(0, ch->sex, 2)]);
+				break;
+
+			case DIALOGUE_ENTITY_PLAYER_HIS:
+				add_buf(buffer, (char*)his_her[URANGE(0, ch->sex, 2)]);
+				break;
+
+			case DIALOGUE_ENTITY_PLAYER_HIM:
+				add_buf(buffer, (char*)him_her[URANGE(0, ch->sex, 2)]);
+				break;
+
+			case DIALOGUE_ENTITY_PLAYER_HISO:
+				add_buf(buffer, (char*)his_hers[URANGE(0, ch->sex, 2)]);
+				break;
+
+			case DIALOGUE_ENTITY_VICTIM1:
+				add_buf(buffer, (v1 ? v1->short_descr : SOMEONE));
+				break;
+
+			case DIALOGUE_ENTITY_VICTIM1_HE:
+				add_buf(buffer, (char*)(v1 ? he_she[URANGE(0, v1->sex, 2)] : "it"));
+				break;
+
+			case DIALOGUE_ENTITY_VICTIM1_HIS:
+				add_buf(buffer, (char*)(v1 ? his_her[URANGE(0, v1->sex, 2)] : "its"));
+				break;
+
+			case DIALOGUE_ENTITY_VICTIM1_HIM:
+				add_buf(buffer, (char*)(v1 ? him_her[URANGE(0, v1->sex, 2)] : "it"));
+				break;
+
+			case DIALOGUE_ENTITY_VICTIM1_HISO:
+				add_buf(buffer, (char*)(v1 ? his_hers[URANGE(0, v1->sex, 2)] : "its"));
+				break;
+
+			case DIALOGUE_ENTITY_VICTIM2:
+				add_buf(buffer, (v2 ? v2->short_descr : SOMEONE));
+				break;
+
+			case DIALOGUE_ENTITY_VICTIM2_HE:
+				add_buf(buffer, (char*)(v2 ? he_she[URANGE(0, v2->sex, 2)] : "it"));
+				break;
+
+			case DIALOGUE_ENTITY_VICTIM2_HIS:
+				add_buf(buffer, (char*)(v2 ? his_her[URANGE(0, v2->sex, 2)] : "its"));
+				break;
+
+			case DIALOGUE_ENTITY_VICTIM2_HIM:
+				add_buf(buffer, (char*)(v2 ? him_her[URANGE(0, v2->sex, 2)] : "it"));
+				break;
+
+			case DIALOGUE_ENTITY_VICTIM2_HISO:
+				add_buf(buffer, (char*)(v2 ? his_hers[URANGE(0, v2->sex, 2)] : "its"));
+				break;
+
+			case DIALOGUE_ENTITY_OBJECT1:
+				add_buf(buffer, (o1 ? o1->short_descr : SOMETHING));
+				break;
+
+			case DIALOGUE_ENTITY_OBJECT2:
+				add_buf(buffer, (o2 ? o2->short_descr : SOMETHING));
+				break;
+
+			case DIALOGUE_ENTITY_ROOM:
+				add_buf(buffer, (r ? r->name : SOMEWHERE));
+				break;
+
+			case DIALOGUE_ENTITY_AREA:
+				add_buf(buffer, (a ? a->name : SOMEWHERE));
+				break;
+
+			case DIALOGUE_ENTITY_0:
+			case DIALOGUE_ENTITY_1:
+			case DIALOGUE_ENTITY_2:
+			case DIALOGUE_ENTITY_3:
+			case DIALOGUE_ENTITY_4:
+			case DIALOGUE_ENTITY_5:
+			case DIALOGUE_ENTITY_6:
+			case DIALOGUE_ENTITY_7:
+			case DIALOGUE_ENTITY_8:
+			case DIALOGUE_ENTITY_9:
+				add_buf(buffer, formatf("%ld", get_dialogue_number(dialogue, (int)(*str - DIALOGUE_ENTITY_0))));
+				break;
+
+			default:
+				add_buf_char(buffer, *str);
+				break;
+		}
+
+		++str;
+	}
+
+	if (IS_NULLSTR(command) || !isMXP(ch->desc) || !IS_SET(ch->comm, COMM_MXP))
+		send_to_char(buffer->string, ch);
+	else
+		send_to_char(MXPCreateSend(ch->desc, command, buffer->string), ch);
+	send_to_char("\n\r", ch);
+	free_buf(buffer);
 }
 
 void show_dialogue_choices(CHAR_DATA *ch)
@@ -560,8 +885,7 @@ void show_dialogue_choices(CHAR_DATA *ch)
 	DIALOGUE_NODE *node = dialogue->current_node;
 
 	// Show the prompt (if any)
-	if (!IS_NULLSTR(node->nodeText))
-		act(node->nodeText, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	show_node_text(ch, dialogue, &node->text, NULL);
 
 	ITERATOR it;
 	DIALOGUE_CHOICE *choice;
@@ -569,7 +893,11 @@ void show_dialogue_choices(CHAR_DATA *ch)
 	iterator_start(&it, node->options);
 	while((choice = (DIALOGUE_CHOICE *)iterator_nextdata(&it)))
 	{
-		act(formatf("[%2d] %s", ++i, choice->choiceText), ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		char buf[MIL];
+		++i;
+		send_to_char(formatf("[%2d] ", i), ch);
+		sprintf(buf, "%d", i);
+		show_node_text(ch, dialogue, &choice->text, buf);
 	}
 	iterator_stop(&it);
 }
@@ -715,8 +1043,7 @@ void execute_dialogue_node(CHAR_DATA *ch)
 	switch(node->type)
 	{
 		case DIALOGUE_TYPE_TEXT:
-			if (!IS_NULLSTR(node->nodeText))
-				act(node->nodeText, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			show_node_text(ch, dialogue, &node->text, NULL);
 			next_node = node->child;
 			break;
 
@@ -822,6 +1149,62 @@ void fix_dialogues()
 		for(int i = 0; i < MAX_KEY_HASH; i++)
 			for(DIALOGUE_INDEX_DATA *dialogue = area->dialogue_index_hash[i]; dialogue; dialogue = dialogue->next)
 			{
+				ITERATOR it;
+				LLIST *areas = list_create(false);
+				long *puid;
+				iterator_start(&it, dialogue->areas);
+				while((puid = (long *)iterator_nextdata(&it)))
+				{
+					AREA_DATA *a = get_area_from_uid(*puid);
+
+					if (a)
+						list_appendlink(areas, a);
+				}
+				iterator_stop(&it);
+				list_destroy(dialogue->areas);
+				dialogue->areas = areas;
+
+				WNUM_LOAD *load;
+
+				LLIST *mobiles = list_create(false);
+				iterator_start(&it, dialogue->mobiles);
+				while((load = (WNUM_LOAD *)iterator_nextdata(&it)))
+				{
+					MOB_INDEX_DATA *m = get_mob_index_auid(load->auid, load->vnum);
+
+					if (m)
+						list_appendlink(mobiles, m);
+				}
+				iterator_stop(&it);
+				list_destroy(dialogue->mobiles);
+				dialogue->mobiles = mobiles;
+
+				LLIST *objects = list_create(false);
+				iterator_start(&it, dialogue->objects);
+				while((load = (WNUM_LOAD *)iterator_nextdata(&it)))
+				{
+					OBJ_INDEX_DATA *o = get_obj_index_auid(load->auid, load->vnum);
+
+					if (o)
+						list_appendlink(objects, o);
+				}
+				iterator_stop(&it);
+				list_destroy(dialogue->objects);
+				dialogue->objects = objects;
+
+				LLIST *rooms = list_create(false);
+				iterator_start(&it, dialogue->rooms);
+				while((load = (WNUM_LOAD *)iterator_nextdata(&it)))
+				{
+					ROOM_INDEX_DATA *r = get_room_index_auid(load->auid, load->vnum);
+
+					if (r)
+						list_appendlink(rooms, r);
+				}
+				iterator_stop(&it);
+				list_destroy(dialogue->rooms);
+				dialogue->rooms = rooms;
+
 				if (dialogue->initialize_load.auid > 0 && dialogue->initialize_load.vnum > 0)
 					dialogue->initialize = get_script_index_auid(dialogue->initialize_load.auid, dialogue->initialize_load.vnum, PRG_MPROG);
 				
@@ -843,8 +1226,6 @@ void fix_dialogues()
 							if (choice->visible_load.auid > 0 && choice->visible_load.vnum > 0)
 							{
 								choice->visible = get_script_index_auid(choice->visible_load.auid, choice->visible_load.vnum, PRG_MPROG);
-								if (choice->visible)
-									log_stringf("Choice Visible: %s", choice->visible->name);
 							}
 						}
 						iterator_stop(&oit);
@@ -856,6 +1237,48 @@ void fix_dialogues()
 				iterator_stop(&nit);
 			}
 }
+
+char *compile_dialogue_text(char *input);
+
+void read_node_text(FILE *fp, NODE_TEXT *nt)
+{
+	char *word;
+	bool fMatch;
+
+	nt->src = fread_string(fp);
+	nt->text = compile_dialogue_text(nt->src);
+
+	while (str_cmp((word = fread_word(fp)), "#-TEXT"))
+	{
+		fMatch = false;
+
+		switch(UPPER(word[0]))
+		{
+			case 'A':
+				KEY("Area", nt->area, fread_number(fp));
+				break;
+
+			case 'O':
+				KEY("Object1", nt->object1, fread_number(fp));
+				KEY("Object2", nt->object2, fread_number(fp));
+				break;
+
+			case 'R':
+				KEY("Room", nt->room, fread_number(fp));
+				break;
+
+			case 'V':
+				KEY("Victim1", nt->victim1, fread_number(fp));
+				KEY("Victim2", nt->victim2, fread_number(fp));
+				break;
+		}
+
+		if (!fMatch) {
+			bug(formatf("read_node_text: no match for word %.50s", word), 0);
+		}
+	}
+}
+
 
 DIALOGUE_INDEX_NODE *get_dialogue_index_node(DIALOGUE_INDEX_DATA *dialogue, long uid)
 {
@@ -920,12 +1343,17 @@ DIALOGUE_INDEX_CHOICE *read_dialogue_index_choice(FILE *fp, DIALOGUE_INDEX_DATA 
 
 		switch(UPPER(word[0]))
 		{
-			case 'C':
-				KEY("Child", choice->child, get_dialogue_index_node(dialogue, fread_number(fp)));
+			case '#':
+				if (!str_cmp(word, "#TEXT"))
+				{
+					read_node_text(fp, &choice->text);
+					fMatch = true;
+					break;
+				}
 				break;
 
-			case 'T':
-				KEYS("Text", choice->choiceText, fread_string(fp));
+			case 'C':
+				KEY("Child", choice->child, get_dialogue_index_node(dialogue, fread_number(fp)));
 				break;
 
 			case 'V':
@@ -975,6 +1403,12 @@ bool read_dialogue_index_node(FILE *fp, DIALOGUE_INDEX_DATA *dialogue, AREA_DATA
 					fMatch = true;
 					break;
 				}
+				if (!str_cmp(word, "#TEXT"))
+				{
+					read_node_text(fp, &node->text);
+					fMatch = true;
+					break;
+				}
 				break;
 
 			case 'C':
@@ -987,10 +1421,6 @@ bool read_dialogue_index_node(FILE *fp, DIALOGUE_INDEX_DATA *dialogue, AREA_DATA
 
 			case 'S':
 				KEY("Script", node->script_load, fread_widevnum(fp, area->uid));
-				break;
-
-			case 'T':
-				KEYS("Text", node->nodeText, fread_string(fp));
 				break;
 			
 			case 'V':
@@ -1018,6 +1448,11 @@ DIALOGUE_INDEX_DATA *read_dialogue_index(FILE *fp, AREA_DATA *area)
 	area->top_dialogue_vnum = UMAX(area->top_dialogue_vnum, dialogue->vnum);
 	area->bottom_dialogue_vnum = UMIN(area->bottom_dialogue_vnum, dialogue->vnum);
 
+	dialogue->areas->deleter = delete_long;
+	dialogue->mobiles->deleter = delete_list_wnum_load;
+	dialogue->objects->deleter = delete_list_wnum_load;
+	dialogue->rooms->deleter = delete_list_wnum_load;
+
 	while (str_cmp((word = fread_word(fp)), "#-DIALOGUE"))
 	{
 		fMatch = false;
@@ -1028,6 +1463,25 @@ DIALOGUE_INDEX_DATA *read_dialogue_index(FILE *fp, AREA_DATA *area)
 				if (!str_cmp(word, "#NODE"))
 				{
 					read_dialogue_index_node(fp, dialogue, area);
+					fMatch = true;
+					break;
+				}
+				break;
+
+			case 'A':
+				if (!str_cmp(word, "Area"))
+				{
+					long uid = fread_number(fp);
+
+					long *puid = new_long();
+					if (puid)
+					{
+						*puid = uid;
+
+						if (!list_appendlink(dialogue->areas, puid))
+							free_long(puid);
+					}
+
 					fMatch = true;
 					break;
 				}
@@ -1048,6 +1502,22 @@ DIALOGUE_INDEX_DATA *read_dialogue_index(FILE *fp, AREA_DATA *area)
 
 			case 'I':
 				KEY("Initialize", dialogue->initialize_load, fread_widevnum(fp, area->uid));
+				break;
+
+			case 'M':
+				if (!str_cmp(word, "Mobile"))
+				{
+					WNUM_LOAD *load = fread_widevnumptr(fp, area->uid);
+
+					if(load)
+					{
+						if (!list_appendlink(dialogue->mobiles, load))
+							free_list_wnum_load(load);
+					}
+
+					fMatch = true;
+					break;
+				}
 				break;
 
 			case 'N':
@@ -1075,6 +1545,38 @@ DIALOGUE_INDEX_DATA *read_dialogue_index(FILE *fp, AREA_DATA *area)
 					break;
 				}
 				break;
+
+			case 'O':
+				if (!str_cmp(word, "Object"))
+				{
+					WNUM_LOAD *load = fread_widevnumptr(fp, area->uid);
+
+					if(load)
+					{
+						if (!list_appendlink(dialogue->objects, load))
+							free_list_wnum_load(load);
+					}
+
+					fMatch = true;
+					break;
+				}
+				break;
+			
+			case 'R':
+				if (!str_cmp(word, "Room"))
+				{
+					WNUM_LOAD *load = fread_widevnumptr(fp, area->uid);
+
+					if(load)
+					{
+						if (!list_appendlink(dialogue->rooms, load))
+							free_list_wnum_load(load);
+					}
+
+					fMatch = true;
+					break;
+				}
+				break;
 		}
 
 		if (!fMatch) {
@@ -1086,10 +1588,24 @@ DIALOGUE_INDEX_DATA *read_dialogue_index(FILE *fp, AREA_DATA *area)
 	return dialogue;
 }
 
+void save_node_text(FILE *fp, NODE_TEXT *nt)
+{
+	if (IS_NULLSTR(nt->text)) return;
+
+	fprintf(fp, "#TEXT %s~\n", fix_string(nt->src));
+	if (nt->victim1 > 0) fprintf(fp, "Victim1 %d\n", nt->victim1);
+	if (nt->victim2 > 0) fprintf(fp, "Victim2 %d\n", nt->victim2);
+	if (nt->object1 > 0) fprintf(fp, "Object1 %d\n", nt->object1);
+	if (nt->object2 > 0) fprintf(fp, "Object2 %d\n", nt->object2);
+	if (nt->room > 0) fprintf(fp, "Room %d\n", nt->room);
+	if (nt->area > 0) fprintf(fp, "Area %d\n", nt->area);
+	fprintf(fp, "#-TEXT\n");
+}
+
 void save_dialogue_index_node(FILE *fp, DIALOGUE_INDEX_DATA *dialogue, DIALOGUE_INDEX_NODE *node, AREA_DATA *area)
 {
 	fprintf(fp, "#NODE %ld\n", node->uid);
-	fprintf(fp, "Text %s~\n", fix_string(node->nodeText));
+	save_node_text(fp, &node->text);
 	fprintf(fp, "Delay %d\n", node->delay);
 
 	switch(node->type)
@@ -1125,7 +1641,7 @@ void save_dialogue_index_node(FILE *fp, DIALOGUE_INDEX_DATA *dialogue, DIALOGUE_
 				fprintf(fp, "#CHOICE\n");
 				if (choice->visible)
 					fprintf(fp, "Visible %s\n", widevnum_string_script(choice->visible, area));
-				fprintf(fp, "Text %s~\n", fix_string(choice->choiceText));
+				save_node_text(fp, &choice->text);
 				if (choice->child)
 					fprintf(fp, "Child %ld\n", choice->child->uid);
 				fprintf(fp, "#-CHOICE\n");
@@ -1187,6 +1703,38 @@ void save_dialogue_index(FILE *fp, DIALOGUE_INDEX_DATA *dialogue, AREA_DATA *are
 	}
 	iterator_stop(&it);
 
+	AREA_DATA *ar;
+	iterator_start(&it, dialogue->areas);
+	while((ar = (AREA_DATA *)iterator_nextdata(&it)))
+	{
+		fprintf(fp, "Area %ld\n", ar->uid);
+	}
+	iterator_stop(&it);
+
+	MOB_INDEX_DATA *mob;
+	iterator_start(&it, dialogue->mobiles);
+	while((mob = (MOB_INDEX_DATA *)iterator_nextdata(&it)))
+	{
+		fprintf(fp, "Mobile %s\n", widevnum_string(mob->area, mob->vnum, area));
+	}
+	iterator_stop(&it);
+
+	OBJ_INDEX_DATA *obj;
+	iterator_start(&it, dialogue->objects);
+	while((obj = (OBJ_INDEX_DATA *)iterator_nextdata(&it)))
+	{
+		fprintf(fp, "Object %s\n", widevnum_string(obj->area, obj->vnum, area));
+	}
+	iterator_stop(&it);
+
+	ROOM_INDEX_DATA *room;
+	iterator_start(&it, dialogue->rooms);
+	while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)))
+	{
+		fprintf(fp, "Room %s\n", widevnum_string(room->area, room->vnum, area));
+	}
+	iterator_stop(&it);
+
 	fprintf(fp, "#-DIALOGUE\n");
 }
 
@@ -1205,7 +1753,7 @@ void save_dialogues(FILE *fp, AREA_DATA *area)
 
 
 
-void do_diaglist(CHAR_DATA *ch, char *argument)
+void do_diallist(CHAR_DATA *ch, char *argument)
 {
 	BUFFER *buffer = new_buf();
 	AREA_DATA *area = ch->in_room->area;
@@ -1273,13 +1821,19 @@ static void __dialogue_report(CHAR_DATA *ch, DIALOGUE *dialogue)
 	}
 }
 
-void do_diagstart (CHAR_DATA *ch, char *argument)
+void do_dialstart (CHAR_DATA *ch, char *argument)
 {
 	WNUM wnum;
 
+	if (IS_VALID(ch->dialogue))
+	{
+		send_to_char("You are already in a dialogue!\n\r", ch);
+		return;
+	}
+
 	if (!parse_widevnum(argument, ch->in_room->area, &wnum))
 	{
-		send_to_char("Syntax:  diagstart <dialogue widevnum>\n\r", ch);
+		send_to_char("Syntax:  dialstart <dialogue widevnum>\n\r", ch);
 		return;
 	}
 
