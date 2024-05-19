@@ -1064,6 +1064,8 @@ struct dialogue_index_node_type
 	int delay;						// How long until the next dialogue node is executed.
 									//   Only used by certain types of nodes
 
+    int speaker;
+
 	SCRIPT_DATA *script;
 	WNUM_LOAD script_load;
 
@@ -1140,6 +1142,8 @@ struct dialogue_node_type
 	int16_t type;
 	int delay;						// How long until the next dialogue node is executed.
 									//   Only used by certain types of nodes
+
+    int speaker;
 
 	LLIST *options;					// List of options (CHOICE/BRANCH nodes)
 	DIALOGUE_NODE *child;			// Next node when there is no choice/branching.
@@ -12102,6 +12106,7 @@ int list_size(LLIST *lp);
 int list_getindex(LLIST *lp, void *data);
 bool list_movelink(LLIST *lp, int from, int to);
 bool list_insertlink(LLIST *lp, void *data, int to);
+bool list_setnthdata(LLIST *lp, void *data, int to, bool del);
 void iterator_start(ITERATOR *it, LLIST *lp);
 void iterator_start_nth(ITERATOR *it, LLIST *lp, int nth);
 LLIST_LINK *iterator_next(ITERATOR *it);
@@ -12468,6 +12473,7 @@ extern WNUM obj_wnum_ice_storm;
 extern WNUM obj_wnum_empty_tattoo;
 extern WNUM obj_wnum_dark_wraith_eq;
 extern WNUM obj_wnum_abyss_portal;
+extern WNUM obj_wnum_placeholder;
 
 extern OBJ_INDEX_DATA *obj_index_silver_one;
 extern OBJ_INDEX_DATA *obj_index_gold_one;
@@ -12566,6 +12572,7 @@ extern OBJ_INDEX_DATA *obj_index_ice_storm;
 extern OBJ_INDEX_DATA *obj_index_empty_tattoo;
 extern OBJ_INDEX_DATA *obj_index_dark_wraith_eq;
 extern OBJ_INDEX_DATA *obj_index_abyss_portal;
+extern OBJ_INDEX_DATA *obj_index_placeholder;
 
 // Reserved mobiles
 extern WNUM mob_wnum_death;
@@ -12599,6 +12606,7 @@ extern WNUM mob_wnum_invasion_goblin;
 extern WNUM mob_wnum_invasion_skeleton;
 extern WNUM mob_wnum_invasion_bandit;
 extern WNUM mob_wnum_invasion_pirate;
+extern WNUM mob_wnum_placeholder;
 
 extern MOB_INDEX_DATA *mob_index_death;
 extern MOB_INDEX_DATA *mob_index_objcaster;
@@ -12631,6 +12639,7 @@ extern MOB_INDEX_DATA *mob_index_invasion_goblin;
 extern MOB_INDEX_DATA *mob_index_invasion_skeleton;
 extern MOB_INDEX_DATA *mob_index_invasion_bandit;
 extern MOB_INDEX_DATA *mob_index_invasion_pirate;
+extern MOB_INDEX_DATA *mob_index_placeholder;
 
 
 // Reserved rprogs
@@ -12951,6 +12960,11 @@ void handle_dialogue_choice(CHAR_DATA *ch, char *input);
 
 DIALOGUE_INDEX_DATA *read_dialogue_index(FILE *fp, AREA_DATA *area);
 void save_dialogues(FILE *fp, AREA_DATA *area);
+bool start_dialogue(CHAR_DATA *ch, DIALOGUE_INDEX_DATA *index, DIALOGUE_CALLBACK cb);
+bool set_dialogue_mobile(DIALOGUE *dialogue, int m, MOB_INDEX_DATA *mob);
+bool set_dialogue_object(DIALOGUE *dialogue, int o, OBJ_INDEX_DATA *obj);
+bool set_dialogue_room(DIALOGUE *dialogue, int r, ROOM_INDEX_DATA *room);
+bool set_dialogue_area(DIALOGUE *dialogue, int a, AREA_DATA *area);
 
 
 #endif /* !def __merc_h__ */

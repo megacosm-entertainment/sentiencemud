@@ -9118,6 +9118,43 @@ bool list_insertlink(LLIST *lp, void *data, int to)
 	return false;
 }
 
+// Sets the Nth active data node
+// The node *must* exist.
+bool list_setnthdata(LLIST *lp, void *data, int to, bool del)
+{
+	LLIST_LINK *link;
+
+	if( to < 0 ) to = lp->size + to + 1;
+
+	if( !to ) return false;
+
+	if( lp )
+	{
+		for(link = lp->head; link && to > 0; link = link->next )
+		{
+			if( link->data )
+			{
+				if( !--to )
+				{
+					// Delete existing data if allowed
+					if (del && lp->deleter)
+					{
+						(*(lp->deleter))(link->data);
+					}
+
+					// Replace data
+					link->data = data;
+					return true;
+				}
+			}
+		}
+	}
+
+	// If it couldn't replace the Nth data link, it does not automatically add it to the end.
+
+	return false;
+}
+
 
 // Nulls out any data pointer that matches the supplied pointer
 // It will NOT cull the list

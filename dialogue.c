@@ -69,6 +69,7 @@ void delete_list_wnum_load(void *ptr);
 #define DIALOGUE_TYPE_CHOICE		2		// Presents a choice to the player
 #define DIALOGUE_TYPE_BRANCH		3		// Takes a branch based upon variables set
 #define DIALOGUE_TYPE_SCRIPT		4		// Execute mobile script
+#define DIALOGUE_TYPE_SPEECH		5		// Similar to TEXT but uses the speaker and processes the text like SAY command
 
 #define DIALOGUE_ENTITY_PLAYER			(0xFF)
 #define DIALOGUE_ENTITY_PLAYER_HE		(0xFE)
@@ -147,6 +148,7 @@ const struct flag_type dialogue_node_types[] =
 	{ "choice",		DIALOGUE_TYPE_CHOICE,	true	},
 	{ "branch",		DIALOGUE_TYPE_BRANCH,	true	},
 	{ "script",		DIALOGUE_TYPE_SCRIPT,	true	},
+	{ "speech",		DIALOGUE_TYPE_SPEECH,	true	},
 	{ NULL,			-1,						false	}
 };
 
@@ -638,6 +640,7 @@ DIALOGUE *clone_dialogue(DIALOGUE_INDEX_DATA *index, CHAR_DATA *ch)
 		new_node->uid = node->uid;
 		copy_node_text(&new_node->text, &node->text);
 		new_node->delay = node->delay;
+		new_node->speaker = node->speaker;
 
 		if (node->type == DIALOGUE_TYPE_BRANCH)
 		{
@@ -756,20 +759,14 @@ long get_dialogue_number(DIALOGUE *dialogue, int n)
 	return 0;
 }
 
-void show_node_text(CHAR_DATA *ch, DIALOGUE *dialogue, NODE_TEXT *nt, char *command, char *hint)
+void expand_node_text(BUFFER *buffer, CHAR_DATA *ch, DIALOGUE *dialogue, NODE_TEXT *nt, char *msg_color)
 {
-	if (IS_NULLSTR(nt->text)) return;
-
-	BUFFER *buffer = new_buf();
-
 	MOB_INDEX_DATA *v1 = get_dialogue_mobile(dialogue, nt->victim1);
 	MOB_INDEX_DATA *v2 = get_dialogue_mobile(dialogue, nt->victim2);
 	OBJ_INDEX_DATA *o1 = get_dialogue_object(dialogue, nt->object1);
 	OBJ_INDEX_DATA *o2 = get_dialogue_object(dialogue, nt->object2);
 	ROOM_INDEX_DATA *r = get_dialogue_room(dialogue, nt->room);
 	AREA_DATA *a = get_dialogue_area(dialogue, nt->area);
-
-	bool enabled = IS_NULLSTR(hint) && true;
 
 	char *str = nt->text;
 	while (*str)
@@ -839,21 +836,25 @@ void show_node_text(CHAR_DATA *ch, DIALOGUE *dialogue, NODE_TEXT *nt, char *comm
 			case DIALOGUE_ENTITY_OBJECT1:
 				add_buf(buffer, "{W");
 				add_buf(buffer, (o1 ? o1->short_descr : SOMETHING));
+				if (msg_color) add_buf(buffer, msg_color);
 				break;
 
 			case DIALOGUE_ENTITY_OBJECT2:
 				add_buf(buffer, "{W");
 				add_buf(buffer, (o2 ? o2->short_descr : SOMETHING));
+				if (msg_color) add_buf(buffer, msg_color);
 				break;
 
 			case DIALOGUE_ENTITY_ROOM:
 				add_buf(buffer, "{W");
 				add_buf(buffer, (r ? r->name : SOMEWHERE));
+				if (msg_color) add_buf(buffer, msg_color);
 				break;
 
 			case DIALOGUE_ENTITY_AREA:
 				add_buf(buffer, "{W");
 				add_buf(buffer, (a ? a->name : SOMEWHERE));
+				if (msg_color) add_buf(buffer, msg_color);
 				break;
 
 			case DIALOGUE_ENTITY_0:
@@ -867,6 +868,7 @@ void show_node_text(CHAR_DATA *ch, DIALOGUE *dialogue, NODE_TEXT *nt, char *comm
 			case DIALOGUE_ENTITY_8:
 			case DIALOGUE_ENTITY_9:
 				add_buf(buffer, formatf("{G%ld", get_dialogue_number(dialogue, (int)(*str - DIALOGUE_ENTITY_0))));
+				if (msg_color) add_buf(buffer, msg_color);
 				break;
 
 			default:
@@ -876,6 +878,17 @@ void show_node_text(CHAR_DATA *ch, DIALOGUE *dialogue, NODE_TEXT *nt, char *comm
 
 		++str;
 	}
+}
+
+void show_node_text(CHAR_DATA *ch, DIALOGUE *dialogue, NODE_TEXT *nt, char *command, char *hint)
+{
+	if (IS_NULLSTR(nt->text)) return;
+
+	BUFFER *buffer = new_buf();
+
+	bool enabled = IS_NULLSTR(hint) && true;
+
+	expand_node_text(buffer, ch, dialogue, nt, NULL);
 
 	if(enabled)
 	{
@@ -893,6 +906,137 @@ void show_node_text(CHAR_DATA *ch, DIALOGUE *dialogue, NODE_TEXT *nt, char *comm
 	}
 	send_to_char("\n\r", ch);
 	free_buf(buffer);
+}
+
+static void _process_speech_buffer(BUFFER *input, BUFFER *output, MOB_INDEX_DATA *speaker)
+{
+	char buf[MSL];
+	bool break_line = true;
+	char *msg = input->string;
+	char *second = NULL;
+
+	// Check if this is an exclaimation in the middle
+	for(int i = 0; msg[i]; i++)
+	{
+		if (msg[i] == '!' && msg[i] != ' ')
+		{
+			break_line = false;
+			break;
+		}
+	}
+
+	if (break_line)
+	{
+		second = stptok(msg, buf, sizeof(buf), "!");
+		second = skip_whitespace(second);
+
+		if (*second != '\0')
+		{
+			add_buf(output, formatf("{C'%s{C!' exclaims %s{C. '%s{C'{x", buf, speaker->short_descr, second));
+			return;
+		}
+	}
+
+	// Check if this is an inquiry in the middle
+	for(int i = 0; msg[i]; i++)
+	{
+		if (msg[i] == '?' && msg[i] != ' ')
+		{
+			break_line = false;
+			break;
+		}
+	}
+
+	if (break_line)
+	{
+		second = stptok(msg, buf, sizeof(buf), "?");
+		second = skip_whitespace(second);
+
+		if (*second != '\0')
+		{
+			add_buf(output, formatf("{C'%s{C?' asks %s{C. '%s{C'{x", buf, speaker->short_descr, second));
+			return;
+		}
+	}
+
+	// Check if this is a statement in the middle
+	for(int i = 0; msg[i]; i++)
+	{
+		if (msg[i] == '.' && msg[i] != ' ')
+		{
+			break_line = false;
+			break;
+		}
+	}
+
+	if (break_line)
+	{
+		second = stptok(msg, buf, sizeof(buf), ".");
+		second = skip_whitespace(second);
+
+		if (*second != '\0')
+		{
+			add_buf(output, formatf("{C'%s{C.' says %s{C. '%s{C'{x", buf, speaker->short_descr, second));
+			return;
+		}
+	}
+
+	char last = msg[strlen(msg)-1];
+	if (last == '!')
+	{
+		if (number_percent() < 50)
+		{
+			add_buf(output, formatf("{C'%s{C' exclaims %s{C.{x", msg, speaker->short_descr));
+		}
+		else
+		{
+			add_buf(output, formatf("{C%s{C exclaims, '%s{C'{x", speaker->short_descr, msg));
+		}
+	}
+	else if (last == '?')
+	{
+		if (number_percent() < 50)
+		{
+			add_buf(output, formatf("{C'%s{C' asks %s{C.{x", msg, speaker->short_descr));
+		}
+		else
+		{
+			add_buf(output, formatf("{C%s{C asks, '%s{C'{x", speaker->short_descr, msg));
+		}
+	}
+	else
+	{
+		if (number_percent() < 50)
+		{
+			add_buf(output, formatf("{C'%s{C' says %s{C.{x", msg, speaker->short_descr));
+		}
+		else
+		{
+			add_buf(output, formatf("{C%s{C says, '%s{C'{x", speaker->short_descr, msg));
+		}
+	}
+}
+
+void show_dialogue_speech(CHAR_DATA *ch, DIALOGUE *dialogue, int speaker, NODE_TEXT *nt)
+{
+	if (IS_NULLSTR(nt->text)) return;
+	if (speaker < 1) return;
+
+	MOB_INDEX_DATA *sp = get_dialogue_mobile(dialogue, speaker);
+	if (!sp) return;	// No speaker found
+
+	BUFFER *buffer = new_buf();
+
+	expand_node_text(buffer, ch, dialogue, nt, "{C");
+
+	BUFFER *speech = new_buf();
+
+	_process_speech_buffer(buffer, speech, sp);
+
+	send_to_char(speech->string, ch);
+	send_to_char("\n\r", ch);
+	free_buf(buffer);
+	free_buf(speech);
 }
 
 void show_dialogue_choices(CHAR_DATA *ch)
@@ -1082,6 +1226,11 @@ void execute_dialogue_node(CHAR_DATA *ch)
 			dialogue_set_variable(dialogue, node);
 			next_node = node->child;	
 			break;
+
+		case DIALOGUE_TYPE_SPEECH:
+			show_dialogue_speech(ch, dialogue, node->speaker, &node->text);
+			next_node = node->child;	
+			break;
 		
 		case DIALOGUE_TYPE_SCRIPT:
 			if (node->script)
@@ -1121,6 +1270,26 @@ bool start_dialogue(CHAR_DATA *ch, DIALOGUE_INDEX_DATA *index, DIALOGUE_CALLBACK
 	} while(IS_VALID(ch->dialogue) && dialogue->timer < 1 && !ch->has_dialogue_choice);
 
 	return true;
+}
+
+bool set_dialogue_mobile(DIALOGUE *dialogue, int m, MOB_INDEX_DATA *mob)
+{
+	return list_setnthdata(dialogue->mobiles, mob, m, false);
+}
+
+bool set_dialogue_object(DIALOGUE *dialogue, int o, OBJ_INDEX_DATA *obj)
+{
+	return list_setnthdata(dialogue->objects, obj, o, false);
+}
+
+bool set_dialogue_room(DIALOGUE *dialogue, int r, ROOM_INDEX_DATA *room)
+{
+	return list_setnthdata(dialogue->rooms, room, r, false);
+}
+
+bool set_dialogue_area(DIALOGUE *dialogue, int a, AREA_DATA *area)
+{
+	return list_setnthdata(dialogue->areas, area, a, false);
 }
 
 void handle_dialogue(CHAR_DATA *ch)
@@ -1457,6 +1626,7 @@ bool read_dialogue_index_node(FILE *fp, DIALOGUE_INDEX_DATA *dialogue, AREA_DATA
 
 			case 'S':
 				KEY("Script", node->script_load, fread_widevnum(fp, area->uid));
+				KEY("Speaker", node->speaker, fread_number(fp));
 				break;
 			
 			case 'V':
@@ -1687,6 +1857,10 @@ void save_dialogue_index_node(FILE *fp, DIALOGUE_INDEX_DATA *dialogue, DIALOGUE_
 			iterator_stop(&oit);
 			break;
 		}
+
+		case DIALOGUE_TYPE_SPEECH:
+			fprintf(fp, "Speaker, %d\n", node->speaker);
+			break;
 
 		case DIALOGUE_TYPE_SCRIPT:
 			fprintf(fp, "Script %s\n", widevnum_string_script(node->script, area));

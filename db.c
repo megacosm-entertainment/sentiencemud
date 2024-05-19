@@ -1238,7 +1238,7 @@ WNUM obj_wnum_ice_storm;
 WNUM obj_wnum_empty_tattoo;
 WNUM obj_wnum_dark_wraith_eq;
 WNUM obj_wnum_abyss_portal;
-
+WNUM obj_wnum_placeholder;
 
 OBJ_INDEX_DATA *obj_index_silver_one = NULL;
 OBJ_INDEX_DATA *obj_index_gold_one = NULL;
@@ -1337,10 +1337,12 @@ OBJ_INDEX_DATA *obj_index_ice_storm = NULL;
 OBJ_INDEX_DATA *obj_index_empty_tattoo = NULL;
 OBJ_INDEX_DATA *obj_index_dark_wraith_eq = NULL;
 OBJ_INDEX_DATA *obj_index_abyss_portal = NULL;
+OBJ_INDEX_DATA *obj_index_placeholder = NULL;
 
 WNUM mob_wnum_death;
 WNUM mob_wnum_objcaster;
 WNUM mob_wnum_reflection;
+WNUM mob_wnum_placeholder;
 WNUM mob_wnum_slayer;
 WNUM mob_wnum_werewolf;
 WNUM mob_wnum_soul_deposit_evil;
@@ -1371,6 +1373,7 @@ WNUM mob_wnum_invasion_pirate;
 MOB_INDEX_DATA *mob_index_death = NULL;
 MOB_INDEX_DATA *mob_index_objcaster = NULL;
 MOB_INDEX_DATA *mob_index_reflection = NULL;
+MOB_INDEX_DATA *mob_index_placeholder = NULL;
 MOB_INDEX_DATA *mob_index_slayer = NULL;
 MOB_INDEX_DATA *mob_index_werewolf = NULL;
 MOB_INDEX_DATA *mob_index_soul_deposit_evil = NULL;
@@ -1486,6 +1489,7 @@ RESERVED_WNUM reserved_obj_wnums[] =
 //	{ "ObjPawnTicket",			0,		100058,		&obj_wnum_pawn_ticket,			&obj_index_pawn_ticket },
 //	{ "ObjPirateHead",			0,		157024,		&obj_wnum_pirate_head,			&obj_index_pirate_head },
 	{ "ObjPit",					0,		100002,		&obj_wnum_pit,					&obj_index_pit },
+	{ "ObjPlaceholder",			0,		0,			&obj_wnum_placeholder,			&obj_index_placeholder },
 	{ "ObjPortal",				0,		25,			&obj_wnum_portal,				&obj_index_portal },
 	{ "ObjPotion",				0,		6510,		&obj_wnum_potion,				&obj_index_potion },
 	{ "ObjQuestScroll",			0,		6524,		&obj_wnum_quest_scroll,			&obj_index_quest_scroll },
@@ -1544,6 +1548,7 @@ RESERVED_WNUM reserved_mob_wnums[] =
 //	{ "MobPirateHunter1",			0,		100200,		&mob_wnum_pirate_hunter_1,			&mob_index_pirate_hunter_1 },
 //	{ "MobPirateHunter2",			0,		100201,		&mob_wnum_pirate_hunter_2,			&mob_index_pirate_hunter_2 },
 //	{ "MobPirateHunter3",			0,		100202,		&mob_wnum_pirate_hunter_3,			&mob_index_pirate_hunter_3 },
+	{ "MobPlaceholder",				0,		0,			&mob_wnum_placeholder,		&mob_index_placeholder },
 	{ "MobReflection",				0,		6530,		&mob_wnum_reflection,			&mob_index_reflection },
 //	{ "MobSailorBurly",				0,		157002,		&mob_wnum_sailor_burly,			&mob_index_sailor_burly },
 //	{ "MobSailorDirty",				0,		157001,		&mob_wnum_sailor_dirty,			&mob_index_sailor_dirty },
