@@ -2085,6 +2085,9 @@ void bust_a_prompt(CHAR_DATA *ch)
 	case '+':
 		sprintf(buf2, game_settings.server_description);
 		i = buf2; break;
+	case '-':
+		sprintf(buf2, ch->desc->ssl ? "{G[SECURE]{X" : "{R[INSECURE]{X");
+		i = buf2; break;
 	case '%' :
 		sprintf(buf2, "%%");
 		i = buf2; break;
