@@ -8951,6 +8951,7 @@ bool list_appendlist(LLIST *lp, LLIST *src)
 	return false;
 }
 
+/*
 bool list_movelink(LLIST *lp, int from, int to)
 {
 	LLIST_LINK *old, *link, *new_link;
@@ -9043,6 +9044,121 @@ bool list_movelink(LLIST *lp, int from, int to)
 	}
 
 	return false;
+}
+*/
+
+bool list_movelink(LLIST *lp, int from, int to)
+{
+    LLIST_LINK *old, *link, *new_link;
+
+    // Adjust negative indices
+    if (from < 0) from = lp->size + from + 1;
+    if (to < 0) to = lp->size + to + 1;
+
+    // Check for invalid positions
+    if (from <= 0 || to <= 0 || from > lp->size || to > lp->size) return false;
+
+    // If from and to are the same, no need to move
+    if (from == to) return true;
+
+    if (lp)
+    {
+        old = NULL;
+        // Locate the 'from' node
+        for (link = lp->head; link && from > 0; link = link->next)
+            if (link->data)
+            {
+                --from;
+                if (!from)
+                {
+                    old = link;
+                    break;
+                }
+            }
+
+        if (!old) return false;
+
+        // Locate the 'to' position
+        for (link = lp->head; link && to > 0; link = link->next)
+        {
+            if (link != old)
+            {
+                if ((to == 1) && (!link->data))
+                {
+                    // This is an empty link, reuse it
+                    link->data = old->data;
+                    old->data = NULL;
+                    return true;
+                }
+
+                if (link->data)
+                {
+                    if (!--to)
+                    {
+                        new_link = alloc_mem(sizeof(LLIST_LINK));
+                        if (!new_link) return false;
+
+                        new_link->data = old->data;
+                        old->data = NULL;
+
+                        if (link->prev)
+                        {
+                            new_link->next = link;
+                            new_link->prev = link->prev;
+                            link->prev->next = new_link;
+                            link->prev = new_link;
+                        }
+                        else
+                        {
+                            new_link->next = lp->head;
+                            lp->head->prev = new_link;
+                            lp->head = new_link;
+                            new_link->prev = NULL;
+                        }
+
+                        // Update list size
+                        lp->size++;
+                        return true;
+                    }
+                }
+            }
+        }
+
+        if (to > 0)
+        {
+            // Needs to append if it's at the end
+            link = alloc_mem(sizeof(LLIST_LINK));
+            if (!link) return false;
+
+            if (!lp->head)
+                lp->head = link;
+            else
+                lp->tail->next = link;
+            link->prev = lp->tail;
+            lp->tail = link;
+
+            link->data = old->data;
+            old->data = NULL;
+
+            // Update list size
+            lp->size++;
+        }
+
+        // Update head and tail if necessary
+        if (old == lp->head) lp->head = old->next;
+        if (old == lp->tail) lp->tail = old->prev;
+
+        // Remove old link from its current position
+        if (old->prev) old->prev->next = old->next;
+        if (old->next) old->next->prev = old->prev;
+
+        free(old);
+
+        // Update list size
+        lp->size--;
+    }
+
+    return false;
 }
 
 bool list_insertlink(LLIST *lp, void *data, int to)
