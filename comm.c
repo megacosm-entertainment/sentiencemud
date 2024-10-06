@@ -351,8 +351,8 @@ bool parse_options(int argc, char **argv)
 int main(int argc, char **argv)
 {
     struct timeval now_time;
-    int control_telnet;
-	int control_tls;
+    int control_telnet = 0;
+	int control_tls = 0;
     ITERATOR iter;
     void *data;
 	static GAME_SETTINGS_DATA game_settings_zero;
@@ -838,7 +838,8 @@ void game_loop(int control_telnet, int control_tls)
 	fd_set out_set;
 	fd_set exc_set;
 	DESCRIPTOR_DATA *d;
-	int maxdesc;
+	int maxdesc = 0;
+
 
 #if defined(MALLOC_DEBUG)
 	if (malloc_verify() != 1)

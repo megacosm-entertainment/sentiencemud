@@ -46,6 +46,7 @@
 #include "tables.h"
 #include "scripts.h"
 #include "wilds.h"
+#include "openssl/evp.h"
 
 extern LLIST *loaded_instances;
 
@@ -10998,20 +10999,35 @@ void generate_reset_code(char* str, int str_len) {
     str--; // Move back to the last character
     *str = '\0'; // Add the null character at the end
 }
-char *sha256_crypt( const char *pwd )
-{
-   SHA256_CTX context;
-   static char output[65];
-   unsigned char sha256sum[32];
-   unsigned int j;
+char *sha256_crypt(const char *pwd) {
+    EVP_MD_CTX *context = EVP_MD_CTX_new();
+    static char output[65];
+    unsigned char sha256sum[32];
+    unsigned int j;
 
-   SHA256_Init( &context );
-   SHA256_Update( &context, (const unsigned char *) pwd, strlen(pwd) );
-   SHA256_Final( sha256sum, &context );
+    if (context == NULL) {
+        return NULL; // Handle error
+    }
 
-   for( j = 0; j < 32; ++j )
-   {
-      snprintf( output + j * 2, 65, "%02x", sha256sum[j] );
-   }
-   return output;
+    if (EVP_DigestInit_ex(context, EVP_sha256(), NULL) != 1) {
+        EVP_MD_CTX_free(context);
+        return NULL; // Handle error
+    }
+
+    if (EVP_DigestUpdate(context, pwd, strlen(pwd)) != 1) {
+        EVP_MD_CTX_free(context);
+        return NULL; // Handle error
+    }
+
+    if (EVP_DigestFinal_ex(context, sha256sum, NULL) != 1) {
+        EVP_MD_CTX_free(context);
+        return NULL; // Handle error
+    }
+
+    for (j = 0; j < 32; ++j) {
+        snprintf(output + j * 2, 3, "%02x", sha256sum[j]);
+    }
+
+    EVP_MD_CTX_free(context);
+    return output;
 }
