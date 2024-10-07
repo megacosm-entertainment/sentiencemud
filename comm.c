@@ -1800,6 +1800,7 @@ bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
 /*
  * Bust a prompt (player settable prompt)
  * coded by Morgenes for Aldara Mud
+ * Come back to this later to change placeholders.
  */
 void bust_a_prompt(CHAR_DATA *ch)
 {
