@@ -61,6 +61,8 @@
 #include <pthread.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <libpng/png.h>
+#include <qrencode.h>
 #include "protocol.h"
 
 
@@ -5647,6 +5649,9 @@ struct	pc_data
     time_t		last_project_inquiry;
     time_t      last_ready_check;
     char *      mfa_key;
+    time_t      qr_code_expiration;
+    bool        mfa_enabled;
+    bool        mfa_question;
 
     int         staff_rank;
 
@@ -11228,9 +11233,10 @@ int use_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int amo
 void move_cart(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool delay);
 void visit_rooms(ROOM_INDEX_DATA *room, VISIT_FUNC *func, int depth, void *argv[], int argc, bool closed);
 bool check_social_status(CHAR_DATA *ch);
-void send_email(CHAR_DATA *ch, char *email, char *subject, char *message);
-void send_email_async(CHAR_DATA *ch, char *email, char *subject, char *message);
+void send_email(CHAR_DATA *ch, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
+void send_email_async(CHAR_DATA *ch, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
 void generate_reset_code(char* str, int len);
+void save_qr_code_as_png(QRcode *qrcode, const char *filename, int scale_factor);
 
 /* help.c */
 HELP_DATA *find_helpfile( char *keyword, HELP_CATEGORY *hcat );

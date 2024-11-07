@@ -39,6 +39,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
+#include <libpng/png.h>
+#include <qrencode.h>
 #include "merc.h"
 #include "interp.h"
 #include "magic.h"
@@ -47,6 +49,7 @@
 #include "scripts.h"
 #include "wilds.h"
 #include "openssl/evp.h"
+
 
 extern LLIST *loaded_instances;
 
@@ -10868,7 +10871,7 @@ bool check_social_status(CHAR_DATA *ch)
 }
 
 
-void send_email(CHAR_DATA *ch, char *email, char *subject, char *message)
+void send_email(CHAR_DATA *ch, char *email, char *subject, char *message , char *attachment_filename, char *attachment_mime_type)
 {
 	//char buf[MSL];
 	char subj_buf[256];
@@ -10898,6 +10901,10 @@ void send_email(CHAR_DATA *ch, char *email, char *subject, char *message)
 
 	quickmail_set_body(mailobj, body_buf);
 	quickmail_add_body_memory(mailobj, "text/html", body_buf_html, strlen(body_buf_html), 0);
+
+	if (attachment_filename && attachment_mime_type) {
+		quickmail_add_attachment_file(mailobj, attachment_filename, attachment_mime_type);
+	}
 
 	const char* errmsg;
 
@@ -10945,29 +10952,35 @@ struct EmailData {
     char *email;
     char *subject;
     char *message;
+	char *attachment_filename;
+	char *attachment_mime_type;
 };
 
 // Function executed by the email thread
 void *send_email_thread(void *arg) {
     struct EmailData *emailData = (struct EmailData *)arg;
 
-	send_email(emailData->ch, emailData->email, emailData->subject, emailData->message);
+	send_email(emailData->ch, emailData->email, emailData->subject, emailData->message, emailData->attachment_filename, emailData->attachment_mime_type);
 
     // Clean up and exit the thread
     free(emailData->subject);
     free(emailData->message);
+	free(emailData->attachment_filename);
+	free(emailData->attachment_mime_type);
     free(emailData);
     pthread_exit(NULL);
 }
 
 // Function to send an email asynchronously
-void send_email_async(CHAR_DATA *ch, char *email, char *subject, char *message) {
+void send_email_async(CHAR_DATA *ch, char *email, char *subject, char *message , char *attachment_filename, char *attachment_mime_type) {
     // Allocate memory for the email data
     struct EmailData *emailData = (struct EmailData *)malloc(sizeof(struct EmailData));
     emailData->ch = ch;
     emailData->email = email;
     emailData->subject = strdup(subject); // Duplicate the subject string
     emailData->message = strdup(message); // Duplicate the message string
+    emailData->attachment_filename = attachment_filename ? strdup(attachment_filename) : NULL;
+    emailData->attachment_mime_type = attachment_mime_type ? strdup(attachment_mime_type) : NULL;
 
     // Create a new thread for email dispatching
     pthread_t emailThread;
@@ -11030,4 +11043,66 @@ char *sha256_crypt(const char *pwd) {
 
     EVP_MD_CTX_free(context);
     return output;
+}
+
+void save_qr_code_as_png(QRcode *qrcode, const char *filename, int scale_factor) {
+    int scaled_width = qrcode->width * scale_factor;
+    FILE *fp = fopen(filename, "wb");
+    if (!fp) {
+        perror("fopen");
+        return;
+    }
+
+    png_structp png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    if (!png) {
+        fclose(fp);
+        return;
+    }
+
+    png_infop info = png_create_info_struct(png);
+    if (!info) {
+        png_destroy_write_struct(&png, NULL);
+        fclose(fp);
+        return;
+    }
+
+    if (setjmp(png_jmpbuf(png))) {
+        png_destroy_write_struct(&png, &info);
+        fclose(fp);
+        return;
+    }
+
+    png_init_io(png, fp);
+
+    png_set_IHDR(
+        png,
+        info,
+        scaled_width,
+        scaled_width,
+        8,
+        PNG_COLOR_TYPE_GRAY,
+        PNG_INTERLACE_NONE,
+        PNG_COMPRESSION_TYPE_DEFAULT,
+        PNG_FILTER_TYPE_DEFAULT
+    );
+
+    png_write_info(png, info);
+
+    for (int y = 0; y < qrcode->width; y++) {
+        for (int sy = 0; sy < scale_factor; sy++) {
+            png_bytep row = (png_bytep)malloc(scaled_width * sizeof(png_byte));
+            for (int x = 0; x < qrcode->width; x++) {
+                png_byte pixel = (qrcode->data[y * qrcode->width + x] & 1) ? 0 : 255;
+                for (int sx = 0; sx < scale_factor; sx++) {
+                    row[x * scale_factor + sx] = pixel;
+                }
+            }
+            png_write_row(png, row);
+            free(row);
+        }
+    }
+
+    png_write_end(png, NULL);
+    png_destroy_write_struct(&png, &info);
+    fclose(fp);
 }

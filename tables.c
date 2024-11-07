@@ -4971,4 +4971,5 @@ const struct do_func_type do_func_table[] =
         { "do_pwreset",                 do_pwreset },
         { "do_lvlaudit",                do_lvlaudit },
         { "do_keygen",                  do_keygen },
+        { "do_mfareset",                do_mfareset },
 };

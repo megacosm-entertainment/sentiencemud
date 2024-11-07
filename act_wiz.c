@@ -13687,7 +13687,7 @@ void do_pwreset(CHAR_DATA *ch, char *argument)
 
 					if (email[0] != '\0')
 					{
-						send_email_async(d.character, email, reset_subject, reset_msg);
+						send_email_async(d.character, email, reset_subject, reset_msg, NULL, NULL);
 						sprintf(buf, "Password reset code has been sent to %s for %s.\n\r", email, plr);
 						send_to_char(buf, ch);
 					}
@@ -13699,7 +13699,7 @@ void do_pwreset(CHAR_DATA *ch, char *argument)
 							return;
 						}
 
-						send_email_async(d.character, d.character->pcdata->email, reset_subject, reset_msg);
+						send_email_async(d.character, d.character->pcdata->email, reset_subject, reset_msg, NULL, NULL);
 						sprintf(buf, "Password reset code has been sent to %s for %s.\n\r", d.character->pcdata->email, plr);
 						send_to_char(buf, ch);
 					}
@@ -13719,6 +13719,82 @@ void do_pwreset(CHAR_DATA *ch, char *argument)
 			send_to_char("That player does not exist.\n\r", ch);
 			return;
 		}
+	}
+}
+
+void do_mfareset(CHAR_DATA *ch, char *argument)
+{
+	CHAR_DATA *victim;
+	char plr[MAX_INPUT_LENGTH];
+	char buf[MAX_STRING_LENGTH];
+	DESCRIPTOR_DATA d;
+	bool mfa_reset = false;
+
+	argument = one_argument(argument, plr);
+
+	if (plr[0] == '\0')
+	{
+		send_to_char("Reset MFA for whom?\n\rSyntax: mfareset <character>\n\r", ch);
+		return;
+	}
+
+	if ((player_exists(plr)))
+	{
+		if ((victim = get_char_world(ch, plr)) == NULL)
+		{
+			if (!load_char_obj(&d, plr))
+			{
+				send_to_char("That player does not exist.\n\r", ch);
+				return;
+			}
+			else
+			{
+				d.character->desc = NULL;
+
+				if (d.character->pcdata->mfa_enabled)
+				{
+					d.character->pcdata->mfa_enabled = false;
+					mfa_reset = true;
+				}
+				if (!IS_NULLSTR(d.character->pcdata->mfa_key))
+				{
+					free_string(d.character->pcdata->mfa_key);
+					d.character->pcdata->mfa_key = str_dup("");
+					mfa_reset = true;
+				}
+				if (d.character->pcdata->qr_code_expiration != 0)
+				{
+					d.character->pcdata->qr_code_expiration = 0;
+					mfa_reset = true;
+				}
+
+				if (mfa_reset)
+				{
+					sprintf(buf, "Multifactor auth has been disabled for %s.\n\r", d.character->name);
+					send_to_char(buf, ch);
+					save_char_obj(d.character);
+				}
+				else
+				{
+					sprintf(buf, "Multifactor auth was not enabled for %s.\n\r", d.character->name);
+					send_to_char(buf,ch);
+				}
+
+				free_char(d.character);
+
+
+			}
+		}
+		else
+		{
+			send_to_char("That player is already online.\n\r", ch);
+			return;
+		}
+	}
+	else
+	{
+		send_to_char("That player does not exist.\n\r", ch);
+		return;
 	}
 }
 
