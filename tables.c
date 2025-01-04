@@ -3151,6 +3151,7 @@ const struct flag_type builtin_trigger_types[] =
     { "death_timer",		TRIG_DEATH_TIMER,	true },
     { "defense",	    	TRIG_DEFENSE,	true },
     { "delay",		        TRIG_DELAY,	true },
+    { "dialogue_choice",    TRIG_DIALOGUE_CHOICE, true },
     { "drink",		        TRIG_DRINK,	true },
     { "drop",		        TRIG_DROP,	true },
     { "dungeon_commenced",  TRIG_DUNGEON_COMMENCED, true },

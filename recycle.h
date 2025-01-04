@@ -461,3 +461,11 @@ void free_corpse_type(CORPSE_TYPE *data);
 
 CMD_DATA *new_cmd();
 void free_cmd(CMD_DATA *cmd);
+
+
+RS_LOCATION *new_rs_location();
+void free_rs_location(RS_LOCATION *data);
+
+LOCATION *new_location();
+void free_location(LOCATION *data);
+

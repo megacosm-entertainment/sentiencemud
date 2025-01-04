@@ -209,6 +209,42 @@ void delete_list_uid_data(void *ptr)
 	free_list_uid_data((LLIST_UID_DATA *)ptr);
 }
 
+
+RS_LOCATION *new_rs_location()
+{
+    return alloc_mem(sizeof(RS_LOCATION));
+}
+
+// Not double-free protected!
+void free_rs_location(RS_LOCATION *data)
+{
+    free_mem(data, sizeof(RS_LOCATION));
+}
+
+void delete_rs_location(void *ptr)
+{
+    free_rs_location((RS_LOCATION *)ptr);
+}
+
+LOCATION *new_location()
+{
+    return alloc_mem(sizeof(LOCATION));
+}
+
+// Not double-free protected!
+void free_location(LOCATION *data)
+{
+    free_mem(data, sizeof(LOCATION));
+}
+
+void delete_location(void *ptr)
+{
+    free_location((LOCATION *)ptr);
+}
+
+
+
+
 static void *copy_waypoint(void *ptr)
 {
 	return clone_waypoint((WAYPOINT_DATA *)ptr);

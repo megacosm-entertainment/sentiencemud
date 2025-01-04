@@ -58,6 +58,9 @@ WNUM_LOAD *new_list_wnum_load();
 void free_list_wnum_load(WNUM_LOAD *wnum);
 void delete_list_wnum_load(void *ptr);
 
+void delete_rs_location(void *ptr);
+void delete_location(void *ptr);
+
 ////////////////////////////////////////
 //                                    //
 //           Dialogue Trees           //
@@ -70,6 +73,7 @@ void delete_list_wnum_load(void *ptr);
 #define DIALOGUE_TYPE_BRANCH		3		// Takes a branch based upon variables set
 #define DIALOGUE_TYPE_SCRIPT		4		// Execute mobile script
 #define DIALOGUE_TYPE_SPEECH		5		// Similar to TEXT but uses the speaker and processes the text like SAY command
+#define DIALOGUE_TYPE_TELEPORT		6		// Teleports the viewer and their entourage to the location.
 
 #define DIALOGUE_ENTITY_PLAYER			(0xFF)
 #define DIALOGUE_ENTITY_PLAYER_HE		(0xFE)
@@ -149,6 +153,7 @@ const struct flag_type dialogue_node_types[] =
 	{ "branch",		DIALOGUE_TYPE_BRANCH,	true	},
 	{ "script",		DIALOGUE_TYPE_SCRIPT,	true	},
 	{ "speech",		DIALOGUE_TYPE_SPEECH,	true	},
+	{ "teleport",	DIALOGUE_TYPE_TELEPORT,	true	},
 	{ NULL,			-1,						false	}
 };
 
@@ -312,7 +317,7 @@ DIALOGUE_INDEX_DATA *new_dialogue_index_data()
 	data->areas = list_create(false);
 	data->mobiles = list_create(false);
 	data->objects = list_create(false);
-	data->rooms = list_create(false);
+	data->rooms = list_createx(false, NULL, delete_rs_location);
 	
 	VALIDATE(data);
 	return data;
@@ -481,7 +486,7 @@ DIALOGUE *new_dialogue()
 	data->areas = list_create(false);
 	data->mobiles = list_create(false);
 	data->objects = list_create(false);
-	data->rooms = list_create(false);
+	data->rooms = list_createx(false, NULL, delete_location);
 
 	VALIDATE(data);
 	return data;	
@@ -1191,6 +1196,88 @@ DIALOGUE_NODE *select_dialogue_branch(CHAR_DATA *ch, DIALOGUE *dialogue, DIALOGU
 	return next_node;
 }
 
+static void __teleport_entourage(CHAR_DATA *ch, ROOM_INDEX_DATA *dest)
+{
+	if (!IS_VALID(ch)) return;
+	if (ch->in_room)
+	{
+		CHAR_DATA *mob_next;
+		for(CHAR_DATA *mob = ch->in_room->people; mob; mob = mob_next)
+		{
+			mob_next = mob->next_in_room;
+
+			// Must be CH's pet or follower
+			if (mob == ch->pet ||
+				mob->master == ch)
+			{
+				char_from_room(mob);
+				char_to_room(mob, dest);
+			}
+		}
+
+		char_from_room(ch);
+	}
+
+	char_to_room(ch, dest);
+}
+
+// Only teleports immediate entourage within the room
+void dialogue_teleport(CHAR_DATA *ch, DIALOGUE *dialogue, int r)
+{
+	if (IS_NPC(ch)) return;	// Does not work for mobs
+
+	LOCATION *loc = (LOCATION *)list_nthdata(dialogue->rooms, r);
+
+	ROOM_INDEX_DATA *room = location_to_room(loc);
+	if (!room) return;	// Room doesn't exist
+
+	__teleport_entourage(MOUNTED(ch), room);	// Send the mount and its entourage
+	__teleport_entourage(RIDDEN(ch), room);		// Send the rider and its entourage
+	__teleport_entourage(ch, room);				// Send the actual viewer and its entourage
+
+	// This isn't 100% perfect...
+	//	pets of followers aren't included
+	//	followers of followers aren't included
+}
+
+void execute_dialogue_node(CHAR_DATA *ch);
+
+void dialogue_select_choice(CHAR_DATA *ch, DIALOGUE *dialogue, int c)
+{
+	DIALOGUE_CHOICE *choice = (DIALOGUE_CHOICE *)list_nthdata(dialogue->current_node->options, c);
+
+	// Invalid choice
+	if(!choice)
+	{
+		if (IS_NPC(ch))
+		{
+			// Pick a random choice
+			c = number_range(1, list_size(dialogue->current_node->options));
+			choice = (DIALOGUE_CHOICE *)list_nthdata(dialogue->current_node->options, c);
+		}
+		else
+		{
+			show_dialogue_choices(ch);
+			return;
+		}
+	}
+
+	// The choice is disabled
+	// NPCs can select "disabled" choices
+	else if (!IS_NPC(ch) && !IS_NULLSTR(choice->hint))
+	{
+		show_dialogue_choices(ch);
+		return;
+	}
+
+	ch->dialogue->current_node = choice->child;
+	ch->has_dialogue_choice = false;
+	do {
+		execute_dialogue_node(ch);
+	} while(IS_VALID(ch->dialogue) && ch->dialogue->timer < 1 && !ch->has_dialogue_choice);
+
+}
+
 void execute_dialogue_node(CHAR_DATA *ch)
 {
 	DIALOGUE *dialogue = ch->dialogue;
@@ -1243,8 +1330,25 @@ void execute_dialogue_node(CHAR_DATA *ch)
 			break;
 
 		case DIALOGUE_TYPE_CHOICE:
-			ch->has_dialogue_choice = true;
-			show_dialogue_choices(ch);
+			if (IS_NPC(ch))
+			{
+				// Return value is the choice number
+				int choice = p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_DIALOGUE_CHOICE, NULL, 0,0,0,0,0);
+
+				if (choice < 1)
+					choice = number_range(1, list_size(node->options));
+
+				dialogue_select_choice(ch, dialogue, choice);
+			}
+			else
+			{
+				ch->has_dialogue_choice = true;
+				show_dialogue_choices(ch);
+			}
+			return;
+
+		case DIALOGUE_TYPE_TELEPORT:
+			dialogue_teleport(ch, dialogue, node->destination);
 			return;
 	}
 
@@ -1260,7 +1364,7 @@ bool start_dialogue(CHAR_DATA *ch, DIALOGUE_INDEX_DATA *index, DIALOGUE_CALLBACK
 	dialogue->callback = cb;
 	ch->dialogue = dialogue;
 
-	// Use this to initialize variables to the dialogue based upon the player
+	// Use this to initialize variables to the dialogue based upon the viewer
 	if (dialogue->index->initialize)
 		execute_script(dialogue->index->initialize, ch, NULL, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_NONE, 0, 0, 0, 0, 0);
 
@@ -1282,9 +1386,37 @@ bool set_dialogue_object(DIALOGUE *dialogue, int o, OBJ_INDEX_DATA *obj)
 	return list_setnthdata(dialogue->objects, obj, o, false);
 }
 
+bool set_dialogue_location(DIALOGUE *dialogue, int r, LOCATION *loc)
+{
+	LOCATION *l = (LOCATION *)list_nthdata(dialogue->rooms, r);
+
+
+	if (!l) return false;
+
+	// Copy everything
+	*l = *loc;
+	return true;
+}
+
 bool set_dialogue_room(DIALOGUE *dialogue, int r, ROOM_INDEX_DATA *room)
 {
-	return list_setnthdata(dialogue->rooms, room, r, false);
+	LOCATION loc;
+
+	location_from_room(&loc, room);
+
+	return set_dialogue_location(dialogue, r, &loc);
+}
+
+bool set_dialogue_wilderness(DIALOGUE *dialogue, int r, WILDS_DATA *wilds, long x, long y)
+{
+	LOCATION loc;
+	
+	location_clear(&loc);
+	loc.wuid = wilds->uid;
+	loc.id[0] = x;
+	loc.id[1] = y;
+
+	return set_dialogue_location(dialogue, r, &loc);
 }
 
 bool set_dialogue_area(DIALOGUE *dialogue, int a, AREA_DATA *area)
@@ -1326,20 +1458,7 @@ void handle_dialogue_choice(CHAR_DATA *ch, char *input)
 	}
 	int value = atoi(input);
 
-	DIALOGUE_CHOICE *choice = (DIALOGUE_CHOICE *)list_nthdata(ch->dialogue->current_node->options, value);
-
-	// Invalid choice or the choice is disabled
-	if(!choice || !IS_NULLSTR(choice->hint))
-	{
-		show_dialogue_choices(ch);
-		return;
-	}
-
-	ch->dialogue->current_node = choice->child;
-	ch->has_dialogue_choice = false;
-	do {
-		execute_dialogue_node(ch);
-	} while(IS_VALID(ch->dialogue) && ch->dialogue->timer < 1 && !ch->has_dialogue_choice);
+	dialogue_select_choice(ch, ch->dialogue, value);
 }
 
 
@@ -1392,19 +1511,6 @@ void fix_dialogues()
 				iterator_stop(&it);
 				list_destroy(dialogue->objects);
 				dialogue->objects = objects;
-
-				LLIST *rooms = list_create(false);
-				iterator_start(&it, dialogue->rooms);
-				while((load = (WNUM_LOAD *)iterator_nextdata(&it)))
-				{
-					ROOM_INDEX_DATA *r = get_room_index_auid(load->auid, load->vnum);
-
-					if (r)
-						list_appendlink(rooms, r);
-				}
-				iterator_stop(&it);
-				list_destroy(dialogue->rooms);
-				dialogue->rooms = rooms;
 
 				if (dialogue->initialize_load.auid > 0 && dialogue->initialize_load.vnum > 0)
 					dialogue->initialize = get_script_index_auid(dialogue->initialize_load.auid, dialogue->initialize_load.vnum, PRG_MPROG);
@@ -1622,6 +1728,7 @@ bool read_dialogue_index_node(FILE *fp, DIALOGUE_INDEX_DATA *dialogue, AREA_DATA
 
 			case 'D':
 				KEY("Delay", node->delay, fread_number(fp));
+				KEY("Destination", node->destination, fread_number(fp));
 				break;
 
 			case 'S':
@@ -1771,12 +1878,18 @@ DIALOGUE_INDEX_DATA *read_dialogue_index(FILE *fp, AREA_DATA *area)
 			case 'R':
 				if (!str_cmp(word, "Room"))
 				{
-					WNUM_LOAD *load = fread_widevnumptr(fp, area->uid);
+					RS_LOCATION *loc = new_rs_location();
 
-					if(load)
+					if(loc)
 					{
-						if (!list_appendlink(dialogue->rooms, load))
-							free_list_wnum_load(load);
+						loc->auid = fread_number(fp);
+						loc->wuid = fread_number(fp);
+						loc->id[0] = fread_number(fp);
+						loc->id[1] = fread_number(fp);
+						loc->id[2] = fread_number(fp);
+
+						if (!list_appendlink(dialogue->rooms, loc))
+							free_rs_location(loc);
 					}
 
 					fMatch = true;
@@ -1871,6 +1984,10 @@ void save_dialogue_index_node(FILE *fp, DIALOGUE_INDEX_DATA *dialogue, DIALOGUE_
 			fprintf(fp, "Value %s~\n", fix_string(node->value));
 			break;
 
+		case DIALOGUE_TYPE_TELEPORT:
+			fprintf(fp, "Destination %d\n", node->destination);
+			break;
+
 	}
 
 	if (node->child)
@@ -1939,11 +2056,16 @@ void save_dialogue_index(FILE *fp, DIALOGUE_INDEX_DATA *dialogue, AREA_DATA *are
 	}
 	iterator_stop(&it);
 
-	ROOM_INDEX_DATA *room;
+	RS_LOCATION *rs_loc;
 	iterator_start(&it, dialogue->rooms);
-	while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)))
+	while((rs_loc = (RS_LOCATION *)iterator_nextdata(&it)))
 	{
-		fprintf(fp, "Room %s\n", widevnum_string(room->area, room->vnum, area));
+		fprintf(fp, "Room %ld %ld %ld %ld %ld\n",
+			rs_loc->auid,
+			rs_loc->wuid,
+			rs_loc->id[0],
+			rs_loc->id[1],
+			rs_loc->id[2]);
 	}
 	iterator_stop(&it);
 
@@ -2058,4 +2180,12 @@ void do_dialstart (CHAR_DATA *ch, char *argument)
 
 	start_dialogue(ch, index, __dialogue_report);
 }
+
+
+
+
+
+////////////////////////
+// Dialogue Edit
+//
 

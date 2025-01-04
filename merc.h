@@ -1019,7 +1019,7 @@ struct dialogue_index_type
     LLIST *areas;           // Area registry    (AREA_DATA *; prior to fix_dialogues: long *)
     LLIST *mobiles;         // Mobile registry  (MOB_INDEX_DATA *; prior to fix_dialogues: wnum_load *)
     LLIST *objects;         // Object registry  (OBJ_INDEX_DATA *; prior to fix_dialogues: wnum_load *)
-    LLIST *rooms;           // Room registry    (ROOM_INDEX_DATA *; prior to fix_dialogues: wnum_load *)
+    LLIST *rooms;           // Room registry    (RS_LOCATION *)
     long numbers[10];       // Number registry  (limited to $0 to $9 codes)
 };
 
@@ -1073,6 +1073,8 @@ struct dialogue_index_node_type
 	char *value;
 
 	LLIST *options;					// List of options (CHOICE/BRANCH nodes)
+
+    int destination;                // Room number for destination (TELEPORT nodes)
     DIALOGUE_INDEX_NODE *child;
 };
 
@@ -1152,6 +1154,8 @@ struct dialogue_node_type
 
 	char *variable;					// Set node
 	char *value;					// Set node
+
+    int destination;                // Teleport node
 };
 
 struct dialogue_type
@@ -1174,7 +1178,7 @@ struct dialogue_type
     LLIST *areas;           // Area registry    (AREA_DATA *)
     LLIST *mobiles;         // Mobile registry  (MOB_INDEX_DATA *)
     LLIST *objects;         // Object registry  (OBJ_INDEX_DATA *)
-    LLIST *rooms;           // Room registry    (ROOM_INDEX_DATA *)
+    LLIST *rooms;           // Room registry    (LOCATION *) (Allows support for wilderness locations)
     long numbers[10];       // Number registry  (limited to $0 to $9 codes)
 };
 
@@ -8941,6 +8945,7 @@ enum trigger_index_enum {
 	TRIG_DEATH_TIMER,
 	TRIG_DEFENSE,
 	TRIG_DELAY,
+    TRIG_DIALOGUE_CHOICE,       // Used by NPCs in dialogues to perform dialogue choices when prompted
 	TRIG_DRINK,
 	TRIG_DROP,
     TRIG_DUNGEON_COMMENCED,
@@ -12964,6 +12969,8 @@ bool start_dialogue(CHAR_DATA *ch, DIALOGUE_INDEX_DATA *index, DIALOGUE_CALLBACK
 bool set_dialogue_mobile(DIALOGUE *dialogue, int m, MOB_INDEX_DATA *mob);
 bool set_dialogue_object(DIALOGUE *dialogue, int o, OBJ_INDEX_DATA *obj);
 bool set_dialogue_room(DIALOGUE *dialogue, int r, ROOM_INDEX_DATA *room);
+bool set_dialogue_room(DIALOGUE *dialogue, int r, ROOM_INDEX_DATA *room);
+bool set_dialogue_wilderness(DIALOGUE *dialogue, int r, WILDS_DATA *wilds, long x, long y);
 bool set_dialogue_area(DIALOGUE *dialogue, int a, AREA_DATA *area);
 
 
