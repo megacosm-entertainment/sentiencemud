@@ -1830,7 +1830,7 @@ void bust_a_prompt(CHAR_DATA *ch)
 		return;
 	}
 
-	if (ch->pcdata->mfa_question)
+	if (!IS_NPC(ch) && ch->pcdata->mfa_question)
 	{
 		send_to_char("{YMFA Code:{X\n\r", ch);
 		return;
@@ -2095,6 +2095,9 @@ void bust_a_prompt(CHAR_DATA *ch)
 		i = buf2; break;
 	case '-':
 		sprintf(buf2, ch->desc->ssl ? "{G[SECURE]{X" : "{R[INSECURE]{X");
+		i = buf2; break;
+	case '_':
+		sprintf(buf2, ch->name);
 		i = buf2; break;
 	case '%' :
 		sprintf(buf2, "%%");

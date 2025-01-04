@@ -1127,7 +1127,7 @@ void interpret( CHAR_DATA *ch, char *argument )
 	}
     }
 
-	if (ch->pcdata->mfa_question)
+	if (!IS_NPC(ch) && ch->pcdata->mfa_question)
 	{
 		if (command[0] != '\0')
 		{
