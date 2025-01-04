@@ -62,10 +62,12 @@
 #include <zlib.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <libpng/png.h>
 /* VIZZWILDS - support for plogf() and printf_to_char() functions*/
 #include <stdarg.h>
 #include <cotp.h>
 #include <qrencode.h>
+
 
 
 #include "../strings.h"
@@ -76,6 +78,8 @@
 #include "../tables.h"
 #include "../wilds.h"
 #include "../protocol.h"
+
+
 
 void do_keygen(CHAR_DATA *ch, char *argument)
 {
@@ -110,6 +114,7 @@ void do_keygen(CHAR_DATA *ch, char *argument)
         {
             char random_string[MIL];
             char otp_url[MIL];
+            char filename[256];
             generate_reset_code(random_string, 16);
             sprintf(buf, "%s", random_string);
             generate_key(ch, random_string);
@@ -123,21 +128,65 @@ void do_keygen(CHAR_DATA *ch, char *argument)
             send_to_char("You can add this key to your MFA app by scanning the following QR code:\n\r", ch);
 
             QRcode *qrcode = QRcode_encodeString(otp_url, 0, QR_ECLEVEL_L, QR_MODE_8, 1);
-            for (int i = -1; i <= qrcode->width; i++) {
-                for (int j = -1; j <= qrcode->width; j++) {
-                    if (i >= 0 && i < qrcode->width && j >= 0 && j < qrcode->width && qrcode->data[i * qrcode->width + j] & 1) {
-                        send_to_char("\033[40m  \033[0m", ch);
-                    } else {
-                    send_to_char("\033[47m  \033[0m", ch);
+            if (qrcode) {
+                ch->pcdata->qr_code_expiration = time(NULL) + 10 * 60; // 10 minutes
+                for (int i = -1; i <= qrcode->width; i++) {
+                    for (int j = -1; j <= qrcode->width; j++) {
+                        if (i >= 0 && i < qrcode->width && j >= 0 && j < qrcode->width && qrcode->data[i * qrcode->width + j] & 1) {
+                            send_to_char("\033[40m  \033[0m", ch);
+                        } else {
+                        send_to_char("\033[47m  \033[0m", ch);
+                        }
                     }
+                    send_to_char("\n\r", ch);
                 }
-                send_to_char("\n\r", ch);
+                sprintf(filename, "/tmp/%s-qrcode.png", ch->name);
+                save_qr_code_as_png(qrcode, filename, 5);
+
+                char email_body[1024];
+                sprintf(email_body, "Dear %s,\n\nYour MFA key has been generated. Please save this key in a safe place.\n\nYou will need this key to authenticate your account with MFA.\n\nYour key is: %s\n\nYou can add this key to your MFA app by scanning the following QR code:\n\n", ch->name, ch->pcdata->mfa_key);
+                send_email_async(ch, ch->pcdata->email, "Sentience MUD MFA Key", email_body, filename, "image/png");
+                QRcode_free(qrcode);
+            }
+            else {
+                send_to_char("Error generating QR code.\n\r", ch);
             }
         }
         else
         {
             send_to_char("You already have an MFA key. If you would like to generate a new key, please run 'keygen clear'.\n\r", ch);
         }
+    }
+    else if (!str_prefix(argument, "confirm"))
+    {
+        if (IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->qr_code_expiration == 0)
+        {
+            send_to_char("You do not have an MFA key to validate.\n\r", ch);
+            return;
+        }
+        // Check if the QR code has expired
+        if (time(NULL) > ch->pcdata->qr_code_expiration) {
+            send_to_char("The QR code has expired. Please generate a new one.\n\r", ch);
+            free_string(ch->pcdata->mfa_key);
+            ch->pcdata->mfa_key = str_dup("");
+            ch->pcdata->qr_code_expiration = 0;
+
+            return;
+        }
+
+        // Prompt the user to enter the MFA code
+        send_to_char("Please enter the code from your MFA app to authenticate your account.\n\r", ch);
+        ch->pcdata->mfa_question = true;
+        return;
+
+        // Wait for the user to enter the code (this part depends on your input handling system)
+        // For example, you might have a separate function to handle user input
+        // Here, we'll assume the code is provided in the `argument` variable
+    }
+    else
+    {
+        send_to_char("Syntax: keygen <generate|clear|confirm>\n\r", ch);
+        return;
     }
 }
 

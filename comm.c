@@ -1830,6 +1830,12 @@ void bust_a_prompt(CHAR_DATA *ch)
 		return;
 	}
 
+	if (ch->pcdata->mfa_question)
+	{
+		send_to_char("{YMFA Code:{X\n\r", ch);
+		return;
+	}
+
     if (ch->pk_question || ch->remove_question)
     {
 	send_to_char("{Y({xY{R/{xN{Y){x\n\r", ch);
@@ -2519,7 +2525,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			return;
 		}
 
-		if (!IS_NULLSTR(ch->pcdata->mfa_key))
+		if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled)
 		{
 			send_to_char("\n\rPlease enter your MFA code: ", ch);
 			d->connected = CON_GET_MFA;
@@ -2663,7 +2669,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 				sprintf(reset_subject, "Password Reset for %s", d->character->name);
 				sprintf(reset_msg, "Your password reset code is: %s.\nPlease note that this code will expire after 24 hours.\n\r", d->character->pcdata->reset_code);
 
-				send_email_async(d->character, d->character->pcdata->email, reset_subject, reset_msg);
+				send_email_async(d->character, d->character->pcdata->email, reset_subject, reset_msg, NULL, NULL);
 				d->connected = CON_GET_OLD_PASSWORD;
 				return;
 			}

@@ -821,6 +821,10 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 		fprintf(fp, "ResetState %d\n", ch->pcdata->reset_state);
 		if (ch->pcdata->mfa_key != NULL)
 			fprintf(fp, "MFA_Key %s~\n", ch->pcdata->mfa_key);
+		if (ch->pcdata->qr_code_expiration != 0)
+			fprintf(fp, "MFA_Code_Expiration %ld\n", ch->pcdata->qr_code_expiration);
+		if (ch->pcdata->mfa_enabled == TRUE)
+			fprintf(fp, "MFA_Enabled\n");
 		/*if (ch->pcdata->immortal->bamfin[0] != '\0')
 			fprintf(fp, "Bin  %s~\n",	ch->pcdata->immortal->bamfin);
 		if (ch->pcdata->immortal->bamfout[0] != '\0')
@@ -992,6 +996,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     ch->pcdata->security		= 0;
     ch->pcdata->challenge_delay		= 0;
 	ch->pcdata->mfa_key = str_dup("");
+	ch->pcdata->qr_code_expiration = 0;
     ch->morphed = false;
     ch->locker_rent = 0;
     ch->deathsight_vision = 0;
@@ -2233,6 +2238,9 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 			KEY("Mc3",		 __versioning->_007.class_warrior,		fread_number(fp));
 		}
 		KEY("MFA_KEY",		ch->pcdata->mfa_key,		fread_string(fp));
+		KEY("MFA_Code_Expiration", ch->pcdata->qr_code_expiration, fread_number(fp));
+		if (!str_cmp(word, "MFA_Enabled"))
+			ch->pcdata->mfa_enabled = true;
 		KEY("MissionNext",   ch->nextmission,          fread_number(fp));
 		KEY("MissionPnts",   ch->missionpoints,        fread_number(fp));
 		KEY("MissionsCompleted", ch->pcdata->missions_completed, fread_number(fp));
