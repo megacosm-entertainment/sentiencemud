@@ -212,12 +212,19 @@ bool check_mfa(CHAR_DATA *ch, char *argument)
     cotp_error_t err;
     char buf[MSL];
 
-    char totp[MIL];
-    totp[0] = '\0';
-    
-    sprintf(totp, "%s", get_totp(ch->pcdata->mfa_key, 6, 30, SHA1, &err));
+    char current_totp[MIL];
+    char previous_totp[MIL];
+    current_totp[0] = '\0';
+    previous_totp[0] = '\0';
 
-    if (!str_cmp(provided_code, totp))
+    time_t current_time = time(NULL);
+
+
+    
+    sprintf(current_totp, "%s", get_totp_at(ch->pcdata->mfa_key, current_time, 6, 30, SHA1, &err));
+    sprintf(previous_totp, "%s", get_totp_at(ch->pcdata->mfa_key, current_time - 30, 6, 30, SHA1, &err));
+
+    if (!str_cmp(provided_code, current_totp) || !str_cmp(provided_code, previous_totp))
     {
         sprintf(buf, "You have successfully authenticated your account with MFA.\n\r");
         return true;
