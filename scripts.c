@@ -3693,7 +3693,7 @@ DECL_OPC_FUN(opc_mob)
 
 	if(mob_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
 		char buf[MIL];
-		sprintf(buf, "Attempted execution of a restricted mob command '%s' with nulled security.",mob_cmd_table[block->cur_line->param].name);
+		snprintf(buf, sizeof(buf), "Attempted execution of a restricted mob command '%s' with nulled security.",mob_cmd_table[block->cur_line->param].name);
 		bug(buf, 0);
 	} else if(IS_VALID(block->info.mob)) {
 		if( !mob_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
@@ -3724,7 +3724,7 @@ DECL_OPC_FUN(opc_obj)
 
 	if(obj_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
 		char buf[MIL];
-		sprintf(buf, "Attempted execution of a restricted obj command '%s' with nulled security.",obj_cmd_table[block->cur_line->param].name);
+		snprintf(buf, sizeof(buf), "Attempted execution of a restricted obj command '%s' with nulled security.",obj_cmd_table[block->cur_line->param].name);
 		bug(buf, 0);
 	} else if(IS_VALID(block->info.obj)) {
 		if( !obj_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
@@ -3753,7 +3753,7 @@ DECL_OPC_FUN(opc_room)
 
 	if(room_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
 		char buf[MIL];
-		sprintf(buf, "Attempted execution of a restricted room command '%s' with nulled security.",room_cmd_table[block->cur_line->param].name);
+		snprintf(buf, sizeof(buf), "Attempted execution of a restricted room command '%s' with nulled security.",room_cmd_table[block->cur_line->param].name);
 		bug(buf, 0);
 	} else if(block->info.room) {
 		if( !room_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
@@ -3782,7 +3782,7 @@ DECL_OPC_FUN(opc_token)
 
 	if(token_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
 		char buf[MIL];
-		sprintf(buf, "Attempted execution of a restricted token command '%s' with nulled security.",token_cmd_table[block->cur_line->param].name);
+		snprintf(buf, sizeof(buf), "Attempted execution of a restricted token command '%s' with nulled security.",token_cmd_table[block->cur_line->param].name);
 		bug(buf, 0);
 	} else if(IS_VALID(block->info.token)) {
 		if( !token_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
@@ -3812,7 +3812,7 @@ DECL_OPC_FUN(opc_tokenother)
 
 	if(tokenother_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
 		char buf[MIL];
-		sprintf(buf, "Attempted execution of a restricted tokenother command '%s' with nulled security.",tokenother_cmd_table[block->cur_line->param].name);
+		snprintf(buf, sizeof(buf), "Attempted execution of a restricted tokenother command '%s' with nulled security.",tokenother_cmd_table[block->cur_line->param].name);
 		bug(buf, 0);
 	} else {
 		if( !tokenother_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
@@ -3841,7 +3841,7 @@ DECL_OPC_FUN(opc_area)
 
 	if(area_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
 		char buf[MIL];
-		sprintf(buf, "Attempted execution of a restricted area command '%s' with nulled security.",area_cmd_table[block->cur_line->param].name);
+		snprintf(buf, sizeof(buf), "Attempted execution of a restricted area command '%s' with nulled security.",area_cmd_table[block->cur_line->param].name);
 		bug(buf, 0);
 	} else if(block->info.area) {
 		if( !area_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
@@ -3871,7 +3871,7 @@ DECL_OPC_FUN(opc_instance)
 
 	if(instance_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
 		char buf[MIL];
-		sprintf(buf, "Attempted execution of a restricted instance command '%s' with nulled security.",instance_cmd_table[block->cur_line->param].name);
+		snprintf(buf, sizeof(buf), "Attempted execution of a restricted instance command '%s' with nulled security.",instance_cmd_table[block->cur_line->param].name);
 		bug(buf, 0);
 	} else if(IS_VALID(block->info.instance)) {
 		if( !instance_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
@@ -3901,7 +3901,7 @@ DECL_OPC_FUN(opc_dungeon)
 
 	if(area_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
 		char buf[MIL];
-		sprintf(buf, "Attempted execution of a restricted dungeon command '%s' with nulled security.",dungeon_cmd_table[block->cur_line->param].name);
+		snprintf(buf, sizeof(buf), "Attempted execution of a restricted dungeon command '%s' with nulled security.",dungeon_cmd_table[block->cur_line->param].name);
 		bug(buf, 0);
 	} else if(IS_VALID(block->info.dungeon)) {
 		if( !dungeon_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
@@ -9932,7 +9932,7 @@ struct trigger_type *load_trigger(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "load_trigger: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "load_trigger: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -10015,7 +10015,7 @@ bool load_triggers()
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "load_triggers: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "load_triggers: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -10500,7 +10500,7 @@ void scriptcmd_bug(SCRIPT_VARINFO *info, char *message)
 {
 	char buf[2 * MSL];
 
-	sprintf(buf, "Script:%ld#%ld:Line:%d:%s\n\r",
+	snprintf(buf, sizeof(buf), "Script:%ld#%ld:Line:%d:%s\n\r",
 		info->block->script->area->uid, info->block->script->vnum,
 		info->block->line,
 		message);

@@ -739,12 +739,12 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
 
                   if ( !bDone )
                   {
-                     sprintf( BugString, "BUG: Unicode substitute '%s' wasn't terminated with ']'.\n", Buffer );
+                     snprintf( BugString, sizeof(BugString), "BUG: Unicode substitute '%s' wasn't terminated with ']'.\n", Buffer );
                      ReportBug( BugString );
                   }
                   else if ( !bValid )
                   {
-                     sprintf( BugString, "BUG: Unicode substitute '%s' truncated.  Missing ']'?\n", Buffer );
+                     snprintf( BugString, sizeof(BugString), "BUG: Unicode substitute '%s' truncated.  Missing ']'?\n", Buffer );
                      ReportBug( BugString );
                   }
                   else if ( pProtocol->pVariables[eMSDP_UTF_8]->ValueInt )
@@ -780,13 +780,13 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
 
                   if ( !bDone || !bValid )
                   {
-                     sprintf( BugString, "BUG: RGB %sground colour '%s' wasn't terminated with ']'.\n", 
+                     snprintf( BugString, sizeof(BugString), "BUG: RGB %sground colour '%s' wasn't terminated with ']'.\n", 
                         (tolower(Buffer[0]) == 'f') ? "fore" : "back", &Buffer[1] );
                      ReportBug( BugString );
                   }
                   else if ( !IsValidColour(Buffer) )
                   {
-                     sprintf( BugString, "BUG: RGB %sground colour '%s' invalid (each digit must be in the range 0-5).\n", 
+                     snprintf( BugString, sizeof(BugString), "BUG: RGB %sground colour '%s' invalid (each digit must be in the range 0-5).\n", 
                         (tolower(Buffer[0]) == 'f') ? "fore" : "back", &Buffer[1] );
                      ReportBug( BugString );
                   }
@@ -818,12 +818,12 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
 
                   if ( !bDone )
                   {
-                     sprintf( BugString, "BUG: Required MXP version '%s' wasn't terminated with ']'.\n", Buffer );
+                     snprintf( BugString, sizeof(BugString), "BUG: Required MXP version '%s' wasn't terminated with ']'.\n", Buffer );
                      ReportBug( BugString );
                   }
                   else if ( !bValid )
                   {
-                     sprintf( BugString, "BUG: Required MXP version '%s' too long.  Missing ']'?\n", Buffer );
+                     snprintf( BugString, sizeof(BugString), "BUG: Required MXP version '%s' too long.  Missing ']'?\n", Buffer );
                      ReportBug( BugString );
                   }
                   else if ( !strcmp(pProtocol->pMXPVersion, "Unknown") || 
@@ -1332,7 +1332,7 @@ void MSDPSend( descriptor_t *apDescriptor, variable_t aMSDP )
 
          if ( RequiredBuffer >= MAX_VARIABLE_LENGTH )
          {
-            sprintf( MSDPBuffer, 
+            snprintf( MSDPBuffer, sizeof(MSDPBuffer), 
                "MSDPSend: %s %d bytes (exceeds MAX_VARIABLE_LENGTH of %d).\n", 
                VariableNameTable[aMSDP].pName, RequiredBuffer, 
                MAX_VARIABLE_LENGTH );
@@ -1393,13 +1393,13 @@ void MSDPSendPair( descriptor_t *apDescriptor, const char *apVariable, const cha
       {
          if ( RequiredBuffer - strlen(apValue) < MAX_VARIABLE_LENGTH )
          {
-            sprintf( MSDPBuffer, 
+            snprintf( MSDPBuffer, sizeof(MSDPBuffer), 
                "MSDPSendPair: %s %d bytes (exceeds MAX_VARIABLE_LENGTH of %d).\n", 
                apVariable, RequiredBuffer, MAX_VARIABLE_LENGTH );
          }
          else /* The variable name itself is too long */
          {
-            sprintf( MSDPBuffer, 
+            snprintf( MSDPBuffer, sizeof(MSDPBuffer), 
                "MSDPSendPair: Variable name has a length of %d bytes (exceeds MAX_VARIABLE_LENGTH of %d).\n", 
                RequiredBuffer, MAX_VARIABLE_LENGTH );
          }
@@ -1440,13 +1440,13 @@ void MSDPSendList( descriptor_t *apDescriptor, const char *apVariable, const cha
       {
          if ( RequiredBuffer - strlen(apValue) < MAX_VARIABLE_LENGTH )
          {
-            sprintf( MSDPBuffer, 
+            snprintf( MSDPBuffer, sizeof(MSDPBuffer), 
                "MSDPSendList: %s %d bytes (exceeds MAX_VARIABLE_LENGTH of %d).\n", 
                apVariable, RequiredBuffer, MAX_VARIABLE_LENGTH );
          }
          else /* The variable name itself is too long */
          {
-            sprintf( MSDPBuffer, 
+            snprintf( MSDPBuffer, sizeof(MSDPBuffer),
                "MSDPSendList: Variable name has a length of %d bytes (exceeds MAX_VARIABLE_LENGTH of %d).\n", 
                RequiredBuffer, MAX_VARIABLE_LENGTH );
          }
@@ -2924,13 +2924,13 @@ static void SendATCP( descriptor_t *apDescriptor, const char *apVariable, const 
       {
          if ( RequiredBuffer - strlen(apValue) < MAX_VARIABLE_LENGTH )
          {
-            sprintf( ATCPBuffer, 
+            snprintf( ATCPBuffer, sizeof(ATCPBuffer),
                "SendATCP: %s %d bytes (exceeds MAX_VARIABLE_LENGTH of %d).\n", 
                apVariable, RequiredBuffer, MAX_VARIABLE_LENGTH );
          }
          else /* The variable name itself is too long */
          {
-            sprintf( ATCPBuffer, 
+            snprintf( ATCPBuffer, sizeof(ATCPBuffer), 
                "SendATCP: Variable name has a length of %d bytes (exceeds MAX_VARIABLE_LENGTH of %d).\n", 
                RequiredBuffer, MAX_VARIABLE_LENGTH );
          }

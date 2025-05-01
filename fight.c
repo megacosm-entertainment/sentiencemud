@@ -102,7 +102,7 @@ void violence_update(void)
 
 		if (ch->in_room == NULL)
 		{
-			sprintf(buf, "violence_update: ch->in_room was null! %s (%ld)",
+			snprintf(buf, sizeof(buf), "violence_update: ch->in_room was null! %s (%ld)",
 				IS_NPC(ch) ? ch->short_descr : ch->name,
 				IS_NPC(ch) ? ch->pIndexData->vnum : 0);
 			bug(buf, 0);
@@ -1306,7 +1306,7 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, SKI
 
 	// Stop up people with cheating weapons
 	if (dam > 30000 && dt >= TYPE_HIT) {
-		sprintf(buf, "damage: more than 30000 points(%d) from %s", dam, IS_NPC(ch) ? ch->short_descr : ch->name);
+		snprintf(buf, sizeof(buf), "damage: more than 30000 points(%d) from %s", dam, IS_NPC(ch) ? ch->short_descr : ch->name);
 		bug(buf, 0);
 
 		dam = 30000;
@@ -2569,7 +2569,7 @@ bool check_shield_block(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield)
 
 	// shield decays with use
 	if (!(shield = get_eq_char(victim, WEAR_SHIELD))) {
-		sprintf(buf, "check_shield_block: shield was null before doing decay, victim %s, char %s", HANDLE(victim), HANDLE(ch));
+		snprintf(buf, sizeof(buf), "check_shield_block: shield was null before doing decay, victim %s, char %s", HANDLE(victim), HANDLE(ch));
 		bug(buf, 0);
 		return true;
 	}
@@ -3698,7 +3698,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, CORPSE_TYPE 
 	/* if something catastrophic has happened bail out */
 	if (victim->in_room == NULL)
 	{
-		sprintf(buf, "raw_kill: NO IN_ROOM ON CHAR %s(%ld)",
+		snprintf(buf, sizeof(buf), "raw_kill: NO IN_ROOM ON CHAR %s(%ld)",
 			victim->name, IS_NPC(victim) ? victim->pIndexData->vnum : 0);
 		bug(buf, 0);
 		extract_char(victim, false);
@@ -3775,7 +3775,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, CORPSE_TYPE 
 		// Just in case...
 		if (!(recall_room = location_to_room(&recall)))
 		{
-			sprintf(buf, "raw_kill: recall room for %s(%ld) in_room %s(%ld) was NULL.",
+			snprintf(buf, sizeof(buf), "raw_kill: recall room for %s(%ld) in_room %s(%ld) was NULL.",
 				HANDLE(victim), IS_NPC(victim) ? victim->pIndexData->vnum : 0,
 				victim->in_room->name, victim->in_room->vnum);
 			bug(buf, 0);
@@ -7204,7 +7204,7 @@ void resurrect_end(CHAR_DATA *ch)
 
 	if (obj == NULL)
 	{
-		sprintf(buf, "resurrect_end: ch->resurrect_target was null! ch %s", ch->name);
+		snprintf(buf, sizeof(buf), "resurrect_end: ch->resurrect_target was null! ch %s", ch->name);
 		bug(buf, 0);
 		return;
 	}

@@ -684,7 +684,7 @@ void token_interpret(SCRIPT_VARINFO *info, char *argument)
 	cmd = tpcmd_lookup(command,true);
 
 	if(cmd < 0) {
-		sprintf(buf, "Token_interpret: invalid cmd from token %ld: '%s'", info->token->pIndexData->vnum, command);
+		snprintf(buf, sizeof(buf), "Token_interpret: invalid cmd from token %ld: '%s'", info->token->pIndexData->vnum, command);
 		bug(buf, 0);
 		return;
 	}
@@ -711,7 +711,7 @@ void tokenother_interpret(SCRIPT_VARINFO *info, char *argument)
 	cmd = tpcmd_lookup(command,false);
 
 	if(cmd < 0) {
-		sprintf(buf, "Tokenother_interpret: invalid cmd: '%s'", command);
+		snprintf(buf, sizeof(buf), "Tokenother_interpret: invalid cmd: '%s'", command);
 		bug(buf, 0);
 		return;
 	}
@@ -828,7 +828,7 @@ SCRIPT_CMD(do_tpadjust)
 	}
 
 	if ((num < 0 || num >= MAX_TOKEN_VALUES) && !ptr) {
-		sprintf(buf, "TpAdjust: bad v#");
+		snprintf(buf, sizeof(buf), "TpAdjust: bad v#");
 		bug(buf, 0);
 		return;
 	}
@@ -1483,17 +1483,17 @@ SCRIPT_CMD(do_tpgive)
 
 	if (is_singular_token(token_index)) {
 		if (victim && get_token_char(victim, token_index, 1)) {
-			sprintf(buf, "TpGive - trying to give a second copy of token %s (%ld#%ld) to char %s",
+			snprintf(buf, sizeof(buf), "TpGive - trying to give a second copy of token %s (%ld#%ld) to char %s",
 				token_index->name, token_index->area->uid, token_index->vnum, HANDLE(victim));
 			bug(buf, 0);
 			return;
 		} else if (object && get_token_obj(object, token_index, 1)) {
-			sprintf(buf, "TpGive - trying to give a second copy of token %s (%ld) to object %s",
+			snprintf(buf, sizeof(buf), "TpGive - trying to give a second copy of token %s (%ld) to object %s",
 				token_index->name, token_index->vnum, object->short_descr);
 			bug(buf, 0);
 			return;
 		} else if (room && get_token_room(room, token_index, 1)) {
-			sprintf(buf, "TpGive - trying to give a second copy of token %s (%ld) to room %s",
+			snprintf(buf, sizeof(buf), "TpGive - trying to give a second copy of token %s (%ld) to room %s",
 				token_index->name, token_index->vnum, room->name);
 			bug(buf, 0);
 			return;
@@ -2043,7 +2043,7 @@ SCRIPT_CMD(do_tpalterobj)
 		}
 
 		if(script_security < min_sec) {
-			sprintf(buf,"TpAlterObj - Attempting to alter value%d with security %d.\n\r", num, script_security);
+			snprintf(buf, sizeof(buf), "TpAlterObj - Attempting to alter value%d with security %d.\n\r", num, script_security);
 			bug(buf, 0);
 			return;
 		}
@@ -2101,7 +2101,7 @@ SCRIPT_CMD(do_tpalterobj)
 		if(!ptr) return;
 
 		if(script_security < min_sec) {
-			sprintf(buf,"TpAlterObj - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+			snprintf(buf, sizeof(buf), "TpAlterObj - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 			bug(buf, 0);
 			return;
 		}
@@ -2396,7 +2396,7 @@ SCRIPT_CMD(do_tpraisedead)
 	if(!victim) return;
 
 	if (!IS_DEAD(victim)) {
-		sprintf(buf, "TpRaisedead: for token %s(%ld), victim %s wasn't dead!",
+		snprintf(buf, sizeof(buf), "TpRaisedead: for token %s(%ld), victim %s wasn't dead!",
 			info->token->name,VNUM(info->token),
 			victim->name);
 		bug(buf, 0);
@@ -3380,7 +3380,7 @@ SCRIPT_CMD(do_tpmload)
 	}
 
 	if (!wnum.pArea || wnum.vnum < 1 || !(pMobIndex = get_mob_index(wnum.pArea, wnum.vnum))) {
-		sprintf(buf, "Tpmload: bad mob index (%ld#%ld) from token %ld", wnum.pArea->uid, wnum.vnum, VNUM(info->token));
+		snprintf(buf, sizeof(buf), "Tpmload: bad mob index (%ld#%ld) from token %ld", wnum.pArea->uid, wnum.vnum, VNUM(info->token));
 		bug(buf, 0);
 		return;
 	}
@@ -3819,7 +3819,7 @@ SCRIPT_CMD(do_tpaltermob)
 	if(!allowpc && !IS_NPC(mob)) min_sec = 9;
 
 	if(script_security < min_sec) {
-		sprintf(buf,"TpAlterMob - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+		snprintf(buf, sizeof(buf), "TpAlterMob - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 		bug(buf, 0);
 		return;
 	}
@@ -4089,7 +4089,7 @@ SCRIPT_CMD(do_tpstringmob)
 		}
 
 		if(script_security < min_sec) {
-			sprintf(buf,"TpStringMob - Attempting to restring '%s' with security %d.\n\r", field, script_security);
+			snprintf(buf, sizeof(buf), "TpStringMob - Attempting to restring '%s' with security %d.\n\r", field, script_security);
 			bug(buf, 0);
 			free_buf(buffer);
 			return;
@@ -5045,7 +5045,7 @@ SCRIPT_CMD(do_tpalterexit)
 	if(!ptr && !sptr) return;
 
 	if(script_security < min_sec) {
-		sprintf(buf,"TpAlterExit - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+		snprintf(buf, sizeof(buf), "TpAlterExit - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 		bug(buf, 0);
 		return;
@@ -5510,7 +5510,7 @@ SCRIPT_CMD(do_tpalterroom)
 
 	if(str) {
 		if(script_security < min_sec) {
-			sprintf(buf,"TpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+			snprintf(buf, sizeof(buf), "TpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 			wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 			bug(buf, 0);
 			return;
@@ -5554,7 +5554,7 @@ SCRIPT_CMD(do_tpalterroom)
 	if(!ptr && !sptr) return;
 
 	if(script_security < min_sec) {
-		sprintf(buf,"TpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+		snprintf(buf, sizeof(buf), "TpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 		bug(buf, 0);
 		return;

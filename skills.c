@@ -970,7 +970,7 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 
 		if (!fMatch)
 		{
-			sprintf(buf, "load_skill: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "load_skill: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -1089,7 +1089,7 @@ SKILL_GROUP *load_skill_group(FILE *fp)
 
 		if (!fMatch)
 		{
-			sprintf(buf, "load_skill_group: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "load_skill_group: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -1328,7 +1328,7 @@ bool load_skills(void)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "load_skills: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "load_skills: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -1959,7 +1959,7 @@ bool can_choose_subclass(CHAR_DATA *ch, int subclass)
 	return false;
     }
 
-    sprintf(buf, "can_choose_subclass: invalid subclass for %s[%d]", ch->name, subclass);
+    snprintf(buf, sizeof(buf), "can_choose_subclass: invalid subclass for %s[%d]", ch->name, subclass);
     bug(buf, 0);
     return false;
 }
@@ -7525,7 +7525,7 @@ CLASS_DATA *load_class(FILE *fp)
 
 		if (!fMatch)
 		{
-			sprintf(buf, "load_class: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "load_class: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -7669,7 +7669,7 @@ bool load_classes()
 			}
 
 			if (!fMatch) {
-				sprintf(buf, "load_classes: no match for word %s", word);
+				snprintf(buf, sizeof(buf), "load_classes: no match for word %s", word);
 				bug(buf, 0);
 			}
 		}

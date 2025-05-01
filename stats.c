@@ -89,7 +89,7 @@ BUFFER *get_stats( int type)
 
     if ( stat_table[type].report_name == NULL )
     {
-	sprintf( buf, "Sorry, these stats are currently unavailable.\n\r" );
+	snprintf( buf, sizeof(buf), "Sorry, these stats are currently unavailable.\n\r" );
 	add_buf( output, buf );
 	bug("get_stats: stats for type %d weren't loaded!", type );
 	return output;

@@ -3640,7 +3640,7 @@ void set_weapon_dice(OBJ_INDEX_DATA *objIndex)
 
 	if (objIndex->item_type != ITEM_WEAPON)
 	{
-	sprintf(buf, "set_weapon_dice: tried to set on non-weapon "
+	snprintf(buf, sizeof(buf), "set_weapon_dice: tried to set on non-weapon "
 		"obj, %s, vnum %ld", objIndex->short_descr,
 		objIndex->vnum);
 	bug(buf, 0);
@@ -3653,7 +3653,7 @@ void set_weapon_dice(OBJ_INDEX_DATA *objIndex)
 	&&   str_cmp(objIndex->imp_sig, "(null)")
 	&&   str_cmp(objIndex->imp_sig, "none"))
 	{
-	sprintf(buf, "set_weapon_dice: imp sig \"%s\" found, not "
+	snprintf(buf, sizeof(buf), "set_weapon_dice: imp sig \"%s\" found, not "
 		"auto-setting dice, obj %s, vnum %ld",
 		objIndex->imp_sig,
 		objIndex->short_descr, objIndex->vnum);
@@ -3717,7 +3717,7 @@ void set_weapon_dice_obj(OBJ_DATA *obj)
 
 	if (obj->item_type != ITEM_WEAPON)
 	{
-	sprintf(buf, "set_weapon_dice: tried to set on non-weapon "
+		snprintf(buf, sizeof(buf), "set_weapon_dice: tried to set on non-weapon "
 		"obj, %s, vnum %ld", obj->short_descr,
 		obj->pIndexData->vnum);
 	bug(buf, 0);
@@ -3730,7 +3730,7 @@ void set_weapon_dice_obj(OBJ_DATA *obj)
 	&&   str_cmp(obj->pIndexData->imp_sig, "(null)")
 	&&   str_cmp(obj->pIndexData->imp_sig, "none"))
 	{
-	sprintf(buf, "set_weapon_dice: imp sig \"%s\" found, not "
+		snprintf(buf, sizeof(buf), "set_weapon_dice: imp sig \"%s\" found, not "
 		"auto-setting dice, obj %s, vnum %ld",
 		obj->pIndexData->imp_sig,
 		obj->short_descr, obj->pIndexData->vnum);

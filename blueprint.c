@@ -139,7 +139,7 @@ BLUEPRINT_LINK *load_blueprint_link(FILE *fp, AREA_DATA *pArea)
 
 		if (!fMatch) {
 			char buf[MSL];
-			sprintf(buf, "load_blueprint_link: no match for word %.50s", word);
+			snprintf(buf, sizeof(buf), "load_blueprint_link: no match for word %.50s", word);
 			bug(buf, 0);
 		}
 	}
@@ -270,7 +270,7 @@ BLUEPRINT_SECTION *load_blueprint_section(FILE *fp, AREA_DATA *pArea)
 
 		if (!fMatch) {
 			char buf[MSL];
-			sprintf(buf, "load_blueprint_section: no match for word %.50s", word);
+			snprintf(buf, sizeof(buf), "load_blueprint_section: no match for word %.50s", word);
 			bug(buf, 0);
 		}
 	}
@@ -351,7 +351,7 @@ BLUEPRINT_LAYOUT_SECTION_DATA *load_blueprint_layout_section(FILE *fp, int mode)
 
 		if (!fMatch) {
 			char buf[MSL];
-			sprintf(buf, "load_blueprint_layout_section: no match for word %.50s", word);
+			snprintf(buf, sizeof(buf), "load_blueprint_layout_section: no match for word %.50s", word);
 			bug(buf, 0);
 		}
 	}
@@ -487,7 +487,7 @@ BLUEPRINT_LAYOUT_LINK_DATA *load_blueprint_layout_link(FILE *fp, int mode)
 
 		if (!fMatch) {
 			char buf[MSL];
-			sprintf(buf, "load_blueprint_layout_link: no match for word %.50s", word);
+			snprintf(buf, sizeof(buf), "load_blueprint_layout_link: no match for word %.50s", word);
 			bug(buf, 0);
 		}
 	}
@@ -650,7 +650,7 @@ BLUEPRINT *load_blueprint(FILE *fp, AREA_DATA *pArea)
 
 				struct trigger_type *tt = get_trigger_type(p, PRG_IPROG);
 				if(!tt) {
-					sprintf(buf, "load_blueprint: invalid trigger type %s", p);
+					snprintf(buf, sizeof(buf), "load_blueprint: invalid trigger type %s", p);
 					bug(buf, 0);
 				} else {
 					PROG_LIST *ipr = new_trigger();
@@ -663,7 +663,7 @@ BLUEPRINT *load_blueprint(FILE *fp, AREA_DATA *pArea)
 						SKILL_DATA *skill = get_skill_data(ipr->trig_phrase);
 
 						if( !IS_VALID(skill) ) {
-							sprintf(buf, "load_blueprint: invalid spell '%s' for TRIG_SPELLCAST", ipr->trig_phrase);
+							snprintf(buf, sizeof(buf), "load_blueprint: invalid spell '%s' for TRIG_SPELLCAST", ipr->trig_phrase);
 							bug(buf, 0);
 							free_trigger(ipr);
 							fMatch = true;
@@ -745,7 +745,7 @@ BLUEPRINT *load_blueprint(FILE *fp, AREA_DATA *pArea)
 
 		if (!fMatch) {
 			char buf[MSL];
-			sprintf(buf, "load_blueprint: no match for word %.50s", word);
+			snprintf(buf, sizeof(buf), "load_blueprint: no match for word %.50s", word);
 			bug(buf, 0);
 		}
 	}
@@ -11516,7 +11516,7 @@ INSTANCE_SECTION *instance_section_load(FILE *fp)
 
 		if (!fMatch) {
 			char buf[MSL];
-			sprintf(buf, "instance_section_load: no match for word %.50s", word);
+			snprintf(buf, sizeof(buf), "instance_section_load: no match for word %.50s", word);
 			bug(buf, 0);
 		}
 	}
@@ -11661,7 +11661,7 @@ INSTANCE *instance_load(FILE *fp)
 
 		if (!fMatch) {
 			char buf[MSL];
-			sprintf(buf, "instance_load: no match for word %.50s", word);
+			snprintf(buf, sizeof(buf), "instance_load: no match for word %.50s", word);
 			bug(buf, 0);
 		}
 	}

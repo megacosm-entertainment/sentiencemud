@@ -1178,7 +1178,7 @@ void load_stat( char *filename, int type )
 
     if ( ( fp = fopen( buf, "r")) == NULL )
     {
-	sprintf( buf, "Couldn't load file %s.", filename );
+	snprintf( buf, sizeof(buf), "Couldn't load file %s.", filename );
 	bug( buf, 0 );
 	return;
     }

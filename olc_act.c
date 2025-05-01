@@ -3401,7 +3401,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 		pToRoom = pRoom->exit[door]->u1.to_room;
 		if (pToRoom == NULL)
 		{
-			sprintf(buf, "change_exit: pToRoom was null! room is %s (%ld), door is %i",
+			snprintf(buf, sizeof(buf), "change_exit: pToRoom was null! room is %s (%ld), door is %i",
 				pRoom->name, pRoom->vnum, door);
 			bug(buf, 0);
 			send_to_char("REdit: couldn't delete that exit, probably a bad link. Please report to coder@megacosm.net\n\r", ch);

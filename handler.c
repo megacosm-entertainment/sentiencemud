@@ -2961,7 +2961,7 @@ void obj_from_room(OBJ_DATA *obj)
 
 		if (prev == NULL)
 		{
-			sprintf(buf, "Obj_from_room: obj not found.");
+			snprintf(buf, sizeof(buf), "Obj_from_room: obj not found.");
 			bug(buf, 0);
 			return;
 		}
@@ -4999,7 +4999,7 @@ void hunt_char(CHAR_DATA *ch, CHAR_DATA *victim)
     CHAR_DATA *temp;
 
     if (!IS_NPC(ch)) {
-	sprintf(buf, "hunt_char: non-NPC %s", ch->name);
+	snprintf(buf, sizeof(buf), "hunt_char: non-NPC %s", ch->name);
 	bug(buf, 0);
 	return;
     }
@@ -5119,14 +5119,14 @@ void resurrect_pc(CHAR_DATA *ch)
 
     if (!IS_DEAD(ch))
     {
-	sprintf(buf, "resurrect_pc: %s is not dead!", ch->name);
+	snprintf(buf, sizeof(buf), "resurrect_pc: %s is not dead!", ch->name);
 	bug(buf, 0);
 	return;
     }
 
     if (IS_NPC(ch))
     {
-	sprintf(buf, "resurrect_pc: %s is an NPC!", ch->short_descr);
+	snprintf(buf, sizeof(buf), "resurrect_pc: %s is an NPC!", ch->short_descr);
 	bug(buf, 0);
 	return;
     }

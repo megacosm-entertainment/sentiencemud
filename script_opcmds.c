@@ -623,7 +623,7 @@ void obj_interpret(SCRIPT_VARINFO *info, char *argument)
 	cmd = opcmd_lookup(command);
 
 	if(cmd < 0) {
-		sprintf(buf, "Obj_interpret: invalid cmd from obj %ld: '%s'", info->obj->pIndexData->vnum, command);
+		snprintf(buf, sizeof(buf), "Obj_interpret: invalid cmd from obj %ld: '%s'", info->obj->pIndexData->vnum, command);
 		bug(buf, 0);
 		return;
 	}
@@ -2082,7 +2082,7 @@ SCRIPT_CMD(do_opmload)
 	}
 
 	if (!wnum.pArea || wnum.vnum < 1 || !(pMobIndex = get_mob_index(wnum.pArea, wnum.vnum))) {
-		sprintf(buf, "Opmload: bad mob index (%ld#%ld) from mob %ld", wnum.pArea->uid, wnum.vnum, VNUM(info->obj));
+		snprintf(buf, sizeof(buf), "Opmload: bad mob index (%ld#%ld) from mob %ld", wnum.pArea->uid, wnum.vnum, VNUM(info->obj));
 		bug(buf, 0);
 		return;
 	}
@@ -3272,7 +3272,7 @@ SCRIPT_CMD(do_opalterobj)
 		}
 
 		if(script_security < min_sec) {
-			sprintf(buf,"OpAlterObj - Attempting to alter value%d with security %d.\n\r", num, script_security);
+			snprintf(buf, sizeof(buf), "OpAlterObj - Attempting to alter value%d with security %d.\n\r", num, script_security);
 			bug(buf, 0);
 			return;
 		}
@@ -3330,7 +3330,7 @@ SCRIPT_CMD(do_opalterobj)
 		if(!ptr) return;
 
 		if(script_security < min_sec) {
-			sprintf(buf,"OpAlterObj - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+			snprintf(buf, sizeof(buf), "OpAlterObj - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 			bug(buf, 0);
 			return;
 		}
@@ -3672,7 +3672,7 @@ SCRIPT_CMD(do_opaltermob)
 	if(!allowpc && !IS_NPC(mob)) min_sec = 9;
 
 	if(script_security < min_sec) {
-		sprintf(buf,"OpAlterMob - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+		snprintf(buf, sizeof(buf), "OpAlterMob - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 		bug(buf, 0);
 		return;
 	}
@@ -3944,7 +3944,7 @@ SCRIPT_CMD(do_opstringmob)
 		}
 
 		if(script_security < min_sec) {
-			sprintf(buf,"OpStringMob - Attempting to restring '%s' with security %d.\n\r", field, script_security);
+			snprintf(buf, sizeof(buf), "OpStringMob - Attempting to restring '%s' with security %d.\n\r", field, script_security);
 			bug(buf, 0);
 			free_buf(buffer);
 			return;
@@ -4896,7 +4896,7 @@ SCRIPT_CMD(do_opalterexit)
 	if(!ptr && !sptr) return;
 
 	if(script_security < min_sec) {
-		sprintf(buf,"OpAlterExit - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+		snprintf(buf, sizeof(buf), "OpAlterExit - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 		bug(buf, 0);
 		return;
@@ -5363,7 +5363,7 @@ SCRIPT_CMD(do_opalterroom)
 
 	if(str) {
 		if(script_security < min_sec) {
-			sprintf(buf,"OpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+			snprintf(buf, sizeof(buf), "OpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 			wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 			bug(buf, 0);
 			return;
@@ -5409,7 +5409,7 @@ SCRIPT_CMD(do_opalterroom)
 	if(!ptr && !sptr) return;
 
 	if(script_security < min_sec) {
-		sprintf(buf,"OpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+		snprintf(buf, sizeof(buf), "OpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 		bug(buf, 0);
 		return;

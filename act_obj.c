@@ -5012,7 +5012,7 @@ void recite_end(CHAR_DATA *ch)
 
 	if (ch->cast_target_name == NULL)
 	{
-		sprintf(buf, "recite_end: for %s, cast_target_name was null!",
+		snprintf(buf, sizeof(buf), "recite_end: for %s, cast_target_name was null!",
 			IS_NPC(ch) ? ch->short_descr : ch->name);
 		bug(buf, 0);
 		return;
@@ -10045,8 +10045,8 @@ void repair_end(CHAR_DATA *ch)
     {
 	char buf[MAX_STRING_LENGTH];
 
-	sprintf(buf, "repair_end: ch->repair_obj was null! ");
-	sprintf(buf, "char was %s.", ch->name);
+	snprintf(buf, sizeof(buf), "repair_end: ch->repair_obj was null! ");
+	snprintf(buf, sizeof(buf), "char was %s.", ch->name);
 
 	bug(buf, 0);
 	return;

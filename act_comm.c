@@ -2529,7 +2529,7 @@ void do_toggle(CHAR_DATA *ch, char *argument)
 				}
 				else
 				{
-					sprintf(buf, "do_toggle: no good vector/field for setting %s", pc_set_table[i].name);
+					snprintf(buf, sizeof(buf), "do_toggle: no good vector/field for setting %s", pc_set_table[i].name);
 					bug(buf, 0);
 					return;
 				}
@@ -2595,7 +2595,7 @@ void do_toggle(CHAR_DATA *ch, char *argument)
 	}
 	else
 	{
-		sprintf(buf, "do_toggle: no good vector/field for setting %s", pc_set_table[i].name);
+		snprintf(buf, sizeof(buf), "do_toggle: no good vector/field for setting %s", pc_set_table[i].name);
 		bug(buf, 0);
 		return;
 	}

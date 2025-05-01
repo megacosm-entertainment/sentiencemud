@@ -306,7 +306,7 @@ void room_interpret(SCRIPT_VARINFO *info, char *argument)
 	cmd = rpcmd_lookup(command);
 
 	if(cmd < 0) {
-		sprintf(buf, "Room_interpret: invalid cmd from room %ld: '%s'", info->room->vnum, command);
+		snprintf(buf, sizeof(buf), "Room_interpret: invalid cmd from room %ld: '%s'", info->room->vnum, command);
 		bug(buf, 0);
 		return;
 	}
@@ -1832,7 +1832,7 @@ SCRIPT_CMD(do_rpmload)
 	}
 
 	if (!wnum.pArea || wnum.vnum < 1 || !(pMobIndex = get_mob_index(wnum.pArea, wnum.vnum))) {
-		sprintf(buf, "Rpmload: bad mob index (%ld#%ld) from mob %ld", wnum.pArea->uid, wnum.vnum, info->room->vnum);
+		snprintf(buf, sizeof(buf), "Rpmload: bad mob index (%ld#%ld) from mob %ld", wnum.pArea->uid, wnum.vnum, info->room->vnum);
 		bug(buf, 0);
 		return;
 	}
@@ -2928,7 +2928,7 @@ SCRIPT_CMD(do_rpalterobj)
 		}
 
 		if(script_security < min_sec) {
-			sprintf(buf,"RpAlterObj - Attempting to alter value%d with security %d.\n\r", num, script_security);
+			snprintf(buf, sizeof(buf), "RpAlterObj - Attempting to alter value%d with security %d.\n\r", num, script_security);
 			bug(buf, 0);
 			return;
 		}
@@ -2986,7 +2986,7 @@ SCRIPT_CMD(do_rpalterobj)
 		if(!ptr) return;
 
 		if(script_security < min_sec) {
-			sprintf(buf,"RpAlterObj - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+			snprintf(buf, sizeof(buf), "RpAlterObj - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 			bug(buf, 0);
 			return;
 		}
@@ -3323,7 +3323,7 @@ SCRIPT_CMD(do_rpaltermob)
 	if(!allowpc && !IS_NPC(mob)) min_sec = 9;
 
 	if(script_security < min_sec) {
-		sprintf(buf,"RpAlterMob - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+		snprintf(buf, sizeof(buf), "RpAlterMob - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 		bug(buf, 0);
 		return;
 	}
@@ -3595,7 +3595,7 @@ SCRIPT_CMD(do_rpstringmob)
 		}
 
 		if(script_security < min_sec) {
-			sprintf(buf,"RpStringMob - Attempting to restring '%s' with security %d.\n\r", field, script_security);
+			snprintf(buf, sizeof(buf), "RpStringMob - Attempting to restring '%s' with security %d.\n\r", field, script_security);
 			bug(buf, 0);
 			free_buf(buffer);
 			return;
@@ -4548,7 +4548,7 @@ SCRIPT_CMD(do_rpalterexit)
 	if(!ptr && !sptr) return;
 
 	if(script_security < min_sec) {
-		sprintf(buf,"RpAlterExit - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+		snprintf(buf, sizeof(buf), "RpAlterExit - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 		bug(buf, 0);
 		return;
@@ -5015,7 +5015,7 @@ SCRIPT_CMD(do_rpalterroom)
 
 	if(str) {
 		if(script_security < min_sec) {
-			sprintf(buf,"RpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+			snprintf(buf, sizeof(buf), "RpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 			wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 			bug(buf, 0);
 			return;
@@ -5059,7 +5059,7 @@ SCRIPT_CMD(do_rpalterroom)
 	if(!ptr && !sptr) return;
 
 	if(script_security < min_sec) {
-		sprintf(buf,"RpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+		snprintf(buf, sizeof(buf), "RpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 		bug(buf, 0);
 		return;

@@ -442,7 +442,7 @@ int hit_gain(CHAR_DATA *ch)
 
 	if (ch->in_room == NULL)
 	{
-		sprintf(buf, "hit_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
+		snprintf(buf, sizeof(buf),  "hit_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
 		bug(buf, 0);
 		return 0;
 	}
@@ -536,7 +536,7 @@ int mana_gain(CHAR_DATA *ch)
 
 	if (ch->in_room == NULL)
 	{
-		sprintf(buf, "mana_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
+		snprintf(buf, sizeof(buf), "mana_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
 		bug(buf, 0);
 		return 0;
 	}
@@ -636,7 +636,7 @@ int move_gain(CHAR_DATA *ch)
 
     if (ch->in_room == NULL)
     {
-        sprintf(buf, "move_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
+        snprintf(buf, sizeof(buf),  "move_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
 	    bug(buf, 0);
 		return 0;
     }
@@ -718,7 +718,7 @@ int toxin_gain(CHAR_DATA *ch, int toxin)
 
 	if (ch->in_room == NULL)
 	{
-		sprintf(buf, "toxin_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
+		snprintf(buf, sizeof(buf),  "toxin_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
 		bug(buf, 0);
 		return 0;
 	}
@@ -1065,7 +1065,7 @@ void mobile_update(void)
 
 		if (ch->in_room == NULL)
 		{
-			sprintf(buf, "mobile_update: ch %s (%ld) had null in_room!",
+			snprintf(buf, sizeof(buf), "mobile_update: ch %s (%ld) had null in_room!",
 				IS_NPC(ch) ? ch->short_descr : ch->name,
 			IS_NPC(ch) ? ch->pIndexData->vnum : 0);
 			bug(buf, 0);

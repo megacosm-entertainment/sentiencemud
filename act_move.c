@@ -379,7 +379,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow, bool fleeing)
 
 	/* Check char's in_room index pointer is valid */
 	if (!ch->in_room) {
-		sprintf(buf, "move_char: ch->in_room was null for %s (%ld)", HANDLE(ch), IS_NPC(ch) ? ch->pIndexData->vnum : 0);
+		snprintf(buf, sizeof(buf), "move_char: ch->in_room was null for %s (%ld)", HANDLE(ch), IS_NPC(ch) ? ch->pIndexData->vnum : 0);
 		bug(buf, 0);
 		return;
 	}
@@ -780,7 +780,7 @@ void check_ambush(CHAR_DATA *ch)
 
     if (ch->in_room == NULL)
     {
-	sprintf(buf, "check_ambush: for %s (%ld), in_room was null!",
+	snprintf(buf, sizeof(buf), "check_ambush: for %s (%ld), in_room was null!",
 	    IS_NPC(ch) ? ch->short_descr : ch->name,
 	    IS_NPC(ch) ? ch->pIndexData->vnum : 0);
 	bug(buf, 0);
@@ -1018,7 +1018,7 @@ bool can_move_room(CHAR_DATA *ch, int door, ROOM_INDEX_DATA *room)
 		if (ch->pIndexData)
 			bug("Room was null in can_move_room, ch vnum is ", ch->pIndexData->vnum);
 		else {
-			sprintf(buf, "Room was null in can_move_room, char was %s", ch->name);
+			snprintf(buf, sizeof(buf), "Room was null in can_move_room, char was %s", ch->name);
 			bug(buf, 0);
 		}
 		return false;

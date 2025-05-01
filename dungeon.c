@@ -139,8 +139,8 @@ DUNGEON_INDEX_LEVEL_DATA *load_dungeon_index_level(FILE *fp, int mode)
 		}
 
 		if (!fMatch) {
-			char buf[MSL];
-			sprintf(buf, "load_dungeon_index_level: no match for word %.50s", word);
+			char buf[MSL-1];
+			snprintf(buf, sizeof(buf), "load_dungeon_index_level: no match for word %.50s", word);
 			bug(buf, 0);
 		}
 	}
@@ -272,7 +272,7 @@ DUNGEON_INDEX_SPECIAL_EXIT *load_dungeon_index_special_exit(FILE *fp, int mode)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "load_dungeon_index_special_exit: no match for word %.50s", word);
+			snprintf(buf, sizeof(buf), "load_dungeon_index_special_exit: no match for word %.50s", word);
 			bug(buf, 0);
 		}
 	}
@@ -401,7 +401,7 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp, AREA_DATA *area)
 
 				struct trigger_type *tt = get_trigger_type(p, PRG_DPROG);
 				if(!tt) {
-					sprintf(buf, "load_dungeon_index: invalid trigger type %s", p);
+					snprintf(buf, sizeof(buf), "load_dungeon_index: invalid trigger type %s", p);
 					bug(buf, 0);
 				} else {
 					PROG_LIST *dpr = new_trigger();
@@ -414,7 +414,7 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp, AREA_DATA *area)
 						SKILL_DATA *skill = get_skill_data(dpr->trig_phrase);
 
 						if( !is_skill_spell(skill) ) {
-							sprintf(buf, "load_dungeon_index: invalid spell '%s' for TRIG_SPELLCAST", dpr->trig_phrase);
+							snprintf(buf, sizeof(buf), "load_dungeon_index: invalid spell '%s' for TRIG_SPELLCAST", dpr->trig_phrase);
 							bug(buf, 0);
 							free_trigger(dpr);
 							fMatch = true;
@@ -509,7 +509,7 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp, AREA_DATA *area)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "load_dungeon_index: no match for word %.50s", word);
+			snprintf(buf, sizeof(buf), "load_dungeon_index: no match for word %.50s", word);
 			bug(buf, 0);
 		}
 	}
@@ -8383,7 +8383,7 @@ DUNGEON *dungeon_load(FILE *fp)
 
 		if (!fMatch) {
 			char buf[MSL];
-			sprintf(buf, "dungeon_load: no match for word %.50s", word);
+			snprintf(buf, sizeof(buf), "dungeon_load: no match for word %.50s", word);
 			bug(buf, 0);
 		}
 	}

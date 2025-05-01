@@ -1632,7 +1632,7 @@ char *get_chrank(CHURCH_PLAYER_DATA *member)
 
     if (member == NULL)
     {
-        sprintf(buf, "get_chrank: member was null!");
+        snprintf(buf, sizeof(buf), "get_chrank: member was null!");
 	bug(buf, 0) ;
 	return NULL;
     }
@@ -3980,7 +3980,7 @@ CHURCH_DATA *read_church(FILE *fp)
 		break;
 
 	    if (!fMatch) {
-	        sprintf(buf, "read_churches: no match on word %s", word);
+	        snprintf(buf, sizeof(buf), "read_churches: no match on word %s", word);
 		bug(buf, 0);
 	    }
 	}
@@ -4056,7 +4056,7 @@ CHURCH_PLAYER_DATA *read_church_member(FILE *fp)
 		break;
 
 	    if (!fMatch) {
-	        sprintf(buf, "read_churches: no match on word %s", word);
+	        snprintf(buf, sizeof(buf), "read_churches: no match on word %s", word);
 		bug(buf, 0);
 	    }
 	}

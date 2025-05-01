@@ -2269,7 +2269,7 @@ void fix_mobiles(void)
 							resolve_wnum_load(&trigger->wnum_load, &trigger->wnum, pArea);						
 							if (!(trigger->script = get_script_index(trigger->wnum.pArea, trigger->wnum.vnum, PRG_MPROG))) {
 								// TODO: Better widevnum reporting
-								sprintf(buf, "Fix_mobiles: code widevnum %ld#%ld not found on mob %s.", trigger->wnum_load.auid, trigger->wnum_load.vnum, widevnum_string_mobile(mob, NULL));
+								snprintf(buf, sizeof(buf), "Fix_mobiles: code widevnum %ld#%ld not found on mob %s.", trigger->wnum_load.auid, trigger->wnum_load.vnum, widevnum_string_mobile(mob, NULL));
 								bug(buf, 0);
 
 //							bug("Fix_mobprogs: code wnum %d not found.", trigger->wnum.);
@@ -7878,7 +7878,7 @@ void persist_load_area_region(FILE *fp, AREA_DATA *area)
 			}
 
 			if (!fMatch) {
-				sprintf(buf, "persist_load_area_region: no match for word %s", word);
+				snprintf(buf, sizeof(buf), "persist_load_area_region: no match for word %s", word);
 				bug(buf, 0);
 				fread_to_eol(fp);
 			}
@@ -7933,7 +7933,7 @@ void persist_load_area(FILE *fp)
 			}
 
 			if (!fMatch) {
-				sprintf(buf, "persist_load_area: no match for word %s", word);
+				snprintf(buf, sizeof(buf), "persist_load_area: no match for word %s", word);
 				bug(buf, 0);
 				fread_to_eol(fp);
 			}
@@ -8001,7 +8001,7 @@ AFFECT_DATA *persist_load_affect(FILE *fp)
 		}
 
 	    if (!fMatch) {
-		    sprintf(buf, "persist_load_affect: no match for word %s", word);
+		    snprintf(buf, sizeof(buf), "persist_load_affect: no match for word %s", word);
 		    bug(buf, 0);
 		    fread_to_eol(fp);
 	    }
@@ -8022,7 +8022,7 @@ TOKEN_DATA *persist_load_token(FILE *fp)
 
 	wnum = fread_widevnum(fp, 0);
 	if ((token_index = get_token_index_auid(wnum.auid, wnum.vnum)) == NULL) {
-		sprintf(buf, "persist_load_token: no token index found for vnum %ld#%ld", wnum.auid, wnum.vnum);
+		snprintf(buf, sizeof(buf), "persist_load_token: no token index found for vnum %ld#%ld", wnum.auid, wnum.vnum);
 		bug(buf, 0);
 		return NULL;
 	}
@@ -8088,7 +8088,7 @@ TOKEN_DATA *persist_load_token(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "persist_load_token: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "persist_load_token: no match for word %s", word);
 			bug(buf, 0);
 			fread_to_eol(fp);
 		}
@@ -8837,7 +8837,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 						spell->next = obj->spells;
 						obj->spells = spell;
 					} else {
-						sprintf(buf, "Bad spell name for %s (%ld).", obj->short_descr, obj->pIndexData->vnum);
+						snprintf(buf, sizeof(buf), "Bad spell name for %s (%ld).", obj->short_descr, obj->pIndexData->vnum);
 						bug(buf,0);
 					}
 				}
@@ -9416,7 +9416,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 					if( toxin < MAX_TOXIN)
 						ch->toxin[toxin] = fread_number(fp);
 					else {
-						sprintf(buf,"%s:%s bad toxin type", __FILE__, __FUNCTION__);
+						snprintf(buf, sizeof(buf), "%s:%s bad toxin type", __FILE__, __FUNCTION__);
 						bug(buf, 0);
 						fread_to_eol(fp);
 					}
@@ -9687,7 +9687,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 		wilds = get_wilds_from_uid(NULL, w);
 
 		if( !wilds ) {
-			sprintf(buf, "persist_load_room: undefined wilds uid %d.", w);
+			snprintf(buf, sizeof(buf), "persist_load_room: undefined wilds uid %d.", w);
 			bug(buf,0);
 			return NULL;
 		}
@@ -9697,7 +9697,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 			room = create_wilds_vroom(wilds, x, y);
 
 			if( !room ) {
-				sprintf(buf, "persist_load_room: unable to create vroom for wilds %d at (%d,%d).", w, x, y);
+				snprintf(buf, sizeof(buf), "persist_load_room: unable to create vroom for wilds %d at (%d,%d).", w, x, y);
 				bug(buf,0);
 				return NULL;
 			}
@@ -9730,7 +9730,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 		if( !room ) {
 			room = create_virtual_room_nouid( source, false, false, false );
 			if( !room ) {
-				sprintf(buf, "persist_load_room: could not create clone room for %ld#%ld with uid %9d:%9d.", wnum.auid, wnum.vnum, x, y);
+				snprintf(buf, sizeof(buf), "persist_load_room: could not create clone room for %ld#%ld with uid %9d:%9d.", wnum.auid, wnum.vnum, x, y);
 				bug(buf,0);
 				return NULL;
 			}
@@ -10006,7 +10006,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 
 					// This is non-fatal if non-existant.  It will just clear it.
 					if( !wilds ) {
-						sprintf(buf, "persist_load_room: undefined wilds UID for viewwilds %d.", w);
+						snprintf(buf, sizeof(buf), "persist_load_room: undefined wilds UID for viewwilds %d.", w);
 						bug(buf,0);
 					}
 
@@ -10022,7 +10022,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 				if( !str_cmp(word, "XYZ") ) {
 					if( room->wilds ) {
 						fread_to_eol(fp);
-						sprintf(buf, "persist_load_room: XYZ coordinates found for wilds room %ld @ (%ld, %ld).", room->wilds->uid, room->x, room->y);
+						snprintf(buf, sizeof(buf), "persist_load_room: XYZ coordinates found for wilds room %ld @ (%ld, %ld).", room->wilds->uid, room->x, room->y);
 						bug(buf,0);
 					} else {
 						room->x = fread_number(fp);
@@ -10312,8 +10312,8 @@ void load_instances()
 		}
 
 		if (!fMatch) {
-			char buf[MSL];
-			sprintf(buf, "load_instances: no match for word %.50s", word);
+			char buf[MSL-1];
+			snprintf(buf, sizeof(buf), "load_instances: no match for word %.50s", word);
 			bug(buf, 0);
 		}
 

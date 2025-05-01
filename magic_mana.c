@@ -107,7 +107,7 @@ SPELL_FUNC(spell_counter_spell)
 		target = TARGET_NONE;
 		switch (skill->target) {
 		default:
-			sprintf(buf, "spell_counter_spell: bad target for spell '%s'", skill->name);
+			snprintf(buf, sizeof(buf), "spell_counter_spell: bad target for spell '%s'", skill->name);
 			bug(buf, 0);
 			return true;
 

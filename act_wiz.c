@@ -352,7 +352,7 @@ int gconfig_read (void)
 
         if (!fMatch)
         {
-	    sprintf(buf, "act_wiz.c, gconfig_read(): no match for '%s'!", word);
+	    snprintf(buf, sizeof(buf), "act_wiz.c, gconfig_read(): no match for '%s'!", word);
 	    bug(buf, 0);
             fread_to_eol(fp);
         }
@@ -729,7 +729,7 @@ int game_settings_read (void)
 
         if (!fMatch)
         {
-	    sprintf(buf, "act_wiz.c, game_settings_read(): no match for '%s'!", word);
+	    snprintf(buf, sizeof(buf), "act_wiz.c, game_settings_read(): no match for '%s'!", word);
 	    bug(buf, 0);
             fread_to_eol(fp);
         }
@@ -6409,7 +6409,7 @@ void do_tkset(CHAR_DATA *ch, char *argument)
 		break;
 
 	    default:
-		sprintf(buf, "do_tkset: bad operator %c", arg5[0]);
+		snprintf(buf, sizeof(buf), "do_tkset: bad operator %c", arg5[0]);
 		bug(buf, 0);
 	}
 
@@ -6455,7 +6455,7 @@ void do_tkset(CHAR_DATA *ch, char *argument)
 		break;
 
 	    default:
-		sprintf(buf, "do_tkset: bad operator %c", arg5[0]);
+		snprintf(buf, sizeof(buf), "do_tkset: bad operator %c", arg5[0]);
 		bug(buf, 0);
 	}
 
@@ -10896,7 +10896,7 @@ LIQUID *load_liquid(FILE *fp)
 
 		if (!fMatch)
 		{
-			sprintf(buf, "load_liquid: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "load_liquid: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -11019,7 +11019,7 @@ bool load_liquids()
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "load_liquids: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "load_liquids: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -11481,7 +11481,7 @@ MATERIAL *load_material(FILE *fp)
 
 		if (!fMatch)
 		{
-			sprintf(buf, "load_material: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "load_material: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -11569,7 +11569,7 @@ bool load_materials()
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "load_materials: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "load_materials: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -11846,7 +11846,7 @@ CORPSE_DAMAGE *load_corpse_damage(FILE *fp)
 
 		if (!fMatch)
 		{
-			sprintf(buf, "load_corpse_damage: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "load_corpse_damage: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -11962,7 +11962,7 @@ CORPSE_TYPE *load_corpse(FILE *fp)
 
 		if (!fMatch)
 		{
-			sprintf(buf, "load_corpse: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "load_corpse: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -12102,7 +12102,7 @@ bool load_corpses()
 			}
 
 			if (!fMatch) {
-				sprintf(buf, "load_corpses: no match for word %s", word);
+				snprintf(buf, sizeof(buf), "load_corpses: no match for word %s", word);
 				bug(buf, 0);
 			}
 		}

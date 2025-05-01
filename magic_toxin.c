@@ -230,7 +230,7 @@ SPELL_FUNC(spell_poison)
 	victim = (CHAR_DATA *) vo;
 	if (!victim) {
 		char buf[MAX_STRING_LENGTH];
-		sprintf(buf, "spell_poison: null victim!, ch %s", ch->name);
+		snprintf(buf, sizeof(buf), "spell_poison: null victim!, ch %s", ch->name);
 		bug(buf, 0);
 		return false;
 	}
@@ -283,7 +283,7 @@ SPELL_FUNC(spell_toxic_fumes)
 	victim = (CHAR_DATA *) vo;
 	if (!victim) {
 		char buf[MAX_STRING_LENGTH];
-		sprintf(buf, "spell_toxic_fumes: null victim!, ch %s", ch->name);
+		snprintf(buf, sizeof(buf), "spell_toxic_fumes: null victim!, ch %s", ch->name);
 		bug(buf, 0);
 		return false;
 	}

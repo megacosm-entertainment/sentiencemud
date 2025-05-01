@@ -770,7 +770,7 @@ SONG_DATA *load_song(FILE *fp)
 
 		if (!fMatch)
 		{
-			sprintf(buf, "load_song: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "load_song: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -857,7 +857,7 @@ bool load_songs(void)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "load_songs: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "load_songs: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}

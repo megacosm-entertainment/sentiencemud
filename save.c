@@ -1148,7 +1148,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     if (get_staff_rank(ch) > STAFF_PLAYER) {
 	/* If their immortal isn't found, give them a blank one so we don't segfault. */
 		if ((immortal = find_immortal(ch->name)) == NULL) {
-			sprintf(buf, "load_char_obj: no immortal_data found for immortal character %s!", ch->name);
+			snprintf(buf, sizeof(buf), "load_char_obj: no immortal_data found for immortal character %s!", ch->name);
 			bug(buf, 0);
 
 			immortal = new_immortal();
@@ -1159,7 +1159,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 			add_immortal(immortal);
 
 		} else { // Readjust the char's level accordingly.
-			sprintf(buf, "load_char_obj: reading immortal char %s.\n\r", ch->name);
+			snprintf(buf, sizeof(buf), "load_char_obj: reading immortal char %s.\n\r", ch->name);
 			log_string(buf);
 
 			ch->pcdata->immortal = immortal;
@@ -1304,7 +1304,7 @@ MISSION_PART_DATA *fread_mission_part(FILE *fp)
 		}
 
 	    if (!fMatch) {
-		    sprintf(buf, "fread_mission_part: no match for word %s", word);
+		    snprintf(buf, sizeof(buf), "fread_mission_part: no match for word %s", word);
 		    bug(buf, 0);
 		    fread_to_eol(fp);
 	    }
@@ -1381,7 +1381,7 @@ MISSION_DATA *fread_mission(FILE *fp)
 		}
 
 	    if (!fMatch) {
-		    sprintf(buf, "read_quest_part: no match for word %s", word);
+		    snprintf(buf, sizeof(buf), "read_quest_part: no match for word %s", word);
 		    bug(buf, 0);
 		    fread_to_eol(fp);
 	    }
@@ -1447,7 +1447,7 @@ AFFECT_DATA *fread_affect(FILE *fp)
 		}
 
 	    if (!fMatch) {
-		    sprintf(buf, "fread_affect: no match for word %s", word);
+		    snprintf(buf, sizeof(buf), "fread_affect: no match for word %s", word);
 		    bug(buf, 0);
 		    fread_to_eol(fp);
 	    }
@@ -1914,7 +1914,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		    }
 		    else
 		    {
-		        sprintf(buf,
+		        snprintf(buf, sizeof(buf),
 			"No church member found for %s, church_name %s",
 			    ch->name, ch->church_name);
 			log_string(buf);
@@ -1925,7 +1925,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		}
 		else
 		{
-                    sprintf(buf,
+			snprintf(buf, sizeof(buf),
 		    "Couldn't load ch church for %s, church %s",
 		        ch->name, ch->church_name);
 			bug(buf, 0);
@@ -2893,7 +2893,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 
 	if (!fMatch)
 	{
-	    sprintf(buf,
+	    snprintf(buf, sizeof(buf),
 	    "Fread_char: no match for ch %s on word %s.", ch->name, word);
 	    bug(buf, 0);
 	    fread_to_eol(fp);
@@ -3976,7 +3976,7 @@ LOCK_STATE *fread_lock_state(FILE *fp)
 
 
 		if (!fMatch) {
-			sprintf(buf, "fread_lock_state: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_lock_state: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4023,7 +4023,7 @@ AMMO_DATA *fread_obj_ammo_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_ammo_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_ammo_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4087,7 +4087,7 @@ ADORNMENT_DATA *fread_adornment_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_adornment_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_adornment_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4186,7 +4186,7 @@ ARMOR_DATA *fread_obj_armor_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_armor_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_armor_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4232,7 +4232,7 @@ BODY_PART_DATA *fread_obj_body_part_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_body_part_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_body_part_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4267,7 +4267,7 @@ BOOK_PAGE *fread_book_page(FILE *fp, char *closer)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_book_page: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_book_page: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4303,7 +4303,7 @@ BOOK_DATA *fread_obj_book_data(FILE *fp)
 
 					if (!book_insert_page(book, page))
 					{
-						sprintf(buf, "fread_obj_book_data: page with duplicate page number (%d) found!  Discarding.", page->page_no);
+						snprintf(buf, sizeof(buf), "fread_obj_book_data: page with duplicate page number (%d) found!  Discarding.", page->page_no);
 						bug(buf, 0);
 						free_book_page(page);	
 					}
@@ -4334,7 +4334,7 @@ BOOK_DATA *fread_obj_book_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_book_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_book_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4368,7 +4368,7 @@ CART_DATA *fread_obj_cart_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_cart_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_cart_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4410,7 +4410,7 @@ COMPASS_DATA *fread_obj_compass_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_compass_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_compass_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4515,7 +4515,7 @@ CONTAINER_DATA *fread_obj_container_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_container_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_container_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4590,7 +4590,7 @@ CORPSE_DATA *fread_obj_corpse_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_corpse_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_corpse_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4686,7 +4686,7 @@ FLUID_CONTAINER_DATA *fread_obj_fluid_container_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_fluid_container_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_fluid_container_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4732,7 +4732,7 @@ FOOD_BUFF_DATA *fread_food_buff(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_food_buff: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_food_buff: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4784,7 +4784,7 @@ FOOD_DATA *fread_obj_food_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_food_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_food_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4855,7 +4855,7 @@ FURNITURE_COMPARTMENT *fread_furniture_compartment(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_furniture_compartment: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_furniture_compartment: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4900,7 +4900,7 @@ FURNITURE_DATA *fread_obj_furniture_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_furniture_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_furniture_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4947,7 +4947,7 @@ INK_DATA *fread_obj_ink_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_ink_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_ink_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5028,7 +5028,7 @@ INSTRUMENT_DATA *fread_obj_instrument_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_instrument_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_instrument_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5080,7 +5080,7 @@ JEWELRY_DATA *fread_obj_jewelry_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_jewelry_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_jewelry_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5113,7 +5113,7 @@ LIGHT_DATA *fread_obj_light_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_light_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_light_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5163,7 +5163,7 @@ MAP_DATA *fread_obj_map_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_map_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_map_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5222,7 +5222,7 @@ MIST_DATA *fread_obj_mist_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_mist_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_mist_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5256,7 +5256,7 @@ MONEY_DATA *fread_obj_money_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_money_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_money_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5359,7 +5359,7 @@ PORTAL_DATA *fread_obj_portal_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_portal_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_portal_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5415,7 +5415,7 @@ SCROLL_DATA *fread_obj_scroll_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_scroll_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_scroll_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5444,7 +5444,7 @@ SEXTANT_DATA *fread_obj_sextant_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_sextant_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_sextant_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5501,7 +5501,7 @@ TATTOO_DATA *fread_obj_tattoo_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_tattoo_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_tattoo_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5543,7 +5543,7 @@ TELESCOPE_DATA *fread_obj_telescope_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_telescope_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_telescope_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5605,7 +5605,7 @@ WAND_DATA *fread_obj_wand_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_wand_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_wand_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5702,7 +5702,7 @@ WEAPON_DATA *fread_obj_weapon_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_weapon_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_weapon_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -6058,7 +6058,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			word   = fread_word(fp);
 		fMatch = false;
 
-//		sprintf(buf, "Fread_obj_new: word = '%s'", word);
+//		snprintf(buf, sizeof(buf), "Fread_obj_new: word = '%s'", word);
 //		bug(buf, 0);
 
 		switch (UPPER(word[0]))
@@ -6947,7 +6947,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				}
 				else
 				{
-					sprintf(buf, "Bad spell name for %s (%ld#%ld).", obj->short_descr, obj->pIndexData->area->uid, obj->pIndexData->vnum);
+					snprintf(buf, sizeof(buf), "Bad spell name for %s (%ld#%ld).", obj->short_descr, obj->pIndexData->area->uid, obj->pIndexData->vnum);
 					bug(buf,0);
 				}
 			}
@@ -7009,7 +7009,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 		if (!fMatch)
 		{
 			//char buf[MAX_STRING_LENGTH];
-			//sprintf(buf, "fread_obj: unknown obj flag %s", word);
+			//snprintf(buf, sizeof(buf), "fread_obj: unknown obj flag %s", word);
 			//bug(buf, 0);
 			fread_to_eol(fp);
 		}
@@ -7212,7 +7212,7 @@ void cleanup_affects(OBJ_DATA *obj)
 	    if (count > 1 && af->location == apply_type)
 	    {
 		affect_remove_obj(obj, af);
-		sprintf(buf, "cleanup_affects: obj %s (%ld)",
+		snprintf(buf, sizeof(buf), "cleanup_affects: obj %s (%ld)",
 		    obj->short_descr, obj->pIndexData->vnum);
 		bug(buf, 1);
 	    }
@@ -7722,7 +7722,7 @@ void descrew_subclasses(CHAR_DATA *ch)
     if (missing_class(ch) || (ch->pcdata->sub_class_mage != -1
     && (ch->pcdata->sub_class_mage < 3 || ch->pcdata->sub_class_mage > 5 )))
     {
-	sprintf(buf, "descrew_subclasses: %s had a non-mage class!",
+	snprintf(buf, sizeof(buf), "descrew_subclasses: %s had a non-mage class!",
 		ch->name);
 	bug(buf, 0);
 	if (ch->pcdata->group_known[group_lookup("necromancer skills")] == true)
@@ -7740,7 +7740,7 @@ void descrew_subclasses(CHAR_DATA *ch)
     if (missing_class(ch) || (ch->pcdata->sub_class_cleric != -1
     && (ch->pcdata->sub_class_cleric < 6 || ch->pcdata->sub_class_cleric > 8)))
     {
-	sprintf(buf, "descrew_subclasses: %s had a non-cleric class!",
+	snprintf(buf, sizeof(buf), "descrew_subclasses: %s had a non-cleric class!",
 		ch->name);
 	bug(buf, 0);
 	if (ch->pcdata->group_known[group_lookup("witch skills")] == true)
@@ -7758,7 +7758,7 @@ void descrew_subclasses(CHAR_DATA *ch)
     if (missing_class(ch) || (ch->pcdata->sub_class_thief != -1
     && (ch->pcdata->sub_class_thief < 9 || ch->pcdata->sub_class_thief > 11)))
     {
-	sprintf(buf, "descrew_subclasses: %s had a non-thief class!",
+	snprintf(buf, sizeof(buf), "descrew_subclasses: %s had a non-thief class!",
 		ch->name);
 	bug(buf, 0);
 
@@ -7777,7 +7777,7 @@ void descrew_subclasses(CHAR_DATA *ch)
     if (missing_class(ch) || (ch->pcdata->sub_class_thief != -1
     && (ch->pcdata->sub_class_warrior > 2)))
     {
-	sprintf(buf, "descrew_subclasses: %s had a non-warrior class!",
+	snprintf(buf, sizeof(buf), "descrew_subclasses: %s had a non-warrior class!",
 		ch->name);
 	bug(buf, 0);
 	if (ch->pcdata->group_known[group_lookup("marauder skills")] == true)
@@ -7965,7 +7965,7 @@ TOKEN_DATA *fread_token(FILE *fp)
 
 	wnum = fread_widevnum(fp, 0);
     if ((token_index = get_token_index_auid(wnum.auid, wnum.vnum)) == NULL) {
-		sprintf(buf, "fread_token: no token index found for widevnum %ld#%ld", wnum.auid, wnum.vnum);
+		snprintf(buf, sizeof(buf), "fread_token: no token index found for widevnum %ld#%ld", wnum.auid, wnum.vnum);
 		bug(buf, 0);
 		return NULL;
     }
@@ -8036,7 +8036,7 @@ TOKEN_DATA *fread_token(FILE *fp)
 		}
 
 	    if (!fMatch) {
-			sprintf(buf, "read_token: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_token: no match for word %s", word);
 			bug(buf, 0);
 			fread_to_eol(fp);
 	    }
@@ -8184,7 +8184,7 @@ void fread_skill(FILE *fp, CHAR_DATA *ch, bool is_song)
 		}
 
 	    if (!fMatch) {
-			sprintf(buf, "fread_skill: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_skill: no match for word %s", word);
 			bug(buf, 0);
 			fread_to_eol(fp);
 	    }
@@ -8237,7 +8237,7 @@ void fread_reputation(FILE *fp, CHAR_DATA *ch)
 		}
 
 	    if (!fMatch) {
-			sprintf(buf, "fread_reputation: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_reputation: no match for word %s", word);
 			bug(buf, 0);
 			fread_to_eol(fp);
 	    }
@@ -8360,7 +8360,7 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
 		}
 
 	    if (!fMatch) {
-		    sprintf(buf, "read_quest_part: no match for word %s", word);
+		    snprintf(buf, sizeof(buf), "read_quest_part: no match for word %s", word);
 		    bug(buf, 0);
 		    fread_to_eol(fp);
 	    }

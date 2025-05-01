@@ -632,7 +632,7 @@ HELP_CATEGORY *read_help_category_new(FILE *fp)
 	}
 
 	if (!fMatch) {
-	    sprintf(buf, "read_help_category_new: no match for word %s", word);
+	    snprintf(buf, sizeof(buf), "read_help_category_new: no match for word %s", word);
 	    bug(buf, 0);
 	}
     }
@@ -723,7 +723,7 @@ HELP_DATA *read_help_new(FILE *fp)
 	}
 
 	if (!fMatch) {
-	    sprintf(buf, "read_help_new: no match for word %s", word);
+	    snprintf(buf, sizeof(buf), "read_help_new: no match for word %s", word);
 	    bug(buf, 0);
 	}
     }

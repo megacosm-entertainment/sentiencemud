@@ -620,7 +620,7 @@ IMMORTAL_DATA *read_immortal(FILE *fp)
 		break;
 
 	    default:
-		sprintf(buf, "read_immortal: no match for word %s", word);
+		snprintf(buf, sizeof(buf),  "read_immortal: no match for word %s", word);
 		bug(buf, 0);
 		break;
 	}
@@ -633,12 +633,12 @@ IMMORTAL_DATA *read_immortal(FILE *fp)
 		// TEMPORARY
 		if( !load_char_obj(&d, immortal->name) )
 		{
-		    sprintf(buf, "read_immortal: attempting to correct created timestamp failed for %s", immortal->name);
+		    snprintf(buf, sizeof(buf),  "read_immortal: attempting to correct created timestamp failed for %s", immortal->name);
 		    bug(buf, 0);
 		}
 		else if( !d.character || !d.character->pcdata )
 	    {
-		    sprintf(buf, "read_immortal: attempting to correct created timestamp failed for %s", immortal->name);
+		    snprintf(buf, sizeof(buf),  "read_immortal: attempting to correct created timestamp failed for %s", immortal->name);
 		    bug(buf, 0);
 		}
 		else
@@ -650,7 +650,7 @@ IMMORTAL_DATA *read_immortal(FILE *fp)
 	}
 
 
-    sprintf(buf, "read_immortal: immortal %s", immortal->name);
+    snprintf(buf, sizeof(buf),  "read_immortal: immortal %s", immortal->name);
     log_string(buf);
     return immortal;
 }
