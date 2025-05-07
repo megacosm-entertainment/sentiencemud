@@ -10046,7 +10046,7 @@ void generate_discord_who() {
     }
 
     if (nMatch != nMatch2) {
-        fprintf(file, "\n\r\nPlayers found: %d\n", nMatch);
+        fprintf(file, "\n\r\nPlayers found: %d\n\r\n", nMatch);
     }
     fprintf(file, "Players online: %d\n\r\n", nMatch2);
 	fprintf(file, "Generated at <t:%ld:F>\n", (long)current_time);
