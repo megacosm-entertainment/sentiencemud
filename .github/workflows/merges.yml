@@ -13,12 +13,11 @@ jobs:
       - name: Extract Commit Details
         id: extract-commit
         run: |
-          cat $GITHUB_EVENT_PATH
           COMMIT_MESSAGE=$(jq -r '.head_commit.message' $GITHUB_EVENT_PATH)
           COMMIT_AUTHOR=$(jq -r '.head_commit.author.name' $GITHUB_EVENT_PATH)
           COMMIT_URL=$(jq -r '.head_commit.url' $GITHUB_EVENT_PATH)
           REPO_URL=$(jq -r '.repository.html_url' $GITHUB_EVENT_PATH)
-          PR_NUMBER=$(echo "$COMMIT_MESSAGE" | grep -oP '(?<=#)\d+')
+          PR_NUMBER=$(echo "$COMMIT_MESSAGE" | grep -o '#[0-9]\+' | sed 's/#//')
           if [[ -n "$PR_NUMBER" ]]; then
             PR_URL="$REPO_URL/pull/$PR_NUMBER"
           else
