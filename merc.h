@@ -7202,6 +7202,7 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
 #define DUMP_DIR		"../data/dump/"
 #define STATS_DIR		"../data/stats/"
 #define HELP_DIR		"../data/help/"
+#define PLAYER_LIST     SYSTEM_DIR "discord_who.txt"
 
 /*World files - Regarding things specifically for the game world. */
 #define PROJECTS_FILE	WORLD_DIR "projects.dat"

@@ -59,6 +59,7 @@ void check_relic_vanish(OBJ_DATA *relic);
 void update_invasion_quest();
 void instance_update();
 void dungeon_update();
+void generate_discord_who();
 
 /*
  * Handle all kinds of updates.
@@ -93,6 +94,7 @@ void update_handler(void)
 	save_projects();
 	save_immstaff();
 	save_instances();
+	generate_discord_who();
 	// Load stats every 12 hours.
 	if (current_time >= stats_load_time + 43200) 
 	{

@@ -9960,3 +9960,97 @@ void generate_reset_code(char* str, int str_len) {
     str--; // Move back to the last character
     *str = '\0'; // Add the null character at the end
 }
+
+void generate_discord_who() {
+    char buf[2 * MAX_STRING_LENGTH];
+    char level[50];
+    DESCRIPTOR_DATA *d;
+    int nMatch = 0;
+    int nMatch2 = 0;
+    CHAR_DATA *wch;
+    char classstr[100];
+    char racestr[100];
+    char *area_type;
+	char nocol[2 * MAX_STRING_LENGTH];
+
+    FILE *file;
+
+    // Open the file for writing
+    file = fopen(PLAYER_LIST, "w");
+    if (!file) {
+        log_string("Error: Unable to open discord_who.txt for writing.");
+        return;
+    }
+
+    fprintf(file, "Players in Sentience:\n\n");
+
+    // Count total visible players
+    for (d = descriptor_list; d != NULL; d = d->next) {
+        if (d->connected != CON_PLAYING)
+            continue;
+
+        wch = (d->original != NULL) ? d->original : d->character;
+
+        if (wch) {
+            if (IS_IMMORTAL(wch) && (wch->invis_level > 0 || wch->incog_level > 0)) // NULL since ch is no longer used
+                continue;
+            else
+                nMatch2++;
+        }
+    }
+
+    // Generate the who list
+    for (d = descriptor_list; d != NULL; d = d->next) {
+        wch = (d->original != NULL) ? d->original : d->character;
+
+        if (d->connected != CON_PLAYING || 
+            (IS_IMMORTAL(wch) && (wch->invis_level > 0 || wch->incog_level > 0)) || 
+            wch->invis_level > 0 || 
+            wch->incog_level > 0) {
+            continue;
+        }
+
+        if (wch->tot_level >= LEVEL_IMMORTAL)
+            strcpy(classstr, wch->pcdata->immortal->imm_flag);
+        else
+            strcpy(classstr, sub_class_table[get_profession(wch, SUBCLASS_CURRENT)].who_name[wch->sex]);
+
+        if (wch->race >= MAX_PC_RACE)
+            strcpy(racestr, "       ");
+        else
+            strcpy(racestr, pc_race_table[wch->race].who_name);
+
+        nMatch++;
+
+        area_type = get_char_where(wch);
+
+        if (IS_IMMORTAL(wch))
+            sprintf(level, "IMM");
+        else
+            sprintf(level, "%-3d", wch->tot_level);
+
+        sprintf(buf,
+                "[%s] [%-7s %-12s %-6s] %s",
+                level,
+                racestr,
+                classstr,
+                area_type,
+                wch->name);
+
+		STRIP_COLOUR(buf, nocol);
+
+        free_string(area_type);
+
+        // Strip color codes and write to file
+        fprintf(file, "%s\n", nocol);
+    }
+
+    if (nMatch != nMatch2) {
+        fprintf(file, "\nPlayers found: %d\n", nMatch);
+    }
+    fprintf(file, "Players online: %d\n", nMatch2);
+	fprintf(file, "Generated at <t:%ld:F>\n", (long)current_time);
+
+    // Close the file
+    fclose(file);
+}

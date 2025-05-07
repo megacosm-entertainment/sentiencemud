@@ -2013,6 +2013,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			if (wizlock && !IS_IMMORTAL(ch))
 			{
 				write_to_buffer(d, "The game is wizlocked.\n\r", 0);
+				write_to_buffer(d, "You can also check the server status via the '#server-status' channel on discord.\n\r", 0);
 				sprintf(buf, "The game is wizlocked, %s tried to connect from %s.", argument, d->host);
 				log_string(buf);
 				sprintf(buf, "Wizlocked: %s tried to connect from %s.", argument, d->host);
