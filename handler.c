@@ -9971,18 +9971,18 @@ void generate_discord_who() {
     char classstr[100];
     char racestr[100];
     char *area_type;
-	char nocol[2 * MAX_STRING_LENGTH];
+    char nocol[2 * MAX_STRING_LENGTH];
 
     FILE *file;
 
     // Open the file for writing
     file = fopen(PLAYER_LIST, "w");
     if (!file) {
-        log_string("Error: Unable to open discord_who.txt for writing.");
+        log_string("Error: Unable to open player list file for writing.");
         return;
     }
 
-    fprintf(file, "Players in Sentience:\n\n");
+    fprintf(file, "Players in Sentience:\n\n```\n");
 
     // Count total visible players
     for (d = descriptor_list; d != NULL; d = d->next) {
@@ -9992,7 +9992,7 @@ void generate_discord_who() {
         wch = (d->original != NULL) ? d->original : d->character;
 
         if (wch) {
-            if (IS_IMMORTAL(wch) && (wch->invis_level > 0 || wch->incog_level > 0)) // NULL since ch is no longer used
+            if (IS_IMMORTAL(wch) && (wch->invis_level > 0 || wch->incog_level > 0))
                 continue;
             else
                 nMatch2++;
@@ -10029,27 +10029,48 @@ void generate_discord_who() {
         else
             sprintf(level, "%-3d", wch->tot_level);
 
-        sprintf(buf,
-                "[%s] [%-7s %-12s %-6s] %s",
+		// Fix the church name formatting
+		char church_buf[100];
+		if (wch->church)
+    		snprintf(church_buf, sizeof(church_buf), "[%s] ", wch->church->name);
+		else
+    		church_buf[0] = '\0';
+
+        // Use snprintf to prevent buffer overflow
+        snprintf(buf, sizeof(buf),
+                "[%s] [%-7s %-12s %-6s] %s %s%s%s%s%s%s%s",
                 level,
                 racestr,
                 classstr,
                 area_type,
-                wch->name);
+                wch->name,
+				church_buf,
+                IS_SET(wch->act[0], PLR_BOTTER) ? "[BOTTER] " : "",
+                IS_SET(wch->act[0], PLR_HELPER) ? "[HELPER] " : "",
+                IS_SET(wch->comm, COMM_AFK) ? "[AFK] " : "",
+                IS_SET(wch->comm, COMM_QUIET) ? "[Q] " : "",
+                IS_SET(wch->act[0], PLR_PK) ? "[PK] " : "",
+                IS_SET(wch->act[0], PLR_BUILDING) ? "[Building] " : ""
+        );
+        
+        // Clear the buffer before stripping colors
+        memset(nocol, 0, sizeof(nocol));
+        
+        // Strip color codes
+        STRIP_COLOUR(buf, nocol);
 
-		STRIP_COLOUR(buf, nocol);
-
+        // Free dynamically allocated memory returned by get_char_where
         free_string(area_type);
 
-        // Strip color codes and write to file
+        // Write to file
         fprintf(file, "%s\n", nocol);
     }
 
     if (nMatch != nMatch2) {
-        fprintf(file, "\n\r\nPlayers found: %d\n\r\n", nMatch);
+        fprintf(file, "\nPlayers found: %d\n", nMatch);
     }
-    fprintf(file, "Players online: %d\n", nMatch2);
-	fprintf(file, "Generated at <t:%ld:F>\n", (long)current_time);
+    fprintf(file, "```\nPlayers online: %d\n", nMatch2);
+    fprintf(file, "Generated at <t:%ld:F>\n", (long)current_time);
 
     // Close the file
     fclose(file);
