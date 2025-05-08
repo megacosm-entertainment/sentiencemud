@@ -2885,9 +2885,15 @@ REDIT(redit_show)
 	        pRoom->vnum, pRoom->rs_sector->name,
 	        pRoom->x, pRoom->y, pRoom->z, pRoom->viewwilds->uid, pRoom->viewwilds->name);
     else
-        sprintf(buf, "Vnum:         {r[{x%5ld{r]{x\n\r"
-                     "Sector:       {r[{x%s{r]{x\n\r",
-	        pRoom->vnum, pRoom->rs_sector->name);
+		if (pRoom->rs_sector != NULL) {
+			sprintf(buf, "Vnum:         {r[{x%5ld{r]{x\n\r"
+						 "Sector:       {r[{x%s{r]{x\n\r",
+					pRoom->vnum, pRoom->rs_sector->name);
+		} else {
+			sprintf(buf, "Vnum:         {r[{x%5ld{r]{x\n\r"
+						 "Sector:       {r[NULL]{x\n\r",
+					pRoom->vnum);
+		}
 
     add_buf(buf1, buf);
 
