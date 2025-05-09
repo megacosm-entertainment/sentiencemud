@@ -9515,7 +9515,7 @@ void do_pwreset(CHAR_DATA *ch, char *argument)
 
 	if (type[0] == '\0')
 	{
-		send_to_char("Reset who's password?\n\rSyntax: pwreset <local|email> <character> [email]", ch);
+		send_to_char("Reset whose password?\n\rSyntax: pwreset <local|email> <character> [email]", ch);
 		return;
 	}
 
