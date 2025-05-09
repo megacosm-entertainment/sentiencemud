@@ -80,11 +80,6 @@
 void do_keygen(CHAR_DATA *ch, char *argument)
 {
     char buf[MSL];
-    if (argument[0] == '\0')
-    {
-        send_to_char("Syntax: keygen\n\r", ch);
-        return;
-    }
 
     if (IS_NPC(ch))
     {
@@ -181,7 +176,7 @@ void do_keygen(CHAR_DATA *ch, char *argument)
     }
     else
     {
-        send_to_char("Syntax: keygen <generate|clear|confirm>\n\r", ch);
+        send_to_char("Syntax: mfa <generate|clear|confirm>\n\r", ch);
         return;
     }
 }
