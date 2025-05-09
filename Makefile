@@ -2,7 +2,7 @@ CC      = gcc
 PROF    = -Wall -O -g -pg -ggdb
 OBJDIR	= obj
 VPATH   = .:obj
-LIBS = -lpthread -lz -lm -lrt -lssl -lcrypto -ldl -lcrypt -lquickmail
+LIBS = -lpthread -lz -lm -lrt -lssl -lcrypto -ldl -lcrypt -lquickmail  -lcotp -lqrencode -lpng
 C_FLAGS = $(PROF) -fcommon -DMALLOC_STDLIB -fstack-protector  -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer -DVERSION=\"$(GIT_VERSION)\" -DBUILD_DATE=\"$(CUR_BUILD_DATE)\" -DBUILD_NUMBER=\"$(CUR_BUILD_NUMBER)\" -DCOMMIT=\"$(GIT_URL)\"
 L_FLAGS =  $(PROF) $(LIBS)
 EXE	= sent
@@ -21,6 +21,7 @@ DIFF_TXT = diff_$(VERSION1)_$(VERSION2).txt
 DIFF_C = $(patsubst $(PATH1)/%.c,%_c.diff,$(wildcard $(PATH1)/*.c)) $(patsubst $(PATH1)/%.h,%_h.diff,$(wildcard $(PATH1)/*.h))
 
 C_FILES = \
+	account/otp.c \
 	act_comm.c \
 	act_enter.c \
 	act_info.c \
@@ -121,12 +122,14 @@ C_FILES = \
 	stats.c \
 	string.c \
 	tables.c \
+	tls.c \
 	treasuremap.c \
 	update.c \
 	weather.c \
 	wilds.c \
 
 O_FILES = \
+	$(OBJDIR)/account/otp.o \
 	$(OBJDIR)/act_comm.o \
 	$(OBJDIR)/act_enter.o \
 	$(OBJDIR)/act_info.o \
@@ -219,7 +222,6 @@ O_FILES = \
 	$(OBJDIR)/script_tpcmds.o \
 	$(OBJDIR)/script_vars.o \
 	$(OBJDIR)/scripts.o \
-	$(OBJDIR)/sha256.o \
 	$(OBJDIR)/shoot.o \
 	$(OBJDIR)/skills.o \
 	$(OBJDIR)/social.o \
@@ -228,6 +230,7 @@ O_FILES = \
 	$(OBJDIR)/stats.o \
 	$(OBJDIR)/string.o \
 	$(OBJDIR)/tables.o \
+	$(OBJDIR)/tls.o \
 	$(OBJDIR)/treasuremap.o \
 	$(OBJDIR)/update.o \
 	$(OBJDIR)/weather.o \
@@ -254,7 +257,8 @@ install: all
 
 objdir:
 	-mkdir obj
-	-chmod 775 obj
+	-mkdir obj/account
+	-chmod 775 obj obj/account
 
 $(EXE): $(O_FILES) $(BUILD_NUMBER_FILE)
 	rm -f $(EXE)

@@ -40,6 +40,8 @@
 #include <ctype.h>
 #include <time.h>
 #include <math.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 #include "strings.h"
 #include "merc.h"
 #include "interp.h"
@@ -50,7 +52,6 @@
 /* VIZZWILDS - Include wilds.h header */
 #include "wilds.h"
 #include "scripts.h"
-#include "sha256.h"
 
 
 bool can_see_imm(CHAR_DATA *ch, CHAR_DATA *victim);
@@ -1347,7 +1348,7 @@ void do_socials(CHAR_DATA * ch, char *argument)
     col = 0;
     for (iSocial = 0; social_table[iSocial].name[0] != '\0'; iSocial++)
     {
-	sprintf(buf, "%-12s", social_table[iSocial].name);
+	sprintf(buf, "%-12.12s", social_table[iSocial].name);
 	send_to_char(buf, ch);
 	if (++col % 6 == 0)
 	    send_to_char("\n\r", ch);

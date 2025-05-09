@@ -147,7 +147,24 @@ bool processCompressed(DESCRIPTOR_DATA *desc)
         for (iStart = 0; iStart < len; iStart += nWrite)
         {
             nBlock = UMIN (len - iStart, 4096);
-            if ((nWrite = write (desc->descriptor, desc->out_compress_buf + iStart, nBlock)) < 0)
+            if (desc->ssl) {
+                // If SSL is enabled, encrypt the data
+                nWrite = SSL_write(desc->ssl, desc->out_compress_buf + iStart, nBlock);
+                if (nWrite <= 0) {
+                    int err = SSL_get_error(desc->ssl, nWrite);
+                    if (err == SSL_ERROR_WANT_WRITE) {
+                        // The operation did not complete; the same I/O function should be called again later
+                        break;
+                    } else {
+                        fprintf(stderr, "SSL_write failed with error: %d\n", err);
+                        ERR_print_errors_fp(stderr);
+                        return false;
+                    }
+                }
+            } else {
+                // If SSL is not enabled, send the data as is
+                nWrite = write (desc->descriptor, desc->out_compress_buf + iStart, nBlock);
+                if (nWrite < 0)
             {
 #ifdef ENOSR
                 if (errno == EAGAIN || errno == ENOSR)
@@ -161,6 +178,7 @@ bool processCompressed(DESCRIPTOR_DATA *desc)
 
             if (nWrite <= 0)
                 break;
+            }
         }
 
         if (iStart) {

@@ -390,7 +390,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		if (ch->nextquest > 0 && !IS_IMMORTAL(ch) && port != PORT_RAE)
+		if (ch->nextquest > 0 && !IS_IMMORTAL(ch) && game_settings.telnet_port != PORT_RAE)
 		{
 			sprintf(buf, "You're very brave, %s, but let someone else have a chance.", ch->name);
 			if (mob == NULL)

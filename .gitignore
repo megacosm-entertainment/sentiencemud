@@ -49,3 +49,4 @@ nibtodo.txt
 send/
 nibchanges.txt
 .build/
+.depend

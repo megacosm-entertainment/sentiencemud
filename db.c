@@ -721,6 +721,16 @@ void fix_dungeonprogs(void);
 
 bool persist_load(void);
 
+void init_string_space()
+{
+	if ((string_space = calloc(1, MAX_STRING)) == NULL)
+	{
+	    bug("Boot_db: can't alloc %d string space.", MAX_STRING);
+	    exit(1);
+	}
+	top_string	= string_space;
+}
+
 /* Top-level booting function*/
 void boot_db(void)
 {

@@ -967,6 +967,28 @@ void interpret( CHAR_DATA *ch, char *argument )
 	}
     }
 
+	if (!IS_NPC(ch) && ch->pcdata->mfa_question)
+	{
+		if (command[0] != '\0')
+		{
+			    // Validate the MFA code
+        		if (check_mfa(ch, command)) {
+            		ch->pcdata->mfa_enabled = true;
+					ch->pcdata->qr_code_expiration = 0;
+            		send_to_char("Your MFA key has been validated and enabled.\n\r", ch);
+        		} else {
+            		send_to_char("The code you provided is incorrect. Please try '2fa confirm' again.\n\r", ch);
+        		}
+				ch->pcdata->mfa_question = false;
+				return;
+		}
+		else
+		{
+			send_to_char("{YEnter your MFA code:{x ", ch);
+			return;
+		}
+	}
+
     if (!IS_NPC(ch) && ch->pcdata->inquiry_subject != NULL) {
 	if (command[0] != '\0') {
 	    sprintf(buf, "%s %s", command, argument);

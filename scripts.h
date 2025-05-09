@@ -943,6 +943,7 @@ enum entity_conn_enum {
 	ENTITY_CONN_CONNECTION,
 	ENTITY_CONN_SNOOPER,
 	ENTITY_CONN_CLIENT,
+	ENTITY_CONN_SECURE,
 };
 
 enum entity_list_enum {

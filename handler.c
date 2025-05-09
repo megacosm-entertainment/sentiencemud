@@ -39,6 +39,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
+#include <libpng/png.h>
+#include <qrencode.h>
 #include "merc.h"
 #include "interp.h"
 #include "magic.h"
@@ -46,6 +48,7 @@
 #include "tables.h"
 #include "scripts.h"
 #include "wilds.h"
+#include "openssl/evp.h"
 
 extern LLIST *loaded_instances;
 
@@ -8312,93 +8315,113 @@ bool list_appendlist(LLIST *lp, LLIST *src)
 
 bool list_movelink(LLIST *lp, int from, int to)
 {
-	LLIST_LINK *old, *link, *new_link;
+    LLIST_LINK *old, *link, *new_link;
 
-	if( from < 0 ) from = lp->size + from + 1;
-	if( to < 0 ) to = lp->size + to + 1;
+    // Adjust negative indices
+    if (from < 0) from = lp->size + from + 1;
+    if (to < 0) to = lp->size + to + 1;
 
-	if( !from || !to ) return false;
+    // Check for invalid positions
+    if (from <= 0 || to <= 0 || from > lp->size || to > lp->size) return false;
 
-	if( from == to ) return true;	// "Moved" it! :D :D :D :D
+    // If from and to are the same, no need to move
+    if (from == to) return true;
 
-	//if( to > from ) --to;
+    if (lp)
+    {
+        old = NULL;
+        // Locate the 'from' node
+        for (link = lp->head; link && from > 0; link = link->next)
+            if (link->data)
+            {
+                --from;
+                if (!from)
+                {
+                    old = link;
+                    break;
+                }
+            }
 
-	if( lp )
-	{
-		old = NULL;
-		for(link = lp->head; link && from > 0; link = link->next)
-			if(link->data)
-			{
-				--from;
-				if( !from )
-				{
-					old = link;
-					break;
-				}
-			}
+        if (!old) return false;
 
-		if( !old )
-			return false;
+        // Locate the 'to' position
+        for (link = lp->head; link && to > 0; link = link->next)
+        {
+            if (link != old)
+            {
+                if ((to == 1) && (!link->data))
+                {
+                    // This is an empty link, reuse it
+                    link->data = old->data;
+                    old->data = NULL;
+                    return true;
+                }
 
-		for(link = lp->head; link && to > 0; link = link->next )
-		{
-			if(link != old)
-			{
-				if( (to == 1) && (!link->data) )
-				{
-					// This is an empty link, reuse it
-					link->data = old->data;
-					old->data = NULL;
-					return true;
-				}
+                if (link->data)
+                {
+                    if (!--to)
+                    {
+                        new_link = alloc_mem(sizeof(LLIST_LINK));
+                        if (!new_link) return false;
 
-				if( link->data )
-				{
-					if( !--to )
-					{
-						new_link = alloc_mem(sizeof(LLIST_LINK));
-						if( !new_link )
-							return false;
+                        new_link->data = old->data;
+                        old->data = NULL;
 
-						new_link->data = old->data;
-						old->data = NULL;
+                        if (link->prev)
+                        {
+                            new_link->next = link;
+                            new_link->prev = link->prev;
+                            link->prev->next = new_link;
+                            link->prev = new_link;
+                        }
+                        else
+                        {
+                            new_link->next = lp->head;
+                            lp->head->prev = new_link;
+                            lp->head = new_link;
+                            new_link->prev = NULL;
+                        }
 
-						if( link->prev )
-						{
-							new_link->next = link;
-							link->prev->next = new_link;
-							link->prev = new_link;
-						}
-						else
-						{
-							new_link->next = lp->head;
-							lp->head = new_link;
-							new_link->prev = NULL;
-						}
+                        // Update list size
+                        lp->size++;
+                        return true;
+                    }
+                }
+            }
+        }
 
-						return true;
-					}
-				}
-			}
-		}
+        if (to > 0)
+        {
+            // Needs to append if it's at the end
+            link = alloc_mem(sizeof(LLIST_LINK));
+            if (!link) return false;
 
-		if( to > 0 )
-		{
-			// Needs to append if it's at the end
-			link = alloc_mem(sizeof(LLIST_LINK));
-			if( !link )
-				return false;
+            if (!lp->head)
+                lp->head = link;
+            else
+                lp->tail->next = link;
+            link->prev = lp->tail;
+            lp->tail = link;
 
-			if( !lp->head )
-				lp->head = link;
-			else
-				lp->tail->next = link;
-			link->prev = lp->tail;
-			lp->tail = link;
+            link->data = old->data;
+            old->data = NULL;
 
-			link->data = old->data;
-			old->data = NULL;
-		}
+            // Update list size
+            lp->size++;
+        }
+
+        // Update head and tail if necessary
+        if (old == lp->head) lp->head = old->next;
+        if (old == lp->tail) lp->tail = old->prev;
+
+        // Remove old link from its current position
+        if (old->prev) old->prev->next = old->next;
+        if (old->next) old->next->prev = old->prev;
+
+        free(old);
+
+        // Update list size
+        lp->size--;
 	}
 
 	return false;
@@ -9828,14 +9851,14 @@ bool check_social_status(CHAR_DATA *ch)
 	return false;
 }
 
-void send_email(CHAR_DATA *ch, char *email, char *subject, char *message)
+void send_email(CHAR_DATA *ch, char *email, char *subject, char *message , char *attachment_filename, char *attachment_mime_type)
 {
 	char buf[MSL];
 	char subj_buf[256];
 	char body_buf[MSL*2];
 	char body_buf_html[MSL*5];
 
-	extern GLOBAL_DATA gconfig;
+	extern GAME_SETTINGS_DATA game_settings;
 
 
 	quickmail_initialize();
@@ -9845,7 +9868,7 @@ void send_email(CHAR_DATA *ch, char *email, char *subject, char *message)
 	else
 		sprintf(subj_buf, "Email from SentienceMUD");
 
-	quickmail mailobj = quickmail_create(gconfig.email_from_name, gconfig.email_from_addr, subj_buf);
+	quickmail mailobj = quickmail_create(game_settings.email_from_name, game_settings.email_from_addr, subj_buf);
 
 	quickmail_add_to(mailobj, email);
 
@@ -9859,9 +9882,14 @@ void send_email(CHAR_DATA *ch, char *email, char *subject, char *message)
 	quickmail_set_body(mailobj, body_buf);
 	quickmail_add_body_memory(mailobj, "text/html", body_buf_html, strlen(body_buf_html), 0);
 
+
+	if (attachment_filename && attachment_mime_type) {
+		quickmail_add_attachment_file(mailobj, attachment_filename, attachment_mime_type);
+	}
+
 	const char* errmsg;
 
-	if ((errmsg = quickmail_send(mailobj, gconfig.email_host, gconfig.email_port, gconfig.email_username, gconfig.email_password)) != NULL)
+	if ((errmsg = quickmail_send(mailobj, game_settings.email_host, game_settings.email_port, game_settings.email_username, game_settings.email_password)) != NULL)
     	fprintf(stderr, "Error sending e-mail: %s\n", errmsg);
   	quickmail_destroy(mailobj);
   	quickmail_cleanup();
@@ -9905,29 +9933,35 @@ struct EmailData {
     char *email;
     char *subject;
     char *message;
+	char *attachment_filename;
+	char *attachment_mime_type;
 };
 
 // Function executed by the email thread
 void *send_email_thread(void *arg) {
     struct EmailData *emailData = (struct EmailData *)arg;
 
-	send_email(emailData->ch, emailData->email, emailData->subject, emailData->message);
+	send_email(emailData->ch, emailData->email, emailData->subject, emailData->message, emailData->attachment_filename, emailData->attachment_mime_type);
 
     // Clean up and exit the thread
     free(emailData->subject);
     free(emailData->message);
+	free(emailData->attachment_filename);
+	free(emailData->attachment_mime_type);
     free(emailData);
     pthread_exit(NULL);
 }
 
 // Function to send an email asynchronously
-void send_email_async(CHAR_DATA *ch, char *email, char *subject, char *message) {
+void send_email_async(CHAR_DATA *ch, char *email, char *subject, char *message , char *attachment_filename, char *attachment_mime_type) {
     // Allocate memory for the email data
     struct EmailData *emailData = (struct EmailData *)malloc(sizeof(struct EmailData));
     emailData->ch = ch;
     emailData->email = email;
     emailData->subject = strdup(subject); // Duplicate the subject string
     emailData->message = strdup(message); // Duplicate the message string
+    emailData->attachment_filename = attachment_filename ? strdup(attachment_filename) : NULL;
+    emailData->attachment_mime_type = attachment_mime_type ? strdup(attachment_mime_type) : NULL;
 
     // Create a new thread for email dispatching
     pthread_t emailThread;
@@ -9959,6 +9993,101 @@ void generate_reset_code(char* str, int str_len) {
     }
     str--; // Move back to the last character
     *str = '\0'; // Add the null character at the end
+}
+
+char *sha256_crypt(const char *pwd) {
+    EVP_MD_CTX *context = EVP_MD_CTX_new();
+    static char output[65];
+    unsigned char sha256sum[32];
+    unsigned int j;
+
+    if (context == NULL) {
+        return NULL; // Handle error
+    }
+
+    if (EVP_DigestInit_ex(context, EVP_sha256(), NULL) != 1) {
+        EVP_MD_CTX_free(context);
+        return NULL; // Handle error
+    }
+
+    if (EVP_DigestUpdate(context, pwd, strlen(pwd)) != 1) {
+        EVP_MD_CTX_free(context);
+        return NULL; // Handle error
+    }
+
+    if (EVP_DigestFinal_ex(context, sha256sum, NULL) != 1) {
+        EVP_MD_CTX_free(context);
+        return NULL; // Handle error
+    }
+
+    for (j = 0; j < 32; ++j) {
+        snprintf(output + j * 2, 3, "%02x", sha256sum[j]);
+    }
+
+    EVP_MD_CTX_free(context);
+    return output;
+}
+
+void save_qr_code_as_png(QRcode *qrcode, const char *filename, int scale_factor) {
+    int scaled_width = qrcode->width * scale_factor;
+    FILE *fp = fopen(filename, "wb");
+    if (!fp) {
+        perror("fopen");
+        return;
+    }
+
+    png_structp png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    if (!png) {
+        fclose(fp);
+        return;
+    }
+
+    png_infop info = png_create_info_struct(png);
+    if (!info) {
+        png_destroy_write_struct(&png, NULL);
+        fclose(fp);
+        return;
+    }
+
+    if (setjmp(png_jmpbuf(png))) {
+        png_destroy_write_struct(&png, &info);
+        fclose(fp);
+        return;
+    }
+
+    png_init_io(png, fp);
+
+    png_set_IHDR(
+        png,
+        info,
+        scaled_width,
+        scaled_width,
+        8,
+        PNG_COLOR_TYPE_GRAY,
+        PNG_INTERLACE_NONE,
+        PNG_COMPRESSION_TYPE_DEFAULT,
+        PNG_FILTER_TYPE_DEFAULT
+    );
+
+    png_write_info(png, info);
+
+    for (int y = 0; y < qrcode->width; y++) {
+        for (int sy = 0; sy < scale_factor; sy++) {
+            png_bytep row = (png_bytep)malloc(scaled_width * sizeof(png_byte));
+            for (int x = 0; x < qrcode->width; x++) {
+                png_byte pixel = (qrcode->data[y * qrcode->width + x] & 1) ? 0 : 255;
+                for (int sx = 0; sx < scale_factor; sx++) {
+                    row[x * scale_factor + sx] = pixel;
+                }
+            }
+            png_write_row(png, row);
+            free(row);
+        }
+    }
+
+    png_write_end(png, NULL);
+    png_destroy_write_struct(&png, &info);
+    fclose(fp);
 }
 
 void generate_discord_who() {

@@ -1033,10 +1033,10 @@ CMDEDIT ( cmdedit_summary )
 CMDEDIT ( cmdedit_order )
 {
 
-
+/*
     send_to_char("Disabled pending further work.\n\r", ch);
     return false;
-
+*/
 
     CMD_DATA *command;
 

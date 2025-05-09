@@ -182,7 +182,7 @@ static int olc_script_typeifc[] = {
 // Testports have reduced security checks
 bool script_security_check(CHAR_DATA *ch)
 {
-	if(port == PORT_NORMAL)
+	if(!game_settings.testport)
 		return (bool)(!IS_NPC(ch) && ch->tot_level >= (MAX_LEVEL-1));
 	else
 		return true;
@@ -190,7 +190,7 @@ bool script_security_check(CHAR_DATA *ch)
 
 bool script_imp_check(CHAR_DATA *ch)
 {
-	if(port == PORT_NORMAL)
+	if(!game_settings.testport)
 		return (bool)(!IS_NPC(ch) && ch->tot_level == MAX_LEVEL);
 	else
 		return (bool)(!IS_NPC(ch) && ch->tot_level >= (MAX_LEVEL-1));
