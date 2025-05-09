@@ -465,6 +465,7 @@ ENT_FIELD entity_conn[] = {
 	{"connection",	ENTITY_CONN_CONNECTION,		ENT_NUMBER	},
 	{"snooper",		ENTITY_CONN_SNOOPER,		ENT_CONN	},
 	{"client",		ENTITY_CONN_CLIENT,			ENT_STRING	},
+	{"secure",		ENTITY_CONN_SECURE,			ENT_BOOLEAN },
 	{NULL,		0,			ENT_UNKNOWN	}
 };
 

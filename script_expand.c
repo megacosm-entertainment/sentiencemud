@@ -1079,13 +1079,13 @@ char *expand_entity_game(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_GAME_NAME:
 		arg->type = ENT_STRING;
 		clear_buf(arg->buffer);
-		add_buf(arg->buffer, "Sentience");
+		add_buf(arg->buffer, game_settings.game_name);
 		arg->d.str = buf_string(arg->buffer);
 		break;
 
 	case ENTITY_GAME_PORT:
 		arg->type = ENT_NUMBER;
-		arg->d.num = port;
+		arg->d.num = game_settings.telnet_port;
 		break;
 
 	case ENTITY_GAME_PLAYERS:
@@ -3488,6 +3488,10 @@ char *expand_entity_conn(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_CONN_CLIENT:
 		arg->type = ENT_STRING;
 		arg->d.str = (arg->d.conn && (script_security >= MAX_SCRIPT_SECURITY)) ? arg->d.conn->pProtocol->pVariables[eMSDP_CLIENT_ID]->pValueString : "Unknown";
+		break;
+	case ENTITY_CONN_SECURE:
+		arg->type = ENT_BOOLEAN;
+		arg->d.boolean = (arg->d.conn && (script_security >= MAX_SCRIPT_SECURITY) && arg->d.conn->ssl) ? true : false;
 		break;
 	default: return NULL;
 	}
