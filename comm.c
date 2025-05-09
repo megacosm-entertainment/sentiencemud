@@ -2639,6 +2639,10 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 				sprintf(reset_msg, "Your password reset code is: %s.\nPlease note that this code will expire after 24 hours.\n\r", d->character->pcdata->reset_code);
 
 				send_email_async(d->character, d->character->pcdata->email, reset_subject, reset_msg, NULL, NULL);
+
+				sprintf(log_buf, "Password reset email sent to %s for %s", d->character->pcdata->email, d->character->name);
+				log_string(log_buf);
+				wiznet(log_buf, ch, NULL, WIZ_LOGINS, 0, 154);
 				d->connected = CON_GET_OLD_PASSWORD;
 				return;
 			}
