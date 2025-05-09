@@ -108,6 +108,8 @@ void join_world args ((DESCRIPTOR_DATA * d));
  * External functions.
  */
 extern void boat_attack(CHAR_DATA *ch);
+extern void init_string_space();
+
 
 
 /*
@@ -412,7 +414,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-
+	init_string_space();
 
     /*
      * Init time.
