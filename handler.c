@@ -10161,7 +10161,7 @@ void generate_discord_who() {
 		// Fix the church name formatting
 		char church_buf[100];
 		if (wch->church)
-    		snprintf(church_buf, sizeof(church_buf), "[%s] ", wch->church->name);
+    		snprintf(church_buf, sizeof(church_buf), "[%s] ", wch->church->flag);
 		else
     		church_buf[0] = '\0';
 
