@@ -3288,6 +3288,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		list_appendlink(loaded_chars, ch);
 		// Temprarily disabled for reconnect crash
 		// list_appendlink(loaded_players, ch);
+		ProtocolNoEcho(d,false);
 		d->connected	= CON_PLAYING;
 
 		if (ch->pcdata->old_pwd != NULL)
@@ -3672,7 +3673,7 @@ bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
 				sprintf(log_buf, "%s@%s reconnected.", ch->name, d->host);
 				log_string(log_buf);
 				wiznet("$N has relinked.", ch,NULL,WIZ_LINKS,0,0);
-
+				ProtocolNoEcho(d,false);
 				d->connected = CON_PLAYING;
 				MXPSendTag(d,"<VERSION>");
 
