@@ -17,17 +17,28 @@ jobs:
           COMMIT_AUTHOR=$(jq -r '.head_commit.author.name' $GITHUB_EVENT_PATH)
           COMMIT_URL=$(jq -r '.head_commit.url' $GITHUB_EVENT_PATH)
           REPO_URL=$(jq -r '.repository.html_url' $GITHUB_EVENT_PATH)
+
+          # Extract PR number (if present)
           PR_NUMBER=$(echo "$COMMIT_MESSAGE" | grep -o '#[0-9]\+' | sed 's/#//')
+
+          # Default to commit URL if PR_NUMBER is empty
           if [[ -n "$PR_NUMBER" ]]; then
             PR_URL="$REPO_URL/pull/$PR_NUMBER"
           else
             PR_URL="$COMMIT_URL"
+            PR_NUMBER="" 
           fi
+
+          # Safely write to environment variables
           echo "commit_message=$COMMIT_MESSAGE" >> $GITHUB_ENV
           echo "commit_author=$COMMIT_AUTHOR" >> $GITHUB_ENV
           echo "commit_url=$COMMIT_URL" >> $GITHUB_ENV
           echo "pr_url=$PR_URL" >> $GITHUB_ENV
-          echo "pr_number=$PR_NUMBER" >> $GITHUB_ENV
+
+          # Only write PR_NUMBER to $GITHUB_ENV if it exists
+          if [[ -n "$PR_NUMBER" ]]; then
+            echo "pr_number=$PR_NUMBER" >> $GITHUB_ENV
+          fi
 
       - name: Fetch PR Details
         if: env.pr_number != ''
