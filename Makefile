@@ -93,6 +93,7 @@ C_FILES = \
 	missions.c \
 	mount.c \
 	music.c \
+	nanny.c \
 	note.c \
 	olc.c \
 	olc_act.c \
@@ -205,6 +206,7 @@ O_FILES = \
 	$(OBJDIR)/missions.o \
 	$(OBJDIR)/mount.o \
 	$(OBJDIR)/music.o \
+	$(OBJDIR)/nanny.o \
 	$(OBJDIR)/note.o \
 	$(OBJDIR)/olc.o \
 	$(OBJDIR)/olc_act.o \

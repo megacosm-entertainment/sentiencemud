@@ -291,12 +291,6 @@ int gconfig_read (void)
                 KEY ("NextVlinkUID", gconfig.next_vlink_uid, fread_number(fp));
                 KEY ("NextChurchUID", gconfig.next_church_uid, fread_number(fp));
 				KEY ("NextChurchVnumStart", gconfig.next_church_vnum_start, fread_number(fp));
-
-                if(!str_cmp(word,"Newlock")) {
-					newlock = true;
-					fMatch = true;
-					break;
-				}
 	            break;
 			case 'O':
 				{
@@ -330,21 +324,6 @@ int gconfig_read (void)
 						fMatch = true;
 						break;
 					}
-				}
-				break;
-
-			case 'T':
-                if(!str_cmp(word,"Testport")) {
-					is_test_port = true;
-					fMatch = true;
-					break;
-				}
-				break;
-			case 'W':
-                if(!str_cmp(word,"Wizlock")) {
-					wizlock = true;
-					fMatch = true;
-					break;
 				}
 				break;
 
@@ -384,6 +363,7 @@ int game_settings_read (void)
 	game_settings.login_string = "";
 	game_settings.server_description = "";
 	game_settings.testport = false;
+	game_settings.dev_server = false;
 	game_settings.wizlock = false;
 	game_settings.new_acct_lock = false;
 	game_settings.new_char_lock = false;
@@ -395,6 +375,8 @@ int game_settings_read (void)
 	/* Auth */
 	game_settings.require_uniq_pass_staff = false;
 	game_settings.max_login_attempts = 0;
+	game_settings.enable_passwd = true;
+	game_settings.enable_mfa = true;
 
 	/* 2FA */
 	game_settings.require_2fa_all = false;
@@ -544,6 +526,8 @@ int game_settings_read (void)
 				KEY("EmailPort", game_settings.email_port, fread_number(fp));
 				KEY("EmailFromAddr", game_settings.email_from_addr, fread_string(fp));
 				KEY("EmailFromName", game_settings.email_from_name, fread_string(fp));
+				KEY("EnablePasswd", game_settings.enable_passwd, fread_number(fp));
+				KEY("EnableMFA", game_settings.enable_mfa, fread_number(fp));
                 if (!str_cmp(word, "END"))
                 {
 					if (game_settings.idle_disconnect_time <= 0)
@@ -877,6 +861,8 @@ int game_settings_write(void)
     fprintf(fp, "Require_2FA_All %d\n", game_settings.require_2fa_all);
     fprintf(fp, "Require_2FA_Staff %d\n", game_settings.require_2fa_staff);
     fprintf(fp, "RequireUniqPassStaff %d\n", game_settings.require_uniq_pass_staff);
+	fprintf(fp, "EnablePasswd %d\n", game_settings.enable_passwd);
+	fprintf(fp, "EnableMFA %d\n", game_settings.enable_mfa);
 
 	/* Timeouts */
     fprintf(fp, "IdleDisconnectTimeout %d\n",  game_settings.idle_disconnect_time);

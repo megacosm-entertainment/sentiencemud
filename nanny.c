@@ -23,22 +23,21 @@
 #include "protocol.h"
 
 
+extern bool	check_parse_name	args((char *name));
+extern bool	check_reconnect		args((DESCRIPTOR_DATA *d, char *name, bool fConn));
+extern bool	check_playing		args((DESCRIPTOR_DATA *d, char *name));
+extern bool acceptablePassword(DESCRIPTOR_DATA *d, char *pass);
+extern void add_possible_subclasses(CHAR_DATA *ch, char *string);
+extern void add_possible_races(CHAR_DATA *ch, char *string);
+extern void save_area_list();
+extern void save_area_new(AREA_DATA *area);
 
 void login_get_name(DESCRIPTOR_DATA *d, char *argument)
 {
 
-	DESCRIPTOR_DATA *d_old, *d_next, *d2;
 	char buf[MAX_STRING_LENGTH];
-	char arg[MAX_INPUT_LENGTH];
-	char races[MSL];
 	CHAR_DATA *ch;
-	char *pwdnew;
-	int i;
-	RACE_DATA *race;
 	bool fOld;
-	long playernum;
-	HELP_DATA *help;
-	long vector, *field;
 
 
 	while (ISSPACE(*argument))
@@ -173,7 +172,11 @@ void login_get_name(DESCRIPTOR_DATA *d, char *argument)
             return;
         }
 
-        if(telnet_port == PORT_ALPHA) newlock = true;	/* Reset the newlock, even if this one fails to do anything...*/
+        if(game_settings.dev_server) 
+        {
+            game_settings.new_char_lock = true;	
+            game_settings.new_acct_lock = true;
+        }
 
         sprintf(buf, "\n\rDo you want to create a character named %s (Y/N)? ", argument);
         write_to_buffer(d, buf, 0);
@@ -185,6 +188,12 @@ void login_get_name(DESCRIPTOR_DATA *d, char *argument)
 
 void login_get_old_passwd(DESCRIPTOR_DATA *d, char *argument)
 {
+	CHAR_DATA *ch;
+
+	while (ISSPACE(*argument))
+		argument++;
+
+	ch = d->character;
     write_to_buffer(d, "\n\r", 2);
 
     if (d->login_attempts >= game_settings.max_login_attempts)
@@ -315,8 +324,8 @@ void login_get_old_passwd(DESCRIPTOR_DATA *d, char *argument)
         send_to_char("{BWelcome, Immortal.{x\n\r\n\r", ch);
         do_function(ch, &do_imotd, "");
         if(IS_IMPLEMENTOR(ch)) {
-            if(wizlock) send_to_char("\n\r{b-{B==={C=={W[ {YWIZLOCK ACTIVE{W ]{C=={B==={b-{x\n\r", ch);
-            if(newlock) send_to_char("\n\r{b-{B==={C=={W[ {GNEWLOCK ACTIVE{W ]{C=={B==={b-{x\n\r", ch);
+            if(game_settings.wizlock) send_to_char("\n\r{b-{B==={C=={W[ {YWIZLOCK ACTIVE{W ]{C=={B==={b-{x\n\r", ch);
+            if(game_settings.new_char_lock || game_settings.new_acct_lock) send_to_char("\n\r{b-{B==={C=={W[ {GNEWLOCK ACTIVE{W ]{C=={B==={b-{x\n\r", ch);
         }
         send_to_char("\n\r{WCurrent active projects:{x\n\r", ch);
         do_function(ch, &do_project, "list open");
@@ -332,6 +341,13 @@ void login_get_old_passwd(DESCRIPTOR_DATA *d, char *argument)
 
 void login_get_mfa(DESCRIPTOR_DATA *d, char *argument)
 {
+
+	CHAR_DATA *ch;
+
+	while (ISSPACE(*argument))
+		argument++;
+
+	ch = d->character;
     if (check_mfa(ch, argument))
     {
 
@@ -379,6 +395,13 @@ void login_get_mfa(DESCRIPTOR_DATA *d, char *argument)
 
 void login_confirm_email_for_reset(DESCRIPTOR_DATA *d, char *argument)
 {
+
+	CHAR_DATA *ch;
+
+	while (ISSPACE(*argument))
+		argument++;
+
+	ch = d->character;
     char reset_msg[MSL], reset_subject[MSL];
 		
 		
@@ -427,6 +450,13 @@ void login_confirm_email_for_reset(DESCRIPTOR_DATA *d, char *argument)
 
 void login_change_passwd_initial(DESCRIPTOR_DATA *d, char *argument)
 {
+	CHAR_DATA *ch;
+	char *pwdnew;
+
+	while (ISSPACE(*argument))
+		argument++;
+
+	ch = d->character;
     if (argument[0] == '\0')
     {
         d->connected = CON_CHANGE_PASSWORD;
@@ -467,6 +497,13 @@ void login_change_passwd_initial(DESCRIPTOR_DATA *d, char *argument)
 
 void login_change_passwd_confirm(DESCRIPTOR_DATA *d, char *argument)
 {
+
+	CHAR_DATA *ch;
+
+	while (ISSPACE(*argument))
+		argument++;
+
+	ch = d->character;
     if (strcmp(sha256_crypt(argument), ch->pcdata->pwd))
     {
         write_to_buffer(d, "Passwords don't match.\n\rPassword: ", 0);
@@ -497,6 +534,13 @@ void login_change_passwd_confirm(DESCRIPTOR_DATA *d, char *argument)
 
 void login_break_connect(DESCRIPTOR_DATA *d, char *argument)
 {
+    DESCRIPTOR_DATA *d_old, *d_next;
+	CHAR_DATA *ch;
+
+	while (ISSPACE(*argument))
+		argument++;
+
+	ch = d->character;
     switch(*argument)
     {
     case 'y' : case 'Y':
@@ -541,6 +585,14 @@ void login_break_connect(DESCRIPTOR_DATA *d, char *argument)
 
 void login_confirm_new_name(DESCRIPTOR_DATA *d, char *argument)
 {
+
+	char buf[MAX_STRING_LENGTH];
+	CHAR_DATA *ch;
+
+	while (ISSPACE(*argument))
+		argument++;
+
+	ch = d->character;
     switch (*argument)
     {
     case 'y': case 'Y':
@@ -566,6 +618,13 @@ void login_confirm_new_name(DESCRIPTOR_DATA *d, char *argument)
 
 void login_get_new_passwd(DESCRIPTOR_DATA *d, char *argument)
 {
+	CHAR_DATA *ch;
+	char *pwdnew;
+
+	while (ISSPACE(*argument))
+		argument++;
+
+	ch = d->character;
     write_to_buffer(d, "\n\r", 2);
     if (!acceptablePassword(d, argument))
         return;
@@ -583,6 +642,12 @@ void login_get_new_passwd(DESCRIPTOR_DATA *d, char *argument)
 
 void login_confirm_new_passwd(DESCRIPTOR_DATA *d, char *argument)
 {
+	CHAR_DATA *ch;
+
+	while (ISSPACE(*argument))
+		argument++;
+
+	ch = d->character;
     write_to_buffer(d, "\n\r", 2);
 
     if (strcmp(sha256_crypt(argument), ch->pcdata->pwd))
@@ -605,6 +670,12 @@ void login_confirm_new_passwd(DESCRIPTOR_DATA *d, char *argument)
 
 void login_get_ascii(DESCRIPTOR_DATA *d, char *argument)
 {
+	CHAR_DATA *ch;
+
+	while (ISSPACE(*argument))
+		argument++;
+
+	ch = d->character;
     switch (argument[0])
     {
     case 'y': case 'Y':
@@ -629,6 +700,12 @@ void login_get_ascii(DESCRIPTOR_DATA *d, char *argument)
 
 void login_get_alignment(DESCRIPTOR_DATA *d, char *argument)
 {
+	CHAR_DATA *ch;
+
+	while (ISSPACE(*argument))
+		argument++;
+
+	ch = d->character;
     switch (argument[0])
     {
     case 'g' : case 'G' : ch->alignment = 750;  break;
@@ -688,6 +765,19 @@ void login_get_alignment(DESCRIPTOR_DATA *d, char *argument)
 
 void login_get_new_race(DESCRIPTOR_DATA *d, char *argument)
 {
+
+	char buf[MAX_STRING_LENGTH];
+	char arg[MAX_INPUT_LENGTH];
+	char races[MSL];
+	CHAR_DATA *ch;
+	int i;
+	RACE_DATA *race;
+	HELP_DATA *help;
+
+	while (ISSPACE(*argument))
+		argument++;
+
+	ch = d->character;
     one_argument(argument,arg);
 
     sprintf(races, "\n\r{YChoose your race");
@@ -718,31 +808,31 @@ void login_get_new_race(DESCRIPTOR_DATA *d, char *argument)
         }
 
         send_to_char(races, ch);
-        break;
+        return;
     }
 
     if (arg[0] == '\0') {
         send_to_char(races, ch);
-        break;
+        return;
     }
 
     race = get_race_data(argument);
     if (!IS_VALID(race)) {
         send_to_char("There is no such race.\n\r", ch);
         send_to_char(races, ch);
-        break;
+        return;
     }
 
     if (!race->playable || race == gr_shaper) {
         send_to_char("That isn't a player race.\n\r", ch);
         send_to_char(races, ch);
-        break;
+        return;
     }
 
     if (race->remort) {
         send_to_char("You cannot choose that race.\n\r", ch);
         send_to_char(races, ch);
-        break;
+        return;
     }
 
 #if 0
@@ -807,6 +897,16 @@ void login_get_new_race(DESCRIPTOR_DATA *d, char *argument)
 
 void login_get_new_sex(DESCRIPTOR_DATA *d, char *argument)
 {
+    //char buf[MAX_STRING_LENGTH];
+	CHAR_DATA *ch;
+	int i;
+	long vector, *field;
+
+
+	while (ISSPACE(*argument))
+		argument++;
+
+	ch = d->character;
     switch (argument[0])
     {
     case 'm': case 'M': ch->sex = ch->pcdata->true_sex = SEX_MALE; break;
@@ -858,7 +958,7 @@ void login_get_new_sex(DESCRIPTOR_DATA *d, char *argument)
     ch->pcdata->last_ready_check = 0;
 
     send_to_char("\n\r{YPress ENTER to begin your journey, adventurer!{W\n\r", ch);
-    buf[0] = '\0';
+//    buf[0] = '\0';
 
     /* Set up default toggles*/
     for (i = 0; pc_set_table[i].name != NULL; i++)
@@ -899,8 +999,16 @@ void login_get_new_sex(DESCRIPTOR_DATA *d, char *argument)
     d->connected = CON_READ_MOTD;
 }
 
-void login_read_imotd(DESCRIPTOR_DATA *d, char *argument);
+void login_read_imotd(DESCRIPTOR_DATA *d, char *argument)
 {
+	CHAR_DATA *ch;
+
+
+	while (ISSPACE(*argument))
+		argument++;
+
+	ch = d->character;
+
     write_to_buffer(d,"\n\r",2);
     do_function(ch, &do_motd, "");
     d->connected = CON_READ_MOTD;
@@ -908,6 +1016,18 @@ void login_read_imotd(DESCRIPTOR_DATA *d, char *argument);
 
 void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
 {
+    DESCRIPTOR_DATA *d2;
+	char buf[MAX_STRING_LENGTH];
+	CHAR_DATA *ch;
+	long playernum;
+    extern char str_boot_time[MAX_INPUT_LENGTH];
+    extern bool fBootstrap;
+
+
+	while (ISSPACE(*argument))
+		argument++;
+
+	ch = d->character;
     		/* VIZZMARK */
 		if (ch->pcdata == NULL || ch->pcdata->pwd[0] == '\0')
 		{
@@ -1191,6 +1311,14 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
 
 void login_get_email(DESCRIPTOR_DATA *d, char *argument)
 {
+	CHAR_DATA *ch;
+
+
+	while (ISSPACE(*argument))
+		argument++;
+
+	ch = d->character;
+
     if (argument[0] == '\0') {
         send_to_char("Enter your e-mail address: ", ch);
         return;
@@ -1218,24 +1346,10 @@ void login_get_email(DESCRIPTOR_DATA *d, char *argument)
 
 void nanny(DESCRIPTOR_DATA *d, char *argument)
 {
-	DESCRIPTOR_DATA *d_old, *d_next, *d2;
-	char buf[MAX_STRING_LENGTH];
-	char arg[MAX_INPUT_LENGTH];
-	char races[MSL];
-	CHAR_DATA *ch;
-	char *pwdnew;
-	int i;
-	RACE_DATA *race;
-	bool fOld;
-	long playernum;
-	HELP_DATA *help;
-	long vector, *field;
 
 
 	while (ISSPACE(*argument))
 		argument++;
-
-	ch = d->character;
 
 	switch (d->connected) {
 	default:

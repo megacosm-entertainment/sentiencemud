@@ -1523,6 +1523,9 @@ struct game_settings_data
     char    *login_string;                  // Login string to present on connection.
     char    *server_description;            // Description of server, eg. "2.0 Public Test Server"
     bool    testport;                       // Is this a testport?
+    bool    dev_server;                     // Is this a dev/alpha server?
+    bool    enable_passwd;                  // Require passwords?
+    bool    enable_mfa;                     // Enable multifactor authentication? 
     bool    wizlock;                        // Deny non-staff character logins?
     char    *wizlock_msg;                   // Message to display to players when they try to login if game is wizlocked.
     bool    new_acct_lock;                  // Deny making new accounts?
@@ -11776,6 +11779,17 @@ extern LLIST *loaded_wilds;
 void connection_add(DESCRIPTOR_DATA *d);
 void connection_remove(DESCRIPTOR_DATA *d);
 
+
+void nanny(DESCRIPTOR_DATA *d, char *argument);
+void login_get_name(DESCRIPTOR_DATA *d, char *argument);
+void login_get_old_passwd(DESCRIPTOR_DATA *d, char *argument);
+void login_get_mfa(DESCRIPTOR_DATA *d, char *argument);
+void login_get_new_passwd(DESCRIPTOR_DATA *d, char *argument);
+void login_get_ascii(DESCRIPTOR_DATA *d, char *argument);
+void login_get_alignment(DESCRIPTOR_DATA *d, char *argument);
+void login_get_new_race(DESCRIPTOR_DATA *d, char *argument);
+void login_get_new_sex(DESCRIPTOR_DATA *d, char *argument);
+void login_get_email(DESCRIPTOR_DATA *d, char *argument);
 
 /* act_info.c */
 extern int wear_params[MAX_WEAR][7];
