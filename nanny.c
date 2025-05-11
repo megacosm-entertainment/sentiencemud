@@ -2256,9 +2256,8 @@ void display_character_menu(DESCRIPTOR_DATA *d)
     sprintf(buf, "Character: {C%s{x\n\r", ch->name);
     write_to_buffer(d, buf, 0);
     
-    sprintf(buf, "Level: {G%d (%d){x  Race: {G%s{x  Class: {G%s{x\n\r",
-            ch->level > 0 ? ch->level : ch->tot_level,
-            ch->tot_level,
+    sprintf(buf, "Level: {G%d{x  Race: {G%s{x  Class: {G%s{x\n\r",
+            ch->tot_level > 0 ? ch->level : ch->tot_level,
             ch->race ? ch->race->name : "Unknown",
             (ch->pcdata && ch->pcdata->current_class && IS_VALID(ch->pcdata->current_class->clazz)) ? 
             ch->pcdata->current_class->clazz->name : "Adventurer");
