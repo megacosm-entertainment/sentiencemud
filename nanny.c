@@ -2191,12 +2191,24 @@ void login_link_character_mfa(DESCRIPTOR_DATA *d, char *argument)
 {
     CHAR_DATA *ch = d->character;
     
+    // Safety check - if character is NULL, return to account menu
+    if (ch == NULL) {
+        write_to_buffer(d, "Error with character data. Returning to account menu.\n\r", 0);
+        display_account_menu(d);
+        d->connected = CON_ACCOUNT_MENU;
+        return;
+    }
+    
     if (!check_mfa(ch, argument)) {
         write_to_buffer(d, "Invalid MFA code.\n\r", 0);
         ProtocolNoEcho(d, false);
+        
+        // Free character and set to NULL before returning to menu
         free_char(ch);
         d->character = NULL;
+        
         display_account_menu(d);
+        d->connected = CON_ACCOUNT_MENU;
         return;
     }
     
