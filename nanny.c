@@ -49,6 +49,8 @@ bool check_account_mfa(ACCOUNT_DATA *acct, const char *code);
 extern void send_email_async_ex(CHAR_DATA *ch, ACCOUNT_DATA *acct, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
 void setup_account_mfa(DESCRIPTOR_DATA *d);
 extern bool	process_output		args((DESCRIPTOR_DATA *d, bool fPrompt));
+char* format_location_string(const char* area_name, const char* region_name);
+
 
 
 
@@ -1595,7 +1597,7 @@ void display_account_menu(DESCRIPTOR_DATA *d)
 {
     ACCOUNT_DATA *acct = d->account;
     char buf[MAX_STRING_LENGTH];
-    char loc_buf[100];
+    //char loc_buf[100];
     char name_buf[50];
     char rank_buf[50];
     char level_buf[50];
@@ -1669,18 +1671,11 @@ void display_account_menu(DESCRIPTOR_DATA *d)
             ch_entry = staff_chars[i];
             const char *staff_rank_str = flag_string(staff_ranks, ch_entry->staff_rank);
             
-            // Format the location string
-            loc_buf[0] = '\0';
-            if (!IS_NULLSTR(ch_entry->last_area) || !IS_NULLSTR(ch_entry->last_region)) {
-                if (!IS_NULLSTR(ch_entry->last_area) && !IS_NULLSTR(ch_entry->last_region))
-                    sprintf(loc_buf, "%s - %s", ch_entry->last_area, ch_entry->last_region);
-                else if (!IS_NULLSTR(ch_entry->last_area))
-                    sprintf(loc_buf, "%s", ch_entry->last_area);
-                else if (!IS_NULLSTR(ch_entry->last_region))
-                    sprintf(loc_buf, "%s", ch_entry->last_region);
-            } else {
-                strcpy(loc_buf, "(Unknown)");
-            }
+            // Format the location string using our helper function
+            const char *loc_str = format_location_string(
+                ch_entry->last_area, 
+                ch_entry->last_region
+            );
             
             // Format each column with consistent width using pad_string
             sprintf(name_buf, "{W%s{x", ch_entry->name);
@@ -1692,7 +1687,7 @@ void display_account_menu(DESCRIPTOR_DATA *d)
                     pad_string(name_buf, 16, NULL, " "),
                     rank_buf,
                     pad_string(rank_buf, 15, NULL, " "),
-                    loc_buf);
+                    loc_str);
             write_to_buffer(d, buf, 0);
         }
     }
@@ -1713,18 +1708,11 @@ void display_account_menu(DESCRIPTOR_DATA *d)
         for (int i = 0; i < regular_count; i++) {
             ch_entry = regular_chars[i];
             
-            // Format the location string
-            loc_buf[0] = '\0';
-            if (!IS_NULLSTR(ch_entry->last_area) || !IS_NULLSTR(ch_entry->last_region)) {
-                if (!IS_NULLSTR(ch_entry->last_area) && !IS_NULLSTR(ch_entry->last_region))
-                    sprintf(loc_buf, "%s - %s", ch_entry->last_area, ch_entry->last_region);
-                else if (!IS_NULLSTR(ch_entry->last_area))
-                    sprintf(loc_buf, "%s", ch_entry->last_area);
-                else if (!IS_NULLSTR(ch_entry->last_region))
-                    sprintf(loc_buf, "%s", ch_entry->last_region);
-            } else {
-                strcpy(loc_buf, "(Unknown)");
-            }
+            // Format the location string using our helper function
+            const char *loc_str = format_location_string(
+                ch_entry->last_area, 
+                ch_entry->last_region
+            );
             
             // Format each column with consistent width using pad_string
             sprintf(name_buf, "{W%s{x", ch_entry->name);
@@ -1750,7 +1738,7 @@ void display_account_menu(DESCRIPTOR_DATA *d)
                     pad_string(race_buf, 12, NULL, " "),
                     class_buf,
                     pad_string(class_buf, 12, NULL, " "),
-                    loc_buf);
+                    loc_str);
             write_to_buffer(d, buf, 0);
         }
     }
@@ -2422,23 +2410,23 @@ void display_character_menu(DESCRIPTOR_DATA *d)
             value);
     write_to_buffer(d, buf, 0);
 
-    // Location information
-    if (!IS_NULLSTR(ch->pcdata->last_area) || !IS_NULLSTR(ch->pcdata->last_region)) {
-        sprintf(label, "{CLocation:{x");
-        
-        if (!IS_NULLSTR(ch->pcdata->last_area) && !IS_NULLSTR(ch->pcdata->last_region))
-            sprintf(value, "{Y%s {x({G%s{x)", ch->pcdata->last_area, ch->pcdata->last_region);
-        else if (!IS_NULLSTR(ch->pcdata->last_area))
-            sprintf(value, "{Y%s{x", ch->pcdata->last_area);
-        else
-            sprintf(value, "{Y%s{x", ch->pcdata->last_region);
-            
-        sprintf(buf, "%s%s %s\n\r", 
-                label, 
-                pad_string(label, 20, NULL, " "), 
-                value);
-        write_to_buffer(d, buf, 0);
-    }
+// Location information
+if (!IS_NULLSTR(ch->pcdata->last_area) || (!IS_NULLSTR(ch->pcdata->last_region) && str_cmp(ch->pcdata->last_region, "default region"))) {
+    sprintf(label, "{CLocation:{x");
+    
+    // Format the location string using our helper function
+    const char *loc_str = format_location_string(
+        ch->pcdata->last_area,
+        ch->pcdata->last_region
+    );
+    sprintf(value, "{Y%s{x", loc_str);
+    
+    sprintf(buf, "%s%s %s\n\r", 
+            label, 
+            pad_string(label, 20, NULL, " "), 
+            value);
+    write_to_buffer(d, buf, 0);
+}
     
     // Created date
     sprintf(label, "{CCreated:{x");
@@ -3187,6 +3175,38 @@ bool account_has_immortal(ACCOUNT_DATA *acct)
     }
     
     return has_immortal;
+}
+
+// Helper function to format location string for display
+char* format_location_string(const char* area_name, const char* region_name) {
+    static char loc_buf[100];
+    
+    if (IS_NULLSTR(area_name) && IS_NULLSTR(region_name)) {
+        strcpy(loc_buf, "(Unknown)");
+        return loc_buf;
+    }
+    
+    // If there's an area but no region, or if the region is "default region"
+    if (!IS_NULLSTR(area_name) && (IS_NULLSTR(region_name) || !str_cmp(region_name, "default region"))) {
+        sprintf(loc_buf, "%s", area_name);
+        return loc_buf;
+    }
+    
+    // If there's a region but no area
+    if (IS_NULLSTR(area_name) && !IS_NULLSTR(region_name) && str_cmp(region_name, "default region")) {
+        sprintf(loc_buf, "%s", region_name);
+        return loc_buf;
+    }
+    
+    // If both area and non-default region are present
+    if (!IS_NULLSTR(area_name) && !IS_NULLSTR(region_name) && str_cmp(region_name, "default region")) {
+        sprintf(loc_buf, "%s - %s", area_name, region_name);
+        return loc_buf;
+    }
+    
+    // Fallback
+    strcpy(loc_buf, area_name ? area_name : "(Unknown)");
+    return loc_buf;
 }
 
 void nanny(DESCRIPTOR_DATA *d, char *argument)
