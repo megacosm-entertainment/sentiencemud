@@ -1304,6 +1304,202 @@ void do_quit(CHAR_DATA *ch, char *argument)
 	}
 }
 
+void do_logout(CHAR_DATA *ch, char *argument)
+{
+    DESCRIPTOR_DATA *d;
+    OBJ_DATA *obj;
+    AFFECT_DATA *paf;
+    TOKEN_DATA *token, *token_next;
+    char buf[MSL];
+
+    if (IS_SWITCHED(ch))
+    {
+        send_to_char("You can't logout in morphed form.\n\r", ch);
+        return;
+    }
+
+    if (IS_NPC(ch))
+        return;
+
+    if (ch->position == POS_FIGHTING)
+    {
+        send_to_char("No way! You are fighting.\n\r", ch);
+        return;
+    }
+
+    if (auction_info.high_bidder == ch || auction_info.owner == ch)
+    {
+        send_to_char("You still have a stake in the auction!\n\r", ch);
+        return;
+    }
+
+    if (ch->position < POS_STUNNED)
+    {
+        send_to_char("You're not DEAD yet.\n\r", ch);
+        return;
+    }
+
+    if (IS_SET(ch->in_room->room_flag[1], ROOM_NO_QUIT))
+    {
+        send_to_char("You can't logout here.\n\r", ch);
+        return;
+    }
+
+    /* If person is putting together a package give them back items etc */
+    if (ch->mail != NULL)
+    {
+        OBJ_DATA *obj;
+        OBJ_DATA *obj_next;
+
+        for (obj = ch->mail->objects; obj != NULL; obj = obj_next)
+        {
+            obj_next = obj->next_content;
+
+            obj_from_mail(obj);
+            obj_to_char(obj, ch);
+            act("You take $p from your package.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+            act("$n takes $p from $s package.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+        }
+
+        send_to_char("You discard your mail package.\n\r", ch);
+        free_mail(ch->mail);
+        ch->mail = NULL;
+    }
+
+    /* Check for triggers */
+    if (argument && argument[0] != '\0')
+    {
+        p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_QUIT, NULL, 0, 0, 0, 0, 0);
+        if (ch->desc && ch->desc->input)
+        {
+            ch->pcdata->quit_on_input = true;
+            return;
+        }
+    }
+
+    /* Make sure to unshift them first. Leave ch->shifted ON so we know to re-shift them
+       back on login.*/
+    if (IS_SHIFTED(ch))
+    {
+        shift_char(ch, true);
+        ch->shifted = IS_VAMPIRE(ch) ? SHIFTED_WEREWOLF : SHIFTED_SLAYER;
+    }
+
+    if (ch->pulled_cart != NULL)
+        do_function(ch, &do_drop, ch->pulled_cart->name);
+
+    if (ch->ambush != NULL)
+        send_to_char("You stop your ambush.\n\r", ch);
+
+    /* remove any PURGE_QUIT tokens on the character */
+    for (token = ch->tokens; token != NULL; token = token_next)
+    {
+        token_next = token->next;
+
+        if (IS_SET(token->flags, TOKEN_PURGE_QUIT))
+        {
+            p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL, 0, 0, 0, 0, 0);
+
+            sprintf(buf, "char update: token %s(%ld) char %s(%ld) was purged on logout",
+                token->name, token->pIndexData->vnum, HANDLE(ch), IS_NPC(ch) ? ch->pIndexData->vnum : 0);
+            log_string(buf);
+            token_from_char(token);
+            free_token(token);
+        }
+    }
+
+    send_to_char("You return to the account menu.\n\r", ch);
+    act("$n has left the game.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+
+    sprintf(log_buf, "%s has logged out to character selection.", ch->name);
+    log_string(log_buf);
+    wiznet("$N returns to character selection.", ch, NULL, WIZ_LOGINS, 0, get_staff_rank(ch));
+
+    /* save wearing info */
+    save_last_wear(ch);
+
+    /* Remove hitpoint type affects */
+    for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
+    {
+        if (obj->wear_loc != WEAR_NONE)
+        {
+            for (paf = obj->affected; paf != NULL; paf = paf->next)
+                affect_modify(ch, paf, false);
+        }
+    }
+
+    /* Reset imms bank accounts */
+    if (IS_IMMORTAL(ch) && !IS_IMPLEMENTOR(ch))
+    {
+        ch->gold = 0;
+        ch->silver = 0;
+        ch->pcdata->bankbalance = 0;
+    }
+
+    // Reset manastore to zero - even on imms
+    ch->manastore = 0;
+
+    save_char_obj(ch);
+
+    if (MOUNTED(ch))
+    {
+        CHAR_DATA *mount;
+
+        die_follower(ch);
+
+        mount = MOUNTED(ch);
+
+        ch->mount = NULL;
+        ch->riding = false;
+
+        mount->rider = NULL;
+        mount->riding = false;
+
+        if (!str_cmp(mount->pIndexData->owner, ch->name))
+        {
+            act("$n wanders on home.", mount, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+            if (mount->home_room != NULL)
+            {
+                char_from_room(mount);
+                char_to_room(mount, mount->home_room);
+            }
+            else
+                extract_char(mount, true);
+        }
+    }
+
+    ITERATOR mit;
+    MISSION_DATA *mission;
+    iterator_start(&mit, ch->missions);
+    while((mission = (MISSION_DATA *)iterator_nextdata(&mit)))
+    {
+        for (MISSION_PART_DATA *part = mission->parts; part != NULL; part = part->next)
+        {
+            if (part->pObj != NULL)
+                extract_obj(part->pObj);
+        }
+    }
+    iterator_stop(&mit);
+
+    d = ch->desc;
+
+    if (d != NULL)
+    {
+        /* Save the descriptor but remove the character connection */
+        connection_remove(d);
+        extract_char(ch, true);
+        
+        /* Instead of closing the socket, return to account menu */
+        write_to_buffer(d, "\n\rReturning to account menu...\n\r", 0);
+        
+        /* This assumes you have a function to display the account menu */
+        /* Replace with the appropriate function call to show account menu */
+        d->connected = CON_ACCOUNT_MENU;  /* Or whatever state represents account menu */
+        
+        /* You may need to add additional code here to restore account context 
+           and display the account menu to the player */
+    }
+}
 
 void do_save(CHAR_DATA *ch, char *argument)
 {

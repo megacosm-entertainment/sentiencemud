@@ -1282,7 +1282,7 @@ if (ret <= 0) {
 	}
 
     dnew->descriptor	= desc;
-    dnew->connected	= CON_GET_NAME;
+    dnew->connected	= CON_GET_ACCOUNT_NAME;
     dnew->showstr_head	= NULL;
     dnew->showstr_point = NULL;
     dnew->outsize	= 2000;
@@ -2484,7 +2484,7 @@ bool check_playing(DESCRIPTOR_DATA *d, char *name)
     {
 	if (dold != d
 	&&   dold->character != NULL
-	&&   dold->connected != CON_GET_NAME
+	&&   dold->connected != CON_GET_ACCOUNT_NAME
 	&&   dold->connected != CON_GET_OLD_PASSWORD
 	&&   !str_cmp(name, dold->original
 	         ? dold->original->name : dold->character->name))

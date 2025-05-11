@@ -446,6 +446,7 @@ typedef struct	npc_ship_index_data	NPC_SHIP_INDEX_DATA;
 typedef struct	obj_data		OBJ_DATA;
 typedef struct	obj_index_data		OBJ_INDEX_DATA;
 typedef struct	spell_data		SPELL_DATA;
+typedef struct  account_data		ACCOUNT_DATA;
 typedef struct	pc_data			PC_DATA;
 typedef struct	missionary_data	MISSIONARY_DATA;
 typedef struct	mission_data		MISSION_DATA;
@@ -1852,6 +1853,40 @@ struct church_treasure_room_data
 #define CON_GET_EMAIL			22
 #define CON_CONFIRM_EMAIL_FOR_RESET 23
 #define CON_GET_MFA            24
+// Add to merc.h connection states
+#define CON_GET_ACCOUNT_NAME        25
+#define CON_GET_ACCOUNT_PASSWORD    26
+#define CON_NEW_ACCOUNT_PASSWORD    27
+#define CON_CONFIRM_ACCOUNT_PASSWORD 28
+#define CON_GET_ACCOUNT_EMAIL       29
+#define CON_ACCOUNT_MENU            30
+#define CON_CREATING_NEW_CHAR       31
+#define CON_SELECT_CHARACTER        32
+#define CON_CONFIRM_ACCOUNT_NAME    33
+#define CON_LINK_CHARACTER_NAME     34
+#define CON_LINK_CHARACTER_PASSWORD 35
+#define CON_LINK_CHARACTER_MFA      36
+#define CON_CHARACTER_MENU            37
+#define CON_CHARACTER_PASSWORD        38
+#define CON_CONFIRM_CHARACTER_PASSWORD 39
+#define CON_CHARACTER_MFA_TOGGLE      40
+#define CON_CONFIRM_DELETE_CHARACTER  41
+#define CON_GET_CHAR_PASSWORD    42  // Character-specific password validation
+#define CON_GET_CHAR_MFA         43
+#define CON_CHARACTER_MFA_VERIFY 44
+#define CON_ACCOUNT_MFA_VERIFY 45  // Character-specific MFA validation
+// Add these with the other connection state defines
+#define CON_CONFIRM_ACCOUNT_EMAIL_FOR_RESET  46
+#define CON_CHANGE_ACCOUNT_PASSWORD         47
+#define CON_CONFIRM_ACCOUNT_PASSWORD_CHANGE 48
+#define CON_GET_ACCOUNT_MFA                 49
+#define CON_CHANGE_ACCOUNT_EMAIL    50
+#define CON_VERIFY_ACCOUNT_PASSWORD 51
+#define CON_ACCOUNT_MFA_MENU  52
+#define CON_GET_ACCOUNT_MFA_FOR_CHAR  53
+#define CON_VERIFY_DELETE_PASSWORD  54
+#define CON_VERIFY_DELETE_MFA       55
+#define CON_MAX 56
 
 
 /* Places */
@@ -1922,6 +1957,7 @@ enum {
 struct	descriptor_data
 {
     DESCRIPTOR_DATA *	next;
+    ACCOUNT_DATA *        account;
     CHAR_DATA *		character;
     CHAR_DATA *		original;
     bool		valid;
@@ -5591,14 +5627,20 @@ struct ready_check_state
 
 struct account_data
 {
-//    ACCOUNT_DATA * next;
+    ACCOUNT_DATA * next;
+    unsigned long	id[2];
+    int version;
     bool valid;
     char * username;
-    char * password;
-    char * old_password;
+    char * passwd;
+    char * old_passwd;
+    int passwd_version;
     char * email;
     char * creation_ip;
     char * last_ip;
+    bool mfa_enabled;
+    char * mfa_key;
+    time_t qr_code_expiration;
     time_t creation_date;
     time_t last_login;
     char * last_login_host;
@@ -5612,12 +5654,34 @@ struct account_data
     BAN_DATA * bans;
 //    PENALTY_DATA * penalties;
 //    BONUS_DATA * bonuses;
-    long misc_flags;
+    long acct_flags;
     LLIST * characters;
     LLIST * notes;
     LLIST * changes;
     LLIST * avail_races;
 };
+
+/* Character reference data stored within an account */
+struct account_character_data
+{
+    char *name;                 /* Character name */
+    char *race_name;            /* Character's race name */
+    char *class_name;           /* Character's primary class name */
+    int current_level;                  /* Character's level */
+    int tot_level;
+    bool staff;                 /* Is the character an admin? */
+    int staff_rank;
+    time_t creation_date;       /* When the character was created */
+    time_t last_login;          /* Last time character logged in */
+    long id;                    /* Character ID */
+    long id2;                   /* Character ID part 2 */
+};
+
+typedef struct account_character_data ACCOUNT_CHARACTER;
+
+/* Function prototypes for account character handling */
+ACCOUNT_CHARACTER *new_account_character(void);
+void free_account_character(ACCOUNT_CHARACTER *acct_char);
 
 /*
  * Data which only PC's have.
@@ -5655,6 +5719,10 @@ struct	pc_data
     time_t      qr_code_expiration;
     bool        mfa_enabled;
     bool        mfa_question;
+    char *account_name;     /* Account this character belongs to */
+    unsigned long account_id[2]; /* Account this character belongs to (by ID) */
+    bool account_pwd_override;
+
 
     int         staff_rank;
 
@@ -10379,10 +10447,11 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
  * so players can go ahead and telnet to all the other descriptors.
  * Then we close it whenever we need to open a file (e.g. a save file).
  */
-#define PLAYER_DIR      "../player/"        	/* Player files */
-#define OLD_PLAYER_DIR	"../player.old/"
-#define GOD_DIR         "../player/staff/"  		/* Staff Pfiles */
-#define TEMP_FILE	"../player/romtmp"
+#define PLAYER_DIR      "../characters/"        	/* Player files */
+#define ACCOUNT_DIR      "../accounts/"        	/* Player files */
+#define OLD_PLAYER_DIR	"../characters.old/"
+#define GOD_DIR         "../characters/staff/"  		/* Staff Pfiles */
+#define TEMP_FILE	"../characters/romtmp"
 #define NULL_FILE	"/dev/null"		/* To reserve one stream */
 #define DATA_DIR		"../data/"
 #define WORLD_DIR		"../data/world/"
