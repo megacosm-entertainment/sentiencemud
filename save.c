@@ -341,11 +341,13 @@ if (ch->in_room && ch->in_room->area) {
     // If the room is in a region with a name, save that too
     free_string(ch->pcdata->last_region);
     
-    // Use dot notation instead of arrow operator for struct access
-    if (ch->in_room->area->region.name && ch->in_room->area->region.name[0] != '\0')
-        ch->pcdata->last_region = str_dup(ch->in_room->area->region.name);
-    else
+    // Check if region name exists and use it properly
+    if (ch->in_room->region->name != NULL && !IS_NULLSTR(ch->in_room->region->name)) {
+        ch->pcdata->last_region = str_dup(ch->in_room->region->name);
+    } else {
+        // No valid region name, store empty string
         ch->pcdata->last_region = str_dup("");
+    }
 }
 
     // Update account connection if available
