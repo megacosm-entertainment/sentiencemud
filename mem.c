@@ -975,6 +975,8 @@ PC_DATA *new_pcdata(void)
     pcdata->account_id[0] = 0;
     pcdata->account_id[1] = 0;
     pcdata->account_pwd_override = false;
+    pcdata->last_area = str_dup("");\
+    pcdata->last_region = str_dup("");
 
 
     pcdata->classes = list_createx(false, NULL, delete_class_level);
@@ -1037,6 +1039,8 @@ void free_pcdata(PC_DATA *pcdata)
     free_string(pcdata->title);
     free_buf(pcdata->buffer);
     free_string(pcdata->account_name);
+    free_string(pcdata->last_area);
+    free_string(pcdata->last_region);
 
     for (alias = 0; alias < MAX_ALIAS; alias++)
     {
@@ -8431,6 +8435,8 @@ ACCOUNT_CHARACTER *new_account_character()
     acct_char->class_name = NULL;
     acct_char->current_level = 0;
     acct_char->tot_level = 0;
+    acct_char->last_area = str_dup("");
+    acct_char->last_region = str_dup("");
     acct_char->staff = false;
     acct_char->staff_rank = STAFF_PLAYER;  // Initialize with default rank
     acct_char->creation_date = 0;
@@ -8452,6 +8458,8 @@ void free_account_character(ACCOUNT_CHARACTER *acct_char)
     free_string(acct_char->name);
     free_string(acct_char->race_name);
     free_string(acct_char->class_name);
+    free_string(acct_char->last_area);
+    free_string(acct_char->last_region);
     
     free(acct_char);
 }

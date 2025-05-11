@@ -11079,3 +11079,17 @@ char *sha256_crypt(const char *pwd) {
     EVP_MD_CTX_free(context);
     return output;
 }
+
+char *tmp_sprintf(const char *fmt, ...)
+{
+    static char buf[MAX_STRING_LENGTH];
+    va_list args;
+    
+    buf[0] = '\0';
+    
+    va_start(args, fmt);
+    vsnprintf(buf, MAX_STRING_LENGTH, fmt, args);
+    va_end(args);
+    
+    return buf;
+}

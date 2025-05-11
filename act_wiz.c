@@ -8055,8 +8055,8 @@ void do_sockets(CHAR_DATA *ch, char *argument)
     DESCRIPTOR_DATA *d;
     char buf[2 * MAX_STRING_LENGTH];
     char buf2[MAX_STRING_LENGTH];
-    char arg[MAX_INPUT_LENGTH];
-    char arg_type[MAX_INPUT_LENGTH];
+    char arg[250];
+    char arg_type[50];
     int count;
     char s[100];
     char idle[20];
@@ -8082,8 +8082,12 @@ void do_sockets(CHAR_DATA *ch, char *argument)
         else if (!str_prefix(arg_type, "state"))
             search_type = 3;
         else {
-            send_to_char("Valid search types are: host, account, state\n\r", ch);
-            return;
+            // If arg_type isn't a valid search type, treat it as part of the search term
+            // and reset arg to contain both parts
+            char full_arg[MAX_INPUT_LENGTH];
+            sprintf(full_arg, "%s %s", arg, arg_type);
+            strcpy(arg, full_arg);
+            search_type = 0; // Default to name search
         }
     }
 

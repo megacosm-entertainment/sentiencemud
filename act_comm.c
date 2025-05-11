@@ -45,6 +45,8 @@
 
 
 extern void display_account_menu(DESCRIPTOR_DATA *d);
+extern void update_account_character(CHAR_DATA *ch);
+
 
 /* This macro strips a string of colours and concantenates it into a local buffer.
    Necesarry to avoid memory leaks. */
@@ -1314,6 +1316,7 @@ void do_logout(CHAR_DATA *ch, char *argument)
     AFFECT_DATA *paf;
     TOKEN_DATA *token, *token_next;
     char buf[MSL];
+    ACCOUNT_DATA *account = NULL;
 
     if (IS_SWITCHED(ch))
     {
@@ -1442,6 +1445,10 @@ void do_logout(CHAR_DATA *ch, char *argument)
     // Reset manastore to zero - even on imms
     ch->manastore = 0;
 
+    // Update account character entry with latest info
+    if (ch->desc && ch->desc->account)
+        update_account_character(ch);
+
     save_char_obj(ch);
 
     if (MOUNTED(ch))
@@ -1488,16 +1495,34 @@ void do_logout(CHAR_DATA *ch, char *argument)
 
     if (d != NULL)
     {
-        /* Save the descriptor but remove the character connection */
-        connection_remove(d);
+        // Save reference to the account before disconnecting character
+        if (d->account)
+            account = d->account;
+
+        // Properly detach the character from the descriptor before extracting
+        d->character = NULL;
+        ch->desc = NULL;
+        
+        // Extract the character
         extract_char(ch, true);
         
-        /* Instead of closing the socket, return to account menu */
-        write_to_buffer(d, "\n\rReturning to account menu...\n\r", 0);
-        
-		display_account_menu(d);
-		d->connected = CON_ACCOUNT_MENU;
-        
+        // Restore the account connection and transition to account menu
+        if (account) {
+            d->account = account;
+            d->connected = CON_ACCOUNT_MENU;
+            d->incomm[0] = '\0';
+            
+            // Clear out any input buffer
+            if (d->inbuf[0]) 
+                d->inbuf[0] = '\0';
+            
+            write_to_buffer(d, "\n\rReturning to account menu...\n\r", 0);
+            display_account_menu(d);
+        } else {
+            // If we somehow lost the account reference, close the connection
+            write_to_buffer(d, "\n\rError returning to account menu. Disconnecting...\n\r", 0);
+            close_socket(d);
+        }
     }
 }
 

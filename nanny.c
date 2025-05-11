@@ -630,7 +630,10 @@ void login_confirm_new_name(DESCRIPTOR_DATA *d, char *argument)
 
     case 'n': case 'N':
         if (d->account) {
-            // Return to character creation prompt
+            // Return to character creation prompt - IMPORTANT: Free the character first
+            free_char(d->character);  // Free the previously created character
+            d->character = NULL;      // Set pointer to NULL to prevent stale reference
+            
             write_to_buffer(d, "What will be your character's name? ", 0);
             d->connected = CON_CREATING_NEW_CHAR;
         } else {
@@ -1591,6 +1594,12 @@ void display_account_menu(DESCRIPTOR_DATA *d)
 {
     ACCOUNT_DATA *acct = d->account;
     char buf[MAX_STRING_LENGTH];
+    char loc_buf[100];
+    char name_buf[50];
+    char rank_buf[50];
+    char level_buf[50];
+    char race_buf[50];
+    char class_buf[50];
     ITERATOR it;
     ACCOUNT_CHARACTER *ch_entry;
     
@@ -1620,7 +1629,7 @@ void display_account_menu(DESCRIPTOR_DATA *d)
     }
     iterator_stop(&it);
     
-    // Sort staff characters alphabetically (simple bubble sort)
+    // Sort staff characters alphabetically
     for (int i = 0; i < staff_count - 1; i++) {
         for (int j = 0; j < staff_count - i - 1; j++) {
             if (strcasecmp(staff_chars[j]->name, staff_chars[j+1]->name) > 0) {
@@ -1642,37 +1651,105 @@ void display_account_menu(DESCRIPTOR_DATA *d)
         }
     }
     
-// Display staff characters first
-if (staff_count > 0) {
-    write_to_buffer(d, "{B=={W[ {YSTAFF CHARACTERS {W]{B=={x\n\r", 0);
-    
-    for (int i = 0; i < staff_count; i++) {
-        ch_entry = staff_chars[i];
-        // Get the staff rank string from staff_ranks table
-        const char *staff_rank_str = flag_string(staff_ranks, ch_entry->staff_rank);
+    // Display staff characters first
+    if (staff_count > 0) {
+        write_to_buffer(d, "{B=={W[ {YSTAFF CHARACTERS {W]{B=={x\n\r", 0);
         
-        sprintf(buf, "{G%d{x) {W%-16s{x - {R%s{x\n\r",
-                i + 1,
-                ch_entry->name,
-                staff_rank_str ? capitalize(staff_rank_str) : "IMM");
+        // Table header for staff
+        sprintf(buf, "{D%-4s %-16s %-15s %-30s{x\n\r", 
+                "Num", "Name", "Rank", "Location");
         write_to_buffer(d, buf, 0);
+        
+        // Use the line function for a divider
+        sprintf(buf, "{D%s{x\n\r", pad_string("", 70, NULL, "-"));
+        write_to_buffer(d, buf, 0);
+        
+        for (int i = 0; i < staff_count; i++) {
+            ch_entry = staff_chars[i];
+            const char *staff_rank_str = flag_string(staff_ranks, ch_entry->staff_rank);
+            
+            // Format the location string
+            loc_buf[0] = '\0';
+            if (!IS_NULLSTR(ch_entry->last_area) || !IS_NULLSTR(ch_entry->last_region)) {
+                if (!IS_NULLSTR(ch_entry->last_area) && !IS_NULLSTR(ch_entry->last_region))
+                    sprintf(loc_buf, "%s - %s", ch_entry->last_area, ch_entry->last_region);
+                else if (!IS_NULLSTR(ch_entry->last_area))
+                    sprintf(loc_buf, "%s", ch_entry->last_area);
+                else if (!IS_NULLSTR(ch_entry->last_region))
+                    sprintf(loc_buf, "%s", ch_entry->last_region);
+            } else {
+                strcpy(loc_buf, "(Unknown)");
+            }
+            
+            // Format each column with consistent width using pad_string
+            sprintf(name_buf, "{W%s{x", ch_entry->name);
+            sprintf(rank_buf, "{R%s{x", staff_rank_str ? capitalize(staff_rank_str) : "IMM");
+            
+            sprintf(buf, "{G[%2d]{x %s%s %s%s {Y%s{x\n\r",
+                    i + 1,
+                    name_buf,
+                    pad_string(name_buf, 16, NULL, " "),
+                    rank_buf,
+                    pad_string(rank_buf, 15, NULL, " "),
+                    loc_buf);
+            write_to_buffer(d, buf, 0);
+        }
     }
-    write_to_buffer(d, "\n\r", 0);
-}
     
     // Display regular characters
     if (regular_count > 0) {
-        write_to_buffer(d, "{B=={W[ {YREGULAR CHARACTERS {W]{B=={x\n\r", 0);
+        write_to_buffer(d, "\n\r{B=={W[ {YREGULAR CHARACTERS {W]{B=={x\n\r", 0);
+        
+        // Table header for regular characters - split race/class into separate columns
+        sprintf(buf, "{D%-4s %-16s %-7s %-12s %-12s %-25s{x\n\r", 
+                "Num", "Name", "Level", "Race", "Class", "Location");
+        write_to_buffer(d, buf, 0);
+        
+        // Use the line function for a divider
+        sprintf(buf, "{D%s{x\n\r", pad_string("", 90, NULL, "-"));
+        write_to_buffer(d, buf, 0);
         
         for (int i = 0; i < regular_count; i++) {
             ch_entry = regular_chars[i];
-            sprintf(buf, "{G%d{x) {W%-16s{x - Level {G%3d (%3d){x %s %s\n\r",
-                    i + staff_count + 1,
-                    ch_entry->name,
+            
+            // Format the location string
+            loc_buf[0] = '\0';
+            if (!IS_NULLSTR(ch_entry->last_area) || !IS_NULLSTR(ch_entry->last_region)) {
+                if (!IS_NULLSTR(ch_entry->last_area) && !IS_NULLSTR(ch_entry->last_region))
+                    sprintf(loc_buf, "%s - %s", ch_entry->last_area, ch_entry->last_region);
+                else if (!IS_NULLSTR(ch_entry->last_area))
+                    sprintf(loc_buf, "%s", ch_entry->last_area);
+                else if (!IS_NULLSTR(ch_entry->last_region))
+                    sprintf(loc_buf, "%s", ch_entry->last_region);
+            } else {
+                strcpy(loc_buf, "(Unknown)");
+            }
+            
+            // Format each column with consistent width using pad_string
+            sprintf(name_buf, "{W%s{x", ch_entry->name);
+            
+            // Shorter level format - just the numbers
+            sprintf(level_buf, "{G%d(%d){x", 
                     ch_entry->current_level > 0 ? ch_entry->current_level : ch_entry->tot_level,
-                    ch_entry->tot_level,
-                    ch_entry->race_name ? ch_entry->race_name : "Unknown",
+                    ch_entry->tot_level);
+            
+            // Split race and class into separate fields
+            sprintf(race_buf, "{W%s{x", 
+                    ch_entry->race_name ? ch_entry->race_name : "Unknown");
+            sprintf(class_buf, "{W%s{x", 
                     ch_entry->class_name ? ch_entry->class_name : "Adventurer");
+            
+            sprintf(buf, "{G[%2d]{x %s%s %s%s %s%s %s%s {Y%s{x\n\r",
+                    i + staff_count + 1,
+                    name_buf,
+                    pad_string(name_buf, 16, NULL, " "),
+                    level_buf,
+                    pad_string(level_buf, 7, NULL, " "),
+                    race_buf,
+                    pad_string(race_buf, 12, NULL, " "),
+                    class_buf,
+                    pad_string(class_buf, 12, NULL, " "),
+                    loc_buf);
             write_to_buffer(d, buf, 0);
         }
     }
@@ -1681,13 +1758,20 @@ if (staff_count > 0) {
         write_to_buffer(d, "   {RNo characters found.{x\n\r", 0);
     }
     
-    // Display menu options
+    // Display menu options with divider
+    write_to_buffer(d, "\n\r", 0);
+    sprintf(buf, "{C%s{x\n\r", pad_string("", 60, NULL, "="));
+    write_to_buffer(d, buf, 0);
+
     int total_count = staff_count + regular_count;
-    if (total_count > 0)
-        write_to_buffer(d, "\n\r{G1-%d{x) Select a character\n\r", total_count > 0 ? total_count : 0);
+    if (total_count > 0) {
+        sprintf(buf, "{G1-%d{x) Select a character\n\r", total_count);
+        write_to_buffer(d, buf, 0);
+    }
+
     write_to_buffer(d, "{GC{x) Create a new character\n\r", 0);
     write_to_buffer(d, "{GL{x) Link existing character\n\r", 0);
-
+    
     write_to_buffer(d, "{GE{x) Change email address\n\r", 0);
     write_to_buffer(d, "{GP{x) Change password\n\r", 0);
     
@@ -1699,8 +1783,6 @@ if (staff_count > 0) {
     write_to_buffer(d, "{GQ{x) Quit\n\r\n\r", 0);
     write_to_buffer(d, "Enter choice: ", 0);
 }
-
-
 
 // Update the select_character function
 void select_character(DESCRIPTOR_DATA *d, ACCOUNT_CHARACTER *ch_entry)
@@ -2070,21 +2152,40 @@ void login_creating_new_char(DESCRIPTOR_DATA *d, char *argument)
         return;
     }
     
-    // Check if name is already used
-    if (load_char_obj(d, argument)) {
-        write_to_buffer(d, "That character already exists. Please choose another name.\n\r", 0);
-        write_to_buffer(d, "Character name: ", 0);
-        return;
+    // If we previously attempted to create a character, free it first
+    if (d->character != NULL) {
+        free_char(d->character);
+        d->character = NULL;
     }
     
-    // Create a new character and continue with standard character creation
+    // Create a new character 
+    d->character = new_char();
     ch = d->character;
+    ch->desc = d;
+    
+    // Ensure pcdata is initialized
+    if (ch->pcdata == NULL) {
+        ch->pcdata = new_pcdata();
+    }
+    
+    // Set up the character with the name
     free_string(ch->name);
     ch->name = str_dup(argument);
     
+    // Check if a character with this name already exists on disk
+    if (player_exists(argument)) {
+        write_to_buffer(d, "That character already exists. Please choose another name.\n\r", 0);
+        write_to_buffer(d, "Character name: ", 0);
+        free_char(d->character);
+        d->character = NULL;
+        return;
+    }
+    
     // Initialize character with account password
-    if (d->account) {
-        free_string(ch->pcdata->pwd);
+    if (d->account && ch->pcdata) {
+        if (ch->pcdata->pwd) {
+            free_string(ch->pcdata->pwd);
+        }
         ch->pcdata->pwd = str_dup(d->account->passwd);
         ch->pcdata->pwd_vers = d->account->passwd_version;
     }
@@ -2161,6 +2262,14 @@ void login_link_character_password(DESCRIPTOR_DATA *d, char *argument)
 {
     CHAR_DATA *ch = d->character;
     
+    // Safety check - if character is NULL, return to account menu
+    if (ch == NULL) {
+        write_to_buffer(d, "Error with character data. Returning to account menu.\n\r", 0);
+        display_account_menu(d);
+        d->connected = CON_ACCOUNT_MENU;
+        return;
+    }
+    
     write_to_buffer(d, "\n\r", 2);
     
     // Check password
@@ -2176,8 +2285,11 @@ void login_link_character_password(DESCRIPTOR_DATA *d, char *argument)
         return;
     }
     
-    // Check if character has MFA enabled
-    if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled) {
+    // Check if character has MFA enabled - more thorough check
+    if (ch->pcdata != NULL && 
+        !IS_NULLSTR(ch->pcdata->mfa_key) && 
+        ch->pcdata->mfa_enabled) {
+        
         write_to_buffer(d, "This character has MFA enabled. Please enter the MFA code: ", 0);
         d->connected = CON_LINK_CHARACTER_MFA;
         return;
@@ -2262,33 +2374,144 @@ void display_character_menu(DESCRIPTOR_DATA *d)
 {
     CHAR_DATA *ch = d->character;
     char buf[MAX_STRING_LENGTH];
+    char label[50], value[100];
     
     write_to_buffer(d, "\n\r{B=={W[ {YCHARACTER MENU {W]{B=={x\n\r\n\r", 0);
     
-    sprintf(buf, "Character: {C%s{x\n\r", ch->name);
+    // Format character information using pad_string for consistent alignment
+    sprintf(label, "{CCharacter:{x");
+    sprintf(value, "{W%s{x", ch->name);
+    sprintf(buf, "%s%s %s\n\r", 
+            label, 
+            pad_string(label, 20, NULL, " "), 
+            value);
     write_to_buffer(d, buf, 0);
 
     CLASS_LEVEL *cl = get_class_level(ch, NULL);
     
-    sprintf(buf, "Level: {G%d (%d){x  Race: {G%s{x  Class: {G%s{x\n\r",
+    sprintf(label, "{CLevel:{x");
+    sprintf(value, "{G%d (%d){x", 
             cl->level > 0 ? cl->level : ch->tot_level,
-            ch->tot_level,
-            ch->race ? ch->race->name : "Unknown",
+            ch->tot_level);
+    sprintf(buf, "%s%s %s\n\r", 
+            label, 
+            pad_string(label, 20, NULL, " "), 
+            value);
+    write_to_buffer(d, buf, 0);
+    
+    sprintf(label, "{CRace:{x");
+    sprintf(value, "{G%s{x", ch->race ? ch->race->name : "Unknown");
+    sprintf(buf, "%s%s %s\n\r", 
+            label, 
+            pad_string(label, 20, NULL, " "), 
+            value);
+    write_to_buffer(d, buf, 0);
+    
+    sprintf(label, "{CClass:{x");
+    sprintf(value, "{G%s{x", 
             (ch->pcdata && ch->pcdata->current_class && IS_VALID(ch->pcdata->current_class->clazz)) ? 
             ch->pcdata->current_class->clazz->name : "Adventurer");
+    sprintf(buf, "%s%s %s\n\r", 
+            label, 
+            pad_string(label, 20, NULL, " "), 
+            value);
+    write_to_buffer(d, buf, 0);
+
+    // Location information
+    if (!IS_NULLSTR(ch->pcdata->last_area) || !IS_NULLSTR(ch->pcdata->last_region)) {
+        sprintf(label, "{CLocation:{x");
+        
+        if (!IS_NULLSTR(ch->pcdata->last_area) && !IS_NULLSTR(ch->pcdata->last_region))
+            sprintf(value, "{Y%s {x({G%s{x)", ch->pcdata->last_area, ch->pcdata->last_region);
+        else if (!IS_NULLSTR(ch->pcdata->last_area))
+            sprintf(value, "{Y%s{x", ch->pcdata->last_area);
+        else
+            sprintf(value, "{Y%s{x", ch->pcdata->last_region);
+            
+        sprintf(buf, "%s%s %s\n\r", 
+                label, 
+                pad_string(label, 20, NULL, " "), 
+                value);
+        write_to_buffer(d, buf, 0);
+    }
+    
+    // Created date
+    sprintf(label, "{CCreated:{x");
+    sprintf(value, "{G%s{x", ch->pcdata->creation_date ? ctime(&ch->pcdata->creation_date) : "Unknown");
+    // Remove newline from ctime result
+    if (value[strlen(value)-2] == '\r' || value[strlen(value)-1] == '\n')
+        value[strlen(value)-2] = '\0';
+    
+    sprintf(buf, "%s%s %s\n\r", 
+            label, 
+            pad_string(label, 20, NULL, " "), 
+            value);
     write_to_buffer(d, buf, 0);
     
-    sprintf(buf, "Created: {G%s{x\n\r", 
-            ch->pcdata->creation_date ? ctime(&ch->pcdata->creation_date) : "Unknown");
+    // Display email if set
+    if (!IS_NULLSTR(ch->pcdata->email)) {
+        sprintf(label, "{CEmail:{x");
+        sprintf(value, "{C%s{x", ch->pcdata->email);
+        
+        sprintf(buf, "%s%s %s\n\r", 
+                label, 
+                pad_string(label, 20, NULL, " "), 
+                value);
+        write_to_buffer(d, buf, 0);
+    }
+    
+    // Display last login if available
+    if (ch->pcdata->last_login > 0) {
+        sprintf(label, "{CLast login:{x");
+        sprintf(value, "{G%s{x", ctime(&ch->pcdata->last_login));
+        // Remove newline from ctime result
+        if (value[strlen(value)-2] == '\r' || value[strlen(value)-1] == '\n')
+            value[strlen(value)-2] = '\0';
+        
+        sprintf(buf, "%s%s %s\n\r", 
+                label, 
+                pad_string(label, 20, NULL, " "), 
+                value);
+        write_to_buffer(d, buf, 0);
+    }
+
+    // Display character-password status
+    sprintf(label, "{CCharacter password:{x");
+    sprintf(value, "%s", 
+            ch->pcdata->account_pwd_override && ch->pcdata->pwd_vers == 1 ? 
+            "{GSet{x" : "{RNot set{x");
+    
+    sprintf(buf, "%s%s %s\n\r", 
+            label, 
+            pad_string(label, 20, NULL, " "), 
+            value);
+    write_to_buffer(d, buf, 0);
+
+    // Display MFA status if it's configured
+    if (!IS_NULLSTR(ch->pcdata->mfa_key)) {
+        sprintf(label, "{CMFA Status:{x");
+        sprintf(value, "%s", ch->pcdata->mfa_enabled ? "{GEnabled{x" : "{RDisabled{x");
+        
+        sprintf(buf, "%s%s %s\n\r", 
+                label, 
+                pad_string(label, 20, NULL, " "), 
+                value);
+        write_to_buffer(d, buf, 0);
+    }
+    
+    // Add a divider using pad_string before menu options
+    write_to_buffer(d, "\n\r", 0);
+    sprintf(buf, "{C%s{x\n\r", pad_string("", 60, NULL, "="));
     write_to_buffer(d, buf, 0);
     
-    write_to_buffer(d, "\n\r{G1{x) Log in with this character\n\r", 0);
+    write_to_buffer(d, "{G1{x) Log in with this character\n\r", 0);
     write_to_buffer(d, "{G2{x) Set character password\n\r", 0);
     
-    if (!IS_NULLSTR(ch->pcdata->mfa_key))
+    if (!IS_NULLSTR(ch->pcdata->mfa_key)) {
         sprintf(buf, "{G3{x) %s character MFA\n\r", ch->pcdata->mfa_enabled ? "Disable" : "Enable");
-    else
+    } else {
         sprintf(buf, "{G3{x) Configure character MFA\n\r");
+    }
     write_to_buffer(d, buf, 0);
     
     write_to_buffer(d, "{G4{x) Delete this character\n\r", 0);

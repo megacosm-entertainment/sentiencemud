@@ -5669,6 +5669,8 @@ struct account_character_data
     char *class_name;           /* Character's primary class name */
     int current_level;                  /* Character's level */
     int tot_level;
+    char *last_area;                /* Character's most recent area */
+    char *last_region;              /* Character's most recent region */
     bool staff;                 /* Is the character an admin? */
     int staff_rank;
     time_t creation_date;       /* When the character was created */
@@ -5722,6 +5724,8 @@ struct	pc_data
     char *account_name;     /* Account this character belongs to */
     unsigned long account_id[2]; /* Account this character belongs to (by ID) */
     bool account_pwd_override;
+    char *    last_area;
+    char *    last_region;
 
 
     int         staff_rank;

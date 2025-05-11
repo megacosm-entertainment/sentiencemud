@@ -333,6 +333,21 @@ void save_char_obj(CHAR_DATA *ch)
     if (ch->desc != NULL && ch->desc->original != NULL)
 	ch = ch->desc->original;
 
+// Before saving, store the current area and region name if character is in a room
+if (ch->in_room && ch->in_room->area) {
+    free_string(ch->pcdata->last_area);
+    ch->pcdata->last_area = str_dup(ch->in_room->area->name);
+    
+    // If the room is in a region with a name, save that too
+    free_string(ch->pcdata->last_region);
+    
+    // Use dot notation instead of arrow operator for struct access
+    if (ch->in_room->area->region.name && ch->in_room->area->region.name[0] != '\0')
+        ch->pcdata->last_region = str_dup(ch->in_room->area->region.name);
+    else
+        ch->pcdata->last_region = str_dup("");
+}
+
     // Update account connection if available
     if (ch->desc && ch->desc->account) {
         free_string(ch->pcdata->account_name);
@@ -618,6 +633,9 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 			ch->pcdata->room_before_arena.area->uid,
 		 	ch->pcdata->room_before_arena.id[0]);
     }
+
+	fprintf(fp, "LastArea     %s~\n", ch->pcdata->last_area);
+	fprintf(fp, "LastRegion   %s~\n", ch->pcdata->last_region);
 
     fprintf(fp, "Not  %ld %ld %ld %ld %ld\n",
 	(long int)ch->pcdata->last_note,(long int)ch->pcdata->last_idea,(long int)ch->pcdata->last_penalty,
@@ -2261,6 +2279,18 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 
 	case 'L':
 	    KEY("LastLevel",	ch->pcdata->last_level, fread_number(fp));
+		if (!str_cmp(word, "LastArea"))
+		{
+			ch->pcdata->last_area = fread_string(fp);
+			fMatch = TRUE;
+			break;
+		}
+		if (!str_cmp(word, "LastRegion"))
+		{
+			ch->pcdata->last_region = fread_string(fp);
+			fMatch = TRUE;
+			break;
+		}
 	    KEY("LLev",	ch->pcdata->last_level, fread_number(fp));
 	    //KEY("LogO",	lastlogoff,		fread_number(fp));
 	    KEY("LogI",	ch->pcdata->last_login,	fread_number(fp));
@@ -8642,6 +8672,16 @@ void fread_account_character(ACCOUNT_DATA *account, FILE *fp)
             break;
             
         case 'L':
+			if (!str_cmp(word, "LastArea"))
+			{
+				acct_char->last_area = fread_string(fp);
+				fMatch = TRUE;
+			}
+			if (!str_cmp(word, "LastRegion"))
+			{
+				acct_char->last_region = fread_string(fp);
+				fMatch = TRUE;
+			}
             KEY("LastLogin", acct_char->last_login, fread_number(fp));
             KEY("Level", acct_char->current_level, fread_number(fp));
             break;
@@ -8737,6 +8777,9 @@ void fwrite_account_character(ACCOUNT_CHARACTER *character, FILE *fp)
     fprintf(fp, "TLevel %d\n", character->tot_level);
     fprintf(fp, "Created %ld\n", character->creation_date);
     fprintf(fp, "LastLogin %ld\n", character->last_login);
+	fprintf(fp, "LastArea %s~\n", character->last_area);
+	fprintf(fp, "LastRegion %s~\n", character->last_region);
+
     
     if (character->id != 0 || character->id2 != 0) {
         fprintf(fp, "Id %ld\n", character->id);
@@ -8844,6 +8887,12 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
             /* Update ID if needed */
             acct_char->id = ch->id[0];
             acct_char->id2 = ch->id[1];
+
+			// Add last area information
+    		free_string(acct_char->last_area);
+    		acct_char->last_area = str_dup(ch->pcdata->last_area);
+			free_string(acct_char->last_region);
+			acct_char->last_region = str_dup(ch->pcdata->last_region);
             
             iterator_stop(&it);
             return;
