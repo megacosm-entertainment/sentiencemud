@@ -48,6 +48,7 @@ extern bool setup_mfa_for_account(DESCRIPTOR_DATA *d, bool send_email);
 bool check_account_mfa(ACCOUNT_DATA *acct, const char *code);
 extern void send_email_async_ex(CHAR_DATA *ch, ACCOUNT_DATA *acct, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
 void setup_account_mfa(DESCRIPTOR_DATA *d);
+extern bool	process_output		args((DESCRIPTOR_DATA *d, bool fPrompt));
 
 
 
@@ -1782,6 +1783,10 @@ void display_account_menu(DESCRIPTOR_DATA *d)
         
     write_to_buffer(d, "{GQ{x) Quit\n\r\n\r", 0);
     write_to_buffer(d, "Enter choice: ", 0);
+    
+    // Force buffer flush to ensure prompt appears immediately
+    if (d->outsize > 0)
+        process_output(d, false);
 }
 
 // Update the select_character function
@@ -2517,6 +2522,10 @@ void display_character_menu(DESCRIPTOR_DATA *d)
     write_to_buffer(d, "{G4{x) Delete this character\n\r", 0);
     write_to_buffer(d, "{GB{x) Back to account menu\n\r\n\r", 0);
     write_to_buffer(d, "Enter choice: ", 0);
+    
+    // Force buffer flush to ensure prompt appears immediately
+    if (d->outsize > 0)
+        process_output(d, false);
 }
 
 
@@ -2671,7 +2680,7 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
             
             // Check if this character has additional password security
             if (ch->pcdata->account_pwd_override) {
-                write_to_buffer(d, "This character requires an additional password.\n\r", 0);
+                write_to_buffer(d, "\n\rThis character requires an additional password.\n\r", 0);
                 write_to_buffer(d, "Enter character password: ", 0);
                 ProtocolNoEcho(d, true);
                 d->connected = CON_GET_CHAR_PASSWORD;
@@ -2680,7 +2689,7 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
                 
             // Check if this character has additional MFA security
             if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled) {
-                write_to_buffer(d, "This character has MFA enabled.\n\r", 0);
+                write_to_buffer(d, "\n\rThis character has MFA enabled.\n\r", 0);
                 write_to_buffer(d, "Enter MFA code: ", 0);
                 d->connected = CON_GET_CHAR_MFA;
                 return;
@@ -2692,7 +2701,7 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
                 d->account->mfa_enabled && 
                 (IS_NULLSTR(ch->pcdata->mfa_key) || !ch->pcdata->mfa_enabled)) {
                 
-                write_to_buffer(d, "This is a staff character. Account MFA verification required.\n\r", 0);
+                write_to_buffer(d, "\n\rThis is a staff character. Account MFA verification required.\n\r", 0);
                 write_to_buffer(d, "Enter MFA code: ", 0);
                 d->connected = CON_GET_ACCOUNT_MFA_FOR_CHAR;
                 return;
@@ -2701,8 +2710,7 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
             // All set, proceed to MOTD
             proceed_to_game(d);
             break;
-            
-        // Other character menu cases remain unchanged
+        
         case '2': // Set character password
             if (ch->pcdata->account_pwd_override) {
                 write_to_buffer(d, "This character already has a unique password.\n\r", 0);
@@ -2732,9 +2740,9 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
             }
             break;
             
-            case '4': // Delete character
+        case '4': // Delete character
             // Don't allow staff characters to be deleted through the menu
-        if (IS_IMMORTAL(ch)) {
+            if (IS_IMMORTAL(ch)) {
                 write_to_buffer(d, "\n\r{RStaff characters cannot be deleted through the menu.{x\n\r", 0);
                 write_to_buffer(d, "Please contact an administrator for assistance.\n\r", 0);
                 display_character_menu(d);
