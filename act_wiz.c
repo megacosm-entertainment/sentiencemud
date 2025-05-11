@@ -62,6 +62,11 @@ extern RESERVED_WNUM reserved_rprog_wnums[];
 extern RESERVED_AREA reserved_areas[];
 void show_flag_cmds(CHAR_DATA *ch, const struct flag_type *flag_table);
 void pstat_variable_list(BUFFER *buffer, pVARIABLE vars);
+extern bool load_account(DESCRIPTOR_DATA *d, char *name);
+extern bool account_exists(char *argument);
+extern void save_account(ACCOUNT_DATA *account);
+extern void send_email_async_ex(CHAR_DATA *ch, ACCOUNT_DATA *acct, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
+
 
 
 RESERVED_WNUM *search_reserved(RESERVED_WNUM *reserved, char *name)
@@ -291,12 +296,6 @@ int gconfig_read (void)
                 KEY ("NextVlinkUID", gconfig.next_vlink_uid, fread_number(fp));
                 KEY ("NextChurchUID", gconfig.next_church_uid, fread_number(fp));
 				KEY ("NextChurchVnumStart", gconfig.next_church_vnum_start, fread_number(fp));
-
-                if(!str_cmp(word,"Newlock")) {
-					newlock = true;
-					fMatch = true;
-					break;
-				}
 	            break;
 			case 'O':
 				{
@@ -330,21 +329,6 @@ int gconfig_read (void)
 						fMatch = true;
 						break;
 					}
-				}
-				break;
-
-			case 'T':
-                if(!str_cmp(word,"Testport")) {
-					is_test_port = true;
-					fMatch = true;
-					break;
-				}
-				break;
-			case 'W':
-                if(!str_cmp(word,"Wizlock")) {
-					wizlock = true;
-					fMatch = true;
-					break;
 				}
 				break;
 
@@ -384,6 +368,7 @@ int game_settings_read (void)
 	game_settings.login_string = "";
 	game_settings.server_description = "";
 	game_settings.testport = false;
+	game_settings.dev_server = false;
 	game_settings.wizlock = false;
 	game_settings.new_acct_lock = false;
 	game_settings.new_char_lock = false;
@@ -395,6 +380,8 @@ int game_settings_read (void)
 	/* Auth */
 	game_settings.require_uniq_pass_staff = false;
 	game_settings.max_login_attempts = 0;
+	game_settings.enable_passwd = true;
+	game_settings.enable_mfa = true;
 
 	/* 2FA */
 	game_settings.require_2fa_all = false;
@@ -544,6 +531,8 @@ int game_settings_read (void)
 				KEY("EmailPort", game_settings.email_port, fread_number(fp));
 				KEY("EmailFromAddr", game_settings.email_from_addr, fread_string(fp));
 				KEY("EmailFromName", game_settings.email_from_name, fread_string(fp));
+				KEY("EnablePasswd", game_settings.enable_passwd, fread_number(fp));
+				KEY("EnableMFA", game_settings.enable_mfa, fread_number(fp));
                 if (!str_cmp(word, "END"))
                 {
 					if (game_settings.idle_disconnect_time <= 0)
@@ -877,6 +866,8 @@ int game_settings_write(void)
     fprintf(fp, "Require_2FA_All %d\n", game_settings.require_2fa_all);
     fprintf(fp, "Require_2FA_Staff %d\n", game_settings.require_2fa_staff);
     fprintf(fp, "RequireUniqPassStaff %d\n", game_settings.require_uniq_pass_staff);
+	fprintf(fp, "EnablePasswd %d\n", game_settings.enable_passwd);
+	fprintf(fp, "EnableMFA %d\n", game_settings.enable_mfa);
 
 	/* Timeouts */
     fprintf(fp, "IdleDisconnectTimeout %d\n",  game_settings.idle_disconnect_time);
@@ -8059,144 +8050,141 @@ void do_rset(CHAR_DATA *ch, char *argument)
 }
 
 
-
-/*void do_sockets(CHAR_DATA *ch, char *argument)
+void do_sockets(CHAR_DATA *ch, char *argument)
 {
+    DESCRIPTOR_DATA *d;
     char buf[2 * MAX_STRING_LENGTH];
     char buf2[MAX_STRING_LENGTH];
-    char arg[MAX_INPUT_LENGTH];
-    DESCRIPTOR_DATA *d;
+    char arg[250];
+    char arg_type[50];
     int count;
+    char s[100];
+    char idle[20];
+    bool found_match = FALSE;
+    int search_type = 0; // 0 = name, 1 = host, 2 = account, 3 = state
 
     count = 0;
     buf[0] = '\0';
+    buf2[0] = '\0';
 
-    one_argument(argument,arg);
-    for (d = descriptor_list; d != NULL; d = d->next)
-    {
-	if (d->character != NULL && can_see(ch, d->character)
-	&& (arg[0] == '\0' || is_name(arg,d->character->name)
-			   || (d->original && is_name(arg,d->original->name))))
-	{
-	    count++;
-	    if (d->character != NULL && (!str_cmp(d->character->name, "arlox")))
-	      sprintf(buf + strlen(buf), "[%3d %2d] Arlox@136.17.156.20\n\r", d->descriptor, d->connected);
-	    else
-	    if (d->character != NULL && (!str_cmp(d->character->name, "zoron")))
-	      sprintf(buf + strlen(buf), "[%3d %2d] Zoron@196.27.52.10\n\r", d->descriptor, d->connected);
-	    else
-	    sprintf(buf + strlen(buf), "[%3d %2d] %s@%s\n\r",
-		d->descriptor,
-		d->connected,
-		d->original  ? d->original->name  :
-		d->character ? d->character->name : "(none)",
-		d->host
-		);
-	}
-    }
-    if (count == 0)
-    {
-	send_to_char("No one by that name is connected.\n\r",ch);
-	return;
-    }
+    strcat(buf2, "\n\r{D[{xNum Connected_State Login@ Idl{D]{W Name{x         Account        Host\n\r");
+    strcat(buf2, "{D-----------------------------------------------------------------------------------{x\n\r");
 
-    sprintf(buf2, "%d user%s\n\r", count, count == 1 ? "" : "s");
-    strcat(buf,buf2);
-    page_to_char(buf, ch);
-    return;
-}*/
+    argument = one_argument(argument, arg);
 
-/* New sockets command, tells the connected state of characters and aligns things better. -- Areo 2006-08-23 */
-void do_sockets( CHAR_DATA *ch, char *argument )
-{
-    CHAR_DATA       *vch;
-    DESCRIPTOR_DATA *d;
-    char            buf  [ 2 * MAX_STRING_LENGTH ];
-    char            buf2 [ MAX_STRING_LENGTH ];
-    char	    	arg	 [ MAX_INPUT_LENGTH ];
-    int             count;
-    char *          st;
-    char            s[100];
-    char            idle[20];
-
-
-    count       = 0;
-    buf[0]      = '\0';
-    buf2[0]     = '\0';
-
-    strcat( buf2, "\n\r{D[{xNum Connected_State Login@ Idl{D]{W Name{x         Host\n\r" );
-    strcat( buf2,"{D--------------------------------------------------------------------------{x\n\r");
-
-    one_argument(argument,arg);
-    for ( d = descriptor_list; d; d = d->next )
-    {
-        if (d->character != NULL && can_see(ch, d->character)
-	&& (arg[0] == '\0' || is_name(arg,d->character->name)
-		   || (d->original && is_name(arg,d->original->name))))
-        {
-           /* NB: You may need to edit the CON_ values */
-           switch( d->connected )
-           {
-              case CON_PLAYING:              st = "    PLAYING    ";    break;
-              case CON_GET_NAME:             st = "   Get Name    ";    break;
-              case CON_GET_OLD_PASSWORD:     st = "Get Old Passwd ";    break;
-              case CON_CONFIRM_NEW_NAME:     st = " Confirm Name  ";    break;
-              case CON_GET_NEW_PASSWORD:     st = "Get New Passwd ";    break;
-              case CON_CONFIRM_NEW_PASSWORD: st = "Confirm Passwd ";    break;
-              case CON_GET_NEW_RACE:         st = "  Get New Race ";    break;
-              case CON_GET_NEW_SEX:          st = "  Get New Sex  ";    break;
-              //case CON_GET_NEW_CLASS:        st = " Get New Class ";    break;
-              case CON_GET_ALIGNMENT:  	     st = " Get New Align ";	break;
-	      	  case CON_READ_IMOTD:		     st = " Reading IMOTD "; 	break;
-              case CON_READ_MOTD:            st = "  Reading MOTD ";    break;
-	      	  case CON_BREAK_CONNECT:	     st = "   LINKDEAD    ";	break;
-              case CON_GET_ASCII:		     st = "   Get ASCII   ";	break;
-              //case CON_GET_SUB_CLASS:	     st = "  Get Subclass ";	break;
-              //case CON_OLD_SUBCLASS:	     st = "  Get Old Sub  ";	break;
-              //case CON_SUBCLASS_CHOOSE:	     st = "Choose Subclass";	break;
-              case CON_CHANGE_PASSWORD:	     st = "Change Password";	break;
-              case CON_CHANGE_PASSWORD_CONFIRM:	st = "Confirm PassChg";	break;
-              case CON_GET_EMAIL:			 st = "   Get Email   ";	break;
-			  case CON_CONFIRM_EMAIL_FOR_RESET: st = " Confirm Email ";	break;
-              default:                       st = "   !UNKNOWN!   ";    break;
-           }
-           count++;
-
-           /* Format "login" value... */
-           vch = d->original ? d->original : d->character;
-           strftime( s, 100, "%I:%M%p", localtime( &vch->logon ) );
-
-           if ( vch->timer > 0 )
-              sprintf( idle, "%-2d", vch->timer );
-           else
-              sprintf( idle, "  " );
-
-           sprintf(buf, "{D[{x%s%3d{X %s %7s{g %2s{D]{W %-12s{x %-50.50s\n\r",
-              d->ssl ? "{G": "{X",
-			  d->descriptor,
-              st,
-              s,
-              idle,
-              ( d->original ) ? d->original->name
-                              : ( d->character )  ? d->character->name
-                                                  : "(None!)",
-              d->host );
-
-           strcat( buf2, buf );
-
+    if (arg[0] != '\0' && argument[0] != '\0') {
+        argument = one_argument(argument, arg_type);
+        
+        if (!str_prefix(arg_type, "host"))
+            search_type = 1;
+        else if (!str_prefix(arg_type, "account"))
+            search_type = 2;
+        else if (!str_prefix(arg_type, "state"))
+            search_type = 3;
+        else {
+            // If arg_type isn't a valid search type, treat it as part of the search term
+            // and reset arg to contain both parts
+            char full_arg[MAX_INPUT_LENGTH];
+            sprintf(full_arg, "%s %s", arg, arg_type);
+            strcpy(arg, full_arg);
+            search_type = 0; // Default to name search
         }
     }
 
-    if (count == 0)
-    {
-    send_to_char("No one by that name is connected.\n\r",ch);
-    return;
+    for (d = descriptor_list; d; d = d->next) {
+        // Skip this descriptor if it doesn't match our search criteria
+        if (arg[0] != '\0') {
+            found_match = FALSE;
+            
+            switch (search_type) {
+                case 0: // Default search by character name
+                    if (d->character && can_see(ch, d->character) && 
+                        (is_name(arg, d->character->name) ||
+                         (d->original && is_name(arg, d->original->name))))
+                        found_match = TRUE;
+                    break;
+                    
+                case 1: // Search by host
+                    if (d->host && strstr(d->host, arg))
+                        found_match = TRUE;
+                    break;
+                    
+                case 2: // Search by account
+                    if (d->account && strstr(d->account->username, arg))
+                        found_match = TRUE;
+                    break;
+                    
+                case 3: // Search by connection state
+                    if (d->connected < CON_MAX && 
+                        strstr(con_states[d->connected].name, arg))
+                        found_match = TRUE;
+                    break;
+            }
+            
+            if (!found_match)
+                continue;
+        }
+
+        if (d->character != NULL && !can_see(ch, d->character))
+            continue;
+
+        count++;
+
+        /* Get connection state from the table */
+        const char *state_name = "UNKNOWN";
+        if (d->connected >= 0 && d->connected < CON_MAX)
+            state_name = con_states[d->connected].name;
+
+        /* Format "login" value... */
+        CHAR_DATA *vch = d->original ? d->original : d->character;
+        if (vch)
+            strftime(s, 100, "%I:%M%p", localtime(&vch->logon));
+        else
+            strcpy(s, "------");
+
+        /* Format idle time */
+        if (vch && vch->timer > 0)
+            sprintf(idle, "%-2d", vch->timer);
+        else
+            sprintf(idle, "  ");
+
+        /* Get character name */
+        const char *char_name = "(None!)";
+        if (d->original)
+            char_name = d->original->name;
+        else if (d->character)
+            char_name = d->character->name;
+
+        /* Get account name */
+        const char *acct_name = "(None)";
+        if (d->account)
+            acct_name = d->account->username;
+
+        sprintf(buf, "{D[{x%s%3d{X %-15.15s %7s{g %2s{D]{W %-12s{x %-14s %-30.30s\n\r",
+            d->ssl ? "{G" : "{X",
+            d->descriptor,
+            state_name,
+            s,
+            idle,
+            char_name,
+            acct_name,
+            d->host);
+
+        strcat(buf2, buf);
     }
 
-    sprintf( buf, "\n\r%d user%s\n\r", count, count == 1 ? "" : "s" );
-    strcat( buf2, buf );
-    strcat( buf2,"{D--------------------------------------------------------------------------{x\n\r");
-    send_to_char( buf2, ch );
+    if (count == 0) {
+        if (arg[0] == '\0')
+            send_to_char("No one is connected.\n\r", ch);
+        else
+            send_to_char("No matching connections found.\n\r", ch);
+        return;
+    }
+
+    sprintf(buf, "\n\r%d user%s\n\r", count, count == 1 ? "" : "s");
+    strcat(buf2, buf);
+    strcat(buf2, "{D-----------------------------------------------------------------------------------{x\n\r");
+    send_to_char(buf2, ch);
     return;
 }
 
@@ -13579,223 +13567,493 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
     }
 }
 
-
-
 void do_pwreset(CHAR_DATA *ch, char *argument)
 {
-	CHAR_DATA *victim;
-	char type[MAX_INPUT_LENGTH];
-	char buf[MAX_STRING_LENGTH];
-	char plr[MAX_INPUT_LENGTH];
-	char email[MAX_INPUT_LENGTH];
-	char reset_msg[MSL], reset_subject[MSL];
-	char tmp_reset_code[16];
-	DESCRIPTOR_DATA d;
+    CHAR_DATA *victim;
+    char type[MAX_INPUT_LENGTH];
+    char buf[MAX_STRING_LENGTH];
+    char target[MAX_INPUT_LENGTH];
+    char email[MAX_INPUT_LENGTH];
+    char reset_msg[MSL], reset_subject[MSL];
+    char tmp_reset_code[16];
+    DESCRIPTOR_DATA d;
+    bool is_account = FALSE;
+    ACCOUNT_DATA *account = NULL;
 
+    argument = one_argument(argument, type);
+    argument = one_argument(argument, target);
+    
+    if (type[0] == '\0' || target[0] == '\0')
+    {
+        send_to_char("Syntax: pwreset <local|email> <character|account> [email]\n\r", ch);
+        send_to_char("For account resets, prefix the account name with 'account:'\n\r", ch);
+        return;
+    }
 
-	argument = one_argument(argument, type);
-	argument = one_argument(argument, plr);
-	
+    // Check if this is an account reset
+    if (!strncmp(target, "account:", 8))
+    {
+        is_account = TRUE;
+        memmove(target, target + 8, strlen(target) - 7); // Remove "account:" prefix
+    }
 
-	if (type[0] == '\0')
-	{
-		send_to_char("Reset who's password?\n\rSyntax: pwreset <local|email> <character> [email]", ch);
-		return;
-	}
+    if (!str_cmp(type, "local"))
+    {
+        if (is_account)
+        {
+            // Handle account reset
+            if (account_exists(target))
+            {
+                // Create a temporary descriptor for loading the account
+                memset(&d, 0, sizeof(d));
+                
+                // Load account using the proper function signature
+                if (!load_account(&d, target))
+                {
+                    send_to_char("Error loading that account.\n\r", ch);
+                    return;
+                }
+                
+                account = d.account; // Get the loaded account
 
-	if (!str_cmp(type, "local"))
-	{
-		if ((player_exists(plr)))
-		{
-			if ((victim = get_char_world(ch, plr)) == NULL)
-			{
-				if (!load_char_obj(&d, plr))
-				{
-					send_to_char("That player does not exist.\n\r", ch);
-					return;
-				}
-				else
-				{
-					d.character->desc = NULL;
-					if (d.character->pcdata->reset_code[0] != '\0')
-					{
-						free_string(d.character->pcdata->reset_code);
-						d.character->pcdata->reset_code = str_dup("");
-					}
+                if (account->reset_code[0] != '\0')
+                {
+                    free_string(account->reset_code);
+                    account->reset_code = str_dup("");
+                }
 
-					generate_reset_code(tmp_reset_code, 15);
+                generate_reset_code(tmp_reset_code, 15);
+                account->reset_code = str_dup(tmp_reset_code);
+                account->reset_state = RESET_PENDING;
+                account->reset_time = current_time;
 
-					d.character->pcdata->reset_code = str_dup(tmp_reset_code);
+                sprintf(buf, "Password reset code has been set to %s for account %s.\n\r", 
+                        account->reset_code, account->username);
+                send_to_char(buf, ch);
 
-					d.character->pcdata->reset_state = RESET_PENDING;
-					d.character->pcdata->reset_time = current_time;
+                save_account(account);
+                free_account(account);
+                d.account = NULL;
+            }
+            else
+            {
+                send_to_char("That account does not exist.\n\r", ch);
+                return;
+            }
+        }
+        else
+        {
+            // Original character reset code
+            if ((player_exists(target)))
+            {
+                if ((victim = get_char_world(ch, target)) == NULL)
+                {
+                    if (!load_char_obj(&d, target))
+                    {
+                        send_to_char("That player does not exist.\n\r", ch);
+                        return;
+                    }
+                    else
+                    {
+                        d.character->desc = NULL;
+                        
+                        // Check if the character has a password set
+                        if (d.character->pcdata->pwd[0] == '\0')
+                        {
+                            send_to_char("That character has no password set. Cannot create reset code.\n\r", ch);
+                            free_char(d.character);
+                            return;
+                        }
+                        
+                        if (d.character->pcdata->reset_code[0] != '\0')
+                        {
+                            free_string(d.character->pcdata->reset_code);
+                            d.character->pcdata->reset_code = str_dup("");
+                        }
 
-					sprintf(buf, "Password reset code has been set to %s for %s.\n\r", d.character->pcdata->reset_code, d.character->name);
-					send_to_char(buf, ch);
+                        generate_reset_code(tmp_reset_code, 15);
+                        d.character->pcdata->reset_code = str_dup(tmp_reset_code);
+                        d.character->pcdata->reset_state = RESET_PENDING;
+                        d.character->pcdata->reset_time = current_time;
 
-					save_char_obj(d.character);
-					free_char(d.character);
-				}
-			}
-			else
-			{
-				send_to_char("That player is already online.\n\r", ch);
-				return;
-			}
-			// Replace this with a random string generator later.
+                        sprintf(buf, "Password reset code has been set to %s for %s.\n\r", 
+                                d.character->pcdata->reset_code, d.character->name);
+                        send_to_char(buf, ch);
 
-		}
-		else
-		{
-			send_to_char("That player does not exist.\n\r", ch);
-			return;
-		}
-	}
+                        save_char_obj(d.character);
+                        free_char(d.character);
+                    }
+                }
+                else
+                {
+                    // Check if online character has a password set
+                    if (victim->pcdata->pwd[0] == '\0')
+                    {
+                        send_to_char("That character has no password set. Cannot create reset code.\n\r", ch);
+                        return;
+                    }
+                    
+                    send_to_char("That player is already online.\n\r", ch);
+                    return;
+                }
+            }
+            else
+            {
+                send_to_char("That player does not exist.\n\r", ch);
+                return;
+            }
+        }
+    }
+    else if (!str_cmp(type, "email"))
+    {
+        one_argument(argument, email);
 
-	else if (!str_cmp(type, "email"))
-	{
-		one_argument(argument, email);
+        if (is_account)
+        {
+            // Handle account email reset
+            if (account_exists(target))
+            {
+                // Create a temporary descriptor for loading the account
+                memset(&d, 0, sizeof(d));
+                
+                // Load account using the proper function signature
+                if (!load_account(&d, target))
+                {
+                    send_to_char("Error loading that account.\n\r", ch);
+                    return;
+                }
+                
+                account = d.account; // Get the loaded account
+                
+                if (account->reset_code[0] != '\0')
+                {
+                    free_string(account->reset_code);
+                    account->reset_code = str_dup("");
+                }
 
-		if ((player_exists(plr)))
-		{
-			if ((victim = get_char_world(ch, plr)) == NULL)
-			{
-				if (!load_char_obj(&d, plr))
-				{
-					send_to_char("That player does not exist.\n\r", ch);
-					return;
-				}
-				else
-				{
-					d.character->desc = NULL;
-					if (d.character->pcdata->reset_code[0] != '\0')
-					{
-						free_string(d.character->pcdata->reset_code);
-						d.character->pcdata->reset_code = str_dup("");
-					}
+                generate_reset_code(tmp_reset_code, 15);
+                account->reset_code = str_dup(tmp_reset_code);
+                account->reset_state = RESET_PENDING;
+                account->reset_time = current_time;
 
-					generate_reset_code(tmp_reset_code, 15);
+                sprintf(reset_subject, "Password Reset for Account: %s", account->username);
+                sprintf(reset_msg, "Your account password reset code is: %s.\nPlease note that this code will expire after 24 hours.", 
+                        account->reset_code);
 
-					d.character->pcdata->reset_code = str_dup(tmp_reset_code);
+                if (email[0] != '\0')
+                {
+                    send_email_async_ex(NULL, account, email, reset_subject, reset_msg, NULL, NULL);
+                    sprintf(buf, "Password reset code has been sent to %s for account %s.\n\r", 
+                            email, account->username);
+                    send_to_char(buf, ch);
+                }
+                else
+                {
+                    if (account->email[0] == '\0')
+                    {
+                        send_to_char("No email address set for this account. You must use the 'local' option instead.\n\r", ch);
+                        free_account(account);
+                        d.account = NULL;
+                        return;
+                    }
 
+                    send_email_async_ex(NULL, account, account->email, reset_subject, reset_msg, NULL, NULL);
+                    sprintf(buf, "Password reset code has been sent to %s for account %s.\n\r", 
+                            account->email, account->username);
+                    send_to_char(buf, ch);
+                }
 
-					d.character->pcdata->reset_state = RESET_PENDING;
-					d.character->pcdata->reset_time = current_time;
+                save_account(account);
+                free_account(account);
+                d.account = NULL;
+            }
+            else
+            {
+                send_to_char("That account does not exist.\n\r", ch);
+                return;
+            }
+        }
+        else
+        {
+            // Original character email reset code
+            if ((player_exists(target)))
+            {
+                if ((victim = get_char_world(ch, target)) == NULL)
+                {
+                    if (!load_char_obj(&d, target))
+                    {
+                        send_to_char("That player does not exist.\n\r", ch);
+                        return;
+                    }
+                    else
+                    {
+                        CHAR_DATA *character = d.character;
+                        character->desc = NULL;
+                        
+                        // Check if the character has a password set
+                        if (character->pcdata->pwd[0] == '\0')
+                        {
+                            send_to_char("That character has no password set. Cannot create reset code.\n\r", ch);
+                            free_char(character);
+                            return;
+                        }
+                        
+                        if (character->pcdata->reset_code[0] != '\0')
+                        {
+                            free_string(character->pcdata->reset_code);
+                            character->pcdata->reset_code = str_dup("");
+                        }
 
-					sprintf(reset_subject, "Password Reset for %s", d.character->name);
-					sprintf(reset_msg, "Your password reset code is: %s.\nPlease note that this code will expire after 24 hours.", d.character->pcdata->reset_code);
+                        generate_reset_code(tmp_reset_code, 15);
+                        character->pcdata->reset_code = str_dup(tmp_reset_code);
+                        character->pcdata->reset_state = RESET_PENDING;
+                        character->pcdata->reset_time = current_time;
 
-					if (email[0] != '\0')
-					{
-						send_email_async(d.character, email, reset_subject, reset_msg, NULL, NULL);
-						sprintf(buf, "Password reset code has been sent to %s for %s.\n\r", email, plr);
-						send_to_char(buf, ch);
-					}
-					else
-					{
-						if (d.character->pcdata->email[0] == '\0')
-						{
-							send_to_char("No email address set for this player. You must use the 'local' option instead.\n\r", ch);
-							return;
-						}
+                        sprintf(reset_subject, "Password Reset for %s", character->name);
+                        sprintf(reset_msg, "Your password reset code is: %s.\nPlease note that this code will expire after 24 hours.", 
+                                character->pcdata->reset_code);
 
-						send_email_async(d.character, d.character->pcdata->email, reset_subject, reset_msg, NULL, NULL);
-						sprintf(buf, "Password reset code has been sent to %s for %s.\n\r", d.character->pcdata->email, plr);
-						send_to_char(buf, ch);
-					}
+                        if (email[0] != '\0')
+                        {
+                            send_email_async(character, email, reset_subject, reset_msg, NULL, NULL);
+                            sprintf(buf, "Password reset code has been sent to %s for %s.\n\r", 
+                                    email, target);
+                            send_to_char(buf, ch);
+                        }
+                        else
+                        {
+                            if (character->pcdata->email[0] == '\0')
+                            {
+                                // Character has no email address, fall back to account email
+                                ACCOUNT_DATA *char_account;
+                                DESCRIPTOR_DATA account_d;
+                                
+                                // Save character data first since we're going to reuse the descriptor
+                                save_char_obj(character);
+                                
+                                // Load the character's associated account
+                                memset(&account_d, 0, sizeof(account_d));
+                                if (!load_account(&account_d, character->pcdata->account_name))
+                                {
+                                    send_to_char("No email address set for this player and unable to load account. You must use the 'local' option instead.\n\r", ch);
+                                    free_char(character);
+                                    return;
+                                }
+                                
+                                char_account = account_d.account;
+                                
+                                if (char_account->email[0] == '\0')
+                                {
+                                    send_to_char("No email address set for this player or their account. You must use the 'local' option instead.\n\r", ch);
+                                    free_char(character);
+                                    free_account(char_account);
+                                    account_d.account = NULL;
+                                    return;
+                                }
 
-					save_char_obj(d.character);
-					free_char(d.character);
-				}
-			}
-			else
-			{
-				send_to_char("That player is already online.\n\r", ch);
-				return;
-			}
-		}
-		else
-		{
-			send_to_char("That player does not exist.\n\r", ch);
-			return;
-		}
-	}
+                                // Use account email but still specify character name
+                                send_email_async(character, char_account->email, reset_subject, reset_msg, NULL, NULL);
+                                sprintf(buf, "Password reset code has been sent to account email %s for character %s.\n\r", 
+                                        char_account->email, target);
+                                send_to_char(buf, ch);
+                                
+                                free_account(char_account);
+                                account_d.account = NULL;
+                            }
+                            else
+                            {
+                                send_email_async(character, character->pcdata->email, reset_subject, reset_msg, NULL, NULL);
+                                sprintf(buf, "Password reset code has been sent to %s for %s.\n\r", 
+                                        character->pcdata->email, target);
+                                send_to_char(buf, ch);
+                            }
+                        }
+
+                        save_char_obj(character);
+                        free_char(character);
+                    }
+                }
+                else
+                {
+                    // Check if online character has a password set
+                    if (victim->pcdata->pwd[0] == '\0')
+                    {
+                        send_to_char("That character has no password set. Cannot create reset code.\n\r", ch);
+                        return;
+                    }
+                    
+                    send_to_char("That player is already online.\n\r", ch);
+                    return;
+                }
+            }
+            else
+            {
+                send_to_char("That player does not exist.\n\r", ch);
+                return;
+            }
+        }
+    }
+    else
+    {
+        send_to_char("Syntax: pwreset <local|email> <character|account> [email]\n\r", ch);
+        send_to_char("For account resets, prefix the account name with 'account:'\n\r", ch);
+    }
 }
 
 void do_mfareset(CHAR_DATA *ch, char *argument)
 {
-	CHAR_DATA *victim;
-	char plr[MAX_INPUT_LENGTH];
-	char buf[MAX_STRING_LENGTH];
-	DESCRIPTOR_DATA d;
-	bool mfa_reset = false;
+    CHAR_DATA *victim;
+    char target[MAX_INPUT_LENGTH];
+    char buf[MAX_STRING_LENGTH];
+    DESCRIPTOR_DATA d;
+    bool is_account = FALSE;
+    ACCOUNT_DATA *account = NULL;
 
-	argument = one_argument(argument, plr);
+    argument = one_argument(argument, target);
 
-	if (plr[0] == '\0')
-	{
-		send_to_char("Reset MFA for whom?\n\rSyntax: mfareset <character>\n\r", ch);
-		return;
-	}
+    if (target[0] == '\0')
+    {
+        send_to_char("Syntax: mfareset <character|account>\n\r", ch);
+        send_to_char("For account resets, prefix the account name with 'account:'\n\r", ch);
+        return;
+    }
 
-	if ((player_exists(plr)))
-	{
-		if ((victim = get_char_world(ch, plr)) == NULL)
-		{
-			if (!load_char_obj(&d, plr))
-			{
-				send_to_char("That player does not exist.\n\r", ch);
-				return;
-			}
-			else
-			{
-				d.character->desc = NULL;
+    // Check if this is an account reset
+    if (!strncmp(target, "account:", 8))
+    {
+        is_account = TRUE;
+        memmove(target, target + 8, strlen(target) - 7); // Remove "account:" prefix
+    }
 
-				if (d.character->pcdata->mfa_enabled)
-				{
-					d.character->pcdata->mfa_enabled = false;
-					mfa_reset = true;
-				}
-				if (!IS_NULLSTR(d.character->pcdata->mfa_key))
-				{
-					free_string(d.character->pcdata->mfa_key);
-					d.character->pcdata->mfa_key = str_dup("");
-					mfa_reset = true;
-				}
-				if (d.character->pcdata->qr_code_expiration != 0)
-				{
-					d.character->pcdata->qr_code_expiration = 0;
-					mfa_reset = true;
-				}
+    if (is_account)
+    {
+        // Handle account MFA reset
+        if (account_exists(target))
+        {
+            // Create a temporary descriptor for loading the account
+            memset(&d, 0, sizeof(d));
+            
+            // Load account using the proper function signature
+            if (!load_account(&d, target))
+            {
+                send_to_char("Error loading that account.\n\r", ch);
+                return;
+            }
+            
+            account = d.account; // Get the loaded account
 
-				if (mfa_reset)
-				{
-					sprintf(buf, "Multifactor auth has been disabled for %s.\n\r", d.character->name);
-					send_to_char(buf, ch);
-					save_char_obj(d.character);
-				}
-				else
-				{
-					sprintf(buf, "Multifactor auth was not enabled for %s.\n\r", d.character->name);
-					send_to_char(buf,ch);
-				}
+            // Check if MFA is enabled or has any MFA data set
+            if (!account->mfa_enabled && IS_NULLSTR(account->mfa_key) && account->qr_code_expiration == 0)
+            {
+                sprintf(buf, "Multifactor auth is not enabled for account %s.\n\r", account->username);
+                send_to_char(buf, ch);
+                free_account(account);
+                d.account = NULL;
+                return;
+            }
 
-				free_char(d.character);
+            // Reset MFA settings
+            account->mfa_enabled = FALSE;
+            
+            if (!IS_NULLSTR(account->mfa_key))
+            {
+                free_string(account->mfa_key);
+                account->mfa_key = str_dup("");
+            }
+            
+            account->qr_code_expiration = 0;
 
+            sprintf(buf, "Multifactor auth has been disabled for account %s.\n\r", account->username);
+            send_to_char(buf, ch);
+            save_account(account);
 
-			}
-		}
-		else
-		{
-			send_to_char("That player is already online.\n\r", ch);
-			return;
-		}
-	}
-	else
-	{
-		send_to_char("That player does not exist.\n\r", ch);
-		return;
-	}
+            free_account(account);
+            d.account = NULL;
+        }
+        else
+        {
+            send_to_char("That account does not exist.\n\r", ch);
+            return;
+        }
+    }
+    else
+    {
+        // Character MFA reset code
+        if ((player_exists(target)))
+        {
+            if ((victim = get_char_world(ch, target)) == NULL)
+            {
+                if (!load_char_obj(&d, target))
+                {
+                    send_to_char("That player does not exist.\n\r", ch);
+                    return;
+                }
+                else
+                {
+                    d.character->desc = NULL;
+
+                    // Check if MFA is enabled or has any MFA data set
+                    if (!d.character->pcdata->mfa_enabled && 
+                        IS_NULLSTR(d.character->pcdata->mfa_key) && 
+                        d.character->pcdata->qr_code_expiration == 0)
+                    {
+                        sprintf(buf, "Multifactor auth is not enabled for %s.\n\r", d.character->name);
+                        send_to_char(buf, ch);
+                        free_char(d.character);
+                        return;
+                    }
+
+                    // Reset MFA settings
+                    d.character->pcdata->mfa_enabled = FALSE;
+                    
+                    if (!IS_NULLSTR(d.character->pcdata->mfa_key))
+                    {
+                        free_string(d.character->pcdata->mfa_key);
+                        d.character->pcdata->mfa_key = str_dup("");
+                    }
+                    
+                    d.character->pcdata->qr_code_expiration = 0;
+
+                    sprintf(buf, "Multifactor auth has been disabled for %s.\n\r", d.character->name);
+                    send_to_char(buf, ch);
+                    save_char_obj(d.character);
+                    free_char(d.character);
+                }
+            }
+            else
+            {
+                // Check if MFA is enabled for online character
+                if (!victim->pcdata->mfa_enabled && 
+                    IS_NULLSTR(victim->pcdata->mfa_key) && 
+                    victim->pcdata->qr_code_expiration == 0)
+                {
+                    sprintf(buf, "Multifactor auth is not enabled for %s.\n\r", victim->name);
+                    send_to_char(buf, ch);
+                    return;
+                }
+
+                // Reset MFA for online character
+                victim->pcdata->mfa_enabled = FALSE;
+                
+                if (!IS_NULLSTR(victim->pcdata->mfa_key))
+                {
+                    free_string(victim->pcdata->mfa_key);
+                    victim->pcdata->mfa_key = str_dup("");
+                }
+                
+                victim->pcdata->qr_code_expiration = 0;
+
+                sprintf(buf, "Multifactor auth has been disabled for %s.\n\r", victim->name);
+                send_to_char(buf, ch);
+                save_char_obj(victim);
+            }
+        }
+        else
+        {
+            send_to_char("That player does not exist.\n\r", ch);
+            return;
+        }
+    }
 }
 
 void do_lvlaudit(CHAR_DATA *ch, char *argument)

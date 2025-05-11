@@ -31,4 +31,6 @@
     #define ISALNUM(c) isalnum(c)
 #endif
 
+char *tmp_sprintf(const char *fmt, ...);
+
 #endif // !ROM__STRINGS_H

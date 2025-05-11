@@ -6143,6 +6143,24 @@ bool player_exists(char *argument)
     return found_char;
 }
 
+// checks if an account with the given name exists
+bool account_exists(char *argument)
+{
+    char account_name[MSL];
+    bool found_account = false;
+    FILE *fp;
+
+    sprintf(account_name, "%s%c/%s", ACCOUNT_DIR, tolower(argument[0]), capitalize(argument));
+    if ((fp = fopen(account_name, "r")) == NULL)
+        found_account = false;
+    else
+    {
+        found_account = true;
+        fclose(fp);
+    }
+
+    return found_account;
+}
 
 // Find a skull of a person in ch's inv. Looks in containers.
 OBJ_DATA *get_skull(CHAR_DATA *ch, char *owner)
@@ -10871,114 +10889,118 @@ bool check_social_status(CHAR_DATA *ch)
 }
 
 
-void send_email(CHAR_DATA *ch, char *email, char *subject, char *message , char *attachment_filename, char *attachment_mime_type)
+void send_email_ex(CHAR_DATA *ch, ACCOUNT_DATA *acct, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type)
 {
-	//char buf[MSL];
-	char subj_buf[256];
-	char body_buf[MSL*2];
-	char body_buf_html[MSL*5];
+    char subj_buf[256];
+    char body_buf[MSL*2];
+    char body_buf_html[MSL*5];
+    char *recipient_name = NULL;
 
-	extern GAME_SETTINGS_DATA game_settings;
+    extern GAME_SETTINGS_DATA game_settings;
+
+    quickmail_initialize();
+
+    if (subject[0] != '\0')
+        sprintf(subj_buf, "%s", subject);
+    else
+        sprintf(subj_buf, "Email from SentienceMUD");
+
+    quickmail mailobj = quickmail_create(game_settings.email_from_name, game_settings.email_from_addr, subj_buf);
+
+    quickmail_add_to(mailobj, email);
+
+    quickmail_add_header(mailobj, "Importance: Low");
+    quickmail_add_header(mailobj, "X-Priority: 5");
+    quickmail_add_header(mailobj, "X-MSMail-Priority: Low");
+
+    // Get the appropriate name to address the email
+    if (ch)
+        recipient_name = ch->name;
+    else if (acct)
+        recipient_name = acct->username;
+    else
+        recipient_name = "Adventurer";
+
+    sprintf(body_buf, "Hello %s,\n\n%s\n\nSincerely,\n\nThe SentienceMUD Staff", recipient_name, message);
+    sprintf(body_buf_html, "Hello %s,<br/><br/>%s<br/><br/>Sincerely,<br/><br/>The SentienceMUD Staff", recipient_name, message);
+
+    quickmail_set_body(mailobj, body_buf);
+    quickmail_add_body_memory(mailobj, "text/html", body_buf_html, strlen(body_buf_html), 0);
+
+    if (attachment_filename && attachment_mime_type) {
+        quickmail_add_attachment_file(mailobj, attachment_filename, attachment_mime_type);
+    }
+
+    const char* errmsg;
+
+    if ((errmsg = quickmail_send(mailobj, game_settings.email_host, game_settings.email_port, game_settings.email_username, game_settings.email_password)) != NULL)
+        fprintf(stderr, "Error sending e-mail: %s\n", errmsg);
+      quickmail_destroy(mailobj);
+      quickmail_cleanup();
+}
 
 
-	quickmail_initialize();
-
-	if (subject[0] != '\0')
-		sprintf(subj_buf, "%s", subject);
-	else
-		sprintf(subj_buf, "Email from SentienceMUD");
-
-	quickmail mailobj = quickmail_create(game_settings.email_from_name, game_settings.email_from_addr, subj_buf);
-
-	quickmail_add_to(mailobj, email);
-
-	quickmail_add_header(mailobj, "Importance: Low");
-	quickmail_add_header(mailobj, "X-Priority: 5");
-	quickmail_add_header(mailobj, "X-MSMail-Priority: Low");
-
-	sprintf(body_buf, "Hello %s,\n\n%s\n\nSincerely,\n\nThe SentienceMUD Staff", ch->name, message);
-	sprintf(body_buf_html, "Hello %s,<br/><br/>%s<br/><br/>Sincerely,<br/><br/>The SentienceMUD Staff", ch->name, message);
-
-	quickmail_set_body(mailobj, body_buf);
-	quickmail_add_body_memory(mailobj, "text/html", body_buf_html, strlen(body_buf_html), 0);
-
-	if (attachment_filename && attachment_mime_type) {
-		quickmail_add_attachment_file(mailobj, attachment_filename, attachment_mime_type);
-	}
-
-	const char* errmsg;
-
-	if ((errmsg = quickmail_send(mailobj, game_settings.email_host, game_settings.email_port, game_settings.email_username, game_settings.email_password)) != NULL)
-    	fprintf(stderr, "Error sending e-mail: %s\n", errmsg);
-  	quickmail_destroy(mailobj);
-  	quickmail_cleanup();
-/*
-  quickmail_add_to(mailobj, ch->pcdata->email);
-#ifdef TO
-  quickmail_add_to(mailobj, ch->pcdata->email);
-#endif
-#ifdef CC
-  quickmail_add_cc(mailobj, CC);
-#endif
-#ifdef BCC
-  quickmail_add_bcc(mailobj, BCC);
-#endif
-*/
-/*
-  //quickmail_add_attachment_file(mailobj, "test_quickmail.c", NULL);
-  //quickmail_add_attachment_file(mailobj, "test_quickmail.cbp", NULL);
-  //quickmail_add_attachment_memory(mailobj, "test.log", NULL, "Test\n123", 8, 0);
-*/
-/*
-  quickmail_fsave(mailobj, stdout);
-
-  int i;
-  i = 0;
-  quickmail_list_attachments(mailobj, list_attachment_callback, &i);
-
-  quickmail_remove_attachment(mailobj, "test_quickmail.cbp");
-  i = 0;
-  quickmail_list_attachments(mailobj, list_attachment_callback, &i);
-
-  quickmail_destroy(mailobj);
-  return 0;
-*/
-
+// Legacy wrapper to maintain backward compatibility
+void send_email(CHAR_DATA *ch, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type)
+{
+    send_email_ex(ch, NULL, email, subject, message, attachment_filename, attachment_mime_type);
 }
 
 // Define a structure to hold email-related data
 struct EmailData {
     CHAR_DATA *ch;
+    ACCOUNT_DATA *acct;
     char *email;
     char *subject;
     char *message;
-	char *attachment_filename;
-	char *attachment_mime_type;
+    char *attachment_filename;
+    char *attachment_mime_type;
 };
 
 // Function executed by the email thread
 void *send_email_thread(void *arg) {
     struct EmailData *emailData = (struct EmailData *)arg;
 
-	send_email(emailData->ch, emailData->email, emailData->subject, emailData->message, emailData->attachment_filename, emailData->attachment_mime_type);
+    send_email_ex(emailData->ch, emailData->acct, emailData->email, emailData->subject, emailData->message, 
+                  emailData->attachment_filename, emailData->attachment_mime_type);
 
     // Clean up and exit the thread
     free(emailData->subject);
     free(emailData->message);
-	free(emailData->attachment_filename);
-	free(emailData->attachment_mime_type);
+    if (emailData->attachment_filename)
+        free(emailData->attachment_filename);
+    if (emailData->attachment_mime_type)
+        free(emailData->attachment_mime_type);
     free(emailData);
     pthread_exit(NULL);
 }
 
-// Function to send an email asynchronously
-void send_email_async(CHAR_DATA *ch, char *email, char *subject, char *message , char *attachment_filename, char *attachment_mime_type) {
+// Function to send an email asynchronously with extended parameters
+void send_email_async_ex(CHAR_DATA *ch, ACCOUNT_DATA *acct, char *email, char *subject, char *message, 
+                         char *attachment_filename, char *attachment_mime_type) {
     // Allocate memory for the email data
     struct EmailData *emailData = (struct EmailData *)malloc(sizeof(struct EmailData));
+    if (!emailData) {
+        fprintf(stderr, "Error allocating memory for email data\n");
+        return;
+    }
+    
     emailData->ch = ch;
+    emailData->acct = acct;
     emailData->email = email;
     emailData->subject = strdup(subject); // Duplicate the subject string
+    if (!emailData->subject) {
+        free(emailData);
+        return;
+    }
+    
     emailData->message = strdup(message); // Duplicate the message string
+    if (!emailData->message) {
+        free(emailData->subject);
+        free(emailData);
+        return;
+    }
+    
     emailData->attachment_filename = attachment_filename ? strdup(attachment_filename) : NULL;
     emailData->attachment_mime_type = attachment_mime_type ? strdup(attachment_mime_type) : NULL;
 
@@ -10986,8 +11008,21 @@ void send_email_async(CHAR_DATA *ch, char *email, char *subject, char *message ,
     pthread_t emailThread;
     if (pthread_create(&emailThread, NULL, send_email_thread, emailData) != 0) {
         fprintf(stderr, "Error creating email thread\n");
-        // Handle error (e.g., retry or log)
+        // Clean up on error
+        free(emailData->subject);
+        free(emailData->message);
+        if (emailData->attachment_filename)
+            free(emailData->attachment_filename);
+        if (emailData->attachment_mime_type)
+            free(emailData->attachment_mime_type);
+        free(emailData);
     }
+}
+
+// Legacy wrapper for backward compatibility
+void send_email_async(CHAR_DATA *ch, char *email, char *subject, char *message, 
+                      char *attachment_filename, char *attachment_mime_type) {
+    send_email_async_ex(ch, NULL, email, subject, message, attachment_filename, attachment_mime_type);
 }
 
 // Function to return a random character from a given index
@@ -11045,64 +11080,16 @@ char *sha256_crypt(const char *pwd) {
     return output;
 }
 
-void save_qr_code_as_png(QRcode *qrcode, const char *filename, int scale_factor) {
-    int scaled_width = qrcode->width * scale_factor;
-    FILE *fp = fopen(filename, "wb");
-    if (!fp) {
-        perror("fopen");
-        return;
-    }
-
-    png_structp png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-    if (!png) {
-        fclose(fp);
-        return;
-    }
-
-    png_infop info = png_create_info_struct(png);
-    if (!info) {
-        png_destroy_write_struct(&png, NULL);
-        fclose(fp);
-        return;
-    }
-
-    if (setjmp(png_jmpbuf(png))) {
-        png_destroy_write_struct(&png, &info);
-        fclose(fp);
-        return;
-    }
-
-    png_init_io(png, fp);
-
-    png_set_IHDR(
-        png,
-        info,
-        scaled_width,
-        scaled_width,
-        8,
-        PNG_COLOR_TYPE_GRAY,
-        PNG_INTERLACE_NONE,
-        PNG_COMPRESSION_TYPE_DEFAULT,
-        PNG_FILTER_TYPE_DEFAULT
-    );
-
-    png_write_info(png, info);
-
-    for (int y = 0; y < qrcode->width; y++) {
-        for (int sy = 0; sy < scale_factor; sy++) {
-            png_bytep row = (png_bytep)malloc(scaled_width * sizeof(png_byte));
-            for (int x = 0; x < qrcode->width; x++) {
-                png_byte pixel = (qrcode->data[y * qrcode->width + x] & 1) ? 0 : 255;
-                for (int sx = 0; sx < scale_factor; sx++) {
-                    row[x * scale_factor + sx] = pixel;
-                }
-            }
-            png_write_row(png, row);
-            free(row);
-        }
-    }
-
-    png_write_end(png, NULL);
-    png_destroy_write_struct(&png, &info);
-    fclose(fp);
+char *tmp_sprintf(const char *fmt, ...)
+{
+    static char buf[MAX_STRING_LENGTH];
+    va_list args;
+    
+    buf[0] = '\0';
+    
+    va_start(args, fmt);
+    vsnprintf(buf, MAX_STRING_LENGTH, fmt, args);
+    va_end(args);
+    
+    return buf;
 }

@@ -315,6 +315,12 @@ struct do_func_type
 };
 
 
+struct con_state_info {
+    int state;
+    const char *name;
+};
+
+
 /* game tables */
 extern  const   float   sin_table[];
 extern  const   struct  npc_ship_type   npc_ship_table[];
@@ -542,6 +548,6 @@ extern const struct do_func_type do_func_table[];
 extern const struct flag_type	command_flags[];
 extern const struct flag_type	log_flags[];
 extern const struct flag_type command_addl_types[];
-
+extern const struct con_state_info con_states[];
 #endif
 

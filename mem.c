@@ -971,6 +971,13 @@ PC_DATA *new_pcdata(void)
     pcdata->buffer = new_buf();
     pcdata->convert_church = -1;
     pcdata->need_change_pw = true;
+    pcdata->account_name = str_dup("");
+    pcdata->account_id[0] = 0;
+    pcdata->account_id[1] = 0;
+    pcdata->account_pwd_override = false;
+    pcdata->last_area = str_dup("");\
+    pcdata->last_region = str_dup("");
+
 
     pcdata->classes = list_createx(false, NULL, delete_class_level);
     pcdata->current_class = NULL;
@@ -1031,6 +1038,9 @@ void free_pcdata(PC_DATA *pcdata)
     //free_string(pcdata->bamfout);
     free_string(pcdata->title);
     free_buf(pcdata->buffer);
+    free_string(pcdata->account_name);
+    free_string(pcdata->last_area);
+    free_string(pcdata->last_region);
 
     for (alias = 0; alias < MAX_ALIAS; alias++)
     {
@@ -8413,4 +8423,123 @@ void free_cmd(CMD_DATA *cmd)
 
     cmd->next = cmd_data_free;
     cmd_data_free = cmd;
+}
+
+ACCOUNT_CHARACTER *new_account_character()
+{
+    ACCOUNT_CHARACTER *acct_char;
+    
+    acct_char = malloc(sizeof(*acct_char));
+    acct_char->name = NULL;
+    acct_char->race_name = NULL;
+    acct_char->class_name = NULL;
+    acct_char->current_level = 0;
+    acct_char->tot_level = 0;
+    acct_char->last_area = str_dup("");
+    acct_char->last_region = str_dup("");
+    acct_char->staff = false;
+    acct_char->staff_rank = STAFF_PLAYER;  // Initialize with default rank
+    acct_char->creation_date = 0;
+    acct_char->last_login = 0;
+    acct_char->id = 0;
+    acct_char->id2 = 0;
+    
+    return acct_char;
+}
+
+/*
+ * Free an account character entry.
+ */
+void free_account_character(ACCOUNT_CHARACTER *acct_char)
+{
+    if (!acct_char)
+        return;
+        
+    free_string(acct_char->name);
+    free_string(acct_char->race_name);
+    free_string(acct_char->class_name);
+    free_string(acct_char->last_area);
+    free_string(acct_char->last_region);
+    
+    free(acct_char);
+}
+
+ACCOUNT_DATA *account_data_free;
+
+/*
+ * Create a new account data structure.
+ */
+ACCOUNT_DATA *new_account(void)
+{
+    ACCOUNT_DATA *account;
+    
+    if (account_data_free)
+    {
+        account = account_data_free;
+        account_data_free = account_data_free->next;
+    }
+    else
+        account = alloc_perm(sizeof(*account));
+    
+    memset(account, 0, sizeof(*account));
+    
+    account->id[0] = account->id[1] = 0;  // Initialize IDs to 0
+    account->username = NULL;
+    account->passwd = str_dup("");
+    account->passwd_version = 0;
+    account->email = NULL;
+    account->creation_date = current_time;
+    account->last_login = 0;
+    account->acct_flags = 0;
+    account->reset_state = NO_RESET;
+    account->reset_code = str_dup("");
+    account->reset_time = 0;
+    account->mfa_key = str_dup("");
+    account->mfa_enabled = false;
+    account->qr_code_expiration = 0;
+    account->characters = list_create(false);
+    
+    VALIDATE(account);
+    return account;
+}
+
+/*
+ * Get a new unique ID for an account
+ */
+void get_account_id(ACCOUNT_DATA *account)
+{
+    static unsigned long id_count = 0;
+    
+    if (account->id[0] != 0 && account->id[1] != 0)
+        return;
+        
+    // Generate a unique ID
+    account->id[0] = current_time;
+    
+    // Increment ID counter for second part of ID
+    if (++id_count >= 65536)
+        id_count = 1;
+        
+    account->id[1] = id_count;
+}
+
+/*
+ * Free an account data structure.
+ */
+void free_account(ACCOUNT_DATA *account)
+{
+    if (!IS_VALID(account))
+        return;
+        
+    free_string(account->username);
+    free_string(account->passwd);
+    free_string(account->email);
+    free_string(account->reset_code);
+    free_string(account->mfa_key);
+    
+    list_destroy(account->characters);
+    
+    INVALIDATE(account);
+    account->next = account_data_free;
+    account_data_free = account;
 }

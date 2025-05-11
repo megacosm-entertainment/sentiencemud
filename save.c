@@ -40,7 +40,9 @@
 #include <time.h>
 #ifndef MALLOC_STDLIB
 #include <malloc.h>
+
 #endif
+#include <dirent.h>
 #include "merc.h"
 #include "recycle.h"
 #include "tables.h"
@@ -127,6 +129,11 @@ void fwrite_affect(FILE *fp, AFFECT_DATA *paf);
 AFFECT_DATA *fread_affect(FILE *fp);
 void fread_reputation(FILE *fp, CHAR_DATA *ch);
 void insert_class_level(CHAR_DATA *ch, CLASS_LEVEL *cl);
+void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch);
+ACCOUNT_DATA *find_account_by_id(unsigned long id0, unsigned long id1);
+ACCOUNT_DATA *find_account_by_name(char *username);
+void save_account(ACCOUNT_DATA *account);
+extern void get_account_id(ACCOUNT_DATA *account);
 
 // Version structures
 struct __player_data_version_007
@@ -232,6 +239,8 @@ static void __init_player_versioning(struct __player_data_versioning *data)
 
 void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__versioning);
 void fix_character( CHAR_DATA *ch, struct __player_data_versioning *__versioning );
+void fread_account(ACCOUNT_DATA *account, FILE *fp);
+void fread_account_character(ACCOUNT_DATA *account, FILE *fp);
 
 // Output a string of letters corresponding to the bitvalues for a flag
 char *print_flags(long flag)
@@ -323,6 +332,53 @@ void save_char_obj(CHAR_DATA *ch)
 
     if (ch->desc != NULL && ch->desc->original != NULL)
 	ch = ch->desc->original;
+
+// Before saving, store the current area and region name if character is in a room
+if (ch->in_room && ch->in_room->area) {
+    free_string(ch->pcdata->last_area);
+    ch->pcdata->last_area = str_dup(ch->in_room->area->name);
+    
+    // If the room is in a region with a name, save that too
+    free_string(ch->pcdata->last_region);
+    
+    // Check if region name exists and use it properly
+    if (ch->in_room->region->name != NULL && !IS_NULLSTR(ch->in_room->region->name)) {
+        ch->pcdata->last_region = str_dup(ch->in_room->region->name);
+    } else {
+        // No valid region name, store empty string
+        ch->pcdata->last_region = str_dup("");
+    }
+}
+
+    // Update account connection if available
+    if (ch->desc && ch->desc->account) {
+        free_string(ch->pcdata->account_name);
+        ch->pcdata->account_name = str_dup(ch->desc->account->username);
+        ch->pcdata->account_id[0] = ch->desc->account->id[0];
+        ch->pcdata->account_id[1] = ch->desc->account->id[1];
+    }
+    
+    // Save character to account first
+    if (ch->desc && ch->desc->account) {
+        account_add_character(ch->desc->account, ch);
+    } else if (!IS_NPC(ch) && 
+              (ch->pcdata->account_id[0] != 0 || !IS_NULLSTR(ch->pcdata->account_name))) {
+        // Try to find and update account - first by ID, then by name
+        ACCOUNT_DATA *account = NULL;
+        
+        if (ch->pcdata->account_id[0] != 0)
+            account = find_account_by_id(ch->pcdata->account_id[0], ch->pcdata->account_id[1]);
+            
+        // Fall back to name lookup if ID lookup fails
+        if (account == NULL && !IS_NULLSTR(ch->pcdata->account_name))
+            account = find_account_by_name(ch->pcdata->account_name);
+            
+        if (account != NULL) {
+            account_add_character(account, ch);
+            save_account(account);
+            free_account(account);
+        }
+    }
 
 #if 0
 #if defined(unix)
@@ -463,6 +519,15 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 // VERSION MUST ALWAYS BE THE FIRST FIELD!!!
     fprintf(fp, "Vers %d\n", IS_NPC(ch) ? VERSION_MOBILE : VERSION_PLAYER);
     fprintf(fp, "Name %s~\n",	ch->name		);
+    // Add account reference by both name and ID
+    if (!IS_NPC(ch) && ch->desc && ch->desc->account) {
+        fprintf(fp, "Account %s~\n", ch->desc->account->username);
+        fprintf(fp, "AccountId %ld %ld\n", ch->desc->account->id[0], ch->desc->account->id[1]);
+    }
+    else if (!IS_NPC(ch) && !IS_NULLSTR(ch->pcdata->account_name)) {
+        fprintf(fp, "Account %s~\n", ch->pcdata->account_name);
+        fprintf(fp, "AccountId %ld %ld\n", ch->pcdata->account_id[0], ch->pcdata->account_id[1]);
+    }
     if(!IS_NPC(ch))
 	fprintf(fp, "Created   %ld\n", ch->pcdata->creation_date	);
     fprintf(fp, "Id   %ld\n", ch->id[0]			);
@@ -570,6 +635,9 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 			ch->pcdata->room_before_arena.area->uid,
 		 	ch->pcdata->room_before_arena.id[0]);
     }
+
+	fprintf(fp, "LastArea     %s~\n", ch->pcdata->last_area);
+	fprintf(fp, "LastRegion   %s~\n", ch->pcdata->last_region);
 
     fprintf(fp, "Not  %ld %ld %ld %ld %ld\n",
 	(long int)ch->pcdata->last_note,(long int)ch->pcdata->last_idea,(long int)ch->pcdata->last_penalty,
@@ -1194,6 +1262,11 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     return found;
 }
 
+
+
+
+
+
 MISSION_PART_DATA *fread_mission_part(FILE *fp)
 {
     MISSION_PART_DATA *part;
@@ -1526,6 +1599,13 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		break;
 
 	case 'A':
+		KEYS("Account", ch->pcdata->account_name, fread_string(fp));
+		if (!str_cmp(word, "AccountId")) {
+			ch->pcdata->account_id[0] = fread_number(fp);
+			ch->pcdata->account_id[1] = fread_number(fp);
+			fMatch = true;
+			break;
+		}
 	    KEY("Act",		ch->act[0],		fread_flag(fp));
 	    KEY("Act2",	ch->act[1],		fread_flag(fp));
 	    KEY("AffectedBy",	ch->affected_by[0],	fread_flag(fp));
@@ -2201,6 +2281,18 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 
 	case 'L':
 	    KEY("LastLevel",	ch->pcdata->last_level, fread_number(fp));
+		if (!str_cmp(word, "LastArea"))
+		{
+			ch->pcdata->last_area = fread_string(fp);
+			fMatch = TRUE;
+			break;
+		}
+		if (!str_cmp(word, "LastRegion"))
+		{
+			ch->pcdata->last_region = fread_string(fp);
+			fMatch = TRUE;
+			break;
+		}
 	    KEY("LLev",	ch->pcdata->last_level, fread_number(fp));
 	    //KEY("LogO",	lastlogoff,		fread_number(fp));
 	    KEY("LogI",	ch->pcdata->last_login,	fread_number(fp));
@@ -8367,3 +8459,727 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
     }
 }
 #endif
+/*
+ * Load an account from disk.
+ */
+bool load_account(DESCRIPTOR_DATA *d, char *name)
+{
+    char strsave[MAX_INPUT_LENGTH];
+    char buf[MSL];
+    ACCOUNT_DATA *account;
+    FILE *fp;
+    bool found;
+
+    // Create a new account structure
+    account = new_account();
+    d->account = account;
+    account->username = str_dup(name);
+    account->creation_date = 0;
+    account->passwd = str_dup("");
+    account->passwd_version = 0;
+    account->reset_code = str_dup("");
+    account->reset_state = 0;
+    account->mfa_key = str_dup("");
+    account->qr_code_expiration = 0;
+    account->email = str_dup("");
+    account->last_login = 0;
+    account->acct_flags = 0;
+    account->characters = list_create(false);
+
+    found = false;
+    fclose(fpReserve);
+
+    /* decompress if .gz file exists */
+    sprintf(strsave, "%s%c/%s%s", ACCOUNT_DIR, tolower(name[0]), capitalize(name), ".gz");
+    if ((fp = fopen(strsave, "r")) != NULL)
+    {
+        fclose(fp);
+        sprintf(buf, "gzip -dfq %s", strsave);
+        system(buf);
+    }
+
+    sprintf(strsave, "%s%c/%s", ACCOUNT_DIR, tolower(name[0]), capitalize(name));
+    if ((fp = fopen(strsave, "r")) != NULL) {
+        found = true;
+        for (;;)
+        {
+            char letter;
+            char *word;
+
+            letter = fread_letter(fp);
+            if (letter == '*')
+            {
+                fread_to_eol(fp);
+                continue;
+            }
+
+            if (letter != '#')
+            {
+                bug("Load_account: # not found.", 0);
+                break;
+            }
+
+            word = fread_word(fp);
+            if (!str_cmp(word, "ACCOUNT"))
+                fread_account(account, fp);
+            else if (!str_cmp(word, "CHARACTER"))
+                fread_account_character(account, fp);
+            else if (!str_cmp(word, "END"))
+                break;
+            else {
+                bug("Load_account: bad section.", 0);
+                break;
+            }
+        }
+
+        fclose(fp);
+    }
+    
+    fpReserve = fopen(NULL_FILE, "r");
+
+    if (!account->creation_date)
+        account->creation_date = get_pc_id();
+        
+    // Generate account IDs if needed
+    if (account->id[0] == 0 || account->id[1] == 0)
+        get_account_id(account);
+
+    account->last_login = current_time;
+    return found;
+}
+
+/*
+ * Read account data from file.
+ */
+void fread_account(ACCOUNT_DATA *account, FILE *fp)
+{
+    char buf[MAX_STRING_LENGTH];
+    char *word;
+    bool fMatch;
+
+    sprintf(buf,"save.c, fread_account: reading %s.", account->username);
+    log_string(buf);
+
+    for (;;)
+    {
+        word   = feof(fp) ? "End" : fread_word(fp);
+        fMatch = false;
+
+        switch (UPPER(word[0]))
+        {
+        case '*':
+            fMatch = true;
+            fread_to_eol(fp);
+            break;
+
+        case 'C':
+			KEY("CharacterLimit", account->character_limit, fread_number(fp));
+            KEY("Created", account->creation_date, fread_number(fp));
+            break;
+
+        case 'E':
+            if (!str_cmp(word, "End")) {
+                return;
+            }
+            KEYS("Email", account->email, fread_string(fp));
+            break;
+
+        case 'F':
+            KEY("Flags", account->acct_flags, fread_flag(fp));
+            break;
+		case 'I':
+			KEY("Id", account->id[0], fread_number(fp));
+			KEY("Id2", account->id[1], fread_number(fp));
+			break;
+
+        case 'L':
+            KEY("LogI", account->last_login, fread_number(fp));
+            break;
+
+        case 'M':
+            KEYS("MFA_Key", account->mfa_key, fread_string(fp));
+            KEY("MFA_Code_Expiration", account->qr_code_expiration, fread_number(fp));
+            if (!str_cmp(word, "MFA_Enabled"))
+                account->mfa_enabled = true;
+            break;
+
+        case 'N':
+            KEY("Name", account->username, fread_string(fp));
+            break;
+
+        case 'P':
+            KEYS("Password", account->passwd, fread_string(fp));
+            KEYS("Pass", account->passwd, fread_string(fp));
+            KEY("PassVers", account->passwd_version, fread_number(fp));
+            break;
+
+        case 'R':
+            KEYS("ResetCode", account->reset_code, fread_string(fp));
+            KEY("Reset_Time", account->reset_time, fread_number(fp));
+            KEY("ResetState", account->reset_state, fread_number(fp));
+            break;
+
+        }
+
+        if (!fMatch) {
+            sprintf(buf, "Fread_account: no match for account %s on word %s.", 
+                account->username, word);
+            bug(buf, 0);
+            fread_to_eol(fp);
+        }
+    }
+}
+
+void fread_account_character(ACCOUNT_DATA *account, FILE *fp)
+{
+    ACCOUNT_CHARACTER *acct_char;
+    char buf[MAX_STRING_LENGTH];
+    char *word;
+    bool fMatch;
+    
+    acct_char = new_account_character();
+    
+    for (;;)
+    {
+        word = feof(fp) ? "End" : fread_word(fp);
+        fMatch = false;
+        
+        switch (UPPER(word[0]))
+        {
+        case '*':
+            fMatch = true;
+            fread_to_eol(fp);
+            break;
+            
+        case 'C':
+            KEY("Created", acct_char->creation_date, fread_number(fp));
+            KEYS("Class", acct_char->class_name, fread_string(fp));
+            break;
+            
+        case 'E':
+            if (!str_cmp(word, "End")) {
+                // Only add if we have a character name
+                if (!IS_NULLSTR(acct_char->name)) {
+                    list_appendlink(account->characters, acct_char);
+                } else {
+                    free_account_character(acct_char);
+                }
+                return;
+            }
+            break;
+            
+        case 'I':
+            KEY("Id", acct_char->id, fread_number(fp));
+            KEY("Id2", acct_char->id2, fread_number(fp));
+            break;
+            
+        case 'L':
+			if (!str_cmp(word, "LastArea"))
+			{
+				acct_char->last_area = fread_string(fp);
+				fMatch = TRUE;
+			}
+			if (!str_cmp(word, "LastRegion"))
+			{
+				acct_char->last_region = fread_string(fp);
+				fMatch = TRUE;
+			}
+            KEY("LastLogin", acct_char->last_login, fread_number(fp));
+            KEY("Level", acct_char->current_level, fread_number(fp));
+            break;
+            
+        case 'N':
+            KEYS("Name", acct_char->name, fread_string(fp));
+            break;
+            
+        case 'R':
+            KEYS("Race", acct_char->race_name, fread_string(fp));
+            break;
+        
+        case 'S':
+            if (!str_cmp(word, "Staff")) {
+                acct_char->staff = true;
+                fMatch = true;
+                break;
+            }
+            if (!str_cmp(word, "StaffRank")) {
+                acct_char->staff_rank = stat_lookup(fread_string(fp), staff_ranks, STAFF_PLAYER);
+                fMatch = true;
+                break;
+            }
+            break;
+		case 'T':
+			KEY("TLevel", acct_char->tot_level, fread_number(fp));
+			break;
+        }
+        
+        if (!fMatch) {
+            sprintf(buf, "Fread_account_character: no match for character %s on word %s.", 
+                acct_char->name ? acct_char->name : "unknown", word);
+            bug(buf, 0);
+            fread_to_eol(fp);
+        }
+    }
+}
+
+/*
+ * Write an account data structure to a file.
+ */
+void fwrite_account(ACCOUNT_DATA *account, FILE *fp)
+{
+    fprintf(fp, "#ACCOUNT\n");
+    
+    fprintf(fp, "Name %s~\n", account->username);
+	fprintf(fp, "Id   %ld\n", account->id[0]			);
+    fprintf(fp, "Id2  %ld\n", account->id[1]			);
+    fprintf(fp, "Password %s~\n", account->passwd);
+    fprintf(fp, "PassVers %d\n", account->passwd_version);
+    fprintf(fp, "Created %ld\n", account->creation_date);
+    fprintf(fp, "LogI %ld\n", account->last_login);
+    
+    if (account->acct_flags != 0)
+        fprintf(fp, "Flags %s\n", print_flags(account->acct_flags));
+    
+    if (!IS_NULLSTR(account->email))
+        fprintf(fp, "Email %s~\n", account->email);
+        
+    if (!IS_NULLSTR(account->reset_code)) {
+        fprintf(fp, "ResetCode %s~\n", account->reset_code);
+        fprintf(fp, "ResetState %d\n", account->reset_state);
+        fprintf(fp, "Reset_Time %ld\n", account->reset_time);
+    }
+    if (account->character_limit > 0)
+		fprintf(fp, "CharacterLimit %d\n", account->character_limit);
+
+    if (!IS_NULLSTR(account->mfa_key)) {
+        fprintf(fp, "MFA_Key %s~\n", account->mfa_key);
+        fprintf(fp, "MFA_Code_Expiration %ld\n", account->qr_code_expiration);
+        if (account->mfa_enabled)
+            fprintf(fp, "MFA_Enabled\n");
+    }
+    
+    fprintf(fp, "End\n\n");
+}
+
+/*
+ * Write character reference data for an account.
+ */
+void fwrite_account_character(ACCOUNT_CHARACTER *character, FILE *fp)
+{
+    fprintf(fp, "#CHARACTER\n");
+    
+    fprintf(fp, "Name %s~\n", character->name);
+    
+    if (!IS_NULLSTR(character->race_name))
+        fprintf(fp, "Race %s~\n", character->race_name);
+        
+    if (!IS_NULLSTR(character->class_name))
+        fprintf(fp, "Class %s~\n", character->class_name);
+    fprintf(fp, "Level %d\n", character->current_level);
+    fprintf(fp, "TLevel %d\n", character->tot_level);
+    fprintf(fp, "Created %ld\n", character->creation_date);
+    fprintf(fp, "LastLogin %ld\n", character->last_login);
+	fprintf(fp, "LastArea %s~\n", character->last_area);
+	fprintf(fp, "LastRegion %s~\n", character->last_region);
+
+    
+    if (character->id != 0 || character->id2 != 0) {
+        fprintf(fp, "Id %ld\n", character->id);
+        fprintf(fp, "Id2 %ld\n", character->id2);
+    }
+    
+    if (character->staff) {
+        fprintf(fp, "Staff\n");
+        fprintf(fp, "StaffRank %s~\n", flag_string(staff_ranks, character->staff_rank));
+    }
+
+    fprintf(fp, "End\n\n");
+}
+
+/*
+ * Save an account to disk.
+ */
+void save_account(ACCOUNT_DATA *account)
+{
+    char strsave[MAX_INPUT_LENGTH];
+    FILE *fp;
+    
+    if (account == NULL) {
+        bug("save_account: null account pointer", 0);
+        return;
+    }
+    
+    if (IS_NULLSTR(account->username)) {
+        bug("save_account: account has no username", 0);
+        return;
+    }
+    
+    // Ensure account has IDs before saving
+    if (account->id[0] == 0 || account->id[1] == 0)
+        get_account_id(account);
+    
+    /* Close reserve file */
+    fclose(fpReserve);
+    
+    sprintf(strsave, "%s%c/%s", ACCOUNT_DIR, tolower(account->username[0]), capitalize(account->username));
+    if ((fp = fopen(TEMP_FILE, "w")) == NULL) {
+        bug("save_account: fopen", 0);
+        perror(strsave);
+    } else {
+        /* Write account data */
+        fwrite_account(account, fp);
+        
+        /* Write character references */
+        if (account->characters && list_size(account->characters) > 0) {
+            ITERATOR it;
+            ACCOUNT_CHARACTER *acct_char;
+            
+            iterator_start(&it, account->characters);
+            while ((acct_char = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+                fwrite_account_character(acct_char, fp);
+            }
+            iterator_stop(&it);
+        }
+        
+        fprintf(fp, "#END\n");
+        fclose(fp);
+        rename(TEMP_FILE, strsave);
+    }
+    
+    /* Reopen reserve file */
+    fpReserve = fopen(NULL_FILE, "r");
+}
+void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
+{
+    ACCOUNT_CHARACTER *acct_char;
+    ITERATOR it;
+    
+    if (!account || !ch || IS_NPC(ch)) {
+        bug("account_add_character: invalid parameters", 0);
+        return;
+    }
+    
+    /* Check if character already exists in account */
+    iterator_start(&it, account->characters);
+    while ((acct_char = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+        if (!str_cmp(acct_char->name, ch->name)) {
+            /* Update existing character entry */
+            acct_char->last_login = current_time;
+            acct_char->tot_level = ch->tot_level;
+            if (ch->pcdata && ch->pcdata->current_class && IS_VALID(ch->pcdata->current_class->clazz))
+                acct_char->current_level = ch->pcdata->current_class->level;
+            else
+                acct_char->current_level = ch->tot_level; // fallback
+            
+            // Make sure staff status is correctly set
+            acct_char->staff = IS_IMMORTAL(ch);
+            if (IS_IMMORTAL(ch)) {
+                acct_char->staff_rank = ch->pcdata->staff_rank;
+            } else {
+                acct_char->staff_rank = 0;
+            }
+            
+            /* Update class name if needed */
+            if (ch->pcdata && ch->pcdata->current_class && IS_VALID(ch->pcdata->current_class->clazz)) {
+                if (acct_char->class_name)
+                    free_string(acct_char->class_name);
+                acct_char->class_name = str_dup(ch->pcdata->current_class->clazz->name);
+            }
+            
+            /* Update ID if needed */
+            acct_char->id = ch->id[0];
+            acct_char->id2 = ch->id[1];
+
+			// Add last area information
+    		free_string(acct_char->last_area);
+    		acct_char->last_area = str_dup(ch->pcdata->last_area);
+			free_string(acct_char->last_region);
+			acct_char->last_region = str_dup(ch->pcdata->last_region);
+            
+            iterator_stop(&it);
+            return;
+        }
+    }
+    iterator_stop(&it);
+    
+    /* Create new character entry */
+    acct_char = new_account_character();
+    acct_char->name = str_dup(ch->name);
+    acct_char->race_name = str_dup(ch->race->name);
+    acct_char->tot_level = ch->tot_level;
+    
+    if (ch->pcdata && ch->pcdata->current_class && IS_VALID(ch->pcdata->current_class->clazz))
+        acct_char->current_level = ch->pcdata->current_class->level;
+    else
+        acct_char->current_level = ch->tot_level; // fallback
+        
+    acct_char->creation_date = ch->pcdata->creation_date;
+    acct_char->last_login = current_time;
+    acct_char->id = ch->id[0];
+    acct_char->id2 = ch->id[1];
+    
+    // Set staff status and rank
+    acct_char->staff = IS_IMMORTAL(ch);
+    if (IS_IMMORTAL(ch)) {
+        acct_char->staff_rank = ch->pcdata->staff_rank;
+    } else {
+        acct_char->staff = false;
+        acct_char->staff_rank = 0;
+    }
+    
+    /* Set class name if available */
+    if (ch->pcdata && ch->pcdata->current_class && IS_VALID(ch->pcdata->current_class->clazz))
+        acct_char->class_name = str_dup(ch->pcdata->current_class->clazz->name);
+    
+    /* Add to account's character list */
+    list_appendlink(account->characters, acct_char);
+    
+    /* Save the updated account */
+    save_account(account);
+}
+
+/*
+ * Remove a character from an account.
+ */
+void account_remove_character(ACCOUNT_DATA *account, const char *name)
+{
+    ITERATOR it;
+    ACCOUNT_CHARACTER *acct_char;
+    bool found = FALSE;
+    
+    if (!account || IS_NULLSTR(name)) {
+        bug("account_remove_character: invalid parameters", 0);
+        return;
+    }
+    
+    iterator_start(&it, account->characters);
+    while ((acct_char = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+        if (!str_cmp(acct_char->name, name)) {
+            iterator_remcurrent(&it);
+            free_account_character(acct_char);
+            found = TRUE;
+            break;
+        }
+    }
+    iterator_stop(&it);
+    
+    if (found) {
+        save_account(account);
+    }
+}
+
+// Update a character's entry in an account when they log out
+void update_account_character(CHAR_DATA *ch)
+{
+    if (IS_NPC(ch) || !ch->desc || !ch->desc->account)
+        return;
+        
+    ACCOUNT_DATA *acct = ch->desc->account;
+    ACCOUNT_CHARACTER *acct_char = NULL;
+    ITERATOR it;
+    
+    // Find existing entry or create a new one
+    iterator_start(&it, acct->characters);
+    while ((acct_char = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+        if (!str_cmp(acct_char->name, ch->name))
+            break;
+    }
+    iterator_stop(&it);
+    
+    // Create new entry if not found
+    if (!acct_char) {
+        acct_char = new_account_character();
+        acct_char->name = str_dup(ch->name);
+        list_appendlink(acct->characters, acct_char);
+    }
+    
+    // Update character info
+    acct_char->last_login = current_time;
+    acct_char->tot_level = ch->tot_level;
+	acct_char->current_level = ch->pcdata->current_class->level;
+    acct_char->id = ch->id[0];
+    acct_char->id2 = ch->id[1];
+    
+    // Update race/class
+    if (acct_char->race_name)
+        free_string(acct_char->race_name);
+    acct_char->race_name = str_dup(ch->race->name);
+    
+    if (acct_char->class_name)
+        free_string(acct_char->class_name);
+        
+    if (ch->pcdata && ch->pcdata->current_class && IS_VALID(ch->pcdata->current_class->clazz))
+        acct_char->class_name = str_dup(ch->pcdata->current_class->clazz->name);
+    else
+        acct_char->class_name = str_dup("Adventurer");
+        
+    save_account(acct);
+}
+
+/*
+ * Find an account by character name
+ */
+ACCOUNT_DATA *find_account(char *char_name)
+{
+    CHAR_DATA *dummy_ch;
+    bool found = false;
+    ACCOUNT_DATA *account = NULL;
+    char account_name[MAX_STRING_LENGTH] = "";
+
+    // Create a temporary descriptor to load the character file
+    DESCRIPTOR_DATA d;
+    memset(&d, 0, sizeof(d));
+
+    // Try to load the character file first
+    found = load_char_obj(&d, char_name);
+    dummy_ch = d.character;
+    
+    if (found && dummy_ch && dummy_ch->pcdata && 
+        !IS_NULLSTR(dummy_ch->pcdata->account_name)) {
+        // We found the account name in the character file
+        strcpy(account_name, dummy_ch->pcdata->account_name);
+        free_char(dummy_ch);
+        
+        // Now load the account
+        account = new_account();
+        d.account = account;
+        
+        if (load_account(&d, account_name)) {
+            return account;
+        } else {
+            free_account(account);
+            return NULL;
+        }
+    }
+    
+    // If we didn't find an account name in the character file,
+    // fall back to the existing search method
+    free_char(dummy_ch);
+    
+    // Existing directory search code...
+    
+    return account;
+}
+
+/*
+ * Find an account by ID
+ */
+ACCOUNT_DATA *find_account_by_id(unsigned long id0, unsigned long id1)
+{
+    DIR *dir;
+    struct dirent *entry;
+    char dir_path[MAX_INPUT_LENGTH];
+    char acct_path[MAX_STRING_LENGTH];
+    FILE *fp;
+    char letter, *word;
+    ACCOUNT_DATA *account = NULL;
+    bool found = false;
+    char c;
+
+    // Check each letter directory
+    for (c = 'a'; c <= 'z' && !found; c++) {
+        sprintf(dir_path, "%s%c", ACCOUNT_DIR, c);
+        dir = opendir(dir_path);
+        
+        if (!dir) 
+            continue;
+
+        // Check each file in this directory
+        while ((entry = readdir(dir)) != NULL && !found) {
+            // Skip . and .. entries
+            if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, ".."))
+                continue;
+                
+            sprintf(acct_path, "%s/%s", dir_path, entry->d_name);
+            
+            fp = fopen(acct_path, "r");
+            if (!fp) 
+                continue;
+                
+            // Create a temporary account to parse
+            account = new_account();
+            account->username = str_dup("");
+            account->characters = list_create(false);
+            
+            // Look for account ID in the file
+            for (;;) {
+                letter = fread_letter(fp);
+                if (letter == '*') {
+                    fread_to_eol(fp);
+                    continue;
+                }
+
+                if (letter != '#') {
+                    break;
+                }
+
+                word = fread_word(fp);
+                if (!str_cmp(word, "ACCOUNT")) {
+                    fread_account(account, fp);
+                    
+                    // Check if this is the account we're looking for
+                    if (account->id[0] == id0 && account->id[1] == id1) {
+                        found = true;
+                        break;
+                    }
+                } 
+                else if (!str_cmp(word, "END")) {
+                    break;
+                }
+                else {
+                    fread_to_eol(fp);
+                }
+            }
+            
+            fclose(fp);
+            
+            if (!found) {
+                free_account(account);
+                account = NULL;
+            }
+        }
+        
+        closedir(dir);
+    }
+    
+    return account;
+}
+
+/*
+ * Find an account by username
+ */
+ACCOUNT_DATA *find_account_by_name(char *username)
+{
+    char strsave[MAX_INPUT_LENGTH];
+    FILE *fp;
+    ACCOUNT_DATA *account = NULL;
+    DESCRIPTOR_DATA d;
+
+    if (IS_NULLSTR(username)) {
+        bug("find_account_by_name: null or empty username", 0);
+        return NULL;
+    }
+
+    // Initialize temporary descriptor
+    memset(&d, 0, sizeof(d));
+
+    // Try to load the account directly
+    sprintf(strsave, "%s%c/%s", ACCOUNT_DIR, tolower(username[0]), capitalize(username));
+    
+    // First check if file exists 
+    if ((fp = fopen(strsave, "r")) == NULL)
+        return NULL;
+    fclose(fp);
+    
+    // Now attempt to load it
+    account = new_account();
+    d.account = account;
+    
+    if (load_account(&d, username)) {
+        return account;
+    } else {
+        // Something went wrong during loading
+        free_account(account);
+        return NULL;
+    }
+}
