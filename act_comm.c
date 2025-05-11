@@ -43,6 +43,9 @@
 #include "recycle.h"
 #include "tables.h"
 
+
+extern void display_account_menu(DESCRIPTOR_DATA *d);
+
 /* This macro strips a string of colours and concantenates it into a local buffer.
    Necesarry to avoid memory leaks. */
 #define STRIP_COLOUR(string, buffer) \
@@ -1492,12 +1495,9 @@ void do_logout(CHAR_DATA *ch, char *argument)
         /* Instead of closing the socket, return to account menu */
         write_to_buffer(d, "\n\rReturning to account menu...\n\r", 0);
         
-        /* This assumes you have a function to display the account menu */
-        /* Replace with the appropriate function call to show account menu */
-        d->connected = CON_ACCOUNT_MENU;  /* Or whatever state represents account menu */
+		display_account_menu(d);
+		d->connected = CON_ACCOUNT_MENU;
         
-        /* You may need to add additional code here to restore account context 
-           and display the account menu to the player */
     }
 }
 
