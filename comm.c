@@ -1,4 +1,4 @@
- /***************************************************************************
+/***************************************************************************
  *  Original Diku Mud copyright (C) 1990, 1991 by Sebastian Hammer,        *
  *  Michael Seifert, Hans Henrik St{rfeldt, Tom Madsen, and Katja Nyboe.   *
  *                                                                         *
@@ -1429,7 +1429,16 @@ void close_socket(DESCRIPTOR_DATA *dclose)
 
     ProtocolDestroy(dclose->pProtocol);
 
+    // Properly shut down TLS/SSL connections if present
+    if (dclose->ssl != NULL) {
+        SSL_shutdown(dclose->ssl);
+        SSL_free(dclose->ssl);
+        dclose->ssl = NULL;
+    }
+    // Gracefully shut down the socket before closing to avoid lingering FIN_WAIT2
+    shutdown(dclose->descriptor, SHUT_RDWR);
     close(dclose->descriptor);
+
     free_descriptor(dclose);
     return;
 }
@@ -2909,6 +2918,7 @@ void page_to_char(const char *txt, CHAR_DATA *ch)
 					point++;
 					if( *point == '+')
 						capitalize = true;
+
 					continue;
 				}
 			    if( capitalize && ISALPHA(*point) )
