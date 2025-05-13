@@ -1297,8 +1297,14 @@ void close_socket(DESCRIPTOR_DATA *dclose)
     }
 
     ProtocolDestroy(dclose->pProtocol);
-
-    close(dclose->descriptor);
+    // Properly shut down TLS/SSL connections if present
+    if (dclose->ssl != NULL) {
+        SSL_shutdown(dclose->ssl);
+        SSL_free(dclose->ssl);
+        dclose->ssl = NULL;
+    }
+    // Gracefully shut down the socket before closing to avoid lingering FIN_WAIT2
+    shutdown(dclose->descriptor, SHUT_RDWR);
     free_descriptor(dclose);
     return;
 }
