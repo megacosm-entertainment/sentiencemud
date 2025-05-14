@@ -10204,3 +10204,35 @@ void generate_discord_who() {
     // Close the file
     fclose(file);
 }
+
+// Converts total minutes to a formatted string "X week(s) Y day(s) Z hour(s) W minute(s)"
+void format_duration(int total_minutes, char *outbuf, size_t outbuf_len) {
+    int weeks = total_minutes / (60 * 24 * 7);
+    int days = (total_minutes / (60 * 24)) % 7;
+    int hours = (total_minutes / 60) % 24;
+    int minutes = total_minutes % 60;
+    char temp[128];
+    temp[0] = '\0';
+
+    if (weeks > 0) {
+        snprintf(temp + strlen(temp), sizeof(temp) - strlen(temp),
+                 "%d week%s", weeks, weeks == 1 ? "" : "s");
+    }
+    if (days > 0) {
+        if (temp[0] != '\0') strcat(temp, " ");
+        snprintf(temp + strlen(temp), sizeof(temp) - strlen(temp),
+                 "%d day%s", days, days == 1 ? "" : "s");
+    }
+    if (hours > 0) {
+        if (temp[0] != '\0') strcat(temp, " ");
+        snprintf(temp + strlen(temp), sizeof(temp) - strlen(temp),
+                 "%d hour%s", hours, hours == 1 ? "" : "s");
+    }
+    if (minutes > 0 || temp[0] == '\0') {
+        if (temp[0] != '\0') strcat(temp, " ");
+        snprintf(temp + strlen(temp), sizeof(temp) - strlen(temp),
+                 "%d minute%s", minutes, minutes == 1 ? "" : "s");
+    }
+
+    snprintf(outbuf, outbuf_len, "%s", temp);
+}

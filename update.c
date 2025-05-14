@@ -228,10 +228,21 @@ void update_handler(void)
 		else
 		{
 		    free_string(reboot_by);
-		    sprintf(buf, "{WREBOOTING. DOWNTIME WILL BE APPROXIMATELY %d MINUTES.{x\n\r", down_timer);
-		    gecho(buf);
-
-		    do_function(rebooting, &do_shutdown, "");
+			char duration_buf[MIL];
+			char upper_buf[MIL];
+			format_duration(down_timer, duration_buf, sizeof(duration_buf));
+			str_upper(duration_buf, upper_buf);
+			sprintf(buf, "{WREBOOTING. DOWNTIME WILL BE APPROXIMATELY %s.{x\n\r", upper_buf);
+			gecho(buf);
+			const char *reason = (reboot_reason != NULL) ? reboot_reason : "";
+			if (reason[0] != '\0')
+			{
+    			sprintf(buf, "{WREASON: %s{x\n\r", reason);
+    			gecho(buf);
+			}
+			reboot_shutdown = true;
+			do_function(rebooting, &do_shutdown, (char *)reason);
+//		    do_function(rebooting, &do_shutdown, "");
 		}
 	    }
 	    else

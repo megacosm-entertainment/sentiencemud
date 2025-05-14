@@ -53,6 +53,7 @@ extern bool newlock;
 extern bool wizlock;
 extern bool is_test_port;
 void pstat_variable_list(BUFFER *buffer, pVARIABLE vars);
+char *reboot_reason = NULL; // global
 
 
 int gconfig_read (void)
@@ -3625,16 +3626,19 @@ void do_reboot(CHAR_DATA *ch, char *argument)
     char buf[MSL];
     char arg[MSL];
     char arg2[MSL];
+//	char reason[MSL];
     struct tm *reboot_time;
 
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
+//	argument = one_argument(argument, reason);
 
     if (reboot_timer > 0)
     {
 	reboot_timer = 0;
 	down_timer = 0;
 	free_string(reboot_by);
+	free_string(reboot_reason);
 	gecho("{WREBOOT COUNTDOWN DEACTIVATED.{x\n\r");
 	return;
     }
@@ -3658,21 +3662,27 @@ void do_reboot(CHAR_DATA *ch, char *argument)
     }
 
     mins = atoi(arg);
-    if (mins < 1 || mins > 30)
+    if (mins < 1 || mins > 9999)
     {
 	send_to_char("Range for reboot time is 1 to 30 minutes.\n\r", ch);
 	return;
     }
 
     down_time = atoi(arg2);
-    if (down_time < 1 || down_time > 30)
+    if (down_time < 1 || down_time > 9999)
     {
-	send_to_char("Range for downtime is 1 to 30 minutes.\n\r", ch);
+	send_to_char("Range for downtime is 1 to 9999 minutes.\n\r", ch);
 	return;
     }
 
     sprintf(buf, "{WSet reboot timer for %d minutes.{x\n\r", mins);
     send_to_char(buf, ch);
+
+
+// Set the global reboot_reason to the rest of the argument (or empty string)
+	if (reboot_reason)
+    	free_string(reboot_reason);
+	reboot_reason = str_dup(argument[0] != '\0' ? argument : "");
 
     reboot_time = localtime(&current_time);
     reboot_time->tm_min += mins;
@@ -3691,23 +3701,34 @@ void do_shutdow(CHAR_DATA *ch, char *argument)
 
 void do_shutdown(CHAR_DATA *ch, char *argument)
 {
-    char buf[MAX_STRING_LENGTH];
+	char buf[MAX_STRING_LENGTH];
     DESCRIPTOR_DATA *d,*d_next;
     CHAR_DATA *vch, *tch;
     TOKEN_DATA *token;
     ITERATOR cit, tit;
+	char shutdown_information[MAX_STRING_LENGTH];
+	char shutdown_reason[MAX_INPUT_LENGTH];
 
-    if( IS_NULLSTR(argument) )
-    	sprintf(buf, "Shutdown by %s.", ch->name);
-    else
-    {
-		sprintf(buf, "Shutdown by %s, Reason: %s", ch->name, argument);
-		append_file(ch, MAINTENANCE_FILE, buf);
-	}
-    append_file(ch, SHUTDOWN_FILE, buf);
+	bool reboot = false;
+	
+	// Did the shutdown happen while the reboot timer was active or reboot was set by the update handler?
+	if (reboot_shutdown || reboot_timer > 0)
+		reboot = true;
 
-    strcat(buf, "\n\r");
-    do_function(ch, &do_echo, buf);
+	if (IS_NULLSTR(argument))
+		shutdown_reason[0] = '\0';
+	else
+		sprintf(shutdown_reason, " for: \"%s\"", argument);
+	
+	sprintf(shutdown_information, "%s by %s%s at %s", reboot ? "Reboot" : "Shutdown", ch->name, shutdown_reason, (char *) ctime(&current_time));
+
+	if (!reboot || down_timer > 1)
+		append_file(ch, SHUTDOWN_FILE, shutdown_information);
+
+	append_file(ch, MAINTENANCE_FILE, shutdown_information);
+
+    //strcat(shutdown_information, "\n\r");
+    do_function(ch, &do_echo, shutdown_information);
 
     /* remove any PURGE_REBOOT tokens on any characters */
 	iterator_start(&cit, loaded_chars);
