@@ -8393,6 +8393,8 @@ extern		WEATHER_DATA		weather_info;
 extern		bool			merc_down;
 extern		char 			*reboot_by;
 extern		time_t			reboot_timer;
+extern      char 			*reboot_reason;
+extern      bool            reboot_shutdown;
 extern 		int			auto_war_battle_timer;
 extern 		int			auto_war_timer;
 extern 		int			down_timer;
@@ -10482,7 +10484,7 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
 #define BUG_FILE        SYSTEM_DIR "bugs.txt" 		/ For 'bug' and bug() Unused
 #define TYPO_FILE       SYSTEM_DIR "typos.txt" 		/ For 'typo' Unused */
 #define SHUTDOWN_FILE   SYSTEM_DIR "shutdown.txt"		/* For 'shutdown'*/
-#define MAINTENANCE_FILE   SYSTEM_DIR "maintenance.txt"		/* For 'shutdown'*/
+#define MAINTENANCE_FILE   SYSTEM_DIR "shutdown_history.txt"		/* For 'shutdown'*/
 #define BAN_FILE		SYSTEM_DIR "ban.txt"
 /*#define MUSIC_FILE	SYSTEM_DIR	"music.txt"		Unused */
 #define CHAT_FILE		SYSTEM_DIR "chat_rooms.dat"
@@ -11313,6 +11315,7 @@ void send_email(CHAR_DATA *ch, char *email, char *subject, char *message, char *
 void send_email_async(CHAR_DATA *ch, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
 void generate_reset_code(char* str, int len);
 void save_qr_code_as_png(QRcode *qrcode, const char *filename, int scale_factor);
+void format_duration(int total_minutes, char *outbuf, size_t outbuf_len);
 
 /* help.c */
 HELP_DATA *find_helpfile( char *keyword, HELP_CATEGORY *hcat );

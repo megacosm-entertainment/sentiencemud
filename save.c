@@ -8946,12 +8946,13 @@ void account_remove_character(ACCOUNT_DATA *account, const char *name)
     ITERATOR it;
     ACCOUNT_CHARACTER *acct_char;
     bool found = FALSE;
-    
+
     if (!account || IS_NULLSTR(name)) {
         bug("account_remove_character: invalid parameters", 0);
         return;
     }
-    
+
+    // Remove from account's character list
     iterator_start(&it, account->characters);
     while ((acct_char = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
         if (!str_cmp(acct_char->name, name)) {
@@ -8962,7 +8963,20 @@ void account_remove_character(ACCOUNT_DATA *account, const char *name)
         }
     }
     iterator_stop(&it);
-    
+
+    // Unlink account info from the character file
+    DESCRIPTOR_DATA d;
+    memset(&d, 0, sizeof(d));
+    if (load_char_obj(&d, (char *)name) && d.character && d.character->pcdata) {
+        CHAR_DATA *ch = d.character;
+        free_string(ch->pcdata->account_name);
+        ch->pcdata->account_name = str_dup("");
+        ch->pcdata->account_id[0] = 0;
+        ch->pcdata->account_id[1] = 0;
+        save_char_obj(ch);
+        free_char(ch);
+    }
+
     if (found) {
         save_account(account);
     }

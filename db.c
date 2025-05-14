@@ -325,6 +325,8 @@ char			bug_buf[2*MAX_INPUT_LENGTH];
 char *			help_greeting;
 char			log_buf[2*MAX_INPUT_LENGTH];
 char			*reboot_by;
+char 			*reboot_reason;
+bool			reboot_shutdown;
 int				down_timer;
 int				pre_reckoning;
 int				reckoning_duration = 30;
@@ -1616,6 +1618,8 @@ void boot_db(void)
     FILE *fp;
 	static GLOBAL_DATA gconfig_zero;
 
+		// If shutdown.txt exists, nuke it.
+	unlink(SHUTDOWN_FILE);
 
 	wnum_zero.pArea = NULL;
 	wnum_zero.vnum = 0;
