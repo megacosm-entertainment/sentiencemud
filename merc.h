@@ -2015,6 +2015,7 @@ struct	descriptor_data
     unsigned int		muted;			// All text heading to the output will be blocked
     bool    tls_handshake_in_progress;
     SSL *ssl;
+    time_t last_activity;
 
 };
 

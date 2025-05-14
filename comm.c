@@ -1208,6 +1208,15 @@ imc_loop();
 	/* Check to see if the logfiles have overflowed*/
 	check_logfile();
 
+    for (d = descriptor_list; d != NULL; d = d_next) {
+        d_next = d->next;
+        // Only timeout if not fully logged in
+        if ((d->connected == CON_GET_ACCOUNT_NAME || d->connected == CON_GET_OLD_PASSWORD) && current_time - d->last_activity > 120) {
+            log_string("Closing idle connection (timeout).");
+            close_socket(d);
+        }
+    }
+
 	gettimeofday(&last_time, NULL);
 	current_time = (time_t) last_time.tv_sec;
     }
@@ -1245,6 +1254,8 @@ void init_descriptor(int control, bool is_tls)
      * Cons a new descriptor.
      */
     dnew = new_descriptor();
+
+	dnew->last_activity = current_time;
 
 	if (is_tls) {
 		dnew->ssl = SSL_new(ctx);
@@ -1431,7 +1442,13 @@ void close_socket(DESCRIPTOR_DATA *dclose)
 
     // Properly shut down TLS/SSL connections if present
     if (dclose->ssl != NULL) {
-        SSL_shutdown(dclose->ssl);
+        int shutdown_ret = 0;
+        int shutdown_attempts = 0;
+        // Try up to 2 times as per OpenSSL docs
+        do {
+            shutdown_ret = SSL_shutdown(dclose->ssl);
+            shutdown_attempts++;
+        } while (shutdown_ret == 0 && shutdown_attempts < 2);
         SSL_free(dclose->ssl);
         dclose->ssl = NULL;
     }
@@ -1447,6 +1464,8 @@ void close_socket(DESCRIPTOR_DATA *dclose)
 bool read_from_descriptor(DESCRIPTOR_DATA *d)
 {
     int iStart;
+
+	d->last_activity = current_time;
 
     static char read_buf[MAX_PROTOCOL_BUFFER];
     read_buf[0] = '\0';
@@ -2212,6 +2231,8 @@ bool write_to_descriptor_2(DESCRIPTOR_DATA *d, char *txt, int length)
     int iStart;
     int nWrite;
     int nBlock;
+
+	d->last_activity = current_time;
 
     if (d->out_compress)
         return writeCompressed(d, txt, length);
