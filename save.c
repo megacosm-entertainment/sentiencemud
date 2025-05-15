@@ -895,8 +895,8 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 		fprintf(fp, "ResetState %d\n", ch->pcdata->reset_state);
 		if (ch->pcdata->mfa_key != NULL)
 			fprintf(fp, "MFA_Key %s~\n", ch->pcdata->mfa_key);
-		if (ch->pcdata->qr_code_expiration != 0)
-			fprintf(fp, "MFA_Code_Expiration %ld\n", ch->pcdata->qr_code_expiration);
+		//if (ch->pcdata->qr_code_expiration != 0)
+		//	fprintf(fp, "MFA_Code_Expiration %ld\n", ch->pcdata->qr_code_expiration);
 		if (ch->pcdata->mfa_enabled == TRUE)
 			fprintf(fp, "MFA_Enabled\n");
 		fprintf(fp, "MFAPendingKey %s~\n", ch->pcdata->mfa_pending_key ? ch->pcdata->mfa_pending_key : "");
@@ -1079,7 +1079,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     ch->pcdata->security		= 0;
     ch->pcdata->challenge_delay		= 0;
 	ch->pcdata->mfa_key = str_dup("");
-	ch->pcdata->qr_code_expiration = 0;
+	//ch->pcdata->qr_code_expiration = 0;
     ch->morphed = false;
     ch->locker_rent = 0;
     ch->deathsight_vision = 0;
@@ -2343,7 +2343,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 			KEY("Mc3",		 __versioning->_007.class_warrior,		fread_number(fp));
 		}
 		KEY("MFA_KEY",		ch->pcdata->mfa_key,		fread_string(fp));
-		KEY("MFA_Code_Expiration", ch->pcdata->qr_code_expiration, fread_number(fp));
+		//KEY("MFA_Code_Expiration", ch->pcdata->qr_code_expiration, fread_number(fp));
 		if (!str_cmp(word, "MFA_Enabled"))
 			ch->pcdata->mfa_enabled = true;
 		if (!str_cmp(word, "MFAPendingKey")) {
@@ -8512,7 +8512,7 @@ bool load_account(DESCRIPTOR_DATA *d, char *name)
     account->reset_code = str_dup("");
     account->reset_state = 0;
     account->mfa_key = str_dup("");
-    account->qr_code_expiration = 0;
+    //account->qr_code_expiration = 0;
     account->email = str_dup("");
     account->last_login = 0;
     account->acct_flags = 0;
@@ -8662,7 +8662,7 @@ void fread_account(ACCOUNT_DATA *account, FILE *fp)
 
         case 'M':
             KEY("MFA_Key", account->mfa_key, fread_string(fp));
-            KEY("MFA_Code_Expiration", account->qr_code_expiration, fread_number(fp));
+            //KEY("MFA_Code_Expiration", account->qr_code_expiration, fread_number(fp));
             if (!str_cmp(word, "MFA_Enabled"))
                 account->mfa_enabled = true;
 			if (!str_cmp(word, "MFAPendingKey")) {
@@ -8838,7 +8838,7 @@ void fwrite_account(ACCOUNT_DATA *account, FILE *fp)
 
     if (!IS_NULLSTR(account->mfa_key)) {
         fprintf(fp, "MFA_Key %s~\n", account->mfa_key);
-        fprintf(fp, "MFA_Code_Expiration %ld\n", account->qr_code_expiration);
+        //fprintf(fp, "MFA_Code_Expiration %ld\n", account->qr_code_expiration);
         if (account->mfa_enabled)
             fprintf(fp, "MFA_Enabled\n");
     }

@@ -62,6 +62,28 @@ time_t time(time_t *tloc);
 #endif
 */
 
+#define BOOT_ERROR_MAX (1024 * 1024) // 1MB buffer for boot errors
+static char boot_error_buf[BOOT_ERROR_MAX];
+static size_t boot_error_len = 0;
+
+// Central boot error logging function
+void boot_error_log(const char *fmt, ...)
+{
+    va_list args;
+    char tmp[1024];
+    va_start(args, fmt);
+    vsnprintf(tmp, sizeof(tmp), fmt, args);
+    va_end(args);
+
+    size_t tmp_len = strlen(tmp);
+    if (boot_error_len + tmp_len + 2 < BOOT_ERROR_MAX) {
+        strcpy(boot_error_buf + boot_error_len, tmp);
+        boot_error_len += tmp_len;
+        boot_error_buf[boot_error_len++] = '\n';
+        boot_error_buf[boot_error_len] = '\0';
+    }
+}
+
 // VERSION_ROOM_002 special defines
 #define VR_002_EX_LOCKED		(C)
 #define VR_002_EX_PICKPROOF		(F)
@@ -1948,6 +1970,10 @@ void boot_db(void)
     check_area_versions();
 
     gconfig_write();
+
+	// Send boot errors to coders staff duty
+    send_boot_errors_to_coders();
+
 }
 
 void resolve_reputations()
@@ -5856,32 +5882,36 @@ void bug(const char *str, int param)
 
     if (fpArea != NULL)
     {
-	int iLine;
-	int iChar;
+        int iLine;
+        int iChar;
 
-	if (fpArea == stdin)
-	{
-	    iLine = 0;
-	}
-	else
-	{
-	    iChar = ftell(fpArea);
-	    fseek(fpArea, 0, 0);
-	    for (iLine = 0; ftell(fpArea) < iChar; iLine++)
-	    {
-		while (getc(fpArea) != '\n')
-		    ;
-	    }
-	    fseek(fpArea, iChar, 0);
-	}
+        if (fpArea == stdin)
+        {
+            iLine = 0;
+        }
+        else
+        {
+            iChar = ftell(fpArea);
+            fseek(fpArea, 0, 0);
+            for (iLine = 0; ftell(fpArea) < iChar; iLine++)
+            {
+                while (getc(fpArea) != '\n')
+                    ;
+            }
+            fseek(fpArea, iChar, 0);
+        }
 
-	sprintf(buf, "[*****] FILE: %s LINE: %d", strArea, iLine);
-	log_string(buf);
+        sprintf(buf, "[*****] FILE: %s LINE: %d", strArea, iLine);
+        log_string(buf);
+        if (fBootDb)
+            boot_error_log("%s", buf);
     }
 
     strcpy(buf, "[*****] BUG: ");
     sprintf(buf + strlen(buf), str, param);
     log_string(buf);
+    if (fBootDb)
+        boot_error_log("%s", buf);
 }
 
 
@@ -10130,86 +10160,93 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 
 bool persist_load(void)
 {
-	FILE *fp;
-	char *word;
-	CHAR_DATA *ch;
-	OBJ_DATA *obj;
-	ROOM_INDEX_DATA *room;
-	bool good = true;
+    FILE *fp;
+    char *word;
+    CHAR_DATA *ch;
+    OBJ_DATA *obj;
+    ROOM_INDEX_DATA *room;
+    bool good = true;
 
-	log_string("persist_load: loading persist entities...");
+    log_string("persist_load: loading persist entities...");
 
-	if (!(fp = fopen(PERSIST_FILE, "r"))) {
-		bug("persist.dat: Couldn't open file.",0);
-		return true;
-	} else {
-		while(good) {
-			word = fread_word(fp);
+    if (!(fp = fopen(PERSIST_FILE, "r"))) {
+        bug("persist.dat: Couldn't open file.",0);
+        return true;
+    } else {
+        // Check for empty file
+        int c = fgetc(fp);
+        if (c == EOF) {
+            fclose(fp);
+            log_string("persist_load: persist file is empty.");
+            return true;
+        }
+        ungetc(c, fp);
 
-			if(!str_cmp(word,"#AREA")) {
-				persist_load_area(fp);
+        while(good) {
+            word = fread_word(fp);
 
-			} else if(!str_cmp(word,"#ROOM")) {
-				room = persist_load_room(fp, 'R');
-				if(!room) good = false;
+            if(!str_cmp(word,"#AREA")) {
+                persist_load_area(fp);
 
-			} else if(!str_cmp(word,"#VROOM")) {
-				room = persist_load_room(fp, 'V');
-				if(!room) good = false;
+            } else if(!str_cmp(word,"#ROOM")) {
+                room = persist_load_room(fp, 'R');
+                if(!room) good = false;
 
+            } else if(!str_cmp(word,"#VROOM")) {
+                room = persist_load_room(fp, 'V');
+                if(!room) good = false;
 
-			} else if(!str_cmp(word,"#CROOM")) {
-				room = persist_load_room(fp, 'C');
-				if(room) {
-					variable_dynamic_fix_clone_room(room);
-					persist_fix_environment_room(room);
-				} else
-					good = false;
+            } else if(!str_cmp(word,"#CROOM")) {
+                room = persist_load_room(fp, 'C');
+                if(room) {
+                    variable_dynamic_fix_clone_room(room);
+                    persist_fix_environment_room(room);
+                } else
+                    good = false;
 
-			} else if(!str_cmp(word,"#MOBILE")) {
-				ch = persist_load_mobile(fp);
+            } else if(!str_cmp(word,"#MOBILE")) {
+                ch = persist_load_mobile(fp);
 
-				if( ch ) {
-					if( ch->in_room ) {
-						char_to_room(ch, ch->in_room);
-						variable_dynamic_fix_mobile(ch);
-						persist_fix_environment_mobile(ch);
-					} else {
-						extract_char(ch,true);
-						good = false;
-					}
-				} else
-					good = false;
-			} else if(!str_cmp(word,"#OBJECT")) {
-				obj = persist_load_object(fp);
+                if( ch ) {
+                    if( ch->in_room ) {
+                        char_to_room(ch, ch->in_room);
+                        variable_dynamic_fix_mobile(ch);
+                        persist_fix_environment_mobile(ch);
+                    } else {
+                        extract_char(ch,true);
+                        good = false;
+                    }
+                } else
+                    good = false;
+            } else if(!str_cmp(word,"#OBJECT")) {
+                obj = persist_load_object(fp);
 
-				if( obj ) {
-					obj->locker = false;
-					if( obj->in_room ) {
-						obj_to_room(obj, obj->in_room);
-						variable_dynamic_fix_object(obj);
-						persist_fix_environment_object(obj);
-					} else {
-						extract_obj(obj);
-						good = false;
-					}
-				} else
-					good = false;
+                if( obj ) {
+                    obj->locker = false;
+                    if( obj->in_room ) {
+                        obj_to_room(obj, obj->in_room);
+                        variable_dynamic_fix_object(obj);
+                        persist_fix_environment_object(obj);
+                    } else {
+                        extract_obj(obj);
+                        good = false;
+                    }
+                } else
+                    good = false;
 
-			} else if(!str_cmp(word,"#END"))
-				break;
-		}
+            } else if(!str_cmp(word,"#END"))
+                break;
+        }
 
-		fclose(fp);
-	}
+        fclose(fp);
+    }
 
-	if(good)
-		log_string("persist_load: done...");
-	else
-		log_string("persist_load: error...");
+    if(good)
+        log_string("persist_load: done...");
+    else
+        log_string("persist_load: error...");
 
-
-	return good;
+    return good;
 }
 
 bool save_instances()
@@ -10330,3 +10367,65 @@ void load_instances()
 }
 
 
+void send_boot_errors_to_coders()
+{
+    if (boot_error_len == 0)
+        return;
+
+    const size_t chunk_size = 3800; // Leave room for headers, etc.
+    size_t offset = 0;
+    int note_num = 1;
+
+    // Get boot time string
+    char timebuf[64];
+    time_t now = current_time;
+    struct tm *tm_info = localtime(&now);
+    strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S", tm_info);
+
+    while (offset < boot_error_len) {
+        size_t len = (boot_error_len - offset > chunk_size) ? chunk_size : boot_error_len - offset;
+
+        // Find the last newline within the chunk
+        size_t end = offset + len;
+        if (end < boot_error_len) {
+            size_t last_nl = offset;
+            for (size_t i = offset; i < end; ++i) {
+                if (boot_error_buf[i] == '\n')
+                    last_nl = i + 1;
+            }
+            // If we found a newline, break there; otherwise, use the chunk size
+            if (last_nl > offset)
+                end = last_nl;
+        } else {
+            end = boot_error_len;
+        }
+
+        size_t note_len = end - offset;
+        char note_body[4000];
+        if (note_len >= sizeof(note_body))
+            note_len = sizeof(note_body) - 1;
+        strncpy(note_body, boot_error_buf + offset, note_len);
+        note_body[note_len] = '\0';
+
+        // Compose and send the note
+        NOTE_DATA *note = new_note();
+        note->sender = str_dup("Boot System");
+        note->to_staff_duties = str_dup("coder 'head coder'");
+
+        char subj[256];
+        snprintf(subj, sizeof(subj), "Boot Errors [%s] (Part %d)", timebuf, note_num);
+        note->subject = str_dup(subj);
+		note->date_stamp = current_time + note_num;
+        note->text = str_dup(note_body);
+        note->date = str_dup(timebuf);
+        note->type = NOTE_NOTE;
+        note->recipient_type = NOTE_RECIPIENT_STAFF_DUTY;
+
+        append_note(note);
+
+        offset = end;
+        note_num++;
+    }
+    boot_error_len = 0;
+    boot_error_buf[0] = '\0';
+}

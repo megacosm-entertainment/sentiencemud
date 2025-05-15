@@ -279,7 +279,7 @@ bool setup_mfa_for_char(CHAR_DATA *ch, bool send_email)
     // Save key to character
     free_string(ch->pcdata->mfa_key);
     ch->pcdata->mfa_key = str_dup(key);
-    ch->pcdata->qr_code_expiration = time(NULL) + 10 * 60;  // 10 minutes
+    //ch->pcdata->qr_code_expiration = time(NULL) + 10 * 60;  // 10 minutes
 
     send_to_char("Your MFA key has been generated. Please save this key in a safe place.\n\r", ch);
     send_to_char("You will need this key to authenticate with MFA.\n\r", ch);
@@ -310,7 +310,7 @@ bool setup_mfa_for_account(DESCRIPTOR_DATA *d, bool send_email)
     // Save key to account
     free_string(acct->mfa_key);
     acct->mfa_key = str_dup(key);
-    acct->qr_code_expiration = time(NULL) + 10 * 60;  // 10 minutes
+    //acct->qr_code_expiration = time(NULL) + 10 * 60;  // 10 minutes
     
     // Display key information
     write_to_buffer(d, "Your MFA key has been generated. Please save this key in a safe place.\n\r", 0);
@@ -365,7 +365,7 @@ void do_keygen(CHAR_DATA *ch, char *argument)
         free_string(ch->pcdata->mfa_key);
         ch->pcdata->mfa_key = str_dup("");
         ch->pcdata->mfa_enabled = false;
-        ch->pcdata->qr_code_expiration = 0;
+        //ch->pcdata->qr_code_expiration = 0;
         send_to_char("Your MFA key has been cleared.\n\r", ch);
         return;
     }
@@ -378,19 +378,12 @@ void do_keygen(CHAR_DATA *ch, char *argument)
         }
     }
     else if (!str_prefix(argument, "confirm")) {
-        if (IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->qr_code_expiration == 0) {
+        if (IS_NULLSTR(ch->pcdata->mfa_key)) {
             send_to_char("You do not have an MFA key to validate.\n\r", ch);
             return;
         }
         
-        // Check if the QR code has expired
-        if (time(NULL) > ch->pcdata->qr_code_expiration) {
-            send_to_char("The QR code has expired. Please generate a new one.\n\r", ch);
-            free_string(ch->pcdata->mfa_key);
-            ch->pcdata->mfa_key = str_dup("");
-            ch->pcdata->qr_code_expiration = 0;
-            return;
-        }
+
 
         // Prompt the user to enter the MFA code
         send_to_char("Please enter the code from your MFA app to authenticate your account.\n\r", ch);

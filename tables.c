@@ -4323,8 +4323,8 @@ const struct flag_type adornment_types[] =
 
 const struct flag_type staff_ranks[] =
 {
-    {"player",      STAFF_PLAYER,           true},
-    {"gimp",        STAFF_GIMP,             true},
+    {"player",      STAFF_PLAYER,           false},
+    {"gimp",        STAFF_GIMP,             false},
     {"immortal",    STAFF_IMMORTAL,         true},
     {"ascendant",   STAFF_ASCENDANT,        true},
     {"supremacy",   STAFF_SUPREMACY,        true},

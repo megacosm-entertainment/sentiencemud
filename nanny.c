@@ -23,9 +23,1124 @@
 #include "protocol.h"
 
 
+/* Account related functions */
+
+// Everything starts here.
+// This leads to CON_GET_ACOCOUNT_PASSWORD (existing)
+// or CON_CONFIRM_ACCOUNT_NAME (new).
+void login_get_account(DESCRIPTOR_DATA *d, char *argument)
+{
+    char buf[MAX_STRING_LENGTH];
+    bool found;
+
+    if (!argument[0]) {
+        close_socket(d);
+        return;
+    }
+
+    // Remove illegal characters
+    argument[0] = UPPER(argument[0]);
+    if (!check_parse_name(argument)) {
+        write_to_buffer(d, "Illegal account name, try another.\n\rAccount: ", 0);
+        return;
+    }
+
+    // Create account structure for descriptor
+    if (d->account != NULL) {
+        free_account(d->account);
+        d->account = NULL;
+    }
+    
+    // Try to load the account
+    found = load_account(d, argument);
+    
+    // Check if they're banned
+    if (check_ban(d->host, BAN_PERMIT)) {
+        write_to_buffer(d, "Your site has been banned from Sentience.\n\r", 0);
+        close_socket(d);
+        return;
+    }
+    
+    // Check wizlock if they don't have any immortal characters
+    if (game_settings.wizlock && !account_has_immortal(d->account)) {
+        if (!IS_NULLSTR(game_settings.wizlock_msg))
+            write_to_buffer(d, game_settings.wizlock_msg, 0);
+        else
+            write_to_buffer(d, "The game is wizlocked.\n\r", 0);
+            
+        sprintf(buf, "Wizlocked: %s tried to connect from %s.", argument, d->host);
+        log_string(buf);
+        wiznet(buf, NULL, NULL, WIZ_LOGINS, 0, 0);
+        close_socket(d);
+        return;
+    }
+    
+    // Existing account
+    if (found) {
+        write_to_buffer(d, "Password: ", 0);
+        ProtocolNoEcho(d, true);
+        d->connected = CON_GET_ACCOUNT_PASSWORD;
+        return;
+    }
+    // New account
+    else {
+        // Check newlock
+        if (game_settings.new_acct_lock) {
+            if (game_settings.new_acct_lock_msg && game_settings.new_acct_lock_msg[0])
+                write_to_buffer(d, game_settings.new_acct_lock_msg, 0);
+            else
+                write_to_buffer(d, "New accounts are not being accepted at this time.\n\r", 0);
+                
+            write_to_buffer(d, "The game is newlocked.\n\r", 0);
+            close_socket(d);
+            return;
+        }
+
+        if (check_ban(d->host, BAN_NEWBIES)) {
+            write_to_buffer(d, "New accounts are not allowed from your site.\n\r", 0);
+            close_socket(d);
+            return;
+        }
+
+        sprintf(buf, "\n\rCreate a new account named %s (Y/N)? ", argument);
+        write_to_buffer(d, buf, 0);
+        d->connected = CON_CONFIRM_ACCOUNT_NAME;
+        return;
+    }
+}
+
+// We have an existing account. Go ahead and get their password.
+// If they have a reset code, we need to handle that first.
+// This can lead into a number of states:
+// CON_GET_ACCOUNT_MFA (if they have MFA enabled)
+// CON_ACCOUNT_MENU (if everything is good and they can access the account menu)
+// CON_GET_ACCOUNT_PASSWORD (if they need to enter their password again)
+// CON_GET_ACCOUNT_EMAIL (if they need to set their email address)
+// CON_CONFIRM_ACCOUNT_EMAIL_FOR_RESET (if they need to confirm their email address for reset)
+// CON_CHANGE_ACCOUNT_PASSWORD (if they need to change their password after reset)
+void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
+{
+    ACCOUNT_DATA *acct = d->account;
+    
+    write_to_buffer(d, "\n\r", 2);
+
+    if (d->login_attempts >= game_settings.max_login_attempts) {
+        write_to_buffer(d, "Too many login attempts. Goodbye.\n\r", 0);
+        close_socket(d);
+        return;
+    }
+
+    // Handle password reset request
+    if (game_settings.enable_email && !strcmp(argument, "resetpassword")) {
+        if (acct->reset_state == RESET_PENDING) {
+            write_to_buffer(d, "Reset is already pending. Check your email for the code.\n\r", 0);
+            write_to_buffer(d, "Password or Reset Code: ", 0);
+            return;
+        } else {
+            if (IS_NULLSTR(acct->email)) {
+                write_to_buffer(d, "You must have an email address set to reset your password.\n\r", 0);
+                write_to_buffer(d, "Please reach out to staff for assistance.\n\r", 0);
+                d->connected = CON_GET_ACCOUNT_PASSWORD;
+                return;
+            } else {
+                write_to_buffer(d, "Please confirm your email address: ", 0);
+                d->connected = CON_CONFIRM_ACCOUNT_EMAIL_FOR_RESET;  // Changed to account-specific handler
+                return;
+            }
+        }
+    }
+
+    // Check for reset code
+    if (acct->reset_state == RESET_PENDING) {
+        if (strcmp(argument, acct->reset_code) && 
+            strcmp(sha256_crypt(argument), acct->passwd)) {
+            write_to_buffer(d, "Wrong reset code.\n\r", 0);
+            d->login_attempts++;
+            return;
+        }
+        
+        if ((current_time - acct->reset_time) > 86400) {
+            if (game_settings.enable_email)
+                write_to_buffer(d, "Reset code has expired. Please try resetting again.\n\r", 0);
+            else
+                write_to_buffer(d, "Reset code has expired. Please contact staff for assistance.\n\r", 0);
+                
+            acct->reset_state = NO_RESET;
+            free_string(acct->reset_code);
+            acct->reset_time = 0;
+            save_account(acct);
+            close_socket(d);
+            return;
+        }
+        
+        if (!str_cmp(argument, acct->reset_code)) {
+            acct->reset_state = NO_RESET;
+            free_string(acct->reset_code);
+            acct->reset_code = str_dup("");
+            acct->reset_time = 0;
+            acct->old_passwd = str_dup(acct->passwd);
+            
+            write_to_buffer(d, "Reset code accepted. You are required to set a new password.\n\r", 0);
+            write_to_buffer(d, "Password: ", 0);
+            d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
+            return;
+        }
+    }
+
+    // Normal password check
+    if (strcmp(sha256_crypt(argument), acct->passwd)) {
+        // Log bad password attempts
+        sprintf(log_buf, "Denying access to account %s@%s (bad password).",
+            acct->username, d->host);
+        log_string(log_buf);
+        
+        if (game_settings.enable_email)
+            write_to_buffer(d, "Wrong password. Please try again, or use 'resetpassword' to reset.\n\r", 0);
+        else
+            write_to_buffer(d, "Wrong password. Please try again or reach out to staff for assistance.\n\r", 0);
+            
+        d->login_attempts++;
+        return;
+    }
+
+    // Handle MFA
+    if (!IS_NULLSTR(acct->mfa_key) && acct->mfa_enabled) {
+        write_to_buffer(d, "\n\rPlease enter your MFA code: ", 0);
+        ProtocolNoEcho(d,true);
+        d->connected = CON_GET_ACCOUNT_MFA;
+        return;
+    }
+
+    ProtocolNoEcho(d, false);
+
+    // Log the successful connection
+    sprintf(log_buf, "Account %s@%s has connected.", acct->username, d->host);
+    log_string(log_buf);
+
+    // Check if they need to provide email
+    if (IS_NULLSTR(acct->email)) {
+        write_to_buffer(d, "\n\rPlease enter a valid e-mail address at which we can reach you.\n\r"
+            "It will not be distributed to any third parties or abused in any way.\n\r", 0);
+        write_to_buffer(d, "\n\rEnter your e-mail address: ", 0);
+        d->connected = CON_GET_ACCOUNT_EMAIL;
+        return;
+    }
+
+    // Password update needed?
+    if (acct->passwd_version < 1) {
+        write_to_buffer(d, "\n\rYou are required to set a new password. Please do so now.\n\r", 0);
+        write_to_buffer(d, "Password: ", 0);
+        acct->old_passwd = str_dup(acct->passwd);
+        d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
+        return;
+    }
+
+    // Add to loaded_accounts if not already present
+    acct->refcount++;
+    if (!list_haslink(loaded_accounts, acct))
+        list_addlink(loaded_accounts, acct);  
+
+    free_string(acct->last_login_host);
+    acct->last_login_host = str_dup(d->host);
+    acct->last_login = current_time;
+
+    // Show the account menu
+    display_account_menu(d);
+    d->connected = CON_ACCOUNT_MENU;
+}
+
+// User is confirming account name for a new account.
+// This leads to CON_NEW_ACCOUNT_PASSWORD.
+// If they say no, we go back to CON_GET_ACCOUNT_NAME.
+void login_confirm_account_name(DESCRIPTOR_DATA *d, char *argument)
+{
+    ACCOUNT_DATA *acct = d->account;
+    
+    switch(toupper(argument[0])) {
+    case 'Y':
+        write_to_buffer(d, "\n\rPlease choose a password for your account: ", 0);
+        ProtocolNoEcho(d, true);
+        d->connected = CON_NEW_ACCOUNT_PASSWORD;
+        break;
+        
+    case 'N':
+        write_to_buffer(d, "Account: ", 0);
+        free_account(acct);
+        d->account = NULL;
+        d->connected = CON_GET_ACCOUNT_NAME;
+        break;
+        
+    default:
+        write_to_buffer(d, "Please answer (Y/N): ", 0);
+        break;
+    }
+}
+
+// We've prompted for a new password. If it is acceptable, prompt for confirmation.
+// If not, we prompt again.
+// Leads to CON_CONFIRM_ACCOUNT_PASSWORD.
+void login_new_account_password(DESCRIPTOR_DATA *d, char *argument)
+{
+    ACCOUNT_DATA *acct = d->account;
+    
+    write_to_buffer(d, "\n\r", 2);
+    
+    if (!acceptablePassword(d, argument))
+        return;
+        
+    acct->passwd = str_dup(sha256_crypt(argument));
+    acct->passwd_version = 1;
+    
+    write_to_buffer(d, "Please confirm password: ", 0);
+    d->connected = CON_CONFIRM_ACCOUNT_PASSWORD;
+}
+
+// User is confirming their password for a new account.
+// If it matches, we proceed to get their email address.
+// If not, we prompt again.
+// This leads to CON_NEW_ACCOUNT_EMAIL.
+void login_confirm_account_password(DESCRIPTOR_DATA *d, char *argument)
+{
+    ACCOUNT_DATA *acct = d->account;
+    
+    write_to_buffer(d, "\n\r", 2);
+    
+    if (strcmp(sha256_crypt(argument), acct->passwd)) {
+        write_to_buffer(d, "Passwords don't match.\n\r", 0);
+        write_to_buffer(d, "Please enter a new password: ", 0);
+        d->connected = CON_NEW_ACCOUNT_PASSWORD;
+        return;
+    }
+    
+    ProtocolNoEcho(d, false);
+    
+    write_to_buffer(d, "\n\rPlease enter a valid e-mail address at which we can reach you.\n\r"
+                "It will not be distributed to any third parties or abused in any way.\n\r", 0);
+    write_to_buffer(d, "\n\rEnter your e-mail address: ", 0);
+    d->connected = CON_GET_ACCOUNT_EMAIL;
+}
+
+// User is setting their email address for a new account.
+// If the email is valid, we save the account and show the account menu.
+// If not, we prompt again.
+// This leads to CON_ACCOUNT_MENU.
+void login_get_account_email(DESCRIPTOR_DATA *d, char *argument)
+{
+    ACCOUNT_DATA *acct = d->account;
+    
+    if (argument[0] == '\0' || !strstr(argument, "@") || !strstr(argument, ".")) {
+        write_to_buffer(d, "That's not a valid email address.\n\r", 0);
+        return;
+    }
+    
+    free_string(acct->email);
+    acct->email = str_dup(argument);
+
+    free_string(acct->creation_host);
+    acct->creation_host = str_dup(d->host);
+    
+    // Save the account
+    save_account(acct);
+
+    // Add to loaded_accounts if not already present
+    acct->refcount++;
+
+    if (!list_haslink(loaded_accounts, acct))
+        list_addlink(loaded_accounts, acct);
+
+    // Always show the account menu after email is provided, whether this is a new account or not
+    write_to_buffer(d, "\n\rAccount successfully created! You can now create characters and manage your account.\n\r", 0);
+    display_account_menu(d);
+    d->connected = CON_ACCOUNT_MENU;
+}
+
+// Handle changing account email
+// This leads to CON_VERIFY_ACCOUNT_EMAIL_CHANGE if verification is needed.
+// Otherwise, it goes to CON_ACCOUNT_MENU.
+// If the email is invalid, we prompt again.
+// If the user cancels, we go back to the account menu.
+// If the email is already pending verification, we notify the user and go back to the account menu.
+// If the email is valid and verification is not required, we update the email immediately.
+// If the email is valid and verification is required, we send a verification code to the new email.
+// The user must then enter the code to confirm the change.
+void login_change_account_email(DESCRIPTOR_DATA *d, char *argument)
+{
+    ACCOUNT_DATA *acct = d->account;
+
+    if (argument[0] == '\0' || !strstr(argument, "@") || !strstr(argument, ".")) {
+        write_to_buffer(d, "That's not a valid email address.\n\r", 0);
+        write_to_buffer(d, "Enter your e-mail address (or 'cancel' to cancel): ", 0);
+        return;
+    }
+    if (!str_cmp(argument, "cancel")) {
+        display_account_menu(d);
+        d->connected = CON_ACCOUNT_MENU;
+        return;
+    }
+    if (!game_settings.require_email_verification) {
+        // Immediate update
+        free_string(acct->email);
+        acct->email = str_dup(argument);
+        acct->email_verified = true;
+        write_to_buffer(d, "\n\rEmail address updated.\n\r", 0);
+        save_account(acct);
+        display_account_menu(d);
+        d->connected = CON_ACCOUNT_MENU;
+        return;
+    }
+    // Verification required
+    if (!IS_NULLSTR(acct->pending_email) && !str_cmp(argument, acct->pending_email)) {
+        write_to_buffer(d, "That email is already pending verification.\n\r", 0);
+        display_account_menu(d);
+        d->connected = CON_ACCOUNT_MENU;
+        return;
+    }
+    free_string(acct->pending_email);
+    acct->pending_email = str_dup(argument);
+    acct->email_verified = false;
+    // Generate code and set time
+    char code[16];
+    generate_reset_code(code, 15);
+    free_string(acct->email_verification_code);
+    acct->email_verification_code = str_dup(code);
+    acct->email_verification_time = current_time;
+    acct->email_verification_last_sent = current_time;
+    // Notify old email
+    if (!IS_NULLSTR(acct->email)) {
+        send_email_async(NULL, acct->email, "Sentience: Email Change Requested",
+            "A request was made to change your account email. If this was not you, contact support.", NULL, NULL);
+    }
+    // Send code to new email
+    char body[256];
+    sprintf(body, "Your verification code is: %s\nThis code will expire in 72 hours.", code);
+    send_email_async(NULL, acct->pending_email, "Sentience: Verify Your New Email Address", body, NULL, NULL);
+    save_account(acct);
+    write_to_buffer(d, "\n\rA verification code has been sent to your new email address.\n\r", 0);
+    write_to_buffer(d, "Enter the code to confirm your new email: ", 0);
+    d->connected = CON_VERIFY_ACCOUNT_EMAIL_CHANGE;
+}
+
+// User is verifying their email address change.
+// If the code is correct, we update the email and show the account menu.
+// If the code is incorrect, we prompt again.
+// If the code is expired, we notify the user and go back to the account menu.
+void login_verify_account_email_change(DESCRIPTOR_DATA *d, char *argument)
+{
+    ACCOUNT_DATA *acct = d->account;
+    if (IS_NULLSTR(acct->pending_email) || IS_NULLSTR(acct->email_verification_code)) {
+        write_to_buffer(d, "No email change is pending.\n\r", 0);
+        display_account_menu(d);
+        d->connected = CON_ACCOUNT_MENU;
+        return;
+    }
+    // Expiry check (72 hours)
+    if ((current_time - acct->email_verification_time) > (72 * 3600)) {
+        write_to_buffer(d, "Verification code expired. Please start the process again.\n\r", 0);
+        free_string(acct->pending_email);
+        acct->pending_email = str_dup("");
+        free_string(acct->email_verification_code);
+        acct->email_verification_code = str_dup("");
+        acct->email_verification_time = 0;
+        save_account(acct);
+        display_account_menu(d);
+        d->connected = CON_ACCOUNT_MENU;
+        return;
+    }
+    if (!str_cmp(argument, acct->email_verification_code)) {
+        free_string(acct->email);
+        acct->email = str_dup(acct->pending_email);
+        acct->email_verified = true;
+        free_string(acct->pending_email);
+        acct->pending_email = str_dup("");
+        free_string(acct->email_verification_code);
+        acct->email_verification_code = str_dup("");
+        acct->email_verification_time = 0;
+        acct->email_verification_last_sent = 0;
+        save_account(acct);
+        write_to_buffer(d, "\n\rYour email address has been updated and verified.\n\r", 0);
+        display_account_menu(d);
+        d->connected = CON_ACCOUNT_MENU;
+    } else {
+        write_to_buffer(d, "Invalid code. Try again: ", 0);
+    }
+}
+
+// Verify current password before allowing a password change
+// This leads to CON_CHANGE_ACCOUNT_PASSWORD.
+void login_verify_account_password(DESCRIPTOR_DATA *d, char *argument)
+{
+    ACCOUNT_DATA *acct = d->account;
+    
+    write_to_buffer(d, "\n\r", 2);
+    
+    if (strcmp(sha256_crypt(argument), acct->passwd)) {
+        write_to_buffer(d, "Incorrect password.\n\r", 0);
+        ProtocolNoEcho(d, false);
+        display_account_menu(d);
+        d->connected = CON_ACCOUNT_MENU;
+        return;
+    }
+    
+    write_to_buffer(d, "Enter new password: ", 0);
+    d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
+}
+
+// User is verifying their MFA code for account settings.
+// If the code is correct, we proceed to the MFA settings menu.
+void login_account_mfa_verify_for_settings(DESCRIPTOR_DATA *d, char *argument) {
+    ACCOUNT_DATA *acct = d->account;
+    if (check_account_mfa(acct, argument) || check_account_recovery_code(acct, argument)) {
+        d->mfa_verified = true;
+        display_account_mfa_menu(d, "");
+    } else {
+        write_to_buffer(d, "Invalid MFA or recovery code. Try again: ", 0);
+    }
+}
+
+// User is confirming MFA disable.
+// If they confirm, we disable MFA and show the account menu.
+// If they cancel, we go back to the account menu.
+// If they enter an invalid response, we prompt again.
+void login_account_mfa_disable_confirm(DESCRIPTOR_DATA *d, char *argument) {
+    ACCOUNT_DATA *acct = d->account;
+    switch (toupper(argument[0])) {
+        case 'Y':
+            acct->mfa_enabled = false;
+            save_account(acct);
+            write_to_buffer(d, "MFA disabled for this character.\n\r", 0);
+            display_account_mfa_menu(d, "");
+            break;
+        case 'N':
+            display_account_mfa_menu(d, "");
+            break;
+        default:
+            write_to_buffer(d, "Please answer Y or N: ", 0);
+            break;
+    }
+}
+
+// Resending the account verification code.
+// This is used when the user has requested a new email address and needs to verify it.
+// If the email is already pending verification, we notify the user and go back to the account menu.
+// If the email is valid and verification is not required, we update the email immediately.
+void resend_account_verification_code(DESCRIPTOR_DATA *d)
+{
+    ACCOUNT_DATA *acct = d->account;
+    if (IS_NULLSTR(acct->pending_email)) {
+        write_to_buffer(d, "No pending email to verify.\n\r", 0);
+        return;
+    }
+    if ((current_time - acct->email_verification_last_sent) < (15 * 60)) {
+        write_to_buffer(d, "You must wait before resending the verification email.\n\r", 0);
+        return;
+    }
+    char code[16];
+    if (IS_NULLSTR(acct->email_verification_code)) {
+        generate_reset_code(code, 15);
+        free_string(acct->email_verification_code);
+        acct->email_verification_code = str_dup(code);
+    }
+    acct->email_verification_time = current_time;
+    acct->email_verification_last_sent = current_time;
+    char body[256];
+    sprintf(body, "Your verification code is: %s\nThis code will expire in 72 hours.", acct->email_verification_code);
+    send_email_async_ex(NULL, acct, acct->pending_email, "Sentience: Verify Your New Email Address", body, NULL, NULL);
+    save_account(acct);
+    write_to_buffer(d, "Verification email resent.\n\r", 0);
+}
 
 
 
+
+// We're displaying the account menu here. 
+// This is paired with login_account_menu to handle the actual selections.
+
+void display_account_menu(DESCRIPTOR_DATA *d)
+{
+    ACCOUNT_DATA *acct = d->account;
+    char buf[MAX_STRING_LENGTH];
+    char name_buf[50];
+    char rank_buf[50];
+    char level_buf[50];
+    char race_buf[50];
+    char class_buf[50];
+    ITERATOR it;
+    ACCOUNT_CHARACTER *ch_entry;
+    
+    d->mfa_verified = false;
+
+    // Create temporary arrays to store characters for sorting
+    ACCOUNT_CHARACTER *staff_chars[10];
+    ACCOUNT_CHARACTER *regular_chars[100];
+    int staff_count = 0;
+    int regular_count = 0;
+    
+    write_to_buffer(d, "\n\r{B=={W[ {YSENTIENCE ACCOUNT MENU {W]{B=={x\n\r\n\r", 0);
+    
+    sprintf(buf, "Account: {C%s{x\n\r", acct->username);
+    write_to_buffer(d, buf, 0);
+    
+    if (game_settings.require_email_verification && !acct->email_verified && !IS_NULLSTR(acct->pending_email)) {
+        sprintf(buf, "Email: {C%s{x (pending: {Y%s{x)\n\r\n\r", IS_NULLSTR(acct->email) ? "Not set" : acct->email, acct->pending_email);
+    } else if (game_settings.require_email_verification && !acct->email_verified && IS_NULLSTR(acct->pending_email)) {
+        sprintf(buf, "Email: {YPending verification{x\n\r\n\r");
+    } else {
+        sprintf(buf, "Email: {C%s{x\n\r\n\r", IS_NULLSTR(acct->email) ? "Not set" : acct->email);
+    }
+    write_to_buffer(d, buf, 0);
+    
+    // First pass: separate staff and regular characters
+    iterator_start(&it, acct->characters);
+    while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+        if (ch_entry->staff && ch_entry->staff_rank >= STAFF_IMMORTAL) {
+            staff_chars[staff_count++] = ch_entry;
+        } else {
+            regular_chars[regular_count++] = ch_entry;
+        }
+    }
+    iterator_stop(&it);
+    
+    // Sort characters alphabetically in two buckets (staff and normal)
+    for (int i = 0; i < staff_count - 1; i++) {
+        for (int j = 0; j < staff_count - i - 1; j++) {
+            if (strcasecmp(staff_chars[j]->name, staff_chars[j+1]->name) > 0) {
+                ACCOUNT_CHARACTER *temp = staff_chars[j];
+                staff_chars[j] = staff_chars[j+1];
+                staff_chars[j+1] = temp;
+            }
+        }
+    }
+    
+    for (int i = 0; i < regular_count - 1; i++) {
+        for (int j = 0; j < regular_count - i - 1; j++) {
+            if (strcasecmp(regular_chars[j]->name, regular_chars[j+1]->name) > 0) {
+                ACCOUNT_CHARACTER *temp = regular_chars[j];
+                regular_chars[j] = regular_chars[j+1];
+                regular_chars[j+1] = temp;
+            }
+        }
+    }
+    
+    // Display staff characters first
+    if (staff_count > 0) {
+        write_to_buffer(d, "{B=={W[ {YSTAFF CHARACTERS {W]{B=={x\n\r", 0);
+        
+        sprintf(buf, "{D%-4s %-16s %-15s %-30s{x\n\r", 
+                "Num", "Name", "Rank", "Location");
+        write_to_buffer(d, buf, 0);
+
+        sprintf(buf, "{D%s{x\n\r", pad_string("", 70, NULL, "-"));
+        write_to_buffer(d, buf, 0);
+        
+        for (int i = 0; i < staff_count; i++) {
+            ch_entry = staff_chars[i];
+            const char *staff_rank_str = flag_string(staff_ranks, ch_entry->staff_rank);
+            
+        CHAR_DATA *live_ch = get_char_world(NULL, ch_entry->name);
+        const char *loc_str;
+        if (live_ch && live_ch->in_room) {
+            loc_str = format_location_string(
+            live_ch->in_room->area ? live_ch->in_room->area->name : NULL,
+            (live_ch->in_room->region && live_ch->in_room->region->name) ? live_ch->in_room->region->name : NULL
+            );
+        } else {
+            loc_str = format_location_string(
+                ch_entry->last_area, 
+                ch_entry->last_region
+            );
+    }
+            sprintf(name_buf, "{W%s{x", ch_entry->name);
+            sprintf(rank_buf, "{R%s{x", staff_rank_str ? capitalize(staff_rank_str) : "IMM");
+            
+            sprintf(buf, "{G[%2d]{x %s%s %s%s {Y%s{x\n\r",
+                    i + 1,
+                    name_buf,
+                    pad_string(name_buf, 16, NULL, " "),
+                    rank_buf,
+                    pad_string(rank_buf, 15, NULL, " "),
+                    loc_str);
+            write_to_buffer(d, buf, 0);
+        }
+    }
+    
+    // Display regular characters
+    if (regular_count > 0) {
+        write_to_buffer(d, "\n\r{B=={W[ {YREGULAR CHARACTERS {W]{B=={x\n\r", 0);
+        
+        sprintf(buf, "{D%-4s %-16s %-7s %-12s %-12s %-25s{x\n\r", 
+                "Num", "Name", "Level", "Race", "Class", "Location");
+        write_to_buffer(d, buf, 0);
+        
+        sprintf(buf, "{D%s{x\n\r", pad_string("", 90, NULL, "-"));
+        write_to_buffer(d, buf, 0);
+        
+        for (int i = 0; i < regular_count; i++) {
+            ch_entry = regular_chars[i];
+            
+            CHAR_DATA *live_ch = get_char_world(NULL, ch_entry->name);
+            const char *loc_str;
+            if (live_ch && live_ch->in_room) {
+                loc_str = format_location_string(
+                    live_ch->in_room->area ? live_ch->in_room->area->name : NULL,
+                    (live_ch->in_room->region && live_ch->in_room->region->name) ? live_ch->in_room->region->name : NULL
+                );
+            } else {
+                loc_str = format_location_string(
+                    ch_entry->last_area, 
+                    ch_entry->last_region
+                );
+            }
+            
+            sprintf(name_buf, "{W%s{x", ch_entry->name);
+            
+            sprintf(level_buf, "{G%d(%d){x", 
+                    ch_entry->current_level > 0 ? ch_entry->current_level : ch_entry->tot_level,
+                    ch_entry->tot_level);
+            
+            sprintf(race_buf, "{W%s{x", 
+                    ch_entry->race_name ? capitalize(ch_entry->race_name) : "Unknown");
+            sprintf(class_buf, "{W%s{x", 
+                    ch_entry->class_name ? capitalize(ch_entry->class_name) : "Adventurer");
+            
+            sprintf(buf, "{G[%2d]{x %s%s %s%s %s%s %s%s {Y%s{x\n\r",
+                    i + staff_count + 1,
+                    name_buf,
+                    pad_string(name_buf, 16, NULL, " "),
+                    level_buf,
+                    pad_string(level_buf, 7, NULL, " "),
+                    race_buf,
+                    pad_string(race_buf, 12, NULL, " "),
+                    class_buf,
+                    pad_string(class_buf, 12, NULL, " "),
+                    loc_str);
+            write_to_buffer(d, buf, 0);
+        }
+    }
+    
+    if (staff_count == 0 && regular_count == 0) {
+        write_to_buffer(d, "   {RNo characters found.{x\n\r", 0);
+    }
+    
+    // Display menu options with divider
+    write_to_buffer(d, "\n\r", 0);
+    sprintf(buf, "{C%s{x\n\r", pad_string("", 60, NULL, "="));
+    write_to_buffer(d, buf, 0);
+
+    int total_count = staff_count + regular_count;
+    if (total_count == 1) {
+        write_to_buffer(d, "{G1{x) Select character\n\r", 0);
+    } else if (total_count > 1) {
+        sprintf(buf, "{G1-%d{x) Select a character\n\r", total_count);
+        write_to_buffer(d, buf, 0);
+    }
+
+    bool can_create_char = true;
+    if (!account_has_immortal(acct)) {
+        if (game_settings.new_char_lock)
+            can_create_char = false;
+    }
+    if (can_create_char) {
+        write_to_buffer(d, "{GC{x) Create a new character\n\r", 0);
+    }
+
+    if (acct->acct_flags & IS_SET(acct->acct_flags,ACCT_CAN_CREATE_STAFF)) {
+        int staff_limit = acct->staff_limit;
+        int staff_count = account_count_staff_characters(acct);
+        if (staff_limit == 0 || staff_count < staff_limit) {
+            write_to_buffer(d, "{GI{x) Create a new staff character\n\r", 0);
+        }
+    }
+    
+    if (can_link_characters(acct)) {
+        write_to_buffer(d, "{GL{x) Link existing character\n\r", 0);
+    }
+    
+    write_to_buffer(d, "{GE{x) Change email address\n\r", 0);
+    if (game_settings.require_email_verification && !acct->email_verified) {
+    write_to_buffer(d, "{GV{x) Verify email address\n\r", 0);
+    if (!IS_NULLSTR(acct->pending_email))
+        write_to_buffer(d, "{GR{x) Resend verification email\n\r", 0);
+    }
+    write_to_buffer(d, "{GP{x) Change password\n\r", 0);
+    
+    write_to_buffer(d, "{GM{x) MFA settings\n\r", 0);
+        
+    write_to_buffer(d, "{GQ{x) Quit\n\r\n\r", 0);
+
+}
+
+// This handles the selections in the account menu.
+// It can lead to a number of states:
+// CON_CREATING_NEW_CHAR (creating a new character)
+// CON_CREATING_NEW_STAFF_CHAR (creating a new staff character)
+// CON_LINKING_CHARACTER (linking an existing character)
+// CON_GET_ACCOUNT_EMAIL (changing email address)
+// CON_GET_ACCOUNT_PASSWORD (changing password)
+// CON_ACCOUNT_MFA_MENU (MFA settings)
+// CON_VERIFY_ACCOUNT_EMAIL_CHANGE (verifying email address)
+void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
+{
+    ACCOUNT_DATA *acct = d->account;
+    ACCOUNT_CHARACTER *ch_entry;
+    int choice = 0;
+    ITERATOR it;
+
+    // Arrays to store sorted characters
+    ACCOUNT_CHARACTER *staff_chars[100];
+    ACCOUNT_CHARACTER *regular_chars[100];
+    int staff_count = 0;
+    int regular_count = 0;
+
+    // Handle number choices (character selection)
+    if (isdigit(argument[0])) {
+        choice = atoi(argument);
+
+        // First separate and count staff/regular characters
+        iterator_start(&it, acct->characters);
+        while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+            if (ch_entry->staff && ch_entry->staff_rank >= STAFF_IMMORTAL) {
+                staff_chars[staff_count++] = ch_entry;
+            } else {
+                regular_chars[regular_count++] = ch_entry;
+            }
+        }
+        iterator_stop(&it);
+        
+        // Sort staff characters alphabetically
+        for (int i = 0; i < staff_count - 1; i++) {
+            for (int j = 0; j < staff_count - i - 1; j++) {
+                if (strcasecmp(staff_chars[j]->name, staff_chars[j+1]->name) > 0) {
+                    ACCOUNT_CHARACTER *temp = staff_chars[j];
+                    staff_chars[j] = staff_chars[j+1];
+                    staff_chars[j+1] = temp;
+                }
+            }
+        }
+        
+        // Sort regular characters alphabetically
+        for (int i = 0; i < regular_count - 1; i++) {
+            for (int j = 0; j < regular_count - i - 1; j++) {
+                if (strcasecmp(regular_chars[j]->name, regular_chars[j+1]->name) > 0) {
+                    ACCOUNT_CHARACTER *temp = regular_chars[j];
+                    regular_chars[j] = regular_chars[j+1];
+                    regular_chars[j+1] = temp;
+                }
+            }
+        }
+        
+        int total_count = staff_count + regular_count;
+
+        if (choice < 1 || choice > total_count) {
+            write_to_buffer(d, "Invalid character selection.\n\r", 0);
+            display_account_menu(d);
+            return;
+        }
+
+        // Find the selected character
+        if (choice <= staff_count) {
+            ch_entry = staff_chars[choice - 1];
+        } else {
+            ch_entry = regular_chars[choice - staff_count - 1];
+        }
+
+        select_character(d, ch_entry);
+        return;
+    }
+
+    // Handle letter choices (menu options)
+    switch (toupper(argument[0])) {
+        case 'C': // Create new character
+            if (game_settings.require_email_verification && !IS_EMAIL_VERIFIED(acct)) {
+                write_to_buffer(d, "\n\rYou must verify your email address before creating characters.\n\r", 0);
+                write_to_buffer(d, "Select 'V' from the menu to verify your email address.\n\r", 0);
+                display_account_menu(d);
+                return;
+            }
+            if (!account_has_immortal(acct) && game_settings.new_char_lock) {
+                if (!IS_NULLSTR(game_settings.new_char_lock_msg))
+                    write_to_buffer(d, game_settings.new_char_lock_msg, 0);
+                else
+                    write_to_buffer(d, "New characters are not being accepted at this time.\n\r", 0);
+                display_account_menu(d);
+                return;
+            }
+            {
+                int max_chars = (acct->character_limit > 0) ? acct->character_limit : game_settings.max_characters;
+                int nonstaff_count = account_count_nonstaff_characters(acct);
+                if (max_chars > 0 && nonstaff_count >= max_chars) {
+                    write_to_buffer(d, "\n\r{RYou have reached the maximum number of characters for your account.{x\n\r", 0);
+                    write_to_buffer(d, "Delete an existing character or contact staff for assistance.\n\r", 0);
+                    display_account_menu(d);
+                    return;
+                }
+            }
+            write_to_buffer(d, "\n\rWhat will be your character's name? ", 0);
+            d->connected = CON_CREATING_NEW_CHAR;
+            return;
+
+        case 'I': // Create new staff character
+            if (!IS_SET(acct->acct_flags,ACCT_CAN_CREATE_STAFF)) {
+                write_to_buffer(d, "\n\r{RYou do not have permission to create staff characters.{x\n\r", 0);
+                display_account_menu(d);
+                return;
+            }
+            {
+                int staff_limit = acct->staff_limit;
+                int staff_count = account_count_staff_characters(acct);
+                if (staff_limit > 0 && staff_count >= staff_limit) {
+                    write_to_buffer(d, "\n\r{RYou have reached your staff character limit for this account.{x\n\r", 0);
+                    display_account_menu(d);
+                    return;
+                }
+            }
+            write_to_buffer(d, "\n\rWhat will be your staff character's name? ", 0);
+            d->connected = CON_CREATING_NEW_STAFF_CHAR;
+            return;
+
+        case 'L': // Link existing character
+            if (!can_link_characters(acct)) {
+                write_to_buffer(d, "Linking is not available for your account.\n\r", 0);
+                display_account_menu(d);
+                return;
+            }
+            write_to_buffer(d, "\n\rEnter the name of the character to link: ", 0);
+            d->connected = CON_LINK_CHARACTER_NAME;
+            return;
+
+        case 'E': // Change email address
+            write_to_buffer(d, "\n\rCurrent email: ", 0);
+            write_to_buffer(d, IS_NULLSTR(acct->email) ? "Not set\n\r" : acct->email, 0);
+            write_to_buffer(d, "\n\rEnter new email address: ", 0);
+            d->connected = CON_CHANGE_ACCOUNT_EMAIL;
+            return;
+
+        case 'P': // Change password
+            write_to_buffer(d, "\n\rEnter your current password: ", 0);
+            ProtocolNoEcho(d, true);
+            d->connected = CON_VERIFY_ACCOUNT_PASSWORD;
+            break;
+
+        case 'M': // MFA settings
+            display_account_mfa_menu(d, "");
+            break;
+
+        case 'Q': // Quit
+            write_to_buffer(d, "\n\rThank you for playing Sentience!\n\r", 0);
+            close_socket(d);
+            break;
+        case 'R':
+            resend_account_verification_code(d);
+            display_account_menu(d);
+            return;
+        case 'V':
+            if (acct->email_verified) {
+                write_to_buffer(d, "\n\rYour email is already verified.\n\r", 0);
+                display_account_menu(d);
+                return;
+            }
+            if (IS_NULLSTR(acct->pending_email)) {
+                write_to_buffer(d, "No pending email to verify. Change your email address first.\n\r", 0);
+                display_account_menu(d);
+                return;
+            }
+            write_to_buffer(d, "Enter the code sent to your email: ", 0);
+            d->connected = CON_VERIFY_ACCOUNT_EMAIL_CHANGE;
+            return;
+
+        default:
+            write_to_buffer(d, "Invalid choice.\n\r", 0);
+            display_account_menu(d);
+            break;
+    }
+}
+
+// This function displays the MFA menu for the account.
+// It shows the current MFA status, options to set up or disable MFA,
+// and options to view or email recovery codes.
+// It is paired with login_account_mfa_menu to handle the actual selections.
+void display_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
+    ACCOUNT_DATA *acct = d->account;
+    char buf[MAX_STRING_LENGTH];
+    bool mfa_enabled = acct->mfa_enabled;
+    bool mfa_pending = acct->mfa_pending;
+    bool has_secret = !IS_NULLSTR(acct->mfa_pending_key) || !IS_NULLSTR(acct->mfa_key);
+    bool has_recovery = has_recovery_codes((const char **)acct->recovery_codes, MFA_RECOVERY_CODES);
+    bool has_email = !IS_NULLSTR(acct->email);
+
+    // If MFA is enabled, require code before allowing changes (except confirmation)
+    if (acct->mfa_enabled && !acct->mfa_pending && !d->mfa_verified) {
+        write_to_buffer(d, "Enter your MFA or recovery code to manage MFA settings: ", 0);
+        d->connected = CON_ACCOUNT_MFA_VERIFY_FOR_SETTINGS;
+        return;
+    }
+
+    write_to_buffer(d, "\n\r{B=={W[ {YMFA SETTINGS {W]{B=={x\n\r", 0);
+    sprintf(buf, "MFA is currently: %s\n\r",
+        mfa_enabled ? "{GENABLED{x" : (mfa_pending ? "{YSETUP IN PROGRESS{x" : "{ROFF{x"));
+    write_to_buffer(d, buf, 0);
+
+    // --- Setup Section ---
+    if (!mfa_enabled && !mfa_pending)
+        write_to_buffer(d, "\n\r{CSetup:{x\n\r{GS{x) Set up MFA\n\r", 0);
+    else if (mfa_pending)
+        write_to_buffer(d, "\n\r{CSetup:{x\n\r{GC{x) Confirm MFA setup\n\r", 0);
+
+    // --- QR Code Section ---
+    bool show_qr_section = (has_secret && has_email) || has_secret;
+    if (show_qr_section) {
+        write_to_buffer(d, "\n\r{CQR Code:{x\n\r", 0);
+        if (has_secret)
+            write_to_buffer(d, "{GD{x) Display QR code in terminal\n\r", 0);
+        if (has_secret && has_email)
+            write_to_buffer(d, "{GQ{x) Email QR code\n\r", 0);
+    }
+
+    // --- Recovery Codes Section ---
+    bool show_recovery_section = (mfa_enabled || mfa_pending) && has_recovery;
+    if (show_recovery_section) {
+        write_to_buffer(d, "\n\r{CRecovery Codes:{x\n\r", 0);
+        write_to_buffer(d, "{GV{x) Show recovery codes\n\r", 0);
+        if (has_email)
+            write_to_buffer(d, "{GE{x) Email recovery codes\n\r", 0);
+    }
+
+    // --- Actions Section ---
+    bool show_actions = (mfa_enabled || mfa_pending);
+    if (show_actions) {
+        write_to_buffer(d, "\n\r{CActions:{x\n\r", 0);
+        if (mfa_enabled || mfa_pending)
+            write_to_buffer(d, "{GX{x) Disable MFA\n\r", 0);
+        // Only show generate/regenerate if not pending
+        if (mfa_enabled) {
+            write_to_buffer(d, has_recovery ? "{GG{x) Regenerate recovery codes\n\r" : "{GG{x) Generate recovery codes\n\r", 0);
+        }
+    }
+
+    write_to_buffer(d, "\n\r{GB{x) Back to account menu\n\r", 0);
+    write_to_buffer(d, "Enter choice: ", 0);
+
+    d->connected = CON_ACCOUNT_MFA_MENU;
+}
+
+// This function handles the MFA menu selections.
+// It allows the user to set up MFA, confirm setup, disable MFA,
+// display or email QR codes, and manage recovery codes.
+// It is paired with display_account_mfa_menu to show the menu.
+
+void login_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
+    ACCOUNT_DATA *acct = d->account;
+    bool mfa_enabled = acct->mfa_enabled;
+    bool mfa_pending = acct->mfa_pending;
+    bool has_secret = !IS_NULLSTR(acct->mfa_pending_key) || !IS_NULLSTR(acct->mfa_key);
+    bool has_recovery = has_recovery_codes((const char **)acct->recovery_codes, MFA_RECOVERY_CODES);
+
+    switch (toupper(argument[0])) {
+        case 'S': // Set up MFA
+            if (mfa_enabled || mfa_pending) {
+                write_to_buffer(d, "MFA is already enabled or setup is in progress.\n\r", 0);
+                display_account_mfa_menu(d, "");
+                return;
+            }
+            {
+                char key[MIL];
+                char qr_url[MIL];
+                char *secret = generate_totp_key(key, sizeof(key));
+                free_string(acct->mfa_pending_key);
+                acct->mfa_pending_key = str_dup(secret);
+                acct->mfa_pending = true;
+                generate_totp_qr_url(qr_url, sizeof(qr_url), acct->username, secret);
+                display_qr_code(d, qr_url);
+                write_to_buffer(d, "\n\rMFA setup started. Use your authenticator app to scan the QR code or enter the secret above.\n\r", 0);
+                write_to_buffer(d, "You must confirm MFA setup before it is enabled.\n\r", 0);
+                display_account_mfa_menu(d, "");
+            }
+            break;
+        case 'C': // Confirm MFA setup
+            if (!mfa_pending) {
+                write_to_buffer(d, "No MFA setup in progress.\n\r", 0);
+                display_account_mfa_menu(d, "");
+                return;
+            }
+            write_to_buffer(d, "Enter a code from your authenticator app: ", 0);
+            d->connected = CON_ACCOUNT_MFA_CONFIRM;
+            break;
+        case 'Q': // Email QR code
+            if (!has_secret) {
+                write_to_buffer(d, "No MFA secret available to email a QR code.\n\r", 0);
+            } else if (IS_NULLSTR(acct->email)) {
+                write_to_buffer(d, "No email address set for this account.\n\r", 0);
+            } else {
+                send_qr_email_for_account(acct, acct->email, acct->mfa_pending_key ? acct->mfa_pending_key : acct->mfa_key);
+                write_to_buffer(d, "QR code emailed.\n\r", 0);
+            }
+            display_account_mfa_menu(d, "");
+            break;
+        case 'D': // Display QR code in terminal
+            if (!has_secret) {
+                write_to_buffer(d, "No MFA secret available to display a QR code.\n\r", 0);
+                display_account_mfa_menu(d, "");
+                return;
+            } else {
+                char qr_url[MIL];
+                if (!IS_NULLSTR(acct->mfa_pending_key))
+                    generate_totp_qr_url(qr_url, sizeof(qr_url), acct->username, acct->mfa_pending_key);
+                else
+                    generate_totp_qr_url(qr_url, sizeof(qr_url), acct->username, acct->mfa_key);
+                display_qr_code(d, qr_url);
+            }
+            display_account_mfa_menu(d, "");
+            break;
+        case 'X': // Disable MFA
+            if (!mfa_enabled && !mfa_pending) {
+                write_to_buffer(d, "MFA is not enabled or pending for this account.\n\r", 0);
+                display_account_mfa_menu(d, "");
+                return;
+            }
+            write_to_buffer(d, "Are you sure you want to disable MFA? (Y/N): ", 0);
+            d->connected = CON_ACCOUNT_MFA_DISABLE_CONFIRM;
+            break;
+        case 'V': // Show recovery codes
+            if (!(mfa_enabled || mfa_pending) || !has_recovery) {
+                write_to_buffer(d, "No recovery codes available to display.\n\r", 0);
+                display_account_mfa_menu(d, "");
+                return;
+            }
+            display_account_recovery_codes(d, acct);
+            display_account_mfa_menu(d, "");
+            break;
+        case 'E': // Email recovery codes
+            if (!(mfa_enabled || mfa_pending) || !has_recovery) {
+                write_to_buffer(d, "No recovery codes available to email.\n\r", 0);
+            } else if (IS_NULLSTR(acct->email)) {
+                write_to_buffer(d, "No email address set for this account.\n\r", 0);
+            } else {
+                send_recovery_codes_email_for_account(acct, acct->email);
+                write_to_buffer(d, "Recovery codes emailed.\n\r", 0);
+            }
+            display_account_mfa_menu(d, "");
+            break;
+        case 'G': // Generate/Regenerate recovery codes
+            if (!(mfa_enabled || mfa_pending)) {
+                write_to_buffer(d, "MFA must be enabled or pending to generate recovery codes.\n\r", 0);
+                display_account_mfa_menu(d, "");
+                return;
+            }
+            generate_recovery_codes(acct->recovery_codes, acct->recovery_used, MFA_RECOVERY_CODES);
+            save_account(acct);
+            write_to_buffer(d, has_recovery ? "Recovery codes regenerated.\n\r" : "Recovery codes generated.\n\r", 0);
+            display_account_recovery_codes(d, acct);
+            display_account_mfa_menu(d, "");
+            break;
+        case 'B': // Back
+            display_account_menu(d);
+            d->connected = CON_ACCOUNT_MENU;
+            break;
+        default:
+            write_to_buffer(d, "Invalid or unavailable choice.\n\r", 0);
+            display_account_mfa_menu(d, "");
+            break;
+    }
+}
 
 
 void login_get_name(DESCRIPTOR_DATA *d, char *argument)
@@ -609,26 +1724,37 @@ void login_confirm_new_name(DESCRIPTOR_DATA *d, char *argument)
         }
         break;
 
-    case 'n': case 'N':
+case 'n': case 'N':
+    if (d->account) {
+        free_char(d->character);
+        d->character = NULL;
+        display_account_menu(d);
+        d->connected = CON_ACCOUNT_MENU;
+    } else {
+        write_to_buffer(d, "Name: ", 0);
+        free_char(d->character);
+        d->character = NULL;
+        d->connected = CON_GET_NAME;
+    }
+    break;
+
+default:
+    if (!str_cmp(argument, "cancel")) {
         if (d->account) {
-            // Return to character creation prompt - IMPORTANT: Free the character first
-            free_char(d->character);  // Free the previously created character
-            d->character = NULL;      // Set pointer to NULL to prevent stale reference
-            
-            write_to_buffer(d, "What will be your character's name? ", 0);
-            d->connected = CON_CREATING_NEW_CHAR;
+            free_char(d->character);
+            d->character = NULL;
+            display_account_menu(d);
+            d->connected = CON_ACCOUNT_MENU;
         } else {
-            // Original behavior
             write_to_buffer(d, "Name: ", 0);
             free_char(d->character);
             d->character = NULL;
             d->connected = CON_GET_NAME;
         }
         break;
-
-    default:
-        write_to_buffer(d, "Please type yes or no: ", 0);
-        break;
+    }
+    write_to_buffer(d, "Please type yes, no, or cancel: ", 0);
+    break;
     }
 }
 
@@ -1356,6 +2482,11 @@ void login_get_email(DESCRIPTOR_DATA *d, char *argument)
 
     ch->pcdata->email = str_dup(argument);
 
+    ch->pcdata->email_verified = false;
+    free_string(ch->pcdata->email_verification_code);
+    ch->pcdata->email_verification_code = str_dup("");
+    ch->pcdata->email_verification_time = 0;
+
     /* New char, continue with the char creation process */
     if (ch->tot_level == 0) {
         write_to_buffer(d, "\n\rWould you like ascii colour (Y/N)? ", 0);
@@ -1369,433 +2500,11 @@ void login_get_email(DESCRIPTOR_DATA *d, char *argument)
     }
 }
 
-void login_get_account(DESCRIPTOR_DATA *d, char *argument)
-{
-    char buf[MAX_STRING_LENGTH];
-    bool found;
-
-    if (!argument[0]) {
-        close_socket(d);
-        return;
-    }
-
-    // Remove illegal characters
-    argument[0] = UPPER(argument[0]);
-    if (!check_parse_name(argument)) {
-        write_to_buffer(d, "Illegal account name, try another.\n\rAccount: ", 0);
-        return;
-    }
-
-    // Create account structure for descriptor
-    if (d->account != NULL) {
-        free_account(d->account);
-        d->account = NULL;
-    }
-    
-    // Try to load the account
-    found = load_account(d, argument);
-    
-    // Check if they're banned
-    if (check_ban(d->host, BAN_PERMIT)) {
-        write_to_buffer(d, "Your site has been banned from Sentience.\n\r", 0);
-        close_socket(d);
-        return;
-    }
-    
-    // Check wizlock if they don't have any immortal characters
-    if (game_settings.wizlock && !account_has_immortal(d->account)) {
-        if (!IS_NULLSTR(game_settings.wizlock_msg))
-            write_to_buffer(d, game_settings.wizlock_msg, 0);
-        else
-            write_to_buffer(d, "The game is wizlocked.\n\r", 0);
-            
-        sprintf(buf, "Wizlocked: %s tried to connect from %s.", argument, d->host);
-        log_string(buf);
-        wiznet(buf, NULL, NULL, WIZ_LOGINS, 0, 0);
-        close_socket(d);
-        return;
-    }
-    
-    // Existing account
-    if (found) {
-        write_to_buffer(d, "Password: ", 0);
-        ProtocolNoEcho(d, true);
-        d->connected = CON_GET_ACCOUNT_PASSWORD;
-        return;
-    }
-    // New account
-    else {
-        // Check newlock
-        if (game_settings.new_acct_lock) {
-            if (game_settings.new_acct_lock_msg && game_settings.new_acct_lock_msg[0])
-                write_to_buffer(d, game_settings.new_acct_lock_msg, 0);
-            else
-                write_to_buffer(d, "New accounts are not being accepted at this time.\n\r", 0);
-                
-            write_to_buffer(d, "The game is newlocked.\n\r", 0);
-            close_socket(d);
-            return;
-        }
-
-        if (check_ban(d->host, BAN_NEWBIES)) {
-            write_to_buffer(d, "New accounts are not allowed from your site.\n\r", 0);
-            close_socket(d);
-            return;
-        }
-
-        sprintf(buf, "\n\rCreate a new account named %s (Y/N)? ", argument);
-        write_to_buffer(d, buf, 0);
-        d->connected = CON_CONFIRM_ACCOUNT_NAME;
-        return;
-    }
-}
-
-void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
-{
-    ACCOUNT_DATA *acct = d->account;
-    
-    write_to_buffer(d, "\n\r", 2);
-
-    if (d->login_attempts >= game_settings.max_login_attempts) {
-        write_to_buffer(d, "Too many login attempts. Goodbye.\n\r", 0);
-        close_socket(d);
-        return;
-    }
-
-    // Handle password reset request
-    if (game_settings.enable_email && !strcmp(argument, "resetpassword")) {
-        if (acct->reset_state == RESET_PENDING) {
-            write_to_buffer(d, "Reset is already pending. Check your email for the code.\n\r", 0);
-            write_to_buffer(d, "Password or Reset Code: ", 0);
-            return;
-        } else {
-            if (IS_NULLSTR(acct->email)) {
-                write_to_buffer(d, "You must have an email address set to reset your password.\n\r", 0);
-                write_to_buffer(d, "Please reach out to staff for assistance.\n\r", 0);
-                d->connected = CON_GET_ACCOUNT_PASSWORD;
-                return;
-            } else {
-                write_to_buffer(d, "Please confirm your email address: ", 0);
-                d->connected = CON_CONFIRM_ACCOUNT_EMAIL_FOR_RESET;  // Changed to account-specific handler
-                return;
-            }
-        }
-    }
-
-    // Check for reset code
-    if (acct->reset_state == RESET_PENDING) {
-        if (strcmp(argument, acct->reset_code) && 
-            strcmp(sha256_crypt(argument), acct->passwd)) {
-            write_to_buffer(d, "Wrong reset code.\n\r", 0);
-            d->login_attempts++;
-            return;
-        }
-        
-        if ((current_time - acct->reset_time) > 86400) {
-            if (game_settings.enable_email)
-                write_to_buffer(d, "Reset code has expired. Please try resetting again.\n\r", 0);
-            else
-                write_to_buffer(d, "Reset code has expired. Please contact staff for assistance.\n\r", 0);
-                
-            acct->reset_state = NO_RESET;
-            free_string(acct->reset_code);
-            acct->reset_time = 0;
-            save_account(acct);
-            close_socket(d);
-            return;
-        }
-        
-        if (!str_cmp(argument, acct->reset_code)) {
-            acct->reset_state = NO_RESET;
-            free_string(acct->reset_code);
-            acct->reset_code = str_dup("");
-            acct->reset_time = 0;
-            acct->old_passwd = str_dup(acct->passwd);
-            
-            write_to_buffer(d, "Reset code accepted. You are required to set a new password.\n\r", 0);
-            write_to_buffer(d, "Password: ", 0);
-            d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
-            return;
-        }
-    }
-
-    // Normal password check
-    if (strcmp(sha256_crypt(argument), acct->passwd)) {
-        // Log bad password attempts
-        sprintf(log_buf, "Denying access to account %s@%s (bad password).",
-            acct->username, d->host);
-        log_string(log_buf);
-        
-        if (game_settings.enable_email)
-            write_to_buffer(d, "Wrong password. Please try again, or use 'resetpassword' to reset.\n\r", 0);
-        else
-            write_to_buffer(d, "Wrong password. Please try again or reach out to staff for assistance.\n\r", 0);
-            
-        d->login_attempts++;
-        return;
-    }
-
-    // Handle MFA
-    if (!IS_NULLSTR(acct->mfa_key) && acct->mfa_enabled) {
-        write_to_buffer(d, "\n\rPlease enter your MFA code: ", 0);
-        ProtocolNoEcho(d,true);
-        d->connected = CON_GET_ACCOUNT_MFA;
-        return;
-    }
-
-    ProtocolNoEcho(d, false);
-
-    // Log the successful connection
-    sprintf(log_buf, "Account %s@%s has connected.", acct->username, d->host);
-    log_string(log_buf);
-
-    // Check if they need to provide email
-    if (IS_NULLSTR(acct->email)) {
-        write_to_buffer(d, "\n\rPlease enter a valid e-mail address at which we can reach you.\n\r"
-            "It will not be distributed to any third parties or abused in any way.\n\r", 0);
-        write_to_buffer(d, "\n\rEnter your e-mail address: ", 0);
-        d->connected = CON_GET_ACCOUNT_EMAIL;
-        return;
-    }
-
-    // Password update needed?
-    if (acct->passwd_version < 1) {
-        write_to_buffer(d, "\n\rYou are required to set a new password. Please do so now.\n\r", 0);
-        write_to_buffer(d, "Password: ", 0);
-        acct->old_passwd = str_dup(acct->passwd);
-        d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
-        return;
-    }
-
-    // Add to loaded_accounts if not already present
-    acct->refcount++;
-    if (!list_haslink(loaded_accounts, acct))
-        list_addlink(loaded_accounts, acct);  
-
-    free_string(acct->last_login_host);
-    acct->last_login_host = str_dup(d->host);
-    acct->last_login = current_time;
-
-    // Show the account menu
-    display_account_menu(d);
-    d->connected = CON_ACCOUNT_MENU;
-}
-
-void display_account_menu(DESCRIPTOR_DATA *d)
-{
-    ACCOUNT_DATA *acct = d->account;
-    char buf[MAX_STRING_LENGTH];
-    //char loc_buf[100];
-    char name_buf[50];
-    char rank_buf[50];
-    char level_buf[50];
-    char race_buf[50];
-    char class_buf[50];
-    ITERATOR it;
-    ACCOUNT_CHARACTER *ch_entry;
-    
-    d->mfa_verified = false;
-
-    // Create temporary arrays to store characters for sorting
-    ACCOUNT_CHARACTER *staff_chars[100];  // Assuming no more than 100 characters
-    ACCOUNT_CHARACTER *regular_chars[100];
-    int staff_count = 0;
-    int regular_count = 0;
-    
-    write_to_buffer(d, "\n\r{B=={W[ {YSENTIENCE ACCOUNT MENU {W]{B=={x\n\r\n\r", 0);
-    
-    sprintf(buf, "Account: {C%s{x\n\r", acct->username);
-    write_to_buffer(d, buf, 0);
-    
-    sprintf(buf, "Email: {C%s{x\n\r\n\r", IS_NULLSTR(acct->email) ? "Not set" : acct->email);
-    write_to_buffer(d, buf, 0);
-    
-    // First pass: separate staff and regular characters
-    iterator_start(&it, acct->characters);
-    while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
-        // Make sure we're correctly identifying staff characters
-        if (ch_entry->staff && ch_entry->staff_rank >= STAFF_IMMORTAL) {
-            staff_chars[staff_count++] = ch_entry;
-        } else {
-            regular_chars[regular_count++] = ch_entry;
-        }
-    }
-    iterator_stop(&it);
-    
-    // Sort staff characters alphabetically
-    for (int i = 0; i < staff_count - 1; i++) {
-        for (int j = 0; j < staff_count - i - 1; j++) {
-            if (strcasecmp(staff_chars[j]->name, staff_chars[j+1]->name) > 0) {
-                ACCOUNT_CHARACTER *temp = staff_chars[j];
-                staff_chars[j] = staff_chars[j+1];
-                staff_chars[j+1] = temp;
-            }
-        }
-    }
-    
-    // Sort regular characters alphabetically
-    for (int i = 0; i < regular_count - 1; i++) {
-        for (int j = 0; j < regular_count - i - 1; j++) {
-            if (strcasecmp(regular_chars[j]->name, regular_chars[j+1]->name) > 0) {
-                ACCOUNT_CHARACTER *temp = regular_chars[j];
-                regular_chars[j] = regular_chars[j+1];
-                regular_chars[j+1] = temp;
-            }
-        }
-    }
-    
-    // Display staff characters first
-    if (staff_count > 0) {
-        write_to_buffer(d, "{B=={W[ {YSTAFF CHARACTERS {W]{B=={x\n\r", 0);
-        
-        // Table header for staff
-        sprintf(buf, "{D%-4s %-16s %-15s %-30s{x\n\r", 
-                "Num", "Name", "Rank", "Location");
-        write_to_buffer(d, buf, 0);
-        
-        // Use the line function for a divider
-        sprintf(buf, "{D%s{x\n\r", pad_string("", 70, NULL, "-"));
-        write_to_buffer(d, buf, 0);
-        
-        for (int i = 0; i < staff_count; i++) {
-            ch_entry = staff_chars[i];
-            const char *staff_rank_str = flag_string(staff_ranks, ch_entry->staff_rank);
-            
-        CHAR_DATA *live_ch = get_char_world(NULL, ch_entry->name);
-        const char *loc_str;
-        if (live_ch && live_ch->in_room) {
-            loc_str = format_location_string(
-            live_ch->in_room->area ? live_ch->in_room->area->name : NULL,
-            (live_ch->in_room->region && live_ch->in_room->region->name) ? live_ch->in_room->region->name : NULL
-            );
-        } else {
-            loc_str = format_location_string(
-                ch_entry->last_area, 
-                ch_entry->last_region
-            );
-    }
-            
-            // Format each column with consistent width using pad_string
-            sprintf(name_buf, "{W%s{x", ch_entry->name);
-            sprintf(rank_buf, "{R%s{x", staff_rank_str ? capitalize(staff_rank_str) : "IMM");
-            
-            sprintf(buf, "{G[%2d]{x %s%s %s%s {Y%s{x\n\r",
-                    i + 1,
-                    name_buf,
-                    pad_string(name_buf, 16, NULL, " "),
-                    rank_buf,
-                    pad_string(rank_buf, 15, NULL, " "),
-                    loc_str);
-            write_to_buffer(d, buf, 0);
-        }
-    }
-    
-    // Display regular characters
-    if (regular_count > 0) {
-        write_to_buffer(d, "\n\r{B=={W[ {YREGULAR CHARACTERS {W]{B=={x\n\r", 0);
-        
-        // Table header for regular characters - split race/class into separate columns
-        sprintf(buf, "{D%-4s %-16s %-7s %-12s %-12s %-25s{x\n\r", 
-                "Num", "Name", "Level", "Race", "Class", "Location");
-        write_to_buffer(d, buf, 0);
-        
-        // Use the line function for a divider
-        sprintf(buf, "{D%s{x\n\r", pad_string("", 90, NULL, "-"));
-        write_to_buffer(d, buf, 0);
-        
-        for (int i = 0; i < regular_count; i++) {
-            ch_entry = regular_chars[i];
-            
-        CHAR_DATA *live_ch = get_char_world(NULL, ch_entry->name);
-        const char *loc_str;
-        if (live_ch && live_ch->in_room) {
-            loc_str = format_location_string(
-                live_ch->in_room->area ? live_ch->in_room->area->name : NULL,
-                (live_ch->in_room->region && live_ch->in_room->region->name) ? live_ch->in_room->region->name : NULL
-            );
-        } else {
-            loc_str = format_location_string(
-                ch_entry->last_area, 
-                ch_entry->last_region
-            );
-        }
-            
-            // Format each column with consistent width using pad_string
-            sprintf(name_buf, "{W%s{x", ch_entry->name);
-            
-            // Shorter level format - just the numbers
-            sprintf(level_buf, "{G%d(%d){x", 
-                    ch_entry->current_level > 0 ? ch_entry->current_level : ch_entry->tot_level,
-                    ch_entry->tot_level);
-            
-            // Split race and class into separate fields
-            sprintf(race_buf, "{W%s{x", 
-                    ch_entry->race_name ? capitalize(ch_entry->race_name) : "Unknown");
-            sprintf(class_buf, "{W%s{x", 
-                    ch_entry->class_name ? capitalize(ch_entry->class_name) : "Adventurer");
-            
 
 
-            sprintf(buf, "{G[%2d]{x %s%s %s%s %s%s %s%s {Y%s{x\n\r",
-                    i + staff_count + 1,
-                    name_buf,
-                    pad_string(name_buf, 16, NULL, " "),
-                    level_buf,
-                    pad_string(level_buf, 7, NULL, " "),
-                    race_buf,
-                    pad_string(race_buf, 12, NULL, " "),
-                    class_buf,
-                    pad_string(class_buf, 12, NULL, " "),
-                    loc_str);
-            write_to_buffer(d, buf, 0);
-        }
-    }
-    
-    if (staff_count == 0 && regular_count == 0) {
-        write_to_buffer(d, "   {RNo characters found.{x\n\r", 0);
-    }
-    
-    // Display menu options with divider
-    write_to_buffer(d, "\n\r", 0);
-    sprintf(buf, "{C%s{x\n\r", pad_string("", 60, NULL, "="));
-    write_to_buffer(d, buf, 0);
 
-    int total_count = staff_count + regular_count;
-    if (total_count == 1) {
-        write_to_buffer(d, "{G1{x) Select character\n\r", 0);
-    } else if (total_count > 1) {
-        sprintf(buf, "{G1-%d{x) Select a character\n\r", total_count);
-        write_to_buffer(d, buf, 0);
-    }
 
-    bool can_create_char = true;
-    if (!account_has_immortal(acct)) {
-        if (game_settings.new_char_lock)
-            can_create_char = false;
-    }
-    if (can_create_char) {
-        write_to_buffer(d, "{GC{x) Create a new character\n\r", 0);
-    }
 
-    if (acct->acct_flags & IS_SET(acct->acct_flags,ACCT_CAN_CREATE_STAFF)) {
-        int staff_limit = acct->staff_limit;
-        int staff_count = account_count_staff_characters(acct);
-        if (staff_limit == 0 || staff_count < staff_limit) {
-            write_to_buffer(d, "{GI{x) Create a new staff character\n\r", 0);
-        }
-    }
-    if (can_link_characters(acct)) {
-        write_to_buffer(d, "{GL{x) Link existing character\n\r", 0);
-    }
-    
-    write_to_buffer(d, "{GE{x) Change email address\n\r", 0);
-    write_to_buffer(d, "{GP{x) Change password\n\r", 0);
-    
-    write_to_buffer(d, "{GM{x) MFA settings\n\r", 0);
-        
-    write_to_buffer(d, "{GQ{x) Quit\n\r\n\r", 0);
-
-}
 
 // Update the select_character function
 void select_character(DESCRIPTOR_DATA *d, ACCOUNT_CHARACTER *ch_entry)
@@ -1818,300 +2527,11 @@ void select_character(DESCRIPTOR_DATA *d, ACCOUNT_CHARACTER *ch_entry)
     d->connected = CON_CHARACTER_MENU;
 }
 
-// Handle changing account email
-void login_change_account_email(DESCRIPTOR_DATA *d, char *argument)
-{
-    ACCOUNT_DATA *acct = d->account;
-    
-    if (argument[0] == '\0' || !strstr(argument, "@") || !strstr(argument, ".")) {
-        write_to_buffer(d, "That's not a valid email address.\n\r", 0);
-        write_to_buffer(d, "Enter your e-mail address (or 'cancel' to cancel): ", 0);
-        return;
-    }
-    
-    if (!str_cmp(argument, "cancel")) {
-        display_account_menu(d);
-        d->connected = CON_ACCOUNT_MENU;
-        return;
-    }
-    
-    free_string(acct->email);
-    acct->email = str_dup(argument);
-    
-    // Save the account
-    save_account(acct);
-    
-    write_to_buffer(d, "\n\rEmail address updated.\n\r", 0);
-    display_account_menu(d);
-    d->connected = CON_ACCOUNT_MENU;
-}
 
-// Verify current password before allowing a password change
-void login_verify_account_password(DESCRIPTOR_DATA *d, char *argument)
-{
-    ACCOUNT_DATA *acct = d->account;
-    
-    write_to_buffer(d, "\n\r", 2);
-    
-    if (strcmp(sha256_crypt(argument), acct->passwd)) {
-        write_to_buffer(d, "Incorrect password.\n\r", 0);
-        ProtocolNoEcho(d, false);
-        display_account_menu(d);
-        d->connected = CON_ACCOUNT_MENU;
-        return;
-    }
-    
-    write_to_buffer(d, "Enter new password: ", 0);
-    d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
-}
 
-void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
-{
-    ACCOUNT_DATA *acct = d->account;
-    ACCOUNT_CHARACTER *ch_entry;
-    int choice = 0;
-    ITERATOR it;
 
-    // Arrays to store sorted characters
-    ACCOUNT_CHARACTER *staff_chars[100];
-    ACCOUNT_CHARACTER *regular_chars[100];
-    int staff_count = 0;
-    int regular_count = 0;
 
-    // Handle number choices (character selection)
-    if (isdigit(argument[0])) {
-        choice = atoi(argument);
 
-        // First separate and count staff/regular characters
-        iterator_start(&it, acct->characters);
-        while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
-            if (ch_entry->staff && ch_entry->staff_rank >= STAFF_IMMORTAL) {
-                staff_chars[staff_count++] = ch_entry;
-            } else {
-                regular_chars[regular_count++] = ch_entry;
-            }
-        }
-        iterator_stop(&it);
-        
-        // Sort staff characters alphabetically
-        for (int i = 0; i < staff_count - 1; i++) {
-            for (int j = 0; j < staff_count - i - 1; j++) {
-                if (strcasecmp(staff_chars[j]->name, staff_chars[j+1]->name) > 0) {
-                    ACCOUNT_CHARACTER *temp = staff_chars[j];
-                    staff_chars[j] = staff_chars[j+1];
-                    staff_chars[j+1] = temp;
-                }
-            }
-        }
-        
-        // Sort regular characters alphabetically
-        for (int i = 0; i < regular_count - 1; i++) {
-            for (int j = 0; j < regular_count - i - 1; j++) {
-                if (strcasecmp(regular_chars[j]->name, regular_chars[j+1]->name) > 0) {
-                    ACCOUNT_CHARACTER *temp = regular_chars[j];
-                    regular_chars[j] = regular_chars[j+1];
-                    regular_chars[j+1] = temp;
-                }
-            }
-        }
-        
-        int total_count = staff_count + regular_count;
-
-        if (choice < 1 || choice > total_count) {
-            write_to_buffer(d, "Invalid character selection.\n\r", 0);
-            display_account_menu(d);
-            return;
-        }
-
-        // Find the selected character
-        if (choice <= staff_count) {
-            ch_entry = staff_chars[choice - 1];
-        } else {
-            ch_entry = regular_chars[choice - staff_count - 1];
-        }
-
-        select_character(d, ch_entry);
-        return;
-    }
-
-    // Handle letter choices (menu options)
-    switch (toupper(argument[0])) {
-        case 'C': // Create new character
-            if (!account_has_immortal(acct) && game_settings.new_char_lock) {
-                if (!IS_NULLSTR(game_settings.new_char_lock_msg))
-                    write_to_buffer(d, game_settings.new_char_lock_msg, 0);
-                else
-                    write_to_buffer(d, "New characters are not being accepted at this time.\n\r", 0);
-                display_account_menu(d);
-                return;
-            }
-            {
-                int max_chars = (acct->character_limit > 0) ? acct->character_limit : game_settings.max_characters;
-                int nonstaff_count = account_count_nonstaff_characters(acct);
-                if (max_chars > 0 && nonstaff_count >= max_chars) {
-                    write_to_buffer(d, "\n\r{RYou have reached the maximum number of characters for your account.{x\n\r", 0);
-                    write_to_buffer(d, "Delete an existing character or contact staff for assistance.\n\r", 0);
-                    display_account_menu(d);
-                    return;
-                }
-            }
-            write_to_buffer(d, "\n\rWhat will be your character's name? ", 0);
-            d->connected = CON_CREATING_NEW_CHAR;
-            return;
-
-        case 'I': // Create new staff character
-            if (!IS_SET(acct->acct_flags,ACCT_CAN_CREATE_STAFF)) {
-                write_to_buffer(d, "\n\r{RYou do not have permission to create staff characters.{x\n\r", 0);
-                display_account_menu(d);
-                return;
-            }
-            {
-                int staff_limit = acct->staff_limit;
-                int staff_count = account_count_staff_characters(acct);
-                if (staff_limit > 0 && staff_count >= staff_limit) {
-                    write_to_buffer(d, "\n\r{RYou have reached your staff character limit for this account.{x\n\r", 0);
-                    display_account_menu(d);
-                    return;
-                }
-            }
-            write_to_buffer(d, "\n\rWhat will be your staff character's name? ", 0);
-            d->connected = CON_CREATING_NEW_STAFF_CHAR;
-            return;
-
-        case 'L': // Link existing character
-            if (!can_link_characters(acct)) {
-                write_to_buffer(d, "Linking is not available for your account.\n\r", 0);
-                display_account_menu(d);
-                return;
-            }
-            write_to_buffer(d, "\n\rEnter the name of the character to link: ", 0);
-            d->connected = CON_LINK_CHARACTER_NAME;
-            return;
-
-        case 'E': // Change email address
-            write_to_buffer(d, "\n\rCurrent email: ", 0);
-            write_to_buffer(d, IS_NULLSTR(acct->email) ? "Not set\n\r" : acct->email, 0);
-            write_to_buffer(d, "\n\rEnter new email address: ", 0);
-            d->connected = CON_CHANGE_ACCOUNT_EMAIL;
-            return;
-
-        case 'P': // Change password
-            write_to_buffer(d, "\n\rEnter your current password: ", 0);
-            ProtocolNoEcho(d, true);
-            d->connected = CON_VERIFY_ACCOUNT_PASSWORD;
-            break;
-
-        case 'M': // MFA settings
-            display_account_mfa_menu(d, "");
-            break;
-
-        case 'Q': // Quit
-            write_to_buffer(d, "\n\rThank you for playing Sentience!\n\r", 0);
-            close_socket(d);
-            break;
-
-        case 'B': // Back (if you want to support it)
-            // Optionally handle a back action here
-            break;
-
-        default:
-            write_to_buffer(d, "Invalid choice.\n\r", 0);
-            display_account_menu(d);
-            break;
-    }
-}
-
-void login_confirm_account_name(DESCRIPTOR_DATA *d, char *argument)
-{
-    ACCOUNT_DATA *acct = d->account;
-    
-    switch(toupper(argument[0])) {
-    case 'Y':
-        write_to_buffer(d, "\n\rPlease choose a password for your account: ", 0);
-        ProtocolNoEcho(d, true);
-        d->connected = CON_NEW_ACCOUNT_PASSWORD;
-        break;
-        
-    case 'N':
-        write_to_buffer(d, "Account: ", 0);
-        free_account(acct);
-        d->account = NULL;
-        d->connected = CON_GET_ACCOUNT_NAME;
-        break;
-        
-    default:
-        write_to_buffer(d, "Please answer (Y/N): ", 0);
-        break;
-    }
-}
-
-void login_new_account_password(DESCRIPTOR_DATA *d, char *argument)
-{
-    ACCOUNT_DATA *acct = d->account;
-    
-    write_to_buffer(d, "\n\r", 2);
-    
-    if (!acceptablePassword(d, argument))
-        return;
-        
-    acct->passwd = str_dup(sha256_crypt(argument));
-    acct->passwd_version = 1;
-    
-    write_to_buffer(d, "Please confirm password: ", 0);
-    d->connected = CON_CONFIRM_ACCOUNT_PASSWORD;
-}
-
-void login_confirm_account_password(DESCRIPTOR_DATA *d, char *argument)
-{
-    ACCOUNT_DATA *acct = d->account;
-    
-    write_to_buffer(d, "\n\r", 2);
-    
-    if (strcmp(sha256_crypt(argument), acct->passwd)) {
-        write_to_buffer(d, "Passwords don't match.\n\r", 0);
-        write_to_buffer(d, "Please enter a new password: ", 0);
-        d->connected = CON_NEW_ACCOUNT_PASSWORD;
-        return;
-    }
-    
-    ProtocolNoEcho(d, false);
-    
-    write_to_buffer(d, "\n\rPlease enter a valid e-mail address at which we can reach you.\n\r"
-                "It will not be distributed to any third parties or abused in any way.\n\r", 0);
-    write_to_buffer(d, "\n\rEnter your e-mail address: ", 0);
-    d->connected = CON_GET_ACCOUNT_EMAIL;
-}
-
-void login_get_account_email(DESCRIPTOR_DATA *d, char *argument)
-{
-    ACCOUNT_DATA *acct = d->account;
-    
-    if (argument[0] == '\0' || !strstr(argument, "@") || !strstr(argument, ".")) {
-        write_to_buffer(d, "That's not a valid email address.\n\r", 0);
-        write_to_buffer(d, "Enter your e-mail address: ", 0);
-        return;
-    }
-    
-    free_string(acct->email);
-    acct->email = str_dup(argument);
-
-    free_string(acct->creation_host);
-    acct->creation_host = str_dup(d->host);
-    
-    // Save the account
-    save_account(acct);
-
-    // Add to loaded_accounts if not already present
-    acct->refcount++;
-
-    if (!list_haslink(loaded_accounts, acct))
-        list_addlink(loaded_accounts, acct);
-
-    // Always show the account menu after email is provided, whether this is a new account or not
-    write_to_buffer(d, "\n\rAccount successfully created! You can now create characters and manage your account.\n\r", 0);
-    display_account_menu(d);
-    d->connected = CON_ACCOUNT_MENU;
-}
 
 void login_creating_new_char(DESCRIPTOR_DATA *d, char *argument)
 {
@@ -2425,14 +2845,22 @@ if (!IS_NULLSTR(ch->pcdata->last_area) || (!IS_NULLSTR(ch->pcdata->last_region) 
     
     // Display email if set
     if (!IS_NULLSTR(ch->pcdata->email)) {
-        sprintf(label, "{CEmail:{x");
-        sprintf(value, "{C%s{x", ch->pcdata->email);
-        
-        sprintf(buf, "%s%s %s\n\r", 
-                label, 
-                pad_string(label, 20, NULL, " "), 
-                value);
-        write_to_buffer(d, buf, 0);
+if (game_settings.require_email_verification && !ch->pcdata->email_verified && !IS_NULLSTR(ch->pcdata->pending_email)) {
+    sprintf(label, "{CEmail:{x");
+    sprintf(value, "{C%s{x (pending: {Y%s{x)", IS_NULLSTR(ch->pcdata->email) ? "Not set" : ch->pcdata->email, ch->pcdata->pending_email);
+    sprintf(buf, "%s%s %s\n\r", label, pad_string(label, 20, NULL, " "), value);
+    write_to_buffer(d, buf, 0);
+} else if (game_settings.require_email_verification && !ch->pcdata->email_verified && IS_NULLSTR(ch->pcdata->pending_email)) {
+    sprintf(label, "{CEmail:{x");
+    sprintf(value, "{YPending verification{x");
+    sprintf(buf, "%s%s %s\n\r", label, pad_string(label, 20, NULL, " "), value);
+    write_to_buffer(d, buf, 0);
+} else if (!IS_NULLSTR(ch->pcdata->email)) {
+    sprintf(label, "{CEmail:{x");
+    sprintf(value, "{C%s{x", ch->pcdata->email);
+    sprintf(buf, "%s%s %s\n\r", label, pad_string(label, 20, NULL, " "), value);
+    write_to_buffer(d, buf, 0);
+}
     }
     
     // Display last login if available
@@ -2483,6 +2911,12 @@ if (!IS_NULLSTR(ch->pcdata->last_area) || (!IS_NULLSTR(ch->pcdata->last_region) 
     write_to_buffer(d, "{GP{x) Set character password\n\r", 0);
     
     write_to_buffer(d, "{GM{x) MFA settings\n\r", 0);
+write_to_buffer(d, "{GE{x) Change character email address\n\r", 0);
+if (game_settings.require_email_verification && !ch->pcdata->email_verified) {
+    write_to_buffer(d, "{GV{x) Verify character email address\n\r", 0);
+    if (!IS_NULLSTR(ch->pcdata->pending_email))
+        write_to_buffer(d, "{GR{x) Resend verification email\n\r", 0);
+}
     
     if (can_unlink_characters(d->account))
         write_to_buffer(d, "{GU{x) Unlink this character\n\r", 0);
@@ -2712,6 +3146,30 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
             write_to_buffer(d, "Type 'DELETE' to confirm: ", 0);
             d->connected = CON_CONFIRM_DELETE_CHARACTER;
             break;
+case 'E': // Change email address
+    write_to_buffer(d, "\n\rCurrent email: ", 0);
+    write_to_buffer(d, IS_NULLSTR(ch->pcdata->email) ? "Not set\n\r" : ch->pcdata->email, 0);
+    write_to_buffer(d, "\n\rEnter new email address: ", 0);
+    d->connected = CON_CHANGE_CHARACTER_EMAIL;
+    return;
+case 'V':
+    if (ch->pcdata->email_verified) {
+        write_to_buffer(d, "\n\rYour character email is already verified.\n\r", 0);
+        display_character_menu(d);
+        return;
+    }
+    if (IS_NULLSTR(ch->pcdata->pending_email)) {
+        write_to_buffer(d, "No pending email to verify. Change your email address first.\n\r", 0);
+        display_character_menu(d);
+        return;
+    }
+    write_to_buffer(d, "Enter the code sent to your email: ", 0);
+    d->connected = CON_VERIFY_CHARACTER_EMAIL_CHANGE;
+    return;
+case 'R':
+    resend_character_verification_code(d);
+    display_character_menu(d);
+    return;
 
         case 'B': // Back to account menu
             free_char(d->character);
@@ -3504,23 +3962,7 @@ void login_character_mfa_disable_confirm(DESCRIPTOR_DATA *d, char *argument) {
     }
 }
 
-void login_account_mfa_disable_confirm(DESCRIPTOR_DATA *d, char *argument) {
-    ACCOUNT_DATA *acct = d->account;
-    switch (toupper(argument[0])) {
-        case 'Y':
-            acct->mfa_enabled = false;
-            save_account(acct);
-            write_to_buffer(d, "MFA disabled for this character.\n\r", 0);
-            display_account_mfa_menu(d, "");
-            break;
-        case 'N':
-            display_account_mfa_menu(d, "");
-            break;
-        default:
-            write_to_buffer(d, "Please answer Y or N: ", 0);
-            break;
-    }
-}
+
 
 void login_character_mfa_verify_for_settings(DESCRIPTOR_DATA *d, char *argument) {
     CHAR_DATA *ch = d->character;
@@ -3532,194 +3974,11 @@ void login_character_mfa_verify_for_settings(DESCRIPTOR_DATA *d, char *argument)
     }
 }
 
-void login_account_mfa_verify_for_settings(DESCRIPTOR_DATA *d, char *argument) {
-    ACCOUNT_DATA *acct = d->account;
-    if (check_account_mfa(acct, argument) || check_account_recovery_code(acct, argument)) {
-        d->mfa_verified = true;
-        display_account_mfa_menu(d, "");
-    } else {
-        write_to_buffer(d, "Invalid MFA or recovery code. Try again: ", 0);
-    }
-}
 
-void display_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
-    ACCOUNT_DATA *acct = d->account;
-    char buf[MAX_STRING_LENGTH];
-    bool mfa_enabled = acct->mfa_enabled;
-    bool mfa_pending = acct->mfa_pending;
-    bool has_secret = !IS_NULLSTR(acct->mfa_pending_key) || !IS_NULLSTR(acct->mfa_key);
-    bool has_recovery = has_recovery_codes((const char **)acct->recovery_codes, MFA_RECOVERY_CODES);
-    bool has_email = !IS_NULLSTR(acct->email);
 
-    // If MFA is enabled, require code before allowing changes (except confirmation)
-    if (acct->mfa_enabled && !acct->mfa_pending && !d->mfa_verified) {
-        write_to_buffer(d, "Enter your MFA or recovery code to manage MFA settings: ", 0);
-        d->connected = CON_ACCOUNT_MFA_VERIFY_FOR_SETTINGS;
-        return;
-    }
 
-    write_to_buffer(d, "\n\r{B=={W[ {YMFA SETTINGS {W]{B=={x\n\r", 0);
-    sprintf(buf, "MFA is currently: %s\n\r",
-        mfa_enabled ? "{GENABLED{x" : (mfa_pending ? "{YSETUP IN PROGRESS{x" : "{ROFF{x"));
-    write_to_buffer(d, buf, 0);
 
-    // --- Setup Section ---
-    if (!mfa_enabled && !mfa_pending)
-        write_to_buffer(d, "\n\r{CSetup:{x\n\r{GS{x) Set up MFA\n\r", 0);
-    else if (mfa_pending)
-        write_to_buffer(d, "\n\r{CSetup:{x\n\r{GC{x) Confirm MFA setup\n\r", 0);
 
-    // --- QR Code Section ---
-    bool show_qr_section = (has_secret && has_email) || has_secret;
-    if (show_qr_section) {
-        write_to_buffer(d, "\n\r{CQR Code:{x\n\r", 0);
-        if (has_secret)
-            write_to_buffer(d, "{GD{x) Display QR code in terminal\n\r", 0);
-        if (has_secret && has_email)
-            write_to_buffer(d, "{GQ{x) Email QR code\n\r", 0);
-    }
-
-    // --- Recovery Codes Section ---
-    bool show_recovery_section = (mfa_enabled || mfa_pending) && has_recovery;
-    if (show_recovery_section) {
-        write_to_buffer(d, "\n\r{CRecovery Codes:{x\n\r", 0);
-        write_to_buffer(d, "{GV{x) Show recovery codes\n\r", 0);
-        if (has_email)
-            write_to_buffer(d, "{GE{x) Email recovery codes\n\r", 0);
-    }
-
-    // --- Actions Section ---
-    bool show_actions = (mfa_enabled || mfa_pending);
-    if (show_actions) {
-        write_to_buffer(d, "\n\r{CActions:{x\n\r", 0);
-        if (mfa_enabled || mfa_pending)
-            write_to_buffer(d, "{GX{x) Disable MFA\n\r", 0);
-        // Only show generate/regenerate if not pending
-        if (mfa_enabled) {
-            write_to_buffer(d, has_recovery ? "{GG{x) Regenerate recovery codes\n\r" : "{GG{x) Generate recovery codes\n\r", 0);
-        }
-    }
-
-    write_to_buffer(d, "\n\r{GB{x) Back to account menu\n\r", 0);
-    write_to_buffer(d, "Enter choice: ", 0);
-
-    d->connected = CON_ACCOUNT_MFA_MENU;
-}
-
-void login_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
-    ACCOUNT_DATA *acct = d->account;
-    bool mfa_enabled = acct->mfa_enabled;
-    bool mfa_pending = acct->mfa_pending;
-    bool has_secret = !IS_NULLSTR(acct->mfa_pending_key) || !IS_NULLSTR(acct->mfa_key);
-    bool has_recovery = has_recovery_codes((const char **)acct->recovery_codes, MFA_RECOVERY_CODES);
-
-    switch (toupper(argument[0])) {
-        case 'S': // Set up MFA
-            if (mfa_enabled || mfa_pending) {
-                write_to_buffer(d, "MFA is already enabled or setup is in progress.\n\r", 0);
-                display_account_mfa_menu(d, "");
-                return;
-            }
-            {
-                char key[MIL];
-                char qr_url[MIL];
-                char *secret = generate_totp_key(key, sizeof(key));
-                free_string(acct->mfa_pending_key);
-                acct->mfa_pending_key = str_dup(secret);
-                acct->mfa_pending = true;
-                generate_totp_qr_url(qr_url, sizeof(qr_url), acct->username, secret);
-                display_qr_code(d, qr_url);
-                write_to_buffer(d, "\n\rMFA setup started. Use your authenticator app to scan the QR code or enter the secret above.\n\r", 0);
-                write_to_buffer(d, "You must confirm MFA setup before it is enabled.\n\r", 0);
-                display_account_mfa_menu(d, "");
-            }
-            break;
-        case 'C': // Confirm MFA setup
-            if (!mfa_pending) {
-                write_to_buffer(d, "No MFA setup in progress.\n\r", 0);
-                display_account_mfa_menu(d, "");
-                return;
-            }
-            write_to_buffer(d, "Enter a code from your authenticator app: ", 0);
-            d->connected = CON_ACCOUNT_MFA_CONFIRM;
-            break;
-        case 'Q': // Email QR code
-            if (!has_secret) {
-                write_to_buffer(d, "No MFA secret available to email a QR code.\n\r", 0);
-            } else if (IS_NULLSTR(acct->email)) {
-                write_to_buffer(d, "No email address set for this account.\n\r", 0);
-            } else {
-                send_qr_email_for_account(acct, acct->email, acct->mfa_pending_key ? acct->mfa_pending_key : acct->mfa_key);
-                write_to_buffer(d, "QR code emailed.\n\r", 0);
-            }
-            display_account_mfa_menu(d, "");
-            break;
-        case 'D': // Display QR code in terminal
-            if (!has_secret) {
-                write_to_buffer(d, "No MFA secret available to display a QR code.\n\r", 0);
-                display_account_mfa_menu(d, "");
-                return;
-            } else {
-                char qr_url[MIL];
-                if (!IS_NULLSTR(acct->mfa_pending_key))
-                    generate_totp_qr_url(qr_url, sizeof(qr_url), acct->username, acct->mfa_pending_key);
-                else
-                    generate_totp_qr_url(qr_url, sizeof(qr_url), acct->username, acct->mfa_key);
-                display_qr_code(d, qr_url);
-            }
-            display_account_mfa_menu(d, "");
-            break;
-        case 'X': // Disable MFA
-            if (!mfa_enabled && !mfa_pending) {
-                write_to_buffer(d, "MFA is not enabled or pending for this account.\n\r", 0);
-                display_account_mfa_menu(d, "");
-                return;
-            }
-            write_to_buffer(d, "Are you sure you want to disable MFA? (Y/N): ", 0);
-            d->connected = CON_ACCOUNT_MFA_DISABLE_CONFIRM;
-            break;
-        case 'V': // Show recovery codes
-            if (!(mfa_enabled || mfa_pending) || !has_recovery) {
-                write_to_buffer(d, "No recovery codes available to display.\n\r", 0);
-                display_account_mfa_menu(d, "");
-                return;
-            }
-            display_account_recovery_codes(d, acct);
-            display_account_mfa_menu(d, "");
-            break;
-        case 'E': // Email recovery codes
-            if (!(mfa_enabled || mfa_pending) || !has_recovery) {
-                write_to_buffer(d, "No recovery codes available to email.\n\r", 0);
-            } else if (IS_NULLSTR(acct->email)) {
-                write_to_buffer(d, "No email address set for this account.\n\r", 0);
-            } else {
-                send_recovery_codes_email_for_account(acct, acct->email);
-                write_to_buffer(d, "Recovery codes emailed.\n\r", 0);
-            }
-            display_account_mfa_menu(d, "");
-            break;
-        case 'G': // Generate/Regenerate recovery codes
-            if (!(mfa_enabled || mfa_pending)) {
-                write_to_buffer(d, "MFA must be enabled or pending to generate recovery codes.\n\r", 0);
-                display_account_mfa_menu(d, "");
-                return;
-            }
-            generate_recovery_codes(acct->recovery_codes, acct->recovery_used, MFA_RECOVERY_CODES);
-            save_account(acct);
-            write_to_buffer(d, has_recovery ? "Recovery codes regenerated.\n\r" : "Recovery codes generated.\n\r", 0);
-            display_account_recovery_codes(d, acct);
-            display_account_mfa_menu(d, "");
-            break;
-        case 'B': // Back
-            display_account_menu(d);
-            d->connected = CON_ACCOUNT_MENU;
-            break;
-        default:
-            write_to_buffer(d, "Invalid or unavailable choice.\n\r", 0);
-            display_account_mfa_menu(d, "");
-            break;
-    }
-}
 // Helper function to format location string for display
 char* format_location_string(const char* area_name, const char* region_name) {
     static char loc_buf[100];
@@ -3766,6 +4025,131 @@ bool can_link_characters(ACCOUNT_DATA *acct) {
 bool can_unlink_characters(ACCOUNT_DATA *acct) {
     if (!acct) return false;
     return (game_settings.allow_unlink_all || IS_SET(acct->acct_flags, ACCT_CAN_UNLINK));
+}
+
+void resend_character_verification_code(DESCRIPTOR_DATA *d)
+{
+    CHAR_DATA *ch = d->character;
+    if (IS_NULLSTR(ch->pcdata->pending_email)) {
+        write_to_buffer(d, "No pending email to verify.\n\r", 0);
+        return;
+    }
+    if ((current_time - ch->pcdata->email_verification_last_sent) < (15 * 60)) {
+        write_to_buffer(d, "You must wait before resending the verification email.\n\r", 0);
+        return;
+    }
+    char code[16];
+    if (IS_NULLSTR(ch->pcdata->email_verification_code)) {
+        generate_reset_code(code, 15);
+        free_string(ch->pcdata->email_verification_code);
+        ch->pcdata->email_verification_code = str_dup(code);
+    }
+    ch->pcdata->email_verification_time = current_time;
+    ch->pcdata->email_verification_last_sent = current_time;
+    char body[256];
+    sprintf(body, "Your verification code is: %s\nThis code will expire in 72 hours.", ch->pcdata->email_verification_code);
+    send_email_async_ex(ch, ch->desc->account, ch->pcdata->pending_email, "Sentience: Verify Your New Character Email", body, NULL, NULL);
+    save_char_obj(ch);
+    write_to_buffer(d, "Verification email resent.\n\r", 0);
+}
+
+
+void login_verify_character_email_change(DESCRIPTOR_DATA *d, char *argument)
+{
+    CHAR_DATA *ch = d->character;
+    if (IS_NULLSTR(ch->pcdata->pending_email) || IS_NULLSTR(ch->pcdata->email_verification_code)) {
+        write_to_buffer(d, "No email change is pending.\n\r", 0);
+        display_character_menu(d);
+        d->connected = CON_CHARACTER_MENU;
+        return;
+    }
+    // Expiry check (72 hours)
+    if ((current_time - ch->pcdata->email_verification_time) > (72 * 3600)) {
+        write_to_buffer(d, "Verification code expired. Please start the process again.\n\r", 0);
+        free_string(ch->pcdata->pending_email);
+        ch->pcdata->pending_email = str_dup("");
+        free_string(ch->pcdata->email_verification_code);
+        ch->pcdata->email_verification_code = str_dup("");
+        ch->pcdata->email_verification_time = 0;
+        save_char_obj(ch);
+        display_character_menu(d);
+        d->connected = CON_CHARACTER_MENU;
+        return;
+    }
+    if (!str_cmp(argument, ch->pcdata->email_verification_code)) {
+        free_string(ch->pcdata->email);
+        ch->pcdata->email = str_dup(ch->pcdata->pending_email);
+        ch->pcdata->email_verified = true;
+        free_string(ch->pcdata->pending_email);
+        ch->pcdata->pending_email = str_dup("");
+        free_string(ch->pcdata->email_verification_code);
+        ch->pcdata->email_verification_code = str_dup("");
+        ch->pcdata->email_verification_time = 0;
+        ch->pcdata->email_verification_last_sent = 0;
+        save_char_obj(ch);
+        write_to_buffer(d, "\n\rYour character's email address has been updated and verified.\n\r", 0);
+        display_character_menu(d);
+        d->connected = CON_CHARACTER_MENU;
+    } else {
+        write_to_buffer(d, "Invalid code. Try again: ", 0);
+    }
+}
+
+void login_change_character_email(DESCRIPTOR_DATA *d, char *argument)
+{
+    CHAR_DATA *ch = d->character;
+
+    if (argument[0] == '\0' || !strstr(argument, "@") || !strstr(argument, ".")) {
+        write_to_buffer(d, "That's not a valid email address.\n\r", 0);
+        write_to_buffer(d, "Enter your e-mail address (or 'cancel' to cancel): ", 0);
+        return;
+    }
+    if (!str_cmp(argument, "cancel")) {
+        display_character_menu(d);
+        d->connected = CON_CHARACTER_MENU;
+        return;
+    }
+    if (!game_settings.require_email_verification) {
+        // Immediate update
+        free_string(ch->pcdata->email);
+        ch->pcdata->email = str_dup(argument);
+        ch->pcdata->email_verified = true;
+        write_to_buffer(d, "\n\rEmail address updated.\n\r", 0);
+        save_char_obj(ch);
+        display_character_menu(d);
+        d->connected = CON_CHARACTER_MENU;
+        return;
+    }
+    // Verification required
+    if (!IS_NULLSTR(ch->pcdata->pending_email) && !str_cmp(argument, ch->pcdata->pending_email)) {
+        write_to_buffer(d, "That email is already pending verification.\n\r", 0);
+        display_character_menu(d);
+        d->connected = CON_CHARACTER_MENU;
+        return;
+    }
+    free_string(ch->pcdata->pending_email);
+    ch->pcdata->pending_email = str_dup(argument);
+    ch->pcdata->email_verified = false;
+    // Generate code and set time
+    char code[16];
+    generate_reset_code(code, 15);
+    free_string(ch->pcdata->email_verification_code);
+    ch->pcdata->email_verification_code = str_dup(code);
+    ch->pcdata->email_verification_time = current_time;
+    ch->pcdata->email_verification_last_sent = current_time;
+    // Notify old email
+    if (!IS_NULLSTR(ch->pcdata->email)) {
+        send_email_async_ex(ch, d->account, ch->pcdata->email, "Sentience: Email Change Requested",
+            "A request was made to change your character email. If this was not you, contact support.", NULL, NULL);
+    }
+    // Send code to new email
+    char body[256];
+    sprintf(body, "Your verification code is: %s\nThis code will expire in 72 hours.", code);
+    send_email_async_ex(ch, NULL, ch->pcdata->pending_email, "Sentience: Verify Your New Email Address", body, NULL, NULL);
+    save_char_obj(ch);
+    write_to_buffer(d, "\n\rA verification code has been sent to your new email address.\n\r", 0);
+    write_to_buffer(d, "Enter the code to confirm your new email: ", 0);
+    d->connected = CON_VERIFY_CHARACTER_EMAIL_CHANGE;
 }
 
 void nanny(DESCRIPTOR_DATA *d, char *argument)
@@ -4252,6 +4636,12 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
     case CON_ACCOUNT_MFA_CONFIRM:
         login_account_mfa_confirm(d, argument);
         break;
+case CON_CHANGE_CHARACTER_EMAIL:
+    login_change_character_email(d, argument);
+    break;
+case CON_VERIFY_CHARACTER_EMAIL_CHANGE:
+    login_verify_character_email_change(d, argument);
+    break;
 
 	}
 }

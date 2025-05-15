@@ -11293,3 +11293,115 @@ ACCOUNT_DATA *get_account_by_name(const char *name) {
 
     return acct;
 }
+
+bool is_staff_duty_in_list(CHAR_DATA *ch, const char *duty_list)
+{
+    if (!ch || IS_NPC(ch) || !ch->pcdata || !ch->pcdata->immortal)
+        return false;
+
+    long duties = ch->pcdata->immortal->duties;
+
+    // Tokenize the duty_list (space-separated or quoted)
+    char duty_name[MAX_INPUT_LENGTH];
+	char pbuf [1024];
+	strncpy(pbuf, duty_list, sizeof(pbuf));
+	pbuf[sizeof(pbuf)-1] = '\0';
+	char *p = pbuf;
+    while (*p != '\0') {
+        p = one_argument(p, duty_name);
+        if (duty_name[0] == '\0')
+            break;
+
+        int flag = flag_value(immortal_flags, duty_name);
+        if (flag != NO_FLAG && IS_SET(duties, flag))
+            return true;
+    }
+    return false;
+}
+
+void show_staff_duties(CHAR_DATA *ch)
+{
+    char buf[MAX_STRING_LENGTH];
+    buf[0] = '\0';
+
+    for (int i = 0, first = 1; immortal_flags[i].name != NULL; i++) {
+        if (!immortal_flags[i].settable)
+            continue;
+        if (!first)
+            strcat(buf, ", ");
+        strcat(buf, immortal_flags[i].name);
+        first = 0;
+    }
+    strcat(buf, "\n\r");
+    send_to_char("Available staff duties:\n\r", ch);
+    send_to_char(buf, ch);
+}
+
+bool is_staff_rank_in_list(CHAR_DATA *ch, const char *rank_list)
+{
+    if (!ch || IS_NPC(ch) || !ch->pcdata)
+        return false;
+
+    int rank = get_staff_rank(ch);
+
+    char rank_name[MAX_INPUT_LENGTH];
+	char pbuf [1024];
+	strncpy(pbuf, rank_list, sizeof(pbuf));
+	pbuf[sizeof(pbuf)-1] = '\0';
+	char *p = pbuf;
+    while (*p != '\0') {
+        p = one_argument(p, rank_name);
+        if (rank_name[0] == '\0')
+            break;
+
+        int flag = flag_value(staff_ranks, rank_name);
+        if (flag != NO_FLAG && rank >= flag)
+            return true;
+    }
+    return false;
+}
+
+void show_staff_ranks(CHAR_DATA *ch)
+{
+    char buf[MAX_STRING_LENGTH];
+    buf[0] = '\0';
+
+    for (int i = 0, first = 1; staff_ranks[i].name != NULL; i++) {
+        if (!staff_ranks[i].settable)
+            continue;
+        if (!first)
+            strcat(buf, ", ");
+        strcat(buf, staff_ranks[i].name);
+        first = 0;
+    }
+    strcat(buf, "\n\r");
+    send_to_char("Available staff ranks:\n\r", ch);
+    send_to_char(buf, ch);
+}
+
+CHURCH_DATA *get_church_by_name(const char *name)
+{
+    CHURCH_DATA *church;
+
+    if (IS_NULLSTR(name))
+        return NULL;
+
+    for (church = church_list; church != NULL; church = church->next)
+    {
+        if (!str_cmp(church->name, name))
+            return church;
+    }
+    return NULL;
+}
+
+bool validate_account_recipient(const char *account_name) {
+    bool was_loaded = FALSE;
+    ACCOUNT_DATA *acct = get_account_online_or_offline((char *)account_name, &was_loaded);
+    if (!acct)
+        return false;
+    // If we loaded it just for validation, free it now
+    if (was_loaded) {
+        free_account(acct);
+    }
+    return true;
+}

@@ -133,6 +133,9 @@
 #define PRESONG_FUNC(s)    	bool s (SONG_DATA *song, int level, CHAR_DATA *ch, OBJ_DATA *instrument, void *vo, int target)
 #define SONG_FUNC(s)    	bool s (SONG_DATA *song, int level, CHAR_DATA *ch, OBJ_DATA *instrument, void *vo, int target)
 
+#define IS_EMAIL_VERIFIED(obj) \
+    (!game_settings.require_email_verification || (obj)->email_verified)
+
 
 /* System calls */
 /*
@@ -1900,6 +1903,9 @@ struct church_treasure_room_data
 #define CON_ACCOUNT_MFA_VERIFY_FOR_SETTINGS 65
 #define CON_ACCOUNT_MFA_CONFIRM 66
 #define CON_ACCOUNT_MFA_DISABLE_CONFIRM 67
+#define CON_VERIFY_ACCOUNT_EMAIL_CHANGE 68
+#define CON_CHANGE_CHARACTER_EMAIL 69
+#define CON_VERIFY_CHARACTER_EMAIL_CHANGE 70
 #define CON_MAX 68
 
 #define MFA_RECOVERY_CODES 5
@@ -2541,6 +2547,14 @@ struct stat_type
 #define NOTE_PENALTY	2
 #define NOTE_NEWS	3
 #define NOTE_CHANGES	4
+typedef enum {
+    NOTE_RECIPIENT_CHARACTER,
+    NOTE_RECIPIENT_ACCOUNT,
+    NOTE_RECIPIENT_CHURCH,
+    NOTE_RECIPIENT_STAFF_RANK,
+    NOTE_RECIPIENT_STAFF_DUTY,
+    NOTE_RECIPIENT_ALL
+} NOTE_RECIPIENT_TYPE;
 
 struct	note_data
 {
@@ -2553,6 +2567,12 @@ struct	note_data
     char *	subject;
     char *	text;
     time_t  	date_stamp;
+    NOTE_RECIPIENT_TYPE recipient_type;
+    char *to_characters;   // For NOTE_RECIPIENT_CHARACTER
+    char *to_accounts;     // For NOTE_RECIPIENT_ACCOUNT
+    char *to_churches;      // For NOTE_RECIPIENT_CHURCH
+    char *to_staff_ranks;  // For NOTE_RECIPIENT_STAFF_RANK
+    char *to_staff_duties;  // For NOTE_RECIPIENT_STAFF_DUTY
 };
 
 #define	AFFGROUP_RACIAL		1
@@ -5652,44 +5672,63 @@ struct ready_check_state
 struct account_data
 {
     ACCOUNT_DATA * next;
-    unsigned long	id[2];
-    int version;
-    bool valid;
-    char * username;
-    char * passwd;
-    char * old_passwd;
-    int passwd_version;
-    char * email;
-    char * creation_host;
-    char * last_ip;
-    bool mfa_enabled;
-    char * mfa_key;
-    time_t qr_code_expiration;
-    time_t creation_date;
-    time_t last_login;
-    char * last_login_host;
-    char * reset_code;
-    bool reset_state;
-    time_t reset_time;
-    int failed_attempts;
-    int character_count;
-    int character_limit;
-    int staff_limit;
-    bool staff_account;
-    BAN_DATA * bans;
+    unsigned long	id[2];       // Account ID
+    int version;       // Version of the account data structure 
+    bool valid;         // Is this account valid?
+
+    /* Auth related */
+    // Basics
+    char * username;            // Account name
+    int failed_attempts;        // Number of failed login attempts
+    time_t last_failed_attempt; // Time of last failed login attempt
+
+    // Passwords
+    char * passwd;              // Account Password (encrypted)
+    char * old_passwd;          // Old password (encrypted)
+    int passwd_version;         // Password Version (future proofing)
+    bool reset_state;           // True if reset in progress
+    time_t reset_time;          // Time of last password reset
+    char * reset_code;          // Code used to reset password
+
+    // MFA
+    char * mfa_key;                             // Key used for MFA 
+    bool mfa_enabled;                           // True if MFA is enabled
+    char *mfa_pending_key;                      // For unconfirmed MFA setup
+    bool mfa_pending;                           // True if setup in progress
+    char *recovery_codes[MFA_RECOVERY_CODES];   // Array of 5 recovery codes
+    bool recovery_used[MFA_RECOVERY_CODES];     // Used to track if recovery codes have been used
+
+    /* Email related */
+    char *email;                        // Email address
+    bool email_verified;                // True if email is verified
+    char *pending_email;                   // Email address pending verification
+    char *email_verification_code;   // Code used to verify email
+    time_t email_verification_time; // Time of email verification
+    time_t email_verification_last_sent;    // Time of last email verification code sent
+
+    /* Host Info */
+    char * creation_host;               // Host of account creation
+    char * last_ip;                     // Last IP used to log in
+
+    time_t creation_date;               // Date of account creation
+    time_t last_login;              // Last time account logged in
+    char * last_login_host;               // Last host used to log in
+
+
+    int character_count;            // Number of characters on the account
+    int character_limit;            // Maximum number of characters allowed on the account
+    int staff_limit;                // Maximum number of staff characters allowed on the account
+    bool staff_account;             // Is this account a staff account?
+    BAN_DATA * bans;                
 //    PENALTY_DATA * penalties;
 //    BONUS_DATA * bonuses;
-    long acct_flags;
-    LLIST * characters;
-    LLIST * notes;
-    LLIST * changes;
-    LLIST * avail_races;
+    long acct_flags;                // Account flags
+    LLIST * characters;             // List of characters on the account
+    LLIST * notes;              // List of notes on the account
+    LLIST * changes;            // List of changes on the account
+    LLIST * avail_races;        // List of available races
 
-    char *mfa_pending_key;      // For unconfirmed MFA setup
-    bool mfa_pending;           // True if setup in progress
-    char *recovery_codes[MFA_RECOVERY_CODES];    // Array of 5 recovery codes
-    bool recovery_used[MFA_RECOVERY_CODES];      // Used flags
-    int refcount;             // Reference count for the account
+    int refcount;             // Reference count for the account (active logins)
 };
 
 /* Character reference data stored within an account */
@@ -5735,6 +5774,11 @@ struct	pc_data
     char *		title;
     char *		afk_message;
     char *		email;	/* person's email address */
+bool email_verified;
+char *pending_email;
+char *email_verification_code;
+time_t email_verification_time;
+time_t email_verification_last_sent;
     char *		flag;
     char *      reset_code;
     bool        reset_state;
@@ -5759,6 +5803,7 @@ struct	pc_data
     bool account_pwd_override;
     char *    last_area;
     char *    last_region;
+
 
 
     int         staff_rank;
@@ -10857,6 +10902,7 @@ void 	new_reset( ROOM_INDEX_DATA *, RESET_DATA *);
 char 	*fix_string( const char *str );
 AREA_DATA *get_wilderness_area ( void );
 char *skip_whitespace(register char *str);
+void send_boot_errors_to_coders();
 
 /* db2.c */
 AREA_DATA *get_random_area( CHAR_DATA *ch, int continent, bool no_get_random );
@@ -11358,6 +11404,12 @@ void save_qr_code_as_png(QRcode *qrcode, const char *filename, int scale_factor)
 void format_duration(int total_minutes, char *outbuf, size_t outbuf_len);
 int account_count_staff_characters(ACCOUNT_DATA *acct);
 int account_count_nonstaff_characters(ACCOUNT_DATA *acct);
+bool is_staff_duty_in_list(CHAR_DATA *ch, const char *duty_list);
+void show_staff_duties(CHAR_DATA *ch);
+bool is_staff_rank_in_list(CHAR_DATA *ch, const char *rank_list);
+void show_staff_ranks(CHAR_DATA *ch);
+CHURCH_DATA *get_church_by_name(const char *name);
+bool validate_account_recipient(const char *account_name);
 
 /* help.c */
 HELP_DATA *find_helpfile( char *keyword, HELP_CATEGORY *hcat );
@@ -11490,6 +11542,9 @@ bool can_unlink_characters(ACCOUNT_DATA *acct);
 ACCOUNT_DATA *get_account_online_or_offline(char *name, bool *was_loaded);
 ACCOUNT_DATA *get_account_by_name(const char *name);
 bool list_haslink(LLIST *list, void *data);
+void resend_character_verification_code(DESCRIPTOR_DATA *d);
+
+
 
 /* scripts.c */
 int	program_flow	args( ( long vnum, char *source, CHAR_DATA *mob,
@@ -11712,6 +11767,9 @@ void note_remove( CHAR_DATA *ch, NOTE_DATA *pnote, bool delete);
 bool hide_note( CHAR_DATA *ch, NOTE_DATA *pnote );
 void update_read(CHAR_DATA *ch, NOTE_DATA *pnote);
 int count_note( CHAR_DATA *ch, int type);
+const char *note_display_recipients_for(CHAR_DATA *viewer, NOTE_DATA *pnote);
+const char *note_display_recipients(NOTE_DATA *pnote);
+
 
 /* lookup.c */
 int	race_lookup	args( ( const char *name) );

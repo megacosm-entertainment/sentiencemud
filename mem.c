@@ -276,6 +276,11 @@ void free_note(NOTE_DATA *note)
     free_string( note->to_list );
     free_string( note->date    );
     free_string( note->sender  );
+    free_string( note->to_characters);
+    free_string( note->to_accounts);
+    free_string( note->to_churches);
+    free_string( note->to_staff_ranks );
+    free_string( note->to_staff_duties );
     INVALIDATE(note);
 
     note->next = note_free;
@@ -8500,7 +8505,6 @@ ACCOUNT_DATA *new_account(void)
     account->reset_time = 0;
     account->mfa_key = str_dup("");
     account->mfa_enabled = false;
-    account->qr_code_expiration = 0;
     account->characters = list_create(false);
     
     VALIDATE(account);

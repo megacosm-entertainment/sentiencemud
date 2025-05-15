@@ -1780,18 +1780,36 @@ bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
             if (IS_SET(ch->comm, COMM_TELNET_GA))
                 write_to_buffer(d, go_ahead_str, 0);
         }
-        // Only write a prompt for menu states
-        else if (fPrompt && (
-            d->connected == CON_ACCOUNT_MENU ||
-            d->connected == CON_CHARACTER_MENU ||
-            d->connected == CON_ACCOUNT_MFA_MENU ||
-            d->connected == CON_CHARACTER_MFA_MENU
-            // Add any other menu states here
-        ) && !d->showstr_point && !d->pString)
-        {
+else if (fPrompt && !d->showstr_point && !d->pString)
+{
+    switch (d->connected) {
+        case CON_ACCOUNT_MENU:
+        case CON_CHARACTER_MENU:
+        case CON_ACCOUNT_MFA_MENU:
+        case CON_CHARACTER_MFA_MENU:
             write_to_buffer(d, "Enter choice: ", 0);
-            write_to_buffer(d, go_ahead_str, 0);
-        }
+            break;
+        case CON_GET_ACCOUNT_EMAIL:
+        case CON_CHANGE_ACCOUNT_EMAIL:
+        case CON_GET_EMAIL:
+        case CON_CHANGE_CHARACTER_EMAIL:
+            write_to_buffer(d, "Enter your e-mail address: ", 0);
+            break;
+        case CON_GET_ACCOUNT_MFA:
+        case CON_GET_CHAR_MFA:
+        case CON_GET_ACCOUNT_MFA_FOR_CHAR:
+            write_to_buffer(d, "Enter MFA code: ", 0);
+            break;
+        case CON_GET_CHAR_PASSWORD:
+            write_to_buffer(d, "Enter character password: ", 0);
+            break;
+        // ...add more as needed
+        default:
+            write_to_buffer(d, "Enter choice: ", 0);
+            break;
+    }
+    write_to_buffer(d, go_ahead_str, 0);
+}
     }
 
     if (d->outtop == 0)

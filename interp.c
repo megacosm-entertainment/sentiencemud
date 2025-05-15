@@ -1134,7 +1134,7 @@ void interpret( CHAR_DATA *ch, char *argument )
 			    // Validate the MFA code
         		if (check_mfa(ch, command)) {
             		ch->pcdata->mfa_enabled = true;
-					ch->pcdata->qr_code_expiration = 0;
+					//ch->pcdata->qr_code_expiration = 0;
             		send_to_char("Your MFA key has been validated and enabled.\n\r", ch);
         		} else {
             		send_to_char("The code you provided is incorrect. Please try '2fa confirm' again.\n\r", ch);

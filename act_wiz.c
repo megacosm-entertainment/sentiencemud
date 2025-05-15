@@ -14306,7 +14306,7 @@ void do_mfareset(CHAR_DATA *ch, char *argument)
             account = d.account; // Get the loaded account
 
             // Check if MFA is enabled or has any MFA data set
-            if (!account->mfa_enabled && IS_NULLSTR(account->mfa_key) && account->qr_code_expiration == 0)
+            if (!account->mfa_enabled && IS_NULLSTR(account->mfa_key))
             {
                 sprintf(buf, "Multifactor auth is not enabled for account %s.\n\r", account->username);
                 send_to_char(buf, ch);
@@ -14323,8 +14323,6 @@ void do_mfareset(CHAR_DATA *ch, char *argument)
                 free_string(account->mfa_key);
                 account->mfa_key = str_dup("");
             }
-            
-            account->qr_code_expiration = 0;
 
             sprintf(buf, "Multifactor auth has been disabled for account %s.\n\r", account->username);
             send_to_char(buf, ch);
@@ -14357,8 +14355,8 @@ void do_mfareset(CHAR_DATA *ch, char *argument)
 
                     // Check if MFA is enabled or has any MFA data set
                     if (!d.character->pcdata->mfa_enabled && 
-                        IS_NULLSTR(d.character->pcdata->mfa_key) && 
-                        d.character->pcdata->qr_code_expiration == 0)
+                        IS_NULLSTR(d.character->pcdata->mfa_key)) 
+                        //d.character->pcdata->qr_code_expiration == 0)
                     {
                         sprintf(buf, "Multifactor auth is not enabled for %s.\n\r", d.character->name);
                         send_to_char(buf, ch);
@@ -14375,7 +14373,7 @@ void do_mfareset(CHAR_DATA *ch, char *argument)
                         d.character->pcdata->mfa_key = str_dup("");
                     }
                     
-                    d.character->pcdata->qr_code_expiration = 0;
+                    //d.character->pcdata->qr_code_expiration = 0;
 
                     sprintf(buf, "Multifactor auth has been disabled for %s.\n\r", d.character->name);
                     send_to_char(buf, ch);
@@ -14387,8 +14385,8 @@ void do_mfareset(CHAR_DATA *ch, char *argument)
             {
                 // Check if MFA is enabled for online character
                 if (!victim->pcdata->mfa_enabled && 
-                    IS_NULLSTR(victim->pcdata->mfa_key) && 
-                    victim->pcdata->qr_code_expiration == 0)
+                    IS_NULLSTR(victim->pcdata->mfa_key)) 
+                    //victim->pcdata->qr_code_expiration == 0)
                 {
                     sprintf(buf, "Multifactor auth is not enabled for %s.\n\r", victim->name);
                     send_to_char(buf, ch);
@@ -14404,7 +14402,7 @@ void do_mfareset(CHAR_DATA *ch, char *argument)
                     victim->pcdata->mfa_key = str_dup("");
                 }
                 
-                victim->pcdata->qr_code_expiration = 0;
+                //victim->pcdata->qr_code_expiration = 0;
 
                 sprintf(buf, "Multifactor auth has been disabled for %s.\n\r", victim->name);
                 send_to_char(buf, ch);
