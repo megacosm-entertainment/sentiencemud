@@ -8438,6 +8438,7 @@ ACCOUNT_CHARACTER *new_account_character()
     acct_char->tot_level = 0;
     acct_char->last_area = str_dup("");
     acct_char->last_region = str_dup("");
+    acct_char->last_host = str_dup(""); 
     acct_char->staff = false;
     acct_char->staff_rank = STAFF_PLAYER;  // Initialize with default rank
     acct_char->creation_date = 0;
@@ -8447,6 +8448,7 @@ ACCOUNT_CHARACTER *new_account_character()
     
     return acct_char;
 }
+
 
 /*
  * Free an account character entry.
@@ -8461,6 +8463,7 @@ void free_account_character(ACCOUNT_CHARACTER *acct_char)
     free_string(acct_char->class_name);
     free_string(acct_char->last_area);
     free_string(acct_char->last_region);
+    free_string(acct_char->last_host);
     
     free(acct_char);
 }
