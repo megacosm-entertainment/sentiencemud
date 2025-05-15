@@ -1434,6 +1434,9 @@ void do_logout(CHAR_DATA *ch, char *argument)
         }
     }
 
+	if (d->editor != NULL)
+		edit_done(ch);
+
     /* Reset imms bank accounts */
     if (IS_IMMORTAL(ch) && !IS_IMPLEMENTOR(ch))
     {
