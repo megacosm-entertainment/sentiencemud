@@ -5027,5 +5027,24 @@ const struct con_state_info con_states[] = {
     { CON_GET_ACCOUNT_MFA_FOR_CHAR,       "Get account MFA for character" },
     { CON_VERIFY_DELETE_PASSWORD,         "Verify delete password"     },
     { CON_VERIFY_DELETE_MFA,              "Verify delete MFA"          },
+    { CON_CREATING_NEW_STAFF_CHAR,        "Creating new staff character" },
+    { CON_GET_STAFF_EMAIL,                 "Get staff email"             },
+    { CON_STAFF_PASSWORD,             "Get staff password"         },
+    { CON_CONFIRM_STAFF_PASSWORD,         "Confirm staff password"     },
+    { CON_CHARACTER_MFA_VERIFY_FOR_SETTINGS, "Verify character MFA for settings" },
+    { CON_CHARACTER_MFA_MENU,             "Character MFA menu"         },
+    { CON_CHARACTER_MFA_CONFIRM,          "Confirm character MFA"      },
+    { CON_CHARACTER_MFA_DISABLE_CONFIRM,  "Confirm disable character MFA" },
+    { CON_ACCOUNT_MFA_VERIFY_FOR_SETTINGS, "Verify account MFA for settings" },
+    { CON_ACCOUNT_MFA_CONFIRM,            "Confirm account MFA"        },
+    { CON_ACCOUNT_MFA_DISABLE_CONFIRM,    "Confirm disable account MFA" },
     { 0, NULL }  /* Terminator */
+};
+
+const struct flag_type acct_flags[] =
+{
+	{	"create_staff",			ACCT_CAN_CREATE_STAFF,				true	},
+    {   "link_chars",           ACCT_CAN_LINK,  true },
+    {   "unlink_chars",         ACCT_CAN_UNLINK, true },
+	{	NULL,	0,	0	}
 };

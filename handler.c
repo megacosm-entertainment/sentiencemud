@@ -9274,6 +9274,17 @@ void list_remlink(LLIST *lp, void *data, bool del)
 	}
 }
 
+bool list_haslink(LLIST *list, void *data) {
+    LLIST_LINK *link;
+    if (!list || !data)
+        return false;
+    for (link = list->head; link != NULL; link = link->next) {
+        if (link->data == data)
+            return true;
+    }
+    return false;
+}
+
 // Clears out the entire list
 void list_clear(LLIST *lp)
 {
@@ -11124,4 +11135,161 @@ void format_duration(int total_minutes, char *outbuf, size_t outbuf_len) {
     }
 
     snprintf(outbuf, outbuf_len, "%s", temp);
+}
+
+int account_count_nonstaff_characters(ACCOUNT_DATA *acct) {
+    int count = 0;
+    ITERATOR it;
+    ACCOUNT_CHARACTER *ch_entry;
+
+    if (!acct || !acct->characters)
+        return 0;
+
+    iterator_start(&it, acct->characters);
+    while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+        if (!(ch_entry->staff && ch_entry->staff_rank >= STAFF_IMMORTAL))
+            count++;
+    }
+    iterator_stop(&it);
+    return count;
+}
+
+int account_count_staff_characters(ACCOUNT_DATA *acct) {
+    int count = 0;
+    ITERATOR it;
+    ACCOUNT_CHARACTER *ch_entry;
+
+    if (!acct || !acct->characters)
+        return 0;
+
+    iterator_start(&it, acct->characters);
+    while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+        if (ch_entry->staff && ch_entry->staff_rank >= STAFF_IMMORTAL)
+            count++;
+    }
+    iterator_stop(&it);
+    return count;
+}
+
+char *generate_random_code(int len) {
+    static char charset[] = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    static char buf[16];
+    for (int i = 0; i < len; ++i)
+        buf[i] = charset[rand() % (sizeof(charset) - 1)];
+    buf[len] = '\0';
+    return buf;
+}
+
+void generate_recovery_codes(char **codes, bool *used, int count) {
+    for (int i = 0; i < count; ++i) {
+        if (codes[i]) free_string(codes[i]);
+        codes[i] = str_dup(generate_random_code(10));
+        used[i] = false;
+    }
+}
+
+bool check_recovery_code(CHAR_DATA *ch, const char *code) {
+    for (int i = 0; i < MFA_RECOVERY_CODES; ++i) {
+        if (!ch->pcdata->recovery_used[i] && !str_cmp(ch->pcdata->recovery_codes[i], code)) {
+            ch->pcdata->recovery_used[i] = true;
+            save_char_obj(ch);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool check_account_recovery_code(ACCOUNT_DATA *acct, const char *code) {
+    for (int i = 0; i < MFA_RECOVERY_CODES; ++i) {
+        if (!acct->recovery_used[i] && !str_cmp(acct->recovery_codes[i], code)) {
+            acct->recovery_used[i] = true;
+            save_account(acct);
+            return true;
+        }
+    }
+    return false;
+}
+
+// Display recovery codes to the user
+void display_recovery_codes(DESCRIPTOR_DATA *d, CHAR_DATA *ch) {
+    write_to_buffer(d, "\n\r{YYour recovery codes (each can be used once):{x\n\r", 0);
+    for (int i = 0; i < MFA_RECOVERY_CODES; ++i) {
+        char buf[128];
+        if (ch->pcdata->recovery_used[i])
+            sprintf(buf, "{R%s {X(used){x\n\r", ch->pcdata->recovery_codes[i]);
+        else
+            sprintf(buf, "%s\n\r", ch->pcdata->recovery_codes[i]);
+        write_to_buffer(d, buf, 0);
+    }
+}
+
+void display_account_recovery_codes(DESCRIPTOR_DATA *d, ACCOUNT_DATA *acct) {
+    write_to_buffer(d, "\n\r{YYour recovery codes (each can be used once):{x\n\r", 0);
+    for (int i = 0; i < MFA_RECOVERY_CODES; ++i) {
+        char buf[128];
+        if (acct->recovery_used[i])
+            sprintf(buf, "{R%s {X(used){x\n\r", acct->recovery_codes[i]);
+        else
+            sprintf(buf, "%s\n\r", acct->recovery_codes[i]);
+        write_to_buffer(d, buf, 0);
+    }
+}
+
+void *delayed_unlink_thread(void *arg) {
+    char *filename = (char *)arg;
+    sleep(10);
+    unlink(filename);
+    free(filename);
+    return NULL;
+}
+
+void delayed_unlink(const char *filename) {
+    pthread_t tid;
+    char *fname = strdup(filename);
+    if (fname) {
+        pthread_create(&tid, NULL, delayed_unlink_thread, fname);
+        pthread_detach(tid);
+    }
+}
+
+bool has_recovery_codes(const char **codes, int count) {
+    for (int i = 0; i < count; ++i)
+        if (!IS_NULLSTR(codes[i]))
+            return true;
+    return false;
+}
+
+ACCOUNT_DATA *get_account_online_or_offline(char *name, bool *was_loaded) {
+    ACCOUNT_DATA *account = get_account_by_name(name); // online/in-memory
+    if (account) {
+        if (was_loaded) *was_loaded = FALSE;
+        return account;
+    }
+
+    // Not online, try to load from disk
+    DESCRIPTOR_DATA d;
+    memset(&d, 0, sizeof(d));
+    if (!load_account(&d, name)) {
+        if (was_loaded) *was_loaded = FALSE;
+        return NULL;
+    }
+    if (was_loaded) *was_loaded = TRUE;
+    return d.account;
+}
+
+ACCOUNT_DATA *get_account_by_name(const char *name) {
+    ITERATOR it;
+    ACCOUNT_DATA *acct;
+
+    if (IS_NULLSTR(name))
+        return NULL;
+
+    iterator_start(&it, loaded_accounts);
+    while ((acct = (ACCOUNT_DATA *)iterator_nextdata(&it))) {
+        if (!str_cmp(acct->username, name))
+            break;
+    }
+    iterator_stop(&it);
+
+    return acct;
 }

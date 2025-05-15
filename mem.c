@@ -337,6 +337,7 @@ DESCRIPTOR_DATA *new_descriptor(void)
     d->last_room_sector = NULL;
     d->last_room_flag[0] = 0;
     d->last_room_flag[0] = 0;
+    d->mfa_verified = false;
 
     top_descriptor++;
 
@@ -8441,8 +8442,8 @@ ACCOUNT_CHARACTER *new_account_character()
     acct_char->staff_rank = STAFF_PLAYER;  // Initialize with default rank
     acct_char->creation_date = 0;
     acct_char->last_login = 0;
-    acct_char->id = 0;
-    acct_char->id2 = 0;
+    acct_char->id[0] = 0;
+    acct_char->id[1] = 0;
     
     return acct_char;
 }

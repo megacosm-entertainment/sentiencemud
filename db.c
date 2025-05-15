@@ -1077,6 +1077,7 @@ LLIST *loaded_objects;
 LLIST *persist_mobs;
 LLIST *persist_objs;
 LLIST *persist_rooms;
+LLIST *loaded_accounts;
 
 TOKEN_DATA *global_tokens = NULL;
 

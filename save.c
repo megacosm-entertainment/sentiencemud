@@ -333,20 +333,24 @@ void save_char_obj(CHAR_DATA *ch)
     if (ch->desc != NULL && ch->desc->original != NULL)
 	ch = ch->desc->original;
 
-// Before saving, store the current area and region name if character is in a room
 if (ch->in_room && ch->in_room->area) {
     free_string(ch->pcdata->last_area);
     ch->pcdata->last_area = str_dup(ch->in_room->area->name);
-    
-    // If the room is in a region with a name, save that too
+
     free_string(ch->pcdata->last_region);
-    
-    // Check if region name exists and use it properly
-    if (ch->in_room->region->name != NULL && !IS_NULLSTR(ch->in_room->region->name)) {
+    if (ch->in_room->region && ch->in_room->region->name != NULL && !IS_NULLSTR(ch->in_room->region->name)) {
         ch->pcdata->last_region = str_dup(ch->in_room->region->name);
     } else {
-        // No valid region name, store empty string
         ch->pcdata->last_region = str_dup("");
+    }
+} else {
+    // If not in a room, ensure these are at least not NULL
+    if (IS_NULLSTR(ch->pcdata->last_area)) {
+        free_string(ch->pcdata->last_area);
+        ch->pcdata->last_area = str_dup("");
+    }
+    if (IS_NULLSTR(ch->pcdata->last_region)) {
+        free_string(ch->pcdata->last_region);
     }
 }
 
@@ -359,6 +363,8 @@ if (ch->in_room && ch->in_room->area) {
     }
     
     // Save character to account first
+	log_string(ch->pcdata->last_area);
+	log_string(ch->pcdata->last_region);
     if (ch->desc && ch->desc->account) {
         account_add_character(ch->desc->account, ch);
     } else if (!IS_NPC(ch) && 
@@ -893,6 +899,15 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 			fprintf(fp, "MFA_Code_Expiration %ld\n", ch->pcdata->qr_code_expiration);
 		if (ch->pcdata->mfa_enabled == TRUE)
 			fprintf(fp, "MFA_Enabled\n");
+		fprintf(fp, "MFAPendingKey %s~\n", ch->pcdata->mfa_pending_key ? ch->pcdata->mfa_pending_key : "");
+		fprintf(fp, "MFAPending %d\n", ch->pcdata->mfa_pending ? 1 : 0);
+		fprintf(fp, "RecoveryCodes ");
+			for (int i = 0; i < MFA_RECOVERY_CODES; ++i)
+    			fprintf(fp, "%s%c", ch->pcdata->recovery_codes[i], (i == MFA_RECOVERY_CODES-1) ? '\n' : ' ');
+
+		fprintf(fp, "RecoveryUsed ");
+			for (int i = 0; i < MFA_RECOVERY_CODES; ++i)
+    			fprintf(fp, "%d%c", ch->pcdata->recovery_used[i] ? 1 : 0, (i == MFA_RECOVERY_CODES-1) ? '\n' : ' ');
 		/*if (ch->pcdata->immortal->bamfin[0] != '\0')
 			fprintf(fp, "Bin  %s~\n",	ch->pcdata->immortal->bamfin);
 		if (ch->pcdata->immortal->bamfout[0] != '\0')
@@ -2285,13 +2300,11 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		{
 			ch->pcdata->last_area = fread_string(fp);
 			fMatch = TRUE;
-			break;
 		}
 		if (!str_cmp(word, "LastRegion"))
 		{
 			ch->pcdata->last_region = fread_string(fp);
 			fMatch = TRUE;
-			break;
 		}
 	    KEY("LLev",	ch->pcdata->last_level, fread_number(fp));
 	    //KEY("LogO",	lastlogoff,		fread_number(fp));
@@ -2333,6 +2346,16 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		KEY("MFA_Code_Expiration", ch->pcdata->qr_code_expiration, fread_number(fp));
 		if (!str_cmp(word, "MFA_Enabled"))
 			ch->pcdata->mfa_enabled = true;
+		if (!str_cmp(word, "MFAPendingKey")) {
+    		free_string(ch->pcdata->mfa_pending_key);
+    		ch->pcdata->mfa_pending_key = str_dup(fread_string(fp));
+    		fMatch = TRUE;
+		}
+
+		if (!str_cmp(word, "MFAPending")) {
+		    ch->pcdata->mfa_pending = (fread_number(fp) != 0);
+		    fMatch = TRUE;
+		}
 		KEY("MissionNext",   ch->nextmission,          fread_number(fp));
 		KEY("MissionPnts",   ch->missionpoints,        fread_number(fp));
 		KEY("MissionsCompleted", ch->pcdata->missions_completed, fread_number(fp));
@@ -2659,7 +2682,16 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
                  fMatch = true;
                  break;
             }
-
+		if (!str_cmp(word, "RecoveryCodes")) {
+    		for (int i = 0; i < MFA_RECOVERY_CODES; ++i)
+        		ch->pcdata->recovery_codes[i] = str_dup(fread_word(fp));
+    		fMatch = TRUE;
+		}
+		if (!str_cmp(word, "RecoveryUsed")) {
+    		for (int i = 0; i < MFA_RECOVERY_CODES; ++i)
+        		ch->pcdata->recovery_used[i] = (fread_number(fp) != 0);
+    		fMatch = TRUE;
+		}
 	    KEY("Resist", ch->res_flags,	fread_flag(fp));
 	    KEY("ResistPerm", ch->res_flags_perm,	fread_flag(fp));
 
@@ -8544,8 +8576,22 @@ bool load_account(DESCRIPTOR_DATA *d, char *name)
     if (account->id[0] == 0 || account->id[1] == 0)
         get_account_id(account);
 
+    account->character_count = list_size(account->characters);
+    account->staff_account = FALSE;
+    ITERATOR cit;
+    ACCOUNT_CHARACTER *ch_entry;
+    iterator_start(&cit, account->characters);
+    while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&cit))) {
+        if (ch_entry->staff && ch_entry->staff_rank >= STAFF_IMMORTAL) {
+            account->staff_account = TRUE;
+            break;
+        }
+    }
+    iterator_stop(&cit);
+
     account->last_login = current_time;
     return found;
+
 }
 
 /*
@@ -8573,8 +8619,17 @@ void fread_account(ACCOUNT_DATA *account, FILE *fp)
             break;
 
         case 'C':
+			if (!str_cmp(word, "CharCount")) {
+    			account->character_count = fread_number(fp);
+    			fMatch = TRUE;
+			}
 			KEY("CharacterLimit", account->character_limit, fread_number(fp));
             KEY("Created", account->creation_date, fread_number(fp));
+			if (!str_cmp(word, "CreationIP")) {
+ 			   free_string(account->creation_host);
+    			account->creation_host = fread_string(fp);
+    			fMatch = TRUE;
+			}
             break;
 
         case 'E':
@@ -8593,14 +8648,32 @@ void fread_account(ACCOUNT_DATA *account, FILE *fp)
 			break;
 
         case 'L':
+			if (!str_cmp(word, "LastHost")) {
+    			free_string(account->last_login_host);
+    			account->last_login_host = fread_string(fp);
+    			fMatch = TRUE;
+			}
+			if (!str_cmp(word, "LastLogin")) {
+    			account->last_login = fread_number(fp);
+    			fMatch = TRUE;
+			}
             KEY("LogI", account->last_login, fread_number(fp));
             break;
 
         case 'M':
-            KEYS("MFA_Key", account->mfa_key, fread_string(fp));
+            KEY("MFA_Key", account->mfa_key, fread_string(fp));
             KEY("MFA_Code_Expiration", account->qr_code_expiration, fread_number(fp));
             if (!str_cmp(word, "MFA_Enabled"))
                 account->mfa_enabled = true;
+			if (!str_cmp(word, "MFAPendingKey")) {
+    			free_string(account->mfa_pending_key);
+    			account->mfa_pending_key = str_dup(fread_string(fp));
+    			fMatch = TRUE;
+			}
+			if (!str_cmp(word, "MFAPending")) {
+    			account->mfa_pending = (fread_number(fp) != 0);
+    			fMatch = TRUE;
+			}
             break;
 
         case 'N':
@@ -8608,12 +8681,22 @@ void fread_account(ACCOUNT_DATA *account, FILE *fp)
             break;
 
         case 'P':
-            KEYS("Password", account->passwd, fread_string(fp));
-            KEYS("Pass", account->passwd, fread_string(fp));
+            KEY("Password", account->passwd, fread_string(fp));
+            KEY("Pass", account->passwd, fread_string(fp));
             KEY("PassVers", account->passwd_version, fread_number(fp));
             break;
 
         case 'R':
+			if (!str_cmp(word, "RecoveryCodes")) {
+    			for (int i = 0; i < MFA_RECOVERY_CODES; ++i)
+        			account->recovery_codes[i] = str_dup(fread_word(fp));
+    			fMatch = TRUE;
+			}
+			if (!str_cmp(word, "RecoveryUsed")) {
+    			for (int i = 0; i < MFA_RECOVERY_CODES; ++i)
+        			account->recovery_used[i] = (fread_number(fp) != 0);
+    			fMatch = TRUE;
+			}
             KEYS("ResetCode", account->reset_code, fread_string(fp));
             KEY("Reset_Time", account->reset_time, fread_number(fp));
             KEY("ResetState", account->reset_state, fread_number(fp));
@@ -8669,8 +8752,8 @@ void fread_account_character(ACCOUNT_DATA *account, FILE *fp)
             break;
             
         case 'I':
-            KEY("Id", acct_char->id, fread_number(fp));
-            KEY("Id2", acct_char->id2, fread_number(fp));
+            KEY("Id", acct_char->id[0], fread_number(fp));
+            KEY("Id2", acct_char->id[1], fread_number(fp));
             break;
             
         case 'L':
@@ -8685,6 +8768,8 @@ void fread_account_character(ACCOUNT_DATA *account, FILE *fp)
 				fMatch = TRUE;
 			}
             KEY("LastLogin", acct_char->last_login, fread_number(fp));
+			KEY("LastHost", acct_char->last_host, fread_string(fp));
+			KEY("LastLogoff", acct_char->last_logoff, fread_number(fp));
             KEY("Level", acct_char->current_level, fread_number(fp));
             break;
             
@@ -8757,7 +8842,22 @@ void fwrite_account(ACCOUNT_DATA *account, FILE *fp)
         if (account->mfa_enabled)
             fprintf(fp, "MFA_Enabled\n");
     }
+
+	fprintf(fp, "MFAPendingKey %s~\n", account->mfa_pending_key ? account->mfa_pending_key : "");
+	fprintf(fp, "MFAPending %d\n", account->mfa_pending ? 1 : 0);
     
+	fprintf(fp, "RecoveryCodes ");
+		for (int i = 0; i < MFA_RECOVERY_CODES; ++i)
+   		fprintf(fp, "%s%c", account->recovery_codes[i], (i == MFA_RECOVERY_CODES-1) ? '\n' : ' ');
+
+	fprintf(fp, "RecoveryUsed ");
+		for (int i = 0; i < MFA_RECOVERY_CODES; ++i)
+    		fprintf(fp, "%d%c", account->recovery_used[i] ? 1 : 0, (i == MFA_RECOVERY_CODES-1) ? '\n' : ' ');
+	fprintf(fp, "CreationHost %s~\n", account->creation_host ? account->creation_host : "");
+	fprintf(fp, "LastHost %s~\n", account->last_login_host ? account->last_login_host : "");
+	fprintf(fp, "LastLogin %ld\n", account->last_login);
+	fprintf(fp, "CharCount %d\n", account->character_count);
+	fprintf(fp, "StaffAccount %d\n", account->staff_account ? 1 : 0);
     fprintf(fp, "End\n\n");
 }
 
@@ -8766,26 +8866,34 @@ void fwrite_account(ACCOUNT_DATA *account, FILE *fp)
  */
 void fwrite_account_character(ACCOUNT_CHARACTER *character, FILE *fp)
 {
+	log_string("Fwrite_account_character: writing character data");
     fprintf(fp, "#CHARACTER\n");
     
     fprintf(fp, "Name %s~\n", character->name);
     
     if (!IS_NULLSTR(character->race_name))
         fprintf(fp, "Race %s~\n", character->race_name);
-        
+
+    // Add logging here
+    log_stringf("fwrite_account_character: writing %s last_area='%s' last_region='%s'",
+        character->name,
+        character->last_area ? character->last_area : "(null)",
+        character->last_region ? character->last_region : "(null)");
+
     if (!IS_NULLSTR(character->class_name))
         fprintf(fp, "Class %s~\n", character->class_name);
     fprintf(fp, "Level %d\n", character->current_level);
     fprintf(fp, "TLevel %d\n", character->tot_level);
     fprintf(fp, "Created %ld\n", character->creation_date);
     fprintf(fp, "LastLogin %ld\n", character->last_login);
-	fprintf(fp, "LastArea %s~\n", character->last_area);
-	fprintf(fp, "LastRegion %s~\n", character->last_region);
+    fprintf(fp, "LastArea %s~\n", character->last_area);
+    fprintf(fp, "LastRegion %s~\n", character->last_region);
+    fprintf(fp, "LastHost" " %s~\n", character->last_host ? character->last_host : "");
+    fprintf(fp, "LastLogoff %ld\n", (long int)current_time);
 
-    
-    if (character->id != 0 || character->id2 != 0) {
-        fprintf(fp, "Id %ld\n", character->id);
-        fprintf(fp, "Id2 %ld\n", character->id2);
+    if (character->id[0] != 0 || character->id[1] != 0) {
+        fprintf(fp, "Id %ld\n", character->id[0]);
+        fprintf(fp, "Id2 %ld\n", character->id[1]);
     }
     
     if (character->staff) {
@@ -8801,6 +8909,7 @@ void fwrite_account_character(ACCOUNT_CHARACTER *character, FILE *fp)
  */
 void save_account(ACCOUNT_DATA *account)
 {
+	log_string("save_account: saving account data");
     char strsave[MAX_INPUT_LENGTH];
     FILE *fp;
     
@@ -8851,90 +8960,97 @@ void save_account(ACCOUNT_DATA *account)
 }
 void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
 {
-    ACCOUNT_CHARACTER *acct_char;
+    log_string("account_add_character: adding character to account");
+    ACCOUNT_CHARACTER *acct_char = NULL;
     ITERATOR it;
-    
+
     if (!account || !ch || IS_NPC(ch)) {
         bug("account_add_character: invalid parameters", 0);
         return;
     }
-    
+
     /* Check if character already exists in account */
     iterator_start(&it, account->characters);
     while ((acct_char = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
         if (!str_cmp(acct_char->name, ch->name)) {
-            /* Update existing character entry */
+            // ... update fields ...
             acct_char->last_login = current_time;
             acct_char->tot_level = ch->tot_level;
             if (ch->pcdata && ch->pcdata->current_class && IS_VALID(ch->pcdata->current_class->clazz))
                 acct_char->current_level = ch->pcdata->current_class->level;
             else
                 acct_char->current_level = ch->tot_level; // fallback
-            
-            // Make sure staff status is correctly set
+
             acct_char->staff = IS_IMMORTAL(ch);
-            if (IS_IMMORTAL(ch)) {
-                acct_char->staff_rank = ch->pcdata->staff_rank;
-            } else {
-                acct_char->staff_rank = 0;
-            }
-            
-            /* Update class name if needed */
+            acct_char->staff_rank = IS_IMMORTAL(ch) ? ch->pcdata->staff_rank : 0;
+
             if (ch->pcdata && ch->pcdata->current_class && IS_VALID(ch->pcdata->current_class->clazz)) {
                 if (acct_char->class_name)
                     free_string(acct_char->class_name);
                 acct_char->class_name = str_dup(ch->pcdata->current_class->clazz->name);
             }
-            
-            /* Update ID if needed */
-            acct_char->id = ch->id[0];
-            acct_char->id2 = ch->id[1];
 
-			// Add last area information
-    		free_string(acct_char->last_area);
-    		acct_char->last_area = str_dup(ch->pcdata->last_area);
-			free_string(acct_char->last_region);
-			acct_char->last_region = str_dup(ch->pcdata->last_region);
-            
-            iterator_stop(&it);
-            return;
+            acct_char->id[0] = ch->id[0];
+            acct_char->id[1] = ch->id[1];
+
+            free_string(acct_char->last_area);
+            acct_char->last_area = str_dup(!IS_NULLSTR(ch->pcdata->last_area) ? ch->pcdata->last_area : "");
+
+            free_string(acct_char->last_region);
+            acct_char->last_region = str_dup(!IS_NULLSTR(ch->pcdata->last_region) ? ch->pcdata->last_region : "");
+
+            break; // <-- just break, do not return!
         }
     }
     iterator_stop(&it);
-    
-    /* Create new character entry */
-    acct_char = new_account_character();
-    acct_char->name = str_dup(ch->name);
-    acct_char->race_name = str_dup(ch->race->name);
-    acct_char->tot_level = ch->tot_level;
-    
-    if (ch->pcdata && ch->pcdata->current_class && IS_VALID(ch->pcdata->current_class->clazz))
-        acct_char->current_level = ch->pcdata->current_class->level;
-    else
-        acct_char->current_level = ch->tot_level; // fallback
-        
-    acct_char->creation_date = ch->pcdata->creation_date;
-    acct_char->last_login = current_time;
-    acct_char->id = ch->id[0];
-    acct_char->id2 = ch->id[1];
-    
-    // Set staff status and rank
-    acct_char->staff = IS_IMMORTAL(ch);
-    if (IS_IMMORTAL(ch)) {
-        acct_char->staff_rank = ch->pcdata->staff_rank;
-    } else {
-        acct_char->staff = false;
-        acct_char->staff_rank = 0;
+
+    // If not found, create new entry
+    if (!acct_char) {
+        acct_char = new_account_character();
+        acct_char->name = str_dup(ch->name);
+        acct_char->race_name = str_dup(ch->race->name);
+        acct_char->tot_level = ch->tot_level;
+
+        if (ch->pcdata && ch->pcdata->current_class && IS_VALID(ch->pcdata->current_class->clazz))
+            acct_char->current_level = ch->pcdata->current_class->level;
+        else
+            acct_char->current_level = ch->tot_level; // fallback
+
+        acct_char->creation_date = ch->pcdata->creation_date;
+        acct_char->last_login = current_time;
+        acct_char->id[0] = ch->id[0];
+        acct_char->id[1] = ch->id[1];
+
+        acct_char->staff = IS_IMMORTAL(ch);
+        acct_char->staff_rank = IS_IMMORTAL(ch) ? ch->pcdata->staff_rank : 0;
+
+        if (ch->pcdata && ch->pcdata->current_class && IS_VALID(ch->pcdata->current_class->clazz))
+            acct_char->class_name = str_dup(ch->pcdata->current_class->clazz->name);
+
+        acct_char->last_area = str_dup(!IS_NULLSTR(ch->pcdata->last_area) ? ch->pcdata->last_area : "");
+        acct_char->last_region = str_dup(!IS_NULLSTR(ch->pcdata->last_region) ? ch->pcdata->last_region : "");
+
+        list_appendlink(account->characters, acct_char);
     }
-    
-    /* Set class name if available */
-    if (ch->pcdata && ch->pcdata->current_class && IS_VALID(ch->pcdata->current_class->clazz))
-        acct_char->class_name = str_dup(ch->pcdata->current_class->clazz->name);
-    
-    /* Add to account's character list */
-    list_appendlink(account->characters, acct_char);
-    
+
+    account->character_count = list_size(account->characters);
+    account->staff_account = FALSE;
+    ITERATOR cit;
+    ACCOUNT_CHARACTER *ch_entry;
+    iterator_start(&cit, account->characters);
+    while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&cit))) {
+        if (ch_entry->staff && ch_entry->staff_rank >= STAFF_IMMORTAL) {
+            account->staff_account = TRUE;
+            break;
+        }
+    }
+    iterator_stop(&cit);
+
     /* Save the updated account */
+    log_stringf("account_add_character: saving %s last_area='%s' last_region='%s'",
+        acct_char->name,
+        acct_char->last_area ? acct_char->last_area : "(null)",
+        acct_char->last_region ? acct_char->last_region : "(null)");
     save_account(account);
 }
 
@@ -9011,8 +9127,8 @@ void update_account_character(CHAR_DATA *ch)
     acct_char->last_login = current_time;
     acct_char->tot_level = ch->tot_level;
 	acct_char->current_level = ch->pcdata->current_class->level;
-    acct_char->id = ch->id[0];
-    acct_char->id2 = ch->id[1];
+    acct_char->id[0] = ch->id[0];
+    acct_char->id[1] = ch->id[1];
     
     // Update race/class
     if (acct_char->race_name)

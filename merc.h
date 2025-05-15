@@ -1542,6 +1542,8 @@ struct game_settings_data
     bool    allow_multiplay_acct_staff;     // Allow multiple logins from staff accounts? (only if allow_multiplay_account_all is true, and account does not have deny_multiplay set)
     bool    allow_multiplay_host_all;       // Allow multiple accounts to be logged in from one host?
     bool    allow_multiplay_host_staff;     // Allow multiple accounts to be logged in from one host if one is staff?
+    bool    allow_link_all;      // Allow all accounts to link chars.
+    bool    allow_unlink_all;    // Allow all accounts to unlink chars.
     int     max_login_attempts;             // How many login attempts are allowed before disconnecting?
     int     idle_time;                      // How many ticks until a user is considered idle?
     int     idle_disconnect_time;           // How many ticks until an idle user is disconnected?
@@ -1886,7 +1888,21 @@ struct church_treasure_room_data
 #define CON_GET_ACCOUNT_MFA_FOR_CHAR  53
 #define CON_VERIFY_DELETE_PASSWORD  54
 #define CON_VERIFY_DELETE_MFA       55
-#define CON_MAX 56
+#define CON_CREATING_NEW_STAFF_CHAR 56
+#define CON_GET_STAFF_EMAIL 57
+#define CON_STAFF_MFA_PROMPT    58
+#define CON_STAFF_PASSWORD  59
+#define CON_CONFIRM_STAFF_PASSWORD  60
+#define CON_CHARACTER_MFA_VERIFY_FOR_SETTINGS 61
+#define CON_CHARACTER_MFA_MENU 62
+#define CON_CHARACTER_MFA_CONFIRM 63
+#define CON_CHARACTER_MFA_DISABLE_CONFIRM 64
+#define CON_ACCOUNT_MFA_VERIFY_FOR_SETTINGS 65
+#define CON_ACCOUNT_MFA_CONFIRM 66
+#define CON_ACCOUNT_MFA_DISABLE_CONFIRM 67
+#define CON_MAX 68
+
+#define MFA_RECOVERY_CODES 5
 
 
 /* Places */
@@ -2016,6 +2032,8 @@ struct	descriptor_data
     bool    tls_handshake_in_progress;
     SSL *ssl;
     time_t last_activity;
+    bool mfa_verified;
+    bool creating_staff_character;
 
 };
 
@@ -3962,6 +3980,11 @@ enum {
 
 #define SECTOR_MAX_AFFINITIES   3
 
+/* Account Flags*/
+#define ACCT_CAN_CREATE_STAFF (A)
+#define ACCT_CAN_LINK (B)
+#define ACCT_CAN_UNLINK (C)
+
 struct sector_data
 {
     SECTOR_DATA *next;
@@ -5637,7 +5660,7 @@ struct account_data
     char * old_passwd;
     int passwd_version;
     char * email;
-    char * creation_ip;
+    char * creation_host;
     char * last_ip;
     bool mfa_enabled;
     char * mfa_key;
@@ -5651,6 +5674,7 @@ struct account_data
     int failed_attempts;
     int character_count;
     int character_limit;
+    int staff_limit;
     bool staff_account;
     BAN_DATA * bans;
 //    PENALTY_DATA * penalties;
@@ -5660,6 +5684,12 @@ struct account_data
     LLIST * notes;
     LLIST * changes;
     LLIST * avail_races;
+
+    char *mfa_pending_key;      // For unconfirmed MFA setup
+    bool mfa_pending;           // True if setup in progress
+    char *recovery_codes[MFA_RECOVERY_CODES];    // Array of 5 recovery codes
+    bool recovery_used[MFA_RECOVERY_CODES];      // Used flags
+    int refcount;             // Reference count for the account
 };
 
 /* Character reference data stored within an account */
@@ -5676,8 +5706,10 @@ struct account_character_data
     int staff_rank;
     time_t creation_date;       /* When the character was created */
     time_t last_login;          /* Last time character logged in */
-    long id;                    /* Character ID */
-    long id2;                   /* Character ID part 2 */
+    time_t last_logoff;         /* Last time character logged off */
+    char *last_host;
+    long id[2];                    /* Character ID */
+//    long id2;                   /* Character ID part 2 */
 };
 
 typedef struct account_character_data ACCOUNT_CHARACTER;
@@ -5809,6 +5841,11 @@ struct	pc_data
     LLIST *extra_commands;
 
     sent_bool readycheck_answer;
+
+    char *mfa_pending_key;      // For unconfirmed MFA setup
+    bool mfa_pending;           // True if setup in progress
+    char *recovery_codes[MFA_RECOVERY_CODES];    // Array of 5 recovery codes
+    bool recovery_used[MFA_RECOVERY_CODES];      // Used flags
 };
 
 
@@ -11314,9 +11351,13 @@ void visit_rooms(ROOM_INDEX_DATA *room, VISIT_FUNC *func, int depth, void *argv[
 bool check_social_status(CHAR_DATA *ch);
 void send_email(CHAR_DATA *ch, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
 void send_email_async(CHAR_DATA *ch, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
+void send_email_ex(CHAR_DATA *ch, ACCOUNT_DATA *acct, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
+void send_email_async_ex(CHAR_DATA *ch, ACCOUNT_DATA *acct, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
 void generate_reset_code(char* str, int len);
 void save_qr_code_as_png(QRcode *qrcode, const char *filename, int scale_factor);
 void format_duration(int total_minutes, char *outbuf, size_t outbuf_len);
+int account_count_staff_characters(ACCOUNT_DATA *acct);
+int account_count_nonstaff_characters(ACCOUNT_DATA *acct);
 
 /* help.c */
 HELP_DATA *find_helpfile( char *keyword, HELP_CATEGORY *hcat );
@@ -11396,6 +11437,59 @@ void mail_from_list( MAIL_DATA *mail );
 int count_items_mail(MAIL_DATA *mail);
 int count_weight_mail(MAIL_DATA *mail);
 
+/* nanny.c */
+bool	check_parse_name	args((char *name));
+bool	check_reconnect		args((DESCRIPTOR_DATA *d, char *name, bool fConn));
+bool	check_playing		args((DESCRIPTOR_DATA *d, char *name));
+bool acceptablePassword(DESCRIPTOR_DATA *d, char *pass);
+void add_possible_subclasses(CHAR_DATA *ch, char *string);
+void add_possible_races(CHAR_DATA *ch, char *string);
+void save_area_list();
+void save_area_new(AREA_DATA *area);
+bool load_account(DESCRIPTOR_DATA *d, char *name);
+void save_account(ACCOUNT_DATA *account);
+bool account_has_immortal(ACCOUNT_DATA *acct);
+void display_account_menu(DESCRIPTOR_DATA *d);
+void select_character(DESCRIPTOR_DATA *d, ACCOUNT_CHARACTER *ch_entry);
+void complete_character_link(DESCRIPTOR_DATA *d);
+void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch);
+void display_character_menu(DESCRIPTOR_DATA *d);
+void setup_character_mfa(DESCRIPTOR_DATA *d);
+void account_remove_character(ACCOUNT_DATA *account, const char *name);
+void proceed_to_game(DESCRIPTOR_DATA *d);
+bool setup_mfa_for_char(CHAR_DATA *ch, bool send_email);
+bool check_char_mfa(CHAR_DATA *ch, const char *code);
+bool setup_mfa_for_account(DESCRIPTOR_DATA *d, bool send_email);
+bool check_account_mfa(ACCOUNT_DATA *acct, const char *code);
+void send_email_async_ex(CHAR_DATA *ch, ACCOUNT_DATA *acct, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
+void setup_account_mfa(DESCRIPTOR_DATA *d);
+bool	process_output		args((DESCRIPTOR_DATA *d, bool fPrompt));
+char* format_location_string(const char* area_name, const char* region_name);
+int account_count_nonstaff_characters(ACCOUNT_DATA *acct);
+void display_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument);
+void display_character_mfa_menu(DESCRIPTOR_DATA *d, char *argument);
+void finalize_staff_character_creation(DESCRIPTOR_DATA *d);
+void send_qr_email_for_char(CHAR_DATA *ch, const char *email, const char *secret);
+void send_recovery_codes_email_for_char(CHAR_DATA *ch, const char *email);
+void send_qr_email_for_account(ACCOUNT_DATA *acct, const char *email, const char *secret);
+void send_recovery_codes_email_for_account(ACCOUNT_DATA *acct, const char *email);
+char *generate_totp_key(char *buffer, size_t length);
+void display_qr_code(DESCRIPTOR_DATA *d, const char *url);
+void display_recovery_codes(DESCRIPTOR_DATA *d, CHAR_DATA *ch);
+void generate_recovery_codes(char **codes, bool *used, int count);
+void display_recovery_codes(DESCRIPTOR_DATA *d, CHAR_DATA *ch);
+bool check_recovery_code(CHAR_DATA *ch, const char *code);
+bool check_account_recovery_code(ACCOUNT_DATA *acct, const char *code);
+void display_account_recovery_codes(DESCRIPTOR_DATA *d, ACCOUNT_DATA *acct);
+char *generate_totp_qr_url(char *buffer, size_t length, const char *name, const char *key);
+void delayed_unlink(const char *filename);
+bool validate_totp_code(const char *key, const char *code);
+bool has_recovery_codes(const char **codes, int count);
+bool can_link_characters(ACCOUNT_DATA *acct);
+bool can_unlink_characters(ACCOUNT_DATA *acct);
+ACCOUNT_DATA *get_account_online_or_offline(char *name, bool *was_loaded);
+ACCOUNT_DATA *get_account_by_name(const char *name);
+bool list_haslink(LLIST *list, void *data);
 
 /* scripts.c */
 int	program_flow	args( ( long vnum, char *source, CHAR_DATA *mob,
@@ -11463,6 +11557,7 @@ void fwrite_token(TOKEN_DATA *token, FILE *fp);
 void fwrite_skills(CHAR_DATA *ch, FILE *fp);
 TOKEN_DATA *fread_token(FILE *fp);
 void fread_skill(FILE *fp, CHAR_DATA *ch, bool is_song);
+extern void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch);
 
 
 
@@ -11840,6 +11935,7 @@ extern TOKEN_DATA *global_tokens;
 //extern LLIST *loaded_players;
 extern LLIST *loaded_chars;
 extern LLIST *loaded_objects;
+extern LLIST *loaded_accounts;
 
 extern LLIST *conn_players;
 extern LLIST *conn_immortals;

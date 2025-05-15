@@ -1998,6 +1998,12 @@ void do_stat(CHAR_DATA *ch, char *argument)
 	return;
     }
 
+    if (!str_cmp(arg,"acct") || !str_cmp(arg,"account"))
+    {
+	do_function(ch, &do_accstat, string);
+	return;
+    }
+
     send_to_char("Nothing by that name found anywhere.\n\r",ch);
 }
 
@@ -2086,6 +2092,245 @@ void do_astat (CHAR_DATA * ch, char *argument)
     add_buf (output, buf);
     sprintf (buf, "Players : {W%d{x\n\r", pArea->nplayer);
     add_buf (output, buf);
+
+    page_to_char(buf_string(output), ch);
+    free_buf(output);
+    return;
+}
+
+void do_accstat(CHAR_DATA *ch, char *argument)
+{
+    ACCOUNT_DATA *account;
+    ACCOUNT_CHARACTER *acd;
+	ACCOUNT_CHARACTER *staff_chars[100];
+	ACCOUNT_CHARACTER *regular_chars[100];
+	char name_buf[50], rank_buf[50], level_buf[50], race_buf[50], class_buf[50];
+	int staff_count = 0, regular_count = 0;
+    BUFFER *output;
+    char buf[MSL];
+    char arg[MIL];
+	bool loaded;
+
+    one_argument(argument, arg);
+
+    if (IS_NULLSTR(arg)) {
+        send_to_char("Syntax: accstat <accountname>\n\r", ch);
+        return;
+    }
+
+    account = get_account_online_or_offline(arg, &loaded);
+    if (!account) {
+        send_to_char("No such account exists.\n\r", ch);
+        return;
+    }
+
+    output = new_buf();
+    add_buf(output, "\n\r{x[ {WAccount Status{x ]\n\r\n\r");
+
+    sprintf(buf, "Username      : [{W%s{x]\n\r", account->username);
+    add_buf(output, buf);
+
+    sprintf(buf, "Email         : [{W%s{x]\n\r", account->email ? account->email : "(none set)");
+    add_buf(output, buf);
+
+    sprintf(buf, "Creation Host   : [{W%s{x]\n\r", account->creation_host ? account->creation_host : "(unknown)");
+    add_buf(output, buf);
+
+    sprintf(buf, "Last Host       : [{W%s{x]\n\r", account->last_ip ? account->last_ip : "(unknown)");
+    add_buf(output, buf);
+
+    sprintf(buf, "MFA Status       : [{W%s{x]\n\r", account->mfa_enabled ? "{GENABLED{x" : (account->mfa_pending ? "{YSETUP IN PROGRESS{x" : "{ROFF{x"));
+    add_buf(output, buf);
+
+    // Format creation date and last login
+    if (account->creation_date) {
+        strftime(buf, sizeof(buf), "Creation Date : [{W%Y-%m-%d %H:%M:%S{x]\n\r", localtime(&account->creation_date));
+        add_buf(output, buf);
+    } else {
+        add_buf(output, "Creation Date : [{W(unknown){x]\n\r");
+    }
+
+    if (account->last_login) {
+        strftime(buf, sizeof(buf), "Last Login    : [{W%Y-%m-%d %H:%M:%S{x]\n\r", localtime(&account->last_login));
+        add_buf(output, buf);
+    } else {
+        add_buf(output, "Last Login    : [{W(never){x]\n\r");
+    }
+
+    sprintf(buf, "Last Host     : [{W%s{x]\n\r", account->last_login_host ? account->last_login_host : "(unknown)");
+    add_buf(output, buf);
+
+    sprintf(buf, "Reset State   : [{W%d{x]\n\r", account->reset_state);
+    add_buf(output, buf);
+
+    sprintf(buf, "Char Count    : [{W%d{x] / [{W%d{x] (limit)\n\r", account->character_count, account->character_limit > 0 ? account->character_limit : game_settings.max_characters);
+    add_buf(output, buf);
+
+    sprintf(buf, "Staff Limit   : [{W%d{x]\n\r", account->staff_limit);
+    add_buf(output, buf);
+
+    sprintf(buf, "Staff Account : [{W%s{x]\n\r", account->staff_account ? "Yes" : "No");
+    add_buf(output, buf);
+
+    sprintf(buf, "Flags         : [{W%s{x]\n\r", flag_string(acct_flags, account->acct_flags));
+    add_buf(output, buf);
+
+// Separate staff and regular characters
+ITERATOR it;
+iterator_start(&it, account->characters);
+while ((acd = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+    if (acd->staff && acd->staff_rank >= STAFF_IMMORTAL)
+        staff_chars[staff_count++] = acd;
+    else
+        regular_chars[regular_count++] = acd;
+}
+iterator_stop(&it);
+
+// Sort staff characters alphabetically
+for (int i = 0; i < staff_count - 1; i++) {
+    for (int j = 0; j < staff_count - i - 1; j++) {
+        if (strcasecmp(staff_chars[j]->name, staff_chars[j+1]->name) > 0) {
+            ACCOUNT_CHARACTER *temp = staff_chars[j];
+            staff_chars[j] = staff_chars[j+1];
+            staff_chars[j+1] = temp;
+        }
+    }
+}
+
+// Sort regular characters alphabetically
+for (int i = 0; i < regular_count - 1; i++) {
+    for (int j = 0; j < regular_count - i - 1; j++) {
+        if (strcasecmp(regular_chars[j]->name, regular_chars[j+1]->name) > 0) {
+            ACCOUNT_CHARACTER *temp = regular_chars[j];
+            regular_chars[j] = regular_chars[j+1];
+            regular_chars[j+1] = temp;
+        }
+    }
+}
+
+// Display staff characters
+if (staff_count > 0) {
+    add_buf(output, "{B=={W[ {YSTAFF CHARACTERS {W]{B=={x\n\r");
+    sprintf(buf, "{D%-4s %-16s %-15s %-30s %-20s{x\n\r", 
+            "Num", "Name", "Rank", "Location", "Last Logoff");
+    add_buf(output, buf);
+    sprintf(buf, "{D%s{x\n\r", pad_string("", 90, NULL, "-"));
+    add_buf(output, buf);
+
+for (int i = 0; i < staff_count; i++) {
+    acd = staff_chars[i];
+    const char *staff_rank_str = flag_string(staff_ranks, acd->staff_rank);
+
+    CHAR_DATA *vch = get_char_world(NULL, acd->name);
+
+    const char *loc_str;
+    char logoff_buf[32];
+
+    if (vch != NULL) {
+        // Character is online, use live data
+        loc_str = format_location_string(vch->in_room ? vch->in_room->area->name : NULL,
+                                         vch->in_room ? vch->in_room->region->name : NULL);
+        strcpy(logoff_buf, "{GLogged In{x");
+    } else {
+        // Offline, use stored data
+        loc_str = format_location_string(acd->last_area, acd->last_region);
+        if (acd->last_logoff > 0)
+            strftime(logoff_buf, sizeof(logoff_buf), "%Y-%m-%d %H:%M", localtime(&acd->last_logoff));
+        else
+            strcpy(logoff_buf, "(unknown)");
+    }
+
+    sprintf(name_buf, "{W%s{x", acd->name);
+    sprintf(rank_buf, "{R%s{x", staff_rank_str ? capitalize(staff_rank_str) : "IMM");
+
+    sprintf(buf, "{G[%2d]{x %s%s %s%s {Y%s{x%s {C%s{x\n\r",
+            i + 1,
+            name_buf,
+            pad_string((char *)name_buf, 16, NULL, " "),
+            rank_buf,
+            pad_string((char *)rank_buf, 15, NULL, " "),
+            loc_str,
+            pad_string((char *)loc_str, 30, NULL, " "),
+            logoff_buf);
+    add_buf(output, buf);
+}
+}
+
+// Display regular characters
+if (regular_count > 0) {
+    add_buf(output, "\n\r{B=={W[ {YREGULAR CHARACTERS {W]{B=={x\n\r");
+    sprintf(buf, "{D%-4s %-16s %-7s %-12s %-12s %-25s %-20s{x\n\r", 
+            "Num", "Name", "Level", "Race", "Class", "Location", "Last Logoff");
+    add_buf(output, buf);
+    sprintf(buf, "{D%s{x\n\r", pad_string("", 110, NULL, "-"));
+    add_buf(output, buf);
+
+    for (int i = 0; i < regular_count; i++) {
+        acd = regular_chars[i];
+
+		CHAR_DATA *vch = get_char_world(NULL, acd->name);
+
+        const char *loc_str;
+        char logoff_buf[32];
+        char *race_name, *class_name;
+        int level, tot_level;
+
+        if (vch != NULL) {
+            // Character is online, use live data
+            if (vch->pcdata && vch->pcdata->current_class && IS_VALID(vch->pcdata->current_class->clazz))
+                level = vch->pcdata->current_class->level;
+            else
+                level = vch->tot_level;
+            tot_level = vch->tot_level;
+            race_name = vch->race->name;
+            if (vch->pcdata && vch->pcdata->current_class && IS_VALID(vch->pcdata->current_class->clazz)) {
+                class_name = str_dup(vch->pcdata->current_class->clazz->name);
+            }
+			else
+				class_name = "Adventurer";
+            loc_str = format_location_string(vch->in_room ? vch->in_room->area->name : NULL,
+                                             vch->in_room ? vch->in_room->region->name : NULL);
+            strcpy(logoff_buf, "{GLogged In{x");
+        } else {
+            // Offline, use stored data
+            level = acd->current_level > 0 ? acd->current_level : acd->tot_level;
+            tot_level = acd->tot_level;
+            race_name = acd->race_name ? acd->race_name : "Unknown";
+            class_name = acd->class_name ? acd->class_name : "Adventurer";
+            loc_str = format_location_string(acd->last_area, acd->last_region);
+            if (acd->last_logoff > 0)
+                strftime(logoff_buf, sizeof(logoff_buf), "%Y-%m-%d %H:%M", localtime(&acd->last_logoff));
+            else
+                strcpy(logoff_buf, "(unknown)");
+        }
+
+        sprintf(name_buf, "{W%s{x", acd->name);
+        sprintf(level_buf, "{G%d(%d){x", level, tot_level);
+        sprintf(race_buf, "{W%s{x", capitalize(race_name));
+        sprintf(class_buf, "{W%s{x", capitalize(class_name));
+
+        sprintf(buf, "{G[%2d]{x %s%s %s%s %s%s %s%s {Y%s{x%s {C%s{x\n\r",
+                i + staff_count + 1,
+                name_buf,
+                pad_string((char *)name_buf, 16, NULL, " "),
+                level_buf,
+                pad_string((char *)level_buf, 7, NULL, " "),
+                race_buf,
+                pad_string((char *)race_buf, 12, NULL, " "),
+                class_buf,
+                pad_string((char *)class_buf, 12, NULL, " "),
+                loc_str,
+                pad_string((char *)loc_str, 25, NULL, " "),
+                logoff_buf);
+        add_buf(output, buf);
+    }
+}
+
+if (staff_count == 0 && regular_count == 0) {
+    add_buf(output, "   {RNo characters found.{x\n\r");
+}
+
+	if (loaded) free_account(account);
 
     page_to_char(buf_string(output), ch);
     free_buf(output);
@@ -6219,6 +6464,7 @@ void do_set(CHAR_DATA *ch, char *argument)
 	send_to_char("  set sky   <cloudless|cloudy|rainy|stormy>\n\r", ch);
 	send_to_char("  set time  <hour|day|month|year> <#>\n\r", ch);
 	send_to_char("  set token <char name> <token vnum> <v#|timer> <op> <value>\n\r", ch);
+	send_to_char("  set account <account> <field> <value>\n\r", ch);
 	return;
     }
 
@@ -6309,6 +6555,12 @@ void do_set(CHAR_DATA *ch, char *argument)
 	do_function(ch, &do_tkset, argument);
 	return;
     }
+
+	if (!str_prefix(arg, "account") || !str_prefix(arg, "acct"))
+	{
+		do_function(ch, &do_accset, argument);
+		return;
+	}
 
     /* echo syntax */
     do_function(ch, &do_set, "");
@@ -6495,6 +6747,98 @@ void set_moon_phase(void)
 	else if(hours <= (3*MOON_CARDINAL_STEP + MOON_CARDINAL_HALF)) time_info.moon = MOON_LAST_QUARTER;
 	else if(hours < (4*MOON_CARDINAL_STEP - MOON_CARDINAL_HALF)) time_info.moon = MOON_WANING_CRESCENT;
 	else time_info.moon = MOON_NEW;
+}
+
+void do_accset(CHAR_DATA *ch, char *argument)
+{
+    char arg[MAX_INPUT_LENGTH], arg2[MAX_INPUT_LENGTH], arg3[MAX_INPUT_LENGTH], buf[MSL];
+    ACCOUNT_DATA *account;
+    bool loaded = FALSE;
+    int value;
+
+    argument = one_argument(argument, arg);   // account name
+    argument = one_argument(argument, arg2);  // field
+    argument = one_argument(argument, arg3);  // value
+
+    if (arg[0] == '\0' || arg2[0] == '\0' || arg3[0] == '\0') {
+        send_to_char("Syntax:\n\r  set account <account name> <field> <value>\n\r", ch);
+        return;
+    }
+
+    account = get_account_online_or_offline(arg, &loaded);
+    if (!account) {
+        send_to_char("Account not found.\n\r", ch);
+        return;
+    }
+
+    if (!str_prefix(arg2, "email")) {
+        free_string(account->email);
+        account->email = str_dup(arg3);
+        sprintf(buf, "Set email for account %s to %s.\n\r", account->username, account->email);
+        send_to_char(buf, ch);
+    }
+    else if (!str_prefix(arg2, "charlimit")) {
+        if (!is_number(arg3)) {
+            send_to_char("Character limit must be a number.\n\r", ch);
+            if (loaded) free_account(account);
+            return;
+        }
+        value = atoi(arg3);
+        account->character_limit = value;
+        sprintf(buf, "Set character limit for account %s to %d.\n\r", account->username, value);
+        send_to_char(buf, ch);
+    }
+    else if (!str_prefix(arg2, "stafflimit")) {
+        if (!is_number(arg3)) {
+            send_to_char("Staff limit must be a number.\n\r", ch);
+            if (loaded) free_account(account);
+            return;
+        }
+        value = atoi(arg3);
+        account->staff_limit = value;
+        sprintf(buf, "Set staff limit for account %s to %d.\n\r", account->username, value);
+        send_to_char(buf, ch);
+    }
+	else if (!str_prefix(arg2, "flag")) {
+    	char flag_buf[MAX_INPUT_LENGTH];
+    	char *flag_name;
+    	bool found_flag = FALSE;
+
+	    // Make a copy of arg3 to tokenize
+    	strncpy(flag_buf, arg3, sizeof(flag_buf));
+    	flag_buf[sizeof(flag_buf)-1] = '\0';
+
+	    flag_name = strtok(flag_buf, " ");
+    	while (flag_name != NULL) {
+        	long flagval;
+        	if ((flagval = flag_value(acct_flags, flag_name)) == NO_FLAG) {
+				sprintf(buf, "Invalid account flag: %s\n\r", flag_name);
+				send_to_char(buf, ch);
+        	    show_flag_cmds(ch, acct_flags);
+        	    // Don't return, just skip this flag
+        	} else {
+        	    TOGGLE_BIT(account->acct_flags, flagval);
+        	    found_flag = TRUE;
+        	}
+        	flag_name = strtok(NULL, " ");
+    	}
+
+    	if (found_flag)
+    	    send_to_char("Account flag(s) toggled.\n\r", ch);
+    	else
+        	send_to_char("No valid account flags toggled.\n\r", ch);
+
+	    if (loaded) free_account(account);
+	    return;
+	}
+    else {
+        send_to_char("Unknown account field. Valid: email, charlimit, stafflimit, flags\n\r", ch);
+        if (loaded) free_account(account);
+        return;
+    }
+
+    save_account(account);
+    if (loaded) free_account(account); // Only free if we loaded it from disk
 }
 
 void do_tset(CHAR_DATA *ch, char *argument)

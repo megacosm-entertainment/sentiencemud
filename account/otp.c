@@ -270,71 +270,26 @@ void save_qr_code_as_png(QRcode *qrcode, const char *filename, int scale)
 bool setup_mfa_for_char(CHAR_DATA *ch, bool send_email)
 {
     char key[MIL];
-    char qr_url[MIL];
-    char filename[256];
-    
     if (IS_NPC(ch))
         return false;
-        
+
     // Generate a new key
     generate_totp_key(key, sizeof(key));
-    
+
     // Save key to character
     free_string(ch->pcdata->mfa_key);
     ch->pcdata->mfa_key = str_dup(key);
     ch->pcdata->qr_code_expiration = time(NULL) + 10 * 60;  // 10 minutes
-    
-    // Display key information
+
     send_to_char("Your MFA key has been generated. Please save this key in a safe place.\n\r", ch);
     send_to_char("You will need this key to authenticate with MFA.\n\r", ch);
     send_to_char("Your key is: ", ch);
     send_to_char(ch->pcdata->mfa_key, ch);
     send_to_char("\n\r", ch);
-    
-    // Generate and display QR code
-    generate_totp_qr_url(qr_url, sizeof(qr_url), ch->name, key);
-    send_to_char("You can add this key to your MFA app by scanning the following QR code:\n\r", ch);
-    
-    QRcode *qrcode = QRcode_encodeString(qr_url, 0, QR_ECLEVEL_L, QR_MODE_8, 1);
-    if (qrcode) {
-        // Display QR code to character
-        for (int i = -1; i <= qrcode->width; i++) {
-            for (int j = -1; j <= qrcode->width; j++) {
-                if (i >= 0 && i < qrcode->width && j >= 0 && j < qrcode->width && 
-                    qrcode->data[i * qrcode->width + j] & 1) {
-                    send_to_char("\033[40m  \033[0m", ch);
-                } else {
-                    send_to_char("\033[47m  \033[0m", ch);
-                }
-            }
-            send_to_char("\n\r", ch);
-        }
-        
-        // Save QR code as a PNG
-        sprintf(filename, "/tmp/%s-qrcode.png", ch->name);
-        save_qr_code_as_png(qrcode, filename, 5);
-        
-        // Optionally send email with QR code
-        if (send_email && !IS_NULLSTR(ch->pcdata->email)) {
-            char email_body[1024];
-            sprintf(email_body, 
-                "Dear %s,\n\n"
-                "Your MFA key has been generated. Please save this key in a safe place.\n\n"
-                "You will need this key to authenticate with MFA.\n\n"
-                "Your key is: %s\n\n"
-                "You can add this key to your MFA app by scanning the attached QR code.\n\n",
-                ch->name, key);
-                
-            send_email_async(ch, ch->pcdata->email, "Sentience MUD MFA Key", 
-                          email_body, filename, "image/png");
-        }
-        
-        QRcode_free(qrcode);
-        return true;
-    } else {
-        send_to_char("Error generating QR code.\n\r", ch);
-        return false;
-    }
+
+    // Do NOT generate or display/email QR code here anymore!
+
+    return true;
 }
 
 /*
@@ -345,8 +300,6 @@ bool setup_mfa_for_account(DESCRIPTOR_DATA *d, bool send_email)
 {
     ACCOUNT_DATA *acct;
     char key[MIL];
-    char qr_url[MIL];
-    char filename[256];
     
     if (!d || !(acct = d->account))
         return false;
@@ -366,41 +319,7 @@ bool setup_mfa_for_account(DESCRIPTOR_DATA *d, bool send_email)
     write_to_buffer(d, acct->mfa_key, 0);
     write_to_buffer(d, "\n\r", 0);
     
-    // Generate and display QR code
-    generate_totp_qr_url(qr_url, sizeof(qr_url), acct->username, key);
-    write_to_buffer(d, "You can add this key to your MFA app by scanning the following QR code:\n\r", 0);
-    
-    QRcode *qrcode = QRcode_encodeString(qr_url, 0, QR_ECLEVEL_L, QR_MODE_8, 1);
-    if (qrcode) {
-        // Display QR code in terminal
-        display_qr_code(d, qr_url);
-        
-        // Save QR code as a PNG
-        sprintf(filename, "/tmp/%s-qrcode.png", acct->username);
-        save_qr_code_as_png(qrcode, filename, 5);
-        
-        // Optionally send email with QR code
-        if (send_email && !IS_NULLSTR(acct->email)) {
-            char email_body[1024];
-            sprintf(email_body, 
-                "Dear %s,\n\n"
-                "Your MFA key has been generated. Please save this key in a safe place.\n\n"
-                "You will need this key to authenticate with MFA.\n\n"
-                "Your key is: %s\n\n"
-                "You can add this key to your MFA app by scanning the attached QR code.\n\n",
-                acct->username, key);
-                
-            // Send email with QR code attached
-            send_email_async(NULL, acct->email, "Sentience MUD MFA Key", 
-                          email_body, filename, "image/png");
-        }
-        
-        QRcode_free(qrcode);
-        return true;
-    } else {
-        write_to_buffer(d, "Error generating QR code.\n\r", 0);
-        return false;
-    }
+    return true;
 }
 
 /*
@@ -408,7 +327,7 @@ bool setup_mfa_for_account(DESCRIPTOR_DATA *d, bool send_email)
  */
 bool check_char_mfa(CHAR_DATA *ch, const char *code)
 {
-    if (IS_NPC(ch) || IS_NULLSTR(ch->pcdata->mfa_key))
+    if (IS_NPC(ch) || IS_NULLSTR(ch->pcdata->mfa_pending ? ch->pcdata->mfa_pending_key : ch->pcdata->mfa_key))
         return false;
         
     return validate_totp_code(ch->pcdata->mfa_key, code);
@@ -417,12 +336,10 @@ bool check_char_mfa(CHAR_DATA *ch, const char *code)
 /*
  * Check if a TOTP code is valid for an account
  */
-bool check_account_mfa(ACCOUNT_DATA *acct, const char *code)
-{
-    if (!acct || IS_NULLSTR(acct->mfa_key))
-        return false;
-        
-    return validate_totp_code(acct->mfa_key, code);
+bool check_account_mfa(ACCOUNT_DATA *acct, const char *code) {
+    const char *key = acct->mfa_pending ? acct->mfa_pending_key : acct->mfa_key;
+    if (IS_NULLSTR(key)) return false;
+    return validate_totp_code(key, code);
 }
 
 /*
@@ -508,4 +425,85 @@ void generate_key(CHAR_DATA *ch, char *key)
 bool check_mfa(CHAR_DATA *ch, char *argument)
 {
     return check_char_mfa(ch, argument);
+}
+
+#include <unistd.h> // for unlink()
+
+void send_qr_email_for_char(CHAR_DATA *ch, const char *email, const char *secret) {
+    char qr_url[MIL], filename[256], subject[128], body[1024];
+    generate_totp_qr_url(qr_url, sizeof(qr_url), ch->name, secret);
+
+    QRcode *qrcode = QRcode_encodeString(qr_url, 0, QR_ECLEVEL_L, QR_MODE_8, 1);
+    if (!qrcode) return;
+    snprintf(filename, sizeof(filename), "/tmp/%s-qrcode.png", ch->name);
+    save_qr_code_as_png(qrcode, filename, 5);
+
+    snprintf(subject, sizeof(subject), "Sentience MFA QR Code for %s", ch->name);
+    snprintf(body, sizeof(body),
+        "Dear %s,\n\n"
+        "Scan the attached QR code or enter this secret in your authenticator app:\n\n"
+        "Secret: %s\n\n"
+        "If you did not request this, please contact staff.\n",
+        ch->name, secret);
+
+    // Use send_email_async_ex for better context
+    send_email_async_ex(ch, NULL, (char *)email, subject, body, filename, "image/png");
+
+    QRcode_free(qrcode);
+    delayed_unlink(filename);
+}
+
+void send_recovery_codes_email_for_char(CHAR_DATA *ch, const char *email) {
+    char subject[128], body[1024];
+    snprintf(subject, sizeof(subject), "Sentience MFA Recovery Codes for %s", ch->name);
+    strcpy(body, "Your recovery codes (each can be used once):\n\n");
+    for (int i = 0; i < MFA_RECOVERY_CODES; ++i) {
+        if (ch->pcdata->recovery_codes[i]) {
+            strncat(body, ch->pcdata->recovery_codes[i], sizeof(body) - strlen(body) - 1);
+            if (ch->pcdata->recovery_used[i])
+                strncat(body, " (used)", sizeof(body) - strlen(body) - 1);
+            strncat(body, "\n", sizeof(body) - strlen(body) - 1); // One code per line
+        }
+    }
+    strncat(body, "\nKeep these codes safe. Each can be used only once.\n", sizeof(body) - strlen(body) - 1);
+    send_email_async_ex(ch, NULL, (char *)email, subject, body, NULL, NULL);
+}
+
+void send_qr_email_for_account(ACCOUNT_DATA *acct, const char *email, const char *secret) {
+    char qr_url[MIL], filename[256], subject[128], body[1024];
+    generate_totp_qr_url(qr_url, sizeof(qr_url), acct->username, secret);
+
+    QRcode *qrcode = QRcode_encodeString(qr_url, 0, QR_ECLEVEL_L, QR_MODE_8, 1);
+    if (!qrcode) return;
+    snprintf(filename, sizeof(filename), "/tmp/%s-qrcode.png", acct->username);
+    save_qr_code_as_png(qrcode, filename, 5);
+
+    snprintf(subject, sizeof(subject), "Sentience MFA QR Code for Account %s", acct->username);
+    snprintf(body, sizeof(body),
+        "Dear %s,\n\n"
+        "Scan the attached QR code or enter this secret in your authenticator app:\n\n"
+        "Secret: %s\n\n"
+        "If you did not request this, please contact staff.\n",
+        acct->username, secret);
+
+    send_email_async_ex(NULL, acct, (char *)email, subject, body, filename, "image/png");
+
+    QRcode_free(qrcode);
+    delayed_unlink(filename);
+}
+
+void send_recovery_codes_email_for_account(ACCOUNT_DATA *acct, const char *email) {
+    char subject[128], body[1024];
+    snprintf(subject, sizeof(subject), "Sentience MFA Recovery Codes for Account %s", acct->username);
+    strcpy(body, "Your recovery codes (each can be used once):\n\n");
+    for (int i = 0; i < MFA_RECOVERY_CODES; ++i) {
+        if (acct->recovery_codes[i]) {
+            strncat(body, acct->recovery_codes[i], sizeof(body) - strlen(body) - 1);
+            if (acct->recovery_used[i])
+                strncat(body, " (used)", sizeof(body) - strlen(body) - 1);
+            strncat(body, "\n", sizeof(body) - strlen(body) - 1); // One code per line
+        }
+    }
+    strcat(body, "\nKeep these codes safe. Each can be used only once.\n");
+    send_email_async_ex(NULL, acct, (char *)email, subject, body, NULL, NULL);
 }

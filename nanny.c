@@ -23,33 +23,7 @@
 #include "protocol.h"
 
 
-extern bool	check_parse_name	args((char *name));
-extern bool	check_reconnect		args((DESCRIPTOR_DATA *d, char *name, bool fConn));
-extern bool	check_playing		args((DESCRIPTOR_DATA *d, char *name));
-extern bool acceptablePassword(DESCRIPTOR_DATA *d, char *pass);
-extern void add_possible_subclasses(CHAR_DATA *ch, char *string);
-extern void add_possible_races(CHAR_DATA *ch, char *string);
-extern void save_area_list();
-extern void save_area_new(AREA_DATA *area);
-extern bool load_account(DESCRIPTOR_DATA *d, char *name);
-extern void save_account(ACCOUNT_DATA *account);
-bool account_has_immortal(ACCOUNT_DATA *acct);
-void display_account_menu(DESCRIPTOR_DATA *d);
-void select_character(DESCRIPTOR_DATA *d, ACCOUNT_CHARACTER *ch_entry);
-void complete_character_link(DESCRIPTOR_DATA *d);
-extern void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch);
-void display_character_menu(DESCRIPTOR_DATA *d);
-void setup_character_mfa(DESCRIPTOR_DATA *d);
-extern void account_remove_character(ACCOUNT_DATA *account, const char *name);
-void proceed_to_game(DESCRIPTOR_DATA *d);
-extern bool setup_mfa_for_char(CHAR_DATA *ch, bool send_email);
-extern bool check_char_mfa(CHAR_DATA *ch, const char *code);
-extern bool setup_mfa_for_account(DESCRIPTOR_DATA *d, bool send_email);
-bool check_account_mfa(ACCOUNT_DATA *acct, const char *code);
-extern void send_email_async_ex(CHAR_DATA *ch, ACCOUNT_DATA *acct, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
-void setup_account_mfa(DESCRIPTOR_DATA *d);
-extern bool	process_output		args((DESCRIPTOR_DATA *d, bool fPrompt));
-char* format_location_string(const char* area_name, const char* region_name);
+
 
 
 
@@ -180,6 +154,8 @@ void login_get_name(DESCRIPTOR_DATA *d, char *argument)
         {
             if (game_settings.new_acct_lock)
                 write_to_buffer(d, game_settings.new_acct_lock_msg, 0);
+            else if (game_settings.new_char_lock)
+                write_to_buffer(d, game_settings.new_char_lock_msg, 0);
             else
                 write_to_buffer(d, "New characters are not allowed.\n\r", 0);
             write_to_buffer(d, "The game is newlocked.\n\r", 0);
@@ -1588,6 +1564,15 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
         return;
     }
 
+    // Add to loaded_accounts if not already present
+    acct->refcount++;
+    if (!list_haslink(loaded_accounts, acct))
+        list_addlink(loaded_accounts, acct);  
+
+    free_string(acct->last_login_host);
+    acct->last_login_host = str_dup(d->host);
+    acct->last_login = current_time;
+
     // Show the account menu
     display_account_menu(d);
     d->connected = CON_ACCOUNT_MENU;
@@ -1606,6 +1591,8 @@ void display_account_menu(DESCRIPTOR_DATA *d)
     ITERATOR it;
     ACCOUNT_CHARACTER *ch_entry;
     
+    d->mfa_verified = false;
+
     // Create temporary arrays to store characters for sorting
     ACCOUNT_CHARACTER *staff_chars[100];  // Assuming no more than 100 characters
     ACCOUNT_CHARACTER *regular_chars[100];
@@ -1671,11 +1658,19 @@ void display_account_menu(DESCRIPTOR_DATA *d)
             ch_entry = staff_chars[i];
             const char *staff_rank_str = flag_string(staff_ranks, ch_entry->staff_rank);
             
-            // Format the location string using our helper function
-            const char *loc_str = format_location_string(
+        CHAR_DATA *live_ch = get_char_world(NULL, ch_entry->name);
+        const char *loc_str;
+        if (live_ch && live_ch->in_room) {
+            loc_str = format_location_string(
+            live_ch->in_room->area ? live_ch->in_room->area->name : NULL,
+            (live_ch->in_room->region && live_ch->in_room->region->name) ? live_ch->in_room->region->name : NULL
+            );
+        } else {
+            loc_str = format_location_string(
                 ch_entry->last_area, 
                 ch_entry->last_region
             );
+    }
             
             // Format each column with consistent width using pad_string
             sprintf(name_buf, "{W%s{x", ch_entry->name);
@@ -1708,11 +1703,19 @@ void display_account_menu(DESCRIPTOR_DATA *d)
         for (int i = 0; i < regular_count; i++) {
             ch_entry = regular_chars[i];
             
-            // Format the location string using our helper function
-            const char *loc_str = format_location_string(
+        CHAR_DATA *live_ch = get_char_world(NULL, ch_entry->name);
+        const char *loc_str;
+        if (live_ch && live_ch->in_room) {
+            loc_str = format_location_string(
+                live_ch->in_room->area ? live_ch->in_room->area->name : NULL,
+                (live_ch->in_room->region && live_ch->in_room->region->name) ? live_ch->in_room->region->name : NULL
+            );
+        } else {
+            loc_str = format_location_string(
                 ch_entry->last_area, 
                 ch_entry->last_region
             );
+        }
             
             // Format each column with consistent width using pad_string
             sprintf(name_buf, "{W%s{x", ch_entry->name);
@@ -1724,10 +1727,12 @@ void display_account_menu(DESCRIPTOR_DATA *d)
             
             // Split race and class into separate fields
             sprintf(race_buf, "{W%s{x", 
-                    ch_entry->race_name ? ch_entry->race_name : "Unknown");
+                    ch_entry->race_name ? capitalize(ch_entry->race_name) : "Unknown");
             sprintf(class_buf, "{W%s{x", 
-                    ch_entry->class_name ? ch_entry->class_name : "Adventurer");
+                    ch_entry->class_name ? capitalize(ch_entry->class_name) : "Adventurer");
             
+
+
             sprintf(buf, "{G[%2d]{x %s%s %s%s %s%s %s%s {Y%s{x\n\r",
                     i + staff_count + 1,
                     name_buf,
@@ -1753,21 +1758,37 @@ void display_account_menu(DESCRIPTOR_DATA *d)
     write_to_buffer(d, buf, 0);
 
     int total_count = staff_count + regular_count;
-    if (total_count > 0) {
+    if (total_count == 1) {
+        write_to_buffer(d, "{G1{x) Select character\n\r", 0);
+    } else if (total_count > 1) {
         sprintf(buf, "{G1-%d{x) Select a character\n\r", total_count);
         write_to_buffer(d, buf, 0);
     }
 
-    write_to_buffer(d, "{GC{x) Create a new character\n\r", 0);
-    write_to_buffer(d, "{GL{x) Link existing character\n\r", 0);
+    bool can_create_char = true;
+    if (!account_has_immortal(acct)) {
+        if (game_settings.new_char_lock)
+            can_create_char = false;
+    }
+    if (can_create_char) {
+        write_to_buffer(d, "{GC{x) Create a new character\n\r", 0);
+    }
+
+    if (acct->acct_flags & IS_SET(acct->acct_flags,ACCT_CAN_CREATE_STAFF)) {
+        int staff_limit = acct->staff_limit;
+        int staff_count = account_count_staff_characters(acct);
+        if (staff_limit == 0 || staff_count < staff_limit) {
+            write_to_buffer(d, "{GI{x) Create a new staff character\n\r", 0);
+        }
+    }
+    if (can_link_characters(acct)) {
+        write_to_buffer(d, "{GL{x) Link existing character\n\r", 0);
+    }
     
     write_to_buffer(d, "{GE{x) Change email address\n\r", 0);
     write_to_buffer(d, "{GP{x) Change password\n\r", 0);
     
-    if (!IS_NULLSTR(acct->mfa_key))
-        write_to_buffer(d, "{GM{x) MFA settings\n\r", 0);
-    else
-        write_to_buffer(d, "{GM{x) Enable MFA\n\r", 0);
+    write_to_buffer(d, "{GM{x) MFA settings\n\r", 0);
         
     write_to_buffer(d, "{GQ{x) Quit\n\r\n\r", 0);
     write_to_buffer(d, "Enter choice: ", 0);
@@ -1845,98 +1866,23 @@ void login_verify_account_password(DESCRIPTOR_DATA *d, char *argument)
     d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
 }
 
-// Handle MFA menu options
-void login_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument)
-{
-    ACCOUNT_DATA *acct = d->account;
-    char buf[MAX_STRING_LENGTH];
-    
-    switch (argument[0]) {
-        case '1': // Toggle MFA
-            acct->mfa_enabled = !acct->mfa_enabled;
-            
-            sprintf(buf, "MFA has been turned %s.\n\r", 
-                acct->mfa_enabled ? "ON" : "OFF");
-            write_to_buffer(d, buf, 0);
-            
-            save_account(acct);
-            
-            // Return to MFA menu
-            write_to_buffer(d, "\n\r{B=={W[ {YMFA SETTINGS {W]{B=={x\n\r\n\r", 0);
-            
-            sprintf(buf, "MFA is currently: %s\n\r", 
-                acct->mfa_enabled ? "{GON{x" : "{ROFF{x");
-            write_to_buffer(d, buf, 0);
-            
-            write_to_buffer(d, "\n\r{G1{x) Toggle MFA on/off\n\r", 0);
-            write_to_buffer(d, "{G2{x) Regenerate MFA key\n\r", 0);
-            write_to_buffer(d, "{GB{x) Back to account menu\n\r\n\r", 0);
-            write_to_buffer(d, "Enter choice: ", 0);
-            break;
-            
-        case '2': // Regenerate MFA key
-            if (acct->mfa_enabled) {
-                write_to_buffer(d, "You must disable MFA before regenerating a new key.\n\r", 0);
-                
-                // Return to MFA menu
-                write_to_buffer(d, "\n\r{B=={W[ {YMFA SETTINGS {W]{B=={x\n\r\n\r", 0);
-                
-                sprintf(buf, "MFA is currently: %s\n\r", 
-                    acct->mfa_enabled ? "{GON{x" : "{ROFF{x");
-                write_to_buffer(d, buf, 0);
-                
-                write_to_buffer(d, "\n\r{G1{x) Toggle MFA on/off\n\r", 0);
-                write_to_buffer(d, "{G2{x) Regenerate MFA key\n\r", 0);
-                write_to_buffer(d, "{GB{x) Back to account menu\n\r\n\r", 0);
-                write_to_buffer(d, "Enter choice: ", 0);
-            } else {
-                // Proceed with regeneration
-                write_to_buffer(d, "\n\r{YRegenerating MFA key for your account...{x\n\r", 0);
-                setup_account_mfa(d);
-            }
-            break;
-            
-        case 'B': case 'b': // Back to account menu
-            display_account_menu(d);
-            d->connected = CON_ACCOUNT_MENU;
-            break;
-            
-        default:
-            write_to_buffer(d, "Invalid choice.\n\r", 0);
-            
-            // Return to MFA menu
-            write_to_buffer(d, "\n\r{B=={W[ {YMFA SETTINGS {W]{B=={x\n\r\n\r", 0);
-            
-            sprintf(buf, "MFA is currently: %s\n\r", 
-                acct->mfa_enabled ? "{GON{x" : "{ROFF{x");
-            write_to_buffer(d, buf, 0);
-            
-            write_to_buffer(d, "\n\r{G1{x) Toggle MFA on/off\n\r", 0);
-            write_to_buffer(d, "{G2{x) Regenerate MFA key\n\r", 0);
-            write_to_buffer(d, "{GB{x) Back to account menu\n\r\n\r", 0);
-            write_to_buffer(d, "Enter choice: ", 0);
-            break;
-    }
-}
-
 void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
 {
-    char buf[MAX_STRING_LENGTH];
     ACCOUNT_DATA *acct = d->account;
     ACCOUNT_CHARACTER *ch_entry;
     int choice = 0;
     ITERATOR it;
-    
+
     // Arrays to store sorted characters
     ACCOUNT_CHARACTER *staff_chars[100];
     ACCOUNT_CHARACTER *regular_chars[100];
     int staff_count = 0;
     int regular_count = 0;
-    
+
     // Handle number choices (character selection)
     if (isdigit(argument[0])) {
         choice = atoi(argument);
-        
+
         // First separate and count staff/regular characters
         iterator_start(&it, acct->characters);
         while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
@@ -1971,78 +1917,104 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
         }
         
         int total_count = staff_count + regular_count;
-        
+
         if (choice < 1 || choice > total_count) {
             write_to_buffer(d, "Invalid character selection.\n\r", 0);
             display_account_menu(d);
             return;
         }
-        
+
         // Find the selected character
         if (choice <= staff_count) {
-            // It's a staff character - use the staff array
             ch_entry = staff_chars[choice - 1];
         } else {
-            // It's a regular character - use the regular array
             ch_entry = regular_chars[choice - staff_count - 1];
         }
-        
-        // Select the character
+
         select_character(d, ch_entry);
         return;
     }
-    
+
     // Handle letter choices (menu options)
     switch (toupper(argument[0])) {
         case 'C': // Create new character
+            if (!account_has_immortal(acct) && game_settings.new_char_lock) {
+                if (!IS_NULLSTR(game_settings.new_char_lock_msg))
+                    write_to_buffer(d, game_settings.new_char_lock_msg, 0);
+                else
+                    write_to_buffer(d, "New characters are not being accepted at this time.\n\r", 0);
+                display_account_menu(d);
+                return;
+            }
+            {
+                int max_chars = (acct->character_limit > 0) ? acct->character_limit : game_settings.max_characters;
+                int nonstaff_count = account_count_nonstaff_characters(acct);
+                if (max_chars > 0 && nonstaff_count >= max_chars) {
+                    write_to_buffer(d, "\n\r{RYou have reached the maximum number of characters for your account.{x\n\r", 0);
+                    write_to_buffer(d, "Delete an existing character or contact staff for assistance.\n\r", 0);
+                    display_account_menu(d);
+                    return;
+                }
+            }
             write_to_buffer(d, "\n\rWhat will be your character's name? ", 0);
             d->connected = CON_CREATING_NEW_CHAR;
             return;
-            
-        case 'L': // Link existing character - new option
+
+        case 'I': // Create new staff character
+            if (!IS_SET(acct->acct_flags,ACCT_CAN_CREATE_STAFF)) {
+                write_to_buffer(d, "\n\r{RYou do not have permission to create staff characters.{x\n\r", 0);
+                display_account_menu(d);
+                return;
+            }
+            {
+                int staff_limit = acct->staff_limit;
+                int staff_count = account_count_staff_characters(acct);
+                if (staff_limit > 0 && staff_count >= staff_limit) {
+                    write_to_buffer(d, "\n\r{RYou have reached your staff character limit for this account.{x\n\r", 0);
+                    display_account_menu(d);
+                    return;
+                }
+            }
+            write_to_buffer(d, "\n\rWhat will be your staff character's name? ", 0);
+            d->connected = CON_CREATING_NEW_STAFF_CHAR;
+            return;
+
+        case 'L': // Link existing character
+            if (!can_link_characters(acct)) {
+                write_to_buffer(d, "Linking is not available for your account.\n\r", 0);
+                display_account_menu(d);
+                return;
+            }
             write_to_buffer(d, "\n\rEnter the name of the character to link: ", 0);
             d->connected = CON_LINK_CHARACTER_NAME;
             return;
-            
+
         case 'E': // Change email address
             write_to_buffer(d, "\n\rCurrent email: ", 0);
             write_to_buffer(d, IS_NULLSTR(acct->email) ? "Not set\n\r" : acct->email, 0);
             write_to_buffer(d, "\n\rEnter new email address: ", 0);
             d->connected = CON_CHANGE_ACCOUNT_EMAIL;
             return;
-            
+
         case 'P': // Change password
             write_to_buffer(d, "\n\rEnter your current password: ", 0);
             ProtocolNoEcho(d, true);
             d->connected = CON_VERIFY_ACCOUNT_PASSWORD;
             break;
-            
+
         case 'M': // MFA settings
-            if (IS_NULLSTR(acct->mfa_key)) {
-                // No MFA set up yet
-                write_to_buffer(d, "\n\r{YConfiguring MFA for your account...{x\n\r", 0);
-                setup_account_mfa(d);
-            } else {
-                // Show MFA options
-                write_to_buffer(d, "\n\r{B=={W[ {YMFA SETTINGS {W]{B=={x\n\r\n\r", 0);
-                
-                sprintf(buf, "MFA is currently: %s\n\r", 
-                    acct->mfa_enabled ? "{GON{x" : "{ROFF{x");
-                write_to_buffer(d, buf, 0);
-                
-                write_to_buffer(d, "\n\r{G1{x) Toggle MFA on/off\n\r", 0);
-                write_to_buffer(d, "{G2{x) Regenerate MFA key\n\r", 0);
-                write_to_buffer(d, "{GB{x) Back to account menu\n\r\n\r", 0);
-                write_to_buffer(d, "Enter choice: ", 0);
-                d->connected = CON_ACCOUNT_MFA_MENU;
-            }
+            display_account_mfa_menu(d, "");
             break;
-            
+
         case 'Q': // Quit
             write_to_buffer(d, "\n\rThank you for playing Sentience!\n\r", 0);
             close_socket(d);
             break;
-            
+
+        case 'B': // Back (if you want to support it)
+            // Optionally handle a back action here
+            break;
+
         default:
             write_to_buffer(d, "Invalid choice.\n\r", 0);
             display_account_menu(d);
@@ -2123,10 +2095,19 @@ void login_get_account_email(DESCRIPTOR_DATA *d, char *argument)
     
     free_string(acct->email);
     acct->email = str_dup(argument);
+
+    free_string(acct->creation_host);
+    acct->creation_host = str_dup(d->host);
     
     // Save the account
     save_account(acct);
-    
+
+    // Add to loaded_accounts if not already present
+    acct->refcount++;
+
+    if (!list_haslink(loaded_accounts, acct))
+        list_addlink(loaded_accounts, acct);
+
     // Always show the account menu after email is provided, whether this is a new account or not
     write_to_buffer(d, "\n\rAccount successfully created! You can now create characters and manage your account.\n\r", 0);
     display_account_menu(d);
@@ -2368,6 +2349,7 @@ void display_character_menu(DESCRIPTOR_DATA *d)
     CHAR_DATA *ch = d->character;
     char buf[MAX_STRING_LENGTH];
     char label[50], value[100];
+    d->mfa_verified = false;
     
     write_to_buffer(d, "\n\r{B=={W[ {YCHARACTER MENU {W]{B=={x\n\r\n\r", 0);
     
@@ -2497,17 +2479,15 @@ if (!IS_NULLSTR(ch->pcdata->last_area) || (!IS_NULLSTR(ch->pcdata->last_region) 
     sprintf(buf, "{C%s{x\n\r", pad_string("", 60, NULL, "="));
     write_to_buffer(d, buf, 0);
     
-    write_to_buffer(d, "{G1{x) Log in with this character\n\r", 0);
-    write_to_buffer(d, "{G2{x) Set character password\n\r", 0);
+    write_to_buffer(d, "{GL{x) Log in with this character\n\r", 0);
+    write_to_buffer(d, "{GP{x) Set character password\n\r", 0);
     
-    if (!IS_NULLSTR(ch->pcdata->mfa_key)) {
-        sprintf(buf, "{G3{x) %s character MFA\n\r", ch->pcdata->mfa_enabled ? "Disable" : "Enable");
-    } else {
-        sprintf(buf, "{G3{x) Configure character MFA\n\r");
-    }
-    write_to_buffer(d, buf, 0);
+    write_to_buffer(d, "{GM{x) MFA settings\n\r", 0);
     
-    write_to_buffer(d, "{G4{x) Delete this character\n\r", 0);
+    if (can_unlink_characters(d->account))
+        write_to_buffer(d, "{GU{x) Unlink this character\n\r", 0);
+    
+    write_to_buffer(d, "{GD{x) Delete this character\n\r", 0);
     write_to_buffer(d, "{GB{x) Back to account menu\n\r\n\r", 0);
     write_to_buffer(d, "Enter choice: ", 0);
     
@@ -2644,29 +2624,21 @@ void login_confirm_delete_character(DESCRIPTOR_DATA *d, char *argument)
 void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
 {
     CHAR_DATA *ch = d->character;
-    
+
     switch (toupper(argument[0])) {
-        case '1': // Log in with this character
-            // Check if character is already playing
+        case 'L': // Log in with this character
             if (check_playing(d, ch->name))
                 return;
-                
             if (check_reconnect(d, ch->name, true))
                 return;
-            
-            // Check if this is a staff character and MFA is required but not enabled
-            if (IS_IMMORTAL(ch) && game_settings.require_2fa_staff && 
+            if (IS_IMMORTAL(ch) && game_settings.require_2fa_staff &&
                 (IS_NULLSTR(ch->pcdata->mfa_key) || !ch->pcdata->mfa_enabled) &&
                 (IS_NULLSTR(d->account->mfa_key) || !d->account->mfa_enabled)) {
-                
                 write_to_buffer(d, "\n\r{RERROR: Staff characters require MFA to be enabled.{x\n\r", 0);
                 write_to_buffer(d, "You must enable MFA on either your account or this character before logging in.\n\r", 0);
-                
                 display_character_menu(d);
                 return;
             }
-            
-            // Check if this character has additional password security
             if (ch->pcdata->account_pwd_override) {
                 write_to_buffer(d, "\n\rThis character requires an additional password.\n\r", 0);
                 write_to_buffer(d, "Enter character password: ", 0);
@@ -2674,32 +2646,24 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
                 d->connected = CON_GET_CHAR_PASSWORD;
                 return;
             }
-                
-            // Check if this character has additional MFA security
             if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled) {
                 write_to_buffer(d, "\n\rThis character has MFA enabled.\n\r", 0);
                 write_to_buffer(d, "Enter MFA code: ", 0);
                 d->connected = CON_GET_CHAR_MFA;
                 return;
             }
-            
-            // If this is a staff character and the account has MFA enabled
-            // but the character doesn't, require account MFA verification
-            if (IS_IMMORTAL(ch) && !IS_NULLSTR(d->account->mfa_key) && 
-                d->account->mfa_enabled && 
+            if (IS_IMMORTAL(ch) && !IS_NULLSTR(d->account->mfa_key) &&
+                d->account->mfa_enabled &&
                 (IS_NULLSTR(ch->pcdata->mfa_key) || !ch->pcdata->mfa_enabled)) {
-                
                 write_to_buffer(d, "\n\rThis is a staff character. Account MFA verification required.\n\r", 0);
                 write_to_buffer(d, "Enter MFA code: ", 0);
                 d->connected = CON_GET_ACCOUNT_MFA_FOR_CHAR;
                 return;
             }
-            
-            // All set, proceed to MOTD
             proceed_to_game(d);
             break;
-        
-        case '2': // Set character password
+
+        case 'P': // Set/change character password
             if (ch->pcdata->account_pwd_override) {
                 write_to_buffer(d, "This character already has a unique password.\n\r", 0);
                 write_to_buffer(d, "Do you want to change it? (Y/N): ", 0);
@@ -2710,34 +2674,29 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
             }
             d->connected = CON_CHARACTER_PASSWORD;
             break;
-            
-        case '3': // Configure MFA
-            if (IS_NULLSTR(ch->pcdata->mfa_key)) {
-                // No MFA configured yet, generate a new key
-                write_to_buffer(d, "\n\r{YConfiguring MFA for this character...{x\n\r", 0);
-                setup_character_mfa(d);
-            } else {
-                // Toggle existing MFA
-                write_to_buffer(d, "\n\r", 0);
-                if (ch->pcdata->mfa_enabled) {
-                    write_to_buffer(d, "Disable MFA for this character? (Y/N): ", 0);
-                } else {
-                    write_to_buffer(d, "Enable MFA for this character? (Y/N): ", 0);
-                }
-                d->connected = CON_CHARACTER_MFA_TOGGLE;
-            }
+
+        case 'M': // MFA settings
+            display_character_mfa_menu(d, "");
             break;
-            
-        case '4': // Delete character
-            // Don't allow staff characters to be deleted through the menu
+
+        case 'U': // Unlink (if allowed)
+            if (!can_unlink_characters(d->account)) {
+                write_to_buffer(d, "Unlinking is not available for your account.\n\r", 0);
+                display_character_menu(d);
+                return;
+            }
+            // Implement unlink logic here (prompt for confirmation, etc.)
+            write_to_buffer(d, "Unlinking not yet implemented.\n\r", 0);
+            display_character_menu(d);
+            break;
+
+        case 'D': // Delete character
             if (IS_IMMORTAL(ch)) {
                 write_to_buffer(d, "\n\r{RStaff characters cannot be deleted through the menu.{x\n\r", 0);
                 write_to_buffer(d, "Please contact an administrator for assistance.\n\r", 0);
                 display_character_menu(d);
                 return;
             }
-            
-            // First check if there's a character-specific password
             if (ch->pcdata->account_pwd_override) {
                 write_to_buffer(d, "\n\r{RThis character requires password verification before deletion.{x\n\r", 0);
                 write_to_buffer(d, "Enter character password: ", 0);
@@ -2745,30 +2704,24 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
                 d->connected = CON_VERIFY_DELETE_PASSWORD;
                 return;
             }
-            
-            // Check if character has MFA
             if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled) {
                 write_to_buffer(d, "\n\r{RThis character has MFA enabled. Please authenticate:{x\n\r", 0);
                 write_to_buffer(d, "Enter MFA code: ", 0);
                 d->connected = CON_VERIFY_DELETE_MFA;
                 return;
             }
-            
-            // If no special auth is needed, proceed to confirmation
             write_to_buffer(d, "\n\r{RWARNING: This will permanently delete this character!{x\n\r", 0);
             write_to_buffer(d, "Type 'DELETE' to confirm: ", 0);
             d->connected = CON_CONFIRM_DELETE_CHARACTER;
             break;
-            
-        case 'B': case 'b': // Back to account menu
-            // Clean up character data
+
+        case 'B': // Back to account menu
             free_char(d->character);
             d->character = NULL;
-            
             display_account_menu(d);
             d->connected = CON_ACCOUNT_MENU;
             break;
-            
+
         default:
             write_to_buffer(d, "Invalid choice.\n\r", 0);
             display_character_menu(d);
@@ -2819,6 +2772,7 @@ void login_get_char_password(DESCRIPTOR_DATA *d, char *argument)
     }
     
     // Password correct, proceed to game
+    ProtocolNoEcho(d, false);
     proceed_to_game(d);
 }
 
@@ -2826,14 +2780,14 @@ void login_get_char_mfa(DESCRIPTOR_DATA *d, char *argument)
 {
     CHAR_DATA *ch = d->character;
     
-    if (!check_char_mfa(ch, argument)) {
+    if (!check_char_mfa(ch, argument) || check_recovery_code(ch, argument)) {
         write_to_buffer(d, "Invalid MFA code.\n\r", 0);
         // Return to character menu
         display_character_menu(d);
         d->connected = CON_CHARACTER_MENU;
         return;
     }
-    
+    ProtocolNoEcho(d, false);
     // MFA verified, proceed to game
     proceed_to_game(d);
 }
@@ -2875,7 +2829,7 @@ void setup_account_mfa(DESCRIPTOR_DATA *d)
 void login_character_mfa_verify(DESCRIPTOR_DATA *d, char *argument)
 {
     CHAR_DATA *ch = d->character;
-    
+
     if (!check_char_mfa(ch, argument)) {
         write_to_buffer(d, "Invalid MFA code. MFA setup has been aborted.\n\r", 0);
         free_string(ch->pcdata->mfa_key);
@@ -2885,42 +2839,49 @@ void login_character_mfa_verify(DESCRIPTOR_DATA *d, char *argument)
         d->connected = CON_CHARACTER_MENU;
         return;
     }
-    
+
     ch->pcdata->mfa_enabled = true;
     save_char_obj(ch);
-    
+
     write_to_buffer(d, "MFA has been successfully enabled for this character.\n\r", 0);
+
+    if (d->creating_staff_character) {
+        d->creating_staff_character = false; // Clear flag
+        finalize_staff_character_creation(d);
+        return;
+    }
+
     display_character_menu(d);
     d->connected = CON_CHARACTER_MENU;
 }
 
-void login_account_mfa_verify(DESCRIPTOR_DATA *d, char *argument)
-{
+void login_account_mfa_confirm(DESCRIPTOR_DATA *d, char *argument) {
     ACCOUNT_DATA *acct = d->account;
-    
-    if (!check_account_mfa(acct, argument)) {
-        write_to_buffer(d, "Invalid MFA code. MFA setup has been aborted.\n\r", 0);
+    if (check_account_mfa(acct, argument)) {
+        // Promote the pending key!
         free_string(acct->mfa_key);
-        acct->mfa_key = str_dup("");
-        acct->mfa_enabled = false;
-        display_account_menu(d);
-        d->connected = CON_ACCOUNT_MENU;
-        return;
+        acct->mfa_key = str_dup(acct->mfa_pending_key);
+        acct->mfa_enabled = true;
+        acct->mfa_pending = false;
+        free_string(acct->mfa_pending_key);
+        acct->mfa_pending_key = str_dup("");
+        generate_recovery_codes(acct->recovery_codes, acct->recovery_used, MFA_RECOVERY_CODES);
+        save_account(acct);
+
+        d->mfa_verified = true;
+
+        write_to_buffer(d, "MFA setup complete and enabled for your account.\n\r", 0);
+        display_account_mfa_menu(d, "");
+    } else {
+        write_to_buffer(d, "Invalid MFA code. Please try again: ", 0);
     }
-    
-    acct->mfa_enabled = true;
-    save_account(acct);
-    
-    write_to_buffer(d, "MFA has been successfully enabled for your account.\n\r", 0);
-    display_account_menu(d);
-    d->connected = CON_ACCOUNT_MENU;
 }
 
 void login_get_account_mfa(DESCRIPTOR_DATA *d, char *argument)
 {
     ACCOUNT_DATA *acct = d->account;
     
-    if (!check_account_mfa(acct, argument)) {
+    if (!check_account_mfa(acct, argument) && !check_account_recovery_code(acct, argument)) {
         write_to_buffer(d, "Invalid MFA code.\n\r", 0);
         d->login_attempts++;
         
@@ -2935,6 +2896,7 @@ void login_get_account_mfa(DESCRIPTOR_DATA *d, char *argument)
     }
     
     // Log the successful connection
+    ProtocolNoEcho(d, false);
     sprintf(log_buf, "Account %s@%s has connected.", acct->username, d->host);
     log_string(log_buf);
 
@@ -2955,6 +2917,15 @@ void login_get_account_mfa(DESCRIPTOR_DATA *d, char *argument)
         d->connected = CON_CHANGE_PASSWORD;
         return;
     }
+
+    // Add to loaded_accounts if not already present
+    acct->refcount++;
+    if (!list_haslink(loaded_accounts, acct))
+        list_addlink(loaded_accounts, acct);
+
+    free_string(acct->last_login_host);
+    acct->last_login_host = str_dup(d->host);
+    acct->last_login = current_time;
 
     // Show the account menu
     display_account_menu(d);
@@ -3128,6 +3099,10 @@ bool account_has_immortal(ACCOUNT_DATA *acct)
     bool has_immortal = false;
     DESCRIPTOR_DATA temp_d;
     
+    // If the account can create staff, treat as staff-capable
+    if (IS_SET(acct->acct_flags,ACCT_CAN_CREATE_STAFF))
+        return true;
+
     if (!acct || !acct->characters)
         return false;
     
@@ -3177,6 +3152,574 @@ bool account_has_immortal(ACCOUNT_DATA *acct)
     return has_immortal;
 }
 
+void login_creating_new_staff_char(DESCRIPTOR_DATA *d, char *argument)
+{
+    CHAR_DATA *ch;
+    //char buf[MAX_STRING_LENGTH];
+
+    argument[0] = UPPER(argument[0]);
+    if (!check_parse_name(argument)) {
+        write_to_buffer(d, "Illegal character name, try another.\n\r", 0);
+        write_to_buffer(d, "Staff character name: ", 0);
+        return;
+    }
+
+    // Check if character exists
+    if (player_exists(argument)) {
+        write_to_buffer(d, "That character already exists. Please choose another name.\n\r", 0);
+        write_to_buffer(d, "Staff character name: ", 0);
+        return;
+    }
+
+    // Free any previous character
+    if (d->character != NULL) {
+        free_char(d->character);
+        d->character = NULL;
+    }
+
+    d->character = new_char();
+    ch = d->character;
+    ch->desc = d;
+    if (ch->pcdata == NULL)
+        ch->pcdata = new_pcdata();
+
+    free_string(ch->name);
+    ch->name = str_dup(argument);
+
+    // Mark as staff
+    ch->pcdata->staff_rank = STAFF_IMMORTAL;
+    ch->pcdata->creation_date = current_time;
+
+    write_to_buffer(d, "Enter an email address for this staff character: ", 0);
+    d->connected = CON_GET_STAFF_EMAIL;
+}
+
+void login_get_staff_email(DESCRIPTOR_DATA *d, char *argument)
+{
+    CHAR_DATA *ch = d->character;
+
+    if (argument[0] == '\0' || !strstr(argument, "@") || !strstr(argument, ".")) {
+        write_to_buffer(d, "That's not a valid email address.\n\r", 0);
+        write_to_buffer(d, "Enter an email address for this staff character: ", 0);
+        return;
+    }
+
+    free_string(ch->pcdata->email);
+    ch->pcdata->email = str_dup(argument);
+
+    write_to_buffer(d, "Should this staff character require individual MFA? (Y/N): ", 0);
+    d->connected = CON_STAFF_MFA_PROMPT;
+}
+
+void login_staff_mfa_prompt(DESCRIPTOR_DATA *d, char *argument)
+{
+    CHAR_DATA *ch = d->character;
+    switch (toupper(argument[0])) {
+        case 'Y':
+            d->creating_staff_character = true;
+            setup_character_mfa(d);
+            break;
+        case 'N':
+            // If game requires unique passwords for staff, prompt for password
+            if (game_settings.require_uniq_pass_staff) {
+                write_to_buffer(d, "Enter a unique password for this staff character: ", 0);
+                ProtocolNoEcho(d, true);
+                d->connected = CON_STAFF_PASSWORD;
+            } else {
+                // Use account password
+                if (!ch->pcdata) ch->pcdata = new_pcdata();
+                if (!d->account->passwd || IS_NULLSTR(d->account->passwd)) {
+                    write_to_buffer(d, "Account password is not set. Cannot use as staff password.\n\r", 0);
+                    write_to_buffer(d, "Enter a unique password for this staff character: ", 0);
+                    ProtocolNoEcho(d, true);
+                    d->connected = CON_STAFF_PASSWORD;
+                    break;
+                }
+                free_string(ch->pcdata->pwd);
+                ch->pcdata->pwd = str_dup(d->account->passwd);
+                ch->pcdata->pwd_vers = d->account->passwd_version;
+                ch->pcdata->account_pwd_override = false;
+                // Finalize
+                finalize_staff_character_creation(d);
+            }
+            break;
+        default:
+            write_to_buffer(d, "Please answer Y or N: ", 0);
+            break;
+    }
+}
+
+void login_staff_password(DESCRIPTOR_DATA *d, char *argument)
+{
+    CHAR_DATA *ch = d->character;
+    if (!acceptablePassword(d, argument))
+        return;
+
+    // Password must not match account password
+    if (!strcmp(sha256_crypt(argument), d->account->passwd)) {
+        write_to_buffer(d, "Password must be different from your account password.\n\r", 0);
+        write_to_buffer(d, "Enter a unique password for this staff character: ", 0);
+        return;
+    }
+
+    free_string(ch->pcdata->pwd);
+    ch->pcdata->pwd = str_dup(sha256_crypt(argument));
+    ch->pcdata->pwd_vers = 1;
+    ch->pcdata->account_pwd_override = true;
+
+    write_to_buffer(d, "Please retype password: ", 0);
+    d->connected = CON_CONFIRM_STAFF_PASSWORD;
+}
+
+void login_confirm_staff_password(DESCRIPTOR_DATA *d, char *argument)
+{
+    CHAR_DATA *ch = d->character;
+    if (strcmp(sha256_crypt(argument), ch->pcdata->pwd)) {
+        write_to_buffer(d, "Passwords don't match.\n\rEnter a unique password for this staff character: ", 0);
+        d->connected = CON_STAFF_PASSWORD;
+        return;
+    }
+    finalize_staff_character_creation(d);
+}
+
+void finalize_staff_character_creation(DESCRIPTOR_DATA *d)
+{
+    CHAR_DATA *ch = d->character;
+    ACCOUNT_DATA *acct = d->account;
+
+    // Link to account
+    free_string(ch->pcdata->account_name);
+    ch->pcdata->account_name = str_dup(acct->username);
+    ch->pcdata->account_id[0] = acct->id[0];
+    ch->pcdata->account_id[1] = acct->id[1];
+
+    // Mark as staff
+    ch->pcdata->staff_rank = STAFF_IMMORTAL;
+
+    // Add to account
+    account_add_character(acct, ch);
+    save_account(acct);
+    save_char_obj(ch);
+
+    write_to_buffer(d, "\n\rStaff character created successfully!\n\r", 0);
+    free_char(ch);
+    d->character = NULL;
+    display_account_menu(d);
+    d->connected = CON_ACCOUNT_MENU;
+}
+
+void display_character_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
+    CHAR_DATA *ch = d->character;
+    bool mfa_enabled = ch->pcdata->mfa_enabled;
+    bool mfa_pending = ch->pcdata->mfa_pending;
+    bool has_secret = !IS_NULLSTR(ch->pcdata->mfa_pending_key) || !IS_NULLSTR(ch->pcdata->mfa_key);
+    bool has_recovery = has_recovery_codes((const char **)ch->pcdata->recovery_codes, MFA_RECOVERY_CODES);
+    bool has_email = !IS_NULLSTR(ch->pcdata->email);
+    char buf[MAX_STRING_LENGTH];
+
+    write_to_buffer(d, "\n\r{B=={W[ {YMFA SETTINGS {W]{B=={x\n\r", 0);
+    sprintf(buf, "MFA is currently: %s\n\r",
+        mfa_enabled ? "{GENABLED{x" : (mfa_pending ? "{YSETUP IN PROGRESS{x" : "{ROFF{x"));
+    write_to_buffer(d, buf, 0);
+
+    // --- Setup Section ---
+    if (!mfa_enabled && !mfa_pending) {
+        write_to_buffer(d, "\n\r{CSetup:{x\n\r{GS{x) Set up MFA\n\r", 0);
+    } else if (mfa_pending) {
+        write_to_buffer(d, "\n\r{CSetup:{x\n\r{GC{x) Confirm MFA setup\n\r", 0);
+    }
+
+    // --- QR Code Section ---
+    bool show_qr_section = (has_secret && has_email) || has_secret;
+    if (show_qr_section) {
+        write_to_buffer(d, "\n\r{CQR Code:{x\n\r", 0);
+        if (has_secret)
+            write_to_buffer(d, "{GD{x) Display QR code in terminal\n\r", 0);
+        if (has_secret && has_email)
+            write_to_buffer(d, "{GQ{x) Email QR code\n\r", 0);
+    }
+
+    // --- Recovery Codes Section ---
+    bool show_recovery_section = (mfa_enabled || mfa_pending) && has_recovery;
+    if (show_recovery_section) {
+        write_to_buffer(d, "\n\r{CRecovery Codes:{x\n\r", 0);
+        write_to_buffer(d, "{GV{x) Show recovery codes\n\r", 0);
+        if (has_email)
+            write_to_buffer(d, "{GE{x) Email recovery codes\n\r", 0);
+    }
+
+    // --- Actions Section ---
+    bool show_actions = (mfa_enabled || mfa_pending);
+    if (show_actions) {
+        write_to_buffer(d, "\n\r{CActions:{x\n\r", 0);
+        if (mfa_enabled || mfa_pending)
+            write_to_buffer(d, "{GX{x) Disable MFA\n\r", 0);
+        // Only show generate/regenerate if not pending
+        if (mfa_enabled) {
+            write_to_buffer(d, has_recovery ? "{GG{x) Regenerate recovery codes\n\r" : "{GG{x) Generate recovery codes\n\r", 0);
+        }
+    }
+
+    write_to_buffer(d, "\n\r{GB{x) Back to character menu\n\r", 0);
+    write_to_buffer(d, "Enter choice: ", 0);
+
+    d->connected = CON_CHARACTER_MFA_MENU;
+}
+
+void login_character_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
+    CHAR_DATA *ch = d->character;
+    switch (toupper(argument[0])) {
+        case '1': // Start MFA setup
+        {
+            char key[MIL];
+            char qr_url[MIL];
+            char *secret = generate_totp_key(key, sizeof(key));
+            free_string(ch->pcdata->mfa_pending_key);
+            ch->pcdata->mfa_pending_key = str_dup(secret);
+            ch->pcdata->mfa_pending = true;
+            generate_totp_qr_url(qr_url, sizeof(qr_url), ch->name, secret);
+            display_qr_code(d, qr_url);
+            write_to_buffer(d, "\n\rMFA setup started. Use your authenticator app to scan the QR code or enter the secret above.\n\r", 0);
+            write_to_buffer(d, "You must confirm MFA setup before it is enabled.\n\r", 0);
+            display_character_mfa_menu(d, "");
+        }
+break;
+        case '2': // Confirm MFA setup
+            if (!ch->pcdata->mfa_pending) {
+                write_to_buffer(d, "No MFA setup in progress.\n\r", 0);
+                display_character_mfa_menu(d, "");
+                return;
+            }
+            write_to_buffer(d, "Enter a code from your authenticator app: ", 0);
+            d->connected = CON_CHARACTER_MFA_CONFIRM;
+            break;
+        case '3': // Email QR code
+            if (IS_NULLSTR(ch->pcdata->email)) {
+                write_to_buffer(d, "No email address set for this character.\n\r", 0);
+            } else {
+                // Email QR code (implement send_qr_email_for_char)
+                send_qr_email_for_char(ch, ch->pcdata->email, ch->pcdata->mfa_pending_key ? ch->pcdata->mfa_pending_key : ch->pcdata->mfa_key);
+                write_to_buffer(d, "QR code emailed.\n\r", 0);
+            }
+            display_character_mfa_menu(d, "");
+            break;
+        case '4': // Disable MFA
+            write_to_buffer(d, "Are you sure you want to disable MFA? (Y/N): ", 0);
+            d->connected = CON_CHARACTER_MFA_DISABLE_CONFIRM;
+            break;
+        case '5': // Show recovery codes
+            display_recovery_codes(d, ch);
+            display_character_mfa_menu(d, "");
+            break;
+        case '6': // Email recovery codes
+            if (IS_NULLSTR(ch->pcdata->email)) {
+                write_to_buffer(d, "No email address set for this character.\n\r", 0);
+            } else {
+                // Email recovery codes (implement send_recovery_codes_email_for_char)
+                send_recovery_codes_email_for_char(ch, ch->pcdata->email);
+                write_to_buffer(d, "Recovery codes emailed.\n\r", 0);
+            }
+            display_character_mfa_menu(d, "");
+            break;
+        case '7': // Regenerate recovery codes
+            generate_recovery_codes(ch->pcdata->recovery_codes, ch->pcdata->recovery_used, MFA_RECOVERY_CODES);
+            save_char_obj(ch);
+            write_to_buffer(d, "Recovery codes regenerated.\n\r", 0);
+            display_recovery_codes(d, ch);
+            display_character_mfa_menu(d, "");
+            break;
+        case '8': // Display QR code in terminal
+            {
+                char qr_url[MIL];
+                if (!IS_NULLSTR(ch->pcdata->mfa_pending_key))
+                    generate_totp_qr_url(qr_url, sizeof(qr_url), ch->name, ch->pcdata->mfa_pending_key);
+                else if (!IS_NULLSTR(ch->pcdata->mfa_key))
+                    generate_totp_qr_url(qr_url, sizeof(qr_url), ch->name, ch->pcdata->mfa_key);
+                else {
+                    write_to_buffer(d, "No MFA secret available to display a QR code.\n\r", 0);
+                    display_character_mfa_menu(d, "");
+                    break;
+                }
+                display_qr_code(d, qr_url);
+                display_character_mfa_menu(d, "");
+                break;
+            }
+        case 'B':
+            display_character_menu(d);
+            d->connected = CON_CHARACTER_MENU;
+            break;
+        default:
+            write_to_buffer(d, "Invalid choice.\n\r", 0);
+            display_character_mfa_menu(d, "");
+            break;
+    }
+}
+
+void login_character_mfa_confirm(DESCRIPTOR_DATA *d, char *argument) {
+    CHAR_DATA *ch = d->character;
+    if (!ch->pcdata->mfa_pending || IS_NULLSTR(ch->pcdata->mfa_pending_key)) {
+        write_to_buffer(d, "No MFA setup in progress.\n\r", 0);
+        display_character_mfa_menu(d, "");
+        return;
+    }
+    // Use the pending key for validation!
+    if (!validate_totp_code(ch->pcdata->mfa_pending_key, argument)) {
+        write_to_buffer(d, "Invalid MFA code. Please try again: ", 0);
+        d->connected = CON_CHARACTER_MFA_CONFIRM;
+        return;
+    }
+    // Promote pending key to active, enable MFA
+    free_string(ch->pcdata->mfa_key);
+    ch->pcdata->mfa_key = str_dup(ch->pcdata->mfa_pending_key);
+    ch->pcdata->mfa_enabled = true;
+    ch->pcdata->mfa_pending = false;
+    free_string(ch->pcdata->mfa_pending_key);
+    ch->pcdata->mfa_pending_key = str_dup("");
+    // Generate recovery codes
+    generate_recovery_codes(ch->pcdata->recovery_codes, ch->pcdata->recovery_used, MFA_RECOVERY_CODES);
+    save_char_obj(ch);
+
+    d->mfa_verified = true;
+
+    write_to_buffer(d, "\n\rMFA enabled! Here are your recovery codes (save them!):\n\r", 0);
+    display_recovery_codes(d, ch);
+    display_character_mfa_menu(d, "");
+}
+
+void login_character_mfa_disable_confirm(DESCRIPTOR_DATA *d, char *argument) {
+    CHAR_DATA *ch = d->character;
+    switch (toupper(argument[0])) {
+        case 'Y':
+            ch->pcdata->mfa_enabled = false;
+            save_char_obj(ch);
+            write_to_buffer(d, "MFA disabled for this character.\n\r", 0);
+            display_character_mfa_menu(d, "");
+            break;
+        case 'N':
+            display_character_mfa_menu(d, "");
+            break;
+        default:
+            write_to_buffer(d, "Please answer Y or N: ", 0);
+            break;
+    }
+}
+
+void login_account_mfa_disable_confirm(DESCRIPTOR_DATA *d, char *argument) {
+    ACCOUNT_DATA *acct = d->account;
+    switch (toupper(argument[0])) {
+        case 'Y':
+            acct->mfa_enabled = false;
+            save_account(acct);
+            write_to_buffer(d, "MFA disabled for this character.\n\r", 0);
+            display_account_mfa_menu(d, "");
+            break;
+        case 'N':
+            display_account_mfa_menu(d, "");
+            break;
+        default:
+            write_to_buffer(d, "Please answer Y or N: ", 0);
+            break;
+    }
+}
+
+void login_character_mfa_verify_for_settings(DESCRIPTOR_DATA *d, char *argument) {
+    CHAR_DATA *ch = d->character;
+    if (check_char_mfa(ch, argument) || check_recovery_code(ch, argument)) {
+        d->mfa_verified = true;
+        display_character_mfa_menu(d, "");
+    } else {
+        write_to_buffer(d, "Invalid MFA or recovery code. Try again: ", 0);
+    }
+}
+
+void login_account_mfa_verify_for_settings(DESCRIPTOR_DATA *d, char *argument) {
+    ACCOUNT_DATA *acct = d->account;
+    if (check_account_mfa(acct, argument) || check_account_recovery_code(acct, argument)) {
+        d->mfa_verified = true;
+        display_account_mfa_menu(d, "");
+    } else {
+        write_to_buffer(d, "Invalid MFA or recovery code. Try again: ", 0);
+    }
+}
+
+void display_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
+    ACCOUNT_DATA *acct = d->account;
+    char buf[MAX_STRING_LENGTH];
+    bool mfa_enabled = acct->mfa_enabled;
+    bool mfa_pending = acct->mfa_pending;
+    bool has_secret = !IS_NULLSTR(acct->mfa_pending_key) || !IS_NULLSTR(acct->mfa_key);
+    bool has_recovery = has_recovery_codes((const char **)acct->recovery_codes, MFA_RECOVERY_CODES);
+    bool has_email = !IS_NULLSTR(acct->email);
+
+    // If MFA is enabled, require code before allowing changes (except confirmation)
+    if (acct->mfa_enabled && !acct->mfa_pending && !d->mfa_verified) {
+        write_to_buffer(d, "Enter your MFA or recovery code to manage MFA settings: ", 0);
+        d->connected = CON_ACCOUNT_MFA_VERIFY_FOR_SETTINGS;
+        return;
+    }
+
+    write_to_buffer(d, "\n\r{B=={W[ {YMFA SETTINGS {W]{B=={x\n\r", 0);
+    sprintf(buf, "MFA is currently: %s\n\r",
+        mfa_enabled ? "{GENABLED{x" : (mfa_pending ? "{YSETUP IN PROGRESS{x" : "{ROFF{x"));
+    write_to_buffer(d, buf, 0);
+
+    // --- Setup Section ---
+    if (!mfa_enabled && !mfa_pending)
+        write_to_buffer(d, "\n\r{CSetup:{x\n\r{GS{x) Set up MFA\n\r", 0);
+    else if (mfa_pending)
+        write_to_buffer(d, "\n\r{CSetup:{x\n\r{GC{x) Confirm MFA setup\n\r", 0);
+
+    // --- QR Code Section ---
+    bool show_qr_section = (has_secret && has_email) || has_secret;
+    if (show_qr_section) {
+        write_to_buffer(d, "\n\r{CQR Code:{x\n\r", 0);
+        if (has_secret)
+            write_to_buffer(d, "{GD{x) Display QR code in terminal\n\r", 0);
+        if (has_secret && has_email)
+            write_to_buffer(d, "{GQ{x) Email QR code\n\r", 0);
+    }
+
+    // --- Recovery Codes Section ---
+    bool show_recovery_section = (mfa_enabled || mfa_pending) && has_recovery;
+    if (show_recovery_section) {
+        write_to_buffer(d, "\n\r{CRecovery Codes:{x\n\r", 0);
+        write_to_buffer(d, "{GV{x) Show recovery codes\n\r", 0);
+        if (has_email)
+            write_to_buffer(d, "{GE{x) Email recovery codes\n\r", 0);
+    }
+
+    // --- Actions Section ---
+    bool show_actions = (mfa_enabled || mfa_pending);
+    if (show_actions) {
+        write_to_buffer(d, "\n\r{CActions:{x\n\r", 0);
+        if (mfa_enabled || mfa_pending)
+            write_to_buffer(d, "{GX{x) Disable MFA\n\r", 0);
+        // Only show generate/regenerate if not pending
+        if (mfa_enabled) {
+            write_to_buffer(d, has_recovery ? "{GG{x) Regenerate recovery codes\n\r" : "{GG{x) Generate recovery codes\n\r", 0);
+        }
+    }
+
+    write_to_buffer(d, "\n\r{GB{x) Back to account menu\n\r", 0);
+    write_to_buffer(d, "Enter choice: ", 0);
+
+    d->connected = CON_ACCOUNT_MFA_MENU;
+}
+
+void login_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
+    ACCOUNT_DATA *acct = d->account;
+    bool mfa_enabled = acct->mfa_enabled;
+    bool mfa_pending = acct->mfa_pending;
+    bool has_secret = !IS_NULLSTR(acct->mfa_pending_key) || !IS_NULLSTR(acct->mfa_key);
+    bool has_recovery = has_recovery_codes((const char **)acct->recovery_codes, MFA_RECOVERY_CODES);
+
+    switch (toupper(argument[0])) {
+        case 'S': // Set up MFA
+            if (mfa_enabled || mfa_pending) {
+                write_to_buffer(d, "MFA is already enabled or setup is in progress.\n\r", 0);
+                display_account_mfa_menu(d, "");
+                return;
+            }
+            {
+                char key[MIL];
+                char qr_url[MIL];
+                char *secret = generate_totp_key(key, sizeof(key));
+                free_string(acct->mfa_pending_key);
+                acct->mfa_pending_key = str_dup(secret);
+                acct->mfa_pending = true;
+                generate_totp_qr_url(qr_url, sizeof(qr_url), acct->username, secret);
+                display_qr_code(d, qr_url);
+                write_to_buffer(d, "\n\rMFA setup started. Use your authenticator app to scan the QR code or enter the secret above.\n\r", 0);
+                write_to_buffer(d, "You must confirm MFA setup before it is enabled.\n\r", 0);
+                display_account_mfa_menu(d, "");
+            }
+            break;
+        case 'C': // Confirm MFA setup
+            if (!mfa_pending) {
+                write_to_buffer(d, "No MFA setup in progress.\n\r", 0);
+                display_account_mfa_menu(d, "");
+                return;
+            }
+            write_to_buffer(d, "Enter a code from your authenticator app: ", 0);
+            d->connected = CON_ACCOUNT_MFA_CONFIRM;
+            break;
+        case 'Q': // Email QR code
+            if (!has_secret) {
+                write_to_buffer(d, "No MFA secret available to email a QR code.\n\r", 0);
+            } else if (IS_NULLSTR(acct->email)) {
+                write_to_buffer(d, "No email address set for this account.\n\r", 0);
+            } else {
+                send_qr_email_for_account(acct, acct->email, acct->mfa_pending_key ? acct->mfa_pending_key : acct->mfa_key);
+                write_to_buffer(d, "QR code emailed.\n\r", 0);
+            }
+            display_account_mfa_menu(d, "");
+            break;
+        case 'D': // Display QR code in terminal
+            if (!has_secret) {
+                write_to_buffer(d, "No MFA secret available to display a QR code.\n\r", 0);
+                display_account_mfa_menu(d, "");
+                return;
+            } else {
+                char qr_url[MIL];
+                if (!IS_NULLSTR(acct->mfa_pending_key))
+                    generate_totp_qr_url(qr_url, sizeof(qr_url), acct->username, acct->mfa_pending_key);
+                else
+                    generate_totp_qr_url(qr_url, sizeof(qr_url), acct->username, acct->mfa_key);
+                display_qr_code(d, qr_url);
+            }
+            display_account_mfa_menu(d, "");
+            break;
+        case 'X': // Disable MFA
+            if (!mfa_enabled && !mfa_pending) {
+                write_to_buffer(d, "MFA is not enabled or pending for this account.\n\r", 0);
+                display_account_mfa_menu(d, "");
+                return;
+            }
+            write_to_buffer(d, "Are you sure you want to disable MFA? (Y/N): ", 0);
+            d->connected = CON_ACCOUNT_MFA_DISABLE_CONFIRM;
+            break;
+        case 'V': // Show recovery codes
+            if (!(mfa_enabled || mfa_pending) || !has_recovery) {
+                write_to_buffer(d, "No recovery codes available to display.\n\r", 0);
+                display_account_mfa_menu(d, "");
+                return;
+            }
+            display_account_recovery_codes(d, acct);
+            display_account_mfa_menu(d, "");
+            break;
+        case 'E': // Email recovery codes
+            if (!(mfa_enabled || mfa_pending) || !has_recovery) {
+                write_to_buffer(d, "No recovery codes available to email.\n\r", 0);
+            } else if (IS_NULLSTR(acct->email)) {
+                write_to_buffer(d, "No email address set for this account.\n\r", 0);
+            } else {
+                send_recovery_codes_email_for_account(acct, acct->email);
+                write_to_buffer(d, "Recovery codes emailed.\n\r", 0);
+            }
+            display_account_mfa_menu(d, "");
+            break;
+        case 'G': // Generate/Regenerate recovery codes
+            if (!(mfa_enabled || mfa_pending)) {
+                write_to_buffer(d, "MFA must be enabled or pending to generate recovery codes.\n\r", 0);
+                display_account_mfa_menu(d, "");
+                return;
+            }
+            generate_recovery_codes(acct->recovery_codes, acct->recovery_used, MFA_RECOVERY_CODES);
+            save_account(acct);
+            write_to_buffer(d, has_recovery ? "Recovery codes regenerated.\n\r" : "Recovery codes generated.\n\r", 0);
+            display_account_recovery_codes(d, acct);
+            display_account_mfa_menu(d, "");
+            break;
+        case 'B': // Back
+            display_account_menu(d);
+            d->connected = CON_ACCOUNT_MENU;
+            break;
+        default:
+            write_to_buffer(d, "Invalid or unavailable choice.\n\r", 0);
+            display_account_mfa_menu(d, "");
+            break;
+    }
+}
 // Helper function to format location string for display
 char* format_location_string(const char* area_name, const char* region_name) {
     static char loc_buf[100];
@@ -3207,6 +3750,22 @@ char* format_location_string(const char* area_name, const char* region_name) {
     // Fallback
     strcpy(loc_buf, area_name ? area_name : "(Unknown)");
     return loc_buf;
+}
+
+bool can_link_characters(ACCOUNT_DATA *acct) {
+    if (!acct) return false;
+    if (game_settings.allow_link_all || IS_SET(acct->acct_flags, ACCT_CAN_LINK)) {
+        int max_chars = (acct->character_limit > 0) ? acct->character_limit : game_settings.max_characters;
+        int total_chars = account_count_nonstaff_characters(acct);
+        if (max_chars == 0 || total_chars < max_chars)
+            return true;
+    }
+    return false;
+}
+
+bool can_unlink_characters(ACCOUNT_DATA *acct) {
+    if (!acct) return false;
+    return (game_settings.allow_unlink_all || IS_SET(acct->acct_flags, ACCT_CAN_UNLINK));
 }
 
 void nanny(DESCRIPTOR_DATA *d, char *argument)
@@ -3613,7 +4172,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
         login_character_mfa_verify(d, argument);
         break;
     case CON_ACCOUNT_MFA_VERIFY:
-        login_account_mfa_verify(d, argument);
+        login_account_mfa_confirm(d, argument);
         break;
 
     case CON_CONFIRM_ACCOUNT_EMAIL_FOR_RESET:
@@ -3654,6 +4213,44 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
     
     case CON_GET_ACCOUNT_MFA:
         login_get_account_mfa(d, argument);
+        break;
+
+    case CON_CREATING_NEW_STAFF_CHAR:
+        login_creating_new_staff_char(d, argument);
+        break;
+    case CON_GET_STAFF_EMAIL:
+        login_get_staff_email(d, argument);
+        break;
+    case CON_STAFF_MFA_PROMPT:
+        login_staff_mfa_prompt(d, argument);
+        break;
+    case CON_STAFF_PASSWORD:
+        login_staff_password(d, argument);
+        break;
+    case CON_CONFIRM_STAFF_PASSWORD:
+        login_confirm_staff_password(d, argument);
+        break;
+
+    case CON_CHARACTER_MFA_MENU:
+        login_character_mfa_menu(d, argument);
+        break;
+    case CON_CHARACTER_MFA_CONFIRM:
+        login_character_mfa_confirm(d, argument);
+        break;
+    case CON_CHARACTER_MFA_DISABLE_CONFIRM:
+        login_character_mfa_disable_confirm(d, argument);
+        break;
+    case CON_CHARACTER_MFA_VERIFY_FOR_SETTINGS:
+        login_character_mfa_verify_for_settings(d, argument);
+        break;
+    case CON_ACCOUNT_MFA_DISABLE_CONFIRM:
+        login_account_mfa_disable_confirm(d, argument);
+        break;
+    case CON_ACCOUNT_MFA_VERIFY_FOR_SETTINGS:
+        login_account_mfa_verify_for_settings(d, argument);
+        break;
+    case CON_ACCOUNT_MFA_CONFIRM:
+        login_account_mfa_confirm(d, argument);
         break;
 
 	}

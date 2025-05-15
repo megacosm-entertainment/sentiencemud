@@ -549,5 +549,6 @@ extern const struct flag_type	command_flags[];
 extern const struct flag_type	log_flags[];
 extern const struct flag_type command_addl_types[];
 extern const struct con_state_info con_states[];
+extern	const	struct	flag_type	acct_flags[];
 #endif
 

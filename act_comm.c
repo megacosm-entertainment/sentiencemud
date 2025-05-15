@@ -1447,7 +1447,7 @@ void do_logout(CHAR_DATA *ch, char *argument)
 
     // Update account character entry with latest info
     if (ch->desc && ch->desc->account)
-        update_account_character(ch);
+        account_add_character(ch->desc->account, ch);
 
     save_char_obj(ch);
 

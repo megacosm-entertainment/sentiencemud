@@ -697,3 +697,5 @@ DECLARE_DO_FUN( do_lvlaudit );
 DECLARE_DO_FUN( do_keygen );
 DECLARE_DO_FUN( do_mfareset );
 DECLARE_DO_FUN( do_logout );
+DECLARE_DO_FUN (do_accset);
+DECLARE_DO_FUN (do_accstat);

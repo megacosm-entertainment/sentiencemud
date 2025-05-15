@@ -430,6 +430,12 @@ int main(int argc, char **argv)
 		perror("Could not create 'loaded_chars'");
 		exit(1);
 	}
+
+	loaded_accounts = list_create(false);
+	if(!loaded_accounts) {
+		perror("Could not create 'loaded_accounts'");
+		exit(1);
+	}
 // Temporarily disabling for reconnect crash.
 /*
 	loaded_players = list_create(false);
@@ -1452,6 +1458,15 @@ void close_socket(DESCRIPTOR_DATA *dclose)
         SSL_free(dclose->ssl);
         dclose->ssl = NULL;
     }
+
+	if (dclose->account) {
+    dclose->account->refcount--;
+    if (dclose->account->refcount <= 0) {
+        list_remlink(loaded_accounts, dclose->account, false);
+        free_account(dclose->account);
+    }
+    dclose->account = NULL;
+}
     // Gracefully shut down the socket before closing to avoid lingering FIN_WAIT2
     shutdown(dclose->descriptor, SHUT_RDWR);
     close(dclose->descriptor);
