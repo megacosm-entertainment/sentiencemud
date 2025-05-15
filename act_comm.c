@@ -1434,9 +1434,6 @@ void do_logout(CHAR_DATA *ch, char *argument)
         }
     }
 
-	if (d->editor != NULL)
-		edit_done(ch);
-
     /* Reset imms bank accounts */
     if (IS_IMMORTAL(ch) && !IS_IMPLEMENTOR(ch))
     {
@@ -1501,6 +1498,9 @@ void do_logout(CHAR_DATA *ch, char *argument)
         // Save reference to the account before disconnecting character
         if (d->account)
             account = d->account;
+
+		if (d->editor != 0)
+			edit_done(ch);
 
         // Properly detach the character from the descriptor before extracting
         d->character = NULL;

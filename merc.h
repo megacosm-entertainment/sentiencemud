@@ -11664,6 +11664,7 @@ bool has_access_help( CHAR_DATA *ch, HELP_DATA *help);
 void add_reset( ROOM_INDEX_DATA *room, RESET_DATA *pReset, int index );
 bool has_imp_sig( MOB_INDEX_DATA *mob, OBJ_INDEX_DATA *obj );
 void use_imp_sig( MOB_INDEX_DATA *mob, OBJ_INDEX_DATA *obj );
+bool edit_done(CHAR_DATA *ch);
 
 /* olc_act.c */
 AREA_DATA *get_vnum_area( long vnum );
