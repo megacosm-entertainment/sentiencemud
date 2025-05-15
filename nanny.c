@@ -284,6 +284,7 @@ void login_get_old_passwd(DESCRIPTOR_DATA *d, char *argument)
     if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled)
     {
         send_to_char("\n\rPlease enter your MFA code: ", ch);
+        ProtocolNoEcho(d,true);
         d->connected = CON_GET_MFA;
         return;
     }
@@ -357,7 +358,7 @@ void login_get_mfa(DESCRIPTOR_DATA *d, char *argument)
         
         if (IS_IMMORTAL(ch))
         {
-            send_to_char("{BWelcome, Immortal.{x\n\r\n\r", ch);
+            send_to_char("\n\r{BWelcome, Immortal.{x\n\r\n\r", ch);
             do_function(ch, &do_imotd, "");
             if(IS_IMPLEMENTOR(ch)) 
             {
@@ -386,6 +387,7 @@ void login_get_mfa(DESCRIPTOR_DATA *d, char *argument)
             return;
         }
         d->login_attempts++;
+        ProtocolNoEcho(d,true);
         d->connected = CON_GET_MFA;
         return;
     }
@@ -1536,6 +1538,7 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
     // Handle MFA
     if (!IS_NULLSTR(acct->mfa_key) && acct->mfa_enabled) {
         write_to_buffer(d, "\n\rPlease enter your MFA code: ", 0);
+        ProtocolNoEcho(d,true);
         d->connected = CON_GET_ACCOUNT_MFA;
         return;
     }
@@ -1791,11 +1794,7 @@ void display_account_menu(DESCRIPTOR_DATA *d)
     write_to_buffer(d, "{GM{x) MFA settings\n\r", 0);
         
     write_to_buffer(d, "{GQ{x) Quit\n\r\n\r", 0);
-    write_to_buffer(d, "Enter choice: ", 0);
-    
-    // Force buffer flush to ensure prompt appears immediately
-    if (d->outsize > 0)
-        process_output(d, false);
+
 }
 
 // Update the select_character function
@@ -2265,6 +2264,7 @@ void login_link_character_password(DESCRIPTOR_DATA *d, char *argument)
         ch->pcdata->mfa_enabled) {
         
         write_to_buffer(d, "This character has MFA enabled. Please enter the MFA code: ", 0);
+        ProtocolNoEcho(d, true);
         d->connected = CON_LINK_CHARACTER_MFA;
         return;
     }
@@ -2489,11 +2489,7 @@ if (!IS_NULLSTR(ch->pcdata->last_area) || (!IS_NULLSTR(ch->pcdata->last_region) 
     
     write_to_buffer(d, "{GD{x) Delete this character\n\r", 0);
     write_to_buffer(d, "{GB{x) Back to account menu\n\r\n\r", 0);
-    write_to_buffer(d, "Enter choice: ", 0);
-    
-    // Force buffer flush to ensure prompt appears immediately
-    if (d->outsize > 0)
-        process_output(d, false);
+
 }
 
 
@@ -2649,6 +2645,7 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
             if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled) {
                 write_to_buffer(d, "\n\rThis character has MFA enabled.\n\r", 0);
                 write_to_buffer(d, "Enter MFA code: ", 0);
+                ProtocolNoEcho(d, true);
                 d->connected = CON_GET_CHAR_MFA;
                 return;
             }
@@ -2707,6 +2704,7 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
             if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled) {
                 write_to_buffer(d, "\n\r{RThis character has MFA enabled. Please authenticate:{x\n\r", 0);
                 write_to_buffer(d, "Enter MFA code: ", 0);
+                ProtocolNoEcho(d,true);
                 d->connected = CON_VERIFY_DELETE_MFA;
                 return;
             }
@@ -2767,6 +2765,7 @@ void login_get_char_password(DESCRIPTOR_DATA *d, char *argument)
     // If the character has MFA enabled, prompt for that next
     if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled) {
         write_to_buffer(d, "Enter MFA code: ", 0);
+        ProtocolNoEcho(d,true);
         d->connected = CON_GET_CHAR_MFA;
         return;
     }
@@ -3065,6 +3064,7 @@ void login_verify_delete_password(DESCRIPTOR_DATA *d, char *argument)
     if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled) {
         write_to_buffer(d, "\n\r{RThis character has MFA enabled. Please authenticate:{x\n\r", 0);
         write_to_buffer(d, "Enter MFA code: ", 0);
+        ProtocolNoEcho(d,true);
         d->connected = CON_VERIFY_DELETE_MFA;
         return;
     }
@@ -3361,7 +3361,7 @@ void display_character_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
     }
 
     write_to_buffer(d, "\n\r{GB{x) Back to character menu\n\r", 0);
-    write_to_buffer(d, "Enter choice: ", 0);
+
 
     d->connected = CON_CHARACTER_MFA_MENU;
 }

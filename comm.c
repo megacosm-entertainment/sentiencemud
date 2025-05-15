@@ -1697,136 +1697,116 @@ void read_from_buffer(DESCRIPTOR_DATA *d)
 }
 
 
-/*
- * Low level output function.
- */
 bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
 {
     extern bool merc_down;
 
-    /*
-     * Bust a prompt.
-     */
-	if(d->pProtocol->WriteOOB)
-		;
+    if (d->pProtocol->WriteOOB)
+    {
+        // Do nothing for OOB
+    }
     else if (!merc_down)
     {
-		if (d->showstr_point)
-			write_to_buffer(d, "{x[Hit Return to continue]\n\r", 0);
-		else if (fPrompt && d->pString && d->connected == CON_PLAYING)
-			write_to_buffer(d, "> ", 2);
-		else if (fPrompt && d->connected == CON_PLAYING)
-		{
-			CHAR_DATA *ch;
-			CHAR_DATA *victim;
+        if (d->showstr_point)
+        {
+            write_to_buffer(d, "{x[Hit Return to continue]\n\r", 0);
+        }
+        else if (fPrompt && d->pString && d->connected == CON_PLAYING)
+        {
+            write_to_buffer(d, "> ", 2);
+        }
+        else if (fPrompt && d->connected == CON_PLAYING)
+        {
+            CHAR_DATA *ch = d->character;
+            CHAR_DATA *victim;
 
-			ch = d->character;
+            // Battle prompt
+            if ((victim = ch->fighting) != NULL && can_see(ch, victim) && ch->in_room == victim->in_room)
+            {
+                int percent;
+                char wound[100];
+                char buf[2 * MAX_STRING_LENGTH];
+                char buf2[MSL];
 
-			/* battle prompt */
-			if ((victim = ch->fighting) != NULL && can_see(ch,victim) && ch->in_room == victim->in_room)
-			{
-				int percent;
-				char wound[100];
-//				char *pbuff;
-				char buf[2*MAX_STRING_LENGTH];
-				char buf2[MSL];
-				//char buffer[MAX_STRING_LENGTH*2];
+                if (victim->max_hit > 0)
+                    percent = victim->hit * 100 / victim->max_hit;
+                else
+                    percent = -1;
 
-				if (victim->max_hit > 0)
-					percent = victim->hit * 100 / victim->max_hit;
-				else
-					percent = -1;
+                if (percent >= 100)
+                    strcpy(wound, "is in excellent condition.");
+                else if (percent >= 90)
+                    strcpy(wound, "has a few scratches.");
+                else if (percent >= 80)
+                    strcpy(wound, "has a few scratches and bruises.");
+                else if (percent >= 70)
+                    strcpy(wound, "has some small wounds.");
+                else if (percent >= 60)
+                    strcpy(wound, "has some small wounds and bruises.");
+                else if (percent >= 50)
+                    strcpy(wound, "has some nasty wounds and scratches.");
+                else if (percent >= 40)
+                    strcpy(wound, "looks pretty hurt.");
+                else if (percent >= 30)
+                    strcpy(wound, "looks very hurt.");
+                else if (percent >= 20)
+                    strcpy(wound, "is in awful condition.");
+                else if (percent >= 10)
+                    strcpy(wound, "is barely clinging to life.");
+                else
+                    strcpy(wound, "is on the verge of death.");
 
-				if (percent >= 100)
-					strcpy(wound, "is in excellent condition.");
-				else if (percent >= 90)
-					strcpy(wound, "has a few scratches.");
-				else if (percent >= 80)
-					strcpy(wound, "has a few scratches and bruises.");
-				else if (percent >= 70)
-					strcpy(wound, "has some small wounds.");
-				else if (percent >= 60)
-					strcpy(wound, "has some small wounds and bruises.");
-				else if (percent >= 50)
-					strcpy(wound, "has some nasty wounds and scratches.");
-				else if (percent >= 40)
-					strcpy(wound, "looks pretty hurt.");
-				else if (percent >= 30)
-					strcpy(wound, "looks very hurt.");
-				else if (percent >= 20)
-					strcpy(wound, "is in awful condition.");
-				else if (percent >= 10)
-					strcpy(wound, "is barely clinging to life.");
-				else
-					strcpy(wound, "is on the verge of death.");
-				/*
-				if (percent >= 100)
-					sprintf(wound,"is in excellent condition.");
-				else if (percent >= 90)
-					sprintf(wound,"has a few scratches.");
-				else if (percent >= 75)
-					sprintf(wound,"has some small wounds and bruises.");
-				else if (percent >= 50)
-					sprintf(wound,"has quite a few wounds.");
-				else if (percent >= 30)
-					sprintf(wound,"has some big nasty wounds and scratches.");
-				else if (percent >= 15)
-					sprintf(wound,"looks pretty hurt.");
-				else if (percent >= 0)
-					sprintf(wound,"is in awful condition.");
-				else
-					sprintf(wound,"is bleeding to death.");
-				*/
-				if (IS_SET(ch->comm, COMM_SHOW_FORM_STATE))
-					show_form_state(ch);
+                if (IS_SET(ch->comm, COMM_SHOW_FORM_STATE))
+                    show_form_state(ch);
 
-				sprintf(buf2, "%s", pers(victim, ch));
-				buf2[0] = UPPER(buf2[0]);
+                sprintf(buf2, "%s", pers(victim, ch));
+                buf2[0] = UPPER(buf2[0]);
 
-				sprintf(buf,"{M%s %s \n\r{x", buf2, wound);
-				buf[0]	= UPPER(buf[0]);
-//				pbuff	= buffer;
-				//colourconv(pbuff, buf, d->character);
-				write_to_buffer(d, buf, 0);
-			}
+                sprintf(buf, "{M%s %s \n\r{x", buf2, wound);
+                buf[0] = UPPER(buf[0]);
+                write_to_buffer(d, buf, 0);
+            }
 
+            ch = d->original ? d->original : d->character;
+            if (!IS_SET(ch->comm, COMM_COMPACT))
+                write_to_buffer(d, "\n\r", 2);
 
-			ch = d->original ? d->original : d->character;
-			if (!IS_SET(ch->comm, COMM_COMPACT))
-				write_to_buffer(d, "\n\r", 2);
+            if (IS_SET(ch->comm, COMM_PROMPT))
+                bust_a_prompt(d->character);
 
+            if (!d->pProtocol->bSGA)
+                write_to_buffer(d, GoAheadStr, 0);
 
-			if (IS_SET(ch->comm, COMM_PROMPT))
-				bust_a_prompt(d->character);
+            if (IS_SET(ch->comm, COMM_TELNET_GA))
+                write_to_buffer(d, go_ahead_str, 0);
+        }
+        // Only write a prompt for menu states
+        else if (fPrompt && (
+            d->connected == CON_ACCOUNT_MENU ||
+            d->connected == CON_CHARACTER_MENU ||
+            d->connected == CON_ACCOUNT_MFA_MENU ||
+            d->connected == CON_CHARACTER_MFA_MENU
+            // Add any other menu states here
+        ) && !d->showstr_point && !d->pString)
+        {
+            write_to_buffer(d, "Enter choice: ", 0);
+            write_to_buffer(d, go_ahead_str, 0);
+        }
+    }
 
-			if ( !d->pProtocol->bSGA )
-				write_to_buffer( d, GoAheadStr, 0 );
+    if (d->outtop == 0)
+        return true;
 
-			if (IS_SET(ch->comm,COMM_TELNET_GA))
-				write_to_buffer(d,go_ahead_str,0);
-		}
-	}
-
-    /*
-     * Short-circuit if nothing to write.
-     */
-	if (d->outtop == 0)
-		return true;
-
-
-    /*
-     * OS-dependent output.
-     */
-	if (!write_to_descriptor(d, d->outbuf, d->outtop))
-	{
-		d->outtop = 0;
-		return false;
-	}
-	else
-	{
-		d->outtop = 0;
-		return true;
-	}
+    if (!write_to_descriptor(d, d->outbuf, d->outtop))
+    {
+        d->outtop = 0;
+        return false;
+    }
+    else
+    {
+        d->outtop = 0;
+        return true;
+    }
 }
 
 

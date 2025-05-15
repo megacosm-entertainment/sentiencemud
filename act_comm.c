@@ -1514,13 +1514,30 @@ void do_logout(CHAR_DATA *ch, char *argument)
             d->account = account;
             d->connected = CON_ACCOUNT_MENU;
             d->incomm[0] = '\0';
+
+    		
+    		d->showstr_head	= NULL;
+    		d->showstr_point = NULL;
+    		d->outsize	= 2000;
+    		d->pEdit		= NULL;			/* OLC */
+    		d->pString	= NULL;			/* OLC */
+    		d->editor	= 0;			/* OLC */
+    		d->last_area = NULL;
+    		d->last_area_region = NULL;
+    		d->last_room_sector = NULL;
+    		d->last_room_flag[0] = 0;
+    		d->last_room_flag[0] = 0;
+    		d->mfa_verified = false;
+			
+
             
             // Clear out any input buffer
             if (d->inbuf[0]) 
                 d->inbuf[0] = '\0';
             
-            write_to_buffer(d, "\n\rReturning to account menu...\n\r", 0);
             display_account_menu(d);
+			process_output(d, false);
+			process_output(d, false);
         } else {
             // If we somehow lost the account reference, close the connection
             write_to_buffer(d, "\n\rError returning to account menu. Disconnecting...\n\r", 0);
