@@ -1789,33 +1789,85 @@ bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
         }
 else if (fPrompt && !d->showstr_point && !d->pString)
 {
+    // Only add prompts for states that don't already include them in their handlers
     switch (d->connected) {
+        // Menu states - these use "Enter choice: "
         case CON_ACCOUNT_MENU:
         case CON_CHARACTER_MENU:
         case CON_ACCOUNT_MFA_MENU:
         case CON_CHARACTER_MFA_MENU:
-            write_to_buffer(d, "Enter choice: ", 0);
+			write_to_buffer(d, "Enter choice: ", 0);
+            break;
+            
+        // Login states with specific prompts
+        case CON_GET_ACCOUNT_NAME:
+
+            break;
+        case CON_GET_ACCOUNT_PASSWORD:
+        case CON_CHANGE_ACCOUNT_PASSWORD:
+        case CON_CHANGE_PASSWORD:
+        case CON_GET_OLD_PASSWORD:
+        case CON_NEW_ACCOUNT_PASSWORD:
+        case CON_GET_NEW_PASSWORD:
+            write_to_buffer(d, "Password: ", 0);
+            break;
+        case CON_CONFIRM_ACCOUNT_PASSWORD:
+        case CON_CONFIRM_CHARACTER_PASSWORD:
+        case CON_CHANGE_PASSWORD_CONFIRM:
+        case CON_CONFIRM_NEW_PASSWORD:
+            write_to_buffer(d, "Confirm password: ", 0);
             break;
         case CON_GET_ACCOUNT_EMAIL:
         case CON_CHANGE_ACCOUNT_EMAIL:
         case CON_GET_EMAIL:
         case CON_CHANGE_CHARACTER_EMAIL:
-            write_to_buffer(d, "Enter your e-mail address: ", 0);
+            write_to_buffer(d, "Email: ", 0);
             break;
         case CON_GET_ACCOUNT_MFA:
+        case CON_GET_MFA:
         case CON_GET_CHAR_MFA:
         case CON_GET_ACCOUNT_MFA_FOR_CHAR:
-            write_to_buffer(d, "Enter MFA code: ", 0);
+        case CON_ACCOUNT_MFA_VERIFY_FOR_SETTINGS:
+        case CON_ACCOUNT_MFA_CONFIRM:
+        case CON_CHARACTER_MFA_VERIFY:
+        case CON_CHARACTER_MFA_VERIFY_FOR_SETTINGS:
+        case CON_CHARACTER_MFA_CONFIRM:
+            write_to_buffer(d, "MFA code: ", 0);
             break;
         case CON_GET_CHAR_PASSWORD:
-            write_to_buffer(d, "Enter character password: ", 0);
+            write_to_buffer(d, "Character password: ", 0);
             break;
-        // ...add more as needed
+        case CON_CREATING_NEW_CHAR:
+            write_to_buffer(d, "Character name: ", 0);
+            break;
+        case CON_CREATING_NEW_STAFF_CHAR:
+            write_to_buffer(d, "Staff character name: ", 0);
+            break;
+        case CON_LINK_CHARACTER_NAME:
+            write_to_buffer(d, "Character to link: ", 0);
+            break;
+        case CON_VERIFY_ACCOUNT_EMAIL_CHANGE:
+        case CON_VERIFY_CHARACTER_EMAIL_CHANGE:
+            write_to_buffer(d, "Verification code: ", 0);
+            break;
+        case CON_CONFIRM_DELETE_CHARACTER:
+        case CON_CONFIRM_NEW_NAME:
+            // These expect yes/no or specific confirmation text
+            // Don't add a default prompt
+            break;
+            
+        // Add telnet GA signal for most states
         default:
-            write_to_buffer(d, "Enter choice: ", 0);
+            // Don't add any default prompt text - rely on handler functions
             break;
     }
-    write_to_buffer(d, go_ahead_str, 0);
+    
+    // Add telnet GA for relevant states
+    if (d->connected != CON_PLAYING && 
+        d->connected != CON_READ_MOTD &&
+        d->connected != CON_READ_IMOTD) {
+        write_to_buffer(d, go_ahead_str, 0);
+    }
 }
     }
 

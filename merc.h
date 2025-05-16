@@ -11514,6 +11514,7 @@ ACCOUNT_DATA *get_account_online_or_offline(char *name, bool *was_loaded);
 ACCOUNT_DATA *get_account_by_name(const char *name);
 bool list_haslink(LLIST *list, void *data);
 void resend_character_verification_code(DESCRIPTOR_DATA *d);
+void login_verify_account_email_change(DESCRIPTOR_DATA *d, char *argument);
 
 
 

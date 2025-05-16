@@ -601,6 +601,17 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 
     if (ch->pcdata->email != NULL)
 	fprintf(fp, "Email %s~\n",  ch->pcdata->email	);
+    // Add the new email verification fields
+    fprintf(fp, "EmailVerified %d\n", ch->pcdata->email_verified);
+    if (ch->pcdata->pending_email != NULL)
+        fprintf(fp, "PendingEmail %s~\n", ch->pcdata->pending_email);
+    if (ch->pcdata->email_verification_code != NULL)
+        fprintf(fp, "EmailVerificationCode %s~\n", ch->pcdata->email_verification_code);
+    if (ch->pcdata->email_verification_time > 0)
+        fprintf(fp, "EmailVerificationTime %ld\n", ch->pcdata->email_verification_time);
+    if (ch->pcdata->email_verification_last_sent > 0)
+        fprintf(fp, "EmailVerificationLastSent %ld\n", ch->pcdata->email_verification_last_sent);
+    
     fprintf(fp, "TLevl %d\n",	ch->tot_level		);
     fprintf(fp, "Sec  %d\n",    ch->pcdata->security	);	/* OLC */
     fprintf(fp, "ChDelay %d\n", ch->pcdata->challenge_delay);
@@ -2090,9 +2101,13 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 
 	    break;
 
-	case 'E':
-	    KEY("Exp",		ch->exp,		fread_number(fp));
-	    KEYS("Email",	ch->pcdata->email,	fread_string(fp));
+        case 'E':
+            KEY("EmailVerified", ch->pcdata->email_verified, fread_number(fp));
+            KEYS("Email", ch->pcdata->email, fread_string(fp));
+            KEY("EmailVerificationTime", ch->pcdata->email_verification_time, fread_number(fp));
+            KEY("EmailVerificationLastSent", ch->pcdata->email_verification_last_sent, fread_number(fp));
+            KEYS("EmailVerificationCode", ch->pcdata->email_verification_code, fread_string(fp));
+            KEY("Exp", ch->exp, fread_number(fp));
 
 	    if (!str_cmp(word, "End"))
 	    {
@@ -2392,8 +2407,9 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 	    break;
 
 	case 'P':
-	    KEY("Password",	ch->pcdata->pwd,	fread_string(fp));
-	    KEY("Pass",	ch->pcdata->pwd,	fread_string(fp));
+            KEYS("PendingEmail", ch->pcdata->pending_email, fread_string(fp));
+            KEY("Password", ch->pcdata->pwd, fread_string(fp));
+            KEY("Pass", ch->pcdata->pwd, fread_string(fp));
 		KEY("PassVers", ch->pcdata->pwd_vers,	fread_number(fp))
 		if (!str_cmp(word, "PersonalMount"))
 		{
@@ -8518,6 +8534,12 @@ bool load_account(DESCRIPTOR_DATA *d, char *name)
     account->acct_flags = 0;
     account->characters = list_create(false);
 
+	    account->email_verified = false;
+    account->pending_email = str_dup("");
+    account->email_verification_code = str_dup("");
+    account->email_verification_time = 0;
+    account->email_verification_last_sent = 0;
+
     found = false;
     fclose(fpReserve);
 
@@ -8636,7 +8658,11 @@ void fread_account(ACCOUNT_DATA *account, FILE *fp)
             if (!str_cmp(word, "End")) {
                 return;
             }
-            KEYS("Email", account->email, fread_string(fp));
+                KEYS("Email", account->email, fread_string(fp));
+                KEY("EmailVerified", account->email_verified, fread_number(fp));
+                KEYS("EmailVerificationCode", account->email_verification_code, fread_string(fp));
+                KEY("EmailVerificationTime", account->email_verification_time, fread_number(fp));
+                KEY("EmailVerificationLastSent", account->email_verification_last_sent, fread_number(fp));
             break;
 
         case 'F':
@@ -8681,9 +8707,10 @@ void fread_account(ACCOUNT_DATA *account, FILE *fp)
             break;
 
         case 'P':
-            KEY("Password", account->passwd, fread_string(fp));
-            KEY("Pass", account->passwd, fread_string(fp));
-            KEY("PassVers", account->passwd_version, fread_number(fp));
+                KEY("Password", account->passwd, fread_string(fp));
+                KEY("Pass", account->passwd, fread_string(fp));
+                KEY("PassVers", account->passwd_version, fread_number(fp));
+                KEYS("PendingEmail", account->pending_email, fread_string(fp));
             break;
 
         case 'R':
@@ -8827,6 +8854,20 @@ void fwrite_account(ACCOUNT_DATA *account, FILE *fp)
     
     if (!IS_NULLSTR(account->email))
         fprintf(fp, "Email %s~\n", account->email);
+    
+    fprintf(fp, "EmailVerified %d\n", account->email_verified);
+    
+    if (!IS_NULLSTR(account->pending_email))
+        fprintf(fp, "PendingEmail %s~\n", account->pending_email);
+        
+    if (!IS_NULLSTR(account->email_verification_code))
+        fprintf(fp, "EmailVerificationCode %s~\n", account->email_verification_code);
+        
+    if (account->email_verification_time > 0)
+        fprintf(fp, "EmailVerificationTime %ld\n", account->email_verification_time);
+        
+    if (account->email_verification_last_sent > 0)
+        fprintf(fp, "EmailVerificationLastSent %ld\n", account->email_verification_last_sent);
         
     if (!IS_NULLSTR(account->reset_code)) {
         fprintf(fp, "ResetCode %s~\n", account->reset_code);

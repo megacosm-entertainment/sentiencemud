@@ -77,7 +77,7 @@ void login_get_account(DESCRIPTOR_DATA *d, char *argument)
     
     // Existing account
     if (found) {
-        write_to_buffer(d, "Password: ", 0);
+
         ProtocolNoEcho(d, true);
         d->connected = CON_GET_ACCOUNT_PASSWORD;
         return;
@@ -181,7 +181,7 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
             acct->old_passwd = str_dup(acct->passwd);
             
             write_to_buffer(d, "Reset code accepted. You are required to set a new password.\n\r", 0);
-            write_to_buffer(d, "Password: ", 0);
+
             d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
             return;
         }
@@ -205,7 +205,6 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
 
     // Handle MFA
     if (!IS_NULLSTR(acct->mfa_key) && acct->mfa_enabled) {
-        write_to_buffer(d, "\n\rPlease enter your MFA code: ", 0);
         ProtocolNoEcho(d,true);
         d->connected = CON_GET_ACCOUNT_MFA;
         return;
@@ -258,13 +257,11 @@ void login_confirm_account_name(DESCRIPTOR_DATA *d, char *argument)
     
     switch(toupper(argument[0])) {
     case 'Y':
-        write_to_buffer(d, "\n\rPlease choose a password for your account: ", 0);
         ProtocolNoEcho(d, true);
         d->connected = CON_NEW_ACCOUNT_PASSWORD;
         break;
         
     case 'N':
-        write_to_buffer(d, "Account: ", 0);
         free_account(acct);
         d->account = NULL;
         d->connected = CON_GET_ACCOUNT_NAME;
@@ -416,7 +413,6 @@ void login_change_account_email(DESCRIPTOR_DATA *d, char *argument)
     send_email_async(NULL, acct->pending_email, "Sentience: Verify Your New Email Address", body, NULL, NULL);
     save_account(acct);
     write_to_buffer(d, "\n\rA verification code has been sent to your new email address.\n\r", 0);
-    write_to_buffer(d, "Enter the code to confirm your new email: ", 0);
     d->connected = CON_VERIFY_ACCOUNT_EMAIL_CHANGE;
 }
 
@@ -481,7 +477,6 @@ void login_verify_account_password(DESCRIPTOR_DATA *d, char *argument)
         return;
     }
     
-    write_to_buffer(d, "Enter new password: ", 0);
     d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
 }
 
@@ -893,7 +888,7 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
                     return;
                 }
             }
-            write_to_buffer(d, "\n\rWhat will be your staff character's name? ", 0);
+
             d->connected = CON_CREATING_NEW_STAFF_CHAR;
             return;
 
@@ -910,7 +905,6 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
         case 'E': // Change email address
             write_to_buffer(d, "\n\rCurrent email: ", 0);
             write_to_buffer(d, IS_NULLSTR(acct->email) ? "Not set\n\r" : acct->email, 0);
-            write_to_buffer(d, "\n\rEnter new email address: ", 0);
             d->connected = CON_CHANGE_ACCOUNT_EMAIL;
             return;
 
@@ -969,7 +963,6 @@ void display_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
 
     // If MFA is enabled, require code before allowing changes (except confirmation)
     if (acct->mfa_enabled && !acct->mfa_pending && !d->mfa_verified) {
-        write_to_buffer(d, "Enter your MFA or recovery code to manage MFA settings: ", 0);
         d->connected = CON_ACCOUNT_MFA_VERIFY_FOR_SETTINGS;
         return;
     }
@@ -1017,7 +1010,7 @@ void display_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
     }
 
     write_to_buffer(d, "\n\r{GB{x) Back to account menu\n\r", 0);
-    write_to_buffer(d, "Enter choice: ", 0);
+
 
     d->connected = CON_ACCOUNT_MFA_MENU;
 }
@@ -1061,7 +1054,6 @@ void login_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
                 display_account_mfa_menu(d, "");
                 return;
             }
-            write_to_buffer(d, "Enter a code from your authenticator app: ", 0);
             d->connected = CON_ACCOUNT_MFA_CONFIRM;
             break;
         case 'Q': // Email QR code
@@ -1398,7 +1390,6 @@ void login_get_old_passwd(DESCRIPTOR_DATA *d, char *argument)
 
     if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled)
     {
-        send_to_char("\n\rPlease enter your MFA code: ", ch);
         ProtocolNoEcho(d,true);
         d->connected = CON_GET_MFA;
         return;
@@ -1423,7 +1414,6 @@ void login_get_old_passwd(DESCRIPTOR_DATA *d, char *argument)
     if (ch->pcdata->email == NULL) {
         write_to_buffer(d, "\n\rPlease enter a valid e-mail address at which we can reach you in case you lose your password.\n\r"
             "It will not be distributed to any third parties or abused in any way.\n\r", 0);
-        send_to_char("\n\rEnter your e-mail address: ", ch);
         d->connected = CON_GET_EMAIL;
         return;
     }
@@ -1604,7 +1594,6 @@ void login_change_passwd_initial(DESCRIPTOR_DATA *d, char *argument)
 
     free_string(ch->pcdata->pwd);
     ch->pcdata->pwd	= str_dup(pwdnew);
-    write_to_buffer(d, "\n\rPlease retype new password: ", 0);
 
     ch->pcdata->need_change_pw = false;
     d->connected = CON_CHANGE_PASSWORD_CONFIRM;
@@ -3015,7 +3004,6 @@ void setup_character_mfa(DESCRIPTOR_DATA *d)
     }
     
     // Have user verify the MFA
-    write_to_buffer(d, "\n\rPlease enter the code from your authenticator app to verify: ", 0);
     d->connected = CON_CHARACTER_MFA_VERIFY;
 }
 
@@ -3078,7 +3066,6 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
             }
             if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled) {
                 write_to_buffer(d, "\n\rThis character has MFA enabled.\n\r", 0);
-                write_to_buffer(d, "Enter MFA code: ", 0);
                 ProtocolNoEcho(d, true);
                 d->connected = CON_GET_CHAR_MFA;
                 return;
@@ -3087,7 +3074,6 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
                 d->account->mfa_enabled &&
                 (IS_NULLSTR(ch->pcdata->mfa_key) || !ch->pcdata->mfa_enabled)) {
                 write_to_buffer(d, "\n\rThis is a staff character. Account MFA verification required.\n\r", 0);
-                write_to_buffer(d, "Enter MFA code: ", 0);
                 d->connected = CON_GET_ACCOUNT_MFA_FOR_CHAR;
                 return;
             }
@@ -3222,7 +3208,6 @@ void login_get_char_password(DESCRIPTOR_DATA *d, char *argument)
     
     // If the character has MFA enabled, prompt for that next
     if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled) {
-        write_to_buffer(d, "Enter MFA code: ", 0);
         ProtocolNoEcho(d,true);
         d->connected = CON_GET_CHAR_MFA;
         return;
@@ -3279,7 +3264,6 @@ void setup_account_mfa(DESCRIPTOR_DATA *d)
     }
     
     // Have user verify the MFA
-    write_to_buffer(d, "\n\rPlease enter the code from your authenticator app to verify: ", 0);
     d->connected = CON_ACCOUNT_MFA_VERIFY;
 }
 
@@ -3848,7 +3832,6 @@ break;
                 display_character_mfa_menu(d, "");
                 return;
             }
-            write_to_buffer(d, "Enter a code from your authenticator app: ", 0);
             d->connected = CON_CHARACTER_MFA_CONFIRM;
             break;
         case '3': // Email QR code
@@ -4052,7 +4035,6 @@ void resend_character_verification_code(DESCRIPTOR_DATA *d)
     save_char_obj(ch);
     write_to_buffer(d, "Verification email resent.\n\r", 0);
 }
-
 
 void login_verify_character_email_change(DESCRIPTOR_DATA *d, char *argument)
 {
@@ -4635,6 +4617,9 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
         break;
     case CON_ACCOUNT_MFA_CONFIRM:
         login_account_mfa_confirm(d, argument);
+        break;
+    case CON_VERIFY_ACCOUNT_EMAIL_CHANGE:
+        login_verify_account_email_change(d, argument);
         break;
 case CON_CHANGE_CHARACTER_EMAIL:
     login_change_character_email(d, argument);
