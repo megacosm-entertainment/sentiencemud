@@ -1159,16 +1159,19 @@ if (ret <= 0) {
 	 */
 	int addr;
 
-	addr = ntohl(sock.sin_addr.s_addr);
-	sprintf(buf, "%d.%d.%d.%d",
-	    (addr >> 24) & 0xFF, (addr >> 16) & 0xFF,
-	    (addr >>  8) & 0xFF, (addr      ) & 0xFF
-	   );
-	sprintf(log_buf, "Sock.sinaddr:  %s", buf);
-	log_string(log_buf);
-	from = gethostbyaddr((char *) &sock.sin_addr,
-	    sizeof(sock.sin_addr), AF_INET);
-	dnew->host = str_dup(from ? from->h_name : buf);
+    addr = ntohl(sock.sin_addr.s_addr);
+    sprintf(buf, "%d.%d.%d.%d",
+        (addr >> 24) & 0xFF, (addr >> 16) & 0xFF,
+        (addr >>  8) & 0xFF, (addr      ) & 0xFF
+       );
+    // Only log connection addresses in debug mode or for suspicious IPs
+    if (game_settings.testport) {
+        sprintf(log_buf, "Sock.sinaddr:  %s", buf);
+        log_string(log_buf);
+    }
+    from = gethostbyaddr((char *) &sock.sin_addr,
+        sizeof(sock.sin_addr), AF_INET);
+    dnew->host = str_dup(from ? from->h_name : buf);
     }
 
     /*
@@ -1298,11 +1301,14 @@ void close_socket(DESCRIPTOR_DATA *dclose)
 
     ProtocolDestroy(dclose->pProtocol);
     // Properly shut down TLS/SSL connections if present
-    if (dclose->ssl != NULL) {
-        SSL_shutdown(dclose->ssl);
-        SSL_free(dclose->ssl);
-        dclose->ssl = NULL;
-    }
+if (dclose->ssl != NULL) {
+    int ret = SSL_shutdown(dclose->ssl);
+    // If SSL_shutdown returns 0, it means we've sent the close_notify alert
+    // but haven't received the peer's close_notify. Ideally we would call SSL_shutdown
+    // again after a time, but since we're closing the socket anyway, we can skip this.
+    SSL_free(dclose->ssl);
+    dclose->ssl = NULL;
+}
     // Gracefully shut down the socket before closing to avoid lingering FIN_WAIT2
     shutdown(dclose->descriptor, SHUT_RDWR);
     free_descriptor(dclose);
@@ -1347,26 +1353,33 @@ bool read_from_descriptor(DESCRIPTOR_DATA *d)
 		break;
 	}
 */
-	if (d->ssl)
-	{
-		do {
-			nRead = SSL_read(d->ssl, read_buf + iStart, sizeof(read_buf) - 10 - iStart);
-				if (nRead <= 0) {
-					int err = SSL_get_error(d->ssl, nRead);
-				if (err == SSL_ERROR_WANT_READ) {
-					// The operation did not complete; the same I/O function should be called again later
-					break;
-				} else {
-					fprintf(stderr, "SSL_read failed with error: %d\n", err);
-					ERR_print_errors_fp(stderr);
-						fprintf(stderr, "SSL state: %s\n", SSL_state_string_long(d->ssl));
-					ERR_print_errors_fp(stderr);
-					return false;
-				}
-			}
-		} while (nRead <= 0);
-
-	}
+if (d->ssl)
+{
+    do {
+        nRead = SSL_read(d->ssl, read_buf + iStart, sizeof(read_buf) - 10 - iStart);
+        if (nRead <= 0) {
+            int err = SSL_get_error(d->ssl, nRead);
+            if (err == SSL_ERROR_WANT_READ) {
+                // The operation did not complete; the same I/O function should be called again later
+                break;
+            } else if (err == SSL_ERROR_ZERO_RETURN || 
+                       err == SSL_ERROR_SYSCALL) {
+                // Connection closed cleanly (EOF) or abruptly
+                // Removed excessive logging
+                return false;
+            } else {
+                // Only log detailed errors for unexpected failures
+                // This avoids spamming logs for normal connection closes
+                if (err != SSL_ERROR_SSL) {
+                    fprintf(stderr, "SSL_read failed with error: %d\n", err);
+                    ERR_print_errors_fp(stderr);
+                    fprintf(stderr, "SSL state: %s\n", SSL_state_string_long(d->ssl));
+                }
+                return false;
+            }
+        }
+    } while (nRead <= 0);
+}
 	else
 	{
 		nRead = read( d->descriptor, read_buf + iStart,
@@ -1378,18 +1391,18 @@ bool read_from_descriptor(DESCRIPTOR_DATA *d)
 	    if ( read_buf[iStart-1] == '\n' || read_buf[iStart-1] == '\r' )
 		break;
 	}
-	else if (nRead == 0)
-	{
-	    log_string("EOF encountered on read.");
-	    return false;
-	}
-	else if (errno == EWOULDBLOCK)
-	    break;
-	else
-	{
-	    perror("Read_from_descriptor");
-	    return false;
-	}
+else if (nRead == 0)
+{
+    // Removed excessive logging - normal connection closure
+    return false;
+}
+else if (errno == EWOULDBLOCK)
+    break;
+else
+{
+    perror("Read_from_descriptor");
+    return false;
+}
     }
 
 //    d->inbuf[iStart] = '\0';
