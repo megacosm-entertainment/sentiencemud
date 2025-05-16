@@ -1328,8 +1328,11 @@ if (ret <= 0) {
 	    (addr >> 24) & 0xFF, (addr >> 16) & 0xFF,
 	    (addr >>  8) & 0xFF, (addr      ) & 0xFF
 	   );
-	sprintf(log_buf, "Sock.sinaddr:  %s", buf);
-	log_string(log_buf);
+    // Only log connection addresses in debug mode or for suspicious IPs
+    if (game_settings.dev_server || check_ban(buf, BAN_ALL)) {
+        sprintf(log_buf, "Sock.sinaddr:  %s", buf);
+        log_string(log_buf);
+    }
 	from = gethostbyaddr((char *) &sock.sin_addr,
 	    sizeof(sock.sin_addr), AF_INET);
 	dnew->host = str_dup(from ? from->h_name : buf);
@@ -1448,16 +1451,13 @@ void close_socket(DESCRIPTOR_DATA *dclose)
 
     // Properly shut down TLS/SSL connections if present
     if (dclose->ssl != NULL) {
-        int shutdown_ret = 0;
-        int shutdown_attempts = 0;
-        // Try up to 2 times as per OpenSSL docs
-        do {
-            shutdown_ret = SSL_shutdown(dclose->ssl);
-            shutdown_attempts++;
-        } while (shutdown_ret == 0 && shutdown_attempts < 2);
-        SSL_free(dclose->ssl);
-        dclose->ssl = NULL;
-    }
+    int ret = SSL_shutdown(dclose->ssl);
+    // If SSL_shutdown returns 0, it means we've sent the close_notify alert
+    // but haven't received the peer's close_notify. Ideally we would call SSL_shutdown
+    // again after a time, but since we're closing the socket anyway, we can skip this.
+    SSL_free(dclose->ssl);
+    dclose->ssl = NULL;
+}
 
 	if (dclose->account) {
     dclose->account->refcount--;
@@ -1524,11 +1524,19 @@ bool read_from_descriptor(DESCRIPTOR_DATA *d)
             		if (err == SSL_ERROR_WANT_READ) {
   	              		// The operation did not complete; the same I/O function should be called again later
 	                	break;
-            		} else {
+            } else if (err == SSL_ERROR_ZERO_RETURN || 
+                       err == SSL_ERROR_SYSCALL) {
+                // Connection closed cleanly (EOF) or abruptly
+                // Removed excessive logging
+                return false;
+            } else {
+                // Only log detailed errors for unexpected failures
+                // This avoids spamming logs for normal connection closes
+                if (err != SSL_ERROR_SSL) {
 		                fprintf(stderr, "SSL_read failed with error: %d\n", err);
     	            	ERR_print_errors_fp(stderr);
        		         	fprintf(stderr, "SSL state: %s\n", SSL_state_string_long(d->ssl));
-        	        	ERR_print_errors_fp(stderr);
+				        }
         	        	return false;
             		}
         		}
@@ -1548,7 +1556,6 @@ bool read_from_descriptor(DESCRIPTOR_DATA *d)
 		}
 		else if (nRead == 0)
 		{
-	    	log_string("EOF encountered on read.");
 	    	return false;
 		}
 		else if (errno == EWOULDBLOCK)

@@ -1510,17 +1510,52 @@ struct game_settings_data
 {
     /* Email Settings */
     bool    enable_email;
-    char    *email_username;                // The username for the email account.
-    char    *email_password;                // The password for the email account.
-    char    *email_host;                    // The hostname of the email server.
-    int     email_port;                     // The port that the email server is listening on.
-    char    *email_from_addr;               // The email address that will appear in the 'from' field of emails sent by the game.
-    char    *email_from_name;               // The name that will appear in the 'from' field of emails sent by the game.
+    char    *email_username;                 // Username for the email account.
+    char    *email_password;                 // Password for the email account.
+    char    *email_host;                     // Hostname of the email server.
+    int     email_port;                      // Port that the email server is listening on.
+    char    *email_from_addr;                // Email address that will appear in the 'from' field of emails sent by the game.
+    char    *email_from_name;                // Name that will appear in the 'from' field of emails sent by the game.
 
     /* Mission Settings */
-    int     max_mission_allowance;          // How many mission allowances can a player have?
-    int     inc_missions;                   // How many missions will a player accrue when their mission allowance ticks over?
-    int     max_missions;                   // How many missions can a player have running at the same time?
+    int     max_mission_allowance;           // How many mission allowances can a player have?
+    int     inc_missions;                    // How many missions will a player accrue when their mission allowance ticks over?
+    int     max_missions;                    // How many missions can a player have running at the same time?
+
+    /* Locker Settings */
+    bool    lockers_enabled;                 // Are lockers enabled?
+    bool    locker_rent_enabled;             // Do lockers cost rent? 
+    int     max_locker_weight;               // How much weight can a player have in their locker?
+    int     max_locker_items;                // How many items can a player have in their locker?
+    int     locker_rent_cost;                // How much does it cost to rent a locker?
+    int     locker_rent_time;                // How long does renting grant access for? (in real days)
+    int     locker_rent_time_max;            // How long can a locker be rented at one time (in real days)
+    int     locker_additional_cost_per_tier;  // How much more does it cost per tier of locker?
+    int     locker_additional_slots_per_tier;  // How many more slots does a player get per tier of locker?
+    int     locker_additional_weight_per_tier;  // How much more weight does a player get per tier of locker?
+    int     locker_tier_max;                // How many upgrades can be applied to a locker?
+
+    /* Vault (shared storage) settings */
+    int     max_vault_weight;                // How much weight can a player have in their vault?
+    int     max_vault_items;                 // How many items can a player have in their vault?
+    bool    vault_enabled;                  // Is the vault enabled?
+    bool    vault_rent;                     // Does the vault cost rent?
+    bool    vault_rent_per_char;      	// How much does the vault cost rent per character?
+    int     vault_rent_cost;     // What is the base rental cost for the vault?
+    int     vault_rent_time;                 // How long does renting grant access for? (in real days)
+    int     vault_additional_cost_per_char;  // How much more does it cost per character?
+    int     vault_additional_slots_per_char;  // How many more slots does a player get per character?
+    int     vault_additional_weight_per_char;  // How much more weight does a player get per character?
+
+    /* Coffer (org storage) Settings */
+    int     max_coffer_weight;               // How much weight can a player have in their coffer?
+    int     max_coffer_items;                // How many items can a player have in their coffer?
+    bool    coffer_enabled;                 // Is the coffer enabled?
+    bool    coffer_rent;                    // Doess the coffer cost rent?
+    int     coffer_rent_cost;
+    char    *coffer_rent_currency;           // Whatt currency does the coffer cost rent in?
+    int     coffer_rent_period;               // How long does renting grant access to an org? (in real days)
+
 
     /* Global Settings */
     char    *game_name;                     // Name of the game, used in MSSP.
@@ -1528,13 +1563,13 @@ struct game_settings_data
     char    *server_description;            // Description of server, eg. "2.0 Public Test Server"
     bool    testport;                       // Is this a testport?
     bool    dev_server;                     // Is this a dev/alpha server?
-    bool    enable_passwd;                  // Require passwords?
+    bool    enable_passwd;                  // Enable passwords?
     bool    enable_mfa;                     // Enable multifactor authentication? 
-    bool    wizlock;                        // Deny non-staff character logins?
+    bool    wizlock;                        // Prevent non-staff character logins?
     char    *wizlock_msg;                   // Message to display to players when they try to login if game is wizlocked.
-    bool    new_acct_lock;                  // Deny making new accounts?
+    bool    new_acct_lock;                  // Prevent making new accounts?
     char    *new_acct_lock_msg;             // Message to display to players when they try to create a new account if game is new_acct_locked.
-    bool    new_char_lock;                  // Deny making new characters on existing accounts?
+    bool    new_char_lock;                  // Prevent making new characters on existing accounts?
     char    *new_char_lock_msg;             // Message to display to players if they try to create a new character if game is new_char_locked.
     bool    logall;                         // Log everything?
     bool    require_email_verification;     // Require email verification for accounts?
@@ -1545,28 +1580,30 @@ struct game_settings_data
     bool    allow_multiplay_acct_staff;     // Allow multiple logins from staff accounts? (only if allow_multiplay_account_all is true, and account does not have deny_multiplay set)
     bool    allow_multiplay_host_all;       // Allow multiple accounts to be logged in from one host?
     bool    allow_multiplay_host_staff;     // Allow multiple accounts to be logged in from one host if one is staff?
-    bool    allow_link_all;      // Allow all accounts to link chars.
-    bool    allow_unlink_all;    // Allow all accounts to unlink chars.
+    bool    allow_link_all;                 // Allow all accounts to link chars.
+    bool    allow_unlink_all;               // Allow all accounts to unlink chars.
+    bool    alignment_system;               // Do we use the alignment system?
+    bool    restrict_races_by_alignment;    // Restrict races by alignment (Legacy style)
+    bool    restrict_classes_by_alignment;  // Restrict classes by alignment? (Legacy style)
     int     max_login_attempts;             // How many login attempts are allowed before disconnecting?
     int     idle_time;                      // How many ticks until a user is considered idle?
     int     idle_disconnect_time;           // How many ticks until an idle user is disconnected?
     int     max_alias;                      // How many aliases can a player have?
     int     max_characters;                 // How many characters can a player have (can be overridden by account data);
     int     max_orgs;                       // How many organizations can exist?
-    bool    enable_telnet;                  // Do we allow plaintext?
+    bool    enable_telnet;                  // Allow plaintext connections?
     int     telnet_port;                    // Plaintext telnet port.
-    bool    enable_tls;                     // Do we allow tls connections?
+    bool    enable_tls;                     // Allow tls connections?
     int     tls_port;                       // TLS port.
-//    bool    enable_websocket_plain;         // Do we allow websocket connections?
-//    int     websocket_port;                 // Websocket port.
-//    bool    enable_websocket_tls;           // Do we allow tls websocket connections?
-//    int     websocket_tls_port;             // TLS websocket port.
-//    bool    enable_web;                     // Do we allow web connections?
-    char    *ssl_cert_path;                      // Path to SSL certificate.
-    char    *ssl_key_path;                       // Path to SSL key.
-    bool    enable_insecure_warning;               // Do we show a warning for insecure connections?
+    bool enable_websocket_tls;           // Allow websocket connections?
+    int websocket_tls_port;             // Websocket port.
+    bool enable_web;                     // Allow web connections?
+    char    *ssl_cert_path;                       // SSL certificate.
+    char    *ssl_key_path;                        // SSL key.
+    bool    enable_insecure_warning;               // Show a warning for insecure connections?
     char    *insecure_warning_msg;          // What message do we display for insecure users? (requires insecure_warning)
     int     max_logfile_size;               // What size do we start rotating logs at (in MB)?
+
     /* MSSP Settings */
     int mssp_players;                            // Automatically updated by the game.
     int mssp_uptime;                             // Automatically updated by the game.
@@ -1633,76 +1670,7 @@ struct game_settings_data
     bool mssp_training_system;                   // Training system?
     bool mssp_world_originality;                 // Based on an established setting?
 };
-/*
-struct mssp_data
-{
-    // MSSP Settings
-    int mssp_players;                            // Automatically updated by the game.
-    int mssp_uptime;                             // Automatically updated by the game.
-    int mssp_crawl_delay;                        // How often do we want crawlers to come back? -1 for crawler default. Recommended values: -1, 1, 5, 11, 23
-    char *mssp_hostname;                         // Server hostname
-    int mssp_port;                               // Server Port
-    int mssp_tls_port;                           // TLS Server Port
-    char *mssp_codebase;                         // Name of the codebase, eg Merc 2.1. You can report multiple codebases using the array format, make sure to report the current codebase last.
-    char *mssp_contact;                          // Email address for contacting the mud.
-    int mssp_created;                            // Year the MUD was created.
-    char *mssp_ip;                               // Current or new IP address.
-    char *mssp_language;                         // English name of the language used, eg German or English
-    char *mssp_location;                         // English short name of the country where the server is located, using ISO 3166.
-    int mssp_minimum_age;                        // Current minimum age requirement, omit if not applicable.
-    char *mssp_website;                          // URL to MUD website, this should include the http:// or https:// prefix.
-    char *mssp_family;                           // AberMUD, CoffeeMUD, DikuMUD, Evennia, LPMud, MajorMUD, MOO, Mordor, SocketMud, TinyMUD, TinyMUCK, TinyMUSH, Custom. Report Custom unless it's a well established family. You can report multiple generic codebases using the array format, make sure to report the most distant codebase (aka the family) last. Check the MUD family tree for naming and capitalization.
-    char *mssp_genre;                            // Adult, Fantasy, Historical, Horror, Modern, Mystery, None, Romance, Science Fiction, Spiritual
-    char *mssp_status;                           // Alpha, Closed Beta, Open Beta, Live
-    char *mssp_gamesystem;                       // D&D, d20 System, World of Darkness, Etc.
-    char *mssp_intermud;                         // AberChat, I3, IMC2, MudNet, Etc. Can be used multiple times if you support several protocols, most important protocol last. Leave empty or omit if no Intermud protocol is supported.
-    char *mssp_subgenre;                         //Alternate History, Anime, Cyberpunk, Detective, Discworld, Dragonlance, Christian Fiction, Classical Fantasy, Crime, Dark Fantasy, Epic Fantasy, Erotic, Exploration, Forgotten Realms, Frankenstein, Gothic, High Fantasy, Magical Realism, Medieval Fantasy, Multiverse, Paranormal, Post-Apocalyptic, Military Science Fiction, Mythology, Pulp, Star Wars, Steampunk, Suspense, Time Travel, Weird Fiction, World War II, Urban Fantasy, Etc.
-    char *mssp_discord_server;                   // URL to a Discord server, this should include the https:// prefix.
-    int mssp_areas;                              // Current number of areas (open only? let mud generate?)
-    int mssp_helpfiles;                          // Current number of helpfiles (player-only? let mud generate?)
-    int mssp_mobiles;                            // Current number of unique mobs (open areas only?)
-    int mssp_objects;                            // Current number of unique objects (open areas only? non-immortal?)
-    int mssp_rooms;                              // Current number of unique rooms (open areas only?)
-    int mssp_classes;                            // Number of player classes, use 0 if classless.
-    int mssp_levels;                             // Number of player levels, use 0 if level-less.
-    int mssp_races;                              // Number of player races, use 0 if raceless.
-    int mssp_skills;                             // Number of player skills, use 0 if skill-less.
-    int mssp_dbsize;                             //
 
-    bool mssp_ansi;                              // ANSI color code support?
-    bool mssp_gmcp;                              // GMCP (Generic Mud Communication Protocol) support? 
-    bool mssp_mccp;                              // MCCP (Mud Client Compression Protocol 2) support?
-    bool mssp_mcp;                               // MCP support?
-    bool mssp_msdp;                              // MSDP support?
-    bool mssp_msp;                               // MSP (Mud Sound Protocol) support?
-    bool mssp_mxp;                               // MXP (Mud eXtension Protocol) support?
-    bool mssp_pueb;                              // Pueblo/UE support?
-    bool mssp_utf8;                              // UTF-8 support?
-    bool mssp_vt100;                             // VT100 support?
-    bool mssp_xterm256;                          // 256 color support?
-    bool mssp_xtermtrue;                         // True color support?
-    bool mssp_atcp;                              // ATCP (Achaea Telnet Client Protocol) support?
-    bool mssp_ssl;                               // SSL support?
-    bool mssp_pay2play;                          // Pay to play?
-    bool mssp_pay4perks;                         // Pay for perks?
-    bool mssp_hiring_builders;                   // Looking for builders?
-    bool mssp_hiring_coders;                     // Looking for coders?
-    bool mssp_adult_material;                    // Does MUD contain mature content?
-    bool mssp_multiclass;                        // Multiclassing allowed?
-    bool mssp_newbie_friendly;                   // Newbie friendly?
-    bool mssp_player_cities;                     // Player cities?
-    bool mssp_player_clans;                      // Player clans?
-    bool mssp_player_crafting;                   // Player crafting?
-    bool mssp_player_guilds;                     // Player guilds?
-    char *mssp_equipment_system;                 // Equipment system, eg. Diku, ROM, SMAUG, etc.
-    char *mssp_multiplaying;                     // Multiplaying allowed?
-    bool mssp_playerkilling;                     // Player killing allowed?
-    bool mssp_quest_system;                      // Quest system?
-    bool mssp_roleplaying;                       // Roleplaying enforced?
-    bool mssp_training_system;                   // Training system?
-    bool mssp_world_originality;                 // Based on an established setting?
-};
-*/
 
 struct bounty_data
 {
@@ -10536,21 +10504,24 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
  * so players can go ahead and telnet to all the other descriptors.
  * Then we close it whenever we need to open a file (e.g. a save file).
  */
-#define PLAYER_DIR      "../characters/"        	/* Player files */
-#define ACCOUNT_DIR      "../accounts/"        	/* Player files */
-#define OLD_PLAYER_DIR	"../characters.old/"
-#define GOD_DIR         "../characters/staff/"  		/* Staff Pfiles */
-#define TEMP_FILE	"../characters/romtmp"
+
+#define GAME_DIR        "/sentience/"  
+#define PLAYER_DIR      GAME_DIR "characters/"        	/* Character files */
+#define ACCOUNT_DIR      GAME_DIR "accounts/"        	/* Account files */
+#define OLD_PLAYER_DIR	GAME_DIR "characters.old/"
+#define GOD_DIR         PLAYER_DIR "staff/"  		/* Staff Pfiles */
+#define TEMP_FILE	 PLAYER_DIR "romtmp"
 #define NULL_FILE	"/dev/null"		/* To reserve one stream */
-#define DATA_DIR		"../data/"
-#define WORLD_DIR		"../data/world/"
-#define BOAT_DIR		"../data/world/boats/"
-#define SYSTEM_DIR		"../data/system/"
-#define NOTE_DIR		"../data/notes/"
-#define ORG_DIR			"../data/orgs/"
-#define DUMP_DIR		"../data/dump/"
-#define STATS_DIR		"../data/stats/"
-#define HELP_DIR		"../data/help/"
+#define DATA_DIR		GAME_DIR "data/"
+#define WORLD_DIR		DATA_DIR "world/"
+#define BOAT_DIR		WORLD_DIR "boats/"
+#define SYSTEM_DIR		DATA_DIR "system/"
+#define NOTE_DIR		DATA_DIR "notes/"
+#define ORG_DIR			DATA_DIR "orgs/"
+#define DUMP_DIR		DATA_DIR "dump/"
+#define STATS_DIR		DATA_DIR "stats/"
+#define HELP_DIR		DATA_DIR "help/"
+#define AREA_DIR		GAME_DIR "area/"
 
 /*World files - Regarding things specifically for the game world. */
 #define PROJECTS_FILE	WORLD_DIR "projects.dat"

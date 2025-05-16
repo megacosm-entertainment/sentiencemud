@@ -346,13 +346,12 @@ int gconfig_read (void)
 
 }
 
-int game_settings_read (void)
+int game_settings_read(void)
 {
     FILE *fp;
     bool fMatch;
     char *word;
     char buf[MIL];
-
 
     log_string("Loading configuration settings from game_settings.dat...");
 
@@ -363,138 +362,179 @@ int game_settings_read (void)
         return(1); /* Failure*/
     }
 
-	/* Basic settings */
+    /* Basic settings */
+    game_settings.game_name = "";
+    game_settings.login_string = "";
+    game_settings.server_description = "";
+    game_settings.testport = false;
+    game_settings.dev_server = false;
+    game_settings.wizlock = false;
+    game_settings.new_acct_lock = false;
+    game_settings.new_char_lock = false;
+    game_settings.wizlock_msg = "";
+    game_settings.new_acct_lock_msg = "";
+    game_settings.new_char_lock_msg = "";
+    game_settings.logall = false;
 
-	game_settings.game_name = "";
-	game_settings.login_string = "";
-	game_settings.server_description = "";
-	game_settings.testport = false;
-	game_settings.dev_server = false;
-	game_settings.wizlock = false;
-	game_settings.new_acct_lock = false;
-	game_settings.new_char_lock = false;
-	game_settings.wizlock_msg = "";
-	game_settings.new_acct_lock_msg = "";
-	game_settings.new_char_lock_msg = "";
-	game_settings.logall = false;
+    /* Auth */
+    game_settings.require_uniq_pass_staff = false;
+    game_settings.max_login_attempts = 0;
+    game_settings.enable_passwd = true;
+    game_settings.enable_mfa = true;
+    game_settings.require_email_verification = false;
 
-	/* Auth */
-	game_settings.require_uniq_pass_staff = false;
-	game_settings.max_login_attempts = 0;
-	game_settings.enable_passwd = true;
-	game_settings.enable_mfa = true;
+    /* 2FA */
+    game_settings.require_2fa_all = false;
+    game_settings.require_2fa_staff = false;
+    
+    /* Multiplaying & Linking */
+    game_settings.allow_multiplay_acct_all = false;
+    game_settings.allow_multiplay_acct_staff = false;
+    game_settings.allow_multiplay_host_all = false;
+    game_settings.allow_multiplay_host_staff = false;
+    game_settings.allow_link_all = false;
+    game_settings.allow_unlink_all = false;
 
-	/* 2FA */
-	game_settings.require_2fa_all = false;
-	game_settings.require_2fa_staff = false;
-	
-	/* Multiplaying */
-	game_settings.allow_multiplay_acct_all = false;
-	game_settings.allow_multiplay_acct_staff = false;
-	game_settings.allow_multiplay_host_all = false;
-	game_settings.allow_multiplay_host_staff = false;
+    /* Game Systems */
+    game_settings.alignment_system = false;
+    game_settings.restrict_races_by_alignment = false;
+    game_settings.restrict_classes_by_alignment = false;
 
-	/* Timers */
-	game_settings.idle_time = 0;
-	game_settings.idle_disconnect_time = 0;
+    /* Timers */
+    game_settings.idle_time = 0;
+    game_settings.idle_disconnect_time = 0;
 
-	/* Misc Maximums */
-	game_settings.max_alias = 0;
-	game_settings.max_characters = 0;
-	game_settings.max_orgs = 0;
-	game_settings.max_logfile_size = 0;
+    /* Misc Maximums */
+    game_settings.max_alias = 0;
+    game_settings.max_characters = 0;
+    game_settings.max_orgs = 0;
+    game_settings.max_logfile_size = 0;
 
-	/* Email */
-	game_settings.enable_email = false;
-	game_settings.require_email_verification = false;
-	game_settings.email_port = 0;
-	game_settings.email_username = "";
-	game_settings.email_host = "";
-	game_settings.email_password = "";
-	game_settings.email_from_addr = "";
-	game_settings.email_from_name = "";
+    /* Email */
+    game_settings.enable_email = false;
+    game_settings.email_port = 0;
+    game_settings.email_username = "";
+    game_settings.email_host = "";
+    game_settings.email_password = "";
+    game_settings.email_from_addr = "";
+    game_settings.email_from_name = "";
 
-	/* Missions */
-	game_settings.max_mission_allowance = 0;
-	game_settings.inc_missions = 0;		// Per day
-	game_settings.max_missions = 0;
+    /* Missions */
+    game_settings.max_mission_allowance = 0;
+    game_settings.inc_missions = 0;
+    game_settings.max_missions = 0;
 
-	/* Protocols and Ports*/
-	game_settings.enable_telnet = false;
-	game_settings.telnet_port = 0;
-	game_settings.enable_tls = false;
-	game_settings.tls_port = 0;
-	game_settings.ssl_cert_path = "";
-	game_settings.ssl_key_path = "";
+    /* Locker Settings */
+    game_settings.lockers_enabled = false;
+    game_settings.locker_rent_enabled = false;
+    game_settings.max_locker_weight = 0;
+    game_settings.max_locker_items = 0;
+    game_settings.locker_rent_cost = 0;
+    game_settings.locker_rent_time = 0;
+    game_settings.locker_rent_time_max = 0;
+    game_settings.locker_additional_cost_per_tier = 0;
+    game_settings.locker_additional_slots_per_tier = 0;
+    game_settings.locker_additional_weight_per_tier = 0;
+    game_settings.locker_tier_max = 0;
 
-	game_settings.enable_insecure_warning = false;
-	game_settings.insecure_warning_msg = "";
+    /* Vault Settings */
+    game_settings.max_vault_weight = 0;
+    game_settings.max_vault_items = 0;
+    game_settings.vault_enabled = false;
+    game_settings.vault_rent = false;
+    game_settings.vault_rent_per_char = false;
+    game_settings.vault_rent_cost = 0;
+    game_settings.vault_rent_time = 0;
+    game_settings.vault_additional_cost_per_char = 0;
+    game_settings.vault_additional_slots_per_char = 0;
+    game_settings.vault_additional_weight_per_char = 0;
 
-	/* MSSP */
-	game_settings.mssp_players = 0;
-	game_settings.mssp_uptime = 0;
-	game_settings.mssp_crawl_delay = 0;
-	game_settings.mssp_hostname = "";
-	game_settings.mssp_port = 0;
-	game_settings.mssp_tls_port = 0;
-	game_settings.mssp_codebase = "";
-	game_settings.mssp_contact = "";
-	game_settings.mssp_created = 0;
-	game_settings.mssp_ip = "";
-	game_settings.mssp_language = "";
-	game_settings.mssp_location = "";
-	game_settings.mssp_minimum_age = 0;
-	game_settings.mssp_website = "";
-	game_settings.mssp_family = "";
-	game_settings.mssp_genre = "";
-	game_settings.mssp_status = "";
-	game_settings.mssp_gamesystem = "";
-	game_settings.mssp_intermud = "";
-	game_settings.mssp_subgenre = "";
-	game_settings.mssp_discord_server = "";
-	game_settings.mssp_areas = 0;
-	game_settings.mssp_helpfiles = 0;
-	game_settings.mssp_mobiles = 0;
-	game_settings.mssp_objects = 0;
-	game_settings.mssp_rooms = 0;
-	game_settings.mssp_classes = 0;
-	game_settings.mssp_levels = 0;
-	game_settings.mssp_races = 0;
-	game_settings.mssp_skills = 0;
-	game_settings.mssp_dbsize = 0;
-	game_settings.mssp_ansi = false;
-	game_settings.mssp_gmcp = false;
-	game_settings.mssp_mccp = false;
-	game_settings.mssp_mcp = false;
-	game_settings.mssp_msdp = false;
-	game_settings.mssp_msp = false;
-	game_settings.mssp_mxp = false;
-	game_settings.mssp_pueb = false;
-	game_settings.mssp_utf8 = false;
-	game_settings.mssp_vt100 = false;
-	game_settings.mssp_xterm256 = false;
-	game_settings.mssp_xtermtrue = false;
-	game_settings.mssp_atcp = false;
-	game_settings.mssp_ssl = false;
-	game_settings.mssp_pay2play = false;
-	game_settings.mssp_pay4perks = false;
-	game_settings.mssp_hiring_builders = false;
-	game_settings.mssp_hiring_coders = false;
-	game_settings.mssp_adult_material = false;
-	game_settings.mssp_multiclass = false;
-	game_settings.mssp_newbie_friendly = false;
-	game_settings.mssp_player_cities = false;
-	game_settings.mssp_player_clans = false;
-	game_settings.mssp_player_crafting = false;
-	game_settings.mssp_player_guilds = false;
-	game_settings.mssp_equipment_system = "";
-	game_settings.mssp_multiplaying = "";
-	game_settings.mssp_playerkilling = false;
-	game_settings.mssp_quest_system = false;
-	game_settings.mssp_roleplaying = false;
-	game_settings.mssp_training_system = false;
-	game_settings.mssp_world_originality = false;
+    /* Coffer Settings */
+    game_settings.max_coffer_weight = 0;
+    game_settings.max_coffer_items = 0;
+    game_settings.coffer_enabled = false;
+    game_settings.coffer_rent = false;
+    game_settings.coffer_rent_cost = 0;
+    game_settings.coffer_rent_currency = "";
+    game_settings.coffer_rent_period = 0;
 
+    /* Protocols and Ports*/
+    game_settings.enable_telnet = false;
+    game_settings.telnet_port = 0;
+    game_settings.enable_tls = false;
+    game_settings.tls_port = 0;
+    game_settings.enable_websocket_tls = false;
+    game_settings.websocket_tls_port = 0;
+    game_settings.enable_web = false;
+    game_settings.ssl_cert_path = "";
+    game_settings.ssl_key_path = "";
+    game_settings.enable_insecure_warning = false;
+    game_settings.insecure_warning_msg = "";
+
+    /* MSSP */
+    game_settings.mssp_players = 0;
+    game_settings.mssp_uptime = 0;
+    game_settings.mssp_crawl_delay = 0;
+    game_settings.mssp_hostname = "";
+    game_settings.mssp_port = 0;
+    game_settings.mssp_tls_port = 0;
+    game_settings.mssp_codebase = "";
+    game_settings.mssp_contact = "";
+    game_settings.mssp_created = 0;
+    game_settings.mssp_ip = "";
+    game_settings.mssp_language = "";
+    game_settings.mssp_location = "";
+    game_settings.mssp_minimum_age = 0;
+    game_settings.mssp_website = "";
+    game_settings.mssp_family = "";
+    game_settings.mssp_genre = "";
+    game_settings.mssp_status = "";
+    game_settings.mssp_gamesystem = "";
+    game_settings.mssp_intermud = "";
+    game_settings.mssp_subgenre = "";
+    game_settings.mssp_discord_server = "";
+    game_settings.mssp_areas = 0;
+    game_settings.mssp_helpfiles = 0;
+    game_settings.mssp_mobiles = 0;
+    game_settings.mssp_objects = 0;
+    game_settings.mssp_rooms = 0;
+    game_settings.mssp_classes = 0;
+    game_settings.mssp_levels = 0;
+    game_settings.mssp_races = 0;
+    game_settings.mssp_skills = 0;
+    game_settings.mssp_dbsize = 0;
+    game_settings.mssp_ansi = false;
+    game_settings.mssp_gmcp = false;
+    game_settings.mssp_mccp = false;
+    game_settings.mssp_mcp = false;
+    game_settings.mssp_msdp = false;
+    game_settings.mssp_msp = false;
+    game_settings.mssp_mxp = false;
+    game_settings.mssp_pueb = false;
+    game_settings.mssp_utf8 = false;
+    game_settings.mssp_vt100 = false;
+    game_settings.mssp_xterm256 = false;
+    game_settings.mssp_xtermtrue = false;
+    game_settings.mssp_atcp = false;
+    game_settings.mssp_ssl = false;
+    game_settings.mssp_pay2play = false;
+    game_settings.mssp_pay4perks = false;
+    game_settings.mssp_hiring_builders = false;
+    game_settings.mssp_hiring_coders = false;
+    game_settings.mssp_adult_material = false;
+    game_settings.mssp_multiclass = false;
+    game_settings.mssp_newbie_friendly = false;
+    game_settings.mssp_player_cities = false;
+    game_settings.mssp_player_clans = false;
+    game_settings.mssp_player_crafting = false;
+    game_settings.mssp_player_guilds = false;
+    game_settings.mssp_equipment_system = "";
+    game_settings.mssp_multiplaying = "";
+    game_settings.mssp_playerkilling = false;
+    game_settings.mssp_quest_system = false;
+    game_settings.mssp_roleplaying = false;
+    game_settings.mssp_training_system = false;
+    game_settings.mssp_world_originality = false;
 
     for(;;)
     {
@@ -507,91 +547,123 @@ int game_settings_read (void)
                 fMatch = true;
                 fread_to_eol (fp);
             break;
-			case 'A':
-				{
-					RESERVED_AREA *ra = search_reserved_area(word);
+            case 'A':
+                {
+                    RESERVED_AREA *ra = search_reserved_area(word);
 
-					if (ra)
-					{
-						ra->auid = fread_number(fp);
-						fMatch = true;
-						break;
-					}
-				}
-				KEY("AllowMultiplayAcctAll", game_settings.allow_multiplay_acct_all, fread_number(fp));
-				KEY("AllowMultiplayAcctStaff", game_settings.allow_multiplay_acct_staff, fread_number(fp));
-				KEY("AllowMultiplayHostAll", game_settings.allow_multiplay_host_all, fread_number(fp));
-				KEY("AllowMultiplayHostStaff", game_settings.allow_multiplay_host_staff, fread_number(fp));
-				break;
+                    if (ra)
+                    {
+                        ra->auid = fread_number(fp);
+                        fMatch = true;
+                        break;
+                    }
+                }
+                KEY("AlignmentSystem", game_settings.alignment_system, fread_number(fp));
+                KEY("AllowLinkAll", game_settings.allow_link_all, fread_number(fp));
+                KEY("AllowMultiplayAcctAll", game_settings.allow_multiplay_acct_all, fread_number(fp));
+                KEY("AllowMultiplayAcctStaff", game_settings.allow_multiplay_acct_staff, fread_number(fp));
+                KEY("AllowMultiplayHostAll", game_settings.allow_multiplay_host_all, fread_number(fp));
+                KEY("AllowMultiplayHostStaff", game_settings.allow_multiplay_host_staff, fread_number(fp));
+                KEY("AllowUnlinkAll", game_settings.allow_unlink_all, fread_number(fp));
+                break;
 
-           case 'E':
-		   		KEY("Email_Enable", game_settings.enable_email, fread_number(fp));
-		   		KEY("EmailUser", game_settings.email_username, fread_string(fp));
-				KEY("EmailPassword", game_settings.email_password, fread_string(fp));
-				KEY("EmailHost", game_settings.email_host, fread_string(fp));
-				KEY("EmailPort", game_settings.email_port, fread_number(fp));
-				KEY("EmailFromAddr", game_settings.email_from_addr, fread_string(fp));
-				KEY("EmailFromName", game_settings.email_from_name, fread_string(fp));
-				KEY("EnablePasswd", game_settings.enable_passwd, fread_number(fp));
-				KEY("EnableMFA", game_settings.enable_mfa, fread_number(fp));
+            case 'C':
+                KEY("CofferEnabled", game_settings.coffer_enabled, fread_number(fp));
+                KEY("CofferRent", game_settings.coffer_rent, fread_number(fp));
+                KEY("CofferRentCost", game_settings.coffer_rent_cost, fread_number(fp));
+                KEY("CofferRentCurrency", game_settings.coffer_rent_currency, fread_string(fp));
+                KEY("CofferRentPeriod", game_settings.coffer_rent_period, fread_number(fp));
+                break;
+
+            case 'D':
+                KEY("DevServer", game_settings.dev_server, fread_number(fp));
+                break;
+
+            case 'E':
+                KEY("Email_Enable", game_settings.enable_email, fread_number(fp));
+                KEY("EmailUser", game_settings.email_username, fread_string(fp));
+                KEY("EmailPassword", game_settings.email_password, fread_string(fp));
+                KEY("EmailHost", game_settings.email_host, fread_string(fp));
+                KEY("EmailPort", game_settings.email_port, fread_number(fp));
+                KEY("EmailFromAddr", game_settings.email_from_addr, fread_string(fp));
+                KEY("EmailFromName", game_settings.email_from_name, fread_string(fp));
+                KEY("EnablePasswd", game_settings.enable_passwd, fread_number(fp));
+                KEY("EnableMFA", game_settings.enable_mfa, fread_number(fp));
+                KEY("EnableWeb", game_settings.enable_web, fread_number(fp));
+                KEY("EnableWebsocketTls", game_settings.enable_websocket_tls, fread_number(fp));
                 if (!str_cmp(word, "END"))
                 {
-					if (game_settings.idle_disconnect_time <= 0)
-						game_settings.idle_disconnect_time = 30;
-					
-					if (game_settings.idle_time <= 0)
-						game_settings.idle_time = 12;
+                    if (game_settings.idle_disconnect_time <= 0)
+                        game_settings.idle_disconnect_time = 30;
+                    
+                    if (game_settings.idle_time <= 0)
+                        game_settings.idle_time = 12;
 
-					if (game_settings.idle_disconnect_time <= game_settings.idle_time)
-						game_settings.idle_disconnect_time = game_settings.idle_time + 5;
+                    if (game_settings.idle_disconnect_time <= game_settings.idle_time)
+                        game_settings.idle_disconnect_time = game_settings.idle_time + 5;
 
-					fclose(fp);
-					game_settings_write();
-					return(0); /* Success*/
-				}
-	            break;
+                    fclose(fp);
+                    game_settings_write();
+                    return(0); /* Success*/
+                }
+                break;
 
-			case 'G':
-				KEY("GameName", game_settings.game_name, fread_string(fp));
-				break;
+            case 'G':
+                KEY("GameName", game_settings.game_name, fread_string(fp));
+                break;
 
-			case 'I':
-				KEY("IdleDisconnectTimeout", game_settings.idle_disconnect_time, fread_number(fp));
-				KEY("IdleTimeout", game_settings.idle_time, fread_number(fp));
-				KEY("IncMissions", game_settings.inc_missions, fread_number(fp));
-				KEY("InsecureWarning_Enable", game_settings.enable_insecure_warning, fread_number(fp));
-				KEY("InsecureWarning_Msg", game_settings.insecure_warning_msg, fread_string(fp));
-				break;
+            case 'I':
+                KEY("IdleDisconnectTimeout", game_settings.idle_disconnect_time, fread_number(fp));
+                KEY("IdleTimeout", game_settings.idle_time, fread_number(fp));
+                KEY("IncMissions", game_settings.inc_missions, fread_number(fp));
+                KEY("InsecureWarning_Enable", game_settings.enable_insecure_warning, fread_number(fp));
+                KEY("InsecureWarning_Msg", game_settings.insecure_warning_msg, fread_string(fp));
+                break;
 
-			case 'L':
-				KEY("LogAllConnections", game_settings.logall, fread_number(fp));
-				KEY("LoginString", game_settings.login_string, fread_string(fp));
-				break;
+            case 'L':
+                KEY("LockerAdditionalCostPerTier", game_settings.locker_additional_cost_per_tier, fread_number(fp));
+                KEY("LockerAdditionalSlotsPerTier", game_settings.locker_additional_slots_per_tier, fread_number(fp));
+                KEY("LockerAdditionalWeightPerTier", game_settings.locker_additional_weight_per_tier, fread_number(fp));
+                KEY("LockerRentCost", game_settings.locker_rent_cost, fread_number(fp));
+                KEY("LockerRentEnabled", game_settings.locker_rent_enabled, fread_number(fp));
+                KEY("LockerRentTime", game_settings.locker_rent_time, fread_number(fp));
+                KEY("LockerRentTimeMax", game_settings.locker_rent_time_max, fread_number(fp));
+                KEY("LockerTierMax", game_settings.locker_tier_max, fread_number(fp));
+                KEY("LockersEnabled", game_settings.lockers_enabled, fread_number(fp));
+                KEY("LogAllConnections", game_settings.logall, fread_number(fp));
+                KEY("LoginString", game_settings.login_string, fread_string(fp));
+                break;
 
-			case 'M':
-				KEY("MaxAlias", game_settings.max_alias, fread_number(fp));
-				KEY("MaxCharacters", game_settings.max_characters, fread_number(fp));
-				KEY("MaxLogfileSize", game_settings.max_logfile_size, fread_number(fp));
-				KEY("MaxLoginAttempts", game_settings.max_login_attempts, fread_number(fp));
-				KEY("MaxMissionAllowance", game_settings.max_mission_allowance, fread_number(fp));
-				KEY("MaxMissions", game_settings.max_missions, fread_number(fp));
-				KEY("MaxOrgs", game_settings.max_orgs, fread_number(fp));
-				KEY("MSSP_HOSTNAME",game_settings.mssp_hostname,fread_string(fp));
-				KEY("MSSP_CODEBASE",game_settings.mssp_codebase,fread_string(fp));
-				KEY("MSSP_CONTACT",game_settings.mssp_contact,fread_string(fp));
-				KEY("MSSP_IP",game_settings.mssp_ip,fread_string(fp));
-				KEY("MSSP_LANGUAGE",game_settings.mssp_language,fread_string(fp));
-				KEY("MSSP_LOCATION",game_settings.mssp_location,fread_string(fp));
-				KEY("MSSP_WEBSITE",game_settings.mssp_website,fread_string(fp));
-				KEY("MSSP_FAMILY",game_settings.mssp_family,fread_string(fp));
-				KEY("MSSP_GENRE",game_settings.mssp_genre,fread_string(fp));
-				KEY("MSSP_STATUS",game_settings.mssp_status,fread_string(fp));
-				KEY("MSSP_GAMESYSTEM",game_settings.mssp_gamesystem,fread_string(fp));
-				KEY("MSSP_INTERMUD",game_settings.mssp_intermud,fread_string(fp));
-				KEY("MSSP_SUBGENRE",game_settings.mssp_subgenre,fread_string(fp));
-				KEY("MSSP_DISCORD_SERVER",game_settings.mssp_discord_server,fread_string(fp));
-				KEY("MSSP_EQUIPMENT_SYSTEM",game_settings.mssp_equipment_system,fread_string(fp));
-				KEY("MSSP_MULTIPLAYING",game_settings.mssp_multiplaying,fread_string(fp));
+            case 'M':
+                KEY("MaxAlias", game_settings.max_alias, fread_number(fp));
+                KEY("MaxCharacters", game_settings.max_characters, fread_number(fp));
+                KEY("MaxCofferItems", game_settings.max_coffer_items, fread_number(fp));
+                KEY("MaxCofferWeight", game_settings.max_coffer_weight, fread_number(fp));
+                KEY("MaxLockerItems", game_settings.max_locker_items, fread_number(fp));
+                KEY("MaxLockerWeight", game_settings.max_locker_weight, fread_number(fp));
+                KEY("MaxLogfileSize", game_settings.max_logfile_size, fread_number(fp));
+                KEY("MaxLoginAttempts", game_settings.max_login_attempts, fread_number(fp));
+                KEY("MaxMissionAllowance", game_settings.max_mission_allowance, fread_number(fp));
+                KEY("MaxMissions", game_settings.max_missions, fread_number(fp));
+                KEY("MaxOrgs", game_settings.max_orgs, fread_number(fp));
+                KEY("MaxVaultItems", game_settings.max_vault_items, fread_number(fp));
+                KEY("MaxVaultWeight", game_settings.max_vault_weight, fread_number(fp));
+                KEY("MSSP_HOSTNAME",game_settings.mssp_hostname,fread_string(fp));
+                KEY("MSSP_CODEBASE",game_settings.mssp_codebase,fread_string(fp));
+                KEY("MSSP_CONTACT",game_settings.mssp_contact,fread_string(fp));
+                KEY("MSSP_IP",game_settings.mssp_ip,fread_string(fp));
+                KEY("MSSP_LANGUAGE",game_settings.mssp_language,fread_string(fp));
+                KEY("MSSP_LOCATION",game_settings.mssp_location,fread_string(fp));
+                KEY("MSSP_WEBSITE",game_settings.mssp_website,fread_string(fp));
+                KEY("MSSP_FAMILY",game_settings.mssp_family,fread_string(fp));
+                KEY("MSSP_GENRE",game_settings.mssp_genre,fread_string(fp));
+                KEY("MSSP_STATUS",game_settings.mssp_status,fread_string(fp));
+                KEY("MSSP_GAMESYSTEM",game_settings.mssp_gamesystem,fread_string(fp));
+                KEY("MSSP_INTERMUD",game_settings.mssp_intermud,fread_string(fp));
+                KEY("MSSP_SUBGENRE",game_settings.mssp_subgenre,fread_string(fp));
+                KEY("MSSP_DISCORD_SERVER",game_settings.mssp_discord_server,fread_string(fp));
+                KEY("MSSP_EQUIPMENT_SYSTEM",game_settings.mssp_equipment_system,fread_string(fp));
+                KEY("MSSP_MULTIPLAYING",game_settings.mssp_multiplaying,fread_string(fp));
                 KEY("MSSP_CRAWL_DELAY",game_settings.mssp_crawl_delay,fread_number(fp));
                 KEY("MSSP_PORT",game_settings.mssp_port,fread_number(fp));
                 KEY("MSSP_TLS_PORT",game_settings.mssp_tls_port,fread_number(fp));
@@ -609,7 +681,7 @@ int game_settings_read (void)
                 KEY("MSSP_DBSIZE",game_settings.mssp_dbsize,fread_number(fp));
                 KEY("MSSP_VT100",game_settings.mssp_vt100,fread_number(fp));
                 KEY("MSSP_ANSI",game_settings.mssp_ansi,fread_number(fp));
-				KEY("MSSP_ATCP",game_settings.mssp_atcp,fread_number(fp));
+                KEY("MSSP_ATCP",game_settings.mssp_atcp,fread_number(fp));
                 KEY("MSSP_GMCP",game_settings.mssp_gmcp,fread_number(fp));
                 KEY("MSSP_MCCP",game_settings.mssp_mccp,fread_number(fp));
                 KEY("MSSP_MCP",game_settings.mssp_mcp,fread_number(fp));
@@ -639,93 +711,107 @@ int game_settings_read (void)
                 KEY("MSSP_ROLEPLAYING",game_settings.mssp_roleplaying,fread_number(fp));
                 KEY("MSSP_TRAINING_SYSTEM",game_settings.mssp_training_system,fread_number(fp));
                 KEY("MSSP_WORLD_ORIGINALITY",game_settings.mssp_world_originality,fread_number(fp));
-				
-				{
-					RESERVED_WNUM *mwnum = search_reserved(reserved_mob_wnums, word);
+                
+                {
+                    RESERVED_WNUM *mwnum = search_reserved(reserved_mob_wnums, word);
 
-					if (mwnum)
-					{
-						mwnum->auid = fread_number(fp);
-						mwnum->vnum = fread_number(fp);
-						fMatch = true;
-					}
-				}
-				break;
+                    if (mwnum)
+                    {
+                        mwnum->auid = fread_number(fp);
+                        mwnum->vnum = fread_number(fp);
+                        fMatch = true;
+                    }
+                }
+                break;
 
             case 'N':
-				KEY("NewAcctLock",game_settings.new_acct_lock,fread_number(fp));
-				KEY("NewAcctLockMsg",game_settings.new_acct_lock_msg,fread_string(fp));
-				KEY("NewCharLock",game_settings.new_char_lock,fread_number(fp));
-				KEY("NewCharLockMsg",game_settings.new_char_lock_msg,fread_string(fp));
+                KEY("NewAcctLock",game_settings.new_acct_lock,fread_number(fp));
+                KEY("NewAcctLockMsg",game_settings.new_acct_lock_msg,fread_string(fp));
+                KEY("NewCharLock",game_settings.new_char_lock,fread_number(fp));
+                KEY("NewCharLockMsg",game_settings.new_char_lock_msg,fread_string(fp));
 
-	            break;
-			case 'O':
-				{
-					RESERVED_WNUM *ownum = search_reserved(reserved_obj_wnums, word);
+                break;
+            case 'O':
+                {
+                    RESERVED_WNUM *ownum = search_reserved(reserved_obj_wnums, word);
 
-					if (ownum)
-					{
-						ownum->auid = fread_number(fp);
-						ownum->vnum = fread_number(fp);
-						fMatch = true;
-					}
-				}
-				break;
-			case 'R':
-				{
-					RESERVED_WNUM *rwnum = search_reserved(reserved_room_wnums, word);
+                    if (ownum)
+                    {
+                        ownum->auid = fread_number(fp);
+                        ownum->vnum = fread_number(fp);
+                        fMatch = true;
+                    }
+                }
+                break;
+            case 'R':
+                {
+                    RESERVED_WNUM *rwnum = search_reserved(reserved_room_wnums, word);
 
-					if (rwnum)
-					{
-						rwnum->auid = fread_number(fp);
-						rwnum->vnum = fread_number(fp);
-						fMatch = true;
-						break;
-					}
+                    if (rwnum)
+                    {
+                        rwnum->auid = fread_number(fp);
+                        rwnum->vnum = fread_number(fp);
+                        fMatch = true;
+                        break;
+                    }
 
-					RESERVED_WNUM *rpwnum = search_reserved(reserved_rprog_wnums, word);
-					if (rpwnum)
-					{
-						rpwnum->auid = fread_number(fp);
-						rpwnum->vnum = fread_number(fp);
-						fMatch = true;
-						break;
-					}
-				}
-				KEY("Require_2FA_All",game_settings.require_2fa_all,fread_number(fp));
-				KEY("Require_2FA_Staff",game_settings.require_2fa_staff,fread_number(fp));
-				KEY("RequireUniqPassStaff",game_settings.require_uniq_pass_staff,fread_number(fp));
-				break;
+                    RESERVED_WNUM *rpwnum = search_reserved(reserved_rprog_wnums, word);
+                    if (rpwnum)
+                    {
+                        rpwnum->auid = fread_number(fp);
+                        rpwnum->vnum = fread_number(fp);
+                        fMatch = true;
+                        break;
+                    }
+                }
+                KEY("Require_2FA_All",game_settings.require_2fa_all,fread_number(fp));
+                KEY("Require_2FA_Staff",game_settings.require_2fa_staff,fread_number(fp));
+                KEY("RequireEmailVerification",game_settings.require_email_verification,fread_number(fp));
+                KEY("RequireUniqPassStaff",game_settings.require_uniq_pass_staff,fread_number(fp));
+                KEY("RestrictRacesByAlignment",game_settings.restrict_races_by_alignment,fread_number(fp));
+                KEY("RestrictClassesByAlignment",game_settings.restrict_classes_by_alignment,fread_number(fp));
+                break;
 
-			case 'S':
-				KEY("ServerDescription", game_settings.server_description, fread_string(fp));
-				KEY("SSL_Cert_Path",game_settings.ssl_cert_path,fread_string(fp));
-				KEY("SSL_Key_Path",game_settings.ssl_key_path,fread_string(fp));
-				break;
+            case 'S':
+                KEY("ServerDescription", game_settings.server_description, fread_string(fp));
+                KEY("SSL_Cert_Path",game_settings.ssl_cert_path,fread_string(fp));
+                KEY("SSL_Key_Path",game_settings.ssl_key_path,fread_string(fp));
+                break;
 
-			case 'T':
+            case 'T':
                 KEY("Telnet_Enable", game_settings.enable_telnet, fread_number(fp));
-				KEY("Telnet_Port", game_settings.telnet_port, fread_number(fp));
-				KEY("Testport", game_settings.testport, fread_number(fp));
-				KEY("Tls_Enable", game_settings.enable_tls, fread_number(fp));
-				KEY("Tls_Port", game_settings.tls_port, fread_number(fp));
-				break;
-			case 'W':
-				KEY("Wizlock_Enable", game_settings.wizlock, fread_number(fp));
-				KEY("Wizlock_Msg", game_settings.wizlock_msg, fread_string(fp));
-				break;
+                KEY("Telnet_Port", game_settings.telnet_port, fread_number(fp));
+                KEY("Testport", game_settings.testport, fread_number(fp));
+                KEY("Tls_Enable", game_settings.enable_tls, fread_number(fp));
+                KEY("Tls_Port", game_settings.tls_port, fread_number(fp));
+                break;
+
+            case 'V':
+                KEY("VaultAdditionalCostPerChar", game_settings.vault_additional_cost_per_char, fread_number(fp));
+                KEY("VaultAdditionalSlotsPerChar", game_settings.vault_additional_slots_per_char, fread_number(fp));
+                KEY("VaultAdditionalWeightPerChar", game_settings.vault_additional_weight_per_char, fread_number(fp));
+                KEY("VaultEnabled", game_settings.vault_enabled, fread_number(fp));
+                KEY("VaultRent", game_settings.vault_rent, fread_number(fp));
+                KEY("VaultRentCost", game_settings.vault_rent_cost, fread_number(fp));
+                KEY("VaultRentPerChar", game_settings.vault_rent_per_char, fread_number(fp));
+                KEY("VaultRentTime", game_settings.vault_rent_time, fread_number(fp));
+                break;
+
+            case 'W':
+                KEY("WebsocketTlsPort", game_settings.websocket_tls_port, fread_number(fp));
+                KEY("Wizlock_Enable", game_settings.wizlock, fread_number(fp));
+                KEY("Wizlock_Msg", game_settings.wizlock_msg, fread_string(fp));
+                break;
 
         } /* end switch */
 
         if (!fMatch)
         {
-	    snprintf(buf, sizeof(buf), "act_wiz.c, game_settings_read(): no match for '%s'!", word);
-	    bug(buf, 0);
+            snprintf(buf, sizeof(buf), "act_wiz.c, game_settings_read(): no match for '%s'!", word);
+            bug(buf, 0);
             fread_to_eol(fp);
         }
     } /* end for */
-
-
 }
 
 
@@ -820,69 +906,118 @@ int gconfig_write(void)
 
 int game_settings_write(void)
 {
-	FILE *fp;
+    FILE *fp;
 
-	fp = fopen(GAME_SETTINGS_FILE,"w");
-	if (!fp)
-	{
-		bug("act_wiz.c, game_settings_write(): Unable to open game_settings.rc file for writing.",0);
-		return(1); /* Failure*/
-	}
+    fp = fopen(GAME_SETTINGS_FILE,"w");
+    if (!fp)
+    {
+        bug("act_wiz.c, game_settings_write(): Unable to open game_settings.rc file for writing.",0);
+        return(1); /* Failure*/
+    }
 
+    /* Basic Settings */
     fprintf(fp, "GameName %s~\n",  game_settings.game_name);
     fprintf(fp, "LoginString %s~\n",  game_settings.login_string);
-	fprintf(fp, "ServerDescription %s~\n",  game_settings.server_description);
+    fprintf(fp, "ServerDescription %s~\n",  game_settings.server_description);
+    fprintf(fp, "DevServer %d\n", game_settings.dev_server);
 
-	/* Port Settings */
+    /* Port Settings */
     fprintf(fp, "Telnet_Enable %d\n",  game_settings.enable_telnet);
     fprintf(fp, "Telnet_Port %d\n",  game_settings.telnet_port);
     fprintf(fp, "Tls_Enable %d\n",  game_settings.enable_tls);
     fprintf(fp, "Tls_Port %d\n",  game_settings.tls_port);
+    fprintf(fp, "EnableWebsocketTls %d\n", game_settings.enable_websocket_tls);
+    fprintf(fp, "WebsocketTlsPort %d\n", game_settings.websocket_tls_port);
+    fprintf(fp, "EnableWeb %d\n", game_settings.enable_web);
     fprintf(fp, "SSL_Cert_Path %s~\n", game_settings.ssl_cert_path);
     fprintf(fp, "SSL_Key_Path %s~\n", game_settings.ssl_key_path);
-	fprintf(fp, "Testport %d\n",  game_settings.testport);
+    fprintf(fp, "Testport %d\n",  game_settings.testport);
     fprintf(fp, "InsecureWarning_Enable %d\n",  game_settings.enable_insecure_warning);
     fprintf(fp, "InsecureWarning_Msg %s~\n",  game_settings.insecure_warning_msg);
 
-	/* Various Locks */
+    /* Various Locks */
     fprintf(fp, "Wizlock_Enable %d\n",  game_settings.wizlock);
     fprintf(fp, "Wizlock_Msg %s~\n",  game_settings.wizlock_msg);
-	fprintf(fp, "NewAcctLock %d\n", game_settings.new_acct_lock);
-	fprintf(fp, "NewAcctLockMsg %s~\n", game_settings.new_acct_lock_msg);
+    fprintf(fp, "NewAcctLock %d\n", game_settings.new_acct_lock);
+    fprintf(fp, "NewAcctLockMsg %s~\n", game_settings.new_acct_lock_msg);
     fprintf(fp, "NewCharLock %d\n", game_settings.new_char_lock);
     fprintf(fp, "NewCharLockMsg %s~\n", game_settings.new_char_lock_msg);
 
-	/* Mission Stuff */
+    /* Mission Settings */
     fprintf(fp, "IncMissions %d\n",  game_settings.inc_missions);
     fprintf(fp, "MaxMissionAllowance %d\n",  game_settings.max_mission_allowance);
     fprintf(fp, "MaxMissions %d\n",  game_settings.max_missions);
 
-	/* Multiplaying */
+    /* Locker Settings */
+    fprintf(fp, "LockersEnabled %d\n", game_settings.lockers_enabled);
+    fprintf(fp, "LockerRentEnabled %d\n", game_settings.locker_rent_enabled);
+    fprintf(fp, "MaxLockerWeight %d\n", game_settings.max_locker_weight);
+    fprintf(fp, "MaxLockerItems %d\n", game_settings.max_locker_items);
+    fprintf(fp, "LockerRentCost %d\n", game_settings.locker_rent_cost);
+    fprintf(fp, "LockerRentTime %d\n", game_settings.locker_rent_time);
+    fprintf(fp, "LockerRentTimeMax %d\n", game_settings.locker_rent_time_max);
+    fprintf(fp, "LockerAdditionalCostPerTier %d\n", game_settings.locker_additional_cost_per_tier);
+    fprintf(fp, "LockerAdditionalSlotsPerTier %d\n", game_settings.locker_additional_slots_per_tier);
+    fprintf(fp, "LockerAdditionalWeightPerTier %d\n", game_settings.locker_additional_weight_per_tier);
+    fprintf(fp, "LockerTierMax %d\n", game_settings.locker_tier_max);
+
+    /* Vault Settings */
+    fprintf(fp, "MaxVaultWeight %d\n", game_settings.max_vault_weight);
+    fprintf(fp, "MaxVaultItems %d\n", game_settings.max_vault_items);
+    fprintf(fp, "VaultEnabled %d\n", game_settings.vault_enabled);
+    fprintf(fp, "VaultRent %d\n", game_settings.vault_rent);
+    fprintf(fp, "VaultRentPerChar %d\n", game_settings.vault_rent_per_char);
+    fprintf(fp, "VaultRentCost %d\n", game_settings.vault_rent_cost);
+    fprintf(fp, "VaultRentTime %d\n", game_settings.vault_rent_time);
+    fprintf(fp, "VaultAdditionalCostPerChar %d\n", game_settings.vault_additional_cost_per_char);
+    fprintf(fp, "VaultAdditionalSlotsPerChar %d\n", game_settings.vault_additional_slots_per_char);
+    fprintf(fp, "VaultAdditionalWeightPerChar %d\n", game_settings.vault_additional_weight_per_char);
+
+    /* Coffer Settings */
+    fprintf(fp, "MaxCofferWeight %d\n", game_settings.max_coffer_weight);
+    fprintf(fp, "MaxCofferItems %d\n", game_settings.max_coffer_items);
+    fprintf(fp, "CofferEnabled %d\n", game_settings.coffer_enabled);
+    fprintf(fp, "CofferRent %d\n", game_settings.coffer_rent);
+    fprintf(fp, "CofferRentCost %d\n", game_settings.coffer_rent_cost);
+    fprintf(fp, "CofferRentCurrency %s~\n", game_settings.coffer_rent_currency);
+    fprintf(fp, "CofferRentPeriod %d\n", game_settings.coffer_rent_period);
+
+    /* Game System Settings */
+    fprintf(fp, "AlignmentSystem %d\n", game_settings.alignment_system);
+    fprintf(fp, "RestrictRacesByAlignment %d\n", game_settings.restrict_races_by_alignment);
+    fprintf(fp, "RestrictClassesByAlignment %d\n", game_settings.restrict_classes_by_alignment);
+
+    /* Account & Character Linking */
+    fprintf(fp, "AllowLinkAll %d\n", game_settings.allow_link_all);
+    fprintf(fp, "AllowUnlinkAll %d\n", game_settings.allow_unlink_all);
+
+    /* Multiplaying Settings */
     fprintf(fp, "AllowMultiplayAcctAll %d\n",  game_settings.allow_multiplay_acct_all);
     fprintf(fp, "AllowMultiplayAcctStaff %d\n",  game_settings.allow_multiplay_acct_staff);
     fprintf(fp, "AllowMultiplayHostAll %d\n",  game_settings.allow_multiplay_host_all);
     fprintf(fp, "AllowMultiplayHostStaff %d\n",  game_settings.allow_multiplay_host_staff);
 
-	/* Auth */
+    /* Authentication Settings */
     fprintf(fp, "Require_2FA_All %d\n", game_settings.require_2fa_all);
     fprintf(fp, "Require_2FA_Staff %d\n", game_settings.require_2fa_staff);
     fprintf(fp, "RequireUniqPassStaff %d\n", game_settings.require_uniq_pass_staff);
-	fprintf(fp, "EnablePasswd %d\n", game_settings.enable_passwd);
-	fprintf(fp, "EnableMFA %d\n", game_settings.enable_mfa);
+    fprintf(fp, "RequireEmailVerification %d\n", game_settings.require_email_verification);
+    fprintf(fp, "EnablePasswd %d\n", game_settings.enable_passwd);
+    fprintf(fp, "EnableMFA %d\n", game_settings.enable_mfa);
 
-	/* Timeouts */
+    /* Timeouts */
     fprintf(fp, "IdleDisconnectTimeout %d\n",  game_settings.idle_disconnect_time);
     fprintf(fp, "IdleTimeout %d\n",  game_settings.idle_time);
 
-	/* Misc Values */
+    /* Misc Values */
     fprintf(fp, "LogAllConnections %d\n",  game_settings.logall);
     fprintf(fp, "MaxAlias %d\n",  game_settings.max_alias);
     fprintf(fp, "MaxCharacters %d\n",  game_settings.max_characters);
     fprintf(fp, "MaxLogfileSize %d\n",  game_settings.max_logfile_size);
     fprintf(fp, "MaxLoginAttempts %d\n",  game_settings.max_login_attempts);
-	fprintf(fp, "MaxOrgs %d\n",  game_settings.max_orgs);
+    fprintf(fp, "MaxOrgs %d\n",  game_settings.max_orgs);
 
-	/* Email */
+    /* Email */
     fprintf(fp, "Email_Enable %d\n",  game_settings.enable_email);
     fprintf(fp, "EmailUser %s~\n",  game_settings.email_username);
     fprintf(fp, "EmailPassword %s~\n",  game_settings.email_password);
@@ -891,7 +1026,7 @@ int game_settings_write(void)
     fprintf(fp, "EmailFromAddr %s~\n",  game_settings.email_from_addr);
     fprintf(fp, "EmailFromName %s~\n",  game_settings.email_from_name);
 
-	/* MSSP */
+    /* MSSP */
     fprintf(fp, "MSSP_HOSTNAME %s~\n", game_settings.mssp_hostname);
     fprintf(fp, "MSSP_CODEBASE %s~\n", game_settings.mssp_codebase);
     fprintf(fp, "MSSP_CONTACT %s~\n", game_settings.mssp_contact);
@@ -956,15 +1091,15 @@ int game_settings_write(void)
     fprintf(fp, "MSSP_TRAINING_SYSTEM %d\n", game_settings.mssp_training_system);
     fprintf(fp, "MSSP_WORLD_ORIGINALITY %d\n", game_settings.mssp_world_originality);
 
-	write_reserved(fp, reserved_room_wnums);
-	write_reserved(fp, reserved_mob_wnums);
-	write_reserved(fp, reserved_obj_wnums);
-	// Tokens?
-	write_reserved(fp, reserved_rprog_wnums);
-	write_reserved_areas(fp);
+    write_reserved(fp, reserved_room_wnums);
+    write_reserved(fp, reserved_mob_wnums);
+    write_reserved(fp, reserved_obj_wnums);
+    // Tokens?
+    write_reserved(fp, reserved_rprog_wnums);
+    write_reserved_areas(fp);
 
-	fprintf(fp, "END\n");
-	fclose(fp);
+    fprintf(fp, "END\n");
+    fclose(fp);
     return(0); /* Success*/
 }
 

@@ -1766,23 +1766,26 @@ void boot_db(void)
 			AREA_DATA *area;
 			LLIST_AREA_DATA *link;
 
-			strcpy(strArea, fread_word(fpList));
-			if (strArea[0] == '$')
-				break;
+            strcpy(strArea, fread_word(fpList));
+            if (strArea[0] == '$')
+                break;
 
-			log_string(strArea);
+            log_string(strArea);
 
-			// Skip these, they are loaded separately
-			if (!str_cmp(strArea, "help.are") || !str_cmp(strArea, "social.are"))
-				continue;
+            // Skip these, they are loaded separately
+            if (!str_cmp(strArea, "help.are") || !str_cmp(strArea, "social.are"))
+                continue;
 
-			if ((fpArea = fopen(strArea, "r")) == NULL) {
-				perror(strArea);
-				exit(2);		// NIBS: changed this so we know it exited because of this
-			}
+            char area_path[MAX_STRING_LENGTH];
+            sprintf(area_path, "%s%s", AREA_DIR, strArea);
 
-			sprintf(log_buf, "Loading areafile '%s'", strArea);
-			log_string(log_buf);
+            if ((fpArea = fopen(area_path, "r")) == NULL) {
+                perror(area_path);
+                exit(2);        // NIBS: changed this so we know it exited because of this
+            }
+
+            sprintf(log_buf, "Loading areafile '%s'", strArea);
+            log_string(log_buf);
 
 			area = read_area_new(fpArea);
 			if (area)
