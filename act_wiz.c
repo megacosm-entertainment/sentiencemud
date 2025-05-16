@@ -375,30 +375,31 @@ int game_settings_read(void)
     game_settings.new_acct_lock_msg = "";
     game_settings.new_char_lock_msg = "";
     game_settings.logall = false;
+	game_settings.note_boot_errors = false;
 
     /* Auth */
     game_settings.require_uniq_pass_staff = false;
     game_settings.max_login_attempts = 0;
     game_settings.enable_passwd = true;
     game_settings.enable_mfa = true;
-    game_settings.require_email_verification = false;
+    game_settings.require_email_verif = false;
 
     /* 2FA */
     game_settings.require_2fa_all = false;
     game_settings.require_2fa_staff = false;
     
     /* Multiplaying & Linking */
-    game_settings.allow_multiplay_acct_all = false;
-    game_settings.allow_multiplay_acct_staff = false;
-    game_settings.allow_multiplay_host_all = false;
-    game_settings.allow_multiplay_host_staff = false;
+    game_settings.allow_mp_acct_all = false;
+    game_settings.allow_mp_acct_staff = false;
+    game_settings.allow_mp_host_all = false;
+    game_settings.allow_mp_host_staff = false;
     game_settings.allow_link_all = false;
     game_settings.allow_unlink_all = false;
 
     /* Game Systems */
     game_settings.alignment_system = false;
-    game_settings.restrict_races_by_alignment = false;
-    game_settings.restrict_classes_by_alignment = false;
+    game_settings.restrict_races_align = false;
+    game_settings.restrict_classes_align = false;
 
     /* Timers */
     game_settings.idle_time = 0;
@@ -560,10 +561,10 @@ int game_settings_read(void)
                 }
                 KEY("AlignmentSystem", game_settings.alignment_system, fread_number(fp));
                 KEY("AllowLinkAll", game_settings.allow_link_all, fread_number(fp));
-                KEY("AllowMultiplayAcctAll", game_settings.allow_multiplay_acct_all, fread_number(fp));
-                KEY("AllowMultiplayAcctStaff", game_settings.allow_multiplay_acct_staff, fread_number(fp));
-                KEY("AllowMultiplayHostAll", game_settings.allow_multiplay_host_all, fread_number(fp));
-                KEY("AllowMultiplayHostStaff", game_settings.allow_multiplay_host_staff, fread_number(fp));
+                KEY("AllowMultiplayAcctAll", game_settings.allow_mp_acct_all, fread_number(fp));
+                KEY("AllowMultiplayAcctStaff", game_settings.allow_mp_acct_staff, fread_number(fp));
+                KEY("AllowMultiplayHostAll", game_settings.allow_mp_host_all, fread_number(fp));
+                KEY("AllowMultiplayHostStaff", game_settings.allow_mp_host_staff, fread_number(fp));
                 KEY("AllowUnlinkAll", game_settings.allow_unlink_all, fread_number(fp));
                 break;
 
@@ -729,7 +730,7 @@ int game_settings_read(void)
                 KEY("NewAcctLockMsg",game_settings.new_acct_lock_msg,fread_string(fp));
                 KEY("NewCharLock",game_settings.new_char_lock,fread_number(fp));
                 KEY("NewCharLockMsg",game_settings.new_char_lock_msg,fread_string(fp));
-
+				KEY("NoteBootErrs",game_settings.note_boot_errors,fread_number(fp));
                 break;
             case 'O':
                 {
@@ -766,10 +767,10 @@ int game_settings_read(void)
                 }
                 KEY("Require_2FA_All",game_settings.require_2fa_all,fread_number(fp));
                 KEY("Require_2FA_Staff",game_settings.require_2fa_staff,fread_number(fp));
-                KEY("RequireEmailVerification",game_settings.require_email_verification,fread_number(fp));
+                KEY("RequireEmailVerification",game_settings.require_email_verif,fread_number(fp));
                 KEY("RequireUniqPassStaff",game_settings.require_uniq_pass_staff,fread_number(fp));
-                KEY("RestrictRacesByAlignment",game_settings.restrict_races_by_alignment,fread_number(fp));
-                KEY("RestrictClassesByAlignment",game_settings.restrict_classes_by_alignment,fread_number(fp));
+                KEY("RestrictRacesByAlignment",game_settings.restrict_races_align,fread_number(fp));
+                KEY("RestrictClassesByAlignment",game_settings.restrict_classes_align,fread_number(fp));
                 break;
 
             case 'S':
@@ -984,24 +985,24 @@ int game_settings_write(void)
 
     /* Game System Settings */
     fprintf(fp, "AlignmentSystem %d\n", game_settings.alignment_system);
-    fprintf(fp, "RestrictRacesByAlignment %d\n", game_settings.restrict_races_by_alignment);
-    fprintf(fp, "RestrictClassesByAlignment %d\n", game_settings.restrict_classes_by_alignment);
+    fprintf(fp, "RestrictRacesByAlignment %d\n", game_settings.restrict_races_align);
+    fprintf(fp, "RestrictClassesByAlignment %d\n", game_settings.restrict_classes_align);
 
     /* Account & Character Linking */
     fprintf(fp, "AllowLinkAll %d\n", game_settings.allow_link_all);
     fprintf(fp, "AllowUnlinkAll %d\n", game_settings.allow_unlink_all);
 
     /* Multiplaying Settings */
-    fprintf(fp, "AllowMultiplayAcctAll %d\n",  game_settings.allow_multiplay_acct_all);
-    fprintf(fp, "AllowMultiplayAcctStaff %d\n",  game_settings.allow_multiplay_acct_staff);
-    fprintf(fp, "AllowMultiplayHostAll %d\n",  game_settings.allow_multiplay_host_all);
-    fprintf(fp, "AllowMultiplayHostStaff %d\n",  game_settings.allow_multiplay_host_staff);
+    fprintf(fp, "AllowMultiplayAcctAll %d\n",  game_settings.allow_mp_acct_all);
+    fprintf(fp, "AllowMultiplayAcctStaff %d\n",  game_settings.allow_mp_acct_staff);
+    fprintf(fp, "AllowMultiplayHostAll %d\n",  game_settings.allow_mp_host_all);
+    fprintf(fp, "AllowMultiplayHostStaff %d\n",  game_settings.allow_mp_host_staff);
 
     /* Authentication Settings */
     fprintf(fp, "Require_2FA_All %d\n", game_settings.require_2fa_all);
     fprintf(fp, "Require_2FA_Staff %d\n", game_settings.require_2fa_staff);
     fprintf(fp, "RequireUniqPassStaff %d\n", game_settings.require_uniq_pass_staff);
-    fprintf(fp, "RequireEmailVerification %d\n", game_settings.require_email_verification);
+    fprintf(fp, "RequireEmailVerification %d\n", game_settings.require_email_verif);
     fprintf(fp, "EnablePasswd %d\n", game_settings.enable_passwd);
     fprintf(fp, "EnableMFA %d\n", game_settings.enable_mfa);
 
@@ -1016,6 +1017,7 @@ int game_settings_write(void)
     fprintf(fp, "MaxLogfileSize %d\n",  game_settings.max_logfile_size);
     fprintf(fp, "MaxLoginAttempts %d\n",  game_settings.max_login_attempts);
     fprintf(fp, "MaxOrgs %d\n",  game_settings.max_orgs);
+	fprintf(fp, "NoteBootErrs %d\n", game_settings.note_boot_errors);
 
     /* Email */
     fprintf(fp, "Email_Enable %d\n",  game_settings.enable_email);

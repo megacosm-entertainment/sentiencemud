@@ -5906,14 +5906,14 @@ void bug(const char *str, int param)
 
         sprintf(buf, "[*****] FILE: %s LINE: %d", strArea, iLine);
         log_string(buf);
-        if (fBootDb)
+        if (fBootDb && game_settings.note_boot_errors)
             boot_error_log("%s", buf);
     }
 
     strcpy(buf, "[*****] BUG: ");
     sprintf(buf + strlen(buf), str, param);
     log_string(buf);
-    if (fBootDb)
+    if (fBootDb && game_settings.note_boot_errors)
         boot_error_log("%s", buf);
 }
 

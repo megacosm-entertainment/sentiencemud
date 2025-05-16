@@ -2556,6 +2556,7 @@ bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
                 found = true;  // Mark as found so iterator_stop works properly
                 
                 // Handle special authentication cases
+				if (!DEV_SKIP_MFA){
                 if (IS_IMMORTAL(ch) && game_settings.require_2fa_staff) {
                     // Staff character with MFA requirements
                     if ((!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled) ||
@@ -2586,14 +2587,18 @@ bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
                     d->connected = CON_GET_CHAR_MFA;
                     break;  // Exit the loop but maintain iterator
                 }
+			}
+
                 // Character with password override
-                else if (ch->pcdata->account_pwd_override) {
+				if (!DEV_SKIP_PASSWORD){
+                if (ch->pcdata->account_pwd_override) {
                     write_to_buffer(d, "\n\rReconnecting: This character requires password verification.\n\r", 0);
 
                     ProtocolNoEcho(d, true);
                     d->connected = CON_GET_CHAR_PASSWORD;
                     break;  // Exit the loop but maintain iterator
                 }
+			}
                 
                 // Normal reconnect process - no special auth needed
                 reconnect_char(d);

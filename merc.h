@@ -134,7 +134,7 @@
 #define SONG_FUNC(s)    	bool s (SONG_DATA *song, int level, CHAR_DATA *ch, OBJ_DATA *instrument, void *vo, int target)
 
 #define IS_EMAIL_VERIFIED(obj) \
-    (!game_settings.require_email_verification || (obj)->email_verified)
+    (!game_settings.require_email_verif || (obj)->email_verified)
 
 
 /* System calls */
@@ -1593,19 +1593,19 @@ struct game_settings_data
     bool    new_char_lock;                  // Prevent making new characters on existing accounts?
     char    *new_char_lock_msg;             // Message to display to players if they try to create a new character if game is new_char_locked.
     bool    logall;                         // Log everything?
-    bool    require_email_verification;     // Require email verification for accounts?
+    bool    require_email_verif;     // Require email verification for accounts?
     bool    require_2fa_all;                // Require all accounts to have multifactor auth?
     bool    require_2fa_staff;              // Require accounts with staff characters to either have mfa at account or character level?
     bool    require_uniq_pass_staff;        // Require staff characters to have player-level password?
-    bool    allow_multiplay_acct_all;       // Allow multiple characters logged in from one account?
-    bool    allow_multiplay_acct_staff;     // Allow multiple logins from staff accounts? (only if allow_multiplay_account_all is true, and account does not have deny_multiplay set)
-    bool    allow_multiplay_host_all;       // Allow multiple accounts to be logged in from one host?
-    bool    allow_multiplay_host_staff;     // Allow multiple accounts to be logged in from one host if one is staff?
+    bool    allow_mp_acct_all;       // Allow multiple characters logged in from one account?
+    bool    allow_mp_acct_staff;     // Allow multiple logins from staff accounts? (only if allow_multiplay_account_all is true, and account does not have deny_multiplay set)
+    bool    allow_mp_host_all;       // Allow multiple accounts to be logged in from one host?
+    bool    allow_mp_host_staff;     // Allow multiple accounts to be logged in from one host if one is staff?
     bool    allow_link_all;                 // Allow all accounts to link chars.
     bool    allow_unlink_all;               // Allow all accounts to unlink chars.
     bool    alignment_system;               // Do we use the alignment system?
-    bool    restrict_races_by_alignment;    // Restrict races by alignment (Legacy style)
-    bool    restrict_classes_by_alignment;  // Restrict classes by alignment? (Legacy style)
+    bool    restrict_races_align;    // Restrict races by alignment (Legacy style)
+    bool    restrict_classes_align;  // Restrict classes by alignment? (Legacy style)
     int     max_login_attempts;             // How many login attempts are allowed before disconnecting?
     int     idle_time;                      // How many ticks until a user is considered idle?
     int     idle_disconnect_time;           // How many ticks until an idle user is disconnected?
@@ -1624,6 +1624,7 @@ struct game_settings_data
     bool    enable_insecure_warning;               // Show a warning for insecure connections?
     char    *insecure_warning_msg;          // What message do we display for insecure users? (requires insecure_warning)
     int     max_logfile_size;               // What size do we start rotating logs at (in MB)?
+    bool note_boot_errors;
 
     /* MSSP Settings */
     int mssp_players;                            // Automatically updated by the game.
@@ -10612,6 +10613,9 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
 #define NSD	NPC_SHIP_DATA
 #define NID	NPC_SHIP_INDEX_DATA
 
+#define DEV_SKIP_PASSWORD (game_settings.dev_server && !game_settings.enable_passwd)
+#define DEV_SKIP_MFA      (game_settings.dev_server && !game_settings.enable_mfa)
+
 /* act_comm.c */
 bool add_grouped	args( ( CHAR_DATA *ch, CHAR_DATA *master, bool show ) );
 bool is_same_group	args( ( CHAR_DATA *ach, CHAR_DATA *bch ) );
@@ -11403,6 +11407,7 @@ bool is_staff_rank_in_list(CHAR_DATA *ch, const char *rank_list);
 void show_staff_ranks(CHAR_DATA *ch);
 CHURCH_DATA *get_church_by_name(const char *name);
 bool validate_account_recipient(const char *account_name);
+int colour_trunc_len(const char *str, int limit);
 
 /* help.c */
 HELP_DATA *find_helpfile( char *keyword, HELP_CATEGORY *hcat );

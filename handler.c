@@ -11405,3 +11405,30 @@ bool validate_account_recipient(const char *account_name) {
     }
     return true;
 }
+int colour_trunc_len(const char *str, int limit)
+{
+    int vis = 0, i = 0;
+    if (!str) return 0;
+
+    while (str[i] && vis < limit) {
+        // Handle MUD newline marker
+        if (str[i] == '{' && str[i+1] == '|') {
+            i += 2;
+            vis++; // treat as one visible char (space)
+        }
+        // Handle color codes (e.g., {G, {x, etc)
+        else if (str[i] == '{' && str[i+1] != '\0') {
+            i += 2;
+        }
+        // Literal newline/CR
+        else if (str[i] == '\n' || str[i] == '\r') {
+            i++;
+            vis++; // treat as one visible char (space)
+        }
+        else {
+            i++;
+            vis++;
+        }
+    }
+    return i;
+}

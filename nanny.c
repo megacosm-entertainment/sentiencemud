@@ -23,6 +23,9 @@
 #include "protocol.h"
 
 
+#define DEV_SKIP_PASSWORD (game_settings.dev_server && !game_settings.enable_passwd)
+#define DEV_SKIP_MFA      (game_settings.dev_server && !game_settings.enable_mfa)
+
 /* Account related functions */
 
 // Everything starts here.
@@ -77,6 +80,31 @@ void login_get_account(DESCRIPTOR_DATA *d, char *argument)
     
     // Existing account
     if (found) {
+        if (DEV_SKIP_PASSWORD) {
+            // Log and proceed as if password was accepted
+            ProtocolNoEcho(d, false);
+            sprintf(log_buf, "Account %s@%s has connected (dev server, password skipped).", d->account->username, d->host);
+            log_string(log_buf);
+
+            if (DEV_SKIP_MFA) {
+                d->connected = CON_ACCOUNT_MENU;
+                display_account_menu(d);
+                return;
+            }
+
+            // Check for MFA
+            if (!IS_NULLSTR(d->account->mfa_key) && d->account->mfa_enabled && !DEV_SKIP_MFA) {
+                ProtocolNoEcho(d, true);
+                d->connected = CON_GET_ACCOUNT_MFA;
+                return;
+            }
+
+            // Proceed to account menu
+            ProtocolNoEcho(d, false);
+            display_account_menu(d);
+            d->connected = CON_ACCOUNT_MENU;
+            return;
+        }
 
         ProtocolNoEcho(d, true);
         d->connected = CON_GET_ACCOUNT_PASSWORD;
@@ -383,7 +411,7 @@ void login_change_account_email(DESCRIPTOR_DATA *d, char *argument)
         d->connected = CON_ACCOUNT_MENU;
         return;
     }
-    if (!game_settings.require_email_verification) {
+    if (!game_settings.require_email_verif) {
         // Immediate update
         free_string(acct->email);
         acct->email = str_dup(argument);
@@ -583,15 +611,16 @@ void display_account_menu(DESCRIPTOR_DATA *d)
     
     sprintf(buf, "Account: {C%s{x\n\r", acct->username);
     write_to_buffer(d, buf, 0);
-    
-    if (game_settings.require_email_verification && !acct->email_verified && !IS_NULLSTR(acct->pending_email)) {
+    if (game_settings.enable_email){
+    if (game_settings.require_email_verif && !acct->email_verified && !IS_NULLSTR(acct->pending_email)) {
         sprintf(buf, "Email: {C%s{x (pending: {Y%s{x)\n\r\n\r", IS_NULLSTR(acct->email) ? "Not set" : acct->email, acct->pending_email);
-    } else if (game_settings.require_email_verification && !acct->email_verified && IS_NULLSTR(acct->pending_email)) {
+    } else if (game_settings.require_email_verif && !acct->email_verified && IS_NULLSTR(acct->pending_email)) {
         sprintf(buf, "Email: {YPending verification{x\n\r\n\r");
     } else {
         sprintf(buf, "Email: {C%s{x\n\r\n\r", IS_NULLSTR(acct->email) ? "Not set" : acct->email);
     }
     write_to_buffer(d, buf, 0);
+}
     
     // First pass: separate staff and regular characters
     iterator_start(&it, acct->characters);
@@ -758,15 +787,20 @@ void display_account_menu(DESCRIPTOR_DATA *d)
     if (can_link_characters(acct)) {
         write_to_buffer(d, "{GL{x) Link existing character\n\r", 0);
     }
+    if (game_settings.enable_email){
+
     
     write_to_buffer(d, "{GE{x) Change email address\n\r", 0);
-    if (game_settings.require_email_verification && !acct->email_verified) {
+    if (game_settings.require_email_verif && !acct->email_verified) {
     write_to_buffer(d, "{GV{x) Verify email address\n\r", 0);
     if (!IS_NULLSTR(acct->pending_email))
         write_to_buffer(d, "{GR{x) Resend verification email\n\r", 0);
     }
+}
+    if (!DEV_SKIP_PASSWORD)
     write_to_buffer(d, "{GP{x) Change password\n\r", 0);
     
+    if (!DEV_SKIP_MFA)
     write_to_buffer(d, "{GM{x) MFA settings\n\r", 0);
         
     write_to_buffer(d, "{GQ{x) Quit\n\r\n\r", 0);
@@ -854,7 +888,7 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
     // Handle letter choices (menu options)
     switch (toupper(argument[0])) {
         case 'C': // Create new character
-            if (game_settings.require_email_verification && !IS_EMAIL_VERIFIED(acct)) {
+            if (game_settings.require_email_verif && !IS_EMAIL_VERIFIED(acct)) {
                 write_to_buffer(d, "\n\rYou must verify your email address before creating characters.\n\r", 0);
                 write_to_buffer(d, "Select 'V' from the menu to verify your email address.\n\r", 0);
                 display_account_menu(d);
@@ -912,18 +946,33 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
             return;
 
         case 'E': // Change email address
+            if (!game_settings.enable_email) {
+                write_to_buffer(d, "\n\rEmail is not enabled.\n\r", 0);
+                display_account_menu(d);
+                return;
+            }
             write_to_buffer(d, "\n\rCurrent email: ", 0);
             write_to_buffer(d, IS_NULLSTR(acct->email) ? "Not set\n\r" : acct->email, 0);
             d->connected = CON_CHANGE_ACCOUNT_EMAIL;
             return;
 
         case 'P': // Change password
+            if (DEV_SKIP_PASSWORD) {
+                write_to_buffer(d, "\n\rPasswords are disabled in development mode.\n\r", 0);
+                display_account_menu(d);
+                return;
+            }
             write_to_buffer(d, "\n\rEnter your current password: ", 0);
             ProtocolNoEcho(d, true);
             d->connected = CON_VERIFY_ACCOUNT_PASSWORD;
             break;
 
         case 'M': // MFA settings
+            if (DEV_SKIP_MFA) {
+                write_to_buffer(d, "\n\rMFA is disabled in development mode.\n\r", 0);
+                display_account_menu(d);
+                return;
+            }
             display_account_mfa_menu(d, "");
             break;
 
@@ -932,10 +981,21 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
             close_socket(d);
             break;
         case 'R':
+        if (!game_settings.enable_email){
+            write_to_buffer(d, "\n\rEmail is not enabled.\n\r", 0);
+            display_account_menu(d);
+            return;
+        }
+        
             resend_account_verification_code(d);
             display_account_menu(d);
             return;
         case 'V':
+                if (!game_settings.enable_email){
+            write_to_buffer(d, "\n\rEmail is not enabled.\n\r", 0);
+            display_account_menu(d);
+            return;
+        }
             if (acct->email_verified) {
                 write_to_buffer(d, "\n\rYour email is already verified.\n\r", 0);
                 display_account_menu(d);
@@ -2794,13 +2854,16 @@ if (!IS_NULLSTR(ch->pcdata->last_area) || (!IS_NULLSTR(ch->pcdata->last_region) 
     write_to_buffer(d, buf, 0);
     
     // Display email if set
+    if (game_settings.enable_email){
+
+    
     if (!IS_NULLSTR(ch->pcdata->email)) {
-if (game_settings.require_email_verification && !ch->pcdata->email_verified && !IS_NULLSTR(ch->pcdata->pending_email)) {
+if (game_settings.require_email_verif && !ch->pcdata->email_verified && !IS_NULLSTR(ch->pcdata->pending_email)) {
     sprintf(label, "{CEmail:{x");
     sprintf(value, "{C%s{x (pending: {Y%s{x)", IS_NULLSTR(ch->pcdata->email) ? "Not set" : ch->pcdata->email, ch->pcdata->pending_email);
     sprintf(buf, "%s%s %s\n\r", label, pad_string(label, 20, NULL, " "), value);
     write_to_buffer(d, buf, 0);
-} else if (game_settings.require_email_verification && !ch->pcdata->email_verified && IS_NULLSTR(ch->pcdata->pending_email)) {
+} else if (game_settings.require_email_verif && !ch->pcdata->email_verified && IS_NULLSTR(ch->pcdata->pending_email)) {
     sprintf(label, "{CEmail:{x");
     sprintf(value, "{YPending verification{x");
     sprintf(buf, "%s%s %s\n\r", label, pad_string(label, 20, NULL, " "), value);
@@ -2811,6 +2874,7 @@ if (game_settings.require_email_verification && !ch->pcdata->email_verified && !
     sprintf(buf, "%s%s %s\n\r", label, pad_string(label, 20, NULL, " "), value);
     write_to_buffer(d, buf, 0);
 }
+    }
     }
     
     // Display last login if available
@@ -2829,6 +2893,7 @@ if (game_settings.require_email_verification && !ch->pcdata->email_verified && !
     }
 
     // Display character-password status
+    if (!DEV_SKIP_PASSWORD){
     sprintf(label, "{CCharacter password:{x");
     sprintf(value, "%s", 
             ch->pcdata->account_pwd_override && ch->pcdata->pwd_vers == 1 ? 
@@ -2839,8 +2904,10 @@ if (game_settings.require_email_verification && !ch->pcdata->email_verified && !
             pad_string(label, 20, NULL, " "), 
             value);
     write_to_buffer(d, buf, 0);
+    }
 
     // Display MFA status if it's configured
+    if (!DEV_SKIP_MFA){
     if (!IS_NULLSTR(ch->pcdata->mfa_key)) {
         sprintf(label, "{CMFA Status:{x");
         sprintf(value, "%s", ch->pcdata->mfa_enabled ? "{GEnabled{x" : "{RDisabled{x");
@@ -2851,6 +2918,7 @@ if (game_settings.require_email_verification && !ch->pcdata->email_verified && !
                 value);
         write_to_buffer(d, buf, 0);
     }
+}
     
     // Add a divider using pad_string before menu options
     write_to_buffer(d, "\n\r", 0);
@@ -2858,11 +2926,13 @@ if (game_settings.require_email_verification && !ch->pcdata->email_verified && !
     write_to_buffer(d, buf, 0);
     
     write_to_buffer(d, "{GL{x) Log in with this character\n\r", 0);
+    if (!DEV_SKIP_PASSWORD)
     write_to_buffer(d, "{GP{x) Set character password\n\r", 0);
     
+    if (!DEV_SKIP_MFA)
     write_to_buffer(d, "{GM{x) MFA settings\n\r", 0);
 write_to_buffer(d, "{GE{x) Change character email address\n\r", 0);
-if (game_settings.require_email_verification && !ch->pcdata->email_verified) {
+if (game_settings.require_email_verif && !ch->pcdata->email_verified) {
     write_to_buffer(d, "{GV{x) Verify character email address\n\r", 0);
     if (!IS_NULLSTR(ch->pcdata->pending_email))
         write_to_buffer(d, "{GR{x) Resend verification email\n\r", 0);
@@ -3010,6 +3080,8 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
                 return;
             if (check_reconnect(d, ch->name, true))
                 return;
+            if (!DEV_SKIP_MFA)
+            {
             if (IS_IMMORTAL(ch) && game_settings.require_2fa_staff &&
                 (IS_NULLSTR(ch->pcdata->mfa_key) || !ch->pcdata->mfa_enabled) &&
                 (IS_NULLSTR(d->account->mfa_key) || !d->account->mfa_enabled)) {
@@ -3018,30 +3090,48 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
                 display_character_menu(d);
                 return;
             }
-            if (ch->pcdata->account_pwd_override) {
-                write_to_buffer(d, "\n\rThis character requires an additional password.\n\r", 0);
-                write_to_buffer(d, "Enter character password: ", 0);
-                ProtocolNoEcho(d, true);
-                d->connected = CON_GET_CHAR_PASSWORD;
-                return;
-            }
+
             if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled) {
                 write_to_buffer(d, "\n\rThis character has MFA enabled.\n\r", 0);
                 ProtocolNoEcho(d, true);
                 d->connected = CON_GET_CHAR_MFA;
                 return;
             }
-            if (IS_IMMORTAL(ch) && !IS_NULLSTR(d->account->mfa_key) &&
+            if (IS_IMMORTAL(ch) && game_settings.require_2fa_staff && !IS_NULLSTR(d->account->mfa_key) &&
                 d->account->mfa_enabled &&
                 (IS_NULLSTR(ch->pcdata->mfa_key) || !ch->pcdata->mfa_enabled)) {
                 write_to_buffer(d, "\n\rThis is a staff character. Account MFA verification required.\n\r", 0);
                 d->connected = CON_GET_ACCOUNT_MFA_FOR_CHAR;
                 return;
             }
+        }
+            if (!DEV_SKIP_PASSWORD) {
+
+            if (IS_IMMORTAL(ch) && game_settings.require_uniq_pass_staff && 
+                (IS_NULLSTR(ch->pcdata->pwd) || ch->pcdata->pwd_vers == 0) &&
+                (IS_NULLSTR(d->account->passwd) || d->account->passwd_version == 0)) {
+                write_to_buffer(d, "\n\r{RERROR: Staff characters require a unique password.{x\n\r", 0);
+                write_to_buffer(d, "You must set a unique password for this character before logging in.\n\r", 0);
+                display_character_menu(d);
+                return;
+            }
+            if (ch->pcdata->account_pwd_override && !DEV_SKIP_PASSWORD) {
+                write_to_buffer(d, "\n\rThis character requires an additional password.\n\r", 0);
+                write_to_buffer(d, "Enter character password: ", 0);
+                ProtocolNoEcho(d, true);
+                d->connected = CON_GET_CHAR_PASSWORD;
+                return;
+            }
+        }
             proceed_to_game(d);
             break;
 
         case 'P': // Set/change character password
+            if (DEV_SKIP_PASSWORD){
+                write_to_buffer(d, "Character password setting is disabled in development mode.\n\r", 0);
+                display_character_menu(d);
+                return;
+            }
             if (ch->pcdata->account_pwd_override) {
                 write_to_buffer(d, "This character already has a unique password.\n\r", 0);
                 write_to_buffer(d, "Do you want to change it? (Y/N): ", 0);
@@ -3054,6 +3144,11 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
             break;
 
         case 'M': // MFA settings
+            if (DEV_SKIP_MFA) {
+                write_to_buffer(d, "MFA settings are disabled in development mode.\n\r", 0);
+                display_character_menu(d);
+                return;
+            }
             display_character_mfa_menu(d, "");
             break;
 
@@ -3094,12 +3189,20 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
             d->connected = CON_CONFIRM_DELETE_CHARACTER;
             break;
 case 'E': // Change email address
+            if (!game_settings.enable_email){
+                write_to_buffer(d, "\n\r{REmail is currently disabled on this server.{x\n\r", 0);
+                return;
+            }
     write_to_buffer(d, "\n\rCurrent email: ", 0);
     write_to_buffer(d, IS_NULLSTR(ch->pcdata->email) ? "Not set\n\r" : ch->pcdata->email, 0);
     write_to_buffer(d, "\n\rEnter new email address: ", 0);
     d->connected = CON_CHANGE_CHARACTER_EMAIL;
     return;
 case 'V':
+    if (!game_settings.enable_email){
+        write_to_buffer(d, "\n\r{REmail is currently disabled on this server.{x\n\r", 0);
+        return;
+    }
     if (ch->pcdata->email_verified) {
         write_to_buffer(d, "\n\rYour character email is already verified.\n\r", 0);
         display_character_menu(d);
@@ -3114,6 +3217,10 @@ case 'V':
     d->connected = CON_VERIFY_CHARACTER_EMAIL_CHANGE;
     return;
 case 'R':
+    if (!game_settings.enable_email){
+        write_to_buffer(d, "\n\r{REmail is currently disabled on this server.{x\n\r", 0);
+        return;
+    }
     resend_character_verification_code(d);
     display_character_menu(d);
     return;
@@ -4081,7 +4188,7 @@ void login_change_character_email(DESCRIPTOR_DATA *d, char *argument)
         d->connected = CON_CHARACTER_MENU;
         return;
     }
-    if (!game_settings.require_email_verification) {
+    if (!game_settings.require_email_verif) {
         // Immediate update
         free_string(ch->pcdata->email);
         ch->pcdata->email = str_dup(argument);
