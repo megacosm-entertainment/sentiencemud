@@ -2008,6 +2008,7 @@ struct	descriptor_data
     time_t last_activity;
     bool mfa_verified;
     bool creating_staff_character;
+    bool reconnecting;
 
 };
 
@@ -11515,6 +11516,8 @@ ACCOUNT_DATA *get_account_by_name(const char *name);
 bool list_haslink(LLIST *list, void *data);
 void resend_character_verification_code(DESCRIPTOR_DATA *d);
 void login_verify_account_email_change(DESCRIPTOR_DATA *d, char *argument);
+bool is_reconnecting(CHAR_DATA *ch);
+void reconnect_char(DESCRIPTOR_DATA *d);
 
 
 

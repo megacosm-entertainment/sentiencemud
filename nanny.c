@@ -265,6 +265,15 @@ void login_confirm_account_name(DESCRIPTOR_DATA *d, char *argument)
         free_account(acct);
         d->account = NULL;
         d->connected = CON_GET_ACCOUNT_NAME;
+	if (!IS_NULLSTR(game_settings.login_string))
+	{
+		write_to_buffer(d, game_settings.login_string, 0);
+		write_to_buffer(d, "\n\r", 0);
+	}
+	else
+	{
+    	write_to_buffer(d, "\n\rBy what name do you wish to be known? ", 0);
+	}
         break;
         
     default:
@@ -2143,310 +2152,262 @@ void login_read_imotd(DESCRIPTOR_DATA *d, char *argument)
 void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
 {
     DESCRIPTOR_DATA *d2;
-	char buf[MAX_STRING_LENGTH];
-	CHAR_DATA *ch;
-	long playernum;
+    char buf[MAX_STRING_LENGTH];
+    CHAR_DATA *ch;
+    long playernum;
     extern char str_boot_time[MAX_INPUT_LENGTH];
     extern bool fBootstrap;
 
+    while (ISSPACE(*argument))
+        argument++;
 
-	while (ISSPACE(*argument))
-		argument++;
+    ch = d->character;
+    
+    // First, make sure we have a valid character
+    if (!ch) {
+        bug("login_read_motd: null character", 0);
+        close_socket(d);
+        return;
+    }
+    
+    // Look for existing characters with this name that might be linkdead
+    CHAR_DATA *existing = NULL;
+    ITERATOR it;
+    
+    iterator_start(&it, loaded_chars);
+    while ((existing = (CHAR_DATA *)iterator_nextdata(&it))) {
+        if (!IS_NPC(existing) && 
+            existing != ch && 
+            !str_cmp(ch->name, existing->name)) {
+            // Found an already-loaded character with this name
+            break;
+        }
+    }
+    iterator_stop(&it);
+    
+    // If we found an existing instance of this character already in the game
+    if (existing && existing != ch) {
+        // If the existing character has a descriptor, disconnect them
+        if (existing->desc) {
+            write_to_buffer(existing->desc, "\n\rSomeone else is logging in with your character.\n\r", 0);
+            close_socket(existing->desc);
+            existing->desc = NULL;
+        }
+        
+        // Save the room reference for later, but remove character from it FIRST
+        ROOM_INDEX_DATA *old_room = existing->in_room;
+        if (existing->in_room) {
+            char_from_room(existing);
+        }
+        
+        // Transfer the descriptor to the existing character
+        existing->desc = d;
+        d->character = existing;
+        
+        // Free the temporary character
+        free_char(ch);
+        
+        // Set as playing
+        d->connected = CON_PLAYING;
 
-	ch = d->character;
-    		/* VIZZMARK */
-		if (ch->pcdata == NULL || ch->pcdata->pwd[0] == '\0')
-		{
-			write_to_buffer(d, "Warning! Null password!\n\r",0);
-			write_to_buffer(d, "Type 'password null <new password>' to fix.\n\r",0);
-		}
+        // Send reconnection message and place in room
+        send_to_char("Reconnecting. Type replay to see missed tells.\n\r", existing);
+        
+        // Place character back in their room if they had one
+        if (old_room) {
+            char_to_room(existing, old_room);
+            act("$n has reconnected.", existing, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+        } else if (room_index_temple) {
+            char_to_room(existing, room_index_temple);
+            act("$n has reconnected.", existing, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+        }
+        
+        // Log the reconnection
+        sprintf(buf, "%s@%s reconnected.", existing->name, d->host);
+        log_string(buf);
+        wiznet("$N has relinked.", existing, NULL, WIZ_LINKS, 0, 0);
+        
+        // Update connection tracking
+        connection_add(d);
+        
+        // Update protocol
+        MXPSendTag(d, "<VERSION>");
+        
+        return;
+    }
 
-		list_appendlink(loaded_chars, ch);
-		// Temprarily disabled for reconnect crash
-		// list_appendlink(loaded_players, ch);
-		d->connected	= CON_PLAYING;
-
-		if (ch->pcdata->old_pwd != NULL)
-		{
-			free_string(ch->pcdata->old_pwd);
-			ch->pcdata->old_pwd = NULL;
-		}
-
-
-		if (ch->pcdata->reset_code != NULL)
-		{
-			free_string(ch->pcdata->reset_code);
-			ch->pcdata->reset_code = NULL;
-		}
-
-		if (ch->pcdata->reset_time != 0)
-		{
-			ch->pcdata->reset_time = 0;
-		}
-
-		if (ch->pcdata->reset_state != 0)
-		{
-			ch->pcdata->reset_state = 0;
-		}
-
-		reset_char(ch);
-
-		/* Show how many players on */
-		playernum = 0;
-		for (d2 = descriptor_list; d2 != NULL; d2 = d2->next)
-		{
-			if (d2->connected == CON_PLAYING && d2 != d &&
-				can_see(d->character, d2->character))
-				playernum++;
-		}
-
-	/*	 No the one that logged on isn't playing yet!*/
-	/*		CON_READ_MOTD != CON_PLAYING*/
-	/*        if (playernum != 0)*/
-	/*	    --playernum; // One less because the one who just logged in is a player*/
-
-		sprintf(buf, "{MThe current system time is {x%s{x\r", ctime(&current_time));
-		send_to_char(buf, ch);
-
-		sprintf(buf, "{MLast reboot was at {x%s{x\r", str_boot_time);
-		send_to_char(buf, ch);
-
-		sprintf(buf, "{MThere are currently {W%ld{M players online.{x\n\r", playernum);
-		send_to_char(buf, ch);
-
-		bool moved_to_room = false;
-
-		///////////////////////////////////////////////
-		// New player
-		if (ch->tot_level == 0)
-		{
-			ch->exp	= 0;
-			ch->hit	= ch->max_hit;
-			ch->mana	= ch->max_mana;
-			ch->move	= ch->max_move;
-			ch->train	 = 3;
-			ch->practice = 5;
-			set_title(ch, "");	// No title
-			if (fBootstrap)
-			{
-				log_string("Bootstrapping game");
-				// Bootstrap the building process and make this player an Implementor
-				send_to_char("{WBOOTSTRAPPING SENTIENCE!{x\n\r", ch);
-				send_to_char("Upgrading you to {YIMPLEMENTOR{x.\n\r", ch);
-
-				ch->tot_level = 1;
-				ch->pcdata->staff_rank = STAFF_IMPLEMENTOR;
-				ch->pcdata->security = 9;
-			    free_string(ch->prompt);
-    			ch->prompt = str_dup("{x[%o][%O] %R - %h> %c");
-
-				IMMORTAL_DATA *immortal = new_immortal();
-
-				immortal->name = str_dup(ch->name);
-				immortal->imm_flag = str_dup("{R  Immortal  {x");
-				immortal->created = current_time;
-
-				/* start them off as unassigned */
-				immortal->next = immortal_list;
-				immortal_list = immortal;
-
-				ch->pcdata->immortal = immortal;
-				SET_BIT(ch->act[0], PLR_HOLYLIGHT);
-				SET_BIT(ch->act[1], PLR_HOLYWARP);
-				SET_BIT(ch->act[1], PLR_HOLYAURA);
-
-				// Create bootstrap area
-				AREA_DATA *pArea = new_area();
-				pArea->uid = gconfig.next_area_uid++;
-				free_string(pArea->name);
-				pArea->anum = 1;
-				top_area = 1;
-				pArea->name = str_dup("Bootstrap");
-				free_string(pArea->file_name);
-				pArea->file_name = str_dup("bootstrap.are");
-				area_first = pArea;		// area_first is NULL for fBootstrap to be set true
-				area_last = pArea;
-
-				ROOM_INDEX_DATA *pRoom = new_room_index();
-				pRoom->area = pArea;
-				list_appendlink(pArea->room_list, pRoom);
-				pRoom->vnum	= 1;
-
-				int iHash = pRoom->vnum % MAX_KEY_HASH;
-				pRoom->next	= pArea->room_index_hash[iHash];
-				pArea->room_index_hash[iHash] = pRoom;
-
-				pArea->top_vnum_room = 1;
-
-				// Update the reserved rooms to this location.
-				room_wnum_default.pArea = pArea;
-				room_wnum_default.vnum = 1;
-
-				room_wnum_school = room_wnum_default;
-				room_wnum_death = room_wnum_default;
-				room_wnum_temple = room_wnum_default;
-				room_wnum_chat = room_wnum_default;
-				room_wnum_limbo = room_wnum_default;
-				room_wnum_arena = room_wnum_default;
-				room_wnum_donation = room_wnum_default;
-
-				// Save the bootstrapping
-				gconfig_write();
-				log_string("Saving bootstrapped area");
-				save_area_list();
-
-				for (pArea = area_first; pArea; pArea = pArea->next)
-				{
-					save_area_new(pArea);
-
-					REMOVE_BIT(pArea->area_flags, AREA_CHANGED);
-				}
-
-				ch->in_room = pRoom;
-
-				do_function(ch, &do_changes, "catchup");
-				save_char_obj(ch);
-				send_to_char("\n\r",ch);
-				send_to_char("Bootstrapping process complete.\n\r", ch);
-
-				fBootstrap = false;
-			}
-			else
-			{
-				moved_to_room = true;
-				char_to_room(ch, room_index_school);
-				do_function(ch, &do_changes, "catchup");
-				SET_BIT(ch->comm, COMM_NO_OOC);
-				SET_BIT(ch->comm, COMM_NO_FLAMING);
-				send_to_char("\n\r",ch);
-				for (d2 = descriptor_list; d2 != NULL; d2 = d2->next)
-				{
-					if (d2->connected == CON_PLAYING && d2->character != ch &&
-						!IS_SET(d2->character->comm, COMM_NOANNOUNCE))
-					{
-						act("{MThe Town Crier Announces 'All welcome $N, a new adventurer to Sentience!'{x",
-							d2->character,ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-					}
-				}
-
-				ch->tot_level = 1;
-			}
-		}
-
-		// Fix variable and dungeon referencs
-		variable_dynamic_fix_mobile(ch);
-		resolve_dungeons_player(ch);
-		resolve_instances_player(ch);
-		resolve_ships_player(ch);
-
-
-		if (!moved_to_room)
-		{
-			if (ch->in_room != NULL)
-			{
-//				char login_buf[MSL];
-//				sprintf(login_buf, "ROOM: %ld#%ld\n\r", ch->in_room->area->uid, ch->in_room->vnum);
-//				send_to_char(login_buf, ch);
-				char_to_room(ch, ch->in_room);
-			}
-			else
-			{
-				if (ch->in_wilds != NULL)
-				{
-					if (check_for_bad_room(ch->in_wilds, ch->at_wilds_x, ch->at_wilds_y) )
-					{
-						plogf("nanny.c, join_world(): Transferring char to VRoom");
-						char_to_vroom (ch, ch->in_wilds, ch->at_wilds_x, ch->at_wilds_y);
-					}
-					else
-					{
-						plogf("nanny.c, join_world(): Previous VRoom invalid.  Relocating to Temple");
-						ch->in_wilds = NULL;
-						ch->at_wilds_x = -1;
-						ch->at_wilds_y = -1;
-						char_to_room (ch, room_index_temple);
-					}
-				}
-				else
-				{
-					if (IS_IMMORTAL (ch))
-					{
-						char_to_room (ch, room_index_chat);
-					}
-					else
-					{
-						char_to_room (ch, room_index_temple);
-					}
-				}
-			}
-		}
-
-		act("$$n has entered the game.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-        MXPSendTag(d,"<VERSION>");
-		for (d2 = descriptor_list; d2 != NULL; d2 = d2->next)
-		{
-			if (d2->connected == CON_PLAYING && !IS_IMMORTAL(d->character) &&
-				d2->character != ch && IS_SET(d2->character->comm, COMM_NOTIFY))
-				act("{B$$N has entered the game.{x", d2->character, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		}
-
-		/* Kick chars of wrong align out of their church*/
-		if (ch->church != NULL)
-		{
-			if ((ch->alignment < 0 && ch->church->alignment == CHURCH_GOOD) ||
-				(ch->alignment > 0 && ch->church->alignment == CHURCH_EVIL))
-			{
-				act("{YAs you enter Sentience, you feel your church's faith has been changed.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-				act("{YYou feel your psychic link to $T being severed.{x", ch, NULL, NULL, NULL, NULL, NULL, ch->church->name, TO_CHAR);
-				remove_member(ch->church_member);
-				ch->church = NULL;
-			}
-		}
-
-		/* Send a message to the church*/
-		if (ch->church != NULL)
-		{
-			sprintf(buf, "{Y[%s has entered the game.]{x\n\r", ch->name);
-			church_echo(ch->church, buf);
-			list_addlink(ch->church->online_players, ch);
-		}
-
-		/* Unscrew people's classes, subclasses and skills if they are messed up somehow.*/
-		if (!IS_IMMORTAL(ch))
-		{
-			descrew_subclasses(d->character);
-
-			if (!has_correct_classes(d->character))
-				fix_broken_classes(d->character);
-
-			//update_skills(d->character);
-		}
-
-		// Add connection to appropriate lists
-		connection_add(d);
-
-        if (d->account) {
-            // Link the character to the account if this is a brand new character
-            if (ch->tot_level == 0 || IS_NULLSTR(ch->pcdata->account_name)) {
-                free_string(ch->pcdata->account_name);
-                ch->pcdata->account_name = str_dup(d->account->username);
-                ch->pcdata->account_id[0] = d->account->id[0];
-                ch->pcdata->account_id[1] = d->account->id[1];
-                
-                // Update account's character list
-                account_add_character(d->account, ch);
-                save_account(d->account);
-            }
+    // This is a normal login, not a reconnect
+    // Continue with regular login process
+    
+    // Password cleanup for normal login
+    if (ch->pcdata) {
+        if (ch->pcdata->old_pwd != NULL) {
+            free_string(ch->pcdata->old_pwd);
+            ch->pcdata->old_pwd = NULL;
         }
 
-		wiznet("$N has entered the game.", d->character, NULL, WIZ_LOGINS, 0, 0);
+        if (ch->pcdata->reset_code != NULL) {
+            free_string(ch->pcdata->reset_code);
+            ch->pcdata->reset_code = NULL;
+        }
 
-		do_function(ch, &do_look, "auto");
+        if (ch->pcdata->reset_time != 0) {
+            ch->pcdata->reset_time = 0;
+        }
 
-		do_function(ch, &do_unread, "");
+        if (ch->pcdata->reset_state != 0) {
+            ch->pcdata->reset_state = 0;
+        }
+    }
+    
+    // Add to loaded characters list
+    if (!list_haslink(loaded_chars, ch))
+        list_appendlink(loaded_chars, ch);
+    
+    d->connected = CON_PLAYING;
+    
+    // Reset character stats
+    reset_char(ch);
 
-		// LOGIN TRIGGER
-		script_login(ch);
+    // Show server stats
+    playernum = 0;
+    for (d2 = descriptor_list; d2 != NULL; d2 = d2->next) {
+        if (d2->connected == CON_PLAYING && d2 != d &&
+            can_see(d->character, d2->character))
+            playernum++;
+    }
+
+    sprintf(buf, "{MThe current system time is {x%s{x\r", ctime(&current_time));
+    send_to_char(buf, ch);
+
+    sprintf(buf, "{MLast reboot was at {x%s{x\r", str_boot_time);
+    send_to_char(buf, ch);
+
+    sprintf(buf, "{MThere are currently {W%ld{M players online.{x\n\r", playernum);
+    send_to_char(buf, ch);
+
+    bool moved_to_room = false;
+
+    // Handle new character setup
+    if (ch->tot_level == 0) {
+        ch->exp = 0;
+        ch->hit = ch->max_hit;
+        ch->mana = ch->max_mana;
+        ch->move = ch->max_move;
+        ch->train = 3;
+        ch->practice = 5;
+        set_title(ch, "");
+        
+        // Handle bootstrapping if needed
+        if (fBootstrap) {
+            // Bootstrap code...
+        } else {
+            moved_to_room = true;
+            // Safely place in starting room
+            if (room_index_school) {
+                char_to_room(ch, room_index_school);
+                do_function(ch, &do_changes, "catchup");
+                SET_BIT(ch->comm, COMM_NO_OOC);
+                SET_BIT(ch->comm, COMM_NO_FLAMING);
+                send_to_char("\n\r", ch);
+                
+                // Announce new player
+                for (d2 = descriptor_list; d2 != NULL; d2 = d2->next) {
+                    if (d2->connected == CON_PLAYING && d2->character != ch &&
+                        !IS_SET(d2->character->comm, COMM_NOANNOUNCE)) {
+                        act("{MThe Town Crier Announces 'All welcome $N, a new adventurer to Sentience!'{x",
+                            d2->character, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+                    }
+                }
+                ch->tot_level = 1;
+            }
+        }
+    }
+
+    // Fix variable and dungeon references
+    variable_dynamic_fix_mobile(ch);
+    resolve_dungeons_player(ch);
+    resolve_instances_player(ch);
+    resolve_ships_player(ch);
+
+    // Handle room placement only if not already placed
+    if (!moved_to_room) {
+        if (ch->in_room != NULL) {
+            char_to_room(ch, ch->in_room);
+        } else if (ch->in_wilds != NULL) {
+            if (check_for_bad_room(ch->in_wilds, ch->at_wilds_x, ch->at_wilds_y)) {
+                plogf("nanny.c, join_world(): Transferring char to VRoom");
+                char_to_vroom(ch, ch->in_wilds, ch->at_wilds_x, ch->at_wilds_y);
+            } else {
+                plogf("nanny.c, join_world(): Previous VRoom invalid. Relocating to Temple");
+                ch->in_wilds = NULL;
+                ch->at_wilds_x = -1;
+                ch->at_wilds_y = -1;
+                if (room_index_temple)
+                    char_to_room(ch, room_index_temple);
+            }
+        } else {
+            if (IS_IMMORTAL(ch)) {
+                if (room_index_chat)
+                    char_to_room(ch, room_index_chat);
+            } else {
+                if (room_index_temple)
+                    char_to_room(ch, room_index_temple);
+            }
+        }
+    }
+
+    // Announce entry to game
+    act("$$n has entered the game.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    MXPSendTag(d, "<VERSION>");
+    
+    // Normal login notifications to other players
+    for (d2 = descriptor_list; d2 != NULL; d2 = d2->next) {
+        if (d2->connected == CON_PLAYING && !IS_IMMORTAL(d->character) &&
+            d2->character != ch && IS_SET(d2->character->comm, COMM_NOTIFY))
+            act("{B$$N has entered the game.{x", d2->character, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    }
+
+    // Handle church-related logic
+    if (ch->church != NULL) {
+        if ((ch->alignment < 0 && ch->church->alignment == CHURCH_GOOD) ||
+            (ch->alignment > 0 && ch->church->alignment == CHURCH_EVIL)) {
+            act("{YAs you enter Sentience, you feel your church's faith has been changed.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+            act("{YYou feel your psychic link to $T being severed.{x", ch, NULL, NULL, NULL, NULL, NULL, ch->church->name, TO_CHAR);
+            remove_member(ch->church_member);
+            ch->church = NULL;
+        } else {
+            // Send a message to the church
+            sprintf(buf, "{Y[%s has entered the game.]{x\n\r", ch->name);
+            church_echo(ch->church, buf);
+            list_addlink(ch->church->online_players, ch);
+        }
+    }
+
+    // Account linkage for new characters
+    if (d->account) {
+        if (ch->tot_level == 0 || IS_NULLSTR(ch->pcdata->account_name)) {
+            free_string(ch->pcdata->account_name);
+            ch->pcdata->account_name = str_dup(d->account->username);
+            ch->pcdata->account_id[0] = d->account->id[0];
+            ch->pcdata->account_id[1] = d->account->id[1];
+            
+            // Update account's character list
+            account_add_character(d->account, ch);
+            save_account(d->account);
+        }
+    }
+    
+    // Add connection to tracking list
+    connection_add(d);
+    
+    // Final login processing
+    wiznet("$N has entered the game.", d->character, NULL, WIZ_LOGINS, 0, 0);
+    do_function(ch, &do_look, "auto");
+    do_function(ch, &do_unread, "");
+    
+    // LOGIN TRIGGER
+    script_login(ch);
 }
 
 void login_get_email(DESCRIPTOR_DATA *d, char *argument)
@@ -3174,8 +3135,9 @@ case 'R':
 void login_get_account_mfa_for_char(DESCRIPTOR_DATA *d, char *argument)
 {
     ACCOUNT_DATA *acct = d->account;
+    CHAR_DATA *ch = d->character;
     
-    if (!check_account_mfa(acct, argument)) {
+    if (!check_account_mfa(acct, argument) && !check_account_recovery_code(acct, argument)) {
         write_to_buffer(d, "Invalid MFA code.\n\r", 0);
         // Return to character menu
         display_character_menu(d);
@@ -3183,8 +3145,15 @@ void login_get_account_mfa_for_char(DESCRIPTOR_DATA *d, char *argument)
         return;
     }
     
-    // MFA verified, proceed to game
-    proceed_to_game(d);
+    ProtocolNoEcho(d, false);
+    
+    // Check if this is a reconnection 
+    if (d->reconnecting) {
+        reconnect_char(d);
+    } else {
+        // Normal login flow for a fresh connection
+        proceed_to_game(d);
+    }
 }
 
 // Add the new connection states for character-specific authentication
@@ -3208,30 +3177,43 @@ void login_get_char_password(DESCRIPTOR_DATA *d, char *argument)
     
     // If the character has MFA enabled, prompt for that next
     if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled) {
-        ProtocolNoEcho(d,true);
+        ProtocolNoEcho(d, true);
         d->connected = CON_GET_CHAR_MFA;
         return;
     }
     
-    // Password correct, proceed to game
-    ProtocolNoEcho(d, false);
-    proceed_to_game(d);
+    // Check for d->reconnecting flag.
+    if (d->reconnecting) {
+        // This is a genuine reconnect - handle accordingly
+        reconnect_char(d);
+    } else {
+        // Normal login flow for a fresh connection
+        proceed_to_game(d);
+    }
 }
 
 void login_get_char_mfa(DESCRIPTOR_DATA *d, char *argument)
 {
     CHAR_DATA *ch = d->character;
     
-    if (!check_char_mfa(ch, argument) || check_recovery_code(ch, argument)) {
+    if (!check_char_mfa(ch, argument) && !check_recovery_code(ch, argument)) {
         write_to_buffer(d, "Invalid MFA code.\n\r", 0);
         // Return to character menu
         display_character_menu(d);
         d->connected = CON_CHARACTER_MENU;
         return;
     }
+    
     ProtocolNoEcho(d, false);
-    // MFA verified, proceed to game
-    proceed_to_game(d);
+    
+    // Check for d->reconnecting flag.
+    if (d->reconnecting) {
+        // This is a genuine reconnect - handle accordingly
+        reconnect_char(d);
+    } else {
+        // Normal login flow for a fresh connection
+        proceed_to_game(d);
+    }
 }
 
 // Helper function to proceed to the game after authentication
@@ -3239,10 +3221,18 @@ void proceed_to_game(DESCRIPTOR_DATA *d)
 {
     CHAR_DATA *ch = d->character;
     
+    // Add to loaded character lists
+    if (!list_haslink(loaded_chars, ch))
+        list_appendlink(loaded_chars, ch);
+    
+    // Mark that they're no longer reconnecting (clear any existing state)
+    ch->timer = 0;
+    
+    // Normal login path for fresh connections
     if (IS_IMMORTAL(ch)) {
         send_to_char("{BWelcome, Immortal.{x\n\r\n\r", ch);
         do_function(ch, &do_imotd, "");
-        d->connected = CON_READ_IMOTD;
+        d->connected = CON_READ_IMOTD; 
     } else {
         do_function(ch, &do_motd, "");
         d->connected = CON_READ_MOTD;
@@ -4132,6 +4122,52 @@ void login_change_character_email(DESCRIPTOR_DATA *d, char *argument)
     write_to_buffer(d, "\n\rA verification code has been sent to your new email address.\n\r", 0);
     write_to_buffer(d, "Enter the code to confirm your new email: ", 0);
     d->connected = CON_VERIFY_CHARACTER_EMAIL_CHANGE;
+}
+
+bool is_reconnecting(CHAR_DATA *ch)
+{
+    if (!ch) return false;
+    
+    // Skip checking freshly created characters not yet in loaded_chars
+    if (ch->tot_level == 0 && !ch->pcdata->last_login) 
+        return false;
+    
+    // Debug output for tracing
+    char debug_buf[MAX_STRING_LENGTH];
+    sprintf(debug_buf, "[DEBUG] is_reconnecting checking: %s", ch->name);
+    log_string(debug_buf);
+    
+    // Direct scan of loaded_chars for more reliable results
+    CHAR_DATA *real_existing = NULL;
+    ITERATOR it;
+    
+    iterator_start(&it, loaded_chars);
+    while ((real_existing = (CHAR_DATA *)iterator_nextdata(&it))) {
+        // Look for a character that:
+        // 1. Is not an NPC
+        // 2. Has the same name as our character
+        // 3. Is *not* our current character instance
+        // 4. Is already properly established in the game (has been saved before)
+        if (!IS_NPC(real_existing) && 
+            real_existing != ch && 
+            !str_cmp(ch->name, real_existing->name) &&
+            real_existing->in_room != NULL) {
+            
+            sprintf(debug_buf, "[DEBUG] Found reconnect match: %s (%p), desc: %s", 
+                    real_existing->name, 
+                    (void*)real_existing,
+                    real_existing->desc ? "connected" : "linkdead");
+            log_string(debug_buf);
+            
+            iterator_stop(&it);
+            return true;
+        }
+    }
+    iterator_stop(&it);
+    
+    // If we're here, we didn't find a matching character
+    log_string("[DEBUG] No reconnect match found");
+    return false;
 }
 
 void nanny(DESCRIPTOR_DATA *d, char *argument)

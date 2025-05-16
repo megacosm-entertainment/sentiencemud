@@ -1801,6 +1801,7 @@ else if (fPrompt && !d->showstr_point && !d->pString)
             
         // Login states with specific prompts
         case CON_GET_ACCOUNT_NAME:
+		
 
             break;
         case CON_GET_ACCOUNT_PASSWORD:
@@ -2512,68 +2513,125 @@ CHAR_DATA *find_existing_player(char *name)
 bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
 {
     CHAR_DATA *ch;
+    char buf[100];
+    bool found = false;
     ITERATOR cit;
-    // Reverting for reconnect crash
-    //iterator_start(&cit, loaded_players);
+
     iterator_start(&cit, loaded_chars);
-    while(( ch = (CHAR_DATA *)iterator_nextdata(&cit)))
+    while((ch = (CHAR_DATA *)iterator_nextdata(&cit)) && !found)
     {
-		if (!IS_NPC(ch) &&
-			(!fConn || ch->desc == NULL) &&
-			!str_cmp(d->character->name, ch->name)) {
-		    if (!fConn) {
-				free_string(d->character->pcdata->pwd);
-				d->character->pcdata->pwd = str_dup(ch->pcdata->pwd);
-			} else {
-				CHURCH_DATA *church;
-				CHURCH_PLAYER_DATA *member;
+        if (!IS_NPC(ch) && 
+            (!fConn || ch->desc == NULL) && 
+            !str_cmp(d->character->name, ch->name)) 
+        {
+            if (!fConn) {
+                free_string(d->character->pcdata->pwd);
+                d->character->pcdata->pwd = str_dup(ch->pcdata->pwd);
+                iterator_stop(&cit);
+                return true;
+            } else {
+                CHURCH_DATA *church;
+                CHURCH_PLAYER_DATA *member;
+                CHAR_DATA *old_char = d->character;
 
-				if (d->character->pet) {
-					CHAR_DATA *pet=d->character->pet;
-
-					char_to_room(pet, room_index_limbo);
-					stop_follower(pet,true);
-					extract_char(pet,true);
+                // Handle pet cleanup from incoming connection if needed
+                if (old_char->pet) {
+                    CHAR_DATA *pet = old_char->pet;
+                    char_to_room(pet, room_index_limbo);
+                    stop_follower(pet, true);
+                    extract_char(pet, true);
                 }
 
-				// Temporarily adding this back for reconnect crash
-				free_char(d->character);
-				d->character = ch;
-				ch->desc	 = d;
-				ch->timer	 = 0;
-				send_to_char("Reconnecting.  Type replay to see missed tells.\n\r", ch);
-				act("$$n has reconnected.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                // Preserve any temporary descriptor data we need
+                ch->timer = 0;  // Reset idle timer
+                
+                // Switch the descriptor to the existing character
+                ch->desc = d;
+                d->character = ch;  // Point to the existing character
+                d->original = NULL; // Make sure we're not switched
+                
+                // Now free the temporary character that was created during login
+                free_char(old_char);
+                d->reconnecting = true;
+                found = true;  // Mark as found so iterator_stop works properly
+                
+                // Handle special authentication cases
+                if (IS_IMMORTAL(ch) && game_settings.require_2fa_staff) {
+                    // Staff character with MFA requirements
+                    if ((!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled) ||
+                        (!IS_NULLSTR(d->account->mfa_key) && d->account->mfa_enabled)) {
+                        
+                        // If character has MFA, verify that
+                        if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled) {
+                            write_to_buffer(d, "\n\rReconnecting - This character has MFA enabled.\n\r", 0);
+                            ProtocolNoEcho(d, true);
+                            d->connected = CON_GET_CHAR_MFA;
+                            break;  // Exit the loop but maintain iterator
+                        } 
+                        // Otherwise, verify account MFA
+                        else if (!IS_NULLSTR(d->account->mfa_key) && d->account->mfa_enabled) {
+                            write_to_buffer(d, "\n\rReconnecting - Staff account MFA verification required.\n\r", 0);
+ 
+                            ProtocolNoEcho(d, true);
+                            d->connected = CON_GET_ACCOUNT_MFA_FOR_CHAR;
+                            break;  // Exit the loop but maintain iterator
+                        }
+                    }
+                }
+                // Regular character with MFA
+                else if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled) {
+                    write_to_buffer(d, "\n\rReconnecting - This character has MFA enabled.\n\r", 0);
 
-				sprintf(log_buf, "%s@%s reconnected.", ch->name, d->host);
-				log_string(log_buf);
-				wiznet("$N has relinked.", ch,NULL,WIZ_LINKS,0,0);
+                    ProtocolNoEcho(d, true);
+                    d->connected = CON_GET_CHAR_MFA;
+                    break;  // Exit the loop but maintain iterator
+                }
+                // Character with password override
+                else if (ch->pcdata->account_pwd_override) {
+                    write_to_buffer(d, "\n\rReconnecting: This character requires password verification.\n\r", 0);
 
-				d->connected = CON_PLAYING;
-				MXPSendTag(d,"<VERSION>");
-
-				if (light_char_has_light(ch))
-					ch->in_room->light++;
-
-				/* resync char with his church_member both ways on reconnect */
-				for (church = church_list; church != NULL; church = church->next) {
-					if (church == ch->church) {
-						for (member = church->people; member != NULL; member = member->next) {
-							if (!str_cmp(member->name, ch->name) && member->ch == NULL)
-								member->ch = ch;
-						}
-				    }
-				}
-		    }
-		    iterator_stop(&cit);
-
-			return true;
-		}
+                    ProtocolNoEcho(d, true);
+                    d->connected = CON_GET_CHAR_PASSWORD;
+                    break;  // Exit the loop but maintain iterator
+                }
+                
+                // Normal reconnect process - no special auth needed
+                reconnect_char(d);
+                break;  // Exit the loop but maintain iterator
+            }
+        }
     }
     iterator_stop(&cit);
-
-    return false;
+    
+    return found;
 }
 
+void reconnect_char(DESCRIPTOR_DATA *d)
+{
+    CHAR_DATA *ch = d->character;
+    char buf[MAX_STRING_LENGTH];
+    
+    if (!ch) return;
+    
+    // Set to playing state immediately
+    d->connected = CON_PLAYING;
+    d->reconnecting = false;
+    
+    // Send reconnection message
+    send_to_char("Reconnecting. Type replay to see missed tells.\n\r", ch);
+    act("$n has reconnected.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    
+    // Log the reconnection
+    sprintf(buf, "%s@%s reconnected.", ch->name, d->host);
+    log_string(buf);
+    wiznet("$N has relinked.", ch, NULL, WIZ_LINKS, 0, 0);
+    
+    // Update protocol settings
+    MXPSendTag(d, "<VERSION>");
+    
+    // Add connection to tracking
+    connection_add(d);
+}
 
 /*
  * Check if already playing.

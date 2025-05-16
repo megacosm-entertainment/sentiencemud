@@ -343,6 +343,8 @@ DESCRIPTOR_DATA *new_descriptor(void)
     d->last_room_flag[0] = 0;
     d->last_room_flag[0] = 0;
     d->mfa_verified = false;
+    d->creating_staff_character = false;
+    d->reconnecting = false;
 
     top_descriptor++;
 
