@@ -4973,6 +4973,7 @@ const struct do_func_type do_func_table[] =
         { "do_keygen",                  do_keygen },
         { "do_mfareset",                do_mfareset },
         { "do_logout",                do_logout },
+        { "do_gameedit",                 do_gameedit },
 };
 
 /* Table mapping connection states to display strings */
@@ -5047,4 +5048,193 @@ const struct flag_type acct_flags[] =
     {   "link_chars",           ACCT_CAN_LINK,  true },
     {   "unlink_chars",         ACCT_CAN_UNLINK, true },
 	{	NULL,	0,	0	}
+};
+
+// ...existing code...
+
+
+
+
+
+const struct game_setting_type game_settings_table[] = {
+    /* Email Settings */
+    { "email_enable",        &game_settings.enable_email,         SETTING_TYPE_BOOL,   SETTING_CAT_EMAIL,    "Enable email functionality",                                 true,  false, false },
+    { "email_username",      &game_settings.email_username,       SETTING_TYPE_STRING, SETTING_CAT_EMAIL,    "Username for the email account",                             true,  false, true },
+    { "email_password",      &game_settings.email_password,       SETTING_TYPE_STRING, SETTING_CAT_EMAIL,    "Password for the email account",                             true,  false, true },
+    { "email_host",          &game_settings.email_host,           SETTING_TYPE_STRING, SETTING_CAT_EMAIL,    "Hostname of the email server",                               true,  false, false },
+    { "email_port",          &game_settings.email_port,           SETTING_TYPE_INT,    SETTING_CAT_EMAIL,    "Port that the email server is listening on",                 true,  false, false },
+    { "email_from_addr",     &game_settings.email_from_addr,      SETTING_TYPE_STRING, SETTING_CAT_EMAIL,    "Email address that will appear in the 'from' field",         true,  false, false },
+    { "email_from_name",     &game_settings.email_from_name,      SETTING_TYPE_STRING, SETTING_CAT_EMAIL,    "Name that will appear in the 'from' field",                  true,  false, false },
+
+    /* Mission Settings */
+    { "max_mission_allowance", &game_settings.max_mission_allowance, SETTING_TYPE_INT, SETTING_CAT_MISSION,  "Maximum mission allowances a player can have",               true,  false, false },
+    { "inc_missions",        &game_settings.inc_missions,         SETTING_TYPE_INT,    SETTING_CAT_MISSION,  "Number of missions a player accrues on allowance tick",      true,  false, false },
+    { "max_missions",        &game_settings.max_missions,         SETTING_TYPE_INT,    SETTING_CAT_MISSION,  "Maximum missions a player can run simultaneously",           true,  false, false },
+
+    /* Locker Settings */
+    { "lockers_enabled",     &game_settings.lockers_enabled,      SETTING_TYPE_BOOL,   SETTING_CAT_LOCKER,   "Are lockers enabled",                                        true,  false, false },
+    { "locker_rent_enabled", &game_settings.locker_rent_enabled,  SETTING_TYPE_BOOL,   SETTING_CAT_LOCKER,   "Do lockers cost rent",                                       true,  false, false },
+    { "max_locker_weight",   &game_settings.max_locker_weight,    SETTING_TYPE_INT,    SETTING_CAT_LOCKER,   "Maximum weight a player can have in their locker",           true,  false, false },
+    { "max_locker_items",    &game_settings.max_locker_items,     SETTING_TYPE_INT,    SETTING_CAT_LOCKER,   "Maximum items a player can have in their locker",            true,  false, false },
+    { "locker_rent_cost",    &game_settings.locker_rent_cost,     SETTING_TYPE_INT,    SETTING_CAT_LOCKER,   "Cost to rent a locker",                                      true,  false, false },
+    { "locker_rent_time",    &game_settings.locker_rent_time,     SETTING_TYPE_INT,    SETTING_CAT_LOCKER,   "Duration rent grants access (in days)",                      true,  false, false },
+    { "locker_rent_time_max", &game_settings.locker_rent_time_max, SETTING_TYPE_INT,   SETTING_CAT_LOCKER,   "Maximum duration a locker can be rented at once (in days)",  true,  false, false },
+    { "locker_add_cost_tier", &game_settings.locker_additional_cost_per_tier, SETTING_TYPE_INT, SETTING_CAT_LOCKER, "Additional cost per tier of locker",                  true,  false, false },
+    { "locker_add_slots_tier", &game_settings.locker_additional_slots_per_tier, SETTING_TYPE_INT, SETTING_CAT_LOCKER, "Additional slots per tier of locker",                true,  false, false },
+    { "locker_add_weight_tier", &game_settings.locker_additional_weight_per_tier, SETTING_TYPE_INT, SETTING_CAT_LOCKER, "Additional weight per tier of locker",            true,  false, false },
+    { "locker_tier_max",     &game_settings.locker_tier_max,      SETTING_TYPE_INT,    SETTING_CAT_LOCKER,   "Maximum upgrades that can be applied to a locker",           true,  false, false },
+
+    /* Vault Settings */
+    { "max_vault_weight",    &game_settings.max_vault_weight,     SETTING_TYPE_INT,    SETTING_CAT_VAULT,    "Maximum weight a player can have in their vault",            true,  false, false },
+    { "max_vault_items",     &game_settings.max_vault_items,      SETTING_TYPE_INT,    SETTING_CAT_VAULT,    "Maximum items a player can have in their vault",             true,  false, false },
+    { "vault_enabled",       &game_settings.vault_enabled,        SETTING_TYPE_BOOL,   SETTING_CAT_VAULT,    "Is the vault enabled",                                       true,  false, false },
+    { "vault_rent",          &game_settings.vault_rent,           SETTING_TYPE_BOOL,   SETTING_CAT_VAULT,    "Does the vault cost rent",                                   true,  false, false },
+    { "vault_rent_per_char", &game_settings.vault_rent_per_char,  SETTING_TYPE_BOOL,   SETTING_CAT_VAULT,    "Does vault rent cost per character",                         true,  false, false },
+    { "vault_rent_cost",     &game_settings.vault_rent_cost,      SETTING_TYPE_INT,    SETTING_CAT_VAULT,    "Base rental cost for the vault",                             true,  false, false },
+    { "vault_rent_time",     &game_settings.vault_rent_time,      SETTING_TYPE_INT,    SETTING_CAT_VAULT,    "Duration rent grants access (in days)",                      true,  false, false },
+    { "vault_add_cost_char", &game_settings.vault_additional_cost_per_char, SETTING_TYPE_INT, SETTING_CAT_VAULT, "Additional cost per character",                          true,  false, false },
+    { "vault_add_slots_char", &game_settings.vault_additional_slots_per_char, SETTING_TYPE_INT, SETTING_CAT_VAULT, "Additional slots per character",                       true,  false, false },
+    { "vault_add_weight_char", &game_settings.vault_additional_weight_per_char, SETTING_TYPE_INT, SETTING_CAT_VAULT, "Additional weight per character",                    true,  false, false },
+
+    /* Coffer Settings */
+    { "max_coffer_weight",   &game_settings.max_coffer_weight,    SETTING_TYPE_INT,    SETTING_CAT_COFFER,   "Maximum weight an organization can have in their coffer",    true,  false, false },
+    { "max_coffer_items",    &game_settings.max_coffer_items,     SETTING_TYPE_INT,    SETTING_CAT_COFFER,   "Maximum items an organization can have in their coffer",     true,  false, false },
+    { "coffer_enabled",      &game_settings.coffer_enabled,       SETTING_TYPE_BOOL,   SETTING_CAT_COFFER,   "Is the coffer enabled",                                      true,  false, false },
+    { "coffer_rent",         &game_settings.coffer_rent,          SETTING_TYPE_BOOL,   SETTING_CAT_COFFER,   "Does the coffer cost rent",                                  true,  false, false },
+    { "coffer_rent_cost",    &game_settings.coffer_rent_cost,     SETTING_TYPE_INT,    SETTING_CAT_COFFER,   "Cost to rent an organization coffer",                        true,  false, false },
+    { "coffer_rent_currency", &game_settings.coffer_rent_currency, SETTING_TYPE_STRING, SETTING_CAT_COFFER,  "Currency used for coffer rent",                              true,  false, false },
+    { "coffer_rent_period",  &game_settings.coffer_rent_period,   SETTING_TYPE_INT,    SETTING_CAT_COFFER,   "Duration rent grants access to an org (in days)",            true,  false, false },
+
+    /* Global Settings */
+    { "game_name",           &game_settings.game_name,            SETTING_TYPE_STRING, SETTING_CAT_GLOBAL,   "Name of the game, used in MSSP",                             true,  true, false },
+    { "login_string",        &game_settings.login_string,         SETTING_TYPE_STRING, SETTING_CAT_GLOBAL,   "Login string presented on connection",                       true,  false, false },
+    { "server_description",  &game_settings.server_description,   SETTING_TYPE_STRING, SETTING_CAT_GLOBAL,   "Description of server",                                      true,  false, false },
+    { "testport",            &game_settings.testport,             SETTING_TYPE_BOOL,   SETTING_CAT_GLOBAL,   "Is this a testport",                                         true,  true, false  },
+    { "dev_server",          &game_settings.dev_server,           SETTING_TYPE_BOOL,   SETTING_CAT_GLOBAL,   "Is this a dev/alpha server",                                 true,  true, false  },
+    { "enable_passwd",       &game_settings.enable_passwd,        SETTING_TYPE_BOOL,   SETTING_CAT_SECURITY, "Enable passwords",                                           true,  false, false },
+    { "enable_mfa",          &game_settings.enable_mfa,           SETTING_TYPE_BOOL,   SETTING_CAT_SECURITY, "Enable multifactor authentication",                          true,  false, false },
+    { "wizlock",             &game_settings.wizlock,              SETTING_TYPE_BOOL,   SETTING_CAT_SECURITY, "Prevent non-staff character logins",                         true,  false, false },
+    { "wizlock_msg",         &game_settings.wizlock_msg,          SETTING_TYPE_STRING, SETTING_CAT_SECURITY, "Message for wizlocked game",                                 true,  false, false },
+    { "new_acct_lock",       &game_settings.new_acct_lock,        SETTING_TYPE_BOOL,   SETTING_CAT_SECURITY, "Prevent making new accounts",                                true,  false, false },
+    { "new_acct_lock_msg",   &game_settings.new_acct_lock_msg,    SETTING_TYPE_STRING, SETTING_CAT_SECURITY, "Message for new account lock",                               true,  false, false },
+    { "new_char_lock",       &game_settings.new_char_lock,        SETTING_TYPE_BOOL,   SETTING_CAT_SECURITY, "Prevent making new characters on existing accounts",         true,  false, false },
+    { "new_char_lock_msg",   &game_settings.new_char_lock_msg,    SETTING_TYPE_STRING, SETTING_CAT_SECURITY, "Message for new character lock",                             true,  false, false },
+    { "logall",              &game_settings.logall,               SETTING_TYPE_BOOL,   SETTING_CAT_GLOBAL,   "Log everything",                                             true,  false, false },
+    { "require_email_verify", &game_settings.require_email_verification, SETTING_TYPE_BOOL, SETTING_CAT_SECURITY, "Require email verification for accounts",               true,  false, false },
+    { "require_2fa_all",     &game_settings.require_2fa_all,      SETTING_TYPE_BOOL,   SETTING_CAT_SECURITY, "Require all accounts to have multifactor auth",              true,  false, false },
+    { "require_2fa_staff",   &game_settings.require_2fa_staff,    SETTING_TYPE_BOOL,   SETTING_CAT_SECURITY, "Require staff accounts to have MFA",                         true,  false, false },
+    { "require_uniq_pass_staff", &game_settings.require_uniq_pass_staff, SETTING_TYPE_BOOL, SETTING_CAT_SECURITY, "Require staff characters to have player-level password", true, false, false },
+    { "allow_multiplay_acct_all", &game_settings.allow_multiplay_acct_all, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Allow multiple characters from one account",            true,  false, false },
+    { "allow_multiplay_acct_staff", &game_settings.allow_multiplay_acct_staff, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Allow multiple logins from staff accounts",         true,  false, false },
+    { "allow_multiplay_host_all", &game_settings.allow_multiplay_host_all, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Allow multiple accounts from one host",                 true,  false, false },
+    { "allow_multiplay_host_staff", &game_settings.allow_multiplay_host_staff, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Allow multiple accounts from one host if one is staff", true, false, false },
+    { "allow_link_all",      &game_settings.allow_link_all,       SETTING_TYPE_BOOL,   SETTING_CAT_GLOBAL,   "Allow all accounts to link chars",                           true,  false, false },
+    { "allow_unlink_all",    &game_settings.allow_unlink_all,     SETTING_TYPE_BOOL,   SETTING_CAT_GLOBAL,   "Allow all accounts to unlink chars",                         true,  false, false },
+    { "alignment_system",    &game_settings.alignment_system,     SETTING_TYPE_BOOL,   SETTING_CAT_GLOBAL,   "Use alignment system",                                       true,  false, false },
+    { "restrict_races_alignment", &game_settings.restrict_races_by_alignment, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Restrict races by alignment",                         true, false, false },
+    { "restrict_classes_alignment", &game_settings.restrict_classes_by_alignment, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Restrict classes by alignment",                   true, false, false },
+    { "max_login_attempts",  &game_settings.max_login_attempts,   SETTING_TYPE_INT,    SETTING_CAT_SECURITY, "Maximum login attempts before disconnecting",                true,  false, false },
+    { "idle_time",           &game_settings.idle_time,            SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Ticks until a user is considered idle",                      true,  false, false },
+    { "idle_disconnect_time", &game_settings.idle_disconnect_time, SETTING_TYPE_INT,   SETTING_CAT_GLOBAL,   "Ticks until an idle user is disconnected",                   true,  false, false },
+    { "max_alias",           &game_settings.max_alias,            SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Maximum aliases a player can have",                          true,  false, false },
+    { "max_characters",      &game_settings.max_characters,       SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Maximum characters a player can have",                       true,  false, false },
+    { "max_orgs",            &game_settings.max_orgs,             SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Maximum organizations that can exist",                       true,  false, false },
+    { "enable_telnet",       &game_settings.enable_telnet,        SETTING_TYPE_BOOL,   SETTING_CAT_GLOBAL,   "Allow plaintext connections",                                true,  true, false  },
+    { "telnet_port",         &game_settings.telnet_port,          SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Plaintext telnet port",                                      true,  true, false  },
+    { "enable_tls",          &game_settings.enable_tls,           SETTING_TYPE_BOOL,   SETTING_CAT_GLOBAL,   "Allow TLS connections",                                      true,  true, false  },
+    { "tls_port",            &game_settings.tls_port,             SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "TLS port",                                                   true,  true, false  },
+    { "enable_websocket_tls", &game_settings.enable_websocket_tls, SETTING_TYPE_BOOL,  SETTING_CAT_GLOBAL,   "Allow websocket connections",                                true,  true, false  },
+    { "websocket_tls_port",  &game_settings.websocket_tls_port,   SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Websocket port",                                             true,  true, false  },
+    { "enable_web",          &game_settings.enable_web,           SETTING_TYPE_BOOL,   SETTING_CAT_GLOBAL,   "Allow web connections",                                      true,  true, false  },
+    { "ssl_cert_path",       &game_settings.ssl_cert_path,        SETTING_TYPE_STRING, SETTING_CAT_GLOBAL,   "SSL certificate path",                                       true,  true, false  },
+    { "ssl_key_path",        &game_settings.ssl_key_path,         SETTING_TYPE_STRING, SETTING_CAT_GLOBAL,   "SSL key path",                                               true,  true, false  },
+    { "enable_insecure_warning", &game_settings.enable_insecure_warning, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Show warning for insecure connections",                   true,  false, false },
+    { "insecure_warning_msg", &game_settings.insecure_warning_msg, SETTING_TYPE_STRING, SETTING_CAT_GLOBAL,  "Message for insecure connections",                           true,  false, false },
+    { "max_logfile_size",    &game_settings.max_logfile_size,     SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Size to start rotating logs (in MB)",                        true,  false, false },
+
+    /* MSSP Settings */
+    { "mssp_players",         &game_settings.mssp_players,         SETTING_TYPE_INT,    SETTING_CAT_MSSP,    "Current players (auto-updated)",                             false, false, false },
+    { "mssp_uptime",          &game_settings.mssp_uptime,          SETTING_TYPE_INT,    SETTING_CAT_MSSP,    "Server uptime (auto-updated)",                               false, false, false },
+    { "mssp_crawl_delay",     &game_settings.mssp_crawl_delay,     SETTING_TYPE_INT,    SETTING_CAT_MSSP,    "How often crawlers should return",                           true,  false, false },
+    { "mssp_hostname",        &game_settings.mssp_hostname,        SETTING_TYPE_STRING, SETTING_CAT_MSSP,    "Server hostname",                                            true,  false, false },
+    { "mssp_port",            &game_settings.mssp_port,            SETTING_TYPE_INT,    SETTING_CAT_MSSP,    "Server port",                                                true,  false, false },
+    { "mssp_tls_port",        &game_settings.mssp_tls_port,        SETTING_TYPE_INT,    SETTING_CAT_MSSP,    "TLS server port",                                            true,  false, false },
+    { "mssp_codebase",        &game_settings.mssp_codebase,        SETTING_TYPE_STRING, SETTING_CAT_MSSP,    "Name of the codebase",                                       true,  false, false },
+    { "mssp_contact",         &game_settings.mssp_contact,         SETTING_TYPE_STRING, SETTING_CAT_MSSP,    "Contact email address",                                      true,  false, false },
+    { "mssp_created",         &game_settings.mssp_created,         SETTING_TYPE_INT,    SETTING_CAT_MSSP,    "Year the MUD was created",                                   true,  false, false },
+    { "mssp_ip",              &game_settings.mssp_ip,              SETTING_TYPE_STRING, SETTING_CAT_MSSP,    "Current or new IP address",                                  true,  false, false },
+    { "mssp_language",        &game_settings.mssp_language,        SETTING_TYPE_STRING, SETTING_CAT_MSSP,    "Language used",                                              true,  false, false },
+    { "mssp_location",        &game_settings.mssp_location,        SETTING_TYPE_STRING, SETTING_CAT_MSSP,    "Country where server is located",                            true,  false, false },
+    { "mssp_minimum_age",     &game_settings.mssp_minimum_age,     SETTING_TYPE_INT,    SETTING_CAT_MSSP,    "Minimum age requirement",                                    true,  false, false },
+    { "mssp_website",         &game_settings.mssp_website,         SETTING_TYPE_STRING, SETTING_CAT_MSSP,    "URL to MUD website",                                         true,  false, false },
+    { "mssp_family",          &game_settings.mssp_family,          SETTING_TYPE_STRING, SETTING_CAT_MSSP,    "MUD family",                                                 true,  false, false },
+    { "mssp_genre",           &game_settings.mssp_genre,           SETTING_TYPE_STRING, SETTING_CAT_MSSP,    "Genre",                                                      true,  false, false },
+    { "mssp_status",          &game_settings.mssp_status,          SETTING_TYPE_STRING, SETTING_CAT_MSSP,    "Development status",                                         true,  false, false },
+    { "mssp_gamesystem",      &game_settings.mssp_gamesystem,      SETTING_TYPE_STRING, SETTING_CAT_MSSP,    "Game system",                                                true,  false, false },
+    { "mssp_intermud",        &game_settings.mssp_intermud,        SETTING_TYPE_STRING, SETTING_CAT_MSSP,    "Intermud protocol",                                          true,  false, false },
+    { "mssp_subgenre",        &game_settings.mssp_subgenre,        SETTING_TYPE_STRING, SETTING_CAT_MSSP,    "Subgenre",                                                   true,  false, false },
+    { "mssp_discord_server",  &game_settings.mssp_discord_server,  SETTING_TYPE_STRING, SETTING_CAT_MSSP,    "Discord server URL",                                         true,  false, false },
+    { "mssp_areas",           &game_settings.mssp_areas,           SETTING_TYPE_INT,    SETTING_CAT_MSSP,    "Number of areas",                                            true,  false, false },
+    { "mssp_helpfiles",       &game_settings.mssp_helpfiles,       SETTING_TYPE_INT,    SETTING_CAT_MSSP,    "Number of helpfiles",                                        true,  false, false },
+    { "mssp_mobiles",         &game_settings.mssp_mobiles,         SETTING_TYPE_INT,    SETTING_CAT_MSSP,    "Number of unique mobs",                                      true,  false, false },
+    { "mssp_objects",         &game_settings.mssp_objects,         SETTING_TYPE_INT,    SETTING_CAT_MSSP,    "Number of unique objects",                                   true,  false, false },
+    { "mssp_rooms",           &game_settings.mssp_rooms,           SETTING_TYPE_INT,    SETTING_CAT_MSSP,    "Number of unique rooms",                                     true,  false, false },
+    { "mssp_classes",         &game_settings.mssp_classes,         SETTING_TYPE_INT,    SETTING_CAT_MSSP,    "Number of player classes",                                   true,  false, false },
+    { "mssp_levels",          &game_settings.mssp_levels,          SETTING_TYPE_INT,    SETTING_CAT_MSSP,    "Number of player levels",                                    true,  false, false },
+    { "mssp_races",           &game_settings.mssp_races,           SETTING_TYPE_INT,    SETTING_CAT_MSSP,    "Number of player races",                                     true,  false, false },
+    { "mssp_skills",          &game_settings.mssp_skills,          SETTING_TYPE_INT,    SETTING_CAT_MSSP,    "Number of player skills",                                    true,  false, false },
+    { "mssp_dbsize",          &game_settings.mssp_dbsize,          SETTING_TYPE_INT,    SETTING_CAT_MSSP,    "Database size",                                              true,  false, false },
+    { "mssp_ansi",            &game_settings.mssp_ansi,            SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "ANSI color code support",                                    true,  false, false },
+    { "mssp_gmcp",            &game_settings.mssp_gmcp,            SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "GMCP support",                                               true,  false, false },
+    { "mssp_mccp",            &game_settings.mssp_mccp,            SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "MCCP support",                                               true,  false, false },
+    { "mssp_mcp",             &game_settings.mssp_mcp,             SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "MCP support",                                                true,  false, false },
+    { "mssp_msdp",            &game_settings.mssp_msdp,            SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "MSDP support",                                               true,  false, false },
+    { "mssp_msp",             &game_settings.mssp_msp,             SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "MSP support",                                                true,  false, false },
+    { "mssp_mxp",             &game_settings.mssp_mxp,             SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "MXP support",                                                true,  false, false },
+    { "mssp_pueb",            &game_settings.mssp_pueb,            SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "Pueblo/UE support",                                          true,  false, false },
+    { "mssp_utf8",            &game_settings.mssp_utf8,            SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "UTF-8 support",                                              true,  false, false },
+    { "mssp_vt100",           &game_settings.mssp_vt100,           SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "VT100 support",                                              true,  false, false },
+    { "mssp_xterm256",        &game_settings.mssp_xterm256,        SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "256 color support",                                          true,  false, false },
+    { "mssp_xtermtrue",       &game_settings.mssp_xtermtrue,       SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "True color support",                                         true,  false, false },
+    { "mssp_atcp",            &game_settings.mssp_atcp,            SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "ATCP support",                                               true,  false, false },
+    { "mssp_ssl",             &game_settings.mssp_ssl,             SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "SSL support",                                                true,  false, false },
+    { "mssp_pay2play",        &game_settings.mssp_pay2play,        SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "Pay to play",                                                true,  false, false },
+    { "mssp_pay4perks",       &game_settings.mssp_pay4perks,       SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "Pay for perks",                                              true,  false, false },
+    { "mssp_hiring_builders", &game_settings.mssp_hiring_builders, SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "Looking for builders",                                       true,  false, false },
+    { "mssp_hiring_coders",   &game_settings.mssp_hiring_coders,   SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "Looking for coders",                                         true,  false, false },
+    { "mssp_adult_material",  &game_settings.mssp_adult_material,  SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "Contains mature content",                                    true,  false, false },
+    { "mssp_multiclass",      &game_settings.mssp_multiclass,      SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "Multiclassing allowed",                                      true,  false, false },
+    { "mssp_newbie_friendly", &game_settings.mssp_newbie_friendly, SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "Newbie friendly",                                            true,  false, false },
+    { "mssp_player_cities",   &game_settings.mssp_player_cities,   SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "Player cities",                                              true,  false, false },
+    { "mssp_player_clans",    &game_settings.mssp_player_clans,    SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "Player clans",                                               true,  false, false },
+    { "mssp_player_crafting", &game_settings.mssp_player_crafting, SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "Player crafting",                                            true,  false, false },
+    { "mssp_player_guilds",   &game_settings.mssp_player_guilds,   SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "Player guilds",                                              true,  false, false },
+    { "mssp_equipment_system", &game_settings.mssp_equipment_system, SETTING_TYPE_STRING, SETTING_CAT_MSSP,  "Equipment system",                                           true,  false, false },
+    { "mssp_multiplaying",    &game_settings.mssp_multiplaying,    SETTING_TYPE_STRING, SETTING_CAT_MSSP,    "Multiplaying allowed",                                       true,  false, false },
+    { "mssp_playerkilling",   &game_settings.mssp_playerkilling,   SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "Player killing allowed",                                     true,  false, false },
+    { "mssp_quest_system",    &game_settings.mssp_quest_system,    SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "Quest system",                                               true,  false, false },
+    { "mssp_roleplaying",     &game_settings.mssp_roleplaying,     SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "Roleplaying enforced",                                       true,  false, false },
+    { "mssp_training_system", &game_settings.mssp_training_system, SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "Training system",                                            true,  false, false },
+    { "mssp_world_originality", &game_settings.mssp_world_originality, SETTING_TYPE_BOOL, SETTING_CAT_MSSP,  "Based on established setting",                               true,  false, false },
+    
+    { NULL, NULL, 0, 0, NULL, false, false }  /* Terminator */
+};
+
+/* Setting category names for display purposes */
+const char *setting_category_names[] = {
+    "Email",
+    "Missions",
+    "Lockers",
+    "Vault",
+    "Coffers",
+    "Global",
+    "Security",
+    "MSSP"
+};
+
+/* Setting type names for display purposes */
+const char *setting_type_names[] = {
+    "Boolean",
+    "Integer",
+    "String"
 };

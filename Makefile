@@ -49,6 +49,7 @@ C_FILES = \
 	events.c \
 	fight.c \
 	fight2.c \
+	gameedit.c \
 	gq.c \
 	handler.c \
 	help.c \
@@ -162,6 +163,7 @@ O_FILES = \
 	$(OBJDIR)/events.o \
 	$(OBJDIR)/fight.o \
 	$(OBJDIR)/fight2.o \
+	$(OBJDIR)/gameedit.o \
 	$(OBJDIR)/gq.o \
 	$(OBJDIR)/handler.o \
 	$(OBJDIR)/help.o \

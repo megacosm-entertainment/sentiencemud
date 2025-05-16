@@ -416,6 +416,27 @@ struct script_type {
 #define VERSION_DUNGEON     0x01000000
 
 
+/* Setting type constants */
+#define SETTING_TYPE_BOOL    0
+#define SETTING_TYPE_INT     1
+#define SETTING_TYPE_STRING  2
+
+/* Setting category constants */
+#define SETTING_CAT_EMAIL       0
+#define SETTING_CAT_MISSION     1
+#define SETTING_CAT_LOCKER      2
+#define SETTING_CAT_VAULT       3
+#define SETTING_CAT_COFFER      4
+#define SETTING_CAT_GLOBAL      5
+#define SETTING_CAT_SECURITY    6
+#define SETTING_CAT_MSSP        7
+
+#define MIN_SECURITY_GAMEEDIT  9
+
+#define GAMEEDIT(fun)    bool fun(CHAR_DATA *ch, char *argument)
+#define SETTING_CAT_MAX  8  /* Number of setting categories */
+
+
 /* Structures */
 typedef struct	affect_data		AFFECT_DATA;
 typedef struct	area_data		AREA_DATA;

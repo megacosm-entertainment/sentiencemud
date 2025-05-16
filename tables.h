@@ -320,6 +320,18 @@ struct con_state_info {
     const char *name;
 };
 
+/* Game settings table structure */
+struct game_setting_type {
+    char *name;              /* Setting name */
+    void *ptr;               /* Pointer to the setting in game_settings */
+    int type;                /* Setting type: 0=bool, 1=int, 2=string */
+    int category;            /* Setting category */
+    char *help;              /* Help text */
+    bool olc_settable;       /* Can be modified through OLC */
+    bool requires_reboot;    /* Requires reboot to take effect */
+	bool sensitive;		 /* Sensitive setting */
+};
+
 
 /* game tables */
 extern  const   float   sin_table[];
@@ -550,5 +562,8 @@ extern const struct flag_type	log_flags[];
 extern const struct flag_type command_addl_types[];
 extern const struct con_state_info con_states[];
 extern	const	struct	flag_type	acct_flags[];
+extern const struct game_setting_type game_settings_table[];
+extern const char *setting_category_names[];
+extern const char *setting_type_names[];
 #endif
 
