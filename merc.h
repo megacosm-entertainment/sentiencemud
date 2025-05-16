@@ -1693,6 +1693,28 @@ struct game_settings_data
     bool mssp_world_originality;                 // Based on an established setting?
 };
 
+/* Changeset structures */
+#define MAX_CHANGESETS 20   // Store the last 20 changesets
+
+typedef struct game_setting_change_history {
+    const struct game_setting_type *setting;
+    char *old_value;
+    char *new_value;
+} GAME_SETTING_CHANGE_HISTORY;
+
+typedef struct game_settings_changeset {
+    int id;                         // Sequential ID for the changeset
+    char *author;                   // Name of the character who made the change
+    time_t timestamp;               // When the change was made
+    char *comment;                  // Optional comment about the changes
+    LLIST *changes;                 // List of GAME_SETTING_CHANGE_HISTORY objects
+} GAME_SETTINGS_CHANGESET;
+
+// Global array to store changesets
+extern GAME_SETTINGS_CHANGESET *changesets[MAX_CHANGESETS];
+extern int next_changeset_id;          // Next ID to assign
+extern int changeset_count;            // Number of stored changesets
+extern LLIST *pending_changesets;
 
 struct bounty_data
 {
@@ -10594,7 +10616,7 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
 #define DUNGEONS_FILE		WORLD_DIR "dungeons.dat"
 #define INSTANCES_FILE		WORLD_DIR "instances.dat"
 #define SHIPS_FILE			WORLD_DIR "ships.dat"
-
+#define CHANGESET_FILE   SYSTEM_DIR "changesets.dat"
 /* POST msg queue */
 #define MSGQUEUE	1111
 
@@ -11487,6 +11509,14 @@ void mail_from_list( MAIL_DATA *mail );
 int count_items_mail(MAIL_DATA *mail);
 int count_weight_mail(MAIL_DATA *mail);
 
+/* gameedit.c */
+void create_changeset(CHAR_DATA *ch, char *comment);
+void free_changeset(GAME_SETTINGS_CHANGESET *changeset);
+void free_all_changesets(void);
+void save_changesets(void);
+void load_changesets(void);
+void load_changesets(void);
+
 /* nanny.c */
 bool	check_parse_name	args((char *name));
 bool	check_reconnect		args((DESCRIPTOR_DATA *d, char *name, bool fConn));
@@ -12155,6 +12185,7 @@ void iterator_start_nth(ITERATOR *it, LLIST *lp, int nth);
 LLIST_LINK *iterator_next(ITERATOR *it);
 void *iterator_nextdata(ITERATOR *it);
 void *iterator_prevdata(ITERATOR *it);
+void *iterator_currentdata(ITERATOR *it);
 void iterator_remcurrent(ITERATOR *it);
 void iterator_reset(ITERATOR *it);
 void iterator_stop(ITERATOR *it);

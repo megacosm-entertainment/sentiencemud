@@ -221,6 +221,7 @@ SECTOR_DATA *gsct_underwater_noswim;
 SECTOR_DATA *gsct_underwater_swim;
 
 LLIST *commands_list = NULL;
+LLIST *pending_changes = NULL;
 
 
 void free_room_index( ROOM_INDEX_DATA *pRoom );
@@ -1746,6 +1747,12 @@ void boot_db(void)
 	loaded_dungeons = list_create(false);
 	loaded_ships = list_create(false);
 	loaded_special_keys = list_create(false);
+    /* First initialize the pending changes list */
+    if (!pending_changes)
+        pending_changes = list_create(false);
+    
+    /* Load settings and changesets */
+    load_changesets();
 
     /*
      * Read in all the area files.

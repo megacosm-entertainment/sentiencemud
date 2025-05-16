@@ -51,6 +51,12 @@ GAMEEDIT(gameedit_show);
 GAMEEDIT(gameedit_set);
 GAMEEDIT(gameedit_confirm);
 GAMEEDIT(gameedit_revert);
+GAMEEDIT(gameedit_history);
+GAMEEDIT(gameedit_view);
+GAMEEDIT(gameedit_rollback);
+GAMEEDIT(gameedit_comment);
+
+
 
 
 
@@ -69,7 +75,12 @@ typedef struct game_setting_change {
 } GAME_SETTING_CHANGE;
 
 /* Global variables */
-LLIST *pending_changes = NULL; // List of GAME_SETTING_CHANGE objects
+int next_changeset_id = 1;           // Next ID to assign
+int changeset_count = 0;             // Number of stored changesets
+GAME_SETTINGS_CHANGESET *changesets[MAX_CHANGESETS]; // Array of changesets
+
+/* Global variables */
+extern LLIST *pending_changes; // List of GAME_SETTING_CHANGE objects
 bool pending_reboot = false;   // Whether a reboot will be needed after confirmation
 
 /* The main command */
@@ -102,11 +113,23 @@ void do_gameedit(CHAR_DATA *ch, char *argument)
         gameedit_confirm(ch, argument);
     else if (!str_cmp(command, "revert"))
         gameedit_revert(ch, argument);
+    else if (!str_cmp(command, "history"))
+        gameedit_history(ch, argument);
+    else if (!str_cmp(command, "view"))
+        gameedit_view(ch, argument);
+    else if (!str_cmp(command, "rollback"))
+        gameedit_rollback(ch, argument);
+    else if (!str_cmp(command, "comment"))
+        gameedit_comment(ch, argument);
     else {
         send_to_char("Syntax: gameedit show [category|setting]\n\r", ch);
         send_to_char("        gameedit set <setting> <value>\n\r", ch);
         send_to_char("        gameedit confirm\n\r", ch);
         send_to_char("        gameedit revert\n\r", ch);
+        send_to_char("        gameedit history [limit]\n\r", ch);
+        send_to_char("        gameedit view <changeset_id>\n\r", ch);
+        send_to_char("        gameedit rollback <changeset_id>\n\r", ch);
+        send_to_char("        gameedit comment <changeset_id>\n\r", ch);
     }
 
     return;
@@ -465,11 +488,22 @@ GAMEEDIT(gameedit_confirm)
     GAME_SETTING_CHANGE *change;
     int count = 0;
     bool reboot_needed = false;
+    char comment[MAX_STRING_LENGTH];
     
     if (list_size(pending_changes) == 0) {
         send_to_char("There are no pending changes to confirm.\n\r", ch);
         return FALSE;
     }
+    
+    /* Extract optional comment */
+    if (argument[0] != '\0') {
+        strcpy(comment, argument);
+    } else {
+        strcpy(comment, "No comment provided");
+    }
+    
+    /* Create a new changeset */
+    create_changeset(ch, comment);
     
     /* Apply all pending changes */
     iterator_start(&it, pending_changes);
@@ -511,8 +545,10 @@ GAMEEDIT(gameedit_confirm)
     
     send_to_char(formatf("Applied %d setting changes.\n\r", count), ch);
     
-    /* Save the settings using the existing function */
+    /* Save the settings and changesets */
     game_settings_write();
+    save_changesets();
+    
     send_to_char("Game settings saved.\n\r", ch);
     
     /* If a reboot is needed, prompt the user */
@@ -562,6 +598,15 @@ bool gameedit_find_setting(CHAR_DATA *ch, char *name, const struct game_setting_
     int i;
     
     for (i = 0; game_settings_table[i].name != NULL; i++) {
+        /* First try exact match */
+        if (!str_cmp(name, game_settings_table[i].name)) {
+            *setting = &game_settings_table[i];
+            return TRUE;
+        }
+    }
+    
+    /* If exact match fails, try prefix match */
+    for (i = 0; game_settings_table[i].name != NULL; i++) {
         if (!str_prefix(name, game_settings_table[i].name)) {
             *setting = &game_settings_table[i];
             return TRUE;
@@ -574,9 +619,8 @@ bool gameedit_find_setting(CHAR_DATA *ch, char *name, const struct game_setting_
 void gameedit_display_setting(BUFFER *buffer, CHAR_DATA *ch, const struct game_setting_type *setting)
 {
     char buf[MAX_STRING_LENGTH];
-    char value_str[MAX_STRING_LENGTH] = "";
+    char value_str[2048] = "";
     char type_str[MAX_STRING_LENGTH] = "";
-    bool has_change = FALSE;
     
     // 1. FORMAT THE VALUE COLUMN
     if (setting->sensitive && ch->pcdata->security < 10) {
@@ -608,14 +652,14 @@ void gameedit_display_setting(BUFFER *buffer, CHAR_DATA *ch, const struct game_s
         iterator_start(&it, pending_changes);
         while ((change = (GAME_SETTING_CHANGE *)iterator_nextdata(&it))) {
             if (change->setting == setting) {
-                has_change = TRUE;
-                char old_value[MAX_STRING_LENGTH];
+
+                char old_value[1024];
                 strcpy(old_value, value_str);
                 
                 if (setting->sensitive && ch->pcdata->security < 10) {
-                    sprintf(value_str, "%s → {Y*****{x", old_value);
+                    snprintf(value_str, sizeof(value_str), "%s → {Y*****{x", old_value);
                 } else {
-                    sprintf(value_str, "%s → {Y%s{x", old_value, change->value);
+                    snprintf(value_str, sizeof(value_str), "%s → {Y%s{x", old_value, change->value);
                 }
                 break;
             }
@@ -818,4 +862,791 @@ bool requires_reboot(void)
     iterator_stop(&it);
     
     return FALSE;
+}
+
+
+/*
+ * View changeset history
+ */
+GAMEEDIT(gameedit_history)
+{
+    BUFFER *buffer;
+    char buf[MAX_STRING_LENGTH];
+    int i, limit;
+    
+    buffer = new_buf();
+    
+    /* Determine how many changesets to show */
+    if (argument[0] != '\0' && is_number(argument))
+        limit = UMIN(atoi(argument), changeset_count);
+    else
+        limit = changeset_count;
+    
+    /* Table header */
+    sprintf(buf, "{Y+-------+--------------------+-----------------+-------------------------------+{x\n\r");
+    add_buf(buffer, buf);
+    sprintf(buf, "{Y| {WID{x    | {WAuthor{x            | {WChanges{x         | {WDate & Time{x                  |{x\n\r");
+    add_buf(buffer, buf);
+    sprintf(buf, "{Y+-------+--------------------+-----------------+-------------------------------+{x\n\r");
+    add_buf(buffer, buf);
+    
+    /* Show changesets from newest to oldest */
+    for (i = changeset_count - 1; i >= 0 && i >= changeset_count - limit; i--) {
+        GAME_SETTINGS_CHANGESET *changeset = changesets[i];
+        char time_buf[64];
+        struct tm *time_info;
+        
+        /* Format the timestamp */
+        time_info = localtime(&changeset->timestamp);
+        strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", time_info);
+        
+        sprintf(buf, "{Y| {W%-5d{x | %-18.18s | {W%-15d{x | %-29s |{x\n\r",
+            changeset->id,
+            changeset->author,
+            list_size(changeset->changes),
+            time_buf);
+        add_buf(buffer, buf);
+    }
+    
+    /* Table footer */
+    sprintf(buf, "{Y+-------+--------------------+-----------------+-------------------------------+{x\n\r");
+    add_buf(buffer, buf);
+    
+    /* Instructions */
+    sprintf(buf, "\n\rUse '{Wgameedit view <id>{x' to see details of a specific changeset.\n\r");
+    add_buf(buffer, buf);
+    sprintf(buf, "Use '{Wgameedit comment <id>{x' to edit a changeset's comment.\n\r");
+    add_buf(buffer, buf);
+    sprintf(buf, "Use '{Wgameedit rollback <id>{x' to revert to a previous changeset.\n\r");
+    add_buf(buffer, buf);
+
+    
+    page_to_char(buf_string(buffer), ch);
+    free_buf(buffer);
+    
+    return FALSE;
+}
+
+/*
+ * View details of a specific changeset
+ */
+GAMEEDIT(gameedit_view)
+{
+    BUFFER *buffer;
+    char buf[MAX_STRING_LENGTH];
+    int i, id;
+    GAME_SETTINGS_CHANGESET *changeset = NULL;
+    ITERATOR it;
+    GAME_SETTING_CHANGE_HISTORY *history;
+    
+    if (argument[0] == '\0' || !is_number(argument)) {
+        send_to_char("Syntax: gameedit view <changeset_id>\n\r", ch);
+        return FALSE;
+    }
+    
+    id = atoi(argument);
+    
+    /* Find the changeset with the given ID */
+    for (i = 0; i < changeset_count; i++) {
+        if (changesets[i]->id == id) {
+            changeset = changesets[i];
+            break;
+        }
+    }
+    
+    if (!changeset) {
+        send_to_char("No changeset found with that ID.\n\r", ch);
+        return FALSE;
+    }
+    
+    buffer = new_buf();
+    
+    /* Changeset header */
+    sprintf(buf, "{Y+----------------------------------------------------------------------------+{x\n\r");
+    add_buf(buffer, buf);
+    sprintf(buf, "{Y| {WChangeset #{x%-67d |{x\n\r", changeset->id);
+    add_buf(buffer, buf);
+    sprintf(buf, "{Y+----------------------------------------------------------------------------+{x\n\r");
+    add_buf(buffer, buf);
+    
+    /* Author and timestamp */
+    char time_buf[64];
+    struct tm *time_info = localtime(&changeset->timestamp);
+    strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", time_info);
+    
+    sprintf(buf, "{Y| {WAuthor:{x %-68s |{x\n\r", changeset->author);
+    add_buf(buffer, buf);
+    sprintf(buf, "{Y| {WDate:{x %-70s |{x\n\r", time_buf);
+    add_buf(buffer, buf);
+    sprintf(buf, "{Y| {WComment:{x %-67s |{x\n\r", changeset->comment);
+    add_buf(buffer, buf);
+    
+    /* Change list header */
+    sprintf(buf, "{Y+----------------------------------------------------------------------------+{x\n\r");
+    add_buf(buffer, buf);
+    sprintf(buf, "{Y| {WChanges:{x %-68d |{x\n\r", list_size(changeset->changes));
+    add_buf(buffer, buf);
+    sprintf(buf, "{Y+------------------------+-------------------------+-------------------------+{x\n\r");
+    add_buf(buffer, buf);
+    sprintf(buf, "{Y| {WSetting{x              | {WOld Value{x              | {WNew Value{x              |{x\n\r");
+    add_buf(buffer, buf);
+    sprintf(buf, "{Y+------------------------+-------------------------+-------------------------+{x\n\r");
+    add_buf(buffer, buf);
+    
+    /* List each change */
+    iterator_start(&it, changeset->changes);
+    while ((history = (GAME_SETTING_CHANGE_HISTORY *)iterator_nextdata(&it))) {
+        char old_display[MAX_INPUT_LENGTH];
+        char new_display[MAX_INPUT_LENGTH];
+        
+        /* Format the values for display, handling sensitive settings */
+        if (history->setting->sensitive && ch->pcdata->security < 10) {
+            // Hide sensitive values for non-high-security staff
+            strcpy(old_display, "{D*****{x");
+            strcpy(new_display, "{D*****{x");
+        } else {
+            // Apply appropriate coloring based on value type
+            switch (history->setting->type) {
+                case SETTING_TYPE_BOOL:
+                    if (!str_cmp(history->old_value, "true") || 
+                        !str_cmp(history->old_value, "yes") || 
+                        !str_cmp(history->old_value, "on") || 
+                        !str_cmp(history->old_value, "1"))
+                        sprintf(old_display, "{Gtrue{x");
+                    else
+                        sprintf(old_display, "{Rfalse{x");
+                        
+                    if (!str_cmp(history->new_value, "true") || 
+                        !str_cmp(history->new_value, "yes") || 
+                        !str_cmp(history->new_value, "on") || 
+                        !str_cmp(history->new_value, "1"))
+                        sprintf(new_display, "{Gtrue{x");
+                    else
+                        sprintf(new_display, "{Rfalse{x");
+                    break;
+                    
+                case SETTING_TYPE_INT:
+                    sprintf(old_display, "{Y%s{x", history->old_value);
+                    sprintf(new_display, "{Y%s{x", history->new_value);
+                    break;
+                    
+                case SETTING_TYPE_STRING:
+                    if (history->old_value && history->old_value[0])
+                        sprintf(old_display, "{W%s{x", history->old_value);
+                    else
+                        strcpy(old_display, "{D(empty){x");
+                        
+                    if (history->new_value && history->new_value[0])
+                        sprintf(new_display, "{W%s{x", history->new_value);
+                    else
+                        strcpy(new_display, "{D(empty){x");
+                    break;
+                    
+                default:
+                    sprintf(old_display, "%s", history->old_value);
+                    sprintf(new_display, "%s", history->new_value);
+                    break;
+            }
+        }
+        
+        sprintf(buf, "{Y| {C%-22.22s{x | %-23.23s | %-23.23s |{x\n\r",
+            history->setting->name, old_display, new_display);
+        add_buf(buffer, buf);
+    }
+    iterator_stop(&it);
+    
+    /* Footer */
+    sprintf(buf, "{Y+------------------------+-------------------------+-------------------------+{x\n\r");
+    add_buf(buffer, buf);
+    
+    /* Instructions */
+    sprintf(buf, "Use '{Wgameedit comment %d{x' to edit this changeset's comment.\n\r", changeset->id);
+    add_buf(buffer, buf);
+    sprintf(buf, "\n\rUse '{Wgameedit rollback %d{x' to revert to this changeset.\n\r", changeset->id);
+    add_buf(buffer, buf);
+    
+    page_to_char(buf_string(buffer), ch);
+    free_buf(buffer);
+    
+    return FALSE;
+}
+
+/*
+ * Rollback to a previous changeset
+ */
+GAMEEDIT(gameedit_rollback)
+{
+    int i, id;
+    char arg[MAX_INPUT_LENGTH];
+    bool confirm = FALSE;
+    GAME_SETTINGS_CHANGESET *changeset = NULL;
+    ITERATOR it;
+    GAME_SETTING_CHANGE_HISTORY *history;
+    int count = 0;
+    bool reboot_needed = false;
+    
+    argument = one_argument(argument, arg);
+    
+    if (arg[0] == '\0' || !is_number(arg)) {
+        send_to_char("Syntax: gameedit rollback <changeset_id> [confirm]\n\r", ch);
+        return FALSE;
+    }
+    
+    id = atoi(arg);
+    
+    /* Check if 'confirm' was provided */
+    if (argument[0] != '\0' && !str_cmp(argument, "confirm"))
+        confirm = TRUE;
+    
+    /* Find the changeset with the given ID */
+    for (i = 0; i < changeset_count; i++) {
+        if (changesets[i]->id == id) {
+            changeset = changesets[i];
+            break;
+        }
+    }
+    
+    if (!changeset) {
+        send_to_char("No changeset found with that ID.\n\r", ch);
+        return FALSE;
+    }
+    
+    /* Require confirmation before proceeding */
+    if (!confirm) {
+        char time_buf[64];
+        struct tm *time_info = localtime(&changeset->timestamp);
+        strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", time_info);
+        
+        send_to_char(formatf("You are about to rollback to changeset #%d created by %s on %s.\n\r",
+            changeset->id, changeset->author, time_buf), ch);
+        send_to_char(formatf("This will revert %d settings.\n\r", list_size(changeset->changes)), ch);
+        send_to_char("Type 'gameedit rollback <id> confirm' to proceed.\n\r", ch);
+        return FALSE;
+    }
+    
+    /* Apply the old values */
+    iterator_start(&it, changeset->changes);
+    while ((history = (GAME_SETTING_CHANGE_HISTORY *)iterator_nextdata(&it))) {
+        count++;
+        
+        /* Apply the old value based on the setting type */
+        switch (history->setting->type) {
+            case SETTING_TYPE_BOOL:
+                *(bool *)history->setting->ptr = (!str_cmp(history->old_value, "true") || 
+                                                !str_cmp(history->old_value, "yes") || 
+                                                !str_cmp(history->old_value, "on") || 
+                                                !str_cmp(history->old_value, "1"));
+                break;
+                
+            case SETTING_TYPE_INT:
+                *(int *)history->setting->ptr = atoi(history->old_value);
+                break;
+                
+            case SETTING_TYPE_STRING:
+                free_string(*(char **)history->setting->ptr);
+                *(char **)history->setting->ptr = str_dup(history->old_value);
+                break;
+        }
+        
+        if (history->setting->requires_reboot)
+            reboot_needed = true;
+    }
+    iterator_stop(&it);
+    
+/* Create a new changeset for the rollback */
+if (!pending_changes)
+    pending_changes = list_create(false);
+
+/* Add each change to the pending changes list */
+iterator_start(&it, changeset->changes);
+GAME_SETTING_CHANGE *change;
+while ((history = (GAME_SETTING_CHANGE_HISTORY *)iterator_nextdata(&it))) {
+    change = alloc_mem(sizeof(GAME_SETTING_CHANGE));
+    change->setting = history->setting;
+    
+    // Store the current value as we're rolling back FROM this value TO the old value
+    switch (history->setting->type) {
+        case SETTING_TYPE_BOOL: {
+            bool current = *(bool *)history->setting->ptr;
+            // We're rolling back TO the old_value
+            change->value = str_dup(history->old_value);
+            break;
+        }
+        
+        case SETTING_TYPE_INT: {
+            int current = *(int *)history->setting->ptr;
+            // We're rolling back TO the old_value
+            change->value = str_dup(history->old_value);
+            break;
+        }
+        
+        case SETTING_TYPE_STRING:
+            // We're rolling back TO the old_value
+            change->value = str_dup(history->old_value);
+            break;
+    }
+    
+    list_appendlink(pending_changes, change);
+}
+iterator_stop(&it);
+
+/* Create the rollback changeset and save */
+char comment[MAX_STRING_LENGTH];
+sprintf(comment, "Rollback to changeset #%d", changeset->id);
+create_changeset(ch, comment);
+
+/* Clear the pending changes AFTER saving the changeset */
+iterator_start(&it, pending_changes);
+while ((change = (GAME_SETTING_CHANGE *)iterator_nextdata(&it))) {
+    if (change->value)
+        free_string(change->value);
+    free_mem(change, sizeof(GAME_SETTING_CHANGE));
+}
+iterator_stop(&it);
+list_clear(pending_changes);
+
+/* Save the settings and changesets */
+game_settings_write();
+save_changesets();
+    
+    send_to_char(formatf("Rolled back %d settings to changeset #%d.\n\r", count, changeset->id), ch);
+    send_to_char("Game settings saved.\n\r", ch);
+    
+    /* If a reboot is needed, prompt the user */
+    if (reboot_needed) {
+        send_to_char("{RChanged settings require a reboot to take full effect.{x\n\r", ch);
+        send_to_char("Type '{Wreboot now{x' to reboot the server immediately.\n\r", ch);
+        pending_reboot = true;
+    }
+    
+    return TRUE;
+}
+
+void create_changeset(CHAR_DATA *ch, char *comment)
+{
+    GAME_SETTINGS_CHANGESET *changeset;
+    ITERATOR it;
+    GAME_SETTING_CHANGE *change;
+    int index;
+
+    /* Don't create empty changesets */
+    if (!pending_changes || list_size(pending_changes) == 0)
+        return;
+    
+    /* Create a new changeset */
+    changeset = alloc_mem(sizeof(GAME_SETTINGS_CHANGESET));
+    changeset->id = next_changeset_id++;
+    changeset->author = str_dup(ch->name);
+    changeset->timestamp = current_time;
+    changeset->comment = str_dup(comment ? comment : "No comment provided");
+    changeset->changes = list_create(false);
+    
+    /* Add each pending change to the changeset history */
+    iterator_start(&it, pending_changes);
+    while ((change = (GAME_SETTING_CHANGE *)iterator_nextdata(&it))) {
+        GAME_SETTING_CHANGE_HISTORY *history;
+        
+        history = alloc_mem(sizeof(GAME_SETTING_CHANGE_HISTORY));
+        history->setting = change->setting;
+        
+// In the create_changeset function:
+/* Store the old value */
+switch (change->setting->type) {
+    case SETTING_TYPE_BOOL: {
+        bool current_value = *(bool *)change->setting->ptr;
+        history->old_value = str_dup(current_value ? "true" : "false");
+        break;
+    }
+    
+    case SETTING_TYPE_INT: {
+        int current_value = *(int *)change->setting->ptr;
+        char temp_buf[MAX_STRING_LENGTH];
+        sprintf(temp_buf, "%d", current_value);
+        history->old_value = str_dup(temp_buf);
+        break;
+    }
+    
+    case SETTING_TYPE_STRING: {
+        char *current_value = *(char **)change->setting->ptr;
+        history->old_value = str_dup(current_value ? current_value : "");
+        break;
+    }
+}
+        
+        /* Store the new value */
+        history->new_value = str_dup(change->value);
+        
+        list_appendlink(changeset->changes, history);
+    }
+    iterator_stop(&it);
+    
+    /* Make room for the new changeset if needed */
+    if (changeset_count == MAX_CHANGESETS) {
+        /* Free the oldest changeset to make room */
+        free_changeset(changesets[0]);
+        
+        /* Shift all changesets down one position */
+        for (index = 0; index < MAX_CHANGESETS - 1; index++) {
+            changesets[index] = changesets[index + 1];
+        }
+        
+        changeset_count--;
+    }
+    
+    /* Add the new changeset */
+    changesets[changeset_count++] = changeset;
+    
+    /* Log the changeset */
+    log_string(formatf("Changeset #%d created by %s with %d changes", 
+        changeset->id, changeset->author, list_size(changeset->changes)));
+}
+
+/*
+ * Free a single changeset and its contents
+ */
+void free_changeset(GAME_SETTINGS_CHANGESET *changeset)
+{
+    ITERATOR it;
+    GAME_SETTING_CHANGE_HISTORY *history;
+    
+    if (!changeset)
+        return;
+    
+    free_string(changeset->author);
+    free_string(changeset->comment);
+    
+    if (changeset->changes) {
+        iterator_start(&it, changeset->changes);
+        while ((history = (GAME_SETTING_CHANGE_HISTORY *)iterator_nextdata(&it))) {
+            free_string(history->old_value);
+            free_string(history->new_value);
+            free_mem(history, sizeof(GAME_SETTING_CHANGE_HISTORY));
+        }
+        iterator_stop(&it);
+        list_destroy(changeset->changes);
+    }
+    
+    free_mem(changeset, sizeof(GAME_SETTINGS_CHANGESET));
+}
+
+/*
+ * Free all changesets
+ */
+void free_all_changesets(void)
+{
+    int i;
+    
+    for (i = 0; i < changeset_count; i++) {
+        free_changeset(changesets[i]);
+        changesets[i] = NULL;
+    }
+    
+    changeset_count = 0;
+}
+
+/*
+ * Save changesets to a file
+ */
+void save_changesets(void)
+{
+    FILE *fp;
+    int i;
+    ITERATOR it;
+    GAME_SETTING_CHANGE_HISTORY *history;
+    
+    if ((fp = fopen(CHANGESET_FILE, "w")) == NULL) {
+        bug("save_changesets: Cannot open changeset file for writing", 0);
+        return;
+    }
+    
+    fprintf(fp, "#CHANGESETS %d %d\n", changeset_count, next_changeset_id);
+    
+    // Make sure we save ALL changesets in the array, in order by index
+    for (i = 0; i < changeset_count; i++) {
+        GAME_SETTINGS_CHANGESET *changeset = changesets[i];
+        
+        if (!changeset) {
+            log_string(formatf("Warning: Null changeset at index %d", i));
+            continue;
+        }
+        
+        fprintf(fp, "#CHANGESET\n");
+        fprintf(fp, "Id %d\n", changeset->id);
+        fprintf(fp, "Author %s~\n", changeset->author);
+        fprintf(fp, "Timestamp %ld\n", (long)changeset->timestamp);
+        fprintf(fp, "Comment %s~\n", changeset->comment);
+        
+        iterator_start(&it, changeset->changes);
+        while ((history = (GAME_SETTING_CHANGE_HISTORY *)iterator_nextdata(&it))) {
+            // Make sure to write the setting name separately from the old and new values
+            fprintf(fp, "Change %s %s~ %s~\n", 
+                history->setting->name,
+                history->old_value ? history->old_value : "",
+                history->new_value ? history->new_value : "");
+        }
+        iterator_stop(&it);
+        
+        fprintf(fp, "#END\n");
+    }
+    
+    fprintf(fp, "#END\n");
+    fclose(fp);
+    
+    log_string("Game setting changesets saved.");
+}
+
+/*
+ * Load changesets from a file
+ */
+/*
+ * Load changesets from a file
+ */
+void load_changesets(void)
+{
+    FILE *fp;
+    char *word;
+    bool fMatch;
+    GAME_SETTINGS_CHANGESET *changeset = NULL;
+    char buf[MAX_STRING_LENGTH];
+    
+    /* First, free any existing changesets */
+    free_all_changesets();
+    
+    if ((fp = fopen(CHANGESET_FILE, "r")) == NULL) {
+        log_string("No changeset file found. Starting with empty history.");
+        return;
+    }
+    
+    log_string("Loading changesets from file...");
+    
+    word = fread_word(fp);
+    if (!word || str_cmp(word, "#CHANGESETS")) {
+        snprintf(buf, sizeof(buf), "load_changesets: Expected #CHANGESETS but got %s", word ? word : "NULL");
+        bug(buf, 0);
+        fclose(fp);
+        return;
+    }
+    
+    changeset_count = fread_number(fp);
+    next_changeset_id = fread_number(fp);
+    
+    log_string(formatf("Found %d changesets, next ID: %d", changeset_count, next_changeset_id));
+    
+    changeset_count = 0; // Reset and count as we load
+    
+    for (;;) {
+        if (feof(fp)) {
+            log_string("Reached end of changeset file");
+            break;
+        }
+        
+        word = fread_word(fp);
+        if (!word) {
+            log_string("Error: fread_word returned NULL");
+            break;
+        }
+        
+        fMatch = FALSE;
+        
+        if (word[0] == '\0') {
+            log_string("Error: Empty word read");
+            break;
+        }
+        
+        // If we're inside a changeset and see #END, it's the end of the current changeset
+        if (!str_cmp(word, "#END") && changeset) {
+            log_string(formatf("Finished changeset ID #%d", changeset->id));
+            changeset = NULL; // Reset for next changeset
+            fMatch = TRUE;
+            continue;
+        }
+        
+        // If we're not inside a changeset and see #END, it's the end of the file
+        if (!str_cmp(word, "#END") && !changeset) {
+            log_string("Found file-level #END marker");
+            break;
+        }
+        
+        // Start of a new changeset
+        if (!str_cmp(word, "#CHANGESET")) {
+            if (changeset_count >= MAX_CHANGESETS) {
+                log_string("Warning: Too many changesets, ignoring extras");
+                // Skip this changeset by reading until #END
+                for (;;) {
+                    word = fread_word(fp);
+                    if (!word || !str_cmp(word, "#END") || feof(fp))
+                        break;
+                }
+                continue;
+            }
+            
+            changeset = alloc_mem(sizeof(GAME_SETTINGS_CHANGESET));
+            if (!changeset) {
+                log_string("Error: Failed to allocate memory for changeset");
+                fclose(fp);
+                return;
+            }
+            
+            changeset->changes = list_create(false);
+            changeset->author = str_dup("");  // Initialize with empty strings
+            changeset->comment = str_dup("");
+            
+            changesets[changeset_count++] = changeset;
+            log_string(formatf("Processing changeset #%d", changeset_count));
+            fMatch = TRUE;
+            continue;
+        }
+        
+        // If not working on a changeset, skip this line
+        if (!changeset) {
+            log_string(formatf("Warning: Found data outside of changeset block: '%s'", word));
+            fread_to_eol(fp);
+            continue;
+        }
+        
+        switch (UPPER(word[0])) {
+            case 'A':
+                if (!str_cmp(word, "Author")) {
+                    free_string(changeset->author);
+                    changeset->author = fread_string(fp);
+                    fMatch = TRUE;
+                }
+                break;
+                
+            case 'C':
+                if (!str_cmp(word, "Comment")) {
+                    free_string(changeset->comment);
+                    changeset->comment = fread_string(fp);
+                    fMatch = TRUE;
+                }
+                else if (!str_cmp(word, "Change")) {
+                    char *setting_name = fread_word(fp);  // Use fread_word for the setting name
+                    if (!setting_name) {
+                        log_string("Error reading setting name");
+                        fread_to_eol(fp);
+                        continue;
+                    }
+                    
+                    // Now read the old_value and new_value using fread_string
+                    char *old_value = fread_string(fp);
+                    char *new_value = fread_string(fp);
+                    
+                    log_string(formatf("Loading change for setting: '%s'", setting_name));
+                    
+                    const struct game_setting_type *setting = NULL;
+                    if (setting_name && *setting_name) {
+                        bool found = gameedit_find_setting(NULL, setting_name, &setting);
+                        log_string(formatf("Setting lookup result: %s", found ? "FOUND" : "NOT FOUND"));
+                        
+                        if (found && setting) {
+                            GAME_SETTING_CHANGE_HISTORY *history;
+                            
+                            history = alloc_mem(sizeof(GAME_SETTING_CHANGE_HISTORY));
+                            if (history) {
+                                history->setting = setting;
+                                history->old_value = str_dup(old_value ? old_value : "");
+                                history->new_value = str_dup(new_value ? new_value : "");
+                                list_appendlink(changeset->changes, history);
+                                log_string(formatf("Added change for setting: %s (old: %s, new: %s)", 
+                                    setting_name, old_value ? old_value : "empty", 
+                                    new_value ? new_value : "empty"));
+                            }
+                        } else {
+                            log_string(formatf("WARNING: Setting '%s' not found in game_settings_table", 
+                                setting_name));
+                        }
+                    }
+                    
+                    // Free strings as needed
+                    if (old_value) free_string(old_value);
+                    if (new_value) free_string(new_value);
+                    
+                    fMatch = TRUE;
+                }
+                break;
+                
+            case 'I':
+                if (!str_cmp(word, "Id")) {
+                    changeset->id = fread_number(fp);
+                    fMatch = TRUE;
+                }
+                break;
+                
+            case 'T':
+                if (!str_cmp(word, "Timestamp")) {
+                    changeset->timestamp = fread_number(fp);
+                    fMatch = TRUE;
+                }
+                break;
+        }
+        
+        if (!fMatch) {
+            log_string(formatf("Warning: Unrecognized keyword '%s' in changeset file", 
+                word ? word : "NULL"));
+            fread_to_eol(fp);
+        }
+    }
+
+    // Sort changesets by ID
+    log_string("Sorting changesets by ID...");
+    for (int i = 0; i < changeset_count - 1; i++) {
+        for (int j = i + 1; j < changeset_count; j++) {
+            if (changesets[i] && changesets[j] && 
+                changesets[i]->id > changesets[j]->id) {
+                GAME_SETTINGS_CHANGESET *temp = changesets[i];
+                changesets[i] = changesets[j];
+                changesets[j] = temp;
+            }
+        }
+    }
+    
+    // Verify all changesets loaded correctly
+    log_string(formatf("Successfully loaded %d changesets.", changeset_count));
+    for (int i = 0; i < changeset_count; i++) {
+        log_string(formatf(" - Changeset #%d by %s with %d changes", 
+            changesets[i]->id, changesets[i]->author, 
+            list_size(changesets[i]->changes)));
+    }
+    
+    fclose(fp);
+}
+
+GAMEEDIT(gameedit_comment)
+{
+    int i, id;
+    GAME_SETTINGS_CHANGESET *changeset = NULL;
+    
+    if (argument[0] == '\0' || !is_number(argument)) {
+        send_to_char("Syntax: gameedit comment <changeset_id>\n\r", ch);
+        return FALSE;
+    }
+    
+    id = atoi(argument);
+    
+    /* Find the changeset with the given ID */
+    for (i = 0; i < changeset_count; i++) {
+        if (changesets[i]->id == id) {
+            changeset = changesets[i];
+            break;
+        }
+    }
+    
+    if (!changeset) {
+        send_to_char("No changeset found with that ID.\n\r", ch);
+        return FALSE;
+    }
+    
+    /* Only allow author or imps to edit comments */
+    if (str_cmp(ch->name, changeset->author) && get_staff_rank(ch) < STAFF_IMPLEMENTOR) {
+        send_to_char("You can only edit comments on changesets you created if you are not an IMP.\n\r", ch);
+        return FALSE;
+    }
+    
+    /* Start the string editor without saving immediately */
+    ch->desc->pString = &changeset->comment;
+    ch->desc->editor = ED_CHANGESET;
+    
+    string_append(ch, &changeset->comment);
+    
+    return TRUE;
 }

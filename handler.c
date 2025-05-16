@@ -9522,6 +9522,14 @@ void *iterator_prevdata(ITERATOR *it)
 
 }
 
+void *iterator_currentdata(ITERATOR *it)
+{
+    if(it && it->list && it->list->valid && it->current) {
+        return it->current->data;
+    }
+    return NULL;
+}
+
 void *iterator_nextdata(ITERATOR *it)
 {
 	register LLIST_LINK *link = NULL;
