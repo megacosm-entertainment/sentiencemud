@@ -11440,7 +11440,6 @@ int colour_trunc_len(const char *str, int limit)
     }
     return i;
 }
-// Helper function to look up account by player name or account name
 ACCOUNT_DATA *get_account_by_identifier(const char *identifier, bool *loaded)
 {
     ACCOUNT_DATA *account = NULL;
@@ -11453,25 +11452,64 @@ ACCOUNT_DATA *get_account_by_identifier(const char *identifier, bool *loaded)
         // Extract the player name
         const char *player_name = identifier + 7;
         
-        // Use the find_account function which handles character lookup
-        account = find_account((char*)player_name);
+        // Find the character first
+        bool was_loaded = false;
+        DESCRIPTOR_DATA *d;
+        CHAR_DATA *ch = NULL;
         
-        if (account && loaded) *loaded = true;
+        // Check if player is online
+        for (d = descriptor_list; d != NULL; d = d->next) {
+            if (d->character && !IS_NPC(d->character) && 
+                !str_cmp(d->character->name, player_name)) {
+                ch = d->character;
+                break;
+            }
+        }
         
-        if (!account) {
-            log_string(formatf("Account lookup by player '%s' failed - no account found", player_name));
+        // If not online, try to load the character
+        if (!ch) {
+            DESCRIPTOR_DATA temp_d;
+            memset(&temp_d, 0, sizeof(temp_d));
+            if (load_char_obj(&temp_d, (char*)player_name)) {
+                ch = temp_d.character;
+                was_loaded = true;
+            }
+        }
+        
+        // Get account from character
+        if (ch && ch->pcdata && ch->pcdata->account_name[0]) {
+            account = get_account_by_name(ch->pcdata->account_name);
+            
+            // If account not in memory, try loading it
+            if (!account) {
+                account = get_account_online_or_offline(ch->pcdata->account_name, &was_loaded);
+            }
+            
+            if (was_loaded && loaded) *loaded = true;
+            
+            // Cleanup if we loaded character just for lookup
+            if (was_loaded && ch) {
+                free_char(ch);
+            }
         }
     }
     else
     {
-        // Regular account lookup by username
-        account = find_account_by_name((char*)identifier);
+        // Regular account lookup by username - use our reliable functions
+        account = get_account_by_name(identifier);
         
-        if (account && loaded) *loaded = true;
-        
+        // If not found in memory, try loading from disk
         if (!account) {
-            log_string(formatf("Account lookup by username '%s' failed - no account found", identifier));
+            bool was_loaded = false;
+            account = get_account_online_or_offline((char*)identifier, &was_loaded);
+            
+            if (account && was_loaded && loaded) *loaded = true;
         }
+    }
+    
+    // Only log if debugging is needed
+    if (!account) {
+        log_string(formatf("Account lookup for '%s' failed - no account found", identifier));
     }
     
     return account;
