@@ -22,6 +22,7 @@ DIFF_C = $(patsubst $(PATH1)/%.c,%_c.diff,$(wildcard $(PATH1)/*.c)) $(patsubst $
 
 C_FILES = \
 	account/otp.c \
+	account/account_notes.c \
 	act_comm.c \
 	act_enter.c \
 	act_info.c \
@@ -136,6 +137,7 @@ C_FILES = \
 
 O_FILES = \
 	$(OBJDIR)/account/otp.o \
+	$(OBJDIR)/account/account_notes.o \
 	$(OBJDIR)/act_comm.o \
 	$(OBJDIR)/act_enter.o \
 	$(OBJDIR)/act_info.o \

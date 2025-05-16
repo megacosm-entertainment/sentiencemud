@@ -345,6 +345,8 @@ DESCRIPTOR_DATA *new_descriptor(void)
     d->mfa_verified = false;
     d->creating_staff_character = false;
     d->reconnecting = false;
+    d->editor_ptr = NULL;
+
 
     top_descriptor++;
 

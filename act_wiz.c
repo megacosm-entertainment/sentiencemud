@@ -2237,27 +2237,32 @@ void do_astat (CHAR_DATA * ch, char *argument)
 
 void do_accstat(CHAR_DATA *ch, char *argument)
 {
-    ACCOUNT_DATA *account;
+     ACCOUNT_DATA *account;
     ACCOUNT_CHARACTER *acd;
-	ACCOUNT_CHARACTER *staff_chars[100];
-	ACCOUNT_CHARACTER *regular_chars[100];
-	char name_buf[50], rank_buf[50], level_buf[50], race_buf[50], class_buf[50];
-	int staff_count = 0, regular_count = 0;
+    ACCOUNT_CHARACTER *staff_chars[100];
+    ACCOUNT_CHARACTER *regular_chars[100];
+    char name_buf[50], rank_buf[50], level_buf[50], race_buf[50], class_buf[50];
+    int staff_count = 0, regular_count = 0;
     BUFFER *output;
     char buf[MSL];
     char arg[MIL];
-	bool loaded;
+    bool loaded;
 
     one_argument(argument, arg);
 
     if (IS_NULLSTR(arg)) {
         send_to_char("Syntax: accstat <accountname>\n\r", ch);
+        send_to_char("        accstat player:<name>\n\r", ch);
         return;
     }
 
-    account = get_account_online_or_offline(arg, &loaded);
+    // Use the new get_account_by_identifier function
+    account = get_account_by_identifier(arg, &loaded);
     if (!account) {
-        send_to_char("No such account exists.\n\r", ch);
+        if (!strncmp(arg, "player:", 7))
+            send_to_char("Player not found or has no account.\n\r", ch);
+        else
+            send_to_char("No such account exists. Try using player:<name> to look up by character name.\n\r", ch);
         return;
     }
 
@@ -2310,6 +2315,18 @@ void do_accstat(CHAR_DATA *ch, char *argument)
     add_buf(output, buf);
 
     sprintf(buf, "Flags         : [{W%s{x]\n\r", flag_string(acct_flags, account->acct_flags));
+    add_buf(output, buf);
+
+	    int note_count = 0;
+    ACCOUNT_NOTE_DATA *note;
+    for (note = account->staff_notes; note != NULL; note = note->next)
+        note_count++;
+    
+    if (note_count > 0)
+        sprintf(buf, "Staff Notes   : [{R%d note%s{x] (Use 'accnote list %s' to view)\n\r", 
+                note_count, note_count == 1 ? "" : "s", account->username);
+    else
+        sprintf(buf, "Staff Notes   : [{GNone{x]\n\r");
     add_buf(output, buf);
 
 // Separate staff and regular characters

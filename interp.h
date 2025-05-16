@@ -700,3 +700,4 @@ DECLARE_DO_FUN( do_logout );
 DECLARE_DO_FUN (do_accset);
 DECLARE_DO_FUN (do_accstat);
 DECLARE_DO_FUN( do_gameedit );
+DECLARE_DO_FUN( do_accnote);

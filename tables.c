@@ -4974,6 +4974,7 @@ const struct do_func_type do_func_table[] =
         { "do_mfareset",                do_mfareset },
         { "do_logout",                do_logout },
         { "do_gameedit",                 do_gameedit },
+{ "do_accnote", do_accnote }
 };
 
 /* Table mapping connection states to display strings */

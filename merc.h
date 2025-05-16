@@ -2022,6 +2022,7 @@ struct	descriptor_data
     HELP_CATEGORY	*hCat;		/* hedit */
     char **             pString;	/* OLC */
     int			editor;		/* OLC */
+    void    *editor_ptr;	// For general use
 
     // OLC Auto Generations
     AREA_DATA *last_area;
@@ -5678,6 +5679,17 @@ struct ready_check_state
 #define MAX_STAFF_RANK      7
 
 
+typedef struct account_note_data ACCOUNT_NOTE_DATA;
+
+struct account_note_data
+{
+    ACCOUNT_NOTE_DATA *next;       /* Next note in list */
+    char             *author;      /* Name of staff who added the note */
+    char             *subject;     /* Note subject/title */
+    char             *text;        /* Note content */
+    time_t           timestamp;    /* When note was created */
+};
+
 /*
 * Data for accounts
 */
@@ -5740,6 +5752,7 @@ struct account_data
     LLIST * notes;              // List of notes on the account
     LLIST * changes;            // List of changes on the account
     LLIST * avail_races;        // List of available races
+    ACCOUNT_NOTE_DATA *staff_notes; // List of notes on the account
 
     int refcount;             // Reference count for the account (active logins)
 };
@@ -11574,7 +11587,7 @@ void resend_character_verification_code(DESCRIPTOR_DATA *d);
 void login_verify_account_email_change(DESCRIPTOR_DATA *d, char *argument);
 bool is_reconnecting(CHAR_DATA *ch);
 void reconnect_char(DESCRIPTOR_DATA *d);
-
+void string_end_accnote(CHAR_DATA *ch);
 
 
 /* scripts.c */
@@ -11644,6 +11657,9 @@ void fwrite_skills(CHAR_DATA *ch, FILE *fp);
 TOKEN_DATA *fread_token(FILE *fp);
 void fread_skill(FILE *fp, CHAR_DATA *ch, bool is_song);
 extern void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch);
+ACCOUNT_DATA *find_account_by_name(char *username);
+ACCOUNT_DATA *find_account(char *char_name);
+ACCOUNT_DATA *get_account_by_identifier(const char *identifier, bool *loaded);
 
 
 

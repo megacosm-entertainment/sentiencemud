@@ -11440,3 +11440,39 @@ int colour_trunc_len(const char *str, int limit)
     }
     return i;
 }
+// Helper function to look up account by player name or account name
+ACCOUNT_DATA *get_account_by_identifier(const char *identifier, bool *loaded)
+{
+    ACCOUNT_DATA *account = NULL;
+    
+    if (loaded) *loaded = false;
+    
+    // Check if it's a player lookup
+    if (!strncmp(identifier, "player:", 7))
+    {
+        // Extract the player name
+        const char *player_name = identifier + 7;
+        
+        // Use the find_account function which handles character lookup
+        account = find_account((char*)player_name);
+        
+        if (account && loaded) *loaded = true;
+        
+        if (!account) {
+            log_string(formatf("Account lookup by player '%s' failed - no account found", player_name));
+        }
+    }
+    else
+    {
+        // Regular account lookup by username
+        account = find_account_by_name((char*)identifier);
+        
+        if (account && loaded) *loaded = true;
+        
+        if (!account) {
+            log_string(formatf("Account lookup by username '%s' failed - no account found", identifier));
+        }
+    }
+    
+    return account;
+}

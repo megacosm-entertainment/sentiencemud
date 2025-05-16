@@ -8639,6 +8639,49 @@ void fread_account(ACCOUNT_DATA *account, FILE *fp)
             fMatch = true;
             fread_to_eol(fp);
             break;
+			case '#':
+			 if (!str_cmp(word, "#ACCNOTE"))
+{
+    ACCOUNT_NOTE_DATA *note = alloc_mem(sizeof(ACCOUNT_NOTE_DATA));
+    note->author = str_dup("");
+    note->subject = str_dup("");
+    note->text = str_dup("");
+    note->timestamp = current_time;
+    
+    for (;;)
+    {
+        word = feof(fp) ? "#END_NOTE" : fread_word(fp);
+        
+        if (!str_cmp(word, "#END_NOTE") || !str_cmp(word, "#END"))
+            break;
+            
+        if (!str_cmp(word, "Author"))
+        {
+            free_string(note->author);
+            note->author = fread_string(fp);
+        }
+        else if (!str_cmp(word, "Subject"))
+        {
+            free_string(note->subject);
+            note->subject = fread_string(fp);
+        }
+        else if (!str_cmp(word, "Text"))
+        {
+            free_string(note->text);
+            note->text = fread_string(fp);
+        }
+        else if (!str_cmp(word, "Timestamp"))
+        {
+            note->timestamp = fread_number(fp);
+        }
+    }
+    
+    // Add to the beginning of the list
+    note->next = account->staff_notes;
+    account->staff_notes = note;
+    fMatch = TRUE;
+}
+break;
 
         case 'C':
 			if (!str_cmp(word, "CharCount")) {
@@ -8899,6 +8942,17 @@ void fwrite_account(ACCOUNT_DATA *account, FILE *fp)
 	fprintf(fp, "LastLogin %ld\n", account->last_login);
 	fprintf(fp, "CharCount %d\n", account->character_count);
 	fprintf(fp, "StaffAccount %d\n", account->staff_account ? 1 : 0);
+	    // Save account notes
+    ACCOUNT_NOTE_DATA *note;
+    for (note = account->staff_notes; note != NULL; note = note->next)
+    {
+        fprintf(fp, "#ACCNOTE\n");
+        fprintf(fp, "Author %s~\n", note->author);
+        fprintf(fp, "Subject %s~\n", note->subject);
+        fprintf(fp, "Text %s~\n", note->text);
+        fprintf(fp, "Timestamp %ld\n", (long)note->timestamp);
+        fprintf(fp, "#END_NOTE\n");
+    }
     fprintf(fp, "End\n\n");
 }
 

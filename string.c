@@ -138,6 +138,12 @@ void string_postprocess(CHAR_DATA *ch, bool execute)
         send_to_char("Changeset comment saved.\n\r", ch);
     }
 
+	if (ch->desc->editor == ED_ACCNOTE) {
+		ch->desc->editor = ED_NONE;
+
+		string_end_accnote(ch);
+	}
+
 	if( ch->desc->input && ch->desc->inputString != NULL)
 	{
 		int ret;
