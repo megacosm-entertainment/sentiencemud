@@ -8611,6 +8611,14 @@ bool load_account(DESCRIPTOR_DATA *d, char *name)
     }
     iterator_stop(&cit);
 
+// At the end of load_account, add:
+
+    // Add to loaded_accounts list if found
+    if (found && loaded_accounts)
+	{
+		if (!list_haslink(loaded_accounts, account))
+        list_appendlink(loaded_accounts, account);
+	}
     account->last_login = current_time;
     return found;
 

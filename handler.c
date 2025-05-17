@@ -11281,6 +11281,14 @@ ACCOUNT_DATA *get_account_online_or_offline(char *name, bool *was_loaded) {
         if (was_loaded) *was_loaded = FALSE;
         return NULL;
     }
+
+    // Add newly loaded account to the global list for tracking
+    if (d.account) {
+		if (!list_haslink(loaded_accounts, d.account)) {
+        	list_appendlink(loaded_accounts, d.account);
+		}
+    }
+
     if (was_loaded) *was_loaded = TRUE;
     return d.account;
 }
@@ -11446,70 +11454,53 @@ ACCOUNT_DATA *get_account_by_identifier(const char *identifier, bool *loaded)
     
     if (loaded) *loaded = false;
     
-    // Check if it's a player lookup
+    // Try using fixed get_account_online_or_offline 
     if (!strncmp(identifier, "player:", 7))
     {
         // Extract the player name
         const char *player_name = identifier + 7;
         
         // Find the character first
-        bool was_loaded = false;
-        DESCRIPTOR_DATA *d;
-        CHAR_DATA *ch = NULL;
+        CHAR_DATA *ch = get_char_world(NULL, (char*)player_name);
         
-        // Check if player is online
-        for (d = descriptor_list; d != NULL; d = d->next) {
-            if (d->character && !IS_NPC(d->character) && 
-                !str_cmp(d->character->name, player_name)) {
-                ch = d->character;
-                break;
-            }
-        }
-        
-        // If not online, try to load the character
         if (!ch) {
+            // Try loading character
             DESCRIPTOR_DATA temp_d;
             memset(&temp_d, 0, sizeof(temp_d));
+            
             if (load_char_obj(&temp_d, (char*)player_name)) {
                 ch = temp_d.character;
-                was_loaded = true;
-            }
-        }
-        
-        // Get account from character
-        if (ch && ch->pcdata && ch->pcdata->account_name[0]) {
-            account = get_account_by_name(ch->pcdata->account_name);
-            
-            // If account not in memory, try loading it
-            if (!account) {
-                account = get_account_online_or_offline(ch->pcdata->account_name, &was_loaded);
-            }
-            
-            if (was_loaded && loaded) *loaded = true;
-            
-            // Cleanup if we loaded character just for lookup
-            if (was_loaded && ch) {
+                
+                // Get account info
+                if (ch && ch->pcdata && ch->pcdata->account_name[0]) {
+                    account = get_account_online_or_offline(ch->pcdata->account_name, loaded);
+                }
+                
+                // Clean up
                 free_char(ch);
             }
+        }
+        else if (ch && ch->pcdata && ch->pcdata->account_name[0]) {
+            // Character is online, get account
+            account = get_account_online_or_offline(ch->pcdata->account_name, loaded);
         }
     }
     else
     {
-        // Regular account lookup by username - use our reliable functions
-        account = get_account_by_name(identifier);
-        
-        // If not found in memory, try loading from disk
-        if (!account) {
-            bool was_loaded = false;
-            account = get_account_online_or_offline((char*)identifier, &was_loaded);
-            
-            if (account && was_loaded && loaded) *loaded = true;
-        }
+        // Direct account lookup
+        account = get_account_online_or_offline((char*)identifier, loaded);
     }
     
-    // Only log if debugging is needed
+    // Log for debugging
     if (!account) {
         log_string(formatf("Account lookup for '%s' failed - no account found", identifier));
+    }
+    else if (*loaded) {
+        // Ensure loaded accounts get added to the global list
+        if (loaded_accounts) {
+            list_remlink(loaded_accounts, account, NULL); // Remove if exists
+            list_appendlink(loaded_accounts, account);    // Then add back
+        }
     }
     
     return account;

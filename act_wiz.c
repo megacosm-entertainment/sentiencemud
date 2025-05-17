@@ -2478,6 +2478,14 @@ if (regular_count > 0) {
                 logoff_buf);
         add_buf(output, buf);
     }
+	if (loaded && account) {
+    // Only remove and free if it was loaded just for this operation
+	if (list_haslink(loaded_accounts, account))
+	{
+    list_remlink(loaded_accounts, account, NULL); // Remove from global list
+    free_account(account);
+	}
+}
 }
 
 if (staff_count == 0 && regular_count == 0) {
