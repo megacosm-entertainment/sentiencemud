@@ -8550,6 +8550,8 @@ void free_account(ACCOUNT_DATA *account)
     free_string(account->mfa_key);
     
     list_destroy(account->characters);
+    if (list_haslink(loaded_accounts, account))
+        list_remlink(loaded_accounts, account, NULL);
     
     INVALIDATE(account);
     account->next = account_data_free;

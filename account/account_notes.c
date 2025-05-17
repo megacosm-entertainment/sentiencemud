@@ -161,6 +161,13 @@ void do_accnote(CHAR_DATA *ch, char *argument)
                 send_to_char("Account not found. Try using player:<name> to look up by character name.\n\r", ch);
             return;
         }
+
+    if (loaded && loaded_accounts) {
+        // First remove it if it exists (just to be safe)
+        list_remlink(loaded_accounts, account, NULL);
+        // Then add it back
+        list_appendlink(loaded_accounts, account);
+    }
         
         // Check if we have a subject (arg3 or combined arg3+argument)
         if (arg3[0] == '\0')
@@ -337,17 +344,51 @@ void do_accnote(CHAR_DATA *ch, char *argument)
  */
 void string_end_accnote(CHAR_DATA *ch)
 {
-    ACCOUNT_DATA *account = (ACCOUNT_DATA *)ch->desc->editor_ptr;
-    
-    if (!account)
-    {
-        bug("string_end_accnote: NULL account", 0);
+    if (!ch || !ch->desc) {
+        bug("string_end_accnote: NULL character or descriptor", 0);
         return;
     }
     
-    send_to_char("Note text saved.\n\r", ch);
+    ACCOUNT_DATA *account = (ACCOUNT_DATA *)ch->desc->editor_ptr;
     
-    // Save the account
-    ch->desc->editor_ptr = NULL; // Clear the pointer
+    if (!account) {
+        bug("string_end_accnote: NULL account", 0);
+        return;
+    }
+
+    // First check if account is still valid
+    bool found = FALSE;
+    if (loaded_accounts) {
+        ITERATOR it;
+        ACCOUNT_DATA *acc;
+        iterator_start(&it, loaded_accounts);
+        while ((acc = (ACCOUNT_DATA *)iterator_nextdata(&it))) {
+            if (acc == account) {
+                found = TRUE;
+                break;
+            }
+        }
+        iterator_stop(&it);
+    }
+
+    // If not found, log it but continue (we'll save anyway)
+    if (!found) {
+        bug("string_end_accnote: account not in loaded_accounts list", 0);
+        // Add it back to the list
+        if (loaded_accounts)
+            list_appendlink(loaded_accounts, account);
+    }
+    
+    // Save account before doing anything else with the descriptor
     save_account(account);
+
+    // Reset the descriptor's string editing state
+    ch->desc->pString = NULL;
+    ch->desc->editor = 0;
+
+    // Clear the editor_ptr *after* saving and resetting the string editor
+    ch->desc->editor_ptr = NULL;
+    
+    // Only now notify the player
+    send_to_char("\n\rNote text saved.\n\r", ch);
 }
