@@ -5285,6 +5285,12 @@ char *fread_word(FILE *fp)
     static char word[MAX_INPUT_LENGTH];
     char *pword;
     char cEnd;
+	char buf[MAX_STRING_LENGTH];
+
+	if (feof(fp)) {
+    bug("Fread_word: EOF encountered", 0);
+    return str_dup("");
+}
 
     do
     {
@@ -5314,8 +5320,9 @@ char *fread_word(FILE *fp)
 	    return word;
 	}
     }
+	sprintf(buf, "Fread_word: word too long (%s).", word);
+	bug(buf, 0);
 
-    bug("Fread_word: word too long.", 0);
     exit(1);
     return NULL;
 }

@@ -3479,14 +3479,42 @@ void read_churches_new()
         
         // Read churches from the legacy format
         int legacy_count = 0;
+        
+        // Read safely to prevent EOF issues
         for (;;) {
+            // Check for EOF before attempting to read
+            if (feof(fp)) {
+                log_string("Reached end of churches.dat file");
+                break;
+            }
+            
             char *word = fread_word(fp);
+            
+            // Check for empty word (likely EOF or file corruption)
+            if (!word || word[0] == '\0') {
+                log_string("Warning: Encountered empty word in churches.dat - possible corruption");
+                break;
+            }
             
             if (!str_cmp(word, "#END"))
                 break;
                 
             if (!str_cmp(word, "#CHURCH")) {
-                church = read_church(fp);
+                log_string("Reading church from churches.dat");
+                
+                // Add safety check with cleanup on error
+                church = NULL;
+                
+church = read_church(fp);
+if (church == NULL) {
+    log_string("Error reading church from churches.dat");
+    // Skip to next section
+    while (!feof(fp)) {
+        char *skip_word = fread_word(fp);
+        if (!skip_word || !str_cmp(skip_word, "#CHURCH") || !str_cmp(skip_word, "#END"))
+            break;
+    }
+}
                 
                 if (church) {
                     legacy_count++;
@@ -3548,62 +3576,77 @@ void read_churches_new()
             church = read_church(fp);
             fclose(fp);
             
-            if (church) {
-                // Validate UID
-                if (church->uid == 0) {
-                    log_string(formatf("Warning: Church %s had no UID, generating new one", church->name));
-                    get_church_id(church);
+            if (church == NULL) {
+                log_string(formatf("Failed to load church from %s - continuing", filename));
+                continue;
+            }
+            
+            // Validate UID
+            if (church->uid == 0) {
+                log_string(formatf("Warning: Church %s had no UID, generating new one", church->name));
+                get_church_id(church);
+            }
+            
+            // Check if this church UID is already loaded (shouldn't happen, but safety check)
+            CHURCH_DATA *existing = NULL;
+            ITERATOR it;
+            iterator_start(&it, list_churches);
+            while ((existing = (CHURCH_DATA *)iterator_nextdata(&it))) {
+                if (existing->uid == church->uid) {
+                    log_string(formatf("Warning: Duplicate church UID %ld found for %s and %s", 
+                              church->uid, church->name, existing->name));
+                    break;
+                }
+            }
+            iterator_stop(&it);
+            
+            if (!existing) {
+                // Add to list and append to global list
+                if (church_list == NULL)
+                    church_list = church;
+                else
+                    add_church_to_list(church, church_list);
+                    
+                if (!list_appendlink(list_churches, church)) {
+                    bug("Failed to load churches due to memory issue with 'list_appendlink'", 0);
+                    abort();
                 }
                 
-                // Check if this church UID is already loaded (shouldn't happen, but safety check)
-                CHURCH_DATA *existing = NULL;
-                ITERATOR it;
-                iterator_start(&it, list_churches);
-                while ((existing = (CHURCH_DATA *)iterator_nextdata(&it))) {
-                    if (existing->uid == church->uid) {
-                        log_string(formatf("Warning: Duplicate church UID %ld found for %s and %s", 
-                                  church->uid, church->name, existing->name));
-                        break;
-                    }
-                }
-                iterator_stop(&it);
+                count++;
                 
-                if (!existing) {
-                    // Add to list and append to global list
-                    if (church_list == NULL)
-                        church_list = church;
-                    else
-                        add_church_to_list(church, church_list);
-                        
-                    if (!list_appendlink(list_churches, church)) {
-                        bug("Failed to load churches due to memory issue with 'list_appendlink'", 0);
-                        abort();
-                    }
+                // Fix church names that incorrectly have "#CHURCH" prepended
+                if (church->name && !str_prefix(church->name, "#CHURCH ")) {
+                    char *fixed_name = str_dup(church->name + 8); // Skip "#CHURCH "
+                    free_string(church->name);
+                    church->name = fixed_name;
                     
-                    count++;
+                    log_string(formatf("Fixed church name: removed #CHURCH prefix from %s", fixed_name));
                     
-                    // If the filename doesn't include the UID, save it with the correct format
-                    char expected_name[100];
-                    char normalized[32];
-                    char *norm = normalize_filename(church->name);
-                    strncpy(normalized, norm, 25);
-                    normalized[25] = '\0';
-                    
-                    snprintf(expected_name, sizeof(expected_name), "%s_%ld.org", normalized, church->uid);
-                    if (!strstr(entry->d_name, expected_name)) {
-                        log_string(formatf("Converting church file format for %s (UID %ld)", 
-                                  church->name, church->uid));
-                        save_church(church);
-                        
-                        // Delete the old file if it's not the same format
-                        if (strcmp(entry->d_name, expected_name) != 0) {
-                            unlink(filename);
-                        }
-                    }
-                } else {
-                    // Free duplicate church
-                    free_church(church);
+                    // Save the church with the corrected name
+                    save_church(church);
                 }
+                
+                // If the filename doesn't include the UID, save it with the correct format
+                char expected_name[100];
+                char normalized[32];
+                char *norm = normalize_filename(church->name);
+                strncpy(normalized, norm, 20);  // Just use 20 characters to be safe
+                normalized[20] = '\0';
+                
+                snprintf(expected_name, sizeof(expected_name), "%s_%ld.org", normalized, church->uid);
+                if (!strstr(entry->d_name, expected_name)) {
+                    log_string(formatf("Converting church file format for %s (UID %ld)", 
+                              church->name, church->uid));
+                    save_church(church);
+                    
+                    // Delete the old file if it's not the same format
+                    if (strcmp(entry->d_name, expected_name) != 0) {
+                        unlink(filename);
+                    }
+                }
+            } else {
+                // Free duplicate church
+                free_church(church);
             }
         }
     }
@@ -3615,7 +3658,6 @@ void read_churches_new()
     log_string(buf);
 }
 
-
 CHURCH_DATA *read_church(FILE *fp)
 {
     char *word;
@@ -3625,12 +3667,19 @@ CHURCH_DATA *read_church(FILE *fp)
     bool fMatch;
 
     church = new_church();
-    church->name = fread_string(fp);
+
+        church->name = fread_string(fp);
+
     int version = 0;
     int default_rank_index = 0;
     bool has_default_rank = false;
 
     for (; ;) {
+if (feof(fp)) {
+    log_string(formatf("Unexpected EOF while reading church %s", church->name ? church->name : "unknown"));
+    break;
+}
+
         word = fread_word(fp);
         fMatch = false;
 
@@ -3722,10 +3771,13 @@ CHURCH_DATA *read_church(FILE *fp)
 
 
     case 'D':
-        KEY("DefaultRank", default_rank_index, fread_number(fp));
-        has_default_rank = true;
-        break;
-                KEY("DeityPoints", church->dp, fread_number(fp));
+                // Handle DeityPoints with multiple possible formats
+                if (!str_cmp(word, "DeityPoints") || 
+                    !str_cmp(word, "Deity_Points") || 
+                    !str_cmp(word, "DP")) {
+                    church->dp = fread_number(fp);
+                    fMatch = true;
+                }
                 break;
 
             case 'F':
@@ -3762,9 +3814,17 @@ CHURCH_DATA *read_church(FILE *fp)
                 break;
 
             case 'L':
-				if (!str_cmp(word, "LastLoginFounder"))
-					church->founder_last_login = fread_number(fp);
-				KEY("LastLoginOwner", church->owner_last_login, fread_number(fp));
+                if (!str_cmp(word, "LastLoginFounder") || 
+                    !str_cmp(word, "LastLogin_Founder") ||
+                    !str_cmp(word, "Lastloginfounder")) {
+                    church->founder_last_login = fread_number(fp);
+                    fMatch = true;
+                    break;
+                }
+                KEY("LastLoginOwner", church->owner_last_login, fread_number(fp));
+                KEY("LastLoginOfficer", church->officer_last_login, fread_number(fp));
+                KEY("LastLoginMember", church->member_last_login, fread_number(fp));
+                KEY("LastLoginLeader", church->leader_last_login, fread_number(fp));
                 break;
 
             case 'M':
@@ -3773,6 +3833,7 @@ CHURCH_DATA *read_church(FILE *fp)
                 break;
 
             case 'N':
+
                 KEY("NumRanks", church->num_ranks, fread_number(fp));
                 break;
 			case 'O':
@@ -3945,8 +4006,30 @@ if (!str_cmp(word, "TreasureAccess")) {
         }
 
         if (!fMatch) {
-            sprintf(buf, "read_churches: no match on word %s", word);
-            bug(buf, 0);
+            // Try to gracefully handle unknown fields
+            if (is_number(word)) {
+                // If the word itself is a number, read another number and discard
+                int dummy = fread_number(fp);
+                log_string(formatf("read_church: skipping unknown numeric field '%s': %d", word, dummy));
+                fMatch = true;
+            } else {
+                // Try to read as string if it might be one
+                char peek = fgetc(fp);
+                ungetc(peek, fp);
+                
+                if (peek == '~' || peek == ' ' || peek == '\n') {
+                    char *dummy_str = fread_string(fp);
+                    log_string(formatf("read_church: skipping unknown string field '%s'", word));
+                    free_string(dummy_str);
+                    fMatch = true;
+                }
+            }
+            
+            if (!fMatch) {
+                log_string(formatf("read_church: no match on word %s (skipping)", word));
+                // Skip to next line or token to recover
+                fread_to_eol(fp);
+            }
         }
     }
 
@@ -4000,6 +4083,15 @@ if (!str_cmp(word, "TreasureAccess")) {
 
     // Assign proper rank pointers to members after all ranks are loaded
     assign_church_member_ranks(church);
+    
+
+        // Force max_positions to be at least the minimum required for this size
+    int min_positions = church_get_min_positions(church->size);
+    if (church->max_positions < min_positions) {
+        log_string(formatf("Fixing church %s max_positions from %d to %d based on size %d",
+            church->name, church->max_positions, min_positions, church->size));
+        church->max_positions = min_positions;
+    }
 
     return church;
 }

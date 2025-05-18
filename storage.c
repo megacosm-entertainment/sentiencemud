@@ -407,17 +407,42 @@ void storage_account_cmd(CHAR_DATA *ch, char *argument)
         return;
     }
     
-    // Get the character's account
-    account = get_account_by_name(ch->pcdata->account_name);
+// Get the character's account
+account = get_account_by_name(ch->pcdata->account_name);
+if (!account) {
+    // Try to load the account
+    account = get_account_online_or_offline(ch->pcdata->account_name, &loaded);
+    
     if (!account) {
-        // Try to load the account
-        account = get_account_online_or_offline(ch->pcdata->account_name, &loaded);
+        send_to_char("Your account information couldn't be accessed.\n\r", ch);
+        return;
+    }
+    
+    // CRITICAL FIX: Ensure the character list is preserved
+    if (loaded) {
+        // If we had to load the account, ensure all characters are properly linked
+        ACCOUNT_CHARACTER *ch_entry;
+        ITERATOR it;
+        bool found_current = false;
         
-        if (!account) {
-            send_to_char("Your account information couldn't be accessed.\n\r", ch);
-            return;
+        // Verify the current character is in the account's character list
+        iterator_start(&it, account->characters);
+        while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+            if (!str_cmp(ch_entry->name, ch->name)) {
+                found_current = true;
+                break;
+            }
+        }
+        iterator_stop(&it);
+        
+        // If this character isn't in the list, add it to maintain proper state
+        if (!found_current) {
+            log_string(formatf("Account data inconsistency: %s was not in %s's character list - restoring",
+                      ch->name, account->username));
+            account_add_character(account, ch);
         }
     }
+}
 
     argument = one_argument(argument, arg1);
     argument = one_argument(argument, arg2);

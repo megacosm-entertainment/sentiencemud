@@ -2655,6 +2655,7 @@ void login_link_character_name(DESCRIPTOR_DATA *d, char *argument)
             save_account(acct);
             
             free_char(ch);
+            d->connected = CON_ACCOUNT_MENU;
             display_account_menu(d);
             return;
         }
