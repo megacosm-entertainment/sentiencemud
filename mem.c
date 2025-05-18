@@ -1518,6 +1518,8 @@ static void delete_church_treasure_room(void *data) { free_mem(data, sizeof(CHUR
 CHURCH_DATA *new_church( void )
 {
     CHURCH_DATA *pChurch;
+    int i;
+    int j;
 
     if ( !church_free )
     {
@@ -1534,6 +1536,7 @@ CHURCH_DATA *new_church( void )
     pChurch->name = NULL;
     pChurch->flag = NULL;
     pChurch->founder = NULL;
+    pChurch->owner = NULL;
     pChurch->pneuma = 0;
     pChurch->dp	    = 0;
     pChurch->gold   = 0;
@@ -1545,6 +1548,10 @@ CHURCH_DATA *new_church( void )
     pChurch->motd = NULL;
     pChurch->log = NULL;
     pChurch->founder_last_login = 0;
+    pChurch->owner_last_login = 0;
+    pChurch->member_last_login = 0;
+    pChurch->officer_last_login = 0;
+    pChurch->leader_last_login = 0;
     pChurch->pk = 0;
     pChurch->settings = 0;
     pChurch->treasure_rooms = list_createx(false, NULL, delete_church_treasure_room);
@@ -1560,6 +1567,12 @@ CHURCH_DATA *new_church( void )
     pChurch->colour2 = 'B';
     pChurch->online_players = list_create(false);
     pChurch->roster = list_create(false);
+
+    pChurch->ranks = NULL;
+    pChurch->num_ranks = 0;
+
+    // Initialize with default number of ranks (4 for backward compatibility)
+    initialize_church_ranks(pChurch);
 
     top_church++;
 
@@ -1622,6 +1635,7 @@ CHURCH_PLAYER_DATA *new_church_player( void )
     pMember->ch = NULL;
     pMember->church = NULL;
     pMember->commands = NULL;
+    pMember->personal_permissions = 0;
 
     pMember->pk_wins = 0;
     pMember->pk_losses = 0;
@@ -1657,6 +1671,64 @@ void free_church_player( CHURCH_PLAYER_DATA *pMember )
     pMember->next         =   church_player_free;
     church_player_free    =   pMember;
     return;
+}
+
+void initialize_church_ranks(CHURCH_DATA *church)
+{
+    // Create Member rank first (lowest rank)
+    CHURCH_RANK_DATA *member_rank = add_church_rank(church, 
+        "Member", "Member", "Member",
+        CHURCH_PERM_GOHALL | CHURCH_PERM_TALK, // Basic permissions
+        RANK_TYPE_MEMBER);
+    
+    // Set as default rank for new members
+    church->default_rank = member_rank;
+    
+    // Create Leader rank (highest rank)
+    CHURCH_RANK_DATA *leader_rank = add_church_rank(church,
+        "Leader", "Leader", "Leader",
+        ~0, // All permissions
+        RANK_TYPE_LEADER);
+    
+    // Mark these ranks as protected
+    member_rank->flags = CHURCH_RANK_PROTECTED;
+    leader_rank->flags = CHURCH_RANK_PROTECTED;
+}
+
+// Free church rank data
+void free_church_ranks(CHURCH_DATA *church)
+{
+    int i;
+    
+    if (!church)
+        return;
+        
+    CHURCH_RANK_DATA *rank, *rank_next;
+    for (rank = church->ranks; rank != NULL; rank = rank_next) {
+        rank_next = rank->next;
+        free_church_rank(rank);
+    }
+    church->ranks = NULL;
+    church->num_ranks = 0;
+    
+    // Clear the default rank pointer but don't free it - it points to a member of the ranks list
+    church->default_rank = NULL;
+}
+
+void free_church_treasure_room(void *data)
+{
+    CHURCH_TREASURE_ROOM *treasure = (CHURCH_TREASURE_ROOM *)data;
+    
+    if (!treasure)
+        return;
+        
+    if (treasure->name)
+        free_string(treasure->name);
+        
+    if (treasure->allowed_ranks)
+        list_destroy(treasure->allowed_ranks);
+        
+    free_mem(treasure, sizeof(CHURCH_TREASURE_ROOM));
 }
 
 static void delete_area_region(void *ptr)

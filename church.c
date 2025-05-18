@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <dirent.h>
+#include <sys/stat.h>
 #include "merc.h"
 #include "interp.h"
 #include "magic.h"
@@ -17,7 +19,6 @@
 #include "tables.h"
 #include "wilds.h"
 
-bool is_trusted(CHURCH_PLAYER_DATA *member, char *command);
 char *get_chrank(CHURCH_PLAYER_DATA *member);
 char *get_chsize_from_number(int size);
 char *time_for_log(void);
@@ -54,47 +55,78 @@ void add_church_to_list(CHURCH_DATA *church, CHURCH_DATA *list);
 bool is_excommunicated(CHAR_DATA *ch);
 void get_church_id(CHURCH_DATA *church);
 void variable_dynamic_fix_church(CHURCH_DATA *church);
+void do_chpermission(CHAR_DATA *ch, char *argument);
+void do_chranks(CHAR_DATA *ch, char *argument);
+void do_chsetrank(CHAR_DATA *ch, char *argument); 
+void do_chdefaultrank(CHAR_DATA *ch, char *argument);
+bool has_church_permission(CHURCH_PLAYER_DATA *member, long permission);
+bool is_church_leader(CHAR_DATA *ch, CHURCH_DATA *church);
+bool is_church_officer(CHAR_DATA *ch, CHURCH_DATA *church);
+
+bool remove_church_rank(CHURCH_DATA *church, CHURCH_RANK_DATA *rank);
+void assign_church_member_ranks(CHURCH_DATA *church);
+char *get_default_legacy_rank_name(CHURCH_DATA *church, int rank, int sex);
+void convert_church_ranks(CHURCH_DATA *church);
+void upgrade_church_ranks(CHURCH_DATA *church);
+CHURCH_RANK_DATA *new_church_rank(void);
+void free_church_rank(CHURCH_RANK_DATA *rank);
+CHURCH_TREASURE_ROOM *create_church_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room, bool is_default);
+bool can_access_treasure_room(CHURCH_PLAYER_DATA *member, CHURCH_TREASURE_ROOM *treasure);
+bool add_rank_to_treasure_room(CHURCH_TREASURE_ROOM *treasure, CHURCH_RANK_DATA *rank);
+bool remove_rank_from_treasure_room(CHURCH_TREASURE_ROOM *treasure, CHURCH_RANK_DATA *rank);
+void do_chsetmemberrank(CHAR_DATA *ch, char *argument);
+bool is_church_owner(CHAR_DATA *ch, CHURCH_DATA *church);
+bool can_modify_church_member(CHAR_DATA *ch, CHURCH_PLAYER_DATA *target);
+void do_chuserperm(CHAR_DATA *ch, char *argument);
+
+#define CHURCH_PERM_NONE          0
 
 /* Church commands */
+// Update the church command table
 const struct church_command_type church_command_table[] =
 {
-	{ "create",			CHURCH_RANK_NONE,	do_chcreate			},
-	{ "info",			CHURCH_RANK_NONE,	do_chinfo			},
-	{ "list",			CHURCH_RANK_NONE,	do_chlist			},
+    { "create",         CHURCH_RANK_NONE, CHURCH_PERM_NONE,   do_chcreate        },
+    { "info",           CHURCH_RANK_NONE, CHURCH_PERM_NONE,   do_chinfo          },
+    { "list",           CHURCH_RANK_NONE, CHURCH_PERM_NONE,   do_chlist          },
 
-	{ "deposit",		CHURCH_RANK_A,		do_chdeposit		},
-	{ "donate",			CHURCH_RANK_A, 		do_chdonate			},
-	{ "gohall",			CHURCH_RANK_A,		do_chgohall			},
-	{ "motd",			CHURCH_RANK_A,		do_chmotd		 	},
-	{ "quit",			CHURCH_RANK_A,		do_chrem			},
-	{ "rules",			CHURCH_RANK_A,		do_chrules 			},
-	{ "talk",			CHURCH_RANK_A, 		do_chtalk			},
-	{ "treasure",		CHURCH_RANK_A,		do_chtreasure		},
-	{ "where",			CHURCH_RANK_A,		do_chwhere 			},
+    { "deposit",        CHURCH_RANK_A,    CHURCH_PERM_NONE,   do_chdeposit       },
+    { "donate",         CHURCH_RANK_A,    CHURCH_PERM_NONE,   do_chdonate        },
+    { "gohall",         CHURCH_RANK_A,    CHURCH_PERM_GOHALL, do_chgohall        },
+    { "motd",           CHURCH_RANK_A,    CHURCH_PERM_MOTD,   do_chmotd          },
+    { "quit",           CHURCH_RANK_A,    CHURCH_PERM_NONE,   do_chrem           },
+    { "rules",          CHURCH_RANK_A,    CHURCH_PERM_RULES,  do_chrules         },
+    { "talk",           CHURCH_RANK_A,    CHURCH_PERM_TALK,   do_chtalk          },
+    { "treasure",       CHURCH_RANK_A,    CHURCH_PERM_NONE,   do_chtreasure      },
+    { "where",          CHURCH_RANK_A,    CHURCH_PERM_NONE,   do_chwhere         },
 
-	{ "balance",		CHURCH_RANK_B,		do_chbalance 		},
-	{ "withdraw",		CHURCH_RANK_B,		do_chwithdraw 		},
+    { "balance",        CHURCH_RANK_B,    CHURCH_PERM_NONE,   do_chbalance       },
+    { "withdraw",       CHURCH_RANK_B,    CHURCH_PERM_WITHDRAW, do_chwithdraw    },
 
-	{ "add",			CHURCH_RANK_D, 		do_chadd			},
-	{ "colour",			CHURCH_RANK_D, 		do_chcolour			},
-	{ "convert",		CHURCH_RANK_D,		do_chconvert 		},
-	{ "delmember",		CHURCH_RANK_D,		do_chrem			},
-	{ "demote",			CHURCH_RANK_D,		do_chdem			},
-	{ "excommunicate",	CHURCH_RANK_D,		do_chexcommunicate 	},
-	{ "overthrow",		CHURCH_RANK_D, 		do_choverthrow		},
-	{ "promote",		CHURCH_RANK_D, 		do_chprom			},
-	{ "set",			CHURCH_RANK_D, 		do_churchset		},
-	{ "setflag",		CHURCH_RANK_D, 		do_chflag			},
-	{ "toggle",			CHURCH_RANK_D, 		do_chtoggle			},
-	{ "transfer",		CHURCH_RANK_D, 		do_chtransfer		},
-	{ "trust",			CHURCH_RANK_D, 		do_chtrust			},
+    { "add",            CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chadd           },
+    { "colour",         CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chcolour        },
+    { "convert",        CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chconvert       },
+    { "delmember",      CHURCH_RANK_D,    CHURCH_PERM_REMOVE, do_chrem           },
+    { "demote",         CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chdem           },
+    { "excommunicate",  CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chexcommunicate },
+    { "overthrow",      CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_choverthrow     },
+    { "permission",     CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chpermission    },
+    { "promote",        CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chprom          },
+  	{ "ranks",          CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chranks         },
+    { "set",            CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_churchset       },
+    { "setflag",        CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chflag          },
+    { "setrank",        CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chsetrank       },
+    { "toggle",         CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chtoggle        },
+    { "transfer",       CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chtransfer      },
+    { "trust",          CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chtrust         },
+// In the church_command_table array
+	{ "defaultrank",    CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chdefaultrank  },
 
-	/* Immortal commands*/
-	{ "delete",			CHURCH_RANK_IMM,	do_chdelete 		},
-	{ "advance",		CHURCH_RANK_IMM, 	do_chadvance		},
-	{ "deduct",			CHURCH_RANK_IMM,	do_chdeduct 		},
+    /* Immortal commands*/
+    { "delete",         CHURCH_RANK_IMM,  CHURCH_PERM_NONE,   do_chdelete        },
+    { "advance",        CHURCH_RANK_IMM,  CHURCH_PERM_NONE,   do_chadvance       },
+    { "deduct",         CHURCH_RANK_IMM,  CHURCH_PERM_NONE,   do_chdeduct        },
 
-    { NULL,				-1,					NULL				}
+    { NULL,             -1,               CHURCH_PERM_NONE,   NULL               }
 };
 
 char *lookup_church_command (char *string)
@@ -135,31 +167,34 @@ void show_church_commands(CHAR_DATA *ch)
     sprintf(buf, "Church Commands:\n\r");
     for (i = 0; church_command_table[i].command != NULL; i++)
     {
-	if (church_command_table[i].rank == -1 || IS_IMMORTAL(ch))
-	{
-	    sprintf(buf2, " %-13s", church_command_table[i].command);
-	    strcat(buf, buf2);
+        bool can_use = false;
+        
+        // Commands available to everyone
+        if (church_command_table[i].rank == CHURCH_RANK_NONE)
+            can_use = true;
+        
+        // Commands available to immortals
+        else if (IS_IMMORTAL(ch))
+            can_use = true;
+        
+        // Commands requiring church membership and permissions
+        else if (ch->church_member != NULL && 
+                 (church_command_table[i].permission == CHURCH_PERM_NONE ||
+                  has_church_permission(ch->church_member, church_command_table[i].permission)))
+            can_use = true;
+            
+        if (can_use)
+        {
+            sprintf(buf2, " %-13s", church_command_table[i].command);
+            strcat(buf, buf2);
 
-	    if (i != 0 && i % 4 == 0)
-		strcat(buf, "\n\r");
-	}
-	else
-	{
-	    if (ch->church_member != NULL
-	    && church_command_table[i].rank <= ch->church_member->rank)
-	    {
-		sprintf(buf2, " %-13s", church_command_table[i].command);
-		strcat(buf, buf2);
-
-		if (i != 0 && i % 4 == 0)
-		    strcat(buf, "\n\r");
-	    }
-	}
+            if (i != 0 && i % 4 == 0)
+                strcat(buf, "\n\r");
+        }
     }
 
     send_to_char(buf, ch);
 }
-
 
 void do_church(CHAR_DATA *ch, char *argument)
 {
@@ -170,44 +205,54 @@ void do_church(CHAR_DATA *ch, char *argument)
 
     if (lookup_church_command(arg) == NULL)
     {
-	if (arg[0] != '\0')
-	    send_to_char("There is no such command.\n\r", ch);
+        if (arg[0] != '\0')
+            send_to_char("There is no such command.\n\r", ch);
 
         show_church_commands(ch);
-	send_to_char("\n\rFor more info see 'help church'\n\r", ch);
-	return;
+        send_to_char("\n\rFor more info see 'help church'\n\r", ch);
+        return;
     }
 
     /* locate command in the table */
     for (i = 0; church_command_table[i].command != NULL; i++)
     {
-	if (!str_cmp(church_command_table[i].command, arg))
-	    break;
+        if (!str_cmp(church_command_table[i].command, arg))
+            break;
     }
 
-    if (church_command_table[i].rank > 0
-    &&  ch->church_member != NULL
-    &&  ch->church_member->rank < church_command_table[i].rank
-    &&  !is_trusted(ch->church_member, church_command_table[i].command)
-    &&  !IS_IMMORTAL(ch))
+    // Check if command requires church membership
+    if (church_command_table[i].rank > CHURCH_RANK_NONE &&
+        ch->church == NULL)
     {
-	send_to_char("There is no such command.\n\r", ch);
-	return;
+        send_to_char("You must be in a church to use that command.\n\r", ch);
+        return;
     }
 
-    if (is_excommunicated(ch)
-    &&  !(!str_cmp(church_command_table[i].command, "list")
-          || !str_cmp(church_command_table[i].command, "rules")
-	  || !str_cmp(church_command_table[i].command, "quit")))
+    // Check permission requirements
+    if (church_command_table[i].permission != CHURCH_PERM_NONE &&
+        ch->church_member != NULL &&
+        !has_church_permission(ch->church_member, church_command_table[i].permission) &&
+        !IS_IMMORTAL(ch))
     {
-	send_to_char("You have been excommunicated from the church.\n\r", ch);
-	send_to_char("You may only use the following commands:\n\r", ch);
-	send_to_char("LIST   RULES   QUIT\n\r", ch);
-	return;
+        send_to_char("You don't have permission to use that command.\n\r", ch);
+        return;
     }
 
+    // Handle excommunicated members
+    if (is_excommunicated(ch) &&
+        !(!str_cmp(church_command_table[i].command, "list") ||
+          !str_cmp(church_command_table[i].command, "rules") ||
+          !str_cmp(church_command_table[i].command, "quit")))
+    {
+        send_to_char("You have been excommunicated from the church.\n\r", ch);
+        send_to_char("You may only use the following commands:\n\r", ch);
+        send_to_char("LIST   RULES   QUIT\n\r", ch);
+        return;
+    }
+
+    // Special case for quit
     if (!str_cmp(church_command_table[i].command, "quit"))
-	sprintf(argument, "%s", ch->name);
+        sprintf(argument, "%s", ch->name);
 
     (church_command_table[i].function)(ch, argument);
 }
@@ -301,7 +346,7 @@ void do_chadd(CHAR_DATA *ch, char *argument)
     new_member = new_church_player();
     new_member->ch = target;
     new_member->name = str_dup(target->name);
-    new_member->rank = CHURCH_RANK_A;
+	new_member->rank = ch->church->default_rank;
     new_member->church = ch->church;
     new_member->sex = target->sex;
     new_member->alignment = target->alignment;
@@ -326,7 +371,7 @@ void do_chadd(CHAR_DATA *ch, char *argument)
     sprintf(buf, "%s adds %s.", ch->name, target->name);
     append_church_log(ch->church, buf);
 
-    write_churches_new();
+    save_church(ch->church);
 }
 
 
@@ -363,15 +408,14 @@ void do_chrules(CHAR_DATA * ch, char *argument)
 
     if (!str_cmp(arg, "edit"))
     {
-	if (ch->church_member->rank != CHURCH_RANK_D
-	&& !is_trusted(ch->church_member, "rules"))
-	{
-	    send_to_char("You must be the leader to edit the rules.\n\r", ch);
-	    return;
-	}
+        if (!is_church_leader(ch, ch->church) && !has_church_permission(ch->church_member, CHURCH_PERM_RULES))
+        {
+            send_to_char("You don't have permission to edit the rules.\n\r", ch);
+            return;
+        }
 
 	string_append(ch, &ch->church->rules);
-	write_churches_new();
+	save_church(ch->church);
 	return;
     }
 
@@ -412,15 +456,14 @@ void do_chmotd(CHAR_DATA * ch, char *argument)
 
     if (!str_cmp(arg, "edit"))
     {
-	if (ch->church_member->rank != CHURCH_RANK_D
-	&& !is_trusted(ch->church_member, "motd"))
-	{
-	    send_to_char("You must be the leader to edit the motd.\n\r", ch);
-	    return;
-	}
+        if (!is_church_leader(ch, ch->church) && !has_church_permission(ch->church_member, CHURCH_PERM_MOTD))
+        {
+            send_to_char("You don't have permission to edit the motd.\n\r", ch);
+            return;
+        }
 
 	string_append(ch, &ch->church->motd);
-	write_churches_new();
+	save_church(ch->church);
 	return;
     }
 
@@ -512,8 +555,7 @@ void do_chrem(CHAR_DATA *ch, char *argument)
 		}
 
 		if (!IS_IMMORTAL(ch) &&
-			find_char_position_in_church(ch) != CHURCH_RANK_D &&
-			!is_trusted(ch->church_member, "remove") &&
+			!has_church_permission(ch->church_member, CHURCH_PERM_MEMBERS) &&
 			str_cmp(arg, ch->name) && str_cmp(arg, "self") &&
 			str_cmp(arg, "me"))
 		{
@@ -521,12 +563,21 @@ void do_chrem(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		if (!str_cmp(member->church->founder, arg) &&
-			str_cmp(member->church->founder, ch->name))
-		{
-			send_to_char("You can't remove the founder of the church.\n\r", ch);
-			return;
-		}
+    // With this:
+    if (!can_modify_church_member(ch, member))
+    {
+        send_to_char("You don't have permission to remove that member.\n\r", ch);
+        return;
+    }
+    
+    // Also, for the special case where the owner is leaving:
+    if ((!str_cmp(ch->name, arg) || !str_cmp(arg, "self") || !str_cmp(arg, "me")) &&
+        is_church_owner(ch, ch->church))
+    {
+        send_to_char("{RWarning: {xIf you leave your church it will be disbanded.\n\r", ch);
+        send_to_char("{YAre you sure you want to do this?{x\n\r", ch);
+        ch->remove_question = member;
+    }
 
 		if ((!str_cmp(ch->name, arg) || !str_cmp(arg, "self") || !str_cmp(arg, "me")) &&
 			!str_cmp(member->church->founder, ch->name))
@@ -558,7 +609,7 @@ void do_chrem(CHAR_DATA *ch, char *argument)
 		}
     }
 
-    write_churches_new();
+    save_church(ch->church);
     return;
 }
 
@@ -614,204 +665,14 @@ void remove_member(CHURCH_PLAYER_DATA * member)
 
 void do_chprom(CHAR_DATA *ch, char *argument)
 {
-    CHURCH_DATA *church;
-    CHURCH_PLAYER_DATA *member;
-    char arg[MAX_STRING_LENGTH];
-    char buf[MAX_STRING_LENGTH];
-    bool found;
-
-    argument = one_argument(argument, arg);
-
-    if (arg[0] == '\0')
-    {
-	send_to_char("Promote whom?\n\r", ch);
-	return;
-    }
-
-    if (IS_IMMORTAL(ch))
-    {
-	found = false;
-	member = NULL;
-	for (church = church_list; church != NULL; church = church->next)
-	{
-	    for (member = church->people; member != NULL; member = member->next)
-	    {
-		if (!str_cmp(arg, member->name))
-		{
-		    found = true;
-		    break;
-		}
-	    }
-
-	    if (found)
-	        break;
-	}
-
-	if (!found || !member)
-	{
-	    send_to_char("No church member with that name.\n\r", ch);
-	    return;
-	}
-
-	if (member->rank >= CHURCH_RANK_D)
-	{
-	    send_to_char("You can't promote that member any further.\n\r", ch);
-	    return;
-	}
-
-	member->rank++;
-
-	sprintf(buf, "{YYou have been promoted to %s!{x\n\r",
-			get_chrank(member));
-
-	if (member->ch != NULL)
-		send_to_char(buf, member->ch);
-
-	sprintf(buf, "{YYou promoted %s to %s!{x\n\r", member->name,
-			get_chrank(member));
-	send_to_char(buf, ch);
-
-	return;
-    }
-
-    if (ch->church == NULL)
-    {
-	send_to_char("You aren't in a registered group.\n\r", ch);
-	return;
-    }
-
-    for (member = ch->church->people; member != NULL;
-	 member = member->next)
-	if (!str_cmp(member->name, arg))
-	    break;
-
-    if (member == NULL)
-    {
-	send_to_char("Member not found.\n\r", ch);
-	return;
-    }
-
-    if (member->rank >= CHURCH_RANK_D || member->rank >= ch->church_member->rank)
-    {
-	send_to_char("You can't promote that member any further.\n\r", ch);
-	return;
-    }
-
-    member->rank++;
-
-    sprintf(buf, "{YYou have been promoted to %s!{x\n\r",
-    	get_chrank(member));
-	if (member->ch != NULL)
-		send_to_char(buf, member->ch);
-
-    sprintf(buf, "{YYou promoted %s to %s!{x\n\r", member->name,
-         get_chrank(member));
-    send_to_char(buf, ch);
+    send_to_char("The promote command has been replaced by 'church setmemberrank'.\n\r", ch);
+    send_to_char("Syntax: church setmemberrank <character> <rank#>\n\r", ch);
 }
-
 
 void do_chdem(CHAR_DATA *ch, char *argument)
 {
-    CHURCH_PLAYER_DATA *member;
-    CHURCH_DATA *church;
-    char arg[MAX_STRING_LENGTH];
-    char buf[MAX_STRING_LENGTH];
-
-    argument = one_argument(argument, arg);
-
-    if (arg[0] == '\0')
-    {
-	send_to_char("Demote whom?\n\r", ch);
-	return;
-    }
-
-    if (IS_IMMORTAL(ch))
-    {
-	bool found = false;
-	member = NULL;
-	for (church = church_list; church != NULL; church = church->next)
-	{
-	    for (member = church->people; member != NULL; member = member->next)
-	    {
-		if (!str_cmp(arg, member->name))
-		{
-		    found = true;
-		    break;
-		}
-	    }
-
-	    if (found)
-		    break;
-	}
-
-	if (!found || !member)
-	{
-	    send_to_char("No church member with that name.\n\r", ch);
-	    return;
-	}
-
-	if (!str_cmp(member->name, church->founder))
-	{
-	    send_to_char("You can't demote the church founder.\n\r", ch);
-	    return;
-	}
-
-	if (member->rank <= CHURCH_RANK_A)
-	{
-	    send_to_char("You can't demote that member any further.\n\r", ch);
-	    return;
-	}
-
-	member->rank--;
-
-	sprintf(buf, "{YYou have been demoted to %s!{x\n\r",
-			get_chrank(member));
-
-	if (member->ch != NULL)
-		send_to_char(buf, member->ch);
-
-	sprintf(buf, "{YYou demoted %s to %s!{x\n\r", member->name,
-			get_chrank(member));
-	send_to_char(buf, ch);
-
-	return;
-    }
-
-    if (ch->church == NULL)
-    {
-	send_to_char("You aren't in a registered group.\n\r", ch);
-	return;
-    }
-
-    for (member = ch->church->people; member != NULL;
-	 member = member->next)
-	if (!str_cmp(member->name, arg))
-	    break;
-
-    if (member == NULL)
-    {
-	send_to_char("Member not found.\n\r", ch);
-	return;
-    }
-
-    if (member->rank <= CHURCH_RANK_A)
-    {
-	send_to_char("You can't demote that member any further.\n\r", ch);
-	return;
-    }
-
-    member->rank--;
-
-    sprintf(buf, "{YYou have been demoted to %s!{x\n\r",
-    get_chrank(member));
-    if (member->ch != NULL)
-	send_to_char(buf, member->ch);
-
-    sprintf(buf, "{YYou demoted %s to %s!{x\n\r",
-        member->name,
-        get_chrank(member));
-
-    send_to_char(buf, ch);
+    send_to_char("The demote command has been replaced by 'church setmemberrank'.\n\r", ch);
+    send_to_char("Syntax: church setmemberrank <character> <rank#>\n\r", ch);
 }
 
 
@@ -899,19 +760,12 @@ void do_chgohall(CHAR_DATA *ch, char *argument)
 		!is_same_place(ch->in_room, location)) &&
 		!IS_WILDERNESS(ch->in_room))
     {
-        if (!IS_SET(ch->church->settings, CHURCH_ALLOW_CROSSZONES) &&
-			ch->church_member->rank < CHURCH_RANK_D)
-		{
-			send_to_char("Your church leader has forsaken members from gohalling cross-zone.\n\r", ch);
-			return;
-		}
-
-		if (ch->church_member->rank < CHURCH_RANK_C	&&
-			!is_trusted(ch->church_member, "gohall"))
-		{
-			send_to_char("You aren't of high enough rank to recall that far.\n\r", ch);
-			return;
-		}
+    if (!IS_SET(ch->church->settings, CHURCH_ALLOW_CROSSZONES) &&
+        ch->church_member->rank->rank_type < RANK_TYPE_LEADER  && !has_church_permission(ch->church_member, CHURCH_PERM_GH_CROSS))
+    {
+        send_to_char("Your church leader has forsaken members from gohalling cross-zone.\n\r", ch);
+        return;
+    }
 
 		if (ch->church->pneuma < pneuma_cost || ch->church->dp < dp_cost)
 		{
@@ -939,17 +793,9 @@ void do_chgohall(CHAR_DATA *ch, char *argument)
 		((region_loc->place_flags == PLACE_THIRD_CONTINENT) && get_region(ch->in_room) != REGION_THIRD_CONTINENT) ||
 		((region_loc->place_flags == PLACE_FOURTH_CONTINENT) && get_region(ch->in_room) != REGION_FOURTH_CONTINENT))
 	{
-	    if (!IS_SET(ch->church->settings, CHURCH_ALLOW_CROSSZONES)
-	    && ch->church_member->rank < CHURCH_RANK_D)
+	    if (!IS_SET(ch->church->settings, CHURCH_ALLOW_CROSSZONES) && !has_church_permission(ch->church_member, CHURCH_PERM_GH_CROSS))
 	    {
 		send_to_char("Your church leader has forsaken members from gohalling cross-zone.\n\r", ch);
-		return;
-	    }
-
-	    if (ch->church_member->rank < CHURCH_RANK_C
-	    && !is_trusted(ch->church_member, "gohall"))
-	    {
-		send_to_char("You aren't of high enough rank to recall that far.\n\r", ch);
 		return;
 	    }
 
@@ -1133,7 +979,7 @@ void do_chdeposit(CHAR_DATA * ch, char *argument)
 
     send_to_char(buf, ch);
 
-    write_churches_new();
+    save_church(ch->church);
     save_char_obj(ch);
     return;
 }
@@ -1318,7 +1164,6 @@ void do_chcreate(CHAR_DATA *ch, char *argument)
 		player->next = NULL;
 		player->ch = ch;
 		player->name = str_dup(ch->name);
-		player->rank = CHURCH_RANK_D;
 		player->church = church;
 		player->sex = ch->sex;
 
@@ -1332,7 +1177,22 @@ void do_chcreate(CHAR_DATA *ch, char *argument)
 		sprintf(buf, "{Y[%s has registered the Band of %s{Y]{x\n\r", ch->name, church->name);
 		gecho(buf);
 
-		write_churches_new();
+    // After creating the church structure
+    initialize_church_ranks(church);
+    
+    // Set the founder to the leader rank
+    CHURCH_RANK_DATA *leader_rank = NULL;
+    for (leader_rank = church->ranks; leader_rank; leader_rank = leader_rank->next) {
+        if (leader_rank->rank_type == RANK_TYPE_LEADER)
+            break;
+    }
+    
+    // Assign the leader rank to the founder
+    if (leader_rank) {
+        player->rank = leader_rank;
+    }
+
+		save_church(ch->church);
 	} else {
 		if( church ) {
 			list_remlink(list_churches, church, false);
@@ -1390,7 +1250,7 @@ void do_chdelete(CHAR_DATA *ch, char *argument)
 
 	send_to_char("Church deleted.\n\r", ch);
 
-	write_churches_new();
+	save_church(ch->church);
 	return;
     }
 }
@@ -1627,68 +1487,17 @@ void do_chtalk(CHAR_DATA *ch, char *argument)
 
 char *get_chrank(CHURCH_PLAYER_DATA *member)
 {
-    char *rank_name;
-    char buf[MAX_STRING_LENGTH];
-
-    if (member == NULL)
-    {
-        snprintf(buf, sizeof(buf), "get_chrank: member was null!");
-	bug(buf, 0) ;
-	return NULL;
-    }
-
-    if (member->church == NULL)
-    {
-	sprintf(buf, "get_chrank: member->church was null! %s",
-		member->name);
-	bug (buf, 0);
-	return NULL;
-    }
-
-    if (member->sex == SEX_FEMALE)
-    {
-	switch (member->church->size)
-	{
-  	    case CHURCH_SIZE_BAND:
-              	rank_name = church_band_rank_table[member->rank].frank_name;
-		break;
-	    case CHURCH_SIZE_CULT:
-		rank_name = church_cult_rank_table[member->rank].frank_name;
-		break;
-	    case CHURCH_SIZE_ORDER:
-		rank_name = church_order_rank_table[member->rank].frank_name;
-		break;
-	    case CHURCH_SIZE_CHURCH:
-		rank_name = church_church_rank_table[member->rank].frank_name;
-		break;
-	    default:
-		rank_name = church_band_rank_table[0].frank_name;
-		break;
-	}
-    }
+    // Check for null pointers to avoid crashes
+    if (member == NULL || member->church == NULL || member->rank == NULL)
+        return "Unknown";
+    
+    // Return the appropriate gender-specific rank name
+    if (member->sex == SEX_FEMALE && member->rank->name_female)
+        return member->rank->name_female;
+    else if (member->sex == SEX_NEUTRAL && member->rank->name_neutral)
+        return member->rank->name_neutral;
     else
-    {
-        switch (member->church->size)
-	{
-	    case CHURCH_SIZE_BAND:
-   	        rank_name = church_band_rank_table[member->rank].mrank_name;
-		break;
-	    case CHURCH_SIZE_CULT:
-		rank_name = church_cult_rank_table[member->rank].mrank_name;
-		break;
-	    case CHURCH_SIZE_ORDER:
-		rank_name = church_order_rank_table[member->rank].mrank_name;
-		break;
-	    case CHURCH_SIZE_CHURCH:
-		rank_name = church_church_rank_table[member->rank].mrank_name;
-		break;
-	    default:
-		rank_name = church_band_rank_table[0].mrank_name;
-		break;
-	}
-    }
-
-    return rank_name;
+        return member->rank->name_male;
 }
 
 
@@ -1719,10 +1528,16 @@ void do_chexcommunicate(CHAR_DATA * ch, char *argument)
 	return;
     }
 
-    if (member->rank == CHURCH_RANK_D)
+    if (member->rank->rank_type == RANK_TYPE_LEADER)
     {
-	act("You may not excommunicate a church leader.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return;
+        act("You may not excommunicate a church leader.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        return;
+    }
+
+    if (!can_modify_church_member(ch, member))
+    {
+        send_to_char("You may not excommunicate the church owner.\n\r", ch);
+        return;
     }
 
     if (IS_SET(member->flags, CHURCH_PLAYER_EXCOMMUNICATED))
@@ -1857,7 +1672,7 @@ void do_chadvance(CHAR_DATA *ch, char* argument)
 
     gecho(buf);
 
-    write_churches_new();
+    save_church(ch->church);
 }
 
 
@@ -1945,7 +1760,7 @@ void do_chdeduct(CHAR_DATA *ch, char *argument)
         amt, arg2, church->name);
     send_to_char(buf, ch);
 
-    write_churches_new();
+    save_church(ch->church);
 }
 
 
@@ -1987,15 +1802,15 @@ void do_chinfo(CHAR_DATA *ch, char *argument)
 		return;
 	    }
 
-	    if (ch->church_member->rank < CHURCH_RANK_D
-            && !is_trusted(ch->church_member, "info"))
-	    {
-		send_to_char("You aren't high enough rank to do that.\n\r", ch);
-		return;
-	    }
+    if (ch->church_member->rank->rank_type < RANK_TYPE_LEADER
+        && !has_church_permission(ch->church_member, CHURCH_PERM_MANAGE))
+    {
+        send_to_char("You aren't high enough rank to do that.\n\r", ch);
+        return;
+    }
 
 	    string_append(ch, &ch->church->info);
-	    write_churches_new();
+	    save_church(ch->church);
 	    return;
 	}
 
@@ -2392,14 +2207,6 @@ void do_chwithdraw(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    /*
-    if (ch->church_member->rank < CHURCH_RANK_B && !is_trusted(ch->church_member, "withdraw"))
-    {
-        send_to_char("You're not of the proper rank to do it.\n\r", ch);
-	return;
-    }
-    */
-
     for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
     {
 	if (IS_NPC(mob) && IS_SET(mob->act[1], ACT2_CHURCHMASTER))
@@ -2426,12 +2233,12 @@ void do_chwithdraw(CHAR_DATA *ch, char *argument)
 
     if (arg3[0] != '\0')
     {
-	if (ch->church_member->rank < CHURCH_RANK_D
-	&& !is_trusted(ch->church_member, "withdraw"))
-	{
-	     send_to_char("Only a leader may transfer balance to church members.\n\r", ch);
-	     return;
-	}
+    if (ch->church_member->rank->rank_type < RANK_TYPE_LEADER
+        && !has_church_permission(ch->church_member, CHURCH_PERM_WITHDRAW))
+    {
+        send_to_char("Only a leader may transfer balance to church members.\n\r", ch);
+        return;
+    }
 
 	if (arg3[0] == '\0'
 	|| (str_cmp(arg2, "pneuma")
@@ -2472,7 +2279,7 @@ void do_chwithdraw(CHAR_DATA *ch, char *argument)
 	          member = member->next)
 	    {
 		if (member->ch != NULL && member->ch->desc != NULL
-		&& member->rank == CHURCH_RANK_D && member->ch != ch
+		&& (!has_church_permission(ch->church_member, CHURCH_PERM_WITHDRAW) || !has_church_permission(ch->church_member, CHURCH_PERM_FINANCES)) && member->ch != ch
 		&& member->ch != victim)
 		{
 		    sprintf(buf, "{Y[%s has transferred %ld pneuma to %s.]{x\n\r", ch->name, amt, victim->name);
@@ -2498,7 +2305,7 @@ void do_chwithdraw(CHAR_DATA *ch, char *argument)
 	          member = member->next)
 	    {
 		if (member->ch != NULL && member->ch->desc != NULL
-		&& member->rank == CHURCH_RANK_D && member->ch != ch
+		&& (!has_church_permission(ch->church_member, CHURCH_PERM_WITHDRAW) || !has_church_permission(ch->church_member, CHURCH_PERM_FINANCES)) && member->ch != ch
 		&& member->ch != victim)
 		{
 		    sprintf(buf, "{Y[%s has transferred %ld dp to %s.]{x\n\r", ch->name, amt, victim->name);
@@ -2523,13 +2330,12 @@ void do_chwithdraw(CHAR_DATA *ch, char *argument)
 	    for (member = ch->church->people; member != NULL;
 	          member = member->next)
 	    {
-		if (member->ch != NULL && member->ch->desc != NULL
-		&& member->rank == CHURCH_RANK_D && member->ch != ch
-		&& member->ch != victim)
-		{
-		    sprintf(buf, "{Y[%s has transferred %ld gold to %s.]{x\n\r", ch->name, amt, victim->name);
-		    send_to_char(buf, member->ch);
-		}
+    if (ch->church_member->rank->rank_type < RANK_TYPE_LEADER
+        && !has_church_permission(ch->church_member, CHURCH_PERM_WITHDRAW))
+    {
+        send_to_char("Only a leader may transfer balance to church members.\n\r", ch);
+        return;
+    }
 	    }
 
 	    ch->church->gold -= amt;
@@ -2660,10 +2466,15 @@ void do_chlog(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (ch->church_member->rank < CHURCH_RANK_C)
+    if (ch->church_member->rank->rank_type < RANK_TYPE_OFFICER 
+		&& !has_church_permission(ch->church_member, CHURCH_PERM_VIEWLOG))
+	{
+		send_to_char("You don't have permission to do that.\n\r", ch);
+		return;
+	}
     {
         send_to_char("You may not view the log.\n\r", ch);
-	return;
+        return;
     }
 
     church = ch->church;
@@ -2711,10 +2522,10 @@ void do_choverthrow(CHAR_DATA *ch, char *argument)
  	return;
     }
 
-    if (!str_cmp(ch->name, church->founder))
+    if (is_church_owner(ch, church))
     {
-	send_to_char("That would be pointless, you're already the founder.\n\r", ch);
-	return;
+        send_to_char("That would be pointless, you're already the owner.\n\r", ch);
+        return;
     }
 
     if (church->size == CHURCH_SIZE_CHURCH)
@@ -2736,10 +2547,10 @@ void do_choverthrow(CHAR_DATA *ch, char *argument)
 	church->name);
     gecho(buf);
 
-    free_string(church->founder);
-    church->founder = str_dup(ch->name);
+    free_string(church->owner);
+    church->owner = str_dup(ch->name);
 
-    write_churches_new();
+    save_church(ch->church);
 }
 
 
@@ -2858,12 +2669,12 @@ CHURCH_DATA *find_char_church(CHAR_DATA * ch)
 }
 
 
-int find_char_position_in_church(CHAR_DATA * ch)
+int find_char_position_in_church(CHAR_DATA *ch)
 {
-    if (ch->church != NULL && ch->church_member != NULL)
-	return ch->church_member->rank;
+    if (ch->church != NULL && ch->church_member != NULL && ch->church_member->rank != NULL)
+        return ch->church_member->rank->rank_type;
     else
-	return -1;
+        return -1;
 }
 
 
@@ -2986,168 +2797,10 @@ void do_chcolour(CHAR_DATA *ch, char *argument)
 
 void do_chtrust(CHAR_DATA *ch, char *argument)
 {
-    CHURCH_DATA *church;
-    CHURCH_PLAYER_DATA *church_player;
-    STRING_DATA *string;
-    STRING_DATA *string_prev;
-    char arg[MSL];
-    char arg2[MSL];
-    char buf[MSL];
-    int i;
-
-    argument = one_argument(argument, arg);
-    argument = one_argument(argument, arg2);
-
-    if (arg[0] == '\0')
-    {
-	send_to_char("Syntax: church trust <person>\n\r"
-	             "        church trust <person> <command>\n\r", ch);
-	return;
-    }
-
-    if ((church = ch->church) == NULL)
-    {
-	send_to_char("You're not even in a church!\n\r", ch);
-	return;
-    }
-
-    if (str_cmp(ch->name, church->founder))
-    {
-	send_to_char("Only the founder of the church can entrust people with commands.\n\r", ch);
-	return;
-    }
-
-    if (arg[0] == '\0')
-    {
-	send_to_char("Syntax: church trust <member> <command>\n\r", ch);
-	send_to_char("        church trust <member>\n\r", ch);
-	return;
-    }
-
-    church_player = NULL;
-    for (church_player = church->people; church_player != NULL;
-          church_player = church_player->next)
-    {
-	if (!str_cmp(church_player->name, arg))
-	    break;
-    }
-
-    if (church_player == NULL)
-    {
-	send_to_char("There is no such member in your church.\n\r", ch);
-	return;
-    }
-
-    if (!str_cmp(arg2, "trust"))
-    {
-	send_to_char("Sorry, you can't do that.\n\r", ch);
-	return;
-    }
-
-    /* no args, show list */
-    if (arg2[0] == '\0')
-    {
-	sprintf(buf, "{Y%s is entrusted with the following commands:{x\n\r",
-	    church_player->name);
-	send_to_char(buf, ch);
-	line(ch, 50, NULL, NULL);
-
-	i = 0;
-	for (string = church_player->commands; string != NULL; string = string->next)
-	{
-	    sprintf(buf, "{Y%i): {x%s\n\r", i + 1, string->string);
-	    send_to_char(buf, ch);
-
-	    i++;
-	}
-
-	if (i == 0)
-	    send_to_char("No commands.\n\r", ch);
-
-	line(ch, 50, NULL, NULL);
-
-	return;
-    }
-
-    if (church_player->rank >= CHURCH_RANK_D)
-    {
-	act("That would be pointless. $t is a leader and already has all commands.", ch, NULL, NULL, NULL, NULL, church_player->name, NULL, TO_CHAR);
-	return;
-    }
-
-    for (i = 0; church_command_table[i].command != NULL; i++)
-    {
-	if (!str_cmp(church_command_table[i].command, arg2))
-	    break;
-    }
-
-    if (church_command_table[i].command == NULL
-    || church_command_table[i].rank > 3)
-    {
-	send_to_char("There is no such command.\n\r", ch);
-	return;
-    }
-
-    if (church_command_table[i].rank < 1
-    && str_cmp(arg2, "rules")
-    && str_cmp(arg2, "motd"))
-    {
-	send_to_char("That would be redundant. All members can use that command.\n\r", ch);
-	return;
-    }
-
-    string_prev = NULL;
-    for (string = church_player->commands; string != NULL; string = string->next)
-    {
-	if (!str_cmp(arg2, string->string))
-	    break;
-
-	string_prev = string;
-    }
-
-    /* remove a command from the list */
-    if (string != NULL)
-    {
-	act("$t is no longer entrusted with the '$T' command.",
-	    ch, NULL, NULL, NULL, NULL, church_player->name, string->string, TO_CHAR);
-	if (string_prev != NULL)
-	    string_prev->next = string->next;
-	else
-	    church_player->commands = string->next;
-
-	free_string_data(string);
-	return;
-    }
-    else
-    {
-	string = new_string_data();
-	string->string = str_dup(arg2);
-	act("$t is now entrusted with the '$T' command.", ch, NULL, NULL, NULL, NULL, church_player->name, string->string, TO_CHAR);
-	string->next = church_player->commands;
-	church_player->commands = string;
-    }
+    send_to_char("The trust command has been replaced with 'church userperm'.\n\r", ch);
+    send_to_char("Syntax: church userperm <character> <permission> [on|off]\n\r", ch);
+    return;
 }
-
-
-bool is_trusted(CHURCH_PLAYER_DATA *member, char *command)
-{
-    STRING_DATA *string;
-
-    if (member == NULL)
-    {
-	bug("is_trusted: null member!", 0);
-	return false;
-    }
-
-    for (string = member->commands; string != NULL; string = string->next)
-    {
-	if (!str_cmp(string->string, command))
-	    return true;
-    }
-
-    return false;
-}
-
 
 /* add something to the church's log */
 void append_church_log(CHURCH_DATA *church, char *string)
@@ -3540,11 +3193,11 @@ void do_chdonate(CHAR_DATA *ch, char *argument)
 	}
 
 	// Only check rooms after the default room
-	if( roomno > 1 && ch->church_member->rank < treasure->min_rank )
-	{
-		send_to_char("You do not have permission to use that room.\n\r", ch);
-		return;
-	}
+    if (roomno > 1 && ch->church_member->rank->rank_type < treasure->min_rank)
+    {
+        send_to_char("You do not have permission to use that room.\n\r", ch);
+        return;
+    }
 
     if (count_items_list_nest(treasure->room->contents) > MAX_CHURCH_TREASURE)
     {
@@ -3626,22 +3279,12 @@ void do_chdonate(CHAR_DATA *ch, char *argument)
 void write_churches_new()
 {
     CHURCH_DATA *church;
-    FILE *fp;
-
-    log_string("Writing churches...");
-    if ((fp = fopen(CHURCHES_FILE, "w")) == NULL) {
-    	bug("write_churches: couldn't open churches.dat", 0);
-	return;
-    }
-
+    
+    log_string("Writing all churches...");
+    
     for (church = church_list; church != NULL; church = church->next) {
-        write_church(church, fp);
-	fprintf(fp, "\n");
+        save_church(church);
     }
-
-    fprintf(fp, "#ENDFILE\n");
-
-    fclose(fp);
 }
 
 
@@ -3653,6 +3296,7 @@ void write_church(CHURCH_DATA *church, FILE *fp)
 
     fprintf(fp, "#CHURCH %s~\n", church->name);
     fprintf(fp, "UID %ld\n", church->uid);
+    fprintf(fp, "Version %d\n", VERSION_CHURCH);
     fprintf(fp, "Alignment %d\n", church->alignment);
     fprintf(fp, "CPKLosses %ld\n", church->cpk_losses);
     fprintf(fp, "CPKWins %ld\n", church->cpk_wins);
@@ -3661,7 +3305,8 @@ void write_church(CHURCH_DATA *church, FILE *fp)
     fprintf(fp, "DeityPoints %ld\n", church->dp);
     fprintf(fp, "Flag %s~\n", fix_string(church->flag));
     fprintf(fp, "Founder %s~\n", church->founder);
-    fprintf(fp, "LastLoginFounder %ld\n", (long int)church->founder_last_login);
+	fprintf(fp, "Owner %s\n", church->owner);
+    fprintf(fp, "LastLoginOwner %ld\n", (long int)church->owner_last_login);
     fprintf(fp, "Gold %ld\n", church->gold);
     fprintf(fp, "Key %ld\n", church->key ? church->key->vnum : 0);
     fprintf(fp, "MaxPositions %d\n", church->max_positions);
@@ -3672,30 +3317,102 @@ void write_church(CHURCH_DATA *church, FILE *fp)
     fprintf(fp, "Size %d\n", church->size);
     fprintf(fp, "ToggledPK %d\n", church->pk);
     fprintf(fp, "WarsWon %ld\n", church->wars_won);
+    fprintf(fp, "CofferRent %ld\n", church->coffer_rent);
+    fprintf(fp, "StoragePerms %ld\n", church->storage_permissions);
 
+    // Write church content
     fprintf(fp, "Motd %s~\n", fix_string(church->motd));
     fprintf(fp, "Rules %s~\n", fix_string(church->rules));
     if (church->info != NULL)
-		fprintf(fp, "Info %s~\n", fix_string(church->info));
+        fprintf(fp, "Info %s~\n", fix_string(church->info));
 
-	if (church->hall_area)
-	{
-		fprintf(fp, "Hall %ld %ld\n", church->hall_area->uid, church->vnum_start);
-	    fprintf(fp, "RecallPoint %ld\n", church->recall_point.id[0]);
-		iterator_start(&it, church->treasure_rooms);
-		CHURCH_TREASURE_ROOM *treasure;
-		while(( treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it))) {
-			room = treasure->room;
-			if(room->wilds)
-				fprintf(fp, "TreasureVRoomMR %ld %ld %ld %ld %d\n", room->wilds->uid, room->x, room->y, room->z, treasure->min_rank);
-			else
-				fprintf(fp, "TreasureRoomMR %ld %d\n", room->vnum, treasure->min_rank);
-		}
-		iterator_stop(&it);
-	}
+    // Write church hall information
+    if (church->hall_area)
+    {
+        fprintf(fp, "Hall %ld %ld\n", church->hall_area->uid, church->vnum_start);
+        fprintf(fp, "RecallPoint %ld\n", church->recall_point.id[0]);
+        
+        // Write treasure rooms
+    iterator_start(&it, church->treasure_rooms);
+    CHURCH_TREASURE_ROOM *treasure;
+    while((treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it))) {
+        room = treasure->room;
+        
+        if(room->wilds)
+            fprintf(fp, "TreasureVRoom %ld %ld %ld %ld %d\n", 
+                room->wilds->uid, room->x, room->y, room->z, 
+                treasure->is_default ? 1 : 0);
+        else
+            fprintf(fp, "TreasureRoom %ld %d\n", 
+                room->vnum, treasure->is_default ? 1 : 0);
+            
+        // Write rank access list
+        if (!treasure->is_default && treasure->allowed_ranks) {
+            ITERATOR rank_it;
+            CHURCH_RANK_DATA *rank;
+            int rank_index;
+            
+            iterator_start(&rank_it, treasure->allowed_ranks);
+            while ((rank = (CHURCH_RANK_DATA *)iterator_nextdata(&rank_it))) {
+                // Find the rank index
+                rank_index = 0;
+                CHURCH_RANK_DATA *r = church->ranks;
+                while (r && r != rank) {
+                    r = r->next;
+                    rank_index++;
+                }
+                
+                // Only write valid indices
+                if (r == rank) {
+                    fprintf(fp, "TreasureAccess %d\n", rank_index);
+                }
+            }
+            iterator_stop(&rank_it);
+        }
+    }
+    iterator_stop(&it);
+    }
 
+    if (church->default_rank) {
+        int default_rank_index = 0;
+        CHURCH_RANK_DATA *rank;
+        for (rank = church->ranks; rank != church->default_rank; rank = rank->next)
+            default_rank_index++;
+            
+        fprintf(fp, "DefaultRank %d\n", default_rank_index);
+    }
+    
+    // Write church ranks with the new flags field
+    fprintf(fp, "NumRanks %d\n", church->num_ranks);
+    
+    CHURCH_RANK_DATA *rank;
+    int i = 0;
+    for (rank = church->ranks; rank; rank = rank->next, i++) {
+        fprintf(fp, "Rank %d\n", i);
+        fprintf(fp, "RankNameMale %s~\n", rank->name_male);
+        fprintf(fp, "RankNameFemale %s~\n", rank->name_female);
+        fprintf(fp, "RankNameNeutral %s~\n", rank->name_neutral);
+        fprintf(fp, "RankType %d\n", rank->rank_type);
+        fprintf(fp, "RankPermissions %ld\n", rank->permissions);
+        fprintf(fp, "RankFlags %ld\n", rank->flags);
+        fprintf(fp, "EndRank\n");
+    }
+    
+    // Write church coffer items
+    if (church->coffer)
+    {
+        fprintf(fp, "#COFFER\n");
+        OBJ_DATA *obj;
+        for (obj = church->coffer; obj != NULL; obj = obj->next_content)
+        {
+            fwrite_obj_new(NULL, obj, fp, 0);
+        }
+        fprintf(fp, "#ENDCOFFER\n");
+    }
+
+    // Write church members
     if (church->people != NULL)
-		write_church_member(church->people, fp);
+        write_church_member(church->people, fp);
 
     fprintf(fp, "#-CHURCH\n");
 }
@@ -3715,9 +3432,16 @@ void write_church_member(CHURCH_PLAYER_DATA *member, FILE *fp)
     fprintf(fp, "DepositedGold %ld\n", member->dep_gold);
     fprintf(fp, "DepositedPneuma %ld\n", member->dep_pneuma);
     fprintf(fp, "Flags %ld\n", member->flags);
+    fprintf(fp, "PersonalPerms %ld\n", member->personal_permissions);
     fprintf(fp, "PKLosses %ld\n", member->pk_losses);
     fprintf(fp, "PKWins %ld\n", member->pk_wins);
-    fprintf(fp, "Rank %d\n", member->rank);
+    
+    // Store rank by name for better persistence across church structure changes
+    if (member->rank)
+        fprintf(fp, "RankName %s~\n", member->rank->name_male);
+    else
+        fprintf(fp, "RankName Unknown~\n");
+    
     fprintf(fp, "Sex %d\n", member->sex);
     fprintf(fp, "WarsWon %ld\n", member->wars_won);
     fprintf(fp, "#-MEMBER\n");
@@ -3740,34 +3464,57 @@ void add_church_to_list(CHURCH_DATA *church, CHURCH_DATA *list)
 
 void read_churches_new()
 {
+    DIR *dir;
+    struct dirent *entry;
     FILE *fp;
-    char *word;
+    char filename[256];
     CHURCH_DATA *church;
-
+    
     log_string("Reading churches...");
-    if ((fp = fopen(CHURCHES_FILE, "r")) == NULL) {
-        bug("read_churches: can't open churches.dat", 0);
-	return;
+    
+    if ((dir = opendir(ORG_DIR)) == NULL) {
+        bug("read_churches_new: can't open church directory", 0);
+        return;
     }
-
-    while(true) {
-        word = fread_word(fp);
-	if (!str_cmp(word, "#ENDFILE"))
-	    break;
-
-	church = read_church(fp);
-	if (church_list == NULL)
-	    church_list = church;
-	else
-	    add_church_to_list(church, church_list);
-		if( !list_appendlink(list_churches, church) ) {
-			bug("Failed to load churches due to memory issue with 'list_appendlink'", 0);
-			abort();
-		}
+    
+    // Read each file in the directory
+    int count = 0;
+    while ((entry = readdir(dir)) != NULL) {
+        // Check for .org extension
+        if (strlen(entry->d_name) > 4 && 
+            !strcmp(entry->d_name + strlen(entry->d_name) - 4, ".org")) {
+            
+			snprintf(filename, sizeof(filename), "%s%s", ORG_DIR, entry->d_name);            
+            if ((fp = fopen(filename, "r")) == NULL) {
+                bug("read_churches_new: can't open church file", 0);
+                continue;
+            }
+            
+            church = read_church(fp);
+            fclose(fp);
+            
+            if (church) {
+                // Add to list and append to global list
+                if (church_list == NULL)
+                    church_list = church;
+                else
+                    add_church_to_list(church, church_list);
+                    
+                if (!list_appendlink(list_churches, church)) {
+                    bug("Failed to load churches due to memory issue with 'list_appendlink'", 0);
+                    abort();
+                }
+                
+                count++;
+            }
+        }
     }
-
-
-    fclose(fp);
+    
+    closedir(dir);
+    
+    char buf[256];
+    sprintf(buf, "Loaded %d churches from individual files", count);
+    log_string(buf);
 }
 
 
@@ -3781,221 +3528,380 @@ CHURCH_DATA *read_church(FILE *fp)
 
     church = new_church();
     church->name = fread_string(fp);
+    int version = 0;
+    int default_rank_index = 0;
+    bool has_default_rank = false;
 
     for (; ;) {
         word = fread_word(fp);
-	fMatch = false;
+        fMatch = false;
 
         if (!str_cmp(word, "#-CHURCH"))
-	    break;
+            break;
 
-	switch (word[0]) {
-	    case '#':
-	        if (!str_cmp(word, "#MEMBER")) {
-		    member = read_church_member(fp);
+        switch (word[0]) {
+            case '#':
+                if (!str_cmp(word, "#MEMBER")) {
+                    member = read_church_member(fp);
 
-		    if (!player_exists(member->name)) {
-			sprintf(buf, "read_church: had church member data %s but no pfile, deleting", member->name);
-			log_string(buf);
-			free_church_player(member);
-		    } else {
-			member->next = church->people;
-			church->people = member;
-			member->church = church;
+                    if (!player_exists(member->name)) {
+                        sprintf(buf, "read_church: had church member data %s but no pfile, deleting", member->name);
+                        log_string(buf);
+                        free_church_player(member);
+                    } else {
+                        member->next = church->people;
+                        church->people = member;
+                        member->church = church;
 
-				if( !list_appendlink(church->roster, member->name) ) {
-					bug("Failed to load church member information due to memory issues with 'list_appendlink'.", 0);
-					abort();
-				}
-		    }
-		}
+                        if(!list_appendlink(church->roster, member->name)) {
+                            bug("Failed to load church member information due to memory issues with 'list_appendlink'.", 0);
+                            abort();
+                        }
+                    }
+                    fMatch = true;
+                    break;
+                }
+                else if (!str_cmp(word, "#COFFER"))
+                {
+                    // Process coffer items
+                    OBJ_DATA *obj;
+                    OBJ_DATA *objNestList[MAX_NEST];
+                    int iNest;
 
-		break;
+                    for (iNest = 0; iNest < MAX_NEST; iNest++)
+                        objNestList[iNest] = NULL;
+                    
+                    while (!str_cmp((word = fread_word(fp)), "#O"))
+                    {
+                        obj = fread_obj_new(fp);
+                        if (obj == NULL)
+                            continue;
+                        
+                        objNestList[obj->nest] = obj;
+                        
+                        if (obj->nest == 0) {
+                            obj->next_content = church->coffer;
+                            church->coffer = obj;
+                        } else {
+                            OBJ_DATA *container = objNestList[obj->nest - 1];
+                            if (IS_CONTAINER(container))
+                                obj_to_obj(obj, container);
+                            else {
+                                sprintf(buf, "read_church: found obj %s in non-container in coffer",
+                                    obj->short_descr);
+                                log_string(buf);
+                                // Put it at top level if container is invalid
+                                obj->next_content = church->coffer;
+                                church->coffer = obj;
+                            }
+                        }
+                    }
+                    
+                    // Skip to end of coffer section
+                    while (str_cmp(word, "#ENDCOFFER") && str_cmp(word, "#-CHURCH"))
+                    {
+                        word = fread_word(fp);
+                    }
+                    
+                    if (!str_cmp(word, "#-CHURCH"))
+                        break;
+                        
+                    fMatch = true;
+                }
+                break;
 
-	    case 'A':
-		KEY("Alignment",	church->alignment,	fread_number(fp));
-		break;
+            case 'A':
+                KEY("Alignment", church->alignment, fread_number(fp));
+                break;
 
-	    case 'C':
-	        KEY("CPKLosses",	church->cpk_losses,		fread_number(fp));
-		KEY("CPKWins",		church->cpk_wins,		fread_number(fp));
-		KEY("Colour1",		church->colour1,			fread_letter(fp));
-		KEY("Colour2",		church->colour2,			fread_letter(fp));
-		break;
+            case 'C':
+                KEY("CPKLosses", church->cpk_losses, fread_number(fp));
+                KEY("CPKWins", church->cpk_wins, fread_number(fp));
+                KEY("Colour1", church->colour1, fread_letter(fp));
+                KEY("Colour2", church->colour2, fread_letter(fp));
+                KEY("CofferRent", church->coffer_rent, fread_number(fp));
+                break;
 
-	    case 'D':
-	        KEY("DeityPoints",	church->dp,			fread_number(fp));
-		break;
 
-	    case 'F':
-		KEYS("Flag",		church->flag,			fread_string(fp));
-		KEYS("Founder",		church->founder,		fread_string(fp));
-		break;
+    case 'D':
+        KEY("DefaultRank", default_rank_index, fread_number(fp));
+        has_default_rank = true;
+        break;
+                KEY("DeityPoints", church->dp, fread_number(fp));
+                break;
 
-	    case 'G':
-	        KEY("Gold",		church->gold,			fread_number(fp));
-		break;
+            case 'F':
+                KEYS("Flag", church->flag, fread_string(fp));
+                KEYS("Founder", church->founder, fread_string(fp));
+                break;
 
-		case 'H':
-			if (!str_cmp(word, "Hall"))
-			{
-				church->hall_area = get_area_from_uid(fread_number(fp));
-				church->vnum_start = fread_number(fp);
-				fMatch = true;
-				break;
-			}
-			break;
+            case 'G':
+                KEY("Gold", church->gold, fread_number(fp));
+                break;
+
+            case 'H':
+                if (!str_cmp(word, "Hall"))
+                {
+                    church->hall_area = get_area_from_uid(fread_number(fp));
+                    church->vnum_start = fread_number(fp);
+                    fMatch = true;
+                    break;
+                }
+                break;
 
             case 'I':
-	        KEYS("Info",		church->info,			fread_string(fp));
+                KEYS("Info", church->info, fread_string(fp));
+                break;
 
-	    case 'K':
-			if (!str_cmp(word, "Key"))
-			{
-				long vnum = fread_number(fp);
+            case 'K':
+                if (!str_cmp(word, "Key"))
+                {
+                    long vnum = fread_number(fp);
+                    church->key = get_obj_index(church->hall_area, vnum);
+                    fMatch = true;
+                    break;
+                }
+                break;
 
-				church->key = get_obj_index(church->hall_area, vnum);
-				fMatch = true;
-				break;
-			}
-			break;
-
-		case 'L':
-	        KEY("LastLoginFounder", church->founder_last_login,	fread_number(fp));
-			break;
+            case 'L':
+				if (!str_cmp(word, "LastLoginFounder"))
+					church->founder_last_login = fread_number(fp);
+				KEY("LastLoginOwner", church->owner_last_login, fread_number(fp));
+                break;
 
             case 'M':
-	        KEY("MaxPositions",	church->max_positions,		fread_number(fp));
-		KEYS("Motd",		church->motd,			fread_string(fp));
-		break;
+                KEY("MaxPositions", church->max_positions, fread_number(fp));
+                KEYS("Motd", church->motd, fread_string(fp));
+                break;
+
+            case 'N':
+                KEY("NumRanks", church->num_ranks, fread_number(fp));
+                break;
+			case 'O':
+				KEY("Owner", church->owner, fread_string(fp));
 
             case 'P':
-	        KEY("PKLosses",		church->pk_losses,		fread_number(fp));
-		KEY("PKWins",		church->pk_wins,		fread_number(fp));
-		KEY("Pneuma",		church->pneuma,			fread_number(fp));
-		break;
+                KEY("PKLosses", church->pk_losses, fread_number(fp));
+                KEY("PKWins", church->pk_wins, fread_number(fp));
+                KEY("Pneuma", church->pneuma, fread_number(fp));
+                break;
 
-	    case 'R':
-	        KEY("RecallPoint",	church->recall_point.id[0],		fread_number(fp));
-		KEYS("Rules",		church->rules,			fread_string(fp));
-		break;
+            case 'R':
+                if (!str_cmp(word, "Rank")) {
+                    int rank_index = fread_number(fp);
+                    CHURCH_RANK_DATA *rank = new_church_rank();
+                    
+                    for (;;) {
+                        word = fread_word(fp);
+                        
+                        if (!str_cmp(word, "EndRank"))
+                            break;
+                            
+                        if (!str_cmp(word, "RankNameMale"))
+                            rank->name_male = fread_string(fp);
+                        else if (!str_cmp(word, "RankNameFemale"))
+                            rank->name_female = fread_string(fp);
+                        else if (!str_cmp(word, "RankNameNeutral"))
+                            rank->name_neutral = fread_string(fp);
+                        else if (!str_cmp(word, "RankType"))
+                            rank->rank_type = fread_number(fp);
+                        else if (!str_cmp(word, "RankPermissions"))
+                            rank->permissions = fread_number(fp);
+                    }
+                    
+                    // Add to end of list
+                    if (!church->ranks) {
+                        church->ranks = rank;
+                    } else {
+                        CHURCH_RANK_DATA *temp;
+                        for (temp = church->ranks; temp->next; temp = temp->next)
+                            ;
+                        temp->next = rank;
+                    }
+                    
+                    church->num_ranks++;
+                    fMatch = TRUE;
+                    break;
+                }
+                
+                KEY("RecallPoint", church->recall_point.id[0], fread_number(fp));
+                KEYS("Rules", church->rules, fread_string(fp));
+                break;
 
-	    case 'S':
-	        KEY("Settings",		church->settings,		fread_flag(fp));
-		KEY("Size",		church->size,			fread_number(fp));
-		break;
+            case 'S':
+                KEY("Settings", church->settings, fread_flag(fp));
+                KEY("Size", church->size, fread_number(fp));
+                KEY("StoragePerms", church->storage_permissions, fread_number(fp));
+                break;
 
-	    case 'T':
-	        KEY("ToggledPK",	church->pk,			fread_number(fp));
-			if( !str_cmp(word, "TreasureRoom") ) {
-				ROOM_INDEX_DATA *room = get_room_index(church->hall_area, fread_number(fp));
+            case 'T':
+                KEY("ToggledPK", church->pk, fread_number(fp));
+    if (!str_cmp(word, "TreasureRoom")) {
+        ROOM_INDEX_DATA *room = get_room_index(church->hall_area, fread_number(fp));
+        bool is_default = (fread_number(fp) == 1);
+        
+        if (room) {
+            // Create the treasure room with default values
+            CHURCH_TREASURE_ROOM *treasure = create_church_treasure_room(church, room, is_default);
+            if (!treasure) {
+                bug("Failed to create church treasure room.", 0);
+                abort();
+            }
+        }
+        fMatch = true;
+        break;
+    }
+    if (!str_cmp(word, "TreasureRoomMR")) {
+        ROOM_INDEX_DATA *room = get_room_index(church->hall_area, fread_number(fp));
+        int min_rank = fread_number(fp);
+        bool is_default = (min_rank == CHURCH_RANK_A);
+        
+        if (room) {
+            // Create the treasure room
+            CHURCH_TREASURE_ROOM *treasure = create_church_treasure_room(church, room, is_default);
+            if (!treasure) {
+                bug("Failed to create church treasure room.", 0);
+                abort();
+            }
+            
+            // Store the min_rank temporarily - we'll convert during upgrade
+            treasure->min_rank = min_rank;
+        }
+        fMatch = true;
+        break;
+    }
+    
+    // Handle old-style wilderness treasure rooms with min_rank
+    if (!str_cmp(word, "TreasureVRoomMR")) {
+        WILDS_DATA *wilds;
+        ROOM_INDEX_DATA *room;
+        int x, y, z;
+        
+        wilds = get_wilds_from_uid(NULL, fread_number(fp));
+        x = fread_number(fp);
+        y = fread_number(fp);
+        z = fread_number(fp);
+        int min_rank = fread_number(fp);
+        bool is_default = (min_rank == CHURCH_RANK_A);
+        
+        room = get_wilds_vroom(wilds, x, y);
+        if (!room)
+            room = create_wilds_vroom(wilds, x, y);
+        
+        if (room) {
+            // Create the treasure room
+            CHURCH_TREASURE_ROOM *treasure = create_church_treasure_room(church, room, is_default);
+            if (!treasure) {
+                bug("Failed to create church treasure room.", 0);
+                abort();
+            }
+            
+            // Store the min_rank temporarily - we'll convert during upgrade
+            treasure->min_rank = min_rank;
+        }
+        fMatch = true;
+        break;
+    }
+    
+if (!str_cmp(word, "TreasureAccess")) {
+    int rank_index = fread_number(fp);
+    
+    // Get the last added treasure room
+    CHURCH_TREASURE_ROOM *treasure = NULL;
+    if (list_size(church->treasure_rooms) > 0) {
+        treasure = (CHURCH_TREASURE_ROOM *)list_last(church->treasure_rooms);
+    }
+    
+    // Get the rank at the given index
+    if (treasure) {
+        CHURCH_RANK_DATA *rank = church->ranks; // Changed from ch->church->ranks to church->ranks
+        int i = 0;
+        
+        while (rank && i < rank_index) {
+            rank = rank->next;
+            i++;
+        }
+        
+        // Add the rank to the treasure room's access list
+        if (rank) {
+            add_rank_to_treasure_room(treasure, rank);
+        }
+    }
+    
+    fMatch = true;
+    break;
+}
+	break;
 
-				if( room ) {
-					if( !church_add_treasure_room(church, room, CHURCH_RANK_A) ) {
-						bug("Failed to add church treasure room due to memory issues with 'list_appendlink'.", 0);
-						abort();
-					}
-				}
+            case 'U':
+                KEY("UID", church->uid, fread_number(fp));
+                break;
 
-				fMatch = true;
-				break;
-			}
-			if( !str_cmp(word, "TreasureRoomMR") ) {
-				ROOM_INDEX_DATA *room = get_room_index(church->hall_area, fread_number(fp));
-				int min_rank = fread_number(fp);
-				if( min_rank < CHURCH_RANK_A ) min_rank = CHURCH_RANK_A;
-				if( min_rank > CHURCH_RANK_D ) min_rank = CHURCH_RANK_D;
+            case 'V':
+                KEY("Version", version, fread_number(fp));
+                break;
 
-				if( room ) {
-					if( !church_add_treasure_room(church, room, min_rank) ) {
-						bug("Failed to add church treasure room due to memory issues with 'list_appendlink'.", 0);
-						abort();
-					}
-				}
+            case 'W':
+                KEY("WarsWon", church->wars_won, fread_number(fp));
+                break;
+        }
 
-				fMatch = true;
-				break;
-			}
-			if( !str_cmp(word, "TreasureVRoom") ) {
-				WILDS_DATA *wilds;
-				ROOM_INDEX_DATA *room;
-				int x;
-				int y;
-				//int z;
-
-				wilds = get_wilds_from_uid(NULL,fread_number(fp));
-				x = fread_number(fp);
-				y = fread_number(fp);
-				/*z = */(void)fread_number(fp);	// z isn't being used, but exists in the file?
-				room = get_wilds_vroom(wilds, x, y);
-				if(!room)
-					room = create_wilds_vroom(wilds,x, y);
-
-				if( room ) {
-					if( !church_add_treasure_room(church, room, CHURCH_RANK_A) ) {
-						bug("Failed to add church treasure room due to memory issues with 'list_appendlink'.", 0);
-						abort();
-					}
-				}
-
-				fMatch = true;
-				break;
-			}
-			if( !str_cmp(word, "TreasureVRoomMR") ) {
-				WILDS_DATA *wilds;
-				ROOM_INDEX_DATA *room;
-				int x;
-				int y;
-				//int z;
-
-				wilds = get_wilds_from_uid(NULL,fread_number(fp));
-				x = fread_number(fp);
-				y = fread_number(fp);
-				/*z = */(void)fread_number(fp);	// z isn't being used, but exists in the file?
-				int min_rank = fread_number(fp);
-				if( min_rank < CHURCH_RANK_A ) min_rank = CHURCH_RANK_A;
-				if( min_rank > CHURCH_RANK_D ) min_rank = CHURCH_RANK_D;
-
-				room = get_wilds_vroom(wilds, x, y);
-				if(!room)
-					room = create_wilds_vroom(wilds,x, y);
-
-				if( room ) {
-					if( !church_add_treasure_room(church, room, min_rank) ) {
-						bug("Failed to add church treasure room due to memory issues with 'list_appendlink'.", 0);
-						abort();
-					}
-				}
-
-				fMatch = true;
-				break;
-			}
-		break;
-
-		case 'U':
-			KEY("UID",		church->uid,			fread_number(fp));
-
-	    case 'W':
-		KEY("WarsWon",		church->wars_won,		fread_number(fp));
-		break;
-
-	    if (!fMatch) {
-	        snprintf(buf, sizeof(buf), "read_churches: no match on word %s", word);
-		bug(buf, 0);
-	    }
-	}
+        if (!fMatch) {
+            sprintf(buf, "read_churches: no match on word %s", word);
+            bug(buf, 0);
+        }
     }
 
-	// Force their max positions to meet the minimum requirements, if lower
+    // If no ranks were loaded and this is an old version, convert from old system
+    if (!church->ranks && version < VERSION_CHURCH_001) {
+        convert_church_ranks(church);
+	    upgrade_church_ranks(church);
+		if (!church->owner)
+        	church->owner = str_dup(church->founder);
+
+    }
+
+    // Force their max positions to meet the minimum requirements, if lower
     int max_pos = church_get_min_positions(church->size);
     church->max_positions = UMAX(church->max_positions, max_pos);
 
     if (church->info == NULL)
-		church->info = str_dup("No info set.");
+        church->info = str_dup("No info set.");
 
-	get_church_id(church);
+    // After reading all ranks, set the default rank
+    if (has_default_rank) {
+        CHURCH_RANK_DATA *rank = church->ranks;
+        int i = 0;
+        
+        while (rank && i < default_rank_index) {
+            rank = rank->next;
+            i++;
+        }
+        
+        if (rank)
+            church->default_rank = rank;
+    }
+    
+    // If no default rank was set or found, set it to the lowest non-leader rank
+    if (!church->default_rank) {
+        CHURCH_RANK_DATA *rank;
+        for (rank = church->ranks; rank; rank = rank->next) {
+            if (rank->rank_type != RANK_TYPE_LEADER) {
+                church->default_rank = rank;
+                break;
+            }
+        }
+        
+        // If still no default rank, use the first rank as a fallback
+        if (!church->default_rank && church->ranks)
+            church->default_rank = church->ranks;
+    }
 
-	variable_dynamic_fix_church(church);
+    get_church_id(church);
+    variable_dynamic_fix_church(church);
+
+    // Assign proper rank pointers to members after all ranks are loaded
+    assign_church_member_ranks(church);
 
     return church;
 }
@@ -4013,53 +3919,65 @@ CHURCH_PLAYER_DATA *read_church_member(FILE *fp)
 
     for (; ;) {
         word = fread_word(fp);
-	fMatch = false;
+        fMatch = false;
 
         if (!str_cmp(word, "#-MEMBER"))
-	    break;
+            break;
 
-	switch (word[0]) {
-	    case 'A':
-		KEY("Alignment",	member->alignment,		fread_number(fp));
-		break;
+        switch (word[0]) {
+            case 'A':
+                KEY("Alignment", member->alignment, fread_number(fp));
+                break;
 
-	    case 'C':
-	        KEY("CPKLosses",	member->cpk_losses,		fread_number(fp));
-		KEY("CPKWins",		member->cpk_wins,		fread_number(fp));
-		break;
+            case 'C':
+                KEY("CPKLosses", member->cpk_losses, fread_number(fp));
+                KEY("CPKWins", member->cpk_wins, fread_number(fp));
+                break;
 
-	    case 'D':
-	        KEY("DepositedDp",	member->dep_dp,			fread_number(fp));
-	        KEY("DepositedPneuma",	member->dep_pneuma,		fread_number(fp));
-	        KEY("DepositedGold",	member->dep_gold,		fread_number(fp));
-		break;
+            case 'D':
+                KEY("DepositedDp", member->dep_dp, fread_number(fp));
+                KEY("DepositedPneuma", member->dep_pneuma, fread_number(fp));
+                KEY("DepositedGold", member->dep_gold, fread_number(fp));
+                break;
 
             case 'F':
-	        KEY("Flags",		member->flags,			fread_number(fp));
-		break;
+                KEY("Flags", member->flags, fread_number(fp));
+                break;
 
             case 'P':
-	        KEY("PKLosses",	member->pk_losses,		fread_number(fp));
-		KEY("PKWins",		member->pk_wins,		fread_number(fp));
-		break;
+	            KEY("PersonalPerms", member->personal_permissions, fread_number(fp));
 
-	    case 'R':
-		KEY("Rank",		member->rank,			fread_number(fp));
-		break;
+                KEY("PKLosses", member->pk_losses, fread_number(fp));
+                KEY("PKWins", member->pk_wins, fread_number(fp));
+                break;
 
-	    case 'S':
-	        KEY("Sex",		member->sex,			fread_number(fp));
-		break;
+            case 'R':
+                if (!str_cmp(word, "Rank")) {
+                    member->old_rank = fread_number(fp); // Store the old rank number
+                    fMatch = TRUE;
+                    break;
+                }
+                
+                if (!str_cmp(word, "RankName")) {
+                    member->rank_name = fread_string(fp);
+                    fMatch = TRUE;
+                    break;
+                }
+                break;
 
-	    case 'W':
-		KEY("WarsWon",		member->wars_won,		fread_number(fp));
-		break;
+            case 'S':
+                KEY("Sex", member->sex, fread_number(fp));
+                break;
 
-	    if (!fMatch) {
-	        snprintf(buf, sizeof(buf), "read_churches: no match on word %s", word);
-		bug(buf, 0);
-	    }
-	}
+            case 'W':
+                KEY("WarsWon", member->wars_won, fread_number(fp));
+                break;
+        }
+
+        if (!fMatch) {
+            sprintf(buf, "read_churches: no match on word %s", word);
+            bug(buf, 0);
+        }
     }
 
     return member;
@@ -4182,33 +4100,36 @@ void church_remove_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room)
 
 CHURCH_TREASURE_ROOM *get_church_treasure_room(CHAR_DATA *ch, CHURCH_DATA *church, int nth)
 {
-	int min_rank = CHURCH_RANK_A;
+    if (ch != NULL) {
+        if (IS_NPC(ch) || ch->church != church || is_excommunicated(ch))
+            return NULL;
+    }
 
-	if( ch != NULL )
-	{
-		if( IS_NPC(ch) ) return NULL;
-		if( ch->church != church ) return NULL;
-		if( is_excommunicated(ch) ) return NULL;	// Excommunicated members cannot access treasure rooms
+    if (nth < 1)
+        return NULL;
 
-		min_rank = ch->church_member->rank;
-	}
+    CHURCH_TREASURE_ROOM *treasure = NULL;
+    ITERATOR it;
+    int found_count = 0;
 
-	if( nth < 1 ) return NULL;
+    iterator_start(&it, church->treasure_rooms);
+    while ((treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it))) {
+        bool can_access = FALSE;
+        
+        if (ch == NULL) {
+            // If no character provided, count all rooms
+            can_access = TRUE;
+        } else if (can_access_treasure_room(ch->church_member, treasure)) {
+            can_access = TRUE;
+        }
+        
+        if (can_access && ++found_count == nth) {
+            break;
+        }
+    }
+    iterator_stop(&it);
 
-	CHURCH_TREASURE_ROOM *treasure = NULL;
-	ITERATOR it;
-
-	iterator_start(&it, church->treasure_rooms);
-	while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it))) {
-		if( min_rank >= treasure->min_rank && !--nth)
-		{
-			break;
-		}
-	}
-	iterator_stop(&it);
-
-	return treasure;
-
+    return treasure;
 }
 
 
@@ -4234,180 +4155,267 @@ bool church_set_treasure_room_rank(CHURCH_DATA *church, int nth, int min_rank)
 
 int church_available_treasure_rooms(CHAR_DATA *ch)
 {
-	if( ch == NULL ) return 0;
-	if( IS_NPC(ch) ) return 0;
-	if( ch->church == NULL ) return 0;
-	if( is_excommunicated(ch) ) return 0;	// Excommunicated members cannot access treasure rooms
+    if (ch == NULL || IS_NPC(ch) || ch->church == NULL || is_excommunicated(ch))
+        return 0;
 
-	CHURCH_TREASURE_ROOM *treasure = NULL;
-	ITERATOR it;
+    CHURCH_TREASURE_ROOM *treasure = NULL;
+    ITERATOR it;
+    int count = 0;
+    
+    // Leaders can access all rooms
+    if (ch->church_member->rank->rank_type == RANK_TYPE_LEADER || 
+        has_church_permission(ch->church_member, CHURCH_PERM_TREASURE_ALL)) {
+        return list_size(ch->church->treasure_rooms);
+    }
+    
+    // Count rooms player can access
+    iterator_start(&it, ch->church->treasure_rooms);
+    while ((treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it))) {
+        if (can_access_treasure_room(ch->church_member, treasure)) {
+            count++;
+        }
+    }
+    iterator_stop(&it);
 
-	int count = 0;
-
-	iterator_start(&it, ch->church->treasure_rooms);
-	while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it))) {
-		if( ch->church_member->rank >= treasure->min_rank)
-		{
-			count++;
-		}
-	}
-	iterator_stop(&it);
-
-	return count;
+    return count;
 }
-
 void do_chtreasure(CHAR_DATA *ch, char *argument)
 {
-	static char *rank_names[MAX_CHURCH_RANK] = {
-		"Rank 1",
-		"Rank 2",
-		"Rank 3",
-		"Rank 4"
-	};
-
-	CHAR_DATA *temp_char;
+    CHAR_DATA *temp_char;
     char buf[MAX_STRING_LENGTH];
     char arg[MIL];
     char arg2[MIL];
+    char arg3[MIL];
     bool found = false;
 
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
+    argument = one_argument(argument, arg3);
 
     if (ch->church == NULL)
     {
-		send_to_char("You aren't in a registered group.\n\r", ch);
-		return;
+        send_to_char("You aren't in a registered group.\n\r", ch);
+        return;
     }
 
     if (is_excommunicated(ch))
     {
-		send_to_char("You have been excommunicated.  That information is forbidden.\n\r", ch);
-		return;
-	}
+        send_to_char("You have been excommunicated. That information is forbidden.\n\r", ch);
+        return;
+    }
 
     if (arg[0] == '\0')
     {
-		send_to_char("CHURCH TREASURE LIST\n\r", ch);
-		if( ch->church_member->rank >= CHURCH_RANK_D )
-			send_to_char("                RANK <room#> <rank>\n\r", ch);
-		return;
+        send_to_char("CHURCH TREASURE LIST\n\r", ch);
+        if (is_church_leader(ch, ch->church))
+            send_to_char("                ACCESS <room#> <rank#> [add|remove]\n\r", ch);
+        return;
     }
 
     if(!str_cmp(arg, "list"))
     {
-		CHURCH_TREASURE_ROOM *treasure;
-		ITERATOR it;
+        CHURCH_TREASURE_ROOM *treasure;
+        ITERATOR it;
+        bool skipped = false;
+        int i = 0;
+        
+        iterator_start(&it, ch->church->treasure_rooms);
+        while ((treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it)))
+        {
+            // Check if player can access this treasure room
+            if (!can_access_treasure_room(ch->church_member, treasure))
+            {
+                skipped = true;
+                continue;
+            }
 
-		bool skipped = false;
+            if (i == 0) {
+                sprintf(buf, "{YTreasure rooms for {W%s{Y:\n\r", ch->church->name);
+                send_to_char(buf, ch);
+                send_to_char("{Y========================================================{x\n\r", ch);
+            }
 
-		int i = 0;
-		iterator_start(&it, ch->church->treasure_rooms);
-		while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it)) )
-		{
-			if( ch->church_member->rank < treasure->min_rank )
-			{
-				skipped = true;
-				continue;
-			}
+            i++;
+            sprintf(buf, "%2d [{W%s{x] {Y%s{x\n\r", i, 
+                    treasure->is_default ? "DEFAULT" : "SECURED",
+                    treasure->room->name);
+            send_to_char(buf, ch);
+            
+            // Show access list for leaders
+            if (is_church_leader(ch, ch->church) ||
+                has_church_permission(ch->church_member, CHURCH_PERM_TREASURE_ALL)) {
+                
+                CHURCH_RANK_DATA *rank;
+                ITERATOR rank_it;
+                bool has_ranks = FALSE;
+                
+                send_to_char("  {CAccess: ", ch);
+                
+                if (treasure->is_default) {
+                    send_to_char("{WAll members have access{x\n\r", ch);
+                } else {
+                    iterator_start(&rank_it, treasure->allowed_ranks);
+                    while ((rank = (CHURCH_RANK_DATA *)iterator_nextdata(&rank_it))) {
+                        sprintf(buf, "%s{W%s{x ", 
+                                has_ranks ? ", " : "", rank->name_male);
+                        send_to_char(buf, ch);
+                        has_ranks = TRUE;
+                    }
+                    iterator_stop(&rank_it);
+                    
+                    if (!has_ranks) {
+                        send_to_char("{RNo ranks have access!{x", ch);
+                    }
+                    send_to_char("\n\r", ch);
+                }
+            }
+        }
+        iterator_stop(&it);
 
-			if( i == 0 ) {
-				sprintf(buf, "{YTreasure rooms for {W%s{Y:\n\r", ch->church->name);
-				send_to_char(buf, ch);
-				send_to_char("{Y========================================================{x\n\r", ch);
-			}
+        if (i == 0) {
+            if (skipped)
+                send_to_char("There are no treasure rooms available to you.\n\r", ch);
+            else
+                send_to_char("Your church has no treasure rooms yet.\n\r", ch);
+        }
 
-			i++;
-			if( i == 1 )
-				sprintf(buf, "%2d [{WDEFAULT{x] {Y%s{x\n\r", i, treasure->room->name);
-			else
-				sprintf(buf, "%2d [{W%-7s{x] {Y%s{x\n\r", i, rank_names[treasure->min_rank], treasure->room->name);
-			send_to_char(buf, ch);
-		}
-		iterator_stop(&it);
+        return;
+    }
 
-		if( i == 0 ) {
-			if( skipped )
-				send_to_char("There are no treasure rooms available to you.\n\r", ch);	// Should NEVER happen, but no telling in the future.
-			else
-				send_to_char("Your church has no treasure rooms yet.\n\r", ch);
-		}
+    if(!str_cmp(arg, "access"))
+    {
+        if (!is_church_leader(ch, ch->church) &&
+            !has_church_permission(ch->church_member, CHURCH_PERM_TREASURE_ALL))
+        {
+            send_to_char("Only church leaders can manage treasure room access.\n\r", ch);
+            return;
+        }
 
-		return;
-	}
+        found = false;
+        for (temp_char = ch->in_room->people; temp_char != NULL; temp_char = temp_char->next_in_room)
+        {
+            if (IS_NPC(temp_char) && IS_SET(temp_char->act[1], ACT2_CHURCHMASTER))
+                found = true;
+        }
 
-	if(!str_cmp(arg, "rank"))
-	{
-		if( ch->church_member->rank < CHURCH_RANK_D )
-		{
-			send_to_char("CHURCH TREASURE LIST\n\r", ch);
-			return;
-		}
+        if (!found)
+        {
+            send_to_char("You must be at an administration office.\n\r", ch);
+            return;
+        }
 
-		found = false;
-		for (temp_char = ch->in_room->people; temp_char != NULL; temp_char = temp_char->next_in_room)
-		{
-			if (IS_NPC(temp_char) && IS_SET(temp_char->act[1], ACT2_CHURCHMASTER))
-				found = true;
-		}
+        if (arg2[0] == '\0' || !is_number(arg2))
+        {
+            send_to_char("Syntax: church treasure access <room#> <rank#> [add|remove]\n\r", ch);
+            return;
+        }
 
-		if (!found)
-		{
-			send_to_char("You must be at an administration office.\n\r", ch);
-			return;
-		}
+        int roomno = atoi(arg2);
+        if (roomno < 1 || roomno > list_size(ch->church->treasure_rooms))
+        {
+            send_to_char("Room number is out of range.\n\r", ch);
+            return;
+        }
 
+        CHURCH_TREASURE_ROOM *treasure = get_church_treasure_room(NULL, ch->church, roomno);
+        if (!treasure)
+        {
+            send_to_char("Could not find the specified treasure room.\n\r", ch);
+            return;
+        }
 
-		if(!is_number(arg2) || !is_number(argument))
-		{
-			send_to_char("That is not a number.\n\r", ch);
-			return;
-		}
+        if (treasure->is_default)
+        {
+            send_to_char("You cannot modify access for the default room - all members already have access.\n\r", ch);
+            return;
+        }
 
-		int roomno = atoi(arg2);
+        // Just show access list if no rank specified
+        if (arg3[0] == '\0' || !is_number(arg3)) {
+            CHURCH_RANK_DATA *rank;
+            ITERATOR rank_it;
+            int rank_count = 0;
+            
+            send_to_char("Ranks with access to this treasure room:\n\r", ch);
+            send_to_char("----------------------------------------\n\r", ch);
+            
+            iterator_start(&rank_it, treasure->allowed_ranks);
+            while ((rank = (CHURCH_RANK_DATA *)iterator_nextdata(&rank_it))) {
+                rank_count++;
+                sprintf(buf, "%2d. {W%s{x\n\r", rank_count, rank->name_male);
+                send_to_char(buf, ch);
+            }
+            iterator_stop(&rank_it);
+            
+            if (rank_count == 0) {
+                send_to_char("No ranks have been granted access yet.\n\r", ch);
+            }
+            
+            send_to_char("\n\rUse 'church treasure access <room#> <rank#> add' to grant access.\n\r", ch);
+            return;
+        }
 
-		if( roomno < 0 || roomno > list_size(ch->church->treasure_rooms))
-		{
-			send_to_char("Room number is out of range.\n\r", ch);
-			return;
-		}
+        int rank_num = atoi(arg3);
+        CHURCH_RANK_DATA *rank = ch->church->ranks;
+        for (int i = 1; rank && i < rank_num; i++)
+            rank = rank->next;
+            
+        if (!rank) {
+            sprintf(buf, "Rank must be between 1 and %d.\n\r", ch->church->num_ranks);
+            send_to_char(buf, ch);
+            return;
+        }
 
-		if( roomno == 1 )
-		{
-			send_to_char("The first treasure room cannot be restricted.\n\r", ch);
-			return;
-		}
+        // Default is to add
+        bool should_add = TRUE;
+        
+        // Check for add/remove argument
+        if (argument[0] != '\0') {
+            if (!str_prefix(argument, "remove")) {
+                should_add = FALSE;
+            } else if (!str_prefix(argument, "add")) {
+                should_add = TRUE;
+            } else {
+                send_to_char("Specify 'add' or 'remove' to manage access.\n\r", ch);
+                return;
+            }
+        }
+        
+        // Add or remove the rank
+        if (should_add) {
+            if (add_rank_to_treasure_room(treasure, rank)) {
+                sprintf(buf, "Rank '%s' now has access to room %d.\n\r", 
+                        rank->name_male, roomno);
+                send_to_char(buf, ch);
+                
+                sprintf(buf, "%s granted '%s' rank access to treasure room %s.",
+                        ch->name, rank->name_male, treasure->room->name);
+                append_church_log(ch->church, buf);
+            } else {
+                send_to_char("Failed to grant access.\n\r", ch);
+            }
+        } else {
+            if (remove_rank_from_treasure_room(treasure, rank)) {
+                sprintf(buf, "Rank '%s' no longer has access to room %d.\n\r", 
+                        rank->name_male, roomno);
+                send_to_char(buf, ch);
+                
+                sprintf(buf, "%s removed '%s' rank access from treasure room %s.",
+                        ch->name, rank->name_male, treasure->room->name);
+                append_church_log(ch->church, buf);
+            } else {
+                send_to_char("Failed to remove access or rank didn't have access.\n\r", ch);
+            }
+        }
 
-		int rank = atoi(argument) - 1;
+        save_church(ch->church);
+        return;
+    }
 
-		if( rank < CHURCH_RANK_A || rank > CHURCH_RANK_D )
-		{
-			send_to_char("That is not a church rank.  Please specify a rank from 1 to 4.\n\r", ch);
-			return;
-		}
-
-		CHURCH_TREASURE_ROOM *treasure = get_church_treasure_room(NULL, ch->church, roomno);
-
-		if(!treasure)
-		{
-			send_to_char("Could not find the specified treasure room.\n\r", ch);
-			return;
-		}
-
-		treasure->min_rank = rank;
-		send_to_char("Rank changed.\n\r", ch);
-
-		sprintf(buf, "%s changes minimum rank for treasure room %s to %s.", ch->name, treasure->room->name, rank_names[treasure->min_rank]);
-		append_church_log(ch->church, buf);
-
-		write_churches_new();
-		return;
-	}
-
-	send_to_char("CHURCH TREASURE LIST\n\r", ch);
-	if( ch->church_member->rank >= CHURCH_RANK_D )
-		send_to_char("                RANK <room#> <rank>\n\r", ch);
-	return;
+    send_to_char("CHURCH TREASURE LIST\n\r", ch);
+    if (is_church_leader(ch, ch->church))
+        send_to_char("                ACCESS <room#> <rank#> [add|remove]\n\r", ch);
+    return;
 }
 
 
@@ -4429,4 +4437,1570 @@ void church_announce_theft(CHAR_DATA *ch, OBJ_DATA *obj)
 			gecho(buf);
 		}
 	}
+}
+
+bool has_church_permission(CHURCH_PLAYER_DATA *member, long permission)
+{
+    if (!member || !member->church || !member->rank)
+        return FALSE;
+        
+    // Owner always has all permissions
+    if (member->church->owner && !str_cmp(member->name, member->church->owner))
+        return TRUE;
+        
+    // Leaders always have all permissions
+    if (member->rank->rank_type == RANK_TYPE_LEADER)
+        return TRUE;
+    
+    // No permission required
+    if (permission == CHURCH_PERM_NONE)
+        return TRUE;
+    
+    // Check if the member has been personally granted this permission
+    if (IS_SET(member->personal_permissions, permission))
+        return TRUE;
+        
+    // Check if the permission is granted to this rank
+    if (IS_SET(member->rank->permissions, permission))
+        return TRUE;
+    
+    return FALSE;
+}
+
+// Check if character is a church leader
+bool is_church_leader(CHAR_DATA *ch, CHURCH_DATA *church)
+{
+    if (!ch || !ch->church_member || ch->church != church)
+        return FALSE;
+        
+    return (ch->church_member->rank->rank_type == RANK_TYPE_LEADER);
+}
+
+// Check if character is a church officer
+bool is_church_officer(CHAR_DATA *ch, CHURCH_DATA *church)
+{
+    if (!ch || !ch->church_member || ch->church != church)
+        return FALSE;
+        
+    return (ch->church_member->rank->rank_type >= RANK_TYPE_OFFICER);
+}
+
+void do_chsetrank(CHAR_DATA *ch, char *argument)
+{
+    char arg1[MAX_INPUT_LENGTH];
+    char arg2[MAX_INPUT_LENGTH];
+    char arg3[MAX_INPUT_LENGTH];
+    char buf[MAX_STRING_LENGTH];
+    
+    argument = one_argument(argument, arg1);
+    argument = one_argument(argument, arg2);
+    argument = one_argument(argument, arg3);
+    
+    if (ch->church == NULL) {
+        send_to_char("You are not in a church.\n\r", ch);
+        return;
+    }
+    
+    if (!is_church_leader(ch, ch->church) && !has_church_permission(ch->church_member, CHURCH_PERM_RANKS)) {
+        send_to_char("Only church leaders can set rank names.\n\r", ch);
+        return;
+    }
+    
+    if (arg1[0] == '\0' || arg2[0] == '\0' || arg3[0] == '\0') {
+        send_to_char("Syntax: church setrank <rank#> <male/female/neutral> <name>\n\r", ch);
+        send_to_char("Example: church setrank 1 male Knight\n\r", ch);
+        send_to_char("Example: church setrank 1 female Dame\n\r", ch);
+        
+        // Show current rank names
+        send_to_char("\n\rCurrent rank names:\n\r", ch);
+        
+        int i = 1;
+        CHURCH_RANK_DATA *rank;
+        for (rank = ch->church->ranks; rank; rank = rank->next, i++) {
+            sprintf(buf, "Rank %d: Male=%s, Female=%s, Neutral=%s (%s)\n\r", 
+                i, 
+                rank->name_male ? rank->name_male : "(default)",
+                rank->name_female ? rank->name_female : "(default)",
+                rank->name_neutral ? rank->name_neutral : "(default)",
+                rank->rank_type == RANK_TYPE_LEADER ? "Leader" : 
+                rank->rank_type == RANK_TYPE_OFFICER ? "Officer" : "Member");
+            send_to_char(buf, ch);
+        }
+        
+        return;
+    }
+    
+    // Get rank number (1-based for user, 0-based internally)
+    int rank_num = atoi(arg1);
+    if (rank_num < 1) {
+        send_to_char("Invalid rank number.\n\r", ch);
+        return;
+    }
+    
+    // Find the rank by position in the linked list
+    CHURCH_RANK_DATA *rank = NULL;
+    int i = 1;
+    
+    for (rank = ch->church->ranks; rank; rank = rank->next, i++) {
+        if (i == rank_num)
+            break;
+    }
+    
+    if (!rank) {
+        sprintf(buf, "Rank must be between 1 and %d.\n\r", ch->church->num_ranks);
+        send_to_char(buf, ch);
+        return;
+    }
+    
+    // Determine gender
+    int gender;
+    if (!str_prefix(arg2, "male"))
+        gender = 0;
+    else if (!str_prefix(arg2, "female"))
+        gender = 1;
+    else if (!str_prefix(arg2, "neutral"))
+        gender = 2;
+    else {
+        send_to_char("Specify 'male', 'female', or 'neutral'.\n\r", ch);
+        return;
+    }
+    
+    // Set the new rank name
+    if (gender == 0) {
+        if (rank->name_male)
+            free_string(rank->name_male);
+        rank->name_male = str_dup(arg3);
+    } else if (gender == 1) {
+        if (rank->name_female)
+            free_string(rank->name_female);
+        rank->name_female = str_dup(arg3);
+    } else {
+        if (rank->name_neutral)
+            free_string(rank->name_neutral);
+        rank->name_neutral = str_dup(arg3);
+    }
+    
+    sprintf(buf, "Rank %d %s title set to '%s'.\n\r", 
+            rank_num, 
+            gender == 0 ? "male" : (gender == 1 ? "female" : "neutral"), 
+            arg3);
+    send_to_char(buf, ch);
+    
+    // Log the change
+    sprintf(buf, "%s changed the %s title for rank %d to '%s'.",
+            ch->name, 
+            gender == 0 ? "male" : (gender == 1 ? "female" : "neutral"), 
+            rank_num, 
+            arg3);
+    append_church_log(ch->church, buf);
+    
+    save_church(ch->church);
+}
+
+void do_chpermission(CHAR_DATA *ch, char *argument)
+{
+    char arg1[MAX_INPUT_LENGTH], arg2[MAX_INPUT_LENGTH];
+    char buf[MAX_STRING_LENGTH];
+    
+    argument = one_argument(argument, arg1);
+    argument = one_argument(argument, arg2);
+    
+    if (ch->church == NULL) {
+        send_to_char("You are not in a church.\n\r", ch);
+        return;
+    }
+    
+    if (!is_church_leader(ch, ch->church)) {
+        send_to_char("Only church leaders can set rank permissions.\n\r", ch);
+        return;
+    }
+    
+    if (arg1[0] == '\0') {
+        // Show all ranks and their permissions
+        CHURCH_RANK_DATA *rank;
+        int i = 1;
+        
+        send_to_char("Church Rank Permissions:\n\r", ch);
+        send_to_char("-----------------------\n\r", ch);
+        
+        for (rank = ch->church->ranks; rank; rank = rank->next, i++) {
+            sprintf(buf, "%d. %s (%s):\n\r", i, rank->name_male,
+                   rank->rank_type == RANK_TYPE_LEADER ? "Leader" : 
+                   rank->rank_type == RANK_TYPE_OFFICER ? "Officer" : "Member");
+            send_to_char(buf, ch);
+            
+            // Display permissions for this rank
+            for (int j = 0; church_permission_flags[j].name; j++) {
+                if (church_permission_flags[j].settable) {
+                    sprintf(buf, "  %-20s: %s\n\r", 
+                            church_permission_flags[j].name,
+                            IS_SET(rank->permissions, church_permission_flags[j].bit) ? 
+                            "YES" : "NO");
+                    send_to_char(buf, ch);
+                }
+            }
+            send_to_char("\n\r", ch);
+        }
+        
+        return;
+    }
+    
+    // Find the rank
+    int rank_num = atoi(arg1);
+    if (!is_number(arg1) || rank_num < 1) {
+        send_to_char("Invalid rank number.\n\r", ch);
+        return;
+    }
+    
+    CHURCH_RANK_DATA *rank = ch->church->ranks;
+    for (int i = 1; rank && i < rank_num; i++)
+        rank = rank->next;
+        
+    if (!rank) {
+        send_to_char("That rank doesn't exist.\n\r", ch);
+        return;
+    }
+    
+    // Don't allow changing leader permissions
+    if (rank->rank_type == RANK_TYPE_LEADER) {
+        send_to_char("Leader permissions cannot be changed.\n\r", ch);
+        return;
+    }
+
+	if (IS_SET(rank->flags, CHURCH_RANK_PROTECTED)) {
+    	send_to_char("That rank's permissions are protected and cannot be changed.\n\r", ch);
+    	return;
+	}
+    
+    // Show permissions for specified rank
+    if (arg2[0] == '\0') {
+        sprintf(buf, "Permissions for rank '%s':\n\r", rank->name_male);
+        send_to_char(buf, ch);
+        
+        for (int i = 0; church_permission_flags[i].name; i++) {
+            if (church_permission_flags[i].settable) {
+                sprintf(buf, "  %-20s: %s\n\r", 
+                        church_permission_flags[i].name,
+                        IS_SET(rank->permissions, church_permission_flags[i].bit) ? 
+                        "YES" : "NO");
+                send_to_char(buf, ch);
+            }
+        }
+        
+        send_to_char("\n\rSyntax: church permission <rank#> <permission> [on|off]\n\r", ch);
+        return;
+    }
+    
+    // Toggle a permission
+    int permission = flag_value(church_permission_flags, arg2);
+    if (permission == NO_FLAG) {
+        send_to_char("Unknown permission. For a list of permissions, type 'church permission'\n\r", ch);
+        return;
+    }
+    
+    // Toggle or set the permission
+    if (argument[0] == '\0') {
+        // Toggle
+        if (IS_SET(rank->permissions, permission)) {
+            REMOVE_BIT(rank->permissions, permission);
+            sprintf(buf, "Permission %s removed from rank '%s'.\n\r", arg2, rank->name_male);
+        } else {
+            SET_BIT(rank->permissions, permission);
+            sprintf(buf, "Permission %s granted to rank '%s'.\n\r", arg2, rank->name_male);
+        }
+    } else if (!str_prefix(argument, "on")) {
+        SET_BIT(rank->permissions, permission);
+        sprintf(buf, "Permission %s granted to rank '%s'.\n\r", arg2, rank->name_male);
+    } else if (!str_prefix(argument, "off")) {
+        REMOVE_BIT(rank->permissions, permission);
+        sprintf(buf, "Permission %s removed from rank '%s'.\n\r", arg2, rank->name_male);
+    } else {
+        send_to_char("Specify 'on' or 'off' to set permission.\n\r", ch);
+        return;
+    }
+    
+    send_to_char(buf, ch);
+    
+    // Log the change
+    sprintf(buf, "%s changed permission %s for rank '%s' to %s.",
+        ch->name, arg2, rank->name_male,
+        IS_SET(rank->permissions, permission) ? "ON" : "OFF");
+    append_church_log(ch->church, buf);
+    
+    save_church(ch->church);
+}
+
+bool can_access_church_storage(CHAR_DATA *ch, CHURCH_DATA *church)
+{
+    // Immortals can always access
+    if (IS_IMMORTAL(ch)) return true;
+    
+    // Must be a member of the church
+    if (ch->church != church) return false;
+    
+    // Can't access if excommunicated
+    if (is_excommunicated(ch)) return false;
+    
+    // Check if they have explicit storage permission
+    if (has_church_permission(ch->church_member, CHURCH_PERM_STORAGE))
+        return true;
+    
+    return false;
+}
+
+void convert_church_ranks(CHURCH_DATA *church)
+{
+    // First, clear any existing ranks
+    while (church->ranks) {
+        CHURCH_RANK_DATA *rank = church->ranks;
+        church->ranks = rank->next;
+        free_church_rank(rank);
+    }
+    
+    church->num_ranks = 0;
+
+    // Create default permissions for each rank level
+    long perm_member = CHURCH_PERM_GOHALL;
+    long perm_trusted = CHURCH_PERM_GOHALL | CHURCH_PERM_BALANCE;
+    long perm_officer = CHURCH_PERM_GOHALL | CHURCH_PERM_BALANCE | CHURCH_PERM_WITHDRAW | 
+                       CHURCH_PERM_MOTD | CHURCH_PERM_RULES | CHURCH_PERM_STORAGE;
+    long perm_leader = ~0; // All permissions
+    
+    // Store references to the ranks we create so we can map old indices to them
+    CHURCH_RANK_DATA *ranks[4]; // Maximum 4 ranks in old system
+    
+    // Create ranks based on the old format, using default names from the old tables
+    // Rank A (lowest) - Member type
+    char *male_name_a = get_default_legacy_rank_name(church, CHURCH_RANK_A, SEX_MALE);
+    char *female_name_a = get_default_legacy_rank_name(church, CHURCH_RANK_A, SEX_FEMALE);
+    ranks[CHURCH_RANK_A] = add_church_rank(church, male_name_a, female_name_a, male_name_a, 
+                   perm_member, RANK_TYPE_MEMBER);
+    
+    // Rank B - Member type with more permissions
+    char *male_name_b = get_default_legacy_rank_name(church, CHURCH_RANK_B, SEX_MALE);
+    char *female_name_b = get_default_legacy_rank_name(church, CHURCH_RANK_B, SEX_FEMALE);
+    ranks[CHURCH_RANK_B] = add_church_rank(church, male_name_b, female_name_b, male_name_b, 
+                   perm_trusted, RANK_TYPE_MEMBER);
+    
+    // Rank C - Officer type
+    char *male_name_c = get_default_legacy_rank_name(church, CHURCH_RANK_C, SEX_MALE);
+    char *female_name_c = get_default_legacy_rank_name(church, CHURCH_RANK_C, SEX_FEMALE);
+    ranks[CHURCH_RANK_C] = add_church_rank(church, male_name_c, female_name_c, male_name_c, 
+                   perm_officer, RANK_TYPE_OFFICER);
+    
+    // Rank D (highest) - Leader type
+    char *male_name_d = get_default_legacy_rank_name(church, CHURCH_RANK_D, SEX_MALE);
+    char *female_name_d = get_default_legacy_rank_name(church, CHURCH_RANK_D, SEX_FEMALE);
+    ranks[CHURCH_RANK_D] = add_church_rank(church, male_name_d, female_name_d, male_name_d, 
+                   perm_leader, RANK_TYPE_LEADER);
+    
+    // Update church members to point to their appropriate ranks
+    CHURCH_PLAYER_DATA *member;
+    for (member = church->people; member != NULL; member = member->next) {
+        // Use the old_rank field that was loaded during read_church_member
+        int old_rank_val = member->old_rank;
+        
+        // Default to rank 0 (lowest) if invalid
+        if (old_rank_val < 0 || old_rank_val >= 4) {
+            char buf[MAX_STRING_LENGTH];
+            sprintf(buf, "convert_church_ranks: Invalid rank %d for member %s in church %s, defaulting to rank 0",
+                    old_rank_val, member->name, church->name);
+            log_string(buf);
+            old_rank_val = 0;
+        }
+        
+        // Assign the rank pointer based on the old rank value
+        member->rank = ranks[old_rank_val];
+    }
+}
+
+// Helper function to get a rank by index
+CHURCH_RANK_DATA *get_church_rank_by_index(CHURCH_DATA *church, int index)
+{
+    CHURCH_RANK_DATA *rank = church->ranks;
+    int i = 0;
+    
+    while (rank && i < index) {
+        rank = rank->next;
+        i++;
+    }
+    
+    return rank ? rank : church->ranks; // Default to lowest if not found
+}
+
+void do_chranks(CHAR_DATA *ch, char *argument)
+{
+    char arg1[MAX_INPUT_LENGTH];
+    char arg2[MAX_INPUT_LENGTH];
+    char arg3[MAX_INPUT_LENGTH];
+    char buf[MAX_STRING_LENGTH];
+    
+    argument = one_argument(argument, arg1);
+    argument = one_argument(argument, arg2);
+    argument = one_argument(argument, arg3);
+    
+    if (ch->church == NULL) {
+        send_to_char("You are not in a church.\n\r", ch);
+        return;
+    }
+    
+    if (!is_church_leader(ch, ch->church)) {
+        send_to_char("Only church leaders can manage ranks.\n\r", ch);
+        return;
+    }
+    
+    if (arg1[0] == '\0') {
+        // Show current ranks
+        send_to_char("Church Ranks:\n\r", ch);
+        send_to_char("-----------------------\n\r", ch);
+        
+        int i = 1;
+        CHURCH_RANK_DATA *rank;
+        for (rank = ch->church->ranks; rank; rank = rank->next, i++) {
+            sprintf(buf, "%2d. %-20s (%s)\n\r", 
+                   i, rank->name_male, 
+                   rank->rank_type == RANK_TYPE_LEADER ? "Leader" : 
+                   rank->rank_type == RANK_TYPE_OFFICER ? "Officer" : "Member");
+            send_to_char(buf, ch);
+        }
+        
+        // Add warning if ranks exceed the limit
+        if (ch->church->num_ranks > game_settings.org_max_ranks) {
+            sprintf(buf, "\n\r{RWARNING:{x Your church has %d ranks, which exceeds the game limit of %d.\n\r"
+                         "You can continue to manage existing ranks but cannot add new ones.\n\r",
+                    ch->church->num_ranks, game_settings.org_max_ranks);
+            send_to_char(buf, ch);
+        }
+        
+        send_to_char("\n\rCommands:\n\r", ch);
+        if (ch->church->num_ranks < game_settings.org_max_ranks) {
+            send_to_char("CHURCH RANKS ADD <name> <member|officer|leader> - Add a new rank\n\r", ch);
+        }
+        send_to_char("CHURCH RANKS REMOVE <rank#> - Remove a rank\n\r", ch);
+        send_to_char("CHURCH RANKS TYPE <rank#> <member|officer|leader> - Change a rank's type\n\r", ch);
+        return;
+    }
+    
+    if (!str_cmp(arg1, "add")) {
+        if (arg2[0] == '\0' || arg3[0] == '\0') {
+            send_to_char("Syntax: church ranks add <name> <member|officer|leader>\n\r", ch);
+            return;
+        }
+        
+        // Check for maximum ranks
+        if (ch->church->num_ranks >= game_settings.org_max_ranks) {
+            sprintf(buf, "Your church already has the maximum allowed ranks (%d).\n\r", 
+                   game_settings.org_max_ranks);
+            send_to_char(buf, ch);
+            return;
+        }
+        
+        // Get rank type
+        int rank_type;
+        if (!str_prefix(arg3, "member"))
+            rank_type = RANK_TYPE_MEMBER;
+        else if (!str_prefix(arg3, "officer"))
+            rank_type = RANK_TYPE_OFFICER;
+        else if (!str_prefix(arg3, "leader"))
+            rank_type = RANK_TYPE_LEADER;
+        else {
+            send_to_char("Invalid rank type. Use 'member', 'officer', or 'leader'.\n\r", ch);
+            return;
+        }
+        
+        // Don't allow more than one leader type
+        if (rank_type == RANK_TYPE_LEADER) {
+            CHURCH_RANK_DATA *rank;
+            for (rank = ch->church->ranks; rank; rank = rank->next) {
+                if (rank->rank_type == RANK_TYPE_LEADER) {
+                    send_to_char("Your church already has a leader rank.\n\r", ch);
+                    return;
+                }
+            }
+        }
+        
+        // Add the new rank with default permissions based on type
+        long permissions = 0;
+        if (rank_type >= RANK_TYPE_MEMBER)
+            permissions |= CHURCH_PERM_GOHALL;
+            
+        if (rank_type >= RANK_TYPE_OFFICER)
+            permissions |= CHURCH_PERM_WITHDRAW | CHURCH_PERM_MOTD | CHURCH_PERM_RULES;
+            
+        if (rank_type == RANK_TYPE_LEADER)
+            permissions = ~0; // All permissions
+        
+        CHURCH_RANK_DATA *new_rank = add_church_rank(ch->church, arg2, arg2, arg2, 
+                                                   permissions, rank_type);
+        
+        sprintf(buf, "Added new rank '%s' as %s.\n\r", 
+                arg2, rank_type == RANK_TYPE_LEADER ? "Leader" : 
+                rank_type == RANK_TYPE_OFFICER ? "Officer" : "Member");
+        send_to_char(buf, ch);
+        
+        sprintf(buf, "%s added rank '%s' to the church.", ch->name, arg2);
+        append_church_log(ch->church, buf);
+        
+        save_church(ch->church);
+        return;
+    }
+    
+if (!str_cmp(arg1, "remove")) {
+    if (arg2[0] == '\0' || !is_number(arg2)) {
+        send_to_char("Syntax: church ranks remove <rank#>\n\r", ch);
+        return;
+    }
+    
+    int rank_num = atoi(arg2);
+    if (rank_num < 1 || rank_num > ch->church->num_ranks) {
+        sprintf(buf, "Rank number must be between 1 and %d.\n\r", ch->church->num_ranks);
+        send_to_char(buf, ch);
+        return;
+    }
+    
+    // Can't remove if it's the only rank
+    if (ch->church->num_ranks <= 1) {
+        send_to_char("Your church must have at least one rank.\n\r", ch);
+        return;
+    }
+    
+    // Find the rank
+    CHURCH_RANK_DATA *rank = ch->church->ranks;
+    for (int i = 1; rank && i < rank_num; i++)
+        rank = rank->next;
+        
+    if (!rank) {
+        send_to_char("That rank doesn't exist.\n\r", ch);
+        return;
+    }
+    
+    // Check for protected rank - MOVED HERE after we've found the rank
+    if (IS_SET(rank->flags, CHURCH_RANK_PROTECTED)) {
+        send_to_char("That rank is protected and cannot be removed.\n\r", ch);
+        return;
+    }
+    
+    // Don't allow removing the last leader rank
+    if (rank->rank_type == RANK_TYPE_LEADER) {
+            int leader_count = 0;
+            CHURCH_RANK_DATA *temp;
+            for (temp = ch->church->ranks; temp; temp = temp->next) {
+                if (temp->rank_type == RANK_TYPE_LEADER)
+                    leader_count++;
+            }
+            
+            if (leader_count <= 1) {
+                send_to_char("You cannot remove the only leader rank.\n\r", ch);
+                return;
+            }
+        }
+        
+        // Store the name for the log message
+        char rank_name[MIL];
+        strcpy(rank_name, rank->name_male);
+        
+        // Remove the rank
+        if (remove_church_rank(ch->church, rank)) {
+            sprintf(buf, "Removed rank '%s' from church.\n\r", rank_name);
+            send_to_char(buf, ch);
+            
+            sprintf(buf, "%s removed rank '%s' from the church.", ch->name, rank_name);
+            append_church_log(ch->church, buf);
+            
+            save_church(ch->church);
+        } else {
+            send_to_char("Failed to remove the rank.\n\r", ch);
+        }
+        
+        return;
+    }
+    
+    if (!str_cmp(arg1, "type")) {
+        if (arg2[0] == '\0' || !is_number(arg2) || arg3[0] == '\0') {
+            send_to_char("Syntax: church ranks type <rank#> <member|officer|leader>\n\r", ch);
+            return;
+        }
+        
+        int rank_num = atoi(arg2);
+        if (rank_num < 1 || rank_num > ch->church->num_ranks) {
+            sprintf(buf, "Rank number must be between 1 and %d.\n\r", ch->church->num_ranks);
+            send_to_char(buf, ch);
+            return;
+        }
+        
+        // Find the rank
+        CHURCH_RANK_DATA *rank = ch->church->ranks;
+        for (int i = 1; rank && i < rank_num; i++)
+            rank = rank->next;
+            
+        if (!rank) {
+            send_to_char("That rank doesn't exist.\n\r", ch);
+            return;
+        }
+        
+        // Get new rank type
+        int rank_type;
+        if (!str_prefix(arg3, "member"))
+            rank_type = RANK_TYPE_MEMBER;
+        else if (!str_prefix(arg3, "officer"))
+            rank_type = RANK_TYPE_OFFICER;
+        else if (!str_prefix(arg3, "leader"))
+            rank_type = RANK_TYPE_LEADER;
+        else {
+            send_to_char("Invalid rank type. Use 'member', 'officer', or 'leader'.\n\r", ch);
+            return;
+        }
+        
+        // Don't allow removing the last leader rank
+        if (rank->rank_type == RANK_TYPE_LEADER && rank_type != RANK_TYPE_LEADER) {
+            int leader_count = 0;
+            CHURCH_RANK_DATA *temp;
+            for (temp = ch->church->ranks; temp; temp = temp->next) {
+                if (temp->rank_type == RANK_TYPE_LEADER)
+                    leader_count++;
+            }
+            
+            if (leader_count <= 1) {
+                send_to_char("You cannot change the type of the only leader rank.\n\r", ch);
+                return;
+            }
+        }
+        
+        // Change the rank type
+        rank->rank_type = rank_type;
+        
+        // Adjust permissions based on type
+        if (rank_type == RANK_TYPE_MEMBER) {
+            rank->permissions = CHURCH_PERM_GOHALL;
+        } else if (rank_type == RANK_TYPE_OFFICER) {
+            rank->permissions = CHURCH_PERM_GOHALL | CHURCH_PERM_WITHDRAW | 
+                              CHURCH_PERM_MOTD | CHURCH_PERM_RULES;
+        } else if (rank_type == RANK_TYPE_LEADER) {
+            rank->permissions = ~0; // All permissions
+        }
+        
+        sprintf(buf, "Changed '%s' to rank type %s.\n\r", 
+                rank->name_male,
+                rank_type == RANK_TYPE_LEADER ? "leader" : 
+                rank_type == RANK_TYPE_OFFICER ? "officer" : "member");
+        send_to_char(buf, ch);
+        
+        sprintf(buf, "%s changed rank '%s' to type %s.",
+                ch->name,
+                rank->name_male,
+                rank_type == RANK_TYPE_LEADER ? "leader" : 
+                rank_type == RANK_TYPE_OFFICER ? "officer" : "member");
+        append_church_log(ch->church, buf);
+        
+        save_church(ch->church);
+        return;
+    }
+    
+    // If we get here, show usage
+    send_to_char("Church Rank Commands:\n\r", ch);
+    if (ch->church->num_ranks < game_settings.org_max_ranks) {
+        send_to_char("CHURCH RANKS ADD <name> <member|officer|leader> - Add a new rank\n\r", ch);
+    }
+    send_to_char("CHURCH RANKS REMOVE <rank#> - Remove a rank\n\r", ch);
+    send_to_char("CHURCH RANKS TYPE <rank#> <member|officer|leader> - Change a rank's type\n\r", ch);
+}
+
+// Add a new rank to a church
+CHURCH_RANK_DATA *add_church_rank(CHURCH_DATA *church, const char *male_name, 
+                                const char *female_name, const char *neutral_name,
+                                long permissions, int rank_type)
+{
+    CHURCH_RANK_DATA *rank, *temp;
+    
+    // Create new rank
+    rank = new_church_rank();
+    rank->name_male = str_dup(male_name);
+    rank->name_female = str_dup(female_name);
+    rank->name_neutral = str_dup(neutral_name);
+    rank->permissions = permissions;
+    rank->rank_type = rank_type;
+    rank->next = NULL;
+    
+    // Add to end of list
+    if (!church->ranks) {
+        church->ranks = rank;
+    } else {
+        for (temp = church->ranks; temp->next; temp = temp->next)
+            ;
+        temp->next = rank;
+    }
+    
+    church->num_ranks++;
+    return rank;
+}
+
+// Remove a rank from a church
+bool remove_church_rank(CHURCH_DATA *church, CHURCH_RANK_DATA *rank)
+{
+    CHURCH_RANK_DATA *prev = NULL, *curr;
+    CHURCH_PLAYER_DATA *member;
+    
+    // Can't remove if it's the only rank
+    if (church->num_ranks <= 1)
+        return FALSE;
+    
+    // Find the rank in the list
+    for (curr = church->ranks; curr; prev = curr, curr = curr->next) {
+        if (curr == rank)
+            break;
+    }
+    
+    if (!curr) // Rank not found
+        return FALSE;
+    
+    // Remove from list
+    if (prev)
+        prev->next = curr->next;
+    else
+        church->ranks = curr->next;
+    
+    // Update any members with this rank to the next lower rank
+    CHURCH_RANK_DATA *new_rank = prev ? prev : church->ranks;
+    for (member = church->people; member; member = member->next) {
+        if (member->rank == rank)
+            member->rank = new_rank;
+    }
+    
+    free_church_rank(curr);
+    church->num_ranks--;
+    
+    return TRUE;
+}
+
+// Get highest rank in church
+CHURCH_RANK_DATA *get_highest_rank(CHURCH_DATA *church)
+{
+    CHURCH_RANK_DATA *rank = church->ranks;
+    
+    if (!rank)
+        return NULL;
+        
+    while (rank->next)
+        rank = rank->next;
+        
+    return rank;
+}
+
+
+void assign_church_member_ranks(CHURCH_DATA *church)
+{
+    CHURCH_PLAYER_DATA *member;
+    bool found_rank;
+    
+    for (member = church->people; member; member = member->next) {
+        found_rank = false;
+        
+        // First try to find rank by name if available
+        if (member->rank_name) {
+            CHURCH_RANK_DATA *rank;
+            for (rank = church->ranks; rank; rank = rank->next) {
+                // Try matching with any of the gender-specific names
+                if (!str_cmp(member->rank_name, rank->name_male) ||
+                    !str_cmp(member->rank_name, rank->name_female) ||
+                    !str_cmp(member->rank_name, rank->name_neutral)) {
+                    member->rank = rank;
+                    found_rank = true;
+                    break;
+                }
+            }
+            
+            // Free the temporary rank name string
+            free_string(member->rank_name);
+            member->rank_name = NULL;
+        }
+        
+        // If rank not found by name, try by old rank index
+        if (!found_rank && member->old_rank >= 0) {
+            int i = 0;
+            CHURCH_RANK_DATA *rank;
+            
+            for (rank = church->ranks; rank && i < member->old_rank; rank = rank->next)
+                i++;
+                
+            if (rank) {
+                member->rank = rank;
+                found_rank = true;
+            }
+        }
+        
+        // Special case for founder - always assign to highest leader rank
+        if (!found_rank && !str_cmp(member->name, church->founder)) {
+            CHURCH_RANK_DATA *rank;
+            for (rank = church->ranks; rank; rank = rank->next) {
+                if (rank->rank_type == RANK_TYPE_LEADER) {
+                    member->rank = rank;
+                    found_rank = true;
+                    break;
+                }
+            }
+        }
+        
+        // If still no rank found, assign to default rank
+        if (!found_rank) {
+            if (church->default_rank) {
+                member->rank = church->default_rank;
+            } else {
+                // If no default rank is set, use the lowest rank
+                member->rank = church->ranks;
+            }
+            
+            // Log this situation
+            char buf[MAX_STRING_LENGTH];
+            sprintf(buf, "assign_church_member_ranks: %s's rank was not found in church %s, assigned to %s",
+                    member->name, church->name, member->rank->name_male);
+            log_string(buf);
+        }
+    }
+}
+
+char *get_default_legacy_rank_name(CHURCH_DATA *church, int rank, int sex)
+{
+    // Rank tables were indexed with these defines:
+    // CHURCH_RANK_A = 0, CHURCH_RANK_B = 1, CHURCH_RANK_C = 2, CHURCH_RANK_D = 3
+    
+    // Make sure rank is in bounds
+    if (rank < 0 || rank > 3)
+        return "Unknown";
+    
+    // Female is index 1, Male is index 0 in the old tables
+    int gender_index = (sex == SEX_FEMALE) ? 1 : 0;
+    
+    switch(church->size) {
+        case CHURCH_SIZE_BAND: // 1
+            switch(rank) {
+                case 0: return (gender_index == 1) ? "Initiate" : "Initiate";
+                case 1: return (gender_index == 1) ? "Member" : "Member";
+                case 2: return (gender_index == 1) ? "Advisor" : "Advisor";
+                case 3: return (gender_index == 1) ? "Leader" : "Leader";
+            }
+            break;
+            
+        case CHURCH_SIZE_CULT: // 2
+            switch(rank) {
+                case 0: return (gender_index == 1) ? "Follower" : "Follower";
+                case 1: return (gender_index == 1) ? "Brethren" : "Brethren";
+                case 2: return (gender_index == 1) ? "Disciple" : "Disciple";
+                case 3: return (gender_index == 1) ? "Enchantress" : "Chieftan";
+            }
+            break;
+            
+        case CHURCH_SIZE_ORDER: // 3
+            switch(rank) {
+                case 0: return (gender_index == 1) ? "Maiden" : "Knave";
+                case 1: return (gender_index == 1) ? "Shieldmaiden" : "Squire";
+                case 2: return (gender_index == 1) ? "Knight" : "Knight";
+                case 3: return (gender_index == 1) ? "Warmistress" : "Warmaster";
+            }
+            break;
+            
+        case CHURCH_SIZE_CHURCH: // 4
+            switch(rank) {
+                case 0: return (gender_index == 1) ? "Chaplain" : "Chaplain";
+                case 1: return (gender_index == 1) ? "Priestess" : "Priest";
+                case 2: return (gender_index == 1) ? "Bishop" : "Bishop";
+                case 3: return (gender_index == 1) ? "Cardinal" : "Cardinal";
+            }
+            break;
+            
+        default:
+            return "Unknown";
+    }
+    
+    return "Unknown"; // Fallback
+}
+
+
+void initialize_church_ranks(CHURCH_DATA *church)
+{
+    // Create Member rank first (lowest rank)
+    CHURCH_RANK_DATA *member_rank = add_church_rank(church, 
+        "Member", "Member", "Member",
+        CHURCH_PERM_GOHALL | CHURCH_PERM_TALK, // Basic permissions
+        RANK_TYPE_MEMBER);
+    
+    // Set as default rank for new members
+    church->default_rank = member_rank;
+    
+    // Create Leader rank (highest rank)
+    CHURCH_RANK_DATA *leader_rank = add_church_rank(church,
+        "Leader", "Leader", "Leader",
+        ~0, // All permissions
+        RANK_TYPE_LEADER);
+    
+    // Mark these ranks as protected
+    member_rank->flags = CHURCH_RANK_PROTECTED;
+    leader_rank->flags = CHURCH_RANK_PROTECTED;
+}
+
+void do_chdefaultrank(CHAR_DATA *ch, char *argument)
+{
+    char arg1[MAX_INPUT_LENGTH];
+    char buf[MAX_STRING_LENGTH];
+    
+    argument = one_argument(argument, arg1);
+    
+    if (ch->church == NULL) {
+        send_to_char("You are not in a church.\n\r", ch);
+        return;
+    }
+    
+    if (!is_church_leader(ch, ch->church)) {
+        send_to_char("Only church leaders can set the default rank.\n\r", ch);
+        return;
+    }
+    
+    if (arg1[0] == '\0') {
+        sprintf(buf, "The current default rank for new members is '%s'.\n\r", 
+                ch->church->default_rank ? ch->church->default_rank->name_male : "none");
+        send_to_char(buf, ch);
+        send_to_char("To change it, use: CHURCH DEFAULTRANK <rank#>\n\r", ch);
+        return;
+    }
+    
+    // Get rank number (1-based for user)
+    int rank_num = atoi(arg1);
+    if (rank_num < 1 || !is_number(arg1)) {
+        send_to_char("Invalid rank number.\n\r", ch);
+        return;
+    }
+    
+    // Find the rank
+    CHURCH_RANK_DATA *rank = ch->church->ranks;
+    for (int i = 1; rank && i < rank_num; i++)
+        rank = rank->next;
+        
+    if (!rank) {
+        sprintf(buf, "Rank number must be between 1 and %d.\n\r", ch->church->num_ranks);
+        send_to_char(buf, ch);
+        return;
+    }
+    
+    // Don't allow setting a leader rank as default
+    if (rank->rank_type == RANK_TYPE_LEADER) {
+        send_to_char("You cannot set a leader rank as the default for new members.\n\r", ch);
+        return;
+    }
+    
+    // Set as default rank
+    ch->church->default_rank = rank;
+    sprintf(buf, "Default rank for new members set to '%s'.\n\r", rank->name_male);
+    send_to_char(buf, ch);
+    
+    // Log the change
+    sprintf(buf, "%s changed the default rank for new members to '%s'.",
+            ch->name, rank->name_male);
+    append_church_log(ch->church, buf);
+    
+    save_church(ch->church);
+}
+
+void upgrade_church_ranks(CHURCH_DATA *church)
+{
+    bool has_member_rank = false;
+    bool has_leader_rank = false;
+    CHURCH_RANK_DATA *rank;
+    
+    // Check if church already has the required protected ranks
+    for (rank = church->ranks; rank; rank = rank->next) {
+        if (rank->rank_type == RANK_TYPE_MEMBER && 
+            IS_SET(rank->flags, CHURCH_RANK_PROTECTED))
+            has_member_rank = true;
+            
+        if (rank->rank_type == RANK_TYPE_LEADER &&
+            IS_SET(rank->flags, CHURCH_RANK_PROTECTED))
+            has_leader_rank = true;
+    }
+    
+    // If no protected member rank, create one
+    if (!has_member_rank) {
+        CHURCH_RANK_DATA *member_rank = add_church_rank(church, 
+            "Member", "Member", "Member",
+            CHURCH_PERM_GOHALL | CHURCH_PERM_TALK,
+            RANK_TYPE_MEMBER);
+            
+        member_rank->flags = CHURCH_RANK_PROTECTED;
+        
+        // Set as default if no default rank
+        if (!church->default_rank)
+            church->default_rank = member_rank;
+    }
+    
+    // If no protected leader rank, create one
+    if (!has_leader_rank) {
+        CHURCH_RANK_DATA *leader_rank = add_church_rank(church,
+            "Leader", "Leader", "Leader",
+            ~0, // All permissions
+            RANK_TYPE_LEADER);
+            
+        leader_rank->flags = CHURCH_RANK_PROTECTED;
+    }
+}
+
+bool can_access_treasure_room(CHURCH_PLAYER_DATA *member, CHURCH_TREASURE_ROOM *treasure)
+{
+    ITERATOR it;
+    CHURCH_RANK_DATA *rank;
+    
+    if (!member || !treasure)
+        return FALSE;
+        
+    // Special cases that always grant access
+    if (treasure->is_default)
+        return TRUE;
+        
+    if (!str_cmp(member->name, member->church->founder))
+        return TRUE;
+        
+    if (has_church_permission(member, CHURCH_PERM_TREASURE_ALL))
+        return TRUE;
+        
+    if (member->rank && member->rank->rank_type == RANK_TYPE_LEADER)
+        return TRUE;
+        
+    // Check if member's rank is in the allowed list
+    bool has_access = FALSE;
+    iterator_start(&it, treasure->allowed_ranks);
+    while ((rank = (CHURCH_RANK_DATA *)iterator_nextdata(&it))) {
+        if (rank == member->rank) {
+            has_access = TRUE;
+            break;
+        }
+    }
+    iterator_stop(&it);
+    
+    return has_access;
+}
+
+bool add_rank_to_treasure_room(CHURCH_TREASURE_ROOM *treasure, CHURCH_RANK_DATA *rank)
+{
+    // Create the list if it doesn't exist
+    if (!treasure->allowed_ranks) {
+        treasure->allowed_ranks = list_create(FALSE);
+        if (!treasure->allowed_ranks)
+            return FALSE;
+    }
+    
+    // Check if rank is already in the list
+    ITERATOR it;
+    CHURCH_RANK_DATA *existing;
+    bool already_exists = FALSE;
+    
+    iterator_start(&it, treasure->allowed_ranks);
+    while ((existing = (CHURCH_RANK_DATA *)iterator_nextdata(&it))) {
+        if (existing == rank) {
+            already_exists = TRUE;
+            break;
+        }
+    }
+    iterator_stop(&it);
+    
+    // Add if not already in list
+    if (!already_exists) {
+        return list_appendlink(treasure->allowed_ranks, rank);
+    }
+    
+    return TRUE; // Already exists, no error
+}
+
+bool remove_rank_from_treasure_room(CHURCH_TREASURE_ROOM *treasure, CHURCH_RANK_DATA *rank)
+{
+    if (!treasure || !treasure->allowed_ranks)
+        return FALSE;
+    
+    // Check if rank is in the list before attempting to remove
+    bool found = FALSE;
+    ITERATOR it;
+    CHURCH_RANK_DATA *existing;
+    
+    iterator_start(&it, treasure->allowed_ranks);
+    while ((existing = (CHURCH_RANK_DATA *)iterator_nextdata(&it))) {
+        if (existing == rank) {
+            found = TRUE;
+            break;
+        }
+    }
+    iterator_stop(&it);
+    
+    if (found) {
+        // The rank was found, so remove it
+        list_remlink(treasure->allowed_ranks, rank, FALSE);
+        return TRUE;
+    }
+    
+    // Rank wasn't in the list
+    return FALSE;
+}
+
+CHURCH_TREASURE_ROOM *create_church_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room, bool is_default)
+{
+    CHURCH_TREASURE_ROOM *treasure = alloc_mem(sizeof(CHURCH_TREASURE_ROOM));
+    
+    if (!treasure)
+        return NULL;
+        
+    treasure->room = room;
+    treasure->is_default = is_default;
+    treasure->name = NULL;
+	treasure->min_rank = 0;
+    treasure->allowed_ranks = list_create(FALSE);
+    
+    if (!treasure->allowed_ranks) {
+        free_mem(treasure, sizeof(CHURCH_TREASURE_ROOM));
+        return NULL;
+    }
+    
+    if (!list_appendlink(church->treasure_rooms, treasure)) {
+        list_destroy(treasure->allowed_ranks);
+        free_mem(treasure, sizeof(CHURCH_TREASURE_ROOM));
+        return NULL;
+    }
+    
+    return treasure;
+}
+
+void upgrade_treasure_room_access(CHURCH_DATA *church)
+{
+    CHURCH_TREASURE_ROOM *treasure;
+    ITERATOR it;
+    
+    iterator_start(&it, church->treasure_rooms);
+    while ((treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it))) {
+        // If this is an old treasure room with a min_rank field
+        if (treasure->min_rank > 0) {
+            // Skip default rooms
+            if (treasure->is_default)
+                continue;
+                
+            // Find all ranks at or above min_rank
+            CHURCH_RANK_DATA *rank;
+            for (rank = church->ranks; rank; rank = rank->next) {
+                if (rank->rank_type >= treasure->min_rank) {
+                    add_rank_to_treasure_room(treasure, rank);
+                }
+            }
+            
+            // Remove the old min_rank field from memory
+            treasure->min_rank = 0;
+        }
+    }
+    iterator_stop(&it);
+}
+
+void do_chsetmemberrank(CHAR_DATA *ch, char *argument)
+{
+    char arg1[MAX_INPUT_LENGTH];
+    char arg2[MAX_INPUT_LENGTH];
+    char buf[MAX_STRING_LENGTH];
+    CHURCH_PLAYER_DATA *member;
+    CHURCH_RANK_DATA *rank;
+    
+    argument = one_argument(argument, arg1);
+    argument = one_argument(argument, arg2);
+    
+    if (ch->church == NULL) {
+        send_to_char("You are not in a church.\n\r", ch);
+        return;
+    }
+    
+    if (!is_church_leader(ch, ch->church) && 
+        !has_church_permission(ch->church_member, CHURCH_PERM_MEMBERS)) {
+        send_to_char("You don't have permission to change member ranks.\n\r", ch);
+        return;
+    }
+    
+    if (arg1[0] == '\0' || arg2[0] == '\0') {
+        send_to_char("Syntax: church setmemberrank <character> <rank#>\n\r", ch);
+        return;
+    }
+    
+    // Find the member
+    for (member = ch->church->people; member != NULL; member = member->next) {
+        if (!str_cmp(member->name, arg1))
+            break;
+    }
+    
+    if (member == NULL) {
+        send_to_char("That person is not a member of your church.\n\r", ch);
+        return;
+    }
+    
+    // The church founder can only be changed by themselves
+    if (!can_modify_church_member(ch, member))
+    {
+        send_to_char("You don't have permission to change that member's rank.\n\r", ch);
+        return;
+    }
+    
+    // Member rank type must be <= your rank type unless you're the founder
+    if (member->rank->rank_type > ch->church_member->rank->rank_type && 
+        str_cmp(ch->name, ch->church->founder)) {
+        send_to_char("You can't change the rank of someone of higher rank than yourself.\n\r", ch);
+        return;
+    }
+    
+    // Find the target rank
+    int rank_num = atoi(arg2);
+    if (rank_num < 1 || !is_number(arg2)) {
+        send_to_char("Invalid rank number.\n\r", ch);
+        return;
+    }
+    
+    int i = 1;
+    for (rank = ch->church->ranks; rank && i < rank_num; rank = rank->next, i++);
+    
+    if (!rank) {
+        sprintf(buf, "Rank must be between 1 and %d.\n\r", ch->church->num_ranks);
+        send_to_char(buf, ch);
+        return;
+    }
+    
+    // Can't assign leader rank unless you're the founder or a leader
+    if (rank->rank_type == RANK_TYPE_LEADER && 
+        !is_church_leader(ch, ch->church) &&
+        str_cmp(ch->name, ch->church->founder)) {
+        send_to_char("Only leaders can assign the leader rank.\n\r", ch);
+        return;
+    }
+    
+    // Can't assign a rank higher than your own unless you're the founder
+    if (rank->rank_type > ch->church_member->rank->rank_type && 
+        str_cmp(ch->name, ch->church->founder)) {
+        send_to_char("You can't assign a rank higher than your own.\n\r", ch);
+        return;
+    }
+    
+    // Set the new rank
+    member->rank = rank;
+    
+    sprintf(buf, "You have set %s's rank to %s.\n\r", 
+            member->name, get_chrank(member));
+    send_to_char(buf, ch);
+    
+    if (member->ch && member->ch != ch) {
+        sprintf(buf, "Your rank has been changed to %s by %s.\n\r", 
+                get_chrank(member), ch->name);
+        send_to_char(buf, member->ch);
+    }
+    
+    // Log the change
+    sprintf(buf, "%s changed %s's rank to %s.", 
+            ch->name, member->name, get_chrank(member));
+    append_church_log(ch->church, buf);
+    
+    save_church(ch->church);
+}
+
+bool is_church_owner(CHAR_DATA *ch, CHURCH_DATA *church)
+{
+    if (!ch || !church || !church->owner)
+        return FALSE;
+        
+    return (!str_cmp(ch->name, church->owner));
+}
+
+
+bool can_modify_church_member(CHAR_DATA *ch, CHURCH_PLAYER_DATA *target)
+{
+    if (!ch || !ch->church || !ch->church_member || !target)
+        return FALSE;
+    
+    // Owner can modify anyone
+    if (is_church_owner(ch, ch->church))
+        return TRUE;
+        
+    // Non-owners can only modify non-owners
+    if (!is_church_leader(ch, ch->church))
+        return FALSE;
+        
+    // Leaders can't modify the owner
+    if (!str_cmp(target->name, ch->church->owner))
+        return FALSE;
+        
+    // Leaders can modify other members including other leaders
+    return TRUE;
+}
+
+void do_chowner(CHAR_DATA *ch, char *argument)
+{
+    char arg[MAX_INPUT_LENGTH];
+    char buf[MAX_STRING_LENGTH];
+    CHURCH_PLAYER_DATA *member;
+    
+    argument = one_argument(argument, arg);
+    
+    if (ch->church == NULL)
+    {
+        send_to_char("You are not in a church.\n\r", ch);
+        return;
+    }
+    
+    if (!is_church_owner(ch, ch->church))
+    {
+        send_to_char("Only the church owner can transfer ownership.\n\r", ch);
+        return;
+    }
+    
+    if (arg[0] == '\0')
+    {
+        sprintf(buf, "The current church owner is: %s\n\r", ch->church->owner);
+        send_to_char(buf, ch);
+        send_to_char("To transfer ownership, use: CHURCH OWNER <membername>\n\r", ch);
+        return;
+    }
+    
+    // Find the member
+    for (member = ch->church->people; member != NULL; member = member->next)
+    {
+        if (!str_cmp(member->name, arg))
+            break;
+    }
+    
+    if (member == NULL)
+    {
+        send_to_char("That person is not a member of your church.\n\r", ch);
+        return;
+    }
+    
+    // Check if already the owner
+    if (!str_cmp(member->name, ch->church->owner))
+    {
+        send_to_char("That person is already the church owner.\n\r", ch);
+        return;
+    }
+    
+    // Transfer ownership
+    free_string(ch->church->owner);
+    ch->church->owner = str_dup(member->name);
+    
+    // Ensure the new owner has a leader rank
+    CHURCH_RANK_DATA *leader_rank = NULL;
+    for (leader_rank = ch->church->ranks; leader_rank; leader_rank = leader_rank->next)
+    {
+        if (leader_rank->rank_type == RANK_TYPE_LEADER)
+            break;
+    }
+    
+    if (leader_rank && member->rank->rank_type != RANK_TYPE_LEADER)
+    {
+        member->rank = leader_rank;
+    }
+    
+    sprintf(buf, "You have transferred church ownership to %s.\n\r", member->name);
+    send_to_char(buf, ch);
+    
+    if (member->ch)
+    {
+        sprintf(buf, "%s has transferred church ownership to you.\n\r", ch->name);
+        send_to_char(buf, member->ch);
+    }
+    
+    // Log the ownership transfer
+    sprintf(buf, "%s transferred church ownership to %s.", ch->name, member->name);
+    append_church_log(ch->church, buf);
+    
+    save_church(ch->church);
+}
+
+void do_chuserperm(CHAR_DATA *ch, char *argument)
+{
+    char arg1[MAX_INPUT_LENGTH];
+    char arg2[MAX_INPUT_LENGTH];
+    char arg3[MAX_INPUT_LENGTH];
+    char buf[MAX_STRING_LENGTH];
+    CHURCH_PLAYER_DATA *member;
+    
+    argument = one_argument(argument, arg1);
+    argument = one_argument(argument, arg2);
+    argument = one_argument(argument, arg3);
+    
+    if (ch->church == NULL) {
+        send_to_char("You are not in a church.\n\r", ch);
+        return;
+    }
+    
+    if (!is_church_leader(ch, ch->church)) {
+        send_to_char("Only church leaders can manage member permissions.\n\r", ch);
+        return;
+    }
+    
+    if (arg1[0] == '\0') {
+        send_to_char("Syntax: church userperm <character> [permission] [on|off]\n\r", ch);
+        send_to_char("Use 'church userperm list' to see a list of available permissions.\n\r", ch);
+        return;
+    }
+    
+    // Show available permissions
+    if (!str_cmp(arg1, "list")) {
+        send_to_char("Available permissions:\n\r", ch);
+        send_to_char("--------------------\n\r", ch);
+        
+        for (int i = 0; church_permission_flags[i].name; i++) {
+            if (church_permission_flags[i].settable) {
+                sprintf(buf, "%-20s - %s\n\r", 
+                        church_permission_flags[i].name, 
+                        church_permission_flags[i].description ? 
+                        church_permission_flags[i].description : "No description");
+                send_to_char(buf, ch);
+            }
+        }
+        return;
+    }
+    
+    // Find the member
+    for (member = ch->church->people; member != NULL; member = member->next) {
+        if (!str_cmp(member->name, arg1))
+            break;
+    }
+    
+    if (member == NULL) {
+        send_to_char("That person is not a member of your church.\n\r", ch);
+        return;
+    }
+    
+    // Can't modify permissions of the owner or ranks higher than yours unless you're the owner
+    if (!can_modify_church_member(ch, member)) {
+        send_to_char("You can't modify that member's permissions.\n\r", ch);
+        return;
+    }
+    
+    // Show current permissions for this member
+    if (arg2[0] == '\0') {
+        sprintf(buf, "Personal permissions for %s:\n\r", member->name);
+        send_to_char(buf, ch);
+        send_to_char("--------------------\n\r", ch);
+        
+        bool has_any = FALSE;
+        for (int i = 0; church_permission_flags[i].name; i++) {
+            if (church_permission_flags[i].settable && 
+                IS_SET(member->personal_permissions, church_permission_flags[i].bit)) {
+                sprintf(buf, "%-20s\n\r", church_permission_flags[i].name);
+                send_to_char(buf, ch);
+                has_any = TRUE;
+            }
+        }
+        
+        if (!has_any) {
+            send_to_char("No personal permissions granted.\n\r", ch);
+        }
+        
+        send_to_char("\nPermissions granted by rank:\n\r", ch);
+        send_to_char("-------------------------\n\r", ch);
+        
+        has_any = FALSE;
+        for (int i = 0; church_permission_flags[i].name; i++) {
+            if (church_permission_flags[i].settable && 
+                IS_SET(member->rank->permissions, church_permission_flags[i].bit)) {
+                sprintf(buf, "%-20s\n\r", church_permission_flags[i].name);
+                send_to_char(buf, ch);
+                has_any = TRUE;
+            }
+        }
+        
+        if (!has_any) {
+            send_to_char("No permissions granted through rank.\n\r", ch);
+        }
+        
+        return;
+    }
+    
+    // Find the permission
+    int permission = flag_value(church_permission_flags, arg2);
+    if (permission == NO_FLAG) {
+        send_to_char("Unknown permission. Use 'church userperm list' to see available permissions.\n\r", ch);
+        return;
+    }
+    
+    // Check if the permission is already granted by rank
+    if (IS_SET(member->rank->permissions, permission)) {
+        send_to_char("That permission is already granted by the member's rank.\n\r", ch);
+        return;
+    }
+    
+    // Toggle or set the permission
+    if (arg3[0] == '\0') {
+        // Toggle
+        if (IS_SET(member->personal_permissions, permission)) {
+            REMOVE_BIT(member->personal_permissions, permission);
+            sprintf(buf, "Permission %s removed from %s.\n\r", arg2, member->name);
+        } else {
+            SET_BIT(member->personal_permissions, permission);
+            sprintf(buf, "Permission %s granted to %s.\n\r", arg2, member->name);
+        }
+    } else if (!str_prefix(arg3, "on")) {
+        SET_BIT(member->personal_permissions, permission);
+        sprintf(buf, "Permission %s granted to %s.\n\r", arg2, member->name);
+    } else if (!str_prefix(arg3, "off")) {
+        REMOVE_BIT(member->personal_permissions, permission);
+        sprintf(buf, "Permission %s removed from %s.\n\r", arg2, member->name);
+    } else {
+        send_to_char("Specify 'on' or 'off' to set permission.\n\r", ch);
+        return;
+    }
+    
+    send_to_char(buf, ch);
+    
+    // Notify the member if they're online
+    if (member->ch && member->ch != ch) {
+        if (IS_SET(member->personal_permissions, permission)) {
+            sprintf(buf, "%s has granted you the %s permission.\n\r", ch->name, arg2);
+        } else {
+            sprintf(buf, "%s has removed the %s permission from you.\n\r", ch->name, arg2);
+        }
+        send_to_char(buf, member->ch);
+    }
+    
+    // Log the change
+    sprintf(buf, "%s %s personal permission %s for %s.",
+        ch->name, 
+        IS_SET(member->personal_permissions, permission) ? "granted" : "removed",
+        arg2, 
+        member->name);
+    append_church_log(ch->church, buf);
+    
+    save_church(ch->church);
+}
+
+void save_church(CHURCH_DATA *church)
+{
+    FILE *fp;
+    char filename[256];
+    char temp_filename[256];
+    char normalized[256];
+    
+    if (!church) {
+        bug("save_church: null church", 0);
+        return;
+    }
+
+    // Create church directory if it doesn't exist
+    mkdir(ORG_DIR, 0755);
+    
+    // Normalize the church name for the filename
+    strcpy(normalized, normalize_filename(church->name));
+    
+    // Add UID as suffix to ensure uniqueness in case of name conflicts;
+    snprintf(filename, sizeof(filename), "%s%s_%ld.org", ORG_DIR, normalized, church->uid);
+    sprintf(temp_filename, "%s%s_%ld.tmp", ORG_DIR, normalized, church->uid);
+    
+    // First write to a temporary file
+    if ((fp = fopen(temp_filename, "w")) == NULL) {
+        bug("save_church: fopen", 0);
+        return;
+    }
+    
+    // Write the church data to the temporary file
+    write_church(church, fp);
+    fprintf(fp, "\n#-ENDFILE\n");
+    fclose(fp);
+    
+    // Now rename the temp file to the actual file (atomic operation)
+    if (rename(temp_filename, filename) < 0) {
+        bug("save_church: rename failed", 0);
+        unlink(temp_filename); // Clean up the temp file if rename failed
+    }
 }

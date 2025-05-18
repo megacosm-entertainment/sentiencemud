@@ -9300,6 +9300,31 @@ void list_clear(LLIST *lp)
 	}
 }
 
+// Get the last entry of a list.
+void *list_last(LLIST *list)
+{
+    if (!list || list->size == 0)
+        return NULL;
+        
+    void *data = NULL;
+    ITERATOR it;
+    
+    iterator_start(&it, list);
+    while (iterator_hasdata(&it)) {
+        data = iterator_nextdata(&it);
+    }
+    iterator_stop(&it);
+    
+    return data;
+}
+
+bool iterator_hasdata(ITERATOR *it)
+{
+    if(it && it->list && it->list->valid && it->current) {
+        return (it->current->data != NULL);
+    }
+    return false;
+}
 
 void *list_randomdata(LLIST *lp)
 {
@@ -11504,4 +11529,25 @@ ACCOUNT_DATA *get_account_by_identifier(const char *identifier, bool *loaded)
     }
     
     return account;
+}
+
+
+// Add a utility function to create a normalized filename
+char *normalize_filename(const char *name)
+{
+    static char buf[256];
+    char *dest = buf;
+    const char *src = name;
+    int i;
+    
+    // Convert to lowercase and replace spaces/symbols with underscores
+    for (i = 0; *src && i < 250; src++) {
+        if (isalnum(*src))
+            *dest++ = tolower(*src);
+        else if (*src == ' ' || !isprint(*src) || *src == '/' || *src == '\\' || *src == '.')
+            *dest++ = '_';
+    }
+    *dest = '\0';
+    
+    return buf;
 }

@@ -320,9 +320,10 @@ void save_char_obj(CHAR_DATA *ch)
 {
     char strsave[MAX_INPUT_LENGTH];
     FILE *fp;
+    OBJ_DATA *obj;
 
     if (IS_NPC(ch))
-	return;
+    return;
 
     if (!IS_VALID(ch))
     {
@@ -331,7 +332,7 @@ void save_char_obj(CHAR_DATA *ch)
     }
 
     if (ch->desc != NULL && ch->desc->original != NULL)
-	ch = ch->desc->original;
+    ch = ch->desc->original;
 
 if (ch->in_room && ch->in_room->area) {
     free_string(ch->pcdata->last_area);
@@ -363,8 +364,8 @@ if (ch->in_room && ch->in_room->area) {
     }
     
     // Save character to account first
-	log_string(ch->pcdata->last_area);
-	log_string(ch->pcdata->last_region);
+    log_string(ch->pcdata->last_area);
+    log_string(ch->pcdata->last_region);
     if (ch->desc && ch->desc->account) {
         account_add_character(ch->desc->account, ch);
     } else if (!IS_NPC(ch) && 
@@ -386,73 +387,62 @@ if (ch->in_room && ch->in_room->area) {
         }
     }
 
-#if 0
-#if defined(unix)
-    /* create god log */
-    if (IS_IMMORTAL(ch) && !IS_NPC(ch))
-    {
-	fclose(fpReserve);
-	sprintf(strsave, "%s%s",GOD_DIR, capitalize(ch->name));
-	if ((fp = fopen(strsave,"w")) == NULL)
-	{
-	    bug("Save_char_obj: fopen",0);
-	    perror(strsave);
- 	}
-
-	fprintf(fp,"{Y Lev %2d{x  %s%s{x\n",
-	    ch->level,
-	    ch->name,
-	    ch->pcdata->title?ch->pcdata->title:"");
-	fclose(fp);
-	fpReserve = fopen(NULL_FILE, "r");
-    }
-#endif
-#endif
-
-	
-
     fclose(fpReserve);
-	sprintf( strsave, "%s%c/%s",PLAYER_DIR,tolower(ch->name[0]),
-			 capitalize( ch->name ) );
+    sprintf(strsave, "%s%c/%s", PLAYER_DIR, tolower(ch->name[0]), capitalize(ch->name));
     if ((fp = fopen(TEMP_FILE, "w")) == NULL)
     {
-	bug("Save_char_obj: fopen", 0);
-	perror(strsave);
+        bug("Save_char_obj: fopen", 0);
+        perror(strsave);
     }
     else
     {
-	    // Used to do SAVE checks
-		p_percent_trigger( ch,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SAVE, NULL ,0,0,0,0,0);
+        // Used to do SAVE checks
+        p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SAVE, NULL, 0, 0, 0, 0, 0);
 
-		fwrite_char(ch, fp);
+        fwrite_char(ch, fp);
 
-		if (ch->carrying != NULL)
-			fwrite_obj_new(ch, ch->carrying, fp, 0);
+        /* Write equipment - worn items */
+        fprintf(fp, "#EQUIPMENT\n");
+        for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
+        {
+            if (obj->wear_loc != WEAR_NONE)
+                fwrite_obj_new(ch, obj, fp, 0);
+        }
+        fprintf(fp, "#ENDEQUIPMENT\n");
 
-		if (ch->locker != NULL)
-			fwrite_obj_new(ch, ch->locker, fp, 0);
+        /* Write inventory - carried items */
+        fprintf(fp, "#INVENTORY\n");
+        for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
+        {
+            if (obj->wear_loc == WEAR_NONE && !obj->locker)
+                fwrite_obj_new(ch, obj, fp, 0);
+        }
+        fprintf(fp, "#ENDINVENTORY\n");
 
-		if (ch->tokens != NULL) {
-			TOKEN_DATA *token;
-			for(token = ch->tokens; token; token = token->next)
-				if( token_should_save(token) )
-					fwrite_token(token, fp);
-		}
+        /* Write locker items */
+        fprintf(fp, "#LOCKER\n");
+        for (obj = ch->locker; obj != NULL; obj = obj->next_content)
+        {
+            fwrite_obj_new(ch, obj, fp, 0);
+        }
+        fprintf(fp, "#ENDLOCKER\n");
 
-		fwrite_stache_char(ch, fp);
+        if (ch->tokens != NULL) {
+            TOKEN_DATA *token;
+            for(token = ch->tokens; token; token = token->next)
+                if (token_should_save(token))
+                    fwrite_token(token, fp);
+        }
 
-		fwrite_skills(ch, fp);
+        fwrite_stache_char(ch, fp);
+        fwrite_skills(ch, fp);
+        fwrite_reputations_char(ch, fp);
 
-		fwrite_reputations_char(ch, fp);
-
-	    fprintf(fp, "#END\n");
         fprintf(fp, "#END\n");
-
     }
 
-
     fclose(fp);
-    rename(TEMP_FILE,strsave);
+    rename(TEMP_FILE, strsave);
     fpReserve = fopen(NULL_FILE, "r");
 }
 
@@ -1038,7 +1028,7 @@ extern pVARIABLE variable_tail;
  */
 bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 {
-	struct __player_data_versioning __versioning;
+    struct __player_data_versioning __versioning;
     char strsave[MAX_INPUT_LENGTH];
     char buf[MSL];
     CHAR_DATA *ch;
@@ -1050,239 +1040,257 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     int stat;
     TOKEN_DATA *token;
     pVARIABLE last_var = variable_tail;
+    char *section = NULL; // Track which section we're in: EQUIPMENT, INVENTORY, or LOCKER
 
-	__init_player_versioning(&__versioning);
+    __init_player_versioning(&__versioning);
 
     ch = new_char();
     ch->pcdata = new_pcdata();
 
-    d->character			= ch;
-    ch->desc				= d;
-    ch->name				= str_dup(name);
-    ch->id[0] = ch->id[1]		= 0;
-    ch->pcdata->creation_date		= -1;
-    ch->race				= gr_human;
-    ch->act[0]				= PLR_NOSUMMON;
-    ch->act[1]				= 0;
-    ch->comm				= COMM_PROMPT;
-    ch->num_grouped			= 0;
+    d->character = ch;
+    ch->desc = d;
+    ch->name = str_dup(name);
+    ch->id[0] = ch->id[1] = 0;
+    ch->pcdata->creation_date = -1;
+    ch->race = gr_human;
+    ch->act[0] = PLR_NOSUMMON;
+    ch->act[1] = 0;
+    ch->comm = COMM_PROMPT;
+    ch->num_grouped = 0;
     ch->dead = false;
-    ch->prompt 				= str_dup("{B<{x%h{Bhp {x%m{Bm {x%v{Bmv>{x%c");
-    ch->pcdata->confirm_delete		= false;
-    ch->pcdata->pwd			= str_dup("");
-	ch->pcdata->pwd_vers	= 0;
-	ch->pcdata->reset_code	= str_dup("");
-	//ch->pcdata->reset_time	= 0;
-	ch->pcdata->reset_state	= 0;
-    //ch->pcdata->bamfin			= str_dup("");
-    //ch->pcdata->bamfout			= str_dup("");
-    ch->pcdata->title			= str_dup("");
-    for (stat =0; stat < MAX_STATS; stat++)
+    ch->prompt = str_dup("{B<{x%h{Bhp {x%m{Bm {x%v{Bmv>{x%c");
+    ch->pcdata->confirm_delete = false;
+    ch->pcdata->pwd = str_dup("");
+    ch->pcdata->pwd_vers = 0;
+    ch->pcdata->reset_code = str_dup("");
+    ch->pcdata->reset_state = 0;
+    ch->pcdata->title = str_dup("");
+    for (stat = 0; stat < MAX_STATS; stat++)
     {
-		ch->perm_stat[stat]		= 13;
-		ch->mod_stat[stat]		= 0;
-		ch->dirty_stat[stat]	= true;
-	}
-    ch->pcdata->condition[COND_THIRST]	= 48;
-    ch->pcdata->condition[COND_FULL]	= 48;
-    ch->pcdata->condition[COND_HUNGER]	= 48;
-    ch->pcdata->condition[COND_STONED]	= 0;
-    ch->pcdata->security		= 0;
-    ch->pcdata->challenge_delay		= 0;
-	ch->pcdata->mfa_key = str_dup("");
-	//ch->pcdata->qr_code_expiration = 0;
+        ch->perm_stat[stat] = 13;
+        ch->mod_stat[stat] = 0;
+        ch->dirty_stat[stat] = true;
+    }
+    ch->pcdata->condition[COND_THIRST] = 48;
+    ch->pcdata->condition[COND_FULL] = 48;
+    ch->pcdata->condition[COND_HUNGER] = 48;
+    ch->pcdata->condition[COND_STONED] = 0;
+    ch->pcdata->security = 0;
+    ch->pcdata->challenge_delay = 0;
+    ch->pcdata->mfa_key = str_dup("");
     ch->morphed = false;
     ch->locker_rent = 0;
     ch->deathsight_vision = 0;
 
-	#ifdef IMC
-	imc_initchar( ch );
-	#endif
+    #ifdef IMC
+    imc_initchar(ch);
+    #endif
 
     found = false;
     fclose(fpReserve);
 
     /* decompress if .gz file exists */
-    sprintf(strsave, "%s%c/%s%s", PLAYER_DIR, tolower(name[0]), capitalize(name),".gz");
+    sprintf(strsave, "%s%c/%s%s", PLAYER_DIR, tolower(name[0]), capitalize(name), ".gz");
     if ((fp = fopen(strsave, "r")) != NULL)
     {
-		fclose(fp);
-		sprintf(buf,"gzip -dfq %s",strsave);
-		system(buf);
+        fclose(fp);
+        sprintf(buf, "gzip -dfq %s", strsave);
+        system(buf);
     }
 
     sprintf(strsave, "%s%c/%s", PLAYER_DIR, tolower(name[0]), capitalize(name));
     if ((fp = fopen(strsave, "r")) != NULL) {
-		int iNest;
+        int iNest;
 
-		for (iNest = 0; iNest < MAX_NEST; iNest++)
-			rgObjNest[iNest] = NULL;
+        for (iNest = 0; iNest < MAX_NEST; iNest++)
+            rgObjNest[iNest] = NULL;
 
-		found = true;
-		for (; ;)
-		{
-			char letter;
-			char *word;
+        found = true;
+        for (;;)
+        {
+            char letter;
+            char *word;
 
-			letter = fread_letter(fp);
-			if (letter == '*')
-			{
-			fread_to_eol(fp);
-			continue;
-			}
+            letter = fread_letter(fp);
+            if (letter == '*')
+            {
+                fread_to_eol(fp);
+                continue;
+            }
 
-			if (letter != '#')
-			{
-			bug("Load_char_obj: # not found.", 0);
-			break;
-			}
+            if (letter != '#')
+            {
+                bug("Load_char_obj: # not found.", 0);
+                break;
+            }
 
-			word = fread_word(fp);
-			if (!str_cmp(word, "PLAYER"))
-				fread_char(ch, fp, &__versioning);
-			else if (!str_cmp(word, "OBJECT") || !str_cmp(word, "O"))
-			{
-				obj = fread_obj_new(fp);
+            word = fread_word(fp);
+            
+            // Track which section we're in
+            if (!str_cmp(word, "EQUIPMENT")) {
+                section = "EQUIPMENT";
+                continue;
+            } else if (!str_cmp(word, "ENDEQUIPMENT")) {
+                section = NULL;
+                continue;
+            } else if (!str_cmp(word, "INVENTORY")) {
+                section = "INVENTORY";
+                continue;
+            } else if (!str_cmp(word, "ENDINVENTORY")) {
+                section = NULL;
+                continue;
+            } else if (!str_cmp(word, "LOCKER")) {
+                section = "LOCKER";
+                continue;
+            } else if (!str_cmp(word, "ENDLOCKER")) {
+                section = NULL;
+                continue;
+            }
+            
+            if (!str_cmp(word, "PLAYER"))
+                fread_char(ch, fp, &__versioning);
+            else if (!str_cmp(word, "OBJECT") || !str_cmp(word, "O"))
+            {
+                obj = fread_obj_new(fp);
 
-				if (obj == NULL)
-					continue;
+                if (obj == NULL)
+                    continue;
 
-				resolve_special_key(obj);
+                resolve_special_key(obj);
 
-				objNestList[obj->nest] = obj;
-				if (obj->locker == true)
-				{
-					obj_to_locker(obj, ch);
-					continue;
-				}
+                objNestList[obj->nest] = obj;
+                
+                // Determine where to put the object based on the current section
+                if (section && !str_cmp(section, "LOCKER"))
+                {
+                    obj_to_locker(obj, ch);
+                    continue;
+                }
+                else if (obj->locker == true)
+                {
+                    // For backward compatibility
+                    obj_to_locker(obj, ch);
+                    continue;
+                }
 
-				if (obj->nest == 0) {
-					 obj_to_char(obj, ch);
+                if (obj->nest == 0) {
+                    obj_to_char(obj, ch);
 
-					 if( obj->wear_loc != WEAR_NONE ) {
-						 list_addlink(ch->lworn, obj);
-					 }
-				} else {
-					OBJ_DATA *container = objNestList[obj->nest - 1];
+                    if (obj->wear_loc != WEAR_NONE) {
+                        list_addlink(ch->lworn, obj);
+                    }
+                } else {
+                    OBJ_DATA *container = objNestList[obj->nest - 1];
 
-					if (IS_CONTAINER(container))
-						obj_to_obj(obj,objNestList[obj->nest - 1]);
-					else {
-						sprintf(buf, "load_char_obj: found obj %s(%ld) in item %s(%ld) which is not a container",
-							obj->short_descr, obj->pIndexData->vnum,
-							container->short_descr, container->pIndexData->vnum);
-						log_string(buf);
-						obj_to_char(obj, ch);
-					}
-				}
-			} else if (!str_cmp(word, "L")) {
-				obj = fread_obj_new(fp);
-				obj_to_locker(obj, ch);
-			} else if (!str_cmp(word, "STACHE")) {
-				fread_stache(fp, ch->lstache);
-			} else if (!str_cmp(word, "TOKEN")) {
-				token = fread_token(fp);
-				if (token)
-				{
-					token_to_char(token, ch);
+                    if (IS_CONTAINER(container))
+                        obj_to_obj(obj, objNestList[obj->nest - 1]);
+                    else {
+                        sprintf(buf, "load_char_obj: found obj %s(%ld) in item %s(%ld) which is not a container",
+                            obj->short_descr, obj->pIndexData->vnum,
+                            container->short_descr, container->pIndexData->vnum);
+                        log_string(buf);
+                        obj_to_char(obj, ch);
+                    }
+                }
+            } else if (!str_cmp(word, "L")) {
+                obj = fread_obj_new(fp);
+                obj_to_locker(obj, ch);
+            } else if (!str_cmp(word, "STACHE")) {
+                fread_stache(fp, ch->lstache);
+            } else if (!str_cmp(word, "TOKEN")) {
+                token = fread_token(fp);
+                if (token)
+                {
+                    token_to_char(token, ch);
 
-					// Add all affects on the token to the character
-					ITERATOR ait;
-					AFFECT_DATA *taf;
-					iterator_start(&ait, token->affects);
-					while((taf = (AFFECT_DATA *)iterator_nextdata(&ait)))
-					{
-						taf->next = ch->affected;
-						ch->affected = taf;
-					}
-					iterator_stop(&ait);
-				}
-			} else if (!str_cmp(word, "REPUTATION")) {
-				fread_reputation(fp, ch);
-			} else if (!str_cmp(word, "SKILLENTRY")) {
-				fread_skill(fp, ch, false);
-			} else if (!str_cmp(word, "SONGENTRY")) {
-				fread_skill(fp, ch, true);
-			} else if (!str_cmp(word, "END"))
-				break;
-			else {
-				bug("Load_char_obj: bad section.", 0);
-				break;
-			}
-		}
+                    // Add all affects on the token to the character
+                    ITERATOR ait;
+                    AFFECT_DATA *taf;
+                    iterator_start(&ait, token->affects);
+                    while((taf = (AFFECT_DATA *)iterator_nextdata(&ait)))
+                    {
+                        taf->next = ch->affected;
+                        ch->affected = taf;
+                    }
+                    iterator_stop(&ait);
+                }
+            } else if (!str_cmp(word, "REPUTATION")) {
+                fread_reputation(fp, ch);
+            } else if (!str_cmp(word, "SKILLENTRY")) {
+                fread_skill(fp, ch, false);
+            } else if (!str_cmp(word, "SONGENTRY")) {
+                fread_skill(fp, ch, true);
+            } else if (!str_cmp(word, "END"))
+                break;
+            else {
+                bug("Load_char_obj: bad section.", 0);
+                break;
+            }
+        }
 
-		fclose(fp);
+        fclose(fp);
     }
     fpReserve = fopen(NULL_FILE, "r");
 
-	if(!IS_NPC(ch)) {
-		if(ch->pcdata->creation_date < 0) {
-			ch->pcdata->creation_date = ch->id[0];
-			ch->id[0] = 0;
-		}
-		if(!ch->pcdata->creation_date)
-			ch->pcdata->creation_date = get_pc_id();
-	}
+    if(!IS_NPC(ch)) {
+        if(ch->pcdata->creation_date < 0) {
+            ch->pcdata->creation_date = ch->id[0];
+            ch->id[0] = 0;
+        }
+        if(!ch->pcdata->creation_date)
+            ch->pcdata->creation_date = get_pc_id();
+    }
 
     // Do not bother fixing ANYTHING on the player
     // The only reason this is true will be during the reading of the staff list
     //   and needed to get the creation date
     if(loading_immortal_data)
     {
-    	return found;
-	}
-
-	get_mob_id(ch);
-
-    /* The immortal-only information associated with an imm is stored in a seperate list
-       (immortal_list) so that it is always accessible, instead of only when the char
-       is logged in. On game shutdown it is written to ../data/world/staff.dat. When
-       the player logs in, a pointer to the immortal staff entry is set up for them
-       here. */
-    if (get_staff_rank(ch) > STAFF_PLAYER) {
-	/* If their immortal isn't found, give them a blank one so we don't segfault. */
-		if ((immortal = find_immortal(ch->name)) == NULL) {
-			snprintf(buf, sizeof(buf), "load_char_obj: no immortal_data found for immortal character %s!", ch->name);
-			bug(buf, 0);
-
-			immortal = new_immortal();
-			immortal->name = str_dup(ch->name);
-			//immortal->level = ch->tot_level;
-			ch->pcdata->immortal = immortal;
-
-			add_immortal(immortal);
-
-		} else { // Readjust the char's level accordingly.
-			snprintf(buf, sizeof(buf), "load_char_obj: reading immortal char %s.\n\r", ch->name);
-			log_string(buf);
-
-			ch->pcdata->immortal = immortal;
-			//ch->level = immortal->level;
-			//ch->tot_level = immortal->level;
-		}
-	    immortal->pc = ch->pcdata;
+        return found;
     }
-	else if ((immortal = find_immortal(ch->name)) != NULL)
-	{
-		log_string(formatf("load_char_obj: resolving immortal data for %s.\n\r", ch->name));
-		ch->pcdata->staff_rank = STAFF_IMMORTAL;
-		ch->pcdata->immortal = immortal;
-		immortal->pc = ch->pcdata;
-	}
 
+    get_mob_id(ch);
+
+    // Handle immortal data setup
+    if (get_staff_rank(ch) > STAFF_PLAYER) {
+        if ((immortal = find_immortal(ch->name)) == NULL) {
+            snprintf(buf, sizeof(buf), "load_char_obj: no immortal_data found for immortal character %s!", ch->name);
+            bug(buf, 0);
+
+            immortal = new_immortal();
+            immortal->name = str_dup(ch->name);
+            ch->pcdata->immortal = immortal;
+
+            add_immortal(immortal);
+
+        } else {
+            snprintf(buf, sizeof(buf), "load_char_obj: reading immortal char %s.\n\r", ch->name);
+            log_string(buf);
+
+            ch->pcdata->immortal = immortal;
+        }
+        immortal->pc = ch->pcdata;
+    }
+    else if ((immortal = find_immortal(ch->name)) != NULL)
+    {
+        log_string(formatf("load_char_obj: resolving immortal data for %s.\n\r", ch->name));
+        ch->pcdata->staff_rank = STAFF_IMMORTAL;
+        ch->pcdata->immortal = immortal;
+        immortal->pc = ch->pcdata;
+    }
 
     // Fix char.
     if (found)
-		fix_character(ch, &__versioning);
+        fix_character(ch, &__versioning);
 
     /* Redo shift. Remember ch->shifted was just used as a placeholder to tell the game
        to re-shift, so we have to switch it to none first. */
     if (ch->shifted != SHIFTED_NONE) {
-		ch->shifted = SHIFTED_NONE;
-		shift_char(ch, true);
+        ch->shifted = SHIFTED_NONE;
+        shift_char(ch, true);
     }
 
-	variable_fix_list(last_var ? last_var : variable_head);
+    variable_fix_list(last_var ? last_var : variable_head);
 
     ch->pcdata->last_login = current_time;
     return found;
@@ -8578,6 +8586,48 @@ bool load_account(DESCRIPTOR_DATA *d, char *name)
                 fread_account(account, fp);
             else if (!str_cmp(word, "CHARACTER"))
                 fread_account_character(account, fp);
+            else if (!str_cmp(word, "VAULT"))
+            {
+                // Process vault items
+                OBJ_DATA *obj;
+                OBJ_DATA *objNestList[MAX_NEST];
+                int iNest;
+
+                for (iNest = 0; iNest < MAX_NEST; iNest++)
+                    objNestList[iNest] = NULL;
+                
+                while (!str_cmp((word = fread_word(fp)), "#O"))
+                {
+                    obj = fread_obj_new(fp);
+                    if (obj == NULL)
+                        continue;
+                    
+                    objNestList[obj->nest] = obj;
+                    
+                    if (obj->nest == 0) {
+                        obj->next_content = account->vault_items;
+                        account->vault_items = obj;
+                    } else {
+                        OBJ_DATA *container = objNestList[obj->nest - 1];
+                        if (IS_CONTAINER(container))
+                            obj_to_obj(obj, container);
+                        else {
+                            sprintf(buf, "load_account: found obj %s in non-container in vault",
+                                obj->short_descr);
+                            log_string(buf);
+                            // Put it at top level if container is invalid
+                            obj->next_content = account->vault_items;
+                            account->vault_items = obj;
+                        }
+                    }
+                }
+                
+                // Skip to end of vault section
+                while (str_cmp(word, "#ENDVAULT"))
+                {
+                    word = fread_word(fp);
+                }
+            }
             else if (!str_cmp(word, "END"))
                 break;
             else {
@@ -8780,7 +8830,10 @@ break;
             KEY("ResetState", account->reset_state, fread_number(fp));
             break;
 
-        }
+		case 'V':
+            KEY("VaultRent", account->vault_rent, fread_number(fp));
+            break;
+		}
 
         if (!fMatch) {
             sprintf(buf, "Fread_account: no match for account %s on word %s.", 
@@ -8961,6 +9014,21 @@ void fwrite_account(ACCOUNT_DATA *account, FILE *fp)
         fprintf(fp, "Timestamp %ld\n", (long)note->timestamp);
         fprintf(fp, "#END_NOTE\n");
     }
+
+	fprintf(fp, "VaultRent %ld\n", account->vault_rent);
+
+    /* Write vault items if any */
+    if (account->vault_items)
+    {
+        fprintf(fp, "#VAULT\n");
+        OBJ_DATA *obj;
+        for (obj = account->vault_items; obj != NULL; obj = obj->next_content)
+        {
+            fwrite_obj_new(NULL, obj, fp, 0);
+        }
+        fprintf(fp, "#ENDVAULT\n");
+    }
+
     fprintf(fp, "End\n\n");
 }
 

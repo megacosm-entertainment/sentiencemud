@@ -6535,7 +6535,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 					if( IS_NULLSTR(argument) )
 					{
 						send_to_char("Syntax: buy <crew> <ship#>\n\r", ch);
-						if( chrank == CHURCH_RANK_D )
+						if (chrank >= ch->church->max_ranks - 1)
 							send_to_char("        buy <crew> church <ship#>\n\r", ch);
 
 						return;
@@ -6544,7 +6544,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 					int index;
 					LLIST *ships;
 
-					if( (chrank == CHURCH_RANK_D) )
+					if (chrank >= ch->church->max_ranks - 1)
 					{
 						char arg5[MIL];
 
