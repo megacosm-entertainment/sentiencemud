@@ -791,6 +791,7 @@ CHAR_DATA *new_char( void )
     ch->factions = list_create(false);
 
     ch->missions = list_createx(false, NULL, delete_mission_data);
+    ch->lcarrying_temp = list_create(false);
 
     return ch;
 }
@@ -824,7 +825,6 @@ void free_char( CHAR_DATA *ch )
 		se_next = se->next;
 		free_skill_entry(se);
 	}
-
 
     // Inventory
     for (obj = ch->carrying; obj != NULL; obj = obj_next)
@@ -876,6 +876,7 @@ void free_char( CHAR_DATA *ch )
 
     list_destroy(ch->llocker);
     list_destroy(ch->lcarrying);
+    list_destroy(ch->lcarrying_temp);
     list_destroy(ch->lworn);
     list_destroy(ch->ltokens);
     list_destroy(ch->lclonerooms);

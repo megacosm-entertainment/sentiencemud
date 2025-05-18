@@ -5699,6 +5699,8 @@ struct	char_data
 	char		*casting_failure_message;
 
 	bool		in_damage_function;	// If set, it will prevent damage_new from working on the character
+    OBJ_DATA * carrying_temp; // Used to track the object that is being migrated
+    LLIST * lcarrying_temp; // Used to track the list of objects that are being migrated
 
 /*
 	struct char_data_stats {
