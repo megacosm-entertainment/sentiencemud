@@ -134,6 +134,7 @@ ACCOUNT_DATA *find_account_by_id(unsigned long id0, unsigned long id1);
 ACCOUNT_DATA *find_account_by_name(char *username);
 void save_account(ACCOUNT_DATA *account);
 extern void get_account_id(ACCOUNT_DATA *account);
+void migrate_character_objects(CHAR_DATA *ch);
 
 // Version structures
 struct __player_data_version_007
@@ -1041,6 +1042,8 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     TOKEN_DATA *token;
     pVARIABLE last_var = variable_tail;
     char *section = NULL; // Track which section we're in: EQUIPMENT, INVENTORY, or LOCKER
+	bool needs_obj_migration = false;
+	int version_check = 0;
 
     __init_player_versioning(&__versioning);
 
@@ -1291,6 +1294,18 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     }
 
     variable_fix_list(last_var ? last_var : variable_head);
+
+    if (found && ch->version < VERSION_PLAYER_011)
+    {
+        log_stringf("Migrating character %s from version %d to %d", name, ch->version, VERSION_PLAYER_011);
+        
+        // Migrate objects to sectioned format
+        migrate_character_objects(ch);
+        
+        // Update version and save
+        ch->version = VERSION_PLAYER_011;
+        save_char_obj(ch);
+    }
 
     ch->pcdata->last_login = current_time;
     return found;
@@ -9483,4 +9498,36 @@ ACCOUNT_DATA *find_account_by_name(char *username)
         free_account(account);
         return NULL;
     }
+}
+
+/*
+ * Migrate character from old object storage format to new sectioned format
+ */
+void migrate_character_objects(CHAR_DATA *ch)
+{
+    char buf[MAX_STRING_LENGTH];
+    
+    sprintf(buf, "Migrating character %s to sectioned object format", ch->name);
+    log_string(buf);
+    
+    // No need to manipulate objects - the save_char_obj function will 
+    // correctly write them in sectioned format based on object properties
+    // Simply logging what we're doing will help with debugging
+    
+    int carrying_count = 0;
+    int locker_count = 0;
+    OBJ_DATA *obj;
+    
+    for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
+        carrying_count++;
+        
+    for (obj = ch->locker; obj != NULL; obj = obj->next_content)
+        locker_count++;
+        
+    sprintf(buf, "Character %s has %d carried objects and %d locker items before migration", 
+            ch->name, carrying_count, locker_count);
+    log_string(buf);
+    
+    sprintf(buf, "Migration complete for %s", ch->name);
+    log_string(buf);
 }

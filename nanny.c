@@ -2640,13 +2640,27 @@ void login_link_character_name(DESCRIPTOR_DATA *d, char *argument)
     
     // Check if character is already linked to an account
     if (!IS_NULLSTR(ch->pcdata->account_name)) {
-        if (str_cmp(ch->pcdata->account_name, acct->username)) {
-            write_to_buffer(d, "That character is already linked to a different account.\n\r", 0);
+        // If already linked to THIS account but missing from the character list,
+        // automatically add it to the list without requiring password
+        if (!str_cmp(ch->pcdata->account_name, acct->username) ||
+            (ch->pcdata->account_id[0] == acct->id[0] && 
+             ch->pcdata->account_id[1] == acct->id[1])) {
+            
+            char buf[MAX_STRING_LENGTH];
+            sprintf(buf, "Character '%s' was already linked to your account. Fixing character list.\n\r", ch->name);
+            write_to_buffer(d, buf, 0);
+            
+            // Add to account's character list
+            account_add_character(acct, ch);
+            save_account(acct);
+            
             free_char(ch);
             display_account_menu(d);
             return;
-        } else {
-            write_to_buffer(d, "That character is already linked to your account.\n\r", 0);
+        }
+        // Linked to a different account - deny
+        else {
+            write_to_buffer(d, "That character is already linked to a different account.\n\r", 0);
             free_char(ch);
             display_account_menu(d);
             return;

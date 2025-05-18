@@ -175,7 +175,6 @@ O_FILES = \
 	$(OBJDIR)/interp.o \
 	$(OBJDIR)/invasion.o \
 	$(OBJDIR)/item_types.o \
-	$(OBJDIR)/locker.o \
 	$(OBJDIR)/lookup.o \
 	$(OBJDIR)/magic.o \
 	$(OBJDIR)/magic2.o \

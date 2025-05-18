@@ -17,7 +17,6 @@ void storage_church_cmd(CHAR_DATA *ch, char *arguments);
 bool check_storage_access(CHAR_DATA *ch, int storage_type);
 void show_storage_help(CHAR_DATA *ch, int storage_type);
 bool handle_storage_rent(CHAR_DATA *ch, int storage_type);
-bool can_access_church_storage(CHAR_DATA *ch, CHURCH_DATA *church);
 
 
 /*
@@ -1145,31 +1144,7 @@ void show_storage_help(CHAR_DATA *ch, int storage_type)
     }
 }
 
-/*
- * Check if a player can access church storage
- */
-bool can_access_church_storage(CHAR_DATA *ch, CHURCH_DATA *church)
-{
-    // Immortals can always access
-    if (IS_IMMORTAL(ch)) return true;
-    
-    // Must be a member of the church
-    if (ch->church != church) return false;
-    
-    // Can't access if excommunicated
-    if (is_excommunicated(ch)) return false;
-    
-    // CHURCH_PERM_STORAGE allows full access to storage
-    if (has_church_permission(ch->church_member, CHURCH_PERM_STORAGE))
-        return true;
-    
-    // For list and info commands, any storage-related permission is enough
-    if (has_church_permission(ch->church_member, CHURCH_PERM_GET_STORAGE) ||
-        has_church_permission(ch->church_member, CHURCH_PERM_PUT_STORAGE))
-        return true;
-    
-    return false;
-}
+
 
 /*
  * Object manipulation functions for vault storage
@@ -1299,6 +1274,57 @@ bool can_put_to_church_storage(CHAR_DATA *ch, CHURCH_DATA *church)
         return true;
         
     return false;
+}
+
+/*
+ * Character-specific locker storage - convenience wrapper
+ */
+void do_locker(CHAR_DATA *ch, char* argument)
+{
+    char buf[MAX_STRING_LENGTH];
+    
+    if (argument[0] == '\0') {
+        // If no arguments, just call storage with character type
+        do_storage(ch, "character");
+    } else {
+        // Prepend "character " to the arguments
+        sprintf(buf, "character %s", argument);
+        do_storage(ch, buf);
+    }
+}
+
+/*
+ * Account-wide vault storage - convenience wrapper
+ */
+void do_vault(CHAR_DATA *ch, char* argument)
+{
+    char buf[MAX_STRING_LENGTH];
+    
+    if (argument[0] == '\0') {
+        // If no arguments, just call storage with account type
+        do_storage(ch, "account");
+    } else {
+        // Prepend "account " to the arguments
+        sprintf(buf, "account %s", argument);
+        do_storage(ch, buf);
+    }
+}
+
+/*
+ * Church coffer storage - convenience wrapper
+ */
+void do_coffer(CHAR_DATA *ch, char* argument)
+{
+    char buf[MAX_STRING_LENGTH];
+    
+    if (argument[0] == '\0') {
+        // If no arguments, just call storage with church type
+        do_storage(ch, "church");
+    } else {
+        // Prepend "church " to the arguments
+        sprintf(buf, "church %s", argument);
+        do_storage(ch, buf);
+    }
 }
 
 void obj_to_storage(OBJ_DATA *obj, CHAR_DATA *ch, int storage_type);

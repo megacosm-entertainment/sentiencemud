@@ -1673,26 +1673,31 @@ void free_church_player( CHURCH_PLAYER_DATA *pMember )
     return;
 }
 
-void initialize_church_ranks(CHURCH_DATA *church)
+CHURCH_RANK_DATA *new_church_rank(void)
 {
-    // Create Member rank first (lowest rank)
-    CHURCH_RANK_DATA *member_rank = add_church_rank(church, 
-        "Member", "Member", "Member",
-        CHURCH_PERM_GOHALL | CHURCH_PERM_TALK, // Basic permissions
-        RANK_TYPE_MEMBER);
+    CHURCH_RANK_DATA *rank = alloc_mem(sizeof(CHURCH_RANK_DATA));
     
-    // Set as default rank for new members
-    church->default_rank = member_rank;
+    rank->name_male = NULL;
+    rank->name_female = NULL;
+    rank->name_neutral = NULL;
+    rank->permissions = 0;
+    rank->flags = 0;
+    rank->rank_type = RANK_TYPE_MEMBER;
+    rank->next = NULL;
     
-    // Create Leader rank (highest rank)
-    CHURCH_RANK_DATA *leader_rank = add_church_rank(church,
-        "Leader", "Leader", "Leader",
-        ~0, // All permissions
-        RANK_TYPE_LEADER);
+    return rank;
+}
+
+void free_church_rank(CHURCH_RANK_DATA *rank)
+{
+    if (!rank)
+        return;
+        
+    if (rank->name_male) free_string(rank->name_male);
+    if (rank->name_female) free_string(rank->name_female);
+    if (rank->name_neutral) free_string(rank->name_neutral);
     
-    // Mark these ranks as protected
-    member_rank->flags = CHURCH_RANK_PROTECTED;
-    leader_rank->flags = CHURCH_RANK_PROTECTED;
+    free_mem(rank, sizeof(CHURCH_RANK_DATA));
 }
 
 // Free church rank data

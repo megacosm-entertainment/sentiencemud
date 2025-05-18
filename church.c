@@ -3467,7 +3467,7 @@ void read_churches_new()
     DIR *dir;
     struct dirent *entry;
     FILE *fp;
-    char filename[256];
+    char filename[100];
     CHURCH_DATA *church;
     
     log_string("Reading churches...");
@@ -3484,28 +3484,73 @@ void read_churches_new()
         if (strlen(entry->d_name) > 4 && 
             !strcmp(entry->d_name + strlen(entry->d_name) - 4, ".org")) {
             
-			snprintf(filename, sizeof(filename), "%s%s", ORG_DIR, entry->d_name);            
+            // Build full filename
+            snprintf(filename, sizeof(filename), "%s%s", ORG_DIR, entry->d_name);            
             if ((fp = fopen(filename, "r")) == NULL) {
                 bug("read_churches_new: can't open church file", 0);
                 continue;
             }
             
+            // Read the church data
             church = read_church(fp);
             fclose(fp);
             
             if (church) {
-                // Add to list and append to global list
-                if (church_list == NULL)
-                    church_list = church;
-                else
-                    add_church_to_list(church, church_list);
-                    
-                if (!list_appendlink(list_churches, church)) {
-                    bug("Failed to load churches due to memory issue with 'list_appendlink'", 0);
-                    abort();
+                // Validate UID
+                if (church->uid == 0) {
+                    log_string(formatf("Warning: Church %s had no UID, generating new one", church->name));
+                    get_church_id(church);
                 }
                 
-                count++;
+                // Check if this church UID is already loaded (shouldn't happen, but safety check)
+                CHURCH_DATA *existing = NULL;
+                ITERATOR it;
+                iterator_start(&it, list_churches);
+                while ((existing = (CHURCH_DATA *)iterator_nextdata(&it))) {
+                    if (existing->uid == church->uid) {
+                        log_string(formatf("Warning: Duplicate church UID %ld found for %s and %s", 
+                                  church->uid, church->name, existing->name));
+                        break;
+                    }
+                }
+                iterator_stop(&it);
+                
+                if (!existing) {
+                    // Add to list and append to global list
+                    if (church_list == NULL)
+                        church_list = church;
+                    else
+                        add_church_to_list(church, church_list);
+                        
+                    if (!list_appendlink(list_churches, church)) {
+                        bug("Failed to load churches due to memory issue with 'list_appendlink'", 0);
+                        abort();
+                    }
+                    
+                    count++;
+                    
+                    // If the filename doesn't include the UID, save it with the correct format
+                    char expected_name[100];
+                    char normalized[32];
+                    char *norm = normalize_filename(church->name);
+                    strncpy(normalized, norm, 25);
+                    normalized[25] = '\0';
+                    
+                    snprintf(expected_name, sizeof(expected_name), "%s_%ld.org", normalized, church->uid);
+                    if (!strstr(entry->d_name, expected_name)) {
+                        log_string(formatf("Converting church file format for %s (UID %ld)", 
+                                  church->name, church->uid));
+                        save_church(church);
+                        
+                        // Delete the old file if it's not the same format
+                        if (strcmp(entry->d_name, expected_name) != 0) {
+                            unlink(filename);
+                        }
+                    }
+                } else {
+                    // Free duplicate church
+                    free_church(church);
+                }
             }
         }
     }
@@ -4730,6 +4775,9 @@ void do_chpermission(CHAR_DATA *ch, char *argument)
     save_church(ch->church);
 }
 
+/*
+ * Check if a player can access church storage
+ */
 bool can_access_church_storage(CHAR_DATA *ch, CHURCH_DATA *church)
 {
     // Immortals can always access
@@ -4741,8 +4789,13 @@ bool can_access_church_storage(CHAR_DATA *ch, CHURCH_DATA *church)
     // Can't access if excommunicated
     if (is_excommunicated(ch)) return false;
     
-    // Check if they have explicit storage permission
+    // CHURCH_PERM_STORAGE allows full access to storage
     if (has_church_permission(ch->church_member, CHURCH_PERM_STORAGE))
+        return true;
+    
+    // For list and info commands, any storage-related permission is enough
+    if (has_church_permission(ch->church_member, CHURCH_PERM_GET_STORAGE) ||
+        has_church_permission(ch->church_member, CHURCH_PERM_PUT_STORAGE))
         return true;
     
     return false;
@@ -5968,9 +6021,9 @@ void do_chuserperm(CHAR_DATA *ch, char *argument)
 void save_church(CHURCH_DATA *church)
 {
     FILE *fp;
-    char filename[256];
-    char temp_filename[256];
-    char normalized[256];
+    char filename[100];      // Increased buffer size
+    char temp_filename[100]; // Increased buffer size
+    char normalized[32];     // Just enough for the name part
     
     if (!church) {
         bug("save_church: null church", 0);
@@ -5980,12 +6033,15 @@ void save_church(CHURCH_DATA *church)
     // Create church directory if it doesn't exist
     mkdir(ORG_DIR, 0755);
     
-    // Normalize the church name for the filename
-    strcpy(normalized, normalize_filename(church->name));
+    // Normalize the church name for the filename AND truncate to max 20 chars
+    // This gives plenty of room for directory, uid, and extension
+    char *norm = normalize_filename(church->name);
+    strncpy(normalized, norm, 25);
+    normalized[25] = '\0';  // Ensure termination
     
-    // Add UID as suffix to ensure uniqueness in case of name conflicts;
+    // Add UID as suffix to ensure uniqueness in case of name conflicts
     snprintf(filename, sizeof(filename), "%s%s_%ld.org", ORG_DIR, normalized, church->uid);
-    sprintf(temp_filename, "%s%s_%ld.tmp", ORG_DIR, normalized, church->uid);
+    snprintf(temp_filename, sizeof(temp_filename), "%s%s_%ld.tmp", ORG_DIR, normalized, church->uid);
     
     // First write to a temporary file
     if ((fp = fopen(temp_filename, "w")) == NULL) {

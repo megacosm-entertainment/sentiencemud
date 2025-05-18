@@ -320,6 +320,9 @@ struct script_type {
 
 #define VERSION_PLAYER_010  0x01000009
 
+#define VERSION_PLAYER_011  0x0100000A
+// Break inventory into LOCKER, EQUIPMENT, and INVENTORY sections.
+
 #define VERSION_OBJECT_001	0x01000000
 
 #define VERSION_OBJECT_002	0x01000001
@@ -407,7 +410,7 @@ struct script_type {
 #define VERSION_MOBILE		0x01000000
 #define VERSION_OBJECT		VERSION_OBJECT_017
 #define VERSION_ROOM		VERSION_ROOM_003
-#define VERSION_PLAYER		VERSION_PLAYER_010
+#define VERSION_PLAYER		VERSION_PLAYER_011
 #define VERSION_TOKEN		0x01000000
 #define VERSION_AFFECT		0x01000000
 #define VERSION_SCRIPT		0x02000000
@@ -11935,6 +11938,9 @@ CHURCH_RANK_DATA *add_church_rank(CHURCH_DATA *church, const char *male_name,
                                 const char *female_name, const char *neutral_name, 
                                 long permissions, int rank_type);
 void save_church(CHURCH_DATA *church);
+bool can_access_church_storage(CHAR_DATA *ch, CHURCH_DATA *church);
+CHURCH_RANK_DATA *new_church_rank(void);
+void free_church_rank(CHURCH_RANK_DATA *rank);
 
 /* Church storage functions */
 void obj_to_coffer(OBJ_DATA *obj, CHURCH_DATA *church);
