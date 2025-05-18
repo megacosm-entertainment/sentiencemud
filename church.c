@@ -3472,6 +3472,59 @@ void read_churches_new()
     
     log_string("Reading churches...");
     
+    // First check for the legacy churches.dat file
+    sprintf(filename, "%schurches.dat", ORG_DIR);
+    if ((fp = fopen(filename, "r")) != NULL) {
+        log_string("Found legacy churches.dat file - converting to new format");
+        
+        // Read churches from the legacy format
+        int legacy_count = 0;
+        for (;;) {
+            char *word = fread_word(fp);
+            
+            if (!str_cmp(word, "#END"))
+                break;
+                
+            if (!str_cmp(word, "#CHURCH")) {
+                church = read_church(fp);
+                
+                if (church) {
+                    legacy_count++;
+                    
+                    // Validate UID
+                    if (church->uid == 0) {
+                        log_string(formatf("Legacy church %s had no UID, generating new one", church->name));
+                        get_church_id(church);
+                    }
+                    
+                    // Add to list and append to global list
+                    if (church_list == NULL)
+                        church_list = church;
+                    else
+                        add_church_to_list(church, church_list);
+                        
+                    if (!list_appendlink(list_churches, church)) {
+                        bug("Failed to load legacy church due to memory issue with 'list_appendlink'", 0);
+                        abort();
+                    }
+                    
+                    // Save in new format
+                    save_church(church);
+                }
+            }
+        }
+        
+        fclose(fp);
+        
+        // Rename the legacy file to prevent re-reading
+        char backup_name[100];
+        sprintf(backup_name, "%schurches.dat.bak", ORG_DIR);
+        rename(filename, backup_name);
+        
+        log_string(formatf("Converted %d churches from legacy format to new format", legacy_count));
+    }
+    
+    // Now read the individual church files
     if ((dir = opendir(ORG_DIR)) == NULL) {
         bug("read_churches_new: can't open church directory", 0);
         return;
