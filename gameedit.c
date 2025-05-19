@@ -1167,14 +1167,14 @@ while ((history = (GAME_SETTING_CHANGE_HISTORY *)iterator_nextdata(&it))) {
     // Store the current value as we're rolling back FROM this value TO the old value
     switch (history->setting->type) {
         case SETTING_TYPE_BOOL: {
-            bool current = *(bool *)history->setting->ptr;
+//            bool current = *(bool *)history->setting->ptr;
             // We're rolling back TO the old_value
             change->value = str_dup(history->old_value);
             break;
         }
         
         case SETTING_TYPE_INT: {
-            int current = *(int *)history->setting->ptr;
+//            int current = *(int *)history->setting->ptr;
             // We're rolling back TO the old_value
             change->value = str_dup(history->old_value);
             break;

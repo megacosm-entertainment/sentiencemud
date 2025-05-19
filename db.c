@@ -4088,7 +4088,7 @@ CHAR_DATA *clone_mobile(CHAR_DATA *parent)
 }
 
 
-OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects, bool multitypes)
+OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects, bool multitypes, bool add_to_loaded_objs)
 {
     AFFECT_DATA *paf;
     SPELL_DATA *spell, *spell_new;
@@ -4223,8 +4223,11 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
     obj->version = VERSION_OBJECT_000;
     obj->locker = false;
 
-	list_appendlink(loaded_objects, obj);
-    pObjIndex->count++;
+	if (add_to_loaded_objs)
+	{
+		list_appendlink(loaded_objects, obj);
+    	pObjIndex->count++;
+	}
 
 
     /* If loading a relic for whatever reason, update the pointers here.*/
@@ -4263,7 +4266,7 @@ OBJ_DATA *create_object(OBJ_INDEX_DATA *pObjIndex, int level, bool affects)
 {
     OBJ_DATA *obj;
 
-    obj = create_object_noid(pObjIndex,level,affects,true);
+    obj = create_object_noid(pObjIndex,level,affects,true, true);
 
 	if( obj )
 	{
@@ -8205,7 +8208,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 	if( !obj_index )
 		return NULL;
 
-	obj = create_object_noid(obj_index, -1, false, false);
+	obj = create_object_noid(obj_index, -1, false, false, false);
 	if( !obj )
 		return NULL;
 	obj->version = VERSION_OBJECT_000;

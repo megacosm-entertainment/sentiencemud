@@ -1519,8 +1519,8 @@ static void delete_church_treasure_room(void *data) { free_mem(data, sizeof(CHUR
 CHURCH_DATA *new_church( void )
 {
     CHURCH_DATA *pChurch;
-    int i;
-    int j;
+//    int i;
+//    int j;
 
     if ( !church_free )
     {
@@ -1704,7 +1704,7 @@ void free_church_rank(CHURCH_RANK_DATA *rank)
 // Free church rank data
 void free_church_ranks(CHURCH_DATA *church)
 {
-    int i;
+//    int i;
     
     if (!church)
         return;

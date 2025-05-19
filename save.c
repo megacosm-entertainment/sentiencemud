@@ -137,6 +137,10 @@ extern void get_account_id(ACCOUNT_DATA *account);
 void migrate_character_objects(CHAR_DATA *ch);
 void rebuild_character_file(CHAR_DATA *ch);
 void obj_to_char_temp(OBJ_DATA *obj, CHAR_DATA *ch);
+void remove_duplicate_objects_from_char(CHAR_DATA *ch);
+static void dedupe_obj_list(OBJ_DATA **head, LLIST *seen, LLIST *lworn);
+void remove_duplicate_objects_from_list(OBJ_DATA **head, LLIST *seen);
+void remove_duplicate_objects_from_char(CHAR_DATA *ch);
 
 
 // Version structures
@@ -324,9 +328,6 @@ void save_char_obj(CHAR_DATA *ch)
 {
     char strsave[MAX_INPUT_LENGTH];
     FILE *fp;
-    OBJ_DATA *obj;
-
-    log_stringf("save_char_obj: Saving character %s (id %ld, id2 %ld)", ch->name, ch->id[0], ch->id[1]);
 
     if (IS_NPC(ch))
         return;
@@ -336,69 +337,44 @@ void save_char_obj(CHAR_DATA *ch)
         bug("save_char_obj: Trying to save an invalidated character.\n", 0);
         return;
     }
+		remove_duplicate_objects_from_char(ch);
 
-    // MIGRATION BLOCK: Only run ONCE, and set version immediately!
-    if (ch->carrying_temp && ch->version < VERSION_PLAYER_011) {
-        OBJ_DATA *obj = ch->carrying_temp;
-        OBJ_DATA *next;
-        while (obj) {
-            next = obj->next_content;
-            obj->next_content = ch->carrying;
-            ch->carrying = obj;
-            obj = next;
+    // Save character to account first
+    log_string(ch->pcdata->last_area);
+    log_string(ch->pcdata->last_region);
+    if (ch->desc && ch->desc->account) {
+        account_add_character(ch->desc->account, ch);
+    } else if (!IS_NPC(ch) && 
+              (ch->pcdata->account_id[0] != 0 || !IS_NULLSTR(ch->pcdata->account_name))) {
+        // Try to find and update account - first by ID, then by name
+        ACCOUNT_DATA *account = NULL;
+        
+        if (ch->pcdata->account_id[0] != 0)
+            account = find_account_by_id(ch->pcdata->account_id[0], ch->pcdata->account_id[1]);
+            
+        // Fall back to name lookup if ID lookup fails
+        if (account == NULL && !IS_NULLSTR(ch->pcdata->account_name))
+            account = find_account_by_name(ch->pcdata->account_name);
+            
+        if (account != NULL) {
+            account_add_character(account, ch);
+            save_account(account);
+            free_account(account);
         }
-        ch->carrying_temp = NULL;
-
-        // Rebuild lcarrying from carrying
-        list_clear(ch->lcarrying);
-        for (obj = ch->carrying; obj != NULL; obj = obj->next_content) {
-            if (obj->wear_loc == WEAR_NONE && !obj->locker)
-                list_addlink(ch->lcarrying, obj);
-        }
-
-        ch->version = VERSION_PLAYER_011; // Set version IMMEDIATELY!
     }
 
-    // Debug: Print all carried, worn, and locker objects
-    {
-        OBJ_DATA *obj;
-        ITERATOR it;
-
-        log_stringf("save_char_obj: --- BEGIN OBJECT LISTS FOR %s ---", ch->name);
-
-        log_string("Carried objects (lcarrying):");
-        iterator_start(&it, ch->lcarrying);
-        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-            log_stringf("  [CARRY] %s %s (id %ld, id2 %ld, wear_loc %d, locker %d)", ch->name, obj->short_descr, obj->id[0], obj->id[1], obj->wear_loc, obj->locker);
-        }
-        iterator_stop(&it);
-
-        log_string("Carried objects (ch->carrying):");
-        for (obj = ch->carrying; obj != NULL; obj = obj->next_content) {
-            log_stringf("  [CARRY-LIST] %s %s (id %ld, id2 %ld, wear_loc %d, locker %d)", ch->name, obj->short_descr, obj->id[0], obj->id[1], obj->wear_loc, obj->locker);
-        }
-
-        log_string("Carried objects by (ch->carrying_temp):");
-        for (obj = ch->carrying_temp; obj != NULL; obj = obj->next_content) {
-            log_stringf("  [CARRY-TEMP-LIST] %s %s (id %ld, id2 %ld, wear_loc %d, locker %d)", ch->name, obj->short_descr, obj->id[0], obj->id[1], obj->wear_loc, obj->locker);
-        }
-
-        log_string("Worn objects (lworn):");
-        iterator_start(&it, ch->lworn);
-        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-            log_stringf("  [WORN] %s %s (id %ld, id2 %ld, wear_loc %d, locker %d)", ch->name, obj->short_descr, obj->id[0], obj->id[1], obj->wear_loc, obj->locker);
-        }
-        iterator_stop(&it);
-
-        log_string("Locker objects (locker=1):");
-        for (obj = ch->locker; obj != NULL; obj = obj->next_content) {
-            log_stringf("  [LOCKER] %s %s (id %ld, id2 %ld, wear_loc %d, locker %d)", ch->name, obj->short_descr, obj->id[0], obj->id[1], obj->wear_loc, obj->locker);
-        }
-
-        log_stringf("save_char_obj: --- END OBJECT LISTS FOR %s ---", ch->name);
+if (ch->carrying_temp && ch->version < VERSION_PLAYER_011) {
+    OBJ_DATA *obj = ch->carrying_temp;
+    OBJ_DATA *next;
+    while (obj) {
+        next = obj->next_content;
+        obj_to_char(obj, ch);
+        obj = next;
     }
-
-    // ...existing code for updating account, last_area, etc...
+    ch->carrying_temp = NULL;
+    ch->version = VERSION_PLAYER_011;
+	save_char_obj(ch);
+}
 
     fclose(fpReserve);
     sprintf(strsave, "%s%c/%s", PLAYER_DIR, tolower(ch->name[0]), capitalize(ch->name));
@@ -413,52 +389,39 @@ void save_char_obj(CHAR_DATA *ch)
 
         fwrite_char(ch, fp);
 
-        // Write equipment section
-        fprintf(fp, "#EQUIPMENT\n");
-        ITERATOR eit;
-        OBJ_DATA *eobj;
-        iterator_start(&eit, ch->lworn);
-        while ((eobj = (OBJ_DATA *)iterator_nextdata(&eit))) {
-            if (!eobj->locker)
-                fwrite_obj_new(ch, eobj, fp, 0);
-        }
-        iterator_stop(&eit);
-        fprintf(fp, "#ENDEQUIPMENT\n");
+		// Write equipment section
+		fprintf(fp, "#EQUIPMENT\n");
+		ITERATOR eit;
+		OBJ_DATA *eobj;
+		iterator_start(&eit, ch->lworn);
+		while ((eobj = (OBJ_DATA *)iterator_nextdata(&eit))) {
+    		if (!eobj->locker && eobj->in_obj == NULL && list_haslink(loaded_objects, eobj)) {
+        		fwrite_obj_new(ch, eobj, fp, 0);
+    		}
+		}
+		iterator_stop(&eit);
+		fprintf(fp, "#ENDEQUIPMENT\n");
 
-        // Write inventory section
-        fprintf(fp, "#INVENTORY\n");
-        if (ch->carrying_temp && ch->version < VERSION_PLAYER_011) {
-            // Only write from carrying_temp during migration
-            for (obj = ch->carrying_temp; obj != NULL; obj = obj->next_content) {
-                if (obj->wear_loc == WEAR_NONE && !obj->locker && !list_contains(ch->lworn, obj, NULL)) {
-                    fwrite_obj_new(ch, obj, fp, 0);
-                    log_stringf("save_char_obj: %s (id %ld, id2 %ld) saved to %s's inventory (carrying_temp)", obj->short_descr, obj->id[0], obj->id[1], ch->name);
-                }
-            }
-        } else {
-            // Only write from lcarrying after migration
-            ITERATOR iit;
-            OBJ_DATA *iobj;
-            iterator_start(&iit, ch->lcarrying);
-            while ((iobj = (OBJ_DATA *)iterator_nextdata(&iit))) {
-                iobj->next_content = NULL; // Prevent fwrite_obj_new from recursing through the list
-            }
-            iterator_stop(&iit);
 
-            iterator_start(&iit, ch->lcarrying);
-            while ((iobj = (OBJ_DATA *)iterator_nextdata(&iit))) {
-                if (iobj->wear_loc == WEAR_NONE && !iobj->locker && !list_contains(ch->lworn, iobj, NULL))
-                    fwrite_obj_new(ch, iobj, fp, 0);
-                log_stringf("save_char_obj: %s (id %ld, id2 %ld) saved to %s's inventory (lcarrying)", iobj->short_descr, iobj->id[0], iobj->id[1], ch->name);
-            }
-            iterator_stop(&iit);
-        }
-        fprintf(fp, "#ENDINVENTORY\n");
+		fprintf(fp, "#INVENTORY\n");
+		OBJ_DATA *obj, *next;
+		for (obj = ch->carrying; obj != NULL; obj = next) {
+    		next = obj->next_content;
+    		// Only write unequipped, non-locker, top-level objects
+    		if (obj->wear_loc == WEAR_NONE && !obj->locker && obj->in_obj == NULL && list_haslink(loaded_objects, obj)) {
+        		obj->next_content = NULL; // Prevent recursion through the list
+        		fwrite_obj_new(ch, obj, fp, 0);
+        		obj->next_content = next; // Restore the link
+    		}
+		}
+		fprintf(fp, "#ENDINVENTORY\n");
+
 
         // Write locker section
         fprintf(fp, "#LOCKER\n");
         for (obj = ch->locker; obj != NULL; obj = obj->next_content)
-            fwrite_obj_new(ch, obj, fp, 0);
+			if (list_haslink(loaded_objects, obj))
+            	fwrite_obj_new(ch, obj, fp, 0);
         fprintf(fp, "#ENDLOCKER\n");
 
         if (ch->tokens != NULL) {
@@ -586,6 +549,11 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     fprintf(fp, "Race %s~\n", ch->race->name);
     fprintf(fp, "Sex  %d\n",	ch->sex			);
     fprintf(fp, "LockerRent %ld\n", (long int)ch->locker_rent   );
+	if (ch->deleted)
+	{
+		fprintf(fp, "Deleted %d\n", ch->deleted);
+		fprintf(fp, "DeleteTime %ld\n", (long int)ch->delete_time);
+	}
 
 	ITERATOR cit;
 	CLASS_LEVEL *cl;
@@ -1142,17 +1110,38 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
             } else if (!str_cmp(word, "OBJECT") || !str_cmp(word, "O")) {
                 obj = fread_obj_new(fp);
                 if (!obj) continue;
+
+
                 objNestList[obj->nest] = obj;
 
                 if (section) {
 					log_string(formatf("Loading object %s into section %s for %s\n", obj->name, section, ch->name));
                     if (!str_cmp(section, "LOCKER")) {
                         obj_to_locker(obj, ch);
-                    } else if (!str_cmp(section, "EQUIPMENT")) {
+                    } 
+					/*
+					else if (!str_cmp(section, "EQUIPMENT")) {
                         obj_to_char(obj, ch);
                         if (obj->wear_loc != WEAR_NONE)
                             list_addlink(ch->lworn, obj);
-                    } else if (!str_cmp(section, "INVENTORY")) {
+                    } 
+					*/
+				else if (!str_cmp(section, "EQUIPMENT") || !str_cmp(section, "INVENTORY")) {
+    objNestList[obj->nest] = obj;
+    if (obj->nest == 0) {
+        obj_to_char(obj, ch);
+    } else {
+        OBJ_DATA *container = objNestList[obj->nest - 1];
+        if (container && IS_CONTAINER(container))
+            obj_to_obj(obj, container);
+        else
+            obj_to_char(obj, ch); // fallback if container is missing
+    }
+    // For equipped items, add to lworn if needed
+    if (!str_cmp(section, "EQUIPMENT") && obj->wear_loc != WEAR_NONE)
+        list_addlink(ch->lworn, obj);
+}
+					else if (!str_cmp(section, "INVENTORY")) {
                         if (obj->nest == 0) {
                             obj_to_char(obj, ch);
                         } else {
@@ -2108,6 +2097,8 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		ch->dead = true;
 		fMatch = true;
 	    }
+		KEY("Deleted",	ch->deleted,		fread_number(fp));
+		KEY("DeleteTime",	ch->delete_time,	fread_number(fp));
 
 	    break;
 
@@ -6174,7 +6165,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 		OBJ_INDEX_DATA *index = get_obj_index_auid(w.auid, w.vnum);
 		if ( index != NULL)
-			obj = create_object_noid(index,-1, false, false);
+			obj = create_object_noid(index,-1, false, false, false);
 
 	}
 
@@ -6858,6 +6849,25 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 					free_obj(obj);
 					return NULL;
 				}
+				else if (is_duplicate_object(obj))
+				{
+const char *where = "Unknown";
+if (obj->carried_by && obj->carried_by->name)
+    where = obj->carried_by->name;
+else if (obj->in_room && obj->in_room->name)
+    where = obj->in_room->name;
+else if (obj->in_obj && obj->in_obj->short_descr)
+    where = obj->in_obj->short_descr;
+
+
+log_stringf("Duplicate object detected: %s (id %ld, id2 %ld, vnum %ld) for %s. Skipping.",
+    obj->short_descr, obj->id[0], obj->id[1],
+    obj->pIndexData ? obj->pIndexData->vnum : 0,
+    where);
+					free_obj(obj);
+					return NULL;
+				}
+
 				else
 				{
 					if (!fVnum)
@@ -6866,7 +6876,12 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 						return NULL;
 						//obj = create_object(obj_index_dummy, 0 , false);
 					}
-
+				
+					if (!list_haslink(loaded_objects, obj))
+					{
+						list_appendlink(loaded_objects, obj);
+						obj->pIndexData->count++;
+					}
 					fread_obj_check_version(obj, values);
 
 					if (make_new)
@@ -8664,7 +8679,25 @@ bool load_account(DESCRIPTOR_DATA *d, char *name)
     }
     iterator_stop(&cit);
 
-// At the end of load_account, add:
+ITERATOR it;
+//ACCOUNT_CHARACTER *next_entry;
+
+iterator_start(&it, account->characters);
+while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+//    next_entry = (ACCOUNT_CHARACTER *)iterator_peek_nextdata(&it); // Save next in case we remove
+    if (should_purge_deleted_character(ch_entry)) {
+        // Load the character file
+        DESCRIPTOR_DATA temp_d;
+        memset(&temp_d, 0, sizeof(temp_d));
+        if (load_char_obj(&temp_d, ch_entry->name) && temp_d.character) {
+            delete_character(temp_d.character); // This handles unlinking and file move
+            free_char(temp_d.character);
+        }
+        list_remlink(account->characters, ch_entry, false);
+        free_account_character(ch_entry);
+    }
+}
+iterator_stop(&it);
 
     // Add to loaded_accounts list if found
     if (found && loaded_accounts)
@@ -8872,6 +8905,10 @@ void fread_account_character(ACCOUNT_DATA *account, FILE *fp)
             KEY("Created", acct_char->creation_date, fread_number(fp));
             KEYS("Class", acct_char->class_name, fread_string(fp));
             break;
+		
+		case 'D':
+			KEY("Deleted", acct_char->deleted, fread_number(fp));
+			KEY("DeleteTime", acct_char->delete_time, fread_number(fp));
             
         case 'E':
             if (!str_cmp(word, "End")) {
@@ -9064,6 +9101,11 @@ void fwrite_account_character(ACCOUNT_CHARACTER *character, FILE *fp)
     fprintf(fp, "LastRegion %s~\n", character->last_region);
     fprintf(fp, "LastHost" " %s~\n", character->last_host ? character->last_host : "");
     fprintf(fp, "LastLogoff %ld\n", (long int)current_time);
+	if (character->deleted)
+	{
+		fprintf(fp, "Deleted %d\n", character->deleted);
+		fprintf(fp, "DeleteTime %ld\n", character->delete_time);
+	}
 
     if (character->id[0] != 0 || character->id[1] != 0) {
         fprintf(fp, "Id %ld\n", character->id[0]);
@@ -9500,4 +9542,92 @@ void obj_to_char_temp(OBJ_DATA *obj, CHAR_DATA *ch)
     if (obj->wear_loc != WEAR_NONE)
         list_addlink(ch->lworn, obj);
     // DO NOT add to lcarrying here!
+}
+
+// Helper to dedupe a linked list of objects recursively
+static void dedupe_obj_list(OBJ_DATA **head, LLIST *seen, LLIST *lworn) {
+    OBJ_DATA *obj = *head, *prev = NULL, *next;
+    while (obj) {
+        next = obj->next_content;
+        bool duplicate = false;
+        ITERATOR it;
+        OBJ_DATA *existing;
+        iterator_start(&it, seen);
+        while ((existing = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (existing->id[0] == obj->id[0] &&
+                existing->id[1] == obj->id[1] &&
+                existing->pIndexData == obj->pIndexData) {
+                duplicate = true;
+                break;
+            }
+        }
+        iterator_stop(&it);
+
+        // If this object is in lworn, do NOT remove it from carrying/carrying_temp
+        bool is_equipped = (lworn && list_contains(lworn, obj, NULL));
+
+        if (duplicate && !is_equipped) {
+            // Remove from list
+            if (prev)
+                prev->next_content = next;
+            else
+                *head = next;
+            // Optionally free_obj(obj);
+        } else {
+            list_appendlink(seen, obj);
+            // Recurse into contents
+            if (obj->contains)
+                dedupe_obj_list(&obj->contains, seen, lworn);
+            prev = obj;
+        }
+        obj = next;
+    }
+}
+
+void remove_duplicate_objects_from_char(CHAR_DATA *ch) {
+    LLIST *seen = list_create(FALSE);
+    LLIST *lworn = list_create(FALSE);
+
+    // 1. Add all equipped objects to seen and lworn first (so they are prioritized)
+    ITERATOR it;
+    OBJ_DATA *obj;
+    iterator_start(&it, ch->lworn);
+    while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+        if (!list_contains(seen, obj, NULL)) {
+            list_appendlink(seen, obj);
+        }
+        if (!list_contains(lworn, obj, NULL)) {
+            list_appendlink(lworn, obj);
+        }
+    }
+    iterator_stop(&it);
+
+    // 2. Dedupe carrying, carrying_temp, and locker against seen, but don't remove if in lworn
+    OBJ_DATA **lists[3] = { &ch->carrying, &ch->carrying_temp, &ch->locker };
+    for (int l = 0; l < 3; l++) {
+        dedupe_obj_list(lists[l], seen, lworn);
+    }
+
+    list_destroy(seen);
+    list_destroy(lworn);
+}
+
+void remove_duplicate_objects_from_list(OBJ_DATA **head, LLIST *seen) {
+    OBJ_DATA *obj = *head, *prev = NULL, *next;
+    while (obj) {
+        next = obj->next_content;
+        if (!list_contains(seen, obj, NULL)) {
+            list_appendlink(seen, obj);
+            if (obj->contains)
+                remove_duplicate_objects_from_list(&obj->contains, seen);
+            prev = obj;
+        } else {
+            // Remove duplicate from this list
+            if (prev)
+                prev->next_content = next;
+            else
+                *head = next;
+        }
+        obj = next;
+    }
 }

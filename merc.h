@@ -1633,6 +1633,7 @@ struct game_settings_data
     char    *insecure_warning_msg;          // What message do we display for insecure users? (requires insecure_warning)
     int     max_logfile_size;               // What size do we start rotating logs at (in MB)?
     bool note_boot_errors;
+    int character_delete_delay_days; // How long until a character is deleted after being marked for deletion?
 
     /* MSSP Settings */
     int mssp_players;                            // Automatically updated by the game.
@@ -1999,7 +2000,12 @@ struct church_treasure_room {
 #define CON_VERIFY_ACCOUNT_EMAIL_CHANGE 68
 #define CON_CHANGE_CHARACTER_EMAIL 69
 #define CON_VERIFY_CHARACTER_EMAIL_CHANGE 70
-#define CON_MAX 68
+#define CON_VERIFY_UNLINK_PASSWORD 71
+#define CON_VERIFY_UNLINK_MFA 72
+#define CON_SET_UNLINK_PASSWORD 73
+#define CON_VERIFY_CHARACTER_DELETE 74
+#define CON_CHARACTER_DELETE 75
+#define CON_MAX 76
 
 #define MFA_RECOVERY_CODES 5
 
@@ -4099,6 +4105,7 @@ enum {
 #define ACCT_CAN_CREATE_STAFF (A)
 #define ACCT_CAN_LINK (B)
 #define ACCT_CAN_UNLINK (C)
+#define ACCT_CAN_DELETE_IMMEDIATELY (D)
 
 struct sector_data
 {
@@ -5701,6 +5708,8 @@ struct	char_data
 	bool		in_damage_function;	// If set, it will prevent damage_new from working on the character
     OBJ_DATA * carrying_temp; // Used to track the object that is being migrated
     LLIST * lcarrying_temp; // Used to track the list of objects that are being migrated
+    bool deleted;
+    time_t delete_time;
 
 /*
 	struct char_data_stats {
@@ -5861,6 +5870,8 @@ struct account_character_data
     time_t last_logoff;         /* Last time character logged off */
     char *last_host;
     long id[2];                    /* Character ID */
+    bool deleted;                /* Is the character deleted? */
+    time_t delete_time;         /* When the character was deleted */
 //    long id2;                   /* Character ID part 2 */
 };
 
@@ -10953,7 +10964,7 @@ void    check_objects   args( ( void ) );
 void    check_mobs      args( ( void ) );
 CD *	create_mobile	args( ( MOB_INDEX_DATA *pMobIndex, bool persistLoad ) );
 CD *	clone_mobile	args( ( CHAR_DATA *parent ) );
-OD *	create_object_noid	args( ( OBJ_INDEX_DATA *pObjIndex, int level, bool affects, bool multitypes ) );
+OD *	create_object_noid	args( ( OBJ_INDEX_DATA *pObjIndex, int level, bool affects, bool multitypes, bool add_to_loaded_objs ) );
 OD *	create_object	args( ( OBJ_INDEX_DATA *pObjIndex, int level, bool affects ) );
 void	clone_object	args( ( OBJ_DATA *parent, OBJ_DATA *clone ) );
 void	clear_char	args( ( CHAR_DATA *ch ) );
@@ -11534,6 +11545,7 @@ CHURCH_DATA *get_church_by_name(const char *name);
 bool validate_account_recipient(const char *account_name);
 int colour_trunc_len(const char *str, int limit);
 char *normalize_filename(const char *name);
+bool is_duplicate_object(OBJ_DATA *obj);
 
 /* help.c */
 HELP_DATA *find_helpfile( char *keyword, HELP_CATEGORY *hcat );
@@ -11679,6 +11691,10 @@ void login_verify_account_email_change(DESCRIPTOR_DATA *d, char *argument);
 bool is_reconnecting(CHAR_DATA *ch);
 void reconnect_char(DESCRIPTOR_DATA *d);
 void string_end_accnote(CHAR_DATA *ch);
+void login_character_delete(DESCRIPTOR_DATA *d, char argument);
+bool delete_character(CHAR_DATA *ch);
+bool should_purge_deleted_character(const ACCOUNT_CHARACTER *ch_entry);
+void *iterator_peek_nextdata(ITERATOR *it);
 
 
 /* scripts.c */
@@ -11947,14 +11963,14 @@ void free_church_rank(CHURCH_RANK_DATA *rank);
 /* Church storage functions */
 void obj_to_coffer(OBJ_DATA *obj, CHURCH_DATA *church);
 void obj_from_coffer(OBJ_DATA *obj, CHURCH_DATA *church);
-OBJ_DATA *get_obj_coffer(CHURCH_DATA *church, const char *argument);
+OBJ_DATA *get_obj_coffer(CHURCH_DATA *church, CHAR_DATA *ch, char *argument);
 bool can_get_from_church_storage(CHAR_DATA *ch, CHURCH_DATA *church);
 bool can_put_to_church_storage(CHAR_DATA *ch, CHURCH_DATA *church);
 
 /* Vault/account storage functions */
 void obj_to_vault(OBJ_DATA *obj, ACCOUNT_DATA *account);
 void obj_from_vault(OBJ_DATA *obj, ACCOUNT_DATA *account);
-OBJ_DATA *get_obj_vault(ACCOUNT_DATA *account, const char *argument);
+OBJ_DATA *get_obj_vault(ACCOUNT_DATA *account, CHAR_DATA *ch, char *argument);
 
 /* Church member functions */
 bool is_church_leader(CHAR_DATA *ch, CHURCH_DATA *church);

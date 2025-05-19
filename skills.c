@@ -2690,7 +2690,9 @@ void gn_add(CHAR_DATA *ch, SKILL_GROUP *group)
 
 	// First check if the group already exists in the list
     if (list_contains(ch->pcdata->group_known, group, NULL))
+	{
         return;  // Group already exists, don't add it again
+	}
 
 	list_appendlink(ch->pcdata->group_known, group);
 

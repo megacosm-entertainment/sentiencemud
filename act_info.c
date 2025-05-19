@@ -5128,8 +5128,8 @@ void do_inventory(CHAR_DATA * ch, char *argument)
     char buf[MAX_STRING_LENGTH];
 
     send_to_char("You are carrying:\n\r", ch);
-    show_list_to_char(ch->carrying, ch, true, true);
-    if (!IS_DEAD(ch))
+    show_list_to_char(ch->carrying, ch, true, true);    
+	if (!IS_DEAD(ch))
     {
 	sprintf(buf,
   	    "A total of %d/%d items with weight %ld/%d kg.{x "

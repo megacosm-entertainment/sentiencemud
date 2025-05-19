@@ -664,6 +664,11 @@ if (!account) {
 
     // Process store/put command
     if (!str_cmp(arg1, "store") || !str_cmp(arg1, "put")) {
+        if (IS_STAFF(ch, STAFF_IMMORTAL)) {
+            send_to_char("Staff characters cannot put items into account vault storage.\n\r", ch);
+            if (loaded && account) free_account(account);
+            return;
+        }
         if ((obj = get_obj_carry(ch, arg2, ch)) == NULL) {
             send_to_char("You do not have that item.\n\r", ch);
             if (loaded && account) free_account(account);
@@ -743,7 +748,7 @@ if (!account) {
 
     // Process get command
     if (!str_cmp(arg1, "get")) {
-        if ((obj = get_obj_vault(account, arg2)) == NULL) {
+        if ((obj = get_obj_vault(account, ch, arg2)) == NULL) {
             send_to_char("That item isn't in your vault.\n\r", ch);
             if (loaded && account) free_account(account);
             return;
@@ -793,7 +798,7 @@ void storage_church_cmd(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg2);
 
     // Verify player can access coffer here
-    if (ch->in_room && is_in_treasure_room(ch->in_room)) {
+    if (ch->in_room && is_treasure_room(ch->church,ch->in_room)) {
             send_to_char("You need to be in a church treasure room to access church storage.\n\r", ch);
         return;
     }
@@ -1021,6 +1026,11 @@ void storage_church_cmd(CHAR_DATA *ch, char *argument)
 
     // Process store/put command
     if (!str_cmp(arg1, "store") || !str_cmp(arg1, "put")) {
+     
+        if (IS_STAFF(ch, STAFF_IMMORTAL)) {
+            send_to_char("Staff characters cannot put items into church coffer storage.\n\r", ch);
+            return;
+        }
         if (!can_put_to_church_storage(ch, church)) {
             send_to_char("You do not have permission to store items in the church coffer.\n\r", ch);
             return;
@@ -1087,7 +1097,7 @@ void storage_church_cmd(CHAR_DATA *ch, char *argument)
             return;
         }
         
-        if ((obj = get_obj_coffer(church, arg2)) == NULL) {
+        if ((obj = get_obj_coffer(church, ch, arg2)) == NULL) {
             send_to_char("That item isn't in the church coffer.\n\r", ch);
             return;
         }
@@ -1180,22 +1190,22 @@ void obj_to_vault(OBJ_DATA *obj, ACCOUNT_DATA *account)
     account->vault_items = obj;
 }
 
-OBJ_DATA *get_obj_vault(ACCOUNT_DATA *account, const char *argument)
+OBJ_DATA *get_obj_vault(ACCOUNT_DATA *account, CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
     int number;
     int count = 0;
     char arg[MAX_INPUT_LENGTH];
-    
+
     number = number_argument(argument, arg);
-    
+
     for (obj = account->vault_items; obj != NULL; obj = obj->next_content) {
-        if (can_see_obj(NULL, obj) && is_name(arg, obj->name)) {
+        if (can_see_obj(ch, obj) && is_name(arg, obj->name)) {
             if (++count == number)
                 return obj;
         }
     }
-    
+
     return NULL;
 }
 
@@ -1225,22 +1235,22 @@ void obj_to_coffer(OBJ_DATA *obj, CHURCH_DATA *church)
     church->coffer = obj;
 }
 
-OBJ_DATA *get_obj_coffer(CHURCH_DATA *church, const char *argument)
+OBJ_DATA *get_obj_coffer(CHURCH_DATA *church, CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
     int number;
     int count = 0;
     char arg[MAX_INPUT_LENGTH];
-    
+
     number = number_argument(argument, arg);
-    
+
     for (obj = church->coffer; obj != NULL; obj = obj->next_content) {
-        if (can_see_obj(NULL, obj) && is_name(arg, obj->name)) {
+        if (can_see_obj(ch, obj) && is_name(arg, obj->name)) {
             if (++count == number)
                 return obj;
         }
     }
-    
+
     return NULL;
 }
 

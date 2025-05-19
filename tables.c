@@ -5101,11 +5101,11 @@ const struct game_setting_type game_settings_table[] = {
     { "vault_add_weight_char", &game_settings.vault_additional_weight_per_char, SETTING_TYPE_INT, SETTING_CAT_VAULT, "Additional weight per character",                    true,  false, false },
 
     /* Coffer Settings */
+    { "coffer_enabled",      &game_settings.coffer_enabled,       SETTING_TYPE_BOOL,   SETTING_CAT_COFFER,   "Is the coffer enabled",                                      true,  false, false },
+    { "coffer_rent",         &game_settings.coffer_rent,          SETTING_TYPE_BOOL,   SETTING_CAT_COFFER,   "Does the coffer cost rent",                                  true,  false, false },
     { "max_coffer_weight",   &game_settings.max_coffer_weight,    SETTING_TYPE_INT,    SETTING_CAT_COFFER,   "Maximum weight an organization can have in their coffer",    true,  false, false },
     { "max_coffer_items",    &game_settings.max_coffer_items,     SETTING_TYPE_INT,    SETTING_CAT_COFFER,   "Maximum items an organization can have in their coffer",     true,  false, false },
     { "coffer_enabled",      &game_settings.coffer_enabled,       SETTING_TYPE_BOOL,   SETTING_CAT_COFFER,   "Is the coffer enabled",                                      true,  false, false },
-    { "coffer_rent",         &game_settings.coffer_rent,          SETTING_TYPE_BOOL,   SETTING_CAT_COFFER,   "Does the coffer cost rent",                                  true,  false, false },
-    { "coffer_rent_cost",    &game_settings.coffer_rent_cost,     SETTING_TYPE_INT,    SETTING_CAT_COFFER,   "Cost to rent an organization coffer",                        true,  false, false },
     { "coffer_rent_currency", &game_settings.coffer_rent_currency, SETTING_TYPE_STRING, SETTING_CAT_COFFER,  "Currency used for coffer rent",                              true,  false, false },
     { "coffer_rent_period",  &game_settings.coffer_rent_period,   SETTING_TYPE_INT,    SETTING_CAT_COFFER,   "Duration rent grants access to an org (in days)",            true,  false, false },
 
@@ -5156,6 +5156,9 @@ const struct game_setting_type game_settings_table[] = {
     { "insecure_warning_msg", &game_settings.insecure_warning_msg, SETTING_TYPE_STRING, SETTING_CAT_GLOBAL,  "Message for insecure connections",                           true,  false, false },
     { "max_logfile_size",    &game_settings.max_logfile_size,     SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Size to start rotating logs (in MB)",                        true,  false, false },
     { "note_boot_errors",   &game_settings.note_boot_errors, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Sends notes with boot errors to 'coder' and 'head coder'", true, true, false },
+    { "org_max_ranks",        &game_settings.org_max_ranks,        SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "How many ranks can an organization have",                    true,  false, false },
+    { "character_delete",    &game_settings.character_delete_delay_days, SETTING_TYPE_INT, SETTING_CAT_GLOBAL, "Number of days before a character is purged when flagged for deletion.", true, false, false },
+
 
 
     /* MSSP Settings */
