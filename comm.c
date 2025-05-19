@@ -2659,8 +2659,43 @@ void reconnect_char(DESCRIPTOR_DATA *d)
 {
     CHAR_DATA *ch = d->character;
     char buf[MAX_STRING_LENGTH];
-    
+    LLIST_LINK *link;
+    OBJ_DATA *obj;
+    TOKEN_DATA *token;
+
     if (!ch) return;
+
+    // Fix inventory relationships
+    if (ch->carrying == NULL && ch->lcarrying != NULL) {
+        log_string("Reconnect: Rebuilding inventory from lcarrying");
+        for (link = ch->lcarrying->head; link; link = link->next) {
+            obj = (OBJ_DATA *)link->data;
+            if (obj && obj->carried_by == ch) {
+                obj->next_content = ch->carrying;
+                ch->carrying = obj;
+                ch->carry_number++;
+                ch->carry_weight += get_obj_weight(obj);
+            }
+        }
+    }
+
+    // Fix worn equipment relationships
+    if (ch->lworn != NULL) {
+        for (link = ch->lworn->head; link; link = link->next) {
+            obj = (OBJ_DATA *)link->data;
+        }
+    }
+
+    // Fix token relationships
+    if (ch->tokens == NULL && ch->ltokens != NULL) {
+        for (link = ch->ltokens->head; link; link = link->next) {
+            token = (TOKEN_DATA *)link->data;
+            if (token && token->player == ch) {
+                token->next = ch->tokens;
+                ch->tokens = token;
+            }
+        }
+    }
     
     // Set to playing state immediately
     d->connected = CON_PLAYING;
