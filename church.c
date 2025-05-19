@@ -78,55 +78,53 @@ void do_chsetmemberrank(CHAR_DATA *ch, char *argument);
 bool is_church_owner(CHAR_DATA *ch, CHURCH_DATA *church);
 bool can_modify_church_member(CHAR_DATA *ch, CHURCH_PLAYER_DATA *target);
 void do_chuserperm(CHAR_DATA *ch, char *argument);
+void do_chupgrade(CHAR_DATA *ch, char *argument);
 
 #define CHURCH_PERM_NONE          0
 
-/* Church commands */
-// Update the church command table
+
+
 const struct church_command_type church_command_table[] =
 {
-    { "create",         CHURCH_RANK_NONE, CHURCH_PERM_NONE,   do_chcreate        },
-    { "info",           CHURCH_RANK_NONE, CHURCH_PERM_NONE,   do_chinfo          },
-    { "list",           CHURCH_RANK_NONE, CHURCH_PERM_NONE,   do_chlist          },
+    /* Anyone can run these */
+    { "create",         CHURCH_PERM_NONE,   do_chcreate, false        },
+    { "info",           CHURCH_PERM_NONE,   do_chinfo, false          },
+    { "list",           CHURCH_PERM_NONE,   do_chlist, false          },
 
-    { "deposit",        CHURCH_RANK_A,    CHURCH_PERM_NONE,   do_chdeposit       },
-    { "donate",         CHURCH_RANK_A,    CHURCH_PERM_NONE,   do_chdonate        },
-    { "gohall",         CHURCH_RANK_A,    CHURCH_PERM_GOHALL, do_chgohall        },
-    { "motd",           CHURCH_RANK_A,    CHURCH_PERM_MOTD,   do_chmotd          },
-    { "quit",           CHURCH_RANK_A,    CHURCH_PERM_NONE,   do_chrem           },
-    { "rules",          CHURCH_RANK_A,    CHURCH_PERM_RULES,  do_chrules         },
-    { "talk",           CHURCH_RANK_A,    CHURCH_PERM_TALK,   do_chtalk          },
-    { "treasure",       CHURCH_RANK_A,    CHURCH_PERM_NONE,   do_chtreasure      },
-    { "where",          CHURCH_RANK_A,    CHURCH_PERM_NONE,   do_chwhere         },
+    /* Need to be in a church for these */
+    { "deposit",     CHURCH_PERM_NONE,   do_chdeposit, true       },
+    { "donate",         CHURCH_PERM_NONE,   do_chdonate, true        },
+    { "gohall",         CHURCH_PERM_GOHALL, do_chgohall, true        },
+    { "motd",           CHURCH_PERM_MOTD,   do_chmotd, true          },
+    { "quit",           CHURCH_PERM_NONE,   do_chrem, true           },
+    { "rules",          CHURCH_PERM_NONE,  do_chrules, true         },
+    { "talk",           CHURCH_PERM_TALK,   do_chtalk, true          },
+    { "treasure",       CHURCH_PERM_TREASURE,   do_chtreasure, true      },
+    { "where",          CHURCH_PERM_NONE,   do_chwhere, true         },
+    { "withdraw",       CHURCH_PERM_WITHDRAW|CHURCH_PERM_FINANCES,   do_chwithdraw, true      },
+    { "balance",      CHURCH_PERM_BALANCE|CHURCH_PERM_FINANCES,   do_chbalance, true       },
+    { "add",        CHURCH_PERM_ADD,   do_chadd, true           },
+    { "colour",         CHURCH_PERM_MANAGE,   do_chcolour, true        },
+    { "convert",        CHURCH_PERM_MANAGE,   do_chconvert, true       },
+    { "delmember",      CHURCH_PERM_REMOVE, do_chrem, true           },
+    { "excommunicate",  CHURCH_PERM_MEMBERS,   do_chexcommunicate, true},
+    { "overthrow",      CHURCH_PERM_MANAGE,   do_choverthrow, true     },
+    { "permission",     CHURCH_PERM_PERMS,   do_chpermission, true    },
+    { "rank",          CHURCH_PERM_RANKS,   do_chranks, true         },
+    { "set",            CHURCH_PERM_MANAGE,   do_churchset, true       },
+    { "setflag",        CHURCH_PERM_MANAGE,   do_chflag, true          },
+    { "setrank",        CHURCH_PERM_MEMBERS,   do_chsetrank, true       },
+    { "toggle",         CHURCH_PERM_MANAGE,   do_chtoggle, true        },
+    { "transfer",       CHURCH_PERM_FINANCES,   do_chtransfer, true      },
+    { "trust",          CHURCH_PERM_MANAGE,   do_chtrust, true         },
+    { "upgrade",        CHURCH_PERM_MANAGE,   do_chupgrade, true       },
 
-    { "balance",        CHURCH_RANK_B,    CHURCH_PERM_NONE,   do_chbalance       },
-    { "withdraw",       CHURCH_RANK_B,    CHURCH_PERM_WITHDRAW, do_chwithdraw    },
 
-    { "add",            CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chadd           },
-    { "colour",         CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chcolour        },
-    { "convert",        CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chconvert       },
-    { "delmember",      CHURCH_RANK_D,    CHURCH_PERM_REMOVE, do_chrem           },
-    { "demote",         CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chdem           },
-    { "excommunicate",  CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chexcommunicate },
-    { "overthrow",      CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_choverthrow     },
-    { "permission",     CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chpermission    },
-    { "promote",        CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chprom          },
-  	{ "ranks",          CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chranks         },
-    { "set",            CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_churchset       },
-    { "setflag",        CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chflag          },
-    { "setrank",        CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chsetrank       },
-    { "toggle",         CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chtoggle        },
-    { "transfer",       CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chtransfer      },
-    { "trust",          CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chtrust         },
-// In the church_command_table array
-	{ "defaultrank",    CHURCH_RANK_D,    CHURCH_PERM_NONE,   do_chdefaultrank  },
+    {" delete",        CHURCH_PERM_NONE,   do_chdelete, false        },
+    {"advance",        CHURCH_PERM_NONE,   do_chadvance, false       },
+    {"deduct",         CHURCH_PERM_NONE,   do_chdeduct, false        },
+    { NULL, -1, NULL, false }
 
-    /* Immortal commands*/
-    { "delete",         CHURCH_RANK_IMM,  CHURCH_PERM_NONE,   do_chdelete        },
-    { "advance",        CHURCH_RANK_IMM,  CHURCH_PERM_NONE,   do_chadvance       },
-    { "deduct",         CHURCH_RANK_IMM,  CHURCH_PERM_NONE,   do_chdeduct        },
-
-    { NULL,             -1,               CHURCH_PERM_NONE,   NULL               }
 };
 
 char *lookup_church_command (char *string)
@@ -170,7 +168,7 @@ void show_church_commands(CHAR_DATA *ch)
         bool can_use = false;
         
         // Commands available to everyone
-        if (church_command_table[i].rank == CHURCH_RANK_NONE)
+        if (church_command_table[i].permission == CHURCH_PERM_NONE)
             can_use = true;
         
         // Commands available to immortals
@@ -221,7 +219,7 @@ void do_church(CHAR_DATA *ch, char *argument)
     }
 
     // Check if command requires church membership
-    if (church_command_table[i].rank > CHURCH_RANK_NONE &&
+    if (church_command_table[i].membership &&
         ch->church == NULL)
     {
         send_to_char("You must be in a church to use that command.\n\r", ch);
@@ -1618,6 +1616,113 @@ void msg_church_members(CHURCH_DATA *church, char *argument)
     }
 }
 
+/*
+ * Allows qualified church members to upgrade their church to the next size
+ * Requires the user to be in a church office
+ */
+void do_chupgrade(CHAR_DATA *ch, char *argument)
+{
+    CHURCH_DATA *church;
+    CHAR_DATA *temp_char;
+    char buf[MAX_STRING_LENGTH];
+    bool found = false;
+    
+    if ((church = ch->church) == NULL) {
+        send_to_char("You aren't even in a church.\n\r", ch);
+        return;
+    }
+    
+    // Check if player has permission to upgrade the church
+    if (!is_church_owner(ch, church) && 
+        !has_church_permission(ch->church_member, CHURCH_PERM_MANAGE)) {
+        send_to_char("You don't have permission to upgrade your church.\n\r", ch);
+        return;
+    }
+    
+    // Check if at administration office
+    found = false;
+    for (temp_char = ch->in_room->people; temp_char != NULL;
+         temp_char = temp_char->next_in_room) {
+        if (IS_NPC(temp_char) && IS_SET(temp_char->act[1], ACT2_CHURCHMASTER)) {
+            found = true;
+            break;
+        }
+    }
+
+    if (!found) {
+        send_to_char("You must be at an administration office.\n\r", ch);
+        return;
+    }
+    
+    // Check if church is already at maximum size
+    if (church->size >= CHURCH_SIZE_CHURCH) {
+        send_to_char("Your church has already reached its maximum size.\n\r", ch);
+        return;
+    }
+    
+    // Define upgrade costs based on current size
+    long dp_cost = 0;
+    long pneuma_cost = 0;
+    
+    switch(church->size) {
+        case CHURCH_SIZE_BAND:  // Band to Cult
+            dp_cost = 5000000;
+            pneuma_cost = 50000;
+            break;
+            
+        case CHURCH_SIZE_CULT:  // Cult to Order
+            dp_cost = 10000000;
+            pneuma_cost = 100000;
+            break;
+            
+        case CHURCH_SIZE_ORDER: // Order to Church
+            dp_cost = 25000000;
+            pneuma_cost = 250000;
+            break;
+            
+        default:
+            bug("do_chupgrade: invalid church size", 0);
+            return;
+    }
+    
+    // Check if church has enough resources
+    if (church->dp < dp_cost || church->pneuma < pneuma_cost) {
+        sprintf(buf, "Upgrading from %s to %s requires %ld deity points and %ld pneuma.\n\r"
+                     "Your church has %ld deity points and %ld pneuma.\n\r",
+                get_chsize_from_number(church->size),
+                get_chsize_from_number(church->size + 1),
+                dp_cost, pneuma_cost,
+                church->dp, church->pneuma);
+        send_to_char(buf, ch);
+        return;
+    }
+    
+    // All checks passed, upgrade the church
+    church->dp -= dp_cost;
+    church->pneuma -= pneuma_cost;
+    church->size += 1;
+    
+    // Update their max roster size if necessary
+    int max_pos = church_get_min_positions(church->size);
+    church->max_positions = UMAX(church->max_positions, max_pos);
+    
+    // Announce the upgrade
+    sprintf(buf, "{Y[%s has upgraded from %s to %s!]{x\n\r",
+            church->name, 
+            get_chsize_from_number(church->size - 1),
+            get_chsize_from_number(church->size));
+    gecho(buf);
+    
+    // Log the upgrade
+    sprintf(buf, "%s upgraded the church from %s to %s for %ld DP and %ld pneuma.",
+            ch->name,
+            get_chsize_from_number(church->size - 1),
+            get_chsize_from_number(church->size),
+            dp_cost, pneuma_cost);
+    append_church_log(church, buf);
+    
+    save_church(church);
+}
 
 void do_chadvance(CHAR_DATA *ch, char* argument)
 {
@@ -1627,7 +1732,7 @@ void do_chadvance(CHAR_DATA *ch, char* argument)
 
     argument = one_argument(argument, arg);
 
-    if (ch->tot_level < 155)
+    if (ch->pcdata->staff_rank > STAFF_SUPREMACY || !IS_SET(ch->pcdata->immortal->duties, IMMORTAL_CHURCHES))
     {
         send_to_char("Huh?\n\r", ch);
         return;
@@ -1690,7 +1795,7 @@ void do_chdeduct(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg2);
     argument = one_argument(argument, arg3);
 
-    if (ch->tot_level < 155)
+    if (ch->pcdata->staff_rank > STAFF_SUPREMACY || !IS_SET(ch->pcdata->immortal->duties, IMMORTAL_CHURCHES))
     {
         send_to_char("Huh?\n\r", ch);
         return;
@@ -4252,40 +4357,69 @@ bool is_excommunicated(CHAR_DATA *ch)
     return IS_SET(ch->church_member->flags, CHURCH_PLAYER_EXCOMMUNICATED);
 }
 
-bool church_add_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room, int min_rank)
+/*
+ * Add a treasure room to a church
+ * The is_default parameter determines if all members can access it
+ * Non-default rooms require explicit rank permissions to access
+ */
+bool church_add_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room, bool is_default)
 {
-	CHURCH_TREASURE_ROOM *treasure = alloc_mem(sizeof(CHURCH_TREASURE_ROOM));
-
-	if( !treasure ) return false;
-
-	treasure->room = room;
-	treasure->min_rank = min_rank;
-
-	if(!list_appendlink(church->treasure_rooms, treasure))
-	{
-		free_mem(treasure, sizeof(CHURCH_TREASURE_ROOM));
-		return false;
-	}
-
-	return true;
+    if (!church || !room)
+        return false;
+        
+    CHURCH_TREASURE_ROOM *treasure = create_church_treasure_room(church, room, is_default);
+    
+    if (!treasure)
+        return false;
+    
+    // If not default, then add the leader rank to allowed ranks
+    if (!is_default) {
+        CHURCH_RANK_DATA *rank;
+        for (rank = church->ranks; rank; rank = rank->next) {
+            if (rank->rank_type == RANK_TYPE_LEADER || 
+                rank->rank_type == RANK_TYPE_OFFICER) {
+                add_rank_to_treasure_room(treasure, rank);
+            }
+        }
+    }
+    
+    return true;
 }
 
+/*
+ * Remove a treasure room from a church
+ */
 void church_remove_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room)
 {
-	CHURCH_TREASURE_ROOM *treasure;
-	ITERATOR it;
+    if (!church || !room)
+        return;
+        
+    CHURCH_TREASURE_ROOM *treasure;
+    ITERATOR it;
 
-	iterator_start(&it, church->treasure_rooms);
-	while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it))) {
-		if( treasure->room == room)
-			break;
-	}
-	iterator_stop(&it);
+    iterator_start(&it, church->treasure_rooms);
+    while ((treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it))) {
+        if (treasure->room == room)
+            break;
+    }
+    iterator_stop(&it);
 
-	if(treasure != NULL) {
-		list_remlink(church->treasure_rooms, treasure, false);
-		free_mem(treasure, sizeof(CHURCH_TREASURE_ROOM));
-	}
+    if (treasure != NULL) {
+        // Clean up the allowed_ranks list if it exists
+        if (treasure->allowed_ranks) {
+            list_destroy(treasure->allowed_ranks);
+            treasure->allowed_ranks = NULL;
+        }
+        
+        // Free the name if it exists
+        if (treasure->name) {
+            free_string(treasure->name);
+            treasure->name = NULL;
+        }
+        
+        list_remlink(church->treasure_rooms, treasure, false);
+        free_mem(treasure, sizeof(CHURCH_TREASURE_ROOM));
+    }
 }
 
 CHURCH_TREASURE_ROOM *get_church_treasure_room(CHAR_DATA *ch, CHURCH_DATA *church, int nth)

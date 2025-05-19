@@ -1815,9 +1815,9 @@ struct church_player_data
 struct church_command_type
 {
     char 	*command;		/* the command */
-    int 	rank;			/* minimum rank to use */
     long 	permission;			/* flag to use */
     DO_FUN	*function;		/* function call */
+    bool membership;    /* require membership */
 };
 
 #define RANK_TYPE_MEMBER    0
@@ -12376,7 +12376,7 @@ void free_boolexp(BOOLEXP *boolexp);
 int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue);
 
 CHURCH_TREASURE_ROOM *get_church_treasure_room(CHAR_DATA *ch, CHURCH_DATA *church, int nth);
-bool church_add_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room, int min_rank);
+bool church_add_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room, bool is_default);
 void church_remove_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room);
 bool church_set_treasure_room_rank(CHURCH_DATA *church, int nth, int min_rank);
 int church_get_min_positions(int size);
