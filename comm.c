@@ -199,7 +199,7 @@ static void RedirectSTDOUT(void)
 
 	/* Redirect standard input and standard output*/
 	strftime(log_time, 100, "%F-%X", localtime(&current_time));
-	sprintf(logfile_std,"../log/sent_%s.log",log_time);
+	sprintf(logfile_std, LOG_DIR "sent_%s.log",log_time);
 	if(!(newfp = freopen(logfile_std,"a",stdout))) { /* This happens on NT*/
 #if !defined(stdout)
 		stdout = fopen(logfile_std,"a");
@@ -221,7 +221,7 @@ static void RedirectSTDERR(void)
 
 	/* Redirect standard input and standard output*/
 	strftime(log_time, 100, "%F-%X", localtime(&current_time));
-	sprintf(logfile_err,"../log/sent_%s.err",log_time);
+	sprintf(logfile_err, LOG_DIR "sent_%s.err",log_time);
 	if(!(newfp = freopen(logfile_err,"a",stderr))) { /* This happens on NT*/
 #if !defined(stdout)
 		stdout = fopen(logfile_err,"a");

@@ -10679,6 +10679,7 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
 #define STATS_DIR		DATA_DIR "stats/"
 #define HELP_DIR		DATA_DIR "help/"
 #define AREA_DIR		GAME_DIR "area/"
+#define LOG_DIR         GAME_DIR "logs/"
 
 /*World files - Regarding things specifically for the game world. */
 #define PROJECTS_FILE	WORLD_DIR "projects.dat"
