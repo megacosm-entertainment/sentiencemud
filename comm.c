@@ -870,13 +870,8 @@ void game_loop(int control_telnet, int control_tls)
         {
             FD_SET(d->descriptor, &in_set);
             FD_SET(d->descriptor, &exc_set);
-            
-            // Always monitor for write events with TLS handshake in progress
-            if (d->ssl && d->tls_handshake_in_progress) {
-                FD_SET(d->descriptor, &out_set);
-            } else if (d->outtop > 0) {
-                FD_SET(d->descriptor, &out_set);
-            }
+            FD_SET(d->descriptor, &out_set);
+        
             
             maxdesc = UMAX(maxdesc, d->descriptor);
         }
