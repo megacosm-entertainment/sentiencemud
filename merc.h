@@ -2141,6 +2141,7 @@ struct	descriptor_data
     bool mfa_verified;
     bool creating_staff_character;
     bool reconnecting;
+    bool healthcheck;
 
 };
 
@@ -13165,9 +13166,15 @@ void do_mxptest(CHAR_DATA *ch, char *argument);
 void generate_key(CHAR_DATA *ch, char *key);
 bool check_mfa(CHAR_DATA *ch, char *argument);
 char *sha256_crypt( const char *pwd );
-void configure_context(SSL_CTX *ctx);
-SSL_CTX* create_context(void);
+/* SSL functions */
 void init_openssl_library(void);
+SSL_CTX *create_context(void);
+bool configure_context(SSL_CTX *context);
+void init_ssl_cleanup_queue(void);
+void add_ssl_ctx_to_cleanup(SSL_CTX *old_ctx);
+void process_ssl_cleanup_queue(void);
+void refresh_ssl_context(void);
+DH *get_dh_params(void);
 
 
 #endif /* !def __merc_h__ */

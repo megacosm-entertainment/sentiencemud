@@ -1115,7 +1115,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
                 objNestList[obj->nest] = obj;
 
                 if (section) {
-					log_string(formatf("Loading object %s into section %s for %s\n", obj->name, section, ch->name));
+					//log_string(formatf("Loading object %s into section %s for %s\n", obj->name, section, ch->name));
                     if (!str_cmp(section, "LOCKER")) {
                         obj_to_locker(obj, ch);
                     } 
@@ -1153,7 +1153,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
                         }
                     }
                 } else if (section == NULL && ch->version < VERSION_PLAYER_011) {
-					log_stringf("Old character, no sections. Loading object %s into inventory (ch->carrying_temp) for %s\n", obj->name, ch->name);
+					//log_stringf("Old character, no sections. Loading object %s into inventory (ch->carrying_temp) for %s\n", obj->name, ch->name);
     				if (obj->nest == 0) {
         				obj_to_char_temp(obj, ch);
     				} else {
@@ -1166,7 +1166,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 				}
 				else if (ch->version >= VERSION_PLAYER_011 && !section)
 				{
-					log_stringf("New character, no sections. Not loading %s\n", obj->name);
+					//log_stringf("New character, no sections. Not loading %s\n", obj->name);
 					continue;
 				}
 				
@@ -1579,7 +1579,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 	word   = feof(fp) ? "End" : fread_word(fp);
 	fMatch = false;
 
-	bug(word, 0);
+	//bug(word, 0);
 
 	switch (UPPER(word[0]))
 	{

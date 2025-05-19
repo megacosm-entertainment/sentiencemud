@@ -27,6 +27,8 @@ extern char *get_affect_name(AFFECT_DATA *paf);
 // Global variables
 int save_number = 0;
 int pulse_point;
+extern int ssl_errors_since_reset;
+extern time_t last_ssl_error;
 
 
 // Event system for queued events.
@@ -98,6 +100,16 @@ void update_handler(void)
 	save_projects();
 	save_immstaff();
 	save_instances();
+
+    // SSL/TLS Circuit Breaker - auto-recover from SSL context corruption
+    if (ssl_errors_since_reset > 5 && current_time - last_ssl_error < 300) {
+        log_string("Circuit breaker: Multiple SSL errors detected - refreshing SSL context");
+        refresh_ssl_context();
+        ssl_errors_since_reset = 0;
+    }
+    
+    // Process SSL context cleanup queue
+    process_ssl_cleanup_queue();
 
 	// Load stats every 12 hours.
 	if (current_time >= stats_load_time + 43200) 

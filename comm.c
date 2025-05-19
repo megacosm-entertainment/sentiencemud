@@ -152,6 +152,9 @@ time_t			stats_load_time;
 bool		    MOBtrigger = true;  /* act() switch                 */
 LLIST *loaded_areas;
 SSL_CTX *ctx;
+int ssl_errors_since_reset = 0;
+time_t last_ssl_error = 0;
+LLIST *ssl_ctx_cleanup_queue = NULL;
 
 
 /*
@@ -822,6 +825,8 @@ void game_loop(int control_telnet, int control_tls)
 {
     static struct timeval null_time;
     struct timeval last_time;
+    struct timeval curr_time;
+    DESCRIPTOR_DATA *d, *d_next;
 
     signal(SIGPIPE, SIG_IGN);
     gettimeofday(&last_time, NULL);
@@ -830,398 +835,343 @@ void game_loop(int control_telnet, int control_tls)
     /* Main loop */
     while (!merc_down)
     {
-	fd_set in_set;
-	fd_set out_set;
-	fd_set exc_set;
-	DESCRIPTOR_DATA *d;
-	int maxdesc = 0;
-
+        fd_set in_set;
+        fd_set out_set;
+        fd_set exc_set;
+        int maxdesc = 0;
 
 #if defined(MALLOC_DEBUG)
-	if (malloc_verify() != 1)
-	    abort();
+        if (malloc_verify() != 1)
+            abort();
 #endif
 
-	/*
-	 * Poll all active descriptors.
-	 */
-	FD_ZERO(&in_set );
-	FD_ZERO(&out_set);
-	FD_ZERO(&exc_set);
-	if (control_telnet != -1 && game_settings.enable_telnet)
-	{
-		FD_SET(control_telnet, &in_set);
-		maxdesc	= control_telnet;
-	}
-	if (control_tls != -1 && game_settings.enable_tls)
-	{
-		FD_SET(control_tls, &in_set);
-		maxdesc	= control_tls;
-	}
+        /*
+         * Poll all active descriptors.
+         */
+        FD_ZERO(&in_set);
+        FD_ZERO(&out_set);
+        FD_ZERO(&exc_set);
+        
+        // Set up listening sockets
+        if (control_telnet != -1 && game_settings.enable_telnet)
+        {
+            FD_SET(control_telnet, &in_set);
+            maxdesc = control_telnet;
+        }
+        
+        if (control_tls != -1 && game_settings.enable_tls)
+        {
+            FD_SET(control_tls, &in_set);
+            maxdesc = UMAX(maxdesc, control_tls);
+        }
 
-/*
-	for (d = descriptor_list; d; d = d->next)
-	{
-	    maxdesc = UMAX(maxdesc, d->descriptor);
-	    FD_SET(d->descriptor, &in_set );
-	    FD_SET(d->descriptor, &out_set);
-	    FD_SET(d->descriptor, &exc_set);
-	}
-*/
-for (d = descriptor_list; d; d = d->next)
-{
-    FD_SET(d->descriptor, &in_set);
-    FD_SET(d->descriptor, &out_set);
-	FD_SET(d->descriptor, &exc_set);
-	
-    maxdesc = UMAX(maxdesc, d->descriptor);
-/*
-    if (d->ssl && d->tls_handshake_in_progress) {
-        // If the TLS handshake is in progress, we want to wait for write events
-        FD_SET(d->descriptor, &out_set);
-    }
-*/
-}
+        // Process descriptor lists
+        for (d = descriptor_list; d; d = d->next)
+        {
+            FD_SET(d->descriptor, &in_set);
+            FD_SET(d->descriptor, &exc_set);
+            
+            // Always monitor for write events with TLS handshake in progress
+            if (d->ssl && d->tls_handshake_in_progress) {
+                FD_SET(d->descriptor, &out_set);
+            } else if (d->outtop > 0) {
+                FD_SET(d->descriptor, &out_set);
+            }
+            
+            maxdesc = UMAX(maxdesc, d->descriptor);
+        }
 
-	if (select(maxdesc+1, &in_set, &out_set, &exc_set, &null_time) < 0)
-	{
-	    switch (errno)
-		{
-		case EBADF:
-		bug ("Invalid file descriptor passed to Select()", 0);
-	    perror("Game_loop: select: poll");
-		exit(1);
-		break;
-		case EINTR:	bug("A non-blocked signal was caught.", 0);
-		break;
-		case EINVAL:
-		bug ("Negative \'n\' descriptor passed to Select()", 0);
-	    perror("Game_loop: select: poll");
-		exit(1);
-		break;
-		case ENOMEM:
-		bug ("Select() was unable to allocate memory for internal tables.", 0);
-	    perror("Game_loop: select: poll");
-		exit(1);
-		break;
-		default:
-		bug ("Unknown error.", 0);
-	    perror("Game_loop: select: poll");
-		exit(1);
-	    break;
-	}
-/*	    perror("Game_loop: select: poll");*/
-/*	    exit(1);*/
-	}
+        if (select(maxdesc+1, &in_set, &out_set, &exc_set, &null_time) < 0)
+        {
+            switch (errno)
+            {
+                case EBADF:
+                    bug("Invalid file descriptor passed to Select()", 0);
+                    perror("Game_loop: select: poll");
+                    exit(1);
+                    break;
+                case EINTR:
+                    bug("A non-blocked signal was caught.", 0);
+                    break;
+                case EINVAL:
+                    bug("Negative 'n' descriptor passed to Select()", 0);
+                    perror("Game_loop: select: poll");
+                    exit(1);
+                    break;
+                case ENOMEM:
+                    bug("Select() was unable to allocate memory for internal tables.", 0);
+                    perror("Game_loop: select: poll");
+                    exit(1);
+                    break;
+                default:
+                    bug("Unknown error.", 0);
+                    perror("Game_loop: select: poll");
+                    exit(1);
+                    break;
+            }
+        }
 
-	/*
-	 * New connection?
-	 */
-	if (FD_ISSET(control_telnet, &in_set))
-	    init_descriptor(control_telnet, false);
-	
-	if (FD_ISSET(control_tls, &in_set))
-		init_descriptor(control_tls, true);
+        /*
+         * New connections?
+         */
+        if (control_telnet != -1 && FD_ISSET(control_telnet, &in_set))
+            init_descriptor(control_telnet, false);
+        
+        if (control_tls != -1 && FD_ISSET(control_tls, &in_set))
+            init_descriptor(control_tls, true);
 
-	/*
-	 * Kick out the freaky folks.
-	 */
-	for (d = descriptor_list; d != NULL; d = d_next)
-	{
-	    d_next = d->next;
-	    if (FD_ISSET(d->descriptor, &exc_set))
-	    {
-		FD_CLR(d->descriptor, &in_set );
-		FD_CLR(d->descriptor, &out_set);
-		if (d->character && d->connected == CON_PLAYING)
-		{
-		    save_char_obj(d->character);
-		}
-		d->outtop	= 0;
-		close_socket(d);
-	    }
-	}
+        /*
+         * Process outstanding TLS handshakes first
+         */
+        for (d = descriptor_list; d != NULL; d = d_next)
+        {
+            d_next = d->next;
+            
+            // Skip descriptors without SSL or that aren't in handshake mode
+            if (!d->ssl || !d->tls_handshake_in_progress)
+                continue;
+            
+            // Check for handshake timeouts
+            if (current_time - d->last_activity > 10) {
+                log_string("Closing stalled TLS handshake connection");
+                close_socket(d);
+                continue;
+            }
+            
+            // Process handshakes ready for activity
+            if (FD_ISSET(d->descriptor, &in_set) || FD_ISSET(d->descriptor, &out_set)) {
+                int ret = SSL_accept(d->ssl);
+                if (ret == 1) {
+                    // Handshake completed successfully
+                    d->tls_handshake_in_progress = false;
+                    d->last_activity = current_time;
+                    
+                    // Log successful handshake when debugging
+                    if (game_settings.dev_server)
+                        log_string("TLS handshake completed successfully");
+                } 
+                else if (ret <= 0) {
+                    int err = SSL_get_error(d->ssl, ret);
+                    if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE) {
+                        // Fatal handshake error - clean up properly
+                        BIO *bio = BIO_new(BIO_s_mem());
+                        ERR_print_errors(bio);
+                        
+                        char ssl_err_buf[MAX_STRING_LENGTH];
+                        char *bio_data;
+                        long bio_len = BIO_get_mem_data(bio, &bio_data);
+                        
+                        if (bio_len >= MAX_STRING_LENGTH)
+                            bio_len = MAX_STRING_LENGTH - 1;
+                        memcpy(ssl_err_buf, bio_data, bio_len);
+                        ssl_err_buf[bio_len] = '\0';
+                        BIO_free(bio);
+                        
+                        sprintf(log_buf, "TLS handshake failed: %d\nSSL errors: %s", 
+                                err, ssl_err_buf);
+                        log_string(log_buf);
+                        
+                        // Update circuit breaker
+                        ssl_errors_since_reset++;
+                        last_ssl_error = current_time;
+                        
+                        close_socket(d);
+                        continue;
+                    }
+                }
+            }
+        }
 
-	/*
-	 * Process input.
-	 */
-	for (d = descriptor_list; d != NULL; d = d_next)
-	{
-	    d_next	= d->next;
-	    d->fcommand	= false;
+        /*
+         * Kick out the freaky folks.
+         */
+        for (d = descriptor_list; d != NULL; d = d_next)
+        {
+            d_next = d->next;
+            if (FD_ISSET(d->descriptor, &exc_set))
+            {
+                FD_CLR(d->descriptor, &in_set);
+                FD_CLR(d->descriptor, &out_set);
+                if (d->character && d->connected == CON_PLAYING)
+                {
+                    save_char_obj(d->character);
+                }
+                d->outtop = 0;
+                close_socket(d);
+            }
+        }
 
-	    if (FD_ISSET(d->descriptor, &in_set))
-	    {
-			if (d->character != NULL)
-		    	d->character->timer = 0;
+        /*
+         * Process input.
+         */
+        for (d = descriptor_list; d != NULL; d = d_next)
+        {
+            d_next = d->next;
+            d->fcommand = false;
 
-			if (!read_from_descriptor(d))
-			{
-		    	FD_CLR(d->descriptor, &out_set);
+            // Don't process input for connections in TLS handshake
+            if (d->ssl && d->tls_handshake_in_progress)
+                continue;
 
-	    		if (d->character != NULL
-		    		&&   d->connected == CON_PLAYING)
-				save_char_obj(d->character);
+            if (FD_ISSET(d->descriptor, &in_set))
+            {
+                if (d->character != NULL)
+                    d->character->timer = 0;
 
-	    		d->outtop	= 0;
-	    		close_socket(d);
-	    		continue;
-			}
+                if (!read_from_descriptor(d))
+                {
+                    FD_CLR(d->descriptor, &out_set);
 
-	    	d->muted = 0;
+                    if (d->character != NULL && d->connected == CON_PLAYING)
+                        save_char_obj(d->character);
 
-			if (d->ssl && d->tls_handshake_in_progress && FD_ISSET(d->descriptor, &out_set)) 
-			{
-				int ret = SSL_accept(d->ssl);
-				if (ret == 1)
-					d->tls_handshake_in_progress = false;
-				else if (ret == 0)
-				{
-					close_socket(d);
-					continue;
-				} 
-				else 
-				{
-					int err = SSL_get_error(d->ssl, ret);
-					if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
-						continue;
-					} 
-					else 
-					{
-						close_socket(d);
-						continue;
-					}
-				}
-			}/*
-			else
-			{
-				if (d->character != NULL)
-		    	d->character->timer = 0;
+                    d->outtop = 0;
+                    close_socket(d);
+                    continue;
+                }
 
-				if (!read_from_descriptor(d))
-				{
-		    		FD_CLR(d->descriptor, &out_set);
+                d->muted = 0;
+            }
 
-		    		if (d->character != NULL
-			    		&&   d->connected == CON_PLAYING)
-					save_char_obj(d->character);
+            // Process command queues
+            if (d->character != NULL && d->character->wait > 0)
+            {
+                --d->character->wait;
+                continue;
+            }
 
-		    		d->outtop	= 0;
-		    		close_socket(d);
-		    		continue;
-				}
+            /* decrease timers for things like casting, brew, paroxysm etc */
+            if (d->character != NULL)
+                update_pc_timers(d->character);
 
-		    	d->muted = 0;		// Force it to unmute every time they give any kind of command
-	    	}*/
-		}
+            read_from_buffer(d);
+            if (d->incomm[0] != '\0')
+            {
+                d->fcommand = true;
+                if (d->pProtocol != NULL)
+                    d->pProtocol->WriteOOB = 0;
+                stop_idling(d->character);
 
-	    if (d->character != NULL && d->character->wait > 0)
-	    {
-		--d->character->wait;
-		continue;
-	    }
+                /* OLC */
+                if (d->showstr_point)
+                    show_string(d, d->incomm);
+                else if (d->pString) {
+                    string_add(d->character, d->incomm);
+                } else
+                    switch (d->connected)
+                    {
+                        case CON_PLAYING:
+                            if (!run_olc_editor(d))
+                                substitute_alias(d, d->incomm);
+                            break;
+                        default:
+                            nanny(d, d->incomm);
+                            break;
+                    }
 
-	    /* decrease timers for things like casting, brew, paroxysm etc */
-	    if (d->character != NULL)
-		update_pc_timers(d->character);
-
-	   read_from_buffer(d);
-	   if (d->incomm[0] != '\0')
-	   {
-	       d->fcommand	= true;
-		if(d->pProtocol != NULL)
-		    d->pProtocol->WriteOOB = 0;
-	       stop_idling(d->character);
-
-	       /* OLC */
-	       if (d->showstr_point)
-		   show_string(d, d->incomm);
-	       else
-		   if (d->pString) {
-			string_add(d->character, d->incomm);
-		   } else
-		       switch (d->connected)
-		       {
-			   case CON_PLAYING:
-			       if (!run_olc_editor(d))
-				   substitute_alias(d, d->incomm);
-			       break;
-			   default:
-			       nanny(d, d->incomm);
-			       break;
-		       }
-
-	       d->incomm[0]	= '\0';
-	   }
-    }
+                d->incomm[0] = '\0';
+            }
+        }
 
 #ifdef IMC
-imc_loop();
+        imc_loop();
 #endif
 
-    /*
-     * Autonomous game motion.
-     */
-    update_handler();
+        /*
+         * Autonomous game motion.
+         */
+        update_handler();
 
-    /*
-     * Process message queues.
-     */
-    /*process_message_queue();*/
+        /*
+         * Process output.
+         */
+        for (d = descriptor_list; d != NULL; d = d_next)
+        {
+            d_next = d->next;
+            
+            // Skip output processing for connections in TLS handshake
+            if (d->ssl && d->tls_handshake_in_progress)
+                continue;
 
-    /*
-     * Output.
-     */
-    for (d = descriptor_list; d != NULL; d = d_next)
-    {
-	d_next = d->next;
+            if ((d->fcommand || d->outtop > 0) && FD_ISSET(d->descriptor, &out_set))
+            {
+                if (!process_output(d, true))
+                {
+                    if (d->character != NULL && d->connected == CON_PLAYING) {
+                        save_char_obj(d->character);
+                    }
+                    d->outtop = 0;
+                    close_socket(d);
+                }
+            }
+        }
 
-	if ((d->fcommand || d->outtop > 0)
-		&&   FD_ISSET(d->descriptor, &out_set))
-	{
-	    if (!process_output(d, true))
-	    {
-		if (d->character != NULL
-			&& d->connected == CON_PLAYING) {
-		    save_char_obj(d->character);
-		}
-		d->outtop	= 0;
-		close_socket(d);
-	    }
-	}
-    }
+        /*
+         * Check for idle/timeout connections
+         */
+        for (d = descriptor_list; d != NULL; d = d_next) {
+            d_next = d->next;
+            
+            // Close connections with stalled TLS handshakes (10 seconds)
+            if (d->ssl && d->tls_handshake_in_progress && 
+                current_time - d->last_activity > 10) {
+                log_string("Closing stalled TLS handshake connection");
+                close_socket(d);
+                continue;
+            }
+            
+            // Only timeout normal connections if not fully logged in
+            if ((d->connected == CON_GET_ACCOUNT_NAME || d->connected == CON_GET_OLD_PASSWORD) && 
+                current_time - d->last_activity > 120 && 
+                !d->healthcheck) {
+                log_string("Closing idle connection (timeout).");
+                close_socket(d);
+            }
+        }
 
-    /*
-     * Synchronize to a clock.
-     * Sleep(last_time + 1/PULSE_PER_SECOND - now).
-     * Careful here of signed versus unsigned arithmetic.
-     */
-	{
-	    struct timeval now_time;
-	    long secDelta;
-	    long usecDelta;
+        /*
+         * Synchronize to a clock.
+         * Sleep(last_time + 1/PULSE_PER_SECOND - now).
+         * Careful here of signed versus unsigned arithmetic.
+         */
+        {
+            gettimeofday(&curr_time, NULL);
+            long secDelta = ((int) last_time.tv_sec) - ((int) curr_time.tv_sec);
+            long usecDelta = ((int) last_time.tv_usec) - ((int) curr_time.tv_usec)
+                + 1000000 / PULSE_PER_SECOND;
 
-	    gettimeofday(&now_time, NULL);
-	    usecDelta	= ((int) last_time.tv_usec) - ((int) now_time.tv_usec)
-		+ 1000000 / PULSE_PER_SECOND;
-	    secDelta	= ((int) last_time.tv_sec) - ((int) now_time.tv_sec);
-	    while (usecDelta < 0)
-	    {
-		usecDelta += 1000000;
-		secDelta  -= 1;
-	    }
+            while (usecDelta < 0)
+            {
+                usecDelta += 1000000;
+                secDelta  -= 1;
+            }
 
-	    while (usecDelta >= 1000000)
-	    {
-		usecDelta -= 1000000;
-		secDelta  += 1;
-	    }
+            while (usecDelta >= 1000000)
+            {
+                usecDelta -= 1000000;
+                secDelta  += 1;
+            }
 
-	    if (secDelta > 0 || (secDelta == 0 && usecDelta > 0))
-	    {
-		struct timeval stall_time;
-
-		stall_time.tv_usec = usecDelta;
-		stall_time.tv_sec  = secDelta;
-		if (select(0, NULL, NULL, NULL, &stall_time) < 0)
-		{
-		    switch (errno)
-		    {
-			case EBADF:
-	    		bug ("Invalid file descriptor passed to Select()", 0);
-	    		perror("Game_loop: select: stall");
-			    exit(1);
-	    		break;
-			case EINTR:	bug("A non-blocked signal was caught.", 0);
-		    	break;
-			case EINVAL:
-	    		bug ("Negative \'n\' descriptor passed to Select()", 0);
-	    		perror("Game_loop: select: stall");
-			    exit(1);
-	    		break;
-			case ENOMEM:
-	    		bug ("Select() was unable to allocate memory for internal tables.", 0);
-	    		perror("Game_loop: select: stall");
-			    exit(1);
-	    		break;
-			default:
-	    		bug ("Unknown error.", 0);
-	    		perror("Game_loop: select: stall");
-			    exit(1);
-	    		break;
-			}
-/*	    	perror("Game_loop: select: stall");*/
-/*		    exit(1);*/
-		}
-	    }
-	}
-
-	// Garbage collect
-	if (list_size(gc_mobiles) > 0)
-	{
-		ITERATOR it;
-		CHAR_DATA *mob;
-		iterator_start(&it, gc_mobiles);
-		while((mob = (CHAR_DATA *)iterator_nextdata(&it)))
-		{
-			free_char(mob);
-		}
-		iterator_stop(&it);
-		list_clear(gc_mobiles);
-	}
-
-	if (list_size(gc_objects) > 0)
-	{
-		ITERATOR it;
-		OBJ_DATA *obj;
-		iterator_start(&it, gc_objects);
-		while((obj = (OBJ_DATA *)iterator_nextdata(&it)))
-		{
-			free_obj(obj);
-		}
-		iterator_stop(&it);
-		list_clear(gc_objects);
-	}
-
-	if (list_size(gc_rooms) > 0)
-	{
-		ITERATOR it;
-		ROOM_INDEX_DATA *room;
-		iterator_start(&it, gc_rooms);
-		while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)))
-		{
-			free_room_index(room);
-		}
-		iterator_stop(&it);
-		list_clear(gc_rooms);
-	}
-
-	if (list_size(gc_tokens) > 0)
-	{
-		ITERATOR it;
-		TOKEN_DATA *token;
-		iterator_start(&it, gc_tokens);
-		while((token = (TOKEN_DATA *)iterator_nextdata(&it)))
-		{
-			free_token(token);
-		}
-		iterator_stop(&it);
-		list_clear(gc_tokens);
-	}
+            if (secDelta > 0 || (secDelta == 0 && usecDelta > 0))
+            {
+                struct timeval stall_time;
+                stall_time.tv_usec = usecDelta;
+                stall_time.tv_sec  = secDelta;
+                
+                if (select(0, NULL, NULL, NULL, &stall_time) < 0)
+                {
+                    // Handle sleep errors
+                    if (errno != EINTR) {
+                        log_string("Error in game loop sleep");
+                    }
+                }
+            }
+        }
 
 	// Garbate collect
 
 	/* Check to see if the logfiles have overflowed*/
 	check_logfile();
-
-    for (d = descriptor_list; d != NULL; d = d_next) {
-        d_next = d->next;
-        // Only timeout if not fully logged in
-        if ((d->connected == CON_GET_ACCOUNT_NAME || d->connected == CON_GET_OLD_PASSWORD) && current_time - d->last_activity > 120) {
-            log_string("Closing idle connection (timeout).");
-            close_socket(d);
-        }
-    }
 
 	gettimeofday(&last_time, NULL);
 	current_time = (time_t) last_time.tv_sec;
@@ -1259,19 +1209,64 @@ void init_descriptor(int control, bool is_tls)
 
     dnew = new_descriptor();
     dnew->last_activity = current_time;
+    dnew->healthcheck = false;
 
     if (is_tls) {
         dnew->ssl = SSL_new(ctx);
         dnew->tls_handshake_in_progress = true;
         if (dnew->ssl == NULL) {
-            bug("New_descriptor: SSL_new failed", 0);
+            // Create a memory BIO to capture OpenSSL errors
+            BIO *bio = BIO_new(BIO_s_mem());
+            ERR_print_errors(bio);
+            
+            // Extract the error messages to a buffer
+            char ssl_err_buf[MAX_STRING_LENGTH];
+            char *bio_data;
+            long bio_len = BIO_get_mem_data(bio, &bio_data);
+            
+            // Copy and null-terminate the error data
+            if (bio_len >= MAX_STRING_LENGTH)
+                bio_len = MAX_STRING_LENGTH - 1;
+            memcpy(ssl_err_buf, bio_data, bio_len);
+            ssl_err_buf[bio_len] = '\0';
+            BIO_free(bio);
+            
+            // Update circuit breaker counters
+            ssl_errors_since_reset++;
+            last_ssl_error = current_time;
+            
+            sprintf(log_buf, "New_descriptor: SSL_new failed\nSSL errors: %s", ssl_err_buf);
+            bug(log_buf, 0);
+            
             close(desc);
             free_descriptor(dnew);
             return;
         }
 
         if (SSL_set_fd(dnew->ssl, desc) == 0) {
-            bug("New_descriptor: SSL_set_fd failed", 0);
+            // Create a memory BIO to capture OpenSSL errors
+            BIO *bio = BIO_new(BIO_s_mem());
+            ERR_print_errors(bio);
+            
+            // Extract the error messages to a buffer
+            char ssl_err_buf[MAX_STRING_LENGTH];
+            char *bio_data;
+            long bio_len = BIO_get_mem_data(bio, &bio_data);
+            
+            // Copy and null-terminate the error data
+            if (bio_len >= MAX_STRING_LENGTH)
+                bio_len = MAX_STRING_LENGTH - 1;
+            memcpy(ssl_err_buf, bio_data, bio_len);
+            ssl_err_buf[bio_len] = '\0';
+            BIO_free(bio);
+            
+            // Update circuit breaker counters
+            ssl_errors_since_reset++;
+            last_ssl_error = current_time;
+            
+            sprintf(log_buf, "New_descriptor: SSL_set_fd failed\nSSL errors: %s", ssl_err_buf);
+            bug(log_buf, 0);
+            
             SSL_free(dnew->ssl);
             dnew->ssl = NULL;
             close(desc);
@@ -1285,9 +1280,30 @@ void init_descriptor(int control, bool is_tls)
             if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
                 dnew->tls_handshake_in_progress = true;
             } else {
-                fprintf(stderr, "SSL error: %d\n", err);
-                ERR_print_errors_fp(stderr);
-                log_string("TLS handshake failed, closing descriptor.");
+                // Create a memory BIO to capture OpenSSL errors
+                BIO *bio = BIO_new(BIO_s_mem());
+                ERR_print_errors(bio);
+                
+                // Extract the error messages to a buffer
+                char ssl_err_buf[MAX_STRING_LENGTH];
+                char *bio_data;
+                long bio_len = BIO_get_mem_data(bio, &bio_data);
+                
+                // Copy and null-terminate the error data
+                if (bio_len >= MAX_STRING_LENGTH)
+                    bio_len = MAX_STRING_LENGTH - 1;
+                memcpy(ssl_err_buf, bio_data, bio_len);
+                ssl_err_buf[bio_len] = '\0';
+                BIO_free(bio);
+                
+                // Update circuit breaker counters
+                ssl_errors_since_reset++;
+                last_ssl_error = current_time;
+                
+                sprintf(log_buf, "TLS handshake failed with error: %d\nSSL errors: %s\nSSL state: %s",
+                        err, ssl_err_buf, SSL_state_string_long(dnew->ssl));
+                log_string(log_buf);
+                
                 SSL_free(dnew->ssl);
                 dnew->ssl = NULL;
                 close(desc);
@@ -1383,41 +1399,41 @@ void close_socket(DESCRIPTOR_DATA *dclose)
 
     if ((ch = dclose->character) != NULL)
     {
-	sprintf(log_buf, "Closing link to %s.", ch->name);
-	log_string(log_buf);
-	/* cut down on wiznet spam when rebooting */
-	if (dclose->connected == CON_PLAYING && !merc_down)
-	{
-	    if (ch->invis_level < STAFF_IMMORTAL)
-			act("$n has lost $s link.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		wiznet("$N has lost $S link.",ch,NULL,WIZ_LINKS,0,0);
+		sprintf(log_buf, "Closing link to %s.", ch->name);
+		log_string(log_buf);
+		/* cut down on wiznet spam when rebooting */
+			if (dclose->connected == CON_PLAYING && !merc_down)
+			{
+	    		if (ch->invis_level < STAFF_IMMORTAL)
+					act("$n has lost $s link.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				wiznet("$N has lost $S link.",ch,NULL,WIZ_LINKS,0,0);
 
-	    ch->desc = NULL;
-	}
-	else
-	{
-	    free_char(dclose->original ? dclose->original :
-		dclose->character);
-	}
+	    		ch->desc = NULL;
+			}
+			else
+			{
+	    		free_char(dclose->original ? dclose->original :
+				dclose->character);
+			}
     }
 
     if (d_next == dclose)
-	d_next = d_next->next;
+		d_next = d_next->next;
 
     if (dclose == descriptor_list)
     {
-	descriptor_list = descriptor_list->next;
+		descriptor_list = descriptor_list->next;
     }
     else
     {
-	DESCRIPTOR_DATA *d;
+		DESCRIPTOR_DATA *d;
 
-	for (d = descriptor_list; d && d->next != dclose; d = d->next)
-	    ;
-	if (d != NULL)
-	    d->next = dclose->next;
-	else
-	    bug("Close_socket: dclose not found.", 0);
+		for (d = descriptor_list; d && d->next != dclose; d = d->next)
+		    ;
+		if (d != NULL)
+		    d->next = dclose->next;
+		else
+	    	bug("Close_socket: dclose not found.", 0);
     }
 
     if (dclose->out_compress) {
@@ -1428,25 +1444,63 @@ void close_socket(DESCRIPTOR_DATA *dclose)
 
     ProtocolDestroy(dclose->pProtocol);
 
-    // Properly shut down TLS/SSL connections if present
+    // Properly shut down TLS/SSL connection with complete error handling
     if (dclose->ssl != NULL) {
-    int ret = SSL_shutdown(dclose->ssl);
-    // If SSL_shutdown returns 0, it means we've sent the close_notify alert
-    // but haven't received the peer's close_notify. Ideally we would call SSL_shutdown
-    // again after a time, but since we're closing the socket anyway, we can skip this.
-    SSL_free(dclose->ssl);
-    dclose->ssl = NULL;
-}
+        int ret, err;
+        
+        // Only attempt graceful shutdown if not in handshake mode
+        if (!dclose->tls_handshake_in_progress) {
+            ret = SSL_shutdown(dclose->ssl);
+            
+            // If SSL_shutdown returns 0, it means we've sent close_notify but haven't 
+            // received one back - one more call is needed for a complete shutdown
+            if (ret == 0) {
+                // Second call to complete bidirectional shutdown
+                SSL_shutdown(dclose->ssl);
+            } 
+            else if (ret < 0) {
+                // Handle shutdown errors to prevent SSL context corruption
+                err = SSL_get_error(dclose->ssl, ret);
+                if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE) {
+                    // Create memory BIO to capture OpenSSL errors
+                    BIO *bio = BIO_new(BIO_s_mem());
+                    ERR_print_errors(bio);
+                    
+                    // Extract the error messages to a buffer
+                    char ssl_err_buf[MAX_STRING_LENGTH];
+                    char *bio_data;
+                    long bio_len = BIO_get_mem_data(bio, &bio_data);
+                    
+                    // Copy and null-terminate the error data
+                    if (bio_len >= MAX_STRING_LENGTH)
+                        bio_len = MAX_STRING_LENGTH - 1;
+                    memcpy(ssl_err_buf, bio_data, bio_len);
+                    ssl_err_buf[bio_len] = '\0';
+                    BIO_free(bio);
+                    
+                    // Log the SSL error
+                    sprintf(log_buf, "SSL_shutdown error: %d\nSSL errors: %s", 
+                            err, ssl_err_buf);
+                    log_string(log_buf);
+                }
+            }
+        }
+        
+        // Always free the SSL object
+        SSL_free(dclose->ssl);
+        dclose->ssl = NULL;
+    }
 
 	if (dclose->account) {
-    dclose->account->refcount--;
-    if (dclose->account->refcount <= 0) {
-        list_remlink(loaded_accounts, dclose->account, false);
-        free_account(dclose->account);
-    }
-    dclose->account = NULL;
-}
-    // Gracefully shut down the socket before closing to avoid lingering FIN_WAIT2
+    	dclose->account->refcount--;
+    	if (dclose->account->refcount <= 0) {
+        	list_remlink(loaded_accounts, dclose->account, false);
+        	free_account(dclose->account);
+    	}
+    	dclose->account = NULL;
+	}
+    
+	// Gracefully shut down the socket before closing to avoid lingering FIN_WAIT2
     shutdown(dclose->descriptor, SHUT_RDWR);
     close(dclose->descriptor);
 
@@ -1488,12 +1542,33 @@ bool read_from_descriptor(DESCRIPTOR_DATA *d)
                     if (err == SSL_ERROR_WANT_READ) {
                         break;
                     } else if (err == SSL_ERROR_ZERO_RETURN || err == SSL_ERROR_SYSCALL) {
-                        // Connection closed cleanly or abruptly
                         return false;
                     } else {
-                        fprintf(stderr, "SSL_read failed with error: %d\n", err);
-                        ERR_print_errors_fp(stderr);
-                        fprintf(stderr, "SSL state: %s\n", SSL_state_string_long(d->ssl));
+                        // Create a memory BIO to capture OpenSSL errors
+                        BIO *bio = BIO_new(BIO_s_mem());
+                        ERR_print_errors(bio);
+                        
+                        // Extract the error messages to a buffer
+                        char ssl_err_buf[MAX_STRING_LENGTH];
+                        char *bio_data;
+                        long bio_len = BIO_get_mem_data(bio, &bio_data);
+                        
+                        // Copy and null-terminate the error data
+                        if (bio_len >= MAX_STRING_LENGTH)
+                            bio_len = MAX_STRING_LENGTH - 1;
+                        memcpy(ssl_err_buf, bio_data, bio_len);
+                        ssl_err_buf[bio_len] = '\0';
+                        BIO_free(bio);
+                        
+                        // Update circuit breaker counters
+                        ssl_errors_since_reset++;
+                        last_ssl_error = current_time;
+                        
+                        // Log using the standard pattern
+                        sprintf(log_buf, "SSL_read failed with error: %d\nSSL errors: %s\nSSL state: %s", 
+                                err, ssl_err_buf, SSL_state_string_long(d->ssl));
+                        bug(log_buf, 0);
+                        
                         return false;
                     }
                 }
@@ -1503,9 +1578,29 @@ bool read_from_descriptor(DESCRIPTOR_DATA *d)
         {
             nRead = read(d->descriptor, read_buf + iStart, sizeof(read_buf) - 10 - iStart);
         }
+        
         if (nRead > 0)
         {
+            read_buf[nRead] = '\0';
             iStart += nRead;
+            
+            // Check for health check (both TLS and non-TLS)
+            if (strncmp(read_buf, "HEALTH_CHECK", 12) == 0)
+            {
+                // Mark as health check
+                d->healthcheck = true;
+                
+                // Send quick response
+                const char *response = "OK\r\n";
+                if (d->ssl)
+                    SSL_write(d->ssl, response, strlen(response));
+                else
+                    write(d->descriptor, response, strlen(response));
+                
+                // Don't process further - close socket in next game loop
+                return true;
+            }
+            
             if (read_buf[iStart - 1] == '\n' || read_buf[iStart - 1] == '\r')
                 break;
         }
@@ -4096,4 +4191,109 @@ void connection_remove(DESCRIPTOR_DATA *d)
 			list_remlink(conn_online, d, false);
 		}
 	}
+}
+
+
+/*
+ * Initialize the SSL cleanup queue
+ * Call this during boot sequence
+ */
+void init_ssl_cleanup_queue(void)
+{
+    ssl_ctx_cleanup_queue = list_create(false);
+    if (!ssl_ctx_cleanup_queue) {
+        bug("Could not create SSL cleanup queue", 0);
+        exit(1);
+    }
+}
+
+/*
+ * Add an SSL context to the cleanup queue
+ */
+typedef struct ssl_cleanup_data {
+    SSL_CTX *ctx;
+    time_t time_added;
+} SSL_CLEANUP_DATA;
+
+void add_ssl_ctx_to_cleanup(SSL_CTX *old_ctx)
+{
+    if (!old_ctx)
+        return;
+        
+    SSL_CLEANUP_DATA *data;
+    
+    data = (SSL_CLEANUP_DATA *)malloc(sizeof(SSL_CLEANUP_DATA));
+    data->ctx = old_ctx;
+    data->time_added = current_time;
+    
+    list_appendlink(ssl_ctx_cleanup_queue, data);
+    log_string("SSL context added to cleanup queue");
+}
+
+/*
+ * Process the SSL context cleanup queue
+ * Free contexts that have been in the queue for sufficient time
+ */
+void process_ssl_cleanup_queue(void)
+{
+    SSL_CLEANUP_DATA *data;
+    ITERATOR it;
+    
+    if (list_size(ssl_ctx_cleanup_queue) == 0)
+        return;
+        
+    iterator_start(&it, ssl_ctx_cleanup_queue);
+    while ((data = (SSL_CLEANUP_DATA *)iterator_nextdata(&it))) {
+        // Wait 5 minutes before freeing contexts to ensure no active connections
+        if (current_time - data->time_added > 300) {
+            // Safe to free this context now
+            SSL_CTX_free(data->ctx);
+            list_remlink(ssl_ctx_cleanup_queue, data, true);
+            log_string("Freed old SSL context from cleanup queue");
+        }
+    }
+    iterator_stop(&it);
+}
+
+/*
+ * Updated SSL context refresh function
+ * Uses the cleanup queue for safe context disposal
+ */
+void refresh_ssl_context(void)
+{
+    static time_t last_refresh = 0;
+    
+    // Refresh once per hour by default, or when circuit breaker triggers
+    if (current_time - last_refresh < 3600 && ssl_errors_since_reset < 5)
+        return;
+        
+    log_string("Refreshing SSL context...");
+    
+    // Create new context
+    SSL_CTX *new_ctx = create_context();
+    if (!new_ctx) {
+        log_string("ERROR: Failed to create new SSL context");
+        return;
+    }
+    
+    // Configure the new context
+    if (!configure_context(new_ctx)) {
+        log_string("ERROR: Failed to configure new SSL context");
+        SSL_CTX_free(new_ctx);
+        return;
+    }
+    
+    // Store the old context for cleanup
+    SSL_CTX *old_ctx = ctx;
+    
+    // Replace the old context
+    ctx = new_ctx;
+    
+    // Add the old context to the cleanup queue
+    if (old_ctx)
+        add_ssl_ctx_to_cleanup(old_ctx);
+    
+    last_refresh = current_time;
+    ssl_errors_since_reset = 0;
+    log_string("SSL context refreshed successfully");
 }
