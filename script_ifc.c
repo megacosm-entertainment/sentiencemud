@@ -357,8 +357,8 @@ DECL_IFC_FUN(ifc_churchrank)
 {
 	if(ISARG_MOB(0)) {
 		mob = ARG_MOB(0);
-		*ret = (!IS_NPC(mob) && mob->church && mob->church_member) ?
-			(mob->church_member->rank+1) : 0;
+		*ret = (!IS_NPC(mob) && mob->church && mob->church_member->rank->rank_type) ?
+			(mob->church_member->rank->rank_type+1) : 0;
 		return true;
 	}
 

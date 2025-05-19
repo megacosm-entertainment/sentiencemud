@@ -569,6 +569,7 @@ int game_settings_read(void)
                 break;
 
             case 'C':
+			    KEY("CharacterDeleteDelay", game_settings.character_delete_delay_days, fread_number(fp));
                 KEY("CofferEnabled", game_settings.coffer_enabled, fread_number(fp));
                 KEY("CofferRent", game_settings.coffer_rent, fread_number(fp));
                 KEY("CofferRentCost", game_settings.coffer_rent_cost, fread_number(fp));
@@ -743,6 +744,7 @@ int game_settings_read(void)
                         fMatch = true;
                     }
                 }
+				KEY("OrgMaxRanks", game_settings.org_max_ranks, fread_number(fp));
                 break;
             case 'R':
                 {
@@ -796,6 +798,8 @@ int game_settings_read(void)
                 KEY("VaultRentCost", game_settings.vault_rent_cost, fread_number(fp));
                 KEY("VaultRentPerChar", game_settings.vault_rent_per_char, fread_number(fp));
                 KEY("VaultRentTime", game_settings.vault_rent_time, fread_number(fp));
+				KEY("VaultRequireRoom", game_settings.vault_require_room, fread_number(fp));
+
                 break;
 
             case 'W':
@@ -970,6 +974,7 @@ int game_settings_write(void)
     fprintf(fp, "VaultRentPerChar %d\n", game_settings.vault_rent_per_char);
     fprintf(fp, "VaultRentCost %d\n", game_settings.vault_rent_cost);
     fprintf(fp, "VaultRentTime %d\n", game_settings.vault_rent_time);
+	fprintf(fp, "VaultRequireRoom %d\n", game_settings.vault_require_room);
     fprintf(fp, "VaultAdditionalCostPerChar %d\n", game_settings.vault_additional_cost_per_char);
     fprintf(fp, "VaultAdditionalSlotsPerChar %d\n", game_settings.vault_additional_slots_per_char);
     fprintf(fp, "VaultAdditionalWeightPerChar %d\n", game_settings.vault_additional_weight_per_char);
@@ -1018,6 +1023,9 @@ int game_settings_write(void)
     fprintf(fp, "MaxLoginAttempts %d\n",  game_settings.max_login_attempts);
     fprintf(fp, "MaxOrgs %d\n",  game_settings.max_orgs);
 	fprintf(fp, "NoteBootErrs %d\n", game_settings.note_boot_errors);
+	fprintf(fp, "OrgMaxRanks %d\n", game_settings.org_max_ranks);
+	fprintf(fp, "CharacterDeleteDelay %d\n", game_settings.character_delete_delay_days);
+
 
     /* Email */
     fprintf(fp, "Email_Enable %d\n",  game_settings.enable_email);

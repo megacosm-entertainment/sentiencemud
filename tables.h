@@ -271,6 +271,7 @@ struct flag_type
     char *name;
     long bit;
     bool settable;
+	char *description;
 };
 
 struct church_type
@@ -565,5 +566,6 @@ extern	const	struct	flag_type	acct_flags[];
 extern const struct game_setting_type game_settings_table[];
 extern const char *setting_category_names[];
 extern const char *setting_type_names[];
+extern const struct flag_type church_permission_flags[];
 #endif
 

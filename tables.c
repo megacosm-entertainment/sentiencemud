@@ -1229,6 +1229,7 @@ const struct flag_type room2_flags[] =
     {	"underground",			ROOM_UNDERGROUND,		true	},
     {	"virtual_room",			ROOM_VIRTUAL_ROOM,		false	},
     {	"vis_on_map",			ROOM_VISIBLE_ON_MAP,	true	},
+    {   "vault",				ROOM_VAULT,				true	},
     {	NULL,			0,			0	}
 
 };
@@ -4974,7 +4975,9 @@ const struct do_func_type do_func_table[] =
         { "do_mfareset",                do_mfareset },
         { "do_logout",                do_logout },
         { "do_gameedit",                 do_gameedit },
-{ "do_accnote", do_accnote }
+        { "do_accnote", do_accnote },
+        { "do_vault", do_vault },
+        { "do_coffer", do_coffer },
 };
 
 /* Table mapping connection states to display strings */
@@ -5098,11 +5101,11 @@ const struct game_setting_type game_settings_table[] = {
     { "vault_add_weight_char", &game_settings.vault_additional_weight_per_char, SETTING_TYPE_INT, SETTING_CAT_VAULT, "Additional weight per character",                    true,  false, false },
 
     /* Coffer Settings */
+    { "coffer_enabled",      &game_settings.coffer_enabled,       SETTING_TYPE_BOOL,   SETTING_CAT_COFFER,   "Is the coffer enabled",                                      true,  false, false },
+    { "coffer_rent",         &game_settings.coffer_rent,          SETTING_TYPE_BOOL,   SETTING_CAT_COFFER,   "Does the coffer cost rent",                                  true,  false, false },
     { "max_coffer_weight",   &game_settings.max_coffer_weight,    SETTING_TYPE_INT,    SETTING_CAT_COFFER,   "Maximum weight an organization can have in their coffer",    true,  false, false },
     { "max_coffer_items",    &game_settings.max_coffer_items,     SETTING_TYPE_INT,    SETTING_CAT_COFFER,   "Maximum items an organization can have in their coffer",     true,  false, false },
     { "coffer_enabled",      &game_settings.coffer_enabled,       SETTING_TYPE_BOOL,   SETTING_CAT_COFFER,   "Is the coffer enabled",                                      true,  false, false },
-    { "coffer_rent",         &game_settings.coffer_rent,          SETTING_TYPE_BOOL,   SETTING_CAT_COFFER,   "Does the coffer cost rent",                                  true,  false, false },
-    { "coffer_rent_cost",    &game_settings.coffer_rent_cost,     SETTING_TYPE_INT,    SETTING_CAT_COFFER,   "Cost to rent an organization coffer",                        true,  false, false },
     { "coffer_rent_currency", &game_settings.coffer_rent_currency, SETTING_TYPE_STRING, SETTING_CAT_COFFER,  "Currency used for coffer rent",                              true,  false, false },
     { "coffer_rent_period",  &game_settings.coffer_rent_period,   SETTING_TYPE_INT,    SETTING_CAT_COFFER,   "Duration rent grants access to an org (in days)",            true,  false, false },
 
@@ -5153,6 +5156,9 @@ const struct game_setting_type game_settings_table[] = {
     { "insecure_warning_msg", &game_settings.insecure_warning_msg, SETTING_TYPE_STRING, SETTING_CAT_GLOBAL,  "Message for insecure connections",                           true,  false, false },
     { "max_logfile_size",    &game_settings.max_logfile_size,     SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Size to start rotating logs (in MB)",                        true,  false, false },
     { "note_boot_errors",   &game_settings.note_boot_errors, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Sends notes with boot errors to 'coder' and 'head coder'", true, true, false },
+    { "org_max_ranks",        &game_settings.org_max_ranks,        SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "How many ranks can an organization have",                    true,  false, false },
+    { "character_delete",    &game_settings.character_delete_delay_days, SETTING_TYPE_INT, SETTING_CAT_GLOBAL, "Number of days before a character is purged when flagged for deletion.", true, false, false },
+
 
 
     /* MSSP Settings */
@@ -5240,4 +5246,40 @@ const char *setting_type_names[] = {
     "Boolean",
     "Integer",
     "String"
+};
+
+const struct flag_type church_permission_flags[] =
+{
+    { "gohall",          CHURCH_PERM_GOHALL,          true, "Member can use 'church gohall'." },
+    { "withdraw",        CHURCH_PERM_WITHDRAW,        true,  "Member can withdraw dp/pneuma/gold from church balance."},
+    { "info",            CHURCH_PERM_INFO,            true,  "Member can see church info."},
+    { "motd",            CHURCH_PERM_MOTD,            true,  "Member can edit the church MOTD." },
+    { "rules",           CHURCH_PERM_RULES,           true,  "Member can edit the church rules." },
+    { "remove",          CHURCH_PERM_REMOVE,          true, "Member can remove other members." },
+    { "manage_storage",         CHURCH_PERM_STORAGE,         true, "Member has full get/put access to church storage." },
+    { "get_storage",     CHURCH_PERM_GET_STORAGE,     true, "Member can get items from church storage, but cannot add anything. Why use this?" },
+    { "put_storage",     CHURCH_PERM_PUT_STORAGE,     true, "Member can put items into storage but not remove them. Suckers!" },
+    { "treasure",        CHURCH_PERM_TREASURE,        true, "Member has access to the treasure room feature." },
+    { "gohall_crosszone",CHURCH_PERM_GH_CROSS,true, "Member can gohall from other continents. Requires church setting to be on." },
+    { "ranks"           , CHURCH_PERM_RANKS,           true, "Member can manage ranks." },
+    { "permissions",  CHURCH_PERM_PERMS,   true, "Member can manage permissions." },
+    { "talk",            CHURCH_PERM_TALK, true, "Member is allowed to use church talk."},
+    { "finances",      CHURCH_PERM_FINANCES, true, "Member is allowed access to church finances (implies withdraw)."},
+    { "upgrade",       CHURCH_PERM_UPGRADE, true, "Member is allowed to upgrade the church if resources are available." },
+    { "admin",         CHURCH_PERM_MANAGE, true, "Member is allowed to manage the church." },
+    { "viewlog",       CHURCH_PERM_VIEWLOG, true, "Member is allowed to view the church log." },
+    { "balance",       CHURCH_PERM_BALANCE, true, "Member is allowed to balance the church." },
+    { "treasure_all",  CHURCH_PERM_TREASURE_ALL, true, "Member can access all treasure rooms." },
+    { "treasure_manage", CHURCH_PERM_TREASURE_MANAGE, true, "Member can manage treasure rooms." },
+    { "add",            CHURCH_PERM_ADD, true, "Member can add people to the church." },
+    { "members",       CHURCH_PERM_MEMBERS, true, "Member can manage members' ranks."},
+    { NULL,              0,                           false }
+};
+
+const struct flag_type rank_type_flags[] =
+{
+    { "member",       RANK_TYPE_MEMBER,     true },
+    { "officer",      RANK_TYPE_OFFICER,    true },
+    { "leader",       RANK_TYPE_LEADER,     true },
+    { NULL,           0,                    false }
 };

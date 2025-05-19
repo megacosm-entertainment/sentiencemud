@@ -701,3 +701,5 @@ DECLARE_DO_FUN (do_accset);
 DECLARE_DO_FUN (do_accstat);
 DECLARE_DO_FUN( do_gameedit );
 DECLARE_DO_FUN( do_accnote);
+DECLARE_DO_FUN ( do_vault );
+DECLARE_DO_FUN( do_coffer );

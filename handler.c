@@ -2297,8 +2297,8 @@ void obj_to_char(OBJ_DATA *obj, CHAR_DATA *ch)
 		extract_obj(obj);
 		return;
     }
-
-    list_addlink(ch->lcarrying, obj);
+	if (!list_haslink(ch->lcarrying, obj))
+    	list_addlink(ch->lcarrying, obj);
 
     if (!IS_NPC(ch))
         check_mission_retrieve_obj(ch, obj, true);
@@ -9300,6 +9300,54 @@ void list_clear(LLIST *lp)
 	}
 }
 
+// Get the last entry of a list.
+void *list_last(LLIST *list)
+{
+    if (!list || list->size == 0)
+        return NULL;
+        
+    void *data = NULL;
+    ITERATOR it;
+    
+    iterator_start(&it, list);
+    while (iterator_hasdata(&it)) {
+        data = iterator_nextdata(&it);
+    }
+    iterator_stop(&it);
+    
+    return data;
+}
+
+void *iterator_peek_nextdata(ITERATOR *it)
+{
+    LLIST_LINK *link;
+
+    if (!it || !it->list || !it->list->valid || !it->current)
+        return NULL;
+
+    // If we haven't moved yet, peek at current if valid, else next
+    if (!it->moved) {
+        link = it->current;
+        if (link && link->data)
+            link = link->next;
+    } else {
+        link = it->current ? it->current->next : NULL;
+    }
+
+    // Find the next link with data
+    while (link && !link->data)
+        link = link->next;
+
+    return link ? link->data : NULL;
+}
+
+bool iterator_hasdata(ITERATOR *it)
+{
+    if(it && it->list && it->list->valid && it->current) {
+        return (it->current->data != NULL);
+    }
+    return false;
+}
 
 void *list_randomdata(LLIST *lp)
 {
@@ -11504,4 +11552,92 @@ ACCOUNT_DATA *get_account_by_identifier(const char *identifier, bool *loaded)
     }
     
     return account;
+}
+
+
+// Add a utility function to create a normalized filename
+char *normalize_filename(const char *name)
+{
+    static char buf[256];
+    char *dest = buf;
+    const char *src = name;
+    int i;
+    
+    // Convert to lowercase and replace spaces/symbols with underscores
+    for (i = 0; *src && i < 250; src++) {
+        if (isalnum(*src))
+            *dest++ = tolower(*src);
+        else if (*src == ' ' || !isprint(*src) || *src == '/' || *src == '\\' || *src == '.')
+            *dest++ = '_';
+    }
+    *dest = '\0';
+    
+    return buf;
+}
+
+bool is_duplicate_object(OBJ_DATA *obj) {
+    ITERATOR it;
+    OBJ_DATA *existing;
+    if (!loaded_objects) return false;
+    iterator_start(&it, loaded_objects);
+    while ((existing = (OBJ_DATA *)iterator_nextdata(&it))) {
+        if (existing->id[0] == obj->id[0] &&
+            existing->id[1] == obj->id[1] &&
+            existing->pIndexData == obj->pIndexData) {
+            iterator_stop(&it);
+            return true;
+        }
+    }
+    iterator_stop(&it);
+    return false;
+}
+
+bool delete_character(CHAR_DATA *ch)
+{
+    char old_path[MAX_INPUT_LENGTH];
+    char new_path[MAX_INPUT_LENGTH];
+    char timestamp[64];
+    time_t now = time(NULL);
+    struct tm *tm_info = localtime(&now);
+	char buf[MAX_STRING_LENGTH];
+
+    // Remove from account if attached
+    if (ch->pcdata && !IS_NULLSTR(ch->pcdata->account_name)) {
+        ACCOUNT_DATA *acct = get_account_by_name(ch->pcdata->account_name);
+        if (acct) {
+            account_remove_character(acct, ch->name);
+            save_account(acct);
+        }
+        // Clear account linkage on the character
+        free_string(ch->pcdata->account_name);
+        ch->pcdata->account_name = str_dup("");
+        ch->pcdata->account_id[0] = 0;
+        ch->pcdata->account_id[1] = 0;
+    }
+
+    // Format timestamp: DAY_MONTH_YEAR_HOURMINSEC
+    strftime(timestamp, sizeof(timestamp), "%d_%m_%Y_%H%M%S", tm_info);
+
+    // Build source and destination paths
+    snprintf(old_path, sizeof(old_path), "%s/%s", PLAYER_DIR, capitalize(ch->name));
+    snprintf(new_path, sizeof(new_path), "%s/%s_%s", OLD_PLAYER_DIR, capitalize(ch->name), timestamp);
+
+    // Try to move the file
+    if (rename(old_path, new_path) == 0) {
+        return true;
+    } else {
+		sprintf(buf, "delete_character: Failed to move %s to %s: %s", old_path, new_path, strerror(errno));
+		bug(buf, 0);
+        return false;
+    }
+}
+
+bool should_purge_deleted_character(const ACCOUNT_CHARACTER *ch_entry) {
+    if (!ch_entry->deleted)
+        return false;
+    if (ch_entry->delete_time == 0)
+        return false;
+    long delay = game_settings.character_delete_delay_days;
+    if (delay <= 0) delay = 30; // Default to 7 days if not set
+    return (current_time - ch_entry->delete_time) >= (delay * 86400);
 }

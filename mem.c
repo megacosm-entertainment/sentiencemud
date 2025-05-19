@@ -791,6 +791,7 @@ CHAR_DATA *new_char( void )
     ch->factions = list_create(false);
 
     ch->missions = list_createx(false, NULL, delete_mission_data);
+    ch->lcarrying_temp = list_create(false);
 
     return ch;
 }
@@ -824,7 +825,6 @@ void free_char( CHAR_DATA *ch )
 		se_next = se->next;
 		free_skill_entry(se);
 	}
-
 
     // Inventory
     for (obj = ch->carrying; obj != NULL; obj = obj_next)
@@ -876,6 +876,7 @@ void free_char( CHAR_DATA *ch )
 
     list_destroy(ch->llocker);
     list_destroy(ch->lcarrying);
+    list_destroy(ch->lcarrying_temp);
     list_destroy(ch->lworn);
     list_destroy(ch->ltokens);
     list_destroy(ch->lclonerooms);
@@ -1518,6 +1519,8 @@ static void delete_church_treasure_room(void *data) { free_mem(data, sizeof(CHUR
 CHURCH_DATA *new_church( void )
 {
     CHURCH_DATA *pChurch;
+//    int i;
+//    int j;
 
     if ( !church_free )
     {
@@ -1534,6 +1537,7 @@ CHURCH_DATA *new_church( void )
     pChurch->name = NULL;
     pChurch->flag = NULL;
     pChurch->founder = NULL;
+    pChurch->owner = NULL;
     pChurch->pneuma = 0;
     pChurch->dp	    = 0;
     pChurch->gold   = 0;
@@ -1545,6 +1549,10 @@ CHURCH_DATA *new_church( void )
     pChurch->motd = NULL;
     pChurch->log = NULL;
     pChurch->founder_last_login = 0;
+    pChurch->owner_last_login = 0;
+    pChurch->member_last_login = 0;
+    pChurch->officer_last_login = 0;
+    pChurch->leader_last_login = 0;
     pChurch->pk = 0;
     pChurch->settings = 0;
     pChurch->treasure_rooms = list_createx(false, NULL, delete_church_treasure_room);
@@ -1560,6 +1568,12 @@ CHURCH_DATA *new_church( void )
     pChurch->colour2 = 'B';
     pChurch->online_players = list_create(false);
     pChurch->roster = list_create(false);
+
+    pChurch->ranks = NULL;
+    pChurch->num_ranks = 0;
+
+    // Initialize with default number of ranks (4 for backward compatibility)
+    initialize_church_ranks(pChurch);
 
     top_church++;
 
@@ -1622,6 +1636,7 @@ CHURCH_PLAYER_DATA *new_church_player( void )
     pMember->ch = NULL;
     pMember->church = NULL;
     pMember->commands = NULL;
+    pMember->personal_permissions = 0;
 
     pMember->pk_wins = 0;
     pMember->pk_losses = 0;
@@ -1657,6 +1672,69 @@ void free_church_player( CHURCH_PLAYER_DATA *pMember )
     pMember->next         =   church_player_free;
     church_player_free    =   pMember;
     return;
+}
+
+CHURCH_RANK_DATA *new_church_rank(void)
+{
+    CHURCH_RANK_DATA *rank = alloc_mem(sizeof(CHURCH_RANK_DATA));
+    
+    rank->name_male = NULL;
+    rank->name_female = NULL;
+    rank->name_neutral = NULL;
+    rank->permissions = 0;
+    rank->flags = 0;
+    rank->rank_type = RANK_TYPE_MEMBER;
+    rank->next = NULL;
+    
+    return rank;
+}
+
+void free_church_rank(CHURCH_RANK_DATA *rank)
+{
+    if (!rank)
+        return;
+        
+    if (rank->name_male) free_string(rank->name_male);
+    if (rank->name_female) free_string(rank->name_female);
+    if (rank->name_neutral) free_string(rank->name_neutral);
+    
+    free_mem(rank, sizeof(CHURCH_RANK_DATA));
+}
+
+// Free church rank data
+void free_church_ranks(CHURCH_DATA *church)
+{
+//    int i;
+    
+    if (!church)
+        return;
+        
+    CHURCH_RANK_DATA *rank, *rank_next;
+    for (rank = church->ranks; rank != NULL; rank = rank_next) {
+        rank_next = rank->next;
+        free_church_rank(rank);
+    }
+    church->ranks = NULL;
+    church->num_ranks = 0;
+    
+    // Clear the default rank pointer but don't free it - it points to a member of the ranks list
+    church->default_rank = NULL;
+}
+
+void free_church_treasure_room(void *data)
+{
+    CHURCH_TREASURE_ROOM *treasure = (CHURCH_TREASURE_ROOM *)data;
+    
+    if (!treasure)
+        return;
+        
+    if (treasure->name)
+        free_string(treasure->name);
+        
+    if (treasure->allowed_ranks)
+        list_destroy(treasure->allowed_ranks);
+        
+    free_mem(treasure, sizeof(CHURCH_TREASURE_ROOM));
 }
 
 static void delete_area_region(void *ptr)

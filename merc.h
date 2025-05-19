@@ -320,6 +320,9 @@ struct script_type {
 
 #define VERSION_PLAYER_010  0x01000009
 
+#define VERSION_PLAYER_011  0x0100000A
+// Break inventory into LOCKER, EQUIPMENT, and INVENTORY sections.
+
 #define VERSION_OBJECT_001	0x01000000
 
 #define VERSION_OBJECT_002	0x01000001
@@ -400,12 +403,14 @@ struct script_type {
 #define VERSION_ROOM_003    0x01000003
 //  Change #1: Changed "Sector" from a number to a SECTOR_DATA *
 
+#define VERSION_CHURCH_001    0x01000001
+
 #define VERSION_DB			VERSION_DB_001
 #define VERSION_AREA		VERSION_AREA_003
 #define VERSION_MOBILE		0x01000000
 #define VERSION_OBJECT		VERSION_OBJECT_017
 #define VERSION_ROOM		VERSION_ROOM_003
-#define VERSION_PLAYER		VERSION_PLAYER_010
+#define VERSION_PLAYER		VERSION_PLAYER_011
 #define VERSION_TOKEN		0x01000000
 #define VERSION_AFFECT		0x01000000
 #define VERSION_SCRIPT		0x02000000
@@ -414,6 +419,7 @@ struct script_type {
 #define VERSION_BLUEPRINT   0x01000000
 #define VERSION_SHIP        0x01000000
 #define VERSION_DUNGEON     0x01000000
+#define VERSION_CHURCH      VERSION_CHURCH_001
 
 
 /* Setting type constants */
@@ -498,7 +504,7 @@ typedef struct  chat_ban_data		CHAT_BAN_DATA;
 typedef struct  chat_op_data		CHAT_OP_DATA;
 typedef struct  church_data             CHURCH_DATA;
 typedef struct  church_player_data      CHURCH_PLAYER_DATA;
-typedef struct	church_treasure_room_data	CHURCH_TREASURE_ROOM;
+typedef struct	church_treasure_room	CHURCH_TREASURE_ROOM;
 typedef struct  class_data CLASS_DATA;
 typedef struct  conditional_descr_data  CONDITIONAL_DESCR_DATA;
 typedef struct  gq_data			GQ_DATA;
@@ -1567,6 +1573,7 @@ struct game_settings_data
     int     vault_additional_cost_per_char;  // How much more does it cost per character?
     int     vault_additional_slots_per_char;  // How many more slots does a player get per character?
     int     vault_additional_weight_per_char;  // How much more weight does a player get per character?
+    bool    vault_require_room;             // Do we require a room to be in the vault?
 
     /* Coffer (org storage) Settings */
     int     max_coffer_weight;               // How much weight can a player have in their coffer?
@@ -1612,6 +1619,7 @@ struct game_settings_data
     int     max_alias;                      // How many aliases can a player have?
     int     max_characters;                 // How many characters can a player have (can be overridden by account data);
     int     max_orgs;                       // How many organizations can exist?
+    int     org_max_ranks;                // How many ranks can an organization have?
     bool    enable_telnet;                  // Allow plaintext connections?
     int     telnet_port;                    // Plaintext telnet port.
     bool    enable_tls;                     // Allow tls connections?
@@ -1625,6 +1633,7 @@ struct game_settings_data
     char    *insecure_warning_msg;          // What message do we display for insecure users? (requires insecure_warning)
     int     max_logfile_size;               // What size do we start rotating logs at (in MB)?
     bool note_boot_errors;
+    int character_delete_delay_days; // How long until a character is deleted after being marked for deletion?
 
     /* MSSP Settings */
     int mssp_players;                            // Automatically updated by the game.
@@ -1723,6 +1732,16 @@ struct bounty_data
     long amount;
 };
 
+typedef struct church_rank_data {
+    char *name_male;         // Male title for this rank
+    char *name_female;       // Female title for this rank
+    char *name_neutral;      // Neutral title for this rank
+    long permissions;        // Bitfield of permissions
+    int rank_type;           // Member, officer, or leader
+    long flags;              // Rank flags (protected, etc.)
+    struct church_rank_data *next;  // Linked list
+} CHURCH_RANK_DATA;
+
 struct church_player_data
 {
     CHURCH_PLAYER_DATA *next;
@@ -1740,12 +1759,16 @@ struct church_player_data
     long pk_losses;
     long pk_wins;
     long wars_won;
+    int old_rank;
+    char *rank_name;
+    CHURCH_RANK_DATA *rank;
+    CHURCH_RANK_DATA *rank_ptr;
 
     /* Commands you can entrust a church member with */
     STRING_DATA *commands;
+    long personal_permissions;
 
     int alignment;
-    int rank;
     int sex;
 };
 
@@ -1765,13 +1788,13 @@ struct church_player_data
 #define CHURCH_SIZE_ORDER   	3
 #define CHURCH_SIZE_CHURCH  	4
 
-#define MAX_CHURCH_RANK		4
-#define CHURCH_RANK_NONE	-1
 #define CHURCH_RANK_A   	0
 #define CHURCH_RANK_B   	1
 #define CHURCH_RANK_C   	2
 #define CHURCH_RANK_D   	3
-#define CHURCH_RANK_IMM		4
+
+#define CHURCH_RANK_NONE    -1    // Not in a church
+#define CHURCH_RANK_IMM     999   // Special rank for immortals
 
 #define CHURCH_GOOD     	1
 #define CHURCH_EVIL     	2
@@ -1786,6 +1809,47 @@ struct church_player_data
 
 #define CHURCH_VNUM_RANGE   200     // Number of vnums alloted to the church
 
+#define CHURCH_RANK_PROTECTED    (A)  // Rank cannot be deleted
+
+/* Church command type */
+struct church_command_type
+{
+    char 	*command;		/* the command */
+    int 	rank;			/* minimum rank to use */
+    long 	permission;			/* flag to use */
+    DO_FUN	*function;		/* function call */
+};
+
+#define RANK_TYPE_MEMBER    0
+#define RANK_TYPE_OFFICER   1
+#define RANK_TYPE_LEADER    2
+
+
+// Church permission flags
+#define CHURCH_PERM_NONE         0
+#define CHURCH_PERM_GOHALL        (A)   // Can use gohall command
+#define CHURCH_PERM_WITHDRAW      (B)   // Can withdraw resources
+#define CHURCH_PERM_INFO          (C)   // Can edit church info
+#define CHURCH_PERM_MOTD          (D)   // Can edit MOTD
+#define CHURCH_PERM_RULES         (E)   // Can edit rules
+#define CHURCH_PERM_REMOVE        (F)   // Can remove members
+#define CHURCH_PERM_STORAGE       (G)   // Can access storage
+#define CHURCH_PERM_GH_CROSS   (H)   // Can gohall crosszone
+#define CHURCH_PERM_TREASURE      (I)   // Can access treasure rooms
+#define CHURCH_PERM_RANKS         (J)   // Can edit ranks
+#define CHURCH_PERM_PERMS        (K)   // Can edit permissions
+#define CHURCH_PERM_MANAGE        (L)   // Can manage church
+#define CHURCH_PERM_VIEWLOG       (M)   // Can view church log
+#define CHURCH_PERM_BALANCE      (N)   // Can balance church
+#define CHURCH_PERM_TALK         (O)   // Can talk in church
+#define CHURCH_PERM_FINANCES     (P)   // Can manage finances
+#define CHURCH_PERM_GET_STORAGE (Q)   // Can get from storage
+#define CHURCH_PERM_PUT_STORAGE (R)   // Can set storage
+#define CHURCH_PERM_UPGRADE      (S)   // Can upgrade church
+#define CHURCH_PERM_TREASURE_ALL (T)   // Can access all treasure rooms
+#define CHURCH_PERM_TREASURE_MANAGE (U)   // Can manage treasure rooms
+#define CHURCH_PERM_MEMBERS (V)   // Can manage members
+#define CHURCH_PERM_ADD (W)   // Can add members
 struct church_data
 {
     CHURCH_DATA 	*next;
@@ -1798,6 +1862,7 @@ struct church_data
     char 		*name;
     char 		*flag;
     char 		*founder;
+    char 		*owner;
     char 		*motd;
     char 		*rules;
     char		*info;
@@ -1825,6 +1890,10 @@ struct church_data
 
     time_t 		created;
     time_t 		founder_last_login;
+    time_t 		owner_last_login;
+    time_t 		member_last_login;
+    time_t      officer_last_login;
+    time_t 		leader_last_login;
 
     bool 		pk;
 
@@ -1833,12 +1902,25 @@ struct church_data
 
     LLIST *online_players;
     LLIST *roster;
+
+    OBJ_DATA *coffer;
+    time_t coffer_rent;
+    long storage_permissions;
+    LLIST *lcoffer;
+    int max_ranks;                    // Number of ranks this church has
+    CHURCH_RANK_DATA *ranks;      // Linked list of ranks (lowest to highest)
+    int num_ranks;                // Number of ranks (for quick reference)
+    CHURCH_RANK_DATA *default_rank; // Default rank for new members
 };
 
-struct church_treasure_room_data
-{
-	ROOM_INDEX_DATA *room;
-	int min_rank;				// Which ranks can use it
+struct church_treasure_room {
+    ROOM_INDEX_DATA *room;      // The room itself
+    bool is_default;           // Whether this is the default room
+    char *name;                // Optional name for the room
+    
+    // Replace min_rank with a list of ranks that can access
+    LLIST *allowed_ranks;       // List of CHURCH_RANK_DATA pointers that can access the room
+    int min_rank;
 };
 
 
@@ -1918,7 +2000,12 @@ struct church_treasure_room_data
 #define CON_VERIFY_ACCOUNT_EMAIL_CHANGE 68
 #define CON_CHANGE_CHARACTER_EMAIL 69
 #define CON_VERIFY_CHARACTER_EMAIL_CHANGE 70
-#define CON_MAX 68
+#define CON_VERIFY_UNLINK_PASSWORD 71
+#define CON_VERIFY_UNLINK_MFA 72
+#define CON_SET_UNLINK_PASSWORD 73
+#define CON_VERIFY_CHARACTER_DELETE 74
+#define CON_CHARACTER_DELETE 75
+#define CON_MAX 76
 
 #define MFA_RECOVERY_CODES 5
 
@@ -3784,7 +3871,7 @@ enum {
 //                          (Y)
 #define ROOM_ALWAYS_UPDATE	(Z) 	// Allows the room to perform scripting even if the area is empty
 #define ROOM_KEEP_LIVE      (aa)    // Room's live data will not get overwritten by resets
-//                          (bb)
+#define ROOM_VAULT          (bb)    // Shared storage access.
 //                          (cc)
 //                          (dd)
 //                          (ee)
@@ -4018,6 +4105,7 @@ enum {
 #define ACCT_CAN_CREATE_STAFF (A)
 #define ACCT_CAN_LINK (B)
 #define ACCT_CAN_UNLINK (C)
+#define ACCT_CAN_DELETE_IMMEDIATELY (D)
 
 struct sector_data
 {
@@ -5230,6 +5318,7 @@ struct	char_data
     NOTE_DATA *		pnote;
     OBJ_DATA *		carrying;
     OBJ_DATA *		locker;
+    int         locker_tier;
     MAIL_DATA *		mail;
     ROOM_INDEX_DATA *	home_room; /* for mobs to wander back home */
     ROOM_INDEX_DATA *	clone_rooms;
@@ -5617,6 +5706,10 @@ struct	char_data
 	char		*casting_failure_message;
 
 	bool		in_damage_function;	// If set, it will prevent damage_new from working on the character
+    OBJ_DATA * carrying_temp; // Used to track the object that is being migrated
+    LLIST * lcarrying_temp; // Used to track the list of objects that are being migrated
+    bool deleted;
+    time_t delete_time;
 
 /*
 	struct char_data_stats {
@@ -5753,6 +5846,9 @@ struct account_data
     LLIST * changes;            // List of changes on the account
     LLIST * avail_races;        // List of available races
     ACCOUNT_NOTE_DATA *staff_notes; // List of notes on the account
+    OBJ_DATA *vault_items;
+    time_t vault_rent; // Time of last vault rent
+    LLIST *lvault; // List of items in the vault
 
     int refcount;             // Reference count for the account (active logins)
 };
@@ -5774,6 +5870,8 @@ struct account_character_data
     time_t last_logoff;         /* Last time character logged off */
     char *last_host;
     long id[2];                    /* Character ID */
+    bool deleted;                /* Is the character deleted? */
+    time_t delete_time;         /* When the character was deleted */
 //    long id2;                   /* Character ID part 2 */
 };
 
@@ -6946,6 +7044,12 @@ struct spell_data
 };
 
 
+#define STORAGE_NONE      0
+#define STORAGE_CHARACTER    1
+#define STORAGE_ACCOUNT  2
+#define STORAGE_CHURCH   3
+#define STORAGE_MAX      4
+
 /*
  * One object.
  */
@@ -7061,6 +7165,7 @@ struct	obj_data
     int 		last_wear_loc;
     bool		locker;
     bool        stached;
+    int            storage_type; // Storage type (STORAGE_NONE, STORAGE_LOCKER, STORAGE_ACCOUNT, STORAGE_CHURCH)
     int			nest_clones;
 
     /* Used for pirate heads */
@@ -8555,13 +8660,6 @@ extern          int			reckoning_cooldown;
 #define TARGET_NONE		    3
 
 
-/* Church command type */
-struct church_command_type
-{
-    char 	*command;		/* the command */
-    int 	rank;			/* minimum rank to use */
-    DO_FUN	*function;		/* function call */
-};
 
 
 /*
@@ -10866,7 +10964,7 @@ void    check_objects   args( ( void ) );
 void    check_mobs      args( ( void ) );
 CD *	create_mobile	args( ( MOB_INDEX_DATA *pMobIndex, bool persistLoad ) );
 CD *	clone_mobile	args( ( CHAR_DATA *parent ) );
-OD *	create_object_noid	args( ( OBJ_INDEX_DATA *pObjIndex, int level, bool affects, bool multitypes ) );
+OD *	create_object_noid	args( ( OBJ_INDEX_DATA *pObjIndex, int level, bool affects, bool multitypes, bool add_to_loaded_objs ) );
 OD *	create_object	args( ( OBJ_INDEX_DATA *pObjIndex, int level, bool affects ) );
 void	clone_object	args( ( OBJ_DATA *parent, OBJ_DATA *clone ) );
 void	clear_char	args( ( CHAR_DATA *ch ) );
@@ -11178,6 +11276,9 @@ LOG_ENTRY_DATA *new_log_entry(void);
 void free_log_entry(LOG_ENTRY_DATA *log);
 char *create_affect_cname(char *name);
 char *get_affect_cname(char *name);
+void free_church_ranks(CHURCH_DATA *church);
+void free_account(ACCOUNT_DATA *account);
+
 
 // missions.c
 bool generate_mission( CHAR_DATA *ch, CHAR_DATA *missionary, MISSION_DATA *mission );
@@ -11443,6 +11544,8 @@ void show_staff_ranks(CHAR_DATA *ch);
 CHURCH_DATA *get_church_by_name(const char *name);
 bool validate_account_recipient(const char *account_name);
 int colour_trunc_len(const char *str, int limit);
+char *normalize_filename(const char *name);
+bool is_duplicate_object(OBJ_DATA *obj);
 
 /* help.c */
 HELP_DATA *find_helpfile( char *keyword, HELP_CATEGORY *hcat );
@@ -11588,6 +11691,10 @@ void login_verify_account_email_change(DESCRIPTOR_DATA *d, char *argument);
 bool is_reconnecting(CHAR_DATA *ch);
 void reconnect_char(DESCRIPTOR_DATA *d);
 void string_end_accnote(CHAR_DATA *ch);
+void login_character_delete(DESCRIPTOR_DATA *d, char argument);
+bool delete_character(CHAR_DATA *ch);
+bool should_purge_deleted_character(const ACCOUNT_CHARACTER *ch_entry);
+void *iterator_peek_nextdata(ITERATOR *it);
 
 
 /* scripts.c */
@@ -11844,6 +11951,31 @@ bool is_in_treasure_room(OBJ_DATA *obj);
 bool objindex_in_treasure_room(CHURCH_DATA *church, OBJ_INDEX_DATA *objindex);
 bool wnum_in_treasure_room(CHURCH_DATA *church, WNUM wnum);
 void update_church_pks(void);
+void initialize_church_ranks(CHURCH_DATA *church);
+CHURCH_RANK_DATA *add_church_rank(CHURCH_DATA *church, const char *male_name, 
+                                const char *female_name, const char *neutral_name, 
+                                long permissions, int rank_type);
+void save_church(CHURCH_DATA *church);
+bool can_access_church_storage(CHAR_DATA *ch, CHURCH_DATA *church);
+CHURCH_RANK_DATA *new_church_rank(void);
+void free_church_rank(CHURCH_RANK_DATA *rank);
+
+/* Church storage functions */
+void obj_to_coffer(OBJ_DATA *obj, CHURCH_DATA *church);
+void obj_from_coffer(OBJ_DATA *obj, CHURCH_DATA *church);
+OBJ_DATA *get_obj_coffer(CHURCH_DATA *church, CHAR_DATA *ch, char *argument);
+bool can_get_from_church_storage(CHAR_DATA *ch, CHURCH_DATA *church);
+bool can_put_to_church_storage(CHAR_DATA *ch, CHURCH_DATA *church);
+
+/* Vault/account storage functions */
+void obj_to_vault(OBJ_DATA *obj, ACCOUNT_DATA *account);
+void obj_from_vault(OBJ_DATA *obj, ACCOUNT_DATA *account);
+OBJ_DATA *get_obj_vault(ACCOUNT_DATA *account, CHAR_DATA *ch, char *argument);
+
+/* Church member functions */
+bool is_church_leader(CHAR_DATA *ch, CHURCH_DATA *church);
+bool is_excommunicated(CHAR_DATA *ch);
+bool has_church_permission(CHURCH_PLAYER_DATA *member, long permission);
 
 /* house.c */
 void write_houses( void );
@@ -12210,6 +12342,8 @@ bool iterator_insert_after(ITERATOR *it, void *data);
 bool list_quicksort(LLIST *lp, int (*cmp)(void *a, void *b));
 
 bool list_isvalid(LLIST *lp);
+void *list_last(LLIST *list);
+bool iterator_hasdata(ITERATOR *it);
 
 AREA_DATA *get_area_data args ((long anum));
 AREA_DATA *get_area_from_uid args ((long uid));

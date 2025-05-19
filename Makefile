@@ -60,7 +60,6 @@ C_FILES = \
 	interp.c \
 	invasion.c \
 	item_types.c \
-	locker.c \
 	lookup.c \
 	magic.c \
 	magic2.c \
@@ -128,6 +127,7 @@ C_FILES = \
 	staff.c \
 	stats.c \
 	string.c \
+	storage.c \
 	tables.c \
 	tls.c \
 	treasuremap.c \
@@ -175,7 +175,6 @@ O_FILES = \
 	$(OBJDIR)/interp.o \
 	$(OBJDIR)/invasion.o \
 	$(OBJDIR)/item_types.o \
-	$(OBJDIR)/locker.o \
 	$(OBJDIR)/lookup.o \
 	$(OBJDIR)/magic.o \
 	$(OBJDIR)/magic2.o \
@@ -242,6 +241,7 @@ O_FILES = \
 	$(OBJDIR)/special.o \
 	$(OBJDIR)/staff.o \
 	$(OBJDIR)/stats.o \
+	$(OBJDIR)/storage.o \
 	$(OBJDIR)/string.o \
 	$(OBJDIR)/tables.o \
 	$(OBJDIR)/tls.o \
