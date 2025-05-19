@@ -1213,6 +1213,14 @@ void read_chat_rooms()
         exit(1);
     }
 
+        int c = fgetc(fp);
+    if (c == EOF) {
+        log_string("*** Chat room file is empty, skipping load.");
+        fclose(fp);
+        return;
+    }
+    ungetc(c, fp);
+
     counter = 0;
     count = fread_number(fp);
     if (count == 0)

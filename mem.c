@@ -8516,23 +8516,31 @@ void free_cmd(CMD_DATA *cmd)
 ACCOUNT_CHARACTER *new_account_character()
 {
     ACCOUNT_CHARACTER *acct_char;
-    
+
     acct_char = malloc(sizeof(*acct_char));
-    acct_char->name = NULL;
-    acct_char->race_name = NULL;
-    acct_char->class_name = NULL;
+    if (!acct_char)
+        return NULL;
+
+    // Zero all fields to ensure no uninitialized values
+    memset(acct_char, 0, sizeof(*acct_char));
+
+    acct_char->name = str_dup("");
+    acct_char->race_name = str_dup("");
+    acct_char->class_name = str_dup("");
     acct_char->current_level = 0;
     acct_char->tot_level = 0;
     acct_char->last_area = str_dup("");
     acct_char->last_region = str_dup("");
-    acct_char->last_host = str_dup(""); 
+    acct_char->last_host = str_dup("");
     acct_char->staff = false;
     acct_char->staff_rank = STAFF_PLAYER;  // Initialize with default rank
     acct_char->creation_date = 0;
     acct_char->last_login = 0;
     acct_char->id[0] = 0;
     acct_char->id[1] = 0;
-    
+    acct_char->deleted = false;
+    acct_char->delete_time = 0;
+
     return acct_char;
 }
 
@@ -8544,14 +8552,18 @@ void free_account_character(ACCOUNT_CHARACTER *acct_char)
 {
     if (!acct_char)
         return;
-        
-    free_string(acct_char->name);
-    free_string(acct_char->race_name);
-    free_string(acct_char->class_name);
-    free_string(acct_char->last_area);
-    free_string(acct_char->last_region);
-    free_string(acct_char->last_host);
-    
+
+    // Free all dynamically allocated strings
+    if (acct_char->name)        free_string(acct_char->name);
+    if (acct_char->race_name)   free_string(acct_char->race_name);
+    if (acct_char->class_name)  free_string(acct_char->class_name);
+    if (acct_char->last_area)   free_string(acct_char->last_area);
+    if (acct_char->last_region) free_string(acct_char->last_region);
+    if (acct_char->last_host)   free_string(acct_char->last_host);
+
+    // Zero the struct for safety (optional, but good practice)
+    memset(acct_char, 0, sizeof(*acct_char));
+
     free(acct_char);
 }
 

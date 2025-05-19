@@ -1232,18 +1232,18 @@ imc_loop();
 void init_descriptor(int control, bool is_tls)
 {
     char buf[MAX_STRING_LENGTH];
-    DESCRIPTOR_DATA *dnew;
+    DESCRIPTOR_DATA *dnew = NULL;
     struct sockaddr_in sock;
     struct hostent *from;
     int desc;
     socklen_t size;
 
     size = sizeof(sock);
-    getsockname( control, (struct sockaddr *) &sock, &size );
-    if ( ( desc = accept( control, (struct sockaddr *) &sock, &size) ) < 0 )
+    getsockname(control, (struct sockaddr *) &sock, &size);
+    if ((desc = accept(control, (struct sockaddr *) &sock, &size)) < 0)
     {
-	perror("New_descriptor: accept");
-	return;
+        perror("New_descriptor: accept");
+        return;
     }
 
 #if !defined(FNDELAY)
@@ -1252,146 +1252,125 @@ void init_descriptor(int control, bool is_tls)
 
     if (fcntl(desc, F_SETFL, FNDELAY) == -1)
     {
-	perror("New_descriptor: fcntl: FNDELAY");
-	return;
-    }
-
-    /*
-     * Cons a new descriptor.
-     */
-    dnew = new_descriptor();
-
-	dnew->last_activity = current_time;
-
-	if (is_tls) {
-		dnew->ssl = SSL_new(ctx);
-		dnew->tls_handshake_in_progress = true;
-		if (dnew->ssl == NULL) {
-			bug("New_descriptor: SSL_new failed", 0);
-			return;
-		}
-
-		if (SSL_set_fd(dnew->ssl, desc) == 0) {
-			bug("New_descriptor: SSL_set_fd failed", 0);
-			return;
-		}
-
-// When you first accept a new TLS connection:
-int ret = SSL_accept(dnew->ssl);
-if (ret <= 0) {
-    int err = SSL_get_error(dnew->ssl, ret);
-    if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
-        // The operation did not complete; the same I/O function should be called again later
-        dnew->tls_handshake_in_progress = true;
-    } else {
-        fprintf(stderr, "SSL error: %d\n", err);
-        ERR_print_errors_fp(stderr);
+        perror("New_descriptor: fcntl: FNDELAY");
+        close(desc);
         return;
     }
-} else {
-    // Handshake was successful
-    dnew->tls_handshake_in_progress = false;
-}
-	}
-	else
-	{
-		dnew->ssl = NULL;
-	}
 
-    dnew->descriptor	= desc;
-    dnew->connected	= CON_GET_ACCOUNT_NAME;
-    dnew->showstr_head	= NULL;
+    dnew = new_descriptor();
+    dnew->last_activity = current_time;
+
+    if (is_tls) {
+        dnew->ssl = SSL_new(ctx);
+        dnew->tls_handshake_in_progress = true;
+        if (dnew->ssl == NULL) {
+            bug("New_descriptor: SSL_new failed", 0);
+            close(desc);
+            free_descriptor(dnew);
+            return;
+        }
+
+        if (SSL_set_fd(dnew->ssl, desc) == 0) {
+            bug("New_descriptor: SSL_set_fd failed", 0);
+            SSL_free(dnew->ssl);
+            dnew->ssl = NULL;
+            close(desc);
+            free_descriptor(dnew);
+            return;
+        }
+
+        int ret = SSL_accept(dnew->ssl);
+        if (ret <= 0) {
+            int err = SSL_get_error(dnew->ssl, ret);
+            if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
+                dnew->tls_handshake_in_progress = true;
+            } else {
+                fprintf(stderr, "SSL error: %d\n", err);
+                ERR_print_errors_fp(stderr);
+                log_string("TLS handshake failed, closing descriptor.");
+                SSL_free(dnew->ssl);
+                dnew->ssl = NULL;
+                close(desc);
+                free_descriptor(dnew);
+                return;
+            }
+        } else {
+            dnew->tls_handshake_in_progress = false;
+        }
+    } else {
+        dnew->ssl = NULL;
+    }
+
+    dnew->descriptor = desc;
+    dnew->connected = CON_GET_ACCOUNT_NAME;
+    dnew->showstr_head = NULL;
     dnew->showstr_point = NULL;
-    dnew->outsize	= 2000;
-    dnew->pEdit		= NULL;			/* OLC */
-    dnew->pString	= NULL;			/* OLC */
-    dnew->editor	= 0;			/* OLC */
-    dnew->outbuf	= alloc_mem(dnew->outsize);
-    dnew->pProtocol	= ProtocolCreate();
+    dnew->outsize = 2000;
+    dnew->pEdit = NULL;
+    dnew->pString = NULL;
+    dnew->editor = 0;
+    dnew->outbuf = alloc_mem(dnew->outsize);
+    dnew->pProtocol = ProtocolCreate();
 
     size = sizeof(sock);
     if (getpeername(desc, (struct sockaddr *) &sock, &size) < 0)
     {
-	perror("New_descriptor: getpeername");
-	dnew->host = str_dup("(unknown)");
+        perror("New_descriptor: getpeername");
+        dnew->host = str_dup("(unknown)");
     }
     else
     {
-	/*
-	 * Would be nice to use inet_ntoa here but it takes a struct arg,
-	 * which ain't very compatible between gcc and system libraries.
-	 */
-	int addr;
-
-	addr = ntohl(sock.sin_addr.s_addr);
-	sprintf(buf, "%d.%d.%d.%d",
-	    (addr >> 24) & 0xFF, (addr >> 16) & 0xFF,
-	    (addr >>  8) & 0xFF, (addr      ) & 0xFF
-	   );
-    // Only log connection addresses in debug mode or for suspicious IPs
-    if (game_settings.dev_server || check_ban(buf, BAN_ALL)) {
-        sprintf(log_buf, "Sock.sinaddr:  %s", buf);
-        log_string(log_buf);
-    }
-	from = gethostbyaddr((char *) &sock.sin_addr,
-	    sizeof(sock.sin_addr), AF_INET);
-	dnew->host = str_dup(from ? from->h_name : buf);
+        int addr;
+        addr = ntohl(sock.sin_addr.s_addr);
+        sprintf(buf, "%d.%d.%d.%d",
+            (addr >> 24) & 0xFF, (addr >> 16) & 0xFF,
+            (addr >>  8) & 0xFF, (addr      ) & 0xFF
+        );
+        if (game_settings.dev_server || check_ban(buf, BAN_ALL)) {
+            sprintf(log_buf, "Sock.sinaddr:  %s", buf);
+            log_string(log_buf);
+        }
+        from = gethostbyaddr((char *) &sock.sin_addr,
+            sizeof(sock.sin_addr), AF_INET);
+        dnew->host = str_dup(from ? from->h_name : buf);
     }
 
-    /*
-     * Swiftest: I added the following to ban sites.  I don't
-     * endorse banning of sites, but Copper has few descriptors now
-     * and some people from certain sites keep abusing access by
-     * using automated 'autodialers' and leaving connections hanging.
-     *
-     * Furey: added suffix check by request of Nickel of HiddenWorlds.
-     */
-    if (check_ban(dnew->host,BAN_ALL))
+    if (check_ban(dnew->host, BAN_ALL))
     {
-		char banmsg[MIL];
-		sprintf(banmsg, "Your site has been banned from %s\n\r", game_settings.game_name);
-	write_to_descriptor_2(dnew, banmsg, 0);
-	close(desc);
-	free_descriptor(dnew);
-	return;
+        char banmsg[MIL];
+        sprintf(banmsg, "Your site has been banned from %s\n\r", game_settings.game_name);
+        write_to_descriptor_2(dnew, banmsg, 0);
+        close(desc);
+        free_descriptor(dnew);
+        return;
     }
-    /*
-     * Init descriptor data.
-     */
-    dnew->next			= descriptor_list;
-    descriptor_list		= dnew;
+
+    dnew->next = descriptor_list;
+    descriptor_list = dnew;
     ProtocolNegotiate(dnew);
 
-    /*
-     * Send the greeting.
-     */
-
-    /* mccp: tell the client we support compression */
     write_to_buffer(dnew, compress_will, 0);
 
-    /* msp: tell the client we support msp */
-    //write_to_buffer(dnew, msp_will, 0);
-
     if (help_greeting[0] == '.')
-		write_to_buffer(dnew, help_greeting+1, 0);
+        write_to_buffer(dnew, help_greeting + 1, 0);
     else
-		write_to_buffer(dnew, help_greeting  , 0);
+        write_to_buffer(dnew, help_greeting, 0);
 
-	if (!is_tls && game_settings.enable_tls && game_settings.enable_insecure_warning && game_settings.insecure_warning_msg != NULL)
-	{
-		sprintf(buf, "{R%s{x\n\r{XIf your client supports it, encrypted connection is available on port %d\n\r\n\r", game_settings.insecure_warning_msg, game_settings.tls_port);
-		write_to_buffer(dnew, buf, 0);
-	}
+    if (!is_tls && game_settings.enable_tls && game_settings.enable_insecure_warning && game_settings.insecure_warning_msg != NULL)
+    {
+        sprintf(buf, "{R%s{x\n\r{XIf your client supports it, encrypted connection is available on port %d\n\r", game_settings.insecure_warning_msg, game_settings.tls_port);
+        write_to_buffer(dnew, buf, 0);
+    }
 
-	if (!IS_NULLSTR(game_settings.login_string))
-	{
-		write_to_buffer(dnew, game_settings.login_string, 0);
-		write_to_buffer(dnew, "\n\r", 0);
-	}
-	else
-	{
-    	write_to_buffer(dnew, "By what name do you wish to be known? ", 0);
-	}
+    if (!IS_NULLSTR(game_settings.login_string))
+    {
+        write_to_buffer(dnew, game_settings.login_string, 0);
+        write_to_buffer(dnew, "\n\r", 0);
+    }
+    else
+    {
+        write_to_buffer(dnew, "By what name do you wish to be known? ", 0);
+    }
 }
 
 
@@ -1480,96 +1459,71 @@ bool read_from_descriptor(DESCRIPTOR_DATA *d)
 {
     int iStart;
 
-	d->last_activity = current_time;
+    d->last_activity = current_time;
 
     static char read_buf[MAX_PROTOCOL_BUFFER];
     read_buf[0] = '\0';
 
-    /* Hold horses if pending command already. */
     if (d->incomm[0] != '\0')
-	return true;
+        return true;
 
-    /* Check for overflow. */
-//    iStart = strlen(d->inbuf);
-//    if (iStart >= sizeof(d->inbuf) - 10)
     iStart = 0;
-    if(strlen(d->inbuf) >= sizeof(d->inbuf) - 10)
+    if (strlen(d->inbuf) >= sizeof(d->inbuf) - 10)
     {
-		sprintf(log_buf, "%s input overflow!", d->host);
-		log_string(log_buf);
-		write_to_descriptor(d, "\n\r*** PUT A LID ON IT!!! ***\n\r", 0);
-		return false;
+        sprintf(log_buf, "%s input overflow!", d->host);
+        log_string(log_buf);
+        write_to_descriptor(d, "\n\r*** PUT A LID ON IT!!! ***\n\r", 0);
+        return false;
     }
 
-    /* Snarf input. */
-    for (; ;)
+    for (;;)
     {
-		int nRead;
-/*
-	nRead = read(d->descriptor, d->inbuf + iStart,
-	    sizeof(d->inbuf) - 10 - iStart);
-	if (nRead > 0)
-	{
-	    iStart += nRead;
-	    if (d->inbuf[iStart-1] == '\n' || d->inbuf[iStart-1] == '\r')
-		break;
-	}
-*/
-		if (d->ssl)
-		{
-    		do {
-    	    	nRead = SSL_read(d->ssl, read_buf + iStart, sizeof(read_buf) - 10 - iStart);
-   		     	if (nRead <= 0) {
-   	         		int err = SSL_get_error(d->ssl, nRead);
-            		if (err == SSL_ERROR_WANT_READ) {
-  	              		// The operation did not complete; the same I/O function should be called again later
-	                	break;
-            } else if (err == SSL_ERROR_ZERO_RETURN || 
-                       err == SSL_ERROR_SYSCALL) {
-                // Connection closed cleanly (EOF) or abruptly
-                // Removed excessive logging
-                return false;
-            } else {
-                // Only log detailed errors for unexpected failures
-                // This avoids spamming logs for normal connection closes
-                if (err != SSL_ERROR_SSL) {
-		                fprintf(stderr, "SSL_read failed with error: %d\n", err);
-    	            	ERR_print_errors_fp(stderr);
-       		         	fprintf(stderr, "SSL state: %s\n", SSL_state_string_long(d->ssl));
-				        }
-        	        	return false;
-            		}
-        		}
-    		} while (nRead <= 0);
-	
-		}
-		else
-		{
-			nRead = read( d->descriptor, read_buf + iStart,
-	    		sizeof(read_buf) - 10 - iStart );
-		}
-		if ( nRead > 0 )
-		{
-	    	iStart += nRead;
-	    	if ( read_buf[iStart-1] == '\n' || read_buf[iStart-1] == '\r' )
-			break;
-		}
-		else if (nRead == 0)
-		{
-	    	return false;
-		}
-		else if (errno == EWOULDBLOCK)
-	    	break;
-		else
-		{
-	    	perror("Read_from_descriptor");
-	    	return false;
-		}
+        int nRead = 0;
+        if (d->ssl)
+        {
+            do {
+                nRead = SSL_read(d->ssl, read_buf + iStart, sizeof(read_buf) - 10 - iStart);
+                if (nRead <= 0) {
+                    int err = SSL_get_error(d->ssl, nRead);
+                    if (err == SSL_ERROR_WANT_READ) {
+                        break;
+                    } else if (err == SSL_ERROR_ZERO_RETURN || err == SSL_ERROR_SYSCALL) {
+                        // Connection closed cleanly or abruptly
+                        return false;
+                    } else {
+                        fprintf(stderr, "SSL_read failed with error: %d\n", err);
+                        ERR_print_errors_fp(stderr);
+                        fprintf(stderr, "SSL state: %s\n", SSL_state_string_long(d->ssl));
+                        return false;
+                    }
+                }
+            } while (nRead <= 0);
+        }
+        else
+        {
+            nRead = read(d->descriptor, read_buf + iStart, sizeof(read_buf) - 10 - iStart);
+        }
+        if (nRead > 0)
+        {
+            iStart += nRead;
+            if (read_buf[iStart - 1] == '\n' || read_buf[iStart - 1] == '\r')
+                break;
+        }
+        else if (nRead == 0)
+        {
+            return false;
+        }
+        else if (errno == EWOULDBLOCK)
+            break;
+        else
+        {
+            perror("Read_from_descriptor");
+            return false;
+        }
     }
 
-//    d->inbuf[iStart] = '\0';
     read_buf[iStart] = '\0';
-    ProtocolInput(d,read_buf,iStart,d->inbuf);
+    ProtocolInput(d, read_buf, iStart, d->inbuf);
     return true;
 }
 
