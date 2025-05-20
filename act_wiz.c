@@ -410,6 +410,7 @@ int game_settings_read(void)
     game_settings.max_characters = 0;
     game_settings.max_orgs = 0;
     game_settings.max_logfile_size = 0;
+	game_settings.org_disable_pk_pneuma_cost = 0;
 
     /* Email */
     game_settings.enable_email = false;
@@ -745,6 +746,7 @@ int game_settings_read(void)
                     }
                 }
 				KEY("OrgMaxRanks", game_settings.org_max_ranks, fread_number(fp));
+				KEY("OrgPKCost", game_settings.org_disable_pk_pneuma_cost, fread_number(fp));
                 break;
             case 'R':
                 {
@@ -1025,6 +1027,7 @@ int game_settings_write(void)
 	fprintf(fp, "NoteBootErrs %d\n", game_settings.note_boot_errors);
 	fprintf(fp, "OrgMaxRanks %d\n", game_settings.org_max_ranks);
 	fprintf(fp, "CharacterDeleteDelay %d\n", game_settings.character_delete_delay_days);
+	fprintf(fp, "OrgPKCost %d\n", game_settings.org_disable_pk_pneuma_cost);
 
 
     /* Email */

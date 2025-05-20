@@ -1165,32 +1165,27 @@ void interpret( CHAR_DATA *ch, char *argument )
 	return;
     }
 
-    // Toggle church PK?
-    if (ch->pk_question)
+// Toggle church PK?
+if (ch->pk_question)
+{
+    if (!str_prefix(command, "yes"))
     {
-	char buf[MAX_STRING_LENGTH];
-
-	if (!str_prefix(command, "yes"))
-	{
-	    sprintf(buf, "{Y[%s is now a PLAYER KILLING church!]{x\n\r",
-		    ch->church->name );
-	    gecho( buf );
-	    ch->pk_question = false;
-	    ch->church->pk = true;
-	    return;
-	}
-	else
-        if (!str_prefix(command, "no"))
-        {
-	    ch->pk_question = false;
-	    return;
-	}
-	else
-	{
-	    send_to_char("Please answer yes or no.\n\r", ch);
-	    return;
-	}
+        // Call the central function to handle enabling PK
+        chtoggle_complete(ch, true);
+        ch->pk_question = false;
+        return;
     }
+    else if (!str_prefix(command, "no"))
+    {
+        ch->pk_question = false;
+        return;
+    }
+    else
+    {
+        send_to_char("Please answer yes or no.\n\r", ch);
+        return;
+    }
+}
 
     // Toggle personal PK?
     if (ch->personal_pk_question)

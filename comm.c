@@ -2362,8 +2362,11 @@ bool write_to_descriptor_2(DESCRIPTOR_DATA *d, char *txt, int length)
             if (nWrite <= 0) {
                 int err = SSL_get_error(d->ssl, nWrite);
                 if (err == SSL_ERROR_WANT_WRITE) {
-                    // The operation did not complete; the same I/O function should be called again later
+                    // The operation didn't complete; try again later
                     break;
+                } else if (err == SSL_ERROR_SYSCALL && errno == EPIPE) {
+                    // Explicitly handle EPIPE here
+                    return false;
                 } else {
                     fprintf(stderr, "SSL_write failed with error: %d\n", err);
                     ERR_print_errors_fp(stderr);
@@ -2373,6 +2376,10 @@ bool write_to_descriptor_2(DESCRIPTOR_DATA *d, char *txt, int length)
         } else {
             nWrite = write(d->descriptor, txt + iStart, nBlock);
             if (nWrite < 0) {
+                                if (errno == EPIPE) {
+                    // Explicitly handle EPIPE here
+                    return false; 
+                }
                 perror("Write_to_descriptor_2");
                 return false;
             }
@@ -2664,6 +2671,27 @@ void reconnect_char(DESCRIPTOR_DATA *d)
     TOKEN_DATA *token;
 
     if (!ch) return;
+
+if (ch && ch->desc) {
+    // Test if connection is still valid after long idle
+    if (ch->timer > 10) {
+        // Simple non-blocking test write to verify socket is healthy
+        char test_byte = 0;
+        int result;
+        
+        if (ch->desc->ssl)
+            result = SSL_write(ch->desc->ssl, &test_byte, 0);
+        else
+            result = send(ch->desc->descriptor, &test_byte, 0, MSG_DONTWAIT);
+            
+        if (result < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
+            // Socket is probably dead, close it properly
+            log_string("Detected broken connection during reconnect");
+            close_socket(ch->desc);
+            return;
+        }
+    }
+}
 
     // Fix inventory relationships
     if (ch->carrying == NULL && ch->lcarrying != NULL) {

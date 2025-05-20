@@ -97,6 +97,8 @@ SKILL_ENTRY *skill_entry_free;
 OLC_POINT_BOOST *olc_point_boost_free;
 SHIP_INDEX_DATA *ship_index_free;
 SHIP_DATA *ship_free;
+CHURCH_LOG_ENTRY *church_log_entry_free;
+
 
 void *copy_string(void *ptr)
 {
@@ -757,6 +759,7 @@ CHAR_DATA *new_char( void )
     ch->projectile_dir = -1;	//@@@NIB : 20071021
 
     ch->challenger = NULL;
+    ch->temp_log_entry = NULL;
 
     for (i = 0; i < MAX_STATS; i ++)
     {
@@ -905,7 +908,7 @@ void free_char( CHAR_DATA *ch )
     script_clear_list(ch);
     wipe_clearinfo_mobile(ch);
     free_prog_data(ch->progs);
-
+    free_church_log_entry(ch->temp_log_entry);
 
     /* be sure to free any events hooked up to this char so that they arn't called
        on the freed memory space */
@@ -1547,7 +1550,9 @@ CHURCH_DATA *new_church( void )
     location_clear(&pChurch->recall_point);
     pChurch->rules = NULL;
     pChurch->motd = NULL;
-    pChurch->log = NULL;
+    pChurch->log_entries = NULL;
+    pChurch->last_log_entry_id = 0;
+    pChurch->log_entry_count = 0;
     pChurch->founder_last_login = 0;
     pChurch->owner_last_login = 0;
     pChurch->member_last_login = 0;
@@ -1571,9 +1576,9 @@ CHURCH_DATA *new_church( void )
 
     pChurch->ranks = NULL;
     pChurch->num_ranks = 0;
-
-    // Initialize with default number of ranks (4 for backward compatibility)
-    initialize_church_ranks(pChurch);
+    pChurch->default_rank = 0;
+    pChurch->max_rank_uid = 0;
+    pChurch->deleted = false;
 
     top_church++;
 
@@ -1590,7 +1595,6 @@ void free_church( CHURCH_DATA *pChurch )
     free_string( pChurch->flag );
     free_string( pChurch->rules );
     free_string( pChurch->motd );
-    free_string( pChurch->log );
     free_string( pChurch->founder );
 
     people = pChurch->people;
@@ -1600,6 +1604,18 @@ void free_church( CHURCH_DATA *pChurch )
         free_church_player( people );
 	people = next_person;
     }
+
+    // Free log entries
+    CHURCH_LOG_ENTRY *log, *log_next;
+    for (log = pChurch->log_entries; log != NULL; log = log_next)
+    {
+        log_next = log->next;
+        free_church_log_entry(log);
+    }
+
+    pChurch->next = church_free;
+    church_free = pChurch;
+    return;
 
 	variable_clearfield(VAR_CHURCH, pChurch);
 
@@ -1644,6 +1660,7 @@ CHURCH_PLAYER_DATA *new_church_player( void )
     pMember->cpk_losses = 0;
     pMember->wars_won = 0;
     pMember->alignment = 0;
+    pMember->rank_uid = 0;
 
     top_church_player++;
 
@@ -1678,13 +1695,15 @@ CHURCH_RANK_DATA *new_church_rank(void)
 {
     CHURCH_RANK_DATA *rank = alloc_mem(sizeof(CHURCH_RANK_DATA));
     
-    rank->name_male = NULL;
-    rank->name_female = NULL;
-    rank->name_neutral = NULL;
+    rank->title_male = NULL;
+    rank->title_female = NULL;
+    rank->title_neutral = NULL;
     rank->permissions = 0;
     rank->flags = 0;
     rank->rank_type = RANK_TYPE_MEMBER;
     rank->next = NULL;
+    rank->rank_name = NULL;
+    rank->uid = 0;
     
     return rank;
 }
@@ -1694,9 +1713,9 @@ void free_church_rank(CHURCH_RANK_DATA *rank)
     if (!rank)
         return;
         
-    if (rank->name_male) free_string(rank->name_male);
-    if (rank->name_female) free_string(rank->name_female);
-    if (rank->name_neutral) free_string(rank->name_neutral);
+    if (rank->title_male) free_string(rank->title_male);
+    if (rank->title_female) free_string(rank->title_female);
+    if (rank->title_neutral) free_string(rank->title_neutral);
     
     free_mem(rank, sizeof(CHURCH_RANK_DATA));
 }
@@ -1735,6 +1754,42 @@ void free_church_treasure_room(void *data)
         list_destroy(treasure->allowed_ranks);
         
     free_mem(treasure, sizeof(CHURCH_TREASURE_ROOM));
+}
+
+CHURCH_LOG_ENTRY *new_church_log_entry()
+{
+    CHURCH_LOG_ENTRY *entry;
+
+    if (church_log_entry_free)
+    {
+        entry = church_log_entry_free;
+        church_log_entry_free = church_log_entry_free->next;
+    }
+    else
+        entry = alloc_mem(sizeof(CHURCH_LOG_ENTRY));
+
+    memset(entry, 0, sizeof(*entry));
+    
+    entry->timestamp = current_time;
+    entry->author = NULL;
+    entry->text = NULL;
+    entry->system_generated = false;
+    entry->entry_id = 0;
+
+    VALIDATE(entry);
+    return entry;
+}
+
+void free_church_log_entry(CHURCH_LOG_ENTRY *entry)
+{
+    if (!IS_VALID(entry)) return;
+
+    free_string(entry->author);
+    free_string(entry->text);
+
+    INVALIDATE(entry);
+    entry->next = church_log_entry_free;
+    church_log_entry_free = entry;
 }
 
 static void delete_area_region(void *ptr)

@@ -5070,6 +5070,14 @@ const struct game_setting_type game_settings_table[] = {
     { "email_from_addr",     &game_settings.email_from_addr,      SETTING_TYPE_STRING, SETTING_CAT_EMAIL,    "Email address that will appear in the 'from' field",         true,  false, false },
     { "email_from_name",     &game_settings.email_from_name,      SETTING_TYPE_STRING, SETTING_CAT_EMAIL,    "Name that will appear in the 'from' field",                  true,  false, false },
 
+    /* Org Settings*/
+    { "org_max_ranks",        &game_settings.org_max_ranks,        SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "How many ranks can an organization have",                    true,  false, false },
+    { "max_orgs",            &game_settings.max_orgs,             SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Maximum organizations that can exist",                       true,  false, false },
+    { "org_pk_cost",        &game_settings.org_disable_pk_pneuma_cost,           SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Cost to disable PK for your church",               true,  false, false },
+
+
+
+
     /* Mission Settings */
     { "max_mission_allowance", &game_settings.max_mission_allowance, SETTING_TYPE_INT, SETTING_CAT_MISSION,  "Maximum mission allowances a player can have",               true,  false, false },
     { "inc_missions",        &game_settings.inc_missions,         SETTING_TYPE_INT,    SETTING_CAT_MISSION,  "Number of missions a player accrues on allowance tick",      true,  false, false },
@@ -5142,7 +5150,6 @@ const struct game_setting_type game_settings_table[] = {
     { "idle_disconnect_time", &game_settings.idle_disconnect_time, SETTING_TYPE_INT,   SETTING_CAT_GLOBAL,   "Ticks until an idle user is disconnected",                   true,  false, false },
     { "max_alias",           &game_settings.max_alias,            SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Maximum aliases a player can have",                          true,  false, false },
     { "max_characters",      &game_settings.max_characters,       SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Maximum characters a player can have",                       true,  false, false },
-    { "max_orgs",            &game_settings.max_orgs,             SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Maximum organizations that can exist",                       true,  false, false },
     { "enable_telnet",       &game_settings.enable_telnet,        SETTING_TYPE_BOOL,   SETTING_CAT_GLOBAL,   "Allow plaintext connections",                                true,  true, false  },
     { "telnet_port",         &game_settings.telnet_port,          SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Plaintext telnet port",                                      true,  true, false  },
     { "enable_tls",          &game_settings.enable_tls,           SETTING_TYPE_BOOL,   SETTING_CAT_GLOBAL,   "Allow TLS connections",                                      true,  true, false  },
@@ -5156,7 +5163,6 @@ const struct game_setting_type game_settings_table[] = {
     { "insecure_warning_msg", &game_settings.insecure_warning_msg, SETTING_TYPE_STRING, SETTING_CAT_GLOBAL,  "Message for insecure connections",                           true,  false, false },
     { "max_logfile_size",    &game_settings.max_logfile_size,     SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Size to start rotating logs (in MB)",                        true,  false, false },
     { "note_boot_errors",   &game_settings.note_boot_errors, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Sends notes with boot errors to 'coder' and 'head coder'", true, true, false },
-    { "org_max_ranks",        &game_settings.org_max_ranks,        SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "How many ranks can an organization have",                    true,  false, false },
     { "character_delete",    &game_settings.character_delete_delay_days, SETTING_TYPE_INT, SETTING_CAT_GLOBAL, "Number of days before a character is purged when flagged for deletion.", true, false, false },
 
 
@@ -5273,6 +5279,7 @@ const struct flag_type church_permission_flags[] =
     { "treasure_manage", CHURCH_PERM_TREASURE_MANAGE, true, "Member can manage treasure rooms." },
     { "add",            CHURCH_PERM_ADD, true, "Member can add people to the church." },
     { "members",       CHURCH_PERM_MEMBERS, true, "Member can manage members' ranks."},
+    { "editlog",        CHURCH_PERM_EDITLOG, true, "Member can add entries to the church log, and edit their own." },
     { NULL,              0,                           false }
 };
 
