@@ -851,70 +851,48 @@ for (d = descriptor_list; d; d = d->next)
 	    d_next	= d->next;
 	    d->fcommand	= false;
 
-	    if (FD_ISSET(d->descriptor, &in_set))
-	    {
-			if (d->character != NULL)
-		    	d->character->timer = 0;
+if (FD_ISSET(d->descriptor, &in_set))
+{
+    if (d->character != NULL)
+        d->character->timer = 0;
 
-			if (!read_from_descriptor(d))
-			{
-		    	FD_CLR(d->descriptor, &out_set);
+    if (!read_from_descriptor(d))
+    {
+        FD_CLR(d->descriptor, &out_set);
+        
+        if (d->character != NULL && d->connected == CON_PLAYING)
+            save_char_obj(d->character);
+            
+        d->outtop = 0;
+        close_socket(d);
+        continue;
+    }
 
-	    		if (d->character != NULL
-		    		&&   d->connected == CON_PLAYING)
-				save_char_obj(d->character);
-
-	    		d->outtop	= 0;
-	    		close_socket(d);
-	    		continue;
-			}
-
-	    	d->muted = 0;
-
-			if (d->ssl && d->tls_handshake_in_progress && FD_ISSET(d->descriptor, &out_set)) 
-			{
-				int ret = SSL_accept(d->ssl);
-				if (ret == 1)
-					d->tls_handshake_in_progress = false;
-				else if (ret == 0)
-				{
-					close_socket(d);
-					continue;
-				} 
-				else 
-				{
-					int err = SSL_get_error(d->ssl, ret);
-					if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
-						continue;
-					} 
-					else 
-					{
-						close_socket(d);
-						continue;
-					}
-				}
-			}/*
-			else
-	    {
-		if (d->character != NULL)
-		    d->character->timer = 0;
-
-		if (!read_from_descriptor(d))
-		{
-		    FD_CLR(d->descriptor, &out_set);
-
-		    if (d->character != NULL
-			    &&   d->connected == CON_PLAYING)
-			save_char_obj(d->character);
-
-		    d->outtop	= 0;
-		    close_socket(d);
-		    continue;
-		}
-
-		    d->muted = 0;		// Force it to unmute every time they give any kind of command
-	    }*/
-		}
+    d->muted = 0;
+    
+    // Handle TLS handshake but DON'T skip command processing
+    if (d->ssl && d->tls_handshake_in_progress && FD_ISSET(d->descriptor, &out_set)) 
+    {
+        int ret = SSL_accept(d->ssl);
+        if (ret == 1)
+            d->tls_handshake_in_progress = false;
+        else if (ret == 0)
+        {
+            close_socket(d);
+            continue;  // This continue is okay as we're closing the socket
+        } 
+        else 
+        {
+            int err = SSL_get_error(d->ssl, ret);
+            if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE)
+            {
+                close_socket(d);
+                continue;  // Also okay as we're closing
+            }
+            // DON'T continue here - process input even during handshake
+        }
+    }
+}
 
 	    if (d->character != NULL && d->character->wait > 0)
 	    {
