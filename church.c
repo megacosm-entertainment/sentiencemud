@@ -439,7 +439,7 @@ void do_chrules(CHAR_DATA * ch, char *argument)
         // Add log entry
         char buf[MAX_STRING_LENGTH];
         sprintf(buf, "%s edited the church rules.", ch->name);
-        add_church_log_entry(ch->church, ch->name, buf, FALSE);
+        add_church_log_entry(ch->church, ch->name, buf, TRUE);
         
         save_church(ch->church);
         return;
@@ -488,7 +488,7 @@ void do_chmotd(CHAR_DATA * ch, char *argument)
         // Add log entry
         char buf[MAX_STRING_LENGTH];
         sprintf(buf, "%s edited the church MOTD.", ch->name);
-        add_church_log_entry(ch->church, ch->name, buf, FALSE);
+        add_church_log_entry(ch->church, ch->name, buf, TRUE);
         
         save_church(ch->church);
         return;
@@ -914,7 +914,7 @@ void do_chflag(CHAR_DATA *ch, char *argument)
     
     // Add log entry
     sprintf(buf, "%s changed the church flag to '%s'.", ch->name, arg1);
-    add_church_log_entry(ch->church, ch->name, buf, FALSE);
+    add_church_log_entry(ch->church, ch->name, buf, TRUE);
     
     save_church(ch->church);
     return;
@@ -1016,7 +1016,7 @@ void do_chdeposit(CHAR_DATA * ch, char *argument)
 
     sprintf(buf, "%s deposited %d %s to the church account.", 
             ch->name, amount, arg1);
-    add_church_log_entry(ch->church, ch->name, buf, FALSE);
+    add_church_log_entry(ch->church, ch->name, buf, TRUE);
     
     save_church(ch->church);
     save_char_obj(ch);
@@ -1613,7 +1613,7 @@ void do_chexcommunicate(CHAR_DATA * ch, char *argument)
         // Add log entry
         char log_buf[MAX_STRING_LENGTH];
         sprintf(log_buf, "%s removed excommunication from %s.", ch->name, member->name);
-        add_church_log_entry(ch->church, ch->name, log_buf, FALSE);
+        add_church_log_entry(ch->church, ch->name, log_buf, TRUE);
         
         return;
     }
@@ -1626,7 +1626,7 @@ void do_chexcommunicate(CHAR_DATA * ch, char *argument)
         // Add log entry
         char log_buf[MAX_STRING_LENGTH];
         sprintf(log_buf, "%s excommunicated %s from the church.", ch->name, member->name);
-        add_church_log_entry(ch->church, ch->name, log_buf, FALSE);
+        add_church_log_entry(ch->church, ch->name, log_buf, TRUE);
         
         return;
     }
@@ -2369,7 +2369,7 @@ void do_chtransfer(CHAR_DATA *ch, char *argument)
     // After successful transfer, add a detailed log entry
     sprintf(buf, "%s transferred %ld %s to %s.",
         ch->name, amount, arg2, church->name);
-    add_church_log_entry(ch->church, ch->name, buf, FALSE);
+    add_church_log_entry(ch->church, ch->name, buf, TRUE);
     
     save_church(ch->church);
 }
@@ -2643,7 +2643,7 @@ void do_chwithdraw(CHAR_DATA *ch, char *argument)
 
         sprintf(buf, "%s withdrew %ld %s from the church account.",
             ch->name, amt, arg);
-        add_church_log_entry(ch->church, ch->name, buf, FALSE);
+        add_church_log_entry(ch->church, ch->name, buf, TRUE);
     }
     else if (arg3[0] != '\0')
     {
@@ -2651,7 +2651,7 @@ void do_chwithdraw(CHAR_DATA *ch, char *argument)
 
         sprintf(buf, "%s withdrew %ld %s from the church account and gave it to %s.",
             ch->name, amt, arg2, victim->name);
-        add_church_log_entry(ch->church, ch->name, buf, FALSE);
+        add_church_log_entry(ch->church, ch->name, buf, TRUE);
     }
     
     save_church(ch->church);
@@ -2746,7 +2746,6 @@ void do_chlog(CHAR_DATA *ch, char *argument)
         send_to_char("Enter a new log entry. Type @ when done.\n\r", ch);
         string_append(ch, &ch->temp_log_entry);
         ch->desc->editor = ED_CHLOG;  // You'll need to define ED_CHLOG in your editor enum
-        ch->desc->pString = &ch->temp_log_entry;
         
         return;
     }
@@ -2784,7 +2783,7 @@ void do_chlog(CHAR_DATA *ch, char *argument)
         }
         
         if (entry->author && str_cmp(entry->author, ch->name) && 
-            ch->church_member->rank->rank_type < RANK_TYPE_LEADER) {
+            ch->church_member->rank->rank_type < RANK_TYPE_LEADER && entry->system_generated) {
             send_to_char("You can only edit your own log entries.\n\r", ch);
             return;
         }
@@ -3152,7 +3151,7 @@ void do_chcolour(CHAR_DATA *ch, char *argument)
     char buf[MAX_STRING_LENGTH];
     sprintf(buf, "%s changed the church colours to {%c}colour1{x and {%c}colour2{x.",
             ch->name, letter, letter2);
-    add_church_log_entry(ch->church, ch->name, buf, FALSE);
+    add_church_log_entry(ch->church, ch->name, buf, TRUE);
     
     save_church(ch->church);
 }
@@ -3392,7 +3391,7 @@ void do_churchset(CHAR_DATA *ch, char *argument)
         send_to_char("Setting toggled OFF.\n\r", ch);
         
         sprintf(buf, "%s turned setting '%s' OFF.", ch->name, arg);
-        add_church_log_entry(ch->church, ch->name, buf, FALSE);
+        add_church_log_entry(ch->church, ch->name, buf, TRUE);
     }
     else
     {
@@ -3400,7 +3399,7 @@ void do_churchset(CHAR_DATA *ch, char *argument)
         send_to_char("Setting toggled ON.\n\r", ch);
         
         sprintf(buf, "%s turned setting '%s' ON.", ch->name, arg);
-        add_church_log_entry(ch->church, ch->name, buf, FALSE);
+        add_church_log_entry(ch->church, ch->name, buf, TRUE);
     }
     
     save_church(ch->church);
@@ -3487,7 +3486,7 @@ void do_chconvert(CHAR_DATA *ch, char *argument)
         ch->name, 
         ch->church->alignment == CHURCH_GOOD ? "good" : 
         ch->church->alignment == CHURCH_EVIL ? "evil" : "neutral");
-    add_church_log_entry(ch->church, ch->name, buf, FALSE);
+    add_church_log_entry(ch->church, ch->name, buf, TRUE);
     
     save_church(ch->church);
 }
@@ -3637,7 +3636,7 @@ void do_chdonate(CHAR_DATA *ch, char *argument)
     char buf[MAX_STRING_LENGTH];
     sprintf(buf, "%s donated %s to treasure room %d.", 
             ch->name, obj->short_descr, roomno);
-    add_church_log_entry(ch->church, ch->name, buf, FALSE);
+    add_church_log_entry(ch->church, ch->name, buf, TRUE);
     
     save_church(ch->church);
 }
@@ -3847,7 +3846,7 @@ void read_churches_new()
     DIR *dir;
     struct dirent *entry;
     FILE *fp;
-    char filename[100];
+    char filename[512];
     CHURCH_DATA *church;
 
     log_string("Reading churches...");
@@ -4063,8 +4062,8 @@ CHURCH_DATA *read_church(FILE *fp)
     church->max_rank_uid = 1000;
 
     //int version = 0;
-    int default_rank_index = 0;
-    bool has_default_rank = false;
+    //int default_rank_index = 0;
+    //bool has_default_rank = false;
 
     for (; ;) {
 if (feof(fp)) {
@@ -4362,73 +4361,49 @@ if (feof(fp)) {
 
             case 'T':
                 KEY("ToggledPK", church->pk, fread_number(fp));
-    if (!str_cmp(word, "TreasureRoom")) {
-        ROOM_INDEX_DATA *room = get_room_index(church->hall_area, fread_number(fp));
-        bool is_default = (fread_number(fp) == 1);
-        
-        if (room) {
-            // Create the treasure room with default values
-            CHURCH_TREASURE_ROOM *treasure = create_church_treasure_room(church, room, is_default);
-            if (!treasure) {
-                bug("Failed to create church treasure room.", 0);
-                abort();
-            }
-        }
-        fMatch = true;
-        break;
-    }
-    if (!str_cmp(word, "TreasureRoomMR")) {
-        ROOM_INDEX_DATA *room = get_room_index(church->hall_area, fread_number(fp));
-        int min_rank = fread_number(fp);
-        bool is_default = (min_rank == CHURCH_RANK_A);
-        
-        if (room) {
-            // Create the treasure room
-            CHURCH_TREASURE_ROOM *treasure = create_church_treasure_room(church, room, is_default);
-            if (!treasure) {
-                bug("Failed to create church treasure room.", 0);
-                abort();
-            }
-            
-            // Store the min_rank temporarily - we'll convert during upgrade
-            treasure->min_rank = min_rank;
-        }
-        fMatch = true;
-        break;
-    }
+if (!str_cmp(word, "TreasureRoom")) {
+    ROOM_INDEX_DATA *room = get_room_index(church->hall_area, fread_number(fp));
+    bool is_default = (fread_number(fp) == 1);
     
-    // Handle old-style wilderness treasure rooms with min_rank
-    if (!str_cmp(word, "TreasureVRoomMR")) {
-        WILDS_DATA *wilds;
-        ROOM_INDEX_DATA *room;
-        int x, y, z;
-        
-        wilds = get_wilds_from_uid(NULL, fread_number(fp));
-        x = fread_number(fp);
-        y = fread_number(fp);
-        z = fread_number(fp);
-        int min_rank = fread_number(fp);
-        bool is_default = (min_rank == CHURCH_RANK_A);
-        
-        room = get_wilds_vroom(wilds, x, y);
-        if (!room)
-            room = create_wilds_vroom(wilds, x, y);
-        
-        if (room) {
-            // Create the treasure room
-            CHURCH_TREASURE_ROOM *treasure = create_church_treasure_room(church, room, is_default);
-            if (!treasure) {
-                bug("Failed to create church treasure room.", 0);
-                abort();
-            }
-            
-            // Store the min_rank temporarily - we'll convert during upgrade
-            treasure->min_rank = min_rank;
+    if (room) {
+        // Create the treasure room with default values
+        CHURCH_TREASURE_ROOM *treasure = create_church_treasure_room(church, room, is_default);
+        if (!treasure) {
+            bug("Failed to create church treasure room.", 0);
+            abort();
         }
-        fMatch = true;
-        break;
     }
+    fMatch = true;
+    break;
+}
+
+if (!str_cmp(word, "TreasureVRoom")) {
+    WILDS_DATA *wilds;
+    ROOM_INDEX_DATA *room;
+    int x, y, z;
     
+    wilds = get_wilds_from_uid(NULL, fread_number(fp));
+    x = fread_number(fp);
+    y = fread_number(fp);
+    z = fread_number(fp);
+    bool is_default = (fread_number(fp) == 1);
+    
+    room = get_wilds_vroom(wilds, x, y);
+    if (!room)
+        room = create_wilds_vroom(wilds, x, y);
+    
+    if (room) {
+        // Create the treasure room with default values
+        CHURCH_TREASURE_ROOM *treasure = create_church_treasure_room(church, room, is_default);
+        if (!treasure) {
+            bug("Failed to create church treasure room.", 0);
+            abort();
+        }
+    }
+    fMatch = true;
+    break;
+}
+
 if (!str_cmp(word, "TreasureAccess")) {
     int rank_index = fread_number(fp);
     
@@ -4440,7 +4415,7 @@ if (!str_cmp(word, "TreasureAccess")) {
     
     // Get the rank at the given index
     if (treasure) {
-        CHURCH_RANK_DATA *rank = church->ranks; // Changed from ch->church->ranks to church->ranks
+        CHURCH_RANK_DATA *rank = church->ranks;
         int i = 0;
         
         while (rank && i < rank_index) {
@@ -6703,7 +6678,7 @@ void do_chdefaultrank(CHAR_DATA *ch, char *argument)
         // After successfully changing the default rank
     sprintf(buf, "%s changed the default rank for new members to '%s'.", 
             ch->name, rank->title_male);
-    add_church_log_entry(ch->church, ch->name, buf, FALSE);
+    add_church_log_entry(ch->church, ch->name, buf, TRUE);
     
     save_church(ch->church);
 }
@@ -6884,34 +6859,6 @@ CHURCH_TREASURE_ROOM *create_church_treasure_room(CHURCH_DATA *church, ROOM_INDE
     }
     
     return treasure;
-}
-
-void upgrade_treasure_room_access(CHURCH_DATA *church)
-{
-    CHURCH_TREASURE_ROOM *treasure;
-    ITERATOR it;
-    
-    iterator_start(&it, church->treasure_rooms);
-    while ((treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it))) {
-        // If this is an old treasure room with a min_rank field
-        if (treasure->min_rank > 0) {
-            // Skip default rooms
-            if (treasure->is_default)
-                continue;
-                
-            // Find all ranks at or above min_rank
-            CHURCH_RANK_DATA *rank;
-            for (rank = church->ranks; rank; rank = rank->next) {
-                if (rank->rank_type >= treasure->min_rank) {
-                    add_rank_to_treasure_room(treasure, rank);
-                }
-            }
-            
-            // Remove the old min_rank field from memory
-            treasure->min_rank = 0;
-        }
-    }
-    iterator_stop(&it);
 }
 
 void do_chsetmemberrank(CHAR_DATA *ch, char *argument)
@@ -7418,7 +7365,7 @@ void chtoggle_complete(CHAR_DATA *ch, bool enable_pk)
         
         // Log the change
         sprintf(buf, "%s enabled player killing status for the church.", ch->name);
-        add_church_log_entry(ch->church, ch->name, buf, FALSE);
+        add_church_log_entry(ch->church, ch->name, buf, TRUE);
     } else {
         // Disable PK - charge pneuma
         if (ch->church->pneuma >= 5000)
@@ -7434,7 +7381,7 @@ void chtoggle_complete(CHAR_DATA *ch, bool enable_pk)
         
         // Log the change
         sprintf(buf, "%s disabled player killing status for the church.", ch->name);
-        add_church_log_entry(ch->church, ch->name, buf, FALSE);
+        add_church_log_entry(ch->church, ch->name, buf, TRUE);
     }
     
     save_church(ch->church);
@@ -7457,13 +7404,13 @@ void string_end_chlog(CHAR_DATA *ch)
     }
 
     // Get the edited text from the string editor
-    char *text = *ch->desc->pString;
+    char *text = ch->temp_log_entry;
     
     // Check if the entry is empty
     if (!text || text[0] == '\0') {
         send_to_char("You must enter some text for the log entry.\n\r", ch);
         // Reset the string editor
-        ch->desc->pString = NULL;
+        ch->temp_log_entry = NULL;
         ch->desc->editor = 0;
         return;
     }
@@ -7476,7 +7423,7 @@ void string_end_chlog(CHAR_DATA *ch)
     add_church_log_entry(ch->church, ch->name, text, FALSE);
     
     // Clean up the editor state
-    ch->desc->pString = NULL;
+    ch->temp_log_entry = NULL;
     ch->desc->editor = 0;
     
     send_to_char("Log entry saved.\n\r", ch);

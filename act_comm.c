@@ -1536,8 +1536,6 @@ void do_logout(CHAR_DATA *ch, char *argument)
                 d->inbuf[0] = '\0';
             
             display_account_menu(d);
-			process_output(d, false);
-			process_output(d, false);
         } else {
             // If we somehow lost the account reference, close the connection
             write_to_buffer(d, "\n\rError returning to account menu. Disconnecting...\n\r", 0);

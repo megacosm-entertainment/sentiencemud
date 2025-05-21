@@ -152,6 +152,11 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
     
     write_to_buffer(d, "\n\r", 2);
 
+    if (d->login_attempts == 0 && acct->reset_state == NO_RESET)
+    {
+        write_to_buffer(d, "Password: ", 0);
+    }
+
     if (d->login_attempts >= game_settings.max_login_attempts) {
         write_to_buffer(d, "Too many login attempts. Goodbye.\n\r", 0);
         close_socket(d);
@@ -891,142 +896,145 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
     int regular_count = 0;
 
     // Handle letter choices (menu options)
-    switch (toupper(argument[0])) {
-        case 'C': // Create new character
-            if (game_settings.require_email_verif && !IS_EMAIL_VERIFIED(acct)) {
-                write_to_buffer(d, "\n\rYou must verify your email address before creating characters.\n\r", 0);
-                write_to_buffer(d, "Select 'V' from the menu to verify your email address.\n\r", 0);
-                display_account_menu(d);
-                return;
-            }
-            if (!account_has_immortal(acct) && game_settings.new_char_lock) {
-                if (!IS_NULLSTR(game_settings.new_char_lock_msg))
-                    write_to_buffer(d, game_settings.new_char_lock_msg, 0);
-                else
-                    write_to_buffer(d, "New characters are not being accepted at this time.\n\r", 0);
-                display_account_menu(d);
-                return;
-            }
-            {
-                int max_chars = (acct->character_limit > 0) ? acct->character_limit : game_settings.max_characters;
-                int nonstaff_count = account_count_nonstaff_characters(acct);
-                if (max_chars > 0 && nonstaff_count >= max_chars) {
-                    write_to_buffer(d, "\n\r{RYou have reached the maximum number of characters for your account.{x\n\r", 0);
-                    write_to_buffer(d, "Delete an existing character or contact staff for assistance.\n\r", 0);
+    if (argument[0] != '\0' && argument[1] == '\0') 
+    {
+
+        switch (toupper(argument[0])) {
+            case 'C': // Create new character
+                if (game_settings.require_email_verif && !IS_EMAIL_VERIFIED(acct)) {
+                    write_to_buffer(d, "\n\rYou must verify your email address before creating characters.\n\r", 0);
+                    write_to_buffer(d, "Select 'V' from the menu to verify your email address.\n\r", 0);
                     display_account_menu(d);
                     return;
                 }
-            }
-            write_to_buffer(d, "\n\rWhat will be your character's name? ", 0);
-            d->connected = CON_CREATING_NEW_CHAR;
-            return;
-
-        case 'I': // Create new staff character
-            if (!IS_SET(acct->acct_flags,ACCT_CAN_CREATE_STAFF)) {
-                write_to_buffer(d, "\n\r{RYou do not have permission to create staff characters.{x\n\r", 0);
-                display_account_menu(d);
-                return;
-            }
-            {
-                int staff_limit = acct->staff_limit;
-                int staff_count = account_count_staff_characters(acct);
-                if (staff_limit > 0 && staff_count >= staff_limit) {
-                    write_to_buffer(d, "\n\r{RYou have reached your staff character limit for this account.{x\n\r", 0);
+                if (!account_has_immortal(acct) && game_settings.new_char_lock) {
+                    if (!IS_NULLSTR(game_settings.new_char_lock_msg))
+                        write_to_buffer(d, game_settings.new_char_lock_msg, 0);
+                    else
+                        write_to_buffer(d, "New characters are not being accepted at this time.\n\r", 0);
                     display_account_menu(d);
                     return;
                 }
-            }
-
-            d->connected = CON_CREATING_NEW_STAFF_CHAR;
-            return;
-
-        case 'L': // Link existing character
-            if (!can_link_characters(acct)) {
-                write_to_buffer(d, "Linking is not available for your account.\n\r", 0);
-                display_account_menu(d);
+                {
+                    int max_chars = (acct->character_limit > 0) ? acct->character_limit : game_settings.max_characters;
+                    int nonstaff_count = account_count_nonstaff_characters(acct);
+                    if (max_chars > 0 && nonstaff_count >= max_chars) {
+                        write_to_buffer(d, "\n\r{RYou have reached the maximum number of characters for your account.{x\n\r", 0);
+                        write_to_buffer(d, "Delete an existing character or contact staff for assistance.\n\r", 0);
+                        display_account_menu(d);
+                        return;
+                    }
+                }
+                d->connected = CON_CREATING_NEW_CHAR;
                 return;
-            }
-            write_to_buffer(d, "\n\rEnter the name of the character to link: ", 0);
-            d->connected = CON_LINK_CHARACTER_NAME;
-            return;
 
-        case 'E': // Change email address
-            if (!game_settings.enable_email) {
+            case 'I': // Create new staff character
+                if (!IS_SET(acct->acct_flags,ACCT_CAN_CREATE_STAFF)) {
+                    write_to_buffer(d, "\n\r{RYou do not have permission to create staff characters.{x\n\r", 0);
+                    display_account_menu(d);
+                    return;
+                }
+                {
+                    int staff_limit = acct->staff_limit;
+                    int staff_count = account_count_staff_characters(acct);
+                    if (staff_limit > 0 && staff_count >= staff_limit) {
+                        write_to_buffer(d, "\n\r{RYou have reached your staff character limit for this account.{x\n\r", 0);
+                        display_account_menu(d);
+                        return;
+                    }
+                }
+
+                d->connected = CON_CREATING_NEW_STAFF_CHAR;
+                return;
+
+            case 'L': // Link existing character
+                if (!can_link_characters(acct)) {
+                    write_to_buffer(d, "Linking is not available for your account.\n\r", 0);
+                    display_account_menu(d);
+                    return;
+                }
+                write_to_buffer(d, "\n\rEnter the name of the character to link: ", 0);
+                d->connected = CON_LINK_CHARACTER_NAME;
+                return;
+
+            case 'E': // Change email address
+                if (!game_settings.enable_email) {
+                    write_to_buffer(d, "\n\rEmail is not enabled.\n\r", 0);
+                    display_account_menu(d);
+                    return;
+                }
+                write_to_buffer(d, "\n\rCurrent email: ", 0);
+                write_to_buffer(d, IS_NULLSTR(acct->email) ? "Not set\n\r" : acct->email, 0);
+                d->connected = CON_CHANGE_ACCOUNT_EMAIL;
+                return;
+
+            case 'P': // Change password
+                if (DEV_SKIP_PASSWORD) {
+                    write_to_buffer(d, "\n\rPasswords are disabled in development mode.\n\r", 0);
+                    display_account_menu(d);
+                    return;
+                }
+                write_to_buffer(d, "\n\rEnter your current password: ", 0);
+                ProtocolNoEcho(d, true);
+                d->connected = CON_VERIFY_ACCOUNT_PASSWORD;
+                break;
+
+            case 'M': // MFA settings
+                if (DEV_SKIP_MFA) {
+                    write_to_buffer(d, "\n\rMFA is disabled in development mode.\n\r", 0);
+                    display_account_menu(d);
+                    return;
+                }
+                display_account_mfa_menu(d, "");
+                break;
+
+            case 'Q': // Quit
+                write_to_buffer(d, "\n\rThank you for playing Sentience!\n\r", 0);
+                close_socket(d);
+                break;
+            case 'R':
+            if (!game_settings.enable_email){
                 write_to_buffer(d, "\n\rEmail is not enabled.\n\r", 0);
                 display_account_menu(d);
                 return;
             }
-            write_to_buffer(d, "\n\rCurrent email: ", 0);
-            write_to_buffer(d, IS_NULLSTR(acct->email) ? "Not set\n\r" : acct->email, 0);
-            d->connected = CON_CHANGE_ACCOUNT_EMAIL;
-            return;
-
-        case 'P': // Change password
-            if (DEV_SKIP_PASSWORD) {
-                write_to_buffer(d, "\n\rPasswords are disabled in development mode.\n\r", 0);
-                display_account_menu(d);
-                return;
-            }
-            write_to_buffer(d, "\n\rEnter your current password: ", 0);
-            ProtocolNoEcho(d, true);
-            d->connected = CON_VERIFY_ACCOUNT_PASSWORD;
-            break;
-
-        case 'M': // MFA settings
-            if (DEV_SKIP_MFA) {
-                write_to_buffer(d, "\n\rMFA is disabled in development mode.\n\r", 0);
-                display_account_menu(d);
-                return;
-            }
-            display_account_mfa_menu(d, "");
-            break;
-
-        case 'Q': // Quit
-            write_to_buffer(d, "\n\rThank you for playing Sentience!\n\r", 0);
-            close_socket(d);
-            break;
-        case 'R':
-        if (!game_settings.enable_email){
-            write_to_buffer(d, "\n\rEmail is not enabled.\n\r", 0);
-            display_account_menu(d);
-            return;
-        }
         
-            resend_account_verification_code(d);
-            display_account_menu(d);
-            return;
-        case 'S': // Shared storage (vault) info
-            if (!game_settings.vault_enabled) {
-                write_to_buffer(d, "\n\rVault is not enabled.\n\r", 0);
+                resend_account_verification_code(d);
+                display_account_menu(d);
+                return;
+            case 'S': // Shared storage (vault) info
+                if (!game_settings.vault_enabled) {
+                    write_to_buffer(d, "\n\rVault is not enabled.\n\r", 0);
+                    display_account_menu(d);
+                    return;
+                }
+                display_shared_storage_info(d);
+                return;
+            case 'V':
+                    if (!game_settings.enable_email){
+                write_to_buffer(d, "\n\rEmail is not enabled.\n\r", 0);
                 display_account_menu(d);
                 return;
             }
-            display_shared_storage_info(d);
-            return;
-        case 'V':
-                if (!game_settings.enable_email){
-            write_to_buffer(d, "\n\rEmail is not enabled.\n\r", 0);
-            display_account_menu(d);
-            return;
-        }
-            if (acct->email_verified) {
-                write_to_buffer(d, "\n\rYour email is already verified.\n\r", 0);
-                display_account_menu(d);
+                if (acct->email_verified) {
+                    write_to_buffer(d, "\n\rYour email is already verified.\n\r", 0);
+                    display_account_menu(d);
+                    return;
+                }
+                if (IS_NULLSTR(acct->pending_email)) {
+                    write_to_buffer(d, "No pending email to verify. Change your email address first.\n\r", 0);
+                    display_account_menu(d);
+                    return;
+                }
+                write_to_buffer(d, "Enter the code sent to your email: ", 0);
+                d->connected = CON_VERIFY_ACCOUNT_EMAIL_CHANGE;
                 return;
-            }
-            if (IS_NULLSTR(acct->pending_email)) {
-                write_to_buffer(d, "No pending email to verify. Change your email address first.\n\r", 0);
-                display_account_menu(d);
-                return;
-            }
-            write_to_buffer(d, "Enter the code sent to your email: ", 0);
-            d->connected = CON_VERIFY_ACCOUNT_EMAIL_CHANGE;
-            return;
 
-        default:
-            write_to_buffer(d, "Invalid choice.\n\r", 0);
-            display_account_menu(d);
-            break;
+            default:
+                write_to_buffer(d, "Invalid choice.\n\r", 0);
+                display_account_menu(d);
+                break;
+        }
     }
 
     // (Only reached if not a menu letter)
@@ -2653,7 +2661,6 @@ void login_creating_new_char(DESCRIPTOR_DATA *d, char *argument)
     argument[0] = UPPER(argument[0]);
     if (!check_parse_name(argument)) {
         write_to_buffer(d, "Illegal character name, try another.\n\r", 0);
-        write_to_buffer(d, "Character name: ", 0);
         return;
     }
     
@@ -2680,7 +2687,6 @@ void login_creating_new_char(DESCRIPTOR_DATA *d, char *argument)
     // Check if a character with this name already exists on disk
     if (player_exists(argument)) {
         write_to_buffer(d, "That character already exists. Please choose another name.\n\r", 0);
-        write_to_buffer(d, "Character name: ", 0);
         free_char(d->character);
         d->character = NULL;
         return;
@@ -2902,12 +2908,19 @@ void display_character_menu(DESCRIPTOR_DATA *d)
     char buf[MAX_STRING_LENGTH];
     char label[50], value[100];
     d->mfa_verified = false;
-    
+    char title[50];
+
     write_to_buffer(d, "\n\r{B=={W[ {YCHARACTER MENU {W]{B=={x\n\r\n\r", 0);
     
     // Format character information using pad_string for consistent alignment
     sprintf(label, "{CCharacter:{x");
-    sprintf(value, "{W%s%s{x", ch->name, !IS_NULLSTR(ch->pcdata->title) ? ch->pcdata->title : "");
+    if (!IS_NULLSTR(ch->pcdata->title))
+    {
+        sprintf(title, string_replace_static(ch->pcdata->title, "$n", "{+%s"), ch->name);
+        sprintf(value, "{W%s{x", title);
+    }
+    else
+    sprintf(value, "{W{+%s{x", ch->name);
     sprintf(buf, "%s%s %s\n\r", 
             label, 
             pad_string(label, 20, NULL, " "), 
@@ -3111,9 +3124,14 @@ if (game_settings.require_email_verif && !ch->pcdata->email_verified && !IS_NULL
     
     if (!DEV_SKIP_MFA)
     write_to_buffer(d, "{GM{x) MFA settings\n\r", 0);
-write_to_buffer(d, "{GE{x) Change character email address\n\r", 0);
-if (game_settings.require_email_verif && !ch->pcdata->email_verified) {
-    write_to_buffer(d, "{GV{x) Verify character email address\n\r", 0);
+    
+    if (IS_NULLSTR(ch->pcdata->email) && IS_NULLSTR(ch->pcdata->pending_email))
+        write_to_buffer(d, "{GE{x) Set character email address\n\r", 0);
+    else
+        write_to_buffer(d, "{GE{x) Change character email address\n\r", 0);
+
+    if (game_settings.require_email_verif && !ch->pcdata->email_verified && !IS_NULLSTR(ch->pcdata->pending_email)) {
+        write_to_buffer(d, "{GV{x) Verify character email address\n\r", 0);
     if (!IS_NULLSTR(ch->pcdata->pending_email))
         write_to_buffer(d, "{GR{x) Resend verification email\n\r", 0);
 }

@@ -1854,18 +1854,21 @@ else if (fPrompt && !d->showstr_point && !d->pString)
         case CON_GET_OLD_PASSWORD:
         case CON_NEW_ACCOUNT_PASSWORD:
         case CON_GET_NEW_PASSWORD:
+        case CON_STAFF_PASSWORD:
             write_to_buffer(d, "Password: ", 0);
             break;
         case CON_CONFIRM_ACCOUNT_PASSWORD:
         case CON_CONFIRM_CHARACTER_PASSWORD:
         case CON_CHANGE_PASSWORD_CONFIRM:
         case CON_CONFIRM_NEW_PASSWORD:
+        case CON_CONFIRM_STAFF_PASSWORD:
             write_to_buffer(d, "Confirm password: ", 0);
             break;
         case CON_GET_ACCOUNT_EMAIL:
         case CON_CHANGE_ACCOUNT_EMAIL:
         case CON_GET_EMAIL:
         case CON_CHANGE_CHARACTER_EMAIL:
+        case CON_GET_STAFF_EMAIL:
             write_to_buffer(d, "Email: ", 0);
             break;
         case CON_GET_ACCOUNT_MFA:
@@ -1877,9 +1880,12 @@ else if (fPrompt && !d->showstr_point && !d->pString)
         case CON_CHARACTER_MFA_VERIFY:
         case CON_CHARACTER_MFA_VERIFY_FOR_SETTINGS:
         case CON_CHARACTER_MFA_CONFIRM:
+        case CON_VERIFY_UNLINK_MFA:
+        case CON_VERIFY_DELETE_MFA:
             write_to_buffer(d, "MFA code: ", 0);
             break;
         case CON_GET_CHAR_PASSWORD:
+        case CON_LINK_CHARACTER_PASSWORD:
             write_to_buffer(d, "Character password: ", 0);
             break;
         case CON_CREATING_NEW_CHAR:
@@ -1890,6 +1896,9 @@ else if (fPrompt && !d->showstr_point && !d->pString)
             break;
         case CON_LINK_CHARACTER_NAME:
             write_to_buffer(d, "Character to link: ", 0);
+            break;
+        case CON_SET_UNLINK_PASSWORD:
+            write_to_buffer(d, "New password: ", 0);
             break;
         case CON_VERIFY_ACCOUNT_EMAIL_CHANGE:
         case CON_VERIFY_CHARACTER_EMAIL_CHANGE:

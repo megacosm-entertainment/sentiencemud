@@ -5281,6 +5281,7 @@ void set_title(CHAR_DATA * ch, char *title)
 void do_title(CHAR_DATA * ch, char *argument)
 {
 	char arg[MIL];
+	char buf[MSL * 2];
     if (IS_NPC(ch))
 		return;
 
@@ -5324,19 +5325,23 @@ void do_title(CHAR_DATA * ch, char *argument)
 		}
 		else
 		{
+
 			char *plain = nocolour(argument);
-			bool valid = !str_prefix(plain, "$n");
+			bool valid = !str_prefix("$n", plain);
 			free_string(plain);
 			if (!valid)
 			{
-				send_to_char("Your title must begin with {Y$n{x for your name.\n\r", ch);
+				char new_title[MIL];
+				sprintf(new_title, "$n %s", argument);
+				set_title(ch, new_title);
+				sprintf(buf, "Title set. You will now appear as '{+%s %s{x' to others.\n\r", ch->name, argument);
+				send_to_char(buf, ch);
 				return;
 			}
 		}
 
 		set_title(ch, argument);
 
-		char buf[MSL * 2];
 		char title[MSL];
 		sprintf(title, string_replace_static(ch->pcdata->title, "$n", "{+%s"), ch->name);
 		sprintf(buf, "Title set to '%s{x'.\n\r", title);
