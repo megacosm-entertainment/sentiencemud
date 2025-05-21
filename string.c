@@ -144,6 +144,12 @@ void string_postprocess(CHAR_DATA *ch, bool execute)
 		string_end_accnote(ch);
 	}
 
+	if (ch->desc->editor == ED_CHLOG) {
+		ch->desc->editor = ED_NONE;
+
+		string_end_chlog(ch);
+	}
+
 	if( ch->desc->input && ch->desc->inputString != NULL)
 	{
 		int ret;

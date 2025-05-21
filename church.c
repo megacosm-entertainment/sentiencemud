@@ -16,6 +16,7 @@
 #include "magic.h"
 #include "recycle.h"
 #include "db.h"
+#include "olc.h"
 #include "tables.h"
 #include "wilds.h"
 
@@ -2741,23 +2742,11 @@ void do_chlog(CHAR_DATA *ch, char *argument)
             return;
         }
         
-        // Start the string editor
+        // Start the string editor with our callback
         send_to_char("Enter a new log entry. Type @ when done.\n\r", ch);
         string_append(ch, &ch->temp_log_entry);
-
-        // Check if the entry is empty
-        if (ch->temp_log_entry == NULL || ch->temp_log_entry[0] == '\0') {
-            send_to_char("You must enter some text for the log entry.\n\r", ch);
-            return;
-        }
-        else
-        {
-            // Add the new entry to the church log
-            sprintf(buf, "%s added a new log entry.", ch->name);
-            send_to_char(buf, ch);
-            add_church_log_entry(ch->church, ch->name, ch->temp_log_entry, FALSE);
-            free_string(ch->temp_log_entry);
-        }
+        ch->desc->editor = ED_CHLOG;  // You'll need to define ED_CHLOG in your editor enum
+        ch->desc->pString = &ch->temp_log_entry;
         
         return;
     }
@@ -7449,4 +7438,46 @@ void chtoggle_complete(CHAR_DATA *ch, bool enable_pk)
     }
     
     save_church(ch->church);
+}
+void string_end_chlog(CHAR_DATA *ch)
+{
+    char buf[MAX_STRING_LENGTH];
+    
+    if (!ch || !ch->desc) {
+        bug("string_end_chlog: NULL character or descriptor", 0);
+        return;
+    }
+    
+    // Check if we have valid church info
+    if (!ch->church || !ch->church_member) {
+        bug("string_end_chlog: Character not in church", 0);
+        ch->desc->pString = NULL;
+        ch->desc->editor = 0;
+        return;
+    }
+
+    // Get the edited text from the string editor
+    char *text = *ch->desc->pString;
+    
+    // Check if the entry is empty
+    if (!text || text[0] == '\0') {
+        send_to_char("You must enter some text for the log entry.\n\r", ch);
+        // Reset the string editor
+        ch->desc->pString = NULL;
+        ch->desc->editor = 0;
+        return;
+    }
+    
+    // Add the entry to the church log
+    sprintf(buf, "%s added a new log entry.", ch->name);
+    send_to_char(buf, ch);
+    send_to_char("\n\r", ch);
+    
+    add_church_log_entry(ch->church, ch->name, text, FALSE);
+    
+    // Clean up the editor state
+    ch->desc->pString = NULL;
+    ch->desc->editor = 0;
+    
+    send_to_char("Log entry saved.\n\r", ch);
 }

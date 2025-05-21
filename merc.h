@@ -13169,4 +13169,6 @@ void process_ssl_cleanup_queue(void);
 void refresh_ssl_context(void);
 DH *get_dh_params(void);
 
+void string_end_chlog(CHAR_DATA *ch);
+
 #endif /* !def __merc_h__ */
