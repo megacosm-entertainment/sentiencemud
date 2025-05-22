@@ -190,26 +190,20 @@ void show_church_commands(CHAR_DATA *ch)
     for (i = 0; church_command_table[i].command != NULL; i++)
     {
         bool can_use = false;
-
-        if (ch->pcdata->staff_rank < STAFF_SUPREMACY || !IS_SET(ch->pcdata->immortal->duties, IMMORTAL_CHURCHES))
-            can_use = false;
         
         // Commands available to everyone
-        else if (church_command_table[i].permission == CHURCH_PERM_NONE)
+        if (church_command_table[i].permission == CHURCH_PERM_NONE)
             can_use = true;
         
         // Commands available to immortals
-        else if (IS_IMMORTAL(ch))
+        else if (IS_IMMORTAL(ch) && 
+                 (ch->pcdata->staff_rank >= STAFF_SUPREMACY || 
+                  IS_SET(ch->pcdata->immortal->duties, IMMORTAL_CHURCHES)))
             can_use = true;
         
         // Commands requiring church membership and permissions
         else if (ch->church_member != NULL && 
-                 (church_command_table[i].permission == CHURCH_PERM_NONE ||
-                  has_church_permission(ch->church_member, church_command_table[i].permission)))
-            can_use = true;
-
-        else if (ch->church_member != NULL && ch->church_member->rank->rank_type == RANK_TYPE_LEADER
-            && church_command_table[i].admin == FALSE)
+                 has_church_permission(ch->church_member, church_command_table[i].permission))
             can_use = true;
             
         if (can_use)
@@ -4383,7 +4377,7 @@ if (feof(fp)) {
             case 'N':
                 KEY("Name", church->name, fread_string(fp));
 
-                KEY("NumRanks", church->num_ranks, fread_number(fp));
+                //KEY("NumRanks", church->num_ranks, fread_number(fp));
                 break;
 			case 'O':
 				KEY("Owner", church->owner, fread_string(fp));
