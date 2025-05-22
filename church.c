@@ -4158,58 +4158,39 @@ void read_churches_new()
     closedir(dir);
     log_string(formatf("Loaded %d churches from individual files", count));
 
-// Sort the list of churches by UID using list_quicksort
-if (list_churches != NULL) {
-    if (list_churches->size > 1) {
+    // Sort the LLIST list_churches by UID. This is the primary sorted list.
+    if (list_churches != NULL && list_churches->size > 1) {
         list_quicksort(list_churches, cmp_church_uid);
     }
-    // After sorting list_churches, the raw church_list pointer
-    // should be updated to the head of the sorted LLIST.
-    church_list = (CHURCH_DATA *)list_churches->head;
-} else {
-    // This case implies no churches were loaded into list_churches
-    church_list = NULL;
-}
-        if (church_list != NULL && church_list->next != NULL) {
-        bool swapped;
-        CHURCH_DATA *ptr;
-        CHURCH_DATA *last_ptr = NULL;
 
-        do {
-            swapped = FALSE;
-            ptr = church_list;
+    // Now, rebuild the singly-linked church_list from the sorted LLIST.
+    // This ensures church_list also reflects the sorted order.
+    church_list = NULL; // Reset the global singly-linked list head
+    CHURCH_DATA *sll_tail = NULL; // Keep track of the tail for efficient appending
 
-            while (ptr->next != last_ptr) {
-                if (ptr->uid > ptr->next->uid) {
-                    // Swap nodes
-                    CHURCH_DATA *temp = ptr->next;
-                    ptr->next = temp->next;
-                    temp->next = ptr;
-                    
-                    // Update head if needed
-                    if (ptr == church_list)
-                        church_list = temp;
-                    else {
-                        // Find previous node to update its next pointer
-                        CHURCH_DATA *prev = church_list;
-                        while (prev->next != ptr)
-                            prev = prev->next;
-                        prev->next = temp;
-                    }
-                    
-                    // Continue with swapped pointer position
-                    ptr = temp;
-                    swapped = TRUE;
-                }
-                
-                ptr = ptr->next;
+    if (list_churches != NULL) { // Iterate if list_churches has been populated
+        ITERATOR it;
+        CHURCH_DATA *church_from_llist_node;
+
+        iterator_start(&it, list_churches);
+        while ((church_from_llist_node = (CHURCH_DATA *)iterator_nextdata(&it))) {
+            // The CHURCH_DATA objects are already in memory, pointed to by list_churches nodes.
+            // We are now re-threading their 'next' pointers for the church_list.
+            church_from_llist_node->next = NULL; // Initialize 'next' for the SLL
+
+            if (church_list == NULL) {
+                // This is the first church for the singly-linked list
+                church_list = church_from_llist_node;
+                sll_tail = church_from_llist_node;
+            } else {
+                // Append to the tail of the singly-linked list
+                sll_tail->next = church_from_llist_node;
+                sll_tail = church_from_llist_node;
             }
-            
-            last_ptr = ptr;
-            
-        } while (swapped);
+        }
+        iterator_stop(&it);
     }
-    
+    // The previous bubble sort on church_list is no longer needed and has been removed.
     
 }
 

@@ -1302,6 +1302,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
 	    }
 	}
 
+
 	if ((obj = get_obj_carry(ch, arg, ch)) == NULL)
 	{
 	    send_to_char("You do not have that item.\n\r", ch);
