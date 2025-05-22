@@ -1252,7 +1252,7 @@ void show_char_to_char(CHAR_DATA *list, CHAR_DATA *ch, CHAR_DATA *victim)
 		    && RIDDEN(rch) != ch))
 		continue;
 
-	    if (get_trust(ch) < rch->invis_level && !can_see_imm(ch,rch))
+	    if (get_staff_rank(ch) < rch->invis_level && !can_see_imm(ch,rch))
 		continue;
 
 	    if (mist && number_percent() < mist->value[1])

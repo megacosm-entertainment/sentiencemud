@@ -104,7 +104,7 @@ void get_obj( CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container )
     if ( container != NULL )
     {
     	if (container->pIndexData->vnum == OBJ_VNUM_PIT
-	&&  get_trust(ch) < obj->level)
+	&&  get_staff_rank(ch) < obj->level)
 	{
 	    send_to_char("You are not powerful enough to use it.\n\r",ch);
 	    return;

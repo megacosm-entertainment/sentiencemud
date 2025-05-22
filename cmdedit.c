@@ -154,7 +154,7 @@ void save_command(FILE *fp, CMD_DATA *command)
     fprintf(fp, "#COMMAND %s~\n", command->name);
     fprintf(fp, "Enabled %d\n", command->enabled);
     fprintf(fp, "Function %s~\n", do_func_name(command->function));
-    fprintf(fp, "Level %d\n", command->level);
+    fprintf(fp, "Rank %d\n", command->rank);
     fprintf(fp, "Log %d\n", command->log);
     fprintf(fp, "Position %d\n", command->position);
     fprintf(fp, "Type %ld\n", command->type);
@@ -295,6 +295,7 @@ CMD_DATA *load_command(FILE *fp)
                 KEY("Position", command->position, fread_number(fp));
                 break;
             case 'R':
+                KEY("Rank", command->rank, fread_number(fp));
                 KEY("Reason", command->reason, fread_string(fp));
             case 'S':
                 KEY("Summary", command->summary, fread_string(fp));
@@ -327,6 +328,19 @@ CMD_DATA *load_command(FILE *fp)
         command->reason = NULL;
     }
     */
+
+
+    if (command->level == 150)
+        command->rank = STAFF_IMMORTAL;
+    else if (command->level == 151 || command->level == 152)
+        command->rank = STAFF_ASCENDANT;
+    else if (command->level == 153)
+        command->rank = STAFF_SUPREMACY;
+    else if (command->level == 154)
+        command->rank = STAFF_CREATOR;
+    else if (command->level == 155)
+        command->rank = STAFF_IMPLEMENTOR;
+    
     return command;
 }
 
@@ -485,11 +499,11 @@ void do_cmdlist(CHAR_DATA *ch, char *argument)
                 sprintf(line_colour, "{X");
             }
 
-            if ((command->help_keywords == NULL || lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) == NULL) && command->summary == NULL) 
+            if ((command->help_keywords == NULL || lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) == NULL) && command->summary == NULL) 
                 sprintf(helpstatus, "{RNone{X");
-            else if ((command->help_keywords == NULL || lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) == NULL) && command->summary != NULL)
+            else if ((command->help_keywords == NULL || lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) == NULL) && command->summary != NULL)
                 sprintf(helpstatus, "{YSummary{X");
-            else if ((command->help_keywords != NULL && lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) != NULL) && command->summary == NULL)
+            else if ((command->help_keywords != NULL && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL) && command->summary == NULL)
                 sprintf(helpstatus, "{YKeywords{X");
             else
                 sprintf(helpstatus, "{GBoth{X");
@@ -569,7 +583,7 @@ CMDEDIT (cmdedit_show)
     add_buf(buffer, formatf("Name:          %s\n\r", command->name));
     add_buf(buffer, formatf("Type:          %s\n\r", command_types[command->type].name));
     add_buf(buffer, formatf("Add'l Types    %s\n\r", flag_string(command_addl_types, command->addl_types)));
-    add_buf(buffer, formatf("Level:         %d\n\r", command->level));
+    add_buf(buffer, formatf("Rank:         %d\n\r", command->rank));
     add_buf(buffer, formatf("Position:      %s\n\r", position_table[command->position].name));
     add_buf(buffer, formatf("Log:           %s\n\r", log_flags[command->log].name));
     add_buf(buffer, formatf("Order:         %d\n\r", list_getindex(commands_list, command)));
@@ -578,9 +592,9 @@ CMDEDIT (cmdedit_show)
         add_buf(buffer, formatf("{rDisabled Reason{X: %s\n\r", !IS_NULLSTR(command->reason) ? command->reason : "(none)"));
 
     add_buf(buffer, formatf("Function:      %s\n\r", command->function ? do_func_name(command->function) : "None"));
-    if (command->help_keywords != NULL && lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) != NULL)
-        add_buf(buffer, formatf("Help Keywords: '\t<send href=\"help #%d\">{W%s{X\t</send>' ({W#%d{X)\n\r", lookup_help_exact(command->help_keywords->string, get_trust(ch), topHelpCat)->index, command->help_keywords->string, lookup_help_exact(command->help_keywords->string, get_trust(ch), topHelpCat)->index));
-    else if (command->help_keywords != NULL && lookup_help_exact(command->help_keywords->string,get_trust(ch),topHelpCat) == NULL)
+    if (command->help_keywords != NULL && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL)
+        add_buf(buffer, formatf("Help Keywords: '\t<send href=\"help #%d\">{W%s{X\t</send>' ({W#%d{X)\n\r", lookup_help_exact(command->help_keywords->string, get_staff_rank(ch), topHelpCat)->index, command->help_keywords->string, lookup_help_exact(command->help_keywords->string, get_staff_rank(ch), topHelpCat)->index));
+    else if (command->help_keywords != NULL && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) == NULL)
         add_buf(buffer, formatf("Help Keywords: {R%s{X\n\r", command->help_keywords->string));
     else
         add_buf(buffer, formatf("Help Keywords: %s\n\r", "(none set)"));
@@ -710,29 +724,43 @@ CMDEDIT( cmdedit_type )
     return true;
 }
 
-CMDEDIT (cmdedit_level)
+CMDEDIT (cmdedit_rank )
 {
+
     CMD_DATA *command;
     EDIT_CMD( ch, command );
-    char buf[MAX_STRING_LENGTH];
 
     if (argument[0] == '\0')
     {
-        send_to_char("Syntax:  level <level>\n\r", ch);
+        send_to_char("Syntax:  rank <rank>\n\r", ch);
+        send_to_char("Please select one of the following:\n\r", ch);
+        for(int i = 0; staff_ranks[i].name; i++)
+        {
+            if (staff_ranks[i].settable && staff_ranks[i].bit < get_staff_rank(ch))
+            {
+                send_to_char(formatf(" %s\n\r", staff_ranks[i].name), ch);
+            }
+        }
         return false;
     }
 
-    int level;
-    if (!is_number(argument) || (level = atoi(argument)) < 0 || level > MAX_LEVEL)
+    int new_rank;
+    if ((new_rank = flag_value(staff_ranks, argument)) == NO_FLAG)
     {
-        send_to_char("Invalid level.\n\r", ch);
+        send_to_char("Invalid rank.\n\r", ch);
         return false;
     }
 
-    command->level = level;
-    sprintf(buf, "Level set to %d.\n\r", level);
-    send_to_char(buf,ch);
+    if (new_rank > get_staff_rank(ch))
+    {
+        send_to_char("You cannot set a command to a rank higher than your own.\n\r", ch);
+        return true;
+    }
+
+    command->rank = new_rank;
+    send_to_char("Minimum rank set.\n\r", ch);
     return true;
+
 }
 
 CMDEDIT (cmdedit_position )
@@ -975,7 +1003,7 @@ CMDEDIT (cmdedit_help )
 			send_to_char("That help index is out of range.\n\r", ch);
 			return false;
 		} else 
-            pHelp = lookup_help_index(index, get_trust(ch), topHelpCat);
+            pHelp = lookup_help_index(index, get_staff_rank(ch), topHelpCat);
         
         if (pHelp == NULL)
         {
@@ -986,7 +1014,7 @@ CMDEDIT (cmdedit_help )
     }
     else
     {
-        pHelp = lookup_help_exact(argument, get_trust(ch), topHelpCat);
+        pHelp = lookup_help_exact(argument, get_staff_rank(ch), topHelpCat);
         if (pHelp == NULL)
         {
 	        act("There is no helpfile with keywords $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);

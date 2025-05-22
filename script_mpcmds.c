@@ -2250,7 +2250,7 @@ SCRIPT_CMD(do_mpforce)
 	if (fAll) {
 		for (victim = info->mob->in_room->people; victim; victim = next) {
 			next = victim->next_in_room;
-			if (get_trust(victim) < get_trust(info->mob)
+			if (get_staff_rank(victim) < get_staff_rank(info->mob)
 				&& can_see(info->mob, victim)
 				&& (IS_NPC(victim) || !IS_IMMORTAL(victim))) {
 				forced_command = true;
@@ -2462,7 +2462,7 @@ SCRIPT_CMD(do_mpgforce)
 	for (vch = info->mob->in_room->people; vch; vch = next) {
 		next = vch->next_in_room;
 		if (is_same_group(victim,vch) &&
-			get_trust(vch) < get_trust(info->mob)
+			get_staff_rank(vch) < get_staff_rank(info->mob)
 			&& can_see(info->mob, vch)
 			&& (IS_NPC(vch) || !IS_IMMORTAL(vch)))
 			interpret(vch, buf_string(buffer));
@@ -3552,7 +3552,7 @@ SCRIPT_CMD(do_mpvforce)
 	for (vch = info->mob->in_room->people; vch; vch = next) {
 		next = vch->next_in_room;
 		if (IS_NPC(vch) && vch->pIndexData->vnum == vnum &&
-			get_trust(vch) < get_trust(info->mob)
+			get_staff_rank(vch) < get_staff_rank(info->mob)
 			&& can_see(info->mob, vch)
 			&& (IS_NPC(vch) || !IS_IMMORTAL(vch)))
 			interpret(vch, buf_string(buffer));

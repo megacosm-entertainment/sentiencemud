@@ -6699,7 +6699,7 @@ void do_slay(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!IS_NPC(victim) && victim->tot_level >= get_trust(ch)) {
+	if (!IS_NPC(victim) && victim->pcdata->staff_rank >= get_staff_rank(ch)) {
 		send_to_char("You failed.\n\r", ch);
 		return;
 	}

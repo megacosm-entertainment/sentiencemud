@@ -94,37 +94,87 @@
      OpenSSL_add_ssl_algorithms();
  }
  
- // Function to create a new SSL context
- SSL_CTX* create_context(void)
- {
-     const SSL_METHOD *method;
-     SSL_CTX *ctx;
- 
-     method = SSLv23_server_method();
- 
-     ctx = SSL_CTX_new(method);
-     if (!ctx) {
-         perror("Unable to create SSL context");
-         ERR_print_errors_fp(stderr);
-         exit(EXIT_FAILURE);
-     }
- 
-     return ctx;
- }
- 
- // Function to configure SSL context
- void configure_context(SSL_CTX *ctx)
- {
-     SSL_CTX_set_ecdh_auto(ctx, 1);
- 
-     /* Set the key and cert */
-     if (SSL_CTX_use_certificate_file(ctx, game_settings.ssl_cert_path, SSL_FILETYPE_PEM) <= 0) {
-         ERR_print_errors_fp(stderr);
-         exit(EXIT_FAILURE);
-     }
- 
-     if (SSL_CTX_use_PrivateKey_file(ctx, game_settings.ssl_key_path, SSL_FILETYPE_PEM) <= 0 ) {
-         ERR_print_errors_fp(stderr);
-         exit(EXIT_FAILURE);
-     }
- }
+ /*
+ * Configure SSL context with appropriate settings
+ */
+bool configure_context(SSL_CTX *context)
+{
+    if (!context)
+        return false;
+        
+    // Set the minimum TLS protocol version to TLS 1.2
+    SSL_CTX_set_min_proto_version(context, TLS1_2_VERSION);
+    
+    // Set up DH parameters using EVP interface
+    EVP_PKEY *dhpkey = NULL;
+    EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new_from_name(NULL, "DH", NULL);
+    
+    if (pctx) {
+        OSSL_PARAM params[2];
+        params[0] = OSSL_PARAM_construct_utf8_string("group", "ffdhe2048", 0);
+        params[1] = OSSL_PARAM_construct_end();
+        
+        if (EVP_PKEY_paramgen_init(pctx) > 0 && 
+            EVP_PKEY_CTX_set_params(pctx, params) > 0 &&
+            EVP_PKEY_generate(pctx, &dhpkey) > 0) {
+            
+            // Transfer ownership of the EVP_PKEY to the SSL_CTX
+            if (!SSL_CTX_set0_tmp_dh_pkey(context, dhpkey)) {
+                EVP_PKEY_free(dhpkey);
+                log_string("SSL error: Failed to set DH parameters");
+            }
+            // If successful, dhpkey is now owned by the context and shouldn't be freed
+        }
+        EVP_PKEY_CTX_free(pctx);
+    }
+    
+    // Set up ECDH parameters
+    SSL_CTX_set_ecdh_auto(context, 1);
+    
+    // Load certificate and private key files
+    if (SSL_CTX_use_certificate_file(context, game_settings.ssl_cert_path, SSL_FILETYPE_PEM) <= 0) {
+        log_string("SSL error: Failed to load certificate");
+        return false;
+    }
+    
+    if (SSL_CTX_use_PrivateKey_file(context, game_settings.ssl_key_path, SSL_FILETYPE_PEM) <= 0) {
+        log_string("SSL error: Failed to load private key");
+        return false;
+    }
+    
+    // Verify the private key matches the certificate
+    if (!SSL_CTX_check_private_key(context)) {
+        log_string("SSL error: Private key does not match certificate");
+        return false;
+    }
+    
+    // Set cipher list - use secure modern ciphers
+    SSL_CTX_set_cipher_list(context, "HIGH:!aNULL:!MD5:!RC4");
+    
+    return true;
+}
+
+/*
+ * Create a new SSL context with properly configured settings
+ */
+SSL_CTX *create_context(void)
+{
+    SSL_CTX *new_ctx = SSL_CTX_new(SSLv23_server_method());
+    
+    if (!new_ctx) {
+        log_string("SSL error: Failed to create SSL context");
+        return NULL;
+    }
+    
+    // Disable old, insecure protocols
+    SSL_CTX_set_options(new_ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1);
+    
+    // Configure the context
+    if (!configure_context(new_ctx)) {
+        log_string("SSL error: Failed to configure SSL context");
+        SSL_CTX_free(new_ctx);
+        return NULL;
+    }
+    
+    return new_ctx;
+}

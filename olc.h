@@ -56,6 +56,9 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define ED_IPCODE	20
 #define ED_DPCODE	21
 #define ED_CMDEDIT  22
+#define ED_CHANGESET	23
+#define ED_ACCNOTE	24
+#define ED_CHLOG 25
 
 
 
@@ -578,7 +581,7 @@ DECLARE_OLC_FUN( cmdedit_name );
 DECLARE_OLC_FUN( cmdedit_description );
 DECLARE_OLC_FUN( cmdedit_comments ); 
 DECLARE_OLC_FUN( cmdedit_type );
-DECLARE_OLC_FUN( cmdedit_level );
+DECLARE_OLC_FUN( cmdedit_rank );
 DECLARE_OLC_FUN( cmdedit_order );
 DECLARE_OLC_FUN( cmdedit_position ); 
 DECLARE_OLC_FUN( cmdedit_log );

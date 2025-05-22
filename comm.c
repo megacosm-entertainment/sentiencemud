@@ -136,6 +136,9 @@ time_t			stats_load_time;
 bool		    MOBtrigger = true;  /* act() switch                 */
 LLIST *loaded_areas;
 SSL_CTX *ctx;
+int ssl_errors_since_reset = 0;
+time_t last_ssl_error = 0;
+LLIST *ssl_ctx_cleanup_queue = NULL;
 
 /*
  * OS-dependent local functions.
@@ -158,7 +161,6 @@ bool	check_parse_name	args((char *name));
 bool	check_reconnect		args((DESCRIPTOR_DATA *d, char *name, bool fConn));
 bool	check_playing		args((DESCRIPTOR_DATA *d, char *name));
 int	main			args((int argc, char **argv));
-void	nanny			args((DESCRIPTOR_DATA *d, char *argument));
 bool	process_output		args((DESCRIPTOR_DATA *d, bool fPrompt));
 void	read_from_buffer	args((DESCRIPTOR_DATA *d));
 void	stop_idling		args((CHAR_DATA *ch));
@@ -180,7 +182,7 @@ static void RedirectSTDOUT(void)
 
 	/* Redirect standard input and standard output*/
 	strftime(log_time, 100, "%F-%X", localtime(&current_time));
-	sprintf(logfile_std,"../log/sent_%s.log",log_time);
+	sprintf(logfile_std, LOG_DIR "sent_%s.log",log_time);
 	if(!(newfp = freopen(logfile_std,"a",stdout))) { /* This happens on NT*/
 #if !defined(stdout)
 		stdout = fopen(logfile_std,"a");
@@ -202,7 +204,7 @@ static void RedirectSTDERR(void)
 
 	/* Redirect standard input and standard output*/
 	strftime(log_time, 100, "%F-%X", localtime(&current_time));
-	sprintf(logfile_err,"../log/sent_%s.err",log_time);
+	sprintf(logfile_err, LOG_DIR "sent_%s.err",log_time);
 	if(!(newfp = freopen(logfile_err,"a",stderr))) { /* This happens on NT*/
 #if !defined(stdout)
 		stdout = fopen(logfile_err,"a");
@@ -297,20 +299,6 @@ bool parse_options(int argc, char **argv)
 		{
 			switch( argv[i][1] )
 			{
-				case 'n':
-				case 'N':
-					newlock = true;
-					break;
-
-				case 't':
-				case 'T':
-					is_test_port = true;
-					break;
-
-				case 'w':
-				case 'W':
-					wizlock = true;
-					break;
 
 				case '?':
 					// Silently return
@@ -400,6 +388,12 @@ int main(int argc, char **argv)
 		perror("Could not create 'loaded_chars'");
 		exit(1);
 	}
+
+	loaded_accounts = list_create(false);
+	if(!loaded_accounts) {
+		perror("Could not create 'loaded_accounts'");
+		exit(1);
+	}
 // Temporarily disabling for reconnect crash.
 /*
 	loaded_players = list_create(false);
@@ -443,9 +437,14 @@ int main(int argc, char **argv)
 		telnet_port = game_settings.telnet_port;
 	if (game_settings.tls_port)
 		tls_port = game_settings.tls_port;
-    is_test_port = false;
-    newlock = false;
-    wizlock = false;
+	if (game_settings.testport || game_settings.dev_server)
+    	is_test_port = true;
+	
+	if (game_settings.dev_server)
+		{
+			newlock = true;
+			wizlock = true;
+		}
 
     if( !parse_options(argc, argv) )
     {
@@ -724,6 +723,8 @@ void game_loop(int control_telnet, int control_tls)
 {
     static struct timeval null_time;
     struct timeval last_time;
+    struct timeval curr_time;
+    DESCRIPTOR_DATA *d, *d_next;
 
     signal(SIGPIPE, SIG_IGN);
     gettimeofday(&last_time, NULL);
@@ -732,276 +733,324 @@ void game_loop(int control_telnet, int control_tls)
     /* Main loop */
     while (!merc_down)
     {
-	fd_set in_set;
-	fd_set out_set;
-	fd_set exc_set;
-	DESCRIPTOR_DATA *d;
-	int maxdesc = 0;
+        fd_set in_set;
+        fd_set out_set;
+        fd_set exc_set;
+        int maxdesc = 0;
 
 #if defined(MALLOC_DEBUG)
-	if (malloc_verify() != 1)
-	    abort();
+        if (malloc_verify() != 1)
+            abort();
 #endif
 
-	/*
-	 * Poll all active descriptors.
-	 */
-	FD_ZERO(&in_set );
-	FD_ZERO(&out_set);
-	FD_ZERO(&exc_set);
-	if (control_telnet != -1 && game_settings.enable_telnet)
-	{
-		FD_SET(control_telnet, &in_set);
-		maxdesc	= control_telnet;
-	}
-	if (control_tls != -1 && game_settings.enable_tls)
-	{
-		FD_SET(control_tls, &in_set);
-		maxdesc	= control_tls;
-	}
-
-/*
-	for (d = descriptor_list; d; d = d->next)
-	{
-	    maxdesc = UMAX(maxdesc, d->descriptor);
-	    FD_SET(d->descriptor, &in_set );
-	    FD_SET(d->descriptor, &out_set);
-	    FD_SET(d->descriptor, &exc_set);
-	}
-*/
-for (d = descriptor_list; d; d = d->next)
-{
-    FD_SET(d->descriptor, &in_set);
-    FD_SET(d->descriptor, &out_set);
-	FD_SET(d->descriptor, &exc_set);
-	
-    maxdesc = UMAX(maxdesc, d->descriptor);
-/*
-    if (d->ssl && d->tls_handshake_in_progress) {
-        // If the TLS handshake is in progress, we want to wait for write events
-        FD_SET(d->descriptor, &out_set);
-    }
-*/
-	}
-
-	if (select(maxdesc+1, &in_set, &out_set, &exc_set, &null_time) < 0)
-	{
-	    switch (errno)
-		{
-		case EBADF:
-		bug ("Invalid file descriptor passed to Select()", 0);
-	    perror("Game_loop: select: poll");
-		exit(1);
-		break;
-		case EINTR:	bug("A non-blocked signal was caught.", 0);
-		break;
-		case EINVAL:
-		bug ("Negative \'n\' descriptor passed to Select()", 0);
-	    perror("Game_loop: select: poll");
-		exit(1);
-		break;
-		case ENOMEM:
-		bug ("Select() was unable to allocate memory for internal tables.", 0);
-	    perror("Game_loop: select: poll");
-		exit(1);
-		break;
-		default:
-		bug ("Unknown error.", 0);
-	    perror("Game_loop: select: poll");
-		exit(1);
-	    break;
-	}
-/*	    perror("Game_loop: select: poll");*/
-/*	    exit(1);*/
-	}
-
-	/*
-	 * New connection?
-	 */
-	if (FD_ISSET(control_telnet, &in_set))
-	    init_descriptor(control_telnet, false);
-	
-	if (FD_ISSET(control_tls, &in_set))
-		init_descriptor(control_tls, true);
-
-	/*
-	 * Kick out the freaky folks.
-	 */
-	for (d = descriptor_list; d != NULL; d = d_next)
-	{
-	    d_next = d->next;
-	    if (FD_ISSET(d->descriptor, &exc_set))
-	    {
-		FD_CLR(d->descriptor, &in_set );
-		FD_CLR(d->descriptor, &out_set);
-		if (d->character && d->connected == CON_PLAYING)
-		{
-		    save_char_obj(d->character);
-		}
-		d->outtop	= 0;
-		close_socket(d);
-	    }
-	}
-
-	/*
-	 * Process input.
-	 */
-	for (d = descriptor_list; d != NULL; d = d_next)
-	{
-	    d_next	= d->next;
-	    d->fcommand	= false;
-
-if (FD_ISSET(d->descriptor, &in_set))
-{
-    if (d->character != NULL)
-        d->character->timer = 0;
-
-    if (!read_from_descriptor(d))
-    {
-        FD_CLR(d->descriptor, &out_set);
+        /*
+         * Poll all active descriptors.
+         */
+        FD_ZERO(&in_set);
+        FD_ZERO(&out_set);
+        FD_ZERO(&exc_set);
         
-        if (d->character != NULL && d->connected == CON_PLAYING)
-            save_char_obj(d->character);
-            
-        d->outtop = 0;
-        close_socket(d);
-        continue;
-    }
-
-    d->muted = 0;
-    
-    // Handle TLS handshake but DON'T skip command processing
-    if (d->ssl && d->tls_handshake_in_progress && FD_ISSET(d->descriptor, &out_set)) 
-    {
-        int ret = SSL_accept(d->ssl);
-        if (ret == 1)
-            d->tls_handshake_in_progress = false;
-        else if (ret == 0)
+        // Set up listening sockets
+        if (control_telnet != -1 && game_settings.enable_telnet)
         {
-            close_socket(d);
-            continue;  // This continue is okay as we're closing the socket
-        } 
-        else 
-        {
-            int err = SSL_get_error(d->ssl, ret);
-            if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE)
-            {
-                close_socket(d);
-                continue;  // Also okay as we're closing
-            }
-            // DON'T continue here - process input even during handshake
+            FD_SET(control_telnet, &in_set);
+            maxdesc = control_telnet;
         }
-    }
-}
+        
+        if (control_tls != -1 && game_settings.enable_tls)
+        {
+            FD_SET(control_tls, &in_set);
+            maxdesc = UMAX(maxdesc, control_tls);
+        }
 
-	    if (d->character != NULL && d->character->wait > 0)
-	    {
-		--d->character->wait;
-		continue;
-	    }
+        // Process descriptor lists
+        for (d = descriptor_list; d; d = d->next)
+        {
+            FD_SET(d->descriptor, &in_set);
+            FD_SET(d->descriptor, &exc_set);
+            FD_SET(d->descriptor, &out_set);
+        
+            
+            maxdesc = UMAX(maxdesc, d->descriptor);
+        }
 
-	    /* decrease timers for things like casting, brew, paroxysm etc */
-	    if (d->character != NULL)
-		update_pc_timers(d->character);
+        if (select(maxdesc+1, &in_set, &out_set, &exc_set, &null_time) < 0)
+        {
+            switch (errno)
+            {
+                case EBADF:
+                    bug("Invalid file descriptor passed to Select()", 0);
+                    perror("Game_loop: select: poll");
+                    exit(1);
+                    break;
+                case EINTR:
+                    bug("A non-blocked signal was caught.", 0);
+                    break;
+                case EINVAL:
+                    bug("Negative 'n' descriptor passed to Select()", 0);
+                    perror("Game_loop: select: poll");
+                    exit(1);
+                    break;
+                case ENOMEM:
+                    bug("Select() was unable to allocate memory for internal tables.", 0);
+                    perror("Game_loop: select: poll");
+                    exit(1);
+                    break;
+                default:
+                    bug("Unknown error.", 0);
+                    perror("Game_loop: select: poll");
+                    exit(1);
+                    break;
+            }
+        }
 
-	   read_from_buffer(d);
-	   if (d->incomm[0] != '\0')
-	   {
-	       d->fcommand	= true;
-		if(d->pProtocol != NULL)
-		    d->pProtocol->WriteOOB = 0;
-	       stop_idling(d->character);
+        /*
+         * New connections?
+         */
+        if (control_telnet != -1 && FD_ISSET(control_telnet, &in_set))
+            init_descriptor(control_telnet, false);
+        
+        if (control_tls != -1 && FD_ISSET(control_tls, &in_set))
+            init_descriptor(control_tls, true);
 
-	       /* OLC */
-	       if (d->showstr_point)
-		   show_string(d, d->incomm);
-	       else
-		   if (d->pString) {
-			string_add(d->character, d->incomm);
-		   } else
-		       switch (d->connected)
-		       {
-			   case CON_PLAYING:
-			       if (!run_olc_editor(d))
-				   substitute_alias(d, d->incomm);
-			       break;
-			   default:
-			       nanny(d, d->incomm);
-			       break;
-		       }
+        /*
+         * Process outstanding TLS handshakes first
+         */
+        for (d = descriptor_list; d != NULL; d = d_next)
+        {
+            d_next = d->next;
+            
+            // Skip descriptors without SSL or that aren't in handshake mode
+            if (!d->ssl || !d->tls_handshake_in_progress)
+                continue;
+            
+            // Check for handshake timeouts
+            if (current_time - d->last_activity > 10) {
+                log_string("Closing stalled TLS handshake connection");
+                close_socket(d);
+                continue;
+            }
+            
+            // Process handshakes ready for activity
+            if (FD_ISSET(d->descriptor, &in_set) || FD_ISSET(d->descriptor, &out_set)) {
+                int ret = SSL_accept(d->ssl);
+                if (ret == 1) {
+                    // Handshake completed successfully
+                    d->tls_handshake_in_progress = false;
+                    d->last_activity = current_time;
+                    
+                    // Log successful handshake when debugging
+                    if (game_settings.dev_server)
+                        log_string("TLS handshake completed successfully");
+                } 
+                else if (ret <= 0) {
+                    int err = SSL_get_error(d->ssl, ret);
+                    if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE) {
+                        // Fatal handshake error - clean up properly
+                        BIO *bio = BIO_new(BIO_s_mem());
+                        ERR_print_errors(bio);
+                        
+                        char ssl_err_buf[MAX_STRING_LENGTH];
+                        char *bio_data;
+                        long bio_len = BIO_get_mem_data(bio, &bio_data);
+                        
+                        if (bio_len >= MAX_STRING_LENGTH)
+                            bio_len = MAX_STRING_LENGTH - 1;
+                        memcpy(ssl_err_buf, bio_data, bio_len);
+                        ssl_err_buf[bio_len] = '\0';
+                        BIO_free(bio);
+                        
+                        sprintf(log_buf, "TLS handshake failed: %d\nSSL errors: %s", 
+                                err, ssl_err_buf);
+                        log_string(log_buf);
+                        
+                        // Update circuit breaker
+                        ssl_errors_since_reset++;
+                        last_ssl_error = current_time;
+                        
+                        close_socket(d);
+                        continue;
+                    }
+                }
+            }
+        }
 
-	       d->incomm[0]	= '\0';
-	   }
-    }
+        /*
+         * Kick out the freaky folks.
+         */
+        for (d = descriptor_list; d != NULL; d = d_next)
+        {
+            d_next = d->next;
+            if (FD_ISSET(d->descriptor, &exc_set))
+            {
+                FD_CLR(d->descriptor, &in_set);
+                FD_CLR(d->descriptor, &out_set);
+                if (d->character && d->connected == CON_PLAYING)
+                {
+                    save_char_obj(d->character);
+                }
+                d->outtop = 0;
+                close_socket(d);
+            }
+        }
+
+        /*
+         * Process input.
+         */
+        for (d = descriptor_list; d != NULL; d = d_next)
+        {
+            d_next = d->next;
+            d->fcommand = false;
+
+            // Don't process input for connections in TLS handshake
+            if (d->ssl && d->tls_handshake_in_progress)
+                continue;
+
+            if (FD_ISSET(d->descriptor, &in_set))
+            {
+                if (d->character != NULL)
+                    d->character->timer = 0;
+
+                if (!read_from_descriptor(d))
+                {
+                    FD_CLR(d->descriptor, &out_set);
+
+                    if (d->character != NULL && d->connected == CON_PLAYING)
+                        save_char_obj(d->character);
+
+                    d->outtop = 0;
+                    close_socket(d);
+                    continue;
+                }
+
+                d->muted = 0;
+            }
+
+            // Process command queues
+            if (d->character != NULL && d->character->wait > 0)
+            {
+                --d->character->wait;
+                continue;
+            }
+
+            /* decrease timers for things like casting, brew, paroxysm etc */
+            if (d->character != NULL)
+                update_pc_timers(d->character);
+
+            read_from_buffer(d);
+            if (d->incomm[0] != '\0')
+            {
+                d->fcommand = true;
+                if (d->pProtocol != NULL)
+                    d->pProtocol->WriteOOB = 0;
+                stop_idling(d->character);
+
+                /* OLC */
+                if (d->showstr_point)
+                    show_string(d, d->incomm);
+                else if (d->pString) {
+                    string_add(d->character, d->incomm);
+                } else
+                    switch (d->connected)
+                    {
+                        case CON_PLAYING:
+                            if (!run_olc_editor(d))
+                                substitute_alias(d, d->incomm);
+                            break;
+                        default:
+                            nanny(d, d->incomm);
+                            break;
+                    }
+
+                d->incomm[0] = '\0';
+            }
+        }
 
 #ifdef IMC
-imc_loop();
+        imc_loop();
 #endif
 
-    /*
-     * Autonomous game motion.
-     */
-    update_handler();
+        /*
+         * Autonomous game motion.
+         */
+        update_handler();
 
-    /*
-     * Process message queues.
-     */
-    /*process_message_queue();*/
+        /*
+         * Process output.
+         */
+        for (d = descriptor_list; d != NULL; d = d_next)
+        {
+            d_next = d->next;
+            
+            // Skip output processing for connections in TLS handshake
+            if (d->ssl && d->tls_handshake_in_progress)
+                continue;
 
-    /*
-     * Output.
-     */
-    for (d = descriptor_list; d != NULL; d = d_next)
-    {
-	d_next = d->next;
+            if ((d->fcommand || d->outtop > 0) && FD_ISSET(d->descriptor, &out_set))
+            {
+                if (!process_output(d, true))
+                {
+                    if (d->character != NULL && d->connected == CON_PLAYING) {
+                        save_char_obj(d->character);
+                    }
+                    d->outtop = 0;
+                    close_socket(d);
+                }
+            }
+        }
 
-	if ((d->fcommand || d->outtop > 0)
-		&&   FD_ISSET(d->descriptor, &out_set))
-	{
-	    if (!process_output(d, true))
-	    {
-		if (d->character != NULL
-			&& d->connected == CON_PLAYING) {
-		    save_char_obj(d->character);
-		}
-		d->outtop	= 0;
-		close_socket(d);
-	    }
-	}
-    }
+        /*
+         * Check for idle/timeout connections
+         */
+        for (d = descriptor_list; d != NULL; d = d_next) {
+            d_next = d->next;
+            
+            // Close connections with stalled TLS handshakes (10 seconds)
+            if (d->ssl && d->tls_handshake_in_progress && 
+                current_time - d->last_activity > 10) {
+                log_string("Closing stalled TLS handshake connection");
+                close_socket(d);
+                continue;
+            }
+            
+            // Only timeout normal connections if not fully logged in
+            if ((d->connected == CON_GET_ACCOUNT_NAME || d->connected == CON_GET_OLD_PASSWORD) && 
+                current_time - d->last_activity > 120 && 
+                !d->healthcheck) {
+                log_string("Closing idle connection (timeout).");
+                close_socket(d);
+            }
+        }
 
-    /*
-     * Synchronize to a clock.
-     * Sleep(last_time + 1/PULSE_PER_SECOND - now).
-     * Careful here of signed versus unsigned arithmetic.
-     */
-	{
-	    struct timeval now_time;
-	    long secDelta;
-	    long usecDelta;
+        /*
+         * Synchronize to a clock.
+         * Sleep(last_time + 1/PULSE_PER_SECOND - now).
+         * Careful here of signed versus unsigned arithmetic.
+         */
+        {
+            gettimeofday(&curr_time, NULL);
+            long secDelta = ((int) last_time.tv_sec) - ((int) curr_time.tv_sec);
+            long usecDelta = ((int) last_time.tv_usec) - ((int) curr_time.tv_usec)
+                + 1000000 / PULSE_PER_SECOND;
 
-	    gettimeofday(&now_time, NULL);
-	    usecDelta	= ((int) last_time.tv_usec) - ((int) now_time.tv_usec)
-		+ 1000000 / PULSE_PER_SECOND;
-	    secDelta	= ((int) last_time.tv_sec) - ((int) now_time.tv_sec);
-	    while (usecDelta < 0)
-	    {
-		usecDelta += 1000000;
-		secDelta  -= 1;
-	    }
+            while (usecDelta < 0)
+            {
+                usecDelta += 1000000;
+                secDelta  -= 1;
+            }
 
-	    while (usecDelta >= 1000000)
-	    {
-		usecDelta -= 1000000;
-		secDelta  += 1;
-	    }
+            while (usecDelta >= 1000000)
+            {
+                usecDelta -= 1000000;
+                secDelta  += 1;
+            }
 
-	    if (secDelta > 0 || (secDelta == 0 && usecDelta > 0))
-	    {
-		struct timeval stall_time;
-
-		stall_time.tv_usec = usecDelta;
-		stall_time.tv_sec  = secDelta;
+            if (secDelta > 0 || (secDelta == 0 && usecDelta > 0))
+            {
+                struct timeval stall_time;
+                stall_time.tv_usec = usecDelta;
+                stall_time.tv_sec  = secDelta;
+                
 		if (select(0, NULL, NULL, NULL, &stall_time) < 0)
 		{
 		    switch (errno)
@@ -1032,8 +1081,10 @@ imc_loop();
 /*	    	perror("Game_loop: select: stall");*/
 /*		    exit(1);*/
 		}
-	    }
-	}
+            }
+        }
+
+	// Garbate collect
 
 	/* Check to see if the logfiles have overflowed*/
 	check_logfile();
@@ -1047,18 +1098,18 @@ imc_loop();
 void init_descriptor(int control, bool is_tls)
 {
     char buf[MAX_STRING_LENGTH];
-    DESCRIPTOR_DATA *dnew;
+    DESCRIPTOR_DATA *dnew = NULL;
     struct sockaddr_in sock;
     struct hostent *from;
     int desc;
     socklen_t size;
 
     size = sizeof(sock);
-    getsockname( control, (struct sockaddr *) &sock, &size );
-    if ( ( desc = accept( control, (struct sockaddr *) &sock, &size) ) < 0 )
+    getsockname(control, (struct sockaddr *) &sock, &size);
+    if ((desc = accept(control, (struct sockaddr *) &sock, &size)) < 0)
     {
-	perror("New_descriptor: accept");
-	return;
+        perror("New_descriptor: accept");
+        return;
     }
 
 #if !defined(FNDELAY)
@@ -1067,145 +1118,191 @@ void init_descriptor(int control, bool is_tls)
 
     if (fcntl(desc, F_SETFL, FNDELAY) == -1)
     {
-	perror("New_descriptor: fcntl: FNDELAY");
-	return;
-    }
-
-    /*
-     * Cons a new descriptor.
-     */
-    dnew = new_descriptor();
-
-
-	if (is_tls) {
-		dnew->ssl = SSL_new(ctx);
-		dnew->tls_handshake_in_progress = true;
-		if (dnew->ssl == NULL) {
-			bug("New_descriptor: SSL_new failed", 0);
-			return;
-		}
-
-		if (SSL_set_fd(dnew->ssl, desc) == 0) {
-			bug("New_descriptor: SSL_set_fd failed", 0);
-			return;
-		}
-
-// When you first accept a new TLS connection:
-int ret = SSL_accept(dnew->ssl);
-if (ret <= 0) {
-    int err = SSL_get_error(dnew->ssl, ret);
-    if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
-        // The operation did not complete; the same I/O function should be called again later
-        dnew->tls_handshake_in_progress = true;
-    } else {
-        fprintf(stderr, "SSL error: %d\n", err);
-        ERR_print_errors_fp(stderr);
+        perror("New_descriptor: fcntl: FNDELAY");
+        close(desc);
         return;
     }
-} else {
-    // Handshake was successful
-    dnew->tls_handshake_in_progress = false;
-}
-	}
-	else
-	{
-		dnew->ssl = NULL;
-	}
 
-    dnew->descriptor	= desc;
-    dnew->connected	= CON_GET_NAME;
-    dnew->showstr_head	= NULL;
+    dnew = new_descriptor();
+    dnew->last_activity = current_time;
+    dnew->healthcheck = false;
+
+    if (is_tls) {
+        dnew->ssl = SSL_new(ctx);
+        dnew->tls_handshake_in_progress = true;
+        if (dnew->ssl == NULL) {
+            // Create a memory BIO to capture OpenSSL errors
+            BIO *bio = BIO_new(BIO_s_mem());
+            ERR_print_errors(bio);
+            
+            // Extract the error messages to a buffer
+            char ssl_err_buf[MAX_STRING_LENGTH];
+            char *bio_data;
+            long bio_len = BIO_get_mem_data(bio, &bio_data);
+            
+            // Copy and null-terminate the error data
+            if (bio_len >= MAX_STRING_LENGTH)
+                bio_len = MAX_STRING_LENGTH - 1;
+            memcpy(ssl_err_buf, bio_data, bio_len);
+            ssl_err_buf[bio_len] = '\0';
+            BIO_free(bio);
+            
+            // Update circuit breaker counters
+            ssl_errors_since_reset++;
+            last_ssl_error = current_time;
+            
+            sprintf(log_buf, "New_descriptor: SSL_new failed\nSSL errors: %s", ssl_err_buf);
+            bug(log_buf, 0);
+            
+            close(desc);
+            free_descriptor(dnew);
+            return;
+        }
+
+        if (SSL_set_fd(dnew->ssl, desc) == 0) {
+            // Create a memory BIO to capture OpenSSL errors
+            BIO *bio = BIO_new(BIO_s_mem());
+            ERR_print_errors(bio);
+            
+            // Extract the error messages to a buffer
+            char ssl_err_buf[MAX_STRING_LENGTH];
+            char *bio_data;
+            long bio_len = BIO_get_mem_data(bio, &bio_data);
+            
+            // Copy and null-terminate the error data
+            if (bio_len >= MAX_STRING_LENGTH)
+                bio_len = MAX_STRING_LENGTH - 1;
+            memcpy(ssl_err_buf, bio_data, bio_len);
+            ssl_err_buf[bio_len] = '\0';
+            BIO_free(bio);
+            
+            // Update circuit breaker counters
+            ssl_errors_since_reset++;
+            last_ssl_error = current_time;
+            
+            sprintf(log_buf, "New_descriptor: SSL_set_fd failed\nSSL errors: %s", ssl_err_buf);
+            bug(log_buf, 0);
+            
+            SSL_free(dnew->ssl);
+            dnew->ssl = NULL;
+            close(desc);
+            free_descriptor(dnew);
+            return;
+        }
+
+        int ret = SSL_accept(dnew->ssl);
+        if (ret <= 0) {
+            int err = SSL_get_error(dnew->ssl, ret);
+            if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
+                dnew->tls_handshake_in_progress = true;
+            } else {
+                // Create a memory BIO to capture OpenSSL errors
+                BIO *bio = BIO_new(BIO_s_mem());
+                ERR_print_errors(bio);
+                
+                // Extract the error messages to a buffer
+                char ssl_err_buf[MAX_STRING_LENGTH];
+                char *bio_data;
+                long bio_len = BIO_get_mem_data(bio, &bio_data);
+                
+                // Copy and null-terminate the error data
+                if (bio_len >= MAX_STRING_LENGTH)
+                    bio_len = MAX_STRING_LENGTH - 1;
+                memcpy(ssl_err_buf, bio_data, bio_len);
+                ssl_err_buf[bio_len] = '\0';
+                BIO_free(bio);
+                
+                // Update circuit breaker counters
+                ssl_errors_since_reset++;
+                last_ssl_error = current_time;
+                
+                sprintf(log_buf, "TLS handshake failed with error: %d\nSSL errors: %s\nSSL state: %s",
+                        err, ssl_err_buf, SSL_state_string_long(dnew->ssl));
+                log_string(log_buf);
+                
+                SSL_free(dnew->ssl);
+                dnew->ssl = NULL;
+                close(desc);
+                free_descriptor(dnew);
+                return;
+            }
+        } else {
+            dnew->tls_handshake_in_progress = false;
+        }
+    } else {
+        dnew->ssl = NULL;
+    }
+
+    dnew->descriptor = desc;
+    dnew->connected = CON_GET_ACCOUNT_NAME;
+    dnew->showstr_head = NULL;
     dnew->showstr_point = NULL;
-    dnew->outsize	= 2000;
-    dnew->pEdit		= NULL;			/* OLC */
-    dnew->pString	= NULL;			/* OLC */
-    dnew->editor	= 0;			/* OLC */
-    dnew->outbuf	= alloc_mem(dnew->outsize);
-    dnew->pProtocol	= ProtocolCreate();
+    dnew->outsize = 2000;
+    dnew->pEdit = NULL;
+    dnew->pString = NULL;
+    dnew->editor = 0;
+    dnew->outbuf = alloc_mem(dnew->outsize);
+    dnew->pProtocol = ProtocolCreate();
 
     size = sizeof(sock);
     if (getpeername(desc, (struct sockaddr *) &sock, &size) < 0)
     {
-	perror("New_descriptor: getpeername");
-	dnew->host = str_dup("(unknown)");
+        perror("New_descriptor: getpeername");
+        dnew->host = str_dup("(unknown)");
     }
     else
     {
-	/*
-	 * Would be nice to use inet_ntoa here but it takes a struct arg,
-	 * which ain't very compatible between gcc and system libraries.
-	 */
-	int addr;
-
-    addr = ntohl(sock.sin_addr.s_addr);
-    sprintf(buf, "%d.%d.%d.%d",
-        (addr >> 24) & 0xFF, (addr >> 16) & 0xFF,
-        (addr >>  8) & 0xFF, (addr      ) & 0xFF
-       );
-    // Only log connection addresses in debug mode or for suspicious IPs
-    if (game_settings.testport) {
-        sprintf(log_buf, "Sock.sinaddr:  %s", buf);
-        log_string(log_buf);
-    }
-    from = gethostbyaddr((char *) &sock.sin_addr,
-        sizeof(sock.sin_addr), AF_INET);
-    dnew->host = str_dup(from ? from->h_name : buf);
+        int addr;
+        addr = ntohl(sock.sin_addr.s_addr);
+        sprintf(buf, "%d.%d.%d.%d",
+            (addr >> 24) & 0xFF, (addr >> 16) & 0xFF,
+            (addr >>  8) & 0xFF, (addr      ) & 0xFF
+        );
+        if (game_settings.dev_server || check_ban(buf, BAN_ALL)) {
+            sprintf(log_buf, "Sock.sinaddr:  %s", buf);
+            log_string(log_buf);
+        }
+        from = gethostbyaddr((char *) &sock.sin_addr,
+            sizeof(sock.sin_addr), AF_INET);
+        dnew->host = str_dup(from ? from->h_name : buf);
     }
 
-    /*
-     * Swiftest: I added the following to ban sites.  I don't
-     * endorse banning of sites, but Copper has few descriptors now
-     * and some people from certain sites keep abusing access by
-     * using automated 'autodialers' and leaving connections hanging.
-     *
-     * Furey: added suffix check by request of Nickel of HiddenWorlds.
-     */
-    if (check_ban(dnew->host,BAN_ALL))
+    if (check_ban(dnew->host, BAN_ALL))
     {
-		char banmsg[MIL];
-		sprintf(banmsg, "Your site has been banned from %s\n\r", game_settings.game_name);
-	write_to_descriptor_2(dnew, banmsg, 0);
-	close(desc);
-	free_descriptor(dnew);
-	return;
+        char banmsg[MIL];
+        sprintf(banmsg, "Your site has been banned from %s\n\r", game_settings.game_name);
+        write_to_descriptor_2(dnew, banmsg, 0);
+        close(desc);
+        free_descriptor(dnew);
+        return;
     }
-    /*
-     * Init descriptor data.
-     */
-    dnew->next			= descriptor_list;
-    descriptor_list		= dnew;
+
+    dnew->next = descriptor_list;
+    descriptor_list = dnew;
     ProtocolNegotiate(dnew);
 
-    /*
-     * Send the greeting.
-     */
-
-    /* mccp: tell the client we support compression */
     write_to_buffer(dnew, compress_will, 0);
 
-    /* msp: tell the client we support msp */
-    //write_to_buffer(dnew, msp_will, 0);
-
     if (help_greeting[0] == '.')
-		write_to_buffer(dnew, help_greeting+1, 0);
+        write_to_buffer(dnew, help_greeting + 1, 0);
     else
-		write_to_buffer(dnew, help_greeting  , 0);
+        write_to_buffer(dnew, help_greeting, 0);
 
-	if (!is_tls && game_settings.enable_tls && game_settings.enable_insecure_warning && game_settings.insecure_warning_msg != NULL)
-	{
-		sprintf(buf, "{R%s{x\n\r{XIf your client supports it, encrypted connection is available on port %d\n\r\n\r", game_settings.insecure_warning_msg, game_settings.tls_port);
-		write_to_buffer(dnew, buf, 0);
-	}
+    if (!is_tls && game_settings.enable_tls && game_settings.enable_insecure_warning && game_settings.insecure_warning_msg != NULL)
+    {
+        sprintf(buf, "{R%s{x\n\r{XIf your client supports it, encrypted connection is available on port %d\n\r", game_settings.insecure_warning_msg, game_settings.tls_port);
+        write_to_buffer(dnew, buf, 0);
+    }
 
-	if (!IS_NULLSTR(game_settings.login_string))
-	{
-		write_to_buffer(dnew, game_settings.login_string, 0);
-		write_to_buffer(dnew, "\n\r", 0);
-	}
-	else
-	{
-    	write_to_buffer(dnew, "By what name do you wish to be known? ", 0);
-	}
+    if (!IS_NULLSTR(game_settings.login_string))
+    {
+        write_to_buffer(dnew, game_settings.login_string, 0);
+        write_to_buffer(dnew, "\n\r", 0);
+    }
+    else
+    {
+        write_to_buffer(dnew, "By what name do you wish to be known? ", 0);
+    }
 }
 
 
@@ -1216,59 +1313,43 @@ void close_socket(DESCRIPTOR_DATA *dclose)
     if (dclose->outtop > 0)
 	process_output(dclose, false);
 
-    if (dclose->snoop_by != NULL)
-    {
-	write_to_buffer(dclose->snoop_by,
-	    "Your victim has left the game.\n\r", 0);
-    }
-
-    {
-	DESCRIPTOR_DATA *d;
-
-	for (d = descriptor_list; d != NULL; d = d->next)
-	{
-	    if (d->snoop_by == dclose)
-		d->snoop_by = NULL;
-	}
-    }
-
     if ((ch = dclose->character) != NULL)
     {
-	sprintf(log_buf, "Closing link to %s.", ch->name);
-	log_string(log_buf);
-	/* cut down on wiznet spam when rebooting */
-	if (dclose->connected == CON_PLAYING && !merc_down)
-	{
-	    if (ch->invis_level < LEVEL_IMMORTAL)
-			act("$n has lost $s link.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		wiznet("$N has lost $S link.",ch,NULL,WIZ_LINKS,0,0);
+		sprintf(log_buf, "Closing link to %s.", ch->name);
+		log_string(log_buf);
+		/* cut down on wiznet spam when rebooting */
+			if (dclose->connected == CON_PLAYING && !merc_down)
+			{
+	    		if (ch->invis_level < STAFF_IMMORTAL)
+					act("$n has lost $s link.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				wiznet("$N has lost $S link.",ch,NULL,WIZ_LINKS,0,0);
 
-	    ch->desc = NULL;
-	}
-	else
-	{
-	    free_char(dclose->original ? dclose->original :
-		dclose->character);
-	}
+	    		ch->desc = NULL;
+			}
+			else
+			{
+	    		free_char(dclose->original ? dclose->original :
+				dclose->character);
+			}
     }
 
     if (d_next == dclose)
-	d_next = d_next->next;
+		d_next = d_next->next;
 
     if (dclose == descriptor_list)
     {
-	descriptor_list = descriptor_list->next;
+		descriptor_list = descriptor_list->next;
     }
     else
     {
-	DESCRIPTOR_DATA *d;
+		DESCRIPTOR_DATA *d;
 
-	for (d = descriptor_list; d && d->next != dclose; d = d->next)
-	    ;
-	if (d != NULL)
-	    d->next = dclose->next;
-	else
-	    bug("Close_socket: dclose not found.", 0);
+		for (d = descriptor_list; d && d->next != dclose; d = d->next)
+		    ;
+		if (d != NULL)
+		    d->next = dclose->next;
+		else
+	    	bug("Close_socket: dclose not found.", 0);
     }
 
     if (dclose->out_compress) {
@@ -1278,17 +1359,67 @@ void close_socket(DESCRIPTOR_DATA *dclose)
     }
 
     ProtocolDestroy(dclose->pProtocol);
-    // Properly shut down TLS/SSL connections if present
-if (dclose->ssl != NULL) {
-    int ret = SSL_shutdown(dclose->ssl);
-    // If SSL_shutdown returns 0, it means we've sent the close_notify alert
-    // but haven't received the peer's close_notify. Ideally we would call SSL_shutdown
-    // again after a time, but since we're closing the socket anyway, we can skip this.
-    SSL_free(dclose->ssl);
-    dclose->ssl = NULL;
-}
-    // Gracefully shut down the socket before closing to avoid lingering FIN_WAIT2
+
+    // Properly shut down TLS/SSL connection with complete error handling
+    if (dclose->ssl != NULL) {
+        int ret, err;
+        
+        // Only attempt graceful shutdown if not in handshake mode
+        if (!dclose->tls_handshake_in_progress) {
+            ret = SSL_shutdown(dclose->ssl);
+            
+            // If SSL_shutdown returns 0, it means we've sent close_notify but haven't 
+            // received one back - one more call is needed for a complete shutdown
+            if (ret == 0) {
+                // Second call to complete bidirectional shutdown
+                SSL_shutdown(dclose->ssl);
+            } 
+            else if (ret < 0) {
+                // Handle shutdown errors to prevent SSL context corruption
+                err = SSL_get_error(dclose->ssl, ret);
+                if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE) {
+                    // Create memory BIO to capture OpenSSL errors
+                    BIO *bio = BIO_new(BIO_s_mem());
+                    ERR_print_errors(bio);
+                    
+                    // Extract the error messages to a buffer
+                    char ssl_err_buf[MAX_STRING_LENGTH];
+                    char *bio_data;
+                    long bio_len = BIO_get_mem_data(bio, &bio_data);
+                    
+                    // Copy and null-terminate the error data
+                    if (bio_len >= MAX_STRING_LENGTH)
+                        bio_len = MAX_STRING_LENGTH - 1;
+                    memcpy(ssl_err_buf, bio_data, bio_len);
+                    ssl_err_buf[bio_len] = '\0';
+                    BIO_free(bio);
+                    
+                    // Log the SSL error
+                    sprintf(log_buf, "SSL_shutdown error: %d\nSSL errors: %s", 
+                            err, ssl_err_buf);
+                    log_string(log_buf);
+                }
+            }
+        }
+        
+        // Always free the SSL object
+        SSL_free(dclose->ssl);
+        dclose->ssl = NULL;
+    }
+
+	if (dclose->account) {
+    	dclose->account->refcount--;
+    	if (dclose->account->refcount <= 0) {
+        	list_remlink(loaded_accounts, dclose->account, false);
+        	free_account(dclose->account);
+    	}
+    	dclose->account = NULL;
+	}
+    
+	// Gracefully shut down the socket before closing to avoid lingering FIN_WAIT2
     shutdown(dclose->descriptor, SHUT_RDWR);
+    close(dclose->descriptor);
+
     free_descriptor(dclose);
     return;
 }
@@ -1298,94 +1429,112 @@ bool read_from_descriptor(DESCRIPTOR_DATA *d)
 {
     int iStart;
 
+    d->last_activity = current_time;
+
     static char read_buf[MAX_PROTOCOL_BUFFER];
     read_buf[0] = '\0';
 
-    /* Hold horses if pending command already. */
     if (d->incomm[0] != '\0')
-	return true;
+        return true;
 
-    /* Check for overflow. */
-//    iStart = strlen(d->inbuf);
-//    if (iStart >= sizeof(d->inbuf) - 10)
     iStart = 0;
-    if(strlen(d->inbuf) >= sizeof(d->inbuf) - 10)
+    if (strlen(d->inbuf) >= sizeof(d->inbuf) - 10)
     {
-	sprintf(log_buf, "%s input overflow!", d->host);
-	log_string(log_buf);
-	write_to_descriptor(d, "\n\r*** PUT A LID ON IT!!! ***\n\r", 0);
-	return false;
+        sprintf(log_buf, "%s input overflow!", d->host);
+        log_string(log_buf);
+        write_to_descriptor(d, "\n\r*** PUT A LID ON IT!!! ***\n\r", 0);
+        return false;
     }
 
-    /* Snarf input. */
-    for (; ;)
+    for (;;)
     {
-	int nRead;
-/*
-	nRead = read(d->descriptor, d->inbuf + iStart,
-	    sizeof(d->inbuf) - 10 - iStart);
-	if (nRead > 0)
-	{
-	    iStart += nRead;
-	    if (d->inbuf[iStart-1] == '\n' || d->inbuf[iStart-1] == '\r')
-		break;
-	}
-*/
-if (d->ssl)
-{
-    do {
-        nRead = SSL_read(d->ssl, read_buf + iStart, sizeof(read_buf) - 10 - iStart);
-        if (nRead <= 0) {
-            int err = SSL_get_error(d->ssl, nRead);
-            if (err == SSL_ERROR_WANT_READ) {
-                // The operation did not complete; the same I/O function should be called again later
-                break;
-            } else if (err == SSL_ERROR_ZERO_RETURN || 
-                       err == SSL_ERROR_SYSCALL) {
-                // Connection closed cleanly (EOF) or abruptly
-                // Removed excessive logging
-                return false;
-            } else {
-                // Only log detailed errors for unexpected failures
-                // This avoids spamming logs for normal connection closes
-                if (err != SSL_ERROR_SSL) {
-                    fprintf(stderr, "SSL_read failed with error: %d\n", err);
-                    ERR_print_errors_fp(stderr);
-                    fprintf(stderr, "SSL state: %s\n", SSL_state_string_long(d->ssl));
+        int nRead = 0;
+        if (d->ssl)
+        {
+            do {
+                nRead = SSL_read(d->ssl, read_buf + iStart, sizeof(read_buf) - 10 - iStart);
+                if (nRead <= 0) {
+                    int err = SSL_get_error(d->ssl, nRead);
+                    if (err == SSL_ERROR_WANT_READ) {
+                        break;
+                    } else if (err == SSL_ERROR_ZERO_RETURN || err == SSL_ERROR_SYSCALL) {
+                        return false;
+                    } else {
+                        // Create a memory BIO to capture OpenSSL errors
+                        BIO *bio = BIO_new(BIO_s_mem());
+                        ERR_print_errors(bio);
+                        
+                        // Extract the error messages to a buffer
+                        char ssl_err_buf[MAX_STRING_LENGTH];
+                        char *bio_data;
+                        long bio_len = BIO_get_mem_data(bio, &bio_data);
+                        
+                        // Copy and null-terminate the error data
+                        if (bio_len >= MAX_STRING_LENGTH)
+                            bio_len = MAX_STRING_LENGTH - 1;
+                        memcpy(ssl_err_buf, bio_data, bio_len);
+                        ssl_err_buf[bio_len] = '\0';
+                        BIO_free(bio);
+                        
+                        // Update circuit breaker counters
+                        ssl_errors_since_reset++;
+                        last_ssl_error = current_time;
+                        
+                        // Log using the standard pattern
+                        sprintf(log_buf, "SSL_read failed with error: %d\nSSL errors: %s\nSSL state: %s", 
+                                err, ssl_err_buf, SSL_state_string_long(d->ssl));
+                        bug(log_buf, 0);
+                        
+                        return false;
+                    }
                 }
-                return false;
-            }
+            } while (nRead <= 0);
         }
-    } while (nRead <= 0);
-}
-	else
-	{
-		nRead = read( d->descriptor, read_buf + iStart,
-			sizeof(read_buf) - 10 - iStart );
-	}
-	if ( nRead > 0 )
-	{
-	    iStart += nRead;
-	    if ( read_buf[iStart-1] == '\n' || read_buf[iStart-1] == '\r' )
-		break;
-	}
-else if (nRead == 0)
-{
-    // Removed excessive logging - normal connection closure
-    return false;
-}
-else if (errno == EWOULDBLOCK)
-    break;
-else
-{
-    perror("Read_from_descriptor");
-    return false;
-}
+        else
+        {
+            nRead = read(d->descriptor, read_buf + iStart, sizeof(read_buf) - 10 - iStart);
+        }
+        
+        if (nRead > 0)
+        {
+            read_buf[nRead] = '\0';
+            iStart += nRead;
+            
+            // Check for health check (both TLS and non-TLS)
+            if (strncmp(read_buf, "HEALTH_CHECK", 12) == 0)
+            {
+                // Mark as health check
+                d->healthcheck = true;
+                
+                // Send quick response
+                const char *response = "OK\r\n";
+                if (d->ssl)
+                    SSL_write(d->ssl, response, strlen(response));
+                else
+                    write(d->descriptor, response, strlen(response));
+                
+                // Don't process further - close socket in next game loop
+                return true;
+            }
+            
+            if (read_buf[iStart - 1] == '\n' || read_buf[iStart - 1] == '\r')
+                break;
+        }
+        else if (nRead == 0)
+        {
+            return false;
+        }
+        else if (errno == EWOULDBLOCK)
+            break;
+        else
+        {
+            perror("Read_from_descriptor");
+            return false;
+        }
     }
 
-//    d->inbuf[iStart] = '\0';
     read_buf[iStart] = '\0';
-    ProtocolInput(d,read_buf,iStart,d->inbuf);
+    ProtocolInput(d, read_buf, iStart, d->inbuf);
     return true;
 }
 
@@ -1488,13 +1637,13 @@ void read_from_buffer(DESCRIPTOR_DATA *d)
 		log_string(log_buf);
 
 		wiznet("Spam spam spam $N spam spam spam!",
-		       d->character,NULL,WIZ_SPAM,0,get_trust(d->character));
+		       d->character,NULL,WIZ_SPAM,0,get_staff_rank(d->character));
 		if (d->incomm[0] == '!')
 		    wiznet(d->inlast,d->character,NULL,WIZ_SPAM,0,
-			get_trust(d->character));
+			get_staff_rank(d->character));
 		else
 		    wiznet(d->incomm,d->character,NULL,WIZ_SPAM,0,
-			get_trust(d->character));
+			get_staff_rank(d->character));
 
 		d->repeat = 0;
 
@@ -1533,139 +1682,198 @@ bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
 {
     extern bool merc_down;
 
-    /*
-     * Bust a prompt.
-     */
-	if(d->pProtocol->WriteOOB)
-		;
+    if (d->pProtocol->WriteOOB)
+    {
+        // Do nothing for OOB
+    }
     else if (!merc_down)
     {
-		if (d->showstr_point)
-			write_to_buffer(d, "{x[Hit Return to continue]\n\r", 0);
-		else if (fPrompt && d->pString && d->connected == CON_PLAYING)
-			write_to_buffer(d, "> ", 2);
-		else if (fPrompt && d->connected == CON_PLAYING)
-		{
-			CHAR_DATA *ch;
-			CHAR_DATA *victim;
+        if (d->showstr_point)
+        {
+            write_to_buffer(d, "{x[Hit Return to continue]\n\r", 0);
+            if (!d->pProtocol->bSGA)
+                write_to_buffer(d, GoAheadStr, 0);
 
-			ch = d->character;
+        }
+        else if (fPrompt && d->pString && d->connected == CON_PLAYING)
+        {
+            write_to_buffer(d, "> ", 2);
+            if (!d->pProtocol->bSGA)
+                write_to_buffer(d, GoAheadStr, 0);
+        }
+        else if (fPrompt && d->connected == CON_PLAYING)
+        {
+            CHAR_DATA *ch = d->character;
+            CHAR_DATA *victim;
 
-			/* battle prompt */
-			if ((victim = ch->fighting) != NULL && can_see(ch,victim) && ch->in_room == victim->in_room)
-			{
-				int percent;
-				char wound[100];
-//				char *pbuff;
-				char buf[2*MAX_STRING_LENGTH];
-				char buf2[MSL];
-				//char buffer[MAX_STRING_LENGTH*2];
+            // Battle prompt
+            if ((victim = ch->fighting) != NULL && can_see(ch, victim) && ch->in_room == victim->in_room)
+            {
+                int percent;
+                char wound[100];
+                char buf[2 * MAX_STRING_LENGTH];
+                char buf2[MSL];
 
-				if (victim->max_hit > 0)
-					percent = victim->hit * 100 / victim->max_hit;
-				else
-					percent = -1;
+                if (victim->max_hit > 0)
+                    percent = victim->hit * 100 / victim->max_hit;
+                else
+                    percent = -1;
 
-				if (percent >= 100)
-					strcpy(wound, "is in excellent condition.");
-				else if (percent >= 90)
-					strcpy(wound, "has a few scratches.");
-				else if (percent >= 80)
-					strcpy(wound, "has a few scratches and bruises.");
-				else if (percent >= 70)
-					strcpy(wound, "has some small wounds.");
-				else if (percent >= 60)
-					strcpy(wound, "has some small wounds and bruises.");
-				else if (percent >= 50)
-					strcpy(wound, "has some nasty wounds and scratches.");
-				else if (percent >= 40)
-					strcpy(wound, "looks pretty hurt.");
-				else if (percent >= 30)
-					strcpy(wound, "looks very hurt.");
-				else if (percent >= 20)
-					strcpy(wound, "is in awful condition.");
-				else if (percent >= 10)
-					strcpy(wound, "is barely clinging to life.");
-				else
-					strcpy(wound, "is on the verge of death.");
-				/*
-				if (percent >= 100)
-					sprintf(wound,"is in excellent condition.");
-				else if (percent >= 90)
-					sprintf(wound,"has a few scratches.");
-				else if (percent >= 75)
-					sprintf(wound,"has some small wounds and bruises.");
-				else if (percent >= 50)
-					sprintf(wound,"has quite a few wounds.");
-				else if (percent >= 30)
-					sprintf(wound,"has some big nasty wounds and scratches.");
-				else if (percent >= 15)
-					sprintf(wound,"looks pretty hurt.");
-				else if (percent >= 0)
-					sprintf(wound,"is in awful condition.");
-				else
-					sprintf(wound,"is bleeding to death.");
-				*/
-				if (IS_SET(ch->comm, COMM_SHOW_FORM_STATE))
-					show_form_state(ch);
+                if (percent >= 100)
+                    strcpy(wound, "is in excellent condition.");
+                else if (percent >= 90)
+                    strcpy(wound, "has a few scratches.");
+                else if (percent >= 80)
+                    strcpy(wound, "has a few scratches and bruises.");
+                else if (percent >= 70)
+                    strcpy(wound, "has some small wounds.");
+                else if (percent >= 60)
+                    strcpy(wound, "has some small wounds and bruises.");
+                else if (percent >= 50)
+                    strcpy(wound, "has some nasty wounds and scratches.");
+                else if (percent >= 40)
+                    strcpy(wound, "looks pretty hurt.");
+                else if (percent >= 30)
+                    strcpy(wound, "looks very hurt.");
+                else if (percent >= 20)
+                    strcpy(wound, "is in awful condition.");
+                else if (percent >= 10)
+                    strcpy(wound, "is barely clinging to life.");
+                else
+                    strcpy(wound, "is on the verge of death.");
 
-				sprintf(buf2, "%s", pers(victim, ch));
-				buf2[0] = UPPER(buf2[0]);
+                if (IS_SET(ch->comm, COMM_SHOW_FORM_STATE))
+                    show_form_state(ch);
 
-				sprintf(buf,"{M%s %s \n\r{x", buf2, wound);
-				buf[0]	= UPPER(buf[0]);
-//				pbuff	= buffer;
-				//colourconv(pbuff, buf, d->character);
-				write_to_buffer(d, buf, 0);
-			}
+                sprintf(buf2, "%s", pers(victim, ch));
+                buf2[0] = UPPER(buf2[0]);
 
+                sprintf(buf, "{M%s %s \n\r{x", buf2, wound);
+                buf[0] = UPPER(buf[0]);
+                write_to_buffer(d, buf, 0);
+            }
 
-			ch = d->original ? d->original : d->character;
-			if (!IS_SET(ch->comm, COMM_COMPACT))
-				write_to_buffer(d, "\n\r", 2);
+            ch = d->original ? d->original : d->character;
+            if (!IS_SET(ch->comm, COMM_COMPACT))
+                write_to_buffer(d, "\n\r", 2);
 
+            if (IS_SET(ch->comm, COMM_PROMPT))
+                bust_a_prompt(d->character);
 
-			if (IS_SET(ch->comm, COMM_PROMPT))
-				bust_a_prompt(d->character);
+            if (!d->pProtocol->bSGA)
+                write_to_buffer(d, GoAheadStr, 0);
 
-			if ( !d->pProtocol->bSGA )
-				write_to_buffer( d, GoAheadStr, 0 );
+            if (IS_SET(ch->comm, COMM_TELNET_GA))
+                write_to_buffer(d, go_ahead_str, 0);
+        }
+else if (fPrompt && !d->showstr_point && !d->pString)
+{
+    // Only add prompts for states that don't already include them in their handlers
+    switch (d->connected) {
+        // Menu states - these use "Enter choice: "
+        case CON_ACCOUNT_MENU:
+        case CON_CHARACTER_MENU:
+        case CON_ACCOUNT_MFA_MENU:
+        case CON_CHARACTER_MFA_MENU:
+			write_to_buffer(d, "Enter choice: ", 0);
+            break;
+            
+        // Login states with specific prompts
+        case CON_GET_ACCOUNT_NAME:
+		
 
-			if (IS_SET(ch->comm,COMM_TELNET_GA))
-				write_to_buffer(d,go_ahead_str,0);
-		}
-	}
+            break;
+        case CON_GET_ACCOUNT_PASSWORD:
+        case CON_CHANGE_ACCOUNT_PASSWORD:
+        case CON_CHANGE_PASSWORD:
+        case CON_GET_OLD_PASSWORD:
+        case CON_NEW_ACCOUNT_PASSWORD:
+        case CON_GET_NEW_PASSWORD:
+        case CON_STAFF_PASSWORD:
+            write_to_buffer(d, "Password: ", 0);
+            break;
+        case CON_CONFIRM_ACCOUNT_PASSWORD:
+        case CON_CONFIRM_CHARACTER_PASSWORD:
+        case CON_CHANGE_PASSWORD_CONFIRM:
+        case CON_CONFIRM_NEW_PASSWORD:
+        case CON_CONFIRM_STAFF_PASSWORD:
+            write_to_buffer(d, "Confirm password: ", 0);
+            break;
+        case CON_GET_ACCOUNT_EMAIL:
+        case CON_CHANGE_ACCOUNT_EMAIL:
+        case CON_GET_EMAIL:
+        case CON_CHANGE_CHARACTER_EMAIL:
+        case CON_GET_STAFF_EMAIL:
+            write_to_buffer(d, "Email: ", 0);
+            break;
+        case CON_GET_ACCOUNT_MFA:
+        case CON_GET_MFA:
+        case CON_GET_CHAR_MFA:
+        case CON_GET_ACCOUNT_MFA_FOR_CHAR:
+        case CON_ACCOUNT_MFA_VERIFY_FOR_SETTINGS:
+        case CON_ACCOUNT_MFA_CONFIRM:
+        case CON_CHARACTER_MFA_VERIFY:
+        case CON_CHARACTER_MFA_VERIFY_FOR_SETTINGS:
+        case CON_CHARACTER_MFA_CONFIRM:
+        case CON_VERIFY_UNLINK_MFA:
+        case CON_VERIFY_DELETE_MFA:
+            write_to_buffer(d, "MFA code: ", 0);
+            break;
+        case CON_GET_CHAR_PASSWORD:
+        case CON_LINK_CHARACTER_PASSWORD:
+            write_to_buffer(d, "Character password: ", 0);
+            break;
+        case CON_CREATING_NEW_CHAR:
+            write_to_buffer(d, "Character name: ", 0);
+            break;
+        case CON_CREATING_NEW_STAFF_CHAR:
+            write_to_buffer(d, "Staff character name: ", 0);
+            break;
+        case CON_LINK_CHARACTER_NAME:
+            write_to_buffer(d, "Character to link: ", 0);
+            break;
+        case CON_SET_UNLINK_PASSWORD:
+            write_to_buffer(d, "New password: ", 0);
+            break;
+        case CON_VERIFY_ACCOUNT_EMAIL_CHANGE:
+        case CON_VERIFY_CHARACTER_EMAIL_CHANGE:
+            write_to_buffer(d, "Verification code: ", 0);
+            break;
+        case CON_CONFIRM_DELETE_CHARACTER:
+        case CON_CONFIRM_NEW_NAME:
+            // These expect yes/no or specific confirmation text
+            // Don't add a default prompt
+            break;
+            
+        // Add telnet GA signal for most states
+        default:
+            // Don't add any default prompt text - rely on handler functions
+            break;
+    }
+    
+    // Add telnet GA for relevant states
+    if (d->connected != CON_PLAYING && 
+        d->connected != CON_READ_MOTD &&
+        d->connected != CON_READ_IMOTD) {
+        write_to_buffer(d, go_ahead_str, 0);
+    }
+}
 
-    /*
-     * Short-circuit if nothing to write.
-     */
-	if (d->outtop == 0)
-		return true;
+    }
 
-    /*
-     * Snoop-o-rama.
-     */
-	if (d->snoop_by != NULL)
-	{
-		if (d->character != NULL)
-			write_to_buffer(d->snoop_by, d->character->name,0);
-		write_to_buffer(d->snoop_by, "> ", 2);
-		write_to_buffer(d->snoop_by, d->outbuf, d->outtop);
-	}
+    if (d->outtop == 0)
+        return true;
 
-    /*
-     * OS-dependent output.
-     */
-	if (!write_to_descriptor(d, d->outbuf, d->outtop))
-	{
-		d->outtop = 0;
-		return false;
-	}
-	else
-	{
-		d->outtop = 0;
-		return true;
-	}
+    if (!write_to_descriptor(d, d->outbuf, d->outtop))
+    {
+        d->outtop = 0;
+        return false;
+    }
+    else
+    {
+        d->outtop = 0;
+        return true;
+    }
 }
 
 
@@ -2055,32 +2263,41 @@ bool write_to_descriptor_2(DESCRIPTOR_DATA *d, char *txt, int length)
     int nWrite;
     int nBlock;
 
+	d->last_activity = current_time;
+
     if (d->out_compress)
         return writeCompressed(d, txt, length);
 
     for (iStart = 0; iStart < length; iStart += nWrite)
     {
-		nBlock = UMIN(length - iStart, 4096);
-		if (d->ssl) {
-			nWrite = SSL_write(d->ssl, txt + iStart, nBlock);
-			if (nWrite <= 0) {
-				int err = SSL_get_error(d->ssl, nWrite);
-				if (err == SSL_ERROR_WANT_WRITE) {
-				// The operation did not complete; the same I/O function should be called again later
-					break;
-				} else {
-					fprintf(stderr, "SSL_write failed with error: %d\n", err);
-					ERR_print_errors_fp(stderr);
-					return false;
-				}
-			}
-		} else {
-			nWrite = write(d->descriptor, txt + iStart, nBlock);
-			if (nWrite < 0) {
-				perror("Write_to_descriptor_2");
-				return false;
-			}
-		}
+        nBlock = UMIN(length - iStart, 4096);
+        if (d->ssl) {
+            nWrite = SSL_write(d->ssl, txt + iStart, nBlock);
+            if (nWrite <= 0) {
+                int err = SSL_get_error(d->ssl, nWrite);
+                if (err == SSL_ERROR_WANT_WRITE) {
+                    // The operation didn't complete; try again later
+                    break;
+                } else if (err == SSL_ERROR_SYSCALL && errno == EPIPE) {
+                    // Explicitly handle EPIPE here
+                    return false;
+                } else {
+                    fprintf(stderr, "SSL_write failed with error: %d\n", err);
+                    ERR_print_errors_fp(stderr);
+                    return false;
+                }
+            }
+        } else {
+            nWrite = write(d->descriptor, txt + iStart, nBlock);
+            if (nWrite < 0) {
+                                if (errno == EPIPE) {
+                    // Explicitly handle EPIPE here
+                    return false; 
+                }
+                perror("Write_to_descriptor_2");
+                return false;
+            }
+        }
     }
 
     return true;
@@ -2198,7 +2415,7 @@ void join_world(DESCRIPTOR_DATA * d)
     do_function (ch, &do_look, "auto");
 
     wiznet ("$N has left real life behind.", ch, NULL,
-            WIZ_LOGINS, WIZ_SITES, get_trust (ch));
+            WIZ_LOGINS, WIZ_SITES, get_staff_rank (ch));
 
     if (ch->pet != NULL)
     {
@@ -2212,1292 +2429,6 @@ void join_world(DESCRIPTOR_DATA * d)
 */
 
 
-/*
- * Deal with sockets that haven't logged in yet.
- */
-void nanny(DESCRIPTOR_DATA *d, char *argument)
-{
-	DESCRIPTOR_DATA *d_old, *d_next, *d2;
-	char buf[MAX_STRING_LENGTH];
-	char arg[MAX_INPUT_LENGTH];
-	char races[MSL];
-	char classes[MSL];
-	char subclasses[MSL];
-	CHAR_DATA *ch;
-	char *pwdnew;
-	int iClass,race,i,weapon;
-	bool fOld;
-	long playernum;
-	HELP_DATA *help;
-	long vector, *field;
-	
-
-	iClass = -1;
-
-	while (ISSPACE(*argument))
-		argument++;
-
-	ch = d->character;
-
-	switch (d->connected) {
-	default:
-		bug("Nanny: bad d->connected %d.", d->connected);
-		connection_remove(d);
-		close_socket(d);
-		return;
-
-	case CON_GET_NAME:
-		if (!argument[0]) {
-			close_socket(d);
-			return;
-		}
-
-		argument[0] = UPPER(argument[0]);
-		if (!check_parse_name(argument)) {
-			write_to_buffer(d, "Illegal name, try another.\n\rName: ", 0);
-			return;
-		}
-
-		// Temporarily disabling for reconnect crash.
-		// Check if the player is already playing
-		/*
-		if ((ch = find_existing_player(argument)) != NULL)
-		{
-			fOld = true;
-			d->character = ch;
-		}
-		else
-		{*/
-			fOld = load_char_obj(d, argument);
-
-			ch = d->character;
-
-			if (IS_SET(ch->act[0], PLR_DENY))
-			{
-				sprintf(log_buf, "Denying access to %s@%s.", argument, d->host);
-				log_string(log_buf);
-				write_to_buffer(d, "You are denied access.\n\r", 0);
-				close_socket(d);
-				return;
-			}
-
-			if (check_ban(d->host,BAN_PERMIT))
-			{
-				write_to_buffer(d,"Your site has been banned from Sentience.\n\r",0);
-				close_socket(d);
-				return;
-			}
-
-			// Adding back in for reconnect crash
-			if (check_reconnect(d, argument, false))
-				fOld = true;
-			else
-			{
-			if (game_settings.wizlock && !IS_IMMORTAL(ch))
-			{
-				if (!IS_NULLSTR(game_settings.wizlock_msg))
-					write_to_buffer(d, game_settings.wizlock_msg, 0);
-				else
-					write_to_buffer(d, "The game is wizlocked.\n\r", 0);
-				write_to_buffer(d, "You can also check the server status via the '#server-status' channel on discord.\n\r", 0);
-				sprintf(buf, "The game is wizlocked, %s tried to connect from %s.", argument, d->host);
-				log_string(buf);
-				sprintf(buf, "Wizlocked: %s tried to connect from %s.", argument, d->host);
-				wiznet(buf, ch, NULL, WIZ_LOGINS, 0, 0);
-				close_socket(d);
-				return;
-			}
-		}
-
-		/* Old player */
-		if (fOld)
-		{
-			if (d->character->pcdata->reset_state == RESET_PENDING)
-				write_to_buffer(d, "Password or Reset Code: ", 0);
-			else
-				write_to_buffer(d, "Password: ", 0);
-			ProtocolNoEcho(d,true);
-			d->connected = CON_GET_OLD_PASSWORD;
-
-#if 0
-			if (port != PORT_SYN) {
-				write_to_buffer(d, "Password: ", 0);
-				ProtocolNoEcho(d,true);
-				d->connected = CON_GET_OLD_PASSWORD;
-			}
-
-			/* Syn - placed here for ease of testing so that I don't have to spam through
-				pw entry/motd's every single time I boot the game. DEBUG is a definition
-				as a safeguard just in case someone runs it on PORT_SYN for whatever reason. */
-			else if (DEBUG == true)
-			{
-				write_to_buffer(d, "Welcome back, Master.\n\r", 0);
-				if (check_playing(d,ch->name))
-					return;
-
-				if (check_reconnect(d,ch->name,true))
-					return;
-
-				reset_char(ch);
-
-				list_appendlink(loaded_chars, ch);
-				list_appendlink(loaded_players, ch);
-
-				char_to_room(ch, ch->in_room);
-				d->connected = CON_PLAYING;
-				do_function(d->character, &do_look, "");
-			}
-
-#endif
-			return;
-		}
-		else
-		{
-			/* New player */
-			if (game_settings.new_acct_lock || game_settings.new_char_lock)
-			{
-				if (game_settings.new_acct_lock)
-					write_to_buffer(d, game_settings.new_acct_lock_msg, 0);
-				else
-					write_to_buffer(d, "New characters are not allowed.\n\r", 0);
-				close_socket(d);
-				return;
-			}
-
-			if (check_ban(d->host,BAN_NEWBIES))
-			{
-				write_to_buffer(d, "New players are not allowed from your site.\n\r",0);
-				close_socket(d);
-				return;
-			}
-
-			if(telnet_port == PORT_ALPHA) newlock = true;	/* Reset the newlock, even if this one fails to do anything...*/
-
-			sprintf(buf, "\n\rDo you want to create a character named %s (Y/N)? ", argument);
-			write_to_buffer(d, buf, 0);
-			d->connected = CON_CONFIRM_NEW_NAME;
-			return;
-		}
-		break;
-
-	case CON_GET_OLD_PASSWORD:
-		write_to_buffer(d, "\n\r", 2);
-
-		if (d->login_attempts >= game_settings.max_login_attempts)
-		{
-			write_to_buffer(d, "Too many login attempts. Goodbye.\n\r", 0);
-			close_socket(d);
-			return;
-		}
-
-		if (game_settings.enable_email)
-		{
-			if(!strcmp(argument, "resetpassword"))
-				{
-					if (ch->pcdata->reset_state == RESET_PENDING)
-					{
-						write_to_buffer(d, "You have already requested a password reset. Please enter the reset code.\n\r", 0);
-						d->connected = CON_GET_OLD_PASSWORD;
-						return;
-					}
-					else
-					{
-						if (ch->pcdata->email[0] == '\0')
-						{
-							write_to_buffer(d, "You must have an email address set to reset your password. Please reach out to staff for a manual reset.\n\r", 0);
-							d->connected = CON_GET_OLD_PASSWORD;
-							return;
-						}
-						else
-						{
-							write_to_buffer(d, "Please confirm your email address: \n\r", 0);
-							d->connected = CON_CONFIRM_EMAIL_FOR_RESET;
-							return;
-						}
-					}
-
-				}
-			}
-				
-
-		if (d->character->pcdata->reset_state == RESET_PENDING)
-		{
-			if (strcmp(argument, ch->pcdata->reset_code) && strcmp(sha256_crypt(argument), ch->pcdata->pwd) && strcmp(crypt(argument, ch->pcdata->pwd), ch->pcdata->pwd) && strcmp(argument, ch->pcdata->pwd))
-			{
-				write_to_buffer(d, "Wrong reset code.\n\r", 0);
-				d->login_attempts++;
-				d->connected = CON_GET_OLD_PASSWORD;
-				return;
-			}
-			if ((current_time - d->character->pcdata->reset_time) > 86400)
-			{
-				write_to_buffer(d, "Reset code has expired. Please try resetting again.\n\r", 0);
-				d->character->pcdata->reset_state = NO_RESET;
-				free_string(ch->pcdata->reset_code);
-				ch->pcdata->reset_time = 0;
-				save_char_obj(ch);
-				close_socket(d);
-				return;
-			}
-			if (!str_cmp(argument, ch->pcdata->reset_code))
-			{
-				ch->pcdata->reset_state = NO_RESET;
-				free_string(ch->pcdata->reset_code);
-				ch->pcdata->reset_code = str_dup("");
-				ch->pcdata->reset_time = 0;
-				save_char_obj(ch);
-				write_to_buffer(d, "Reset code accepted. You are required to set a new password.\n\rPassword: ", 0);
-				ch->pcdata->old_pwd = str_dup(ch->pcdata->pwd);
-				d->connected = CON_CHANGE_PASSWORD;
-				return;
-			}
-		}
-		if (ch->pcdata->pwd_vers < 1) {
-			if (strcmp(crypt(argument, ch->pcdata->pwd), ch->pcdata->pwd))
-			{
-				if (strcmp(argument, ch->pcdata->pwd))
-				{
-					/* Log bad password attempts*/
-					sprintf(log_buf, "Denying access to %s@%s (bad password).",
-					ch->name, d->host);
-					log_string(log_buf);
-					wiznet(log_buf,NULL,NULL,WIZ_LOGINS,0,get_trust(ch));
-					if (game_settings.enable_email)
-						write_to_buffer(d, "Wrong password. Please try again, or use 'resetpassword' to attempt a reset.\n\r", 0);
-					else
-						write_to_buffer(d, "Wrong password. Please try again or reach out to staff for assistance.\n\r", 0);
-					d->login_attempts++;
-					d->connected = CON_GET_OLD_PASSWORD;
-					return;
-				}
-			}
-		}
-		else
-		{
-			if (strcmp(sha256_crypt(argument), ch->pcdata->pwd))
-			{
-				/* Log bad password attempts */
-				sprintf(log_buf, "Denying access to %s@%s (bad password).",
-				ch->name, d->host);
-				log_string(log_buf);
-				wiznet(log_buf,NULL,NULL,WIZ_LOGINS,0,get_trust(ch));
-				if (game_settings.enable_email)
-					write_to_buffer(d, "Wrong password. Please try again, or use 'resetpassword' to attempt a reset.\n\r", 0);
-				else
-					write_to_buffer(d, "Wrong password. Please try again or reach out to staff for assistance.\n\r", 0);
-				d->login_attempts++;
-				d->connected = CON_GET_OLD_PASSWORD;
-				return;
-			}
-		}
-
-		if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled)
-		{
-			send_to_char("\n\rPlease enter your MFA code: ", ch);
-			d->connected = CON_GET_MFA;
-			return;
-		}
-
-
-		//	write_to_buffer(d, echo_on_str, 0);
-		ProtocolNoEcho(d,false);
-
-		if (check_playing(d,ch->name))
-			return;
-
-		if (check_reconnect(d, ch->name, true))
-			return;
-
-		sprintf(log_buf, "%s@%s has connected.", ch->name, d->host);
-		log_string(log_buf);
-
-		ch->pcdata->old_pwd = str_dup(ch->pcdata->pwd);
-
-		/* OLD character who doesn't have an email on file with us will be prompted for it here. */
-		if (ch->pcdata->email == NULL) {
-			write_to_buffer(d, "\n\rPlease enter a valid e-mail address at which we can reach you in case you lose your password.\n\r"
-				"It will not be distributed to any third parties or abused in any way.\n\r", 0);
-			send_to_char("\n\rEnter your e-mail address: ", ch);
-			d->connected = CON_GET_EMAIL;
-			return;
-		}
-        if (ch->pcdata->need_change_pw == true || ch->pcdata->pwd_vers < 1) {
-	        send_to_char("\n\rYou are required to set a new password. Please do so now.\n\r",ch);
-	        d->connected = CON_CHANGE_PASSWORD;
-			return;
-		}
-		if (IS_IMMORTAL(ch))
-		{
-			send_to_char("{BWelcome, Immortal.{x\n\r\n\r", ch);
-			do_function(ch, &do_imotd, "");
-			if(ch->tot_level >= MAX_LEVEL) {
-				if(wizlock) send_to_char("\n\r{b-{B==={C=={W[ {YWIZLOCK ACTIVE{W ]{C=={B==={b-{x\n\r", ch);
-				if(newlock) send_to_char("\n\r{b-{B==={C=={W[ {GNEWLOCK ACTIVE{W ]{C=={B==={b-{x\n\r", ch);
-			}
-			send_to_char("\n\r{WCurrent active projects:{x\n\r", ch);
-			do_function(ch, &do_project, "list open");
-			send_to_char("[Hit Return to continue]\n\r", ch);
-			d->connected = CON_READ_IMOTD;
-		}
-		else
-		{
-			do_function(ch, &do_motd, "");
-			d->connected = CON_READ_MOTD;
-		}
-
-		break;
-
-		case CON_GET_MFA:
-		if (check_mfa(ch, argument))
-		{
-
-			if (check_playing(d,ch->name))
-			return;
-
-			if (check_reconnect(d, ch->name, true))
-			return;
-			
-			if (IS_IMMORTAL(ch))
-			{
-				send_to_char("{BWelcome, Immortal.{x\n\r\n\r", ch);
-				do_function(ch, &do_imotd, "");
-				if(IS_IMPLEMENTOR(ch)) 
-				{
-					if(game_settings.wizlock) 
-						send_to_char("\n\r{b-{B==={C=={W[ {YWIZLOCK ACTIVE{W ]{C=={B==={b-{x\n\r", ch);
-					if(game_settings.new_acct_lock || game_settings.new_char_lock) 
-						send_to_char("\n\r{b-{B==={C=={W[ {GNEWLOCK ACTIVE{W ]{C=={B==={b-{x\n\r", ch);
-				}
-				send_to_char("\n\r{WCurrent active projects:{x\n\r", ch);
-				do_function(ch, &do_project, "list open");
-				send_to_char("[Hit Return to continue]\n\r", ch);
-				d->connected = CON_READ_IMOTD;
-			}
-			else
-			{
-				do_function(ch, &do_motd, "");
-				d->connected = CON_READ_MOTD;
-			}
-		}
-		else
-		{
-			if (d->login_attempts > 2)
-			{
-				write_to_buffer(d, "Too many attempts. Please try again later.\n\r", 0);
-				close_socket(d);
-				return;
-			}
-			d->login_attempts++;
-			d->connected = CON_GET_MFA;
-			return;
-		}
-		break;
-
-	case CON_CONFIRM_EMAIL_FOR_RESET:
-
-		char reset_msg[MSL], reset_subject[MSL];
-		
-		
-		if(d->login_attempts > 2)
-		{
-			write_to_buffer(d, "Too many attempts. Please try again later.\n\r", 0);
-			close_socket(d);
-			return;
-		}
-		if (argument[0] == '\0')
-		{
-			write_to_buffer(d, "Invalid email address. Please try again.\n\r", 0);
-			d->login_attempts++;
-			d->connected = CON_CONFIRM_EMAIL_FOR_RESET;
-			return;
-		}
-		else
-		{
-			if (strcmp(argument, ch->pcdata->email))
-			{
-				write_to_buffer(d, "Email address does not match. Please try again.\n\r", 0);
-				d->login_attempts++;
-				d->connected = CON_CONFIRM_EMAIL_FOR_RESET;
-				return;
-			}
-			else
-			{
-				char tmp_reset_code[16];
-				write_to_buffer(d, "Email address confirmed. A reset code will be sent to you for login.\n\r", 0);
-				write_to_buffer(d, "Password or Reset Code: ", 0);
-				ch->pcdata->reset_state = RESET_PENDING;
-				
-				generate_reset_code(tmp_reset_code, 15);
-				ch->pcdata->reset_code = str_dup(tmp_reset_code);
-				ch->pcdata->reset_time = current_time;
-				save_char_obj(ch);
-
-				sprintf(reset_subject, "Password Reset for %s", d->character->name);
-				sprintf(reset_msg, "Your password reset code is: %s.\nPlease note that this code will expire after 24 hours.\n\r", d->character->pcdata->reset_code);
-
-				send_email_async(d->character, d->character->pcdata->email, reset_subject, reset_msg, NULL, NULL);
-
-				sprintf(log_buf, "Password reset email sent to %s for %s", d->character->pcdata->email, d->character->name);
-				log_string(log_buf);
-				wiznet(log_buf, ch, NULL, WIZ_LOGINS, 0, 154);
-				d->connected = CON_GET_OLD_PASSWORD;
-				return;
-			}
-		}
-		break;
-
-	case CON_CHANGE_PASSWORD:
-
-		if (argument[0] == '\0')
-		{
-			d->connected = CON_CHANGE_PASSWORD;
-			return;
-		}
-		if (ch->pcdata->pwd_vers < 1) 
-		{
-			if (!strcmp(crypt(argument, ch->pcdata->old_pwd), ch->pcdata->old_pwd))
-			{
-				send_to_char("Password must be DIFFERENT from your current password!\n\rPassword: ", ch);
-				d->connected = CON_CHANGE_PASSWORD;
-				return;
-			}
-		}
-		else
-		{
-			if (!strcmp(sha256_crypt(argument), ch->pcdata->old_pwd))
-			{
-				send_to_char("Password must be DIFFERENT from your current password!\n\rPassword: ", ch);
-				d->connected = CON_CHANGE_PASSWORD;
-				return;
-			}
-		}
-
-
-		if (!acceptablePassword(d, argument))
-			return;
-
-		pwdnew = sha256_crypt(argument);
-
-		free_string(ch->pcdata->pwd);
-		ch->pcdata->pwd	= str_dup(pwdnew);
-		write_to_buffer(d, "\n\rPlease retype new password: ", 0);
-
-		ch->pcdata->need_change_pw = false;
-		d->connected = CON_CHANGE_PASSWORD_CONFIRM;
-		break;
-
-	case CON_CHANGE_PASSWORD_CONFIRM:
-		if (strcmp(sha256_crypt(argument), ch->pcdata->pwd))
-		{
-			write_to_buffer(d, "Passwords don't match.\n\rPassword: ", 0);
-			d->connected = CON_CHANGE_PASSWORD;
-			return;
-		}
-
-		send_to_char("\n\r\n\r{Y***{x {RThank you. Please remember to never give your password to anybody.{Y *** {x\n\r\n\r", ch);
-		if (ch->pcdata->pwd_vers < 1){
-			ch->pcdata->pwd_vers = 1;
-		}
-		save_char_obj(d->character);
-//		write_to_buffer(d, echo_on_str, 0);
-		ProtocolNoEcho(d,false);
-
-		if (IS_IMMORTAL(ch))
-		{
-			do_function(ch, &do_imotd, "");
-			d->connected = CON_READ_IMOTD;
-		}
-		else
-		{
-			do_function(ch, &do_motd, "");
-			d->connected = CON_READ_MOTD;
-		}
-
-		break;
-
-	case CON_BREAK_CONNECT:
-		switch(*argument)
-		{
-		case 'y' : case 'Y':
-			for (d_old = descriptor_list; d_old != NULL; d_old = d_next)
-			{
-				d_next = d_old->next;
-				if (d_old == d || d_old->character == NULL)
-					continue;
-
-				if (str_cmp(ch->name,d_old->original ?
-					d_old->original->name : d_old->character->name))
-				continue;
-
-				close_socket(d_old);
-			}
-			if (check_reconnect(d,ch->name,true))
-				return;
-			write_to_buffer(d,"Reconnect attempt failed.\n\rName: ",0);
-			if (d->character != NULL)
-			{
-				free_char(d->character);
-				d->character = NULL;
-			}
-			d->connected = CON_GET_NAME;
-			break;
-
-		case 'n' : case 'N':
-			write_to_buffer(d,"Name: ",0);
-			if (d->character != NULL)
-			{
-				free_char(d->character);
-				d->character = NULL;
-			}
-			d->connected = CON_GET_NAME;
-			break;
-
-		default:
-			write_to_buffer(d,"Please type Y or N? ",0);
-			break;
-		}
-		break;
-
-	case CON_CONFIRM_NEW_NAME:
-		switch (*argument)
-		{
-		case 'y': case 'Y':
-//			sprintf(buf, "\n\rEnter a password for %s: %s", ch->name, echo_off_str);
-			ProtocolNoEcho(d, true);
-			sprintf(buf, "\n\rEnter a password for %s: ", ch->name);
-			write_to_buffer(d, buf, 0);
-			d->connected = CON_GET_NEW_PASSWORD;
-			break;
-
-		case 'n': case 'N':
-			write_to_buffer(d, "Name: ", 0);
-			free_char(d->character);
-			d->character = NULL;
-			d->connected = CON_GET_NAME;
-			break;
-
-		default:
-			write_to_buffer(d, "Please type yes or no: ", 0);
-			break;
-		}
-		break;
-
-	case CON_GET_NEW_PASSWORD:
-		write_to_buffer(d, "\n\r", 2);
-		if (!acceptablePassword(d, argument))
-			return;
-
-		pwdnew = sha256_crypt(argument);
-
-		free_string(ch->pcdata->pwd);
-		ch->pcdata->pwd	= str_dup(pwdnew);
-		ch->pcdata->pwd_vers = 1;
-		write_to_buffer(d, "Please retype password: ", 0);
-		d->connected = CON_CONFIRM_NEW_PASSWORD;
-
-		ch->pcdata->need_change_pw = false;
-		break;
-
-	case CON_CONFIRM_NEW_PASSWORD:
-		write_to_buffer(d, "\n\r", 2);
-
-		if (strcmp(sha256_crypt(argument), ch->pcdata->pwd))
-		{
-			write_to_buffer(d, "Passwords don't match.\n\r\n\rRetype password: ", 0);
-			d->connected = CON_GET_NEW_PASSWORD;
-			return;
-		}
-
-//		write_to_buffer(d, echo_on_str, 0);
-		ProtocolNoEcho(d,false);
-
-		write_to_buffer(d,	"\n\rPlease enter a valid e-mail address at which we can reach you in case you lose your password.\n\r"
-							"It will not be distributed to any third parties or abused in any way.\n\r", 0);
-
-		send_to_char("\n\rEnter your e-mail address: ", ch);
-
-		d->connected = CON_GET_EMAIL;
-		break;
-
-	case CON_GET_ASCII:
-		switch (argument[0])
-		{
-		case 'y': case 'Y':
-			SET_BIT(ch->act[0], PLR_COLOUR);
-			break;
-		case 'n': case 'N':
-			break;
-		default:
-			write_to_buffer(d, "Yes/No.\n\rWould you like ascii colour? ", 0);
-			return;
-		}
-
-		send_to_char("\n\r{r-----{R======{D//// {WWelcome to the world of Sentience! {D\\\\{R======{r-----{x\n\r",ch);
-		write_to_buffer(d, "\n\r", 2);
-
-		wiznet("Newbie alert!  $N sighted.",ch,NULL,WIZ_NEWBIE,0,0);
-		/* wiznet(log_buf,NULL,NULL,WIZ_NEWBIE,0,get_trust(ch));*/
-
-		send_to_char("\n\r{YChoose an alignment ({GGood/Neutral/Evil{Y):{x ", ch);
-		d->connected = CON_GET_ALIGNMENT;
-		break;
-
-	case CON_GET_ALIGNMENT:
-		switch (argument[0])
-		{
-		case 'g' : case 'G' : ch->alignment = 750;  break;
-		case 'n' : case 'N' : ch->alignment = 0;	break;
-		case 'e' : case 'E' : ch->alignment = -750; break;
-		default:
-			if (argument[0] != '\0')
-				write_to_buffer(d,"That's not a valid alignment.\n\r",0);
-
-			send_to_char("\n\r{YChoose an alignment ({GGood/Neutral/Evil{Y):{x ", ch);
-			return;
-		}
-
-		/* Evil*/
-		// Align checks out
-		if (ch->alignment < 0)
-		{
-		    send_to_char("\n\r{xYou have chosen to be {REvil{x.\n\r\n\r", ch);
-
-			send_to_char("{YThe following races are available to you: \n\r", ch);
-			send_to_char("{GDrow        {B - Dark elves who are masters of tact and dexterity.\n\r", ch);
-			send_to_char("{GVampire     {B - The walking dead. Lots of extra skills but lots of vulnerabilities.\n\r", ch); //-- Disabled by Gairun 20111219
-			send_to_char("{GSith        {B - Half man, half snake. Natural hunt, toxins, and a nasty tail.\n\r", ch);
-			send_to_char("{GMinotaur    {B - The ultimate warrior. Very strong, tough and has a thick warm coat, but vulnerable to fire. \n\r", ch);
-		}
-
-		/* Good*/
-		if (ch->alignment > 0)
-		{
-			send_to_char("\n\r{xYou have chosen to be {WGood{x.\n\r\n\r", ch);
-
-			send_to_char("{YThe following races are available to you:\n\r", ch);
-			send_to_char("{GDraconian   {B - Dragon/human cross. Can fly and breathe fire, frost, acid, gas, or lightning.\n\r", ch);
-			send_to_char("{GSlayer      {B - Ancient holy fighters who can shapeshift into beasts. 25%% extra damage against evil.\n\r", ch); //-- Disabled by Gairun 20111219
-			send_to_char("{GTitan       {B - Very strong, have an extra attack, vulnerable to lightning.\n\r", ch);
-			send_to_char("{GElf         {B - Very high stats, resistant to magic and fast mana regen.\n\r", ch);
-		}
-
-		/* Neutral*/
-		if (ch->alignment == 0)
-		{
-			send_to_char("\n\r{xYou have chosen to be {GNeutral{x.\n\r\n\r", ch);
-			send_to_char("{GDwarf       {B - Hardy, great at combat, and masters of craftwork.\n\r", ch);
-			send_to_char("{GHuman       {B - Average stats, no particular strengths or vunerabilities.\n\r", ch);
-			send_to_char("{GLich        {B - Undead lords of magic - many magical powers but physically weak.\n\r", ch); //-- Disabled by Gairun 20111219
-//		    send_to_char("{DPraxis      {D - Coming soon!\n\r",ch);
-		}
-
-		send_to_char("\n\r{xYou will now be asked which race you would like your character to\n\r", ch);
-		send_to_char("{xbelong to. Each race has its advantages and disadvantages. You can\n\r", ch);
-		send_to_char("{xinspect each of the races by typing \"help <race>\". To get a summary\n\r", ch);
-		send_to_char("{xof all the races, type \"help\".\n\r", ch);
-
-		send_to_char("\n\r{YChoose your race (type \"help <race>\" for more information):{x ", ch);
-		d->connected = CON_GET_NEW_RACE;
-		break;
-
-	case CON_GET_NEW_RACE:
-		one_argument(argument,arg);
-
-		sprintf(races, "\n\r{YChoose your race");
-		add_possible_races(ch, races);
-		strcat(races, "{Y:{x ");
-
-		if (!strcmp(arg,"help"))
-		{
-			argument = one_argument(argument,arg);
-			if (argument[0] == '\0' || !str_prefix(argument, "races"))
-			{
-				send_to_char("{b++++++{B------{C++++++ {WRACES SUMMARY {C++++++{B------{b++++++{x\n\r\n\r", ch);
-				if ((help = lookup_help_exact("races grid", 0, topHelpCat)) != NULL)
-					send_to_char(help->text, ch);
-			}
-			else
-			{
-				if ((race = race_lookup(argument)) != 0 &&
-					(help = lookup_help_exact(race_table[race].name, 0, topHelpCat)) != NULL)
-				{
-					sprintf(buf, "{b++++++{B------{C++++++ {W%s {C++++++{B------{b++++++{x\n\r\n\r", help->keyword);
-					send_to_char(buf, ch);
-					send_to_char(help->text, ch);
-				}
-				else
-					send_to_char("That's not a race.\n\r", ch);
-			}
-
-			send_to_char(races, ch);
-			break;
-		}
-
-		if (arg[0] == '\0') {
-			send_to_char(races, ch);
-			break;
-		}
-
-		if ((race = race_lookup(argument)) == 0) {
-			send_to_char("There is no such race.\n\r", ch);
-			send_to_char(races, ch);
-			break;
-		}
-
-		if (!race_table[race].pc_race || race == grn_shaper) {
-			send_to_char("That isn't a player race.\n\r", ch);
-			send_to_char(races, ch);
-			break;
-		}
-
-		if (pc_race_table[race].remort) {
-			send_to_char("You cannot choose that race.\n\r", ch);
-			send_to_char(races, ch);
-			break;
-		}
-
-		if ((ch->alignment == 0 && pc_race_table[race].alignment != ALIGN_NONE) ||
-			(ch->alignment  < 0 && pc_race_table[race].alignment != ALIGN_EVIL) ||
-			(ch->alignment  > 0 && pc_race_table[race].alignment != ALIGN_GOOD))
-		{
-			if (ch->alignment == 0)		send_to_char("That is not a neutral aligned race.\n\r", ch);
-			else if (ch->alignment < 0) send_to_char("That is not an evil aligned race.\n\r", ch);
-			else						send_to_char("That is not a good aligned race.\n\r", ch);
-
-			send_to_char(races, ch);
-			break;
-		}
-		ch->race = race;
-
-		/* initialize stats */
-		for (i = 0; i < MAX_STATS; i++) {
-			ch->perm_stat[i] = pc_race_table[race].stats[i];
-			ch->dirty_stat[i] = true;
-		}
-		ch->act[1]        = ch->act[1]|race_table[race].act2;
-		ch->affected_by[0] = ch->affected_by[0]|race_table[race].aff;
-
-		ch->imm_flags_perm = race_table[race].imm;
-		ch->res_flags_perm = race_table[race].res;
-		ch->vuln_flags_perm = race_table[race].vuln;
-		/* 20203003 - Tieryo - Fixing racial affects */
-		ch->affected_by_perm[0] = race_table[race].aff;
-		ch->affected_by_perm[1] = race_table[race].aff2;
-
-		ch->imm_flags	= ch->imm_flags|race_table[race].imm;
-		ch->res_flags	= ch->res_flags|race_table[race].res;
-		ch->vuln_flags	= ch->vuln_flags|race_table[race].vuln;
-		ch->form	= race_table[race].form;
-		ch->parts	= race_table[race].parts;
-
-		/* add skills */
-		for (i = 0; i < 5; i++)
-		{
-			if (pc_race_table[race].skills[i] == NULL)
-				break;
-
-			group_add(ch,pc_race_table[race].skills[i],false);
-		}
-
-		ch->size = pc_race_table[race].size;
-
-		send_to_char("\n\r{YWhat is your sex (M/F)?{x ", ch);
-		d->connected = CON_GET_NEW_SEX;
-		break;
-
-	case CON_GET_NEW_SEX:
-		switch (argument[0])
-		{
-		case 'm': case 'M': ch->sex = ch->pcdata->true_sex = SEX_MALE; break;
-		case 'f': case 'F': ch->sex = ch->pcdata->true_sex = SEX_FEMALE; break;
-		default:
-			if (argument[0] != '\0')
-				send_to_char("{xThat's not a sex.\n\r", ch);
-
-			send_to_char("\n\r{YWhat is your sex (M/F)?{x ", ch);
-			return;
-		}
-
-		send_to_char("\n\rIn Sentience, there are four main classes to choose from. From \n\r", ch);
-		send_to_char("these four classes you may choose a subclass that belong to these\n\r", ch);
-		send_to_char("classes. Within each subclass you must complete 30 levels before\n\r", ch);
-		send_to_char("advancing to master another class, inheriting each skill set\n\r", ch);
-		send_to_char("as you go. After 120 levels you may REMORT and master four\n\r", ch);
-		send_to_char("brand new subclasses.\n\r\n\r", ch);
-
-		send_to_char("For help on a specific class, type help <class>.\n\r\n\r", ch);
-
-		strcpy(buf, "{YSelect the class you would like to begin with {B[{C");
-		for (iClass = 0; iClass < MAX_CLASS; iClass++)
-		{
-			if (iClass > 0)
-				strcat(buf, " ");
-			strcat(buf, class_table[iClass].name);
-		}
-		strcat(buf, "{B]{Y:{x ");
-		send_to_char(buf, ch);
-		d->connected = CON_GET_NEW_CLASS;
-		break;
-
-	case CON_GET_NEW_CLASS:
-		sprintf(classes, "\n\r{YChoose your class {B[{Cmage cleric thief warrior{B]{Y:{x ");
-		if (!str_prefix("help", argument))
-		{
-			argument = one_argument(argument,arg);
-			if (argument[0] == '\0')
-			{
-				send_to_char("{b++++++{B------{C++++++ {WCLASSES AND SUBCLASSES{C++++++{B------{b++++++{x\n\r\n\r", ch);
-				if ((help = lookup_help_exact("classes professions", 0, topHelpCat)) != NULL)
-					send_to_char(help->text, ch);
-			}
-			else
-			{
-				if ((iClass = class_lookup(argument)) != -1 &&
-					(help = lookup_help_exact(class_table[iClass].name, 0, topHelpCat)) != NULL)
-				{
-					sprintf(buf, "{b++++++{B------{C++++++ {W%s {C++++++{B------{b++++++{x\n\r\n\r", help->keyword);
-					send_to_char(buf, ch);
-					send_to_char(help->text, ch);
-				}
-				else
-					send_to_char("That's not a class.\n\r", ch);
-			}
-
-			send_to_char(classes, ch);
-			break;
-		}
-
-		if (argument[0] == '\0') {
-			send_to_char(classes, ch);
-			break;
-		}
-
-		if ((iClass = class_lookup(argument)) == -1)
-		{
-			send_to_char("{xThat's not a class.\n\r", ch);
-			send_to_char(classes, ch);
-			break;
-		}
-
-		ch->pcdata->class_current = iClass;
-
-		switch(iClass)
-		{
-		case CLASS_MAGE:
-			ch->pcdata->class_mage = CLASS_MAGE;
-			ch->pcdata->class_cleric = -1;
-			ch->pcdata->class_thief = -1;
-			ch->pcdata->class_warrior = -1;
-			break;
-		case CLASS_CLERIC:
-			ch->pcdata->class_mage = -1;
-			ch->pcdata->class_cleric = CLASS_CLERIC;
-			ch->pcdata->class_thief = -1;
-			ch->pcdata->class_warrior = -1;
-			break;
-		case CLASS_THIEF:
-			ch->pcdata->class_mage = -1;
-			ch->pcdata->class_cleric = -1;
-			ch->pcdata->class_thief = CLASS_THIEF;
-			ch->pcdata->class_warrior = -1;
-			break;
-		case CLASS_WARRIOR:
-			ch->pcdata->class_mage = -1;
-			ch->pcdata->class_cleric = -1;
-			ch->pcdata->class_thief = -1;
-			ch->pcdata->class_warrior = CLASS_WARRIOR;
-			break;
-		}
-
-		send_to_char("\n\r{xFor each class there are a possible of three subclasses. Each subclass\n\r", ch);
-		send_to_char("is for a particular alignment. A good aligned person may choose from\n\r", ch);
-		send_to_char("the neutral or good subclasses. An evil aligned person may choose\n\r", ch);
-		send_to_char("from either evil, or neutral subclasses. A neutral aligned person\n\r", ch);
-		send_to_char("however may choose from either good, neutral or evil aligned subclasses.\n\r", ch);
-		send_to_char("For help on a specific subclass, type help <subclass name>.\n\r\n\r", ch);
-
-		strcpy(buf, "{YSelect the subclass you would like to begin with ");
-		add_possible_subclasses(ch, buf);
-		strcat(buf, "{Y:{x ");
-
-		send_to_char(buf, ch);
-		d->connected = CON_GET_SUB_CLASS;
-		break;
-
-	case CON_GET_SUB_CLASS:
-		sprintf(subclasses, "\n\r{YChoose your subclass ");
-		add_possible_subclasses(ch, subclasses);
-		strcat(subclasses, "{Y:{x ");
-
-		if (!str_prefix("help", argument))
-		{
-			argument = one_argument(argument,arg);
-			if (argument[0] == '\0' || !str_prefix(argument, "subclasses") || !str_prefix(argument, "classes"))
-			{
-				send_to_char("{b++++++{B------{C++++++ {WCLASSES AND SUBCLASSES {C++++++{B------{b++++++{x\n\r\n\r", ch);
-				if ((help = lookup_help_exact("classes professions", 0, topHelpCat)) != NULL)
-					send_to_char(help->text, ch);
-			}
-			else
-			{
-				sprintf(buf, "%s", argument);
-				for (iClass = 0; iClass < MAX_SUB_CLASS; iClass++)
-				{
-					if (!str_prefix(buf, sub_class_table[iClass].name[ch->sex]) &&
-						!sub_class_table[iClass].remort)
-						break;
-				}
-
-				if (iClass == MAX_SUB_CLASS)
-					send_to_char("That's not a subclass.\n\r", ch);
-				else
-				{
-					/* Kind of a hack for now*/
-					if (!str_cmp(sub_class_table[iClass].name[ch->sex], "witch") ||
-						!str_cmp(sub_class_table[iClass].name[ch->sex], "warlock"))
-						sprintf(buf, "Warlock Witch");
-					else if (!str_cmp(sub_class_table[iClass].name[ch->sex], "sorcerer") ||
-							!str_cmp(sub_class_table[iClass].name[ch->sex], "sorceress"))
-						sprintf(buf, "Sorcerer Sorceress");
-					else
-						sprintf(buf, sub_class_table[iClass].name[ch->sex]);
-
-					if ((help = lookup_help_exact(buf, 0, topHelpCat)) != NULL)
-					{
-						sprintf(buf, "{b++++++{B------{C++++++ {W%s {C++++++{B------{b++++++{x\n\r\n\r", help->keyword);
-						send_to_char(buf, ch);
-						send_to_char(help->text, ch);
-					}
-				}
-			}
-
-			send_to_char(subclasses, ch);
-			return;
-		}
-
-		if (argument[0] == '\0') {
-			send_to_char(subclasses, ch);
-			return;
-		}
-
-		iClass = sub_class_lookup(ch, argument);
-		if (iClass == -1)
-		{
-			send_to_char("{xThat's not a subclass you can choose.\n\r", ch);
-			send_to_char(subclasses, ch);
-			return;
-		}
-
-		ch->pcdata->sub_class_current = iClass;
-
-		if (ch->pcdata->class_mage != -1)
-			ch->pcdata->sub_class_mage = iClass;
-		else if (ch->pcdata->class_cleric != -1)
-			ch->pcdata->sub_class_cleric = iClass;
-		else if (ch->pcdata->class_thief != -1)
-			ch->pcdata->sub_class_thief = iClass;
-		else if (ch->pcdata->class_warrior != -1)
-			ch->pcdata->sub_class_warrior = iClass;
-
-		sprintf(log_buf, "%s@%s new player.", ch->name, d->host);
-		log_string(log_buf);
-
-		SET_BIT(ch->act[0], PLR_NO_CHALLENGE);
-
-		group_add(ch,"global skills",false);
-		group_add(ch,class_table[ch->pcdata->class_current].base_group,false);
-		group_add(ch, sub_class_table[ch->pcdata->sub_class_current].default_group, false);
-
-		/* Make it so no notes appear*/
-		ch->pcdata->last_note = current_time;
-		ch->pcdata->last_idea = current_time;
-		ch->pcdata->last_penalty = current_time;
-		ch->pcdata->last_news = current_time;
-		ch->pcdata->last_changes = current_time;
-
-		send_to_char("\n\r{YPress ENTER to begin your journey, adventurer!{W\n\r", ch);
-		buf[0] = '\0';
-
-		/* Set up default toggles*/
-		for (i = 0; pc_set_table[i].name != NULL; i++)
-		{
-			if (pc_set_table[i].default_state == SETTING_ON && ch->tot_level >= pc_set_table[i].min_level)
-			{
-				if (pc_set_table[i].vector != 0)
-				{
-					vector = pc_set_table[i].vector;
-					field = &ch->act[0];
-				}
-				else if (pc_set_table[i].vector2 != 0)
-				{
-					vector = pc_set_table[i].vector2;
-					field = &ch->act[1];
-				}
-				else if (pc_set_table[i].vector_comm != 0)
-				{
-					vector = pc_set_table[i].vector_comm;
-					field = &ch->comm;
-				}
-				else
-					continue;
-
-				if (pc_set_table[i].inverted)
-				{
-					REMOVE_BIT(*field, vector);
-				}
-				else
-				{
-					SET_BIT(*field, vector);
-				}
-			}
-		}
-
-		ch->level     = 0;
-		ch->tot_level = 0;
-
-		/* Set up weapon skill*/
-		switch (ch->pcdata->class_current)
-		{
-		case CLASS_MAGE:	weapon = gsn_quarterstaff;	break;
-		case CLASS_CLERIC:	weapon = gsn_quarterstaff;	break;
-		case CLASS_THIEF:	weapon = gsn_dagger;		break;
-		case CLASS_WARRIOR:	weapon = gsn_sword;		break;
-		default:
-			bug("nanny: bad current class in weapon pick", 0);
-			weapon = gsn_sword;
-			break;
-		}
-
-		ch->pcdata->learned[weapon] = 50;
-		d->connected = CON_READ_MOTD;
-		break;
-
-	case CON_READ_IMOTD:
-		write_to_buffer(d,"\n\r",2);
-		do_function(ch, &do_motd, "");
-		d->connected = CON_READ_MOTD;
-		break;
-
-	case CON_READ_MOTD:
-		/* VIZZMARK */
-		if (ch->pcdata == NULL || ch->pcdata->pwd[0] == '\0')
-		{
-			write_to_buffer(d, "Warning! Null password!\n\r",0);
-			write_to_buffer(d, "Type 'password null <new password>' to fix.\n\r",0);
-		}
-
-		list_appendlink(loaded_chars, ch);
-		// Temprarily disabled for reconnect crash
-		// list_appendlink(loaded_players, ch);
-		ProtocolNoEcho(d,false);
-		d->connected	= CON_PLAYING;
-
-		if (ch->pcdata->old_pwd != NULL)
-		{
-			free_string(ch->pcdata->old_pwd);
-			ch->pcdata->old_pwd = NULL;
-		}
-
-		if (ch->pcdata->reset_code != NULL)
-		{
-			free_string(ch->pcdata->reset_code);
-			ch->pcdata->reset_code = NULL;
-		}
-
-		if (ch->pcdata->reset_time != 0)
-		{
-			ch->pcdata->reset_time = 0;
-		}
-
-		if (ch->pcdata->reset_state != 0)
-		{
-			ch->pcdata->reset_state = 0;
-		}
-
-		reset_char(ch);
-
-		/* Show how many players on */
-		playernum = 0;
-		for (d2 = descriptor_list; d2 != NULL; d2 = d2->next)
-		{
-			if (d2->connected == CON_PLAYING && d2 != d &&
-				can_see(d->character, d2->character))
-				playernum++;
-		}
-
-	/*	 No the one that logged on isn't playing yet!*/
-	/*		CON_READ_MOTD != CON_PLAYING*/
-	/*        if (playernum != 0)*/
-	/*	    --playernum; // One less because the one who just logged in is a player*/
-
-		sprintf(buf, "{MThe current system time is {x%s{x\r", ctime(&current_time));
-		send_to_char(buf, ch);
-
-		sprintf(buf, "{MLast reboot was at {x%s{x\r", str_boot_time);
-		send_to_char(buf, ch);
-
-		sprintf(buf, "{MThere are currently {W%ld{M players online.{x\n\r", playernum);
-		send_to_char(buf, ch);
-
-		///////////////////////////////////////////////
-		// New player
-		if (ch->level == 0)
-		{
-			int prime_stat = class_table[ch->pcdata->class_current].attr_prime;
-			ch->perm_stat[prime_stat] += 3;
-			ch->dirty_stat[prime_stat] = true;
-
-			ch->exp	= 0;
-			ch->hit	= ch->max_hit;
-			ch->mana	= ch->max_mana;
-			ch->move	= ch->max_move;
-			ch->train	 = 3;
-			ch->practice = 5;
-			sprintf(buf, "{x");
-			set_title(ch, buf);
-			char_to_room(ch, get_room_index(ROOM_VNUM_SCHOOL));
-			do_function(ch, &do_changes, "catchup");
-			SET_BIT(ch->comm, COMM_NO_OOC);
-			SET_BIT(ch->comm, COMM_NO_FLAMING);
-			send_to_char("\n\r",ch);
-			for (d2 = descriptor_list; d2 != NULL; d2 = d2->next)
-			{
-				if (d2->connected == CON_PLAYING && d2->character != ch &&
-					!IS_SET(d2->character->comm, COMM_NOANNOUNCE))
-				{
-					act("{MThe Town Crier Announces 'All welcome $N, a new adventurer to Sentience!'{x",
-						d2->character,ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-				}
-			}
-
-			ch->level = 1;
-			ch->tot_level = 1;
-		}
-
-		// Fix variable and dungeon referencs
-		variable_dynamic_fix_mobile(ch);
-		resolve_dungeons_player(ch);
-		resolve_instances_player(ch);
-		resolve_ships_player(ch);
-
-		if (ch->in_room != NULL)
-		{
-			if( ch->in_room->vnum != ROOM_VNUM_SCHOOL )
-				char_to_room(ch, ch->in_room);
-		}
-		else
-		{
-			if (ch->in_wilds != NULL)
-			{
-				if (check_for_bad_room(ch->in_wilds, ch->at_wilds_x, ch->at_wilds_y))
-				{
-					plogf("nanny.c, join_world(): Transferring char to VRoom");
-					char_to_vroom (ch, ch->in_wilds, ch->at_wilds_x, ch->at_wilds_y);
-				}
-				else
-				{
-					plogf("nanny.c, join_world(); Previous VRoom invalid. Relocating to Temple");
-					ch->in_wilds = NULL;
-					ch->at_wilds_x = -1;
-					ch->at_wilds_y = -1;
-					char_to_room(ch, get_room_index(ROOM_VNUM_TEMPLE));
-				}
-				
-			}
-			else
-			{
-				if (IS_IMMORTAL (ch))
-				{
-					char_to_room (ch, get_room_index (ROOM_VNUM_CHAT));
-				}
-				else
-				{
-					char_to_room (ch, get_room_index (ROOM_VNUM_TEMPLE));
-				}
-			}
-		}
-
-		act("$$n has entered the game.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-        MXPSendTag(d,"<VERSION>");
-		for (d2 = descriptor_list; d2 != NULL; d2 = d2->next)
-		{
-			if (d2->connected == CON_PLAYING && !IS_IMMORTAL(d->character) &&
-				d2->character != ch && IS_SET(d2->character->comm, COMM_NOTIFY))
-				act("{B$$N has entered the game.{x", d2->character, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		}
-
-		/* Kick chars of wrong align out of their church*/
-		if (ch->church != NULL)
-		{
-			if ((ch->alignment < 0 && ch->church->alignment == CHURCH_GOOD) ||
-				(ch->alignment > 0 && ch->church->alignment == CHURCH_EVIL))
-			{
-				act("{YAs you enter Sentience, you feel your church's faith has been changed.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-				act("{YYou feel your psychic link to $T being severed.{x", ch, NULL, NULL, NULL, NULL, NULL, ch->church->name, TO_CHAR);
-				remove_member(ch->church_member);
-				ch->church = NULL;
-			}
-		}
-
-		/* Send a message to the church*/
-		if (ch->church != NULL)
-		{
-			sprintf(buf, "{Y[%s has entered the game.]{x\n\r", ch->name);
-			church_echo(ch->church, buf);
-			list_addlink(ch->church->online_players, ch);
-		}
-
-		/* Unscrew people's classes, subclasses and skills if they are messed up somehow.*/
-		if (!IS_IMMORTAL(ch))
-		{
-			descrew_subclasses(d->character);
-
-			if (!has_correct_classes(d->character))
-				fix_broken_classes(d->character);
-			if (ch->version < VERSION_PLAYER_006)
-				update_skills(d->character);
-		}
-
-		// Add connection to appropriate lists
-		connection_add(d);
-
-		wiznet("$N has entered the game.", d->character, NULL, WIZ_LOGINS, 0, 0);
-
-		do_function(ch, &do_look, "auto");
-
-		do_function(ch, &do_unread, "");
-
-		// LOGIN TRIGGER
-		script_login(ch);
-		break;
-
-	/* Get the player's e-mail if it's not in the pfile already */
-	case CON_GET_EMAIL:
-		if (argument[0] == '\0') {
-			send_to_char("Enter your e-mail address: ", ch);
-			return;
-		}
-
-		if (strlen(argument) < 5 || str_infix("@", argument)) {
-			send_to_char("\n\rInvalid e-mail address. Enter your e-mail address: ", ch);
-			return;
-		}
-
-		ch->pcdata->email = str_dup(argument);
-
-		/* New char, continue with the char creation process */
-		if (ch->tot_level == 0) {
-			write_to_buffer(d, "\n\rWould you like ascii colour (Y/N)? ", 0);
-			d->connected = CON_GET_ASCII;
-		} else { /* Old char, send them on their merry way */
-			write_to_buffer(d, "\n\rYour e-mail address has been saved.\n\r\n\r[Hit Return to continue]\n\r", 0);
-			if (IS_IMMORTAL(ch))
-				d->connected = CON_READ_IMOTD;
-			else
-				d->connected = CON_READ_MOTD;
-		}
-	}
-}
 
 
 /*
@@ -3639,68 +2570,185 @@ CHAR_DATA *find_existing_player(char *name)
 bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
 {
     CHAR_DATA *ch;
+    //char buf[100];
+    bool found = false;
     ITERATOR cit;
-    // Reverting for reconnect crash
-    //iterator_start(&cit, loaded_players);
+
     iterator_start(&cit, loaded_chars);
-    while(( ch = (CHAR_DATA *)iterator_nextdata(&cit)))
+    while((ch = (CHAR_DATA *)iterator_nextdata(&cit)) && !found)
     {
-		if (!IS_NPC(ch) &&
-			(!fConn || ch->desc == NULL) &&
-			!str_cmp(d->character->name, ch->name)) {
-		    if (!fConn) {
-				free_string(d->character->pcdata->pwd);
-				d->character->pcdata->pwd = str_dup(ch->pcdata->pwd);
-			} else {
-				CHURCH_DATA *church;
-				CHURCH_PLAYER_DATA *member;
+        if (!IS_NPC(ch) && 
+            (!fConn || ch->desc == NULL) && 
+            !str_cmp(d->character->name, ch->name)) 
+        {
+            if (!fConn) {
+                free_string(d->character->pcdata->pwd);
+                d->character->pcdata->pwd = str_dup(ch->pcdata->pwd);
+                iterator_stop(&cit);
+                return true;
+            } else {
 
-				if (d->character->pet) {
-					CHAR_DATA *pet=d->character->pet;
+                CHAR_DATA *old_char = d->character;
 
-					char_to_room(pet,get_room_index(ROOM_VNUM_LIMBO));
-					stop_follower(pet,true);
-					extract_char(pet,true);
+                // Handle pet cleanup from incoming connection if needed
+                if (old_char->pet) {
+                    CHAR_DATA *pet = old_char->pet;
+                    char_to_room(pet, get_room_index(ROOM_VNUM_LIMBO));
+                    stop_follower(pet, true);
+                    extract_char(pet, true);
                 }
 
-				// Temporarily adding this back for reconnect crash
-				free_char(d->character);
-				d->character = ch;
-				ch->desc	 = d;
-				ch->timer	 = 0;
-				send_to_char("Reconnecting.  Type replay to see missed tells.\n\r", ch);
-				act("$$n has reconnected.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                // Preserve any temporary descriptor data we need
+                ch->timer = 0;  // Reset idle timer
+                
+                // Switch the descriptor to the existing character
+                ch->desc = d;
+                d->character = ch;  // Point to the existing character
+                d->original = NULL; // Make sure we're not switched
+                
+                // Now free the temporary character that was created during login
+                free_char(old_char);
+                d->reconnecting = true;
+                found = true;  // Mark as found so iterator_stop works properly
+                
+                // Handle special authentication cases
+				if (!DEV_SKIP_MFA){
+                if (IS_IMMORTAL(ch) && game_settings.require_2fa_staff) {
+                    // Staff character with MFA requirements
+                    if ((!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled) ||
+                        (!IS_NULLSTR(d->account->mfa_key) && d->account->mfa_enabled)) {
+                        
+                        // If character has MFA, verify that
+                        if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled) {
+                            write_to_buffer(d, "\n\rReconnecting - This character has MFA enabled.\n\r", 0);
+                            ProtocolNoEcho(d, true);
+                            d->connected = CON_GET_CHAR_MFA;
+                            break;  // Exit the loop but maintain iterator
+                        } 
+                        // Otherwise, verify account MFA
+                        else if (!IS_NULLSTR(d->account->mfa_key) && d->account->mfa_enabled) {
+                            write_to_buffer(d, "\n\rReconnecting - Staff account MFA verification required.\n\r", 0);
+ 
+                            ProtocolNoEcho(d, true);
+                            d->connected = CON_GET_ACCOUNT_MFA_FOR_CHAR;
+                            break;  // Exit the loop but maintain iterator
+                        }
+                    }
+                }
+                // Regular character with MFA
+                else if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled) {
+                    write_to_buffer(d, "\n\rReconnecting - This character has MFA enabled.\n\r", 0);
 
-				sprintf(log_buf, "%s@%s reconnected.", ch->name, d->host);
-				log_string(log_buf);
-				wiznet("$N has relinked.", ch,NULL,WIZ_LINKS,0,0);
-				ProtocolNoEcho(d,false);
-				d->connected = CON_PLAYING;
-				MXPSendTag(d,"<VERSION>");
+                    ProtocolNoEcho(d, true);
+                    d->connected = CON_GET_CHAR_MFA;
+                    break;  // Exit the loop but maintain iterator
+                }
+			}
 
-				if (get_eq_char(ch, WEAR_LIGHT) != NULL)
-					ch->in_room->light++;
+                // Character with password override
+				if (!DEV_SKIP_PASSWORD){
+                if (ch->pcdata->account_pwd_override) {
+                    write_to_buffer(d, "\n\rReconnecting: This character requires password verification.\n\r", 0);
 
-				/* resync char with his church_member both ways on reconnect */
-				for (church = church_list; church != NULL; church = church->next) {
-					if (church == ch->church) {
-						for (member = church->people; member != NULL; member = member->next) {
-							if (!str_cmp(member->name, ch->name) && member->ch == NULL)
-								member->ch = ch;
-						}
-				    }
-				}
-		    }
-		    iterator_stop(&cit);
-
-			return true;
-		}
+                    ProtocolNoEcho(d, true);
+                    d->connected = CON_GET_CHAR_PASSWORD;
+                    break;  // Exit the loop but maintain iterator
+                }
+			}
+                
+                // Normal reconnect process - no special auth needed
+                reconnect_char(d);
+                break;  // Exit the loop but maintain iterator
+            }
+        }
     }
     iterator_stop(&cit);
-
-    return false;
+    
+    return found;
 }
 
+void reconnect_char(DESCRIPTOR_DATA *d)
+{
+    CHAR_DATA *ch = d->character;
+    char buf[MAX_STRING_LENGTH];
+    LLIST_LINK *link;
+    OBJ_DATA *obj;
+    TOKEN_DATA *token;
+
+    if (!ch) return;
+
+if (ch && ch->desc) {
+    // Test if connection is still valid after long idle
+    if (ch->timer > 10) {
+        // Simple non-blocking test write to verify socket is healthy
+        char test_byte = 0;
+        int result;
+        
+        if (ch->desc->ssl)
+            result = SSL_write(ch->desc->ssl, &test_byte, 0);
+        else
+            result = send(ch->desc->descriptor, &test_byte, 0, MSG_DONTWAIT);
+            
+        if (result < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
+            // Socket is probably dead, close it properly
+            log_string("Detected broken connection during reconnect");
+            close_socket(ch->desc);
+            return;
+        }
+    }
+}
+
+    // Fix inventory relationships
+    if (ch->carrying == NULL && ch->lcarrying != NULL) {
+        log_string("Reconnect: Rebuilding inventory from lcarrying");
+        for (link = ch->lcarrying->head; link; link = link->next) {
+            obj = (OBJ_DATA *)link->data;
+            if (obj && obj->carried_by == ch) {
+                obj->next_content = ch->carrying;
+                ch->carrying = obj;
+                ch->carry_number++;
+                ch->carry_weight += get_obj_weight(obj);
+            }
+        }
+    }
+
+    // Fix worn equipment relationships
+    if (ch->lworn != NULL) {
+        for (link = ch->lworn->head; link; link = link->next) {
+            obj = (OBJ_DATA *)link->data;
+        }
+    }
+
+    // Fix token relationships
+    if (ch->tokens == NULL && ch->ltokens != NULL) {
+        for (link = ch->ltokens->head; link; link = link->next) {
+            token = (TOKEN_DATA *)link->data;
+            if (token && token->player == ch) {
+                token->next = ch->tokens;
+                ch->tokens = token;
+            }
+        }
+    }
+    
+    // Set to playing state immediately
+    d->connected = CON_PLAYING;
+    d->reconnecting = false;
+    
+    // Send reconnection message
+    send_to_char("Reconnecting. Type replay to see missed tells.\n\r", ch);
+    act("$n has reconnected.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    
+    // Log the reconnection
+    sprintf(buf, "%s@%s reconnected.", ch->name, d->host);
+    log_string(buf);
+    wiznet("$N has relinked.", ch, NULL, WIZ_LINKS, 0, 0);
+    
+    // Update protocol settings
+    MXPSendTag(d, "<VERSION>");
+    
+    // Add connection to tracking
+    connection_add(d);
+}
 
 /*
  * Check if already playing.
@@ -3713,7 +2761,7 @@ bool check_playing(DESCRIPTOR_DATA *d, char *name)
     {
 	if (dold != d
 	&&   dold->character != NULL
-	&&   dold->connected != CON_GET_NAME
+	&&   dold->connected != CON_GET_ACCOUNT_NAME
 	&&   dold->connected != CON_GET_OLD_PASSWORD
 	&&   !str_cmp(name, dold->original
 	         ? dold->original->name : dold->character->name))
@@ -4941,4 +3989,108 @@ void connection_remove(DESCRIPTOR_DATA *d)
 			list_remlink(conn_online, d, false);
 		}
 	}
+}
+
+/*
+ * Initialize the SSL cleanup queue
+ * Call this during boot sequence
+ */
+void init_ssl_cleanup_queue(void)
+{
+    ssl_ctx_cleanup_queue = list_create(false);
+    if (!ssl_ctx_cleanup_queue) {
+        bug("Could not create SSL cleanup queue", 0);
+        exit(1);
+    }
+}
+
+/*
+ * Add an SSL context to the cleanup queue
+ */
+typedef struct ssl_cleanup_data {
+    SSL_CTX *ctx;
+    time_t time_added;
+} SSL_CLEANUP_DATA;
+
+void add_ssl_ctx_to_cleanup(SSL_CTX *old_ctx)
+{
+    if (!old_ctx)
+        return;
+        
+    SSL_CLEANUP_DATA *data;
+    
+    data = (SSL_CLEANUP_DATA *)malloc(sizeof(SSL_CLEANUP_DATA));
+    data->ctx = old_ctx;
+    data->time_added = current_time;
+    
+    list_appendlink(ssl_ctx_cleanup_queue, data);
+    log_string("SSL context added to cleanup queue");
+}
+
+/*
+ * Process the SSL context cleanup queue
+ * Free contexts that have been in the queue for sufficient time
+ */
+void process_ssl_cleanup_queue(void)
+{
+    SSL_CLEANUP_DATA *data;
+    ITERATOR it;
+    
+    if (list_size(ssl_ctx_cleanup_queue) == 0)
+        return;
+        
+    iterator_start(&it, ssl_ctx_cleanup_queue);
+    while ((data = (SSL_CLEANUP_DATA *)iterator_nextdata(&it))) {
+        // Wait 5 minutes before freeing contexts to ensure no active connections
+        if (current_time - data->time_added > 300) {
+            // Safe to free this context now
+            SSL_CTX_free(data->ctx);
+            list_remlink(ssl_ctx_cleanup_queue, data, true);
+            log_string("Freed old SSL context from cleanup queue");
+        }
+    }
+    iterator_stop(&it);
+}
+
+/*
+ * Updated SSL context refresh function
+ * Uses the cleanup queue for safe context disposal
+ */
+void refresh_ssl_context(void)
+{
+    static time_t last_refresh = 0;
+    
+    // Refresh once per hour by default, or when circuit breaker triggers
+    if (current_time - last_refresh < 3600 && ssl_errors_since_reset < 5)
+        return;
+        
+    log_string("Refreshing SSL context...");
+    
+    // Create new context
+    SSL_CTX *new_ctx = create_context();
+    if (!new_ctx) {
+        log_string("ERROR: Failed to create new SSL context");
+        return;
+    }
+    
+    // Configure the new context
+    if (!configure_context(new_ctx)) {
+        log_string("ERROR: Failed to configure new SSL context");
+        SSL_CTX_free(new_ctx);
+        return;
+    }
+    
+    // Store the old context for cleanup
+    SSL_CTX *old_ctx = ctx;
+    
+    // Replace the old context
+    ctx = new_ctx;
+    
+    // Add the old context to the cleanup queue
+    if (old_ctx)
+        add_ssl_ctx_to_cleanup(old_ctx);
+    
+    last_refresh = current_time;
+    ssl_errors_since_reset = 0;
+    log_string("SSL context refreshed successfully");
 }

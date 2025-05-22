@@ -888,7 +888,7 @@ void aedit(CHAR_DATA *ch, char *argument)
     strcpy(arg, argument);
     argument = one_argument(argument, command);
 
-    if (get_trust(ch) < MAX_LEVEL - 1)
+    if (get_staff_rank(ch) < STAFF_CREATOR)
     {
 	send_to_char("AEdit:  Insufficient security to edit area - action logged.\n\r", ch);
 	edit_done(ch);
@@ -1157,7 +1157,7 @@ void pedit(CHAR_DATA *ch, char *argument)
     strcpy(arg, argument);
     argument = one_argument(argument, command);
 
-    if (get_trust(ch) < MAX_LEVEL)
+    if (get_staff_rank(ch) < STAFF_IMPLEMENTOR)
     {
 	send_to_char("PEdit:  Insufficient security to edit projects - action logged.\n\r", ch);
 	edit_done(ch);
@@ -1278,7 +1278,7 @@ void do_aedit(CHAR_DATA *ch, char *argument)
     int value;
     char arg[MAX_STRING_LENGTH];
 
-    if (get_trust(ch) < MAX_LEVEL - 1)
+    if (get_staff_rank(ch) < STAFF_CREATOR)
     {
 	send_to_char("AEdit : Insufficient security to edit area - action logged.\n\r", ch);
 	return;
@@ -1309,7 +1309,7 @@ void do_aedit(CHAR_DATA *ch, char *argument)
     else
     if (!str_cmp(arg, "create"))
     {
-	if (ch->pcdata->security < 9 || get_trust(ch) < 154)
+	if (ch->pcdata->security < 9 || get_staff_rank(ch) < STAFF_CREATOR)
 	{
 	    send_to_char("AEdit : Insufficient security to edit area - action logged.\n\r", ch);
 	    return;
@@ -1534,7 +1534,7 @@ void do_pedit(CHAR_DATA *ch, char *argument)
     int i;
     char arg[MAX_STRING_LENGTH];
 
-    if (get_trust(ch) < MAX_LEVEL)
+    if (get_staff_rank(ch) < STAFF_IMPLEMENTOR)
     {
 	send_to_char("PEdit: Insufficient security to edit projects - action logged.\n\r", ch);
 	return;
@@ -1578,7 +1578,7 @@ void do_pedit(CHAR_DATA *ch, char *argument)
     else
     if (!str_cmp(arg, "create"))
     {
-	if (get_trust(ch) < MAX_LEVEL)
+	if (get_staff_rank(ch) < STAFF_IMPLEMENTOR)
 	{
 	    send_to_char("PEdit: Insufficient security to create project - action logged.\n\r", ch);
 	    return;
@@ -2908,7 +2908,7 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
 	new_obj->value[i] = old_obj->value[i];
 
     // Only copy impsig if imp (to block cheaters)
-    if (get_trust(ch) == MAX_LEVEL)
+    if (get_staff_rank(ch) == STAFF_IMPLEMENTOR)
 	new_obj->imp_sig = str_dup(old_obj->imp_sig);
     else
 	new_obj->imp_sig = str_dup("none");
@@ -4122,7 +4122,7 @@ const struct olc_cmd_type cmdedit_table[] =
     { "enabled",        cmdedit_enabled },
 	{ "flags",			cmdedit_flags	},
     { "function",       cmdedit_function },
-    { "level",          cmdedit_level},
+    { "rank",          cmdedit_rank},
     { "log",            cmdedit_log },
     { "name",           cmdedit_name },
     { "order",          cmdedit_order },
