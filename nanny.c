@@ -987,7 +987,7 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
             case 'Q': // Quit
                 write_to_buffer(d, "\n\rThank you for playing Sentience!\n\r", 0);
                 close_socket(d);
-                break;
+                return;
             case 'R':
             if (!game_settings.enable_email){
                 write_to_buffer(d, "\n\rEmail is not enabled.\n\r", 0);
@@ -1029,7 +1029,7 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
             default:
                 write_to_buffer(d, "Invalid choice.\n\r", 0);
                 display_account_menu(d);
-                break;
+                return;
         }
     }
 
@@ -1119,6 +1119,7 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
     // If nothing matched, show error
     write_to_buffer(d, "Invalid choice.\n\r", 0);
     display_account_menu(d);
+    d->connected = CON_ACCOUNT_MENU;
 }
 
 
@@ -4384,7 +4385,7 @@ void login_character_mfa_verify_for_settings(DESCRIPTOR_DATA *d, char *argument)
 }
 
 
-login_get_new_class(DESCRIPTOR_DATA *d, char *argument)
+void login_get_new_class(DESCRIPTOR_DATA *d, char *argument)
 {
 	char buf[MAX_STRING_LENGTH];
 	char arg[MAX_INPUT_LENGTH];
