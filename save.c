@@ -1122,8 +1122,6 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 
 	variable_fix_list(last_var ? last_var : variable_head);
 
-if (ch->version < VERSION_PLAYER_008)
-	save_char_obj(ch);
 
     ch->pcdata->last_login = current_time;
     return found;
