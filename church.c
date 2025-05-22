@@ -97,6 +97,7 @@ bool is_meta_category(flag_t category_flag);
 void display_church_logs(CHAR_DATA *ch, CHURCH_DATA *church, 
                         CHURCH_LOG_ENTRY **entries, int count,
                         char *search_text, char *search_author, flag_t search_categories);
+static int cmp_church_uid(void *a, void *b);
 
 
     #define MAX_PROCESSED_FILES 100
@@ -4115,6 +4116,19 @@ void read_churches_new()
     
     closedir(dir);
     log_string(formatf("Loaded %d churches from individual files", count));
+
+// Sort the list of churches by UID using list_quicksort
+if (list_churches != NULL) {
+    if (list_churches->size > 1) {
+        list_quicksort(list_churches, cmp_church_uid);
+    }
+    // After sorting list_churches, the raw church_list pointer
+    // should be updated to the head of the sorted LLIST.
+    church_list = (CHURCH_DATA *)list_churches->head;
+} else {
+    // This case implies no churches were loaded into list_churches
+    church_list = NULL;
+}
         if (church_list != NULL && church_list->next != NULL) {
         bool swapped;
         CHURCH_DATA *ptr;
@@ -4154,6 +4168,8 @@ void read_churches_new()
             
         } while (swapped);
     }
+    
+    
 }
 
 CHURCH_DATA *read_church(FILE *fp)
@@ -7730,4 +7746,16 @@ bool is_meta_category(flag_t category_flag)
         }
     }
     return false;
+}
+
+static int cmp_church_uid(void *a, void *b)
+{
+    CHURCH_DATA *p1 = (CHURCH_DATA *)a;
+    CHURCH_DATA *p2 = (CHURCH_DATA *)b;
+
+    if (p1->uid < p2->uid)
+        return -1;
+    if (p1->uid > p2->uid)
+        return 1;
+    return 0;
 }
