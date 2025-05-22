@@ -1454,13 +1454,13 @@ PROJECT_DATA *read_project(FILE *fp)
 		break;
 
 	    default:
-		sprintf(buf, "read_projects: no match for word %s", word);
+		snprintf(buf, sizeof(buf), "read_projects: no match for word %s", word);
 		bug(buf, 0);
 		break;
 	}
     }
 
-    sprintf(buf,"read_project: reading project %s (%s), leader %s, sec %d, flags %s",
+    snprintf(buf, sizeof(buf),"read_project: reading project %s (%s), leader %s, sec %d, flags %s",
 	    project->name, project->summary, project->leader,
 	    project->security, flag_string(project_flags, project->project_flags));
     log_string(buf);
@@ -1493,7 +1493,7 @@ PROJECT_BUILDER_DATA *read_project_builder(FILE *fp)
 		break;
 
 	    default:
-		sprintf(buf, "read_project_builder: no match for word %s", word);
+		snprintf(buf, sizeof(buf), "read_project_builder: no match for word %s", word);
 		bug(buf, 0);
 		break;
 	}
@@ -1548,7 +1548,7 @@ PROJECT_INQUIRY_DATA *read_project_inquiry(FILE *fp)
 
 
 	    default:
-		sprintf(buf, "read_project_builder: no match for word %s", word);
+		snprintf(buf, sizeof(buf), "read_project_builder: no match for word %s", word);
 		bug(buf, 0);
 		break;
 	}

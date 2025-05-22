@@ -699,5 +699,15 @@ DECLARE_DO_FUN( do_testemail );
 DECLARE_DO_FUN( do_pwreset );
 DECLARE_DO_FUN( do_lvlaudit );
 DECLARE_DO_FUN( do_keygen );
+DECLARE_DO_FUN( do_mfareset );
+DECLARE_DO_FUN( do_logout );
+DECLARE_DO_FUN (do_accset);
+DECLARE_DO_FUN (do_accstat);
+DECLARE_DO_FUN( do_gameedit );
+DECLARE_DO_FUN( do_accnote);
+DECLARE_DO_FUN ( do_vault );
+DECLARE_DO_FUN( do_coffer );
 
 DECLARE_DO_FUN( do_diallist );
+DECLARE_DO_FUN( do_dialedit );
+DECLARE_DO_FUN( do_dialshow );

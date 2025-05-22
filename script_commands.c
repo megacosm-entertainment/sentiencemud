@@ -1245,7 +1245,7 @@ SCRIPT_CMD(scriptcmd_attach)
 			else if( arg->type == ENT_STRING )
 			{
 				strncpy(name,arg->d.str,MIL-1);
-				name[MIL] = '\0';
+				name[MIL-1] = '\0';
 			}
 
 			if (compartment_index < 1 && name[0] == '\0') return;
@@ -9531,7 +9531,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 
 	if(script_security < min_sec)
 	{
-		sprintf(buf,"Alterobj - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+		snprintf(buf, sizeof(buf),"Alterobj - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 		scriptcmd_bug(info, buf);
 		return;
 	}
@@ -9624,7 +9624,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		switch (buf[0]) {
 		case '+':
 			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				return;
@@ -9635,7 +9635,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 
 		case '-':
 			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				return;
@@ -9646,7 +9646,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 
 		case '*':
 			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				return;
@@ -9657,7 +9657,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 
 		case '/':
 			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				return;
@@ -9665,7 +9665,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 
 			if (!value) {
 				bug("Alterobj - adjust called with operator / and value 0", 0);
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				return;
@@ -9674,14 +9674,14 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 			break;
 		case '%':
 			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				return;
 			}
 
 			if (!value) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				bug("Alterobj - adjust called with operator % and value 0", 0);
@@ -9692,7 +9692,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 
 		case '>':
 			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				return;
@@ -9704,7 +9704,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 
 		case '<':
 			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				return;
@@ -9743,7 +9743,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 
 		case '&':
 			if( !allowbitwise ) {
-				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				return;
@@ -9759,7 +9759,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 			break;
 		case '|':
 			if( !allowbitwise ) {
-				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				return;
@@ -9775,7 +9775,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 			break;
 		case '!':
 			if( !allowbitwise ) {
-				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				return;
@@ -9791,7 +9791,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 			break;
 		case '^':
 			if( !allowbitwise ) {
-				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				return;
@@ -9822,7 +9822,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		switch (buf[0]) {
 		case '+':
 			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				return;
@@ -9833,7 +9833,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 
 		case '-':
 			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				return;
@@ -9844,7 +9844,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 
 		case '*':
 			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				return;
@@ -9855,7 +9855,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 
 		case '/':
 			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				return;
@@ -9863,7 +9863,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 
 			if (!value) {
 				bug("Alterobj - adjust called with operator / and value 0", 0);
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				return;
@@ -9872,14 +9872,14 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 			break;
 		case '%':
 			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				return;
 			}
 
 			if (!value) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				bug("Alterobj - adjust called with operator % and value 0", 0);
@@ -9890,7 +9890,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 
 		case '>':
 			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				return;
@@ -9902,7 +9902,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 
 		case '<':
 			if( !allowarith ) {
-				sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				return;
@@ -9941,7 +9941,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 
 		case '&':
 			if( !allowbitwise ) {
-				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				return;
@@ -9957,7 +9957,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 			break;
 		case '|':
 			if( !allowbitwise ) {
-				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				return;
@@ -9973,7 +9973,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 			break;
 		case '!':
 			if( !allowbitwise ) {
-				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				return;
@@ -9989,7 +9989,7 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 			break;
 		case '^':
 			if( !allowbitwise ) {
-				sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+				snprintf(msg, sizeof(msg), "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
 					buf[0], field);
 				scriptcmd_bug(info, msg);
 				return;
@@ -10137,13 +10137,13 @@ SCRIPT_CMD(scriptcmd_stringobjmt)
 	}
 
 	if(!check_material && !str) {
-		sprintf(msg, "StringObj - Invalid field '%s' on %s entity.", field, entitytype);
+		snprintf(msg, sizeof(msg), "StringObj - Invalid field '%s' on %s entity.", field, entitytype);
 		scriptcmd_bug(info, msg);
 		return;
 	}
 
 	if(script_security < min_sec) {
-		sprintf(msg,"StringObj - Attempting to restring '%s' with security %d.", field, script_security);
+		snprintf(msg, sizeof(msg),"StringObj - Attempting to restring '%s' with security %d.", field, script_security);
 		scriptcmd_bug(info, msg);
 		return;
 	}
@@ -11576,7 +11576,7 @@ SCRIPT_CMD(scriptcmd_alterroom)
 		if (!room_is_clone(room)) return;
 
 		if(script_security < min_sec) {
-			sprintf(buf,"AlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+			snprintf(buf, sizeof(buf), "AlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 			wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 			bug(buf, 0);
 			return;
@@ -11648,7 +11648,7 @@ SCRIPT_CMD(scriptcmd_alterroom)
 	if(!lptr && !ptr && !sptr) return;
 
 	if(script_security < min_sec) {
-		sprintf(buf,"AlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+		snprintf(buf,sizeof(buf), "AlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 		bug(buf, 0);
 		return;
@@ -12140,7 +12140,7 @@ SCRIPT_CMD(scriptcmd_alterexit)
 	if(!lptr && !ptr && !sptr) return;
 
 	if(script_security < min_sec) {
-		sprintf(buf,"AlterExit - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+		snprintf(buf,sizeof(buf), "AlterExit - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 		bug(buf, 0);
 		return;
@@ -12571,7 +12571,7 @@ SCRIPT_CMD(scriptcmd_altermob)
 	if(!allowpc && !IS_NPC(mob)) min_sec = 9;
 
 	if(script_security < min_sec) {
-		sprintf(buf,"AlterMob - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+		snprintf(buf,sizeof(buf),"AlterMob - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 		bug(buf, 0);
 		return;
 	}
@@ -13943,7 +13943,7 @@ SCRIPT_CMD(scriptcmd_alter)
 	{
 		if (script_security < min_sec)
 		{
-			sprintf(buf,"Alter - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+			snprintf(buf,sizeof(buf),"Alter - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 			bug(buf, 0);
 			return;
 		}
@@ -13961,7 +13961,7 @@ SCRIPT_CMD(scriptcmd_alter)
 	{
 		if (script_security < min_sec)
 		{
-			sprintf(buf,"Alter - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+			snprintf(buf,sizeof(buf),"Alter - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 			bug(buf, 0);
 			return;
 		}

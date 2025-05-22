@@ -40,7 +40,9 @@
 #include <time.h>
 #ifndef MALLOC_STDLIB
 #include <malloc.h>
+
 #endif
+#include <dirent.h>
 #include "merc.h"
 #include "recycle.h"
 #include "tables.h"
@@ -127,6 +129,19 @@ void fwrite_affect(FILE *fp, AFFECT_DATA *paf);
 AFFECT_DATA *fread_affect(FILE *fp);
 void fread_reputation(FILE *fp, CHAR_DATA *ch);
 void insert_class_level(CHAR_DATA *ch, CLASS_LEVEL *cl);
+void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch);
+ACCOUNT_DATA *find_account_by_id(unsigned long id0, unsigned long id1);
+ACCOUNT_DATA *find_account_by_name(char *username);
+void save_account(ACCOUNT_DATA *account);
+extern void get_account_id(ACCOUNT_DATA *account);
+void migrate_character_objects(CHAR_DATA *ch);
+void rebuild_character_file(CHAR_DATA *ch);
+void obj_to_char_temp(OBJ_DATA *obj, CHAR_DATA *ch);
+void remove_duplicate_objects_from_char(CHAR_DATA *ch);
+static void dedupe_obj_list(OBJ_DATA **head, LLIST *seen, LLIST *lworn);
+void remove_duplicate_objects_from_list(OBJ_DATA **head, LLIST *seen);
+void remove_duplicate_objects_from_char(CHAR_DATA *ch);
+
 
 // Version structures
 struct __player_data_version_007
@@ -232,6 +247,8 @@ static void __init_player_versioning(struct __player_data_versioning *data)
 
 void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__versioning);
 void fix_character( CHAR_DATA *ch, struct __player_data_versioning *__versioning );
+void fread_account(ACCOUNT_DATA *account, FILE *fp);
+void fread_account_character(ACCOUNT_DATA *account, FILE *fp);
 
 // Output a string of letters corresponding to the bitvalues for a flag
 char *print_flags(long flag)
@@ -313,84 +330,116 @@ void save_char_obj(CHAR_DATA *ch)
     FILE *fp;
 
     if (IS_NPC(ch))
-	return;
+        return;
 
     if (!IS_VALID(ch))
     {
         bug("save_char_obj: Trying to save an invalidated character.\n", 0);
         return;
     }
+		remove_duplicate_objects_from_char(ch);
 
-    if (ch->desc != NULL && ch->desc->original != NULL)
-	ch = ch->desc->original;
-
-#if 0
-#if defined(unix)
-    /* create god log */
-    if (IS_IMMORTAL(ch) && !IS_NPC(ch))
-    {
-	fclose(fpReserve);
-	sprintf(strsave, "%s%s",GOD_DIR, capitalize(ch->name));
-	if ((fp = fopen(strsave,"w")) == NULL)
-	{
-	    bug("Save_char_obj: fopen",0);
-	    perror(strsave);
- 	}
-
-	fprintf(fp,"{Y Lev %2d{x  %s%s{x\n",
-	    ch->level,
-	    ch->name,
-	    ch->pcdata->title?ch->pcdata->title:"");
-	fclose(fp);
-	fpReserve = fopen(NULL_FILE, "r");
+    // Save character to account first
+    log_string(ch->pcdata->last_area);
+    log_string(ch->pcdata->last_region);
+    if (ch->desc && ch->desc->account) {
+        account_add_character(ch->desc->account, ch);
+    } else if (!IS_NPC(ch) && 
+              (ch->pcdata->account_id[0] != 0 || !IS_NULLSTR(ch->pcdata->account_name))) {
+        // Try to find and update account - first by ID, then by name
+        ACCOUNT_DATA *account = NULL;
+        
+        if (ch->pcdata->account_id[0] != 0)
+            account = find_account_by_id(ch->pcdata->account_id[0], ch->pcdata->account_id[1]);
+            
+        // Fall back to name lookup if ID lookup fails
+        if (account == NULL && !IS_NULLSTR(ch->pcdata->account_name))
+            account = find_account_by_name(ch->pcdata->account_name);
+            
+        if (account != NULL) {
+            account_add_character(account, ch);
+            save_account(account);
+            free_account(account);
+        }
     }
-#endif
-#endif
 
-	
+if (ch->carrying_temp && ch->version < VERSION_PLAYER_011) {
+    OBJ_DATA *obj = ch->carrying_temp;
+    OBJ_DATA *next;
+    while (obj) {
+        next = obj->next_content;
+        obj_to_char(obj, ch);
+        obj = next;
+    }
+    ch->carrying_temp = NULL;
+    ch->version = VERSION_PLAYER_011;
+	save_char_obj(ch);
+}
 
     fclose(fpReserve);
-	sprintf( strsave, "%s%c/%s",PLAYER_DIR,tolower(ch->name[0]),
-			 capitalize( ch->name ) );
+    sprintf(strsave, "%s%c/%s", PLAYER_DIR, tolower(ch->name[0]), capitalize(ch->name));
     if ((fp = fopen(TEMP_FILE, "w")) == NULL)
     {
-	bug("Save_char_obj: fopen", 0);
-	perror(strsave);
+        bug("Save_char_obj: fopen", 0);
+        perror(strsave);
     }
     else
     {
-	    // Used to do SAVE checks
-		p_percent_trigger( ch,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SAVE, NULL ,0,0,0,0,0);
+        p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SAVE, NULL, 0, 0, 0, 0, 0);
 
-		fwrite_char(ch, fp);
+        fwrite_char(ch, fp);
 
-		if (ch->carrying != NULL)
-			fwrite_obj_new(ch, ch->carrying, fp, 0);
-
-		if (ch->locker != NULL)
-			fwrite_obj_new(ch, ch->locker, fp, 0);
-
-		if (ch->tokens != NULL) {
-			TOKEN_DATA *token;
-			for(token = ch->tokens; token; token = token->next)
-				if( token_should_save(token) )
-					fwrite_token(token, fp);
+		// Write equipment section
+		fprintf(fp, "#EQUIPMENT\n");
+		ITERATOR eit;
+		OBJ_DATA *eobj;
+		iterator_start(&eit, ch->lworn);
+		while ((eobj = (OBJ_DATA *)iterator_nextdata(&eit))) {
+    		if (!eobj->locker && eobj->in_obj == NULL && list_haslink(loaded_objects, eobj)) {
+        		fwrite_obj_new(ch, eobj, fp, 0);
+    		}
 		}
+		iterator_stop(&eit);
+		fprintf(fp, "#ENDEQUIPMENT\n");
 
-		fwrite_stache_char(ch, fp);
 
-		fwrite_skills(ch, fp);
+		fprintf(fp, "#INVENTORY\n");
+		OBJ_DATA *obj, *next;
+		for (obj = ch->carrying; obj != NULL; obj = next) {
+    		next = obj->next_content;
+    		// Only write unequipped, non-locker, top-level objects
+    		if (obj->wear_loc == WEAR_NONE && !obj->locker && obj->in_obj == NULL && list_haslink(loaded_objects, obj)) {
+        		obj->next_content = NULL; // Prevent recursion through the list
+        		fwrite_obj_new(ch, obj, fp, 0);
+        		obj->next_content = next; // Restore the link
+    		}
+		}
+		fprintf(fp, "#ENDINVENTORY\n");
 
-		fwrite_reputations_char(ch, fp);
 
-	    fprintf(fp, "#END\n");
+        // Write locker section
+        fprintf(fp, "#LOCKER\n");
+        for (obj = ch->locker; obj != NULL; obj = obj->next_content)
+			if (list_haslink(loaded_objects, obj))
+            	fwrite_obj_new(ch, obj, fp, 0);
+        fprintf(fp, "#ENDLOCKER\n");
+
+        if (ch->tokens != NULL) {
+            TOKEN_DATA *token;
+            for(token = ch->tokens; token; token = token->next)
+                if (token_should_save(token))
+                    fwrite_token(token, fp);
+        }
+
+        fwrite_stache_char(ch, fp);
+        fwrite_skills(ch, fp);
+        fwrite_reputations_char(ch, fp);
+
         fprintf(fp, "#END\n");
-
     }
 
-
     fclose(fp);
-    rename(TEMP_FILE,strsave);
+    rename(TEMP_FILE, strsave);
     fpReserve = fopen(NULL_FILE, "r");
 }
 
@@ -463,6 +512,15 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 // VERSION MUST ALWAYS BE THE FIRST FIELD!!!
     fprintf(fp, "Vers %d\n", IS_NPC(ch) ? VERSION_MOBILE : VERSION_PLAYER);
     fprintf(fp, "Name %s~\n",	ch->name		);
+    // Add account reference by both name and ID
+    if (!IS_NPC(ch) && ch->desc && ch->desc->account) {
+        fprintf(fp, "Account %s~\n", ch->desc->account->username);
+        fprintf(fp, "AccountId %ld %ld\n", ch->desc->account->id[0], ch->desc->account->id[1]);
+    }
+    else if (!IS_NPC(ch) && !IS_NULLSTR(ch->pcdata->account_name)) {
+        fprintf(fp, "Account %s~\n", ch->pcdata->account_name);
+        fprintf(fp, "AccountId %ld %ld\n", ch->pcdata->account_id[0], ch->pcdata->account_id[1]);
+    }
     if(!IS_NPC(ch))
 	fprintf(fp, "Created   %ld\n", ch->pcdata->creation_date	);
     fprintf(fp, "Id   %ld\n", ch->id[0]			);
@@ -491,6 +549,11 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     fprintf(fp, "Race %s~\n", ch->race->name);
     fprintf(fp, "Sex  %d\n",	ch->sex			);
     fprintf(fp, "LockerRent %ld\n", (long int)ch->locker_rent   );
+	if (ch->deleted)
+	{
+		fprintf(fp, "Deleted %d\n", ch->deleted);
+		fprintf(fp, "DeleteTime %ld\n", (long int)ch->delete_time);
+	}
 
 	ITERATOR cit;
 	CLASS_LEVEL *cl;
@@ -530,6 +593,17 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 
     if (ch->pcdata->email != NULL)
 	fprintf(fp, "Email %s~\n",  ch->pcdata->email	);
+    // Add the new email verification fields
+    fprintf(fp, "EmailVerified %d\n", ch->pcdata->email_verified);
+    if (ch->pcdata->pending_email != NULL)
+        fprintf(fp, "PendingEmail %s~\n", ch->pcdata->pending_email);
+    if (ch->pcdata->email_verification_code != NULL)
+        fprintf(fp, "EmailVerificationCode %s~\n", ch->pcdata->email_verification_code);
+    if (ch->pcdata->email_verification_time > 0)
+        fprintf(fp, "EmailVerificationTime %ld\n", ch->pcdata->email_verification_time);
+    if (ch->pcdata->email_verification_last_sent > 0)
+        fprintf(fp, "EmailVerificationLastSent %ld\n", ch->pcdata->email_verification_last_sent);
+    
     fprintf(fp, "TLevl %d\n",	ch->tot_level		);
     fprintf(fp, "Sec  %d\n",    ch->pcdata->security	);	/* OLC */
     fprintf(fp, "ChDelay %d\n", ch->pcdata->challenge_delay);
@@ -570,6 +644,9 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 			ch->pcdata->room_before_arena.area->uid,
 		 	ch->pcdata->room_before_arena.id[0]);
     }
+
+	fprintf(fp, "LastArea     %s~\n", ch->pcdata->last_area);
+	fprintf(fp, "LastRegion   %s~\n", ch->pcdata->last_region);
 
     fprintf(fp, "Not  %ld %ld %ld %ld %ld\n",
 	(long int)ch->pcdata->last_note,(long int)ch->pcdata->last_idea,(long int)ch->pcdata->last_penalty,
@@ -821,6 +898,19 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 		fprintf(fp, "ResetState %d\n", ch->pcdata->reset_state);
 		if (ch->pcdata->mfa_key != NULL)
 			fprintf(fp, "MFA_Key %s~\n", ch->pcdata->mfa_key);
+		//if (ch->pcdata->qr_code_expiration != 0)
+		//	fprintf(fp, "MFA_Code_Expiration %ld\n", ch->pcdata->qr_code_expiration);
+		if (ch->pcdata->mfa_enabled == TRUE)
+			fprintf(fp, "MFA_Enabled\n");
+		fprintf(fp, "MFAPendingKey %s~\n", ch->pcdata->mfa_pending_key ? ch->pcdata->mfa_pending_key : "");
+		fprintf(fp, "MFAPending %d\n", ch->pcdata->mfa_pending ? 1 : 0);
+		fprintf(fp, "RecoveryCodes ");
+			for (int i = 0; i < MFA_RECOVERY_CODES; ++i)
+    			fprintf(fp, "%s%c", ch->pcdata->recovery_codes[i], (i == MFA_RECOVERY_CODES-1) ? '\n' : ' ');
+
+		fprintf(fp, "RecoveryUsed ");
+			for (int i = 0; i < MFA_RECOVERY_CODES; ++i)
+    			fprintf(fp, "%d%c", ch->pcdata->recovery_used[i] ? 1 : 0, (i == MFA_RECOVERY_CODES-1) ? '\n' : ' ');
 		/*if (ch->pcdata->immortal->bamfin[0] != '\0')
 			fprintf(fp, "Bin  %s~\n",	ch->pcdata->immortal->bamfin);
 		if (ch->pcdata->immortal->bamfout[0] != '\0')
@@ -940,254 +1030,267 @@ extern pVARIABLE variable_tail;
  */
 bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 {
-	struct __player_data_versioning __versioning;
-    char strsave[MAX_INPUT_LENGTH];
-    char buf[MSL];
+    struct __player_data_versioning __versioning;
+    char strsave[MAX_INPUT_LENGTH], buf[MSL];
     CHAR_DATA *ch;
-    OBJ_DATA *obj;
-    OBJ_DATA *objNestList[MAX_NEST];
+    OBJ_DATA *obj, *objNestList[MAX_NEST];
     IMMORTAL_DATA *immortal;
     FILE *fp;
-    bool found;
+    bool found = false;
     int stat;
     TOKEN_DATA *token;
     pVARIABLE last_var = variable_tail;
+    char *section = NULL;
 
-	__init_player_versioning(&__versioning);
+    __init_player_versioning(&__versioning);
 
     ch = new_char();
     ch->pcdata = new_pcdata();
-
-    d->character			= ch;
-    ch->desc				= d;
-    ch->name				= str_dup(name);
-    ch->id[0] = ch->id[1]		= 0;
-    ch->pcdata->creation_date		= -1;
-    ch->race				= gr_human;
-    ch->act[0]				= PLR_NOSUMMON;
-    ch->act[1]				= 0;
-    ch->comm				= COMM_PROMPT;
-    ch->num_grouped			= 0;
+    d->character = ch;
+    ch->desc = d;
+    ch->name = str_dup(name);
+    ch->id[0] = ch->id[1] = 0;
+    ch->pcdata->creation_date = -1;
+    ch->race = gr_human;
+    ch->act[0] = PLR_NOSUMMON;
+    ch->act[1] = 0;
+    ch->comm = COMM_PROMPT;
+    ch->num_grouped = 0;
     ch->dead = false;
-    ch->prompt 				= str_dup("{B<{x%h{Bhp {x%m{Bm {x%v{Bmv>{x%c");
-    ch->pcdata->confirm_delete		= false;
-    ch->pcdata->pwd			= str_dup("");
-	ch->pcdata->pwd_vers	= 0;
-	ch->pcdata->reset_code	= str_dup("");
-	//ch->pcdata->reset_time	= 0;
-	ch->pcdata->reset_state	= 0;
-    //ch->pcdata->bamfin			= str_dup("");
-    //ch->pcdata->bamfout			= str_dup("");
-    ch->pcdata->title			= str_dup("");
-    for (stat =0; stat < MAX_STATS; stat++)
+    ch->prompt = str_dup("{B<{x%h{Bhp {x%m{Bm {x%v{Bmv>{x%c");
+    ch->pcdata->confirm_delete = false;
+    ch->pcdata->pwd = str_dup("");
+    ch->pcdata->pwd_vers = 0;
+    ch->pcdata->reset_code = str_dup("");
+    ch->pcdata->reset_state = 0;
+    ch->pcdata->title = str_dup("");
+    for (stat = 0; stat < MAX_STATS; stat++)
     {
-		ch->perm_stat[stat]		= 13;
-		ch->mod_stat[stat]		= 0;
-		ch->dirty_stat[stat]	= true;
-	}
-    ch->pcdata->condition[COND_THIRST]	= 48;
-    ch->pcdata->condition[COND_FULL]	= 48;
-    ch->pcdata->condition[COND_HUNGER]	= 48;
-    ch->pcdata->condition[COND_STONED]	= 0;
-    ch->pcdata->security		= 0;
-    ch->pcdata->challenge_delay		= 0;
-	ch->pcdata->mfa_key = str_dup("");
+        ch->perm_stat[stat] = 13;
+        ch->mod_stat[stat] = 0;
+        ch->dirty_stat[stat] = true;
+    }
+    ch->pcdata->condition[COND_THIRST] = 48;
+    ch->pcdata->condition[COND_FULL] = 48;
+    ch->pcdata->condition[COND_HUNGER] = 48;
+    ch->pcdata->condition[COND_STONED] = 0;
+    ch->pcdata->security = 0;
+    ch->pcdata->challenge_delay = 0;
+    ch->pcdata->mfa_key = str_dup("");
     ch->morphed = false;
     ch->locker_rent = 0;
     ch->deathsight_vision = 0;
+    ch->carrying_temp = NULL; // for migration
 
-	#ifdef IMC
-	imc_initchar( ch );
-	#endif
-
-    found = false;
     fclose(fpReserve);
-
-    /* decompress if .gz file exists */
-    sprintf(strsave, "%s%c/%s%s", PLAYER_DIR, tolower(name[0]), capitalize(name),".gz");
-    if ((fp = fopen(strsave, "r")) != NULL)
-    {
-		fclose(fp);
-		sprintf(buf,"gzip -dfq %s",strsave);
-		system(buf);
-    }
-
     sprintf(strsave, "%s%c/%s", PLAYER_DIR, tolower(name[0]), capitalize(name));
     if ((fp = fopen(strsave, "r")) != NULL) {
-		int iNest;
+        int iNest;
+        for (iNest = 0; iNest < MAX_NEST; iNest++)
+            objNestList[iNest] = NULL;
 
-		for (iNest = 0; iNest < MAX_NEST; iNest++)
-			rgObjNest[iNest] = NULL;
+        found = true;
+        for (;;) {
+            char letter = fread_letter(fp);
+            if (letter == '*') { fread_to_eol(fp); continue; }
+            if (letter != '#') { bug("Load_char_obj: # not found.", 0); break; }
 
-		found = true;
-		for (; ;)
-		{
-			char letter;
-			char *word;
+            char *word = fread_word(fp);
 
-			letter = fread_letter(fp);
-			if (letter == '*')
-			{
-			fread_to_eol(fp);
-			continue;
-			}
+            // Section tracking
+            if (!str_cmp(word, "EQUIPMENT")) { section = "EQUIPMENT"; continue; }
+            if (!str_cmp(word, "ENDEQUIPMENT")) { section = NULL; continue; }
+            if (!str_cmp(word, "INVENTORY")) { section = "INVENTORY"; continue; }
+            if (!str_cmp(word, "ENDINVENTORY")) { section = NULL; continue; }
+            if (!str_cmp(word, "LOCKER")) { section = "LOCKER"; continue; }
+            if (!str_cmp(word, "ENDLOCKER")) { section = NULL; continue; }
 
-			if (letter != '#')
-			{
-			bug("Load_char_obj: # not found.", 0);
-			break;
-			}
+            if (!str_cmp(word, "PLAYER")) {
+                fread_char(ch, fp, &__versioning);
+            } else if (!str_cmp(word, "OBJECT") || !str_cmp(word, "O")) {
+                obj = fread_obj_new(fp);
+                if (!obj) continue;
 
-			word = fread_word(fp);
-			if (!str_cmp(word, "PLAYER"))
-				fread_char(ch, fp, &__versioning);
-			else if (!str_cmp(word, "OBJECT") || !str_cmp(word, "O"))
-			{
-				obj = fread_obj_new(fp);
 
-				if (obj == NULL)
-					continue;
+                objNestList[obj->nest] = obj;
 
-				resolve_special_key(obj);
-
-				objNestList[obj->nest] = obj;
-				if (obj->locker == true)
+                if (section) {
+					//log_string(formatf("Loading object %s into section %s for %s\n", obj->name, section, ch->name));
+                    if (!str_cmp(section, "LOCKER")) {
+                        obj_to_locker(obj, ch);
+                    } 
+					/*
+					else if (!str_cmp(section, "EQUIPMENT")) {
+                        obj_to_char(obj, ch);
+                        if (obj->wear_loc != WEAR_NONE)
+                            list_addlink(ch->lworn, obj);
+                    } 
+					*/
+				else if (!str_cmp(section, "EQUIPMENT") || !str_cmp(section, "INVENTORY")) {
+    objNestList[obj->nest] = obj;
+    if (obj->nest == 0) {
+        obj_to_char(obj, ch);
+    } else {
+        OBJ_DATA *container = objNestList[obj->nest - 1];
+        if (container && IS_CONTAINER(container))
+            obj_to_obj(obj, container);
+        else
+            obj_to_char(obj, ch); // fallback if container is missing
+    }
+    // For equipped items, add to lworn if needed
+    if (!str_cmp(section, "EQUIPMENT") && obj->wear_loc != WEAR_NONE)
+        list_addlink(ch->lworn, obj);
+}
+					else if (!str_cmp(section, "INVENTORY")) {
+                        if (obj->nest == 0) {
+                            obj_to_char(obj, ch);
+                        } else {
+                            OBJ_DATA *container = objNestList[obj->nest - 1];
+                            if (container && IS_CONTAINER(container))
+                                obj_to_obj(obj, container);
+                            else
+                                obj_to_char(obj, ch);
+                        }
+                    }
+                } else if (section == NULL && ch->version < VERSION_PLAYER_011) {
+					//log_stringf("Old character, no sections. Loading object %s into inventory (ch->carrying_temp) for %s\n", obj->name, ch->name);
+    				if (obj->nest == 0) {
+        				obj_to_char_temp(obj, ch);
+    				} else {
+        				OBJ_DATA *container = objNestList[obj->nest - 1];
+        				if (container && IS_CONTAINER(container))
+            			obj_to_obj(obj, container);
+        			else
+            			obj_to_char_temp(obj, ch); // fallback if container is missing
+    				}
+				}
+				else if (ch->version >= VERSION_PLAYER_011 && !section)
 				{
-					obj_to_locker(obj, ch);
+					//log_stringf("New character, no sections. Not loading %s\n", obj->name);
 					continue;
 				}
-
-				if (obj->nest == 0) {
-					 obj_to_char(obj, ch);
-
-					 if( obj->wear_loc != WEAR_NONE ) {
-						 list_addlink(ch->lworn, obj);
-					 }
-				} else {
-					OBJ_DATA *container = objNestList[obj->nest - 1];
-
-					if (IS_CONTAINER(container))
-						obj_to_obj(obj,objNestList[obj->nest - 1]);
-					else {
-						sprintf(buf, "load_char_obj: found obj %s(%ld) in item %s(%ld) which is not a container",
-							obj->short_descr, obj->pIndexData->vnum,
-							container->short_descr, container->pIndexData->vnum);
-						log_string(buf);
-						obj_to_char(obj, ch);
-					}
-				}
-			} else if (!str_cmp(word, "L")) {
-				obj = fread_obj_new(fp);
-				obj_to_locker(obj, ch);
-			} else if (!str_cmp(word, "STACHE")) {
-				fread_stache(fp, ch->lstache);
-			} else if (!str_cmp(word, "TOKEN")) {
-				token = fread_token(fp);
-				if (token)
-				{
-					token_to_char(token, ch);
-
-					// Add all affects on the token to the character
-					ITERATOR ait;
-					AFFECT_DATA *taf;
-					iterator_start(&ait, token->affects);
-					while((taf = (AFFECT_DATA *)iterator_nextdata(&ait)))
-					{
-						taf->next = ch->affected;
-						ch->affected = taf;
-					}
-					iterator_stop(&ait);
-				}
-			} else if (!str_cmp(word, "REPUTATION")) {
-				fread_reputation(fp, ch);
-			} else if (!str_cmp(word, "SKILLENTRY")) {
-				fread_skill(fp, ch, false);
-			} else if (!str_cmp(word, "SONGENTRY")) {
-				fread_skill(fp, ch, true);
-			} else if (!str_cmp(word, "END"))
-				break;
-			else {
-				bug("Load_char_obj: bad section.", 0);
-				break;
+				
 			}
-		}
 
-		fclose(fp);
+
+
+            else if (!str_cmp(word, "L")) {
+                obj = fread_obj_new(fp);
+                obj_to_locker(obj, ch);
+            }
+            else if (!str_cmp(word, "STACHE")) {
+                fread_stache(fp, ch->lstache);
+            }
+            else if (!str_cmp(word, "TOKEN")) {
+                token = fread_token(fp);
+                if (token)
+                {
+                    token_to_char(token, ch);
+
+                    // Add all affects on the token to the character
+                    ITERATOR ait;
+                    AFFECT_DATA *taf;
+                    iterator_start(&ait, token->affects);
+                    while((taf = (AFFECT_DATA *)iterator_nextdata(&ait)))
+                    {
+                        taf->next = ch->affected;
+                        ch->affected = taf;
+                    }
+                    iterator_stop(&ait);
+                }
+            }
+            else if (!str_cmp(word, "REPUTATION")) {
+                fread_reputation(fp, ch);
+            }
+            else if (!str_cmp(word, "SKILLENTRY")) {
+                fread_skill(fp, ch, false);
+            }
+            else if (!str_cmp(word, "SONGENTRY")) {
+                fread_skill(fp, ch, true);
+            }
+            else if (!str_cmp(word, "END"))
+                break;
+            else {
+                bug("Load_char_obj: bad section.", 0);
+                break;
+            }
+        }
+
+        fclose(fp);
     }
     fpReserve = fopen(NULL_FILE, "r");
 
-	if(!IS_NPC(ch)) {
-		if(ch->pcdata->creation_date < 0) {
-			ch->pcdata->creation_date = ch->id[0];
-			ch->id[0] = 0;
-		}
-		if(!ch->pcdata->creation_date)
-			ch->pcdata->creation_date = get_pc_id();
-	}
+    if(!IS_NPC(ch)) {
+        if(ch->pcdata->creation_date < 0) {
+            ch->pcdata->creation_date = ch->id[0];
+            ch->id[0] = 0;
+        }
+        if(!ch->pcdata->creation_date)
+            ch->pcdata->creation_date = get_pc_id();
+    }
 
     // Do not bother fixing ANYTHING on the player
     // The only reason this is true will be during the reading of the staff list
     //   and needed to get the creation date
     if(loading_immortal_data)
     {
-    	return found;
-	}
-
-	get_mob_id(ch);
-
-    /* The immortal-only information associated with an imm is stored in a seperate list
-       (immortal_list) so that it is always accessible, instead of only when the char
-       is logged in. On game shutdown it is written to ../data/world/staff.dat. When
-       the player logs in, a pointer to the immortal staff entry is set up for them
-       here. */
-    if (get_staff_rank(ch) > STAFF_PLAYER) {
-	/* If their immortal isn't found, give them a blank one so we don't segfault. */
-		if ((immortal = find_immortal(ch->name)) == NULL) {
-			sprintf(buf, "load_char_obj: no immortal_data found for immortal character %s!", ch->name);
-			bug(buf, 0);
-
-			immortal = new_immortal();
-			immortal->name = str_dup(ch->name);
-			//immortal->level = ch->tot_level;
-			ch->pcdata->immortal = immortal;
-
-			add_immortal(immortal);
-
-		} else { // Readjust the char's level accordingly.
-			sprintf(buf, "load_char_obj: reading immortal char %s.\n\r", ch->name);
-			log_string(buf);
-
-			ch->pcdata->immortal = immortal;
-			//ch->level = immortal->level;
-			//ch->tot_level = immortal->level;
-		}
-	    immortal->pc = ch->pcdata;
+        return found;
     }
-	else if ((immortal = find_immortal(ch->name)) != NULL)
-	{
-		log_string(formatf("load_char_obj: resolving immortal data for %s.\n\r", ch->name));
-		ch->pcdata->staff_rank = STAFF_IMMORTAL;
-		ch->pcdata->immortal = immortal;
-		immortal->pc = ch->pcdata;
-	}
 
+    get_mob_id(ch);
+
+    // Handle immortal data setup
+    if (get_staff_rank(ch) > STAFF_PLAYER) {
+        if ((immortal = find_immortal(ch->name)) == NULL) {
+            snprintf(buf, sizeof(buf), "load_char_obj: no immortal_data found for immortal character %s!", ch->name);
+            bug(buf, 0);
+
+            immortal = new_immortal();
+            immortal->name = str_dup(ch->name);
+            ch->pcdata->immortal = immortal;
+
+            add_immortal(immortal);
+
+        } else {
+            snprintf(buf, sizeof(buf), "load_char_obj: reading immortal char %s.\n\r", ch->name);
+            log_string(buf);
+
+            ch->pcdata->immortal = immortal;
+        }
+        immortal->pc = ch->pcdata;
+    }
+    else if ((immortal = find_immortal(ch->name)) != NULL)
+    {
+        log_string(formatf("load_char_obj: resolving immortal data for %s.\n\r", ch->name));
+        ch->pcdata->staff_rank = STAFF_IMMORTAL;
+        ch->pcdata->immortal = immortal;
+        immortal->pc = ch->pcdata;
+    }
 
     // Fix char.
     if (found)
-		fix_character(ch, &__versioning);
+        fix_character(ch, &__versioning);
 
     /* Redo shift. Remember ch->shifted was just used as a placeholder to tell the game
        to re-shift, so we have to switch it to none first. */
     if (ch->shifted != SHIFTED_NONE) {
-		ch->shifted = SHIFTED_NONE;
-		shift_char(ch, true);
+        ch->shifted = SHIFTED_NONE;
+        shift_char(ch, true);
     }
 
-	variable_fix_list(last_var ? last_var : variable_head);
+    variable_fix_list(last_var ? last_var : variable_head);
+
+if (ch->version < VERSION_PLAYER_011)
+	save_char_obj(ch);
 
     ch->pcdata->last_login = current_time;
     return found;
 }
+
+
+
+
+
 
 MISSION_PART_DATA *fread_mission_part(FILE *fp)
 {
@@ -1299,7 +1402,7 @@ MISSION_PART_DATA *fread_mission_part(FILE *fp)
 		}
 
 	    if (!fMatch) {
-		    sprintf(buf, "fread_mission_part: no match for word %s", word);
+		    snprintf(buf, sizeof(buf), "fread_mission_part: no match for word %s", word);
 		    bug(buf, 0);
 		    fread_to_eol(fp);
 	    }
@@ -1376,7 +1479,7 @@ MISSION_DATA *fread_mission(FILE *fp)
 		}
 
 	    if (!fMatch) {
-		    sprintf(buf, "read_quest_part: no match for word %s", word);
+		    snprintf(buf, sizeof(buf), "read_quest_part: no match for word %s", word);
 		    bug(buf, 0);
 		    fread_to_eol(fp);
 	    }
@@ -1442,7 +1545,7 @@ AFFECT_DATA *fread_affect(FILE *fp)
 		}
 
 	    if (!fMatch) {
-		    sprintf(buf, "fread_affect: no match for word %s", word);
+		    snprintf(buf, sizeof(buf), "fread_affect: no match for word %s", word);
 		    bug(buf, 0);
 		    fread_to_eol(fp);
 	    }
@@ -1476,7 +1579,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 	word   = feof(fp) ? "End" : fread_word(fp);
 	fMatch = false;
 
-	bug(word, 0);
+	//bug(word, 0);
 
 	switch (UPPER(word[0]))
 	{
@@ -1521,6 +1624,13 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		break;
 
 	case 'A':
+		KEYS("Account", ch->pcdata->account_name, fread_string(fp));
+		if (!str_cmp(word, "AccountId")) {
+			ch->pcdata->account_id[0] = fread_number(fp);
+			ch->pcdata->account_id[1] = fread_number(fp);
+			fMatch = true;
+			break;
+		}
 	    KEY("Act",		ch->act[0],		fread_flag(fp));
 	    KEY("Act2",	ch->act[1],		fread_flag(fp));
 	    KEY("AffectedBy",	ch->affected_by[0],	fread_flag(fp));
@@ -1909,7 +2019,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		    }
 		    else
 		    {
-		        sprintf(buf,
+		        snprintf(buf, sizeof(buf),
 			"No church member found for %s, church_name %s",
 			    ch->name, ch->church_name);
 			log_string(buf);
@@ -1920,7 +2030,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		}
 		else
 		{
-                    sprintf(buf,
+			snprintf(buf, sizeof(buf),
 		    "Couldn't load ch church for %s, church %s",
 		        ch->name, ch->church_name);
 			bug(buf, 0);
@@ -1987,12 +2097,18 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		ch->dead = true;
 		fMatch = true;
 	    }
+		KEY("Deleted",	ch->deleted,		fread_number(fp));
+		KEY("DeleteTime",	ch->delete_time,	fread_number(fp));
 
 	    break;
 
-	case 'E':
-	    KEY("Exp",		ch->exp,		fread_number(fp));
-	    KEYS("Email",	ch->pcdata->email,	fread_string(fp));
+        case 'E':
+            KEY("EmailVerified", ch->pcdata->email_verified, fread_number(fp));
+            KEYS("Email", ch->pcdata->email, fread_string(fp));
+            KEY("EmailVerificationTime", ch->pcdata->email_verification_time, fread_number(fp));
+            KEY("EmailVerificationLastSent", ch->pcdata->email_verification_last_sent, fread_number(fp));
+            KEYS("EmailVerificationCode", ch->pcdata->email_verification_code, fread_string(fp));
+            KEY("Exp", ch->exp, fread_number(fp));
 
 	    if (!str_cmp(word, "End"))
 	    {
@@ -2196,6 +2312,16 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 
 	case 'L':
 	    KEY("LastLevel",	ch->pcdata->last_level, fread_number(fp));
+		if (!str_cmp(word, "LastArea"))
+		{
+			ch->pcdata->last_area = fread_string(fp);
+			fMatch = TRUE;
+		}
+		if (!str_cmp(word, "LastRegion"))
+		{
+			ch->pcdata->last_region = fread_string(fp);
+			fMatch = TRUE;
+		}
 	    KEY("LLev",	ch->pcdata->last_level, fread_number(fp));
 	    //KEY("LogO",	lastlogoff,		fread_number(fp));
 	    KEY("LogI",	ch->pcdata->last_login,	fread_number(fp));
@@ -2233,6 +2359,19 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 			KEY("Mc3",		 __versioning->_007.class_warrior,		fread_number(fp));
 		}
 		KEY("MFA_KEY",		ch->pcdata->mfa_key,		fread_string(fp));
+		//KEY("MFA_Code_Expiration", ch->pcdata->qr_code_expiration, fread_number(fp));
+		if (!str_cmp(word, "MFA_Enabled"))
+			ch->pcdata->mfa_enabled = true;
+		if (!str_cmp(word, "MFAPendingKey")) {
+    		free_string(ch->pcdata->mfa_pending_key);
+    		ch->pcdata->mfa_pending_key = str_dup(fread_string(fp));
+    		fMatch = TRUE;
+		}
+
+		if (!str_cmp(word, "MFAPending")) {
+		    ch->pcdata->mfa_pending = (fread_number(fp) != 0);
+		    fMatch = TRUE;
+		}
 		KEY("MissionNext",   ch->nextmission,          fread_number(fp));
 		KEY("MissionPnts",   ch->missionpoints,        fread_number(fp));
 		KEY("MissionsCompleted", ch->pcdata->missions_completed, fread_number(fp));
@@ -2269,8 +2408,9 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 	    break;
 
 	case 'P':
-	    KEY("Password",	ch->pcdata->pwd,	fread_string(fp));
-	    KEY("Pass",	ch->pcdata->pwd,	fread_string(fp));
+            KEYS("PendingEmail", ch->pcdata->pending_email, fread_string(fp));
+            KEY("Password", ch->pcdata->pwd, fread_string(fp));
+            KEY("Pass", ch->pcdata->pwd, fread_string(fp));
 		KEY("PassVers", ch->pcdata->pwd_vers,	fread_number(fp))
 		if (!str_cmp(word, "PersonalMount"))
 		{
@@ -2559,7 +2699,16 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
                  fMatch = true;
                  break;
             }
-
+		if (!str_cmp(word, "RecoveryCodes")) {
+    		for (int i = 0; i < MFA_RECOVERY_CODES; ++i)
+        		ch->pcdata->recovery_codes[i] = str_dup(fread_word(fp));
+    		fMatch = TRUE;
+		}
+		if (!str_cmp(word, "RecoveryUsed")) {
+    		for (int i = 0; i < MFA_RECOVERY_CODES; ++i)
+        		ch->pcdata->recovery_used[i] = (fread_number(fp) != 0);
+    		fMatch = TRUE;
+		}
 	    KEY("Resist", ch->res_flags,	fread_flag(fp));
 	    KEY("ResistPerm", ch->res_flags_perm,	fread_flag(fp));
 
@@ -2885,7 +3034,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 
 	if (!fMatch)
 	{
-	    sprintf(buf,
+	    snprintf(buf, sizeof(buf),
 	    "Fread_char: no match for ch %s on word %s.", ch->name, word);
 	    bug(buf, 0);
 	    fread_to_eol(fp);
@@ -3968,7 +4117,7 @@ LOCK_STATE *fread_lock_state(FILE *fp)
 
 
 		if (!fMatch) {
-			sprintf(buf, "fread_lock_state: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_lock_state: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4015,7 +4164,7 @@ AMMO_DATA *fread_obj_ammo_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_ammo_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_ammo_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4079,7 +4228,7 @@ ADORNMENT_DATA *fread_adornment_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_adornment_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_adornment_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4178,7 +4327,7 @@ ARMOR_DATA *fread_obj_armor_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_armor_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_armor_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4224,7 +4373,7 @@ BODY_PART_DATA *fread_obj_body_part_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_body_part_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_body_part_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4259,7 +4408,7 @@ BOOK_PAGE *fread_book_page(FILE *fp, char *closer)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_book_page: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_book_page: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4295,7 +4444,7 @@ BOOK_DATA *fread_obj_book_data(FILE *fp)
 
 					if (!book_insert_page(book, page))
 					{
-						sprintf(buf, "fread_obj_book_data: page with duplicate page number (%d) found!  Discarding.", page->page_no);
+						snprintf(buf, sizeof(buf), "fread_obj_book_data: page with duplicate page number (%d) found!  Discarding.", page->page_no);
 						bug(buf, 0);
 						free_book_page(page);	
 					}
@@ -4326,7 +4475,7 @@ BOOK_DATA *fread_obj_book_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_book_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_book_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4360,7 +4509,7 @@ CART_DATA *fread_obj_cart_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_cart_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_cart_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4402,7 +4551,7 @@ COMPASS_DATA *fread_obj_compass_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_compass_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_compass_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4507,7 +4656,7 @@ CONTAINER_DATA *fread_obj_container_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_container_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_container_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4582,7 +4731,7 @@ CORPSE_DATA *fread_obj_corpse_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_corpse_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_corpse_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4678,7 +4827,7 @@ FLUID_CONTAINER_DATA *fread_obj_fluid_container_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_fluid_container_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_fluid_container_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4724,7 +4873,7 @@ FOOD_BUFF_DATA *fread_food_buff(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_food_buff: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_food_buff: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4776,7 +4925,7 @@ FOOD_DATA *fread_obj_food_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_food_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_food_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4847,7 +4996,7 @@ FURNITURE_COMPARTMENT *fread_furniture_compartment(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_furniture_compartment: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_furniture_compartment: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4892,7 +5041,7 @@ FURNITURE_DATA *fread_obj_furniture_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_furniture_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_furniture_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4939,7 +5088,7 @@ INK_DATA *fread_obj_ink_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_ink_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_ink_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5020,7 +5169,7 @@ INSTRUMENT_DATA *fread_obj_instrument_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_instrument_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_instrument_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5072,7 +5221,7 @@ JEWELRY_DATA *fread_obj_jewelry_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_jewelry_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_jewelry_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5105,7 +5254,7 @@ LIGHT_DATA *fread_obj_light_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_light_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_light_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5155,7 +5304,7 @@ MAP_DATA *fread_obj_map_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_map_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_map_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5214,7 +5363,7 @@ MIST_DATA *fread_obj_mist_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_mist_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_mist_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5248,7 +5397,7 @@ MONEY_DATA *fread_obj_money_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_money_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_money_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5351,7 +5500,7 @@ PORTAL_DATA *fread_obj_portal_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_portal_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_portal_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5407,7 +5556,7 @@ SCROLL_DATA *fread_obj_scroll_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_scroll_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_scroll_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5436,7 +5585,7 @@ SEXTANT_DATA *fread_obj_sextant_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_sextant_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_sextant_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5493,7 +5642,7 @@ TATTOO_DATA *fread_obj_tattoo_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_tattoo_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_tattoo_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5535,7 +5684,7 @@ TELESCOPE_DATA *fread_obj_telescope_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_telescope_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_telescope_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5597,7 +5746,7 @@ WAND_DATA *fread_obj_wand_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_wand_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_wand_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5694,7 +5843,7 @@ WEAPON_DATA *fread_obj_weapon_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_obj_weapon_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_obj_weapon_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -6016,7 +6165,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 		OBJ_INDEX_DATA *index = get_obj_index_auid(w.auid, w.vnum);
 		if ( index != NULL)
-			obj = create_object_noid(index,-1, false, false);
+			obj = create_object_noid(index,-1, false, false, false);
 
 	}
 
@@ -6050,7 +6199,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			word   = fread_word(fp);
 		fMatch = false;
 
-//		sprintf(buf, "Fread_obj_new: word = '%s'", word);
+//		snprintf(buf, sizeof(buf), "Fread_obj_new: word = '%s'", word);
 //		bug(buf, 0);
 
 		switch (UPPER(word[0]))
@@ -6700,6 +6849,25 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 					free_obj(obj);
 					return NULL;
 				}
+				else if (is_duplicate_object(obj))
+				{
+const char *where = "Unknown";
+if (obj->carried_by && obj->carried_by->name)
+    where = obj->carried_by->name;
+else if (obj->in_room && obj->in_room->name)
+    where = obj->in_room->name;
+else if (obj->in_obj && obj->in_obj->short_descr)
+    where = obj->in_obj->short_descr;
+
+
+log_stringf("Duplicate object detected: %s (id %ld, id2 %ld, vnum %ld) for %s. Skipping.",
+    obj->short_descr, obj->id[0], obj->id[1],
+    obj->pIndexData ? obj->pIndexData->vnum : 0,
+    where);
+					free_obj(obj);
+					return NULL;
+				}
+
 				else
 				{
 					if (!fVnum)
@@ -6708,7 +6876,12 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 						return NULL;
 						//obj = create_object(obj_index_dummy, 0 , false);
 					}
-
+				
+					if (!list_haslink(loaded_objects, obj))
+					{
+						list_appendlink(loaded_objects, obj);
+						obj->pIndexData->count++;
+					}
 					fread_obj_check_version(obj, values);
 
 					if (make_new)
@@ -6939,7 +7112,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				}
 				else
 				{
-					sprintf(buf, "Bad spell name for %s (%ld#%ld).", obj->short_descr, obj->pIndexData->area->uid, obj->pIndexData->vnum);
+					snprintf(buf, sizeof(buf), "Bad spell name for %s (%ld#%ld).", obj->short_descr, obj->pIndexData->area->uid, obj->pIndexData->vnum);
 					bug(buf,0);
 				}
 			}
@@ -7001,7 +7174,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 		if (!fMatch)
 		{
 			//char buf[MAX_STRING_LENGTH];
-			//sprintf(buf, "fread_obj: unknown obj flag %s", word);
+			//snprintf(buf, sizeof(buf), "fread_obj: unknown obj flag %s", word);
 			//bug(buf, 0);
 			fread_to_eol(fp);
 		}
@@ -7204,7 +7377,7 @@ void cleanup_affects(OBJ_DATA *obj)
 	    if (count > 1 && af->location == apply_type)
 	    {
 		affect_remove_obj(obj, af);
-		sprintf(buf, "cleanup_affects: obj %s (%ld)",
+		snprintf(buf, sizeof(buf), "cleanup_affects: obj %s (%ld)",
 		    obj->short_descr, obj->pIndexData->vnum);
 		bug(buf, 1);
 	    }
@@ -7370,11 +7543,11 @@ void fix_character(CHAR_DATA *ch, struct __player_data_versioning *__versioning)
 		}
 
 		// Iterate through all worn objects
-		for(obj = ch->carrying; obj; obj = obj->next_content)
-		{
-			if( !obj->locker && obj->wear_loc != WEAR_NONE )
-			{
-				for(paf = obj->affected; paf; paf = paf->next)
+			ITERATOR it;
+			OBJ_DATA *obj;
+			iterator_start(&it, ch->lworn);
+			while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+    		for (paf = obj->affected; paf; paf = paf->next) {
 				{
 					switch (paf->where)
 					{
@@ -7398,6 +7571,7 @@ void fix_character(CHAR_DATA *ch, struct __player_data_versioning *__versioning)
 					}
 				}
 			}
+			iterator_stop(&it);
 		}
 	}
 
@@ -7714,7 +7888,7 @@ void descrew_subclasses(CHAR_DATA *ch)
     if (missing_class(ch) || (ch->pcdata->sub_class_mage != -1
     && (ch->pcdata->sub_class_mage < 3 || ch->pcdata->sub_class_mage > 5 )))
     {
-	sprintf(buf, "descrew_subclasses: %s had a non-mage class!",
+	snprintf(buf, sizeof(buf), "descrew_subclasses: %s had a non-mage class!",
 		ch->name);
 	bug(buf, 0);
 	if (ch->pcdata->group_known[group_lookup("necromancer skills")] == true)
@@ -7732,7 +7906,7 @@ void descrew_subclasses(CHAR_DATA *ch)
     if (missing_class(ch) || (ch->pcdata->sub_class_cleric != -1
     && (ch->pcdata->sub_class_cleric < 6 || ch->pcdata->sub_class_cleric > 8)))
     {
-	sprintf(buf, "descrew_subclasses: %s had a non-cleric class!",
+	snprintf(buf, sizeof(buf), "descrew_subclasses: %s had a non-cleric class!",
 		ch->name);
 	bug(buf, 0);
 	if (ch->pcdata->group_known[group_lookup("witch skills")] == true)
@@ -7750,7 +7924,7 @@ void descrew_subclasses(CHAR_DATA *ch)
     if (missing_class(ch) || (ch->pcdata->sub_class_thief != -1
     && (ch->pcdata->sub_class_thief < 9 || ch->pcdata->sub_class_thief > 11)))
     {
-	sprintf(buf, "descrew_subclasses: %s had a non-thief class!",
+	snprintf(buf, sizeof(buf), "descrew_subclasses: %s had a non-thief class!",
 		ch->name);
 	bug(buf, 0);
 
@@ -7769,7 +7943,7 @@ void descrew_subclasses(CHAR_DATA *ch)
     if (missing_class(ch) || (ch->pcdata->sub_class_thief != -1
     && (ch->pcdata->sub_class_warrior > 2)))
     {
-	sprintf(buf, "descrew_subclasses: %s had a non-warrior class!",
+	snprintf(buf, sizeof(buf), "descrew_subclasses: %s had a non-warrior class!",
 		ch->name);
 	bug(buf, 0);
 	if (ch->pcdata->group_known[group_lookup("marauder skills")] == true)
@@ -7957,7 +8131,7 @@ TOKEN_DATA *fread_token(FILE *fp)
 
 	wnum = fread_widevnum(fp, 0);
     if ((token_index = get_token_index_auid(wnum.auid, wnum.vnum)) == NULL) {
-		sprintf(buf, "fread_token: no token index found for widevnum %ld#%ld", wnum.auid, wnum.vnum);
+		snprintf(buf, sizeof(buf), "fread_token: no token index found for widevnum %ld#%ld", wnum.auid, wnum.vnum);
 		bug(buf, 0);
 		return NULL;
     }
@@ -8028,7 +8202,7 @@ TOKEN_DATA *fread_token(FILE *fp)
 		}
 
 	    if (!fMatch) {
-			sprintf(buf, "read_token: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_token: no match for word %s", word);
 			bug(buf, 0);
 			fread_to_eol(fp);
 	    }
@@ -8176,7 +8350,7 @@ void fread_skill(FILE *fp, CHAR_DATA *ch, bool is_song)
 		}
 
 	    if (!fMatch) {
-			sprintf(buf, "fread_skill: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_skill: no match for word %s", word);
 			bug(buf, 0);
 			fread_to_eol(fp);
 	    }
@@ -8229,7 +8403,7 @@ void fread_reputation(FILE *fp, CHAR_DATA *ch)
 		}
 
 	    if (!fMatch) {
-			sprintf(buf, "fread_reputation: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "fread_reputation: no match for word %s", word);
 			bug(buf, 0);
 			fread_to_eol(fp);
 	    }
@@ -8352,10 +8526,1108 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
 		}
 
 	    if (!fMatch) {
-		    sprintf(buf, "read_quest_part: no match for word %s", word);
+		    snprintf(buf, sizeof(buf), "read_quest_part: no match for word %s", word);
 		    bug(buf, 0);
 		    fread_to_eol(fp);
 	    }
     }
 }
 #endif
+/*
+ * Load an account from disk.
+ */
+bool load_account(DESCRIPTOR_DATA *d, char *name)
+{
+    char strsave[MAX_INPUT_LENGTH];
+    char buf[MSL];
+    ACCOUNT_DATA *account;
+    FILE *fp;
+    bool found;
+
+    // Create a new account structure
+    account = new_account();
+    d->account = account;
+    account->username = str_dup(name);
+    account->creation_date = 0;
+    account->passwd = str_dup("");
+    account->passwd_version = 0;
+    account->reset_code = str_dup("");
+    account->reset_state = 0;
+    account->mfa_key = str_dup("");
+    //account->qr_code_expiration = 0;
+    account->email = str_dup("");
+    account->last_login = 0;
+    account->acct_flags = 0;
+    account->characters = list_create(false);
+
+	    account->email_verified = false;
+    account->pending_email = str_dup("");
+    account->email_verification_code = str_dup("");
+    account->email_verification_time = 0;
+    account->email_verification_last_sent = 0;
+
+    found = false;
+    fclose(fpReserve);
+
+    /* decompress if .gz file exists */
+    sprintf(strsave, "%s%c/%s%s", ACCOUNT_DIR, tolower(name[0]), capitalize(name), ".gz");
+    if ((fp = fopen(strsave, "r")) != NULL)
+    {
+        fclose(fp);
+        sprintf(buf, "gzip -dfq %s", strsave);
+        system(buf);
+    }
+
+    sprintf(strsave, "%s%c/%s", ACCOUNT_DIR, tolower(name[0]), capitalize(name));
+    if ((fp = fopen(strsave, "r")) != NULL) {
+        found = true;
+        for (;;)
+        {
+            char letter;
+            char *word;
+
+            letter = fread_letter(fp);
+            if (letter == '*')
+            {
+                fread_to_eol(fp);
+                continue;
+            }
+
+            if (letter != '#')
+            {
+                bug("Load_account: # not found.", 0);
+                break;
+            }
+
+            word = fread_word(fp);
+            if (!str_cmp(word, "ACCOUNT"))
+                fread_account(account, fp);
+            else if (!str_cmp(word, "CHARACTER"))
+                fread_account_character(account, fp);
+            else if (!str_cmp(word, "VAULT"))
+            {
+                // Process vault items
+                OBJ_DATA *obj;
+                OBJ_DATA *objNestList[MAX_NEST];
+                int iNest;
+
+                for (iNest = 0; iNest < MAX_NEST; iNest++)
+                    objNestList[iNest] = NULL;
+                
+                while (!str_cmp((word = fread_word(fp)), "#O"))
+                {
+                    obj = fread_obj_new(fp);
+                    if (obj == NULL)
+                        continue;
+                    
+                    objNestList[obj->nest] = obj;
+                    
+                    if (obj->nest == 0) {
+                        obj->next_content = account->vault_items;
+                        account->vault_items = obj;
+                    } else {
+                        OBJ_DATA *container = objNestList[obj->nest - 1];
+                        if (IS_CONTAINER(container))
+                            obj_to_obj(obj, container);
+                        else {
+                            sprintf(buf, "load_account: found obj %s in non-container in vault",
+                                obj->short_descr);
+                            log_string(buf);
+                            // Put it at top level if container is invalid
+                            obj->next_content = account->vault_items;
+                            account->vault_items = obj;
+                        }
+                    }
+                }
+                
+                // Skip to end of vault section
+                while (str_cmp(word, "#ENDVAULT"))
+                {
+                    word = fread_word(fp);
+                }
+            }
+            else if (!str_cmp(word, "END"))
+                break;
+            else {
+                bug("Load_account: bad section.", 0);
+                break;
+            }
+        }
+
+        fclose(fp);
+    }
+    
+    fpReserve = fopen(NULL_FILE, "r");
+
+    if (!account->creation_date)
+        account->creation_date = get_pc_id();
+        
+    // Generate account IDs if needed
+    if (account->id[0] == 0 || account->id[1] == 0)
+        get_account_id(account);
+
+    account->character_count = list_size(account->characters);
+    account->staff_account = FALSE;
+    ITERATOR cit;
+    ACCOUNT_CHARACTER *ch_entry;
+    iterator_start(&cit, account->characters);
+    while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&cit))) {
+        if (ch_entry->staff && ch_entry->staff_rank >= STAFF_IMMORTAL) {
+            account->staff_account = TRUE;
+            break;
+        }
+    }
+    iterator_stop(&cit);
+
+ITERATOR it;
+//ACCOUNT_CHARACTER *next_entry;
+
+iterator_start(&it, account->characters);
+while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+//    next_entry = (ACCOUNT_CHARACTER *)iterator_peek_nextdata(&it); // Save next in case we remove
+    if (should_purge_deleted_character(ch_entry)) {
+        // Load the character file
+        DESCRIPTOR_DATA temp_d;
+        memset(&temp_d, 0, sizeof(temp_d));
+        if (load_char_obj(&temp_d, ch_entry->name) && temp_d.character) {
+            delete_character(temp_d.character); // This handles unlinking and file move
+            free_char(temp_d.character);
+        }
+        list_remlink(account->characters, ch_entry, false);
+        free_account_character(ch_entry);
+    }
+}
+iterator_stop(&it);
+
+    // Add to loaded_accounts list if found
+    if (found && loaded_accounts)
+	{
+		if (!list_haslink(loaded_accounts, account))
+        list_appendlink(loaded_accounts, account);
+	}
+    account->last_login = current_time;
+    return found;
+
+}
+
+/*
+ * Read account data from file.
+ */
+void fread_account(ACCOUNT_DATA *account, FILE *fp)
+{
+    char buf[MAX_STRING_LENGTH];
+    char *word;
+    bool fMatch;
+
+    sprintf(buf,"save.c, fread_account: reading %s.", account->username);
+    log_string(buf);
+
+    for (;;)
+    {
+        word   = feof(fp) ? "End" : fread_word(fp);
+        fMatch = false;
+
+        switch (UPPER(word[0]))
+        {
+        case '*':
+            fMatch = true;
+            fread_to_eol(fp);
+            break;
+			case '#':
+			 if (!str_cmp(word, "#ACCNOTE"))
+{
+    ACCOUNT_NOTE_DATA *note = alloc_mem(sizeof(ACCOUNT_NOTE_DATA));
+    note->author = str_dup("");
+    note->subject = str_dup("");
+    note->text = str_dup("");
+    note->timestamp = current_time;
+    
+    for (;;)
+    {
+        word = feof(fp) ? "#END_NOTE" : fread_word(fp);
+        
+        if (!str_cmp(word, "#END_NOTE") || !str_cmp(word, "#END"))
+            break;
+            
+        if (!str_cmp(word, "Author"))
+        {
+            free_string(note->author);
+            note->author = fread_string(fp);
+        }
+        else if (!str_cmp(word, "Subject"))
+        {
+            free_string(note->subject);
+            note->subject = fread_string(fp);
+        }
+        else if (!str_cmp(word, "Text"))
+        {
+            free_string(note->text);
+            note->text = fread_string(fp);
+        }
+        else if (!str_cmp(word, "Timestamp"))
+        {
+            note->timestamp = fread_number(fp);
+        }
+    }
+    
+    // Add to the beginning of the list
+    note->next = account->staff_notes;
+    account->staff_notes = note;
+    fMatch = TRUE;
+}
+break;
+
+        case 'C':
+			if (!str_cmp(word, "CharCount")) {
+    			account->character_count = fread_number(fp);
+    			fMatch = TRUE;
+			}
+			KEY("CharacterLimit", account->character_limit, fread_number(fp));
+            KEY("Created", account->creation_date, fread_number(fp));
+			if (!str_cmp(word, "CreationIP")) {
+ 			   free_string(account->creation_host);
+    			account->creation_host = fread_string(fp);
+    			fMatch = TRUE;
+			}
+            break;
+
+        case 'E':
+            if (!str_cmp(word, "End")) {
+                return;
+            }
+                KEYS("Email", account->email, fread_string(fp));
+                KEY("EmailVerified", account->email_verified, fread_number(fp));
+                KEYS("EmailVerificationCode", account->email_verification_code, fread_string(fp));
+                KEY("EmailVerificationTime", account->email_verification_time, fread_number(fp));
+                KEY("EmailVerificationLastSent", account->email_verification_last_sent, fread_number(fp));
+            break;
+
+        case 'F':
+            KEY("Flags", account->acct_flags, fread_flag(fp));
+            break;
+		case 'I':
+			KEY("Id", account->id[0], fread_number(fp));
+			KEY("Id2", account->id[1], fread_number(fp));
+			break;
+
+        case 'L':
+			if (!str_cmp(word, "LastHost")) {
+    			free_string(account->last_login_host);
+    			account->last_login_host = fread_string(fp);
+    			fMatch = TRUE;
+			}
+			if (!str_cmp(word, "LastLogin")) {
+    			account->last_login = fread_number(fp);
+    			fMatch = TRUE;
+			}
+            KEY("LogI", account->last_login, fread_number(fp));
+            break;
+
+        case 'M':
+            KEY("MFA_Key", account->mfa_key, fread_string(fp));
+            //KEY("MFA_Code_Expiration", account->qr_code_expiration, fread_number(fp));
+            if (!str_cmp(word, "MFA_Enabled"))
+                account->mfa_enabled = true;
+			if (!str_cmp(word, "MFAPendingKey")) {
+    			free_string(account->mfa_pending_key);
+    			account->mfa_pending_key = str_dup(fread_string(fp));
+    			fMatch = TRUE;
+			}
+			if (!str_cmp(word, "MFAPending")) {
+    			account->mfa_pending = (fread_number(fp) != 0);
+    			fMatch = TRUE;
+			}
+            break;
+
+        case 'N':
+            KEY("Name", account->username, fread_string(fp));
+            break;
+
+        case 'P':
+                KEY("Password", account->passwd, fread_string(fp));
+                KEY("Pass", account->passwd, fread_string(fp));
+                KEY("PassVers", account->passwd_version, fread_number(fp));
+                KEYS("PendingEmail", account->pending_email, fread_string(fp));
+            break;
+
+        case 'R':
+			if (!str_cmp(word, "RecoveryCodes")) {
+    			for (int i = 0; i < MFA_RECOVERY_CODES; ++i)
+        			account->recovery_codes[i] = str_dup(fread_word(fp));
+    			fMatch = TRUE;
+			}
+			if (!str_cmp(word, "RecoveryUsed")) {
+    			for (int i = 0; i < MFA_RECOVERY_CODES; ++i)
+        			account->recovery_used[i] = (fread_number(fp) != 0);
+    			fMatch = TRUE;
+			}
+            KEYS("ResetCode", account->reset_code, fread_string(fp));
+            KEY("Reset_Time", account->reset_time, fread_number(fp));
+            KEY("ResetState", account->reset_state, fread_number(fp));
+            break;
+
+		case 'V':
+            KEY("VaultRent", account->vault_rent, fread_number(fp));
+            break;
+		}
+
+        if (!fMatch) {
+            sprintf(buf, "Fread_account: no match for account %s on word %s.", 
+                account->username, word);
+            bug(buf, 0);
+            fread_to_eol(fp);
+        }
+    }
+}
+
+void fread_account_character(ACCOUNT_DATA *account, FILE *fp)
+{
+    ACCOUNT_CHARACTER *acct_char;
+    char buf[MAX_STRING_LENGTH];
+    char *word;
+    bool fMatch;
+    
+    acct_char = new_account_character();
+    
+    for (;;)
+    {
+        word = feof(fp) ? "End" : fread_word(fp);
+        fMatch = false;
+        
+        switch (UPPER(word[0]))
+        {
+        case '*':
+            fMatch = true;
+            fread_to_eol(fp);
+            break;
+            
+        case 'C':
+            KEY("Created", acct_char->creation_date, fread_number(fp));
+            KEYS("Class", acct_char->class_name, fread_string(fp));
+            break;
+		
+		case 'D':
+			KEY("Deleted", acct_char->deleted, fread_number(fp));
+			KEY("DeleteTime", acct_char->delete_time, fread_number(fp));
+            
+        case 'E':
+            if (!str_cmp(word, "End")) {
+                // Only add if we have a character name
+                if (!IS_NULLSTR(acct_char->name)) {
+                    list_appendlink(account->characters, acct_char);
+                } else {
+                    free_account_character(acct_char);
+                }
+                return;
+            }
+            break;
+            
+        case 'I':
+            KEY("Id", acct_char->id[0], fread_number(fp));
+            KEY("Id2", acct_char->id[1], fread_number(fp));
+            break;
+            
+        case 'L':
+			if (!str_cmp(word, "LastArea"))
+			{
+				acct_char->last_area = fread_string(fp);
+				fMatch = TRUE;
+			}
+			if (!str_cmp(word, "LastRegion"))
+			{
+				acct_char->last_region = fread_string(fp);
+				fMatch = TRUE;
+			}
+            KEY("LastLogin", acct_char->last_login, fread_number(fp));
+			KEY("LastHost", acct_char->last_host, fread_string(fp));
+			KEY("LastLogoff", acct_char->last_logoff, fread_number(fp));
+            KEY("Level", acct_char->current_level, fread_number(fp));
+            break;
+            
+        case 'N':
+            KEYS("Name", acct_char->name, fread_string(fp));
+            break;
+            
+        case 'R':
+            KEYS("Race", acct_char->race_name, fread_string(fp));
+            break;
+        
+        case 'S':
+            if (!str_cmp(word, "Staff")) {
+                acct_char->staff = true;
+                fMatch = true;
+                break;
+            }
+            if (!str_cmp(word, "StaffRank")) {
+                acct_char->staff_rank = stat_lookup(fread_string(fp), staff_ranks, STAFF_PLAYER);
+                fMatch = true;
+                break;
+            }
+            break;
+		case 'T':
+			KEY("TLevel", acct_char->tot_level, fread_number(fp));
+			break;
+        }
+        
+        if (!fMatch) {
+            sprintf(buf, "Fread_account_character: no match for character %s on word %s.", 
+                acct_char->name ? acct_char->name : "unknown", word);
+            bug(buf, 0);
+            fread_to_eol(fp);
+        }
+    }
+}
+
+/*
+ * Write an account data structure to a file.
+ */
+void fwrite_account(ACCOUNT_DATA *account, FILE *fp)
+{
+    fprintf(fp, "#ACCOUNT\n");
+    
+    fprintf(fp, "Name %s~\n", account->username);
+	fprintf(fp, "Id   %ld\n", account->id[0]			);
+    fprintf(fp, "Id2  %ld\n", account->id[1]			);
+    fprintf(fp, "Password %s~\n", account->passwd);
+    fprintf(fp, "PassVers %d\n", account->passwd_version);
+    fprintf(fp, "Created %ld\n", account->creation_date);
+    fprintf(fp, "LogI %ld\n", account->last_login);
+    
+    if (account->acct_flags != 0)
+        fprintf(fp, "Flags %s\n", print_flags(account->acct_flags));
+    
+    if (!IS_NULLSTR(account->email))
+        fprintf(fp, "Email %s~\n", account->email);
+    
+    fprintf(fp, "EmailVerified %d\n", account->email_verified);
+    
+    if (!IS_NULLSTR(account->pending_email))
+        fprintf(fp, "PendingEmail %s~\n", account->pending_email);
+        
+    if (!IS_NULLSTR(account->email_verification_code))
+        fprintf(fp, "EmailVerificationCode %s~\n", account->email_verification_code);
+        
+    if (account->email_verification_time > 0)
+        fprintf(fp, "EmailVerificationTime %ld\n", account->email_verification_time);
+        
+    if (account->email_verification_last_sent > 0)
+        fprintf(fp, "EmailVerificationLastSent %ld\n", account->email_verification_last_sent);
+        
+    if (!IS_NULLSTR(account->reset_code)) {
+        fprintf(fp, "ResetCode %s~\n", account->reset_code);
+        fprintf(fp, "ResetState %d\n", account->reset_state);
+        fprintf(fp, "Reset_Time %ld\n", account->reset_time);
+    }
+    if (account->character_limit > 0)
+		fprintf(fp, "CharacterLimit %d\n", account->character_limit);
+
+    if (!IS_NULLSTR(account->mfa_key)) {
+        fprintf(fp, "MFA_Key %s~\n", account->mfa_key);
+        //fprintf(fp, "MFA_Code_Expiration %ld\n", account->qr_code_expiration);
+        if (account->mfa_enabled)
+            fprintf(fp, "MFA_Enabled\n");
+    }
+
+	fprintf(fp, "MFAPendingKey %s~\n", account->mfa_pending_key ? account->mfa_pending_key : "");
+	fprintf(fp, "MFAPending %d\n", account->mfa_pending ? 1 : 0);
+    
+	fprintf(fp, "RecoveryCodes ");
+		for (int i = 0; i < MFA_RECOVERY_CODES; ++i)
+   		fprintf(fp, "%s%c", account->recovery_codes[i], (i == MFA_RECOVERY_CODES-1) ? '\n' : ' ');
+
+	fprintf(fp, "RecoveryUsed ");
+		for (int i = 0; i < MFA_RECOVERY_CODES; ++i)
+    		fprintf(fp, "%d%c", account->recovery_used[i] ? 1 : 0, (i == MFA_RECOVERY_CODES-1) ? '\n' : ' ');
+	fprintf(fp, "CreationHost %s~\n", account->creation_host ? account->creation_host : "");
+	fprintf(fp, "LastHost %s~\n", account->last_login_host ? account->last_login_host : "");
+	fprintf(fp, "LastLogin %ld\n", account->last_login);
+	fprintf(fp, "CharCount %d\n", account->character_count);
+	fprintf(fp, "StaffAccount %d\n", account->staff_account ? 1 : 0);
+	    // Save account notes
+    ACCOUNT_NOTE_DATA *note;
+    for (note = account->staff_notes; note != NULL; note = note->next)
+    {
+        fprintf(fp, "#ACCNOTE\n");
+        fprintf(fp, "Author %s~\n", note->author);
+        fprintf(fp, "Subject %s~\n", note->subject);
+        fprintf(fp, "Text %s~\n", note->text);
+        fprintf(fp, "Timestamp %ld\n", (long)note->timestamp);
+        fprintf(fp, "#END_NOTE\n");
+    }
+
+	fprintf(fp, "VaultRent %ld\n", account->vault_rent);
+
+    /* Write vault items if any */
+    if (account->vault_items)
+    {
+        fprintf(fp, "#VAULT\n");
+        OBJ_DATA *obj;
+        for (obj = account->vault_items; obj != NULL; obj = obj->next_content)
+        {
+            fwrite_obj_new(NULL, obj, fp, 0);
+        }
+        fprintf(fp, "#ENDVAULT\n");
+    }
+
+    fprintf(fp, "End\n\n");
+}
+
+/*
+ * Write character reference data for an account.
+ */
+void fwrite_account_character(ACCOUNT_CHARACTER *character, FILE *fp)
+{
+	log_string("Fwrite_account_character: writing character data");
+    fprintf(fp, "#CHARACTER\n");
+    
+    fprintf(fp, "Name %s~\n", character->name);
+    
+    if (!IS_NULLSTR(character->race_name))
+        fprintf(fp, "Race %s~\n", character->race_name);
+
+    // Add logging here
+    log_stringf("fwrite_account_character: writing %s last_area='%s' last_region='%s'",
+        character->name,
+        character->last_area ? character->last_area : "(null)",
+        character->last_region ? character->last_region : "(null)");
+
+    if (!IS_NULLSTR(character->class_name))
+        fprintf(fp, "Class %s~\n", character->class_name);
+    fprintf(fp, "Level %d\n", character->current_level);
+    fprintf(fp, "TLevel %d\n", character->tot_level);
+    fprintf(fp, "Created %ld\n", character->creation_date);
+    fprintf(fp, "LastLogin %ld\n", character->last_login);
+    fprintf(fp, "LastArea %s~\n", character->last_area);
+    fprintf(fp, "LastRegion %s~\n", character->last_region);
+    fprintf(fp, "LastHost" " %s~\n", character->last_host ? character->last_host : "");
+    fprintf(fp, "LastLogoff %ld\n", (long int)current_time);
+	if (character->deleted)
+	{
+		fprintf(fp, "Deleted %d\n", character->deleted);
+		fprintf(fp, "DeleteTime %ld\n", character->delete_time);
+	}
+
+    if (character->id[0] != 0 || character->id[1] != 0) {
+        fprintf(fp, "Id %ld\n", character->id[0]);
+        fprintf(fp, "Id2 %ld\n", character->id[1]);
+    }
+    
+    if (character->staff) {
+        fprintf(fp, "Staff\n");
+        fprintf(fp, "StaffRank %s~\n", flag_string(staff_ranks, character->staff_rank));
+    }
+
+    fprintf(fp, "End\n\n");
+}
+
+/*
+ * Save an account to disk.
+ */
+void save_account(ACCOUNT_DATA *account)
+{
+	log_string("save_account: saving account data");
+    char strsave[MAX_INPUT_LENGTH];
+    FILE *fp;
+    
+    if (account == NULL) {
+        bug("save_account: null account pointer", 0);
+        return;
+    }
+    
+    if (IS_NULLSTR(account->username)) {
+        bug("save_account: account has no username", 0);
+        return;
+    }
+    
+    // Ensure account has IDs before saving
+    if (account->id[0] == 0 || account->id[1] == 0)
+        get_account_id(account);
+    
+    /* Close reserve file */
+    fclose(fpReserve);
+    
+    sprintf(strsave, "%s%c/%s", ACCOUNT_DIR, tolower(account->username[0]), capitalize(account->username));
+    if ((fp = fopen(TEMP_FILE, "w")) == NULL) {
+        bug("save_account: fopen", 0);
+        perror(strsave);
+    } else {
+        /* Write account data */
+        fwrite_account(account, fp);
+        
+        /* Write character references */
+        if (account->characters && list_size(account->characters) > 0) {
+            ITERATOR it;
+            ACCOUNT_CHARACTER *acct_char;
+            
+            iterator_start(&it, account->characters);
+            while ((acct_char = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+                fwrite_account_character(acct_char, fp);
+            }
+            iterator_stop(&it);
+        }
+        
+        fprintf(fp, "#END\n");
+        fclose(fp);
+        rename(TEMP_FILE, strsave);
+    }
+    
+    /* Reopen reserve file */
+    fpReserve = fopen(NULL_FILE, "r");
+}
+void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
+{
+    log_string("account_add_character: adding character to account");
+    ACCOUNT_CHARACTER *acct_char = NULL;
+    ITERATOR it;
+
+    if (!account || !ch || IS_NPC(ch)) {
+        bug("account_add_character: invalid parameters", 0);
+        return;
+    }
+
+    /* Check if character already exists in account */
+    iterator_start(&it, account->characters);
+    while ((acct_char = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+        if (!str_cmp(acct_char->name, ch->name)) {
+            // ... update fields ...
+            acct_char->last_login = current_time;
+            acct_char->tot_level = ch->tot_level;
+            if (ch->pcdata && ch->pcdata->current_class && IS_VALID(ch->pcdata->current_class->clazz))
+                acct_char->current_level = ch->pcdata->current_class->level;
+            else
+                acct_char->current_level = ch->tot_level; // fallback
+
+            acct_char->staff = IS_IMMORTAL(ch);
+            acct_char->staff_rank = IS_IMMORTAL(ch) ? ch->pcdata->staff_rank : 0;
+
+            if (ch->pcdata && ch->pcdata->current_class && IS_VALID(ch->pcdata->current_class->clazz)) {
+                if (acct_char->class_name)
+                    free_string(acct_char->class_name);
+                acct_char->class_name = str_dup(ch->pcdata->current_class->clazz->name);
+            }
+
+            acct_char->id[0] = ch->id[0];
+            acct_char->id[1] = ch->id[1];
+
+            free_string(acct_char->last_area);
+            acct_char->last_area = str_dup(!IS_NULLSTR(ch->pcdata->last_area) ? ch->pcdata->last_area : "");
+
+            free_string(acct_char->last_region);
+            acct_char->last_region = str_dup(!IS_NULLSTR(ch->pcdata->last_region) ? ch->pcdata->last_region : "");
+
+            break; // <-- just break, do not return!
+        }
+    }
+    iterator_stop(&it);
+
+    // If not found, create new entry
+    if (!acct_char) {
+        acct_char = new_account_character();
+        acct_char->name = str_dup(ch->name);
+        acct_char->race_name = str_dup(ch->race->name);
+        acct_char->tot_level = ch->tot_level;
+
+        if (ch->pcdata && ch->pcdata->current_class && IS_VALID(ch->pcdata->current_class->clazz))
+            acct_char->current_level = ch->pcdata->current_class->level;
+        else
+            acct_char->current_level = ch->tot_level; // fallback
+
+        acct_char->creation_date = ch->pcdata->creation_date;
+        acct_char->last_login = current_time;
+        acct_char->id[0] = ch->id[0];
+        acct_char->id[1] = ch->id[1];
+
+        acct_char->staff = IS_IMMORTAL(ch);
+        acct_char->staff_rank = IS_IMMORTAL(ch) ? ch->pcdata->staff_rank : 0;
+
+        if (ch->pcdata && ch->pcdata->current_class && IS_VALID(ch->pcdata->current_class->clazz))
+            acct_char->class_name = str_dup(ch->pcdata->current_class->clazz->name);
+
+        acct_char->last_area = str_dup(!IS_NULLSTR(ch->pcdata->last_area) ? ch->pcdata->last_area : "");
+        acct_char->last_region = str_dup(!IS_NULLSTR(ch->pcdata->last_region) ? ch->pcdata->last_region : "");
+
+        list_appendlink(account->characters, acct_char);
+    }
+
+    account->character_count = list_size(account->characters);
+    account->staff_account = FALSE;
+    ITERATOR cit;
+    ACCOUNT_CHARACTER *ch_entry;
+    iterator_start(&cit, account->characters);
+    while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&cit))) {
+        if (ch_entry->staff && ch_entry->staff_rank >= STAFF_IMMORTAL) {
+            account->staff_account = TRUE;
+            break;
+        }
+    }
+    iterator_stop(&cit);
+
+    /* Save the updated account */
+    log_stringf("account_add_character: saving %s last_area='%s' last_region='%s'",
+        acct_char->name,
+        acct_char->last_area ? acct_char->last_area : "(null)",
+        acct_char->last_region ? acct_char->last_region : "(null)");
+    save_account(account);
+}
+
+/*
+ * Remove a character from an account.
+ */
+void account_remove_character(ACCOUNT_DATA *account, const char *name)
+{
+    ITERATOR it;
+    ACCOUNT_CHARACTER *acct_char;
+    bool found = FALSE;
+
+    if (!account || IS_NULLSTR(name)) {
+        bug("account_remove_character: invalid parameters", 0);
+        return;
+    }
+
+    // Remove from account's character list
+    iterator_start(&it, account->characters);
+    while ((acct_char = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+        if (!str_cmp(acct_char->name, name)) {
+            iterator_remcurrent(&it);
+            free_account_character(acct_char);
+            found = TRUE;
+            break;
+        }
+    }
+    iterator_stop(&it);
+
+    // Unlink account info from the character file
+    DESCRIPTOR_DATA d;
+    memset(&d, 0, sizeof(d));
+    if (load_char_obj(&d, (char *)name) && d.character && d.character->pcdata) {
+        CHAR_DATA *ch = d.character;
+        free_string(ch->pcdata->account_name);
+        ch->pcdata->account_name = str_dup("");
+        ch->pcdata->account_id[0] = 0;
+        ch->pcdata->account_id[1] = 0;
+        save_char_obj(ch);
+        free_char(ch);
+    }
+
+    if (found) {
+        save_account(account);
+    }
+}
+
+// Update a character's entry in an account when they log out
+void update_account_character(CHAR_DATA *ch)
+{
+    if (IS_NPC(ch) || !ch->desc || !ch->desc->account)
+        return;
+        
+    ACCOUNT_DATA *acct = ch->desc->account;
+    ACCOUNT_CHARACTER *acct_char = NULL;
+    ITERATOR it;
+    
+    // Find existing entry or create a new one
+    iterator_start(&it, acct->characters);
+    while ((acct_char = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+        if (!str_cmp(acct_char->name, ch->name))
+            break;
+    }
+    iterator_stop(&it);
+    
+    // Create new entry if not found
+    if (!acct_char) {
+        acct_char = new_account_character();
+        acct_char->name = str_dup(ch->name);
+        list_appendlink(acct->characters, acct_char);
+    }
+    
+    // Update character info
+    acct_char->last_login = current_time;
+    acct_char->tot_level = ch->tot_level;
+	acct_char->current_level = ch->pcdata->current_class->level;
+    acct_char->id[0] = ch->id[0];
+    acct_char->id[1] = ch->id[1];
+    
+    // Update race/class
+    if (acct_char->race_name)
+        free_string(acct_char->race_name);
+    acct_char->race_name = str_dup(ch->race->name);
+    
+    if (acct_char->class_name)
+        free_string(acct_char->class_name);
+        
+    if (ch->pcdata && ch->pcdata->current_class && IS_VALID(ch->pcdata->current_class->clazz))
+        acct_char->class_name = str_dup(ch->pcdata->current_class->clazz->name);
+    else
+        acct_char->class_name = str_dup("Adventurer");
+        
+    save_account(acct);
+}
+
+/*
+ * Find an account by character name
+ */
+ACCOUNT_DATA *find_account(char *char_name)
+{
+    CHAR_DATA *dummy_ch;
+    bool found = false;
+    ACCOUNT_DATA *account = NULL;
+    char account_name[MAX_STRING_LENGTH] = "";
+
+    // Create a temporary descriptor to load the character file
+    DESCRIPTOR_DATA d;
+    memset(&d, 0, sizeof(d));
+
+    // Try to load the character file first
+    found = load_char_obj(&d, char_name);
+    dummy_ch = d.character;
+    
+    if (found && dummy_ch && dummy_ch->pcdata && 
+        !IS_NULLSTR(dummy_ch->pcdata->account_name)) {
+        // We found the account name in the character file
+        strcpy(account_name, dummy_ch->pcdata->account_name);
+        free_char(dummy_ch);
+        
+        // Now load the account
+        account = new_account();
+        d.account = account;
+        
+        if (load_account(&d, account_name)) {
+            return account;
+        } else {
+            free_account(account);
+            return NULL;
+        }
+    }
+    
+    // If we didn't find an account name in the character file,
+    // fall back to the existing search method
+    free_char(dummy_ch);
+    
+    // Existing directory search code...
+    
+    return account;
+}
+
+/*
+ * Find an account by ID
+ */
+ACCOUNT_DATA *find_account_by_id(unsigned long id0, unsigned long id1)
+{
+    DIR *dir;
+    struct dirent *entry;
+    char dir_path[MAX_INPUT_LENGTH];
+    char acct_path[MAX_STRING_LENGTH];
+    FILE *fp;
+    char letter, *word;
+    ACCOUNT_DATA *account = NULL;
+    bool found = false;
+    char c;
+
+    // Check each letter directory
+    for (c = 'a'; c <= 'z' && !found; c++) {
+        sprintf(dir_path, "%s%c", ACCOUNT_DIR, c);
+        dir = opendir(dir_path);
+        
+        if (!dir) 
+            continue;
+
+        // Check each file in this directory
+        while ((entry = readdir(dir)) != NULL && !found) {
+            // Skip . and .. entries
+            if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, ".."))
+                continue;
+                
+            sprintf(acct_path, "%s/%s", dir_path, entry->d_name);
+            
+            fp = fopen(acct_path, "r");
+            if (!fp) 
+                continue;
+                
+            // Create a temporary account to parse
+            account = new_account();
+            account->username = str_dup("");
+            account->characters = list_create(false);
+            
+            // Look for account ID in the file
+            for (;;) {
+                letter = fread_letter(fp);
+                if (letter == '*') {
+                    fread_to_eol(fp);
+                    continue;
+                }
+
+                if (letter != '#') {
+                    break;
+                }
+
+                word = fread_word(fp);
+                if (!str_cmp(word, "ACCOUNT")) {
+                    fread_account(account, fp);
+                    
+                    // Check if this is the account we're looking for
+                    if (account->id[0] == id0 && account->id[1] == id1) {
+                        found = true;
+                        break;
+                    }
+                } 
+                else if (!str_cmp(word, "END")) {
+                    break;
+                }
+                else {
+                    fread_to_eol(fp);
+                }
+            }
+            
+            fclose(fp);
+            
+            if (!found) {
+                free_account(account);
+                account = NULL;
+            }
+        }
+        
+        closedir(dir);
+    }
+    
+    return account;
+}
+
+/*
+ * Find an account by username
+ */
+ACCOUNT_DATA *find_account_by_name(char *username)
+{
+    char strsave[MAX_INPUT_LENGTH];
+    FILE *fp;
+    ACCOUNT_DATA *account = NULL;
+    DESCRIPTOR_DATA d;
+
+    if (IS_NULLSTR(username)) {
+        bug("find_account_by_name: null or empty username", 0);
+        return NULL;
+    }
+
+    // Initialize temporary descriptor
+    memset(&d, 0, sizeof(d));
+
+    // Try to load the account directly
+    sprintf(strsave, "%s%c/%s", ACCOUNT_DIR, tolower(username[0]), capitalize(username));
+    
+    // First check if file exists 
+    if ((fp = fopen(strsave, "r")) == NULL)
+        return NULL;
+    fclose(fp);
+    
+    // Now attempt to load it
+    account = new_account();
+    d.account = account;
+    
+    if (load_account(&d, username)) {
+        return account;
+    } else {
+        // Something went wrong during loading
+        free_account(account);
+        return NULL;
+    }
+}
+
+
+
+void obj_to_char_temp(OBJ_DATA *obj, CHAR_DATA *ch)
+{
+    obj->next_content = ch->carrying_temp;
+    ch->carrying_temp = obj;
+    obj->carried_by = ch;
+    obj->in_room = ch->in_room;
+    // Only add to lworn if equipped
+    if (obj->wear_loc != WEAR_NONE)
+        list_addlink(ch->lworn, obj);
+    // DO NOT add to lcarrying here!
+}
+
+// Helper to dedupe a linked list of objects recursively
+static void dedupe_obj_list(OBJ_DATA **head, LLIST *seen, LLIST *lworn) {
+    OBJ_DATA *obj = *head, *prev = NULL, *next;
+    while (obj) {
+        next = obj->next_content;
+        bool duplicate = false;
+        ITERATOR it;
+        OBJ_DATA *existing;
+        iterator_start(&it, seen);
+        while ((existing = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (existing->id[0] == obj->id[0] &&
+                existing->id[1] == obj->id[1] &&
+                existing->pIndexData == obj->pIndexData) {
+                duplicate = true;
+                break;
+            }
+        }
+        iterator_stop(&it);
+
+        // If this object is in lworn, do NOT remove it from carrying/carrying_temp
+        bool is_equipped = (lworn && list_contains(lworn, obj, NULL));
+
+        if (duplicate && !is_equipped) {
+            // Remove from list
+            if (prev)
+                prev->next_content = next;
+            else
+                *head = next;
+            // Optionally free_obj(obj);
+        } else {
+            list_appendlink(seen, obj);
+            // Recurse into contents
+            if (obj->contains)
+                dedupe_obj_list(&obj->contains, seen, lworn);
+            prev = obj;
+        }
+        obj = next;
+    }
+}
+
+void remove_duplicate_objects_from_char(CHAR_DATA *ch) {
+    LLIST *seen = list_create(FALSE);
+    LLIST *lworn = list_create(FALSE);
+
+    // 1. Add all equipped objects to seen and lworn first (so they are prioritized)
+    ITERATOR it;
+    OBJ_DATA *obj;
+    iterator_start(&it, ch->lworn);
+    while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+        if (!list_contains(seen, obj, NULL)) {
+            list_appendlink(seen, obj);
+        }
+        if (!list_contains(lworn, obj, NULL)) {
+            list_appendlink(lworn, obj);
+        }
+    }
+    iterator_stop(&it);
+
+    // 2. Dedupe carrying, carrying_temp, and locker against seen, but don't remove if in lworn
+    OBJ_DATA **lists[3] = { &ch->carrying, &ch->carrying_temp, &ch->locker };
+    for (int l = 0; l < 3; l++) {
+        dedupe_obj_list(lists[l], seen, lworn);
+    }
+
+    list_destroy(seen);
+    list_destroy(lworn);
+}
+
+void remove_duplicate_objects_from_list(OBJ_DATA **head, LLIST *seen) {
+    OBJ_DATA *obj = *head, *prev = NULL, *next;
+    while (obj) {
+        next = obj->next_content;
+        if (!list_contains(seen, obj, NULL)) {
+            list_appendlink(seen, obj);
+            if (obj->contains)
+                remove_duplicate_objects_from_list(&obj->contains, seen);
+            prev = obj;
+        } else {
+            // Remove duplicate from this list
+            if (prev)
+                prev->next_content = next;
+            else
+                *head = next;
+        }
+        obj = next;
+    }
+}

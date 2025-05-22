@@ -129,6 +129,27 @@ void string_postprocess(CHAR_DATA *ch, bool execute)
 {
 	ch->desc->pString = NULL;
 
+	    // Handle changeset comment editing
+    if (ch->desc->editor == ED_CHANGESET) {
+        ch->desc->editor = ED_NONE;
+        
+        // Save changesets to disk
+        save_changesets();
+        send_to_char("Changeset comment saved.\n\r", ch);
+    }
+
+	if (ch->desc->editor == ED_ACCNOTE) {
+		ch->desc->editor = ED_NONE;
+
+		string_end_accnote(ch);
+	}
+
+	if (ch->desc->editor == ED_CHLOG) {
+		ch->desc->editor = ED_NONE;
+
+		string_end_chlog(ch);
+	}
+
 	if( ch->desc->input && ch->desc->inputString != NULL)
 	{
 		int ret;

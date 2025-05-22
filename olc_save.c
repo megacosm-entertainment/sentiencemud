@@ -352,7 +352,7 @@ void save_area_new(AREA_DATA *area)
 	sprintf(filename, "%s", area->file_name);
 
     if ((fp = fopen(filename, "w")) == NULL) {
-		sprintf(buf, "save_area_new: couldn't open file %s", filename);
+		snprintf(buf, sizeof(buf), "save_area_new: couldn't open file %s", filename);
 		bug(buf, 0);
 		return;
     }
@@ -2071,7 +2071,7 @@ void read_area_region(FILE *fp, AREA_DATA *area)
 
 		if (!fMatch)
 		{
-			sprintf(buf, "read_area_region: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_area_region: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -2387,7 +2387,7 @@ AREA_DATA *read_area_new(FILE *fp)
 
 			struct trigger_type *tt = get_trigger_type(p, PRG_APROG);
 		    if(!tt) {
-			    sprintf(buf, "read_area_new: invalid trigger type %s", p);
+			    snprintf(buf, sizeof(buf), "read_area_new: invalid trigger type %s", p);
 			    bug(buf, 0);
 		    } else {
 			    PROG_LIST *apr = new_trigger();
@@ -2400,7 +2400,7 @@ AREA_DATA *read_area_new(FILE *fp)
 					SKILL_DATA *sk = get_skill_data(apr->trig_phrase);
 
 					if( !IS_VALID(sk) ) {
-						sprintf(buf, "read_area_new: invalid spell '%s' for TRIG_SPELLCAST", apr->trig_phrase);
+						snprintf(buf, sizeof(buf), "read_area_new: invalid spell '%s' for TRIG_SPELLCAST", apr->trig_phrase);
 						bug(buf, 0);
 						free_trigger(apr);
 						fMatch = true;
@@ -2534,7 +2534,7 @@ AREA_DATA *read_area_new(FILE *fp)
 	}
 
 	if (!fMatch) {
-	    sprintf(buf, "read_area_new: no match for word %s", word);
+	    snprintf(buf, sizeof(buf), "read_area_new: no match for word %s", word);
 	    bug(buf, 0);
 	}
     }
@@ -2725,7 +2725,7 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 
 		    struct trigger_type *tt = get_trigger_type(p, PRG_RPROG);
 		    if(!tt) {
-			    sprintf(buf, "read_room_new: invalid trigger type %s", p);
+			    snprintf(buf, sizeof(buf), "read_room_new: invalid trigger type %s", p);
 			    bug(buf, 0);
 		    } else {
 			    rpr = new_trigger();
@@ -2738,7 +2738,7 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 					SKILL_DATA *sk = get_skill_data(rpr->trig_phrase);
 					
 					if( !IS_VALID(sk) ) {
-						sprintf(buf, "read_room_new: invalid spell '%s' for TRIG_SPELLCAST", rpr->trig_phrase);
+						snprintf(buf, sizeof(buf), "read_room_new: invalid spell '%s' for TRIG_SPELLCAST", rpr->trig_phrase);
 						bug(buf, 0);
 						free_trigger(rpr);
 						fMatch = true;
@@ -2820,7 +2820,7 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 	}
 
 	if (!fMatch) {
-	    sprintf(buf, "read_room_new: no match for word %s", word);
+	    snprintf(buf, sizeof(buf), "read_room_new: no match for word %s", word);
 	    bug(buf, 0);
 		fread_to_eol(fp);
 	}
@@ -3069,7 +3069,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 
 		    struct trigger_type *tt = get_trigger_type(p, PRG_MPROG);
 		    if(!tt) {
-			    sprintf(buf, "read_mob_new: invalid trigger type %s", p);
+			    snprintf(buf, sizeof(buf), "read_mob_new: invalid trigger type %s", p);
 			    bug(buf, 0);
 		    } else {
 			    mpr = new_trigger();
@@ -3082,7 +3082,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 					SKILL_DATA *sk = get_skill_data(mpr->trig_phrase);
 
 					if( !IS_VALID(sk) ) {
-						sprintf(buf, "read_mob_new: invalid spell '%s' for TRIG_SPELLCAST", mpr->trig_phrase);
+						snprintf(buf, sizeof(buf), "read_mob_new: invalid spell '%s' for TRIG_SPELLCAST", mpr->trig_phrase);
 						bug(buf, 0);
 						free_trigger(mpr);
 						fMatch = true;
@@ -3281,7 +3281,7 @@ LOCK_STATE *read_object_lockstate(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_lockstate: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_lockstate: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -3328,7 +3328,7 @@ AMMO_DATA *read_object_ammo_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_ammo_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_ammo_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -3392,7 +3392,7 @@ ADORNMENT_DATA *read_object_adornment_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_adornment_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_adornment_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -3491,7 +3491,7 @@ ARMOR_DATA *read_object_armor_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_armor_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_armor_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -3524,7 +3524,7 @@ BODY_PART_DATA *read_object_body_part_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_body_part_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_body_part_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -3558,7 +3558,7 @@ BOOK_PAGE *read_object_book_page(FILE *fp, char *closer, AREA_DATA *area)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_book_page: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_book_page: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -3592,7 +3592,7 @@ BOOK_DATA *read_object_book_data(FILE *fp, AREA_DATA *area)
 
 					if (!book_insert_page(book, page))
 					{
-						sprintf(buf, "read_object_book_data: page with duplicate page number (%d) found!  Discarding.", page->page_no);
+						snprintf(buf, sizeof(buf), "read_object_book_data: page with duplicate page number (%d) found!  Discarding.", page->page_no);
 						bug(buf, 0);
 						free_book_page(page);	
 					}
@@ -3623,7 +3623,7 @@ BOOK_DATA *read_object_book_data(FILE *fp, AREA_DATA *area)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_book_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_book_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -3657,7 +3657,7 @@ CART_DATA *read_object_cart_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_cart_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_cart_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -3698,7 +3698,7 @@ COMPASS_DATA *read_object_compass_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_compass_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_compass_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -3801,7 +3801,7 @@ CONTAINER_DATA *read_object_container_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_container_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_container_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -3852,7 +3852,7 @@ CORPSE_DATA *read_object_corpse_data(FILE *fp, AREA_DATA *refArea)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_corpse_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_corpse_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -3947,7 +3947,7 @@ FLUID_CONTAINER_DATA *read_object_fluid_container_data(FILE *fp, AREA_DATA *area
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_fluid_container_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_fluid_container_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -3991,7 +3991,7 @@ FOOD_BUFF_DATA *read_food_buff(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_food_buff: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_food_buff: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4041,7 +4041,7 @@ FOOD_DATA *read_object_food_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_food_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_food_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4112,7 +4112,7 @@ FURNITURE_COMPARTMENT *read_furniture_compartment(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_furniture_compartment: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_furniture_compartment: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4157,7 +4157,7 @@ FURNITURE_DATA *read_object_furniture_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_furniture_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_furniture_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4205,7 +4205,7 @@ INK_DATA *read_object_ink_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_ink_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_ink_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4285,7 +4285,7 @@ INSTRUMENT_DATA *read_object_instrument_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_instrument_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_instrument_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4338,7 +4338,7 @@ JEWELRY_DATA *read_object_jewelry_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_jewelry_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_jewelry_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4371,7 +4371,7 @@ LIGHT_DATA *read_object_light_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_light_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_light_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4421,7 +4421,7 @@ MAP_DATA *read_object_map_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_map_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_map_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4479,7 +4479,7 @@ MIST_DATA *read_object_mist_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_mist_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_mist_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4511,7 +4511,7 @@ MONEY_DATA *read_object_money_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_money_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_money_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4616,7 +4616,7 @@ PORTAL_DATA *read_object_portal_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_portal_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_portal_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4673,7 +4673,7 @@ SCROLL_DATA *read_object_scroll_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_scroll_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_scroll_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4702,7 +4702,7 @@ SEXTANT_DATA *read_object_sextant_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_sextant_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_sextant_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4759,7 +4759,7 @@ TATTOO_DATA *read_object_tattoo_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_tattoo_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_tattoo_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4801,7 +4801,7 @@ TELESCOPE_DATA *read_object_telescope_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_telescope_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_telescope_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4863,7 +4863,7 @@ WAND_DATA *read_object_wand_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_wand_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_wand_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -4960,7 +4960,7 @@ WEAPON_DATA *read_object_weapon_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_weapon_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_object_weapon_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5219,7 +5219,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 
 				struct trigger_type *tt = get_trigger_type(p, PRG_OPROG);
 				if(!tt) {
-					sprintf(buf, "read_obj_new: invalid trigger type %s", p);
+					snprintf(buf, sizeof(buf), "read_obj_new: invalid trigger type %s", p);
 					bug(buf, 0);
 				} else {
 					opr = new_trigger();
@@ -5232,7 +5232,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 						SKILL_DATA *sk = get_skill_data(opr->trig_phrase);
 
 						if( !IS_VALID(sk) ) {
-							sprintf(buf, "read_obj_new: invalid spell '%s' for TRIG_SPELLCAST", opr->trig_phrase);
+							snprintf(buf, sizeof(buf), "read_obj_new: invalid spell '%s' for TRIG_SPELLCAST", opr->trig_phrase);
 							bug(buf, 0);
 							free_trigger(opr);
 							fMatch = true;
@@ -5304,7 +5304,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 				}
 				else
 				{
-					sprintf(buf, "Bad spell name for %s (%ld).", obj->short_descr, obj->vnum);
+					snprintf(buf, sizeof(buf), "Bad spell name for %s (%ld).", obj->short_descr, obj->vnum);
 					bug(buf,0);
 				}
 			}
@@ -5345,7 +5345,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 	}
 
 	if (!fMatch) {
-	    sprintf(buf, "read_object_new: no match for word %s", word);
+	    snprintf(buf, sizeof(buf), "read_object_new: no match for word %s", word);
 	    bug(buf, 0);
 	}
     }
@@ -5825,7 +5825,7 @@ SCRIPT_DATA *read_script_new(FILE *fp, AREA_DATA *area, int type)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_script_new: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_script_new: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5875,7 +5875,7 @@ EXTRA_DESCR_DATA *read_extra_descr_new(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_extra_descr_new: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_extra_descr_new: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -5909,7 +5909,7 @@ CONDITIONAL_DESCR_DATA *read_conditional_descr_new(FILE *fp)
 	}
 
 	if (!fMatch) {
-	    sprintf(buf, "read_conditional_descr_new: no match for word %s", word);
+	    snprintf(buf, sizeof(buf), "read_conditional_descr_new: no match for word %s", word);
 	    bug(buf, 0);
 	}
     }
@@ -5984,7 +5984,7 @@ EXIT_DATA *read_exit_new(FILE *fp, AREA_DATA *area)
 	}
 
 	if (!fMatch) {
-	    sprintf(buf, "read_exit_new: no match for word %s", word);
+	    snprintf(buf, sizeof(buf), "read_exit_new: no match for word %s", word);
 	    bug(buf, 0);
 	}
     }
@@ -6020,7 +6020,7 @@ RESET_DATA *read_reset_new(FILE *fp, AREA_DATA *area)
 	}
 
 	if (!fMatch) {
-	    sprintf(buf, "read_reset_new: no match for word %s", word);
+	    snprintf(buf, sizeof(buf), "read_reset_new: no match for word %s", word);
 	    bug(buf, 0);
 	}
     }
@@ -6073,7 +6073,7 @@ AFFECT_DATA *read_obj_affect_new(FILE *fp)
 	}
 
 	if (!fMatch) {
-	    sprintf(buf, "read_obj_affect_new: no match for word %s", word);
+	    snprintf(buf, sizeof(buf), "read_obj_affect_new: no match for word %s", word);
 	    bug(buf, 0);
 	}
     }
@@ -6117,7 +6117,7 @@ AFFECT_DATA *read_obj_catalyst_new(FILE *fp)
 	}
 
 	if (!fMatch) {
-	    sprintf(buf, "read_obj_catalyst_new: no match for word %s", word);
+	    snprintf(buf, sizeof(buf), "read_obj_catalyst_new: no match for word %s", word);
 	    bug(buf, 0);
 	}
     }
@@ -6167,7 +6167,7 @@ MISSIONARY_DATA *read_missionary_new(FILE *fp, AREA_DATA *area)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_missionary_new: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_missionary_new: no match for word %s", word);
 			bug(buf, 0);
 		}
     }
@@ -6232,7 +6232,7 @@ PRACTICE_COST_DATA *read_practice_cost_data(FILE *fp, AREA_DATA *area)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_practice_cost_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_practice_cost_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -6308,7 +6308,7 @@ PRACTICE_ENTRY_DATA *read_practice_entry_data(FILE *fp, AREA_DATA *area)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_practice_entry_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_practice_entry_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -6347,7 +6347,7 @@ PRACTICE_DATA *read_practice_data(FILE *fp, AREA_DATA *area)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_practice_data: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_practice_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -6487,7 +6487,7 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp, AREA_DATA *area)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_shop_stock_new: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_shop_stock_new: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -6541,7 +6541,7 @@ SHIP_CREW_INDEX_DATA *read_ship_crew_index_new(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_ship_crew_index_new: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "read_ship_crew_index_new: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -6630,7 +6630,7 @@ SHOP_DATA *read_shop_new(FILE *fp, AREA_DATA *area)
 	}
 
 	if (!fMatch) {
-	    sprintf(buf, "read_shop_new: no match for word %s", word);
+	    snprintf(buf, sizeof(buf), "read_shop_new: no match for word %s", word);
 	    bug(buf, 0);
 	}
     }
@@ -6690,7 +6690,7 @@ TOKEN_INDEX_DATA *read_token(FILE *fp, AREA_DATA *area)
 
 		    struct trigger_type *tt = get_trigger_type(p, PRG_TPROG);
 		    if(!tt) {
-			    sprintf(buf, "read_token: invalid trigger type %s", p);
+			    snprintf(buf, sizeof(buf), "read_token: invalid trigger type %s", p);
 			    bug(buf, 0);
 		    } else {
 			    tpr = new_trigger();
@@ -6703,7 +6703,7 @@ TOKEN_INDEX_DATA *read_token(FILE *fp, AREA_DATA *area)
 					SKILL_DATA *sk = get_skill_data(tpr->trig_phrase);
 
 					if( !IS_VALID(sk) ) {
-						sprintf(buf, "read_token: invalid spell '%s' for TRIG_SPELLCAST", tpr->trig_phrase);
+						snprintf(buf, sizeof(buf), "read_token: invalid spell '%s' for TRIG_SPELLCAST", tpr->trig_phrase);
 						bug(buf, 0);
 						free_trigger(tpr);
 						fMatch = true;
@@ -6765,7 +6765,7 @@ TOKEN_INDEX_DATA *read_token(FILE *fp, AREA_DATA *area)
 	}
 
 	if (!fMatch) {
-	    sprintf(buf, "read_token: no match for word %s", word);
+	    snprintf(buf, sizeof(buf), "read_token: no match for word %s", word);
 	    bug(buf, 0);
 	}
     }

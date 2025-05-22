@@ -2,7 +2,7 @@ CC      = gcc
 PROF    = -Wall -O -g -pg -ggdb -g 
 OBJDIR	= obj
 VPATH   = .:obj
-LIBS = -lpthread -lz -lm -lrt -lssl -lcrypto -ldl -lcrypt -lquickmail -lcotp -lqrencode
+LIBS = -lpthread -lz -lm -lrt -lssl -lcrypto -ldl -lcrypt -lquickmail -lcotp -lqrencode -lpng
 C_FLAGS = $(PROF) -fcommon -DMALLOC_STDLIB -fstack-protector  -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer -DVERSION=\"$(GIT_VERSION)\" -DBUILD_DATE=\"$(CUR_BUILD_DATE)\" -DBUILD_NUMBER=\"$(CUR_BUILD_NUMBER)\" -DCOMMIT=\"$(GIT_URL)\"
 L_FLAGS =  $(PROF) $(LIBS)
 EXE	= sent
@@ -22,6 +22,7 @@ DIFF_C = $(patsubst $(PATH1)/%.c,%_c.diff,$(wildcard $(PATH1)/*.c)) $(patsubst $
 
 C_FILES = \
 	account/otp.c \
+	account/account_notes.c \
 	act_comm.c \
 	act_enter.c \
 	act_info.c \
@@ -50,6 +51,7 @@ C_FILES = \
 	events.c \
 	fight.c \
 	fight2.c \
+	gameedit.c \
 	gq.c \
 	handler.c \
 	help.c \
@@ -59,7 +61,6 @@ C_FILES = \
 	interp.c \
 	invasion.c \
 	item_types.c \
-	locker.c \
 	lookup.c \
 	magic.c \
 	magic2.c \
@@ -94,6 +95,7 @@ C_FILES = \
 	missions.c \
 	mount.c \
 	music.c \
+	nanny.c \
 	note.c \
 	olc.c \
 	olc_act.c \
@@ -126,6 +128,7 @@ C_FILES = \
 	staff.c \
 	stats.c \
 	string.c \
+	storage.c \
 	tables.c \
 	tls.c \
 	treasuremap.c \
@@ -135,6 +138,7 @@ C_FILES = \
 
 O_FILES = \
 	$(OBJDIR)/account/otp.o \
+	$(OBJDIR)/account/account_notes.o \
 	$(OBJDIR)/act_comm.o \
 	$(OBJDIR)/act_enter.o \
 	$(OBJDIR)/act_info.o \
@@ -163,6 +167,7 @@ O_FILES = \
 	$(OBJDIR)/events.o \
 	$(OBJDIR)/fight.o \
 	$(OBJDIR)/fight2.o \
+	$(OBJDIR)/gameedit.o \
 	$(OBJDIR)/gq.o \
 	$(OBJDIR)/handler.o \
 	$(OBJDIR)/help.o \
@@ -172,7 +177,6 @@ O_FILES = \
 	$(OBJDIR)/interp.o \
 	$(OBJDIR)/invasion.o \
 	$(OBJDIR)/item_types.o \
-	$(OBJDIR)/locker.o \
 	$(OBJDIR)/lookup.o \
 	$(OBJDIR)/magic.o \
 	$(OBJDIR)/magic2.o \
@@ -207,6 +211,7 @@ O_FILES = \
 	$(OBJDIR)/missions.o \
 	$(OBJDIR)/mount.o \
 	$(OBJDIR)/music.o \
+	$(OBJDIR)/nanny.o \
 	$(OBJDIR)/note.o \
 	$(OBJDIR)/olc.o \
 	$(OBJDIR)/olc_act.o \
@@ -238,6 +243,7 @@ O_FILES = \
 	$(OBJDIR)/special.o \
 	$(OBJDIR)/staff.o \
 	$(OBJDIR)/stats.o \
+	$(OBJDIR)/storage.o \
 	$(OBJDIR)/string.o \
 	$(OBJDIR)/tables.o \
 	$(OBJDIR)/tls.o \

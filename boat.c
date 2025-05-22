@@ -563,7 +563,7 @@ SHIP_INDEX_DATA *read_ship_index(FILE *fp, AREA_DATA *area)
 
 		if (!fMatch) {
 			char buf[MSL];
-			sprintf(buf, "load_ship: no match for word %.50s", word);
+			snprintf(buf, sizeof(buf), "load_ship: no match for word %.50s", word);
 			bug(buf, 0);
 		}
 
@@ -697,7 +697,7 @@ SHIP_DATA *create_ship(WNUM wnum)
 	if( obj_index->item_type != ITEM_SHIP )
 	{
 		char buf[MSL];
-		sprintf(buf, "create_ship: attempting to use object (%ld#%ld) that is not a ship object for ship (%ld#%ld)", obj_index->area->uid, obj_index->vnum, ship_index->area->uid, ship_index->vnum);
+		snprintf(buf, sizeof(buf), "create_ship: attempting to use object (%ld#%ld) that is not a ship object for ship (%ld#%ld)", obj_index->area->uid, obj_index->vnum, ship_index->area->uid, ship_index->vnum);
 		bug(buf, 0);
 		return NULL;
 	}
@@ -1209,7 +1209,7 @@ SPECIAL_KEY_DATA *ship_special_key_load(FILE *fp)
 
 		if (!fMatch) {
 			char buf[MSL];
-			sprintf(buf, "ship_special_key_load: no match for word %.50s", word);
+			snprintf(buf, sizeof(buf), "ship_special_key_load: no match for word %.50s", word);
 			bug(buf, 0);
 		}
 	}
@@ -1250,7 +1250,7 @@ SHIP_ROUTE *ship_route_load(FILE *fp, SHIP_DATA *ship)
 
 		if (!fMatch) {
 			char buf[MSL];
-			sprintf(buf, "ship_route_load: no match for word %.50s", word);
+			snprintf(buf, sizeof(buf), "ship_route_load: no match for word %.50s", word);
 			bug(buf, 0);
 		}
 	}
@@ -1545,7 +1545,7 @@ SHIP_DATA *ship_load(FILE *fp)
 
 		if (!fMatch) {
 			char buf[MSL];
-			sprintf(buf, "ship_load: no match for word %.50s", word);
+			snprintf(buf, sizeof(buf), "ship_load: no match for word %.50s", word);
 			bug(buf, 0);
 		}
 

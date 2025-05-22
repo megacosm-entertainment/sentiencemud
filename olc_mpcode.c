@@ -184,18 +184,18 @@ static int olc_script_typeifc[] = {
 // Testports have reduced security checks
 bool script_security_check(CHAR_DATA *ch)
 {
-//	if(telnet_port == PORT_NORMAL)
+	if (game_settings.testport)
+		return true;
+	else
 		return (bool)(!IS_NPC(ch) && IS_STAFF(ch, STAFF_CREATOR));
-//	else
-//		return true;
 }
 
 bool script_imp_check(CHAR_DATA *ch)
 {
-//	if(telnet_port == PORT_NORMAL)
+	if (game_settings.testport)
+		return (bool)(!IS_NPC(ch) && IS_STAFF(ch, STAFF_CREATOR));
+	else
 		return (bool)(!IS_NPC(ch) && IS_IMPLEMENTOR(ch));
-//	else
-//		return (bool)(!IS_NPC(ch) && IS_STAFF(ch, STAFF_CREATOR));
 }
 
 void mpedit( CHAR_DATA *ch, char *argument)

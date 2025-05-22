@@ -39,6 +39,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
+#include <libpng/png.h>
+#include <qrencode.h>
 #include "merc.h"
 #include "interp.h"
 #include "magic.h"
@@ -46,6 +48,8 @@
 #include "tables.h"
 #include "scripts.h"
 #include "wilds.h"
+#include "openssl/evp.h"
+
 
 extern LLIST *loaded_instances;
 
@@ -2293,8 +2297,8 @@ void obj_to_char(OBJ_DATA *obj, CHAR_DATA *ch)
 		extract_obj(obj);
 		return;
     }
-
-    list_addlink(ch->lcarrying, obj);
+	if (!list_haslink(ch->lcarrying, obj))
+    	list_addlink(ch->lcarrying, obj);
 
     if (!IS_NPC(ch))
         check_mission_retrieve_obj(ch, obj, true);
@@ -2957,7 +2961,7 @@ void obj_from_room(OBJ_DATA *obj)
 
 		if (prev == NULL)
 		{
-			sprintf(buf, "Obj_from_room: obj not found.");
+			snprintf(buf, sizeof(buf), "Obj_from_room: obj not found.");
 			bug(buf, 0);
 			return;
 		}
@@ -4995,7 +4999,7 @@ void hunt_char(CHAR_DATA *ch, CHAR_DATA *victim)
     CHAR_DATA *temp;
 
     if (!IS_NPC(ch)) {
-	sprintf(buf, "hunt_char: non-NPC %s", ch->name);
+	snprintf(buf, sizeof(buf), "hunt_char: non-NPC %s", ch->name);
 	bug(buf, 0);
 	return;
     }
@@ -5115,14 +5119,14 @@ void resurrect_pc(CHAR_DATA *ch)
 
     if (!IS_DEAD(ch))
     {
-	sprintf(buf, "resurrect_pc: %s is not dead!", ch->name);
+	snprintf(buf, sizeof(buf), "resurrect_pc: %s is not dead!", ch->name);
 	bug(buf, 0);
 	return;
     }
 
     if (IS_NPC(ch))
     {
-	sprintf(buf, "resurrect_pc: %s is an NPC!", ch->short_descr);
+	snprintf(buf, sizeof(buf), "resurrect_pc: %s is an NPC!", ch->short_descr);
 	bug(buf, 0);
 	return;
     }
@@ -6139,6 +6143,24 @@ bool player_exists(char *argument)
     return found_char;
 }
 
+// checks if an account with the given name exists
+bool account_exists(char *argument)
+{
+    char account_name[MSL];
+    bool found_account = false;
+    FILE *fp;
+
+    sprintf(account_name, "%s%c/%s", ACCOUNT_DIR, tolower(argument[0]), capitalize(argument));
+    if ((fp = fopen(account_name, "r")) == NULL)
+        found_account = false;
+    else
+    {
+        found_account = true;
+        fclose(fp);
+    }
+
+    return found_account;
+}
 
 // Find a skull of a person in ch's inv. Looks in containers.
 OBJ_DATA *get_skull(CHAR_DATA *ch, char *owner)
@@ -8951,6 +8973,7 @@ bool list_appendlist(LLIST *lp, LLIST *src)
 	return false;
 }
 
+/*
 bool list_movelink(LLIST *lp, int from, int to)
 {
 	LLIST_LINK *old, *link, *new_link;
@@ -9043,6 +9066,121 @@ bool list_movelink(LLIST *lp, int from, int to)
 	}
 
 	return false;
+}
+*/
+
+bool list_movelink(LLIST *lp, int from, int to)
+{
+    LLIST_LINK *old, *link, *new_link;
+
+    // Adjust negative indices
+    if (from < 0) from = lp->size + from + 1;
+    if (to < 0) to = lp->size + to + 1;
+
+    // Check for invalid positions
+    if (from <= 0 || to <= 0 || from > lp->size || to > lp->size) return false;
+
+    // If from and to are the same, no need to move
+    if (from == to) return true;
+
+    if (lp)
+    {
+        old = NULL;
+        // Locate the 'from' node
+        for (link = lp->head; link && from > 0; link = link->next)
+            if (link->data)
+            {
+                --from;
+                if (!from)
+                {
+                    old = link;
+                    break;
+                }
+            }
+
+        if (!old) return false;
+
+        // Locate the 'to' position
+        for (link = lp->head; link && to > 0; link = link->next)
+        {
+            if (link != old)
+            {
+                if ((to == 1) && (!link->data))
+                {
+                    // This is an empty link, reuse it
+                    link->data = old->data;
+                    old->data = NULL;
+                    return true;
+                }
+
+                if (link->data)
+                {
+                    if (!--to)
+                    {
+                        new_link = alloc_mem(sizeof(LLIST_LINK));
+                        if (!new_link) return false;
+
+                        new_link->data = old->data;
+                        old->data = NULL;
+
+                        if (link->prev)
+                        {
+                            new_link->next = link;
+                            new_link->prev = link->prev;
+                            link->prev->next = new_link;
+                            link->prev = new_link;
+                        }
+                        else
+                        {
+                            new_link->next = lp->head;
+                            lp->head->prev = new_link;
+                            lp->head = new_link;
+                            new_link->prev = NULL;
+                        }
+
+                        // Update list size
+                        lp->size++;
+                        return true;
+                    }
+                }
+            }
+        }
+
+        if (to > 0)
+        {
+            // Needs to append if it's at the end
+            link = alloc_mem(sizeof(LLIST_LINK));
+            if (!link) return false;
+
+            if (!lp->head)
+                lp->head = link;
+            else
+                lp->tail->next = link;
+            link->prev = lp->tail;
+            lp->tail = link;
+
+            link->data = old->data;
+            old->data = NULL;
+
+            // Update list size
+            lp->size++;
+        }
+
+        // Update head and tail if necessary
+        if (old == lp->head) lp->head = old->next;
+        if (old == lp->tail) lp->tail = old->prev;
+
+        // Remove old link from its current position
+        if (old->prev) old->prev->next = old->next;
+        if (old->next) old->next->prev = old->prev;
+
+        free(old);
+
+        // Update list size
+        lp->size--;
+    }
+
+    return false;
 }
 
 bool list_insertlink(LLIST *lp, void *data, int to)
@@ -9173,6 +9311,17 @@ void list_remlink(LLIST *lp, void *data, bool del)
 	}
 }
 
+bool list_haslink(LLIST *list, void *data) {
+    LLIST_LINK *link;
+    if (!list || !data)
+        return false;
+    for (link = list->head; link != NULL; link = link->next) {
+        if (link->data == data)
+            return true;
+    }
+    return false;
+}
+
 // Clears out the entire list
 void list_clear(LLIST *lp)
 {
@@ -9188,6 +9337,54 @@ void list_clear(LLIST *lp)
 	}
 }
 
+// Get the last entry of a list.
+void *list_last(LLIST *list)
+{
+    if (!list || list->size == 0)
+        return NULL;
+        
+    void *data = NULL;
+    ITERATOR it;
+    
+    iterator_start(&it, list);
+    while (iterator_hasdata(&it)) {
+        data = iterator_nextdata(&it);
+    }
+    iterator_stop(&it);
+    
+    return data;
+}
+
+void *iterator_peek_nextdata(ITERATOR *it)
+{
+    LLIST_LINK *link;
+
+    if (!it || !it->list || !it->list->valid || !it->current)
+        return NULL;
+
+    // If we haven't moved yet, peek at current if valid, else next
+    if (!it->moved) {
+        link = it->current;
+        if (link && link->data)
+            link = link->next;
+    } else {
+        link = it->current ? it->current->next : NULL;
+    }
+
+    // Find the next link with data
+    while (link && !link->data)
+        link = link->next;
+
+    return link ? link->data : NULL;
+}
+
+bool iterator_hasdata(ITERATOR *it)
+{
+    if(it && it->list && it->list->valid && it->current) {
+        return (it->current->data != NULL);
+    }
+    return false;
+}
 
 void *list_randomdata(LLIST *lp)
 {
@@ -9408,6 +9605,14 @@ void *iterator_prevdata(ITERATOR *it)
 
 	return link ? link->data : NULL;
 
+}
+
+void *iterator_currentdata(ITERATOR *it)
+{
+    if(it && it->list && it->list->valid && it->current) {
+        return it->current->data;
+    }
+    return NULL;
 }
 
 void *iterator_nextdata(ITERATOR *it)
@@ -10789,113 +10994,140 @@ bool check_social_status(CHAR_DATA *ch)
 }
 
 
-void send_email(CHAR_DATA *ch, char *email, char *subject, char *message)
+void send_email_ex(CHAR_DATA *ch, ACCOUNT_DATA *acct, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type)
 {
-	//char buf[MSL];
-	char subj_buf[256];
-	char body_buf[MSL*2];
-	char body_buf_html[MSL*5];
+    char subj_buf[256];
+    char body_buf[MSL*2];
+    char body_buf_html[MSL*5];
+    char *recipient_name = NULL;
 
-	extern GAME_SETTINGS_DATA game_settings;
+    extern GAME_SETTINGS_DATA game_settings;
+
+    quickmail_initialize();
+
+    if (subject[0] != '\0')
+        sprintf(subj_buf, "%s", subject);
+    else
+        sprintf(subj_buf, "Email from SentienceMUD");
+
+    quickmail mailobj = quickmail_create(game_settings.email_from_name, game_settings.email_from_addr, subj_buf);
+
+    quickmail_add_to(mailobj, email);
+
+    quickmail_add_header(mailobj, "Importance: Low");
+    quickmail_add_header(mailobj, "X-Priority: 5");
+    quickmail_add_header(mailobj, "X-MSMail-Priority: Low");
+
+    // Get the appropriate name to address the email
+    if (ch)
+        recipient_name = ch->name;
+    else if (acct)
+        recipient_name = acct->username;
+    else
+        recipient_name = "Adventurer";
+
+    sprintf(body_buf, "Hello %s,\n\n%s\n\nSincerely,\n\nThe SentienceMUD Staff", recipient_name, message);
+    sprintf(body_buf_html, "Hello %s,<br/><br/>%s<br/><br/>Sincerely,<br/><br/>The SentienceMUD Staff", recipient_name, message);
+
+    quickmail_set_body(mailobj, body_buf);
+    quickmail_add_body_memory(mailobj, "text/html", body_buf_html, strlen(body_buf_html), 0);
+
+    if (attachment_filename && attachment_mime_type) {
+        quickmail_add_attachment_file(mailobj, attachment_filename, attachment_mime_type);
+    }
+
+    const char* errmsg;
+
+    if ((errmsg = quickmail_send(mailobj, game_settings.email_host, game_settings.email_port, game_settings.email_username, game_settings.email_password)) != NULL)
+        fprintf(stderr, "Error sending e-mail: %s\n", errmsg);
+      quickmail_destroy(mailobj);
+      quickmail_cleanup();
+}
 
 
-	quickmail_initialize();
-
-	if (subject[0] != '\0')
-		sprintf(subj_buf, "%s", subject);
-	else
-		sprintf(subj_buf, "Email from SentienceMUD");
-
-	quickmail mailobj = quickmail_create(game_settings.email_from_name, game_settings.email_from_addr, subj_buf);
-
-	quickmail_add_to(mailobj, email);
-
-	quickmail_add_header(mailobj, "Importance: Low");
-	quickmail_add_header(mailobj, "X-Priority: 5");
-	quickmail_add_header(mailobj, "X-MSMail-Priority: Low");
-
-	sprintf(body_buf, "Hello %s,\n\n%s\n\nSincerely,\n\nThe SentienceMUD Staff", ch->name, message);
-	sprintf(body_buf_html, "Hello %s,<br/><br/>%s<br/><br/>Sincerely,<br/><br/>The SentienceMUD Staff", ch->name, message);
-
-	quickmail_set_body(mailobj, body_buf);
-	quickmail_add_body_memory(mailobj, "text/html", body_buf_html, strlen(body_buf_html), 0);
-
-	const char* errmsg;
-
-	if ((errmsg = quickmail_send(mailobj, game_settings.email_host, game_settings.email_port, game_settings.email_username, game_settings.email_password)) != NULL)
-    	fprintf(stderr, "Error sending e-mail: %s\n", errmsg);
-  	quickmail_destroy(mailobj);
-  	quickmail_cleanup();
-/*
-  quickmail_add_to(mailobj, ch->pcdata->email);
-#ifdef TO
-  quickmail_add_to(mailobj, ch->pcdata->email);
-#endif
-#ifdef CC
-  quickmail_add_cc(mailobj, CC);
-#endif
-#ifdef BCC
-  quickmail_add_bcc(mailobj, BCC);
-#endif
-*/
-/*
-  //quickmail_add_attachment_file(mailobj, "test_quickmail.c", NULL);
-  //quickmail_add_attachment_file(mailobj, "test_quickmail.cbp", NULL);
-  //quickmail_add_attachment_memory(mailobj, "test.log", NULL, "Test\n123", 8, 0);
-*/
-/*
-  quickmail_fsave(mailobj, stdout);
-
-  int i;
-  i = 0;
-  quickmail_list_attachments(mailobj, list_attachment_callback, &i);
-
-  quickmail_remove_attachment(mailobj, "test_quickmail.cbp");
-  i = 0;
-  quickmail_list_attachments(mailobj, list_attachment_callback, &i);
-
-  quickmail_destroy(mailobj);
-  return 0;
-*/
-
+// Legacy wrapper to maintain backward compatibility
+void send_email(CHAR_DATA *ch, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type)
+{
+    send_email_ex(ch, NULL, email, subject, message, attachment_filename, attachment_mime_type);
 }
 
 // Define a structure to hold email-related data
 struct EmailData {
     CHAR_DATA *ch;
+    ACCOUNT_DATA *acct;
     char *email;
     char *subject;
     char *message;
+    char *attachment_filename;
+    char *attachment_mime_type;
 };
 
 // Function executed by the email thread
 void *send_email_thread(void *arg) {
     struct EmailData *emailData = (struct EmailData *)arg;
 
-	send_email(emailData->ch, emailData->email, emailData->subject, emailData->message);
+    send_email_ex(emailData->ch, emailData->acct, emailData->email, emailData->subject, emailData->message, 
+                  emailData->attachment_filename, emailData->attachment_mime_type);
 
     // Clean up and exit the thread
     free(emailData->subject);
     free(emailData->message);
+    if (emailData->attachment_filename)
+        free(emailData->attachment_filename);
+    if (emailData->attachment_mime_type)
+        free(emailData->attachment_mime_type);
     free(emailData);
     pthread_exit(NULL);
 }
 
-// Function to send an email asynchronously
-void send_email_async(CHAR_DATA *ch, char *email, char *subject, char *message) {
+// Function to send an email asynchronously with extended parameters
+void send_email_async_ex(CHAR_DATA *ch, ACCOUNT_DATA *acct, char *email, char *subject, char *message, 
+                         char *attachment_filename, char *attachment_mime_type) {
     // Allocate memory for the email data
     struct EmailData *emailData = (struct EmailData *)malloc(sizeof(struct EmailData));
+    if (!emailData) {
+        fprintf(stderr, "Error allocating memory for email data\n");
+        return;
+    }
+    
     emailData->ch = ch;
+    emailData->acct = acct;
     emailData->email = email;
     emailData->subject = strdup(subject); // Duplicate the subject string
+    if (!emailData->subject) {
+        free(emailData);
+        return;
+    }
+    
     emailData->message = strdup(message); // Duplicate the message string
+    if (!emailData->message) {
+        free(emailData->subject);
+        free(emailData);
+        return;
+    }
+    
+    emailData->attachment_filename = attachment_filename ? strdup(attachment_filename) : NULL;
+    emailData->attachment_mime_type = attachment_mime_type ? strdup(attachment_mime_type) : NULL;
 
     // Create a new thread for email dispatching
     pthread_t emailThread;
     if (pthread_create(&emailThread, NULL, send_email_thread, emailData) != 0) {
         fprintf(stderr, "Error creating email thread\n");
-        // Handle error (e.g., retry or log)
+        // Clean up on error
+        free(emailData->subject);
+        free(emailData->message);
+        if (emailData->attachment_filename)
+            free(emailData->attachment_filename);
+        if (emailData->attachment_mime_type)
+            free(emailData->attachment_mime_type);
+        free(emailData);
     }
+}
+
+// Legacy wrapper for backward compatibility
+void send_email_async(CHAR_DATA *ch, char *email, char *subject, char *message, 
+                      char *attachment_filename, char *attachment_mime_type) {
+    send_email_async_ex(ch, NULL, email, subject, message, attachment_filename, attachment_mime_type);
 }
 
 // Function to return a random character from a given index
@@ -10920,20 +11152,530 @@ void generate_reset_code(char* str, int str_len) {
     str--; // Move back to the last character
     *str = '\0'; // Add the null character at the end
 }
-char *sha256_crypt( const char *pwd )
+char *sha256_crypt(const char *pwd) {
+    EVP_MD_CTX *context = EVP_MD_CTX_new();
+    static char output[65];
+    unsigned char sha256sum[32];
+    unsigned int j;
+
+    if (context == NULL) {
+        return NULL; // Handle error
+    }
+
+    if (EVP_DigestInit_ex(context, EVP_sha256(), NULL) != 1) {
+        EVP_MD_CTX_free(context);
+        return NULL; // Handle error
+    }
+
+    if (EVP_DigestUpdate(context, pwd, strlen(pwd)) != 1) {
+        EVP_MD_CTX_free(context);
+        return NULL; // Handle error
+    }
+
+    if (EVP_DigestFinal_ex(context, sha256sum, NULL) != 1) {
+        EVP_MD_CTX_free(context);
+        return NULL; // Handle error
+    }
+
+    for (j = 0; j < 32; ++j) {
+        snprintf(output + j * 2, 3, "%02x", sha256sum[j]);
+    }
+
+    EVP_MD_CTX_free(context);
+    return output;
+}
+
+char *tmp_sprintf(const char *fmt, ...)
 {
-   SHA256_CTX context;
-   static char output[65];
-   unsigned char sha256sum[32];
-   unsigned int j;
+    static char buf[MAX_STRING_LENGTH];
+    va_list args;
+    
+    buf[0] = '\0';
+    
+    va_start(args, fmt);
+    vsnprintf(buf, MAX_STRING_LENGTH, fmt, args);
+    va_end(args);
+    
+    return buf;
+}
 
-   SHA256_Init( &context );
-   SHA256_Update( &context, (const unsigned char *) pwd, strlen(pwd) );
-   SHA256_Final( sha256sum, &context );
+// Converts total minutes to a formatted string "X week(s) Y day(s) Z hour(s) W minute(s)"
+void format_duration(int total_minutes, char *outbuf, size_t outbuf_len) {
+    int weeks = total_minutes / (60 * 24 * 7);
+    int days = (total_minutes / (60 * 24)) % 7;
+    int hours = (total_minutes / 60) % 24;
+    int minutes = total_minutes % 60;
+    char temp[128];
+    temp[0] = '\0';
 
-   for( j = 0; j < 32; ++j )
-   {
-      snprintf( output + j * 2, 65, "%02x", sha256sum[j] );
-   }
-   return output;
+    if (weeks > 0) {
+        snprintf(temp + strlen(temp), sizeof(temp) - strlen(temp),
+                 "%d week%s", weeks, weeks == 1 ? "" : "s");
+    }
+    if (days > 0) {
+        if (temp[0] != '\0') strcat(temp, " ");
+        snprintf(temp + strlen(temp), sizeof(temp) - strlen(temp),
+                 "%d day%s", days, days == 1 ? "" : "s");
+    }
+    if (hours > 0) {
+        if (temp[0] != '\0') strcat(temp, " ");
+        snprintf(temp + strlen(temp), sizeof(temp) - strlen(temp),
+                 "%d hour%s", hours, hours == 1 ? "" : "s");
+    }
+    if (minutes > 0 || temp[0] == '\0') {
+        if (temp[0] != '\0') strcat(temp, " ");
+        snprintf(temp + strlen(temp), sizeof(temp) - strlen(temp),
+                 "%d minute%s", minutes, minutes == 1 ? "" : "s");
+    }
+
+    snprintf(outbuf, outbuf_len, "%s", temp);
+}
+
+int account_count_nonstaff_characters(ACCOUNT_DATA *acct) {
+    int count = 0;
+    ITERATOR it;
+    ACCOUNT_CHARACTER *ch_entry;
+
+    if (!acct || !acct->characters)
+        return 0;
+
+    iterator_start(&it, acct->characters);
+    while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+        if (!(ch_entry->staff && ch_entry->staff_rank >= STAFF_IMMORTAL))
+            count++;
+    }
+    iterator_stop(&it);
+    return count;
+}
+
+int account_count_staff_characters(ACCOUNT_DATA *acct) {
+    int count = 0;
+    ITERATOR it;
+    ACCOUNT_CHARACTER *ch_entry;
+
+    if (!acct || !acct->characters)
+        return 0;
+
+    iterator_start(&it, acct->characters);
+    while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+        if (ch_entry->staff && ch_entry->staff_rank >= STAFF_IMMORTAL)
+            count++;
+    }
+    iterator_stop(&it);
+    return count;
+}
+
+char *generate_random_code(int len) {
+    static char charset[] = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    static char buf[16];
+    for (int i = 0; i < len; ++i)
+        buf[i] = charset[rand() % (sizeof(charset) - 1)];
+    buf[len] = '\0';
+    return buf;
+}
+
+void generate_recovery_codes(char **codes, bool *used, int count) {
+    for (int i = 0; i < count; ++i) {
+        if (codes[i]) free_string(codes[i]);
+        codes[i] = str_dup(generate_random_code(10));
+        used[i] = false;
+    }
+}
+
+bool check_recovery_code(CHAR_DATA *ch, const char *code) {
+    for (int i = 0; i < MFA_RECOVERY_CODES; ++i) {
+        if (!ch->pcdata->recovery_used[i] && !str_cmp(ch->pcdata->recovery_codes[i], code)) {
+            ch->pcdata->recovery_used[i] = true;
+            save_char_obj(ch);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool check_account_recovery_code(ACCOUNT_DATA *acct, const char *code) {
+    for (int i = 0; i < MFA_RECOVERY_CODES; ++i) {
+        if (!acct->recovery_used[i] && !str_cmp(acct->recovery_codes[i], code)) {
+            acct->recovery_used[i] = true;
+            save_account(acct);
+            return true;
+        }
+    }
+    return false;
+}
+
+// Display recovery codes to the user
+void display_recovery_codes(DESCRIPTOR_DATA *d, CHAR_DATA *ch) {
+    write_to_buffer(d, "\n\r{YYour recovery codes (each can be used once):{x\n\r", 0);
+    for (int i = 0; i < MFA_RECOVERY_CODES; ++i) {
+        char buf[128];
+        if (ch->pcdata->recovery_used[i])
+            sprintf(buf, "{R%s {X(used){x\n\r", ch->pcdata->recovery_codes[i]);
+        else
+            sprintf(buf, "%s\n\r", ch->pcdata->recovery_codes[i]);
+        write_to_buffer(d, buf, 0);
+    }
+}
+
+void display_account_recovery_codes(DESCRIPTOR_DATA *d, ACCOUNT_DATA *acct) {
+    write_to_buffer(d, "\n\r{YYour recovery codes (each can be used once):{x\n\r", 0);
+    for (int i = 0; i < MFA_RECOVERY_CODES; ++i) {
+        char buf[128];
+        if (acct->recovery_used[i])
+            sprintf(buf, "{R%s {X(used){x\n\r", acct->recovery_codes[i]);
+        else
+            sprintf(buf, "%s\n\r", acct->recovery_codes[i]);
+        write_to_buffer(d, buf, 0);
+    }
+}
+
+void *delayed_unlink_thread(void *arg) {
+    char *filename = (char *)arg;
+    sleep(10);
+    unlink(filename);
+    free(filename);
+    return NULL;
+}
+
+void delayed_unlink(const char *filename) {
+    pthread_t tid;
+    char *fname = strdup(filename);
+    if (fname) {
+        pthread_create(&tid, NULL, delayed_unlink_thread, fname);
+        pthread_detach(tid);
+    }
+}
+
+bool has_recovery_codes(const char **codes, int count) {
+    for (int i = 0; i < count; ++i)
+        if (!IS_NULLSTR(codes[i]))
+            return true;
+    return false;
+}
+
+ACCOUNT_DATA *get_account_online_or_offline(char *name, bool *was_loaded) {
+    ACCOUNT_DATA *account = get_account_by_name(name); // online/in-memory
+    if (account) {
+        if (was_loaded) *was_loaded = FALSE;
+        return account;
+    }
+
+    // Not online, try to load from disk
+    DESCRIPTOR_DATA d;
+    memset(&d, 0, sizeof(d));
+    if (!load_account(&d, name)) {
+        if (was_loaded) *was_loaded = FALSE;
+        return NULL;
+    }
+
+    // Add newly loaded account to the global list for tracking
+    if (d.account) {
+		if (!list_haslink(loaded_accounts, d.account)) {
+        	list_appendlink(loaded_accounts, d.account);
+		}
+    }
+
+    if (was_loaded) *was_loaded = TRUE;
+    return d.account;
+}
+
+ACCOUNT_DATA *get_account_by_name(const char *name) {
+    ITERATOR it;
+    ACCOUNT_DATA *acct;
+
+    if (IS_NULLSTR(name))
+        return NULL;
+
+    iterator_start(&it, loaded_accounts);
+    while ((acct = (ACCOUNT_DATA *)iterator_nextdata(&it))) {
+        if (!str_cmp(acct->username, name))
+            break;
+    }
+    iterator_stop(&it);
+
+    return acct;
+}
+
+bool is_staff_duty_in_list(CHAR_DATA *ch, const char *duty_list)
+{
+    if (!ch || IS_NPC(ch) || !ch->pcdata || !ch->pcdata->immortal)
+        return false;
+
+    long duties = ch->pcdata->immortal->duties;
+
+    // Tokenize the duty_list (space-separated or quoted)
+    char duty_name[MAX_INPUT_LENGTH];
+	char pbuf [1024];
+	strncpy(pbuf, duty_list, sizeof(pbuf));
+	pbuf[sizeof(pbuf)-1] = '\0';
+	char *p = pbuf;
+    while (*p != '\0') {
+        p = one_argument(p, duty_name);
+        if (duty_name[0] == '\0')
+            break;
+
+        int flag = flag_value(immortal_flags, duty_name);
+        if (flag != NO_FLAG && IS_SET(duties, flag))
+            return true;
+    }
+    return false;
+}
+
+void show_staff_duties(CHAR_DATA *ch)
+{
+    char buf[MAX_STRING_LENGTH];
+    buf[0] = '\0';
+
+    for (int i = 0, first = 1; immortal_flags[i].name != NULL; i++) {
+        if (!immortal_flags[i].settable)
+            continue;
+        if (!first)
+            strcat(buf, ", ");
+        strcat(buf, immortal_flags[i].name);
+        first = 0;
+    }
+    strcat(buf, "\n\r");
+    send_to_char("Available staff duties:\n\r", ch);
+    send_to_char(buf, ch);
+}
+
+bool is_staff_rank_in_list(CHAR_DATA *ch, const char *rank_list)
+{
+    if (!ch || IS_NPC(ch) || !ch->pcdata)
+        return false;
+
+    int rank = get_staff_rank(ch);
+
+    char rank_name[MAX_INPUT_LENGTH];
+	char pbuf [1024];
+	strncpy(pbuf, rank_list, sizeof(pbuf));
+	pbuf[sizeof(pbuf)-1] = '\0';
+	char *p = pbuf;
+    while (*p != '\0') {
+        p = one_argument(p, rank_name);
+        if (rank_name[0] == '\0')
+            break;
+
+        int flag = flag_value(staff_ranks, rank_name);
+        if (flag != NO_FLAG && rank >= flag)
+            return true;
+    }
+    return false;
+}
+
+void show_staff_ranks(CHAR_DATA *ch)
+{
+    char buf[MAX_STRING_LENGTH];
+    buf[0] = '\0';
+
+    for (int i = 0, first = 1; staff_ranks[i].name != NULL; i++) {
+        if (!staff_ranks[i].settable)
+            continue;
+        if (!first)
+            strcat(buf, ", ");
+        strcat(buf, staff_ranks[i].name);
+        first = 0;
+    }
+    strcat(buf, "\n\r");
+    send_to_char("Available staff ranks:\n\r", ch);
+    send_to_char(buf, ch);
+}
+
+CHURCH_DATA *get_church_by_name(const char *name)
+{
+    CHURCH_DATA *church;
+
+    if (IS_NULLSTR(name))
+        return NULL;
+
+    for (church = church_list; church != NULL; church = church->next)
+    {
+        if (!str_cmp(church->name, name))
+            return church;
+    }
+    return NULL;
+}
+
+bool validate_account_recipient(const char *account_name) {
+    bool was_loaded = FALSE;
+    ACCOUNT_DATA *acct = get_account_online_or_offline((char *)account_name, &was_loaded);
+    if (!acct)
+        return false;
+    // If we loaded it just for validation, free it now
+    if (was_loaded) {
+        free_account(acct);
+    }
+    return true;
+}
+int colour_trunc_len(const char *str, int limit)
+{
+    int vis = 0, i = 0;
+    if (!str) return 0;
+
+    while (str[i] && vis < limit) {
+        // Handle MUD newline marker
+        if (str[i] == '{' && str[i+1] == '|') {
+            i += 2;
+            vis++; // treat as one visible char (space)
+        }
+        // Handle color codes (e.g., {G, {x, etc)
+        else if (str[i] == '{' && str[i+1] != '\0') {
+            i += 2;
+        }
+        // Literal newline/CR
+        else if (str[i] == '\n' || str[i] == '\r') {
+            i++;
+            vis++; // treat as one visible char (space)
+        }
+        else {
+            i++;
+            vis++;
+        }
+    }
+    return i;
+}
+ACCOUNT_DATA *get_account_by_identifier(const char *identifier, bool *loaded)
+{
+    ACCOUNT_DATA *account = NULL;
+    
+    if (loaded) *loaded = false;
+    
+    // Try using fixed get_account_online_or_offline 
+    if (!strncmp(identifier, "player:", 7))
+    {
+        // Extract the player name
+        const char *player_name = identifier + 7;
+        
+        // Find the character first
+        CHAR_DATA *ch = get_char_world(NULL, (char*)player_name);
+        
+        if (!ch) {
+            // Try loading character
+            DESCRIPTOR_DATA temp_d;
+            memset(&temp_d, 0, sizeof(temp_d));
+            
+            if (load_char_obj(&temp_d, (char*)player_name)) {
+                ch = temp_d.character;
+                
+                // Get account info
+                if (ch && ch->pcdata && ch->pcdata->account_name[0]) {
+                    account = get_account_online_or_offline(ch->pcdata->account_name, loaded);
+                }
+                
+                // Clean up
+                free_char(ch);
+            }
+        }
+        else if (ch && ch->pcdata && ch->pcdata->account_name[0]) {
+            // Character is online, get account
+            account = get_account_online_or_offline(ch->pcdata->account_name, loaded);
+        }
+    }
+    else
+    {
+        // Direct account lookup
+        account = get_account_online_or_offline((char*)identifier, loaded);
+    }
+    
+    // Log for debugging
+    if (!account) {
+        log_string(formatf("Account lookup for '%s' failed - no account found", identifier));
+    }
+    else if (*loaded) {
+        // Ensure loaded accounts get added to the global list
+        if (loaded_accounts) {
+            list_remlink(loaded_accounts, account, NULL); // Remove if exists
+            list_appendlink(loaded_accounts, account);    // Then add back
+        }
+    }
+    
+    return account;
+}
+
+
+// Add a utility function to create a normalized filename
+char *normalize_filename(const char *name)
+{
+    static char buf[256];
+    char *dest = buf;
+    const char *src = name;
+    int i;
+    
+    // Convert to lowercase and replace spaces/symbols with underscores
+    for (i = 0; *src && i < 250; src++) {
+        if (isalnum(*src))
+            *dest++ = tolower(*src);
+        else if (*src == ' ' || !isprint(*src) || *src == '/' || *src == '\\' || *src == '.')
+            *dest++ = '_';
+    }
+    *dest = '\0';
+    
+    return buf;
+}
+
+bool is_duplicate_object(OBJ_DATA *obj) {
+    ITERATOR it;
+    OBJ_DATA *existing;
+    if (!loaded_objects) return false;
+    iterator_start(&it, loaded_objects);
+    while ((existing = (OBJ_DATA *)iterator_nextdata(&it))) {
+        if (existing->id[0] == obj->id[0] &&
+            existing->id[1] == obj->id[1] &&
+            existing->pIndexData == obj->pIndexData) {
+            iterator_stop(&it);
+            return true;
+        }
+    }
+    iterator_stop(&it);
+    return false;
+}
+
+bool delete_character(CHAR_DATA *ch)
+{
+    char old_path[MAX_INPUT_LENGTH];
+    char new_path[MAX_INPUT_LENGTH];
+    char timestamp[64];
+    time_t now = time(NULL);
+    struct tm *tm_info = localtime(&now);
+	char buf[MAX_STRING_LENGTH];
+
+    // Remove from account if attached
+    if (ch->pcdata && !IS_NULLSTR(ch->pcdata->account_name)) {
+        ACCOUNT_DATA *acct = get_account_by_name(ch->pcdata->account_name);
+        if (acct) {
+            account_remove_character(acct, ch->name);
+            save_account(acct);
+        }
+        // Clear account linkage on the character
+        free_string(ch->pcdata->account_name);
+        ch->pcdata->account_name = str_dup("");
+        ch->pcdata->account_id[0] = 0;
+        ch->pcdata->account_id[1] = 0;
+    }
+
+    // Format timestamp: DAY_MONTH_YEAR_HOURMINSEC
+    strftime(timestamp, sizeof(timestamp), "%d_%m_%Y_%H%M%S", tm_info);
+
+    // Build source and destination paths
+    snprintf(old_path, sizeof(old_path), "%s/%s", PLAYER_DIR, capitalize(ch->name));
+    snprintf(new_path, sizeof(new_path), "%s/%s_%s", OLD_PLAYER_DIR, capitalize(ch->name), timestamp);
+
+    // Try to move the file
+    if (rename(old_path, new_path) == 0) {
+        return true;
+    } else {
+		sprintf(buf, "delete_character: Failed to move %s to %s: %s", old_path, new_path, strerror(errno));
+		bug(buf, 0);
+        return false;
+    }
+}
+
+bool should_purge_deleted_character(const ACCOUNT_CHARACTER *ch_entry) {
+    if (!ch_entry->deleted)
+        return false;
+    if (ch_entry->delete_time == 0)
+        return false;
+    long delay = game_settings.character_delete_delay_days;
+    if (delay <= 0) delay = 30; // Default to 7 days if not set
+    return (current_time - ch_entry->delete_time) >= (delay * 86400);
 }

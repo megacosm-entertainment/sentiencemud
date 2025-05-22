@@ -62,8 +62,11 @@
 #define ED_SECTOREDIT	30
 #define ED_CORPSEDIT	31
 #define ED_CMDEDIT		32
-#define ED_DLGEDIT		33
-#define ED_MAX			34
+#define ED_CHANGESET	33
+#define ED_ACCNOTE	34
+#define ED_CHLOG 35
+#define ED_DLGEDIT		36
+#define ED_MAX			37
 
 #define AEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define HEDIT( fun )            bool fun( CHAR_DATA *ch, char *argument )

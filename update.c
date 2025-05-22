@@ -27,6 +27,8 @@ extern char *get_affect_name(AFFECT_DATA *paf);
 // Global variables
 int save_number = 0;
 int pulse_point;
+extern int ssl_errors_since_reset;
+extern time_t last_ssl_error;
 
 
 // Event system for queued events.
@@ -98,6 +100,16 @@ void update_handler(void)
 	save_projects();
 	save_immstaff();
 	save_instances();
+
+    // SSL/TLS Circuit Breaker - auto-recover from SSL context corruption
+    if (ssl_errors_since_reset > 5 && current_time - last_ssl_error < 300) {
+        log_string("Circuit breaker: Multiple SSL errors detected - refreshing SSL context");
+        refresh_ssl_context();
+        ssl_errors_since_reset = 0;
+    }
+    
+    // Process SSL context cleanup queue
+    process_ssl_cleanup_queue();
 
 	// Load stats every 12 hours.
 	if (current_time >= stats_load_time + 43200) 
@@ -230,10 +242,20 @@ void update_handler(void)
 		else
 		{
 		    free_string(reboot_by);
-		    sprintf(buf, "{WREBOOTING. DOWNTIME WILL BE APPROXIMATELY %d MINUTES.{x\n\r", down_timer);
-		    gecho(buf);
-
-		    do_function(rebooting, &do_shutdown, "");
+			char duration_buf[MIL];
+			char upper_buf[MIL];
+			format_duration(down_timer, duration_buf, sizeof(duration_buf));
+			str_upper(duration_buf, upper_buf);
+			sprintf(buf, "{WREBOOTING. DOWNTIME WILL BE APPROXIMATELY %s.{x\n\r", upper_buf);
+			gecho(buf);
+			const char *reason = (reboot_reason != NULL) ? reboot_reason : "";
+			if (reason[0] != '\0')
+			{
+    			sprintf(buf, "{WREASON: %s{x\n\r", reason);
+    			gecho(buf);
+			}
+			reboot_shutdown = true;
+			do_function(rebooting, &do_shutdown, (char *)reason);
 		}
 	    }
 	    else
@@ -442,7 +464,7 @@ int hit_gain(CHAR_DATA *ch)
 
 	if (ch->in_room == NULL)
 	{
-		sprintf(buf, "hit_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
+		snprintf(buf, sizeof(buf),  "hit_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
 		bug(buf, 0);
 		return 0;
 	}
@@ -536,7 +558,7 @@ int mana_gain(CHAR_DATA *ch)
 
 	if (ch->in_room == NULL)
 	{
-		sprintf(buf, "mana_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
+		snprintf(buf, sizeof(buf), "mana_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
 		bug(buf, 0);
 		return 0;
 	}
@@ -636,7 +658,7 @@ int move_gain(CHAR_DATA *ch)
 
     if (ch->in_room == NULL)
     {
-        sprintf(buf, "move_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
+        snprintf(buf, sizeof(buf),  "move_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
 	    bug(buf, 0);
 		return 0;
     }
@@ -718,7 +740,7 @@ int toxin_gain(CHAR_DATA *ch, int toxin)
 
 	if (ch->in_room == NULL)
 	{
-		sprintf(buf, "toxin_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
+		snprintf(buf, sizeof(buf),  "toxin_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
 		bug(buf, 0);
 		return 0;
 	}
@@ -1067,7 +1089,7 @@ void mobile_update(void)
 
 		if (ch->in_room == NULL)
 		{
-			sprintf(buf, "mobile_update: ch %s (%ld) had null in_room!",
+			snprintf(buf, sizeof(buf), "mobile_update: ch %s (%ld) had null in_room!",
 				IS_NPC(ch) ? ch->short_descr : ch->name,
 			IS_NPC(ch) ? ch->pIndexData->vnum : 0);
 			bug(buf, 0);

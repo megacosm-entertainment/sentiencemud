@@ -417,7 +417,7 @@ void mob_interpret(SCRIPT_VARINFO *info, char *argument)
 
 	cmd = mpcmd_lookup(command);
 	if(cmd < 0) {
-		sprintf(buf, "Mob_interpret: invalid cmd from mob %ld: '%s'", VNUM(info->mob), command);
+		snprintf(buf, sizeof(buf), "Mob_interpret: invalid cmd from mob %ld: '%s'", VNUM(info->mob), command);
 		bug(buf, 0);
 		return;
 	}
@@ -804,7 +804,7 @@ SCRIPT_CMD(do_mpairshipaddwaypoint)
 	}
 
 	if (!pArea) {
-		sprintf(buf, "MpAirshipAddWayPoint: no such area '%s'", arg->d.str);
+		snprintf(buf, sizeof(buf), "MpAirshipAddWayPoint: no such area '%s'", arg->d.str);
 		bug(buf, 0);
 		return;
 	}
@@ -1396,7 +1396,7 @@ SCRIPT_CMD(do_mpchargemoney)
 	}
 
 	if ((victim->silver + 100 * victim->gold) < amt) {
-		sprintf(buf, "do_mpchargemoney: victim doesnt have enough cash, mob %s(%ld)", HANDLE(info->mob), VNUM(info->mob));
+		snprintf(buf, sizeof(buf), "do_mpchargemoney: victim doesnt have enough cash, mob %s(%ld)", HANDLE(info->mob), VNUM(info->mob));
 		bug(buf, 0);
 	}
 
@@ -2865,7 +2865,7 @@ SCRIPT_CMD(do_mpmload)
 	}
 
 	if (!wnum.pArea || wnum.vnum < 1 || !(pMobIndex = get_mob_index(wnum.pArea, wnum.vnum))) {
-		sprintf(buf, "Mpmload: bad mob index (%ld#%ld) from mob %ld", wnum.pArea?wnum.pArea->uid:0, wnum.vnum, VNUM(info->mob));
+		snprintf(buf, sizeof(buf), "Mpmload: bad mob index (%ld#%ld) from mob %ld", wnum.pArea?wnum.pArea->uid:0, wnum.vnum, VNUM(info->mob));
 		bug(buf, 0);
 		return;
 	}
@@ -3307,7 +3307,7 @@ SCRIPT_CMD(do_mpraisedead)
 	if(!victim) return;
 
 	if (!IS_DEAD(victim)) {
-		sprintf(buf, "do_mpraisedead: for mob %s(%ld), victim %s wasn't dead!",
+		snprintf(buf, sizeof(buf), "do_mpraisedead: for mob %s(%ld), victim %s wasn't dead!",
 			info->mob->pIndexData->short_descr, info->mob->pIndexData->vnum,
 			victim->name);
 		bug(buf, 0);
@@ -4224,7 +4224,7 @@ SCRIPT_CMD(do_mpalterobj)
 		}
 
 		if(script_security < min_sec) {
-			sprintf(buf,"MpAlterObj - Attempting to alter value%d with security %d.\n\r", num, script_security);
+			snprintf(buf, sizeof(buf), "MpAlterObj - Attempting to alter value%d with security %d.\n\r", num, script_security);
 			bug(buf, 0);
 			return;
 		}
@@ -4282,7 +4282,7 @@ SCRIPT_CMD(do_mpalterobj)
 		if(!ptr) return;
 
 		if(script_security < min_sec) {
-			sprintf(buf,"MpAlterObj - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+			snprintf(buf, sizeof(buf), "MpAlterObj - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 			bug(buf, 0);
 			return;
 		}
@@ -4619,7 +4619,7 @@ SCRIPT_CMD(do_mpaltermob)
 	if(!allowpc && !IS_NPC(mob)) min_sec = 9;
 
 	if(script_security < min_sec) {
-		sprintf(buf,"MpAlterMob - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+		snprintf(buf, sizeof(buf), "MpAlterMob - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 		bug(buf, 0);
 		return;
 	}
@@ -4896,7 +4896,7 @@ SCRIPT_CMD(do_mpstringmob)
 
 
 	if(script_security < min_sec) {
-		sprintf(buf,"MpStringMob - Attempting to restring '%s' with security %d.\n\r", field, script_security);
+		snprintf(buf, sizeof(buf), "MpStringMob - Attempting to restring '%s' with security %d.\n\r", field, script_security);
 		bug(buf, 0);
 		free_buf(buffer);
 		return;
@@ -5876,7 +5876,7 @@ SCRIPT_CMD(do_mpalterexit)
 	if(!ptr && !sptr) return;
 
 	if(script_security < min_sec) {
-		sprintf(buf,"MpAlterExit - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+		snprintf(buf, sizeof(buf), "MpAlterExit - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 		bug(buf, 0);
 		return;
@@ -6343,7 +6343,7 @@ SCRIPT_CMD(do_mpalterroom)
 
 	if(str) {
 		if(script_security < min_sec) {
-			sprintf(buf,"MpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+			snprintf(buf, sizeof(buf), "MpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 			wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 			bug(buf, 0);
 			return;
@@ -6389,7 +6389,7 @@ SCRIPT_CMD(do_mpalterroom)
 	if(!ptr && !sptr) return;
 
 	if(script_security < min_sec) {
-		sprintf(buf,"MpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+		snprintf(buf, sizeof(buf), "MpAlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
 		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 		bug(buf, 0);
 		return;

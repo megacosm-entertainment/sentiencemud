@@ -62,6 +62,12 @@ extern RESERVED_WNUM reserved_rprog_wnums[];
 extern RESERVED_AREA reserved_areas[];
 void show_flag_cmds(CHAR_DATA *ch, const struct flag_type *flag_table);
 void pstat_variable_list(BUFFER *buffer, pVARIABLE vars);
+extern bool load_account(DESCRIPTOR_DATA *d, char *name);
+extern bool account_exists(char *argument);
+extern void save_account(ACCOUNT_DATA *account);
+extern void send_email_async_ex(CHAR_DATA *ch, ACCOUNT_DATA *acct, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
+char *reboot_reason = NULL; // global
+
 
 
 RESERVED_WNUM *search_reserved(RESERVED_WNUM *reserved, char *name)
@@ -291,12 +297,6 @@ int gconfig_read (void)
                 KEY ("NextVlinkUID", gconfig.next_vlink_uid, fread_number(fp));
                 KEY ("NextChurchUID", gconfig.next_church_uid, fread_number(fp));
 				KEY ("NextChurchVnumStart", gconfig.next_church_vnum_start, fread_number(fp));
-
-                if(!str_cmp(word,"Newlock")) {
-					newlock = true;
-					fMatch = true;
-					break;
-				}
 	            break;
 			case 'O':
 				{
@@ -333,26 +333,11 @@ int gconfig_read (void)
 				}
 				break;
 
-			case 'T':
-                if(!str_cmp(word,"Testport")) {
-					is_test_port = true;
-					fMatch = true;
-					break;
-				}
-				break;
-			case 'W':
-                if(!str_cmp(word,"Wizlock")) {
-					wizlock = true;
-					fMatch = true;
-					break;
-				}
-				break;
-
         } /* end switch */
 
         if (!fMatch)
         {
-	    sprintf(buf, "act_wiz.c, gconfig_read(): no match for '%s'!", word);
+	    snprintf(buf, sizeof(buf), "act_wiz.c, gconfig_read(): no match for '%s'!", word);
 	    bug(buf, 0);
             fread_to_eol(fp);
         }
@@ -361,13 +346,12 @@ int gconfig_read (void)
 
 }
 
-int game_settings_read (void)
+int game_settings_read(void)
 {
     FILE *fp;
     bool fMatch;
     char *word;
     char buf[MIL];
-
 
     log_string("Loading configuration settings from game_settings.dat...");
 
@@ -378,135 +362,181 @@ int game_settings_read (void)
         return(1); /* Failure*/
     }
 
-	/* Basic settings */
+    /* Basic settings */
+    game_settings.game_name = "";
+    game_settings.login_string = "";
+    game_settings.server_description = "";
+    game_settings.testport = false;
+    game_settings.dev_server = false;
+    game_settings.wizlock = false;
+    game_settings.new_acct_lock = false;
+    game_settings.new_char_lock = false;
+    game_settings.wizlock_msg = "";
+    game_settings.new_acct_lock_msg = "";
+    game_settings.new_char_lock_msg = "";
+    game_settings.logall = false;
+	game_settings.note_boot_errors = false;
 
-	game_settings.game_name = "";
-	game_settings.login_string = "";
-	game_settings.server_description = "";
-	game_settings.testport = false;
-	game_settings.wizlock = false;
-	game_settings.new_acct_lock = false;
-	game_settings.new_char_lock = false;
-	game_settings.wizlock_msg = "";
-	game_settings.new_acct_lock_msg = "";
-	game_settings.new_char_lock_msg = "";
-	game_settings.logall = false;
+    /* Auth */
+    game_settings.require_uniq_pass_staff = false;
+    game_settings.max_login_attempts = 0;
+    game_settings.enable_passwd = true;
+    game_settings.enable_mfa = true;
+    game_settings.require_email_verif = false;
 
-	/* Auth */
-	game_settings.require_uniq_pass_staff = false;
-	game_settings.max_login_attempts = 0;
+    /* 2FA */
+    game_settings.require_2fa_all = false;
+    game_settings.require_2fa_staff = false;
+    
+    /* Multiplaying & Linking */
+    game_settings.allow_mp_acct_all = false;
+    game_settings.allow_mp_acct_staff = false;
+    game_settings.allow_mp_host_all = false;
+    game_settings.allow_mp_host_staff = false;
+    game_settings.allow_link_all = false;
+    game_settings.allow_unlink_all = false;
 
-	/* 2FA */
-	game_settings.require_2fa_all = false;
-	game_settings.require_2fa_staff = false;
-	
-	/* Multiplaying */
-	game_settings.allow_multiplay_acct_all = false;
-	game_settings.allow_multiplay_acct_staff = false;
-	game_settings.allow_multiplay_host_all = false;
-	game_settings.allow_multiplay_host_staff = false;
+    /* Game Systems */
+    game_settings.alignment_system = false;
+    game_settings.restrict_races_align = false;
+    game_settings.restrict_classes_align = false;
 
-	/* Timers */
-	game_settings.idle_time = 0;
-	game_settings.idle_disconnect_time = 0;
+    /* Timers */
+    game_settings.idle_time = 0;
+    game_settings.idle_disconnect_time = 0;
 
-	/* Misc Maximums */
-	game_settings.max_alias = 0;
-	game_settings.max_characters = 0;
-	game_settings.max_orgs = 0;
-	game_settings.max_logfile_size = 0;
+    /* Misc Maximums */
+    game_settings.max_alias = 0;
+    game_settings.max_characters = 0;
+    game_settings.max_orgs = 0;
+    game_settings.max_logfile_size = 0;
+	game_settings.org_disable_pk_pneuma_cost = 0;
 
-	/* Email */
-	game_settings.enable_email = false;
-	game_settings.require_email_verification = false;
-	game_settings.email_port = 0;
-	game_settings.email_username = "";
-	game_settings.email_host = "";
-	game_settings.email_password = "";
-	game_settings.email_from_addr = "";
-	game_settings.email_from_name = "";
+    /* Email */
+    game_settings.enable_email = false;
+    game_settings.email_port = 0;
+    game_settings.email_username = "";
+    game_settings.email_host = "";
+    game_settings.email_password = "";
+    game_settings.email_from_addr = "";
+    game_settings.email_from_name = "";
 
-	/* Missions */
-	game_settings.max_mission_allowance = 0;
-	game_settings.inc_missions = 0;		// Per day
-	game_settings.max_missions = 0;
+    /* Missions */
+    game_settings.max_mission_allowance = 0;
+    game_settings.inc_missions = 0;
+    game_settings.max_missions = 0;
 
-	/* Protocols and Ports*/
-	game_settings.enable_telnet = false;
-	game_settings.telnet_port = 0;
-	game_settings.enable_tls = false;
-	game_settings.tls_port = 0;
-	game_settings.ssl_cert_path = "";
-	game_settings.ssl_key_path = "";
+    /* Locker Settings */
+    game_settings.lockers_enabled = false;
+    game_settings.locker_rent_enabled = false;
+    game_settings.max_locker_weight = 0;
+    game_settings.max_locker_items = 0;
+    game_settings.locker_rent_cost = 0;
+    game_settings.locker_rent_time = 0;
+    game_settings.locker_rent_time_max = 0;
+    game_settings.locker_additional_cost_per_tier = 0;
+    game_settings.locker_additional_slots_per_tier = 0;
+    game_settings.locker_additional_weight_per_tier = 0;
+    game_settings.locker_tier_max = 0;
 
-	game_settings.enable_insecure_warning = false;
-	game_settings.insecure_warning_msg = "";
+    /* Vault Settings */
+    game_settings.max_vault_weight = 0;
+    game_settings.max_vault_items = 0;
+    game_settings.vault_enabled = false;
+    game_settings.vault_rent = false;
+    game_settings.vault_rent_per_char = false;
+    game_settings.vault_rent_cost = 0;
+    game_settings.vault_rent_time = 0;
+    game_settings.vault_additional_cost_per_char = 0;
+    game_settings.vault_additional_slots_per_char = 0;
+    game_settings.vault_additional_weight_per_char = 0;
 
-	/* MSSP */
-	game_settings.mssp_players = 0;
-	game_settings.mssp_uptime = 0;
-	game_settings.mssp_crawl_delay = 0;
-	game_settings.mssp_hostname = "";
-	game_settings.mssp_port = 0;
-	game_settings.mssp_tls_port = 0;
-	game_settings.mssp_codebase = "";
-	game_settings.mssp_contact = "";
-	game_settings.mssp_created = 0;
-	game_settings.mssp_ip = "";
-	game_settings.mssp_language = "";
-	game_settings.mssp_location = "";
-	game_settings.mssp_minimum_age = 0;
-	game_settings.mssp_website = "";
-	game_settings.mssp_family = "";
-	game_settings.mssp_genre = "";
-	game_settings.mssp_status = "";
-	game_settings.mssp_gamesystem = "";
-	game_settings.mssp_intermud = "";
-	game_settings.mssp_subgenre = "";
-	game_settings.mssp_discord_server = "";
-	game_settings.mssp_areas = 0;
-	game_settings.mssp_helpfiles = 0;
-	game_settings.mssp_mobiles = 0;
-	game_settings.mssp_objects = 0;
-	game_settings.mssp_rooms = 0;
-	game_settings.mssp_classes = 0;
-	game_settings.mssp_levels = 0;
-	game_settings.mssp_races = 0;
-	game_settings.mssp_skills = 0;
-	game_settings.mssp_dbsize = 0;
-	game_settings.mssp_ansi = false;
-	game_settings.mssp_gmcp = false;
-	game_settings.mssp_mccp = false;
-	game_settings.mssp_mcp = false;
-	game_settings.mssp_msdp = false;
-	game_settings.mssp_msp = false;
-	game_settings.mssp_mxp = false;
-	game_settings.mssp_pueb = false;
-	game_settings.mssp_utf8 = false;
-	game_settings.mssp_vt100 = false;
-	game_settings.mssp_xterm256 = false;
-	game_settings.mssp_xtermtrue = false;
-	game_settings.mssp_atcp = false;
-	game_settings.mssp_ssl = false;
-	game_settings.mssp_pay2play = false;
-	game_settings.mssp_pay4perks = false;
-	game_settings.mssp_hiring_builders = false;
-	game_settings.mssp_hiring_coders = false;
-	game_settings.mssp_adult_material = false;
-	game_settings.mssp_multiclass = false;
-	game_settings.mssp_newbie_friendly = false;
-	game_settings.mssp_player_cities = false;
-	game_settings.mssp_player_clans = false;
-	game_settings.mssp_player_crafting = false;
-	game_settings.mssp_player_guilds = false;
-	game_settings.mssp_equipment_system = "";
-	game_settings.mssp_multiplaying = "";
-	game_settings.mssp_playerkilling = false;
-	game_settings.mssp_quest_system = false;
-	game_settings.mssp_roleplaying = false;
-	game_settings.mssp_training_system = false;
-	game_settings.mssp_world_originality = false;
+    /* Coffer Settings */
+    game_settings.max_coffer_weight = 0;
+    game_settings.max_coffer_items = 0;
+    game_settings.coffer_enabled = false;
+    game_settings.coffer_rent = false;
+    game_settings.coffer_rent_cost = 0;
+    game_settings.coffer_rent_currency = "";
+    game_settings.coffer_rent_period = 0;
 
+    /* Protocols and Ports*/
+    game_settings.enable_telnet = false;
+    game_settings.telnet_port = 0;
+    game_settings.enable_tls = false;
+    game_settings.tls_port = 0;
+    game_settings.enable_websocket_tls = false;
+    game_settings.websocket_tls_port = 0;
+    game_settings.enable_web = false;
+    game_settings.ssl_cert_path = "";
+    game_settings.ssl_key_path = "";
+    game_settings.enable_insecure_warning = false;
+    game_settings.insecure_warning_msg = "";
+
+    /* MSSP */
+    game_settings.mssp_players = 0;
+    game_settings.mssp_uptime = 0;
+    game_settings.mssp_crawl_delay = 0;
+    game_settings.mssp_hostname = "";
+    game_settings.mssp_port = 0;
+    game_settings.mssp_tls_port = 0;
+    game_settings.mssp_codebase = "";
+    game_settings.mssp_contact = "";
+    game_settings.mssp_created = 0;
+    game_settings.mssp_ip = "";
+    game_settings.mssp_language = "";
+    game_settings.mssp_location = "";
+    game_settings.mssp_minimum_age = 0;
+    game_settings.mssp_website = "";
+    game_settings.mssp_family = "";
+    game_settings.mssp_genre = "";
+    game_settings.mssp_status = "";
+    game_settings.mssp_gamesystem = "";
+    game_settings.mssp_intermud = "";
+    game_settings.mssp_subgenre = "";
+    game_settings.mssp_discord_server = "";
+    game_settings.mssp_areas = 0;
+    game_settings.mssp_helpfiles = 0;
+    game_settings.mssp_mobiles = 0;
+    game_settings.mssp_objects = 0;
+    game_settings.mssp_rooms = 0;
+    game_settings.mssp_classes = 0;
+    game_settings.mssp_levels = 0;
+    game_settings.mssp_races = 0;
+    game_settings.mssp_skills = 0;
+    game_settings.mssp_dbsize = 0;
+    game_settings.mssp_ansi = false;
+    game_settings.mssp_gmcp = false;
+    game_settings.mssp_mccp = false;
+    game_settings.mssp_mcp = false;
+    game_settings.mssp_msdp = false;
+    game_settings.mssp_msp = false;
+    game_settings.mssp_mxp = false;
+    game_settings.mssp_pueb = false;
+    game_settings.mssp_utf8 = false;
+    game_settings.mssp_vt100 = false;
+    game_settings.mssp_xterm256 = false;
+    game_settings.mssp_xtermtrue = false;
+    game_settings.mssp_atcp = false;
+    game_settings.mssp_ssl = false;
+    game_settings.mssp_pay2play = false;
+    game_settings.mssp_pay4perks = false;
+    game_settings.mssp_hiring_builders = false;
+    game_settings.mssp_hiring_coders = false;
+    game_settings.mssp_adult_material = false;
+    game_settings.mssp_multiclass = false;
+    game_settings.mssp_newbie_friendly = false;
+    game_settings.mssp_player_cities = false;
+    game_settings.mssp_player_clans = false;
+    game_settings.mssp_player_crafting = false;
+    game_settings.mssp_player_guilds = false;
+    game_settings.mssp_equipment_system = "";
+    game_settings.mssp_multiplaying = "";
+    game_settings.mssp_playerkilling = false;
+    game_settings.mssp_quest_system = false;
+    game_settings.mssp_roleplaying = false;
+    game_settings.mssp_training_system = false;
+    game_settings.mssp_world_originality = false;
 
     for(;;)
     {
@@ -519,89 +549,124 @@ int game_settings_read (void)
                 fMatch = true;
                 fread_to_eol (fp);
             break;
-			case 'A':
-				{
-					RESERVED_AREA *ra = search_reserved_area(word);
+            case 'A':
+                {
+                    RESERVED_AREA *ra = search_reserved_area(word);
 
-					if (ra)
-					{
-						ra->auid = fread_number(fp);
-						fMatch = true;
-						break;
-					}
-				}
-				KEY("AllowMultiplayAcctAll", game_settings.allow_multiplay_acct_all, fread_number(fp));
-				KEY("AllowMultiplayAcctStaff", game_settings.allow_multiplay_acct_staff, fread_number(fp));
-				KEY("AllowMultiplayHostAll", game_settings.allow_multiplay_host_all, fread_number(fp));
-				KEY("AllowMultiplayHostStaff", game_settings.allow_multiplay_host_staff, fread_number(fp));
-				break;
+                    if (ra)
+                    {
+                        ra->auid = fread_number(fp);
+                        fMatch = true;
+                        break;
+                    }
+                }
+                KEY("AlignmentSystem", game_settings.alignment_system, fread_number(fp));
+                KEY("AllowLinkAll", game_settings.allow_link_all, fread_number(fp));
+                KEY("AllowMultiplayAcctAll", game_settings.allow_mp_acct_all, fread_number(fp));
+                KEY("AllowMultiplayAcctStaff", game_settings.allow_mp_acct_staff, fread_number(fp));
+                KEY("AllowMultiplayHostAll", game_settings.allow_mp_host_all, fread_number(fp));
+                KEY("AllowMultiplayHostStaff", game_settings.allow_mp_host_staff, fread_number(fp));
+                KEY("AllowUnlinkAll", game_settings.allow_unlink_all, fread_number(fp));
+                break;
 
-           case 'E':
-		   		KEY("Email_Enable", game_settings.enable_email, fread_number(fp));
-		   		KEY("EmailUser", game_settings.email_username, fread_string(fp));
-				KEY("EmailPassword", game_settings.email_password, fread_string(fp));
-				KEY("EmailHost", game_settings.email_host, fread_string(fp));
-				KEY("EmailPort", game_settings.email_port, fread_number(fp));
-				KEY("EmailFromAddr", game_settings.email_from_addr, fread_string(fp));
-				KEY("EmailFromName", game_settings.email_from_name, fread_string(fp));
+            case 'C':
+			    KEY("CharacterDeleteDelay", game_settings.character_delete_delay_days, fread_number(fp));
+                KEY("CofferEnabled", game_settings.coffer_enabled, fread_number(fp));
+                KEY("CofferRent", game_settings.coffer_rent, fread_number(fp));
+                KEY("CofferRentCost", game_settings.coffer_rent_cost, fread_number(fp));
+                KEY("CofferRentCurrency", game_settings.coffer_rent_currency, fread_string(fp));
+                KEY("CofferRentPeriod", game_settings.coffer_rent_period, fread_number(fp));
+                break;
+
+            case 'D':
+                KEY("DevServer", game_settings.dev_server, fread_number(fp));
+                break;
+
+            case 'E':
+                KEY("Email_Enable", game_settings.enable_email, fread_number(fp));
+                KEY("EmailUser", game_settings.email_username, fread_string(fp));
+                KEY("EmailPassword", game_settings.email_password, fread_string(fp));
+                KEY("EmailHost", game_settings.email_host, fread_string(fp));
+                KEY("EmailPort", game_settings.email_port, fread_number(fp));
+                KEY("EmailFromAddr", game_settings.email_from_addr, fread_string(fp));
+                KEY("EmailFromName", game_settings.email_from_name, fread_string(fp));
+                KEY("EnablePasswd", game_settings.enable_passwd, fread_number(fp));
+                KEY("EnableMFA", game_settings.enable_mfa, fread_number(fp));
+                KEY("EnableWeb", game_settings.enable_web, fread_number(fp));
+                KEY("EnableWebsocketTls", game_settings.enable_websocket_tls, fread_number(fp));
                 if (!str_cmp(word, "END"))
                 {
-					if (game_settings.idle_disconnect_time <= 0)
-						game_settings.idle_disconnect_time = 30;
-					
-					if (game_settings.idle_time <= 0)
-						game_settings.idle_time = 12;
+                    if (game_settings.idle_disconnect_time <= 0)
+                        game_settings.idle_disconnect_time = 30;
+                    
+                    if (game_settings.idle_time <= 0)
+                        game_settings.idle_time = 12;
 
-					if (game_settings.idle_disconnect_time <= game_settings.idle_time)
-						game_settings.idle_disconnect_time = game_settings.idle_time + 5;
+                    if (game_settings.idle_disconnect_time <= game_settings.idle_time)
+                        game_settings.idle_disconnect_time = game_settings.idle_time + 5;
 
-					fclose(fp);
-					game_settings_write();
-					return(0); /* Success*/
-				}
-	            break;
+                    fclose(fp);
+                    game_settings_write();
+                    return(0); /* Success*/
+                }
+                break;
 
-			case 'G':
-				KEY("GameName", game_settings.game_name, fread_string(fp));
-				break;
+            case 'G':
+                KEY("GameName", game_settings.game_name, fread_string(fp));
+                break;
 
-			case 'I':
-				KEY("IdleDisconnectTimeout", game_settings.idle_disconnect_time, fread_number(fp));
-				KEY("IdleTimeout", game_settings.idle_time, fread_number(fp));
-				KEY("IncMissions", game_settings.inc_missions, fread_number(fp));
-				KEY("InsecureWarning_Enable", game_settings.enable_insecure_warning, fread_number(fp));
-				KEY("InsecureWarning_Msg", game_settings.insecure_warning_msg, fread_string(fp));
-				break;
+            case 'I':
+                KEY("IdleDisconnectTimeout", game_settings.idle_disconnect_time, fread_number(fp));
+                KEY("IdleTimeout", game_settings.idle_time, fread_number(fp));
+                KEY("IncMissions", game_settings.inc_missions, fread_number(fp));
+                KEY("InsecureWarning_Enable", game_settings.enable_insecure_warning, fread_number(fp));
+                KEY("InsecureWarning_Msg", game_settings.insecure_warning_msg, fread_string(fp));
+                break;
 
-			case 'L':
-				KEY("LogAllConnections", game_settings.logall, fread_number(fp));
-				KEY("LoginString", game_settings.login_string, fread_string(fp));
-				break;
+            case 'L':
+                KEY("LockerAdditionalCostPerTier", game_settings.locker_additional_cost_per_tier, fread_number(fp));
+                KEY("LockerAdditionalSlotsPerTier", game_settings.locker_additional_slots_per_tier, fread_number(fp));
+                KEY("LockerAdditionalWeightPerTier", game_settings.locker_additional_weight_per_tier, fread_number(fp));
+                KEY("LockerRentCost", game_settings.locker_rent_cost, fread_number(fp));
+                KEY("LockerRentEnabled", game_settings.locker_rent_enabled, fread_number(fp));
+                KEY("LockerRentTime", game_settings.locker_rent_time, fread_number(fp));
+                KEY("LockerRentTimeMax", game_settings.locker_rent_time_max, fread_number(fp));
+                KEY("LockerTierMax", game_settings.locker_tier_max, fread_number(fp));
+                KEY("LockersEnabled", game_settings.lockers_enabled, fread_number(fp));
+                KEY("LogAllConnections", game_settings.logall, fread_number(fp));
+                KEY("LoginString", game_settings.login_string, fread_string(fp));
+                break;
 
-			case 'M':
-				KEY("MaxAlias", game_settings.max_alias, fread_number(fp));
-				KEY("MaxCharacters", game_settings.max_characters, fread_number(fp));
-				KEY("MaxLogfileSize", game_settings.max_logfile_size, fread_number(fp));
-				KEY("MaxLoginAttempts", game_settings.max_login_attempts, fread_number(fp));
-				KEY("MaxMissionAllowance", game_settings.max_mission_allowance, fread_number(fp));
-				KEY("MaxMissions", game_settings.max_missions, fread_number(fp));
-				KEY("MaxOrgs", game_settings.max_orgs, fread_number(fp));
-				KEY("MSSP_HOSTNAME",game_settings.mssp_hostname,fread_string(fp));
-				KEY("MSSP_CODEBASE",game_settings.mssp_codebase,fread_string(fp));
-				KEY("MSSP_CONTACT",game_settings.mssp_contact,fread_string(fp));
-				KEY("MSSP_IP",game_settings.mssp_ip,fread_string(fp));
-				KEY("MSSP_LANGUAGE",game_settings.mssp_language,fread_string(fp));
-				KEY("MSSP_LOCATION",game_settings.mssp_location,fread_string(fp));
-				KEY("MSSP_WEBSITE",game_settings.mssp_website,fread_string(fp));
-				KEY("MSSP_FAMILY",game_settings.mssp_family,fread_string(fp));
-				KEY("MSSP_GENRE",game_settings.mssp_genre,fread_string(fp));
-				KEY("MSSP_STATUS",game_settings.mssp_status,fread_string(fp));
-				KEY("MSSP_GAMESYSTEM",game_settings.mssp_gamesystem,fread_string(fp));
-				KEY("MSSP_INTERMUD",game_settings.mssp_intermud,fread_string(fp));
-				KEY("MSSP_SUBGENRE",game_settings.mssp_subgenre,fread_string(fp));
-				KEY("MSSP_DISCORD_SERVER",game_settings.mssp_discord_server,fread_string(fp));
-				KEY("MSSP_EQUIPMENT_SYSTEM",game_settings.mssp_equipment_system,fread_string(fp));
-				KEY("MSSP_MULTIPLAYING",game_settings.mssp_multiplaying,fread_string(fp));
+            case 'M':
+                KEY("MaxAlias", game_settings.max_alias, fread_number(fp));
+                KEY("MaxCharacters", game_settings.max_characters, fread_number(fp));
+                KEY("MaxCofferItems", game_settings.max_coffer_items, fread_number(fp));
+                KEY("MaxCofferWeight", game_settings.max_coffer_weight, fread_number(fp));
+                KEY("MaxLockerItems", game_settings.max_locker_items, fread_number(fp));
+                KEY("MaxLockerWeight", game_settings.max_locker_weight, fread_number(fp));
+                KEY("MaxLogfileSize", game_settings.max_logfile_size, fread_number(fp));
+                KEY("MaxLoginAttempts", game_settings.max_login_attempts, fread_number(fp));
+                KEY("MaxMissionAllowance", game_settings.max_mission_allowance, fread_number(fp));
+                KEY("MaxMissions", game_settings.max_missions, fread_number(fp));
+                KEY("MaxOrgs", game_settings.max_orgs, fread_number(fp));
+                KEY("MaxVaultItems", game_settings.max_vault_items, fread_number(fp));
+                KEY("MaxVaultWeight", game_settings.max_vault_weight, fread_number(fp));
+                KEY("MSSP_HOSTNAME",game_settings.mssp_hostname,fread_string(fp));
+                KEY("MSSP_CODEBASE",game_settings.mssp_codebase,fread_string(fp));
+                KEY("MSSP_CONTACT",game_settings.mssp_contact,fread_string(fp));
+                KEY("MSSP_IP",game_settings.mssp_ip,fread_string(fp));
+                KEY("MSSP_LANGUAGE",game_settings.mssp_language,fread_string(fp));
+                KEY("MSSP_LOCATION",game_settings.mssp_location,fread_string(fp));
+                KEY("MSSP_WEBSITE",game_settings.mssp_website,fread_string(fp));
+                KEY("MSSP_FAMILY",game_settings.mssp_family,fread_string(fp));
+                KEY("MSSP_GENRE",game_settings.mssp_genre,fread_string(fp));
+                KEY("MSSP_STATUS",game_settings.mssp_status,fread_string(fp));
+                KEY("MSSP_GAMESYSTEM",game_settings.mssp_gamesystem,fread_string(fp));
+                KEY("MSSP_INTERMUD",game_settings.mssp_intermud,fread_string(fp));
+                KEY("MSSP_SUBGENRE",game_settings.mssp_subgenre,fread_string(fp));
+                KEY("MSSP_DISCORD_SERVER",game_settings.mssp_discord_server,fread_string(fp));
+                KEY("MSSP_EQUIPMENT_SYSTEM",game_settings.mssp_equipment_system,fread_string(fp));
+                KEY("MSSP_MULTIPLAYING",game_settings.mssp_multiplaying,fread_string(fp));
                 KEY("MSSP_CRAWL_DELAY",game_settings.mssp_crawl_delay,fread_number(fp));
                 KEY("MSSP_PORT",game_settings.mssp_port,fread_number(fp));
                 KEY("MSSP_TLS_PORT",game_settings.mssp_tls_port,fread_number(fp));
@@ -619,7 +684,7 @@ int game_settings_read (void)
                 KEY("MSSP_DBSIZE",game_settings.mssp_dbsize,fread_number(fp));
                 KEY("MSSP_VT100",game_settings.mssp_vt100,fread_number(fp));
                 KEY("MSSP_ANSI",game_settings.mssp_ansi,fread_number(fp));
-				KEY("MSSP_ATCP",game_settings.mssp_atcp,fread_number(fp));
+                KEY("MSSP_ATCP",game_settings.mssp_atcp,fread_number(fp));
                 KEY("MSSP_GMCP",game_settings.mssp_gmcp,fread_number(fp));
                 KEY("MSSP_MCCP",game_settings.mssp_mccp,fread_number(fp));
                 KEY("MSSP_MCP",game_settings.mssp_mcp,fread_number(fp));
@@ -649,93 +714,111 @@ int game_settings_read (void)
                 KEY("MSSP_ROLEPLAYING",game_settings.mssp_roleplaying,fread_number(fp));
                 KEY("MSSP_TRAINING_SYSTEM",game_settings.mssp_training_system,fread_number(fp));
                 KEY("MSSP_WORLD_ORIGINALITY",game_settings.mssp_world_originality,fread_number(fp));
-				
-				{
-					RESERVED_WNUM *mwnum = search_reserved(reserved_mob_wnums, word);
+                
+                {
+                    RESERVED_WNUM *mwnum = search_reserved(reserved_mob_wnums, word);
 
-					if (mwnum)
-					{
-						mwnum->auid = fread_number(fp);
-						mwnum->vnum = fread_number(fp);
-						fMatch = true;
-					}
-				}
-				break;
+                    if (mwnum)
+                    {
+                        mwnum->auid = fread_number(fp);
+                        mwnum->vnum = fread_number(fp);
+                        fMatch = true;
+                    }
+                }
+                break;
 
             case 'N':
-				KEY("NewAcctLock",game_settings.new_acct_lock,fread_number(fp));
-				KEY("NewAcctLockMsg",game_settings.new_acct_lock_msg,fread_string(fp));
-				KEY("NewCharLock",game_settings.new_char_lock,fread_number(fp));
-				KEY("NewCharLockMsg",game_settings.new_char_lock_msg,fread_string(fp));
+                KEY("NewAcctLock",game_settings.new_acct_lock,fread_number(fp));
+                KEY("NewAcctLockMsg",game_settings.new_acct_lock_msg,fread_string(fp));
+                KEY("NewCharLock",game_settings.new_char_lock,fread_number(fp));
+                KEY("NewCharLockMsg",game_settings.new_char_lock_msg,fread_string(fp));
+				KEY("NoteBootErrs",game_settings.note_boot_errors,fread_number(fp));
+                break;
+            case 'O':
+                {
+                    RESERVED_WNUM *ownum = search_reserved(reserved_obj_wnums, word);
 
-	            break;
-			case 'O':
-				{
-					RESERVED_WNUM *ownum = search_reserved(reserved_obj_wnums, word);
+                    if (ownum)
+                    {
+                        ownum->auid = fread_number(fp);
+                        ownum->vnum = fread_number(fp);
+                        fMatch = true;
+                    }
+                }
+				KEY("OrgMaxRanks", game_settings.org_max_ranks, fread_number(fp));
+				KEY("OrgPKCost", game_settings.org_disable_pk_pneuma_cost, fread_number(fp));
+                break;
+            case 'R':
+                {
+                    RESERVED_WNUM *rwnum = search_reserved(reserved_room_wnums, word);
 
-					if (ownum)
-					{
-						ownum->auid = fread_number(fp);
-						ownum->vnum = fread_number(fp);
-						fMatch = true;
-					}
-				}
-				break;
-			case 'R':
-				{
-					RESERVED_WNUM *rwnum = search_reserved(reserved_room_wnums, word);
+                    if (rwnum)
+                    {
+                        rwnum->auid = fread_number(fp);
+                        rwnum->vnum = fread_number(fp);
+                        fMatch = true;
+                        break;
+                    }
 
-					if (rwnum)
-					{
-						rwnum->auid = fread_number(fp);
-						rwnum->vnum = fread_number(fp);
-						fMatch = true;
-						break;
-					}
+                    RESERVED_WNUM *rpwnum = search_reserved(reserved_rprog_wnums, word);
+                    if (rpwnum)
+                    {
+                        rpwnum->auid = fread_number(fp);
+                        rpwnum->vnum = fread_number(fp);
+                        fMatch = true;
+                        break;
+                    }
+                }
+                KEY("Require_2FA_All",game_settings.require_2fa_all,fread_number(fp));
+                KEY("Require_2FA_Staff",game_settings.require_2fa_staff,fread_number(fp));
+                KEY("RequireEmailVerification",game_settings.require_email_verif,fread_number(fp));
+                KEY("RequireUniqPassStaff",game_settings.require_uniq_pass_staff,fread_number(fp));
+                KEY("RestrictRacesByAlignment",game_settings.restrict_races_align,fread_number(fp));
+                KEY("RestrictClassesByAlignment",game_settings.restrict_classes_align,fread_number(fp));
+                break;
 
-					RESERVED_WNUM *rpwnum = search_reserved(reserved_rprog_wnums, word);
-					if (rpwnum)
-					{
-						rpwnum->auid = fread_number(fp);
-						rpwnum->vnum = fread_number(fp);
-						fMatch = true;
-						break;
-					}
-				}
-				KEY("Require_2FA_All",game_settings.require_2fa_all,fread_number(fp));
-				KEY("Require_2FA_Staff",game_settings.require_2fa_staff,fread_number(fp));
-				KEY("RequireUniqPassStaff",game_settings.require_uniq_pass_staff,fread_number(fp));
-				break;
+            case 'S':
+                KEY("ServerDescription", game_settings.server_description, fread_string(fp));
+                KEY("SSL_Cert_Path",game_settings.ssl_cert_path,fread_string(fp));
+                KEY("SSL_Key_Path",game_settings.ssl_key_path,fread_string(fp));
+                break;
 
-			case 'S':
-				KEY("ServerDescription", game_settings.server_description, fread_string(fp));
-				KEY("SSL_Cert_Path",game_settings.ssl_cert_path,fread_string(fp));
-				KEY("SSL_Key_Path",game_settings.ssl_key_path,fread_string(fp));
-				break;
-
-			case 'T':
+            case 'T':
                 KEY("Telnet_Enable", game_settings.enable_telnet, fread_number(fp));
-				KEY("Telnet_Port", game_settings.telnet_port, fread_number(fp));
-				KEY("Testport", game_settings.testport, fread_number(fp));
-				KEY("Tls_Enable", game_settings.enable_tls, fread_number(fp));
-				KEY("Tls_Port", game_settings.tls_port, fread_number(fp));
-				break;
-			case 'W':
-				KEY("Wizlock_Enable", game_settings.wizlock, fread_number(fp));
-				KEY("Wizlock_Msg", game_settings.wizlock_msg, fread_string(fp));
-				break;
+                KEY("Telnet_Port", game_settings.telnet_port, fread_number(fp));
+                KEY("Testport", game_settings.testport, fread_number(fp));
+                KEY("Tls_Enable", game_settings.enable_tls, fread_number(fp));
+                KEY("Tls_Port", game_settings.tls_port, fread_number(fp));
+                break;
+
+            case 'V':
+                KEY("VaultAdditionalCostPerChar", game_settings.vault_additional_cost_per_char, fread_number(fp));
+                KEY("VaultAdditionalSlotsPerChar", game_settings.vault_additional_slots_per_char, fread_number(fp));
+                KEY("VaultAdditionalWeightPerChar", game_settings.vault_additional_weight_per_char, fread_number(fp));
+                KEY("VaultEnabled", game_settings.vault_enabled, fread_number(fp));
+                KEY("VaultRent", game_settings.vault_rent, fread_number(fp));
+                KEY("VaultRentCost", game_settings.vault_rent_cost, fread_number(fp));
+                KEY("VaultRentPerChar", game_settings.vault_rent_per_char, fread_number(fp));
+                KEY("VaultRentTime", game_settings.vault_rent_time, fread_number(fp));
+				KEY("VaultRequireRoom", game_settings.vault_require_room, fread_number(fp));
+
+                break;
+
+            case 'W':
+                KEY("WebsocketTlsPort", game_settings.websocket_tls_port, fread_number(fp));
+                KEY("Wizlock_Enable", game_settings.wizlock, fread_number(fp));
+                KEY("Wizlock_Msg", game_settings.wizlock_msg, fread_string(fp));
+                break;
 
         } /* end switch */
 
         if (!fMatch)
         {
-	    sprintf(buf, "act_wiz.c, game_settings_read(): no match for '%s'!", word);
-	    bug(buf, 0);
+            snprintf(buf, sizeof(buf), "act_wiz.c, game_settings_read(): no match for '%s'!", word);
+            bug(buf, 0);
             fread_to_eol(fp);
         }
     } /* end for */
-
-
 }
 
 
@@ -830,67 +913,124 @@ int gconfig_write(void)
 
 int game_settings_write(void)
 {
-	FILE *fp;
+    FILE *fp;
 
-	fp = fopen(GAME_SETTINGS_FILE,"w");
-	if (!fp)
-	{
-		bug("act_wiz.c, game_settings_write(): Unable to open game_settings.rc file for writing.",0);
-		return(1); /* Failure*/
-	}
+    fp = fopen(GAME_SETTINGS_FILE,"w");
+    if (!fp)
+    {
+        bug("act_wiz.c, game_settings_write(): Unable to open game_settings.rc file for writing.",0);
+        return(1); /* Failure*/
+    }
 
+    /* Basic Settings */
     fprintf(fp, "GameName %s~\n",  game_settings.game_name);
     fprintf(fp, "LoginString %s~\n",  game_settings.login_string);
-	fprintf(fp, "ServerDescription %s~\n",  game_settings.server_description);
+    fprintf(fp, "ServerDescription %s~\n",  game_settings.server_description);
+    fprintf(fp, "DevServer %d\n", game_settings.dev_server);
 
-	/* Port Settings */
+    /* Port Settings */
     fprintf(fp, "Telnet_Enable %d\n",  game_settings.enable_telnet);
     fprintf(fp, "Telnet_Port %d\n",  game_settings.telnet_port);
     fprintf(fp, "Tls_Enable %d\n",  game_settings.enable_tls);
     fprintf(fp, "Tls_Port %d\n",  game_settings.tls_port);
+    fprintf(fp, "EnableWebsocketTls %d\n", game_settings.enable_websocket_tls);
+    fprintf(fp, "WebsocketTlsPort %d\n", game_settings.websocket_tls_port);
+    fprintf(fp, "EnableWeb %d\n", game_settings.enable_web);
     fprintf(fp, "SSL_Cert_Path %s~\n", game_settings.ssl_cert_path);
     fprintf(fp, "SSL_Key_Path %s~\n", game_settings.ssl_key_path);
-	fprintf(fp, "Testport %d\n",  game_settings.testport);
+    fprintf(fp, "Testport %d\n",  game_settings.testport);
     fprintf(fp, "InsecureWarning_Enable %d\n",  game_settings.enable_insecure_warning);
     fprintf(fp, "InsecureWarning_Msg %s~\n",  game_settings.insecure_warning_msg);
 
-	/* Various Locks */
+    /* Various Locks */
     fprintf(fp, "Wizlock_Enable %d\n",  game_settings.wizlock);
     fprintf(fp, "Wizlock_Msg %s~\n",  game_settings.wizlock_msg);
-	fprintf(fp, "NewAcctLock %d\n", game_settings.new_acct_lock);
-	fprintf(fp, "NewAcctLockMsg %s~\n", game_settings.new_acct_lock_msg);
+    fprintf(fp, "NewAcctLock %d\n", game_settings.new_acct_lock);
+    fprintf(fp, "NewAcctLockMsg %s~\n", game_settings.new_acct_lock_msg);
     fprintf(fp, "NewCharLock %d\n", game_settings.new_char_lock);
     fprintf(fp, "NewCharLockMsg %s~\n", game_settings.new_char_lock_msg);
 
-	/* Mission Stuff */
+    /* Mission Settings */
     fprintf(fp, "IncMissions %d\n",  game_settings.inc_missions);
     fprintf(fp, "MaxMissionAllowance %d\n",  game_settings.max_mission_allowance);
     fprintf(fp, "MaxMissions %d\n",  game_settings.max_missions);
 
-	/* Multiplaying */
-    fprintf(fp, "AllowMultiplayAcctAll %d\n",  game_settings.allow_multiplay_acct_all);
-    fprintf(fp, "AllowMultiplayAcctStaff %d\n",  game_settings.allow_multiplay_acct_staff);
-    fprintf(fp, "AllowMultiplayHostAll %d\n",  game_settings.allow_multiplay_host_all);
-    fprintf(fp, "AllowMultiplayHostStaff %d\n",  game_settings.allow_multiplay_host_staff);
+    /* Locker Settings */
+    fprintf(fp, "LockersEnabled %d\n", game_settings.lockers_enabled);
+    fprintf(fp, "LockerRentEnabled %d\n", game_settings.locker_rent_enabled);
+    fprintf(fp, "MaxLockerWeight %d\n", game_settings.max_locker_weight);
+    fprintf(fp, "MaxLockerItems %d\n", game_settings.max_locker_items);
+    fprintf(fp, "LockerRentCost %d\n", game_settings.locker_rent_cost);
+    fprintf(fp, "LockerRentTime %d\n", game_settings.locker_rent_time);
+    fprintf(fp, "LockerRentTimeMax %d\n", game_settings.locker_rent_time_max);
+    fprintf(fp, "LockerAdditionalCostPerTier %d\n", game_settings.locker_additional_cost_per_tier);
+    fprintf(fp, "LockerAdditionalSlotsPerTier %d\n", game_settings.locker_additional_slots_per_tier);
+    fprintf(fp, "LockerAdditionalWeightPerTier %d\n", game_settings.locker_additional_weight_per_tier);
+    fprintf(fp, "LockerTierMax %d\n", game_settings.locker_tier_max);
 
-	/* Auth */
+    /* Vault Settings */
+    fprintf(fp, "MaxVaultWeight %d\n", game_settings.max_vault_weight);
+    fprintf(fp, "MaxVaultItems %d\n", game_settings.max_vault_items);
+    fprintf(fp, "VaultEnabled %d\n", game_settings.vault_enabled);
+    fprintf(fp, "VaultRent %d\n", game_settings.vault_rent);
+    fprintf(fp, "VaultRentPerChar %d\n", game_settings.vault_rent_per_char);
+    fprintf(fp, "VaultRentCost %d\n", game_settings.vault_rent_cost);
+    fprintf(fp, "VaultRentTime %d\n", game_settings.vault_rent_time);
+	fprintf(fp, "VaultRequireRoom %d\n", game_settings.vault_require_room);
+    fprintf(fp, "VaultAdditionalCostPerChar %d\n", game_settings.vault_additional_cost_per_char);
+    fprintf(fp, "VaultAdditionalSlotsPerChar %d\n", game_settings.vault_additional_slots_per_char);
+    fprintf(fp, "VaultAdditionalWeightPerChar %d\n", game_settings.vault_additional_weight_per_char);
+
+    /* Coffer Settings */
+    fprintf(fp, "MaxCofferWeight %d\n", game_settings.max_coffer_weight);
+    fprintf(fp, "MaxCofferItems %d\n", game_settings.max_coffer_items);
+    fprintf(fp, "CofferEnabled %d\n", game_settings.coffer_enabled);
+    fprintf(fp, "CofferRent %d\n", game_settings.coffer_rent);
+    fprintf(fp, "CofferRentCost %d\n", game_settings.coffer_rent_cost);
+    fprintf(fp, "CofferRentCurrency %s~\n", game_settings.coffer_rent_currency);
+    fprintf(fp, "CofferRentPeriod %d\n", game_settings.coffer_rent_period);
+
+    /* Game System Settings */
+    fprintf(fp, "AlignmentSystem %d\n", game_settings.alignment_system);
+    fprintf(fp, "RestrictRacesByAlignment %d\n", game_settings.restrict_races_align);
+    fprintf(fp, "RestrictClassesByAlignment %d\n", game_settings.restrict_classes_align);
+
+    /* Account & Character Linking */
+    fprintf(fp, "AllowLinkAll %d\n", game_settings.allow_link_all);
+    fprintf(fp, "AllowUnlinkAll %d\n", game_settings.allow_unlink_all);
+
+    /* Multiplaying Settings */
+    fprintf(fp, "AllowMultiplayAcctAll %d\n",  game_settings.allow_mp_acct_all);
+    fprintf(fp, "AllowMultiplayAcctStaff %d\n",  game_settings.allow_mp_acct_staff);
+    fprintf(fp, "AllowMultiplayHostAll %d\n",  game_settings.allow_mp_host_all);
+    fprintf(fp, "AllowMultiplayHostStaff %d\n",  game_settings.allow_mp_host_staff);
+
+    /* Authentication Settings */
     fprintf(fp, "Require_2FA_All %d\n", game_settings.require_2fa_all);
     fprintf(fp, "Require_2FA_Staff %d\n", game_settings.require_2fa_staff);
     fprintf(fp, "RequireUniqPassStaff %d\n", game_settings.require_uniq_pass_staff);
+    fprintf(fp, "RequireEmailVerification %d\n", game_settings.require_email_verif);
+    fprintf(fp, "EnablePasswd %d\n", game_settings.enable_passwd);
+    fprintf(fp, "EnableMFA %d\n", game_settings.enable_mfa);
 
-	/* Timeouts */
+    /* Timeouts */
     fprintf(fp, "IdleDisconnectTimeout %d\n",  game_settings.idle_disconnect_time);
     fprintf(fp, "IdleTimeout %d\n",  game_settings.idle_time);
 
-	/* Misc Values */
+    /* Misc Values */
     fprintf(fp, "LogAllConnections %d\n",  game_settings.logall);
     fprintf(fp, "MaxAlias %d\n",  game_settings.max_alias);
     fprintf(fp, "MaxCharacters %d\n",  game_settings.max_characters);
     fprintf(fp, "MaxLogfileSize %d\n",  game_settings.max_logfile_size);
     fprintf(fp, "MaxLoginAttempts %d\n",  game_settings.max_login_attempts);
-	fprintf(fp, "MaxOrgs %d\n",  game_settings.max_orgs);
+    fprintf(fp, "MaxOrgs %d\n",  game_settings.max_orgs);
+	fprintf(fp, "NoteBootErrs %d\n", game_settings.note_boot_errors);
+	fprintf(fp, "OrgMaxRanks %d\n", game_settings.org_max_ranks);
+	fprintf(fp, "CharacterDeleteDelay %d\n", game_settings.character_delete_delay_days);
+	fprintf(fp, "OrgPKCost %d\n", game_settings.org_disable_pk_pneuma_cost);
 
-	/* Email */
+
+    /* Email */
     fprintf(fp, "Email_Enable %d\n",  game_settings.enable_email);
     fprintf(fp, "EmailUser %s~\n",  game_settings.email_username);
     fprintf(fp, "EmailPassword %s~\n",  game_settings.email_password);
@@ -899,7 +1039,7 @@ int game_settings_write(void)
     fprintf(fp, "EmailFromAddr %s~\n",  game_settings.email_from_addr);
     fprintf(fp, "EmailFromName %s~\n",  game_settings.email_from_name);
 
-	/* MSSP */
+    /* MSSP */
     fprintf(fp, "MSSP_HOSTNAME %s~\n", game_settings.mssp_hostname);
     fprintf(fp, "MSSP_CODEBASE %s~\n", game_settings.mssp_codebase);
     fprintf(fp, "MSSP_CONTACT %s~\n", game_settings.mssp_contact);
@@ -964,15 +1104,15 @@ int game_settings_write(void)
     fprintf(fp, "MSSP_TRAINING_SYSTEM %d\n", game_settings.mssp_training_system);
     fprintf(fp, "MSSP_WORLD_ORIGINALITY %d\n", game_settings.mssp_world_originality);
 
-	write_reserved(fp, reserved_room_wnums);
-	write_reserved(fp, reserved_mob_wnums);
-	write_reserved(fp, reserved_obj_wnums);
-	// Tokens?
-	write_reserved(fp, reserved_rprog_wnums);
-	write_reserved_areas(fp);
+    write_reserved(fp, reserved_room_wnums);
+    write_reserved(fp, reserved_mob_wnums);
+    write_reserved(fp, reserved_obj_wnums);
+    // Tokens?
+    write_reserved(fp, reserved_rprog_wnums);
+    write_reserved_areas(fp);
 
-	fprintf(fp, "END\n");
-	fclose(fp);
+    fprintf(fp, "END\n");
+    fclose(fp);
     return(0); /* Success*/
 }
 
@@ -2006,6 +2146,12 @@ void do_stat(CHAR_DATA *ch, char *argument)
 	return;
     }
 
+    if (!str_cmp(arg,"acct") || !str_cmp(arg,"account"))
+    {
+	do_function(ch, &do_accstat, string);
+	return;
+    }
+
     send_to_char("Nothing by that name found anywhere.\n\r",ch);
 }
 
@@ -2094,6 +2240,270 @@ void do_astat (CHAR_DATA * ch, char *argument)
     add_buf (output, buf);
     sprintf (buf, "Players : {W%d{x\n\r", pArea->nplayer);
     add_buf (output, buf);
+
+    page_to_char(buf_string(output), ch);
+    free_buf(output);
+    return;
+}
+
+void do_accstat(CHAR_DATA *ch, char *argument)
+{
+     ACCOUNT_DATA *account;
+    ACCOUNT_CHARACTER *acd;
+    ACCOUNT_CHARACTER *staff_chars[100];
+    ACCOUNT_CHARACTER *regular_chars[100];
+    char name_buf[50], rank_buf[50], level_buf[50], race_buf[50], class_buf[50];
+    int staff_count = 0, regular_count = 0;
+    BUFFER *output;
+    char buf[MSL];
+    char arg[MIL];
+    bool loaded;
+
+    one_argument(argument, arg);
+
+    if (IS_NULLSTR(arg)) {
+        send_to_char("Syntax: accstat <accountname>\n\r", ch);
+        send_to_char("        accstat player:<name>\n\r", ch);
+        return;
+    }
+
+    // Use the new get_account_by_identifier function
+    account = get_account_by_identifier(arg, &loaded);
+    if (!account) {
+        if (!strncmp(arg, "player:", 7))
+            send_to_char("Player not found or has no account.\n\r", ch);
+        else
+            send_to_char("No such account exists. Try using player:<name> to look up by character name.\n\r", ch);
+        return;
+    }
+
+    output = new_buf();
+    add_buf(output, "\n\r{x[ {WAccount Status{x ]\n\r\n\r");
+
+    sprintf(buf, "Username      : [{W%s{x]\n\r", account->username);
+    add_buf(output, buf);
+
+    sprintf(buf, "Email         : [{W%s{x]\n\r", account->email ? account->email : "(none set)");
+    add_buf(output, buf);
+
+    sprintf(buf, "Creation Host   : [{W%s{x]\n\r", account->creation_host ? account->creation_host : "(unknown)");
+    add_buf(output, buf);
+
+    sprintf(buf, "Last Host       : [{W%s{x]\n\r", account->last_ip ? account->last_ip : "(unknown)");
+    add_buf(output, buf);
+
+    sprintf(buf, "MFA Status       : [{W%s{x]\n\r", account->mfa_enabled ? "{GENABLED{x" : (account->mfa_pending ? "{YSETUP IN PROGRESS{x" : "{ROFF{x"));
+    add_buf(output, buf);
+
+    // Format creation date and last login
+    if (account->creation_date) {
+        strftime(buf, sizeof(buf), "Creation Date : [{W%Y-%m-%d %H:%M:%S{x]\n\r", localtime(&account->creation_date));
+        add_buf(output, buf);
+    } else {
+        add_buf(output, "Creation Date : [{W(unknown){x]\n\r");
+    }
+
+    if (account->last_login) {
+        strftime(buf, sizeof(buf), "Last Login    : [{W%Y-%m-%d %H:%M:%S{x]\n\r", localtime(&account->last_login));
+        add_buf(output, buf);
+    } else {
+        add_buf(output, "Last Login    : [{W(never){x]\n\r");
+    }
+
+    sprintf(buf, "Last Host     : [{W%s{x]\n\r", account->last_login_host ? account->last_login_host : "(unknown)");
+    add_buf(output, buf);
+
+    sprintf(buf, "Reset State   : [{W%d{x]\n\r", account->reset_state);
+    add_buf(output, buf);
+
+    sprintf(buf, "Char Count    : [{W%d{x] / [{W%d{x] (limit)\n\r", account->character_count, account->character_limit > 0 ? account->character_limit : game_settings.max_characters);
+    add_buf(output, buf);
+
+    sprintf(buf, "Staff Limit   : [{W%d{x]\n\r", account->staff_limit);
+    add_buf(output, buf);
+
+    sprintf(buf, "Staff Account : [{W%s{x]\n\r", account->staff_account ? "Yes" : "No");
+    add_buf(output, buf);
+
+    sprintf(buf, "Flags         : [{W%s{x]\n\r", flag_string(acct_flags, account->acct_flags));
+    add_buf(output, buf);
+
+	    int note_count = 0;
+    ACCOUNT_NOTE_DATA *note;
+    for (note = account->staff_notes; note != NULL; note = note->next)
+        note_count++;
+    
+    if (note_count > 0)
+        sprintf(buf, "Staff Notes   : [{R%d note%s{x] (Use 'accnote list %s' to view)\n\r", 
+                note_count, note_count == 1 ? "" : "s", account->username);
+    else
+        sprintf(buf, "Staff Notes   : [{GNone{x]\n\r");
+    add_buf(output, buf);
+
+// Separate staff and regular characters
+ITERATOR it;
+iterator_start(&it, account->characters);
+while ((acd = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+    if (acd->staff && acd->staff_rank >= STAFF_IMMORTAL)
+        staff_chars[staff_count++] = acd;
+    else
+        regular_chars[regular_count++] = acd;
+}
+iterator_stop(&it);
+
+// Sort staff characters alphabetically
+for (int i = 0; i < staff_count - 1; i++) {
+    for (int j = 0; j < staff_count - i - 1; j++) {
+        if (strcasecmp(staff_chars[j]->name, staff_chars[j+1]->name) > 0) {
+            ACCOUNT_CHARACTER *temp = staff_chars[j];
+            staff_chars[j] = staff_chars[j+1];
+            staff_chars[j+1] = temp;
+        }
+    }
+}
+
+// Sort regular characters alphabetically
+for (int i = 0; i < regular_count - 1; i++) {
+    for (int j = 0; j < regular_count - i - 1; j++) {
+        if (strcasecmp(regular_chars[j]->name, regular_chars[j+1]->name) > 0) {
+            ACCOUNT_CHARACTER *temp = regular_chars[j];
+            regular_chars[j] = regular_chars[j+1];
+            regular_chars[j+1] = temp;
+        }
+    }
+}
+
+// Display staff characters
+if (staff_count > 0) {
+    add_buf(output, "{B=={W[ {YSTAFF CHARACTERS {W]{B=={x\n\r");
+    sprintf(buf, "{D%-4s %-16s %-15s %-30s %-20s{x\n\r", 
+            "Num", "Name", "Rank", "Location", "Last Logoff");
+    add_buf(output, buf);
+    sprintf(buf, "{D%s{x\n\r", pad_string("", 90, NULL, "-"));
+    add_buf(output, buf);
+
+for (int i = 0; i < staff_count; i++) {
+    acd = staff_chars[i];
+    const char *staff_rank_str = flag_string(staff_ranks, acd->staff_rank);
+
+    CHAR_DATA *vch = get_char_world(NULL, acd->name);
+
+    const char *loc_str;
+    char logoff_buf[32];
+
+    if (vch != NULL) {
+        // Character is online, use live data
+        loc_str = format_location_string(vch->in_room ? vch->in_room->area->name : NULL,
+                                         vch->in_room ? vch->in_room->region->name : NULL);
+        strcpy(logoff_buf, "{GLogged In{x");
+    } else {
+        // Offline, use stored data
+        loc_str = format_location_string(acd->last_area, acd->last_region);
+        if (acd->last_logoff > 0)
+            strftime(logoff_buf, sizeof(logoff_buf), "%Y-%m-%d %H:%M", localtime(&acd->last_logoff));
+        else
+            strcpy(logoff_buf, "(unknown)");
+    }
+
+    sprintf(name_buf, "{W%s{x", acd->name);
+    sprintf(rank_buf, "{R%s{x", staff_rank_str ? capitalize(staff_rank_str) : "IMM");
+
+    sprintf(buf, "{G[%2d]{x %s%s %s%s {Y%s{x%s {C%s{x\n\r",
+            i + 1,
+            name_buf,
+            pad_string((char *)name_buf, 16, NULL, " "),
+            rank_buf,
+            pad_string((char *)rank_buf, 15, NULL, " "),
+            loc_str,
+            pad_string((char *)loc_str, 30, NULL, " "),
+            logoff_buf);
+    add_buf(output, buf);
+}
+}
+
+// Display regular characters
+if (regular_count > 0) {
+    add_buf(output, "\n\r{B=={W[ {YREGULAR CHARACTERS {W]{B=={x\n\r");
+    sprintf(buf, "{D%-4s %-16s %-7s %-12s %-12s %-25s %-20s{x\n\r", 
+            "Num", "Name", "Level", "Race", "Class", "Location", "Last Logoff");
+    add_buf(output, buf);
+    sprintf(buf, "{D%s{x\n\r", pad_string("", 110, NULL, "-"));
+    add_buf(output, buf);
+
+    for (int i = 0; i < regular_count; i++) {
+        acd = regular_chars[i];
+
+		CHAR_DATA *vch = get_char_world(NULL, acd->name);
+
+        const char *loc_str;
+        char logoff_buf[32];
+        char *race_name, *class_name;
+        int level, tot_level;
+
+        if (vch != NULL) {
+            // Character is online, use live data
+            if (vch->pcdata && vch->pcdata->current_class && IS_VALID(vch->pcdata->current_class->clazz))
+                level = vch->pcdata->current_class->level;
+            else
+                level = vch->tot_level;
+            tot_level = vch->tot_level;
+            race_name = vch->race->name;
+            if (vch->pcdata && vch->pcdata->current_class && IS_VALID(vch->pcdata->current_class->clazz)) {
+                class_name = str_dup(vch->pcdata->current_class->clazz->name);
+            }
+			else
+				class_name = "Adventurer";
+            loc_str = format_location_string(vch->in_room ? vch->in_room->area->name : NULL,
+                                             vch->in_room ? vch->in_room->region->name : NULL);
+            strcpy(logoff_buf, "{GLogged In{x");
+        } else {
+            // Offline, use stored data
+            level = acd->current_level > 0 ? acd->current_level : acd->tot_level;
+            tot_level = acd->tot_level;
+            race_name = acd->race_name ? acd->race_name : "Unknown";
+            class_name = acd->class_name ? acd->class_name : "Adventurer";
+            loc_str = format_location_string(acd->last_area, acd->last_region);
+            if (acd->last_logoff > 0)
+                strftime(logoff_buf, sizeof(logoff_buf), "%Y-%m-%d %H:%M", localtime(&acd->last_logoff));
+            else
+                strcpy(logoff_buf, "(unknown)");
+        }
+
+        sprintf(name_buf, "{W%s{x", acd->name);
+        sprintf(level_buf, "{G%d(%d){x", level, tot_level);
+        sprintf(race_buf, "{W%s{x", capitalize(race_name));
+        sprintf(class_buf, "{W%s{x", capitalize(class_name));
+
+        sprintf(buf, "{G[%2d]{x %s%s %s%s %s%s %s%s {Y%s{x%s {C%s{x\n\r",
+                i + staff_count + 1,
+                name_buf,
+                pad_string((char *)name_buf, 16, NULL, " "),
+                level_buf,
+                pad_string((char *)level_buf, 7, NULL, " "),
+                race_buf,
+                pad_string((char *)race_buf, 12, NULL, " "),
+                class_buf,
+                pad_string((char *)class_buf, 12, NULL, " "),
+                loc_str,
+                pad_string((char *)loc_str, 25, NULL, " "),
+                logoff_buf);
+        add_buf(output, buf);
+    }
+	if (loaded && account) {
+    // Only remove and free if it was loaded just for this operation
+	if (list_haslink(loaded_accounts, account))
+	{
+    list_remlink(loaded_accounts, account, NULL); // Remove from global list
+    free_account(account);
+	}
+}
+}
+
+if (staff_count == 0 && regular_count == 0) {
+    add_buf(output, "   {RNo characters found.{x\n\r");
+}
+
+	if (loaded) free_account(account);
 
     page_to_char(buf_string(output), ch);
     free_buf(output);
@@ -4787,6 +5197,7 @@ void do_reboot(CHAR_DATA *ch, char *argument)
 	reboot_timer = 0;
 	down_timer = 0;
 	free_string(reboot_by);
+	free_string(reboot_reason);
 	gecho("{WREBOOT COUNTDOWN DEACTIVATED.{x\n\r");
 	return;
     }
@@ -4817,14 +5228,19 @@ void do_reboot(CHAR_DATA *ch, char *argument)
     }
 
     down_time = atoi(arg2);
-    if (down_time < 1 || down_time > 30)
+    if (down_time < 1 || down_time > 9999)
     {
-	send_to_char("Range for downtime is 1 to 30 minutes.\n\r", ch);
+	send_to_char("Range for downtime is 1 to 9999 minutes.\n\r", ch);
 	return;
     }
 
     sprintf(buf, "{WSet reboot timer for %d minutes.{x\n\r", mins);
     send_to_char(buf, ch);
+
+	// Set the global reboot_reason to the rest of the argument (or empty string)
+	if (reboot_reason)
+    	free_string(reboot_reason);
+	reboot_reason = str_dup(argument[0] != '\0' ? argument : "");
 
     reboot_time = localtime(&current_time);
     reboot_time->tm_min += mins;
@@ -4849,17 +5265,29 @@ void do_shutdown(CHAR_DATA *ch, char *argument)
     TOKEN_DATA *token;
     ITERATOR cit, tit;
 
-    if( IS_NULLSTR(argument) )
-    	sprintf(buf, "Shutdown by %s.", ch->name);
-    else
-    {
-		sprintf(buf, "Shutdown by %s, Reason: %s", ch->name, argument);
-		append_file(ch, MAINTENANCE_FILE, buf);
-	}
-    append_file(ch, SHUTDOWN_FILE, buf);
+	char shutdown_information[MAX_STRING_LENGTH];
+	char shutdown_reason[MAX_INPUT_LENGTH];
 
-    strcat(buf, "\n\r");
-    do_function(ch, &do_echo, buf);
+	bool reboot = false;
+	
+	// Did the shutdown happen while the reboot timer was active or reboot was set by the update handler?
+	if (reboot_shutdown || reboot_timer > 0)
+		reboot = true;
+
+	if (IS_NULLSTR(argument))
+		shutdown_reason[0] = '\0';
+	else
+		sprintf(shutdown_reason, " for: \"%s\"", argument);
+	
+	sprintf(shutdown_information, "%s by %s%s at %s", reboot ? "Reboot" : "Shutdown", ch->name, shutdown_reason, (char *) ctime(&current_time));
+
+	if (!reboot || down_timer > 1)
+		append_file(ch, SHUTDOWN_FILE, shutdown_information);
+
+	append_file(ch, MAINTENANCE_FILE, shutdown_information);
+
+    //strcat(shutdown_information, "\n\r");
+    do_function(ch, &do_echo, shutdown_information);
 
     /* remove any PURGE_REBOOT tokens on any characters */
 	iterator_start(&cit, loaded_chars);
@@ -6209,6 +6637,7 @@ void do_set(CHAR_DATA *ch, char *argument)
 	send_to_char("  set sky   <cloudless|cloudy|rainy|stormy>\n\r", ch);
 	send_to_char("  set time  <hour|day|month|year> <#>\n\r", ch);
 	send_to_char("  set token <char name> <token vnum> <v#|timer> <op> <value>\n\r", ch);
+	send_to_char("  set account <account> <field> <value>\n\r", ch);
 	return;
     }
 
@@ -6299,6 +6728,12 @@ void do_set(CHAR_DATA *ch, char *argument)
 	do_function(ch, &do_tkset, argument);
 	return;
     }
+
+	if (!str_prefix(arg, "account") || !str_prefix(arg, "acct"))
+	{
+		do_function(ch, &do_accset, argument);
+		return;
+	}
 
     /* echo syntax */
     do_function(ch, &do_set, "");
@@ -6409,7 +6844,7 @@ void do_tkset(CHAR_DATA *ch, char *argument)
 		break;
 
 	    default:
-		sprintf(buf, "do_tkset: bad operator %c", arg5[0]);
+		snprintf(buf, sizeof(buf), "do_tkset: bad operator %c", arg5[0]);
 		bug(buf, 0);
 	}
 
@@ -6455,7 +6890,7 @@ void do_tkset(CHAR_DATA *ch, char *argument)
 		break;
 
 	    default:
-		sprintf(buf, "do_tkset: bad operator %c", arg5[0]);
+		snprintf(buf, sizeof(buf), "do_tkset: bad operator %c", arg5[0]);
 		bug(buf, 0);
 	}
 
@@ -6485,6 +6920,98 @@ void set_moon_phase(void)
 	else if(hours <= (3*MOON_CARDINAL_STEP + MOON_CARDINAL_HALF)) time_info.moon = MOON_LAST_QUARTER;
 	else if(hours < (4*MOON_CARDINAL_STEP - MOON_CARDINAL_HALF)) time_info.moon = MOON_WANING_CRESCENT;
 	else time_info.moon = MOON_NEW;
+}
+
+void do_accset(CHAR_DATA *ch, char *argument)
+{
+    char arg[MAX_INPUT_LENGTH], arg2[MAX_INPUT_LENGTH], arg3[MAX_INPUT_LENGTH], buf[MSL];
+    ACCOUNT_DATA *account;
+    bool loaded = FALSE;
+    int value;
+
+    argument = one_argument(argument, arg);   // account name
+    argument = one_argument(argument, arg2);  // field
+    argument = one_argument(argument, arg3);  // value
+
+    if (arg[0] == '\0' || arg2[0] == '\0' || arg3[0] == '\0') {
+        send_to_char("Syntax:\n\r  set account <account name> <field> <value>\n\r", ch);
+        return;
+    }
+
+    account = get_account_online_or_offline(arg, &loaded);
+    if (!account) {
+        send_to_char("Account not found.\n\r", ch);
+        return;
+    }
+
+    if (!str_prefix(arg2, "email")) {
+        free_string(account->email);
+        account->email = str_dup(arg3);
+        sprintf(buf, "Set email for account %s to %s.\n\r", account->username, account->email);
+        send_to_char(buf, ch);
+    }
+    else if (!str_prefix(arg2, "charlimit")) {
+        if (!is_number(arg3)) {
+            send_to_char("Character limit must be a number.\n\r", ch);
+            if (loaded) free_account(account);
+            return;
+        }
+        value = atoi(arg3);
+        account->character_limit = value;
+        sprintf(buf, "Set character limit for account %s to %d.\n\r", account->username, value);
+        send_to_char(buf, ch);
+    }
+    else if (!str_prefix(arg2, "stafflimit")) {
+        if (!is_number(arg3)) {
+            send_to_char("Staff limit must be a number.\n\r", ch);
+            if (loaded) free_account(account);
+            return;
+        }
+        value = atoi(arg3);
+        account->staff_limit = value;
+        sprintf(buf, "Set staff limit for account %s to %d.\n\r", account->username, value);
+        send_to_char(buf, ch);
+    }
+	else if (!str_prefix(arg2, "flag")) {
+    	char flag_buf[MAX_INPUT_LENGTH];
+    	char *flag_name;
+    	bool found_flag = FALSE;
+
+	    // Make a copy of arg3 to tokenize
+    	strncpy(flag_buf, arg3, sizeof(flag_buf));
+    	flag_buf[sizeof(flag_buf)-1] = '\0';
+
+	    flag_name = strtok(flag_buf, " ");
+    	while (flag_name != NULL) {
+        	long flagval;
+        	if ((flagval = flag_value(acct_flags, flag_name)) == NO_FLAG) {
+				sprintf(buf, "Invalid account flag: %s\n\r", flag_name);
+				send_to_char(buf, ch);
+        	    show_flag_cmds(ch, acct_flags);
+        	    // Don't return, just skip this flag
+        	} else {
+        	    TOGGLE_BIT(account->acct_flags, flagval);
+        	    found_flag = TRUE;
+        	}
+        	flag_name = strtok(NULL, " ");
+    	}
+
+    	if (found_flag)
+    	    send_to_char("Account flag(s) toggled.\n\r", ch);
+    	else
+        	send_to_char("No valid account flags toggled.\n\r", ch);
+
+	    if (loaded) free_account(account);
+	    return;
+	}
+    else {
+        send_to_char("Unknown account field. Valid: email, charlimit, stafflimit, flags\n\r", ch);
+        if (loaded) free_account(account);
+        return;
+    }
+
+    save_account(account);
+    if (loaded) free_account(account); // Only free if we loaded it from disk
 }
 
 void do_tset(CHAR_DATA *ch, char *argument)
@@ -7215,7 +7742,7 @@ void do_chset(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			if( !church_add_treasure_room(church, room, CHURCH_RANK_A) )
+			if( !church_add_treasure_room(church, room, false) )
 			{
 				send_to_char("ERROR: could not add room to treasure rooms list.\n\r", ch);
 				return;
@@ -8059,144 +8586,141 @@ void do_rset(CHAR_DATA *ch, char *argument)
 }
 
 
-
-/*void do_sockets(CHAR_DATA *ch, char *argument)
+void do_sockets(CHAR_DATA *ch, char *argument)
 {
+    DESCRIPTOR_DATA *d;
     char buf[2 * MAX_STRING_LENGTH];
     char buf2[MAX_STRING_LENGTH];
-    char arg[MAX_INPUT_LENGTH];
-    DESCRIPTOR_DATA *d;
+    char arg[250];
+    char arg_type[50];
     int count;
+    char s[100];
+    char idle[20];
+    bool found_match = FALSE;
+    int search_type = 0; // 0 = name, 1 = host, 2 = account, 3 = state
 
     count = 0;
     buf[0] = '\0';
+    buf2[0] = '\0';
 
-    one_argument(argument,arg);
-    for (d = descriptor_list; d != NULL; d = d->next)
-    {
-	if (d->character != NULL && can_see(ch, d->character)
-	&& (arg[0] == '\0' || is_name(arg,d->character->name)
-			   || (d->original && is_name(arg,d->original->name))))
-	{
-	    count++;
-	    if (d->character != NULL && (!str_cmp(d->character->name, "arlox")))
-	      sprintf(buf + strlen(buf), "[%3d %2d] Arlox@136.17.156.20\n\r", d->descriptor, d->connected);
-	    else
-	    if (d->character != NULL && (!str_cmp(d->character->name, "zoron")))
-	      sprintf(buf + strlen(buf), "[%3d %2d] Zoron@196.27.52.10\n\r", d->descriptor, d->connected);
-	    else
-	    sprintf(buf + strlen(buf), "[%3d %2d] %s@%s\n\r",
-		d->descriptor,
-		d->connected,
-		d->original  ? d->original->name  :
-		d->character ? d->character->name : "(none)",
-		d->host
-		);
-	}
-    }
-    if (count == 0)
-    {
-	send_to_char("No one by that name is connected.\n\r",ch);
-	return;
-    }
+    strcat(buf2, "\n\r{D[{xNum Connected_State Login@ Idl{D]{W Name{x         Account        Host\n\r");
+    strcat(buf2, "{D-----------------------------------------------------------------------------------{x\n\r");
 
-    sprintf(buf2, "%d user%s\n\r", count, count == 1 ? "" : "s");
-    strcat(buf,buf2);
-    page_to_char(buf, ch);
-    return;
-}*/
+    argument = one_argument(argument, arg);
 
-/* New sockets command, tells the connected state of characters and aligns things better. -- Areo 2006-08-23 */
-void do_sockets( CHAR_DATA *ch, char *argument )
-{
-    CHAR_DATA       *vch;
-    DESCRIPTOR_DATA *d;
-    char            buf  [ 2 * MAX_STRING_LENGTH ];
-    char            buf2 [ MAX_STRING_LENGTH ];
-    char	    	arg	 [ MAX_INPUT_LENGTH ];
-    int             count;
-    char *          st;
-    char            s[100];
-    char            idle[20];
-
-
-    count       = 0;
-    buf[0]      = '\0';
-    buf2[0]     = '\0';
-
-    strcat( buf2, "\n\r{D[{xNum Connected_State Login@ Idl{D]{W Name{x         Host\n\r" );
-    strcat( buf2,"{D--------------------------------------------------------------------------{x\n\r");
-
-    one_argument(argument,arg);
-    for ( d = descriptor_list; d; d = d->next )
-    {
-        if (d->character != NULL && can_see(ch, d->character)
-	&& (arg[0] == '\0' || is_name(arg,d->character->name)
-		   || (d->original && is_name(arg,d->original->name))))
-        {
-           /* NB: You may need to edit the CON_ values */
-           switch( d->connected )
-           {
-              case CON_PLAYING:              st = "    PLAYING    ";    break;
-              case CON_GET_NAME:             st = "   Get Name    ";    break;
-              case CON_GET_OLD_PASSWORD:     st = "Get Old Passwd ";    break;
-              case CON_CONFIRM_NEW_NAME:     st = " Confirm Name  ";    break;
-              case CON_GET_NEW_PASSWORD:     st = "Get New Passwd ";    break;
-              case CON_CONFIRM_NEW_PASSWORD: st = "Confirm Passwd ";    break;
-              case CON_GET_NEW_RACE:         st = "  Get New Race ";    break;
-              case CON_GET_NEW_SEX:          st = "  Get New Sex  ";    break;
-              //case CON_GET_NEW_CLASS:        st = " Get New Class ";    break;
-              case CON_GET_ALIGNMENT:  	     st = " Get New Align ";	break;
-	      	  case CON_READ_IMOTD:		     st = " Reading IMOTD "; 	break;
-              case CON_READ_MOTD:            st = "  Reading MOTD ";    break;
-	      	  case CON_BREAK_CONNECT:	     st = "   LINKDEAD    ";	break;
-              case CON_GET_ASCII:		     st = "   Get ASCII   ";	break;
-              //case CON_GET_SUB_CLASS:	     st = "  Get Subclass ";	break;
-              //case CON_OLD_SUBCLASS:	     st = "  Get Old Sub  ";	break;
-              //case CON_SUBCLASS_CHOOSE:	     st = "Choose Subclass";	break;
-              case CON_CHANGE_PASSWORD:	     st = "Change Password";	break;
-              case CON_CHANGE_PASSWORD_CONFIRM:	st = "Confirm PassChg";	break;
-              case CON_GET_EMAIL:			 st = "   Get Email   ";	break;
-			  case CON_CONFIRM_EMAIL_FOR_RESET: st = " Confirm Email ";	break;
-              default:                       st = "   !UNKNOWN!   ";    break;
-           }
-           count++;
-
-           /* Format "login" value... */
-           vch = d->original ? d->original : d->character;
-           strftime( s, 100, "%I:%M%p", localtime( &vch->logon ) );
-
-           if ( vch->timer > 0 )
-              sprintf( idle, "%-2d", vch->timer );
-           else
-              sprintf( idle, "  " );
-
-           sprintf(buf, "{D[{x%s%3d{X %s %7s{g %2s{D]{W %-12s{x %-50.50s\n\r",
-              d->ssl ? "{G": "{X",
-			  d->descriptor,
-              st,
-              s,
-              idle,
-              ( d->original ) ? d->original->name
-                              : ( d->character )  ? d->character->name
-                                                  : "(None!)",
-              d->host );
-
-           strcat( buf2, buf );
-
+    if (arg[0] != '\0' && argument[0] != '\0') {
+        argument = one_argument(argument, arg_type);
+        
+        if (!str_prefix(arg_type, "host"))
+            search_type = 1;
+        else if (!str_prefix(arg_type, "account"))
+            search_type = 2;
+        else if (!str_prefix(arg_type, "state"))
+            search_type = 3;
+        else {
+            // If arg_type isn't a valid search type, treat it as part of the search term
+            // and reset arg to contain both parts
+            char full_arg[MAX_INPUT_LENGTH];
+            sprintf(full_arg, "%s %s", arg, arg_type);
+            strcpy(arg, full_arg);
+            search_type = 0; // Default to name search
         }
     }
 
-    if (count == 0)
-    {
-    send_to_char("No one by that name is connected.\n\r",ch);
-    return;
+    for (d = descriptor_list; d; d = d->next) {
+        // Skip this descriptor if it doesn't match our search criteria
+        if (arg[0] != '\0') {
+            found_match = FALSE;
+            
+            switch (search_type) {
+                case 0: // Default search by character name
+                    if (d->character && can_see(ch, d->character) && 
+                        (is_name(arg, d->character->name) ||
+                         (d->original && is_name(arg, d->original->name))))
+                        found_match = TRUE;
+                    break;
+                    
+                case 1: // Search by host
+                    if (d->host && strstr(d->host, arg))
+                        found_match = TRUE;
+                    break;
+                    
+                case 2: // Search by account
+                    if (d->account && strstr(d->account->username, arg))
+                        found_match = TRUE;
+                    break;
+                    
+                case 3: // Search by connection state
+                    if (d->connected < CON_MAX && 
+                        strstr(con_states[d->connected].name, arg))
+                        found_match = TRUE;
+                    break;
+            }
+            
+            if (!found_match)
+                continue;
+        }
+
+        if (d->character != NULL && !can_see(ch, d->character))
+            continue;
+
+        count++;
+
+        /* Get connection state from the table */
+        const char *state_name = "UNKNOWN";
+        if (d->connected >= 0 && d->connected < CON_MAX)
+            state_name = con_states[d->connected].name;
+
+        /* Format "login" value... */
+        CHAR_DATA *vch = d->original ? d->original : d->character;
+        if (vch)
+            strftime(s, 100, "%I:%M%p", localtime(&vch->logon));
+        else
+            strcpy(s, "------");
+
+        /* Format idle time */
+        if (vch && vch->timer > 0)
+            sprintf(idle, "%-2d", vch->timer);
+        else
+            sprintf(idle, "  ");
+
+        /* Get character name */
+        const char *char_name = "(None!)";
+        if (d->original)
+            char_name = d->original->name;
+        else if (d->character)
+            char_name = d->character->name;
+
+        /* Get account name */
+        const char *acct_name = "(None)";
+        if (d->account)
+            acct_name = d->account->username;
+
+        sprintf(buf, "{D[{x%s%3d{X %-15.15s %7s{g %2s{D]{W %-12s{x %-14s %-30.30s\n\r",
+            d->ssl ? "{G" : "{X",
+            d->descriptor,
+            state_name,
+            s,
+            idle,
+            char_name,
+            acct_name,
+            d->host);
+
+        strcat(buf2, buf);
     }
 
-    sprintf( buf, "\n\r%d user%s\n\r", count, count == 1 ? "" : "s" );
-    strcat( buf2, buf );
-    strcat( buf2,"{D--------------------------------------------------------------------------{x\n\r");
-    send_to_char( buf2, ch );
+    if (count == 0) {
+        if (arg[0] == '\0')
+            send_to_char("No one is connected.\n\r", ch);
+        else
+            send_to_char("No matching connections found.\n\r", ch);
+        return;
+    }
+
+    sprintf(buf, "\n\r%d user%s\n\r", count, count == 1 ? "" : "s");
+    strcat(buf2, buf);
+    strcat(buf2, "{D-----------------------------------------------------------------------------------{x\n\r");
+    send_to_char(buf2, ch);
     return;
 }
 
@@ -10896,7 +11420,7 @@ LIQUID *load_liquid(FILE *fp)
 
 		if (!fMatch)
 		{
-			sprintf(buf, "load_liquid: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "load_liquid: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -11019,7 +11543,7 @@ bool load_liquids()
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "load_liquids: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "load_liquids: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -11481,7 +12005,7 @@ MATERIAL *load_material(FILE *fp)
 
 		if (!fMatch)
 		{
-			sprintf(buf, "load_material: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "load_material: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -11569,7 +12093,7 @@ bool load_materials()
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "load_materials: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "load_materials: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -11846,7 +12370,7 @@ CORPSE_DAMAGE *load_corpse_damage(FILE *fp)
 
 		if (!fMatch)
 		{
-			sprintf(buf, "load_corpse_damage: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "load_corpse_damage: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -11962,7 +12486,7 @@ CORPSE_TYPE *load_corpse(FILE *fp)
 
 		if (!fMatch)
 		{
-			sprintf(buf, "load_corpse: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "load_corpse: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -12102,7 +12626,7 @@ bool load_corpses()
 			}
 
 			if (!fMatch) {
-				sprintf(buf, "load_corpses: no match for word %s", word);
+				snprintf(buf, sizeof(buf), "load_corpses: no match for word %s", word);
 				bug(buf, 0);
 			}
 		}
@@ -13579,147 +14103,491 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
     }
 }
 
-
-
 void do_pwreset(CHAR_DATA *ch, char *argument)
 {
-	CHAR_DATA *victim;
-	char type[MAX_INPUT_LENGTH];
-	char buf[MAX_STRING_LENGTH];
-	char plr[MAX_INPUT_LENGTH];
-	char email[MAX_INPUT_LENGTH];
-	char reset_msg[MSL], reset_subject[MSL];
-	char tmp_reset_code[16];
-	DESCRIPTOR_DATA d;
+    CHAR_DATA *victim;
+    char type[MAX_INPUT_LENGTH];
+    char buf[MAX_STRING_LENGTH];
+    char target[MAX_INPUT_LENGTH];
+    char email[MAX_INPUT_LENGTH];
+    char reset_msg[MSL], reset_subject[MSL];
+    char tmp_reset_code[16];
+    DESCRIPTOR_DATA d;
+    bool is_account = FALSE;
+    ACCOUNT_DATA *account = NULL;
 
+    argument = one_argument(argument, type);
+    argument = one_argument(argument, target);
+    
+    if (type[0] == '\0' || target[0] == '\0')
+    {
+        send_to_char("Syntax: pwreset <local|email> <character|account> [email]\n\r", ch);
+        send_to_char("For account resets, prefix the account name with 'account:'\n\r", ch);
+        return;
+    }
 
-	argument = one_argument(argument, type);
-	argument = one_argument(argument, plr);
-	
+    // Check if this is an account reset
+    if (!strncmp(target, "account:", 8))
+    {
+        is_account = TRUE;
+        memmove(target, target + 8, strlen(target) - 7); // Remove "account:" prefix
+    }
 
-	if (type[0] == '\0')
-	{
-		send_to_char("Reset who's password?\n\rSyntax: pwreset <local|email> <character> [email]", ch);
-		return;
-	}
+    if (!str_cmp(type, "local"))
+    {
+        if (is_account)
+        {
+            // Handle account reset
+            if (account_exists(target))
+            {
+                // Create a temporary descriptor for loading the account
+                memset(&d, 0, sizeof(d));
+                
+                // Load account using the proper function signature
+                if (!load_account(&d, target))
+                {
+                    send_to_char("Error loading that account.\n\r", ch);
+                    return;
+                }
+                
+                account = d.account; // Get the loaded account
 
-	if (!str_cmp(type, "local"))
-	{
-		if ((player_exists(plr)))
-		{
-			if ((victim = get_char_world(ch, plr)) == NULL)
-			{
-				if (!load_char_obj(&d, plr))
-				{
-					send_to_char("That player does not exist.\n\r", ch);
-					return;
-				}
-				else
-				{
-					d.character->desc = NULL;
-					if (d.character->pcdata->reset_code[0] != '\0')
-					{
-						free_string(d.character->pcdata->reset_code);
-						d.character->pcdata->reset_code = str_dup("");
-					}
+                if (account->reset_code[0] != '\0')
+                {
+                    free_string(account->reset_code);
+                    account->reset_code = str_dup("");
+                }
 
-					generate_reset_code(tmp_reset_code, 15);
+                generate_reset_code(tmp_reset_code, 15);
+                account->reset_code = str_dup(tmp_reset_code);
+                account->reset_state = RESET_PENDING;
+                account->reset_time = current_time;
 
-					d.character->pcdata->reset_code = str_dup(tmp_reset_code);
+                sprintf(buf, "Password reset code has been set to %s for account %s.\n\r", 
+                        account->reset_code, account->username);
+                send_to_char(buf, ch);
 
-					d.character->pcdata->reset_state = RESET_PENDING;
-					d.character->pcdata->reset_time = current_time;
+                save_account(account);
+                free_account(account);
+                d.account = NULL;
+            }
+            else
+            {
+                send_to_char("That account does not exist.\n\r", ch);
+                return;
+            }
+        }
+        else
+        {
+            // Original character reset code
+            if ((player_exists(target)))
+            {
+                if ((victim = get_char_world(ch, target)) == NULL)
+                {
+                    if (!load_char_obj(&d, target))
+                    {
+                        send_to_char("That player does not exist.\n\r", ch);
+                        return;
+                    }
+                    else
+                    {
+                        d.character->desc = NULL;
+                        
+                        // Check if the character has a password set
+                        if (d.character->pcdata->pwd[0] == '\0')
+                        {
+                            send_to_char("That character has no password set. Cannot create reset code.\n\r", ch);
+                            free_char(d.character);
+                            return;
+                        }
+                        
+                        if (d.character->pcdata->reset_code[0] != '\0')
+                        {
+                            free_string(d.character->pcdata->reset_code);
+                            d.character->pcdata->reset_code = str_dup("");
+                        }
 
-					sprintf(buf, "Password reset code has been set to %s for %s.\n\r", d.character->pcdata->reset_code, d.character->name);
-					send_to_char(buf, ch);
+                        generate_reset_code(tmp_reset_code, 15);
+                        d.character->pcdata->reset_code = str_dup(tmp_reset_code);
+                        d.character->pcdata->reset_state = RESET_PENDING;
+                        d.character->pcdata->reset_time = current_time;
 
-					save_char_obj(d.character);
-					free_char(d.character);
-				}
-			}
-			else
-			{
-				send_to_char("That player is already online.\n\r", ch);
-				return;
-			}
-			// Replace this with a random string generator later.
+                        sprintf(buf, "Password reset code has been set to %s for %s.\n\r", 
+                                d.character->pcdata->reset_code, d.character->name);
+                        send_to_char(buf, ch);
 
-		}
-		else
-		{
-			send_to_char("That player does not exist.\n\r", ch);
-			return;
-		}
-	}
+                        save_char_obj(d.character);
+                        free_char(d.character);
+                    }
+                }
+                else
+                {
+                    // Check if online character has a password set
+                    if (victim->pcdata->pwd[0] == '\0')
+                    {
+                        send_to_char("That character has no password set. Cannot create reset code.\n\r", ch);
+                        return;
+                    }
+                    
+                    send_to_char("That player is already online.\n\r", ch);
+                    return;
+                }
+            }
+            else
+            {
+                send_to_char("That player does not exist.\n\r", ch);
+                return;
+            }
+        }
+    }
+    else if (!str_cmp(type, "email"))
+    {
+        one_argument(argument, email);
 
-	else if (!str_cmp(type, "email"))
-	{
-		one_argument(argument, email);
+        if (is_account)
+        {
+            // Handle account email reset
+            if (account_exists(target))
+            {
+                // Create a temporary descriptor for loading the account
+                memset(&d, 0, sizeof(d));
+                
+                // Load account using the proper function signature
+                if (!load_account(&d, target))
+                {
+                    send_to_char("Error loading that account.\n\r", ch);
+                    return;
+                }
+                
+                account = d.account; // Get the loaded account
+                
+                if (account->reset_code[0] != '\0')
+                {
+                    free_string(account->reset_code);
+                    account->reset_code = str_dup("");
+                }
 
-		if ((player_exists(plr)))
-		{
-			if ((victim = get_char_world(ch, plr)) == NULL)
-			{
-				if (!load_char_obj(&d, plr))
-				{
-					send_to_char("That player does not exist.\n\r", ch);
-					return;
-				}
-				else
-				{
-					d.character->desc = NULL;
-					if (d.character->pcdata->reset_code[0] != '\0')
-					{
-						free_string(d.character->pcdata->reset_code);
-						d.character->pcdata->reset_code = str_dup("");
-					}
+                generate_reset_code(tmp_reset_code, 15);
+                account->reset_code = str_dup(tmp_reset_code);
+                account->reset_state = RESET_PENDING;
+                account->reset_time = current_time;
 
-					generate_reset_code(tmp_reset_code, 15);
+                sprintf(reset_subject, "Password Reset for Account: %s", account->username);
+                sprintf(reset_msg, "Your account password reset code is: %s.\nPlease note that this code will expire after 24 hours.", 
+                        account->reset_code);
 
-					d.character->pcdata->reset_code = str_dup(tmp_reset_code);
+                if (email[0] != '\0')
+                {
+                    send_email_async_ex(NULL, account, email, reset_subject, reset_msg, NULL, NULL);
+                    sprintf(buf, "Password reset code has been sent to %s for account %s.\n\r", 
+                            email, account->username);
+                    send_to_char(buf, ch);
+                }
+                else
+                {
+                    if (account->email[0] == '\0')
+                    {
+                        send_to_char("No email address set for this account. You must use the 'local' option instead.\n\r", ch);
+                        free_account(account);
+                        d.account = NULL;
+                        return;
+                    }
 
+                    send_email_async_ex(NULL, account, account->email, reset_subject, reset_msg, NULL, NULL);
+                    sprintf(buf, "Password reset code has been sent to %s for account %s.\n\r", 
+                            account->email, account->username);
+                    send_to_char(buf, ch);
+                }
 
-					d.character->pcdata->reset_state = RESET_PENDING;
-					d.character->pcdata->reset_time = current_time;
+                save_account(account);
+                free_account(account);
+                d.account = NULL;
+            }
+            else
+            {
+                send_to_char("That account does not exist.\n\r", ch);
+                return;
+            }
+        }
+        else
+        {
+            // Original character email reset code
+            if ((player_exists(target)))
+            {
+                if ((victim = get_char_world(ch, target)) == NULL)
+                {
+                    if (!load_char_obj(&d, target))
+                    {
+                        send_to_char("That player does not exist.\n\r", ch);
+                        return;
+                    }
+                    else
+                    {
+                        CHAR_DATA *character = d.character;
+                        character->desc = NULL;
+                        
+                        // Check if the character has a password set
+                        if (character->pcdata->pwd[0] == '\0')
+                        {
+                            send_to_char("That character has no password set. Cannot create reset code.\n\r", ch);
+                            free_char(character);
+                            return;
+                        }
+                        
+                        if (character->pcdata->reset_code[0] != '\0')
+                        {
+                            free_string(character->pcdata->reset_code);
+                            character->pcdata->reset_code = str_dup("");
+                        }
 
-					sprintf(reset_subject, "Password Reset for %s", d.character->name);
-					sprintf(reset_msg, "Your password reset code is: %s.\nPlease note that this code will expire after 24 hours.", d.character->pcdata->reset_code);
+                        generate_reset_code(tmp_reset_code, 15);
+                        character->pcdata->reset_code = str_dup(tmp_reset_code);
+                        character->pcdata->reset_state = RESET_PENDING;
+                        character->pcdata->reset_time = current_time;
 
-					if (email[0] != '\0')
-					{
-						send_email_async(d.character, email, reset_subject, reset_msg);
-						sprintf(buf, "Password reset code has been sent to %s for %s.\n\r", email, plr);
-						send_to_char(buf, ch);
-					}
-					else
-					{
-						if (d.character->pcdata->email[0] == '\0')
-						{
-							send_to_char("No email address set for this player. You must use the 'local' option instead.\n\r", ch);
-							return;
-						}
+                        sprintf(reset_subject, "Password Reset for %s", character->name);
+                        sprintf(reset_msg, "Your password reset code is: %s.\nPlease note that this code will expire after 24 hours.", 
+                                character->pcdata->reset_code);
 
-						send_email_async(d.character, d.character->pcdata->email, reset_subject, reset_msg);
-						sprintf(buf, "Password reset code has been sent to %s for %s.\n\r", d.character->pcdata->email, plr);
-						send_to_char(buf, ch);
-					}
+                        if (email[0] != '\0')
+                        {
+                            send_email_async(character, email, reset_subject, reset_msg, NULL, NULL);
+                            sprintf(buf, "Password reset code has been sent to %s for %s.\n\r", 
+                                    email, target);
+                            send_to_char(buf, ch);
+                        }
+                        else
+                        {
+                            if (character->pcdata->email[0] == '\0')
+                            {
+                                // Character has no email address, fall back to account email
+                                ACCOUNT_DATA *char_account;
+                                DESCRIPTOR_DATA account_d;
+                                
+                                // Save character data first since we're going to reuse the descriptor
+                                save_char_obj(character);
+                                
+                                // Load the character's associated account
+                                memset(&account_d, 0, sizeof(account_d));
+                                if (!load_account(&account_d, character->pcdata->account_name))
+                                {
+                                    send_to_char("No email address set for this player and unable to load account. You must use the 'local' option instead.\n\r", ch);
+                                    free_char(character);
+                                    return;
+                                }
+                                
+                                char_account = account_d.account;
+                                
+                                if (char_account->email[0] == '\0')
+                                {
+                                    send_to_char("No email address set for this player or their account. You must use the 'local' option instead.\n\r", ch);
+                                    free_char(character);
+                                    free_account(char_account);
+                                    account_d.account = NULL;
+                                    return;
+                                }
 
-					save_char_obj(d.character);
-					free_char(d.character);
-				}
-			}
-			else
-			{
-				send_to_char("That player is already online.\n\r", ch);
-				return;
-			}
-		}
-		else
-		{
-			send_to_char("That player does not exist.\n\r", ch);
-			return;
-		}
-	}
+                                // Use account email but still specify character name
+                                send_email_async(character, char_account->email, reset_subject, reset_msg, NULL, NULL);
+                                sprintf(buf, "Password reset code has been sent to account email %s for character %s.\n\r", 
+                                        char_account->email, target);
+                                send_to_char(buf, ch);
+                                
+                                free_account(char_account);
+                                account_d.account = NULL;
+                            }
+                            else
+                            {
+                                send_email_async(character, character->pcdata->email, reset_subject, reset_msg, NULL, NULL);
+                                sprintf(buf, "Password reset code has been sent to %s for %s.\n\r", 
+                                        character->pcdata->email, target);
+                                send_to_char(buf, ch);
+                            }
+                        }
+
+                        save_char_obj(character);
+                        free_char(character);
+                    }
+                }
+                else
+                {
+                    // Check if online character has a password set
+                    if (victim->pcdata->pwd[0] == '\0')
+                    {
+                        send_to_char("That character has no password set. Cannot create reset code.\n\r", ch);
+                        return;
+                    }
+                    
+                    send_to_char("That player is already online.\n\r", ch);
+                    return;
+                }
+            }
+            else
+            {
+                send_to_char("That player does not exist.\n\r", ch);
+                return;
+            }
+        }
+    }
+    else
+    {
+        send_to_char("Syntax: pwreset <local|email> <character|account> [email]\n\r", ch);
+        send_to_char("For account resets, prefix the account name with 'account:'\n\r", ch);
+    }
+}
+
+void do_mfareset(CHAR_DATA *ch, char *argument)
+{
+    CHAR_DATA *victim;
+    char target[MAX_INPUT_LENGTH];
+    char buf[MAX_STRING_LENGTH];
+    DESCRIPTOR_DATA d;
+    bool is_account = FALSE;
+    ACCOUNT_DATA *account = NULL;
+
+    argument = one_argument(argument, target);
+
+    if (target[0] == '\0')
+    {
+        send_to_char("Syntax: mfareset <character|account>\n\r", ch);
+        send_to_char("For account resets, prefix the account name with 'account:'\n\r", ch);
+        return;
+    }
+
+    // Check if this is an account reset
+    if (!strncmp(target, "account:", 8))
+    {
+        is_account = TRUE;
+        memmove(target, target + 8, strlen(target) - 7); // Remove "account:" prefix
+    }
+
+    if (is_account)
+    {
+        // Handle account MFA reset
+        if (account_exists(target))
+        {
+            // Create a temporary descriptor for loading the account
+            memset(&d, 0, sizeof(d));
+            
+            // Load account using the proper function signature
+            if (!load_account(&d, target))
+            {
+                send_to_char("Error loading that account.\n\r", ch);
+                return;
+            }
+            
+            account = d.account; // Get the loaded account
+
+            // Check if MFA is enabled or has any MFA data set
+            if (!account->mfa_enabled && IS_NULLSTR(account->mfa_key))
+            {
+                sprintf(buf, "Multifactor auth is not enabled for account %s.\n\r", account->username);
+                send_to_char(buf, ch);
+                free_account(account);
+                d.account = NULL;
+                return;
+            }
+
+            // Reset MFA settings
+            account->mfa_enabled = FALSE;
+            
+            if (!IS_NULLSTR(account->mfa_key))
+            {
+                free_string(account->mfa_key);
+                account->mfa_key = str_dup("");
+            }
+
+            sprintf(buf, "Multifactor auth has been disabled for account %s.\n\r", account->username);
+            send_to_char(buf, ch);
+            save_account(account);
+
+            free_account(account);
+            d.account = NULL;
+        }
+        else
+        {
+            send_to_char("That account does not exist.\n\r", ch);
+            return;
+        }
+    }
+    else
+    {
+        // Character MFA reset code
+        if ((player_exists(target)))
+        {
+            if ((victim = get_char_world(ch, target)) == NULL)
+            {
+                if (!load_char_obj(&d, target))
+                {
+                    send_to_char("That player does not exist.\n\r", ch);
+                    return;
+                }
+                else
+                {
+                    d.character->desc = NULL;
+
+                    // Check if MFA is enabled or has any MFA data set
+                    if (!d.character->pcdata->mfa_enabled && 
+                        IS_NULLSTR(d.character->pcdata->mfa_key)) 
+                        //d.character->pcdata->qr_code_expiration == 0)
+                    {
+                        sprintf(buf, "Multifactor auth is not enabled for %s.\n\r", d.character->name);
+                        send_to_char(buf, ch);
+                        free_char(d.character);
+                        return;
+                    }
+
+                    // Reset MFA settings
+                    d.character->pcdata->mfa_enabled = FALSE;
+                    
+                    if (!IS_NULLSTR(d.character->pcdata->mfa_key))
+                    {
+                        free_string(d.character->pcdata->mfa_key);
+                        d.character->pcdata->mfa_key = str_dup("");
+                    }
+                    
+                    //d.character->pcdata->qr_code_expiration = 0;
+
+                    sprintf(buf, "Multifactor auth has been disabled for %s.\n\r", d.character->name);
+                    send_to_char(buf, ch);
+                    save_char_obj(d.character);
+                    free_char(d.character);
+                }
+            }
+            else
+            {
+                // Check if MFA is enabled for online character
+                if (!victim->pcdata->mfa_enabled && 
+                    IS_NULLSTR(victim->pcdata->mfa_key)) 
+                    //victim->pcdata->qr_code_expiration == 0)
+                {
+                    sprintf(buf, "Multifactor auth is not enabled for %s.\n\r", victim->name);
+                    send_to_char(buf, ch);
+                    return;
+                }
+
+                // Reset MFA for online character
+                victim->pcdata->mfa_enabled = FALSE;
+                
+                if (!IS_NULLSTR(victim->pcdata->mfa_key))
+                {
+                    free_string(victim->pcdata->mfa_key);
+                    victim->pcdata->mfa_key = str_dup("");
+                }
+                
+                //victim->pcdata->qr_code_expiration = 0;
+
+                sprintf(buf, "Multifactor auth has been disabled for %s.\n\r", victim->name);
+                send_to_char(buf, ch);
+                save_char_obj(victim);
+            }
+        }
+        else
+        {
+            send_to_char("That player does not exist.\n\r", ch);
+            return;
+        }
+    }
 }
 
 void do_lvlaudit(CHAR_DATA *ch, char *argument)

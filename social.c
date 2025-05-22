@@ -154,7 +154,7 @@ void do_chat_enter(CHAR_DATA *ch, char *argument)
     {
 	char buf[MAX_STRING_LENGTH];
 
-	sprintf(buf, "do_chat_enter: %s with null in_room!",
+	snprintf(buf, sizeof(buf), "do_chat_enter: %s with null in_room!",
 		ch->name);
 	bug(buf, 0);
 	return;
@@ -230,7 +230,7 @@ void do_chat_exit(CHAR_DATA *ch, char *argument)
     location_clear(&ch->before_social);
 
     if (!room) {
-	sprintf(buf, "do_chat_exit: before_social room was null!");
+    snprintf(buf, sizeof(buf), "do_chat_exit: before_social room was null!");
 	bug(buf, 0);
 
 	room = room_index_temple;
@@ -350,7 +350,7 @@ void do_chat_join(CHAR_DATA *ch, char *argument)
     room = get_room_index(area_chat, chat->vnum);
     if (room == NULL)
     {
-	sprintf(buf, "do_chat_join: %s, %s had null chat->vnum\n\r",
+    snprintf(buf, sizeof(buf),  "do_chat_join: %s, %s had null chat->vnum\n\r",
 		ch->name,
 		chat->name);
 	bug(buf, 0);
@@ -723,7 +723,7 @@ bool is_op(CHAT_ROOM_DATA *chat, char *arg)
 
     if (chat == NULL)
     {
-	sprintf(buf, "is_op: null chat_room");
+    snprintf(buf, sizeof(buf),  "is_op: null chat_room");
 	bug(buf, 0);
 	return false;
     }
@@ -1213,6 +1213,14 @@ void read_chat_rooms()
         exit(1);
     }
 
+        int c = fgetc(fp);
+    if (c == EOF) {
+        log_string("*** Chat room file is empty, skipping load.");
+        fclose(fp);
+        return;
+    }
+    ungetc(c, fp);
+
     counter = 0;
     count = fread_number(fp);
     if (count == 0)
@@ -1279,7 +1287,7 @@ void read_chat_rooms()
 
 	if (room == NULL)
 	{
-	    sprintf(buf, "read_chat_rooms: %s had null room!",
+	    snprintf(buf, sizeof(buf),  "read_chat_rooms: %s had null room!",
 	        chat->name);
 	    bug(buf, 0);
 	    exit(1);

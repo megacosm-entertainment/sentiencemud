@@ -32,7 +32,7 @@ void compile_error(char *msg)
 		add_buf(compile_err_buffer,msg);
 		add_buf(compile_err_buffer,"\n\r");
 	}
-	sprintf(buf, "SCRIPT ERROR: %s", msg);
+	snprintf(buf,sizeof(buf), "SCRIPT ERROR: %s", msg);
 	bug(buf,0);
 }
 
@@ -43,7 +43,7 @@ void compile_error_show(char *msg)
 		add_buf(compile_err_buffer,msg);
 		add_buf(compile_err_buffer,"\n\r");
 	} else {
-		sprintf(buf, "SCRIPT ERROR: %s", msg);
+		snprintf(buf,sizeof(buf), "SCRIPT ERROR: %s", msg);
 		bug(buf,0);
 	}
 }

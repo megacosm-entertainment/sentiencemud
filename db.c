@@ -62,6 +62,28 @@ time_t time(time_t *tloc);
 #endif
 */
 
+#define BOOT_ERROR_MAX (1024 * 1024) // 1MB buffer for boot errors
+static char boot_error_buf[BOOT_ERROR_MAX];
+static size_t boot_error_len = 0;
+
+// Central boot error logging function
+void boot_error_log(const char *fmt, ...)
+{
+    va_list args;
+    char tmp[1024];
+    va_start(args, fmt);
+    vsnprintf(tmp, sizeof(tmp), fmt, args);
+    va_end(args);
+
+    size_t tmp_len = strlen(tmp);
+    if (boot_error_len + tmp_len + 2 < BOOT_ERROR_MAX) {
+        strcpy(boot_error_buf + boot_error_len, tmp);
+        boot_error_len += tmp_len;
+        boot_error_buf[boot_error_len++] = '\n';
+        boot_error_buf[boot_error_len] = '\0';
+    }
+}
+
 // VERSION_ROOM_002 special defines
 #define VR_002_EX_LOCKED		(C)
 #define VR_002_EX_PICKPROOF		(F)
@@ -199,6 +221,7 @@ SECTOR_DATA *gsct_underwater_noswim;
 SECTOR_DATA *gsct_underwater_swim;
 
 LLIST *commands_list = NULL;
+LLIST *pending_changes = NULL;
 
 
 void free_room_index( ROOM_INDEX_DATA *pRoom );
@@ -325,6 +348,8 @@ char			bug_buf[2*MAX_INPUT_LENGTH];
 char *			help_greeting;
 char			log_buf[2*MAX_INPUT_LENGTH];
 char			*reboot_by;
+char 			*reboot_reason;
+bool			reboot_shutdown;
 int				down_timer;
 int				pre_reckoning;
 int				reckoning_duration = 30;
@@ -1075,6 +1100,7 @@ LLIST *loaded_objects;
 LLIST *persist_mobs;
 LLIST *persist_objs;
 LLIST *persist_rooms;
+LLIST *loaded_accounts;
 
 TOKEN_DATA *global_tokens = NULL;
 
@@ -1622,6 +1648,8 @@ void boot_db(void)
     FILE *fp;
 	static GLOBAL_DATA gconfig_zero;
 
+		// If shutdown.txt exists, nuke it.
+	unlink(SHUTDOWN_FILE);
 
 	wnum_zero.pArea = NULL;
 	wnum_zero.vnum = 0;
@@ -1725,6 +1753,12 @@ void boot_db(void)
 	loaded_dungeons = list_create(false);
 	loaded_ships = list_create(false);
 	loaded_special_keys = list_create(false);
+    /* First initialize the pending changes list */
+    if (!pending_changes)
+        pending_changes = list_create(false);
+    
+    /* Load settings and changesets */
+    load_changesets();
 
     /*
      * Read in all the area files.
@@ -1745,23 +1779,26 @@ void boot_db(void)
 			AREA_DATA *area;
 			LLIST_AREA_DATA *link;
 
-			strcpy(strArea, fread_word(fpList));
-			if (strArea[0] == '$')
-				break;
+            strcpy(strArea, fread_word(fpList));
+            if (strArea[0] == '$')
+                break;
 
-			log_string(strArea);
+            log_string(strArea);
 
-			// Skip these, they are loaded separately
-			if (!str_cmp(strArea, "help.are") || !str_cmp(strArea, "social.are"))
-				continue;
+            // Skip these, they are loaded separately
+            if (!str_cmp(strArea, "help.are") || !str_cmp(strArea, "social.are"))
+                continue;
 
-			if ((fpArea = fopen(strArea, "r")) == NULL) {
-				perror(strArea);
-				exit(2);		// NIBS: changed this so we know it exited because of this
-			}
+            char area_path[MAX_STRING_LENGTH];
+            sprintf(area_path, "%s%s", AREA_DIR, strArea);
 
-			sprintf(log_buf, "Loading areafile '%s'", strArea);
-			log_string(log_buf);
+            if ((fpArea = fopen(area_path, "r")) == NULL) {
+                perror(area_path);
+                exit(2);        // NIBS: changed this so we know it exited because of this
+            }
+
+            sprintf(log_buf, "Loading areafile '%s'", strArea);
+            log_string(log_buf);
 
 			area = read_area_new(fpArea);
 			if (area)
@@ -1951,6 +1988,10 @@ void boot_db(void)
     check_area_versions();
 
     gconfig_write();
+
+	// Send boot errors to coders staff duty
+    send_boot_errors_to_coders();
+
 }
 
 void resolve_reputations()
@@ -2277,7 +2318,7 @@ void fix_mobiles(void)
 							resolve_wnum_load(&trigger->wnum_load, &trigger->wnum, pArea);						
 							if (!(trigger->script = get_script_index(trigger->wnum.pArea, trigger->wnum.vnum, PRG_MPROG))) {
 								// TODO: Better widevnum reporting
-								sprintf(buf, "Fix_mobiles: code widevnum %ld#%ld not found on mob %s.", trigger->wnum_load.auid, trigger->wnum_load.vnum, widevnum_string_mobile(mob, NULL));
+								snprintf(buf, sizeof(buf), "Fix_mobiles: code widevnum %ld#%ld not found on mob %s.", trigger->wnum_load.auid, trigger->wnum_load.vnum, widevnum_string_mobile(mob, NULL));
 								bug(buf, 0);
 
 //							bug("Fix_mobprogs: code wnum %d not found.", trigger->wnum.);
@@ -4054,7 +4095,7 @@ CHAR_DATA *clone_mobile(CHAR_DATA *parent)
 }
 
 
-OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects, bool multitypes)
+OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects, bool multitypes, bool add_to_loaded_objs)
 {
     AFFECT_DATA *paf;
     SPELL_DATA *spell, *spell_new;
@@ -4189,8 +4230,11 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
     obj->version = VERSION_OBJECT_000;
     obj->locker = false;
 
-	list_appendlink(loaded_objects, obj);
-    pObjIndex->count++;
+	if (add_to_loaded_objs)
+	{
+		list_appendlink(loaded_objects, obj);
+    	pObjIndex->count++;
+	}
 
 
     /* If loading a relic for whatever reason, update the pointers here.*/
@@ -4229,7 +4273,7 @@ OBJ_DATA *create_object(OBJ_INDEX_DATA *pObjIndex, int level, bool affects)
 {
     OBJ_DATA *obj;
 
-    obj = create_object_noid(pObjIndex,level,affects,true);
+    obj = create_object_noid(pObjIndex,level,affects,true, true);
 
 	if( obj )
 	{
@@ -5251,6 +5295,12 @@ char *fread_word(FILE *fp)
     static char word[MAX_INPUT_LENGTH];
     char *pword;
     char cEnd;
+	char buf[MAX_STRING_LENGTH];
+
+	if (feof(fp)) {
+    bug("Fread_word: EOF encountered", 0);
+    return str_dup("");
+}
 
     do
     {
@@ -5280,8 +5330,9 @@ char *fread_word(FILE *fp)
 	    return word;
 	}
     }
+	sprintf(buf, "Fread_word: word too long (%s).", word);
+	bug(buf, 0);
 
-    bug("Fread_word: word too long.", 0);
     exit(1);
     return NULL;
 }
@@ -5892,32 +5943,36 @@ void bug(const char *str, int param)
 
     if (fpArea != NULL)
     {
-	int iLine;
-	int iChar;
+        int iLine;
+        int iChar;
 
-	if (fpArea == stdin)
-	{
-	    iLine = 0;
-	}
-	else
-	{
-	    iChar = ftell(fpArea);
-	    fseek(fpArea, 0, 0);
-	    for (iLine = 0; ftell(fpArea) < iChar; iLine++)
-	    {
-		while (getc(fpArea) != '\n')
-		    ;
-	    }
-	    fseek(fpArea, iChar, 0);
-	}
+        if (fpArea == stdin)
+        {
+            iLine = 0;
+        }
+        else
+        {
+            iChar = ftell(fpArea);
+            fseek(fpArea, 0, 0);
+            for (iLine = 0; ftell(fpArea) < iChar; iLine++)
+            {
+                while (getc(fpArea) != '\n')
+                    ;
+            }
+            fseek(fpArea, iChar, 0);
+        }
 
-	sprintf(buf, "[*****] FILE: %s LINE: %d", strArea, iLine);
-	log_string(buf);
+        sprintf(buf, "[*****] FILE: %s LINE: %d", strArea, iLine);
+        log_string(buf);
+        if (fBootDb && game_settings.note_boot_errors)
+            boot_error_log("%s", buf);
     }
 
     strcpy(buf, "[*****] BUG: ");
     sprintf(buf + strlen(buf), str, param);
     log_string(buf);
+    if (fBootDb && game_settings.note_boot_errors)
+        boot_error_log("%s", buf);
 }
 
 
@@ -7919,7 +7974,7 @@ void persist_load_area_region(FILE *fp, AREA_DATA *area)
 			}
 
 			if (!fMatch) {
-				sprintf(buf, "persist_load_area_region: no match for word %s", word);
+				snprintf(buf, sizeof(buf), "persist_load_area_region: no match for word %s", word);
 				bug(buf, 0);
 				fread_to_eol(fp);
 			}
@@ -7974,7 +8029,7 @@ void persist_load_area(FILE *fp)
 			}
 
 			if (!fMatch) {
-				sprintf(buf, "persist_load_area: no match for word %s", word);
+				snprintf(buf, sizeof(buf), "persist_load_area: no match for word %s", word);
 				bug(buf, 0);
 				fread_to_eol(fp);
 			}
@@ -8042,7 +8097,7 @@ AFFECT_DATA *persist_load_affect(FILE *fp)
 		}
 
 	    if (!fMatch) {
-		    sprintf(buf, "persist_load_affect: no match for word %s", word);
+		    snprintf(buf, sizeof(buf), "persist_load_affect: no match for word %s", word);
 		    bug(buf, 0);
 		    fread_to_eol(fp);
 	    }
@@ -8063,7 +8118,7 @@ TOKEN_DATA *persist_load_token(FILE *fp)
 
 	wnum = fread_widevnum(fp, 0);
 	if ((token_index = get_token_index_auid(wnum.auid, wnum.vnum)) == NULL) {
-		sprintf(buf, "persist_load_token: no token index found for vnum %ld#%ld", wnum.auid, wnum.vnum);
+		snprintf(buf, sizeof(buf), "persist_load_token: no token index found for vnum %ld#%ld", wnum.auid, wnum.vnum);
 		bug(buf, 0);
 		return NULL;
 	}
@@ -8129,7 +8184,7 @@ TOKEN_DATA *persist_load_token(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "persist_load_token: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "persist_load_token: no match for word %s", word);
 			bug(buf, 0);
 			fread_to_eol(fp);
 		}
@@ -8194,7 +8249,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 	if( !obj_index )
 		return NULL;
 
-	obj = create_object_noid(obj_index, -1, false, false);
+	obj = create_object_noid(obj_index, -1, false, false, false);
 	if( !obj )
 		return NULL;
 	obj->version = VERSION_OBJECT_000;
@@ -8878,7 +8933,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 						spell->next = obj->spells;
 						obj->spells = spell;
 					} else {
-						sprintf(buf, "Bad spell name for %s (%ld).", obj->short_descr, obj->pIndexData->vnum);
+						snprintf(buf, sizeof(buf), "Bad spell name for %s (%ld).", obj->short_descr, obj->pIndexData->vnum);
 						bug(buf,0);
 					}
 				}
@@ -9457,7 +9512,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 					if( toxin < MAX_TOXIN)
 						ch->toxin[toxin] = fread_number(fp);
 					else {
-						sprintf(buf,"%s:%s bad toxin type", __FILE__, __FUNCTION__);
+						snprintf(buf, sizeof(buf), "%s:%s bad toxin type", __FILE__, __FUNCTION__);
 						bug(buf, 0);
 						fread_to_eol(fp);
 					}
@@ -9728,7 +9783,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 		wilds = get_wilds_from_uid(NULL, w);
 
 		if( !wilds ) {
-			sprintf(buf, "persist_load_room: undefined wilds uid %d.", w);
+			snprintf(buf, sizeof(buf), "persist_load_room: undefined wilds uid %d.", w);
 			bug(buf,0);
 			return NULL;
 		}
@@ -9738,7 +9793,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 			room = create_wilds_vroom(wilds, x, y);
 
 			if( !room ) {
-				sprintf(buf, "persist_load_room: unable to create vroom for wilds %d at (%d,%d).", w, x, y);
+				snprintf(buf, sizeof(buf), "persist_load_room: unable to create vroom for wilds %d at (%d,%d).", w, x, y);
 				bug(buf,0);
 				return NULL;
 			}
@@ -9771,7 +9826,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 		if( !room ) {
 			room = create_virtual_room_nouid( source, false, false, false );
 			if( !room ) {
-				sprintf(buf, "persist_load_room: could not create clone room for %ld#%ld with uid %9d:%9d.", wnum.auid, wnum.vnum, x, y);
+				snprintf(buf, sizeof(buf), "persist_load_room: could not create clone room for %ld#%ld with uid %9d:%9d.", wnum.auid, wnum.vnum, x, y);
 				bug(buf,0);
 				return NULL;
 			}
@@ -10047,7 +10102,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 
 					// This is non-fatal if non-existant.  It will just clear it.
 					if( !wilds ) {
-						sprintf(buf, "persist_load_room: undefined wilds UID for viewwilds %d.", w);
+						snprintf(buf, sizeof(buf), "persist_load_room: undefined wilds UID for viewwilds %d.", w);
 						bug(buf,0);
 					}
 
@@ -10063,7 +10118,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 				if( !str_cmp(word, "XYZ") ) {
 					if( room->wilds ) {
 						fread_to_eol(fp);
-						sprintf(buf, "persist_load_room: XYZ coordinates found for wilds room %ld @ (%ld, %ld).", room->wilds->uid, room->x, room->y);
+						snprintf(buf, sizeof(buf), "persist_load_room: XYZ coordinates found for wilds room %ld @ (%ld, %ld).", room->wilds->uid, room->x, room->y);
 						bug(buf,0);
 					} else {
 						room->x = fread_number(fp);
@@ -10166,86 +10221,93 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 
 bool persist_load(void)
 {
-	FILE *fp;
-	char *word;
-	CHAR_DATA *ch;
-	OBJ_DATA *obj;
-	ROOM_INDEX_DATA *room;
-	bool good = true;
+    FILE *fp;
+    char *word;
+    CHAR_DATA *ch;
+    OBJ_DATA *obj;
+    ROOM_INDEX_DATA *room;
+    bool good = true;
 
-	log_string("persist_load: loading persist entities...");
+    log_string("persist_load: loading persist entities...");
 
-	if (!(fp = fopen(PERSIST_FILE, "r"))) {
-		bug("persist.dat: Couldn't open file.",0);
-		return true;
-	} else {
-		while(good) {
-			word = fread_word(fp);
+    if (!(fp = fopen(PERSIST_FILE, "r"))) {
+        bug("persist.dat: Couldn't open file.",0);
+        return true;
+    } else {
+        // Check for empty file
+        int c = fgetc(fp);
+        if (c == EOF) {
+            fclose(fp);
+            log_string("persist_load: persist file is empty.");
+            return true;
+        }
+        ungetc(c, fp);
 
-			if(!str_cmp(word,"#AREA")) {
-				persist_load_area(fp);
+        while(good) {
+            word = fread_word(fp);
 
-			} else if(!str_cmp(word,"#ROOM")) {
-				room = persist_load_room(fp, 'R');
-				if(!room) good = false;
+            if(!str_cmp(word,"#AREA")) {
+                persist_load_area(fp);
 
-			} else if(!str_cmp(word,"#VROOM")) {
-				room = persist_load_room(fp, 'V');
-				if(!room) good = false;
+            } else if(!str_cmp(word,"#ROOM")) {
+                room = persist_load_room(fp, 'R');
+                if(!room) good = false;
 
+            } else if(!str_cmp(word,"#VROOM")) {
+                room = persist_load_room(fp, 'V');
+                if(!room) good = false;
 
-			} else if(!str_cmp(word,"#CROOM")) {
-				room = persist_load_room(fp, 'C');
-				if(room) {
-					variable_dynamic_fix_clone_room(room);
-					persist_fix_environment_room(room);
-				} else
-					good = false;
+            } else if(!str_cmp(word,"#CROOM")) {
+                room = persist_load_room(fp, 'C');
+                if(room) {
+                    variable_dynamic_fix_clone_room(room);
+                    persist_fix_environment_room(room);
+                } else
+                    good = false;
 
-			} else if(!str_cmp(word,"#MOBILE")) {
-				ch = persist_load_mobile(fp);
+            } else if(!str_cmp(word,"#MOBILE")) {
+                ch = persist_load_mobile(fp);
 
-				if( ch ) {
-					if( ch->in_room ) {
-						char_to_room(ch, ch->in_room);
-						variable_dynamic_fix_mobile(ch);
-						persist_fix_environment_mobile(ch);
-					} else {
-						extract_char(ch,true);
-						good = false;
-					}
-				} else
-					good = false;
-			} else if(!str_cmp(word,"#OBJECT")) {
-				obj = persist_load_object(fp);
+                if( ch ) {
+                    if( ch->in_room ) {
+                        char_to_room(ch, ch->in_room);
+                        variable_dynamic_fix_mobile(ch);
+                        persist_fix_environment_mobile(ch);
+                    } else {
+                        extract_char(ch,true);
+                        good = false;
+                    }
+                } else
+                    good = false;
+            } else if(!str_cmp(word,"#OBJECT")) {
+                obj = persist_load_object(fp);
 
-				if( obj ) {
-					obj->locker = false;
-					if( obj->in_room ) {
-						obj_to_room(obj, obj->in_room);
-						variable_dynamic_fix_object(obj);
-						persist_fix_environment_object(obj);
-					} else {
-						extract_obj(obj);
-						good = false;
-					}
-				} else
-					good = false;
+                if( obj ) {
+                    obj->locker = false;
+                    if( obj->in_room ) {
+                        obj_to_room(obj, obj->in_room);
+                        variable_dynamic_fix_object(obj);
+                        persist_fix_environment_object(obj);
+                    } else {
+                        extract_obj(obj);
+                        good = false;
+                    }
+                } else
+                    good = false;
 
-			} else if(!str_cmp(word,"#END"))
-				break;
-		}
+            } else if(!str_cmp(word,"#END"))
+                break;
+        }
 
-		fclose(fp);
-	}
+        fclose(fp);
+    }
 
-	if(good)
-		log_string("persist_load: done...");
-	else
-		log_string("persist_load: error...");
+    if(good)
+        log_string("persist_load: done...");
+    else
+        log_string("persist_load: error...");
 
-
-	return good;
+    return good;
 }
 
 bool save_instances()
@@ -10353,8 +10415,8 @@ void load_instances()
 		}
 
 		if (!fMatch) {
-			char buf[MSL];
-			sprintf(buf, "load_instances: no match for word %.50s", word);
+			char buf[MSL-1];
+			snprintf(buf, sizeof(buf), "load_instances: no match for word %.50s", word);
 			bug(buf, 0);
 		}
 
@@ -10366,3 +10428,65 @@ void load_instances()
 }
 
 
+void send_boot_errors_to_coders()
+{
+    if (boot_error_len == 0)
+        return;
+
+    const size_t chunk_size = 3800; // Leave room for headers, etc.
+    size_t offset = 0;
+    int note_num = 1;
+
+    // Get boot time string
+    char timebuf[64];
+    time_t now = current_time;
+    struct tm *tm_info = localtime(&now);
+    strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S", tm_info);
+
+    while (offset < boot_error_len) {
+        size_t len = (boot_error_len - offset > chunk_size) ? chunk_size : boot_error_len - offset;
+
+        // Find the last newline within the chunk
+        size_t end = offset + len;
+        if (end < boot_error_len) {
+            size_t last_nl = offset;
+            for (size_t i = offset; i < end; ++i) {
+                if (boot_error_buf[i] == '\n')
+                    last_nl = i + 1;
+            }
+            // If we found a newline, break there; otherwise, use the chunk size
+            if (last_nl > offset)
+                end = last_nl;
+        } else {
+            end = boot_error_len;
+        }
+
+        size_t note_len = end - offset;
+        char note_body[4000];
+        if (note_len >= sizeof(note_body))
+            note_len = sizeof(note_body) - 1;
+        strncpy(note_body, boot_error_buf + offset, note_len);
+        note_body[note_len] = '\0';
+
+        // Compose and send the note
+        NOTE_DATA *note = new_note();
+        note->sender = str_dup("Boot System");
+        note->to_staff_duties = str_dup("coder 'head coder'");
+
+        char subj[256];
+        snprintf(subj, sizeof(subj), "Boot Errors [%s] (Part %d)", timebuf, note_num);
+        note->subject = str_dup(subj);
+		note->date_stamp = current_time + note_num;
+        note->text = str_dup(note_body);
+        note->date = str_dup(timebuf);
+        note->type = NOTE_NOTE;
+        note->recipient_type = NOTE_RECIPIENT_STAFF_DUTY;
+
+        append_note(note);
+
+        offset = end;
+        note_num++;
+    }
+    boot_error_len = 0;
+    boot_error_buf[0] = '\0';
+}

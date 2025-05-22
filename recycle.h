@@ -96,6 +96,15 @@ void	free_pcdata args( (PC_DATA *pcdata) );
 #undef PD
 #undef CD
 
+#define AD ACCOUNT_DATA
+#define AC ACCOUNT_CHARACTER
+AD	*new_account args( (void) );
+void     free_account args( (ACCOUNT_DATA *account) );
+AC     *new_account_char args( (void) );
+void     free_account_char args( (ACCOUNT_CHARACTER *account) );
+#undef ACD
+#undef AD
+
 AREA_REGION *new_area_region();
 void free_area_region(AREA_REGION *region);
 

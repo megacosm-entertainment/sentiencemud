@@ -1137,6 +1137,28 @@ void interpret( CHAR_DATA *ch, char *argument )
 	}
     }
 
+	if (!IS_NPC(ch) && ch->pcdata->mfa_question)
+	{
+		if (command[0] != '\0')
+		{
+			    // Validate the MFA code
+        		if (check_mfa(ch, command)) {
+            		ch->pcdata->mfa_enabled = true;
+					//ch->pcdata->qr_code_expiration = 0;
+            		send_to_char("Your MFA key has been validated and enabled.\n\r", ch);
+        		} else {
+            		send_to_char("The code you provided is incorrect. Please try '2fa confirm' again.\n\r", ch);
+        		}
+				ch->pcdata->mfa_question = false;
+				return;
+		}
+		else
+		{
+			send_to_char("{YEnter your MFA code:{x ", ch);
+			return;
+		}
+	}
+
     if (!IS_NPC(ch) && ch->pcdata->inquiry_subject != NULL) {
 	if (command[0] != '\0') {
 	    sprintf(buf, "%s %s", command, argument);
@@ -1153,32 +1175,27 @@ void interpret( CHAR_DATA *ch, char *argument )
 	return;
     }
 
-    // Toggle church PK?
-    if (ch->pk_question)
+// Toggle church PK?
+if (ch->pk_question)
+{
+    if (!str_prefix(command, "yes"))
     {
-	char buf[MAX_STRING_LENGTH];
-
-	if (!str_prefix(command, "yes"))
-	{
-	    sprintf(buf, "{Y[%s is now a PLAYER KILLING church!]{x\n\r",
-		    ch->church->name );
-	    gecho( buf );
-	    ch->pk_question = false;
-	    ch->church->pk = true;
-	    return;
-	}
-	else
-        if (!str_prefix(command, "no"))
-        {
-	    ch->pk_question = false;
-	    return;
-	}
-	else
-	{
-	    send_to_char("Please answer yes or no.\n\r", ch);
-	    return;
-	}
+        // Call the central function to handle enabling PK
+        chtoggle_complete(ch, true);
+        ch->pk_question = false;
+        return;
     }
+    else if (!str_prefix(command, "no"))
+    {
+        ch->pk_question = false;
+        return;
+    }
+    else
+    {
+        send_to_char("Please answer yes or no.\n\r", ch);
+        return;
+    }
+}
 
     // Toggle personal PK?
     if (ch->personal_pk_question)

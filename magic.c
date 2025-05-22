@@ -1441,7 +1441,7 @@ bool can_gate(CHAR_DATA *ch, CHAR_DATA *victim)
 	if (!victim || !victim->in_room) {
 		send_to_char("They aren't anywhere in the world.\n\r", ch);
 
-		sprintf(buf, "can_gate: %s tried to gate to %s who had null in_room!",
+		snprintf(buf, sizeof(buf), "can_gate: %s tried to gate to %s who had null in_room!",
 			ch->name, (!victim) ? "nobody???" : victim->name);
 		bug(buf, 0);
 		return false;

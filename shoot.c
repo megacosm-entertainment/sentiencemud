@@ -343,7 +343,7 @@ void ranged_end( CHAR_DATA *ch )
 
     if ( ch->projectile_victim == NULL || ch->projectile_victim[0] == '\0' )
     {
-		sprintf( buf, "ranged_end: ch->projectile_victim NULL, ch %s!", ch->name);
+		snprintf( buf, sizeof(buf), "ranged_end: ch->projectile_victim NULL, ch %s!", ch->name);
 		bug( buf, 0 );
 		return;
     }

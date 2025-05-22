@@ -411,7 +411,7 @@ RACE_DATA *load_race(FILE *fp, bool playable)
 
 		if (!fMatch)
 		{
-			sprintf(buf, "load_race: no match for word %s", word);
+			snprintf(buf, sizeof(buf), "load_race: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -578,7 +578,7 @@ bool load_races()
 			}
 
 			if (!fMatch) {
-				sprintf(buf, "load_races: no match for word %s", word);
+				snprintf(buf, sizeof(buf), "load_races: no match for word %s", word);
 				bug(buf, 0);
 			}
 		}
