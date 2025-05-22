@@ -4122,13 +4122,9 @@ if (list_churches != NULL) {
     if (list_churches->size > 1) {
         list_quicksort(list_churches, cmp_church_uid);
     }
-    // After sorting list_churches, the raw church_list pointer
-    // should be updated to the head of the sorted LLIST.
-    church_list = (CHURCH_DATA *)list_churches->head;
-} else {
-    // This case implies no churches were loaded into list_churches
-    church_list = NULL;
+
 }
+
         if (church_list != NULL && church_list->next != NULL) {
         bool swapped;
         CHURCH_DATA *ptr;
