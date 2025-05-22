@@ -601,6 +601,10 @@ DECLARE_DO_FUN( do_dngedit	);
 DECLARE_DO_FUN( do_dnglist	);
 DECLARE_DO_FUN( do_dngshow	);
 
+DECLARE_DO_FUN( do_dlgedit	);
+DECLARE_DO_FUN( do_dlglist	);
+DECLARE_DO_FUN( do_dlgshow	);
+
 DECLARE_DO_FUN( do_apdump 	);
 DECLARE_DO_FUN( do_ipdump 	);
 DECLARE_DO_FUN( do_dpdump 	);
@@ -697,4 +701,3 @@ DECLARE_DO_FUN( do_lvlaudit );
 DECLARE_DO_FUN( do_keygen );
 
 DECLARE_DO_FUN( do_diallist );
-DECLARE_DO_FUN( do_dialstart );

@@ -67,6 +67,7 @@ char *editor_name_table[] = {
 	"SectorEdit",
 	"CorpsEdit",
 	"CMDEdit",
+	"DlgEdit",
 };
 
 int editor_max_tabs_table[] = {
@@ -103,6 +104,7 @@ int editor_max_tabs_table[] = {
 	0,		// SectorEdit
 	0,		// CorpsEdit
 	0,		// CMDEdit
+	0,		// DlgEDit
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -121,6 +123,7 @@ const struct editor_cmd_type editor_table[] =
 	{ "project",	do_pedit	},
 	{ "bpsect",		do_bsedit	},
 	{ "blueprint",	do_bpedit	},
+	{ "dialogue",	do_dlgedit	},
 	{ "dungeon",	do_dngedit	},
 	{ "aprog",		do_apedit	},
 	{ "iprog",		do_ipedit	},
@@ -505,6 +508,43 @@ const struct olc_cmd_type pedit_table[] =
 	{	NULL,		0			}
 };
 
+DO_FUN *olc_editors[ED_MAX] =
+{
+	NULL,
+	aedit,
+	redit,
+	oedit,
+	medit,
+	mpedit,
+	opedit,
+	rpedit,
+	shedit,
+	hedit,
+	tpedit,
+	tedit,
+	pedit,
+	NULL,		// ED_RSG
+	wedit,
+	vledit,
+	bsedit,
+	bpedit,
+	dngedit,
+	apedit,
+	ipedit,
+	dpedit,
+	skedit,
+	liqedit,
+	sgedit,
+	songedit,
+	repedit,
+	matedit,
+	clsedit,
+	raceedit,
+	sectoredit,
+	corpsedit,
+	cmdedit,
+	dlgedit
+};
 
 /* Executed from comm.c.  Minimizes compiling when changes are made. */
 bool run_olc_editor(DESCRIPTOR_DATA *d)
@@ -513,116 +553,16 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
 	// No OLC command should start with ' or ".
 	if (d->incomm[0] == '\'' || d->incomm[0] == '"') return false;
 
-	switch (d->editor)
+	if (d->editor > ED_NONE && d->editor < ED_MAX)
 	{
-	case ED_AREA:
-		aedit(d->character, d->incomm);
-		break;
-	case ED_ROOM:
-		redit(d->character, d->incomm);
-		break;
-	case ED_OBJECT:
-		oedit(d->character, d->incomm);
-		break;
-	case ED_MOBILE:
-		medit(d->character, d->incomm);
-		break;
-	case ED_MPCODE:
-		mpedit(d->character, d->incomm);
-		break;
-	case ED_OPCODE:
-		opedit(d->character, d->incomm);
-		break;
-	case ED_RPCODE:
-		rpedit(d->character, d->incomm);
-		break;
-	case ED_SHIP:
-		shedit(d->character, d->incomm);
-		break;
-	case ED_HELP:
-		hedit(d->character, d->incomm);
-		break;
-	case ED_TOKEN:
-		tedit(d->character, d->incomm);
-		break;
-	case ED_TPCODE:
-		tpedit(d->character, d->incomm);
-		break;
-	case ED_PROJECT:
-			pedit(d->character, d->incomm);
-		break;
-/* VIZZWILDS */
-	case ED_WILDS:
-		wedit(d->character, d->incomm);
-		break;
-	case ED_VLINK:
-		vledit(d->character, d->incomm);
-		break;
-
-	case ED_BPSECT:
-		bsedit(d->character, d->incomm);
-		break;
-
-	case ED_BLUEPRINT:
-		bpedit(d->character, d->incomm);
-		break;
-
-	case ED_DUNGEON:
-		dngedit(d->character, d->incomm);
-		break;
-
-	case ED_APCODE:
-		apedit(d->character, d->incomm);
-		break;
-	case ED_IPCODE:
-		ipedit(d->character, d->incomm);
-		break;
-	case ED_DPCODE:
-		dpedit(d->character, d->incomm);
-		break;
-	case ED_SKEDIT:
-		skedit(d->character, d->incomm);
-		break;
-	case ED_LIQEDIT:
-		liqedit(d->character, d->incomm);
-		break;
-	case ED_SGEDIT:
-		sgedit(d->character, d->incomm);
-		break;
-	case ED_SONGEDIT:
-		songedit(d->character, d->incomm);
-		break;
-	case ED_REPEDIT:
-		repedit(d->character, d->incomm);
-		break;
-	case ED_MATEDIT:
-		matedit(d->character, d->incomm);
-		break;
-
-	case ED_CLSEDIT:
-		clsedit(d->character, d->incomm);
-		break;
-
-	case ED_RACEEDIT:
-		raceedit(d->character, d->incomm);
-		break;
-
-	case ED_SECTOREDIT:
-		sectoredit(d->character, d->incomm);
-		break;
-
-	case ED_CORPSEDIT:
-		corpsedit(d->character, d->incomm);
-		break;
-
-	case ED_CMDEDIT:
-        cmdedit(d->character, d->incomm);
-        break;
-
-	default:
-		return false;
+		if (olc_editors[d->editor] != NULL)
+		{
+			olc_editors[d->editor](d->character, d->incomm);
+			return true;
+		}
 	}
-	return true;
+
+	return false;
 }
 
 
@@ -694,6 +634,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 	SECTOR_DATA *sector;
 	CORPSE_TYPE *corpse;
 	CMD_DATA *command;
+	DIALOGUE_INDEX_DATA *dialogue;
 	static char buf[MIL];
 	char buf2[MSL];
 
@@ -895,6 +836,14 @@ char *olc_ed_vnum(CHAR_DATA *ch)
             sprintf(buf, "--");
         break;
 
+	case ED_DLGEDIT:
+		dialogue = (DIALOGUE_INDEX_DATA *)ch->desc->pEdit;
+		if (dialogue)
+			sprintf(buf, "%s", dialogue->name);
+		else
+			sprintf(buf, "--");
+		break;
+
 	default:
 		sprintf(buf, " ");
 		break;
@@ -907,6 +856,8 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 /* Format up the commands from given table. */
 void show_olc_cmds(CHAR_DATA *ch, const struct olc_cmd_type *olc_table)
 {
+	if (olc_table == NULL) return;
+
 	char buf  [ MAX_STRING_LENGTH ];
 	char buf1 [ MAX_STRING_LENGTH ];
 	int  cmd;
@@ -928,131 +879,52 @@ void show_olc_cmds(CHAR_DATA *ch, const struct olc_cmd_type *olc_table)
 	send_to_char(buf1, ch);
 }
 
+const struct olc_cmd_type *olc_cmd_tables[ED_MAX] =
+{
+	NULL,
+	aedit_table,
+	redit_table,
+	oedit_table,
+	medit_table,
+	mpedit_table,
+	opedit_table,
+	rpedit_table,
+	shedit_table,
+	hedit_table,
+	tpedit_table,
+	tedit_table,
+	pedit_table,
+	NULL,			// RSGEDIT - doesn't exist yet
+	wedit_table,
+	vledit_table,
+	bsedit_table,
+	bpedit_table,
+	dngedit_table,
+	apedit_table,
+	ipedit_table,
+	dpedit_table,
+	skedit_table,
+	liqedit_table,
+	sgedit_table,
+	songedit_table,
+	repedit_table,
+	matedit_table,
+	clsedit_table,
+	raceedit_table,
+	sectoredit_table,
+	corpsedit_table,
+	cmdedit_table,
+	dlgedit_table,
+};
+
 
 /* Display all OLC commands for your current editor */
 bool show_commands(CHAR_DATA *ch, char *argument)
 {
-	switch (ch->desc->editor)
+	if (ch->desc->editor > ED_NONE && ch->desc->editor < ED_MAX)
 	{
-	case ED_AREA:
-		show_olc_cmds(ch, aedit_table);
-		break;
-
-	case ED_ROOM:
-		show_olc_cmds(ch, redit_table);
-		break;
-
-	case ED_OBJECT:
-		show_olc_cmds(ch, oedit_table);
-		break;
-
-	case ED_MOBILE:
-		show_olc_cmds(ch, medit_table);
-		break;
-
-	case ED_MPCODE:
-		show_olc_cmds(ch, mpedit_table);
-		break;
-
-	case ED_OPCODE:
-		show_olc_cmds(ch, opedit_table);
-		break;
-
-	case ED_RPCODE:
-		show_olc_cmds(ch, rpedit_table);
-		break;
-
-	case ED_HELP:
-		show_olc_cmds(ch, hedit_table);
-		break;
-
-	case ED_SHIP:
-		show_olc_cmds(ch, shedit_table);
-		break;
-
-	case ED_TOKEN:
-		show_olc_cmds(ch, tedit_table);
-		break;
-
-	case ED_PROJECT:
-		show_olc_cmds(ch, pedit_table);
-		break;
-
-	case ED_WILDS:
-		show_olc_cmds (ch, wedit_table);
-		break;
-
-	case ED_VLINK:
-		show_olc_cmds (ch, vledit_table);
-		break;
-
-	case ED_BPSECT:
-		show_olc_cmds(ch, bsedit_table);
-		break;
-
-	case ED_BLUEPRINT:
-		show_olc_cmds(ch, bpedit_table);
-		break;
-
-	case ED_DUNGEON:
-		show_olc_cmds(ch, dngedit_table);
-		break;
-
-	case ED_APCODE:
-		show_olc_cmds(ch, apedit_table);
-		break;
-
-	case ED_IPCODE:
-		show_olc_cmds(ch, ipedit_table);
-		break;
-
-	case ED_DPCODE:
-		show_olc_cmds(ch, dpedit_table);
-		break;
-
-	case ED_SKEDIT:
-		show_olc_cmds(ch, skedit_table);
-		break;
-
-	case ED_LIQEDIT:
-		show_olc_cmds(ch, liqedit_table);
-		break;
-
-	case ED_SGEDIT:
-		show_olc_cmds(ch, sgedit_table);
-		break;
-
-	case ED_SONGEDIT:
-		show_olc_cmds(ch, songedit_table);
-		break;
-
-	case ED_REPEDIT:
-		show_olc_cmds(ch, repedit_table);
-		break;
-
-	case ED_MATEDIT:
-		show_olc_cmds(ch, matedit_table);
-		break;
-
-	case ED_CLSEDIT:
-		show_olc_cmds(ch, clsedit_table);
-		break;
-
-	case ED_RACEEDIT:
-		show_olc_cmds(ch, raceedit_table);
-		break;
-
-	case ED_SECTOREDIT:
-		show_olc_cmds(ch, sectoredit_table);
-		break;
-
-	case ED_CORPSEDIT:
-		show_olc_cmds(ch, corpsedit_table);
-		break;
-
-    case ED_CMDEDIT:
-        show_olc_cmds(ch, cmdedit_table);
-        break;
+		if (olc_cmd_tables[ch->desc->editor] != NULL)
+			show_olc_cmds(ch, olc_cmd_tables[ch->desc->editor]);
 	}
 
 	return false;
@@ -5745,4 +5617,192 @@ char *olc_show_script_status(SCRIPT_DATA *prog, int type)
         return status;
     }
     else return "Unknown";
+}
+
+
+
+
+
+
+
+const struct olc_cmd_type dlgedit_table[] =
+{
+    { "?",				show_help           },
+    { "comments",		dlgedit_comments },
+    { "complete",		dlgedit_complete },
+    { "create",			dlgedit_create  },
+    { "description",	dlgedit_description },
+	{ "flags",			dlgedit_flags	},
+    { "initialize",		dlgedit_initialize },
+    { "name",			dlgedit_name },
+    { "node",			dlgedit_node },
+    { "show",			dlgedit_show },
+	{ "test",			dlgedit_test }
+};
+
+void do_dlgedit(CHAR_DATA *ch, char *argument)
+{
+	DIALOGUE_INDEX_DATA *dlg;
+	char arg1[MSL];
+
+	argument = one_argument(argument, arg1);
+
+	if (IS_NPC(ch))
+		return;
+
+	if (arg1[0] != '\0')
+	{
+		if (!str_cmp(arg1, "create"))
+		{
+			if (dlgedit_create(ch, argument))
+				ch->desc->editor = ED_DLGEDIT;
+
+			return;
+		}
+
+		WNUM wnum;
+		if (!parse_widevnum(arg1, ch->in_room->area, &wnum) || !wnum.pArea || wnum.vnum <= 0)
+		{
+			send_to_char("Please specify a valid widevnum.\n\r", ch);
+			return;
+		}
+
+		dlg = get_dialogue_index(wnum.pArea, wnum.vnum);
+		if (!dlg)
+		{
+			send_to_char("No dialogue by that widevnum.\n\r", ch);
+			return;
+		}
+
+		ch->pcdata->immortal->last_olc_command = current_time;
+		olc_set_editor(ch, ED_DLGEDIT, dlg);
+		return;
+	}
+
+	send_to_char("Dlgedit:  There is no default dialogue to edit.\n\r", ch);
+}
+
+void dlgedit(CHAR_DATA *ch, char *argument)
+{
+	DIALOGUE_INDEX_DATA *dlg;
+
+	char command[MAX_INPUT_LENGTH];
+	char arg[MAX_STRING_LENGTH];
+	int  cmd;
+
+	EDIT_DIALOGUE(ch, dlg);
+
+	smash_tilde(argument);
+	strcpy(arg, argument);
+	argument = one_argument(argument, command);
+
+	if (!str_cmp(command, "done"))
+	{
+		edit_done(ch);
+		return;
+	}
+
+	ch->pcdata->immortal->last_olc_command = current_time;
+	if (command[0] == '\0')
+	{
+		dlgedit_show(ch, argument);
+		return;
+	}
+
+	for (cmd = 0; dlgedit_table[cmd].name != NULL; cmd++)
+	{
+		if (!str_prefix(command, dlgedit_table[cmd].name))
+		{
+			if ((*dlgedit_table[cmd].olc_fun) (ch, argument))
+			{
+				SET_BIT(dlg->area->area_flags, AREA_CHANGED);
+				return;
+			}
+			return;
+		}
+	}
+
+	interpret(ch, arg);
+}
+
+void do_dlglist(CHAR_DATA *ch, char *argument)
+{
+	if(!ch->lines)
+		send_to_char("{RWARNING:{W Having scrolling off may limit how many dungeons you can see.{x\n\r", ch);
+
+	AREA_DATA *area = ch->in_room->area;
+	int lines = 0;
+	bool error = false;
+	BUFFER *buffer = new_buf();
+	char buf[MSL];
+
+	for(long vnum = 1; vnum <= area->top_dialogue_vnum; vnum++)
+	{
+		DIALOGUE_INDEX_DATA *dlg = get_dialogue_index(area, vnum);
+
+		if( dlg )
+		{
+			sprintf(buf, "{Y[{W%5ld{Y] {x%-30.30s\n\r",
+				vnum,
+				dlg->name);
+
+			++lines;
+			if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
+			{
+				error = true;
+				break;
+			}
+		}
+	}
+
+	if( error )
+	{
+		send_to_char("Too many dialogues to list.  Please shorten!\n\r", ch);
+	}
+	else
+	{
+		if( !lines )
+		{
+			add_buf( buffer, "No dialogues to display.\n\r" );
+		}
+		else
+		{
+			// Header
+			send_to_char("Dialogues in current area.\n\r", ch);
+			send_to_char("{Y Vnum   [            Name            ]{x\n\r", ch);
+			send_to_char("{Y======================================={x\n\r", ch);
+
+			page_to_char(buffer->string, ch);
+		}
+	}
+	free_buf(buffer);
+
+}
+
+void do_dlgshow(CHAR_DATA *ch, char *argument)
+{
+	DIALOGUE_INDEX_DATA *dlg;
+	WNUM wnum;
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  dlgshow <widevnum>\n\r", ch);
+		return;
+	}
+
+	if (!parse_widevnum(argument, ch->in_room->area, &wnum))
+	{
+		send_to_char("Please specify a widevnum.\n\r", ch);
+		return;
+	}
+
+	if (!(dlg = get_dialogue_index(wnum.pArea, wnum.vnum)))
+	{
+		send_to_char("That dialogue does not exist.\n\r", ch);
+		return;
+	}
+
+	olc_show_item(ch, dlg, dlgedit_show, argument);
+	return;
+
 }

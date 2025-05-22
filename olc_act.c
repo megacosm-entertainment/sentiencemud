@@ -160,6 +160,7 @@ const struct olc_help_type help_table[] =
 	{	"material",				STRUCT_FLAGS,		material_flags,				"Material flags."	},
 	{	"materials",			STRUCT_MATERIAL,	NULL,						"Object materials."	},
 	{	"mprog",				STRUCT_TRIGGERS,	dummy_triggers,				"MobProgram types."	},
+	{	"node_types",			STRUCT_FLAGS,		dialogue_node_types,		"Dialogue Node Types"	},
 	{	"off",					STRUCT_FLAGS,		off_flags,					"Mobile offensive behaviour."	},
 	{	"oprog",				STRUCT_TRIGGERS,	dummy_triggers,				"ObjProgram types."	},
 	{	"part",					STRUCT_FLAGS,		part_flags,					"Mobile body parts."	},

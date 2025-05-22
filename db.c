@@ -5647,6 +5647,40 @@ void smash_tilde(char *str)
     }
 }
 
+bool char_in_str(const char *str, const char ch)
+{
+	if (ch == '\0') return false;
+
+	for(; *str && *str != ch; str++);
+
+	return (*str == ch);
+}
+
+// str_cmp but has a character limit.
+int str_n_cmp(const char *astr, const char *bstr, const int max_len)
+{
+    char ch;
+	int i = 0;
+    if (astr == NULL)
+    {
+	bug("Str_cmp: null astr.", 0);
+	return -1;
+    }
+
+    if (bstr == NULL)
+    {
+	bug("Str_cmp: null bstr.", 0);
+	return 1;
+    }
+
+    for (; (*astr || *bstr) && i < max_len; astr++, bstr++, i++) {
+	if ((ch = (LOWER(*astr) - LOWER(*bstr))))
+	    return ch;
+    }
+
+    return 0;
+}
+
 
 /* @@@NIB : 20070123 : Returns < 0 if A < B, > 0 if A > B, 0 if A = B*/
 int str_cmp(const char *astr, const char *bstr)

@@ -989,6 +989,18 @@ struct corpse_blend_type {
 	bool dual;	/* Whether type1/type2 are interchangeable; if so, both ways are checked */
 };
 
+
+#define DIALOGUE_TYPE_TEXT			0		// Displays a message
+#define DIALOGUE_TYPE_SET			1		// Sets a variable
+#define DIALOGUE_TYPE_CHOICE		2		// Presents a choice to the player
+#define DIALOGUE_TYPE_BRANCH		3		// Takes a branch based upon variables set
+#define DIALOGUE_TYPE_SCRIPT		4		// Execute mobile script
+#define DIALOGUE_TYPE_SPEECH		5		// Similar to TEXT but uses the speaker and processes the text like SAY command
+#define DIALOGUE_TYPE_TELEPORT		6		// Teleports the viewer and their entourage to the location.
+#define DIALOGUE_TYPE_FOR           7       // Iterates over a sequence of nodes before continuing
+#define DIALOGUE_TYPE_SEQUENCE      8       // Each time the node is executed, it will go to the next node in its list
+#define DIALOGUE_TYPE_RANDOM        9       // Picks a random node in its list as the next node.
+
 struct dialogue_index_type
 {
 	DIALOGUE_INDEX_DATA *next;
@@ -1016,6 +1028,7 @@ struct dialogue_index_type
 	LLIST *nodes;			// List of dialogue index nodes
 	long top_node_uid;
 
+    // Does this need to exist on the index?
     LLIST *areas;           // Area registry    (AREA_DATA *; prior to fix_dialogues: long *)
     LLIST *mobiles;         // Mobile registry  (MOB_INDEX_DATA *; prior to fix_dialogues: wnum_load *)
     LLIST *objects;         // Object registry  (OBJ_INDEX_DATA *; prior to fix_dialogues: wnum_load *)
@@ -1075,6 +1088,10 @@ struct dialogue_index_node_type
 	LLIST *options;					// List of options (CHOICE/BRANCH nodes)
 
     int destination;                // Room number for destination (TELEPORT nodes)
+
+    DIALOGUE_INDEX_NODE *for_child; // FOR node
+    int for_total;                  // FOR node
+
     DIALOGUE_INDEX_NODE *child;
 };
 
@@ -1156,6 +1173,11 @@ struct dialogue_node_type
 	char *value;					// Set node
 
     int destination;                // Teleport node
+    DIALOGUE_NODE *for_child;       // FOR node
+    int for_total;                  // FOR node
+    int for_index;                  // FOR node
+
+    int sequence;                 // SEQUENCE node
 };
 
 struct dialogue_type
@@ -10924,6 +10946,8 @@ long     number_mm       args( ( void ) );
 long	dice		args( ( int number, int size ) );
 int	interpolate	args( ( int level, int value_00, int value_32 ) );
 void	smash_tilde	args( ( char *str ) );
+bool char_in_str        args( (const char *str, const char ch) );
+int	str_n_cmp				args( ( const char *astr, const char *bstr, const int len ) );
 int	str_cmp				args( ( const char *astr, const char *bstr ) );
 int str_cmp_nocolour	args( ( const char *astr, const char *bstr ) );
 bool	str_prefix	args( ( const char *astr, const char *bstr ) );
@@ -12959,13 +12983,12 @@ DIALOGUE_INDEX_DATA *get_dialogue_index(AREA_DATA *area, long vnum);
 DIALOGUE_INDEX_DATA *get_dialogue_index_wnum(WNUM wnum);
 DIALOGUE_INDEX_DATA *get_dialogue_index_auid(long auid, long vnum);
 void show_dialogue_choices(CHAR_DATA *ch);
-bool start_dialogue(CHAR_DATA *ch, DIALOGUE_INDEX_DATA *index, DIALOGUE_CALLBACK cb);
+bool start_dialogue(CHAR_DATA *ch, DIALOGUE *dialogue, DIALOGUE_CALLBACK cb);
 void handle_dialogue(CHAR_DATA *ch);
 void handle_dialogue_choice(CHAR_DATA *ch, char *input);
 
 DIALOGUE_INDEX_DATA *read_dialogue_index(FILE *fp, AREA_DATA *area);
 void save_dialogues(FILE *fp, AREA_DATA *area);
-bool start_dialogue(CHAR_DATA *ch, DIALOGUE_INDEX_DATA *index, DIALOGUE_CALLBACK cb);
 bool set_dialogue_mobile(DIALOGUE *dialogue, int m, MOB_INDEX_DATA *mob);
 bool set_dialogue_object(DIALOGUE *dialogue, int o, OBJ_INDEX_DATA *obj);
 bool set_dialogue_room(DIALOGUE *dialogue, int r, ROOM_INDEX_DATA *room);

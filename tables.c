@@ -4587,6 +4587,9 @@ const struct do_func_type do_func_table[] =
         { "do_disembark",                       do_disembark },
         { "do_dislink",                 do_dislink },
         { "do_dismount",                        do_dismount },
+        { "do_dlgedit",                 do_dlgedit },
+        { "do_dlglist",                 do_dlglist },
+        { "do_dlgshow",                 do_dlgshow },
         { "do_dngedit",                 do_dngedit },
         { "do_dnglist",                 do_dnglist },
         { "do_dngshow",                 do_dngshow },
@@ -4973,6 +4976,20 @@ const struct do_func_type do_func_table[] =
         { "do_lvlaudit",                do_lvlaudit },
         { "do_keygen",                  do_keygen },
         { "do_diallist",                do_diallist },
-        { "do_dialstart",                do_dialstart },
-        { NULL,                         NULL },
+        { NULL,                         NULL }
+};
+
+const struct flag_type dialogue_node_types[] =
+{
+    {   "branch",       DIALOGUE_TYPE_BRANCH,   true },
+    {   "choice",       DIALOGUE_TYPE_CHOICE,   true },
+    {   "for",          DIALOGUE_TYPE_FOR,      true },
+    {   "random",       DIALOGUE_TYPE_RANDOM,   true },
+    {   "script",       DIALOGUE_TYPE_SCRIPT,   true },
+    {   "sequence",     DIALOGUE_TYPE_SEQUENCE, true },
+    {   "set",          DIALOGUE_TYPE_SET,      true },
+    {   "speech",       DIALOGUE_TYPE_SPEECH,   true },
+    {   "teleport",     DIALOGUE_TYPE_TELEPORT, true },
+    {   "text",         DIALOGUE_TYPE_TEXT,     true },
+    {	NULL,			0,	0			}
 };

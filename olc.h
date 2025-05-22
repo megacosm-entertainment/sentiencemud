@@ -62,6 +62,8 @@
 #define ED_SECTOREDIT	30
 #define ED_CORPSEDIT	31
 #define ED_CMDEDIT		32
+#define ED_DLGEDIT		33
+#define ED_MAX			34
 
 #define AEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define HEDIT( fun )            bool fun( CHAR_DATA *ch, char *argument )
@@ -92,6 +94,7 @@
 #define SECTOREDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define CORPSEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define CMDEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
+#define DLGEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 
 
 /*
@@ -137,6 +140,7 @@ void	sectoredit  ( CHAR_DATA *ch, char *argument );
 void	corpsedit  ( CHAR_DATA *ch, char *argument );
 
 void	cmdedit		(CHAR_DATA *ch, char *argument );
+void	dlgedit		(CHAR_DATA *ch, char *argument );
 
 /*
  * OLC Constants
@@ -212,6 +216,7 @@ extern const struct olc_cmd_type		raceedit_table[];
 extern const struct olc_cmd_type		sectoredit_table[];
 extern const struct olc_cmd_type		corpsedit_table[];
 extern const struct olc_cmd_type		cmdedit_table[];
+extern const struct olc_cmd_type		dlgedit_table[];
 
 /*
  * Editor Commands.
@@ -247,6 +252,8 @@ DECLARE_DO_FUN( do_raceedit );
 DECLARE_DO_FUN( do_sectoredit );
 DECLARE_DO_FUN( do_corpsedit );
 DECLARE_DO_FUN( do_cmdedit );
+
+DECLARE_DO_FUN( do_dlgedit );
 
 /*
  * Area Editor Prototypes
@@ -879,6 +886,16 @@ DECLARE_OLC_FUN( cmdedit_summary );
 DECLARE_OLC_FUN( cmdedit_order );
 DECLARE_OLC_FUN( cmdedit_additional );
 
+DECLARE_OLC_FUN( dlgedit_create );
+DECLARE_OLC_FUN( dlgedit_show );
+DECLARE_OLC_FUN( dlgedit_name );
+DECLARE_OLC_FUN( dlgedit_description );
+DECLARE_OLC_FUN( dlgedit_comments );
+DECLARE_OLC_FUN( dlgedit_node );
+DECLARE_OLC_FUN( dlgedit_flags );
+DECLARE_OLC_FUN( dlgedit_test ); 
+DECLARE_OLC_FUN( dlgedit_initialize ); 
+DECLARE_OLC_FUN( dlgedit_complete ); 
 
 /*
  * Macros
@@ -925,6 +942,8 @@ DECLARE_OLC_FUN( cmdedit_additional );
 #define EDIT_CORPSE(ch, corpse)		( corpse = (CORPSE_TYPE *)ch->desc->pEdit )
 
 #define EDIT_CMD(ch, command)		( command = (CMD_DATA *)ch->desc->pEdit )
+#define EDIT_DIALOGUE(ch, dlg)		( dlg = (DIALOGUE_INDEX_DATA *)ch->desc->pEdit )
+
 /*
  * Prototypes
  */

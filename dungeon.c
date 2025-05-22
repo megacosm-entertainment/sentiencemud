@@ -2998,7 +2998,7 @@ DNGEDIT( dngedit_create )
 
     if (!IS_BUILDER(ch, wnum.pArea))
     {
-		send_to_char("BpEdit:  widevnum in an area you cannot build in.\n\r", ch);
+		send_to_char("DngEdit:  widevnum in an area you cannot build in.\n\r", ch);
 		return false;
     }
 
@@ -3014,6 +3014,7 @@ DNGEDIT( dngedit_create )
 	wnum.pArea->bottom_dungeon_vnum = UMIN(wnum.pArea->bottom_dungeon_vnum, dng->vnum);
 	wnum.pArea->top_dungeon_vnum = UMAX(wnum.pArea->top_dungeon_vnum, dng->vnum);
 
+	send_to_char("Dungeon created.\n\r", ch);
     return true;
 }
 
