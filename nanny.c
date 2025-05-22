@@ -149,6 +149,7 @@ void login_get_account(DESCRIPTOR_DATA *d, char *argument)
 void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
 {
     ACCOUNT_DATA *acct = d->account;
+    bool password_ok = false;
     
     write_to_buffer(d, "\n\r", 2);
 
@@ -173,55 +174,101 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
             if (IS_NULLSTR(acct->email)) {
                 write_to_buffer(d, "You must have an email address set to reset your password.\n\r", 0);
                 write_to_buffer(d, "Please reach out to staff for assistance.\n\r", 0);
-                d->connected = CON_GET_ACCOUNT_PASSWORD;
+                // d->connected = CON_GET_ACCOUNT_PASSWORD; // Already in this state
                 return;
             } else {
                 write_to_buffer(d, "Please confirm your email address: ", 0);
-                d->connected = CON_CONFIRM_ACCOUNT_EMAIL_FOR_RESET;  // Changed to account-specific handler
+                d->connected = CON_CONFIRM_ACCOUNT_EMAIL_FOR_RESET;
                 return;
             }
         }
     }
 
-    // Check for reset code
+    // Check for reset code or password
     if (acct->reset_state == RESET_PENDING) {
-        if (strcmp(argument, acct->reset_code) && 
-            strcmp(sha256_crypt(argument), acct->passwd)) {
-            write_to_buffer(d, "Wrong reset code.\n\r", 0);
-            d->login_attempts++;
-            return;
-        }
-        
-        if ((current_time - acct->reset_time) > 86400) {
-            if (game_settings.enable_email)
-                write_to_buffer(d, "Reset code has expired. Please try resetting again.\n\r", 0);
-            else
-                write_to_buffer(d, "Reset code has expired. Please contact staff for assistance.\n\r", 0);
+        // Try reset code first
+        if (!IS_NULLSTR(acct->reset_code) && !strcmp(argument, acct->reset_code)) {
+            if ((current_time - acct->reset_time) > 86400) { // 24 hours
+                if (game_settings.enable_email)
+                    write_to_buffer(d, "Reset code has expired. Please try resetting again.\n\r", 0);
+                else
+                    write_to_buffer(d, "Reset code has expired. Please contact staff for assistance.\n\r", 0);
                 
-            acct->reset_state = NO_RESET;
-            free_string(acct->reset_code);
-            acct->reset_time = 0;
-            save_account(acct);
-            close_socket(d);
-            return;
-        }
-        
-        if (!str_cmp(argument, acct->reset_code)) {
+                acct->reset_state = NO_RESET;
+                free_string(acct->reset_code);
+                acct->reset_code = str_dup(""); // Ensure it's not NULL
+                acct->reset_time = 0;
+                save_account(acct);
+                close_socket(d); // Or return to account name prompt
+                return;
+            }
+            // Reset code accepted
             acct->reset_state = NO_RESET;
             free_string(acct->reset_code);
             acct->reset_code = str_dup("");
             acct->reset_time = 0;
+            if (acct->old_passwd) free_string(acct->old_passwd);
             acct->old_passwd = str_dup(acct->passwd);
             
             write_to_buffer(d, "Reset code accepted. You are required to set a new password.\n\r", 0);
-
+            write_to_buffer(d, "New Password: ", 0); // Prompt for new password
             d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
             return;
         }
+        // If not reset code, try password (tiered check)
+        // 1. Try new preferred method (system crypt())
+        if (acct->passwd && acct->passwd[0] != '\0') {
+            if (strcmp(crypt(argument, acct->passwd), acct->passwd) == 0) {
+                password_ok = true;
+            }
+        }
+        // 2. Fallback to current method (custom sha256_crypt()) if new one failed
+        if (!password_ok && acct->passwd && acct->passwd[0] != '\0') {
+            if (strcmp(sha256_crypt(argument), acct->passwd) == 0) {
+                password_ok = true;
+            }
+        }
+        // 3. Fallback to plaintext comparison if others failed
+        if (!password_ok && acct->passwd && acct->passwd[0] != '\0') {
+            if (strcmp(argument, acct->passwd) == 0) {
+                password_ok = true;
+                acct->passwd_version = 0; // Mark for forced update
+            }
+        }
+
+        if (!password_ok) { // If neither reset code nor password matched
+            write_to_buffer(d, "Wrong password or reset code.\n\r", 0);
+            d->login_attempts++;
+            write_to_buffer(d, "Password or Reset Code: ", 0);
+            return;
+        }
+        // If password_ok is true here, it means they entered their current password
+        // while a reset was pending. We can treat this as a successful login.
+        // The reset state will be cleared upon successful login further down.
+
+    } else { // Normal password check (no reset pending)
+        // 1. Try new preferred method (system crypt())
+        if (acct->passwd && acct->passwd[0] != '\0') {
+            if (strcmp(crypt(argument, acct->passwd), acct->passwd) == 0) {
+                password_ok = true;
+            }
+        }
+        // 2. Fallback to current method (custom sha256_crypt()) if new one failed
+        if (!password_ok && acct->passwd && acct->passwd[0] != '\0') {
+            if (strcmp(sha256_crypt(argument), acct->passwd) == 0) {
+                password_ok = true;
+            }
+        }
+        // 3. Fallback to plaintext comparison if others failed
+        if (!password_ok && acct->passwd && acct->passwd[0] != '\0') {
+            if (strcmp(argument, acct->passwd) == 0) {
+                password_ok = true;
+                acct->passwd_version = 0; // Mark for forced update
+            }
+        }
     }
 
-    // Normal password check
-    if (strcmp(sha256_crypt(argument), acct->passwd)) {
+    if (!password_ok) {
         // Log bad password attempts
         sprintf(log_buf, "Denying access to account %s@%s (bad password).",
             acct->username, d->host);
@@ -231,14 +278,30 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
             write_to_buffer(d, "Wrong password. Please try again, or use 'resetpassword' to reset.\n\r", 0);
         else
             write_to_buffer(d, "Wrong password. Please try again or reach out to staff for assistance.\n\r", 0);
-            
+        
+        write_to_buffer(d, "Password: ", 0); // Re-prompt
         d->login_attempts++;
         return;
     }
 
+    // Password is OK, proceed with login
+    d->login_attempts = 0; // Reset attempts on success
+
+    // Clear any pending password reset state as they've successfully logged in
+    if (acct->reset_state != NO_RESET) {
+        acct->reset_state = NO_RESET;
+        if (acct->reset_code) free_string(acct->reset_code);
+        acct->reset_code = str_dup("");
+        acct->reset_time = 0;
+        // old_passwd might have been set if they used a reset code, clear it if not needed
+        // Or keep it if a forced password change is next
+    }
+
+
     // Handle MFA
-    if (!IS_NULLSTR(acct->mfa_key) && acct->mfa_enabled) {
+    if (!IS_NULLSTR(acct->mfa_key) && acct->mfa_enabled && !DEV_SKIP_MFA) {
         ProtocolNoEcho(d,true);
+        write_to_buffer(d, "MFA Code: ", 0);
         d->connected = CON_GET_ACCOUNT_MFA;
         return;
     }
@@ -250,7 +313,7 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
     log_string(log_buf);
 
     // Check if they need to provide email
-    if (IS_NULLSTR(acct->email)) {
+    if (IS_NULLSTR(acct->email) && game_settings.enable_email) { // Added game_settings.enable_email check
         write_to_buffer(d, "\n\rPlease enter a valid e-mail address at which we can reach you.\n\r"
             "It will not be distributed to any third parties or abused in any way.\n\r", 0);
         write_to_buffer(d, "\n\rEnter your e-mail address: ", 0);
@@ -259,10 +322,12 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
     }
 
     // Password update needed?
-    if (acct->passwd_version < 1) {
+    if (acct->passwd_version < 1 && !DEV_SKIP_PASSWORD) {
         write_to_buffer(d, "\n\rYou are required to set a new password. Please do so now.\n\r", 0);
-        write_to_buffer(d, "Password: ", 0);
+        write_to_buffer(d, "New Password: ", 0); // Prompt for new password
+        if (acct->old_passwd) free_string(acct->old_passwd);
         acct->old_passwd = str_dup(acct->passwd);
+        ProtocolNoEcho(d, true);
         d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
         return;
     }
@@ -272,9 +337,10 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
     if (!list_haslink(loaded_accounts, acct))
         list_addlink(loaded_accounts, acct);  
 
-    free_string(acct->last_login_host);
+    if (acct->last_login_host) free_string(acct->last_login_host);
     acct->last_login_host = str_dup(d->host);
     acct->last_login = current_time;
+    save_account(acct); // Save account on successful login
 
     // Show the account menu
     display_account_menu(d);
@@ -344,7 +410,7 @@ void login_confirm_account_password(DESCRIPTOR_DATA *d, char *argument)
     
     write_to_buffer(d, "\n\r", 2);
     
-    if (strcmp(sha256_crypt(argument), acct->passwd)) {
+    if (strcmp(crypt(argument, acct->passwd), acct->passwd) != 0) {
         write_to_buffer(d, "Passwords don't match.\n\r", 0);
         write_to_buffer(d, "Please enter a new password: ", 0);
         d->connected = CON_NEW_ACCOUNT_PASSWORD;
@@ -949,7 +1015,6 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
                     display_account_menu(d);
                     return;
                 }
-                write_to_buffer(d, "\n\rEnter the name of the character to link: ", 0);
                 d->connected = CON_LINK_CHARACTER_NAME;
                 return;
 
@@ -970,7 +1035,6 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
                     display_account_menu(d);
                     return;
                 }
-                write_to_buffer(d, "\n\rEnter your current password: ", 0);
                 ProtocolNoEcho(d, true);
                 d->connected = CON_VERIFY_ACCOUNT_PASSWORD;
                 break;
@@ -2714,7 +2778,6 @@ void login_link_character_name(DESCRIPTOR_DATA *d, char *argument)
     // Store character name temporarily for the linking process
     d->character = ch;
     
-    write_to_buffer(d, "Enter the character's password: ", 0);
     ProtocolNoEcho(d, true);
     d->connected = CON_LINK_CHARACTER_PASSWORD;
 }
@@ -2722,10 +2785,13 @@ void login_link_character_name(DESCRIPTOR_DATA *d, char *argument)
 void login_link_character_password(DESCRIPTOR_DATA *d, char *argument)
 {
     CHAR_DATA *ch = d->character;
+    bool password_ok = false;
     
-    // Safety check - if character is NULL, return to account menu
-    if (ch == NULL) {
+    // Safety check - if character is NULL or pcdata is NULL, return to account menu
+    if (ch == NULL || ch->pcdata == NULL) {
         write_to_buffer(d, "Error with character data. Returning to account menu.\n\r", 0);
+        if (d->character) free_char(d->character); // Clean up if ch exists
+        d->character = NULL;
         display_account_menu(d);
         d->connected = CON_ACCOUNT_MENU;
         return;
@@ -2733,32 +2799,51 @@ void login_link_character_password(DESCRIPTOR_DATA *d, char *argument)
     
     write_to_buffer(d, "\n\r", 2);
     
-    // Check password
-    if (strcmp(sha256_crypt(argument), ch->pcdata->pwd) && 
-        strcmp(crypt(argument, ch->pcdata->pwd), ch->pcdata->pwd) && 
-        strcmp(argument, ch->pcdata->pwd)) {
-        
+    // Tiered password check for ch->pcdata->pwd
+    // 1. Try new preferred method (system crypt())
+    if (ch->pcdata->pwd && ch->pcdata->pwd[0] != '\0') {
+        if (strcmp(crypt(argument, ch->pcdata->pwd), ch->pcdata->pwd) == 0) {
+            password_ok = true;
+        }
+    }
+
+    // 2. Fallback to current method (custom sha256_crypt()) if new one failed
+    if (!password_ok && ch->pcdata->pwd && ch->pcdata->pwd[0] != '\0') {
+        if (strcmp(sha256_crypt(argument), ch->pcdata->pwd) == 0) {
+            password_ok = true;
+            // This might indicate the char's password needs re-hashing to crypt() standard
+        }
+    }
+
+    // 3. Fallback to plaintext comparison if others failed
+    if (!password_ok && ch->pcdata->pwd && ch->pcdata->pwd[0] != '\0') {
+        if (strcmp(argument, ch->pcdata->pwd) == 0) {
+            password_ok = true;
+            // This definitely indicates the char's password needs hashing
+            // Consider forcing a password change or auto-hashing it here.
+        }
+    }
+    
+    if (!password_ok) {
         write_to_buffer(d, "Incorrect password.\n\r", 0);
         ProtocolNoEcho(d, false);
-        free_char(ch);
+        free_char(ch); // ch was allocated by load_char_obj in login_link_character_name
         d->character = NULL;
         d->connected = CON_ACCOUNT_MENU;
         display_account_menu(d);
         return;
     }
     
-    // Check if character has MFA enabled - more thorough check
-    if (ch->pcdata != NULL && 
-        !IS_NULLSTR(ch->pcdata->mfa_key) && 
-        ch->pcdata->mfa_enabled) {
-        
+    // Password is OK
+    // Check if character has MFA enabled
+    if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled && !DEV_SKIP_MFA) {
         write_to_buffer(d, "This character has MFA enabled. Please enter the MFA code: ", 0);
-        ProtocolNoEcho(d, true);
+        // ProtocolNoEcho is already true from the password prompt
         d->connected = CON_LINK_CHARACTER_MFA;
         return;
     }
     
-    // Link the character to the account
+    // No MFA or MFA skipped, link the character to the account
     complete_character_link(d);
 }
 
