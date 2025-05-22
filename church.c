@@ -3972,7 +3972,7 @@ void read_churches_new()
                 break;
             }
             
-            if (!str_cmp(word, "#END"))
+            if (!str_cmp(word, "#ENDFILE"))
                 break;
                 
             if (!str_cmp(word, "#CHURCH")) {
@@ -3996,21 +3996,10 @@ void read_churches_new()
                         temp->next = church;
                     }
                     
-                    // Save as individual file
-                    char org_filename[512];
-                    sprintf(org_filename, "%s%ld.org", ORG_DIR, church->uid);
-                    FILE *org_fp = fopen(org_filename, "w");
-                    
-                    if (org_fp) {
-                        write_church(church, org_fp);
-                        fclose(org_fp);
-                        legacy_count++;
-                        log_string(formatf("Converted church %s (UID %ld) to new format",
-                            church->name, church->uid));
-                    } else {
-                        log_string(formatf("FAILED to save church %s (UID %ld)",
-                            church->name, church->uid));
-                    }
+                    save_church(church);
+                    legacy_count++;
+                    log_string(formatf("Converted church %s (UID %ld) to new format",
+                        church->name, church->uid));
                 }
             }
         }
@@ -4126,6 +4115,45 @@ void read_churches_new()
     
     closedir(dir);
     log_string(formatf("Loaded %d churches from individual files", count));
+        if (church_list != NULL && church_list->next != NULL) {
+        bool swapped;
+        CHURCH_DATA *ptr;
+        CHURCH_DATA *last_ptr = NULL;
+
+        do {
+            swapped = FALSE;
+            ptr = church_list;
+
+            while (ptr->next != last_ptr) {
+                if (ptr->uid > ptr->next->uid) {
+                    // Swap nodes
+                    CHURCH_DATA *temp = ptr->next;
+                    ptr->next = temp->next;
+                    temp->next = ptr;
+                    
+                    // Update head if needed
+                    if (ptr == church_list)
+                        church_list = temp;
+                    else {
+                        // Find previous node to update its next pointer
+                        CHURCH_DATA *prev = church_list;
+                        while (prev->next != ptr)
+                            prev = prev->next;
+                        prev->next = temp;
+                    }
+                    
+                    // Continue with swapped pointer position
+                    ptr = temp;
+                    swapped = TRUE;
+                }
+                
+                ptr = ptr->next;
+            }
+            
+            last_ptr = ptr;
+            
+        } while (swapped);
+    }
 }
 
 CHURCH_DATA *read_church(FILE *fp)
@@ -4145,7 +4173,7 @@ CHURCH_DATA *read_church(FILE *fp)
     // Handle legacy format where the first entry is the church name
     if (str_cmp(word, "#CHURCH")) {
         // Put back the word we just read
-        ungetc(' ', fp); // Add a space
+        //ungetc(' ', fp); // Add a space
         for (int i = strlen(word) - 1; i >= 0; i--) {
             ungetc(word[i], fp);
         }
@@ -4698,7 +4726,7 @@ CHURCH_PLAYER_DATA *read_church_member(FILE *fp)
                 if (!str_cmp(word, "Rank")) {
                     // Legacy 0-3 rank system 
                     int rank_num = fread_number(fp);
-                    //member->legacy_rank = rank_num;
+                    member->old_rank = rank_num;
                     fMatch = TRUE;
                 }
                 KEY("RankUID", member->rank_uid, fread_number(fp));
@@ -5619,29 +5647,36 @@ void convert_church_ranks(CHURCH_DATA *church)
     CHURCH_RANK_DATA *ranks[4]; // Maximum 4 ranks in old system
     
     // Create ranks based on the old format, using default names from the old tables
+
+       // Rank D (highest) - Leader type
+    char *male_name_d = get_default_legacy_rank_name(church, CHURCH_RANK_D, SEX_MALE);
+    char *female_name_d = get_default_legacy_rank_name(church, CHURCH_RANK_D, SEX_FEMALE);
+    ranks[0] = add_church_rank(church, (char *)male_name_d, male_name_d, female_name_d, male_name_d, 
+                   perm_leader, RANK_TYPE_LEADER);
+
+         // Rank C - Officer type
+    char *male_name_c = get_default_legacy_rank_name(church, CHURCH_RANK_C, SEX_MALE);
+    char *female_name_c = get_default_legacy_rank_name(church, CHURCH_RANK_C, SEX_FEMALE);
+    ranks[1] = add_church_rank(church, (char *)male_name_c, male_name_c, female_name_c, male_name_c, 
+                   perm_officer, RANK_TYPE_OFFICER);
+
+        // Rank B - Member type with more permissions
+    char *male_name_b = get_default_legacy_rank_name(church, CHURCH_RANK_B, SEX_MALE);
+    char *female_name_b = get_default_legacy_rank_name(church, CHURCH_RANK_B, SEX_FEMALE);
+    ranks[2] = add_church_rank(church, (char *)male_name_b, male_name_b, female_name_b, male_name_b, 
+                   perm_trusted, RANK_TYPE_MEMBER);
+
     // Rank A (lowest) - Member type
     char *male_name_a = get_default_legacy_rank_name(church, CHURCH_RANK_A, SEX_MALE);
     char *female_name_a = get_default_legacy_rank_name(church, CHURCH_RANK_A, SEX_FEMALE);
-    ranks[CHURCH_RANK_A] = add_church_rank(church, (char *)male_name_a, male_name_a, female_name_a, male_name_a, 
+    ranks[3] = add_church_rank(church, (char *)male_name_a, male_name_a, female_name_a, male_name_a, 
                    perm_member, RANK_TYPE_MEMBER);
     
-    // Rank B - Member type with more permissions
-    char *male_name_b = get_default_legacy_rank_name(church, CHURCH_RANK_B, SEX_MALE);
-    char *female_name_b = get_default_legacy_rank_name(church, CHURCH_RANK_B, SEX_FEMALE);
-    ranks[CHURCH_RANK_B] = add_church_rank(church, (char *)male_name_b, male_name_b, female_name_b, male_name_b, 
-                   perm_trusted, RANK_TYPE_MEMBER);
+
     
-    // Rank C - Officer type
-    char *male_name_c = get_default_legacy_rank_name(church, CHURCH_RANK_C, SEX_MALE);
-    char *female_name_c = get_default_legacy_rank_name(church, CHURCH_RANK_C, SEX_FEMALE);
-    ranks[CHURCH_RANK_C] = add_church_rank(church, (char *)male_name_c, male_name_c, female_name_c, male_name_c, 
-                   perm_officer, RANK_TYPE_OFFICER);
+
     
-    // Rank D (highest) - Leader type
-    char *male_name_d = get_default_legacy_rank_name(church, CHURCH_RANK_D, SEX_MALE);
-    char *female_name_d = get_default_legacy_rank_name(church, CHURCH_RANK_D, SEX_FEMALE);
-    ranks[CHURCH_RANK_D] = add_church_rank(church, (char *)male_name_d, male_name_d, female_name_d, male_name_d, 
-                   perm_leader, RANK_TYPE_LEADER);
+ 
     
     // Update church members to point to their appropriate ranks
     CHURCH_PLAYER_DATA *member;
@@ -5659,7 +5694,27 @@ void convert_church_ranks(CHURCH_DATA *church)
         }
         
         // Assign the rank pointer based on the old rank value
-        member->rank = ranks[old_rank_val];
+        switch (old_rank_val) {
+            case 0:
+                member->rank = ranks[3]; // Rank A
+                member->rank_uid = ranks[3]->uid; // Rank A
+                break;
+            case 1:
+                member->rank = ranks[2]; // Rank B
+                member->rank_uid = ranks[2]->uid; // Rank B
+                break;
+            case 2:
+                member->rank = ranks[1]; // Rank C
+                member->rank_uid = ranks[1]->uid; // Rank C
+                break;
+            case 3:
+                member->rank = ranks[0]; // Rank D
+                member->rank_uid = ranks[0]->uid; // Rank D
+                break;
+            default:
+                member->rank = ranks[3]; // Default to lowest rank
+                member->rank_uid = ranks[3]->uid; // Default to lowest rank
+        }
     }
 }
 
