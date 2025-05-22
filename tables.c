@@ -5290,3 +5290,34 @@ const struct flag_type rank_type_flags[] =
     { "leader",       RANK_TYPE_LEADER,     true },
     { NULL,           0,                    false }
 };
+
+const struct flag_type church_log_category_flags[] =
+{
+    { "members",       CHLOG_MEMBERS,       true },
+    { "deposit",       CHLOG_DEPOSIT,       true },
+    { "withdrawal",    CHLOG_WITHDRAWAL,    true },
+    { "transfer",      CHLOG_TRANSFER,      true }, // This is a meta-category
+    { "pk",             CHLOG_PK,      true },
+    { "storage",       CHLOG_STORAGE,       true },
+    { "ranks",         CHLOG_RANKS,         true },
+    { "permissions",   CHLOG_PERMISSIONS,   true },
+    { "recruitment",   CHLOG_RECRUITMENT,   true },
+    { "leadership",    CHLOG_LEADERSHIP,    false },
+    { "general",       CHLOG_GENERAL,       true },
+    { "storage_fees", CHLOG_STORAGE_FEES, false },
+    { "finances",   CHLOG_FINANCES, false },
+    { "gen_settings", CHLOG_GEN_SETTINGS, false},
+    { "treasure", CHLOG_TREASURE, true },
+    { "membership settings", CHLOG_MEMBERSHIP_SETTINGS, false },
+
+    { NULL,            0,                   false }
+};
+
+// Meta-category mappings
+const CHURCH_LOG_META_CATEGORY church_log_meta_categories[] = {
+    { CHLOG_FINANCES,  CHLOG_DEPOSIT|CHLOG_WITHDRAWAL|CHLOG_TRANSFER|CHLOG_STORAGE_FEES },
+    { CHLOG_LEADERSHIP, CHLOG_RANKS|CHLOG_PERMISSIONS },
+    { CHLOG_SETTINGS, CHLOG_PK|CHLOG_GEN_SETTINGS },
+    { CHLOG_MEMBERSHIP_SETTINGS, CHLOG_MEMBERS|CHLOG_RECRUITMENT|CHLOG_RANKS|CHLOG_PERMISSIONS },
+    { 0, 0 }
+};

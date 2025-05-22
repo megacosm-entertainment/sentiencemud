@@ -1761,10 +1761,15 @@ bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
         if (d->showstr_point)
         {
             write_to_buffer(d, "{x[Hit Return to continue]\n\r", 0);
+            if (!d->pProtocol->bSGA)
+                write_to_buffer(d, GoAheadStr, 0);
+
         }
         else if (fPrompt && d->pString && d->connected == CON_PLAYING)
         {
             write_to_buffer(d, "> ", 2);
+            if (!d->pProtocol->bSGA)
+                write_to_buffer(d, GoAheadStr, 0);
         }
         else if (fPrompt && d->connected == CON_PLAYING)
         {
@@ -1923,6 +1928,7 @@ else if (fPrompt && !d->showstr_point && !d->pString)
         write_to_buffer(d, go_ahead_str, 0);
     }
 }
+
     }
 
     if (d->outtop == 0)

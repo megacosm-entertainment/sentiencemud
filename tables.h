@@ -333,6 +333,11 @@ struct game_setting_type {
 	bool sensitive;		 /* Sensitive setting */
 };
 
+typedef struct church_log_meta_category {
+    flag_t flag;       // The meta-category flag
+    flag_t included;   // Bitfield of included subcategories
+} CHURCH_LOG_META_CATEGORY;
+
 
 /* game tables */
 extern  const   float   sin_table[];
@@ -567,5 +572,7 @@ extern const struct game_setting_type game_settings_table[];
 extern const char *setting_category_names[];
 extern const char *setting_type_names[];
 extern const struct flag_type church_permission_flags[];
+extern const struct flag_type church_log_category_flags[];
+extern const CHURCH_LOG_META_CATEGORY church_log_meta_categories[];
 #endif
 

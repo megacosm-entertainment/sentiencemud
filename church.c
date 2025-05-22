@@ -91,8 +91,12 @@ CHURCH_RANK_DATA *find_rank_by_name(CHURCH_DATA *church, const char *name);
 long new_church_rank_uid(CHURCH_DATA *church);
 bool has_processed_file(const char *filename);
 void add_to_processed_files(const char *filename);
-void add_church_log_entry(CHURCH_DATA *church, char *author, char *text, bool system_generated);
+void add_church_log_entry(CHURCH_DATA *church, char *author, char *text, flag_t categories, bool system_generated);
 void chtoggle_complete(CHAR_DATA *ch, bool enable_pk);
+bool is_meta_category(flag_t category_flag);
+void display_church_logs(CHAR_DATA *ch, CHURCH_DATA *church, 
+                        CHURCH_LOG_ENTRY **entries, int count,
+                        char *search_text, char *search_author, flag_t search_categories);
 
 
     #define MAX_PROCESSED_FILES 100
@@ -439,7 +443,7 @@ void do_chrules(CHAR_DATA * ch, char *argument)
         // Add log entry
         char buf[MAX_STRING_LENGTH];
         sprintf(buf, "%s edited the church rules.", ch->name);
-        add_church_log_entry(ch->church, ch->name, buf, TRUE);
+        add_church_log_entry(ch->church, ch->name, buf, CHLOG_GEN_SETTINGS, TRUE);
         
         save_church(ch->church);
         return;
@@ -488,7 +492,7 @@ void do_chmotd(CHAR_DATA * ch, char *argument)
         // Add log entry
         char buf[MAX_STRING_LENGTH];
         sprintf(buf, "%s edited the church MOTD.", ch->name);
-        add_church_log_entry(ch->church, ch->name, buf, TRUE);
+        add_church_log_entry(ch->church, ch->name, buf, CHLOG_GEN_SETTINGS, TRUE);
         
         save_church(ch->church);
         return;
@@ -914,8 +918,7 @@ void do_chflag(CHAR_DATA *ch, char *argument)
     
     // Add log entry
     sprintf(buf, "%s changed the church flag to '%s'.", ch->name, arg1);
-    add_church_log_entry(ch->church, ch->name, buf, TRUE);
-    
+    add_church_log_entry(ch->church, ch->name, buf, CHLOG_GEN_SETTINGS, TRUE);
     save_church(ch->church);
     return;
 
@@ -1016,7 +1019,7 @@ void do_chdeposit(CHAR_DATA * ch, char *argument)
 
     sprintf(buf, "%s deposited %d %s to the church account.", 
             ch->name, amount, arg1);
-    add_church_log_entry(ch->church, ch->name, buf, TRUE);
+    add_church_log_entry(ch->church, ch->name, buf, CHLOG_DEPOSIT, TRUE);
     
     save_church(ch->church);
     save_char_obj(ch);
@@ -1613,7 +1616,7 @@ void do_chexcommunicate(CHAR_DATA * ch, char *argument)
         // Add log entry
         char log_buf[MAX_STRING_LENGTH];
         sprintf(log_buf, "%s removed excommunication from %s.", ch->name, member->name);
-        add_church_log_entry(ch->church, ch->name, log_buf, TRUE);
+        add_church_log_entry(ch->church, ch->name, log_buf, CHLOG_MEMBERS, TRUE);
         
         return;
     }
@@ -1626,7 +1629,7 @@ void do_chexcommunicate(CHAR_DATA * ch, char *argument)
         // Add log entry
         char log_buf[MAX_STRING_LENGTH];
         sprintf(log_buf, "%s excommunicated %s from the church.", ch->name, member->name);
-        add_church_log_entry(ch->church, ch->name, log_buf, TRUE);
+        add_church_log_entry(ch->church, ch->name, log_buf, CHLOG_MEMBERS, TRUE);
         
         return;
     }
@@ -2369,11 +2372,10 @@ void do_chtransfer(CHAR_DATA *ch, char *argument)
     // After successful transfer, add a detailed log entry
     sprintf(buf, "%s transferred %ld %s to %s.",
         ch->name, amount, arg2, church->name);
-    add_church_log_entry(ch->church, ch->name, buf, TRUE);
+    add_church_log_entry(ch->church, ch->name, buf, CHLOG_TRANSFER, TRUE);
     
     save_church(ch->church);
 }
-
 
 void do_chwithdraw(CHAR_DATA *ch, char *argument)
 {
@@ -2643,7 +2645,7 @@ void do_chwithdraw(CHAR_DATA *ch, char *argument)
 
         sprintf(buf, "%s withdrew %ld %s from the church account.",
             ch->name, amt, arg);
-        add_church_log_entry(ch->church, ch->name, buf, TRUE);
+        add_church_log_entry(ch->church, ch->name, buf, CHLOG_WITHDRAWAL, TRUE);
     }
     else if (arg3[0] != '\0')
     {
@@ -2651,17 +2653,17 @@ void do_chwithdraw(CHAR_DATA *ch, char *argument)
 
         sprintf(buf, "%s withdrew %ld %s from the church account and gave it to %s.",
             ch->name, amt, arg2, victim->name);
-        add_church_log_entry(ch->church, ch->name, buf, TRUE);
+        add_church_log_entry(ch->church, ch->name, buf, CHLOG_WITHDRAWAL, TRUE);
     }
     
     save_church(ch->church);
 }
 
 
-/* church log- shows important stuff which is logged, such as withdrawls. */
 void do_chlog(CHAR_DATA *ch, char *argument)
 {
     CHURCH_DATA *church;
+    CHURCH_LOG_ENTRY *entry;
     char arg1[MAX_STRING_LENGTH];
     char arg2[MAX_STRING_LENGTH];
     char buf[MAX_STRING_LENGTH];
@@ -2671,9 +2673,11 @@ void do_chlog(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg2);
     
     if (ch->church == NULL) {
-        send_to_char("You aren't even in a church!\n\r", ch);
+        send_to_char("You aren't in a church.\n\r", ch);
         return;
     }
+    
+    church = ch->church;
     
     if (ch->church_member->rank->rank_type < RANK_TYPE_OFFICER 
         && !has_church_permission(ch->church_member, CHURCH_PERM_VIEWLOG)) {
@@ -2681,12 +2685,37 @@ void do_chlog(CHAR_DATA *ch, char *argument)
         return;
     }
     
-    church = ch->church;
+    // List available categories
+    if (!str_cmp(arg1, "categories")) {
+        output = new_buf();
+        add_buf(output, "{YAvailable log categories:{x\n\r");
+        add_buf(output, "-----------------------\n\r");
+        
+        for (int i = 0; church_log_category_flags[i].name != NULL; i++) {
+            if (church_log_category_flags[i].settable) {
+                sprintf(buf, "  {M%-12s{x - %s%s\n\r", 
+                        church_log_category_flags[i].name,
+                        church_log_category_flags[i].description ? 
+                            church_log_category_flags[i].description : "No description",
+                        is_meta_category(church_log_category_flags[i].bit) ? 
+                            " {G(Meta-category){x" : "");
+                add_buf(output, buf);
+            }
+        }
+        
+        add_buf(output, "\n\r{YUsage:{x\n\r");
+        add_buf(output, "church log add <category> - Add a log entry in the specified category\n\r");
+        add_buf(output, "church log search category <name> - Search for entries in a category\n\r");
+        
+        page_to_char(buf_string(output), ch);
+        free_buf(output);
+        return;
+    }
     
     // View specific log entry
     if (arg1[0] != '\0' && is_number(arg1)) {
         long entry_id = atol(arg1);
-        CHURCH_LOG_ENTRY *entry = NULL;
+        entry = NULL;
         
         // Find the entry with this ID
         for (entry = church->log_entries; entry; entry = entry->next) {
@@ -2711,10 +2740,19 @@ void do_chlog(CHAR_DATA *ch, char *argument)
         
         // Show author
         if (entry->author) {
-            sprintf(buf, "{CAuthor:{x %s\n\r", entry->author);
+            sprintf(buf, "{CAuthor:{x %s%s\n\r", 
+                entry->author,
+                entry->system_generated ? " {Y[Auto-generated]{x" : "");
             send_to_char(buf, ch);
         } else {
             send_to_char("{CAuthor:{x {Y(SYSTEM){x\n\r", ch);
+        }
+        
+        // Show category if available
+        if (entry->categories) {
+            sprintf(buf, "{CCategory:{x {M%s{x\n\r", 
+                    flag_string(church_log_category_flags, entry->categories));
+            send_to_char(buf, ch);
         }
         
         // Show content
@@ -2742,10 +2780,43 @@ void do_chlog(CHAR_DATA *ch, char *argument)
             return;
         }
         
+        // If no category specified, show list of valid categories
+        if (arg2[0] == '\0') {
+            send_to_char("{YAvailable categories:{x\n\r", ch);
+            send_to_char("-----------------------\n\r", ch);
+            for (int i = 0; church_log_category_flags[i].name != NULL; i++) {
+                if (church_log_category_flags[i].settable) {
+                    sprintf(buf, "  {M%s{x\n\r", church_log_category_flags[i].name);
+                    send_to_char(buf, ch);
+                }
+            }
+            send_to_char("\n\rUsage: church log add <category>\n\r", ch);
+            return;
+        }
+        
+        // Check if specified category is valid
+        flag_t category = flag_value(church_log_category_flags, arg2);
+        if (category == NO_FLAG) {
+            send_to_char("{RInvalid category.{x Use one of the following:\n\r", ch);
+            for (int i = 0; church_log_category_flags[i].name != NULL; i++) {
+                if (church_log_category_flags[i].settable) {
+                    sprintf(buf, "  {M%s{x\n\r", church_log_category_flags[i].name);
+                    send_to_char(buf, ch);
+                }
+            }
+            return;
+        }
+        
+        // Category is valid, proceed with log entry
+        ch->temp_log_category = category;
+        sprintf(buf, "Creating new log entry in category: {M%s{x\n\r", 
+                flag_string(church_log_category_flags, category));
+        send_to_char(buf, ch);
+        
         // Start the string editor with our callback
         send_to_char("Enter a new log entry. Type @ when done.\n\r", ch);
         string_append(ch, &ch->temp_log_entry);
-        ch->desc->editor = ED_CHLOG;  // You'll need to define ED_CHLOG in your editor enum
+        ch->desc->editor = ED_CHLOG;
         
         return;
     }
@@ -2757,13 +2828,14 @@ void do_chlog(CHAR_DATA *ch, char *argument)
             return;
         }
         
-        if (!is_number(arg2)) {
-            send_to_char("Syntax: church log edit <entry#>\n\r", ch);
+        if (!arg2[0] || !is_number(arg2)) {
+            send_to_char("Which log entry do you want to edit?\n\r", ch);
+            send_to_char("Syntax: church log edit <entry_id>\n\r", ch);
             return;
         }
         
         long entry_id = atol(arg2);
-        CHURCH_LOG_ENTRY *entry = NULL;
+        entry = NULL;
         
         // Find the entry with this ID
         for (entry = church->log_entries; entry; entry = entry->next) {
@@ -2776,98 +2848,132 @@ void do_chlog(CHAR_DATA *ch, char *argument)
             return;
         }
         
-        // Check permissions
+        // Check if the character can edit this entry
         if (entry->system_generated) {
-            send_to_char("System-generated log entries cannot be modified.\n\r", ch);
+            send_to_char("You cannot edit system-generated log entries.\n\r", ch);
             return;
         }
         
         if (entry->author && str_cmp(entry->author, ch->name) && 
-            ch->church_member->rank->rank_type < RANK_TYPE_LEADER && entry->system_generated) {
+            ch->church_member->rank->rank_type != RANK_TYPE_LEADER) {
             send_to_char("You can only edit your own log entries.\n\r", ch);
             return;
         }
         
-
+        // Start editing
+        ch->temp_log_entry = str_dup(entry->text);
+        ch->temp_log_category = entry->categories;
+        ch->temp_log_entry_id = entry->entry_id;
         
-        // Open the string editor
-        send_to_char("Editing log entry. Type @ when done.\n\r", ch);
-        string_append(ch, &entry->text);
+        sprintf(buf, "Editing log entry #%ld.\n\r", entry_id);
+        send_to_char(buf, ch);
+        string_append(ch, &ch->temp_log_entry);
+        ch->desc->editor = ED_CHLOG;
         
+        return;
+    }
+    
+    // Search functionality
+    if (!str_cmp(arg1, "search")) {
+        if (!has_church_permission(ch->church_member, CHURCH_PERM_VIEWLOG)) {
+            send_to_char("You don't have permission to search church logs.\n\r", ch);
+            return;
+        }
+        
+        // Create array to hold entries for search results
+        CHURCH_LOG_ENTRY *entries[MAX_CHURCH_LOG_ENTRIES];
+        int count = 0;
+        
+        // Populate the array with entries
+        for (entry = church->log_entries; entry; entry = entry->next) {
+            entries[count++] = entry;
+            if (count >= MAX_CHURCH_LOG_ENTRIES)
+                break;  // Safety check
+        }
+        
+        // Determine search type and execute search
+        char *search_text = NULL;
+        char *search_author = NULL;
+        flag_t search_categories = 0;
+        
+        if (!str_cmp(arg2, "author")) {
+            search_author = argument;
+            
+            if (!search_author || search_author[0] == '\0') {
+                send_to_char("Whose log entries do you want to search for?\n\r", ch);
+                send_to_char("Syntax: church log search author <name>\n\r", ch);
+                return;
+            }
+        }
+        else if (!str_cmp(arg2, "category")) {
+            // Convert category name to flag
+            search_categories = flag_value(church_log_category_flags, argument);
+            
+            if (search_categories == NO_FLAG) {
+                send_to_char("Invalid category. Available categories are:\n\r", ch);
+                for (int i = 0; church_log_category_flags[i].name != NULL; i++) {
+                    if (church_log_category_flags[i].settable) {
+                        sprintf(buf, "  {M%-20s{x%s\n\r", 
+                                church_log_category_flags[i].name,
+                                is_meta_category(church_log_category_flags[i].bit) ? 
+                                    " (meta-category)" : "");
+                        send_to_char(buf, ch);
+                    }
+                }
+                return;
+            }
+            
+            // If it's a meta-category, expand it
+            for (int i = 0; church_log_meta_categories[i].flag != 0; i++) {
+                if (church_log_meta_categories[i].flag == search_categories) {
+                    search_categories |= church_log_meta_categories[i].included;
+                    break;
+                }
+            }
+        }
+        else {
+            // Combine arg2 and argument for text search
+            static char combined_text[2*MAX_STRING_LENGTH];
+            combined_text[0] = '\0';
+            
+            if (arg2[0] != '\0') {
+                if (argument[0] != '\0') {
+                    sprintf(combined_text, "%s %s", arg2, argument);
+                } else {
+                    strcpy(combined_text, arg2);
+                }
+                search_text = combined_text;
+            }
+            
+            if (!search_text || search_text[0] == '\0') {
+                send_to_char("What text do you want to search for?\n\r", ch);
+                send_to_char("Syntax: church log search <text>\n\r", ch);
+                send_to_char("      : church log search author <name>\n\r", ch);
+                send_to_char("      : church log search category <name>\n\r", ch);
+                return;
+            }
+        }
+        
+        // Display the search results
+        display_church_logs(ch, church, entries, count, search_text, search_author, search_categories);
         return;
     }
     
     // Display the log (default)
-    output = new_buf();
-    
-    if (!church->log_entries) {
-        send_to_char("Nothing has been written to the log yet.\n\r", ch);
-        return;
-    }
-    
-    sprintf(buf, "{YThe Log of %s:{x\n\r", church->name);
-    add_buf(output, buf);
-    
-    // Display entries in reverse order (newest first)
-    int count = 0;
+    // Create an array to hold entries for reverse display
     CHURCH_LOG_ENTRY *entries[MAX_CHURCH_LOG_ENTRIES];
-    CHURCH_LOG_ENTRY *entry;
+    int count = 0;
     
-    // Copy entries to an array
+    // Populate the array with entries
     for (entry = church->log_entries; entry; entry = entry->next) {
         entries[count++] = entry;
         if (count >= MAX_CHURCH_LOG_ENTRIES)
-            break;
+            break;  // Safety check
     }
     
-    // Display in reverse order
-    for (int i = count - 1; i >= 0; i--) {
-        entry = entries[i];
-        char time_str[64];
-        strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M", localtime(&entry->timestamp));
-        
-        // Start with the entry ID
-        sprintf(buf, "{W%6ld{x ", entry->entry_id);
-        add_buf(output, buf);
-        
-        // Add timestamp and author
-        sprintf(buf, "{C[%s]{x ", time_str);
-        add_buf(output, buf);
-        
-        if (entry->author) {
-            sprintf(buf, "{G(%s){x ", entry->author);
-            add_buf(output, buf);
-        } else {
-            add_buf(output, "{Y(SYSTEM){x ");
-        }
-        
-        // Truncate the text to about 40 chars
-        char truncated_text[44]; // 40 chars + room for ellipsis
-        strncpy(truncated_text, entry->text, 40);
-        truncated_text[40] = '\0';
-        
-        // Add ellipsis if text was truncated
-        if (strlen(entry->text) > 40) {
-            strcat(truncated_text, "...");
-        }
-        
-        // Add the truncated text
-        sprintf(buf, "%s\n\r", truncated_text);
-        add_buf(output, buf);
-    }
-    
-    // Add help for viewing and editing entries
-    add_buf(output, "\n\r{YUse 'church log <number>' to view the full text of an entry.{x\n\r");
-    
-    if (has_church_permission(ch->church_member, CHURCH_PERM_EDITLOG)) {
-        add_buf(output, "{YUse 'church log add' to add a new entry.{x\n\r");
-        add_buf(output, "{YUse 'church log edit <number>' to edit an existing entry.{x\n\r");
-    }
-    
-    page_to_char(buf_string(output), ch);
-    free_buf(output);
+    // Display the log entries without any filtering
+    display_church_logs(ch, church, entries, count, NULL, NULL, 0);
 }
-
 
 void do_choverthrow(CHAR_DATA *ch, char *argument)
 {
@@ -2912,7 +3018,7 @@ void do_choverthrow(CHAR_DATA *ch, char *argument)
     // Add log entry about the overthrow
     char log_buf[MAX_STRING_LENGTH];
     sprintf(log_buf, "%s has overthrown the church and become the new owner!", ch->name);
-    add_church_log_entry(ch->church, NULL, log_buf, TRUE);
+    add_church_log_entry(ch->church, NULL, log_buf, CHLOG_LEADERSHIP, TRUE);
     
     save_church(ch->church);
 }
@@ -3151,7 +3257,7 @@ void do_chcolour(CHAR_DATA *ch, char *argument)
     char buf[MAX_STRING_LENGTH];
     sprintf(buf, "%s changed the church colours to {%c}colour1{x and {%c}colour2{x.",
             ch->name, letter, letter2);
-    add_church_log_entry(ch->church, ch->name, buf, TRUE);
+    add_church_log_entry(ch->church, ch->name, buf, CHLOG_GEN_SETTINGS, TRUE);
     
     save_church(ch->church);
 }
@@ -3164,7 +3270,6 @@ void do_chtrust(CHAR_DATA *ch, char *argument)
     return;
 }
 
-// Replace existing append_church_log with this
 void append_church_log(CHURCH_DATA *church, char *string)
 {
     char buf[MSL];
@@ -3179,7 +3284,7 @@ void append_church_log(CHURCH_DATA *church, char *string)
     log_string(buf);
     
     // Add as system-generated entry
-    add_church_log_entry(church, NULL, string, TRUE);
+    add_church_log_entry(church, NULL, string, CHLOG_GENERAL, TRUE);
 }
 
 
@@ -3391,7 +3496,7 @@ void do_churchset(CHAR_DATA *ch, char *argument)
         send_to_char("Setting toggled OFF.\n\r", ch);
         
         sprintf(buf, "%s turned setting '%s' OFF.", ch->name, arg);
-        add_church_log_entry(ch->church, ch->name, buf, TRUE);
+        add_church_log_entry(ch->church, ch->name, buf, CHLOG_GEN_SETTINGS, TRUE);
     }
     else
     {
@@ -3399,7 +3504,7 @@ void do_churchset(CHAR_DATA *ch, char *argument)
         send_to_char("Setting toggled ON.\n\r", ch);
         
         sprintf(buf, "%s turned setting '%s' ON.", ch->name, arg);
-        add_church_log_entry(ch->church, ch->name, buf, TRUE);
+        add_church_log_entry(ch->church, ch->name, buf, CHLOG_GEN_SETTINGS, TRUE);
     }
     
     save_church(ch->church);
@@ -3486,7 +3591,7 @@ void do_chconvert(CHAR_DATA *ch, char *argument)
         ch->name, 
         ch->church->alignment == CHURCH_GOOD ? "good" : 
         ch->church->alignment == CHURCH_EVIL ? "evil" : "neutral");
-    add_church_log_entry(ch->church, ch->name, buf, TRUE);
+    add_church_log_entry(ch->church, ch->name, buf, CHLOG_GEN_SETTINGS, TRUE);
     
     save_church(ch->church);
 }
@@ -3636,7 +3741,7 @@ void do_chdonate(CHAR_DATA *ch, char *argument)
     char buf[MAX_STRING_LENGTH];
     sprintf(buf, "%s donated %s to treasure room %d.", 
             ch->name, obj->short_descr, roomno);
-    add_church_log_entry(ch->church, ch->name, buf, TRUE);
+    add_church_log_entry(ch->church, ch->name, buf, CHLOG_TREASURE, TRUE);
     
     save_church(ch->church);
 }
@@ -4146,7 +4251,52 @@ if (feof(fp)) {
                         
                     fMatch = true;
                 }
+
+                  else if (!str_cmp(word, "#LOG")) {
+        CHURCH_LOG_ENTRY *entry = alloc_mem(sizeof(CHURCH_LOG_ENTRY));
+        entry->author = NULL;
+        entry->text = NULL;
+        entry->timestamp = current_time;
+        entry->entry_id = 0;
+        entry->system_generated = FALSE;
+        entry->next = NULL;
+        
+        for (;;) {
+            word = fread_word(fp);
+            
+            if (!str_cmp(word, "#ENDLOG"))
                 break;
+                
+            if (!str_cmp(word, "EntryID"))
+                entry->entry_id = fread_number(fp);
+            else if (!str_cmp(word, "Timestamp"))
+                entry->timestamp = fread_number(fp);
+            else if (!str_cmp(word, "System"))
+                entry->system_generated = (fread_number(fp) == 1);
+            else if (!str_cmp(word, "Author"))
+                entry->author = fread_string(fp);
+            else if (!str_cmp(word, "Text"))
+                entry->text = fread_string(fp);
+        }
+        
+        // Add to end of list
+        if (!church->log_entries) {
+            church->log_entries = entry;
+        } else {
+            CHURCH_LOG_ENTRY *temp;
+            for (temp = church->log_entries; temp->next; temp = temp->next)
+                ;
+            temp->next = entry;
+        }
+        
+        // Increment count
+        church->log_entry_count++;
+        
+        fMatch = TRUE;
+        break;
+    }
+    break;
+
 
             case 'A':
                 KEY("Alignment", church->alignment, fread_number(fp));
@@ -4223,50 +4373,7 @@ if (feof(fp)) {
                 KEY("LastLoginOwner", church->owner_last_login, fread_number(fp));
                 KEY("LastLogID", church->last_log_entry_id, fread_number(fp));
     
-                if (!str_cmp(word, "#LOG")) {
-                    CHURCH_LOG_ENTRY *entry = alloc_mem(sizeof(CHURCH_LOG_ENTRY));
-                    entry->author = NULL;
-                    entry->text = NULL;
-                    entry->timestamp = current_time;
-                    entry->entry_id = 0;
-                    entry->system_generated = FALSE;
-                    entry->next = NULL;
-        
-                    for (;;) {
-                        word = fread_word(fp);
-            
-                        if (!str_cmp(word, "#ENDLOG"))
-                        break;
-                
-                        if (!str_cmp(word, "EntryID"))
-                            entry->entry_id = fread_number(fp);
-                        else if (!str_cmp(word, "Timestamp"))
-                            entry->timestamp = fread_number(fp);
-                        else if (!str_cmp(word, "System"))
-                            entry->system_generated = (fread_number(fp) == 1);
-                        else if (!str_cmp(word, "Author"))
-                            entry->author = fread_string(fp);
-                        else if (!str_cmp(word, "Text"))
-                            entry->text = fread_string(fp);
-                    }
-        
-                    // Add to end of list
-                    if (!church->log_entries) {
-                        church->log_entries = entry;
-                    } else {
-                        CHURCH_LOG_ENTRY *temp;
-                        for (temp = church->log_entries; temp->next; temp = temp->next)
-                        ;
-                        temp->next = entry;
-                    }
-        
-                    // Increment count
-                    church->log_entry_count++;
-        
-                    fMatch = TRUE;
-                    break;
-                }
-                break;
+
 
             case 'M':
                 KEY("MaxPositions", church->max_positions, fread_number(fp));
@@ -4559,6 +4666,11 @@ if (!church->ranks && (church->version < VERSION_CHURCH_001 || church->version =
     log_string(formatf("Church %s has only %d ranks, ensuring minimum ranks exist", 
                      church->name, church->num_ranks));
     upgrade_church_ranks(church);
+}
+
+if (church->log_entry_count > 0) {
+    log_string(formatf("read_church: Loaded %d log entries for church %s (UID %ld)",
+        church->log_entry_count, church->name, church->uid));
 }
 
     return church;
@@ -6678,7 +6790,7 @@ void do_chdefaultrank(CHAR_DATA *ch, char *argument)
         // After successfully changing the default rank
     sprintf(buf, "%s changed the default rank for new members to '%s'.", 
             ch->name, rank->title_male);
-    add_church_log_entry(ch->church, ch->name, buf, TRUE);
+    add_church_log_entry(ch->church, ch->name, buf, CHLOG_RANKS, TRUE);
     
     save_church(ch->church);
 }
@@ -7311,8 +7423,7 @@ void add_to_processed_files(const char *filename) {
 }
 
 
-// Add a log entry to a church's log
-void add_church_log_entry(CHURCH_DATA *church, char *author, char *text, bool system_generated)
+void add_church_log_entry(CHURCH_DATA *church, char *author, char *text, flag_t categories, bool system_generated)
 {
     CHURCH_LOG_ENTRY *entry, *temp;
     
@@ -7323,10 +7434,10 @@ void add_church_log_entry(CHURCH_DATA *church, char *author, char *text, bool sy
     entry = new_church_log_entry();
     entry->author = author ? str_dup(author) : NULL;
     entry->text = str_dup(text);
-    // timestamp already initialized by new_church_log_entry
+    entry->categories = categories;
+    entry->timestamp = current_time;
     entry->entry_id = ++church->last_log_entry_id;
     entry->system_generated = system_generated;
-    // entry->next already NULL from initialization
     
     // Add to end of list
     if (!church->log_entries) {
@@ -7345,7 +7456,7 @@ void add_church_log_entry(CHURCH_DATA *church, char *author, char *text, bool sy
         temp = church->log_entries;
         church->log_entries = temp->next;
         
-        free_church_log_entry(temp);  // Use proper cleanup function
+        free_church_log_entry(temp);
         
         church->log_entry_count--;
     }
@@ -7353,6 +7464,7 @@ void add_church_log_entry(CHURCH_DATA *church, char *author, char *text, bool sy
     // Save the church after log changes
     save_church(church);
 }
+    
 void chtoggle_complete(CHAR_DATA *ch, bool enable_pk)
 {
     char buf[MAX_STRING_LENGTH];
@@ -7365,7 +7477,7 @@ void chtoggle_complete(CHAR_DATA *ch, bool enable_pk)
         
         // Log the change
         sprintf(buf, "%s enabled player killing status for the church.", ch->name);
-        add_church_log_entry(ch->church, ch->name, buf, TRUE);
+        add_church_log_entry(ch->church, ch->name, buf, CHLOG_PK, TRUE);
     } else {
         // Disable PK - charge pneuma
         if (ch->church->pneuma >= 5000)
@@ -7381,15 +7493,13 @@ void chtoggle_complete(CHAR_DATA *ch, bool enable_pk)
         
         // Log the change
         sprintf(buf, "%s disabled player killing status for the church.", ch->name);
-        add_church_log_entry(ch->church, ch->name, buf, TRUE);
+        add_church_log_entry(ch->church, ch->name, buf, CHLOG_PK, TRUE);
     }
     
     save_church(ch->church);
 }
 void string_end_chlog(CHAR_DATA *ch)
 {
-    char buf[MAX_STRING_LENGTH];
-    
     if (!ch || !ch->desc) {
         bug("string_end_chlog: NULL character or descriptor", 0);
         return;
@@ -7415,16 +7525,184 @@ void string_end_chlog(CHAR_DATA *ch)
         return;
     }
     
-    // Add the entry to the church log
-    sprintf(buf, "%s added a new log entry.", ch->name);
-    send_to_char(buf, ch);
-    send_to_char("\n\r", ch);
+    // Remove trailing newlines and carriage returns
+    int len = strlen(text);
+    while (len > 0 && (text[len-1] == '\n' || text[len-1] == '\r')) {
+        text[len-1] = '\0';
+        len--;
+    }
     
-    add_church_log_entry(ch->church, ch->name, text, FALSE);
+    // Add the entry to the church log
+    send_to_char("Log entry saved.\n\r", ch);
+    
+    // Get category flag from temp storage
+    flag_t category = ch->temp_log_category;
+    
+    // If editing an existing entry
+    if (ch->desc->editor == ED_CHLOG && ch->temp_log_entry_id > 0) {
+        // Find the entry
+        CHURCH_LOG_ENTRY *entry = NULL;
+        for (entry = ch->church->log_entries; entry; entry = entry->next) {
+            if (entry->entry_id == ch->temp_log_entry_id)
+                break;
+        }
+        
+        if (entry) {
+            // Update entry text
+            free_string(entry->text);
+            entry->text = str_dup(text);
+            
+            // Log the edit
+            char buf[MAX_STRING_LENGTH];
+            sprintf(buf, "%s edited log entry #%ld.", ch->name, entry->entry_id);
+            add_church_log_entry(ch->church, ch->name, buf, CHLOG_GENERAL, TRUE);
+        }
+    } else {
+        // New entry
+        add_church_log_entry(ch->church, ch->name, text, category, FALSE);
+    }
     
     // Clean up the editor state
     ch->temp_log_entry = NULL;
+    ch->temp_log_category = 0;
+    ch->temp_log_entry_id = 0;
     ch->desc->editor = 0;
+}
+
+void display_church_logs(CHAR_DATA *ch, CHURCH_DATA *church, 
+                        CHURCH_LOG_ENTRY **entries, int count,
+                        char *search_text, char *search_author, flag_t search_categories)
+{
+    char buf[MAX_STRING_LENGTH];
+    BUFFER *output;
+    bool found = FALSE;
     
-    send_to_char("Log entry saved.\n\r", ch);
+    output = new_buf();
+    
+    // Create search description string for the header
+    char search_desc[100] = "";
+    if (search_text && search_text[0] != '\0')
+        sprintf(search_desc, " (search: {G%s{x)", search_text);
+    else if (search_author && search_author[0] != '\0')
+        sprintf(search_desc, " (author: {G%s{x)", search_author);
+    else if (search_categories)
+        sprintf(search_desc, " (category: {G%s{x)", flag_string(church_log_category_flags, search_categories));
+    
+    sprintf(buf, "{YThe Log of %s%s:{x\n\r", church->name, search_desc);
+    add_buf(output, buf);
+    
+    // Display entries in reverse order (newest first)
+    for (int i = count - 1; i >= 0; i--) {
+        CHURCH_LOG_ENTRY *entry = entries[i];
+        
+        // Apply search filters if any are specified
+        if (search_text && search_text[0] != '\0' && 
+            !str_infix(search_text, entry->text))
+            continue;
+            
+        if (search_author && search_author[0] != '\0' && 
+            (!entry->author || str_infix(search_author, entry->author)))
+            continue;
+            
+        if (search_categories && !(entry->categories & search_categories))
+            continue;
+        
+        // Format the entry for display
+        char time_str[64];
+        strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M", localtime(&entry->timestamp));
+        
+        // Start with the entry ID and timestamp
+        sprintf(buf, "{W%6ld{x ", entry->entry_id);
+        add_buf(output, buf);
+        
+        sprintf(buf, "{C[%s]{x ", time_str);
+        add_buf(output, buf);
+        
+        // Add author information
+        if (entry->author) {
+            sprintf(buf, "{G(%s%s){x ", 
+                    entry->author,
+                    entry->system_generated ? " {Y[Auto]{G" : "");
+            add_buf(output, buf);
+        } else {
+            add_buf(output, "{Y(SYSTEM){x ");
+        }
+        
+        // Add category if available - properly use flag_string
+        if (entry->categories) {
+            const char *category_str = flag_string(church_log_category_flags, entry->categories);
+            if (category_str && category_str[0] != '\0') {
+                sprintf(buf, "{M[%s]{x ", category_str);
+                add_buf(output, buf);
+            }
+        }
+        
+        // Create a clean version of the text with newlines replaced by spaces
+        char clean_text[MAX_STRING_LENGTH];
+        int clean_len = 0;
+        int j;
+        
+        // Get only the first line or up to 40 chars, whichever comes first
+        for (j = 0; entry->text[j] != '\0' && clean_len < sizeof(clean_text)-1; j++) {
+            if (entry->text[j] == '\n' || entry->text[j] == '\r') {
+                // Stop at the first newline - we only want the first line
+                break;
+            } else {
+                clean_text[clean_len++] = entry->text[j];
+            }
+        }
+        clean_text[clean_len] = '\0';
+        
+        // Truncate the text to about 40 chars
+        char truncated_text[44]; // 40 chars + room for ellipsis
+        strncpy(truncated_text, clean_text, 40);
+        truncated_text[40] = '\0';
+        
+        // Add ellipsis if text was truncated OR if we hit a newline
+        if (strlen(clean_text) > 40 || (entry->text[j] == '\n' || entry->text[j] == '\r')) {
+            strcat(truncated_text, "...");
+        }
+        
+        // Add the truncated text
+        sprintf(buf, "%s\n\r", truncated_text);
+        add_buf(output, buf);
+        
+        found = TRUE;
+    }
+    
+    // Display search results or empty message
+    if (!found) {
+        if (search_text && search_text[0] != '\0')
+            add_buf(output, "{YNo entries found containing that text.{x\n\r");
+        else if (search_author && search_author[0] != '\0')
+            add_buf(output, "{YNo entries found by that author.{x\n\r");
+        else if (search_categories)
+            add_buf(output, "{YNo entries found in that category.{x\n\r");
+        else
+            add_buf(output, "{YThe log is empty.{x\n\r");
+    }
+    
+    // Add help text
+    add_buf(output, "\n\r{YUse 'church log <number>' to view the full text of an entry.{x\n\r");
+    
+    if (has_church_permission(ch->church_member, CHURCH_PERM_EDITLOG)) {
+        add_buf(output, "{YUse 'church log add <category>' to add a new entry.{x\n\r");
+        add_buf(output, "{YUse 'church log search <text>' to search entries.{x\n\r");
+        add_buf(output, "{YUse 'church log search author <name>' to search by author.{x\n\r");
+        add_buf(output, "{YUse 'church log search category <name>' to search by category.{x\n\r");
+        add_buf(output, "{YUse 'church log categories' to list available categories.{x\n\r");
+    }
+    
+    page_to_char(buf_string(output), ch);
+    free_buf(output);
+}
+
+bool is_meta_category(flag_t category_flag)
+{
+    for (int i = 0; church_log_meta_categories[i].flag != 0; i++) {
+        if (church_log_meta_categories[i].flag == category_flag) {
+            return true;
+        }
+    }
+    return false;
 }

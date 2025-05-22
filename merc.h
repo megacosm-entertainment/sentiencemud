@@ -163,6 +163,7 @@ int system();
 typedef unsigned char			bool;
 //enum tribool: uint8_t {False = 0, True = 1, Unknown = 2};
 */
+typedef unsigned long flag_t;
 
 #if !defined(false)
 #define false false
@@ -1885,6 +1886,25 @@ struct church_command_type
 #define CHURCH_PERM_MEMBERS (V)         // Can manage members
 #define CHURCH_PERM_ADD (W)             // Can add members
 #define CHURCH_PERM_EDITLOG (X)         // Can edit log
+
+// Church log category flags
+#define CHLOG_MEMBERS      (A)
+#define CHLOG_DEPOSIT      (B)
+#define CHLOG_WITHDRAWAL   (C)
+#define CHLOG_TRANSFER     (D)  // Meta: includes deposit and withdrawal
+#define CHLOG_SETTINGS     (E)
+#define CHLOG_STORAGE      (F)
+#define CHLOG_RANKS        (G)
+#define CHLOG_PERMISSIONS  (H)
+#define CHLOG_PK           (I)
+#define CHLOG_RECRUITMENT  (J)
+#define CHLOG_LEADERSHIP   (K) // Meta: includes ranks and permissions
+#define CHLOG_GENERAL      (L)
+#define CHLOG_STORAGE_FEES (M)
+#define CHLOG_FINANCES (N)
+#define CHLOG_GEN_SETTINGS (O)
+#define CHLOG_TREASURE     (P)
+#define CHLOG_MEMBERSHIP_SETTINGS (Q)
 struct church_data
 {
     CHURCH_DATA *next;
@@ -1958,6 +1978,7 @@ struct church_log_entry
 {
     char *author;          // Who made the entry (NULL for system entries)
     char *text;            // The log entry text
+    flag_t categories;
     time_t timestamp;      // When the entry was made
     long entry_id;         // Unique ID for the entry
     bool system_generated; // If true, entry cannot be modified
@@ -5703,6 +5724,9 @@ struct char_data
     LLIST *reputations;
     MOB_REPUTATION_DATA *mob_reputations;
     LLIST *factions; // REPUTATION_INDEX_DATA *
+
+flag_t temp_log_category;
+int temp_log_entry_id;
 
     int deathsight_vision;
     int cast_successful; // Flag set when the casting is started indicating whether the result is successful

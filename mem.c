@@ -795,6 +795,7 @@ CHAR_DATA *new_char( void )
 
     ch->missions = list_createx(false, NULL, delete_mission_data);
     ch->lcarrying_temp = list_create(false);
+    ch->temp_log_category = 0;
 
     return ch;
 }
@@ -887,6 +888,7 @@ void free_char( CHAR_DATA *ch )
     list_destroy(ch->auras);
     list_destroy(ch->reputations);
 
+
     iterator_start(&it, ch->lstache);
     while((obj = (OBJ_DATA *)iterator_nextdata(&it)))
     {
@@ -908,7 +910,7 @@ void free_char( CHAR_DATA *ch )
     script_clear_list(ch);
     wipe_clearinfo_mobile(ch);
     free_prog_data(ch->progs);
-    free_church_log_entry(ch->temp_log_entry);
+    free_string(ch->temp_log_entry);
 
     /* be sure to free any events hooked up to this char so that they arn't called
        on the freed memory space */
