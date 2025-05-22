@@ -475,7 +475,7 @@ typedef struct	npc_ship_index_data	NPC_SHIP_INDEX_DATA;
 typedef struct	obj_data		OBJ_DATA;
 typedef struct	obj_index_data		OBJ_INDEX_DATA;
 typedef struct	spell_data		SPELL_DATA;
-typedef struct account_data ACCOUNT_DATA;
+typedef struct	account_data	ACCOUNT_DATA;
 typedef struct	pc_data			PC_DATA;
 typedef struct	missionary_data	MISSIONARY_DATA;
 typedef struct	mission_data		MISSION_DATA;
@@ -495,6 +495,12 @@ typedef struct	trade_area_data		TRADE_AREA_DATA;
 typedef struct	storm_data		STORM_DATA;
 typedef struct	trade_item		TRADE_ITEM;
 typedef struct	trade_type		TRADE_TYPE;
+typedef struct	waypoint_data		WAYPOINT_DATA;
+typedef struct	ship_route_data SHIP_ROUTE;
+typedef struct 	buf_type	 	BUFFER;
+typedef struct  ambush_data             AMBUSH_DATA;
+typedef struct  chat_ban_data		CHAT_BAN_DATA;
+typedef struct  chat_op_data		CHAT_OP_DATA;
 typedef struct  church_data             CHURCH_DATA;
 typedef struct  church_player_data      CHURCH_PLAYER_DATA;
 typedef struct	church_treasure_room_data	CHURCH_TREASURE_ROOM;
@@ -508,10 +514,21 @@ typedef struct  mail_data		MAIL_DATA;
 typedef struct  prog_data		PROG_DATA;
 typedef struct  prog_code               PROG_CODE;
 typedef struct  prog_list              	PROG_LIST;
-typedef struct dialogue_index_data DIALOGUE_INDEX_DATA;
 typedef struct  quest_index_data        QUEST_INDEX_DATA;
 typedef struct  quest_list		QUEST_LIST;
-
+typedef struct  race_data       RACE_DATA;
+typedef struct  stat_data		STAT_DATA;
+typedef struct  string_data		STRING_DATA; /* for lists of strings */
+typedef struct	weather_data		WEATHER_DATA;
+typedef struct  token_index_data	TOKEN_INDEX_DATA;
+typedef struct  token_data		TOKEN_DATA;
+typedef struct  command_data		COMMAND_DATA;
+typedef struct  project_data		PROJECT_DATA;
+typedef struct  project_builder_data	PROJECT_BUILDER_DATA;
+typedef struct  project_inquiry_data	PROJECT_INQUIRY_DATA;
+typedef struct  immortal_data		IMMORTAL_DATA;
+typedef struct	log_entry_data		LOG_ENTRY_DATA;
+typedef struct  string_vector_data	STRING_VECTOR;
 typedef struct mob_index_skill_data MOB_INDEX_SKILL_DATA;
 typedef struct mob_skill_data MOB_SKILL_DATA;
 typedef struct list_type LLIST;
@@ -2197,7 +2214,7 @@ struct church_log_entry
     bool valid;
 };
 
-struct church_treasure_room
+struct church_treasure_room_data
 {
     ROOM_INDEX_DATA *room; // The room itself
     bool is_default;       // Whether this is the default room
@@ -7704,13 +7721,11 @@ struct area_data
     SHIP_INDEX_DATA *ship_index_hash[MAX_KEY_HASH];
     REPUTATION_INDEX_DATA *reputation_index_hash[MAX_KEY_HASH];
     QUEST_INDEX_DATA *quest_index_hash[MAX_KEY_HASH];
-
     DIALOGUE_INDEX_DATA *dialogue_index_hash[MAX_KEY_HASH];
 	SCRIPT_DATA *mprog_list;
 	SCRIPT_DATA *oprog_list;
 	SCRIPT_DATA *rprog_list;
 	SCRIPT_DATA *tprog_list;
-
     SCRIPT_DATA *aprog_list;
     SCRIPT_DATA *iprog_list;
     SCRIPT_DATA *dprog_list;
@@ -11223,7 +11238,7 @@ void    check_objects   args( ( void ) );
 void    check_mobs      args( ( void ) );
 CD *	create_mobile	args( ( MOB_INDEX_DATA *pMobIndex, bool persistLoad ) );
 CD *	clone_mobile	args( ( CHAR_DATA *parent ) );
-OD *	create_object_noid	args( ( OBJ_INDEX_DATA *pObjIndex, int level, bool affects, bool multitypes ) );
+OD *	create_object_noid	args( ( OBJ_INDEX_DATA *pObjIndex, int level, bool affects, bool multitypes, bool add_to_loaded_objs ) );
 OD *	create_object	args( ( OBJ_INDEX_DATA *pObjIndex, int level, bool affects ) );
 void	clone_object	args( ( OBJ_DATA *parent, OBJ_DATA *clone ) );
 void	clear_char	args( ( CHAR_DATA *ch ) );
