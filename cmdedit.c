@@ -581,11 +581,11 @@ CMDEDIT (cmdedit_show)
     BUFFER *buffer = new_buf();
 
     add_buf(buffer, formatf("Name:          %s\n\r", command->name));
-    add_buf(buffer, formatf("Type:          %s\n\r", command_types[command->type].name));
+    add_buf(buffer, formatf("Type:          {+%s\n\r", command_types[command->type].name));
     add_buf(buffer, formatf("Add'l Types    %s\n\r", flag_string(command_addl_types, command->addl_types)));
-    add_buf(buffer, formatf("Rank:         %d\n\r", command->rank));
-    add_buf(buffer, formatf("Position:      %s\n\r", position_table[command->position].name));
-    add_buf(buffer, formatf("Log:           %s\n\r", log_flags[command->log].name));
+    add_buf(buffer, formatf("Rank:          {+%s\n\r", flag_string(staff_ranks, command->rank)));
+    add_buf(buffer, formatf("Position:      {+%s\n\r", position_table[command->position].name));
+    add_buf(buffer, formatf("Log:           {+%s\n\r", log_flags[command->log].name));
     add_buf(buffer, formatf("Order:         %d\n\r", list_getindex(commands_list, command)));
     add_buf(buffer, formatf("Enabled:       %s\n\r", command->enabled ? "Yes" : "No"));
     if (!command->enabled || !IS_NULLSTR(command->reason)) 
@@ -751,7 +751,7 @@ CMDEDIT (cmdedit_rank )
         return false;
     }
 
-    if (new_rank > get_staff_rank(ch))
+    if (new_rank >= get_staff_rank(ch))
     {
         send_to_char("You cannot set a command to a rank higher than your own.\n\r", ch);
         return true;

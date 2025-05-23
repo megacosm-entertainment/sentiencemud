@@ -3450,6 +3450,8 @@ const struct do_func_type do_func_table[] =
         { "do_accnote", do_accnote },
         { "do_vault", do_vault },
         { "do_coffer", do_coffer },
+        { "do_acctlink", do_acctlink },
+        { "do_acctunlink", do_acctunlink },
 };
 
 /* Table mapping connection states to display strings */

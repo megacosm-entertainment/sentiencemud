@@ -5638,87 +5638,53 @@ void convert_church_ranks(CHURCH_DATA *church)
         church->ranks = rank->next;
         free_church_rank(rank);
     }
-    
     church->num_ranks = 0;
 
-    // Create default permissions for each rank level
-    long perm_member = CHURCH_PERM_GOHALL;
-    long perm_trusted = CHURCH_PERM_GOHALL | CHURCH_PERM_BALANCE;
-    long perm_officer = CHURCH_PERM_GOHALL | CHURCH_PERM_BALANCE | CHURCH_PERM_WITHDRAW | 
-                       CHURCH_PERM_MOTD | CHURCH_PERM_RULES | CHURCH_PERM_STORAGE;
-    long perm_leader = ~0; // All permissions
-    
-    // Store references to the ranks we create so we can map old indices to them
-    CHURCH_RANK_DATA *ranks[4]; // Maximum 4 ranks in old system
-    
-    // Create ranks based on the old format, using default names from the old tables
+    // Assign permissions to match the new command table
+    long perm_member  = CHURCH_PERM_GOHALL | CHURCH_PERM_TALK | CHURCH_PERM_TREASURE;
+    long perm_officer = perm_member | CHURCH_PERM_WITHDRAW | CHURCH_PERM_BALANCE | CHURCH_PERM_MOTD | CHURCH_PERM_RULES | CHURCH_PERM_STORAGE | CHURCH_PERM_VIEWLOG;
+    long perm_leader  = ~0; // All permissions
 
-       // Rank D (highest) - Leader type
+    CHURCH_RANK_DATA *ranks[4];
+
+    // D (highest) - Leader
     char *male_name_d = get_default_legacy_rank_name(church, CHURCH_RANK_D, SEX_MALE);
     char *female_name_d = get_default_legacy_rank_name(church, CHURCH_RANK_D, SEX_FEMALE);
-    ranks[0] = add_church_rank(church, (char *)male_name_d, male_name_d, female_name_d, male_name_d, 
-                   perm_leader, RANK_TYPE_LEADER);
+    ranks[0] = add_church_rank(church, male_name_d, male_name_d, female_name_d, male_name_d, perm_leader, RANK_TYPE_LEADER);
 
-         // Rank C - Officer type
+    // C - Officer
     char *male_name_c = get_default_legacy_rank_name(church, CHURCH_RANK_C, SEX_MALE);
     char *female_name_c = get_default_legacy_rank_name(church, CHURCH_RANK_C, SEX_FEMALE);
-    ranks[1] = add_church_rank(church, (char *)male_name_c, male_name_c, female_name_c, male_name_c, 
-                   perm_officer, RANK_TYPE_OFFICER);
+    ranks[1] = add_church_rank(church, male_name_c, male_name_c, female_name_c, male_name_c, perm_officer, RANK_TYPE_OFFICER);
 
-        // Rank B - Member type with more permissions
+    // B - Trusted Member (optional, can be same as member)
     char *male_name_b = get_default_legacy_rank_name(church, CHURCH_RANK_B, SEX_MALE);
     char *female_name_b = get_default_legacy_rank_name(church, CHURCH_RANK_B, SEX_FEMALE);
-    ranks[2] = add_church_rank(church, (char *)male_name_b, male_name_b, female_name_b, male_name_b, 
-                   perm_trusted, RANK_TYPE_MEMBER);
+    ranks[2] = add_church_rank(church, male_name_b, male_name_b, female_name_b, male_name_b, perm_member, RANK_TYPE_MEMBER);
 
-    // Rank A (lowest) - Member type
+    // A (lowest) - Member
     char *male_name_a = get_default_legacy_rank_name(church, CHURCH_RANK_A, SEX_MALE);
     char *female_name_a = get_default_legacy_rank_name(church, CHURCH_RANK_A, SEX_FEMALE);
-    ranks[3] = add_church_rank(church, (char *)male_name_a, male_name_a, female_name_a, male_name_a, 
-                   perm_member, RANK_TYPE_MEMBER);
-    
+    ranks[3] = add_church_rank(church, male_name_a, male_name_a, female_name_a, male_name_a, perm_member, RANK_TYPE_MEMBER);
 
-    
+    // Set default rank to lowest member
+    church->default_rank = ranks[3];
 
-    
- 
-    
+    // Mark leader and member as protected
+    ranks[0]->flags = CHURCH_RANK_PROTECTED;
+    ranks[3]->flags = CHURCH_RANK_PROTECTED;
+
     // Update church members to point to their appropriate ranks
     CHURCH_PLAYER_DATA *member;
     for (member = church->people; member != NULL; member = member->next) {
-        // Use the old_rank field that was loaded during read_church_member
         int old_rank_val = member->old_rank;
-        
-        // Default to rank 0 (lowest) if invalid
-        if (old_rank_val < 0 || old_rank_val >= 4) {
-            char buf[MAX_STRING_LENGTH];
-            sprintf(buf, "convert_church_ranks: Invalid rank %d for member %s in church %s, defaulting to rank 0",
-                    old_rank_val, member->name, church->name);
-            log_string(buf);
-            old_rank_val = 0;
-        }
-        
-        // Assign the rank pointer based on the old rank value
+        if (old_rank_val < 0 || old_rank_val >= 4) old_rank_val = 0;
         switch (old_rank_val) {
-            case 0:
-                member->rank = ranks[3]; // Rank A
-                member->rank_uid = ranks[3]->uid; // Rank A
-                break;
-            case 1:
-                member->rank = ranks[2]; // Rank B
-                member->rank_uid = ranks[2]->uid; // Rank B
-                break;
-            case 2:
-                member->rank = ranks[1]; // Rank C
-                member->rank_uid = ranks[1]->uid; // Rank C
-                break;
-            case 3:
-                member->rank = ranks[0]; // Rank D
-                member->rank_uid = ranks[0]->uid; // Rank D
-                break;
-            default:
-                member->rank = ranks[3]; // Default to lowest rank
-                member->rank_uid = ranks[3]->uid; // Default to lowest rank
+            case 0: member->rank = ranks[3]; member->rank_uid = ranks[3]->uid; break;
+            case 1: member->rank = ranks[2]; member->rank_uid = ranks[2]->uid; break;
+            case 2: member->rank = ranks[1]; member->rank_uid = ranks[1]->uid; break;
+            case 3: member->rank = ranks[0]; member->rank_uid = ranks[0]->uid; break;
+            default: member->rank = ranks[3]; member->rank_uid = ranks[3]->uid; break;
         }
     }
 }
@@ -6739,21 +6705,30 @@ char *get_default_legacy_rank_name(CHURCH_DATA *church, int rank, int sex)
 
 void initialize_church_ranks(CHURCH_DATA *church)
 {
-    // Create Leader rank first (highest rank) - this will get UID 1
-    CHURCH_RANK_DATA *leader_rank = add_church_rank(church, "Leader",
-        "Leader", "Leader", "Leader",
-        ~0, // All permissions
-        RANK_TYPE_LEADER);
-        
-    // Create Member rank second (lowest rank)
-    CHURCH_RANK_DATA *member_rank = add_church_rank(church, "Member", 
-        "Member", "Member", "Member",
-        CHURCH_PERM_GOHALL | CHURCH_PERM_TALK, // Basic permissions
+    // Leader: all permissions
+    CHURCH_RANK_DATA *leader_rank = add_church_rank(
+        church, "Leader", "Leader", "Leader", "Leader",
+        ~0, RANK_TYPE_LEADER);
+
+    // Officer: most management permissions
+    CHURCH_RANK_DATA *officer_rank = add_church_rank(
+        church, "Officer", "Officer", "Officer", "Officer",
+        CHURCH_PERM_GOHALL | CHURCH_PERM_TALK | CHURCH_PERM_TREASURE |
+        CHURCH_PERM_WITHDRAW | CHURCH_PERM_BALANCE | CHURCH_PERM_MOTD |
+        CHURCH_PERM_RULES | CHURCH_PERM_STORAGE | CHURCH_PERM_VIEWLOG |
+        CHURCH_PERM_MANAGE | CHURCH_PERM_MEMBERS | CHURCH_PERM_RANKS |
+        CHURCH_PERM_PERMS | CHURCH_PERM_FINANCES,
+        RANK_TYPE_OFFICER);
+
+    // Member: basic permissions
+    CHURCH_RANK_DATA *member_rank = add_church_rank(
+        church, "Member", "Member", "Member", "Member",
+        CHURCH_PERM_GOHALL | CHURCH_PERM_TALK | CHURCH_PERM_TREASURE,
         RANK_TYPE_MEMBER);
-    
+
     // Set as default rank for new members
     church->default_rank = member_rank;
-    
+
     // Mark these ranks as protected
     member_rank->flags = CHURCH_RANK_PROTECTED;
     leader_rank->flags = CHURCH_RANK_PROTECTED;

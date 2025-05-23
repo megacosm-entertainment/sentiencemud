@@ -627,3 +627,5 @@ DECLARE_DO_FUN( do_gameedit );
 DECLARE_DO_FUN( do_accnote);
 DECLARE_DO_FUN ( do_vault );
 DECLARE_DO_FUN( do_coffer );
+DECLARE_DO_FUN( do_acctlink );
+DECLARE_DO_FUN( do_acctunlink );
