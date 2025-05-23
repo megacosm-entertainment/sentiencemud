@@ -736,7 +736,7 @@ CMDEDIT (cmdedit_rank )
         send_to_char("Please select one of the following:\n\r", ch);
         for(int i = 0; staff_ranks[i].name; i++)
         {
-            if (staff_ranks[i].settable && staff_ranks[i].bit < get_staff_rank(ch))
+            if (staff_ranks[i].settable && staff_ranks[i].bit <= get_staff_rank(ch))
             {
                 send_to_char(formatf(" %s\n\r", staff_ranks[i].name), ch);
             }
@@ -751,7 +751,7 @@ CMDEDIT (cmdedit_rank )
         return false;
     }
 
-    if (new_rank >= get_staff_rank(ch))
+    if (new_rank > get_staff_rank(ch))
     {
         send_to_char("You cannot set a command to a rank higher than your own.\n\r", ch);
         return true;

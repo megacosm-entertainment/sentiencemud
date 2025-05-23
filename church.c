@@ -244,6 +244,10 @@ void show_church_commands(CHAR_DATA *ch)
                   IS_SET(ch->pcdata->immortal->duties, IMMORTAL_CHURCHES)))
             can_use = true;
         
+        else if(!IS_IMMORTAL(ch) && church_command_table[i].admin)
+                can_use = false;
+
+
         // Commands requiring church membership and permissions
         else if (ch->church_member != NULL && 
                  has_church_permission(ch->church_member, church_command_table[i].permission))
@@ -1852,8 +1856,9 @@ void do_chadvance(CHAR_DATA *ch, char* argument)
 
     argument = one_argument(argument, arg);
 
-    if (ch->pcdata->staff_rank > STAFF_SUPREMACY || !IS_SET(ch->pcdata->immortal->duties, IMMORTAL_CHURCHES))
-    {
+if (ch->pcdata->staff_rank < STAFF_SUPREMACY ||
+    ch->pcdata->immortal == NULL ||
+    !IS_SET(ch->pcdata->immortal->duties, IMMORTAL_CHURCHES))    {
         send_to_char("Huh?\n\r", ch);
         return;
     }
@@ -1915,7 +1920,9 @@ void do_chdeduct(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg2);
     argument = one_argument(argument, arg3);
 
-    if (ch->pcdata->staff_rank > STAFF_SUPREMACY || !IS_SET(ch->pcdata->immortal->duties, IMMORTAL_CHURCHES))
+    if (ch->pcdata->staff_rank < STAFF_SUPREMACY ||
+    ch->pcdata->immortal == NULL ||
+    !IS_SET(ch->pcdata->immortal->duties, IMMORTAL_CHURCHES))
     {
         send_to_char("Huh?\n\r", ch);
         return;
