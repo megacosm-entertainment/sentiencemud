@@ -290,17 +290,19 @@ void storage_character_cmd(CHAR_DATA *ch, char *argument)
         send_to_char(buf, ch);
         
         if (game_settings.locker_rent_enabled) {
-            send_to_char("Rent paid until:\n\r", ch);
-            send_to_char((char *)ctime(&ch->locker_rent), ch);
-            
-            if (current_time > ch->locker_rent) {
-                send_to_char("{RYour locker rent has expired!{x\n\r", ch);
-            } else {
-                // Calculate days left
-                int days_left = (ch->locker_rent - current_time) / 86400; // Integer division gives whole days
-                sprintf(buf, "Days remaining: %d\n\r", days_left);
-                send_to_char(buf, ch);
+            if (current_time > ch->locker_rent) 
+            {
+                send_to_char("Your locker rent has expired.\n\r", ch);
             }
+            else 
+            {
+                sprintf (buf, "Rent paid until %s\n\r", ctime(&ch->locker_rent));
+                send_to_char(buf, ch);
+                sprintf (buf, "Days: Remaining %ld\n\r", (ch->locker_rent - current_time) / 86400);
+                send_to_char(buf,ch);
+            
+            }
+        
             if (game_settings.locker_rent_time_max > 0) {
                 time_t max_rent_timestamp = current_time;
                 struct tm *tm_max_rent = localtime(&max_rent_timestamp);
@@ -694,19 +696,22 @@ if (!str_cmp(arg1, "rent")) {
             sprintf(buf, "Weight: %d/%d\n\r", current_weight_val, max_weight);
         }
         send_to_char(buf, ch);
-        
+
         if (game_settings.vault_rent) {
-            send_to_char("Rent paid until:\n\r", ch);
-            send_to_char((char *)ctime(&account->vault_rent), ch);
-            
-            if (current_time > account->vault_rent) {
-                send_to_char("{RYour vault storage rent has expired!{x\n\r", ch);
-            } else {
-                // Calculate days left
-                int days_left = (account->vault_rent - current_time) / 86400; // Integer division
-                sprintf(buf, "Days remaining: %d\n\r", days_left);
-                send_to_char(buf, ch);
+            if (current_time > account->vault_rent) 
+            {
+                send_to_char("Your locker rent has expired.\n\r", ch);
             }
+            else 
+            {
+                sprintf (buf, "Rent paid until %s\n\r", ctime(&account->vault_rent));
+                send_to_char(buf, ch);
+                sprintf (buf, "Days: Remaining %ld\n\r", (account->vault_rent - current_time) / 86400);
+                send_to_char(buf,ch);
+            
+            }
+        
+
             if (game_settings.vault_rent_time_max > 0) {
                 time_t max_rent_timestamp = current_time;
                 struct tm *tm_max_rent = localtime(&max_rent_timestamp);
@@ -716,7 +721,7 @@ if (!str_cmp(arg1, "rent")) {
                 send_to_char((char *)ctime(&max_rent_timestamp), ch);
             }
         } else {
-            send_to_char("Vault storage rental is not required on this realm.\n\r", ch);
+            send_to_char("Vault storage rental is not required on this game.\n\r", ch);
         }
         
         if (loaded && account) free_account(account);
@@ -1107,29 +1112,31 @@ void storage_church_cmd(CHAR_DATA *ch, char *argument)
         }
         send_to_char(buf, ch);
         
+
         if (game_settings.coffer_rent) {
-            send_to_char("\n\rRent paid until:\n\r", ch);
-            send_to_char((char *)ctime(&church->coffer_rent), ch);
-            
-            if (current_time > church->coffer_rent) {
-                send_to_char("{RYour church coffer storage rent has expired!{x\n\r", ch);
-            } else {
-                // Calculate days left
-                int days_left = (church->coffer_rent - current_time) / 86400; // Integer division
-                sprintf(buf, "Days remaining: %d\n\r", days_left);
-                send_to_char(buf, ch);
+            if (current_time > church->coffer_rent) 
+            {
+                send_to_char("Your church coffer has expired.\n\r", ch);
             }
-            // Assuming game_settings.coffer_rent_time_max for consistency
+            else 
+            {
+                sprintf (buf, "Rent paid until %s\n\r", ctime(&church->coffer_rent));
+                send_to_char(buf, ch);
+                sprintf (buf, "Days: Remaining %ld\n\r", (church->coffer_rent - current_time) / 86400);
+                send_to_char(buf,ch);
+            
+            }
+        
             if (game_settings.coffer_rent_time_max > 0) {
                 time_t max_rent_timestamp = current_time;
                 struct tm *tm_max_rent = localtime(&max_rent_timestamp);
-                tm_max_rent->tm_mday += game_settings.coffer_rent_time_max; // Use the correct setting here
+                tm_max_rent->tm_mday += game_settings.coffer_rent_time_max;
                 max_rent_timestamp = mktime(tm_max_rent);
                 send_to_char("Maximum possible rent until:\n\r", ch);
                 send_to_char((char *)ctime(&max_rent_timestamp), ch);
             }
         } else {
-            send_to_char("\n\rChurch coffer storage rental is not required on this realm.\n\r", ch);
+            send_to_char("\n\rChurch coffer storage rental is not required on this game.\n\r", ch);
         }
         
         return;
