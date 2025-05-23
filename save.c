@@ -5541,7 +5541,7 @@ void fread_account_character(ACCOUNT_DATA *account, FILE *fp)
                 break;
             }
             if (!str_cmp(word, "StaffRank")) {
-                acct_char->staff_rank = fread_number(fp);
+                acct_char->staff_rank = stat_lookup(fread_string(fp), staff_ranks, STAFF_PLAYER);
                 fMatch = true;
                 break;
             }
