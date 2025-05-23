@@ -227,37 +227,38 @@ void show_church_commands(CHAR_DATA *ch)
 {
     char buf[MSL];
     char buf2[MSL];
-    int i;
+    int i, shown = 0;
 
     sprintf(buf, "Church Commands:\n\r");
     for (i = 0; church_command_table[i].command != NULL; i++)
     {
         bool can_use = false;
-        
-        // Commands available to everyone
-        if (church_command_table[i].permission == CHURCH_PERM_NONE && church_command_table[i].admin == FALSE)
-            can_use = true;
-        
-        // Commands available to immortals
-        else if (IS_IMMORTAL(ch) && 
-                 (ch->pcdata->staff_rank >= STAFF_SUPREMACY || 
-                  IS_SET(ch->pcdata->immortal->duties, IMMORTAL_CHURCHES)))
-            can_use = true;
 
+        // Admin-only commands: only visible to staff
+        if (church_command_table[i].admin == TRUE) {
+            if (IS_IMMORTAL(ch))
+                can_use = true;
+        }
+        // Commands available to everyone (no permission required, not admin)
+        else if (church_command_table[i].permission == CHURCH_PERM_NONE)
+            can_use = true;
         // Commands requiring church membership and permissions
-        else if (ch->church_member != NULL && 
+        else if (ch->church_member != NULL &&
                  has_church_permission(ch->church_member, church_command_table[i].permission))
             can_use = true;
-            
+
         if (can_use)
         {
             sprintf(buf2, " %-13s", church_command_table[i].command);
             strcat(buf, buf2);
 
-            if (i != 0 && i % 4 == 0)
+            if (++shown % 4 == 0)
                 strcat(buf, "\n\r");
         }
     }
+
+    if (shown % 4 != 0)
+        strcat(buf, "\n\r");
 
     send_to_char(buf, ch);
 }
