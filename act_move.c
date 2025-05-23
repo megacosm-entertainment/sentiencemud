@@ -1684,17 +1684,21 @@ void use_key(CHAR_DATA *ch, OBJ_DATA *key)
 	}
 
 	/* can only use a church-temple key if you're in that church */
-	for (church = church_list; church != NULL; church = church->next)
-	{
-		if (church->key == key->pIndexData->vnum && ch->church != church)
-		{
-			sprintf(buf, "Rent by the spiritual powers of %s, $p dissipates into nothingness.\n\r", church->name);
-			act(buf, ch, NULL, NULL, key, NULL, NULL, NULL, TO_CHAR);
-			act(buf, ch, NULL, NULL, key, NULL, NULL, NULL, TO_ROOM);
-			extract_obj(key);
-			return;
-		}
-	}
+ITERATOR it;
+iterator_start(&it, list_churches);
+while ((church = (CHURCH_DATA *)iterator_nextdata(&it)))
+{
+    if (church->key == key->pIndexData->vnum && ch->church != church)
+    {
+        sprintf(buf, "Rent by the spiritual powers of %s, $p dissipates into nothingness.\n\r", church->name);
+        act(buf, ch, NULL, NULL, key, NULL, NULL, NULL, TO_CHAR);
+        act(buf, ch, NULL, NULL, key, NULL, NULL, NULL, TO_ROOM);
+        extract_obj(key);
+        iterator_stop(&it);
+        return;
+    }
+}
+iterator_stop(&it);
 
 	switch (key->fragility)
 	{

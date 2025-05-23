@@ -1289,18 +1289,22 @@ void do_drop(CHAR_DATA *ch, char *argument)
 	}
 
 	/* Awful hack to make it so people don't load up the perm-objs list too much. Will fix later. */
-	for (church = church_list; church != NULL; church = church->next)
-	{
-	    if (is_treasure_room(church, room))
-	    {
-		if (ch->church == church)
-		    send_to_char("Donations to the treasure room must be made using the church donate command.\n\r", ch);
-		else
-		    act("Only members of $t may donate to it.", ch, NULL, NULL, NULL, NULL, church->name, NULL, TO_CHAR);
+ITERATOR it;
+iterator_start(&it, list_churches);
+while ((church = (CHURCH_DATA *)iterator_nextdata(&it)))
+{
+    if (is_treasure_room(church, room))
+    {
+        if (ch->church == church)
+            send_to_char("Donations to the treasure room must be made using the church donate command.\n\r", ch);
+        else
+            act("Only members of $t may donate to it.", ch, NULL, NULL, NULL, NULL, church->name, NULL, TO_CHAR);
 
-		return;
-	    }
-	}
+        iterator_stop(&it);
+        return;
+    }
+}
+iterator_stop(&it);
 
 
 	if ((obj = get_obj_carry(ch, arg, ch)) == NULL)
@@ -1348,18 +1352,22 @@ void do_drop(CHAR_DATA *ch, char *argument)
     else
     {
         /* Drop all/all.<obj> */
-	for (church = church_list; church != NULL; church = church->next)
-	{
-	    if (is_treasure_room(church, room))
-	    {
-		if (ch->church == church)
-		    send_to_char("Donations to the treasure room must be made using the church donate command.\n\r", ch);
-		else
-		    act("Only members of $t may donate to it.", ch, NULL, NULL, NULL, NULL, church->name, NULL, TO_CHAR);
+ITERATOR it;
+iterator_start(&it, list_churches);
+while ((church = (CHURCH_DATA *)iterator_nextdata(&it)))
+{
+    if (is_treasure_room(church, room))
+    {
+        if (ch->church == church)
+            send_to_char("Donations to the treasure room must be made using the church donate command.\n\r", ch);
+        else
+            act("Only members of $t may donate to it.", ch, NULL, NULL, NULL, NULL, church->name, NULL, TO_CHAR);
 
-		return;
-	    }
-	}
+        iterator_stop(&it);
+        return;
+    }
+}
+iterator_stop(&it);
 
 	while (found)
 	{

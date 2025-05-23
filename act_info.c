@@ -4532,11 +4532,15 @@ void do_who_new(CHAR_DATA * ch, char *argument)
 	    iLevelUpper = atoi(arg2);
 	}
 
-	for (church = church_list; church != NULL; church = church->next)
-	{
-	    if (!str_prefix(arg, church->name))
-		break;
-	}
+ITERATOR it;
+church = NULL;
+iterator_start(&it, list_churches);
+while ((church = (CHURCH_DATA *)iterator_nextdata(&it)))
+{
+    if (!str_prefix(arg, church->name))
+        break;
+}
+iterator_stop(&it);
     }
 
     send_to_char(

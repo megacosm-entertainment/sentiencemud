@@ -70,41 +70,43 @@ BUFFER *get_churches_html()
     // Table
     add_buf( output, "<table width=\"100%\" border=\"0\" style=\"padding: 15px; padding-top: 10px;\"> <tr> <td class=\"title\">Church Name&nbsp;</td> <td class=\"title\">Church Type&nbsp;</td> <td class=\"title\">Alignment&nbsp;</td> <td class=\"title\">Player Killer?&nbsp;</td> </tr>" );
 
-    for (chr = church_list; chr != NULL; chr = chr->next)
+ITERATOR it;
+iterator_start(&it, list_churches);
+while ((chr = (CHURCH_DATA *)iterator_nextdata(&it)))
+{
+    char tempbuf[25];
+
+    switch (chr->size)
     {
-	char tempbuf[25];
-
-	switch (chr->size)
-	{
-	    case CHURCH_SIZE_BAND:
-		sprintf(tempbuf, "Band");
-		break;
-	    case CHURCH_SIZE_CULT:
-		sprintf(tempbuf, "Cult");
-		break;
-	    case CHURCH_SIZE_ORDER:
-		sprintf(tempbuf, "Order");
-		break;
-	    case CHURCH_SIZE_CHURCH:
-		sprintf(tempbuf, "Church");
-		break;
-	}
-	sprintf( temp, "<tr><td>%s&nbsp;</td><td>%s&nbsp;</td><td>%s&nbsp;</td>", chr->name, tempbuf, (chr->alignment == CHURCH_GOOD ? "Good" : (chr->alignment == CHURCH_EVIL ? "Evil" : "Neutral")));
-	add_buf( output, temp );
-
-	if ( !chr->pk )
-	{
-	    sprintf( temp, "<td>No&nbsp;</td></tr>");
-	}
-	else
-	{
-	    sprintf( temp, "<td>{RYes{x ({W%ld{x wins : {Y%ld{x losses)&nbsp;</td></tr>",
-		    chr->pk_wins, chr->pk_losses );
-	}
-
-	add_buf( output, temp );
-
+        case CHURCH_SIZE_BAND:
+            sprintf(tempbuf, "Band");
+            break;
+        case CHURCH_SIZE_CULT:
+            sprintf(tempbuf, "Cult");
+            break;
+        case CHURCH_SIZE_ORDER:
+            sprintf(tempbuf, "Order");
+            break;
+        case CHURCH_SIZE_CHURCH:
+            sprintf(tempbuf, "Church");
+            break;
     }
+    sprintf( temp, "<tr><td>%s&nbsp;</td><td>%s&nbsp;</td><td>%s&nbsp;</td>", chr->name, tempbuf, (chr->alignment == CHURCH_GOOD ? "Good" : (chr->alignment == CHURCH_EVIL ? "Evil" : "Neutral")));
+    add_buf( output, temp );
+
+    if ( !chr->pk )
+    {
+        sprintf( temp, "<td>No&nbsp;</td></tr>");
+    }
+    else
+    {
+        sprintf( temp, "<td>{RYes{x ({W%ld{x wins : {Y%ld{x losses)&nbsp;</td></tr>",
+                chr->pk_wins, chr->pk_losses );
+    }
+
+    add_buf( output, temp );
+}
+iterator_stop(&it);
     add_buf( output, "</table></td></tr></table></body></html>" );
 
     return output;

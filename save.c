@@ -1491,12 +1491,14 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		CHURCH_PLAYER_DATA *member;
 		ch->church_name = fread_string(fp);
 
-		for (church = church_list; church != NULL;
-		     church = church->next)
-		{
-	   	    if (!str_cmp(ch->church_name, church->name))
-		        break;
-		}
+ITERATOR it;
+church = NULL;
+iterator_start(&it, list_churches);
+while ((church = (CHURCH_DATA *)iterator_nextdata(&it))) {
+    if (!str_cmp(ch->church_name, church->name))
+        break;
+}
+iterator_stop(&it);
 
 		if (church != NULL)
 		{
@@ -3676,18 +3678,19 @@ void write_permanent_objs()
 	    fwrite_obj_new(NULL, hp_regen_relic, fp, 0);
 
 	// save church treasure rooms
-	for (church = church_list; church != NULL; church = church->next)
-	{
-		CHURCH_TREASURE_ROOM *treasure;
-		ITERATOR it;
-
-		iterator_start(&it, church->treasure_rooms);
-		while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it))) {
-			if( treasure->room->contents != NULL )
-				fwrite_obj_new(NULL, treasure->room->contents, fp, 0);
-		}
-		iterator_stop(&it);
-	}
+ITERATOR chit;
+iterator_start(&chit, list_churches);
+while ((church = (CHURCH_DATA *)iterator_nextdata(&chit))) {
+    CHURCH_TREASURE_ROOM *treasure;
+    ITERATOR it;
+    iterator_start(&it, church->treasure_rooms);
+    while ((treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it))) {
+        if (treasure->room->contents != NULL)
+            fwrite_obj_new(NULL, treasure->room->contents, fp, 0);
+    }
+    iterator_stop(&it);
+}
+iterator_stop(&chit);
 
 	fprintf(fp, "#END\n");
 

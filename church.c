@@ -100,7 +100,6 @@ void display_church_logs(CHAR_DATA *ch, CHURCH_DATA *church,
                         CHURCH_LOG_ENTRY **entries, int count,
                         char *search_text, char *search_author, flag_t search_categories);
 static int cmp_church_uid(void *a, void *b);
-void rebuild_church_list_from_llist();
 
 
     #define MAX_PROCESSED_FILES 100
@@ -562,22 +561,24 @@ void do_chrem(CHAR_DATA *ch, char *argument)
 
 	if (IS_IMMORTAL(ch))
 	{
-		CHURCH_DATA *church;
-		found = false;
-		for (church = church_list; church != NULL; church = church->next)
-		{
-		    for (member = church->people; member != NULL; member = member->next)
-		    {
-				if (!str_prefix(member->name, arg))
-				{
-				    found = true;
-				    break;
-				}
-		    }
-
-		    if (found)
-				break;
-		}
+    CHURCH_DATA *church;
+    found = false;
+    ITERATOR it;
+    iterator_start(&it, list_churches);
+    while ((church = (CHURCH_DATA *)iterator_nextdata(&it)))
+    {
+        for (member = church->people; member != NULL; member = member->next)
+        {
+            if (!str_prefix(member->name, arg))
+            {
+                found = true;
+                break;
+            }
+        }
+        if (found)
+            break;
+    }
+    iterator_stop(&it);
 
 		if (!found)
 		{
@@ -1141,7 +1142,6 @@ void do_chcreate(CHAR_DATA *ch, char *argument)
     char arg2[MAX_STRING_LENGTH];
     char arg3[MAX_STRING_LENGTH];
     bool found;
-    int i;
 
     if (ch->church != NULL)
     {
@@ -1172,14 +1172,11 @@ void do_chcreate(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    for (i = 0, church = church_list; church != NULL; church = church->next)
-	i++;
-
-    if (i >= MAX_CHURCHES) {
-	sprintf(buf, "Sentience only allows %d religions.\n\r", MAX_CHURCHES);
-	send_to_char(buf, ch);
-	return;
-    }
+if (list_size(list_churches) >= MAX_CHURCHES) {
+    sprintf(buf, "Sentience only allows %d religions.\n\r", MAX_CHURCHES);
+    send_to_char(buf, ch);
+    return;
+}
 
     argument = one_argument_norm(argument, arg1);
     argument = one_argument_norm(argument, arg2);
@@ -1215,17 +1212,7 @@ void do_chcreate(CHAR_DATA *ch, char *argument)
 		list_appendlink(church->roster, ch->name) &&
 		list_appendlink(list_churches,church) ) {
 
-		if (!church_list)
-			church_list = church;
-		else {
-			CHURCH_DATA *temp_church;
-			temp_church = church_list;
-			while (temp_church->next)
-				temp_church = temp_church->next;
-			temp_church->next = church;
-		}
 
-		church->next = NULL;
 		church->name = str_dup(arg1);
         church->version = VERSION_CHURCH;
 		church->max_positions = 10;
@@ -1280,7 +1267,6 @@ void do_chcreate(CHAR_DATA *ch, char *argument)
     }
 
 		save_church(ch->church);
-        rebuild_church_list_from_llist();
 	} else {
 		if( church ) {
 			list_remlink(list_churches, church, false);
@@ -1318,19 +1304,20 @@ void do_chdelete(CHAR_DATA *ch, char *argument)
     {
         CHURCH_DATA *church = NULL;
 
-        counter = 0;
-        for (church = church_list; church != NULL; church = church->next)
-        {
-            counter++;
-            if (counter == atoi(arg))
-                break;
-        }
+counter = 0;
+ITERATOR it;
+iterator_start(&it, list_churches);
+while ((church = (CHURCH_DATA *)iterator_nextdata(&it))) {
+    counter++;
+    if (counter == atoi(arg))
+        break;
+}
+iterator_stop(&it);
 
-        if (church == NULL)
-        {
-            send_to_char("Church number not found.\n\r", ch);
-            return;
-        }
+if (church == NULL) {
+    send_to_char("Church number not found.\n\r", ch);
+    return;
+}
 
         // Mark the church as deleted instead of completely removing it
         church->deleted = TRUE;
@@ -1341,23 +1328,25 @@ void do_chdelete(CHAR_DATA *ch, char *argument)
         // Now remove from active lists
         list_remlink(list_churches, church, false);
         
-        // Remove from church_list
-        if (church == church_list) {
-            church_list = church->next;
-        } else {
-            CHURCH_DATA *prev;
-            for (prev = church_list; prev && prev->next != church; prev = prev->next);
-            if (prev)
-                prev->next = church->next;
-        }
-        
-        // Set next pointer to NULL since it's no longer in any list
-        church->next = NULL;
-        rebuild_church_list_from_llist();
+// Mark the church as deleted instead of completely removing it
+church->deleted = TRUE;
+
+// Save the church to preserve it with the deleted flag
+save_church(church);
+
+// Now remove from active lists
+list_remlink(list_churches, church, false);
+
+send_to_char("Church marked as deleted.\n\r", ch);
+
+char buf[MAX_STRING_LENGTH];
+sprintf(buf, "Church %s (UID %ld) has been deleted by %s.",
+        church->name, church->uid, ch->name);
+log_string(buf);
+return;
 
         send_to_char("Church marked as deleted.\n\r", ch);
         
-        char buf[MAX_STRING_LENGTH];
         sprintf(buf, "Church %s (UID %ld) has been deleted by %s.",
                 church->name, church->uid, ch->name);
         log_string(buf);
@@ -1691,32 +1680,34 @@ void show_chlist_to_char(CHAR_DATA *ch)
     "{YNo. PK  Name                          Max   Alignment    Size{x\n\r", ch);
     line(ch , 83, NULL, NULL);
     i = 0;
-    for (church = church_list; church != NULL; church = church->next)
-    {
-        i++;
+ITERATOR it;
+i = 0;
+iterator_start(&it, list_churches);
+while ((church = (CHURCH_DATA *)iterator_nextdata(&it))) {
+    i++;
+    sprintf(buf, "{G%-3d{x {R%-3s{x %-30.30s %-4d %-15s{x",
+        i,
+        church->pk == true ? "PK" : "",
+        church->name,
+        church->max_positions,
+        church->alignment == CHURCH_EVIL ?
+        "{REvil" : (church->alignment == CHURCH_GOOD ?
+            "{WGood" : "{xNeutral"));
+    send_to_char(buf, ch);
 
-        sprintf(buf, "{G%-3d{x {R%-3s{x %-30.30s %-4d %-15s{x",
-            i,
-            church->pk == true ? "PK" : "",
-	    church->name,
-	    church->max_positions,
-	    church->alignment == CHURCH_EVIL ?
-	    "{REvil" : (church->alignment == CHURCH_GOOD ?
-		    "{WGood" : "{xNeutral"));
-	    send_to_char(buf, ch);
+    if (church->size == CHURCH_SIZE_BAND)
+        send_to_char("Band   ", ch);
+    else if (church->size == CHURCH_SIZE_CULT)
+        send_to_char("Cult   ", ch);
+    else if (church->size == CHURCH_SIZE_ORDER)
+        send_to_char("Order  ", ch);
+    else if (church->size == CHURCH_SIZE_CHURCH)
+        send_to_char("Church ", ch);
 
-	    if (church->size == CHURCH_SIZE_BAND)
-		send_to_char("Band   ", ch);
-	    else if (church->size == CHURCH_SIZE_CULT)
-		send_to_char("Cult   ", ch);
-	    else if (church->size == CHURCH_SIZE_ORDER)
-		send_to_char("Order  ", ch);
-	    else if (church->size == CHURCH_SIZE_CHURCH)
-		send_to_char("Church ", ch);
-
-	    sprintf(buf, "%s\n\r", church->flag);
-	    send_to_char(buf, ch);
-	}
+    sprintf(buf, "%s\n\r", church->flag);
+    send_to_char(buf, ch);
+}
+iterator_stop(&it);
 
 	line (ch, 83, NULL, NULL);
 	sprintf(buf, "{Y%d group(s) found.{x\n\r", i);
@@ -1921,8 +1912,8 @@ void do_chdeduct(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg3);
 
     if (ch->pcdata->staff_rank < STAFF_SUPREMACY ||
-    ch->pcdata->immortal == NULL ||
-    !IS_SET(ch->pcdata->immortal->duties, IMMORTAL_CHURCHES))
+        ch->pcdata->immortal == NULL ||
+        !IS_SET(ch->pcdata->immortal->duties, IMMORTAL_CHURCHES))
     {
         send_to_char("Huh?\n\r", ch);
         return;
@@ -1932,17 +1923,20 @@ void do_chdeduct(CHAR_DATA *ch, char *argument)
     {
         send_to_char(
         "Syntax:\n\rchurch deduct <church#> <pneuma|dp|gold> <amt>\n\r", ch);
-	show_chlist_to_char(ch);
+        show_chlist_to_char(ch);
         return;
     }
 
     i = 0;
-    for (church = church_list; church != NULL; church = church->next)
+    ITERATOR it;
+    iterator_start(&it, list_churches);
+    while ((church = (CHURCH_DATA *)iterator_nextdata(&it)))
     {
         i++;
         if (i == atoi(arg))
-   	    break;
+            break;
     }
+    iterator_stop(&it);
 
     if (church == NULL)
     {
@@ -1951,13 +1945,13 @@ void do_chdeduct(CHAR_DATA *ch, char *argument)
     }
 
     if (str_cmp(arg2, "dp")
-    && str_cmp(arg2, "pneuma")
-    && str_cmp(arg2, "gold"))
+        && str_cmp(arg2, "pneuma")
+        && str_cmp(arg2, "gold"))
     {
         send_to_char(
         "Syntax:\n\rchurch <church#> <pneuma|dp|gold> <amt>\n\r", ch);
-	show_chlist_to_char(ch);
-	return;
+        show_chlist_to_char(ch);
+        return;
     }
 
     amt = atoi(arg3);
@@ -1969,8 +1963,8 @@ void do_chdeduct(CHAR_DATA *ch, char *argument)
     }
 
     if ((!str_cmp(arg2,"pneuma") && amt > church->pneuma)
-    || (!str_cmp(arg2, "dp") && amt > church->dp)
-    || (!str_cmp(arg2, "gold") && amt > church->gold))
+        || (!str_cmp(arg2, "dp") && amt > church->dp)
+        || (!str_cmp(arg2, "gold") && amt > church->gold))
     {
         send_to_char("They don't have that much.\n\r", ch);
         return;
@@ -3799,12 +3793,15 @@ void do_chdonate(CHAR_DATA *ch, char *argument)
 void write_churches_new()
 {
     CHURCH_DATA *church;
-    
+    ITERATOR it;
+
     log_string("Writing all churches...");
-    
-    for (church = church_list; church != NULL; church = church->next) {
+
+    iterator_start(&it, list_churches);
+    while ((church = (CHURCH_DATA *)iterator_nextdata(&it))) {
         save_church(church);
     }
+    iterator_stop(&it);
 }
 
 
@@ -4036,14 +4033,11 @@ void read_churches_new()
                     }
                     
                     // Link to global list
-                    if (church_list == NULL) {
-                        church_list = church;
-                    } else {
-                        CHURCH_DATA *temp;
-                        for (temp = church_list; temp->next != NULL; temp = temp->next)
-                            ;
-                        temp->next = church;
-                    }
+if (!list_appendlink(list_churches, church)) {
+    log_string("Failed to add church to list");
+    free_church(church);
+    continue;
+}
                     
                     save_church(church);
                     legacy_count++;
@@ -4146,14 +4140,11 @@ void read_churches_new()
                 }
                 
                 // Link to global list
-                if (church_list == NULL) {
-                    church_list = church;
-                } else {
-                    CHURCH_DATA *temp;
-                    for (temp = church_list; temp->next != NULL; temp = temp->next)
-                        ;
-                    temp->next = church;
-                }
+if (!list_appendlink(list_churches, church)) {
+    log_string("Failed to add church to list");
+    free_church(church);
+    continue;
+}
                 
                 count++;
             } else {
@@ -4165,7 +4156,6 @@ void read_churches_new()
     closedir(dir);
     log_string(formatf("Loaded %d churches from individual files", count));
 
-    rebuild_church_list_from_llist();
     
 }
 
@@ -4785,17 +4775,20 @@ void update_church_pks(void)
     CHURCH_DATA *church;
     int pk_wins;
     int pk_losses;
+    ITERATOR it;
 
     log_string("update_church_pks: updating church PKs...");
-    for (church = church_list; church != NULL; church = church->next) {
-	pk_wins = church->cpk_wins;
-	pk_losses = church->cpk_losses;
+    iterator_start(&it, list_churches);
+    while ((church = (CHURCH_DATA *)iterator_nextdata(&it))) {
+        pk_wins = church->cpk_wins;
+        pk_losses = church->cpk_losses;
 
-	church->cpk_wins = church->pk_wins;
-	church->cpk_losses = church->pk_losses;
-	church->pk_wins = pk_wins;
-	church->pk_losses = pk_losses;
+        church->cpk_wins = church->pk_wins;
+        church->cpk_losses = church->pk_losses;
+        church->pk_wins = pk_wins;
+        church->pk_losses = pk_losses;
     }
+    iterator_stop(&it);
 }
 
 
@@ -5199,21 +5192,21 @@ void do_chtreasure(CHAR_DATA *ch, char *argument)
 void church_announce_theft(CHAR_DATA *ch, OBJ_DATA *obj)
 {
     char buf[MAX_STRING_LENGTH];
-	CHURCH_DATA *church;
+    CHURCH_DATA *church;
+    ITERATOR it;
 
-	for (church = church_list; church != NULL; church = church->next) {
-		if ((ch->church != church || is_excommunicated(ch)) && is_treasure_room(church, ch->in_room)) {
-			if( obj != NULL)
-			{
-				sprintf(buf, "{Y%s has stolen %s from a %s treasure room!{x\n\r", ch->name, obj->short_descr, church->name);
-			}
-			else
-			{
-				sprintf(buf, "{Y%s has stolen from a %s treasure room!{x\n\r", ch->name, church->name);
-			}
-			gecho(buf);
-		}
-	}
+    iterator_start(&it, list_churches);
+    while ((church = (CHURCH_DATA *)iterator_nextdata(&it))) {
+        if ((ch->church != church || is_excommunicated(ch)) && is_treasure_room(church, ch->in_room)) {
+            if (obj != NULL) {
+                sprintf(buf, "{Y%s has stolen %s from a %s treasure room!{x\n\r", ch->name, obj->short_descr, church->name);
+            } else {
+                sprintf(buf, "{Y%s has stolen from a %s treasure room!{x\n\r", ch->name, church->name);
+            }
+            gecho(buf);
+        }
+    }
+    iterator_stop(&it);
 }
 
 bool has_church_permission(CHURCH_PLAYER_DATA *member, long permission)
@@ -7705,31 +7698,3 @@ static int cmp_church_uid(void *a, void *b)
     return 0;
 }
 
-// This is temporary. We should move away from church_list to just iterating over list_churches.
-void rebuild_church_list_from_llist(void)
-{
-    // Sort the LLIST list_churches by UID.
-    if (list_churches != NULL && list_churches->size > 1) {
-        list_quicksort(list_churches, cmp_church_uid);
-    }
-
-    // Rebuild the singly-linked church_list from the sorted LLIST.
-    church_list = NULL;
-    CHURCH_DATA *sll_tail = NULL;
-    if (list_churches != NULL) {
-        ITERATOR it;
-        CHURCH_DATA *church_from_llist_node;
-        iterator_start(&it, list_churches);
-        while ((church_from_llist_node = (CHURCH_DATA *)iterator_nextdata(&it))) {
-            church_from_llist_node->next = NULL;
-            if (church_list == NULL) {
-                church_list = church_from_llist_node;
-                sll_tail = church_from_llist_node;
-            } else {
-                sll_tail->next = church_from_llist_node;
-                sll_tail = church_from_llist_node;
-            }
-        }
-        iterator_stop(&it);
-    }
-}

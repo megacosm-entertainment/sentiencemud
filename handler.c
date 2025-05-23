@@ -2897,58 +2897,30 @@ void extract_chat_room(CHAT_ROOM_DATA *chat)
 void extract_church(CHURCH_DATA *church)
 {
     char buf[MAX_STRING_LENGTH];
-    CHURCH_DATA *temp_church;
     CHURCH_PLAYER_DATA *member;
 
     if (church == NULL)
     {
-	bug("Tried to extract null church.", 0);
-	return;
+        bug("Tried to extract null church.", 0);
+        return;
     }
 
-    for (temp_church = church_list; temp_church != NULL; temp_church = temp_church->next)
-        if (!str_cmp(church->name, temp_church->name))
-	    break;
-
-    if (temp_church == NULL)
-    {
-	bug("Couldn't extract church as church was NULL.", 0);
-	return;
-    }
-
+    // Remove all members
     while((member = church->people) != NULL)
         remove_member(member);
 
     sprintf(buf, "{Y[%s has been disbanded.]{x\n\r", church->name);
     gecho(buf);
 
-    if (church == church_list)
-    {
-	church_list = church->next;
-    }
-    else
-    {
-        for (temp_church = church_list; temp_church != NULL; temp_church = temp_church->next) {
-	    if (temp_church->next == church)
-	    {
-		temp_church->next = church->next;
-	        break;
-	    }
-	}
-
-	if (temp_church == NULL)
-	{
-	    bug("Extract_church: church not found.", 0);
-	    return;
-	}
-    }
-
+    // Remove from LLIST
     list_remlink(list_churches, church, false);
+
+    // Optionally, if you still maintain church_list as a view, rebuild it here:
+    // rebuild_church_list_from_llist();
 
     free_church(church);
     return;
 }
-
 
 /*
  * Extract an obj from the world.
@@ -10431,16 +10403,19 @@ void show_staff_ranks(CHAR_DATA *ch)
 CHURCH_DATA *get_church_by_name(const char *name)
 {
     CHURCH_DATA *church;
+    ITERATOR it;
 
     if (IS_NULLSTR(name))
         return NULL;
 
-    for (church = church_list; church != NULL; church = church->next)
+    iterator_start(&it, list_churches);
+    while ((church = (CHURCH_DATA *)iterator_nextdata(&it)))
     {
         if (!str_cmp(church->name, name))
-            return church;
+            break;
     }
-    return NULL;
+    iterator_stop(&it);
+    return church;
 }
 
 bool validate_account_recipient(const char *account_name) {
