@@ -4134,13 +4134,6 @@ if (!list_appendlink(list_churches, church)) {
                     continue;
                 }
                 
-                // Link to global list
-if (!list_appendlink(list_churches, church)) {
-    log_string("Failed to add church to list");
-    free_church(church);
-    continue;
-}
-                
                 count++;
             } else {
                 free_church(church);
