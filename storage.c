@@ -308,8 +308,8 @@ void storage_character_cmd(CHAR_DATA *ch, char *argument)
                 struct tm *tm_max_rent = localtime(&max_rent_timestamp);
                 tm_max_rent->tm_mday += game_settings.locker_rent_time_max;
                 max_rent_timestamp = mktime(tm_max_rent);
-                send_to_char("Maximum possible rent until:\n\r", ch);
-                send_to_char((char *)ctime(&max_rent_timestamp), ch);
+                sprintf( buf, "Maximum possible rent until %s\n\r", ctime(&max_rent_timestamp));
+                send_to_char(buf, ch);
             }
         } else {
             send_to_char("Locker rental is not required on this game.\n\r", ch);
@@ -717,8 +717,8 @@ if (!str_cmp(arg1, "rent")) {
                 struct tm *tm_max_rent = localtime(&max_rent_timestamp);
                 tm_max_rent->tm_mday += game_settings.vault_rent_time_max;
                 max_rent_timestamp = mktime(tm_max_rent);
-                send_to_char("Maximum possible rent until:\n\r", ch);
-                send_to_char((char *)ctime(&max_rent_timestamp), ch);
+                sprintf( buf, "Maximum possible rent until %s\n\r", ctime(&max_rent_timestamp));
+                send_to_char(buf, ch);
             }
         } else {
             send_to_char("Vault storage rental is not required on this game.\n\r", ch);
@@ -1132,8 +1132,8 @@ void storage_church_cmd(CHAR_DATA *ch, char *argument)
                 struct tm *tm_max_rent = localtime(&max_rent_timestamp);
                 tm_max_rent->tm_mday += game_settings.coffer_rent_time_max;
                 max_rent_timestamp = mktime(tm_max_rent);
-                send_to_char("Maximum possible rent until:\n\r", ch);
-                send_to_char((char *)ctime(&max_rent_timestamp), ch);
+                sprintf( buf, "Maximum possible rent until %s\n\r", ctime(&max_rent_timestamp));
+                send_to_char(buf, ch);
             }
         } else {
             send_to_char("\n\rChurch coffer storage rental is not required on this game.\n\r", ch);

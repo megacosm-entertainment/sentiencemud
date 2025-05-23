@@ -958,7 +958,7 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
     int regular_count = 0;
 
     // Handle letter choices (menu options)
-    if (argument[0] != '\0' && argument[1] == '\0') 
+    if (argument[0] != '\0' && argument[1] == '\0' && !isdigit(argument[0])) 
     {
 
         switch (toupper(argument[0])) {
