@@ -1888,7 +1888,17 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 
 	case 'P':
 	    KEY("Password",	ch->pcdata->pwd,	fread_string(fp));
-	    KEY("Pass",	ch->pcdata->pwd,	fread_string(fp));
+	    if (!str_cmp(word, "Pass"))
+		{
+		free_string(ch->pcdata->pwd);
+		ch->pcdata->pwd = str_dup(fread_string(fp));
+		sprintf(buf, "fread_char: %s password set to %s", ch->name, ch->pcdata->pwd);
+		log_string(buf);
+		fMatch = true;
+
+		}
+		//KEY("Pass",	ch->pcdata->pwd,	fread_string(fp));
+		
 		KEY("PassVers", ch->pcdata->pwd_vers,	fread_number(fp))
 		KEY("PendingEmail", ch->pcdata->pending_email, fread_string(fp));
 	    KEY("Played",	ch->played,		fread_number(fp));
