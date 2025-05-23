@@ -351,6 +351,9 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
         fprintf(fp, "AccountId %ld %ld\n", ch->pcdata->account_id[0], ch->pcdata->account_id[1]);
     }
     if(!IS_NPC(ch))
+			fprintf(fp, "StaffRank %s~\n", flag_string(staff_ranks, ch->pcdata->staff_rank));
+
+
 
 	fprintf(fp, "Created   %ld\n", ch->pcdata->creation_date	);
     fprintf(fp, "Id   %ld\n", ch->id[0]			);
@@ -2182,6 +2185,8 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 	    break;
 
 	case 'S':
+			KEY("StaffRank", ch->pcdata->staff_rank, stat_lookup(fread_string(fp),staff_ranks,STAFF_PLAYER));
+
 	    KEY("SavingThrow",	ch->saving_throw,	fread_number(fp));
 	    KEY("Save",	ch->saving_throw,	fread_number(fp));
 	    KEY("Scro",	ch->lines,		fread_number(fp));
@@ -5536,7 +5541,7 @@ void fread_account_character(ACCOUNT_DATA *account, FILE *fp)
                 break;
             }
             if (!str_cmp(word, "StaffRank")) {
-                acct_char->tot_level = fread_number(fp);
+                acct_char->staff_rank = fread_number(fp);
                 fMatch = true;
                 break;
             }
