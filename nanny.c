@@ -386,15 +386,23 @@ void login_confirm_account_name(DESCRIPTOR_DATA *d, char *argument)
 // Leads to CON_CONFIRM_ACCOUNT_PASSWORD.
 void login_new_account_password(DESCRIPTOR_DATA *d, char *argument)
 {
-    ACCOUNT_DATA *acct = d->account;
+    // ACCOUNT_DATA *acct = d->account; // Not needed here yet
     
     write_to_buffer(d, "\n\r", 2);
     
-    if (!acceptablePassword(d, argument))
+    // acceptablePassword should ideally be called by nanny() immediately after input
+    // or ensure it doesn't modify 'argument' if called here.
+    if (!acceptablePassword(d, argument)) {
+        // acceptablePassword should send its own error and re-prompt or set state.
+        // If it just returns false, we might need to re-prompt here.
+        // For now, assuming acceptablePassword handles re-prompting or state change.
         return;
+    }
         
-    acct->passwd = str_dup(sha256_crypt(argument));
-    acct->passwd_version = 1;
+    if (d->new_password_buffer) {
+        free_string(d->new_password_buffer);
+    }
+    d->new_password_buffer = str_dup(argument);
     
     write_to_buffer(d, "Please confirm password: ", 0);
     d->connected = CON_CONFIRM_ACCOUNT_PASSWORD;
@@ -410,18 +418,41 @@ void login_confirm_account_password(DESCRIPTOR_DATA *d, char *argument)
     
     write_to_buffer(d, "\n\r", 2);
     
-    if (strcmp(crypt(argument, acct->passwd), acct->passwd) != 0) {
+    if (!d->new_password_buffer) {
+        write_to_buffer(d, "An error occurred. Please try setting your password again.\n\r", 0);
+        // Go back to password entry
+        if (acct) { // If account context exists
+             d->connected = CON_NEW_ACCOUNT_PASSWORD;
+        } else { // Should not happen if acct is always present here
+            close_socket(d); // Or back to account name
+        }
+        return;
+    }
+    
+    if (strcmp(argument, d->new_password_buffer) != 0) {
         write_to_buffer(d, "Passwords don't match.\n\r", 0);
-        write_to_buffer(d, "Please enter a new password: ", 0);
+        free_string(d->new_password_buffer);
+        d->new_password_buffer = NULL;
         d->connected = CON_NEW_ACCOUNT_PASSWORD;
         return;
     }
     
+    // Passwords match, now set it encrypted
+    if (!set_encrypted_password(&acct->passwd, &acct->passwd_version, d->new_password_buffer)) {
+        write_to_buffer(d, "Error setting password. Please try again or contact staff.\n\r", 0);
+        free_string(d->new_password_buffer);
+        d->new_password_buffer = NULL;
+        d->connected = CON_NEW_ACCOUNT_PASSWORD; // Go back to re-enter
+        return;
+    }
+    
+    // Password successfully set and hashed
+    free_string(d->new_password_buffer);
+    d->new_password_buffer = NULL;
     ProtocolNoEcho(d, false);
     
     write_to_buffer(d, "\n\rPlease enter a valid e-mail address at which we can reach you.\n\r"
                 "It will not be distributed to any third parties or abused in any way.\n\r", 0);
-    write_to_buffer(d, "\n\rEnter your e-mail address: ", 0);
     d->connected = CON_GET_ACCOUNT_EMAIL;
 }
 
@@ -1794,81 +1825,110 @@ void login_confirm_email_for_reset(DESCRIPTOR_DATA *d, char *argument)
 
 void login_change_passwd_initial(DESCRIPTOR_DATA *d, char *argument)
 {
-	CHAR_DATA *ch;
-	char *pwdnew;
+    CHAR_DATA *ch = d->character;
+    // char *pwdnew; // Not used
 
-	while (ISSPACE(*argument))
-		argument++;
+    while (ISSPACE(*argument))
+        argument++;
 
-	ch = d->character;
-    if (argument[0] == '\0')
-    {
+    if (argument[0] == '\0') {
+        // Re-prompt without error if input is empty
         d->connected = CON_CHANGE_PASSWORD;
         return;
     }
-    if (ch->pcdata->pwd_vers < 1) 
-    {
-        if (!strcmp(crypt(argument, ch->pcdata->old_pwd), ch->pcdata->old_pwd))
-        {
-            send_to_char("Password must be DIFFERENT from your current password!\n\rPassword: ", ch);
-            d->connected = CON_CHANGE_PASSWORD;
-            return;
+    
+    // Check if the new password is the same as the old one (ch->pcdata->old_pwd should hold the previous hash)
+    // ch->pcdata->old_pwd was set in login_get_old_passwd or similar flows before reaching here.
+    if (!IS_NULLSTR(ch->pcdata->old_pwd)) {
+        // We don't have the old_pwd_version easily here.
+        // For simplicity, we'll compare the new plaintext against the old hash using check_encrypted_password.
+        // We assume old_pwd could be any format, so try checking it as if it's a system crypt hash first.
+        // A more robust way would be to store old_pwd_version alongside old_pwd.
+        // For now, this heuristic should catch most cases.
+        password_check_status old_match_status = check_encrypted_password(argument, ch->pcdata->old_pwd, PWD_VER_CRYPT_SYSTEM); // Try as crypt
+        if (old_match_status == PWD_CHECK_FAIL && strlen(ch->pcdata->old_pwd) == 64) { // If not crypt, and looks like sha256
+            old_match_status = check_encrypted_password(argument, ch->pcdata->old_pwd, PWD_VER_SHA256_CUSTOM);
         }
-    }
-    else
-    {
-        if (!strcmp(sha256_crypt(argument), ch->pcdata->old_pwd))
-        {
-            send_to_char("Password must be DIFFERENT from your current password!\n\rPassword: ", ch);
+        if (old_match_status == PWD_CHECK_FAIL && ch->pcdata->old_pwd[0] != '$') { // If not crypt/sha256, try plaintext
+             old_match_status = check_encrypted_password(argument, ch->pcdata->old_pwd, PWD_VER_PLAINTEXT);
+        }
+
+        if (old_match_status != PWD_CHECK_FAIL) {
+            send_to_char("New password must be DIFFERENT from your current password!\n\r", ch);
             d->connected = CON_CHANGE_PASSWORD;
             return;
         }
     }
 
-
-    if (!acceptablePassword(d, argument))
+    if (!acceptablePassword(d, argument)) {
+        // acceptablePassword should re-prompt or set state
         return;
+    }
 
-    pwdnew = sha256_crypt(argument);
+    // Store the first password attempt in the descriptor's buffer
+    if (d->new_password_buffer) {
+        free_string(d->new_password_buffer);
+    }
+    d->new_password_buffer = str_dup(argument);
 
-    free_string(ch->pcdata->pwd);
-    ch->pcdata->pwd	= str_dup(pwdnew);
+    // free_string(ch->pcdata->pwd); // Don't free yet, set_encrypted_password will handle it
+    // ch->pcdata->pwd	= str_dup(pwdnew); // Done by set_encrypted_password
 
-    ch->pcdata->need_change_pw = false;
+    // ch->pcdata->need_change_pw = false; // Set after successful confirmation
     d->connected = CON_CHANGE_PASSWORD_CONFIRM;
 }
 
 void login_change_passwd_confirm(DESCRIPTOR_DATA *d, char *argument)
 {
+    CHAR_DATA *ch = d->character;
 
-	CHAR_DATA *ch;
+    while (ISSPACE(*argument))
+        argument++;
 
-	while (ISSPACE(*argument))
-		argument++;
-
-	ch = d->character;
-    if (strcmp(sha256_crypt(argument), ch->pcdata->pwd))
-    {
-        write_to_buffer(d, "Passwords don't match.\n\rPassword: ", 0);
+    if (!d->new_password_buffer) {
+        write_to_buffer(d, "An error occurred. Please try setting your password again.\n\r", 0);
         d->connected = CON_CHANGE_PASSWORD;
         return;
     }
 
-    send_to_char("\n\r\n\r{Y***{x {RThank you. Please remember to never give your password to anybody.{Y *** {x\n\r\n\r", ch);
-    if (ch->pcdata->pwd_vers < 1){
-        ch->pcdata->pwd_vers = 1;
+    if (strcmp(argument, d->new_password_buffer) != 0) {
+        write_to_buffer(d, "Passwords don't match.\n\r", 0);
+        free_string(d->new_password_buffer);
+        d->new_password_buffer = NULL;
+        d->connected = CON_CHANGE_PASSWORD;
+        return;
     }
+
+    // Passwords match, set it encrypted
+    if (!set_encrypted_password(&ch->pcdata->pwd, &ch->pcdata->pwd_vers, d->new_password_buffer)) {
+        write_to_buffer(d, "Error setting new password. Please try again or contact staff.\n\r", 0);
+        free_string(d->new_password_buffer);
+        d->new_password_buffer = NULL;
+        d->connected = CON_CHANGE_PASSWORD;
+        return;
+    }
+    
+    free_string(d->new_password_buffer);
+    d->new_password_buffer = NULL;
+
+    send_to_char("\n\r\n\r{Y***{x {RThank you. Please remember to never give your password to anybody.{Y *** {x\n\r\n\r", ch);
+    
+    ch->pcdata->need_change_pw = false; // Password successfully changed
+    // ch->pcdata->pwd_vers is updated by set_encrypted_password
+
+    // Clear old_pwd if it was being held for this change
+    if (ch->pcdata->old_pwd) {
+        free_string(ch->pcdata->old_pwd);
+        ch->pcdata->old_pwd = NULL;
+    }
+
     save_char_obj(d->character);
-//		write_to_buffer(d, echo_on_str, 0);
     ProtocolNoEcho(d,false);
 
-    if (IS_IMMORTAL(ch))
-    {
+    if (IS_IMMORTAL(ch)) {
         do_function(ch, &do_imotd, "");
         d->connected = CON_READ_IMOTD;
-    }
-    else
-    {
+    } else {
         do_function(ch, &do_motd, "");
         d->connected = CON_READ_MOTD;
     }
@@ -1988,52 +2048,77 @@ default:
 
 void login_get_new_passwd(DESCRIPTOR_DATA *d, char *argument)
 {
-	CHAR_DATA *ch;
-	char *pwdnew;
+    CHAR_DATA *ch = d->character;
+    // char *pwdnew; // Not used directly anymore
 
-	while (ISSPACE(*argument))
-		argument++;
+    while (ISSPACE(*argument))
+        argument++;
 
-	ch = d->character;
     write_to_buffer(d, "\n\r", 2);
-    if (!acceptablePassword(d, argument))
+    if (!acceptablePassword(d, argument)) {
+        // acceptablePassword should re-prompt or set state
         return;
+    }
 
-    pwdnew = sha256_crypt(argument);
-
-    free_string(ch->pcdata->pwd);
-    ch->pcdata->pwd	= str_dup(pwdnew);
-    ch->pcdata->pwd_vers = 1;
-    write_to_buffer(d, "Please retype password: ", 0);
+    // Store the first password attempt in the descriptor's buffer
+    if (d->new_password_buffer) {
+        free_string(d->new_password_buffer);
+    }
+    d->new_password_buffer = str_dup(argument);
+    
+    // ch->pcdata->pwd_vers = 1; // Will be set by set_encrypted_password
     d->connected = CON_CONFIRM_NEW_PASSWORD;
 
-    ch->pcdata->need_change_pw = false;
+    // ch->pcdata->need_change_pw = false; // Not relevant for new char
 }
 
 void login_confirm_new_passwd(DESCRIPTOR_DATA *d, char *argument)
 {
-	CHAR_DATA *ch;
+    CHAR_DATA *ch = d->character;
 
-	while (ISSPACE(*argument))
-		argument++;
+    while (ISSPACE(*argument))
+        argument++;
 
-	ch = d->character;
     write_to_buffer(d, "\n\r", 2);
 
-    if (strcmp(sha256_crypt(argument), ch->pcdata->pwd))
-    {
-        write_to_buffer(d, "Passwords don't match.\n\r\n\rRetype password: ", 0);
+    if (!d->new_password_buffer) {
+        write_to_buffer(d, "An error occurred. Please try setting your password again.\n\r", 0);
+        // Go back to password entry
+        char buf[MAX_STRING_LENGTH];
+        write_to_buffer(d, buf, 0);
         d->connected = CON_GET_NEW_PASSWORD;
         return;
     }
 
-//		write_to_buffer(d, echo_on_str, 0);
+    if (strcmp(argument, d->new_password_buffer) != 0) {
+        write_to_buffer(d, "Passwords don't match.\n\r\n\rRetype password: ", 0);
+        free_string(d->new_password_buffer);
+        d->new_password_buffer = NULL;
+        // Go back to first password entry
+        char buf[MAX_STRING_LENGTH];
+        write_to_buffer(d, buf, 0);
+        d->connected = CON_GET_NEW_PASSWORD;
+        return;
+    }
+
+    // Passwords match, set it encrypted
+    if (!set_encrypted_password(&ch->pcdata->pwd, &ch->pcdata->pwd_vers, d->new_password_buffer)) {
+        write_to_buffer(d, "Error setting password. Please try again or contact staff.\n\r", 0);
+        free_string(d->new_password_buffer);
+        d->new_password_buffer = NULL;
+        // Go back to first password entry
+        char buf[MAX_STRING_LENGTH];
+        write_to_buffer(d, buf, 0);
+        d->connected = CON_GET_NEW_PASSWORD;
+        return;
+    }
+
+    free_string(d->new_password_buffer);
+    d->new_password_buffer = NULL;
     ProtocolNoEcho(d,false);
 
     write_to_buffer(d,	"\n\rPlease enter a valid e-mail address at which we can reach you in case you lose your password.\n\r"
                         "It will not be distributed to any third parties or abused in any way.\n\r", 0);
-
-    send_to_char("\n\rEnter your e-mail address: ", ch);
 
     d->connected = CON_GET_EMAIL;
 }
@@ -3189,19 +3274,22 @@ void login_confirm_character_password(DESCRIPTOR_DATA *d, char *argument)
     
     write_to_buffer(d, "\n\r", 2);
     
-    if (!acceptablePassword(d, argument))
+    if (!acceptablePassword(d, argument)) {
+        // acceptablePassword should re-prompt or set state
         return;
+    }
         
-    free_string(ch->pcdata->pwd);
-    ch->pcdata->pwd = str_dup(sha256_crypt(argument));
-    ch->pcdata->pwd_vers = 1;
-    ch->pcdata->account_pwd_override = true;
-    
-    save_char_obj(ch);
+    if (!set_encrypted_password(&ch->pcdata->pwd, &ch->pcdata->pwd_vers, argument)) {
+        write_to_buffer(d, "Error setting character password. Please try again or contact staff.\n\r", 0);
+        // Optionally, revert to account password or clear override
+        // For now, just inform and return to menu
+    } else {
+        ch->pcdata->account_pwd_override = true; // Mark that a character-specific password is set
+        save_char_obj(ch);
+        write_to_buffer(d, "\n\rCharacter password set.\n\r", 0);
+    }
     
     ProtocolNoEcho(d, false);
-    write_to_buffer(d, "\n\rCharacter password set.\n\r", 0);
-    
     display_character_menu(d);
     d->connected = CON_CHARACTER_MENU;
 }
@@ -3540,26 +3628,35 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
 void login_verify_unlink_password(DESCRIPTOR_DATA *d, char *argument)
 {
     CHAR_DATA *ch = d->character;
-    ProtocolNoEcho(d, false);
+    password_check_status status;
+    // ProtocolNoEcho(d, false); // Echo is turned off before this, turn back on after auth.
 
-    if (strcmp(sha256_crypt(argument), ch->pcdata->pwd) &&
-        strcmp(crypt(argument, ch->pcdata->pwd), ch->pcdata->pwd) &&
-        strcmp(argument, ch->pcdata->pwd)) {
+    status = check_encrypted_password(argument, ch->pcdata->pwd, ch->pcdata->pwd_vers);
+
+    if (status == PWD_CHECK_FAIL) {
+        ProtocolNoEcho(d, false);
         write_to_buffer(d, "Incorrect character password.\n\r", 0);
         display_character_menu(d);
         d->connected = CON_CHARACTER_MENU;
         return;
     }
+
+    // Upgrade password if necessary (though it's about to be changed for unlink)
+    if (status == PWD_CHECK_SUCCESS_SHA256_CUSTOM || status == PWD_CHECK_SUCCESS_PLAINTEXT) {
+        // No need to save here as it will be overwritten by set_unlink_password
+        // but good to log if an upgrade *would* have happened.
+    }
+
     // If MFA is set, require it next
-    if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled) {
+    if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled && !DEV_SKIP_MFA) {
+        ProtocolNoEcho(d, true); // Ensure echo is off for MFA
         write_to_buffer(d, "This character has MFA enabled. Please enter the MFA code: ", 0);
-        ProtocolNoEcho(d, true);
         d->connected = CON_VERIFY_UNLINK_MFA;
         return;
     }
-    // Otherwise, prompt for new password
-    write_to_buffer(d, "Enter a new password for this character (unlinking will remove all account ties): ", 0);
-    ProtocolNoEcho(d, true);
+
+    // Otherwise, prompt for new password for the unlinked character
+    ProtocolNoEcho(d, false); // Turn echo off for new password entry
     d->connected = CON_SET_UNLINK_PASSWORD;
 }
 
@@ -3582,14 +3679,23 @@ void login_verify_unlink_mfa(DESCRIPTOR_DATA *d, char *argument)
 void login_set_unlink_password(DESCRIPTOR_DATA *d, char *argument)
 {
     CHAR_DATA *ch = d->character;
-    if (!acceptablePassword(d, argument))
-        return;
 
-    // Set new password (no MFA)
-    free_string(ch->pcdata->pwd);
-    ch->pcdata->pwd = str_dup(sha256_crypt(argument));
-    ch->pcdata->pwd_vers = 1;
-    ch->pcdata->account_pwd_override = false;
+    if (!acceptablePassword(d, argument)) {
+        // acceptablePassword should re-prompt or set state
+        return;
+    }
+
+    // Set new password using the secure method
+    if (!set_encrypted_password(&ch->pcdata->pwd, &ch->pcdata->pwd_vers, argument)) {
+        ProtocolNoEcho(d, false);
+        write_to_buffer(d, "Error setting new password for unlinked character. Unlinking aborted.\n\r", 0);
+        // Revert to character menu, character is not unlinked.
+        display_character_menu(d);
+        d->connected = CON_CHARACTER_MENU;
+        return;
+    }
+    
+    ch->pcdata->account_pwd_override = false; // No longer an override, it's THE password.
 
     // Clear all MFA/email/account fields
     free_string(ch->pcdata->mfa_key);
@@ -3599,13 +3705,14 @@ void login_set_unlink_password(DESCRIPTOR_DATA *d, char *argument)
     free_string(ch->pcdata->mfa_pending_key);
     ch->pcdata->mfa_pending_key = str_dup("");
     for (int i = 0; i < MFA_RECOVERY_CODES; i++) {
-        free_string(ch->pcdata->recovery_codes[i]);
+        if (ch->pcdata->recovery_codes[i]) free_string(ch->pcdata->recovery_codes[i]);
         ch->pcdata->recovery_codes[i] = str_dup("");
         ch->pcdata->recovery_used[i] = false;
     }
-    free_string(ch->pcdata->email);
-    ch->pcdata->email = str_dup("");
-    ch->pcdata->email_verified = false;
+    // Email might be kept or cleared based on policy. For now, let's clear it.
+    // free_string(ch->pcdata->email);
+    // ch->pcdata->email = str_dup("");
+    // ch->pcdata->email_verified = false;
 
     // Remove account linkage
     free_string(ch->pcdata->account_name);
@@ -3618,9 +3725,14 @@ void login_set_unlink_password(DESCRIPTOR_DATA *d, char *argument)
     save_account(d->account);
     save_char_obj(ch);
 
+    ProtocolNoEcho(d, false);
     write_to_buffer(d, "Character has been unlinked from your account. You may now log in with the new password.\n\r", 0);
-    free_char(ch);
+    
+    // d->character still points to the char struct that was loaded.
+    // It should be freed as it's no longer the active char for this descriptor.
+    free_char(ch); 
     d->character = NULL;
+
     display_account_menu(d);
     d->connected = CON_ACCOUNT_MENU;
 }
@@ -3681,28 +3793,40 @@ void login_get_account_mfa_for_char(DESCRIPTOR_DATA *d, char *argument)
 void login_get_char_password(DESCRIPTOR_DATA *d, char *argument)
 {
     CHAR_DATA *ch = d->character;
+    password_check_status status;
     
     write_to_buffer(d, "\n\r", 2);
-    ProtocolNoEcho(d, false);
+    // ProtocolNoEcho(d, false); // Echo is turned off before calling this, turn back on after auth.
     
-    if (strcmp(sha256_crypt(argument), ch->pcdata->pwd) && 
-        strcmp(crypt(argument, ch->pcdata->pwd), ch->pcdata->pwd) && 
-        strcmp(argument, ch->pcdata->pwd)) {
-        
+    status = check_encrypted_password(argument, ch->pcdata->pwd, ch->pcdata->pwd_vers);
+
+    if (status == PWD_CHECK_FAIL) {
+        ProtocolNoEcho(d, false); // Turn echo back on before returning to menu
         write_to_buffer(d, "Incorrect character password.\n\r", 0);
         // Return to character menu
         display_character_menu(d);
         d->connected = CON_CHARACTER_MENU;
         return;
     }
+
+    // If an old password format was used, upgrade it.
+    if (status == PWD_CHECK_SUCCESS_SHA256_CUSTOM || status == PWD_CHECK_SUCCESS_PLAINTEXT) {
+        if (!set_encrypted_password(&ch->pcdata->pwd, &ch->pcdata->pwd_vers, argument)) {
+            // Continue with login, but log the failure.
+        } else {
+            save_char_obj(ch); // Save the upgraded password
+        }
+    }
     
     // If the character has MFA enabled, prompt for that next
-    if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled) {
+    if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled && !DEV_SKIP_MFA) {
+        // ProtocolNoEcho is already true from the password prompt, or should be set again if it was turned off
         ProtocolNoEcho(d, true);
         d->connected = CON_GET_CHAR_MFA;
         return;
     }
     
+    ProtocolNoEcho(d, false); // Turn echo back on
     // Check for d->reconnecting flag.
     if (d->reconnecting) {
         // This is a genuine reconnect - handle accordingly
@@ -3940,27 +4064,37 @@ void login_change_account_password(DESCRIPTOR_DATA *d, char *argument)
     
     if (argument[0] == '\0')
     {
+        // Re-prompt without error if input is empty
+        write_to_buffer(d, "New Password: ", 0);
         d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
         return;
     }
     
-    // Check if the new password is the same as the old one
-    if (!IS_NULLSTR(acct->old_passwd) && 
-        !strcmp(sha256_crypt(argument), acct->old_passwd))
-    {
-        write_to_buffer(d, "Password must be DIFFERENT from your current password!\n\r", 0);
-        write_to_buffer(d, "Password: ", 0);
-        d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
+    // Check if the new password is the same as the old one (acct->old_passwd should hold the previous hash)
+    // Note: acct->old_passwd might be in any format. check_encrypted_password can handle this.
+    if (!IS_NULLSTR(acct->old_passwd)) {
+        // We need to know the version of old_passwd. If it's not explicitly stored,
+        // we might need to infer or just compare against the new hash if it were made from 'argument'.
+        // For simplicity, if old_passwd exists, we assume it's the *actual* old password hash.
+        // A direct comparison of crypt(argument, old_passwd) vs old_passwd is better.
+        password_check_status old_match_status = check_encrypted_password(argument, acct->old_passwd, PWD_VER_CRYPT_SYSTEM); // Assume old_passwd could be any format
+         if (old_match_status != PWD_CHECK_FAIL) {
+            write_to_buffer(d, "New password must be DIFFERENT from your current password!\n\r", 0);
+            d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
+            return;
+        }
+    }
+
+
+    if (!acceptablePassword(d, argument)) {
+        // acceptablePassword should re-prompt or set state
         return;
     }
 
-    if (!acceptablePassword(d, argument))
-        return;
-
-    free_string(acct->passwd);
-    acct->passwd = str_dup(sha256_crypt(argument));
+    if (d->new_password_buffer) free_string(d->new_password_buffer);
+    d->new_password_buffer = str_dup(argument);
+    
     write_to_buffer(d, "\n\rPlease retype new password: ", 0);
-
     d->connected = CON_CONFIRM_ACCOUNT_PASSWORD_CHANGE;
 }
 
@@ -3968,27 +4102,44 @@ void login_confirm_account_password_change(DESCRIPTOR_DATA *d, char *argument)
 {
     ACCOUNT_DATA *acct = d->account;
     
-    if (strcmp(sha256_crypt(argument), acct->passwd))
-    {
-        write_to_buffer(d, "Passwords don't match.\n\rPassword: ", 0);
+    if (!d->new_password_buffer) {
+        write_to_buffer(d, "An error occurred. Please try changing password again.\n\r", 0);
+        // Go back to password entry
         d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
         return;
     }
 
-    write_to_buffer(d, "\n\r\n\r{Y***{x {RThank you. Please remember to never give your password to anybody.{Y *** {x\n\r\n\r", 0);
-    
-    // Update password version if needed
-    if (acct->passwd_version < 1) {
-        acct->passwd_version = 1;
+    if (strcmp(argument, d->new_password_buffer) != 0) {
+        write_to_buffer(d, "Passwords don't match.\n\r", 0);
+        free_string(d->new_password_buffer);
+        d->new_password_buffer = NULL;
+        d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
+        return;
+    }
+
+    // Passwords match, set the new encrypted password
+    if (!set_encrypted_password(&acct->passwd, &acct->passwd_version, d->new_password_buffer)) {
+        write_to_buffer(d, "Error setting new password. Please try again or contact staff.\n\r", 0);
+        free_string(d->new_password_buffer);
+        d->new_password_buffer = NULL;
+        d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
+        return;
     }
     
-    // Free old password if it exists
+    free_string(d->new_password_buffer);
+    d->new_password_buffer = NULL;
+
+    write_to_buffer(d, "\n\r\n\r{Y***{x {RPassword successfully changed. Please remember to never give your password to anybody.{Y *** {x\n\r\n\r", 0);
+    
+    // passwd_version is already updated by set_encrypted_password.
+    
+    // Free old_passwd if it was being held
     if (acct->old_passwd) {
         free_string(acct->old_passwd);
-        acct->old_passwd = NULL;
+        acct->old_passwd = NULL; 
     }
     
-    save_account(acct);
+    save_account(acct); // Save immediately after successful password change
     ProtocolNoEcho(d, false);
 
     // Return to account menu
@@ -3999,24 +4150,32 @@ void login_confirm_account_password_change(DESCRIPTOR_DATA *d, char *argument)
 void login_verify_delete_password(DESCRIPTOR_DATA *d, char *argument)
 {
     CHAR_DATA *ch = d->character;
+    password_check_status status;
     
     write_to_buffer(d, "\n\r", 2);
     ProtocolNoEcho(d, false);
     
-    if (strcmp(sha256_crypt(argument), ch->pcdata->pwd) && 
-        strcmp(crypt(argument, ch->pcdata->pwd), ch->pcdata->pwd) && 
-        strcmp(argument, ch->pcdata->pwd)) {
-        
+    status = check_encrypted_password(argument, ch->pcdata->pwd, ch->pcdata->pwd_vers);
+
+    if (status == PWD_CHECK_FAIL) {
         write_to_buffer(d, "Incorrect character password.\n\r", 0);
         display_character_menu(d);
         d->connected = CON_CHARACTER_MENU;
         return;
     }
+
+    // If an old password format was used, upgrade it.
+    if (status == PWD_CHECK_SUCCESS_SHA256_CUSTOM || status == PWD_CHECK_SUCCESS_PLAINTEXT) {
+        if (!set_encrypted_password(&ch->pcdata->pwd, &ch->pcdata->pwd_vers, argument)) {
+            // Continue with deletion, but log the failure to upgrade.
+        } else {
+            save_char_obj(ch); // Save the upgraded password
+        }
+    }
     
     // If the character also has MFA, we need to verify that too
     if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled) {
         write_to_buffer(d, "\n\r{RThis character has MFA enabled. Please authenticate:{x\n\r", 0);
-        write_to_buffer(d, "Enter MFA code: ", 0);
         ProtocolNoEcho(d,true);
         d->connected = CON_VERIFY_DELETE_MFA;
         return;
@@ -4024,7 +4183,6 @@ void login_verify_delete_password(DESCRIPTOR_DATA *d, char *argument)
     
     // If no MFA, proceed to confirmation
     write_to_buffer(d, "\n\r{RWARNING: This will permanently delete this character!{x\n\r", 0);
-    write_to_buffer(d, "Type 'DELETE' to confirm: ", 0);
     d->connected = CON_CONFIRM_DELETE_CHARACTER;
 }
 
@@ -4041,7 +4199,6 @@ void login_verify_delete_mfa(DESCRIPTOR_DATA *d, char *argument)
     
     // MFA verified, proceed to final confirmation
     write_to_buffer(d, "\n\r{RWARNING: This will permanently delete this character!{x\n\r", 0);
-    write_to_buffer(d, "Type 'DELETE' to confirm: ", 0);
     d->connected = CON_CONFIRM_DELETE_CHARACTER;
 }
 

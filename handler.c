@@ -10749,3 +10749,101 @@ void generate_discord_who() {
     // Close the file
     fclose(file);
 }
+
+
+// Salt characters for crypt(): ./0-9A-Za-z
+static const char crypt_salt_chars[] = "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+#define CRYPT_SALT_METHOD_PREFIX "$6$" // For SHA512-crypt. Use "$5$" for SHA256-crypt. Check your system's crypt(3) man page.
+#define CRYPT_SALT_LENGTH 16           // Recommended salt length for SHA512/SHA256 crypt
+
+// Generates a salt string for use with crypt()
+bool generate_crypt_salt(char *salt_buffer, size_t salt_buffer_size) {
+    if (salt_buffer_size < strlen(CRYPT_SALT_METHOD_PREFIX) + CRYPT_SALT_LENGTH + 1) {
+
+        return false;
+    }
+    strcpy(salt_buffer, CRYPT_SALT_METHOD_PREFIX);
+    char *p = salt_buffer + strlen(CRYPT_SALT_METHOD_PREFIX);
+    for (int i = 0; i < CRYPT_SALT_LENGTH; ++i) {
+        *p++ = crypt_salt_chars[rand() % (sizeof(crypt_salt_chars) - 1)];
+    }
+    *p = '\0';
+    return true;
+}
+
+// Sets/updates a password using the system's crypt()
+// Modifies target_password_field (e.g., acct->passwd) and target_version_field.
+// Returns true on success, false on failure.
+bool set_encrypted_password(char **target_password_field, int *target_version_field, const char *plaintext_password) {
+    if (!plaintext_password || !target_password_field || !target_version_field) {
+        bug("set_encrypted_password: NULL argument.", 0);
+        return false;
+    }
+    if (strlen(plaintext_password) == 0) { // Do not set empty passwords
+        bug("set_encrypted_password: Attempt to set empty password.",0);
+        return false;
+    }
+
+
+    char salt[128]; 
+    if (!generate_crypt_salt(salt, sizeof(salt))) {
+        bug("set_encrypted_password: Failed to generate salt.", 0);
+        // CRITICAL: If salt generation fails, you might fall back to a less secure method or abort.
+        // For now, we abort. Ensure rand() is seeded and salt generation is robust.
+        return false;
+    }
+
+    char *hashed_password = crypt(plaintext_password, salt);
+    if (!hashed_password) {
+        char err_buf[MAX_STRING_LENGTH];
+        sprintf(err_buf, "set_encrypted_password: crypt() failed. Salt: %s. Error: %s. Check crypt support for %s.", salt, strerror(errno), CRYPT_SALT_METHOD_PREFIX);
+        bug(err_buf, 0);
+        // This indicates a system-level issue or unsupported crypt method.
+        return false;
+    }
+
+    free_string(*target_password_field); 
+    *target_password_field = str_dup(hashed_password);
+    *target_version_field = PWD_VER_CRYPT_SYSTEM;
+
+    return true;
+}
+
+// Checks a plaintext password against a stored hash using tiered methods.
+password_check_status check_encrypted_password(const char *plaintext_password, const char *stored_hash, int stored_version) {
+    if (!plaintext_password || !stored_hash || stored_hash[0] == '\0') {
+        return PWD_CHECK_FAIL; // Cannot check against empty stored hash
+    }
+     if (strlen(plaintext_password) == 0) { // Do not check empty passwords
+        return PWD_CHECK_FAIL;
+    }
+
+
+    // 1. Try system crypt() if stored_hash looks like it (starts with '$') or version is PWD_VER_CRYPT_SYSTEM
+    if (stored_hash[0] == '$' || stored_version == PWD_VER_CRYPT_SYSTEM) {
+        char *crypted_input = crypt(plaintext_password, stored_hash);
+        if (crypted_input && strcmp(crypted_input, stored_hash) == 0) {
+            return PWD_CHECK_SUCCESS_CRYPT_SYSTEM;
+        }
+    }
+
+    // 2. Fallback to custom sha256_crypt()
+    // This assumes your sha256_crypt() is deterministic and returns a hex string.
+    // Be wary of the static buffer in your sha256_crypt if this function were called in more complex ways.
+    if (stored_version == PWD_VER_SHA256_CUSTOM || (stored_hash[0] != '$' && strlen(stored_hash) == 64)) { // Heuristic for sha256 hex
+        char *custom_hashed = sha256_crypt(plaintext_password); // Uses your existing function
+        if (custom_hashed && strcmp(custom_hashed, stored_hash) == 0) {
+            return PWD_CHECK_SUCCESS_SHA256_CUSTOM;
+        }
+    }
+    
+    // 3. Fallback to plaintext comparison
+    // Only attempt plaintext if it's explicitly marked as such or doesn't look like a crypt hash.
+    if (stored_version == PWD_VER_PLAINTEXT && stored_hash[0] != '$') { 
+        if (strcmp(plaintext_password, stored_hash) == 0) {
+            return PWD_CHECK_SUCCESS_PLAINTEXT;
+        }
+    }
+
+    return PWD_CHECK_FAIL;
+}

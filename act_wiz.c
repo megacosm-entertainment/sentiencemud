@@ -10043,8 +10043,8 @@ void do_pwreset(CHAR_DATA *ch, char *argument)
     char target[MAX_INPUT_LENGTH];
     char email[MAX_INPUT_LENGTH];
     char reset_msg[MSL], reset_subject[MSL];
-    char tmp_reset_code[16];
-    DESCRIPTOR_DATA d;
+    char tmp_reset_code[16]; // Used for reset codes and can be for new passwords
+    DESCRIPTOR_DATA d;       // Used for loading offline accounts/chars
     bool is_account = FALSE;
     ACCOUNT_DATA *account = NULL;
 
@@ -10069,20 +10069,16 @@ void do_pwreset(CHAR_DATA *ch, char *argument)
     {
         if (is_account)
         {
-            // Handle account reset
+            // Handle account reset (UNCHANGED FROM ORIGINAL)
             if (account_exists(target))
             {
-                // Create a temporary descriptor for loading the account
                 memset(&d, 0, sizeof(d));
-                
-                // Load account using the proper function signature
                 if (!load_account(&d, target))
                 {
                     send_to_char("Error loading that account.\n\r", ch);
                     return;
                 }
-                
-                account = d.account; // Get the loaded account
+                account = d.account;
 
                 if (account->reset_code[0] != '\0')
                 {
@@ -10109,89 +10105,108 @@ void do_pwreset(CHAR_DATA *ch, char *argument)
                 return;
             }
         }
-        else
+        else // Character local reset
         {
-            // Original character reset code
-            if ((player_exists(target)))
+            if ((victim = get_char_world(ch, target)) == NULL) // Character is OFFLINE
             {
-                if ((victim = get_char_world(ch, target)) == NULL)
+                memset(&d, 0, sizeof(d));
+                if (!load_char_obj(&d, target))
                 {
-                    if (!load_char_obj(&d, target))
+                    send_to_char("That player does not exist.\n\r", ch);
+                    return;
+                }
+                // d.character is now the loaded offline character
+                d.character->desc = NULL; // Standard practice after loading for manipulation
+
+                // Handle unlinked offline character (This logic remains as per prompt)
+                if (d.character->pcdata->account_name == NULL || d.character->pcdata->account_name[0] == '\0')
+                {
+                    char new_plain_password[16]; // For plain text password
+                    generate_reset_code(new_plain_password, 10); // Generate a 10-character random password
+
+                    // Assuming set_encrypted_password handles both setting new and replacing old.
+                    // It might internally free old d.character->pcdata->pwd if necessary.
+                    if (!set_encrypted_password(&d.character->pcdata->pwd,        
+                                                &d.character->pcdata->pwd_vers, 
+                                                new_plain_password))               
                     {
-                        send_to_char("That player does not exist.\n\r", ch);
+                        send_to_char("Password reset failed due to an internal error. Please check server logs.\n\r", ch);
+                        free_char(d.character); 
                         return;
                     }
-                    else
-                    {
-                        d.character->desc = NULL;
-                        
-                        // Check if the character has a password set
-                        if (d.character->pcdata->pwd[0] == '\0')
-                        {
-                            send_to_char("That character has no password set. Cannot create reset code.\n\r", ch);
-                            free_char(d.character);
-                            return;
-                        }
-                        
-                        if (d.character->pcdata->reset_code[0] != '\0')
-                        {
-                            free_string(d.character->pcdata->reset_code);
-                            d.character->pcdata->reset_code = str_dup("");
-                        }
 
-                        generate_reset_code(tmp_reset_code, 15);
-                        d.character->pcdata->reset_code = str_dup(tmp_reset_code);
-                        d.character->pcdata->reset_state = RESET_PENDING;
-                        d.character->pcdata->reset_time = current_time;
+                    d.character->pcdata->need_change_pw = 1; // Mark that user must change password on next login
 
-                        sprintf(buf, "Password reset code has been set to %s for %s.\n\r", 
-                                d.character->pcdata->reset_code, d.character->name);
-                        send_to_char(buf, ch);
+                    sprintf(buf, "Unlinked character %s. New password set to: %s\n\r"
+                                 "Admin must provide this password to the user.\n\r",
+                            d.character->name, new_plain_password);
+                    send_to_char(buf, ch);
 
-                        save_char_obj(d.character);
-                        free_char(d.character);
-                    }
+                    save_char_obj(d.character);
+                    free_char(d.character);
+                    return; // Finished handling unlinked offline character
                 }
-                else
+                else // Linked offline character (Original Logic)
                 {
-                    // Check if online character has a password set
-                    if (victim->pcdata->pwd[0] == '\0')
+                    if (d.character->pcdata->pwd[0] == '\0')
                     {
                         send_to_char("That character has no password set. Cannot create reset code.\n\r", ch);
+                        free_char(d.character);
                         return;
                     }
                     
-                    send_to_char("That player is already online.\n\r", ch);
-                    return;
+                    if (d.character->pcdata->reset_code[0] != '\0')
+                    {
+                        free_string(d.character->pcdata->reset_code);
+                        d.character->pcdata->reset_code = str_dup("");
+                    }
+
+                    generate_reset_code(tmp_reset_code, 15);
+                    d.character->pcdata->reset_code = str_dup(tmp_reset_code);
+                    d.character->pcdata->reset_state = RESET_PENDING;
+                    d.character->pcdata->reset_time = current_time;
+
+                    sprintf(buf, "Password reset code has been set to %s for %s.\n\r", 
+                            d.character->pcdata->reset_code, d.character->name);
+                    send_to_char(buf, ch);
+
+                    save_char_obj(d.character);
+                    free_char(d.character);
+                    return; // Finished handling linked offline character
                 }
             }
-            else
+            else // Character is ONLINE (victim != NULL)
             {
-                send_to_char("That player does not exist.\n\r", ch);
+                // Per instructions:
+                // 1. No password resets for online characters.
+                // 2. No online unlinked characters (so this 'victim' is linked).
+                send_to_char("That player is currently online. Password resets are not performed on active online characters.\n\r", ch);
+                send_to_char("To reset the password for their account, use 'pwreset <local|email> account:<accountname>'.\n\r", ch);
+                send_to_char("Character-specific password actions require the character to be offline.\n\r", ch);
                 return;
             }
         }
     }
     else if (!str_cmp(type, "email"))
     {
+        // Email reset logic (UNCHANGED FROM ORIGINAL for accounts and offline characters)
+        // Note: If an admin attempts "pwreset email <unlinked_char_name>", this section will
+        // execute. It will likely fail to find an email for the character or an associated
+        // account (if unlinked), and guide the admin to use the "local" option for unlinked, which is correct.
         one_argument(argument, email);
 
         if (is_account)
         {
-            // Handle account email reset
+            // Handle account email reset (UNCHANGED)
             if (account_exists(target))
             {
-                // Create a temporary descriptor for loading the account
                 memset(&d, 0, sizeof(d));
-                
-                // Load account using the proper function signature
                 if (!load_account(&d, target))
                 {
                     send_to_char("Error loading that account.\n\r", ch);
                     return;
                 }
-                
-                account = d.account; // Get the loaded account
+                account = d.account;
                 
                 if (account->reset_code[0] != '\0')
                 {
@@ -10241,116 +10256,115 @@ void do_pwreset(CHAR_DATA *ch, char *argument)
                 return;
             }
         }
-        else
+        else // Character email reset
         {
-            // Original character email reset code
-            if ((player_exists(target)))
+            // Original character email reset code (UNCHANGED for offline characters)
+            if ((player_exists(target))) // player_exists might be a pfile check
             {
-                if ((victim = get_char_world(ch, target)) == NULL)
+                if ((victim = get_char_world(ch, target)) == NULL) // Offline character
                 {
+                    memset(&d, 0, sizeof(d));
                     if (!load_char_obj(&d, target))
                     {
-                        send_to_char("That player does not exist.\n\r", ch);
+                        send_to_char("That player does not exist (or error loading).\n\r", ch);
                         return;
                     }
-                    else
-                    {
-                        CHAR_DATA *character = d.character;
-                        character->desc = NULL;
-                        
-                        // Check if the character has a password set
-                        if (character->pcdata->pwd[0] == '\0')
-                        {
-                            send_to_char("That character has no password set. Cannot create reset code.\n\r", ch);
-                            free_char(character);
-                            return;
-                        }
-                        
-                        if (character->pcdata->reset_code[0] != '\0')
-                        {
-                            free_string(character->pcdata->reset_code);
-                            character->pcdata->reset_code = str_dup("");
-                        }
-
-                        generate_reset_code(tmp_reset_code, 15);
-                        character->pcdata->reset_code = str_dup(tmp_reset_code);
-                        character->pcdata->reset_state = RESET_PENDING;
-                        character->pcdata->reset_time = current_time;
-
-                        sprintf(reset_subject, "Password Reset for %s", character->name);
-                        sprintf(reset_msg, "Your password reset code is: %s.\nPlease note that this code will expire after 24 hours.", 
-                                character->pcdata->reset_code);
-
-                        if (email[0] != '\0')
-                        {
-                            send_email_async(character, email, reset_subject, reset_msg, NULL, NULL);
-                            sprintf(buf, "Password reset code has been sent to %s for %s.\n\r", 
-                                    email, target);
-                            send_to_char(buf, ch);
-                        }
-                        else
-                        {
-                            if (character->pcdata->email[0] == '\0')
-                            {
-                                // Character has no email address, fall back to account email
-                                ACCOUNT_DATA *char_account;
-                                DESCRIPTOR_DATA account_d;
-                                
-                                // Save character data first since we're going to reuse the descriptor
-                                save_char_obj(character);
-                                
-                                // Load the character's associated account
-                                memset(&account_d, 0, sizeof(account_d));
-                                if (!load_account(&account_d, character->pcdata->account_name))
-                                {
-                                    send_to_char("No email address set for this player and unable to load account. You must use the 'local' option instead.\n\r", ch);
-                                    free_char(character);
-                                    return;
-                                }
-                                
-                                char_account = account_d.account;
-                                
-                                if (char_account->email[0] == '\0')
-                                {
-                                    send_to_char("No email address set for this player or their account. You must use the 'local' option instead.\n\r", ch);
-                                    free_char(character);
-                                    free_account(char_account);
-                                    account_d.account = NULL;
-                                    return;
-                                }
-
-                                // Use account email but still specify character name
-                                send_email_async(character, char_account->email, reset_subject, reset_msg, NULL, NULL);
-                                sprintf(buf, "Password reset code has been sent to account email %s for character %s.\n\r", 
-                                        char_account->email, target);
-                                send_to_char(buf, ch);
-                                
-                                free_account(char_account);
-                                account_d.account = NULL;
-                            }
-                            else
-                            {
-                                send_email_async(character, character->pcdata->email, reset_subject, reset_msg, NULL, NULL);
-                                sprintf(buf, "Password reset code has been sent to %s for %s.\n\r", 
-                                        character->pcdata->email, target);
-                                send_to_char(buf, ch);
-                            }
-                        }
-
-                        save_char_obj(character);
-                        free_char(character);
-                    }
-                }
-                else
-                {
-                    // Check if online character has a password set
-                    if (victim->pcdata->pwd[0] == '\0')
+                    // character is loaded
+                    CHAR_DATA *loaded_char = d.character; // Use a distinct variable for clarity
+                    loaded_char->desc = NULL;
+                    
+                    if (loaded_char->pcdata->pwd[0] == '\0')
                     {
                         send_to_char("That character has no password set. Cannot create reset code.\n\r", ch);
+                        free_char(loaded_char);
                         return;
                     }
                     
-                    send_to_char("That player is already online.\n\r", ch);
+                    if (loaded_char->pcdata->reset_code[0] != '\0')
+                    {
+                        free_string(loaded_char->pcdata->reset_code);
+                        loaded_char->pcdata->reset_code = str_dup("");
+                    }
+
+                    generate_reset_code(tmp_reset_code, 15);
+                    loaded_char->pcdata->reset_code = str_dup(tmp_reset_code);
+                    loaded_char->pcdata->reset_state = RESET_PENDING;
+                    loaded_char->pcdata->reset_time = current_time;
+
+                    sprintf(reset_subject, "Password Reset for %s", loaded_char->name);
+                    sprintf(reset_msg, "Your password reset code is: %s.\nPlease note that this code will expire after 24 hours.", 
+                            loaded_char->pcdata->reset_code);
+
+                    if (email[0] != '\0')
+                    {
+                        send_email_async(loaded_char, email, reset_subject, reset_msg, NULL, NULL);
+                        sprintf(buf, "Password reset code has been sent to %s for %s.\n\r", 
+                                email, target);
+                        send_to_char(buf, ch);
+                    }
+                    else
+                    {
+                        if (loaded_char->pcdata->email[0] == '\0')
+                        {
+                            // Attempt to use account email if character email is not set
+                            ACCOUNT_DATA *char_account_email;
+                            DESCRIPTOR_DATA account_d_email; // Separate descriptor for this load
+                            
+                            save_char_obj(loaded_char); // Save changes like reset code first
+                            
+                            memset(&account_d_email, 0, sizeof(account_d_email));
+                            // For unlinked char, account_name is empty/NULL, load_account will fail
+                            if (loaded_char->pcdata->account_name == NULL || loaded_char->pcdata->account_name[0] == '\0' ||
+                                !load_account(&account_d_email, loaded_char->pcdata->account_name))
+                            {
+                                send_to_char("No email address set for this player and unable to load an associated account. You must use the 'local' option instead.\n\r", ch);
+                                free_char(loaded_char); // Free the char loaded earlier
+                                // account_d_email.account would be NULL if load_account failed or wasn't called.
+                                return;
+                            }
+                            
+                            char_account_email = account_d_email.account;
+                            
+                            if (char_account_email->email[0] == '\0')
+                            {
+                                send_to_char("No email address set for this player or their account. You must use the 'local' option instead.\n\r", ch);
+                                free_char(loaded_char);
+                                free_account(char_account_email);
+                                account_d_email.account = NULL;
+                                return;
+                            }
+
+                            send_email_async(loaded_char, char_account_email->email, reset_subject, reset_msg, NULL, NULL);
+                            sprintf(buf, "Password reset code has been sent to account email %s for character %s.\n\r", 
+                                    char_account_email->email, target);
+                            send_to_char(buf, ch);
+                            
+                            free_account(char_account_email);
+                            account_d_email.account = NULL;
+                        }
+                        else
+                        {
+                            send_email_async(loaded_char, loaded_char->pcdata->email, reset_subject, reset_msg, NULL, NULL);
+                            sprintf(buf, "Password reset code has been sent to %s for %s.\n\r", 
+                                    loaded_char->pcdata->email, target);
+                            send_to_char(buf, ch);
+                        }
+                    }
+
+                    save_char_obj(loaded_char); // Save again if email was sent successfully
+                    free_char(loaded_char);
+                    return; 
+                }
+                else // Online character (victim is valid)
+                {
+                    // Per instructions:
+                    // 1. No password resets for online characters.
+                    // 2. No online unlinked characters (so this 'victim' is linked).
+                    send_to_char("That player is currently online. Email password resets are for offline characters or accounts.\n\r", ch);
+                    send_to_char("To send a password reset email for their account, use:\n\r", ch);
+                    send_to_char("  pwreset email account:<accountname> [optional_email_override]\n\r", ch);
+                    send_to_char("To send a password reset email for an offline character, use:\n\r", ch);
+                    send_to_char("  pwreset email <charactername> [optional_email_override]\n\r", ch);
                     return;
                 }
             }
@@ -10577,4 +10591,311 @@ void do_lvlaudit(CHAR_DATA *ch, char *argument)
 	sprintf(buf, "Average level of available mobs: %d\n\r", sum / count);
 	send_to_char(buf, ch);
 	return;
+}
+
+void do_acctlink(CHAR_DATA *ch, char *argument) {
+    char account_name_arg[MAX_INPUT_LENGTH];
+    char char_name_arg[MAX_INPUT_LENGTH];
+    char buf[MAX_STRING_LENGTH];
+
+    ACCOUNT_DATA *target_account = NULL;
+    CHAR_DATA *char_to_link = NULL;
+    DESCRIPTOR_DATA d_account, d_char; // d_account for potentially loading offline account
+    DESCRIPTOR_DATA *d_iter;
+    bool is_account_online = FALSE;
+
+    argument = one_argument(argument, account_name_arg);
+    argument = one_argument(argument, char_name_arg);
+
+    if (account_name_arg[0] == '\0' || char_name_arg[0] == '\0') {
+        send_to_char("Syntax: acctlink <account_name> <character_name>\n\r", ch);
+        return;
+    }
+
+    // Initialize d_account. It will only be used if the account is loaded from disk.
+    memset(&d_account, 0, sizeof(d_account));
+
+    // 1. Find Account: Check if account is online first
+    for (d_iter = descriptor_list; d_iter != NULL; d_iter = d_iter->next) {
+        if (d_iter->account != NULL &&
+            !str_cmp(d_iter->account->username, account_name_arg)) {
+            target_account = d_iter->account;
+            is_account_online = TRUE;
+            // Optional: send_to_char("Notice: Account is currently online. Using live data.\n\r", ch);
+            break;
+        }
+    }
+
+    // If account not found online, try loading from disk
+    if (!target_account) {
+        if (!account_exists(account_name_arg)) {
+            sprintf(buf, "Account '%s' does not exist.\n\r", account_name_arg);
+            send_to_char(buf, ch);
+            return;
+        }
+        // Account exists, try to load it into d_account
+        if (!load_account(&d_account, account_name_arg)) {
+            send_to_char("That account exists but could not be loaded. Check server logs.\n\r", ch);
+            // d_account.account is NULL or invalid if load_account failed and cleaned up.
+            return;
+        }
+        target_account = d_account.account;
+        is_account_online = FALSE; // Mark that this account was loaded
+    }
+
+    // At this point, target_account is valid (either online or loaded into d_account.account)
+    // or we have returned.
+
+    // 2. Check if character to be linked is online
+    // get_char_world's first argument 'ch' is for visibility checks by the admin.
+    if ((char_to_link = get_char_world(ch, char_name_arg)) != NULL) {
+        send_to_char("That character is currently online. They must be offline to be linked.\n\r", ch);
+        if (!is_account_online && d_account.account) { // If account was loaded from disk
+            free_account(d_account.account);
+            d_account.account = NULL;
+        }
+        return;
+    }
+    char_to_link = NULL; // Reset pointer, will be set by load_char_obj
+
+    // 3. Load Character (must be offline)
+    memset(&d_char, 0, sizeof(d_char));
+    if (!player_exists(char_name_arg) || !load_char_obj(&d_char, char_name_arg)) {
+        sprintf(buf, "Character '%s' does not exist or could not be loaded.\n\r", char_name_arg);
+        send_to_char(buf, ch);
+        if (!is_account_online && d_account.account) { // If account was loaded
+            free_account(d_account.account);
+            d_account.account = NULL;
+        }
+        return;
+    }
+    char_to_link = d_char.character;
+    char_to_link->desc = NULL; // Standard practice for offline char manipulation
+
+    if (IS_NPC(char_to_link)) {
+        send_to_char("NPCs cannot be linked to accounts.\n\r", ch);
+        free_char(char_to_link); // char_to_link is d_char.character
+        d_char.character = NULL;
+        if (!is_account_online && d_account.account) {
+            free_account(d_account.account);
+            d_account.account = NULL;
+        }
+        return;
+    }
+
+    // 4. Check if character is already linked
+    if (char_to_link->pcdata->account_name != NULL && char_to_link->pcdata->account_name[0] != '\0') {
+        if (!str_cmp(char_to_link->pcdata->account_name, target_account->username)) {
+            sprintf(buf, "Character %s is already linked to account %s.\n\r",
+                    char_to_link->name, target_account->username);
+            send_to_char(buf, ch);
+        } else {
+            sprintf(buf, "Character %s is already linked to another account (%s).\n\r"
+                         "Please unlink it first using 'acctunlink %s'.\n\r",
+                    char_to_link->name, char_to_link->pcdata->account_name, char_to_link->name);
+            send_to_char(buf, ch);
+        }
+        free_char(char_to_link);
+        d_char.character = NULL;
+        if (!is_account_online && d_account.account) {
+            free_account(d_account.account);
+            d_account.account = NULL;
+        }
+        return;
+    }
+
+    // 5. Link character to account (update character's pfile)
+    free_string(char_to_link->pcdata->account_name);
+    char_to_link->pcdata->account_name = str_dup(target_account->username);
+
+    // Copy account ID to character. Assuming account_id is char[2] and target_account->id is similar.
+    if (target_account->id[0] != '\0') { // Check if account ID is not empty
+        char_to_link->pcdata->account_id[0] = target_account->id[0];
+        char_to_link->pcdata->account_id[1] = target_account->id[1];
+    } else { // If account ID is empty, clear it on the character
+        char_to_link->pcdata->account_id[0] = '\0';
+        char_to_link->pcdata->account_id[1] = '\0';
+    }
+
+    // Clear character-specific password and reset info, as account credentials will be used
+    if (char_to_link->pcdata->pwd) { // Ensure pwd is not NULL before freeing
+        free_string(char_to_link->pcdata->pwd);
+    }
+    char_to_link->pcdata->pwd = str_dup(""); // Set to empty string
+    char_to_link->pcdata->pwd_vers = 0;    // Or appropriate value for "use account password"
+
+    if (char_to_link->pcdata->reset_code != NULL && char_to_link->pcdata->reset_code[0] != '\0') {
+        free_string(char_to_link->pcdata->reset_code);
+        char_to_link->pcdata->reset_code = str_dup("");
+    }
+    char_to_link->pcdata->reset_state = 0;    // e.g., RESET_NONE
+    char_to_link->pcdata->need_change_pw = 0; // No longer needs individual password change
+
+    save_char_obj(char_to_link);
+
+    // 6. Add character to account's list
+    // account_add_character expects a fully loaded CHAR_DATA, which char_to_link is.
+    account_add_character(target_account, char_to_link);
+
+    // Explicitly save the account, whether it was online or loaded from disk.
+    // This ensures changes (like the new character link) are persisted immediately.
+    save_account(target_account);
+
+    sprintf(buf, "Character %s has been successfully linked to account %s.\n\r"
+                 "The character will now use the account's password.\n\r",
+            char_to_link->name, target_account->username);
+    send_to_char(buf, ch);
+    log_stringf("ACCTLINK: Admin %s linked char %s to account %s.",
+                ch->name, char_to_link->name, target_account->username);
+
+    // 7. Cleanup
+    // char_to_link was loaded into d_char.character's memory
+    free_char(char_to_link);
+    d_char.character = NULL; // Nullify to prevent d_char from holding a stale pointer
+    char_to_link = NULL;     // Nullify working pointer
+
+    // target_account was either from descriptor_list (online) or d_account.account (loaded from disk)
+    if (!is_account_online && d_account.account) {
+        // If it was loaded into d_account.account, free that memory.
+        // target_account would be pointing to d_account.account in this case.
+        free_account(d_account.account);
+        d_account.account = NULL; // Nullify to prevent d_account from holding a stale pointer
+    }
+    target_account = NULL; // Nullify working pointer, its content is either managed elsewhere or freed.
+}
+
+/*
+ * Unlinks a character from its account.
+ * Syntax: acctunlink <character_name>
+ */
+void do_acctunlink(CHAR_DATA *ch, char *argument) {
+    char char_name_arg[MAX_INPUT_LENGTH];
+    char buf[MAX_STRING_LENGTH];
+    char old_account_name[MAX_INPUT_LENGTH];
+    char new_plain_password[16];
+
+    ACCOUNT_DATA *source_account = NULL;
+    CHAR_DATA *char_to_unlink = NULL;
+    DESCRIPTOR_DATA d_account, d_char;
+    DESCRIPTOR_DATA *d_iter;
+    bool is_account_online = FALSE;
+
+    one_argument(argument, char_name_arg);
+
+    if (char_name_arg[0] == '\0') {
+        send_to_char("Syntax: acctunlink <character_name>\n\r", ch);
+        return;
+    }
+
+    // 1. Check if character is online
+    if (get_char_world(ch, char_name_arg) != NULL) {
+        send_to_char("That character is currently online. They must be offline to be unlinked.\n\r", ch);
+        return;
+    }
+
+    // 2. Load Character (offline)
+    memset(&d_char, 0, sizeof(d_char));
+    if (!player_exists(char_name_arg) || !load_char_obj(&d_char, char_name_arg)) {
+        sprintf(buf, "Character '%s' does not exist or could not be loaded.\n\r", char_name_arg);
+        send_to_char(buf, ch);
+        return;
+    }
+    char_to_unlink = d_char.character;
+    char_to_unlink->desc = NULL;
+
+    if (IS_NPC(char_to_unlink)) {
+        send_to_char("NPCs are not linked to accounts.\n\r", ch);
+        free_char(char_to_unlink);
+        d_char.character = NULL;
+        return;
+    }
+
+    // 3. Check if character is actually linked
+    if (char_to_unlink->pcdata->account_name == NULL || char_to_unlink->pcdata->account_name[0] == '\0') {
+        sprintf(buf, "Character %s is not currently linked to any account.\n\r", char_to_unlink->name);
+        send_to_char(buf, ch);
+        free_char(char_to_unlink);
+        d_char.character = NULL;
+        return;
+    }
+    strncpy(old_account_name, char_to_unlink->pcdata->account_name, MAX_INPUT_LENGTH - 1);
+    old_account_name[MAX_INPUT_LENGTH - 1] = '\0';
+
+    // Free char_to_unlink now; account_remove_character will load/save/free its own copy.
+    free_char(char_to_unlink);
+    d_char.character = NULL;
+    char_to_unlink = NULL;
+
+    // 4. Find Account: Check if account is online first
+    memset(&d_account, 0, sizeof(d_account));
+    is_account_online = FALSE;
+    for (d_iter = descriptor_list; d_iter != NULL; d_iter = d_iter->next) {
+        if (d_iter->account != NULL &&
+            !str_cmp(d_iter->account->username, old_account_name)) {
+            source_account = d_iter->account;
+            is_account_online = TRUE;
+            break;
+        }
+    }
+
+    // If account not found online, try loading from disk
+    if (!source_account) {
+        if (!account_exists(old_account_name) || !load_account(&d_account, old_account_name)) {
+            sprintf(buf, "The account (%s) character %s was linked to could not be loaded. This may indicate data inconsistency.\n\r"
+                         "Attempting to force unlink character pfile data only.\n\r", old_account_name, char_name_arg);
+            send_to_char(buf, ch);
+            log_stringf("ACCTUNLINK: Failed to load account %s for unlinking char %s.", old_account_name, char_name_arg);
+            return;
+        }
+        source_account = d_account.account;
+        is_account_online = FALSE;
+    }
+
+    // 5. Remove character from account (this also updates char pfile to clear account info & saves account)
+    account_remove_character(source_account, char_name_arg);
+
+    // Only free the account if we loaded it from disk
+    if (!is_account_online && d_account.account) {
+        free_account(d_account.account);
+        d_account.account = NULL;
+    }
+    source_account = NULL;
+
+    // 6. Set a new temporary password for the now-unlinked character
+    memset(&d_char, 0, sizeof(d_char));
+    if (!load_char_obj(&d_char, char_name_arg)) {
+        sprintf(buf, "Error: Could not reload character %s after unlinking to set new password. Check logs.\n\r", char_name_arg);
+        send_to_char(buf, ch);
+        log_stringf("ACCTUNLINK: Critical error reloading %s after unlinking from %s.", char_name_arg, old_account_name);
+        return;
+    }
+    char_to_unlink = d_char.character;
+    char_to_unlink->desc = NULL;
+
+    generate_reset_code(new_plain_password, 10);
+
+    if (!set_encrypted_password(&char_to_unlink->pcdata->pwd,
+                                &char_to_unlink->pcdata->pwd_vers,
+                                new_plain_password)) {
+        send_to_char("Password setting failed for unlinked character due to an internal error. Please check server logs.\n\r", ch);
+        log_stringf("ACCTUNLINK: set_encrypted_password failed for %s.", char_to_unlink->name);
+        free_char(char_to_unlink);
+        d_char.character = NULL;
+        return;
+    }
+    char_to_unlink->pcdata->need_change_pw = 1;
+
+    save_char_obj(char_to_unlink);
+
+    sprintf(buf, "Character %s has been unlinked from account %s.\n\r"
+                 "A new temporary password has been set for %s: %s\n\r"
+                 "The player will be required to change this password upon their next login.\n\r",
+            char_to_unlink->name, old_account_name, char_to_unlink->name, new_plain_password);
+    send_to_char(buf, ch);
+    log_stringf("ACCTUNLINK: Admin %s unlinked char %s from account %s. New temp pass: %s",
+                ch->name, char_to_unlink->name, old_account_name, new_plain_password);
+
+    // 7. Cleanup
+    free_char(char_to_unlink);
+    d_char.character = NULL;
 }

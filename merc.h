@@ -1787,9 +1787,22 @@ struct	descriptor_data
     bool creating_staff_character;
     bool reconnecting;
     bool healthcheck;
+    char * new_password_buffer;
 
 
 };
+
+bool generate_crypt_salt(char *salt_buffer, size_t salt_buffer_size);
+bool set_encrypted_password(char **target_password_field, int *target_version_field, const char *plaintext_password);
+
+typedef enum {
+    PWD_CHECK_FAIL,
+    PWD_CHECK_SUCCESS_CRYPT_SYSTEM,
+    PWD_CHECK_SUCCESS_SHA256_CUSTOM,
+    PWD_CHECK_SUCCESS_PLAINTEXT
+} password_check_status;
+
+password_check_status check_encrypted_password(const char *plaintext_password, const char *stored_hash, int stored_version);
 
 
 /*
@@ -4281,6 +4294,10 @@ struct cmd_data
 #define EVENT_ECHO		4
 #define EVENT_INTERPRET	5		// Delayed execution of a command
 #define EVENT_FUNCTION	6		// Delayed execution of a function
+
+#define PWD_VER_PLAINTEXT 0
+#define PWD_VER_SHA256_CUSTOM 1
+#define PWD_VER_CRYPT_SYSTEM 2
 
 struct event_data
 {
