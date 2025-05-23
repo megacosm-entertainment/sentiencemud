@@ -4026,13 +4026,8 @@ void read_churches_new()
                 
                 if (church) {
                     // Add to lists
-                    if (!list_appendlink(list_churches, church)) {
-                        log_string("Failed to add church to list");
-                        free_church(church);
-                        continue;
-                    }
+
                     
-                    // Link to global list
 if (!list_appendlink(list_churches, church)) {
     log_string("Failed to add church to list");
     free_church(church);
