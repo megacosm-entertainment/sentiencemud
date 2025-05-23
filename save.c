@@ -668,9 +668,9 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     if (ch->wiznet)
     	fprintf(fp, "Wizn %s\n",   print_flags(ch->wiznet));
     if (ch->invis_level)
-	fprintf(fp, "Invi %d\n", 	flag_string(staff_ranks,ch->invis_level	));
+	fprintf(fp, "Invi %s\n", 	flag_string(staff_ranks,ch->invis_level	));
     if (ch->incog_level)
-	fprintf(fp,"Inco %d\n",flag_string(staff_ranks,ch->incog_level));
+	fprintf(fp,"Inco %s\n",flag_string(staff_ranks,ch->incog_level));
     fprintf(fp, "Pos  %d\n",
 	ch->position == POS_FIGHTING ? POS_STANDING : ch->position);
     if (ch->practice != 0)
