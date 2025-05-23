@@ -153,11 +153,12 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
     
     write_to_buffer(d, "\n\r", 2);
 
+    /*
     if (d->login_attempts == 0 && acct->reset_state == NO_RESET)
     {
         write_to_buffer(d, "Password: ", 0);
     }
-
+*/
     if (d->login_attempts >= game_settings.max_login_attempts) {
         write_to_buffer(d, "Too many login attempts. Goodbye.\n\r", 0);
         close_socket(d);
@@ -177,7 +178,6 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
                 // d->connected = CON_GET_ACCOUNT_PASSWORD; // Already in this state
                 return;
             } else {
-                write_to_buffer(d, "Please confirm your email address: ", 0);
                 d->connected = CON_CONFIRM_ACCOUNT_EMAIL_FOR_RESET;
                 return;
             }
@@ -211,7 +211,6 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
             acct->old_passwd = str_dup(acct->passwd);
             
             write_to_buffer(d, "Reset code accepted. You are required to set a new password.\n\r", 0);
-            write_to_buffer(d, "New Password: ", 0); // Prompt for new password
             d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
             return;
         }
@@ -301,7 +300,6 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
     // Handle MFA
     if (!IS_NULLSTR(acct->mfa_key) && acct->mfa_enabled && !DEV_SKIP_MFA) {
         ProtocolNoEcho(d,true);
-        write_to_buffer(d, "MFA Code: ", 0);
         d->connected = CON_GET_ACCOUNT_MFA;
         return;
     }
@@ -316,7 +314,6 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
     if (IS_NULLSTR(acct->email) && game_settings.enable_email) { // Added game_settings.enable_email check
         write_to_buffer(d, "\n\rPlease enter a valid e-mail address at which we can reach you.\n\r"
             "It will not be distributed to any third parties or abused in any way.\n\r", 0);
-        write_to_buffer(d, "\n\rEnter your e-mail address: ", 0);
         d->connected = CON_GET_ACCOUNT_EMAIL;
         return;
     }
@@ -324,7 +321,6 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
     // Password update needed?
     if (acct->passwd_version < 1 && !DEV_SKIP_PASSWORD) {
         write_to_buffer(d, "\n\rYou are required to set a new password. Please do so now.\n\r", 0);
-        write_to_buffer(d, "New Password: ", 0); // Prompt for new password
         if (acct->old_passwd) free_string(acct->old_passwd);
         acct->old_passwd = str_dup(acct->passwd);
         ProtocolNoEcho(d, true);
@@ -404,7 +400,6 @@ void login_new_account_password(DESCRIPTOR_DATA *d, char *argument)
     }
     d->new_password_buffer = str_dup(argument);
     
-    write_to_buffer(d, "Please confirm password: ", 0);
     d->connected = CON_CONFIRM_ACCOUNT_PASSWORD;
 }
 
@@ -534,6 +529,22 @@ void login_change_account_email(DESCRIPTOR_DATA *d, char *argument)
     free_string(acct->pending_email);
     acct->pending_email = str_dup(argument);
     acct->email_verified = false;
+
+if (!str_cmp(argument, acct->email)) {
+    // Email is unchanged, just mark as verified and skip verification
+    acct->email_verified = true;
+    free_string(acct->pending_email);
+    acct->pending_email = str_dup("");
+    free_string(acct->email_verification_code);
+    acct->email_verification_code = str_dup("");
+    acct->email_verification_time = 0;
+    acct->email_verification_last_sent = 0;
+    write_to_buffer(d, "\n\rEmail address is unchanged and now verified.\n\r", 0);
+    save_account(acct);
+    display_account_menu(d);
+    d->connected = CON_ACCOUNT_MENU;
+    return;
+}
     // Generate code and set time
     char code[16];
     generate_reset_code(code, 15);
@@ -1117,7 +1128,6 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
                     display_account_menu(d);
                     return;
                 }
-                write_to_buffer(d, "Enter the code sent to your email: ", 0);
                 d->connected = CON_VERIFY_ACCOUNT_EMAIL_CHANGE;
                 return;
 
@@ -1425,7 +1435,7 @@ void login_get_name(DESCRIPTOR_DATA *d, char *argument)
 
     argument[0] = UPPER(argument[0]);
     if (!check_parse_name(argument)) {
-        write_to_buffer(d, "Illegal name, try another.\n\rName: ", 0);
+        write_to_buffer(d, "Illegal name, try another.\n\r", 0);
         return;
     }
 
@@ -4478,87 +4488,114 @@ void display_character_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
 
 void login_character_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
     CHAR_DATA *ch = d->character;
+    bool mfa_enabled = ch->pcdata->mfa_enabled;
+    bool mfa_pending = ch->pcdata->mfa_pending;
+    bool has_secret = !IS_NULLSTR(ch->pcdata->mfa_pending_key) || !IS_NULLSTR(ch->pcdata->mfa_key);
+    bool has_recovery = has_recovery_codes((const char **)ch->pcdata->recovery_codes, MFA_RECOVERY_CODES);
+    bool has_email = !IS_NULLSTR(ch->pcdata->email);
+
     switch (toupper(argument[0])) {
-        case '1': // Start MFA setup
-        {
-            char key[MIL];
-            char qr_url[MIL];
-            char *secret = generate_totp_key(key, sizeof(key));
-            free_string(ch->pcdata->mfa_pending_key);
-            ch->pcdata->mfa_pending_key = str_dup(secret);
-            ch->pcdata->mfa_pending = true;
-            generate_totp_qr_url(qr_url, sizeof(qr_url), ch->name, secret);
-            display_qr_code(d, qr_url);
-            write_to_buffer(d, "\n\rMFA setup started. Use your authenticator app to scan the QR code or enter the secret above.\n\r", 0);
-            write_to_buffer(d, "You must confirm MFA setup before it is enabled.\n\r", 0);
-            display_character_mfa_menu(d, "");
-        }
-break;
-        case '2': // Confirm MFA setup
-            if (!ch->pcdata->mfa_pending) {
+        case 'S': // Set up MFA
+            if (mfa_enabled || mfa_pending) {
+                write_to_buffer(d, "MFA is already enabled or setup is in progress.\n\r", 0);
+                display_character_mfa_menu(d, "");
+                return;
+            }
+            {
+                char key[MIL];
+                char qr_url[MIL];
+                char *secret = generate_totp_key(key, sizeof(key));
+                free_string(ch->pcdata->mfa_pending_key);
+                ch->pcdata->mfa_pending_key = str_dup(secret);
+                ch->pcdata->mfa_pending = true;
+                generate_totp_qr_url(qr_url, sizeof(qr_url), ch->name, secret);
+                display_qr_code(d, qr_url);
+                write_to_buffer(d, "\n\rMFA setup started. Use your authenticator app to scan the QR code or enter the secret above.\n\r", 0);
+                write_to_buffer(d, "You must confirm MFA setup before it is enabled.\n\r", 0);
+                display_character_mfa_menu(d, "");
+            }
+            break;
+        case 'C': // Confirm MFA setup
+            if (!mfa_pending) {
                 write_to_buffer(d, "No MFA setup in progress.\n\r", 0);
                 display_character_mfa_menu(d, "");
                 return;
             }
             d->connected = CON_CHARACTER_MFA_CONFIRM;
             break;
-        case '3': // Email QR code
-            if (IS_NULLSTR(ch->pcdata->email)) {
+        case 'Q': // Email QR code
+            if (!has_secret) {
+                write_to_buffer(d, "No MFA secret available to email a QR code.\n\r", 0);
+            } else if (!has_email) {
                 write_to_buffer(d, "No email address set for this character.\n\r", 0);
             } else {
-                // Email QR code (implement send_qr_email_for_char)
                 send_qr_email_for_char(ch, ch->pcdata->email, ch->pcdata->mfa_pending_key ? ch->pcdata->mfa_pending_key : ch->pcdata->mfa_key);
                 write_to_buffer(d, "QR code emailed.\n\r", 0);
             }
             display_character_mfa_menu(d, "");
             break;
-        case '4': // Disable MFA
+        case 'D': // Display QR code in terminal
+            if (!has_secret) {
+                write_to_buffer(d, "No MFA secret available to display a QR code.\n\r", 0);
+                display_character_mfa_menu(d, "");
+                return;
+            } else {
+                char qr_url[MIL];
+                if (!IS_NULLSTR(ch->pcdata->mfa_pending_key))
+                    generate_totp_qr_url(qr_url, sizeof(qr_url), ch->name, ch->pcdata->mfa_pending_key);
+                else
+                    generate_totp_qr_url(qr_url, sizeof(qr_url), ch->name, ch->pcdata->mfa_key);
+                display_qr_code(d, qr_url);
+            }
+            display_character_mfa_menu(d, "");
+            break;
+        case 'X': // Disable MFA
+            if (!mfa_enabled && !mfa_pending) {
+                write_to_buffer(d, "MFA is not enabled or pending for this character.\n\r", 0);
+                display_character_mfa_menu(d, "");
+                return;
+            }
             write_to_buffer(d, "Are you sure you want to disable MFA? (Y/N): ", 0);
             d->connected = CON_CHARACTER_MFA_DISABLE_CONFIRM;
             break;
-        case '5': // Show recovery codes
+        case 'V': // Show recovery codes
+            if (!(mfa_enabled || mfa_pending) || !has_recovery) {
+                write_to_buffer(d, "No recovery codes available to display.\n\r", 0);
+                display_character_mfa_menu(d, "");
+                return;
+            }
             display_recovery_codes(d, ch);
             display_character_mfa_menu(d, "");
             break;
-        case '6': // Email recovery codes
-            if (IS_NULLSTR(ch->pcdata->email)) {
+        case 'E': // Email recovery codes
+            if (!(mfa_enabled || mfa_pending) || !has_recovery) {
+                write_to_buffer(d, "No recovery codes available to email.\n\r", 0);
+            } else if (!has_email) {
                 write_to_buffer(d, "No email address set for this character.\n\r", 0);
             } else {
-                // Email recovery codes (implement send_recovery_codes_email_for_char)
                 send_recovery_codes_email_for_char(ch, ch->pcdata->email);
                 write_to_buffer(d, "Recovery codes emailed.\n\r", 0);
             }
             display_character_mfa_menu(d, "");
             break;
-        case '7': // Regenerate recovery codes
+        case 'G': // Generate/Regenerate recovery codes
+            if (!(mfa_enabled || mfa_pending)) {
+                write_to_buffer(d, "MFA must be enabled or pending to generate recovery codes.\n\r", 0);
+                display_character_mfa_menu(d, "");
+                return;
+            }
             generate_recovery_codes(ch->pcdata->recovery_codes, ch->pcdata->recovery_used, MFA_RECOVERY_CODES);
             save_char_obj(ch);
-            write_to_buffer(d, "Recovery codes regenerated.\n\r", 0);
+            write_to_buffer(d, has_recovery ? "Recovery codes regenerated.\n\r" : "Recovery codes generated.\n\r", 0);
             display_recovery_codes(d, ch);
             display_character_mfa_menu(d, "");
             break;
-        case '8': // Display QR code in terminal
-            {
-                char qr_url[MIL];
-                if (!IS_NULLSTR(ch->pcdata->mfa_pending_key))
-                    generate_totp_qr_url(qr_url, sizeof(qr_url), ch->name, ch->pcdata->mfa_pending_key);
-                else if (!IS_NULLSTR(ch->pcdata->mfa_key))
-                    generate_totp_qr_url(qr_url, sizeof(qr_url), ch->name, ch->pcdata->mfa_key);
-                else {
-                    write_to_buffer(d, "No MFA secret available to display a QR code.\n\r", 0);
-                    display_character_mfa_menu(d, "");
-                    break;
-                }
-                display_qr_code(d, qr_url);
-                display_character_mfa_menu(d, "");
-                break;
-            }
-        case 'B':
+        case 'B': // Back
             display_character_menu(d);
             d->connected = CON_CHARACTER_MENU;
             break;
         default:
-            write_to_buffer(d, "Invalid choice.\n\r", 0);
+            write_to_buffer(d, "Invalid or unavailable choice.\n\r", 0);
             display_character_mfa_menu(d, "");
             break;
     }
@@ -5033,6 +5070,22 @@ void login_change_character_email(DESCRIPTOR_DATA *d, char *argument)
     free_string(ch->pcdata->pending_email);
     ch->pcdata->pending_email = str_dup(argument);
     ch->pcdata->email_verified = false;
+
+    if (!str_cmp(argument, ch->pcdata->email)) {
+    // Email is unchanged, just mark as verified and skip verification
+    ch->pcdata->email_verified = true;
+    free_string(ch->pcdata->pending_email);
+    ch->pcdata->pending_email = str_dup("");
+    free_string(ch->pcdata->email_verification_code);
+    ch->pcdata->email_verification_code = str_dup("");
+    ch->pcdata->email_verification_time = 0;
+    ch->pcdata->email_verification_last_sent = 0;
+    write_to_buffer(d, "\n\rEmail address is unchanged and now verified.\n\r", 0);
+    save_char_obj(ch);
+    display_character_menu(d);
+    d->connected = CON_CHARACTER_MENU;
+    return;
+}
     // Generate code and set time
     char code[16];
     generate_reset_code(code, 15);
