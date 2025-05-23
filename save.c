@@ -1027,10 +1027,17 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
                             obj_to_char(obj, ch);
                         } else {
                             OBJ_DATA *container = objNestList[obj->nest - 1];
-                            if (container)
-                                obj_to_obj(obj, container);
-                            else
+					if (container->item_type == ITEM_CONTAINER ||
+						container->item_type == ITEM_KEYRING ||
+						container->item_type == ITEM_WEAPON_CONTAINER)
+						obj_to_obj(obj,objNestList[obj->nest - 1]);
+					else {
+						sprintf(buf, "load_char_obj: found obj %s(%ld) in item %s(%ld) which is not a container",
+							obj->short_descr, obj->pIndexData->vnum,
+							container->short_descr, container->pIndexData->vnum);
+						log_string(buf);
                                 obj_to_char(obj, ch);
+						}
                         }
                     }
                 } else if (section == NULL && ch->version < VERSION_PLAYER_008) {
