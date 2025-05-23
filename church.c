@@ -4143,7 +4143,9 @@ if (!list_appendlink(list_churches, church)) {
     
     closedir(dir);
     log_string(formatf("Loaded %d churches from individual files", count));
-
+// Sort the list by UID after loading
+if (list_churches && list_size(list_churches) > 1)
+    list_quicksort(list_churches, cmp_church_uid);
     
 }
 
