@@ -5759,6 +5759,12 @@ void do_chrank(CHAR_DATA *ch, char *argument)
         handle_rank_name(ch, arg2, arg3, argument);
         return;
     }
+
+    // Renaming ranks
+    if (!str_cmp(arg1, "rename")) {
+        handle_rank_rename(ch, arg2, argument);
+        return;
+    }
     
     // Show usage
     send_to_char("Church Rank Commands:\n\r", ch);
