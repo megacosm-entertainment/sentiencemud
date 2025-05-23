@@ -235,7 +235,7 @@ void show_church_commands(CHAR_DATA *ch)
         bool can_use = false;
         
         // Commands available to everyone
-        if (church_command_table[i].permission == CHURCH_PERM_NONE)
+        if (church_command_table[i].permission == CHURCH_PERM_NONE && church_command_table[i].admin == FALSE)
             can_use = true;
         
         // Commands available to immortals
@@ -243,10 +243,6 @@ void show_church_commands(CHAR_DATA *ch)
                  (ch->pcdata->staff_rank >= STAFF_SUPREMACY || 
                   IS_SET(ch->pcdata->immortal->duties, IMMORTAL_CHURCHES)))
             can_use = true;
-        
-        else if(!IS_IMMORTAL(ch) && church_command_table[i].admin)
-                can_use = false;
-
 
         // Commands requiring church membership and permissions
         else if (ch->church_member != NULL && 
