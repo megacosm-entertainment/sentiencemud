@@ -55,6 +55,7 @@ GAMEEDIT(gameedit_history);
 GAMEEDIT(gameedit_view);
 GAMEEDIT(gameedit_rollback);
 GAMEEDIT(gameedit_comment);
+GAMEEDIT(gameedit_pending);
 
 
 
@@ -121,11 +122,14 @@ void do_gameedit(CHAR_DATA *ch, char *argument)
         gameedit_rollback(ch, argument);
     else if (!str_cmp(command, "comment"))
         gameedit_comment(ch, argument);
+    else if (!str_cmp(command, "pending")) 
+        gameedit_pending(ch, argument);
     else {
         send_to_char("Syntax: gameedit show [category|setting]\n\r", ch);
         send_to_char("        gameedit set <setting> <value>\n\r", ch);
         send_to_char("        gameedit confirm\n\r", ch);
         send_to_char("        gameedit revert\n\r", ch);
+        send_to_char("        gameedit pending\n\r", ch);
         send_to_char("        gameedit history [limit]\n\r", ch);
         send_to_char("        gameedit view <changeset_id>\n\r", ch);
         send_to_char("        gameedit rollback <changeset_id>\n\r", ch);
@@ -1069,6 +1073,151 @@ GAMEEDIT(gameedit_view)
     free_buf(buffer);
     
     return FALSE;
+}
+
+/*
+ * Display all pending changes
+ */
+GAMEEDIT(gameedit_pending)
+{
+    BUFFER *buffer;
+    char buf[MAX_STRING_LENGTH];
+    ITERATOR it;
+    GAME_SETTING_CHANGE *change;
+
+    buffer = new_buf();
+
+    if (!pending_changes || list_size(pending_changes) == 0) {
+        add_buf(buffer, "There are no pending game setting changes.\n\r");
+        page_to_char(buf_string(buffer), ch);
+        free_buf(buffer);
+        return TRUE;
+    }
+
+    sprintf(buf, "{YPending Game Setting Changes (%d):{x\n\r", list_size(pending_changes));
+    add_buf(buffer, buf);
+
+    // Table header
+    sprintf(buf, "{Y+------------------------+-------------------------+-------------------------+{x\n\r");
+    add_buf(buffer, buf);
+    sprintf(buf, "{Y| {W%-22s{x | {W%-23s{x | {W%-23s{x |{x\n\r", "Setting Name", "Current Value", "Pending Value");
+    add_buf(buffer, buf);
+    sprintf(buf, "{Y+------------------------+-------------------------+-------------------------+{x\n\r");
+    add_buf(buffer, buf);
+
+    iterator_start(&it, pending_changes);
+    while ((change = (GAME_SETTING_CHANGE *)iterator_nextdata(&it))) {
+        const struct game_setting_type *setting = change->setting;
+        char current_value_str[MAX_STRING_LENGTH];
+        char pending_value_str[MAX_STRING_LENGTH];
+        char display_current_val[MAX_STRING_LENGTH];
+        char display_pending_val[MAX_STRING_LENGTH];
+        int width_current, width_pending;
+        const int max_vis_col_width = 23;
+
+        // Format Current Value
+        if (setting->sensitive && ch->pcdata->security < 10) {
+            strcpy(current_value_str, "{D*****{x");
+        } else {
+            switch (setting->type) {
+                case SETTING_TYPE_BOOL:
+                    sprintf(current_value_str, "%s", *(bool *)setting->ptr ? "{Gtrue{x" : "{Rfalse{x");
+                    break;
+                case SETTING_TYPE_INT:
+                    sprintf(current_value_str, "{Y%d{x", *(int *)setting->ptr);
+                    break;
+                case SETTING_TYPE_STRING:
+                    if (*(char **)setting->ptr && **(char **)setting->ptr)
+                        sprintf(current_value_str, "{W%s{x", *(char **)setting->ptr);
+                    else
+                        strcpy(current_value_str, "{D(empty){x");
+                    break;
+                default:
+                    strcpy(current_value_str, "{D(unknown){x");
+                    break;
+            }
+        }
+
+        // Format Pending Value
+        if (setting->sensitive && ch->pcdata->security < 10) {
+            strcpy(pending_value_str, "{D*****{x");
+        } else {
+            switch (setting->type) {
+                case SETTING_TYPE_BOOL:
+                    if (!str_cmp(change->value, "true") || !str_cmp(change->value, "yes") || !str_cmp(change->value, "on") || !str_cmp(change->value, "1"))
+                        sprintf(pending_value_str, "{G%s{x", change->value);
+                    else
+                        sprintf(pending_value_str, "{R%s{x", change->value);
+                    break;
+                case SETTING_TYPE_INT:
+                     sprintf(pending_value_str, "{Y%s{x", change->value);
+                    break;
+                case SETTING_TYPE_STRING:
+                    if (change->value && change->value[0])
+                        sprintf(pending_value_str, "{W%s{x", change->value);
+                    else
+                        strcpy(pending_value_str, "{D(empty){x");
+                    break;
+                default:
+                     sprintf(pending_value_str, "{M%s{x", change->value);
+                    break;
+            }
+        }
+        
+        // Truncate current_value_str for display
+        if (strlen_no_colours(current_value_str) > max_vis_col_width) {
+            int trunc_len = colour_trunc_len(current_value_str, max_vis_col_width - 3);
+            strncpy(display_current_val, current_value_str, trunc_len);
+            display_current_val[trunc_len] = '\0';
+            if (strlen(display_current_val) > 0 && display_current_val[strlen(display_current_val)-1] == '{') {
+                 display_current_val[strlen(display_current_val)-1] = '\0'; // Avoid broken color code
+            }
+            strcat(display_current_val, "{x...");
+        } else {
+            strcpy(display_current_val, current_value_str);
+        }
+        for (int k = 0; display_current_val[k]; ++k) if (display_current_val[k] == '\n' || display_current_val[k] == '\r') display_current_val[k] = ' ';
+
+        // Truncate pending_value_str for display
+        if (strlen_no_colours(pending_value_str) > max_vis_col_width) {
+            int trunc_len = colour_trunc_len(pending_value_str, max_vis_col_width - 3);
+            strncpy(display_pending_val, pending_value_str, trunc_len);
+            display_pending_val[trunc_len] = '\0';
+            if (strlen(display_pending_val) > 0 && display_pending_val[strlen(display_pending_val)-1] == '{') {
+                 display_pending_val[strlen(display_pending_val)-1] = '\0'; // Avoid broken color code
+            }
+            strcat(display_pending_val, "{x...");
+        } else {
+            strcpy(display_pending_val, pending_value_str);
+        }
+        for (int k = 0; display_pending_val[k]; ++k) if (display_pending_val[k] == '\n' || display_pending_val[k] == '\r') display_pending_val[k] = ' ';
+
+        width_current = max_vis_col_width + (strlen(display_current_val) - strlen_no_colours(display_current_val));
+        width_pending = max_vis_col_width + (strlen(display_pending_val) - strlen_no_colours(display_pending_val));
+
+        sprintf(buf, "{Y| {C%-22.22s{x | %-*.30s | %-*.30s |{x\n\r",
+                setting->name,
+                width_current, display_current_val,
+                width_pending, display_pending_val);
+        add_buf(buffer, buf);
+    }
+    iterator_stop(&it);
+
+    // Table footer
+    sprintf(buf, "{Y+------------------------+-------------------------+-------------------------+{x\n\r");
+    add_buf(buffer, buf);
+
+    if (requires_reboot()) {
+        sprintf(buf, "\n\r{RWARNING: Some pending changes require a reboot to take effect.{x\n\r");
+        add_buf(buffer, buf);
+    }
+    
+    sprintf(buf, "\n\rUse '{Wgameedit confirm{x' to apply these changes or '{Wgameedit revert{x' to discard them.\n\r");
+    add_buf(buffer, buf);
+
+    page_to_char(buf_string(buffer), ch);
+    free_buf(buffer);
+    return TRUE;
 }
 
 /*

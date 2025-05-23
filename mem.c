@@ -834,6 +834,10 @@ PC_DATA *new_pcdata(void)
     pcdata->buffer = new_buf();
     pcdata->convert_church = -1;
     pcdata->need_change_pw = true;
+        pcdata->account_name = str_dup("");
+    pcdata->account_id[0] = 0;
+    pcdata->account_id[1] = 0;
+    pcdata->account_pwd_override = false;
 
     pcdata->class_mage = -1;
     pcdata->class_cleric = -1;
@@ -858,10 +862,7 @@ PC_DATA *new_pcdata(void)
     pcdata->unlocked_areas = list_create(false);
     pcdata->ships = list_create(false);
     pcdata->spam_block_navigation = false;
-        pcdata->account_name = str_dup("");
-    pcdata->account_id[0] = 0;
-    pcdata->account_id[1] = 0;
-    pcdata->account_pwd_override = false;
+
     
     VALIDATE(pcdata);
     return pcdata;

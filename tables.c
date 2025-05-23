@@ -3576,6 +3576,7 @@ const struct game_setting_type game_settings_table[] = {
     { "vault_rent_per_char", &game_settings.vault_rent_per_char,  SETTING_TYPE_BOOL,   SETTING_CAT_VAULT,    "Does vault rent cost per character",                         true,  false, false },
     { "vault_rent_cost",     &game_settings.vault_rent_cost,      SETTING_TYPE_INT,    SETTING_CAT_VAULT,    "Base rental cost for the vault",                             true,  false, false },
     { "vault_rent_time",     &game_settings.vault_rent_time,      SETTING_TYPE_INT,    SETTING_CAT_VAULT,    "Duration rent grants access (in days)",                      true,  false, false },
+    { "vault_rent_time_max", &game_settings.vault_rent_time_max,  SETTING_TYPE_INT, SETTING_CAT_VAULT, "Maximum duration of vault rental", true, false, false },
     { "vault_add_cost_char", &game_settings.vault_additional_cost_per_char, SETTING_TYPE_INT, SETTING_CAT_VAULT, "Additional cost per character",                          true,  false, false },
     { "vault_add_slots_char", &game_settings.vault_additional_slots_per_char, SETTING_TYPE_INT, SETTING_CAT_VAULT, "Additional slots per character",                       true,  false, false },
     { "vault_add_weight_char", &game_settings.vault_additional_weight_per_char, SETTING_TYPE_INT, SETTING_CAT_VAULT, "Additional weight per character",                    true,  false, false },
@@ -3587,7 +3588,8 @@ const struct game_setting_type game_settings_table[] = {
     { "max_coffer_items",    &game_settings.max_coffer_items,     SETTING_TYPE_INT,    SETTING_CAT_COFFER,   "Maximum items an organization can have in their coffer",     true,  false, false },
     { "coffer_enabled",      &game_settings.coffer_enabled,       SETTING_TYPE_BOOL,   SETTING_CAT_COFFER,   "Is the coffer enabled",                                      true,  false, false },
     { "coffer_rent_currency", &game_settings.coffer_rent_currency, SETTING_TYPE_STRING, SETTING_CAT_COFFER,  "Currency used for coffer rent",                              true,  false, false },
-    { "coffer_rent_period",  &game_settings.coffer_rent_period,   SETTING_TYPE_INT,    SETTING_CAT_COFFER,   "Duration rent grants access to an org (in days)",            true,  false, false },
+    { "coffer_rent_time",  &game_settings.coffer_rent_time,   SETTING_TYPE_INT,    SETTING_CAT_COFFER,   "Duration rent grants access to an org (in days)",            true,  false, false },
+    { "coffer_rent_time_max", &game_settings.coffer_rent_time_max, SETTING_TYPE_INT, SETTING_CAT_COFFER, "Maximum duration of coffer rental", true, false, false },
 
     /* Global Settings */
     { "game_name",           &game_settings.game_name,            SETTING_TYPE_STRING, SETTING_CAT_GLOBAL,   "Name of the game, used in MSSP",                             true,  true, false },

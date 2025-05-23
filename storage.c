@@ -40,6 +40,7 @@ void do_storage(CHAR_DATA *ch, char *argument)
         send_to_char("What type of storage do you want to access?\n\r", ch);
         send_to_char("Usage: storage <type> <command>\n\r", ch);
         send_to_char("Types: character/locker, account/vault, church/coffer\n\r", ch);
+        send_to_char("You can also use 'locker', 'vault', or 'coffer' commands as shorthand.\n\r", ch);
         return;
     }
     
@@ -107,7 +108,7 @@ void storage_character_cmd(CHAR_DATA *ch, char *argument)
 
     // Determine if player can access locker here
     if (!IS_SET(ch->in_room->room_flag[0], ROOM_LOCKER) && !item_with_locker_flag) {
-        send_to_char("You can't access your character storage here.\n\r", ch);
+        send_to_char("You can't access your locker here.\n\r", ch);
         return;
     }
 
@@ -144,7 +145,7 @@ void storage_character_cmd(CHAR_DATA *ch, char *argument)
         player->locker_rent = (time_t)mktime(rent_time);
 
         act("Locker rent for $N has been forgiven.", ch, player, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-        send_to_char("{WYour character storage rent has been forgiven.{x\n\r", player);
+        send_to_char("{WYour locker rent has been forgiven.{x\n\r", player);
         return;
     }
 
@@ -164,40 +165,45 @@ void storage_character_cmd(CHAR_DATA *ch, char *argument)
         }
         
         if (!game_settings.locker_rent_enabled && !IS_IMMORTAL(ch)) {
-            send_to_char("Character storage doesn't require rent payments.\n\r", ch);
+            send_to_char("Your locker doesn't require rent payments.\n\r", ch);
             return;
         }
 
         if (ch->pcdata->bankbalance < cost) {
-            sprintf(buf, "You need %d gold in your bank account to rent storage.\n\r", cost);
+            sprintf(buf, "You need %d gold in your bank account to rent a locker.\n\r", cost);
             send_to_char(buf, ch);
             return;
         }
 
         ch->pcdata->bankbalance -= cost;
 
-        // Set rent time
-        if (ch->locker_rent < current_time) {
-            ch->locker_rent = current_time;
+        // Determine the base for extending rent
+        time_t base_for_extension;
+        if (ch->locker_rent > current_time) {
+            base_for_extension = ch->locker_rent; // Rent is current, extend from existing expiry
+        } else {
+            base_for_extension = current_time;   // Rent expired or never set, extend from now
         }
 
-        // Calculate new rent expiration
-        rent_time = (struct tm *)localtime(&ch->locker_rent);
-        rent_time->tm_mday += game_settings.locker_rent_time;
-        
-        // Cap to max rent time if configured
-        time_t max_time = current_time;
-        struct tm *max_rent = (struct tm *)localtime(&max_time);
-        max_rent->tm_mday += game_settings.locker_rent_time_max;
-        time_t max_timestamp = mktime(max_rent);
-        
-        ch->locker_rent = (time_t)mktime(rent_time);
-        
-        // Cap to maximum allowed rent time
-        if (game_settings.locker_rent_time_max > 0 && 
-            ch->locker_rent > max_timestamp) {
-            ch->locker_rent = max_timestamp;
+        // Calculate new rent expiration by adding the rent period
+        struct tm *tm_rent_expiry = localtime(&base_for_extension);
+        tm_rent_expiry->tm_mday += game_settings.locker_rent_time;
+        time_t new_rent_timestamp = mktime(tm_rent_expiry);
+
+        // Calculate the absolute maximum rent time allowed from current_time
+        if (game_settings.locker_rent_time_max > 0) {
+            time_t max_allowed_rent_from_now = current_time;
+            struct tm *tm_max_rent = localtime(&max_allowed_rent_from_now);
+            tm_max_rent->tm_mday += game_settings.locker_rent_time_max;
+            max_allowed_rent_from_now = mktime(tm_max_rent);
+
+            // Cap the new rent time to this absolute maximum
+            if (new_rent_timestamp > max_allowed_rent_from_now) {
+                new_rent_timestamp = max_allowed_rent_from_now;
+            }
         }
+        
+        ch->locker_rent = new_rent_timestamp;
         
         send_to_char("Storage rent extended to:\n\r", ch);
         send_to_char((char *)ctime(&ch->locker_rent), ch);
@@ -209,12 +215,12 @@ void storage_character_cmd(CHAR_DATA *ch, char *argument)
         int upgrade_cost = game_settings.locker_rent_cost * 5;
         
         if (ch->locker_tier >= game_settings.locker_tier_max) {
-            send_to_char("Your character storage is already at maximum capacity.\n\r", ch);
+            send_to_char("Your locker is already at maximum capacity.\n\r", ch);
             return;
         }
         
         if (ch->pcdata->bankbalance < upgrade_cost) {
-            sprintf(buf, "You need %d gold in your bank account to upgrade storage.\n\r", upgrade_cost);
+            sprintf(buf, "You need %d gold in your bank account to upgrade your locker.\n\r", upgrade_cost);
             send_to_char(buf, ch);
             return;
         }
@@ -222,7 +228,7 @@ void storage_character_cmd(CHAR_DATA *ch, char *argument)
         ch->pcdata->bankbalance -= upgrade_cost;
         ch->locker_tier++;
         
-        sprintf(buf, "You've upgraded your character storage to tier %d!\n\r", ch->locker_tier);
+        sprintf(buf, "You've upgraded your locker to tier %d!\n\r", ch->locker_tier);
         send_to_char(buf, ch);
         sprintf(buf, "New capacity: %d items, %d weight\n\r", 
                 game_settings.max_locker_items + (ch->locker_tier * game_settings.locker_additional_slots_per_tier),
@@ -233,31 +239,54 @@ void storage_character_cmd(CHAR_DATA *ch, char *argument)
 
     // Process info command
     if (!str_cmp(arg1, "info")) {
-        if (ch->locker_rent == 0) {
-            send_to_char("You have not rented character storage.\n\r", ch);
+        if (ch->locker_rent == 0 && game_settings.locker_rent_enabled) { // Also check if rent is enabled
+            send_to_char("You have not rented a locker, or your rent has expired.\n\r", ch);
             return;
         }
         
         int current_weight = 0;
         int item_count = 0;
-        OBJ_DATA *obj;
+        OBJ_DATA *obj_content; // Renamed to avoid conflict with outer scope obj
         
-        for (obj = ch->locker; obj != NULL; obj = obj->next_content) {
+        for (obj_content = ch->locker; obj_content != NULL; obj_content = obj_content->next_content) {
             item_count++;
-            current_weight += get_obj_weight(obj);
+            current_weight += get_obj_weight(obj_content);
         }
         
-        int max_items = game_settings.max_locker_items + 
+        int max_items;
+        if (game_settings.max_locker_items == -1) {
+            max_items = -1; // Unlimited
+        } else {
+            max_items = game_settings.max_locker_items + 
                        (ch->locker_tier * game_settings.locker_additional_slots_per_tier);
-        int max_weight = game_settings.max_locker_weight + 
+        }
+
+        int max_weight;
+        if (game_settings.max_locker_weight == -1) {
+            max_weight = -1; // Unlimited
+        } else {
+            max_weight = game_settings.max_locker_weight + 
                         (ch->locker_tier * game_settings.locker_additional_weight_per_tier);
+        }
         
-        send_to_char("{WCharacter Storage Information:{x\n\r", ch);
+        send_to_char("{WLocker Information:{x\n\r", ch);
+        if (game_settings.locker_tier_max > 0) {
+ 
         sprintf(buf, "Tier: %d/%d\n\r", ch->locker_tier, game_settings.locker_tier_max);
         send_to_char(buf, ch);
-        sprintf(buf, "Items: %d/%d\n\r", item_count, max_items);
+        }
+        if (max_items == -1) {
+            sprintf(buf, "Items: %d/Unlimited\n\r", item_count);
+        } else {
+            sprintf(buf, "Items: %d/%d\n\r", item_count, max_items);
+        }
         send_to_char(buf, ch);
-        sprintf(buf, "Weight: %d/%d\n\r", current_weight, max_weight);
+
+        if (max_weight == -1) {
+            sprintf(buf, "Weight: %d/Unlimited\n\r", current_weight);
+        } else {
+            sprintf(buf, "Weight: %d/%d\n\r", current_weight, max_weight);
+        }
         send_to_char(buf, ch);
         
         if (game_settings.locker_rent_enabled) {
@@ -265,15 +294,23 @@ void storage_character_cmd(CHAR_DATA *ch, char *argument)
             send_to_char((char *)ctime(&ch->locker_rent), ch);
             
             if (current_time > ch->locker_rent) {
-                send_to_char("{RYour storage rent has expired!{x\n\r", ch);
+                send_to_char("{RYour locker rent has expired!{x\n\r", ch);
             } else {
                 // Calculate days left
-                int days_left = (ch->locker_rent - current_time) / 86400;
+                int days_left = (ch->locker_rent - current_time) / 86400; // Integer division gives whole days
                 sprintf(buf, "Days remaining: %d\n\r", days_left);
                 send_to_char(buf, ch);
             }
+            if (game_settings.locker_rent_time_max > 0) {
+                time_t max_rent_timestamp = current_time;
+                struct tm *tm_max_rent = localtime(&max_rent_timestamp);
+                tm_max_rent->tm_mday += game_settings.locker_rent_time_max;
+                max_rent_timestamp = mktime(tm_max_rent);
+                send_to_char("Maximum possible rent until:\n\r", ch);
+                send_to_char((char *)ctime(&max_rent_timestamp), ch);
+            }
         } else {
-            send_to_char("Storage rental is not required on this realm.\n\r", ch);
+            send_to_char("Locker rental is not required on this game.\n\r", ch);
         }
         
         return;
@@ -281,7 +318,7 @@ void storage_character_cmd(CHAR_DATA *ch, char *argument)
 
     // Check if rent has expired and rent is required
     if (game_settings.locker_rent_enabled && current_time > ch->locker_rent) {
-        send_to_char("Your character storage has expired. Please use 'storage character rent' to renew it.\n\r", ch);
+        send_to_char("Your locker has expired. Please use 'locker rent' to renew it.\n\r", ch);
         return;
     }
 
@@ -292,11 +329,11 @@ void storage_character_cmd(CHAR_DATA *ch, char *argument)
         for (obj = ch->locker; obj != NULL; obj = obj->next_content)
             item_count++;
 
-        sprintf(buf, "You look in your character storage and see %d items:\n\r", item_count);
+        sprintf(buf, "You look in your locker and see %d items:\n\r", item_count);
         send_to_char(buf, ch);
         show_list_to_char(ch->locker, ch, true, true);
 
-        act("$n looks over the contents of $s storage container.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+        act("$n looks over the contents of $s locker.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
         return;
     }
 
@@ -315,52 +352,62 @@ void storage_character_cmd(CHAR_DATA *ch, char *argument)
 
         // Check storage restrictions
         if ((obj->pIndexData == get_obj_index(OBJ_VNUM_SKULL) || obj->pIndexData == get_obj_index(OBJ_VNUM_GOLD_SKULL)) && obj->affected != NULL) {
-            send_to_char("You can't store that enchanted item in your storage.\n\r", ch);
+            send_to_char("You can't store that enchanted item in your locker.\n\r", ch);
             return;
         }
 
         if (obj->timer > 0) {
-            send_to_char("You can only store permanent items in your storage.\n\r", ch);
+            send_to_char("You can only store permanent items in your locker.\n\r", ch);
             return;
         }
 
         if (obj->item_type == ITEM_CONTAINER && obj->contains) {
-            send_to_char("You can't put containers in your storage unless they are empty.\n\r", ch);
+            send_to_char("You can't put containers in your locker unless they are empty.\n\r", ch);
             return;
         }
 
         // Check capacity limits
         int current_items = count_char_locker(ch);
-        int max_items = game_settings.max_locker_items + 
+        int max_items;
+        if (game_settings.max_locker_items == -1) {
+            max_items = -1;
+        } else {
+            max_items = game_settings.max_locker_items + 
                        (ch->locker_tier * game_settings.locker_additional_slots_per_tier);
+        }
         
-        if (current_items >= max_items) {
-            send_to_char("Your storage is full!\n\r", ch);
+        if (max_items != -1 && current_items >= max_items) {
+            send_to_char("Your locker is full!\n\r", ch);
             return;
         }
         
         // Check weight limits
-        int current_weight = 0;
+        int current_weight_val = 0; // Renamed to avoid conflict
         for (OBJ_DATA *locker_obj = ch->locker; locker_obj != NULL; locker_obj = locker_obj->next_content) {
-            current_weight += get_obj_weight(locker_obj);
+            current_weight_val += get_obj_weight(locker_obj);
         }
         
-        int max_weight = game_settings.max_locker_weight + 
+        int max_weight;
+        if (game_settings.max_locker_weight == -1) {
+            max_weight = -1;
+        } else {
+            max_weight = game_settings.max_locker_weight + 
                         (ch->locker_tier * game_settings.locker_additional_weight_per_tier);
+        }
         
-        if (current_weight + get_obj_weight(obj) > max_weight) {
-            send_to_char("Your storage can't hold that much weight!\n\r", ch);
+        if (max_weight != -1 && current_weight_val + get_obj_weight(obj) > max_weight) {
+            send_to_char("Your locker can't hold that much weight!\n\r", ch);
             return;
         }
 
         // Check other restrictions
         if (IS_SET(obj->extra[1], ITEM_NOLOCKER) || obj_nest_clones(obj) > 0) {
-            send_to_char("You can't put that item in your storage.\n\r", ch);
+            send_to_char("You can't put that item in your locker.\n\r", ch);
             return;
         }
 
-        act("You place $p in your storage.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-        act("$n places $p in $s storage.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+        act("You place $p in your locker.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+        act("$n places $p in $s locker.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 
         obj_from_char(obj);
         obj_to_locker(obj, ch);
@@ -370,12 +417,12 @@ void storage_character_cmd(CHAR_DATA *ch, char *argument)
     // Process get command
     if (!str_cmp(arg1, "get")) {
         if ((obj = get_obj_locker(ch, arg2)) == NULL) {
-            send_to_char("That item isn't in your storage.\n\r", ch);
+            send_to_char("That item isn't in your locker.\n\r", ch);
             return;
         }
 
-        act("You get $p from your storage.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-        act("$n gets $p from $s storage.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+        act("You get $p from your locker.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+        act("$n gets $p from $s locker.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 
         obj_from_locker(obj);
         obj_to_char(obj, ch);
@@ -527,8 +574,7 @@ if (!account) {
         return;
     }
 
-    // Process rent command
-    if (!str_cmp(arg1, "rent")) {
+if (!str_cmp(arg1, "rent")) {
         if (!game_settings.vault_rent && !IS_IMMORTAL(ch)) {
             send_to_char("Account vault storage doesn't require rent payments.\n\r", ch);
             if (loaded && account) free_account(account);
@@ -551,15 +597,34 @@ if (!account) {
 
         ch->pcdata->bankbalance -= cost;
 
-        // Set rent time
-        if (account->vault_rent < current_time) {
-            account->vault_rent = current_time;
+        // Determine the base for extending rent
+        time_t base_for_extension;
+        if (account->vault_rent > current_time) {
+            base_for_extension = account->vault_rent; // Rent is current, extend from existing expiry
+        } else {
+            base_for_extension = current_time;   // Rent expired or never set, extend from now
         }
 
-        // Calculate new rent expiration
-        rent_time = (struct tm *)localtime(&account->vault_rent);
-        rent_time->tm_mday += game_settings.vault_rent_time;
-        account->vault_rent = (time_t)mktime(rent_time);
+        // Calculate new rent expiration by adding the rent period
+        struct tm *tm_rent_expiry = localtime(&base_for_extension);
+        tm_rent_expiry->tm_mday += game_settings.vault_rent_time;
+        time_t new_rent_timestamp = mktime(tm_rent_expiry);
+
+        // Calculate the absolute maximum rent time allowed from current_time
+        // Assuming game_settings.vault_rent_time_max exists for consistency
+        if (game_settings.vault_rent_time_max > 0) {
+            time_t max_allowed_rent_from_now = current_time;
+            struct tm *tm_max_rent = localtime(&max_allowed_rent_from_now);
+            tm_max_rent->tm_mday += game_settings.vault_rent_time_max;
+            max_allowed_rent_from_now = mktime(tm_max_rent);
+
+            // Cap the new rent time to this absolute maximum
+            if (new_rent_timestamp > max_allowed_rent_from_now) {
+                new_rent_timestamp = max_allowed_rent_from_now;
+            }
+        }
+        
+        account->vault_rent = new_rent_timestamp;
         
         send_to_char("Vault storage rent extended to:\n\r", ch);
         send_to_char((char *)ctime(&account->vault_rent), ch);
@@ -573,32 +638,41 @@ if (!account) {
 
     // Process info command
     if (!str_cmp(arg1, "info")) {
-        if (account->vault_rent == 0) {
-            send_to_char("Your account does not have vault storage.\n\r", ch);
+        if (account->vault_rent == 0 && game_settings.vault_rent) { // Also check if rent is enabled
+            send_to_char("Your account does not have vault storage, or your rent has expired.\n\r", ch);
             if (loaded && account) free_account(account);
             return;
         }
         
-        int current_weight = 0;
+        int current_weight_val = 0; // Renamed
         int item_count = 0;
-        OBJ_DATA *obj;
+        OBJ_DATA *obj_content; // Renamed
         
         // Calculate current usage
-        for (obj = account->vault_items; obj != NULL; obj = obj->next_content) {
+        for (obj_content = account->vault_items; obj_content != NULL; obj_content = obj_content->next_content) {
             item_count++;
-            current_weight += get_obj_weight(obj);
+            current_weight_val += get_obj_weight(obj_content);
         }
         
         // Calculate max capacity
-        int max_items = game_settings.max_vault_items;
-        int max_weight = game_settings.max_vault_weight;
-        
-        if (game_settings.vault_additional_slots_per_char > 0) {
-            max_items += (account->character_count * game_settings.vault_additional_slots_per_char);
+        int max_items;
+        if (game_settings.max_vault_items == -1) {
+            max_items = -1;
+        } else {
+            max_items = game_settings.max_vault_items;
+            if (game_settings.vault_additional_slots_per_char > 0) {
+                max_items += (account->character_count * game_settings.vault_additional_slots_per_char);
+            }
         }
         
-        if (game_settings.vault_additional_weight_per_char > 0) {
-            max_weight += (account->character_count * game_settings.vault_additional_weight_per_char);
+        int max_weight;
+        if (game_settings.max_vault_weight == -1) {
+            max_weight = -1;
+        } else {
+            max_weight = game_settings.max_vault_weight;
+            if (game_settings.vault_additional_weight_per_char > 0) {
+                max_weight += (account->character_count * game_settings.vault_additional_weight_per_char);
+            }
         }
         
         send_to_char("{WAccount Vault Information:{x\n\r", ch);
@@ -606,9 +680,19 @@ if (!account) {
         send_to_char(buf, ch);
         sprintf(buf, "Characters: %d\n\r", account->character_count);
         send_to_char(buf, ch);
-        sprintf(buf, "Items: %d/%d\n\r", item_count, max_items);
+
+        if (max_items == -1) {
+            sprintf(buf, "Items: %d/Unlimited\n\r", item_count);
+        } else {
+            sprintf(buf, "Items: %d/%d\n\r", item_count, max_items);
+        }
         send_to_char(buf, ch);
-        sprintf(buf, "Weight: %d/%d\n\r", current_weight, max_weight);
+
+        if (max_weight == -1) {
+            sprintf(buf, "Weight: %d/Unlimited\n\r", current_weight_val);
+        } else {
+            sprintf(buf, "Weight: %d/%d\n\r", current_weight_val, max_weight);
+        }
         send_to_char(buf, ch);
         
         if (game_settings.vault_rent) {
@@ -619,9 +703,17 @@ if (!account) {
                 send_to_char("{RYour vault storage rent has expired!{x\n\r", ch);
             } else {
                 // Calculate days left
-                int days_left = (account->vault_rent - current_time) / 86400;
+                int days_left = (account->vault_rent - current_time) / 86400; // Integer division
                 sprintf(buf, "Days remaining: %d\n\r", days_left);
                 send_to_char(buf, ch);
+            }
+            if (game_settings.vault_rent_time_max > 0) {
+                time_t max_rent_timestamp = current_time;
+                struct tm *tm_max_rent = localtime(&max_rent_timestamp);
+                tm_max_rent->tm_mday += game_settings.vault_rent_time_max;
+                max_rent_timestamp = mktime(tm_max_rent);
+                send_to_char("Maximum possible rent until:\n\r", ch);
+                send_to_char((char *)ctime(&max_rent_timestamp), ch);
             }
         } else {
             send_to_char("Vault storage rental is not required on this realm.\n\r", ch);
@@ -695,32 +787,41 @@ if (!account) {
         }
 
         // Check capacity limits
-        int current_items = 0;
-        int current_weight = 0;
+        int current_items_val = 0; // Renamed
+        int current_weight_val = 0; // Renamed
         for (OBJ_DATA *vault_obj = account->vault_items; vault_obj != NULL; vault_obj = vault_obj->next_content) {
-            current_items++;
-            current_weight += get_obj_weight(vault_obj);
+            current_items_val++;
+            current_weight_val += get_obj_weight(vault_obj);
         }
         
         // Calculate max capacity
-        int max_items = game_settings.max_vault_items;
-        int max_weight = game_settings.max_vault_weight;
-        
-        if (game_settings.vault_additional_slots_per_char > 0) {
-            max_items += (account->character_count * game_settings.vault_additional_slots_per_char);
+        int max_items;
+        if (game_settings.max_vault_items == -1) {
+            max_items = -1;
+        } else {
+            max_items = game_settings.max_vault_items;
+            if (game_settings.vault_additional_slots_per_char > 0) {
+                max_items += (account->character_count * game_settings.vault_additional_slots_per_char);
+            }
         }
         
-        if (game_settings.vault_additional_weight_per_char > 0) {
-            max_weight += (account->character_count * game_settings.vault_additional_weight_per_char);
+        int max_weight;
+        if (game_settings.max_vault_weight == -1) {
+            max_weight = -1;
+        } else {
+            max_weight = game_settings.max_vault_weight;
+            if (game_settings.vault_additional_weight_per_char > 0) {
+                max_weight += (account->character_count * game_settings.vault_additional_weight_per_char);
+            }
         }
         
-        if (current_items >= max_items) {
+        if (max_items != -1 && current_items_val >= max_items) {
             send_to_char("Your vault storage is full!\n\r", ch);
             if (loaded && account) free_account(account);
             return;
         }
         
-        if (current_weight + get_obj_weight(obj) > max_weight) {
+        if (max_weight != -1 && current_weight_val + get_obj_weight(obj) > max_weight) {
             send_to_char("Your vault storage can't hold that much weight!\n\r", ch);
             if (loaded && account) free_account(account);
             return;
@@ -844,7 +945,7 @@ void storage_church_cmd(CHAR_DATA *ch, char *argument)
         
         // Calculate new rent time
         rent_time = (struct tm *)localtime(&target_church->coffer_rent);
-        rent_time->tm_mday += game_settings.coffer_rent_period;
+        rent_time->tm_mday += game_settings.coffer_rent_time;
         target_church->coffer_rent = (time_t)mktime(rent_time);
 
         sprintf(buf, "Coffer rent for church '%s' has been forgiven.\n\r", target_church->name);
@@ -927,15 +1028,34 @@ void storage_church_cmd(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    // Set rent time
-    if (church->coffer_rent < current_time) {
-        church->coffer_rent = current_time;
+    // Determine the base for extending rent
+    time_t base_for_extension;
+    if (church->coffer_rent > current_time) {
+        base_for_extension = church->coffer_rent; // Rent is current, extend from existing expiry
+    } else {
+        base_for_extension = current_time;   // Rent expired or never set, extend from now
     }
 
-    // Calculate new rent expiration
-    rent_time = (struct tm *)localtime(&church->coffer_rent);
-    rent_time->tm_mday += game_settings.coffer_rent_period;
-    church->coffer_rent = (time_t)mktime(rent_time);
+    // Calculate new rent expiration by adding the rent period
+    struct tm *tm_rent_expiry = localtime(&base_for_extension);
+    tm_rent_expiry->tm_mday += game_settings.coffer_rent_time;
+    time_t new_rent_timestamp = mktime(tm_rent_expiry);
+    
+    // Calculate the absolute maximum rent time allowed from current_time
+    // Assuming game_settings.coffer_rent_period_max exists for consistency
+    if (game_settings.coffer_rent_time_max > 0) {
+        time_t max_allowed_rent_from_now = current_time;
+        struct tm *tm_max_rent = localtime(&max_allowed_rent_from_now);
+        tm_max_rent->tm_mday += game_settings.coffer_rent_time_max;
+        max_allowed_rent_from_now = mktime(tm_max_rent);
+
+        // Cap the new rent time to this absolute maximum
+        if (new_rent_timestamp > max_allowed_rent_from_now) {
+            new_rent_timestamp = max_allowed_rent_from_now;
+        }
+    }
+
+    church->coffer_rent = new_rent_timestamp;
     
     send_to_char("Church coffer storage rent extended to:\n\r", ch);
     send_to_char((char *)ctime(&church->coffer_rent), ch);
@@ -950,32 +1070,41 @@ void storage_church_cmd(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    // Process info command
     if (!str_cmp(arg1, "info")) {
-        if (church->coffer_rent == 0 && game_settings.coffer_rent) {
-            send_to_char("Your church does not have coffer storage.\n\r", ch);
+        if (church->coffer_rent == 0 && game_settings.coffer_rent) { // Also check if rent is enabled
+            send_to_char("Your church does not have coffer storage, or its rent has expired.\n\r", ch);
             return;
         }
         
-        int current_weight = 0;
+        int current_weight_val = 0; // Renamed
         int item_count = 0;
-        OBJ_DATA *obj;
+        OBJ_DATA *obj_content; // Renamed
         
         // Calculate current usage
-        for (obj = church->coffer; obj != NULL; obj = obj->next_content) {
+        for (obj_content = church->coffer; obj_content != NULL; obj_content = obj_content->next_content) {
             item_count++;
-            current_weight += get_obj_weight(obj);
+            current_weight_val += get_obj_weight(obj_content);
         }
         
-        int max_items = game_settings.max_coffer_items;
-        int max_weight = game_settings.max_coffer_weight;
+        int max_items = game_settings.max_coffer_items; // No tiers for coffer
+        int max_weight = game_settings.max_coffer_weight; // No tiers for coffer
         
         send_to_char("{WChurch Coffer Information:{x\n\r", ch);
         sprintf(buf, "Church: %s\n\r", church->name);
         send_to_char(buf, ch);
-        sprintf(buf, "Items: %d/%d\n\r", item_count, max_items);
+
+        if (max_items == -1) {
+            sprintf(buf, "Items: %d/Unlimited\n\r", item_count);
+        } else {
+            sprintf(buf, "Items: %d/%d\n\r", item_count, max_items);
+        }
         send_to_char(buf, ch);
-        sprintf(buf, "Weight: %d/%d\n\r", current_weight, max_weight);
+
+        if (max_weight == -1) {
+            sprintf(buf, "Weight: %d/Unlimited\n\r", current_weight_val);
+        } else {
+            sprintf(buf, "Weight: %d/%d\n\r", current_weight_val, max_weight);
+        }
         send_to_char(buf, ch);
         
         if (game_settings.coffer_rent) {
@@ -986,9 +1115,18 @@ void storage_church_cmd(CHAR_DATA *ch, char *argument)
                 send_to_char("{RYour church coffer storage rent has expired!{x\n\r", ch);
             } else {
                 // Calculate days left
-                int days_left = (church->coffer_rent - current_time) / 86400;
+                int days_left = (church->coffer_rent - current_time) / 86400; // Integer division
                 sprintf(buf, "Days remaining: %d\n\r", days_left);
                 send_to_char(buf, ch);
+            }
+            // Assuming game_settings.coffer_rent_time_max for consistency
+            if (game_settings.coffer_rent_time_max > 0) {
+                time_t max_rent_timestamp = current_time;
+                struct tm *tm_max_rent = localtime(&max_rent_timestamp);
+                tm_max_rent->tm_mday += game_settings.coffer_rent_time_max; // Use the correct setting here
+                max_rent_timestamp = mktime(tm_max_rent);
+                send_to_char("Maximum possible rent until:\n\r", ch);
+                send_to_char((char *)ctime(&max_rent_timestamp), ch);
             }
         } else {
             send_to_char("\n\rChurch coffer storage rental is not required on this realm.\n\r", ch);
@@ -1052,19 +1190,19 @@ void storage_church_cmd(CHAR_DATA *ch, char *argument)
         }
 
         // Check capacity limits
-        int current_items = 0;
-        int current_weight = 0;
+        int current_items_val = 0; // Renamed
+        int current_weight_val = 0; // Renamed
         for (OBJ_DATA *coffer_obj = church->coffer; coffer_obj != NULL; coffer_obj = coffer_obj->next_content) {
-            current_items++;
-            current_weight += get_obj_weight(coffer_obj);
+            current_items_val++;
+            current_weight_val += get_obj_weight(coffer_obj);
         }
         
-        if (current_items >= game_settings.max_coffer_items) {
+        if (game_settings.max_coffer_items != -1 && current_items_val >= game_settings.max_coffer_items) {
             send_to_char("The church coffer is full!\n\r", ch);
             return;
         }
         
-        if (current_weight + get_obj_weight(obj) > game_settings.max_coffer_weight) {
+        if (game_settings.max_coffer_weight != -1 && current_weight_val + get_obj_weight(obj) > game_settings.max_coffer_weight) {
             send_to_char("The church coffer can't hold that much weight!\n\r", ch);
             return;
         }

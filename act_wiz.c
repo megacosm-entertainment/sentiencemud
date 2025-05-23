@@ -314,6 +314,7 @@ int game_settings_read (void)
     game_settings.vault_rent_per_char = false;
     game_settings.vault_rent_cost = 0;
     game_settings.vault_rent_time = 0;
+	game_settings.vault_rent_time_max = 0;
     game_settings.vault_additional_cost_per_char = 0;
     game_settings.vault_additional_slots_per_char = 0;
     game_settings.vault_additional_weight_per_char = 0;
@@ -325,7 +326,8 @@ int game_settings_read (void)
     game_settings.coffer_rent = false;
     game_settings.coffer_rent_cost = 0;
     game_settings.coffer_rent_currency = "";
-    game_settings.coffer_rent_period = 0;
+    game_settings.coffer_rent_time = 0;
+	game_settings.coffer_rent_time_max = 0;
 
     /* Protocols and Ports*/
     game_settings.enable_telnet = false;
@@ -433,7 +435,8 @@ int game_settings_read (void)
                 KEY("CofferRent", game_settings.coffer_rent, fread_number(fp));
                 KEY("CofferRentCost", game_settings.coffer_rent_cost, fread_number(fp));
                 KEY("CofferRentCurrency", game_settings.coffer_rent_currency, fread_string(fp));
-                KEY("CofferRentPeriod", game_settings.coffer_rent_period, fread_number(fp));
+                KEY("CofferRentTime", game_settings.coffer_rent_time, fread_number(fp));
+				KEY("CofferRentTimeMax", game_settings.coffer_rent_time_max, fread_number(fp));
                 break;
 
             case 'D':
@@ -622,6 +625,8 @@ int game_settings_read (void)
                 KEY("VaultRentCost", game_settings.vault_rent_cost, fread_number(fp));
                 KEY("VaultRentPerChar", game_settings.vault_rent_per_char, fread_number(fp));
                 KEY("VaultRentTime", game_settings.vault_rent_time, fread_number(fp));
+				KEY("VaultRentTimeMax", game_settings.vault_rent_time_max, fread_number(fp));
+
 				KEY("VaultRequireRoom", game_settings.vault_require_room, fread_number(fp));
 
                 break;
@@ -740,6 +745,7 @@ int game_settings_write(void)
     fprintf(fp, "VaultRentPerChar %d\n", game_settings.vault_rent_per_char);
     fprintf(fp, "VaultRentCost %d\n", game_settings.vault_rent_cost);
     fprintf(fp, "VaultRentTime %d\n", game_settings.vault_rent_time);
+	fprintf(fp, "VaultRentTimeMax %d\n", game_settings.vault_rent_time_max);
 	fprintf(fp, "VaultRequireRoom %d\n", game_settings.vault_require_room);
     fprintf(fp, "VaultAdditionalCostPerChar %d\n", game_settings.vault_additional_cost_per_char);
     fprintf(fp, "VaultAdditionalSlotsPerChar %d\n", game_settings.vault_additional_slots_per_char);
@@ -752,7 +758,8 @@ int game_settings_write(void)
     fprintf(fp, "CofferRent %d\n", game_settings.coffer_rent);
     fprintf(fp, "CofferRentCost %d\n", game_settings.coffer_rent_cost);
     fprintf(fp, "CofferRentCurrency %s~\n", game_settings.coffer_rent_currency);
-    fprintf(fp, "CofferRentPeriod %d\n", game_settings.coffer_rent_period);
+    fprintf(fp, "CofferRentTime %d\n", game_settings.coffer_rent_time);
+	fprintf(fp, "CofferRentTimeMax %d\n", game_settings.coffer_rent_time_max);
 
     /* Game System Settings */
     fprintf(fp, "AlignmentSystem %d\n", game_settings.alignment_system);

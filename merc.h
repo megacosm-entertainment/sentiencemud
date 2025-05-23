@@ -1188,6 +1188,7 @@ struct game_settings_data
     int vault_additional_slots_per_char;  // How many more slots does a player get per character?
     int vault_additional_weight_per_char; // How much more weight does a player get per character?
     bool vault_require_room;              // Do we require a room to be in the vault?
+    int vault_rent_time_max;            // How long can a vault be rented at one time (in real days)
 
     /* Coffer (org storage) Settings */
     int max_coffer_weight; // How much weight can a player have in their coffer?
@@ -1195,8 +1196,9 @@ struct game_settings_data
     bool coffer_enabled;   // Is the coffer enabled?
     bool coffer_rent;      // Doess the coffer cost rent?
     int coffer_rent_cost;
-    char *coffer_rent_currency; // Whatt currency does the coffer cost rent in?
-    int coffer_rent_period;     // How long does renting grant access to an org? (in real days)
+    char *coffer_rent_currency; // What currency does the coffer cost rent in?
+    int coffer_rent_time;     // How long does renting grant access to an org? (in real days)
+    int coffer_rent_time_max;
 
     /* Global Settings */
     char *game_name;              // Name of the game, used in MSSP.
