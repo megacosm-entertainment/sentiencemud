@@ -4848,6 +4848,7 @@ struct account_character_data
     int current_level; /* Character's level */
     int tot_level;
     char *last_area;   /* Character's most recent area */
+
     bool staff;        /* Is the character an admin? */
     int staff_rank;
     time_t creation_date; /* When the character was created */

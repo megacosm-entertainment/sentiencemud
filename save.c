@@ -668,9 +668,9 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     if (ch->wiznet)
     	fprintf(fp, "Wizn %s\n",   print_flags(ch->wiznet));
     if (ch->invis_level)
-	fprintf(fp, "Invi %d\n", 	ch->invis_level	);
+	fprintf(fp, "Invi %d\n", 	flag_string(staff_ranks,ch->invis_level	));
     if (ch->incog_level)
-	fprintf(fp,"Inco %d\n",ch->incog_level);
+	fprintf(fp,"Inco %d\n",flag_string(staff_ranks,ch->incog_level));
     fprintf(fp, "Pos  %d\n",
 	ch->position == POS_FIGHTING ? POS_STANDING : ch->position);
     if (ch->practice != 0)
@@ -1084,34 +1084,32 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 
 	get_mob_id(ch);
 
-    /* The immortal-only information associated with an imm is stored in a seperate list
-       (immortal_list) so that it is always accessible, instead of only when the char
-       is logged in. On game shutdown it is written to ../data/world/staff.dat. When
-       the player logs in, a pointer to the immortal staff entry is set up for them
-       here. */
-    if (ch->tot_level >= LEVEL_IMMORTAL) {
-	/* If their immortal isn't found, give them a blank one so we don't segfault. */
-		if ((immortal = find_immortal(ch->name)) == NULL) {
-			sprintf(buf, "load_char_obj: no immortal_data found for immortal character %s!", ch->name);
-			bug(buf, 0);
+    // Handle immortal data setup
+    if (get_staff_rank(ch) > STAFF_PLAYER) {
+        if ((immortal = find_immortal(ch->name)) == NULL) {
+            snprintf(buf, sizeof(buf), "load_char_obj: no immortal_data found for immortal character %s!", ch->name);
+            bug(buf, 0);
 
-			immortal = new_immortal();
-			immortal->name = str_dup(ch->name);
-			//immortal->level = ch->tot_level;
-			ch->pcdata->immortal = immortal;
+            immortal = new_immortal();
+            immortal->name = str_dup(ch->name);
+            ch->pcdata->immortal = immortal;
 
-			add_immortal(immortal);
+            add_immortal(immortal);
 
-		} else { // Readjust the char's level accordingly.
-			sprintf(buf, "load_char_obj: reading immortal char %s.\n\r", ch->name);
-			log_string(buf);
+        } else {
+            snprintf(buf, sizeof(buf), "load_char_obj: reading immortal char %s.\n\r", ch->name);
+            log_string(buf);
 
-			ch->pcdata->immortal = immortal;
-			//ch->level = immortal->level;
-			//ch->tot_level = immortal->level;
-		}
-	    immortal->pc = ch->pcdata;
-
+            ch->pcdata->immortal = immortal;
+        }
+        immortal->pc = ch->pcdata;
+    }
+    else if ((immortal = find_immortal(ch->name)) != NULL)
+    {
+        log_string(formatf("load_char_obj: resolving immortal data for %s.\n\r", ch->name));
+        ch->pcdata->staff_rank = STAFF_IMMORTAL;
+        ch->pcdata->immortal = immortal;
+        immortal->pc = ch->pcdata;
     }
 
 
@@ -1750,7 +1748,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 	case 'I':
 	    KEY("Id",	ch->id[0],		fread_number(fp));
 	    KEY("Id2",	ch->id[1],		fread_number(fp));
-	    KEY("InvisLevel",	ch->invis_level,	fread_number(fp));
+	    KEY("InvisLevel",	ch->invis_level,	stat_lookup(fread_string(fp), staff_ranks, STAFF_PLAYER));
 	    if (!str_cmp(word, "ImmFlag"))
 	    {
 		free_string(immortal_flag);
@@ -1759,8 +1757,8 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 	    KEY("Immune", ch->imm_flags,	fread_flag(fp));
 	    KEY("ImmunePerm", ch->imm_flags_perm,	fread_flag(fp));
 
-	    KEY("Inco",	ch->incog_level,	fread_number(fp));
-	    KEY("Invi",	ch->invis_level,	fread_number(fp));
+	    KEY("Inco",	ch->incog_level,	fstat_lookup(fread_string(fp), staff_ranks, STAFF_PLAYER));
+	    KEY("Invi",	ch->invis_level,	stat_lookup(fread_string(fp), staff_ranks, STAFF_PLAYER));
 
 	    if (!str_cmp(word, "Ignore"))
 	    {
@@ -2452,6 +2450,8 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
  	    KEY("WarsWon",	ch->wars_won,	fread_number(fp));
 	    KEY("Wimpy",	ch->wimpy,		fread_number(fp));
 	    KEY("Wimp",	ch->wimpy,		fread_number(fp));
+				KEY("Wizinvis", ch->invis_level, stat_lookup(fread_string(fp), staff_ranks, STAFF_PLAYER));
+
 	    KEY("Wizn",	ch->wiznet,		fread_flag(fp));
 
 	    break;

@@ -3796,6 +3796,8 @@ const CHURCH_LOG_META_CATEGORY church_log_meta_categories[] = {
 
 const struct flag_type staff_ranks[] =
 {
+    {"player",      STAFF_PLAYER,            false},
+
     {"gimp",        STAFF_GIMP,             false},
     {"immortal",    STAFF_IMMORTAL,         true},
     {"ascendant",   STAFF_ASCENDANT,        true},
