@@ -40,66 +40,56 @@
  		but stats can only be assigned.  Update this table when a
  		new set of flags is installed.
  ****************************************************************************/
-const struct flag_stat_type flag_stat_table[] =
+
+
+const struct flag_type *flag_stat_table[] =
 {
-/*  {	structure					stat	}, */
-	{	token_flags,				false	},
-	{	area_flags,					false	},
-	{	sex_flags,					true	},
-	{	exit_flags,					false	},
-	{	door_resets,				true	},
-	{	room_flags,					false	},
-	{	sector_flags,				true	},
-	{	type_flags,					true	},
-	{	extra_flags,				false	},
-	{	wear_flags,					false	},
-	{	act_flags,					false	},
-	{	act2_flags,					false	},
-	{	affect_flags,				false	},
-	{	affect2_flags,				false	},
-	{	apply_flags,				true	},
-	{	wear_loc_flags,				true	},
-	{	wear_loc_strings,			true	},
-	{	wear_loc_names,				true	},
-	{	container_flags,			false	},
-    {   staff_ranks,                true	},
+	sex_flags,
+	door_resets,
+	sector_flags,
+	
+	type_flags,
+	apply_flags,
+	wear_loc_flags,
+	wear_loc_strings,
+	wear_loc_names,
+	ac_type,
+	size_flags,
+	position_flags,
+	
+	weapon_class,
+	apply_types,
+	damage_classes,
+	ranged_weapon_class,
+	catalyst_types,
+    
+	affgroup_mobile_flags,
+	affgroup_object_flags,
+	catalyst_types,
+	boolean_types,
+	moon_phases,
+	spell_target_types,
+	area_who_titles,
+	area_who_display,
+	instrument_types,
+	place_flags,
+	corpse_types,
+	variable_types,
+	blueprint_section_types,
+	transfer_modes,
+	ship_class_types,
 
+	stock_types,
+	tattoo_loc_flags,
+	song_target_types,
 
-/* ROM specific flags: */
+	armour_strength_table,
 
-    {	form_flags,					false	},
-    {	part_flags,					false	},
-    {	ac_type,					true	},
-    {	size_flags,					true	},
-    {	position_flags,				true	},
-    {	off_flags,					false	},
-    {	imm_flags,					false	},
-    {	res_flags,					false	},
-    {	vuln_flags,					false	},
-    {	weapon_class,				true	},
-    {	weapon_type2,				false	},
-    {	apply_types,				true	},
-    {	ranged_weapon_class,		true	},
-    {	script_flags,				false	},
-    {	catalyst_types,				true	},
-    {	affgroup_mobile_flags,		true	},
-    {	affgroup_object_flags,		true	},
-    {	catalyst_types,				true	},
-    {	boolean_types,				true	},
-    {	moon_phases,				true	},
-    {	spell_target_types,			true	},
-    {	area_who_titles,			true	},
-    {	area_who_display,			true	},
-    {	instrument_types,			true	},
-    {	place_flags,				true	},
-    {	corpse_types,				true	},
-    {	variable_types,				true	},
-	{	blueprint_section_types,	true	},
-	{	transfer_modes,				true	},
-	{	ship_class_types,			true	},
-    {	0,							0		}
+	command_types,
+	staff_ranks,
+
+    NULL
 };
-
 
 /*****************************************************************************
  Name:		is_stat( table )
@@ -107,15 +97,16 @@ const struct flag_stat_type flag_stat_table[] =
  Called by:	flag_value and flag_string.
  Note:		This function is local and used only in bit.c.
  ****************************************************************************/
-bool is_stat( const struct flag_type *flag_table )
+bool is_stat( register const struct flag_type *flag_table )
 {
-    int flag;
+    register const struct flag_type **f = flag_stat_table;
 
-    for (flag = 0; flag_stat_table[flag].structure; flag++)
+    while(*f)
     {
-	if ( flag_stat_table[flag].structure == flag_table
-	  && flag_stat_table[flag].stat )
-	    return true;
+        if (*f == flag_table)
+            return true;
+
+        f++;
     }
     return false;
 }
