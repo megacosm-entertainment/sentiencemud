@@ -3800,6 +3800,8 @@ void do_score(CHAR_DATA * ch, char *argument)
 
     if (IS_IMMORTAL(ch))
     {
+				send_to_char(formatf("Rank: {+%s\n\r", flag_string(staff_ranks, ch->pcdata->staff_rank)), ch);
+
 	send_to_char("Holy: ", ch);
 	if (IS_SET(ch->act[0], PLR_HOLYLIGHT))
 	    send_to_char("{WLIGHT{x", ch);

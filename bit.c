@@ -62,6 +62,7 @@ const struct flag_stat_type flag_stat_table[] =
 	{	wear_loc_strings,			true	},
 	{	wear_loc_names,				true	},
 	{	container_flags,			false	},
+    {   staff_ranks,                true	},
 
 
 /* ROM specific flags: */

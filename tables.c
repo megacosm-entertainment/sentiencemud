@@ -3804,6 +3804,5 @@ const struct flag_type staff_ranks[] =
     {"supremacy",   STAFF_SUPREMACY,        true},
     {"creator",     STAFF_CREATOR,          true},
     {"implementor", STAFF_IMPLEMENTOR,      true},
-
     {NULL,          0,                      false}
 };
