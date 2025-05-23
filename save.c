@@ -1757,7 +1757,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 	    KEY("Immune", ch->imm_flags,	fread_flag(fp));
 	    KEY("ImmunePerm", ch->imm_flags_perm,	fread_flag(fp));
 
-	    KEY("Inco",	ch->incog_level,	fstat_lookup(fread_string(fp), staff_ranks, STAFF_PLAYER));
+	    KEY("Inco",	ch->incog_level,	stat_lookup(fread_string(fp), staff_ranks, STAFF_PLAYER));
 	    KEY("Invi",	ch->invis_level,	stat_lookup(fread_string(fp), staff_ranks, STAFF_PLAYER));
 
 	    if (!str_cmp(word, "Ignore"))
