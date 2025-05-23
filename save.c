@@ -920,6 +920,8 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     }
 
     sprintf(strsave, "%s%c/%s", PLAYER_DIR, tolower(name[0]), capitalize(name));
+	sprintf(buf, "Trying to load %s", strsave);
+	log_string(buf);
     if ((fp = fopen(strsave, "r")) != NULL) {
 		int iNest;
 
