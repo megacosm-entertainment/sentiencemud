@@ -930,7 +930,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 		for (; ;)
 		{
 			char letter;
-            char *word = fread_word(fp);
+            char *word;
 
 			letter = fread_letter(fp);
 			if (letter == '*')
@@ -945,6 +945,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 			break;
 			}
 
+			word = fread_word(fp);
 
             // Section tracking
             if (!str_cmp(word, "EQUIPMENT")) { section = "EQUIPMENT"; continue; }
