@@ -485,8 +485,8 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 		fprintf(fp, "Room_before_arena %ld\n", 	ch->pcdata->room_before_arena.id[0]);
     }
 
-	fprintf(fp, "LastArea     %s~\n", ch->pcdata->last_area);
-	fprintf(fp, "LastRegion   %s~\n", ch->pcdata->last_region);
+	if (ch->in_room != NULL)
+		fprintf(fp, "LastArea     %s~\n", format_location_string(ch->in_room));
 
     fprintf(fp, "Not  %ld %ld %ld %ld %ld\n",
 	(long int)ch->pcdata->last_note,(long int)ch->pcdata->last_idea,(long int)ch->pcdata->last_penalty,
@@ -1786,11 +1786,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 			ch->pcdata->last_area = fread_string(fp);
 			fMatch = TRUE;
 		}
-		if (!str_cmp(word, "LastRegion"))
-		{
-			ch->pcdata->last_region = fread_string(fp);
-			fMatch = TRUE;
-		}
+
 	    KEY("LLev",	ch->pcdata->last_level, fread_number(fp));
 	    KEY("Level",	ch->level,		fread_number(fp));
 	    KEY("Lev",		ch->level,		fread_number(fp));
@@ -5789,8 +5785,9 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
             acct_char->id[0] = ch->id[0];
             acct_char->id[1] = ch->id[1];
 
-            free_string(acct_char->last_area);
-            acct_char->last_area = str_dup(!IS_NULLSTR(ch->pcdata->last_area) ? ch->pcdata->last_area : "");
+
+            	free_string(acct_char->last_area);
+            	acct_char->last_area = str_dup(format_location_string(ch->in_room));
 
             break; // <-- just break, do not return!
         }
@@ -5820,7 +5817,8 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
         if (ch->pcdata && ch->pcdata->sub_class_current)
             acct_char->class_name = str_dup(sub_class_table[ch->pcdata->sub_class_current].name[ch->sex]);
 
-        acct_char->last_area = str_dup(!IS_NULLSTR(ch->pcdata->last_area) ? ch->pcdata->last_area : "");
+		if (ch->in_room != NULL)
+        acct_char->last_area = str_dup(!IS_NULLSTR(ch->in_room->area->name) ? ch->in_room->area->name : "");
 
         list_appendlink(account->characters, acct_char);
     }

@@ -1035,7 +1035,7 @@ void boot_db(void)
     log_string("Opening immortal staff");
     read_immstaff();
 
-    if ((fp = fopen("social.are", "r")) != NULL)
+    if ((fp = fopen(AREA_DIR "social.are", "r")) != NULL)
     {
 	log_string("Doing load_socials...");
 	fread_word(fp);

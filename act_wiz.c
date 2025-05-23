@@ -2255,11 +2255,11 @@ for (int i = 0; i < staff_count; i++) {
 
     if (vch != NULL) {
         // Character is online, use live data
-        loc_str = format_location_string(vch->in_room ? vch->in_room->area->name : NULL);
+        loc_str = format_location_string(vch->in_room ? vch->in_room : NULL);
         strcpy(logoff_buf, "{GLogged In{x");
     } else {
         // Offline, use stored data
-        loc_str = format_location_string(acd->last_area);
+        loc_str = str_dup(acd->last_area);
         if (acd->last_logoff > 0)
             strftime(logoff_buf, sizeof(logoff_buf), "%Y-%m-%d %H:%M", localtime(&acd->last_logoff));
         else
@@ -2314,7 +2314,7 @@ if (regular_count > 0) {
             }
 			else
 				class_name = "Adventurer";
-            loc_str = format_location_string(vch->in_room ? vch->in_room->area->name : NULL);
+            loc_str = format_location_string(vch->in_room ? vch->in_room : NULL);
             strcpy(logoff_buf, "{GLogged In{x");
         } else {
             // Offline, use stored data
@@ -2322,7 +2322,7 @@ if (regular_count > 0) {
             tot_level = acd->tot_level;
             race_name = acd->race_name ? acd->race_name : "Unknown";
             class_name = acd->class_name ? acd->class_name : "Adventurer";
-            loc_str = format_location_string(acd->last_area);
+            loc_str = str_dup(acd->last_area);
             if (acd->last_logoff > 0)
                 strftime(logoff_buf, sizeof(logoff_buf), "%Y-%m-%d %H:%M", localtime(&acd->last_logoff));
             else

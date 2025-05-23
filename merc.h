@@ -4911,7 +4911,6 @@ struct	pc_data
     unsigned long account_id[2]; /* Account this character belongs to (by ID) */
     bool account_pwd_override;
     char *last_area;
-    char *last_region;
 
     int staff_rank;
 
@@ -8739,7 +8738,7 @@ bool check_account_mfa(ACCOUNT_DATA *acct, const char *code);
 void send_email_async_ex(CHAR_DATA *ch, ACCOUNT_DATA *acct, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
 void setup_account_mfa(DESCRIPTOR_DATA *d);
 bool process_output args((DESCRIPTOR_DATA * d, bool fPrompt));
-char *format_location_string(const char *area_name);
+char* format_location_string(ROOM_INDEX_DATA *room);
 int account_count_nonstaff_characters(ACCOUNT_DATA *acct);
 void display_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument);
 void display_character_mfa_menu(DESCRIPTOR_DATA *d, char *argument);

@@ -800,10 +800,10 @@ void display_account_menu(DESCRIPTOR_DATA *d)
         const char *loc_str;
         if (live_ch && live_ch->in_room) {
             loc_str = format_location_string(
-            live_ch->in_room->area ? live_ch->in_room->area->name : NULL
+            live_ch->in_room ? live_ch->in_room : NULL
             );
         } else {
-            loc_str = format_location_string(
+            loc_str = str_dup(
                 ch_entry->last_area
             );
     }
@@ -840,10 +840,10 @@ void display_account_menu(DESCRIPTOR_DATA *d)
             const char *loc_str;
             if (live_ch && live_ch->in_room) {
                 loc_str = format_location_string(
-                    live_ch->in_room->area ? live_ch->in_room->area->name : NULL
+                    live_ch->in_room ? live_ch->in_room : NULL
                 );
             } else {
-                loc_str = format_location_string(
+                loc_str = str_dup(
                     ch_entry->last_area
                 );
             }
@@ -2932,8 +2932,7 @@ void display_character_menu(DESCRIPTOR_DATA *d)
     sprintf(label, "{CCharacter:{x");
     if (!IS_NULLSTR(ch->pcdata->title))
     {
-        sprintf(title, string_replace_static(ch->pcdata->title, "$n", "{+%s"), ch->name);
-        sprintf(value, "{W%s{x", title);
+        sprintf(value, "{W{+%s %s{x", ch->name, ch->pcdata->title);
     }
     else
     sprintf(value, "{W{+%s{x", ch->name);
@@ -2996,7 +2995,7 @@ if (!IS_NULLSTR(ch->pcdata->last_area)) {
     
     // Format the location string using our helper function
     const char *loc_str = format_location_string(
-        ch->pcdata->last_area);
+        ch->in_room);
     sprintf(value, "{Y%s{x", loc_str);
     
     sprintf(buf, "%s%s %s\n\r", 
@@ -4734,35 +4733,28 @@ void login_get_sub_class(DESCRIPTOR_DATA *d, char *argument)
 }
 
 
-// Helper function to format location string for display
-char* format_location_string(const char* area_name) {
+char* format_location_string(ROOM_INDEX_DATA *room) {
     static char loc_buf[100];
-    
-    if (IS_NULLSTR(area_name)) {
-        strcpy(loc_buf, "(Unknown)");
-        return loc_buf;
-    }
-    /*
-    // If there's an area but no region, or if the region is "default region"
-    if (!IS_NULLSTR(area_name) && (IS_NULLSTR(region_name) || !str_cmp(region_name, "default region"))) {
-        sprintf(loc_buf, "%s", area_name);
+    AREA_DATA *area;
+
+    if (room == NULL) {
+        strcpy(loc_buf, "(Invalid Room Vnum)");
         return loc_buf;
     }
     
-    // If there's a region but no area
-    if (IS_NULLSTR(area_name) && !IS_NULLSTR(region_name) && str_cmp(region_name, "default region")) {
-        sprintf(loc_buf, "%s", region_name);
+    area = room->area;
+    if (area == NULL) {
+        strcpy(loc_buf, "(Unknown Area)");
         return loc_buf;
     }
     
-    // If both area and non-default region are present
-    if (!IS_NULLSTR(area_name) && !IS_NULLSTR(region_name) && str_cmp(region_name, "default region")) {
-        sprintf(loc_buf, "%s - %s", area_name, region_name);
-        return loc_buf;
+    if (area->name != NULL && area->name[0] != '\0') {
+        strncpy(loc_buf, area->name, sizeof(loc_buf) - 1);
+        loc_buf[sizeof(loc_buf) - 1] = '\0'; // Ensure null termination
+    } else {
+        strcpy(loc_buf, "(Unnamed Area)");
     }
-    */
-    // Fallback
-    strcpy(loc_buf, area_name ? area_name : "(Unknown)");
+    
     return loc_buf;
 }
 
