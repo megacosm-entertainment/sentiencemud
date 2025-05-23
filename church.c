@@ -100,6 +100,7 @@ void display_church_logs(CHAR_DATA *ch, CHURCH_DATA *church,
                         CHURCH_LOG_ENTRY **entries, int count,
                         char *search_text, char *search_author, flag_t search_categories);
 static int cmp_church_uid(void *a, void *b);
+void rebuild_church_list_from_llist();
 
 
     #define MAX_PROCESSED_FILES 100
@@ -1279,6 +1280,7 @@ void do_chcreate(CHAR_DATA *ch, char *argument)
     }
 
 		save_church(ch->church);
+        rebuild_church_list_from_llist();
 	} else {
 		if( church ) {
 			list_remlink(list_churches, church, false);
@@ -1351,6 +1353,7 @@ void do_chdelete(CHAR_DATA *ch, char *argument)
         
         // Set next pointer to NULL since it's no longer in any list
         church->next = NULL;
+        rebuild_church_list_from_llist();
 
         send_to_char("Church marked as deleted.\n\r", ch);
         
@@ -4162,39 +4165,7 @@ void read_churches_new()
     closedir(dir);
     log_string(formatf("Loaded %d churches from individual files", count));
 
-    // Sort the LLIST list_churches by UID. This is the primary sorted list.
-    if (list_churches != NULL && list_churches->size > 1) {
-        list_quicksort(list_churches, cmp_church_uid);
-    }
-
-    // Now, rebuild the singly-linked church_list from the sorted LLIST.
-    // This ensures church_list also reflects the sorted order.
-    church_list = NULL; // Reset the global singly-linked list head
-    CHURCH_DATA *sll_tail = NULL; // Keep track of the tail for efficient appending
-
-    if (list_churches != NULL) { // Iterate if list_churches has been populated
-        ITERATOR it;
-        CHURCH_DATA *church_from_llist_node;
-
-        iterator_start(&it, list_churches);
-        while ((church_from_llist_node = (CHURCH_DATA *)iterator_nextdata(&it))) {
-            // The CHURCH_DATA objects are already in memory, pointed to by list_churches nodes.
-            // We are now re-threading their 'next' pointers for the church_list.
-            church_from_llist_node->next = NULL; // Initialize 'next' for the SLL
-
-            if (church_list == NULL) {
-                // This is the first church for the singly-linked list
-                church_list = church_from_llist_node;
-                sll_tail = church_from_llist_node;
-            } else {
-                // Append to the tail of the singly-linked list
-                sll_tail->next = church_from_llist_node;
-                sll_tail = church_from_llist_node;
-            }
-        }
-        iterator_stop(&it);
-    }
-    // The previous bubble sort on church_list is no longer needed and has been removed.
+    rebuild_church_list_from_llist();
     
 }
 
@@ -7384,8 +7355,8 @@ void save_church(CHURCH_DATA *church)
     normalized[25] = '\0';  // Ensure termination
     
     // Add UID as suffix to ensure uniqueness in case of name conflicts
-    snprintf(filename, sizeof(filename), "%s%s_%ld.org", ORG_DIR, normalized, church->uid);
-    snprintf(temp_filename, sizeof(temp_filename), "%s%s_%ld.tmp", ORG_DIR, normalized, church->uid);
+    snprintf(filename, sizeof(filename), "%s%ld_%s.org", ORG_DIR, church->uid, normalized);
+    snprintf(temp_filename, sizeof(temp_filename), "%s%ld_%s.tmp", ORG_DIR, church->uid, normalized);
     
     // First write to a temporary file
     if ((fp = fopen(temp_filename, "w")) == NULL) {
@@ -7732,4 +7703,33 @@ static int cmp_church_uid(void *a, void *b)
     if (p1->uid > p2->uid)
         return 1;
     return 0;
+}
+
+// This is temporary. We should move away from church_list to just iterating over list_churches.
+void rebuild_church_list_from_llist(void)
+{
+    // Sort the LLIST list_churches by UID.
+    if (list_churches != NULL && list_churches->size > 1) {
+        list_quicksort(list_churches, cmp_church_uid);
+    }
+
+    // Rebuild the singly-linked church_list from the sorted LLIST.
+    church_list = NULL;
+    CHURCH_DATA *sll_tail = NULL;
+    if (list_churches != NULL) {
+        ITERATOR it;
+        CHURCH_DATA *church_from_llist_node;
+        iterator_start(&it, list_churches);
+        while ((church_from_llist_node = (CHURCH_DATA *)iterator_nextdata(&it))) {
+            church_from_llist_node->next = NULL;
+            if (church_list == NULL) {
+                church_list = church_from_llist_node;
+                sll_tail = church_from_llist_node;
+            } else {
+                sll_tail->next = church_from_llist_node;
+                sll_tail = church_from_llist_node;
+            }
+        }
+        iterator_stop(&it);
+    }
 }
