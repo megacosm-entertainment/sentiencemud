@@ -9004,7 +9004,7 @@ static void __list_quicksort_partition(LLIST_LINK **arr, int start, int end, reg
 
 bool list_quicksort(LLIST *lp, int (*cmp)(void *a, void *b))
 {
-	if (!IS_VALID(lp) && cmp)
+	if (IS_VALID(lp) && cmp)
 	{
 		LLIST_LINK *cur;
 		int count;
