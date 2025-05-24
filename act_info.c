@@ -725,6 +725,27 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
     free_mem(prgnShow, count * sizeof(int));
 }
 
+void show_llist_to_char(LLIST *llist, CHAR_DATA *ch, bool fShort, bool fShowNothing)
+{
+    OBJ_DATA *head = NULL, *last = NULL, *obj;
+    ITERATOR it;
+    iterator_start(&it, llist);
+    while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+        obj->next_content = NULL;
+        if (!head)
+            head = obj;
+        else
+            last->next_content = obj;
+        last = obj;
+    }
+    iterator_stop(&it);
+
+    show_list_to_char(head, ch, fShort, fShowNothing);
+
+    // Optionally, restore next_content pointers to NULL
+    for (obj = head; obj; obj = obj->next_content)
+        obj->next_content = NULL;
+}
 
 /* MOVED: senses/vision.c */
 void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
@@ -1163,14 +1184,15 @@ void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch, bool examine)
     send_to_char("\n\r", ch);
     show_equipment(ch, victim);
 
-    if (victim != ch
-    && !IS_NPC(ch)
-    && number_percent() < get_skill(ch, gsn_peek))
-    {
-	send_to_char("\n\rYou peek at the inventory:\n\r", ch);
-	check_improve(ch, gsn_peek, true, 4);
-	show_list_to_char(victim->carrying, ch, true, true);
-    }
+if (victim != ch
+&& !IS_NPC(ch)
+&& number_percent() < get_skill(ch, gsn_peek))
+{
+    send_to_char("\n\rYou peek at the inventory:\n\r", ch);
+    check_improve(ch, gsn_peek, true, 4);
+
+show_llist_to_char(victim->lcarrying, ch, true, true);
+}
 
 	if( IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NOLORE) || examine )
 	{
@@ -2249,23 +2271,29 @@ void do_look(CHAR_DATA * ch, char *argument)
 			number = number_argument(argument, arg3);
 			count = 0;
 			// look at an object in the inventory
-			for (obj = victim->carrying; obj != NULL; obj = obj->next_content)
-				if (can_see_obj(ch, obj) && obj->wear_loc != WEAR_NONE && wear_params[obj->wear_loc][WEAR_PARAM_SEEN] &&
-					is_name(arg3, obj->name) && (++count == number))
-				{
-					if (ch != victim)
-					{
-						if(can_see(victim, ch) && ch->invis_level < LEVEL_IMMORTAL)
-						{
-							act("$n looks at $p on you.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_VICT);
-							act("$n looks at $p on $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
-						}
-						act("{MYou take a look at {W$p{M on {W$N{M.{x", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-					}
-					send_to_char(obj->full_description, ch);
-					send_to_char("\n\r", ch);
-					return;
-				}
+        ITERATOR it;
+        OBJ_DATA *worn_obj;
+        iterator_start(&it, victim->lworn);
+        while ((worn_obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (can_see_obj(ch, worn_obj) && worn_obj->wear_loc != WEAR_NONE && wear_params[worn_obj->wear_loc][WEAR_PARAM_SEEN] &&
+                is_name(arg3, worn_obj->name) && (++count == number))
+            {
+                if (ch != victim)
+                {
+                    if(can_see(victim, ch) && ch->invis_level < LEVEL_IMMORTAL)
+                    {
+                        act("$n looks at $p on you.", ch, victim, NULL, worn_obj, NULL, NULL, NULL, TO_VICT);
+                        act("$n looks at $p on $N.", ch, victim, NULL, worn_obj, NULL, NULL, NULL, TO_NOTVICT);
+                    }
+                    act("{MYou take a look at {W$p{M on {W$N{M.{x", ch, victim, NULL, worn_obj, NULL, NULL, NULL, TO_CHAR);
+                }
+                send_to_char(worn_obj->full_description, ch);
+                send_to_char("\n\r", ch);
+                iterator_stop(&it);
+                return;
+            }
+        }
+        iterator_stop(&it);
 
 			if (count > 0 && count != number)
 			{
@@ -2313,8 +2341,11 @@ void do_look(CHAR_DATA * ch, char *argument)
 	}
 
 	/* look at an object in the inventory */
-	for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-	{
+ITERATOR it;
+iterator_start(&it, ch->lcarrying);
+while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+    perform_lore = false;
+    if (can_see_obj(ch, obj)) {
 		perform_lore = false;
 		if (can_see_obj(ch, obj))
 		{
@@ -2441,6 +2472,8 @@ void do_look(CHAR_DATA * ch, char *argument)
 			}
 		}
 	}
+	iterator_stop(&it);
+}
 
 	for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
 	{
@@ -2838,73 +2871,112 @@ void do_examine(CHAR_DATA * ch, char *argument)
 		return;
 
 	// look <person>[ <worn item>]
-	if ((victim = get_char_room(ch, NULL, arg1)) != NULL)
-	{
-		if(argument[0])
-		{
-			number = number_argument(argument, arg3);
-			count = 0;
-			// look at an object in the inventory
-			for (obj = victim->carrying; obj != NULL; obj = obj->next_content)
-				if (can_see_obj(ch, obj) && obj->wear_loc != WEAR_NONE && wear_params[obj->wear_loc][WEAR_PARAM_SEEN] &&
-					is_name(arg3, obj->name) && (++count == number))
-				{
-					if (p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_EXAMINE, argument)) return;
+if ((victim = get_char_room(ch, NULL, arg1)) != NULL)
+{
+    if(argument[0])
+    {
+        number = number_argument(argument, arg3);
+        count = 0;
+        // Examine worn items first
+        ITERATOR it;
+        iterator_start(&it, victim->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (can_see_obj(ch, obj) && obj->wear_loc != WEAR_NONE && wear_params[obj->wear_loc][WEAR_PARAM_SEEN] &&
+                is_name(arg3, obj->name) && (++count == number))
+            {
+                if (p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_EXAMINE, argument)) {
+                    iterator_stop(&it);
+                    return;
+                }
+                perform_lore = false;
+                if ((IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NOLORE)) &&
+                    ((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) ||
+                    !IS_SET(obj->extra[1], ITEM_NO_LORE) ||
+                    (IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)) ||
+                    (IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||
+                    (!IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))
+                    perform_lore = true;
 
-					if ( /* get_skill(ch, gsn_lore) > 0 &&
-						number_percent() <= get_skill(ch, gsn_lore) && */
-						((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
-						!IS_SET(obj->extra[1], ITEM_NO_LORE) || 														// NO_LORE not set
-						(IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
-						(IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
-						(!IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
-						perform_lore = true;
+                if (ch != victim) {
+                    if(can_see(victim, ch) && ch->invis_level < LEVEL_IMMORTAL) {
+                        act("$n examines $p on you.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_VICT);
+                        act("$n examines $p on $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
+                    }
+                    act("{MYou examine {W$p{M on {W$N{M.{x", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+                }
+                send_to_char(obj->full_description, ch);
+                if (perform_lore) {
+                    send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+                    spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+                } else
+                    send_to_char("\n\r", ch);
 
-					if (ch != victim)
-					{
+                p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+                iterator_stop(&it);
+                return;
+            }
+        }
+        iterator_stop(&it);
 
-						if(can_see(victim, ch) && ch->invis_level < LEVEL_IMMORTAL)
-						{
-							act("$n examines $p on you.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_VICT);
-							act("$n examines $p on $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
-						}
-						act("{MYou examine {W$p{M on {W$N{M.{x", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-					}
-					send_to_char(obj->full_description, ch);
-					if (perform_lore)
-					{
-						send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-						spell_identify(gsn_lore, ch->tot_level,ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
-					}
-					else
-						send_to_char("\n\r", ch);
+        // Now examine inventory
+        iterator_start(&it, victim->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (can_see_obj(ch, obj) && obj->wear_loc == WEAR_NONE &&
+                is_name(arg3, obj->name) && (++count == number))
+            {
+                if (p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_EXAMINE, argument)) {
+                    iterator_stop(&it);
+                    return;
+                }
+                perform_lore = false;
+                if ((IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NOLORE)) &&
+                    ((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) ||
+                    !IS_SET(obj->extra[1], ITEM_NO_LORE) ||
+                    (IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)) ||
+                    (IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||
+                    (!IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))
+                    perform_lore = true;
 
-					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-					//check_improve(ch, gsn_lore, true, 10);
-					return;
-				}
+                if (ch != victim) {
+                    if(can_see(victim, ch) && ch->invis_level < LEVEL_IMMORTAL) {
+                        act("$n examines $p in your inventory.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_VICT);
+                        act("$n examines $p in $N's inventory.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
+                    }
+                    act("{MYou examine {W$p{M in {W$N's{M inventory.{x", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+                }
+                send_to_char(obj->full_description, ch);
+                if (perform_lore) {
+                    send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+                    spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+                } else
+                    send_to_char("\n\r", ch);
 
-			if (count > 0 && count != number)
-			{
-				if (count == 1)
-					sprintf(buf, "You only see one %s here.\n\r", arg3);
-				else
-					sprintf(buf, "You only see %d of those here.\n\r", count);
+                p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+                iterator_stop(&it);
+                return;
+            }
+        }
+        iterator_stop(&it);
 
-				send_to_char(buf, ch);
-				return;
-			}
+        if (count > 0 && count != number) {
+            if (count == 1)
+                sprintf(buf, "You only see one %s here.\n\r", arg3);
+            else
+                sprintf(buf, "You only see %d of those here.\n\r", count);
 
-			act("You don't see anything like that on $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		}
-		else
-		{
-			if (p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EXAMINE, argument)) return;
+            send_to_char(buf, ch);
+            return;
+        }
 
-			show_char_to_char_1(victim, ch, true);
-		}
-		return;
-	}
+        act("You don't see anything like that on $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    }
+    else
+    {
+        if (p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EXAMINE, argument)) return;
+        show_char_to_char_1(victim, ch, true);
+    }
+    return;
+}
 
     if ((obj = get_obj_here(ch, NULL, arg1)) != NULL)
     {
@@ -4869,7 +4941,7 @@ void do_inventory(CHAR_DATA * ch, char *argument)
     char buf[MAX_STRING_LENGTH];
 
     send_to_char("You are carrying:\n\r", ch);
-    show_list_to_char(ch->carrying, ch, true, true);
+    show_llist_to_char(ch->lcarrying, ch, true, true);
     if (!IS_DEAD(ch))
     {
 	sprintf(buf,
@@ -4895,67 +4967,71 @@ void do_equipment(CHAR_DATA * ch, char *argument)
    Show victim's worn equipment to ch. */
 void show_equipment(CHAR_DATA *ch, CHAR_DATA *victim)
 {
-	BUFFER *buffer;
-	OBJ_DATA *obj;
-	char buf[MSL];
-	char buf2[MSL];
-	int idx, iWear, parent, count = 0;
-	OBJ_DATA *eq[MAX_WEAR];
+    BUFFER *buffer;
+    OBJ_DATA *obj;
+    char buf[MSL];
+    char buf2[MSL];
+    int idx, iWear, parent, count = 0;
+    OBJ_DATA *eq[MAX_WEAR];
 
-	buffer = new_buf();
+    buffer = new_buf();
 
-	memset(eq,0,sizeof(eq));
+    memset(eq,0,sizeof(eq));
 
-	for (obj = victim->carrying; obj != NULL; obj = obj->next_content)
-		if(obj->wear_loc != WEAR_NONE)
-			eq[obj->wear_loc] = obj;
+    // Use lworn instead of carrying
+    ITERATOR it;
+    iterator_start(&it, victim->lworn);
+    while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+        if(obj->wear_loc != WEAR_NONE)
+            eq[obj->wear_loc] = obj;
+    }
+    iterator_stop(&it);
 
-	for (idx = 0; wear_view_order[idx] != WEAR_NONE; idx++) {
-		iWear = wear_view_order[idx];
+    for (idx = 0; wear_view_order[idx] != WEAR_NONE; idx++) {
+        iWear = wear_view_order[idx];
 
-		/* Is the slot unusable in shifted form? */
-		if(!wear_params[iWear][3] && (IS_SHIFTED_SLAYER(victim) || IS_SHIFTED_WEREWOLF(victim)))
-			continue;
+        /* Is the slot unusable in shifted form? */
+        if(!wear_params[iWear][3] && (IS_SHIFTED_SLAYER(victim) || IS_SHIFTED_WEREWOLF(victim)))
+            continue;
 
-		/* Can others see the slot? */
-		if(ch != victim) {
-			if(!wear_params[iWear][0]) continue;
+        /* Can others see the slot? */
+        if(ch != victim) {
+            if(!wear_params[iWear][0]) continue;
 
-			parent = wear_concealed[iWear];
-			while(parent != WEAR_NONE && (!eq[parent] || !CAN_WEAR(eq[parent],ITEM_CONCEALS)))
-				parent = wear_concealed[parent];
+            parent = wear_concealed[iWear];
+            while(parent != WEAR_NONE && (!eq[parent] || !CAN_WEAR(eq[parent],ITEM_CONCEALS)))
+                parent = wear_concealed[parent];
 
-			if(parent != WEAR_NONE) continue;
-		}
+            if(parent != WEAR_NONE) continue;
+        }
 
-		if ((iWear == WEAR_SECONDARY || iWear == WEAR_SHIELD || iWear == WEAR_HOLD)
-			&& !eq[iWear] && both_hands_full(victim))
-			continue;
+        if ((iWear == WEAR_SECONDARY || iWear == WEAR_SHIELD || iWear == WEAR_HOLD)
+            && !eq[iWear] && both_hands_full(victim))
+            continue;
 
-		sprintf(buf, "%s ", where_name[iWear]);
-		if (eq[iWear]) {
-			if (can_see_obj(ch, eq[iWear]))
-				sprintf(buf2, "%s\n\r", format_obj_to_char(eq[iWear], ch, true));
-			else
-				sprintf(buf2, "something.\n\r");
-		} else if (wear_params[iWear][1] && IS_SET(victim->act[0], PLR_AUTOEQ) && ch == victim)
-			sprintf(buf2, "nothing.\n\r");
-		else
-			continue;
+        sprintf(buf, "%s ", where_name[iWear]);
+        if (eq[iWear]) {
+            if (can_see_obj(ch, eq[iWear]))
+                sprintf(buf2, "%s\n\r", format_obj_to_char(eq[iWear], ch, true));
+            else
+                sprintf(buf2, "something.\n\r");
+        } else if (wear_params[iWear][1] && IS_SET(victim->act[0], PLR_AUTOEQ) && ch == victim)
+            sprintf(buf2, "nothing.\n\r");
+        else
+            continue;
 
-		++count;
+        ++count;
 
-		strcat(buf, buf2);
+        strcat(buf, buf2);
 
-		add_buf(buffer, buf);
-	}
+        add_buf(buffer, buf);
+    }
 
-
-	if(ch == victim && !count)
-		send_to_char("You aren't using any equipment.\n\r", ch);
-	else
-		page_to_char(buf_string(buffer), ch);
-	free_buf(buffer);
+    if(ch == victim && !count)
+        send_to_char("You aren't using any equipment.\n\r", ch);
+    else
+        page_to_char(buf_string(buffer), ch);
+    free_buf(buffer);
 }
 
 /* MOVED: bulletin.c */
@@ -5230,13 +5306,17 @@ void do_bank(CHAR_DATA * ch, char *argument)
 
     room = ch->in_room;
 
-    for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-    {
-	if (obj->item_type == ITEM_BANK) {
-	    item = true;
-	    break;
-	}
+ITERATOR it;
+item = false;
+iterator_start(&it, ch->lcarrying);
+while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+    if (obj->item_type == ITEM_BANK) {
+        item = true;
+        break;
     }
+}
+iterator_stop(&it);
+    
 
     if (!IS_IMMORTAL(ch)
     && !IS_SET(room->room_flag[0], ROOM_BANK)

@@ -805,10 +805,22 @@ void do_say(CHAR_DATA *ch, char *argument)
 		if (!IS_NPC(mob) || mob->position == mob->pIndexData->default_pos)
 			p_act_trigger(msg, mob, NULL, NULL, ch, NULL, NULL,NULL, NULL,TRIG_SPEECH  );
 
-		for (obj = mob->carrying; obj; obj = obj_next) {
-			obj_next = obj->next_content;
-			p_act_trigger(msg, NULL, obj, NULL, ch, NULL, NULL,NULL, NULL, TRIG_SPEECH);
-		}
+ITERATOR obj_it;
+
+
+// Inventory
+iterator_start(&obj_it, mob->lcarrying);
+while ((obj = (OBJ_DATA *)iterator_nextdata(&obj_it))) {
+    p_act_trigger(msg, NULL, obj, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SPEECH);
+}
+iterator_stop(&obj_it);
+
+// Worn items
+iterator_start(&obj_it, mob->lworn);
+while ((obj = (OBJ_DATA *)iterator_nextdata(&obj_it))) {
+    p_act_trigger(msg, NULL, obj, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SPEECH);
+}
+iterator_stop(&obj_it);
 	}
 
 	for (obj = ch->in_room->contents; obj; obj = obj_next) {
@@ -1257,14 +1269,15 @@ void do_quit(CHAR_DATA *ch, char *argument)
 	save_last_wear(ch);
 
 	/* Remove hitpoint type affects */
-	for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-	{
-	if (obj->wear_loc != WEAR_NONE)
-	{
-	for (paf = obj->affected; paf != NULL; paf = paf->next)
-	affect_modify(ch, paf, false);
-	}
-	}
+ITERATOR it;
+
+
+iterator_start(&it, ch->lworn);
+while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+    for (paf = obj->affected; paf != NULL; paf = paf->next)
+        affect_modify(ch, paf, false);
+}
+iterator_stop(&it);
 
 	/* Reset imms bank accounts */
 	if (IS_IMMORTAL(ch)
@@ -1460,14 +1473,15 @@ void do_logout(CHAR_DATA *ch, char *argument)
     save_last_wear(ch);
 
     /* Remove hitpoint type affects */
-    for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-    {
-        if (obj->wear_loc != WEAR_NONE)
-        {
-            for (paf = obj->affected; paf != NULL; paf = paf->next)
-                affect_modify(ch, paf, false);
-        }
-    }
+ITERATOR it;
+
+
+iterator_start(&it, ch->lworn);
+while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+    for (paf = obj->affected; paf != NULL; paf = paf->next)
+        affect_modify(ch, paf, false);
+}
+iterator_stop(&it);
 
     /* Reset imms bank accounts */
     if (IS_IMMORTAL(ch) && !IS_IMPLEMENTOR(ch))
