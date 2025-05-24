@@ -9022,13 +9022,16 @@ bool list_quicksort(LLIST *lp, int (*cmp)(void *a, void *b))
 		__list_quicksort_partition(arr, 0, count - 1, cmp);
 
 		// Relink everything
-		for(int i = 0; i < count; i++)
-		{
-			if (i > 0) arr[i]->prev = arr[i-1];
-			if (i < (count - 1)) arr[i]->next = arr[i+1];
-		}
-		lp->head = arr[0];
-		lp->tail = arr[count - 1];
+for(int i = 0; i < count; i++)
+{
+    if (i > 0) arr[i]->prev = arr[i-1];
+    else arr[i]->prev = NULL; // Ensure head's prev is NULL
+
+    if (i < (count - 1)) arr[i]->next = arr[i+1];
+    else arr[i]->next = NULL; // Ensure tail's next is NULL
+}
+lp->head = arr[0];
+lp->tail = arr[count - 1];
 
 		free_mem(arr, sizeof(LLIST_LINK *) * count);
 	}
