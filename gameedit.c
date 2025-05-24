@@ -588,9 +588,6 @@ GAMEEDIT(gameedit_revert)
     return TRUE;
 }
 
-/*
- * Find a setting by name
- */
 bool gameedit_find_setting(CHAR_DATA *ch, char *name, const struct game_setting_type **setting)
 {
     int i;
@@ -614,11 +611,14 @@ bool gameedit_find_setting(CHAR_DATA *ch, char *name, const struct game_setting_
     return FALSE;
 }
 
+/*
+ * Find a setting by name
+ */
 void gameedit_display_setting(BUFFER *buffer, CHAR_DATA *ch, const struct game_setting_type *setting)
 {
     char buf[MAX_STRING_LENGTH];
     char value_str[2048] = "";
-    char type_str[MAX_STRING_LENGTH] = "";
+    char type_str[32] = "";
 
     // Format value
     if (setting->sensitive && ch->pcdata->security < 10) {
@@ -663,7 +663,7 @@ void gameedit_display_setting(BUFFER *buffer, CHAR_DATA *ch, const struct game_s
         iterator_stop(&it);
     }
 
-    // Format type column
+    // Format type column with modifiers
     const char *type_name = "";
     switch (setting->type) {
         case SETTING_TYPE_BOOL:   type_name = "Boolean"; break;
@@ -671,14 +671,14 @@ void gameedit_display_setting(BUFFER *buffer, CHAR_DATA *ch, const struct game_s
         case SETTING_TYPE_STRING: type_name = "String";  break;
         default:                  type_name = "Unknown"; break;
     }
-    sprintf(type_str, "{B%s{x", type_name);
+    snprintf(type_str, sizeof(type_str), "{B%s{x", type_name);
     if (setting->requires_reboot) strcat(type_str, "*");
     if (setting->sensitive) strcat(type_str, "S");
     if (!setting->olc_settable) strcat(type_str, "X");
 
-    // Truncate value for display (38 visible chars)
+    // Truncate value for display (41 visible chars for 80-column table)
     char display_value[256];
-    int max_vis_len = 38;
+    int max_vis_len = 41;
     if (strlen_no_colours(value_str) > max_vis_len) {
         int trunc_len = colour_trunc_len(value_str, max_vis_len - 3);
         strncpy(display_value, value_str, trunc_len);
@@ -691,9 +691,9 @@ void gameedit_display_setting(BUFFER *buffer, CHAR_DATA *ch, const struct game_s
         if (display_value[k] == '\n' || display_value[k] == '\r')
             display_value[k] = ' ';
 
-    // Output the row
+    // Output the row (80 columns: 23 + 41 + 12 + separators)
     snprintf(buf, sizeof(buf),
-        "{Y| %-23.23s | %-38.38s | %-10.10s |{x\n\r",
+        "{Y| %-23.23s | %-41.41s | %-12.12s |{x\n\r",
         setting->name, display_value, type_str);
     add_buf(buffer, buf);
 }
