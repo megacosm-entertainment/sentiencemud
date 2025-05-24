@@ -344,7 +344,7 @@ if (match_count == 1) {
             bool any = FALSE;
             snprintf(buf, sizeof(buf), "{Y+-------------------------+--------------------------------------+------------+{x\n\r");
             add_buf(buffer, buf);
-            snprintf(buf, sizeof(buf), "{Y| %-23s | %-38s | %-10s |{x\n\r", "Setting Name", "Value", "Type");
+            snprintf(buf, sizeof(buf), "{Y| %-23s | %-36s | %-10s |{x\n\r", "Setting Name", "Value", "Type");
             add_buf(buffer, buf);
             snprintf(buf, sizeof(buf), "{Y+-------------------------+--------------------------------------+------------+{x\n\r");
             add_buf(buffer, buf);
@@ -357,7 +357,7 @@ if (match_count == 1) {
             }
 
             if (!any) {
-                snprintf(buf, sizeof(buf), "{Y| %-76s |{x\n\r", "No matching settings found.");
+                snprintf(buf, sizeof(buf), "{Y| %-75s {Y|{x\n\r", "No matching settings found.");
                 add_buf(buffer, buf);
             }
 
