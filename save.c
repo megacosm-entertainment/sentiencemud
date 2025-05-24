@@ -1009,7 +1009,10 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
                 } else if (ch->version < VERSION_PLAYER_008) {
                     // For older character files without sections, migrate objects
                     if (obj->nest == 0) {
-                        if (obj->wear_loc != WEAR_NONE) {
+						if(obj->locker) {
+							obj_to_locker(obj, ch);
+						} 
+                        else if (obj->wear_loc != WEAR_NONE) {
                             obj_to_char(obj, ch);
                             list_addlink(ch->lworn, obj);
                         } else {
