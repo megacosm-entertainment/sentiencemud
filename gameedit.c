@@ -177,172 +177,166 @@ GAMEEDIT(gameedit_show)
                 }
             }
 
-            if (match_count == 1) {
-                setting = &game_settings_table[last_match];
-                char formatted_value[MAX_STRING_LENGTH];
-                char pending_value[MAX_STRING_LENGTH] = "";
-                char desc_line[80];
-                int desc_len;
+if (match_count == 1) {
+    setting = &game_settings_table[last_match];
+    char formatted_value[MAX_STRING_LENGTH];
+    char pending_value[MAX_STRING_LENGTH] = "";
+    char desc_line[81];
+    int desc_len;
 
-                // Top border
-                snprintf(buf, sizeof(buf), "{Y+----------------------------------------------------------------------------+{x\n\r");
-                add_buf(buffer, buf);
+    // Top border (80 columns)
+    snprintf(buf, sizeof(buf), "{Y+------------------------------------------------------------------------------+{x\n\r");
+    add_buf(buffer, buf);
 
-                // Setting name, centered
-                int name_len = strlen_no_colours(setting->name);
-                int name_pad = (78 - name_len) / 2;
-                snprintf(buf, sizeof(buf), "{Y|%*s%-*.*s%*s|{x\n\r", name_pad, "", name_len, name_len, setting->name, 78 - name_pad - name_len, "");
-                add_buf(buffer, buf);
+    // Setting name, centered (80 columns)
+    int name_len = strlen_no_colours(setting->name);
+    int name_pad = (78 - name_len) / 2;
+    snprintf(buf, sizeof(buf), "{Y|%*s%-*.*s%*s|{x\n\r", name_pad, "", name_len, name_len, setting->name, 78 - name_pad - name_len, "");
+    add_buf(buffer, buf);
 
-                // Info section (2 columns)
-                snprintf(buf, sizeof(buf), "{Y+--------------------+---------------------------------------------------------+{x\n\r");
-                add_buf(buffer, buf);
+    // Info section (2 columns, 20+59+1=80)
+    snprintf(buf, sizeof(buf), "{Y+--------------------+---------------------------------------------------------+{x\n\r");
+    add_buf(buffer, buf);
 
-                snprintf(buf, sizeof(buf), "{Y| %-18.18s | %-55.55s |{x\n\r", "Category", setting_category_names[setting->category]);
-                add_buf(buffer, buf);
-                snprintf(buf, sizeof(buf), "{Y| %-18.18s | %-55.55s |{x\n\r", "Type", setting_type_names[setting->type]);
-                add_buf(buffer, buf);
-                snprintf(buf, sizeof(buf), "{Y| %-18.18s | %-55.55s |{x\n\r", "OLC Settable", setting->olc_settable ? "Yes" : "No");
-                add_buf(buffer, buf);
-                snprintf(buf, sizeof(buf), "{Y| %-18.18s | %-55.55s |{x\n\r", "Requires Reboot", setting->requires_reboot ? "Yes" : "No");
-                add_buf(buffer, buf);
-                snprintf(buf, sizeof(buf), "{Y| %-18.18s | %-55.55s |{x\n\r", "Sensitive", setting->sensitive ? "Yes" : "No");
-                add_buf(buffer, buf);
+    snprintf(buf, sizeof(buf), "{Y| %-20.20s| %-59.59s|{x\n\r", "Category", setting_category_names[setting->category]);
+    add_buf(buffer, buf);
+    snprintf(buf, sizeof(buf), "{Y| %-20.20s| %-59.59s|{x\n\r", "Type", setting_type_names[setting->type]);
+    add_buf(buffer, buf);
+    snprintf(buf, sizeof(buf), "{Y| %-20.20s| %-59.59s|{x\n\r", "OLC Settable", setting->olc_settable ? "Yes" : "No");
+    add_buf(buffer, buf);
+    snprintf(buf, sizeof(buf), "{Y| %-20.20s| %-59.59s|{x\n\r", "Requires Reboot", setting->requires_reboot ? "Yes" : "No");
+    add_buf(buffer, buf);
+    snprintf(buf, sizeof(buf), "{Y| %-20.20s| %-59.59s|{x\n\r", "Sensitive", setting->sensitive ? "Yes" : "No");
+    add_buf(buffer, buf);
 
-                // Section divider
-                snprintf(buf, sizeof(buf), "{Y+--------------------+---------------------------------------------------------+{x\n\r");
-                add_buf(buffer, buf);
+    // Section divider (80 columns)
+    snprintf(buf, sizeof(buf), "{Y+--------------------+---------------------------------------------------------+{x\n\r");
+    add_buf(buffer, buf);
 
-                // Description (wrap to 76 chars per line)
-                const char *desc = setting->help;
-                while (*desc) {
-                    for (desc_len = 0; desc_len < 76 && desc[desc_len] && desc[desc_len] != '\n'; ++desc_len);
-                    strncpy(desc_line, desc, desc_len);
-                    desc_line[desc_len] = '\0';
-                    snprintf(buf, sizeof(buf), "{Y| %-76.76s |{x\n\r", desc_line);
-                    add_buf(buffer, buf);
-                    desc += desc_len;
-                    if (*desc == '\n') ++desc;
-                }
+    // Description (wrap to 78 chars per line, 80 with borders)
+    const char *desc = setting->help;
+    while (*desc) {
+        for (desc_len = 0; desc_len < 78 && desc[desc_len] && desc[desc_len] != '\n'; ++desc_len);
+        strncpy(desc_line, desc, desc_len);
+        desc_line[desc_len] = '\0';
+        snprintf(buf, sizeof(buf), "{Y| %-78.78s|{x\n\r", desc_line);
+        add_buf(buffer, buf);
+        desc += desc_len;
+        if (*desc == '\n') ++desc;
+    }
 
-                // Section divider
-                snprintf(buf, sizeof(buf), "{Y+----------------------------------------------------------------------------+{x\n\r");
-                add_buf(buffer, buf);
+    // Section divider (80 columns)
+    snprintf(buf, sizeof(buf), "{Y+------------------------------------------------------------------------------+{x\n\r");
+    add_buf(buffer, buf);
 
-                // Current Value
-                if (setting->sensitive && ch->pcdata->security < 10) {
-                    snprintf(formatted_value, sizeof(formatted_value), "{D*****{x");
-                } else {
-                    switch (setting->type) {
-                        case SETTING_TYPE_BOOL:
-                            snprintf(formatted_value, sizeof(formatted_value), "%s", *(bool *)setting->ptr ? "{Gtrue{x" : "{Rfalse{x");
-                            break;
-                        case SETTING_TYPE_INT:
-                            snprintf(formatted_value, sizeof(formatted_value), "{Y%d{x", *(int *)setting->ptr);
-                            break;
-                        case SETTING_TYPE_STRING:
-                            if (*(char **)setting->ptr && **(char **)setting->ptr)
-                                snprintf(formatted_value, sizeof(formatted_value), "{W%s{x", *(char **)setting->ptr);
-                            else
-                                snprintf(formatted_value, sizeof(formatted_value), "{D(empty){x");
-                            break;
-                        default:
-                            snprintf(formatted_value, sizeof(formatted_value), "{D(unknown type){x");
-                            break;
-                    }
-                }
-                int val_vis_len = strlen_no_colours(formatted_value);
-                int val_pad = 61 - val_vis_len;
-                if (val_pad < 0) val_pad = 0;
-                snprintf(buf, sizeof(buf), "{Y| Current Value: %-61.61s|{x\n\r", formatted_value);
-                add_buf(buffer, buf);
+    // Current Value (pad/truncate to 65 chars, 80 with border and label)
+    if (setting->sensitive && ch->pcdata->security < 10) {
+        snprintf(formatted_value, sizeof(formatted_value), "{D*****{x");
+    } else {
+        switch (setting->type) {
+            case SETTING_TYPE_BOOL:
+                snprintf(formatted_value, sizeof(formatted_value), "%s", *(bool *)setting->ptr ? "{Gtrue{x" : "{Rfalse{x");
+                break;
+            case SETTING_TYPE_INT:
+                snprintf(formatted_value, sizeof(formatted_value), "{Y%d{x", *(int *)setting->ptr);
+                break;
+            case SETTING_TYPE_STRING:
+                if (*(char **)setting->ptr && **(char **)setting->ptr)
+                    snprintf(formatted_value, sizeof(formatted_value), "{W%s{x", *(char **)setting->ptr);
+                else
+                    snprintf(formatted_value, sizeof(formatted_value), "{D(empty){x");
+                break;
+            default:
+                snprintf(formatted_value, sizeof(formatted_value), "{D(unknown type){x");
+                break;
+        }
+    }
+    // Pad/truncate to 65 visible chars
+    char display_value[256];
+    int max_vis_len = 65;
+    int vis_len = strlen_no_colours(formatted_value);
+    if (vis_len > max_vis_len) {
+        int trunc_len = colour_trunc_len(formatted_value, max_vis_len - 3);
+        strncpy(display_value, formatted_value, trunc_len);
+        display_value[trunc_len] = '\0';
+        strcat(display_value, "{x...");
+    } else {
+        strcpy(display_value, formatted_value);
+        int pad = max_vis_len - vis_len;
+        while (pad-- > 0) strcat(display_value, " ");
+    }
+    for (int k = 0; display_value[k]; ++k)
+        if (display_value[k] == '\n' || display_value[k] == '\r')
+            display_value[k] = ' ';
+    snprintf(buf, sizeof(buf), "{Y| Current Value: %-65.65s|{x\n\r", display_value);
+    add_buf(buffer, buf);
 
-                // Pending Value (if any)
-                ITERATOR it;
-                GAME_SETTING_CHANGE *change;
-                iterator_start(&it, pending_changes);
-                while ((change = (GAME_SETTING_CHANGE *)iterator_nextdata(&it))) {
-                    if (change->setting == setting) {
-                        if (setting->sensitive && ch->pcdata->security < 10) {
-                            snprintf(pending_value, sizeof(pending_value), "{D*****{x");
-                        } else {
-                            snprintf(pending_value, sizeof(pending_value), "{Y%s{x", change->value);
-                        }
-                        val_vis_len = strlen_no_colours(pending_value);
-                        val_pad = 61 - val_vis_len;
-                        if (val_pad < 0) val_pad = 0;
-                        snprintf(buf, sizeof(buf), "{Y| Pending Value: %-61.61s|{x\n\r", pending_value);
-                        add_buf(buffer, buf);
-                        break;
-                    }
-                }
-                iterator_stop(&it);
-
-                // Section divider
-                snprintf(buf, sizeof(buf), "{Y+----------------------------------------------------------------------------+{x\n\r");
-                add_buf(buffer, buf);
-
-                // Usage/help
-                if (setting->olc_settable) {
-                    char usage[MAX_STRING_LENGTH];
-                    switch (setting->type) {
-                        case SETTING_TYPE_BOOL:
-                            snprintf(usage, sizeof(usage), "Usage: {Wgameedit set %s [true|false|yes|no|on|off|1|0]{x", setting->name);
-                            break;
-                        case SETTING_TYPE_INT:
-                            snprintf(usage, sizeof(usage), "Usage: {Wgameedit set %s <number>{x", setting->name);
-                            break;
-                        case SETTING_TYPE_STRING:
-                            snprintf(usage, sizeof(usage), "Usage: {Wgameedit set %s <text>{x", setting->name);
-                            break;
-                        default:
-                            snprintf(usage, sizeof(usage), "Usage: {Wgameedit set %s <value>{x", setting->name);
-                            break;
-                    }
-                    int usage_len = strlen_no_colours(usage);
-                    int usage_pad = 76 - usage_len;
-                    if (usage_pad < 0) usage_pad = 0;
-                    snprintf(buf, sizeof(buf), "{Y| %-76.76s |{x\n\r", usage);
-                    add_buf(buffer, buf);
-                }
-
-                // Bottom border
-                snprintf(buf, sizeof(buf), "{Y+----------------------------------------------------------------------------+{x\n\r");
-                add_buf(buffer, buf);
-
-                found = true;
-            } else if (match_count > 1) {
-                // Show a table of all matches
-                bool any = FALSE;
-                snprintf(buf, sizeof(buf), "{Y+-------------------------+--------------------------------------+------------+{x\n\r");
-                add_buf(buffer, buf);
-                snprintf(buf, sizeof(buf), "{Y| %-23s | %-38s | %-10s |{x\n\r", "Setting Name", "Value", "Type");
-                add_buf(buffer, buf);
-                snprintf(buf, sizeof(buf), "{Y+-------------------------+--------------------------------------+------------+{x\n\r");
-                add_buf(buffer, buf);
-
-                for (i = 0; game_settings_table[i].name != NULL; i++) {
-                    if (!str_prefix(argument, game_settings_table[i].name)) {
-                        gameedit_display_setting(buffer, ch, &game_settings_table[i]);
-                        any = TRUE;
-                    }
-                }
-
-                if (!any) {
-                    snprintf(buf, sizeof(buf), "{Y| %-76s |{x\n\r", "No matching settings found.");
-                    add_buf(buffer, buf);
-                }
-
-                // Table footer
-                snprintf(buf, sizeof(buf), "{Y+-------------------------+--------------------------------------+------------+{x\n\r");
-                add_buf(buffer, buf);
-
-                // Legend
-                snprintf(buf, sizeof(buf), "  Legend: {R*{x Requires reboot   {MS{x Sensitive setting   {DX{x Not settable via OLC\n\r\n\r");
-                add_buf(buffer, buf);
-
-                found = true;
+    // Pending Value (if any, pad/truncate to 65 chars)
+    ITERATOR it;
+    GAME_SETTING_CHANGE *change;
+    iterator_start(&it, pending_changes);
+    while ((change = (GAME_SETTING_CHANGE *)iterator_nextdata(&it))) {
+        if (change->setting == setting) {
+            if (setting->sensitive && ch->pcdata->security < 10) {
+                snprintf(pending_value, sizeof(pending_value), "{D*****{x");
+            } else {
+                snprintf(pending_value, sizeof(pending_value), "{Y%s{x", change->value);
             }
+            int vis_len = strlen_no_colours(pending_value);
+            if (vis_len > max_vis_len) {
+                int trunc_len = colour_trunc_len(pending_value, max_vis_len - 3);
+                strncpy(display_value, pending_value, trunc_len);
+                display_value[trunc_len] = '\0';
+                strcat(display_value, "{x...");
+            } else {
+                strcpy(display_value, pending_value);
+                int pad = max_vis_len - vis_len;
+                while (pad-- > 0) strcat(display_value, " ");
+            }
+            for (int k = 0; display_value[k]; ++k)
+                if (display_value[k] == '\n' || display_value[k] == '\r')
+                    display_value[k] = ' ';
+            snprintf(buf, sizeof(buf), "{Y| Pending Value: %-65.65s|{x\n\r", display_value);
+            add_buf(buffer, buf);
+            break;
+        }
+    }
+    iterator_stop(&it);
+
+    // Section divider (80 columns)
+    snprintf(buf, sizeof(buf), "{Y+------------------------------------------------------------------------------+{x\n\r");
+    add_buf(buffer, buf);
+
+    // Usage/help (wrap to 78 chars, 80 with borders)
+    if (setting->olc_settable) {
+        char usage[MAX_STRING_LENGTH];
+        switch (setting->type) {
+            case SETTING_TYPE_BOOL:
+                snprintf(usage, sizeof(usage), "Usage: {Wgameedit set %s [true|false|yes|no|on|off|1|0]{x", setting->name);
+                break;
+            case SETTING_TYPE_INT:
+                snprintf(usage, sizeof(usage), "Usage: {Wgameedit set %s <number>{x", setting->name);
+                break;
+            case SETTING_TYPE_STRING:
+                snprintf(usage, sizeof(usage), "Usage: {Wgameedit set %s <text>{x", setting->name);
+                break;
+            default:
+                snprintf(usage, sizeof(usage), "Usage: {Wgameedit set %s <value>{x", setting->name);
+                break;
+        }
+        int usage_len = strlen_no_colours(usage);
+        int usage_pad = 78 - usage_len;
+        if (usage_pad < 0) usage_pad = 0;
+        snprintf(buf, sizeof(buf), "{Y| %-78.78s|{x\n\r", usage);
+        add_buf(buffer, buf);
+    }
+
+    // Bottom border (80 columns)
+    snprintf(buf, sizeof(buf), "{Y+------------------------------------------------------------------------------+{x\n\r");
+    add_buf(buffer, buf);
+
+    found = true;
+}
         }
 
         // If still not found, try partial match for all settings
@@ -379,50 +373,50 @@ GAMEEDIT(gameedit_show)
 
     // Show pending changes if any
     if (list_size(pending_changes) > 0) {
-        snprintf(buf, sizeof(buf), "\n\r{Y+----------------------------------------------------------------------------+{x\n\r");
-        add_buf(buffer, buf);
+snprintf(buf, sizeof(buf), "\n\r{Y+------------------------------------------------------------------------------+{x\n\r");
+add_buf(buffer, buf);
 
-        snprintf(buf, sizeof(buf), "{Y| {RPending Changes{x%-60s |{x\n\r", "");
-        add_buf(buffer, buf);
+snprintf(buf, sizeof(buf), "{Y| {RPending Changes{x%-76s|{x\n\r", "");
+add_buf(buffer, buf);
 
-        snprintf(buf, sizeof(buf), "{Y+----------------------------------------------------------------------------+{x\n\r");
-        add_buf(buffer, buf);
+snprintf(buf, sizeof(buf), "{Y+------------------------------------------------------------------------------+{x\n\r");
+add_buf(buffer, buf);
 
-        char msg[MAX_STRING_LENGTH];
-        int msg_len, msg_pad;
+char msg[MAX_STRING_LENGTH];
+int msg_len, msg_pad;
 
-        snprintf(msg, sizeof(msg), "There are %d pending changes that need to be confirmed.", list_size(pending_changes));
-        msg_len = strlen_no_colours(msg);
-        msg_pad = 76 - msg_len;
-        if (msg_pad < 0) msg_pad = 0;
-        snprintf(buf, sizeof(buf), "{Y| %-76.76s |{x\n\r", msg);
-        add_buf(buffer, buf);
+snprintf(msg, sizeof(msg), "There are %d pending changes that need to be confirmed.", list_size(pending_changes));
+msg_len = strlen_no_colours(msg);
+msg_pad = 78 - msg_len;
+if (msg_pad < 0) msg_pad = 0;
+snprintf(buf, sizeof(buf), "{Y| %-*.*s|{x\n\r", 78, 78, msg);
+add_buf(buffer, buf);
 
-        snprintf(msg, sizeof(msg), "Use '{Wgameedit confirm{x' to apply changes");
-        msg_len = strlen_no_colours(msg);
-        msg_pad = 76 - msg_len;
-        if (msg_pad < 0) msg_pad = 0;
-        snprintf(buf, sizeof(buf), "{Y| %-76.76s |{x\n\r", msg);
-        add_buf(buffer, buf);
+snprintf(msg, sizeof(msg), "Use '{Wgameedit confirm{x' to apply changes");
+msg_len = strlen_no_colours(msg);
+msg_pad = 78 - msg_len;
+if (msg_pad < 0) msg_pad = 0;
+snprintf(buf, sizeof(buf), "{Y| %-*.*s|{x\n\r", 78, 78, msg);
+add_buf(buffer, buf);
 
-        if (requires_reboot()) {
-            snprintf(msg, sizeof(msg), "{RWARNING: Some changes require a reboot to take effect.{x");
-            msg_len = strlen_no_colours(msg);
-            msg_pad = 76 - msg_len;
-            if (msg_pad < 0) msg_pad = 0;
-            snprintf(buf, sizeof(buf), "{Y| %-76.76s |{x\n\r", msg);
-            add_buf(buffer, buf);
-        }
+if (requires_reboot()) {
+    snprintf(msg, sizeof(msg), "{RWARNING: Some changes require a reboot to take effect.{x");
+    msg_len = strlen_no_colours(msg);
+    msg_pad = 78 - msg_len;
+    if (msg_pad < 0) msg_pad = 0;
+    snprintf(buf, sizeof(buf), "{Y| %-*.*s|{x\n\r", 78, 78, msg);
+    add_buf(buffer, buf);
+}
 
-        snprintf(msg, sizeof(msg), "Use '{Wgameedit revert{x' to discard all pending changes");
-        msg_len = strlen_no_colours(msg);
-        msg_pad = 76 - msg_len;
-        if (msg_pad < 0) msg_pad = 0;
-        snprintf(buf, sizeof(buf), "{Y| %-76.76s |{x\n\r", msg);
-        add_buf(buffer, buf);
+snprintf(msg, sizeof(msg), "Use '{Wgameedit revert{x' to discard all pending changes");
+msg_len = strlen_no_colours(msg);
+msg_pad = 78 - msg_len;
+if (msg_pad < 0) msg_pad = 0;
+snprintf(buf, sizeof(buf), "{Y| %-*.*s|{x\n\r", 78, 78, msg);
+add_buf(buffer, buf);
 
-        snprintf(buf, sizeof(buf), "{Y+----------------------------------------------------------------------------+{x\n\r");
-        add_buf(buffer, buf);
+snprintf(buf, sizeof(buf), "{Y+------------------------------------------------------------------------------+{x\n\r");
+add_buf(buffer, buf);
     }
 
     page_to_char(buf_string(buffer), ch);
@@ -676,24 +670,28 @@ void gameedit_display_setting(BUFFER *buffer, CHAR_DATA *ch, const struct game_s
     if (setting->sensitive) strcat(type_str, "S");
     if (!setting->olc_settable) strcat(type_str, "X");
 
-    // Truncate value for display (41 visible chars for 80-column table)
-    char display_value[256];
-    int max_vis_len = 41;
-    if (strlen_no_colours(value_str) > max_vis_len) {
-        int trunc_len = colour_trunc_len(value_str, max_vis_len - 3);
-        strncpy(display_value, value_str, trunc_len);
-        display_value[trunc_len] = '\0';
-        strcat(display_value, "{x...");
-    } else {
-        strcpy(display_value, value_str);
-    }
-    for (int k = 0; display_value[k]; ++k)
-        if (display_value[k] == '\n' || display_value[k] == '\r')
-            display_value[k] = ' ';
+// Truncate and pad value for display (39 visible chars for 80-column table)
+char display_value[256];
+int max_vis_len = 39;
+int vis_len = strlen_no_colours(value_str);
+if (vis_len > max_vis_len) {
+    int trunc_len = colour_trunc_len(value_str, max_vis_len - 3);
+    strncpy(display_value, value_str, trunc_len);
+    display_value[trunc_len] = '\0';
+    strcat(display_value, "{x...");
+} else {
+    strcpy(display_value, value_str);
+    // Pad with spaces to align type column if needed
+    int pad = max_vis_len - vis_len;
+    while (pad-- > 0) strcat(display_value, " ");
+}
+for (int k = 0; display_value[k]; ++k)
+    if (display_value[k] == '\n' || display_value[k] == '\r')
+        display_value[k] = ' ';
 
     // Output the row (80 columns: 23 + 41 + 12 + separators)
     snprintf(buf, sizeof(buf),
-        "{Y| %-23.23s | %-41.41s | %-12.12s |{x\n\r",
+        "{Y| %-23.23s {Y| %-39.39s {Y| %-14.14s {Y|{x\n\r",
         setting->name, display_value, type_str);
     add_buf(buffer, buf);
 }
@@ -713,8 +711,8 @@ void gameedit_display_category(BUFFER *buffer, CHAR_DATA *ch, int category)
 
     // Centered category name
     int cat_len = strlen_no_colours(setting_category_names[category]);
-    int cat_pad = (78 - cat_len) / 2;
-    snprintf(buf, sizeof(buf), "{Y|%*s%-*.*s%*s|{x\n\r", cat_pad, "", cat_len, cat_len, setting_category_names[category], 78 - cat_pad - cat_len, "");
+    int cat_pad = (77 - cat_len) / 2;
+    snprintf(buf, sizeof(buf), "{Y|%*s%-*.*s%*s|{x\n\r", cat_pad, "", cat_len, cat_len, setting_category_names[category], 77 - cat_pad - cat_len, "");
     add_buf(buffer, buf);
 
     snprintf(buf, sizeof(buf), "{Y+-------------------------+--------------------------------------+------------+{x\n\r");
