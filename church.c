@@ -1495,7 +1495,7 @@ void do_chtalk(CHAR_DATA *ch, char *argument)
 	    counter++;
 	    if (!IS_NPC(ch) && ch->pcdata->flag != NULL && SHOW_CHANNEL_FLAG(victim, FLAG_CT))
 	    {
-		sprintf(buf, "{%s[{%s%s{%s] says '%s {%s%s{%s'{x\n\r",
+		sprintf(buf, "%s[%s%s%s] says '%s %s%s%s'{x\n\r",
 		    ch->church->colour2,
 		    ch->church->colour1,
 		    ch->name,
@@ -1507,7 +1507,7 @@ void do_chtalk(CHAR_DATA *ch, char *argument)
 	    }
 	    else
 	    {
-		sprintf(buf, "{%s[{%s%s{%s] says '{%s%s{%s'{x\n\r",
+		sprintf(buf, "%s[%s%s%s] says '%s%s%s'{x\n\r",
 		    ch->church->colour2,
 		    ch->church->colour1,
 		    ch->name,
