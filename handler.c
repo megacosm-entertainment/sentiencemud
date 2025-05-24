@@ -9006,22 +9006,25 @@ bool list_quicksort(LLIST *lp, int (*cmp)(void *a, void *b))
 {
 	if (IS_VALID(lp) && cmp)
 	{
-		LLIST_LINK *cur;
-		int count;
+LLIST_LINK *cur;
+int count;
 
-		for(count = 0, cur = lp->head; cur; cur = cur->next)
-			count++;
+// Count elements
+for(count = 0, cur = lp->head; cur; cur = cur->next)
+    count++;
 
-		if (count < 1) return false;			
+if (count < 1) return false;			
 
-		LLIST_LINK **arr = alloc_mem(sizeof(LLIST_LINK *) * count);
-		for(count = 0, cur = lp->head; cur; cur = cur->next)
-			arr[count] = cur;
+LLIST_LINK **arr = alloc_mem(sizeof(LLIST_LINK *) * count);
+// Fill array
+int i = 0;
+for(cur = lp->head; cur; cur = cur->next)
+    arr[i++] = cur;
 
-		// Start recursive sorting
-		__list_quicksort_partition(arr, 0, count - 1, cmp);
+// Start recursive sorting
+__list_quicksort_partition(arr, 0, count - 1, cmp);
 
-		// Relink everything
+// Relink everything
 for(int i = 0; i < count; i++)
 {
     if (i > 0) arr[i]->prev = arr[i-1];
@@ -9033,7 +9036,7 @@ for(int i = 0; i < count; i++)
 lp->head = arr[0];
 lp->tail = arr[count - 1];
 
-		free_mem(arr, sizeof(LLIST_LINK *) * count);
+free_mem(arr, sizeof(LLIST_LINK *) * count);
 	}
 
 	return false;
