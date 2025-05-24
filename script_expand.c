@@ -1728,11 +1728,16 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 			arg->d.room = NULL;
 		break;
 	case ENTITY_MOB_CARRYING:
-		arg->type = ENT_OLLIST_OBJ;
-		arg->d.list.ptr.obj = self ? &self->carrying : NULL;
-		arg->d.list.owner = self;
-		arg->d.list.owner_type = ENT_UNKNOWN;
-		break;
+        if (self && is_llist(self->lcarrying)) {
+            arg->type = ENT_PLLIST_OBJ;
+            arg->d.blist = self ? self->lcarrying : NULL;
+        } else {
+            arg->type = ENT_OLLIST_OBJ;
+            arg->d.list.ptr.obj = NULL;  // Old style linked list no longer used
+            arg->d.list.owner = self;
+            arg->d.list.owner_type = ENT_UNKNOWN;
+        }
+        break;
 	case ENTITY_MOB_TOKENS:
 		arg->type = ENT_OLLIST_TOK;
 		arg->d.list.ptr.tok = self ? &self->tokens : NULL;

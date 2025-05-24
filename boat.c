@@ -5460,24 +5460,28 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 
 		WAYPOINT_DATA *wp = (WAYPOINT_DATA *)list_nthdata(ship->waypoints, value);
 
-		if( IS_NULLSTR(argument) )
-		{
-			map = NULL;
-			for (map = ch->carrying; map != NULL; map = map->next_content) {
-				if (map->item_type == ITEM_BLANK_SCROLL || map->pIndexData->vnum == OBJ_VNUM_BLANK_SCROLL)
-					break;
-			}
+if( IS_NULLSTR(argument) )
+{
+    ITERATOR it;
+    
+    iterator_start(&it, ch->lcarrying);
+    while ((map = (OBJ_DATA *)iterator_nextdata(&it)))
+    {
+        if (map->item_type == ITEM_BLANK_SCROLL || map->pIndexData->vnum == OBJ_VNUM_BLANK_SCROLL)
+            break;
+    }
+    iterator_stop(&it);
 
-			if (map == NULL)
-			{
-				send_to_char("You do not have a blank scroll.\n\r", ch);
-				return;
-			}
+    if (map == NULL)
+    {
+        send_to_char("You do not have a blank scroll.\n\r", ch);
+        return;
+    }
 
-			extract_obj(map);
-			map = create_object(get_obj_index(OBJ_VNUM_NAVIGATIONAL_CHART), 0, false);
-			obj_to_char(map, ch);
-		}
+    extract_obj(map);
+    map = create_object(get_obj_index(OBJ_VNUM_NAVIGATIONAL_CHART), 0, false);
+    obj_to_char(map, ch);
+}
 		else
 		{
 			map = get_obj_carry(ch, argument, ch);

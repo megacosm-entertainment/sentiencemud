@@ -329,181 +329,201 @@ bool check_dispel(CHAR_DATA *ch, CHAR_DATA *victim, int sn)
 
 bool validate_spell_target(CHAR_DATA *ch,int type,char *arg,int *t,CHAR_DATA **v, OBJ_DATA **o)
 {
-	CHAR_DATA *victim = NULL;
-	OBJ_DATA *obj = NULL;
-	int target = TARGET_NONE;
+    CHAR_DATA *victim = NULL;
+    OBJ_DATA *obj = NULL;
+    int target = TARGET_NONE;
 
-	// Preset
-	*v = victim;
-	*o = obj;
-	*t = target;
+    // Preset
+    *v = victim;
+    *o = obj;
+    *t = target;
 
-	switch(type) {
-	case TAR_IGNORE: target = TARGET_NONE; break;
+    switch(type) {
+    case TAR_IGNORE: target = TARGET_NONE; break;
 
-	case TAR_CHAR_OFFENSIVE:
-		if (!arg[0]) victim = ch->fighting;
-		else victim = get_char_room(ch, NULL, arg);
+    case TAR_CHAR_OFFENSIVE:
+        if (!arg[0]) victim = ch->fighting;
+        else victim = get_char_room(ch, NULL, arg);
 
-		if (!victim) {
-			if (!arg[0])
-				send_to_char("Cast it on whom?\n\r", ch);
-			else
-				send_to_char("They aren't here.\n\r", ch);
-			return false;
-		}
+        if (!victim) {
+            if (!arg[0])
+                send_to_char("Cast it on whom?\n\r", ch);
+            else
+                send_to_char("They aren't here.\n\r", ch);
+            return false;
+        }
 
-		if (is_safe(ch, victim, true) ||
-			(victim->fighting && !is_same_group(ch, victim->fighting) &&
-			ch != victim && !IS_SET(ch->in_room->room_flag[1], ROOM_MULTIPLAY))) {
-			send_to_char("Not on that target.\n\r", ch);
-			return false;
-		}
+        if (is_safe(ch, victim, true) ||
+            (victim->fighting && !is_same_group(ch, victim->fighting) &&
+            ch != victim && !IS_SET(ch->in_room->room_flag[1], ROOM_MULTIPLAY))) {
+            send_to_char("Not on that target.\n\r", ch);
+            return false;
+        }
 
-		if (ch->fighting && !is_same_group(victim, ch->fighting) && ch != victim && !IS_NPC(victim)) {
-			act("You must finish your fight before attacking $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			return false;
-		}
+        if (ch->fighting && !is_same_group(victim, ch->fighting) && ch != victim && !IS_NPC(victim)) {
+            act("You must finish your fight before attacking $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+            return false;
+        }
 
-		target = TARGET_CHAR;
-		break;
+        target = TARGET_CHAR;
+        break;
 
-	case TAR_CHAR_DEFENSIVE:
-		if (arg[0]) {
-			victim = get_char_room(ch, NULL, arg);
-			if (!victim) {
-				send_to_char("They aren't here.\n\r", ch);
-				return false;
-			}
+    case TAR_CHAR_DEFENSIVE:
+        if (arg[0]) {
+            victim = get_char_room(ch, NULL, arg);
+            if (!victim) {
+                send_to_char("They aren't here.\n\r", ch);
+                return false;
+            }
 
-			if (victim != ch && victim->fighting && victim->fighting != ch &&
-				!is_same_group(ch, victim->fighting) && !IS_NPC(victim) &&
-				!IS_NPC(victim->fighting) && !is_pk(ch) && !IS_SET(ch->in_room->room_flag[0], ROOM_ARENA)) {
-				send_to_char("You can't interfere in a PK battle if you are not PK.\n\r", ch);
-				return false;
-			}
-		} else
-		victim = ch;
+            if (victim != ch && victim->fighting && victim->fighting != ch &&
+                !is_same_group(ch, victim->fighting) && !IS_NPC(victim) &&
+                !IS_NPC(victim->fighting) && !is_pk(ch) && !IS_SET(ch->in_room->room_flag[0], ROOM_ARENA)) {
+                send_to_char("You can't interfere in a PK battle if you are not PK.\n\r", ch);
+                return false;
+            }
+        } else
+        victim = ch;
 
-		target = TARGET_CHAR;
-		break;
+        target = TARGET_CHAR;
+        break;
 
-	case TAR_CHAR_SELF:
-		if (arg[0] && str_cmp(arg, "me") && str_cmp(arg, "self") && str_prefix(arg, ch->name)) {
-			send_to_char("You may not cast this spell on another.\n\r", ch);
-			return false;
-		}
+    case TAR_CHAR_SELF:
+        if (arg[0] && str_cmp(arg, "me") && str_cmp(arg, "self") && str_prefix(arg, ch->name)) {
+            send_to_char("You may not cast this spell on another.\n\r", ch);
+            return false;
+        }
 
-		victim = ch;
-		target = TARGET_CHAR;
-		break;
+        victim = ch;
+        target = TARGET_CHAR;
+        break;
 
-	case TAR_OBJ_INV:
-		if (!arg[0]) {
-			send_to_char("Cast it on what?\n\r", ch);
-			return false;
-		}
+    case TAR_OBJ_INV:
+        if (!arg[0]) {
+            send_to_char("Cast it on what?\n\r", ch);
+            return false;
+        }
 
-		if (!(obj = get_obj_list(ch, arg, ch->carrying))) {
-			send_to_char("You're not carrying that item.\n\r", ch);
-			return false;
-		}
+        // Check inventory first, then worn items
+        obj = get_obj_list(ch, arg, ch->lcarrying);
+        if (!obj) {
+            obj = get_obj_list(ch, arg, ch->lworn);
+        }
+        
+        if (!obj) {
+            send_to_char("You're not carrying that item.\n\r", ch);
+            return false;
+        }
 
-		target = TARGET_OBJ;
-		break;
+        target = TARGET_OBJ;
+        break;
 
-	case TAR_OBJ_GROUND:
-		if (!arg[0]) {
-			send_to_char("Cast it on what?\n\r", ch);
-			return false;
-		}
+    case TAR_OBJ_GROUND:
+        if (!arg[0]) {
+            send_to_char("Cast it on what?\n\r", ch);
+            return false;
+        }
 
-		obj = get_obj_list(ch, arg, ch->in_room->contents);
-		if (!obj) {
-			send_to_char("It's not anywhere around here.\n\r", ch);
-			return false;
-		}
+        obj = get_obj_list(ch, arg, ch->in_room->contents);
+        if (!obj) {
+            send_to_char("It's not anywhere around here.\n\r", ch);
+            return false;
+        }
 
-		target = TARGET_OBJ;
-		break;
+        target = TARGET_OBJ;
+        break;
 
-	case TAR_OBJ_CHAR_OFF:
-		if (!arg[0] && !ch->fighting) {
-			send_to_char("Cast it on whom or what?\n\r", ch);
-			return false;
-		}
+    case TAR_OBJ_CHAR_OFF:
+        if (!arg[0] && !ch->fighting) {
+            send_to_char("Cast it on whom or what?\n\r", ch);
+            return false;
+        }
 
-		if (ch->fighting && !arg[0])
-			victim = ch->fighting;
-		else
-			victim = get_char_room(ch, NULL, arg);
+        if (ch->fighting && !arg[0])
+            victim = ch->fighting;
+        else
+            victim = get_char_room(ch, NULL, arg);
 
-		obj = get_obj_list(ch, arg, ch->carrying);
-		if (victim) target = TARGET_CHAR;
-		else if (obj) target = TARGET_OBJ;
-		else {
-			send_to_char("You don't see that here.\n\r", ch);
-			return false;
-		}
+        // Check inventory first, then worn items if no victim found
+        if (!victim) {
+            obj = get_obj_list(ch, arg, ch->lcarrying);
+            if (!obj) {
+                obj = get_obj_list(ch, arg, ch->lworn);
+            }
+        }
 
-		if (target == TARGET_CHAR && (is_safe(ch, victim, true) ||
-			(victim->fighting && ch != victim && !is_same_group(ch, victim->fighting) &&
-			!IS_SET(ch->in_room->room_flag[1], ROOM_MULTIPLAY)))) {
-			send_to_char("Not on that target.\n\r", ch);
-			return false;
-		}
-		break;
+        if (victim) target = TARGET_CHAR;
+        else if (obj) target = TARGET_OBJ;
+        else {
+            send_to_char("You don't see that here.\n\r", ch);
+            return false;
+        }
 
-	case TAR_OBJ_CHAR_DEF:
-		if (!arg[0])
-			victim = ch;
-		else {
-			victim = get_char_room(ch, NULL, arg);
-			obj = get_obj_list(ch, arg, ch->carrying);
-		}
+        if (target == TARGET_CHAR && (is_safe(ch, victim, true) ||
+            (victim->fighting && ch != victim && !is_same_group(ch, victim->fighting) &&
+            !IS_SET(ch->in_room->room_flag[1], ROOM_MULTIPLAY)))) {
+            send_to_char("Not on that target.\n\r", ch);
+            return false;
+        }
+        break;
 
-		if (victim) {
-			if (victim != ch && victim->fighting && victim->fighting != ch &&
-				!is_same_group(ch, victim->fighting) && !IS_NPC(victim) &&
-				!IS_NPC(victim->fighting) && !is_pk(ch) && !IS_SET(ch->in_room->room_flag[0], ROOM_ARENA)) {
-				send_to_char("You can't interfere in a PK battle if you are not PK.\n\r", ch);
-				return false;
-			}
+    case TAR_OBJ_CHAR_DEF:
+        if (!arg[0])
+            victim = ch;
+        else {
+            victim = get_char_room(ch, NULL, arg);
+            
+            // Check inventory first, then worn items if no victim found
+            if (!victim) {
+                obj = get_obj_list(ch, arg, ch->lcarrying);
+                if (!obj) {
+                    obj = get_obj_list(ch, arg, ch->lworn);
+                }
+            }
+        }
 
-			target = TARGET_CHAR;
-		} else if (obj)
-			target = TARGET_OBJ;
-		else {
-			send_to_char("They aren't here.\n\r", ch);
-			return false;
-		}
-		break;
+        if (victim) {
+            if (victim != ch && victim->fighting && victim->fighting != ch &&
+                !is_same_group(ch, victim->fighting) && !IS_NPC(victim) &&
+                !IS_NPC(victim->fighting) && !is_pk(ch) && !IS_SET(ch->in_room->room_flag[0], ROOM_ARENA)) {
+                send_to_char("You can't interfere in a PK battle if you are not PK.\n\r", ch);
+                return false;
+            }
 
-	case TAR_IGNORE_CHAR_DEF:
-		if (!arg[0]) {
-			send_to_char("Cast it on whom?\n\r", ch);
-			return false;
-		}
+            target = TARGET_CHAR;
+        } else if (obj)
+            target = TARGET_OBJ;
+        else {
+            send_to_char("They aren't here.\n\r", ch);
+            return false;
+        }
+        break;
 
-		victim = get_char_world(ch, arg);
-		if (!victim) {
-			send_to_char("They aren't anywhere in Sentience.\n\r", ch);
-			return false;
-		}
+    case TAR_IGNORE_CHAR_DEF:
+        if (!arg[0]) {
+            send_to_char("Cast it on whom?\n\r", ch);
+            return false;
+        }
 
-		target = TARGET_CHAR;
-		break;
+        victim = get_char_world(ch, arg);
+        if (!victim) {
+            send_to_char("They aren't anywhere in Sentience.\n\r", ch);
+            return false;
+        }
 
-	default:
-		target = TARGET_NONE;
-		break;
-	}
+        target = TARGET_CHAR;
+        break;
 
-	*v = victim;
-	*o = obj;
-	*t = target;
+    default:
+        target = TARGET_NONE;
+        break;
+    }
 
-	return true;
+    *v = victim;
+    *o = obj;
+    *t = target;
+
+    return true;
 }
 
 bool check_mana_cost(CHAR_DATA *ch, int cost)
@@ -741,282 +761,302 @@ void deduct_mana(CHAR_DATA *ch,int cost)
 
 void cast_end(CHAR_DATA *ch)
 {
-	CHAR_DATA *victim;
-	OBJ_DATA *obj;
-	OBJ_DATA *trap;
-	TOKEN_DATA *token = NULL;
-	SCRIPT_DATA *script = NULL;
-	int mana;
-	void *vo;
-	unsigned long id[2];
-	int type;
-	int sn;
-	int target;
+    CHAR_DATA *victim;
+    OBJ_DATA *obj;
+    OBJ_DATA *trap;
+    TOKEN_DATA *token = NULL;
+    SCRIPT_DATA *script = NULL;
+    int mana;
+    void *vo;
+    unsigned long id[2];
+    int type;
+    int sn;
+    int target;
 
-	send_to_char("{WYou have completed your casting.{x\n\r", ch);
-	act("{W$n has completed $s casting.{x", ch , NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    send_to_char("{WYou have completed your casting.{x\n\r", ch);
+    act("{W$n has completed $s casting.{x", ch , NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-	if(ch->cast_token) {
-		token = ch->cast_token;
-		script = ch->cast_script;
-		ch->cast_token = NULL;
-		ch->cast_script = NULL;
-		type = token->pIndexData->value[TOKVAL_SPELL_TARGET];
-		sn = -1;
-	} else {
-		sn = ch->cast_sn;
-		ch->cast_sn = -1;
-		type = skill_table[sn].target;
-	}
+    if(ch->cast_token) {
+        token = ch->cast_token;
+        script = ch->cast_script;
+        ch->cast_token = NULL;
+        ch->cast_script = NULL;
+        type = token->pIndexData->value[TOKVAL_SPELL_TARGET];
+        sn = -1;
+    } else {
+        sn = ch->cast_sn;
+        ch->cast_sn = -1;
+        type = skill_table[sn].target;
+    }
 
-	mana = ch->cast_mana;
-	victim = NULL;
-	obj = NULL;
-	vo = NULL;
-	target	= TARGET_NONE;
+    mana = ch->cast_mana;
+    victim = NULL;
+    obj = NULL;
+    vo = NULL;
+    target	= TARGET_NONE;
 
-	switch (type) {
-	case TAR_IGNORE:
-		vo = (void *) ch->cast_target_name;
-		target = TARGET_NONE;
-		break;
+    switch (type) {
+    case TAR_IGNORE:
+        vo = (void *) ch->cast_target_name;
+        target = TARGET_NONE;
+        break;
 
-	case TAR_CHAR_OFFENSIVE:
-		if (!(victim = get_char_room(ch, NULL, ch->cast_target_name))) {
-			send_to_char("They've left the room.\n\r", ch);
-			victim = NULL;
-		}
+    case TAR_CHAR_OFFENSIVE:
+        if (!(victim = get_char_room(ch, NULL, ch->cast_target_name))) {
+            send_to_char("They've left the room.\n\r", ch);
+            victim = NULL;
+        }
 
-		vo = (void *) victim;
-		target = TARGET_CHAR;
-		break;
+        vo = (void *) victim;
+        target = TARGET_CHAR;
+        break;
 
-	case TAR_CHAR_DEFENSIVE:
-		if (!(victim = get_char_room(ch, NULL, ch->cast_target_name))) {
-			send_to_char("They've left the room.\n\r", ch);
-			victim = NULL;
-		}
+    case TAR_CHAR_DEFENSIVE:
+        if (!(victim = get_char_room(ch, NULL, ch->cast_target_name))) {
+            send_to_char("They've left the room.\n\r", ch);
+            victim = NULL;
+        }
 
-		vo = (void *) victim;
-		target = TARGET_CHAR;
-		break;
+        vo = (void *) victim;
+        target = TARGET_CHAR;
+        break;
 
-	case TAR_CHAR_SELF:
-		victim = ch;
-		vo = (void *) victim;
-		target = TARGET_CHAR;
-		break;
+    case TAR_CHAR_SELF:
+        victim = ch;
+        vo = (void *) victim;
+        target = TARGET_CHAR;
+        break;
 
-	case TAR_OBJ_INV:
-		obj = get_obj_list(ch, ch->cast_target_name, ch->carrying);
-		if (!obj) {
-			send_to_char("Your target seems to have vanished.\n\r", ch);
-			obj = NULL;
-		}
+    case TAR_OBJ_INV:
+        // Check inventory first, then worn items
+        obj = get_obj_list(ch, ch->cast_target_name, ch->lcarrying);
+        if (!obj) {
+            obj = get_obj_list(ch, ch->cast_target_name, ch->lworn);
+        }
+        
+        if (!obj) {
+            send_to_char("Your target seems to have vanished.\n\r", ch);
+            obj = NULL;
+        }
 
-		vo = (void *) obj;
-		target = TARGET_OBJ;
-		break;
+        vo = (void *) obj;
+        target = TARGET_OBJ;
+        break;
 
-	case TAR_OBJ_GROUND:
-		obj = get_obj_list(ch, ch->cast_target_name, ch->in_room->contents);
-		if (!obj) {
-			send_to_char("Your target seems to have vanished.\n\r", ch);
-			obj = NULL;
-		}
+    case TAR_OBJ_GROUND:
+        obj = get_obj_list(ch, ch->cast_target_name, ch->in_room->contents);
+        if (!obj) {
+            send_to_char("Your target seems to have vanished.\n\r", ch);
+            obj = NULL;
+        }
 
-		vo = (void *) obj;
-		target = TARGET_OBJ;
-		break;
+        vo = (void *) obj;
+        target = TARGET_OBJ;
+        break;
 
-	case TAR_OBJ_CHAR_OFF:
-		if ((victim = get_char_room(ch, NULL, ch->cast_target_name))) {
-			target = TARGET_CHAR;
-			vo = (void *) victim;
-		} else if ((obj = get_obj_list(ch, ch->cast_target_name, ch->carrying))) {
-			target = TARGET_OBJ;
-			vo = (void *) obj;
-		} else {
-			send_to_char("Your target is no longer here.\n\r", ch);
-			target = TARGET_CHAR;
-			victim = NULL;
-		}
-		break;
+    case TAR_OBJ_CHAR_OFF:
+        if ((victim = get_char_room(ch, NULL, ch->cast_target_name))) {
+            target = TARGET_CHAR;
+            vo = (void *) victim;
+        } else {
+            // Check inventory first, then worn items
+            obj = get_obj_list(ch, ch->cast_target_name, ch->lcarrying);
+            if (!obj) {
+                obj = get_obj_list(ch, ch->cast_target_name, ch->lworn);
+            }
+            
+            if (obj) {
+                target = TARGET_OBJ;
+                vo = (void *) obj;
+            } else {
+                send_to_char("Your target is no longer here.\n\r", ch);
+                target = TARGET_CHAR;
+                victim = NULL;
+            }
+        }
+        break;
 
-	case TAR_OBJ_CHAR_DEF:
-		if ((victim = get_char_room(ch, NULL, ch->cast_target_name))) {
-			target = TARGET_CHAR;
-			vo = (void *) victim;
-		} else if ((obj = get_obj_list(ch, ch->cast_target_name, ch->carrying))) {
-			target = TARGET_OBJ;
-			vo = (void *) obj;
-		} else {
-			send_to_char("Your target is no longer here.\n\r", ch);
-			target = TARGET_CHAR;
-			victim = NULL;
-		}
-		break;
+    case TAR_OBJ_CHAR_DEF:
+        if ((victim = get_char_room(ch, NULL, ch->cast_target_name))) {
+            target = TARGET_CHAR;
+            vo = (void *) victim;
+        } else {
+            // Check inventory first, then worn items
+            obj = get_obj_list(ch, ch->cast_target_name, ch->lcarrying);
+            if (!obj) {
+                obj = get_obj_list(ch, ch->cast_target_name, ch->lworn);
+            }
+            
+            if (obj) {
+                target = TARGET_OBJ;
+                vo = (void *) obj;
+            } else {
+                send_to_char("Your target is no longer here.\n\r", ch);
+                target = TARGET_CHAR;
+                victim = NULL;
+            }
+        }
+        break;
 
-	case TAR_IGNORE_CHAR_DEF:
-		victim = get_char_world(ch, ch->cast_target_name);
-		if (!victim) {
-			send_to_char("They aren't in the world of Sentience.\n\r", ch);
-			victim = NULL;
-		}
+    case TAR_IGNORE_CHAR_DEF:
+        victim = get_char_world(ch, ch->cast_target_name);
+        if (!victim) {
+            send_to_char("They aren't in the world of Sentience.\n\r", ch);
+            victim = NULL;
+        }
 
-		vo = (void *) victim;
-		break;
-	}
+        vo = (void *) victim;
+        break;
+    }
 
-	// The targets weren't found. So the spell isn't cast.
-	if ((target == TARGET_CHAR && !victim) || (target == TARGET_OBJ && !obj)) {
-		free_string(ch->cast_target_name);
-		ch->cast_target_name = NULL;
-		return;
-	}
+    // The targets weren't found. So the spell isn't cast.
+    if ((target == TARGET_CHAR && !victim) || (target == TARGET_OBJ && !obj)) {
+        free_string(ch->cast_target_name);
+        ch->cast_target_name = NULL;
+        return;
+    }
 
-	// TODO: Need to work this into the mix
-	/* Spell trap in the room ? */
-	for (trap = ch->in_room->contents; trap; trap = trap->next_content) {
-		if (trap->item_type == ITEM_SPELL_TRAP) {
-			trap->level -= ch->tot_level/4;
-			act("{Y$p sucks up $n's spell!{x", ch, NULL, NULL, trap, NULL, NULL, NULL, TO_ROOM);
-			act("{Y$p sucks up your spell!{x", ch, NULL, NULL, trap, NULL, NULL, NULL, TO_CHAR);
-			if (trap->level <= 0) {
-				CHAR_DATA *dam_vict;
+    // TODO: Need to work this into the mix
+    /* Spell trap in the room ? */
+    for (trap = ch->in_room->contents; trap; trap = trap->next_content) {
+        if (trap->item_type == ITEM_SPELL_TRAP) {
+            trap->level -= ch->tot_level/4;
+            act("{Y$p sucks up $n's spell!{x", ch, NULL, NULL, trap, NULL, NULL, NULL, TO_ROOM);
+            act("{Y$p sucks up your spell!{x", ch, NULL, NULL, trap, NULL, NULL, NULL, TO_CHAR);
+            if (trap->level <= 0) {
+                CHAR_DATA *dam_vict;
 
-				act("{R$p shatters explosively!{x", ch, NULL, NULL, trap, NULL, NULL, NULL, TO_ALL);
-				if (!IS_SET(ch->in_room->room_flag[0], ROOM_SAFE) && !IS_SOCIAL(ch)) {
-					for (dam_vict = ch->in_room->people; dam_vict; dam_vict = dam_vict->next_in_room) {
-						if (is_pk(dam_vict)) {
-							act("{RYou are struck by $p's shards!", dam_vict, NULL, NULL, trap, NULL, NULL, NULL, TO_CHAR);
-							act("{R$n is struck by $p's shards!", dam_vict, NULL, NULL, trap, NULL, NULL, NULL, TO_ROOM);
-							damage(dam_vict, dam_vict, dice(60, 8), 0, DAM_PIERCE, false);
-						}
-					}
-				}
-				extract_obj(trap);
-			}
+                act("{R$p shatters explosively!{x", ch, NULL, NULL, trap, NULL, NULL, NULL, TO_ALL);
+                if (!IS_SET(ch->in_room->room_flag[0], ROOM_SAFE) && !IS_SOCIAL(ch)) {
+                    for (dam_vict = ch->in_room->people; dam_vict; dam_vict = dam_vict->next_in_room) {
+                        if (is_pk(dam_vict)) {
+                            act("{RYou are struck by $p's shards!", dam_vict, NULL, NULL, trap, NULL, NULL, NULL, TO_CHAR);
+                            act("{R$n is struck by $p's shards!", dam_vict, NULL, NULL, trap, NULL, NULL, NULL, TO_ROOM);
+                            damage(dam_vict, dam_vict, dice(60, 8), 0, DAM_PIERCE, false);
+                        }
+                    }
+                }
+                extract_obj(trap);
+            }
 
-			deduct_mana(ch,mana);
-			stop_casting(ch, false);
-			return;
-		}
-	}
+            deduct_mana(ch,mana);
+            stop_casting(ch, false);
+            return;
+        }
+    }
 
-	if( ch->cast_successful == MAGICCAST_ROOMBLOCK) {
-		send_to_char("You can't seem to focus your mana into the spell.\n\r", ch);
-		deduct_mana(ch,mana / 3);
-		return;
-	}
+    if( ch->cast_successful == MAGICCAST_ROOMBLOCK) {
+        send_to_char("You can't seem to focus your mana into the spell.\n\r", ch);
+        deduct_mana(ch,mana / 3);
+        return;
+    }
 
-	if(token) {
-		if( ch->cast_successful == MAGICCAST_FAILURE ) {
-			send_to_char("You lost your concentration.\n\r", ch);
-			token_skill_improve(ch,token,false,1);
-			deduct_mana(ch,mana / 2);
-			return;
-		}
+    if(token) {
+        if( ch->cast_successful == MAGICCAST_FAILURE ) {
+            send_to_char("You lost your concentration.\n\r", ch);
+            token_skill_improve(ch,token,false,1);
+            deduct_mana(ch,mana / 2);
+            return;
+        }
 
-		if( ch->cast_successful == MAGICCAST_SCRIPT ) {
-			if( !IS_NULLSTR(ch->casting_failure_message) )
-				send_to_char(ch->casting_failure_message, ch);
-			token_skill_improve(ch,token,false,1);
-			deduct_mana(ch,mana / 2);
-			return;
-		}
+        if( ch->cast_successful == MAGICCAST_SCRIPT ) {
+            if( !IS_NULLSTR(ch->casting_failure_message) )
+                send_to_char(ch->casting_failure_message, ch);
+            token_skill_improve(ch,token,false,1);
+            deduct_mana(ch,mana / 2);
+            return;
+        }
 
-		deduct_mana(ch,mana);
+        deduct_mana(ch,mana);
 
-		// If casted on a relic puller make the offender PK
-		if (is_pulling_relic(victim) && (type == TAR_CHAR_OFFENSIVE || type == TAR_OBJ_CHAR_OFF))
-			set_pk_timer(ch, victim, PULSE_VIOLENCE * 4);
+        // If casted on a relic puller make the offender PK
+        if (is_pulling_relic(victim) && (type == TAR_CHAR_OFFENSIVE || type == TAR_OBJ_CHAR_OFF))
+            set_pk_timer(ch, victim, PULSE_VIOLENCE * 4);
 
-		id[0] = token->id[0];
-		id[1] = token->id[1];
-		if (target == TARGET_CHAR && victim && IS_AFFECTED2(victim, AFF2_SPELL_DEFLECTION)) {
-			if (check_spell_deflection_token(ch, victim, token, script,ch->cast_target_name)) {
-				execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, victim, NULL, NULL, NULL,ch->cast_target_name,NULL,0,0,0,0,0);
-			}
-		} else {
-			execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, (target == TARGET_OBJ)?obj:NULL, NULL, (target == TARGET_CHAR)?victim:NULL, NULL,NULL, NULL,ch->cast_target_name,NULL,0,0,0,0,0);
-		}
+        id[0] = token->id[0];
+        id[1] = token->id[1];
+        if (target == TARGET_CHAR && victim && IS_AFFECTED2(victim, AFF2_SPELL_DEFLECTION)) {
+            if (check_spell_deflection_token(ch, victim, token, script,ch->cast_target_name)) {
+                execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, victim, NULL, NULL, NULL,ch->cast_target_name,NULL,0,0,0,0,0);
+            }
+        } else {
+            execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, (target == TARGET_OBJ)?obj:NULL, NULL, (target == TARGET_CHAR)?victim:NULL, NULL,NULL, NULL,ch->cast_target_name,NULL,0,0,0,0,0);
+        }
 
-		// Only bother with the token if it is valid and the SAME token as before the casting
-		if(IS_VALID(token) && id[0] == token->id[0] && id[1] == token->id[1]) {
-			// If we don't do a skill test before the code is executed,
-			//	then successful casting also does no test
-			if(!IS_SET(token->pIndexData->flags,TOKEN_NOSKILLTEST))
-				token_skill_improve(ch,token,true,1);
-		}
+        // Only bother with the token if it is valid and the SAME token as before the casting
+        if(IS_VALID(token) && id[0] == token->id[0] && id[1] == token->id[1]) {
+            // If we don't do a skill test before the code is executed,
+            //	then successful casting also does no test
+            if(!IS_SET(token->pIndexData->flags,TOKEN_NOSKILLTEST))
+                token_skill_improve(ch,token,true,1);
+        }
 
-	} else {
-		if( ch->cast_successful == MAGICCAST_FAILURE ) {
-			send_to_char("You lost your concentration.\n\r", ch);
-			check_improve(ch,sn,false,1);
-			deduct_mana(ch,mana / 2);
-			return;
-		}
+    } else {
+        if( ch->cast_successful == MAGICCAST_FAILURE ) {
+            send_to_char("You lost your concentration.\n\r", ch);
+            check_improve(ch,sn,false,1);
+            deduct_mana(ch,mana / 2);
+            return;
+        }
 
-		if( ch->cast_successful == MAGICCAST_SCRIPT ) {
-			if( !IS_NULLSTR(ch->casting_failure_message) )
-				send_to_char(ch->casting_failure_message, ch);
+        if( ch->cast_successful == MAGICCAST_SCRIPT ) {
+            if( !IS_NULLSTR(ch->casting_failure_message) )
+                send_to_char(ch->casting_failure_message, ch);
 
-			check_improve(ch,sn,false,1);
-			deduct_mana(ch,mana / 2);
-			return;
-		}
-
-
-		deduct_mana(ch,mana);
-
-		// If casted on a relic puller make the offender PK
-		if (is_pulling_relic(victim) && (type == TAR_CHAR_OFFENSIVE || type == TAR_OBJ_CHAR_OFF))
-			set_pk_timer(ch, victim, PULSE_VIOLENCE * 4);
-
-		// If the victim is valid and using a built-in spell, check for spell cast script
-		if( (victim != NULL) )
-		{
-			victim->tempstore[0] = sn;	// JUST the script is used by multiple spells or is a wildcard
-			if( p_number_trigger(sn, 0, victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_SPELLCAST, NULL) )
-			{
-				stop_casting(ch, false);
-				return;
-			}
-		}
-
-		if (target == TARGET_CHAR && victim && IS_AFFECTED2(victim, AFF2_SPELL_DEFLECTION)) {
-			if (check_spell_deflection(ch, victim, sn))
-				(*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, vo, target, WEAR_NONE);
-		} else
-			(*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, vo, target, WEAR_NONE);
+            check_improve(ch,sn,false,1);
+            deduct_mana(ch,mana / 2);
+            return;
+        }
 
 
-		check_improve(ch,sn,!ch->casting_recovered,1);
+        deduct_mana(ch,mana);
 
-	}
+        // If casted on a relic puller make the offender PK
+        if (is_pulling_relic(victim) && (type == TAR_CHAR_OFFENSIVE || type == TAR_OBJ_CHAR_OFF))
+            set_pk_timer(ch, victim, PULSE_VIOLENCE * 4);
 
-	if ((type == TAR_CHAR_OFFENSIVE || (type == TAR_OBJ_CHAR_OFF && target == TARGET_CHAR)) &&
-		victim != ch && victim->master != ch && !IS_DEAD(victim)) {
-		CHAR_DATA *vch;
-		CHAR_DATA *vch_next;
+        // If the victim is valid and using a built-in spell, check for spell cast script
+        if( (victim != NULL) )
+        {
+            victim->tempstore[0] = sn;	// JUST the script is used by multiple spells or is a wildcard
+            if( p_number_trigger(sn, 0, victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_SPELLCAST, NULL) )
+            {
+                stop_casting(ch, false);
+                return;
+            }
+        }
 
-		for (vch = ch->in_room->people; vch; vch = vch_next) {
-			vch_next = vch->next_in_room;
-			if (victim == vch && !victim->fighting) {
-				multi_hit(victim, ch, TYPE_UNDEFINED);
-				break;
-			}
-		}
-	}
+        if (target == TARGET_CHAR && victim && IS_AFFECTED2(victim, AFF2_SPELL_DEFLECTION)) {
+            if (check_spell_deflection(ch, victim, sn))
+                (*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, vo, target, WEAR_NONE);
+        } else
+            (*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, vo, target, WEAR_NONE);
 
-	free_string(ch->casting_failure_message);
-	ch->casting_failure_message = NULL;
 
-	free_string(ch->cast_target_name);
-	ch->cast_target_name = NULL;
+        check_improve(ch,sn,!ch->casting_recovered,1);
+
+    }
+
+    if ((type == TAR_CHAR_OFFENSIVE || (type == TAR_OBJ_CHAR_OFF && target == TARGET_CHAR)) &&
+        victim != ch && victim->master != ch && !IS_DEAD(victim)) {
+        CHAR_DATA *vch;
+        CHAR_DATA *vch_next;
+
+        for (vch = ch->in_room->people; vch; vch = vch_next) {
+            vch_next = vch->next_in_room;
+            if (victim == vch && !victim->fighting) {
+                multi_hit(victim, ch, TYPE_UNDEFINED);
+                break;
+            }
+        }
+    }
+
+    free_string(ch->casting_failure_message);
+    ch->casting_failure_message = NULL;
+
+    free_string(ch->cast_target_name);
+    ch->cast_target_name = NULL;
 }
-
 
 /*
  * Lets a character cast spells at targets using a magical object: scroll, wand, etc.
@@ -1445,71 +1485,55 @@ SPELL_FUNC(spell_null)
 
 
 
-
-
-
-/////
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // Find a warpstone(astral) on a character.
 OBJ_DATA *get_warp_stone(CHAR_DATA *ch)
 {
-	OBJ_DATA *obj;
-	OBJ_DATA *objNest;
+    OBJ_DATA *obj;
+    OBJ_DATA *objNest;
+    ITERATOR it;
 
-	for (obj = ch->carrying; obj != NULL; obj = obj->next_content) {
-		if (obj->item_type == ITEM_CATALYST && obj->value[0] == CATALYST_ASTRAL) {
-			return obj;
-		} else if (obj->contains) {
-			for (objNest = obj->contains; objNest; objNest = objNest->next_content) {
-				if (objNest->item_type == ITEM_CATALYST && obj->value[0] == CATALYST_ASTRAL)
-					return objNest;
-			}
-		}
-	}
+    // Check inventory using lcarrying
+    if (ch->lcarrying) {
+        iterator_start(&it, ch->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (obj->item_type == ITEM_CATALYST && obj->value[0] == CATALYST_ASTRAL) {
+                iterator_stop(&it);
+                return obj;
+            } else if (obj->contains) {
+                // Check container contents
+                for (objNest = obj->contains; objNest; objNest = objNest->next_content) {
+                    if (objNest->item_type == ITEM_CATALYST && objNest->value[0] == CATALYST_ASTRAL) {
+                        iterator_stop(&it);
+                        return objNest;
+                    }
+                }
+            }
+        }
+        iterator_stop(&it);
+    }
 
-	return NULL;
+    // Also check worn items using lworn
+    if (ch->lworn) {
+        iterator_start(&it, ch->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (obj->item_type == ITEM_CATALYST && obj->value[0] == CATALYST_ASTRAL) {
+                iterator_stop(&it);
+                return obj;
+            } else if (obj->contains) {
+                // Check worn container contents
+                for (objNest = obj->contains; objNest; objNest = objNest->next_content) {
+                    if (objNest->item_type == ITEM_CATALYST && objNest->value[0] == CATALYST_ASTRAL) {
+                        iterator_stop(&it);
+                        return objNest;
+                    }
+                }
+            }
+        }
+        iterator_stop(&it);
+    }
+
+    return NULL;
 }
-
 
 
 

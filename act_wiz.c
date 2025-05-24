@@ -4423,92 +4423,97 @@ void do_clone(CHAR_DATA *ch, char *argument)
     char arg[MAX_INPUT_LENGTH];
     char *rest;
     CHAR_DATA *mob;
-    OBJ_DATA  *obj;
+    OBJ_DATA *obj;
 
-    rest = one_argument(argument,arg);
+    rest = one_argument(argument, arg);
 
     if (arg[0] == '\0')
     {
-	send_to_char("Clone what?\n\r",ch);
-	return;
+        send_to_char("Clone what?\n\r", ch);
+        return;
     }
 
-    if (!str_prefix(arg,"object"))
+    if (!str_prefix(arg, "object"))
     {
-	mob = NULL;
-	obj = get_obj_here(ch,NULL,rest);
-	if (obj == NULL)
-	{
-	    send_to_char("You don't see that here.\n\r",ch);
-	    return;
-	}
+        mob = NULL;
+        obj = get_obj_here(ch, NULL, rest);
+        if (obj == NULL)
+        {
+            send_to_char("You don't see that here.\n\r", ch);
+            return;
+        }
     }
-    else if (!str_prefix(arg,"mobile") || !str_prefix(arg,"character"))
+    else if (!str_prefix(arg, "mobile") || !str_prefix(arg, "character"))
     {
-	obj = NULL;
-	mob = get_char_room(ch,NULL, rest);
-	if (mob == NULL)
-	{
-	    send_to_char("You don't see that here.\n\r",ch);
-	    return;
-	}
+        obj = NULL;
+        mob = get_char_room(ch, NULL, rest);
+        if (mob == NULL)
+        {
+            send_to_char("You don't see that here.\n\r", ch);
+            return;
+        }
     }
     else /* find both */
     {
-	mob = get_char_room(ch,NULL, argument);
-	obj = get_obj_here(ch,NULL,argument);
-	if (mob == NULL && obj == NULL)
-	{
-	    send_to_char("You don't see that here.\n\r",ch);
-	    return;
-	}
+        mob = get_char_room(ch, NULL, argument);
+        obj = get_obj_here(ch, NULL, argument);
+        if (mob == NULL && obj == NULL)
+        {
+            send_to_char("You don't see that here.\n\r", ch);
+            return;
+        }
     }
 
     /* clone an object */
     if (obj != NULL)
     {
-	OBJ_DATA *clone;
+        OBJ_DATA *clone;
 
-	clone = create_object(obj->pIndexData,0, true);
-	clone_object(obj,clone);
-	if (obj->carried_by != NULL)
-	    obj_to_char(clone,ch);
-	else
-	    obj_to_room(clone,ch->in_room);
- 	recursive_clone(ch,obj,clone);
+        clone = create_object(obj->pIndexData, 0, true);
+        clone_object(obj, clone);
+        if (obj->carried_by != NULL)
+            obj_to_char(clone, ch);
+        else
+            obj_to_room(clone, ch->in_room);
+        recursive_clone(ch, obj, clone);
 
-	act("$n has created $p.",ch, NULL, NULL,clone,NULL, NULL, NULL,TO_ROOM);
-	act("You clone $p.",ch, NULL, NULL,clone, NULL, NULL, NULL,TO_CHAR);
-	wiznet("$N clones $p.",ch,clone,WIZ_LOAD,WIZ_SECURE,get_staff_rank(ch));
-	return;
+        act("$n has created $p.", ch, NULL, NULL, clone, NULL, NULL, NULL, TO_ROOM);
+        act("You clone $p.", ch, NULL, NULL, clone, NULL, NULL, NULL, TO_CHAR);
+        wiznet("$N clones $p.", ch, clone, WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch));
+        return;
     }
     else if (mob != NULL)
     {
-	CHAR_DATA *clone;
-	OBJ_DATA *new_obj;
-	char buf[MAX_STRING_LENGTH];
+        CHAR_DATA *clone;
+        OBJ_DATA *new_obj;
+        OBJ_DATA *carried_obj;
+        char buf[MAX_STRING_LENGTH];
+        ITERATOR it;
 
-	if (!IS_NPC(mob))
-	{
-	    send_to_char("You can only clone mobiles.\n\r",ch);
-	    return;
-	}
+        if (!IS_NPC(mob))
+        {
+            send_to_char("You can only clone mobiles.\n\r", ch);
+            return;
+        }
 
-	clone = clone_mobile(mob);
+        clone = clone_mobile(mob);
 
-	for (obj = mob->carrying; obj != NULL; obj = obj->next_content)
-	{
-		new_obj = create_object(obj->pIndexData,0, true);
-		clone_object(obj,new_obj);
-		recursive_clone(ch,obj,new_obj);
-		obj_to_char(new_obj,clone);
-		new_obj->wear_loc = obj->wear_loc;
-	}
-	char_to_room(clone,ch->in_room);
-        act("$n has created $N.",ch,clone, NULL, NULL, NULL, NULL, NULL,TO_ROOM);
-        act("You clone $N.",ch,clone, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-	sprintf(buf,"$N clones %s.",clone->short_descr);
-	wiznet(buf,ch,NULL,WIZ_LOAD,WIZ_SECURE,get_staff_rank(ch));
+        iterator_start(&it, mob->lcarrying);
+        while ((carried_obj = (OBJ_DATA *)iterator_nextdata(&it)))
+        {
+            new_obj = create_object(carried_obj->pIndexData, 0, true);
+            clone_object(carried_obj, new_obj);
+            recursive_clone(ch, carried_obj, new_obj);
+            obj_to_char(new_obj, clone);
+            new_obj->wear_loc = carried_obj->wear_loc;
+        }
+        iterator_stop(&it);
+
+        char_to_room(clone, ch->in_room);
+        act("$n has created $N.", ch, clone, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+        act("You clone $N.", ch, clone, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        sprintf(buf, "$N clones %s.", clone->short_descr);
+        wiznet(buf, ch, NULL, WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch));
         return;
     }
 }
@@ -7072,7 +7077,7 @@ void do_string(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if ((obj = get_obj_list(ch, arg, ch->carrying)) == NULL)
+    if ((obj = get_obj_list(ch, arg, ch->lcarrying)) == NULL)
     {
 	send_to_char("Nothing like that in your inventory.\n\r", ch);
 	return;
@@ -8496,56 +8501,59 @@ void do_junk(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *victim;
     OBJ_DATA *obj;
-    OBJ_DATA *obj_next;
     char arg[MAX_STRING_LENGTH];
     char arg2[MAX_STRING_LENGTH];
     bool fAll = false;
     bool found = false;
+    ITERATOR it;
 
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
     if (arg[0] == '\0' || arg2[0] == '\0')
     {
-	    send_to_char("Syntax: junk <person> <obj vnum or name> [all]\n\r",
-			    ch);
-	    return;
+        send_to_char("Syntax: junk <person> <obj vnum or name> [all]\n\r",
+                ch);
+        return;
     }
 
     if ((victim = get_char_room(ch, NULL, arg)) == NULL)
     {
-	    send_to_char("They aren't here.\n\r", ch);
-	    return;
+        send_to_char("They aren't here.\n\r", ch);
+        return;
     }
 
     if (argument[0] != '\0'
     && !str_cmp(argument, "all"))
-	    fAll = true;
+        fAll = true;
 
     if (is_number(arg2)
     && get_obj_index(atol(arg2)) == NULL)
     {
-	    send_to_char("No such object even exists.\n\r", ch);
-	    return;
+        send_to_char("No such object even exists.\n\r", ch);
+        return;
     }
 
-    for (obj = victim->carrying; obj != NULL; obj = obj_next)
+    iterator_start(&it, victim->lcarrying);
+    while ((obj = (OBJ_DATA *)iterator_nextdata(&it)))
     {
-	    obj_next = obj->next_content;
-	    if ((is_number(arg2)
- 	         && obj->pIndexData->vnum == atol(arg2))
-	    || (is_name(arg2, obj->name)))
-	    {
-		    act("Extracted $p from $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		    extract_obj(obj);
-		    found = true;
-		    if (!fAll) break;
-	    }
+        if ((is_number(arg2)
+             && obj->pIndexData->vnum == atol(arg2))
+        || (is_name(arg2, obj->name)))
+        {
+            act("Extracted $p from $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+            // Need to remove from the iterator before extracting
+            iterator_remcurrent(&it);
+            extract_obj(obj);
+            found = true;
+            if (!fAll) break;
+        }
     }
+    iterator_stop(&it);
 
     if (found)
-	    send_to_char("Done.\n\r", ch);
+        send_to_char("Done.\n\r", ch);
     else
-	    send_to_char("They are carrying no such object.\n\r", ch);
+        send_to_char("They are carrying no such object.\n\r", ch);
 
     return;
 }

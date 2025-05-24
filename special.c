@@ -1230,6 +1230,8 @@ bool spec_magic_master( CHAR_DATA *ch )
 bool spec_fight_bot( CHAR_DATA *ch ) {
    CHAR_DATA *victim;
    char buf[MAX_STRING_LENGTH];
+   OBJ_DATA *obj;
+   ITERATOR it;
 
    if ( ch->position != POS_FIGHTING )
    {
@@ -1239,7 +1241,7 @@ bool spec_fight_bot( CHAR_DATA *ch ) {
    // Dont want to cast while fighting
    if ( ch->cast > 0 )
    {
-	   return false;
+       return false;
    }
 
    victim = ch->fighting;
@@ -1248,81 +1250,91 @@ bool spec_fight_bot( CHAR_DATA *ch ) {
    {
        sprintf( buf, "'web' %s", victim->name );
        do_function( ch, &do_cast, buf );
-	   return true;
+       return true;
    }
 
    if (ch->hit < (ch->max_hit * .65 ) )
    {
        sprintf( buf, "'heal' me" );
        do_function( ch, &do_cast, buf );
-	   return true;
+       return true;
    }
 
    if (ch->hit < (ch->max_hit * .5 ) )
    {
-	   if (!IS_AFFECTED2(victim, AFF2_SILENCE))
-	   {
-		   sprintf( buf, "'silence' %s", victim->name );
-		   do_function( ch, &do_cast, buf );
-	   	   return true;
-	   }
+       if (!IS_AFFECTED2(victim, AFF2_SILENCE))
+       {
+           sprintf( buf, "'silence' %s", victim->name );
+           do_function( ch, &do_cast, buf );
+           return true;
+       }
    }
 
    if (IS_AFFECTED(ch, AFF_BLIND))
    {
-	   sprintf( buf, "'cure blindness' me" );
-	   do_function( ch, &do_cast, buf );
+       sprintf( buf, "'cure blindness' me" );
+       do_function( ch, &do_cast, buf );
    }
 
    if (!IS_AFFECTED(ch, AFF_SANCTUARY))
    {
-	   OBJ_DATA *obj;
-	   OBJ_DATA *obj_next;
+       // Remove all equipment using lworn
+       if (ch->lworn) {
+           iterator_start(&it, ch->lworn);
+           while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+               if (can_see_obj(ch, obj)) {
+                   // Save the iterator state and remove object
+                   iterator_stop(&it);
+                   remove_obj(ch, obj->wear_loc, true);
+                   // Restart iterator since we modified the list
+                   iterator_start(&it, ch->lworn);
+               }
+           }
+           iterator_stop(&it);
+       }
 
-		for ( obj = ch->carrying; obj != NULL; obj = obj->next_content )
-		{
-
-			if ( obj->wear_loc != WEAR_NONE
-			&&   can_see_obj( ch, obj ))
-			{
-				remove_obj( ch, obj->wear_loc, true );
-			}
-		}
-
-		for ( obj = ch->carrying; obj != NULL; obj = obj_next )
-		{
-			obj_next = obj->next_content;
-			if ( obj->wear_loc == WEAR_NONE && can_see_obj( ch, obj ) )
-			wear_obj( ch, obj, false );
-		}
+       // Wear all inventory items using lcarrying
+       if (ch->lcarrying) {
+           iterator_start(&it, ch->lcarrying);
+           while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+               if (obj->wear_loc == WEAR_NONE && can_see_obj(ch, obj)) {
+                   // Save the iterator state and wear object
+                   iterator_stop(&it);
+                   wear_obj(ch, obj, false);
+                   // Restart iterator since we modified the list
+                   iterator_start(&it, ch->lcarrying);
+               }
+           }
+           iterator_stop(&it);
+       }
    }
 
    if (!IS_AFFECTED(victim, AFF_BLIND))
    {
        sprintf( buf, "'blindness' %s", victim->name );
        do_function( ch, &do_cast, buf );
-	   return true;
+       return true;
    }
 
    if ( victim->cast > 0 )
    {
        sprintf( buf, "'counterspell' %s", victim->name );
        do_function( ch, &do_cast, buf );
-	   return true;
+       return true;
    }
 
    if (!IS_AFFECTED(victim, AFF_POISON))
    {
        sprintf( buf, "'poison' %s", victim->name );
        do_function( ch, &do_cast, buf );
-	   return true;
+       return true;
    }
 
    if (!IS_AFFECTED(victim, AFF_PLAGUE))
    {
        sprintf( buf, "'plague' %s", victim->name );
        do_function( ch, &do_cast, buf );
-	   return true;
+       return true;
    }
 
    sprintf( buf, "'magic missile' %s", victim->name );
@@ -1332,102 +1344,114 @@ bool spec_fight_bot( CHAR_DATA *ch ) {
 }
 
 bool spec_pirate( CHAR_DATA *ch ) {
-	CHAR_DATA *victim;
-	char buf[MAX_STRING_LENGTH];
+    CHAR_DATA *victim;
+    char buf[MAX_STRING_LENGTH];
+    OBJ_DATA *obj;
+    ITERATOR it;
 
-	if ( ch->position != POS_FIGHTING )
-	{
-		return false;
-	}
+    if ( ch->position != POS_FIGHTING )
+    {
+        return false;
+    }
 
-	// Dont want to cast while fighting
-	if ( ch->cast > 0 )
-	{
-		return false;
-	}
+    // Dont want to cast while fighting
+    if ( ch->cast > 0 )
+    {
+        return false;
+    }
 
-	victim = ch->fighting;
+    victim = ch->fighting;
 
-	if (!IS_AFFECTED(victim, AFF2_SILENCE) && number_percent() < 2)
-	{
-		sprintf( buf, "'silence' %s", victim->name );
-		do_function( ch, &do_cast, buf );
-		return true;
-	}
+    if (!IS_AFFECTED(victim, AFF2_SILENCE) && number_percent() < 2)
+    {
+        sprintf( buf, "'silence' %s", victim->name );
+        do_function( ch, &do_cast, buf );
+        return true;
+    }
 
-	if (!IS_AFFECTED(victim, AFF_WEB) && number_percent() < 5)
-	{
-		sprintf( buf, "'web' %s", victim->name );
-		do_function( ch, &do_cast, buf );
-		return true;
-	}
+    if (!IS_AFFECTED(victim, AFF_WEB) && number_percent() < 5)
+    {
+        sprintf( buf, "'web' %s", victim->name );
+        do_function( ch, &do_cast, buf );
+        return true;
+    }
 
-	if (ch->hit < (ch->max_hit * .65 ) && number_percent() < 5)
-	{
-		sprintf( buf, "'cure critical' me" );
-		do_function( ch, &do_cast, buf );
-		return true;
-	}
+    if (ch->hit < (ch->max_hit * .65 ) && number_percent() < 5)
+    {
+        sprintf( buf, "'cure critical' me" );
+        do_function( ch, &do_cast, buf );
+        return true;
+    }
 
-	if (IS_AFFECTED(ch, AFF_BLIND) && number_percent() < 5)
-	{
-		sprintf( buf, "'cure blindness' me" );
-		do_function( ch, &do_cast, buf );
-		return true;
-	}
+    if (IS_AFFECTED(ch, AFF_BLIND) && number_percent() < 5)
+    {
+        sprintf( buf, "'cure blindness' me" );
+        do_function( ch, &do_cast, buf );
+        return true;
+    }
 
-	if (!IS_AFFECTED(ch, AFF_SANCTUARY))
-	{
-		OBJ_DATA *obj;
-		OBJ_DATA *obj_next;
+    if (!IS_AFFECTED(ch, AFF_SANCTUARY))
+    {
+        // Remove all equipment using lworn
+        if (ch->lworn) {
+            iterator_start(&it, ch->lworn);
+            while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+                if (can_see_obj(ch, obj)) {
+                    // Save the iterator state and remove object
+                    iterator_stop(&it);
+                    remove_obj(ch, obj->wear_loc, true);
+                    // Restart iterator since we modified the list
+                    iterator_start(&it, ch->lworn);
+                }
+            }
+            iterator_stop(&it);
+        }
 
-		for ( obj = ch->carrying; obj != NULL; obj = obj->next_content )
-		{
+        // Wear all inventory items using lcarrying
+        if (ch->lcarrying) {
+            iterator_start(&it, ch->lcarrying);
+            while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+                if (obj->wear_loc == WEAR_NONE && can_see_obj(ch, obj)) {
+                    // Save the iterator state and wear object
+                    iterator_stop(&it);
+                    wear_obj(ch, obj, false);
+                    // Restart iterator since we modified the list
+                    iterator_start(&it, ch->lcarrying);
+                }
+            }
+            iterator_stop(&it);
+        }
+    }
 
-			if ( obj->wear_loc != WEAR_NONE
-					&&   can_see_obj( ch, obj ))
-			{
-				remove_obj( ch, obj->wear_loc, true );
-			}
-		}
+    if (!IS_AFFECTED(victim, AFF_BLIND) && number_percent() < 5)
+    {
+        sprintf( buf, "'blindness' %s", victim->name );
+        do_function( ch, &do_cast, buf );
+        return true;
+    }
 
-		for ( obj = ch->carrying; obj != NULL; obj = obj_next )
-		{
-			obj_next = obj->next_content;
-			if ( obj->wear_loc == WEAR_NONE && can_see_obj( ch, obj ) )
-				wear_obj( ch, obj, false );
-		}
-	}
+    if ( victim->cast > 0 && number_percent() < 5 )
+    {
+        sprintf( buf, "'counterspell' %s", victim->name );
+        do_function( ch, &do_cast, buf );
+        return true;
+    }
 
-	if (!IS_AFFECTED(victim, AFF_BLIND) && number_percent() < 5)
-	{
-		sprintf( buf, "'blindness' %s", victim->name );
-		do_function( ch, &do_cast, buf );
-		return true;
-	}
+    if (!IS_AFFECTED(victim, AFF_POISON) && number_percent() < 5)
+    {
+        sprintf( buf, "'poison' %s", victim->name );
+        do_function( ch, &do_cast, buf );
+        return true;
+    }
 
-	if ( victim->cast > 0 && number_percent() < 5 )
-	{
-		sprintf( buf, "'counterspell' %s", victim->name );
-		do_function( ch, &do_cast, buf );
-		return true;
-	}
+    if (!IS_AFFECTED(victim, AFF_PLAGUE) && number_percent() < 5)
+    {
+        sprintf( buf, "'plague' %s", victim->name );
+        do_function( ch, &do_cast, buf );
+        return true;
+    }
 
-	if (!IS_AFFECTED(victim, AFF_POISON) && number_percent() < 5)
-	{
-		sprintf( buf, "'poison' %s", victim->name );
-		do_function( ch, &do_cast, buf );
-		return true;
-	}
-
-	if (!IS_AFFECTED(victim, AFF_PLAGUE) && number_percent() < 5)
-	{
-		sprintf( buf, "'plague' %s", victim->name );
-		do_function( ch, &do_cast, buf );
-		return true;
-	}
-
-   return true;
+    return true;
 }
 
 bool spec_pirate_hunter( CHAR_DATA *ch ) {

@@ -448,58 +448,83 @@ SPELL_FUNC(spell_light_shroud)
 
 SPELL_FUNC(spell_remove_curse)
 {
-	CHAR_DATA *victim;
-	OBJ_DATA *obj;
-	bool found = false;
+    CHAR_DATA *victim;
+    OBJ_DATA *obj;
+    bool found = false;
+    ITERATOR it;
 
-	/* do object cases first */
-	if (target == TARGET_OBJ) {
-		obj = (OBJ_DATA *) vo;
+    /* do object cases first */
+    if (target == TARGET_OBJ) {
+        obj = (OBJ_DATA *) vo;
 
-		if (IS_OBJ_STAT(obj,ITEM_NODROP) || IS_OBJ_STAT(obj,ITEM_NOREMOVE) || IS_OBJ_STAT(obj, ITEM_EVIL)) {
-			if (!IS_OBJ_STAT(obj,ITEM_NOUNCURSE) && !saves_dispel(ch, NULL, obj->level)) {
-				AFFECT_DATA *paf;
+        if (IS_OBJ_STAT(obj,ITEM_NODROP) || IS_OBJ_STAT(obj,ITEM_NOREMOVE) || IS_OBJ_STAT(obj, ITEM_EVIL)) {
+            if (!IS_OBJ_STAT(obj,ITEM_NOUNCURSE) && !saves_dispel(ch, NULL, obj->level)) {
+                AFFECT_DATA *paf;
 
-				REMOVE_BIT(obj->extra[0],ITEM_NODROP);
-				REMOVE_BIT(obj->extra[0],ITEM_NOREMOVE);
+                REMOVE_BIT(obj->extra[0],ITEM_NODROP);
+                REMOVE_BIT(obj->extra[0],ITEM_NOREMOVE);
 
-				paf = affect_find(obj->affected,gsn_curse);
-				if (!saves_dispel(ch, NULL, paf ? paf->level : obj->level)) {
-					if (paf) affect_remove_obj(obj,paf);
-					REMOVE_BIT(obj->extra[0],ITEM_EVIL);
-				}
+                paf = affect_find(obj->affected,gsn_curse);
+                if (!saves_dispel(ch, NULL, paf ? paf->level : obj->level)) {
+                    if (paf) affect_remove_obj(obj,paf);
+                    REMOVE_BIT(obj->extra[0],ITEM_EVIL);
+                }
 
-				act("$p glows blue.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
-			} else
-				act("The curse on $p is beyond your power.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-			return true;
-		} else
-			act("There doesn't seem to be a curse on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+                act("$p glows blue.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+            } else
+                act("The curse on $p is beyond your power.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+            return true;
+        } else
+            act("There doesn't seem to be a curse on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 
-		return false;
-	}
+        return false;
+    }
 
-	/* characters */
-	victim = (CHAR_DATA *) vo;
+    /* characters */
+    victim = (CHAR_DATA *) vo;
 
-	if (check_dispel(ch,victim,gsn_curse)) {
-		send_to_char("You feel better.\n\r",victim);
-		act("$n looks more relaxed.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
-	}
+    if (check_dispel(ch,victim,gsn_curse)) {
+        send_to_char("You feel better.\n\r",victim);
+        act("$n looks more relaxed.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+    }
 
-	for (obj = victim->carrying; (obj != NULL && !found); obj = obj->next_content) {
-		if ((IS_OBJ_STAT(obj,ITEM_NODROP) || IS_OBJ_STAT(obj,ITEM_NOREMOVE)) && !IS_OBJ_STAT(obj,ITEM_NOUNCURSE)) {
-			/* attempt to remove curse */
-			if (!saves_dispel(ch,NULL,obj->level)) {
-				found = true;
-				REMOVE_BIT(obj->extra[0],ITEM_NODROP);
-				REMOVE_BIT(obj->extra[0],ITEM_NOREMOVE);
-				act("Your $p glows blue.",victim, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-				act("$n's $p glows blue.",victim, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
-			}
-		}
-	}
-	return true;
+    // Check items in inventory using lcarrying
+    if (victim->lcarrying) {
+        iterator_start(&it, victim->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it)) && !found) {
+            if ((IS_OBJ_STAT(obj,ITEM_NODROP) || IS_OBJ_STAT(obj,ITEM_NOREMOVE)) && !IS_OBJ_STAT(obj,ITEM_NOUNCURSE)) {
+                /* attempt to remove curse */
+                if (!saves_dispel(ch,NULL,obj->level)) {
+                    found = true;
+                    REMOVE_BIT(obj->extra[0],ITEM_NODROP);
+                    REMOVE_BIT(obj->extra[0],ITEM_NOREMOVE);
+                    act("Your $p glows blue.",victim, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+                    act("$n's $p glows blue.",victim, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
+                }
+            }
+        }
+        iterator_stop(&it);
+    }
+
+    // Also check worn equipment
+    if (!found && victim->lworn) {
+        iterator_start(&it, victim->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it)) && !found) {
+            if ((IS_OBJ_STAT(obj,ITEM_NODROP) || IS_OBJ_STAT(obj,ITEM_NOREMOVE)) && !IS_OBJ_STAT(obj,ITEM_NOUNCURSE)) {
+                /* attempt to remove curse */
+                if (!saves_dispel(ch,NULL,obj->level)) {
+                    found = true;
+                    REMOVE_BIT(obj->extra[0],ITEM_NODROP);
+                    REMOVE_BIT(obj->extra[0],ITEM_NOREMOVE);
+                    act("Your $p glows blue.",victim, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+                    act("$n's $p glows blue.",victim, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
+                }
+            }
+        }
+        iterator_stop(&it);
+    }
+
+    return true;
 }
 
 SPELL_FUNC(spell_sanctuary)

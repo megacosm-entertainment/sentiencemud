@@ -179,671 +179,677 @@ OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, char *questgiver, long vnum,
 
 void do_quest(CHAR_DATA *ch, char *argument)
 {
-	CHAR_DATA *mob = NULL;
-	OBJ_DATA *obj = NULL;
-	ROOM_INDEX_DATA *room = NULL;
-//	OBJ_DATA *obj = NULL;
-	char buf[MAX_STRING_LENGTH];
-	char arg1[MAX_INPUT_LENGTH];
-	char arg2[MAX_INPUT_LENGTH];
+    CHAR_DATA *mob = NULL;
+    OBJ_DATA *obj = NULL;
+    ROOM_INDEX_DATA *room = NULL;
+    char buf[MAX_STRING_LENGTH];
+    char arg1[MAX_INPUT_LENGTH];
+    char arg2[MAX_INPUT_LENGTH];
+    ITERATOR it;
 
-	argument = one_argument(argument, arg1);
-	argument = one_argument(argument, arg2);
+    argument = one_argument(argument, arg1);
+    argument = one_argument(argument, arg2);
 
-	if (arg1[0] == '\0')
-	{
-		send_to_char("QUEST commands: POINTS INFO TIME REQUEST CANCEL COMPLETE.\n\r", ch);
-		send_to_char("For more information, type 'HELP QUEST'.\n\r",ch);
-		return;
-	}
+    if (arg1[0] == '\0')
+    {
+        send_to_char("QUEST commands: POINTS INFO TIME REQUEST CANCEL COMPLETE.\n\r", ch);
+        send_to_char("For more information, type 'HELP QUEST'.\n\r",ch);
+        return;
+    }
 
-	//
-	// QUEST INFO
-	//
-	if (!str_cmp(arg1, "info"))
-	{
-		QUEST_PART_DATA *part;
-		int i;
-		int total_parts;
-		bool totally_complete = false;
-		bool found = false;
+    //
+    // QUEST INFO
+    //
+    if (!str_cmp(arg1, "info"))
+    {
+        QUEST_PART_DATA *part;
+        int i;
+        int total_parts;
+        bool totally_complete = false;
+        bool found = false;
 
-		total_parts = 0;
+        total_parts = 0;
 
-		if (ch->quest == NULL)
-		{
-			send_to_char("You are not on a quest.\n\r", ch);
-			return;
-		}
+        if (ch->quest == NULL)
+        {
+            send_to_char("You are not on a quest.\n\r", ch);
+            return;
+        }
 
-		if (ch->quest->generating)
-		{
-			send_to_char("You are still waiting for your quest.\n\r",ch);
-			return;
-		}
+        if (ch->quest->generating)
+        {
+            send_to_char("You are still waiting for your quest.\n\r",ch);
+            return;
+        }
 
-		part = ch->quest->parts;
-		while(part != NULL)
-		{
-			if (!part->complete)
-				found = true;
-			total_parts++;
-			part = part->next;
-		}
+        part = ch->quest->parts;
+        while(part != NULL)
+        {
+            if (!part->complete)
+                found = true;
+            total_parts++;
+            part = part->next;
+        }
 
-		if (!found)
-			totally_complete = true;
+        if (!found)
+            totally_complete = true;
 
-		i = 1;
-		for (part = ch->quest->parts; part != NULL; part = part->next, i++)
-		{
-			if (part->complete)
-			{
-				sprintf(buf, "You have completed task {Y%d{x of your quest!\n\r", i);
-				send_to_char(buf, ch);
-			}
-			else
-			{
-				sprintf(buf, "Task {Y%d{x of your quest is not complete.\n\r", i);
-				totally_complete = false;
-				send_to_char(buf, ch);
-			}
-		}
+        i = 1;
+        for (part = ch->quest->parts; part != NULL; part = part->next, i++)
+        {
+            if (part->complete)
+            {
+                sprintf(buf, "You have completed task {Y%d{x of your quest!\n\r", i);
+                send_to_char(buf, ch);
+            }
+            else
+            {
+                sprintf(buf, "Task {Y%d{x of your quest is not complete.\n\r", i);
+                totally_complete = false;
+                send_to_char(buf, ch);
+            }
+        }
 
-		if (totally_complete)
-		{
-			send_to_char("{YYour quest is complete!{x\n\r"
-				"Turn quest in before your time runs out!\n\r", ch);
-		}
-		return;
-	}
-
-
-	//
-	// QUEST POINTS
-	//
-	if (!str_cmp(arg1, "points"))
-	{
-		sprintf(buf, "You have {Y%d{x quest points.\n\r", ch->questpoints);
-		send_to_char(buf, ch);
-		return;
-	}
+        if (totally_complete)
+        {
+            send_to_char("{YYour quest is complete!{x\n\r"
+                "Turn quest in before your time runs out!\n\r", ch);
+        }
+        return;
+    }
 
 
-	//
+    //
+    // QUEST POINTS
+    //
+    if (!str_cmp(arg1, "points"))
+    {
+        sprintf(buf, "You have {Y%d{x quest points.\n\r", ch->questpoints);
+        send_to_char(buf, ch);
+        return;
+    }
+
+
+    //
     // Quest time
     //
-	if (!str_cmp(arg1, "time"))
-	{
-		if (!IS_QUESTING(ch))
-		{
-			if (ch->nextquest > 1)
-			{
-				sprintf(buf, "There are %d minutes remaining until you can "
-					"go on another quest.\n\r", ch->nextquest);
-				send_to_char(buf, ch);
-			}
-			else if (ch->nextquest == 1)
-			{
-				sprintf(buf, "There is less than a minute remaining until "
-					"you can go on another quest.\n\r");
-				send_to_char(buf, ch);
-			}
-			else if (ch->nextquest == 0)
-				send_to_char("You aren't currently on a quest.\n\r",ch);
-		}
-		else if (ch->quest->generating)
-		{
-			send_to_char("You are still waiting for your quest.\n\r"
-				"If you wish to abandon the pending quest, use QUEST CANCEL.\n\r",ch);
-		}
-		else if (ch->countdown > 0)
-		{
-			sprintf(buf, "Time left for current quest: {Y%d{x minutes.\n\r",
-				ch->countdown);
-			send_to_char(buf, ch);
-		}
-		return;
-	}
+    if (!str_cmp(arg1, "time"))
+    {
+        if (!IS_QUESTING(ch))
+        {
+            if (ch->nextquest > 1)
+            {
+                sprintf(buf, "There are %d minutes remaining until you can "
+                    "go on another quest.\n\r", ch->nextquest);
+                send_to_char(buf, ch);
+            }
+            else if (ch->nextquest == 1)
+            {
+                sprintf(buf, "There is less than a minute remaining until "
+                    "you can go on another quest.\n\r");
+                send_to_char(buf, ch);
+            }
+            else if (ch->nextquest == 0)
+                send_to_char("You aren't currently on a quest.\n\r",ch);
+        }
+        else if (ch->quest->generating)
+        {
+            send_to_char("You are still waiting for your quest.\n\r"
+                "If you wish to abandon the pending quest, use QUEST CANCEL.\n\r",ch);
+        }
+        else if (ch->countdown > 0)
+        {
+            sprintf(buf, "Time left for current quest: {Y%d{x minutes.\n\r",
+                ch->countdown);
+            send_to_char(buf, ch);
+        }
+        return;
+    }
 
-	///////////////////////////////////////////
-	//
-	// Quest buy - [DEPRECATED] - leaving in for the time being
-	//
+    ///////////////////////////////////////////
+    //
+    // Quest buy - [DEPRECATED] - leaving in for the time being
+    //
     if (!str_cmp(arg1, "buy"))
     {
-		send_to_char("{YQUEST BUY has been deprecated.  Please use the BUY command instead.\n\r", ch);
-		return;
+        send_to_char("{YQUEST BUY has been deprecated.  Please use the BUY command instead.\n\r", ch);
+        return;
     }
-	//
-	// Quest sell - [DEPRECATED] - leaving in for the time being
-	//
+    //
+    // Quest sell - [DEPRECATED] - leaving in for the time being
+    //
     if (!str_cmp(arg1, "sell"))
     {
-		send_to_char("{YQUEST SELL has been deprecated.  Please use the SELL command instead.\n\r", ch);
-		return;
+        send_to_char("{YQUEST SELL has been deprecated.  Please use the SELL command instead.\n\r", ch);
+        return;
     }
-	//
-	// Quest inspect - [DEPRECATED] - leaving in for the time being
-	//
+    //
+    // Quest inspect - [DEPRECATED] - leaving in for the time being
+    //
     if (!str_cmp(arg1, "inspect"))
     {
-		send_to_char("{YQUEST INSPECT has been deprecated.  Please use the INSPECT command instead.\n\r", ch);
-		return;
+        send_to_char("{YQUEST INSPECT has been deprecated.  Please use the INSPECT command instead.\n\r", ch);
+        return;
     }
-	//
-	// Quest renew - [DEPRECATED] - leaving in for the time being
-	//
+    //
+    // Quest renew - [DEPRECATED] - leaving in for the time being
+    //
     if (!str_cmp(arg1, "renew"))
     {
-		send_to_char("{YQUEST RENEW has been deprecated.  Please use the RENEW command instead.\n\r", ch);
-		return;
+        send_to_char("{YQUEST RENEW has been deprecated.  Please use the RENEW command instead.\n\r", ch);
+        return;
     }
-	//
-	// Quest list - [DEPRECATED] - leaving in for the time being
-	//
+    //
+    // Quest list - [DEPRECATED] - leaving in for the time being
+    //
     if (!str_cmp(arg1, "list"))
     {
-		send_to_char("{YQUEST LIST has been deprecated.  Please use the LIST command instead.\n\r", ch);
-		return;
+        send_to_char("{YQUEST LIST has been deprecated.  Please use the LIST command instead.\n\r", ch);
+        return;
     }
-	///////////////////////////////////////////
+    ///////////////////////////////////////////
 
-	//
-	// Quest Request
-	//
+    //
+    // Quest Request
+    //
     if (!str_cmp(arg1, "request"))
     {
-		/* For the following functions, a QM must be present. */
-		for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
-		{
-			if (IS_NPC(mob) && mob->pIndexData->pQuestor != NULL)
-				break;
-		}
+        /* For the following functions, a QM must be present. */
+        for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
+        {
+            if (IS_NPC(mob) && mob->pIndexData->pQuestor != NULL)
+                break;
+        }
 
-		if( mob == NULL )
-		{
-			send_to_char("You can't do that here\n\r", ch);
-			return;
-		}
+        if( mob == NULL )
+        {
+            send_to_char("You can't do that here\n\r", ch);
+            return;
+        }
 
-		if (!IS_AWAKE(ch))
-		{
-			send_to_char("In your dreams, or what?\n\r", ch);
-			return;
-		}
+        if (!IS_AWAKE(ch))
+        {
+            send_to_char("In your dreams, or what?\n\r", ch);
+            return;
+        }
 
-		act("$n asks $N for a quest.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		act ("You ask $N for a quest.",ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        act("$n asks $N for a quest.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+        act ("You ask $N for a quest.",ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
-		if (IS_QUESTING(ch))
-		{
-			sprintf(buf, "But you're already on a quest!");
-			do_say(mob, buf);
-			return;
-		}
+        if (IS_QUESTING(ch))
+        {
+            sprintf(buf, "But you're already on a quest!");
+            do_say(mob, buf);
+            return;
+        }
 
-		if (IS_DEAD(ch))
-		{
-			sprintf(buf, "You must come back to the world of the living first, %s.", HANDLE(ch));
-			do_say(mob, buf);
-			return;
-		}
+        if (IS_DEAD(ch))
+        {
+            sprintf(buf, "You must come back to the world of the living first, %s.", HANDLE(ch));
+            do_say(mob, buf);
+            return;
+        }
 
-		if (ch->nextquest > 0 && !IS_IMMORTAL(ch) && game_settings.telnet_port != PORT_RAE)
-		{
-			sprintf(buf, "You're very brave, %s, but let someone else have a chance.", ch->name);
-			if (mob == NULL)
-			{
-				sprintf(buf, "do_quest(), quest request: MOB Was null, %s.\n\r", ch->name);
-				bug (buf, 0);
-				return;
-			}
+        if (ch->nextquest > 0 && !IS_IMMORTAL(ch) && game_settings.telnet_port != PORT_RAE)
+        {
+            sprintf(buf, "You're very brave, %s, but let someone else have a chance.", ch->name);
+            if (mob == NULL)
+            {
+                sprintf(buf, "do_quest(), quest request: MOB Was null, %s.\n\r", ch->name);
+                bug (buf, 0);
+                return;
+            }
 
-			do_say(mob, buf);
-			sprintf(buf, "Come back later.");
-			do_say(mob, buf);
-			return;
-		}
+            do_say(mob, buf);
+            sprintf(buf, "Come back later.");
+            do_say(mob, buf);
+            return;
+        }
 
-		ch->quest = new_quest();
-		ch->quest->questgiver_type = QUESTOR_MOB;
-		ch->quest->questgiver = mob->pIndexData->vnum;
-		ch->quest->questreceiver_type = QUESTOR_MOB;
-		ch->quest->questreceiver = mob->pIndexData->vnum;
+        ch->quest = new_quest();
+        ch->quest->questgiver_type = QUESTOR_MOB;
+        ch->quest->questgiver = mob->pIndexData->vnum;
+        ch->quest->questreceiver_type = QUESTOR_MOB;
+        ch->quest->questreceiver = mob->pIndexData->vnum;
 
-		if (generate_quest(ch, mob))
-		{
-			ch->quest->generating = false;
+        if (generate_quest(ch, mob))
+        {
+            ch->quest->generating = false;
 
-			sprintf(buf, "Thank you, brave %s!", HANDLE(ch));
-			do_say(mob, buf);
-		}
-		else
-		{
-			sprintf(buf, "I'm sorry, %s, but I don't have any quests for you to do. Try again later.", ch->name);
-			ch->nextquest = 3;
-			do_say(mob, buf);
-			free_quest(ch->quest);
-			ch->quest = NULL;
-			return;
-		}
+            sprintf(buf, "Thank you, brave %s!", HANDLE(ch));
+            do_say(mob, buf);
+        }
+        else
+        {
+            sprintf(buf, "I'm sorry, %s, but I don't have any quests for you to do. Try again later.", ch->name);
+            ch->nextquest = 3;
+            do_say(mob, buf);
+            free_quest(ch->quest);
+            ch->quest = NULL;
+            return;
+        }
 
-		if (IS_QUESTING(ch))
-		{
-			QUEST_PART_DATA *qp;
+        if (IS_QUESTING(ch))
+        {
+            QUEST_PART_DATA *qp;
 
-			ch->countdown = 0;
+            ch->countdown = 0;
 
-			for (qp = ch->quest->parts; qp != NULL; qp = qp->next)
-				ch->countdown += qp->minutes;
+            for (qp = ch->quest->parts; qp != NULL; qp = qp->next)
+                ch->countdown += qp->minutes;
 
-			sprintf(buf, "You have %d minutes to complete this quest.", ch->countdown);
-			do_say(mob, buf);
-		}
+            sprintf(buf, "You have %d minutes to complete this quest.", ch->countdown);
+            do_say(mob, buf);
+        }
 
-		return;
-	}
+        return;
+    }
 
-	//
-	// Quest cancel
-	//
-	if (!str_cmp(arg1, "cancel"))
-	{
-		if (!IS_AWAKE(ch))
-		{
-			send_to_char("In your dreams, or what?\n\r", ch);
-			return;
-		}
+    //
+    // Quest cancel
+    //
+    if (!str_cmp(arg1, "cancel"))
+    {
+        if (!IS_AWAKE(ch))
+        {
+            send_to_char("In your dreams, or what?\n\r", ch);
+            return;
+        }
 
-		if( ch->quest == NULL )
-		{
-			send_to_char("You are not on a quest.\n\r", ch);
-			return;
-		}
+        if( ch->quest == NULL )
+        {
+            send_to_char("You are not on a quest.\n\r", ch);
+            return;
+        }
 
-		if( ch->quest->generating )
-		{
-			ch->countdown = 0;
-			ch->nextquest = 0;
-			free_quest(ch->quest);
-			ch->quest = NULL;
-			send_to_char("Pending quest cancelled.\n\r", ch);
-		}
-		else
-		{
-			// Check for the questGIVER
-			switch(ch->quest->questgiver_type)
-			{
-			case QUESTOR_MOB:
-				for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
-				{
-					if (IS_NPC(mob) && mob->pIndexData->vnum == ch->quest->questgiver)
-						break;
-				}
-				break;
+        if( ch->quest->generating )
+        {
+            ch->countdown = 0;
+            ch->nextquest = 0;
+            free_quest(ch->quest);
+            ch->quest = NULL;
+            send_to_char("Pending quest cancelled.\n\r", ch);
+        }
+        else
+        {
+            // Check for the questGIVER
+            switch(ch->quest->questgiver_type)
+            {
+            case QUESTOR_MOB:
+                for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
+                {
+                    if (IS_NPC(mob) && mob->pIndexData->vnum == ch->quest->questgiver)
+                        break;
+                }
+                break;
 
-			case QUESTOR_OBJ:
-				// Check inventory first?
-				for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-				{
-					if (obj->pIndexData->vnum == ch->quest->questgiver)
-						break;
-				}
-				if( obj == NULL )
-				{
-					for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
-					{
-						if (obj->pIndexData->vnum == ch->quest->questgiver)
-							break;
-					}
-				}
-				break;
+            case QUESTOR_OBJ:
+                // Check inventory using lcarrying
+                if (ch->lcarrying) {
+                    iterator_start(&it, ch->lcarrying);
+                    while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+                        if (obj->pIndexData->vnum == ch->quest->questgiver) {
+                            iterator_stop(&it);
+                            break;
+                        }
+                    }
+                    iterator_stop(&it);
+                }
+                
+                // If not found in inventory, check room contents
+                if (obj == NULL) {
+                    for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content) {
+                        if (obj->pIndexData->vnum == ch->quest->questgiver)
+                            break;
+                    }
+                }
+                break;
 
-			case QUESTOR_ROOM:
-				if( !ch->in_room->wilds && !ch->in_room->source &&
-					ch->in_room->vnum == ch->quest->questgiver )
-				{
-					room = ch->in_room;
-					break;
-				}
-				break;
-			}
+            case QUESTOR_ROOM:
+                if (!ch->in_room->wilds && !ch->in_room->source &&
+                    ch->in_room->vnum == ch->quest->questgiver) {
+                    room = ch->in_room;
+                    break;
+                }
+                break;
+            }
 
-			if( mob )
-			{
-				// Mobs will complain
-				act("$n informs $N $e has cancelled $s quest.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-				act ("You inform $N you have cancelled your quest.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+            if (mob)
+            {
+                // Mobs will complain
+                act("$n informs $N $e has cancelled $s quest.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                act("You inform $N you have cancelled your quest.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
-				sprintf(buf,
-					"I am most displeased with your efforts, %s! This is "
-					"obviously a job for someone with more talent than you.",
-					ch->name);
-				do_say(mob, buf);
+                sprintf(buf,
+                    "I am most displeased with your efforts, %s! This is "
+                    "obviously a job for someone with more talent than you.",
+                    ch->name);
+                do_say(mob, buf);
 
-				free_quest(ch->quest);
-				ch->quest = NULL;
-				ch->countdown = 0;
+                free_quest(ch->quest);
+                ch->quest = NULL;
+                ch->countdown = 0;
 
-				mob->tempstore[0] = 10;
-				p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_CANCEL, NULL);
+                mob->tempstore[0] = 10;
+                p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_QUEST_CANCEL, NULL);
 
-				ch->nextquest = mob->tempstore[0];
-				if(ch->nextquest < 1) ch->nextquest = 1;
-			}
-			else if( obj )
-			{
-				// Objects will not complain by default
+                ch->nextquest = mob->tempstore[0];
+                if (ch->nextquest < 1) ch->nextquest = 1;
+            }
+            else if (obj)
+            {
+                // Objects will not complain by default
 
-				free_quest(ch->quest);
-				ch->quest = NULL;
-				ch->countdown = 0;
+                free_quest(ch->quest);
+                ch->quest = NULL;
+                ch->countdown = 0;
 
-				obj->tempstore[0] = 10;
-				p_percent_trigger( NULL, obj, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_CANCEL, NULL);
+                obj->tempstore[0] = 10;
+                p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_QUEST_CANCEL, NULL);
 
-				ch->nextquest = obj->tempstore[0];
-				if(ch->nextquest < 1) ch->nextquest = 1;
-			}
-			else if( room )
-			{
-				free_quest(ch->quest);
-				ch->quest = NULL;
-				ch->countdown = 0;
+                ch->nextquest = obj->tempstore[0];
+                if (ch->nextquest < 1) ch->nextquest = 1;
+            }
+            else if (room)
+            {
+                free_quest(ch->quest);
+                ch->quest = NULL;
+                ch->countdown = 0;
 
-				room->tempstore[0] = 10;
-				p_percent_trigger( NULL, NULL, room, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_CANCEL, NULL);
+                room->tempstore[0] = 10;
+                p_percent_trigger(NULL, NULL, room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_QUEST_CANCEL, NULL);
 
-				ch->nextquest = room->tempstore[0];
-				if(ch->nextquest < 1) ch->nextquest = 1;
-			}
-			else
-			{
-				send_to_char("You can't do that here\n\r", ch);
-			}
-		}
+                ch->nextquest = room->tempstore[0];
+                if (ch->nextquest < 1) ch->nextquest = 1;
+            }
+            else
+            {
+                send_to_char("You can't do that here\n\r", ch);
+            }
+        }
 
-		return;
-	}
+        return;
+    }
 
-	//
-	// Quest complete
-	//
+    //
+    // Quest complete
+    //
     if (!str_cmp(arg1, "complete"))
     {
-		QUEST_PART_DATA *part;
-		bool found;
-		bool incomplete;
-		int reward;
-		int pointreward;
-		int pracreward;
-		int expreward;
-		int i;
-		int *tempstores;
+        QUEST_PART_DATA *part;
+        bool found;
+        bool incomplete;
+        int reward;
+        int pointreward;
+        int pracreward;
+        int expreward;
+        int i;
+        int *tempstores;
 
-		if (!IS_AWAKE(ch))
-		{
-			send_to_char("In your dreams, or what?\n\r", ch);
-			return;
-		}
+        if (!IS_AWAKE(ch))
+        {
+            send_to_char("In your dreams, or what?\n\r", ch);
+            return;
+        }
 
-		if( ch->quest == NULL || ch->quest->generating )
-		{
-			send_to_char("You are not on a quest.\n\r", ch);
-			return;
-		}
+        if (ch->quest == NULL || ch->quest->generating)
+        {
+            send_to_char("You are not on a quest.\n\r", ch);
+            return;
+        }
 
-		// Check for the questRECEIVER
-		switch(ch->quest->questreceiver_type)
-		{
-		case QUESTOR_MOB:
-			for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
-			{
-				if (IS_NPC(mob) && mob->pIndexData->vnum == ch->quest->questreceiver)
-				{
-					tempstores = mob->tempstore;
-					break;
-				}
-			}
-			break;
+        // Check for the questRECEIVER
+        switch(ch->quest->questreceiver_type)
+        {
+        case QUESTOR_MOB:
+            for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
+            {
+                if (IS_NPC(mob) && mob->pIndexData->vnum == ch->quest->questreceiver)
+                {
+                    tempstores = mob->tempstore;
+                    break;
+                }
+            }
+            break;
 
-		case QUESTOR_OBJ:
-			// Check inventory first?
-			for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-			{
-				if (obj->pIndexData->vnum == ch->quest->questreceiver)
-				{
-					tempstores = obj->tempstore;
-					break;
-				}
-			}
-			if( obj == NULL )
-			{
-				for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
-				{
-					if (obj->pIndexData->vnum == ch->quest->questreceiver)
-					{
-						tempstores = obj->tempstore;
-						break;
-					}
-				}
-			}
-			break;
+        case QUESTOR_OBJ:
+            // Check inventory using lcarrying
+            if (ch->lcarrying) {
+                iterator_start(&it, ch->lcarrying);
+                while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+                    if (obj->pIndexData->vnum == ch->quest->questreceiver) {
+                        tempstores = obj->tempstore;
+                        iterator_stop(&it);
+                        break;
+                    }
+                }
+                iterator_stop(&it);
+            }
+            
+            // If not found in inventory, check room contents
+            if (obj == NULL) {
+                for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content) {
+                    if (obj->pIndexData->vnum == ch->quest->questreceiver) {
+                        tempstores = obj->tempstore;
+                        break;
+                    }
+                }
+            }
+            break;
 
-		case QUESTOR_ROOM:
-			if( !ch->in_room->wilds && !ch->in_room->source &&
-				ch->in_room->vnum == ch->quest->questreceiver )
-			{
-				room = ch->in_room;
-				tempstores = room->tempstore;
-			}
-			break;
-		}
+        case QUESTOR_ROOM:
+            if (!ch->in_room->wilds && !ch->in_room->source &&
+                ch->in_room->vnum == ch->quest->questreceiver) {
+                room = ch->in_room;
+                tempstores = room->tempstore;
+            }
+            break;
+        }
 
-		if( !mob && !obj && !room )
-		{
-			send_to_char("You can't do that here\n\r", ch);
-			return;
-		}
+        if (!mob && !obj && !room)
+        {
+            send_to_char("You can't do that here\n\r", ch);
+            return;
+        }
 
-		if( mob )
-		{
-			act("$n informs $N $e has completed $s quest.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-			act ("You inform $N you have completed your quest.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		}
+        if (mob)
+        {
+            act("$n informs $N $e has completed $s quest.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+            act("You inform $N you have completed your quest.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        }
 
-		found = false;
-		incomplete = false;
-		for (part = ch->quest->parts; part != NULL; part = part->next)
-		{
-			if (part->complete)
-				found = true;
-			if (!part->complete)
-				incomplete = true;
-		}
+        found = false;
+        incomplete = false;
+        for (part = ch->quest->parts; part != NULL; part = part->next)
+        {
+            if (part->complete)
+                found = true;
+            if (!part->complete)
+                incomplete = true;
+        }
 
-		if (!found)
-		{
-			if( mob ) {
-				sprintf(buf,
-					"I am most displeased with your efforts, %s! This is "
-					"obviously a job for someone with more talent than you.",
-					ch->name);
-				do_say(mob, buf);
-			}
+        if (!found)
+        {
+            if (mob) {
+                sprintf(buf,
+                    "I am most displeased with your efforts, %s! This is "
+                    "obviously a job for someone with more talent than you.",
+                    ch->name);
+                do_say(mob, buf);
+            }
 
-			p_percent_trigger( mob, obj, room, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_INCOMPLETE, NULL);
+            p_percent_trigger(mob, obj, room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_QUEST_INCOMPLETE, NULL);
 
-			free_quest(ch->quest);
-			ch->quest = NULL;
-			ch->countdown = 0;
+            free_quest(ch->quest);
+            ch->quest = NULL;
+            ch->countdown = 0;
 
-			tempstores[0] = 10;
-			p_percent_trigger( mob, obj, room, NULL, ch, NULL, NULL,NULL, NULL, TRIG_POSTQUEST, NULL);
+            tempstores[0] = 10;
+            p_percent_trigger(mob, obj, room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_POSTQUEST, NULL);
 
-			ch->nextquest = tempstores[0];
-			if(ch->nextquest < 1) ch->nextquest = 1;
+            ch->nextquest = tempstores[0];
+            if (ch->nextquest < 1) ch->nextquest = 1;
 
-			return;
-		}
+            return;
+        }
 
-		pointreward = 0;
-		reward = 0;
-		pracreward = 0;
-		expreward = 0;
-		i = 0;
+        pointreward = 0;
+        reward = 0;
+        pracreward = 0;
+        expreward = 0;
+        i = 0;
 
-		log_string("quest.c, do_quest: (complete) Checking quest parts...");
+        log_string("quest.c, do_quest: (complete) Checking quest parts...");
 
-		// Add up all the different rewards.
-		for (part = ch->quest->parts; part != NULL; part = part->next)
-		{
-			i++;
+        // Add up all the different rewards.
+        for (part = ch->quest->parts; part != NULL; part = part->next)
+        {
+            i++;
 
-			if (part->complete)
-			{
-				reward += number_range(500, 1000);
-				pointreward += number_range(10,20);
-				expreward += number_range(ch->tot_level*50,
-				ch->tot_level*100);
-				pracreward += 1;
+            if (part->complete)
+            {
+                reward += number_range(500, 1000);
+                pointreward += number_range(10, 20);
+                expreward += number_range(ch->tot_level * 50,
+                                         ch->tot_level * 100);
+                pracreward += 1;
 
-				if (ch->pcdata->second_sub_class_warrior == CLASS_WARRIOR_CRUSADER)
-				{
-					pointreward += 5;
-					if (number_percent() < 10)
-					{
-						pracreward += number_range(0, 1);
-					}
+                if (ch->pcdata->second_sub_class_warrior == CLASS_WARRIOR_CRUSADER)
+                {
+                    pointreward += 5;
+                    if (number_percent() < 10)
+                    {
+                        pracreward += number_range(0, 1);
+                    }
 
-					expreward += number_range(1000,5000);
-				}
-			}
+                    expreward += number_range(1000, 5000);
+                }
+            }
 
-			// If object, return the object.
-			if (part->pObj != NULL)
-			{
-				if (ch == part->pObj->carried_by)
-				{
-					if( mob )
-					{
-						act("You hand $p to $N.",ch, mob, NULL, part->pObj, NULL, NULL, NULL, TO_CHAR);
-						act("$n hands $p to $N.",ch, mob, NULL, part->pObj, NULL, NULL, NULL, TO_ROOM);
-					}
+            // If object, return the object.
+            if (part->pObj != NULL)
+            {
+                if (ch == part->pObj->carried_by)
+                {
+                    if (mob)
+                    {
+                        act("You hand $p to $N.", ch, mob, NULL, part->pObj, NULL, NULL, NULL, TO_CHAR);
+                        act("$n hands $p to $N.", ch, mob, NULL, part->pObj, NULL, NULL, NULL, TO_ROOM);
+                    }
 
-					extract_obj(part->pObj);
+                    extract_obj(part->pObj);
 
-					part->pObj = NULL;
-				}
-			}
-		}
+                    part->pObj = NULL;
+                }
+            }
+        }
 
-		if (!incomplete)
-		{
-			if( mob )
-			{
-				sprintf(buf, "Congratulations on completing your quest!");
-				do_say(mob,buf);
-			}
-			ch->pcdata->quests_completed++;
-		}
-		else
-		{
-			if( mob )
-			{
-				sprintf(buf, "I see you haven't fully completed your quest, "
-					"but I applaud your courage anyway!");
-				do_say(mob,buf);
-			}
-		    pracreward -= number_range(2,5);
-			pointreward -= number_range(10,20);
-			pracreward = UMAX(pracreward,0);
-			pointreward = UMAX(pointreward, 0);
-		}
+        if (!incomplete)
+        {
+            if (mob)
+            {
+                sprintf(buf, "Congratulations on completing your quest!");
+                do_say(mob, buf);
+            }
+            ch->pcdata->quests_completed++;
+        }
+        else
+        {
+            if (mob)
+            {
+                sprintf(buf, "I see you haven't fully completed your quest, "
+                            "but I applaud your courage anyway!");
+                do_say(mob, buf);
+            }
+            pracreward -= number_range(2, 5);
+            pointreward -= number_range(10, 20);
+            pracreward = UMAX(pracreward, 0);
+            pointreward = UMAX(pointreward, 0);
+        }
 
-		tempstores[0] = expreward;			// Experience
-		tempstores[1] = pointreward;		// QP
-		tempstores[2] = pracreward;			// Practices
-		tempstores[3] = reward;				// Silver
-		if(incomplete)
-			p_percent_trigger( mob, obj, room, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_INCOMPLETE, NULL);
-		else
-			p_percent_trigger( mob, obj, room, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_COMPLETE, NULL);
-		expreward = tempstores[0];
-		pointreward = tempstores[1];
-		pracreward = tempstores[2];
-		reward = tempstores[3];
+        tempstores[0] = expreward;			// Experience
+        tempstores[1] = pointreward;		// QP
+        tempstores[2] = pracreward;			// Practices
+        tempstores[3] = reward;				// Silver
+        if (incomplete)
+            p_percent_trigger(mob, obj, room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_QUEST_INCOMPLETE, NULL);
+        else
+            p_percent_trigger(mob, obj, room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_QUEST_COMPLETE, NULL);
+        expreward = tempstores[0];
+        pointreward = tempstores[1];
+        pracreward = tempstores[2];
+        reward = tempstores[3];
 
-		// Clamp to zero
-		expreward = UMAX(expreward,0);
-		reward = UMAX(reward,0);
-		pracreward = UMAX(pracreward,0);
-		pointreward = UMAX(pointreward, 0);
+        // Clamp to zero
+        expreward = UMAX(expreward, 0);
+        reward = UMAX(reward, 0);
+        pracreward = UMAX(pracreward, 0);
+        pointreward = UMAX(pointreward, 0);
 
-		if (boost_table[BOOST_QP].boost != 100)
-			pointreward = (pointreward * boost_table[BOOST_QP].boost)/100;
+        if (boost_table[BOOST_QP].boost != 100)
+            pointreward = (pointreward * boost_table[BOOST_QP].boost) / 100;
 
 
-		if( mob ) {
-			sprintf(buf, "As a reward, I am giving you %d quest points and %d silver.",
-				pointreward, reward);
-			do_say(mob,buf);
-		}
-		else
-		{
-			sprintf(buf, "As a reward, you receive %d quest points and %d silver.\n\r", pointreward, reward);
-			send_to_char(buf, ch);
-		}
+        if (mob) {
+            sprintf(buf, "As a reward, I am giving you %d quest points and %d silver.",
+                    pointreward, reward);
+            do_say(mob, buf);
+        }
+        else
+        {
+            sprintf(buf, "As a reward, you receive %d quest points and %d silver.\n\r", pointreward, reward);
+            send_to_char(buf, ch);
+        }
 
-		// Only display "QUEST POINTS boost!" if a qp boost is active -- Areo
-		if(boost_table[BOOST_QP].boost != 100)
-			send_to_char("{WQUEST POINTS boost!{x\n\r", ch);
+        // Only display "QUEST POINTS boost!" if a qp boost is active -- Areo
+        if (boost_table[BOOST_QP].boost != 100)
+            send_to_char("{WQUEST POINTS boost!{x\n\r", ch);
 
-		ch->silver += reward;
-		ch->questpoints += pointreward;
+        ch->silver += reward;
+        ch->questpoints += pointreward;
 
-		if (number_percent() < 90 && pracreward > 0)
-		{
-			sprintf(buf, "You gain %d practices!\n\r", pracreward);
-			send_to_char(buf, ch);
-			ch->practice += pracreward;
-		} else { /* AO don't nerf it completely */
-			pracreward /= number_range(1,4);
-			pracreward = UMAX(1,pracreward);
+        if (number_percent() < 90 && pracreward > 0)
+        {
+            sprintf(buf, "You gain %d practices!\n\r", pracreward);
+            send_to_char(buf, ch);
+            ch->practice += pracreward;
+        }
+        else { /* AO don't nerf it completely */
+            pracreward /= number_range(1, 4);
+            pracreward = UMAX(1, pracreward);
 
-			sprintf(buf, "You gain %d practices!\n\r", pracreward);
-			send_to_char(buf, ch);
-			ch->practice += pracreward;
-		}
+            sprintf(buf, "You gain %d practices!\n\r", pracreward);
+            send_to_char(buf, ch);
+            ch->practice += pracreward;
+        }
 
-		if(ch->tot_level < 120)
-		{
-			//sprintf(buf, "You gain %d experience points!\n\r", expreward);
-			//send_to_char(buf, ch);
+        if (ch->tot_level < 120)
+        {
+            //sprintf(buf, "You gain %d experience points!\n\r", expreward);
+            //send_to_char(buf, ch);
 
-			gain_exp(ch, expreward, true);
-		}
+            gain_exp(ch, expreward, true);
+        }
 /* Syn - disabling
   send_to_char("You receive 1 military quest point!\n\r", ch);
   award_ship_quest_points(ch->in_room->area->place_flags, ch, 1);
 */
 
-		tempstores[0] = 10;
-		p_percent_trigger( mob, obj, room, NULL, ch, NULL, NULL,NULL, NULL, TRIG_POSTQUEST, NULL);
+        tempstores[0] = 10;
+        p_percent_trigger(mob, obj, room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_POSTQUEST, NULL);
 
-		ch->nextquest = tempstores[0];
-		if(ch->nextquest < 1) ch->nextquest = 1;
+        ch->nextquest = tempstores[0];
+        if (ch->nextquest < 1) ch->nextquest = 1;
 
-		ch->countdown = 0;	// @@@NIB Not doing this was causing nextquest to come up
-							//	10 minutes if nextquest had expired
-		free_quest(ch->quest);
-		ch->quest = NULL;
+        ch->countdown = 0;	// @@@NIB Not doing this was causing nextquest to come up
+                            //	10 minutes if nextquest had expired
+        free_quest(ch->quest);
+        ch->quest = NULL;
     }
     else
     {
-		send_to_char("QUEST commands: POINTS INFO TIME REQUEST CANCEL COMPLETE.\n\r", ch);
-		send_to_char("For more information, type 'HELP QUEST'.\n\r",ch);
+        send_to_char("QUEST commands: POINTS INFO TIME REQUEST CANCEL COMPLETE.\n\r", ch);
+        send_to_char("For more information, type 'HELP QUEST'.\n\r", ch);
     }
 }
 

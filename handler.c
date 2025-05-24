@@ -51,6 +51,7 @@
 #include "openssl/evp.h"
 
 extern LLIST *loaded_instances;
+bool is_llist(const void *ptr);
 
 // from act_info.c
 void show_char_to_char args((CHAR_DATA * list, CHAR_DATA * ch, CHAR_DATA * victim));
@@ -988,74 +989,75 @@ bool is_exact_name(char *str, char *namelist)
 
 void affect_fix_char(CHAR_DATA *ch)
 {
-	AFFECT_DATA *paf;
-	OBJ_DATA *obj;
+    AFFECT_DATA *paf;
+    OBJ_DATA *obj;
+    ITERATOR it;
 
-	// Reset flags
-	ch->affected_by[0] = ch->affected_by_perm[0];
-	ch->affected_by[1] = ch->affected_by_perm[1];
-	ch->imm_flags = ch->imm_flags_perm;
-	ch->res_flags = ch->res_flags_perm;
-	ch->vuln_flags = ch->vuln_flags_perm;
+    // Reset flags
+    ch->affected_by[0] = ch->affected_by_perm[0];
+    ch->affected_by[1] = ch->affected_by_perm[1];
+    ch->imm_flags = ch->imm_flags_perm;
+    ch->res_flags = ch->res_flags_perm;
+    ch->vuln_flags = ch->vuln_flags_perm;
 
-	ch->deathsight_vision = ( IS_SET(ch->affected_by_perm[1], AFF2_DEATHSIGHT) ) ? ch->tot_level : 0;
+    ch->deathsight_vision = ( IS_SET(ch->affected_by_perm[1], AFF2_DEATHSIGHT) ) ? ch->tot_level : 0;
 
-	// Iterate through affects on character
-	for(paf = ch->affected; paf; paf = paf->next)
-	{
-		switch(paf->where)
-		{
-		    case TO_AFFECTS:
-				SET_BIT(ch->affected_by[0], paf->bitvector);
-				SET_BIT(ch->affected_by[1], paf->bitvector2);
+    // Iterate through affects on character
+    for(paf = ch->affected; paf; paf = paf->next)
+    {
+        switch(paf->where)
+        {
+            case TO_AFFECTS:
+                SET_BIT(ch->affected_by[0], paf->bitvector);
+                SET_BIT(ch->affected_by[1], paf->bitvector2);
 
-				if( IS_SET(paf->bitvector2, AFF2_DEATHSIGHT) && (paf->level > ch->deathsight_vision) )
-					ch->deathsight_vision = paf->level;
+                if( IS_SET(paf->bitvector2, AFF2_DEATHSIGHT) && (paf->level > ch->deathsight_vision) )
+                    ch->deathsight_vision = paf->level;
 
-				break;
-		    case TO_IMMUNE:
-				SET_BIT(ch->imm_flags,paf->bitvector);
-				break;
-		    case TO_RESIST:
-				SET_BIT(ch->res_flags,paf->bitvector);
-				break;
-		    case TO_VULN:
-				SET_BIT(ch->vuln_flags,paf->bitvector);
-				break;
-		}
-	}
+                break;
+            case TO_IMMUNE:
+                SET_BIT(ch->imm_flags,paf->bitvector);
+                break;
+            case TO_RESIST:
+                SET_BIT(ch->res_flags,paf->bitvector);
+                break;
+            case TO_VULN:
+                SET_BIT(ch->vuln_flags,paf->bitvector);
+                break;
+        }
+    }
 
-	// Iterate through all worn objects
-	for(obj = ch->carrying; obj; obj = obj->next_content)
-	{
-		if( !obj->locker && obj->wear_loc != WEAR_NONE )
-		{
-			for(paf = obj->affected; paf; paf = paf->next)
-			{
-				switch (paf->where)
-				{
-					case TO_AFFECTS:
-						SET_BIT(ch->affected_by[0], paf->bitvector);
-						SET_BIT(ch->affected_by[1], paf->bitvector2);
+    // Iterate through all worn objects using lworn list
+    if (ch->lworn) {
+        iterator_start(&it, ch->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it)))
+        {
+            for(paf = obj->affected; paf; paf = paf->next)
+            {
+                switch (paf->where)
+                {
+                    case TO_AFFECTS:
+                        SET_BIT(ch->affected_by[0], paf->bitvector);
+                        SET_BIT(ch->affected_by[1], paf->bitvector2);
 
-						if( IS_SET(paf->bitvector2, AFF2_DEATHSIGHT) && (paf->level > ch->deathsight_vision) )
-							ch->deathsight_vision = paf->level;
+                        if( IS_SET(paf->bitvector2, AFF2_DEATHSIGHT) && (paf->level > ch->deathsight_vision) )
+                            ch->deathsight_vision = paf->level;
 
-						break;
-					case TO_IMMUNE:
-						SET_BIT(ch->imm_flags,paf->bitvector);
-						break;
-					case TO_RESIST:
-						SET_BIT(ch->res_flags,paf->bitvector);
-						break;
-					case TO_VULN:
-						SET_BIT(ch->vuln_flags,paf->bitvector);
-						break;
-				}
-			}
-		}
-	}
-
+                        break;
+                    case TO_IMMUNE:
+                        SET_BIT(ch->imm_flags, paf->bitvector);
+                        break;
+                    case TO_RESIST:
+                        SET_BIT(ch->res_flags, paf->bitvector);
+                        break;
+                    case TO_VULN:
+                        SET_BIT(ch->vuln_flags, paf->bitvector);
+                        break;
+                }
+            }
+        }
+        iterator_stop(&it);
+    }
 }
 
 
@@ -1195,80 +1197,85 @@ void affect_check(CHAR_DATA *ch, int where, long vector, long vector2)
 {
     AFFECT_DATA *paf;
     OBJ_DATA *obj;
+    ITERATOR it;
 
     if (where == TO_OBJECT || where == TO_OBJECT2 || where == TO_OBJECT3 || where == TO_OBJECT4 || where == TO_WEAPON)
-	return;
+    return;
 
     for (paf = ch->affected; paf != NULL; paf = paf->next)
     {
-		if (paf->where == where && paf->bitvector == vector)
-		{
-			switch (where)
-			{
-				case TO_AFFECTS:
-				SET_BIT(ch->affected_by[0],vector);
-				break;
-				case TO_IMMUNE:
-				SET_BIT(ch->imm_flags,vector);
-				break;
-				case TO_RESIST:
-				SET_BIT(ch->res_flags,vector);
-				break;
-				case TO_VULN:
-				SET_BIT(ch->vuln_flags,vector);
-				break;
-			}
-			return;
-		}
+        if (paf->where == where && paf->bitvector == vector)
+        {
+            switch (where)
+            {
+                case TO_AFFECTS:
+                SET_BIT(ch->affected_by[0],vector);
+                break;
+                case TO_IMMUNE:
+                SET_BIT(ch->imm_flags,vector);
+                break;
+                case TO_RESIST:
+                SET_BIT(ch->res_flags,vector);
+                break;
+                case TO_VULN:
+                SET_BIT(ch->vuln_flags,vector);
+                break;
+            }
+            return;
+        }
         else if (paf->where == where && paf->bitvector2 == vector2)
-		{
-			switch (where)
-			{
-			case TO_AFFECTS:
-				SET_BIT(ch->affected_by[1],vector2);
-				break;
-			}
-			return;
-		}
-	}
+        {
+            switch (where)
+            {
+            case TO_AFFECTS:
+                SET_BIT(ch->affected_by[1],vector2);
+                break;
+            }
+            return;
+        }
+    }
 
-	for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-	{
-		if (obj->wear_loc == -1)
-			continue;
-
-		for (paf = obj->affected; paf != NULL; paf = paf->next)
-		{
-			if (paf->where == where && paf->bitvector == vector)
-			{
-				switch (where)
-				{
-				case TO_AFFECTS:
-					SET_BIT(ch->affected_by[0],vector);
-					break;
-				case TO_IMMUNE:
-					SET_BIT(ch->imm_flags,vector);
-					break;
-				case TO_RESIST:
-					SET_BIT(ch->res_flags,vector);
-					break;
-				case TO_VULN:
-					SET_BIT(ch->vuln_flags,vector);
-				}
-				return;
-			}
-			else if (paf->where == where && paf->bitvector2 == vector2)
-			{
-				switch (where)
-				{
-				case TO_AFFECTS:
-					SET_BIT(ch->affected_by[1],vector2);
-					break;
-				}
-				return;
-			}
-		}
-	}
+    // Use the lworn list to check worn objects
+    if (ch->lworn) {
+        iterator_start(&it, ch->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it)))
+        {
+            for (paf = obj->affected; paf != NULL; paf = paf->next)
+            {
+                if (paf->where == where && paf->bitvector == vector)
+                {
+                    switch (where)
+                    {
+                    case TO_AFFECTS:
+                        SET_BIT(ch->affected_by[0],vector);
+                        break;
+                    case TO_IMMUNE:
+                        SET_BIT(ch->imm_flags,vector);
+                        break;
+                    case TO_RESIST:
+                        SET_BIT(ch->res_flags,vector);
+                        break;
+                    case TO_VULN:
+                        SET_BIT(ch->vuln_flags,vector);
+                    }
+                    iterator_stop(&it);
+                    return;
+                }
+                else if (paf->where == where && paf->bitvector2 == vector2)
+                {
+                    switch (where)
+                    {
+                    case TO_AFFECTS:
+                        SET_BIT(ch->affected_by[1],vector2);
+                        break;
+                    }
+                    iterator_stop(&it);
+                    return;
+                }
+            }
+        }
+        iterator_stop(&it);
+    }
 }
 
 
@@ -2134,50 +2141,60 @@ void obj_to_locker(OBJ_DATA *obj, CHAR_DATA *ch)
  */
 void obj_to_char(OBJ_DATA *obj, CHAR_DATA *ch)
 {
-    obj->next_content	 = ch->carrying;
-    ch->carrying	 = obj;
-    obj->carried_by	 = ch;
-    obj->in_room	 = ch->in_room;
-    obj->in_obj		 = NULL;
-    ch->carry_number	+= get_obj_number(obj);
-    ch->carry_weight	+= get_obj_weight(obj);
+    if (obj == NULL || ch == NULL)
+    {
+        bug("obj_to_char: null obj or ch", 0);
+        return;
+    }
 
+    obj->carried_by     = ch;
+    obj->in_room        = ch->in_room;
+    obj->in_obj         = NULL;
+    obj->locker         = false;
+    
+    // Update character stats
+    ch->carry_number    += get_obj_number(obj);
+    ch->carry_weight    += get_obj_weight(obj);
+
+    // Remove hidden flag when picking up objects
     if (IS_SET(obj->extra[0], ITEM_HIDDEN))
         REMOVE_BIT(obj->extra[0], ITEM_HIDDEN);
 
-    // convert money obj into gold/silver
+    // Convert money obj into gold/silver
     if (obj->item_type == ITEM_MONEY)
     {
-	ch->silver += obj->value[0];
-	ch->gold += obj->value[1];
+        ch->silver += obj->value[0];
+        ch->gold += obj->value[1];
 
-	// AUTOSPLIT
-	if (IS_SET(ch->act[0],PLR_AUTOSPLIT))
-	{
-	    int members;
-	    CHAR_DATA *gch;
-	    char buffer[MAX_STRING_LENGTH];
+        // AUTOSPLIT
+        if (IS_SET(ch->act[0], PLR_AUTOSPLIT))
+        {
+            int members;
+            CHAR_DATA *gch;
+            char buffer[MAX_STRING_LENGTH];
 
-	    members = 0;
-	    for (gch = ch->in_room->people; gch != NULL; gch = gch->next_in_room)
-	    {
-		if (gch->pcdata != NULL && is_same_group(gch, ch))
-		    members++;
-	    }
+            members = 0;
+            for (gch = ch->in_room->people; gch != NULL; gch = gch->next_in_room)
+            {
+                if (gch->pcdata != NULL && is_same_group(gch, ch))
+                    members++;
+            }
 
-	    if (members > 1 && (obj->value[0] > 1 || obj->value[1]))
-	    {
-		sprintf(buffer,"%ld %ld",obj->value[0],obj->value[1]);
-		do_function(ch, &do_split, buffer);
-	    }
-	}
+            if (members > 1 && (obj->value[0] > 1 || obj->value[1]))
+            {
+                sprintf(buffer, "%ld %ld", obj->value[0], obj->value[1]);
+                do_function(ch, &do_split, buffer);
+            }
+        }
 
-	extract_obj(obj);
-	return;
+        extract_obj(obj);
+        return;
     }
 
-	if (!list_haslink(ch->lcarrying, obj))
-    	list_addlink(ch->lcarrying, obj);
+    // Add to the LLIST only if it's not equipped (wear_loc == WEAR_NONE)
+    // This ensures lcarrying only contains objects in the active inventory
+    if (obj->wear_loc == WEAR_NONE && !list_haslink(ch->lcarrying, obj))
+        list_addlink(ch->lcarrying, obj);
 
     if (!IS_NPC(ch))
         check_quest_retrieve_obj(ch, obj, true);
@@ -2186,11 +2203,10 @@ void obj_to_char(OBJ_DATA *obj, CHAR_DATA *ch)
 
     if (objRepop == true)
     {
-	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
-	objRepop = false;
+        p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+        objRepop = false;
     }
 }
-
 
 /*
  * Count objs in a characters locker
@@ -2267,40 +2283,23 @@ void obj_from_char(OBJ_DATA *obj)
 
     if ((ch = obj->carried_by) == NULL)
     {
-	bug("Obj_from_char: null ch.", 0);
-	return;
+        bug("Obj_from_char: null ch.", 0);
+        return;
     }
 
     /* Unequip it first */
     if (obj->wear_loc != WEAR_NONE)
-	unequip_char(ch, obj, false);
-
-    if (ch->carrying == obj)
-	ch->carrying = obj->next_content;
-    else
-    {
-	OBJ_DATA *prev;
-
-	for (prev = ch->carrying; prev != NULL; prev = prev->next_content)
-	{
-	    if (prev->next_content == obj)
-	    {
-		prev->next_content = obj->next_content;
-		break;
-	    }
-	}
-
-	if (prev == NULL && !obj->locker)
-	    bug("Obj_from_char: obj not in list.", 0);
-    }
+        unequip_char(ch, obj, false);
 
     --obj->pIndexData->carried;
 
     REMOVE_BIT(obj->extra[0], ITEM_INVENTORY);
-    obj->carried_by	 = NULL;
-    obj->next_content	 = NULL;
-    ch->carry_number	-= get_obj_number(obj);
-    ch->carry_weight	-= get_obj_weight(obj);
+    obj->carried_by = NULL;
+    obj->next_content = NULL;
+    ch->carry_number -= get_obj_number(obj);
+    ch->carry_weight -= get_obj_weight(obj);
+    
+    /* Remove from the LLIST */
     list_remlink(ch->lcarrying, obj, false);
 }
 
@@ -2343,16 +2342,24 @@ int apply_ac(OBJ_DATA *obj, int iWear, int type)
 OBJ_DATA *get_eq_char(CHAR_DATA *ch, int iWear)
 {
     OBJ_DATA *obj;
-
+    ITERATOR it;
+    
     if (ch == NULL)
-	return NULL;
-
-    for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-    {
-	if (obj->wear_loc == iWear)
-	    return obj;
+        return NULL;
+    
+    // Use the lworn LLIST for better performance
+    if (ch->lworn) {
+        iterator_start(&it, ch->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (obj->wear_loc == iWear) {
+                iterator_stop(&it);
+                return obj;
+            }
+        }
+        iterator_stop(&it);
+        return NULL;
     }
-
+    
     return NULL;
 }
 
@@ -2365,20 +2372,14 @@ void equip_char(CHAR_DATA *ch, OBJ_DATA *obj, int iWear)
     AFFECT_DATA *paf;
     SPELL_DATA *spell;
     int i;
-    //char buf[MSL];
 
     if (get_eq_char(ch, iWear) != NULL)
     {
-	bug("Equip_char: already equipped (%d).", iWear);
-	return;
+    bug("Equip_char: already equipped (%d).", iWear);
+    return;
     }
 
     // This is generally already handled in wear_obj, but just to be safe, doing the all_remort check here as well.
-    /*
-    if (!IS_IMMORTAL(ch) && ch->tot_level < obj->level)
-	return;
-    */
-
     if (!IS_IMMORTAL(ch) && !IS_NPC(ch)) {
         /* If the object is not a mortal object
         -or- is higher object level and the item is not flagged all_remort or the char is not remort */
@@ -2388,73 +2389,75 @@ void equip_char(CHAR_DATA *ch, OBJ_DATA *obj, int iWear)
         }
     }
 
-
     if ((IS_OBJ_STAT(obj, ITEM_ANTI_EVIL)    && IS_EVIL(ch)   )
     ||   (IS_OBJ_STAT(obj, ITEM_ANTI_GOOD)    && IS_GOOD(ch)   )
     ||   (IS_OBJ_STAT(obj, ITEM_ANTI_NEUTRAL) && IS_NEUTRAL(ch)))
     {
-	act("You are zapped by $p and drop it.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	act("$n is zapped by $p and drops it.",  ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+    act("You are zapped by $p and drop it.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+    act("$n is zapped by $p and drops it.",  ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 
         REMOVE_BIT(obj->extra[1], ITEM_KEPT);
 
-	obj_from_char(obj);
-	obj_to_room(obj, ch->in_room);
-	return;
+    obj_from_char(obj);
+    obj_to_room(obj, ch->in_room);
+    return;
     }
 
-    obj->wear_loc	 = iWear;
+    obj->wear_loc = iWear;
+    
+    // Add to lworn list
     list_addlink(ch->lworn, obj);
+    
+    // Remove from lcarrying list since it's now worn
+    list_remlink(ch->lcarrying, obj, false);
 
     /* Wear trigger */
     p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_WEAR, NULL);
 
-	// Concealed items do nothing to the wearer's stats and affects.
-	if(wear_params[iWear][WEAR_PARAM_AFFECTS]) {
-	    /* apply armour class */
-	    for (i = 0; i < 4; i++)
-		ch->armour[i] -= apply_ac(obj, iWear, i);
+    // Concealed items do nothing to the wearer's stats and affects.
+    if(wear_params[iWear][WEAR_PARAM_AFFECTS]) {
+        /* apply armour class */
+        for (i = 0; i < 4; i++)
+        ch->armour[i] -= apply_ac(obj, iWear, i);
 
+        /* put obj's affects on the character */
+        for (paf = obj->affected; paf != NULL; paf = paf->next) {
+            paf->slot = iWear;
+            affect_modify(ch, paf, true);
+        }
 
-	    /* put obj's affects on the character */
-	    for (paf = obj->affected; paf != NULL; paf = paf->next) {
-			paf->slot = iWear;
-			affect_modify(ch, paf, true);
-		}
+        /* set light in room if it's a light */
+        if (obj->item_type == ITEM_LIGHT
+        &&   ch->in_room != NULL)
+        {
+        // hack to fix current lights with 0 light remaining
+        if (obj->value[2] == 0)
+            obj->value[2] = 10;
 
-	    /* set light in room if it's a light */
-	    if (obj->item_type == ITEM_LIGHT
-	    &&   ch->in_room != NULL)
-	    {
-		// hack to fix current lights with 0 light remaining
-		if (obj->value[2] == 0)
-		    obj->value[2] = 10;
+        ++ch->in_room->light;
+        }
 
-		++ch->in_room->light;
-	    }
+        if (obj->item_type != ITEM_WAND
+        &&  obj->item_type != ITEM_STAFF
+        &&  obj->item_type != ITEM_SCROLL
+        &&  obj->item_type != ITEM_POTION
+        &&  obj->item_type != ITEM_TATTOO
+        &&  obj->item_type != ITEM_PILL)
+        for (spell = obj->spells; spell != NULL; spell = spell->next)
+        {
+            for (paf = ch->affected; paf != NULL; paf = paf->next)
+            {
+                if (paf->type == spell->sn)
+                break;
+            }
 
-	    if (obj->item_type != ITEM_WAND
-	    &&  obj->item_type != ITEM_STAFF
-	    &&  obj->item_type != ITEM_SCROLL
-	    &&  obj->item_type != ITEM_POTION
-	    &&  obj->item_type != ITEM_TATTOO
-	    &&  obj->item_type != ITEM_PILL)
-	    for (spell = obj->spells; spell != NULL; spell = spell->next)
-	    {
-			for (paf = ch->affected; paf != NULL; paf = paf->next)
-			{
-				if (paf->type == spell->sn)
-				break;
-			}
+            if (paf != NULL && paf->level >= spell->level)
+                continue;
 
-			if (paf != NULL && paf->level >= spell->level)
-				continue;
-
-			affect_strip(ch, spell->sn);
-			obj_cast_spell(spell->sn, spell->level + MAGIC_WEAR_SPELL, ch, ch, obj);
-	    }
+            affect_strip(ch, spell->sn);
+            obj_cast_spell(spell->sn, spell->level + MAGIC_WEAR_SPELL, ch, ch, obj);
+        }
     }
-
 }
 
 
@@ -2464,110 +2467,106 @@ void equip_char(CHAR_DATA *ch, OBJ_DATA *obj, int iWear)
 int unequip_char(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
 {
     AFFECT_DATA *paf = NULL;
-    AFFECT_DATA *af;
     int i, loc = obj->wear_loc;
-    int level = 0;
-    int found_loc = WEAR_NONE;
-    SPELL_DATA *spell, *spell_tmp;
-    OBJ_DATA *obj_tmp;
-    bool found;		// @@@NIB : 20070128
 
     if (obj->wear_loc == WEAR_NONE)
     {
-	bug("Unequip_char: already unequipped.", 0);
-	return false;	// @@@NIB : 20070128
+        bug("Unequip_char: already unequipped.", 0);
+        return false;    // @@@NIB : 20070128
     }
 
     obj->wear_loc = WEAR_NONE;
     list_remlink(ch->lworn, obj, false);
+    
+    // Add back to lcarrying since it's no longer worn
+    list_addlink(ch->lcarrying, obj);
 
-	// If the item was concealed, don't handle any object affects.
-	if(wear_params[loc][WEAR_PARAM_AFFECTS]) {
-	    for (i = 0; i < 4; i++)
-		ch->armour[i] += apply_ac(obj, loc, i);
+    // If the item was concealed, don't handle any object affects.
+    if(wear_params[loc][WEAR_PARAM_AFFECTS]) {
+        for (i = 0; i < 4; i++)
+            ch->armour[i] += apply_ac(obj, loc, i);
 
-	    for (paf = obj->affected; paf != NULL; paf = paf->next)
-	    {
-			affect_modify(ch, paf, false);
-//			affect_check(ch, paf->where, paf->bitvector, paf->bitvector2);
-	    }
+        for (paf = obj->affected; paf != NULL; paf = paf->next)
+        {
+            affect_modify(ch, paf, false);
+        }
 
-	    if (obj->item_type == ITEM_LIGHT &&
-	    	obj->value[2] != 0 && ch->in_room != NULL &&
-	    	ch->in_room->light > 0)
-			--ch->in_room->light;
+        if (obj->item_type == ITEM_LIGHT &&
+            obj->value[2] != 0 && ch->in_room != NULL &&
+            ch->in_room->light > 0)
+            --ch->in_room->light;
 
-	    // Remove spells
-	    if (obj->item_type != ITEM_WAND
-	    &&  obj->item_type != ITEM_STAFF
-	    &&  obj->item_type != ITEM_SCROLL
-	    &&  obj->item_type != ITEM_POTION
-	    &&  obj->item_type != ITEM_TATTOO
-	    &&  obj->item_type != ITEM_PILL)
-	    for (spell = obj->spells; spell != NULL; spell = spell->next)
-	    {
-			int spell_level = spell->level;
+        // Remove spells
+        if (obj->item_type != ITEM_WAND
+        &&  obj->item_type != ITEM_STAFF
+        &&  obj->item_type != ITEM_SCROLL
+        &&  obj->item_type != ITEM_POTION
+        &&  obj->item_type != ITEM_TATTOO
+        &&  obj->item_type != ITEM_PILL)
+        for (SPELL_DATA *spell = obj->spells; spell != NULL; spell = spell->next)
+        {
+            int spell_level = spell->level;
+            AFFECT_DATA *af;
 
-			// Find the first affect that matches this spell and is derived from the object
-			for (af = ch->affected; af != NULL; af = af->next)
-			{
-				if (af->type == spell->sn && af->slot == loc)
-					break;
-			}
+            // Find the first affect that matches this spell and is derived from the object
+            for (af = ch->affected; af != NULL; af = af->next)
+            {
+                if (af->type == spell->sn && af->slot == loc)
+                    break;
+            }
 
-			if( !af ) {
-				// This spell was not applied by this object
-				continue;
-			}
+            if(!af) {
+                // This spell was not applied by this object
+                continue;
+            }
 
-			// @@@NIB : 20070128 : this entire block did not account for the
-			//	possibility of multiple spells active for the object.
-			//	Once it found *one* spell, it returned...
-			//	This also bypassed the remove trigger
-			found = false;
+            // @@@NIB : 20070128 : this entire block did not account for the
+            //    possibility of multiple spells active for the object.
+            //    Once it found *one* spell, it returned...
+            //    This also bypassed the remove trigger
+            bool found = false;
+            int level = 0;
+            int found_loc = WEAR_NONE;
 
+            // If there's another obj with the same spell put that one on
+            for (OBJ_DATA *obj_tmp = NULL; obj_tmp != NULL; obj_tmp = obj_tmp->next_content)
+            {
+                if (obj_tmp->wear_loc != WEAR_NONE && obj != obj_tmp) {
+                    for (SPELL_DATA *spell_tmp = obj_tmp->spells; spell_tmp != NULL; spell_tmp = spell_tmp->next) {
+                        if (spell_tmp->sn == spell->sn && spell_tmp->level > level ) {
+                            level = spell_tmp->level;    // Keep the maximum
+                            found_loc = obj_tmp->wear_loc;
+                            found = true;
+                        }
+                    }
+                }
+            }
 
-			// If there's another obj with the same spell put that one on
-			for (obj_tmp = ch->carrying; obj_tmp; obj_tmp = obj_tmp->next_content)
-			{
-				if( obj_tmp->wear_loc != WEAR_NONE && obj != obj_tmp ) {
-					for (spell_tmp = obj_tmp->spells; spell_tmp != NULL; spell_tmp = spell_tmp->next) {
-						if (spell_tmp->sn == spell->sn && spell_tmp->level > level ) {
-							level = spell_tmp->level;	// Keep the maximum
-							found_loc = obj_tmp->wear_loc;
-							found = true;
-						}
-					}
-				}
-			}
+            if(!found) {
+                // No other worn object had this spell available
+                if (show) {
+                    if (skill_table[spell->sn].msg_off) {
+                        send_to_char(skill_table[spell->sn].msg_off, ch);
+                        send_to_char("\n\r", ch);
+                    }
+                }
 
-			if(!found) {
-				// No other worn object had this spell available
+                affect_strip(ch, spell->sn);
+            } else if (level > spell_level) {
+                level -= spell_level;        // Get the difference
 
-				if( show ) {
-					if (skill_table[spell->sn].msg_off) {
-						send_to_char(skill_table[spell->sn].msg_off, ch);
-						send_to_char("\n\r", ch);
-					}
-				}
+                // Update all affects to the current maximum and its slot
+                for(; af; af = af->next) {
+                    af->level += level;
+                    af->slot = found_loc;
+                }
+            }
+            // @@@NIB : 20070128
+        }
 
-				affect_strip(ch, spell->sn);
-			} else if( level > spell_level ) {
-				level -= spell_level;		// Get the difference
+        affect_stripall_wearloc(ch, loc);    // Remove all affects tied to this wear slot
 
-				// Update all affects to the current maximum and its slot
-				for(; af; af = af->next ) {
-					af->level += level;
-					af->slot = found_loc;
-				}
-			}
-			// @@@NIB : 20070128
-	    }
-
-	    affect_stripall_wearloc(ch, loc);	// Remove all affects tied to this wear slot
-
-	    affect_fix_char(ch);
-
+        affect_fix_char(ch);
     }
 
     /* Remove trigger */
@@ -3433,52 +3432,94 @@ OBJ_DATA *get_obj_type(OBJ_INDEX_DATA *pObjIndex, ROOM_INDEX_DATA *pRoom)
 
 
 /*
- * Find an obj in a list.
+ * Safe version of get_obj_list that properly distinguishes between
+ * traditional linked lists and LLIST structures
  */
-OBJ_DATA *get_obj_list(CHAR_DATA *ch, char *argument, OBJ_DATA *list)
+OBJ_DATA *get_obj_list(CHAR_DATA *ch, char *argument, void *list)
 {
     char arg[MAX_INPUT_LENGTH];
     OBJ_DATA *obj;
     int number;
     int count;
-
+    ITERATOR it;
+    
+    if (list == NULL)
+        return NULL;
+        
     number = number_argument(argument, arg);
-    count  = 0;
-    for (obj = list; obj != NULL; obj = obj->next_content)
-    {
-	if (can_see_obj(ch, obj) && (
-			(((obj->ship != NULL) && (!str_cmp(arg, obj->ship->ship_name)))) ||
-			is_name(arg, obj->name)))
-	{
-	    if (++count == number)
-		return obj;
-	}
-    }
+    count = 0;
 
+    // Check if we're dealing with an LLIST properly
+    if (is_llist(list)) {
+        LLIST *llist = (LLIST *)list;
+        
+        iterator_start(&it, llist);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (can_see_obj(ch, obj) && is_name(arg, obj->name)) {
+                if (++count == number) {
+                    iterator_stop(&it);
+                    return obj;
+                }
+            }
+        }
+        iterator_stop(&it);
+        return NULL;
+    }
+    
+    // Traditional linked list case
+    for (obj = (OBJ_DATA *)list; obj != NULL; obj = obj->next_content) {
+        if (can_see_obj(ch, obj) && is_name(arg, obj->name)) {
+            if (++count == number)
+                return obj;
+        }
+    }
+    
     return NULL;
 }
 
 /*
- * Find an obj in a list.
+ * Safe version of get_obj_list_number that properly distinguishes between
+ * traditional linked lists and LLIST structures
  */
-OBJ_DATA *get_obj_list_number(CHAR_DATA *ch, char *argument, int *nth, OBJ_DATA *list)
+OBJ_DATA *get_obj_list_number(CHAR_DATA *ch, char *argument, int *nth, void *list)
 {
     OBJ_DATA *obj;
+    ITERATOR it;
     int number = *nth;
-
-    for (obj = list; obj != NULL; obj = obj->next_content)
-    {
-		if (can_see_obj(ch, obj) && (
-				(((obj->ship != NULL) && (!str_cmp(argument, obj->ship->ship_name)))) ||
-				is_name(argument, obj->name)))
-		{
-			if (--number < 1)
-				return obj;
-		}
+    
+    if (list == NULL) {
+        *nth = number;
+        return NULL;
     }
-
-    // Return last total for chaining together lookups
-	*nth = number;
+    
+    // Handle LLIST case safely
+    if (is_llist(list)) {
+        LLIST *llist = (LLIST *)list;
+        
+        iterator_start(&it, llist);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (can_see_obj(ch, obj) && is_name(argument, obj->name)) {
+                if (--number < 1) {
+                    iterator_stop(&it);
+                    return obj;
+                }
+            }
+        }
+        iterator_stop(&it);
+        
+        *nth = number;
+        return NULL;
+    }
+    
+    // Traditional linked list case
+    for (obj = (OBJ_DATA *)list; obj != NULL; obj = obj->next_content) {
+        if (can_see_obj(ch, obj) && is_name(argument, obj->name)) {
+            if (--number < 1)
+                return obj;
+        }
+    }
+    
+    *nth = number;
     return NULL;
 }
 
@@ -3492,19 +3533,36 @@ OBJ_DATA *get_obj_locker(CHAR_DATA *ch, char *argument)
     OBJ_DATA *obj;
     int number;
     int count;
-
+    ITERATOR it;
+    
+    if (!ch || !ch->llocker) 
+        return NULL;
+    
     number = number_argument(argument, arg);
-    count  = 0;
-    for (obj = ch->locker; obj != NULL; obj = obj->next_content)
-    {
-        if (obj->wear_loc == WEAR_NONE
-        &&   is_name(arg, obj->name))
-        {
-            if (++count == number)
-                            return obj;
+    count = 0;
+    
+    // Use the llocker LLIST
+    iterator_start(&it, ch->llocker);
+    while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+        if (is_name(arg, obj->name)) {
+            if (++count == number) {
+                iterator_stop(&it);
+                return obj;
+            }
         }
     }
-
+    iterator_stop(&it);
+    
+    // Fallback to traditional list (for backward compatibility)
+    if (count == 0 && ch->locker) {
+        for (obj = ch->locker; obj != NULL; obj = obj->next_content) {
+            if (is_name(arg, obj->name)) {
+                if (++count == number)
+                    return obj;
+            }
+        }
+    }
+    
     return NULL;
 }
 
@@ -3518,45 +3576,62 @@ OBJ_DATA *get_obj_carry(CHAR_DATA *ch, char *argument, CHAR_DATA *viewer)
     OBJ_DATA *obj;
     int number;
     int count;
-
+    ITERATOR it;
+    
+    if (!ch || !ch->lcarrying) 
+        return NULL;
+    
     number = number_argument(argument, arg);
-    count  = 0;
-    for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-    {
-        if (obj->wear_loc == WEAR_NONE
-             && (viewer ? can_see_obj(viewer, obj) : true)
-             && is_name(arg, obj->name))
-        {
-            if (++count == number)
-                            return obj;
+    count = 0;
+    
+    // Use the lcarrying LLIST
+    iterator_start(&it, ch->lcarrying);
+    while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+        if (obj->wear_loc == WEAR_NONE && 
+            (viewer ? can_see_obj(viewer, obj) : true) &&
+            is_name(arg, obj->name)) {
+            if (++count == number) {
+                iterator_stop(&it);
+                return obj;
+            }
         }
     }
-
+    iterator_stop(&it);
+    
     return NULL;
 }
 
 /*
- * Find an obj in player's inventory.
+ * Find an obj in player's inventory with continuation support.
  */
 OBJ_DATA *get_obj_carry_number(CHAR_DATA *ch, char *argument, int *nth, CHAR_DATA *viewer)
 {
     OBJ_DATA *obj;
     int number = *nth;
-
-	for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-	{
-		if (obj->wear_loc == WEAR_NONE &&
-			(viewer ? can_see_obj(viewer, obj) : true) &&
-			is_name(argument, obj->name))
-		{
-			if (--number < 1) {
-				return obj;
-			}
-		}
-	}
-
-    // Return last total for chaining together lookups
-	*nth = number;
+    ITERATOR it;
+    
+    if (!ch || (!ch->lcarrying && !ch->carrying)) {
+        *nth = number;
+        return NULL;
+    }
+    
+    // Use the lcarrying LLIST
+    if (ch->lcarrying) {
+        iterator_start(&it, ch->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (obj->wear_loc == WEAR_NONE &&
+                (viewer ? can_see_obj(viewer, obj) : true) &&
+                is_name(argument, obj->name)) {
+                if (--number < 1) {
+                    iterator_stop(&it);
+                    return obj;
+                }
+            }
+        }
+        iterator_stop(&it);
+    }
+    
+    *nth = number;
     return NULL;
 }
 
@@ -3566,17 +3641,25 @@ OBJ_DATA *get_obj_carry_number(CHAR_DATA *ch, char *argument, int *nth, CHAR_DAT
 OBJ_DATA *get_obj_vnum_carry(CHAR_DATA *ch, long vnum, CHAR_DATA *viewer)
 {
     OBJ_DATA *obj;
-
-    for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-    {
-        if (obj->wear_loc == WEAR_NONE
-        &&   (viewer ? can_see_obj(viewer, obj) : true)
-        &&   obj->pIndexData->vnum == vnum)
-        {
-	    return obj;
+    ITERATOR it;
+    
+    if (!ch || (!ch->lcarrying && !ch->carrying))
+        return NULL;
+    
+    // Use the lcarrying LLIST
+    if (ch->lcarrying) {
+        iterator_start(&it, ch->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (obj->wear_loc == WEAR_NONE &&
+                (viewer ? can_see_obj(viewer, obj) : true) &&
+                obj->pIndexData->vnum == vnum) {
+                iterator_stop(&it);
+                return obj;
+            }
         }
+        iterator_stop(&it);
     }
-
+    
     return NULL;
 }
 
@@ -3589,18 +3672,27 @@ OBJ_DATA *get_obj_wear(CHAR_DATA *ch, char *argument, bool character)
     OBJ_DATA *obj;
     int number;
     int count;
-
+    ITERATOR it;
+    
+    if (!ch)
+        return NULL;
+    
     number = number_argument(argument, arg);
-    count  = 0;
-    for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-    {
-        if (obj->wear_loc != WEAR_NONE
-                &&  (character ? can_see_obj(ch, obj) : true)
-        &&   is_name(arg, obj->name))
-        {
-            if (++count == number)
-                return obj;
+    count = 0;
+    
+    // Use the lworn LLIST
+    if (ch->lworn) {
+        iterator_start(&it, ch->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if ((character ? can_see_obj(ch, obj) : true) &&
+                is_name(arg, obj->name)) {
+                if (++count == number) {
+                    iterator_stop(&it);
+                    return obj;
+                }
+            }
         }
+        iterator_stop(&it);
     }
 
     return NULL;
@@ -3608,25 +3700,34 @@ OBJ_DATA *get_obj_wear(CHAR_DATA *ch, char *argument, bool character)
 
 
 /*
- * Find an obj in player's equipment.
+ * Find an obj in player's equipment with continuation support.
  */
 OBJ_DATA *get_obj_wear_number(CHAR_DATA *ch, char *argument, int *nth, bool character)
 {
     OBJ_DATA *obj;
     int number = *nth;
-
-    for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-    {
-        if (obj->wear_loc != WEAR_NONE &&
-        	(character ? can_see_obj(ch, obj) : true) &&
-        	is_name(argument, obj->name))
-        {
-            if (--number < 1)
-                return obj;
-        }
+    ITERATOR it;
+    
+    if (!ch) {
+        *nth = number;
+        return NULL;
     }
-
-    // Return last total for chaining together lookups
+    
+    // Use the lworn LLIST
+    if (ch->lworn) {
+        iterator_start(&it, ch->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if ((character ? can_see_obj(ch, obj) : true) &&
+                is_name(argument, obj->name)) {
+                if (--number < 1) {
+                    iterator_stop(&it);
+                    return obj;
+                }
+            }
+        }
+        iterator_stop(&it);
+    }
+    
     *nth = number;
     return NULL;
 }
@@ -3640,41 +3741,52 @@ OBJ_DATA *get_obj_here(CHAR_DATA *ch, ROOM_INDEX_DATA *room, char *argument)
     OBJ_DATA *obj;
     char arg[MAX_INPUT_LENGTH];
     int number;
-    int count;
 
-    if (ch && room)
-    {
-		bug("get_obj_here received a ch and a room",0);
-		return NULL;
+    if (ch && room) {
+        bug("get_obj_here received both a ch and a room",0);
+        return NULL;
+    }
+
+    if (!ch && !room) {
+        bug("get_obj_here received neither a ch nor a room",0);
+        return NULL;
     }
 
     number = number_argument(argument, arg);
-    count = 0;
 
-    if (ch)
-    {
-		obj = get_obj_list_number(ch, arg, &number, ch->in_room->contents);
-		if (obj != NULL)
-		    return obj;
+    if (ch) {
+        // First check room contents using either lcontents (preferred) or contents (legacy)
+        if (ch->in_room) {
+            if (ch->in_room->lcontents) {
+                obj = get_obj_list_number(ch, arg, &number, ch->in_room->lcontents);
+                if (obj)
+                    return obj;
+            } else if (ch->in_room->contents) {
+                obj = get_obj_list_number(ch, arg, &number, ch->in_room->contents);
+                if (obj)
+                    return obj;
+            }
+        }
 
-		if ((obj = get_obj_carry_number(ch, arg, &number, ch)) != NULL)
-		    return obj;
+        // Then check carried items
+        obj = get_obj_carry_number(ch, arg, &number, ch);
+        if (obj)
+            return obj;
 
-		if ((obj = get_obj_wear_number(ch, arg, &number, true)) != NULL)
-		    return obj;
+        // Finally check worn items
+        obj = get_obj_wear_number(ch, arg, &number, true);
+        return obj;
     }
-    else
-    {
-		for (obj = room->contents; obj; obj = obj->next_content)
-		{
-			if (!is_name(arg, obj->name))
-				continue;
-			if (++count == number)
-				return obj;
-		}
+    else { // room only
+        // Check room contents using either lcontents (preferred) or contents (legacy)
+        if (room->lcontents) {
+            obj = get_obj_list_number(NULL, arg, &number, room->lcontents);
+            if (obj)
+                return obj;
+        } 
+        
+        return get_obj_list_number(NULL, arg, &number, room->contents);
     }
-
-    return NULL;
 }
 
 /*
@@ -3731,65 +3843,83 @@ OBJ_DATA *get_obj_inv(CHAR_DATA *ch, char *argument, bool worn)
     char arg[MAX_INPUT_LENGTH];
     int number;
 
-    if (!ch)
-    {
-		bug("get_obj_inv received NULL ch",0);
-		return NULL;
-	}
+    if (!ch) {
+        bug("get_obj_inv received NULL ch",0);
+        return NULL;
+    }
 
     number = number_argument(argument, arg);
 
-	if (worn)
-	{
-		if ((obj = get_obj_wear_number(ch, arg, &number, true)) != NULL)
-			return obj;
+    if (worn) {
+        // Check worn items first
+        obj = get_obj_wear_number(ch, arg, &number, true);
+        if (obj)
+            return obj;
 
-		if ((obj = get_obj_carry_number(ch, arg, &number, ch)) != NULL)
-			return obj;
-	}
-	else
-	{
-		if ((obj = get_obj_carry_number(ch, arg, &number, ch)) != NULL)
-			return obj;
+        // Then check carried items
+        obj = get_obj_carry_number(ch, arg, &number, ch);
+        if (obj)
+            return obj;
+    } else {
+        // Check carried items first
+        obj = get_obj_carry_number(ch, arg, &number, ch);
+        if (obj)
+            return obj;
 
-		if ((obj = get_obj_wear_number(ch, arg, &number, true)) != NULL)
-			return obj;
-	}
+        // Then check worn items
+        obj = get_obj_wear_number(ch, arg, &number, true);
+        if (obj)
+            return obj;
+    }
 
-	obj = get_obj_list_number(ch, arg, &number, ch->in_room->contents);
-    return obj;
+    // Finally check room contents - using lcontents if available, otherwise contents
+    if (ch->in_room) {
+        if (ch->in_room->lcontents)
+            return get_obj_list_number(ch, arg, &number, ch->in_room->lcontents);
+        else
+            return get_obj_list_number(ch, arg, &number, ch->in_room->contents);
+    }
+    
+    return NULL;
 }
 
+/*
+ * Same as get_obj_inv but only checks inventory and worn items, not the room.
+ */
 OBJ_DATA *get_obj_inv_only(CHAR_DATA *ch, char *argument, bool worn)
 {
     OBJ_DATA *obj;
     char arg[MAX_INPUT_LENGTH];
     int number;
 
-    if (!ch)
-    {
-		bug("get_obj_inv received NULL ch",0);
-		return NULL;
-	}
+    if (!ch) {
+        bug("get_obj_inv_only received NULL ch",0);
+        return NULL;
+    }
 
     number = number_argument(argument, arg);
 
-	if (worn)
-	{
-		if ((obj = get_obj_wear_number(ch, arg, &number, true)) != NULL)
-			return obj;
+    if (worn) {
+        // Check worn items first
+        obj = get_obj_wear_number(ch, arg, &number, true);
+        if (obj)
+            return obj;
 
-		if ((obj = get_obj_carry_number(ch, arg, &number, ch)) != NULL)
-			return obj;
-	}
-	else
-	{
-		if ((obj = get_obj_carry_number(ch, arg, &number, ch)) != NULL)
-			return obj;
+        // Then check carried items
+        obj = get_obj_carry_number(ch, arg, &number, ch);
+        if (obj)
+            return obj;
+    } else {
+        // Check carried items first
+        obj = get_obj_carry_number(ch, arg, &number, ch);
+        if (obj)
+            return obj;
 
-		if ((obj = get_obj_wear_number(ch, arg, &number, true)) != NULL)
-			return obj;
-	}
+        // Then check worn items
+        obj = get_obj_wear_number(ch, arg, &number, true);
+        if (obj)
+            return obj;
+    }
 
     return NULL;
 }
@@ -3992,54 +4122,79 @@ bool room_is_dark(ROOM_INDEX_DATA *pRoomIndex)
 {
     OBJ_DATA *obj;
     CHAR_DATA *ch;
-    EXIT_DATA *exit;
-    int i;
+    ITERATOR it;
 
-    for (obj = pRoomIndex->contents; obj; obj = obj->next_content) {
-        if (obj->item_type == ITEM_ROOM_DARKNESS)
+    // Check for room darkness objects
+    iterator_start(&it, pRoomIndex->lcontents);
+    while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+        if (obj->item_type == ITEM_ROOM_DARKNESS) {
+            iterator_stop(&it);
             return true;
+        }
+    }
+    iterator_stop(&it);
+
+    // Check for light-emitting equipment on characters
+    iterator_start(&it, pRoomIndex->lpeople);
+    while ((ch = (CHAR_DATA *)iterator_nextdata(&it))) {
+        if (ch->lworn) {
+            ITERATOR it_obj;
+            iterator_start(&it_obj, ch->lworn);
+            while ((obj = (OBJ_DATA *)iterator_nextdata(&it_obj))) {
+                if (IS_SET(obj->extra[1], ITEM_EMITS_LIGHT)) {
+                    iterator_stop(&it_obj);
+                    iterator_stop(&it);
+                    return false;
+                }
+            }
+            iterator_stop(&it_obj);
+        }
+    }
+    iterator_stop(&it);
+
+    // Check for light from adjacent rooms
+    for (int i = 0; i < MAX_DIR; i++) {
+        ROOM_INDEX_DATA *to_room;
+        EXIT_DATA *exit = pRoomIndex->exit[i];
+
+        if (!exit || IS_SET(exit->exit_info, EX_CLOSED))
+            continue;
+
+        to_room = exit->u1.to_room;
+        if (!to_room || !to_room->people)
+            continue;
+
+        iterator_start(&it, to_room->lpeople);
+        while ((ch = (CHAR_DATA *)iterator_nextdata(&it))) {
+            if (ch->lworn) {
+                ITERATOR it_obj;
+                iterator_start(&it_obj, ch->lworn);
+                while ((obj = (OBJ_DATA *)iterator_nextdata(&it_obj))) {
+                    if (IS_SET(obj->extra[1], ITEM_EMITS_LIGHT)) {
+                        iterator_stop(&it_obj);
+                        iterator_stop(&it);
+                        return false;
+                    }
+                }
+                iterator_stop(&it_obj);
+            }
+        }
+        iterator_stop(&it);
     }
 
-    for (ch = pRoomIndex->people; ch; ch = ch->next_in_room) {
-	for (obj = ch->carrying; obj; obj = obj->next_content) {
-	    if (IS_SET(obj->extra[1], ITEM_EMITS_LIGHT)
-		    && obj->wear_loc != WEAR_NONE) return false;
-	}
-    }
-
-    for (i = 0; i < MAX_DIR; i++) {
-	ROOM_INDEX_DATA *to_room;
-
-	exit = pRoomIndex->exit[i];
-
-	if (!exit || IS_SET(exit->exit_info, EX_CLOSED)) continue;
-
-	to_room = exit->u1.to_room;
-
-	if (!to_room || !to_room->people) continue;
-
-	for (ch = to_room->people; ch; ch = ch->next_in_room) {
-	    for (obj = ch->carrying; obj; obj = obj->next_content) {
-		if (IS_SET(obj->extra[1], ITEM_EMITS_LIGHT)
-			&& obj->wear_loc != WEAR_NONE)
-		    return false;
-	    }
-	}
-    }
-
+    // Standard light checks
     if (pRoomIndex->light > 0)
-	return false;
+        return false;
 
     if (IS_SET(pRoomIndex->room_flag[0], ROOM_DARK))
-	return true;
+        return true;
 
     if (pRoomIndex->sector_type == SECT_INSIDE ||
-	pRoomIndex->sector_type == SECT_CITY)
-	return false;
+        pRoomIndex->sector_type == SECT_CITY)
+        return false;
 
-    if (/*weather_info.sunlight == SUN_SET
-    || */  weather_info.sunlight == SUN_DARK)
-	return true;
+    if (weather_info.sunlight == SUN_DARK)
+        return true;
 
     return false;
 }
@@ -4096,14 +4251,24 @@ bool room_is_private(ROOM_INDEX_DATA *pRoomIndex, CHAR_DATA *looker)
 
 bool has_light(CHAR_DATA *ch)
 {
-	OBJ_DATA *obj;
+    OBJ_DATA *obj;
+    ITERATOR it;
 
-	for(obj = ch->carrying; obj; obj = obj->next_content) {
-		if(obj->wear_loc == WEAR_LIGHT || (IS_SET(obj->extra[1], ITEM_EMITS_LIGHT) && obj->wear_loc != WEAR_NONE))
-			return true;
-	}
+    if (!ch) return false;
 
-	return false;
+    // Use the lworn LLIST
+    if (ch->lworn) {
+        iterator_start(&it, ch->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (obj->wear_loc == WEAR_LIGHT || IS_SET(obj->extra[1], ITEM_EMITS_LIGHT)) {
+                iterator_stop(&it);
+                return true;
+            }
+        }
+        iterator_stop(&it);
+    }
+
+    return false;
 }
 
 bool can_see_imm(CHAR_DATA *ch, CHAR_DATA *victim)
@@ -4239,6 +4404,12 @@ bool can_see_obj(CHAR_DATA *ch, OBJ_DATA *obj)
     {
 	bug("can_see_obj, obj was NULL!!!", 0);
         return false;
+    }
+
+    if (ch == NULL) {
+        // If no character is provided, we can always "see" the object
+        // This prevents crashes in script triggers and other scenarios
+        return TRUE;
     }
 
     // Toggled on dead people's possessions.
@@ -4627,22 +4798,21 @@ void resurrect_pc(CHAR_DATA *ch)
 {
     char buf[MAX_STRING_LENGTH];
     ROOM_INDEX_DATA *pRoom = NULL;
-    //AREA_DATA *pArea = NULL;
     OBJ_DATA *obj;
-    //bool exists = false;
+    ITERATOR it;
 
     if (!IS_DEAD(ch))
     {
-	sprintf(buf, "resurrect_pc: %s is not dead!", ch->name);
-	bug(buf, 0);
-	return;
+        sprintf(buf, "resurrect_pc: %s is not dead!", ch->name);
+        bug(buf, 0);
+        return;
     }
 
     if (IS_NPC(ch))
     {
-	sprintf(buf, "resurrect_pc: %s is an NPC!", ch->short_descr);
-	bug(buf, 0);
-	return;
+        sprintf(buf, "resurrect_pc: %s is an NPC!", ch->short_descr);
+        bug(buf, 0);
+        return;
     }
 
     ch->time_left_death = 0;
@@ -4650,57 +4820,72 @@ void resurrect_pc(CHAR_DATA *ch)
     char_from_room(ch);
 
     if ((pRoom = location_to_room(&ch->recall)) == NULL)
-	pRoom = get_room_index(ROOM_VNUM_ALTAR);
+        pRoom = get_room_index(ROOM_VNUM_ALTAR);
 
-    char_to_room(ch,pRoom);
+    char_to_room(ch, pRoom);
     location_clear(&ch->recall);
+    
     // remove and reset affects
     while (ch->affected)
-	affect_remove(ch, ch->affected);
+        affect_remove(ch, ch->affected);
 
     if (IS_SAGE(ch))
-		SET_BIT(ch->affected_by[0], AFF_DETECT_HIDDEN);
+        SET_BIT(ch->affected_by[0], AFF_DETECT_HIDDEN);
 
     ch->dead = false;
 
     if (IS_AFFECTED(ch, AFF_CHARM))
     {
-	char buf[MAX_STRING_LENGTH];
+        char buf[MAX_STRING_LENGTH];
 
-	if (ch->master != NULL)
-	{
-	    sprintf(buf, "%s dissipates into the shadows.\n\r", ch->name);
-	    send_to_char(buf, ch->master);
-	}
+        if (ch->master != NULL)
+        {
+            sprintf(buf, "%s dissipates into the shadows.\n\r", ch->name);
+            send_to_char(buf, ch->master);
+        }
 
-	send_to_char("You soul is free once more.\n\r", ch);
+        send_to_char("You soul is free once more.\n\r", ch);
     }
 
-    for (obj = ch->carrying; obj != NULL; obj = obj->next_content) {
-		if (IS_SET(obj->extra[1], ITEM_UNSEEN))
-		    REMOVE_BIT(obj->extra[1], ITEM_UNSEEN);
+    // Use iterator to traverse the lcarrying list
+    if (ch->lcarrying) {
+        iterator_start(&it, ch->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (IS_SET(obj->extra[1], ITEM_UNSEEN))
+                REMOVE_BIT(obj->extra[1], ITEM_UNSEEN);
+        }
+        iterator_stop(&it);
+    }
+    
+    // Also check worn items
+    if (ch->lworn) {
+        iterator_start(&it, ch->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (IS_SET(obj->extra[1], ITEM_UNSEEN))
+                REMOVE_BIT(obj->extra[1], ITEM_UNSEEN);
+        }
+        iterator_stop(&it);
     }
 
     /*FREE DEATH ITEMS HERE IF ANY */
 
-	affect_fix_char(ch);
+    affect_fix_char(ch);
 
     /* Reset form and parts - Fixes issue 33 on gitlab repo - Tieryo 07/22/2016 */
-	/* Went back to fix properly for issue 126 */
+    /* Went back to fix properly for issue 126 */
     ch->form = race_table[ch->race].form;
     ch->parts = race_table[ch->race].parts & ~ch->lostparts;
-    ch->lostparts	= 0;	// Restore anything lost
+    ch->lostparts = 0;   // Restore anything lost
 
     if (IS_SAGE(ch))
-		SET_BIT(ch->affected_by[0], AFF_DETECT_HIDDEN);
+        SET_BIT(ch->affected_by[0], AFF_DETECT_HIDDEN);
 
     update_pos(ch);
 
-	// Used to handle any post resurrection actions
+    // Used to handle any post resurrection actions
     p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->pcdata->corpse, NULL, TRIG_RESURRECT, NULL);
     p_percent_trigger(NULL, ch->pcdata->corpse, NULL, NULL, ch, ch, NULL, NULL, NULL, TRIG_RESURRECT, NULL);
 }
-
 
 /* is a mob a global mob? */
 bool is_global_mob(CHAR_DATA *mob)
@@ -4811,22 +4996,28 @@ char *pers(CHAR_DATA *ch, CHAR_DATA *looker)
 bool can_see_shift(CHAR_DATA *ch, CHAR_DATA *victim)
 {
     OBJ_DATA *obj;
+    ITERATOR it;
 
     if (ch == NULL || victim == NULL)
     {
-	bug("can_see_shift: called with null ch or victim!", 0);
-	return false;
+        bug("can_see_shift: called with null ch or victim!", 0);
+        return false;
     }
 
     if (IS_IMMORTAL(ch))
         return true;
 
-    for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-    {
-        if(IS_SET(obj->extra[1], ITEM_TRUESIGHT)
-	&& obj->wear_loc != WEAR_NONE
-	&& ch->in_room == victim->in_room)
-	    return true;
+    // Use the lworn LLIST
+    if (ch->lworn) {
+        iterator_start(&it, ch->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (IS_SET(obj->extra[1], ITEM_TRUESIGHT) &&
+                ch->in_room == victim->in_room) {
+                iterator_stop(&it);
+                return true;
+            }
+        }
+        iterator_stop(&it);
     }
 
     return false;
@@ -4837,20 +5028,26 @@ bool can_see_shift(CHAR_DATA *ch, CHAR_DATA *victim)
 bool can_scare(CHAR_DATA *ch)
 {
     OBJ_DATA *obj;
+    ITERATOR it;
 
     if (ch == NULL) {
-	bug("can_scare: NULL ch", 0);
-	return false;
+        bug("can_scare: NULL ch", 0);
+        return false;
     }
 
     if (IS_SHIFTED_SLAYER(ch))
-	return true;
+        return true;
 
-    for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-    {
-	if (obj->wear_loc != WEAR_NONE
-	&&  IS_SET(obj->extra[1], ITEM_SCARE))
-	    return true;
+    // Use the lworn LLIST to check worn items
+    if (ch->lworn) {
+        iterator_start(&it, ch->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (IS_SET(obj->extra[1], ITEM_SCARE)) {
+                iterator_stop(&it);
+                return true;
+            }
+        }
+        iterator_stop(&it);
     }
 
     return false;
@@ -4861,16 +5058,20 @@ bool can_scare(CHAR_DATA *ch)
 bool is_sustained(CHAR_DATA *ch)
 {
     OBJ_DATA *obj;
+    ITERATOR it;
 
-    if (ch->carrying == NULL)
+    if (!ch || !ch->lworn)
         return false;
 
-    for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-    {
-	if (IS_SET(obj->extra[1], ITEM_SUSTAIN)
-	&& obj->wear_loc != WEAR_NONE)
-	    return true;
+    // Use the lworn LLIST to check worn items
+    iterator_start(&it, ch->lworn);
+    while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+        if (IS_SET(obj->extra[1], ITEM_SUSTAIN)) {
+            iterator_stop(&it);
+            return true;
+        }
     }
+    iterator_stop(&it);
 
     return false;
 }
@@ -5341,17 +5542,24 @@ bool can_tell_while_quiet(CHAR_DATA *ch, CHAR_DATA *victim)
 bool can_hunt(CHAR_DATA *ch, CHAR_DATA *victim)
 {
     OBJ_DATA *obj;
+    ITERATOR it;
 
     if (victim == NULL)
     {
-	bug("can_hunt: victim was null!", 0);
-	return false;
+        bug("can_hunt: victim was null!", 0);
+        return false;
     }
 
-    for (obj = victim->carrying; obj != NULL; obj = obj->next_content)
-    {
-	if (obj->wear_loc != WEAR_NONE && IS_SET(obj->extra[1], ITEM_NO_HUNT))
-	    return false;
+    // Use the lworn LLIST to check worn items
+    if (victim->lworn) {
+        iterator_start(&it, victim->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (IS_SET(obj->extra[1], ITEM_NO_HUNT)) {
+                iterator_stop(&it);
+                return false;
+            }
+        }
+        iterator_stop(&it);
     }
 
     return true;
@@ -5629,29 +5837,65 @@ bool account_exists(char *argument)
     return found_account;
 }
 
-// Find a skull of a person in ch's inv. Looks in containers.
+/*
+ * Find a skull of a person in ch's inv. Looks in containers.
+ */
 OBJ_DATA *get_skull(CHAR_DATA *ch, char *owner)
 {
     OBJ_DATA *obj;
     OBJ_DATA *objNest;
-
-    for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-    {
-	if (obj->contains != NULL)
-	    for (objNest = obj->contains; objNest != NULL; objNest = objNest->next_content)
-	    {
-		if (can_see_obj(ch, objNest)
-		&&  (objNest->pIndexData->vnum == OBJ_VNUM_SKULL
-		      || objNest->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL)
-		&& !str_cmp(objNest->owner, owner))
-		    return objNest;
-	    }
-
-	if (can_see_obj(ch, obj)
-	&&  (obj->pIndexData->vnum == OBJ_VNUM_SKULL
-	     || obj->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL)
-        && !str_cmp(obj->owner, owner))
-	    return obj;
+    ITERATOR it;
+    
+    if (!ch || !owner || !*owner)
+        return NULL;
+        
+    // First check in character's carried items
+    if (ch->lcarrying) {
+        iterator_start(&it, ch->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            // Check containers first
+            if (obj->contains) {
+                // Look inside containers
+                for (objNest = obj->contains; objNest != NULL; objNest = objNest->next_content) {
+                    if (can_see_obj(ch, objNest)
+                    && (objNest->pIndexData->vnum == OBJ_VNUM_SKULL
+                        || objNest->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL)
+                    && !str_cmp(objNest->owner, owner)) {
+                        iterator_stop(&it);
+                        return objNest;
+                    }
+                }
+            }
+            
+            // Check if this is a skull with matching owner
+            if (can_see_obj(ch, obj)
+            && (obj->pIndexData->vnum == OBJ_VNUM_SKULL
+                || obj->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL)
+            && !str_cmp(obj->owner, owner)) {
+                iterator_stop(&it);
+                return obj;
+            }
+        }
+        iterator_stop(&it);
+    }
+    
+    // Also check worn items that might be containers (like pouches, bags)
+    if (ch->lworn) {
+        iterator_start(&it, ch->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (obj->contains) {
+                for (objNest = obj->contains; objNest != NULL; objNest = objNest->next_content) {
+                    if (can_see_obj(ch, objNest)
+                    && (objNest->pIndexData->vnum == OBJ_VNUM_SKULL
+                        || objNest->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL)
+                    && !str_cmp(objNest->owner, owner)) {
+                        iterator_stop(&it);
+                        return objNest;
+                    }
+                }
+            }
+        }
+        iterator_stop(&it);
     }
 
     return NULL;
@@ -7352,143 +7596,181 @@ int get_room_weight(ROOM_INDEX_DATA *room, bool mobs, bool objs, bool ground)
 //			a "float_user" object worn
 bool is_float_user(CHAR_DATA *ch)
 {
-	OBJ_DATA *obj;
+    OBJ_DATA *obj;
+    ITERATOR it;
 
-	if(!ch) return false;
+    if (!ch) return false;
 
-	for (obj = ch->carrying; obj; obj = obj->next_content)
-	    if (IS_SET(obj->extra[1], ITEM_FLOAT_USER) && obj->wear_loc != WEAR_NONE)
-		return true;
+    // Use lworn LLIST instead of checking all carrying objects
+    if (ch->lworn) {
+        iterator_start(&it, ch->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (IS_SET(obj->extra[1], ITEM_FLOAT_USER)) {
+                iterator_stop(&it);
+                return true;
+            }
+        }
+        iterator_stop(&it);
+    }
 
-	return false;
+    return false;
 }
 
 
 // 20070521 : NIB : Function to see if CH has the desired catalyst or not
-int has_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int min_strength, int max_strength)
+int has_catalyst(CHAR_DATA *ch, ROOM_INDEX_DATA *room, int type, int method, int min_strength, int max_strength)
 {
-	int total;
-	OBJ_DATA *obj, *next;
-	OBJ_DATA *objNest, *nextNest;
-	AFFECT_DATA *aff;
+    int total;
+    OBJ_DATA *obj;
+    OBJ_DATA *objNest;
+    AFFECT_DATA *aff;
+    ITERATOR it;
 
-	// For now, it just checks to see if it has WARP_STONES...  CHECK: fixed to check any catalyst type
-	// Fix to allow multicharged catalysts...  CHECK: utilizes multiple charges
-	// Allow for multityped catalysts, using catalyst affects
-	// Add for "CATALYST_HERE" for doing room level catalysts
+    // For now, it just checks to see if it has WARP_STONES...  CHECK: fixed to check any catalyst type
+    // Fix to allow multicharged catalysts...  CHECK: utilizes multiple charges
+    // Allow for multityped catalysts, using catalyst affects
+    // Add for "CATALYST_HERE" for doing room level catalysts
 
-	if(!ch && !room) return 0;
+    if(!ch && !room) return 0;
 
-	if(!ch && !IS_SET(method,CATALYST_ROOM)) return 0;
+    if(!ch && !IS_SET(method,CATALYST_ROOM)) return 0;
 
-	if(!room) room = ch->in_room;
+    if(!room) room = ch->in_room;
 
-	total = 0;
+    total = 0;
 
-	if(ch) {
-		for (obj = ch->carrying; obj; obj = next) {
-			next = obj->next_content;
-			if((IS_SET(method,CATALYST_HOLD) && obj->wear_loc == WEAR_HOLD) ||
-				(IS_SET(method,CATALYST_WORN) && obj->wear_loc != WEAR_NONE) ||
-				IS_SET(method,(CATALYST_CARRY))) {
-					for(aff = obj->catalyst; aff; aff = aff->next) if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
-						if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act[1], PLR_AUTOCAT))
-							continue;
+    if(ch) {
+        // Use the lcarrying LLIST instead of the old carrying list
+        if (ch->lcarrying) {
+            iterator_start(&it, ch->lcarrying);
+            while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+                if((IS_SET(method,CATALYST_HOLD) && obj->wear_loc == WEAR_HOLD) ||
+                    (IS_SET(method,CATALYST_WORN) && obj->wear_loc != WEAR_NONE) ||
+                    IS_SET(method,(CATALYST_CARRY))) {
+                        for(aff = obj->catalyst; aff; aff = aff->next) 
+                            if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
+                                if(IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act[1], PLR_AUTOCAT))
+                                    continue;
 
-						if(aff->duration < 0) return -1;	// Negative is treated as a "source"
+                                if(aff->duration < 0) {
+                                    iterator_stop(&it);
+                                    return -1;    // Negative is treated as a "source"
+                                }
 
-						total += aff->duration;
+                                total += aff->duration;
+                            }
+                } else if(obj->contains && IS_SET(method,CATALYST_CONTAINERS)) {    /* look in bags too */
+                    // Navigate through container contents
+                    for (objNest = obj->contains; objNest; objNest = objNest->next_content) {
+                        for(aff = objNest->catalyst; aff; aff = aff->next) 
+                            if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
+                                if(IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act[1], PLR_AUTOCAT))
+                                    continue;
+                                if(aff->duration < 0) {
+                                    iterator_stop(&it);
+                                    return -1;    // Negative is treated as a "source"
+                                }
 
-					}
-			} else if(obj->contains && IS_SET(method,CATALYST_CONTAINERS)) {	/* look in bags too */
-				for (objNest = obj->contains; objNest; objNest = nextNest) {
-					nextNest = objNest->next_content;
-					for(aff = objNest->catalyst; aff; aff = aff->next) if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
-						if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act[1], PLR_AUTOCAT))
-							continue;
-						if(aff->duration < 0) return -1;	// Negative is treated as a "source"
+                                total += aff->duration;
+                            }
+                    }
+                }
+            }
+            iterator_stop(&it);
+        }
+    }
 
-						total += aff->duration;
+    if(IS_SET(method,CATALYST_ROOM)) {
+        // Use the lcontents LLIST instead of the old contents list
+        if (room->lcontents) {
+            iterator_start(&it, room->lcontents);
+            while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+                for(aff = obj->catalyst; aff; aff = aff->next) 
+                    if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
+                        if(IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act[1], PLR_AUTOCAT))
+                            continue;
+                        if(aff->duration < 0) {
+                            iterator_stop(&it);
+                            return -1;    // Negative is treated as a "source"
+                        }
+                        total += aff->duration;
+                    }
+                
+                // Check container contents
+                if (obj->contains) {
+                    for (objNest = obj->contains; objNest; objNest = objNest->next_content) {
+                        for(aff = objNest->catalyst; aff; aff = aff->next) 
+                            if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
+                                if(IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act[1], PLR_AUTOCAT))
+                                    continue;
+                                if(aff->duration < 0) {
+                                    iterator_stop(&it);
+                                    return -1;    // Negative is treated as a "source"
+                                }
+                                total += aff->duration;
+                            }
+                    }
+                }
+            }
+            iterator_stop(&it);
+        }
+    }
 
-					}
-				}
-			}
-		}
-	}
-
-	if(IS_SET(method,CATALYST_ROOM)) {
-		for(obj = room->contents; obj; obj = obj->next_content) {
-			for(aff = obj->catalyst; aff; aff = aff->next) if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
-					if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act[1], PLR_AUTOCAT))
-						continue;
-				if(aff->duration < 0) return -1;	// Negative is treated as a "source"
-				total += aff->duration;
-			}
-			for (objNest = obj->contains; objNest; objNest = nextNest) {
-				nextNest = objNest->next_content;
-				for(aff = objNest->catalyst; aff; aff = aff->next) if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
-					if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act[1], PLR_AUTOCAT))
-						continue;
-					if(aff->duration < 0) return -1;	// Negative is treated as a "source"
-						total += aff->duration;
-				}
-			}
-		}
-	}
-
-	return total;
+    return total;
 }
 
-int use_catalyst_obj(CHAR_DATA *ch,ROOM_INDEX_DATA *room,OBJ_DATA *obj,int type,int left,int min_strength, int max_strength, bool active, bool show)
+int use_catalyst_obj(CHAR_DATA *ch, ROOM_INDEX_DATA *room, OBJ_DATA *obj, int type, int left, int min_strength, int max_strength, bool active, bool show)
 {
-	bool used;
-	int total = 0;
-	AFFECT_DATA *aff, *prev, *next;
+    bool used;
+    int total = 0;
+    AFFECT_DATA *aff, *prev, *next;
 
-	if(!obj) return 0;
+    if(!obj) return 0;
 
-	if(!ch && !room) room = obj_room(obj);
+    if(!ch && !room) room = obj_room(obj);
 
-	if(!room) return 0;
+    if(!room) return 0;
 
-	used = false;
-	for(prev = NULL, aff = obj->catalyst; aff && total < left; aff = next) {
-		next = aff->next;
-		if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
-			if( active && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act[1], PLR_AUTOCAT) ) continue;
+    used = false;
+    for(prev = NULL, aff = obj->catalyst; aff && total < left; aff = next) {
+        next = aff->next;
+        if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
+            if(active && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act[1], PLR_AUTOCAT)) continue;
 
-			if(aff->duration < 0) {
-				if(show && !p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CATALYST_SOURCE, NULL))
-					act("$p pulsates brightly.",room->people, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
-				return -1;
-			}
+            if(aff->duration < 0) {
+                if(show && !p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CATALYST_SOURCE, NULL))
+                    act("$p pulsates brightly.", room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
+                return -1;
+            }
 
-			if(total + aff->duration <= left) {
-				total += aff->duration;
-				if(prev) prev->next = next;
-				else obj->catalyst = next;
+            if(total + aff->duration <= left) {
+                total += aff->duration;
+                if(prev) prev->next = next;
+                else obj->catalyst = next;
 
-				free_affect(aff);
+                free_affect(aff);
 
-				if(!obj->catalyst) {	// All catalyst affects have been exhausted
-					if(show && !p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CATALYST_FULL, NULL) && ch)
-						act("$p flares brightly!",room->people, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
-//					extract_obj(obj);
-					return total;
-				}
-			} else {
-				aff->duration -= left - total;
-				total = left;
-			}
+                if(!obj->catalyst) {    // All catalyst affects have been exhausted
+                    if(show && !p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CATALYST_FULL, NULL) && ch)
+                        act("$p flares brightly!", room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
+//                    extract_obj(obj);
+                    return total;
+                }
+            } else {
+                aff->duration -= left - total;
+                total = left;
+            }
 
-			used = true;
-		}
-	}
+            used = true;
+        } else {
+            prev = aff;
+        }
+    }
 
-	if(show && used && !p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CATALYST, NULL)) {
-		act("$p shimmers brightly, but only dims back to normal.",room->people, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
-	}
-	return total;
+    if(show && used && !p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CATALYST, NULL)) {
+        act("$p shimmers brightly, but only dims back to normal.", room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
+    }
+    return total;
 }
 
 int use_catalyst_here(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int amount,int min_strength, int max_strength, bool active, bool show)
@@ -7518,49 +7800,60 @@ int use_catalyst_here(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int amount,in
 	return total;
 }
 
-int use_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int amount,int min_strength, int max_strength, bool show)
+int use_catalyst(CHAR_DATA *ch, ROOM_INDEX_DATA *room, int type, int method, int amount, int min_strength, int max_strength, bool show)
 {
-	int total, total2;
-	OBJ_DATA *obj, *next;
-	OBJ_DATA *objNest, *nextNest;
-	bool active;
+    int total, total2;
+    OBJ_DATA *obj;
+    OBJ_DATA *objNest, *nextNest;
+    bool active;
+    ITERATOR it;
 
-	if(!ch && !room) return 0;
+    if(!ch && !room) return 0;
 
- 	if(!room) room = ch->in_room;
+    if(!room) room = ch->in_room;
 
-	if(!room) return 0;
+    if(!room) return 0;
 
-	total = 0;
-	active = IS_SET(method, CATALYST_ACTIVE);
+    total = 0;
+    active = IS_SET(method, CATALYST_ACTIVE);
 
-	for (obj = ch->carrying; obj && total < amount; obj = next) {
-		next = obj->next_content;
-		if((IS_SET(method,CATALYST_HOLD) && obj->wear_loc == WEAR_HOLD) ||
-			(IS_SET(method,CATALYST_WORN) && obj->wear_loc != WEAR_NONE) ||
-			IS_SET(method,(CATALYST_CARRY))) {
-				total2 = use_catalyst_obj(ch,room,obj,type,amount - total,min_strength,max_strength,active,show);
-				if(total2 < 0) return amount;
+    // Use the lcarrying LLIST instead of the old carrying list
+    if (ch->lcarrying) {
+        iterator_start(&it, ch->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it)) && total < amount) {
+            if((IS_SET(method, CATALYST_HOLD) && obj->wear_loc == WEAR_HOLD) ||
+                (IS_SET(method, CATALYST_WORN) && obj->wear_loc != WEAR_NONE) ||
+                IS_SET(method, (CATALYST_CARRY))) {
+                    total2 = use_catalyst_obj(ch, room, obj, type, amount - total, min_strength, max_strength, active, show);
+                    if(total2 < 0) {
+                        iterator_stop(&it);
+                        return amount;
+                    }
 
-				total += total2;
-		} else if(obj->contains && IS_SET(method,CATALYST_CONTAINERS)) {	/* look in bags too */
-			for (objNest = obj->contains; objNest; objNest = nextNest) {
-				nextNest = objNest->next_content;
-				total2 = use_catalyst_obj(ch,room,objNest,type,amount - total,min_strength,max_strength,active,show);
-				if(total2 < 0) return amount;
+                    total += total2;
+            } else if(obj->contains && IS_SET(method, CATALYST_CONTAINERS)) {    /* look in bags too */
+                for (objNest = obj->contains; objNest; objNest = nextNest) {
+                    nextNest = objNest->next_content;
+                    total2 = use_catalyst_obj(ch, room, objNest, type, amount - total, min_strength, max_strength, active, show);
+                    if(total2 < 0) {
+                        iterator_stop(&it);
+                        return amount;
+                    }
 
-				total += total2;
-			}
-		}
-	}
+                    total += total2;
+                }
+            }
+        }
+        iterator_stop(&it);
+    }
 
-	if(IS_SET(method,CATALYST_ROOM) && total < amount) {
-		int htotal = use_catalyst_here(ch,room,type,amount - total,min_strength,max_strength,active,show);
-		if(htotal < 0) return amount;
-		total += htotal;
-	}
+    if(IS_SET(method, CATALYST_ROOM) && total < amount) {
+        int htotal = use_catalyst_here(ch, room, type, amount - total, min_strength, max_strength, active, show);
+        if(htotal < 0) return amount;
+        total += htotal;
+    }
 
-	return total;
+    return total;
 }
 
 void move_cart(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool delay)
@@ -8050,6 +8343,7 @@ LLIST *list_create(bool purge)
 		lp->purge = purge;
 		lp->copier = NULL;
 		lp->deleter = NULL;
+		lp->identifier = LLIST_IDENT;
 	}
 
 	return lp;
@@ -9702,67 +9996,93 @@ bool lockstate_functional(LOCK_STATE *lock)
 
 OBJ_DATA *lockstate_getkey(CHAR_DATA *ch, LOCK_STATE *lock)
 {
-	if( !lock ) return NULL;
+    if (!lock) return NULL;
 
-	if( IS_VALID(lock->keys) )
-	{
-		LLIST_UID_DATA *luid;
-		OBJ_DATA *obj = NULL;
+    if (IS_VALID(lock->keys))
+    {
+        LLIST_UID_DATA *luid;
+        OBJ_DATA *obj = NULL;
+        ITERATOR it;
 
-		ITERATOR it;
-		iterator_start(&it, lock->keys);
-		while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
-		{
-			if( luid->ptr )
-			{
-				obj = (OBJ_DATA *)luid->ptr;
+        iterator_start(&it, lock->keys);
+        while ((luid = (LLIST_UID_DATA *)iterator_nextdata(&it)))
+        {
+            if (luid->ptr)
+            {
+                obj = (OBJ_DATA *)luid->ptr;
 
-				// In primary inventory?
-				if( obj->carried_by == ch )
-					break;
+                // In primary inventory?
+                if (obj->carried_by == ch && obj->wear_loc == WEAR_NONE)
+                    break;
 
-				// Inside a keyring that is in the primary inventory?
-				if( obj->in_obj != NULL && obj->in_obj->item_type == ITEM_KEYRING )
-				{
-					if( obj->in_obj->carried_by == ch )
-						break;
-				}
+                // Worn directly?
+                if (obj->carried_by == ch && obj->wear_loc != WEAR_NONE)
+                    break;
 
-			}
-		}
-		iterator_stop(&it);
+                // Inside a keyring that is in primary inventory or worn?
+                if (obj->in_obj != NULL && obj->in_obj->item_type == ITEM_KEYRING && obj->in_obj->carried_by == ch)
+                    break;
+            }
+        }
+        iterator_stop(&it);
 
-		return obj;
-	}
+        return obj;
+    }
 
-	if( lock->key_vnum > 0 )
-	{
-		OBJ_DATA *obj;
-		OBJ_DATA *key;
+    if (lock->key_vnum > 0)
+    {
+        OBJ_DATA *obj;
+        OBJ_DATA *key;
+        ITERATOR it;
+        
+        // Check inventory
+        if (ch->lcarrying) {
+            iterator_start(&it, ch->lcarrying);
+            while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+                if (obj->pIndexData->vnum == lock->key_vnum) {
+                    iterator_stop(&it);
+                    return obj;
+                }
+                
+                // Check keyrings in inventory
+                if (obj->item_type == ITEM_KEYRING && obj->contains) {
+                    for (key = obj->contains; key != NULL; key = key->next_content) {
+                        if (key->pIndexData->vnum == lock->key_vnum) {
+                            iterator_stop(&it);
+                            return key;
+                        }
+                    }
+                }
+            }
+            iterator_stop(&it);
+        }
+        
+        // Check worn equipment
+        if (ch->lworn) {
+            iterator_start(&it, ch->lworn);
+            while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+                if (obj->pIndexData->vnum == lock->key_vnum) {
+                    iterator_stop(&it);
+                    return obj;
+                }
+                
+                // Check keyrings being worn
+                if (obj->item_type == ITEM_KEYRING && obj->contains) {
+                    for (key = obj->contains; key != NULL; key = key->next_content) {
+                        if (key->pIndexData->vnum == lock->key_vnum) {
+                            iterator_stop(&it);
+                            return key;
+                        }
+                    }
+                }
+            }
+            iterator_stop(&it);
+        }
 
-		for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-		{
-			if (obj->pIndexData->vnum == lock->key_vnum)
-				return obj;
-		}
+        return NULL;
+    }
 
-		/* Keyring */
-		for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-		{
-			if (obj->pIndexData->item_type == ITEM_KEYRING)
-			{
-				for (key = obj->contains; key != NULL; key = key->next_content)
-				{
-					if (key->pIndexData->vnum == lock->key_vnum)
-						return key;
-				}
-			}
-		}
-
-		return NULL;
-	}
-
-	return NULL;
+    return NULL;
 }
 
 SPECIAL_KEY_DATA *get_special_key(LLIST *list, long vnum)
@@ -10829,4 +11149,28 @@ bool is_valid_colour_code(const char *code) {
         return false;
     }
     return true;
+}
+
+/*
+ * Safely check if a void pointer is actually an LLIST structure
+ * Returns true if the pointer is a valid LLIST, false otherwise
+ */
+bool is_llist(const void *ptr)
+{
+    // First ensure the pointer isn't NULL and has reasonable alignment
+    if (!ptr || ((unsigned long)ptr & 3))
+        return false;
+
+    // Try to safely check if this has an LLIST structure format
+    // We need to be extremely careful about dereferencing here
+    const LLIST *potential_list = (const LLIST *)ptr;
+    
+    // First check if the pointer is valid memory
+    // Using minimal checks: check valid and identifier fields
+    // without dereferencing other pointers within the structure
+    if (potential_list->valid && 
+        potential_list->identifier == LLIST_IDENT)
+        return true;
+
+    return false;
 }

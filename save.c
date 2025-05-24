@@ -204,14 +204,13 @@ char *print_flags(long flag)
 }
 
 
-// Save a character and inventory.
 void save_char_obj(CHAR_DATA *ch)
 {
     char strsave[MAX_INPUT_LENGTH];
     FILE *fp;
 
     if (IS_NPC(ch))
-	return;
+    return;
 
     if (!IS_VALID(ch))
     {
@@ -219,7 +218,7 @@ void save_char_obj(CHAR_DATA *ch)
         return;
     }
 
-		remove_duplicate_objects_from_char(ch);
+    remove_duplicate_objects_from_char(ch);
 
     // Save character to account first
     if (ch->desc && ch->desc->account) {
@@ -243,86 +242,81 @@ void save_char_obj(CHAR_DATA *ch)
         }
     }
 
-if (ch->carrying_temp && ch->version < VERSION_PLAYER_008) {
-    OBJ_DATA *obj = ch->carrying_temp;
-    OBJ_DATA *next;
-    while (obj) {
-        next = obj->next_content;
-        obj_to_char(obj, ch);
-        obj = next;
-    }
-    ch->carrying_temp = NULL;
-    ch->version = VERSION_PLAYER_008;
-	save_char_obj(ch);
-}
-
+    // Remove carrying_temp code that's no longer needed
     fclose(fpReserve);
     sprintf(strsave, "%s%c/%s", PLAYER_DIR, tolower(ch->name[0]), capitalize(ch->name));
 
     if ((fp = fopen(TEMP_FILE, "w")) == NULL)
     {
-	bug("Save_char_obj: fopen", 0);
-	perror(strsave);
+    bug("Save_char_obj: fopen", 0);
+    perror(strsave);
     }
     else
     {
-	    // Used to do SAVE checks
-		p_percent_trigger( ch,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SAVE, NULL );
+        // Used to do SAVE checks
+        p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SAVE, NULL);
 
-		fwrite_char(ch, fp);
+        fwrite_char(ch, fp);
 
-		// Write equipment section
-		fprintf(fp, "#EQUIPMENT\n");
-		ITERATOR eit;
-		OBJ_DATA *eobj;
-		iterator_start(&eit, ch->lworn);
-		while ((eobj = (OBJ_DATA *)iterator_nextdata(&eit))) {
-    		if (!eobj->locker && eobj->in_obj == NULL && list_haslink(loaded_objects, eobj)) {
-        		fwrite_obj_new(ch, eobj, fp, 0);
-    		}
-		}
-		iterator_stop(&eit);
-		fprintf(fp, "#ENDEQUIPMENT\n");
+        // Write equipment section
+        fprintf(fp, "#EQUIPMENT\n");
+        ITERATOR eit;
+        OBJ_DATA *eobj;
+        iterator_start(&eit, ch->lworn);
+        while ((eobj = (OBJ_DATA *)iterator_nextdata(&eit))) {
+            if (!eobj->locker && eobj->in_obj == NULL && list_haslink(loaded_objects, eobj)) {
+                fwrite_obj_new(ch, eobj, fp, 0);
+            }
+        }
+        iterator_stop(&eit);
+        fprintf(fp, "#ENDEQUIPMENT\n");
 
-
-		fprintf(fp, "#INVENTORY\n");
-		OBJ_DATA *obj, *next;
-		for (obj = ch->carrying; obj != NULL; obj = next) {
-    		next = obj->next_content;
-    		// Only write unequipped, non-locker, top-level objects
-    		if (obj->wear_loc == WEAR_NONE && !obj->locker && obj->in_obj == NULL && list_haslink(loaded_objects, obj)) {
-        		obj->next_content = NULL; // Prevent recursion through the list
-        		fwrite_obj_new(ch, obj, fp, 0);
-        		obj->next_content = next; // Restore the link
-    		}
-		}
-		fprintf(fp, "#ENDINVENTORY\n");
-
+        // Write inventory section
+        fprintf(fp, "#INVENTORY\n");
+        if (ch->lcarrying && IS_VALID(ch->lcarrying)) {
+            ITERATOR it;
+            OBJ_DATA *obj;
+            iterator_start(&it, ch->lcarrying);
+            while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+                // Only write non-locker, top-level objects
+                if (!obj->locker && obj->in_obj == NULL && list_haslink(loaded_objects, obj)) {
+                    fwrite_obj_new(ch, obj, fp, 0);
+                }
+            }
+            iterator_stop(&it);
+        }
+        fprintf(fp, "#ENDINVENTORY\n");
 
         // Write locker section
         fprintf(fp, "#LOCKER\n");
-        for (obj = ch->locker; obj != NULL; obj = obj->next_content)
-			if (list_haslink(loaded_objects, obj))
-            	fwrite_obj_new(ch, obj, fp, 0);
+        if (ch->llocker && IS_VALID(ch->llocker)) {
+            ITERATOR it;
+            OBJ_DATA *obj;
+            iterator_start(&it, ch->llocker);
+            while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+                if (list_haslink(loaded_objects, obj)) {
+                    fwrite_obj_new(ch, obj, fp, 0);
+                }
+            }
+            iterator_stop(&it);
+        }
         fprintf(fp, "#ENDLOCKER\n");
 
-		if (ch->tokens != NULL) {
-			TOKEN_DATA *token;
-			for(token = ch->tokens; token; token = token->next)
-				if( !token->skill )
-					fwrite_token(token, fp);
-		}
+        if (ch->tokens != NULL) {
+            TOKEN_DATA *token;
+            for(token = ch->tokens; token; token = token->next)
+                if(!token->skill)
+                    fwrite_token(token, fp);
+        }
 
-		fwrite_skills(ch, fp);
+        fwrite_skills(ch, fp);
 
-	    fprintf(fp, "#END\n");
         fprintf(fp, "#END\n");
-
+        fprintf(fp, "#END\n");
     }
 
-
     fclose(fp);
-    rename(TEMP_FILE,strsave);
+    rename(TEMP_FILE, strsave);
     fpReserve = fopen(NULL_FILE, "r");
 }
 
@@ -723,6 +717,7 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 		fprintf(fp, "MFA_Key %s~\n", ch->pcdata->mfa_key);
 
 	if (ch->pcdata->mfa_enabled == true)
+	{
 		fprintf(fp, "MFA_Enabled\n");
 		fprintf(fp, "MFAPendingKey %s~\n", ch->pcdata->mfa_pending_key ? ch->pcdata->mfa_pending_key : "");
 		fprintf(fp, "MFAPending %d\n", ch->pcdata->mfa_pending ? 1 : 0);
@@ -733,6 +728,7 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 		fprintf(fp, "RecoveryUsed ");
 			for (int i = 0; i < MFA_RECOVERY_CODES; ++i)
     			fprintf(fp, "%d%c", ch->pcdata->recovery_used[i] ? 1 : 0, (i == MFA_RECOVERY_CODES-1) ? '\n' : ' ');
+	}
 	/*if (ch->pcdata->immortal->bamfin[0] != '\0')
 	    fprintf(fp, "Bin  %s~\n",	ch->pcdata->immortal->bamfin);
 	if (ch->pcdata->immortal->bamfout[0] != '\0')
@@ -845,112 +841,103 @@ extern pVARIABLE variable_tail;
  */
 bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 {
-	    struct __player_data_versioning __versioning;
+    struct __player_data_versioning __versioning;
 
     char strsave[MAX_INPUT_LENGTH];
     char buf[MSL];
     CHAR_DATA *ch;
     OBJ_DATA *obj;
-    OBJ_DATA *objNestList[MAX_NEST];
-    IMMORTAL_DATA *immortal;
     FILE *fp;
     bool found = false;
     int stat;
     TOKEN_DATA *token;
     pVARIABLE last_var = variable_tail;
-	//char old_scroll_vial[MAX_STRING_LENGTH];
-	char *section = NULL;
+    char *section = NULL;
+	IMMORTAL_DATA *immortal;
+    OBJ_DATA *objNestList[MAX_NEST];
+    int iNest;
 
-	    __init_player_versioning(&__versioning);
-
+    __init_player_versioning(&__versioning);
 
     ch = new_char();
     ch->pcdata = new_pcdata();
 
-    d->character			= ch;
-    ch->desc				= d;
-    ch->name				= str_dup(name);
-    ch->id[0] = ch->id[1]		= 0;
-    ch->pcdata->creation_date		= -1;
-    ch->race				= race_lookup("human");
-    ch->act[0]				= PLR_NOSUMMON;
-    ch->act[1]				= 0;
-    ch->comm				= COMM_PROMPT;
-    ch->num_grouped			= 0;
+    d->character = ch;
+    ch->desc = d;
+    ch->name = str_dup(name);
+    ch->id[0] = ch->id[1] = 0;
+    ch->pcdata->creation_date = -1;
+    ch->race = race_lookup("human");
+    ch->act[0] = PLR_NOSUMMON;
+    ch->act[1] = 0;
+    ch->comm = COMM_PROMPT;
+    ch->num_grouped = 0;
     ch->dead = false;
-    ch->prompt 				= str_dup("{B<{x%h{Bhp {x%m{Bm {x%v{Bmv>{x ");
-    ch->pcdata->confirm_delete		= false;
-    ch->pcdata->pwd			= str_dup("");
-	ch->pcdata->pwd_vers	= 0;
-	ch->pcdata->reset_code	= str_dup("");
-	//ch->pcdata->reset_time	= 0;
-	ch->pcdata->reset_state	= 0;
-    //ch->pcdata->bamfin			= str_dup("");
-    //ch->pcdata->bamfout			= str_dup("");
-    ch->pcdata->title			= str_dup("");
-    for (stat =0; stat < MAX_STATS; stat++)
-    {
-		ch->perm_stat[stat]		= 13;
-		ch->mod_stat[stat]		= 0;
-		ch->dirty_stat[stat]	= true;
-	}
-    ch->pcdata->condition[COND_THIRST]	= 48;
-    ch->pcdata->condition[COND_FULL]	= 48;
-    ch->pcdata->condition[COND_HUNGER]	= 48;
-    ch->pcdata->condition[COND_STONED]	= 0;
-    ch->pcdata->security		= 0;
-    ch->pcdata->challenge_delay		= 0;
-	ch->pcdata->mfa_key = str_dup("");
+    ch->prompt = str_dup("{B<{x%h{Bhp {x%m{Bm {x%v{Bmv>{x ");
+    ch->pcdata->confirm_delete = false;
+    ch->pcdata->pwd = str_dup("");
+    ch->pcdata->pwd_vers = 0;
+    ch->pcdata->reset_code = str_dup("");
+    ch->pcdata->reset_state = 0;
+    ch->pcdata->title = str_dup("");
+    for (stat = 0; stat < MAX_STATS; stat++) {
+        ch->perm_stat[stat] = 13;
+        ch->mod_stat[stat] = 0;
+        ch->dirty_stat[stat] = true;
+    }
+    ch->pcdata->condition[COND_THIRST] = 48;
+    ch->pcdata->condition[COND_FULL] = 48;
+    ch->pcdata->condition[COND_HUNGER] = 48;
+    ch->pcdata->condition[COND_STONED] = 0;
+    ch->pcdata->security = 0;
+    ch->pcdata->challenge_delay = 0;
+    ch->pcdata->mfa_key = str_dup("");
     ch->morphed = false;
     ch->locker_rent = 0;
     ch->deathsight_vision = 0;
-	ch->carrying_temp = NULL;
+    
 
-	#ifdef IMC
-	imc_initchar( ch );
-	#endif
+
+    #ifdef IMC
+    imc_initchar(ch);
+    #endif
+
+    // Initialize the object nesting table
+    for (iNest = 0; iNest < MAX_NEST; iNest++)
+        objNestList[iNest] = NULL;
 
     found = false;
     fclose(fpReserve);
 
     /* decompress if .gz file exists */
     sprintf(strsave, "%s%c/%s%s", PLAYER_DIR, tolower(name[0]), capitalize(name),".gz");
-    if ((fp = fopen(strsave, "r")) != NULL)
-    {
-		fclose(fp);
-		sprintf(buf,"gzip -dfq %s",strsave);
-		system(buf);
+    if ((fp = fopen(strsave, "r")) != NULL) {
+        fclose(fp);
+        sprintf(buf,"gzip -dfq %s",strsave);
+        system(buf);
     }
 
     sprintf(strsave, "%s%c/%s", PLAYER_DIR, tolower(name[0]), capitalize(name));
-	sprintf(buf, "Trying to load %s", strsave);
-	log_string(buf);
+    sprintf(buf, "Trying to load %s", strsave);
+    log_string(buf);
     if ((fp = fopen(strsave, "r")) != NULL) {
-		int iNest;
-
-		for (iNest = 0; iNest < MAX_NEST; iNest++)
-            objNestList[iNest] = NULL;
-
-		found = true;
-		for (; ;)
-		{
-			char letter;
+        found = true;
+        for (;;) {
+            char letter;
             char *word;
 
-			letter = fread_letter(fp);
-			if (letter == '*')
-			{
-			fread_to_eol(fp);
-			continue;
-			}
+            letter = fread_letter(fp);
+            if (letter == '*') {
+                fread_to_eol(fp);
+                continue;
+            }
 
-			if (letter != '#')
-			{
-			bug("Load_char_obj: # not found.", 0);
-			break;
-			}
+            if (letter != '#') {
+                bug("Load_char_obj: # not found.", 0);
+                break;
+            }
 
-			word = fread_word(fp);
+            word = fread_word(fp);
 
             // Section tracking
             if (!str_cmp(word, "EQUIPMENT")) { section = "EQUIPMENT"; continue; }
@@ -959,154 +946,128 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
             if (!str_cmp(word, "ENDINVENTORY")) { section = NULL; continue; }
             if (!str_cmp(word, "LOCKER")) { section = "LOCKER"; continue; }
             if (!str_cmp(word, "ENDLOCKER")) { section = NULL; continue; }
-			if (!str_cmp(word, "PLAYER"))
-				fread_char(ch, fp, &__versioning);
-			else if (!str_cmp(word, "OBJECT") || !str_cmp(word, "O"))
-			{
-				obj = fread_obj_new(fp);
-				if (!obj) continue;
+            
+            if (!str_cmp(word, "PLAYER"))
+                fread_char(ch, fp, &__versioning);
+            else if (!str_cmp(word, "OBJECT") || !str_cmp(word, "O")) {
+                obj = fread_obj_new(fp);
+                if (!obj) continue;
 
-				if (obj == NULL)
-					continue;
+                if (obj == NULL)
+                    continue;
 
-				if (ch->version < VERSION_PLAYER_006 )
-				{
-					if (obj->pIndexData->vnum == OBJ_VNUM_SCROLL)
-						if (!strcmp(obj->name, "scroll"))
-						 {	
-							free_string(obj->name);
-    						obj->name = short_to_name(obj->short_descr);
-						 }
+                if (ch->version < VERSION_PLAYER_006) {
+                    if (obj->pIndexData->vnum == OBJ_VNUM_SCROLL)
+                        if (!strcmp(obj->name, "scroll")) {
+                            free_string(obj->name);
+                            obj->name = short_to_name(obj->short_descr);
+                        }
 
-					if (obj->pIndexData->vnum == OBJ_VNUM_POTION)
-						if(!strcmp(obj->name, "potion"))
-						{
-							free_string(obj->name);
-							obj->name = short_to_name(obj->short_descr);
-						}
-				}
-				resolve_special_key(obj);
+                    if (obj->pIndexData->vnum == OBJ_VNUM_POTION)
+                        if(!strcmp(obj->name, "potion")) {
+                            free_string(obj->name);
+                            obj->name = short_to_name(obj->short_descr);
+                        }
+                }
+                resolve_special_key(obj);
 
-				objNestList[obj->nest] = obj;
+                // Store this object in the nesting table
+                objNestList[obj->nest] = obj;
+
+                // Handle the object based on section
                 if (section) {
-					//log_string(formatf("Loading object %s into section %s for %s\n", obj->name, section, ch->name));
                     if (!str_cmp(section, "LOCKER")) {
-                        obj_to_locker(obj, ch);
-                    } 
-					/*
-					else if (!str_cmp(section, "EQUIPMENT")) {
-                        obj_to_char(obj, ch);
-                        if (obj->wear_loc != WEAR_NONE)
-                            list_addlink(ch->lworn, obj);
-                    } 
-					*/
-				else if (!str_cmp(section, "EQUIPMENT") || !str_cmp(section, "INVENTORY")) {
-    objNestList[obj->nest] = obj;
-    if (obj->nest == 0) {
-        obj_to_char(obj, ch);
-    } else {
-        OBJ_DATA *container = objNestList[obj->nest - 1];
-					if (container->item_type == ITEM_CONTAINER ||
-						container->item_type == ITEM_KEYRING ||
-						container->item_type == ITEM_WEAPON_CONTAINER)
-						obj_to_obj(obj,objNestList[obj->nest - 1]);
-					else {
-						sprintf(buf, "load_char_obj: found obj %s(%ld) in item %s(%ld) which is not a container",
-							obj->short_descr, obj->pIndexData->vnum,
-							container->short_descr, container->pIndexData->vnum);
-						log_string(buf);
-            obj_to_char(obj, ch); // fallback if container is missing
-						}
-    }
-    // For equipped items, add to lworn if needed
-    if (!str_cmp(section, "EQUIPMENT") && obj->wear_loc != WEAR_NONE)
-        list_addlink(ch->lworn, obj);
-}
-					else if (!str_cmp(section, "INVENTORY")) {
+                        if (obj->nest == 0) {
+                            obj_to_locker(obj, ch);
+                        } else if (objNestList[obj->nest-1] &&
+                                  (objNestList[obj->nest-1]->item_type == ITEM_CONTAINER ||
+                                   objNestList[obj->nest-1]->item_type == ITEM_WEAPON_CONTAINER ||
+								   objNestList[obj->nest-1]->item_type == ITEM_KEYRING)) {
+                            obj_to_obj(obj, objNestList[obj->nest-1]);
+                        } else {
+                            // Fallback if nesting is broken, put at top level
+                            obj_to_locker(obj, ch);
+                        }
+                    } else if (!str_cmp(section, "EQUIPMENT") || !str_cmp(section, "INVENTORY")) {
                         if (obj->nest == 0) {
                             obj_to_char(obj, ch);
+
+                            // For equipped items, add to lworn if needed
+                            if (!str_cmp(section, "EQUIPMENT") && obj->wear_loc != WEAR_NONE)
+                                list_addlink(ch->lworn, obj);
+                        } else if (objNestList[obj->nest-1] &&
+                                  (objNestList[obj->nest-1]->item_type == ITEM_CONTAINER ||
+                                   objNestList[obj->nest-1]->item_type == ITEM_WEAPON_CONTAINER ||
+								   objNestList[obj->nest-1]->item_type == ITEM_KEYRING)) {
+                            // Put inside the parent container
+                            obj_to_obj(obj, objNestList[obj->nest-1]);
                         } else {
-                            OBJ_DATA *container = objNestList[obj->nest - 1];
-					if (container->item_type == ITEM_CONTAINER ||
-						container->item_type == ITEM_KEYRING ||
-						container->item_type == ITEM_WEAPON_CONTAINER)
-						obj_to_obj(obj,objNestList[obj->nest - 1]);
-					else {
-						sprintf(buf, "load_char_obj: found obj %s(%ld) in item %s(%ld) which is not a container",
-							obj->short_descr, obj->pIndexData->vnum,
-							container->short_descr, container->pIndexData->vnum);
-						log_string(buf);
-                                obj_to_char(obj, ch);
-						}
+                            // Fallback if nesting is broken, put at top level
+                            obj_to_char(obj, ch);
                         }
                     }
-                } else if (section == NULL && ch->version < VERSION_PLAYER_008) {
-					//log_stringf("Old character, no sections. Loading object %s into inventory (ch->carrying_temp) for %s\n", obj->name, ch->name);
-    				if (obj->nest == 0) {
-        				obj_to_char_temp(obj, ch);
-    				} else {
-        				OBJ_DATA *container = objNestList[obj->nest - 1];
-					if (container->item_type == ITEM_CONTAINER ||
-						container->item_type == ITEM_KEYRING ||
-						container->item_type == ITEM_WEAPON_CONTAINER)
-						obj_to_obj(obj,objNestList[obj->nest - 1]);
-					else {
-						sprintf(buf, "load_char_obj: found obj %s(%ld) in item %s(%ld) which is not a container",
-							obj->short_descr, obj->pIndexData->vnum,
-							container->short_descr, container->pIndexData->vnum);
-						log_string(buf);
-            			obj_to_char_temp(obj, ch); // fallback if container is missing
-					}
-    				}
-				}
-				else if (ch->version >= VERSION_PLAYER_008 && !section)
-				{
-					//log_stringf("New character, no sections. Not loading %s\n", obj->name);
-					continue;
-				}
-				
-			} else if (!str_cmp(word, "L")) {
-				obj = fread_obj_new(fp);
-				obj_to_locker(obj, ch);
-			} else if (!str_cmp(word, "TOKEN")) {
-				token = fread_token(fp);
-				if (token)
-					token_to_char(token, ch);
-			} else if (!str_cmp(word, "SKILL")) {
-				fread_skill(fp, ch);
-			} else if (!str_cmp(word, "END"))
-				break;
-			else {
-				bug("Load_char_obj: bad section.", 0);
-				break;
-			}
-		}
+                } else if (ch->version < VERSION_PLAYER_008) {
+                    // For older character files without sections, migrate objects
+                    if (obj->nest == 0) {
+                        if (obj->wear_loc != WEAR_NONE) {
+                            obj_to_char(obj, ch);
+                            list_addlink(ch->lworn, obj);
+                        } else {
+                            obj_to_char(obj, ch);
+                        }
+                    } else if (objNestList[obj->nest-1] &&
+                              (objNestList[obj->nest-1]->item_type == ITEM_CONTAINER ||
+                               objNestList[obj->nest-1]->item_type == ITEM_WEAPON_CONTAINER ||
+								   objNestList[obj->nest-1]->item_type == ITEM_KEYRING)) {
+                        // Put inside the parent container
+                        obj_to_obj(obj, objNestList[obj->nest-1]);
+                    } else {
+                        // Fallback if nesting is broken, put at top level
+                        obj_to_char(obj, ch);
+                    }
+                }
+            } else if (!str_cmp(word, "L")) {
+                obj = fread_obj_new(fp);
+                obj_to_locker(obj, ch);
+            } else if (!str_cmp(word, "TOKEN")) {
+                token = fread_token(fp);
+                if (token)
+                    token_to_char(token, ch);
+            } else if (!str_cmp(word, "SKILL")) {
+                fread_skill(fp, ch);
+            } else if (!str_cmp(word, "END"))
+                break;
+            else {
+                bug("Load_char_obj: bad section.", 0);
+                break;
+            }
+        }
 
-		fclose(fp);
+        fclose(fp);
     }
     fpReserve = fopen(NULL_FILE, "r");
 
-	if(!IS_NPC(ch)) {
-		if(ch->pcdata->creation_date < 0) {
-			ch->pcdata->creation_date = ch->id[0];
-			ch->id[0] = 0;
-		}
-		if(!ch->pcdata->creation_date)
-			ch->pcdata->creation_date = get_pc_id();
-	}
+    if(!IS_NPC(ch)) {
+        if(ch->pcdata->creation_date < 0) {
+            ch->pcdata->creation_date = ch->id[0];
+            ch->id[0] = 0;
+        }
+        if(!ch->pcdata->creation_date)
+            ch->pcdata->creation_date = get_pc_id();
+    }
 
     // Do not bother fixing ANYTHING on the player
     // The only reason this is true will be during the reading of the staff list
-    //   and needed to get the creation date
-    if(loading_immortal_data)
-    {
-    	return found;
-	}
+    // and needed to get the creation date
+    if(loading_immortal_data) {
+        return found;
+    }
 
-	get_mob_id(ch);
+    get_mob_id(ch);
 
     // Handle immortal data setup
     if (get_staff_rank(ch) > STAFF_PLAYER) {
+        IMMORTAL_DATA *immortal;
         if ((immortal = find_immortal(ch->name)) == NULL) {
             snprintf(buf, sizeof(buf), "load_char_obj: no immortal_data found for immortal character %s!", ch->name);
             bug(buf, 0);
@@ -1125,33 +1086,29 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
         }
         immortal->pc = ch->pcdata;
     }
-    else if ((immortal = find_immortal(ch->name)) != NULL)
-    {
+    else if ((immortal = find_immortal(ch->name)) != NULL) {
         log_string(formatf("load_char_obj: resolving immortal data for %s.\n\r", ch->name));
         ch->pcdata->staff_rank = STAFF_IMMORTAL;
         ch->pcdata->immortal = immortal;
         immortal->pc = ch->pcdata;
     }
 
-
     // Fix char.
     if (found)
-	fix_character(ch, &__versioning);
+        fix_character(ch, &__versioning);
 
     /* Redo shift. Remember ch->shifted was just used as a placeholder to tell the game
        to re-shift, so we have to switch it to none first. */
     if (ch->shifted != SHIFTED_NONE) {
-	ch->shifted = SHIFTED_NONE;
-	shift_char(ch, true);
+        ch->shifted = SHIFTED_NONE;
+        shift_char(ch, true);
     }
 
-	variable_fix_list(last_var ? last_var : variable_head);
-
+    variable_fix_list(last_var ? last_var : variable_head);
 
     ch->pcdata->last_login = current_time;
     return found;
 }
-
 
 /*
  * Read in a char.
@@ -4206,130 +4163,132 @@ void fix_character( CHAR_DATA *ch, struct __player_data_versioning *__versioning
     int i;
     char buf[MSL];
     bool resetaffects = false;
-	AFFECT_DATA *paf;
-	OBJ_DATA *obj;
+    AFFECT_DATA *paf;
 
     if (ch->race == 0)
-	ch->race = race_lookup("human");
+    ch->race = race_lookup("human");
 
     ch->size = pc_race_table[ch->race].size;
     ch->dam_type = 17; /*punch */
 
-	// Add groups it should know
+    // Add groups it should know
     for(i=0;i < MAX_GROUP; i++)
-    	if( ch->pcdata->group_known[i] )
-    		gn_add(ch, i);
+        if( ch->pcdata->group_known[i] )
+            gn_add(ch, i);
 
     /* make sure they have any new race skills */
     for (i = 0; pc_race_table[ch->race].skills[i] != NULL; i++)
-		group_add(ch,pc_race_table[ch->race].skills[i],false);
+        group_add(ch,pc_race_table[ch->race].skills[i],false);
 
+    // TODO: Readd checks for dealing with racial affects, affects2, imm, res and vuln
 
-	// TODO: Readd checks for dealing with racial affects, affects2, imm, res and vuln
+    /* 20203003 - Tieryo - Fix missing racial perm affects */
 
-	/* 20203003 - Tieryo - Fix missing racial perm affects */
+    if (ch->affected_by_perm[0] != race_table[ch->race].aff || ch->affected_by_perm[1] != race_table[ch->race].aff2)
+    {
+    ch->affected_by_perm[0] = race_table[ch->race].aff;
+    ch->affected_by_perm[1] = race_table[ch->race].aff2;
+    resetaffects = true;
+    }
+    if( resetaffects )
+    {
+        // Reset flags
+        ch->imm_flags = ch->imm_flags_perm;
+        ch->res_flags = ch->res_flags_perm;
+        ch->vuln_flags = ch->vuln_flags_perm;
+        ch->affected_by[0] = ch->affected_by_perm[0];
+        ch->affected_by[1] = ch->affected_by_perm[1];
 
-	if (ch->affected_by_perm[0] != race_table[ch->race].aff || ch->affected_by_perm[1] != race_table[ch->race].aff2)
-	{
-	ch->affected_by_perm[0] = race_table[ch->race].aff;
-	ch->affected_by_perm[1] = race_table[ch->race].aff2;
-	resetaffects = true;
-	}
-	if( resetaffects )
-	{
-		// Reset flags
-		ch->imm_flags = ch->imm_flags_perm;
-		ch->res_flags = ch->res_flags_perm;
-		ch->vuln_flags = ch->vuln_flags_perm;
-		ch->affected_by[0] = ch->affected_by_perm[0];
-		ch->affected_by[1] = ch->affected_by_perm[1];
+        // Iterate through all affects
+        for(paf = ch->affected; paf; paf = paf->next)
+        {
+            switch (paf->where)
+            {
+                case TO_AFFECTS:
+                    SET_BIT(ch->affected_by[0], paf->bitvector);
+                    SET_BIT(ch->affected_by[1], paf->bitvector2);
 
-		// Iterate through all affects
-		for(paf = ch->affected; paf; paf = paf->next)
-		{
-			switch (paf->where)
-			{
-				case TO_AFFECTS:
-					SET_BIT(ch->affected_by[0], paf->bitvector);
-					SET_BIT(ch->affected_by[1], paf->bitvector2);
+                    if( IS_SET(paf->bitvector2, AFF2_DEATHSIGHT) && (paf->level > ch->deathsight_vision) )
+                        ch->deathsight_vision = paf->level;
 
-					if( IS_SET(paf->bitvector2, AFF2_DEATHSIGHT) && (paf->level > ch->deathsight_vision) )
-						ch->deathsight_vision = paf->level;
+                    break;
+                case TO_IMMUNE:
+                    SET_BIT(ch->imm_flags,paf->bitvector);
+                    break;
+                case TO_RESIST:
+                    SET_BIT(ch->res_flags,paf->bitvector);
+                    break;
+                case TO_VULN:
+                    SET_BIT(ch->vuln_flags,paf->bitvector);
+                    break;
+            }
+        }
 
-					break;
-				case TO_IMMUNE:
-					SET_BIT(ch->imm_flags,paf->bitvector);
-					break;
-				case TO_RESIST:
-					SET_BIT(ch->res_flags,paf->bitvector);
-					break;
-				case TO_VULN:
-					SET_BIT(ch->vuln_flags,paf->bitvector);
-					break;
-			}
-		}
+        // Iterate through all worn objects using lworn linked list
+        if (ch->lworn && IS_VALID(ch->lworn)) {
+            ITERATOR it;
+            OBJ_DATA *obj;
+            iterator_start(&it, ch->lworn);
+            while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+                for (paf = obj->affected; paf; paf = paf->next) {
+                    switch (paf->where)
+                    {
+                        case TO_AFFECTS:
+                            SET_BIT(ch->affected_by[0], paf->bitvector);
+                            SET_BIT(ch->affected_by[1], paf->bitvector2);
 
-		// Iterate through all worn objects
-			ITERATOR it;
-			OBJ_DATA *obj;
-			iterator_start(&it, ch->lworn);
-			while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-    		for (paf = obj->affected; paf; paf = paf->next) {
-				{
-					switch (paf->where)
-					{
-						case TO_AFFECTS:
-							SET_BIT(ch->affected_by[0], paf->bitvector);
-							SET_BIT(ch->affected_by[1], paf->bitvector2);
+                            if( IS_SET(paf->bitvector2, AFF2_DEATHSIGHT) && (paf->level > ch->deathsight_vision) )
+                                ch->deathsight_vision = paf->level;
 
-							if( IS_SET(paf->bitvector2, AFF2_DEATHSIGHT) && (paf->level > ch->deathsight_vision) )
-								ch->deathsight_vision = paf->level;
+                            break;
+                        case TO_IMMUNE:
+                            SET_BIT(ch->imm_flags,paf->bitvector);
+                            break;
+                        case TO_RESIST:
+                            SET_BIT(ch->res_flags,paf->bitvector);
+                            break;
+                        case TO_VULN:
+                            SET_BIT(ch->vuln_flags,paf->bitvector);
+                            break;
+                    }
+                }
+            }
+            iterator_stop(&it);
+        }
+    }
 
-							break;
-						case TO_IMMUNE:
-							SET_BIT(ch->imm_flags,paf->bitvector);
-							break;
-						case TO_RESIST:
-							SET_BIT(ch->res_flags,paf->bitvector);
-							break;
-						case TO_VULN:
-							SET_BIT(ch->vuln_flags,paf->bitvector);
-							break;
-					}
-				}
-			}
-			iterator_stop(&it);
-		}
-	}
-
-	// Update deathsight vision
-	ch->deathsight_vision = ( IS_SET(ch->affected_by_perm[1], AFF2_DEATHSIGHT) ) ? ch->tot_level : 0;
-	for(paf = ch->affected; paf; paf = paf->next)
-	{
-		if( (paf->where == TO_AFFECTS) && IS_SET(paf->bitvector2, AFF2_DEATHSIGHT) && (paf->level > ch->deathsight_vision) )
-			ch->deathsight_vision = paf->level;
-	}
-	for(obj = ch->carrying; obj; obj = obj->next_content)
-	{
-		if( !obj->locker && obj->wear_loc != WEAR_NONE )
-		{
-			for(paf = obj->affected; paf; paf = paf->next)
-			{
-				if( (paf->where == TO_AFFECTS) && IS_SET(paf->bitvector2, AFF2_DEATHSIGHT) && (paf->level > ch->deathsight_vision) )
-					ch->deathsight_vision = paf->level;
-			}
-		}
-	}
+    // Update deathsight vision
+    ch->deathsight_vision = ( IS_SET(ch->affected_by_perm[1], AFF2_DEATHSIGHT) ) ? ch->tot_level : 0;
+    for(paf = ch->affected; paf; paf = paf->next)
+    {
+        if( (paf->where == TO_AFFECTS) && IS_SET(paf->bitvector2, AFF2_DEATHSIGHT) && (paf->level > ch->deathsight_vision) )
+            ch->deathsight_vision = paf->level;
+    }
+    
+    // Check worn items for deathsight using lworn
+    if (ch->lworn && IS_VALID(ch->lworn)) {
+        ITERATOR it;
+        OBJ_DATA *obj;
+        iterator_start(&it, ch->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            for(paf = obj->affected; paf; paf = paf->next)
+            {
+                if( (paf->where == TO_AFFECTS) && IS_SET(paf->bitvector2, AFF2_DEATHSIGHT) && (paf->level > ch->deathsight_vision) )
+                    ch->deathsight_vision = paf->level;
+            }
+        }
+        iterator_stop(&it);
+    }
 
     ch->form = race_table[ch->race].form;
     ch->parts = race_table[ch->race].parts & ~ch->lostparts;
-	ch->lostparts = 0;
+    ch->lostparts = 0;
 
     if (ch->version < 2)
     {
-		group_add(ch,"global skills",false);
-		group_add(ch,class_table[ch->pcdata->class_current].base_group,false);
-		ch->version = 2;
+        group_add(ch,"global skills",false);
+        group_add(ch,class_table[ch->pcdata->class_current].base_group,false);
+        ch->version = 2;
     }
 
     /* make sure they have any new skills that have been added */
@@ -4344,178 +4303,139 @@ void fix_character( CHAR_DATA *ch, struct __player_data_versioning *__versioning
     if (ch->pcdata->second_sub_class_warrior != -1)	group_add(ch, sub_class_table[ch->pcdata->second_sub_class_warrior].default_group, false);
 
     if (ch->version < 6)
-		ch->version = 6;
+        ch->version = 6;
 
     /* reset affects */
     if (ch->version < 7)
     {
-		if (IS_AFFECTED2(ch, AFF2_ENSNARE))
-			REMOVE_BIT(ch->affected_by[1], AFF2_ENSNARE);
+        if (IS_AFFECTED2(ch, AFF2_ENSNARE))
+            REMOVE_BIT(ch->affected_by[1], AFF2_ENSNARE);
 
-		if (ch->pcdata->second_sub_class_thief == CLASS_THIEF_SAGE)
-			SET_BIT(ch->affected_by[0], AFF_DETECT_HIDDEN);
+        if (ch->pcdata->second_sub_class_thief == CLASS_THIEF_SAGE)
+            SET_BIT(ch->affected_by[0], AFF_DETECT_HIDDEN);
 
-		ch->version = 7;
+        ch->version = 7;
     }
 
     if (ch->version < 8)
     {
-		REMOVE_BIT(ch->comm, COMM_NOAUTOWAR);
-		ch->version = 8;
+        REMOVE_BIT(ch->comm, COMM_NOAUTOWAR);
+        ch->version = 8;
     }
 
     if (ch->version < 10)
     {
-		REMOVE_BIT(ch->act[0], PLR_PK);
-		ch->version = 10;
+        REMOVE_BIT(ch->act[0], PLR_PK);
+        ch->version = 10;
     }
 
     if (IS_IMMORTAL(ch))
     {
-		i = 0;
-		while (wiznet_table[i].name != NULL)
-		{
-			if (ch->tot_level < wiznet_table[i].rank)
-			{
-			REMOVE_BIT(ch->wiznet, wiznet_table[i].flag);
-			}
+        i = 0;
+        while (wiznet_table[i].name != NULL)
+        {
+            if (ch->tot_level < wiznet_table[i].rank)
+            {
+            REMOVE_BIT(ch->wiznet, wiznet_table[i].flag);
+            }
 
-			i++;
-		}
+            i++;
+        }
     }
 
     for (i = 0; i < MAX_STATS; i++)
-		if (ch->perm_stat[i] > pc_race_table[ch->race].max_stats[i])
-	    	set_perm_stat(ch, i, pc_race_table[ch->race].max_stats[i]);
-
-    // If imm flag not set, set the default flag
-    /*if (ch->tot_level >= LEVEL_IMMORTAL && (ch->pcdata->immortal->imm_flag == NULL))
-	switch (ch->level)
-	{
-	    default:
-		break;
-		{
-		    case MAX_LEVEL - 0:
-			ch->pcdata->immortal->imm_flag = str_dup("{w  -{W=I{DM{WP={w-{x   ");
-			break;
-		    case MAX_LEVEL - 1:
-			ch->pcdata->immortal->imm_flag = str_dup("{R  C{rr{Re{ra{Rt{ro{RR{x   ");
-			break;
-		    case MAX_LEVEL - 2:
-			ch->pcdata->immortal->imm_flag = str_dup("{W Sup{Drem{WacY{x  ");
-			break;
-		    case MAX_LEVEL - 3:
-			ch->pcdata->immortal->imm_flag = str_dup("{b Asc{Bend{bant  ");
-			break;
-		    case MAX_LEVEL - 4:
-			if (ch->sex == SEX_FEMALE)
-			    ch->pcdata->immortal->imm_flag = str_dup("{w  Go{Wdde{wss   ");
-			else
-			    ch->pcdata->immortal->imm_flag = str_dup("{w    G{Wo{wd     ");
-			break;
-		    case MAX_LEVEL - 5:
-			ch->pcdata->immortal->imm_flag = str_dup("{B  M{Ci{MN{Di{YG{Go{Wd   ");
-			break;
-		    case MAX_LEVEL - 6:
-			ch->pcdata->immortal->imm_flag = str_dup("{x  -{m=G{xIM{mP={x-  ");
-			break;
-		}
-	} */
-
+        if (ch->perm_stat[i] > pc_race_table[ch->race].max_stats[i])
+        	set_perm_stat(ch, i, pc_race_table[ch->race].max_stats[i]);
 
     // Make sure non imms dont have builder flag!!
     if (!IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_BUILDING))
     {
-		sprintf(buf, "fix_character: toggling off builder flag for non-immortal %s", ch->name);
-		log_string(buf);
-		REMOVE_BIT(ch->act[0], PLR_BUILDING);
+        sprintf(buf, "fix_character: toggling off builder flag for non-immortal %s", ch->name);
+        log_string(buf);
+        REMOVE_BIT(ch->act[0], PLR_BUILDING);
     }
 
     // Everyone with an expired locker rent as of this login point will have their locker rent auto-forgiven.
     if( ch->version < VERSION_PLAYER_003)
-	{
-		if( ch->locker_rent > 0 )
-		{
-			struct tm *now_time;
-			struct tm *rent_time;
+    {
+        if( ch->locker_rent > 0 )
+        {
+            struct tm *now_time;
+            struct tm *rent_time;
 
-			now_time = (struct tm *)localtime(&current_time);
-			rent_time = (struct tm *)localtime(&ch->locker_rent);
+            now_time = (struct tm *)localtime(&current_time);
+            rent_time = (struct tm *)localtime(&ch->locker_rent);
 
-			if( now_time > rent_time )
-			{
-				ch->locker_rent = current_time;
-				rent_time = (struct tm *)localtime(&ch->locker_rent);
-				rent_time->tm_mon += 1;
-				ch->locker_rent = (time_t) mktime(rent_time);
-			}
-		}
-		ch->version = VERSION_PLAYER_003;
-	}
+            if( now_time > rent_time )
+            {
+                ch->locker_rent = current_time;
+                rent_time = (struct tm *)localtime(&ch->locker_rent);
+                rent_time->tm_mon += 1;
+                ch->locker_rent = (time_t) mktime(rent_time);
+            }
+        }
+        ch->version = VERSION_PLAYER_003;
+    }
 
-	if( ch->version < VERSION_PLAYER_004 ) {
-		// Update all affects from object to include their wear slot
+    if( ch->version < VERSION_PLAYER_004 ) {
+        // Update all affects from object to include their wear slot
+        ch->version = VERSION_PLAYER_004;
+    }
 
+    if( ch->version < VERSION_PLAYER_005 )
+    {
+        if( IS_IMMORTAL(ch) )
+        {
+            // Give existing immortals HOLYWARP
+            SET_BIT(ch->act[1], PLR_HOLYWARP);
+        }
 
-		ch->version = VERSION_PLAYER_004;
-	}
+        ch->version = VERSION_PLAYER_005;
+    }
 
-	if( ch->version < VERSION_PLAYER_005 )
-	{
-		if( IS_IMMORTAL(ch) )
-		{
-			// Give existing immortals HOLYWARP
-			SET_BIT(ch->act[1], PLR_HOLYWARP);
-		}
+    if (ch->version < VERSION_PLAYER_007 )
+    {
+        SET_BIT(ch->act[1], PLR_COMPASS);
+        SET_BIT(ch->act[1], PLR_AUTOCAT);
 
+        ch->version = VERSION_PLAYER_007;
+    }
 
-		ch->version = VERSION_PLAYER_005;
-	}
+    if (ch->tot_level >= OLD_LEVEL_MINIGOD)
+    {
+        switch(ch->tot_level)
+        {
+        default:					ch->pcdata->staff_rank = STAFF_IMMORTAL; break;
+        case OLD_LEVEL_ASCENDANT:	ch->pcdata->staff_rank = STAFF_ASCENDANT; break;
+        case OLD_LEVEL_SUPREMACY:	ch->pcdata->staff_rank = STAFF_SUPREMACY; break;
+        case OLD_LEVEL_CREATOR:		ch->pcdata->staff_rank = STAFF_CREATOR; break;
+        case OLD_LEVEL_IMPLEMENTOR:	ch->pcdata->staff_rank = STAFF_IMPLEMENTOR; break;
+        }
+    }
+    else
+        ch->pcdata->staff_rank = STAFF_PLAYER;
 
-	if (ch->version < VERSION_PLAYER_007 )
-	{
-		SET_BIT(ch->act[1], PLR_COMPASS);
-		SET_BIT(ch->act[1], PLR_AUTOCAT);
+    switch(__versioning->_008.invis_level)
+    {
+        default:					ch->invis_level = STAFF_PLAYER; break;
+        case OLD_LEVEL_MINIGOD:		ch->invis_level = STAFF_IMMORTAL; break;
+        case OLD_LEVEL_GOD:			ch->invis_level = STAFF_IMMORTAL; break;
+        case OLD_LEVEL_ASCENDANT:	ch->invis_level = STAFF_ASCENDANT; break;
+        case OLD_LEVEL_SUPREMACY:	ch->invis_level = STAFF_SUPREMACY; break;
+        case OLD_LEVEL_CREATOR:		ch->invis_level = STAFF_CREATOR; break;
+        case OLD_LEVEL_IMPLEMENTOR:	ch->invis_level = STAFF_IMPLEMENTOR; break;
+    }
 
-		ch->version = VERSION_PLAYER_007;
-	}
-
-	if (ch->tot_level >= OLD_LEVEL_MINIGOD)
-		{
-			switch(ch->tot_level)
-			{
-			default:					ch->pcdata->staff_rank = STAFF_IMMORTAL; break;
-			case OLD_LEVEL_ASCENDANT:	ch->pcdata->staff_rank = STAFF_ASCENDANT; break;
-			case OLD_LEVEL_SUPREMACY:	ch->pcdata->staff_rank = STAFF_SUPREMACY; break;
-			case OLD_LEVEL_CREATOR:		ch->pcdata->staff_rank = STAFF_CREATOR; break;
-			case OLD_LEVEL_IMPLEMENTOR:	ch->pcdata->staff_rank = STAFF_IMPLEMENTOR; break;
-			}
-		}
-		else
-			ch->pcdata->staff_rank = STAFF_PLAYER;
-
-
-		switch(__versioning->_008.invis_level)
-		{
-			default:					ch->invis_level = STAFF_PLAYER; break;
-			case OLD_LEVEL_MINIGOD:		ch->invis_level = STAFF_IMMORTAL; break;
-			case OLD_LEVEL_GOD:			ch->invis_level = STAFF_IMMORTAL; break;
-			case OLD_LEVEL_ASCENDANT:	ch->invis_level = STAFF_ASCENDANT; break;
-			case OLD_LEVEL_SUPREMACY:	ch->invis_level = STAFF_SUPREMACY; break;
-			case OLD_LEVEL_CREATOR:		ch->invis_level = STAFF_CREATOR; break;
-			case OLD_LEVEL_IMPLEMENTOR:	ch->invis_level = STAFF_IMPLEMENTOR; break;
-		}
-
-		switch(__versioning->_008.incog_level)
-		{
-			default:					ch->incog_level = STAFF_PLAYER; break;
-			case OLD_LEVEL_MINIGOD:		ch->incog_level = STAFF_IMMORTAL; break;
-			case OLD_LEVEL_GOD:			ch->incog_level = STAFF_IMMORTAL; break;
-			case OLD_LEVEL_ASCENDANT:	ch->incog_level = STAFF_ASCENDANT; break;
-			case OLD_LEVEL_SUPREMACY:	ch->incog_level = STAFF_SUPREMACY; break;
-			case OLD_LEVEL_CREATOR:		ch->incog_level = STAFF_CREATOR; break;
-			case OLD_LEVEL_IMPLEMENTOR:	ch->incog_level = STAFF_IMPLEMENTOR; break;
-		}
+    switch(__versioning->_008.incog_level)
+    {
+        default:					ch->incog_level = STAFF_PLAYER; break;
+        case OLD_LEVEL_MINIGOD:		ch->incog_level = STAFF_IMMORTAL; break;
+        case OLD_LEVEL_GOD:			ch->incog_level = STAFF_IMMORTAL; break;
+        case OLD_LEVEL_ASCENDANT:	ch->incog_level = STAFF_ASCENDANT; break;
+        case OLD_LEVEL_SUPREMACY:	ch->incog_level = STAFF_SUPREMACY; break;
+        case OLD_LEVEL_CREATOR:		ch->incog_level = STAFF_CREATOR; break;
+        case OLD_LEVEL_IMPLEMENTOR:	ch->incog_level = STAFF_IMPLEMENTOR; break;
+    }
 }
 
 
@@ -6129,18 +6049,6 @@ ACCOUNT_DATA *find_account_by_name(char *username)
 
 
 
-void obj_to_char_temp(OBJ_DATA *obj, CHAR_DATA *ch)
-{
-    obj->next_content = ch->carrying_temp;
-    ch->carrying_temp = obj;
-    obj->carried_by = ch;
-    obj->in_room = ch->in_room;
-    // Only add to lworn if equipped
-    if (obj->wear_loc != WEAR_NONE)
-        list_addlink(ch->lworn, obj);
-    // DO NOT add to lcarrying here!
-}
-
 // Helper to dedupe a linked list of objects recursively
 static void dedupe_obj_list(OBJ_DATA **head, LLIST *seen, LLIST *lworn) {
     OBJ_DATA *obj = *head, *prev = NULL, *next;
@@ -6160,7 +6068,7 @@ static void dedupe_obj_list(OBJ_DATA **head, LLIST *seen, LLIST *lworn) {
         }
         iterator_stop(&it);
 
-        // If this object is in lworn, do NOT remove it from carrying/carrying_temp
+        // If this object is in lworn, do NOT remove it from the list
         bool is_equipped = (lworn && list_contains(lworn, obj, NULL));
 
         if (duplicate && !is_equipped) {
@@ -6169,7 +6077,6 @@ static void dedupe_obj_list(OBJ_DATA **head, LLIST *seen, LLIST *lworn) {
                 prev->next_content = next;
             else
                 *head = next;
-            // Optionally free_obj(obj);
         } else {
             list_appendlink(seen, obj);
             // Recurse into contents
@@ -6183,30 +6090,130 @@ static void dedupe_obj_list(OBJ_DATA **head, LLIST *seen, LLIST *lworn) {
 
 void remove_duplicate_objects_from_char(CHAR_DATA *ch) {
     LLIST *seen = list_create(FALSE);
-    LLIST *lworn = list_create(FALSE);
-
-    // 1. Add all equipped objects to seen and lworn first (so they are prioritized)
-    ITERATOR it;
+    LLIST *obj_seen = list_create(FALSE);
     OBJ_DATA *obj;
-    iterator_start(&it, ch->lworn);
-    while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-        if (!list_contains(seen, obj, NULL)) {
+    ITERATOR it;
+    
+    // 1. First add all worn items to seen list (these take priority)
+    // We should NEVER remove worn items during deduplication
+    if (ch->lworn && IS_VALID(ch->lworn)) {
+        iterator_start(&it, ch->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
             list_appendlink(seen, obj);
+            list_appendlink(obj_seen, obj);
+            
+            // Recursively add contents of worn items
+            if (obj->contains) {
+                OBJ_DATA *content;
+                content = obj->contains;
+                while (content) {
+                    list_appendlink(seen, content);
+                    content = content->next_content;
+                }
+            }
         }
-        if (!list_contains(lworn, obj, NULL)) {
-            list_appendlink(lworn, obj);
+        iterator_stop(&it);
+    }
+    
+    // 2. Process carried items (lcarrying)
+    if (ch->lcarrying && IS_VALID(ch->lcarrying)) {
+        LLIST *remove_list = list_create(FALSE);
+        
+        iterator_start(&it, ch->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            bool duplicate = false;
+            ITERATOR dit;
+            OBJ_DATA *exist;
+            
+            // Check if this object is a duplicate
+            iterator_start(&dit, seen);
+            while ((exist = (OBJ_DATA *)iterator_nextdata(&dit))) {
+                if (exist != obj && exist->id[0] == obj->id[0] && 
+                    exist->id[1] == obj->id[1] &&
+                    exist->pIndexData == obj->pIndexData) {
+                    duplicate = true;
+                    break;
+                }
+            }
+            iterator_stop(&dit);
+            
+            if (duplicate && !list_contains(ch->lworn, obj, NULL)) {
+                // Mark for removal after iteration - only if not worn
+                list_appendlink(remove_list, obj);
+            } else {
+                // Add to seen list
+                list_appendlink(seen, obj);
+                list_appendlink(obj_seen, obj);
+                
+                // Process contents recursively
+                if (obj->contains) {
+                    dedupe_obj_list(&obj->contains, seen, ch->lworn);
+                }
+            }
         }
+        iterator_stop(&it);
+        
+        // Now remove any duplicates from lcarrying
+        iterator_start(&it, remove_list);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            list_remlink(ch->lcarrying, obj, FALSE);
+        }
+        iterator_stop(&it);
+        
+        list_destroy(remove_list);
     }
-    iterator_stop(&it);
-
-    // 2. Dedupe carrying, carrying_temp, and locker against seen, but don't remove if in lworn
-    OBJ_DATA **lists[3] = { &ch->carrying, &ch->carrying_temp, &ch->locker };
-    for (int l = 0; l < 3; l++) {
-        dedupe_obj_list(lists[l], seen, lworn);
+    
+    // 3. Process locker items (llocker)
+    if (ch->llocker && IS_VALID(ch->llocker)) {
+        LLIST *remove_list = list_create(FALSE);
+        
+        iterator_start(&it, ch->llocker);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            bool duplicate = false;
+            ITERATOR dit;
+            OBJ_DATA *exist;
+            
+            // Check if this object is a duplicate
+            iterator_start(&dit, seen);
+            while ((exist = (OBJ_DATA *)iterator_nextdata(&dit))) {
+                if (exist != obj && exist->id[0] == obj->id[0] && 
+                    exist->id[1] == obj->id[1] &&
+                    exist->pIndexData == obj->pIndexData) {
+                    duplicate = true;
+                    break;
+                }
+            }
+            iterator_stop(&dit);
+            
+            if (duplicate && !list_contains(ch->lworn, obj, NULL)) {
+                // Mark for removal after iteration - only if not worn
+                list_appendlink(remove_list, obj);
+            } else {
+                // Add to seen list
+                list_appendlink(seen, obj);
+                list_appendlink(obj_seen, obj);
+                
+                // Process contents recursively
+                if (obj->contains) {
+                    dedupe_obj_list(&obj->contains, seen, ch->lworn);
+                }
+            }
+        }
+        iterator_stop(&it);
+        
+        // Now remove any duplicates from llocker
+        iterator_start(&it, remove_list);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            list_remlink(ch->llocker, obj, FALSE);
+        }
+        iterator_stop(&it);
+        
+        list_destroy(remove_list);
     }
-
+    
     list_destroy(seen);
-    list_destroy(lworn);
+    list_destroy(obj_seen);
+    // We DO NOT destroy lworn - it's the character's equipment list
 }
 
 void remove_duplicate_objects_from_list(OBJ_DATA **head, LLIST *seen) {

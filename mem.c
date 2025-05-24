@@ -676,51 +676,62 @@ CHAR_DATA *new_char( void )
 void free_char( CHAR_DATA *ch )
 {
     OBJ_DATA *obj;
-    OBJ_DATA *obj_next;
     AFFECT_DATA *paf;
     AFFECT_DATA *paf_next;
     TOKEN_DATA *token,*tnext;
     EVENT_DATA *ev, *ev_next;
     SKILL_ENTRY *se, *se_next;
+    ITERATOR it;
 
     if (!IS_VALID(ch))
-	return;
+        return;
 
     if (IS_NPC(ch))
-	mobile_count--;
+        mobile_count--;
 
     // Free data structures unique to the character
-
- 	for(se = ch->sorted_skills; se; se = se_next) {
-		se_next = se->next;
-		free_skill_entry(se);
-	}
-
- 	for(se = ch->sorted_songs; se; se = se_next) {
-		se_next = se->next;
-		free_skill_entry(se);
-	}
-
-
-    // Inventory
-    for (obj = ch->carrying; obj != NULL; obj = obj_next)
-    {
-	obj_next = obj->next_content;
-	extract_obj( obj );
+    for(se = ch->sorted_skills; se; se = se_next) {
+        se_next = se->next;
+        free_skill_entry(se);
     }
 
-    // Locker
-    for (obj = ch->locker; obj != NULL; obj = obj_next)
-    {
-	obj_next = obj->next_content;
-	extract_obj( obj );
+    for(se = ch->sorted_songs; se; se = se_next) {
+        se_next = se->next;
+        free_skill_entry(se);
+    }
+
+    // Free items in inventory using lcarrying
+    if (ch->lcarrying) {
+        iterator_start(&it, ch->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            extract_obj(obj);
+        }
+        iterator_stop(&it);
+    }
+
+    // Free worn items using lworn
+    if (ch->lworn) {
+        iterator_start(&it, ch->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            extract_obj(obj);
+        }
+        iterator_stop(&it);
+    }
+
+    // Free locker items using llocker
+    if (ch->llocker) {
+        iterator_start(&it, ch->llocker);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            extract_obj(obj);
+        }
+        iterator_stop(&it);
     }
 
     // affects
     for (paf = ch->affected; paf != NULL; paf = paf_next)
     {
-	paf_next = paf->next;
-	affect_remove(ch,paf);
+        paf_next = paf->next;
+        affect_remove(ch,paf);
     }
 
     for (token = ch->tokens; token; token = tnext) {
@@ -730,10 +741,10 @@ void free_char( CHAR_DATA *ch )
 
     if (ch->church != NULL)
     {
-		list_remlink(ch->church->online_players, ch, false);
-	if (ch->church_member != NULL)
-		ch->church_member->ch = NULL;
-	ch->church = NULL;
+        list_remlink(ch->church->online_players, ch, false);
+        if (ch->church_member != NULL)
+            ch->church_member->ch = NULL;
+        ch->church = NULL;
     }
 
     free_string(ch->name);
@@ -742,7 +753,7 @@ void free_char( CHAR_DATA *ch )
     free_string(ch->description);
     free_string(ch->owner);
     free_string(ch->prompt);
-    free_note  (ch->pnote);
+    free_note(ch->pnote);
     free_pcdata(ch->pcdata);
     free_ambush(ch->ambush);
     free_string(ch->cast_target_name);
@@ -750,7 +761,7 @@ void free_char( CHAR_DATA *ch )
     free_string(ch->projectile_victim);
     free_string(ch->tempstring);
 
-
+    // Destroy linked lists
     list_destroy(ch->llocker);
     list_destroy(ch->lcarrying);
     list_destroy(ch->lcarrying_temp);
@@ -759,12 +770,12 @@ void free_char( CHAR_DATA *ch )
     list_destroy(ch->lclonerooms);
     list_destroy(ch->lgroup);
 
-	if( !IS_NPC(ch))
-	{
+    if (!IS_NPC(ch))
+    {
 #ifdef IMC
-		imc_freechardata( ch );
+        imc_freechardata(ch);
 #endif
-	}
+    }
 
     variable_clearfield(VAR_MOBILE, ch);
     script_clear_mobile(ch);
@@ -773,13 +784,11 @@ void free_char( CHAR_DATA *ch )
     free_prog_data(ch->progs);
     free_string(ch->temp_log_entry);
 
-
-    /* be sure to free any events hooked up to this char so that they arn't called
+    /* be sure to free any events hooked up to this char so that they aren't called
        on the freed memory space */
     for (ev = ch->events; ev != NULL; ev = ev_next) {
-	ev_next = ev->next_event;
-
-	extract_event(ev);
+        ev_next = ev->next_event;
+        extract_event(ev);
     }
 
     ch->events = NULL;
@@ -788,9 +797,11 @@ void free_char( CHAR_DATA *ch )
 
     ch->checkpoint = NULL;
 
-	if( ch->persist ) persist_removemobile(ch);
+    if (ch->persist)
+        persist_removemobile(ch);
 
-	if( ch->shop ) free_shop(ch->shop);
+    if (ch->shop)
+        free_shop(ch->shop);
 
     ch->next = char_free;
     char_free = ch;

@@ -94,16 +94,22 @@ void storage_character_cmd(CHAR_DATA *ch, char *argument)
     OBJ_DATA *obj;
     bool item_with_locker_flag = false;
     struct tm *rent_time;
+    ITERATOR it;
 
     argument = one_argument(argument, arg1);
     argument = one_argument(argument, arg2);
 
-    // Check if player has a locker key item
-    for (obj = ch->carrying; obj != NULL; obj = obj->next_content) {
-        if (IS_SET(obj->extra[1], ITEM_LOCKER)) {
-            item_with_locker_flag = true;
-            break;
+  // Check if player has a locker key item
+    if (ch->lcarrying) {
+        iterator_start(&it, ch->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (IS_SET(obj->extra[1], ITEM_LOCKER)) {
+                item_with_locker_flag = true;
+                iterator_stop(&it);
+                break;
+            }
         }
+        iterator_stop(&it);
     }
 
     // Determine if player can access locker here

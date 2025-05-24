@@ -2485,75 +2485,94 @@ void variable_dynamic_fix_token (TOKEN_DATA *token)
 
 void variable_dynamic_fix_mobile (CHAR_DATA *ch)
 {
-	register pVARIABLE cur = variable_head;
-	register OBJ_DATA *o;
-	register TOKEN_DATA *token;
-	register ROOM_INDEX_DATA *clone;
-	register LLIST_UID_DATA *luid;
+    register pVARIABLE cur = variable_head;
+    register OBJ_DATA *obj;
+    register TOKEN_DATA *token;
+    register ROOM_INDEX_DATA *clone;
+    register LLIST_UID_DATA *luid;
+    ITERATOR it;
 
-	while(cur) {
-//		log_stringf("variable_dynamic_fix_mobile: %s, %s, %d", ch->name, cur->name, cur->type);
-		switch(cur->type) {
-		case VAR_MOBILE_ID:
-//			log_stringf("variable_dynamic_fix_mobile:VAR_MOBILE_ID[%s]: %08lX - %08lX :: %08lX - %08lX", cur->name, ch->id[0], cur->_.mid.a, ch->id[1], cur->_.mid.b);
-			if( ch->id[0] == cur->_.mid.a && ch->id[1] == cur->_.mid.b) {
-				cur->_.m = ch;
-				cur->type = VAR_MOBILE;
-			}
-			break;
+    while(cur) {
+        switch(cur->type) {
+        case VAR_MOBILE_ID:
+            if( ch->id[0] == cur->_.mid.a && ch->id[1] == cur->_.mid.b) {
+                cur->_.m = ch;
+                cur->type = VAR_MOBILE;
+            }
+            break;
 
-		case VAR_SKILLINFO_ID:
-			if( ch->id[0] == cur->_.skid.mid[0] && ch->id[1] == cur->_.skid.mid[1] ) {
-				if(cur->_.skid.tid[0] > 0 || cur->_.skid.tid[1] > 0) {
-					TOKEN_DATA *tok = idfind_token_char(ch, cur->_.skid.tid[0], cur->_.skid.tid[1]);
+        case VAR_SKILLINFO_ID:
+            if( ch->id[0] == cur->_.skid.mid[0] && ch->id[1] == cur->_.skid.mid[1] ) {
+                if(cur->_.skid.tid[0] > 0 || cur->_.skid.tid[1] > 0) {
+                    TOKEN_DATA *tok = idfind_token_char(ch, cur->_.skid.tid[0], cur->_.skid.tid[1]);
 
-					if( tok ) {
-						cur->_.sk.token = tok;
-						cur->_.sk.sn = 0;
-						cur->_.sk.owner = ch;
-						cur->type = VAR_SKILLINFO;
-					} else
-						cur->_.skid.mid[0] = cur->_.skid.mid[1] = 0;
-				} else {
-					int sn = cur->_.skid.sn;
+                    if( tok ) {
+                        cur->_.sk.token = tok;
+                        cur->_.sk.sn = 0;
+                        cur->_.sk.owner = ch;
+                        cur->type = VAR_SKILLINFO;
+                    } else
+                        cur->_.skid.mid[0] = cur->_.skid.mid[1] = 0;
+                } else {
+                    int sn = cur->_.skid.sn;
 
-					cur->_.sk.token = NULL;
-					cur->_.sk.sn = sn;
-					cur->_.sk.owner = ch;
-					cur->type = VAR_SKILLINFO;
-				}
-			}
-			break;
+                    cur->_.sk.token = NULL;
+                    cur->_.sk.sn = sn;
+                    cur->_.sk.owner = ch;
+                    cur->type = VAR_SKILLINFO;
+                }
+            }
+            break;
 
-		case VAR_BLLIST_MOB:
-			if( cur->_.list && cur->_.list->valid ) {
+        case VAR_BLLIST_MOB:
+            if( cur->_.list && cur->_.list->valid ) {
+                ITERATOR it;
 
-				ITERATOR it;
+                iterator_start(&it, cur->_.list);
 
-				iterator_start(&it, cur->_.list);
+                while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
+                    if( !luid->ptr && ch->id[0] == luid->id[0] && ch->id[1] == luid->id[1])
+                        luid->ptr = ch;
 
-				while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
-					if( !luid->ptr && ch->id[0] == luid->id[0] && ch->id[1] == luid->id[1])
-						luid->ptr = ch;
+                iterator_stop(&it);
+            }
+        }
 
-				iterator_stop(&it);
-			}
-		}
+        cur = cur->global_next;
+    }
 
-		cur = cur->global_next;
-	}
+    // Use lcarrying instead of carrying
+    if (ch->lcarrying && IS_VALID(ch->lcarrying)) {
+        iterator_start(&it, ch->lcarrying);
+        while ((obj = iterator_nextdata(&it))) {
+            variable_dynamic_fix_object(obj);
+        }
+        iterator_stop(&it);
+    }
 
-	for(o = ch->carrying; o; o = o->next_content)
-		variable_dynamic_fix_object(o);
+    // Use llocker instead of locker
+    if (ch->llocker && IS_VALID(ch->llocker)) {
+        iterator_start(&it, ch->llocker);
+        while ((obj = iterator_nextdata(&it))) {
+            variable_dynamic_fix_object(obj);
+        }
+        iterator_stop(&it);
+    }
 
-	for(o = ch->locker; o; o = o->next_content)
-		variable_dynamic_fix_object(o);
+    // Handle worn items (this is new)
+    if (ch->lworn && IS_VALID(ch->lworn)) {
+        iterator_start(&it, ch->lworn);
+        while ((obj = iterator_nextdata(&it))) {
+            variable_dynamic_fix_object(obj);
+        }
+        iterator_stop(&it);
+    }
 
-	for(token = ch->tokens; token; token = token->next)
-		variable_dynamic_fix_token(token);
+    for(token = ch->tokens; token; token = token->next)
+        variable_dynamic_fix_token(token);
 
-	for(clone = ch->clone_rooms; clone; clone = clone->next_clone)
-		variable_dynamic_fix_clone_room(clone);
+    for(clone = ch->clone_rooms; clone; clone = clone->next_clone)
+        variable_dynamic_fix_clone_room(clone);
 }
 
 void variable_dynamic_fix_church (CHURCH_DATA *church)

@@ -2672,7 +2672,6 @@ void reconnect_char(DESCRIPTOR_DATA *d)
     CHAR_DATA *ch = d->character;
     char buf[MAX_STRING_LENGTH];
     LLIST_LINK *link;
-    OBJ_DATA *obj;
     TOKEN_DATA *token;
 
     if (!ch) return;
@@ -2698,26 +2697,6 @@ if (ch && ch->desc) {
     }
 }
 
-    // Fix inventory relationships
-    if (ch->carrying == NULL && ch->lcarrying != NULL) {
-        log_string("Reconnect: Rebuilding inventory from lcarrying");
-        for (link = ch->lcarrying->head; link; link = link->next) {
-            obj = (OBJ_DATA *)link->data;
-            if (obj && obj->carried_by == ch) {
-                obj->next_content = ch->carrying;
-                ch->carrying = obj;
-                ch->carry_number++;
-                ch->carry_weight += get_obj_weight(obj);
-            }
-        }
-    }
-
-    // Fix worn equipment relationships
-    if (ch->lworn != NULL) {
-        for (link = ch->lworn->head; link; link = link->next) {
-            obj = (OBJ_DATA *)link->data;
-        }
-    }
 
     // Fix token relationships
     if (ch->tokens == NULL && ch->ltokens != NULL) {
@@ -3388,35 +3367,46 @@ void act_new(char *format, CHAR_DATA *ch,
 
     if (MOBtrigger && (type == TO_ROOM || type == TO_NOTVICT))
     {
-	OBJ_DATA *obj, *obj_next;
-	CHAR_DATA *tch, *tch_next;
+    OBJ_DATA *obj, *obj_next;
+    CHAR_DATA *tch, *tch_next;
+        ITERATOR it;
 
-	 point   = buf;
-	 str     = format;
-	 while(*str != '\0')
-	 {
-	     *point++ = *str++;
-	 }
-	 *point   = '\0';
+     point   = buf;
+     str     = format;
+     while(*str != '\0')
+     {
+         *point++ = *str++;
+     }
+     *point   = '\0';
 
-	for(obj = ch->in_room->contents; obj; obj = obj_next)
-	{
-	    obj_next = obj->next_content;
-	    p_act_trigger(buf, NULL, obj, NULL, ch, vch, vch2, obj1, obj2, TRIG_ACT);
-	}
+    for(obj = ch->in_room->contents; obj; obj = obj_next)
+    {
+        obj_next = obj->next_content;
+        p_act_trigger(buf, NULL, obj, NULL, ch, vch, vch2, obj1, obj2, TRIG_ACT);
+    }
 
-	for(tch = ch; tch; tch = tch_next)
-	{
-	    tch_next = tch->next_in_room;
+    for(tch = ch; tch; tch = tch_next)
+    {
+        tch_next = tch->next_in_room;
 
-	    for (obj = tch->carrying; obj; obj = obj_next)
-	    {
-		obj_next = obj->next_content;
-		p_act_trigger(buf, NULL, obj, NULL, ch, vch, vch2, obj1, obj2, TRIG_ACT);
-	    }
-	}
+        // Use iterator for lcarrying instead of direct traversal
+            iterator_start(&it, tch->lcarrying);
+            while ((obj = (OBJ_DATA *)iterator_nextdata(&it)))
+            {
+                p_act_trigger(buf, NULL, obj, NULL, ch, vch, vch2, obj1, obj2, TRIG_ACT);
+            }
+            iterator_stop(&it);
+            
+            // Also iterate through lworn items
+            iterator_start(&it, tch->lworn);
+            while ((obj = (OBJ_DATA *)iterator_nextdata(&it)))
+            {
+                p_act_trigger(buf, NULL, obj, NULL, ch, vch, vch2, obj1, obj2, TRIG_ACT);
+            }
+            iterator_stop(&it);
+    }
 
-	p_act_trigger(buf, NULL, NULL, ch->in_room, ch, vch, vch2, obj1, obj2, TRIG_ACT);
+    p_act_trigger(buf, NULL, NULL, ch->in_room, ch, vch, vch2, obj1, obj2, TRIG_ACT);
     }
 }
 

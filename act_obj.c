@@ -787,7 +787,7 @@ void do_put(CHAR_DATA *ch, char *argument)
     char arg2[MAX_INPUT_LENGTH];
     char arg3[MAX_INPUT_LENGTH];
     char buf[MSL];
-    char short_descr[MSL];
+    //char short_descr[MSL];
     OBJ_DATA *obj;
     OBJ_DATA *container;
     OBJ_DATA *match_obj;
@@ -795,7 +795,7 @@ void do_put(CHAR_DATA *ch, char *argument)
     bool gold;
     int i = 0;
     bool found = true;
-    OBJ_DATA *any = NULL;
+    //OBJ_DATA *any = NULL;
 
     argument = one_argument(argument, arg1);
     argument = one_argument(argument, arg2);
@@ -1370,7 +1370,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
             found = false;
             i = 0;
             match_obj = NULL;
-            OBJ_DATA *obj_next = NULL;
+            //OBJ_DATA *obj_next = NULL;
 
             // First pass: find a matching object
             iterator_start(&it, ch->lcarrying);
@@ -1471,7 +1471,7 @@ void do_give(CHAR_DATA *ch, char *argument)
     OBJ_DATA *match_obj;
     int i = 0;
     bool found = true;
-    OBJ_DATA *any = NULL;
+    //OBJ_DATA *any = NULL;
     long amount;
 
     argument = one_argument(argument, arg1);
@@ -2243,7 +2243,7 @@ void do_envenom(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    obj =  get_obj_list(ch,argument,ch->carrying);
+    obj =  get_obj_list(ch,argument,ch->lcarrying);
 
     if (obj== NULL)
     {
@@ -3312,90 +3312,92 @@ void do_wear(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
     OBJ_DATA *obj;
+	bool found = false;
 
     one_argument(argument, arg);
 
-	if (check_social_status(ch))
-		return;
+    if (check_social_status(ch))
+        return;
 
     if (IS_SHIFTED_SLAYER(ch) || IS_SHIFTED_WEREWOLF(ch))
     {
-		send_to_char("You can't do that in your current form.\n\r", ch);
-		return;
+        send_to_char("You can't do that in your current form.\n\r", ch);
+        return;
     }
 
     if (IS_AFFECTED(ch, AFF_BLIND))
     {
-		send_to_char("You can't see a thing!\n\r", ch);
-		return;
+        send_to_char("You can't see a thing!\n\r", ch);
+        return;
     }
 
     if (arg[0] == '\0')
     {
-		send_to_char("Wear, wield, or hold what?\n\r", ch);
-		return;
+        send_to_char("Wear, wield, or hold what?\n\r", ch);
+        return;
     }
 
     if (!str_cmp(arg, "all"))
     {
-		OBJ_DATA *obj_next = NULL;
-//		bool found = false;
 
-		send_to_char("You throw on your equipment.\n\r", ch);
-		act("$n throws on $s equipment.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-		/* First run through all equipment looking for last_wear_loc set. */
-		for (obj = ch->carrying; obj != NULL; obj = obj_next)
-		{
-			obj_next = obj->next_content;
-			if (obj->last_wear_loc != WEAR_NONE &&
-				WEAR_AUTOEQUIP(obj->last_wear_loc) &&
-				can_see_obj(ch, obj) &&
-				obj->wear_loc == WEAR_NONE &&
-				ch->tot_level >= obj->level) {
-			if (both_hands_full(ch)
-			&& (CAN_WEAR(obj, ITEM_WEAR_SHIELD)
-				 || CAN_WEAR(obj, ITEM_HOLD)
-				 || CAN_WEAR(obj, ITEM_WIELD)))
-				continue;
+        send_to_char("You throw on your equipment.\n\r", ch);
+        act("$n throws on $s equipment.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-			if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREWEAR, NULL))
-				continue;
+        /* First run through all equipment looking for last_wear_loc set. */
+        ITERATOR it;
+        iterator_start(&it, ch->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it)))
+        {
+            if (obj->last_wear_loc != WEAR_NONE &&
+                WEAR_AUTOEQUIP(obj->last_wear_loc) &&
+                can_see_obj(ch, obj) &&
+                obj->wear_loc == WEAR_NONE &&
+                ch->tot_level >= obj->level) {
+                if (both_hands_full(ch)
+                && (CAN_WEAR(obj, ITEM_WEAR_SHIELD)
+                     || CAN_WEAR(obj, ITEM_HOLD)
+                     || CAN_WEAR(obj, ITEM_WIELD)))
+                    continue;
 
-			equip_char(ch, obj, obj->last_wear_loc);
-//			found = true;
-			}
-		}
+                if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREWEAR, NULL))
+                    continue;
 
-		for (obj = ch->carrying; obj != NULL; obj = obj_next)
-		{
-			obj_next = obj->next_content;
-			if (obj->wear_loc == WEAR_NONE
-			&& can_see_obj(ch, obj)
-			&& is_wearable(obj))
-			{
+                equip_char(ch, obj, obj->last_wear_loc);
+                found = true;
+            }
+        }
+        iterator_stop(&it);
 
-			if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREWEAR, NULL))
-				continue;
+        iterator_start(&it, ch->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it)))
+        {
+            if (obj->wear_loc == WEAR_NONE
+            && can_see_obj(ch, obj)
+            && is_wearable(obj))
+            {
+                if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREWEAR, NULL))
+                    continue;
 
-			wear_obj(ch, obj, false);
-//			found = true;
-			}
-		}
-		return;
+                wear_obj(ch, obj, false);
+                found = true;
+            }
+        }
+        iterator_stop(&it);
+        return;
     }
     else
     {
-		if ((obj = get_obj_carry(ch, arg, ch)) == NULL)
-		{
-		    send_to_char("You do not have that item.\n\r", ch);
-		    return;
-		}
+        if ((obj = get_obj_carry(ch, arg, ch)) == NULL)
+        {
+            send_to_char("You do not have that item.\n\r", ch);
+            return;
+        }
 
-		if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREWEAR, NULL))
-			return;
+        if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREWEAR, NULL))
+            return;
 
-		wear_obj(ch, obj, true);
+        wear_obj(ch, obj, true);
     }
 }
 
@@ -3407,13 +3409,16 @@ void removeall(CHAR_DATA *ch)
 
     save_last_wear(ch);
 
-    for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
+    ITERATOR it;
+    iterator_start(&it, ch->lworn);
+    while ((obj = (OBJ_DATA *)iterator_nextdata(&it)))
     {
         if (obj->wear_loc != WEAR_NONE)
         {
             remove_obj(ch, obj->wear_loc, true);
-	}
+        }
     }
+    iterator_stop(&it);
 }
 
 
@@ -3423,9 +3428,10 @@ void do_remove(CHAR_DATA *ch, char *argument)
     char arg[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
     OBJ_DATA *obj;
+	bool found = false;
 
-	if (check_social_status(ch))
-		return;
+    if (check_social_status(ch))
+        return;
 
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
@@ -3438,44 +3444,45 @@ void do_remove(CHAR_DATA *ch, char *argument)
 
     if (arg[0] == '\0')
     {
-	send_to_char("Remove what?\n\r", ch);
-	return;
+        send_to_char("Remove what?\n\r", ch);
+        return;
     }
 
     if (!str_cmp(arg, "all"))
     {
-//	bool found = false;
-	save_last_wear(ch);
+        save_last_wear(ch);
 
-	send_to_char("You remove your equipment.\n\r", ch);
-	act("$n removes $s equipment.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+        send_to_char("You remove your equipment.\n\r", ch);
+        act("$n removes $s equipment.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-	for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-	{
-  	    if (obj->wear_loc != WEAR_NONE
-  	    &&   obj->item_type != ITEM_TATTOO
-	    &&   can_see_obj(ch, obj)
-	    &&   (WEAR_ALWAYSREMOVE(obj->wear_loc) || !IS_SET(obj->extra[0], ITEM_NOREMOVE))
-	    &&   wear_params[obj->wear_loc][2])
-	    {
+        ITERATOR it;
+        iterator_start(&it, ch->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it)))
+        {
+            if (obj->wear_loc != WEAR_NONE
+                && obj->item_type != ITEM_TATTOO
+                && can_see_obj(ch, obj)
+                && (WEAR_ALWAYSREMOVE(obj->wear_loc) || !IS_SET(obj->extra[0], ITEM_NOREMOVE))
+                && wear_params[obj->wear_loc][2])
+            {
+                if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREREMOVE, NULL))
+                    continue;
 
-		if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREREMOVE, NULL))
-			continue;
-
-		unequip_char(ch, obj, false);
-//		found = true;
-	    }
-	}
+                unequip_char(ch, obj, false);
+                found = true;
+            }
+        }
+        iterator_stop(&it);
     }
     else
     {
         if ((obj = get_obj_wear(ch, arg, true)) == NULL)
         {
-	    send_to_char("You do not have that item.\n\r", ch);
-	    return;
+            send_to_char("You do not have that item.\n\r", ch);
+            return;
         }
 
-	remove_obj(ch, obj->wear_loc, true);
+        remove_obj(ch, obj->wear_loc, true);
     }
     return;
 }
@@ -4348,43 +4355,38 @@ CHAR_DATA *find_keeper(CHAR_DATA *ch, char *arg)
 /* insert an object at the right spot for the keeper */
 void obj_to_keeper(OBJ_DATA *obj, CHAR_DATA *ch)
 {
-    OBJ_DATA *t_obj, *t_obj_next;
+    OBJ_DATA *t_obj;
+    bool found = false;
 
     /* see if any duplicates are found */
-    for (t_obj = ch->carrying; t_obj != NULL; t_obj = t_obj_next)
+    ITERATOR it;
+    iterator_start(&it, ch->lcarrying);
+    while ((t_obj = (OBJ_DATA *)iterator_nextdata(&it)))
     {
-	t_obj_next = t_obj->next_content;
+        if (obj->pIndexData == t_obj->pIndexData &&
+            !str_cmp(obj->short_descr, t_obj->short_descr))
+        {
+            obj->cost = t_obj->cost; /* keep it standard */
+            found = true;
+            break;
+        }
+    }
+    iterator_stop(&it);
 
-	if (obj->pIndexData == t_obj->pIndexData
-	&&  !str_cmp(obj->short_descr,t_obj->short_descr))
-	{
-	    obj->cost = t_obj->cost; /* keep it standard */
-	    break;
-	}
+    /* Add the object to the character's inventory list */
+    list_appendlink(ch->lcarrying, obj);
+
+    if(!IS_SET(obj->extra[1], ITEM_SELL_ONCE))
+    {
+        // If the item can be sold again, mark it as inventory
+        SET_BIT(obj->extra[0], ITEM_INVENTORY);
     }
 
-    if (t_obj == NULL)
-    {
-	obj->next_content = ch->carrying;
-	ch->carrying = obj;
-    }
-    else
-    {
-	obj->next_content = t_obj->next_content;
-	t_obj->next_content = obj;
-    }
-
-
-	if(!IS_SET(obj->extra[1], ITEM_SELL_ONCE))
-	{
-		// If the item can be sold again, mark it as inventory
-		SET_BIT(obj->extra[0], ITEM_INVENTORY);
-	}
-    obj->carried_by      = ch;
-    obj->in_room         = NULL;
-    obj->in_obj          = NULL;
-    ch->carry_number    += get_obj_number(obj);
-    ch->carry_weight    += get_obj_weight(obj);
+    obj->carried_by = ch;
+    obj->in_room = NULL;
+    obj->in_obj = NULL;
+    ch->carry_number += get_obj_number(obj);
+    ch->carry_weight += get_obj_weight(obj);
 }
 
 long adjust_keeper_price(CHAR_DATA *keeper, long price, bool fBuy)
@@ -4469,101 +4471,108 @@ SHOP_STOCK_DATA *get_stockonly_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, char *ar
 
 bool get_stock_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, SHOP_REQUEST_DATA *request, char *argument)
 {
-	char arg[MAX_INPUT_LENGTH];
-	SHOP_STOCK_DATA *stock;
-	OBJ_DATA *obj;
-	int number;
-	int count;
+    char arg[MAX_INPUT_LENGTH];
+    SHOP_STOCK_DATA *stock;
+    OBJ_DATA *obj;
+    int number;
+    int count;
 
-	number = number_argument(argument, arg);
-	count  = 0;
-    if( keeper->shop != NULL) {
-		// Check stock items first
-		for(stock = keeper->shop->stock; stock; stock = stock->next)
-		{
-			// Out of stock.
-			if( stock->max_quantity > 0 && stock->quantity < 1) continue;
-
-			if( stock->vnum > 0 )
-			{
-				if( stock->obj != NULL )
-				{
-					if( is_name(arg, stock->obj->name) )
-					{
-						if( ++count == number )
-						{
-							request->stock = stock;
-							request->obj = NULL;
-							return true;
-						}
-					}
-				}
-				else if( stock->mob != NULL )
-				{
-					if( is_name(arg, stock->mob->player_name) )
-					{
-						if( ++count == number )
-						{
-							request->stock = stock;
-							request->obj = NULL;
-							return true;
-						}
-					}
-				}
-				else if( stock->ship != NULL )
-				{
-					if( is_name(arg, stock->ship->name) )
-					{
-						if( ++count == number )
-						{
-							request->stock = stock;
-							request->obj = NULL;
-							return true;
-						}
-					}
-				}
-
-			}
-			else if(!IS_NULLSTR(stock->custom_keyword))
-			{
-				if( is_name(arg, stock->custom_keyword) )
-				{
-					if( ++count == number )
-					{
-						request->stock = stock;
-						request->obj = NULL;
-						return true;
-					}
-				}
-			}
-		}
-	}
-
-	for (obj = keeper->carrying; obj != NULL; obj = obj->next_content)
-	{
-		if (IS_OBJ_STAT(obj, ITEM_INVENTORY) &&
-			obj->wear_loc == WEAR_NONE &&
-        	can_see_obj(keeper, obj) &&
-        	can_see_obj(ch,obj) &&
-        	is_name(arg, obj->name))
+    number = number_argument(argument, arg);
+    count  = 0;
+    if(keeper->shop != NULL) {
+        // Check stock items first
+        for(stock = keeper->shop->stock; stock; stock = stock->next)
         {
-			if (++count == number)
-			{
-				request->stock = NULL;
-				request->obj = obj;
-				return true;
-			}
+            // Out of stock.
+            if(stock->max_quantity > 0 && stock->quantity < 1) continue;
 
-			/* skip other objects of the same name */
-			while (obj->next_content != NULL &&
-				obj->pIndexData == obj->next_content->pIndexData &&
-				!str_cmp(obj->short_descr,obj->next_content->short_descr))
-				obj = obj->next_content;
-		}
-	}
+            if(stock->vnum > 0)
+            {
+                if(stock->obj != NULL)
+                {
+                    if(is_name(arg, stock->obj->name))
+                    {
+                        if(++count == number)
+                        {
+                            request->stock = stock;
+                            request->obj = NULL;
+                            return true;
+                        }
+                    }
+                }
+                else if(stock->mob != NULL)
+                {
+                    if(is_name(arg, stock->mob->player_name))
+                    {
+                        if(++count == number)
+                        {
+                            request->stock = stock;
+                            request->obj = NULL;
+                            return true;
+                        }
+                    }
+                }
+                else if(stock->ship != NULL)
+                {
+                    if(is_name(arg, stock->ship->name))
+                    {
+                        if(++count == number)
+                        {
+                            request->stock = stock;
+                            request->obj = NULL;
+                            return true;
+                        }
+                    }
+                }
+            }
+            else if(!IS_NULLSTR(stock->custom_keyword))
+            {
+                if(is_name(arg, stock->custom_keyword))
+                {
+                    if(++count == number)
+                    {
+                        request->stock = stock;
+                        request->obj = NULL;
+                        return true;
+                    }
+                }
+            }
+        }
+    }
 
+    // Track items we've already seen to avoid duplicates
+    OBJ_DATA *last_match = NULL;
 
-	return false;
+    ITERATOR it;
+    iterator_start(&it, keeper->lcarrying);
+    while((obj = (OBJ_DATA *)iterator_nextdata(&it)))
+    {
+        if(IS_OBJ_STAT(obj, ITEM_INVENTORY) &&
+            obj->wear_loc == WEAR_NONE &&
+            can_see_obj(keeper, obj) &&
+            can_see_obj(ch, obj) &&
+            is_name(arg, obj->name))
+        {
+            // Skip if this is a duplicate of the last matched object
+            if(last_match != NULL && 
+                obj->pIndexData == last_match->pIndexData &&
+                !str_cmp(obj->short_descr, last_match->short_descr))
+                continue;
+
+            last_match = obj;
+
+            if(++count == number)
+            {
+                iterator_stop(&it);
+                request->stock = NULL;
+                request->obj = obj;
+                return true;
+            }
+        }
+    }
+    iterator_stop(&it);
+
+    return false;
 }
 
 
@@ -4580,27 +4589,34 @@ OBJ_DATA *get_obj_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, char *argument)
     number = number_argument(argument, arg);
     count  = 0;
 
+    // Track items we've already seen to avoid duplicates
+    OBJ_DATA *last_match = NULL;
 
-	for (obj = keeper->carrying; obj != NULL; obj = obj->next_content)
-	{
-		if (obj->wear_loc == WEAR_NONE &&
-        	can_see_obj(keeper, obj) &&
-        	can_see_obj(ch,obj) &&
-        	is_name(arg, obj->name))
+    ITERATOR it;
+    iterator_start(&it, keeper->lcarrying);
+    while ((obj = (OBJ_DATA *)iterator_nextdata(&it)))
+    {
+        if (obj->wear_loc == WEAR_NONE &&
+            can_see_obj(keeper, obj) &&
+            can_see_obj(ch, obj) &&
+            is_name(arg, obj->name))
         {
-			if (++count == number)
-			{
-				return obj;
-			}
+            // Skip if this is a duplicate of the last matched object
+            if (last_match != NULL && 
+                obj->pIndexData == last_match->pIndexData &&
+                !str_cmp(obj->short_descr, last_match->short_descr))
+                continue;
 
-			/* skip other objects of the same name */
-			while (obj->next_content != NULL &&
-				obj->pIndexData == obj->next_content->pIndexData &&
-				!str_cmp(obj->short_descr,obj->next_content->short_descr))
-				obj = obj->next_content;
-		}
-	}
-
+            last_match = obj;
+            
+            if (++count == number)
+            {
+                iterator_stop(&it);
+                return obj;
+            }
+        }
+    }
+    iterator_stop(&it);
 
     return NULL;
 }
@@ -4613,44 +4629,49 @@ int get_cost(CHAR_DATA *keeper, OBJ_DATA *obj, bool fBuy)
     int cost;
 
     if (obj == NULL || (pShop = keeper->shop) == NULL)
-		return 0;
+        return 0;
 
     if (fBuy)
     {
-		cost = obj->cost * pShop->profit_buy  / 100;
+        cost = obj->cost * pShop->profit_buy / 100;
     }
     else
     {
-		OBJ_DATA *obj2;
-		int itype;
+        OBJ_DATA *obj2;
+        int itype;
 
-		cost = 0;
-		for (itype = 0; itype < MAX_TRADE; itype++)
-		{
-		    if (obj->item_type == pShop->buy_type[itype])
-		    {
-				cost = obj->cost * pShop->profit_sell / 100;
-				break;
-		    }
-		}
+        cost = 0;
+        for (itype = 0; itype < MAX_TRADE; itype++)
+        {
+            if (obj->item_type == pShop->buy_type[itype])
+            {
+                cost = obj->cost * pShop->profit_sell / 100;
+                break;
+            }
+        }
 
-		for (obj2 = keeper->carrying; obj2; obj2 = obj2->next_content)
-		{
-		    if (IS_OBJ_STAT(obj2,ITEM_INVENTORY) &&
-				obj->pIndexData == obj2->pIndexData &&
-		    	!str_cmp(obj->short_descr,obj2->short_descr))
-			{
-				cost = cost * 3 / 4;
-			}
-		}
+        // Check for duplicate items that affect price
+        ITERATOR it;
+        iterator_start(&it, keeper->lcarrying);
+        while ((obj2 = (OBJ_DATA *)iterator_nextdata(&it)))
+        {
+            if (IS_OBJ_STAT(obj2, ITEM_INVENTORY) &&
+                obj->pIndexData == obj2->pIndexData &&
+                !str_cmp(obj->short_descr, obj2->short_descr))
+            {
+                cost = cost * 3 / 4;
+                break;
+            }
+        }
+        iterator_stop(&it);
     }
 
     if (obj->item_type == ITEM_STAFF || obj->item_type == ITEM_WAND)
     {
-		if (obj->value[1] == 0)
-		    cost /= 4;
-		else
-		    cost = cost * obj->value[2] / obj->value[1];
+        if (obj->value[1] == 0)
+            cost /= 4;
+        else
+            cost = cost * obj->value[2] / obj->value[1];
     }
 
     return cost;
@@ -5793,459 +5814,248 @@ void do_blow( CHAR_DATA *ch, char *argument )
 void do_list(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
+    char arg[MAX_INPUT_LENGTH];
+    char arg_keeper[MIL];
+    CHAR_DATA *keeper;
+    OBJ_DATA *obj;
+    int cost,count;
+    bool found;
 
+    argument = one_argument(argument, arg_keeper);
+    one_argument(argument,arg);
 
-/* Keeping in case they get fixed
-    CHAR_DATA *salesman;
-
-    for (salesman = ch->in_room->people; salesman != NULL; salesman = salesman->next_in_room)
-    {
-	if (IS_NPC(salesman) && IS_SET(salesman->act[0], ACT_CREW_SELLER))
-	{
-	    crew_seller = salesman;
-	    break;
-	}
-    }
-
-    for (salesman = ch->in_room->people; salesman != NULL; salesman = salesman->next_in_room)
-    {
- 	if (IS_NPC(salesman) && IS_SET(salesman->act[1], ACT2_AIRSHIP_SELLER))
- 	{
- 	    airship_seller = salesman;
- 	    break;
- 	}
-    }
-
-    for (salesman = ch->in_room->people; salesman != NULL; salesman = salesman->next_in_room)
-    {
-	if (IS_NPC(salesman) && IS_SET(salesman->act[1], ACT2_PLANE_TUNNELER))
-	{
-	    plane_tunneler = salesman;
-	    break;
-	}
-    }
-
-    for (salesman = ch->in_room->people; salesman != NULL; salesman = salesman->next_in_room)
-    {
-	if (IS_SET(salesman->act[1], ACT2_TRADER) && IS_NPC(salesman))
-	{
-	    trader = salesman;
-	    break;
-	}
-    }
-*/
     if (IS_SET(ch->in_room->room_flag[0], ROOM_SHIP_SHOP))
     {
-	/*sprintf(buf, "{G%s has the following vessels for sale:{x\n\r", crew_seller->short_descr);*/
-	/*send_to_char(buf, ch);*/
-
-		send_to_char("Min Crew   Max Crew  Max Cannons  Kg Capacity    Minimum Rank  Price   Name\n\r", ch); send_to_char("                                                 {Y(GOLD){x\n\r", ch);
-		send_to_char("{B-----------------------------------------------------------------------------{x\n\r", ch);
-		send_to_char("   1          5         10           1000        None         {GFree{x    Sailing Boat\n\r", ch);
-		send_to_char("   5          15        25          10000        Explorer     {GFree{x    Cargo Ship\n\r", ch);
-		send_to_char("   15         32        40          25000        Captain      {GFree{x    Galleon\n\r", ch);
-		send_to_char("   10         30        50           7500        Commander    {GFree{x    Frigate\n\r", ch);
-	/*  send_to_char("   25         50         75          35000       N/A     War Galleon\n\r", ch);*/
-	/*  send_to_char("   50         50         100         40000       N/A     Juggernaught\n\r", ch);*/
-
-		return;
-    }
-/*
-    if (trader != NULL)
-
-    {
-        TRADE_ITEM *temp;
-	OBJ_DATA *pObj;
-	OBJ_INDEX_DATA *obj_index;
-
-	//if (IS_PIRATE_IN_AREA(ch))
-	{
-	    do_say(trader, "We don't deal with Pirates! Get out of here before I call the guards!");
-	    return;
-	}
-
-	sprintf(buf, "{RWelcome to the %s Trading Post\n\r\n\r", ch->in_room->area->name);
-	send_to_char(buf, ch);
-        send_to_char("{xOur commodity prices are as follows:\n\r\n\r", ch);
- 	send_to_char("Name          	           Class              Our Qty         Buy    Sell{x\n\r", ch);
-	send_to_char("{B---------------------------------------------------------------------------{x\n\n", ch);
-
-        temp = ch->in_room->area->trade_list;
-        while(temp != NULL)
-	{
-	    if (temp->qty == 0)
-            {
-	        send_to_char("{D", ch);
-	    }
-	    else
-	    {
-		send_to_char("{x", ch);
-	    }
-
-	    obj_index = get_obj_index(temp->obj_vnum);
-
-	    if (obj_index != NULL)
-	    {
-        if (temp->qty == 0)  {
-		    	sprintf(buf, "{x%-26s {B%-21s {Y%-13ld        {R%ld{x\n\r", obj_index->short_descr, trade_table[temp->trade_type].name, temp->qty, temp->sell_price);
-        }
-        else {
-		    	sprintf(buf, "{x%-26s {B%-21s {Y%-13ld {G%-6ld {R%ld{x\n\r", obj_index->short_descr, trade_table[temp->trade_type].name, temp->qty, temp->buy_price, temp->sell_price);
-        }
-		    send_to_char(buf, ch);
-	    }
-	    temp = temp->next;
-	}
-
-	if (ch->pulled_cart != NULL)
-	{
-	    pObj = ch->pulled_cart;
-
- 	    send_to_char("\n\r{xYour cart currently contains:\n\r", ch);
-	    show_list_to_char(pObj->contains, ch, true, true);
-	}
-	return;
-    }
-
-    if (airship_seller != NULL)
-    {
-	AREA_DATA *pArea;
-
-	sprintf(buf, "{GGoblin Airship Travel Locations{x\n\r"
-		"\n\r"
-		"{YWe fly to the following exciting locations: {x(Silver Coins)\n\r");
-	send_to_char(buf, ch);
-
-	for (pArea = area_first; pArea != NULL; pArea = pArea->next)
-	{
-	    if (pArea->land_x > 0 && pArea->land_y > 0)
-	    {
-		long distance = (long)(sqrt(					\
-			    (pArea->x - ch->in_room->area->x) *	\
-			    (pArea->x - ch->in_room->area->x) +	\
-			    (pArea->y - ch->in_room->area->y) *	\
-			    (pArea->y - ch->in_room->area->y))) * 30 ;
-
-		if (distance > 0)
-		{
-		    sprintf(buf, "{w%-30s %ld\n\r{x", pArea->name, distance);
-		    send_to_char(buf, ch);
-		}
-	    }
-	}
-	return;
-    }
-
-    if (crew_seller != NULL)
-    {
- 	int i;
-	send_to_char("{GCrew for employment:{x\n\r", ch);
-	send_to_char("Level     Price    Type\n\r", ch);
-	send_to_char("          {Y(Gold){x\n\r", ch);
-	send_to_char("{B---------------------------{x\n\r", ch);
-
-	i = 0;
-	while(crew_table[i].type != -1)
-	{
-	    sprintf(buf, "%-3d     %-5ld     %s\n\r", get_mob_index(crew_table[i].type)->level, crew_table[i].price, crew_table[i].name);
-	    send_to_char(buf, ch);
-            i++;
-        }
-	return;
-    }
-
-    if (plane_tunneler != NULL)
-    {
-	int i;
-
-	send_to_char("{B[ {GPlace        Price{B ]\n\r",  ch);
-
-	i = 0;
-	while (tunneler_place_table[i].name != NULL)
-	{
-	   sprintf(buf, "{B[ {x%-12s %-5d {B]\n\r",
-			   tunneler_place_table[i].name,
-			   tunneler_place_table[i].price);
-	   send_to_char(buf, ch);
-	   i++;
-	}
-
+        send_to_char("Min Crew   Max Crew  Max Cannons  Kg Capacity    Minimum Rank  Price   Name\n\r", ch); 
+        send_to_char("                                                 {Y(GOLD){x\n\r", ch);
+        send_to_char("{B-----------------------------------------------------------------------------{x\n\r", ch);
+        send_to_char("   1          5         10           1000        None         {GFree{x    Sailing Boat\n\r", ch);
+        send_to_char("   5          15        25          10000        Explorer     {GFree{x    Cargo Ship\n\r", ch);
+        send_to_char("   15         32        40          25000        Captain      {GFree{x    Galleon\n\r", ch);
+        send_to_char("   10         30        50           7500        Commander    {GFree{x    Frigate\n\r", ch);
         return;
-    } */
-
-#if 0
-    if (IS_SET(ch->in_room->room_flag[0], ROOM_PET_SHOP) ||
-    	IS_SET(ch->in_room->room_flag[0], ROOM_MOUNT_SHOP))
+    }
+    else
     {
-		ROOM_INDEX_DATA *pRoomIndexNext;
-		CHAR_DATA *pet;
-		bool found;
+        CHAR_DATA *keeper;
+        OBJ_DATA *obj;
+        int cost,count;
+        bool found;
 
-		/* hack to make new thalos pets work */
-//		These rooms don't exist anymore, removing hack
-//		if (ch->in_room->vnum == 9621)
-//			pRoomIndexNext = get_room_index(9706);
-//		else
-//			pRoomIndexNext = get_room_index(ch->in_room->vnum + 1);
-		pRoomIndexNext = get_room_index(ch->in_room->vnum + 1);
-
-		if (pRoomIndexNext == NULL)
-		{
-			bug("Do_list: bad pet shop at vnum %d.", ch->in_room->vnum);
-			send_to_char("You can't do that here.\n\r", ch);
-			return;
-		}
-
-		found = false;
-		for (pet = pRoomIndexNext->people; pet; pet = pet->next_in_room)
-		{
-			if (IS_SET(pet->act[0], ACT_PET) || IS_SET(pet->act[0], ACT_MOUNT))
-			{
-				if (!found)
-				{
-					found = true;
-					if (IS_SET(pet->act[0], ACT_PET))
-						send_to_char("{GPets for sale:{x\n\r", ch);
-					else if (IS_SET(pet->act[0], ACT_MOUNT))
-						send_to_char("{GMounts for sale:{x\n\r", ch);
-				}
-
-				sprintf(buf, "{B[{x%2d{B]{x %8d {G-{x %s\n\r",
-					pet->level, 10 * pet->level * pet->level, pet->short_descr);
-				send_to_char(buf, ch);
-			}
-		}
-
-		if (!found)
-		{
-			if (IS_SET(ch->in_room->room_flag[0], ROOM_PET_SHOP)) {
-				send_to_char("Sorry, we're out of pets right now.\n\r", ch);
-			} else {
-				send_to_char("Sorry, we're out of mounts right now.\n\r", ch);
-			}
-
-			return;
-		}
-
-		return;
-	}
-	else
-#endif
-	{
-		CHAR_DATA *keeper;
-		OBJ_DATA *obj;
-		int cost,count;
-		bool found;
-		char arg[MAX_INPUT_LENGTH];
-		char arg_keeper[MIL];
-
-		argument = one_argument(argument, arg_keeper);
-
-		if ((keeper = find_keeper(ch, arg_keeper)) == NULL)
-		    return;
+        if ((keeper = find_keeper(ch, arg_keeper)) == NULL)
+            return;
 
         one_argument(argument,arg);
 
-		found = false;
-		SHOP_STOCK_DATA *stock;
-		for (stock = keeper->shop->stock; stock; stock = stock->next)
-		{
-			// Hide it if it's out of stock
-			if( stock->max_quantity > 0 && stock->quantity < 1) continue;
+        found = false;
+        SHOP_STOCK_DATA *stock;
+        for (stock = keeper->shop->stock; stock; stock = stock->next)
+        {
+            // Hide it if it's out of stock
+            if( stock->max_quantity > 0 && stock->quantity < 1) continue;
 
-			switch(stock->type)
-			{
-			case STOCK_OBJECT:
-				if( stock->vnum > 0 && stock->obj != NULL )
-				{
-					if( arg[0] != '\0' && !is_name(arg, stock->obj->name) )
-						continue;
+            switch(stock->type)
+            {
+            case STOCK_OBJECT:
+                if( stock->vnum > 0 && stock->obj != NULL )
+                {
+                    if( arg[0] != '\0' && !is_name(arg, stock->obj->name) )
+                        continue;
 
-					if (!found)
-					{
-						found = true;
-						send_to_char("{B[ {GLv       Price     Qty{B ]{x {YItem{x\n\r", ch);
-					}
+                    if (!found)
+                    {
+                        found = true;
+                        send_to_char("{B[ {GLv       Price     Qty{B ]{x {YItem{x\n\r", ch);
+                    }
 
-					int level = stock->level;
-					if( level < 1 ) level = stock->obj->level;
-					level = UMAX(level, 1);
+                    int level = stock->level;
+                    if( level < 1 ) level = stock->obj->level;
+                    level = UMAX(level, 1);
 
-					char *pricing = get_shop_stock_price(stock);
-					int pwidth = get_colour_width(pricing) + 14;
+                    char *pricing = get_shop_stock_price(stock);
+                    int pwidth = get_colour_width(pricing) + 14;
 
-					char *descr =
-						IS_NULLSTR(stock->custom_descr) ? stock->obj->short_descr : stock->custom_descr;
+                    char *descr =
+                        IS_NULLSTR(stock->custom_descr) ? stock->obj->short_descr : stock->custom_descr;
 
-					if ( stock->max_quantity > 0 && (stock->duration > 0 || stock->obj->timer > 0))
-					{
-						sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s {Y[EXPIRES]{X\n\r", level,pwidth,pricing,stock->quantity,descr);
-					}
-					else if( stock->max_quantity > 0 )
-					{
-						sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s\n\r", level,pwidth,pricing,stock->quantity,descr);
-					}
-					else if (stock->duration > 0)
-					{
-						sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s {Y[EXPIRES]{X\n\r", level,pwidth,pricing,descr);
-					}
-					else
-					{
-						sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s\n\r", level,pwidth,pricing,descr);
-					}
+                    if ( stock->max_quantity > 0 && (stock->duration > 0 || stock->obj->timer > 0))
+                    {
+                        sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s {Y[EXPIRES]{X\n\r", level,pwidth,pricing,stock->quantity,descr);
+                    }
+                    else if( stock->max_quantity > 0 )
+                    {
+                        sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s\n\r", level,pwidth,pricing,stock->quantity,descr);
+                    }
+                    else if (stock->duration > 0)
+                    {
+                        sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s {Y[EXPIRES]{X\n\r", level,pwidth,pricing,descr);
+                    }
+                    else
+                    {
+                        sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s\n\r", level,pwidth,pricing,descr);
+                    }
 
-					send_to_char(buf, ch);
-				}
-				break;
+                    send_to_char(buf, ch);
+                }
+                break;
 
-			case STOCK_PET:
-			case STOCK_MOUNT:
-			case STOCK_GUARD:
-			case STOCK_CREW:
-				if( stock->vnum > 0 && stock->mob != NULL )
-				{
-					if( arg[0] != '\0' && !is_name(arg, stock->mob->player_name) )
-						continue;
+            case STOCK_PET:
+            case STOCK_MOUNT:
+            case STOCK_GUARD:
+            case STOCK_CREW:
+                if( stock->vnum > 0 && stock->mob != NULL )
+                {
+                    if( arg[0] != '\0' && !is_name(arg, stock->mob->player_name) )
+                        continue;
 
-					if (!found)
-					{
-						found = true;
-						send_to_char("{B[ {GLv       Price     Qty{B ]{x {YItem{x\n\r", ch);
-					}
+                    if (!found)
+                    {
+                        found = true;
+                        send_to_char("{B[ {GLv       Price     Qty{B ]{x {YItem{x\n\r", ch);
+                    }
 
-					int level = stock->level;
-					if( level < 1 ) level = stock->mob->level;
-					level = UMAX(level, 1);
+                    int level = stock->level;
+                    if( level < 1 ) level = stock->mob->level;
+                    level = UMAX(level, 1);
 
-					char *pricing = get_shop_stock_price(stock);
-					int pwidth = get_colour_width(pricing) + 14;
+                    char *pricing = get_shop_stock_price(stock);
+                    int pwidth = get_colour_width(pricing) + 14;
 
-					char *descr =
-						IS_NULLSTR(stock->custom_descr) ? stock->mob->short_descr : stock->custom_descr;
-					if (stock->max_quantity > 0 && stock->duration > 0)
-					{
-						sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s {Y[HIRELING]{x\n\r", level,pwidth,pricing,stock->quantity,descr);
-					}
-					else if( stock->max_quantity > 0 )
-					{
-						sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s\n\r", level,pwidth,pricing,stock->quantity,descr);
-					}
-					else if (stock->duration > 0)
-					{
-						sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s {Y[HIRELING]{x\n\r", level,pwidth,pricing,descr);
-					}
-					else
-					{
-						sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s\n\r", level,pwidth,pricing,descr);
-					}
+                    char *descr =
+                        IS_NULLSTR(stock->custom_descr) ? stock->mob->short_descr : stock->custom_descr;
+                    if (stock->max_quantity > 0 && stock->duration > 0)
+                    {
+                        sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s {Y[HIRELING]{x\n\r", level,pwidth,pricing,stock->quantity,descr);
+                    }
+                    else if( stock->max_quantity > 0 )
+                    {
+                        sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s\n\r", level,pwidth,pricing,stock->quantity,descr);
+                    }
+                    else if (stock->duration > 0)
+                    {
+                        sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s {Y[HIRELING]{x\n\r", level,pwidth,pricing,descr);
+                    }
+                    else
+                    {
+                        sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s\n\r", level,pwidth,pricing,descr);
+                    }
 
-					send_to_char(buf, ch);
-				}
-				break;
+                    send_to_char(buf, ch);
+                }
+                break;
 
-			case STOCK_SHIP:
-				if( stock->vnum > 0 && stock->ship != NULL )
-				{
-					if( arg[0] != '\0' && !is_name(arg, stock->ship->name) )
-						continue;
+            case STOCK_SHIP:
+                if( stock->vnum > 0 && stock->ship != NULL )
+                {
+                    if( arg[0] != '\0' && !is_name(arg, stock->ship->name) )
+                        continue;
 
-					if (!found)
-					{
-						found = true;
-						send_to_char("{B[ {GLv       Price     Qty{B ]{x {YItem{x\n\r", ch);
-					}
+                    if (!found)
+                    {
+                        found = true;
+                        send_to_char("{B[ {GLv       Price     Qty{B ]{x {YItem{x\n\r", ch);
+                    }
 
-					int level = stock->level;
-					level = UMAX(level, 1);
+                    int level = stock->level;
+                    level = UMAX(level, 1);
 
-					char *pricing = get_shop_stock_price(stock);
-					int pwidth = get_colour_width(pricing) + 14;
+                    char *pricing = get_shop_stock_price(stock);
+                    int pwidth = get_colour_width(pricing) + 14;
 
-					char *descr =
-						IS_NULLSTR(stock->custom_descr) ? stock->ship->name : stock->custom_descr;
+                    char *descr =
+                        IS_NULLSTR(stock->custom_descr) ? stock->ship->name : stock->custom_descr;
 
-					if( stock->max_quantity > 0 )
-					{
-						sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s\n\r", level,pwidth,pricing,stock->quantity,descr);
-					}
-					else
-					{
-						sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s\n\r", level,pwidth,pricing,descr);
-					}
+                    if( stock->max_quantity > 0 )
+                    {
+                        sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s\n\r", level,pwidth,pricing,stock->quantity,descr);
+                    }
+                    else
+                    {
+                        sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s\n\r", level,pwidth,pricing,descr);
+                    }
 
-					send_to_char(buf, ch);
-				}
-				break;
+                    send_to_char(buf, ch);
+                }
+                break;
 
-			default:
-				if(!IS_NULLSTR(stock->custom_keyword))
-				{
-					if( arg[0] != '\0' && !is_name(arg, stock->custom_keyword) )
-						continue;
+            default:
+                if(!IS_NULLSTR(stock->custom_keyword))
+                {
+                    if( arg[0] != '\0' && !is_name(arg, stock->custom_keyword) )
+                        continue;
 
-					if (!found)
-					{
-						found = true;
-						send_to_char("{B[ {GLv       Price     Qty{B ]{x {YItem{x\n\r", ch);
-					}
+                    if (!found)
+                    {
+                        found = true;
+                        send_to_char("{B[ {GLv       Price     Qty{B ]{x {YItem{x\n\r", ch);
+                    }
 
-					int level = UMAX(stock->level, 1);
+                    int level = UMAX(stock->level, 1);
 
-					char *pricing = get_shop_stock_price(stock);
-					int pwidth = get_colour_width(pricing) + 14;
+                    char *pricing = get_shop_stock_price(stock);
+                    int pwidth = get_colour_width(pricing) + 14;
 
-					if( stock->max_quantity > 0 )
-					{
-						sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s (%s)\n\r", level,pwidth,pricing,stock->quantity,stock->custom_descr, stock->custom_keyword);
-					}
-					else
-					{
-						sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s (%s)\n\r", level,pwidth,pricing,stock->custom_descr, stock->custom_keyword);
-					}
+                    if( stock->max_quantity > 0 )
+                    {
+                        sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s (%s)\n\r", level,pwidth,pricing,stock->quantity,stock->custom_descr, stock->custom_keyword);
+                    }
+                    else
+                    {
+                        sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s (%s)\n\r", level,pwidth,pricing,stock->custom_descr, stock->custom_keyword);
+                    }
 
-					send_to_char(buf, ch);
-				}
-				break;
-			}
-		}
+                    send_to_char(buf, ch);
+                }
+                break;
+            }
+        }
 
-		for (obj = keeper->carrying; obj; obj = obj->next_content)
-		{
-		    if (IS_OBJ_STAT(obj,ITEM_INVENTORY) &&
-				obj->wear_loc == WEAR_NONE &&
-		    	can_see_obj(ch, obj) &&
-		    	(cost = get_cost(keeper, obj, true)) > 0 &&
-		    	(arg[0] == '\0' || is_name(arg,obj->name)))
-	    	{
-				if (!found)
-				{
-					found = true;
-					send_to_char("{B[ {GLv       Price     Qty{B ]{x {YItem{x\n\r", ch);
-				}
+        ITERATOR it;
+        iterator_start(&it, keeper->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it)))
+        {
+            if (IS_OBJ_STAT(obj,ITEM_INVENTORY) &&
+                obj->wear_loc == WEAR_NONE &&
+                can_see_obj(ch, obj) &&
+                (cost = get_cost(keeper, obj, true)) > 0 &&
+                (arg[0] == '\0' || is_name(arg,obj->name)))
+            {
+                if (!found)
+                {
+                    found = true;
+                    send_to_char("{B[ {GLv       Price     Qty{B ]{x {YItem{x\n\r", ch);
+                }
 
-				count = 1;
+                count = 1;
 
-				while (obj->next_content != NULL &&
-						IS_OBJ_STAT(obj->next_content,ITEM_INVENTORY) &&
-						obj->pIndexData == obj->next_content->pIndexData &&
-						!str_cmp(obj->short_descr, obj->next_content->short_descr))
-				{
-					obj = obj->next_content;
-					count++;
-				}
+                // Count identical items
+                ITERATOR inner_it;
+                OBJ_DATA *t_obj;
+                iterator_start(&inner_it, keeper->lcarrying);
+                while ((t_obj = (OBJ_DATA *)iterator_nextdata(&inner_it)))
+                {
+                    if (t_obj != obj &&
+                        IS_OBJ_STAT(t_obj, ITEM_INVENTORY) &&
+                        obj->pIndexData == t_obj->pIndexData &&
+                        !str_cmp(obj->short_descr, t_obj->short_descr))
+                    {
+                        count++;
+                    }
+                }
+                iterator_stop(&inner_it);
 
-				sprintf(buf,"{B[{x%3d %14d {Y%4d{B ]{x %s\n\r", obj->level,cost,count,obj->short_descr);
+                sprintf(buf,"{B[{x%3d %14d {Y%4d{B ]{x %s\n\r", obj->level,cost,count,obj->short_descr);
 
-				send_to_char(buf, ch);
-		    }
-		}
+                send_to_char(buf, ch);
+            }
+        }
+        iterator_stop(&it);
 
-		if (!found)
-			send_to_char("You can't buy anything here.\n\r", ch);
-		return;
+        if (!found)
+            send_to_char("You can't buy anything here.\n\r", ch);
+        return;
     }
 }
-
 
 void do_inspect(CHAR_DATA *ch, char *argument)
 {
@@ -6857,7 +6667,7 @@ void do_push(CHAR_DATA *ch, char *argument)
 
     if ((obj = get_obj_list(ch, arg, ch->in_room->contents)) == NULL)
     {
-        if ((obj = get_obj_list(ch, arg, ch->carrying)) == NULL)
+        if ((obj = get_obj_list(ch, arg, ch->lcarrying)) == NULL)
 	{
 	    send_to_char ("You can't find it.\n\r",ch);
 	    return;
@@ -6912,7 +6722,7 @@ void do_pull(CHAR_DATA *ch, char *argument)
 
 	if((mob = get_char_room(ch, NULL, arg)) == NULL) {
 		if ((obj = get_obj_list(ch, arg, ch->in_room->contents)) == NULL) {
-			if ((obj = get_obj_list(ch, arg, ch->carrying)) == NULL) {
+			if ((obj = get_obj_list(ch, arg, ch->lcarrying)) == NULL) {
 				send_to_char ("You can't find it.\n\r",ch);
 				return;
 			}
@@ -7076,7 +6886,7 @@ void do_turn(CHAR_DATA *ch, char *argument)
 
 	if ((obj = get_obj_list(ch, arg, ch->in_room->contents)) == NULL)
 	{
-	if ((obj = get_obj_list(ch, arg, ch->carrying)) == NULL)
+	if ((obj = get_obj_list(ch, arg, ch->lcarrying)) == NULL)
 	{
 	send_to_char ("You can't find it.\n\r",ch);
 	return;
@@ -7254,8 +7064,7 @@ void do_brew(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
     int sn;
-//    int this_class;
-    int spell;
+	int spell;
     int chance;
     int mana;
     char arg[MAX_STRING_LENGTH];
@@ -7264,38 +7073,38 @@ void do_brew(CHAR_DATA *ch, char *argument)
 
     if (IS_DEAD(ch))
     {
-	send_to_char("You are can't do that. You are dead.\n\r", ch);
-	return;
+        send_to_char("You can't do that. You are dead.\n\r", ch);
+        return;
     }
 
-    if ((chance = get_skill(ch,gsn_brew)) == 0
-    /*||  ch->level < skill_table[gsn_brew].skill_level[this_class]
-
-     Syn - this bit is encapsulated PROPERLY in get_skill so there's no need to do it here
-     unless I screwed up. */)
+    if ((chance = get_skill(ch,gsn_brew)) == 0)
     {
-	send_to_char("Brew? What's that?\n\r",ch);
-	return;
+        send_to_char("Brew? What's that?\n\r",ch);
+        return;
     }
 
     obj = NULL;
-    for (obj = ch->carrying; obj != NULL; obj = obj->next_content) {
-	if (obj->item_type == ITEM_EMPTY_VIAL || obj->pIndexData->vnum == OBJ_VNUM_EMPTY_VIAL)
-	    break;
+    // Replace traditional list traversal with iterator for lcarrying
+    ITERATOR it;
+    iterator_start(&it, ch->lcarrying);
+    while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+        if (obj->item_type == ITEM_EMPTY_VIAL || obj->pIndexData->vnum == OBJ_VNUM_EMPTY_VIAL)
+            break;
     }
+    iterator_stop(&it);
 
     if (obj == NULL)
     {
-	send_to_char("You do not have an empty vial to fill.\n\r", ch);
-	return;
+        send_to_char("You do not have an empty vial to fill.\n\r", ch);
+        return;
     }
 
     sn = 0;
 
     if (arg[0] == '\0')
     {
-	send_to_char("What potion do you want to create?\n\r", ch);
-	return;
+        send_to_char("What potion do you want to create?\n\r", ch);
+        return;
     }
 
     sn = find_spell(ch, arg);
@@ -7304,21 +7113,21 @@ void do_brew(CHAR_DATA *ch, char *argument)
     || skill_table[sn].spell_fun == spell_null
     || get_skill(ch, sn) == 0)
     {
-	send_to_char("You don't know any spells of that name.\n\r", ch);
-	return;
+        send_to_char("You don't know any spells of that name.\n\r", ch);
+        return;
     }
 
     mana = 0;
     if (sn > 0)
     {
-	mana += skill_table[sn].min_mana;
-	mana = mana * 2 / 3;
+        mana += skill_table[sn].min_mana;
+        mana = mana * 2 / 3;
     }
 
     if (ch->mana < mana)
     {
-	send_to_char("You don't have enough mana to brew that potion.\n\r", ch);
-	return;
+        send_to_char("You don't have enough mana to brew that potion.\n\r", ch);
+        return;
     }
 
     ch->mana -= mana;
@@ -7327,9 +7136,9 @@ void do_brew(CHAR_DATA *ch, char *argument)
     spell = find_spell(ch, "mass healing");
     if (spell == sn)
     {
-	send_to_char("The vial explodes into dust!\n\r", ch);
-	act("$n's empty vial explodes into dust!\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	return;
+        send_to_char("The vial explodes into dust!\n\r", ch);
+        act("$n's empty vial explodes into dust!\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+        return;
     }
 
     if (skill_table[sn].target != TAR_CHAR_DEFENSIVE
@@ -7338,7 +7147,7 @@ void do_brew(CHAR_DATA *ch, char *argument)
     &&   skill_table[sn].target != TAR_CHAR_OFFENSIVE
     &&   skill_table[sn].target != TAR_OBJ_CHAR_OFF)
     {
-	send_to_char("You may only brew potions of spells which you can cast on people.\n\r", ch);
+        send_to_char("You may only brew potions of spells which you can cast on people.\n\r", ch);
         return;
     }
 
@@ -7544,7 +7353,7 @@ void do_hands(CHAR_DATA *ch, char *argument)
 void do_scribe(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
-    int sn1, sn2, sn3;/*, sn4;*/
+    int sn1, sn2, sn3;
     int mana;
     int chance;
     int kill;
@@ -7558,26 +7367,30 @@ void do_scribe(CHAR_DATA *ch, char *argument)
 
     if (IS_DEAD(ch))
     {
-		send_to_char("You can't do that. You are dead.\n\r", ch);
-		return;
+        send_to_char("You can't do that. You are dead.\n\r", ch);
+        return;
     }
 
     if ((chance = get_skill(ch,gsn_scribe)) == 0)
     {
-		send_to_char("Scribe? What's that?\n\r",ch);
-		return;
+        send_to_char("Scribe? What's that?\n\r",ch);
+        return;
     }
 
     obj = NULL;
-    for (obj = ch->carrying; obj != NULL; obj = obj->next_content) {
-		if (obj->item_type == ITEM_BLANK_SCROLL || obj->pIndexData->vnum == OBJ_VNUM_BLANK_SCROLL)
-		    break;
+    // Replace traditional list traversal with iterator for lcarrying
+    ITERATOR it;
+    iterator_start(&it, ch->lcarrying);
+    while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+        if (obj->item_type == ITEM_BLANK_SCROLL || obj->pIndexData->vnum == OBJ_VNUM_BLANK_SCROLL)
+            break;
     }
+    iterator_stop(&it);
 
     if (obj == NULL)
     {
-		send_to_char("You do not have a blank scroll.\n\r", ch);
-		return;
+        send_to_char("You do not have a blank scroll.\n\r", ch);
+        return;
     }
 
     sn1 = 0;
@@ -7586,41 +7399,41 @@ void do_scribe(CHAR_DATA *ch, char *argument)
 
     if (arg1[0] == '\0')
     {
-		send_to_char("What do you wish to scribe?\n\r", ch);
-		return;
+        send_to_char("What do you wish to scribe?\n\r", ch);
+        return;
     }
 
     sn1 = find_spell(ch, arg1);
 
     if ((sn1) < 1 || skill_table[sn1].spell_fun == spell_null ||
-    	get_skill(ch, sn1) == 0)
+        get_skill(ch, sn1) == 0)
     {
-		send_to_char("You don't know any spells of that name.\n\r", ch);
-		return;
+        send_to_char("You don't know any spells of that name.\n\r", ch);
+        return;
     }
 
     if (arg2[0] != '\0')
     {
-		sn2 = find_spell(ch, arg2);
+        sn2 = find_spell(ch, arg2);
 
-		if ((sn2) < 1 || skill_table[sn2].spell_fun == spell_null ||
-			get_skill(ch, sn2) == 0)
-		{
-			send_to_char("You don't know any spells of that name.\n\r", ch);
-			return;
-		}
+        if ((sn2) < 1 || skill_table[sn2].spell_fun == spell_null ||
+            get_skill(ch, sn2) == 0)
+        {
+            send_to_char("You don't know any spells of that name.\n\r", ch);
+            return;
+        }
     }
 
     if (arg3[0] != '\0')
     {
-		sn3 = find_spell(ch, arg3);
+        sn3 = find_spell(ch, arg3);
 
-		if ((sn3) < 1 || skill_table[sn3].spell_fun == spell_null ||
-			get_skill(ch, sn3) == 0)
-		{
-			send_to_char("You don't know any spells of that name.\n\r", ch);
-			return;
-		}
+        if ((sn3) < 1 || skill_table[sn3].spell_fun == spell_null ||
+            get_skill(ch, sn3) == 0)
+        {
+            send_to_char("You don't know any spells of that name.\n\r", ch);
+            return;
+        }
     }
 
     mana = 0;
@@ -7630,19 +7443,18 @@ void do_scribe(CHAR_DATA *ch, char *argument)
 
     if (mana > 200)
     {
-		send_to_char("The scroll can't hold that much magic.\n\r", ch);
-		return;
+        send_to_char("The scroll can't hold that much magic.\n\r", ch);
+        return;
     }
 
     mana = 2 * mana / 3;
     if (ch->mana < mana)
     {
-		send_to_char("You don't have enough mana to scribe that scroll.\n\r", ch);
-		return;
+        send_to_char("You don't have enough mana to scribe that scroll.\n\r", ch);
+        return;
     }
 
     ch->mana -= mana;
-
 
     act("{Y$n begins to write onto $p...{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
     act("{YYou begin to write onto $p...{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
@@ -7656,39 +7468,38 @@ void do_scribe(CHAR_DATA *ch, char *argument)
     kill = find_spell(ch, "kill");
     if (kill == sn1 || kill == sn2 || kill == sn3)
     {
-		send_to_char("The scroll explodes into dust!\n\r", ch);
-		act("$n's blank scroll explodes into dust!\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		return;
+        send_to_char("The scroll explodes into dust!\n\r", ch);
+        act("$n's blank scroll explodes into dust!\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+        return;
     }
 
     /* Mass healing must not be one of the spells*/
     kill = find_spell(ch, "mass healing");
     if (kill == sn1 || kill == sn2 || kill == sn3)
     {
-		send_to_char("The scroll explodes into dust!\n\r", ch);
-		act("$n's blank scroll explodes into dust!\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		return;
+        send_to_char("The scroll explodes into dust!\n\r", ch);
+        act("$n's blank scroll explodes into dust!\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+        return;
     }
 
     kill = find_spell(ch, "spell trap");
     if (kill == sn1 || kill == sn2 || kill == sn3)
     {
-		send_to_char("The scroll explodes into dust!\n\r", ch);
-		act("$n's blank scroll explodes into dust!\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		return;
+        send_to_char("The scroll explodes into dust!\n\r", ch);
+        act("$n's blank scroll explodes into dust!\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+        return;
     }
 
     if (sn2 == 0)
-		SCRIBE_STATE(ch, 12);
+        SCRIBE_STATE(ch, 12);
     else
     {
-		if (sn3 == 0)
-			SCRIBE_STATE(ch, 24);
-		else
-			SCRIBE_STATE(ch, 36);
+        if (sn3 == 0)
+            SCRIBE_STATE(ch, 24);
+        else
+            SCRIBE_STATE(ch, 36);
     }
 }
-
 
 void scribe_end(CHAR_DATA *ch, int16_t sn, int16_t sn2, int16_t sn3)
 {
@@ -7953,7 +7764,7 @@ void do_infuse(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    obj =  get_obj_list(ch,arg1,ch->carrying);
+    obj =  get_obj_list(ch,arg1,ch->lcarrying);
 
     if (obj== NULL)
     {
