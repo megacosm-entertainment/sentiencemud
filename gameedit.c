@@ -268,7 +268,7 @@ if (match_count == 1) {
     for (int k = 0; display_value[k]; ++k)
         if (display_value[k] == '\n' || display_value[k] == '\r')
             display_value[k] = ' ';
-    snprintf(buf, sizeof(buf), "{Y| Current Value: %-66.66s|{x\n\r", display_value);
+    snprintf(buf, sizeof(buf), "{Y| Current Value: %-66.66s{Y|{x\n\r", display_value);
     add_buf(buffer, buf);
 
     // Pending Value (if any, pad/truncate to 65 chars)
@@ -673,12 +673,11 @@ if (!setting->olc_settable) strcat(modifiers, "{DX{X");
 // Calculate visible lengths
 int type_vis = strlen_no_colours(type_name);
 int mod_vis = strlen_no_colours(modifiers);
-int total_vis = type_vis + mod_vis;
-int pad_left = 14 - total_vis;
-if (pad_left < 0) pad_left = 0;
+int pad_middle = 14 - type_vis - mod_vis;
+if (pad_middle < 0) pad_middle = 0;
 
-// Build the right-justified type string
-snprintf(type_str, sizeof(type_str), "%*s{B%s{x%s", pad_left, "", type_name, modifiers);
+// Build the type string: type name left, modifiers right
+snprintf(type_str, sizeof(type_str), "{B%s{x%*s%s", type_name, pad_middle, "", modifiers);
 
 // Truncate and pad value for display (39 visible chars for 80-column table)
 char display_value[256];
