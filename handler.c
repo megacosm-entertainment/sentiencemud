@@ -8955,91 +8955,54 @@ bool iterator_insert_after(ITERATOR *it, void *data)
 	return false;
 }
 
-inline static void __list_quicksort_rotate(LLIST_LINK **arr, int start, int end)
-{
-	LLIST_LINK *save = arr[start];
-
-	for(int i = start; i < end; i++)
-		arr[i] = arr[i + 1];
-	
-	arr[end] = save;
+static int llist_link_cmp_user_adapter(const void *a, const void *b) {
+    extern int (*llist_link_cmp_user)(void *, void *);
+    LLIST_LINK *la = *(LLIST_LINK **)a;
+    LLIST_LINK *lb = *(LLIST_LINK **)b;
+    return llist_link_cmp_user(la->data, lb->data);
 }
-
-static void __list_quicksort_partition(LLIST_LINK **arr, int start, int end, register int (*cmp)(void *a, void *b))
-{
-	if (start == end) return;
-
-	int pivot = end;
-
-	for(int i = start; i < end; i++)
-	{
-		if (arr[i]->data)
-		{
-			// Only move data if the pivot is valid
-			if (arr[pivot]->data)
-			{
-				int c = (*cmp)(arr[pivot]->data, arr[i]->data);
-
-				if (c <= 0)
-				{
-					// Pivot is less than or equal to the selection, move selection to the right side
-					__list_quicksort_rotate(arr, i, end);
-					pivot--;	// Pivot moved to the left
-				}
-			}
-		}
-		else
-		{
-			__list_quicksort_rotate(arr, i, end);
-			pivot--;	// Pivot moved to the left
-		}
-	}
-
-	if (pivot > start)
-		__list_quicksort_partition(arr, start, pivot - 1, cmp);
-	
-	if (pivot < end)
-		__list_quicksort_partition(arr, pivot + 1, end, cmp);
-}
+int (*llist_link_cmp_user)(void *, void *) = NULL;
 
 bool list_quicksort(LLIST *lp, int (*cmp)(void *a, void *b))
 {
-	if (IS_VALID(lp) && cmp)
-	{
-LLIST_LINK *cur;
-int count;
+    if (IS_VALID(lp) && cmp)
+    {
+        LLIST_LINK *cur;
+        int count;
 
-// Count elements
-for(count = 0, cur = lp->head; cur; cur = cur->next)
-    count++;
+        // Count elements
+        for(count = 0, cur = lp->head; cur; cur = cur->next)
+            count++;
 
-if (count < 1) return false;			
+        if (count < 1) return false;
 
-LLIST_LINK **arr = alloc_mem(sizeof(LLIST_LINK *) * count);
-// Fill array
-int i = 0;
-for(cur = lp->head; cur; cur = cur->next)
-    arr[i++] = cur;
+        LLIST_LINK **arr = alloc_mem(sizeof(LLIST_LINK *) * count);
+        int i = 0;
+        for(cur = lp->head; cur; cur = cur->next)
+            arr[i++] = cur;
 
-// Start recursive sorting
-__list_quicksort_partition(arr, 0, count - 1, cmp);
+        // Use qsort to sort the array of pointers
+        llist_link_cmp_user = cmp;
+        qsort(arr, count, sizeof(LLIST_LINK *), llist_link_cmp_user_adapter);
+        llist_link_cmp_user = NULL;
 
-// Relink everything
-for(int i = 0; i < count; i++)
-{
-    if (i > 0) arr[i]->prev = arr[i-1];
-    else arr[i]->prev = NULL; // Ensure head's prev is NULL
+        // Relink everything
+        for(int i = 0; i < count; i++)
+        {
+            if (i > 0) arr[i]->prev = arr[i-1];
+            else arr[i]->prev = NULL; // Ensure head's prev is NULL
 
-    if (i < (count - 1)) arr[i]->next = arr[i+1];
-    else arr[i]->next = NULL; // Ensure tail's next is NULL
-}
-lp->head = arr[0];
-lp->tail = arr[count - 1];
+            if (i < (count - 1)) arr[i]->next = arr[i+1];
+            else arr[i]->next = NULL; // Ensure tail's next is NULL
+        }
+        lp->head = arr[0];
+        lp->tail = arr[count - 1];
 
-free_mem(arr, sizeof(LLIST_LINK *) * count);
-	}
+        free_mem(arr, sizeof(LLIST_LINK *) * count);
+        return true;
+    }
 
-	return false;
+    return false;
 }
 
 
