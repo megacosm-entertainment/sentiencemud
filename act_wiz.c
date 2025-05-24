@@ -318,6 +318,7 @@ int game_settings_read (void)
     game_settings.vault_additional_cost_per_char = 0;
     game_settings.vault_additional_slots_per_char = 0;
     game_settings.vault_additional_weight_per_char = 0;
+	game_settings.vault_require_room = false;
 
     /* Coffer Settings */
     game_settings.max_coffer_weight = 0;
