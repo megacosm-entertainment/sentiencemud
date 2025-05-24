@@ -3270,7 +3270,7 @@ void do_chcolour(CHAR_DATA *ch, char *argument)
     // Limit length and validate
     if (strlen(arg) > 31 || strlen(arg2) > 31 ||
         !is_valid_colour_code(arg) || !is_valid_colour_code(arg2)) {
-        send_to_char("Invalid colour code. Use codes like {Y, {B, {[F345], etc. See 'help color'.\n\r", ch);
+        send_to_char("Invalid colour code. Use codes like {{Y, {{B, {{[F345], etc. See 'help color'.\n\r", ch);
         return;
     }
 
