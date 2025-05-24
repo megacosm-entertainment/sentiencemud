@@ -10791,3 +10791,42 @@ password_check_status check_encrypted_password(const char *plaintext_password, c
 
     return PWD_CHECK_FAIL;
 }
+
+bool is_valid_colour_code(const char *code) {
+    const char *p = code;
+    while (*p) {
+        if (*p != '{')
+            return false;
+        p++;
+        // Single-char code: e.g. {Y
+        if (*p && strchr("xXrRbBwWcCmMgGyYD01234567aAjJlLoOpPtTvV", *p)) {
+            p++;
+            continue;
+        }
+        // Extended code: {[F###] or {[B###]
+        if (*p == '[') {
+            p++;
+            if (*p == 'F' || *p == 'B') {
+                p++;
+                // Must be 3 digits
+                for (int i = 0; i < 3; i++) {
+                    if (!isdigit(*p) || *p < '0' || *p > '5')
+                        return false;
+                    p++;
+                }
+                if (*p == ']') {
+                    p++;
+                    continue;
+                }
+            }
+            return false;
+        }
+        // Special codes: {i, {f
+        if (*p == 'i' || *p == 'f') {
+            p++;
+            continue;
+        }
+        return false;
+    }
+    return true;
+}

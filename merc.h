@@ -1538,8 +1538,8 @@ struct church_data
 
     bool 		pk;
 
-    char 		colour1;
-    char 		colour2;
+char *colour1;
+char *colour2;
 
     LLIST *online_players;
     LLIST *roster;
@@ -8651,6 +8651,7 @@ bool validate_account_recipient(const char *account_name);
 int colour_trunc_len(const char *str, int limit);
 char *normalize_filename(const char *name);
 bool is_duplicate_object(OBJ_DATA *obj);
+bool is_valid_colour_code(const char *code);
 
 /* help.c */
 HELP_DATA *find_helpfile( char *keyword, HELP_CATEGORY *hcat );

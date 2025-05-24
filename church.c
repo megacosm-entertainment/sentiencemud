@@ -1495,7 +1495,7 @@ void do_chtalk(CHAR_DATA *ch, char *argument)
 	    counter++;
 	    if (!IS_NPC(ch) && ch->pcdata->flag != NULL && SHOW_CHANNEL_FLAG(victim, FLAG_CT))
 	    {
-		sprintf(buf, "{%c[{%c%s{%c] says '%s {%c%s{%c'{x\n\r",
+		sprintf(buf, "{%s[{%s%s{%s] says '%s {%s%s{%s'{x\n\r",
 		    ch->church->colour2,
 		    ch->church->colour1,
 		    ch->name,
@@ -1507,7 +1507,7 @@ void do_chtalk(CHAR_DATA *ch, char *argument)
 	    }
 	    else
 	    {
-		sprintf(buf, "{%c[{%c%s{%c] says '{%c%s{%c'{x\n\r",
+		sprintf(buf, "{%s[{%s%s{%s] says '{%s%s{%s'{x\n\r",
 		    ch->church->colour2,
 		    ch->church->colour1,
 		    ch->name,
@@ -1524,7 +1524,7 @@ void do_chtalk(CHAR_DATA *ch, char *argument)
     {
 	if (counter > 1)
 	{
-	    sprintf(buf, "{%c[{%c%d{%c] people heard you say '%s {%c%s{%c'{x\n\r",
+	    sprintf(buf, "{%s[{%s%d{%s] people heard you say '%s {%s%s{%s'{x\n\r",
 		    ch->church->colour2,
 		    ch->church->colour1,
 		    counter,
@@ -1537,7 +1537,7 @@ void do_chtalk(CHAR_DATA *ch, char *argument)
 	}
 	else if (counter == 1)
 	{
-	    sprintf(buf, "{%c[{%c%d{%c] person heard you say '%s {%c%s{%c'{x\n\r",
+	    sprintf(buf, "{%s[{%s%d{%s] person heard you say '%s {%s%s{%s'{x\n\r",
 		    ch->church->colour2,
 		    ch->church->colour1,
 		    counter,
@@ -1555,7 +1555,7 @@ void do_chtalk(CHAR_DATA *ch, char *argument)
     {
 	if (counter > 1)
 	{
-	    sprintf(buf, "{%c[{%c%d{%c] people heard you say '{%c%s{%c'{x\n\r",
+	    sprintf(buf, "{%s[{%s%d{%s] people heard you say '{%s%s{%s'{x\n\r",
 		    ch->church->colour2,
 		    ch->church->colour1,
 		    counter,
@@ -1567,7 +1567,7 @@ void do_chtalk(CHAR_DATA *ch, char *argument)
 	}
 	else if (counter == 1)
 	{
-	    sprintf(buf, "{%c[{%c%d{%c] person heard you say '{%c%s{%c'{x\n\r",
+	    sprintf(buf, "{%s[{%s%d{%s] person heard you say '{%s%s{%s'{x\n\r",
 		    ch->church->colour2,
 		    ch->church->colour1,
 		    counter,
@@ -3247,61 +3247,45 @@ bool is_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room)
 /* lets leaders set their own churchtalk colours */
 void do_chcolour(CHAR_DATA *ch, char *argument)
 {
-    char arg[MSL];
-    char arg2[MSL];
-    char letter;
-    char letter2;
+    char arg[32], arg2[32];
+    char buf[MAX_STRING_LENGTH];
+
 
     argument = one_argument_norm(argument, arg);
     argument = one_argument_norm(argument, arg2);
 
-    if (ch->church == NULL)
-    {
-	send_to_char("You aren't in a church.\n\r", ch);
-	return;
+    if (ch->church == NULL) {
+        send_to_char("You aren't in a church.\n\r", ch);
+        return;
     }
 
-    if (arg[0] == '\0' || arg2[0] == '\0')
-    {
-	send_to_char(
-	    "Syntax: church colour <colour1> <colour2>\n\r"
-	    "Ex.: church colour Y B\n\r", ch);
-	return;
+    if (arg[0] == '\0' || arg2[0] == '\0') {
+        send_to_char(
+            "Syntax: church colour <colour1> <colour2>\n\r"
+            "Ex.: church colour {Y {B\n\r"
+            "Ex.: church colour {[F345] {[B555]\n\r", ch);
+        return;
     }
 
-    letter = arg[0];
-    letter2 = arg2[0];
-    if (letter != 'x' && letter != 'X' && letter != 'R'
-    && letter != 'B' && letter != 'r' && letter != 'b'
-    && letter != 'W' && letter != 'w' && letter != 'C'
-    && letter != 'M' && letter != 'c' && letter != 'm'
-    && letter != 'Y' && letter != 'g' && letter != 'G'
-    && letter != 'y' && letter != 'D')
-    {
-	send_to_char("Invalid colour code. To see available codes, type 'help colour'.\n\r", ch);
-	return;
+    // Limit length and validate
+    if (strlen(arg) > 31 || strlen(arg2) > 31 ||
+        !is_valid_colour_code(arg) || !is_valid_colour_code(arg2)) {
+        send_to_char("Invalid colour code. Use codes like {Y, {B, {[F345], etc. See 'help color'.\n\r", ch);
+        return;
     }
 
-    if (letter2 != 'x' && letter2 != 'X' && letter2 != 'R'
-    && letter2 != 'B' && letter2 != 'r' && letter2 != 'b'
-    && letter2 != 'W' && letter2 != 'w' && letter2 != 'C'
-    && letter2 != 'M' && letter2 != 'c' && letter2 != 'm'
-    && letter2 != 'Y' && letter2 != 'g' && letter2 != 'G'
-    && letter2 != 'y' && letter2 != 'D')
-    {
-	send_to_char("Invalid colour code. To see available codes, type 'help colour'.\n\r", ch);
-	return;
-    }
+    // Save the codes (free old if needed)
+    free_string(ch->church->colour1);
+    free_string(ch->church->colour2);
+    ch->church->colour1 = str_dup(arg);
+    ch->church->colour2 = str_dup(arg2);
 
-    ch->church->colour1 = letter;
-    ch->church->colour2 = letter2;
     send_to_char("Church colours set.\n\r", ch);
-    // Add log entry
-    char buf[MAX_STRING_LENGTH];
-    sprintf(buf, "%s changed the church colours to {%c}colour1{x and {%c}colour2{x.",
-            ch->name, letter, letter2);
+
+    sprintf(buf, "%s changed the church colours to %scolour1{x and %scolour2{x.",
+            ch->name, arg, arg2);
     add_church_log_entry(ch->church, ch->name, buf, CHLOG_GEN_SETTINGS, TRUE);
-    
+
     save_church(ch->church);
 }
 
@@ -3461,7 +3445,7 @@ void show_church_info(CHURCH_DATA *church, CHAR_DATA *ch)
     sprintf(buf, "{YPK:{x %s\n\r", church->pk ? "yes" : "no");
     add_buf(buffer, buf);
 
-    sprintf(buf, "{YColours:{x {%cColour One{x and {%cColour Two{x\n\r",
+    sprintf(buf, "{YColours:{x {%sColour One{x and {%sColour Two{x\n\r",
         church->colour1, church->colour2);
     add_buf(buffer, buf);
 
@@ -3819,8 +3803,8 @@ void write_church(CHURCH_DATA *church, FILE *fp)
     fprintf(fp, "Alignment %d\n", church->alignment);
     fprintf(fp, "CPKLosses %ld\n", church->cpk_losses);
     fprintf(fp, "CPKWins %ld\n", church->cpk_wins);
-    fprintf(fp, "Colour1 %c\n", church->colour1);
-    fprintf(fp, "Colour2 %c\n", church->colour2);
+    fprintf(fp, "Colour1 %s~\n", church->colour1);
+    fprintf(fp, "Colour2 %s~\n", church->colour2);
     fprintf(fp, "DeityPoints %ld\n", church->dp);
     fprintf(fp, "Flag %s~\n", fix_string(church->flag));
     fprintf(fp, "Founder %s~\n", church->founder);
@@ -4312,8 +4296,8 @@ if (!str_cmp(word, "#MEMBER")) {
             case 'C':
                 KEY("CPKLosses", church->cpk_losses, fread_number(fp));
                 KEY("CPKWins", church->cpk_wins, fread_number(fp));
-                KEY("Colour1", church->colour1, fread_letter(fp));
-                KEY("Colour2", church->colour2, fread_letter(fp));
+                KEY("Colour1", church->colour1, fread_string(fp));
+                KEY("Colour2", church->colour2, fread_string(fp));
                 KEY("CofferRent", church->coffer_rent, fread_number(fp));
                 KEY("Created", church->created, fread_number(fp));
                 break;

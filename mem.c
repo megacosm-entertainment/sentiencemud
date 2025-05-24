@@ -1369,8 +1369,8 @@ CHURCH_DATA *new_church( void )
     pChurch->cpk_losses = 0;
     pChurch->wars_won = 0;
     pChurch->created = 0;
-    pChurch->colour1 = 'C';
-    pChurch->colour2 = 'B';
+    pChurch->colour1 = str_dup("{C");
+    pChurch->colour2 = str_dup("{B");
     pChurch->online_players = list_create(false);
     pChurch->roster = list_create(false);
 
@@ -1396,6 +1396,8 @@ void free_church( CHURCH_DATA *pChurch )
     free_string( pChurch->rules );
     free_string( pChurch->motd );
     free_string( pChurch->founder );
+    free_string( pChurch->colour1);
+    free_string( pChurch->colour2);
 
     people = pChurch->people;
 
