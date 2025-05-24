@@ -376,7 +376,7 @@ if (match_count == 1) {
 snprintf(buf, sizeof(buf), "\n\r{Y+------------------------------------------------------------------------------+{x\n\r");
 add_buf(buffer, buf);
 
-snprintf(buf, sizeof(buf), "{Y| {RPending Changes{x%-61s{Y|{x\n\r", "");
+snprintf(buf, sizeof(buf), "{Y| {RPending Changes{x%-62s{Y|{x\n\r", "");
 add_buf(buffer, buf);
 
 snprintf(buf, sizeof(buf), "{Y+------------------------------------------------------------------------------+{x\n\r");
@@ -412,7 +412,7 @@ snprintf(msg, sizeof(msg), "Use '{Wgameedit revert{Y' to discard all pending cha
 msg_len = strlen_no_colours(msg);
 msg_pad = 81 - msg_len;
 if (msg_pad < 0) msg_pad = 0;
-snprintf(buf, sizeof(buf), "{Y| %-*.*sY|{x\n\r", 81, 81, msg);
+snprintf(buf, sizeof(buf), "{Y| %-*.*s{Y|{x\n\r", 81, 81, msg);
 add_buf(buffer, buf);
 
 snprintf(buf, sizeof(buf), "{Y+------------------------------------------------------------------------------+{x\n\r");
@@ -657,22 +657,32 @@ void gameedit_display_setting(BUFFER *buffer, CHAR_DATA *ch, const struct game_s
         iterator_stop(&it);
     }
 
-    // Format type column with modifiers
-    const char *type_name = "";
-    switch (setting->type) {
-        case SETTING_TYPE_BOOL:   type_name = "Boolean"; break;
-        case SETTING_TYPE_INT:    type_name = "Integer"; break;
-        case SETTING_TYPE_STRING: type_name = "String";  break;
-        default:                  type_name = "Unknown"; break;
-    }
-    snprintf(type_str, sizeof(type_str), "{B%s{x", type_name);
-    if (setting->requires_reboot) strcat(type_str, "*");
-    if (setting->sensitive) strcat(type_str, "S");
-    if (!setting->olc_settable) strcat(type_str, "X");
+// Format type column with modifiers
+const char *type_name = "";
+switch (setting->type) {
+    case SETTING_TYPE_BOOL:   type_name = "Boolean"; break;
+    case SETTING_TYPE_INT:    type_name = "Integer"; break;
+    case SETTING_TYPE_STRING: type_name = "String";  break;
+    default:                  type_name = "Unknown"; break;
+}
+char modifiers[8] = "";
+if (setting->requires_reboot) strcat(modifiers, "{R*{X");
+if (setting->sensitive) strcat(modifiers, "{MS{D");
+if (!setting->olc_settable) strcat(modifiers, "{DX{X");
+
+// Calculate visible lengths
+int type_vis = strlen_no_colours(type_name);
+int mod_vis = strlen_no_colours(modifiers);
+int total_vis = type_vis + mod_vis;
+int pad_left = 14 - total_vis;
+if (pad_left < 0) pad_left = 0;
+
+// Build the right-justified type string
+snprintf(type_str, sizeof(type_str), "%*s{B%s{x%s", pad_left, "", type_name, modifiers);
 
 // Truncate and pad value for display (39 visible chars for 80-column table)
 char display_value[256];
-int max_vis_len = 39;
+int max_vis_len = 40;
 int vis_len = strlen_no_colours(value_str);
 if (vis_len > max_vis_len) {
     int trunc_len = colour_trunc_len(value_str, max_vis_len - 3);
@@ -691,7 +701,7 @@ for (int k = 0; display_value[k]; ++k)
 
     // Output the row (80 columns: 23 + 41 + 12 + separators)
     snprintf(buf, sizeof(buf),
-        "{Y| %-23.23s {Y| %-39.39s {Y| %-14.14s {Y|{x\n\r",
+        "{Y| %-23.23s {Y| %-40.40s {Y| %-14.14s {Y|{x\n\r",
         setting->name, display_value, type_str);
     add_buf(buffer, buf);
 }
@@ -717,7 +727,7 @@ void gameedit_display_category(BUFFER *buffer, CHAR_DATA *ch, int category)
 
     snprintf(buf, sizeof(buf), "{Y+-------------------------+--------------------------------------+------------+{x\n\r");
     add_buf(buffer, buf);
-    snprintf(buf, sizeof(buf), "{Y| %-23s | %-35s | %-11s |{x\n\r", "Setting Name", "Value", "Type");
+    snprintf(buf, sizeof(buf), "{Y| %-23s | %-36s | %-10s |{x\n\r", "Setting Name", "Value", "Type");
     add_buf(buffer, buf);
     snprintf(buf, sizeof(buf), "{Y+-------------------------+--------------------------------------+------------+{x\n\r");
     add_buf(buffer, buf);
