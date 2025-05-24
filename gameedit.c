@@ -198,15 +198,15 @@ if (match_count == 1) {
     snprintf(buf, sizeof(buf), "{Y+--------------------+---------------------------------------------------------+{x\n\r");
     add_buf(buffer, buf);
 
-    snprintf(buf, sizeof(buf), "{Y| %-20.20s| %-59.59s|{x\n\r", "Category", setting_category_names[setting->category]);
+    snprintf(buf, sizeof(buf), "{Y| %-20.20s| %-55.55s|{x\n\r", "Category", setting_category_names[setting->category]);
     add_buf(buffer, buf);
-    snprintf(buf, sizeof(buf), "{Y| %-20.20s| %-59.59s|{x\n\r", "Type", setting_type_names[setting->type]);
+    snprintf(buf, sizeof(buf), "{Y| %-20.20s| %-55.55s|{x\n\r", "Type", setting_type_names[setting->type]);
     add_buf(buffer, buf);
-    snprintf(buf, sizeof(buf), "{Y| %-20.20s| %-59.59s|{x\n\r", "OLC Settable", setting->olc_settable ? "Yes" : "No");
+    snprintf(buf, sizeof(buf), "{Y| %-20.20s| %-55.55s|{x\n\r", "OLC Settable", setting->olc_settable ? "Yes" : "No");
     add_buf(buffer, buf);
-    snprintf(buf, sizeof(buf), "{Y| %-20.20s| %-59.59s|{x\n\r", "Requires Reboot", setting->requires_reboot ? "Yes" : "No");
+    snprintf(buf, sizeof(buf), "{Y| %-20.20s| %-55.55s|{x\n\r", "Requires Reboot", setting->requires_reboot ? "Yes" : "No");
     add_buf(buffer, buf);
-    snprintf(buf, sizeof(buf), "{Y| %-20.20s| %-59.59s|{x\n\r", "Sensitive", setting->sensitive ? "Yes" : "No");
+    snprintf(buf, sizeof(buf), "{Y| %-20.20s| %-55.55s|{x\n\r", "Sensitive", setting->sensitive ? "Yes" : "No");
     add_buf(buffer, buf);
 
     // Section divider (80 columns)
@@ -216,10 +216,10 @@ if (match_count == 1) {
     // Description (wrap to 78 chars per line, 80 with borders)
     const char *desc = setting->help;
     while (*desc) {
-        for (desc_len = 0; desc_len < 78 && desc[desc_len] && desc[desc_len] != '\n'; ++desc_len);
+        for (desc_len = 0; desc_len < 77 && desc[desc_len] && desc[desc_len] != '\n'; ++desc_len);
         strncpy(desc_line, desc, desc_len);
         desc_line[desc_len] = '\0';
-        snprintf(buf, sizeof(buf), "{Y| %-78.78s|{x\n\r", desc_line);
+        snprintf(buf, sizeof(buf), "{Y| %-77.77s|{x\n\r", desc_line);
         add_buf(buffer, buf);
         desc += desc_len;
         if (*desc == '\n') ++desc;
@@ -253,7 +253,7 @@ if (match_count == 1) {
     }
     // Pad/truncate to 65 visible chars
     char display_value[256];
-    int max_vis_len = 65;
+    int max_vis_len = 66;
     int vis_len = strlen_no_colours(formatted_value);
     if (vis_len > max_vis_len) {
         int trunc_len = colour_trunc_len(formatted_value, max_vis_len - 3);
@@ -268,7 +268,7 @@ if (match_count == 1) {
     for (int k = 0; display_value[k]; ++k)
         if (display_value[k] == '\n' || display_value[k] == '\r')
             display_value[k] = ' ';
-    snprintf(buf, sizeof(buf), "{Y| Current Value: %-65.65s|{x\n\r", display_value);
+    snprintf(buf, sizeof(buf), "{Y| Current Value: %-66.66s|{x\n\r", display_value);
     add_buf(buffer, buf);
 
     // Pending Value (if any, pad/truncate to 65 chars)
@@ -296,7 +296,7 @@ if (match_count == 1) {
             for (int k = 0; display_value[k]; ++k)
                 if (display_value[k] == '\n' || display_value[k] == '\r')
                     display_value[k] = ' ';
-            snprintf(buf, sizeof(buf), "{Y| Pending Value: %-65.65s|{x\n\r", display_value);
+            snprintf(buf, sizeof(buf), "{Y| Pending Value: %-66.66s{Y|{x\n\r", display_value);
             add_buf(buffer, buf);
             break;
         }
@@ -325,9 +325,9 @@ if (match_count == 1) {
                 break;
         }
         int usage_len = strlen_no_colours(usage);
-        int usage_pad = 78 - usage_len;
+        int usage_pad = 81 - usage_len;
         if (usage_pad < 0) usage_pad = 0;
-        snprintf(buf, sizeof(buf), "{Y| %-78.78s|{x\n\r", usage);
+        snprintf(buf, sizeof(buf), "{Y| %-81.81s{Y|{x\n\r", usage);
         add_buf(buffer, buf);
     }
 
@@ -376,7 +376,7 @@ if (match_count == 1) {
 snprintf(buf, sizeof(buf), "\n\r{Y+------------------------------------------------------------------------------+{x\n\r");
 add_buf(buffer, buf);
 
-snprintf(buf, sizeof(buf), "{Y| {RPending Changes{x%-76s|{x\n\r", "");
+snprintf(buf, sizeof(buf), "{Y| {RPending Changes{x%-61s{Y|{x\n\r", "");
 add_buf(buffer, buf);
 
 snprintf(buf, sizeof(buf), "{Y+------------------------------------------------------------------------------+{x\n\r");
@@ -387,32 +387,32 @@ int msg_len, msg_pad;
 
 snprintf(msg, sizeof(msg), "There are %d pending changes that need to be confirmed.", list_size(pending_changes));
 msg_len = strlen_no_colours(msg);
-msg_pad = 78 - msg_len;
+msg_pad = 77 - msg_len;
 if (msg_pad < 0) msg_pad = 0;
-snprintf(buf, sizeof(buf), "{Y| %-*.*s|{x\n\r", 78, 78, msg);
+snprintf(buf, sizeof(buf), "{Y| %-*.*s|{x\n\r", 77, 77, msg);
 add_buf(buffer, buf);
 
-snprintf(msg, sizeof(msg), "Use '{Wgameedit confirm{x' to apply changes");
+snprintf(msg, sizeof(msg), "Use '{Wgameedit confirm{Y' to apply changes");
 msg_len = strlen_no_colours(msg);
-msg_pad = 78 - msg_len;
+msg_pad = 81 - msg_len;
 if (msg_pad < 0) msg_pad = 0;
-snprintf(buf, sizeof(buf), "{Y| %-*.*s|{x\n\r", 78, 78, msg);
+snprintf(buf, sizeof(buf), "{Y| %-*.*s|{x\n\r", 81, 81, msg);
 add_buf(buffer, buf);
 
 if (requires_reboot()) {
     snprintf(msg, sizeof(msg), "{RWARNING: Some changes require a reboot to take effect.{x");
     msg_len = strlen_no_colours(msg);
-    msg_pad = 78 - msg_len;
+    msg_pad = 81 - msg_len;
     if (msg_pad < 0) msg_pad = 0;
-    snprintf(buf, sizeof(buf), "{Y| %-*.*s|{x\n\r", 78, 78, msg);
+    snprintf(buf, sizeof(buf), "{Y| %-*.*s{Y|{x\n\r", 81, 81, msg);
     add_buf(buffer, buf);
 }
 
-snprintf(msg, sizeof(msg), "Use '{Wgameedit revert{x' to discard all pending changes");
+snprintf(msg, sizeof(msg), "Use '{Wgameedit revert{Y' to discard all pending changes");
 msg_len = strlen_no_colours(msg);
-msg_pad = 78 - msg_len;
+msg_pad = 81 - msg_len;
 if (msg_pad < 0) msg_pad = 0;
-snprintf(buf, sizeof(buf), "{Y| %-*.*s|{x\n\r", 78, 78, msg);
+snprintf(buf, sizeof(buf), "{Y| %-*.*sY|{x\n\r", 81, 81, msg);
 add_buf(buffer, buf);
 
 snprintf(buf, sizeof(buf), "{Y+------------------------------------------------------------------------------+{x\n\r");
