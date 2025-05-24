@@ -1524,7 +1524,7 @@ void do_chtalk(CHAR_DATA *ch, char *argument)
     {
 	if (counter > 1)
 	{
-	    sprintf(buf, "{%s[{%s%d{%s] people heard you say '%s {%s%s{%s'{x\n\r",
+	    sprintf(buf, "%s[%s%d%s] people heard you say '%s %s%s%s'{x\n\r",
 		    ch->church->colour2,
 		    ch->church->colour1,
 		    counter,
@@ -1537,7 +1537,7 @@ void do_chtalk(CHAR_DATA *ch, char *argument)
 	}
 	else if (counter == 1)
 	{
-	    sprintf(buf, "{%s[{%s%d{%s] person heard you say '%s {%s%s{%s'{x\n\r",
+	    sprintf(buf, "%s[%s%d%s] person heard you say '%s %s%s%s'{x\n\r",
 		    ch->church->colour2,
 		    ch->church->colour1,
 		    counter,
@@ -1555,7 +1555,7 @@ void do_chtalk(CHAR_DATA *ch, char *argument)
     {
 	if (counter > 1)
 	{
-	    sprintf(buf, "{%s[{%s%d{%s] people heard you say '{%s%s{%s'{x\n\r",
+	    sprintf(buf, "%s[%s%d%s] people heard you say '%s%s%s'{x\n\r",
 		    ch->church->colour2,
 		    ch->church->colour1,
 		    counter,
@@ -1567,7 +1567,7 @@ void do_chtalk(CHAR_DATA *ch, char *argument)
 	}
 	else if (counter == 1)
 	{
-	    sprintf(buf, "{%s[{%s%d{%s] person heard you say '{%s%s{%s'{x\n\r",
+	    sprintf(buf, "%s[%s%d%s] person heard you say '%s%s%s'{x\n\r",
 		    ch->church->colour2,
 		    ch->church->colour1,
 		    counter,
