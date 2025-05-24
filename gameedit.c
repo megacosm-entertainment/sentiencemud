@@ -665,10 +665,10 @@ switch (setting->type) {
     case SETTING_TYPE_STRING: type_name = "String";  break;
     default:                  type_name = "Unknown"; break;
 }
-char modifiers[8] = "";
-if (setting->requires_reboot) strcat(modifiers, "{R*{X");
-if (setting->sensitive) strcat(modifiers, "{MS{D");
-if (!setting->olc_settable) strcat(modifiers, "{DX{X");
+char modifiers[16] = "";
+if (setting->requires_reboot) strcat(modifiers, "{R*{x");
+if (setting->sensitive) strcat(modifiers, "{MS{x");
+if (!setting->olc_settable) strcat(modifiers, "{DX{x");
 
 // Calculate visible lengths
 int type_vis = strlen_no_colours(type_name);
@@ -700,7 +700,7 @@ for (int k = 0; display_value[k]; ++k)
 
     // Output the row (80 columns: 23 + 41 + 12 + separators)
     snprintf(buf, sizeof(buf),
-        "{Y| %-23.23s {Y| %-40.40s {Y| %-14.14s {Y|{x\n\r",
+        "{Y| %-23.23s {Y| %-39.39s {Y| %-14.14s {Y|{x\n\r",
         setting->name, display_value, type_str);
     add_buf(buffer, buf);
 }
