@@ -437,7 +437,7 @@ void do_chadd(CHAR_DATA *ch, char *argument)
     gecho(buf);
 
     sprintf(buf, "%s adds %s.", ch->name, target->name);
-    append_church_log(ch->church, buf);
+    add_church_log_entry(ch->church, ch->name, buf, CHLOG_MEMBERS, TRUE);
 
     save_church(ch->church);
 }
@@ -674,7 +674,7 @@ void do_chrem(CHAR_DATA *ch, char *argument)
 			gecho(buf);
 
 			sprintf(buf, "%s removes %s.", ch->name, member->name);
-			append_church_log(ch->church, buf);
+            add_church_log_entry(ch->church, ch->name, buf, CHLOG_MEMBERS, TRUE);
 
 		    if (member->ch != NULL)
 				act("{YYou have been removed by $N.{x", member->ch, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -1834,7 +1834,7 @@ void do_chupgrade(CHAR_DATA *ch, char *argument)
             get_chsize_from_number(church->size - 1),
             get_chsize_from_number(church->size),
             dp_cost, pneuma_cost);
-    append_church_log(church, buf);
+            add_church_log_entry(church, ch->name, buf, CHLOG_LEADERSHIP, TRUE);
     
     save_church(church);
 }
@@ -5150,7 +5150,7 @@ void do_chtreasure(CHAR_DATA *ch, char *argument)
                 
                 sprintf(buf, "%s granted '%s' rank access to treasure room %s.",
                         ch->name, rank->title_male, treasure->room->name);
-                append_church_log(ch->church, buf);
+                        add_church_log_entry(ch->church, ch->name, buf, CHLOG_TREASURE, TRUE);
             } else {
                 send_to_char("Failed to grant access.\n\r", ch);
             }
@@ -5162,7 +5162,8 @@ void do_chtreasure(CHAR_DATA *ch, char *argument)
                 
                 sprintf(buf, "%s removed '%s' rank access from treasure room %s.",
                         ch->name, rank->title_male, treasure->room->name);
-                append_church_log(ch->church, buf);
+                add_church_log_entry(ch->church, ch->name, buf, CHLOG_TREASURE, TRUE);
+
             } else {
                 send_to_char("Failed to remove access or rank didn't have access.\n\r", ch);
             }
@@ -5352,7 +5353,7 @@ void do_chsetrank(CHAR_DATA *ch, char *argument)
             gender == 0 ? "male" : (gender == 1 ? "female" : "neutral"), 
             rank_num, 
             arg3);
-    append_church_log(ch->church, buf);
+            add_church_log_entry(ch->church, ch->name, buf, CHLOG_RANKS, TRUE);
     
     save_church(ch->church);
 }
@@ -5497,8 +5498,7 @@ void do_chpermission(CHAR_DATA *ch, char *argument)
         sprintf(buf, "%s changed permission %s for rank '%s' to %s.",
             ch->name, arg2, rank->title_male,
             IS_SET(rank->permissions, permission) ? "ON" : "OFF");
-        append_church_log(ch->church, buf);
-        
+        add_church_log_entry(ch->church, ch->name, buf, CHLOG_PERMISSIONS, TRUE);        
         save_church(ch->church);
         return;
     } else {
@@ -5790,8 +5790,7 @@ void handle_rank_rename(CHAR_DATA *ch, char *rank_str, char *new_name)
     // Log the change
     sprintf(buf, "%s renamed rank from '%s' to '%s'.",
             ch->name, old_name, new_name);
-    append_church_log(ch->church, buf);
-    
+add_church_log_entry(ch->church, ch->name, buf, CHLOG_RANKS, TRUE);    
     save_church(ch->church);
 }
 
@@ -5860,8 +5859,7 @@ void handle_rank_add(CHAR_DATA *ch, char *name, char *type_str, char *argument)
     // Log the change
     sprintf(buf, "%s added the %s rank '%s' to the church.", ch->name, new_rank->rank_type == RANK_TYPE_LEADER ? "Leader" : 
             rank_type == RANK_TYPE_OFFICER ? "Officer" : "Member" , new_rank->rank_name);
-    append_church_log(ch->church, buf);
-    
+add_church_log_entry(ch->church, ch->name, buf, CHLOG_RANKS, TRUE);    
     save_church(ch->church);
 }
 
@@ -5929,8 +5927,7 @@ void handle_rank_remove(CHAR_DATA *ch, char *rank_str)
         send_to_char(buf, ch);
         
         sprintf(buf, "%s removed rank '%s' from the church.", ch->name, rank_name);
-        append_church_log(ch->church, buf);
-        
+add_church_log_entry(ch->church, ch->name, buf, CHLOG_RANKS, TRUE);        
         save_church(ch->church);
     } else {
         send_to_char("Failed to remove the rank.\n\r", ch);
@@ -6034,8 +6031,7 @@ void handle_rank_type(CHAR_DATA *ch, char *rank_str, char *type_str)
             rank->title_male,
             rank_type == RANK_TYPE_LEADER ? "leader" : 
             rank_type == RANK_TYPE_OFFICER ? "officer" : "member");
-    append_church_log(ch->church, buf);
-    
+add_church_log_entry(ch->church, ch->name, buf, CHLOG_RANKS, TRUE);    
     save_church(ch->church);
 }
 
@@ -6107,8 +6103,7 @@ void handle_rank_name(CHAR_DATA *ch, char *rank_str, char *gender_str, char *nam
             gender == SEX_MALE ? "male" : (gender == SEX_FEMALE ? "female" : "neutral"), 
             rank_num, 
             name);
-    append_church_log(ch->church, buf);
-    
+add_church_log_entry(ch->church, ch->name, buf, CHLOG_RANKS, TRUE);    
     save_church(ch->church);
 }
 
@@ -6268,8 +6263,7 @@ void do_chranks(CHAR_DATA *ch, char *argument)
         send_to_char(buf, ch);
         
         sprintf(buf, "%s added rank '%s' to the church.", ch->name, arg2);
-        append_church_log(ch->church, buf);
-        
+add_church_log_entry(ch->church, ch->name, buf, CHLOG_RANKS, TRUE);        
         save_church(ch->church);
         return;
     }
@@ -6334,8 +6328,7 @@ if (!str_cmp(arg1, "remove")) {
             send_to_char(buf, ch);
             
             sprintf(buf, "%s removed rank '%s' from the church.", ch->name, rank_name);
-            append_church_log(ch->church, buf);
-            
+add_church_log_entry(ch->church, ch->name, buf, CHLOG_RANKS, TRUE);            
             save_church(ch->church);
         } else {
             send_to_char("Failed to remove the rank.\n\r", ch);
@@ -6419,8 +6412,7 @@ if (!str_cmp(arg1, "remove")) {
                 rank->title_male,
                 rank_type == RANK_TYPE_LEADER ? "leader" : 
                 rank_type == RANK_TYPE_OFFICER ? "officer" : "member");
-        append_church_log(ch->church, buf);
-        
+add_church_log_entry(ch->church, ch->name, buf, CHLOG_RANKS, TRUE);        
         save_church(ch->church);
         return;
     }
@@ -7041,8 +7033,7 @@ void do_chsetmemberrank(CHAR_DATA *ch, char *argument)
     // Log the change
     sprintf(buf, "%s changed %s's rank to %s.", 
             ch->name, member->name, get_chrank(member));
-    append_church_log(ch->church, buf);
-    
+add_church_log_entry(ch->church, ch->name, buf, CHLOG_MEMBERS, TRUE);    
     save_church(ch->church);
 }
 
@@ -7152,8 +7143,7 @@ void do_chowner(CHAR_DATA *ch, char *argument)
     
     // Log the ownership transfer
     sprintf(buf, "%s transferred church ownership to %s.", ch->name, member->name);
-    append_church_log(ch->church, buf);
-    
+add_church_log_entry(ch->church, ch->name, buf, CHLOG_LEADERSHIP, TRUE);    
     save_church(ch->church);
 }
 
@@ -7311,8 +7301,7 @@ void do_chuserperm(CHAR_DATA *ch, char *argument)
         IS_SET(member->personal_permissions, permission) ? "granted" : "removed",
         arg2, 
         member->name);
-    append_church_log(ch->church, buf);
-    
+add_church_log_entry(ch->church, ch->name, buf, CHLOG_PERMISSIONS, TRUE);    
     save_church(ch->church);
 }
 
