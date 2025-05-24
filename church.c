@@ -4192,23 +4192,39 @@ CHURCH_DATA *read_church(FILE *fp)
 
         switch (word[0]) {
             case '#':
-                if (!str_cmp(word, "#MEMBER")) {
-                    // Read a member
-                    CHURCH_PLAYER_DATA *member = read_church_member(fp);
-                    if (member) {
-                        // Add to front of the list
-                        member->next = church->people;
-                        church->people = member;
-                        member->church = church;
-                        
-                        // Add to roster
-                        if (!list_appendlink(church->roster, member->name)) {
-                            log_string(formatf("Failed to add member %s to roster of church %s",
-                                member->name, church->name ? church->name : "unknown"));
-                        }
-                    }
-                    fMatch = true;
+if (!str_cmp(word, "#MEMBER")) {
+    // Read a member
+    CHURCH_PLAYER_DATA *member = read_church_member(fp);
+    if (member) {
+        // Add to end of the list to preserve file order and avoid self-loop
+        member->next = NULL;
+        member->church = church;
+
+        if (!church->people) {
+            church->people = member;
+        } else {
+            CHURCH_PLAYER_DATA *last = church->people;
+            // Walk to the end, with safety against accidental loops
+            int safety = 0;
+            while (last->next && safety++ < 1000) {
+                if (last->next == last) {
+                    log_string("Detected self-referential member in church->people list!");
+                    last->next = NULL;
+                    break;
                 }
+                last = last->next;
+            }
+            last->next = member;
+        }
+
+        // Add to roster
+        if (!list_appendlink(church->roster, member->name)) {
+            log_string(formatf("Failed to add member %s to roster of church %s",
+                member->name, church->name ? church->name : "unknown"));
+        }
+    }
+    fMatch = true;
+}
                 else if (!str_cmp(word, "#COFFER")) {
                     // Read coffer items
                     for (;;) {
