@@ -3263,7 +3263,7 @@ void do_chcolour(CHAR_DATA *ch, char *argument)
         send_to_char(
             "Syntax: church colour <colour1> <colour2>\n\r"
             "Ex.: church colour {Y {B\n\r"
-            "Ex.: church colour {[F345] {[B555]\n\r", ch);
+            "Ex.: church colour {[F345] {[B555]{X\n\r", ch);
         return;
     }
 
@@ -3445,7 +3445,7 @@ void show_church_info(CHURCH_DATA *church, CHAR_DATA *ch)
     sprintf(buf, "{YPK:{x %s\n\r", church->pk ? "yes" : "no");
     add_buf(buffer, buf);
 
-    sprintf(buf, "{YColours:{x {%sColour One{x and {%sColour Two{x\n\r",
+    sprintf(buf, "{YColours:{x %sColour One{x and %sColour Two{x\n\r",
         church->colour1, church->colour2);
     add_buf(buffer, buf);
 
