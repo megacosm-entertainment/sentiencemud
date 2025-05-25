@@ -4865,13 +4865,13 @@ struct account_data
 /* Character reference data stored within an account */
 struct account_character_data
 {
+    /* Basic Character Info */
     char *name;        /* Character name */
     char *race_name;   /* Character's race name */
     char *class_name;  /* Character's primary class name */
     int current_level; /* Character's level */
     int tot_level;
     char *last_area;   /* Character's most recent area */
-
     bool staff;        /* Is the character an admin? */
     int staff_rank;
     time_t creation_date; /* When the character was created */
@@ -4881,7 +4881,31 @@ struct account_character_data
     long id[2];         /* Character ID */
     bool deleted;       /* Is the character deleted? */
     time_t delete_time; /* When the character was deleted */
-    //    long id2;                   /* Character ID part 2 */
+
+    /* Authentication Details */
+    // Password handling
+    char *pwd;            // Password (only for unlinked characters)
+    int pwd_vers;         // Password version
+    char *old_pwd;       // Old password (for password history)
+    char *reset_code;     // Password reset code
+    time_t reset_time;    // Reset code expiration
+    int reset_state;      // Current state of reset process
+    
+    // Multi-Factor Authentication (MFA)
+    char *mfa_key;        // MFA key (if needed at character level)
+    bool mfa_enabled;     // MFA enabled flag
+    char *mfa_pending_key; // For unconfirmed MFA setup 
+    char *recovery_codes[MFA_RECOVERY_CODES]; // Array of 5 recovery codes
+    bool recovery_used[MFA_RECOVERY_CODES];   // Used flags for recovery codes
+    
+    // Email handling
+    char *email;          // Email address for the character
+    bool email_verified;  // Is the character's email verified?
+    char *pending_email;  // Email address pending verification
+    char *email_verification_code; // Code used to verify email
+    time_t email_verification_time; // Time of email verification
+    time_t email_verification_last_sent; // Time of last email verification code sent
+
 };
 
 typedef struct account_character_data ACCOUNT_CHARACTER;
@@ -4914,7 +4938,7 @@ struct	pc_data
     time_t email_verification_last_sent;
     char *flag;
     char *      reset_code;
-    bool        reset_state;
+    int        reset_state;
     time_t        reset_time;
     long	        channel_flags;
     long		creation_date;
@@ -7859,6 +7883,7 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
 #define COMMANDS_FILE       SYSTEM_DIR "commands.dat"
 #define GAME_SETTINGS_FILE  SYSTEM_DIR "game_settings.dat"
 #define CHANGESET_FILE      SYSTEM_DIR "changesets.dat"
+#define SOCIALS_FILE  $SYSTEM_DIR "socials.dat"
 
 /* POST msg queue */
 #define MSGQUEUE	1111
@@ -8814,6 +8839,7 @@ void login_get_alignment(DESCRIPTOR_DATA *d, char *argument);
 void login_get_new_race(DESCRIPTOR_DATA *d, char *argument);
 void login_get_new_sex(DESCRIPTOR_DATA *d, char *argument);
 void login_get_email(DESCRIPTOR_DATA *d, char *argument);
+bool get_character_auth_data(CHAR_DATA *ch, ACCOUNT_DATA *acct, ACCOUNT_CHARACTER **acct_char);
 
 /* scripts.c */
 int	program_flow	args( ( long vnum, char *source, CHAR_DATA *mob,

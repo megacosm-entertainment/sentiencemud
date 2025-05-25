@@ -3312,7 +3312,6 @@ void do_wear(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
     OBJ_DATA *obj;
-	bool found = false;
 
     one_argument(argument, arg);
 
@@ -3364,7 +3363,6 @@ void do_wear(CHAR_DATA *ch, char *argument)
                     continue;
 
                 equip_char(ch, obj, obj->last_wear_loc);
-                found = true;
             }
         }
         iterator_stop(&it);
@@ -3380,7 +3378,6 @@ void do_wear(CHAR_DATA *ch, char *argument)
                     continue;
 
                 wear_obj(ch, obj, false);
-                found = true;
             }
         }
         iterator_stop(&it);
@@ -3428,7 +3425,6 @@ void do_remove(CHAR_DATA *ch, char *argument)
     char arg[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
     OBJ_DATA *obj;
-	bool found = false;
 
     if (check_social_status(ch))
         return;
@@ -3469,7 +3465,6 @@ void do_remove(CHAR_DATA *ch, char *argument)
                     continue;
 
                 unequip_char(ch, obj, false);
-                found = true;
             }
         }
         iterator_stop(&it);
@@ -4356,7 +4351,6 @@ CHAR_DATA *find_keeper(CHAR_DATA *ch, char *arg)
 void obj_to_keeper(OBJ_DATA *obj, CHAR_DATA *ch)
 {
     OBJ_DATA *t_obj;
-    bool found = false;
 
     /* see if any duplicates are found */
     ITERATOR it;
@@ -5818,8 +5812,7 @@ void do_list(CHAR_DATA *ch, char *argument)
     char arg_keeper[MIL];
     CHAR_DATA *keeper;
     OBJ_DATA *obj;
-    int cost,count;
-    bool found;
+    int cost, count;
 
     argument = one_argument(argument, arg_keeper);
     one_argument(argument,arg);

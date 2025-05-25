@@ -263,27 +263,71 @@ void save_qr_code_as_png(QRcode *qrcode, const char *filename, int scale)
  * Initialize MFA for a character
  * Works in-game and returns true if successful
  */
-bool setup_mfa_for_char(CHAR_DATA *ch, bool send_email)
+bool setup_mfa_for_char(CHAR_DATA *ch, bool has_email)
 {
     char key[MIL];
+    char qr_url[MIL];
+    ACCOUNT_DATA *acct = NULL;
+    ACCOUNT_CHARACTER *acct_char = NULL;
+    bool has_auth_data = false;
+    
     if (IS_NPC(ch))
         return false;
 
     // Generate a new key
     generate_totp_key(key, sizeof(key));
 
-    // Save key to character
-    free_string(ch->pcdata->mfa_key);
-    ch->pcdata->mfa_key = str_dup(key);
-    //ch->pcdata->qr_code_expiration = time(NULL) + 10 * 60;  // 10 minutes
+    // Check if we should use account_character data
+    if (ch->desc && ch->desc->account) {
+        acct = ch->desc->account;
+        has_auth_data = get_character_auth_data(ch, acct, &acct_char);
+        
+        if (has_auth_data && acct_char) {
+            // Store as pending key - requires confirmation before enabling
+            free_string(acct_char->mfa_pending_key);
+            acct_char->mfa_pending_key = str_dup(key);
+            save_account(acct);
+        }
+    }
+    
+    // Only fall back to pcdata if account character data isn't available
+    if (!has_auth_data) {
+        // Save key to character as pending
+        free_string(ch->pcdata->mfa_pending_key);
+        ch->pcdata->mfa_pending_key = str_dup(key);
+        save_char_obj(ch);
+    }
 
-    send_to_char("Your MFA key has been generated. Please save this key in a safe place.\n\r", ch);
-    send_to_char("You will need this key to authenticate with MFA.\n\r", ch);
-    send_to_char("Your key is: ", ch);
-    send_to_char(ch->pcdata->mfa_key, ch);
-    send_to_char("\n\r", ch);
+    // Generate QR code URL for display
+    generate_totp_qr_url(qr_url, sizeof(qr_url), ch->name, key);
 
-    // Do NOT generate or display/email QR code here anymore!
+    // Display setup information to the character
+    if (ch->desc) {
+        write_to_buffer(ch->desc, "\n\r{GMFA Setup Information{x\n\r", 0);
+        write_to_buffer(ch->desc, "{C-------------------------------------{x\n\r", 0);
+        
+        // Display QR code in the terminal first
+        write_to_buffer(ch->desc, "{WQR Code:{x\n\r", 0);
+        display_qr_code(ch->desc, qr_url);
+        write_to_buffer(ch->desc, "\n\r", 0);
+        
+        // Now display the secret key after the QR code
+        write_to_buffer(ch->desc, "{WSecret Key: {G", 0);
+        write_to_buffer(ch->desc, key, 0);
+        write_to_buffer(ch->desc, "{x\n\r", 0);
+        write_to_buffer(ch->desc, "{YPlease save this key in a secure location.{x\n\r\n\r", 0);
+        
+        write_to_buffer(ch->desc, "{YOnce you've set up your authenticator app, enter the code it generates to verify and enable MFA.{x\n\r", 0);
+    } else {
+        send_to_char("\n\r{GMFA Setup Information{x\n\r", ch);
+        send_to_char("{C-------------------------------------{x\n\r", ch);
+        send_to_char("{YYour MFA key has been generated.{x\n\r", ch);
+        send_to_char("{WSecret Key: {G", ch);
+        send_to_char(key, ch);
+        send_to_char("{x\n\r", ch);
+        send_to_char("{YPlease save this key in a secure location.{x\n\r\n\r", ch);
+        send_to_char("{YOnce you've set up your authenticator app, enter the code to verify and enable MFA.{x\n\r", ch);
+    }
 
     return true;
 }
@@ -292,10 +336,11 @@ bool setup_mfa_for_char(CHAR_DATA *ch, bool send_email)
  * Initialize MFA for an account
  * Works from the account menu and returns true if successful
  */
-bool setup_mfa_for_account(DESCRIPTOR_DATA *d, bool send_email)
+bool setup_mfa_for_account(DESCRIPTOR_DATA *d, bool has_email)
 {
     ACCOUNT_DATA *acct;
     char key[MIL];
+    char qr_url[MIL];
     
     if (!d || !(acct = d->account))
         return false;
@@ -303,30 +348,97 @@ bool setup_mfa_for_account(DESCRIPTOR_DATA *d, bool send_email)
     // Generate a new key
     generate_totp_key(key, sizeof(key));
     
-    // Save key to account
-    free_string(acct->mfa_key);
-    acct->mfa_key = str_dup(key);
-    //acct->qr_code_expiration = time(NULL) + 10 * 60;  // 10 minutes
+    // Save key to account as pending, not directly as mfa_key
+    free_string(acct->mfa_pending_key);
+    acct->mfa_pending_key = str_dup(key);
+    save_account(acct);
     
-    // Display key information
-    write_to_buffer(d, "Your MFA key has been generated. Please save this key in a safe place.\n\r", 0);
-    write_to_buffer(d, "You will need this key to authenticate with MFA.\n\r", 0);
-    write_to_buffer(d, "Your key is: ", 0);
-    write_to_buffer(d, acct->mfa_key, 0);
+    // Generate QR code URL
+    generate_totp_qr_url(qr_url, sizeof(qr_url), acct->username, key);
+    
+    // Display MFA setup information
+    write_to_buffer(d, "\n\r{GMFA Setup Information{x\n\r", 0);
+    write_to_buffer(d, "{C-------------------------------------{x\n\r", 0);
+    
+    // First display QR code
+    write_to_buffer(d, "{WQR Code:{x\n\r", 0);
+    display_qr_code(d, qr_url);
     write_to_buffer(d, "\n\r", 0);
+    
+    // Then display the secret key after the QR code
+    write_to_buffer(d, "{WSecret Key: {G", 0);
+    write_to_buffer(d, key, 0);
+    write_to_buffer(d, "{x\n\r", 0);
+    write_to_buffer(d, "{YPlease save this key in a secure location.{x\n\r\n\r", 0);
+    
+    write_to_buffer(d, "{YOnce you've set up your authenticator app, enter the code it generates to verify and enable MFA.{x\n\r", 0);
     
     return true;
 }
-
 /*
  * Check if a TOTP code is valid for a character
+ * Uses account_character data if available, falls back to pcdata
  */
 bool check_char_mfa(CHAR_DATA *ch, const char *code)
 {
-    if (IS_NPC(ch) || IS_NULLSTR(ch->pcdata->mfa_pending ? ch->pcdata->mfa_pending_key : ch->pcdata->mfa_key))
+    if (IS_NPC(ch))
         return false;
+    
+    ACCOUNT_DATA *acct = NULL;
+    ACCOUNT_CHARACTER *acct_char = NULL;
+    const char *mfa_key = NULL;
+    bool has_auth_data = false;
+    
+    // Try to get authentication data from account_character first
+    if (ch->desc && ch->desc->account) {
+        acct = ch->desc->account;
+        has_auth_data = get_character_auth_data(ch, acct, &acct_char);
         
-    return validate_totp_code(ch->pcdata->mfa_key, code);
+        if (has_auth_data && acct_char) {
+            // Use pending key if in setup mode, otherwise use active key
+            mfa_key = acct_char->mfa_pending_key ? acct_char->mfa_pending_key : acct_char->mfa_key;
+            
+            // Check for recovery code usage if no key is available
+            if (IS_NULLSTR(mfa_key)) {
+                for (int i = 0; i < MFA_RECOVERY_CODES; i++) {
+                    if (!IS_NULLSTR(acct_char->recovery_codes[i]) && 
+                        !acct_char->recovery_used[i] &&
+                        !strcmp(code, acct_char->recovery_codes[i])) {
+                        acct_char->recovery_used[i] = true;
+                        save_account(acct);
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
+            return validate_totp_code(mfa_key, code);
+        }
+    }
+    
+    // Fall back to pcdata only if account character not available
+    // This path should rarely be needed once migration is complete
+    if (!has_auth_data) {
+        mfa_key = ch->pcdata->mfa_pending ? ch->pcdata->mfa_pending_key : ch->pcdata->mfa_key;
+        
+        if (IS_NULLSTR(mfa_key)) {
+            // Check recovery codes
+            for (int i = 0; i < MFA_RECOVERY_CODES; i++) {
+                if (!IS_NULLSTR(ch->pcdata->recovery_codes[i]) && 
+                    !ch->pcdata->recovery_used[i] &&
+                    !strcmp(code, ch->pcdata->recovery_codes[i])) {
+                    ch->pcdata->recovery_used[i] = true;
+                    save_char_obj(ch);
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        return validate_totp_code(mfa_key, code);
+    }
+    
+    return false;
 }
 
 /*

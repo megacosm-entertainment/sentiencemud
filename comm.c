@@ -2567,10 +2567,13 @@ CHAR_DATA *find_existing_player(char *name)
 /*
  * Look for link-dead player to reconnect.
  */
+/*
+ * Look for link-dead player to reconnect.
+ */
 bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
 {
     CHAR_DATA *ch;
-    //char buf[100];
+    ACCOUNT_CHARACTER *acct_char = NULL;
     bool found = false;
     ITERATOR cit;
 
@@ -2587,7 +2590,6 @@ bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
                 iterator_stop(&cit);
                 return true;
             } else {
-
                 CHAR_DATA *old_char = d->character;
 
                 // Handle pet cleanup from incoming connection if needed
@@ -2611,54 +2613,62 @@ bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
                 d->reconnecting = true;
                 found = true;  // Mark as found so iterator_stop works properly
                 
+                // Find the account character entry for the character
+                if (d->account) {
+                    ITERATOR it;
+                    iterator_start(&it, d->account->characters);
+                    while ((acct_char = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+                        if (!str_cmp(acct_char->name, ch->name)) {
+                            break;
+                        }
+                    }
+                    iterator_stop(&it);
+                }
+
                 // Handle special authentication cases
-				if (!DEV_SKIP_MFA){
-                if (IS_IMMORTAL(ch) && game_settings.require_2fa_staff) {
-                    // Staff character with MFA requirements
-                    if ((!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled) ||
-                        (!IS_NULLSTR(d->account->mfa_key) && d->account->mfa_enabled)) {
-                        
+                if (!DEV_SKIP_MFA) {
+                    bool mfa_enabled = acct_char ? acct_char->mfa_enabled : false;
+                    
+                    if (IS_IMMORTAL(ch) && game_settings.require_2fa_staff) {
                         // If character has MFA, verify that
-                        if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled) {
+                        if (mfa_enabled) {
                             write_to_buffer(d, "\n\rReconnecting - This character has MFA enabled.\n\r", 0);
                             ProtocolNoEcho(d, true);
                             d->connected = CON_GET_CHAR_MFA;
-                            break;  // Exit the loop but maintain iterator
+                            break;
                         } 
                         // Otherwise, verify account MFA
                         else if (!IS_NULLSTR(d->account->mfa_key) && d->account->mfa_enabled) {
                             write_to_buffer(d, "\n\rReconnecting - Staff account MFA verification required.\n\r", 0);
- 
                             ProtocolNoEcho(d, true);
                             d->connected = CON_GET_ACCOUNT_MFA_FOR_CHAR;
-                            break;  // Exit the loop but maintain iterator
+                            break;
                         }
                     }
+                    // Regular character with MFA
+                    else if (mfa_enabled) {
+                        write_to_buffer(d, "\n\rReconnecting - This character has MFA enabled.\n\r", 0);
+                        ProtocolNoEcho(d, true);
+                        d->connected = CON_GET_CHAR_MFA;
+                        break;
+                    }
                 }
-                // Regular character with MFA
-                else if (!IS_NULLSTR(ch->pcdata->mfa_key) && ch->pcdata->mfa_enabled) {
-                    write_to_buffer(d, "\n\rReconnecting - This character has MFA enabled.\n\r", 0);
-
-                    ProtocolNoEcho(d, true);
-                    d->connected = CON_GET_CHAR_MFA;
-                    break;  // Exit the loop but maintain iterator
+                
+                // Check for character password - use account_character data
+                if (!DEV_SKIP_PASSWORD) {
+                    bool has_password = acct_char ? !IS_NULLSTR(acct_char->pwd) : false;
+                    
+                    if (has_password) {
+                        write_to_buffer(d, "\n\rReconnecting: This character requires password verification.\n\r", 0);
+                        ProtocolNoEcho(d, true);
+                        d->connected = CON_GET_CHAR_PASSWORD;
+                        break;
+                    }
                 }
-			}
-
-                // Character with password override
-				if (!DEV_SKIP_PASSWORD){
-                if (ch->pcdata->account_pwd_override) {
-                    write_to_buffer(d, "\n\rReconnecting: This character requires password verification.\n\r", 0);
-
-                    ProtocolNoEcho(d, true);
-                    d->connected = CON_GET_CHAR_PASSWORD;
-                    break;  // Exit the loop but maintain iterator
-                }
-			}
                 
                 // Normal reconnect process - no special auth needed
                 reconnect_char(d);
-                break;  // Exit the loop but maintain iterator
+                break;
             }
         }
     }

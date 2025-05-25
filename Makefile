@@ -38,6 +38,7 @@ C_FILES = \
 	bit.c \
 	blueprint.c \
 	boat.c \
+	chat_rooms.c \
 	church.c \
 	cmdedit.c \
 	comm.c \
@@ -118,7 +119,6 @@ C_FILES = \
 	scripts.c \
 	shoot.c \
 	skills.c \
-	social.c \
 	special.c \
 	staff.c \
 	stats.c \
@@ -149,6 +149,7 @@ O_FILES = \
 	$(OBJDIR)/bit.o \
 	$(OBJDIR)/blueprint.o \
 	$(OBJDIR)/boat.o \
+	$(OBJDIR)/chat_rooms.o \
 	$(OBJDIR)/church.o \
 	$(OBJDIR)/cmdedit.o \
 	$(OBJDIR)/comm.o \
@@ -229,7 +230,6 @@ O_FILES = \
 	$(OBJDIR)/scripts.o \
 	$(OBJDIR)/shoot.o \
 	$(OBJDIR)/skills.o \
-	$(OBJDIR)/social.o \
 	$(OBJDIR)/special.o \
 	$(OBJDIR)/staff.o \
 	$(OBJDIR)/stats.o \

@@ -59,6 +59,7 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define ED_CHANGESET	23
 #define ED_ACCNOTE	24
 #define ED_CHLOG 25
+#define ED_SOCIAL 26
 
 
 
@@ -79,6 +80,7 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define BPEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define DNGEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define CMDEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
+#define SOCEDIT( fun )        bool fun( CHAR_DATA *ch, char *argument )
 
 /*
  * Interpreter Prototypes
@@ -109,6 +111,7 @@ void	ipedit	( CHAR_DATA *ch, char *argument );
 void	dpedit	( CHAR_DATA *ch, char *argument );
 
 void	cmdedit	( CHAR_DATA *ch, char *argument );
+void    gameedit ( CHAR_DATA *ch, char *argument );
 
 
 /*

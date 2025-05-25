@@ -22,132 +22,127 @@ int social_count;
 struct social_type	social_table		[MAX_SOCIALS];
 
 
-void load_socials( FILE *fp)
+void load_socials(FILE *fp)
 {
-    for ( ; ; )
-    {
-    	struct social_type social;
-    	char *temp;
+    social_count = 0;
+    
+    for (;;) {
+        struct social_type social;
+        char *temp;
+        
         /* clear social */
-	social.char_no_arg = NULL;
-	social.others_no_arg = NULL;
-	social.char_found = NULL;
-	social.others_found = NULL;
-	social.vict_found = NULL;
-	social.char_not_found = NULL;
-	social.char_auto = NULL;
-	social.others_auto = NULL;
+        social.char_no_arg = NULL;
+        social.others_no_arg = NULL;
+        social.char_found = NULL;
+        social.others_found = NULL;
+        social.vict_found = NULL;
+        social.char_not_found = NULL;
+        social.char_auto = NULL;
+        social.others_auto = NULL;
 
-    	temp = fread_word(fp);
-    	if (!strcmp(temp,"#0"))
-	    return;  /* done */
+        temp = fread_word(fp);
+        if (!strcmp(temp, "#0"))
+            return;  /* done */
+            
 #if defined(social_debug)
-	else
-	    printf("%s\n\r",temp);
+        else
+            printf("%s\n\r", temp);
 #endif
 
-    	strcpy(social.name,temp);
-    	fread_to_eol(fp);
-
-	temp = fread_string_eol(fp);
-	if (!strcmp(temp,"$"))
-	     social.char_no_arg = NULL;
-	else if (!strcmp(temp,"#"))
-	{
-	     social_table[social_count] = social;
-	     social_count++;
-	     continue;
-	}
-        else
-	    social.char_no_arg = temp;
+        strcpy(social.name, temp);
+        fread_to_eol(fp);
 
         temp = fread_string_eol(fp);
-        if (!strcmp(temp,"$"))
-             social.others_no_arg = NULL;
-        else if (!strcmp(temp,"#"))
-        {
-	     social_table[social_count] = social;
-             social_count++;
-             continue;
+        if (!strcmp(temp, "$"))
+            social.char_no_arg = NULL;
+        else if (!strcmp(temp, "#")) {
+            social_table[social_count] = social;
+            social_count++;
+            continue;
         }
         else
-	    social.others_no_arg = temp;
+            social.char_no_arg = temp;
 
         temp = fread_string_eol(fp);
-        if (!strcmp(temp,"$"))
-             social.char_found = NULL;
-        else if (!strcmp(temp,"#"))
-        {
-	     social_table[social_count] = social;
-             social_count++;
-             continue;
-        }
-       	else
-	    social.char_found = temp;
-
-        temp = fread_string_eol(fp);
-        if (!strcmp(temp,"$"))
-             social.others_found = NULL;
-        else if (!strcmp(temp,"#"))
-        {
-	     social_table[social_count] = social;
-             social_count++;
-             continue;
+        if (!strcmp(temp, "$"))
+            social.others_no_arg = NULL;
+        else if (!strcmp(temp, "#")) {
+            social_table[social_count] = social;
+            social_count++;
+            continue;
         }
         else
-	    social.others_found = temp;
+            social.others_no_arg = temp;
 
         temp = fread_string_eol(fp);
-        if (!strcmp(temp,"$"))
-             social.vict_found = NULL;
-        else if (!strcmp(temp,"#"))
-        {
-	     social_table[social_count] = social;
-             social_count++;
-             continue;
+        if (!strcmp(temp, "$"))
+            social.char_found = NULL;
+        else if (!strcmp(temp, "#")) {
+            social_table[social_count] = social;
+            social_count++;
+            continue;
         }
         else
-	    social.vict_found = temp;
+            social.char_found = temp;
 
         temp = fread_string_eol(fp);
-        if (!strcmp(temp,"$"))
-             social.char_not_found = NULL;
-        else if (!strcmp(temp,"#"))
-        {
-	     social_table[social_count] = social;
-             social_count++;
-             continue;
+        if (!strcmp(temp, "$"))
+            social.others_found = NULL;
+        else if (!strcmp(temp, "#")) {
+            social_table[social_count] = social;
+            social_count++;
+            continue;
         }
         else
-	    social.char_not_found = temp;
+            social.others_found = temp;
 
         temp = fread_string_eol(fp);
-        if (!strcmp(temp,"$"))
-             social.char_auto = NULL;
-        else if (!strcmp(temp,"#"))
-        {
-	     social_table[social_count] = social;
-             social_count++;
-             continue;
+        if (!strcmp(temp, "$"))
+            social.vict_found = NULL;
+        else if (!strcmp(temp, "#")) {
+            social_table[social_count] = social;
+            social_count++;
+            continue;
         }
         else
-	    social.char_auto = temp;
+            social.vict_found = temp;
 
         temp = fread_string_eol(fp);
-        if (!strcmp(temp,"$"))
-             social.others_auto = NULL;
-        else if (!strcmp(temp,"#"))
-        {
-             social_table[social_count] = social;
-             social_count++;
-             continue;
+        if (!strcmp(temp, "$"))
+            social.char_not_found = NULL;
+        else if (!strcmp(temp, "#")) {
+            social_table[social_count] = social;
+            social_count++;
+            continue;
         }
         else
-	    social.others_auto = temp;
+            social.char_not_found = temp;
 
-	social_table[social_count] = social;
-    	social_count++;
-   }
+        temp = fread_string_eol(fp);
+        if (!strcmp(temp, "$"))
+            social.char_auto = NULL;
+        else if (!strcmp(temp, "#")) {
+            social_table[social_count] = social;
+            social_count++;
+            continue;
+        }
+        else
+            social.char_auto = temp;
+
+        temp = fread_string_eol(fp);
+        if (!strcmp(temp, "$"))
+            social.others_auto = NULL;
+        else if (!strcmp(temp, "#")) {
+            social_table[social_count] = social;
+            social_count++;
+            continue;
+        }
+        else
+            social.others_auto = temp;
+
+        social_table[social_count] = social;
+        social_count++;
+    }
 }
 
 

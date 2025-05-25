@@ -4564,6 +4564,7 @@ ACCOUNT_CHARACTER *new_account_character()
     // Zero all fields to ensure no uninitialized values
     memset(acct_char, 0, sizeof(*acct_char));
 
+    // Basic Character Info
     acct_char->name = str_dup("");
     acct_char->race_name = str_dup("");
     acct_char->class_name = str_dup("");
@@ -4572,35 +4573,74 @@ ACCOUNT_CHARACTER *new_account_character()
     acct_char->last_area = str_dup("");
     acct_char->last_host = str_dup("");
     acct_char->staff = false;
-    //acct_char->staff_rank = STAFF_PLAYER;  // Initialize with default rank
+    acct_char->staff_rank = 0;
     acct_char->creation_date = 0;
     acct_char->last_login = 0;
+    acct_char->last_logoff = 0;
     acct_char->id[0] = 0;
     acct_char->id[1] = 0;
     acct_char->deleted = false;
     acct_char->delete_time = 0;
 
+    // Authentication Details
+    acct_char->pwd = str_dup("");
+    acct_char->pwd_vers = 0;
+    acct_char->old_pwd = str_dup("");
+    acct_char->reset_code = str_dup("");
+    acct_char->reset_time = 0;
+    acct_char->reset_state = 0;
+    
+    // MFA
+    acct_char->mfa_key = str_dup("");
+    acct_char->mfa_enabled = false;
+    acct_char->mfa_pending_key = str_dup("");
+    for (int i = 0; i < MFA_RECOVERY_CODES; i++) {
+        acct_char->recovery_codes[i] = NULL;
+        acct_char->recovery_used[i] = false;
+    }
+    
+    // Email
+    acct_char->email = str_dup("");
+    acct_char->email_verified = false;
+    acct_char->pending_email = str_dup("");
+    acct_char->email_verification_code = str_dup("");
+    acct_char->email_verification_time = 0;
+    acct_char->email_verification_last_sent = 0;
+
     return acct_char;
 }
 
 
-/*
- * Free an account character entry.
- */
 void free_account_character(ACCOUNT_CHARACTER *acct_char)
 {
     if (!acct_char)
         return;
 
-    // Free all dynamically allocated strings
+    // Free basic character info
     if (acct_char->name)        free_string(acct_char->name);
     if (acct_char->race_name)   free_string(acct_char->race_name);
     if (acct_char->class_name)  free_string(acct_char->class_name);
     if (acct_char->last_area)   free_string(acct_char->last_area);
     if (acct_char->last_host)   free_string(acct_char->last_host);
-
-    // Zero the struct for safety (optional, but good practice)
-    memset(acct_char, 0, sizeof(*acct_char));
+    
+    // Free authentication details
+    if (acct_char->pwd)         free_string(acct_char->pwd);
+    if (acct_char->old_pwd)     free_string(acct_char->old_pwd);
+    if (acct_char->reset_code)  free_string(acct_char->reset_code);
+    
+    // Free MFA
+    if (acct_char->mfa_key)     free_string(acct_char->mfa_key);
+    if (acct_char->mfa_pending_key) free_string(acct_char->mfa_pending_key);
+    
+    for (int i = 0; i < MFA_RECOVERY_CODES; i++) {
+        if (acct_char->recovery_codes[i]) 
+            free_string(acct_char->recovery_codes[i]);
+    }
+    
+    // Free email details
+    if (acct_char->email)       free_string(acct_char->email);
+    if (acct_char->pending_email) free_string(acct_char->pending_email);
+    if (acct_char->email_verification_code) free_string(acct_char->email_verification_code);
 
     free(acct_char);
 }
