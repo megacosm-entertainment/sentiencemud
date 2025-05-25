@@ -10490,14 +10490,42 @@ void generate_recovery_codes(char **codes, bool *used, int count) {
     }
 }
 
-bool check_recovery_code(CHAR_DATA *ch, const char *code) {
+bool check_recovery_code(CHAR_DATA *ch, const char *code)
+{
+    ACCOUNT_DATA *acct = NULL;
+    ACCOUNT_CHARACTER *acct_char = NULL;
+    bool has_auth_data = false;
+    
+    if (!ch || !code || !*code)
+        return false;
+        
+    // Get account character data
+    if (ch->desc && ch->desc->account) {
+        acct = ch->desc->account;
+        has_auth_data = get_character_auth_data(ch, acct, &acct_char);
+    }
+    
+    if (!has_auth_data || !acct_char) {
+        // Fall back to character pcdata as legacy support
+        for (int i = 0; i < MFA_RECOVERY_CODES; ++i) {
+            if (!ch->pcdata->recovery_used[i] && !str_cmp(ch->pcdata->recovery_codes[i], code)) {
+                ch->pcdata->recovery_used[i] = true;
+                save_char_obj(ch);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Check against account character recovery codes
     for (int i = 0; i < MFA_RECOVERY_CODES; ++i) {
-        if (!ch->pcdata->recovery_used[i] && !str_cmp(ch->pcdata->recovery_codes[i], code)) {
-            ch->pcdata->recovery_used[i] = true;
-            save_char_obj(ch);
+        if (!acct_char->recovery_used[i] && !str_cmp(acct_char->recovery_codes[i], code)) {
+            acct_char->recovery_used[i] = true;
+            save_account(acct);
             return true;
         }
     }
+    
     return false;
 }
 
@@ -10513,14 +10541,42 @@ bool check_account_recovery_code(ACCOUNT_DATA *acct, const char *code) {
 }
 
 // Display recovery codes to the user
-void display_recovery_codes(DESCRIPTOR_DATA *d, CHAR_DATA *ch) {
+void display_recovery_codes(DESCRIPTOR_DATA *d, CHAR_DATA *ch)
+{
+    ACCOUNT_DATA *acct = NULL;
+    ACCOUNT_CHARACTER *acct_char = NULL;
+    bool has_auth_data = false;
+    
+    if (!d || !ch)
+        return;
+        
+    // Get account character data
+    if (ch->desc && ch->desc->account) {
+        acct = ch->desc->account;
+        has_auth_data = get_character_auth_data(ch, acct, &acct_char);
+    }
+    
+    if (!has_auth_data || !acct_char) {
+        // Fall back to character pcdata as legacy support
+        write_to_buffer(d, "\n\r{YYour recovery codes (each can be used once):{x\n\r", 0);
+        for (int i = 0; i < MFA_RECOVERY_CODES; ++i) {
+            char buf[128];
+            if (ch->pcdata->recovery_used[i])
+                sprintf(buf, "{R%s {X(used){x\n\r", ch->pcdata->recovery_codes[i]);
+            else
+                sprintf(buf, "%s\n\r", ch->pcdata->recovery_codes[i]);
+            write_to_buffer(d, buf, 0);
+        }
+        return;
+    }
+
     write_to_buffer(d, "\n\r{YYour recovery codes (each can be used once):{x\n\r", 0);
     for (int i = 0; i < MFA_RECOVERY_CODES; ++i) {
         char buf[128];
-        if (ch->pcdata->recovery_used[i])
-            sprintf(buf, "{R%s {X(used){x\n\r", ch->pcdata->recovery_codes[i]);
+        if (acct_char->recovery_used[i])
+            sprintf(buf, "{R%s {X(used){x\n\r", acct_char->recovery_codes[i]);
         else
-            sprintf(buf, "%s\n\r", ch->pcdata->recovery_codes[i]);
+            sprintf(buf, "%s\n\r", acct_char->recovery_codes[i]);
         write_to_buffer(d, buf, 0);
     }
 }

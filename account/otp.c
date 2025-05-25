@@ -287,15 +287,14 @@ bool setup_mfa_for_char(CHAR_DATA *ch, bool has_email)
             free_string(acct_char->mfa_pending_key);
             acct_char->mfa_pending_key = str_dup(key);
             save_account(acct);
+        } else {
+            // If no account character entry found, log this issue
+            log_string(formatf("setup_mfa_for_char: No account character entry found for %s", ch->name));
+            return false;
         }
-    }
-    
-    // Only fall back to pcdata if account character data isn't available
-    if (!has_auth_data) {
-        // Save key to character as pending
-        free_string(ch->pcdata->mfa_pending_key);
-        ch->pcdata->mfa_pending_key = str_dup(key);
-        save_char_obj(ch);
+    } else {
+        log_string(formatf("setup_mfa_for_char: No account found for %s", ch->name));
+        return false;
     }
 
     // Generate QR code URL for display
@@ -389,53 +388,45 @@ bool check_char_mfa(CHAR_DATA *ch, const char *code)
     const char *mfa_key = NULL;
     bool has_auth_data = false;
     
-    // Try to get authentication data from account_character first
+    // Try to get authentication data from account_character
     if (ch->desc && ch->desc->account) {
         acct = ch->desc->account;
         has_auth_data = get_character_auth_data(ch, acct, &acct_char);
         
         if (has_auth_data && acct_char) {
             // Use pending key if in setup mode, otherwise use active key
-            mfa_key = acct_char->mfa_pending_key ? acct_char->mfa_pending_key : acct_char->mfa_key;
+            mfa_key = !IS_NULLSTR(acct_char->mfa_pending_key) ? 
+                      acct_char->mfa_pending_key : acct_char->mfa_key;
             
-            // Check for recovery code usage if no key is available
-            if (IS_NULLSTR(mfa_key)) {
-                for (int i = 0; i < MFA_RECOVERY_CODES; i++) {
-                    if (!IS_NULLSTR(acct_char->recovery_codes[i]) && 
-                        !acct_char->recovery_used[i] &&
-                        !strcmp(code, acct_char->recovery_codes[i])) {
-                        acct_char->recovery_used[i] = true;
-                        save_account(acct);
-                        return true;
-                    }
+            // Check for recovery code usage if we have an MFA key
+            if (!IS_NULLSTR(mfa_key)) {
+                // Check TOTP code against the key
+                bool valid = validate_totp_code(mfa_key, code);
+                
+                // If code validates against pending key, activate it
+                if (valid && !IS_NULLSTR(acct_char->mfa_pending_key)) {
+                    free_string(acct_char->mfa_key);
+                    acct_char->mfa_key = str_dup(acct_char->mfa_pending_key);
+                    free_string(acct_char->mfa_pending_key);
+                    acct_char->mfa_pending_key = str_dup("");
+                    acct_char->mfa_enabled = true;
+                    save_account(acct);
                 }
-                return false;
+                
+                return valid;
             }
             
-            return validate_totp_code(mfa_key, code);
-        }
-    }
-    
-    // Fall back to pcdata only if account character not available
-    // This path should rarely be needed once migration is complete
-    if (!has_auth_data) {
-        mfa_key = ch->pcdata->mfa_pending ? ch->pcdata->mfa_pending_key : ch->pcdata->mfa_key;
-        
-        if (IS_NULLSTR(mfa_key)) {
-            // Check recovery codes
+            // Check recovery codes as fallback
             for (int i = 0; i < MFA_RECOVERY_CODES; i++) {
-                if (!IS_NULLSTR(ch->pcdata->recovery_codes[i]) && 
-                    !ch->pcdata->recovery_used[i] &&
-                    !strcmp(code, ch->pcdata->recovery_codes[i])) {
-                    ch->pcdata->recovery_used[i] = true;
-                    save_char_obj(ch);
+                if (!IS_NULLSTR(acct_char->recovery_codes[i]) && 
+                    !acct_char->recovery_used[i] &&
+                    !strcmp(code, acct_char->recovery_codes[i])) {
+                    acct_char->recovery_used[i] = true;
+                    save_account(acct);
                     return true;
                 }
             }
-            return false;
         }
-        
-        return validate_totp_code(mfa_key, code);
     }
     
     return false;
@@ -509,15 +500,33 @@ void do_keygen(CHAR_DATA *ch, char *argument)
  */
 void generate_key(CHAR_DATA *ch, char *key)
 {
+    ACCOUNT_DATA *acct = NULL;
+    ACCOUNT_CHARACTER *acct_char = NULL;
+    bool has_auth_data = false;
     cotp_error_t cotp_err;
-    char *secret_key = base32_encode((uchar *)key, strlen(key)+1, &cotp_err);
     
-    if (!IS_NULLSTR(ch->pcdata->mfa_key)) {
-        free_string(ch->pcdata->mfa_key);
+    // Get account character data
+    if (ch->desc && ch->desc->account) {
+        acct = ch->desc->account;
+        has_auth_data = get_character_auth_data(ch, acct, &acct_char);
     }
     
-    ch->pcdata->mfa_key = str_dup(secret_key);
+    if (!has_auth_data || !acct_char) {
+        log_string(formatf("generate_key: No account character entry found for %s", ch->name));
+        return;
+    }
+    
+    char *secret_key = base32_encode((uchar *)key, strlen(key)+1, &cotp_err);
+    
+    if (!IS_NULLSTR(acct_char->mfa_key)) {
+        free_string(acct_char->mfa_key);
+    }
+    
+    acct_char->mfa_key = str_dup(secret_key);
     free(secret_key);
+    
+    // Save the changes
+    save_account(acct);
 }
 
 /*
@@ -531,7 +540,24 @@ bool check_mfa(CHAR_DATA *ch, char *argument)
 #include <unistd.h> // for unlink()
 
 void send_qr_email_for_char(CHAR_DATA *ch, const char *email, const char *secret) {
+    ACCOUNT_DATA *acct = NULL;
+    ACCOUNT_CHARACTER *acct_char = NULL;
+    bool has_auth_data = false;
     char qr_url[MIL], filename[256], subject[128], body[1024];
+    
+    // Get account data for email
+    if (ch->desc && ch->desc->account) {
+        acct = ch->desc->account;
+        has_auth_data = get_character_auth_data(ch, acct, &acct_char);
+    }
+    
+    // If no account data, we can't send email
+    if (!has_auth_data || !acct_char) {
+        log_string(formatf("send_qr_email_for_char: No account character entry found for %s", ch->name));
+        return;
+    }
+    
+    // Generate QR code
     generate_totp_qr_url(qr_url, sizeof(qr_url), ch->name, secret);
 
     QRcode *qrcode = QRcode_encodeString(qr_url, 0, QR_ECLEVEL_L, QR_MODE_8, 1);
@@ -547,27 +573,48 @@ void send_qr_email_for_char(CHAR_DATA *ch, const char *email, const char *secret
         "If you did not request this, please contact staff.\n",
         ch->name, secret);
 
-    // Use send_email_async_ex for better context
-    send_email_async_ex(ch, NULL, (char *)email, subject, body, filename, "image/png");
+    // Use the email from account character data
+    send_email_async_ex(ch, acct, acct_char->email, subject, body, filename, "image/png");
 
     QRcode_free(qrcode);
     delayed_unlink(filename);
 }
 
 void send_recovery_codes_email_for_char(CHAR_DATA *ch, const char *email) {
+    ACCOUNT_DATA *acct = NULL;
+    ACCOUNT_CHARACTER *acct_char = NULL;
+    bool has_auth_data = false;
     char subject[128], body[1024];
+    
+    // Get account data for email and recovery codes
+    if (ch->desc && ch->desc->account) {
+        acct = ch->desc->account;
+        has_auth_data = get_character_auth_data(ch, acct, &acct_char);
+    }
+    
+    // If no account data, we can't send email
+    if (!has_auth_data || !acct_char) {
+        log_string(formatf("send_recovery_codes_email_for_char: No account character entry found for %s", ch->name));
+        return;
+    }
+    
     snprintf(subject, sizeof(subject), "Sentience MFA Recovery Codes for %s", ch->name);
     strcpy(body, "Your recovery codes (each can be used once):\n\n");
+    
+    // Use recovery codes from account character data
     for (int i = 0; i < MFA_RECOVERY_CODES; ++i) {
-        if (ch->pcdata->recovery_codes[i]) {
-            strncat(body, ch->pcdata->recovery_codes[i], sizeof(body) - strlen(body) - 1);
-            if (ch->pcdata->recovery_used[i])
+        if (!IS_NULLSTR(acct_char->recovery_codes[i])) {
+            strncat(body, acct_char->recovery_codes[i], sizeof(body) - strlen(body) - 1);
+            if (acct_char->recovery_used[i])
                 strncat(body, " (used)", sizeof(body) - strlen(body) - 1);
             strncat(body, "\n", sizeof(body) - strlen(body) - 1); // One code per line
         }
     }
+    
     strncat(body, "\nKeep these codes safe. Each can be used only once.\n", sizeof(body) - strlen(body) - 1);
-    send_email_async_ex(ch, NULL, (char *)email, subject, body, NULL, NULL);
+    
+    // Use the email from account character data
+    send_email_async_ex(ch, acct, acct_char->email, subject, body, NULL, NULL);
 }
 
 void send_qr_email_for_account(ACCOUNT_DATA *acct, const char *email, const char *secret) {
