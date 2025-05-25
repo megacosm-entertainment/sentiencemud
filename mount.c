@@ -187,26 +187,30 @@ CHAR_DATA *find_personal_mount(char *name)
 
 void do_whistle(CHAR_DATA *ch, char *argument)
 {
-    OBJ_DATA *obj;
+    OBJ_DATA *obj = NULL;
     CHAR_DATA *mount;
+    ITERATOR it;
 
-    for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-    {
-	if (obj->pIndexData->vnum == OBJ_VNUM_GOLD_WHISTLE)
-	    break;
+    if (ch->lcarrying) {
+        iterator_start(&it, ch->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (obj->pIndexData->vnum == OBJ_VNUM_GOLD_WHISTLE)
+                break;
+        }
+        iterator_stop(&it);
     }
 
     if (obj == NULL || IS_NPC(ch))
     {
-	send_to_char("You whistle a little tune to yourself.\n\r", ch);
-	act("$n whistles a little tune to $mself.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	return;
+        send_to_char("You whistle a little tune to yourself.\n\r", ch);
+        act("$n whistles a little tune to $mself.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+        return;
     }
 
     if ((mount = find_personal_mount(ch->name)) == NULL)
     {
-    	act("You whistle on $p loudly, but nothing happens.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	return;
+        act("You whistle on $p loudly, but nothing happens.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+        return;
     }
 
     if (ch->in_room == mount->in_room)

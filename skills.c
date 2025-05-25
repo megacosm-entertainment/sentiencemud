@@ -569,11 +569,12 @@ bool can_choose_subclass(CHAR_DATA *ch, int subclass)
 // Train a stat
 void do_train(CHAR_DATA *ch, char *argument)
 {
-	char arg[MIL];
+    char arg[MIL];
     char buf[MAX_STRING_LENGTH];
     CHAR_DATA *mob;
     AFFECT_DATA *af;
     OBJ_DATA *obj;
+    ITERATOR it;
     int16_t stat = - 1;
     char *pOutput = NULL;
     int cost;
@@ -588,303 +589,297 @@ void do_train(CHAR_DATA *ch, char *argument)
     SKILL_ENTRY *entry;
 
     if (IS_NPC(ch))
-		return;
+        return;
 
-	argument = one_argument(argument, arg);
+    argument = one_argument(argument, arg);
 
-	//Moving this further down to account for anything other than a valid train argument.
-/*	if( arg[0] == '\0') {
-		sprintf(buf, "You have %d training sessions.\n\r", ch->train);
-		send_to_char(buf, ch);
-		return;
-	} else*/
-	 if(!str_cmp(arg, "skill")) {
-		for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
-		{
-			if (IS_NPC(mob) && IS_SET(mob->act[1], ACT2_ADVANCED_TRAINER))
-			break;
-		}
+    //Moving this further down to account for anything other than a valid train argument.
+    if(!str_cmp(arg, "skill")) {
+        for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
+        {
+            if (IS_NPC(mob) && IS_SET(mob->act[1], ACT2_ADVANCED_TRAINER))
+            break;
+        }
 
-		if (mob == NULL)
-		{
-			send_to_char("There is nobody here to help you do that.\n\r", ch);
-			return;
-		}
+        if (mob == NULL)
+        {
+            send_to_char("There is nobody here to help you do that.\n\r", ch);
+            return;
+        }
 
-		if (ch->tot_level < 2 * MAX_CLASS_LEVEL + 1)
-		{
-			sprintf(buf, "%s, you must be of at least the third class to do this.", pers(ch, mob));
-			do_say(mob, buf);
-			return;
-		}
+        if (ch->tot_level < 2 * MAX_CLASS_LEVEL + 1)
+        {
+            sprintf(buf, "%s, you must be of at least the third class to do this.", pers(ch, mob));
+            do_say(mob, buf);
+            return;
+        }
 
-		entry = skill_entry_findname(ch->sorted_skills, argument);
-		if( !entry )
-		{
-			sprintf(buf, "You know nothing of that skill, %s!\n\r", pers(ch, mob));
-			do_say(mob, buf);
-			return;
-		}
+        entry = skill_entry_findname(ch->sorted_skills, argument);
+        if( !entry )
+        {
+            sprintf(buf, "You know nothing of that skill, %s!\n\r", pers(ch, mob));
+            do_say(mob, buf);
+            return;
+        }
 
-		if( entry->token )
-		{
-		    if(p_percent_trigger(NULL, NULL, NULL, entry->token, ch, mob, NULL, NULL, NULL, TRIG_PRETRAINTOKEN, NULL))
-		    {
-				send_to_char("There is nobody here to help you do that.\n\r", ch);
-				return;
-			}
+        if( entry->token )
+        {
+            if(p_percent_trigger(NULL, NULL, NULL, entry->token, ch, mob, NULL, NULL, NULL, TRIG_PRETRAINTOKEN, NULL))
+            {
+                send_to_char("There is nobody here to help you do that.\n\r", ch);
+                return;
+            }
 
-			if( entry->token->value[TOKVAL_SPELL_LEARN] < 1 )
-			{
-				send_to_char("There is nobody here to help you do that.\n\r", ch);
-				return;
-			}
-		}
+            if( entry->token->value[TOKVAL_SPELL_LEARN] < 1 )
+            {
+                send_to_char("There is nobody here to help you do that.\n\r", ch);
+                return;
+            }
+        }
 
-		name = skill_entry_name(entry);
-		rating = skill_entry_rating(ch, entry);
-		if( rating < MAX_SKILL_LEARNABLE )
-		{
-			sprintf(buf, "You must come back when you have studied this skill to the utmost through mundane means, %s.\n\r", pers(ch, mob));
-			do_say(mob, buf);
-			return;
-		}
+        name = skill_entry_name(entry);
+        rating = skill_entry_rating(ch, entry);
+        if( rating < MAX_SKILL_LEARNABLE )
+        {
+            sprintf(buf, "You must come back when you have studied this skill to the utmost through mundane means, %s.\n\r", pers(ch, mob));
+            do_say(mob, buf);
+            return;
+        }
 
         if (rating >= MAX_SKILL_TRAINABLE)
-		{
-			sprintf(buf, "Even I can't help your mastery of %s past this point, %s.", name, pers(ch, mob));
-			do_say(mob, buf);
-			return;
-		}
+        {
+            sprintf(buf, "Even I can't help your mastery of %s past this point, %s.", name, pers(ch, mob));
+            do_say(mob, buf);
+            return;
+        }
 
-		cost = 3 * rating / 30;
-		if (cost <= ch->train)
-		{
-			ch->train -= cost;
-			act("$n trains $t with $N.", ch, mob, NULL, NULL, NULL, name, NULL, TO_ROOM);
-			act("You train $t with $N.", ch, mob, NULL, NULL, NULL, name, NULL, TO_CHAR);
-			act("{YYou feel your mastery of $t soaring to new heights!{x", ch, NULL, NULL, NULL, NULL, name, NULL, TO_CHAR);
+        cost = 3 * rating / 30;
+        if (cost <= ch->train)
+        {
+            ch->train -= cost;
+            act("$n trains $t with $N.", ch, mob, NULL, NULL, NULL, name, NULL, TO_ROOM);
+            act("You train $t with $N.", ch, mob, NULL, NULL, NULL, name, NULL, TO_CHAR);
+            act("{YYou feel your mastery of $t soaring to new heights!{x", ch, NULL, NULL, NULL, NULL, name, NULL, TO_CHAR);
 
-			if( entry->token ) {
-				if( entry->token->pIndexData->value[TOKVAL_SPELL_RATING] > 0 )
-					entry->token->value[TOKVAL_SPELL_RATING] += entry->token->pIndexData->value[TOKVAL_SPELL_RATING];
-				else
-					entry->token->value[TOKVAL_SPELL_RATING]++;
-			} else
-				ch->pcdata->learned[entry->sn]++;
-		}
-		else
-		{
-			sprintf(buf, "It would take %d trains to train that skill, %s.", cost, pers(ch, mob));
-			do_say(mob, buf);
-		}
-	} else {
-		for (mob = ch->in_room->people; mob; mob = mob->next_in_room)
-		{
-			if (IS_NPC(mob) && IS_SET(mob->act[0], ACT_TRAIN))
-				break;
-		}
+            if( entry->token ) {
+                if( entry->token->pIndexData->value[TOKVAL_SPELL_RATING] > 0 )
+                    entry->token->value[TOKVAL_SPELL_RATING] += entry->token->pIndexData->value[TOKVAL_SPELL_RATING];
+                else
+                    entry->token->value[TOKVAL_SPELL_RATING]++;
+            } else
+                ch->pcdata->learned[entry->sn]++;
+        }
+        else
+        {
+            sprintf(buf, "It would take %d trains to train that skill, %s.", cost, pers(ch, mob));
+            do_say(mob, buf);
+        }
+    } else {
+        for (mob = ch->in_room->people; mob; mob = mob->next_in_room)
+        {
+            if (IS_NPC(mob) && IS_SET(mob->act[0], ACT_TRAIN))
+                break;
+        }
 
-		if (mob == NULL)
-		{
-			send_to_char("You can't do that here.\n\r", ch);
-			return;
-		}
+        if (mob == NULL)
+        {
+            send_to_char("You can't do that here.\n\r", ch);
+            return;
+        }
 
-	    if(p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRETRAIN, arg))
-			return;
+        if(p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRETRAIN, arg))
+            return;
 
-		cost = 1;
+        cost = 1;
 
-		mod_hit = 0;
-		mod_mana = 0;
-		mod_move = 0;
+        mod_hit = 0;
+        mod_mana = 0;
+        mod_move = 0;
 
-		max_hit = pc_race_table[ch->race].max_vital_stats[MAX_HIT];
-		max_mana = pc_race_table[ch->race].max_vital_stats[MAX_MANA];
-		max_move = pc_race_table[ch->race].max_vital_stats[MAX_MOVE];
+        max_hit = pc_race_table[ch->race].max_vital_stats[MAX_HIT];
+        max_mana = pc_race_table[ch->race].max_vital_stats[MAX_MANA];
+        max_move = pc_race_table[ch->race].max_vital_stats[MAX_MOVE];
 
-		for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-		{
-			if (obj->wear_loc != WEAR_NONE)
-			{
-				for (af = obj->affected; af != NULL; af = af->next)
-				{
-					if (af->location == APPLY_HIT)
-						mod_hit += af->modifier;
-					if (af->location == APPLY_MANA)
-						mod_mana += af->modifier;
-					if (af->location == APPLY_MOVE)
-						mod_move += af->modifier;
-				}
-			}
-		}
+        // Use iterator to traverse lworn
+        if (ch->lworn) {
+            iterator_start(&it, ch->lworn);
+            while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+                for (af = obj->affected; af != NULL; af = af->next) {
+                    if (af->location == APPLY_HIT)
+                        mod_hit += af->modifier;
+                    if (af->location == APPLY_MANA)
+                        mod_mana += af->modifier;
+                    if (af->location == APPLY_MOVE)
+                        mod_move += af->modifier;
+                }
+            }
+            iterator_stop(&it);
+        }
 
-		max_hit += mod_hit;
-		max_mana += mod_mana;
-		mod_move += mod_move;
+        max_hit += mod_hit;
+        max_mana += mod_mana;
+        max_move += mod_move;
 
-		if (!str_cmp(arg, "str"))
-		{
-			if (class_table[ch->pcdata->class_current].attr_prime == STAT_STR || ch->pcdata->class_mage != -1)
-				cost    = 1;
-			stat        = STAT_STR;
-			pOutput     = "strength";
-		}
+        if (!str_cmp(arg, "str"))
+        {
+            if (class_table[ch->pcdata->class_current].attr_prime == STAT_STR || ch->pcdata->class_mage != -1)
+                cost    = 1;
+            stat        = STAT_STR;
+            pOutput     = "strength";
+        }
 
-		else if (!str_cmp(arg, "int"))
-		{
-			if (class_table[ch->pcdata->class_current].attr_prime == STAT_INT || ch->pcdata->class_mage != -1)
-				cost    = 1;
-			stat	    = STAT_INT;
-			pOutput     = "intelligence";
-		}
+        else if (!str_cmp(arg, "int"))
+        {
+            if (class_table[ch->pcdata->class_current].attr_prime == STAT_INT || ch->pcdata->class_mage != -1)
+                cost    = 1;
+            stat	    = STAT_INT;
+            pOutput     = "intelligence";
+        }
 
-		else if (!str_cmp(arg, "wis"))
-		{
-			if (class_table[ch->pcdata->class_current].attr_prime == STAT_WIS || ch->pcdata->class_cleric != -1)
-				cost    = 1;
-			stat	    = STAT_WIS;
-			pOutput     = "wisdom";
-		}
+        else if (!str_cmp(arg, "wis"))
+        {
+            if (class_table[ch->pcdata->class_current].attr_prime == STAT_WIS || ch->pcdata->class_cleric != -1)
+                cost    = 1;
+            stat	    = STAT_WIS;
+            pOutput     = "wisdom";
+        }
 
-		else if (!str_cmp(arg, "dex"))
-		{
-			if (class_table[ch->pcdata->class_current].attr_prime == STAT_DEX || ch->pcdata->class_thief != -1)
-				cost    = 1;
-			stat  	    = STAT_DEX;
-			pOutput     = "dexterity";
-		}
+        else if (!str_cmp(arg, "dex"))
+        {
+            if (class_table[ch->pcdata->class_current].attr_prime == STAT_DEX || ch->pcdata->class_thief != -1)
+                cost    = 1;
+            stat  	    = STAT_DEX;
+            pOutput     = "dexterity";
+        }
 
-		else if (!str_cmp(arg, "con"))
-		{
-			if (class_table[ch->pcdata->class_current].attr_prime == STAT_CON)
-				cost    = 1;
-			stat	    = STAT_CON;
-			pOutput     = "constitution";
-		}
-	    else if (!str_cmp(arg, "hp"))
-		    cost = 1;
+        else if (!str_cmp(arg, "con"))
+        {
+            if (class_table[ch->pcdata->class_current].attr_prime == STAT_CON)
+                cost    = 1;
+            stat	    = STAT_CON;
+            pOutput     = "constitution";
+        }
+        else if (!str_cmp(arg, "hp"))
+            cost = 1;
 
-	    else if (!str_cmp(arg, "mana"))
-		    cost = 1;
+        else if (!str_cmp(arg, "mana"))
+            cost = 1;
 
-	    else if (!str_cmp(arg, "move"))
-		    cost = 1;
+        else if (!str_cmp(arg, "move"))
+            cost = 1;
 
-	    else
-	    {
-			sprintf(buf, "You have %d training sessions. \n\r", ch->train);
-			send_to_char(buf,ch);
-			strcpy(buf, "You can train:");
-			if (ch->perm_stat[STAT_STR] < get_max_train(ch,STAT_STR))	strcat(buf, " str");
-			if (ch->perm_stat[STAT_INT] < get_max_train(ch,STAT_INT))	strcat(buf, " int");
-			if (ch->perm_stat[STAT_WIS] < get_max_train(ch,STAT_WIS))	strcat(buf, " wis");
-			if (ch->perm_stat[STAT_DEX] < get_max_train(ch,STAT_DEX))	strcat(buf, " dex");
-			if (ch->perm_stat[STAT_CON] < get_max_train(ch,STAT_CON))	strcat(buf, " con");
-			if (ch->max_hit < max_hit)									strcat(buf, " hp");
-			if (ch->max_mana < max_mana)								strcat(buf, " mana");
-        	if (ch->max_move < max_move)								strcat(buf, " move");
+        else
+        {
+            sprintf(buf, "You have %d training sessions. \n\r", ch->train);
+            send_to_char(buf,ch);
+            strcpy(buf, "You can train:");
+            if (ch->perm_stat[STAT_STR] < get_max_train(ch,STAT_STR))	strcat(buf, " str");
+            if (ch->perm_stat[STAT_INT] < get_max_train(ch,STAT_INT))	strcat(buf, " int");
+            if (ch->perm_stat[STAT_WIS] < get_max_train(ch,STAT_WIS))	strcat(buf, " wis");
+            if (ch->perm_stat[STAT_DEX] < get_max_train(ch,STAT_DEX))	strcat(buf, " dex");
+            if (ch->perm_stat[STAT_CON] < get_max_train(ch,STAT_CON))	strcat(buf, " con");
+            if (ch->max_hit < max_hit)									strcat(buf, " hp");
+            if (ch->max_mana < max_mana)								strcat(buf, " mana");
+            if (ch->max_move < max_move)								strcat(buf, " move");
 
-			if (buf[strlen(buf)-1] != ':')
-			{
-			    strcat(buf, ".\n\r");
-			    send_to_char(buf, ch);
-			}
-			else
-			{
-			    act("You have nothing left to train.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			}
+            if (buf[strlen(buf)-1] != ':')
+            {
+                strcat(buf, ".\n\r");
+                send_to_char(buf, ch);
+            }
+            else
+            {
+                act("You have nothing left to train.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+            }
 
-			return;
-	    }
+            return;
+        }
 
+        if (!str_cmp(arg, "hp"))
+        {
+            if (cost > ch->train)
+            {
+                send_to_char("You don't have enough training sessions.\n\r", ch);
+                return;
+            }
 
-		if (!str_cmp(arg, "hp"))
-		{
-			if (cost > ch->train)
-			{
-				send_to_char("You don't have enough training sessions.\n\r", ch);
-				return;
-			}
+            if (ch->max_hit >= max_hit) {
+                send_to_char("Your body can't get any tougher.\n\r", ch);
+                return;
+            }
 
-			if (ch->max_hit >= max_hit) {
-				send_to_char("Your body can't get any tougher.\n\r", ch);
-				return;
-			}
+            ch->train -= cost;
+            ch->pcdata->perm_hit += 10;
+            ch->max_hit += 10;
+            ch->hit += 10;
+            act("Your health increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+            act("$n's health increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+            return;
+        }
 
-			ch->train -= cost;
-			ch->pcdata->perm_hit += 10;
-			ch->max_hit += 10;
-			ch->hit += 10;
-			act("Your health increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-			act("$n's health increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
-			return;
-		}
+        if (!str_cmp(arg, "mana"))
+        {
+            if (cost > ch->train)
+            {
+                send_to_char("You don't have enough training sessions.\n\r", ch);
+                return;
+            }
 
-		if (!str_cmp(arg, "mana"))
-		{
-			if (cost > ch->train)
-			{
-				send_to_char("You don't have enough training sessions.\n\r", ch);
-				return;
-			}
+            if (ch->max_mana >= max_mana) {
+                send_to_char("Your body can't get any tougher.\n\r", ch);
+                return;
+            }
 
-			if (ch->max_mana >= max_mana) {
-				send_to_char("Your body can't get any tougher.\n\r", ch);
-				return;
-			}
+            ch->train -= cost;
+            ch->pcdata->perm_mana += 10;
+            ch->max_mana += 10;
+            ch->mana +=10;
+            act("Your mana increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+            act("$n's mana increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
 
-			ch->train -= cost;
-			ch->pcdata->perm_mana += 10;
-			ch->max_mana += 10;
-			ch->mana +=10;
-			act("Your mana increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-			act("$n's mana increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+            return;
+        }
 
-			return;
-		}
+        if (!str_cmp(arg, "move"))
+        {
+            if (cost > ch->train)
+            {
+                send_to_char("You don't have enough training sessions.\n\r", ch);
+                return;
+            }
 
-		if (!str_cmp(arg, "move"))
-		{
-			if (cost > ch->train)
-			{
-				send_to_char("You don't have enough training sessions.\n\r", ch);
-				return;
-			}
+            if (ch->max_move >= max_move) {
+                send_to_char("Your body can't get any more durable.\n\r", ch);
+                return;
+            }
 
-			if (ch->max_move >= max_move) {
-				send_to_char("Your body can't get any more durable.\n\r", ch);
-				return;
-			}
+            ch->train -= cost;
+            ch->pcdata->perm_move += 10;
+            ch->max_move += 10;
+            ch->move += 10;
+            act("Your stamina increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+            act("$n's stamina increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+            return;
+        }
 
-			ch->train -= cost;
-			ch->pcdata->perm_move += 10;
-			ch->max_move += 10;
-			ch->move += 10;
-			act("Your stamina increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-			act("$n's stamina increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
-			return;
-		}
+        if (ch->perm_stat[stat]  >= get_max_train(ch,stat))
+        {
+            act("Your $T is already at maximum.", ch, NULL, NULL, NULL, NULL, NULL, pOutput, TO_CHAR);
+            return;
+        }
 
-		if (ch->perm_stat[stat]  >= get_max_train(ch,stat))
-		{
-			act("Your $T is already at maximum.", ch, NULL, NULL, NULL, NULL, NULL, pOutput, TO_CHAR);
-			return;
-		}
+        if (cost > ch->train)
+        {
+            send_to_char("You don't have enough training sessions.\n\r", ch);
+            return;
+        }
 
-		if (cost > ch->train)
-		{
-			send_to_char("You don't have enough training sessions.\n\r", ch);
-			return;
-		}
+        ch->train -= cost;
+        add_perm_stat(ch, stat, 1);
 
-		ch->train -= cost;
-		add_perm_stat(ch, stat, 1);
-
-		act("Your $T increases!", ch, NULL, NULL, NULL, NULL, NULL, pOutput, TO_CHAR);
-		act("$n's $T increases!", ch, NULL, NULL, NULL, NULL, NULL, pOutput, TO_ROOM);
-	}
+        act("Your $T increases!", ch, NULL, NULL, NULL, NULL, NULL, pOutput, TO_CHAR);
+        act("$n's $T increases!", ch, NULL, NULL, NULL, NULL, NULL, pOutput, TO_ROOM);
+    }
 }
 
 
@@ -2372,93 +2367,98 @@ int skill_entry_learn (CHAR_DATA *ch, SKILL_ENTRY *entry)
 
 void remort_player(CHAR_DATA *ch, int remort_class)
 {
-	const struct sub_class_type *class_info;
-	OBJ_DATA *obj;
+    const struct sub_class_type *class_info;
+    OBJ_DATA *obj;
     char buf[2*MAX_STRING_LENGTH];
     char buf2[MSL];
-	int i;
+    int i;
+    ITERATOR it;
 
-	// Safeguards
-	if( IS_NPC(ch) ) return;
+    // Safeguards
+    if (IS_NPC(ch)) return;
 
-	// Must be a player, you twat!
-	if( IS_IMMORTAL(ch) ) return;
+    // Must be a player, you twat!
+    if (IS_IMMORTAL(ch)) return;
 
-	// Must not be remort already
-	//  - well, you could always be a masochist and want to level again
-	if( IS_REMORT(ch) ) return;
+    // Must not be remort already
+    //  - well, you could always be a masochist and want to level again
+    if (IS_REMORT(ch)) return;
 
-	// Must be max level
-	if( ch->tot_level != LEVEL_HERO ) return;
+    // Must be max level
+    if (ch->tot_level != LEVEL_HERO) return;
 
-	// Only remort classes
-	if( remort_class < CLASS_WARRIOR_WARLORD || remort_class >= MAX_SUB_CLASS ) return;
+    // Only remort classes
+    if (remort_class < CLASS_WARRIOR_WARLORD || remort_class >= MAX_SUB_CLASS) return;
 
-	if( !sub_class_table[remort_class].remort ) return;
+    if (!sub_class_table[remort_class].remort) return;
 
-	class_info = &sub_class_table[remort_class];
+    class_info = &sub_class_table[remort_class];
 
     i = 0;
     ch->race = get_remort_race(ch);
     sprintf(buf2, "%s", pc_race_table[ch->race].name);
     while (buf2[i] != '\0')
     {
-		buf2[i] = UPPER(buf2[i]);
-		i++;
+        buf2[i] = UPPER(buf2[i]);
+        i++;
     }
 
     if (ch->alignment < 0) {
         sprintf(buf, "{RHoly statues cry tears of blood and the sillhouettes "
-		      "of winged horrors appear in the sky.{X\n\r{RA new %s has been born!{x\n\r", buf2);
+              "of winged horrors appear in the sky.{X\n\r{RA new %s has been born!{x\n\r", buf2);
 
-		ch->alignment = -1000;
+        ch->alignment = -1000;
 
-		send_to_char("Your mortal essence crumbles as you embrace your fate.\n\r", ch);
-		send_to_char("You welcome the dark power as it flows through your divine veins.\n\r", ch);
-		send_to_char("A dark influence clouds all that you once knew; your lifeless body\n\r", ch);
-		send_to_char("lies slouched in front of you as part of you is torn into the Abyss.\n\r", ch);
-		send_to_char("You feel complete, and wielding unfathomable power, you know you can\n\r", ch);
-		send_to_char("manipulate it to suit your darkest desires.\n\r", ch);
+        send_to_char("Your mortal essence crumbles as you embrace your fate.\n\r", ch);
+        send_to_char("You welcome the dark power as it flows through your divine veins.\n\r", ch);
+        send_to_char("A dark influence clouds all that you once knew; your lifeless body\n\r", ch);
+        send_to_char("lies slouched in front of you as part of you is torn into the Abyss.\n\r", ch);
+        send_to_char("You feel complete, and wielding unfathomable power, you know you can\n\r", ch);
+        send_to_char("manipulate it to suit your darkest desires.\n\r", ch);
     } else if (ch->alignment > 0) {
-		sprintf(buf, "{WBrilliant white light radiates down from the heavens and thunder rolls through the valleys.\n\r"
-		             "{WA new %s has been born!{x\n\r", buf2);
+        sprintf(buf, "{WBrilliant white light radiates down from the heavens and thunder rolls through the valleys.\n\r"
+                     "{WA new %s has been born!{x\n\r", buf2);
 
-		ch->alignment = 1000;
+        ch->alignment = 1000;
 
-		send_to_char("Your mortal essence shines brightly, blinding your eyes.\n\r", ch);
-		send_to_char("Images flash before you: sadness, grief, terror and hatred.\n\r", ch);
-		send_to_char("Your life is played to you, from the beginning to the present.\n\r", ch);
-		send_to_char("Your veins flow with the divine influence as you stand before your\n\r", ch);
-		send_to_char("lifeless mortal vessel. It becomes clear to you that you have been\n\r", ch);
-		send_to_char("reborn a divine power.\n\r", ch);
+        send_to_char("Your mortal essence shines brightly, blinding your eyes.\n\r", ch);
+        send_to_char("Images flash before you: sadness, grief, terror and hatred.\n\r", ch);
+        send_to_char("Your life is played to you, from the beginning to the present.\n\r", ch);
+        send_to_char("Your veins flow with the divine influence as you stand before your\n\r", ch);
+        send_to_char("lifeless mortal vessel. It becomes clear to you that you have been\n\r", ch);
+        send_to_char("reborn a divine power.\n\r", ch);
     } else {
-		sprintf(buf, "{CThe cosmic energies of the world shift and the clouds speed overhead.{x\n\r"
-					 "{CA new %s has been born!{x\n\r", buf2);
+        sprintf(buf, "{CThe cosmic energies of the world shift and the clouds speed overhead.{x\n\r"
+                     "{CA new %s has been born!{x\n\r", buf2);
 
-		ch->alignment = 0;
+        ch->alignment = 0;
     }
 
     gecho(buf);
 
-    /* take off equipment*/
-    for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-    {
-		if (obj->wear_loc != WEAR_NONE)
-		    unequip_char(ch, obj, false);
+    /* take off equipment using lworn */
+    if (ch->lworn) {
+        iterator_start(&it, ch->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            iterator_stop(&it);
+            unequip_char(ch, obj, false);
+            iterator_start(&it, ch->lworn);
+        }
+        iterator_stop(&it);
     }
 
     /* take off remaining affects*/
     while (ch->affected)
-		affect_remove(ch, ch->affected);
+        affect_remove(ch, ch->affected);
 
     /* lower their stats significantly*/
     for (i = 0; i < MAX_STATS; i++) {
-		int val = ch->perm_stat[i] - number_range(4,6);
-		set_perm_stat(ch, i, UMAX(val, 13));
-	}
+        int val = ch->perm_stat[i] - number_range(4,6);
+        set_perm_stat(ch, i, UMAX(val, 13));
+    }
 
-	ch->affected_by_perm[0] = race_table[ch->race].aff;
-	ch->affected_by_perm[1] = race_table[ch->race].aff2;
+    ch->affected_by_perm[0] = race_table[ch->race].aff;
+    ch->affected_by_perm[1] = race_table[ch->race].aff2;
     ch->imm_flags_perm = race_table[ch->race].imm;
     ch->res_flags_perm = race_table[ch->race].res;
     ch->vuln_flags_perm = race_table[ch->race].vuln;
@@ -2469,7 +2469,7 @@ void remort_player(CHAR_DATA *ch, int remort_class)
 
     /* add skills for remort race*/
     for (i = 0; pc_race_table[ch->race].skills[i] != NULL; i++)
-		group_add(ch,pc_race_table[ch->race].skills[i],false);
+        group_add(ch, pc_race_table[ch->race].skills[i], false);
 
     ch->pcdata->hit_before  = ch->pcdata->perm_hit;
     ch->pcdata->mana_before = ch->pcdata->perm_mana;
@@ -2490,36 +2490,36 @@ void remort_player(CHAR_DATA *ch, int remort_class)
     ch->tot_level = 1;
     ch->level = 1;
 
-	// Reset base affects - will reset affected_by, affected_by2, imm_flags, res_flags and vuln_flags
+    // Reset base affects - will reset affected_by, affected_by2, imm_flags, res_flags and vuln_flags
     affect_fix_char(ch);
 
     char_from_room(ch);
     char_to_room(ch, get_room_index(ROOM_VNUM_SCHOOL));
 
-	ch->pcdata->class_current = class_info->class;
+    ch->pcdata->class_current = class_info->class;
     ch->pcdata->sub_class_current = remort_class;
 
-	switch(class_info->class) {
-	case CLASS_MAGE:
-		ch->pcdata->second_class_mage = CLASS_MAGE;
-	    ch->pcdata->second_sub_class_mage = remort_class;
-		break;
+    switch(class_info->class) {
+    case CLASS_MAGE:
+        ch->pcdata->second_class_mage = CLASS_MAGE;
+        ch->pcdata->second_sub_class_mage = remort_class;
+        break;
 
-	case CLASS_CLERIC:
-		ch->pcdata->second_class_cleric = CLASS_CLERIC;
-	    ch->pcdata->second_sub_class_cleric = remort_class;
-		break;
+    case CLASS_CLERIC:
+        ch->pcdata->second_class_cleric = CLASS_CLERIC;
+        ch->pcdata->second_sub_class_cleric = remort_class;
+        break;
 
-	case CLASS_THIEF:
-		ch->pcdata->second_class_thief = CLASS_THIEF;
-	    ch->pcdata->second_sub_class_thief = remort_class;
-		break;
+    case CLASS_THIEF:
+        ch->pcdata->second_class_thief = CLASS_THIEF;
+        ch->pcdata->second_sub_class_thief = remort_class;
+        break;
 
-	case CLASS_WARRIOR:
-		ch->pcdata->second_class_warrior = CLASS_WARRIOR;
-	    ch->pcdata->second_sub_class_warrior = remort_class;
-		break;
-	}
+    case CLASS_WARRIOR:
+        ch->pcdata->second_class_warrior = CLASS_WARRIOR;
+        ch->pcdata->second_sub_class_warrior = remort_class;
+        break;
+    }
 
     group_add(ch, class_table[ch->pcdata->class_current].base_group, true);
     group_add(ch, sub_class_table[ch->pcdata->sub_class_current].default_group, true);
@@ -2529,20 +2529,21 @@ void remort_player(CHAR_DATA *ch, int remort_class)
     buf2[0] = UPPER(buf2[0]);
     sprintf(buf, "All congratulate %s, who is now a%s %s!",
         ch->name, (buf2[0] == 'A' || buf2[0] == 'I' || buf2[0] == 'E' || buf2[0] == 'U'
-	    || buf2[0] == 'O') ? "n" : "", buf2);
+        || buf2[0] == 'O') ? "n" : "", buf2);
     crier_announce(buf);
     double_xp(ch);
 
-	// Reset here since an immortal can still remort a player while they still have this question up
-	ch->remort_question = false;
+    // Reset here since an immortal can still remort a player while they still have this question up
+    ch->remort_question = false;
 
-	p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REMORT, NULL);
+    p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REMORT, NULL);
 
-    for (obj = ch->carrying; obj != NULL;)
-    {
-		OBJ_DATA *obj_next = obj->next_content;
-		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REMORT, NULL);
-		obj = obj_next;
+    // Run remort triggers on all carried items using lcarrying
+    if (ch->lcarrying) {
+        iterator_start(&it, ch->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REMORT, NULL);
+        }
+        iterator_stop(&it);
     }
-
 }

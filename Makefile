@@ -22,6 +22,7 @@ DIFF_C = $(patsubst $(PATH1)/%.c,%_c.diff,$(wildcard $(PATH1)/*.c)) $(patsubst $
 
 C_FILES = \
 	account/otp.c \
+	account/account_notes.c \
 	act_comm.c \
 	act_enter.c \
 	act_info.c \
@@ -49,6 +50,7 @@ C_FILES = \
 	events.c \
 	fight.c \
 	fight2.c \
+	gameedit.c \
 	gq.c \
 	handler.c \
 	healer.c \
@@ -58,7 +60,6 @@ C_FILES = \
 	hunt.c \
 	interp.c \
 	invasion.c \
-	locker.c \
 	lookup.c \
 	magic.c \
 	magic2.c \
@@ -92,6 +93,7 @@ C_FILES = \
 	mem.c \
 	mount.c \
 	music.c \
+	nanny.c \
 	note.c \
 	olc.c \
 	olc_act.c \
@@ -121,6 +123,7 @@ C_FILES = \
 	staff.c \
 	stats.c \
 	string.c \
+	storage.c \
 	tables.c \
 	tls.c \
 	treasuremap.c \
@@ -130,6 +133,7 @@ C_FILES = \
 
 O_FILES = \
 	$(OBJDIR)/account/otp.o \
+	$(OBJDIR)/account/account_notes.o \
 	$(OBJDIR)/act_comm.o \
 	$(OBJDIR)/act_enter.o \
 	$(OBJDIR)/act_info.o \
@@ -157,6 +161,7 @@ O_FILES = \
 	$(OBJDIR)/events.o \
 	$(OBJDIR)/fight.o \
 	$(OBJDIR)/fight2.o \
+	$(OBJDIR)/gameedit.o \
 	$(OBJDIR)/gq.o \
 	$(OBJDIR)/handler.o \
 	$(OBJDIR)/healer.o \
@@ -166,7 +171,6 @@ O_FILES = \
 	$(OBJDIR)/hunt.o \
 	$(OBJDIR)/interp.o \
 	$(OBJDIR)/invasion.o \
-	$(OBJDIR)/locker.o \
 	$(OBJDIR)/lookup.o \
 	$(OBJDIR)/magic.o \
 	$(OBJDIR)/magic2.o \
@@ -200,6 +204,7 @@ O_FILES = \
 	$(OBJDIR)/mem.o \
 	$(OBJDIR)/mount.o \
 	$(OBJDIR)/music.o \
+	$(OBJDIR)/nanny.o \
 	$(OBJDIR)/note.o \
 	$(OBJDIR)/olc.o \
 	$(OBJDIR)/olc_act.o \
@@ -229,6 +234,7 @@ O_FILES = \
 	$(OBJDIR)/staff.o \
 	$(OBJDIR)/stats.o \
 	$(OBJDIR)/string.o \
+	$(OBJDIR)/storage.o \
 	$(OBJDIR)/tables.o \
 	$(OBJDIR)/tls.o \
 	$(OBJDIR)/treasuremap.o \

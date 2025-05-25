@@ -50,3 +50,4 @@ send/
 nibchanges.txt
 .build/
 .depend
+gmon.out

@@ -62,6 +62,29 @@ time_t time(time_t *tloc);
 #endif
 */
 
+
+#define BOOT_ERROR_MAX (1024 * 1024) // 1MB buffer for boot errors
+static char boot_error_buf[BOOT_ERROR_MAX];
+static size_t boot_error_len = 0;
+
+// Central boot error logging function
+void boot_error_log(const char *fmt, ...)
+{
+    va_list args;
+    char tmp[1024];
+    va_start(args, fmt);
+    vsnprintf(tmp, sizeof(tmp), fmt, args);
+    va_end(args);
+
+    size_t tmp_len = strlen(tmp);
+    if (boot_error_len + tmp_len + 2 < BOOT_ERROR_MAX) {
+        strcpy(boot_error_buf + boot_error_len, tmp);
+        boot_error_len += tmp_len;
+        boot_error_buf[boot_error_len++] = '\n';
+        boot_error_buf[boot_error_len] = '\0';
+    }
+}
+
 // VERSION_ROOM_002 special defines
 #define VR_002_EX_LOCKED		(C)
 #define VR_002_EX_PICKPROOF		(F)
@@ -97,6 +120,7 @@ void free_room_index( ROOM_INDEX_DATA *pRoom );
 void load_instances();
 INSTANCE *instance_load(FILE *fp);
 DUNGEON *dungeon_load(FILE *fp);
+LLIST *pending_changes = NULL;
 
 /* Reading of keys*/
 #if defined(KEY)
@@ -668,6 +692,8 @@ LLIST *loaded_objects;
 LLIST *persist_mobs;
 LLIST *persist_objs;
 LLIST *persist_rooms;
+LLIST *loaded_accounts;
+
 
 
 TOKEN_DATA *global_tokens = NULL;
@@ -830,6 +856,13 @@ void boot_db(void)
 
     }
 
+    /* First initialize the pending changes list */
+    if (!pending_changes)
+        pending_changes = list_create(false);
+    
+    /* Load settings and changesets */
+    load_changesets();
+
     /*
      * Assign gsn's for skills which have them.
      * Syn - while we're at it, let's set up an NPC skills table as well, to reduce
@@ -899,10 +932,13 @@ void boot_db(void)
 			if (!str_cmp(strArea, "help.are") || !str_cmp(strArea, "social.are"))
 				continue;
 
-			if ((fpArea = fopen(strArea, "r")) == NULL) {
-				perror(strArea);
-				exit(1);
-			}
+            char area_path[MAX_STRING_LENGTH];
+            sprintf(area_path, "%s%s", AREA_DIR, strArea);
+
+            if ((fpArea = fopen(area_path, "r")) == NULL) {
+                perror(area_path);
+                exit(2);        // NIBS: changed this so we know it exited because of this
+            }
 
 			sprintf(log_buf, "Loading areafile '%s'", strArea);
 			log_string(log_buf);
@@ -999,7 +1035,7 @@ void boot_db(void)
     log_string("Opening immortal staff");
     read_immstaff();
 
-    if ((fp = fopen("social.are", "r")) != NULL)
+    if ((fp = fopen(AREA_DIR "social.are", "r")) != NULL)
     {
 	log_string("Doing load_socials...");
 	fread_word(fp);
@@ -1063,6 +1099,9 @@ void boot_db(void)
     check_area_versions();
 
     gconfig_write();
+
+	// Send boot errors to coders staff duty
+    send_boot_errors_to_coders();
 }
 
 
@@ -2809,8 +2848,7 @@ CHAR_DATA *clone_mobile(CHAR_DATA *parent)
 	return clone;
 }
 
-
-OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects)
+OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects, bool add_to_loaded_objs)
 {
     AFFECT_DATA *paf;
     SPELL_DATA *spell, *spell_new;
@@ -2996,8 +3034,11 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects)
     obj->version = VERSION_OBJECT_000;
     obj->locker = false;
 
-	list_appendlink(loaded_objects, obj);
-    pObjIndex->count++;
+	if (add_to_loaded_objs)
+	{
+		list_appendlink(loaded_objects, obj);
+    	pObjIndex->count++;
+	}
 
 
     /* If loading a relic for whatever reason, update the pointers here.*/
@@ -3035,7 +3076,7 @@ OBJ_DATA *create_object(OBJ_INDEX_DATA *pObjIndex, int level, bool affects)
 {
     OBJ_DATA *obj;
 
-    obj = create_object_noid(pObjIndex,level,affects);
+    obj = create_object_noid(pObjIndex,level,affects, true);
 
 	if( obj )
 	{
@@ -3829,6 +3870,12 @@ char *fread_word(FILE *fp)
     static char word[MAX_INPUT_LENGTH];
     char *pword;
     char cEnd;
+		char buf[MAX_STRING_LENGTH];
+
+	if (feof(fp)) {
+    bug("Fread_word: EOF encountered", 0);
+    return str_dup("");
+}
 
     do
     {
@@ -3859,7 +3906,8 @@ char *fread_word(FILE *fp)
 	}
     }
 
-    bug("Fread_word: word too long.", 0);
+	sprintf(buf, "Fread_word: word too long (%s).", word);
+	bug(buf, 0);
     exit(1);
     return NULL;
 }
@@ -4411,11 +4459,15 @@ void bug(const char *str, int param)
 
 	sprintf(buf, "[*****] FILE: %s LINE: %d", strArea, iLine);
 	log_string(buf);
+	        if (fBootDb && game_settings.note_boot_errors)
+            boot_error_log("%s", buf);
     }
 
     strcpy(buf, "[*****] BUG: ");
     sprintf(buf + strlen(buf), str, param);
     log_string(buf);
+	    if (fBootDb && game_settings.note_boot_errors)
+        boot_error_log("%s", buf);
 }
 
 
@@ -5845,6 +5897,8 @@ void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
 {
 	AFFECT_DATA *paf;
 	int i = 0;
+	ITERATOR it;
+	OBJ_DATA *obj;
 
 	fprintf(fp, "#MOBILE %ld\n", ch->pIndexData->vnum);
 	fprintf(fp, "Version %d\n", VERSION_MOBILE);
@@ -5987,9 +6041,23 @@ void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
 	if( ch->tokens )
 		persist_save_token(fp, ch->tokens);
 
-	// Contents
-	if (ch->carrying)
-		persist_save_object(fp, ch->carrying, true);
+    // Contents - iterate through lcarrying
+    if (ch->lcarrying) {
+        iterator_start(&it, ch->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            persist_save_object(fp, obj, false);
+        }
+        iterator_stop(&it);
+    }
+    
+    // Also save worn items
+    if (ch->lworn) {
+        iterator_start(&it, ch->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            persist_save_object(fp, obj, false);
+        }
+        iterator_stop(&it);
+    }
 
 	fprintf(fp, "#-MOBILE\n\n");
 }
@@ -6438,7 +6506,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 	if( !obj_index )
 		return NULL;
 
-	obj = create_object_noid(obj_index, -1, false);
+	obj = create_object_noid(obj_index, -1,false, false);
 	if( !obj )
 		return NULL;
 	obj->version = VERSION_OBJECT_000;
@@ -8084,6 +8152,14 @@ bool persist_load(void)
 		bug("persist.dat: Couldn't open file.",0);
 		return true;
 	} else {
+        // Check for empty file
+        int c = fgetc(fp);
+        if (c == EOF) {
+            fclose(fp);
+            log_string("persist_load: persist file is empty.");
+            return true;
+        }
+        ungetc(c, fp);
 		while(good) {
 			word = fread_word(fp);
 
@@ -8268,3 +8344,65 @@ void load_instances()
 }
 
 
+void send_boot_errors_to_coders()
+{
+    if (boot_error_len == 0)
+        return;
+
+    const size_t chunk_size = 3800; // Leave room for headers, etc.
+    size_t offset = 0;
+    int note_num = 1;
+
+    // Get boot time string
+    char timebuf[64];
+    time_t now = current_time;
+    struct tm *tm_info = localtime(&now);
+    strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S", tm_info);
+
+    while (offset < boot_error_len) {
+        size_t len = (boot_error_len - offset > chunk_size) ? chunk_size : boot_error_len - offset;
+
+        // Find the last newline within the chunk
+        size_t end = offset + len;
+        if (end < boot_error_len) {
+            size_t last_nl = offset;
+            for (size_t i = offset; i < end; ++i) {
+                if (boot_error_buf[i] == '\n')
+                    last_nl = i + 1;
+            }
+            // If we found a newline, break there; otherwise, use the chunk size
+            if (last_nl > offset)
+                end = last_nl;
+        } else {
+            end = boot_error_len;
+        }
+
+        size_t note_len = end - offset;
+        char note_body[4000];
+        if (note_len >= sizeof(note_body))
+            note_len = sizeof(note_body) - 1;
+        strncpy(note_body, boot_error_buf + offset, note_len);
+        note_body[note_len] = '\0';
+
+        // Compose and send the note
+        NOTE_DATA *note = new_note();
+        note->sender = str_dup("Boot System");
+        note->to_staff_duties = str_dup("coder 'head coder'");
+
+        char subj[256];
+        snprintf(subj, sizeof(subj), "Boot Errors [%s] (Part %d)", timebuf, note_num);
+        note->subject = str_dup(subj);
+		note->date_stamp = current_time + note_num;
+        note->text = str_dup(note_body);
+        note->date = str_dup(timebuf);
+        note->type = NOTE_NOTE;
+        note->recipient_type = NOTE_RECIPIENT_STAFF_DUTY;
+
+        append_note(note);
+
+        offset = end;
+        note_num++;
+    }
+    boot_error_len = 0;
+    boot_error_buf[0] = '\0';
+}

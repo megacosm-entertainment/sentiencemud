@@ -22,6 +22,8 @@ extern void persist_save(void);
 // Global variables
 int save_number = 0;
 int pulse_point;
+extern int ssl_errors_since_reset;
+extern time_t last_ssl_error;
 
 
 // Event system for queued events.
@@ -95,6 +97,16 @@ void update_handler(void)
 	save_immstaff();
 	save_instances();
 	generate_discord_who();
+
+    // SSL/TLS Circuit Breaker - auto-recover from SSL context corruption
+    if (ssl_errors_since_reset > 5 && current_time - last_ssl_error < 300) {
+        log_string("Circuit breaker: Multiple SSL errors detected - refreshing SSL context");
+        refresh_ssl_context();
+        ssl_errors_since_reset = 0;
+    }
+    
+    // Process SSL context cleanup queue
+    process_ssl_cleanup_queue();
 	// Load stats every 12 hours.
 	if (current_time >= stats_load_time + 43200) 
 	{
@@ -1605,10 +1617,10 @@ void update_area_trade( void )
     }
 }
 
-// Update all chars, including mobs
 void char_update(void)
 {
-    ITERATOR it, tit;
+    ITERATOR it, oit;
+    OBJ_DATA *obj;
     char buf[MSL];
     CHAR_DATA *ch;
     CHAR_DATA *ch_quit;
@@ -1619,605 +1631,633 @@ void char_update(void)
     ch_quit	= NULL;
 
     // Update save counter
-	save_number++;
-	if (save_number > 29)
-		save_number = 0;
+    save_number++;
+    if (save_number > 29)
+        save_number = 0;
 
-	iterator_start(&it, loaded_chars);
-	while(( ch = (CHAR_DATA *)iterator_nextdata(&it)))
-	{
-		if (!IS_VALID(ch))
-			continue;
+    iterator_start(&it, loaded_chars);
+    while(( ch = (CHAR_DATA *)iterator_nextdata(&it)))
+    {
+        if (!IS_VALID(ch))
+            continue;
 
-		/* check if in_room is null for logging purposes */
-		if (ch->in_room == NULL && IS_NPC(ch))
-			sprintf(buf, "char_update: null in_room on ch %s (%ld)", ch->short_descr, ch->pIndexData->vnum);
-
-
-		// Characters in social aren't updated
-		if (IS_SOCIAL(ch))
-			continue;
-
-		// Update tokens on a character. Remove the one for which the timer has run out.
-		iterator_start(&tit, ch->ltokens);
-		while(( token = (TOKEN_DATA *)iterator_nextdata(&tit)))
-		{
-
-			if (IS_SET(token->flags, TOKEN_REVERSETIMER)) {
-				++token->timer;
-			} else if (token->timer > 0) {
-				--token->timer;
-				if (token->timer <= 0) {
-					sprintf(buf, "char update: token %s(%ld) char %s(%ld) was extracted because of timer",
-						token->name, token->pIndexData->vnum, HANDLE(ch), IS_NPC(ch) ? ch->pIndexData->vnum : 0);
-					log_string(buf);
-					p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_EXPIRE, NULL);
-					token_from_char(token);
-					free_token(token);
-				}
-			}
-		}
-
-		if( !IS_NPC(ch) )
-			ch->pcdata->spam_block_navigation = false;
+        /* check if in_room is null for logging purposes */
+        if (ch->in_room == NULL && IS_NPC(ch))
+            sprintf(buf, "char_update: null in_room on ch %s (%ld)", ch->short_descr, ch->pIndexData->vnum);
 
 
-		// Kick out people after they idle long enough
-		if (ch->timer > disconnect_timeout)
-			ch_quit = ch;
+        // Characters in social aren't updated
+        if (IS_SOCIAL(ch))
+            continue;
 
-		if (ch->position >= POS_STUNNED) {
-			// Stranded mobs are extracted after a while
-			if (0 && IS_NPC(ch) && ch->desc == NULL &&
-				ch->fighting == NULL && !IS_AFFECTED(ch,AFF_CHARM) &&
-				ch->leader == NULL &&  ch->master == NULL &&
-				ch->in_room != ch->home_room && !IS_SET(ch->act[0],ACT_SENTINEL) &&
-				number_percent() < 1) {
-				act("$n wanders on home.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-				if(ch->home_room == NULL) {
-					extract_char(ch, true);
-					continue;
-				} else {
-					char_from_room(ch);
-					char_to_room(ch, ch->home_room);
-				}
-			}
+        // Update tokens on a character. Remove the one for which the timer has run out.
+        iterator_start(&oit, ch->ltokens);
+        while(( token = (TOKEN_DATA *)iterator_nextdata(&oit)))
+        {
 
-			// Regen hit, mana and move.
-			if (ch->hit < ch->max_hit)
-				ch->hit += hit_gain(ch);
-			else
-				ch->hit = ch->max_hit;
+            if (IS_SET(token->flags, TOKEN_REVERSETIMER)) {
+                ++token->timer;
+            } else if (token->timer > 0) {
+                --token->timer;
+                if (token->timer <= 0) {
+                    sprintf(buf, "char update: token %s(%ld) char %s(%ld) was extracted because of timer",
+                        token->name, token->pIndexData->vnum, HANDLE(ch), IS_NPC(ch) ? ch->pIndexData->vnum : 0);
+                    log_string(buf);
+                    p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_EXPIRE, NULL);
+                    token_from_char(token);
+                    free_token(token);
+                }
+            }
+        }
+        iterator_stop(&oit);
 
-			if (ch->mana < ch->max_mana)
-				ch->mana += mana_gain(ch);
-			else
-				ch->mana = ch->max_mana;
+        if( !IS_NPC(ch) )
+            ch->pcdata->spam_block_navigation = false;
 
-			if (ch->move < ch->max_move)
-				ch->move += move_gain(ch);
-			else
-				ch->move = ch->max_move;
-		}
 
-		if (ch->position == POS_STUNNED)
-			update_pos(ch);
+        // Kick out people after they idle long enough
+        if (ch->timer > disconnect_timeout)
+            ch_quit = ch;
+
+        if (ch->position >= POS_STUNNED) {
+            // Stranded mobs are extracted after a while
+            if (0 && IS_NPC(ch) && ch->desc == NULL &&
+                ch->fighting == NULL && !IS_AFFECTED(ch,AFF_CHARM) &&
+                ch->leader == NULL &&  ch->master == NULL &&
+                ch->in_room != ch->home_room && !IS_SET(ch->act[0],ACT_SENTINEL) &&
+                number_percent() < 1) {
+                act("$n wanders on home.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                if(ch->home_room == NULL) {
+                    extract_char(ch, true);
+                    continue;
+                } else {
+                    char_from_room(ch);
+                    char_to_room(ch, ch->home_room);
+                }
+            }
+
+            // Regen hit, mana and move.
+            if (ch->hit < ch->max_hit)
+                ch->hit += hit_gain(ch);
+            else
+                ch->hit = ch->max_hit;
+
+            if (ch->mana < ch->max_mana)
+                ch->mana += mana_gain(ch);
+            else
+                ch->mana = ch->max_mana;
+
+            if (ch->move < ch->max_move)
+                ch->move += move_gain(ch);
+            else
+                ch->move = ch->max_move;
+        }
+
+        if (ch->position == POS_STUNNED)
+            update_pos(ch);
 
         // PCs drown in the water
-		if (!IS_NPC(ch) && !IS_AFFECTED(ch, AFF_SWIM) &&
-			!IS_SET(ch->parts, PART_GILLS) && !IS_SET(ch->imm_flags, IMM_WATER) &&
-			IS_SET(ch->in_room->room_flag[0], ROOM_UNDERWATER) && !IS_IMMORTAL(ch)) {
-			send_to_char("You choke and gag as your lungs fill with water!\n\r", ch);
-			act("$n thrashes about in the water gasping for air!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-			damage(ch, ch, ch->hit/2, TYPE_UNDEFINED, DAM_DROWNING,false);
-		}
+        if (!IS_NPC(ch) && !IS_AFFECTED(ch, AFF_SWIM) &&
+            !IS_SET(ch->parts, PART_GILLS) && !IS_SET(ch->imm_flags, IMM_WATER) &&
+            IS_SET(ch->in_room->room_flag[0], ROOM_UNDERWATER) && !IS_IMMORTAL(ch)) {
+            send_to_char("You choke and gag as your lungs fill with water!\n\r", ch);
+            act("$n thrashes about in the water gasping for air!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+            damage(ch, ch, ch->hit/2, TYPE_UNDEFINED, DAM_DROWNING,false);
+        }
 
-		// Toxin regeneration for siths
-		if (IS_SITH(ch))
-		{
-		    int i;
-		    for (i = 0; i < MAX_TOXIN; i++)
-		    {
-				int tg = toxin_gain(ch, i);
-				ch->toxin[i] += UMIN(tg, 100 - ch->toxin[i]);
-			}
-		}
+        // Toxin regeneration for siths
+        if (IS_SITH(ch))
+        {
+            int i;
+            for (i = 0; i < MAX_TOXIN; i++)
+            {
+                int tg = toxin_gain(ch, i);
+                ch->toxin[i] += UMIN(tg, 100 - ch->toxin[i]);
+            }
+        }
 
         // Decrease challenge delay for people.
-		if (!IS_NPC(ch) && ch->pcdata->challenge_delay > 0)
-		    ch->pcdata->challenge_delay--;
-
-		// Return people from the maze after a while.
-		if (ch->maze_time_left > 0)
-		{
-			ch->maze_time_left--;
-			if (ch->maze_time_left <= 0)
-			{
-				send_to_char("{WThe gods have returned you to the mortal realm.{x\n\r", ch);
-				return_from_maze(ch);
-			}
-		}
-
-		// Return from dead
-		if (!IS_NPC(ch) && ch->time_left_death > 0)
-		{
-			bool run_death_timer = true;
-			OBJ_DATA *corpse = ch->pcdata->corpse;
-			ROOM_INDEX_DATA *corpse_room = obj_room(corpse);
-			// Check here, prevent the timer from counting down if the
-			if( p_percent_trigger(ch, NULL, NULL, NULL, ch, ch, NULL, corpse, NULL, TRIG_DEATH_TIMER, NULL) )
-				run_death_timer = false;
-
-			if( run_death_timer && IS_VALID(corpse) && p_percent_trigger(NULL, corpse, NULL, NULL, ch, ch, NULL, corpse, NULL, TRIG_DEATH_TIMER, NULL) )
-				run_death_timer = false;
-
-			if( run_death_timer && corpse_room && p_percent_trigger(NULL, NULL, corpse_room, NULL, ch, ch, NULL, corpse, NULL, TRIG_DEATH_TIMER, NULL) )
-				run_death_timer = false;
-
-			// Perform actions while the player is dead regardless of timer running
-			if( ch->manastore > 0) {
-				// Decay manastore while dead
-				ch->manastore = ch->manastore / 2;
-			}
-
-
-			if( run_death_timer )
-			{
-				ch->time_left_death--;
-
-				if (ch->time_left_death <= 0)
-				{
-					send_to_char("{WThe gods take pity on you and return you to your body.\n\r", ch);
-					resurrect_pc(ch);
-				}
-			}
-		}
-
-		// Updates for NON-IMM players who aren't dead.
-		if (!IS_NPC(ch) && ch->tot_level < LEVEL_IMMORTAL && !IS_DEAD(ch))
-		{
-		    OBJ_DATA *obj;
-
-			// Decrease light
-			if ((obj = get_eq_char(ch, WEAR_LIGHT)) != NULL &&
-				obj->item_type == ITEM_LIGHT &&
-				obj->value[2] > 0)
-			{
-				if (--obj->value[2] <= 0 && ch->in_room != NULL)
-				{
-					--ch->in_room->light;
-					act("$p goes out.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-					act("$p flickers and goes out.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-					log_string("it went out");
-					extract_obj(obj);
-				}
-				else if (obj->value[2] <= 5 && ch->in_room != NULL)
-					act("$p flickers.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-			}
-
-			// Limbo timer (doesn't apply to imms)
-			if (IS_IMMORTAL(ch))
-				ch->timer = 0;
-
-			if (++ch->timer >= limbo_timeout)
-			{
-				/* remove any PURGE_IDLE tokens on the character */
-				for (token = ch->tokens; token != NULL; token = token_next)
-				{
-					token_next = token->next;
-					if (IS_SET(token->flags, TOKEN_PURGE_IDLE))
-					{
-						p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL);
-						sprintf(buf, "char update: token %s(%ld) char %s(%ld) was purged on idle",
-							token->name, token->pIndexData->vnum, HANDLE(ch), IS_NPC(ch) ? ch->pIndexData->vnum : 0);
-						log_string(buf);
-						token_from_char(token);
-						free_token(token);
-					}
-				}
-
-				// Idling will clear your manastore
-				ch->manastore = 0;
-
-				if (ch->was_in_room == NULL && ch->in_room != NULL)
-				{
-					ch->was_in_room = ch->in_room;
-
-					if(ch->in_wilds) {
-						ch->was_in_wilds = ch->in_wilds;
-						ch->was_at_wilds_x = ch->at_wilds_x;
-						ch->was_at_wilds_y = ch->at_wilds_y;
-					}
-					else if(ch->in_room->source)
-					{
-						ch->was_in_room_id[0] = ch->in_room->id[0];
-						ch->was_in_room_id[1] = ch->in_room->id[1];
-					}
-
-
-					if (ch->fighting != NULL)
-						stop_fighting(ch, true);
-
-					act("{D$n disappears into the void.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-					send_to_char("{DYou disappear into the void.\n\r{x", ch);
-
-					if (ch->level > 1)
-						save_char_obj(ch);
-
-					char_from_room(ch);
-					char_to_room(ch, get_room_index(ROOM_VNUM_LIMBO));
-				}
-			}
-
-			// Reckoning effects
-			if (pre_reckoning == 0 && reckoning_timer > 0)
-			{
-				int num = number_range(0,5);
-				int sn = skill_lookup("lightning bolt");
-				//int attack_rand = number_percent();
-				int lbdam;
-				int lbchance = 5;
-
-
-				lbdam = number_range(500,30000) * reckoning_intensity / 100;
-				if ( reckoning_intensity > 100 )
-				{
-					lbchance = 5 + ((reckoning_intensity - 100) / 5);
-				}
-
-				if (ch->in_room != NULL &&
-					ch->in_room->sector_type != SECT_INSIDE &&
-					!IS_SET(ch->in_room->room_flag[0], ROOM_INDOORS))
-				{
-					switch(num)
-					{
-					case 0:
-						act("{YLightning forks down into the earth from above.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-						break;
-					case 1:
-						act("{MThe wind howls loudly then knocks you to your knees!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-						ch->position = POS_RESTING;
-						break;
-					case 2:
-						act("{MThe sky groans loudly as the clouds above swirl chaotically.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-						break;
-					case 3:
-						act("{YLightning crashes to the ground next to you!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-						break;
-					case 4:
-						if (number_percent() < lbchance && !IS_SET(ch->in_room->room_flag[0], ROOM_SAFE) && (IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NORECKONING)) && ch->fighting == NULL)
-						{
-							act("{YZAAAAAAAAAAAAAAP! You are struck by a bolt from the sky...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-
-							damage(ch, ch, lbdam, sn, DAM_LIGHTNING, false);
-						}
-						break;
-					case 5:
-						act("{YThe wind screams around you, threatening to blow you over.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-						break;
-					}
-				}
-
-			}
-
-			// Vampires take sun damage
-			if (IS_OUTSIDE(ch))
-				hurt_vampires(ch);
-
-			// Shifted slayer effects
-			if (IS_SHIFTED_SLAYER(ch) && number_percent() < 10)
-			{
-				switch(number_range(0,4))
-				{
-					case 0:
-					act("$n snorts and shakes some of the rancid mucus from $s body.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-					break;
-					case 1:
-					act("$n lets out a deep chilling growl.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-					break;
-					case 2:
-					act("$n nibbles on $s long sharp claws.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-					break;
-					case 3:
-					act("$n growls at you intimidatingly.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-					break;
-				}
-			}
-
-			// Slayers have a bad habit of attacking things.
-			if (IS_SHIFTED_SLAYER(ch) && number_percent() < 25 && ch->fighting == NULL)
-			{
-				CHAR_DATA *player;
-
-				// Find someone to SLAUGHTER
-				for (player = ch->in_room->people; player != NULL; player = player->next_in_room)
-				{
-					if (player->fighting == NULL && !is_safe(ch, player,false) && player->alignment < 150 && !is_same_group(player,ch) && !IS_IMMORTAL(player))
-						break;
-				}
-
-				if (player != NULL && ch != player)
-				{
-					act("$n snorts loudly then viciously attacks $N!", ch, player, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-					act("You lash out at $N uncontrollably!", ch, player, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-					set_fighting(ch, player);
-				}
-			}
-
-		    // Anti-evil/anti-good items scorch and get dropped.
-		    if (!IS_NPC(ch))
-			    for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-			    {
-					char buf[MAX_STRING_LENGTH];
-
-					if ((ch->alignment < 0 && IS_OBJ_STAT(obj, ITEM_ANTI_EVIL)) ||
-						(ch->alignment > 0 && IS_OBJ_STAT(obj, ITEM_ANTI_GOOD)))
-					{
-						sprintf(buf, "{R$n is scorched by %s!{x", obj->short_descr);
-						act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-						sprintf(buf, "{RYou are scorched by %s!{x\n\r", obj->short_descr);
-						send_to_char(buf, ch);
-
-						if (obj->wear_loc != WEAR_NONE)
-							remove_obj(ch, obj->wear_loc, true);
-
-						do_function(ch, &do_drop, obj->name);
-						damage(ch, ch, obj->level, TYPE_UNDEFINED, DAM_NONE,false);
-					}
-				}
-
-			// No magical flying over the ocean.  Physical flight is ok
-			if (ch->in_room->sector_type == SECT_WATER_NOSWIM &&
-				ch->in_room->vnum != ROOM_VNUM_SEA_PLITH_HARBOUR &&
-				ch->in_room->vnum != ROOM_VNUM_SEA_NORTHERN_HARBOUR &&
-				ch->in_room->vnum != ROOM_VNUM_SEA_SOUTHERN_HARBOUR &&
-				!IS_NPC(ch) && is_affected(ch, gsn_fly))
-			{
-				act("{MThe air sparks as the ocean's magical shield dispels your ability to fly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-				act("You plummet into the ocean.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-				act("{MThe air around $n sparks, $n plummets into the ocean.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-				affect_strip(ch, gsn_fly);
-			}
-
-			// If they are physically flying... drain movement slowly
-			if (!IS_NPC(ch) && is_affected(ch, gsn_flight))
-			{
-				bool fall = false;
-				int amount, weight;
-				char *reason = "Feeling exhausted";
-
-				// Lacking WINGS?
-				if(!IS_SET(ch->parts,PART_WINGS)) {
-					reason = "Lacking the ability to stay airborne";
-					fall = true;
-				} else {
-					amount = get_curr_stat(ch,STAT_CON);
-					amount = URANGE(3,amount,50);
-					amount = number_range(10,500/amount);	// con(3)=[1,16.7], con(50)=[1,1]
-					amount = UMAX(1,amount);
-
-					weight = get_carry_weight(ch);
-					if(RIDDEN(ch)) weight += get_carry_weight(RIDDEN(ch)) + size_weight[RIDDEN(ch)->size]; // plus weight of rider
-
-					// if the weight is too high, it uses more...
-					if(!IS_IMMORTAL(ch) && (number_range(0,can_carry_w(ch))) < weight)
-						amount = 3 * amount / 2;
-
-					// athletics
-
-					// other things?
-
-					ch->move -= amount/10;
-					ch->move = UMAX(0,ch->move);
-
-					if(number_range(0,ch->max_move/get_curr_stat(ch,STAT_CON)) > ch->move) {
-						reason = "Exhausted from flying";
-						fall = true;
-					}
-				}
-
-				if(fall) {
-					affect_strip(ch,gsn_flight);
-					if(	ch->in_room->sector_type == SECT_WATER_NOSWIM ||
-						ch->in_room->sector_type == SECT_WATER_SWIM ||
-						ch->in_room->sector_type == SECT_UNDERWATER ||
-						ch->in_room->sector_type == SECT_DEEP_UNDERWATER) {
-						act("$t, you plummet into the water below.", ch, NULL, NULL, NULL, NULL, reason, NULL, TO_CHAR);
-						act("$t, $n plummets into the water below.", ch, NULL, NULL, NULL, NULL, reason, NULL, TO_ROOM);
-						damage(ch, ch, number_range(10,100), TYPE_UNDEFINED, IS_AFFECTED(ch,AFF_SWIM)?DAM_WATER:DAM_DROWNING, false);
-						if(RIDDEN(ch)) damage(RIDDEN(ch), RIDDEN(ch), number_range(10,100), TYPE_UNDEFINED, IS_AFFECTED(RIDDEN(ch),AFF_SWIM)?DAM_WATER:DAM_DROWNING, false);
-					} else {
-						act("$t, you plummet to the ground below.", ch, NULL, NULL, NULL, NULL, reason, NULL, TO_CHAR);
-						act("$t, $n plummets to the ground below.", ch, NULL, NULL, NULL, NULL, reason, NULL, TO_ROOM);
-						damage(ch, ch, number_range(20,250), TYPE_UNDEFINED, DAM_BASH, false);
-						if(RIDDEN(ch)) damage(RIDDEN(ch), RIDDEN(ch), number_range(20,250), TYPE_UNDEFINED, DAM_BASH, false);
-					}
-				}
-		    }
-
-
-			// Drown them!
-			if (ch->in_room->sector_type == SECT_WATER_NOSWIM && !IS_NPC(ch) &&
-				ch->move <= 50 && !IS_AFFECTED(ch, AFF_FLYING))
-			{
-				act("Completely exhausted, you find little energy to keep swimming.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-				act("Completely exhausted, $n stops swimming from lack of energy.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-
-				if (!IS_AFFECTED(ch, AFF_SWIM))
-				{
-				    act("You cough and splutter as you breath in a lung full of water.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-				    act("$n coughs and splutters as $s breaths in a lung full of water.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-
-				    damage(ch, ch, 30000, TYPE_UNDEFINED, DAM_DROWNING, false);
-				}
-		    }
-
-			// Fire off deathtraps.
-		    if (IS_SET(ch->in_room->room_flag[0], ROOM_DEATH_TRAP) &&
-		    	!IS_SET(ch->in_room->room_flag[0], ROOM_CPK)) {		// no cpk-deathtraps
-						{
-		ROOM_INDEX_DATA *here = ch->in_room;
-		ch->position = POS_STANDING;
-		if(!p_percent_trigger(ch, NULL, NULL, NULL, ch, ch, NULL, NULL, NULL, TRIG_DEATH, NULL))
-			p_percent_trigger(NULL, NULL, here, NULL, ch, ch, NULL, NULL, NULL, TRIG_DEATH, NULL);
-	}
-
-					raw_kill(ch, true, false, RAWKILL_NORMAL);
-		    }
-
-			// The enchanted forest saps hit,mana, and move.
-		    if (ch->in_room->sector_type == SECT_ENCHANTED_FOREST && ch->position == POS_SLEEPING)
-	    	{
-				ch->hit = ch->hit - ch->max_hit/3;
-
-				update_pos(ch);
-
-				if (ch->hit <= 0)
-				{
-				    send_to_char("You feel yourself disintegrate into dust.\n\r", ch);
-				    act("$n disintegrates into dust.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-				    raw_kill(ch, false, true, RAWKILL_INCINERATE);
-				}
-
-				ch->mana = ch->mana - ch->max_mana/4;
-				ch->move = ch->move - ch->max_move/4;
-
-				ch->mana = UMAX(ch->mana, 0);
-				ch->move = UMAX(ch->move, 0);
-		    }
-
-		    // non-demons without a light in the demon area get fucked
-		    if (IS_SET(ch->in_room->room_flag[0], ROOM_ATTACK_IF_DARK) && !IS_DEMON(ch))
-		    {
-				if (!IS_SET(ch->act[0], PLR_HOLYLIGHT))
-				{
-				    // No light = death
-				    if (room_is_dark(ch->in_room))
-				    {
-						send_to_char("{RSomething bites you on the ass really hard.{x\n\r", ch);
-						damage(ch, ch, ch->max_hit, TYPE_UNDEFINED, DAM_NONE,false);
-				    }
-				    else // Creepy messages
-				    {
-						int num = number_percent();
-						if (num < 10)
-							send_to_char("{YThere is a sudden flapping as something takes off out of sight.{x\n\r", ch);
-						else if (num < 20)
-							send_to_char("{DYour heart pounds rapidly as you hear sounds from the darkness...{x\n\r", ch);
-						else if (num < 30)
-							send_to_char("{YA sudden chill runs up your spine.\n\r{x", ch);
-						else if (num < 40)
-							send_to_char("{CSomeone whispers 'Tuuuurn offff yoour liiight mooortal.'{x\n\r", ch);
-						else if (num < 50)
-							send_to_char("{RProwling, inhuman eyes materialize from the shadows, then flit away at the sight of your light.{X\n\r", ch);
-						else if (num < 60)
-							send_to_char("{YYou feel as if someone or something is following you.{x\n\r", ch);
-						else if (num < 70)
-							send_to_char("You feel something brush past your shoulder.\n\r", ch);
-						else
-							send_to_char("{YYour light flickers momentarily.{x\n\r", ch);
-				    }
-				}
-		    }
-
-			// Hints for newbs
-		    if (!IS_SET(ch->comm, COMM_NOHINTS))
-		    {
-				char buf[MAX_STRING_LENGTH];
-
-				send_to_char("{MHint: ", ch);
-			 	sprintf(buf, "%s", hintsTable[number_percent() % 15].hint);
-				send_to_char(buf, ch);
-				send_to_char("{x", ch);
-		    }
-
-			// Update conditions
-			gain_condition(ch, COND_DRUNK, -1);
-			gain_condition(ch, COND_FULL, -1);
-			gain_condition(ch, COND_STONED, -1);
-			gain_condition(ch, COND_THIRST, -1);
-			gain_condition(ch, COND_HUNGER, -1);
-		}
-
-		// Update affects on the character
-		for (paf = ch->affected; paf != NULL; paf = paf_next)
-		{
-		    paf_next = paf->next;
-
-		    if (paf->duration > 0) // spells with a finite duration
-		    {
-				paf->duration--;
-				if (number_range(0,4) == 0 && paf->level > 0)
-			  		paf->level--;  // spell strength fades with time
-			}
-		    else if (paf->duration < 0) // infinite spells, like on eq
-		    {
-				;
-		    }
-		    else // remove worn-out spells
-		    {
-				if (paf_next == NULL || paf_next->type != paf->type ||
-					paf_next->duration > 0)
-				{
-		    		if (paf->type > 0 && skill_table[paf->type].msg_off)
-		    		{
-						send_to_char(skill_table[paf->type].msg_off, ch);
-						send_to_char("\n\r", ch);
-		    		}
-				}
-
-				affect_remove(ch, paf);
-		    }
-		}
-
-		if (ch->fighting == NULL)
-		    update_has_done(ch);
-
-		// Scary people can make others flee.
-		if (can_scare(ch))
-		    scare_update(ch);
-
-		/* Toggle off builder flag for people who haven't built in 30 minutes. */
-		if (!IS_NPC(ch) && IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_BUILDING)) {
-		    if ((current_time - ch->pcdata->immortal->last_olc_command)/60 >= MAX_BUILDER_IDLE_MINUTES) {
-				sprintf(buf, "%d minutes have passed for %s without any OLC commands; toggling off builder flag.\n\r",
-					MAX_BUILDER_IDLE_MINUTES, ch->name);
-				wiznet(buf, NULL, NULL, WIZ_BUILDING, 0, 0);
-				REMOVE_BIT(ch->act[0], PLR_BUILDING);
-	    	} else  // Increment #minutes built by 1
-				ch->pcdata->immortal->builder->minutes++;
-		}
-
-		// Effects of poison.
-		if (IS_AFFECTED(ch, AFF_POISON) && !IS_AFFECTED(ch, AFF_SLOW))
-		{
-			AFFECT_DATA *poison;
-
-			poison = affect_find(ch->affected,gsn_poison);
-
-		    if (poison != NULL)
-		    {
-				act("$n shivers and suffers.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-				send_to_char("You shiver and suffer.\n\r", ch);
-				ch->set_death_type = DEATHTYPE_TOXIN;
-				damage(ch, ch, poison->level/10 + 1, gsn_poison, DAM_POISON, false);
-		    }
-		}
-		// Folks on the verge of death eventually go the whole way w/o help.
-		else if (ch->position == POS_INCAP && number_range(0,1) == 0)
-		    damage(ch, ch, 1, TYPE_UNDEFINED, DAM_NONE,false);
-		else if (ch->position == POS_MORTAL)
-		    damage(ch, ch, 1, TYPE_UNDEFINED, DAM_NONE,false);
+        if (!IS_NPC(ch) && ch->pcdata->challenge_delay > 0)
+            ch->pcdata->challenge_delay--;
+
+        // Return people from the maze after a while.
+        if (ch->maze_time_left > 0)
+        {
+            ch->maze_time_left--;
+            if (ch->maze_time_left <= 0)
+            {
+                send_to_char("{WThe gods have returned you to the mortal realm.{x\n\r", ch);
+                return_from_maze(ch);
+            }
+        }
+
+        // Return from dead
+        if (!IS_NPC(ch) && ch->time_left_death > 0)
+        {
+            bool run_death_timer = true;
+            OBJ_DATA *corpse = ch->pcdata->corpse;
+            ROOM_INDEX_DATA *corpse_room = obj_room(corpse);
+            // Check here, prevent the timer from counting down if the
+            if( p_percent_trigger(ch, NULL, NULL, NULL, ch, ch, NULL, corpse, NULL, TRIG_DEATH_TIMER, NULL) )
+                run_death_timer = false;
+
+            if( run_death_timer && IS_VALID(corpse) && p_percent_trigger(NULL, corpse, NULL, NULL, ch, ch, NULL, corpse, NULL, TRIG_DEATH_TIMER, NULL) )
+                run_death_timer = false;
+
+            if( run_death_timer && corpse_room && p_percent_trigger(NULL, NULL, corpse_room, NULL, ch, ch, NULL, corpse, NULL, TRIG_DEATH_TIMER, NULL) )
+                run_death_timer = false;
+
+            // Perform actions while the player is dead regardless of timer running
+            if( ch->manastore > 0) {
+                // Decay manastore while dead
+                ch->manastore = ch->manastore / 2;
+            }
+
+
+            if( run_death_timer )
+            {
+                ch->time_left_death--;
+
+                if (ch->time_left_death <= 0)
+                {
+                    send_to_char("{WThe gods take pity on you and return you to your body.\n\r", ch);
+                    resurrect_pc(ch);
+                }
+            }
+        }
+
+        // Updates for NON-IMM players who aren't dead.
+        if (!IS_NPC(ch) && ch->tot_level < LEVEL_IMMORTAL && !IS_DEAD(ch))
+        {
+            // Check for light in inventory
+            if (ch->lworn) {
+                iterator_start(&oit, ch->lworn);
+                while ((obj = (OBJ_DATA *)iterator_nextdata(&oit))) {
+                    if (obj->item_type == ITEM_LIGHT && obj->wear_loc == WEAR_LIGHT && obj->value[2] > 0) {
+                        if (--obj->value[2] <= 0 && ch->in_room != NULL) {
+                            --ch->in_room->light;
+                            act("$p goes out.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+                            act("$p flickers and goes out.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+                            log_string("it went out");
+                            list_remlink(ch->lworn, obj, false);
+                            extract_obj(obj);
+                            break;
+                        } else if (obj->value[2] <= 5 && ch->in_room != NULL) {
+                            act("$p flickers.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+                        }
+                    }
+                }
+                iterator_stop(&oit);
+            }
+
+            // Limbo timer (doesn't apply to imms)
+            if (IS_IMMORTAL(ch))
+                ch->timer = 0;
+
+            if (++ch->timer >= limbo_timeout)
+            {
+                /* remove any PURGE_IDLE tokens on the character */
+                for (token = ch->tokens; token != NULL; token = token_next)
+                {
+                    token_next = token->next;
+                    if (IS_SET(token->flags, TOKEN_PURGE_IDLE))
+                    {
+                        p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL);
+                        sprintf(buf, "char update: token %s(%ld) char %s(%ld) was purged on idle",
+                            token->name, token->pIndexData->vnum, HANDLE(ch), IS_NPC(ch) ? ch->pIndexData->vnum : 0);
+                        log_string(buf);
+                        token_from_char(token);
+                        free_token(token);
+                    }
+                }
+
+                // Idling will clear your manastore
+                ch->manastore = 0;
+
+                if (ch->was_in_room == NULL && ch->in_room != NULL)
+                {
+                    ch->was_in_room = ch->in_room;
+
+                    if(ch->in_wilds) {
+                        ch->was_in_wilds = ch->in_wilds;
+                        ch->was_at_wilds_x = ch->at_wilds_x;
+                        ch->was_at_wilds_y = ch->at_wilds_y;
+                    }
+                    else if(ch->in_room->source)
+                    {
+                        ch->was_in_room_id[0] = ch->in_room->id[0];
+                        ch->was_in_room_id[1] = ch->in_room->id[1];
+                    }
+
+
+                    if (ch->fighting != NULL)
+                        stop_fighting(ch, true);
+
+                    act("{D$n disappears into the void.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                    send_to_char("{DYou disappear into the void.\n\r{x", ch);
+
+                    if (ch->level > 1)
+                        save_char_obj(ch);
+
+                    char_from_room(ch);
+                    char_to_room(ch, get_room_index(ROOM_VNUM_LIMBO));
+                }
+            }
+
+            // Reckoning effects
+            if (pre_reckoning == 0 && reckoning_timer > 0)
+            {
+                int num = number_range(0,5);
+                int sn = skill_lookup("lightning bolt");
+                //int attack_rand = number_percent();
+                int lbdam;
+                int lbchance = 5;
+
+
+                lbdam = number_range(500,30000) * reckoning_intensity / 100;
+                if ( reckoning_intensity > 100 )
+                {
+                    lbchance = 5 + ((reckoning_intensity - 100) / 5);
+                }
+
+                if (ch->in_room != NULL &&
+                    ch->in_room->sector_type != SECT_INSIDE &&
+                    !IS_SET(ch->in_room->room_flag[0], ROOM_INDOORS))
+                {
+                    switch(num)
+                    {
+                    case 0:
+                        act("{YLightning forks down into the earth from above.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+                        break;
+                    case 1:
+                        act("{MThe wind howls loudly then knocks you to your knees!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+                        ch->position = POS_RESTING;
+                        break;
+                    case 2:
+                        act("{MThe sky groans loudly as the clouds above swirl chaotically.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+                        break;
+                    case 3:
+                        act("{YLightning crashes to the ground next to you!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+                        break;
+                    case 4:
+                        if (number_percent() < lbchance && !IS_SET(ch->in_room->room_flag[0], ROOM_SAFE) && (IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NORECKONING)) && ch->fighting == NULL)
+                        {
+                            act("{YZAAAAAAAAAAAAAAP! You are struck by a bolt from the sky...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+
+                            damage(ch, ch, lbdam, sn, DAM_LIGHTNING, false);
+                        }
+                        break;
+                    case 5:
+                        act("{YThe wind screams around you, threatening to blow you over.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+                        break;
+                    }
+                }
+
+            }
+
+            // Vampires take sun damage
+            if (IS_OUTSIDE(ch))
+                hurt_vampires(ch);
+
+            // Shifted slayer effects
+            if (IS_SHIFTED_SLAYER(ch) && number_percent() < 10)
+            {
+                switch(number_range(0,4))
+                {
+                    case 0:
+                    act("$n snorts and shakes some of the rancid mucus from $s body.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                    break;
+                    case 1:
+                    act("$n lets out a deep chilling growl.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                    break;
+                    case 2:
+                    act("$n nibbles on $s long sharp claws.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                    break;
+                    case 3:
+                    act("$n growls at you intimidatingly.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                    break;
+                }
+            }
+
+            // Slayers have a bad habit of attacking things.
+            if (IS_SHIFTED_SLAYER(ch) && number_percent() < 25 && ch->fighting == NULL)
+            {
+                CHAR_DATA *player;
+
+                // Find someone to SLAUGHTER
+                for (player = ch->in_room->people; player != NULL; player = player->next_in_room)
+                {
+                    if (player->fighting == NULL && !is_safe(ch, player,false) && player->alignment < 150 && !is_same_group(player,ch) && !IS_IMMORTAL(player))
+                        break;
+                }
+
+                if (player != NULL && ch != player)
+                {
+                    act("$n snorts loudly then viciously attacks $N!", ch, player, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                    act("You lash out at $N uncontrollably!", ch, player, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+                    set_fighting(ch, player);
+                }
+            }
+
+            // Anti-evil/anti-good items scorch and get dropped.
+            if (!IS_NPC(ch)) {
+                // Check through inventory using lcarrying
+                if (ch->lcarrying) {
+                    iterator_start(&oit, ch->lcarrying);
+                    while ((obj = (OBJ_DATA *)iterator_nextdata(&oit))) {
+                        char buf[MAX_STRING_LENGTH];
+
+                        if ((ch->alignment < 0 && IS_OBJ_STAT(obj, ITEM_ANTI_EVIL)) ||
+                            (ch->alignment > 0 && IS_OBJ_STAT(obj, ITEM_ANTI_GOOD)))
+                        {
+                            sprintf(buf, "{R$n is scorched by %s!{x", obj->short_descr);
+                            act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                            sprintf(buf, "{RYou are scorched by %s!{x\n\r", obj->short_descr);
+                            send_to_char(buf, ch);
+
+                            damage(ch, ch, obj->level, TYPE_UNDEFINED, DAM_NONE, false);
+                            list_remlink(ch->lcarrying, obj, false);
+                            obj_to_room(obj, ch->in_room);
+                        }
+                    }
+                    iterator_stop(&oit);
+                }
+
+                // Also check worn equipment using lworn
+                if (ch->lworn) {
+                    iterator_start(&oit, ch->lworn);
+                    while ((obj = (OBJ_DATA *)iterator_nextdata(&oit))) {
+                        char buf[MAX_STRING_LENGTH];
+
+                        if ((ch->alignment < 0 && IS_OBJ_STAT(obj, ITEM_ANTI_EVIL)) ||
+                            (ch->alignment > 0 && IS_OBJ_STAT(obj, ITEM_ANTI_GOOD)))
+                        {
+                            sprintf(buf, "{R$n is scorched by %s!{x", obj->short_descr);
+                            act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                            sprintf(buf, "{RYou are scorched by %s!{x\n\r", obj->short_descr);
+                            send_to_char(buf, ch);
+
+                            remove_obj(ch, obj->wear_loc, true);
+                            damage(ch, ch, obj->level, TYPE_UNDEFINED, DAM_NONE, false);
+                        }
+                    }
+                    iterator_stop(&oit);
+                }
+            }
+
+            // No magical flying over the ocean.  Physical flight is ok
+            if (ch->in_room->sector_type == SECT_WATER_NOSWIM &&
+                ch->in_room->vnum != ROOM_VNUM_SEA_PLITH_HARBOUR &&
+                ch->in_room->vnum != ROOM_VNUM_SEA_NORTHERN_HARBOUR &&
+                ch->in_room->vnum != ROOM_VNUM_SEA_SOUTHERN_HARBOUR &&
+                !IS_NPC(ch) && is_affected(ch, gsn_fly))
+            {
+                act("{MThe air sparks as the ocean's magical shield dispels your ability to fly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+                act("You plummet into the ocean.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+                act("{MThe air around $n sparks, $n plummets into the ocean.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                affect_strip(ch, gsn_fly);
+            }
+
+            // If they are physically flying... drain movement slowly
+            if (!IS_NPC(ch) && is_affected(ch, gsn_flight))
+            {
+                bool fall = false;
+                int amount, weight;
+                char *reason = "Feeling exhausted";
+
+                // Lacking WINGS?
+                if(!IS_SET(ch->parts,PART_WINGS)) {
+                    reason = "Lacking the ability to stay airborne";
+                    fall = true;
+                } else {
+                    amount = get_curr_stat(ch,STAT_CON);
+                    amount = URANGE(3,amount,50);
+                    amount = number_range(10,500/amount);	// con(3)=[1,16.7], con(50)=[1,1]
+                    amount = UMAX(1,amount);
+
+                    weight = get_carry_weight(ch);
+                    if(RIDDEN(ch)) weight += get_carry_weight(RIDDEN(ch)) + size_weight[RIDDEN(ch)->size]; // plus weight of rider
+
+                    // if the weight is too high, it uses more...
+                    if(!IS_IMMORTAL(ch) && (number_range(0,can_carry_w(ch))) < weight)
+                        amount = 3 * amount / 2;
+
+                    // athletics
+
+                    // other things?
+
+                    ch->move -= amount/10;
+                    ch->move = UMAX(0,ch->move);
+
+                    if(number_range(0,ch->max_move/get_curr_stat(ch,STAT_CON)) > ch->move) {
+                        reason = "Exhausted from flying";
+                        fall = true;
+                    }
+                }
+
+                if(fall) {
+                    affect_strip(ch,gsn_flight);
+                    if(	ch->in_room->sector_type == SECT_WATER_NOSWIM ||
+                        ch->in_room->sector_type == SECT_WATER_SWIM ||
+                        ch->in_room->sector_type == SECT_UNDERWATER ||
+                        ch->in_room->sector_type == SECT_DEEP_UNDERWATER) {
+                        act("$t, you plummet into the water below.", ch, NULL, NULL, NULL, NULL, reason, NULL, TO_CHAR);
+                        act("$t, $n plummets into the water below.", ch, NULL, NULL, NULL, NULL, reason, NULL, TO_ROOM);
+                        damage(ch, ch, number_range(10,100), TYPE_UNDEFINED, IS_AFFECTED(ch,AFF_SWIM)?DAM_WATER:DAM_DROWNING, false);
+                        if(RIDDEN(ch)) damage(RIDDEN(ch), RIDDEN(ch), number_range(10,100), TYPE_UNDEFINED, IS_AFFECTED(RIDDEN(ch),AFF_SWIM)?DAM_WATER:DAM_DROWNING, false);
+                    } else {
+                        act("$t, you plummet to the ground below.", ch, NULL, NULL, NULL, NULL, reason, NULL, TO_CHAR);
+                        act("$t, $n plummets to the ground below.", ch, NULL, NULL, NULL, NULL, reason, NULL, TO_ROOM);
+                        damage(ch, ch, number_range(20,250), TYPE_UNDEFINED, DAM_BASH, false);
+                        if(RIDDEN(ch)) damage(RIDDEN(ch), RIDDEN(ch), number_range(20,250), TYPE_UNDEFINED, DAM_BASH, false);
+                    }
+                }
+            }
+
+
+            // Drown them!
+            if (ch->in_room->sector_type == SECT_WATER_NOSWIM && !IS_NPC(ch) &&
+                ch->move <= 50 && !IS_AFFECTED(ch, AFF_FLYING))
+            {
+                act("Completely exhausted, you find little energy to keep swimming.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+                act("Completely exhausted, $n stops swimming from lack of energy.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+
+                if (!IS_AFFECTED(ch, AFF_SWIM))
+                {
+                    act("You cough and splutter as you breath in a lung full of water.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+                    act("$n coughs and splutters as $s breaths in a lung full of water.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+
+                    damage(ch, ch, 30000, TYPE_UNDEFINED, DAM_DROWNING, false);
+                }
+            }
+
+            // Fire off deathtraps.
+            if (IS_SET(ch->in_room->room_flag[0], ROOM_DEATH_TRAP) &&
+            	!IS_SET(ch->in_room->room_flag[0], ROOM_CPK)) {		// no cpk-deathtraps
+                        {
+        ROOM_INDEX_DATA *here = ch->in_room;
+        ch->position = POS_STANDING;
+        if(!p_percent_trigger(ch, NULL, NULL, NULL, ch, ch, NULL, NULL, NULL, TRIG_DEATH, NULL))
+            p_percent_trigger(NULL, NULL, here, NULL, ch, ch, NULL, NULL, NULL, TRIG_DEATH, NULL);
     }
+
+                    raw_kill(ch, true, false, RAWKILL_NORMAL);
+            }
+
+            // The enchanted forest saps hit,mana, and move.
+            if (ch->in_room->sector_type == SECT_ENCHANTED_FOREST && ch->position == POS_SLEEPING)
+        	{
+                ch->hit = ch->hit - ch->max_hit/3;
+
+                update_pos(ch);
+
+                if (ch->hit <= 0)
+                {
+                    send_to_char("You feel yourself disintegrate into dust.\n\r", ch);
+                    act("$n disintegrates into dust.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                    raw_kill(ch, false, true, RAWKILL_INCINERATE);
+                }
+
+                ch->mana = ch->mana - ch->max_mana/4;
+                ch->move = ch->move - ch->max_move/4;
+
+                ch->mana = UMAX(ch->mana, 0);
+                ch->move = UMAX(ch->move, 0);
+            }
+
+            // non-demons without a light in the demon area get fucked
+            if (IS_SET(ch->in_room->room_flag[0], ROOM_ATTACK_IF_DARK) && !IS_DEMON(ch))
+            {
+                if (!IS_SET(ch->act[0], PLR_HOLYLIGHT))
+                {
+                    // No light = death
+                    if (room_is_dark(ch->in_room))
+                    {
+                        send_to_char("{RSomething bites you on the ass really hard.{x\n\r", ch);
+                        damage(ch, ch, ch->max_hit, TYPE_UNDEFINED, DAM_NONE,false);
+                    }
+                    else // Creepy messages
+                    {
+                        int num = number_percent();
+                        if (num < 10)
+                            send_to_char("{YThere is a sudden flapping as something takes off out of sight.{x\n\r", ch);
+                        else if (num < 20)
+                            send_to_char("{DYour heart pounds rapidly as you hear sounds from the darkness...{x\n\r", ch);
+                        else if (num < 30)
+                            send_to_char("{YA sudden chill runs up your spine.\n\r{x", ch);
+                        else if (num < 40)
+                            send_to_char("{CSomeone whispers 'Tuuuurn offff yoour liiight mooortal.'{x\n\r", ch);
+                        else if (num < 50)
+                            send_to_char("{RProwling, inhuman eyes materialize from the shadows, then flit away at the sight of your light.{X\n\r", ch);
+                        else if (num < 60)
+                            send_to_char("{YYou feel as if someone or something is following you.{x\n\r", ch);
+                        else if (num < 70)
+                            send_to_char("You feel something brush past your shoulder.\n\r", ch);
+                        else
+                            send_to_char("{YYour light flickers momentarily.{x\n\r", ch);
+                    }
+                }
+            }
+
+            // Hints for newbs
+            if (!IS_SET(ch->comm, COMM_NOHINTS))
+            {
+                char buf[MAX_STRING_LENGTH];
+
+                send_to_char("{MHint: ", ch);
+             	sprintf(buf, "%s", hintsTable[number_percent() % 15].hint);
+                send_to_char(buf, ch);
+                send_to_char("{x", ch);
+            }
+
+            // Update conditions
+            gain_condition(ch, COND_DRUNK, -1);
+            gain_condition(ch, COND_FULL, -1);
+            gain_condition(ch, COND_STONED, -1);
+            gain_condition(ch, COND_THIRST, -1);
+            gain_condition(ch, COND_HUNGER, -1);
+        }
+
+        // Update affects on the character
+        for (paf = ch->affected; paf != NULL; paf = paf_next)
+        {
+            paf_next = paf->next;
+
+            if (paf->duration > 0) // spells with a finite duration
+            {
+                paf->duration--;
+                if (number_range(0,4) == 0 && paf->level > 0)
+              		paf->level--;  // spell strength fades with time
+            }
+            else if (paf->duration < 0) // infinite spells, like on eq
+            {
+                ;
+            }
+            else // remove worn-out spells
+            {
+                if (paf_next == NULL || paf_next->type != paf->type ||
+                    paf_next->duration > 0)
+                {
+            		if (paf->type > 0 && skill_table[paf->type].msg_off)
+            		{
+                        send_to_char(skill_table[paf->type].msg_off, ch);
+                        send_to_char("\n\r", ch);
+            		}
+                }
+
+                affect_remove(ch, paf);
+            }
+        }
+
+        if (ch->fighting == NULL)
+            update_has_done(ch);
+
+        // Scary people can make others flee.
+        if (can_scare(ch))
+            scare_update(ch);
+
+        /* Toggle off builder flag for people who haven't built in 30 minutes. */
+        if (!IS_NPC(ch) && IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_BUILDING)) {
+            if ((current_time - ch->pcdata->immortal->last_olc_command)/60 >= MAX_BUILDER_IDLE_MINUTES) {
+                sprintf(buf, "%d minutes have passed for %s without any OLC commands; toggling off builder flag.\n\r",
+                    MAX_BUILDER_IDLE_MINUTES, ch->name);
+                wiznet(buf, NULL, NULL, WIZ_BUILDING, 0, 0);
+                REMOVE_BIT(ch->act[0], PLR_BUILDING);
+        	} else  // Increment #minutes built by 1
+                ch->pcdata->immortal->builder->minutes++;
+        }
+
+        // Effects of poison.
+        if (IS_AFFECTED(ch, AFF_POISON) && !IS_AFFECTED(ch, AFF_SLOW))
+        {
+            AFFECT_DATA *poison;
+
+            poison = affect_find(ch->affected,gsn_poison);
+
+            if (poison != NULL)
+            {
+                act("$n shivers and suffers.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                send_to_char("You shiver and suffer.\n\r", ch);
+                ch->set_death_type = DEATHTYPE_TOXIN;
+                damage(ch, ch, poison->level/10 + 1, gsn_poison, DAM_POISON, false);
+            }
+        }
+        // Folks on the verge of death eventually go the whole way w/o help.
+        else if (ch->position == POS_INCAP && number_range(0,1) == 0)
+            damage(ch, ch, 1, TYPE_UNDEFINED, DAM_NONE,false);
+        else if (ch->position == POS_MORTAL)
+            damage(ch, ch, 1, TYPE_UNDEFINED, DAM_NONE,false);
+    }
+    iterator_stop(&it);
 
 
     // Autosave and autoquit. Check that these chars still exist.
-	iterator_start(&it, loaded_chars);
-	while(( ch = (CHAR_DATA *)iterator_nextdata(&it)))
+    iterator_start(&it, loaded_chars);
+    while(( ch = (CHAR_DATA *)iterator_nextdata(&it)))
     {
 
-		if (ch->desc != NULL && ch->desc->descriptor % 15 == save_number)
-		    save_char_obj(ch);
+        if (ch->desc != NULL && ch->desc->descriptor % 15 == save_number)
+            save_char_obj(ch);
 
         if (ch == ch_quit)
             do_function(ch, &do_quit, NULL);

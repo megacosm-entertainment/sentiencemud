@@ -75,6 +75,9 @@
 #define DECLARE_OBJ_FUN( fun )		OBJ_FUN	  fun
 #define DECLARE_ROOM_FUN( fun )		ROOM_FUN  fun
 #define SPELL_FUNC(s)	bool s (int sn, int level, CHAR_DATA *ch, void *vo, int target, int obj_wear_loc)
+#define IS_EMAIL_VERIFIED(obj) \
+    (!game_settings.require_email_verif || (obj)->email_verified)
+typedef unsigned long flag_t;
 
 
 /* System calls */
@@ -106,12 +109,16 @@ typedef unsigned char			bool;
 //enum tribool: uint8_t {False = 0, True = 1, Unknown = 2};
 */
 
-#if	!defined(false)
-#define false	 false
+#if !defined(false)
+#define false false
+#else
+#define FALSE false
 #endif
 
-#if	!defined(true)
-#define true	 true
+#if !defined(true)
+#define true true
+#else
+#define TRUE true
 #endif
 typedef unsigned char sent_bool;
 #define TRISTATE_FALSE 0
@@ -247,6 +254,8 @@ struct script_type {
 
 #define VERSION_PLAYER_007  0x01000006
 // Change #1: Turns PLR_COMPASS and PLR_AUTOCAT on.
+#define VERSION_PLAYER_008 0x01000007
+// Break inventory into LOCKER, EQUIPMENT, and INVENTORY sections.
 
 #define VERSION_OBJECT_001	0x01000000
 
@@ -265,17 +274,40 @@ struct script_type {
 #define VERSION_ROOM_002	0x01000002
 //	Change #2: forgot persistent exits
 
+#define VERSION_CHURCH_001 0x01000001
+
 #define VERSION_DB			VERSION_DB_001
 #define VERSION_AREA		VERSION_AREA_003
 #define VERSION_MOBILE		0x01000000
 #define VERSION_OBJECT		VERSION_OBJECT_004
 #define VERSION_ROOM		VERSION_ROOM_002
-#define VERSION_PLAYER		VERSION_PLAYER_007
+#define VERSION_PLAYER		VERSION_PLAYER_008
 #define VERSION_TOKEN		0x01000000
 #define VERSION_AFFECT		0x01000000
 #define VERSION_SCRIPT		0x02000000
 #define VERSION_WILDS		0x01000000
 #define VERSION_DATABASE	0x01000000
+#define VERSION_CHURCH      VERSION_CHURCH_001
+
+/* Setting type constants */
+#define SETTING_TYPE_BOOL 0
+#define SETTING_TYPE_INT 1
+#define SETTING_TYPE_STRING 2
+
+/* Setting category constants */
+#define SETTING_CAT_EMAIL 0
+#define SETTING_CAT_MISSION 1
+#define SETTING_CAT_LOCKER 2
+#define SETTING_CAT_VAULT 3
+#define SETTING_CAT_COFFER 4
+#define SETTING_CAT_GLOBAL 5
+#define SETTING_CAT_SECURITY 6
+#define SETTING_CAT_MSSP 7
+
+#define MIN_SECURITY_GAMEEDIT 9
+
+#define GAMEEDIT(fun) bool fun(CHAR_DATA *ch, char *argument)
+#define SETTING_CAT_MAX 8 /* Number of setting categories */
 
 /* Structures */
 typedef struct	affect_data		AFFECT_DATA;
@@ -306,6 +338,7 @@ typedef struct	obj_data		OBJ_DATA;
 typedef struct	obj_index_data		OBJ_INDEX_DATA;
 typedef struct	spell_data		SPELL_DATA;
 typedef struct	pc_data			PC_DATA;
+typedef struct  account_data    ACCOUNT_DATA;
 typedef struct	questor_data	QUESTOR_DATA;
 typedef struct	quest_data		QUEST_DATA;
 typedef struct	quest_part_data		QUEST_PART_DATA;
@@ -331,7 +364,7 @@ typedef struct  chat_ban_data		CHAT_BAN_DATA;
 typedef struct  chat_op_data		CHAT_OP_DATA;
 typedef struct  church_data             CHURCH_DATA;
 typedef struct  church_player_data      CHURCH_PLAYER_DATA;
-typedef struct	church_treasure_room_data	CHURCH_TREASURE_ROOM;
+typedef struct	church_treasure_room	CHURCH_TREASURE_ROOM;
 typedef struct  conditional_descr_data  CONDITIONAL_DESCR_DATA;
 typedef struct  gq_data			GQ_DATA;
 typedef struct  gq_mob_data		GQ_MOB_DATA;
@@ -404,6 +437,8 @@ typedef struct dungeon_index_special_room_data DUNGEON_INDEX_SPECIAL_ROOM;
 typedef struct dungeon_floor_data DUNGEON_FLOOR_DATA;
 typedef struct dungeon_index_data DUNGEON_INDEX_DATA;
 typedef struct dungeon_data DUNGEON;
+
+typedef struct church_log_entry CHURCH_LOG_ENTRY;
 
 struct special_key_data
 {
@@ -645,6 +680,8 @@ struct list_link_type {
 	void *data;
 };
 
+#define LLIST_IDENT 0x4C4C5354
+
 struct list_type {
 	LLIST *next;
 	LLIST_LINK *head;
@@ -655,6 +692,8 @@ struct list_type {
 	LISTDESTROY_FUNC *deleter;
 	bool valid;
 	bool purge;
+    unsigned int identifier;
+
 };
 
 struct iterator_type {
@@ -849,7 +888,7 @@ struct olc_point_area_data {
 #define MAX_MOB_LEVEL          150
 
 /*
- * Game parameters.
+ * Game parameters. We should look at moving most of this into game settings.
  */
 #define AUCTION_LENGTH          5
 #define LEVEL_HERO		120
@@ -861,7 +900,7 @@ struct olc_point_area_data {
 #define MAX_BUILDER_IDLE_MINUTES 30
 #define MAX_CHAT_ROOMS		100
 #define MAX_CHURCH_TREASURE     100
-#define MAX_CHURCHES            13
+#define MAX_CHURCHES            25 
 #define MAX_CLASS		4
 #define MAX_CLASS_LEVEL		30
 #define MAX_DAMAGE_MESSAGE	70		/* @@@NIB : 20070125 */
@@ -889,6 +928,7 @@ struct olc_point_area_data {
 #define MAX_WORDS		45424
 #define SILVER_PER_KG		500
 #define MINS_PER_DEATH		4
+#define MAX_CHURCH_LOG_ENTRIES		1000
 #define PORT_NORMAL	        9000
 #define PORT_TEST		9999
 #define PORT_RAE	        7777
@@ -936,6 +976,15 @@ struct olc_point_area_data {
 #define WILDERNESS_OBJ_EXIT_SIGHT  2
 
 #define WILDERNESS_VNUM_OFFSET 100
+
+#define STAFF_PLAYER 0 // Pesky Mortal (Default)
+#define STAFF_GIMP 1   // Heh, Gimp...
+#define STAFF_IMMORTAL 2
+#define STAFF_ASCENDANT 3
+#define STAFF_SUPREMACY 4
+#define STAFF_CREATOR 5
+#define STAFF_IMPLEMENTOR 6
+#define MAX_STAFF_RANK 7
 
 
 /* Syn - PC races defined here so we don't have to use magical numbers. */
@@ -1012,6 +1061,7 @@ struct	ban_data
     bool	valid;
     int16_t	ban_flags;
     int16_t	level;
+    int16_t rank;
     char *	name;
 };
 
@@ -1104,195 +1154,198 @@ struct global_data
 struct game_settings_data
 {
     /* Email Settings */
-    bool    enable_email;
-    char    *email_username;                // The username for the email account.
-    char    *email_password;                // The password for the email account.
-    char    *email_host;                    // The hostname of the email server.
-    int     email_port;                     // The port that the email server is listening on.
-    char    *email_from_addr;               // The email address that will appear in the 'from' field of emails sent by the game.
-    char    *email_from_name;               // The name that will appear in the 'from' field of emails sent by the game.
+    bool enable_email;
+    char *email_username;  // Username for the email account.
+    char *email_password;  // Password for the email account.
+    char *email_host;      // Hostname of the email server.
+    int email_port;        // Port that the email server is listening on.
+    char *email_from_addr; // Email address that will appear in the 'from' field of emails sent by the game.
+    char *email_from_name; // Name that will appear in the 'from' field of emails sent by the game.
 
     /* Mission Settings */
-    int     max_quest_allowance;          // How many mission allowances can a player have?
-    int     inc_quests;                   // How many missions will a player accrue when their mission allowance ticks over?
-    int     max_quests;                   // How many missions can a player have running at the same time?
+    int max_mission_allowance; // How many mission allowances can a player have?
+    int inc_missions;          // How many missions will a player accrue when their mission allowance ticks over?
+    int max_missions;          // How many missions can a player have running at the same time?
+
+    /* Locker Settings */
+    bool lockers_enabled;                  // Are lockers enabled?
+    bool locker_rent_enabled;              // Do lockers cost rent?
+    int max_locker_weight;                 // How much weight can a player have in their locker?
+    int max_locker_items;                  // How many items can a player have in their locker?
+    int locker_rent_cost;                  // How much does it cost to rent a locker?
+    int locker_rent_time;                  // How long does renting grant access for? (in real days)
+    int locker_rent_time_max;              // How long can a locker be rented at one time (in real days)
+    int locker_additional_cost_per_tier;   // How much more does it cost per tier of locker?
+    int locker_additional_slots_per_tier;  // How many more slots does a player get per tier of locker?
+    int locker_additional_weight_per_tier; // How much more weight does a player get per tier of locker?
+    int locker_tier_max;                   // How many upgrades can be applied to a locker?
+
+    /* Vault (shared storage) settings */
+    int max_vault_weight;                 // How much weight can a player have in their vault?
+    int max_vault_items;                  // How many items can a player have in their vault?
+    bool vault_enabled;                   // Is the vault enabled?
+    bool vault_rent;                      // Does the vault cost rent?
+    bool vault_rent_per_char;             // How much does the vault cost rent per character?
+    int vault_rent_cost;                  // What is the base rental cost for the vault?
+    int vault_rent_time;                  // How long does renting grant access for? (in real days)
+    int vault_additional_cost_per_char;   // How much more does it cost per character?
+    int vault_additional_slots_per_char;  // How many more slots does a player get per character?
+    int vault_additional_weight_per_char; // How much more weight does a player get per character?
+    bool vault_require_room;              // Do we require a room to be in the vault?
+    int vault_rent_time_max;            // How long can a vault be rented at one time (in real days)
+
+    /* Coffer (org storage) Settings */
+    int max_coffer_weight; // How much weight can a player have in their coffer?
+    int max_coffer_items;  // How many items can a player have in their coffer?
+    bool coffer_enabled;   // Is the coffer enabled?
+    bool coffer_rent;      // Doess the coffer cost rent?
+    int coffer_rent_cost;
+    char *coffer_rent_currency; // What currency does the coffer cost rent in?
+    int coffer_rent_time;     // How long does renting grant access to an org? (in real days)
+    int coffer_rent_time_max;
 
     /* Global Settings */
-    char    *game_name;                     // Name of the game, used in MSSP.
-    char    *login_string;                  // Login string to present on connection.
-    char    *server_description;            // Description of server, eg. "2.0 Public Test Server"
-    bool    testport;                       // Is this a testport?
-    bool    wizlock;                        // Deny non-staff character logins?
-    char    *wizlock_msg;                   // Message to display to players when they try to login if game is wizlocked.
-    bool    new_acct_lock;                  // Deny making new accounts?
-    char    *new_acct_lock_msg;             // Message to display to players when they try to create a new account if game is new_acct_locked.
-    bool    new_char_lock;                  // Deny making new characters on existing accounts?
-    char    *new_char_lock_msg;             // Message to display to players if they try to create a new character if game is new_char_locked.
-    bool    logall;                         // Log everything?
-    bool    require_email_verification;     // Require email verification for accounts?
-    bool    require_2fa_all;                // Require all accounts to have multifactor auth?
-    bool    require_2fa_staff;              // Require accounts with staff characters to either have mfa at account or character level?
-    bool    require_uniq_pass_staff;        // Require staff characters to have player-level password?
-    bool    allow_multiplay_acct_all;       // Allow multiple characters logged in from one account?
-    bool    allow_multiplay_acct_staff;     // Allow multiple logins from staff accounts? (only if allow_multiplay_account_all is true, and account does not have deny_multiplay set)
-    bool    allow_multiplay_host_all;       // Allow multiple accounts to be logged in from one host?
-    bool    allow_multiplay_host_staff;     // Allow multiple accounts to be logged in from one host if one is staff?
-    int     max_login_attempts;             // How many login attempts are allowed before disconnecting?
-    int     idle_time;                      // How many ticks until a user is considered idle?
-    int     idle_disconnect_time;           // How many ticks until an idle user is disconnected?
-    int     max_alias;                      // How many aliases can a player have?
-    int     max_characters;                 // How many characters can a player have (can be overridden by account data);
-    int     max_churches;                       // How many organizations can exist?
-    bool    enable_telnet;                  // Do we allow plaintext?
-    int     telnet_port;                    // Plaintext telnet port.
-    bool    enable_tls;                     // Do we allow tls connections?
-    int     tls_port;                       // TLS port.
-//    bool    enable_websocket_plain;         // Do we allow websocket connections?
-//    int     websocket_port;                 // Websocket port.
-//    bool    enable_websocket_tls;           // Do we allow tls websocket connections?
-//    int     websocket_tls_port;             // TLS websocket port.
-//    bool    enable_web;                     // Do we allow web connections?
-    char    *ssl_cert_path;                      // Path to SSL certificate.
-    char    *ssl_key_path;                       // Path to SSL key.
-    bool    enable_insecure_warning;               // Do we show a warning for insecure connections?
-    char    *insecure_warning_msg;          // What message do we display for insecure users? (requires insecure_warning)
-    int     max_logfile_size;               // What size do we start rotating logs at (in MB)?
+    char *game_name;              // Name of the game, used in MSSP.
+    char *login_string;           // Login string to present on connection.
+    char *server_description;     // Description of server, eg. "2.0 Public Test Server"
+    bool testport;                // Is this a testport?
+    bool dev_server;              // Is this a dev/alpha server?
+    bool enable_passwd;           // Enable passwords?
+    bool enable_mfa;              // Enable multifactor authentication?
+    bool wizlock;                 // Prevent non-staff character logins?
+    char *wizlock_msg;            // Message to display to players when they try to login if game is wizlocked.
+    bool new_acct_lock;           // Prevent making new accounts?
+    char *new_acct_lock_msg;      // Message to display to players when they try to create a new account if game is new_acct_locked.
+    bool new_char_lock;           // Prevent making new characters on existing accounts?
+    char *new_char_lock_msg;      // Message to display to players if they try to create a new character if game is new_char_locked.
+    bool logall;                  // Log everything?
+    bool require_email_verif;     // Require email verification for accounts?
+    bool require_2fa_all;         // Require all accounts to have multifactor auth?
+    bool require_2fa_staff;       // Require accounts with staff characters to either have mfa at account or character level?
+    bool require_uniq_pass_staff; // Require staff characters to have player-level password?
+    bool allow_mp_acct_all;       // Allow multiple characters logged in from one account?
+    bool allow_mp_acct_staff;     // Allow multiple logins from staff accounts? (only if allow_multiplay_account_all is true, and account does not have deny_multiplay set)
+    bool allow_mp_host_all;       // Allow multiple accounts to be logged in from one host?
+    bool allow_mp_host_staff;     // Allow multiple accounts to be logged in from one host if one is staff?
+    bool allow_link_all;          // Allow all accounts to link chars.
+    bool allow_unlink_all;        // Allow all accounts to unlink chars.
+    bool alignment_system;        // Do we use the alignment system?
+    bool restrict_races_align;    // Restrict races by alignment (Legacy style)
+    bool restrict_classes_align;  // Restrict classes by alignment? (Legacy style)
+    int max_login_attempts;       // How many login attempts are allowed before disconnecting?
+    int idle_time;                // How many ticks until a user is considered idle?
+    int idle_disconnect_time;     // How many ticks until an idle user is disconnected?
+    int max_alias;                // How many aliases can a player have?
+    int max_characters;           // How many characters can a player have (can be overridden by account data);
+    int max_orgs;                 // How many organizations can exist?
+    int org_max_ranks;            // How many ranks can an organization have?
+    bool enable_telnet;           // Allow plaintext connections?
+    int telnet_port;              // Plaintext telnet port.
+    bool enable_tls;              // Allow tls connections?
+    int tls_port;                 // TLS port.
+    bool enable_websocket_tls;    // Allow websocket connections?
+    int websocket_tls_port;       // Websocket port.
+    bool enable_web;              // Allow web connections?
+    char *ssl_cert_path;          // SSL certificate.
+    char *ssl_key_path;           // SSL key.
+    bool enable_insecure_warning; // Show a warning for insecure connections?
+    char *insecure_warning_msg;   // What message do we display for insecure users? (requires insecure_warning)
+    int max_logfile_size;         // What size do we start rotating logs at (in MB)?
+    bool note_boot_errors;
+    int character_delete_delay_days; // How long until a character is deleted after being marked for deletion?
+    int org_disable_pk_pneuma_cost; // How much does it cost to disable PK in an org?
+
     /* MSSP Settings */
-    int mssp_players;                            // Automatically updated by the game.
-    int mssp_uptime;                             // Automatically updated by the game.
-    int mssp_crawl_delay;                        // How often do we want crawlers to come back? -1 for crawler default. Recommended values: -1, 1, 5, 11, 23
-    char *mssp_hostname;                         // Server hostname
-    int mssp_port;                               // Server Port
-    int mssp_tls_port;                           // TLS Server Port
-    char *mssp_codebase;                         // Name of the codebase, eg Merc 2.1. You can report multiple codebases using the array format, make sure to report the current codebase last.
-    char *mssp_contact;                          // Email address for contacting the mud.
-    int mssp_created;                            // Year the MUD was created.
-    char *mssp_ip;                               // Current or new IP address.
-    char *mssp_language;                         // English name of the language used, eg German or English
-    char *mssp_location;                         // English short name of the country where the server is located, using ISO 3166.
-    int mssp_minimum_age;                        // Current minimum age requirement, omit if not applicable.
-    char *mssp_website;                          // URL to MUD website, this should include the http:// or https:// prefix.
-    char *mssp_family;                           // AberMUD, CoffeeMUD, DikuMUD, Evennia, LPMud, MajorMUD, MOO, Mordor, SocketMud, TinyMUD, TinyMUCK, TinyMUSH, Custom. Report Custom unless it's a well established family. You can report multiple generic codebases using the array format, make sure to report the most distant codebase (aka the family) last. Check the MUD family tree for naming and capitalization.
-    char *mssp_genre;                            // Adult, Fantasy, Historical, Horror, Modern, Mystery, None, Romance, Science Fiction, Spiritual
-    char *mssp_status;                           // Alpha, Closed Beta, Open Beta, Live
-    char *mssp_gamesystem;                       // D&D, d20 System, World of Darkness, Etc.
-    char *mssp_intermud;                         // AberChat, I3, IMC2, MudNet, Etc. Can be used multiple times if you support several protocols, most important protocol last. Leave empty or omit if no Intermud protocol is supported.
-    char *mssp_subgenre;                         //Alternate History, Anime, Cyberpunk, Detective, Discworld, Dragonlance, Christian Fiction, Classical Fantasy, Crime, Dark Fantasy, Epic Fantasy, Erotic, Exploration, Forgotten Realms, Frankenstein, Gothic, High Fantasy, Magical Realism, Medieval Fantasy, Multiverse, Paranormal, Post-Apocalyptic, Military Science Fiction, Mythology, Pulp, Star Wars, Steampunk, Suspense, Time Travel, Weird Fiction, World War II, Urban Fantasy, Etc.
-    char *mssp_discord_server;                   // URL to a Discord server, this should include the https:// prefix.
-    int mssp_areas;                              // Current number of areas (open only? let mud generate?)
-    int mssp_helpfiles;                          // Current number of helpfiles (player-only? let mud generate?)
-    int mssp_mobiles;                            // Current number of unique mobs (open areas only?)
-    int mssp_objects;                            // Current number of unique objects (open areas only? non-immortal?)
-    int mssp_rooms;                              // Current number of unique rooms (open areas only?)
-    int mssp_classes;                            // Number of player classes, use 0 if classless.
-    int mssp_levels;                             // Number of player levels, use 0 if level-less.
-    int mssp_races;                              // Number of player races, use 0 if raceless.
-    int mssp_skills;                             // Number of player skills, use 0 if skill-less.
-    int mssp_dbsize;                             //
+    int mssp_players;          // Automatically updated by the game.
+    int mssp_uptime;           // Automatically updated by the game.
+    int mssp_crawl_delay;      // How often do we want crawlers to come back? -1 for crawler default. Recommended values: -1, 1, 5, 11, 23
+    char *mssp_hostname;       // Server hostname
+    int mssp_port;             // Server Port
+    int mssp_tls_port;         // TLS Server Port
+    char *mssp_codebase;       // Name of the codebase, eg Merc 2.1. You can report multiple codebases using the array format, make sure to report the current codebase last.
+    char *mssp_contact;        // Email address for contacting the mud.
+    int mssp_created;          // Year the MUD was created.
+    char *mssp_ip;             // Current or new IP address.
+    char *mssp_language;       // English name of the language used, eg German or English
+    char *mssp_location;       // English short name of the country where the server is located, using ISO 3166.
+    int mssp_minimum_age;      // Current minimum age requirement, omit if not applicable.
+    char *mssp_website;        // URL to MUD website, this should include the http:// or https:// prefix.
+    char *mssp_family;         // AberMUD, CoffeeMUD, DikuMUD, Evennia, LPMud, MajorMUD, MOO, Mordor, SocketMud, TinyMUD, TinyMUCK, TinyMUSH, Custom. Report Custom unless it's a well established family. You can report multiple generic codebases using the array format, make sure to report the most distant codebase (aka the family) last. Check the MUD family tree for naming and capitalization.
+    char *mssp_genre;          // Adult, Fantasy, Historical, Horror, Modern, Mystery, None, Romance, Science Fiction, Spiritual
+    char *mssp_status;         // Alpha, Closed Beta, Open Beta, Live
+    char *mssp_gamesystem;     // D&D, d20 System, World of Darkness, Etc.
+    char *mssp_intermud;       // AberChat, I3, IMC2, MudNet, Etc. Can be used multiple times if you support several protocols, most important protocol last. Leave empty or omit if no Intermud protocol is supported.
+    char *mssp_subgenre;       // Alternate History, Anime, Cyberpunk, Detective, Discworld, Dragonlance, Christian Fiction, Classical Fantasy, Crime, Dark Fantasy, Epic Fantasy, Erotic, Exploration, Forgotten Realms, Frankenstein, Gothic, High Fantasy, Magical Realism, Medieval Fantasy, Multiverse, Paranormal, Post-Apocalyptic, Military Science Fiction, Mythology, Pulp, Star Wars, Steampunk, Suspense, Time Travel, Weird Fiction, World War II, Urban Fantasy, Etc.
+    char *mssp_discord_server; // URL to a Discord server, this should include the https:// prefix.
+    int mssp_areas;            // Current number of areas (open only? let mud generate?)
+    int mssp_helpfiles;        // Current number of helpfiles (player-only? let mud generate?)
+    int mssp_mobiles;          // Current number of unique mobs (open areas only?)
+    int mssp_objects;          // Current number of unique objects (open areas only? non-immortal?)
+    int mssp_rooms;            // Current number of unique rooms (open areas only?)
+    int mssp_classes;          // Number of player classes, use 0 if classless.
+    int mssp_levels;           // Number of player levels, use 0 if level-less.
+    int mssp_races;            // Number of player races, use 0 if raceless.
+    int mssp_skills;           // Number of player skills, use 0 if skill-less.
+    int mssp_dbsize;           //
 
-    bool mssp_ansi;                              // ANSI color code support?
-    bool mssp_gmcp;                              // GMCP (Generic Mud Communication Protocol) support? 
-    bool mssp_mccp;                              // MCCP (Mud Client Compression Protocol 2) support?
-    bool mssp_mcp;                               // MCP support?
-    bool mssp_msdp;                              // MSDP support?
-    bool mssp_msp;                               // MSP (Mud Sound Protocol) support?
-    bool mssp_mxp;                               // MXP (Mud eXtension Protocol) support?
-    bool mssp_pueb;                              // Pueblo/UE support?
-    bool mssp_utf8;                              // UTF-8 support?
-    bool mssp_vt100;                             // VT100 support?
-    bool mssp_xterm256;                          // 256 color support?
-    bool mssp_xtermtrue;                         // True color support?
-    bool mssp_atcp;                              // ATCP (Achaea Telnet Client Protocol) support?
-    bool mssp_ssl;                               // SSL support?
-    bool mssp_pay2play;                          // Pay to play?
-    bool mssp_pay4perks;                         // Pay for perks?
-    bool mssp_hiring_builders;                   // Looking for builders?
-    bool mssp_hiring_coders;                     // Looking for coders?
-    bool mssp_adult_material;                    // Does MUD contain mature content?
-    bool mssp_multiclass;                        // Multiclassing allowed?
-    bool mssp_newbie_friendly;                   // Newbie friendly?
-    bool mssp_player_cities;                     // Player cities?
-    bool mssp_player_clans;                      // Player clans?
-    bool mssp_player_crafting;                   // Player crafting?
-    bool mssp_player_guilds;                     // Player guilds?
-    char *mssp_equipment_system;                 // Equipment system, eg. Diku, ROM, SMAUG, etc.
-    char *mssp_multiplaying;                     // Multiplaying allowed?
-    bool mssp_playerkilling;                     // Player killing allowed?
-    bool mssp_quest_system;                      // Quest system?
-    bool mssp_roleplaying;                       // Roleplaying enforced?
-    bool mssp_training_system;                   // Training system?
-    bool mssp_world_originality;                 // Based on an established setting?
+    bool mssp_ansi;              // ANSI color code support?
+    bool mssp_gmcp;              // GMCP (Generic Mud Communication Protocol) support?
+    bool mssp_mccp;              // MCCP (Mud Client Compression Protocol 2) support?
+    bool mssp_mcp;               // MCP support?
+    bool mssp_msdp;              // MSDP support?
+    bool mssp_msp;               // MSP (Mud Sound Protocol) support?
+    bool mssp_mxp;               // MXP (Mud eXtension Protocol) support?
+    bool mssp_pueb;              // Pueblo/UE support?
+    bool mssp_utf8;              // UTF-8 support?
+    bool mssp_vt100;             // VT100 support?
+    bool mssp_xterm256;          // 256 color support?
+    bool mssp_xtermtrue;         // True color support?
+    bool mssp_atcp;              // ATCP (Achaea Telnet Client Protocol) support?
+    bool mssp_ssl;               // SSL support?
+    bool mssp_pay2play;          // Pay to play?
+    bool mssp_pay4perks;         // Pay for perks?
+    bool mssp_hiring_builders;   // Looking for builders?
+    bool mssp_hiring_coders;     // Looking for coders?
+    bool mssp_adult_material;    // Does MUD contain mature content?
+    bool mssp_multiclass;        // Multiclassing allowed?
+    bool mssp_newbie_friendly;   // Newbie friendly?
+    bool mssp_player_cities;     // Player cities?
+    bool mssp_player_clans;      // Player clans?
+    bool mssp_player_crafting;   // Player crafting?
+    bool mssp_player_guilds;     // Player guilds?
+    char *mssp_equipment_system; // Equipment system, eg. Diku, ROM, SMAUG, etc.
+    char *mssp_multiplaying;     // Multiplaying allowed?
+    bool mssp_playerkilling;     // Player killing allowed?
+    bool mssp_quest_system;      // Quest system?
+    bool mssp_roleplaying;       // Roleplaying enforced?
+    bool mssp_training_system;   // Training system?
+    bool mssp_world_originality; // Based on an established setting?
 };
-/*
-struct mssp_data
+
+/* Changeset structures */
+#define MAX_CHANGESETS 20 // Store the last 20 changesets
+
+typedef struct game_setting_change_history
 {
-    // MSSP Settings
-    int mssp_players;                            // Automatically updated by the game.
-    int mssp_uptime;                             // Automatically updated by the game.
-    int mssp_crawl_delay;                        // How often do we want crawlers to come back? -1 for crawler default. Recommended values: -1, 1, 5, 11, 23
-    char *mssp_hostname;                         // Server hostname
-    int mssp_port;                               // Server Port
-    int mssp_tls_port;                           // TLS Server Port
-    char *mssp_codebase;                         // Name of the codebase, eg Merc 2.1. You can report multiple codebases using the array format, make sure to report the current codebase last.
-    char *mssp_contact;                          // Email address for contacting the mud.
-    int mssp_created;                            // Year the MUD was created.
-    char *mssp_ip;                               // Current or new IP address.
-    char *mssp_language;                         // English name of the language used, eg German or English
-    char *mssp_location;                         // English short name of the country where the server is located, using ISO 3166.
-    int mssp_minimum_age;                        // Current minimum age requirement, omit if not applicable.
-    char *mssp_website;                          // URL to MUD website, this should include the http:// or https:// prefix.
-    char *mssp_family;                           // AberMUD, CoffeeMUD, DikuMUD, Evennia, LPMud, MajorMUD, MOO, Mordor, SocketMud, TinyMUD, TinyMUCK, TinyMUSH, Custom. Report Custom unless it's a well established family. You can report multiple generic codebases using the array format, make sure to report the most distant codebase (aka the family) last. Check the MUD family tree for naming and capitalization.
-    char *mssp_genre;                            // Adult, Fantasy, Historical, Horror, Modern, Mystery, None, Romance, Science Fiction, Spiritual
-    char *mssp_status;                           // Alpha, Closed Beta, Open Beta, Live
-    char *mssp_gamesystem;                       // D&D, d20 System, World of Darkness, Etc.
-    char *mssp_intermud;                         // AberChat, I3, IMC2, MudNet, Etc. Can be used multiple times if you support several protocols, most important protocol last. Leave empty or omit if no Intermud protocol is supported.
-    char *mssp_subgenre;                         //Alternate History, Anime, Cyberpunk, Detective, Discworld, Dragonlance, Christian Fiction, Classical Fantasy, Crime, Dark Fantasy, Epic Fantasy, Erotic, Exploration, Forgotten Realms, Frankenstein, Gothic, High Fantasy, Magical Realism, Medieval Fantasy, Multiverse, Paranormal, Post-Apocalyptic, Military Science Fiction, Mythology, Pulp, Star Wars, Steampunk, Suspense, Time Travel, Weird Fiction, World War II, Urban Fantasy, Etc.
-    char *mssp_discord_server;                   // URL to a Discord server, this should include the https:// prefix.
-    int mssp_areas;                              // Current number of areas (open only? let mud generate?)
-    int mssp_helpfiles;                          // Current number of helpfiles (player-only? let mud generate?)
-    int mssp_mobiles;                            // Current number of unique mobs (open areas only?)
-    int mssp_objects;                            // Current number of unique objects (open areas only? non-immortal?)
-    int mssp_rooms;                              // Current number of unique rooms (open areas only?)
-    int mssp_classes;                            // Number of player classes, use 0 if classless.
-    int mssp_levels;                             // Number of player levels, use 0 if level-less.
-    int mssp_races;                              // Number of player races, use 0 if raceless.
-    int mssp_skills;                             // Number of player skills, use 0 if skill-less.
-    int mssp_dbsize;                             //
+    const struct game_setting_type *setting;
+    char *old_value;
+    char *new_value;
+} GAME_SETTING_CHANGE_HISTORY;
 
-    bool mssp_ansi;                              // ANSI color code support?
-    bool mssp_gmcp;                              // GMCP (Generic Mud Communication Protocol) support? 
-    bool mssp_mccp;                              // MCCP (Mud Client Compression Protocol 2) support?
-    bool mssp_mcp;                               // MCP support?
-    bool mssp_msdp;                              // MSDP support?
-    bool mssp_msp;                               // MSP (Mud Sound Protocol) support?
-    bool mssp_mxp;                               // MXP (Mud eXtension Protocol) support?
-    bool mssp_pueb;                              // Pueblo/UE support?
-    bool mssp_utf8;                              // UTF-8 support?
-    bool mssp_vt100;                             // VT100 support?
-    bool mssp_xterm256;                          // 256 color support?
-    bool mssp_xtermtrue;                         // True color support?
-    bool mssp_atcp;                              // ATCP (Achaea Telnet Client Protocol) support?
-    bool mssp_ssl;                               // SSL support?
-    bool mssp_pay2play;                          // Pay to play?
-    bool mssp_pay4perks;                         // Pay for perks?
-    bool mssp_hiring_builders;                   // Looking for builders?
-    bool mssp_hiring_coders;                     // Looking for coders?
-    bool mssp_adult_material;                    // Does MUD contain mature content?
-    bool mssp_multiclass;                        // Multiclassing allowed?
-    bool mssp_newbie_friendly;                   // Newbie friendly?
-    bool mssp_player_cities;                     // Player cities?
-    bool mssp_player_clans;                      // Player clans?
-    bool mssp_player_crafting;                   // Player crafting?
-    bool mssp_player_guilds;                     // Player guilds?
-    char *mssp_equipment_system;                 // Equipment system, eg. Diku, ROM, SMAUG, etc.
-    char *mssp_multiplaying;                     // Multiplaying allowed?
-    bool mssp_playerkilling;                     // Player killing allowed?
-    bool mssp_quest_system;                      // Quest system?
-    bool mssp_roleplaying;                       // Roleplaying enforced?
-    bool mssp_training_system;                   // Training system?
-    bool mssp_world_originality;                 // Based on an established setting?
-};
-*/
+typedef struct game_settings_changeset
+{
+    int id;           // Sequential ID for the changeset
+    char *author;     // Name of the character who made the change
+    time_t timestamp; // When the change was made
+    char *comment;    // Optional comment about the changes
+    LLIST *changes;   // List of GAME_SETTING_CHANGE_HISTORY objects
+} GAME_SETTINGS_CHANGESET;
+
+// Global array to store changesets
+extern GAME_SETTINGS_CHANGESET *changesets[MAX_CHANGESETS];
+extern int next_changeset_id; // Next ID to assign
+extern int changeset_count;   // Number of stored changesets
+extern LLIST *pending_changesets;
 
 struct bounty_data
 {
@@ -1300,6 +1353,19 @@ struct bounty_data
     BOUNTY_DATA *next_bounty;
     long amount;
 };
+
+typedef struct church_rank_data
+{
+    long uid;            // Unique ID for this rank
+    char *rank_name;     // Base rank name (identifier)
+    char *title_male;    // Male title
+    char *title_female;  // Female title
+    char *title_neutral; // Neutral title
+    int rank_type;       // RANK_TYPE_xxx
+    long permissions;    // What this rank can do
+    long flags;          // Flags (protected, etc.)
+    struct church_rank_data *next;
+} CHURCH_RANK_DATA;
 
 struct church_player_data
 {
@@ -1318,13 +1384,17 @@ struct church_player_data
     long pk_losses;
     long pk_wins;
     long wars_won;
+        int old_rank;
+    CHURCH_RANK_DATA *rank;
+    CHURCH_RANK_DATA *rank_ptr;
 
     /* Commands you can entrust a church member with */
     STRING_DATA *commands;
+    long personal_permissions;
 
     int alignment;
-    int rank;
     int sex;
+    long rank_uid;
 };
 
 #define CHURCH_PLAYER_EXCOMMUNICATED	(A)
@@ -1362,20 +1432,86 @@ struct church_player_data
 #define CHURCH_PUBLIC_RULES	(D)
 #define CHURCH_PUBLIC_INFO	(E)
 
+#define CHURCH_RANK_PROTECTED (A) // Rank cannot be deleted
+
+/* Church command type */
+struct church_command_type
+{
+    char *command;    /* the command */
+    long permission;  /* flag to use */
+    DO_FUN *function; /* function call */
+    bool membership;  /* require membership */
+    bool admin;       /* Admin only commands */
+};
+
+#define RANK_TYPE_MEMBER 0
+#define RANK_TYPE_OFFICER 1
+#define RANK_TYPE_LEADER 2
+
+// Church permission flags
+#define CHURCH_PERM_NONE 0
+#define CHURCH_PERM_GOHALL (A)          // Can use gohall command
+#define CHURCH_PERM_WITHDRAW (B)        // Can withdraw resources
+#define CHURCH_PERM_INFO (C)            // Can edit church info
+#define CHURCH_PERM_MOTD (D)            // Can edit MOTD
+#define CHURCH_PERM_RULES (E)           // Can edit rules
+#define CHURCH_PERM_REMOVE (F)          // Can remove members
+#define CHURCH_PERM_STORAGE (G)         // Can access storage
+#define CHURCH_PERM_GH_CROSS (H)        // Can gohall crosszone
+#define CHURCH_PERM_TREASURE (I)        // Can access treasure rooms
+#define CHURCH_PERM_RANKS (J)           // Can edit ranks
+#define CHURCH_PERM_PERMS (K)           // Can edit permissions
+#define CHURCH_PERM_MANAGE (L)          // Can manage church
+#define CHURCH_PERM_VIEWLOG (M)         // Can view church log
+#define CHURCH_PERM_BALANCE (N)         // Can balance church
+#define CHURCH_PERM_TALK (O)            // Can talk in church
+#define CHURCH_PERM_FINANCES (P)        // Can manage finances
+#define CHURCH_PERM_GET_STORAGE (Q)     // Can get from storage
+#define CHURCH_PERM_PUT_STORAGE (R)     // Can set storage
+#define CHURCH_PERM_UPGRADE (S)         // Can upgrade church
+#define CHURCH_PERM_TREASURE_ALL (T)    // Can access all treasure rooms
+#define CHURCH_PERM_TREASURE_MANAGE (U) // Can manage treasure rooms
+#define CHURCH_PERM_MEMBERS (V)         // Can manage members
+#define CHURCH_PERM_ADD (W)             // Can add members
+#define CHURCH_PERM_EDITLOG (X)         // Can edit log
+
+// Church log category flags
+#define CHLOG_MEMBERS      (A)
+#define CHLOG_DEPOSIT      (B)
+#define CHLOG_WITHDRAWAL   (C)
+#define CHLOG_TRANSFER     (D)  // Meta: includes deposit and withdrawal
+#define CHLOG_SETTINGS     (E)
+#define CHLOG_STORAGE      (F)
+#define CHLOG_RANKS        (G)
+#define CHLOG_PERMISSIONS  (H)
+#define CHLOG_PK           (I)
+#define CHLOG_RECRUITMENT  (J)
+#define CHLOG_LEADERSHIP   (K) // Meta: includes ranks and permissions
+#define CHLOG_GENERAL      (L)
+#define CHLOG_STORAGE_FEES (M)
+#define CHLOG_FINANCES (N)
+#define CHLOG_GEN_SETTINGS (O)
+#define CHLOG_TREASURE     (P)
+#define CHLOG_MEMBERSHIP_SETTINGS (Q)
+
 struct church_data
 {
     CHURCH_DATA 	*next;
     CHURCH_PLAYER_DATA 	*people;
+    long version;
 
 	long		uid;
 
     char 		*name;
     char 		*flag;
     char 		*founder;
+    char        *owner;
     char 		*motd;
     char 		*rules;
     char		*info;
-    char 		*log;
+    CHURCH_LOG_ENTRY *log_entries;
+    long last_log_entry_id;
+    int log_entry_count;
 
     long 		pneuma;
     long 		gold;
@@ -1399,51 +1535,138 @@ struct church_data
 
     time_t 		created;
     time_t 		founder_last_login;
+    time_t owner_last_login;
+    time_t member_last_login;
+    time_t officer_last_login;
+    time_t leader_last_login;
 
     bool 		pk;
 
-    char 		colour1;
-    char 		colour2;
+char *colour1;
+char *colour2;
 
     LLIST *online_players;
     LLIST *roster;
+
+    OBJ_DATA *coffer;
+    time_t coffer_rent;
+    long storage_permissions;
+    LLIST *lcoffer;
+    int max_ranks;                  // Number of ranks this church has
+    CHURCH_RANK_DATA *ranks;        // Linked list of ranks (lowest to highest)
+    int num_ranks;                  // Number of ranks (for quick reference)
+    CHURCH_RANK_DATA *default_rank; // Default rank for new members
+    long max_rank_uid;
+    bool deleted;
 };
 
-struct church_treasure_room_data
+// New structure for church log entries
+struct church_log_entry
 {
-	ROOM_INDEX_DATA *room;
-	int min_rank;				// Which ranks can use it
+    char *author;          // Who made the entry (NULL for system entries)
+    char *text;            // The log entry text
+    flag_t categories;
+    time_t timestamp;      // When the entry was made
+    long entry_id;         // Unique ID for the entry
+    bool system_generated; // If true, entry cannot be modified
+    struct church_log_entry *next;
+    bool valid;
 };
 
+
+struct church_treasure_room
+{
+    ROOM_INDEX_DATA *room; // The room itself
+    bool is_default;       // Whether this is the default room
+    char *name;            // Optional name for the room
+
+    // Replace min_rank with a list of ranks that can access
+    LLIST *allowed_ranks; // List of CHURCH_RANK_DATA pointers that can access the room
+    int min_rank;
+};
 
 /*
  * Connected state for a channel.
  */
-#define CON_PLAYING			 0
-#define CON_GET_NAME			 1
-#define CON_GET_OLD_PASSWORD		 2
-#define CON_CONFIRM_NEW_NAME		 3
-#define CON_GET_NEW_PASSWORD		 4
-#define CON_CONFIRM_NEW_PASSWORD	 5
-#define CON_GET_NEW_RACE		 6
-#define CON_GET_NEW_SEX			 7
+#define CON_PLAYING 0
+#define CON_GET_NAME 1
+#define CON_GET_OLD_PASSWORD 2
+#define CON_CONFIRM_NEW_NAME 3
+#define CON_GET_NEW_PASSWORD 4
+#define CON_CONFIRM_NEW_PASSWORD 5
+#define CON_GET_NEW_RACE 6
+#define CON_GET_NEW_SEX 7
 #define CON_GET_NEW_CLASS		 8
-#define CON_GET_ALIGNMENT		 9
+#define CON_GET_ALIGNMENT 9
 /*#define CON_DEFAULT_CHOICE		10 */
 /*#define CON_GEN_GROUPS		11 */
 /*#define CON_PICK_WEAPON		12 */
-#define CON_READ_IMOTD			13
-#define CON_READ_MOTD			14
-#define CON_BREAK_CONNECT		15
-#define CON_GET_ASCII			16
+#define CON_READ_IMOTD 13
+#define CON_READ_MOTD 14
+#define CON_BREAK_CONNECT 15
+#define CON_GET_ASCII 16
 #define CON_GET_SUB_CLASS       	17
 #define CON_OLD_SUBCLASS  	     	18
 #define CON_SUBCLASS_CHOOSE             19
-#define CON_CHANGE_PASSWORD		20
-#define CON_CHANGE_PASSWORD_CONFIRM     21
-#define CON_GET_EMAIL			22
+#define CON_CHANGE_PASSWORD 20
+#define CON_CHANGE_PASSWORD_CONFIRM 21
+#define CON_GET_EMAIL 22
 #define CON_CONFIRM_EMAIL_FOR_RESET 23
-#define CON_GET_MFA            24
+#define CON_GET_MFA 24
+#define CON_GET_ACCOUNT_NAME 25
+#define CON_GET_ACCOUNT_PASSWORD 26
+#define CON_NEW_ACCOUNT_PASSWORD 27
+#define CON_CONFIRM_ACCOUNT_PASSWORD 28
+#define CON_GET_ACCOUNT_EMAIL 29
+#define CON_ACCOUNT_MENU 30
+#define CON_CREATING_NEW_CHAR 31
+#define CON_SELECT_CHARACTER 32
+#define CON_CONFIRM_ACCOUNT_NAME 33
+#define CON_LINK_CHARACTER_NAME 34
+#define CON_LINK_CHARACTER_PASSWORD 35
+#define CON_LINK_CHARACTER_MFA 36
+#define CON_CHARACTER_MENU 37
+#define CON_CHARACTER_PASSWORD 38
+#define CON_CONFIRM_CHARACTER_PASSWORD 39
+#define CON_CHARACTER_MFA_TOGGLE 40
+#define CON_CONFIRM_DELETE_CHARACTER 41
+#define CON_GET_CHAR_PASSWORD 42 // Character-specific password validation
+#define CON_GET_CHAR_MFA 43
+#define CON_CHARACTER_MFA_VERIFY 44
+#define CON_ACCOUNT_MFA_VERIFY 45 // Character-specific MFA validation
+#define CON_CONFIRM_ACCOUNT_EMAIL_FOR_RESET 46
+#define CON_CHANGE_ACCOUNT_PASSWORD 47
+#define CON_CONFIRM_ACCOUNT_PASSWORD_CHANGE 48
+#define CON_GET_ACCOUNT_MFA 49
+#define CON_CHANGE_ACCOUNT_EMAIL 50
+#define CON_VERIFY_ACCOUNT_PASSWORD 51
+#define CON_ACCOUNT_MFA_MENU 52
+#define CON_GET_ACCOUNT_MFA_FOR_CHAR 53
+#define CON_VERIFY_DELETE_PASSWORD 54
+#define CON_VERIFY_DELETE_MFA 55
+#define CON_CREATING_NEW_STAFF_CHAR 56
+#define CON_GET_STAFF_EMAIL 57
+#define CON_STAFF_MFA_PROMPT 58
+#define CON_STAFF_PASSWORD 59
+#define CON_CONFIRM_STAFF_PASSWORD 60
+#define CON_CHARACTER_MFA_VERIFY_FOR_SETTINGS 61
+#define CON_CHARACTER_MFA_MENU 62
+#define CON_CHARACTER_MFA_CONFIRM 63
+#define CON_CHARACTER_MFA_DISABLE_CONFIRM 64
+#define CON_ACCOUNT_MFA_VERIFY_FOR_SETTINGS 65
+#define CON_ACCOUNT_MFA_CONFIRM 66
+#define CON_ACCOUNT_MFA_DISABLE_CONFIRM 67
+#define CON_VERIFY_ACCOUNT_EMAIL_CHANGE 68
+#define CON_CHANGE_CHARACTER_EMAIL 69
+#define CON_VERIFY_CHARACTER_EMAIL_CHANGE 70
+#define CON_VERIFY_UNLINK_PASSWORD 71
+#define CON_VERIFY_UNLINK_MFA 72
+#define CON_SET_UNLINK_PASSWORD 73
+#define CON_VERIFY_CHARACTER_DELETE 74
+#define CON_CHARACTER_DELETE 75
+#define CON_MAX 76
+
+#define MFA_RECOVERY_CODES 5
 
 
 /* Places */
@@ -1514,6 +1737,7 @@ enum {
 struct	descriptor_data
 {
     DESCRIPTOR_DATA *	next;
+    ACCOUNT_DATA * account;
     DESCRIPTOR_DATA *	snoop_by;
     CHAR_DATA *		character;
     CHAR_DATA *		original;
@@ -1545,6 +1769,8 @@ struct	descriptor_data
     HELP_CATEGORY	*hCat;		/* hedit */
     char **             pString;	/* OLC */
     int			editor;		/* OLC */
+    void *editor_ptr;    // For general use
+
 
     /* Input function */
     bool		input;
@@ -1560,9 +1786,27 @@ struct	descriptor_data
     unsigned int		muted;			// All text heading to the output will be blocked
     bool    tls_handshake_in_progress;
     SSL *ssl;
+        time_t last_activity;
+    bool mfa_verified;
+    bool creating_staff_character;
+    bool reconnecting;
+    bool healthcheck;
+    char * new_password_buffer;
 
 
 };
+
+bool generate_crypt_salt(char *salt_buffer, size_t salt_buffer_size);
+bool set_encrypted_password(char **target_password_field, int *target_version_field, const char *plaintext_password);
+
+typedef enum {
+    PWD_CHECK_FAIL,
+    PWD_CHECK_SUCCESS_CRYPT_SYSTEM,
+    PWD_CHECK_SUCCESS_SHA256_CUSTOM,
+    PWD_CHECK_SUCCESS_PLAINTEXT
+} password_check_status;
+
+password_check_status check_encrypted_password(const char *plaintext_password, const char *stored_hash, int stored_version);
 
 
 /*
@@ -1624,7 +1868,8 @@ struct	help_category
     char *name;
     char *description;
 
-    unsigned int min_level;
+    unsigned int min_level; // Deprecated
+    unsigned int min_rank;
     unsigned int security;
 
     /* bookkeeping info */
@@ -1650,6 +1895,7 @@ struct	help_data
     HELP_DATA *	next;
     HELP_CATEGORY *hCat;
     int		min_level;
+    int     min_rank;
     int		security;
     char *	keyword;
     char *	text;
@@ -1781,7 +2027,7 @@ struct  player_setting_type
     long	vector2;
     long	vector_comm;
     bool	inverted;
-    int		min_level;
+    int		min_rank;
     int		default_state;
 };
 
@@ -1816,7 +2062,7 @@ struct wiznet_type
 {
     char *	name;
     long 	flag;
-    int		level;
+    int		rank;
 };
 
 struct attack_type
@@ -1915,23 +2161,38 @@ struct stat_type
 
 
 /* Notes */
-#define NOTE_NOTE	0
-#define NOTE_IDEA	1
-#define NOTE_PENALTY	2
-#define NOTE_NEWS	3
-#define NOTE_CHANGES	4
-
-struct	note_data
+#define NOTE_NOTE 0
+#define NOTE_IDEA 1
+#define NOTE_PENALTY 2
+#define NOTE_NEWS 3
+#define NOTE_CHANGES 4
+typedef enum
 {
-    NOTE_DATA *	next;
-    bool 	valid;
-    int16_t	type;
-    char *	sender;
-    char *	date;
-    char *	to_list;
-    char *	subject;
-    char *	text;
-    time_t  	date_stamp;
+    NOTE_RECIPIENT_CHARACTER,
+    NOTE_RECIPIENT_ACCOUNT,
+    NOTE_RECIPIENT_CHURCH,
+    NOTE_RECIPIENT_STAFF_RANK,
+    NOTE_RECIPIENT_STAFF_DUTY,
+    NOTE_RECIPIENT_ALL
+} NOTE_RECIPIENT_TYPE;
+
+struct note_data
+{
+    NOTE_DATA *next;
+    bool valid;
+    int16_t type;
+    char *sender;
+    char *date;
+    char *to_list;
+    char *subject;
+    char *text;
+    time_t date_stamp;
+    NOTE_RECIPIENT_TYPE recipient_type;
+    char *to_characters;   // For NOTE_RECIPIENT_CHARACTER
+    char *to_accounts;     // For NOTE_RECIPIENT_ACCOUNT
+    char *to_churches;     // For NOTE_RECIPIENT_CHURCH
+    char *to_staff_ranks;  // For NOTE_RECIPIENT_STAFF_RANK
+    char *to_staff_duties; // For NOTE_RECIPIENT_STAFF_DUTY
 };
 
 #define	AFFGROUP_RACIAL		1
@@ -3128,6 +3389,7 @@ enum {
 #define ROOM_NO_GET_RANDOM	(W)	// Room cannot be selected on a random search
 #define ROOM_SAFE_HARBOR	(X)	// Room is part of a harbor and considered ship safe
 #define ROOM_ALWAYS_UPDATE	(Z)	/* Allows the room to perform scripting even if the area is empty */
+#define ROOM_VAULT (bb)
 
 #define ENVIRON_NONE		0	// Special case to indicate the clone room is free floating
 #define ENVIRON_ROOM		1
@@ -3492,6 +3754,12 @@ enum {
 #define WIZ_SCRIPTS		(Y) // Fires when a script is run, if the script has the 'wiznet' flag. Gives debugging info about ifchecks and commands run.
 #define WIZ_SHIPS		(Z) // Unused
 #define WIZ_BUGS		(aa) // Unused
+
+/* Account Flags*/
+#define ACCT_CAN_CREATE_STAFF (A)
+#define ACCT_CAN_LINK (B)
+#define ACCT_CAN_UNLINK (C)
+#define ACCT_CAN_DELETE_IMMEDIATELY (D)
 
 /*
  * Autowars
@@ -3933,7 +4201,8 @@ struct cmd_data
 
     long     type;           // Command type
     long        addl_types;     // Additional command types, for use as arguments to the 'commands' command.
-    int16_t     level;          // Minimum level to use command.
+    int16_t     level;          // Minimum level to use command. (Deprecated)
+    int16_t     rank;           // Minimum position to use command.
     int16_t     position;       // Minimum position to use command.
     int16_t     log;            // Command log level.
     bool        enabled;        // Is the command enabled?
@@ -4030,6 +4299,10 @@ struct cmd_data
 #define EVENT_INTERPRET	5		// Delayed execution of a command
 #define EVENT_FUNCTION	6		// Delayed execution of a function
 
+#define PWD_VER_PLAINTEXT 0
+#define PWD_VER_SHA256_CUSTOM 1
+#define PWD_VER_CRYPT_SYSTEM 2
+
 struct event_data
 {
    EVENT_DATA 	*next;         	/* Next in world list */
@@ -4093,6 +4366,7 @@ struct	char_data
     NOTE_DATA *		pnote;
     OBJ_DATA *		carrying;
     OBJ_DATA *		locker;
+  int locker_tier;
     MAIL_DATA *		mail;
     ROOM_INDEX_DATA *	home_room; /* for mobs to wander back home */
     ROOM_INDEX_DATA *	clone_rooms;
@@ -4444,6 +4718,9 @@ struct	char_data
 
     LLIST *		lgroup;
 
+flag_t temp_log_category;
+int temp_log_entry_id;
+
     int			deathsight_vision;
     int			cast_successful;	// Flag set when the casting is started indicating whether the result is successful
     								// - This will allow channeling spell tokens to know if the spell would be successful.
@@ -4458,6 +4735,11 @@ struct	char_data
 	char		*casting_failure_message;
 
 	bool		in_damage_function;	// If set, it will prevent damage_new from working on the character
+    OBJ_DATA *carrying_temp; // Used to track the object that is being migrated
+    LLIST *lcarrying_temp;   // Used to track the list of objects that are being migrated
+    bool deleted;
+    time_t delete_time;
+    char *temp_log_entry;  /* Temporary log entry being edited */
 
 /*
 	struct char_data_stats {
@@ -4504,6 +4786,110 @@ struct	char_data
 
 #define SHOW_CHANNEL_FLAG(ch, flag)  (!IS_NPC(ch) && IS_SET((ch)->pcdata->channel_flags, (flag)))
 
+typedef struct account_note_data ACCOUNT_NOTE_DATA;
+
+struct account_note_data
+{
+    ACCOUNT_NOTE_DATA *next; /* Next note in list */
+    char *author;            /* Name of staff who added the note */
+    char *subject;           /* Note subject/title */
+    char *text;              /* Note content */
+    time_t timestamp;        /* When note was created */
+};
+
+struct account_data
+{
+    ACCOUNT_DATA *next;
+    unsigned long id[2]; // Account ID
+    int version;         // Version of the account data structure
+    bool valid;          // Is this account valid?
+
+    /* Auth related */
+    // Basics
+    char *username;             // Account name
+    int failed_attempts;        // Number of failed login attempts
+    time_t last_failed_attempt; // Time of last failed login attempt
+
+    // Passwords
+    char *passwd;       // Account Password (encrypted)
+    char *old_passwd;   // Old password (encrypted)
+    int passwd_version; // Password Version (future proofing)
+    bool reset_state;   // True if reset in progress
+    time_t reset_time;  // Time of last password reset
+    char *reset_code;   // Code used to reset password
+
+    // MFA
+    char *mfa_key;                            // Key used for MFA
+    bool mfa_enabled;                         // True if MFA is enabled
+    char *mfa_pending_key;                    // For unconfirmed MFA setup
+    bool mfa_pending;                         // True if setup in progress
+    char *recovery_codes[MFA_RECOVERY_CODES]; // Array of 5 recovery codes
+    bool recovery_used[MFA_RECOVERY_CODES];   // Used to track if recovery codes have been used
+
+    /* Email related */
+    char *email;                         // Email address
+    bool email_verified;                 // True if email is verified
+    char *pending_email;                 // Email address pending verification
+    char *email_verification_code;       // Code used to verify email
+    time_t email_verification_time;      // Time of email verification
+    time_t email_verification_last_sent; // Time of last email verification code sent
+
+    /* Host Info */
+    char *creation_host; // Host of account creation
+    char *last_ip;       // Last IP used to log in
+
+    time_t creation_date;  // Date of account creation
+    time_t last_login;     // Last time account logged in
+    char *last_login_host; // Last host used to log in
+
+    int character_count; // Number of characters on the account
+    int character_limit; // Maximum number of characters allowed on the account
+    int staff_limit;     // Maximum number of staff characters allowed on the account
+    bool staff_account;  // Is this account a staff account?
+    BAN_DATA *bans;
+    //    PENALTY_DATA * penalties;
+    //    BONUS_DATA * bonuses;
+    long acct_flags;                // Account flags
+    LLIST *characters;              // List of characters on the account
+    LLIST *notes;                   // List of notes on the account
+    LLIST *changes;                 // List of changes on the account
+    LLIST *avail_races;             // List of available races
+    ACCOUNT_NOTE_DATA *staff_notes; // List of notes on the account
+    OBJ_DATA *vault_items;
+    time_t vault_rent; // Time of last vault rent
+    LLIST *lvault;     // List of items in the vault
+
+    int refcount; // Reference count for the account (active logins)
+};
+
+/* Character reference data stored within an account */
+struct account_character_data
+{
+    char *name;        /* Character name */
+    char *race_name;   /* Character's race name */
+    char *class_name;  /* Character's primary class name */
+    int current_level; /* Character's level */
+    int tot_level;
+    char *last_area;   /* Character's most recent area */
+
+    bool staff;        /* Is the character an admin? */
+    int staff_rank;
+    time_t creation_date; /* When the character was created */
+    time_t last_login;    /* Last time character logged in */
+    time_t last_logoff;   /* Last time character logged off */
+    char *last_host;
+    long id[2];         /* Character ID */
+    bool deleted;       /* Is the character deleted? */
+    time_t delete_time; /* When the character was deleted */
+    //    long id2;                   /* Character ID part 2 */
+};
+
+typedef struct account_character_data ACCOUNT_CHARACTER;
+
+/* Function prototypes for account character handling */
+ACCOUNT_CHARACTER *new_account_character(void);
+void free_account_character(ACCOUNT_CHARACTER *acct_char);
+
 /*
  * Data which only PC's have.
  */
@@ -4521,7 +4907,12 @@ struct	pc_data
     char *		title;
     char *		afk_message;
     char *		email;	/* person's email address */
-    char *		flag;
+    bool email_verified;
+    char *pending_email;
+    char *email_verification_code;
+    time_t email_verification_time;
+    time_t email_verification_last_sent;
+    char *flag;
     char *      reset_code;
     bool        reset_state;
     time_t        reset_time;
@@ -4538,7 +4929,13 @@ struct	pc_data
     char *      mfa_key;
     time_t      qr_code_expiration;
     bool        mfa_enabled;
-    bool        mfa_question;
+    bool mfa_question;
+    char *account_name;          /* Account this character belongs to */
+    unsigned long account_id[2]; /* Account this character belongs to (by ID) */
+    bool account_pwd_override;
+    char *last_area;
+
+    int staff_rank;
 
     int			class_current;
     int			sub_class_current;
@@ -4619,6 +5016,10 @@ struct	pc_data
     LLIST *ships;
 
     bool spam_block_navigation;			// Used to prevent spam looking at compasses, sextants and telescopes to get skill improvements.
+        char *mfa_pending_key;                    // For unconfirmed MFA setup
+    bool mfa_pending;                         // True if setup in progress
+    char *recovery_codes[MFA_RECOVERY_CODES]; // Array of 5 recovery codes
+    bool recovery_used[MFA_RECOVERY_CODES];   // Used flags
 };
 
 
@@ -4757,6 +5158,11 @@ struct spell_data
     int			repop;
 };
 
+#define STORAGE_NONE 0
+#define STORAGE_CHARACTER 1
+#define STORAGE_ACCOUNT 2
+#define STORAGE_CHURCH 3
+#define STORAGE_MAX 4
 
 /*
  * One object.
@@ -4839,6 +5245,8 @@ struct	obj_data
     int 		last_wear_loc;
     bool		locker;
     int			nest_clones;
+    int storage_type; // Storage type (STORAGE_NONE, STORAGE_LOCKER, STORAGE_ACCOUNT, STORAGE_CHURCH)
+
 
     /* Used for pirate heads */
     int     pirate_reputation;
@@ -6016,13 +6424,6 @@ extern          int			reckoning_cooldown;
 #define TARGET_NONE		    3
 
 
-/* Church command type */
-struct church_command_type
-{
-    char 	*command;		/* the command */
-    int 	rank;			/* minimum rank to use */
-    DO_FUN	*function;		/* function call */
-};
 
 
 /*
@@ -7063,7 +7464,7 @@ extern int16_t grn_unique;
 #define IS_NPC(ch)		(IS_SET((ch)->act[0], ACT_IS_NPC))
 #define IS_BOSS(ch)		(IS_NPC(ch) && ((ch)->pIndexData->boss))
 #define IS_NPC_SHIP(ship)	(ship->npc_ship != NULL)
-#define IS_IMMORTAL(ch)		(get_trust(ch) >= LEVEL_IMMORTAL && !IS_NPC(ch) && ch->pcdata->immortal != NULL)
+#define IS_IMMORTAL(ch)		(get_staff_rank(ch) >= STAFF_IMMORTAL && !IS_NPC(ch) && ch->pcdata->immortal != NULL)
 #define IS_IMPLEMENTOR(ch)  (IS_IMMORTAL(ch) && ((ch)->level == MAX_LEVEL))
 #define IS_HERO(ch)		(get_trust(ch) >= LEVEL_HERO)
 #define IS_TRUSTED(ch,level)	(get_trust((ch)) >= (level))
@@ -7194,6 +7595,8 @@ extern int16_t grn_unique;
 	act_new((format),(ch),(v1),(v2),(o1),(o2),(a1),(a2),(type),POS_RESTING,NULL)
 
 #define damage(a,b,c,d,e,f) damage_new(( a ),( b ),NULL,( c ),( d ),( e ),( f ))
+#define IS_STAFF(ch, rank) (get_staff_rank((ch)) >= (rank))
+
 
 
 /*
@@ -7396,20 +7799,24 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
  * so players can go ahead and telnet to all the other descriptors.
  * Then we close it whenever we need to open a file (e.g. a save file).
  */
-#define PLAYER_DIR      "../player/"        	/* Player files */
-#define OLD_PLAYER_DIR	"../player.old/"
-#define GOD_DIR         "../player/staff/"  		/* Staff Pfiles */
-#define TEMP_FILE	"../player/romtmp"
+#define GAME_DIR        "/sentience/"
+#define PLAYER_DIR      GAME_DIR "characters/"        	/* Player files */
+#define ACCOUNT_DIR GAME_DIR "accounts/"
+#define OLD_PLAYER_DIR	GAME_DIR "characters.old/"
+#define GOD_DIR         GAME_DIR "characters/staff/"  		/* Staff Pfiles */
+#define TEMP_FILE	PLAYER_DIR "romtmp"
 #define NULL_FILE	"/dev/null"		/* To reserve one stream */
-#define DATA_DIR		"../data/"
-#define WORLD_DIR		"../data/world/"
-#define BOAT_DIR		"../data/world/boats/"
-#define SYSTEM_DIR		"../data/system/"
-#define NOTE_DIR		"../data/notes/"
-#define ORG_DIR			"../data/orgs/"
-#define DUMP_DIR		"../data/dump/"
-#define STATS_DIR		"../data/stats/"
-#define HELP_DIR		"../data/help/"
+#define DATA_DIR		GAME_DIR "data/"
+#define WORLD_DIR		DATA_DIR "world/"
+#define BOAT_DIR		WORLD_DIR "boats/"
+#define SYSTEM_DIR		DATA_DIR "system/"
+#define NOTE_DIR		DATA_DIR "notes/"
+#define ORG_DIR			DATA_DIR "orgs/"
+#define DUMP_DIR		DATA_DIR "dump/"
+#define STATS_DIR		DATA_DIR "stats/"
+#define HELP_DIR		DATA_DIR "help/"
+#define AREA_DIR        GAME_DIR "area/"
+#define LOG_DIR         GAME_DIR "logs/"
 #define PLAYER_LIST     SYSTEM_DIR "discord_who.txt"
 
 /*World files - Regarding things specifically for the game world. */
@@ -7451,6 +7858,7 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
 #define SHIPS_FILE			WORLD_DIR "ships.dat"
 #define COMMANDS_FILE       SYSTEM_DIR "commands.dat"
 #define GAME_SETTINGS_FILE  SYSTEM_DIR "game_settings.dat"
+#define CHANGESET_FILE      SYSTEM_DIR "changesets.dat"
 
 /* POST msg queue */
 #define MSGQUEUE	1111
@@ -7469,6 +7877,9 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
 #define SD	SHIP_DATA
 #define NSD	NPC_SHIP_DATA
 #define NID	NPC_SHIP_INDEX_DATA
+
+#define DEV_SKIP_PASSWORD (game_settings.dev_server && !game_settings.enable_passwd)
+#define DEV_SKIP_MFA (game_settings.dev_server && !game_settings.enable_mfa)
 
 /* act_comm.c */
 bool add_grouped	args( ( CHAR_DATA *ch, CHAR_DATA *master, bool show ) );
@@ -7520,6 +7931,7 @@ int stat_find (const char *name, const struct flag_type *flag_table, int invalid
 char *flag_name(const struct flag_type *flag_table, int bit);
 int damage_class_lookup (const char *name);	/* @@@NIB */
 int toxin_lookup (const char *name);	/* @@@NIB */
+int stat_lookup (const char *name, const struct flag_type *flag_table, int invalid);
 
 /* hunt.c */
 int find_path( long in_room_vnum, long out_room_vnum, CHAR_DATA *ch, int depth, int in_zone);
@@ -7633,7 +8045,7 @@ int game_settings_read(void);
 int game_settings_write(void);
 void do_chset( CHAR_DATA *ch, char *argument );
 void save_shares	args( ( void ) );
-void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj, long flag, long flag_skip, int min_level );
+void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj, long flag, long flag_skip, int rank );
 
 /* alias.c */
 void 	substitute_alias args( (DESCRIPTOR_DATA *d, char *input) );
@@ -7683,7 +8095,7 @@ void    check_objects   args( ( void ) );
 void    check_mobs      args( ( void ) );
 CD *	create_mobile	args( ( MOB_INDEX_DATA *pMobIndex, bool persistLoad ) );
 CD *	clone_mobile	args( ( CHAR_DATA *parent ) );
-OD *	create_object_noid	args( ( OBJ_INDEX_DATA *pObjIndex, int level, bool affects ) );
+OD *	create_object_noid	args( ( OBJ_INDEX_DATA *pObjIndex, int level, bool affects, bool add_to_loaded_objs ) );
 OD *	create_object	args( ( OBJ_INDEX_DATA *pObjIndex, int level, bool affects ) );
 void	clone_object	args( ( OBJ_DATA *parent, OBJ_DATA *clone ) );
 void	clear_char	args( ( CHAR_DATA *ch ) );
@@ -7743,6 +8155,7 @@ void 	new_reset( ROOM_INDEX_DATA *, RESET_DATA *);
 char 	*fix_string( const char *str );
 AREA_DATA *get_wilderness_area ( void );
 char *skip_whitespace(register char *str);
+void send_boot_errors_to_coders();
 
 /* db2.c */
 AREA_DATA *get_random_area( CHAR_DATA *ch, int continent, bool no_get_random );
@@ -7972,6 +8385,10 @@ LOG_ENTRY_DATA *new_log_entry(void);
 void free_log_entry(LOG_ENTRY_DATA *log);
 char *create_affect_cname(char *name);
 char *get_affect_cname(char *name);
+void free_church_ranks(CHURCH_DATA *church);
+void free_account(ACCOUNT_DATA *account);
+CHURCH_LOG_ENTRY *new_church_log_entry();
+void free_church_log_entry(CHURCH_LOG_ENTRY *entry);
 
 /* quest.c */
 bool generate_quest( CHAR_DATA *ch, CHAR_DATA *questman );
@@ -8037,6 +8454,7 @@ int	get_weapon_skill args(( CHAR_DATA *ch, int sn ) );
 int     get_age         args( ( CHAR_DATA *ch ) );
 void	reset_char	args( ( CHAR_DATA *ch )  );
 int	get_trust	args( ( CHAR_DATA *ch ) );
+int get_staff_rank(CHAR_DATA *ch);
 
 void set_mod_stat(CHAR_DATA *ch, int stat, int value);
 void add_mod_stat(CHAR_DATA *ch, int stat, int adjust);
@@ -8098,8 +8516,9 @@ CD *	get_char_room		args( ( CHAR_DATA *ch, ROOM_INDEX_DATA *room, char *argument
 CD *	get_char_world	args( ( CHAR_DATA *ch, char *argument ) );
 CD *    find_char_world args( ( CHAR_DATA *ch, char *argument ) );
 OD *	get_obj_type	args( ( OBJ_INDEX_DATA *pObjIndexData, ROOM_INDEX_DATA *pRoom ) );
-OD *	get_obj_list	args( ( CHAR_DATA *ch, char *argument, OBJ_DATA *list ) );
-OD *	get_obj_list_number	args( ( CHAR_DATA *ch, char *argument, int *number, OBJ_DATA *list ) );
+OD *get_obj_list    args( (CHAR_DATA *ch, char *argument, void *list) );
+OD *get_obj_list_number(CHAR_DATA *ch, char *argument, int *nth, void *list);
+bool is_llist(const void *ptr);
 OD *	get_obj_carry	args( ( CHAR_DATA *ch, char *argument, CHAR_DATA *viewer ) );
 OD *	get_obj_carry_number	args( ( CHAR_DATA *ch, char *argument, int *nth, CHAR_DATA *viewer ) );
 OD *	get_obj_vnum_carry	args( ( CHAR_DATA *ch, long vnum, CHAR_DATA *viewer ) );
@@ -8219,9 +8638,25 @@ int use_catalyst_here(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int amount,in
 int use_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int amount,int min_strength, int max_strength, bool show);
 void move_cart(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool delay);
 void visit_rooms(ROOM_INDEX_DATA *room, VISIT_FUNC *func, int depth, void *argv[], int argc, bool closed);
-
-void generate_reset_code(char* str, int len);
+void send_email(CHAR_DATA *ch, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
+void send_email_async(CHAR_DATA *ch, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
+void send_email_ex(CHAR_DATA *ch, ACCOUNT_DATA *acct, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
+void send_email_async_ex(CHAR_DATA *ch, ACCOUNT_DATA *acct, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
+void generate_reset_code(char *str, int len);
+void save_qr_code_as_png(QRcode *qrcode, const char *filename, int scale_factor);
 void format_duration(int total_minutes, char *outbuf, size_t outbuf_len);
+int account_count_staff_characters(ACCOUNT_DATA *acct);
+int account_count_nonstaff_characters(ACCOUNT_DATA *acct);
+bool is_staff_duty_in_list(CHAR_DATA *ch, const char *duty_list);
+void show_staff_duties(CHAR_DATA *ch);
+bool is_staff_rank_in_list(CHAR_DATA *ch, const char *rank_list);
+void show_staff_ranks(CHAR_DATA *ch);
+CHURCH_DATA *get_church_by_name(const char *name);
+bool validate_account_recipient(const char *account_name);
+int colour_trunc_len(const char *str, int limit);
+char *normalize_filename(const char *name);
+bool is_duplicate_object(OBJ_DATA *obj);
+bool is_valid_colour_code(const char *code);
 
 /* help.c */
 HELP_DATA *find_helpfile( char *keyword, HELP_CATEGORY *hcat );
@@ -8293,6 +8728,92 @@ void obj_from_mail( OBJ_DATA *obj );
 void mail_from_list( MAIL_DATA *mail );
 int count_items_mail(MAIL_DATA *mail);
 int count_weight_mail(MAIL_DATA *mail);
+/* gameedit.c */
+void create_changeset(CHAR_DATA *ch, char *comment);
+void free_changeset(GAME_SETTINGS_CHANGESET *changeset);
+void free_all_changesets(void);
+void save_changesets(void);
+void load_changesets(void);
+void load_changesets(void);
+
+/* nanny.c */
+bool check_parse_name args((char *name));
+bool check_reconnect args((DESCRIPTOR_DATA * d, char *name, bool fConn));
+bool check_playing args((DESCRIPTOR_DATA * d, char *name));
+bool acceptablePassword(DESCRIPTOR_DATA *d, char *pass);
+void add_possible_subclasses(CHAR_DATA *ch, char *string);
+void add_possible_races(CHAR_DATA *ch, char *string);
+void save_area_list();
+void save_area_new(AREA_DATA *area);
+bool load_account(DESCRIPTOR_DATA *d, char *name);
+void save_account(ACCOUNT_DATA *account);
+bool account_has_immortal(ACCOUNT_DATA *acct);
+void display_account_menu(DESCRIPTOR_DATA *d);
+void select_character(DESCRIPTOR_DATA *d, ACCOUNT_CHARACTER *ch_entry);
+void complete_character_link(DESCRIPTOR_DATA *d);
+void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch);
+void display_character_menu(DESCRIPTOR_DATA *d);
+void setup_character_mfa(DESCRIPTOR_DATA *d);
+void account_remove_character(ACCOUNT_DATA *account, const char *name);
+void proceed_to_game(DESCRIPTOR_DATA *d);
+bool setup_mfa_for_char(CHAR_DATA *ch, bool send_email);
+bool check_char_mfa(CHAR_DATA *ch, const char *code);
+bool setup_mfa_for_account(DESCRIPTOR_DATA *d, bool send_email);
+bool check_account_mfa(ACCOUNT_DATA *acct, const char *code);
+void send_email_async_ex(CHAR_DATA *ch, ACCOUNT_DATA *acct, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
+void setup_account_mfa(DESCRIPTOR_DATA *d);
+bool process_output args((DESCRIPTOR_DATA * d, bool fPrompt));
+char* format_location_string(ROOM_INDEX_DATA *room);
+int account_count_nonstaff_characters(ACCOUNT_DATA *acct);
+void display_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument);
+void display_character_mfa_menu(DESCRIPTOR_DATA *d, char *argument);
+void finalize_staff_character_creation(DESCRIPTOR_DATA *d);
+void send_qr_email_for_char(CHAR_DATA *ch, const char *email, const char *secret);
+void send_recovery_codes_email_for_char(CHAR_DATA *ch, const char *email);
+void send_qr_email_for_account(ACCOUNT_DATA *acct, const char *email, const char *secret);
+void send_recovery_codes_email_for_account(ACCOUNT_DATA *acct, const char *email);
+char *generate_totp_key(char *buffer, size_t length);
+void display_qr_code(DESCRIPTOR_DATA *d, const char *url);
+void display_recovery_codes(DESCRIPTOR_DATA *d, CHAR_DATA *ch);
+void generate_recovery_codes(char **codes, bool *used, int count);
+void display_recovery_codes(DESCRIPTOR_DATA *d, CHAR_DATA *ch);
+bool check_recovery_code(CHAR_DATA *ch, const char *code);
+bool check_account_recovery_code(ACCOUNT_DATA *acct, const char *code);
+void display_account_recovery_codes(DESCRIPTOR_DATA *d, ACCOUNT_DATA *acct);
+char *generate_totp_qr_url(char *buffer, size_t length, const char *name, const char *key);
+void delayed_unlink(const char *filename);
+bool validate_totp_code(const char *key, const char *code);
+bool has_recovery_codes(const char **codes, int count);
+bool can_link_characters(ACCOUNT_DATA *acct);
+bool can_unlink_characters(ACCOUNT_DATA *acct);
+ACCOUNT_DATA *get_account_online_or_offline(char *name, bool *was_loaded);
+ACCOUNT_DATA *get_account_by_name(const char *name);
+bool list_haslink(LLIST *list, void *data);
+void resend_character_verification_code(DESCRIPTOR_DATA *d);
+void login_verify_account_email_change(DESCRIPTOR_DATA *d, char *argument);
+bool is_reconnecting(CHAR_DATA *ch);
+void reconnect_char(DESCRIPTOR_DATA *d);
+void string_end_accnote(CHAR_DATA *ch);
+void login_character_delete(DESCRIPTOR_DATA *d, char argument);
+bool delete_character(CHAR_DATA *ch);
+bool should_purge_deleted_character(const ACCOUNT_CHARACTER *ch_entry);
+void *iterator_peek_nextdata(ITERATOR *it);
+void display_account_menu(DESCRIPTOR_DATA *d);
+void update_account_character(CHAR_DATA *ch);
+bool load_account(DESCRIPTOR_DATA *d, char *name);
+bool account_exists(char *argument);
+void save_account(ACCOUNT_DATA *account);
+void send_email_async_ex(CHAR_DATA *ch, ACCOUNT_DATA *acct, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
+void nanny(DESCRIPTOR_DATA *d, char *argument);
+void login_get_name(DESCRIPTOR_DATA *d, char *argument);
+void login_get_old_passwd(DESCRIPTOR_DATA *d, char *argument);
+void login_get_mfa(DESCRIPTOR_DATA *d, char *argument);
+void login_get_new_passwd(DESCRIPTOR_DATA *d, char *argument);
+void login_get_ascii(DESCRIPTOR_DATA *d, char *argument);
+void login_get_alignment(DESCRIPTOR_DATA *d, char *argument);
+void login_get_new_race(DESCRIPTOR_DATA *d, char *argument);
+void login_get_new_sex(DESCRIPTOR_DATA *d, char *argument);
+void login_get_email(DESCRIPTOR_DATA *d, char *argument);
 
 /* scripts.c */
 int	program_flow	args( ( long vnum, char *source, CHAR_DATA *mob,
@@ -8344,10 +8865,8 @@ OBJ_DATA *fread_obj_new( FILE *fp );
 void cleanup_affects( OBJ_DATA *obj );
 void descrew_subclasses( CHAR_DATA *);
 void fix_broken_classes( CHAR_DATA *ch );
-void fix_character( CHAR_DATA *ch );
 void fix_object( OBJ_DATA *obj );
-void fread_char      args( ( CHAR_DATA *ch,  FILE *fp ) );
-void fread_char	args( ( CHAR_DATA *ch,  FILE *fp ) );
+
 void fread_mount     args( ( CHAR_DATA *ch,  FILE *fp ) );
 void fwrite_char     args( ( CHAR_DATA *ch,  FILE *fp ) );
 void fwrite_mount    args( ( CHAR_DATA *pet, FILE *fp) );
@@ -8363,6 +8882,10 @@ TOKEN_DATA *fread_token(FILE *fp);
 void fread_skill(FILE *fp, CHAR_DATA *ch);
 void fwrite_quest_part(FILE *fp, QUEST_PART_DATA *part);
 QUEST_PART_DATA *fread_quest_part(FILE *fp);
+void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch);
+ACCOUNT_DATA *find_account_by_name(char *username);
+ACCOUNT_DATA *find_account(char *char_name);
+ACCOUNT_DATA *get_account_by_identifier(const char *identifier, bool *loaded);
 
 
 
@@ -8468,11 +8991,13 @@ bool has_access_help( CHAR_DATA *ch, HELP_DATA *help);
 void add_reset( ROOM_INDEX_DATA *room, RESET_DATA *pReset, int index );
 bool has_imp_sig( MOB_INDEX_DATA *mob, OBJ_INDEX_DATA *obj );
 void use_imp_sig( MOB_INDEX_DATA *mob, OBJ_INDEX_DATA *obj );
+bool edit_done(CHAR_DATA *ch);
 
 /* olc_act.c */
 AREA_DATA *get_vnum_area( long vnum );
 bool rp_change_exit args( ( ROOM_INDEX_DATA *pRoom, char *argument, int door));
 int get_armour_strength(char *argument);
+void show_flag_cmds(CHAR_DATA *ch, const struct flag_type *flag_table);
 
 /* olc_act2.c */
 char *condition_type_to_name ( int type );
@@ -8513,6 +9038,8 @@ void note_remove( CHAR_DATA *ch, NOTE_DATA *pnote, bool delete);
 bool hide_note( CHAR_DATA *ch, NOTE_DATA *pnote );
 void update_read(CHAR_DATA *ch, NOTE_DATA *pnote);
 int count_note( CHAR_DATA *ch, int type);
+const char *note_display_recipients_for(CHAR_DATA *viewer, NOTE_DATA *pnote);
+const char *note_display_recipients(NOTE_DATA *pnote);
 
 /* lookup.c */
 int	race_lookup	args( ( const char *name) );
@@ -8539,6 +9066,32 @@ CHURCH_DATA *find_church_name(char *name);
 bool is_in_treasure_room(OBJ_DATA *obj);
 bool vnum_in_treasure_room(CHURCH_DATA *church, long vnum);
 void update_church_pks(void);
+void initialize_church_ranks(CHURCH_DATA *church);
+CHURCH_RANK_DATA *add_church_rank(CHURCH_DATA *church, char *rank_name, const char *male_name,
+                                  const char *female_name, const char *neutral_name,
+                                  long permissions, int rank_type);
+void save_church(CHURCH_DATA *church);
+bool can_access_church_storage(CHAR_DATA *ch, CHURCH_DATA *church);
+CHURCH_RANK_DATA *new_church_rank(void);
+void free_church_rank(CHURCH_RANK_DATA *rank);
+
+/* Church storage functions */
+void obj_to_coffer(OBJ_DATA *obj, CHURCH_DATA *church);
+void obj_from_coffer(OBJ_DATA *obj, CHURCH_DATA *church);
+OBJ_DATA *get_obj_coffer(CHURCH_DATA *church, CHAR_DATA *ch, char *argument);
+bool can_get_from_church_storage(CHAR_DATA *ch, CHURCH_DATA *church);
+bool can_put_to_church_storage(CHAR_DATA *ch, CHURCH_DATA *church);
+
+/* Vault/account storage functions */
+void obj_to_vault(OBJ_DATA *obj, ACCOUNT_DATA *account);
+void obj_from_vault(OBJ_DATA *obj, ACCOUNT_DATA *account);
+OBJ_DATA *get_obj_vault(ACCOUNT_DATA *account, CHAR_DATA *ch, char *argument);
+
+/* Church member functions */
+bool is_church_leader(CHAR_DATA *ch, CHURCH_DATA *church);
+bool is_excommunicated(CHAR_DATA *ch);
+bool has_church_permission(CHURCH_PLAYER_DATA *member, long permission);
+void chtoggle_complete(CHAR_DATA *ch, bool enable_pk);
 
 /* house.c */
 void write_houses( void );
@@ -8732,6 +9285,7 @@ extern TOKEN_DATA *global_tokens;
 //extern LLIST *loaded_players;
 extern LLIST *loaded_chars;
 extern LLIST *loaded_objects;
+extern LLIST *loaded_accounts;
 
 extern LLIST *conn_players;
 extern LLIST *conn_immortals;
@@ -8882,6 +9436,10 @@ void iterator_stop(ITERATOR *it);
 bool iterator_insert_before(ITERATOR *it, void *data);
 bool iterator_insert_after(ITERATOR *it, void *data);
 bool list_quicksort(LLIST *lp, int (*cmp)(void *a, void *b));
+void *iterator_currentdata(ITERATOR *it);
+void *list_last(LLIST *list);
+bool iterator_hasdata(ITERATOR *it);
+
 
 bool list_isvalid(LLIST *lp);
 
@@ -8914,7 +9472,7 @@ void free_boolexp(BOOLEXP *boolexp);
 int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue);
 
 CHURCH_TREASURE_ROOM *get_church_treasure_room(CHAR_DATA *ch, CHURCH_DATA *church, int nth);
-bool church_add_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room, int min_rank);
+bool church_add_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room, bool is_default);
 void church_remove_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room);
 bool church_set_treasure_room_rank(CHURCH_DATA *church, int nth, int min_rank);
 int church_get_min_positions(int size);
@@ -9102,11 +9660,18 @@ void send_email_async(CHAR_DATA *ch, char *email, char *subject, char *message, 
 
 void generate_key(CHAR_DATA *ch, char *key);
 bool check_mfa(CHAR_DATA *ch, char *argument);
-char *sha256_crypt( const char *pwd );
-void configure_context(SSL_CTX *ctx);
-SSL_CTX* create_context(void);
+char *sha256_crypt(const char *pwd);
+/* SSL functions */
 void init_openssl_library(void);
-void save_qr_code_as_png(QRcode *qrcode, const char *filename, int scale_factor);
+SSL_CTX *create_context(void);
+bool configure_context(SSL_CTX *context);
+void init_ssl_cleanup_queue(void);
+void add_ssl_ctx_to_cleanup(SSL_CTX *old_ctx);
+void process_ssl_cleanup_queue(void);
+void refresh_ssl_context(void);
+DH *get_dh_params(void);
+
+void string_end_chlog(CHAR_DATA *ch);
 
 
 /*

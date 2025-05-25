@@ -16,12 +16,10 @@
 #include "tables.h"
 
 
-/* Used not only for depositing of pneuma but for the depositing of GQ items*/
 void do_deposit(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
     OBJ_DATA *obj;
-    OBJ_DATA *obj_next;
     ROOM_INDEX_DATA *room;
     CHAR_DATA *mob;
     GQ_OBJ_DATA *gq_obj;
@@ -32,114 +30,118 @@ void do_deposit(CHAR_DATA *ch, char *argument)
     long exp = 0;
     int silver = 0;
     int gold = 0;
+    ITERATOR it;
 
     room = ch->in_room;
 
     /* GQ section */
     for (mob = room->people; mob != NULL; mob = mob->next_in_room)
     {
-	if (IS_SET(mob->act[1], ACT2_GQ_MASTER))
-	    break;
+        if (IS_SET(mob->act[1], ACT2_GQ_MASTER))
+            break;
     }
 
     if (mob != NULL && global == true)
     {
-	for (obj = ch->carrying; obj != NULL; obj = obj_next)
-	{
-	    obj_next = obj->next_content;
+        // Replace traditional list traversal with iterator for lcarrying
+        iterator_start(&it, ch->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it)))
+        {
+            for (gq_obj = global_quest.objects; gq_obj != NULL;
+                    gq_obj = gq_obj->next)
+            {
+                if (obj->pIndexData->vnum == gq_obj->vnum)
+                {
+                    found = true;
+                    qp += gq_obj->qp_reward;
+                    prac += gq_obj->prac_reward;
+                    exp += gq_obj->exp_reward;
+                    silver += gq_obj->silver_reward;
+                    gold += gq_obj->gold_reward;
+                    extract_obj(obj);
+                }
+            }
+        }
+        iterator_stop(&it);
 
-	    for (gq_obj = global_quest.objects; gq_obj != NULL;
-		    gq_obj = gq_obj->next)
-	    {
-		if (obj->pIndexData->vnum == gq_obj->vnum)
-		{
-		    found = true;
-		    qp += gq_obj->qp_reward;
-		    prac += gq_obj->prac_reward;
-		    exp += gq_obj->exp_reward;
-		    silver += gq_obj->silver_reward;
-		    gold += gq_obj->gold_reward;
-		    extract_obj(obj);
-		}
-	    }
-	}
+        if (found)
+        {
+            sprintf(buf, "Thank you, %s!", pers(ch, mob));
+            do_say(mob, buf);
 
-	if (found)
-	{
-	    sprintf(buf, "Thank you, %s!", pers(ch, mob));
-	    do_say(mob, buf);
+            sprintf(buf, "{WYou gain %d quest points, %d practices, and %ld experience points!{x\n\r",
+                    qp, prac, exp);
+            send_to_char(buf, ch);
 
-	    sprintf(buf, "{WYou gain %d quest points, %d practices, and %ld experience points!{x\n\r",
-		    qp, prac, exp);
-	    send_to_char(buf, ch);
+            sprintf(buf, "$N hands you %d silver coins and %d gold coins.",
+                    silver, gold);
+            act(buf, ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
-	    sprintf(buf, "$N hands you %d silver coins and %d gold coins.",
-		    silver, gold);
-	    act(buf, ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-
-	    ch->questpoints += qp;
-	    ch->practice += prac;
-	    gain_exp(ch, exp, true);
-	    ch->silver += silver;
-	    ch->gold += gold;
-	}
-	else
-	{
-	    sprintf(buf, "You have nothing to deposit, %s.", pers(ch, mob));
-	    do_say(mob, buf);
-	}
+            ch->questpoints += qp;
+            ch->practice += prac;
+            gain_exp(ch, exp, true);
+            ch->silver += silver;
+            ch->gold += gold;
+        }
+        else
+        {
+            sprintf(buf, "You have nothing to deposit, %s.", pers(ch, mob));
+            do_say(mob, buf);
+        }
     }
 
     /* bottle section*/
     found = false;
     for (mob = room->people; mob != NULL; mob = mob->next_in_room)
     {
-	if (!IS_NPC(mob))
-	    continue;
+        if (!IS_NPC(mob))
+            continue;
 
-	if (ch->alignment == 0 && mob->pIndexData->vnum == MOB_VNUM_MAYOR_PLITH)
-	    break;
+        if (ch->alignment == 0 && mob->pIndexData->vnum == MOB_VNUM_MAYOR_PLITH)
+            break;
 
-	if (ch->alignment < 0 && mob->pIndexData->vnum == MOB_VNUM_RAVAGE)
-	    break;
+        if (ch->alignment < 0 && mob->pIndexData->vnum == MOB_VNUM_RAVAGE)
+            break;
 
-	if (ch->alignment > 0 && mob->pIndexData->vnum == MOB_VNUM_STIENER)
-	    break;
+        if (ch->alignment > 0 && mob->pIndexData->vnum == MOB_VNUM_STIENER)
+            break;
     }
 
     if (mob == NULL)
-	return;
+        return;
 
-    for (obj = ch->carrying; obj != NULL; obj = obj_next)
+    i = 0;
+    // Replace traditional list traversal with iterator for lcarrying
+    iterator_start(&it, ch->lcarrying);
+    while ((obj = (OBJ_DATA *)iterator_nextdata(&it)))
     {
-	obj_next = obj->next_content;
-
-	if (obj->pIndexData->vnum == OBJ_VNUM_BOTTLED_SOUL)
-	{
-	    found = true;
-	    extract_obj(obj);
-	    i++;
-	}
+        if (obj->pIndexData->vnum == OBJ_VNUM_BOTTLED_SOUL)
+        {
+            found = true;
+            extract_obj(obj);
+            i++;
+        }
     }
+    iterator_stop(&it);
 
     if (found)
     {
-	sprintf(buf, "You have deposited {Y%d{x bottled souls with %s!", i,
-		mob->short_descr);
-	act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	sprintf(buf, "$n deposits %d bottled souls.", i);
-	act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+        sprintf(buf, "You have deposited {Y%d{x bottled souls with %s!", i,
+                mob->short_descr);
+        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        sprintf(buf, "$n deposits %d bottled souls.", i);
+        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-	if (boost_table[BOOST_PNEUMA].boost != 100)
-	{
-	    send_to_char("{WPNEUMA boost!{x\n\r", ch);
-	    ch->pneuma += (i * boost_table[BOOST_PNEUMA].boost)/100;
-	}
-	else
-	    ch->pneuma += i;
+        if (boost_table[BOOST_PNEUMA].boost != 100)
+        {
+            send_to_char("{WPNEUMA boost!{x\n\r", ch);
+            ch->pneuma += (i * boost_table[BOOST_PNEUMA].boost)/100;
+        }
+        else
+            ch->pneuma += i;
     }
     else
-	send_to_char("You don't have any bottled souls to deposit.\n\r", ch);
+        send_to_char("You don't have any bottled souls to deposit.\n\r", ch);
 }
 
 
@@ -594,13 +596,21 @@ void do_lore(CHAR_DATA *ch, char *argument)
 void save_last_wear(CHAR_DATA *ch)
 {
     OBJ_DATA *pObj = NULL;
+    ITERATOR it;
 
-    /* Reset last wear location*/
-    for (pObj = ch->carrying; pObj != NULL; pObj = pObj->next_content)
-	pObj->last_wear_loc = WEAR_NONE;
+    /* Reset last wear location for all carried items */
+    iterator_start(&it, ch->lcarrying);
+    while ((pObj = (OBJ_DATA *)iterator_nextdata(&it))) {
+        pObj->last_wear_loc = WEAR_NONE;
+    }
+    iterator_stop(&it);
 
-    for (pObj = ch->carrying; pObj != NULL; pObj = pObj->next_content)
-	pObj->last_wear_loc = pObj->wear_loc;
+    /* Set last_wear_loc to current wear_loc for all worn items */
+    iterator_start(&it, ch->lworn);
+    while ((pObj = (OBJ_DATA *)iterator_nextdata(&it))) {
+        pObj->last_wear_loc = pObj->wear_loc;
+    }
+    iterator_stop(&it);
 }
 
 
@@ -635,13 +645,13 @@ void do_combine(CHAR_DATA *ch, char *argument)
     }
 
     /* setup objects*/
-    if ((obj1 = get_obj_list(ch, arg, ch->carrying)) == NULL)
+    if ((obj1 = get_obj_list(ch, arg, ch->lcarrying)) == NULL)
     {
 		act("You aren't carrying any $t.", ch, NULL, NULL, NULL, NULL, arg, NULL, TO_CHAR);
 		return;
     }
 
-    if ((obj2 = get_obj_list(ch, arg2, ch->carrying)) == NULL)
+    if ((obj2 = get_obj_list(ch, arg2, ch->lcarrying)) == NULL)
     {
 		act("You aren't carrying any $t.", ch, NULL, NULL, NULL, NULL, arg2, NULL, TO_CHAR);
 		return;
@@ -829,30 +839,35 @@ void do_combine(CHAR_DATA *ch, char *argument)
 void do_keep(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
-    OBJ_DATA *obj;
-
+    OBJ_DATA *obj = NULL;
+    
     argument = one_argument(argument, arg);
     if (arg[0] == '\0')
     {
-	send_to_char("Syntax: keep <item>\n\r", ch);
-	return;
+        send_to_char("Syntax: keep <item>\n\r", ch);
+        return;
     }
-
-    if ((obj = get_obj_list(ch, arg, ch->carrying)) == NULL)
+    
+    // First check carried items
+    if ((obj = get_obj_list(ch, arg, ch->lcarrying)) == NULL)
     {
-	act("You aren't carrying any $t.", ch, NULL, NULL, NULL, NULL, arg, NULL, TO_CHAR);
-	return;
+        // If not found in carried items, check worn items
+        if ((obj = get_obj_list(ch, arg, ch->lworn)) == NULL)
+        {
+            act("You aren't carrying or wearing any $t.", ch, NULL, NULL, NULL, NULL, arg, NULL, TO_CHAR);
+            return;
+        }
     }
-
+    
     if (IS_SET(obj->extra[1], ITEM_KEPT))
     {
-	REMOVE_BIT(obj->extra[1], ITEM_KEPT);
-	act("You will no longer keep $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+        REMOVE_BIT(obj->extra[1], ITEM_KEPT);
+        act("You will no longer keep $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
     }
     else
     {
-	SET_BIT(obj->extra[1], ITEM_KEPT);
-	act("You will now keep $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+        SET_BIT(obj->extra[1], ITEM_KEPT);
+        act("You will now keep $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
     }
 }
 
@@ -1032,7 +1047,8 @@ void do_ruboff(CHAR_DATA *ch, char *argument)
 void do_ink(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *victim;
-    OBJ_DATA *obj, *next;
+    OBJ_DATA *obj;
+    ITERATOR it;
     int sn[3];
     int have[CATALYST_MAX];
     int need[CATALYST_MAX];
@@ -1042,125 +1058,141 @@ void do_ink(CHAR_DATA *ch, char *argument)
     bool found;
     char arg[MAX_STRING_LENGTH];
 
-	if (IS_DEAD(ch))
-	{
-		send_to_char("You are can't do that. You are dead.\n\r", ch);
-		return;
-	}
+    if (IS_DEAD(ch))
+    {
+        send_to_char("You are can't do that. You are dead.\n\r", ch);
+        return;
+    }
 
-	if (!(chance = get_skill(ch,gsn_tattoo))) {
-		send_to_char("Ink? What's that?\n\r",ch);
-		return;
-	}
+    if (!(chance = get_skill(ch,gsn_tattoo))) {
+        send_to_char("Ink? What's that?\n\r",ch);
+        return;
+    }
 
-	memset(have,0,sizeof(have));
-	memset(need,0,sizeof(need));
-	for (obj = ch->carrying; obj != NULL; obj = obj->next_content) {
-		if (obj->item_type == ITEM_INK) {
-			if(obj->value[0] > CATALYST_NONE && obj->value[0] < CATALYST_MAX) have[obj->value[0]]++;
-			if(obj->value[1] > CATALYST_NONE && obj->value[1] < CATALYST_MAX) have[obj->value[1]]++;
-			if(obj->value[2] > CATALYST_NONE && obj->value[2] < CATALYST_MAX) have[obj->value[2]]++;
-		}
-	}
+    memset(have,0,sizeof(have));
+    memset(need,0,sizeof(need));
+    
+    // Use iterator for lcarrying instead of traditional list traversal
+    iterator_start(&it, ch->lcarrying);
+    while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+        if (obj->item_type == ITEM_INK) {
+            if(obj->value[0] > CATALYST_NONE && obj->value[0] < CATALYST_MAX) have[obj->value[0]]++;
+            if(obj->value[1] > CATALYST_NONE && obj->value[1] < CATALYST_MAX) have[obj->value[1]]++;
+            if(obj->value[2] > CATALYST_NONE && obj->value[2] < CATALYST_MAX) have[obj->value[2]]++;
+        }
+    }
+    iterator_stop(&it);
 
-	argument = one_argument(argument, arg);
+    argument = one_argument(argument, arg);
 
-	if(!str_cmp(arg,"self"))
-		victim = ch;
-	else if((victim = get_char_room(ch, NULL, arg)) == NULL) {
-		send_to_char("They aren't here.\n\r", ch);
-		return;
-	}
+    if(!str_cmp(arg,"self"))
+        victim = ch;
+    else if((victim = get_char_room(ch, NULL, arg)) == NULL) {
+        send_to_char("They aren't here.\n\r", ch);
+        return;
+    }
 
-	if (argument[0] == '\0') {
-		send_to_char("Where did you want to place the tattoo?\n\r", ch);
-		return;
-	}
+    if (argument[0] == '\0') {
+        send_to_char("Where did you want to place the tattoo?\n\r", ch);
+        return;
+    }
 
-	argument = one_argument(argument, arg);
+    argument = one_argument(argument, arg);
 
-	if((loc = flag_lookup(arg, tattoo_loc_flags)) == 0) {
-		send_to_char("Place the tattoo where?\n\r", ch);
-		return;
-	}
+    if((loc = flag_lookup(arg, tattoo_loc_flags)) == 0) {
+        send_to_char("Place the tattoo where?\n\r", ch);
+        return;
+    }
 
-	if(get_eq_char(victim,loc)) {
-		send_to_char("There is already a tattoo there.\n\r", ch);
-		return;
-	}
+    if(get_eq_char(victim,loc)) {
+        send_to_char("There is already a tattoo there.\n\r", ch);
+        return;
+    }
 
-	/* Check for exposed skin*/
+    /* Check for exposed skin*/
 
-	if (argument[0] == '\0') {
-		send_to_char("What tattoo do you want to create?\n\r", ch);
-		return;
-	}
+    if (argument[0] == '\0') {
+        send_to_char("What tattoo do you want to create?\n\r", ch);
+        return;
+    }
 
-	memset(sn,0,sizeof(sn));
-	for(i=n=0;i<3;i++,n++) {
-		argument = one_argument(argument, arg);
-		if(!arg[0]) break;
+    memset(sn,0,sizeof(sn));
+    for(i=n=0;i<3;i++,n++) {
+        argument = one_argument(argument, arg);
+        if(!arg[0]) break;
 
-		sn[i] = find_spell(ch, arg);
+        sn[i] = find_spell(ch, arg);
 
-		if ((sn[i]) < 1 || skill_table[sn[i]].spell_fun == spell_null || !get_skill(ch, sn[i]))
-		{
-			send_to_char("You don't know any spells of that name.\n\r", ch);
-			return;
-		}
+        if ((sn[i]) < 1 || skill_table[sn[i]].spell_fun == spell_null || !get_skill(ch, sn[i]))
+        {
+            send_to_char("You don't know any spells of that name.\n\r", ch);
+            return;
+        }
 
-		if (skill_table[sn[i]].target != TAR_CHAR_DEFENSIVE &&
-			skill_table[sn[i]].target != TAR_CHAR_SELF &&
-			skill_table[sn[i]].target != TAR_OBJ_CHAR_DEF &&
-			skill_table[sn[i]].target != TAR_CHAR_OFFENSIVE &&
-			skill_table[sn[i]].target != TAR_OBJ_CHAR_OFF) {
-			send_to_char("You may only tattoo spells which you can cast on people.\n\r", ch);
-			return;
-		}
+        if (skill_table[sn[i]].target != TAR_CHAR_DEFENSIVE &&
+            skill_table[sn[i]].target != TAR_CHAR_SELF &&
+            skill_table[sn[i]].target != TAR_OBJ_CHAR_DEF &&
+            skill_table[sn[i]].target != TAR_CHAR_OFFENSIVE &&
+            skill_table[sn[i]].target != TAR_OBJ_CHAR_OFF) {
+            send_to_char("You may only tattoo spells which you can cast on people.\n\r", ch);
+            return;
+        }
 
-		found = false;
-		for(j=0;j<3;j++)
-			if(skill_table[sn[i]].inks[j][0] > CATALYST_NONE && skill_table[sn[i]].inks[j][1] > 0) {need[skill_table[sn[i]].inks[j][0]]+= skill_table[sn[i]].inks[j][1]; found = true; }
+        found = false;
+        for(j=0;j<3;j++)
+            if(skill_table[sn[i]].inks[j][0] > CATALYST_NONE && skill_table[sn[i]].inks[j][1] > 0) {need[skill_table[sn[i]].inks[j][0]]+= skill_table[sn[i]].inks[j][1]; found = true; }
 
-		if(!found) {
-			send_to_char("You can't tattoo those spells.\n\r", ch);
-			return;
-		}
-	}
+        if(!found) {
+            send_to_char("You can't tattoo those spells.\n\r", ch);
+            return;
+        }
+    }
 
-	for(i=0;i<CATALYST_MAX;i++) {
-		if(need[i] > have[i]) {
-			sprintf(arg,"You need ink with %s essence to tattoo those spells.\n\r", catalyst_descs[i]);
-			send_to_char(arg, ch);
-			return;
-		}
-	}
+    for(i=0;i<CATALYST_MAX;i++) {
+        if(need[i] > have[i]) {
+            sprintf(arg,"You need ink with %s essence to tattoo those spells.\n\r", catalyst_descs[i]);
+            send_to_char(arg, ch);
+            return;
+        }
+    }
 
-	act("{Y$n lays out the necessary inks and begins tattooing...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	act("{YYou lay out the necessary inks and begin tattooing...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    act("{Y$n lays out the necessary inks and begins tattooing...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act("{YYou lay out the necessary inks and begin tattooing...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
-	for (obj = ch->carrying; obj != NULL; obj = next) {
-		next = obj->next_content;
-		found = false;
-		if (obj->item_type == ITEM_INK) {
-			if(obj->value[0] > CATALYST_NONE && obj->value[0] < CATALYST_MAX && need[obj->value[0]]) { need[obj->value[0]]--; found = true; }
-			if(obj->value[1] > CATALYST_NONE && obj->value[1] < CATALYST_MAX && need[obj->value[1]]) { need[obj->value[1]]--; found = true; }
-			if(obj->value[2] > CATALYST_NONE && obj->value[2] < CATALYST_MAX && need[obj->value[2]]) { need[obj->value[2]]--; found = true; }
-		}
-		if (found) extract_obj(obj);
-	}
+    // Use iterator for consuming inks
+    iterator_start(&it, ch->lcarrying);
+    while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+        found = false;
+        if (obj->item_type == ITEM_INK) {
+            if(obj->value[0] > CATALYST_NONE && obj->value[0] < CATALYST_MAX && need[obj->value[0]]) { need[obj->value[0]]--; found = true; }
+            if(obj->value[1] > CATALYST_NONE && obj->value[1] < CATALYST_MAX && need[obj->value[1]]) { need[obj->value[1]]--; found = true; }
+            if(obj->value[2] > CATALYST_NONE && obj->value[2] < CATALYST_MAX && need[obj->value[2]]) { need[obj->value[2]]--; found = true; }
+        }
+        if (found) {
+            // Need to stop the iterator before extracting the object
+            // then restart it at the current position
+            LLIST_LINK *current_link = it.current;
+            iterator_stop(&it);
+            extract_obj(obj);
+            iterator_start(&it, ch->lcarrying);
+            // Try to resume from where we left off if possible
+            if (current_link && current_link->next)
+                it.current = current_link->next;
+        }
+    }
+    iterator_stop(&it);
 
-	ch->ink_target = victim;
-	ch->ink_loc = loc;
-	ch->ink_sn = sn[0];
-	ch->ink_sn2 = sn[1];
-	ch->ink_sn3 = sn[2];
+    ch->ink_target = victim;
+    ch->ink_loc = loc;
+    ch->ink_sn = sn[0];
+    ch->ink_sn2 = sn[1];
+    ch->ink_sn3 = sn[2];
 
-	TATTOO_STATE(ch, (6+n*n));
+    TATTOO_STATE(ch, (6+n*n));
 }
 
 
-void ink_end( CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t sn2, int16_t sn3 )
+void ink_end(CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t sn2, int16_t sn3)
 {
     char buf[2*MAX_STRING_LENGTH];
     OBJ_DATA *tattoo;
@@ -1178,33 +1210,33 @@ void ink_end( CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t
     chance = URANGE(1, chance, 98);
 
     if (IS_IMMORTAL(ch))
-	chance = 100;
+    chance = 100;
 
     if (number_percent() >= chance)
     {
-	act("{Y$n's attempt to ink a tattoo fails miserably.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	act("{YYou fail to coalesce the ink into a tattoo, dispersing them on the wind.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	check_improve(ch, gsn_tattoo, false, 2);
-	return;
+    act("{Y$n's attempt to ink a tattoo fails miserably.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act("{YYou fail to coalesce the ink into a tattoo, dispersing them on the wind.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    check_improve(ch, gsn_tattoo, false, 2);
+    return;
     }
 
     if (!sn2) { sprintf(tattoo_name, "%s", skill_table[sn].name); n = 1; }
     else if (!sn3) { sprintf(tattoo_name, "%s, %s", skill_table[sn].name, skill_table[sn2].name); n = 2; }
     else { sprintf(tattoo_name, "%s, %s, %s", skill_table[sn].name, skill_table[sn2].name, skill_table[sn3].name); n = 3; }
 
-	if(victim != ch) {
-		sprintf(buf, "You coalesce the ink into a tattoo of %s onto $N's skin.", tattoo_name);
-		act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		sprintf(buf, "$n coalesces the ink into a tattoo of %s onto your skin.", tattoo_name);
-		act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-		sprintf(buf, "$n coalesces the ink into a tattoo of %s onto $N's skin.", tattoo_name);
-		act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-	} else {
-		sprintf(buf, "You coalesce the ink into a tattoo of %s onto your skin.", tattoo_name);
-		act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		sprintf(buf, "$n coalesces the ink into a tattoo of %s onto $s skin.", tattoo_name);
-		act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	}
+    if(victim != ch) {
+        sprintf(buf, "You coalesce the ink into a tattoo of %s onto $N's skin.", tattoo_name);
+        act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        sprintf(buf, "$n coalesces the ink into a tattoo of %s onto your skin.", tattoo_name);
+        act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+        sprintf(buf, "$n coalesces the ink into a tattoo of %s onto $N's skin.", tattoo_name);
+        act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+    } else {
+        sprintf(buf, "You coalesce the ink into a tattoo of %s onto your skin.", tattoo_name);
+        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        sprintf(buf, "$n coalesces the ink into a tattoo of %s onto $s skin.", tattoo_name);
+        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    }
 
     check_improve(ch, gsn_tattoo, true, 2);
 
@@ -1226,16 +1258,16 @@ void ink_end( CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t
     free_string(tattoo->full_description);
     tattoo->full_description = str_dup(buf);
 
-	tattoo->value[0] = number_range(1,UMAX(2,(ch->tot_level / 20)));
-	if(chance < 50)
-		tattoo->value[1] = 100 - chance * chance / 100;
-	else
-		tattoo->value[1] = (100 - chance) * (100 - chance) / 100;
+    tattoo->value[0] = number_range(1,UMAX(2,(ch->tot_level / 20)));
+    if(chance < 50)
+        tattoo->value[1] = 100 - chance * chance / 100;
+    else
+        tattoo->value[1] = (100 - chance) * (100 - chance) / 100;
 
-	level = ch->tot_level * ((n - 1) * chance + 100) / (n * 100);
+    level = ch->tot_level * ((n - 1) * chance + 100) / (n * 100);
 
-	if (IS_SET(ch->in_room->room_flag[1], ROOM_ALCHEMY))
-		level = (ch->tot_level + level) / 2;
+    if (IS_SET(ch->in_room->room_flag[1], ROOM_ALCHEMY))
+        level = (ch->tot_level + level) / 2;
 
 
     spell = new_spell();
@@ -1245,25 +1277,26 @@ void ink_end( CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t
     tattoo->spells = spell;
 
     if(sn2 > 0) {
-		spell = new_spell();
-		spell->sn = sn2;
-		spell->level = level/2;
-		spell->next = tattoo->spells;
-		tattoo->spells = spell;
+        spell = new_spell();
+        spell->sn = sn2;
+        spell->level = level/2;
+        spell->next = tattoo->spells;
+        tattoo->spells = spell;
     }
 
     if(sn3 > 0) {
-		spell = new_spell();
-		spell->sn = sn3;
-		spell->level = level/3;
-		spell->next = tattoo->spells;
-		tattoo->spells = spell;
+        spell = new_spell();
+        spell->sn = sn3;
+        spell->level = level/3;
+        spell->next = tattoo->spells;
+        tattoo->spells = spell;
     }
 
-
     free_string(tattoo->name);
-	strcat(tattoo_name, " tattoo");
+    strcat(tattoo_name, " tattoo");
     tattoo->name = short_to_name(tattoo_name);
+    
+    // Add to character using list_add function for proper LLIST handling
     obj_to_char(tattoo, victim);
 
     tattoo->wear_loc = loc;
@@ -1277,121 +1310,121 @@ void do_affix(CHAR_DATA *ch, char *argument)
     OBJ_DATA *obj;
     int loc;
 
-	argument = one_argument(argument, arg);
+    argument = one_argument(argument, arg);
 
-	if (arg[0] == '\0') {
-		send_to_char("Affix what to where?\n\r", ch);
-		return;
-	}
+    if (arg[0] == '\0') {
+        send_to_char("Affix what to where?\n\r", ch);
+        return;
+    }
 
-	if ((obj = get_obj_list(ch,arg,ch->carrying)) == NULL) {
-		send_to_char("You do not have that tattoo.\n\r", ch);
-		return;
-	}
+    if ((obj = get_obj_list(ch, arg, ch->lcarrying)) == NULL) {
+        send_to_char("You do not have that tattoo.\n\r", ch);
+        return;
+    }
 
-	if (obj->item_type != ITEM_TATTOO) {
-		send_to_char("You can only affix tattoos.\n\r", ch);
-		return;
-	}
+    if (obj->item_type != ITEM_TATTOO) {
+        send_to_char("You can only affix tattoos.\n\r", ch);
+        return;
+    }
 
-	if (obj->wear_loc != WEAR_NONE) {
-		send_to_char("That appears to be used.\n\r", ch);
-		return;
-	}
+    if (obj->wear_loc != WEAR_NONE) {
+        send_to_char("That appears to be used.\n\r", ch);
+        return;
+    }
 
-	argument = one_argument(argument, arg);
+    argument = one_argument(argument, arg);
 
-	if((loc = flag_lookup(arg, tattoo_loc_flags)) == 0) {
-		send_to_char("Affix the tattoo where?\n\r", ch);
-		return;
-	}
+    if ((loc = flag_lookup(arg, tattoo_loc_flags)) == 0) {
+        send_to_char("Affix the tattoo where?\n\r", ch);
+        return;
+    }
 
-	if(IS_NPC(ch) && !argument[0]) {
-		argument = one_argument(argument, arg);
+    if (IS_NPC(ch) && !argument[0]) {
+        argument = one_argument(argument, arg);
 
-		if(!str_cmp(arg,"self"))
-			victim = ch;
-		else if((victim = get_char_room(ch, NULL, arg)) == NULL) {
-			send_to_char("They aren't here.\n\r", ch);
-			return;
-		}
+        if (!str_cmp(arg, "self"))
+            victim = ch;
+        else if ((victim = get_char_room(ch, NULL, arg)) == NULL) {
+            send_to_char("They aren't here.\n\r", ch);
+            return;
+        }
 
-		if(!str_cmp(argument,"silent"))
-			silent = true;
-	} else
-		victim = ch;
+        if (!str_cmp(argument, "silent"))
+            silent = true;
+    } else
+        victim = ch;
 
-	if(get_eq_char(victim,loc)) {
-		send_to_char("There is already a tattoo there.\n\r", ch);
-		return;
-	}
+    if (get_eq_char(victim, loc)) {
+        send_to_char("There is already a tattoo there.\n\r", ch);
+        return;
+    }
 
-	if(p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_PREWEAR, NULL))
-		return;
+    if (p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_PREWEAR, NULL))
+        return;
 
-	if(victim != ch) {
-		obj_from_char(obj);
-		obj_to_char(obj,victim);
-	}
+    if (victim != ch) {
+        obj_from_char(obj);
+        obj_to_char(obj, victim);
+    }
 
-	obj->wear_loc = loc;
+    obj->wear_loc = loc;
 
-	if(!silent) {
-		if(victim != ch) {
-			act("$n affixes $p on $N's skin.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
-			act("$n affixes $p on your skin.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_VICT);
-			act("You affix $p on $N's skin.", ch,  victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		} else {
-			act("$n affixes $p to $s skin.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-			act("You affix $p to your skin.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		}
-		p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_WEAR, NULL);
-	}
+    if (!silent) {
+        if (victim != ch) {
+            act("$n affixes $p on $N's skin.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
+            act("$n affixes $p on your skin.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_VICT);
+            act("You affix $p on $N's skin.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+        } else {
+            act("$n affixes $p to $s skin.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+            act("You affix $p to your skin.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+        }
+        p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_WEAR, NULL);
+    }
 }
 
 void do_activate(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
     OBJ_DATA *obj;
-	AFFECT_DATA *aff;
+    AFFECT_DATA *aff;
 
     argument = one_argument(argument, arg);
     if (arg[0] == '\0')
     {
-	send_to_char("Syntax: [de]activate <item>\n\r", ch);
-	return;
+        send_to_char("Syntax: [de]activate <item>\n\r", ch);
+        return;
     }
 
-    if ((obj = get_obj_list(ch, arg, ch->carrying)) == NULL)
+    if ((obj = get_obj_list(ch, arg, ch->lcarrying)) == NULL)
     {
-	act("You aren't carrying any $t.", ch, NULL, NULL, NULL, NULL, arg, NULL, TO_CHAR);
-	return;
+        act("You aren't carrying any $t.", ch, NULL, NULL, NULL, NULL, arg, NULL, TO_CHAR);
+        return;
     }
 
-	if (!obj->catalyst)
-	{
-		send_to_char("You may only [de]activate catalysts.\n\r", ch);
-	}
-	else
-	{
-    	if (IS_SET(obj->extra[2], ITEM_ACTIVATED))
-    	{
-			REMOVE_BIT(obj->extra[2], ITEM_ACTIVATED);
-			for (aff = obj->catalyst; aff != NULL; aff = aff->next)
-			{
-				aff->where = TO_CATALYST_DORMANT;
-			}
-			act("You will no longer use $p to fuel your more powerful spells.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-			
-    	}
-    	else
-    	{
-			SET_BIT(obj->extra[2], ITEM_ACTIVATED);
-			for (aff = obj->catalyst; aff != NULL; aff = aff->next)
-			{
-				aff->where = TO_CATALYST_ACTIVE;
-			}
-			act("You will now use $p to fuel your more powerful spells.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-    	}
-	}
+    if (!obj->catalyst)
+    {
+        send_to_char("You may only [de]activate catalysts.\n\r", ch);
+    }
+    else
+    {
+        if (IS_SET(obj->extra[2], ITEM_ACTIVATED))
+        {
+            REMOVE_BIT(obj->extra[2], ITEM_ACTIVATED);
+            for (aff = obj->catalyst; aff != NULL; aff = aff->next)
+            {
+                aff->where = TO_CATALYST_DORMANT;
+            }
+            act("You will no longer use $p to fuel your more powerful spells.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+            
+        }
+        else
+        {
+            SET_BIT(obj->extra[2], ITEM_ACTIVATED);
+            for (aff = obj->catalyst; aff != NULL; aff = aff->next)
+            {
+                aff->where = TO_CATALYST_ACTIVE;
+            }
+            act("You will now use $p to fuel your more powerful spells.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+        }
+    }
 }

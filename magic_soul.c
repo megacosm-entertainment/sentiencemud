@@ -19,63 +19,69 @@
 
 SPELL_FUNC(spell_soul_essence)
 {
-	char buf[MSL];
-	OBJ_DATA *obj, *obj_next;
-	char *arg = (char *) vo;
-	int souls, i;
-	int skill, skill2;
-	bool found = false, all;
+    char buf[MSL];
+    OBJ_DATA *obj;
+    char *arg = (char *) vo;
+    int souls, i;
+    int skill, skill2;
+    bool found = false, all;
+    ITERATOR it;
 
-	if(IS_NPC(ch)) return false;
+    if(IS_NPC(ch)) return false;
 
-	if (!arg) return false;
+    if (!arg) return false;
 
-	if (!arg[0] || (!is_number(arg) && str_cmp(arg,"all"))) {
-		send_to_char("How much soul essence did you want to absorb?\n\r", ch);
-		return false;
-	}
+    if (!arg[0] || (!is_number(arg) && str_cmp(arg,"all"))) {
+        send_to_char("How much soul essence did you want to absorb?\n\r", ch);
+        return false;
+    }
 
-	all = !str_cmp(arg,"all");
-	souls = atoi(arg);
+    all = !str_cmp(arg,"all");
+    souls = atoi(arg);
 
-	for (obj = ch->carrying, i = 0; obj && (all || i < souls); obj = obj_next) {
-		obj_next = obj->next_content;
+    // Use the lcarrying LLIST instead of the old carrying linked list
+    if (ch->lcarrying) {
+        i = 0;
+        iterator_start(&it, ch->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it)) && (all || i < souls)) {
+            if (obj->pIndexData->vnum == OBJ_VNUM_BOTTLED_SOUL) {
+                found = true;
+                // Need to remove from list before extracting to prevent invalid list access
+                list_remlink(ch->lcarrying, obj, false);
+                extract_obj(obj);
+                i++;
+            }
+        }
+        iterator_stop(&it);
+    }
 
-		if (obj->pIndexData->vnum == OBJ_VNUM_BOTTLED_SOUL) {
-			found = true;
-			extract_obj(obj);
-			i++;
-		}
-	}
+    if (found) {
+        skill = get_skill(ch,gsn_soul_essence); skill = UMAX(0,skill);
+        skill2 = get_skill(ch,gsn_soul_essence); skill2 = UMAX(0,skill2);
 
-	if (found) {
-		skill = get_skill(ch,gsn_soul_essence); skill = UMAX(0,skill);
-		skill2 = get_skill(ch,gsn_soul_essence); skill2 = UMAX(0,skill2);
+        i = i * skill * skill2 / 10000;
 
-		i = i * skill * skill2 / 10000;
+        // Give boost for avatars and wraiths
+        if(ch->race == grn_avatar || ch->race == grn_wraith)
+            i = i * ( 240 + ch->tot_level ) / 240;
 
-		// Give boost for avatars and wraiths
-		if(ch->race == grn_avatar || ch->race == grn_wraith)
-			i = i * ( 240 + ch->tot_level ) / 240;
+        if(i > 0) {
+            sprintf(buf, "{BYou feel {C%d{B soul%s flowing into you!{x\n\r", i, ((i==1)?"":"s"));
+            send_to_char(buf,ch);
+            act("{B$n glows briefly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-		if(i > 0) {
-			sprintf(buf, "{BYou feel {C%d{B soul%s flowing into you!{x\n\r", i, ((i==1)?"":"s"));
-			send_to_char(buf,ch);
-			act("{B$n glows briefly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-
-			if (boost_table[BOOST_PNEUMA].boost != 100)
-			{
-	    		send_to_char("{WPNEUMA boost!{x\n\r", ch);
-	   			ch->pneuma += (i * boost_table[BOOST_PNEUMA].boost)/100;
-			}
-			else
-	    		ch->pneuma += i;
-    		
-		} else
-			send_to_char("You absorb soul essence, but it completely dissipates...\n\r", ch);
-	} else
-		send_to_char("You lack soul essence to absorb.\n\r", ch);
-	return true;
+            if (boost_table[BOOST_PNEUMA].boost != 100)
+            {
+        		send_to_char("{WPNEUMA boost!{x\n\r", ch);
+       			ch->pneuma += (i * boost_table[BOOST_PNEUMA].boost)/100;
+            }
+            else
+        		ch->pneuma += i;
+            
+        } else
+            send_to_char("You absorb soul essence, but it completely dissipates...\n\r", ch);
+    } else
+        send_to_char("You lack soul essence to absorb.\n\r", ch);
+    return true;
 }
-
 

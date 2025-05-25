@@ -90,7 +90,7 @@ void do_testemail (CHAR_DATA *ch, char *argument)
   if (IS_NULLSTR(game_settings.email_host) || game_settings.email_port == 0 || IS_NULLSTR(game_settings.email_username) || IS_NULLSTR(game_settings.email_password) || IS_NULLSTR(game_settings.email_from_addr))
   {
     send_to_char("One or more email configuration items is missing.\n\r",ch);
-    sprintf(buf, "Host: %s\n\rPort: %d\n\rUsername: %s\n\rPassword: %s\n\rFrom Address: %s\n\r", gconfig.email_host, gconfig.email_port, gconfig.email_username, gconfig.email_password, gconfig.email_from_addr);
+    sprintf(buf, "Host: %s\n\rPort: %d\n\rUsername: %s\n\rPassword: %s\n\rFrom Address: %s\n\r", game_settings.email_host, game_settings.email_port, game_settings.email_username, game_settings.email_password, game_settings.email_from_addr);
     send_to_char(buf,ch);
     return;
   }
@@ -124,25 +124,23 @@ void do_testemail (CHAR_DATA *ch, char *argument)
   quickmail_set_body(mailobj, "This is a test e-mail.\nThis mail was sent using libquickmail.");
   //quickmail_add_body_memory(mailobj, NULL, "This is a test e-mail.\nThis mail was sent using libquickmail.", 64, 0);
   quickmail_add_body_memory(mailobj, "text/html", "This is a <b>test</b> e-mail.<br/>\nThis mail was sent using <u>libquickmail</u>.", 80, 0);
-/**/
+
   //quickmail_add_attachment_file(mailobj, "test_quickmail.c", NULL);
   //quickmail_add_attachment_file(mailobj, "test_quickmail.cbp", NULL);
   //quickmail_add_attachment_memory(mailobj, "test.log", NULL, "Test\n123", 8, 0);
-/**/
-/*/
-  quickmail_fsave(mailobj, stdout);
 
-  int i;
-  i = 0;
-  quickmail_list_attachments(mailobj, list_attachment_callback, &i);
+//  quickmail_fsave(mailobj, stdout);
 
-  quickmail_remove_attachment(mailobj, "test_quickmail.cbp");
-  i = 0;
-  quickmail_list_attachments(mailobj, list_attachment_callback, &i);
+//  int i;
+//  i = 0;
+//  quickmail_list_attachments(mailobj, list_attachment_callback, &i);
 
-  quickmail_destroy(mailobj);
-  return 0;
-/**/
+//  quickmail_remove_attachment(mailobj, "test_quickmail.cbp");
+//  i = 0;
+//  quickmail_list_attachments(mailobj, list_attachment_callback, &i);
+
+//  quickmail_destroy(mailobj);
+//  return 0;
 
   const char* errmsg;
   //quickmail_set_debug_log(mailobj, stderr);

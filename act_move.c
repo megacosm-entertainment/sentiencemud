@@ -1205,15 +1205,17 @@ void do_search(CHAR_DATA *ch, char *argument)
 
 		act("You start searching your inventory...", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
-		for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-		{
-			if (IS_SET(obj->extra[0], ITEM_HIDDEN) && number_percent() < number_range(60, 90))
-			{
-				REMOVE_BIT(obj->extra[0], ITEM_HIDDEN);
-				act("You have uncovered $p{x!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-				found = true;
-			}
-		}
+ITERATOR it;
+OBJ_DATA *obj;
+iterator_start(&it, ch->lcarrying);
+while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+    if (IS_SET(obj->extra[0], ITEM_HIDDEN) && number_percent() < number_range(60, 90)) {
+        REMOVE_BIT(obj->extra[0], ITEM_HIDDEN);
+        act("You have uncovered $p{x!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+        found = true;
+    }
+}
+iterator_stop(&it);
 
 	} else {
 		OBJ_DATA *container;
@@ -1643,26 +1645,38 @@ OBJ_DATA *get_key(CHAR_DATA *ch, int vnum)
 
 	if( vnum < 1 ) return NULL;
 
-	for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-	{
-		if (obj->pIndexData->vnum == vnum)
-			return obj;
-	}
+ITERATOR it;
 
-	/* Keyring */
-	for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-	{
-		if (obj->pIndexData->item_type == ITEM_KEYRING)
-		{
-			for (key = obj->contains; key != NULL; key = key->next_content)
-			{
-				if (key->pIndexData->vnum == vnum)
-					return key;
-			}
-		}
-	}
+// Search inventory for the key directly
+iterator_start(&it, ch->lcarrying);
+while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+    if (obj->pIndexData->vnum == vnum)
+    {
+        iterator_stop(&it);
+        return obj;
+    }
+}
+iterator_stop(&it);
 
-	return NULL;
+// Search keyrings in inventory
+iterator_start(&it, ch->lcarrying);
+while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+    if (obj->pIndexData->item_type == ITEM_KEYRING)
+    {
+        for (key = obj->contains; key != NULL; key = key->next_content)
+        {
+            if (key->pIndexData->vnum == vnum)
+            {
+                iterator_stop(&it);
+                return key;
+            }
+        }
+    }
+}
+iterator_stop(&it);
+
+return NULL;
+
 }
 
 
@@ -1684,17 +1698,21 @@ void use_key(CHAR_DATA *ch, OBJ_DATA *key)
 	}
 
 	/* can only use a church-temple key if you're in that church */
-	for (church = church_list; church != NULL; church = church->next)
-	{
-		if (church->key == key->pIndexData->vnum && ch->church != church)
-		{
-			sprintf(buf, "Rent by the spiritual powers of %s, $p dissipates into nothingness.\n\r", church->name);
-			act(buf, ch, NULL, NULL, key, NULL, NULL, NULL, TO_CHAR);
-			act(buf, ch, NULL, NULL, key, NULL, NULL, NULL, TO_ROOM);
-			extract_obj(key);
-			return;
-		}
-	}
+ITERATOR it;
+iterator_start(&it, list_churches);
+while ((church = (CHURCH_DATA *)iterator_nextdata(&it)))
+{
+    if (church->key == key->pIndexData->vnum && ch->church != church)
+    {
+        sprintf(buf, "Rent by the spiritual powers of %s, $p dissipates into nothingness.\n\r", church->name);
+        act(buf, ch, NULL, NULL, key, NULL, NULL, NULL, TO_CHAR);
+        act(buf, ch, NULL, NULL, key, NULL, NULL, NULL, TO_ROOM);
+        extract_obj(key);
+        iterator_stop(&it);
+        return;
+    }
+}
+iterator_stop(&it);
 
 	switch (key->fragility)
 	{
@@ -3692,12 +3710,14 @@ void check_see_hidden(CHAR_DATA *ch)
 {
 	OBJ_DATA *obj;
 
-	for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-	{
-		if (IS_SET(obj->extra[1], ITEM_SEE_HIDDEN) &&
-			obj->wear_loc != WEAR_NONE)
-			break;
-	}
+ITERATOR it;
+iterator_start(&it, ch->lworn);
+while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+    if (IS_SET(obj->extra[1], ITEM_SEE_HIDDEN)) {
+        break;
+    }
+}
+iterator_stop(&it);
 
 	if (obj)
 	{

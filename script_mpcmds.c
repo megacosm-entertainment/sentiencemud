@@ -2250,7 +2250,7 @@ SCRIPT_CMD(do_mpforce)
 	if (fAll) {
 		for (victim = info->mob->in_room->people; victim; victim = next) {
 			next = victim->next_in_room;
-			if (get_trust(victim) < get_trust(info->mob)
+			if (get_staff_rank(victim) < get_staff_rank(info->mob)
 				&& can_see(info->mob, victim)
 				&& (IS_NPC(victim) || !IS_IMMORTAL(victim))) {
 				forced_command = true;
@@ -2462,7 +2462,7 @@ SCRIPT_CMD(do_mpgforce)
 	for (vch = info->mob->in_room->people; vch; vch = next) {
 		next = vch->next_in_room;
 		if (is_same_group(victim,vch) &&
-			get_trust(vch) < get_trust(info->mob)
+			get_staff_rank(vch) < get_staff_rank(info->mob)
 			&& can_see(info->mob, vch)
 			&& (IS_NPC(vch) || !IS_IMMORTAL(vch)))
 			interpret(vch, buf_string(buffer));
@@ -2576,61 +2576,73 @@ SCRIPT_CMD(do_mpinvis)
 // Syntax: mob junk <item>
 SCRIPT_CMD(do_mpjunk)
 {
-//	char buf[MIL];
-	OBJ_DATA *obj;
-	OBJ_DATA *obj_next;
+    OBJ_DATA *obj;
+    OBJ_DATA *obj_next;
+    ITERATOR it;
 
+    if(!info || !info->mob || !argument[0]) return;
 
-	if(!info || !info->mob || !argument[0]) return;
+    if(expand_argument(info,argument,arg)) {
+        switch(arg->type) {
+        case ENT_STRING:
+            if (str_cmp(arg->d.str, "all") && str_prefix("all.", arg->d.str)) {
+                if (!(obj = get_obj_wear(info->mob, arg->d.str, true)))
+                    obj = get_obj_carry(info->mob, arg->d.str, info->mob);
+            } else {
+                if (info->mob->lcarrying && IS_VALID(info->mob->lcarrying)) {
+                    iterator_start(&it, info->mob->lcarrying);
+                    while ((obj = iterator_nextdata(&it))) {
+                        if (!arg->d.str[3] || is_name(&arg->d.str[4], obj->name)) {
+                            if(!PROG_FLAG(obj,PROG_AT)) {
+                                if (obj->wear_loc != WEAR_NONE)
+                                    unequip_char(info->mob, obj, true);
+                                extract_obj(obj);
+                            }
+                        }
+                    }
+                    iterator_stop(&it);
+                }
+                return;
+            }
+            break;
+        case ENT_OBJECT:
+            obj = (arg->d.obj && arg->d.obj->carried_by == info->mob) ? arg->d.obj : NULL;
+            break;
+        case ENT_OLLIST_OBJ:
+            if (!arg->d.list.ptr.obj || !(*arg->d.list.ptr.obj))
+                return;
 
-	if(expand_argument(info,argument,arg)) {
-		switch(arg->type) {
-		case ENT_STRING:
-			if (str_cmp(arg->d.str, "all") && str_prefix("all.", arg->d.str)) {
-				if (!(obj = get_obj_wear(info->mob, arg->d.str, true)))
-					obj = get_obj_carry(info->mob, arg->d.str, info->mob);
-			} else {
-				for (obj = info->mob->carrying; obj; obj = obj_next) {
-					obj_next = obj->next_content;
-					if (!arg->d.str[3] || is_name(&arg->d.str[4], obj->name)) {
-						if(!PROG_FLAG(obj,PROG_AT)) {
-							if (obj->wear_loc != WEAR_NONE)
-								unequip_char(info->mob, obj, true);
-							extract_obj(obj);
-						}
-					}
-				}
-				return;
-			}
-			break;
-		case ENT_OBJECT:
-			obj = (arg->d.obj && arg->d.obj->carried_by == info->mob) ? arg->d.obj : NULL;
-			break;
-		case ENT_OLLIST_OBJ:
-			if(!arg->d.list.ptr.obj || !(*arg->d.list.ptr.obj))
-				return;
+            if (is_llist(*arg->d.list.ptr.obj)) {
+                LLIST *list = (LLIST*)(*arg->d.list.ptr.obj);
+                iterator_start(&it, list);
+                while ((obj = iterator_nextdata(&it))) {
+                    if (!PROG_FLAG(obj,PROG_AT)) {
+                        if (obj->wear_loc != WEAR_NONE)
+                            unequip_char(info->mob, obj, true);
+                        extract_obj(obj);
+                    }
+                }
+                iterator_stop(&it);
+            } else {
+                for (obj = *(arg->d.list.ptr.obj); obj; obj = obj_next) {
+                    obj_next = obj->next_content;
+                    if(!PROG_FLAG(obj,PROG_AT)) {
+                        if (obj->wear_loc != WEAR_NONE)
+                            unequip_char(info->mob, obj, true);
+                        extract_obj(obj);
+                    }
+                }
+            }
+            return;
+        default: obj = NULL; break;
+        }
 
-			if((*arg->d.list.ptr.obj)->in_obj && (*arg->d.list.ptr.obj)->in_obj->carried_by != info->mob)
-				return;
-
-			for (obj = *(arg->d.list.ptr.obj); obj; obj = obj_next) {
-				obj_next = obj->next_content;
-				if(!PROG_FLAG(obj,PROG_AT)) {
-					if (obj->wear_loc != WEAR_NONE)
-						unequip_char(info->mob, obj, true);
-					extract_obj(obj);
-				}
-			}
-			return;
-		default: obj = NULL; break;
-		}
-
-		if(obj && !PROG_FLAG(obj,PROG_AT)) {
-			if(obj->wear_loc != WEAR_NONE)
-				unequip_char(info->mob, obj, true);
-			extract_obj(obj);
-		}
-	}
+        if(obj && !PROG_FLAG(obj,PROG_AT)) {
+            if(obj->wear_loc != WEAR_NONE)
+                unequip_char(info->mob, obj, true);
+            extract_obj(obj);
+        }
+    }
 }
 
 // do_mpkill
@@ -3190,92 +3202,134 @@ SCRIPT_CMD(do_mpremember)
 // do_mpremove
 SCRIPT_CMD(do_mpremove)
 {
-	CHAR_DATA *victim;
-	OBJ_DATA *obj = NULL, *obj_next;
-	int vnum = 0, count = 0;
-	bool fAll = false;
+    CHAR_DATA *victim;
+    OBJ_DATA *obj = NULL;
+    int vnum = 0, count = 0;
+    bool fAll = false;
+    ITERATOR it;
 
-	char name[MIL], *rest;
+    char name[MIL], *rest;
 
-	if(!info || !info->mob) return;
+    if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,arg))) {
-		bug("MpRemove: Bad syntax from vnum %ld.", VNUM(info->mob));
-		return;
-	}
+    if(!(rest = expand_argument(info,argument,arg))) {
+        bug("MpRemove - Error in parsing from vnum %ld.", VNUM(info->mob));
+        return;
+    }
 
-	switch(arg->type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
-	case ENT_MOBILE: victim = arg->d.mob; break;
-	default: victim = NULL; break;
-	}
+    switch(arg->type) {
+    case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+    case ENT_MOBILE: victim = arg->d.mob; break;
+    default: victim = NULL; break;
+    }
 
-	if (!victim) {
-		bug("MpRemove: Null victim from vnum %ld.", VNUM(info->mob));
-		return;
-	}
+    if (!victim) {
+        bug("MpRemove - Null victim from vnum %ld.", VNUM(info->mob));
+        return;
+    }
 
-	if(!*rest) return;
+    if(!*rest) return;
 
-	argument = rest;
-	if(!(rest = expand_argument(info,argument,arg))) {
-		bug("MpRemove: Bad syntax from vnum %ld.", VNUM(info->mob));
-		return;
-	}
+    argument = rest;
+    if(!(rest = expand_argument(info,argument,arg))) {
+        bug("MpRemove - Error in parsing from vnum %ld.", VNUM(info->mob));
+        return;
+    }
 
-	name[0] = '\0';
-	switch(arg->type) {
-	case ENT_NUMBER: vnum = arg->d.num; break;
-	case ENT_STRING:
-		if(is_number(arg->d.str))
-			vnum = atoi(arg->d.str);
-		else if(!str_cmp(arg->d.str,"all"))
-			fAll = true;
-		else
-			strncpy(name,arg->d.str,MIL-1);
-		break;
-	case ENT_OBJECT: obj = arg->d.obj; break;
-	default: break;
-	}
+    name[0] = '\0';
+    switch(arg->type) {
+    case ENT_NUMBER: vnum = arg->d.num; break;
+    case ENT_STRING:
+        if(is_number(arg->d.str))
+            vnum = atoi(arg->d.str);
+        else if(!str_cmp(arg->d.str,"all"))
+            fAll = true;
+        else
+            strncpy(name,arg->d.str,MIL-1);
+        break;
+    case ENT_OBJECT: obj = arg->d.obj; break;
+    default: break;
+    }
 
-	if(!fAll && vnum < 1 && !name[0] && !obj) {
-		bug ("MpRemove: Invalid object from vnum %ld.", VNUM(info->mob));
-		return;
-	}
+    if(!fAll && vnum < 1 && !name[0] && !obj) {
+        bug ("MpRemove - Invalid object from vnum %ld.", VNUM(info->mob));
+        return;
+    }
 
-	if(!fAll && !obj && *rest) {
-		argument = rest;
-		if(!(rest = expand_argument(info,argument,arg))) {
-			bug("MpRemove: Bad syntax from vnum %ld.", VNUM(info->mob));
-			return;
-		}
+    if(!fAll && !obj && *rest) {
+        argument = rest;
+        if(!(rest = expand_argument(info,argument,arg))) {
+            bug("MpRemove - Error in parsing from vnum %ld.", VNUM(info->mob));
+            return;
+        }
 
-		switch(arg->type) {
-		case ENT_NUMBER: count = arg->d.num; break;
-		case ENT_STRING: count = atoi(arg->d.str); break;
-		default: count = 0; break;
-		}
+        switch(arg->type) {
+        case ENT_NUMBER: count = arg->d.num; break;
+        case ENT_STRING: count = atoi(arg->d.str); break;
+        default: count = 0; break;
+        }
 
-		if(count < 0) {
-			bug ("MpRemove: Invalid count from vnum %d.", VNUM(info->mob));
-			count = 0;
-		}
-	}
+        if(count < 0) {
+            bug ("MpRemove - Invalid count from vnum %d.", VNUM(info->mob));
+            count = 0;
+        }
+    }
 
-	if(obj) {
-		if(victim == obj_carrier(obj) && !PROG_FLAG(obj,PROG_AT))
-			extract_obj(obj);
-	} else {
-		for (obj = victim->carrying; obj; obj = obj_next) {
-			obj_next = obj->next_content;
-			if (fAll || (vnum > 0 && obj->pIndexData->vnum == vnum) ||
-				(*name && is_name(name, obj->pIndexData->skeywds))) {
-				extract_obj(obj);
+    if(obj) {
+        if((obj->wear_loc != WEAR_NONE && obj->carried_by == victim) || 
+           (obj->in_obj && obj->in_obj->carried_by == victim)) {
+            // Unequip item if it's worn
+            if (obj->wear_loc != WEAR_NONE)
+                unequip_char(victim, obj, true);
+            extract_obj(obj);
+        }
+    } else {
+        // Check items being carried (lcarrying)
+        if (victim->lcarrying && IS_VALID(victim->lcarrying)) {
+            iterator_start(&it, victim->lcarrying);
+            while ((obj = iterator_nextdata(&it))) {
+                if (fAll || (vnum > 0 && obj->pIndexData->vnum == vnum) ||
+                    (*name && is_name(name, obj->name))) {
+                    iterator_remcurrent(&it);
+                    extract_obj(obj);
 
-				if(count > 0 && !--count) break;
-			}
-		}
-	}
+                    if(count > 0 && !--count) break;
+                }
+            }
+            iterator_stop(&it);
+        }
+
+        // Check worn items (lworn)
+        if (count != 0 && victim->lworn && IS_VALID(victim->lworn)) {
+            iterator_start(&it, victim->lworn);
+            while ((obj = iterator_nextdata(&it))) {
+                if (fAll || (vnum > 0 && obj->pIndexData->vnum == vnum) ||
+                    (*name && is_name(name, obj->name))) {
+                    iterator_remcurrent(&it);
+                    unequip_char(victim, obj, true);
+                    extract_obj(obj);
+
+                    if(count > 0 && !--count) break;
+                }
+            }
+            iterator_stop(&it);
+        }
+
+        // Check locker items (llocker)
+        if (count != 0 && victim->llocker && IS_VALID(victim->llocker)) {
+            iterator_start(&it, victim->llocker);
+            while ((obj = iterator_nextdata(&it))) {
+                if (fAll || (vnum > 0 && obj->pIndexData->vnum == vnum) ||
+                    (*name && is_name(name, obj->name))) {
+                    iterator_remcurrent(&it);
+                    extract_obj(obj);
+
+                    if(count > 0 && !--count) break;
+                }
+            }
+            iterator_stop(&it);
+        }
+    }
 }
 
 // do_mpselfdestruct
@@ -3302,129 +3356,161 @@ SCRIPT_CMD(do_mpselfdestruct)
  *
  * Syntax: mob take [victim] [object vnum|'all'|keywords] {force|safe} [count]
  */
+// do_mptake
 SCRIPT_CMD(do_mptake)
 {
-	CHAR_DATA *victim;
-	OBJ_DATA *obj = NULL, *obj_next;
-	int vnum = 0, count = 0, taken = 0;
-	bool fAll = false, force = false;
+    CHAR_DATA *victim;
+    OBJ_DATA *obj = NULL;
+    int vnum = 0, count = 0, taken = 0;
+    bool fAll = false, force = false;
+    ITERATOR it;
 
-	char name[MIL], *rest;
+    char name[MIL], *rest;
 
-	if(!info || !info->mob) return;
+    if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,arg))) {
-		bug("MpTake: Bad syntax from vnum %ld.", VNUM(info->mob));
-		return;
-	}
+    if(!(rest = expand_argument(info,argument,arg))) {
+        bug("MpTake - Error in parsing from vnum %ld.", VNUM(info->mob));
+        return;
+    }
 
-	switch(arg->type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
-	case ENT_MOBILE: victim = arg->d.mob; break;
-	default: victim = NULL; break;
-	}
+    switch(arg->type) {
+    case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+    case ENT_MOBILE: victim = arg->d.mob; break;
+    default: victim = NULL; break;
+    }
 
-	if (!victim) {
-		bug("MpTake: Null victim from vnum %ld.", VNUM(info->mob));
-		return;
-	}
+    if (!victim) {
+        bug("MpTake - Null victim from vnum %ld.", VNUM(info->mob));
+        return;
+    }
 
-	if(!*rest) return;
+    if(!*rest) return;
 
-	argument = rest;
-	if(!(rest = expand_argument(info,argument,arg))) {
-		bug("MpTake: Bad syntax from vnum %ld.", VNUM(info->mob));
-		return;
-	}
+    argument = rest;
+    if(!(rest = expand_argument(info,argument,arg))) {
+        bug("MpTake - Error in parsing from vnum %ld.", VNUM(info->mob));
+        return;
+    }
 
-	name[0] = '\0';
-	switch(arg->type) {
-	case ENT_NUMBER: vnum = arg->d.num; break;
-	case ENT_STRING:
-		if(is_number(arg->d.str))
-			vnum = atoi(arg->d.str);
-		else if(!str_cmp(arg->d.str,"all"))
-			fAll = true;
-		else
-			strncpy(name,arg->d.str,MIL-1);
-		break;
-	case ENT_OBJECT: obj = arg->d.obj; break;
-	default: break;
-	}
+    name[0] = '\0';
+    switch(arg->type) {
+    case ENT_NUMBER: vnum = arg->d.num; break;
+    case ENT_STRING:
+        if(is_number(arg->d.str))
+            vnum = atoi(arg->d.str);
+        else if(!str_cmp(arg->d.str,"all"))
+            fAll = true;
+        else
+            strncpy(name,arg->d.str,MIL-1);
+        break;
+    case ENT_OBJECT: obj = arg->d.obj; break;
+    default: break;
+    }
 
-	if(!fAll && vnum < 1 && !name[0] && !obj) {
-		bug ("MpTake: Invalid object from vnum %ld.", VNUM(info->mob));
-		return;
-	}
+    if(!fAll && vnum < 1 && !name[0] && !obj) {
+        bug ("MpTake - Invalid object from vnum %ld.", VNUM(info->mob));
+        return;
+    }
 
-	if(*rest) {
-		argument = rest;
-		if(!(rest = expand_argument(info,argument,arg))) {
-			bug("MpTake: Bad syntax from vnum %ld.", VNUM(info->mob));
-			return;
-		}
+    if(*rest) {
+        argument = rest;
+        if(!(rest = expand_argument(info,argument,arg))) {
+            bug("MpTake - Error in parsing from vnum %ld.", VNUM(info->mob));
+            return;
+        }
 
-		switch(arg->type) {
-		default: break;
-		case ENT_STRING: force = !str_cmp(arg->d.str,"force"); break;
-		}
-	}
+        switch(arg->type) {
+        default: break;
+        case ENT_STRING: force = !str_cmp(arg->d.str,"force"); break;
+        }
+    }
 
-	if(!fAll && !obj && *rest) {
-		argument = rest;
-		if(!(rest = expand_argument(info,argument,arg))) {
-			bug("MpTake: Bad syntax from vnum %ld.", VNUM(info->mob));
-			return;
-		}
+    if(!fAll && !obj && *rest) {
+        argument = rest;
+        if(!(rest = expand_argument(info,argument,arg))) {
+            bug("MpTake - Error in parsing from vnum %ld.", VNUM(info->mob));
+            return;
+        }
 
-		switch(arg->type) {
-		case ENT_NUMBER: count = arg->d.num; break;
-		case ENT_STRING: count = atoi(arg->d.str); break;
-		case ENT_OBJECT: obj = arg->d.obj; break;
-		default: count = 0; break;
-		}
+        switch(arg->type) {
+        case ENT_NUMBER: count = arg->d.num; break;
+        case ENT_STRING: count = atoi(arg->d.str); break;
+        case ENT_OBJECT: obj = arg->d.obj; break;
+        default: count = 0; break;
+        }
 
-		if(count < 0) {
-			bug ("MpTake: Invalid count from vnum %d.", VNUM(info->mob));
-			count = 0;
-		}
-	}
+        if(count < 0) {
+            bug ("MpTake - Invalid count from vnum %d.", VNUM(info->mob));
+            count = 0;
+        }
+    }
 
-	taken = 0;
-	if(obj) {
-		if((obj->carried_by == victim || (obj->in_obj && obj->in_obj->carried_by == victim)) &&
-			victim->recite_scroll != obj && (force || can_drop_obj(victim,obj,true)) &&
-			(info->mob->carry_number < can_carry_n (info->mob)) &&
-			((get_carry_weight (info->mob) + get_obj_weight (obj)) <= can_carry_w (info->mob))) {
-			obj_from_char(obj);
-			obj_to_char(obj,info->mob);
-			taken++;
-		}
-	} else {
-		for (obj = victim->carrying; obj; obj = obj_next) {
-			obj_next = obj->next_content;
-			if (fAll || (vnum > 0 && obj->pIndexData->vnum == vnum) ||
-				(*name && is_name(name, obj->pIndexData->skeywds))) {
-				// Not even FORCE will allow this...
-				if(victim->recite_scroll == obj) continue;
-				// Can it be taken?
-				if(!force && !can_drop_obj(victim,obj,true)) continue;
-				// Can it carry anymore?
-				if(info->mob->carry_number >= can_carry_n (info->mob)) break;
-				if(get_carry_weight (info->mob) + get_obj_weight (obj) > can_carry_w (info->mob)) break;
-				obj_from_char(obj);
-				obj_to_char(obj,info->mob);
-				taken++;
+    taken = 0;
+    if(obj) {
+        // Check if the object is directly carried or within a carried container
+        if ((obj->carried_by == victim || (obj->in_obj && obj->in_obj->carried_by == victim)) && 
+            victim->recite_scroll != obj && (force || can_drop_obj(victim,obj,true)) &&
+            (info->mob->carry_number < can_carry_n(info->mob)) &&
+            ((get_carry_weight(info->mob) + get_obj_weight(obj)) <= can_carry_w(info->mob))) {
+            obj_from_char(obj);
+            obj_to_char(obj, info->mob);
+            taken++;
+        }
+    } else {
+        // Check carried items (lcarrying)
+        if (victim->lcarrying && IS_VALID(victim->lcarrying)) {
+            iterator_start(&it, victim->lcarrying);
+            while ((obj = iterator_nextdata(&it))) {
+                if (fAll || (vnum > 0 && obj->pIndexData->vnum == vnum) ||
+                    (*name && is_name(name, obj->name))) {
+                    // Not even FORCE will allow this...
+                    if(victim->recite_scroll == obj) continue;
+                    // Can it be taken?
+                    if(!force && !can_drop_obj(victim,obj,true)) continue;
+                    // Can the mob carry anymore?
+                    if(info->mob->carry_number >= can_carry_n(info->mob)) break;
+                    if(get_carry_weight(info->mob) + get_obj_weight(obj) > can_carry_w(info->mob)) break;
+                    
+                    iterator_remcurrent(&it);
+                    obj_to_char(obj, info->mob);
+                    taken++;
 
-				if(count > 0 && !--count) break;
-			}
-		}
-	}
+                    if(count > 0 && !--count) break;
+                }
+            }
+            iterator_stop(&it);
+        }
+        
+        // Also check worn items (lworn)
+        if (count != 0 && victim->lworn && IS_VALID(victim->lworn)) {
+            iterator_start(&it, victim->lworn);
+            while ((obj = iterator_nextdata(&it))) {
+                if (fAll || (vnum > 0 && obj->pIndexData->vnum == vnum) ||
+                    (*name && is_name(name, obj->name))) {
+                    // Not even FORCE will allow this...
+                    if(victim->recite_scroll == obj) continue;
+                    // Can it be taken?
+                    if(!force && !can_drop_obj(victim,obj,true)) continue;
+                    // Can the mob carry anymore?
+                    if(info->mob->carry_number >= can_carry_n(info->mob)) break;
+                    if(get_carry_weight(info->mob) + get_obj_weight(obj) > can_carry_w(info->mob)) break;
+                    
+                    iterator_remcurrent(&it);
+                    unequip_char(victim, obj, true);
+                    obj_to_char(obj, info->mob);
+                    taken++;
 
-	// Update the amount taken, using lastreturn
-	info->mob->progs->lastreturn = taken;
+                    if(count > 0 && !--count) break;
+                }
+            }
+            iterator_stop(&it);
+        }
+    }
+
+    // Update the amount taken, using lastreturn
+    info->mob->progs->lastreturn = taken;
 }
-
 
 // do_mpteleport
 SCRIPT_CMD(do_mpteleport)
@@ -3552,7 +3638,7 @@ SCRIPT_CMD(do_mpvforce)
 	for (vch = info->mob->in_room->people; vch; vch = next) {
 		next = vch->next_in_room;
 		if (IS_NPC(vch) && vch->pIndexData->vnum == vnum &&
-			get_trust(vch) < get_trust(info->mob)
+			get_staff_rank(vch) < get_staff_rank(info->mob)
 			&& can_see(info->mob, vch)
 			&& (IS_NPC(vch) || !IS_IMMORTAL(vch)))
 			interpret(vch, buf_string(buffer));
@@ -4678,6 +4764,10 @@ SCRIPT_CMD(do_mpaltermob)
 	if (lptr) {
 		switch (op) {
 		case OPR_ADD:
+		    if (!allowarith) {
+        bug("MpAltermob - altermob called with arithmetic operator on a bitonly field.", 0);
+        return;
+    }
 			*lptr += value;
 			break;
 
@@ -4737,6 +4827,10 @@ SCRIPT_CMD(do_mpaltermob)
 				for(int i = 0; bank[i]; i++)
 					lptr[i] &= temp_flags[i];
 			}
+			    if (!allowbitwise) {
+        bug("MpAlterMob - altermob called with bitwise operator on a non-bitvector field.", 0);
+        return;
+    }
 			else
 				*lptr &= value;
 			break;
@@ -7762,133 +7856,135 @@ SCRIPT_CMD(do_mpaddspell)
 }
 
 
-// remspell $OBJECT STRING[ silent]
+// do_mpremspell
 SCRIPT_CMD(do_mpremspell)
 {
+    char *rest;
+    SPELL_DATA *spell, *spell_prev;
+    OBJ_DATA *target;
+    int level;
+    int sn;
+    bool found = false, show = true;
+    AFFECT_DATA *paf;
+    ITERATOR it;
 
-	char *rest;
-	SPELL_DATA *spell, *spell_prev;
-	OBJ_DATA *target;
-	int level;
-	int sn;
-	bool found = false, show = true;
-	AFFECT_DATA *paf;
+    if(!info || !info->token || IS_NULLSTR(argument)) return;
 
-	if(!info || !info->mob || IS_NULLSTR(argument)) return;
+    if(!(rest = expand_argument(info,argument,arg)))
+        return;
 
-	if(!(rest = expand_argument(info,argument,arg)))
-		return;
+    if(arg->type != ENT_OBJECT || !arg->d.obj) return;
 
-	if(arg->type != ENT_OBJECT || !arg->d.obj) return;
+    target = arg->d.obj;
 
-	target = arg->d.obj;
+    if(!(rest = expand_argument(info,rest,arg)))
+        return;
 
-	if(!(rest = expand_argument(info,rest,arg)))
-		return;
+    if(arg->type != ENT_STRING || IS_NULLSTR(arg->d.str)) return;
 
-	if(arg->type != ENT_STRING || IS_NULLSTR(arg->d.str)) return;
+    sn = skill_lookup(arg->d.str);
+    if( sn <= 0 ) return;
 
-	sn = skill_lookup(arg->d.str);
-	if( sn <= 0 ) return;
+    // Add security check for the spell function
+    if(skill_table[sn].spell_fun == spell_null) return;
 
-	// Add security check for the spell function
-	if(skill_table[sn].spell_fun == spell_null) return;
+    if( rest && *rest ) {
+        if(!(rest = expand_argument(info,rest,arg)))
+            return;
 
-	if( rest && *rest ) {
-		if(!(rest = expand_argument(info,rest,arg)))
-			return;
+        if(arg->type != ENT_STRING || IS_NULLSTR(arg->d.str)) return;
 
-		if(arg->type != ENT_STRING || IS_NULLSTR(arg->d.str)) return;
+        if( !str_cmp(arg->d.str, "silent") )
+            show = false;
+    }
 
-		if( !str_cmp(arg->d.str, "silent") )
-			show = false;
-	}
+    found = false;
+    spell_prev = NULL;
+    for(spell = target->spells; spell; spell_prev = spell, spell = spell->next) {
+        if( spell->sn == sn ) {
+            if( spell_prev != NULL )
+                spell_prev->next = spell->next;
+            else
+                target->spells = spell->next;
 
+            level = spell->level;
 
-	found = false;
-	spell_prev = NULL;
-	for(spell = target->spells; spell; spell_prev = spell, spell = spell->next) {
-		if( spell->sn == sn ) {
-			if( spell_prev != NULL )
-				spell_prev->next = spell->next;
-			else
-				target->spells = spell->next;
+            free_spell(spell);
 
-			level = spell->level;
+            found = true;
+            break;
+        }
+    }
 
-			free_spell(spell);
+    if( found && target->carried_by != NULL && target->wear_loc != WEAR_NONE) {
+        if (target->item_type != ITEM_WAND &&
+            target->item_type != ITEM_STAFF &&
+            target->item_type != ITEM_SCROLL &&
+            target->item_type != ITEM_POTION &&
+            target->item_type != ITEM_TATTOO &&
+            target->item_type != ITEM_PILL) {
 
-			found = true;
-			break;
-		}
-	}
+            OBJ_DATA *obj_tmp;
+            int spell_level = level;
+            int found_loc = WEAR_NONE;
 
-	if( found && target->carried_by != NULL && target->wear_loc != WEAR_NONE) {
-		if (target->item_type != ITEM_WAND &&
-			target->item_type != ITEM_STAFF &&
-			target->item_type != ITEM_SCROLL &&
-			target->item_type != ITEM_POTION &&
-			target->item_type != ITEM_TATTOO &&
-			target->item_type != ITEM_PILL) {
+            // Find the first affect that matches this spell and is derived from the object
+            for (paf = target->carried_by->affected; paf != NULL; paf = paf->next)
+            {
+                if (paf->type == sn && paf->slot == target->wear_loc)
+                    break;
+            }
 
-			OBJ_DATA *obj_tmp;
-			int spell_level = level;
-			int found_loc = WEAR_NONE;
+            if( !paf ) {
+                // This spell was not applied by this object
+                return;
+            }
 
-			// Find the first affect that matches this spell and is derived from the object
-			for (paf = target->carried_by->affected; paf != NULL; paf = paf->next)
-			{
-				if (paf->type == spell->sn && paf->slot == target->wear_loc)
-					break;
-			}
+            found = false;
+            level = 0;
 
-			if( !paf ) {
-				// This spell was not applied by this object
-				return;
-			}
+            // Check if character has lworn (linked list)
+            if (target->carried_by->lworn && IS_VALID(target->carried_by->lworn)) {
+                // Use iterator for linked list of worn items
+                iterator_start(&it, target->carried_by->lworn);
+                while ((obj_tmp = iterator_nextdata(&it))) {
+                    if (obj_tmp != target) {
+                        for (spell = obj_tmp->spells; spell != NULL; spell = spell->next) {
+                            if (spell->sn == sn && spell->level > level) {
+                                level = spell->level;    // Keep the maximum
+                                found_loc = obj_tmp->wear_loc;
+                                found = true;
+                            }
+                        }
+                    }
+                }
+                iterator_stop(&it);
+            }
 
-			found = false;
-			level = 0;
+            if(!found) {
+                // No other worn object had this spell available
 
+                if( show ) {
+                    if (skill_table[sn].msg_off) {
+                        send_to_char(skill_table[sn].msg_off, target->carried_by);
+                        send_to_char("\n\r", target->carried_by);
+                    }
+                }
 
-			// If there's another obj with the same spell put that one on
-			for (obj_tmp = target->carried_by->carrying; obj_tmp; obj_tmp = obj_tmp->next_content)
-			{
-				if( obj_tmp->wear_loc != WEAR_NONE && target != obj_tmp ) {
-					for (spell = obj_tmp->spells; spell != NULL; spell = spell ->next) {
-						if (spell->sn == sn && spell->level > level ) {
-							level = spell->level;	// Keep the maximum
-							found_loc = obj_tmp->wear_loc;
-							found = true;
-						}
-					}
-				}
-			}
+                affect_strip(target->carried_by, sn);
+            } else if( level > spell_level ) {
+                level -= spell_level;        // Get the difference
 
-			if(!found) {
-				// No other worn object had this spell available
-
-				if( show ) {
-					if (skill_table[sn].msg_off) {
-						send_to_char(skill_table[sn].msg_off, target->carried_by);
-						send_to_char("\n\r", target->carried_by);
-					}
-				}
-
-				affect_strip(target->carried_by, spell->sn);
-			} else if( level > spell_level ) {
-				level -= spell_level;		// Get the difference
-
-				// Update all affects to the current maximum and its slot
-				for(; paf; paf = paf->next ) {
-					paf->level += level;
-					paf->slot = found_loc;
-				}
-			}
-
-
-		}
-	}
+                // Update all affects to the current maximum and its slot
+                for(; paf; paf = paf->next) {
+                    if(paf->type == sn && paf->slot == target->wear_loc) {
+                        paf->level += level;
+                        paf->slot = found_loc;
+                    }
+                }
+            }
+        }
+    }
 }
 
 

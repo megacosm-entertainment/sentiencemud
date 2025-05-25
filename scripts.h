@@ -2045,7 +2045,7 @@ TOKEN_DATA *token_find_match(SCRIPT_VARINFO *info, TOKEN_DATA *tokens,char *argu
 CHAR_DATA *script_get_char_blist(LLIST *blist, CHAR_DATA *viewer, bool player, int vnum, char *name);
 CHAR_DATA *script_get_char_list(CHAR_DATA *mobs, CHAR_DATA *viewer, bool player, int vnum, char *name);
 OBJ_DATA *script_get_obj_blist(LLIST *blist, CHAR_DATA *viewer, int vnum, char *name);
-OBJ_DATA *script_get_obj_list(OBJ_DATA *objs, CHAR_DATA *viewer, int worn, int vnum, char *name);
+OBJ_DATA *script_get_obj_list(void *objs, CHAR_DATA *viewer, int worn, int vnum, char *name);
 void script_interpret(SCRIPT_VARINFO *info, char *command);
 int trigger_index(char *name, int type);
 bool has_trigger(LLIST **bank, int trigger);

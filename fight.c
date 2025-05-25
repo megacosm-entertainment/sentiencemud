@@ -70,124 +70,134 @@ bool is_char_stillvalid(CHAR_DATA *ch, long *id)
  */
 void violence_update(void)
 {
-	CHAR_DATA *ch;
-	CHAR_DATA *victim;
-	OBJ_DATA *obj, *obj_next;
-	char buf[MSL];
-	ITERATOR ait;
-	long aid[2], vid[2];
+    CHAR_DATA *ch;
+    CHAR_DATA *victim;
+    OBJ_DATA *obj;
+    ITERATOR ait, it;
+    char buf[MSL];
+    long aid[2], vid[2];
 
-	// MK 100316 - Handle all combatants that are fighting to fire PREROUND before any combat is done each round.
-	iterator_start(&ait, loaded_chars);
-	while(( ch = (CHAR_DATA *)iterator_nextdata(&ait)))
-	{
-		if( !IS_VALID(ch) || ch->in_room == NULL) continue;
+    // MK 100316 - Handle all combatants that are fighting to fire PREROUND before any combat is done each round.
+    iterator_start(&ait, loaded_chars);
+    while(( ch = (CHAR_DATA *)iterator_nextdata(&ait)))
+    {
+        if( !IS_VALID(ch) || ch->in_room == NULL) continue;
 
-		if ((victim = ch->fighting) == NULL || !IS_VALID(victim))
-			continue;
+        if ((victim = ch->fighting) == NULL || !IS_VALID(victim))
+            continue;
 
-		if (!IS_AWAKE(ch) || ch->in_room != victim->in_room)
-			continue;
+        if (!IS_AWAKE(ch) || ch->in_room != victim->in_room)
+            continue;
 
-		p_percent_trigger(ch, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_PREROUND, NULL);
-	}
-	iterator_stop(&ait);
-
-
-	iterator_start(&ait, loaded_chars);
-	while(( ch = (CHAR_DATA *)iterator_nextdata(&ait)))
-	{
-		if( !IS_VALID(ch) ) continue;
-
-		if (ch->in_room == NULL)
-		{
-			sprintf(buf, "violence_update: ch->in_room was null! %s (%ld)",
-				IS_NPC(ch) ? ch->short_descr : ch->name,
-				IS_NPC(ch) ? ch->pIndexData->vnum : 0);
-			bug(buf, 0);
-			continue;
-		}
-
-		// Regeneration code put here as it is a good pause
-		if (IS_AFFECTED2(ch, AFF2_HEALING_AURA))
-		{
-			int heal = 0;
-
-			heal = dice(4, 8);
-			ch->hit = UMIN(ch->hit + heal, ch->max_hit);
-			update_pos(ch);
-
-			if (number_percent() == 1) {
-				act("{BThe healing aura around you shimmers.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-				act("{BThe healing aura around $n shimmers.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-			}
-		}
-
-		// Minotaur (and other) regeneration
-		if (IS_AFFECTED(ch, AFF_REGENERATION))
-		{
-			int heal = 0;
-
-			heal = dice(4, 8) + ch->tot_level/6;
-			ch->hit = UMIN(ch->hit + heal, ch->max_hit);
-
-			// For slayers and werewolves, regenerate mana too:
-			if (IS_SHIFTED(ch)) {
-				heal = dice(4, 8) + ch->tot_level/10;
-				ch->mana = UMIN(ch->mana + heal, ch->max_mana);
-
-				heal = dice(4, 8) + ch->tot_level/8;
-				ch->move = UMIN(ch->move + heal, ch->max_move);
-			}
-		}
-
-		// Athletics - fast move regen
-		if (get_skill(ch, gsn_athletics) > 0)
-		{
-			int move_gain = 0;
-
-			move_gain = dice(4, 8) * (get_skill(ch, gsn_athletics)/100);
-			ch->move = UMIN(ch->move + move_gain, ch->max_move);
-			if (number_percent() == 1)
-			check_improve(ch, gsn_athletics, true, 50);
-		}
-
-		if ((victim = ch->fighting) == NULL || ch->in_room == NULL)
-			continue;
-
-		aid[0] = ch->id[0]; aid[1] = ch->id[1];
-		vid[0] = victim->id[0]; vid[1] = victim->id[1];
-
-		if (IS_AWAKE(ch) && ch->in_room == victim->in_room)
-			multi_hit(ch, victim, TYPE_UNDEFINED);
-
-		if(!is_combatant_valid(victim, vid[0], vid[1])) continue;
-
-		if (ch->in_room != victim->in_room) {
-			stop_fighting(ch, true);
-			continue;
-		}
+        p_percent_trigger(ch, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_PREROUND, NULL);
+    }
+    iterator_stop(&ait);
 
 
-		if(!is_combatant_valid(ch, aid[0], aid[1])) continue;
+    iterator_start(&ait, loaded_chars);
+    while(( ch = (CHAR_DATA *)iterator_nextdata(&ait)))
+    {
+        if( !IS_VALID(ch) ) continue;
 
-		check_assist(ch,victim);
+        if (ch->in_room == NULL)
+        {
+            sprintf(buf, "violence_update: ch->in_room was null! %s (%ld)",
+                IS_NPC(ch) ? ch->short_descr : ch->name,
+                IS_NPC(ch) ? ch->pIndexData->vnum : 0);
+            bug(buf, 0);
+            continue;
+        }
 
-		p_percent_trigger(ch, NULL, NULL, NULL, victim, NULL, NULL, NULL, NULL, TRIG_FIGHT, NULL);
-		p_hprct_trigger(ch, victim);
+        // Regeneration code put here as it is a good pause
+        if (IS_AFFECTED2(ch, AFF2_HEALING_AURA))
+        {
+            int heal = 0;
 
-		for (obj = ch->carrying; obj; obj = obj_next)
-		{
-			obj_next = obj->next_content;
+            heal = dice(4, 8);
+            ch->hit = UMIN(ch->hit + heal, ch->max_hit);
+            update_pos(ch);
 
-			if (obj->wear_loc != WEAR_NONE)
-			p_percent_trigger(NULL, obj, NULL, NULL, victim, NULL, NULL, NULL, NULL, TRIG_FIGHT, NULL);
-		}
+            if (number_percent() == 1) {
+                act("{BThe healing aura around you shimmers.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+                act("{BThe healing aura around $n shimmers.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+            }
+        }
 
-		p_percent_trigger(NULL, NULL, ch->in_room, NULL, victim, NULL, NULL, NULL, NULL, TRIG_FIGHT, NULL);
-	}
-	iterator_stop(&ait);
+        // Minotaur (and other) regeneration
+        if (IS_AFFECTED(ch, AFF_REGENERATION))
+        {
+            int heal = 0;
 
+            heal = dice(4, 8) + ch->tot_level/6;
+            ch->hit = UMIN(ch->hit + heal, ch->max_hit);
+
+            // For slayers and werewolves, regenerate mana too:
+            if (IS_SHIFTED(ch)) {
+                heal = dice(4, 8) + ch->tot_level/10;
+                ch->mana = UMIN(ch->mana + heal, ch->max_mana);
+
+                heal = dice(4, 8) + ch->tot_level/8;
+                ch->move = UMIN(ch->move + heal, ch->max_move);
+            }
+        }
+
+        // Athletics - fast move regen
+        if (get_skill(ch, gsn_athletics) > 0)
+        {
+            int move_gain = 0;
+
+            move_gain = dice(4, 8) * (get_skill(ch, gsn_athletics)/100);
+            ch->move = UMIN(ch->move + move_gain, ch->max_move);
+            if (number_percent() == 1)
+            check_improve(ch, gsn_athletics, true, 50);
+        }
+
+        if ((victim = ch->fighting) == NULL || ch->in_room == NULL)
+            continue;
+
+        aid[0] = ch->id[0]; aid[1] = ch->id[1];
+        vid[0] = victim->id[0]; vid[1] = victim->id[1];
+
+        if (IS_AWAKE(ch) && ch->in_room == victim->in_room)
+            multi_hit(ch, victim, TYPE_UNDEFINED);
+
+        if(!is_combatant_valid(victim, vid[0], vid[1])) continue;
+
+        if (ch->in_room != victim->in_room) {
+            stop_fighting(ch, true);
+            continue;
+        }
+
+
+        if(!is_combatant_valid(ch, aid[0], aid[1])) continue;
+
+        check_assist(ch,victim);
+
+        p_percent_trigger(ch, NULL, NULL, NULL, victim, NULL, NULL, NULL, NULL, TRIG_FIGHT, NULL);
+        p_hprct_trigger(ch, victim);
+
+        // Process carried items and fire their triggers
+        if (ch->lcarrying) {
+            iterator_start(&it, ch->lcarrying);
+            while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+                if (obj->wear_loc != WEAR_NONE)
+                    p_percent_trigger(NULL, obj, NULL, NULL, victim, NULL, NULL, NULL, NULL, TRIG_FIGHT, NULL);
+            }
+            iterator_stop(&it);
+        }
+
+        // Process worn items and fire their triggers
+        if (ch->lworn) {
+            iterator_start(&it, ch->lworn);
+            while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+                p_percent_trigger(NULL, obj, NULL, NULL, victim, NULL, NULL, NULL, NULL, TRIG_FIGHT, NULL);
+            }
+            iterator_stop(&it);
+        }
+
+        p_percent_trigger(NULL, NULL, ch->in_room, NULL, victim, NULL, NULL, NULL, NULL, TRIG_FIGHT, NULL);
+    }
+    iterator_stop(&ait);
 }
 
 
@@ -1383,39 +1393,46 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 		return false;
 	}
 
-	// Armour and weapons decay with use
-	for (vObj = victim->carrying; vObj; vObj = vObj->next_content)
-		if (vObj->wear_loc != WEAR_NONE && (!IS_SET(vObj->extra[0], ITEM_BLESS || number_percent() < 33))) {
-			switch(vObj->fragility) {
-			case OBJ_FRAGILE_SOLID:  break;
-			case OBJ_FRAGILE_STRONG:
-				if (number_range(0,9999) <= 2)
-					vObj->condition--;
-				break;
-			case OBJ_FRAGILE_NORMAL:
-				if (number_range(0,9999) <= 5)
-					vObj->condition--;
-				break;
-			case OBJ_FRAGILE_WEAK:
-				if (number_range(0,9999) <= 20)
-					vObj->condition--;
-				break;
-			default: break;
-			}
+// Armour and weapons decay with use
+if (victim->lworn) {
+    ITERATOR it;
+    
+    iterator_start(&it, victim->lworn);
+    while ((vObj = (OBJ_DATA *)iterator_nextdata(&it))) {
+        if (!IS_SET(vObj->extra[0], ITEM_BLESS || number_percent() < 33)) {
+            switch(vObj->fragility) {
+            case OBJ_FRAGILE_SOLID:  break;
+            case OBJ_FRAGILE_STRONG:
+                if (number_range(0,9999) <= 2)
+                    vObj->condition--;
+                break;
+            case OBJ_FRAGILE_NORMAL:
+                if (number_range(0,9999) <= 5)
+                    vObj->condition--;
+                break;
+            case OBJ_FRAGILE_WEAK:
+                if (number_range(0,9999) <= 20)
+                    vObj->condition--;
+                break;
+            default: break;
+            }
 
-			if (vObj->condition <= 0) {
-				if (vObj->item_type == ITEM_WEAPON) {
-					unequip_char(victim, vObj, true);
-					act("{y$n's $p breaks in two with a loud snap!{x", victim, NULL, NULL, vObj, NULL, NULL, NULL, TO_ROOM);
-					act("{y$p splits in two with a loud snap!{x", victim, NULL, NULL, vObj, NULL, NULL, NULL, TO_CHAR);
-					vObj->condition = 0;
-				} else {
-					extract_obj(vObj);
-					act("{y$n's $p falls into pieces!{x", victim, NULL, NULL, vObj, NULL, NULL, NULL, TO_ROOM);
-					act("{y$p breaks apart and crumbles!{x", victim, NULL, NULL, vObj, NULL, NULL, NULL, TO_CHAR);
-				}
-			}
-		}
+            if (vObj->condition <= 0) {
+                if (vObj->item_type == ITEM_WEAPON) {
+                    unequip_char(victim, vObj, true);
+                    act("{y$n's $p breaks in two with a loud snap!{x", victim, NULL, NULL, vObj, NULL, NULL, NULL, TO_ROOM);
+                    act("{y$p splits in two with a loud snap!{x", victim, NULL, NULL, vObj, NULL, NULL, NULL, TO_CHAR);
+                    vObj->condition = 0;
+                } else {
+                    extract_obj(vObj);
+                    act("{y$n's $p falls into pieces!{x", victim, NULL, NULL, vObj, NULL, NULL, NULL, TO_ROOM);
+                    act("{y$p breaks apart and crumbles!{x", victim, NULL, NULL, vObj, NULL, NULL, NULL, TO_CHAR);
+                }
+            }
+        }
+    }
+    iterator_stop(&it);
+}
 
 	// Apply immunity/resistant/vuln
 	switch(check_immune(victim,dam_type)) {
@@ -3043,179 +3060,224 @@ int blend_corpsetypes (int t1, int t2)
  */
 OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messages)
 {
-	OBJ_DATA *corpse;
-	OBJ_DATA *obj;
-	OBJ_DATA *obj_next;
-	OBJ_DATA *pneuma;
-	OBJ_INDEX_DATA *obj_index;
-	char *name;
-	char *short_desc;
+    OBJ_DATA *corpse;
+    OBJ_DATA *obj;
+    OBJ_DATA *pneuma;
+    OBJ_INDEX_DATA *obj_index;
+    char *name;
+    char *short_desc;
 
-	corpse_type = blend_corpsetypes(ch->corpse_type,corpse_type);
+    corpse_type = blend_corpsetypes(ch->corpse_type,corpse_type);
 
-	if(corpse_type < RAWKILL_NORMAL) return NULL;
+    if(corpse_type < RAWKILL_NORMAL) return NULL;
 
-	// NPCs
-	if (IS_NPC(ch))
-	{
-		name = ch->name;
-		short_desc = ch->short_descr;
+    // NPCs
+    if (IS_NPC(ch))
+    {
+        name = ch->name;
+        short_desc = ch->short_descr;
 
-		obj_index = (ch->corpse_vnum > 0) ? get_obj_index(ch->corpse_vnum) : NULL;
+        obj_index = (ch->corpse_vnum > 0) ? get_obj_index(ch->corpse_vnum) : NULL;
 
-		if(!obj_index || obj_index->item_type != ITEM_CORPSE_NPC)
-			obj_index = get_obj_index(OBJ_VNUM_CORPSE_NPC);
+        if(!obj_index || obj_index->item_type != ITEM_CORPSE_NPC)
+            obj_index = get_obj_index(OBJ_VNUM_CORPSE_NPC);
 
-		corpse = create_object(obj_index, 0, true);
-		// [3,6]
-		corpse->orig_vnum = ch->pIndexData->vnum;
+        corpse = create_object(obj_index, 0, true);
+        // [3,6]
+        corpse->orig_vnum = ch->pIndexData->vnum;
 
-		if (!IS_IMMORTAL(ch) && ch->gold > 0)
-		{
-			obj_to_obj(create_money(ch->gold, ch->silver), corpse);
+        if (!IS_IMMORTAL(ch) && ch->gold > 0)
+        {
+            obj_to_obj(create_money(ch->gold, ch->silver), corpse);
 
-			ch->gold = 0;
-			ch->silver = 0;
-		}
+            ch->gold = 0;
+            ch->silver = 0;
+        }
 
-		corpse->cost = 0;
+        corpse->cost = 0;
 
-		if (IS_SET(ch->act[1], ACT2_NO_RESURRECT))
-		{
-			SET_BIT(corpse->extra[1], ITEM_NO_RESURRECT);
-			SET_BIT(corpse->extra[2], ITEM_NO_ANIMATE);
-		}
-	} else { // PCs
-		name		= ch->name;
-		short_desc	= ch->name;
-		corpse		= create_object(get_obj_index(OBJ_VNUM_CORPSE_PC), 0, true);
-		// [25,40]
+        if (IS_SET(ch->act[1], ACT2_NO_RESURRECT))
+        {
+            SET_BIT(corpse->extra[1], ITEM_NO_RESURRECT);
+            SET_BIT(corpse->extra[2], ITEM_NO_ANIMATE);
+        }
+    } else { // PCs
+        name		= ch->name;
+        short_desc	= ch->name;
+        corpse		= create_object(get_obj_index(OBJ_VNUM_CORPSE_PC), 0, true);
+        // [25,40]
 
-		// If the reckoning, put some pneuma in the corpse
-		if (pre_reckoning == 0 && reckoning_timer > 0)
-		{
-			int pneuma_num = number_range(1, UMAX(ch->tot_level/4, 5));
-			int count;
+        // If the reckoning, put some pneuma in the corpse
+        if (pre_reckoning == 0 && reckoning_timer > 0)
+        {
+            int pneuma_num = number_range(1, UMAX(ch->tot_level/4, 5));
+            int count;
 
-			for (count = 0; count < pneuma_num; count++)
-			{
-			pneuma = create_object(get_obj_index(OBJ_VNUM_BOTTLED_SOUL), 0, true);
-			obj_to_obj(pneuma, corpse);
-			}
-		}
+            for (count = 0; count < pneuma_num; count++)
+            {
+            pneuma = create_object(get_obj_index(OBJ_VNUM_BOTTLED_SOUL), 0, true);
+            obj_to_obj(pneuma, corpse);
+            }
+        }
 
-		corpse->owner = str_dup(ch->name);
+        corpse->owner = str_dup(ch->name);
 
-		corpse->cost = 0;
-		if (IS_SET(ch->act[0], PLR_NO_RESURRECT))
-		{
-			SET_BIT(corpse->extra[1], ITEM_NO_RESURRECT);
-			SET_BIT(corpse->extra[2], ITEM_NO_ANIMATE);
-		}
+        corpse->cost = 0;
+        if (IS_SET(ch->act[0], PLR_NO_RESURRECT))
+        {
+            SET_BIT(corpse->extra[1], ITEM_NO_RESURRECT);
+            SET_BIT(corpse->extra[2], ITEM_NO_ANIMATE);
+        }
 
-		if (IS_IMMORTAL(ch))
-			SET_BIT(CORPSE_FLAGS(corpse), CORPSE_IMMORTAL);
-		else {
-			if(IS_SET(ch->in_room->room_flag[0], ROOM_CPK))
-				SET_BIT(CORPSE_FLAGS(corpse), CORPSE_CPKDEATH);
-			if(is_room_pk(ch->in_room, true) || is_pk(ch))
-				SET_BIT(CORPSE_FLAGS(corpse), CORPSE_PKDEATH);
-			if (ch->gold > 1 || ch->silver > 1)
-			{
-				obj_to_obj(create_money(ch->gold/2, ch->silver/2), corpse);
-				ch->gold -= ch->gold/2;
-				ch->silver -= ch->silver/2;
-			}
-		}
+        if (IS_IMMORTAL(ch))
+            SET_BIT(CORPSE_FLAGS(corpse), CORPSE_IMMORTAL);
+        else {
+            if(IS_SET(ch->in_room->room_flag[0], ROOM_CPK))
+                SET_BIT(CORPSE_FLAGS(corpse), CORPSE_CPKDEATH);
+            if(is_room_pk(ch->in_room, true) || is_pk(ch))
+                SET_BIT(CORPSE_FLAGS(corpse), CORPSE_PKDEATH);
+            if (ch->gold > 1 || ch->silver > 1)
+            {
+                obj_to_obj(create_money(ch->gold/2, ch->silver/2), corpse);
+                ch->gold -= ch->gold/2;
+                ch->silver -= ch->silver/2;
+            }
+        }
 
 
-		// This is so we only resurrect the latest PC corpse
-		ch->pcdata->corpse = corpse;
-	}
+        // This is so we only resurrect the latest PC corpse
+        ch->pcdata->corpse = corpse;
+    }
 
-	// Propagate INSTANCE status from mob to corpse
-	if( IS_SET(ch->act[1], ACT2_INSTANCE_MOB) )
-		SET_BIT(corpse->extra[2], ITEM_INSTANCE_OBJ);
+    // Propagate INSTANCE status from mob to corpse
+    if( IS_SET(ch->act[1], ACT2_INSTANCE_MOB) )
+        SET_BIT(corpse->extra[2], ITEM_INSTANCE_OBJ);
 
-	corpse->owner_name = str_dup(name);
-	corpse->owner_short = str_dup(short_desc);
+    corpse->owner_name = str_dup(name);
+    corpse->owner_short = str_dup(short_desc);
 
-	corpse->level = ch->tot_level;
-	CORPSE_PARTS(corpse) = ch->parts;
+    corpse->level = ch->tot_level;
+    CORPSE_PARTS(corpse) = ch->parts;
 
-	CORPSE_TYPE(corpse) = corpse_type;
+    CORPSE_TYPE(corpse) = corpse_type;
 
-	if(corpse_info_table[corpse_type].headless || !IS_SET(ch->parts,PART_HEAD)) {
+    if(corpse_info_table[corpse_type].headless || !IS_SET(ch->parts,PART_HEAD)) {
 //		SET_BIT(corpse->extra[0], ITEM_NOSKULL);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_HEAD);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_BRAINS);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_EAR);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_EYE);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_LONG_TONGUE);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_EYESTALKS);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_FANGS);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_HORNS);
-		REMOVE_BIT(CORPSE_PARTS(corpse),PART_TUSKS);
-	}
+        REMOVE_BIT(CORPSE_PARTS(corpse),PART_HEAD);
+        REMOVE_BIT(CORPSE_PARTS(corpse),PART_BRAINS);
+        REMOVE_BIT(CORPSE_PARTS(corpse),PART_EAR);
+        REMOVE_BIT(CORPSE_PARTS(corpse),PART_EYE);
+        REMOVE_BIT(CORPSE_PARTS(corpse),PART_LONG_TONGUE);
+        REMOVE_BIT(CORPSE_PARTS(corpse),PART_EYESTALKS);
+        REMOVE_BIT(CORPSE_PARTS(corpse),PART_FANGS);
+        REMOVE_BIT(CORPSE_PARTS(corpse),PART_HORNS);
+        REMOVE_BIT(CORPSE_PARTS(corpse),PART_TUSKS);
+    }
 
-	set_corpse_data(corpse, corpse_type);
+    set_corpse_data(corpse, corpse_type);
 
-	for (obj = ch->carrying; obj != NULL; obj = obj_next) {
-		obj_next = obj->next_content;
-		if (IS_SET(obj->extra[0],ITEM_ROT_DEATH) && !IS_NPC(ch))
-			extract_obj(obj);
-	}
+    // Process items in lcarrying
+    if (ch->lcarrying) {
+        ITERATOR it;
 
-	// 20070521 : NIB : If a PC and a CPK Death, mark the corpse as a CPK death
-	if(!IS_NPC(ch) && !IS_DEAD(ch) && !IS_IMMORTAL(ch))
-	{
- 		if(IS_SET(ch->in_room->room_flag[0],ROOM_CPK))
-			SET_BIT(CORPSE_FLAGS(corpse),CORPSE_CPKDEATH);
-		if(is_room_pk(ch->in_room,false) || is_pk(ch))
-			SET_BIT(CORPSE_FLAGS(corpse),CORPSE_PKDEATH);
-		if(IS_SET(ch->in_room->room_flag[0], ROOM_ARENA))
-			SET_BIT(CORPSE_FLAGS(corpse),CORPSE_ARENADEATH);
-	}
+        iterator_start(&it, ch->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (IS_SET(obj->extra[0], ITEM_ROT_DEATH) && !IS_NPC(ch))
+                extract_obj(obj);
+        }
+        iterator_stop(&it);
+    }
+    
+    if (ch->lworn) {
+        ITERATOR it;
+        
+        iterator_start(&it, ch->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (IS_SET(obj->extra[0], ITEM_ROT_DEATH) && !IS_NPC(ch))
+                extract_obj(obj);
+        }
+        iterator_stop(&it);
+    }
 
-	// NPC death and CPK death for PCs
-	// Don't leave no_loot items in player corpses, just like no_uncurse -- Areo
-	if (IS_NPC(ch)
-	|| (!IS_NPC(ch) && !IS_DEAD(ch) && IS_SET(ch->in_room->room_flag[0],ROOM_CPK)))
-	for (obj = ch->carrying; obj != NULL; obj = obj_next)
-	{
-		obj_next = obj->next_content;
+    // 20070521 : NIB : If a PC and a CPK Death, mark the corpse as a CPK death
+    if(!IS_NPC(ch) && !IS_DEAD(ch) && !IS_IMMORTAL(ch))
+    {
+         if(IS_SET(ch->in_room->room_flag[0],ROOM_CPK))
+            SET_BIT(CORPSE_FLAGS(corpse),CORPSE_CPKDEATH);
+        if(is_room_pk(ch->in_room,false) || is_pk(ch))
+            SET_BIT(CORPSE_FLAGS(corpse),CORPSE_PKDEATH);
+        if(IS_SET(ch->in_room->room_flag[0], ROOM_ARENA))
+            SET_BIT(CORPSE_FLAGS(corpse),CORPSE_ARENADEATH);
+    }
 
-		if( !IS_SET(obj->extra[2], ITEM_ALWAYS_LOOT) && !IS_SET(obj->extra[2], ITEM_FORCE_LOOT) ) {
-			if ((IS_SET(obj->extra[0], ITEM_NOUNCURSE) && !IS_NPC(ch)) ||
-				(IS_SET(obj->extra[1], ITEM_NO_LOOT) && !IS_NPC(ch)))
-				continue;
-		}
+    // NPC death and CPK death for PCs
+    // Don't leave no_loot items in player corpses, just like no_uncurse -- Areo
+    if (IS_NPC(ch) || (!IS_NPC(ch) && !IS_DEAD(ch) && IS_SET(ch->in_room->room_flag[0],ROOM_CPK))) {
+        // Process carried items first
+        if (ch->lcarrying) {
+            ITERATOR it;
+            
+            iterator_start(&it, ch->lcarrying);
+            while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+                if (!IS_SET(obj->extra[2], ITEM_ALWAYS_LOOT) && !IS_SET(obj->extra[2], ITEM_FORCE_LOOT)) {
+                    if ((IS_SET(obj->extra[0], ITEM_NOUNCURSE) && !IS_NPC(ch)) ||
+                        (IS_SET(obj->extra[1], ITEM_NO_LOOT) && !IS_NPC(ch)))
+                        continue;
+                }
 
-		obj_from_char(obj);
+                obj_from_char(obj);
 
-		// If dealing with an npc, treat no_loot items just like inventory items.
-		if (/*IS_SET(obj->extra[0], ITEM_INVENTORY) ||*/
-			(!IS_SET(obj->extra[2], ITEM_ALWAYS_LOOT) && !IS_SET(obj->extra[2], ITEM_FORCE_LOOT) && IS_SET(obj->extra[1], ITEM_NO_LOOT) && IS_NPC(ch)))
-			extract_obj(obj);
-		else
-		{
-			REMOVE_BIT(obj->extra[2], ITEM_FORCE_LOOT);
-			obj_to_obj(obj, corpse);
-		}
-	}
+                // If dealing with an npc, treat no_loot items just like inventory items.
+                if ((!IS_SET(obj->extra[2], ITEM_ALWAYS_LOOT) && !IS_SET(obj->extra[2], ITEM_FORCE_LOOT) && 
+                     IS_SET(obj->extra[1], ITEM_NO_LOOT) && IS_NPC(ch)))
+                    extract_obj(obj);
+                else {
+                    REMOVE_BIT(obj->extra[2], ITEM_FORCE_LOOT);
+                    obj_to_obj(obj, corpse);
+                }
+            }
+            iterator_stop(&it);
+        }
+        
+        // Process worn items
+        if (ch->lworn) {
+            ITERATOR it;
+            
+            iterator_start(&it, ch->lworn);
+            while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+                if (!IS_SET(obj->extra[2], ITEM_ALWAYS_LOOT) && !IS_SET(obj->extra[2], ITEM_FORCE_LOOT)) {
+                    if ((IS_SET(obj->extra[0], ITEM_NOUNCURSE) && !IS_NPC(ch)) ||
+                        (IS_SET(obj->extra[1], ITEM_NO_LOOT) && !IS_NPC(ch)))
+                        continue;
+                }
 
-	obj_to_room(corpse, ch->in_room);
+                obj_from_char(obj);
 
-	if(messages) {
-	MOBtrigger = false;
-	if(corpse_info_table[corpse_type].victim_message)
-		act(corpse_info_table[corpse_type].victim_message, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	if(corpse_info_table[corpse_type].room_message)
-		act(corpse_info_table[corpse_type].room_message, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	MOBtrigger = true;
-	}
+                // If dealing with an npc, treat no_loot items just like inventory items.
+                if ((!IS_SET(obj->extra[2], ITEM_ALWAYS_LOOT) && !IS_SET(obj->extra[2], ITEM_FORCE_LOOT) && 
+                     IS_SET(obj->extra[1], ITEM_NO_LOOT) && IS_NPC(ch)))
+                    extract_obj(obj);
+                else {
+                    REMOVE_BIT(obj->extra[2], ITEM_FORCE_LOOT);
+                    obj_to_obj(obj, corpse);
+                }
+            }
+            iterator_stop(&it);
+        }
+    }
 
-	return corpse;
+    obj_to_room(corpse, ch->in_room);
+
+    if(messages) {
+    MOBtrigger = false;
+    if(corpse_info_table[corpse_type].victim_message)
+        act(corpse_info_table[corpse_type].victim_message, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    if(corpse_info_table[corpse_type].room_message)
+        act(corpse_info_table[corpse_type].room_message, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    MOBtrigger = true;
+    }
+
+    return corpse;
 }
 
 // Death cry sequence
@@ -3554,303 +3616,338 @@ void death_sight_echo(CHAR_DATA *victim)
 
 OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_type)
 {
-	CHAR_DATA *temp;
-	char buf[MAX_STRING_LENGTH];
-	bool arena = false;
-	OBJ_DATA *obj, *corpse = NULL;
-	LOCATION recall;
-	ROOM_INDEX_DATA *recall_room;
-	TOKEN_DATA *token, *token_next;
+    CHAR_DATA *temp;
+    char buf[MAX_STRING_LENGTH];
+    bool arena = false;
+    OBJ_DATA *obj, *obj_next, *corpse = NULL;
+    LOCATION recall;
+    ROOM_INDEX_DATA *recall_room;
+    TOKEN_DATA *token, *token_next;
 //    long repop_room = 0;
 
-	sprintf(buf,"raw_kill(Vict: %s, ID: %lu:%lu, Head: %s, Silent: %s, Corpse Type: %d)",
-		(char*)((IS_NPC(victim) || victim->morphed) ? victim->short_descr : capitalize(victim->name)),
-		victim->id[0],victim->id[1],
-		(has_head?"HEAD":"HEADLESS"),
-		(messages?"MESSAGES":"SILENT"),
-		corpse_type);
-	wiznet(buf,NULL,NULL,(IS_NPC(victim))?WIZ_MOBDEATHS:WIZ_DEATHS,0,MAX_LEVEL);
-
-	/* If someone has died then unbanish them */
-	victim->maze_time_left = 0;
-
-	/* Save what the victim was wearing */
-	save_last_wear(victim);
-
-	/* If someone was in an auto-war, remove them */
-	char_from_team(victim);
-
-	/* Make sure their mount doesn't go with them */
-	if (MOUNTED(victim)) {
-		CHAR_DATA *mount = MOUNTED(victim);
-
-		p_percent_trigger(mount, NULL, NULL, NULL, victim, NULL, NULL, NULL, NULL, TRIG_FORCEDISMOUNT, NULL);
-
-		if(messages) {
-			act("Your lifeless corpse falls off $N.", victim, mount, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			act("$n's lifeless corpse falls off $N.", victim, mount, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-			act("$n's lifeless corpse falls off of you.", victim, mount, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-		}
-
-		victim->riding = false;
-		mount->riding = false;
-		mount->rider = NULL;
-		victim->mount = NULL;
-
-		stop_grouped(mount);
-	}
-
-	/* remove any PURGE_DEATH tokens on the character */
-	for (token = victim->tokens; token != NULL; token = token_next) {
-		token_next = token->next;
-
-		if (IS_SET(token->flags, TOKEN_PURGE_DEATH)) {
-			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL);
-
-			sprintf(buf, "char update: token %s(%ld) char %s(%ld) was purged on death",
-				token->name, token->pIndexData->vnum, HANDLE(victim), IS_NPC(victim) ? victim->pIndexData->vnum :
-				0);
-			log_string(buf);
-			token_from_char(token);
-			free_token(token);
-		}
-	}
-
-	if (!IS_NPC(victim) && (IS_SET(victim->in_room->room_flag[0], ROOM_ARENA) || (pre_reckoning == 0 && reckoning_timer > 0)))
-		arena = true;
-
-	/* if something catastrophic has happened bail out */
-	if (victim->in_room == NULL)
-	{
-		sprintf(buf, "raw_kill: NO IN_ROOM ON CHAR %s(%ld)",
-			victim->name, IS_NPC(victim) ? victim->pIndexData->vnum : 0);
-		bug(buf, 0);
-		extract_char(victim, false);
-		return NULL;
-	}
-
-	//recall = victim->in_room->area->recall;
-	location_from_room(&victim->recall, get_recall_room(victim, true));
-
-	if (!IS_NPC(victim) && location_isset(&victim->recall))
-	{
-		recall = victim->recall;
-		location_clear(&victim->recall);
-	}
-
-	// Just in case...
-	if (!(recall_room = location_to_room(&recall)))
-	{
-		sprintf(buf, "raw_kill: recall room for %s(%ld) in_room %s(%ld) was NULL.",
-			HANDLE(victim), IS_NPC(victim) ? victim->pIndexData->vnum : 0,
-			victim->in_room->name, victim->in_room->vnum);
-		bug(buf, 0);
-
-		recall_room = get_room_index(ROOM_VNUM_TEMPLE);
-	}
-	location_from_room(&victim->recall,recall_room);
-	stop_fighting(victim, true);
-	stop_casting(victim, false);
-	stop_music(victim, false);
-	script_end_failure(victim, false);
-	interrupt_script(victim, true);
-
-	if (victim->master != NULL)
-		stop_follower(victim,true);
-
-	die_follower(victim);
-	if (victim->pulled_cart != NULL) {
-		if(messages) {
-			act("You stop pulling $p.", victim, NULL, NULL, victim->pulled_cart, NULL, NULL, NULL, TO_CHAR);
-			act("$n stops pulling $p.", victim, NULL, NULL, victim->pulled_cart, NULL, NULL, NULL, TO_ROOM);
-		}
-		victim->pulled_cart = NULL;
-	}
-
-	/* take their stuff off them while dead */
-	for (obj = victim->carrying; obj != NULL; obj = obj->next_content) {
-		if (obj->wear_loc != WEAR_NONE &&
-			WEAR_UNEQUIP_DEATH(obj->wear_loc) &&
-			!IS_SET(obj->extra[2], ITEM_KEEP_EQUIPPED))
-			unequip_char(victim, obj, true);
-	}
-
-	// If switched, switch them back then kill them
-	if (IS_SWITCHED(victim))
-	{
-		temp = victim->desc->character;
-		char_from_room(victim->desc->original);
-		char_to_room(victim->desc->original, temp->in_room);
-		temp = victim->desc->original;
-		extract_char(victim, true);
-		victim = temp;
-	}
-
-	/* morph them back before dying */
-	if (IS_MORPHED(victim))
-		do_function(victim, &do_shape, "");
-
-	if (IS_SHIFTED(victim))
-		do_function(victim, &do_shift, "");
-
-	/* quick repop for n00bs. */
-	if ((victim->tot_level < 10) && !IS_REMORT(victim) && (!IS_NPC(victim)))
-	{
-		send_to_char("\n\r{yYou wake up in a dazed state... maybe you weren't dead after all.\n\r{x", victim);
-		send_to_char("You notice that you are safe and healthy once again.\n\r", victim);
-
-		char_from_room(victim);
-		char_to_room(victim,get_room_index(ROOM_VNUM_NDEATH));
-
-		victim->position = POS_RESTING;
-		victim->dead = false;
-
-		victim->hit  = victim->max_hit;
-		victim->mana = victim->max_mana;
-		victim->move = victim->max_move;
-		return NULL;
-	}
-
-	if (!victim->has_head)
-	 	victim->has_head = true;
-
-	death_cry(victim, has_head, messages);
-
-	if ((!IS_NPC(victim) && IS_DEAD(victim)) || (IS_NPC(victim) && IS_SET(victim->act[1], ACT2_DROP_EQ)))
-		corpse_type = RAWKILL_NOCORPSE;
-
-	if (corpse_type > RAWKILL_NOCORPSE)
-		corpse = make_corpse(victim, has_head, corpse_type,messages);
-
-	if (IS_NPC(victim) && (IS_SET(victim->act[1], ACT2_DROP_EQ) || (corpse_type == RAWKILL_NOCORPSE))) {
-		OBJ_DATA *obj_next;
-
-		for (obj = victim->carrying; obj != NULL; obj = obj_next)
-		{
-			obj_next = obj->next_content;
-
-			if(messages) act("$n drops $p.", victim, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-			obj_from_char(obj);
-			obj_to_room(obj, victim->in_room);
-		}
-	}
-
-	while (victim->affected)
-		affect_remove(victim, victim->affected);
-
-	p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_STRIPAFFECT, NULL);
-
-	victim->affected_by[0]	= race_table[victim->race].aff;
-	victim->affected_by[1] = 0;
-
-	victim->paroxysm = 0;
-
-	victim->bitten_level = 0;
-	victim->bitten_type = 0;
-	victim->bitten = 0;
-
-	// reset challenged to avoid exploits
-	victim->challenged = NULL;
-
-	if (IS_NPC(victim))
-	{
-		victim->pIndexData->killed++;
-
-		// Has a different use for npcs than for players
-		p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, corpse, NULL, TRIG_AFTERDEATH, NULL);
-
-		extract_char(victim, true);
-		return corpse;
-	}
-
-	if (!IS_REMORT(victim))
-		send_to_char("{WYour disembodied soul rises from your mutilated corpse.{x\n\r", victim);
-
-	/* Inform church members */
-	if (victim->church != NULL)
-	{
-		sprintf(buf, "{Y[%s has been KILLED at %s!!!]{X\n\r", victim->name, victim->in_room->name);
-		msg_church_members(victim->church, buf);
-	}
-
-	if (!IS_NPC(victim))
-		death_sight_echo(victim);
-
-	if (!IS_REMORT(victim) && !arena)
-		death_mob_echo(victim);
-
-	// Instant repop for arena and reckoning deaths.
-	if (arena)
-	{
-		if (!(pre_reckoning == 0 && reckoning_timer > 0))
-		{
-			if (!str_cmp(victim->in_room->area->name, "Plith"))
-			{
-			send_to_char("{YYou have been defeated in the arena!{x\n\r\n\r"
-				"{GThe guards drag your body back to a safe place "
-				"where you awake from your slumber.\n\r{x", victim);
-			}
-		}
-		else
-			send_to_char("\n\r{YThe daemonic forces of the Reckoning breathe new life into your shattered body.\n\r", victim);
-
-		victim->hit = victim->max_hit/2;
-		victim->mana = victim->max_mana/2;
-		victim->move = victim->max_move/2;
-
-		char_from_room(victim);
-		char_to_room(victim, recall_room);
-
-		victim->position = POS_RESTING;
-
-		test_for_end_of_war();
-		return corpse;
-	}
-
-	victim->hit = 1;
-	victim->mana = 1;
-	victim->move = 1;
-
-	if(victim->manastore > 0)
-		victim->manastore = victim->manastore / 2;	// They automatically lose half of it just from dying
-	else
-		victim->manastore = 0;
-
-	victim->dead = true;
-
-	if (IS_DEAD(victim))
-		victim->time_left_death += MINS_PER_DEATH + 1;
-	else
-		victim->time_left_death = MINS_PER_DEATH + 1;
-
-	victim->deaths++;
-
-	victim->hit = victim->max_hit;
-	victim->mana = victim->max_mana;
-	victim->move = victim->max_move;
-	char_from_room(victim);
-	char_to_room(victim, get_room_index(ROOM_VNUM_DEATH));
-
-
-	for (obj = victim->carrying; obj != NULL; obj = obj->next_content)
-	SET_BIT(obj->extra[1], ITEM_UNSEEN);
-	/*
-	If you want people to carry eq when dead, put it here
-	and DON'T FORGET TO TAKE IT OFF THEM WHEN THEY ARE BROUGHT
-	BACK TO LIFE
-	*/
-
-	victim->position = POS_STANDING;
-
-	spell_fly(gsn_fly, victim->tot_level, victim, victim, TARGET_CHAR, WEAR_NONE);
-	spell_detect_invis(gsn_detect_invis, victim->tot_level, victim, victim, TARGET_CHAR, WEAR_NONE);
-	spell_detect_hidden(gsn_detect_hidden, victim->tot_level, victim, victim, TARGET_CHAR, WEAR_NONE);
-	spell_infravision(gsn_infravision, victim->tot_level, victim, victim, TARGET_CHAR, WEAR_NONE);
-
-	// Do anything that might be required AFTER you truly die, such as expire any affects
-	p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_AFTERDEATH, NULL);
-
-	return corpse;
+    sprintf(buf,"raw_kill(Vict: %s, ID: %lu:%lu, Head: %s, Silent: %s, Corpse Type: %d)",
+        (char*)((IS_NPC(victim) || victim->morphed) ? victim->short_descr : capitalize(victim->name)),
+        victim->id[0],victim->id[1],
+        (has_head?"HEAD":"HEADLESS"),
+        (messages?"MESSAGES":"SILENT"),
+        corpse_type);
+    wiznet(buf,NULL,NULL,(IS_NPC(victim))?WIZ_MOBDEATHS:WIZ_DEATHS,0,MAX_LEVEL);
+
+    /* If someone has died then unbanish them */
+    victim->maze_time_left = 0;
+
+    /* Save what the victim was wearing */
+    save_last_wear(victim);
+
+    /* If someone was in an auto-war, remove them */
+    char_from_team(victim);
+
+    /* Make sure their mount doesn't go with them */
+    if (MOUNTED(victim)) {
+        CHAR_DATA *mount = MOUNTED(victim);
+
+        p_percent_trigger(mount, NULL, NULL, NULL, victim, NULL, NULL, NULL, NULL, TRIG_FORCEDISMOUNT, NULL);
+
+        if(messages) {
+            act("Your lifeless corpse falls off $N.", victim, mount, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+            act("$n's lifeless corpse falls off $N.", victim, mount, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+            act("$n's lifeless corpse falls off of you.", victim, mount, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+        }
+
+        victim->riding = false;
+        mount->riding = false;
+        mount->rider = NULL;
+        victim->mount = NULL;
+
+        stop_grouped(mount);
+    }
+
+    /* remove any PURGE_DEATH tokens on the character */
+    for (token = victim->tokens; token != NULL; token = token_next) {
+        token_next = token->next;
+
+        if (IS_SET(token->flags, TOKEN_PURGE_DEATH)) {
+            p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL);
+
+            sprintf(buf, "char update: token %s(%ld) char %s(%ld) was purged on death",
+                token->name, token->pIndexData->vnum, HANDLE(victim), IS_NPC(victim) ? victim->pIndexData->vnum :
+                0);
+            log_string(buf);
+            token_from_char(token);
+            free_token(token);
+        }
+    }
+
+    if (!IS_NPC(victim) && (IS_SET(victim->in_room->room_flag[0], ROOM_ARENA) || (pre_reckoning == 0 && reckoning_timer > 0)))
+        arena = true;
+
+    /* if something catastrophic has happened bail out */
+    if (victim->in_room == NULL)
+    {
+        sprintf(buf, "raw_kill: NO IN_ROOM ON CHAR %s(%ld)",
+            victim->name, IS_NPC(victim) ? victim->pIndexData->vnum : 0);
+        bug(buf, 0);
+        extract_char(victim, false);
+        return NULL;
+    }
+
+    //recall = victim->in_room->area->recall;
+    location_from_room(&victim->recall, get_recall_room(victim, true));
+
+    if (!IS_NPC(victim) && location_isset(&victim->recall))
+    {
+        recall = victim->recall;
+        location_clear(&victim->recall);
+    }
+
+    // Just in case...
+    if (!(recall_room = location_to_room(&recall)))
+    {
+        sprintf(buf, "raw_kill: recall room for %s(%ld) in_room %s(%ld) was NULL.",
+            HANDLE(victim), IS_NPC(victim) ? victim->pIndexData->vnum : 0,
+            victim->in_room->name, victim->in_room->vnum);
+        bug(buf, 0);
+
+        recall_room = get_room_index(ROOM_VNUM_TEMPLE);
+    }
+    location_from_room(&victim->recall,recall_room);
+    stop_fighting(victim, true);
+    stop_casting(victim, false);
+    stop_music(victim, false);
+    script_end_failure(victim, false);
+    interrupt_script(victim, true);
+
+    if (victim->master != NULL)
+        stop_follower(victim,true);
+
+    die_follower(victim);
+    if (victim->pulled_cart != NULL) {
+        if(messages) {
+            act("You stop pulling $p.", victim, NULL, NULL, victim->pulled_cart, NULL, NULL, NULL, TO_CHAR);
+            act("$n stops pulling $p.", victim, NULL, NULL, victim->pulled_cart, NULL, NULL, NULL, TO_ROOM);
+        }
+        victim->pulled_cart = NULL;
+    }
+
+    /* take their stuff off them while dead */
+    if (victim->lworn) {
+        ITERATOR it;
+        
+        iterator_start(&it, victim->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (WEAR_UNEQUIP_DEATH(obj->wear_loc) && !IS_SET(obj->extra[2], ITEM_KEEP_EQUIPPED))
+                unequip_char(victim, obj, true);
+        }
+        iterator_stop(&it);
+    }
+
+    // If switched, switch them back then kill them
+    if (IS_SWITCHED(victim))
+    {
+        temp = victim->desc->character;
+        char_from_room(victim->desc->original);
+        char_to_room(victim->desc->original, temp->in_room);
+        temp = victim->desc->original;
+        extract_char(victim, true);
+        victim = temp;
+    }
+
+    /* morph them back before dying */
+    if (IS_MORPHED(victim))
+        do_function(victim, &do_shape, "");
+
+    if (IS_SHIFTED(victim))
+        do_function(victim, &do_shift, "");
+
+    /* quick repop for n00bs. */
+    if ((victim->tot_level < 10) && !IS_REMORT(victim) && (!IS_NPC(victim)))
+    {
+        send_to_char("\n\r{yYou wake up in a dazed state... maybe you weren't dead after all.\n\r{x", victim);
+        send_to_char("You notice that you are safe and healthy once again.\n\r", victim);
+
+        char_from_room(victim);
+        char_to_room(victim,get_room_index(ROOM_VNUM_NDEATH));
+
+        victim->position = POS_RESTING;
+        victim->dead = false;
+
+        victim->hit  = victim->max_hit;
+        victim->mana = victim->max_mana;
+        victim->move = victim->max_move;
+        return NULL;
+    }
+
+    if (!victim->has_head)
+     	victim->has_head = true;
+
+    death_cry(victim, has_head, messages);
+
+    if ((!IS_NPC(victim) && IS_DEAD(victim)) || (IS_NPC(victim) && IS_SET(victim->act[1], ACT2_DROP_EQ)))
+        corpse_type = RAWKILL_NOCORPSE;
+
+    if (corpse_type > RAWKILL_NOCORPSE)
+        corpse = make_corpse(victim, has_head, corpse_type,messages);
+
+    if (IS_NPC(victim) && (IS_SET(victim->act[1], ACT2_DROP_EQ) || (corpse_type == RAWKILL_NOCORPSE))) {
+        // Drop carried items
+        if (victim->lcarrying) {
+            ITERATOR it;
+            
+            iterator_start(&it, victim->lcarrying);
+            while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+                obj_next = obj->next_content;
+                
+                if(messages) act("$n drops $p.", victim, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+                obj_from_char(obj);
+                obj_to_room(obj, victim->in_room);
+            }
+            iterator_stop(&it);
+        }
+        
+        // Drop worn items
+        if (victim->lworn) {
+            ITERATOR it;
+            
+            iterator_start(&it, victim->lworn);
+            while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+                obj_next = obj->next_content;
+                
+                if(messages) act("$n drops $p.", victim, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+                obj_from_char(obj);
+                obj_to_room(obj, victim->in_room);
+            }
+            iterator_stop(&it);
+        }
+    }
+
+    while (victim->affected)
+        affect_remove(victim, victim->affected);
+
+    p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_STRIPAFFECT, NULL);
+
+    victim->affected_by[0]	= race_table[victim->race].aff;
+    victim->affected_by[1] = 0;
+
+    victim->paroxysm = 0;
+
+    victim->bitten_level = 0;
+    victim->bitten_type = 0;
+    victim->bitten = 0;
+
+    // reset challenged to avoid exploits
+    victim->challenged = NULL;
+
+    if (IS_NPC(victim))
+    {
+        victim->pIndexData->killed++;
+
+        // Has a different use for npcs than for players
+        p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, corpse, NULL, TRIG_AFTERDEATH, NULL);
+
+        extract_char(victim, true);
+        return corpse;
+    }
+
+    if (!IS_REMORT(victim))
+        send_to_char("{WYour disembodied soul rises from your mutilated corpse.{x\n\r", victim);
+
+    /* Inform church members */
+    if (victim->church != NULL)
+    {
+        sprintf(buf, "{Y[%s has been KILLED at %s!!!]{X\n\r", victim->name, victim->in_room->name);
+        msg_church_members(victim->church, buf);
+    }
+
+    if (!IS_NPC(victim))
+        death_sight_echo(victim);
+
+    if (!IS_REMORT(victim) && !arena)
+        death_mob_echo(victim);
+
+    // Instant repop for arena and reckoning deaths.
+    if (arena)
+    {
+        if (!(pre_reckoning == 0 && reckoning_timer > 0))
+        {
+            if (!str_cmp(victim->in_room->area->name, "Plith"))
+            {
+            send_to_char("{YYou have been defeated in the arena!{x\n\r\n\r"
+                "{GThe guards drag your body back to a safe place "
+                "where you awake from your slumber.\n\r{x", victim);
+            }
+        }
+        else
+            send_to_char("\n\r{YThe daemonic forces of the Reckoning breathe new life into your shattered body.\n\r", victim);
+
+        victim->hit = victim->max_hit/2;
+        victim->mana = victim->max_mana/2;
+        victim->move = victim->max_move/2;
+
+        char_from_room(victim);
+        char_to_room(victim, recall_room);
+
+        victim->position = POS_RESTING;
+
+        test_for_end_of_war();
+        return corpse;
+    }
+
+    victim->hit = 1;
+    victim->mana = 1;
+    victim->move = 1;
+
+    if(victim->manastore > 0)
+        victim->manastore = victim->manastore / 2;	// They automatically lose half of it just from dying
+    else
+        victim->manastore = 0;
+
+    victim->dead = true;
+
+    if (IS_DEAD(victim))
+        victim->time_left_death += MINS_PER_DEATH + 1;
+    else
+        victim->time_left_death = MINS_PER_DEATH + 1;
+
+    victim->deaths++;
+
+    victim->hit = victim->max_hit;
+    victim->mana = victim->max_mana;
+    victim->move = victim->max_move;
+    char_from_room(victim);
+    char_to_room(victim, get_room_index(ROOM_VNUM_DEATH));
+
+    // Mark all carried and worn objects as UNSEEN
+    if (victim->lcarrying) {
+        ITERATOR it;
+        
+        iterator_start(&it, victim->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            SET_BIT(obj->extra[1], ITEM_UNSEEN);
+        }
+        iterator_stop(&it);
+    }
+    
+    if (victim->lworn) {
+        ITERATOR it;
+        
+        iterator_start(&it, victim->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            SET_BIT(obj->extra[1], ITEM_UNSEEN);
+        }
+        iterator_stop(&it);
+    }
+
+    victim->position = POS_STANDING;
+
+    spell_fly(gsn_fly, victim->tot_level, victim, victim, TARGET_CHAR, WEAR_NONE);
+    spell_detect_invis(gsn_detect_invis, victim->tot_level, victim, victim, TARGET_CHAR, WEAR_NONE);
+    spell_detect_hidden(gsn_detect_hidden, victim->tot_level, victim, victim, TARGET_CHAR, WEAR_NONE);
+    spell_infravision(gsn_infravision, victim->tot_level, victim, victim, TARGET_CHAR, WEAR_NONE);
+
+    // Do anything that might be required AFTER you truly die, such as expire any affects
+    p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_AFTERDEATH, NULL);
+
+    return corpse;
 }
 
 
@@ -3906,245 +4003,272 @@ void death_mob_echo(CHAR_DATA *victim)
 // Gain exp from a victim, splits amongst group
 void group_gain(CHAR_DATA *ch, CHAR_DATA *victim)
 {
-	char buf[MAX_STRING_LENGTH];
-	CHAR_DATA *gch;
-	int xp;
-	int members;
-	int group_levels;
-	int skill_reduction;
+    char buf[MAX_STRING_LENGTH];
+    CHAR_DATA *gch;
+    int xp;
+    int members;
+    int group_levels;
+    int skill_reduction;
 
-	// If is an NPC that can't level, verify this mob is grouped with a player in the room.
-	if (IS_NPC(ch) && !IS_SET(ch->act[1], ACT2_CANLEVEL))
-	{
-		CHAR_DATA *pch;
-		for(pch = ch->in_room->people; pch; pch = pch->next_in_room)
-		{
-			if (!IS_NPC(pch) && is_same_group(ch, pch))
-				break;
-		}
+    // If is an NPC that can't level, verify this mob is grouped with a player in the room.
+    if (IS_NPC(ch) && !IS_SET(ch->act[1], ACT2_CANLEVEL))
+    {
+        CHAR_DATA *pch;
+        for(pch = ch->in_room->people; pch; pch = pch->next_in_room)
+        {
+            if (!IS_NPC(pch) && is_same_group(ch, pch))
+                break;
+        }
 
-		if (!pch) return;
-	}
+        if (!pch) return;
+    }
 
-	// No experience on npc victims if disabled.
-	if( IS_NPC(victim) && IS_SET(victim->act[1], ACT2_NO_XP))
-		return;
+    // No experience on npc victims if disabled.
+    if( IS_NPC(victim) && IS_SET(victim->act[1], ACT2_NO_XP))
+        return;
 
-	// Check here just to make sure
-	if (ch->in_room == NULL) {
-		bug("group_gain: ch with null in_room", 0);
-		return;
-	}
+    // Check here just to make sure
+    if (ch->in_room == NULL) {
+        bug("group_gain: ch with null in_room", 0);
+        return;
+    }
 
-	members = 0;
-	group_levels = 0;
-	for (gch = ch->in_room->people; gch != NULL; gch = gch->next_in_room)
-	{
-		/* If this char is in the same form */
-		if (is_same_group(gch, ch))
-		{
-			members++;
-			if (IS_NPC(gch) && IS_SET(gch->act[0], ACT_MOUNT))
-				continue;
-			else
-				group_levels += gch->tot_level;
-		}
-	}
+    members = 0;
+    group_levels = 0;
+    for (gch = ch->in_room->people; gch != NULL; gch = gch->next_in_room)
+    {
+        /* If this char is in the same form */
+        if (is_same_group(gch, ch))
+        {
+            members++;
+            if (IS_NPC(gch) && IS_SET(gch->act[0], ACT_MOUNT))
+                continue;
+            else
+                group_levels += gch->tot_level;
+        }
+    }
 
-	if (members == 0)
-	{
-		bug("Group_gain: 0 members.", members);
-		members = 1;
-		group_levels = ch->tot_level ;
-	}
+    if (members == 0)
+    {
+        bug("Group_gain: 0 members.", members);
+        members = 1;
+        group_levels = ch->tot_level ;
+    }
 
-	for (gch = ch->in_room->people; gch != NULL; gch = gch->next_in_room)
-	{
-		OBJ_DATA *obj;
-		OBJ_DATA *obj_next;
+    for (gch = ch->in_room->people; gch != NULL; gch = gch->next_in_room)
+    {
+        OBJ_DATA *obj;
+        ITERATOR it;
 
-		if (!is_same_group(gch, ch) || IS_NPC(gch))
-			continue;
+        if (!is_same_group(gch, ch) || IS_NPC(gch))
+            continue;
 
-		xp = xp_compute(gch, victim, group_levels);	// This is computed so that objects can get experience
-		if (victim->death_type == DEATHTYPE_SLIT)
-		{
-			skill_reduction = get_skill(ch, gsn_slit_throat);
-			// Under 75 gets nothing, up to 50% at 95% or better learned. Mastery awards 75% - This is really ugly and should be replaced by a formula.
-			if (skill_reduction < 75)
-				xp = 0;
-			else if (skill_reduction < 80)
-				xp *= 0.25;
-			else if (skill_reduction < 85)
-				xp *= 0.3;
-			else if (skill_reduction < 90)
-				xp *= 0.35;
-			else if (skill_reduction < 95)
-				xp *= 0.4;
-			else if (skill_reduction < 100)
-				xp *= 0.5;
-			else
-				xp *= 0.75;
-		}
-		if (victim->death_type == DEATHTYPE_KILLSPELL)
-		{
-			skill_reduction = get_skill(ch, gsn_kill);
-			// Under 75 gets nothing, up to 50% at 95% or better learned. Mastery awards 75% - This is really ugly and should be replaced by a formula.
-			if (skill_reduction < 75)
-				xp = 0;
-			else if (skill_reduction < 80)
-				xp *= 0.25;
-			else if (skill_reduction < 85)
-				xp *= 0.3;
-			else if (skill_reduction < 90)
-				xp *= 0.35;
-			else if (skill_reduction < 95)
-				xp *= 0.4;
-			else if (skill_reduction < 100)
-				xp *= 0.5;
-			else
-				xp *= 0.75;
+        xp = xp_compute(gch, victim, group_levels);	// This is computed so that objects can get experience
+        if (victim->death_type == DEATHTYPE_SLIT)
+        {
+            skill_reduction = get_skill(ch, gsn_slit_throat);
+            // Under 75 gets nothing, up to 50% at 95% or better learned. Mastery awards 75% - This is really ugly and should be replaced by a formula.
+            if (skill_reduction < 75)
+                xp = 0;
+            else if (skill_reduction < 80)
+                xp *= 0.25;
+            else if (skill_reduction < 85)
+                xp *= 0.3;
+            else if (skill_reduction < 90)
+                xp *= 0.35;
+            else if (skill_reduction < 95)
+                xp *= 0.4;
+            else if (skill_reduction < 100)
+                xp *= 0.5;
+            else
+                xp *= 0.75;
+        }
+        if (victim->death_type == DEATHTYPE_KILLSPELL)
+        {
+            skill_reduction = get_skill(ch, gsn_kill);
+            // Under 75 gets nothing, up to 50% at 95% or better learned. Mastery awards 75% - This is really ugly and should be replaced by a formula.
+            if (skill_reduction < 75)
+                xp = 0;
+            else if (skill_reduction < 80)
+                xp *= 0.25;
+            else if (skill_reduction < 85)
+                xp *= 0.3;
+            else if (skill_reduction < 90)
+                xp *= 0.35;
+            else if (skill_reduction < 95)
+                xp *= 0.4;
+            else if (skill_reduction < 100)
+                xp *= 0.5;
+            else
+                xp *= 0.75;
 
-		}
-		if (!(IS_IMMORTAL(gch) || gch->tot_level == 120))
-		{
-			int pc_xp = xp;
-			/* Check for reckoning boost in addition to experience boost. If reckoning is active, do a flat 2x experience -- Areo */
-			// Reckoning now has an intensity which affects the experience boost, from +10% to +200%
-			//  Players with NORECKONING turned on will not get reckoning boosts
-			if (boost_table[BOOST_EXPERIENCE].boost != 100 || boost_table[BOOST_RECKONING].boost != 100)
-			{
-				if (boost_table[BOOST_RECKONING].boost != 100 && !IS_SET(ch->act[1], PLR_NORECKONING))
-				{
-					sprintf(buf, "{W%d%% experience!{x\n\r", boost_table[BOOST_RECKONING].boost);
-					send_to_char(buf,gch);
-					pc_xp = (xp * boost_table[BOOST_RECKONING].boost)/100;
-				}
-				else if (boost_table[BOOST_EXPERIENCE].boost != 100)
-				{
-					sprintf(buf, "{W%d%% experience!{x\n\r", boost_table[BOOST_EXPERIENCE].boost);
-					send_to_char(buf, gch);
-					pc_xp = (xp * boost_table[BOOST_EXPERIENCE].boost)/100;
-				}
-			}
+        }
+        if (!(IS_IMMORTAL(gch) || gch->tot_level == 120))
+        {
+            int pc_xp = xp;
+            /* Check for reckoning boost in addition to experience boost. If reckoning is active, do a flat 2x experience -- Areo */
+            // Reckoning now has an intensity which affects the experience boost, from +10% to +200%
+            //  Players with NORECKONING turned on will not get reckoning boosts
+            if (boost_table[BOOST_EXPERIENCE].boost != 100 || boost_table[BOOST_RECKONING].boost != 100)
+            {
+                if (boost_table[BOOST_RECKONING].boost != 100 && !IS_SET(ch->act[1], PLR_NORECKONING))
+                {
+                    sprintf(buf, "{W%d%% experience!{x\n\r", boost_table[BOOST_RECKONING].boost);
+                    send_to_char(buf,gch);
+                    pc_xp = (xp * boost_table[BOOST_RECKONING].boost)/100;
+                }
+                else if (boost_table[BOOST_EXPERIENCE].boost != 100)
+                {
+                    sprintf(buf, "{W%d%% experience!{x\n\r", boost_table[BOOST_EXPERIENCE].boost);
+                    send_to_char(buf, gch);
+                    pc_xp = (xp * boost_table[BOOST_EXPERIENCE].boost)/100;
+                }
+            }
 
-			if (ch->leader != NULL && get_skill(ch->leader, gsn_leadership) < number_percent()) {
-				pc_xp *= 1.05;
-			}
+            if (ch->leader != NULL && get_skill(ch->leader, gsn_leadership) < number_percent()) {
+                pc_xp *= 1.05;
+            }
 
-			gain_exp(gch, pc_xp, true);
-		}
+            gain_exp(gch, pc_xp, true);
+        }
 
-		for (obj = gch->carrying; obj != NULL; obj = obj_next)
-		{
-			obj_next = obj->next_content;
-			if (obj->wear_loc == WEAR_NONE)
-				continue;
-
-			obj->tempstore[0] = xp;
-			obj->tempstore[1] = OBJ_XPGAIN_GROUP;	// 1
-			p_percent_trigger(NULL, obj, NULL, NULL, gch, NULL, NULL, NULL, NULL, TRIG_XPGAIN, NULL);
-
-
-			if ((IS_OBJ_STAT(obj, ITEM_ANTI_EVIL)    && IS_EVIL(gch)   )
-				||   (IS_OBJ_STAT(obj, ITEM_ANTI_GOOD)    && IS_GOOD(gch)   )
-				||   (IS_OBJ_STAT(obj, ITEM_ANTI_NEUTRAL) && IS_NEUTRAL(gch)))
-			{
-				act("You are zapped by $p.", gch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-				act("$n is zapped by $p.",   gch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-				obj_from_char(obj);
-				obj_to_room(obj, gch->in_room);
-			}
-
-		}
-	}
+        // Process worn objects for XP triggers
+        if (gch->lworn) {
+            iterator_start(&it, gch->lworn);
+            while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+                obj->tempstore[0] = xp;
+                obj->tempstore[1] = OBJ_XPGAIN_GROUP;	// 1
+                p_percent_trigger(NULL, obj, NULL, NULL, gch, NULL, NULL, NULL, NULL, TRIG_XPGAIN, NULL);
+                
+                if ((IS_OBJ_STAT(obj, ITEM_ANTI_EVIL)    && IS_EVIL(gch)   )
+                    ||   (IS_OBJ_STAT(obj, ITEM_ANTI_GOOD)    && IS_GOOD(gch)   )
+                    ||   (IS_OBJ_STAT(obj, ITEM_ANTI_NEUTRAL) && IS_NEUTRAL(gch)))
+                {
+                    act("You are zapped by $p.", gch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+                    act("$n is zapped by $p.",   gch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+                    obj_from_char(obj);
+                    obj_to_room(obj, gch->in_room);
+                }
+            }
+            iterator_stop(&it);
+        }
+        
+        // Process carried objects for XP triggers
+        if (gch->lcarrying) {
+            iterator_start(&it, gch->lcarrying);
+            while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+                if (obj->wear_loc != WEAR_NONE) {
+                    obj->tempstore[0] = xp;
+                    obj->tempstore[1] = OBJ_XPGAIN_GROUP;	// 1
+                    p_percent_trigger(NULL, obj, NULL, NULL, gch, NULL, NULL, NULL, NULL, TRIG_XPGAIN, NULL);
+                    
+                    if ((IS_OBJ_STAT(obj, ITEM_ANTI_EVIL)    && IS_EVIL(gch)   )
+                        ||   (IS_OBJ_STAT(obj, ITEM_ANTI_GOOD)    && IS_GOOD(gch)   )
+                        ||   (IS_OBJ_STAT(obj, ITEM_ANTI_NEUTRAL) && IS_NEUTRAL(gch)))
+                    {
+                        act("You are zapped by $p.", gch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+                        act("$n is zapped by $p.",   gch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+                        obj_from_char(obj);
+                        obj_to_room(obj, gch->in_room);
+                    }
+                }
+            }
+            iterator_stop(&it);
+        }
+    }
 }
 
 
 // Compute exp for a kill.
 int xp_compute(CHAR_DATA *gch, CHAR_DATA *victim, int total_levels)
 {
-	int xp;
-	int base_exp;
-	int multiplier;
-	char buf[MAX_STRING_LENGTH];
-	OBJ_DATA *obj;
-	int bonus_xp = 0;
-	int gch_tot_level;
-	int diff_level;
+    int xp;
+    int base_exp;
+    int multiplier;
+    char buf[MAX_STRING_LENGTH];
+    OBJ_DATA *obj;
+    int bonus_xp = 0;
+    int gch_tot_level;
+    int diff_level;
+    ITERATOR it;
 
-	multiplier = victim->tot_level;
-	if (victim->tot_level < 30)			base_exp = 100;
-	else if (victim->tot_level < 60)	base_exp = 120;
-	else if (victim->tot_level < 90)	base_exp = 140;
-	else								base_exp = 150;
+    multiplier = victim->tot_level;
+    if (victim->tot_level < 30)			base_exp = 100;
+    else if (victim->tot_level < 60)	base_exp = 120;
+    else if (victim->tot_level < 90)	base_exp = 140;
+    else								base_exp = 150;
 
-	gch_tot_level = UMIN(120, gch->tot_level);	// Clamp the level
-	diff_level = gch_tot_level - victim->tot_level;
+    gch_tot_level = UMIN(120, gch->tot_level);	// Clamp the level
+    diff_level = gch_tot_level - victim->tot_level;
 
-	// adjust exp based on level difference
-	base_exp -= ((diff_level));
-	if (victim->tot_level > gch_tot_level)
-		base_exp += ((-diff_level)) / 2;
+    // adjust exp based on level difference
+    base_exp -= ((diff_level));
+    if (victim->tot_level > gch_tot_level)
+        base_exp += ((-diff_level)) / 2;
 
-	xp = base_exp * multiplier;
+    xp = base_exp * multiplier;
 
-	xp = (int) ((float) xp * (float) ((float) gch_tot_level / (float) total_levels));
+    xp = (int) ((float) xp * (float) ((float) gch_tot_level / (float) total_levels));
 
-	// HACK! stop people from leveling in plith.
-	if (diff_level > 25 && !str_cmp(gch->in_room->area->name, "Plith"))
-		xp = (int) xp / diff_level;
+    // HACK! stop people from leveling in plith.
+    if (diff_level > 25 && !str_cmp(gch->in_room->area->name, "Plith"))
+        xp = (int) xp / diff_level;
 
-	// Nothing for killing pets
-	if (IS_SET(victim->act[0],ACT_PET))
-	{
-		sprintf(buf, "xp_compute: ch %s, victim %s with ACT_PET", gch->name,
-			IS_NPC(victim) ? victim->short_descr : victim->name);
-		log_string(buf);
-		xp = 0;
-	}
+    // Nothing for killing pets
+    if (IS_SET(victim->act[0],ACT_PET))
+    {
+        sprintf(buf, "xp_compute: ch %s, victim %s with ACT_PET", gch->name,
+            IS_NPC(victim) ? victim->short_descr : victim->name);
+        log_string(buf);
+        xp = 0;
+    }
 
-	if (IS_SET(victim->act[0], ACT_ANIMATED))
-		xp = 0;
+    if (IS_SET(victim->act[0], ACT_ANIMATED))
+        xp = 0;
 
 
-	bonus_xp = 0;
-	// Extra xp relic
-	if (gch->church != NULL && vnum_in_treasure_room(gch->church, OBJ_VNUM_RELIC_EXTRA_XP))
-		bonus_xp += 10;
+    bonus_xp = 0;
+    // Extra xp relic
+    if (gch->church != NULL && vnum_in_treasure_room(gch->church, OBJ_VNUM_RELIC_EXTRA_XP))
+        bonus_xp += 10;
 
-	// Leveling rewards for churches
-	if ((is_good_church(gch) && victim->alignment < -300) ||
-		(is_evil_church(gch) && victim->alignment > 300)) {
-		// good exp rewards for PKills combat
-		if (!IS_NPC(gch) && !IS_NPC(victim))
-			xp *= 5;
-		else {
-			if (gch->church->size == CHURCH_SIZE_BAND)
-				bonus_xp += 5;
-			else if (gch->church->size == CHURCH_SIZE_CULT)
-				bonus_xp += 10;
-			else if (gch->church->size == CHURCH_SIZE_ORDER)
-				bonus_xp += 20;
-			else if (gch->church->size == CHURCH_SIZE_CHURCH)
-				bonus_xp += 25;
-		}
-	}
+    // Leveling rewards for churches
+    if ((is_good_church(gch) && victim->alignment < -300) ||
+        (is_evil_church(gch) && victim->alignment > 300)) {
+        // good exp rewards for PKills combat
+        if (!IS_NPC(gch) && !IS_NPC(victim))
+            xp *= 5;
+        else {
+            if (gch->church->size == CHURCH_SIZE_BAND)
+                bonus_xp += 5;
+            else if (gch->church->size == CHURCH_SIZE_CULT)
+                bonus_xp += 10;
+            else if (gch->church->size == CHURCH_SIZE_ORDER)
+                bonus_xp += 20;
+            else if (gch->church->size == CHURCH_SIZE_CHURCH)
+                bonus_xp += 25;
+        }
+    }
 
-	for (obj = gch->carrying; obj != NULL; obj = obj->next_content) {
-		if (obj->pIndexData->vnum == OBJ_VNUM_SHIELD_DRAGON && obj->wear_loc != WEAR_NONE)
-			bonus_xp += 10;
-	}
+    // Check for Dragon Shield in worn items
+    if (gch->lworn) {
+        iterator_start(&it, gch->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (obj->pIndexData->vnum == OBJ_VNUM_SHIELD_DRAGON)
+                bonus_xp += 10;
+        }
+        iterator_stop(&it);
+    }
 
-	if( xp > 0 && bonus_xp > 0 ) {
-		if(!(IS_IMMORTAL(gch) || gch->tot_level == 120))
-			printf_to_char(gch, "{W%d%% more experience!{x\n\r", bonus_xp);
-		xp = (100 + bonus_xp) * xp / 100;
-	}
-	// kind of a hack but oh well
-	xp = UMAX(xp, 0);
+    if( xp > 0 && bonus_xp > 0 ) {
+        if(!(IS_IMMORTAL(gch) || gch->tot_level == 120))
+            printf_to_char(gch, "{W%d%% more experience!{x\n\r", bonus_xp);
+        xp = (100 + bonus_xp) * xp / 100;
+    }
+    // kind of a hack but oh well
+    xp = UMAX(xp, 0);
 
-	return xp;
+    return xp;
 }
 
 
@@ -6699,7 +6823,7 @@ void do_slay(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!IS_NPC(victim) && victim->tot_level >= get_trust(ch)) {
+	if (!IS_NPC(victim) && victim->pcdata->staff_rank >= get_staff_rank(ch)) {
 		send_to_char("You failed.\n\r", ch);
 		return;
 	}

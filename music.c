@@ -19,13 +19,13 @@ void deduct_mana(CHAR_DATA *ch,int cost);
 
 void do_play(CHAR_DATA *ch, char *argument)
 {
-	SKILL_ENTRY *entry;
-    OBJ_DATA *instrument;
+    SKILL_ENTRY *entry;
+    OBJ_DATA *instrument = NULL;
     CHAR_DATA *mob;
     OBJ_DATA *obj;
-	SCRIPT_DATA *script = NULL;
-	ITERATOR it;
-	PROG_LIST *prg;
+    SCRIPT_DATA *script = NULL;
+    ITERATOR it;
+    PROG_LIST *prg;
     char *name;
     char arg[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
@@ -43,255 +43,260 @@ void do_play(CHAR_DATA *ch, char *argument)
 
     if ((chance = get_skill(ch,gsn_music)) == 0)
     {
-		send_to_char("You whistle a little tune to yourself.\n\r",ch);
-		return;
+        send_to_char("You whistle a little tune to yourself.\n\r",ch);
+        return;
     }
 
     if (ch->bashed > 0)
     {
-		send_to_char("You must stand up first.\n\r", ch);
-		return;
+        send_to_char("You must stand up first.\n\r", ch);
+        return;
     }
 
     if ( arg[0] == '\0')
     {
-		if( ch->sorted_songs )
-		{
-			BUFFER *buffer = new_buf();
-			add_buf(buffer, "You know the following songs: \n\r\n\r");
-			add_buf(buffer, "{YSong Title                            Level         Mana{x\n\r");
-			add_buf(buffer, "{Y---------------------------------------------------------{x\n\r");
+        if( ch->sorted_songs )
+        {
+            BUFFER *buffer = new_buf();
+            add_buf(buffer, "You know the following songs: \n\r\n\r");
+            add_buf(buffer, "{YSong Title                            Level         Mana{x\n\r");
+            add_buf(buffer, "{Y---------------------------------------------------------{x\n\r");
 
-			for(entry = ch->sorted_songs; entry; entry = entry->next) {
-				level = skill_entry_level(ch, entry);
-				name = skill_entry_name(entry);
-				if( entry->token )
-					sprintf(buf, "%-30s %10d\n\r", name, level);
-				else
-					sprintf(buf, "%-30s %10d %13d\n\r", name, level, music_table[entry->song].mana);
-				add_buf(buffer, buf);
-			}
-			page_to_char(buf_string(buffer), ch);
-			free_buf(buffer);
-		}
-		else
-			send_to_char( "There are no songs you can play at this time.\n\r", ch );
+            for(entry = ch->sorted_songs; entry; entry = entry->next) {
+                level = skill_entry_level(ch, entry);
+                name = skill_entry_name(entry);
+                if( entry->token )
+                    sprintf(buf, "%-30s %10d\n\r", name, level);
+                else
+                    sprintf(buf, "%-30s %10d %13d\n\r", name, level, music_table[entry->song].mana);
+                add_buf(buffer, buf);
+            }
+            page_to_char(buf_string(buffer), ch);
+            free_buf(buffer);
+        }
+        else
+            send_to_char( "There are no songs you can play at this time.\n\r", ch );
 
-		return;
-	}
+        return;
+    }
 
-	if (check_social_status(ch))
-		return;
+    if (check_social_status(ch))
+        return;
 
-	obj = NULL;
-	for (instrument = ch->carrying; instrument != NULL; instrument = instrument->next_content )
-	{
-		if ( instrument->item_type == ITEM_INSTRUMENT && instrument->wear_loc != WEAR_NONE)
-		{
-			obj = instrument;
-			break;
-		}
-	}
+    // Check for a worn instrument using lworn
+    if (ch->lworn) {
+        iterator_start(&it, ch->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (obj->item_type == ITEM_INSTRUMENT) {
+                instrument = obj;
+                iterator_stop(&it);
+                break;
+            }
+        }
+        if (!instrument) {
+            iterator_stop(&it);
+        }
+    }
 
-    if (obj == NULL)
+    if (instrument == NULL)
     {
-		send_to_char("You are not using an instrument.\n\r", ch);
-		return;
+        send_to_char("You are not using an instrument.\n\r", ch);
+        return;
     }
 
     entry = skill_entry_findname(ch->sorted_songs, arg);
 
     if (!entry)
     {
-		send_to_char("You don't know that song.\n\r", ch);
-		return;
+        send_to_char("You don't know that song.\n\r", ch);
+        return;
     }
     else if( IS_VALID(entry->token) )
     {
-		// Check that the token has the right scripts
-		// Check thst the token is a valid token spell
-		script = NULL;
-		if( entry->token->pIndexData->progs ) {
-			iterator_start(&it, entry->token->pIndexData->progs[TRIGSLOT_SPELL]);
-			while(( prg = (PROG_LIST *)iterator_nextdata(&it))) {
-				if(is_trigger_type(prg->trig_type,TRIG_SPELL)) {
-					script = prg->script;
-					break;
-				}
-			}
-			iterator_stop(&it);
-		}
+        // Check that the token has the right scripts
+        // Check thst the token is a valid token spell
+        script = NULL;
+        if( entry->token->pIndexData->progs ) {
+            iterator_start(&it, entry->token->pIndexData->progs[TRIGSLOT_SPELL]);
+            while(( prg = (PROG_LIST *)iterator_nextdata(&it))) {
+                if(is_trigger_type(prg->trig_type,TRIG_SPELL)) {
+                    script = prg->script;
+                    break;
+                }
+            }
+            iterator_stop(&it);
+        }
 
-		if(!script) {
-			// Give some indication that the song token is broken
-			send_to_char("You don't recall how to play that song.\n\r", ch);
-			return;
-		}
+        if(!script) {
+            // Give some indication that the song token is broken
+            send_to_char("You don't recall how to play that song.\n\r", ch);
+            return;
+        }
 
-		mana = entry->token->value[TOKVAL_SPELL_MANA];
-		if ((ch->mana + ch->manastore) < mana) {
-			send_to_char("You don't have enough mana.\n\r", ch);
-			return;
-		}
+        mana = entry->token->value[TOKVAL_SPELL_MANA];
+        if ((ch->mana + ch->manastore) < mana) {
+            send_to_char("You don't have enough mana.\n\r", ch);
+            return;
+        }
 
-		// Setup targets.
-		ch->tempstore[0] = 0;
+        // Setup targets.
+        ch->tempstore[0] = 0;
 
-		// Precheck for the song token - set the music beats in here!
-		if(p_percent_trigger(NULL,NULL,NULL,entry->token,ch,NULL,NULL, obj, NULL, TRIG_PRESPELL, NULL))
-			return;
+        // Precheck for the song token - set the music beats in here!
+        if(p_percent_trigger(NULL,NULL,NULL,entry->token,ch,NULL,NULL, instrument, NULL, TRIG_PRESPELL, NULL))
+            return;
 
-		beats = ch->tempstore[0];
+        beats = ch->tempstore[0];
 
-		target = entry->token->pIndexData->value[TOKVAL_SPELL_TARGET];
-	}
-	else
-	{
-		mana = music_table[entry->song].mana;
+        target = entry->token->pIndexData->value[TOKVAL_SPELL_TARGET];
+    }
+    else
+    {
+        mana = music_table[entry->song].mana;
 
-		if ((ch->mana + ch->manastore) < mana) {
-			send_to_char("You don't have enough mana.\n\r", ch);
-			return;
-		}
+        if ((ch->mana + ch->manastore) < mana) {
+            send_to_char("You don't have enough mana.\n\r", ch);
+            return;
+        }
 
-		script = NULL;
-		target = music_table[entry->song].target;
-		beats = music_table[entry->song].beats;
-	}
+        script = NULL;
+        target = music_table[entry->song].target;
+        beats = music_table[entry->song].beats;
+    }
 
 
     if ( arg2[0] != '\0' )
     {
-		if ( ( mob = get_char_room(ch, NULL, arg2) ) == NULL )
-		{
-			send_to_char("They aren't here.\n\r", ch);
-			return;
-		}
-		else if ( mob != NULL)
-		{
-			switch (target) {
-			case TAR_IGNORE:
-				send_to_char("You can't harness the energies of that song onto one target.\n\r", ch );
-				return;
-				break;
+        if ( ( mob = get_char_room(ch, NULL, arg2) ) == NULL )
+        {
+            send_to_char("They aren't here.\n\r", ch);
+            return;
+        }
+        else if ( mob != NULL)
+        {
+            switch (target) {
+            case TAR_IGNORE:
+                send_to_char("You can't harness the energies of that song onto one target.\n\r", ch );
+                return;
+                break;
 
-			case TAR_CHAR_SELF:
-				if ( mob != ch ) {
-					send_to_char("You can't harness the energies of that song onto anyone except yourself.\n\r", ch );
-					return;
-				}
-				break;
+            case TAR_CHAR_SELF:
+                if ( mob != ch ) {
+                    send_to_char("You can't harness the energies of that song onto anyone except yourself.\n\r", ch );
+                    return;
+                }
+                break;
 
-			case TAR_CHAR_OFFENSIVE:
-			case TAR_OBJ_CHAR_OFF:
-				if ( is_safe( ch, mob, true ) )
-					return;
-				break;
+            case TAR_CHAR_OFFENSIVE:
+            case TAR_OBJ_CHAR_OFF:
+                if ( is_safe( ch, mob, true ) )
+                    return;
+                break;
 
-			case TAR_CHAR_DEFENSIVE:
-			case TAR_CHAR_FORMATION:
-			case TAR_OBJ_CHAR_DEF:
-				if ( mob != ch
-				&&   mob->fighting != NULL
-				&&   ch->fighting != mob
-				&&   !IS_NPC(mob)
-				&&   !IS_NPC(mob->fighting)
-				&&   !is_pk(ch))
-				{
-				send_to_char("You can't interfere in a PK battle if you are not PK.\n\r", ch );
-				return;
-				}
-				break;
-			}
+            case TAR_CHAR_DEFENSIVE:
+            case TAR_CHAR_FORMATION:
+            case TAR_OBJ_CHAR_DEF:
+                if ( mob != ch
+                &&   mob->fighting != NULL
+                &&   ch->fighting != mob
+                &&   !IS_NPC(mob)
+                &&   !IS_NPC(mob->fighting)
+                &&   !is_pk(ch))
+                {
+                send_to_char("You can't interfere in a PK battle if you are not PK.\n\r", ch );
+                return;
+                }
+                break;
+            }
 
-			if ( mob == ch )
-			{
-			send_to_char("{YYou begin to play the song softly to yourself...{X\n\r", ch);
-			act( "{Y$n begins to play a song on $p{Y softly to $mself...{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-			}
-			else
-			{
-			act("{YYou begin to play the song, sweetly exerting its influence on $N...{X", ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-			act("{Y$n begins to play a song, exerting its influence on $N...{X", ch, mob, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
-			act("{Y$n begins to play a song, exerting its influence on you...{X", ch, mob, NULL, obj, NULL, NULL, NULL, TO_VICT);
-			}
-		}
+            if ( mob == ch )
+            {
+            send_to_char("{YYou begin to play the song softly to yourself...{X\n\r", ch);
+            act( "{Y$n begins to play a song on $p{Y softly to $mself...{x", ch, NULL, NULL, instrument, NULL, NULL, NULL, TO_ROOM);
+            }
+            else
+            {
+            act("{YYou begin to play the song, sweetly exerting its influence on $N...{X", ch, mob, NULL, instrument, NULL, NULL, NULL, TO_CHAR);
+            act("{Y$n begins to play a song, exerting its influence on $N...{X", ch, mob, NULL, instrument, NULL, NULL, NULL, TO_NOTVICT);
+            act("{Y$n begins to play a song, exerting its influence on you...{X", ch, mob, NULL, instrument, NULL, NULL, NULL, TO_VICT);
+            }
+        }
 
-		ch->music_target = str_dup(mob->name);
+        ch->music_target = str_dup(mob->name);
     }
     else
     {
-		/* Syn- this fix is here to make sure offensive target songs cannot be played in safe rooms. */
+        /* Syn- this fix is here to make sure offensive target songs cannot be played in safe rooms. */
 
-		switch (target) {
-			case TAR_CHAR_OFFENSIVE:
-			case TAR_OBJ_CHAR_OFF:
-				if (IS_SET(ch->in_room->room_flag[0], ROOM_SAFE)) {
-					send_to_char("This room is sanctioned by the gods.\n\r", ch);
-					return;
-				}
+        switch (target) {
+            case TAR_CHAR_OFFENSIVE:
+            case TAR_OBJ_CHAR_OFF:
+                if (IS_SET(ch->in_room->room_flag[0], ROOM_SAFE)) {
+                    send_to_char("This room is sanctioned by the gods.\n\r", ch);
+                    return;
+                }
 
-			break;
-		}
-		act( "{YYou begin to play a song on $p{Y...{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		act( "{Y$n begins to play a song on $p{Y...{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+            break;
+        }
+        act( "{YYou begin to play a song on $p{Y...{x", ch, NULL, NULL, instrument, NULL, NULL, NULL, TO_CHAR);
+        act( "{Y$n begins to play a song on $p{Y...{x", ch, NULL, NULL, instrument, NULL, NULL, NULL, TO_ROOM);
     }
 
-	// Setup targets.
-	ch->song_num = entry->song;
-	ch->song_token = IS_VALID(entry->token) ? entry->token : NULL;
-	ch->song_script = script;
-	ch->song_mana = mana;
-	ch->song_instrument = obj;
+    // Setup targets.
+    ch->song_num = entry->song;
+    ch->song_token = IS_VALID(entry->token) ? entry->token : NULL;
+    ch->song_script = script;
+    ch->song_mana = mana;
+    ch->song_instrument = instrument;
 
-	// Block to deal with reductions
-	{
-		int scale1 = 100;
-		int scale2 = 100;
+    // Block to deal with reductions
+    {
+        int scale1 = 100;
+        int scale2 = 100;
 
-		/* Sage has shorter playing time if Bard before */
-		if (IS_SAGE(ch) && ch->pcdata->sub_class_thief == CLASS_THIEF_BARD)
-		{
-			scale1 *= 2;
-			scale2 *= 3;	// Give a 1/3 reduction
-		}
+        /* Sage has shorter playing time if Bard before */
+        if (IS_SAGE(ch) && ch->pcdata->sub_class_thief == CLASS_THIEF_BARD)
+        {
+            scale1 *= 2;
+            scale2 *= 3;	// Give a 1/3 reduction
+        }
 
-		if( obj != NULL )
-		{
+        if( instrument != NULL )
+        {
 
-			/*
-			// Magical instruments reduce the casting time by 25%
-			if( IS_OBJ_STAT(obj, ITEM_MAGIC) )
-			{
-				scale1 *= 3;
-				scale2 *= 4;	// Give a 25% reduction
-			}
-			*/
+            /*
+            // Magical instruments reduce the casting time by 25%
+            if( IS_OBJ_STAT(obj, ITEM_MAGIC) )
+            {
+                scale1 *= 3;
+                scale2 *= 4;	// Give a 25% reduction
+            }
+            */
 
-			// Only do it if both are set
-			if( obj->value[2] > 0 && obj->value[3] > 0)
-			{
-				int scale;
+            // Only do it if both are set
+            if( instrument->value[2] > 0 && instrument->value[3] > 0)
+            {
+                int scale;
 
-				if( obj->value[2] < obj->value[3] )
-					scale = number_range(obj->value[2], obj->value[3]);
-				else
-					scale = number_range(obj->value[3], obj->value[2]);
+                if( instrument->value[2] < instrument->value[3] )
+                    scale = number_range(instrument->value[2], instrument->value[3]);
+                else
+                    scale = number_range(instrument->value[3], instrument->value[2]);
 
-				if( scale != 100 )
-				{
-					scale1 *= scale;
-					scale2 *= 100;
-				}
-			}
-		}
+                if( scale != 100 )
+                {
+                    scale1 *= scale;
+                    scale2 *= 100;
+                }
+            }
+        }
 
-		beats = scale1 * beats / scale2;
-	}
+        beats = scale1 * beats / scale2;
+    }
 
-	if( beats < 1 ) beats = 1;	// Mininum, no matter what the definition tries to pull
+    if( beats < 1 ) beats = 1;	// Mininum, no matter what the definition tries to pull
 
-	MUSIC_STATE(ch, beats);
+    MUSIC_STATE(ch, beats);
 }
 
 

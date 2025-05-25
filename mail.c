@@ -228,135 +228,145 @@ void do_mailadd(CHAR_DATA *ch, char *argument)
     MAIL_DATA *mail;
     char arg[MSL];
     char buf[MSL];
-    OBJ_DATA *obj, *obj_next;
+    OBJ_DATA *obj;
+    ITERATOR it;
 
     if ((mail = ch->mail) == NULL)
     {
-	send_to_char("You aren't working on a mail package. Type 'mail to <person>'\n\r", ch);
-	return;
+        send_to_char("You aren't working on a mail package. Type 'mail to <person>'\n\r", ch);
+        return;
     }
 
     argument = one_argument(argument, arg);
     if (arg[0] == '\0')
     {
-	send_to_char("Add what to the package?\n\r", ch);
-	return;
+        send_to_char("Add what to the package?\n\r", ch);
+        return;
     }
 
     // Put obj mail
     if (str_cmp(arg, "all") && str_prefix("all.", arg))
     {
-	if ((obj = get_obj_list(ch, arg, ch->carrying)) == NULL)
-	{
-	    send_to_char("You do not have that object.\n\r", ch);
-	    return;
-	}
+        if ((obj = get_obj_list(ch, arg, ch->lcarrying)) == NULL)
+        {
+            send_to_char("You do not have that object.\n\r", ch);
+            return;
+        }
 
-	if (!can_put_obj(ch, obj, NULL, mail, false))
-	    return;
+        if (!can_put_obj(ch, obj, NULL, mail, false))
+            return;
 
-	act("You put $p in your package.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	act("$n puts $p in $s package.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+        act("You put $p in your package.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+        act("$n puts $p in $s package.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 
-	obj_from_char(obj);
-	obj_to_mail(obj, mail);
+        obj_from_char(obj);
+        obj_to_mail(obj, mail);
     }
     else // put all mail or put all.obj mail
     {
-	int i = 0;
-	char short_descr[MSL];
-	bool found = true;
-	bool any = false;
-	OBJ_DATA *match_obj;
+        int i = 0;
+        char short_descr[MSL];
+        bool found = true;
+        bool any = false;
+        OBJ_DATA *match_obj;
 
-	while (found)
-	{
-	    found = false;
-	    i = 0;
-	    match_obj = NULL;
+        while (found)
+        {
+            found = false;
+            i = 0;
+            match_obj = NULL;
 
-	    for (obj = ch->carrying; obj != NULL; obj = obj_next)
-	    {
-		obj_next = obj->next_content;
+            // Use iterator to traverse lcarrying
+            if (ch->lcarrying) {
+                iterator_start(&it, ch->lcarrying);
+                while ((obj = (OBJ_DATA *)iterator_nextdata(&it)))
+                {
+                    if ((arg[3] == '\0' || is_name(&arg[4], obj->name))
+                    && can_put_obj(ch, obj, NULL, mail, true))
+                    {
+                        sprintf(short_descr, "%s", obj->short_descr);
+                        found = true;
+                        any = true;
+                        break;
+                    }
+                }
+                iterator_stop(&it);
+            }
 
-		if ((arg[3] == '\0' || is_name(&arg[4], obj->name))
-		&&  can_put_obj(ch, obj, NULL, mail, true))
-		{
-		    sprintf(short_descr, "%s", obj->short_descr);
-		    found = true;
-		    any = true;
-		    break;
-		}
-	    }
+            if (found)
+            {
+                // Use iterator again to find matching objects
+                if (ch->lcarrying) {
+                    iterator_start(&it, ch->lcarrying);
+                    while ((obj = (OBJ_DATA *)iterator_nextdata(&it)))
+                    {
+                        if (str_cmp(obj->short_descr, short_descr)
+                        || !can_put_obj(ch, obj, NULL, mail, true))
+                            continue;
 
-	    if (found)
-	    {
-		for (obj = ch->carrying; obj != NULL; obj = obj_next)
-		{
-		    obj_next = obj->next_content;
+                        if (count_weight_mail(mail) >= MAX_POSTAL_WEIGHT)
+                        {
+                            if (i > 0 && match_obj != NULL)
+                            {
+                                sprintf(buf, "{Y({G%2d{Y) {x$n puts $p in $s package.", i);
+                                act(buf, ch, NULL, NULL, match_obj, NULL, NULL, NULL, TO_ROOM);
 
-		    if (str_cmp(obj->short_descr, short_descr)
-		    ||  !can_put_obj(ch, obj, NULL, mail, true))
-			continue;
+                                sprintf(buf, "{Y({G%2d{Y) {xYou put $p in your package.", i);
+                                act(buf, ch, NULL, NULL, match_obj, NULL, NULL, NULL, TO_CHAR);
+                            }
 
-		    if (count_weight_mail(mail) >= MAX_POSTAL_WEIGHT)
-		    {
-			if (i > 0 && match_obj != NULL)
-			{
-			    sprintf(buf, "{Y({G%2d{Y) {x$n puts $p in $s package.", i);
-			    act(buf, ch, NULL, NULL, match_obj, NULL, NULL, NULL, TO_ROOM);
+                            iterator_stop(&it);
+                            send_to_char("Your mail package is at the maximum allowable weight.\n\r", ch);
+                            return;
+                        }
 
-			    sprintf(buf, "{Y({G%2d{Y) {xYou put $p in your package.", i);
-			    act(buf, ch, NULL, NULL, match_obj, NULL, NULL, NULL, TO_CHAR);
-			}
+                        if (count_items_mail(mail) >= MAX_POSTAL_ITEMS)
+                        {
+                            if (i > 0 && match_obj != NULL)
+                            {
+                                sprintf(buf, "{Y({G%2d{Y) {x$n puts $p in $s package.", i);
+                                act(buf, ch, NULL, NULL, match_obj, NULL, NULL, NULL, TO_ROOM);
 
-			send_to_char("Your mail package is at the maximum allowable weight.\n\r", ch);
-			return;
-		    }
+                                sprintf(buf, "{Y({G%2d{Y) {xYou put $p in your package.", i);
+                                act(buf, ch, NULL, NULL, match_obj, NULL, NULL, NULL, TO_CHAR);
+                            }
 
-		    if (count_items_mail(mail) >= MAX_POSTAL_ITEMS)
-		    {
-			if (i > 0 && match_obj != NULL)
-			{
-			    sprintf(buf, "{Y({G%2d{Y) {x$n puts $p in $s package.", i);
-			    act(buf, ch, NULL, NULL, match_obj, NULL, NULL, NULL, TO_ROOM);
+                            iterator_stop(&it);
+                            send_to_char("Your mail package has the maximum allowable number of items.\n\r", ch);
+                            return;
+                        }
 
-			    sprintf(buf, "{Y({G%2d{Y) {xYou put $p in your package.", i);
-			    act(buf, ch, NULL, NULL, match_obj, NULL, NULL, NULL, TO_CHAR);
-			}
+                        if (match_obj == NULL && obj != NULL)
+                            match_obj = obj;
 
-			send_to_char("Your mail package has the maximum allowable number of items.\n\r", ch);
-			return;
-		    }
+                        // We need to remove the object from the iterator list safely
+                        list_remlink(ch->lcarrying, obj, false);
+                        obj_to_mail(obj, mail);
+                        i++;
+                    }
+                    iterator_stop(&it);
+                }
 
-		    if (match_obj == NULL && obj != NULL)
-			match_obj = obj;
+                if (i > 0 && match_obj != NULL)
+                {
+                    sprintf(buf, "{Y({G%2d{Y) {x$n puts $p in $s package.", i);
+                    act(buf, ch, NULL, NULL, match_obj, NULL, NULL, NULL, TO_ROOM);
 
-		    obj_from_char(obj);
-		    obj_to_mail(obj, mail);
-		    i++;
-		}
-
-		if (i > 0 && match_obj != NULL)
-		{
-		    sprintf(buf, "{Y({G%2d{Y) {x$n puts $p in $s package.", i);
-		    act(buf, ch, NULL, NULL, match_obj, NULL, NULL, NULL, TO_ROOM);
-
-		    sprintf(buf, "{Y({G%2d{Y) {xYou put $p in your package.", i);
-		    act(buf, ch, NULL, NULL, match_obj, NULL, NULL, NULL, TO_CHAR);
-		}
-	    }
-	    else
-	    {
-		if (!any)
-		{
-		    if (arg[3] == '\0')
-			act("You have nothing you can put in your package.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		    else
-			act("You're not carrying any $T you can put in your package.", ch, NULL, NULL, NULL, NULL, NULL, &arg[4], TO_CHAR);
-		}
-	    }
-	}
+                    sprintf(buf, "{Y({G%2d{Y) {xYou put $p in your package.", i);
+                    act(buf, ch, NULL, NULL, match_obj, NULL, NULL, NULL, TO_CHAR);
+                }
+            }
+            else
+            {
+                if (!any)
+                {
+                    if (arg[3] == '\0')
+                        act("You have nothing you can put in your package.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+                    else
+                        act("You're not carrying any $T you can put in your package.", ch, NULL, NULL, NULL, NULL, NULL, &arg[4], TO_CHAR);
+                }
+            }
+        }
     }
 }
 

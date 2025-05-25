@@ -97,6 +97,7 @@ SKILL_ENTRY *skill_entry_free;
 OLC_POINT_BOOST *olc_point_boost_free;
 SHIP_INDEX_DATA *ship_index_free;
 SHIP_DATA *ship_free;
+CHURCH_LOG_ENTRY *church_log_entry_free;
 
 
 LLIST_UID_DATA *new_list_uid_data()
@@ -212,6 +213,11 @@ void free_note(NOTE_DATA *note)
     free_string( note->to_list );
     free_string( note->date    );
     free_string( note->sender  );
+    free_string( note->to_characters);
+    free_string( note->to_accounts);
+    free_string( note->to_churches);
+    free_string( note->to_staff_ranks );
+    free_string( note->to_staff_duties );
     INVALIDATE(note);
 
     note->next = note_free;
@@ -267,6 +273,10 @@ DESCRIPTOR_DATA *new_descriptor(void)
 
     *d = d_zero;
     VALIDATE(d);
+    d->mfa_verified = false;
+    d->creating_staff_character = false;
+    d->reconnecting = false;
+    d->editor_ptr = NULL;
 
     top_descriptor++;
 
@@ -626,6 +636,9 @@ CHAR_DATA *new_char( void )
     ch->projectile_dir = -1;	//@@@NIB : 20071021
 
     ch->challenger = NULL;
+    ch->temp_log_entry = NULL;
+        ch->lcarrying_temp = list_create(false);
+    ch->temp_log_category = 0;
 
     for (i = 0; i < MAX_STATS; i ++)
     {
@@ -663,51 +676,62 @@ CHAR_DATA *new_char( void )
 void free_char( CHAR_DATA *ch )
 {
     OBJ_DATA *obj;
-    OBJ_DATA *obj_next;
     AFFECT_DATA *paf;
     AFFECT_DATA *paf_next;
     TOKEN_DATA *token,*tnext;
     EVENT_DATA *ev, *ev_next;
     SKILL_ENTRY *se, *se_next;
+    ITERATOR it;
 
     if (!IS_VALID(ch))
-	return;
+        return;
 
     if (IS_NPC(ch))
-	mobile_count--;
+        mobile_count--;
 
     // Free data structures unique to the character
-
- 	for(se = ch->sorted_skills; se; se = se_next) {
-		se_next = se->next;
-		free_skill_entry(se);
-	}
-
- 	for(se = ch->sorted_songs; se; se = se_next) {
-		se_next = se->next;
-		free_skill_entry(se);
-	}
-
-
-    // Inventory
-    for (obj = ch->carrying; obj != NULL; obj = obj_next)
-    {
-	obj_next = obj->next_content;
-	extract_obj( obj );
+    for(se = ch->sorted_skills; se; se = se_next) {
+        se_next = se->next;
+        free_skill_entry(se);
     }
 
-    // Locker
-    for (obj = ch->locker; obj != NULL; obj = obj_next)
-    {
-	obj_next = obj->next_content;
-	extract_obj( obj );
+    for(se = ch->sorted_songs; se; se = se_next) {
+        se_next = se->next;
+        free_skill_entry(se);
+    }
+
+    // Free items in inventory using lcarrying
+    if (ch->lcarrying) {
+        iterator_start(&it, ch->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            extract_obj(obj);
+        }
+        iterator_stop(&it);
+    }
+
+    // Free worn items using lworn
+    if (ch->lworn) {
+        iterator_start(&it, ch->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            extract_obj(obj);
+        }
+        iterator_stop(&it);
+    }
+
+    // Free locker items using llocker
+    if (ch->llocker) {
+        iterator_start(&it, ch->llocker);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            extract_obj(obj);
+        }
+        iterator_stop(&it);
     }
 
     // affects
     for (paf = ch->affected; paf != NULL; paf = paf_next)
     {
-	paf_next = paf->next;
-	affect_remove(ch,paf);
+        paf_next = paf->next;
+        affect_remove(ch,paf);
     }
 
     for (token = ch->tokens; token; token = tnext) {
@@ -717,10 +741,10 @@ void free_char( CHAR_DATA *ch )
 
     if (ch->church != NULL)
     {
-		list_remlink(ch->church->online_players, ch, false);
-	if (ch->church_member != NULL)
-		ch->church_member->ch = NULL;
-	ch->church = NULL;
+        list_remlink(ch->church->online_players, ch, false);
+        if (ch->church_member != NULL)
+            ch->church_member->ch = NULL;
+        ch->church = NULL;
     }
 
     free_string(ch->name);
@@ -729,7 +753,7 @@ void free_char( CHAR_DATA *ch )
     free_string(ch->description);
     free_string(ch->owner);
     free_string(ch->prompt);
-    free_note  (ch->pnote);
+    free_note(ch->pnote);
     free_pcdata(ch->pcdata);
     free_ambush(ch->ambush);
     free_string(ch->cast_target_name);
@@ -737,34 +761,34 @@ void free_char( CHAR_DATA *ch )
     free_string(ch->projectile_victim);
     free_string(ch->tempstring);
 
-
+    // Destroy linked lists
     list_destroy(ch->llocker);
     list_destroy(ch->lcarrying);
+    list_destroy(ch->lcarrying_temp);
     list_destroy(ch->lworn);
     list_destroy(ch->ltokens);
     list_destroy(ch->lclonerooms);
     list_destroy(ch->lgroup);
 
-	if( !IS_NPC(ch))
-	{
+    if (!IS_NPC(ch))
+    {
 #ifdef IMC
-		imc_freechardata( ch );
+        imc_freechardata(ch);
 #endif
-	}
+    }
 
     variable_clearfield(VAR_MOBILE, ch);
     script_clear_mobile(ch);
     script_clear_list(ch);
     wipe_clearinfo_mobile(ch);
     free_prog_data(ch->progs);
+    free_string(ch->temp_log_entry);
 
-
-    /* be sure to free any events hooked up to this char so that they arn't called
+    /* be sure to free any events hooked up to this char so that they aren't called
        on the freed memory space */
     for (ev = ch->events; ev != NULL; ev = ev_next) {
-	ev_next = ev->next_event;
-
-	extract_event(ev);
+        ev_next = ev->next_event;
+        extract_event(ev);
     }
 
     ch->events = NULL;
@@ -773,9 +797,11 @@ void free_char( CHAR_DATA *ch )
 
     ch->checkpoint = NULL;
 
-	if( ch->persist ) persist_removemobile(ch);
+    if (ch->persist)
+        persist_removemobile(ch);
 
-	if( ch->shop ) free_shop(ch->shop);
+    if (ch->shop)
+        free_shop(ch->shop);
 
     ch->next = char_free;
     char_free = ch;
@@ -819,6 +845,10 @@ PC_DATA *new_pcdata(void)
     pcdata->buffer = new_buf();
     pcdata->convert_church = -1;
     pcdata->need_change_pw = true;
+        pcdata->account_name = str_dup("");
+    pcdata->account_id[0] = 0;
+    pcdata->account_id[1] = 0;
+    pcdata->account_pwd_override = false;
 
     pcdata->class_mage = -1;
     pcdata->class_cleric = -1;
@@ -844,6 +874,7 @@ PC_DATA *new_pcdata(void)
     pcdata->ships = list_create(false);
     pcdata->spam_block_navigation = false;
 
+    
     VALIDATE(pcdata);
     return pcdata;
 }
@@ -869,6 +900,8 @@ void free_pcdata(PC_DATA *pcdata)
     //free_string(pcdata->bamfout);
     free_string(pcdata->title);
     free_buf(pcdata->buffer);
+        free_string(pcdata->account_name);
+    free_string(pcdata->last_area);
 
     for (alias = 0; alias < MAX_ALIAS; alias++)
     {
@@ -1318,6 +1351,7 @@ CHURCH_DATA *new_church( void )
     pChurch->name = NULL;
     pChurch->flag = NULL;
     pChurch->founder = NULL;
+    pChurch->owner = NULL;
     pChurch->pneuma = 0;
     pChurch->dp	    = 0;
     pChurch->gold   = 0;
@@ -1327,8 +1361,14 @@ CHURCH_DATA *new_church( void )
     location_clear(&pChurch->recall_point);
     pChurch->rules = NULL;
     pChurch->motd = NULL;
-    pChurch->log = NULL;
+    pChurch->log_entries = NULL;
+    pChurch->last_log_entry_id = 0;
+    pChurch->log_entry_count = 0;
     pChurch->founder_last_login = 0;
+    pChurch->owner_last_login = 0;
+    pChurch->member_last_login = 0;
+    pChurch->officer_last_login = 0;
+    pChurch->leader_last_login = 0;
     pChurch->pk = 0;
     pChurch->settings = 0;
     pChurch->treasure_rooms = list_createx(false, NULL, delete_church_treasure_room);
@@ -1340,10 +1380,16 @@ CHURCH_DATA *new_church( void )
     pChurch->cpk_losses = 0;
     pChurch->wars_won = 0;
     pChurch->created = 0;
-    pChurch->colour1 = 'C';
-    pChurch->colour2 = 'B';
+    pChurch->colour1 = str_dup("{C");
+    pChurch->colour2 = str_dup("{B");
     pChurch->online_players = list_create(false);
     pChurch->roster = list_create(false);
+
+        pChurch->ranks = NULL;
+    pChurch->num_ranks = 0;
+    pChurch->default_rank = 0;
+    pChurch->max_rank_uid = 0;
+    pChurch->deleted = false;
 
     top_church++;
 
@@ -1360,8 +1406,9 @@ void free_church( CHURCH_DATA *pChurch )
     free_string( pChurch->flag );
     free_string( pChurch->rules );
     free_string( pChurch->motd );
-    free_string( pChurch->log );
     free_string( pChurch->founder );
+    free_string( pChurch->colour1);
+    free_string( pChurch->colour2);
 
     people = pChurch->people;
 
@@ -1370,6 +1417,19 @@ void free_church( CHURCH_DATA *pChurch )
         free_church_player( people );
 	people = next_person;
     }
+
+    // Free log entries
+    CHURCH_LOG_ENTRY *log, *log_next;
+    for (log = pChurch->log_entries; log != NULL; log = log_next)
+    {
+        log_next = log->next;
+        free_church_log_entry(log);
+    }
+
+    pChurch->next = church_free;
+    church_free = pChurch;
+    return;
+
 
 	variable_clearfield(VAR_CHURCH, pChurch);
 
@@ -1406,6 +1466,7 @@ CHURCH_PLAYER_DATA *new_church_player( void )
     pMember->ch = NULL;
     pMember->church = NULL;
     pMember->commands = NULL;
+    pMember->personal_permissions = 0;
 
     pMember->pk_wins = 0;
     pMember->pk_losses = 0;
@@ -1413,6 +1474,7 @@ CHURCH_PLAYER_DATA *new_church_player( void )
     pMember->cpk_losses = 0;
     pMember->wars_won = 0;
     pMember->alignment = 0;
+    pMember->rank_uid = 0;
 
     top_church_player++;
 
@@ -1441,6 +1503,107 @@ void free_church_player( CHURCH_PLAYER_DATA *pMember )
     pMember->next         =   church_player_free;
     church_player_free    =   pMember;
     return;
+}
+
+CHURCH_RANK_DATA *new_church_rank(void)
+{
+    CHURCH_RANK_DATA *rank = alloc_mem(sizeof(CHURCH_RANK_DATA));
+    
+    rank->title_male = NULL;
+    rank->title_female = NULL;
+    rank->title_neutral = NULL;
+    rank->permissions = 0;
+    rank->flags = 0;
+    rank->rank_type = RANK_TYPE_MEMBER;
+    rank->next = NULL;
+    rank->rank_name = NULL;
+    rank->uid = 0;
+    
+    return rank;
+}
+
+void free_church_rank(CHURCH_RANK_DATA *rank)
+{
+    if (!rank)
+        return;
+        
+    if (rank->title_male) free_string(rank->title_male);
+    if (rank->title_female) free_string(rank->title_female);
+    if (rank->title_neutral) free_string(rank->title_neutral);
+    
+    free_mem(rank, sizeof(CHURCH_RANK_DATA));
+}
+
+// Free church rank data
+void free_church_ranks(CHURCH_DATA *church)
+{
+//    int i;
+    
+    if (!church)
+        return;
+        
+    CHURCH_RANK_DATA *rank, *rank_next;
+    for (rank = church->ranks; rank != NULL; rank = rank_next) {
+        rank_next = rank->next;
+        free_church_rank(rank);
+    }
+    church->ranks = NULL;
+    church->num_ranks = 0;
+    
+    // Clear the default rank pointer but don't free it - it points to a member of the ranks list
+    church->default_rank = NULL;
+}
+
+void free_church_treasure_room(void *data)
+{
+    CHURCH_TREASURE_ROOM *treasure = (CHURCH_TREASURE_ROOM *)data;
+    
+    if (!treasure)
+        return;
+        
+    if (treasure->name)
+        free_string(treasure->name);
+        
+    if (treasure->allowed_ranks)
+        list_destroy(treasure->allowed_ranks);
+        
+    free_mem(treasure, sizeof(CHURCH_TREASURE_ROOM));
+}
+
+CHURCH_LOG_ENTRY *new_church_log_entry()
+{
+    CHURCH_LOG_ENTRY *entry;
+
+    if (church_log_entry_free)
+    {
+        entry = church_log_entry_free;
+        church_log_entry_free = church_log_entry_free->next;
+    }
+    else
+        entry = alloc_mem(sizeof(CHURCH_LOG_ENTRY));
+
+    memset(entry, 0, sizeof(*entry));
+    
+    entry->timestamp = current_time;
+    entry->author = NULL;
+    entry->text = NULL;
+    entry->system_generated = false;
+    entry->entry_id = 0;
+
+    VALIDATE(entry);
+    return entry;
+}
+
+void free_church_log_entry(CHURCH_LOG_ENTRY *entry)
+{
+    if (!IS_VALID(entry)) return;
+
+    free_string(entry->author);
+    free_string(entry->text);
+
+    INVALIDATE(entry);
+    entry->next = church_log_entry_free;
+    church_log_entry_free = entry;
 }
 
 
@@ -2072,6 +2235,7 @@ HELP_DATA *new_help(void)
 
      NewHelp->creator = NULL;
      NewHelp->min_level   = 0;
+     NewHelp->min_rank   = 0;
      NewHelp->keyword = str_dup("");
      NewHelp->text    = str_dup("");
      NewHelp->next    = NULL;
@@ -4356,6 +4520,7 @@ CMD_DATA *new_cmd()
     cmd->function = NULL;
     cmd->type = 0;
     cmd->level = 0;
+    cmd->rank = 0;
     cmd->log = 0;
     cmd->position = POS_DEAD;
     cmd->help_keywords = NULL;
@@ -4386,4 +4551,137 @@ void free_cmd(CMD_DATA *cmd)
 
     cmd->next = cmd_data_free;
     cmd_data_free = cmd;
+}
+
+ACCOUNT_CHARACTER *new_account_character()
+{
+    ACCOUNT_CHARACTER *acct_char;
+
+    acct_char = malloc(sizeof(*acct_char));
+    if (!acct_char)
+        return NULL;
+
+    // Zero all fields to ensure no uninitialized values
+    memset(acct_char, 0, sizeof(*acct_char));
+
+    acct_char->name = str_dup("");
+    acct_char->race_name = str_dup("");
+    acct_char->class_name = str_dup("");
+    acct_char->current_level = 0;
+    acct_char->tot_level = 0;
+    acct_char->last_area = str_dup("");
+    acct_char->last_host = str_dup("");
+    acct_char->staff = false;
+    //acct_char->staff_rank = STAFF_PLAYER;  // Initialize with default rank
+    acct_char->creation_date = 0;
+    acct_char->last_login = 0;
+    acct_char->id[0] = 0;
+    acct_char->id[1] = 0;
+    acct_char->deleted = false;
+    acct_char->delete_time = 0;
+
+    return acct_char;
+}
+
+
+/*
+ * Free an account character entry.
+ */
+void free_account_character(ACCOUNT_CHARACTER *acct_char)
+{
+    if (!acct_char)
+        return;
+
+    // Free all dynamically allocated strings
+    if (acct_char->name)        free_string(acct_char->name);
+    if (acct_char->race_name)   free_string(acct_char->race_name);
+    if (acct_char->class_name)  free_string(acct_char->class_name);
+    if (acct_char->last_area)   free_string(acct_char->last_area);
+    if (acct_char->last_host)   free_string(acct_char->last_host);
+
+    // Zero the struct for safety (optional, but good practice)
+    memset(acct_char, 0, sizeof(*acct_char));
+
+    free(acct_char);
+}
+
+ACCOUNT_DATA *account_data_free;
+
+/*
+ * Create a new account data structure.
+ */
+ACCOUNT_DATA *new_account(void)
+{
+    ACCOUNT_DATA *account;
+    
+    if (account_data_free)
+    {
+        account = account_data_free;
+        account_data_free = account_data_free->next;
+    }
+    else
+        account = alloc_perm(sizeof(*account));
+    
+    memset(account, 0, sizeof(*account));
+    
+    account->id[0] = account->id[1] = 0;  // Initialize IDs to 0
+    account->username = NULL;
+    account->passwd = str_dup("");
+    account->passwd_version = 0;
+    account->email = NULL;
+    account->creation_date = current_time;
+    account->last_login = 0;
+    account->acct_flags = 0;
+    account->reset_state = NO_RESET;
+    account->reset_code = str_dup("");
+    account->reset_time = 0;
+    account->mfa_key = str_dup("");
+    account->mfa_enabled = false;
+    account->characters = list_create(false);
+    
+    VALIDATE(account);
+    return account;
+}
+
+/*
+ * Get a new unique ID for an account
+ */
+void get_account_id(ACCOUNT_DATA *account)
+{
+    static unsigned long id_count = 0;
+    
+    if (account->id[0] != 0 && account->id[1] != 0)
+        return;
+        
+    // Generate a unique ID
+    account->id[0] = current_time;
+    
+    // Increment ID counter for second part of ID
+    if (++id_count >= 65536)
+        id_count = 1;
+        
+    account->id[1] = id_count;
+}
+
+/*
+ * Free an account data structure.
+ */
+void free_account(ACCOUNT_DATA *account)
+{
+    if (!IS_VALID(account))
+        return;
+        
+    free_string(account->username);
+    free_string(account->passwd);
+    free_string(account->email);
+    free_string(account->reset_code);
+    free_string(account->mfa_key);
+    
+    list_destroy(account->characters);
+    if (list_haslink(loaded_accounts, account))
+        list_remlink(loaded_accounts, account, NULL);
+    
+    INVALIDATE(account);
+    account->next = account_data_free;
+    account_data_free = account;
 }

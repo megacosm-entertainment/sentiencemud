@@ -38,8 +38,8 @@ void do_help(CHAR_DATA *ch, char *argument)
 
 	// Category lookup - must be exact
 	if ((hcat = find_help_category_exact(argument, topHelpCat)) != NULL &&
-		get_trust(ch) >= hcat->min_level &&
-		lookup_help_exact(argument, get_trust(ch), topHelpCat) == NULL) {
+		get_staff_rank(ch) >= hcat->min_rank &&
+		lookup_help_exact(argument, get_staff_rank(ch), topHelpCat) == NULL) {
 
 		buffer = new_buf();
 
@@ -72,7 +72,7 @@ void do_help(CHAR_DATA *ch, char *argument)
 
 		i = 1;
 		for (hcatnest = hcat->inside_cats; hcatnest != NULL; hcatnest = hcatnest->next) {
-			if (get_trust(ch) >= hcatnest->min_level) {
+			if (get_staff_rank(ch) >= hcatnest->min_rank) {
 				sprintf(buf2, "%s", hcatnest->name);
 
 
@@ -91,7 +91,7 @@ void do_help(CHAR_DATA *ch, char *argument)
 		}
 
 		for (help = hcat->inside_helps; help != NULL; help = help->next) {
-			if (get_trust(ch) >= help->min_level) {
+			if (get_staff_rank(ch) >= help->min_rank) {
 				sprintf(buf, "{b[{B%-3d{b]{x \t<send href=\"help #%d\">%.20s\t</send>%s %s", help->index, help->index, help->keyword, pad_string(help->keyword, 20, NULL, NULL), i % 3 == 0 ? "\n\r" : "");
 				add_buf(buffer, buf);
 				i++;
@@ -126,7 +126,7 @@ void do_help(CHAR_DATA *ch, char *argument)
 			send_to_char("That help index is out of range.\n\r", ch);
 			return;
 		} else
-			help = lookup_help_index(index, get_trust(ch), topHelpCat);
+			help = lookup_help_index(index, get_staff_rank(ch), topHelpCat);
 
 		if (help == NULL)
 			send_to_char("No help found with that index.\n\r", ch);
@@ -144,19 +144,19 @@ void do_help(CHAR_DATA *ch, char *argument)
 	// Lookup by keyword
 
 	// Handle multiple entries w/ same keyword
-	if (count_num_helps(argument, get_trust(ch), topHelpCat) > 1) {
+	if (count_num_helps(argument, get_staff_rank(ch), topHelpCat) > 1) {
 		act("{YMultiple entries found with keyword $t:{x", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);
 		buffer = new_buf();
 
-		lookup_help_multiple(argument, get_trust(ch), topHelpCat, buffer);
+		lookup_help_multiple(argument, get_staff_rank(ch), topHelpCat, buffer);
 		page_to_char(buf_string(buffer), ch);
 		free_buf(buffer);
 		return;
 	}
 
-	help = lookup_help(argument, get_trust(ch), topHelpCat);
+	help = lookup_help(argument, get_staff_rank(ch), topHelpCat);
 
-	if (help == NULL || help->hCat->min_level > get_trust(ch))
+	if (help == NULL || help->hCat->min_level > get_staff_rank(ch))
 	{
 		act("No help or category found with keyword $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);
 		sprintf(buf, "%s attempted to get help for '%s' but no helpfile was found.", ch->name, argument);
@@ -193,8 +193,8 @@ void show_help_to_ch(CHAR_DATA *ch, HELP_DATA *help)
 
     i = 0;
     for (topic = help->related_topics; topic != NULL; topic = topic->next) {
-		if (lookup_help_exact(topic->string, get_trust(ch), topHelpCat) != NULL)
-			sprintf(buf, "\t<send href=\"help #%d\">%s\t</send>{x", lookup_help_exact(topic->string,get_trust(ch),topHelpCat)->index, topic->string);
+		if (lookup_help_exact(topic->string, get_staff_rank(ch), topHelpCat) != NULL)
+			sprintf(buf, "\t<send href=\"help #%d\">%s\t</send>{x", lookup_help_exact(topic->string,get_staff_rank(ch),topHelpCat)->index, topic->string);
 		else
 			sprintf(buf, "{R%s{X", topic->string);
 		add_buf(buffer, buf);
@@ -514,7 +514,7 @@ void save_help_category_new(FILE *fp, HELP_CATEGORY *hcat)
 
     fprintf(fp, "#HELPCATEGORY %s~\n", hcat->name);
     fprintf(fp, "Description %s~\n", fix_string(hcat->description));
-    fprintf(fp, "MinLevel %d\n", hcat->min_level);
+    fprintf(fp, "Rank %d\n", hcat->min_rank);
     fprintf(fp, "Builders %s~\n", hcat->builders);
     fprintf(fp, "Creator %s~\n", hcat->creator);
     fprintf(fp, "Created %ld\n", (long int)hcat->created);
@@ -543,7 +543,7 @@ void save_help_new(FILE *fp, HELP_DATA *help)
     fprintf(fp, "ModifiedBy %s~\n", help->modified_by);
     fprintf(fp, "Modified %ld\n", (long int)help->modified);
     fprintf(fp, "Builders %s~\n", help->builders);
-    fprintf(fp, "MinLevel %d\n", help->min_level);
+    fprintf(fp, "Rank %d\n", help->min_rank);
     fprintf(fp, "Security %d\n", help->security);
 
     if (help->related_topics != NULL) {
@@ -629,9 +629,13 @@ HELP_CATEGORY *read_help_category_new(FILE *fp)
 		break;
 
 	    case 'M':
-	        KEY("MinLevel",	hcat->min_level,	fread_number(fp));
+		KEY("MinLevel",	hcat->min_level,	fread_number(fp));
 		KEY("Modified",	hcat->modified,		fread_number(fp));
 		KEYS("ModifiedBy",	hcat->modified_by,	fread_string(fp));
+		break;
+
+		case 'R':
+		KEY("Rank",		hcat->min_rank,		fread_number(fp));
 		break;
 
 	    case 'S':
@@ -659,6 +663,17 @@ HELP_CATEGORY *read_help_category_new(FILE *fp)
 	free_string(hcat->description);
 	hcat->description = str_dup("None\n\r");
     }
+
+    if (hcat->min_level == 150)
+        hcat->min_rank = STAFF_IMMORTAL;
+    else if (hcat->min_level == 151 || hcat->min_level == 152)
+        hcat->min_rank = STAFF_ASCENDANT;
+    else if (hcat->min_level == 153)
+        hcat->min_rank = STAFF_SUPREMACY;
+    else if (hcat->min_level == 154)
+        hcat->min_rank = STAFF_CREATOR;
+    else if (hcat->min_level == 155)
+        hcat->min_rank = STAFF_IMPLEMENTOR;
 
     return hcat;
 }
@@ -695,6 +710,7 @@ HELP_DATA *read_help_new(FILE *fp)
 		break;
 
             case 'R':
+			KEY("Rank",		help->min_rank,		fread_number(fp));
 		if (!str_cmp(word, "RelatedTopic")) {
 		    STRING_DATA *topic, *topic_tmp;
 
@@ -751,6 +767,17 @@ HELP_DATA *read_help_new(FILE *fp)
 	free_string(help->text);
 	help->text = str_dup("Unknown");
     }
+
+	if (help->min_level == 150)
+        help->min_rank = STAFF_IMMORTAL;
+    else if (help->min_level == 151 || help->min_level == 152)
+        help->min_rank = STAFF_ASCENDANT;
+    else if (help->min_level == 153)
+        help->min_rank = STAFF_SUPREMACY;
+    else if (help->min_level == 154)
+        help->min_rank = STAFF_CREATOR;
+    else if (help->min_rank == 155)
+        help->min_rank = STAFF_IMPLEMENTOR;
 
     return help;
 }

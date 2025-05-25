@@ -108,9 +108,10 @@ void do_smite(CHAR_DATA *ch, char *argument)
 void do_stake(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *victim;
-    OBJ_DATA *stake;
+    OBJ_DATA *stake = NULL;
     int chance;
     char arg[MAX_STRING_LENGTH];
+    ITERATOR it;
 
     if ((chance = get_skill(ch, gsn_stake)) == 0)
     {
@@ -122,39 +123,43 @@ void do_stake(CHAR_DATA *ch, char *argument)
 
     if (arg[0] == '\0')
     {
-	send_to_char("Stake whom?\n\r", ch);
-	return;
+        send_to_char("Stake whom?\n\r", ch);
+        return;
     }
 
     if ((victim = get_char_room(ch, NULL, arg)) == NULL)
     {
-	send_to_char("They aren't here.\n\r", ch);
-	return;
+        send_to_char("They aren't here.\n\r", ch);
+        return;
     }
 
-    for (stake = ch->carrying; stake != NULL; stake = stake->next_content)
-    {
-    	if (stake->item_type == ITEM_WEAPON && stake->value[0] == WEAPON_STAKE
-    		&& (!str_cmp(stake->material, "wood") || !str_cmp(stake->material, "silver")))
-	    break;
+    // Find a stake in the character's inventory using the new lcarrying list
+    if (ch->lcarrying) {
+        iterator_start(&it, ch->lcarrying);
+        while ((stake = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (stake->item_type == ITEM_WEAPON && stake->value[0] == WEAPON_STAKE
+                && (!str_cmp(stake->material, "wood") || !str_cmp(stake->material, "silver")))
+                break;
+        }
+        iterator_stop(&it);
     }
 
     if (stake == NULL)
     {
-    	send_to_char("You aren't carrying or wielding a wooden or silver stake.\n\r", ch);
-	return;
+        send_to_char("You aren't carrying or wielding a wooden or silver stake.\n\r", ch);
+        return;
     }
 
     if (!IS_VAMPIRE(victim))
     {
-	act("$N isn't a vampire.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return;
+        act("$N isn't a vampire.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        return;
     }
 
     if (IS_AWAKE(victim))
     {
-	act("$N must be sleeping or $E will see you.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return;
+        act("$N must be sleeping or $E will see you.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        return;
     }
 
     chance += (ch->tot_level - victim->tot_level) / 3;
@@ -163,36 +168,36 @@ void do_stake(CHAR_DATA *ch, char *argument)
 
     if (number_percent() < chance)
     {
-	act("{RYou plunge $p into $N's heart, turning $M to dust!{x", ch, victim, NULL, stake, NULL, NULL, NULL, TO_CHAR);
-	act("{RYour body disintegrates as $n plunges $p into your heart!{x", ch, victim, NULL, stake, NULL, NULL, NULL, TO_VICT);
-	act("{R$N's body turns to dust as $n plunges $p into $S heart!{x", 	ch, victim, NULL, stake, NULL, NULL, NULL, TO_NOTVICT);
+        act("{RYou plunge $p into $N's heart, turning $M to dust!{x", ch, victim, NULL, stake, NULL, NULL, NULL, TO_CHAR);
+        act("{RYour body disintegrates as $n plunges $p into your heart!{x", ch, victim, NULL, stake, NULL, NULL, NULL, TO_VICT);
+        act("{R$N's body turns to dust as $n plunges $p into $S heart!{x", ch, victim, NULL, stake, NULL, NULL, NULL, TO_NOTVICT);
 
-	if (IS_NPC(victim))
-	    ch->monster_kills++;
-	else
-	    player_kill(ch, victim);
+        if (IS_NPC(victim))
+            ch->monster_kills++;
+        else
+            player_kill(ch, victim);
 
-	victim->death_type = DEATHTYPE_STAKE;
+        victim->death_type = DEATHTYPE_STAKE;
 
-	{
-		ROOM_INDEX_DATA *here = victim->in_room;
-		victim->position = POS_STANDING;
-		if(!p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_DEATH, NULL))
-			p_percent_trigger(NULL, NULL, here, NULL, ch, victim, NULL, NULL, NULL, TRIG_DEATH, NULL);
-	}
+        {
+            ROOM_INDEX_DATA *here = victim->in_room;
+            victim->position = POS_STANDING;
+            if(!p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_DEATH, NULL))
+                p_percent_trigger(NULL, NULL, here, NULL, ch, victim, NULL, NULL, NULL, TRIG_DEATH, NULL);
+        }
 
-	raw_kill(victim, false, true, RAWKILL_INCINERATE);
-	check_improve(ch, gsn_stake, true, 1);
-	return;
+        raw_kill(victim, false, true, RAWKILL_INCINERATE);
+        check_improve(ch, gsn_stake, true, 1);
+        return;
     }
     else
     {
-	act("You stumble and wake $N!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	act("You awake to the sight of $n looming over you with $p in $s hand!", ch, victim, NULL, stake, NULL, NULL, NULL, TO_VICT);
-	act("$n sneaks up on $N, stakeing $p, but wakes $M!", ch, victim, NULL, stake, NULL, NULL, NULL, TO_NOTVICT);
+        act("You stumble and wake $N!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        act("You awake to the sight of $n looming over you with $p in $s hand!", ch, victim, NULL, stake, NULL, NULL, NULL, TO_VICT);
+        act("$n sneaks up on $N, stakeing $p, but wakes $M!", ch, victim, NULL, stake, NULL, NULL, NULL, TO_NOTVICT);
 
-	one_hit(victim, ch, 0, false);
-	check_improve(ch, gsn_stake, false, 1);
+        one_hit(victim, ch, 0, false);
+        check_improve(ch, gsn_stake, false, 1);
     }
 }
 
@@ -347,8 +352,9 @@ void shift_char(CHAR_DATA *ch, bool silent)
     char buf[MSL];
     AFFECT_DATA af;
     MOB_INDEX_DATA *pMob;
-    OBJ_DATA *obj, *obj_next;
+    OBJ_DATA *obj;
     int num_classes;
+	ITERATOR it;
 memset(&af,0,sizeof(af));
 
     // Unshift
@@ -419,12 +425,13 @@ memset(&af,0,sizeof(af));
 	ch->mana = 0;
 
 	// take off equipment
-	for (obj = ch->carrying; obj != NULL; obj = obj_next)
-	{
-	    obj_next = obj->next_content;
-	    if (obj->wear_loc != WEAR_NONE)
-	        unequip_char(ch, obj, false);
-	}
+if (ch->lworn) {
+    iterator_start(&it, ch->lworn);
+    while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+        unequip_char(ch, obj, false);
+    }
+    iterator_stop(&it);
+}
 
 	// remove affects
 	while (ch->affected)

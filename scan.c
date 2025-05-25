@@ -165,7 +165,7 @@ bool scan_list(ROOM_INDEX_DATA *scan_room, CHAR_DATA *ch, int depth, int door, v
 		if (rch == ch)
 			continue;
 
-		if (!IS_NPC(rch) && rch->invis_level > get_trust(ch))
+		if (!IS_NPC(rch) && rch->invis_level > get_staff_rank(ch))
 			continue;
 
 		if (can_see(ch, rch) && rch->position != POS_FEIGN)

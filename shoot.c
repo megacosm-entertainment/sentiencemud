@@ -20,6 +20,7 @@ void do_shoot( CHAR_DATA *ch, char *argument )
     OBJ_DATA *bow = NULL;
     OBJ_DATA *obj = NULL;
     OBJ_DATA *quiver = NULL;
+    ITERATOR it;
     char arg1[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
     char buf[MAX_STRING_LENGTH];
@@ -29,93 +30,97 @@ void do_shoot( CHAR_DATA *ch, char *argument )
 
     if ( IS_SET(ch->in_room->room_flag[0], ROOM_SAFE ) )
     {
-    	send_to_char("You cannot use ranged weapons from safe rooms.\n\r", ch );
-	return;
+        send_to_char("You cannot use ranged weapons from safe rooms.\n\r", ch );
+    return;
     }
 
     // Is person holding weapon?
     bow = get_eq_char( ch, WEAR_WIELD );
     if ( bow == NULL || bow->item_type != ITEM_RANGED_WEAPON )
     {
-	bow = get_eq_char( ch, WEAR_HOLD );
-	if ( bow == NULL || bow->item_type != ITEM_RANGED_WEAPON )
-	{
-	    bow = get_eq_char( ch, WEAR_BACK );
-	    if ( bow == NULL || bow->item_type != ITEM_RANGED_WEAPON )
-	    {
-		send_to_char("You don't have a ranged weapon.\n\r", ch );
-		return;
-	    }
-	}
+    bow = get_eq_char( ch, WEAR_HOLD );
+    if ( bow == NULL || bow->item_type != ITEM_RANGED_WEAPON )
+    {
+        bow = get_eq_char( ch, WEAR_BACK );
+        if ( bow == NULL || bow->item_type != ITEM_RANGED_WEAPON )
+        {
+        send_to_char("You don't have a ranged weapon.\n\r", ch );
+        return;
+        }
+    }
     }
 
     // Check for a quiver first, make sure it's the right kind
     if ( ( quiver = get_eq_char( ch, WEAR_SHOULDER ) ) != NULL )
     {
-	for ( obj = quiver->contains; obj != NULL; obj = obj->next_content )
-	{
-	    if ( ( can_see_obj( ch, obj )
-	    && ( bow->value[0] == RANGED_WEAPON_CROSSBOW
-	    &&   obj->item_type == ITEM_WEAPON
-	    &&   obj->value[0] == WEAPON_BOLT)
-	    &&   obj->level <= ch->tot_level )
+    for ( obj = quiver->contains; obj != NULL; obj = obj->next_content )
+    {
+        if ( ( can_see_obj( ch, obj )
+        && ( bow->value[0] == RANGED_WEAPON_CROSSBOW
+        &&   obj->item_type == ITEM_WEAPON
+        &&   obj->value[0] == WEAPON_BOLT)
+        &&   obj->level <= ch->tot_level )
 
-	    ||  (bow->value[0] == RANGED_WEAPON_BOW
-		  && obj->item_type == ITEM_WEAPON
-		  && obj->value[0] == WEAPON_ARROW
-		  &&   obj->level <= ch->tot_level)
-	// @@@NIB : 20070126 : Added quiver support
-	    ||  (bow->value[0] == RANGED_WEAPON_BLOWGUN
-		  && obj->item_type == ITEM_WEAPON
-		  && obj->value[0] == WEAPON_DART
-		  &&   obj->level <= ch->tot_level)
+        ||  (bow->value[0] == RANGED_WEAPON_BOW
+          && obj->item_type == ITEM_WEAPON
+          && obj->value[0] == WEAPON_ARROW
+          &&   obj->level <= ch->tot_level)
+    // @@@NIB : 20070126 : Added quiver support
+        ||  (bow->value[0] == RANGED_WEAPON_BLOWGUN
+          && obj->item_type == ITEM_WEAPON
+          && obj->value[0] == WEAPON_DART
+          &&   obj->level <= ch->tot_level)
 
-	    ||  (bow->value[0] == RANGED_WEAPON_HARPOON
-		  && obj->item_type == ITEM_WEAPON
-		  && obj->value[0] == WEAPON_HARPOON
-		  &&   obj->level <= ch->tot_level))
-	// @@@NIB : 20070126 : Added quiver support
-		break;
-	}
+        ||  (bow->value[0] == RANGED_WEAPON_HARPOON
+          && obj->item_type == ITEM_WEAPON
+          && obj->value[0] == WEAPON_HARPOON
+          &&   obj->level <= ch->tot_level))
+    // @@@NIB : 20070126 : Added quiver support
+        break;
+    }
     }
 
-    // If no quiver or if quiver is empty, check inventory
+    // If no quiver or if quiver is empty, check inventory using lcarrying
     if ( obj == NULL )
     {
         quiver = NULL;
 
-	for ( obj = ch->carrying; obj != NULL; obj = obj->next_content )
-	{
-	    if ( ( can_see_obj( ch, obj )
-	    && ( bow->value[0] == RANGED_WEAPON_CROSSBOW
-	    &&   obj->item_type == ITEM_WEAPON
-	    &&   obj->value[0] == WEAPON_BOLT)
-	    &&   obj->level <= ch->tot_level )
+        if (ch->lcarrying) {
+            iterator_start(&it, ch->lcarrying);
+            while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+                if (( can_see_obj(ch, obj)
+                && (bow->value[0] == RANGED_WEAPON_CROSSBOW
+                &&  obj->item_type == ITEM_WEAPON
+                &&  obj->value[0] == WEAPON_BOLT)
+                &&  obj->level <= ch->tot_level)
 
-	    ||  (bow->value[0] == RANGED_WEAPON_BOW
-		  && obj->item_type == ITEM_WEAPON
-		  && obj->value[0] == WEAPON_ARROW
-		  &&   obj->level <= ch->tot_level )
+                || (bow->value[0] == RANGED_WEAPON_BOW
+                    && obj->item_type == ITEM_WEAPON
+                    && obj->value[0] == WEAPON_ARROW
+                    && obj->level <= ch->tot_level)
 
-	// @@@NIB : 20070126 : Added inventory check
-	    ||  (bow->value[0] == RANGED_WEAPON_BLOWGUN
-		  && obj->item_type == ITEM_WEAPON
-		  && obj->value[0] == WEAPON_DART
-		  &&   obj->level <= ch->tot_level)
+                // @@@NIB : 20070126 : Added inventory check
+                || (bow->value[0] == RANGED_WEAPON_BLOWGUN
+                    && obj->item_type == ITEM_WEAPON
+                    && obj->value[0] == WEAPON_DART
+                    && obj->level <= ch->tot_level)
 
-	    ||  (bow->value[0] == RANGED_WEAPON_HARPOON
-		  && obj->item_type == ITEM_WEAPON
-		  && obj->value[0] == WEAPON_HARPOON
-		  &&   obj->level <= ch->tot_level))
-	// @@@NIB : 20070126 : Added inventory check
-		break;
-	}
+                || (bow->value[0] == RANGED_WEAPON_HARPOON
+                    && obj->item_type == ITEM_WEAPON
+                    && obj->value[0] == WEAPON_HARPOON
+                    && obj->level <= ch->tot_level)) {
+                    iterator_stop(&it);
+                    break;
+                }
+            }
+            iterator_stop(&it);
+        }
     }
 
     if ( obj == NULL )
     {
-	send_to_char("You have a weapon, but nothing to fire.\n\r", ch );
-	return;
+    send_to_char("You have a weapon, but nothing to fire.\n\r", ch );
+    return;
     }
 
     argument = one_argument( argument, arg1 );
@@ -124,8 +129,8 @@ void do_shoot( CHAR_DATA *ch, char *argument )
     victim = NULL;
     if ( arg1[0] == '\0' && arg2[0] == '\0' && (victim = ch->fighting) == NULL )
     {
-	send_to_char("Syntax: shoot <target> [direction]\n\r", ch );
-	return;
+    send_to_char("Syntax: shoot <target> [direction]\n\r", ch );
+    return;
     }
 
     // Did player put in a direction?
@@ -140,101 +145,101 @@ void do_shoot( CHAR_DATA *ch, char *argument )
 
     if ( victim == NULL )
     {
-	if ( direction != -1 )
-	    victim = search_dir_name( ch, arg1, direction, bow->value[3] );
-	else
-	{
-	    direction = -1;
+    if ( direction != -1 )
+        victim = search_dir_name( ch, arg1, direction, bow->value[3] );
+    else
+    {
+        direction = -1;
 
-	    if ( ( victim = get_char_room( ch, NULL, arg1 ) ) == NULL )
-	    {
-		for ( ii = 0; ii < MAX_DIR; ii++ )
-		{
-		    if ( (vch = search_dir_name( ch, arg1, ii, bow->value[3] ) ) != NULL )
-		    {
-			if ( direction != -1 )
-			{
-			    send_to_char("Multiple targets like that, which direction?\n\r", ch );
-			    return;
-			}
+        if ( ( victim = get_char_room( ch, NULL, arg1 ) ) == NULL )
+        {
+        for ( ii = 0; ii < MAX_DIR; ii++ )
+        {
+            if ( (vch = search_dir_name( ch, arg1, ii, bow->value[3] ) ) != NULL )
+            {
+            if ( direction != -1 )
+            {
+                send_to_char("Multiple targets like that, which direction?\n\r", ch );
+                return;
+            }
 
-			victim = vch;
-			direction = ii;
-		    }
-		}
-	    }
-	}
+            victim = vch;
+            direction = ii;
+            }
+        }
+        }
+    }
     }
 
     if ( victim == NULL )
     {
-	if ( direction == -1 )
-	    send_to_char("You don't see anyone like that around.\n\r", ch );
-	else
-	    act("You don't see anyone like that to the $t.", ch, NULL, NULL, NULL, NULL, dir_name[direction], NULL, TO_CHAR );
+    if ( direction == -1 )
+        send_to_char("You don't see anyone like that around.\n\r", ch );
+    else
+        act("You don't see anyone like that to the $t.", ch, NULL, NULL, NULL, NULL, dir_name[direction], NULL, TO_CHAR );
 
-	return;
+    return;
     }
 
     if ( victim == ch )
     {
-	send_to_char("There are far more pleasant ways to commit suicide.\n\r", ch );
-	return;
+    send_to_char("There are far more pleasant ways to commit suicide.\n\r", ch );
+    return;
     }
 
     if ( is_safe( ch, victim, true ) )
-	return;
+    return;
 
     range = get_distance( ch, arg1, direction, bow->value[3] );
 
     if ( quiver != NULL )
     { // have quiver
-	if ( ch->in_room == victim->in_room ) // same room
-	{
-	    sprintf( buf, "$n draws %s from %s and takes careful aim at $N.",
-		obj->short_descr,
-		quiver->short_descr );
-	    act( buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT );
+    if ( ch->in_room == victim->in_room ) // same room
+    {
+        sprintf( buf, "$n draws %s from %s and takes careful aim at $N.",
+        obj->short_descr,
+        quiver->short_descr );
+        act( buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT );
 
-	    sprintf( buf, "{R$n draws %s from %s and takes careful aim at you!{x",
-		obj->short_descr,
-		quiver->short_descr );
-	    act( buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT );
-	}
-	else // ranged attack
-	{
-	    sprintf(buf, "$n draws %s from %s and takes careful aim %swards.",
-		    obj->short_descr, quiver->short_descr, dir_name[ direction ] );
-	    act( buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	}
+        sprintf( buf, "{R$n draws %s from %s and takes careful aim at you!{x",
+        obj->short_descr,
+        quiver->short_descr );
+        act( buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT );
+    }
+    else // ranged attack
+    {
+        sprintf(buf, "$n draws %s from %s and takes careful aim %swards.",
+            obj->short_descr, quiver->short_descr, dir_name[ direction ] );
+        act( buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    }
 
-	sprintf(buf, "You draw %s from %s and take careful aim at %s.",
-	    obj->short_descr, quiver->short_descr, pers(victim, ch));
-	act( buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    sprintf(buf, "You draw %s from %s and take careful aim at %s.",
+        obj->short_descr, quiver->short_descr, pers(victim, ch));
+    act( buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
     }
     else
     { // no quiver
-	if ( ch->in_room == victim->in_room )
-	{
-	    sprintf( buf, "$n takes %s and aims carefully at $N.",
-		obj->short_descr );
+    if ( ch->in_room == victim->in_room )
+    {
+        sprintf( buf, "$n takes %s and aims carefully at $N.",
+        obj->short_descr );
 
-	    act( buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT );
+        act( buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT );
 
-	    sprintf( buf, "{R$n takes %s and aims carefully at you!{x",
-		obj->short_descr );
-	    act( buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT );
-	}
-	else
-	{
-	    sprintf(buf, "$n takes %s and aims carefully %swards.",
-		    obj->short_descr, dir_name[ direction ] );
-	    act( buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	}
+        sprintf( buf, "{R$n takes %s and aims carefully at you!{x",
+        obj->short_descr );
+        act( buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT );
+    }
+    else
+    {
+        sprintf(buf, "$n takes %s and aims carefully %swards.",
+            obj->short_descr, dir_name[ direction ] );
+        act( buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    }
 
-	sprintf(buf, "You take %s and aim carefully at %s.",
-	    obj->short_descr, pers(victim, ch));
-	act( buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    sprintf(buf, "You take %s and aim carefully at %s.",
+        obj->short_descr, pers(victim, ch));
+    act( buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
     }
 
     // If arrow from quiver then faster to load and aim
@@ -252,8 +257,8 @@ void do_shoot( CHAR_DATA *ch, char *argument )
 
     if ( get_skill(ch, gsn_archery) > 0 )
     {
-    	ch->ranged -= (ch->ranged * (get_skill(ch, gsn_archery)/3))/100;
-	check_improve(ch, gsn_archery, true, 6);
+        ch->ranged -= (ch->ranged * (get_skill(ch, gsn_archery)/3))/100;
+    check_improve(ch, gsn_archery, true, 6);
     }
 
     ch->projectile_weapon = bow;
