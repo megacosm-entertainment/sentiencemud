@@ -41,6 +41,9 @@
 #include <math.h>
 #include <libpng/png.h>
 #include <qrencode.h>
+#include <sys/stat.h>  /* For chmod() */
+#include <openssl/rand.h>  /* For RAND_bytes() */
+#include <openssl/evp.h>
 #include "merc.h"
 #include "interp.h"
 #include "magic.h"
@@ -48,7 +51,10 @@
 #include "tables.h"
 #include "scripts.h"
 #include "wilds.h"
-#include "openssl/evp.h"
+
+
+unsigned char crypto_key[AES_KEY_SIZE]; // Server-side key
+bool key_initialized;
 
 extern LLIST *loaded_instances;
 bool is_llist(const void *ptr);
@@ -10231,8 +10237,24 @@ void send_email_ex(CHAR_DATA *ch, ACCOUNT_DATA *acct, char *email, char *subject
     else
         recipient_name = "Adventurer";
 
+	    // Create the plain text version of the email
     sprintf(body_buf, "Hello %s,\n\n%s\n\nSincerely,\n\nThe SentienceMUD Staff", recipient_name, message);
-    sprintf(body_buf_html, "Hello %s,<br/><br/>%s<br/><br/>Sincerely,<br/><br/>The SentienceMUD Staff", recipient_name, message);
+    
+    // Create the HTML version by converting all newlines to <br/> tags
+    char *src = body_buf;
+    char *dst = body_buf_html;
+    
+    // Convert newlines to <br/> tags
+    while (*src) {
+        if (*src == '\n') {
+            strcpy(dst, "<br/>");
+            dst += 5;  // Length of "<br/>"
+        } else {
+            *dst++ = *src;
+        }
+        src++;
+    }
+    *dst = '\0';
 
     quickmail_set_body(mailobj, body_buf);
     quickmail_add_body_memory(mailobj, "text/html", body_buf_html, strlen(body_buf_html), 0);
@@ -10540,36 +10562,12 @@ bool check_account_recovery_code(ACCOUNT_DATA *acct, const char *code) {
     return false;
 }
 
-// Display recovery codes to the user
-void display_recovery_codes(DESCRIPTOR_DATA *d, CHAR_DATA *ch)
+// Display recovery codes to the user using account character data
+void display_recovery_codes(DESCRIPTOR_DATA *d, ACCOUNT_CHARACTER *acct_char)
 {
-    ACCOUNT_DATA *acct = NULL;
-    ACCOUNT_CHARACTER *acct_char = NULL;
-    bool has_auth_data = false;
-    
-    if (!d || !ch)
+    if (!d || !acct_char)
         return;
         
-    // Get account character data
-    if (ch->desc && ch->desc->account) {
-        acct = ch->desc->account;
-        has_auth_data = get_character_auth_data(ch, acct, &acct_char);
-    }
-    
-    if (!has_auth_data || !acct_char) {
-        // Fall back to character pcdata as legacy support
-        write_to_buffer(d, "\n\r{YYour recovery codes (each can be used once):{x\n\r", 0);
-        for (int i = 0; i < MFA_RECOVERY_CODES; ++i) {
-            char buf[128];
-            if (ch->pcdata->recovery_used[i])
-                sprintf(buf, "{R%s {X(used){x\n\r", ch->pcdata->recovery_codes[i]);
-            else
-                sprintf(buf, "%s\n\r", ch->pcdata->recovery_codes[i]);
-            write_to_buffer(d, buf, 0);
-        }
-        return;
-    }
-
     write_to_buffer(d, "\n\r{YYour recovery codes (each can be used once):{x\n\r", 0);
     for (int i = 0; i < MFA_RECOVERY_CODES; ++i) {
         char buf[128];
@@ -11229,4 +11227,407 @@ bool is_llist(const void *ptr)
         return true;
 
     return false;
+}
+
+
+// Initialize the server-side crypto key
+void crypto_init(void)
+{
+    FILE *key_file;
+    bool key_initialized = false;
+    if (key_initialized)
+        return;
+    
+    key_file = fopen(MFA_ENC_KEY, "rb");
+    if (key_file) {
+        // Read existing key
+        if (fread(crypto_key, 1, AES_KEY_SIZE, key_file) != AES_KEY_SIZE) {
+            log_string("WARNING: Failed to read crypto key file, generating new one");
+            RAND_bytes(crypto_key, AES_KEY_SIZE);
+        }
+        fclose(key_file);
+    } else {
+        // Generate and save a new key
+        RAND_bytes(crypto_key, AES_KEY_SIZE);
+        key_file = fopen(MFA_ENC_KEY, "wb");
+        if (key_file) {
+            fwrite(crypto_key, 1, AES_KEY_SIZE, key_file);
+            fclose(key_file);
+            
+            // Make the key file readable only by the server user
+            chmod(MFA_ENC_KEY, 0600);
+        } else {
+            log_string("ERROR: Failed to create crypto key file");
+        }
+    }
+    
+    key_initialized = true;
+}
+
+/*
+ * Check if a string appears to be an encrypted key
+ * This version also recognizes strings with linebreaks as encrypted
+ */
+bool is_encrypted_key(const char *str)
+{
+    if (IS_NULLSTR(str))
+        return false;
+    
+    // Base64 encoded data will contain characters from this set: A-Za-z0-9+/=
+    // Plus potential newlines/carriage returns
+    const char *base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+    int valid_chars = 0;
+    int len = strlen(str);
+    
+    for (int i = 0; i < len; i++) {
+        if (strchr(base64_chars, str[i]) != NULL || str[i] == '\r' || str[i] == '\n')
+            valid_chars++;
+    }
+    
+    // Check that at least 90% of characters are valid base64 chars or newlines
+    // and that the length is reasonable for an encrypted key (>16)
+    return (valid_chars > len * 0.9 && len > 16);
+}
+
+/*
+ * Normalize an encrypted string by removing linebreaks
+ * This ensures consistent handling regardless of how it was stored
+ */
+char *normalize_encrypted_key(const char *encrypted)
+{
+    if (IS_NULLSTR(encrypted))
+        return str_dup("");
+        
+    char *result = malloc(strlen(encrypted) + 1);
+    if (!result)
+        return str_dup("");
+        
+    int j = 0;
+    for (int i = 0; encrypted[i]; i++) {
+        if (encrypted[i] != '\r' && encrypted[i] != '\n')
+            result[j++] = encrypted[i];
+    }
+    result[j] = '\0';
+    
+    return result;
+}
+
+/*
+ * Encrypt a string using AES-256-CBC
+ * Creates a string safe for file storage (no linebreaks)
+ */
+char* encrypt_string(const char *plaintext)
+{
+    EVP_CIPHER_CTX *ctx;
+    unsigned char *ciphertext, *output;
+    unsigned char iv[AES_IV_SIZE];
+    unsigned char salt[CRYPTO_SALT_SIZE];
+    int len, ciphertext_len = 0;
+    size_t output_len;
+    
+    if (!key_initialized)
+        crypto_init();
+    
+    if (!plaintext || !*plaintext)
+        return str_dup("");
+    
+    // Generate a random IV and salt for each encryption
+    RAND_bytes(iv, AES_IV_SIZE);
+    RAND_bytes(salt, CRYPTO_SALT_SIZE);
+    
+    // Allocate memory for the ciphertext
+    ciphertext = malloc(strlen(plaintext) + AES_IV_SIZE + CRYPTO_SALT_SIZE + EVP_MAX_BLOCK_LENGTH);
+    if (!ciphertext)
+        return str_dup("");
+    
+    // Create and initialize the context
+    ctx = EVP_CIPHER_CTX_new();
+    
+    // Initialize encryption
+    EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, crypto_key, iv);
+    
+    // Encrypt: First copy the IV and salt directly to the output buffer
+    memcpy(ciphertext, iv, AES_IV_SIZE);
+    memcpy(ciphertext + AES_IV_SIZE, salt, CRYPTO_SALT_SIZE);
+    ciphertext_len = AES_IV_SIZE + CRYPTO_SALT_SIZE;
+    
+    // Perform encryption
+    EVP_EncryptUpdate(ctx, ciphertext + ciphertext_len, &len, 
+                     (unsigned char*)plaintext, strlen(plaintext));
+    ciphertext_len += len;
+    
+    // Finalize encryption
+    EVP_EncryptFinal_ex(ctx, ciphertext + ciphertext_len, &len);
+    ciphertext_len += len;
+    
+    // Clean up
+    EVP_CIPHER_CTX_free(ctx);
+    
+    // Base64 encode the result (IV + salt + ciphertext)
+    output = (unsigned char*)base64_encode(ciphertext, ciphertext_len, &output_len);
+    free(ciphertext);
+    
+    // Clean up any linebreaks in the output to ensure consistent storage
+    char *normalized = normalize_encrypted_key((char*)output);
+    free(output);
+    
+    return normalized;
+}
+
+/*
+ * Decrypt a string using AES-256-CBC
+ * Handles potential linebreaks in input
+ */
+char* decrypt_string(const char *ciphertext)
+{
+    EVP_CIPHER_CTX *ctx;
+    unsigned char *ciphertext_binary, *plaintext;
+    unsigned char iv[AES_IV_SIZE];
+    int len, plaintext_len = 0;
+    size_t ciphertext_len;
+    char *result;
+    
+    if (!key_initialized)
+        crypto_init();
+    
+    if (!ciphertext || !*ciphertext)
+        return str_dup("");
+    
+    // Normalize the input to remove any linebreaks
+    char *normalized_input = normalize_encrypted_key(ciphertext);
+    
+    // Base64 decode
+    ciphertext_binary = base64_decode(normalized_input, strlen(normalized_input), &ciphertext_len);
+    free(normalized_input);
+    
+    if (!ciphertext_binary || ciphertext_len <= AES_IV_SIZE + CRYPTO_SALT_SIZE) {
+        if (ciphertext_binary) free(ciphertext_binary);
+        return str_dup("");
+    }
+    
+    // Extract the IV (first AES_IV_SIZE bytes)
+    memcpy(iv, ciphertext_binary, AES_IV_SIZE);
+    
+    // Allocate memory for the plaintext
+    plaintext = malloc(ciphertext_len);
+    if (!plaintext) {
+        free(ciphertext_binary);
+        return str_dup("");
+    }
+    
+    // Create and initialize the context
+    ctx = EVP_CIPHER_CTX_new();
+    
+    // Initialize decryption
+    EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, crypto_key, iv);
+    
+    // Decrypt (skip the IV and salt in the input)
+    EVP_DecryptUpdate(ctx, plaintext, &len, 
+                     ciphertext_binary + AES_IV_SIZE + CRYPTO_SALT_SIZE, 
+                     ciphertext_len - AES_IV_SIZE - CRYPTO_SALT_SIZE);
+    plaintext_len = len;
+    
+    // Finalize decryption
+    EVP_DecryptFinal_ex(ctx, plaintext + len, &len);
+    plaintext_len += len;
+    
+    // Clean up
+    EVP_CIPHER_CTX_free(ctx);
+    free(ciphertext_binary);
+    
+    // Null-terminate the plaintext
+    plaintext[plaintext_len] = '\0';
+    result = str_dup((char*)plaintext);
+    free(plaintext);
+    
+    return result;
+}
+
+/**
+ * Base64 encode using OpenSSL
+ */
+unsigned char *base64_encode(const unsigned char *src, size_t len, size_t *out_len)
+{
+    EVP_ENCODE_CTX *ctx;
+    unsigned char *out;
+    int outlen, tlen;
+    
+    if (!src || len == 0)
+        return NULL;
+    
+    // Allocate enough space for the encoded data (4/3 ratio plus padding)
+    *out_len = ((len + 2) / 3) * 4 + 1;  // +1 for null terminator
+    out = malloc(*out_len);
+    if (!out)
+        return NULL;
+    
+    ctx = EVP_ENCODE_CTX_new();
+    if (!ctx) {
+        free(out);
+        return NULL;
+    }
+    
+    EVP_EncodeInit(ctx);
+    EVP_EncodeUpdate(ctx, out, &outlen, src, len);
+    EVP_EncodeFinal(ctx, out + outlen, &tlen);
+    EVP_ENCODE_CTX_free(ctx);
+    
+    *out_len = outlen + tlen;
+    out[*out_len] = '\0';  // Null terminate for string usage
+    
+    return out;
+}
+
+/**
+ * Base64 decode using OpenSSL
+ */
+unsigned char *base64_decode(const char *src, size_t len, size_t *out_len)
+{
+    EVP_ENCODE_CTX *ctx;
+    unsigned char *out;
+    int outlen, tlen;
+    
+    if (!src || len == 0)
+        return NULL;
+    
+    // Allocate enough space for the decoded data (3/4 ratio)
+    *out_len = ((len + 3) / 4) * 3 + 1;  // +1 for null terminator
+    out = malloc(*out_len);
+    if (!out)
+        return NULL;
+    
+    ctx = EVP_ENCODE_CTX_new();
+    if (!ctx) {
+        free(out);
+        return NULL;
+    }
+    
+    EVP_DecodeInit(ctx);
+    if (EVP_DecodeUpdate(ctx, out, &outlen, (unsigned char*)src, len) < 0) {
+        EVP_ENCODE_CTX_free(ctx);
+        free(out);
+        return NULL;
+    }
+    
+    if (EVP_DecodeFinal(ctx, out + outlen, &tlen) < 0) {
+        EVP_ENCODE_CTX_free(ctx);
+        free(out);
+        return NULL;
+    }
+    
+    EVP_ENCODE_CTX_free(ctx);
+    
+    *out_len = outlen + tlen;
+    out[*out_len] = '\0';  // Null terminate for string usage
+    
+    return out;
+}
+
+
+/**
+ * Checks if a password matches any staff character password in an account
+ * @param acct The account to check
+ * @param plaintext_password The plaintext password to check against
+ * @param exclude_char Character to exclude from the check (useful when changing a specific character's password)
+ * @return true if the password matches any staff character's password, false otherwise
+ */
+bool password_matches_staff_character(ACCOUNT_DATA *acct, const char *plaintext_password, const char *exclude_name) {
+    ITERATOR it;
+    ACCOUNT_CHARACTER *acct_char;
+    
+    if (!acct || IS_NULLSTR(plaintext_password))
+        return false;
+        
+    iterator_start(&it, acct->characters);
+    while ((acct_char = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+        // Skip characters that aren't staff
+        if (!acct_char->staff || acct_char->staff_rank < STAFF_IMMORTAL)
+            continue;
+            
+        // Skip the excluded character if provided
+        if (!IS_NULLSTR(exclude_name) && !str_cmp(exclude_name, acct_char->name))
+            continue;
+            
+        // Skip if the character has no password
+        if (IS_NULLSTR(acct_char->pwd))
+            continue;
+            
+        // Check if the plaintext password matches this character's password
+        if (check_encrypted_password(plaintext_password, acct_char->pwd, acct_char->pwd_vers) != PWD_CHECK_FAIL) {
+            iterator_stop(&it);
+            return true;
+        }
+    }
+    iterator_stop(&it);
+    
+    return false;
+}
+
+/**
+ * Checks if a password matches the account's password
+ * @param acct The account to check
+ * @param plaintext_password The plaintext password to check against
+ * @return true if the password matches the account password, false otherwise
+ */
+bool password_matches_account(ACCOUNT_DATA *acct, const char *plaintext_password) {
+    if (!acct || IS_NULLSTR(plaintext_password) || IS_NULLSTR(acct->passwd))
+        return false;
+        
+    return (check_encrypted_password(plaintext_password, acct->passwd, acct->passwd_version) != PWD_CHECK_FAIL);
+}
+
+/**
+ * Comprehensive password check that enforces staff password uniqueness rules
+ * @param acct The account to check
+ * @param plaintext_password The password to validate
+ * @param is_for_character Whether this is for a character password
+ * @param character_name If for a character, which character (can be NULL)
+ * @param is_staff Whether the character is a staff member
+ * @return true if the password is valid according to uniqueness rules, false otherwise
+ */
+bool validate_password_uniqueness(ACCOUNT_DATA *acct, const char *plaintext_password, 
+                                bool is_for_character, const char *character_name, bool is_staff) {
+    // Don't enforce rules if feature is disabled
+    if (!game_settings.require_uniq_pass_staff)
+        return true;
+        
+    // If changing account password, check it doesn't match any staff character passwords
+    if (!is_for_character && account_has_immortal(acct)) {
+        if (password_matches_staff_character(acct, plaintext_password, NULL)) {
+            return false;  // Account password matches a staff character password
+        }
+    }
+    
+    // If changing a character password
+    if (is_for_character && is_staff) {
+        // Check it doesn't match the account password
+        if (password_matches_account(acct, plaintext_password)) {
+            return false;  // Character password matches account password
+        }
+        
+        // Check it doesn't match other character passwords
+        ITERATOR it;
+        ACCOUNT_CHARACTER *acct_char;
+        
+        iterator_start(&it, acct->characters);
+        while ((acct_char = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+            // Skip the current character
+            if (!IS_NULLSTR(character_name) && !str_cmp(character_name, acct_char->name))
+                continue;
+                
+            // Skip if the character has no password
+            if (IS_NULLSTR(acct_char->pwd))
+                continue;
+                
+            // Check if the plaintext password matches this character's password
+            if (check_encrypted_password(plaintext_password, acct_char->pwd, acct_char->pwd_vers) != PWD_CHECK_FAIL) {
+                iterator_stop(&it);
+                return false;  // Character password matches another character's password
+            }
+        }
+        iterator_stop(&it);
+    }
+    
+    // Password passes all uniqueness checks
+    return true;
 }

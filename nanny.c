@@ -299,7 +299,7 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
 
 
     // Handle MFA
-    if (!IS_NULLSTR(acct->mfa_key) && acct->mfa_enabled && !DEV_SKIP_MFA) {
+    if (!IS_NULLSTR(acct->mfa_key) && !DEV_SKIP_MFA) {
         ProtocolNoEcho(d,true);
         d->connected = CON_GET_ACCOUNT_MFA;
         return;
@@ -655,6 +655,7 @@ void login_account_mfa_verify_for_settings(DESCRIPTOR_DATA *d, char *argument) {
     if (valid) {
         d->mfa_verified = true;
         display_account_mfa_menu(d, "");
+        d->connected = CON_ACCOUNT_MFA_MENU;
     } else {
         write_to_buffer(d, "Invalid MFA or recovery code. Try again: ", 0);
     }
@@ -1125,7 +1126,7 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
                     return;
                 }
                 display_account_mfa_menu(d, "");
-                break;
+                return;
 
             case 'Q': // Quit
                 write_to_buffer(d, "\n\rThank you for playing Sentience!\n\r", 0);
@@ -1280,7 +1281,6 @@ void display_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
 
     // If MFA is enabled, require code before allowing changes (except confirmation)
     if (mfa_enabled && !mfa_pending && !d->mfa_verified) {
-        write_to_buffer(d, "Please enter your MFA code to access settings: ", 0);
         d->connected = CON_ACCOUNT_MFA_VERIFY_FOR_SETTINGS;
         return;
     }
@@ -1351,19 +1351,17 @@ void login_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
                 display_account_mfa_menu(d, "");
                 return;
             }
-            {
-                char key[MIL];
-                char qr_url[MIL];
-                char *secret = generate_totp_key(key, sizeof(key));
-                free_string(acct->mfa_pending_key);
-                acct->mfa_pending_key = str_dup(secret);
-                // No need for mfa_pending flag, the presence of pending_key indicates pending status
-                generate_totp_qr_url(qr_url, sizeof(qr_url), acct->username, secret);
-                display_qr_code(d, qr_url);
-                write_to_buffer(d, "\n\rMFA setup started. Use your authenticator app to scan the QR code or enter the secret above.\n\r", 0);
-                write_to_buffer(d, "You must confirm MFA setup before it is enabled.\n\r", 0);
+            
+            // Call setup_mfa_for_char instead of manually creating keys
+            if (!setup_mfa_for_account(d, false)) {
+                write_to_buffer(d, "Error setting up MFA. Please try again.\n\r", 0);
                 display_account_mfa_menu(d, "");
+                return;
             }
+            
+            // Display the character MFA menu again with updated status
+            display_account_mfa_menu(d, "");
+            
             break;
         case 'C': // Confirm MFA setup
             if (!mfa_pending) {
@@ -1397,6 +1395,7 @@ void login_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
                 else
                     generate_totp_qr_url(qr_url, sizeof(qr_url), acct->username, acct->mfa_key);
                 display_qr_code(d, qr_url);
+                display_account_mfa_key(d, acct);
             }
             display_account_mfa_menu(d, "");
             break;
@@ -3000,7 +2999,6 @@ void login_character_password(DESCRIPTOR_DATA *d, char *argument)
 {
     switch (toupper(argument[0])) {
         case 'Y':
-            write_to_buffer(d, "\n\rEnter new character password: ", 0);
             ProtocolNoEcho(d, true);
             d->connected = CON_CONFIRM_CHARACTER_PASSWORD;
             break;
@@ -3027,6 +3025,14 @@ void login_confirm_character_password(DESCRIPTOR_DATA *d, char *argument)
     
     if (!acceptablePassword(d, argument)) {
         // acceptablePassword should re-prompt or set state
+        return;
+    }
+    
+    // NEW CHECK: Validate staff password uniqueness
+    if (IS_IMMORTAL(ch) && game_settings.require_uniq_pass_staff && 
+        !validate_password_uniqueness(acct, argument, true, ch->name, true)) {
+        write_to_buffer(d, "Staff character passwords must be unique.\n\r", 0);
+        write_to_buffer(d, "This password matches either your account password or another staff character.\n\r", 0);
         return;
     }
     
@@ -3190,6 +3196,24 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
             if (check_reconnect(d, ch->name, true))
                 return;
                 
+            if (!DEV_SKIP_PASSWORD) {
+                if (IS_IMMORTAL(ch) && game_settings.require_uniq_pass_staff && 
+                    !has_char_pwd &&
+                    (IS_NULLSTR(acct->passwd) || acct->passwd_version == 0)) {
+                    write_to_buffer(d, "\n\r{RERROR: Staff characters require a unique password.{x\n\r", 0);
+                    write_to_buffer(d, "You must set a unique password for this character before logging in.\n\r", 0);
+                    display_character_menu(d);
+                    return;
+                }
+                
+                if (has_char_pwd) {
+                    write_to_buffer(d, "\n\rThis character requires an additional password.\n\r", 0);
+                    ProtocolNoEcho(d, true);
+                    d->connected = CON_GET_CHAR_PASSWORD;
+                    return;
+                }
+            }
+
             if (!DEV_SKIP_MFA) {
                 if (IS_IMMORTAL(ch) && game_settings.require_2fa_staff &&
                     !has_char_mfa &&
@@ -3214,24 +3238,7 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
                 }
             }
             
-            if (!DEV_SKIP_PASSWORD) {
-                if (IS_IMMORTAL(ch) && game_settings.require_uniq_pass_staff && 
-                    !has_char_pwd &&
-                    (IS_NULLSTR(acct->passwd) || acct->passwd_version == 0)) {
-                    write_to_buffer(d, "\n\r{RERROR: Staff characters require a unique password.{x\n\r", 0);
-                    write_to_buffer(d, "You must set a unique password for this character before logging in.\n\r", 0);
-                    display_character_menu(d);
-                    return;
-                }
-                
-                if (has_char_pwd) {
-                    write_to_buffer(d, "\n\rThis character requires an additional password.\n\r", 0);
-                    write_to_buffer(d, "Enter character password: ", 0);
-                    ProtocolNoEcho(d, true);
-                    d->connected = CON_GET_CHAR_PASSWORD;
-                    return;
-                }
-            }
+
             
             proceed_to_game(d);
             break;
@@ -3365,7 +3372,7 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
             }
             
             if (has_char_mfa) {
-                write_to_buffer(d, "This character has MFA enabled. Please enter your MFA code: ", 0);
+                write_to_buffer(d, "This character has MFA enabled. ", 0);
                 ProtocolNoEcho(d, true);
                 d->connected = CON_VERIFY_UNLINK_MFA;
                 return;
@@ -3409,7 +3416,7 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
             }
             
             if (has_char_mfa) {
-                write_to_buffer(d, "This character has MFA enabled. Please enter your MFA code: ", 0);
+                write_to_buffer(d, "This character has MFA enabled. ", 0);
                 ProtocolNoEcho(d, true);
                 d->connected = CON_VERIFY_DELETE_MFA;
                 return;
@@ -3642,7 +3649,7 @@ void login_get_char_password(DESCRIPTOR_DATA *d, char *argument)
     }
 
     // Check if MFA is required
-    if (acct_char->mfa_enabled && !DEV_SKIP_MFA) {
+    if (acct_char->mfa_key && !DEV_SKIP_MFA) {
         ProtocolNoEcho(d, true);
         d->connected = CON_GET_CHAR_MFA;
         return;
@@ -3744,7 +3751,7 @@ void setup_account_mfa(DESCRIPTOR_DATA *d)
     if (!acct)
         return;
         
-    if (!setup_mfa_for_account(d, !IS_NULLSTR(acct->email))) {
+    if (!setup_mfa_for_account(d, false)) {
         write_to_buffer(d, "Error setting up MFA. Please try again.\n\r", 0);
         display_account_menu(d);
         d->connected = CON_ACCOUNT_MENU;
@@ -3806,7 +3813,7 @@ void login_character_mfa_verify(DESCRIPTOR_DATA *d, char *argument)
 
     write_to_buffer(d, "MFA has been successfully enabled for this character.\n\r", 0);
     write_to_buffer(d, "\n\rHere are your recovery codes (save them!):\n\r", 0);
-    display_account_recovery_codes(d, acct);
+    display_recovery_codes(d, acct_char);
 
     if (d->creating_staff_character) {
         d->creating_staff_character = false; // Clear flag
@@ -3884,7 +3891,6 @@ void login_get_account_mfa(DESCRIPTOR_DATA *d, char *argument)
             return;
         }
         
-        write_to_buffer(d, "Please enter your MFA code: ", 0);
         return;
     }
     
@@ -3992,21 +3998,23 @@ void login_change_account_password(DESCRIPTOR_DATA *d, char *argument)
         return;
     }
     
-    // Check if the new password is the same as the old one (acct->old_passwd should hold the previous hash)
-    // Note: acct->old_passwd might be in any format. check_encrypted_password can handle this.
+    // Check if the new password is the same as the old one
     if (!IS_NULLSTR(acct->old_passwd)) {
-        // We need to know the version of old_passwd. If it's not explicitly stored,
-        // we might need to infer or just compare against the new hash if it were made from 'argument'.
-        // For simplicity, if old_passwd exists, we assume it's the *actual* old password hash.
-        // A direct comparison of crypt(argument, old_passwd) vs old_passwd is better.
-        password_check_status old_match_status = check_encrypted_password(argument, acct->old_passwd, PWD_VER_CRYPT_SYSTEM); // Assume old_passwd could be any format
-         if (old_match_status != PWD_CHECK_FAIL) {
+        password_check_status old_match_status = check_encrypted_password(argument, acct->old_passwd, PWD_VER_CRYPT_SYSTEM);
+        if (old_match_status != PWD_CHECK_FAIL) {
             write_to_buffer(d, "New password must be DIFFERENT from your current password!\n\r", 0);
             d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
             return;
         }
     }
 
+    // NEW CHECK: Validate uniqueness across staff characters
+    if (game_settings.require_uniq_pass_staff && !validate_password_uniqueness(acct, argument, false, NULL, false)) {
+        write_to_buffer(d, "This password matches one of your staff character passwords.\n\r", 0);
+        write_to_buffer(d, "Staff characters must have unique passwords. Please try a different password.\n\r", 0);
+        d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
+        return;
+    }
 
     if (!acceptablePassword(d, argument)) {
         // acceptablePassword should re-prompt or set state
@@ -4322,6 +4330,15 @@ void login_staff_password(DESCRIPTOR_DATA *d, char *argument)
         return;
     }
 
+    // NEW CHECK: Validate staff password uniqueness
+    if (game_settings.require_uniq_pass_staff && 
+        !validate_password_uniqueness(acct, argument, true, ch->name, true)) {
+        write_to_buffer(d, "Staff character passwords must be unique.\n\r", 0);
+        write_to_buffer(d, "This password matches either your account password or another staff character.\n\r", 0);
+        write_to_buffer(d, "Enter a unique password for this staff character: ", 0);
+        return;
+    }
+
     // First link the character to the account so account_character data exists
     free_string(ch->pcdata->account_name);
     ch->pcdata->account_name = str_dup(acct->username);
@@ -4516,9 +4533,9 @@ void login_character_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
     }
     
     // Get MFA status from account_character data
-    bool mfa_enabled = acct_char->mfa_enabled;
+    bool mfa_enabled = !IS_NULLSTR(acct_char->mfa_key);
     bool mfa_pending = !IS_NULLSTR(acct_char->mfa_pending_key);
-    bool has_secret = mfa_pending || !IS_NULLSTR(acct_char->mfa_key);
+    bool has_secret = mfa_pending || mfa_enabled;
     bool has_recovery = has_recovery_codes((const char **)acct_char->recovery_codes, MFA_RECOVERY_CODES);
     bool has_email = !IS_NULLSTR(acct_char->email);
 
@@ -4529,21 +4546,16 @@ void login_character_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
                 display_character_mfa_menu(d, "");
                 return;
             }
-            {
-                char key[MIL];
-                char qr_url[MIL];
-                char *secret = generate_totp_key(key, sizeof(key));
-                free_string(acct_char->mfa_pending_key);
-                acct_char->mfa_pending_key = str_dup(secret);
-                // No need to set mfa_pending flag - we check if mfa_pending_key is set
-                save_account(acct);
-                
-                generate_totp_qr_url(qr_url, sizeof(qr_url), ch->name, secret);
-                display_qr_code(d, qr_url);
-                write_to_buffer(d, "\n\rMFA setup started. Use your authenticator app to scan the QR code or enter the secret above.\n\r", 0);
-                write_to_buffer(d, "You must confirm MFA setup before it is enabled.\n\r", 0);
+            
+            // Call setup_mfa_for_char instead of manually creating keys
+            if (!setup_mfa_for_char(ch, false)) {
+                write_to_buffer(d, "Error setting up MFA. Please try again.\n\r", 0);
                 display_character_mfa_menu(d, "");
+                return;
             }
+            
+            // Display the character MFA menu again with updated status
+            display_character_mfa_menu(d, "");
             break;
             
         case 'C': // Confirm MFA setup
@@ -4580,6 +4592,7 @@ void login_character_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
                 else
                     generate_totp_qr_url(qr_url, sizeof(qr_url), ch->name, acct_char->mfa_key);
                 display_qr_code(d, qr_url);
+                display_acct_char_mfa_key(d, acct_char);
             }
             display_character_mfa_menu(d, "");
             break;
@@ -4600,7 +4613,7 @@ void login_character_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
                 display_character_mfa_menu(d, "");
                 return;
             }
-            display_account_recovery_codes(d, acct);
+            display_recovery_codes(d, acct_char);
             display_character_mfa_menu(d, "");
             break;
             
@@ -4610,7 +4623,7 @@ void login_character_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
             } else if (!has_email) {
                 write_to_buffer(d, "No email address set for this character.\n\r", 0);
             } else {
-                send_recovery_codes_email_for_account(acct, acct_char->email);
+                send_recovery_codes_email_for_char(ch, acct_char->email);
                 write_to_buffer(d, "Recovery codes emailed.\n\r", 0);
             }
             display_character_mfa_menu(d, "");
@@ -4625,7 +4638,7 @@ void login_character_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
             generate_recovery_codes(acct_char->recovery_codes, acct_char->recovery_used, MFA_RECOVERY_CODES);
             save_account(acct);
             write_to_buffer(d, has_recovery ? "Recovery codes regenerated.\n\r" : "Recovery codes generated.\n\r", 0);
-            display_account_recovery_codes(d, acct);
+            display_recovery_codes(d, acct_char);
             display_character_mfa_menu(d, "");
             break;
             

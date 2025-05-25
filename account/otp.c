@@ -115,11 +115,23 @@ bool validate_totp_code(const char *key, const char *code)
     char previous_totp[MIL];
     char *current_code, *previous_code;
     
+    // Check if the key is encrypted
+    char *plaintext_key = NULL;
+    bool is_encrypted = is_encrypted_key(key);
+    
+    if (is_encrypted) {
+        // Decrypt the key before validation
+        plaintext_key = decrypt_string(key);
+        key = plaintext_key;
+    }
+    
     // Get current and previous tokens (30-second window)
     current_code = get_totp_at(key, current_time, 6, 30, SHA1, &err);
     previous_code = get_totp_at(key, current_time - 30, 6, 30, SHA1, &err);
     
     if (!current_code || !previous_code) {
+        if (is_encrypted && plaintext_key)
+            free_string(plaintext_key);
         return false;
     }
     
@@ -127,22 +139,25 @@ bool validate_totp_code(const char *key, const char *code)
     sprintf(current_totp, "%s", current_code);
     sprintf(previous_totp, "%s", previous_code);
     
-    
     // Check if the provided code matches either the current or previous token
-    if (!str_cmp(code, current_totp) || !str_cmp(code, previous_totp))
-        return true;
+    bool valid = (!str_cmp(code, current_totp) || !str_cmp(code, previous_totp));
     
     // For even better user experience, also check for +30 seconds
     // (handling the case where user's clock is slightly ahead)
-    char next_totp[MIL];
-    char *next_code = get_totp_at(key, current_time + 30, 6, 30, SHA1, &err);
-    if (next_code) {
-        sprintf(next_totp, "%s", next_code);
-        if (!str_cmp(code, next_totp))
-            return true;
+    if (!valid) {
+        char next_totp[MIL];
+        char *next_code = get_totp_at(key, current_time + 30, 6, 30, SHA1, &err);
+        if (next_code) {
+            sprintf(next_totp, "%s", next_code);
+            valid = !str_cmp(code, next_totp);
+        }
     }
+    
+    // Free decrypted key if we allocated it
+    if (is_encrypted && plaintext_key)
+        free_string(plaintext_key);
         
-    return false;
+    return valid;
 }
 
 /*
@@ -284,11 +299,13 @@ bool setup_mfa_for_char(CHAR_DATA *ch, bool has_email)
         
         if (has_auth_data && acct_char) {
             // Store as pending key - requires confirmation before enabling
+            // Encrypt the key before storing
+            char *encrypted_key = encrypt_string(key);
             free_string(acct_char->mfa_pending_key);
-            acct_char->mfa_pending_key = str_dup(key);
+            acct_char->mfa_pending_key = str_dup(encrypted_key);
+            free_string(encrypted_key);
             save_account(acct);
         } else {
-            // If no account character entry found, log this issue
             log_string(formatf("setup_mfa_for_char: No account character entry found for %s", ch->name));
             return false;
         }
@@ -297,7 +314,7 @@ bool setup_mfa_for_char(CHAR_DATA *ch, bool has_email)
         return false;
     }
 
-    // Generate QR code URL for display
+    // Generate QR code URL for display (using plaintext key)
     generate_totp_qr_url(qr_url, sizeof(qr_url), ch->name, key);
 
     // Display setup information to the character
@@ -310,7 +327,7 @@ bool setup_mfa_for_char(CHAR_DATA *ch, bool has_email)
         display_qr_code(ch->desc, qr_url);
         write_to_buffer(ch->desc, "\n\r", 0);
         
-        // Now display the secret key after the QR code
+        // Now display the secret key after the QR code (plaintext for user setup)
         write_to_buffer(ch->desc, "{WSecret Key: {G", 0);
         write_to_buffer(ch->desc, key, 0);
         write_to_buffer(ch->desc, "{x\n\r", 0);
@@ -347,12 +364,14 @@ bool setup_mfa_for_account(DESCRIPTOR_DATA *d, bool has_email)
     // Generate a new key
     generate_totp_key(key, sizeof(key));
     
-    // Save key to account as pending, not directly as mfa_key
+    // Save key to account as pending - encrypt the key before storing
+    char *encrypted_key = encrypt_string(key);
     free_string(acct->mfa_pending_key);
-    acct->mfa_pending_key = str_dup(key);
+    acct->mfa_pending_key = str_dup(encrypted_key);
+    free_string(encrypted_key);
     save_account(acct);
     
-    // Generate QR code URL
+    // Generate QR code URL (using plaintext key)
     generate_totp_qr_url(qr_url, sizeof(qr_url), acct->username, key);
     
     // Display MFA setup information
@@ -374,6 +393,7 @@ bool setup_mfa_for_account(DESCRIPTOR_DATA *d, bool has_email)
     
     return true;
 }
+
 /*
  * Check if a TOTP code is valid for a character
  * Uses account_character data if available, falls back to pcdata
@@ -385,7 +405,7 @@ bool check_char_mfa(CHAR_DATA *ch, const char *code)
     
     ACCOUNT_DATA *acct = NULL;
     ACCOUNT_CHARACTER *acct_char = NULL;
-    const char *mfa_key = NULL;
+    const char *encrypted_key = NULL;
     bool has_auth_data = false;
     
     // Try to get authentication data from account_character
@@ -395,13 +415,13 @@ bool check_char_mfa(CHAR_DATA *ch, const char *code)
         
         if (has_auth_data && acct_char) {
             // Use pending key if in setup mode, otherwise use active key
-            mfa_key = !IS_NULLSTR(acct_char->mfa_pending_key) ? 
+            encrypted_key = !IS_NULLSTR(acct_char->mfa_pending_key) ? 
                       acct_char->mfa_pending_key : acct_char->mfa_key;
             
             // Check for recovery code usage if we have an MFA key
-            if (!IS_NULLSTR(mfa_key)) {
-                // Check TOTP code against the key
-                bool valid = validate_totp_code(mfa_key, code);
+            if (!IS_NULLSTR(encrypted_key)) {
+                // Check TOTP code against the key (validate_totp_code handles decryption)
+                bool valid = validate_totp_code(encrypted_key, code);
                 
                 // If code validates against pending key, activate it
                 if (valid && !IS_NULLSTR(acct_char->mfa_pending_key)) {
@@ -436,9 +456,11 @@ bool check_char_mfa(CHAR_DATA *ch, const char *code)
  * Check if a TOTP code is valid for an account
  */
 bool check_account_mfa(ACCOUNT_DATA *acct, const char *code) {
-    const char *key = acct->mfa_pending ? acct->mfa_pending_key : acct->mfa_key;
-    if (IS_NULLSTR(key)) return false;
-    return validate_totp_code(key, code);
+    const char *encrypted_key = acct->mfa_pending ? acct->mfa_pending_key : acct->mfa_key;
+    if (IS_NULLSTR(encrypted_key)) return false;
+    
+    // validate_totp_code now handles decryption
+    return validate_totp_code(encrypted_key, code);
 }
 
 /*
@@ -497,6 +519,7 @@ void do_keygen(CHAR_DATA *ch, char *argument)
 
 /*
  * Compatibility function
+ * -- Updated to encrypt keys before storing
  */
 void generate_key(CHAR_DATA *ch, char *key)
 {
@@ -518,12 +541,16 @@ void generate_key(CHAR_DATA *ch, char *key)
     
     char *secret_key = base32_encode((uchar *)key, strlen(key)+1, &cotp_err);
     
+    // Encrypt the key before storing
+    char *encrypted_key = encrypt_string(secret_key);
+    
     if (!IS_NULLSTR(acct_char->mfa_key)) {
         free_string(acct_char->mfa_key);
     }
     
-    acct_char->mfa_key = str_dup(secret_key);
+    acct_char->mfa_key = str_dup(encrypted_key);
     free(secret_key);
+    free_string(encrypted_key);
     
     // Save the changes
     save_account(acct);
@@ -539,7 +566,11 @@ bool check_mfa(CHAR_DATA *ch, char *argument)
 
 #include <unistd.h> // for unlink()
 
-void send_qr_email_for_char(CHAR_DATA *ch, const char *email, const char *secret) {
+/*
+ * Send QR code email for character
+ * -- Updated to handle encrypted keys
+ */
+void send_qr_email_for_char(CHAR_DATA *ch, const char *email, const char *encrypted_secret) {
     ACCOUNT_DATA *acct = NULL;
     ACCOUNT_CHARACTER *acct_char = NULL;
     bool has_auth_data = false;
@@ -557,26 +588,39 @@ void send_qr_email_for_char(CHAR_DATA *ch, const char *email, const char *secret
         return;
     }
     
+    // Decrypt key if needed
+    char *plaintext_secret;
+    bool is_encrypted = is_encrypted_key(encrypted_secret);
+    
+    if (is_encrypted)
+        plaintext_secret = decrypt_string(encrypted_secret);
+    else
+        plaintext_secret = str_dup(encrypted_secret);
+    
     // Generate QR code
-    generate_totp_qr_url(qr_url, sizeof(qr_url), ch->name, secret);
+    generate_totp_qr_url(qr_url, sizeof(qr_url), ch->name, plaintext_secret);
 
     QRcode *qrcode = QRcode_encodeString(qr_url, 0, QR_ECLEVEL_L, QR_MODE_8, 1);
-    if (!qrcode) return;
+    if (!qrcode) {
+        free_string(plaintext_secret);
+        return;
+    }
+    
     snprintf(filename, sizeof(filename), "/tmp/%s-qrcode.png", ch->name);
     save_qr_code_as_png(qrcode, filename, 5);
 
     snprintf(subject, sizeof(subject), "Sentience MFA QR Code for %s", ch->name);
     snprintf(body, sizeof(body),
-        "Dear %s,\n\n"
-        "Scan the attached QR code or enter this secret in your authenticator app:\n\n"
+        "Scan the attached QR code or enter this secret in your authenticator app:\n"
         "Secret: %s\n\n"
         "If you did not request this, please contact staff.\n",
-        ch->name, secret);
+        plaintext_secret);
 
     // Use the email from account character data
     send_email_async_ex(ch, acct, acct_char->email, subject, body, filename, "image/png");
 
     QRcode_free(qrcode);
+    free_string(plaintext_secret);
     delayed_unlink(filename);
 }
 
@@ -617,41 +661,143 @@ void send_recovery_codes_email_for_char(CHAR_DATA *ch, const char *email) {
     send_email_async_ex(ch, acct, acct_char->email, subject, body, NULL, NULL);
 }
 
-void send_qr_email_for_account(ACCOUNT_DATA *acct, const char *email, const char *secret) {
+/*
+ * Send QR code email for account
+ * -- Updated to handle encrypted keys
+ */
+void send_qr_email_for_account(ACCOUNT_DATA *acct, const char *email, const char *encrypted_secret) {
     char qr_url[MIL], filename[256], subject[128], body[1024];
-    generate_totp_qr_url(qr_url, sizeof(qr_url), acct->username, secret);
+    
+    // Decrypt key if needed
+    char *plaintext_secret;
+    bool is_encrypted = is_encrypted_key(encrypted_secret);
+    
+    if (is_encrypted)
+        plaintext_secret = decrypt_string(encrypted_secret);
+    else
+        plaintext_secret = str_dup(encrypted_secret);
+    
+    generate_totp_qr_url(qr_url, sizeof(qr_url), acct->username, plaintext_secret);
 
     QRcode *qrcode = QRcode_encodeString(qr_url, 0, QR_ECLEVEL_L, QR_MODE_8, 1);
-    if (!qrcode) return;
+    if (!qrcode) {
+        free_string(plaintext_secret);
+        return;
+    }
+    
     snprintf(filename, sizeof(filename), "/tmp/%s-qrcode.png", acct->username);
     save_qr_code_as_png(qrcode, filename, 5);
 
     snprintf(subject, sizeof(subject), "Sentience MFA QR Code for Account %s", acct->username);
     snprintf(body, sizeof(body),
-        "Dear %s,\n\n"
-        "Scan the attached QR code or enter this secret in your authenticator app:\n\n"
+        "Scan the attached QR code or enter this secret in your authenticator app:\n"
         "Secret: %s\n\n"
-        "If you did not request this, please contact staff.\n",
-        acct->username, secret);
+        "If you did not request this, please contact staff.",
+        plaintext_secret);
 
     send_email_async_ex(NULL, acct, (char *)email, subject, body, filename, "image/png");
 
     QRcode_free(qrcode);
+    free_string(plaintext_secret);
     delayed_unlink(filename);
 }
 
 void send_recovery_codes_email_for_account(ACCOUNT_DATA *acct, const char *email) {
     char subject[128], body[1024];
     snprintf(subject, sizeof(subject), "Sentience MFA Recovery Codes for Account %s", acct->username);
-    strcpy(body, "Your recovery codes (each can be used once):\n\n");
+    
+    // Start with clear header
+    strcpy(body, "Your recovery codes (each can be used once):");
+    
+    // Add TWO newlines after the header for visual separation
+    strcat(body, "\n\n");
+    
     for (int i = 0; i < MFA_RECOVERY_CODES; ++i) {
         if (acct->recovery_codes[i]) {
-            strncat(body, acct->recovery_codes[i], sizeof(body) - strlen(body) - 1);
+            // Add each code on its own line
+            strcat(body, acct->recovery_codes[i]);
             if (acct->recovery_used[i])
-                strncat(body, " (used)", sizeof(body) - strlen(body) - 1);
-            strncat(body, "\n", sizeof(body) - strlen(body) - 1); // One code per line
+                strcat(body, " (used)");
+            
+            // Add a newline after EACH code
+            strcat(body, "\n");
         }
     }
-    strcat(body, "\nKeep these codes safe. Each can be used only once.\n");
+    
+    // Add an empty line before the footer
+    strcat(body, "\n");
+    strcat(body, "Keep these codes safe. Each can be used only once.");
+    
     send_email_async_ex(NULL, acct, (char *)email, subject, body, NULL, NULL);
+}
+
+/*
+ * Display a plaintext MFA key to a descriptor or character
+ * Safely decrypts an encrypted key before display
+ */
+void display_mfa_key(DESCRIPTOR_DATA *d, const char *encrypted_key)
+{
+    if (IS_NULLSTR(encrypted_key)) {
+        if (d)
+            write_to_buffer(d, "No MFA key is set.\n\r", 0);
+        return;
+    }
+
+    // Check if the key needs decryption
+    char *plaintext_key = NULL;
+    bool is_encrypted = is_encrypted_key(encrypted_key);
+    
+    if (is_encrypted)
+        plaintext_key = decrypt_string(encrypted_key);
+    else
+        plaintext_key = str_dup(encrypted_key);
+    
+    if (d) {
+        write_to_buffer(d, "{WMFA Secret Key: {G", 0);
+        write_to_buffer(d, plaintext_key, 0);
+        write_to_buffer(d, "{x\n\r", 0);
+        write_to_buffer(d, "{YMake sure to keep this key secure!{x\n\r", 0);
+    }
+
+    free_string(plaintext_key);
+}
+
+/*
+ * Display MFA key for a character
+ */
+void display_acct_char_mfa_key(DESCRIPTOR_DATA *d, ACCOUNT_CHARACTER *acct_char)
+{
+    if (!d || !acct_char)
+        return;
+    
+    const char *encrypted_key = !IS_NULLSTR(acct_char->mfa_key) ? 
+                     acct_char->mfa_key : acct_char->mfa_pending_key;
+    
+    if (!IS_NULLSTR(encrypted_key)) {
+        write_to_buffer(d, "\n\r{GMFA Key Information{x\n\r", 0);
+        write_to_buffer(d, "{C-------------------------------------{x\n\r", 0);
+        display_mfa_key(d, encrypted_key);
+    } else {
+        write_to_buffer(d, "No MFA key is set for this character.\n\r", 0);
+    }
+}
+
+/*
+ * Display MFA key for an account
+ */
+void display_account_mfa_key(DESCRIPTOR_DATA *d, ACCOUNT_DATA *acct)
+{
+    if (!d || !acct)
+        return;
+    
+    const char *encrypted_key = !IS_NULLSTR(acct->mfa_key) ? 
+                     acct->mfa_key : acct->mfa_pending_key;
+    
+    if (!IS_NULLSTR(encrypted_key)) {
+        write_to_buffer(d, "\n\r{GMFA Key Information{x\n\r", 0);
+        write_to_buffer(d, "{C-------------------------------------{x\n\r", 0);
+        display_mfa_key(d, encrypted_key);
+    } else {
+        write_to_buffer(d, "No MFA key is set for this account.\n\r", 0);
+    }
 }

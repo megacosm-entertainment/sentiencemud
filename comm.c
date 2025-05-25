@@ -139,6 +139,8 @@ SSL_CTX *ctx;
 int ssl_errors_since_reset = 0;
 time_t last_ssl_error = 0;
 LLIST *ssl_ctx_cleanup_queue = NULL;
+static unsigned char crypto_key[AES_KEY_SIZE]; // Server-side key
+static bool key_initialized = false;
 
 /*
  * OS-dependent local functions.

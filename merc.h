@@ -309,6 +309,10 @@ struct script_type {
 #define GAMEEDIT(fun) bool fun(CHAR_DATA *ch, char *argument)
 #define SETTING_CAT_MAX 8 /* Number of setting categories */
 
+#define AES_KEY_SIZE 32  // 256 bits
+#define AES_IV_SIZE 16   // 128 bits
+#define CRYPTO_SALT_SIZE 16
+
 /* Structures */
 typedef struct	affect_data		AFFECT_DATA;
 typedef struct	area_data		AREA_DATA;
@@ -7883,7 +7887,8 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
 #define COMMANDS_FILE       SYSTEM_DIR "commands.dat"
 #define GAME_SETTINGS_FILE  SYSTEM_DIR "game_settings.dat"
 #define CHANGESET_FILE      SYSTEM_DIR "changesets.dat"
-#define SOCIALS_FILE  $SYSTEM_DIR "socials.dat"
+#define SOCIALS_FILE  SYSTEM_DIR "socials.dat"
+#define MFA_ENC_KEY  SYSTEM_DIR "mfa.key"
 
 /* POST msg queue */
 #define MSGQUEUE	1111
@@ -8682,6 +8687,15 @@ int colour_trunc_len(const char *str, int limit);
 char *normalize_filename(const char *name);
 bool is_duplicate_object(OBJ_DATA *obj);
 bool is_valid_colour_code(const char *code);
+void crypto_init(void);
+char* encrypt_string(const char *plaintext);
+char* decrypt_string(const char *encrypted);
+bool is_encrypted_key(const char *key);
+static const unsigned char base64_table[65] =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+unsigned char *base64_decode(const char *src, size_t len, size_t *out_len);
+unsigned char *base64_encode(const unsigned char *src, size_t len, size_t *out_len);
+
 
 /* help.c */
 HELP_DATA *find_helpfile( char *keyword, HELP_CATEGORY *hcat );
@@ -8799,9 +8813,8 @@ void send_qr_email_for_account(ACCOUNT_DATA *acct, const char *email, const char
 void send_recovery_codes_email_for_account(ACCOUNT_DATA *acct, const char *email);
 char *generate_totp_key(char *buffer, size_t length);
 void display_qr_code(DESCRIPTOR_DATA *d, const char *url);
-void display_recovery_codes(DESCRIPTOR_DATA *d, CHAR_DATA *ch);
+void display_recovery_codes(DESCRIPTOR_DATA *d, ACCOUNT_CHARACTER *acct_char);
 void generate_recovery_codes(char **codes, bool *used, int count);
-void display_recovery_codes(DESCRIPTOR_DATA *d, CHAR_DATA *ch);
 bool check_recovery_code(CHAR_DATA *ch, const char *code);
 bool check_account_recovery_code(ACCOUNT_DATA *acct, const char *code);
 void display_account_recovery_codes(DESCRIPTOR_DATA *d, ACCOUNT_DATA *acct);
@@ -8840,6 +8853,14 @@ void login_get_new_race(DESCRIPTOR_DATA *d, char *argument);
 void login_get_new_sex(DESCRIPTOR_DATA *d, char *argument);
 void login_get_email(DESCRIPTOR_DATA *d, char *argument);
 bool get_character_auth_data(CHAR_DATA *ch, ACCOUNT_DATA *acct, ACCOUNT_CHARACTER **acct_char);
+void display_account_mfa_key(DESCRIPTOR_DATA *d, ACCOUNT_DATA *acct);
+void display_acct_char_mfa_key(DESCRIPTOR_DATA *d, ACCOUNT_CHARACTER *acct_char);
+void display_mfa_key(DESCRIPTOR_DATA *d, const char *encrypted_key);
+bool validate_password_uniqueness(ACCOUNT_DATA *acct, const char *plaintext_password, 
+                                bool is_for_character, const char *character_name, bool is_staff);
+bool password_matches_account(ACCOUNT_DATA *acct, const char *plaintext_password);
+bool password_matches_staff_character(ACCOUNT_DATA *acct, const char *plaintext_password, const char *exclude_name);
+
 
 /* scripts.c */
 int	program_flow	args( ( long vnum, char *source, CHAR_DATA *mob,
