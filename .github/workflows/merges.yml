@@ -30,7 +30,7 @@ jobs:
           fi
 
           # Safely write to environment variables
-          echo "commit_message=$COMMIT_MESSAGE" >> $GITHUB_ENV
+          echo "commit_message=$(printf '%q' "$COMMIT_MESSAGE")" >> $GITHUB_ENV
           echo "commit_author=$COMMIT_AUTHOR" >> $GITHUB_ENV
           echo "commit_url=$COMMIT_URL" >> $GITHUB_ENV
           echo "pr_url=$PR_URL" >> $GITHUB_ENV
