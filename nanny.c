@@ -4688,7 +4688,7 @@ void login_character_mfa_confirm(DESCRIPTOR_DATA *d, char *argument) {
     d->mfa_verified = true;
 
     write_to_buffer(d, "\n\rMFA enabled! Here are your recovery codes (save them!):\n\r", 0);
-    display_account_recovery_codes(d, acct);
+    display_recovery_codes(d, acct_char);
     display_character_mfa_menu(d, "");
 }
 
