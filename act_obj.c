@@ -4351,6 +4351,7 @@ CHAR_DATA *find_keeper(CHAR_DATA *ch, char *arg)
 void obj_to_keeper(OBJ_DATA *obj, CHAR_DATA *ch)
 {
     OBJ_DATA *t_obj;
+	bool found = false;
 
     /* see if any duplicates are found */
     ITERATOR it;
