@@ -1382,7 +1382,7 @@ void do_chat_show(CHAR_DATA *ch, char *argument)
     if ((is_op(chat, ch->name) || !str_cmp(ch->name, chat->created_by) ||
          (get_staff_rank(ch) > STAFF_ASCENDANT) || 
          (IS_IMMORTAL(ch) && 
-          (is_staff_duty_in_list(ch, "Administrator 'Player Relations")))) && 
+          (is_staff_duty_in_list(ch, "Administrator 'Player Relations'")))) && 
         str_cmp(chat->password, "none"))
     {
         sprintf(buf, "{YPassword:{x %s\n\r", chat->password);
