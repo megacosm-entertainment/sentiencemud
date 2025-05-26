@@ -145,6 +145,208 @@ void load_socials(FILE *fp)
     }
 }
 
+/*
+ * Try loading socials from new format first, then fall back to old format
+ */
+void load_socials_file(void)
+{
+    FILE *fp;
+    bool loaded_new = false;
+
+    social_count = 0;
+
+    // First try loading from the new format
+    if ((fp = fopen(SOCIALS_FILE, "r")) != NULL) {
+        log_string("Loading socials from new format...");
+        loaded_new = load_new_socials(fp);
+        fclose(fp);
+    }
+
+    // If new format loading failed or file doesn't exist, try old format
+    if (!loaded_new) {
+        log_string("New format socials not found or invalid, trying old format...");
+        if ((fp = fopen(OLD_SOCIALS_FILE, "r")) != NULL) {
+            log_string("Loading socials from old format...");
+            
+            // Skip ahead to the #SOCIALS section
+            while (!feof(fp)) {
+                char *word = fread_word(fp);
+                if (!str_cmp(word, "#SOCIALS")) {
+                    break;
+                }
+            }
+            
+            load_socials(fp);
+            fclose(fp);
+            
+            // Migrate to new format
+            save_new_socials();
+        } else {
+            bug("Could not find any socials file!", 0);
+        }
+    }
+
+    log_string(formatf("Loaded %d socials.", social_count));
+}
+
+/*
+ * Load socials from the new format file
+ */
+bool load_new_socials(FILE *fp)
+{
+    char *word;
+    bool in_social = false;
+    struct social_type social;
+    int count = 0;
+    
+    // Make sure we're at the beginning of the file
+    rewind(fp);
+
+    while (!feof(fp)) {
+        word = fread_word(fp);
+        
+        if (feof(fp))
+            break;
+            
+        // Check for end of socials section
+        if (!str_cmp(word, "#END"))
+            break;
+            
+        if (!str_cmp(word, "#SOCIAL")) {
+            // Clear the social structure
+            memset(&social, 0, sizeof(struct social_type));
+            social.char_no_arg = NULL;
+            social.others_no_arg = NULL;
+            social.char_found = NULL;
+            social.others_found = NULL;
+            social.vict_found = NULL;
+            social.char_not_found = NULL;
+            social.char_auto = NULL;
+            social.others_auto = NULL;
+            
+            // Get the social name
+            if (!feof(fp))
+                strcpy(social.name, fread_string(fp));
+            else
+                break;
+                
+            in_social = true;
+        }
+        else if (!str_cmp(word, "#-SOCIAL")) {
+            if (in_social) {
+                social_table[count] = social;
+                count++;
+                in_social = false;
+            }
+        }
+        else if (in_social) {
+            if (feof(fp))
+                break;
+                
+            if (!str_cmp(word, "Enabled")) {
+                /* Skip the enabled flag - not currently used */
+                fread_number(fp);
+            }
+            else if (!str_cmp(word, "CharNoArg")) {
+                if (!feof(fp))
+                    social.char_no_arg = fread_string(fp);
+            }
+            else if (!str_cmp(word, "OthersNoArg")) {
+                if (!feof(fp))
+                    social.others_no_arg = fread_string(fp);
+            }
+            else if (!str_cmp(word, "CharFound")) {
+                if (!feof(fp))
+                    social.char_found = fread_string(fp);
+            }
+            else if (!str_cmp(word, "OthersFound")) {
+                if (!feof(fp))
+                    social.others_found = fread_string(fp);
+            }
+            else if (!str_cmp(word, "VictFound")) {
+                if (!feof(fp))
+                    social.vict_found = fread_string(fp);
+            }
+            else if (!str_cmp(word, "CharNotFound")) {
+                if (!feof(fp))
+                    social.char_not_found = fread_string(fp);
+            }
+            else if (!str_cmp(word, "CharAuto")) {
+                if (!feof(fp))
+                    social.char_auto = fread_string(fp);
+            }
+            else if (!str_cmp(word, "OthersAuto")) {
+                if (!feof(fp))
+                    social.others_auto = fread_string(fp);
+            }
+            else {
+                // Skip unknown fields
+                if (!feof(fp))
+                    fread_string(fp);
+            }
+        }
+    }
+    
+    if (count > 0) {
+        social_count = count;
+        return true;
+    }
+    
+    return false;
+}
+
+/*
+ * Save socials in the new format
+ */
+void save_new_socials(void)
+{
+    FILE *fp;
+    int i;
+    
+    if ((fp = fopen(SOCIALS_FILE, "w")) == NULL) {
+        bug("Save_new_socials: couldn't open file for writing", 0);
+        return;
+    }
+    
+    for (i = 0; i < social_count; i++) {
+        fprintf(fp, "#SOCIAL %s~\n", social_table[i].name);
+        fprintf(fp, "Enabled 1\n");
+        
+        if (social_table[i].char_no_arg)
+            fprintf(fp, "CharNoArg %s~\n", social_table[i].char_no_arg);
+            
+        if (social_table[i].others_no_arg)
+            fprintf(fp, "OthersNoArg %s~\n", social_table[i].others_no_arg);
+            
+        if (social_table[i].char_found)
+            fprintf(fp, "CharFound %s~\n", social_table[i].char_found);
+            
+        if (social_table[i].others_found)
+            fprintf(fp, "OthersFound %s~\n", social_table[i].others_found);
+            
+        if (social_table[i].vict_found)
+            fprintf(fp, "VictFound %s~\n", social_table[i].vict_found);
+            
+        if (social_table[i].char_not_found)
+            fprintf(fp, "CharNotFound %s~\n", social_table[i].char_not_found);
+            
+        if (social_table[i].char_auto)
+            fprintf(fp, "CharAuto %s~\n", social_table[i].char_auto);
+            
+        if (social_table[i].others_auto)
+            fprintf(fp, "OthersAuto %s~\n", social_table[i].others_auto);
+            
+        fprintf(fp, "#-SOCIAL\n\n");
+    }
+    
+    // Add an end marker to make sure we can properly end reading
+    fprintf(fp, "#END\n");
+    
+    fclose(fp);
+    log_string("Socials saved in new format.");
+}
+
+
 
 /* Reset the GQ */
 void global_reset( void )

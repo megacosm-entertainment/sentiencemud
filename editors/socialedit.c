@@ -4,99 +4,28 @@
  *                                                                         *
  **************************************************************************/
 
-#include <sys/types.h>
-#include <ctype.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
+#include <stdlib.h>
+#include <ctype.h>
 #include <time.h>
-#include "merc.h"
-#include "tables.h"
-#include "olc.h"
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <stdarg.h>
+#include "../strings.h"
+#include "../merc.h"
+#include "../interp.h"
+#include "../db.h"
+#include "../math.h"
+#include "../recycle.h"
+#include "../tables.h"
+#include "../olc.h"
+#include "../olc_save.h"
+#include "../scripts.h"
+#include "../wilds.h"
 
 
-DECLARE_OLC_FUN(socialedit_show);
-DECLARE_OLC_FUN(socialedit_create);
-DECLARE_OLC_FUN(socialedit_name);
-DECLARE_OLC_FUN(socialedit_char_no_arg);
-DECLARE_OLC_FUN(socialedit_others_no_arg);
-DECLARE_OLC_FUN(socialedit_char_found);
-DECLARE_OLC_FUN(socialedit_others_found);
-DECLARE_OLC_FUN(socialedit_vict_found);
-DECLARE_OLC_FUN(socialedit_char_not_found);
-DECLARE_OLC_FUN(socialedit_char_auto);
-DECLARE_OLC_FUN(socialedit_others_auto);
-DECLARE_OLC_FUN(socialedit_delete);
-DECLARE_OLC_FUN(socialedit_list);
-DECLARE_OLC_FUN(socialedit_save);
-
-const struct olc_cmd_type socialedit_table[] =
-{
-    { "show",          socialedit_show          },
-    { "create",        socialedit_create        },
-    { "name",          socialedit_name          },
-    { "charnoarg",     socialedit_char_no_arg   },
-    { "othersnoarg",   socialedit_others_no_arg },
-    { "charfound",     socialedit_char_found    },
-    { "othersfound",   socialedit_others_found  },
-    { "victfound",     socialedit_vict_found    },
-    { "charnotfound",  socialedit_char_not_found},
-    { "charauto",      socialedit_char_auto     },
-    { "othersauto",    socialedit_others_auto   },
-    { "delete",        socialedit_delete        },
-    { "list",          socialedit_list          },
-    { "save",          socialedit_save          },
-    { "?",             show_help                },
-    { "version",       show_version             },
-    { NULL,            0                        }
-};
-
-void socialedit(CHAR_DATA *ch, char *argument)
-{
-    char arg[MAX_INPUT_LENGTH];
-    char command[MAX_INPUT_LENGTH];
-    int cmd;
-    struct social_type *social;
-
-    smash_tilde(argument);
-    strcpy(arg, argument);
-    argument = one_argument(argument, command);
-
-    if (ch->pcdata->security < 9) {
-        send_to_char("SocialEdit: Insufficient security.\n\r", ch);
-        edit_done(ch);
-        return;
-    }
-
-    if (!str_cmp(command, "done")) {
-        edit_done(ch);
-        return;
-    }
-
-    if (!IS_EDIT(ch, ED_SOCIAL)) {
-        send_to_char("SocialEdit: Type 'socialedit' first.\n\r", ch);
-        return;
-    }
-
-    social = (struct social_type *)ch->desc->pEdit;
-
-    if (command[0] == '\0') {
-        socialedit_show(ch, argument);
-        return;
-    }
-
-    /* Search table and dispatch command. */
-    for (cmd = 0; socialedit_table[cmd].name != NULL; cmd++) {
-        if (!str_prefix(command, socialedit_table[cmd].name)) {
-            (*socialedit_table[cmd].olc_fun)(ch, argument);
-            return;
-        }
-    }
-
-    /* Default to showing editor commands. */
-    show_help(ch, "socialedit");
-    return;
-}
 
 /* Entry point for editing social table. */
 void do_socialedit(CHAR_DATA *ch, char *argument)
@@ -149,7 +78,7 @@ void do_socialedit(CHAR_DATA *ch, char *argument)
     return;
 }
 
-OLC_FUN(socialedit_show)
+SOCEDIT(socialedit_show)
 {
     struct social_type *social;
     char buf[MAX_STRING_LENGTH];
@@ -194,7 +123,7 @@ OLC_FUN(socialedit_show)
     return true;
 }
 
-OLC_FUN(socialedit_list)
+SOCEDIT(socialedit_list)
 {
     char buf[MAX_STRING_LENGTH];
     int col = 0;
@@ -214,7 +143,7 @@ OLC_FUN(socialedit_list)
     return true;
 }
 
-OLC_FUN(socialedit_create)
+SOCEDIT(socialedit_create)
 {
     struct social_type social;
     struct social_type *temp_table;
@@ -265,7 +194,7 @@ OLC_FUN(socialedit_create)
     return true;
 }
 
-OLC_FUN(socialedit_name)
+SOCEDIT(socialedit_name)
 {
     struct social_type *social;
     
@@ -290,7 +219,7 @@ OLC_FUN(socialedit_name)
     return true;
 }
 
-OLC_FUN(socialedit_char_no_arg)
+SOCEDIT(socialedit_char_no_arg)
 {
     struct social_type *social;
     
@@ -314,7 +243,7 @@ OLC_FUN(socialedit_char_no_arg)
     return true;
 }
 
-OLC_FUN(socialedit_others_no_arg)
+SOCEDIT(socialedit_others_no_arg)
 {
     struct social_type *social;
     
@@ -338,7 +267,7 @@ OLC_FUN(socialedit_others_no_arg)
     return true;
 }
 
-OLC_FUN(socialedit_char_found)
+SOCEDIT(socialedit_char_found)
 {
     struct social_type *social;
     
@@ -362,7 +291,7 @@ OLC_FUN(socialedit_char_found)
     return true;
 }
 
-OLC_FUN(socialedit_others_found)
+SOCEDIT(socialedit_others_found)
 {
     struct social_type *social;
     
@@ -386,7 +315,7 @@ OLC_FUN(socialedit_others_found)
     return true;
 }
 
-OLC_FUN(socialedit_vict_found)
+SOCEDIT(socialedit_vict_found)
 {
     struct social_type *social;
     
@@ -410,7 +339,7 @@ OLC_FUN(socialedit_vict_found)
     return true;
 }
 
-OLC_FUN(socialedit_char_not_found)
+SOCEDIT(socialedit_char_not_found)
 {
     struct social_type *social;
     
@@ -434,7 +363,7 @@ OLC_FUN(socialedit_char_not_found)
     return true;
 }
 
-OLC_FUN(socialedit_char_auto)
+SOCEDIT(socialedit_char_auto)
 {
     struct social_type *social;
     
@@ -458,7 +387,7 @@ OLC_FUN(socialedit_char_auto)
     return true;
 }
 
-OLC_FUN(socialedit_others_auto)
+SOCEDIT(socialedit_others_auto)
 {
     struct social_type *social;
     
@@ -482,7 +411,7 @@ OLC_FUN(socialedit_others_auto)
     return true;
 }
 
-OLC_FUN(socialedit_delete)
+SOCEDIT(socialedit_delete)
 {
     struct social_type *social;
     int i, pos = -1;
@@ -532,12 +461,12 @@ OLC_FUN(socialedit_delete)
     return true;
 }
 
-OLC_FUN(socialedit_save)
+SOCEDIT(socialedit_save)
 {
     FILE *fp;
     int i;
     
-    if ((fp = fopen(SOCIAL_LIST_FILE, "w")) == NULL) {
+    if ((fp = fopen(SOCIALS_FILE, "w")) == NULL) {
         send_to_char("Error: Could not open file for writing.\n\r", ch);
         return false;
     }

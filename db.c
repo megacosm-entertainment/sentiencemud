@@ -1042,13 +1042,16 @@ void boot_db(void)
     log_string("Opening immortal staff");
     read_immstaff();
 
+	load_socials_file();
+	/*
     if ((fp = fopen(AREA_DIR "social.are", "r")) != NULL)
     {
 	log_string("Doing load_socials...");
 	fread_word(fp);
-	load_socials(fp);
+	load_socials_file(fp);
 	fclose(fp);
     }
+	*/
 
     help_greeting = str_dup("hello");
 

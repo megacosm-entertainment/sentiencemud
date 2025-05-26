@@ -3452,6 +3452,7 @@ const struct do_func_type do_func_table[] =
         { "do_coffer", do_coffer },
         { "do_acctlink", do_acctlink },
         { "do_acctunlink", do_acctunlink },
+        { "do_socialedit", do_socialedit },
 };
 
 /* Table mapping connection states to display strings */

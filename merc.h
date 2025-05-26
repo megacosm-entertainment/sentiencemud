@@ -1258,6 +1258,10 @@ struct game_settings_data
     bool note_boot_errors;
     int character_delete_delay_days; // How long until a character is deleted after being marked for deletion?
     int org_disable_pk_pneuma_cost; // How much does it cost to disable PK in an org?
+    int base_death_minutes; // How many minutes does a player have to wait for auto-resurrection after death?
+    int early_rez_base_dp_cost; // How much does it cost to resurrect a player early?
+    int max_socials; // How many socials can a player have?
+
 
     /* MSSP Settings */
     int mssp_players;          // Automatically updated by the game.
@@ -7888,6 +7892,7 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
 #define GAME_SETTINGS_FILE  SYSTEM_DIR "game_settings.dat"
 #define CHANGESET_FILE      SYSTEM_DIR "changesets.dat"
 #define SOCIALS_FILE  SYSTEM_DIR "socials.dat"
+#define OLD_SOCIALS_FILE AREA_DIR "social.are"
 #define MFA_ENC_KEY  SYSTEM_DIR "mfa.key"
 
 /* POST msg queue */
@@ -8213,6 +8218,10 @@ void write_mail( void );
 ROOM_INDEX_DATA *get_random_room_area( CHAR_DATA *ch, AREA_DATA *area );
 void load_stat( char *filename, int type );
 void write_help_to_disk(HELP_CATEGORY *hcat, HELP_DATA *help);
+void save_new_socials(void);
+bool load_new_socials(FILE *fp);
+void load_socials_file(void);
+
 
 /* effects.c */
 void acid_effect( void *vo, int level, int dam, int target );

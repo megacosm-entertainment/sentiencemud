@@ -511,6 +511,9 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
     case ED_CMDEDIT:
         cmdedit(d->character, d->incomm);
         break;
+    case ED_SOCIAL:
+        socialedit(d->character, d->incomm);
+        break;
 
 	default:
 	    return false;
@@ -818,7 +821,12 @@ bool show_commands(CHAR_DATA *ch, char *argument)
     case ED_CMDEDIT:
         show_olc_cmds(ch, cmdedit_table);
         break;
+    case ED_SOCIAL:
+        show_olc_cmds(ch, socialedit_table);
+        break;
 	}
+
+
 
 	return false;
 }
@@ -4228,3 +4236,65 @@ void do_cmdshow(CHAR_DATA *ch, char *argument)
 	olc_show_item(ch, command, cmdedit_show, argument);
 	return;
 }
+
+void socialedit(CHAR_DATA *ch, char *argument)
+{
+    char arg[MAX_INPUT_LENGTH];
+    char command[MAX_INPUT_LENGTH];
+    int cmd;
+    struct social_type *social;
+
+    smash_tilde(argument);
+    strcpy(arg, argument);
+    argument = one_argument(argument, command);
+
+    if (ch->pcdata->security < 9) {
+        send_to_char("SocialEdit: Insufficient security.\n\r", ch);
+        edit_done(ch);
+        return;
+    }
+
+    if (!str_cmp(command, "done")) {
+        edit_done(ch);
+        return;
+    }
+
+    social = (struct social_type *)ch->desc->pEdit;
+
+    if (command[0] == '\0') {
+        socialedit_show(ch, argument);
+        return;
+    }
+
+    /* Search table and dispatch command. */
+    for (cmd = 0; socialedit_table[cmd].name != NULL; cmd++) {
+        if (!str_prefix(command, socialedit_table[cmd].name)) {
+            (*socialedit_table[cmd].olc_fun)(ch, argument);
+            return;
+        }
+    }
+
+    /* Default to showing editor commands. */
+    show_help(ch, "socialedit");
+    return;
+}
+
+const struct olc_cmd_type socialedit_table[] =
+{
+    { "show",          socialedit_show          },
+    { "create",        socialedit_create        },
+    { "name",          socialedit_name          },
+    { "charnoarg",     socialedit_char_no_arg   },
+    { "othersnoarg",   socialedit_others_no_arg },
+    { "charfound",     socialedit_char_found    },
+    { "othersfound",   socialedit_others_found  },
+    { "victfound",     socialedit_vict_found    },
+    { "charnotfound",  socialedit_char_not_found},
+    { "charauto",      socialedit_char_auto     },
+    { "othersauto",    socialedit_others_auto   },
+    { "delete",        socialedit_delete        },
+    { "list",          socialedit_list          },
+    { "save",          socialedit_save          },
+    { "?",             show_help                },
+    { NULL,            0                        }
+};

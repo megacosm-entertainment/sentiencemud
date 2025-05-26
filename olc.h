@@ -112,6 +112,7 @@ void	dpedit	( CHAR_DATA *ch, char *argument );
 
 void	cmdedit	( CHAR_DATA *ch, char *argument );
 void    gameedit ( CHAR_DATA *ch, char *argument );
+void    socialedit( CHAR_DATA *ch, char *argument );
 
 
 /*
@@ -178,6 +179,7 @@ extern const struct olc_cmd_type        apedit_table[];
 extern const struct olc_cmd_type        ipedit_table[];
 extern const struct olc_cmd_type        dpedit_table[];
 extern const struct olc_cmd_type        cmdedit_table[];
+extern const struct olc_cmd_type        socialedit_table[];
 
 
 /*
@@ -596,6 +598,21 @@ DECLARE_OLC_FUN( cmdedit_help );
 DECLARE_OLC_FUN( cmdedit_summary );
 DECLARE_OLC_FUN( cmdedit_additional );
 
+DECLARE_OLC_FUN(socialedit_show);
+DECLARE_OLC_FUN(socialedit_create);
+DECLARE_OLC_FUN(socialedit_name);
+DECLARE_OLC_FUN(socialedit_char_no_arg);
+DECLARE_OLC_FUN(socialedit_others_no_arg);
+DECLARE_OLC_FUN(socialedit_char_found);
+DECLARE_OLC_FUN(socialedit_others_found);
+DECLARE_OLC_FUN(socialedit_vict_found);
+DECLARE_OLC_FUN(socialedit_char_not_found);
+DECLARE_OLC_FUN(socialedit_char_auto);
+DECLARE_OLC_FUN(socialedit_others_auto);
+DECLARE_OLC_FUN(socialedit_delete);
+DECLARE_OLC_FUN(socialedit_list);
+DECLARE_OLC_FUN(socialedit_save);
+
 /*
  * Macros
  */
@@ -627,6 +644,8 @@ DECLARE_OLC_FUN( cmdedit_additional );
 
 #define EDIT_SHIP(ch, ship)     ( ship = (SHIP_INDEX_DATA *)ch->desc->pEdit )
 #define EDIT_CMD(ch, command)   ( command = (CMD_DATA *)ch->desc->pEdit )
+#define EDIT_SOCIAL(ch, social)  (social = (struct social_type *)ch->desc->pEdit)
+
 
 /*
  * Prototypes

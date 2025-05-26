@@ -41,17 +41,17 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <stdarg.h>
-#include "strings.h"
-#include "merc.h"
-#include "interp.h"
-#include "db.h"
-#include "math.h"
-#include "recycle.h"
-#include "tables.h"
-#include "olc.h"
-#include "olc_save.h"
-#include "scripts.h"
-#include "wilds.h"
+#include "../strings.h"
+#include "../merc.h"
+#include "../interp.h"
+#include "../db.h"
+#include "../math.h"
+#include "../recycle.h"
+#include "../tables.h"
+#include "../olc.h"
+#include "../olc_save.h"
+#include "../scripts.h"
+#include "../wilds.h"
 
 void show_flag_cmds(CHAR_DATA *ch, const struct flag_type *flag_table);
 
