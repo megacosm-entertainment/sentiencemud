@@ -12,9 +12,12 @@ typedef struct list_type LLIST;
 #define RESERVED_OBJ     1
 #define RESERVED_ROOM    2
 #define RESERVED_AREA    3
-#define RESERVED_SKILL   4
-#define RESERVED_FLAG    5
-#define RESERVED_COMMAND 6
+#define RESERVED_TOKEN   4
+#define RESERVED_MPROG   5
+#define RESERVED_OPROG   6
+#define RESERVED_RPROG   7
+#define RESERVED_TPROG   8
+#define RESERVED_APROG   9
 
 /* Security level needed for the reserved editor */
 #define MIN_SECURITY_RESERVED 8

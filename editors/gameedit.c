@@ -246,6 +246,24 @@ if (match_count == 1) {
                 else
                     snprintf(formatted_value, sizeof(formatted_value), "{D(empty){x");
                 break;
+            case SETTING_TYPE_EXTSTR:
+                if (*(char **)setting->ptr && **(char **)setting->ptr) {
+                    char preview[200];
+                    strncpy(preview, *(char **)setting->ptr, 180);
+                    preview[180] = '\0';
+                    // Replace newlines with spaces for display
+                    for (int k = 0; preview[k]; k++)
+                        if (preview[k] == '\n' || preview[k] == '\r')
+                            preview[k] = ' ';
+                    if (strlen(*(char **)setting->ptr) > 180)
+                        strcat(preview, "...");
+                    snprintf(formatted_value, sizeof(formatted_value), "{W%s{x", preview);
+                } else
+                    snprintf(formatted_value, sizeof(formatted_value), "{D(empty){x");
+                break;
+            case SETTING_TYPE_FLOAT:
+                snprintf(formatted_value, sizeof(formatted_value), "{Y%.4f{x", *(float *)setting->ptr);
+                break;
             default:
                 snprintf(formatted_value, sizeof(formatted_value), "{D(unknown type){x");
                 break;
@@ -319,6 +337,12 @@ if (match_count == 1) {
                 break;
             case SETTING_TYPE_STRING:
                 snprintf(usage, sizeof(usage), "Usage: {Wgameedit set %s <text>{x", setting->name);
+                break;
+            case SETTING_TYPE_EXTSTR:
+                snprintf(usage, sizeof(usage), "Usage: {Wgameedit set %s edit{x (opens string editor)", setting->name);
+                break;
+            case SETTING_TYPE_FLOAT:
+                snprintf(usage, sizeof(usage), "Usage: {Wgameedit set %s <number.decimal>{x", setting->name);
                 break;
             default:
                 snprintf(usage, sizeof(usage), "Usage: {Wgameedit set %s <value>{x", setting->name);
@@ -424,9 +448,7 @@ add_buf(buffer, buf);
     return FALSE;
 }
 
-/*
- * Set a setting value
- */
+// Modify the do_gameedit function (in the 'set' section) to handle EXTSTR edit case
 GAMEEDIT(gameedit_set)
 {
     char arg1[MAX_INPUT_LENGTH];
@@ -460,7 +482,16 @@ GAMEEDIT(gameedit_set)
         } else {
             strcpy(arg2, argument);
         }
-    } else {
+    } 
+    else if (setting->type == SETTING_TYPE_EXTSTR) {
+        /* For extended strings, check if they want to edit */
+        if (argument[0] == '\0' || !str_cmp(argument, "edit")) {
+            strcpy(arg2, "edit");
+        } else {
+            strcpy(arg2, argument);
+        }
+    }
+    else {
         if (argument[0] == '\0') {
             send_to_char("Syntax: gameedit set <setting> <value>\n\r", ch);
             return FALSE;
@@ -471,9 +502,7 @@ GAMEEDIT(gameedit_set)
     return gameedit_set_value(ch, setting, arg2);
 }
 
-/*
- * Confirm all pending changes
- */
+// Update the confirm function to handle the new types
 GAMEEDIT(gameedit_confirm)
 {
     ITERATOR it;
@@ -516,8 +545,13 @@ GAMEEDIT(gameedit_confirm)
                 break;
                 
             case SETTING_TYPE_STRING:
+            case SETTING_TYPE_EXTSTR:
                 free_string(*(char **)change->setting->ptr);
                 *(char **)change->setting->ptr = str_dup(change->value);
+                break;
+                
+            case SETTING_TYPE_FLOAT:
+                *(float *)change->setting->ptr = atof(change->value);
                 break;
         }
         
@@ -631,6 +665,20 @@ void gameedit_display_setting(BUFFER *buffer, CHAR_DATA *ch, const struct game_s
                 else
                     strcpy(value_str, "{D(empty){x");
                 break;
+            case SETTING_TYPE_EXTSTR:
+                if (*(char **)setting->ptr && **(char **)setting->ptr) {
+                    char preview[50];
+                    strncpy(preview, *(char **)setting->ptr, 45);
+                    preview[45] = '\0';
+                    if (strlen(*(char **)setting->ptr) > 45)
+                        strcat(preview, "...");
+                    sprintf(value_str, "{W%s{x", preview);
+                } else
+                    strcpy(value_str, "{D(empty){x");
+                break;
+            case SETTING_TYPE_FLOAT:
+                sprintf(value_str, "{Y%.4f{x", *(float *)setting->ptr);
+                break;
             default:
                 strcpy(value_str, "{D(unknown){x");
                 break;
@@ -663,6 +711,8 @@ switch (setting->type) {
     case SETTING_TYPE_BOOL:   type_name = "Boolean"; break;
     case SETTING_TYPE_INT:    type_name = "Integer"; break;
     case SETTING_TYPE_STRING: type_name = "String";  break;
+    case SETTING_TYPE_EXTSTR: type_name = "ExtStr"; break;
+    case SETTING_TYPE_FLOAT:  type_name = "Float";   break;
     default:                  type_name = "Unknown"; break;
 }
 char modifiers[16] = "";
@@ -750,9 +800,7 @@ void gameedit_display_category(BUFFER *buffer, CHAR_DATA *ch, int category)
     snprintf(buf, sizeof(buf), "  Legend: {R*{x Requires reboot   {MS{x Sensitive setting   {DX{x Not settable via OLC\n\r\n\r");
     add_buf(buffer, buf);
 }
-/*
- * Set a setting value (adds to pending changes)
- */
+
 bool gameedit_set_value(CHAR_DATA *ch, const struct game_setting_type *setting, char *value)
 {
     GAME_SETTING_CHANGE *change;
@@ -777,6 +825,55 @@ bool gameedit_set_value(CHAR_DATA *ch, const struct game_setting_type *setting, 
             }
             break;
             
+        case SETTING_TYPE_FLOAT:
+            {
+                char *p;
+                bool valid = TRUE;
+                int decimal_points = 0;
+                
+                // Check if it's a valid float format (digits, maybe a decimal point, more digits)
+                for (p = value; *p != '\0'; p++) {
+                    if (*p == '.') {
+                        decimal_points++;
+                        if (decimal_points > 1) {
+                            valid = FALSE;
+                            break;
+                        }
+                    } else if (*p == '-' && p == value) {
+                        // Negative sign allowed only at start
+                        continue;
+                    } else if (!isdigit(*p)) {
+                        valid = FALSE;
+                        break;
+                    }
+                }
+                
+                if (!valid) {
+                    send_to_char("This setting requires a floating point number.\n\r", ch);
+                    return FALSE;
+                }
+            }
+            break;
+
+        case SETTING_TYPE_EXTSTR:
+            // For extended strings, we'll handle editing differently
+            if (!str_cmp(value, "edit")) {
+                if (!setting->olc_settable) {
+                    send_to_char("This setting cannot be changed through OLC.\n\r", ch);
+                    return FALSE;
+                }
+                
+                // Set up the string editor
+                ch->desc->pString = (char **)setting->ptr;
+                ch->desc->editor = ED_GAMESETTING;
+                ch->desc->editor_ptr = (void *)setting; // Store setting for later reference
+                
+                string_append(ch, (char **)setting->ptr);
+                return TRUE;
+            }
+            // Otherwise, treat it like a regular string
+            break;
+            
         case SETTING_TYPE_STRING:
             /* No validation needed for string types */
             break;
@@ -785,6 +882,12 @@ bool gameedit_set_value(CHAR_DATA *ch, const struct game_setting_type *setting, 
     /* Initialize pending changes list if needed */
     if (!pending_changes) {
         pending_changes = list_create(false);
+    }
+    
+    // Handle special case for EXTSTR when not using 'edit'
+    if (setting->type == SETTING_TYPE_EXTSTR && str_cmp(value, "edit")) {
+        send_to_char("Extended string settings must be edited with 'gameedit set <setting> edit'.\n\r", ch);
+        return FALSE;
     }
     
     /* Check if we already have a pending change for this setting */
@@ -1373,27 +1476,36 @@ void create_changeset(CHAR_DATA *ch, char *comment)
         
 // In the create_changeset function:
 /* Store the old value */
-switch (change->setting->type) {
-    case SETTING_TYPE_BOOL: {
-        bool current_value = *(bool *)change->setting->ptr;
-        history->old_value = str_dup(current_value ? "true" : "false");
-        break;
+    switch (change->setting->type) {
+        case SETTING_TYPE_BOOL: {
+            bool current_value = *(bool *)change->setting->ptr;
+            history->old_value = str_dup(current_value ? "true" : "false");
+            break;
+        }
+        
+        case SETTING_TYPE_INT: {
+            int current_value = *(int *)change->setting->ptr;
+            char temp_buf[MAX_STRING_LENGTH];
+            sprintf(temp_buf, "%d", current_value);
+            history->old_value = str_dup(temp_buf);
+            break;
+        }
+        
+        case SETTING_TYPE_STRING:
+        case SETTING_TYPE_EXTSTR: {
+            char *current_value = *(char **)change->setting->ptr;
+            history->old_value = str_dup(current_value ? current_value : "");
+            break;
+        }
+        
+        case SETTING_TYPE_FLOAT: {
+            float current_value = *(float *)change->setting->ptr;
+            char temp_buf[MAX_STRING_LENGTH];
+            sprintf(temp_buf, "%.4f", current_value);
+            history->old_value = str_dup(temp_buf);
+            break;
+        }
     }
-    
-    case SETTING_TYPE_INT: {
-        int current_value = *(int *)change->setting->ptr;
-        char temp_buf[MAX_STRING_LENGTH];
-        sprintf(temp_buf, "%d", current_value);
-        history->old_value = str_dup(temp_buf);
-        break;
-    }
-    
-    case SETTING_TYPE_STRING: {
-        char *current_value = *(char **)change->setting->ptr;
-        history->old_value = str_dup(current_value ? current_value : "");
-        break;
-    }
-}
         
         /* Store the new value */
         history->new_value = str_dup(change->value);
@@ -1614,7 +1726,7 @@ void load_changesets(void)
             changeset->comment = str_dup("");
             
             changesets[changeset_count++] = changeset;
-            log_string(formatf("Processing changeset #%d", changeset_count));
+//            log_string(formatf("Processing changeset #%d", changeset_count));
             fMatch = TRUE;
             continue;
         }
@@ -1653,12 +1765,12 @@ void load_changesets(void)
                     char *old_value = fread_string(fp);
                     char *new_value = fread_string(fp);
                     
-                    log_string(formatf("Loading change for setting: '%s'", setting_name));
+//                    log_string(formatf("Loading change for setting: '%s'", setting_name));
                     
                     const struct game_setting_type *setting = NULL;
                     if (setting_name && *setting_name) {
                         bool found = gameedit_find_setting(NULL, setting_name, &setting);
-                        log_string(formatf("Setting lookup result: %s", found ? "FOUND" : "NOT FOUND"));
+//                        log_string(formatf("Setting lookup result: %s", found ? "FOUND" : "NOT FOUND"));
                         
                         if (found && setting) {
                             GAME_SETTING_CHANGE_HISTORY *history;
@@ -1771,4 +1883,52 @@ GAMEEDIT(gameedit_comment)
     string_append(ch, &changeset->comment);
     
     return TRUE;
+}
+
+// Add a handler for the string editor for EXTSTR type settings
+void game_settings_string_edit(CHAR_DATA *ch, char *argument)
+{
+    const struct game_setting_type *setting;
+    GAME_SETTING_CHANGE *change;
+    ITERATOR it;
+    
+    if (!ch->desc || !ch->desc->pString || !ch->desc->editor_ptr) {
+        send_to_char("String editing error.\n\r", ch);
+        return;
+    }
+    
+    setting = (const struct game_setting_type *)ch->desc->editor_ptr;
+    
+    /* Initialize pending changes list if needed */
+    if (!pending_changes) {
+        pending_changes = list_create(false);
+    }
+    
+    /* Check if we already have a pending change for this setting */
+    iterator_start(&it, pending_changes);
+    while ((change = (GAME_SETTING_CHANGE *)iterator_nextdata(&it))) {
+        if (change->setting == setting) {
+            /* Update the existing change */
+            free_string(change->value);
+            change->value = str_dup(*(char **)setting->ptr);
+            iterator_stop(&it);
+            
+            send_to_char("Setting updated in pending changes.\n\r", ch);
+            return;
+        }
+    }
+    iterator_stop(&it);
+    
+    /* Create a new pending change */
+    change = (GAME_SETTING_CHANGE *)alloc_mem(sizeof(GAME_SETTING_CHANGE));
+    change->setting = setting;
+    change->value = str_dup(*(char **)setting->ptr);
+    list_appendlink(pending_changes, change);
+    
+    send_to_char("Setting added to pending changes.\n\r", ch);
+    
+    if (setting->requires_reboot) {
+        send_to_char("{RNote: This setting requires a reboot to take effect.{x\n\r", ch);
+        pending_reboot = true;
+    }
 }

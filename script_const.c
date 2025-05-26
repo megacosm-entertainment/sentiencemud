@@ -166,6 +166,21 @@ ENT_FIELD entity_game[] = {
 	{"hprelic",			ENTITY_GAME_RELIC_HEALTH,		ENT_OBJECT	},
 	{"relicmagic",		ENTITY_GAME_RELIC_MAGIC,		ENT_OBJECT	},
 	{"manarelic",		ENTITY_GAME_RELIC_MAGIC,		ENT_OBJECT	},
+	
+	{"reserved_mob", ENTITY_GAME_RESERVED_MOBILE, ENT_RESERVED_MOBILE },
+{"reserved_obj",  ENTITY_GAME_RESERVED_OBJECT,   ENT_RESERVED_OBJECT },
+{"reserved_room",  ENTITY_GAME_RESERVED_ROOM,    ENT_RESERVED_ROOM },
+{"reserved_area",   ENTITY_GAME_RESERVED_AREA,    ENT_RESERVED_AREA },
+{"reserved_token",  ENTITY_GAME_RESERVED_TOKEN,   ENT_RESERVED_TOKEN },
+{"reserved_rprog",  ENTITY_GAME_RESERVED_RPROG,   ENT_RESERVED_RPROG },
+{"reserved_oprog",  ENTITY_GAME_RESERVED_OPROG,   ENT_RESERVED_OPROG },
+{"reserved_mprog",  ENTITY_GAME_RESERVED_MPROG,   ENT_RESERVED_MPROG },
+{"reserved_tprog",  ENTITY_GAME_RESERVED_TPROG,   ENT_RESERVED_TPROG },
+{"reserved_aprog",  ENTITY_GAME_RESERVED_APROG,   ENT_RESERVED_APROG },
+
+{"setting",	ENTITY_GAME_SETTINGS,			ENT_GAME_SETTING	},
+{"settings", ENTITY_GAME_SETTINGS,			ENT_GAME_SETTING },
+
 	{"time_human",		ENTITY_GAME_TIME_HUMAN,			ENT_STRING	},
 
 	{NULL,			0,							ENT_UNKNOWN	}
@@ -709,6 +724,21 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_SECTION,		ENT_SECTION,		entity_instance_section,	false	},
 	{ ENT_INSTANCE,		ENT_INSTANCE,		entity_instance,			false	},
 	{ ENT_DUNGEON,		ENT_DUNGEON,		entity_dungeon,				false	},
+	
+    { ENT_RESERVED_MOBILE,  ENT_RESERVED_MOBILE,  NULL,                    false },
+    { ENT_RESERVED_OBJECT,  ENT_NUMBER,  NULL,                    false },
+    { ENT_RESERVED_ROOM,    ENT_RESERVED_ROOM,    NULL,                    false },
+    { ENT_RESERVED_AREA,    ENT_RESERVED_AREA,    NULL,                    false },
+    { ENT_RESERVED_TOKEN,   ENT_RESERVED_TOKEN,   NULL,                    false },
+    { ENT_RESERVED_RPROG,   ENT_RESERVED_RPROG,   NULL,                    false },
+    { ENT_RESERVED_OPROG,   ENT_RESERVED_OPROG,   NULL,                    false },
+    { ENT_RESERVED_MPROG,   ENT_RESERVED_MPROG,   NULL,                    false },
+    { ENT_RESERVED_TPROG,   ENT_RESERVED_TPROG,   NULL,                    false },
+    { ENT_RESERVED_APROG,   ENT_RESERVED_APROG,   NULL,                    false },
+    { ENT_GAME_SETTING,     ENT_GAME_SETTING,     NULL,                    false },
+    { ENT_TOKEN_INDEX,      ENT_TOKEN_INDEX,      NULL,                    false },
+    { ENT_SCRIPT_DATA,        ENT_SCRIPT_DATA,        NULL,                    false },
+
 	{ ENT_UNKNOWN,		ENT_UNKNOWN,		NULL,						false	},
 };
 

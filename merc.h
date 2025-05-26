@@ -294,6 +294,8 @@ struct script_type {
 #define SETTING_TYPE_BOOL 0
 #define SETTING_TYPE_INT 1
 #define SETTING_TYPE_STRING 2
+#define SETTING_TYPE_EXTSTR 3
+#define SETTING_TYPE_FLOAT 4
 
 /* Setting category constants */
 #define SETTING_CAT_EMAIL 0
@@ -8706,6 +8708,20 @@ static const unsigned char base64_table[65] =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 unsigned char *base64_decode(const char *src, size_t len, size_t *out_len);
 unsigned char *base64_encode(const unsigned char *src, size_t len, size_t *out_len);
+char *get_game_setting_value(char *setting_name, bool *sensitive);
+AREA_DATA *get_reserved_area_index(const char *name);
+TOKEN_INDEX_DATA *get_reserved_token_index(const char *name);
+SCRIPT_DATA *get_reserved_rprog_index(const char *name);
+SCRIPT_DATA *get_reserved_oprog_index(const char *name);
+SCRIPT_DATA *get_reserved_mprog_index(const char *name);
+SCRIPT_DATA *get_reserved_tprog_index(const char *name);
+SCRIPT_DATA *get_reserved_aprog_index(const char *name);
+const struct game_setting_type *get_game_setting(const char *name);
+OBJ_INDEX_DATA *get_reserved_obj_index(const char *name);
+ROOM_INDEX_DATA *get_reserved_room_index(const char *name);
+MOB_INDEX_DATA *get_reserved_mob_index(const char *name);
+AREA_DATA *get_area_index(long uid);
+
 
 
 /* help.c */

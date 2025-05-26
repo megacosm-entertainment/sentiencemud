@@ -3745,7 +3745,9 @@ const char *setting_category_names[] = {
 const char *setting_type_names[] = {
     "Boolean",
     "Integer",
-    "String"
+    "String",
+    "ExtStr",
+    "Float",
 };
 
 const struct flag_type church_permission_flags[] =

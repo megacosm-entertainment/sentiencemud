@@ -56,6 +56,7 @@ RESERVED(reserved_save);
 RESERVED(reserved_search);
 RESERVED(reserved_import);
 RESERVED(reserved_export);
+RESERVED(reserved_listid);
 
 extern LLIST *reserved_vnums;
 bool reserved_changed = false;
@@ -69,9 +70,12 @@ const struct reserved_type_name {
     { "obj",    RESERVED_OBJ    },
     { "room",   RESERVED_ROOM   },
     { "area",   RESERVED_AREA   },
-    { "skill",  RESERVED_SKILL  },
-    { "flag",   RESERVED_FLAG   },
-    { "command",RESERVED_COMMAND},
+    { "token", RESERVED_TOKEN },
+    { "mprog", RESERVED_MPROG },
+    { "oprog", RESERVED_OPROG },
+    { "rprog", RESERVED_RPROG },
+    { "tprog", RESERVED_TPROG },
+    { "aprog", RESERVED_APROG },
     { NULL,     -1              }
 };
 
@@ -330,6 +334,8 @@ void do_reserved(CHAR_DATA *ch, char *argument)
         reserved_delete(ch, argument);
     else if (!str_cmp(command, "list"))
         reserved_listvnums(ch, argument);
+    else if (!str_cmp(command, "listid") || !str_cmp(command, "id"))
+        reserved_listid(ch, argument);
     else if (!str_cmp(command, "edit"))
         reserved_edit(ch, argument);
     else if (!str_cmp(command, "save"))
@@ -344,6 +350,7 @@ void do_reserved(CHAR_DATA *ch, char *argument)
         /* Show help */
         send_to_char("Reserved Item Editor Commands:\n\r", ch);
         send_to_char("  reserved list [type]     - List all reserved items (or by type)\n\r", ch);
+        send_to_char("  reserved listid <id> [type] - List items with a specific ID\n\r", ch);
         send_to_char("  reserved show <name>     - Show details of a reserved item\n\r", ch);
         send_to_char("  reserved add <name> <type> <id> [removable]  - Add a new reserved item\n\r", ch);
         send_to_char("  reserved edit <name> <field> <value>         - Edit a reserved item\n\r", ch);
@@ -358,7 +365,6 @@ void do_reserved(CHAR_DATA *ch, char *argument)
     
     return;
 }
-
 /*
  * List all reserved items or those of a specific type
  */
@@ -368,6 +374,10 @@ RESERVED(reserved_listvnums)
     char buf[MAX_STRING_LENGTH];
     int type = -1;
     int count = 0;
+    int name_width = 23; // Default width
+    int max_name_len = 0;
+    int table_width = 80;
+    int desc_width = 26; // Default width
     
     /* Check for type filter */
     if (argument[0]) {
@@ -384,12 +394,55 @@ RESERVED(reserved_listvnums)
         }
     }
     
+    /* First pass: determine longest name for dynamic sizing */
+    if (reserved_vnums && list_size(reserved_vnums) > 0) {
+        ITERATOR it;
+        RESERVED_DATA *reserved;
+        
+        iterator_start(&it, reserved_vnums);
+        while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+            /* Skip if not matching type filter */
+            if (type != -1 && reserved->type != type)
+                continue;
+            
+            int name_len = strlen(reserved->name);
+            if (name_len > max_name_len) 
+                max_name_len = name_len;
+        }
+        iterator_stop(&it);
+        
+        /* Calculate optimal column width (clamped between 15 and 40) */
+        name_width = UMAX(15, UMIN(40, max_name_len + 2));
+        
+        /* Adjust description width to keep table width at 80 chars */
+        /* Fixed columns: | (1) name (name_width) | (1) type (10) | (1) ID (6) | (1) remove (7) | (1) desc (desc_width) | (1) */
+        desc_width = table_width - (name_width + 10 + 6 + 7 + 6);
+    }
+    
     buffer = new_buf();
     
-    /* Table header */
-    add_buf(buffer, "{Y+------------------------+------------+--------+---------+-------------------------+{x\n\r");
-    add_buf(buffer, "{Y| {WName{x                 | {WType{x       | {WID{x     | {WRemove{x  | {WDescription{x           |{x\n\r");
-    add_buf(buffer, "{Y+------------------------+------------+--------+---------+-------------------------+{x\n\r");
+    /* Generate divider line based on column widths */
+    sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
+            name_width, "-------------------------------------------------------------------------",
+            10, "------------",
+            6, "--------",
+            7, "---------",
+            desc_width, "-------------------------------------------------------------------");
+    add_buf(buffer, buf);
+    
+    /* Generate header line */
+    sprintf(buf, "{Y| {W%-*s{x | {W%-10s{x | {W%-6s{x | {W%-7s{x | {W%-*s{x |{x\n\r",
+            name_width, "Name", "Type", "ID", "Remove", desc_width, "Description");
+    add_buf(buffer, buf);
+    
+    /* Repeat divider line */
+    sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
+            name_width, "-------------------------------------------------------------------------",
+            10, "------------",
+            6, "--------",
+            7, "---------",
+            desc_width, "-------------------------------------------------------------------");
+    add_buf(buffer, buf);
     
     if (reserved_vnums && list_size(reserved_vnums) > 0) {
         ITERATOR it;
@@ -413,36 +466,52 @@ RESERVED(reserved_listvnums)
                 }
             }
             
+            /* Format name and truncate if needed */
+            char name_buf[MAX_STRING_LENGTH];
+            if (strlen(reserved->name) > name_width) {
+                strncpy(name_buf, reserved->name, name_width - 3);
+                name_buf[name_width - 3] = '\0';
+                strcat(name_buf, "...");
+            } else {
+                strcpy(name_buf, reserved->name);
+            }
+            
             /* Format description for display (truncate if needed) */
-            char desc_buf[31];
+            char desc_buf[MAX_STRING_LENGTH];
             if (reserved->description && reserved->description[0]) {
-                strncpy(desc_buf, reserved->description, 30);
-                desc_buf[30] = '\0';
-                if (strlen(reserved->description) > 30)
+                strncpy(desc_buf, reserved->description, desc_width - 3);
+                desc_buf[desc_width - 3] = '\0';
+                if (strlen(reserved->description) > desc_width - 3)
                     strcat(desc_buf, "...");
             } else {
                 strcpy(desc_buf, "(none)");
             }
             
-            sprintf(buf, "{Y| {C%-22s{x | {B%-10s{x | {Y%-6d{x | {%c%-7s{x | %-23s |{x\n\r",
-                reserved->name,
+            sprintf(buf, "{Y| {C%-*s{x | {B%-10s{x | {Y%-6d{x | {%c%-7s{x | %-*s |{x\n\r",
+                name_width, name_buf,
                 type_name,
                 reserved->id,
                 reserved->removable ? 'G' : 'R',
                 reserved->removable ? "Yes" : "No",
-                desc_buf);
+                desc_width, desc_buf);
             add_buf(buffer, buf);
         }
         iterator_stop(&it);
     }
     
     if (count == 0) {
-        sprintf(buf, "{Y| %-74s |{x\n\r", "No reserved items found.");
+        sprintf(buf, "{Y| %-*s |{x\n\r", table_width - 4, "No reserved items found.");
         add_buf(buffer, buf);
     }
     
     /* Table footer */
-    add_buf(buffer, "{Y+------------------------+------------+--------+---------+-------------------------+{x\n\r");
+    sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
+            name_width, "-------------------------------------------------------------------------",
+            10, "------------",
+            6, "--------",
+            7, "---------",
+            desc_width, "-------------------------------------------------------------------");
+    add_buf(buffer, buf);
     
     sprintf(buf, "\n\r%d reserved items listed.\n\r", count);
     add_buf(buffer, buf);
@@ -870,18 +939,86 @@ RESERVED(reserved_search)
     BUFFER *buffer;
     char buf[MAX_STRING_LENGTH];
     int count = 0;
+    char search_str[MAX_INPUT_LENGTH];
+    int name_width = 23; // Default width
+    int max_name_len = 0;
+    int table_width = 80;
+    int desc_width = 26; // Default width
     
     if (argument[0] == '\0') {
         send_to_char("Syntax: reserved search <string>\n\r", ch);
         return FALSE;
     }
     
+    /* Convert search string to lowercase for case-insensitive matching */
+    strcpy(search_str, argument);
+    for (char *p = search_str; *p; p++) {
+        *p = LOWER(*p);
+    }
+    
+    /* First pass: determine longest name for dynamic sizing */
+    if (reserved_vnums && list_size(reserved_vnums) > 0) {
+        ITERATOR it;
+        RESERVED_DATA *reserved;
+        char name_lowercase[MAX_STRING_LENGTH];
+        char desc_lowercase[MAX_STRING_LENGTH];
+        
+        iterator_start(&it, reserved_vnums);
+        while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+            /* Convert item data to lowercase for comparison */
+            strcpy(name_lowercase, reserved->name ? reserved->name : "");
+            for (char *p = name_lowercase; *p; p++) {
+                *p = LOWER(*p);
+            }
+            
+            strcpy(desc_lowercase, reserved->description ? reserved->description : "");
+            for (char *p = desc_lowercase; *p; p++) {
+                *p = LOWER(*p);
+            }
+            
+            /* Check if name or description contains the search string (case-insensitive) */
+            if ((!strstr(name_lowercase, search_str)) && 
+                (!strstr(desc_lowercase, search_str))) {
+                continue;
+            }
+            
+            int name_len = strlen(reserved->name);
+            if (name_len > max_name_len) 
+                max_name_len = name_len;
+        }
+        iterator_stop(&it);
+        
+        /* Calculate optimal column width (clamped between 15 and 40) */
+        name_width = UMAX(15, UMIN(40, max_name_len + 2));
+        
+        /* Adjust description width to keep table width at 80 chars */
+        desc_width = table_width - (name_width + 10 + 6 + 7 + 6);
+    }
+    
     buffer = new_buf();
     
-    /* Table header */
-    add_buf(buffer, "{Y+------------------------+------------+--------+---------+-------------------------+{x\n\r");
-    add_buf(buffer, "{Y| {WName{x                 | {WType{x       | {WID{x     | {WRemove{x  | {WDescription{x           |{x\n\r");
-    add_buf(buffer, "{Y+------------------------+------------+--------+---------+-------------------------+{x\n\r");
+    /* Generate divider line based on column widths */
+    sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
+            name_width, "-------------------------------------------------------------------------",
+            10, "------------",
+            6, "--------",
+            7, "---------",
+            desc_width, "-------------------------------------------------------------------");
+    add_buf(buffer, buf);
+    
+    /* Generate header line */
+    sprintf(buf, "{Y| {W%-*s{x | {W%-10s{x | {W%-6s{x | {W%-7s{x | {W%-*s{x |{x\n\r",
+            name_width, "Name", "Type", "ID", "Remove", desc_width, "Description");
+    add_buf(buffer, buf);
+    
+    /* Repeat divider line */
+    sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
+            name_width, "-------------------------------------------------------------------------",
+            10, "------------",
+            6, "--------",
+            7, "---------",
+            desc_width, "-------------------------------------------------------------------");
+    add_buf(buffer, buf);
     
     if (reserved_vnums && list_size(reserved_vnums) > 0) {
         ITERATOR it;
@@ -890,10 +1027,23 @@ RESERVED(reserved_search)
         iterator_start(&it, reserved_vnums);
         while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
             const char *type_name = "unknown";
+            char name_lowercase[MAX_STRING_LENGTH];
+            char desc_lowercase[MAX_STRING_LENGTH];
             
-            /* Check if name or description contains the search string */
-            if ((!reserved->name || !strstr(reserved->name, argument)) &&
-                (!reserved->description || !strstr(reserved->description, argument))) {
+            /* Convert item data to lowercase for comparison */
+            strcpy(name_lowercase, reserved->name ? reserved->name : "");
+            for (char *p = name_lowercase; *p; p++) {
+                *p = LOWER(*p);
+            }
+            
+            strcpy(desc_lowercase, reserved->description ? reserved->description : "");
+            for (char *p = desc_lowercase; *p; p++) {
+                *p = LOWER(*p);
+            }
+            
+            /* Check if name or description contains the search string (case-insensitive) */
+            if ((!strstr(name_lowercase, search_str)) && 
+                (!strstr(desc_lowercase, search_str))) {
                 continue;
             }
             
@@ -907,36 +1057,52 @@ RESERVED(reserved_search)
                 }
             }
             
+            /* Format name and truncate if needed */
+            char name_buf[MAX_STRING_LENGTH];
+            if (strlen(reserved->name) > name_width) {
+                strncpy(name_buf, reserved->name, name_width - 3);
+                name_buf[name_width - 3] = '\0';
+                strcat(name_buf, "...");
+            } else {
+                strcpy(name_buf, reserved->name);
+            }
+            
             /* Format description for display (truncate if needed) */
-            char desc_buf[31];
+            char desc_buf[MAX_STRING_LENGTH];
             if (reserved->description && reserved->description[0]) {
-                strncpy(desc_buf, reserved->description, 30);
-                desc_buf[30] = '\0';
-                if (strlen(reserved->description) > 30)
+                strncpy(desc_buf, reserved->description, desc_width - 3);
+                desc_buf[desc_width - 3] = '\0';
+                if (strlen(reserved->description) > desc_width - 3)
                     strcat(desc_buf, "...");
             } else {
                 strcpy(desc_buf, "(none)");
             }
             
-            sprintf(buf, "{Y| {C%-22s{x | {B%-10s{x | {Y%-6d{x | {%c%-7s{x | %-23s |{x\n\r",
-                reserved->name,
+            sprintf(buf, "{Y| {C%-*s{x | {B%-10s{x | {Y%-6d{x | {%c%-7s{x | %-*s |{x\n\r",
+                name_width, name_buf,
                 type_name,
                 reserved->id,
                 reserved->removable ? 'G' : 'R',
                 reserved->removable ? "Yes" : "No",
-                desc_buf);
+                desc_width, desc_buf);
             add_buf(buffer, buf);
         }
         iterator_stop(&it);
     }
     
     if (count == 0) {
-        sprintf(buf, "{Y| %-74s |{x\n\r", "No matching reserved items found.");
+        sprintf(buf, "{Y| %-*s |{x\n\r", table_width - 4, "No matching reserved items found.");
         add_buf(buffer, buf);
     }
     
     /* Table footer */
-    add_buf(buffer, "{Y+------------------------+------------+--------+---------+-------------------------+{x\n\r");
+    sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
+            name_width, "-------------------------------------------------------------------------",
+            10, "------------",
+            6, "--------",
+            7, "---------",
+            desc_width, "-------------------------------------------------------------------");
+    add_buf(buffer, buf);
     
     sprintf(buf, "\n\r%d reserved items matched your search.\n\r", count);
     add_buf(buffer, buf);
@@ -1075,4 +1241,191 @@ void init_reserved_defaults(void)
     }
     
     log_string("Default reserved items loaded.");
+}
+
+
+/*
+ * Search for reserved items by ID
+ */
+RESERVED(reserved_listid)
+{
+    BUFFER *buffer;
+    char buf[MAX_STRING_LENGTH];
+    int count = 0;
+    int id = 0;
+    int type = -1;
+    int name_width = 23; // Default width
+    int max_name_len = 0;
+    int table_width = 80;
+    int desc_width = 26; // Default width
+    char arg1[MAX_INPUT_LENGTH];
+    char arg2[MAX_INPUT_LENGTH];
+    
+    argument = one_argument(argument, arg1);
+    one_argument(argument, arg2);
+    
+    if (arg1[0] == '\0') {
+        send_to_char("Syntax: reserved listid <id> [type]\n\r", ch);
+        return FALSE;
+    }
+    
+    if (!is_number(arg1)) {
+        send_to_char("The ID must be a number.\n\r", ch);
+        return FALSE;
+    }
+    
+    id = atoi(arg1);
+    
+    /* Check for optional type filter */
+    if (arg2[0] != '\0') {
+        for (int i = 0; reserved_types[i].name; i++) {
+            if (!str_prefix(arg2, reserved_types[i].name)) {
+                type = reserved_types[i].type;
+                break;
+            }
+        }
+        
+        if (type == -1) {
+            send_to_char("Unknown reserved type. Valid types are: mob, obj, room, area, skill, flag, command\n\r", ch);
+            return FALSE;
+        }
+    }
+    
+    /* First pass: determine longest name for dynamic sizing */
+    if (reserved_vnums && list_size(reserved_vnums) > 0) {
+        ITERATOR it;
+        RESERVED_DATA *reserved;
+        
+        iterator_start(&it, reserved_vnums);
+        while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+            /* Skip if not matching ID or type filter */
+            if (reserved->id != id)
+                continue;
+                
+            if (type != -1 && reserved->type != type)
+                continue;
+            
+            int name_len = strlen(reserved->name);
+            if (name_len > max_name_len) 
+                max_name_len = name_len;
+        }
+        iterator_stop(&it);
+        
+        /* Calculate optimal column width (clamped between 15 and 40) */
+        name_width = UMAX(15, UMIN(40, max_name_len + 2));
+        
+        /* Adjust description width to keep table width at 80 chars */
+        desc_width = table_width - (name_width + 10 + 6 + 7 + 6);
+    }
+    
+    buffer = new_buf();
+    
+    sprintf(buf, "Reserved items with ID %d%s%s:\n\r\n\r", 
+            id,
+            type != -1 ? " of type " : "",
+            type != -1 ? reserved_types_get_name(type) : "");
+    add_buf(buffer, buf);
+    
+    /* Generate divider line based on column widths */
+    sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
+            name_width, "-------------------------------------------------------------------------",
+            10, "------------",
+            6, "--------",
+            7, "---------",
+            desc_width, "-------------------------------------------------------------------");
+    add_buf(buffer, buf);
+    
+    /* Generate header line */
+    sprintf(buf, "{Y| {W%-*s{x | {W%-10s{x | {W%-6s{x | {W%-7s{x | {W%-*s{x |{x\n\r",
+            name_width, "Name", "Type", "ID", "Remove", desc_width, "Description");
+    add_buf(buffer, buf);
+    
+    /* Repeat divider line */
+    sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
+            name_width, "-------------------------------------------------------------------------",
+            10, "------------",
+            6, "--------",
+            7, "---------",
+            desc_width, "-------------------------------------------------------------------");
+    add_buf(buffer, buf);
+    
+    if (reserved_vnums && list_size(reserved_vnums) > 0) {
+        ITERATOR it;
+        RESERVED_DATA *reserved;
+        
+        iterator_start(&it, reserved_vnums);
+        while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+            const char *type_name = "unknown";
+            
+            /* Skip if not matching ID or type filter */
+            if (reserved->id != id)
+                continue;
+                
+            if (type != -1 && reserved->type != type)
+                continue;
+                
+            count++;
+            
+            /* Get type name for display */
+            for (int i = 0; reserved_types[i].name; i++) {
+                if (reserved_types[i].type == reserved->type) {
+                    type_name = reserved_types[i].name;
+                    break;
+                }
+            }
+            
+            /* Format name and truncate if needed */
+            char name_buf[MAX_STRING_LENGTH];
+            if (strlen(reserved->name) > name_width) {
+                strncpy(name_buf, reserved->name, name_width - 3);
+                name_buf[name_width - 3] = '\0';
+                strcat(name_buf, "...");
+            } else {
+                strcpy(name_buf, reserved->name);
+            }
+            
+            /* Format description for display (truncate if needed) */
+            char desc_buf[MAX_STRING_LENGTH];
+            if (reserved->description && reserved->description[0]) {
+                strncpy(desc_buf, reserved->description, desc_width - 3);
+                desc_buf[desc_width - 3] = '\0';
+                if (strlen(reserved->description) > desc_width - 3)
+                    strcat(desc_buf, "...");
+            } else {
+                strcpy(desc_buf, "(none)");
+            }
+            
+            sprintf(buf, "{Y| {C%-*s{x | {B%-10s{x | {Y%-6d{x | {%c%-7s{x | %-*s |{x\n\r",
+                name_width, name_buf,
+                type_name,
+                reserved->id,
+                reserved->removable ? 'G' : 'R',
+                reserved->removable ? "Yes" : "No",
+                desc_width, desc_buf);
+            add_buf(buffer, buf);
+        }
+        iterator_stop(&it);
+    }
+    
+    if (count == 0) {
+        sprintf(buf, "{Y| %-*s |{x\n\r", table_width - 4, "No reserved items with that ID found.");
+        add_buf(buffer, buf);
+    }
+    
+    /* Table footer */
+    sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
+            name_width, "-------------------------------------------------------------------------",
+            10, "------------",
+            6, "--------",
+            7, "---------",
+            desc_width, "-------------------------------------------------------------------");
+    add_buf(buffer, buf);
+    
+    sprintf(buf, "\n\r%d reserved items found with ID %d.\n\r", count, id);
+    add_buf(buffer, buf);
+    
+    page_to_char(buf_string(buffer), ch);
+    free_buf(buffer);
+    
+    return TRUE;
 }

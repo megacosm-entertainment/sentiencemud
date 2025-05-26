@@ -150,6 +150,11 @@ void string_postprocess(CHAR_DATA *ch, bool execute)
 		string_end_chlog(ch);
 	}
 	
+	if (ch->desc->editor == ED_GAMESETTING) {
+		ch->desc->editor = ED_NONE;
+
+		game_settings_string_edit(ch);
+	}
 
 	if( ch->desc->input && ch->desc->inputString != NULL)
 	{

@@ -11631,3 +11631,326 @@ bool validate_password_uniqueness(ACCOUNT_DATA *acct, const char *plaintext_pass
     // Password passes all uniqueness checks
     return true;
 }
+
+
+
+
+
+
+// For game setting lookup
+char *get_game_setting_value(char *setting_name, bool *sensitive)
+{
+    static char value_buffer[MAX_STRING_LENGTH];
+    const struct game_setting_type *setting = NULL;
+    
+    // Find setting in game_settings_table
+    for (int i = 0; game_settings_table[i].name; i++) {
+        if (!str_cmp(setting_name, game_settings_table[i].name)) {
+            setting = &game_settings_table[i];
+            break;
+        }
+    }
+    
+    if (!setting) {
+        *sensitive = false;
+        strcpy(value_buffer, "");
+        return value_buffer;
+    }
+    
+    *sensitive = setting->sensitive;
+    if (sensitive && script_security < 9) {
+        strcpy(value_buffer, "*****");
+        return value_buffer;
+    }
+    
+    // Format the setting value based on type
+    switch (setting->type) {
+        case SETTING_TYPE_BOOL:
+            sprintf(value_buffer, "%s", *(bool*)setting->ptr ? "true" : "false");
+            break;
+        case SETTING_TYPE_INT:
+            sprintf(value_buffer, "%d", *(int*)setting->ptr);
+            break;
+        case SETTING_TYPE_STRING:
+		case SETTING_TYPE_EXTSTR:
+            sprintf(value_buffer, "%s", (char*)setting->ptr);
+            break;
+		case SETTING_TYPE_FLOAT:
+			sprintf(value_buffer, "%.2f", *(float*)setting->ptr);
+			break;
+        default:
+            strcpy(value_buffer, "");
+            break;
+    }
+    
+    return value_buffer;
+}
+
+/*
+ * Helper function to get area data by reserved name
+ */
+AREA_DATA *get_reserved_area_index(const char *name)
+{
+    ITERATOR it;
+    RESERVED_DATA *reserved;
+    
+    if (!name || !*name || !reserved_vnums)
+        return NULL;
+        
+    iterator_start(&it, reserved_vnums);
+    while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+        if (reserved->type == RESERVED_AREA && 
+            !str_cmp(name, reserved->name)) {
+            iterator_stop(&it);
+            return get_area_index(reserved->id);
+        }
+    }
+    iterator_stop(&it);
+    
+    return NULL;
+}
+
+/*
+ * Helper function to get token index data by reserved name
+ */
+TOKEN_INDEX_DATA *get_reserved_token_index(const char *name)
+{
+    ITERATOR it;
+    RESERVED_DATA *reserved;
+    
+    if (!name || !*name || !reserved_vnums)
+        return NULL;
+        
+    iterator_start(&it, reserved_vnums);
+    while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+        if (reserved->type == RESERVED_TOKEN && 
+            !str_cmp(name, reserved->name)) {
+            iterator_stop(&it);
+            return get_token_index(reserved->id);
+        }
+    }
+    iterator_stop(&it);
+    
+    return NULL;
+}
+
+/*
+ * Helper function to get room prog index by reserved name
+ */
+SCRIPT_DATA *get_reserved_rprog_index(const char *name)
+{
+    ITERATOR it;
+    RESERVED_DATA *reserved;
+    
+    if (!name || !*name || !reserved_vnums)
+        return NULL;
+        
+    iterator_start(&it, reserved_vnums);
+    while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+        if (reserved->type == RESERVED_RPROG && 
+            !str_cmp(name, reserved->name)) {
+            iterator_stop(&it);
+            return get_script_index(reserved->id, PRG_RPROG);
+        }
+    }
+    iterator_stop(&it);
+    
+    return NULL;
+}
+
+/*
+ * Helper function to get object prog index by reserved name
+ */
+SCRIPT_DATA *get_reserved_oprog_index(const char *name)
+{
+    ITERATOR it;
+    RESERVED_DATA *reserved;
+    
+    if (!name || !*name || !reserved_vnums)
+        return NULL;
+        
+    iterator_start(&it, reserved_vnums);
+    while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+        if (reserved->type == RESERVED_OPROG && 
+            !str_cmp(name, reserved->name)) {
+            iterator_stop(&it);
+            return get_script_index(reserved->id, PRG_OPROG);
+        }
+    }
+    iterator_stop(&it);
+    
+    return NULL;
+}
+
+/*
+ * Helper function to get mobile prog index by reserved name
+ */
+SCRIPT_DATA *get_reserved_mprog_index(const char *name)
+{
+    ITERATOR it;
+    RESERVED_DATA *reserved;
+    
+    if (!name || !*name || !reserved_vnums)
+        return NULL;
+        
+    iterator_start(&it, reserved_vnums);
+    while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+        if (reserved->type == RESERVED_MPROG && 
+            !str_cmp(name, reserved->name)) {
+            iterator_stop(&it);
+            return get_script_index(reserved->id, PRG_MPROG);
+        }
+    }
+    iterator_stop(&it);
+    
+    return NULL;
+}
+
+/*
+ * Helper function to get token prog index by reserved name
+ */
+SCRIPT_DATA *get_reserved_tprog_index(const char *name)
+{
+    ITERATOR it;
+    RESERVED_DATA *reserved;
+    
+    if (!name || !*name || !reserved_vnums)
+        return NULL;
+        
+    iterator_start(&it, reserved_vnums);
+    while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+        if (reserved->type == RESERVED_TPROG && 
+            !str_cmp(name, reserved->name)) {
+            iterator_stop(&it);
+            return get_script_index(reserved->id, PRG_TPROG);
+        }
+    }
+    iterator_stop(&it);
+    
+    return NULL;
+}
+
+/*
+ * Helper function to get area prog index by reserved name
+ */
+SCRIPT_DATA *get_reserved_aprog_index(const char *name)
+{
+    ITERATOR it;
+    RESERVED_DATA *reserved;
+    
+    if (!name || !*name || !reserved_vnums)
+        return NULL;
+        
+    iterator_start(&it, reserved_vnums);
+    while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+        if (reserved->type == RESERVED_APROG && 
+            !str_cmp(name, reserved->name)) {
+            iterator_stop(&it);
+            return get_script_index(reserved->id, PRG_APROG);
+        }
+    }
+    iterator_stop(&it);
+    
+    return NULL;
+}
+
+const struct game_setting_type *get_game_setting(const char *name)
+{
+    extern const struct game_setting_type game_settings_table[];
+    
+    for (int i = 0; game_settings_table[i].name != NULL; i++) {
+        if (!str_cmp(game_settings_table[i].name, name)) {
+            return &game_settings_table[i];
+        }
+    }
+    
+    return NULL;
+}
+
+/*
+ * Helper function to get mobile index by reserved name
+ */
+MOB_INDEX_DATA *get_reserved_mob_index(const char *name)
+{
+    ITERATOR it;
+    RESERVED_DATA *reserved;
+    
+    if (!name || !*name || !reserved_vnums)
+        return NULL;
+        
+    iterator_start(&it, reserved_vnums);
+    while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+        if (reserved->type == RESERVED_MOB && 
+            !str_cmp(name, reserved->name)) {
+            iterator_stop(&it);
+            return get_mob_index(reserved->id);
+        }
+    }
+    iterator_stop(&it);
+    
+    return NULL;
+}
+
+/*
+ * Helper function to get object index by reserved name
+ */
+OBJ_INDEX_DATA *get_reserved_obj_index(const char *name)
+{
+    ITERATOR it;
+    RESERVED_DATA *reserved;
+    
+    if (!name || !*name || !reserved_vnums)
+        return NULL;
+        
+    iterator_start(&it, reserved_vnums);
+    while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+        if (reserved->type == RESERVED_OBJ && 
+            !str_cmp(name, reserved->name)) {
+            iterator_stop(&it);
+            return get_obj_index(reserved->id);
+        }
+    }
+    iterator_stop(&it);
+    
+    return NULL;
+}
+
+/*
+ * Helper function to get room index by reserved name
+ */
+ROOM_INDEX_DATA *get_reserved_room_index(const char *name)
+{
+    ITERATOR it;
+    RESERVED_DATA *reserved;
+    
+    if (!name || !*name || !reserved_vnums)
+        return NULL;
+        
+    iterator_start(&it, reserved_vnums);
+    while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+        if (reserved->type == RESERVED_ROOM && 
+            !str_cmp(name, reserved->name)) {
+            iterator_stop(&it);
+            return get_room_index(reserved->id);
+        }
+    }
+    iterator_stop(&it);
+    
+    return NULL;
+}
+
+/*
+ * Helper function to get area index by id
+ */
+AREA_DATA *get_area_index(long uid)
+{
+    AREA_DATA *pArea;
+
+    for (pArea = area_first; pArea; pArea = pArea->next)
+    {
+        if (pArea->uid == uid)
+            return pArea;
+    }
+
+    return NULL;
+}

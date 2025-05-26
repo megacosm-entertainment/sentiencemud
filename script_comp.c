@@ -348,273 +348,493 @@ char *compile_entity_field(char *str,char *field, char *suffix)
 
 char *compile_entity(char *str,int type, char **store)
 {
-	char buf[MSL];
-	char field[MIL],suffix[MIL]/*, *s*/;
-	int ent = ENT_PRIMARY, next_ent;
-	char *p = *store;
-	const ENT_FIELD *ftype;
+    char buf[MSL];
+    char field[MIL],suffix[MIL]/*, *s*/;
+    int ent = ENT_PRIMARY, next_ent;
+    char *p = *store;
+    const ENT_FIELD *ftype;
 
-	DBG2ENTRY3(PTR,str,NUM,type,PTR,store);
+    DBG2ENTRY3(PTR,str,NUM,type,PTR,store);
 
-	*p++ = ESCAPE_ENTITY;
-	while(*str && *str != ')') {
-		str = skip_whitespace(str);
+    *p++ = ESCAPE_ENTITY;
+    while(*str && *str != ')') {
+        str = skip_whitespace(str);
 
-		if(ent == ENT_PRIMARY) {
-			if(*str == '.') {
-				sprintf(buf,"Line %d: Unexpected '.' in $().", compile_current_line);
-				compile_error_show(buf);
-				return NULL;
-			}
+        if(ent == ENT_PRIMARY) {
+            if(*str == '.') {
+                sprintf(buf,"Line %d: Unexpected '.' in $().", compile_current_line);
+                compile_error_show(buf);
+                return NULL;
+            }
 
-			if(*str == '[')
-			{
-				str = compile_expression(str+1,type,&p);
-				if( !str ) return NULL;
-				ent = ENT_NUMBER;
-				continue;
-			}
+            if(*str == '[')
+            {
+                str = compile_expression(str+1,type,&p);
+                if( !str ) return NULL;
+                ent = ENT_NUMBER;
+                continue;
+            }
 
-		} else {
-			if(*str != '.') {
-				sprintf(buf,"Line %d: Expecting '.' in $().", compile_current_line);
-				compile_error_show(buf);
-				return NULL;
-			}
-			str = skip_whitespace(str+1);
-		}
+        } else {
+            if(*str != '.') {
+                sprintf(buf,"Line %d: Expecting '.' in $().", compile_current_line);
+                compile_error_show(buf);
+                return NULL;
+            }
+            str = skip_whitespace(str+1);
+        }
 
-		str = compile_entity_field(str,field,suffix);
-		if(!str) return NULL;
+        str = compile_entity_field(str,field,suffix);
+        if(!str) return NULL;
 
 //		sprintf(buf,"Line %d: $() field '%s' ent %d.", compile_current_line, field, ent);
 //		compile_error_show(buf);
 
-		if(ent == ENT_EXTRADESC || ent == ENT_HELP) {
-			if(suffix[0]) {
-				sprintf(buf,"Line %d: type suffix is only allowed for variable fields.", compile_current_line);
-				compile_error_show(buf);
-				return NULL;
-			}
-			if(!compile_variable(field,&p,type,false,true))
-				return NULL;
-			*p++ = ENTITY_VAR_STR;
-			next_ent = ENT_STRING;
+        if(ent == ENT_EXTRADESC || ent == ENT_HELP) {
+            if(suffix[0]) {
+                sprintf(buf,"Line %d: type suffix is only allowed for variable fields.", compile_current_line);
+                compile_error_show(buf);
+                return NULL;
+            }
+            if(!compile_variable(field,&p,type,false,true))
+                return NULL;
+            *p++ = ENTITY_VAR_STR;
+            next_ent = ENT_STRING;
 
-		} else if(ent == ENT_BITVECTOR || ent == ENT_BITMATRIX) {
-			if(suffix[0]) {
-				sprintf(buf,"Line %d: type suffix is only allowed for variable fields.", compile_current_line);
-				compile_error_show(buf);
-				return NULL;
-			}
-			if(!compile_variable(field,&p,type,false,true))
-				return NULL;
-			*p++ = ENTITY_VAR_BOOLEAN;
-			next_ent = ENT_BOOLEAN;
+        } else if(ent == ENT_BITVECTOR || ent == ENT_BITMATRIX) {
+            if(suffix[0]) {
+                sprintf(buf,"Line %d: type suffix is only allowed for variable fields.", compile_current_line);
+                compile_error_show(buf);
+                return NULL;
+            }
+            if(!compile_variable(field,&p,type,false,true))
+                return NULL;
+            *p++ = ENTITY_VAR_BOOLEAN;
+            next_ent = ENT_BOOLEAN;
 
-		} else if(ent == ENT_STRING) {
-			sent_bool paddir = TRISTATE_UNDEF;		// false = padleft, true = padright
-			if( !str_cmp(field, "padleft") )
-			{
-				paddir = false;
-			}
-			else if(!str_cmp(field, "padright") )
-			{
-				paddir = true;
-			}
+        } else if(ent == ENT_STRING) {
+            sent_bool paddir = TRISTATE_UNDEF;		// false = padleft, true = padright
+            if( !str_cmp(field, "padleft") )
+            {
+                paddir = false;
+            }
+            else if(!str_cmp(field, "padright") )
+            {
+                paddir = true;
+            }
 /*			else
-			{
-				sprintf(buf,"Line %d: '%s:%s' not a valid numerical field for strings.", compile_current_line, field, suffix);
-				compile_error_show(buf);
-				return NULL;
-			}
+            {
+                sprintf(buf,"Line %d: '%s:%s' not a valid numerical field for strings.", compile_current_line, field, suffix);
+                compile_error_show(buf);
+                return NULL;
+            }
 */
 
-			if (paddir != TRISTATE_UNDEF)
-			{
-				if( !is_number(suffix) )
-				{
-					sprintf(buf,"Line %d: '%s' requires a number for the suffix.", compile_current_line, field);
-					compile_error_show(buf);
-					return NULL;
-				}
+            if (paddir != TRISTATE_UNDEF)
+            {
+                if( !is_number(suffix) )
+                {
+                    sprintf(buf,"Line %d: '%s' requires a number for the suffix.", compile_current_line, field);
+                    compile_error_show(buf);
+                    return NULL;
+                }
 
-				int padding = atoi(suffix);
-				if( padding < 1 || padding > 80 )
-				{
-					sprintf(buf,"Line %d: padding out of range for '%s'.  Please limit value to 1 to 80.", compile_current_line, field);
-					compile_error_show(buf);
-					return NULL;
-				}
+                int padding = atoi(suffix);
+                if( padding < 1 || padding > 80 )
+                {
+                    sprintf(buf,"Line %d: padding out of range for '%s'.  Please limit value to 1 to 80.", compile_current_line, field);
+                    compile_error_show(buf);
+                    return NULL;
+                }
 
-				*p++ = paddir ? ENTITY_STR_PADRIGHT : ENTITY_STR_PADLEFT;
-				*p++ = padding + ESCAPE_EXTRA;
+                *p++ = paddir ? ENTITY_STR_PADRIGHT : ENTITY_STR_PADLEFT;
+                *p++ = padding + ESCAPE_EXTRA;
 
-				next_ent = ENT_STRING;
-			}
-			else
-			{
-					if((ftype = entity_type_lookup(field,script_entity_fields(ent)))) {
-						*p++ = ftype->code;
-						next_ent = ftype->type;
-					}
-					else
-					{
-						sprintf(buf, "Line %d: Invalid $() field '%s'.", compile_current_line, field);
-						compile_error_show(buf);
-						return NULL;
-					}
-					
-			}
+                next_ent = ENT_STRING;
+            }
+            else
+            {
+                if((ftype = entity_type_lookup(field,script_entity_fields(ent)))) {
+                    *p++ = ftype->code;
+                    next_ent = ftype->type;
+                }
+                else
+                {
+                    sprintf(buf, "Line %d: Invalid $() field '%s'.", compile_current_line, field);
+                    compile_error_show(buf);
+                    return NULL;
+                }
+                    
+            }
 
-		} else if(ent == ENT_NUMBER) {
-			sent_bool paddir = TRISTATE_UNDEF;		// false = padleft, true = padright
-			if( !str_cmp(field, "padleft") )
-			{
-				paddir = false;
-			}
-			else if(!str_cmp(field, "padright") )
-			{
-				paddir = true;
-			}
+        } else if(ent == ENT_NUMBER) {
+            sent_bool paddir = TRISTATE_UNDEF;		// false = padleft, true = padright
+            if( !str_cmp(field, "padleft") )
+            {
+                paddir = false;
+            }
+            else if(!str_cmp(field, "padright") )
+            {
+                paddir = true;
+            }
 /*			else
-			{
-				sprintf(buf,"Line %d: '%s:%s' not a valid numerical field for numbers.", compile_current_line, field, suffix);
-				compile_error_show(buf);
-				return NULL;
-			}
+            {
+                sprintf(buf,"Line %d: '%s:%s' not a valid numerical field for numbers.", compile_current_line, field, suffix);
+                compile_error_show(buf);
+                return NULL;
+            }
 */
-			if (paddir != TRISTATE_UNDEF)
-			{
-				if( !is_number(suffix) )
-				{
-					sprintf(buf,"Line %d: '%s' requires a number for the suffix.", compile_current_line, field);
-					compile_error_show(buf);
-					return NULL;
-				}
+            if (paddir != TRISTATE_UNDEF)
+            {
+                if( !is_number(suffix) )
+                {
+                    sprintf(buf,"Line %d: '%s' requires a number for the suffix.", compile_current_line, field);
+                    compile_error_show(buf);
+                    return NULL;
+                }
 
-				int padding = atoi(suffix);
-				if( padding < 1 || padding > 80 )
-				{
-					sprintf(buf,"Line %d: padding out of range for '%s'.  Please limit value to 1 to 80.", compile_current_line, field);
-					compile_error_show(buf);
-					return NULL;
-				}
+                int padding = atoi(suffix);
+                if( padding < 1 || padding > 80 )
+                {
+                    sprintf(buf,"Line %d: padding out of range for '%s'.  Please limit value to 1 to 80.", compile_current_line, field);
+                    compile_error_show(buf);
+                    return NULL;
+                }
 
-				*p++ = paddir ? ENTITY_NUM_PADRIGHT : ENTITY_NUM_PADLEFT;
-				*p++ = padding + ESCAPE_EXTRA;
+                *p++ = paddir ? ENTITY_NUM_PADRIGHT : ENTITY_NUM_PADLEFT;
+                *p++ = padding + ESCAPE_EXTRA;
 
-				next_ent = ENT_STRING;
-			}
-			else
-			{
-				if((ftype = entity_type_lookup(field,script_entity_fields(ent)))) {
-					*p++ = ftype->code;
-					next_ent = ftype->type;
-				} else {
-					sprintf(buf,"Line %d: Invalid $() field '%s'.", compile_current_line, field);
-					compile_error_show(buf);
-					return NULL;
-				}
-			}
+                next_ent = ENT_STRING;
+            }
+            else
+            {
+                if((ftype = entity_type_lookup(field,script_entity_fields(ent)))) {
+                    *p++ = ftype->code;
+                    next_ent = ftype->type;
+                } 
+                else if(ent == ENT_GAME && (!str_cmp(field, "settings") || !str_cmp(field, "setting"))) {
+                    // Special handling for game.settings
+                    *p++ = ENTITY_GAME_SETTINGS;  // Use the ENTITY_GAME_SETTINGS constant
+                    next_ent = ENT_GAME_SETTING;  // Set the next entity type to ENT_GAME_SETTING
+                }
+                else {
+                    sprintf(buf,"Line %d: Invalid $() field '%s'.", compile_current_line, field);
+                    compile_error_show(buf);
+                    return NULL;
+                }
+            }
 
-		// Is this a variable call?
-		} else if(suffix[0]) {
-			if(script_entity_allow_vars(ent)) {
-				if(!field[0]) {
-					sprintf(buf,"Line %d: Missing $() variable name.", compile_current_line);
-					compile_error_show(buf);
-					return NULL;
-				}
+        // Is this a variable call?
+        } else if(suffix[0]) {
+            if(script_entity_allow_vars(ent)) {
+                if(!field[0]) {
+                    sprintf(buf,"Line %d: Missing $() variable name.", compile_current_line);
+                    compile_error_show(buf);
+                    return NULL;
+                }
 
-				ftype = entity_type_lookup(suffix,entity_types);
-				if(!ftype) {
-					sprintf(buf,"Line %d: Invalid $() variable typing '%s'.", compile_current_line, suffix);
-					compile_error_show(buf);
-					return NULL;
-				}
+                ftype = entity_type_lookup(suffix,entity_types);
+                if(!ftype) {
+                    sprintf(buf,"Line %d: Invalid $() variable typing '%s'.", compile_current_line, suffix);
+                    compile_error_show(buf);
+                    return NULL;
+                }
 
-				if(!compile_variable(field,&p,type,false,true))
-					return NULL;
-				*p++ = ftype->code;
-				next_ent = ftype->type;
-			} else {
-				sprintf(buf,"Line %d: type suffix is only allowed for variable fields.", compile_current_line);
-				compile_error_show(buf);
-				return NULL;
-			}
-		} else if((ftype = entity_type_lookup(field,script_entity_fields(ent)))) {
-			*p++ = ftype->code;
-			next_ent = ftype->type;
-		} else {
-			sprintf(buf,"Line %d: Invalid $() field '%s'.", compile_current_line, field);
-			compile_error_show(buf);
-			return NULL;
-		}
+                if(!compile_variable(field,&p,type,false,true))
+                    return NULL;
+                *p++ = ftype->code;
+                next_ent = ftype->type;
+            } else {
+                sprintf(buf,"Line %d: type suffix is only allowed for variable fields.", compile_current_line);
+                compile_error_show(buf);
+                return NULL;
+            }
+        } else if((ftype = entity_type_lookup(field,script_entity_fields(ent)))) {
+            *p++ = ftype->code;
+            next_ent = ftype->type;
+        } else if(ent == ENT_GAME && (!str_cmp(field, "settings") || !str_cmp(field, "setting"))) {
+            // Special handling for game.settings
+            *p++ = ENTITY_GAME_SETTINGS;
+            next_ent = ENT_GAME_SETTING;
+        } else if(ent == ENT_GAME_SETTING) {
+            // Special handling for game settings fields - accept any valid settings name
+            const struct game_setting_type *setting = get_game_setting(field);
+            
+            // If the setting is found, use it directly
+            if(setting) {
+                // Encode field name as a variable
+                if(!compile_variable(field, &p, type, false, true))
+                    return NULL;
+                
+                // Set appropriate type based on the setting
+                switch (setting->type) {
+                    case SETTING_TYPE_BOOL:
+                        *p++ = ENTITY_VAR_BOOLEAN;
+                        next_ent = ENT_BOOLEAN;
+                        break;
+                    case SETTING_TYPE_INT:
+                        *p++ = ENTITY_VAR_NUM;
+                        next_ent = ENT_NUMBER;
+                        break;
+                    case SETTING_TYPE_FLOAT:
+                        *p++ = ENTITY_VAR_NUM;  // Treat floats as numbers
+                        next_ent = ENT_NUMBER;
+                        break;
+                    case SETTING_TYPE_STRING:
+                    case SETTING_TYPE_EXTSTR:
+                    default:
+                        *p++ = ENTITY_VAR_STR;
+                        next_ent = ENT_STRING;
+                        break;
+                }
+            } else {
+                sprintf(buf,"Line %d: Invalid game setting '%s'.", compile_current_line, field);
+                compile_error_show(buf);
+                return NULL;
+            } 
+        } else if(ent == ENT_RESERVED_MOBILE || ent == ENT_RESERVED_OBJECT || 
+                  ent == ENT_RESERVED_ROOM || ent == ENT_RESERVED_AREA || 
+                  ent == ENT_RESERVED_TOKEN || ent == ENT_RESERVED_RPROG || 
+                  ent == ENT_RESERVED_OPROG || ent == ENT_RESERVED_MPROG || 
+                  ent == ENT_RESERVED_TPROG || ent == ENT_RESERVED_APROG) {
+            
+            // Determine if the reserved entity name is valid
+            bool valid_reserved = false;
+            
+            // Use the appropriate lookup function based on type
+switch(ent) {
+    case ENT_RESERVED_MOBILE:
+        valid_reserved = (get_reserved_mob_index(field) != NULL);
+        if (valid_reserved) {
+            MOB_INDEX_DATA *mob = get_reserved_mob_index(field);
+            //bug("Found reserved mob %s with vnum %ld", field, mob->vnum);
+        } else {
+            sprintf(buf, "Line %d: Could not find reserved mobile '%s'.", compile_current_line, field);
+            bug(buf, 0);
+        }
+        break;
+    case ENT_RESERVED_OBJECT:
+        valid_reserved = (get_reserved_obj_index(field) != NULL);
+        if (valid_reserved) {
+            OBJ_INDEX_DATA *obj = get_reserved_obj_index(field);
+            //bug("Found reserved object %s with vnum %d", field, obj->vnum);
+        } else {
+            sprintf(buf, "Line %d: Could not find reserved object '%s'.", compile_current_line, field);
+            bug(buf, 0);
+        }
+        break;
+    case ENT_RESERVED_ROOM:
+        valid_reserved = (get_reserved_room_index(field) != NULL);
+        if (valid_reserved) {
+            ROOM_INDEX_DATA *room = get_reserved_room_index(field);
+            //bug("Found reserved room %s with vnum %ld", field, room->vnum);
+        } else {
+            sprintf(buf, "Line %d: Could not find reserved room '%s'.", compile_current_line, field);
+            bug(buf, 0);
+        }
+        break;
+    case ENT_RESERVED_AREA:
+        valid_reserved = (get_reserved_area_index(field) != NULL);
+        if (valid_reserved) {
+            AREA_DATA *area = get_reserved_area_index(field);
+            //bug("Found reserved area %s with uid %ld", field, area->uid);
+        } else {
+            sprintf(buf, "Line %d: Could not find reserved area '%s'.", compile_current_line, field);
+            bug(buf, 0);
+        }
+        break;
+    case ENT_RESERVED_TOKEN:
+        valid_reserved = (get_reserved_token_index(field) != NULL);
+        if (valid_reserved) {
+            TOKEN_INDEX_DATA *token = get_reserved_token_index(field);
+            //bug("Found reserved token %s with vnum %ld", field, token->vnum);
+        } else {
+            sprintf(buf, "Line %d: Could not find reserved token '%s'.", compile_current_line, field);
+            bug(buf, 0);
+        }
+        break;
+    case ENT_RESERVED_RPROG:
+        valid_reserved = (get_reserved_rprog_index(field) != NULL);
+        if (valid_reserved) {
+            SCRIPT_DATA *script = get_reserved_rprog_index(field);
+            //bug("Found reserved rprog %s with vnum %ld", field, script->vnum);
+        } else {
+            sprintf(buf, "Line %d: Could not find reserved rprog '%s'.", compile_current_line, field);
+            bug(buf, 0);
+        }
+        break;
+    case ENT_RESERVED_OPROG:
+        valid_reserved = (get_reserved_oprog_index(field) != NULL);
+        if (valid_reserved) {
+            SCRIPT_DATA *script = get_reserved_oprog_index(field);
+            //bug("Found reserved oprog %s with vnum %ld", field, script->vnum);
+        } else {
+            sprintf(buf, "Line %d: Could not find reserved oprog '%s'.", compile_current_line, field);
+            bug(buf, 0);
+        }
+        break;
+    case ENT_RESERVED_MPROG:
+        valid_reserved = (get_reserved_mprog_index(field) != NULL);
+        if (valid_reserved) {
+            SCRIPT_DATA *script = get_reserved_mprog_index(field);
+            //bug("Found reserved mprog %s with vnum %ld", field, script->vnum);
+        } else {
+            sprintf(buf, "Line %d: Could not find reserved mprog '%s'.", compile_current_line, field);
+            bug(buf, 0);
+        }
+        break;
+    case ENT_RESERVED_TPROG:
+        valid_reserved = (get_reserved_tprog_index(field) != NULL);
+        if (valid_reserved) {
+            SCRIPT_DATA *script = get_reserved_tprog_index(field);
+            //bug("Found reserved tprog %s with vnum %ld", field, script->vnum);
+        } else {
+            sprintf(buf, "Line %d: Could not find reserved tprog '%s'.", compile_current_line, field);
+            bug(buf, 0);
+        }
+        break;
+    case ENT_RESERVED_APROG:
+        valid_reserved = (get_reserved_aprog_index(field) != NULL);
+        if (valid_reserved) {
+            SCRIPT_DATA *script = get_reserved_aprog_index(field);
+            //bug("Found reserved aprog %s with vnum %ld", field, script->vnum);
+        } else {
+            sprintf(buf, "Line %d: Could not find reserved aprog '%s'.", compile_current_line, field);
+            bug(buf, 0);
+        }
+        break;
+}
+            
+            if(valid_reserved) {
+                // Encode field name as a variable for runtime lookup
+                if(!compile_variable(field, &p, type, false, true))
+                    return NULL;
+                
+                // All reserved entities are integers (VNUMs)
+                *p++ = ENTITY_VAR_NUM;
+                next_ent = ENT_NUMBER;
+            } else {
+                sprintf(buf, "Line %d: Invalid reserved name '%s'.", compile_current_line, field);
+                compile_error_show(buf);
+                return NULL;
+            }
+        } else {
+            sprintf(buf,"Line %d: Invalid $() field '%s'.", compile_current_line, field);
+            compile_error_show(buf);
+            return NULL;
+        }
 
-		str = skip_whitespace(str);
+        str = skip_whitespace(str);
 
-		if(next_ent == ENT_UNKNOWN) {
-			switch(ent) {
-			case ENT_PRIMARY:
-				switch(type) {
-				case IFC_M: ent = ENT_MOBILE; break;
-				case IFC_O: ent = ENT_OBJECT; break;
-				case IFC_R: ent = ENT_ROOM; break;
-				case IFC_T: ent = ENT_TOKEN; break;
-				case IFC_A: ent = ENT_AREA; break;
-				case IFC_I: ent = ENT_INSTANCE; break;
-				case IFC_D: ent = ENT_DUNGEON; break;
-				default:
-					sprintf(buf,"Line %d: Invalid primary $() identifier '%s'.", compile_current_line, field);
-					compile_error_show(buf);
-					return NULL;
-				}
-				break;
-			case ENT_OLLIST_MOB:	ent = ENT_MOBILE; break;
-			case ENT_OLLIST_OBJ:	ent = ENT_OBJECT; break;
-			case ENT_OLLIST_TOK:	ent = ENT_TOKEN; break;
-			case ENT_OLLIST_AFF:	ent = ENT_AFFECT; break;
+        if(next_ent == ENT_UNKNOWN) {
+            switch(ent) {
+            case ENT_PRIMARY:
+                switch(type) {
+                case IFC_M: ent = ENT_MOBILE; break;
+                case IFC_O: ent = ENT_OBJECT; break;
+                case IFC_R: ent = ENT_ROOM; break;
+                case IFC_T: ent = ENT_TOKEN; break;
+                case IFC_A: ent = ENT_AREA; break;
+                case IFC_I: ent = ENT_INSTANCE; break;
+                case IFC_D: ent = ENT_DUNGEON; break;
+                default:
+                    sprintf(buf,"Line %d: Invalid primary $() identifier '%s'.", compile_current_line, field);
+                    compile_error_show(buf);
+                    return NULL;
+                }
+                break;
+            case ENT_RESERVED_MOBILE:  ent = ENT_MOBINDEX; break;
+            case ENT_RESERVED_OBJECT:  ent = ENT_OBJINDEX; break;
+            case ENT_RESERVED_ROOM:    ent = ENT_ROOM; break;
+            case ENT_RESERVED_AREA:    ent = ENT_AREA; break;
+            case ENT_RESERVED_TOKEN:   ent = ENT_TOKEN_INDEX; break;
+            case ENT_RESERVED_RPROG:   ent = ENT_SCRIPT_DATA; break;
+            case ENT_RESERVED_OPROG:   ent = ENT_SCRIPT_DATA; break;
+            case ENT_RESERVED_MPROG:   ent = ENT_SCRIPT_DATA; break;
+            case ENT_RESERVED_TPROG:   ent = ENT_SCRIPT_DATA; break; 
+            case ENT_RESERVED_APROG:   ent = ENT_SCRIPT_DATA; break;
+            case ENT_GAME_SETTING:
+                // Special handling for dynamic game settings
+                const struct game_setting_type *setting = get_game_setting(field);
+                if (setting) {
+                    // Encode setting name for runtime lookup
+                    if(!compile_variable(field, &p, type, false, true))
+                        return NULL;
+                    
+                    // Set appropriate type based on the setting
+                    switch (setting->type) {
+                        case SETTING_TYPE_BOOL:
+                            *p++ = ENTITY_VAR_BOOLEAN;
+                            ent = ENT_BOOLEAN;
+                            break;
+                        case SETTING_TYPE_INT:
+                            *p++ = ENTITY_VAR_NUM;
+                            ent = ENT_NUMBER;
+                            break;
+                        case SETTING_TYPE_FLOAT:
+                            *p++ = ENTITY_VAR_NUM;  // Treat floats as numbers
+                            ent = ENT_NUMBER;
+                            break;
+                        case SETTING_TYPE_STRING:
+                        case SETTING_TYPE_EXTSTR:
+                        default:
+                            *p++ = ENTITY_VAR_STR;
+                            ent = ENT_STRING;
+                            break;
+                    }
+                } else {
+                    // For unknown settings, default to string
+                    if(!compile_variable(field, &p, type, false, true))
+                        return NULL;
+                    *p++ = ENTITY_VAR_STR;
+                    ent = ENT_STRING;
+                }
+                break;
 
-			case ENT_BLLIST_ROOM:	ent = ENT_ROOM; break;
-			case ENT_BLLIST_MOB:	ent = ENT_MOBILE; break;
-			case ENT_BLLIST_OBJ:	ent = ENT_OBJECT; break;
-			case ENT_BLLIST_TOK:	ent = ENT_TOKEN; break;
-			case ENT_BLLIST_EXIT:	ent = ENT_EXIT; break;
-			case ENT_BLLIST_SKILL:	ent = ENT_SKILLINFO; break;
-			case ENT_BLLIST_AREA:	ent = ENT_AREA; break;
-			case ENT_BLLIST_WILDS:	ent = ENT_WILDS; break;
+            case ENT_OLLIST_MOB:	ent = ENT_MOBILE; break;
+            case ENT_OLLIST_OBJ:	ent = ENT_OBJECT; break;
+            case ENT_OLLIST_TOK:	ent = ENT_TOKEN; break;
+            case ENT_OLLIST_AFF:	ent = ENT_AFFECT; break;
 
-			case ENT_PLLIST_STR:	ent = ENT_STRING; break;
-			case ENT_PLLIST_CONN:	ent = ENT_CONN; break;
-			case ENT_PLLIST_ROOM:	ent = ENT_ROOM; break;
-			case ENT_PLLIST_MOB:	ent = ENT_MOBILE; break;
-			case ENT_PLLIST_OBJ:	ent = ENT_OBJECT; break;
-			case ENT_PLLIST_TOK:	ent = ENT_TOKEN; break;
-			case ENT_PLLIST_CHURCH:	ent = ENT_CHURCH; break;
+            case ENT_BLLIST_ROOM:	ent = ENT_ROOM; break;
+            case ENT_BLLIST_MOB:	ent = ENT_MOBILE; break;
+            case ENT_BLLIST_OBJ:	ent = ENT_OBJECT; break;
+            case ENT_BLLIST_TOK:	ent = ENT_TOKEN; break;
+            case ENT_BLLIST_EXIT:	ent = ENT_EXIT; break;
+            case ENT_BLLIST_SKILL:	ent = ENT_SKILLINFO; break;
+            case ENT_BLLIST_AREA:	ent = ENT_AREA; break;
+            case ENT_BLLIST_WILDS:	ent = ENT_WILDS; break;
 
-			case ENT_ILLIST_VARIABLE:	ent = ENT_VARIABLE; break;
+            case ENT_PLLIST_STR:	ent = ENT_STRING; break;
+            case ENT_PLLIST_CONN:	ent = ENT_CONN; break;
+            case ENT_PLLIST_ROOM:	ent = ENT_ROOM; break;
+            case ENT_PLLIST_MOB:	ent = ENT_MOBILE; break;
+            case ENT_PLLIST_OBJ:	ent = ENT_OBJECT; break;
+            case ENT_PLLIST_TOK:	ent = ENT_TOKEN; break;
+            case ENT_PLLIST_CHURCH:	ent = ENT_CHURCH; break;
 
-			default:
-				sprintf(buf,"Line %d: Invalid $() primary '%s'.", compile_current_line, field);
-				compile_error_show(buf);
-				return NULL;
-			}
-		} else
-			ent = next_ent;
+            case ENT_ILLIST_VARIABLE:	ent = ENT_VARIABLE; break;
+
+            default:
+                sprintf(buf,"Line %d: Invalid $() primary '%s'.", compile_current_line, field);
+                compile_error_show(buf);
+                return NULL;
+            }
+        } else
+            ent = next_ent;
 //		sprintf(buf,"Line %d: $() new ent %d.", compile_current_line, ent);
 //		compile_error_show(buf);
-	}
+    }
 
-	if(*str != ')') {
-		sprintf(buf,"Line %d: Missing terminating ')'.", compile_current_line);
-		compile_error_show(buf);
-		return NULL;
-	}
+    if(*str != ')') {
+        sprintf(buf,"Line %d: Missing terminating ')'.", compile_current_line);
+        compile_error_show(buf);
+        return NULL;
+    }
 
-	*p++ = ESCAPE_END;
-	*store = p;
-	return str+1;
+    *p++ = ESCAPE_END;
+    *store = p;
+    return str+1;
 }
 
 char *compile_substring(char *str, int type, char **store, bool ifc, bool doquotes, bool recursed)

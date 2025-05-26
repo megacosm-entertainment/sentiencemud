@@ -22,9 +22,14 @@ extern	LLIST *loaded_instances;
 extern	LLIST *loaded_dungeons;
 extern	LLIST *loaded_ships;
 
+#define EXPAND(f)		char * f (SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+#define EXPAND_TYPE(e)		EXPAND( expand_entity_##e )
+#define EXPAND_STR(f)	char * f (SCRIPT_VARINFO *info,char *str,BUFFER *buffer)
 
 char *expand_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,pVARIABLE *var);
 char *expand_string_expression(SCRIPT_VARINFO *info,char *str,BUFFER *store);
+
+
 
 // Check the validity of the script parameters
 //	Should the ids mismatch, reset the field
@@ -1156,6 +1161,51 @@ char *expand_entity_game(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", local_time);
 		arg->d.str = strdup(time_str);
 		break;
+	
+    case ENTITY_GAME_RESERVED_MOBILE:
+        arg->type = ENT_RESERVED_MOBILE;
+        break;
+        
+    case ENTITY_GAME_RESERVED_OBJECT:
+        arg->type = ENT_RESERVED_OBJECT;
+        break;
+        
+    case ENTITY_GAME_RESERVED_ROOM:
+        arg->type = ENT_RESERVED_ROOM;
+        break;
+        
+    case ENTITY_GAME_RESERVED_AREA:
+        arg->type = ENT_RESERVED_AREA;
+        break;
+        
+    case ENTITY_GAME_RESERVED_TOKEN:
+        arg->type = ENT_RESERVED_TOKEN;
+        break;
+        
+    case ENTITY_GAME_RESERVED_RPROG:
+        arg->type = ENT_RESERVED_RPROG;
+        break;
+        
+    case ENTITY_GAME_RESERVED_OPROG:
+        arg->type = ENT_RESERVED_OPROG;
+        break;
+        
+    case ENTITY_GAME_RESERVED_MPROG:
+        arg->type = ENT_RESERVED_MPROG;
+        break;
+        
+    case ENTITY_GAME_RESERVED_TPROG:
+        arg->type = ENT_RESERVED_TPROG;
+        break;
+    
+    case ENTITY_GAME_RESERVED_APROG:
+        arg->type = ENT_RESERVED_APROG;
+        break;
+        
+    case ENTITY_GAME_SETTINGS:
+        arg->type = ENT_GAME_SETTING;
+        break;
+
 
 	default: return NULL;
 	}
@@ -5370,6 +5420,465 @@ char *expand_entity_bitmatrix(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 
 
+// Implementation for reserved mobile lookups
+EXPAND_TYPE(reserved_mobile)
+{
+    char buf[MSL];
+    
+    switch(*str) {
+    case ESCAPE_VARIABLE:
+        arg->type = ENT_NUMBER;
+        
+        BUFFER *buffer = new_buf();
+        str = expand_name(info, (info ? *(info->var) : NULL), str+1, buffer);
+        if(!str) {
+            free_buf(buffer);
+            arg->d.num = 0;
+            return NULL;
+        }
+        
+        // Get the reserved mobile vnum
+        char *reserved_name = buf_string(buffer);
+        // Get the mob index directly
+        MOB_INDEX_DATA *mob = get_reserved_mob_index(reserved_name);
+        
+        if (mob) {
+            arg->d.num = mob->vnum;
+        } else {
+            snprintf(buf, sizeof(buf), "Could not find reserved mobile named %s", reserved_name);
+            bug(buf, 0);
+            arg->d.num = 0;
+        }
+        
+        free_buf(buffer);
+        break;
+    default: 
+        return NULL;
+    }
+
+    return str+1;
+}
+
+// Implementation for reserved object lookups
+// Fix for expand_entity_reserved_object function
+
+EXPAND_TYPE(reserved_object)
+{
+    char buf[MSL]; // Make sure this buffer is defined and large enough
+    
+    switch(*str) {
+    case ESCAPE_VARIABLE:
+        arg->type = ENT_NUMBER;
+        
+        BUFFER *buffer = new_buf();
+        str = expand_name(info, (info ? *(info->var) : NULL), str+1, buffer);
+        if(!str) {
+            free_buf(buffer);
+            arg->d.num = 0;
+            return NULL;
+        }
+        
+        // Get the reserved object vnum
+        char *reserved_name = buf_string(buffer);
+        
+        // Get the object index directly
+        OBJ_INDEX_DATA *obj = get_reserved_obj_index(reserved_name);
+        
+        if (obj) {
+            arg->d.num = obj->vnum;
+        } else {
+            snprintf(buf, sizeof(buf), "Could not find reserved object named %s", reserved_name);
+            bug(buf, 0);
+            arg->d.num = 0;
+        }
+        
+        free_buf(buffer);
+        break;
+    default: 
+        return NULL;
+    }
+
+    return str+1;
+}
+
+// Implementation for reserved room lookups
+EXPAND_TYPE(reserved_room)
+{
+    char buf[MSL];
+    
+    switch(*str) {
+    case ESCAPE_VARIABLE:
+        arg->type = ENT_NUMBER;
+        
+        BUFFER *buffer = new_buf();
+        str = expand_name(info, (info ? *(info->var) : NULL), str+1, buffer);
+        if(!str) {
+            free_buf(buffer);
+            arg->d.num = 0;
+            return NULL;
+        }
+        
+        // Get the reserved room vnum
+        char *reserved_name = buf_string(buffer);
+        
+        // Get the room index directly
+        ROOM_INDEX_DATA *room = get_reserved_room_index(reserved_name);
+        
+        if (room) {
+            arg->d.num = room->vnum;
+        } else {
+            snprintf(buf, sizeof(buf), "Could not find reserved room named %s", reserved_name);
+            bug(buf, 0);
+            arg->d.num = 0;
+        }
+        
+        free_buf(buffer);
+        break;
+    default: 
+        return NULL;
+    }
+
+    return str+1;
+}
+
+// Implementation for reserved area lookups
+EXPAND_TYPE(reserved_area)
+{
+    char buf[MSL];
+    
+    switch(*str) {
+    case ESCAPE_VARIABLE:
+        arg->type = ENT_NUMBER;
+        
+        BUFFER *buffer = new_buf();
+        str = expand_name(info, (info ? *(info->var) : NULL), str+1, buffer);
+        if(!str) {
+            free_buf(buffer);
+            arg->d.num = 0;
+            return NULL;
+        }
+        
+        // Get the reserved area uid
+        char *reserved_name = buf_string(buffer);
+        
+        // Get the area index directly
+        AREA_DATA *area = get_reserved_area_index(reserved_name);
+        
+        if (area) {
+            arg->d.num = area->uid;
+        } else {
+            snprintf(buf, sizeof(buf), "Could not find reserved area named %s", reserved_name);
+            bug(buf, 0);
+            arg->d.num = 0;
+        }
+        
+        free_buf(buffer);
+        break;
+    default: 
+        return NULL;
+    }
+
+    return str+1;
+}
+
+// Implementation for reserved token lookups
+EXPAND_TYPE(reserved_token)
+{
+    char buf[MSL];
+    
+    switch(*str) {
+    case ESCAPE_VARIABLE:
+        arg->type = ENT_NUMBER;
+        
+        BUFFER *buffer = new_buf();
+        str = expand_name(info, (info ? *(info->var) : NULL), str+1, buffer);
+        if(!str) {
+            free_buf(buffer);
+            arg->d.num = 0;
+            return NULL;
+        }
+        
+        // Get the reserved token vnum
+        char *reserved_name = buf_string(buffer);
+        
+        // Get the token index directly
+        TOKEN_INDEX_DATA *token = get_reserved_token_index(reserved_name);
+        
+        if (token) {
+            arg->d.num = token->vnum;
+        } else {
+            snprintf(buf, sizeof(buf), "Could not find reserved token named %s", reserved_name);
+            bug(buf, 0);
+            arg->d.num = 0;
+        }
+        
+        free_buf(buffer);
+        break;
+    default: 
+        return NULL;
+    }
+
+    return str+1;
+}
+
+// Add implementions for all program types
+EXPAND_TYPE(reserved_rprog)
+{
+    char buf[MSL];
+    
+    switch(*str) {
+    case ESCAPE_VARIABLE:
+        arg->type = ENT_NUMBER;
+        
+        BUFFER *buffer = new_buf();
+        str = expand_name(info, (info ? *(info->var) : NULL), str+1, buffer);
+        if(!str) {
+            free_buf(buffer);
+            arg->d.num = 0;
+            return NULL;
+        }
+        
+        // Get the reserved rprog vnum
+        char *reserved_name = buf_string(buffer);
+        
+        // Get the script index directly
+        SCRIPT_DATA *script = get_reserved_rprog_index(reserved_name);
+        
+        if (script) {
+            arg->d.num = script->vnum;
+        } else {
+            snprintf(buf, sizeof(buf), "Could not find reserved rprog named %s", reserved_name);
+            bug(buf, 0);
+            arg->d.num = 0;
+        }
+        
+        free_buf(buffer);
+        break;
+    default: 
+        return NULL;
+    }
+
+    return str+1;
+}
+
+EXPAND_TYPE(reserved_oprog)
+{
+    char buf[MSL];
+    
+    switch(*str) {
+    case ESCAPE_VARIABLE:
+        arg->type = ENT_NUMBER;
+        
+        BUFFER *buffer = new_buf();
+        str = expand_name(info, (info ? *(info->var) : NULL), str+1, buffer);
+        if(!str) {
+            free_buf(buffer);
+            arg->d.num = 0;
+            return NULL;
+        }
+        
+        // Get the reserved oprog vnum
+        char *reserved_name = buf_string(buffer);
+
+        // Get the script index directly
+        SCRIPT_DATA *script = get_reserved_oprog_index(reserved_name);
+        
+        if (script) {
+            arg->d.num = script->vnum;
+        } else {
+            snprintf(buf, sizeof(buf), "Could not find reserved oprog named %s", reserved_name);
+            bug(buf, 0);
+            arg->d.num = 0;
+        }
+        
+        free_buf(buffer);
+        break;
+    default: 
+        return NULL;
+    }
+
+    return str+1;
+}
+
+EXPAND_TYPE(reserved_mprog)
+{
+    char buf[MSL];
+    
+    switch(*str) {
+    case ESCAPE_VARIABLE:
+        arg->type = ENT_NUMBER;
+        
+        BUFFER *buffer = new_buf();
+        str = expand_name(info, (info ? *(info->var) : NULL), str+1, buffer);
+        if(!str) {
+            free_buf(buffer);
+            arg->d.num = 0;
+            return NULL;
+        }
+        
+        // Get the reserved mprog vnum
+        char *reserved_name = buf_string(buffer);
+        
+        // Get the script index directly
+        SCRIPT_DATA *script = get_reserved_mprog_index(reserved_name);
+        
+        if (script) {
+            arg->d.num = script->vnum;
+        } else {
+            snprintf(buf, sizeof(buf), "Could not find reserved mprog named %s", reserved_name);
+            bug(buf, 0);
+            arg->d.num = 0;
+        }
+        
+        free_buf(buffer);
+        break;
+    default: 
+        return NULL;
+    }
+
+    return str+1;
+}
+
+EXPAND_TYPE(reserved_tprog)
+{
+    char buf[MSL];
+    
+    switch(*str) {
+    case ESCAPE_VARIABLE:
+        arg->type = ENT_NUMBER;
+        
+        BUFFER *buffer = new_buf();
+        str = expand_name(info, (info ? *(info->var) : NULL), str+1, buffer);
+        if(!str) {
+            free_buf(buffer);
+            arg->d.num = 0;
+            return NULL;
+        }
+        
+        // Get the reserved tprog vnum
+        char *reserved_name = buf_string(buffer);
+        // Get the script index directly
+        SCRIPT_DATA *script = get_reserved_tprog_index(reserved_name);
+        
+        if (script) {
+            arg->d.num = script->vnum;
+        } else {
+            snprintf(buf, sizeof(buf), "Could not find reserved tprog named %s", reserved_name);
+            bug(buf, 0);
+            arg->d.num = 0;
+        }
+        
+        free_buf(buffer);
+        break;
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+EXPAND_TYPE(reserved_aprog)
+{
+    char buf[MSL];
+    
+    switch(*str) {
+    case ESCAPE_VARIABLE:
+        arg->type = ENT_NUMBER;
+        
+        BUFFER *buffer = new_buf();
+        str = expand_name(info, (info ? *(info->var) : NULL), str+1, buffer);
+        if(!str) {
+            free_buf(buffer);
+            arg->d.num = 0;
+            return NULL;
+        }
+        
+        // Get the reserved aprog vnum
+        char *reserved_name = buf_string(buffer);
+
+        // Get the script index directly
+        SCRIPT_DATA *script = get_reserved_aprog_index(reserved_name);
+        
+        if (script) {
+            arg->d.num = script->vnum;
+        } else {
+            snprintf(buf, sizeof(buf), "Could not find reserved aprog named %s", reserved_name);
+            bug(buf, 0);
+            arg->d.num = 0;
+        }
+        
+        free_buf(buffer);
+        break;
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+// Implementation for dynamic game settings lookups
+EXPAND_TYPE(game_setting)
+{
+    switch(*str) {
+    case ESCAPE_VARIABLE:
+        arg->type = ENT_STRING;
+        
+        BUFFER *buffer = new_buf();
+        str = expand_name(info,(info?*(info->var):NULL),str+1,buffer);
+        if(!str) {
+            free_buf(buffer);
+            arg->d.str = &str_empty[0];
+            return NULL;
+        }
+        
+        // Get the game setting value, ensuring it's not sensitive
+        char *setting_name = buf_string(buffer);
+        const struct game_setting_type *setting = get_game_setting(setting_name);
+        
+        if (setting && !setting->sensitive) {
+            clear_buf(arg->buffer);
+            
+            // Handle different setting types
+            switch (setting->type) {
+                case SETTING_TYPE_BOOL:
+                    add_buf(arg->buffer, *((bool *)setting->ptr) ? "true" : "false");
+                    break;
+                case SETTING_TYPE_INT:
+                    {
+                        char num_buf[32];
+                        sprintf(num_buf, "%d", *((int *)setting->ptr));
+                        add_buf(arg->buffer, num_buf);
+                    }
+                    break;
+                case SETTING_TYPE_FLOAT:
+                    {
+                        char num_buf[32];
+                        sprintf(num_buf, "%.4f", *((float *)setting->ptr));
+                        add_buf(arg->buffer, num_buf);
+                    }
+                    break;
+                case SETTING_TYPE_STRING:
+                case SETTING_TYPE_EXTSTR:
+                    if (*((char **)setting->ptr))
+                        add_buf(arg->buffer, *((char **)setting->ptr));
+                    break;
+                default:
+                    add_buf(arg->buffer, "");
+            }
+            
+            arg->d.str = buf_string(arg->buffer);
+        } else {
+            arg->d.str = &str_empty[0];
+        }
+        
+        free_buf(buffer);
+        break;
+    default: return NULL;
+    }
+
+    return str+1;
+}
+	
+
+
 char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	char *next;
@@ -5446,6 +5955,51 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 		case ENT_BITVECTOR:		next = expand_entity_bitvector(info,str,arg); break;
 		case ENT_BITMATRIX:		next = expand_entity_bitmatrix(info,str,arg); break;
+		
+        case ENT_RESERVED_MOBILE:
+            next = expand_entity_reserved_mobile(info, str, arg);
+            break;
+            
+        case ENT_RESERVED_OBJECT:
+            next = expand_entity_reserved_object(info, str, arg);
+            break;
+            
+        case ENT_RESERVED_ROOM:
+            next = expand_entity_reserved_room(info, str, arg);
+            break;
+            
+        case ENT_RESERVED_AREA:
+            next = expand_entity_reserved_area(info, str, arg);
+            break;
+            
+        case ENT_RESERVED_TOKEN:
+            next = expand_entity_reserved_token(info, str, arg);
+            break;
+            
+        case ENT_RESERVED_RPROG:
+            next = expand_entity_reserved_rprog(info, str, arg);
+            break;
+            
+        case ENT_RESERVED_OPROG:
+            next = expand_entity_reserved_oprog(info, str, arg);
+            break;
+            
+        case ENT_RESERVED_MPROG:
+            next = expand_entity_reserved_mprog(info, str, arg);
+            break;
+            
+        case ENT_RESERVED_TPROG:
+            next = expand_entity_reserved_tprog(info, str, arg);
+            break;
+            
+        case ENT_RESERVED_APROG:
+            next = expand_entity_reserved_aprog(info, str, arg);
+            break;
+            
+        case ENT_GAME_SETTING:
+            next = expand_entity_game_setting(info, str, arg);
+            break;
+			
 		case ENT_NULL:
 			next = str+1;
 			arg->type = ENT_NULL;
