@@ -11591,21 +11591,22 @@ bool validate_password_uniqueness(ACCOUNT_DATA *acct, const char *plaintext_pass
     if (!game_settings.require_uniq_pass_staff)
         return true;
         
-    // If changing account password, check it doesn't match any staff character passwords
-    if (!is_for_character && account_has_immortal(acct)) {
+    // Case 1: Updating account password
+    if (!is_for_character) {
+        // Check against any staff character passwords
         if (password_matches_staff_character(acct, plaintext_password, NULL)) {
             return false;  // Account password matches a staff character password
         }
     }
     
-    // If changing a character password
-    if (is_for_character && is_staff) {
-        // Check it doesn't match the account password
+    // Case 2: Setting/updating a staff character password
+    else if (is_for_character && is_staff) {
+        // Check against the account password
         if (password_matches_account(acct, plaintext_password)) {
             return false;  // Character password matches account password
         }
         
-        // Check it doesn't match other character passwords
+        // Check against ALL other character passwords (staff or not)
         ITERATOR it;
         ACCOUNT_CHARACTER *acct_char;
         
@@ -11626,6 +11627,14 @@ bool validate_password_uniqueness(ACCOUNT_DATA *acct, const char *plaintext_pass
             }
         }
         iterator_stop(&it);
+    }
+    
+    // Case 3: Setting/updating a non-staff character password
+    else if (is_for_character && !is_staff) {
+        // Check against any staff character passwords
+        if (password_matches_staff_character(acct, plaintext_password, character_name)) {
+            return false;  // Non-staff character password matches a staff character password
+        }
     }
     
     // Password passes all uniqueness checks
