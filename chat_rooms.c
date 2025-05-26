@@ -30,6 +30,7 @@ void chat_add_op(CHAR_DATA *ch, char *arg);
 void chat_rem_op(CHAR_DATA *ch, char *arg);
 void chat_add_ban(CHAR_DATA *ch, char *argument);
 void chat_remove_ban(CHAT_ROOM_DATA *chat, CHAT_BAN_DATA *ban);
+void do_chat_show(CHAR_DATA *ch, char *argument);
 
 
 void do_chat(CHAR_DATA *ch, char *argument)
@@ -122,19 +123,24 @@ void do_chat(CHAR_DATA *ch, char *argument)
 	{
 	    do_function(ch, &do_chat_setfounder, argument);
 	}
+    if (!str_cmp(arg, "show"))
+    {
+        do_function(ch, &do_chat_show, argument);
+        return;
+    }
 	else
 	{
-	    send_to_char("Valid commands are:\n\r"
-		"ENTER EXIT LIST CREATE JOIN DELETE TOPIC OP\n\r"
-		"KICK PASSWORD\n\r", ch);
+send_to_char("Valid commands are:\n\r"
+        "ENTER EXIT LIST CREATE JOIN DELETE TOPIC OP\n\r"
+        "KICK PASSWORD SHOW\n\r", ch);
 	}
 
 	return;
     }
 
-    send_to_char("Valid commands are:\n\r"
-	    "ENTER EXIT LIST CREATE JOIN DELETE TOPIC OP\n\r"
-	    "KICK PASSWORD\n\r", ch);
+send_to_char("Valid commands are:\n\r"
+        "ENTER EXIT LIST CREATE JOIN DELETE TOPIC OP\n\r"
+        "KICK PASSWORD SHOW\n\r", ch);
 }
 
 
@@ -1296,3 +1302,140 @@ void read_chat_rooms()
     fclose(fp);
 }
 
+void do_chat_show(CHAR_DATA *ch, char *argument)
+{
+    CHAT_ROOM_DATA *chat;
+    CHAT_OP_DATA *op;
+    CHAR_DATA *rch;
+    char arg[MAX_STRING_LENGTH];
+    char buf[MAX_STRING_LENGTH];
+    bool found = false;
+    int count = 0;
+    
+    argument = one_argument(argument, arg);
+    
+    if (!IS_SOCIAL(ch))
+    {
+        send_to_char("You must be in chat to use this command.\n\r", ch);
+        return;
+    }
+    
+    // If no argument, show the current chat room
+    if (arg[0] == '\0')
+    {
+        if (ch->in_room->chat_room == NULL)
+        {
+            send_to_char("You aren't in a chat room.\n\r", ch);
+            return;
+        }
+        
+        chat = ch->in_room->chat_room;
+    }
+    else
+    {
+        // Look up the chat room by name
+        for (chat = chat_room_list; chat != NULL; chat = chat->next)
+        {
+            if (!str_cmp(chat->name, arg))
+            {
+                found = true;
+                break;
+            }
+        }
+        
+        if (!found)
+        {
+            send_to_char("No such chat room found.\n\r", ch);
+            return;
+        }
+    }
+    
+    // Display chat room information
+    sprintf(buf, "{W=== Chat Room Information for #{Y%s{W ==={x\n\r", chat->name);
+    send_to_char(buf, ch);
+    
+    line(ch, 65, NULL, NULL);
+
+
+    sprintf(buf, "{YRoom:{x %s\n\r", get_room_index(chat->vnum)->name);
+    send_to_char(buf, ch);
+    
+    if (IS_IMMORTAL(ch))
+    {
+        sprintf(buf, "{YVnum:{x %ld\n\r", chat->vnum);
+        send_to_char(buf, ch);
+    }
+    
+    sprintf(buf, "{YTopic:{x %s\n\r", chat->topic);
+    send_to_char(buf, ch);
+    
+    sprintf(buf, "{YCreated by:{x %s\n\r", chat->created_by);
+    send_to_char(buf, ch);
+    
+    sprintf(buf, "{YPassword protected:{x %s\n\r", 
+        (str_cmp(chat->password, "none")) ? "Yes" : "No");
+    send_to_char(buf, ch);
+    
+    // Only show the actual password to ops and qualified staff members
+    if ((is_op(chat, ch->name) || 
+         (get_staff_rank(ch) > STAFF_ASCENDANT) || 
+         (IS_IMMORTAL(ch) && 
+          (is_staff_duty_in_list(ch, "Administrator 'Player Relations")))) && 
+        str_cmp(chat->password, "none"))
+    {
+        sprintf(buf, "{YPassword:{x %s\n\r", chat->password);
+        send_to_char(buf, ch);
+    }
+    
+    sprintf(buf, "{YPermanent:{x %s\n\r", chat->permanent ? "Yes" : "No");
+    send_to_char(buf, ch);
+    
+    sprintf(buf, "{YCapacity:{x %d/%d\n\r", chat->curr_people, chat->max_people);
+    send_to_char(buf, ch);
+    
+    // List operators
+    send_to_char("{YOperators:{x ", ch);
+    count = 0;
+    for (op = chat->ops; op != NULL; op = op->next)
+    {
+        sprintf(buf, "%s%s", count > 0 ? ", " : "", op->name);
+        send_to_char(buf, ch);
+        count++;
+    }
+    
+    if (count == 0)
+        send_to_char("None", ch);
+    send_to_char("\n\r", ch);
+    
+    // List current occupants if this is for the room the player is in
+    // or if they're an immortal
+    if (ch->in_room->chat_room == chat || IS_IMMORTAL(ch))
+    {
+        ROOM_INDEX_DATA *room = get_room_index(chat->vnum);
+        
+        send_to_char("{YCurrent occupants:{x ", ch);
+        count = 0;
+        
+        if (room != NULL)
+        {
+            for (rch = room->people; rch != NULL; rch = rch->next_in_room)
+            {
+                if (!IS_NPC(rch))
+                {
+                    sprintf(buf, "%s%s%s", 
+                        count > 0 ? ", " : "",
+                        is_op(chat, rch->name) ? "{G" : "", 
+                        rch->name);
+                    send_to_char(buf, ch);
+                    count++;
+                }
+            }
+        }
+        
+        if (count == 0)
+            send_to_char("None", ch);
+        send_to_char("{x\n\r", ch);
+    }
+    
+    line(ch, 65, NULL, NULL);
+}
