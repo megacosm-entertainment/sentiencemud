@@ -1110,6 +1110,57 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     variable_fix_list(last_var ? last_var : variable_head);
 
     ch->pcdata->last_login = current_time;
+
+    // After loading the character file and before returning found
+    // Add account migration code
+    if (found && !IS_NPC(ch) && 
+        (ch->pcdata->account_id[0] != 0 || !IS_NULLSTR(ch->pcdata->account_name))) {
+        
+        // Try to find and update account - first by ID, then by name
+        ACCOUNT_DATA *account = NULL;
+        bool migration_needed = false;
+        
+        if (ch->pcdata->account_id[0] != 0)
+            account = find_account_by_id(ch->pcdata->account_id[0], ch->pcdata->account_id[1]);
+            
+        // Fall back to name lookup if ID lookup fails
+        if (account == NULL && !IS_NULLSTR(ch->pcdata->account_name))
+            account = find_account_by_name(ch->pcdata->account_name);
+            
+        if (account != NULL) {
+            // Check if we need to migrate any authentication data
+    if ((!IS_NULLSTR(ch->pcdata->pwd) && ch->pcdata->account_pwd_override) || 
+        !IS_NULLSTR(ch->pcdata->reset_code) ||
+        ch->pcdata->mfa_enabled ||
+        !IS_NULLSTR(ch->pcdata->email)) {
+                
+                log_string(formatf("load_char_obj: migrating authentication data for %s to account %s",
+                    ch->name, account->username));
+                
+                // Update account with character's data
+                account_add_character(account, ch);
+                
+                // Save the account with migrated data
+                save_account(account);
+                migration_needed = true;
+            }
+            
+            // Update descriptor's account pointer if needed
+            if (d->account == NULL) {
+                d->account = account;
+            } else if (d->account != account) {
+                // We already had an account loaded into the descriptor
+                // Just free this one we loaded temporarily
+                free_account(account);
+            }
+        }
+        
+        // If we migrated data, we should save the character file with cleared auth data
+        if (migration_needed) {
+            save_char_obj(ch);
+        }
+    }
+
     return found;
 }
 
@@ -5435,10 +5486,11 @@ void fread_account_character(ACCOUNT_DATA *account, FILE *fp)
             KEY("Created", acct_char->creation_date, fread_number(fp));
             KEYS("Class", acct_char->class_name, fread_string(fp));
             break;
-		
-		case 'D':
-			KEY("Deleted", acct_char->deleted, fread_number(fp));
-			KEY("DeleteTime", acct_char->delete_time, fread_number(fp));
+        
+        case 'D':
+            KEY("Deleted", acct_char->deleted, fread_number(fp));
+            KEY("DeleteTime", acct_char->delete_time, fread_number(fp));
+            break;
             
         case 'E':
             if (!str_cmp(word, "End")) {
@@ -5450,6 +5502,11 @@ void fread_account_character(ACCOUNT_DATA *account, FILE *fp)
                 }
                 return;
             }
+            KEYS("Email", acct_char->email, fread_string(fp));
+            KEY("EmailVerified", acct_char->email_verified, fread_number(fp));
+            KEYS("EmailVerifyCode", acct_char->email_verification_code, fread_string(fp));
+            KEY("EmailVerifyTime", acct_char->email_verification_time, fread_number(fp));
+            KEY("EmailVerifySent", acct_char->email_verification_last_sent, fread_number(fp));
             break;
             
         case 'I':
@@ -5458,23 +5515,53 @@ void fread_account_character(ACCOUNT_DATA *account, FILE *fp)
             break;
             
         case 'L':
-			if (!str_cmp(word, "LastArea"))
-			{
-				acct_char->last_area = fread_string(fp);
-				fMatch = TRUE;
-			}
+            if (!str_cmp(word, "LastArea")) {
+                acct_char->last_area = fread_string(fp);
+                fMatch = TRUE;
+            }
             KEY("LastLogin", acct_char->last_login, fread_number(fp));
-			KEY("LastHost", acct_char->last_host, fread_string(fp));
-			KEY("LastLogoff", acct_char->last_logoff, fread_number(fp));
+            KEY("LastHost", acct_char->last_host, fread_string(fp));
+            KEY("LastLogoff", acct_char->last_logoff, fread_number(fp));
             KEY("Level", acct_char->current_level, fread_number(fp));
+            break;
+
+        case 'M':
+            KEY("MFA_Key", acct_char->mfa_key, fread_string(fp));
+            KEY("MFA_Enabled", acct_char->mfa_enabled, fread_number(fp));
+            KEY("MFA_PendingKey", acct_char->mfa_pending_key, fread_string(fp));
             break;
             
         case 'N':
             KEYS("Name", acct_char->name, fread_string(fp));
             break;
             
+        case 'O':
+            KEYS("OldPassword", acct_char->old_pwd, fread_string(fp));
+            break;
+            
+        case 'P':
+            KEYS("Password", acct_char->pwd, fread_string(fp));
+            KEY("PassVers", acct_char->pwd_vers, fread_number(fp));
+            KEYS("PendingEmail", acct_char->pending_email, fread_string(fp));
+            break;
+            
         case 'R':
             KEYS("Race", acct_char->race_name, fread_string(fp));
+            KEYS("ResetCode", acct_char->reset_code, fread_string(fp));
+            KEY("ResetTime", acct_char->reset_time, fread_number(fp));
+            KEY("ResetState", acct_char->reset_state, fread_number(fp));
+            
+            if (!str_cmp(word, "RecoveryCodes")) {
+                for (int i = 0; i < MFA_RECOVERY_CODES; i++)
+                    acct_char->recovery_codes[i] = str_dup(fread_word(fp));
+                fMatch = TRUE;
+            }
+            
+            if (!str_cmp(word, "RecoveryUsed")) {
+                for (int i = 0; i < MFA_RECOVERY_CODES; i++)
+                    acct_char->recovery_used[i] = (fread_number(fp) != 0);
+                fMatch = TRUE;
+            }
             break;
         
         case 'S':
@@ -5489,9 +5576,10 @@ void fread_account_character(ACCOUNT_DATA *account, FILE *fp)
                 break;
             }
             break;
-		case 'T':
-			KEY("TLevel", acct_char->tot_level, fread_number(fp));
-			break;
+            
+        case 'T':
+            KEY("TLevel", acct_char->tot_level, fread_number(fp));
+            break;
         }
         
         if (!fMatch) {
@@ -5602,18 +5690,13 @@ void fwrite_account(ACCOUNT_DATA *account, FILE *fp)
  */
 void fwrite_account_character(ACCOUNT_CHARACTER *character, FILE *fp)
 {
-	log_string("Fwrite_account_character: writing character data");
+    log_string("Fwrite_account_character: writing character data");
     fprintf(fp, "#CHARACTER\n");
     
     fprintf(fp, "Name %s~\n", character->name);
     
     if (!IS_NULLSTR(character->race_name))
         fprintf(fp, "Race %s~\n", character->race_name);
-
-    // Add logging here
-    log_stringf("fwrite_account_character: writing %s last_area='%s'",
-        character->name,
-        character->last_area ? character->last_area : "(null)");
 
     if (!IS_NULLSTR(character->class_name))
         fprintf(fp, "Class %s~\n", character->class_name);
@@ -5622,19 +5705,79 @@ void fwrite_account_character(ACCOUNT_CHARACTER *character, FILE *fp)
     fprintf(fp, "Created %ld\n", character->creation_date);
     fprintf(fp, "LastLogin %ld\n", character->last_login);
     fprintf(fp, "LastArea %s~\n", character->last_area);
-    fprintf(fp, "LastHost" " %s~\n", character->last_host ? character->last_host : "");
-    fprintf(fp, "LastLogoff %ld\n", (long int)current_time);
-	if (character->deleted)
-	{
-		fprintf(fp, "Deleted %d\n", character->deleted);
-		fprintf(fp, "DeleteTime %ld\n", character->delete_time);
-	}
+    fprintf(fp, "LastHost %s~\n", character->last_host ? character->last_host : "");
+    fprintf(fp, "LastLogoff %ld\n", character->last_logoff);
+    
+    if (character->deleted) {
+        fprintf(fp, "Deleted %d\n", character->deleted);
+        fprintf(fp, "DeleteTime %ld\n", character->delete_time);
+    }
 
     if (character->id[0] != 0 || character->id[1] != 0) {
         fprintf(fp, "Id %ld\n", character->id[0]);
         fprintf(fp, "Id2 %ld\n", character->id[1]);
     }
     
+    // Authentication Details
+    if (!IS_NULLSTR(character->pwd)) {
+        fprintf(fp, "Password %s~\n", character->pwd);
+        fprintf(fp, "PassVers %d\n", character->pwd_vers);
+    }
+    
+    if (!IS_NULLSTR(character->old_pwd))
+        fprintf(fp, "OldPassword %s~\n", character->old_pwd);
+        
+    if (!IS_NULLSTR(character->reset_code)) {
+        fprintf(fp, "ResetCode %s~\n", character->reset_code);
+        fprintf(fp, "ResetTime %ld\n", character->reset_time);
+        fprintf(fp, "ResetState %d\n", character->reset_state);
+    }
+    
+    // MFA Details
+    if (!IS_NULLSTR(character->mfa_key)) {
+        fprintf(fp, "MFA_Key %s~\n", character->mfa_key);
+        if (character->mfa_enabled)
+            fprintf(fp, "MFA_Enabled 1\n");
+    }
+    
+    if (!IS_NULLSTR(character->mfa_pending_key))
+        fprintf(fp, "MFA_PendingKey %s~\n", character->mfa_pending_key);
+        
+    // Recovery codes
+    if (character->recovery_codes[0] != NULL) {
+        fprintf(fp, "RecoveryCodes ");
+        for (int i = 0; i < MFA_RECOVERY_CODES; i++)
+            fprintf(fp, "%s%c", 
+                character->recovery_codes[i], 
+                (i == MFA_RECOVERY_CODES-1) ? '\n' : ' ');
+                
+        fprintf(fp, "RecoveryUsed ");
+        for (int i = 0; i < MFA_RECOVERY_CODES; i++)
+            fprintf(fp, "%d%c", 
+                character->recovery_used[i] ? 1 : 0, 
+                (i == MFA_RECOVERY_CODES-1) ? '\n' : ' ');
+    }
+    
+    // Email details
+    if (!IS_NULLSTR(character->email))
+        fprintf(fp, "Email %s~\n", character->email);
+        
+    if (character->email_verified)
+        fprintf(fp, "EmailVerified 1\n");
+        
+    if (!IS_NULLSTR(character->pending_email))
+        fprintf(fp, "PendingEmail %s~\n", character->pending_email);
+        
+    if (!IS_NULLSTR(character->email_verification_code))
+        fprintf(fp, "EmailVerifyCode %s~\n", character->email_verification_code);
+        
+    if (character->email_verification_time > 0)
+        fprintf(fp, "EmailVerifyTime %ld\n", character->email_verification_time);
+        
+    if (character->email_verification_last_sent > 0)
+        fprintf(fp, "EmailVerifySent %ld\n", character->email_verification_last_sent);
+    
+    // Character status
     if (character->staff) {
         fprintf(fp, "Staff\n");
         fprintf(fp, "StaffRank %s~\n", flag_string(staff_ranks, character->staff_rank));
@@ -5697,11 +5840,13 @@ void save_account(ACCOUNT_DATA *account)
     /* Reopen reserve file */
     fpReserve = fopen(NULL_FILE, "r");
 }
+
 void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
 {
     log_string("account_add_character: adding character to account");
     ACCOUNT_CHARACTER *acct_char = NULL;
     ITERATOR it;
+    bool need_save_char = false;
 
     if (!account || !ch || IS_NPC(ch)) {
         bug("account_add_character: invalid parameters", 0);
@@ -5712,7 +5857,7 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
     iterator_start(&it, account->characters);
     while ((acct_char = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
         if (!str_cmp(acct_char->name, ch->name)) {
-            // ... update fields ...
+            // Update basic fields
             acct_char->last_login = current_time;
             acct_char->tot_level = ch->tot_level;
             if (ch->pcdata && ch->pcdata->sub_class_current)
@@ -5732,11 +5877,114 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
             acct_char->id[0] = ch->id[0];
             acct_char->id[1] = ch->id[1];
 
-
-            	free_string(acct_char->last_area);
-            	acct_char->last_area = str_dup(format_location_string(ch->in_room));
-
-            break; // <-- just break, do not return!
+            free_string(acct_char->last_area);
+            acct_char->last_area = str_dup(format_location_string(ch->in_room));
+            
+            // Migrate password data if needed
+            if (ch->pcdata && !IS_NULLSTR(ch->pcdata->pwd) && ch->pcdata->account_pwd_override) {
+                free_string(acct_char->pwd);
+                acct_char->pwd = str_dup(ch->pcdata->pwd);
+                acct_char->pwd_vers = ch->pcdata->pwd_vers;
+                
+                free_string(ch->pcdata->pwd);
+                ch->pcdata->pwd = str_dup("");
+                need_save_char = true;
+            }
+            
+            // Migrate MFA settings
+            if (ch->pcdata && ch->pcdata->mfa_enabled) {
+                acct_char->mfa_enabled = ch->pcdata->mfa_enabled;
+                
+                if (!IS_NULLSTR(ch->pcdata->mfa_key)) {
+                    free_string(acct_char->mfa_key);
+                    acct_char->mfa_key = str_dup(ch->pcdata->mfa_key);
+                    free_string(ch->pcdata->mfa_key);
+                    ch->pcdata->mfa_key = str_dup("");
+                }
+                
+                // Handle recovery codes
+                for (int i = 0; i < MFA_RECOVERY_CODES; i++) {
+                    if (!IS_NULLSTR(ch->pcdata->recovery_codes[i])) {
+                        if (acct_char->recovery_codes[i])
+                            free_string(acct_char->recovery_codes[i]);
+                        acct_char->recovery_codes[i] = str_dup(ch->pcdata->recovery_codes[i]);
+                        acct_char->recovery_used[i] = ch->pcdata->recovery_used[i];
+                        
+                        free_string(ch->pcdata->recovery_codes[i]);
+                        ch->pcdata->recovery_codes[i] = str_dup("");
+                        ch->pcdata->recovery_used[i] = false;
+                    }
+                }
+                
+                // Disable MFA on character since it's now at account level
+                ch->pcdata->mfa_enabled = false;
+                need_save_char = true;
+            }
+            
+            // Migrate reset data
+            if (ch->pcdata && !IS_NULLSTR(ch->pcdata->reset_code)) {
+                free_string(acct_char->reset_code);
+                acct_char->reset_code = str_dup(ch->pcdata->reset_code);
+                acct_char->reset_time = ch->pcdata->reset_time;
+                acct_char->reset_state = ch->pcdata->reset_state;
+                
+                // Clear from character
+                free_string(ch->pcdata->reset_code);
+                ch->pcdata->reset_code = str_dup("");
+                ch->pcdata->reset_time = 0;
+                ch->pcdata->reset_state = 0;
+                need_save_char = true;
+            }
+            
+            // Migrate email data
+            if (ch->pcdata && !IS_NULLSTR(ch->pcdata->email)) {
+                // Send notification email before clearing the data
+                if (ch->pcdata->email_verified) {
+                    char subject[256], body[1024];
+                    sprintf(subject, "Sentience: Character %s Linked to Account", ch->name);
+                    sprintf(body, 
+                        "Your character %s has been linked to the account '%s'.\n\n"
+                        "This email address previously registered with the character has been "
+                        "transferred to your account profile.\n\n"
+                        "If you did not authorize this action, please contact game staff immediately.\n\n"
+                        "Thank you for playing Sentience!",
+                        ch->name, account->username);
+                    
+                    send_email_async_ex(ch, account, ch->pcdata->email, subject, body, NULL, NULL);
+                }
+                
+                free_string(acct_char->email);
+                acct_char->email = str_dup(ch->pcdata->email);
+                acct_char->email_verified = ch->pcdata->email_verified;
+                
+                // Email verification data
+                if (!IS_NULLSTR(ch->pcdata->pending_email)) {
+                    free_string(acct_char->pending_email);
+                    acct_char->pending_email = str_dup(ch->pcdata->pending_email);
+                    free_string(ch->pcdata->pending_email);
+                    ch->pcdata->pending_email = str_dup("");
+                }
+                
+                if (!IS_NULLSTR(ch->pcdata->email_verification_code)) {
+                    free_string(acct_char->email_verification_code);
+                    acct_char->email_verification_code = str_dup(ch->pcdata->email_verification_code);
+                    free_string(ch->pcdata->email_verification_code);
+                    ch->pcdata->email_verification_code = str_dup("");
+                }
+                
+                acct_char->email_verification_time = ch->pcdata->email_verification_time;
+                acct_char->email_verification_last_sent = ch->pcdata->email_verification_last_sent;
+                
+                // Clear email data from character
+                free_string(ch->pcdata->email);
+                ch->pcdata->email = str_dup("");
+                ch->pcdata->email_verified = false;
+                ch->pcdata->email_verification_time = 0;
+                ch->pcdata->email_verification_last_sent = 0;
+                need_save_char = true;
+            }
+            
+            break;
         }
     }
     iterator_stop(&it);
@@ -5764,12 +6012,119 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
         if (ch->pcdata && ch->pcdata->sub_class_current)
             acct_char->class_name = str_dup(sub_class_table[ch->pcdata->sub_class_current].name[ch->sex]);
 
-		if (ch->in_room != NULL)
-        acct_char->last_area = str_dup(!IS_NULLSTR(ch->in_room->area->name) ? ch->in_room->area->name : "");
+        if (ch->in_room != NULL)
+            acct_char->last_area = str_dup(!IS_NULLSTR(ch->in_room->area->name) ? ch->in_room->area->name : "");
 
+        // Copy authentication data from character to account character
+        if (ch->pcdata && !IS_NULLSTR(ch->pcdata->pwd) && ch->pcdata->account_pwd_override) {
+            acct_char->pwd = str_dup(ch->pcdata->pwd);
+            acct_char->pwd_vers = ch->pcdata->pwd_vers;
+            
+            // Clear from character file since we're now storing at account level
+            free_string(ch->pcdata->pwd);
+            ch->pcdata->pwd = str_dup("");
+            need_save_char = true;
+        }
+        
+        // Copy MFA settings
+        if (ch->pcdata && ch->pcdata->mfa_enabled) {
+            acct_char->mfa_enabled = ch->pcdata->mfa_enabled;
+            
+            if (!IS_NULLSTR(ch->pcdata->mfa_key)) {
+                acct_char->mfa_key = str_dup(ch->pcdata->mfa_key);
+                free_string(ch->pcdata->mfa_key);
+                ch->pcdata->mfa_key = str_dup("");
+            }
+            
+            // Copy recovery codes
+            for (int i = 0; i < MFA_RECOVERY_CODES; i++) {
+                if (!IS_NULLSTR(ch->pcdata->recovery_codes[i])) {
+                    acct_char->recovery_codes[i] = str_dup(ch->pcdata->recovery_codes[i]);
+                    acct_char->recovery_used[i] = ch->pcdata->recovery_used[i];
+                    
+                    free_string(ch->pcdata->recovery_codes[i]);
+                    ch->pcdata->recovery_codes[i] = str_dup("");
+                    ch->pcdata->recovery_used[i] = false;
+                }
+            }
+            
+            // Disable MFA on character since it's now at account level
+            ch->pcdata->mfa_enabled = false;
+            need_save_char = true;
+        }
+        
+        // Copy reset data
+        if (ch->pcdata && !IS_NULLSTR(ch->pcdata->reset_code)) {
+            acct_char->reset_code = str_dup(ch->pcdata->reset_code);
+            acct_char->reset_time = ch->pcdata->reset_time;
+            acct_char->reset_state = ch->pcdata->reset_state;
+            
+            // Clear from character
+            free_string(ch->pcdata->reset_code);
+            ch->pcdata->reset_code = str_dup("");
+            ch->pcdata->reset_time = 0;
+            ch->pcdata->reset_state = 0;
+            need_save_char = true;
+        }
+        
+        // Copy email data
+        if (ch->pcdata && !IS_NULLSTR(ch->pcdata->email)) {
+            // Send notification email before clearing the data
+            if (ch->pcdata->email_verified) {
+                char subject[256], body[1024];
+                sprintf(subject, "Sentience: Character %s Linked to Account", ch->name);
+                sprintf(body, 
+                    "Your character %s has been linked to the account '%s'.\n\n"
+                    "This email address previously registered with the character has been "
+                    "transferred to your account profile.\n\n"
+                    "If you did not authorize this action, please contact game staff immediately.\n\n"
+                    "Thank you for playing Sentience!",
+                    ch->name, account->username);
+                
+                send_email_async_ex(ch, account, ch->pcdata->email, subject, body, NULL, NULL);
+            }
+            
+            acct_char->email = str_dup(ch->pcdata->email);
+            acct_char->email_verified = ch->pcdata->email_verified;
+            
+            if (!IS_NULLSTR(ch->pcdata->pending_email))
+                acct_char->pending_email = str_dup(ch->pcdata->pending_email);
+                
+            if (!IS_NULLSTR(ch->pcdata->email_verification_code))
+                acct_char->email_verification_code = str_dup(ch->pcdata->email_verification_code);
+                
+            acct_char->email_verification_time = ch->pcdata->email_verification_time;
+            acct_char->email_verification_last_sent = ch->pcdata->email_verification_last_sent;
+            
+            // Clear email data from character
+            free_string(ch->pcdata->email);
+            ch->pcdata->email = str_dup("");
+            ch->pcdata->email_verified = false;
+            
+            if (!IS_NULLSTR(ch->pcdata->pending_email)) {
+                free_string(ch->pcdata->pending_email);
+                ch->pcdata->pending_email = str_dup("");
+            }
+            
+            if (!IS_NULLSTR(ch->pcdata->email_verification_code)) {
+                free_string(ch->pcdata->email_verification_code);
+                ch->pcdata->email_verification_code = str_dup("");
+            }
+            
+            ch->pcdata->email_verification_time = 0;
+            ch->pcdata->email_verification_last_sent = 0;
+            need_save_char = true;
+        }
+        
         list_appendlink(account->characters, acct_char);
     }
+    
+    // Save the character file ONCE if any changes were made
+    if (need_save_char) {
+        save_char_obj(ch);
+    }
 
+    // Update account metadata
     account->character_count = list_size(account->characters);
     account->staff_account = FALSE;
     ITERATOR cit;
@@ -5787,7 +6142,7 @@ void account_add_character(ACCOUNT_DATA *account, CHAR_DATA *ch)
     log_stringf("account_add_character: saving %s last_area='%s'",
         acct_char->name,
         acct_char->last_area ? acct_char->last_area : "(null)");
-		    save_account(account);
+    save_account(account);
 }
 
 /*
@@ -5816,7 +6171,7 @@ void account_remove_character(ACCOUNT_DATA *account, const char *name)
     }
     iterator_stop(&it);
 
-    // Unlink account info from the character file
+    // Unlink account info from the character file and remove any outstanding character auth data.
     DESCRIPTOR_DATA d;
     memset(&d, 0, sizeof(d));
     if (load_char_obj(&d, (char *)name) && d.character && d.character->pcdata) {
@@ -5825,6 +6180,7 @@ void account_remove_character(ACCOUNT_DATA *account, const char *name)
         ch->pcdata->account_name = str_dup("");
         ch->pcdata->account_id[0] = 0;
         ch->pcdata->account_id[1] = 0;
+
         save_char_obj(ch);
         free_char(ch);
     }

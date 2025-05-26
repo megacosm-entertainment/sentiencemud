@@ -38,19 +38,21 @@ C_FILES = \
 	bit.c \
 	blueprint.c \
 	boat.c \
+	chat_rooms.c \
 	church.c \
-	cmdedit.c \
 	comm.c \
 	const.c \
 	db.c \
 	db2.c \
 	drunk.c \
 	dungeon.c \
+	editors/cmdedit.c \
+	editors/gameedit.c \
+	editors/socialedit.c \
 	effects.c \
 	events.c \
 	fight.c \
 	fight2.c \
-	gameedit.c \
 	gq.c \
 	handler.c \
 	healer.c \
@@ -118,7 +120,6 @@ C_FILES = \
 	scripts.c \
 	shoot.c \
 	skills.c \
-	social.c \
 	special.c \
 	staff.c \
 	stats.c \
@@ -149,19 +150,21 @@ O_FILES = \
 	$(OBJDIR)/bit.o \
 	$(OBJDIR)/blueprint.o \
 	$(OBJDIR)/boat.o \
+	$(OBJDIR)/chat_rooms.o \
 	$(OBJDIR)/church.o \
-	$(OBJDIR)/cmdedit.o \
 	$(OBJDIR)/comm.o \
 	$(OBJDIR)/const.o \
 	$(OBJDIR)/db.o \
 	$(OBJDIR)/db2.o \
 	$(OBJDIR)/drunk.o \
 	$(OBJDIR)/dungeon.o \
+	$(OBJDIR)/editors/cmdedit.o \
+	$(OBJDIR)/editors/gameedit.o \
+	$(OBJDIR)/editors/socialedit.o \
 	$(OBJDIR)/effects.o \
 	$(OBJDIR)/events.o \
 	$(OBJDIR)/fight.o \
 	$(OBJDIR)/fight2.o \
-	$(OBJDIR)/gameedit.o \
 	$(OBJDIR)/gq.o \
 	$(OBJDIR)/handler.o \
 	$(OBJDIR)/healer.o \
@@ -229,7 +232,6 @@ O_FILES = \
 	$(OBJDIR)/scripts.o \
 	$(OBJDIR)/shoot.o \
 	$(OBJDIR)/skills.o \
-	$(OBJDIR)/social.o \
 	$(OBJDIR)/special.o \
 	$(OBJDIR)/staff.o \
 	$(OBJDIR)/stats.o \
@@ -262,9 +264,8 @@ install: all
 
 
 objdir:
-	-mkdir obj
-	-mkdir obj/account
-	-chmod 775 obj obj/account
+	-mkdir obj obj/account obj/editors
+	-chmod 775 obj obj/account obj/editors
 
 $(EXE): $(O_FILES) $(BUILD_NUMBER_FILE)
 	rm -f $(EXE)

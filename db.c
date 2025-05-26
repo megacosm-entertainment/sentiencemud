@@ -698,6 +698,8 @@ LLIST *loaded_accounts;
 
 TOKEN_DATA *global_tokens = NULL;
 
+
+
 /*
  * Memory management.
  */
@@ -727,6 +729,7 @@ char			strArea[MAX_INPUT_LENGTH];
  * Local booting procedures.
 */
 void init_mm(void);
+void crypto_init(void);
 void load_shares(void);
 void fix_objprogs(void);
 void fix_roomprogs(void);
@@ -745,6 +748,7 @@ void migrate_shopkeeper_resets(AREA_DATA *area);
 void fix_areaprogs(void);
 void fix_instanceprogs(void);
 void fix_dungeonprogs(void);
+
 
 
 bool persist_load(void);
@@ -790,6 +794,8 @@ void boot_db(void)
      */
     init_mm();
 
+
+	crypto_init();
     global_quest.mobs = NULL;
     global_quest.objects = NULL;
 
@@ -855,6 +861,7 @@ void boot_db(void)
 	else time_info.moon = MOON_NEW;
 
     }
+
 
     /* First initialize the pending changes list */
     if (!pending_changes)
@@ -1035,13 +1042,16 @@ void boot_db(void)
     log_string("Opening immortal staff");
     read_immstaff();
 
+	load_socials_file();
+	/*
     if ((fp = fopen(AREA_DIR "social.are", "r")) != NULL)
     {
 	log_string("Doing load_socials...");
 	fread_word(fp);
-	load_socials(fp);
+	load_socials_file(fp);
 	fclose(fp);
     }
+	*/
 
     help_greeting = str_dup("hello");
 

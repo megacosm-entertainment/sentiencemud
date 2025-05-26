@@ -68,6 +68,7 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
 		send_to_char("  asave mail       - saves the mail\n\r", ch);
 		send_to_char("  asave projects   - saves the project database\n\r", ch);
 		send_to_char("  asave persist    - saves all persistant entities\n\r", ch);
+		send_to_char("  asave socials	 - saves the social table\n\r", ch);
 
 		if( can_edit_blueprints(ch) )
 			send_to_char("  asave blueprints - saves blueprints\n\r", ch);
@@ -305,6 +306,21 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
 		{
 			save_commands();
 			send_to_char("Commands saved.\n\r", ch);
+			return;
+		}
+	}
+
+	if (!str_cmp(arg1, "socials"))
+	{
+		if (!IS_IMPLEMENTOR(ch))
+		{
+			send_to_char("Insufficient security to save socials - action logged.\n\r", ch);
+			return;
+		}
+		else
+		{
+			save_new_socials();
+			send_to_char("Socials saved.\n\r", ch);
 			return;
 		}
 	}
