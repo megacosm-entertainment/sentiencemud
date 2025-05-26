@@ -57,6 +57,12 @@ void do_chat(CHAR_DATA *ch, char *argument)
 	return;
     }
 
+    if (!str_cmp(arg, "show"))
+    {
+    do_function(ch, &do_chat_show, argument);
+    return;
+    }
+
     if (!str_cmp(arg, "join"))
     {
 	do_function(ch, &do_chat_join, argument);
@@ -123,11 +129,7 @@ void do_chat(CHAR_DATA *ch, char *argument)
 	{
 	    do_function(ch, &do_chat_setfounder, argument);
 	}
-    if (!str_cmp(arg, "show"))
-    {
-        do_function(ch, &do_chat_show, argument);
-        return;
-    }
+
 	else
 	{
 send_to_char("Valid commands are:\n\r"
