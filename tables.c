@@ -3453,6 +3453,7 @@ const struct do_func_type do_func_table[] =
         { "do_acctlink", do_acctlink },
         { "do_acctunlink", do_acctunlink },
         { "do_socialedit", do_socialedit },
+        { "do_reserved", do_reserved },
 };
 
 /* Table mapping connection states to display strings */

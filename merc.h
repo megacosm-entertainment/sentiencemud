@@ -63,6 +63,7 @@
 #include <libpng/png.h>
 #include <qrencode.h>
 #include "protocol.h"
+#include "editors/reserved.h"
 
 
 #define STR_HELPER(x) #x
@@ -7894,6 +7895,7 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
 #define SOCIALS_FILE  SYSTEM_DIR "socials.dat"
 #define OLD_SOCIALS_FILE AREA_DIR "social.are"
 #define MFA_ENC_KEY  SYSTEM_DIR "mfa.key"
+#define RESERVED_FILE     SYSTEM_DIR "reserved.dat"
 
 /* POST msg queue */
 #define MSGQUEUE	1111
@@ -9342,6 +9344,7 @@ extern TOKEN_DATA *global_tokens;
 extern LLIST *loaded_chars;
 extern LLIST *loaded_objects;
 extern LLIST *loaded_accounts;
+extern LLIST *reserved_vnums;
 
 extern LLIST *conn_players;
 extern LLIST *conn_immortals;

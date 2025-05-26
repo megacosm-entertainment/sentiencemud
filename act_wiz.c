@@ -576,9 +576,7 @@ int game_settings_read (void)
                 KEY("MSSP_ROLEPLAYING",game_settings.mssp_roleplaying,fread_number(fp));
                 KEY("MSSP_TRAINING_SYSTEM",game_settings.mssp_training_system,fread_number(fp));
                 KEY("MSSP_WORLD_ORIGINALITY",game_settings.mssp_world_originality,fread_number(fp));
-				
 
-				break;
 
             case 'N':
 				KEY("NewAcctLock",game_settings.new_acct_lock,fread_number(fp));
@@ -586,13 +584,12 @@ int game_settings_read (void)
 				KEY("NewCharLock",game_settings.new_char_lock,fread_number(fp));
 				KEY("NewCharLockMsg",game_settings.new_char_lock_msg,fread_string(fp));
 				KEY("NoteBootErrs",game_settings.note_boot_errors,fread_number(fp));
-
-
 	            break;
 
 			case 'O':
 				KEY("OrgMaxRanks", game_settings.org_max_ranks, fread_number(fp));
 				KEY("OrgPKCost", game_settings.org_disable_pk_pneuma_cost, fread_number(fp));
+
 
 			case 'R':
                 KEY("Require_2FA_All",game_settings.require_2fa_all,fread_number(fp));
@@ -601,6 +598,7 @@ int game_settings_read (void)
                 KEY("RequireUniqPassStaff",game_settings.require_uniq_pass_staff,fread_number(fp));
                 KEY("RestrictRacesByAlignment",game_settings.restrict_races_align,fread_number(fp));
                 KEY("RestrictClassesByAlignment",game_settings.restrict_classes_align,fread_number(fp));
+
                 break;
 
             case 'S':
@@ -4566,6 +4564,8 @@ void do_mload(CHAR_DATA *ch, char *argument)
 
     one_argument(argument, arg);
 
+
+
     if (arg[0] == '\0' || !is_number(arg))
     {
 	send_to_char("Syntax: load mob <vnum>.\n\r", ch);
@@ -4615,6 +4615,8 @@ void do_oload(CHAR_DATA *ch, char *argument)
 
     argument = one_argument(argument, arg1);
     one_argument(argument, arg2);
+
+
 
     if (arg1[0] == '\0' || !is_number(arg1))
     {

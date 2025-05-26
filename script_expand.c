@@ -17,9 +17,11 @@
 //#define DEBUG_MODULE
 #include "debug.h"
 
+
 extern	LLIST *loaded_instances;
 extern	LLIST *loaded_dungeons;
 extern	LLIST *loaded_ships;
+
 
 char *expand_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,pVARIABLE *var);
 char *expand_string_expression(SCRIPT_VARINFO *info,char *str,BUFFER *store);

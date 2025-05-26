@@ -693,7 +693,7 @@ LLIST *persist_mobs;
 LLIST *persist_objs;
 LLIST *persist_rooms;
 LLIST *loaded_accounts;
-
+LLIST *reserved_vnums;
 
 
 TOKEN_DATA *global_tokens = NULL;
@@ -867,6 +867,11 @@ void boot_db(void)
     if (!pending_changes)
         pending_changes = list_create(false);
     
+	if (!reserved_vnums)
+		reserved_vnums = list_create(false);
+
+	load_reserved();
+
     /* Load settings and changesets */
     load_changesets();
 
