@@ -1379,7 +1379,7 @@ void do_chat_show(CHAR_DATA *ch, char *argument)
     send_to_char(buf, ch);
     
     // Only show the actual password to ops and qualified staff members
-    if ((is_op(chat, ch->name) || 
+    if ((is_op(chat, ch->name) || !str_cmp(ch->name, chat->created_by) ||
          (get_staff_rank(ch) > STAFF_ASCENDANT) || 
          (IS_IMMORTAL(ch) && 
           (is_staff_duty_in_list(ch, "Administrator 'Player Relations")))) && 
