@@ -2438,7 +2438,7 @@ while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
 					{
 						look_compass(ch, obj);
 					}
-					else if((obj->pIndexData->vnum == OBJ_VNUM_SKULL || obj->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL) &&
+					else if((obj->pIndexData->vnum == get_reserved_vnum("obj_skull_normal") || obj->pIndexData->vnum == get_reserved_vnum("obj_skull_golden")) &&
 						affect_find(obj->affected, skill_lookup("third eye")) != NULL)
 					{
 						if ((victim = get_char_world(NULL, obj->owner)) != NULL)

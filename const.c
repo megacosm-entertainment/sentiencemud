@@ -170,18 +170,18 @@ const struct rank_type	    rank_table [] =
     {   0,				NULL		}
 };
 
-
+/*
 const   struct  crew_type       crew_table [] =
 {
-    { 	MOB_VNUM_SAILOR_DISEASED, 	"Diseased Sailor", 	100 	},
-    { 	MOB_VNUM_SAILOR_DIRTY,    	"Dirty Sailor",    	200 	},
-    { 	MOB_VNUM_SAILOR_BURLY,    	"Burly Sailor",    	400 	},
-    { 	MOB_VNUM_SAILOR_TRAINED,  	"Trained Sailor",  	700 	},
-    { 	MOB_VNUM_SAILOR_MERCENARY,	"Mercenary Pirate",	800 	},
-    { 	MOB_VNUM_SAILOR_ELITE,    	"Elite Sailor",    	1000	},
+    { 	get_reserved_vnum("mob_sailor_diseased"), 	"Diseased Sailor", 	100 	},
+    { 	get_reserved_vnum("mob_sailor_dirty"),    	"Dirty Sailor",    	200 	},
+    { 	get_reserved_vnum("mob_sailor_burly"),    	"Burly Sailor",    	400 	},
+    { 	get_reserved_vnum("mob_sailor_trained"),  	"Trained Sailor",  	700 	},
+    { 	get_reserved_vnum("mob_sailor_mercenary"),	"Mercenary Pirate",	800 	},
+    { 	get_reserved_vnum("mob_sailor_elite"),    	"Elite Sailor",    	1000	},
     { 	-1,                       	NULL,              	0	}
 };
-
+*/
 
 const struct item_type		item_table	[]	=
 {

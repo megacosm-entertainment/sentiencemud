@@ -499,7 +499,7 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 		if( dungeon->entry_room )
 			fprintf(fp,"Room %ld\n", dungeon->entry_room->vnum);
 		else
-			fprintf (fp, "Room %ld\n", (long int)ROOM_VNUM_TEMPLE);
+			fprintf (fp, "Room %ld\n", (long int)get_reserved_vnum("room_default_recall"));
 	}
 	else if( ch->checkpoint ) {
 		if( ch->checkpoint->wilds )
@@ -511,7 +511,7 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 		else
 			fprintf(fp,"Room %ld\n", ch->checkpoint->vnum);
 	} else if(!ch->in_room)
-		fprintf (fp, "Room %ld\n", (long int)ROOM_VNUM_TEMPLE);
+		fprintf (fp, "Room %ld\n", (long int)get_reserved_vnum("room_default_recall"));
 	else if(ch->in_wilds) {
 		fprintf (fp, "Vroom %ld %ld %ld %ld\n",
 			ch->in_room->x, ch->in_room->y, ch->in_wilds->pArea->uid, ch->in_wilds->uid);
@@ -957,13 +957,13 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
                     continue;
 
                 if (ch->version < VERSION_PLAYER_006) {
-                    if (obj->pIndexData->vnum == OBJ_VNUM_SCROLL)
+                    if (obj->pIndexData->vnum == get_reserved_vnum("obj_scroll"))
                         if (!strcmp(obj->name, "scroll")) {
                             free_string(obj->name);
                             obj->name = short_to_name(obj->short_descr);
                         }
 
-                    if (obj->pIndexData->vnum == OBJ_VNUM_POTION)
+                    if (obj->pIndexData->vnum == get_reserved_vnum("obj_potion"))
                         if(!strcmp(obj->name, "potion")) {
                             free_string(obj->name);
                             obj->name = short_to_name(obj->short_descr);
@@ -3337,7 +3337,7 @@ log_stringf("Duplicate object detected: %s (id %ld, id2 %ld, vnum %ld) for %s. S
 					if (!fVnum)
 					{
 						free_obj(obj);
-						obj = create_object(get_obj_index(OBJ_VNUM_DUMMY), 0 , false);
+						obj = create_object(get_obj_index(get_reserved_vnum("obj_system_dummy")), 0 , false);
 					}
 					if (!list_haslink(loaded_objects, obj))
 					{
@@ -3823,7 +3823,7 @@ void fix_object(OBJ_DATA *obj)
 		// cleanup_affects(obj);
 
 		// Fix skulls
-		if (obj->pIndexData->vnum == OBJ_VNUM_SKULL || obj->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL) {
+		if (obj->pIndexData->vnum == get_reserved_vnum("obj_skull_normal") || obj->pIndexData->vnum == get_reserved_vnum("obj_skull_golden")) {
 			int i;
 			char buf[MSL];
 

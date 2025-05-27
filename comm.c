@@ -2597,7 +2597,7 @@ bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
                 // Handle pet cleanup from incoming connection if needed
                 if (old_char->pet) {
                     CHAR_DATA *pet = old_char->pet;
-                    char_to_room(pet, get_room_index(ROOM_VNUM_LIMBO));
+                    char_to_room(pet, get_room_index(get_reserved_vnum("room_limbo")));
                     stop_follower(pet, true);
                     extract_char(pet, true);
                 }
@@ -2629,18 +2629,18 @@ bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
 
                 // Handle special authentication cases
                 if (!DEV_SKIP_MFA) {
-                    bool mfa_enabled = acct_char ? acct_char->mfa_enabled : false;
+                    bool has_mfa = acct_char ? acct_char->mfa_key != NULL : false;
                     
                     if (IS_IMMORTAL(ch) && game_settings.require_2fa_staff) {
                         // If character has MFA, verify that
-                        if (mfa_enabled) {
+                        if (has_mfa) {
                             write_to_buffer(d, "\n\rReconnecting - This character has MFA enabled.\n\r", 0);
                             ProtocolNoEcho(d, true);
                             d->connected = CON_GET_CHAR_MFA;
                             break;
                         } 
                         // Otherwise, verify account MFA
-                        else if (!IS_NULLSTR(d->account->mfa_key) && d->account->mfa_enabled) {
+                        else if (!IS_NULLSTR(d->account->mfa_key)) {
                             write_to_buffer(d, "\n\rReconnecting - Staff account MFA verification required.\n\r", 0);
                             ProtocolNoEcho(d, true);
                             d->connected = CON_GET_ACCOUNT_MFA_FOR_CHAR;
@@ -2648,7 +2648,7 @@ bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
                         }
                     }
                     // Regular character with MFA
-                    else if (mfa_enabled) {
+                    else if (has_mfa) {
                         write_to_buffer(d, "\n\rReconnecting - This character has MFA enabled.\n\r", 0);
                         ProtocolNoEcho(d, true);
                         d->connected = CON_GET_CHAR_MFA;
@@ -2774,7 +2774,7 @@ void stop_idling(CHAR_DATA *ch)
 		ch->desc == NULL ||
 		ch->desc->connected != CON_PLAYING ||
 		ch->was_in_room == NULL ||
-		ch->in_room != get_room_index(ROOM_VNUM_LIMBO))
+		ch->in_room != get_room_index(get_reserved_vnum("room_limbo")))
 		return;
 
 	if( ch->was_in_room_id[0] || ch->was_in_room_id[1] )

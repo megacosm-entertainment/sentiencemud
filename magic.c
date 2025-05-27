@@ -1217,7 +1217,7 @@ void obj_cast(int sn, int level, OBJ_DATA *obj, ROOM_INDEX_DATA *room, char *arg
     int target = TARGET_NONE;
     char buf[MSL];
 
-    ch = create_mobile(get_mob_index(MOB_VNUM_OBJCASTER), false);
+    ch = create_mobile(get_mob_index(get_reserved_vnum("mob_objcaster")), false);
     char_to_room(ch, room);
 
     ch->level = obj->level;
@@ -1227,7 +1227,7 @@ void obj_cast(int sn, int level, OBJ_DATA *obj, ROOM_INDEX_DATA *room, char *arg
     ch->short_descr = str_dup(obj->short_descr);
 
     // Make sure they have a reagent for the powerful spells
-    reagent = create_object(get_obj_index(OBJ_VNUM_SHARD), 1, false);
+    reagent = create_object(get_obj_index(get_reserved_vnum("obj_black_moonstone_shard")), 1, false);
     obj_to_char(reagent,ch);
 
     switch (skill_table[sn].target)

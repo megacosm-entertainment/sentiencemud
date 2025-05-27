@@ -496,25 +496,25 @@ SPELL_FUNC(spell_raise_dead)
 
             obj_from_obj(in);
 
-            if (in->pIndexData->vnum == OBJ_VNUM_SILVER_ONE) {
+            if (in->pIndexData->vnum == get_reserved_vnum("obj_coin_silver_single")) {
                 victim->silver++;
                 extract_obj(in);
                 continue;
             }
 
-            if (in->pIndexData->vnum == OBJ_VNUM_SILVER_SOME) {
+            if (in->pIndexData->vnum == get_reserved_vnum("obj_coin_silver_multiple")) {
                 victim->silver += in->value[1];
                 extract_obj(in);
                 continue;
             }
 
-            if (in->pIndexData->vnum == OBJ_VNUM_GOLD_ONE) {
+            if (in->pIndexData->vnum == get_reserved_vnum("obj_coin_gold_single")) {
                 victim->gold++;
                 extract_obj(in);
                 continue;
             }
 
-            if (in->pIndexData->vnum == OBJ_VNUM_GOLD_SOME) {
+            if (in->pIndexData->vnum == get_reserved_vnum("obj_coin_gold_multiple")) {
                 victim->gold += in->value[1];
                 extract_obj(in);
                 continue;

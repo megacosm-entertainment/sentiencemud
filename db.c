@@ -693,7 +693,7 @@ LLIST *persist_mobs;
 LLIST *persist_objs;
 LLIST *persist_rooms;
 LLIST *loaded_accounts;
-
+LLIST *reserved_vnums;
 
 
 TOKEN_DATA *global_tokens = NULL;
@@ -867,6 +867,11 @@ void boot_db(void)
     if (!pending_changes)
         pending_changes = list_create(false);
     
+	if (!reserved_vnums)
+		reserved_vnums = list_create(false);
+
+	load_reserved();
+
     /* Load settings and changesets */
     load_changesets();
 
@@ -1424,7 +1429,7 @@ void reset_wilds(WILDS_DATA *pWilds)
         {
             if (IS_SET(pVLink->current_linkage, VLINK_PORTAL))
             {
-	      obj = create_object(get_obj_index(OBJ_VNUM_ABYSS_PORTAL), 0, true);
+	      obj = create_object(get_obj_index(get_reserved_vnum("obj_portal_abyss")), 0, true);
 	      obj_to_vroom(obj, pWilds, pVLink->wildsorigin_x, pVLink->wildsorigin_y);
             }
         }
@@ -1898,7 +1903,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 				i = number_range(1,2);
 				for (c = 0; c < i; c++)
 				{
-					obj = create_object(get_obj_index(OBJ_VNUM_BOTTLED_SOUL), 1, false);
+					obj = create_object(get_obj_index(get_reserved_vnum("obj_pneuma_item")), 1, false);
 					obj_to_char(obj, pMob);
 				}
 			}
@@ -1907,7 +1912,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 				i = number_range(2,3);
 				for (c = 0; c < i; c++)
 				{
-					obj = create_object(get_obj_index(OBJ_VNUM_BOTTLED_SOUL), 1, false);
+					obj = create_object(get_obj_index(get_reserved_vnum("obj_pneuma_item")), 1, false);
 					obj_to_char(obj, pMob);
 				}
 			}
@@ -1916,7 +1921,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 				i = number_range(3,4);
 				for (c = 0; c < i; c++)
 				{
-					obj = create_object(get_obj_index(OBJ_VNUM_BOTTLED_SOUL), 1, false);
+					obj = create_object(get_obj_index(get_reserved_vnum("obj_pneuma_item")), 1, false);
 					obj_to_char(obj, pMob);
 				}
 			}
@@ -1925,7 +1930,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 				i = number_range(4,6);
 				for (c = 0; c < i; c++)
 				{
-					obj = create_object(get_obj_index(OBJ_VNUM_BOTTLED_SOUL), 1, false);
+					obj = create_object(get_obj_index(get_reserved_vnum("obj_pneuma_item")), 1, false);
 					obj_to_char(obj, pMob);
 				}
 			}
@@ -1934,7 +1939,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 				i = number_range(10,15);
 				for (c = 0; c < i; c++)
 				{
-					obj = create_object(get_obj_index(OBJ_VNUM_BOTTLED_SOUL), 1, false);
+					obj = create_object(get_obj_index(get_reserved_vnum("obj_pneuma_item")), 1, false);
 					obj_to_char(obj, pMob);
 				}
 			}
@@ -2128,7 +2133,7 @@ void chance_create_mob(ROOM_INDEX_DATA *pRoom, MOB_INDEX_DATA *pMobIndex, int ch
     OBJ_DATA *obj = NULL;
 
     /* don't do for now
-    if (pMobIndex->vnum == MOB_VNUM_GATEKEEPER_ABYSS)
+    if (pMobIndex->vnum == get_reserved_vnum("mob_abyss_gatekeeper"))
     {
        if (pMobIndex->count > 0)
        return;
@@ -4535,7 +4540,7 @@ void load_reboot_objs()
 
     for (counter = 0; counter < 3; counter++)
     {
-        obj = create_object(get_obj_index(OBJ_VNUM_SHARD), 0, true);
+        obj = create_object(get_obj_index(get_reserved_vnum("obj_black_moonstone_shard")), 0, true);
         pRoom = get_random_room(NULL, 0);
 
         obj_to_room(obj, pRoom);
@@ -5949,7 +5954,7 @@ void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
 		else if(ch->in_room->source)	fprintf(fp, "CloneRoom %ld %ld %ld\n", ch->in_room->source->vnum, ch->in_room->id[0], ch->in_room->id[1]);
 		else				fprintf(fp, "Room %ld\n", ch->in_room->vnum);
 	} else
-		fprintf(fp, "Room %d\n", ROOM_VNUM_DEFAULT);
+		fprintf(fp, "Room %d\n", get_reserved_vnum("room_default"));
 
 	if (IS_SITH(ch)) {
 		for (i = 0; i < MAX_TOXIN; i++)
@@ -7498,7 +7503,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 
 	if( !here ) here = deep_here;
 
-	if( !here ) here = get_room_index(ROOM_VNUM_DEFAULT);
+	if( !here ) here = get_room_index(get_reserved_vnum("room_default"));
 
 	if( here ) ch->in_room = here;
 

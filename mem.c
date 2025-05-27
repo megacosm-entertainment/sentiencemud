@@ -2847,7 +2847,7 @@ void free_auto_war( AUTO_WAR *m_auto_war )
 	act( "{D$n disappears in puff of smoke.{x", m_auto_war->team_players, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
 	act( "You have been transported to Plith.", m_auto_war->team_players, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
 	char_from_room( m_auto_war->team_players );
-	char_to_room( m_auto_war->team_players, get_room_index( ROOM_VNUM_TEMPLE ) );
+	char_to_room( m_auto_war->team_players, get_room_index( get_reserved_vnum("room_default_recall") ) );
 	do_function( m_auto_war->team_players, &do_look, "auto");
 	char_from_team( m_auto_war->team_players );
     }
@@ -3787,7 +3787,7 @@ QUESTOR_DATA *new_questor_data()
 	q->prefix = &str_empty[0];
 	q->suffix = &str_empty[0];
 	q->line_width = 70;
-	q->scroll = OBJ_VNUM_QUEST_SCROLL;
+	q->scroll = get_reserved_vnum("obj_quest_scroll");;
 
 	return q;
 }

@@ -630,3 +630,4 @@ DECLARE_DO_FUN( do_coffer );
 DECLARE_DO_FUN( do_acctlink );
 DECLARE_DO_FUN( do_acctunlink );
 DECLARE_DO_FUN( do_socialedit );
+DECLARE_DO_FUN( do_reserved );

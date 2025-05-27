@@ -335,7 +335,7 @@ SPELL_FUNC(spell_glacial_wave)
 		return false;
 	}
 */
-	if(IS_NPC(ch) && ch->pIndexData->vnum == MOB_VNUM_OBJCASTER) {	// non-mob caster
+	if(IS_NPC(ch) && ch->pIndexData->vnum == get_reserved_vnum("mob_objcaster")) {	// non-mob caster
 		max_depth = 5;
 		depth_scale = 50;
 		do_ice = false;
@@ -403,7 +403,7 @@ SPELL_FUNC(spell_ice_storm)
 		return false;
 	}
 
-	obj = create_object(get_obj_index(OBJ_VNUM_ICE_STORM), 0, true);
+	obj = create_object(get_obj_index(get_reserved_vnum("obj_spell_icestorm")), 0, true);
 	act("{BYou summon a huge ice storm!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	act("{B$n summons a huge ice storm!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	obj_to_room(obj, ch->in_room);

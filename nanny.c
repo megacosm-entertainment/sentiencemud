@@ -383,19 +383,26 @@ void login_confirm_account_name(DESCRIPTOR_DATA *d, char *argument)
 // Leads to CON_CONFIRM_ACCOUNT_PASSWORD.
 void login_new_account_password(DESCRIPTOR_DATA *d, char *argument)
 {
-    // ACCOUNT_DATA *acct = d->account; // Not needed here yet
+    ACCOUNT_DATA *acct = d->account;
     
     write_to_buffer(d, "\n\r", 2);
     
-    // acceptablePassword should ideally be called by nanny() immediately after input
-    // or ensure it doesn't modify 'argument' if called here.
+    // Check if password meets minimum requirements
     if (!acceptablePassword(d, argument)) {
         // acceptablePassword should send its own error and re-prompt or set state.
-        // If it just returns false, we might need to re-prompt here.
-        // For now, assuming acceptablePassword handles re-prompting or state change.
+        return;
+    }
+    
+    // NEW CHECK: Validate uniqueness across staff characters
+    if (game_settings.require_uniq_pass_staff && 
+        !validate_password_uniqueness(acct, argument, false, NULL, false)) {
+        write_to_buffer(d, "This password matches one of your staff character passwords.\n\r", 0);
+        write_to_buffer(d, "Account passwords must be unique from staff character passwords. Please try again.\n\r", 0);
+        d->connected = CON_NEW_ACCOUNT_PASSWORD;
         return;
     }
         
+    // Store password for confirmation
     if (d->new_password_buffer) {
         free_string(d->new_password_buffer);
     }
@@ -2247,8 +2254,8 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
         if (old_room) {
             char_to_room(existing, old_room);
             act("$n has reconnected.", existing, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-        } else if (get_room_index(ROOM_VNUM_TEMPLE)) {
-            char_to_room(existing, get_room_index(ROOM_VNUM_TEMPLE));
+        } else if (get_room_index(get_reserved_vnum("room_default_recall"))) {
+            char_to_room(existing, get_room_index(get_reserved_vnum("room_default_recall")));
             act("$n has reconnected.", existing, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
         }
         
@@ -2331,8 +2338,8 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
 
             moved_to_room = true;
             // Safely place in starting room
-            if (get_room_index(ROOM_VNUM_SCHOOL)) {
-                char_to_room(ch, get_room_index(ROOM_VNUM_SCHOOL));
+            if (get_room_index(get_reserved_vnum("room_begin_new_character"))) {
+                char_to_room(ch, get_room_index(get_reserved_vnum("room_begin_new_character")));
                 do_function(ch, &do_changes, "catchup");
                 SET_BIT(ch->comm, COMM_NO_OOC);
                 SET_BIT(ch->comm, COMM_NO_FLAMING);
@@ -2370,16 +2377,16 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
                 ch->in_wilds = NULL;
                 ch->at_wilds_x = -1;
                 ch->at_wilds_y = -1;
-                if (get_room_index(ROOM_VNUM_TEMPLE))
-                    char_to_room(ch, get_room_index(ROOM_VNUM_TEMPLE));
+                if (get_room_index(get_reserved_vnum("room_default_recall")))
+                    char_to_room(ch, get_room_index(get_reserved_vnum("room_default_recall")));
             }
         } else {
             if (IS_IMMORTAL(ch)) {
-                if (get_room_index(ROOM_VNUM_CHAT))
-                    char_to_room(ch, get_room_index(ROOM_VNUM_CHAT));
+                if (get_room_index(get_reserved_vnum("room_chat_lobby")))
+                    char_to_room(ch, get_room_index(get_reserved_vnum("room_chat_lobby")));
             } else {
-                if (get_room_index(ROOM_VNUM_TEMPLE))
-                    char_to_room(ch, get_room_index(ROOM_VNUM_TEMPLE));
+                if (get_room_index(get_reserved_vnum("room_default_recall")))
+                    char_to_room(ch, get_room_index(get_reserved_vnum("room_default_recall")));
             }
         }
     }
@@ -3023,28 +3030,58 @@ void login_confirm_character_password(DESCRIPTOR_DATA *d, char *argument)
     
     write_to_buffer(d, "\n\r", 2);
     
-    if (!acceptablePassword(d, argument)) {
-        // acceptablePassword should re-prompt or set state
+    if (!d->new_password_buffer) {
+        write_to_buffer(d, "An error occurred. Please try setting your password again.\n\r", 0);
+        display_character_menu(d);
+        d->connected = CON_CHARACTER_MENU;
         return;
     }
     
-    // NEW CHECK: Validate staff password uniqueness
+    if (strcmp(argument, d->new_password_buffer) != 0) {
+        write_to_buffer(d, "Passwords don't match.\n\r", 0);
+        free_string(d->new_password_buffer);
+        d->new_password_buffer = NULL;
+        display_character_menu(d);
+        d->connected = CON_CHARACTER_MENU;
+        return;
+    }
+
+    // NEW CHECK: Validate staff password uniqueness for character passwords
     if (IS_IMMORTAL(ch) && game_settings.require_uniq_pass_staff && 
-        !validate_password_uniqueness(acct, argument, true, ch->name, true)) {
+        !validate_password_uniqueness(acct, d->new_password_buffer, true, ch->name, true)) {
         write_to_buffer(d, "Staff character passwords must be unique.\n\r", 0);
-        write_to_buffer(d, "This password matches either your account password or another staff character.\n\r", 0);
+        write_to_buffer(d, "This password matches either your account password or another character's password.\n\r", 0);
+        free_string(d->new_password_buffer);
+        d->new_password_buffer = NULL;
+        display_character_menu(d);
+        d->connected = CON_CHARACTER_MENU;
+        return;
+    }
+
+    // Also check for non-staff characters matching staff passwords
+    if (!IS_IMMORTAL(ch) && game_settings.require_uniq_pass_staff && 
+        !validate_password_uniqueness(acct, d->new_password_buffer, true, ch->name, false)) {
+        write_to_buffer(d, "This password matches one of your staff character passwords.\n\r", 0);
+        write_to_buffer(d, "Please choose a different password.\n\r", 0);
+        free_string(d->new_password_buffer);
+        d->new_password_buffer = NULL;
+        display_character_menu(d);
+        d->connected = CON_CHARACTER_MENU;
         return;
     }
     
     // Set password on account_character if available
     if (has_auth_data) {
-        if (!set_encrypted_password(&acct_char->pwd, &acct_char->pwd_vers, argument)) {
+        if (!set_encrypted_password(&acct_char->pwd, &acct_char->pwd_vers, d->new_password_buffer)) {
             write_to_buffer(d, "Error setting character password. Please try again or contact staff.\n\r", 0);
         } else {
             save_account(acct);
             write_to_buffer(d, "\n\rCharacter password set.\n\r", 0);
         }
     }
+    
+    free_string(d->new_password_buffer);
+    d->new_password_buffer = NULL;
     
     ProtocolNoEcho(d, false);
     display_character_menu(d);
@@ -3993,7 +4030,6 @@ void login_change_account_password(DESCRIPTOR_DATA *d, char *argument)
     if (argument[0] == '\0')
     {
         // Re-prompt without error if input is empty
-        write_to_buffer(d, "New Password: ", 0);
         d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
         return;
     }
@@ -4009,9 +4045,10 @@ void login_change_account_password(DESCRIPTOR_DATA *d, char *argument)
     }
 
     // NEW CHECK: Validate uniqueness across staff characters
-    if (game_settings.require_uniq_pass_staff && !validate_password_uniqueness(acct, argument, false, NULL, false)) {
+    if (game_settings.require_uniq_pass_staff && 
+        !validate_password_uniqueness(acct, argument, false, NULL, false)) {
         write_to_buffer(d, "This password matches one of your staff character passwords.\n\r", 0);
-        write_to_buffer(d, "Staff characters must have unique passwords. Please try a different password.\n\r", 0);
+        write_to_buffer(d, "Account passwords must be unique from staff character passwords. Please try again.\n\r", 0);
         d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
         return;
     }
@@ -4024,7 +4061,6 @@ void login_change_account_password(DESCRIPTOR_DATA *d, char *argument)
     if (d->new_password_buffer) free_string(d->new_password_buffer);
     d->new_password_buffer = str_dup(argument);
     
-    write_to_buffer(d, "\n\rPlease retype new password: ", 0);
     d->connected = CON_CONFIRM_ACCOUNT_PASSWORD_CHANGE;
 }
 
@@ -4334,8 +4370,7 @@ void login_staff_password(DESCRIPTOR_DATA *d, char *argument)
     if (game_settings.require_uniq_pass_staff && 
         !validate_password_uniqueness(acct, argument, true, ch->name, true)) {
         write_to_buffer(d, "Staff character passwords must be unique.\n\r", 0);
-        write_to_buffer(d, "This password matches either your account password or another staff character.\n\r", 0);
-        write_to_buffer(d, "Enter a unique password for this staff character: ", 0);
+        write_to_buffer(d, "This password matches either your account password or another character's password.\n\r", 0);
         return;
     }
 

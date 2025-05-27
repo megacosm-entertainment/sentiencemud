@@ -2795,7 +2795,7 @@ bool can_start_combat(CHAR_DATA *ch)
 	if( ch->in_room == NULL ) return false;
 
 	// Fix for do_opcast. Make sure the dummy mob is not attacked.
-	if( IS_NPC(ch) && ch->pIndexData->vnum == MOB_VNUM_OBJCASTER) return false;
+	if( IS_NPC(ch) && ch->pIndexData->vnum == get_reserved_vnum("mob_objcaster")) return false;
 
 	if (IS_NPC(ch) && IS_SET(ch->act[0], ACT_MOUNT) && MOUNTED(ch))
 	{
@@ -3080,7 +3080,7 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
         obj_index = (ch->corpse_vnum > 0) ? get_obj_index(ch->corpse_vnum) : NULL;
 
         if(!obj_index || obj_index->item_type != ITEM_CORPSE_NPC)
-            obj_index = get_obj_index(OBJ_VNUM_CORPSE_NPC);
+            obj_index = get_obj_index(get_reserved_vnum("obj_corpse_npc"));
 
         corpse = create_object(obj_index, 0, true);
         // [3,6]
@@ -3104,7 +3104,7 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
     } else { // PCs
         name		= ch->name;
         short_desc	= ch->name;
-        corpse		= create_object(get_obj_index(OBJ_VNUM_CORPSE_PC), 0, true);
+        corpse		= create_object(get_obj_index(get_reserved_vnum("obj_corpse_pc")), 0, true);
         // [25,40]
 
         // If the reckoning, put some pneuma in the corpse
@@ -3115,7 +3115,7 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
 
             for (count = 0; count < pneuma_num; count++)
             {
-            pneuma = create_object(get_obj_index(OBJ_VNUM_BOTTLED_SOUL), 0, true);
+            pneuma = create_object(get_obj_index(get_reserved_vnum("obj_pneuma_item")), 0, true);
             obj_to_obj(pneuma, corpse);
             }
         }
@@ -3300,10 +3300,10 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
 		head_time = 0; // head should last indefinitely
 	} else*/
 	if ( IS_NPC(ch) && IS_INVASION_LEADER(ch)) {
-		head_type = OBJ_VNUM_INVASION_LEADER_HEAD;
+		head_type = get_reserved_vnum("obj_part_invasion_leader_head");
 		head_time = 0; // head should last indefinitely
 	} else {
-		head_type = OBJ_VNUM_SEVERED_HEAD;
+		head_type = get_reserved_vnum("obj_part_head");
 	}
 
 	if ( !has_head && IS_SET(parts,PART_HEAD)) {
@@ -3341,7 +3341,7 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
 		case 2:
 			if (IS_SET(ch->parts,PART_GUTS)) {
 				msg = "{R$n spills $s guts all over the floor.{x";
-				vnum = OBJ_VNUM_GUTS;
+				vnum = get_reserved_vnum("obj_part_guts");
 				REMOVE_BIT(parts,PART_GUTS);
 			}
 			break;
@@ -3363,26 +3363,26 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
 		case  4:
 			if (IS_SET(ch->parts,PART_HEART)) {
 				msg  = "{R$n's heart is torn from $s chest.{x";
-				vnum = OBJ_VNUM_TORN_HEART;
+				vnum = get_reserved_vnum("obj_part_heart");
 				REMOVE_BIT(parts,PART_HEART);
 			}
 			break;
 		case  5:
 			if (IS_SET(ch->parts,PART_ARMS)) {
 				msg  = "{R$n's arm is sliced from $s dead body.{x";
-				vnum = OBJ_VNUM_SLICED_ARM;
+				vnum = get_reserved_vnum("obj_part_arm");
 			}
 			break;
 		case  6:
 			if (IS_SET(ch->parts,PART_LEGS)) {
 				msg  = "{R$n's leg is sliced from $s dead body.{x";
-				vnum = OBJ_VNUM_SLICED_LEG;
+				vnum = get_reserved_vnum("obj_part_leg");
 			}
 			break;
 		case 7:
 			if (IS_SET(ch->parts,PART_BRAINS)) {
 				msg = "{R$n's head is shattered, and $s brains splash all over you.{x";
-				vnum = OBJ_VNUM_BRAINS;
+				vnum = get_reserved_vnum("obj_part_brains");
 				REMOVE_BIT(parts,PART_BRAINS);
 				if(number_percent() < 50) { REMOVE_BIT(parts,PART_EAR); }
 				if(number_percent() < 50) {
@@ -3708,7 +3708,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
             victim->in_room->name, victim->in_room->vnum);
         bug(buf, 0);
 
-        recall_room = get_room_index(ROOM_VNUM_TEMPLE);
+        recall_room = get_room_index(get_reserved_vnum("room_default_recall"));
     }
     location_from_room(&victim->recall,recall_room);
     stop_fighting(victim, true);
@@ -3766,7 +3766,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
         send_to_char("You notice that you are safe and healthy once again.\n\r", victim);
 
         char_from_room(victim);
-        char_to_room(victim,get_room_index(ROOM_VNUM_NDEATH));
+        char_to_room(victim,get_room_index(get_reserved_vnum("room_newbie_repop")));
 
         victim->position = POS_RESTING;
         victim->dead = false;
@@ -3914,7 +3914,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
     victim->mana = victim->max_mana;
     victim->move = victim->max_move;
     char_from_room(victim);
-    char_to_room(victim, get_room_index(ROOM_VNUM_DEATH));
+    char_to_room(victim, get_room_index(get_reserved_vnum("room_death")));
 
     // Mark all carried and worn objects as UNSEEN
     if (victim->lcarrying) {
@@ -3992,7 +3992,7 @@ void death_mob_echo(CHAR_DATA *victim)
 	send_to_char("{C'This really is pointless, how many times more am I going to have to take you back?' says Death.{x\n\r", victim);
 	}
 
-	death_mob = create_mobile(get_mob_index(MOB_VNUM_DEATH), false);
+	death_mob = create_mobile(get_mob_index(get_reserved_vnum("mob_death")), false);
 	char_to_room(death_mob, victim->in_room);
 
 	act("Death taps $n's corpse three times with his scythe.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -4254,7 +4254,7 @@ int xp_compute(CHAR_DATA *gch, CHAR_DATA *victim, int total_levels)
     if (gch->lworn) {
         iterator_start(&it, gch->lworn);
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-            if (obj->pIndexData->vnum == OBJ_VNUM_SHIELD_DRAGON)
+            if (obj->pIndexData->vnum == get_reserved_vnum("obj_dragon_shield"))
                 bonus_xp += 10;
         }
         iterator_stop(&it);
@@ -7299,28 +7299,33 @@ void resurrect_end(CHAR_DATA *ch)
 
 		obj_from_obj(in);
 
-		if (in->pIndexData->vnum == OBJ_VNUM_SILVER_ONE)
+		if (in->pIndexData->vnum == get_reserved_vnum("obj_coin_silver_single"))
 		{
 			victim->silver++;
 			extract_obj(in);
 			continue;
 		}
 
-		if (in->pIndexData->vnum == OBJ_VNUM_SILVER_SOME)
+		if (in->pIndexData->vnum == get_reserved_vnum("obj_coin_silver_multiple"))
 		{
 			victim->silver += in->value[1];
 			extract_obj(in);
 			continue;
 		}
 
-		if (in->pIndexData->vnum == OBJ_VNUM_GOLD_ONE)
+		if (in->pIndexData->vnum == get_reserved_vnum("obj_coin_gold_single"))
+		{
+			victim->gold++;
+			extract_obj(in);
+			continue;
+		}
 		{
 			victim->gold++;
 			extract_obj(in);
 			continue;
 		}
 
-		if (in->pIndexData->vnum == OBJ_VNUM_GOLD_SOME)
+		if (in->pIndexData->vnum == get_reserved_vnum("obj_coin_gold_multiple"))
 		{
 			victim->gold += in->value[1];
 			extract_obj(in);

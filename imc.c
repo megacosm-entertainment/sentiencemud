@@ -8242,7 +8242,7 @@ CHAR_DATA *imc_make_skeleton( const char *name )
 #else
    skeleton->name = IMCSTRALLOC( name );
    skeleton->short_descr = IMCSTRALLOC( name );
-   skeleton->in_room = get_room_index( ROOM_VNUM_LIMBO );
+   skeleton->in_room = get_room_index( get_reserved_vnum("room_limbo") );
 #endif
 
    return skeleton;

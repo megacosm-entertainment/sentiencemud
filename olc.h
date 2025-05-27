@@ -60,6 +60,8 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define ED_ACCNOTE	24
 #define ED_CHLOG 25
 #define ED_SOCIAL 26
+#define ED_GAMESETTING    27  // Or whatever value is appropriate
+
 
 
 

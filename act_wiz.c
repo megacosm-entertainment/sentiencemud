@@ -576,9 +576,7 @@ int game_settings_read (void)
                 KEY("MSSP_ROLEPLAYING",game_settings.mssp_roleplaying,fread_number(fp));
                 KEY("MSSP_TRAINING_SYSTEM",game_settings.mssp_training_system,fread_number(fp));
                 KEY("MSSP_WORLD_ORIGINALITY",game_settings.mssp_world_originality,fread_number(fp));
-				
 
-				break;
 
             case 'N':
 				KEY("NewAcctLock",game_settings.new_acct_lock,fread_number(fp));
@@ -586,13 +584,12 @@ int game_settings_read (void)
 				KEY("NewCharLock",game_settings.new_char_lock,fread_number(fp));
 				KEY("NewCharLockMsg",game_settings.new_char_lock_msg,fread_string(fp));
 				KEY("NoteBootErrs",game_settings.note_boot_errors,fread_number(fp));
-
-
 	            break;
 
 			case 'O':
 				KEY("OrgMaxRanks", game_settings.org_max_ranks, fread_number(fp));
 				KEY("OrgPKCost", game_settings.org_disable_pk_pneuma_cost, fread_number(fp));
+
 
 			case 'R':
                 KEY("Require_2FA_All",game_settings.require_2fa_all,fread_number(fp));
@@ -601,6 +598,7 @@ int game_settings_read (void)
                 KEY("RequireUniqPassStaff",game_settings.require_uniq_pass_staff,fread_number(fp));
                 KEY("RestrictRacesByAlignment",game_settings.restrict_races_align,fread_number(fp));
                 KEY("RestrictClassesByAlignment",game_settings.restrict_classes_align,fread_number(fp));
+
                 break;
 
             case 'S':
@@ -4559,47 +4557,121 @@ void do_load(CHAR_DATA *ch, char *argument)
 
 void do_mload(CHAR_DATA *ch, char *argument)
 {
-    char arg[MAX_INPUT_LENGTH];
+    char arg1[MAX_INPUT_LENGTH];
+    char arg2[MAX_INPUT_LENGTH];
     char buf[MAX_STRING_LENGTH];
     MOB_INDEX_DATA *pMobIndex;
     CHAR_DATA *victim;
+    int amt = 1;
+    int i;
+    long vnum;
 
-    one_argument(argument, arg);
+    argument = one_argument(argument, arg1);
+    one_argument(argument, arg2);
 
-    if (arg[0] == '\0' || !is_number(arg))
+    if (arg1[0] == '\0')
     {
-	send_to_char("Syntax: load mob <vnum>.\n\r", ch);
-	return;
+        send_to_char("Syntax: load mob <vnum|$reserved_name> <amt>.\n\r", ch);
+        return;
     }
 
-    if ((pMobIndex = get_mob_index(atol(arg))) == NULL)
+    // Handle reserved names format using $name
+    if (arg1[0] == '$') {
+        char *reserved_name = arg1 + 1;  // Skip the $ character
+        vnum = get_reserved_vnum(reserved_name);
+        if (vnum == -1) {
+            send_to_char("No reserved mobile with that name found.\n\r", ch);
+            return;
+        }
+        
+        // Convert the vnum to a string for further processing
+        sprintf(arg1, "%ld", vnum);
+    }
+    else if (!is_number(arg1)) {
+        send_to_char("Syntax: load mob <vnum|$reserved_name> <amt>.\n\r", ch);
+        return;
+    }
+
+    if (arg2[0] != '\0')
     {
-	send_to_char("No mob has that vnum.\n\r", ch);
-	return;
+        if (!is_number(arg2))
+        {
+            send_to_char("Syntax: mload <vnum|$reserved_name> <amt>.\n\r", ch);
+            return;
+        }
+
+        amt = atoi(arg2);
+        if (amt < 1 || amt > 50)
+        {
+            send_to_char("Range for amount is 1-50.\n\r", ch);
+            return;
+        }
+    }
+
+    vnum = atol(arg1);
+    if ((pMobIndex = get_mob_index(vnum)) == NULL)
+    {
+        send_to_char("No mobile has that vnum.\n\r", ch);
+        return;
     }
 
     if (!IS_BUILDER(ch, pMobIndex->area))
     {
-	send_to_char("You arn't a builder in that area.\n\r", ch);
-	return;
+        send_to_char("You aren't a builder in that area - action logged.\n\r", ch);
+        sprintf(buf, "do_mload: %s tried to load %s (vnum %ld) in area %s without permissions!",
+            ch->name,
+            pMobIndex->short_descr,
+            pMobIndex->vnum,
+            pMobIndex->area->name);
+        log_string(buf);
+        return;
     }
 
-    sprintf(buf, "Loaded %s (%ld)",
-        pMobIndex->short_descr,
-        pMobIndex->vnum);
-    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    if (amt == 1)
+    {
+        victim = create_mobile(pMobIndex, false);
+        
+        if (ch->in_wilds == NULL)
+            char_to_room(victim, ch->in_room);
+        else
+            char_to_vroom(victim, ch->in_wilds, ch->at_wilds_x, ch->at_wilds_y);
+            
+        p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
 
-    victim = create_mobile(pMobIndex, false);
-
-    if (ch->in_wilds == NULL)
-        char_to_room(victim, ch->in_room);
+        sprintf(buf, "Loaded %s (%ld)",
+            pMobIndex->short_descr,
+            pMobIndex->vnum);
+        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        act("$n has created $N!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+        sprintf(buf,"$N loads %s.", victim->short_descr);
+        wiznet(buf, ch, NULL, WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch));
+    }
     else
-        char_to_vroom(victim, ch->in_wilds, ch->at_wilds_x, ch->at_wilds_y);
-    p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+    {
+        for (i = 0; i < amt; i++)
+        {
+            victim = create_mobile(pMobIndex, false);
+            
+            if (ch->in_wilds == NULL)
+                char_to_room(victim, ch->in_room);
+            else
+                char_to_vroom(victim, ch->in_wilds, ch->at_wilds_x, ch->at_wilds_y);
+                
+            p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+        }
 
-    act("$n has created $N!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-    sprintf(buf,"$N loads %s.",victim->short_descr);
-    wiznet(buf,ch,NULL,WIZ_LOAD,WIZ_SECURE,get_staff_rank(ch));
+        sprintf(buf, "{Y({G%d{Y){x $n has created %s!",
+            amt, pMobIndex->short_descr);
+        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+        
+        sprintf(buf, "{Y({G%d{Y){x Loaded %s (%ld)",
+            amt, pMobIndex->short_descr, pMobIndex->vnum);
+        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        
+        sprintf(buf, "{Y({G%d{Y){x $N loads %s.",
+            amt, pMobIndex->short_descr);
+        wiznet(buf, ch, NULL, WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch));
+    }
 }
 
 
@@ -4612,98 +4684,123 @@ void do_oload(CHAR_DATA *ch, char *argument)
     OBJ_DATA *obj;
     int amt = 1;
     int i;
+    long vnum;
 
     argument = one_argument(argument, arg1);
     one_argument(argument, arg2);
 
-    if (arg1[0] == '\0' || !is_number(arg1))
+    if (arg1[0] == '\0')
     {
-	send_to_char("Syntax: load obj <vnum> <amt>.\n\r", ch);
-	return;
+        send_to_char("Syntax: load obj <vnum|$reserved_name> <amt>.\n\r", ch);
+        return;
+    }
+
+    // Handle reserved names format using $name
+    if (arg1[0] == '$') {
+        char *reserved_name = arg1 + 1;  // Skip the $ character
+        vnum = get_reserved_vnum(reserved_name);
+        if (vnum == -1) {
+            send_to_char("No reserved object with that name found.\n\r", ch);
+            return;
+        }
+        
+        // Convert the vnum to a string for further processing
+        sprintf(arg1, "%ld", vnum);
+    }
+    else if (!is_number(arg1)) {
+        send_to_char("Syntax: load obj <vnum|$reserved_name> <amt>.\n\r", ch);
+        return;
     }
 
     if (arg2[0] != '\0')
     {
-	if (!is_number(arg2))
-	{
-	    send_to_char("Syntax: oload <vnum> <amt>.\n\r", ch);
-	    return;
-	}
+        if (!is_number(arg2))
+        {
+            send_to_char("Syntax: oload <vnum|$reserved_name> <amt>.\n\r", ch);
+            return;
+        }
 
-	amt = atoi(arg2);
+        amt = atoi(arg2);
         if (amt < 1 || amt > 50)
-	{
-	    send_to_char("Range for amount is 1-50.\n\r",ch);
-	    return;
-	}
+        {
+            send_to_char("Range for amount is 1-50.\n\r",ch);
+            return;
+        }
     }
 
-    if ((pObjIndex = get_obj_index(atol(arg1))) == NULL)
+    vnum = atol(arg1);
+    if ((pObjIndex = get_obj_index(vnum)) == NULL)
     {
-	send_to_char("No object has that vnum.\n\r", ch);
-	return;
+        send_to_char("No object has that vnum.\n\r", ch);
+        return;
     }
 
     if (!has_access_area(ch, pObjIndex->area))
     {
-	send_to_char("Insufficient security to load object - action logged.\n\r", ch);
-	sprintf(buf, "do_oload: %s tried to load %s (vnum %ld) in area %s without permissions!",
-	    ch->name,
-	    pObjIndex->short_descr,
-	    pObjIndex->vnum,
-	    pObjIndex->area->name);
-	log_string(buf);
-	return;
+        send_to_char("Insufficient security to load object - action logged.\n\r", ch);
+        sprintf(buf, "do_oload: %s tried to load %s (vnum %ld) in area %s without permissions!",
+            ch->name,
+            pObjIndex->short_descr,
+            pObjIndex->vnum,
+            pObjIndex->area->name);
+        log_string(buf);
+        return;
     }
 
     if (amt == 1)
     {
-	obj = create_object(pObjIndex, pObjIndex->level, true);
-	if (CAN_WEAR(obj, ITEM_TAKE))
-	    obj_to_char(obj, ch);
-	else
-            if (ch->in_room->wilds == NULL)
-            {
-                plogf("act_wiz.c, do_oload(): Moving object to static room.");
-	        obj_to_room(obj, ch->in_room);
-            }
-            else
-            {
-                plogf("act_wiz.c, do_oload(): Moving object to vroom.");
-                obj_to_vroom(obj, ch->in_room->wilds, ch->at_wilds_x, ch->at_wilds_y);
-            }
+        obj = create_object(pObjIndex, pObjIndex->level, true);
+        if (CAN_WEAR(obj, ITEM_TAKE))
+            obj_to_char(obj, ch);
+        else if (ch->in_room->wilds == NULL)
+        {
+            plogf("act_wiz.c, do_oload(): Moving object to static room.");
+            obj_to_room(obj, ch->in_room);
+        }
+        else
+        {
+            plogf("act_wiz.c, do_oload(): Moving object to vroom.");
+            obj_to_vroom(obj, ch->in_room->wilds, ch->at_wilds_x, ch->at_wilds_y);
+        }
 
-	act("$n has created $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-	sprintf(buf, "Loaded $p (%ld)", obj->pIndexData->vnum);
-	act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	wiznet("$N loads $p.",ch,obj,WIZ_LOAD,WIZ_SECURE,get_staff_rank(ch));
+        act("$n has created $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+        sprintf(buf, "Loaded $p (%ld)", obj->pIndexData->vnum);
+        act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+        wiznet("$N loads $p.",ch,obj,WIZ_LOAD,WIZ_SECURE,get_staff_rank(ch));
 
-	obj->loaded_by = str_dup(ch->name);
+        obj->loaded_by = str_dup(ch->name);
 
-	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+        p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
     }
     else
     {
-	for (i = 0; i < amt; i++)
-	{
-	    obj = create_object(pObjIndex, pObjIndex->level, true);
-	    if (CAN_WEAR(obj, ITEM_TAKE))
-		obj_to_char(obj, ch);
-	    else
-		obj_to_room(obj, ch->in_room);
-	    obj->loaded_by = str_dup(ch->name);
+        for (i = 0; i < amt; i++)
+        {
+            obj = create_object(pObjIndex, pObjIndex->level, true);
+            if (CAN_WEAR(obj, ITEM_TAKE))
+                obj_to_char(obj, ch);
+            else if (ch->in_room->wilds == NULL)
+            {
+                obj_to_room(obj, ch->in_room);
+            }
+            else
+            {
+                obj_to_vroom(obj, ch->in_room->wilds, ch->at_wilds_x, ch->at_wilds_y);
+            }
+            
+            obj->loaded_by = str_dup(ch->name);
 
-	    p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
-	}
+            p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+        }
 
-	sprintf(buf, "{Y({G%d{Y){x $n has created %s!", amt,
-	    pObjIndex->short_descr);
-	act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	sprintf(buf, "{Y({G%d{Y){x Loaded %s (%ld)",
-	    amt, pObjIndex->short_descr, pObjIndex->vnum);
-	act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	sprintf(buf, "{Y({G%d{Y){x $N loads %s.", amt, pObjIndex->short_descr);
-	wiznet(buf, ch, NULL, WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch));
+        sprintf(buf, "{Y({G%d{Y){x $n has created %s!", amt,
+            pObjIndex->short_descr);
+        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+        sprintf(buf, "{Y({G%d{Y){x Loaded %s (%ld)",
+            amt, pObjIndex->short_descr, pObjIndex->vnum);
+        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        sprintf(buf, "{Y({G%d{Y){x $N loads %s.", amt, pObjIndex->short_descr);
+        wiznet(buf, ch, NULL, WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch));
     }
 }
 

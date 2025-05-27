@@ -105,6 +105,7 @@ C_FILES = \
 	project.c \
 	protocol.c \
 	quest.c \
+	reserved.c \
 	save.c \
 	scan.c \
 	script_commands.c \
@@ -160,6 +161,7 @@ O_FILES = \
 	$(OBJDIR)/dungeon.o \
 	$(OBJDIR)/editors/cmdedit.o \
 	$(OBJDIR)/editors/gameedit.o \
+	$(OBJDIR)/editors/reserved.o \
 	$(OBJDIR)/editors/socialedit.o \
 	$(OBJDIR)/effects.o \
 	$(OBJDIR)/events.o \

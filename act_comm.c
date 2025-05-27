@@ -1222,10 +1222,10 @@ void do_quit(CHAR_DATA *ch, char *argument)
 	{
 	char_from_team(ch);
 
-	if (ch->in_room != NULL && ch->in_room->vnum == ROOM_VNUM_AUTO_WAR)
+	if (ch->in_room != NULL && ch->in_room->vnum == get_reserved_vnum("room_war_staging"))
 	{
 	char_from_room(ch);
-	char_to_room(ch, get_room_index(ROOM_VNUM_TEMPLE));
+	char_to_room(ch, get_room_index(get_reserved_vnum("room_default_recall")));
 	}
 
 	test_for_end_of_war();

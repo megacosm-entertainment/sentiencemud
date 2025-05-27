@@ -883,7 +883,7 @@ SCRIPT_CMD(do_opcast)
 		}
 	}
 
-	proxy = create_mobile(get_mob_index(MOB_VNUM_OBJCASTER), false);
+	proxy = create_mobile(get_mob_index(get_reserved_vnum("mob_objcaster")), false);
 	char_to_room(proxy, room);
 
 	proxy->level = info->obj->level;
@@ -893,7 +893,7 @@ SCRIPT_CMD(do_opcast)
 	proxy->short_descr = str_dup(info->obj->short_descr);
 
 	// Make sure they have a reagent for the powerful spells
-	reagent = create_object(get_obj_index(OBJ_VNUM_SHARD), 1, false);
+	reagent = create_object(get_obj_index(get_reserved_vnum("obj_black_moonstone_shard")), 1, false);
 	obj_to_char(reagent,proxy);
 
 	switch (skill_table[sn].target) {

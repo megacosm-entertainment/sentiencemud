@@ -1356,7 +1356,7 @@ void extract_instance(INSTANCE *instance)
 	// Dump objects
 	room = environ;
 	if( !room )
-		room = get_room_index(ROOM_VNUM_DONATION);
+		room = get_room_index(get_reserved_vnum("room_donation"));
 
 	iterator_start(&it, instance->objects);
 	while( (obj = (OBJ_DATA *)iterator_nextdata(&it)) )

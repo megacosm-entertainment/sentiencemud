@@ -866,7 +866,7 @@ void mobile_update(void)
 			continue;
 
 		// A dirty hack to remove any Death mobs that have been stranded
-		if (ch->pIndexData->vnum == MOB_VNUM_DEATH)	// Replaced the name check to the vnum
+		if (ch->pIndexData->vnum == get_reserved_vnum("mob_death"))	// Replaced the name check to the vnum
 		{
 			CHAR_DATA *vch;
 			CHAR_DATA *vch_next;
@@ -1860,7 +1860,7 @@ void char_update(void)
                         save_char_obj(ch);
 
                     char_from_room(ch);
-                    char_to_room(ch, get_room_index(ROOM_VNUM_LIMBO));
+                    char_to_room(ch, get_room_index(get_reserved_vnum("room_limbo")));
                 }
             }
 
@@ -2007,9 +2007,9 @@ void char_update(void)
 
             // No magical flying over the ocean.  Physical flight is ok
             if (ch->in_room->sector_type == SECT_WATER_NOSWIM &&
-                ch->in_room->vnum != ROOM_VNUM_SEA_PLITH_HARBOUR &&
-                ch->in_room->vnum != ROOM_VNUM_SEA_NORTHERN_HARBOUR &&
-                ch->in_room->vnum != ROOM_VNUM_SEA_SOUTHERN_HARBOUR &&
+                ch->in_room->vnum != get_reserved_vnum("room_plith_harbour") &&
+                ch->in_room->vnum != get_reserved_vnum("room_northern_harbour") &&
+                ch->in_room->vnum != get_reserved_vnum("room_southern_harbour") &&
                 !IS_NPC(ch) && is_affected(ch, gsn_fly))
             {
                 act("{MThe air sparks as the ocean's magical shield dispels your ability to fly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -2323,7 +2323,7 @@ void obj_update(void)
 
 					if (paf->type == skill_lookup("third eye"))
 					{
-		    			if (obj->pIndexData->vnum == OBJ_VNUM_SKULL)
+		    			if (obj->pIndexData->vnum == get_reserved_vnum("obj_skull_normal"))
 		    			{
 							if ((rch = obj->carried_by) != NULL)
 			    			act("$p flares and vanishes.", rch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
@@ -3382,7 +3382,7 @@ void pneuma_relic_update(void)
 
         if (chance > 80)
 	{
-	    pneuma = create_object(get_obj_index(OBJ_VNUM_BOTTLED_SOUL), 0, true);
+	    pneuma = create_object(get_obj_index(get_reserved_vnum("obj_pneuma_item")), 0, true);
 	    obj_to_room(pneuma, pneuma_relic->in_room);
 
             for (people = pneuma_relic->in_room->people; people != NULL; people = people->next_in_room)

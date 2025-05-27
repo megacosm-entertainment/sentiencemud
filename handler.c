@@ -1953,7 +1953,7 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
 
 	bug("Char_to_room: destination room NULL.", 0);
 
-	if ((room = get_room_index(ROOM_VNUM_TEMPLE)) != NULL)
+	if ((room = get_room_index(get_reserved_vnum("room_default_recall"))) != NULL)
 	    char_to_room(ch,room);
 
 	return;
@@ -3112,7 +3112,7 @@ void extract_char(CHAR_DATA *ch, bool fPull)
     {
         ROOM_INDEX_DATA *death_room;
 
-        death_room = get_room_index(ROOM_VNUM_DEATH);
+        death_room = get_room_index(get_reserved_vnum("room_death"));
         if (IS_DEMON(ch))
         {
             int range;
@@ -4009,12 +4009,12 @@ OBJ_DATA *create_money(int gold, int silver)
     }
 
     if (gold == 0 && silver == 1)
-	obj = create_object(get_obj_index(OBJ_VNUM_SILVER_ONE), 0, true);
+	obj = create_object(get_obj_index(get_reserved_vnum("obj_coin_silver_single")), 0, true);
     else if (gold == 1 && silver == 0)
-	obj = create_object(get_obj_index(OBJ_VNUM_GOLD_ONE), 0, true);
+	obj = create_object(get_obj_index(get_reserved_vnum("obj_coin_gold_single")), 0, true);
     else if (silver == 0)
     {
-        obj = create_object(get_obj_index(OBJ_VNUM_GOLD_SOME), 0, true);
+        obj = create_object(get_obj_index(get_reserved_vnum("obj_coin_gold_multiple")), 0, true);
         sprintf(buf, obj->short_descr, gold);
         free_string(obj->short_descr);
         obj->short_descr        = str_dup(buf);
@@ -4024,7 +4024,7 @@ OBJ_DATA *create_money(int gold, int silver)
     }
     else if (gold == 0)
     {
-        obj = create_object(get_obj_index(OBJ_VNUM_SILVER_SOME), 0, true);
+        obj = create_object(get_obj_index(get_reserved_vnum("obj_coin_silver_multiple")), 0, true);
         sprintf(buf, obj->short_descr, silver);
         free_string(obj->short_descr);
         obj->short_descr        = str_dup(buf);
@@ -4035,7 +4035,7 @@ OBJ_DATA *create_money(int gold, int silver)
 
     else
     {
-	obj = create_object(get_obj_index(OBJ_VNUM_COINS), 0, true);
+	obj = create_object(get_obj_index(get_reserved_vnum("obj_coin_mixed")), 0, true);
 	sprintf(buf, obj->short_descr, silver, gold);
 	free_string(obj->short_descr);
 	obj->short_descr	= str_dup(buf);
@@ -4826,7 +4826,7 @@ void resurrect_pc(CHAR_DATA *ch)
     char_from_room(ch);
 
     if ((pRoom = location_to_room(&ch->recall)) == NULL)
-        pRoom = get_room_index(ROOM_VNUM_ALTAR);
+        pRoom = get_room_index(get_reserved_vnum("room_default_altar"));
 
     char_to_room(ch, pRoom);
     location_clear(&ch->recall);
@@ -5797,7 +5797,7 @@ bool check_ice_storm(ROOM_INDEX_DATA *room)
 
     for (obj = room->contents; obj != NULL; obj = obj->next_content)
     {
-	if (obj->pIndexData->vnum == OBJ_VNUM_ICE_STORM)
+	if (obj->pIndexData->vnum == get_reserved_vnum("obj_spell_icestorm"))
 	    return true;
     }
 
@@ -5864,8 +5864,8 @@ OBJ_DATA *get_skull(CHAR_DATA *ch, char *owner)
                 // Look inside containers
                 for (objNest = obj->contains; objNest != NULL; objNest = objNest->next_content) {
                     if (can_see_obj(ch, objNest)
-                    && (objNest->pIndexData->vnum == OBJ_VNUM_SKULL
-                        || objNest->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL)
+                    && (objNest->pIndexData->vnum == get_reserved_vnum("obj_skull_normal")
+                        || objNest->pIndexData->vnum == get_reserved_vnum("obj_skull_golden"))
                     && !str_cmp(objNest->owner, owner)) {
                         iterator_stop(&it);
                         return objNest;
@@ -5875,8 +5875,8 @@ OBJ_DATA *get_skull(CHAR_DATA *ch, char *owner)
             
             // Check if this is a skull with matching owner
             if (can_see_obj(ch, obj)
-            && (obj->pIndexData->vnum == OBJ_VNUM_SKULL
-                || obj->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL)
+            && (obj->pIndexData->vnum == get_reserved_vnum("obj_skull_normal")
+                || obj->pIndexData->vnum == get_reserved_vnum("obj_skull_golden"))
             && !str_cmp(obj->owner, owner)) {
                 iterator_stop(&it);
                 return obj;
@@ -5892,8 +5892,8 @@ OBJ_DATA *get_skull(CHAR_DATA *ch, char *owner)
             if (obj->contains) {
                 for (objNest = obj->contains; objNest != NULL; objNest = objNest->next_content) {
                     if (can_see_obj(ch, objNest)
-                    && (objNest->pIndexData->vnum == OBJ_VNUM_SKULL
-                        || objNest->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL)
+                    && (objNest->pIndexData->vnum == get_reserved_vnum("obj_skull_normal")
+                        || objNest->pIndexData->vnum == get_reserved_vnum("obj_skull_golden"))
                     && !str_cmp(objNest->owner, owner)) {
                         iterator_stop(&it);
                         return objNest;
@@ -6781,7 +6781,7 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 	    return false;
 	}
 
-	if ((obj->pIndexData->vnum == OBJ_VNUM_SKULL || obj->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL)
+	if ((obj->pIndexData->vnum == get_reserved_vnum("obj_skull_normal") || obj->pIndexData->vnum == get_reserved_vnum("obj_skull_golden"))
 	&&   obj->affected != NULL)
 	{
 	    if (!silent)
@@ -11591,21 +11591,22 @@ bool validate_password_uniqueness(ACCOUNT_DATA *acct, const char *plaintext_pass
     if (!game_settings.require_uniq_pass_staff)
         return true;
         
-    // If changing account password, check it doesn't match any staff character passwords
-    if (!is_for_character && account_has_immortal(acct)) {
+    // Case 1: Updating account password
+    if (!is_for_character) {
+        // Check against any staff character passwords
         if (password_matches_staff_character(acct, plaintext_password, NULL)) {
             return false;  // Account password matches a staff character password
         }
     }
     
-    // If changing a character password
-    if (is_for_character && is_staff) {
-        // Check it doesn't match the account password
+    // Case 2: Setting/updating a staff character password
+    else if (is_for_character && is_staff) {
+        // Check against the account password
         if (password_matches_account(acct, plaintext_password)) {
             return false;  // Character password matches account password
         }
         
-        // Check it doesn't match other character passwords
+        // Check against ALL other character passwords (staff or not)
         ITERATOR it;
         ACCOUNT_CHARACTER *acct_char;
         
@@ -11628,6 +11629,337 @@ bool validate_password_uniqueness(ACCOUNT_DATA *acct, const char *plaintext_pass
         iterator_stop(&it);
     }
     
+    // Case 3: Setting/updating a non-staff character password
+    else if (is_for_character && !is_staff) {
+        // Check against any staff character passwords
+        if (password_matches_staff_character(acct, plaintext_password, character_name)) {
+            return false;  // Non-staff character password matches a staff character password
+        }
+    }
+    
     // Password passes all uniqueness checks
     return true;
+}
+
+
+
+
+
+
+// For game setting lookup
+char *get_game_setting_value(char *setting_name, bool *sensitive)
+{
+    static char value_buffer[MAX_STRING_LENGTH];
+    const struct game_setting_type *setting = NULL;
+    
+    // Find setting in game_settings_table
+    for (int i = 0; game_settings_table[i].name; i++) {
+        if (!str_cmp(setting_name, game_settings_table[i].name)) {
+            setting = &game_settings_table[i];
+            break;
+        }
+    }
+    
+    if (!setting) {
+        *sensitive = false;
+        strcpy(value_buffer, "");
+        return value_buffer;
+    }
+    
+    *sensitive = setting->sensitive;
+    if (sensitive && script_security < 9) {
+        strcpy(value_buffer, "*****");
+        return value_buffer;
+    }
+    
+    // Format the setting value based on type
+    switch (setting->type) {
+        case SETTING_TYPE_BOOL:
+            sprintf(value_buffer, "%s", *(bool*)setting->ptr ? "true" : "false");
+            break;
+        case SETTING_TYPE_INT:
+            sprintf(value_buffer, "%d", *(int*)setting->ptr);
+            break;
+        case SETTING_TYPE_STRING:
+		case SETTING_TYPE_EXTSTR:
+            sprintf(value_buffer, "%s", (char*)setting->ptr);
+            break;
+		case SETTING_TYPE_FLOAT:
+			sprintf(value_buffer, "%.2f", *(float*)setting->ptr);
+			break;
+        default:
+            strcpy(value_buffer, "");
+            break;
+    }
+    
+    return value_buffer;
+}
+
+/*
+ * Helper function to get area data by reserved name
+ */
+AREA_DATA *get_reserved_area_index(const char *name)
+{
+    ITERATOR it;
+    RESERVED_DATA *reserved;
+    
+    if (!name || !*name || !reserved_vnums)
+        return NULL;
+        
+    iterator_start(&it, reserved_vnums);
+    while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+        if (reserved->type == RESERVED_AREA && 
+            !str_cmp(name, reserved->name)) {
+            iterator_stop(&it);
+            return get_area_index(reserved->id);
+        }
+    }
+    iterator_stop(&it);
+    
+    return NULL;
+}
+
+/*
+ * Helper function to get token index data by reserved name
+ */
+TOKEN_INDEX_DATA *get_reserved_token_index(const char *name)
+{
+    ITERATOR it;
+    RESERVED_DATA *reserved;
+    
+    if (!name || !*name || !reserved_vnums)
+        return NULL;
+        
+    iterator_start(&it, reserved_vnums);
+    while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+        if (reserved->type == RESERVED_TOKEN && 
+            !str_cmp(name, reserved->name)) {
+            iterator_stop(&it);
+            return get_token_index(reserved->id);
+        }
+    }
+    iterator_stop(&it);
+    
+    return NULL;
+}
+
+/*
+ * Helper function to get room prog index by reserved name
+ */
+SCRIPT_DATA *get_reserved_rprog_index(const char *name)
+{
+    ITERATOR it;
+    RESERVED_DATA *reserved;
+    
+    if (!name || !*name || !reserved_vnums)
+        return NULL;
+        
+    iterator_start(&it, reserved_vnums);
+    while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+        if (reserved->type == RESERVED_RPROG && 
+            !str_cmp(name, reserved->name)) {
+            iterator_stop(&it);
+            return get_script_index(reserved->id, PRG_RPROG);
+        }
+    }
+    iterator_stop(&it);
+    
+    return NULL;
+}
+
+/*
+ * Helper function to get object prog index by reserved name
+ */
+SCRIPT_DATA *get_reserved_oprog_index(const char *name)
+{
+    ITERATOR it;
+    RESERVED_DATA *reserved;
+    
+    if (!name || !*name || !reserved_vnums)
+        return NULL;
+        
+    iterator_start(&it, reserved_vnums);
+    while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+        if (reserved->type == RESERVED_OPROG && 
+            !str_cmp(name, reserved->name)) {
+            iterator_stop(&it);
+            return get_script_index(reserved->id, PRG_OPROG);
+        }
+    }
+    iterator_stop(&it);
+    
+    return NULL;
+}
+
+/*
+ * Helper function to get mobile prog index by reserved name
+ */
+SCRIPT_DATA *get_reserved_mprog_index(const char *name)
+{
+    ITERATOR it;
+    RESERVED_DATA *reserved;
+    
+    if (!name || !*name || !reserved_vnums)
+        return NULL;
+        
+    iterator_start(&it, reserved_vnums);
+    while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+        if (reserved->type == RESERVED_MPROG && 
+            !str_cmp(name, reserved->name)) {
+            iterator_stop(&it);
+            return get_script_index(reserved->id, PRG_MPROG);
+        }
+    }
+    iterator_stop(&it);
+    
+    return NULL;
+}
+
+/*
+ * Helper function to get token prog index by reserved name
+ */
+SCRIPT_DATA *get_reserved_tprog_index(const char *name)
+{
+    ITERATOR it;
+    RESERVED_DATA *reserved;
+    
+    if (!name || !*name || !reserved_vnums)
+        return NULL;
+        
+    iterator_start(&it, reserved_vnums);
+    while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+        if (reserved->type == RESERVED_TPROG && 
+            !str_cmp(name, reserved->name)) {
+            iterator_stop(&it);
+            return get_script_index(reserved->id, PRG_TPROG);
+        }
+    }
+    iterator_stop(&it);
+    
+    return NULL;
+}
+
+/*
+ * Helper function to get area prog index by reserved name
+ */
+SCRIPT_DATA *get_reserved_aprog_index(const char *name)
+{
+    ITERATOR it;
+    RESERVED_DATA *reserved;
+    
+    if (!name || !*name || !reserved_vnums)
+        return NULL;
+        
+    iterator_start(&it, reserved_vnums);
+    while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+        if (reserved->type == RESERVED_APROG && 
+            !str_cmp(name, reserved->name)) {
+            iterator_stop(&it);
+            return get_script_index(reserved->id, PRG_APROG);
+        }
+    }
+    iterator_stop(&it);
+    
+    return NULL;
+}
+
+const struct game_setting_type *get_game_setting(const char *name)
+{
+    extern const struct game_setting_type game_settings_table[];
+    
+    for (int i = 0; game_settings_table[i].name != NULL; i++) {
+        if (!str_cmp(game_settings_table[i].name, name)) {
+            return &game_settings_table[i];
+        }
+    }
+    
+    return NULL;
+}
+
+/*
+ * Helper function to get mobile index by reserved name
+ */
+MOB_INDEX_DATA *get_reserved_mob_index(const char *name)
+{
+    ITERATOR it;
+    RESERVED_DATA *reserved;
+    
+    if (!name || !*name || !reserved_vnums)
+        return NULL;
+        
+    iterator_start(&it, reserved_vnums);
+    while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+        if (reserved->type == RESERVED_MOB && 
+            !str_cmp(name, reserved->name)) {
+            iterator_stop(&it);
+            return get_mob_index(reserved->id);
+        }
+    }
+    iterator_stop(&it);
+    
+    return NULL;
+}
+
+/*
+ * Helper function to get object index by reserved name
+ */
+OBJ_INDEX_DATA *get_reserved_obj_index(const char *name)
+{
+    ITERATOR it;
+    RESERVED_DATA *reserved;
+    
+    if (!name || !*name || !reserved_vnums)
+        return NULL;
+        
+    iterator_start(&it, reserved_vnums);
+    while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+        if (reserved->type == RESERVED_OBJ && 
+            !str_cmp(name, reserved->name)) {
+            iterator_stop(&it);
+            return get_obj_index(reserved->id);
+        }
+    }
+    iterator_stop(&it);
+    
+    return NULL;
+}
+
+/*
+ * Helper function to get room index by reserved name
+ */
+ROOM_INDEX_DATA *get_reserved_room_index(const char *name)
+{
+    ITERATOR it;
+    RESERVED_DATA *reserved;
+    
+    if (!name || !*name || !reserved_vnums)
+        return NULL;
+        
+    iterator_start(&it, reserved_vnums);
+    while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+        if (reserved->type == RESERVED_ROOM && 
+            !str_cmp(name, reserved->name)) {
+            iterator_stop(&it);
+            return get_room_index(reserved->id);
+        }
+    }
+    iterator_stop(&it);
+    
+    return NULL;
+}
+
+/*
+ * Helper function to get area index by id
+ */
+AREA_DATA *get_area_index(long uid)
+{
+    AREA_DATA *pArea;
+
+    for (pArea = area_first; pArea; pArea = pArea->next)
+    {
+        if (pArea->uid == uid)
+            return pArea;
+    }
+
+    return NULL;
 }

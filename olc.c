@@ -4123,6 +4123,7 @@ const struct olc_cmd_type cmdedit_table[] =
 {
     { "?",      show_help           },
     { "additional", cmdedit_additional },
+    { "commands", show_commands },
     { "comments",   cmdedit_comments },
     { "create",     cmdedit_create  },
     { "description",    cmdedit_description },
@@ -4282,6 +4283,7 @@ void socialedit(CHAR_DATA *ch, char *argument)
 const struct olc_cmd_type socialedit_table[] =
 {
     { "show",          socialedit_show          },
+    { "commands",      show_commands },
     { "create",        socialedit_create        },
     { "name",          socialedit_name          },
     { "charnoarg",     socialedit_char_no_arg   },

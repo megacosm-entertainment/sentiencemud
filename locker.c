@@ -159,7 +159,7 @@ void do_locker(CHAR_DATA *ch, char* argument)
 			return;
 		}
 
-		if ((obj->pIndexData->vnum == OBJ_VNUM_SKULL || obj->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL) && obj->affected != NULL)
+		if ((obj->pIndexData->vnum == get_reserved_vnum("obj_skull_normal") || obj->pIndexData->vnum == get_reserved_vnum("obj_skull_golden")) && obj->affected != NULL)
 		{
 			send_to_char("You can't store that enchanted item in your locker.\n\r", ch);
 			return;

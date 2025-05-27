@@ -392,7 +392,7 @@ void save_area_new(AREA_DATA *area)
 	SET_BIT(area->area_flags, AREA_TESTPORT);
     }
     else
-	sprintf(filename, "%s", area->file_name);
+	sprintf(filename, AREA_DIR "%s", area->file_name);
 
     if ((fp = fopen(filename, "w")) == NULL) {
 		sprintf(buf, "save_area_new: couldn't open file %s", filename);

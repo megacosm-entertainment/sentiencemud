@@ -97,13 +97,13 @@ void do_deposit(CHAR_DATA *ch, char *argument)
         if (!IS_NPC(mob))
             continue;
 
-        if (ch->alignment == 0 && mob->pIndexData->vnum == MOB_VNUM_MAYOR_PLITH)
+        if (ch->alignment == 0 && mob->pIndexData->vnum == get_reserved_vnum("mob_neutral_soultaker"))
             break;
 
-        if (ch->alignment < 0 && mob->pIndexData->vnum == MOB_VNUM_RAVAGE)
+        if (ch->alignment < 0 && mob->pIndexData->vnum == get_reserved_vnum("mob_evil_soultaker"))
             break;
 
-        if (ch->alignment > 0 && mob->pIndexData->vnum == MOB_VNUM_STIENER)
+        if (ch->alignment > 0 && mob->pIndexData->vnum == get_reserved_vnum("mob_good_soultaker"))
             break;
     }
 
@@ -115,7 +115,7 @@ void do_deposit(CHAR_DATA *ch, char *argument)
     iterator_start(&it, ch->lcarrying);
     while ((obj = (OBJ_DATA *)iterator_nextdata(&it)))
     {
-        if (obj->pIndexData->vnum == OBJ_VNUM_BOTTLED_SOUL)
+        if (obj->pIndexData->vnum == get_reserved_vnum("obj_pneuma_item"))
         {
             found = true;
             extract_obj(obj);
@@ -557,7 +557,7 @@ void do_lore(CHAR_DATA *ch, char *argument)
     sprintf(buf2, "\n\rThank you for your business.\n\r\n\rSigned, {m%s{x.", mob->short_descr);
     strcat(buf, buf2);
 
-    scroll = create_object(get_obj_index(OBJ_VNUM_BLANK_SCROLL), 1, false);
+    scroll = create_object(get_obj_index(get_reserved_vnum("obj_blank_scroll")), 1, false);
     free_string(scroll->name);
     free_string(scroll->short_descr);
     free_string(scroll->description);
@@ -1240,7 +1240,7 @@ void ink_end(CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t 
 
     check_improve(ch, gsn_tattoo, true, 2);
 
-    tattoo = create_object(get_obj_index(OBJ_VNUM_EMPTY_TATTOO), 1, false);
+    tattoo = create_object(get_obj_index(get_reserved_vnum("obj_blank_tattoo")), 1, false);
 
     free_string(tattoo->name);
     tattoo->name = str_dup("tattoo");

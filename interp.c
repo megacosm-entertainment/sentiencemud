@@ -1245,8 +1245,8 @@ if (ch->pk_question)
 
 			char_from_room(ch);
 			char_from_room(victim);
-			char_to_room(ch, get_room_index(ROOM_VNUM_ARENA));
-			char_to_room(victim, get_room_index(ROOM_VNUM_ARENA));
+			char_to_room(ch, get_room_index(get_reserved_vnum("room_default_arena")));
+			char_to_room(victim, get_room_index(get_reserved_vnum("room_default_arena")));
 
 			ch->challenged = NULL;
 			return;

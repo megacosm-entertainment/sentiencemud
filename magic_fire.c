@@ -275,7 +275,7 @@ SPELL_FUNC(spell_fire_cloud)
 	int dir = 0;
 	bool exists = false;
 
-	if (!(inferno = get_obj_index(OBJ_VNUM_INFERNO))) {
+	if (!(inferno = get_obj_index(get_reserved_vnum("obj_spell_inferno")))) {
 		bug("spell_fire_cloud: null obj_index!\n", 0);
 		return false;
 	}
