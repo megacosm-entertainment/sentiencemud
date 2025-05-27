@@ -113,7 +113,7 @@ OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, char *questgiver, long vnum,
 	OBJ_INDEX_DATA *scroll_index = get_obj_index(vnum);
 	if( scroll_index == NULL )
 	{
-		scroll_index = get_obj_index(OBJ_VNUM_QUEST_SCROLL);
+		scroll_index = get_obj_index(get_reserved_vnum("obj_quest_scroll"));
 	}
 
 	OBJ_DATA *scroll = create_object(scroll_index, 0, true);

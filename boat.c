@@ -5467,7 +5467,7 @@ if( IS_NULLSTR(argument) )
     iterator_start(&it, ch->lcarrying);
     while ((map = (OBJ_DATA *)iterator_nextdata(&it)))
     {
-        if (map->item_type == ITEM_BLANK_SCROLL || map->pIndexData->vnum == OBJ_VNUM_BLANK_SCROLL)
+        if (map->item_type == ITEM_BLANK_SCROLL || map->pIndexData->vnum == get_reserved_vnum("obj_blank_scroll"))
             break;
     }
     iterator_stop(&it);
@@ -5479,7 +5479,7 @@ if( IS_NULLSTR(argument) )
     }
 
     extract_obj(map);
-    map = create_object(get_obj_index(OBJ_VNUM_NAVIGATIONAL_CHART), 0, false);
+    map = create_object(get_obj_index(get_reserved_vnum("obj_nav_chart")), 0, false);
     obj_to_char(map, ch);
 }
 		else
@@ -5491,11 +5491,11 @@ if( IS_NULLSTR(argument) )
 				return;
 			}
 
-			if( map->item_type == ITEM_BLANK_SCROLL || map->pIndexData->vnum == OBJ_VNUM_BLANK_SCROLL )
+			if( map->item_type == ITEM_BLANK_SCROLL || map->pIndexData->vnum == get_reserved_vnum("obj_blank_scroll") )
 			{
 				// Replace blank scroll with map object
 				extract_obj(map);
-				map = create_object(get_obj_index(OBJ_VNUM_NAVIGATIONAL_CHART), 0, false);
+				map = create_object(get_obj_index(get_reserved_vnum("obj_nav_chart")), 0, false);
 				obj_to_char(map, ch);
 			}
 			else if( map->item_type != ITEM_MAP )

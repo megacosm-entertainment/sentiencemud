@@ -2632,7 +2632,7 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
         plogf ("wilds.c, char_to_vroom(): pWilds is NULL.");
 
 	// No wilds pointer, so send the char to the default room.
-        if ((room = get_room_index (ROOM_VNUM_DEFAULT)) != NULL)
+        if ((room = get_room_index (get_reserved_vnum("room_default"))) != NULL)
         {
             char_to_room (ch, room);
             return;

@@ -874,7 +874,7 @@ void check_new_mail(CHAR_DATA *ch)
 	    OBJ_DATA *parchment;
 	    char buf[MSL];
 
-	    parchment = create_object(get_obj_index(OBJ_VNUM_BLANK_SCROLL), 1, false);
+	    parchment = create_object(get_obj_index(get_reserved_vnum("obj_blank_scroll")), 1, false);
 
 	    free_string(parchment->name);
 	    free_string(parchment->short_descr);

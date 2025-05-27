@@ -408,7 +408,7 @@ SPELL_FUNC(spell_third_eye)
 	memset(&af,0,sizeof(af));
 
 	skull = (OBJ_DATA *) vo;
-	if (skull->pIndexData->vnum != OBJ_VNUM_SKULL && skull->pIndexData->vnum != OBJ_VNUM_GOLD_SKULL) {
+	if (skull->pIndexData->vnum != get_reserved_vnum("obj_skull_normal") && skull->pIndexData->vnum != get_reserved_vnum("obj_skull_golden")) {
 		send_to_char("This spell must be cast on a skull.\n\r", ch);
 		return false;
 	}

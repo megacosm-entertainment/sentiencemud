@@ -563,7 +563,7 @@ void extract_dungeon(DUNGEON *dungeon)
 	// Dump objects
 	room = dungeon->entry_room;
 	if( !room )
-		room = get_room_index(ROOM_VNUM_DONATION);
+		room = get_room_index(get_reserved_vnum("room_donation"));
 
 	iterator_start(&it, dungeon->objects);
 	while( (obj = (OBJ_DATA *)iterator_nextdata(&it)) )

@@ -1953,7 +1953,7 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
 
 	bug("Char_to_room: destination room NULL.", 0);
 
-	if ((room = get_room_index(ROOM_VNUM_TEMPLE)) != NULL)
+	if ((room = get_room_index(get_reserved_vnum("room_default_recall"))) != NULL)
 	    char_to_room(ch,room);
 
 	return;
@@ -3112,7 +3112,7 @@ void extract_char(CHAR_DATA *ch, bool fPull)
     {
         ROOM_INDEX_DATA *death_room;
 
-        death_room = get_room_index(ROOM_VNUM_DEATH);
+        death_room = get_room_index(get_reserved_vnum("room_death"));
         if (IS_DEMON(ch))
         {
             int range;
@@ -4009,12 +4009,12 @@ OBJ_DATA *create_money(int gold, int silver)
     }
 
     if (gold == 0 && silver == 1)
-	obj = create_object(get_obj_index(OBJ_VNUM_SILVER_ONE), 0, true);
+	obj = create_object(get_obj_index(get_reserved_vnum("obj_coin_silver_single")), 0, true);
     else if (gold == 1 && silver == 0)
-	obj = create_object(get_obj_index(OBJ_VNUM_GOLD_ONE), 0, true);
+	obj = create_object(get_obj_index(get_reserved_vnum("obj_coin_gold_single")), 0, true);
     else if (silver == 0)
     {
-        obj = create_object(get_obj_index(OBJ_VNUM_GOLD_SOME), 0, true);
+        obj = create_object(get_obj_index(get_reserved_vnum("obj_coin_gold_multiple")), 0, true);
         sprintf(buf, obj->short_descr, gold);
         free_string(obj->short_descr);
         obj->short_descr        = str_dup(buf);
@@ -4024,7 +4024,7 @@ OBJ_DATA *create_money(int gold, int silver)
     }
     else if (gold == 0)
     {
-        obj = create_object(get_obj_index(OBJ_VNUM_SILVER_SOME), 0, true);
+        obj = create_object(get_obj_index(get_reserved_vnum("obj_coin_silver_multiple")), 0, true);
         sprintf(buf, obj->short_descr, silver);
         free_string(obj->short_descr);
         obj->short_descr        = str_dup(buf);
@@ -4035,7 +4035,7 @@ OBJ_DATA *create_money(int gold, int silver)
 
     else
     {
-	obj = create_object(get_obj_index(OBJ_VNUM_COINS), 0, true);
+	obj = create_object(get_obj_index(get_reserved_vnum("obj_coin_mixed")), 0, true);
 	sprintf(buf, obj->short_descr, silver, gold);
 	free_string(obj->short_descr);
 	obj->short_descr	= str_dup(buf);
@@ -4826,7 +4826,7 @@ void resurrect_pc(CHAR_DATA *ch)
     char_from_room(ch);
 
     if ((pRoom = location_to_room(&ch->recall)) == NULL)
-        pRoom = get_room_index(ROOM_VNUM_ALTAR);
+        pRoom = get_room_index(get_reserved_vnum("room_default_altar"));
 
     char_to_room(ch, pRoom);
     location_clear(&ch->recall);
@@ -5797,7 +5797,7 @@ bool check_ice_storm(ROOM_INDEX_DATA *room)
 
     for (obj = room->contents; obj != NULL; obj = obj->next_content)
     {
-	if (obj->pIndexData->vnum == OBJ_VNUM_ICE_STORM)
+	if (obj->pIndexData->vnum == get_reserved_vnum("obj_spell_icestorm"))
 	    return true;
     }
 
@@ -5864,8 +5864,8 @@ OBJ_DATA *get_skull(CHAR_DATA *ch, char *owner)
                 // Look inside containers
                 for (objNest = obj->contains; objNest != NULL; objNest = objNest->next_content) {
                     if (can_see_obj(ch, objNest)
-                    && (objNest->pIndexData->vnum == OBJ_VNUM_SKULL
-                        || objNest->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL)
+                    && (objNest->pIndexData->vnum == get_reserved_vnum("obj_skull_normal")
+                        || objNest->pIndexData->vnum == get_reserved_vnum("obj_skull_golden"))
                     && !str_cmp(objNest->owner, owner)) {
                         iterator_stop(&it);
                         return objNest;
@@ -5875,8 +5875,8 @@ OBJ_DATA *get_skull(CHAR_DATA *ch, char *owner)
             
             // Check if this is a skull with matching owner
             if (can_see_obj(ch, obj)
-            && (obj->pIndexData->vnum == OBJ_VNUM_SKULL
-                || obj->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL)
+            && (obj->pIndexData->vnum == get_reserved_vnum("obj_skull_normal")
+                || obj->pIndexData->vnum == get_reserved_vnum("obj_skull_golden"))
             && !str_cmp(obj->owner, owner)) {
                 iterator_stop(&it);
                 return obj;
@@ -5892,8 +5892,8 @@ OBJ_DATA *get_skull(CHAR_DATA *ch, char *owner)
             if (obj->contains) {
                 for (objNest = obj->contains; objNest != NULL; objNest = objNest->next_content) {
                     if (can_see_obj(ch, objNest)
-                    && (objNest->pIndexData->vnum == OBJ_VNUM_SKULL
-                        || objNest->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL)
+                    && (objNest->pIndexData->vnum == get_reserved_vnum("obj_skull_normal")
+                        || objNest->pIndexData->vnum == get_reserved_vnum("obj_skull_golden"))
                     && !str_cmp(objNest->owner, owner)) {
                         iterator_stop(&it);
                         return objNest;
@@ -6781,7 +6781,7 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 	    return false;
 	}
 
-	if ((obj->pIndexData->vnum == OBJ_VNUM_SKULL || obj->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL)
+	if ((obj->pIndexData->vnum == get_reserved_vnum("obj_skull_normal") || obj->pIndexData->vnum == get_reserved_vnum("obj_skull_golden"))
 	&&   obj->affected != NULL)
 	{
 	    if (!silent)

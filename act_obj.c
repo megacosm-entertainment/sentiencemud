@@ -103,14 +103,14 @@ void get_obj( CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container )
 
     if ( container != NULL )
     {
-    	if (container->pIndexData->vnum == OBJ_VNUM_PIT
+    	if (container->pIndexData->vnum == get_reserved_vnum("obj_pit")
 	&&  get_staff_rank(ch) < obj->level)
 	{
 	    send_to_char("You are not powerful enough to use it.\n\r",ch);
 	    return;
 	}
 
-    	if (container->pIndexData->vnum == OBJ_VNUM_PIT
+    	if (container->pIndexData->vnum == get_reserved_vnum("obj_pit")
 	&&  !CAN_WEAR(container, ITEM_TAKE)
 	)
 	    obj->timer = 0;
@@ -1268,7 +1268,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
 
                 room = get_random_room(ch, 1);
                 if (room == NULL)
-                    room = get_room_index(ROOM_VNUM_TEMPLE);
+                    room = get_room_index(get_reserved_vnum("room_default_recall"));
             }
 
             obj_from_room(cart);
@@ -1846,7 +1846,7 @@ void do_donate(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (ch->in_room->vnum == ROOM_VNUM_DONATION)
+    if (ch->in_room->vnum == get_reserved_vnum("room_donation"))
     {
 	send_to_char("You're already here, just drop it.\n\r",ch);
 	return;
@@ -1858,7 +1858,7 @@ void do_donate(CHAR_DATA *ch, char *argument)
 	obj->cost = 0;
 
     obj_from_char(obj);
-    obj_to_room(obj, get_room_index(ROOM_VNUM_DONATION));
+    obj_to_room(obj, get_room_index(get_reserved_vnum("room_donation")));
 
     for (prev = obj->in_room->people; prev; prev = prev->next_in_room)
 	send_to_char("{MYou hear a loud zap as an object drops from the shimmering rift onto the rug.{x\n\r", prev);
@@ -2716,7 +2716,7 @@ void do_eat(CHAR_DATA *ch, char *argument)
     act("$n eats $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
     act("You eat $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 
-    if (obj->pIndexData->vnum == OBJ_VNUM_GOLDEN_APPLE && !IS_IMMORTAL(ch))
+    if (obj->pIndexData->vnum == get_reserved_vnum("obj_golden_apple") && !IS_IMMORTAL(ch))
     {
         long xp;
 
@@ -3550,7 +3550,7 @@ void do_sacrifice(CHAR_DATA *ch, char *argument)
 		bool any = false;
 		long total = 0;
 
-		if (ch->in_room->vnum == ROOM_VNUM_DONATION)
+		if (ch->in_room->vnum == get_reserved_vnum("room_donation"))
 		{
 			send_to_char("Where are your manners!?\n\r", ch);
 			send_to_char("{Y***{R****** {WZOT {R******{Y***{x\n\r\n\r", ch);
@@ -3689,7 +3689,7 @@ void do_quaff(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (obj->pIndexData->vnum == OBJ_VNUM_EMPTY_VIAL)
+    if (obj->pIndexData->vnum == get_reserved_vnum("obj_empty_vial"))
     {
 	act("$p has nothing in it you can quaff.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 	return;
@@ -5772,7 +5772,7 @@ void do_blow( CHAR_DATA *ch, char *argument )
     act( "$n puts $p to $s lips and blows.",  ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM );
     act( "You put $p to your lips and blow.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR );
 
-    if ( obj->pIndexData->vnum == OBJ_VNUM_GOBLIN_WHISTLE )
+    if ( obj->pIndexData->vnum == get_reserved_vnum("obj_airship_whistle") )
   {
     act( "The whistle glows vibrantly, then fades.'{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
     if ( !IN_WILDERNESS(ch) )
@@ -6994,9 +6994,9 @@ void do_skull(CHAR_DATA *ch, char *argument)
 	/*			no affect on looting as object placement is done at the*/
 	/*			time of death.*/
 	if (IS_SET(CORPSE_FLAGS(obj), CORPSE_CPKDEATH))
-	    skull = create_object(get_obj_index(OBJ_VNUM_GOLD_SKULL), 0, false);
+	    skull = create_object(get_obj_index(get_reserved_vnum("obj_skull_golden")), 0, false);
 	else
-	    skull = create_object(get_obj_index(OBJ_VNUM_SKULL), 0, false);
+	    skull = create_object(get_obj_index(get_reserved_vnum("obj_skull_normal")), 0, false);
 
 //	SET_BIT(obj->extra[0], ITEM_NOSKULL);
 	REMOVE_BIT(CORPSE_PARTS(obj),PART_HEAD);
@@ -7082,7 +7082,7 @@ void do_brew(CHAR_DATA *ch, char *argument)
     ITERATOR it;
     iterator_start(&it, ch->lcarrying);
     while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-        if (obj->item_type == ITEM_EMPTY_VIAL || obj->pIndexData->vnum == OBJ_VNUM_EMPTY_VIAL)
+        if (obj->item_type == ITEM_EMPTY_VIAL || obj->pIndexData->vnum == get_reserved_vnum("obj_empty_vial"))
             break;
     }
     iterator_stop(&it);
@@ -7192,7 +7192,7 @@ void brew_end(CHAR_DATA *ch, int16_t sn)
 
     check_improve(ch, gsn_brew, true, 2);
 
-    potion = create_object(get_obj_index(OBJ_VNUM_POTION), 1, false);
+    potion = create_object(get_obj_index(get_reserved_vnum("obj_potion")), 1, false);
 
     sprintf(buf, potion->short_descr, potion_name);
 
@@ -7376,7 +7376,7 @@ void do_scribe(CHAR_DATA *ch, char *argument)
     ITERATOR it;
     iterator_start(&it, ch->lcarrying);
     while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-        if (obj->item_type == ITEM_BLANK_SCROLL || obj->pIndexData->vnum == OBJ_VNUM_BLANK_SCROLL)
+        if (obj->item_type == ITEM_BLANK_SCROLL || obj->pIndexData->vnum == get_reserved_vnum("obj_blank_scroll"))
             break;
     }
     iterator_stop(&it);
@@ -7544,7 +7544,7 @@ void scribe_end(CHAR_DATA *ch, int16_t sn, int16_t sn2, int16_t sn3)
 
     check_improve(ch, gsn_scribe, true, 3);
 
-    scroll = create_object(get_obj_index(OBJ_VNUM_SCROLL), 1, false);
+    scroll = create_object(get_obj_index(get_reserved_vnum("obj_scroll")), 1, false);
 
     sprintf(buf, scroll->short_descr, scroll_name);
 
@@ -7708,7 +7708,7 @@ void bomb_end(CHAR_DATA *ch)
 	act("{Y$n creates a smoke bomb.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	act("{YYou complete the construction of a smoke bomb.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
-	obj = create_object(get_obj_index(OBJ_VNUM_SMOKE_BOMB), ch->tot_level, false);
+	obj = create_object(get_obj_index(get_reserved_vnum("obj_bomb_smoke")), ch->tot_level, false);
 	obj->level = ch->tot_level;
 	if (ch->carry_number + get_obj_number(obj) > can_carry_n(ch))
 	{

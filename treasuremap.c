@@ -202,7 +202,7 @@ OBJ_DATA *create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea, OBJ_DATA *tr
 	}
 
 	// create the scroll
-	scroll = create_object(get_obj_index(OBJ_VNUM_TREASURE_MAP), 0, true);
+	scroll = create_object(get_obj_index(get_reserved_vnum("obj_treasure_map")), 0, true);
 
 	return create_wilderness_map(pWilds, vx, vy, scroll, 5, "{RX{x");
 }

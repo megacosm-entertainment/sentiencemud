@@ -2597,7 +2597,7 @@ bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
                 // Handle pet cleanup from incoming connection if needed
                 if (old_char->pet) {
                     CHAR_DATA *pet = old_char->pet;
-                    char_to_room(pet, get_room_index(ROOM_VNUM_LIMBO));
+                    char_to_room(pet, get_room_index(get_reserved_vnum("room_limbo")));
                     stop_follower(pet, true);
                     extract_char(pet, true);
                 }
@@ -2774,7 +2774,7 @@ void stop_idling(CHAR_DATA *ch)
 		ch->desc == NULL ||
 		ch->desc->connected != CON_PLAYING ||
 		ch->was_in_room == NULL ||
-		ch->in_room != get_room_index(ROOM_VNUM_LIMBO))
+		ch->in_room != get_room_index(get_reserved_vnum("room_limbo")))
 		return;
 
 	if( ch->was_in_room_id[0] || ch->was_in_room_id[1] )

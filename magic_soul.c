@@ -44,7 +44,7 @@ SPELL_FUNC(spell_soul_essence)
         i = 0;
         iterator_start(&it, ch->lcarrying);
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it)) && (all || i < souls)) {
-            if (obj->pIndexData->vnum == OBJ_VNUM_BOTTLED_SOUL) {
+            if (obj->pIndexData->vnum == get_reserved_vnum("obj_pneuma_item")) {
                 found = true;
                 // Need to remove from list before extracting to prevent invalid list access
                 list_remlink(ch->lcarrying, obj, false);

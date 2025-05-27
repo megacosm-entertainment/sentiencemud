@@ -200,7 +200,7 @@ SPELL_FUNC(spell_nexus)
 	catalyst = use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY|CATALYST_ACTIVE,distance,1,CATALYST_MAXSTRENGTH,true);
 
 	/* portal one */
-	portal = create_object(get_obj_index(OBJ_VNUM_PORTAL),0, true);
+	portal = create_object(get_obj_index(get_reserved_vnum("obj_portal")),0, true);
 	portal->timer = 1 + level / 10;
 
 	if( to_room->wilds && IS_SET(to_room->room_flag[1], ROOM_VIRTUAL_ROOM) )
@@ -228,7 +228,7 @@ SPELL_FUNC(spell_nexus)
 	if (to_room != from_room) {
 
 		/* portal two */
-		portal = create_object(get_obj_index(OBJ_VNUM_PORTAL),0, true);
+		portal = create_object(get_obj_index(get_reserved_vnum("obj_portal")),0, true);
 		portal->timer = 1 + level/10;
 
 		if( from_room->wilds && IS_SET(from_room->room_flag[1], ROOM_VIRTUAL_ROOM) )
@@ -266,12 +266,12 @@ SPELL_FUNC(spell_reflection)
 	CHAR_DATA *reflection;
 	char buf[MAX_STRING_LENGTH];
 
-	if (!get_mob_index(MOB_VNUM_REFLECTION)) {
+	if (!get_mob_index(get_reserved_vnum("mob_reflection"))) {
 		bug("spell_reflection: get_mob_index was null!\n\r",0);
 		return false;
 	}
 
-	reflection = create_mobile(get_mob_index(MOB_VNUM_REFLECTION), false);
+	reflection = create_mobile(get_mob_index(get_reserved_vnum("mob_reflection")), false);
 
 	free_string(reflection->short_descr);
 	reflection->short_descr = str_dup(buf);

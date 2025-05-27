@@ -2290,41 +2290,44 @@ struct affliction_type {
 /*
  * Well known mob virtual numbers.
  */
-#define MOB_VNUM_DEATH		  	6502
-#define MOB_VNUM_OBJCASTER		6509
-#define MOB_VNUM_REFLECTION           	6530
-#define MOB_VNUM_SLAYER               	6531
-#define MOB_VNUM_WEREWOLF             	6532
-#define MOB_VNUM_MAYOR_PLITH		11000
-#define MOB_VNUM_RAVAGE			11017
-#define MOB_VNUM_STIENER		11500
-#define MOB_VNUM_CHANGELING		100025
-#define MOB_VNUM_DARK_WRAITH   		100050
-#define MOB_VNUM_GATEKEEPER_ABYSS     	102000
-#define MOB_VNUM_SAILOR_BURLY         	157002
-#define MOB_VNUM_SAILOR_DIRTY         	157001
-#define MOB_VNUM_SAILOR_DISEASED      	157000
-#define MOB_VNUM_SAILOR_ELITE         	157005
-#define MOB_VNUM_SAILOR_MERCENARY     	157004
-#define MOB_VNUM_SAILOR_TRAINED       	157003
-#define MOB_VNUM_GELDOFF	   	300001
+//#define MOB_VNUM_DEATH		  	6502
+//#define MOB_VNUM_OBJCASTER		6509
+//#define MOB_VNUM_REFLECTION           	6530
+//#define MOB_VNUM_SLAYER               	6531
+//#define MOB_VNUM_WEREWOLF             	6532
+//#define MOB_VNUM_MAYOR_PLITH		11000
+//#define MOB_VNUM_RAVAGE			11017
+//#define MOB_VNUM_STIENER		11500
+//#define MOB_VNUM_CHANGELING		100025
+//#define MOB_VNUM_DARK_WRAITH   		100050
+//#define MOB_VNUM_GATEKEEPER_ABYSS     	102000
+/* Do we still need these sailors with the change to the crew systems? */
+//#define MOB_VNUM_SAILOR_BURLY         	157002
+//#define MOB_VNUM_SAILOR_DIRTY         	157001
+//#define MOB_VNUM_SAILOR_DISEASED      	157000
+//#define MOB_VNUM_SAILOR_ELITE         	157005
+//#define MOB_VNUM_SAILOR_MERCENARY     	157004
+//#define MOB_VNUM_SAILOR_TRAINED       	157003
+//#define MOB_VNUM_GELDOFF	   	300001
 
-#define MOB_VNUM_PIRATE_HUNTER_1 100200 /* < lvl 60 */
-#define MOB_VNUM_PIRATE_HUNTER_2 100201 /* < lvl 90 */
-#define MOB_VNUM_PIRATE_HUNTER_3 100202 /* < lvl 120 */
+/* Currently Unused */
+//#define MOB_VNUM_PIRATE_HUNTER_1 100200 /* < lvl 60 */
+//#define MOB_VNUM_PIRATE_HUNTER_2 100201 /* < lvl 90 */
+//#define MOB_VNUM_PIRATE_HUNTER_3 100202 /* < lvl 120 */
 
-#define VNUM_QUESTOR_1 		6777	/* Roscharch */
-#define VNUM_QUESTOR_2 		265817	/* Alemnos */
+//#define VNUM_QUESTOR_1 		6777	/* Roscharch */
+//#define VNUM_QUESTOR_2 		265817	/* Alemnos */
 
-#define MOB_VNUM_INVASION_LEADER_GOBLIN 100203
-#define MOB_VNUM_INVASION_LEADER_SKELETON 100204
-#define MOB_VNUM_INVASION_LEADER_BANDIT 100207
-#define MOB_VNUM_INVASION_LEADER_PIRATE 100205
 
-#define MOB_VNUM_INVASION_GOBLIN 100213
-#define MOB_VNUM_INVASION_SKELETON 100214
-#define MOB_VNUM_INVASION_BANDIT 100217
-#define MOB_VNUM_INVASION_PIRATE 100215
+//#define MOB_VNUM_INVASION_LEADER_GOBLIN 100203
+//#define MOB_VNUM_INVASION_LEADER_SKELETON 100204
+//#define MOB_VNUM_INVASION_LEADER_BANDIT 100207
+//#define MOB_VNUM_INVASION_LEADER_PIRATE 100205
+
+//#define MOB_VNUM_INVASION_GOBLIN 100213
+//#define MOB_VNUM_INVASION_SKELETON 100214
+//#define MOB_VNUM_INVASION_BANDIT 100217
+//#define MOB_VNUM_INVASION_PIRATE 100215
 
 /* weather storm types */
 #define WEATHER_NONE            0
@@ -2856,24 +2859,24 @@ struct affliction_type {
 #define OBJ_VNUM_DARK_WRAITH_EQ    100502
 #define OBJ_VNUM_ABYSS_PORTAL      2000001
 
+/* Unused */
+//#define ROOM_VNUM_GALLEON_NEST   157040
+//#define ROOM_VNUM_GALLEON_HELM   157041
+//#define ROOM_VNUM_GALLEON_DECK   157042
+//#define ROOM_VNUM_GALLEON_CABIN  157043
+//#define ROOM_VNUM_GALLEON_BOW  157044
+//#define ROOM_VNUM_GALLEON_STERN  157045
+//#define ROOM_VNUM_GALLEON_CARGO  157047
+//#define ROOM_VNUM_GALLEON_TREASURE   157048
 
-#define ROOM_VNUM_GALLEON_NEST   157040
-#define ROOM_VNUM_GALLEON_HELM   157041
-#define ROOM_VNUM_GALLEON_DECK   157042
-#define ROOM_VNUM_GALLEON_CABIN  157043
-#define ROOM_VNUM_GALLEON_BOW  157044
-#define ROOM_VNUM_GALLEON_STERN  157045
-#define ROOM_VNUM_GALLEON_CARGO  157047
-#define ROOM_VNUM_GALLEON_TREASURE   157048
-
-#define ROOM_VNUM_FRIGATE_NEST   157030
-#define ROOM_VNUM_FRIGATE_HELM   157031
-#define ROOM_VNUM_FRIGATE_DECK   157032
-#define ROOM_VNUM_FRIGATE_CABIN  157033
-#define ROOM_VNUM_FRIGATE_BOW  157034
-#define ROOM_VNUM_FRIGATE_STERN  157035
-#define ROOM_VNUM_FRIGATE_CARGO  157036
-#define ROOM_VNUM_ABYSS_GATE	2067572
+//#define ROOM_VNUM_FRIGATE_NEST   157030
+//#define ROOM_VNUM_FRIGATE_HELM   157031
+//#define ROOM_VNUM_FRIGATE_DECK   157032
+//#define ROOM_VNUM_FRIGATE_CABIN  157033
+//#define ROOM_VNUM_FRIGATE_BOW  157034
+//#define ROOM_VNUM_FRIGATE_STERN  157035
+//#define ROOM_VNUM_FRIGATE_CARGO  157036
+//#define ROOM_VNUM_ABYSS_GATE	2067572
 
 /* Herbs */
 #define HERB_NONE   			0
@@ -3294,41 +3297,43 @@ enum {
 /*
  * Well known room virtual numbers.
  */
-#define ROOM_VNUM_DEFAULT	   	1
-#define ROOM_VNUM_LIMBO		   	2
-#define ROOM_VNUM_CHAT                  342
-#define ROOM_VNUM_MYSTICA               1611
-#define ROOM_VNUM_TEMPLE                11001
-#define ROOM_VNUM_DONATION              11174
-#define ROOM_VNUM_ALTAR                 11001
-#define ROOM_VNUM_SCHOOL                3700
-#define ROOM_VNUM_NDEATH                3734
-#define ROOM_VNUM_EVIL                  11022
-#define ROOM_VNUM_GOOD                  11051
-#define ROOM_VNUM_PLITH_AIRSHIP         11451
-#define ROOM_VNUM_ARENA                 10513
-#define ROOM_VNUM_DEATH                 6502
+//#define ROOM_VNUM_DEFAULT	   	1
+//#define ROOM_VNUM_LIMBO		   	2
+//#define ROOM_VNUM_CHAT                  342
+//#define ROOM_VNUM_MYSTICA               1611 -- Unused
+//#define ROOM_VNUM_TEMPLE                11001
+//#define ROOM_VNUM_DONATION              11174
+//#define ROOM_VNUM_ALTAR                 11001
+//#define ROOM_VNUM_SCHOOL                3700
+//#define ROOM_VNUM_NDEATH                3734
+/* Unused */
+//#define ROOM_VNUM_EVIL                  11022
+//#define ROOM_VNUM_GOOD                  11051
+//#define ROOM_VNUM_PLITH_AIRSHIP         11451 -- Unused
+//#define ROOM_VNUM_ARENA                 10513
+//#define ROOM_VNUM_DEATH                 6502
 
-#define ROOM_VNUM_SEA_DEEP	        5000005
-#define ROOM_VNUM_SEA_SHALLOW	        5000006
-#define ROOM_VNUM_SEA_PLITH_HARBOUR	5000027
-#define ROOM_VNUM_SEA_SOUTHERN_HARBOUR	5000048
-#define ROOM_VNUM_SEA_NORTHERN_HARBOUR	5000049
-#define ROOM_VNUM_PIER                  5000002
+/* Unused */
+//#define ROOM_VNUM_SEA_DEEP	        5000005
+//#define ROOM_VNUM_SEA_SHALLOW	        5000006
+//#define ROOM_VNUM_SEA_PLITH_HARBOUR	5000027
+//#define ROOM_VNUM_SEA_SOUTHERN_HARBOUR	5000048
+//#define ROOM_VNUM_SEA_NORTHERN_HARBOUR	5000049
+//#define ROOM_VNUM_PIER                  5000002 - Unused
 
-#define ROOM_VNUM_SAILING_BOAT_HELM	157000
-#define ROOM_VNUM_SAILING_BOAT_NEST	157001
-#define ROOM_VNUM_SAILING_BOAT_STERN	157002
+//#define ROOM_VNUM_SAILING_BOAT_HELM	157000 -- Unused
+//#define ROOM_VNUM_SAILING_BOAT_NEST	157001 
+//#define ROOM_VNUM_SAILING_BOAT_STERN	157002 -- Unused
 
+/* Unused */
+//#define ROOM_VNUM_CARGO_SHIP_HELM  157010
+//#define ROOM_VNUM_CARGO_SHIP_NEST  157011
+//#define ROOM_VNUM_CARGO_SHIP_BOW     157012
+//#define ROOM_VNUM_CARGO_SHIP_STERN   157013
+//#define ROOM_VNUM_CARGO_SHIP_CARGO   157014
 
-#define ROOM_VNUM_CARGO_SHIP_HELM  157010
-#define ROOM_VNUM_CARGO_SHIP_NEST  157011
-#define ROOM_VNUM_CARGO_SHIP_BOW     157012
-#define ROOM_VNUM_CARGO_SHIP_STERN   157013
-#define ROOM_VNUM_CARGO_SHIP_CARGO   157014
-
-#define ROOM_VNUM_AIR_SHIP_HELM	 	157020
-#define ROOM_VNUM_AIR_SHIP_DECK	 	157021
+//#define ROOM_VNUM_AIR_SHIP_HELM	 	157020
+//#define ROOM_VNUM_AIR_SHIP_DECK	 	157021
 
 /* Area numbers */
 #define AREA_VNUM_SHIP_CARGO     	45
@@ -7524,7 +7529,7 @@ extern int16_t grn_unique;
 		((ch)->damroll+str_app[get_curr_stat(ch,STAT_STR)].todam)
 
 #define IS_OBJCASTER(ch)        (IS_SET((ch)->act[0], ACT_IS_NPC) \
-		                 && (ch)->pIndexData->vnum == MOB_VNUM_OBJCASTER)
+		                 && (ch)->pIndexData->vnum == get_reserved_vnum("mob_objcaster"))
 
 /* Wilderness macros. */
 #define ROOM(room)		((room)->parent == -1 ? (room) : ((get_room_index((room)->parent))))
@@ -7613,11 +7618,11 @@ extern int16_t grn_unique;
 					((ch->in_room->area->place_flags == PLACE_SECOND_CONTINENT) && \
 			ch->pcdata->rank[CONT_ATHEMIA] == NPC_SHIP_RANK_PIRATE)))
 #define ON_SHIP(ch)             (get_room_ship((ch)->in_room) != NULL)
-#define IN_SHIP_NEST(ch)        (ch->in_room->vnum == ROOM_VNUM_SAILING_BOAT_NEST)
+#define IN_SHIP_NEST(ch)        (ch->in_room->vnum == get_reserved_room("room_sailing_boat_nest"))
 
-#define IS_SHIP_IN_HARBOUR(ship) (ship->ship->in_room->vnum == ROOM_VNUM_SEA_PLITH_HARBOUR || \
-		ship->ship->in_room->vnum == ROOM_VNUM_SEA_SOUTHERN_HARBOUR || \
-		ship->ship->in_room->vnum == ROOM_VNUM_SEA_NORTHERN_HARBOUR )
+#define IS_SHIP_IN_HARBOUR(ship) (ship->ship->in_room->vnum == get_reserved_vnum("room_plith_harbour") || \
+		ship->ship->in_room->vnum == get_reserved_vnum("room_southern_harbour") || \
+		ship->ship->in_room->vnum == get_reserved_vnum("room_northern_harbour") )
 /* VIZZWILDS */
 #define IN_WILDERNESS(ch)  (ch->in_wilds)
 #define IS_WILDERNESS(in_room)	(in_room->wilds)
@@ -7738,7 +7743,7 @@ extern	const	struct	class_type	class_table	[MAX_CLASS];
 extern	const	struct	sub_class_type	sub_class_table [];
 extern	const	struct	weapon_type	weapon_table	[];
 extern	const	struct	weapon_type	ranged_weapon_table	[];
-extern	const	struct	crew_type	crew_table	[];
+//extern	const	struct	crew_type	crew_table	[];
 extern	const	struct	tunneler_place_type	tunneler_place_table	[];
 extern	const	struct	item_type	auto_war_table	[];
 extern	const	struct	item_type	boat_table	[];

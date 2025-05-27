@@ -42,27 +42,27 @@ INVASION_QUEST* create_invasion_quest(AREA_DATA *pArea, int max_level, long p_le
 			//invasion_type = number_range(0, 3);
 			switch(max_level) {
 			case 60: 
-				 leader_vnum = MOB_VNUM_INVASION_LEADER_GOBLIN;
-				 mob_vnum = MOB_VNUM_INVASION_GOBLIN;
+				 leader_vnum = get_reserved_vnum("mob_invasion_leader_lvl60");
+				 mob_vnum = get_reserved_vnum("mob_invasion_lvl60");
 				 sprintf(buf, "Global Quest: The goblin horde has invaded %s! (Max level 60)", pArea->name);
 				 break;
 			case 90: 
-				 leader_vnum = MOB_VNUM_INVASION_LEADER_SKELETON;
-				 mob_vnum = MOB_VNUM_INVASION_SKELETON;
+				 leader_vnum = get_reserved_vnum("mob_invasion_leader_lvl90");
+				 mob_vnum = get_reserved_vnum("mob_invasion_lvl90");
 				 sprintf(buf, "Global Quest: The undead have taken over %s, stop them at all costs! (Max level 90)", pArea->name);
 				 break;
 			case 120: 
-				 leader_vnum = MOB_VNUM_INVASION_LEADER_PIRATE;
-				 mob_vnum = MOB_VNUM_INVASION_PIRATE;
+				 leader_vnum = get_reserved_vnum("mob_invasion_leader_lvl120");
+				 mob_vnum = get_reserved_vnum("mob_invasion_lvl120");
 				 sprintf(buf, "Global Quest: Swarthy pirates have taken %s by storm! It is imperative that we take it back! (Max level 120)", pArea->name);
 				 break;
 			case 30: 
-				 leader_vnum = MOB_VNUM_INVASION_LEADER_BANDIT;
-				 mob_vnum = MOB_VNUM_INVASION_BANDIT;
+				 leader_vnum = get_reserved_vnum("mob_invasion_leader_lvl30");
+				 mob_vnum = get_reserved_vnum("mob_invasion_lvl30");
 				 sprintf(buf, "Global Quest: Bandits have stormed %s, we must take it back! (Max level 30)", pArea->name);
 				 break;
 			default:
-				 leader_vnum = MOB_VNUM_INVASION_LEADER_BANDIT;
+				 leader_vnum = get_reserved_vnum("mob_invasion_leader_lvl30");
 				 mob_vnum = 11002;
 				 sprintf(buf, "Global Quest: Let it be known that %s has been invaded by bandits! (Max level 30)", pArea->name);
 				 break;

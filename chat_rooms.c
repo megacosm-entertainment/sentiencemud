@@ -216,7 +216,7 @@ void do_chat_enter(CHAR_DATA *ch, char *argument)
     ch->manastore = 0;
 
     char_from_room(ch);
-    char_to_room(ch, get_room_index(ROOM_VNUM_CHAT));
+    char_to_room(ch, get_room_index(get_reserved_vnum("room_chat_lobby")));
 
     act("{W$n has entered chat.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
@@ -242,7 +242,7 @@ void do_chat_exit(CHAR_DATA *ch, char *argument)
 	sprintf(buf, "do_chat_exit: before_social room was null!");
 	bug(buf, 0);
 
-	room = get_room_index(ROOM_VNUM_TEMPLE);
+	room = get_room_index(get_reserved_vnum("room_default_recall"));
 
 	//REMOVE_BIT(ch->comm, COMM_SOCIAL);
 
@@ -888,7 +888,7 @@ void do_chat_kick(CHAR_DATA *ch, char *argument)
 		return;
     }
 
-    to_room = get_room_index(ROOM_VNUM_CHAT);
+    to_room = get_room_index(get_reserved_vnum("room_chat_lobby"));
     sprintf(buf, "{YYou kick %s out of #%s.{x",
 	    ch == victim ? "yourself" : "$N",
 	    ch->in_room->chat_room->name);
