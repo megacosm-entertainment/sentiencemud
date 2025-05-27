@@ -1516,16 +1516,11 @@ if (ch->pk_question)
     }
 
     // Command not found... try other places.
-    // Modified 2010-08-16 - Changed order. Command -> Custom verbs -> IMC -> Socials -- Tieryo
+    // Modified 2010-08-16 - Changed order. Command -> Custom verbs -> Socials -- Tieryo
     if (!found)
     {
     	if (check_verbs(ch,command,argument))
 		return;
-
-	#if 0
-		if (!IS_NPC(ch) && imc_command_hook(ch, command, argument))
-		return;
-	#endif
 
 		if (check_social(ch, command, argument))
 		return;

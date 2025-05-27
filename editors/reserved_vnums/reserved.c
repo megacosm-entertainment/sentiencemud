@@ -38,12 +38,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
-#include "../merc.h"
-#include "../interp.h"
-#include "../tables.h"
-#include "../olc.h"
-#include "../recycle.h"
-#include "../scripts.h"
+#include "../../merc.h"
+#include "../../interp.h"
+#include "../../tables.h"
+#include "../../olc.h"
+#include "../../recycle.h"
+#include "../../scripts.h"
 #include "reserved.h"
 
 /* Editor functions */

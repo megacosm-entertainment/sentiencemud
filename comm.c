@@ -517,9 +517,6 @@ int main(int argc, char **argv)
 
     sprintf(log_buf, "Sentience is up on %d.", telnet_port);
     log_string(log_buf);
-    #ifdef IMC
-    imc_startup( false, -1, false );
-    #endif
     game_loop(control_telnet, control_tls);
 	list_destroy(conn_players);
 	list_destroy(conn_immortals);
@@ -546,12 +543,7 @@ int main(int argc, char **argv)
     	close (control_telnet);
 	if (game_settings.enable_tls)
 		close(control_tls);
-	#ifdef IMC
-	SERVER_DATA *server;
-	extern SERVER_DATA *first_server;
-	for( server = first_server; server; server = server->next )
-	imc_shutdown(false, server);
-	#endif
+
 
 	save_commands();
 	list_destroy(commands_list);
@@ -967,10 +959,6 @@ void game_loop(int control_telnet, int control_tls)
                 d->incomm[0] = '\0';
             }
         }
-
-#ifdef IMC
-        imc_loop();
-#endif
 
         /*
          * Autonomous game motion.

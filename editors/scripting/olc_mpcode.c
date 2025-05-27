@@ -13,11 +13,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include "merc.h"
-#include "tables.h"
-#include "olc.h"
-#include "recycle.h"
-#include "scripts.h"
+#include "../../merc.h"
+#include "../../tables.h"
+#include "../../olc.h"
+#include "../../recycle.h"
+#include "../../scripts.h"
 
 #define MPEDIT( fun )           bool fun(CHAR_DATA *ch, char*argument)
 #define OPEDIT( fun )		bool fun(CHAR_DATA *ch, char*argument)

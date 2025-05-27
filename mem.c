@@ -770,13 +770,6 @@ void free_char( CHAR_DATA *ch )
     list_destroy(ch->lclonerooms);
     list_destroy(ch->lgroup);
 
-    if (!IS_NPC(ch))
-    {
-#ifdef IMC
-        imc_freechardata(ch);
-#endif
-    }
-
     variable_clearfield(VAR_MOBILE, ch);
     script_clear_mobile(ch);
     script_clear_list(ch);

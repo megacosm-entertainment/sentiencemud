@@ -827,9 +827,6 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 
     for (cmd = ch->pcdata->commands; cmd != NULL; cmd = cmd->next)
 	fprintf(fp, "GrantedCommand %s~\n", cmd->name);
-	#ifdef IMC
-	imc_savechar( ch, fp );
-	#endif
     fprintf(fp, "End\n\n");
 }
 
@@ -895,12 +892,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     ch->morphed = false;
     ch->locker_rent = 0;
     ch->deathsight_vision = 0;
-    
 
-
-    #ifdef IMC
-    imc_initchar(ch);
-    #endif
 
     // Initialize the object nesting table
     for (iNest = 0; iNest < MAX_NEST; iNest++)
@@ -1807,10 +1799,6 @@ iterator_stop(&it);
 	        fMatch = true;
 	        break;
 	    }
-	#ifdef IMC
-	if( ( fMatch = imc_loadchar( ch, fp, word ) ) )
-	break;
-	#endif
 	    break;
 
 	case 'L':

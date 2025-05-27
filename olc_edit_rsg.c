@@ -18,9 +18,7 @@
 #include "recycle.h"
 #include "scripts.h"
 
-#define RSGEDIT( fun )           bool fun(CHAR_DATA *ch, char*argument)
 
-#define EDIT_RSG(ch, rsg)   ( rsg = (RANDOM_STRING*)ch->desc->pEdit )
 
 const struct olc_cmd_type rsgedit_table[] =
 {
@@ -104,9 +102,4 @@ void rsgedit( CHAR_DATA *ch, char *argument)
     return;
 }
 
-RSGEDIT(rsgedit_create)
-{
-	RANDOM_STRING *rsg;
 
-	EDIT_RSG(ch,rsg);
-}

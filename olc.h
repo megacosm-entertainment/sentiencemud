@@ -662,3 +662,6 @@ SHOP_STOCK_DATA *get_shop_stock_bypos(SHOP_DATA *shop, int nth);
 bool check_range(long lower, long upper);
 void olc_show_progs(BUFFER *buffer, LLIST **progs, int type, const char *title);
 
+#define RSGEDIT( fun )           bool fun(CHAR_DATA *ch, char*argument)
+
+#define EDIT_RSG(ch, rsg)   ( rsg = (RANDOM_STRING*)ch->desc->pEdit )

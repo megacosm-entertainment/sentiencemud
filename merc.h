@@ -63,7 +63,7 @@
 #include <libpng/png.h>
 #include <qrencode.h>
 #include "protocol.h"
-#include "editors/reserved.h"
+#include "editors/reserved_vnums/reserved.h"
 
 
 #define STR_HELPER(x) #x
@@ -973,11 +973,6 @@ struct olc_point_area_data {
 #define RECKONING_INTENSITY_MAX		200
 #define RECKONING_INTENSITY(in)		URANGE(RECKONING_INTENSITY_MIN, (in), RECKONING_INTENSITY_MAX)
 
-
-
-#ifdef IMC
-	#include "imc.h"
-#endif
 
 #define WILDERNESS_CHAR_EXIT_SIGHT 1
 #define WILDERNESS_OBJ_EXIT_SIGHT  2
@@ -5046,10 +5041,6 @@ struct	pc_data
     STRING_VECTOR	*script_prompts;
 
     int         pwd_vers; /* Password version, added for sha256 */
-
-    #ifdef IMC
-        IMC_CHARDATA *imcchardata;
-    #endif
 
     LLIST *unlocked_areas;
 
