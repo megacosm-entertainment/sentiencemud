@@ -372,7 +372,7 @@ void show_multiclass_choices(CHAR_DATA *ch, CHAR_DATA *looker)
     if (ch == looker)
 	send_to_char("{YYou are skilled in the following subclasses:{x\n\r", looker);
     else
-	act("{Y$N is skilled in the following subclasses:{x", looker, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	act("{Y$N is skilled in the following subclasses:{x", looker, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
     sprintf(buf, "{x");
 
@@ -657,9 +657,9 @@ void do_train(CHAR_DATA *ch, char *argument)
         if (cost <= ch->train)
         {
             ch->train -= cost;
-            act("$n trains $t with $N.", ch, mob, NULL, NULL, NULL, name, NULL, TO_ROOM);
-            act("You train $t with $N.", ch, mob, NULL, NULL, NULL, name, NULL, TO_CHAR);
-            act("{YYou feel your mastery of $t soaring to new heights!{x", ch, NULL, NULL, NULL, NULL, name, NULL, TO_CHAR);
+            act("$n trains $t with $N.", ch, mob, NULL, NULL, NULL, name, NULL, TO_ROOM, NULL, NULL);
+            act("You train $t with $N.", ch, mob, NULL, NULL, NULL, name, NULL, TO_CHAR, NULL, NULL);
+            act("{YYou feel your mastery of $t soaring to new heights!{x", ch, NULL, NULL, NULL, NULL, name, NULL, TO_CHAR, NULL, NULL);
 
             if( entry->token ) {
                 if( entry->token->pIndexData->value[TOKVAL_SPELL_RATING] > 0 )
@@ -789,7 +789,7 @@ void do_train(CHAR_DATA *ch, char *argument)
             }
             else
             {
-                act("You have nothing left to train.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+                act("You have nothing left to train.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
             }
 
             return;
@@ -812,8 +812,8 @@ void do_train(CHAR_DATA *ch, char *argument)
             ch->pcdata->perm_hit += 10;
             ch->max_hit += 10;
             ch->hit += 10;
-            act("Your health increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-            act("$n's health increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+            act("Your health increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
+            act("$n's health increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
             return;
         }
 
@@ -834,8 +834,8 @@ void do_train(CHAR_DATA *ch, char *argument)
             ch->pcdata->perm_mana += 10;
             ch->max_mana += 10;
             ch->mana +=10;
-            act("Your mana increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-            act("$n's mana increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+            act("Your mana increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
+            act("$n's mana increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
 
             return;
         }
@@ -857,14 +857,14 @@ void do_train(CHAR_DATA *ch, char *argument)
             ch->pcdata->perm_move += 10;
             ch->max_move += 10;
             ch->move += 10;
-            act("Your stamina increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-            act("$n's stamina increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+            act("Your stamina increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
+            act("$n's stamina increases!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
             return;
         }
 
         if (ch->perm_stat[stat]  >= get_max_train(ch,stat))
         {
-            act("Your $T is already at maximum.", ch, NULL, NULL, NULL, NULL, NULL, pOutput, TO_CHAR);
+            act("Your $T is already at maximum.", ch, NULL, NULL, NULL, NULL, NULL, pOutput, TO_CHAR, NULL, NULL);
             return;
         }
 
@@ -877,8 +877,8 @@ void do_train(CHAR_DATA *ch, char *argument)
         ch->train -= cost;
         add_perm_stat(ch, stat, 1);
 
-        act("Your $T increases!", ch, NULL, NULL, NULL, NULL, NULL, pOutput, TO_CHAR);
-        act("$n's $T increases!", ch, NULL, NULL, NULL, NULL, NULL, pOutput, TO_ROOM);
+        act("Your $T increases!", ch, NULL, NULL, NULL, NULL, NULL, pOutput, TO_CHAR, NULL, NULL);
+        act("$n's $T increases!", ch, NULL, NULL, NULL, NULL, NULL, pOutput, TO_ROOM, NULL, NULL);
     }
 }
 
@@ -930,12 +930,12 @@ void do_convert(CHAR_DATA *ch, char *argument)
 	if (ch->practice < 20)
 	{
 	    act("{R$N tells you 'You don't have enough practices. You must have 20 practices!'{x",
-		ch,trainer, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+		ch,trainer, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 	    return;
 	}
 
 	act("$N helps you apply your practice to training.",
-		ch,trainer, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+		ch,trainer, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 	ch->practice -= 20;
 	ch->train++;
 	return;
@@ -946,12 +946,12 @@ void do_convert(CHAR_DATA *ch, char *argument)
 	if (ch->train < 1)
 	{
 	    act("{R$N tells you 'You don't have any trains to convert into pracs!'{x",
-		ch,trainer, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+		ch,trainer, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 	    return;
 	}
 
 	act("$N helps you apply your practice to training.",
-		ch,trainer, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+		ch,trainer, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 	ch->practice += 20;
 	ch->train--;
 	return;
@@ -1461,11 +1461,11 @@ void do_practice( CHAR_DATA *ch, char *argument )
 
 
 			if (amount < MAX_SKILL_LEARNABLE) {
-				act("You practice $T.", ch, NULL, NULL, NULL, NULL, NULL, entry->token->name, TO_CHAR);
-				act("$n practices $T.", ch, NULL, NULL, NULL, NULL, NULL, entry->token->name, TO_ROOM);
+				act("You practice $T.", ch, NULL, NULL, NULL, NULL, NULL, entry->token->name, TO_CHAR, NULL, NULL);
+				act("$n practices $T.", ch, NULL, NULL, NULL, NULL, NULL, entry->token->name, TO_ROOM, NULL, NULL);
 			} else {
-				act("{WYou are now learned at $T.{x", ch, NULL, NULL, NULL, NULL, NULL, entry->token->name, TO_CHAR);
-				act("{W$n is now learned at $T.{x", ch, NULL, NULL, NULL, NULL, NULL, entry->token->name, TO_ROOM);
+				act("{WYou are now learned at $T.{x", ch, NULL, NULL, NULL, NULL, NULL, entry->token->name, TO_CHAR, NULL, NULL);
+				act("{W$n is now learned at $T.{x", ch, NULL, NULL, NULL, NULL, NULL, entry->token->name, TO_ROOM, NULL, NULL);
 			}
 		}
 	}
@@ -1498,12 +1498,12 @@ void do_practice( CHAR_DATA *ch, char *argument )
 			ch->pcdata->learned[sn] += learn;
 
 			if (ch->pcdata->learned[sn] < MAX_SKILL_LEARNABLE) {
-				act("You practice $T.", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_CHAR);
-				act("$n practices $T.", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_ROOM);
+				act("You practice $T.", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_CHAR, NULL, NULL);
+				act("$n practices $T.", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_ROOM, NULL, NULL);
 			} else {
 				ch->pcdata->learned[sn] = MAX_SKILL_LEARNABLE;
-				act("{WYou are now learned at $T.{x", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_CHAR);
-				act("{W$n is now learned at $T.{x", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_ROOM);
+				act("{WYou are now learned at $T.{x", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_CHAR, NULL, NULL);
+				act("{W$n is now learned at $T.{x", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_ROOM, NULL, NULL);
 			}
 		}
 
@@ -1640,8 +1640,8 @@ void do_rehearse( CHAR_DATA *ch, char *argument )
 	skill_entry_addsong(ch, sn, NULL, SKILLSRC_NORMAL);
 	ch->practice -= 3;
 
-	act("You rehearse {W$T{x.", ch, NULL, NULL, NULL, NULL, NULL, music_table[sn].name, TO_CHAR);
-	act("{+$n rehearses {x$T{x.", ch, NULL, NULL, NULL, NULL, NULL, music_table[sn].name, TO_ROOM);
+	act("You rehearse {W$T{x.", ch, NULL, NULL, NULL, NULL, NULL, music_table[sn].name, TO_CHAR, NULL, NULL);
+	act("{+$n rehearses {x$T{x.", ch, NULL, NULL, NULL, NULL, NULL, music_table[sn].name, TO_ROOM, NULL, NULL);
 }
 
 

@@ -87,6 +87,7 @@ const struct flag_type *flag_stat_table[] =
 
 	command_types,
 	staff_ranks,
+    body_types,
 
     NULL
 };

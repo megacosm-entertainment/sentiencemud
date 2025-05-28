@@ -234,7 +234,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "fill",			do_fill,	POS_RESTING,	 0,  LOG_NORMAL, 1, false },
     { "give",			do_give,	POS_RESTING,	 0,  LOG_NORMAL, 1, false },
     { "hands",			do_hands,	POS_RESTING,	 0,  LOG_NORMAL, 1, false },
-    { "heal",			do_heal,	POS_RESTING,	 0,  LOG_NORMAL, 1, false },
+//    { "heal",			do_heal,	POS_RESTING,	 0,  LOG_NORMAL, 1, false },
     { "hold",			do_wear,	POS_RESTING,	 0,  LOG_NORMAL, 1, false },
     { "infuse",			do_infuse,	POS_DEAD,	 0,  LOG_ALWAYS, 1, false },
     { "inspect", 		do_inspect,     POS_RESTING,	 0,  LOG_NORMAL, 1, false },
@@ -929,7 +929,7 @@ void interpret( CHAR_DATA *ch, char *argument )
 	    {
 		if (!str_cmp(ch->name, ch->remove_question->church->founder))
 		{
-		    act("{Y[You have removed yourself.]{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		    act("{Y[You have removed yourself.]{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		    sprintf(buf, "{Y[%s has quit %s]{x\n\r", ch->remove_question->name, ch->church->name);
 		    gecho( buf );
 //		    ch->pneuma = 0;
@@ -941,7 +941,7 @@ void interpret( CHAR_DATA *ch, char *argument )
 		}
 		else
 		{
-		    act("{Y[You have removed yourself.]{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		    act("{Y[You have removed yourself.]{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		    sprintf(buf, "{Y[%s has quit %s]{x\n\r", ch->remove_question->name, ch->church->name);
 		    gecho( buf );
 		    sprintf( buf, "%s has quit.", ch->name );
@@ -1096,10 +1096,10 @@ if (ch->pk_question)
 	    msg_church_members( ch->church, buf );
 	    ch->cross_zone_question = false;
 
-	    act("{R$n disappears, leaving a resounding echo of discord.{X", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	    act("{R$n disappears, leaving a resounding echo of discord.{X", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	    char_from_room(ch);
 	    char_to_room(ch, location_to_room(&ch->church->recall_point));
-	    act("$n appears in the room.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	    act("$n appears in the room.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	    do_function(ch, &do_look, "auto");
 	    return;
 	}
@@ -1337,8 +1337,8 @@ if (ch->pk_question)
     {
         affect_strip(ch, gsn_hide);
 		REMOVE_BIT(ch->affected_by[0], AFF_HIDE);
-		act("You step out of the shadows.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-		act("$n steps out of the shadows.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+		act("You step out of the shadows.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
+		act("$n steps out of the shadows.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
     }
 
     if (is_affected(ch, skill_lookup("paralysis")) && !allowed)
@@ -1352,32 +1352,32 @@ if (ch->pk_question)
 		if (number_percent() < 20)
 		{
 			send_to_char("{YYou flail your arms about wildly.{x\n\r", ch);
-			act("$n flails $s arms about wildly, unable to control $mself.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			act("$n flails $s arms about wildly, unable to control $mself.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		}
 		else if (number_percent() < 20)
 		{
 			send_to_char("{YYou cartwheel across the floor.{x\n\r", ch);
-			act("{Y$n cartwheels across the floor.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			act("{Y$n cartwheels across the floor.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		}
 		else if (number_percent() < 20)
 		{
 			send_to_char("{YYou babble nonsensically and foam at the mouth.{x\n\r", ch );
-			act("{Y$n babbles nonsensically and foams at the mouth.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			act("{Y$n babbles nonsensically and foams at the mouth.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		}
 		else if (number_percent() < 20)
 		{
 			send_to_char("{YYour fall to the floor and begin to convulse.{x\n\r", ch );
-			act("{Y$n collapses to the floor and begins to have seizures.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+			act("{Y$n collapses to the floor and begins to have seizures.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
 		}
 		else if (number_percent() < 20)
 		{
 			send_to_char("{YYou begin to spin around in circles.{x\n\r", ch);
-			act("$n spins around dizzifyingly.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			act("$n spins around dizzifyingly.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		}
 		else
 		{
 			send_to_char("{YYou stare blankly at your feet.{x\n\r", ch);
-			act("$n stares blankly, unable to do anything.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			act("$n stares blankly, unable to do anything.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		}
 
 		return;
@@ -1399,8 +1399,8 @@ if (ch->pk_question)
 
     if (ch->repair > 0 && !allowed)
     {
-        act("You stop repairing $p.", ch, NULL, NULL, ch->repair_obj, NULL, NULL, NULL, TO_CHAR);
-	act("$n stops repairing $p.", ch, NULL, NULL, ch->repair_obj, NULL, NULL, NULL, TO_ROOM);
+        act("You stop repairing $p.", ch, NULL, NULL, ch->repair_obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+	act("$n stops repairing $p.", ch, NULL, NULL, ch->repair_obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	ch->repair_obj = NULL;
 	ch->repair_amt = 0;
 	ch->repair = 0;
@@ -1520,10 +1520,10 @@ if (ch->pk_question)
     if (!found)
     {
     	if (check_verbs(ch,command,argument))
-		return;
+			return;
 
 		if (check_social(ch, command, argument))
-		return;
+			return;
 
 		send_to_char( "Huh?\n\r", ch);
 		if (IS_NPC(ch))
@@ -1551,9 +1551,9 @@ if (ch->pk_question)
 
     if (ch->heldup != NULL)
     {
-	act( "You lose your concentration and $N escapes!", ch, ch->heldup, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	act( "$n loses $s concentration, freeing you from the holdup!", ch, ch->heldup, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-	act( "$n loses $s concentration and $N frees $Mself!", ch, ch->heldup, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act( "You lose your concentration and $N escapes!", ch, ch->heldup, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+	act( "$n loses $s concentration, freeing you from the holdup!", ch, ch->heldup, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+	act( "$n loses $s concentration and $N frees $Mself!", ch, ch->heldup, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
  	stop_holdup(ch);
     }
 
@@ -1669,8 +1669,8 @@ bool check_social( CHAR_DATA *ch, char *command, char *argument )
     one_argument( argument, arg );
     victim = NULL;
     if ( arg[0] == '\0' ) {
-		act( social_table[cmd].others_no_arg, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM    );
-		act( social_table[cmd].char_no_arg,   ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR    );
+		act( social_table[cmd].others_no_arg, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL    );
+		act( social_table[cmd].char_no_arg,   ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL    );
     }
     else if ( ( victim = get_char_room( ch, NULL, arg ) ) == NULL )
     {
@@ -1678,14 +1678,14 @@ bool check_social( CHAR_DATA *ch, char *command, char *argument )
     }
     else if ( victim == ch )
     {
-		act( social_table[cmd].others_auto,   ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM    );
-		act( social_table[cmd].char_auto,     ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR    );
+		act( social_table[cmd].others_auto,   ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL    );
+		act( social_table[cmd].char_auto,     ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL    );
     }
     else
     {
-		act( social_table[cmd].others_found,  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT );
-		act( social_table[cmd].char_found,    ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR    );
-		act( social_table[cmd].vict_found,    ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT    );
+		act( social_table[cmd].others_found,  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL );
+		act( social_table[cmd].char_found,    ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL    );
+		act( social_table[cmd].vict_found,    ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL    );
     }
 
     // 20140508NIB - Adding EMOTE triggering
@@ -2138,61 +2138,61 @@ void stop_casting( CHAR_DATA *ch, bool messages )
 	if (number_percent() < 10)
 	{
 	    send_to_char("{YSmall yellow sparks spiral around you then fade away.{x\n\r", ch);
-	    act("$n's magic fizzles and dies.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	    act("$n's magic fizzles and dies.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	}
 	else
 	if (number_percent() < 20)
 	{
 	    send_to_char("{YYou hear a loud bang as your magic dissipates.{x\n\r", ch);
-	    act("{YYou hear a loud bang as $n stops $s casting.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	    act("{YYou hear a loud bang as $n stops $s casting.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	}
 	else
 	if (number_percent() < 30)
 	{
 	    send_to_char("{YA puff of smoke billows out of your ears.{x\n\r", ch);
-	    act("{YA puff of smoke billows out of $n's ears as $e stops $s casting.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	    act("{YA puff of smoke billows out of $n's ears as $e stops $s casting.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	}
 	else
 	if (number_percent() < 40)
 	{
 	    send_to_char("{YYour skin turns multicoloured then turns back to normal.{x\n\r", ch);
-	    act("{Y$n's skin turns multicoloured momentarily as $e stops $s casting.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	    act("{Y$n's skin turns multicoloured momentarily as $e stops $s casting.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	}
 	else
 	if (number_percent() < 50)
 	{
 	    send_to_char("{YYour magic fizzles and dies.\n\r{x", ch );
-	    act("{Y$n's magic fizzles and dies.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	    act("{Y$n's magic fizzles and dies.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	}
 	else
 	if ( number_percent() < 60 )
 	{
 	    send_to_char("{YEnergy sizzles as you stop your casting.\n\r{x",
 		    ch );
-	    act("{YEnergy sizzles as $n stops $s casting.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+	    act("{YEnergy sizzles as $n stops $s casting.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
 	}
 	else
 	if (number_percent() < 70 )
 	{
 	    send_to_char("{YSparks fly from your fingers as your magic dissipates.{x\n\r", ch );
-	    act("{YSparks fly from $n's fingers as $s magic dissipates.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+	    act("{YSparks fly from $n's fingers as $s magic dissipates.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
 	}
 	else
 	if (number_percent() < 80 )
 	{
 	    send_to_char("{YYou eyes flash with white light as you interrupt your spell.{x\n\r", ch );
-	    act("{Y$n's eyes flash with white light as $e interrupts $s spell.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+	    act("{Y$n's eyes flash with white light as $e interrupts $s spell.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
 	}
 	else
 	if ( number_percent() < 90 )
 	{
 	    send_to_char("{YYour hair stands on end for a moment as you stop your spell.{x\n\r", ch );
-	    act("{Y$n's hair stands on end for a moment as $e finishes $s spell.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+	    act("{Y$n's hair stands on end for a moment as $e finishes $s spell.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
 	}
 	else
 	{
 	    send_to_char("{YYour magic dissipates into the air.{x\n\r", ch );
-	    act("{Y$n's magic dissipates into the air.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+	    act("{Y$n's magic dissipates into the air.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
 	}
     }
 }
@@ -2211,8 +2211,8 @@ void stop_ranged( CHAR_DATA *ch, bool messages )
     {
 	if ( messages )
 	{
-	    act("You put down $p.", ch, NULL, NULL, ch->projectile_weapon, NULL, NULL, NULL, TO_CHAR );
-	    act("$n puts down $p.", ch, NULL, NULL, ch->projectile_weapon, NULL, NULL, NULL, TO_ROOM );
+	    act("You put down $p.", ch, NULL, NULL, ch->projectile_weapon, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
+	    act("$n puts down $p.", ch, NULL, NULL, ch->projectile_weapon, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
 	}
 
 	ch->ranged = 0;

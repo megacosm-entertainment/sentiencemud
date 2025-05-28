@@ -373,8 +373,8 @@ void do_quest(CHAR_DATA *ch, char *argument)
             return;
         }
 
-        act("$n asks $N for a quest.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-        act ("You ask $N for a quest.",ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        act("$n asks $N for a quest.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        act ("You ask $N for a quest.",ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
         if (IS_QUESTING(ch))
         {
@@ -517,8 +517,8 @@ void do_quest(CHAR_DATA *ch, char *argument)
             if (mob)
             {
                 // Mobs will complain
-                act("$n informs $N $e has cancelled $s quest.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-                act("You inform $N you have cancelled your quest.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+                act("$n informs $N $e has cancelled $s quest.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                act("You inform $N you have cancelled your quest.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
                 sprintf(buf,
                     "I am most displeased with your efforts, %s! This is "
@@ -654,8 +654,8 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
         if (mob)
         {
-            act("$n informs $N $e has completed $s quest.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-            act("You inform $N you have completed your quest.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+            act("$n informs $N $e $z completed $s quest.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_ROOM, get_verb_form(ch, "has", "have"), NULL);
+            act("You inform $N you have completed your quest.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         }
 
         found = false;
@@ -733,8 +733,8 @@ void do_quest(CHAR_DATA *ch, char *argument)
                 {
                     if (mob)
                     {
-                        act("You hand $p to $N.", ch, mob, NULL, part->pObj, NULL, NULL, NULL, TO_CHAR);
-                        act("$n hands $p to $N.", ch, mob, NULL, part->pObj, NULL, NULL, NULL, TO_ROOM);
+                        act("You hand $p to $N.", ch, mob, NULL, part->pObj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                        act("$n hands $p to $N.", ch, mob, NULL, part->pObj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
                     }
 
                     extract_obj(part->pObj);
@@ -928,8 +928,8 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 	scroll->description = str_dup(qd->long_descr);
 
 
-    act("$N gives $p to $n.", ch, questman, NULL, scroll, NULL, NULL, NULL, TO_ROOM);
-    act("$N gives you $p.",   ch, questman, NULL, scroll, NULL, NULL, NULL, TO_CHAR);
+    act("$N gives $p to $n.", ch, questman, NULL, scroll, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    act("$N gives you $p.",   ch, questman, NULL, scroll, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     obj_to_char(scroll, ch);
     return true;
 }
@@ -1333,7 +1333,7 @@ CHAR_DATA *get_renewer_here(CHAR_DATA *ch, char *argument)
 		if (!IS_NPC(mob) || !IS_SET(mob->act[1], ACT2_RENEWER))
 		{
 			// Make a tell?
-			act("You cannot do that with $N.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("You cannot do that with $N.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			return NULL;
 		}
 
@@ -1416,7 +1416,7 @@ void do_renew(CHAR_DATA *ch, char *argument)
 			p_percent_trigger( mob, NULL, NULL, NULL, ch, ch->pet, NULL, NULL, NULL, TRIG_RENEW, NULL);
 
 			sprintf(buf, "{YYou renew $n with $N for %d quest points.{x", cost);
-			act(buf, ch->pet, mob, ch, NULL, NULL, NULL, NULL, TO_THIRD);
+			act(buf, ch->pet, mob, ch, NULL, NULL, NULL, NULL, TO_THIRD, NULL, NULL);
 			ch->questpoints -= cost;
 		}
 		else
@@ -1474,7 +1474,7 @@ void do_renew(CHAR_DATA *ch, char *argument)
 			p_percent_trigger( mob, NULL, NULL, NULL, ch, ch->mount, NULL, NULL, NULL, TRIG_RENEW, NULL);
 
 			sprintf(buf, "{YYou renew $n with $N for %d quest points.{x", cost);
-			act(buf, ch->mount, mob, ch, NULL, NULL, NULL, NULL, TO_THIRD);
+			act(buf, ch->mount, mob, ch, NULL, NULL, NULL, NULL, TO_THIRD, NULL, NULL);
 			ch->questpoints -= cost;
 		}
 		else
@@ -1533,7 +1533,7 @@ void do_renew(CHAR_DATA *ch, char *argument)
 			p_percent_trigger( mob, NULL, NULL, NULL, ch, guard, NULL, NULL, NULL, TRIG_RENEW, NULL);
 
 			sprintf(buf, "{YYou renew $n with $N for %d quest points.{x", cost);
-			act(buf, guard, mob, ch, NULL, NULL, NULL, NULL, TO_THIRD);
+			act(buf, guard, mob, ch, NULL, NULL, NULL, NULL, TO_THIRD, NULL, NULL);
 			ch->questpoints -= cost;
 		}
 		else
@@ -1584,7 +1584,7 @@ void do_renew(CHAR_DATA *ch, char *argument)
 		p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_RENEW, NULL);
 
 		sprintf(buf, "{YYou renew $p with $N for %d quest points.{x", cost);
-		act(buf, ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		act(buf, ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		ch->questpoints -= cost;
 
 		return;
@@ -1630,7 +1630,7 @@ void do_renew(CHAR_DATA *ch, char *argument)
 		{
 			sprintf(buf, "{YYou renew %s with $N for %d quest points.{x", arg2, cost);
 		}
-		act(buf, ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act(buf, ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		ch->questpoints -= cost;
 
 		return;
@@ -1642,8 +1642,8 @@ void do_renew(CHAR_DATA *ch, char *argument)
 			return;
 
 
-		act("{YYou ask $N for a list of things $E can renew.{x", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		act("$n asks $N for a list of things $E can renew.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("{YYou ask $N for a list of things $E can renew.{x", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+		act("$n asks $N for a list of things $E can renew.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_RENEW_LIST, NULL))
 			return;
 

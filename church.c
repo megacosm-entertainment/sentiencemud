@@ -588,15 +588,15 @@ void do_chrem(CHAR_DATA *ch, char *argument)
 
 		if (!str_cmp(ch->name, member->name))
 		{
-		    act("{Y[You have removed yourself.]{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		    act("{Y[You have removed yourself.]{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		}
 		else
 		{
 		    sprintf(buf, "{Y[You removed %s from %s]{x", member->name, church->name);
-	    	act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	    	act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 		    if (member->ch != NULL)
-		        act("{YYou have been removed by $N.{x", member->ch, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		        act("{YYou have been removed by $N.{x", member->ch, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		}
 
 		remove_member(member);
@@ -632,7 +632,7 @@ void do_chrem(CHAR_DATA *ch, char *argument)
 			str_cmp(arg, ch->name) && str_cmp(arg, "self") &&
 			str_cmp(arg, "me"))
 		{
-			act("Only a leader may remove members.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("Only a leader may remove members.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			return;
 		}
 
@@ -669,7 +669,7 @@ void do_chrem(CHAR_DATA *ch, char *argument)
 		else
 		{
 			sprintf(buf, "{YYou have removed %s.{x", member->name);
-			act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			sprintf(buf, "{Y[%s has been removed from %s]{x\n\r", member->name, ch->church->name);
 			gecho(buf);
 
@@ -677,7 +677,7 @@ void do_chrem(CHAR_DATA *ch, char *argument)
             add_church_log_entry(ch->church, ch->name, buf, CHLOG_MEMBERS, TRUE);
 
 		    if (member->ch != NULL)
-				act("{YYou have been removed by $N.{x", member->ch, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				act("{YYou have been removed by $N.{x", member->ch, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		    remove_member(member);
 		}
     }
@@ -893,10 +893,10 @@ void do_chgohall(CHAR_DATA *ch, char *argument)
 	}
     }
 
-    act("{R$n disappears, leaving a resounding echo of discord.{X", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act("{R$n disappears, leaving a resounding echo of discord.{X", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     char_from_room(ch);
     char_to_room(ch, location_to_room(&ch->church->recall_point));
-    act("$n appears in the room.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act("$n appears in the room.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     do_function(ch, &do_look, "auto");
 }
 
@@ -947,9 +947,9 @@ void do_chflag(CHAR_DATA *ch, char *argument)
     }
 
     act("$n scribbles something down on a piece of parchment.",
-	temp_char, ch, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	temp_char, ch, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     act("{C$n says 'Very well $N, your flag has now been changed.'{x",
-	temp_char, ch, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	temp_char, ch, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
     if (ch->church->flag != NULL)
         free_string(ch->church->flag);
@@ -1126,8 +1126,8 @@ void do_chbalance(CHAR_DATA * ch, char *argument)
     sprintf(buf,
     "{CErrol says 'You have %ld pneuma, %ld karma, and %ld gold in your account.'{x\n\r",
         ch->church->pneuma, ch->church->dp, ch->church->gold);
-    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     return;
 }
 
@@ -1629,7 +1629,7 @@ void do_chexcommunicate(CHAR_DATA * ch, char *argument)
 
     if (member->rank->rank_type == RANK_TYPE_LEADER)
     {
-        act("You may not excommunicate a church leader.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        act("You may not excommunicate a church leader.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         return;
     }
 
@@ -3698,7 +3698,7 @@ void do_chdonate(CHAR_DATA *ch, char *argument)
 
     if (obj->timer > 0 || IS_SET(obj->extra[1], ITEM_NO_DONATE))
     {
-		act("You cannot donate $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		act("You cannot donate $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
     }
 
@@ -3708,8 +3708,8 @@ void do_chdonate(CHAR_DATA *ch, char *argument)
 		return;
     }
 
-    act("You toss $p into the air and it disappears into a swirling vortex.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-    act("$n tosses $p into the air and it disappears into a swirling vortex.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+    act("You toss $p into the air and it disappears into a swirling vortex.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act("$n tosses $p into the air and it disappears into a swirling vortex.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     obj_from_char(obj);
     obj_to_room(obj, treasure->room);
 
@@ -6667,7 +6667,7 @@ void initialize_church_ranks(CHURCH_DATA *church)
         ~0, RANK_TYPE_LEADER);
 
     // Officer: most management permissions
-    CHURCH_RANK_DATA *officer_rank = add_church_rank(
+    (void)add_church_rank(
         church, "Officer", "Officer", "Officer", "Officer",
         CHURCH_PERM_GOHALL | CHURCH_PERM_TALK | CHURCH_PERM_TREASURE |
         CHURCH_PERM_WITHDRAW | CHURCH_PERM_BALANCE | CHURCH_PERM_MOTD |

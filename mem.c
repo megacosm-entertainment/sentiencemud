@@ -574,6 +574,13 @@ CHAR_DATA *new_char( void )
     ch->max_mana                = 100;
     ch->move                    = 100;
     ch->max_move                = 100;
+    ch->body_type               = BODY_TYPE_NEUTRAL;
+    ch->verb_preference         = VERB_FORM_DEFAULT;
+    ch->pronoun_he_she          = str_dup("");
+    ch->pronoun_him_her         = str_dup("");
+    ch->pronoun_his_her         = str_dup("");
+    ch->pronoun_his_hers        = str_dup("");
+    ch->pronoun_himself_herself = str_dup("");
     ch->manastore		= 0;
     ch->affected_by[0] 		= 0;
     ch->affected_by[1]		= 0;
@@ -2107,6 +2114,13 @@ MOB_INDEX_DATA *new_mob_index( void )
     pMob->count         =   0;
     pMob->killed        =   0;
     pMob->sex           =   0;
+    pMob->body_type    =   BODY_TYPE_NEUTRAL;
+    pMob->pronoun_he_she = str_dup("");
+    pMob->pronoun_him_her = str_dup("");
+    pMob->pronoun_his_her = str_dup("");
+    pMob->pronoun_his_hers = str_dup("");
+    pMob->pronoun_himself_herself = str_dup("");
+    pMob->verb_preference = VERB_FORM_DEFAULT;
     pMob->level         =   0;
     pMob->act[0]          =   ACT_IS_NPC;
     pMob->act[1]		=   0;
@@ -2837,8 +2851,8 @@ void free_auto_war( AUTO_WAR *m_auto_war )
     while( m_auto_war->team_players != NULL )
     {
 	stop_fighting( m_auto_war->team_players, false);
-	act( "{D$n disappears in puff of smoke.{x", m_auto_war->team_players, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
-	act( "You have been transported to Plith.", m_auto_war->team_players, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+	act( "{D$n disappears in puff of smoke.{x", m_auto_war->team_players, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
+	act( "You have been transported to Plith.", m_auto_war->team_players, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
 	char_from_room( m_auto_war->team_players );
 	char_to_room( m_auto_war->team_players, get_room_index( get_reserved_vnum("room_default_recall") ) );
 	do_function( m_auto_war->team_players, &do_look, "auto");

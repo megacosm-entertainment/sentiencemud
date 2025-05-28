@@ -63,7 +63,6 @@ C_FILES = \
     fight2.c \
     gq.c \
     handler.c \
-    healer.c \
     help.c \
     house.c \
     html.c \
@@ -153,9 +152,10 @@ objdir:
 
 $(EXE): objdir $(O_FILES)
 	@echo "Linking $(EXE)..."
-	rm -f $(EXE)
-	$(CC) -o $(EXE) $(O_FILES) $(L_FLAGS)
-	-chmod 775 $(EXE)
+	@rm -f $(EXE)
+	@$(CC) -o $(EXE) $(O_FILES) $(L_FLAGS)
+	@-chmod 775 $(EXE)
+	@echo "Build complete!"
 
 $(OBJDIR)/%.o: %.c
 	@echo "Building $<..."

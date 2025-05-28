@@ -1048,7 +1048,7 @@ void mobile_update(void)
 
 			if (obj_best != NULL)
 			{
-			act("$n gets $p.", ch, NULL, NULL, obj_best, NULL, NULL, NULL, TO_ROOM);
+			act("$n gets $p.", ch, NULL, NULL, obj_best, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 			obj_from_room(obj_best);
 			obj_to_char(obj_best, ch);
 			}
@@ -1686,7 +1686,7 @@ void char_update(void)
                 ch->leader == NULL &&  ch->master == NULL &&
                 ch->in_room != ch->home_room && !IS_SET(ch->act[0],ACT_SENTINEL) &&
                 number_percent() < 1) {
-                act("$n wanders on home.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                act("$n wanders on home.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
                 if(ch->home_room == NULL) {
                     extract_char(ch, true);
                     continue;
@@ -1721,7 +1721,7 @@ void char_update(void)
             !IS_SET(ch->parts, PART_GILLS) && !IS_SET(ch->imm_flags, IMM_WATER) &&
             IS_SET(ch->in_room->room_flag[0], ROOM_UNDERWATER) && !IS_IMMORTAL(ch)) {
             send_to_char("You choke and gag as your lungs fill with water!\n\r", ch);
-            act("$n thrashes about in the water gasping for air!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+            act("$n thrashes about in the water gasping for air!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
             damage(ch, ch, ch->hit/2, TYPE_UNDEFINED, DAM_DROWNING,false);
         }
 
@@ -1796,14 +1796,14 @@ void char_update(void)
                     if (obj->item_type == ITEM_LIGHT && obj->wear_loc == WEAR_LIGHT && obj->value[2] > 0) {
                         if (--obj->value[2] <= 0 && ch->in_room != NULL) {
                             --ch->in_room->light;
-                            act("$p goes out.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-                            act("$p flickers and goes out.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+                            act("$p goes out.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                            act("$p flickers and goes out.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                             log_string("it went out");
                             list_remlink(ch->lworn, obj, false);
                             extract_obj(obj);
                             break;
                         } else if (obj->value[2] <= 5 && ch->in_room != NULL) {
-                            act("$p flickers.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+                            act("$p flickers.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                         }
                     }
                 }
@@ -1853,7 +1853,7 @@ void char_update(void)
                     if (ch->fighting != NULL)
                         stop_fighting(ch, true);
 
-                    act("{D$n disappears into the void.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                    act("{D$n disappears into the void.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
                     send_to_char("{DYou disappear into the void.\n\r{x", ch);
 
                     if (ch->level > 1)
@@ -1887,28 +1887,28 @@ void char_update(void)
                     switch(num)
                     {
                     case 0:
-                        act("{YLightning forks down into the earth from above.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+                        act("{YLightning forks down into the earth from above.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                         break;
                     case 1:
-                        act("{MThe wind howls loudly then knocks you to your knees!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+                        act("{MThe wind howls loudly then knocks you to your knees!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                         ch->position = POS_RESTING;
                         break;
                     case 2:
-                        act("{MThe sky groans loudly as the clouds above swirl chaotically.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+                        act("{MThe sky groans loudly as the clouds above swirl chaotically.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                         break;
                     case 3:
-                        act("{YLightning crashes to the ground next to you!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+                        act("{YLightning crashes to the ground next to you!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                         break;
                     case 4:
                         if (number_percent() < lbchance && !IS_SET(ch->in_room->room_flag[0], ROOM_SAFE) && (IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NORECKONING)) && ch->fighting == NULL)
                         {
-                            act("{YZAAAAAAAAAAAAAAP! You are struck by a bolt from the sky...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+                            act("{YZAAAAAAAAAAAAAAP! You are struck by a bolt from the sky...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
                             damage(ch, ch, lbdam, sn, DAM_LIGHTNING, false);
                         }
                         break;
                     case 5:
-                        act("{YThe wind screams around you, threatening to blow you over.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+                        act("{YThe wind screams around you, threatening to blow you over.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                         break;
                     }
                 }
@@ -1925,16 +1925,16 @@ void char_update(void)
                 switch(number_range(0,4))
                 {
                     case 0:
-                    act("$n snorts and shakes some of the rancid mucus from $s body.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                    act("$n snorts and shakes some of the rancid mucus from $s body.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
                     break;
                     case 1:
-                    act("$n lets out a deep chilling growl.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                    act("$n lets out a deep chilling growl.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
                     break;
                     case 2:
-                    act("$n nibbles on $s long sharp claws.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                    act("$n nibbles on $s long sharp claws.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
                     break;
                     case 3:
-                    act("$n growls at you intimidatingly.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                    act("$n growls at you intimidatingly.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
                     break;
                 }
             }
@@ -1953,8 +1953,8 @@ void char_update(void)
 
                 if (player != NULL && ch != player)
                 {
-                    act("$n snorts loudly then viciously attacks $N!", ch, player, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-                    act("You lash out at $N uncontrollably!", ch, player, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+                    act("$n snorts loudly then viciously attacks $N!", ch, player, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                    act("You lash out at $N uncontrollably!", ch, player, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                     set_fighting(ch, player);
                 }
             }
@@ -1971,7 +1971,7 @@ void char_update(void)
                             (ch->alignment > 0 && IS_OBJ_STAT(obj, ITEM_ANTI_GOOD)))
                         {
                             sprintf(buf, "{R$n is scorched by %s!{x", obj->short_descr);
-                            act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                            act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
                             sprintf(buf, "{RYou are scorched by %s!{x\n\r", obj->short_descr);
                             send_to_char(buf, ch);
 
@@ -1993,7 +1993,7 @@ void char_update(void)
                             (ch->alignment > 0 && IS_OBJ_STAT(obj, ITEM_ANTI_GOOD)))
                         {
                             sprintf(buf, "{R$n is scorched by %s!{x", obj->short_descr);
-                            act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                            act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
                             sprintf(buf, "{RYou are scorched by %s!{x\n\r", obj->short_descr);
                             send_to_char(buf, ch);
 
@@ -2012,9 +2012,9 @@ void char_update(void)
                 ch->in_room->vnum != get_reserved_vnum("room_southern_harbour") &&
                 !IS_NPC(ch) && is_affected(ch, gsn_fly))
             {
-                act("{MThe air sparks as the ocean's magical shield dispels your ability to fly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-                act("You plummet into the ocean.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-                act("{MThe air around $n sparks, $n plummets into the ocean.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                act("{MThe air sparks as the ocean's magical shield dispels your ability to fly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                act("You plummet into the ocean.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                act("{MThe air around $n sparks, $n plummets into the ocean.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
                 affect_strip(ch, gsn_fly);
             }
 
@@ -2061,13 +2061,13 @@ void char_update(void)
                         ch->in_room->sector_type == SECT_WATER_SWIM ||
                         ch->in_room->sector_type == SECT_UNDERWATER ||
                         ch->in_room->sector_type == SECT_DEEP_UNDERWATER) {
-                        act("$t, you plummet into the water below.", ch, NULL, NULL, NULL, NULL, reason, NULL, TO_CHAR);
-                        act("$t, $n plummets into the water below.", ch, NULL, NULL, NULL, NULL, reason, NULL, TO_ROOM);
+                        act("$t, you plummet into the water below.", ch, NULL, NULL, NULL, NULL, reason, NULL, TO_CHAR, NULL, NULL);
+                        act("$t, $n plummets into the water below.", ch, NULL, NULL, NULL, NULL, reason, NULL, TO_ROOM, NULL, NULL);
                         damage(ch, ch, number_range(10,100), TYPE_UNDEFINED, IS_AFFECTED(ch,AFF_SWIM)?DAM_WATER:DAM_DROWNING, false);
                         if(RIDDEN(ch)) damage(RIDDEN(ch), RIDDEN(ch), number_range(10,100), TYPE_UNDEFINED, IS_AFFECTED(RIDDEN(ch),AFF_SWIM)?DAM_WATER:DAM_DROWNING, false);
                     } else {
-                        act("$t, you plummet to the ground below.", ch, NULL, NULL, NULL, NULL, reason, NULL, TO_CHAR);
-                        act("$t, $n plummets to the ground below.", ch, NULL, NULL, NULL, NULL, reason, NULL, TO_ROOM);
+                        act("$t, you plummet to the ground below.", ch, NULL, NULL, NULL, NULL, reason, NULL, TO_CHAR, NULL, NULL);
+                        act("$t, $n plummets to the ground below.", ch, NULL, NULL, NULL, NULL, reason, NULL, TO_ROOM, NULL, NULL);
                         damage(ch, ch, number_range(20,250), TYPE_UNDEFINED, DAM_BASH, false);
                         if(RIDDEN(ch)) damage(RIDDEN(ch), RIDDEN(ch), number_range(20,250), TYPE_UNDEFINED, DAM_BASH, false);
                     }
@@ -2079,13 +2079,13 @@ void char_update(void)
             if (ch->in_room->sector_type == SECT_WATER_NOSWIM && !IS_NPC(ch) &&
                 ch->move <= 50 && !IS_AFFECTED(ch, AFF_FLYING))
             {
-                act("Completely exhausted, you find little energy to keep swimming.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-                act("Completely exhausted, $n stops swimming from lack of energy.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                act("Completely exhausted, you find little energy to keep swimming.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                act("Completely exhausted, $n stops swimming from lack of energy.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
                 if (!IS_AFFECTED(ch, AFF_SWIM))
                 {
-                    act("You cough and splutter as you breath in a lung full of water.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-                    act("$n coughs and splutters as $s breaths in a lung full of water.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                    act("You cough and splutter as you breath in a lung full of water.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                    act("$n coughs and splutters as $s breaths in a lung full of water.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
                     damage(ch, ch, 30000, TYPE_UNDEFINED, DAM_DROWNING, false);
                 }
@@ -2114,7 +2114,7 @@ void char_update(void)
                 if (ch->hit <= 0)
                 {
                     send_to_char("You feel yourself disintegrate into dust.\n\r", ch);
-                    act("$n disintegrates into dust.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                    act("$n disintegrates into dust.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
                     raw_kill(ch, false, true, RAWKILL_INCINERATE);
                 }
 
@@ -2236,7 +2236,7 @@ void char_update(void)
 
             if (poison != NULL)
             {
-                act("$n shivers and suffers.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                act("$n shivers and suffers.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
                 send_to_char("You shiver and suffer.\n\r", ch);
                 ch->set_death_type = DEATHTYPE_TOXIN;
                 damage(ch, ch, poison->level/10 + 1, gsn_poison, DAM_POISON, false);
@@ -2312,10 +2312,10 @@ void obj_update(void)
 						if (paf->type > 0 && skill_table[paf->type].msg_obj) {
 							if (obj->carried_by != NULL) {
 								rch = obj->carried_by;
-								act(skill_table[paf->type].msg_obj, rch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+								act(skill_table[paf->type].msg_obj, rch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 							} else if (obj->in_room && obj->in_room->people) {
 								rch = obj->in_room->people;
-								act(skill_table[paf->type].msg_obj, rch, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
+								act(skill_table[paf->type].msg_obj, rch, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL, NULL, NULL);
 							}
 						}
 					}
@@ -2326,7 +2326,7 @@ void obj_update(void)
 		    			if (obj->pIndexData->vnum == get_reserved_vnum("obj_skull_normal"))
 		    			{
 							if ((rch = obj->carried_by) != NULL)
-			    			act("$p flares and vanishes.", rch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			    			act("$p flares and vanishes.", rch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 						else if (obj->in_room != NULL)
 						{
 			    			sprintf(buf, "%s flares and vanishes.", obj->short_descr);
@@ -2340,7 +2340,7 @@ void obj_update(void)
 							if (--obj->condition <= 0)
 							{
 			    				if ((rch = obj->carried_by) != NULL)
-									act("$p fumes violently and explodes!", rch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+									act("$p fumes violently and explodes!", rch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			    				else if (obj->in_room != NULL)
 			    				{
 									sprintf(buf, "%s fumes violently and explodes!", obj->short_descr);
@@ -2352,7 +2352,7 @@ void obj_update(void)
 							else
 							{
 			    				if ((rch = obj->carried_by) != NULL)
-									act("The dark enchantment upon $p wears off.", rch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+									act("The dark enchantment upon $p wears off.", rch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			    				else if (obj->in_room != NULL)
 			    				{
 									sprintf(buf, "The dark enchantment upon %s wears off.", obj->short_descr);
@@ -2455,13 +2455,13 @@ void obj_update(void)
 					break;
 
 				case IS_RESISTANT:
-					act("You shiver a bit, but are able to withstand the cold.", rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-					act("$n shivers a bit, but is able to withstand the cold.",  rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					act("You shiver a bit, but are able to withstand the cold.", rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+					act("$n shivers a bit, but is able to withstand the cold.",  rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 					break;
 
 				default:
-					act("You shiver from the intense ice storm.", rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-					act("$n shivers from the intense ice storm.", rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					act("You shiver from the intense ice storm.", rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+					act("$n shivers from the intense ice storm.", rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 					break;
 				}
 			}
@@ -2498,9 +2498,9 @@ void obj_update(void)
 			message = corpse_info_table[CORPSE_TYPE(obj)].decay_message;
 
 			if (obj->carried_by)
-				act(message, obj->carried_by, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				act(message, obj->carried_by, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			else if (obj->in_room && obj->in_room->people)
-				act(message, obj->in_room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
+				act(message, obj->in_room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL, NULL, NULL);
 			message = NULL;
 
 			if(corpse_info_table[CORPSE_TYPE(obj)].decay_type != RAWKILL_NOCORPSE) {
@@ -2526,9 +2526,9 @@ void obj_update(void)
 		// Do we have any message to process?
 		if(!IS_NULLSTR(message)) {
 			if (obj->carried_by)
-				act(message, obj->carried_by, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				act(message, obj->carried_by, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			else if (obj->in_room && obj->in_room->people)
-				act(message, obj->in_room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
+				act(message, obj->in_room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL, NULL, NULL);
 		}
 
 		// Send the contents of decaying corpses somewhere, depending on where the corpse is.
@@ -2622,7 +2622,7 @@ void aggr_update(void)
 		if (wch->bashed <= 0)
 		{
 		    send_to_char("You scramble to your feet!\n\r", wch);
-		    act("$n scrambles to $s feet.", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		    act("$n scrambles to $s feet.", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 		    wch->on = NULL;
 
@@ -2708,7 +2708,7 @@ void aggr_update(void)
 							send_to_char("{xYou cough uncontrollably from the toxic fumes.\n\r", wch);
 						else
 							send_to_char("{xYou inhale the toxic fumes, coughing uncontrollably.\n\r", wch);
-						act("{x$n coughs uncontrollably from toxic fumes.", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+						act("{x$n coughs uncontrollably from toxic fumes.", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 					}
 				} else {
 					// Change all affects to non-permanent
@@ -2720,7 +2720,7 @@ void aggr_update(void)
 					if(number_percent() < 4) {
 						cough = true;
 						send_to_char("{xYou cough uncontrollably.\n\r", wch);
-						act("{x$n coughs uncontrollably.", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+						act("{x$n coughs uncontrollably.", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 					}
 				}
 
@@ -2778,7 +2778,7 @@ void aggr_update(void)
 	    {
 		send_to_char("You feel the power of movement coming back to your muscles.\n\r", wch);
 		act("$n feels the power of movement coming back to $s muscles.",
-			wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		wch->paralyzed = 0;
 	    }
 	}
@@ -2800,9 +2800,9 @@ void aggr_update(void)
 		    if (number_percent() <= 2)
 		    {
 			act("{RYou are scorched by flames!{x",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			act("{R$n is scorched by flames!{x",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 			damage(wch, wch, number_range(50, 500),
 				TYPE_UNDEFINED, DAM_FIRE, false);
 		    }
@@ -2813,9 +2813,9 @@ void aggr_update(void)
 			if (!IS_SET(wch->affected_by[0], AFF_BLIND)) {
 
 			    act("{DYou are blinded by smoke!{x",
-				    wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				    wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			    act("{D$n is blinded by smoke!{x",
-				    wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				    wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 				af.slot	= WEAR_NONE;
 			    af.where     = TO_AFFECTS;
@@ -2834,9 +2834,9 @@ void aggr_update(void)
 		    if (number_percent() <= 2)
 		    {
 			act("{RYou are scorched by flames!{x",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			act("{R$n is scorched by flames!{x",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 			fire_effect((void *) wch,obj->level,	number_range(0, wch->tot_level * 10),TARGET_CHAR);
 		    }
 		}
@@ -2846,14 +2846,14 @@ void aggr_update(void)
 		{
 		    if (number_percent() <= 2)
 		    {
-			act("You splutter and gag!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			act("$n splutters and gags!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			act("You splutter and gag!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+			act("$n splutters and gags!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		    }
 		    else
 		    if (number_percent() <= 2)
 		    {
-			act("You cough and splutter!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			act("$n coughs and splutters violently!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			act("You cough and splutter!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+			act("$n coughs and splutters violently!", wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		    }
 		    if (number_percent() <= 2 && wch->fighting == NULL
 		    && IS_AWAKE(wch) && wch->position == POS_STANDING
@@ -2861,18 +2861,18 @@ void aggr_update(void)
 		    &&  !(!IS_NPC(wch) && IS_IMMORTAL(wch)))
 		    {
 			act("$n stumbles about choking and gagging!",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 			act("You stumble about choking and gagging!",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			do_function(wch, &do_flee, NULL);
 		    }
 		    else
 		    if (number_percent() <= 2)
 		    {
 			act("$n is blinded by the toxic haze!",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 			act("You are blinded by the toxic haze around you!",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			af.slot	= WEAR_NONE;
 			af.where     = TO_AFFECTS;
 			af.group	 = AFFGROUP_PHYSICAL;
@@ -2890,9 +2890,9 @@ void aggr_update(void)
 		    && check_immune(wch, DAM_POISON) != IS_IMMUNE)
 		    {
 			act("$n is poisoned by the toxic haze!",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 			act("You are poisoned by the toxic haze around you!",
-				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			af.slot	= WEAR_NONE;
 			af.where     = TO_AFFECTS;
 			af.group	 = AFFGROUP_PHYSICAL;
@@ -2935,8 +2935,8 @@ void aggr_update(void)
 			    &&  victim->position == POS_STANDING
 			    &&  number_percent() < 20)
 			    {
-				act("{GYou choke on the acrid fumes from $p!{x", victim, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-				act("{G$n chokes on the acrid fumes from $p!{x", victim, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+				act("{GYou choke on the acrid fumes from $p!{x", victim, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+				act("{G$n chokes on the acrid fumes from $p!{x", victim, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 				do_flee(victim, NULL);
 			    }
 			}
@@ -3229,13 +3229,13 @@ void update_hunting(void)
 	    switch(result)
 	    {
 		case 0:
-		    act("{DYou get the feeling something is following you...{x", mob->hunting, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		    act("{DYou get the feeling something is following you...{x", mob->hunting, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	   	    break;
 		case 1:
-		    act("{DYou hear footsteps behind you...{x", mob->hunting, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		    act("{DYou hear footsteps behind you...{x", mob->hunting, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	   	    break;
 		case 2:
-		    act("{DYou hear noises as if something is looking for you...{x", mob->hunting, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		    act("{DYou hear noises as if something is looking for you...{x", mob->hunting, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	   	    break;
 	    }
         }
@@ -3292,7 +3292,7 @@ void update_hunting_pc(CHAR_DATA *ch)
     if (number_percent() > chance && number_percent() < 25)
     {
 	send_to_char("You lost the trail.\n\r", ch);
-	act("$n has lost the trail.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act("$n has lost the trail.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	ch->hunting = NULL;
 	return;
     }
@@ -3312,30 +3312,30 @@ void update_hunting_pc(CHAR_DATA *ch)
 	    if (number_percent() < 20)
 	    {
 		send_to_char("You stop and sniff the air.\n\r", ch);
-		act("$n stops and sniffs the air.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("$n stops and sniffs the air.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	    }
 	    else
 	    if (number_percent() < 40)
 	    {
 		send_to_char("You analyze some tracks.\n\r", ch);
-		act("$n analyzes some tracks.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("$n analyzes some tracks.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	    }
 	    else
 	    if (number_percent() < 60)
 	    {
 		send_to_char("You look around warily.\n\r", ch);
-		act("$n looks around warily.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("$n looks around warily.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	    }
 	    else
 	    if (number_percent() < 80)
 	    {
-		act("You scan the horizons for $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		act("$n scans the horizons for $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("You scan the horizons for $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+		act("$n scans the horizons for $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	    }
 	    else
 	    {
-		act("You move towards $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		act("$n moves towards $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("You move towards $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+		act("$n moves towards $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	    }
 	}
 
@@ -3489,26 +3489,26 @@ void bitten_update(CHAR_DATA *ch)
 	    send_to_char("{RYou feel slightly uncomfortable.{x\n\r",
 		    ch);
 	    act("{R$n begins to look uncomfortable.{x", ch,
-		    NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		    NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	}
 	else if (percent > 80)
 	{
 	    send_to_char("{RYou feel feverish.{x\n\r", ch);
 	    act("{R$n sneezes, looking feverish.{x", ch,
-		    NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		    NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	}
 	else if (percent > 70)
 	{
 	    sprintf(buf, "{RYou pale as the toxins race through your veins.{x\n\r");
 	    act("{R$n pales as venomous toxins race through $s body.{x", ch,
-		    NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		    NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	    send_to_char(buf , ch);
 	}
 	else if (percent > 60)
 	{
 	    send_to_char("{RDizzy, you swoon back and forth.{x\n\r", ch);
 	    act("{R$n swoons back and forth, dizzy.{x", ch,
-		    NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		    NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	}
 	else if (percent > 50)
 	{
@@ -3517,7 +3517,7 @@ void bitten_update(CHAR_DATA *ch)
 	else if (percent > 40)
 	{
 	    send_to_char("{RYou twitch nervously as you feel an unfamiliar venom in your body.{x\n\r", ch);
-	    act("{R$n twitches nervously.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	    act("{R$n twitches nervously.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	}
 	else if (percent > 30)
 	{
@@ -3530,7 +3530,7 @@ void bitten_update(CHAR_DATA *ch)
 	else if (percent > 10)
 	{
 	    send_to_char("{RYour eyes roll back in your head.{x\n\r", ch);
-	    act("{R$n's eyes roll back in $s head.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	    act("{R$n's eyes roll back in $s head.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	}
     }
 
@@ -3837,14 +3837,14 @@ void scare_update(CHAR_DATA *ch)
 	    {
 		if (can_see(victim, ch))
 		{
-		    act("You balk with fear at the sight of $n!",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-		    act("$N balks with fear at the sight of you!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		    act("$N balks with fear at the sight of $n!",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+		    act("You balk with fear at the sight of $n!",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+		    act("$N balks with fear at the sight of you!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+		    act("$N balks with fear at the sight of $n!",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
 		}
 		else
 		{
-		    act("You balk with terror at a terrifying ominous presence in the room!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-		    act("$n balks with terror at a terrifying ominous presence in the room!", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		    act("You balk with terror at a terrifying ominous presence in the room!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+		    act("$n balks with terror at a terrifying ominous presence in the room!", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		}
 
 		do_flee(victim, NULL);

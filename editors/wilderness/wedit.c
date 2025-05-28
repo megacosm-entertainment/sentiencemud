@@ -33,6 +33,7 @@
 #include "../../scripts.h"
 #include "../../wilds.h"
 
+extern void correct_vrooms(WILDS_DATA *pWilds, WILDS_TERRAIN *pTerrain);
 
 WEDIT ( wedit_create )
 {

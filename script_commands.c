@@ -1900,7 +1900,7 @@ SCRIPT_CMD(scriptcmd_echoat)
 			room_echo(room, buffer->string);
 		}
 		else
-			act(buffer->string, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act(buffer->string, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	}
 	free_buf(buffer);
 }
@@ -5429,15 +5429,31 @@ SCRIPT_CMD(scriptcmd_alterroom)
 	if(lptr) {
 		switch (op) {
 		case OPR_ADD:
+			if( !allowarith ) {
+				bug("AlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+				return;
+			}
 			*lptr += value; break;
 
 		case OPR_SUB:
+			if( !allowarith ) {
+				bug("AlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+				return;
+			}
 			*lptr -= value; break;
 
 		case OPR_MULT:
+			if( !allowarith ) {
+				bug("AlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+				return;
+			}
 			*lptr *= value; break;
 
 		case OPR_DIV:
+			if( !allowarith ) {
+				bug("AlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+				return;
+			}
 			if (!value) {
 				bug("AlterRoom - alterroom called with operator / and value 0", 0);
 				return;
@@ -5445,6 +5461,10 @@ SCRIPT_CMD(scriptcmd_alterroom)
 			*lptr /= value; break;
 
 		case OPR_MOD:
+			if( !allowarith ) {
+				bug("AlterRoom - alterroom called with arithmetic operator on a bitonly field.", 0);
+				return;
+			}
 			if (!value) {
 				bug("AlterRoom - alterroom called with operator % and value 0", 0);
 				return;
@@ -5457,6 +5477,10 @@ SCRIPT_CMD(scriptcmd_alterroom)
 		case OPR_MAX: *lptr = UMAX(*lptr, value); break;
 
 		case OPR_ASSIGN:
+			if( !allowbitwise ) {
+				bug("AlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+				return;
+			}
 			if (bank != NULL)
 			{
 				for(int i = 0; bank[i]; i++)
@@ -5467,6 +5491,10 @@ SCRIPT_CMD(scriptcmd_alterroom)
 			break;
 
 		case OPR_AND:
+			if( !allowbitwise ) {
+				bug("AlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+				return;
+			}
 			if (bank != NULL)
 			{
 				for(int i = 0; bank[i]; i++)
@@ -5477,6 +5505,10 @@ SCRIPT_CMD(scriptcmd_alterroom)
 			break;
 
 		case OPR_OR:
+			if( !allowbitwise ) {
+				bug("AlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+				return;
+			}
 			if (bank != NULL)
 			{
 				for(int i = 0; bank[i]; i++)
@@ -5487,6 +5519,10 @@ SCRIPT_CMD(scriptcmd_alterroom)
 			break;
 
 		case OPR_NOT:
+			if( !allowbitwise ) {
+				bug("AlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+				return;
+			}
 			if (bank != NULL)
 			{
 				for(int i = 0; bank[i]; i++)
@@ -5497,6 +5533,10 @@ SCRIPT_CMD(scriptcmd_alterroom)
 			break;
 
 		case OPR_XOR:
+			if( !allowbitwise ) {
+				bug("AlterRoom - alterroom called with bitwise operator on a non-bitvector field.", 0);
+				return;
+			}
 			if (bank != NULL)
 			{
 				for(int i = 0; bank[i]; i++)

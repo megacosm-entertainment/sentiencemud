@@ -397,7 +397,19 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     || !str_cmp(ch->prompt,"{B<{x%h{Bhp {x%m{Bm {x%v{Bmv>{x "))
         fprintf(fp, "Prom %s~\n",      ch->prompt  	);
     fprintf(fp, "Race %s~\n", pc_race_table[ch->race].name);
-    fprintf(fp, "Sex  %d\n",	ch->sex			);
+    fprintf(fp, "BodyType %d\n", ch->body_type );
+    if (ch->pronoun_he_she && ch->pronoun_he_she[0] != '\0')
+        fprintf(fp, "PronounSS %s~\n", ch->pronoun_he_she);
+    if (ch->pronoun_him_her && ch->pronoun_him_her[0] != '\0')
+        fprintf(fp, "PronounOS %s~\n", ch->pronoun_him_her);
+    if (ch->pronoun_his_her && ch->pronoun_his_her[0] != '\0')
+        fprintf(fp, "PronounPAS %s~\n", ch->pronoun_his_her);
+    if (ch->pronoun_his_hers && ch->pronoun_his_hers[0] != '\0')
+        fprintf(fp, "PronounPPS %s~\n", ch->pronoun_his_hers);
+    if (ch->pronoun_himself_herself && ch->pronoun_himself_herself[0] != '\0')
+        fprintf(fp, "PronounRS %s~\n", ch->pronoun_himself_herself);
+    fprintf(fp, "VerbPref %d\n", ch->verb_preference);
+
     fprintf(fp, "LockerRent %ld\n", (long int)ch->locker_rent   );
 	if (ch->deleted)
 	{
@@ -1172,6 +1184,10 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
     int lastlogoff = current_time;
     int percent;
     int i = 0;
+	int old_sex_val = -1;
+	
+	ch->body_type = BODY_TYPE_NEUTRAL; // Default before loading
+    if(ch->pcdata) ch->pcdata->verb_preference = VERB_FORM_DEFAULT;
 
     sprintf(buf,"save.c, fread_char: reading %s.",ch->name);
     log_string(buf);
@@ -1478,6 +1494,8 @@ void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__vers
 		location_set(&ch->before_social,fread_number(fp),fread_number(fp),fread_number(fp),fread_number(fp));
 		fMatch = true;
 	    }
+        KEY("BodyType", ch->body_type, fread_number(fp));
+
 		break;
 
 	case 'C':
@@ -1934,6 +1952,11 @@ iterator_stop(&it);
 	    KEY("PKCount",	ch->player_deaths,      fread_number(fp));
 	    KEY("PKKills",	ch->player_kills,	fread_number(fp));
 	    KEY("Pneuma",      ch->pneuma,	        fread_number(fp));
+        SKEY("PronounSS", ch->pronoun_he_she);
+        SKEY("PronounOS", ch->pronoun_him_her);
+        SKEY("PronounPAS", ch->pronoun_his_her);
+        SKEY("PronounPPS", ch->pronoun_his_hers);
+        SKEY("PronounRS", ch->pronoun_himself_herself);
 
 	    break;
         case 'Q':
@@ -2206,7 +2229,12 @@ iterator_stop(&it);
 	    KEY("SavingThrow",	ch->saving_throw,	fread_number(fp));
 	    KEY("Save",	ch->saving_throw,	fread_number(fp));
 	    KEY("Scro",	ch->lines,		fread_number(fp));
-	    KEY("Sex",		ch->sex,		fread_number(fp));
+        if (IS_KEY("Sex")) // Old keyword for migration
+        {
+        old_sex_val = fread_number(fp);
+        fMatch = true;
+        break;
+        }
 	    if( !str_cmp(word, "Ship") )
 	    {
 			unsigned long id1 = fread_number(fp);
@@ -2412,6 +2440,8 @@ iterator_stop(&it);
 		break;
 
 	case 'V':
+        KEY("VerbPref", ch->verb_preference, fread_number(fp));
+
 	    KEY("Version",     ch->version,		fread_number (fp));
 	    KEY("Vers",	ch->version,		fread_number (fp));
 
@@ -2483,6 +2513,20 @@ iterator_stop(&it);
 	    fread_to_eol(fp);
 	}
     }
+
+	    if (old_sex_val != -1) { // Migration from old Sex field
+        if (ch->version < VERSION_PLAYER_009) { // VERSION_PLAYER_XXX is the version introducing body_type
+            if (old_sex_val == 0) ch->body_type = BODY_TYPE_NEUTRAL; // SEX_NEUTRAL
+            else if (old_sex_val == 1) ch->body_type = BODY_TYPE_MALE;   // SEX_MALE
+            else if (old_sex_val == 2) ch->body_type = BODY_TYPE_FEMALE; // SEX_FEMALE
+            else ch->body_type = BODY_TYPE_NEUTRAL; // Default
+        }
+    }
+    // Ensure sex is set for compatibility if any old code still uses it
+    // This should eventually be removed.
+    if (ch->body_type == BODY_TYPE_MALE) ch->sex = 1; // SEX_MALE
+    else if (ch->body_type == BODY_TYPE_FEMALE) ch->sex = 2; // SEX_FEMALE
+    else ch->sex = 0; // SEX_NEUTRAL
 
 
 	// Make sure questing data from old info is configured properly
@@ -4478,6 +4522,29 @@ void fix_character( CHAR_DATA *ch, struct __player_data_versioning *__versioning
         case OLD_LEVEL_CREATOR:		ch->incog_level = STAFF_CREATOR; break;
         case OLD_LEVEL_IMPLEMENTOR:	ch->incog_level = STAFF_IMPLEMENTOR; break;
     }
+
+    if (ch->pcdata != NULL) {
+        if (ch->pronoun_he_she == NULL || ch->pronoun_he_she[0] == '\0') {
+            free_string(ch->pronoun_he_she);
+            ch->pronoun_he_she = str_dup(body_type_info[ch->body_type].default_he_she);
+        }
+        if (ch->pronoun_him_her == NULL || ch->pronoun_him_her[0] == '\0') {
+            free_string(ch->pronoun_him_her);
+            ch->pronoun_him_her = str_dup(body_type_info[ch->body_type].default_him_her);
+        }
+        if (ch->pronoun_his_her == NULL || ch->pronoun_his_her[0] == '\0') {
+            free_string(ch->pronoun_his_her);
+            ch->pronoun_his_her = str_dup(body_type_info[ch->body_type].default_his_her);
+        }
+        if (ch->pronoun_his_hers == NULL || ch->pronoun_his_hers[0] == '\0') {
+            free_string(ch->pronoun_his_hers);
+            ch->pronoun_his_hers = str_dup(body_type_info[ch->body_type].default_his_hers);
+        }
+        if (ch->pronoun_himself_herself == NULL || ch->pronoun_himself_herself[0] == '\0') {
+            free_string(ch->pronoun_himself_herself);
+            ch->pronoun_himself_herself = str_dup(body_type_info[ch->body_type].default_himself_herself);
+        }
+	}
 }
 
 

@@ -1173,8 +1173,8 @@ void affect_modify(CHAR_DATA *ch, AFFECT_DATA *paf, bool fAdd)
 	if (depth == 0)
 	{
 	    depth++;
-	    act("You drop $p.", ch, NULL, NULL, wield, NULL, NULL, NULL, TO_CHAR);
-	    act("$n drops $p.", ch, NULL, NULL, wield, NULL, NULL, NULL, TO_ROOM);
+	    act("You drop $p.", ch, NULL, NULL, wield, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+	    act("$n drops $p.", ch, NULL, NULL, wield, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	    obj_from_char(wield);
 	    obj_to_room(wield, ch->in_room);
 	    depth--;
@@ -2110,7 +2110,7 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
             	!IS_AFFECTED(vch,AFF_PLAGUE) && number_bits(6) == 0)
             {
             	send_to_char("You feel hot and feverish.\n\r",vch);
-            	act("$n shivers and looks very ill.",vch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+            	act("$n shivers and looks very ill.",vch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
             	affect_join(vch,&plague);
             }
         }
@@ -2399,8 +2399,8 @@ void equip_char(CHAR_DATA *ch, OBJ_DATA *obj, int iWear)
     ||   (IS_OBJ_STAT(obj, ITEM_ANTI_GOOD)    && IS_GOOD(ch)   )
     ||   (IS_OBJ_STAT(obj, ITEM_ANTI_NEUTRAL) && IS_NEUTRAL(ch)))
     {
-    act("You are zapped by $p and drop it.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-    act("$n is zapped by $p and drops it.",  ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+    act("You are zapped by $p and drop it.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act("$n is zapped by $p and drops it.",  ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
         REMOVE_BIT(obj->extra[1], ITEM_KEPT);
 
@@ -4743,7 +4743,7 @@ void stop_hunt(CHAR_DATA *ch, bool dead)
 
     if (!dead && ch->home_room != NULL)
     {
-    	act("$n wanders off.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    	act("$n wanders off.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	char_from_room(ch);
 	char_to_room(ch, ch->home_room);
     }
@@ -5439,7 +5439,7 @@ void return_from_maze(CHAR_DATA *ch)
 
     ch->maze_time_left = 0;
 
-    act("{W$n plummets to the ground with a loud THUD!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act("{W$n plummets to the ground with a loud THUD!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 }
 
 
@@ -6409,7 +6409,7 @@ bool can_give_obj(CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim, bool silent)
     if (obj->wear_loc != WEAR_NONE)
     {
 	if (!silent)
-	    act("You'll have to remove $p first.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+	    act("You'll have to remove $p first.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 	return false;
     }
@@ -6418,7 +6418,7 @@ bool can_give_obj(CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim, bool silent)
     &&  get_obj_vnum_carry(victim, obj->pIndexData->vnum, victim) != NULL)
     {
 	if (!silent)
-	    act("A mysterious force prevents you from giving $p to $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+	    act("A mysterious force prevents you from giving $p to $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 	return false;
     }
@@ -6426,7 +6426,7 @@ bool can_give_obj(CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim, bool silent)
     if (IS_NPC(victim) && victim->shop != NULL)
     {
 	if (!silent)
-	    act("{R$N tells you 'Sorry, you'll have to sell that.{x'", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	    act("{R$N tells you 'Sorry, you'll have to sell that.{x'", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 	return false;
     }
@@ -6488,7 +6488,7 @@ bool can_drop_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool silent)
     if (obj->wear_loc != WEAR_NONE)
     {
 	if (!silent)
-	    act("You must remove $p first.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+	    act("You must remove $p first.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 	return false;
     }
@@ -6507,7 +6507,7 @@ bool can_drop_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool silent)
     if (IS_SET(obj->extra[0], ITEM_NODROP))
     {
 	if (!silent)
-	    act("You can't let go of $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+	    act("You can't let go of $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 	return false;
     }
@@ -6548,16 +6548,16 @@ bool can_get_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 	return false;
 
     if (ch->carry_number + get_obj_number(obj) > can_carry_n(ch))
-	MSG(act("$p: you can't carry that many items.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR))
+	MSG(act("$p: you can't carry that many items.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL))
 
     if (get_carry_weight(ch) + get_obj_weight(obj) > can_carry_w(ch))
-	MSG(act("$p: you can't carry that much weight.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR))
+	MSG(act("$p: you can't carry that much weight.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL))
 
     if (IS_SET(obj->extra[1], ITEM_SINGULAR)
     &&  get_obj_vnum_carry(ch, obj->pIndexData->vnum, ch) != NULL)
     {
 	if (!silent)
-	    act("A mysterious force prevents you from picking up $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+	    act("A mysterious force prevents you from picking up $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 	return false;
     }
@@ -6585,7 +6585,7 @@ bool can_get_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 	{
 	    if (!silent)
 	    {
-		act("You can't take items from $N's cart.", ch, get_cart_pulled(container), NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("You can't take items from $N's cart.", ch, get_cart_pulled(container), NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	    }
 
 	    return false;
@@ -6595,7 +6595,7 @@ bool can_get_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 	&&  IS_SET(container->value[1], CONT_CLOSED))
 	{
 	    if (!silent)
-		act("The $d is closed.", ch, NULL, NULL, NULL, NULL, NULL, container->name, TO_CHAR);
+		act("The $d is closed.", ch, NULL, NULL, NULL, NULL, NULL, container->name, TO_CHAR, NULL, NULL);
 
 	    return false;
 	}
@@ -6608,7 +6608,7 @@ bool can_get_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
     if (mail)
     {
 	if (get_carry_weight(ch) + get_obj_weight(obj) > can_carry_w(ch))
-	    MSG(act("$p: you can't carry that much weight.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR))
+	    MSG(act("$p: you can't carry that much weight.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL))
     }
 
     // Get an item from the ground or from a container on the ground
@@ -6623,7 +6623,7 @@ bool can_get_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 	}
 
 	if (get_carry_weight(ch) + get_obj_weight(obj) > can_carry_w(ch))
-	    MSG(act("$p: you can't carry that much weight.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR))
+	    MSG(act("$p: you can't carry that much weight.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL))
 
 	if (obj_room(obj))
 	{
@@ -6632,7 +6632,7 @@ bool can_get_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 		if (gch->on == obj)
 		{
 		    if (!silent)
-			act("$N appears to be using $p.", ch, gch, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			act("$N appears to be using $p.", ch, gch, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 		    return false;
 		}
@@ -6642,7 +6642,7 @@ bool can_get_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 	if (obj->item_type == ITEM_CART)
 	{
 	    if (!silent)
-		act("$p is far too heavy.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		act("$p is far too heavy.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 	    return false;
 	}
@@ -6715,7 +6715,7 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 	&&  IS_SET(container->value[1], CONT_CLOSED))
 	{
 	    if (!silent)
-		act("$p is closed.", ch, NULL, NULL, container, NULL, NULL, NULL, TO_CHAR);
+		act("$p is closed.", ch, NULL, NULL, container, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	    return false;
 	}
 
@@ -6740,7 +6740,7 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 	    (IS_SET(obj->extra[0], ITEM_NOUNCURSE) && IS_SET(obj->extra[0], ITEM_NODROP)))
 	{
 	    if (!silent)
-		act("You can't put $p in $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
+		act("You can't put $p in $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR, NULL, NULL);
 
 	    return false;
 	}
@@ -6776,7 +6776,7 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 	if (obj->timer > 0)
 	{
 	    if (!silent)
-		act("You can't send $p through the mail.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		act("You can't send $p through the mail.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 	    return false;
 	}
@@ -6793,7 +6793,7 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 	if (IS_SET(obj->extra[0], ITEM_NOUNCURSE) && IS_SET(obj->extra[0], ITEM_NODROP))
 	{
 	    if (!silent)
-		act("You can't let go of $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		act("You can't let go of $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 	    return false;
 	}
@@ -6835,7 +6835,7 @@ bool can_sacrifice_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool silent)
     ||  (obj->item_type == ITEM_CORPSE_PC && obj->contains))
     {
 	if (!silent)
-	    act("$p is not an acceptable sacrifice.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+	    act("$p is not an acceptable sacrifice.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 	return false;
     }
@@ -6844,7 +6844,7 @@ bool can_sacrifice_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool silent)
     && obj->contains && !IS_SET(ch->act[1], PLR_SACRIFICE_ALL))
     {
 	if (!silent)
-	    act("You must rid $p of its belongings before sacrificing it.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+	    act("You must rid $p of its belongings before sacrificing it.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 	return false;
     }
@@ -6856,7 +6856,7 @@ bool can_sacrifice_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool silent)
 	    if (gch->on == obj)
 	    {
 		if (!silent)
-		    act("$N appears to be using $p.", ch, gch, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		    act("$N appears to be using $p.", ch, gch, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 		return false;
 	    }
@@ -7745,7 +7745,7 @@ int use_catalyst_obj(CHAR_DATA *ch, ROOM_INDEX_DATA *room, OBJ_DATA *obj, int ty
 
             if(aff->duration < 0) {
                 if(show && !p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CATALYST_SOURCE, NULL))
-                    act("$p pulsates brightly.", room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
+                    act("$p pulsates brightly.", room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL, NULL, NULL);
                 return -1;
             }
 
@@ -7758,7 +7758,7 @@ int use_catalyst_obj(CHAR_DATA *ch, ROOM_INDEX_DATA *room, OBJ_DATA *obj, int ty
 
                 if(!obj->catalyst) {    // All catalyst affects have been exhausted
                     if(show && !p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CATALYST_FULL, NULL) && ch)
-                        act("$p flares brightly!", room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
+                        act("$p flares brightly!", room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL, NULL, NULL);
 //                    extract_obj(obj);
                     return total;
                 }
@@ -7774,7 +7774,7 @@ int use_catalyst_obj(CHAR_DATA *ch, ROOM_INDEX_DATA *room, OBJ_DATA *obj, int ty
     }
 
     if(show && used && !p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CATALYST, NULL)) {
-        act("$p shimmers brightly, but only dims back to normal.", room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
+        act("$p shimmers brightly, but only dims back to normal.", room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL, NULL, NULL);
     }
     return total;
 }
@@ -9561,7 +9561,7 @@ void restore_char(CHAR_DATA *ch, CHAR_DATA *whom, int percent)
 	// Will only be set when used by the command "restore"
 	//  - scripted restores will pass NULL
 	if(whom)
-		act("$n has restored you.",whom, ch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
+		act("$n has restored you.",whom, ch, NULL, NULL, NULL, NULL, NULL,TO_VICT, NULL, NULL);
 
 	p_percent_trigger( ch, NULL, NULL, NULL, ch, whom, NULL,NULL, NULL, TRIG_RESTORE, NULL);
 
@@ -11962,4 +11962,171 @@ AREA_DATA *get_area_index(long uid)
     }
 
     return NULL;
+}
+
+// Default pronoun sets based on body_type
+const struct body_type_info_type body_type_info[BODY_TYPE_MAX] =
+{
+    { "neutral", "it",   "it",   "its",    "its",    "itself", VERB_FORM_SINGULAR },
+    { "masculine",    "he",   "him",  "his",    "his",    "himself", VERB_FORM_SINGULAR },
+    { "feminine",  "she",  "her",  "her",    "hers",   "herself", VERB_FORM_SINGULAR },
+    { "other",   "they", "them", "their",  "theirs", "themself", VERB_FORM_PLURAL }
+};
+
+const char *get_he_she(CHAR_DATA *ch) {
+    if (ch->pronoun_he_she && ch->pronoun_he_she[0] != '\0') {
+        return ch->pronoun_he_she;
+    }
+    if (ch->body_type >= 0 && ch->body_type < BODY_TYPE_MAX) {
+        return body_type_info[ch->body_type].default_he_she;
+    }
+    return body_type_info[BODY_TYPE_NEUTRAL].default_he_she;
+}
+
+const char *get_him_her(CHAR_DATA *ch) {
+    if (ch->pronoun_him_her && ch->pronoun_him_her[0] != '\0') {
+        return ch->pronoun_him_her;
+    }
+    if (ch->body_type >= 0 && ch->body_type < BODY_TYPE_MAX) {
+        return body_type_info[ch->body_type].default_him_her;
+    }
+    return body_type_info[BODY_TYPE_NEUTRAL].default_him_her;
+}
+
+const char *get_his_her(CHAR_DATA *ch) { // Possessive Adjective
+    if (ch->pronoun_his_her && ch->pronoun_his_her[0] != '\0') {
+        return ch->pronoun_his_her;
+    }
+    if (ch->body_type >= 0 && ch->body_type < BODY_TYPE_MAX) {
+        return body_type_info[ch->body_type].default_his_her;
+    }
+    return body_type_info[BODY_TYPE_NEUTRAL].default_his_her;
+}
+
+const char *get_his_hers(CHAR_DATA *ch) { // Possessive Pronoun
+    if (ch->pronoun_his_hers && ch->pronoun_his_hers[0] != '\0') {
+        return ch->pronoun_his_hers;
+    }
+    if (ch->body_type >= 0 && ch->body_type < BODY_TYPE_MAX) {
+        return body_type_info[ch->body_type].default_his_hers;
+    }
+    return body_type_info[BODY_TYPE_NEUTRAL].default_his_hers;
+}
+
+const char *get_himself_herself(CHAR_DATA *ch) {
+    if (ch->pronoun_himself_herself && ch->pronoun_himself_herself[0] != '\0') {
+        return ch->pronoun_himself_herself;
+    }
+    if (ch->body_type >= 0 && ch->body_type < BODY_TYPE_MAX) {
+        return body_type_info[ch->body_type].default_himself_herself;
+    }
+    return body_type_info[BODY_TYPE_NEUTRAL].default_himself_herself;
+}
+
+const char *get_body_type_name(CHAR_DATA *ch) {
+    if (ch->body_type >= 0 && ch->body_type < BODY_TYPE_MAX) {
+        return body_type_info[ch->body_type].name;
+    }
+    return body_type_info[BODY_TYPE_NEUTRAL].name;
+}
+
+const char *get_verb_form(CHAR_DATA *character, const char *singular, const char *plural) {
+    if (!character) {
+        return singular;
+    }
+
+    verb_form_preference_t preference = character->verb_preference;
+
+    if (preference == VERB_FORM_DEFAULT) {
+        if (character->body_type >= 0 && character->body_type < BODY_TYPE_MAX) {
+            preference = body_type_info[character->body_type].verb_preference;
+        } else {
+            preference = body_type_info[BODY_TYPE_NEUTRAL].verb_preference;
+        }
+    }
+    
+    if (preference == VERB_FORM_DEFAULT) {
+        const char *subj_pronoun = get_he_she(character);
+        if (subj_pronoun && (str_cmp(subj_pronoun, "they") == 0 || str_cmp(subj_pronoun, "They") == 0)) {
+            return plural;
+        }
+        return singular;
+    }
+
+    switch (preference) {
+        case VERB_FORM_SINGULAR:
+            return singular;
+        case VERB_FORM_PLURAL:
+            return plural;
+        default: 
+            return singular; 
+    }
+}
+void display_pronoun_examples(CHAR_DATA *ch_viewer, const char *subj, const char *obj, const char *poss_adj, const char *poss_pron, const char *refl, verb_form_preference_t vpref) {
+    char buf[MSL*2]; // Increased buffer size
+    char temp_subj_cap[MIL];
+
+    if (!ch_viewer) return;
+    if (!subj || !obj || !poss_adj || !poss_pron || !refl) {
+        send_to_char("Error: One or more pronoun components are missing for example display.\n\r", ch_viewer);
+        return;
+    }
+
+    strncpy(temp_subj_cap, subj, MIL-1);
+    temp_subj_cap[MIL-1] = '\0';
+    temp_subj_cap[0] = UPPER(temp_subj_cap[0]);
+
+
+    // Determine verb forms (simplified for generic display)
+    const char *verb_s_walk = "walks";
+    const char *verb_p_walk = "walk";
+    const char *chosen_walk;
+
+    const char *verb_s_see = "sees";
+    const char *verb_p_see = "see";
+    const char *chosen_see;
+
+    // Logic for choosing verb form based on vpref and subjective pronoun "they"
+    bool use_plural_default = (!str_cmp(subj, "they") || !str_cmp(subj, "They"));
+
+    if (vpref == VERB_FORM_PLURAL) {
+        chosen_walk = verb_p_walk;
+        chosen_see = verb_p_see;
+    } else if (vpref == VERB_FORM_SINGULAR) {
+        chosen_walk = verb_s_walk;
+        chosen_see = verb_s_see;
+    } else { // VERB_FORM_DEFAULT
+        chosen_walk = use_plural_default ? verb_p_walk : verb_s_walk;
+        chosen_see = use_plural_default ? verb_p_see : verb_s_see;
+    }
+    send_to_char("{WExample Sentences:{x\n\r", ch_viewer);
+    sprintf(buf, "  Subjective:       {C%s{x %s to the east.\n\r", temp_subj_cap, chosen_walk); send_to_char(buf, ch_viewer);
+    sprintf(buf, "  Objective:        You see {C%s{x.\n\r", obj); send_to_char(buf, ch_viewer);
+    sprintf(buf, "  Possessive Adj:   This is {C%s{x sword.\n\r", poss_adj); send_to_char(buf, ch_viewer);
+    sprintf(buf, "  Possessive Pron:  The sword is {C%s{x.\n\r", poss_pron); send_to_char(buf, ch_viewer);
+    sprintf(buf, "  Reflexive:        {C%s{x %s {C%s{x in the mirror.\n\r", temp_subj_cap, chosen_see, refl); send_to_char(buf, ch_viewer);
+}
+
+const char *get_body_type_name_from_val(body_type_t btype) {
+    if (btype >= 0 && btype < BODY_TYPE_MAX) {
+        return body_type_info[btype].name;
+    }
+    return body_type_info[BODY_TYPE_NEUTRAL].name; // Fallback
+}
+
+void reset_pronouns_to_body_type(CHAR_DATA *ch, body_type_t new_body_type)
+{
+	if (!ch || new_body_type < 0 || new_body_type >= BODY_TYPE_MAX) {
+		return; // Invalid character or body type
+	}
+
+	// Reset pronouns to the default for the new body type
+	ch->pronoun_he_she = str_dup(body_type_info[new_body_type].default_he_she);
+	ch->pronoun_him_her = str_dup(body_type_info[new_body_type].default_him_her);
+	ch->pronoun_his_her = str_dup(body_type_info[new_body_type].default_his_her);
+	ch->pronoun_his_hers = str_dup(body_type_info[new_body_type].default_his_hers);
+	ch->pronoun_himself_herself = str_dup(body_type_info[new_body_type].default_himself_herself);
+	
+	// Set verb preference based on body type
+	ch->verb_preference = body_type_info[new_body_type].verb_preference;
 }

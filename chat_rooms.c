@@ -195,8 +195,8 @@ void do_chat_enter(CHAR_DATA *ch, char *argument)
 
 	location_from_room(&ch->before_social,ch->in_room);
 
-    act("{WA ghostly spirit appears before $n and pulls $m to another dimension.{x",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-    act("{WA ghostly spirit appears before you and pulls you to another dimension.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    act("{WA ghostly spirit appears before $n and pulls $m to another dimension.{x",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    act("{WA ghostly spirit appears before you and pulls you to another dimension.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
     for (token = ch->tokens; token != NULL; token = token_next) {
 	token_next = token->next;
@@ -218,7 +218,7 @@ void do_chat_enter(CHAR_DATA *ch, char *argument)
     char_from_room(ch);
     char_to_room(ch, get_room_index(get_reserved_vnum("room_chat_lobby")));
 
-    act("{W$n has entered chat.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act("{W$n has entered chat.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
     //SET_BIT(ch->comm, COMM_SOCIAL);
 }
@@ -252,15 +252,15 @@ void do_chat_exit(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    act("{W$n has left chat.{x",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-    act("{WYou exit chat.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    act("{W$n has left chat.{x",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    act("{WYou exit chat.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
     //REMOVE_BIT(ch->comm, COMM_SOCIAL);
 
     char_from_room(ch);
     char_to_room(ch, room);
 
-    act("{W$n fades in from another dimension.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act("{W$n fades in from another dimension.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 }
 
 
@@ -382,7 +382,7 @@ void do_chat_join(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    act("{Y$n leaves for another chat room.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act("{Y$n leaves for another chat room.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     sprintf(buf, "{YYou join #%s.{x\n\r", chat->name);
     send_to_char(buf, ch);
 
@@ -390,7 +390,7 @@ void do_chat_join(CHAR_DATA *ch, char *argument)
     char_to_room(ch, room);
 
     sprintf(buf, "$n has joined #%s.", chat->name);
-    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
     do_function(ch, &do_look, "auto");
 }
@@ -587,7 +587,7 @@ void do_chat_topic(CHAR_DATA *ch, char *argument)
     sprintf(buf, "Topic changed to \"%s{x\".\n\r", argument);
     send_to_char(buf, ch);
     sprintf(buf, "$n has changed the topic to \"%s{x\".", argument);
-    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
     write_chat_rooms();
 }
@@ -629,7 +629,7 @@ void do_chat_delete(CHAR_DATA *ch, char *argument)
     chat = ch->in_room->chat_room;
 
     sprintf(buf, "{Y$n has deleted #%s.{x", chat->name);
-    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
     /* dislink it from the room */
     ch->in_room->chat_room = NULL;
@@ -762,17 +762,17 @@ void chat_add_op(CHAR_DATA *ch, char *arg)
 
     chat = ch->in_room->chat_room;
 
-    act("{YYou add $T as an operator.{x", ch, NULL, NULL, NULL, NULL, NULL, arg, TO_CHAR);
+    act("{YYou add $T as an operator.{x", ch, NULL, NULL, NULL, NULL, NULL, arg, TO_CHAR, NULL, NULL);
 
     if ((vch = get_char_room(ch, NULL, arg)) != NULL)
     {
-	act("{Y$n adds you as an operator.{x", ch, vch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+	act("{Y$n adds you as an operator.{x", ch, vch, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
     }
 
     for (vch = ch->in_room->people; vch != NULL; vch = vch->next_in_room)
     {
 	if (str_cmp(vch->name, arg))
-	    act("{Y$n adds $t as an operator.{x", ch, vch, NULL, NULL, NULL, arg, NULL, TO_VICT);
+	    act("{Y$n adds $t as an operator.{x", ch, vch, NULL, NULL, NULL, arg, NULL, TO_VICT, NULL, NULL);
     }
 
     op = new_chat_op();
@@ -822,20 +822,20 @@ void chat_rem_op(CHAR_DATA *ch, char *arg)
     vch = get_char_room(ch, NULL, arg);
     if (vch != NULL && ch != vch)
     {
-	act("{Y$n removes you as an operator.{x", ch, vch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+	act("{Y$n removes you as an operator.{x", ch, vch, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
     }
 
     if (!str_cmp(ch->name, arg))
     {
 	sprintf(buf, "{Y$n removes $mself as an operator.{x");
-	act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     }
     else
     {
 	for (vch = ch->in_room->people; vch != NULL; vch = vch->next_in_room)
 	{
 	    if (str_cmp(vch->name, arg))
-		act("{Y$n removes $t as an operator.{x", ch, vch, NULL, NULL, NULL, arg, NULL, TO_VICT);
+		act("{Y$n removes $t as an operator.{x", ch, vch, NULL, NULL, NULL, arg, NULL, TO_VICT, NULL, NULL);
 	}
     }
 
@@ -892,20 +892,20 @@ void do_chat_kick(CHAR_DATA *ch, char *argument)
     sprintf(buf, "{YYou kick %s out of #%s.{x",
 	    ch == victim ? "yourself" : "$N",
 	    ch->in_room->chat_room->name);
-    act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
     if (ch != victim)
     {
 		sprintf(buf, "{Y%s kicks you out of #%s.{x",
 			ch->name, ch->in_room->chat_room->name);
-		act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+		act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
     }
 
     sprintf(buf, "{Y%s kicks %s out of #%s.{x",
 	    ch->name,
 	    ch == victim ? "$mself" : victim->name,
 	    ch->in_room->chat_room->name);
-    act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+    act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
 
     char_from_room(victim);
     char_to_room(victim, to_room);

@@ -34,8 +34,8 @@ SPELL_FUNC(spell_cancellation)
 		return false;
 	}
 
-	act("{YA negating magical aura surrounds you.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	act("{YA negating magical aura surrounds $n.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act("{YA negating magical aura surrounds you.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+	act("{YA negating magical aura surrounds $n.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 	number_affects = 0;
 	for (af = victim->affected; af != NULL; af = af->next)
@@ -46,7 +46,7 @@ SPELL_FUNC(spell_cancellation)
 
 	if (!number_affects) {
 		if (ch != victim)
-			act("$N has no magic affecting $M.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("$N has no magic affecting $M.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		else
 			send_to_char("There is nothing affecting you.\n\r", ch);
 
@@ -62,7 +62,7 @@ SPELL_FUNC(spell_channel)
 	int dam;
 
 	if (victim->mana < 1) {
-		act("{Y$N doesn't have any mana to drain.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("{Y$N doesn't have any mana to drain.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -80,8 +80,8 @@ SPELL_FUNC(spell_channel)
 
 
 	send_to_char("{YYou feel your mana channeled away!{x\n\r",victim);
-	act("{YYou feel more powerful as you channel mana from $N!{x",ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	act("$N magically fades as his mana is partially removed!",ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+	act("{YYou feel more powerful as you channel mana from $N!{x",ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+	act("$N magically fades as $S mana is partially removed!",ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
 	return true;
 }
 
@@ -98,8 +98,8 @@ SPELL_FUNC(spell_counter_spell)
 	sn = victim->cast_sn;
 	if (number_percent() < get_skill(ch, gsn_counterspell) && can_see(ch, victim)) {
 		stop_casting(victim, false);
-		act("{YYour magic fizzles and backfires!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		act("{Y$n's magic fizzles and backfires!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("{YYour magic fizzles and backfires!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+		act("{Y$n's magic fizzles and backfires!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 		mana = skill_table[sn].min_mana;
 
@@ -165,12 +165,12 @@ SPELL_FUNC(spell_discharge)
 	}
 
 	if (!obj->affected) {
-		act("$p has no magical affects which you can strip.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		act("$p has no magical affects which you can strip.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return false;
 	}
 
 	if (IS_SET(obj->extra[1], ITEM_NO_DISCHARGE)) {
-		act("$p's magic cannot be removed from it.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		act("$p's magic cannot be removed from it.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -181,7 +181,7 @@ SPELL_FUNC(spell_discharge)
 	for (paf = obj->affected; paf; paf = paf_next) {
 		paf_next = paf->next;
 		if (++number == result) {
-			act("$p glows brightly, then fades.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+			act("$p glows brightly, then fades.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL, NULL, NULL);
 			affect_remove_obj(obj,paf);
 			break;
 		}
@@ -199,8 +199,8 @@ SPELL_FUNC(spell_dispel_magic)
 	int old;
 	AFFECT_DATA *af, *af_next;
 
-	act("{YA negating aura of magic surrounds $n.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	act("{YA negating aura of magic surrounds you.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	act("{YA negating aura of magic surrounds $n.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+	act("{YA negating aura of magic surrounds you.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 	number_affects = 0;
 	for (af = victim->affected; af != NULL; af = af_next) {
@@ -215,7 +215,7 @@ SPELL_FUNC(spell_dispel_magic)
 	old = victim->tempstore[3];
 	victim->tempstore[3] = found ? 1 : 0;
 	if(!p_percent_trigger(victim,NULL,NULL,NULL,ch,NULL,NULL, NULL, NULL,TRIG_SPELL_DISPEL, NULL) && !number_affects) {
-		act("$N has no magic affecting $M.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$N has no magic affecting $M.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -223,7 +223,7 @@ SPELL_FUNC(spell_dispel_magic)
 	victim->tempstore[3] = old;
 
 	if(!found && number_affects > 0) {
-		act("The magic on $N is too strong for you to dispel.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("The magic on $N is too strong for you to dispel.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -241,8 +241,8 @@ SPELL_FUNC(spell_dispel_room)
 	char buf[MAX_STRING_LENGTH];
 	char buf2[MAX_STRING_LENGTH];
 
-	act("{YThe air around you sparkles mysteriously.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	act("{YThe air around you sparkles mysteriously.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act("{YThe air around you sparkles mysteriously.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+	act("{YThe air around you sparkles mysteriously.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 	pRoom = ch->in_room;
 	rev_pRoom = ch->in_room;
@@ -357,17 +357,17 @@ SPELL_FUNC(spell_recharge)
 	}
 
 	if (obj->level > ch->tot_level) {
-		act("$p's powers exceed yours.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		act("$p's powers exceed yours.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return false;
 	}
 
 	if (number_percent() > get_skill(ch, gsn_recharge)) {
-		act("$p disappears as you screw up the spell.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		act("$n's $p disappears as $e screws up $s spell.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+		act("$p disappears as you screw up the spell.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+		act("$n's $p disappears as $e screws up $s spell.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		extract_obj(obj);
 	} else {
 		if (obj->value[0] < 10) {
-			act("$p's magical energies are too low to be recharged.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			act("$p's magical energies are too low to be recharged.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			return false;
 		}
 
@@ -397,14 +397,14 @@ SPELL_FUNC(spell_recharge)
 
 				obj->value[5] = charges;
 			} else {
-				act("Only an alchemist can recharge magical potions.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				act("Only an alchemist can recharge magical potions.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 				return false;
 			}
 
 			break;
 		}
 
-		act("$p hisses with power as you breathe magical energy into it.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		act("$p hisses with power as you breathe magical energy into it.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	}
 	return true;
 }
@@ -420,7 +420,7 @@ SPELL_FUNC(spell_refresh)
 	else
 		send_to_char("You feel less tired.\n\r", victim);
 	if (ch != victim)
-		act("$N looks less tired.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$N looks less tired.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	return true;
 }
 
@@ -442,7 +442,7 @@ SPELL_FUNC(spell_spell_deflection)
 		if (victim == ch)
 			send_to_char("{MYou are already protected by spell deflection.{x\n\r",ch);
 		else
-			act("{M$N is already protected by spell deflection.{x",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+			act("{M$N is already protected by spell deflection.{x",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -458,7 +458,7 @@ SPELL_FUNC(spell_spell_deflection)
 	af.bitvector2 = AFF2_SPELL_DEFLECTION;
 	affect_to_char(victim, &af);
 
-	act("{MA dazzling crimson aura appears around $n.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act("{MA dazzling crimson aura appears around $n.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	send_to_char("{MA dazzling crimson aura appears around you.{x\n\r", victim);
 
 	return true;
@@ -482,7 +482,7 @@ SPELL_FUNC(spell_spell_shield)
 		if (victim == ch)
 			send_to_char("You are already protected by a spell shield.\n\r",ch);
 		else
-			act("$N is already protected by a spell shield.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+			act("$N is already protected by a spell shield.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -498,7 +498,7 @@ SPELL_FUNC(spell_spell_shield)
 	af.bitvector2 = AFF2_SPELL_SHIELD;
 	affect_to_char(victim, &af);
 
-	act("{CA hazy blue sphere appears around $n.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act("{CA hazy blue sphere appears around $n.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	send_to_char("{CA hazy blue sphere appears around you.{x\n\r", victim);
 
 	return true;
@@ -511,7 +511,7 @@ SPELL_FUNC(spell_spell_trap)
 
 	for (trap = ch->in_room->contents; trap; trap = trap->next_content) {
 		if (trap->item_type == ITEM_SPELL_TRAP) {
-			act("{W$p shimmers briefly.{x",ch, NULL, NULL, trap, NULL, NULL, NULL, TO_ALL);
+			act("{W$p shimmers briefly.{x",ch, NULL, NULL, trap, NULL, NULL, NULL, TO_ALL, NULL, NULL);
 			trap->level += ch->level/2;
 			trap->timer += number_range(0,(ch->level/30));
 			return true;
@@ -523,7 +523,7 @@ SPELL_FUNC(spell_spell_trap)
 	trap->level = ch->tot_level;
 	obj_to_room(trap, ch->in_room);
 
-	act("{W$n forms a small glass orb in $s palm and places it on the ground.{x",ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	act("{WYou form a small glass orb in your palm and place it on the ground.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	act("{W$n forms a small glass orb in $s palm and places it on the ground.{x",ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+	act("{WYou form a small glass orb in your palm and place it on the ground.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	return true;
 }

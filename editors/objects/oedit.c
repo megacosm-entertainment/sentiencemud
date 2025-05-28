@@ -32,6 +32,8 @@
 #include "../../interp.h"
 #include "../../scripts.h"
 #include "../../wilds.h"
+extern void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer);
+bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *argument);
 
 
 OEDIT(oedit_show)

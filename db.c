@@ -863,12 +863,20 @@ void boot_db(void)
     }
 
 
-    /* First initialize the pending changes list */
-    if (!pending_changes)
-        pending_changes = list_create(false);
+	/* First initialize the pending changes list */
+	if (!pending_changes) {
+    	pending_changes = list_create(false);
+    	if (!pending_changes) {
+        	fprintf(stderr, "Error: Failed to create pending_changes list.\n");
+    	}
+	}
     
-	if (!reserved_vnums)
-		reserved_vnums = list_create(false);
+	if (!reserved_vnums) {
+    	reserved_vnums = list_create(false);
+    	if (!reserved_vnums) {
+        	fprintf(stderr, "Error: Failed to create reserved_vnums list.\n");
+    	}
+	}
 
 	load_reserved();
 
@@ -2368,6 +2376,13 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 	mob->start_pos		= pMobIndex->start_pos;
 	mob->default_pos	= pMobIndex->default_pos;
 	mob->sex			= pMobIndex->sex;
+	mob->body_type		= pMobIndex->body_type;
+	mob->pronoun_he_she = str_dup(pMobIndex->pronoun_he_she);
+	mob->pronoun_him_her = str_dup(pMobIndex->pronoun_him_her);
+	mob->pronoun_his_her = str_dup(pMobIndex->pronoun_his_her);
+	mob->pronoun_himself_herself = str_dup(pMobIndex->pronoun_himself_herself);
+	mob->pronoun_his_hers = str_dup(pMobIndex->pronoun_his_hers);
+	mob->verb_preference = pMobIndex->verb_preference;
 
 	if (mob->sex == 3) /* random sex */
 		mob->sex = number_range(1,2);

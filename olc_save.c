@@ -223,7 +223,7 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
 
 		save_area_list();
 		save_area_new(ch->in_room->area);
-		act("Saved $t.", ch, NULL, NULL, NULL, NULL, ch->in_room->area->name, NULL, TO_CHAR);
+		act("Saved $t.", ch, NULL, NULL, NULL, NULL, ch->in_room->area->name, NULL, TO_CHAR, NULL, NULL);
 		return;
     }
 
@@ -808,6 +808,18 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
 	fprintf(fp, "Affected_by2 %ld\n", mob->affected_by[1]);
 
     fprintf(fp, "Level %d Alignment %d\n", mob->level, mob->alignment);
+    fprintf(fp, "BodyType %d\n", mob->body_type );
+    if (mob->pronoun_he_she && mob->pronoun_he_she[0] != '\0')
+        fprintf(fp, "PronounSS %s~\n", mob->pronoun_he_she);
+    if (mob->pronoun_him_her && mob->pronoun_him_her[0] != '\0')
+        fprintf(fp, "PronounOS %s~\n", mob->pronoun_him_her);
+    if (mob->pronoun_his_her && mob->pronoun_his_her[0] != '\0')
+        fprintf(fp, "PronounPAS %s~\n", mob->pronoun_his_her);
+    if (mob->pronoun_his_hers && mob->pronoun_his_hers[0] != '\0')
+        fprintf(fp, "PronounPPS %s~\n", mob->pronoun_his_hers);
+    if (mob->pronoun_himself_herself && mob->pronoun_himself_herself[0] != '\0')
+        fprintf(fp, "PronounRS %s~\n", mob->pronoun_himself_herself);
+    fprintf(fp, "VerbPref %d\n", mob->verb_preference);
 
     fprintf(fp, "Hitroll %d Hit %d %d %d Mana %d %d %d Damage %d %d %d Movement %ld\n",
         mob->hitroll,
@@ -2350,6 +2362,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
     PROG_LIST *mpr;
     char *word;
     int vnum;
+    int old_sex_val = -1; // For migration
 
     mob = new_mob_index();
     mob->vnum = fread_number(fp);
@@ -2396,6 +2409,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 		break;
 
 		case 'B':
+            KEY("BodyType", mob->body_type, fread_number(fp));
 			KEY("Boss", mob->boss, true);
 			break;
 
@@ -2516,6 +2530,11 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 	    case 'P':
 	        KEY("Parts",	mob->parts,	fread_number(fp));
 	        KEY("Persist",	mob->persist, true);
+        KEY("PronounSS", mob->pronoun_he_she, fread_string(fp));
+        KEY("PronounOS", mob->pronoun_him_her, fread_string(fp));
+        KEY("PronounPAS", mob->pronoun_his_her, fread_string(fp));
+        KEY("PronounPPS", mob->pronoun_his_hers, fread_string(fp));
+        KEY("PronounRS", mob->pronoun_himself_herself, fread_string(fp));
 		break;
 
 	    case 'R':
@@ -2536,7 +2555,11 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 	    case 'S':
 	        KEYS("ShortDesc",	mob->short_descr,	fread_string(fp));
 	        KEY("StartPos",	mob->start_pos,		fread_number(fp));
-		KEY("Sex",		mob->sex,		fread_number(fp));
+                if (!str_cmp(word, "Sex")) { // Old keyword for migration
+                    old_sex_val = fread_number(fp);
+                    fMatch = true;
+                    break;
+                }
 		KEY("Size",	        mob->size,		fread_number(fp));
 		KEY("Skeywds",	mob->skeywds,	fread_string(fp));
 
@@ -2558,6 +2581,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 					fMatch = true;
 					break;
 				}
+			KEY("VerbPref", mob->verb_preference, fread_number(fp));
 
 	        KEY("VulnFlags",	mob->vuln_flags,	fread_number(fp));
 		break;
@@ -2605,6 +2629,15 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 		set_mob_damdice(mob);
 		set_mob_movedice(mob);
 	}
+
+    if (old_sex_val != -1) { // Migration from old Sex field
+        if (area->version_mobile < VERSION_MOBILE_001) { // VERSION_MOBILE_XXX is the version introducing body_type for mobs
+            if (old_sex_val == 0) mob->body_type = BODY_TYPE_NEUTRAL;
+            else if (old_sex_val == 1) mob->body_type = BODY_TYPE_MALE;
+            else if (old_sex_val == 2) mob->body_type = BODY_TYPE_FEMALE;
+            else mob->body_type = BODY_TYPE_NEUTRAL;
+        }
+    }
 
     return mob;
 }

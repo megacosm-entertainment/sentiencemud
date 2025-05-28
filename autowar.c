@@ -86,14 +86,14 @@ void do_war(CHAR_DATA *ch, char *argument)
 	/* Check how many players are in each team */
 	char_to_team( ch );
 
-	act( "{D$n disappears in a puff of smoke.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+	act( "{D$n disappears in a puff of smoke.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
 
 	char_from_room( ch );
 	char_to_room( ch, get_room_index( get_reserved_vnum("room_war_staging") ) );
 
 	send_to_char( "{YYou have joined the battle!{x\n\r", ch );
-	act( "{Y$n has joined the battle!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
-	act( "{D$n appears in a puff of smoke.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+	act( "{Y$n has joined the battle!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
+	act( "{D$n appears in a puff of smoke.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
 
 	do_function(ch, &do_look, "auto");
 	return;
@@ -203,8 +203,8 @@ void scatter_players()
 	    pRoom = get_random_room_area(ch, pArea);
 	while (pRoom == NULL || pRoom->vnum == get_reserved_vnum("room_war_staging"));
 
-	act( "{D$n disappears in a puff of smoke.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
-	act( "{YYou have been transferred to the battlefield!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+	act( "{D$n disappears in a puff of smoke.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
+	act( "{YYou have been transferred to the battlefield!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
 
 	char_from_room(ch);
 	char_to_room(ch, pRoom);
@@ -383,7 +383,7 @@ void auto_war_time_finish()
 	    {
 		quest_points = 50;
 		sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
-		act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+		act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
 		wch->questpoints += quest_points;
 		wch->wars_won++;
 	    }
@@ -431,7 +431,7 @@ void auto_war_time_finish()
 		{
 		    quest_points = 50;
 		    sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
-		    act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+		    act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
 		    wch->questpoints += quest_points;
 		    wch->wars_won++;
 		}
@@ -451,7 +451,7 @@ void auto_war_time_finish()
 		{
 		    quest_points = 50;
 		    sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
-		    act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+		    act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
 		    wch->questpoints += quest_points;
 		    wch->wars_won++;
 		}
@@ -503,7 +503,7 @@ void test_for_end_of_war()
 	/* Reward winners*/
 	quest_points = 50;
 	sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
-	act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+	act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
 	wch->questpoints += quest_points;
 	wch->wars_won++;
 
@@ -549,7 +549,7 @@ void test_for_end_of_war()
 		{
 		    quest_points = 50;
 		    sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
-		    act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+		    act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
 		    wch->questpoints += quest_points;
 		    wch->wars_won++;
 		}
@@ -608,7 +608,7 @@ void test_for_end_of_war()
 		    {
 			quest_points = 50;
 			sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
-			act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+			act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
 			wch->questpoints += quest_points;
 			wch->wars_won++;
 		    }
@@ -629,7 +629,7 @@ void test_for_end_of_war()
 			{
 			    quest_points = 50;
 			    sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
-			    act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+			    act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
 			    wch->questpoints += quest_points;
 			    wch->wars_won++;
 			}

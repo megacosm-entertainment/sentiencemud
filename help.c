@@ -145,7 +145,7 @@ void do_help(CHAR_DATA *ch, char *argument)
 
 	// Handle multiple entries w/ same keyword
 	if (count_num_helps(argument, get_staff_rank(ch), topHelpCat) > 1) {
-		act("{YMultiple entries found with keyword $t:{x", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);
+		act("{YMultiple entries found with keyword $t:{x", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR, NULL, NULL);
 		buffer = new_buf();
 
 		lookup_help_multiple(argument, get_staff_rank(ch), topHelpCat, buffer);
@@ -158,7 +158,7 @@ void do_help(CHAR_DATA *ch, char *argument)
 
 	if (help == NULL || help->hCat->min_level > get_staff_rank(ch))
 	{
-		act("No help or category found with keyword $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);
+		act("No help or category found with keyword $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR, NULL, NULL);
 		sprintf(buf, "%s attempted to get help for '%s' but no helpfile was found.", ch->name, argument);
 		log_string(buf);
 		wiznet(buf, ch, NULL, WIZ_HELPS, 0, 0);

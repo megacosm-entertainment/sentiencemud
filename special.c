@@ -166,16 +166,16 @@ bool spec_protector(CHAR_DATA *ch)
 		if (vch->fighting != NULL && !IS_IMMORTAL(vch) && !str_cmp(vch->in_room->area->name, "plith") && vch->tot_level > 30 && vch->fighting->tot_level < 30 && IS_NPC(vch->fighting))  /* break it up! */
 		{
 			victim = vch;
-			act("$n gasps.\n\r{C$n says 'Justice must be upheld!'{x",ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-			act("{W$n draws his sword and kicks his horse into a gallop.{x",ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			act("$n gasps.\n\r{C$n says 'Justice must be upheld!'{x",ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+			act("{W$n draws his sword and kicks his horse into a gallop.{x",ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 			char_from_room(ch);
 			char_to_room(ch, victim->in_room);
 			stop_fighting(victim, true);
-			act("{W$n gallops in on his mighty steed!{x",ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-			act("{C$n says 'By the council of Olaria, I Sir Albert Stiener, sentence you to\n\rgaol for the term of your natural life!'{x",ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-			act("$n drags $N away.",ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			act("{W$n gallops in on his mighty steed!{x",ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+			act("{C$n says 'By the council of Olaria, I Sir Albert Stiener, sentence you to\n\rgaol for the term of your natural life!'{x",ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+			act("$n drags $N away.",ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
-			act("$n throws you in gaol!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+			act("$n throws you in gaol!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
 
 			char_from_room(victim);
 			char_to_room(victim, get_room_index(11308));
@@ -219,8 +219,8 @@ bool spec_patrolman(CHAR_DATA *ch)
 
 	if (((obj = get_eq_char(ch,WEAR_NECK_1)) != NULL && obj->pIndexData->vnum == get_reserved_vnum("obj_patrol_whistle")) ||
 		((obj = get_eq_char(ch,WEAR_NECK_2)) != NULL && obj->pIndexData->vnum == get_reserved_vnum("obj_patrol_whistle"))) {
-		act("You blow down hard on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-		act("$n blows on $p, ***WHEEEEEEEEEEEET***",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
+		act("You blow down hard on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
+		act("$n blows on $p, ***WHEEEEEEEEEEEET***",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
 
 		iterator_start(&it, loaded_chars);
 		while(( vch = (CHAR_DATA *)iterator_nextdata(&it)))
@@ -247,7 +247,7 @@ bool spec_patrolman(CHAR_DATA *ch)
 	}
 
 	if (message != NULL)
-		act(message,ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ALL);
+		act(message,ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ALL, NULL, NULL);
 
 	multi_hit(ch,victim,TYPE_UNDEFINED);
 
@@ -707,7 +707,7 @@ bool spec_fido( CHAR_DATA *ch )
 	if ( corpse->item_type != ITEM_CORPSE_NPC )
 	    continue;
 
-	act( "$n savagely devours a corpse.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+	act( "$n savagely devours a corpse.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
 	for ( obj = corpse->contains; obj; obj = obj_next )
 	{
 	    obj_next = obj->next_content;
@@ -743,18 +743,18 @@ bool spec_guard( CHAR_DATA *ch )
 	{
 	    if (number_percent() < 5)
 	    {
-		act("$n looks at $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-		act("$n looks at you.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-		act("$n winks at $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-		act("$n winks at you.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-		act("{C$n says 'What can I get for a piece of silver?'{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("$n looks at $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+		act("$n looks at you.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+		act("$n winks at $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+		act("$n winks at you.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+		act("{C$n says 'What can I get for a piece of silver?'{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	    }
 	    else
 	    if (number_percent() < 5)
 	    {
-		act("$n looks at $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-		act("$n looks at you.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-		act("{C$n says 'My god woman, put some bloody clothes on.'{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("$n looks at $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+		act("$n looks at you.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+		act("{C$n says 'My god woman, put some bloody clothes on.'{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	    }
 	}
         else
@@ -762,10 +762,10 @@ bool spec_guard( CHAR_DATA *ch )
 	{
 	    if (number_percent() < 5)
 	    {
-		act("$n looks at $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-		act("$n looks at you.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-		act("$n pukes everywhere.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		act("{C$n says 'My god man, put some bloody pants on.'{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("$n looks at $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+		act("$n looks at you.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+		act("$n pukes everywhere.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+		act("{C$n says 'My god man, put some bloody pants on.'{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	    }
 	}
     }
@@ -791,7 +791,7 @@ bool spec_janitor( CHAR_DATA *ch )
 	||   trash->item_type == ITEM_TRASH
 	||   trash->cost < 10 )
 	{
-	    act( "$n picks up some trash.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+	    act( "$n picks up some trash.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
 	    obj_from_room( trash );
 	    obj_to_char( trash, ch );
 	    return true;
@@ -934,9 +934,9 @@ bool spec_poison( CHAR_DATA *ch )
     || number_percent() < 80 )
 	return false;
 
-    act( "You bite $N!",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR    );
-    act( "$n bites $N!",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT );
-    act( "$n bites you!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT    );
+    act( "You bite $N!",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL    );
+    act( "$n bites $N!",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL );
+    act( "$n bites you!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL    );
     spell_poison( gsn_poison, ch->tot_level, ch, victim,TARGET_CHAR, WEAR_NONE);
     return true;
 }
@@ -964,8 +964,8 @@ bool spec_thief( CHAR_DATA *ch )
 
 	if ( IS_AWAKE(victim) && number_range( 0, ch->tot_level ) == 0 )
 	{
-	    act( "You discover $n's hands in your wallet!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT );
-	    act( "$N discovers $n's hands in $S wallet!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT );
+	    act( "You discover $n's hands in your wallet!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL );
+	    act( "$N discovers $n's hands in $S wallet!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL );
 	    return true;
 	}
 	else
@@ -1587,7 +1587,7 @@ bool spec_invasion( CHAR_DATA *ch )
           sprintf(buf, "You hear screams nearby.");
           break;
       }
-      act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+      act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     return true;
    }
    return false;

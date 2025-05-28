@@ -217,7 +217,7 @@ TEDIT(tedit_type)
 	}
 
     token_index->type = token_table[i].type;
-    act("Set token type to $t.", ch, NULL, NULL, NULL, NULL, token_table[i].name, NULL, TO_CHAR);
+    act("Set token type to $t.", ch, NULL, NULL, NULL, NULL, token_table[i].name, NULL, TO_CHAR, NULL, NULL);
     return true;
 }
 

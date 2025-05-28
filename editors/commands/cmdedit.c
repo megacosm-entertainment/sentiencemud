@@ -1007,7 +1007,7 @@ CMDEDIT (cmdedit_help )
         
         if (pHelp == NULL)
         {
-            act("There is no helpfile with index $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);
+            act("There is no helpfile with index $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR, NULL, NULL);
             return false;            
         }
         
@@ -1017,7 +1017,7 @@ CMDEDIT (cmdedit_help )
         pHelp = lookup_help_exact(argument, get_staff_rank(ch), topHelpCat);
         if (pHelp == NULL)
         {
-	        act("There is no helpfile with keywords $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);
+	        act("There is no helpfile with keywords $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR, NULL, NULL);
 	        return false;
         }
     }

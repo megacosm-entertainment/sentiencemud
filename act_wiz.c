@@ -1068,7 +1068,7 @@ void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj,
 		    send_to_char(wiz_buf,d->character);
 		}
 		
-			act_new(string,d->character,ch,NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
+			act_new(string,d->character,ch,NULL,NULL,NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
 		}
     }
 }
@@ -1099,7 +1099,7 @@ void do_zot(CHAR_DATA *ch, char *argument)
 
 		send_to_char("{YYou are struck by a bolt of lightning!\n\r{x", victim);
 
-		act("{Y$n is struck by a bolt of lightning!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("{Y$n is struck by a bolt of lightning!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 		sprintf(buf, "{Y***ZOT*** {xYou have zotted %s!\n\r",
 			IS_NPC(victim) ? victim->short_descr : victim->name);
@@ -1144,7 +1144,7 @@ void do_zot(CHAR_DATA *ch, char *argument)
 
     send_to_char("{YYou are struck by a bolt of lightning!\n\r{x", victim);
 
-    act("{Y$n is struck by a bolt of lightning!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act("{Y$n is struck by a bolt of lightning!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
     sprintf(buf, "{Y***ZOT*** {xYou have zotted %s!\n\r",
 		    IS_NPC(victim) ? victim->short_descr : victim->name);
@@ -1304,7 +1304,7 @@ void do_deny(CHAR_DATA *ch, char *argument)
     send_to_char("You are denied access!\n\r", victim);
     sprintf(buf,"$N denies access to %s",victim->name);
     wiznet(buf,ch,NULL,WIZ_PENALTIES,WIZ_SECURE,0);
-    act("Denied access to $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    act("Denied access to $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     save_char_obj(victim);
     stop_fighting(victim,true);
     do_function(victim, &do_quit, NULL);
@@ -1333,7 +1333,7 @@ void do_disconnect(CHAR_DATA *ch, char *argument)
     	{
             if (d->descriptor == desc)
             {
-            	act("Disconnected $N.", ch, d->character, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+            	act("Disconnected $N.", ch, d->character, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 				connection_remove(d);
 				close_socket(d);
@@ -1350,7 +1350,7 @@ void do_disconnect(CHAR_DATA *ch, char *argument)
 
     if (victim->desc == NULL)
     {
-	act("$N doesn't have a descriptor.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	act("$N doesn't have a descriptor.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	return;
     }
 
@@ -1358,7 +1358,7 @@ void do_disconnect(CHAR_DATA *ch, char *argument)
     {
 	if (d == victim->desc)
 	{
-            act("Disconnected $N.", ch, d->character, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+            act("Disconnected $N.", ch, d->character, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			connection_remove(d);
 	    close_socket(d);
 	    return;
@@ -1553,7 +1553,7 @@ void do_transfer(CHAR_DATA *ch, char *argument)
     if (victim->fighting != NULL)
 	stop_fighting(victim, true);
 
-    act("$n disappears.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act("$n disappears.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     char_from_room(victim);
 	if(location->wilds)
 		char_to_vroom(victim, location->wilds, location->x, location->y);
@@ -1570,13 +1570,13 @@ void do_transfer(CHAR_DATA *ch, char *argument)
     }
 
     if (ch != victim)
-	act("$n has transferred you.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+	act("$n has transferred you.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
     do_function(victim, &do_look, "auto");
 
 	sprintf(buf, "Transferred $N to %s (%ld)",
 	victim->in_room->name,
 	victim->in_room->vnum);
-	act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 }
 
 
@@ -1767,9 +1767,9 @@ void do_goto(CHAR_DATA *ch, char *argument)
 //	if (get_staff_rank(rch) >= ch->invis_level)
 //	{
 	    if (ch->pcdata != NULL && ch->pcdata->immortal != NULL &&  ch->pcdata->immortal->bamfout[0] != '\0')
-		act("$t",ch,rch, NULL, NULL, NULL,ch->pcdata->immortal->bamfout, NULL,TO_VICT);
+		act("$t",ch,rch, NULL, NULL, NULL,ch->pcdata->immortal->bamfout, NULL,TO_VICT, NULL, NULL);
 	    else
-		act("$n leaves in a swirling mist.",ch,rch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
+		act("$n leaves in a swirling mist.",ch,rch, NULL, NULL, NULL, NULL, NULL,TO_VICT, NULL, NULL);
 //	}
     }
 
@@ -1794,9 +1794,9 @@ void do_goto(CHAR_DATA *ch, char *argument)
         if (ch != rch /*&& get_staff_rank(rch) >= ch->invis_level*/)
         {
             if (ch->pcdata != NULL && ch->pcdata->immortal != NULL && ch->pcdata->immortal->bamfin[0] != '\0')
-                act("$t",ch,rch, NULL, NULL, NULL,ch->pcdata->immortal->bamfin, NULL,TO_VICT);
+                act("$t",ch,rch, NULL, NULL, NULL,ch->pcdata->immortal->bamfin, NULL,TO_VICT, NULL, NULL);
             else
-                act("$n appears in a swirling mist.",ch,rch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
+                act("$n appears in a swirling mist.",ch,rch, NULL, NULL, NULL, NULL, NULL,TO_VICT, NULL, NULL);
         }
     }
 
@@ -1894,9 +1894,9 @@ void do_goxy (CHAR_DATA * ch, char *argument)
             if (ch->pcdata != NULL)
             {
                 if (IS_IMMORTAL(ch) && ch->pcdata->immortal->bamfout[0] != '\0')
-                    act ("$t", ch, rch, NULL, NULL, NULL, ch->pcdata->immortal->bamfout, NULL, TO_VICT);
+                    act ("$t", ch, rch, NULL, NULL, NULL, ch->pcdata->immortal->bamfout, NULL, TO_VICT, NULL, NULL);
                 else
-                    act ("$n leaves in a swirling mist.", ch, rch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+                    act ("$n leaves in a swirling mist.", ch, rch, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
 
 /* Vizz - For later on... disabled for now.
                 if (ch->pcdata->poofout_mspfile[0] != '\0')
@@ -1922,10 +1922,10 @@ void do_goxy (CHAR_DATA * ch, char *argument)
         if (get_staff_rank (rch) >= ch->invis_level)
         {
             if (ch->pcdata != NULL && IS_IMMORTAL(ch) && ch->pcdata->immortal->bamfin[0] != '\0')
-                act ("$t", ch, rch, NULL, NULL, NULL, ch->pcdata->immortal->bamfin, NULL, TO_VICT);
+                act ("$t", ch, rch, NULL, NULL, NULL, ch->pcdata->immortal->bamfin, NULL, TO_VICT, NULL, NULL);
             else
                 act ("$n appears in a swirling mist.", ch, rch, NULL, NULL, NULL, NULL, NULL,
-                     TO_VICT);
+                     TO_VICT, NULL, NULL);
         }
     }
 
@@ -3130,10 +3130,10 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 					 victim->at_wilds_y);
 	}
 
-	sprintf(buf, "{BVnum:{x %ld  {BRace:{x %s  {BSex:{x %s  {BRoom:{x %ld\n\r",
+	sprintf(buf, "{BVnum:{x %ld  {BRace:{x %s  {Body Type:{x %s  {BRoom:{x %ld\n\r",
 				 VNUM(victim),
 				 race_table[victim->race].name,
-				 sex_table[victim->sex].name,
+				 body_type_info[victim->body_type].name,
 				 victim->in_room == NULL ? 0 : victim->in_room->vnum);
 	send_to_char(buf, ch);
 
@@ -3495,12 +3495,12 @@ void do_tstat(CHAR_DATA *ch, char *argument)
 		}
 
 		if (victim  && !(token= get_token_char(victim, vnum, count))) {
-			act("$N doesn't have that token.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("$N doesn't have that token.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			return;
 		}
 
 		if (object && !(token = get_token_obj(object, vnum, count))) {
-			act("$p doesn't have that token.", ch, NULL, NULL, object, NULL, NULL, NULL, TO_CHAR);
+			act("$p doesn't have that token.", ch, NULL, NULL, object, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			return;
 		}
 
@@ -4019,7 +4019,7 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
 	iterator_stop(&vit);
 
     if (!found)
-		act("You didn't find any $T.", ch, NULL, NULL, NULL, NULL, NULL, argument, TO_CHAR);
+		act("You didn't find any $T.", ch, NULL, NULL, NULL, NULL, NULL, argument, TO_CHAR, NULL, NULL);
     else
     	page_to_char(buf_string(buffer),ch);
 
@@ -4279,7 +4279,7 @@ void do_snoop(CHAR_DATA *ch, char *argument)
     sprintf(buf,"$N starts snooping on %s",
 	(IS_NPC(ch) ? victim->short_descr : victim->name));
     wiznet(buf,ch,NULL,WIZ_SNOOPS,WIZ_SECURE,get_staff_rank(ch));
-    act("Now snooping $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    act("Now snooping $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 }
 
 
@@ -4354,7 +4354,7 @@ void do_switch(CHAR_DATA *ch, char *argument)
         victim->prompt = str_dup(ch->prompt);
     victim->comm = ch->comm;
     victim->lines = ch->lines;
-    act("Switched into $n.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    act("Switched into $n.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     SET_BIT(victim->act[0], PLR_COLOUR);
 }
 
@@ -4475,8 +4475,8 @@ void do_clone(CHAR_DATA *ch, char *argument)
             obj_to_room(clone, ch->in_room);
         recursive_clone(ch, obj, clone);
 
-        act("$n has created $p.", ch, NULL, NULL, clone, NULL, NULL, NULL, TO_ROOM);
-        act("You clone $p.", ch, NULL, NULL, clone, NULL, NULL, NULL, TO_CHAR);
+        act("$n has created $p.", ch, NULL, NULL, clone, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        act("You clone $p.", ch, NULL, NULL, clone, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         wiznet("$N clones $p.", ch, clone, WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch));
         return;
     }
@@ -4508,8 +4508,8 @@ void do_clone(CHAR_DATA *ch, char *argument)
         iterator_stop(&it);
 
         char_to_room(clone, ch->in_room);
-        act("$n has created $N.", ch, clone, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-        act("You clone $N.", ch, clone, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        act("$n has created $N.", ch, clone, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        act("You clone $N.", ch, clone, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         sprintf(buf, "$N clones %s.", clone->short_descr);
         wiznet(buf, ch, NULL, WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch));
         return;
@@ -4641,8 +4641,8 @@ void do_mload(CHAR_DATA *ch, char *argument)
         sprintf(buf, "Loaded %s (%ld)",
             pMobIndex->short_descr,
             pMobIndex->vnum);
-        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-        act("$n has created $N!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        act("$n has created $N!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         sprintf(buf,"$N loads %s.", victim->short_descr);
         wiznet(buf, ch, NULL, WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch));
     }
@@ -4662,11 +4662,11 @@ void do_mload(CHAR_DATA *ch, char *argument)
 
         sprintf(buf, "{Y({G%d{Y){x $n has created %s!",
             amt, pMobIndex->short_descr);
-        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         
         sprintf(buf, "{Y({G%d{Y){x Loaded %s (%ld)",
             amt, pMobIndex->short_descr, pMobIndex->vnum);
-        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         
         sprintf(buf, "{Y({G%d{Y){x $N loads %s.",
             amt, pMobIndex->short_descr);
@@ -4763,9 +4763,9 @@ void do_oload(CHAR_DATA *ch, char *argument)
             obj_to_vroom(obj, ch->in_room->wilds, ch->at_wilds_x, ch->at_wilds_y);
         }
 
-        act("$n has created $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+        act("$n has created $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         sprintf(buf, "Loaded $p (%ld)", obj->pIndexData->vnum);
-        act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+        act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         wiznet("$N loads $p.",ch,obj,WIZ_LOAD,WIZ_SECURE,get_staff_rank(ch));
 
         obj->loaded_by = str_dup(ch->name);
@@ -4795,10 +4795,10 @@ void do_oload(CHAR_DATA *ch, char *argument)
 
         sprintf(buf, "{Y({G%d{Y){x $n has created %s!", amt,
             pObjIndex->short_descr);
-        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         sprintf(buf, "{Y({G%d{Y){x Loaded %s (%ld)",
             amt, pObjIndex->short_descr, pObjIndex->vnum);
-        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         sprintf(buf, "{Y({G%d{Y){x $N loads %s.", amt, pObjIndex->short_descr);
         wiznet(buf, ch, NULL, WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch));
     }
@@ -4878,11 +4878,11 @@ void do_purge(CHAR_DATA *ch, char *argument)
 
 			if (victim != NULL && IS_SET(victim->act[0],ACT_NOPURGE) && !forced)
 			{
-				act("$N is flagged 'nopurge' - Try again with the 'force' argument.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				act("$N is flagged 'nopurge' - Try again with the 'force' argument.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 				return;
 			} else
 			{
-				act("Extracted $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				act("Extracted $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 				extract_char(victim, true);
 				return;
 			}
@@ -4935,7 +4935,7 @@ void do_purge(CHAR_DATA *ch, char *argument)
 
 			if (obj != NULL && IS_SET(obj->extra[0], ITEM_NOPURGE) && !forced)
 			{
-				act("$p is flagged 'nopurge' - Try again with the 'force' argument.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				act("$p is flagged 'nopurge' - Try again with the 'force' argument.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 				return;
 			} else
 			{
@@ -4947,7 +4947,7 @@ void do_purge(CHAR_DATA *ch, char *argument)
 		    			obj->pulled_by = NULL;
 	    			}
 				}
-				act("Extracted $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				act("Extracted $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 				extract_obj(obj);
 				return;
 			}
@@ -4975,7 +4975,7 @@ void do_purge(CHAR_DATA *ch, char *argument)
 	    		vnext = victim->next_in_room;
 				if (IS_SET(victim->act[0],ACT_NOPURGE) && !forced)
 				{
-					act("$N is flagged 'nopurge' - Try again with the 'force' argument.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+					act("$N is flagged 'nopurge' - Try again with the 'force' argument.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 					continue;
 				}
 	    		if (IS_NPC(victim)
@@ -4993,7 +4993,7 @@ void do_purge(CHAR_DATA *ch, char *argument)
 	    		obj_next = obj->next_content;
 				if (IS_SET(obj->extra[0], ITEM_NOPURGE) && !forced)
 				{
-					act("$p is flagged 'nopurge' - Try again with the 'force' argument.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+					act("$p is flagged 'nopurge' - Try again with the 'force' argument.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 					continue;
 				}
 
@@ -5007,8 +5007,8 @@ void do_purge(CHAR_DATA *ch, char *argument)
 				extract_obj(obj);
 			}
 
-			act("$n purges the room!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-			act("Purged $T.", ch, NULL, NULL, NULL, NULL, NULL, ch->in_room->name, TO_CHAR);
+			act("$n purges the room!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+			act("Purged $T.", ch, NULL, NULL, NULL, NULL, NULL, ch->in_room->name, TO_CHAR, NULL, NULL);
 			return;
     	}
 	}
@@ -5097,7 +5097,7 @@ void do_advance(CHAR_DATA *ch, char *argument)
 		}
 
 		if(level < LEVEL_IMMORTAL) {
-			act("$N has been deleted from the immortal list.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("$N has been deleted from the immortal list.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			/* Remove it from the global list */
 			last = NULL;
 			for (tmp = immortal_list; tmp != NULL; tmp = tmp->next) {
@@ -5293,7 +5293,7 @@ void do_restore(CHAR_DATA *ch, char *argument)
     }
 
 	restore_char(victim, ch, 100);
-    act("Restored $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    act("Restored $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
     sprintf(buf, "$N restored %s.", IS_NPC(victim) ? victim->short_descr : victim->name);
     wiznet(buf,ch,NULL,WIZ_RESTORE,WIZ_SECURE,get_staff_rank(ch));
@@ -6861,17 +6861,110 @@ void do_mset(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (!str_prefix(arg2, "sex"))
+    if (!str_prefix(arg2, "bodytype"))
     {
-	if (value < 0 || value > 2)
-	{
-	    send_to_char("Sex range is 0 to 2.\n\r", ch);
-	    return;
-	}
-	victim->sex = value;
-	if (!IS_NPC(victim))
-	    victim->pcdata->true_sex = value;
-	return;
+        body_type_t new_body_type = BODY_TYPE_NEUTRAL; // Default
+        bool type_set = false;
+
+        if (is_number(arg3))
+        {
+            int num_val = atoi(arg3);
+            // BODY_TYPE_OTHER is 3, BODY_TYPE_RANDOM is 4
+            int max_allowed_val = IS_NPC(victim) ? BODY_TYPE_RANDOM : BODY_TYPE_OTHER;
+
+            if (num_val >= 0 && num_val <= max_allowed_val)
+            {
+                new_body_type = (body_type_t)num_val;
+                type_set = true;
+            }
+            else
+            {
+                sprintf(buf, "Numeric body type for %s must be 0-%d.\n\r",
+                        IS_NPC(victim) ? "NPCs" : "PCs", max_allowed_val);
+                send_to_char(buf, ch);
+                return;
+            }
+        }
+        else // String input
+        {
+            int flag_val = flag_value(body_types, arg3); // body_type_flags needs to be accessible
+            if (flag_val != NO_FLAG)
+            {
+                if (!IS_NPC(victim) && flag_val == BODY_TYPE_RANDOM)
+                {
+                    send_to_char("PCs cannot be set to 'random' body type. Choose neutral, male, female, or other.\n\r", ch);
+                    return;
+                }
+                new_body_type = (body_type_t)flag_val;
+                type_set = true;
+            }
+            else
+            {
+                char type_list_buf[MAX_STRING_LENGTH] = "Invalid body type name. Valid names/numbers are: ";
+                for (int i = 0; body_types[i].name != NULL; i++) {
+                    if (!IS_NPC(victim) && body_types[i].bit == BODY_TYPE_RANDOM) continue;
+                    char temp_buf[50];
+                    sprintf(temp_buf, "%s (%ld), ", body_types[i].name, body_types[i].bit);
+                    if (strlen(type_list_buf) + strlen(temp_buf) < MAX_STRING_LENGTH - 3) {
+                        strcat(type_list_buf, temp_buf);
+                    } else {
+                        strcat(type_list_buf, "..."); // Indicate list was truncated
+                        break;
+                    }
+                }
+                // Remove trailing ", "
+                if (strlen(type_list_buf) > 2 && strcmp(&type_list_buf[strlen(type_list_buf)-2], ", ") == 0) {
+                    type_list_buf[strlen(type_list_buf)-2] = '\0';
+                }
+                strcat(type_list_buf, ".\n\r");
+                send_to_char(type_list_buf, ch);
+                return;
+            }
+        }
+
+        if (type_set)
+        {
+            if (IS_NPC(victim))
+            {
+                victim->body_type = new_body_type;
+            }
+            else
+            {
+                if (victim->pcdata == NULL) {
+                     send_to_char("Victim has no player data to set body type.\n\r", ch);
+                     return;
+                }
+                victim->body_type = new_body_type;
+            }
+
+            // This function should handle setting pronouns on ch-> or ch->pcdata->
+            reset_pronouns_to_body_type(victim, new_body_type);
+
+            // Update old sex field for compatibility
+            switch (new_body_type)
+            {
+                case BODY_TYPE_MALE:
+                    victim->sex = SEX_MALE; // Assumes SEX_MALE, SEX_FEMALE, SEX_NEUTRAL are defined
+                    break;
+                case BODY_TYPE_FEMALE:
+                    victim->sex = SEX_FEMALE;
+                    break;
+                default: // BODY_TYPE_NEUTRAL, BODY_TYPE_OTHER, BODY_TYPE_RANDOM
+                    victim->sex = SEX_NEUTRAL;
+                    break;
+            }
+            if (!IS_NPC(victim) && victim->pcdata != NULL)
+            {
+                victim->pcdata->true_sex = victim->sex; // If true_sex is still used
+            }
+
+            sprintf(buf, "%s's body type set to %s.\n\rPronouns reset to defaults for this type.\n\r",
+                    capitalize(victim->name), body_type_info[new_body_type].name); // body_type_info needs to be accessible
+            send_to_char(buf, ch);
+            return;
+        }
+        send_to_char("Failed to set body type due to an unexpected error.\n\r", ch);
+        return;
     }
 
     if (!str_prefix(arg2, "class"))
@@ -7184,7 +7277,7 @@ void do_string(CHAR_DATA *ch, char *argument)
     {
 	free_string(obj->name);
 	obj->name = str_dup(argument);
-	act("Strung $p's name to '$t'.", ch, NULL, NULL, obj, NULL, argument, NULL, TO_CHAR);
+	act("Strung $p's name to '$t'.", ch, NULL, NULL, obj, NULL, argument, NULL, TO_CHAR, NULL, NULL);
 	return;
     }
 
@@ -7192,7 +7285,7 @@ void do_string(CHAR_DATA *ch, char *argument)
     {
 	free_string(obj->short_descr);
 	obj->short_descr = str_dup(argument);
-	act("Strung $p's short to '$t'.", ch, NULL, NULL, obj, NULL, argument, NULL, TO_CHAR);
+	act("Strung $p's short to '$t'.", ch, NULL, NULL, obj, NULL, argument, NULL, TO_CHAR, NULL, NULL);
 	return;
     }
 
@@ -7200,7 +7293,7 @@ void do_string(CHAR_DATA *ch, char *argument)
     {
 	free_string(obj->description);
 	obj->description = str_dup(argument);
-	act("Strung $p's long to '$t'.", ch, NULL, NULL, obj, NULL, argument, NULL, TO_CHAR);
+	act("Strung $p's long to '$t'.", ch, NULL, NULL, obj, NULL, argument, NULL, TO_CHAR, NULL, NULL);
 	return;
     }
 
@@ -7561,7 +7654,7 @@ void do_force(CHAR_DATA *ch, char *argument)
 	    victim_next = victim->next_in_room;
 
 	    if (victim != ch && victim->tot_level < ch->tot_level) {
-		act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+		act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
 		interpret(victim, argument);
 	    }
 	}
@@ -7586,7 +7679,7 @@ void do_force(CHAR_DATA *ch, char *argument)
 	    if (desc->connected == CON_PLAYING
 	    &&  get_staff_rank(desc->character) < get_staff_rank(ch))
 	    {
-		act(buf, ch, desc->character, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+		act(buf, ch, desc->character, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
 		interpret(desc->character, argument);
 	    }
 	}
@@ -7609,7 +7702,7 @@ void do_force(CHAR_DATA *ch, char *argument)
 	    &&  get_staff_rank(desc->character) < get_staff_rank(ch)
             &&  desc->character->level >= LEVEL_HERO)
 	    {
-		act(buf, ch, desc->character, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+		act(buf, ch, desc->character, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
 		interpret(desc->character, argument);
 	    }
         }
@@ -7646,12 +7739,12 @@ void do_force(CHAR_DATA *ch, char *argument)
 	    return;
 	}
 
-	act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+	act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
 	
 	char name[MIL];
 	strncpy(name, victim->name, MIL-1);
 	interpret(victim, argument);
-	act("Forced $N to \"$t\".", ch, victim, NULL, NULL, NULL, argument, NULL, TO_CHAR);
+	act("Forced $N to \"$t\".", ch, victim, NULL, NULL, NULL, argument, NULL, TO_CHAR, NULL, NULL);
     }
 
     return;
@@ -7671,13 +7764,13 @@ void do_invis(CHAR_DATA *ch, char *argument)
       if (ch->invis_level)
       {
 	  ch->invis_level = 0;
-	  act("$n slowly fades into existence.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	  act("$n slowly fades into existence.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	  send_to_char("You slowly fade back into existence.\n\r", ch);
       }
       else
       {
 	  ch->invis_level = get_staff_rank(ch);
-	  act("$n slowly fades into thin air.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	  act("$n slowly fades into thin air.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	  send_to_char("You slowly vanish into thin air.\n\r", ch);
       }
     else
@@ -7693,7 +7786,7 @@ void do_invis(CHAR_DATA *ch, char *argument)
       {
 	  ch->reply = NULL;
           ch->invis_level = level;
-          act("$n slowly fades into thin air.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+          act("$n slowly fades into thin air.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
           send_to_char("You slowly vanish into thin air.\n\r", ch);
       }
     }
@@ -7715,13 +7808,13 @@ void do_incognito(CHAR_DATA *ch, char *argument)
       if (ch->incog_level)
       {
           ch->incog_level = 0;
-          act("$n is no longer cloaked.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+          act("$n is no longer cloaked.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
           send_to_char("You are no longer cloaked.\n\r", ch);
       }
       else
       {
           ch->incog_level = get_staff_rank(ch);
-          act("$n cloaks $s presence.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+          act("$n cloaks $s presence.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
           send_to_char("You cloak your presence.\n\r", ch);
       }
     else
@@ -7737,7 +7830,7 @@ void do_incognito(CHAR_DATA *ch, char *argument)
       {
           ch->reply = NULL;
           ch->incog_level = level;
-          act("$n cloaks $s presence.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+          act("$n cloaks $s presence.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
           send_to_char("You cloak your presence.\n\r", ch);
       }
     }
@@ -7928,7 +8021,7 @@ void do_mlevel(CHAR_DATA *ch, char *argument)
 
 	if (!found)
 		act("You didn't find any mob of level $T.",
-				ch, NULL, NULL, NULL, NULL, NULL, argument, TO_CHAR);
+				ch, NULL, NULL, NULL, NULL, NULL, argument, TO_CHAR, NULL, NULL);
 	else
 		page_to_char(buf_string(buffer),ch);
 
@@ -8014,7 +8107,7 @@ void do_immortalise(CHAR_DATA *ch, char *argument)
 
     if (victim->tot_level < LEVEL_HERO)
     {
-		act("$N must be at max level to remort.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$N must be at max level to remort.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
     }
 
@@ -8036,7 +8129,7 @@ void do_immortalise(CHAR_DATA *ch, char *argument)
 
     if (!can_choose_subclass(victim, i))
     {
-		act("$N cannot choose that subclass.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$N cannot choose that subclass.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
     }
 
@@ -8637,7 +8730,7 @@ void do_junk(CHAR_DATA *ch, char *argument)
              && obj->pIndexData->vnum == atol(arg2))
         || (is_name(arg2, obj->name)))
         {
-            act("Extracted $p from $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+            act("Extracted $p from $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
             // Need to remove from the iterator before extracting
             iterator_remcurrent(&it);
             extract_obj(obj);
@@ -8941,7 +9034,7 @@ void do_vislist(CHAR_DATA *ch, char *argument)
 
     if (found)
     {
-	act("Removed $t from vis list.", ch, NULL, NULL, NULL, NULL, string->string, NULL, TO_CHAR);
+	act("Removed $t from vis list.", ch, NULL, NULL, NULL, NULL, string->string, NULL, TO_CHAR, NULL, NULL);
 	if (string_prev != NULL)
 	    string_prev->next = string->next;
 	else
@@ -8992,7 +9085,7 @@ void do_vislist(CHAR_DATA *ch, char *argument)
 
 	string = new_string_data();
 	string->string = str_dup(arg);
-	act("Added $t to your vis list.", ch, NULL, NULL, NULL, NULL, string->string, NULL, TO_CHAR);
+	act("Added $t to your vis list.", ch, NULL, NULL, NULL, NULL, string->string, NULL, TO_CHAR, NULL, NULL);
 	string->next = ch->pcdata->vis_to_people;
 	ch->pcdata->vis_to_people = string;
     }
@@ -9043,7 +9136,7 @@ void do_assignhelper(CHAR_DATA * ch, char *argument)
 	    send_to_char("You are no longer a helper.\n\r", ch);
 	else
 	{
-	    act("$N is no longer a helper.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	    act("$N is no longer a helper.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	    send_to_char("You are no longer a helper.\n\r", victim);
 	}
     }
@@ -9055,7 +9148,7 @@ void do_assignhelper(CHAR_DATA * ch, char *argument)
 	    send_to_char("You are now a helper.\n\r", ch);
 	else
 	{
-	    act("$N is now a helper.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	    act("$N is now a helper.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	    send_to_char("You are now a helper.\n\r", victim);
 	}
     }
@@ -9090,11 +9183,11 @@ void do_otransfer(CHAR_DATA *ch, char *argument)
     if (obj->carried_by != NULL
     || obj->in_room == NULL)
     {
-	act("$p isn't on the ground.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+	act("$p isn't on the ground.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	return;
     }
 
-    act("Transferred $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+    act("Transferred $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
     if (arg2[0] == '\0')
     {
@@ -9210,7 +9303,7 @@ void do_addcommand(CHAR_DATA *ch, char *argument)
     if (cmd_table[i].level <= vch->tot_level) {
 */
     if (command->rank <= get_staff_rank(vch)) {		
-        act("$N can already use that command due to $S level.", ch, vch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        act("$N can already use that command due to $S level.", ch, vch, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	return;
     }
 
@@ -9623,7 +9716,7 @@ void do_aload(CHAR_DATA *ch, char *argument)
 		link->area = area;
 		link->uid = area->uid;
 
-		act("Loaded area $T.", ch, NULL, NULL, NULL, NULL, NULL, area->name, TO_CHAR);
+		act("Loaded area $T.", ch, NULL, NULL, NULL, NULL, NULL, area->name, TO_CHAR, NULL, NULL);
 	} else
 		free_mem( link, sizeof(LLIST_AREA_DATA));
 	fclose(fp);
@@ -9653,7 +9746,7 @@ void do_immflag(CHAR_DATA *ch, char *argument)
 
     free_string(ch->pcdata->immortal->imm_flag);
     ch->pcdata->immortal->imm_flag = str_dup(argument);
-    act("Your immortal flag has been set to $T.", ch, NULL, NULL, NULL, NULL, NULL, argument, TO_CHAR);
+    act("Your immortal flag has been set to $T.", ch, NULL, NULL, NULL, NULL, NULL, argument, TO_CHAR, NULL, NULL);
 }
 
 void do_reloadstats(CHAR_DATA *ch, char *argument)

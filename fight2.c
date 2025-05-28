@@ -45,23 +45,23 @@ void do_smite(CHAR_DATA *ch, char *argument)
 	wield = get_eq_char(ch, WEAR_WIELD);
 	if (wield == NULL) {
 		if ((wield = get_eq_char(ch, WEAR_SECONDARY)) == NULL) {
-			act("You aren't even wielding a weapon.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("You aren't even wielding a weapon.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			return;
 		}
 	}
 
 	if (IS_GOOD(ch) && !IS_SET(wield->extra[0], ITEM_BLESS) && !IS_SET(wield->extra[0], ITEM_HOLY)) {
-		act("$p is not a holy weapon.", ch, NULL, NULL, wield, NULL, NULL, NULL, TO_CHAR);
+		act("$p is not a holy weapon.", ch, NULL, NULL, wield, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
 	if (IS_EVIL(ch) && !IS_SET(wield->extra[0], ITEM_EVIL)) {
-		act("$p is not a cursed weapon.", ch, NULL, NULL, wield, NULL, NULL, NULL, TO_CHAR);
+		act("$p is not a cursed weapon.", ch, NULL, NULL, wield, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
 	if (ch->alignment == 0 && !IS_SET(wield->extra[0], ITEM_EVIL) && !IS_SET(wield->extra[0], ITEM_BLESS)) {
-		act("$p is neither a cursed nor a holy weapon.", ch, NULL, NULL, wield, NULL, NULL, NULL, TO_CHAR);
+		act("$p is neither a cursed nor a holy weapon.", ch, NULL, NULL, wield, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
@@ -73,7 +73,7 @@ void do_smite(CHAR_DATA *ch, char *argument)
 	*/
 
 	if (victim->hit > victim->max_hit/4) {
-		act("$N is still too strong for you to smite.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$N is still too strong for you to smite.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
@@ -91,9 +91,9 @@ void do_smite(CHAR_DATA *ch, char *argument)
 	WAIT_STATE(ch, skill_table[gsn_smite].beats);
 
 	if (number_percent() < chance) {
-		act("{GYou smite $N with a powerful $t!", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_CHAR);
-		act("{Y$n smites $N with a powerful $t!{x", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_NOTVICT);
-		act("{R$n smites you with a powerful $t!{x", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_VICT);
+		act("{GYou smite $N with a powerful $t!", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_CHAR, NULL, NULL);
+		act("{Y$n smites $N with a powerful $t!{x", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_NOTVICT, NULL, NULL);
+		act("{R$n smites you with a powerful $t!{x", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_VICT, NULL, NULL);
 
 		victim->set_death_type = DEATHTYPE_SMITE;
 		damage(ch, victim, 30000, gsn_smite, DAM_NONE, true);
@@ -152,13 +152,13 @@ void do_stake(CHAR_DATA *ch, char *argument)
 
     if (!IS_VAMPIRE(victim))
     {
-        act("$N isn't a vampire.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        act("$N isn't a vampire.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         return;
     }
 
     if (IS_AWAKE(victim))
     {
-        act("$N must be sleeping or $E will see you.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        act("$N must be sleeping or $E will see you.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         return;
     }
 
@@ -168,9 +168,9 @@ void do_stake(CHAR_DATA *ch, char *argument)
 
     if (number_percent() < chance)
     {
-        act("{RYou plunge $p into $N's heart, turning $M to dust!{x", ch, victim, NULL, stake, NULL, NULL, NULL, TO_CHAR);
-        act("{RYour body disintegrates as $n plunges $p into your heart!{x", ch, victim, NULL, stake, NULL, NULL, NULL, TO_VICT);
-        act("{R$N's body turns to dust as $n plunges $p into $S heart!{x", ch, victim, NULL, stake, NULL, NULL, NULL, TO_NOTVICT);
+        act("{RYou plunge $p into $N's heart, turning $M to dust!{x", ch, victim, NULL, stake, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        act("{RYour body disintegrates as $n plunges $p into your heart!{x", ch, victim, NULL, stake, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+        act("{R$N's body turns to dust as $n plunges $p into $S heart!{x", ch, victim, NULL, stake, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
 
         if (IS_NPC(victim))
             ch->monster_kills++;
@@ -192,9 +192,9 @@ void do_stake(CHAR_DATA *ch, char *argument)
     }
     else
     {
-        act("You stumble and wake $N!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-        act("You awake to the sight of $n looming over you with $p in $s hand!", ch, victim, NULL, stake, NULL, NULL, NULL, TO_VICT);
-        act("$n sneaks up on $N, stakeing $p, but wakes $M!", ch, victim, NULL, stake, NULL, NULL, NULL, TO_NOTVICT);
+        act("You stumble and wake $N!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        act("You awake to the sight of $n looming over you with $p in $s hand!", ch, victim, NULL, stake, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+        act("$n sneaks up on $N, stakeing $p, but wakes $M!", ch, victim, NULL, stake, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
 
         one_hit(victim, ch, 0, false);
         check_improve(ch, gsn_stake, false, 1);
@@ -264,11 +264,11 @@ void do_trample(CHAR_DATA *ch, char *argument)
 	if (number_percent() < chance) {
 		if(!p_percent_trigger(mount,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"message_pass")) {
 			sprintf(buf, "{RYou charge full-speed on %s into $N!{x", pers(mount, ch));
-			act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			sprintf(buf, "{RRiding %s, $n charges into you full-speed!{x", pers(mount, victim));
-			act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+			act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
 			sprintf(buf, "{RRiding %s, $n charges into $N at full speed!{x", mount->short_descr);
-			act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+			act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
 		}
 
 		victim->hit_damage = dam;
@@ -296,9 +296,9 @@ void do_trample(CHAR_DATA *ch, char *argument)
 			multi_hit(ch, victim, TYPE_UNDEFINED);
 	} else {
 		if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"message_fail")) {
-			act("{RYou charge towards $N but $E scrambles out of the way!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			act("{R$n charges towards you but you scramble out of the way!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-			act("{R$n charges towards $N at full speed but $E scrambles out of the way!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+			act("{RYou charge towards $N but $E scrambles out of the way!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+			act("{R$n charges towards you but you scramble out of the way!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+			act("{R$n charges towards $N at full speed but $E scrambles out of the way!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
 		}
 		WAIT_STATE(ch, (skill_table[gsn_trample].beats * 3)/2);
 		check_improve(ch, gsn_trample, false, 1);
@@ -376,8 +376,8 @@ memset(&af,0,sizeof(af));
         ch->affected_by[0]= race_table[ch->race].aff;
 
 	if (!silent) {
-	    act("$n winces in pain as $e constrains the demon inside $m.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	    act("You constrain the demon inside you.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	    act("$n winces in pain as $e constrains the demon inside $m.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+	    act("You constrain the demon inside you.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	}
     }
     else
@@ -391,20 +391,20 @@ memset(&af,0,sizeof(af));
 	{
 	    if (!silent) {
 		send_to_char("{YYou feel the demon inside you taking control.{x\n\r", ch);
-		act("{Y$n's eyes turn dark red.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("{Y$n's eyes turn dark red.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 		if (!IS_REMORT(ch))
 		{
-		    act("{RSharp black spikes rip up out from your body as you take on the form of the Slayer!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		    sprintf(buf, "{RSharp black spikes rip up out from %s's torso as $e takes on the form of the Slayer!{x",ch->name);
+		    act("{RSharp black spikes rip up out from your body as you take on the form of the Slayer!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+		    sprintf(buf, "{RSharp black spikes rip up out from %s's torso as $e $z on the form of the Slayer!{x",ch->name);
 		}
 		else
 		{
-		    act("{RSharp black spikes rip up out from your body as you take on the form of the Changeling!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		    sprintf(buf, "{RSharp black spikes rip up out from %s's torso as $e takes on the form of the Changeling!{x",ch->name);
+		    act("{RSharp black spikes rip up out from your body as you take on the form of the Changeling!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+		    sprintf(buf, "{RSharp black spikes rip up out from %s's torso as $e $z on the form of the Changeling!{x",ch->name);
 		}
 
-		act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, get_verb_form(ch, "takes", "take"), NULL);
 	    }
 	}
 	else
@@ -412,7 +412,7 @@ memset(&af,0,sizeof(af));
 	    if (!silent) {
 		send_to_char("{RYou become a Werewolf!{x\n\r", ch);
 		sprintf(buf, "{R%s shifts into a Werewolf!{x", ch->name);
-		act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	    }
 	}
 
@@ -590,7 +590,7 @@ void do_shape(CHAR_DATA *ch, char *argument)
 
 	lev = (ch->tot_level + (IS_REMORT(ch) ? ch->tot_level/3 : 0)) * skill / 100;
 	if (pMob->tot_level > lev) {
-		act("$N is too powerful for you to imitate.", ch, pMob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$N is too powerful for you to imitate.", ch, pMob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
@@ -601,12 +601,12 @@ void do_shape(CHAR_DATA *ch, char *argument)
 
 	send_to_char("{YYou concentrate for a minute or two.{x\n\r", ch);
 
-	act("$n's eyes turn a misty white.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act("$n's eyes turn a misty white.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 	sprintf(buf, "{YYou twist your body into the shape of %s!\n\r{x", pMob->short_descr);
 	send_to_char(buf, ch);
 
-	act("{YThere is a puff of smoke as $n turns into $t!{x", ch, NULL, NULL, NULL, NULL, pMob->short_descr, NULL, TO_ROOM);
+	act("{YThere is a puff of smoke as $n turns into $t!{x", ch, NULL, NULL, NULL, NULL, pMob->short_descr, NULL, TO_ROOM, NULL, NULL);
 
 	ch->morphed = true;
 	ch->short_descr = str_dup(pMob->short_descr);
@@ -625,7 +625,7 @@ void set_pk_timer(CHAR_DATA *ch, CHAR_DATA *victim, int time)
 	}
 
 	send_to_char("{RYou feel a swirl of dangerous energy surrounding you!{x\n\r", ch);
-	act("{RA swirl of dangerous energy surrounds $n!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act("{RA swirl of dangerous energy surrounds $n!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	ch->pk_timer = PULSE_VIOLENCE * 4;
 }
 
@@ -685,12 +685,12 @@ void do_behead(CHAR_DATA *ch, char *argument)
 	}
 
 	if(!IS_SET(victim->parts,PART_HEAD)) {
-		act("$N lacks a head to behead...", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$N lacks a head to behead...", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
 	if(victim->hit >= (victim->max_hit / 10)) {
-		act("$N is still too strong to behead.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$N is still too strong to behead.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
@@ -704,9 +704,9 @@ void do_behead(CHAR_DATA *ch, char *argument)
 
 	WAIT_STATE(ch, skill_table[gsn_behead].beats);
 
-	act("{RWith a mighty $t, $n brings $s weight upon $N...{x", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_NOTVICT);
-	act("{RWith a mighty $t, you bring your weight upon $N...{x", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_CHAR);
-	act("{RWith a mighty $t, $n brings $s weight upon you...{x", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_VICT);
+	act("{RWith a mighty $t, $n brings $s weight upon $N...{x", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_NOTVICT, NULL, NULL);
+	act("{RWith a mighty $t, you bring your weight upon $N...{x", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_CHAR, NULL, NULL);
+	act("{RWith a mighty $t, $n brings $s weight upon you...{x", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_VICT, NULL, NULL);
 	if(number_percent() < chance) {
 		if(!check_acro(ch, victim, wield) &&
 			!check_catch(ch, victim, wield) &&
@@ -735,9 +735,9 @@ void do_behead(CHAR_DATA *ch, char *argument)
 		} else
 			check_improve(ch, gsn_behead, false, 6);
 	} else {
-		act("{Y$N quickly ducks under your decapitating $t!{x", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_CHAR);
-		act("{GYou quickly duck under $n's decapitating $t!{x",	ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_VICT);
-		act("{Y$N quickly ducks under $n's decapitating $t!{x",	ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_NOTVICT);
+		act("{Y$N quickly ducks under your decapitating $t!{x", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_CHAR, NULL, NULL);
+		act("{GYou quickly duck under $n's decapitating $t!{x",	ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_VICT, NULL, NULL);
+		act("{Y$N quickly ducks under $n's decapitating $t!{x",	ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_NOTVICT, NULL, NULL);
 		check_improve(ch, gsn_behead, false, 6);
 	}
 }

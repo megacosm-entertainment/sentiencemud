@@ -42,7 +42,7 @@ SPELL_FUNC(spell_blindness)
 	af.slot	= obj_wear_loc;
 	affect_to_char(victim, &af);
 	send_to_char("You are blinded!\n\r", victim);
-	act("$n appears to be blinded.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+	act("$n appears to be blinded.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
 
 	return true;
 }
@@ -111,7 +111,7 @@ SPELL_FUNC(spell_cure_blindness)
 		if (victim == ch)
 			send_to_char("You aren't blind.\n\r",ch);
 		else
-			act("$N doesn't appear to be blinded.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("$N doesn't appear to be blinded.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 		return true;
 	}
@@ -127,7 +127,7 @@ SPELL_FUNC(spell_cure_blindness)
 		REMOVE_BIT(victim->affected_by[0], AFF_BLIND);
 		send_to_char(skill_table[skill_lookup("blindness")].msg_off, victim);
 		send_to_char("\n\r", victim);
-		act("$n is no longer blinded.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+		act("$n is no longer blinded.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
 	}
 	return true;
 }
@@ -145,7 +145,7 @@ SPELL_FUNC(spell_cure_critical)
 	update_pos(victim);
 	send_to_char("You feel better!\n\r", victim);
 	if (ch != victim)
-		act("$N looks much better.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$N looks much better.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	return true;
 }
 
@@ -159,7 +159,7 @@ SPELL_FUNC(spell_cure_disease)
 		if (victim == ch)
 			send_to_char("You aren't ill.\n\r",ch);
 		else
-		act("$N doesn't appear to be diseased.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$N doesn't appear to be diseased.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -174,11 +174,11 @@ SPELL_FUNC(spell_cure_disease)
 		if (!IS_AFFECTED(victim, AFF_PLAGUE)) {
 			send_to_char(skill_table[gsn_plague].msg_off, victim);
 			send_to_char("\n\r", victim);
-			act("$n looks relieved as $s sores vanish.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+			act("$n looks relieved as $s sores vanish.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
 		} else if (victim == ch)
 			send_to_char("A stronger illness infects you.\n\r",ch);
 		else
-			act("$N suffers from a stronger illness.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+			act("$N suffers from a stronger illness.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 	}
 	return true;
 }
@@ -195,7 +195,7 @@ SPELL_FUNC(spell_cure_light)
 	update_pos(victim);
 	send_to_char("You feel better!\n\r", victim);
 	if (ch != victim)
-		act("$N looks slightly better.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$N looks slightly better.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	return true;
 }
 
@@ -209,7 +209,7 @@ SPELL_FUNC(spell_cure_poison)
 		if (victim == ch)
 			send_to_char("You aren't poisoned.\n\r",ch);
 		else
-			act("$N doesn't appear to be poisoned.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+			act("$N doesn't appear to be poisoned.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -224,11 +224,11 @@ SPELL_FUNC(spell_cure_poison)
 		if (!IS_AFFECTED(victim, AFF_POISON)) {
 			send_to_char(skill_table[gsn_poison].msg_off, victim);
 			send_to_char("\n\r", victim);
-			act("$n looks much better.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+			act("$n looks much better.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
 		} else if (victim == ch)
 			send_to_char("A deeper poison courses through your veins.\n\r",ch);
 		else
-			act("$N suffers from a deeper poison.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+			act("$N suffers from a deeper poison.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 	}
 	return true;
 }
@@ -245,7 +245,7 @@ SPELL_FUNC(spell_cure_serious)
 	update_pos(victim);
 	send_to_char("You feel better!\n\r", victim);
 	if (ch != victim)
-		act("$N looks moderately better.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$N looks moderately better.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	return true;
 }
 
@@ -259,7 +259,7 @@ SPELL_FUNC(spell_cure_toxic)
 		if (victim == ch)
 			send_to_char("You aren't suffering from toxic fumes.\n\r",ch);
 		else
-			act("$N doesn't appear to be suffering from toxic fumes.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+			act("$N doesn't appear to be suffering from toxic fumes.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -274,7 +274,7 @@ SPELL_FUNC(spell_cure_toxic)
 			affect_strip(victim, gsn_toxic_fumes);
 			send_to_char(skill_table[gsn_toxic_fumes].msg_off, victim);
 			send_to_char("\n\r", victim);
-			act("$n looks much better.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+			act("$n looks much better.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
 		} else {
 			// This is where the spell is PERMANENT and cannot be removed here.
 			helped = false;
@@ -294,7 +294,7 @@ SPELL_FUNC(spell_cure_toxic)
 				}
 			}
 			if(helped)
-				act("$n looks much better.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+				act("$n looks much better.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
 		}
 		return true;
 	}
@@ -333,7 +333,7 @@ SPELL_FUNC(spell_haste)
 		if (victim == ch)
 			send_to_char("You can't move any faster!\n\r",ch);
 		else
-			act("$N is already moving as fast as $E can.", ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+			act("$N is already moving as fast as $E can.", ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -352,7 +352,7 @@ SPELL_FUNC(spell_haste)
 	affect_to_char(victim, &af);
 
 	send_to_char("You feel yourself moving more quickly.\n\r", victim);
-	act("$n is moving more quickly.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+	act("$n is moving more quickly.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
 
 	return true;
 }
@@ -382,7 +382,7 @@ SPELL_FUNC(spell_heal)
 	send_to_char("A warm feeling fills your body.\n\r", victim);
 
 	if (ch != victim)
-	act("A warm aura surrounds $N momentarily, then fades.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	act("A warm aura surrounds $N momentarily, then fades.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 	return true;
 }
@@ -406,7 +406,7 @@ SPELL_FUNC(spell_healing_aura)
 		if (gch == ch)
 			send_to_char("You are already surrounded by a healing aura.\n\r",ch);
 		else
-			act("$N is already surrounded by a healing aura.",ch,gch, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+			act("$N is already surrounded by a healing aura.",ch,gch, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -423,7 +423,7 @@ SPELL_FUNC(spell_healing_aura)
 	affect_to_char(gch, &af);
 	send_to_char("You feel a warm glow within you.\n\r", gch);
 	if (ch != gch)
-		act("$N is surrounded with a warm healing aura.",ch,gch, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+		act("$N is surrounded with a warm healing aura.",ch,gch, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 	return true;
 }
 
@@ -446,10 +446,10 @@ SPELL_FUNC(spell_infravision)
 		if (victim == ch)
 			send_to_char("You can already see in the dark.\n\r",ch);
 		else
-			act("$N already has infravision.\n\r",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+			act("$N already has infravision.\n\r",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 		return false;
 	}
-	act("$n's eyes glow red.\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act("$n's eyes glow red.\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
@@ -479,7 +479,7 @@ SPELL_FUNC(spell_invis)
 		obj = (OBJ_DATA *) vo;
 
 		if (IS_OBJ_STAT(obj,ITEM_INVIS)) {
-			act("$p is already invisible.",ch, NULL, NULL,obj,NULL, NULL, NULL,TO_CHAR);
+			act("$p is already invisible.",ch, NULL, NULL,obj,NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 			return false;
 		}
 
@@ -495,7 +495,7 @@ SPELL_FUNC(spell_invis)
 		af.slot	= WEAR_NONE;
 		affect_to_obj(obj,&af);
 
-		act("$p fades out of sight.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+		act("$p fades out of sight.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL, NULL, NULL);
 		return true;
 	}
 
@@ -512,7 +512,7 @@ SPELL_FUNC(spell_invis)
 	else if (IS_AFFECTED(victim, AFF_INVISIBLE) || IS_AFFECTED2(victim, AFF2_IMPROVED_INVIS))
 		return false;
 
-	act("$n fades out of existence.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act("$n fades out of existence.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
@@ -558,7 +558,7 @@ SPELL_FUNC(spell_mass_invis)
 		if (IS_AFFECTED(gch, AFF_INVISIBLE))
 			continue;
 
-		act("$n slowly fades out of existence.", gch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("$n slowly fades out of existence.", gch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		send_to_char("You slowly fade out of existence.\n\r", gch);
 
 		af.where = TO_AFFECTS;
@@ -597,7 +597,7 @@ SPELL_FUNC(spell_regeneration)
 		if (gch == ch)
 			send_to_char("You are already affected by regeneration.\n\r",ch);
 		else
-			act("$N is already regenerating.",ch,gch, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+			act("$N is already regenerating.",ch,gch, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -614,7 +614,7 @@ SPELL_FUNC(spell_regeneration)
 	affect_to_char(gch, &af);
 	send_to_char("You feel yourself regenerating.\n\r", gch);
 
-	if (ch != gch) act("$N glows warmly.",ch,gch, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+	if (ch != gch) act("$N glows warmly.",ch,gch, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 
 	return true;
 }

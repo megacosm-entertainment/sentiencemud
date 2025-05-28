@@ -479,25 +479,25 @@ void do_hunt( CHAR_DATA *ch, char *argument )
 
     if ( !can_hunt( ch, victim ) )
     {
-	act("$N has magically covered $S tracks.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	act("$N has magically covered $S tracks.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	return;
     }
 
     if ( ch->in_room == victim->in_room )
     {
-	act( "$N is here!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+	act( "$N is here!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
 	return;
     }
 
     if ( IN_WILDERNESS( ch ) )
     {
-	act( "You can't track people out in the wilderness.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+	act( "You can't track people out in the wilderness.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
 	return;
     }
 
     if ( IN_WILDERNESS( victim ) )
     {
-	act( "You can't track people who are out in the wilderness.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+	act( "You can't track people who are out in the wilderness.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
 	return;
     }
 
@@ -523,15 +523,15 @@ void do_hunt( CHAR_DATA *ch, char *argument )
     {
 	if ( number_percent() < get_skill( victim, gsn_trackless_step ) )
 	{
-	    act("$N has covered $S tracks too well for you to follow.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	    act("$N has covered $S tracks too well for you to follow.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	    return;
 	}
     }
 
     if (!IS_SITH(ch))
-	act( "$n carefully sniffs the air.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+	act( "$n carefully sniffs the air.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
     else
-	act("$n's forked tongue whips out and tastes the air.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act("$n's forked tongue whips out and tastes the air.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 
     // Max rooms so people can track across areas without megalag
@@ -540,7 +540,7 @@ void do_hunt( CHAR_DATA *ch, char *argument )
 
     if( direction == -1 || (IS_NPC(victim) && IS_SET(victim->act[1], ACT2_NO_HUNT)))
     {
-	act("You couldn't find a path to $N from here.\n\r", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	act("You couldn't find a path to $N from here.\n\r", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	return;
     }
 
@@ -550,8 +550,8 @@ void do_hunt( CHAR_DATA *ch, char *argument )
 	if ( IS_NPC( ch ) )
 	    return;
 
-	act("You begin hunting $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-	act("$n poises $mself stealthily and sniffs the air.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+	act("You begin hunting $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
+	act("$n poises $mself stealthily and sniffs the air.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
 	ch->hunting = victim;
 	return;
     }
@@ -571,7 +571,7 @@ void do_hunt( CHAR_DATA *ch, char *argument )
     /*
      * Display the results of the search.
      */
-    act("$N is $t from here.", ch, victim, NULL, NULL, NULL, dir_name[direction], NULL, TO_CHAR );
+    act("$N is $t from here.", ch, victim, NULL, NULL, NULL, dir_name[direction], NULL, TO_CHAR, NULL, NULL );
     check_improve(ch,gsn_hunt,true,1);
 }
 

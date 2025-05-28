@@ -48,28 +48,28 @@ SPELL_FUNC(spell_gate)
 	else
 		gate_pet = false;
 
-	act("{M$n steps through a gate and vanishes.{x",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+	act("{M$n steps through a gate and vanishes.{x",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
 	send_to_char("{MYou step through a gate and vanish.\n\r{x",ch);
 	char_from_room(ch);
 	char_to_room(ch,victim->in_room);
 
-	act("{M$n has arrived through a gate.{x",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+	act("{M$n has arrived through a gate.{x",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
 	do_function(ch, &do_look, "auto");
 
 	if (gate_pet) {
-		act("{M$n steps through a gate and vanishes.{x",ch->pet, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM);
+		act("{M$n steps through a gate and vanishes.{x",ch->pet, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM, NULL, NULL);
 		send_to_char("{MYou step through a gate and vanish.{x\n\r",ch->pet);
 		char_from_room(ch->pet);
 		char_to_room(ch->pet,victim->in_room);
-		act("{M$n has arrived through a gate.{x",ch->pet,NULL, NULL, NULL, NULL, NULL,NULL,TO_ROOM);
+		act("{M$n has arrived through a gate.{x",ch->pet,NULL, NULL, NULL, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
 		do_function(ch->pet, &do_look, "auto");
 	}
 
 	if(MOUNTED(ch)) {
-		act("{M$n steps through a gate and vanishes.{x",MOUNTED(ch),NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+		act("{M$n steps through a gate and vanishes.{x",MOUNTED(ch),NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
 		send_to_char("{MYou step through a gate and vanish.{x\n\r",MOUNTED(ch));
 
-		act("{M$n has arrived through a gate.{x",MOUNTED(ch),NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+		act("{M$n has arrived through a gate.{x",MOUNTED(ch),NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
 		do_look(MOUNTED(ch),"auto");
 	}
 
@@ -135,14 +135,14 @@ SPELL_FUNC(spell_maze)
 
 	if (victim->fighting) stop_fighting(victim, true);
 
-	act("{WA phantasmal maze encapsulates $n!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	act("{WA phantasmal maze appears about you!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	act("{WA phantasmal maze encapsulates $n!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+	act("{WA phantasmal maze appears about you!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
-	act("{M$n has been banished!!!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	if (victim != ch) act("{M$N has banished you!!!{x", victim, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	act("{M$n has been banished!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+	if (victim != ch) act("{M$N has banished you!{x", victim, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
-	act("{D$n disappears in a puff of smoke!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	act("{DYou disappear in a puff of smoke!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	act("{D$n disappears in a puff of smoke!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+	act("{DYou disappear in a puff of smoke!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 	if (victim == ch)
 	{
@@ -222,8 +222,8 @@ SPELL_FUNC(spell_nexus)
 
 	obj_to_room(portal,from_room);
 
-	act("{B$p rises up from the ground.{x",ch, NULL, NULL,portal,NULL, NULL, NULL,TO_ROOM);
-	act("{B$p rises up before you.{x",ch, NULL, NULL,portal,NULL, NULL, NULL,TO_CHAR);
+	act("{B$p rises up from the ground.{x",ch, NULL, NULL,portal,NULL, NULL, NULL,TO_ROOM, NULL, NULL);
+	act("{B$p rises up before you.{x",ch, NULL, NULL,portal,NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 
 	if (to_room != from_room) {
 
@@ -250,7 +250,7 @@ SPELL_FUNC(spell_nexus)
 
 		obj_to_room(portal,to_room);
 
-		act("{B$p rises from the ground.{x",to_room->people, NULL, NULL,portal, NULL, NULL,NULL,TO_ALL);
+		act("{B$p rises from the ground.{x",to_room->people, NULL, NULL,portal, NULL, NULL,NULL,TO_ALL, NULL, NULL);
 	}
 
 /*
@@ -300,7 +300,7 @@ SPELL_FUNC(spell_reflection)
 	send_to_char("{WYou feel different as you assume the form of your shadow.{x\n\r", reflection);
 	send_to_char("Type 'return' to return to your normal body.\n\r", ch);
 
-	act("The shadow of $n bends and warps, then detaches itself from $s body!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	act("The shadow of $n bends and warps, then detaches itself from $s body!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	return true;
 }
 
@@ -316,7 +316,7 @@ SPELL_FUNC(spell_summon)
 	}
 
 	if (IS_SET(victim->act[0], PLR_NOSUMMON)) {
-		act("$N isn't allowing summons.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$N isn't allowing summons.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -347,21 +347,21 @@ SPELL_FUNC(spell_summon)
 
 	if (victim->tot_level < ch->tot_level - 20 && !is_pk(victim)) {
 		if (is_pk_safe_range(ch->in_room, 5, -1) > -1) {
-			act("You have to be at least 5 rooms away from a PK area to summon $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("You have to be at least 5 rooms away from a PK area to summon $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			return false;
 		}
 	}
 
 	if (victim->pulled_cart) {
-		act("$N must first drop what $E is pulling.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$N must first drop what $E is pulling.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return false;
 	}
 
-	act("{R$n disappears suddenly.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act("{R$n disappears suddenly.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	char_from_room(victim);
 	char_to_room(victim, ch->in_room);
-	act("{R$n arrives suddenly.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	act("{M$n has summoned you!{x", ch, victim, NULL, NULL, NULL, NULL, NULL,   TO_VICT);
+	act("{R$n arrives suddenly.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+	act("{M$n has summoned you!{x", ch, victim, NULL, NULL, NULL, NULL, NULL,   TO_VICT, NULL, NULL);
 	do_function(victim, &do_look, "auto");
 	return true;
 }

@@ -2253,10 +2253,10 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
         // Place character back in their room if they had one
         if (old_room) {
             char_to_room(existing, old_room);
-            act("$n has reconnected.", existing, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+            act("$n has reconnected.", existing, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         } else if (get_room_index(get_reserved_vnum("room_default_recall"))) {
             char_to_room(existing, get_room_index(get_reserved_vnum("room_default_recall")));
-            act("$n has reconnected.", existing, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+            act("$n has reconnected.", existing, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         }
         
         // Log the reconnection
@@ -2350,7 +2350,7 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
                     if (d2->connected == CON_PLAYING && d2->character != ch &&
                         !IS_SET(d2->character->comm, COMM_NOANNOUNCE)) {
                         act("{MThe Town Crier Announces 'All welcome $N, a new adventurer to Sentience!'{x",
-                            d2->character, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+                            d2->character, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                     }
                 }
                 ch->tot_level = 1;
@@ -2392,22 +2392,22 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
     }
 
     // Announce entry to game
-    act("$$n has entered the game.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act("$$n has entered the game.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     MXPSendTag(d, "<VERSION>");
     
     // Normal login notifications to other players
     for (d2 = descriptor_list; d2 != NULL; d2 = d2->next) {
         if (d2->connected == CON_PLAYING && !IS_IMMORTAL(d->character) &&
             d2->character != ch && IS_SET(d2->character->comm, COMM_NOTIFY))
-            act("{B$$N has entered the game.{x", d2->character, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+            act("{B$$N has entered the game.{x", d2->character, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     }
 
     // Handle church-related logic
     if (ch->church != NULL) {
         if ((ch->alignment < 0 && ch->church->alignment == CHURCH_GOOD) ||
             (ch->alignment > 0 && ch->church->alignment == CHURCH_EVIL)) {
-            act("{YAs you enter Sentience, you feel your church's faith has been changed.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-            act("{YYou feel your psychic link to $T being severed.{x", ch, NULL, NULL, NULL, NULL, NULL, ch->church->name, TO_CHAR);
+            act("{YAs you enter Sentience, you feel your church's faith has been changed.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            act("{YYou feel your psychic link to $T being severed.{x", ch, NULL, NULL, NULL, NULL, NULL, ch->church->name, TO_CHAR, NULL, NULL);
             remove_member(ch->church_member);
             ch->church = NULL;
         } else {
@@ -3217,7 +3217,7 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
     bool has_char_pwd = !IS_NULLSTR(acct_char->pwd);
     bool has_char_mfa = !IS_NULLSTR(acct_char->mfa_key);
     // Check if MFA is in setup progress by checking for pending key
-    bool mfa_pending = !IS_NULLSTR(acct_char->mfa_pending_key);
+    //bool mfa_pending = !IS_NULLSTR(acct_char->mfa_pending_key);
 
     switch (toupper(argument[0])) {
         case 'L': // Log in with this character

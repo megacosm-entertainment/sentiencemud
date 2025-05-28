@@ -36,7 +36,7 @@
 
 RSGEDIT(rsgedit_create)
 {
-	RANDOM_STRING *rsg;
+	//RANDOM_STRING *rsg;
 
-	EDIT_RSG(ch,rsg);
+	//EDIT_RSG(ch,rsg);
 }

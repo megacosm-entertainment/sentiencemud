@@ -212,13 +212,13 @@ void do_play(CHAR_DATA *ch, char *argument)
             if ( mob == ch )
             {
             send_to_char("{YYou begin to play the song softly to yourself...{X\n\r", ch);
-            act( "{Y$n begins to play a song on $p{Y softly to $mself...{x", ch, NULL, NULL, instrument, NULL, NULL, NULL, TO_ROOM);
+            act( "{Y$n begins to play a song on $p{Y softly to $mself...{x", ch, NULL, NULL, instrument, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
             }
             else
             {
-            act("{YYou begin to play the song, sweetly exerting its influence on $N...{X", ch, mob, NULL, instrument, NULL, NULL, NULL, TO_CHAR);
-            act("{Y$n begins to play a song, exerting its influence on $N...{X", ch, mob, NULL, instrument, NULL, NULL, NULL, TO_NOTVICT);
-            act("{Y$n begins to play a song, exerting its influence on you...{X", ch, mob, NULL, instrument, NULL, NULL, NULL, TO_VICT);
+            act("{YYou begin to play the song, sweetly exerting its influence on $N...{X", ch, mob, NULL, instrument, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            act("{Y$n begins to play a song, exerting its influence on $N...{X", ch, mob, NULL, instrument, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+            act("{Y$n begins to play a song, exerting its influence on you...{X", ch, mob, NULL, instrument, NULL, NULL, NULL, TO_VICT, NULL, NULL);
             }
         }
 
@@ -238,8 +238,8 @@ void do_play(CHAR_DATA *ch, char *argument)
 
             break;
         }
-        act( "{YYou begin to play a song on $p{Y...{x", ch, NULL, NULL, instrument, NULL, NULL, NULL, TO_CHAR);
-        act( "{Y$n begins to play a song on $p{Y...{x", ch, NULL, NULL, instrument, NULL, NULL, NULL, TO_ROOM);
+        act( "{YYou begin to play a song on $p{Y...{x", ch, NULL, NULL, instrument, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        act( "{Y$n begins to play a song on $p{Y...{x", ch, NULL, NULL, instrument, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     }
 
     // Setup targets.
@@ -314,8 +314,8 @@ void music_end( CHAR_DATA *ch )
 	bool offensive = false;
 	bool wasdead;
 
-    act( "{YYou finish playing your song.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-    act( "{Y$n finishes $s song.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act( "{YYou finish playing your song.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act( "{Y$n finishes $s song.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 	if(ch->song_token) {
 		token = ch->song_token;

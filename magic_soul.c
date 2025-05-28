@@ -68,7 +68,7 @@ SPELL_FUNC(spell_soul_essence)
         if(i > 0) {
             sprintf(buf, "{BYou feel {C%d{B soul%s flowing into you!{x\n\r", i, ((i==1)?"":"s"));
             send_to_char(buf,ch);
-            act("{B$n glows briefly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+            act("{B$n glows briefly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
             if (boost_table[BOOST_PNEUMA].boost != 100)
             {

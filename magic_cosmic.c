@@ -33,7 +33,7 @@ SPELL_FUNC(spell_create_food)
 	food->value[0] = level / 2;
 	food->value[1] = level;
 	obj_to_room(food, ch->in_room);
-	act("$p suddenly appears.", ch, NULL, NULL, food, NULL, NULL, NULL, TO_ALL);
+	act("$p suddenly appears.", ch, NULL, NULL, food, NULL, NULL, NULL, TO_ALL, NULL, NULL);
 	return true;
 }
 
@@ -62,7 +62,7 @@ SPELL_FUNC(spell_enchant_armour)
 	}
 
 	if (IS_SET(obj->extra[1], ITEM_NO_ENCHANT)) {
-		act("$p is beyond your power to enchant.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		act("$p is beyond your power to enchant.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -79,15 +79,15 @@ SPELL_FUNC(spell_enchant_armour)
 
  	/* item destroyed */
 	if (result < (fail / 4)) {
-		act("$p flares blindingly... and evaporates!",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+		act("$p flares blindingly... and evaporates!",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL, NULL, NULL);
 		extract_obj(obj);
 		return true;
 	}
 
 	/* item disenchanted */
 	if (result < (fail / 3))  {
-		act("$p glows brightly, then fades...oops.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-		act("$p glows brightly, then fades.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
+		act("$p glows brightly, then fades...oops.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
+		act("$p glows brightly, then fades.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
 
 		affect_removeall_obj(obj);
 		return true;
@@ -99,7 +99,7 @@ SPELL_FUNC(spell_enchant_armour)
 		return true;
 	}
 
-	act("$p shimmers with a gold aura.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+	act("$p shimmers with a gold aura.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL, NULL, NULL);
 	SET_BIT(obj->extra[0], ITEM_MAGIC);
 
 	if (obj->affected) {
@@ -167,7 +167,7 @@ SPELL_FUNC(spell_enchant_object)
 	}
 
 	if (IS_SET(obj->extra[1], ITEM_NO_ENCHANT)) {
-		act("$p is beyond your power to enchant.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		act("$p is beyond your power to enchant.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -208,7 +208,7 @@ SPELL_FUNC(spell_enchant_weapon)
 	}
 
 	if (IS_SET(obj->extra[1], ITEM_NO_ENCHANT)) {
-		act("$p is beyond your power to enchant.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		act("$p is beyond your power to enchant.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -245,15 +245,15 @@ SPELL_FUNC(spell_enchant_weapon)
 
 	/* item destroyed */
 	if (result < (fail / 4)) {
-		act("$p shivers violently and explodes!",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+		act("$p shivers violently and explodes!",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL, NULL, NULL);
 		extract_obj(obj);
 		return true;
 	}
 
  	/* item disenchanted */
 	if (result < (fail / 2)) {
-		act("$p glows brightly, then fizzles and sparks.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-		act("$n's $p glows brightly, then fizzles and sparks.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
+		act("$p glows brightly, then fizzles and sparks.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
+		act("$n's $p glows brightly, then fizzles and sparks.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
 
 		/* remove all affects */
 		affect_removeall_obj(obj);
@@ -265,7 +265,7 @@ SPELL_FUNC(spell_enchant_weapon)
 		return true;
 	}
 
-	act("$p glows blue.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+	act("$p glows blue.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL, NULL, NULL);
 	SET_BIT(obj->extra[0], ITEM_MAGIC);
 
 	if (paf_dam) {

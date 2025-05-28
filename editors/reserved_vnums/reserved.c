@@ -467,7 +467,7 @@ RESERVED(reserved_listvnums)
             }
             
             /* Format name and truncate if needed */
-            char name_buf[MAX_STRING_LENGTH];
+            char name_buf[50];
             if (strlen(reserved->name) > name_width) {
                 strncpy(name_buf, reserved->name, name_width - 3);
                 name_buf[name_width - 3] = '\0';
@@ -477,7 +477,7 @@ RESERVED(reserved_listvnums)
             }
             
             /* Format description for display (truncate if needed) */
-            char desc_buf[MAX_STRING_LENGTH];
+            char desc_buf[50];
             if (reserved->description && reserved->description[0]) {
                 strncpy(desc_buf, reserved->description, desc_width - 3);
                 desc_buf[desc_width - 3] = '\0';
@@ -1058,7 +1058,7 @@ RESERVED(reserved_search)
             }
             
             /* Format name and truncate if needed */
-            char name_buf[MAX_STRING_LENGTH];
+            char name_buf[50];
             if (strlen(reserved->name) > name_width) {
                 strncpy(name_buf, reserved->name, name_width - 3);
                 name_buf[name_width - 3] = '\0';
@@ -1068,7 +1068,7 @@ RESERVED(reserved_search)
             }
             
             /* Format description for display (truncate if needed) */
-            char desc_buf[MAX_STRING_LENGTH];
+            char desc_buf[50];
             if (reserved->description && reserved->description[0]) {
                 strncpy(desc_buf, reserved->description, desc_width - 3);
                 desc_buf[desc_width - 3] = '\0';
@@ -1375,7 +1375,7 @@ RESERVED(reserved_listid)
             }
             
             /* Format name and truncate if needed */
-            char name_buf[MAX_STRING_LENGTH];
+            char name_buf[50];
             if (strlen(reserved->name) > name_width) {
                 strncpy(name_buf, reserved->name, name_width - 3);
                 name_buf[name_width - 3] = '\0';
@@ -1385,7 +1385,7 @@ RESERVED(reserved_listid)
             }
             
             /* Format description for display (truncate if needed) */
-            char desc_buf[MAX_STRING_LENGTH];
+            char desc_buf[50];
             if (reserved->description && reserved->description[0]) {
                 strncpy(desc_buf, reserved->description, desc_width - 3);
                 desc_buf[desc_width - 3] = '\0';

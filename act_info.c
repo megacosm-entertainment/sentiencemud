@@ -1094,11 +1094,11 @@ void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch, bool examine)
     if (can_see(victim, ch) && ch->invis_level < 150)
     {
 	if (ch == victim)
-	    act("$n looks at $mself.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	    act("$n looks at $mself.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	else
 	{
-	    act("$n looks at you.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-	    act("$n looks at $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+	    act("$n looks at you.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+	    act("$n looks at $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
 	}
     }
 
@@ -1109,7 +1109,7 @@ void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch, bool examine)
     else
     {
 	act("You see nothing special about $M.", ch, victim, NULL, NULL, NULL, NULL, NULL,
-	    TO_CHAR);
+	    TO_CHAR, NULL, NULL);
     }
 
     sprintf(name, "%s", victim->name);
@@ -1199,7 +1199,7 @@ show_llist_to_char(victim->lcarrying, ch, true, true);
     if (IS_NPC(victim) && number_percent() < get_skill(ch, gsn_mob_lore))
     {
         if (IS_SET(victim->act[0], ACT_NO_LORE) && ch->tot_level <= victim->tot_level)
-	    act("\n\r{R$N is too powerful for you to lore.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	    act("\n\r{R$N is too powerful for you to lore.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	else
 	{
 	    send_to_char("\n\r{YYou recognize the following things about this creature:{x\n\r", ch);
@@ -1492,9 +1492,9 @@ void do_survey(CHAR_DATA *ch, char *argument)
 		if( str_cmp(arg, "auto") )
 		{
 			if (ship->ship_type != SHIP_AIR_SHIP)
-				act("You survey the area around the boat.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				act("You survey the area around the boat.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			else
-				act("You survey the area around the airship.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				act("You survey the area around the airship.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		}
 
 		long bonus_view;
@@ -1509,7 +1509,7 @@ void do_survey(CHAR_DATA *ch, char *argument)
 		if( !IS_WILDERNESS(ship->ship->in_room) )
 		{
 			AREA_DATA *area = ship->ship->in_room->area;
-		    act("$p has landed in $T.", ch, NULL, NULL, ship->ship, NULL, NULL, area->name, TO_CHAR);
+		    act("$p has landed in $T.", ch, NULL, NULL, ship->ship, NULL, NULL, area->name, TO_CHAR, NULL, NULL);
 		    return;
 		}
 
@@ -1651,7 +1651,7 @@ void do_survey(CHAR_DATA *ch, char *argument)
 
     }
 
-    act("You aren't on a boat.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    act("You aren't on a boat.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 }
 
 void do_areas(CHAR_DATA *ch, char *argument)
@@ -2251,11 +2251,11 @@ void do_look(CHAR_DATA * ch, char *argument)
 		case ITEM_CORPSE_PC:
 			if (obj->item_type == ITEM_CONTAINER && IS_SET(obj->value[1], CONT_CLOSED))
 			{
-				act("$p is closed.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				act("$p is closed.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 				break;
 			}
 
-			act("$p holds:", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			act("$p holds:", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			show_list_to_char(obj->contains, ch, true, true);
 			break;
 		}
@@ -2282,10 +2282,10 @@ void do_look(CHAR_DATA * ch, char *argument)
                 {
                     if(can_see(victim, ch) && ch->invis_level < LEVEL_IMMORTAL)
                     {
-                        act("$n looks at $p on you.", ch, victim, NULL, worn_obj, NULL, NULL, NULL, TO_VICT);
-                        act("$n looks at $p on $N.", ch, victim, NULL, worn_obj, NULL, NULL, NULL, TO_NOTVICT);
+                        act("$n looks at $p on you.", ch, victim, NULL, worn_obj, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+                        act("$n looks at $p on $N.", ch, victim, NULL, worn_obj, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
                     }
-                    act("{MYou take a look at {W$p{M on {W$N{M.{x", ch, victim, NULL, worn_obj, NULL, NULL, NULL, TO_CHAR);
+                    act("{MYou take a look at {W$p{M on {W$N{M.{x", ch, victim, NULL, worn_obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                 }
                 send_to_char(worn_obj->full_description, ch);
                 send_to_char("\n\r", ch);
@@ -2306,7 +2306,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 				return;
 			}
 
-			act("You don't see anything like that on $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("You don't see anything like that on $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		} else
 			show_char_to_char_1(victim, ch, false);
 		return;
@@ -2329,9 +2329,9 @@ void do_look(CHAR_DATA * ch, char *argument)
 					return;
 				}
 
-				act("For a moment in time you see through the eyes of $N!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-				act("You feel a momentary shiver up your spine as if you were being watched.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-				act("$n peers into the crystal ball.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				act("For a moment in time you see through the eyes of $N!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+				act("You feel a momentary shiver up your spine as if you were being watched.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+				act("$n peers into the crystal ball.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 				//Updated from show_room_to_char to show_room. -- Tieryo 08/18/2010
 				show_room(ch,victim->in_room,true,false,false);
@@ -2458,13 +2458,13 @@ while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
 								return;
 							}
 
-							act("{YYou look through the eyes of $N:{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+							act("{YYou look through the eyes of $N:{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 							//Updated show_room_to_char to show_room. -- Tieryo 08/18/2010
 							show_room(ch,victim->in_room,true,false,false);
 						}
 						else
-							act("{DThe soul of {x$T{D has left this world.", ch, NULL, NULL, NULL, NULL, NULL, obj->owner, TO_CHAR);
+							act("{DThe soul of {x$T{D has left this world.", ch, NULL, NULL, NULL, NULL, NULL, obj->owner, TO_CHAR, NULL, NULL);
 					}
 
 					return;
@@ -2828,7 +2828,7 @@ while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
 		{
 			if (pexit->keyword != NULL && pexit->keyword[0] != '\0' && pexit->keyword[0] != ' ')
 			{
-				act("You can't see past the $d.", ch, NULL, NULL, NULL, NULL, NULL, pexit->keyword, TO_CHAR);
+				act("You can't see past the $d.", ch, NULL, NULL, NULL, NULL, NULL, pexit->keyword, TO_CHAR, NULL, NULL);
 				return;
 			}
 			else
@@ -2899,10 +2899,10 @@ if ((victim = get_char_room(ch, NULL, arg1)) != NULL)
 
                 if (ch != victim) {
                     if(can_see(victim, ch) && ch->invis_level < LEVEL_IMMORTAL) {
-                        act("$n examines $p on you.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_VICT);
-                        act("$n examines $p on $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
+                        act("$n examines $p on you.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+                        act("$n examines $p on $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
                     }
-                    act("{MYou examine {W$p{M on {W$N{M.{x", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+                    act("{MYou examine {W$p{M on {W$N{M.{x", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                 }
                 send_to_char(obj->full_description, ch);
                 if (perform_lore) {
@@ -2939,10 +2939,10 @@ if ((victim = get_char_room(ch, NULL, arg1)) != NULL)
 
                 if (ch != victim) {
                     if(can_see(victim, ch) && ch->invis_level < LEVEL_IMMORTAL) {
-                        act("$n examines $p in your inventory.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_VICT);
-                        act("$n examines $p in $N's inventory.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
+                        act("$n examines $p in your inventory.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+                        act("$n examines $p in $N's inventory.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
                     }
-                    act("{MYou examine {W$p{M in {W$N's{M inventory.{x", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+                    act("{MYou examine {W$p{M in {W$N's{M inventory.{x", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                 }
                 send_to_char(obj->full_description, ch);
                 if (perform_lore) {
@@ -2968,7 +2968,7 @@ if ((victim = get_char_room(ch, NULL, arg1)) != NULL)
             return;
         }
 
-        act("You don't see anything like that on $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        act("You don't see anything like that on $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     }
     else
     {
@@ -3235,7 +3235,7 @@ void do_score(CHAR_DATA * ch, char *argument)
     sprintf(buf, "| {G%s%s {B[{x%s{B] [{x%s{B] [{x%s{B] [{x%s{B]{x",
 	    ch->name,
 	    IS_NPC(ch) ? "" : ch->pcdata->title,
-	    ch->sex == 0 ? "sexless" : ch->sex == 1 ? "male" : "female",
+		body_type_info[ch->body_type].name,
 	    race_table[ch->race].name,
 	    IS_NPC(ch) ? "mobile" : class_table[get_profession(ch, CLASS_CURRENT)].name,
 	    IS_NPC(ch) ? "mobile" : subclass);
@@ -4806,10 +4806,8 @@ void do_whois(CHAR_DATA * ch, char *argument)
 	/* If they are a player or a shaper, then use the PLAYER RACE name... */
 	if(!IS_IMMORTAL(wch) || wch->race == grn_shaper)
 		strcpy(racestr, pc_race_table[wch->race].name);
-	else if (wch->sex == SEX_FEMALE)
-		strcpy(racestr, "Goddess");
 	else
-		strcpy(racestr, "God");
+		strcpy(racestr, "Immortal");
 
 	buf[0] = '\0';
 	for (i = 0; i < 32; i++)
@@ -4827,7 +4825,6 @@ void do_whois(CHAR_DATA * ch, char *argument)
 
         sprintf(buf, "\n\r{x"
 	             "Name         : %s%s\n\r{x"
-		     "Sex          : %s\n\r{x"
 		     "Church       : %s\n\r{x"
 		     "Rank         : %s\n\r{x"
                	     "Race         : %s\n\r{x"
@@ -4840,7 +4837,6 @@ void do_whois(CHAR_DATA * ch, char *argument)
 		     "\n\rDescription:\n\r",
 		     wch->name,
 		     (wch->pcdata->title != NULL) ? wch->pcdata->title : "",
-		     wch->sex == 0 ? "None" : (wch->sex == 1 ? "Male" : "Female"),
 		     (wch->church != NULL) ? wch->church_name : "None",
 		     (wch->church != NULL && wch->church_member != NULL) ? get_chrank(wch->church_member) : "None",
                      racestr,
@@ -5083,7 +5079,7 @@ void do_consider(CHAR_DATA * ch, char *argument)
     else
 	msg = "Death will thank you for your gift.";
 
-    act(msg, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    act(msg, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     return;
 }
 
@@ -5153,7 +5149,7 @@ void do_report(CHAR_DATA * ch, char *argument)
 	    ch->hit, ch->max_hit, ch->mana, ch->max_mana, ch->move,
 	    ch->max_move, ch->exp);
 
-    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 }
 
 
@@ -6718,7 +6714,7 @@ void do_scry(CHAR_DATA *ch, char *argument)
 	}
 
 	if (!get_char_world(ch, arg)) {
-		act("You sense no $T in the world.", ch, NULL, NULL, NULL, NULL, NULL, arg, TO_CHAR);
+		act("You sense no $T in the world.", ch, NULL, NULL, NULL, NULL, NULL, arg, TO_CHAR, NULL, NULL);
 		return;
 	}
 
@@ -6763,7 +6759,7 @@ void do_scry(CHAR_DATA *ch, char *argument)
 	iterator_stop(&vit);
 
 	if (!found)
-		act("You sense no $T in the world.", ch, NULL, NULL, NULL, NULL, NULL, arg, TO_CHAR);
+		act("You sense no $T in the world.", ch, NULL, NULL, NULL, NULL, NULL, arg, TO_CHAR, NULL, NULL);
 	else
 		page_to_char(buf_string(buffer),ch);
 
@@ -7636,7 +7632,7 @@ void do_dice(CHAR_DATA *ch, char *argument)
     send_to_char(buf, ch);
 
     sprintf(buf, "$n rolled a %d.", result);
-    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 }
 
 /* MOVED: weather/seasons.c */
@@ -7769,7 +7765,7 @@ void do_expand(CHAR_DATA *ch, char *argument)
 			sprintf(buf, "{xCannot expand $p{x to that distance.  Please pick a value from %ld to %ld.",
 				telescope->value[1], telescope->value[2]);
 
-			act(buf, ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
+			act(buf, ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			return;
 		}
 
@@ -7780,16 +7776,16 @@ void do_expand(CHAR_DATA *ch, char *argument)
 	if( distance > telescope->value[0] )
 	{
 		telescope->value[0] = distance;
-    	act("{xYou expand $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
-    	act("{x$n expands $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_ROOM);
+    	act("{xYou expand $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    	act("{x$n expands $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	}
 	else if( distance < telescope->value[0] )
 	{
-		act("{x$p{x is already expanded further.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
+		act("{x$p{x is already expanded further.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	}
 	else
 	{
-		act("{x$p{x is already expanded that far.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
+		act("{x$p{x is already expanded that far.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	}
 }
 
@@ -7823,7 +7819,7 @@ void do_collapse(CHAR_DATA *ch, char *argument)
 			sprintf(buf, "{xCannot collapse $p{x to that distance.  Please pick a value from %ld to %ld.",
 				telescope->value[1], telescope->value[2]);
 
-			act(buf, ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
+			act(buf, ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			return;
 		}
 
@@ -7834,19 +7830,19 @@ void do_collapse(CHAR_DATA *ch, char *argument)
 	if( distance > telescope->value[0] )
 	{
 		if( telescope->value[0] > 0 )
-			act("{x$p{x is already collapsed further.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
+			act("{x$p{x is already collapsed further.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		else
-			act("{xYou cannot collapse $p{x any further.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
+			act("{xYou cannot collapse $p{x any further.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	}
 	else if( distance < telescope->value[0] )
 	{
 		telescope->value[0] = distance;
-    	act("{xYou collapse $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
-    	act("{x$n collapses $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_ROOM);
+    	act("{xYou collapse $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    	act("{x$n collapses $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	}
 	else
 	{
-		act("{x$p{x is already collapsed that far.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
+		act("{x$p{x is already collapsed that far.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	}
 }
 
@@ -8077,7 +8073,7 @@ void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
 			int bvx = telescope->value[3];
 			int bvy = 2 * bvx / 3;
 
-			act("{xPeering through $p{x, you see:{x", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
+			act("{xPeering through $p{x, you see:{x", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			show_map_to_char_wyx(wilds, tx, ty, ch, x, y, bvx, bvy, false);
 		}
 
@@ -8174,7 +8170,7 @@ void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
 
 	if( heading < 0 )
 	{
-		act("{xThe needle on $p{x is spinning.{x", ch, NULL, NULL, compass, NULL, NULL, NULL, TO_CHAR);
+		act("{xThe needle on $p{x is spinning.{x", ch, NULL, NULL, compass, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
@@ -8243,12 +8239,12 @@ void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
 		}
 
 		sprintf(buf, "{xThe needle on $p{x points %s.", arg);
-		act(buf, ch, NULL, NULL, compass, NULL, NULL, NULL, TO_CHAR);
+		act(buf, ch, NULL, NULL, compass, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		success = true;
 	}
 	else
 	{
-		act("{xYou have trouble reading the needle on $p{x.", ch, NULL, NULL, compass, NULL, NULL, NULL, TO_CHAR);
+		act("{xYou have trouble reading the needle on $p{x.", ch, NULL, NULL, compass, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		success = false;
 	}
 
@@ -8307,7 +8303,7 @@ void look_map(CHAR_DATA *ch, OBJ_DATA *map)
 		}
 		else
 		{
-			act("{MYou don't understand the numbers written on {x$p{M.{x", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR);
+			act("{MYou don't understand the numbers written on {x$p{M.{x", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 			success = false;
 		}

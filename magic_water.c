@@ -24,7 +24,7 @@ SPELL_FUNC(spell_create_spring)
 	spring = create_object(get_obj_index(get_reserved_vnum("obj_spring")), 0, true);
 	spring->timer = level;
 	obj_to_room(spring, ch->in_room);
-	act("$p flows from the ground.", ch, NULL, NULL, spring, NULL, NULL, NULL, TO_ALL);
+	act("$p flows from the ground.", ch, NULL, NULL, spring, NULL, NULL, NULL, TO_ALL, NULL, NULL);
 	return true;
 }
 
@@ -54,6 +54,6 @@ SPELL_FUNC(spell_create_water)
 		free_string(obj->name);
 		obj->name = str_dup(buf);
 	}
-	act("$p is filled.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+	act("$p is filled.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	return true;
 }

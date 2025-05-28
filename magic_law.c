@@ -37,7 +37,7 @@ SPELL_FUNC(spell_armour)
 		if (victim == ch)
 			send_to_char("You are already armoured.\n\r",ch);
 		else
-			act("$N is already armoured.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+			act("$N is already armoured.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -53,7 +53,7 @@ SPELL_FUNC(spell_armour)
 	af.bitvector2 = 0;
 	affect_to_char(victim, &af);
 	send_to_char("You feel someone protecting you.\n\r", victim);
-	if (ch != victim) act("$N is protected by your magic.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+	if (ch != victim) act("$N is protected by your magic.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 	return true;
 }
 
@@ -77,7 +77,7 @@ SPELL_FUNC(spell_cloak_of_guile)
 		if (victim == ch)
 			send_to_char("You are already enshrouded.\n\r",ch);
 		else
-			act("$N is already enshrouded.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+			act("$N is already enshrouded.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -94,7 +94,7 @@ SPELL_FUNC(spell_cloak_of_guile)
 	affect_to_char(victim, &af);
 
 	send_to_char("You feel shrouded.\n\r", victim);
-	act("$n shimmers with a dark green glow.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act("$n shimmers with a dark green glow.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	return true;
 }
 
@@ -104,12 +104,12 @@ SPELL_FUNC(spell_entrap)
 
 	if (IS_SET(obj->extra[0], ITEM_HOLY) ||
 		obj->item_type == ITEM_ARTIFACT) {
-		act("$p is too powerful for you to entrap.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		act("$p is too powerful for you to entrap.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return false;
 	}
 
-	act("$p vibrates for a second, then stops.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	act("$n's $p vibrates for a second, then stops.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+	act("$p vibrates for a second, then stops.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+	act("$n's $p vibrates for a second, then stops.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 	obj->trap_dam = level + dice(get_skill(ch, sn),3);
 	SET_BIT(obj->extra[0], ITEM_TRAPPED);
@@ -141,7 +141,7 @@ SPELL_FUNC(spell_faerie_fire)
 	affect_to_char(victim, &af);
 
 	send_to_char("You are surrounded by a pink outline.\n\r", victim);
-	act("$n is surrounded by a pink outline.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act("$n is surrounded by a pink outline.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 	return true;
 }
@@ -161,7 +161,7 @@ SPELL_FUNC(spell_identify)
 	SPELL_DATA *spell;
 
 	if (IS_SET(obj->extra[1], ITEM_NO_LORE)) {
-		act("$p is beyond your power to identify.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		act("$p is beyond your power to identify.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -585,7 +585,7 @@ SPELL_FUNC(spell_pass_door)
 		if (victim == ch)
 			send_to_char("You are already out of phase.\n\r",ch);
 		else
-			act("$N is already shifted out of phase.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+			act("$N is already shifted out of phase.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -601,7 +601,7 @@ SPELL_FUNC(spell_pass_door)
 	af.bitvector2 = 0;
 	affect_to_char(victim, &af);
 
-	act("$n turns translucent.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act("$n turns translucent.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	send_to_char("You turn translucent.\n\r", victim);
 	return true;
 }
@@ -654,10 +654,10 @@ SPELL_FUNC(spell_room_shield)
 	roomshield->owner = str_dup(ch->name);
 
 	obj_to_room(roomshield, ch->in_room);
-	act("{YAn orb of energy forms in $n's hands and $e casts it down.{X",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	act("{YThe fizzling energy orb quickly expands to fill the entire room!{X",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	act("{YAn orb of energy forms in your hands and you cast it at the ground before you.{X",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	act("{YThe fizzling energy orb quickly expands to fill the entire room!{X",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	act("{YAn orb of energy forms in $n's hands and $e casts it down.{X",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+	act("{YThe fizzling energy orb quickly expands to fill the entire room!{X",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+	act("{YAn orb of energy forms in your hands and you cast it at the ground before you.{X",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+	act("{YThe fizzling energy orb quickly expands to fill the entire room!{X",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	return true;
 }
 
@@ -701,10 +701,10 @@ SPELL_FUNC(spell_word_of_recall)
 
 	victim->move /= 2;
 	if(victim != ch) ch->move /= 2;
-	act("{W$n disappears.{x",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+	act("{W$n disappears.{x",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
 	char_from_room(victim);
 	char_to_room(victim,location);
-	act("{W$n appears in the room.{x",victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM);
+	act("{W$n appears in the room.{x",victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM, NULL, NULL);
 	do_function(victim, &do_look, "auto");
 	return true;
 }

@@ -39,7 +39,7 @@ SPELL_FUNC(spell_fatigue)
 	af.bitvector2 = AFF2_FATIGUE;
 	affect_to_char(victim, &af);
 	send_to_char("Your feel your stamina slip away.\n\r", victim);
-	act("$n looks extremely fatigued.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+	act("$n looks extremely fatigued.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
 	return true;
 }
 
@@ -49,8 +49,8 @@ SPELL_FUNC(spell_gas_breath)
 	CHAR_DATA *vch_next;
 	int dam;
 
-	act("$n breathes out a cloud of poisonous gas!",ch, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM);
-	act("You breath out a cloud of poisonous gas.",ch, NULL, NULL, NULL, NULL,NULL,NULL,TO_CHAR);
+	act("$n breathes out a cloud of poisonous gas!",ch, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM, NULL, NULL);
+	act("You breath out a cloud of poisonous gas.",ch, NULL, NULL, NULL, NULL,NULL,NULL,TO_CHAR, NULL, NULL);
 
 	dam = level * 15;
 	if (IS_DRAGON(ch))
@@ -90,7 +90,7 @@ SPELL_FUNC(spell_paralysis)
 	}
 
 	if (IS_AFFECTED2(victim, AFF2_PARALYSIS)) {
-		act("$N is already paralyzed.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$N is already paralyzed.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -119,7 +119,7 @@ SPELL_FUNC(spell_plague)
 		if (ch == victim)
 			send_to_char("You feel momentarily ill, but it passes.\n\r",ch);
 		else
-			act("$N seems to be unaffected.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+			act("$N seems to be unaffected.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -136,7 +136,7 @@ SPELL_FUNC(spell_plague)
 	affect_join(victim,&af);
 
 	send_to_char("You scream in agony as plague sores erupt from your skin.\n\r",victim);
-	act("$n screams in agony as plague sores erupt from $s skin.", victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+	act("$n screams in agony as plague sores erupt from $s skin.", victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
 	return true;
 }
 
@@ -153,11 +153,11 @@ SPELL_FUNC(spell_poison)
 
 		if (obj->item_type == ITEM_FOOD || obj->item_type == ITEM_DRINK_CON) {
 			if (IS_OBJ_STAT(obj,ITEM_BLESS) || IS_OBJ_STAT(obj,ITEM_BURN_PROOF)) {
-				act("Your spell fails to corrupt $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+				act("Your spell fails to corrupt $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
 				return false;
 			}
 			obj->value[3] = 1;
-			act("$p is infused with poisonous vapors.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+			act("$p is infused with poisonous vapors.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL, NULL, NULL);
 			return true;
 		}
 
@@ -173,12 +173,12 @@ SPELL_FUNC(spell_poison)
 				IS_WEAPON_STAT(obj,WEAPON_SUCKLE) ||
 				IS_OBJ_STAT(obj,ITEM_BLESS) ||
 				IS_OBJ_STAT(obj,ITEM_BURN_PROOF)) {
-				act("You can't seem to envenom $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+				act("You can't seem to envenom $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
 				return false;
 			}
 
 			if (IS_WEAPON_STAT(obj,WEAPON_POISON)) {
-				act("$p is already envenomed.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+				act("$p is already envenomed.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
 				return false;
 			}
 
@@ -194,11 +194,11 @@ SPELL_FUNC(spell_poison)
 			af.bitvector2 = 0;
 			affect_to_obj(obj,&af);
 
-			act("$p is coated with deadly venom.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+			act("$p is coated with deadly venom.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL, NULL, NULL);
 			return true;
 		}
 
-		act("You can't poison $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+		act("You can't poison $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -211,7 +211,7 @@ SPELL_FUNC(spell_poison)
 	}
 
 	if (saves_spell(level, victim,DAM_POISON)) {
-		act("$n turns slightly green, but it passes.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+		act("$n turns slightly green, but it passes.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
 		send_to_char("You feel momentarily ill, but it passes.\n\r",victim);
 		return false;
 	}
@@ -228,7 +228,7 @@ SPELL_FUNC(spell_poison)
 	af.bitvector2 = 0;
 	affect_join(victim, &af);
 	send_to_char("You feel very sick.\n\r", victim);
-	act("$n looks very ill.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+	act("$n looks very ill.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
 
 	return true;
 }
@@ -247,7 +247,7 @@ SPELL_FUNC(spell_stinking_cloud)
 	cloud->timer = 4;
 	cloud->level = ch->tot_level;
 	obj_to_room(cloud, ch->in_room);
-	act("{gA thick hazy green fog erupts!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
+	act("{gA thick hazy green fog erupts!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL, NULL, NULL);
 	return true;
 }
 
@@ -263,8 +263,8 @@ SPELL_FUNC(spell_toxic_fumes)
 		return false;
 	}
 
-	act("{gYou are enveloped by a toxic cloud.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	act("{gA toxic cloud forms around $n.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act("{gYou are enveloped by a toxic cloud.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+	act("{gA toxic cloud forms around $n.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 	if (!affect_find(victim->affected,gsn_toxic_fumes))
 		toxic_fumes_effect(victim,ch);
@@ -293,8 +293,8 @@ SPELL_FUNC(spell_toxin_neurotoxin)
 	chance += get_curr_stat(victim, STAT_DEX) / 2;
 
 	if (number_percent() < chance) {
-		act("{YYou resist the nerve-wracking toxins flowing through your body!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		act("{Y$n resists the nerve-wracking toxins flowing through $s body!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("{YYou resist the nerve-wracking toxins flowing through your body!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+		act("{Y$n resists the nerve-wracking toxins flowing through $s body!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		return false;
 	}
 
@@ -329,13 +329,13 @@ SPELL_FUNC(spell_toxin_paralysis)
 	chance += get_curr_stat(victim, STAT_DEX) / 2;
 
 	if (number_percent() < chance) {
-		act("{YYou resist the paralyzing toxins flowing through your body!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		act("{Y$n resists the paralyzing toxins flowing through $s body!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("{YYou resist the paralyzing toxins flowing through your body!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+		act("{Y$n resists the paralyzing toxins flowing through $s body!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		return false;
 	}
 
-	act("{G$n begins to look pale and $s flesh blanches.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	act("{GYou feel paralyzing toxins race through your body.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	act("{G$n begins to look pale and $s flesh blanches.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+	act("{GYou feel paralyzing toxins race through your body.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 	af.slot	= WEAR_NONE;
 	af.where = TO_AFFECTS;
@@ -374,8 +374,8 @@ SPELL_FUNC(spell_toxin_weakness)
 	chance += get_curr_stat(victim, STAT_DEX) / 2;
 
 	if (number_percent() < chance) {
-		act("{YYou resist the debilitating toxins flowing through your body!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		act("{Y$n resists the debilitating toxins flowing through $s body!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("{YYou resist the debilitating toxins flowing through your body!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+		act("{Y$n resists the debilitating toxins flowing through $s body!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		return false;
 	}
 
@@ -392,7 +392,7 @@ SPELL_FUNC(spell_toxin_weakness)
 		af.bitvector2 = AFF2_FATIGUE;
 		affect_to_char(victim, &af);
 		send_to_char("Your feel your stamina slip away.\n\r", victim);
-		act("$n looks extremely fatigued.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+		act("$n looks extremely fatigued.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
 	}
 
 	if (!is_affected(victim, gsn_weaken)) {
@@ -408,7 +408,7 @@ SPELL_FUNC(spell_toxin_weakness)
 		af.bitvector2 = 0;
 		affect_to_char(victim, &af);
 		send_to_char("You feel your strength slip away.\n\r", victim);
-		act("$n looks tired and weak.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+		act("$n looks tired and weak.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
 	}
 
 	return true;
@@ -431,14 +431,14 @@ SPELL_FUNC(spell_toxin_venom)
 	chance += get_curr_stat(victim, STAT_DEX) / 2;
 
 	if (number_percent() < chance) {
-		act("{YYou resist the venomous toxins flowing through your body!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		act("{Y$n resists the venomous toxins flowing through $s body!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("{YYou resist the venomous toxins flowing through your body!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+		act("{Y$n resists the venomous toxins flowing through $s body!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		return false;
 	}
 
 	if (IS_AFFECTED(victim, AFF_SLEEP) || victim->level > victim->bitten_level*2) {
 		send_to_char("The poison has no effect on you.\n\r", victim);
-		act("The poison has no effect on $n.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("The poison has no effect on $n.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		return false;
 	}
 
@@ -458,7 +458,7 @@ SPELL_FUNC(spell_toxin_venom)
 
 	if (IS_AWAKE(victim)) {
 		send_to_char("{DYou black out and collapse as the poison claims you.{x\n\r", victim);
-		act("{D$n blacks out from the poison and falls asleep.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("{D$n blacks out from the poison and falls asleep.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		victim->position = POS_SLEEPING;
 	}
 	return true;
@@ -478,8 +478,8 @@ SPELL_FUNC(spell_withering_cloud)
 		return false;
 	}
 
-	act("{gA dark withering cloud descends!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	act("{gYou form an acidic withering cloud.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	act("{gA dark withering cloud descends!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+	act("{gYou form an acidic withering cloud.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 	for (obj = ch->in_room->contents; obj; obj = obj->next_content) {
 		if (obj->item_type == ITEM_WITHERING_CLOUD) {

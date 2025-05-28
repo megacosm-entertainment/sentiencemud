@@ -218,6 +218,7 @@ ENT_FIELD entity_mobile[] = {
 	{"affects",			ENTITY_MOB_AFFECTS,			ENT_OLLIST_AFF	},
 	{"area",			ENTITY_MOB_AREA,			ENT_AREA	},
 	{"bedroll",			ENTITY_MOB_FURNITURE,		ENT_OBJECT	},
+	{"bodytype_val",		ENTITY_MOB_BODY_TYPE_VALUE, ENT_NUMBER },
 	{"carrying",		ENTITY_MOB_CARRYING,		ENT_OLLIST_OBJ	},
 	{"cart",			ENTITY_MOB_CART,			ENT_OBJECT	},
 	{"castspell",		ENTITY_MOB_CASTSPELL,		ENT_SKILL	},
@@ -331,6 +332,8 @@ ENT_FIELD entity_mobile[] = {
 	{"offense",			ENTITY_MOB_OFF,				ENT_BITVECTOR },
 	{"immune",			ENTITY_MOB_IMMUNE,			ENT_BITVECTOR },
 	{"resist",			ENTITY_MOB_RESIST,			ENT_BITVECTOR },
+    {"verbpref_value",  ENTITY_MOB_VERB_PREF_VALUE,     ENT_NUMBER}, // Raw verb_preference enum value
+
 	{"vuln",			ENTITY_MOB_VULN,			ENT_BITVECTOR },
 
 	{"tempstring",		ENTITY_MOB_TEMPSTRING,		ENT_STRING },

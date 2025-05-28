@@ -693,7 +693,7 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
 				case 5:
 						if (number_percent() < 30 && !IS_SET(ch->in_room->room_flag[0], ROOM_SAFE) && ch->fighting == NULL)
 						{
-							act("{YZAAAAAAAAAAAAAAP! You are struck by a bolt from the sky...{x\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+							act("{YZAAAAAAAAAAAAAAP! You are struck by a bolt from the sky...{x\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 							damage(ch, ch, number_range(500,30000), 0, DAM_LIGHTNING, false);
 						}
 						break;
@@ -762,7 +762,7 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
 				case 5:
 			      send_to_char("Something caught in the wind hits you hard!{x\n\r", ch);
             send_to_char("Out of nowhere something slams solidly into you.\n\r", ch);
-            act("{R$n is struck by an object caught in the storm!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+            act("{R$n is struck by an object caught in the storm!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 					  damage(ch, ch, 30000, 0, DAM_NONE, false);
 						break;
         default:
@@ -808,7 +808,7 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
 
 							affect_to_char(ch,&af);
               send_to_char("{DYou are blinded by the sand!{x\n\r", ch);
-              act("$n is blinded by the blowing sand!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+              act("$n is blinded by the blowing sand!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 							break;
 						case SECT_WATER_NOSWIM:
               send_to_char("The seas swell turning the waves into mountains!\r\n", ch);
@@ -874,7 +874,7 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
 
 							affect_to_char(ch,&af);
               send_to_char("{DYou are blinded by the sand!{x\n\r", ch);
-              act("$n is blinded by the blowing sand!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+              act("$n is blinded by the blowing sand!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 							break;
 						case SECT_WATER_NOSWIM:
               send_to_char("The seas swell turning the waves into mountains!\r\n", ch);
@@ -904,7 +904,7 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
 				case 5:
 			      send_to_char("{RYou are sucked up into the tornado!{x\n\r", ch);
             send_to_char("Out of nowhere something slams solidly into you.\n\r", ch);
-            act("{R$n is struck by an object caught in the storm!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+            act("{R$n is struck by an object caught in the storm!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 					  damage(ch, ch, 30000, 0, DAM_NONE, false);
 						break;
 				case 6:
@@ -913,7 +913,7 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
 
 			      send_to_char("{RYou are sucked up into the tornado!{x\n\r", ch);
 
-            act("{R$n is sucked up into the tornado!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+            act("{R$n is sucked up into the tornado!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
             if ((pRoom = get_room_index(index)) != NULL) {
                 char_from_room(ch);

@@ -35,6 +35,7 @@
 
 extern bool ships_changed;
 extern long top_ship_index_vnum;
+extern void list_ship_indexes(CHAR_DATA *ch, char *argument);
 
 SHEDIT( shedit_list )
 {

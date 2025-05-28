@@ -2734,7 +2734,7 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
                 !IS_AFFECTED (vch, AFF_PLAGUE) && number_bits (6) == 0)
             {
                 send_to_char ("You feel hot and feverish.\n\r", vch);
-                act ("$n shivers and looks very ill.", vch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                act ("$n shivers and looks very ill.", vch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
                 affect_join (vch, &plague);
             }
         }

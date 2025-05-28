@@ -325,11 +325,11 @@ void show_spec_cmds(CHAR_DATA *ch)
 void show_spell_funcs(CHAR_DATA *ch, const struct do_func_type *table)
 {
     char buf  [ MAX_STRING_LENGTH ];
-    char buf1 [ MAX_STRING_LENGTH ];
+    //char buf1 [ MAX_STRING_LENGTH ];
     int  col;
 	BUFFER *buffer = new_buf();
 
-    buf1[0] = '\0';
+    //buf1[0] = '\0';
     col = 0;
     add_buf(buffer, "Functions available for use:\n\r");
     for (int i = 0; table[i].name != NULL; i++)

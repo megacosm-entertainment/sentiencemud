@@ -118,9 +118,9 @@ void acid_effect(void *vo, int level, int dam, int target)
         return;
 
     if (obj->carried_by != NULL)
-        act(msg,obj->carried_by, NULL, NULL, obj, NULL, NULL,NULL,TO_ALL);
+        act(msg,obj->carried_by, NULL, NULL, obj, NULL, NULL,NULL,TO_ALL, NULL, NULL);
     else if (obj->in_room != NULL && obj->in_room->people != NULL)
-        act(msg,obj->in_room->people, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+        act(msg,obj->in_room->people, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL, NULL, NULL);
 
     if (obj->item_type == ITEM_ARMOUR)  /* etch it */
     {
@@ -192,8 +192,8 @@ void cold_effect(void *vo, int level, int dam, int target)
     {
         AFFECT_DATA af;
             memset(&af,0,sizeof(af));
-            act("{C$n turns blue and shivers.{x",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
-        act("{CA chill sinks deep into your bones.{x",victim,NULL, NULL, NULL, NULL, NULL,NULL,TO_CHAR);
+            act("{C$n turns blue and shivers.{x",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
+        act("{CA chill sinks deep into your bones.{x",victim,NULL, NULL, NULL, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
             af.where     = TO_AFFECTS;
             af.group     = AFFGROUP_BIOLOGICAL;
             af.type      = gsn_chill_touch;
@@ -276,9 +276,9 @@ void cold_effect(void *vo, int level, int dam, int target)
         return;
 
     if (obj->carried_by != NULL)
-        act(msg,obj->carried_by, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+        act(msg,obj->carried_by, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL, NULL, NULL);
     else if (obj->in_room != NULL && obj->in_room->people != NULL)
-        act(msg,obj->in_room->people, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+        act(msg,obj->in_room->people, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL, NULL, NULL);
 
     extract_obj(obj);
     return;
@@ -313,9 +313,9 @@ void fire_effect(void *vo, int level, int dam, int target)
         {
             AFFECT_DATA af;
             memset(&af,0,sizeof(af));
-            act("{D$n is blinded by smoke!{x",victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM);
+            act("{D$n is blinded by smoke!{x",victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM, NULL, NULL);
             act("{RYour eyes tear up from smoke...you can't see a thing!{x",
-                victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_CHAR);
+                victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_CHAR, NULL, NULL);
             af.where        = TO_AFFECTS;
             af.group        = AFFGROUP_PHYSICAL;
             af.type         = gsn_fire_breath;
@@ -337,7 +337,7 @@ void fire_effect(void *vo, int level, int dam, int target)
                 affect_remove( victim, pAf );
                 send_to_char("You stop shivering and your muscles warm up.\n\r", victim );
                 act("$n stops shivering as $s muscles warm up.",
-                    victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+                    victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
                 break;
             }
         }
@@ -429,9 +429,9 @@ void fire_effect(void *vo, int level, int dam, int target)
             return;
 
         if (obj->carried_by != NULL)
-            act( msg, obj->carried_by, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL );
+            act( msg, obj->carried_by, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL, NULL, NULL );
         else if (obj->in_room != NULL && obj->in_room->people != NULL)
-            act(msg,obj->in_room->people, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+            act(msg,obj->in_room->people, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL, NULL, NULL);
 
         if (obj->contains)
         {
@@ -507,7 +507,7 @@ void poison_effect(void *vo, int level, int dam, int target)
             memset(&af,0,sizeof(af));
             send_to_char("{GYou feel poison coursing through your veins.{x\n\r",
                 victim);
-            act("{G$n looks very ill.{x",victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM);
+            act("{G$n looks very ill.{x",victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM, NULL, NULL);
 
             af.where     = TO_AFFECTS;
             af.group     = AFFGROUP_BIOLOGICAL;
@@ -678,9 +678,9 @@ void shock_effect(void *vo, int level, int dam, int target)
         return;
 
     if (obj->carried_by != NULL)
-        act(msg,obj->carried_by, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+        act(msg,obj->carried_by, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL, NULL, NULL);
     else if (obj->in_room != NULL && obj->in_room->people != NULL)
-        act(msg,obj->in_room->people, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+        act(msg,obj->in_room->people, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL, NULL, NULL);
 
     extract_obj(obj);
     return;
@@ -773,39 +773,39 @@ void vamp_sun_message( CHAR_DATA *ch, int dam )
     if ( ch->hit - dam < 1 )
     {
 	act("Your head explodes as your body burns in the sunlight.",
-		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
 	act("$n's head explodes as $s body burns in the sunlight.",
-		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
 	return;
     }
 
     if ( dam / ch->max_hit < 20 )
     {
 	act("{R$n suffers as the sun's rays strike $s flesh.{x",
-		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
 	act("{YYou suffer from the light of the sun.{x",
-		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
     }
     else if ( dam / ch->max_hit < 25 )
     {
 	act("{R$n writhes in pain inflicted by the sunlight.{x",
-		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
 	act("{YYou writhe in pain from the light of the sun.{x",
-		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     }
     else if ( dam / ch->max_hit < 33 )
     {
 	act("{R$n screams in pain as $s flesh burns in the sunlight.{x",
-		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
 	act("{YYou writhe in agony as your flesh burns in the sun.{x",
-		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
     }
     else
     {
 	act( "{R$n shrieks in agony as $s flesh dissolves in the sunlight.{x",
-		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
 	act("{YYou writhe in agony as your flesh dissolves in the direct sunlight.\n\r{x",
-		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+		ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
     }
 }
 
@@ -819,18 +819,18 @@ void toxic_fumes_effect(CHAR_DATA *victim,CHAR_DATA *ch)
 
     if (ch && saves_spell(level, victim,DAM_POISON) && saves_spell(level, victim,DAM_DISEASE))
     {
-	act("$n inhales the toxic fumes, but seems to ignore them.",victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM);
+	act("$n inhales the toxic fumes, but seems to ignore them.",victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM, NULL, NULL);
 	send_to_char("You breathe in the toxic fumes, but they have no affect.\n\r",victim);
 	return;
     }
 
     if(MOUNTED(victim)) {
 	send_to_char("You breathe in the toxic fumes, following from your mount with illness.\n\r", victim);
-	act("$n falls from $s mount after inhaling the toxic fumes.",victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM);
+	act("$n falls from $s mount after inhaling the toxic fumes.",victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM, NULL, NULL);
 	interpret(victim,"dismount");
     } else {
 	send_to_char("You collapse with illness from breathing in the toxic fumes.\n\r", victim);
-	act("$n collapses from inhaling the toxic fumes.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+	act("$n collapses from inhaling the toxic fumes.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
     }
     // Interrupt what they are doing too!
     interpret(victim,"cringe");

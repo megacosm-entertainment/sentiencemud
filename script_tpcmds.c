@@ -279,12 +279,12 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
 		}
 
 		if (victim && !(token = get_token_char(victim, vnum, count))) {
-			act("$N doesn't have that token.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("$N doesn't have that token.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			return;
 		}
 
 		if (object && !(token = get_token_obj(object, vnum, count))) {
-			act("$p doesn't have that token.", ch, NULL, NULL, object, NULL, NULL, NULL, TO_CHAR);
+			act("$p doesn't have that token.", ch, NULL, NULL, object, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			return;
 		}
 
@@ -1083,7 +1083,7 @@ SCRIPT_CMD(do_tpechoaround)
 
 	if( buffer->string[0] != '\0' )
 	{
-		act(buffer->string, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act(buffer->string, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	}
 
 	free_buf(buffer);
@@ -1128,7 +1128,7 @@ SCRIPT_CMD(do_tpechonotvict)
 
 	if( buffer->string[0] != '\0' )
 	{
-		act(buffer->string, victim, attacker, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+		act(buffer->string, victim, attacker, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
 	}
 
 	free_buf(buffer);
@@ -1174,7 +1174,7 @@ SCRIPT_CMD(do_tpechobattlespam)
 	{
 		for (ch = attacker->in_room->people; ch; ch = ch->next_in_room) {
 			if (!IS_NPC(ch) && (ch != attacker && ch != victim) && (is_same_group(ch, attacker) || is_same_group(ch, victim) || !IS_SET(ch->comm, COMM_NOBATTLESPAM))) {
-				act(buffer->string, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				act(buffer->string, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			}
 		}
 	}
@@ -1208,7 +1208,7 @@ SCRIPT_CMD(do_tpechoat)
 
 	if( buffer->string[0] != '\0' )
 	{
-		act(buffer->string, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act(buffer->string, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	}
 
 	free_buf(buffer);
@@ -1274,7 +1274,7 @@ SCRIPT_CMD(do_tpechogrouparound)
 
 	if( buffer->string[0] != '\0' )
 	{
-		act_new(buffer->string,victim,NULL,NULL,NULL,NULL,NULL,NULL,TO_NOTFUNC,POS_RESTING,rop_same_group);
+		act_new(buffer->string,victim,NULL,NULL, NULL, NULL,NULL,NULL,NULL,NULL,TO_NOTFUNC,POS_RESTING,rop_same_group);
 	}
 	free_buf(buffer);
 }
@@ -1306,7 +1306,7 @@ SCRIPT_CMD(do_tpechogroupat)
 
 	if( buffer->string[0] != '\0' )
 	{
-		act_new(buffer->string,victim,NULL,NULL,NULL,NULL,NULL,NULL,TO_FUNC,POS_RESTING,rop_same_group);
+		act_new(buffer->string,victim,NULL,NULL, NULL, NULL,NULL,NULL,NULL,NULL,TO_FUNC,POS_RESTING,rop_same_group);
 	}
 
 	free_buf(buffer);
@@ -1339,7 +1339,7 @@ SCRIPT_CMD(do_tpecholeadaround)
 
 	if( buffer->string[0] != '\0' )
 	{
-		act(buffer->string, victim->leader, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act(buffer->string, victim->leader, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	}
 
 	free_buf(buffer);
@@ -1371,7 +1371,7 @@ SCRIPT_CMD(do_tpecholeadat)
 
 	if( buffer->string[0] != '\0' )
 	{
-		act(buffer->string, victim->leader, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act(buffer->string, victim->leader, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	}
 
 	free_buf(buffer);
@@ -2554,7 +2554,7 @@ SCRIPT_CMD(do_tpasound)
 					if(i <= j) {
 						// No, so do the message
 						MOBtrigger  = false;
-						act(buffer->string, room->people, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
+						act(buffer->string, room->people, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL, NULL, NULL);
 						MOBtrigger  = true;
 						rooms[i++] = room;
 					}
@@ -2687,7 +2687,7 @@ SCRIPT_CMD(do_tpzot)
 
 	send_to_char("{Y***{R****** {WZOT {R******{Y***{x\n\r\n\r", victim);
 	send_to_char("{YYou are struck by a bolt of lightning!\n\r{x", victim);
-	act("{Y$n is struck by a bolt of lightning!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act("{Y$n is struck by a bolt of lightning!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	send_to_char("{ROUCH! That really did hurt!{x\n\r", victim);
 
 	victim->hit = 1;

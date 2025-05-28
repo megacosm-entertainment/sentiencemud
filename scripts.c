@@ -3847,7 +3847,7 @@ void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet, int mode)
 			if( show )
 			{
 				send_to_char("You stop reciting.\n\r", ch);
-				act("$n stops reciting.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				act("$n stops reciting.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 			}
 			ch->recite = 0;
 		}
@@ -3870,39 +3870,39 @@ void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet, int mode)
 				{
 					if( !IS_NULLSTR(in_dungeon->index->zone_out_portal) )
 					{
-						act(in_dungeon->index->zone_out_portal, ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM);
+						act(in_dungeon->index->zone_out_portal, ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 					}
 					else
 					{
-						act("$n has arrived through $p.",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_ROOM);
+						act("$n has arrived through $p.",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
 					}
 				}
 				else if(MOUNTED(ch))
 				{
 					if( !IS_NULLSTR(in_dungeon->index->zone_out_mount) )
-						act(in_dungeon->index->zone_out_mount, ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+						act(in_dungeon->index->zone_out_mount, ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 					else
 
-						act("{W$n materializes, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+						act("{W$n materializes, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 				}
 				else
 				{
 					if( !IS_NULLSTR(in_dungeon->index->zone_out) )
-						act(in_dungeon->index->zone_out, ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM);
+						act(in_dungeon->index->zone_out, ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 					else
-						act("{W$n materializes.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM);
+						act("{W$n materializes.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 				}
 			}
 			else if(!MOUNTED(ch)) {
 				if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK] > 10)
-					act("{W$n stumbles in drunkenly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					act("{W$n stumbles in drunkenly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 				else
-					act("{W$n has arrived.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM);
+					act("{W$n has arrived.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 			} else {
 				if (!IS_AFFECTED(MOUNTED(ch), AFF_FLYING))
-					act("{W$n has arrived, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					act("{W$n has arrived, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 				else
-					act("{W$n soars in, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					act("{W$n soars in, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 			}
 		}
 	}
@@ -3917,43 +3917,43 @@ void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet, int mode)
 				{
 					if( !IS_NULLSTR(in_dungeon->index->zone_out_portal) )
 					{
-						act(in_dungeon->index->zone_out_portal, ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM);
+						act(in_dungeon->index->zone_out_portal, ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 					}
 					else
 					{
-						act("$n has arrived through $p.",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_ROOM);
+						act("$n has arrived through $p.",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
 					}
 				}
 				else if(MOUNTED(ch))
 				{
 					if( !IS_NULLSTR(in_dungeon->index->zone_out_mount) )
-						act(in_dungeon->index->zone_out_mount, ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+						act(in_dungeon->index->zone_out_mount, ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 					else
 
-						act("{W$n materializes, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+						act("{W$n materializes, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 				}
 				else
 				{
 					if( !IS_NULLSTR(in_dungeon->index->zone_out) )
-						act(in_dungeon->index->zone_out, ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM);
+						act(in_dungeon->index->zone_out, ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 					else
-						act("{W$n materializes.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM);
+						act("{W$n materializes.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 				}
 			}
 			else if (in_room->sector_type == SECT_WATER_NOSWIM)
-				act("{W$n swims in.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				act("{W$n swims in.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 			else if (PULLING_CART(ch))
-				act("{W$n has arrived, pulling $p.{x", ch, NULL, NULL, PULLING_CART(ch), NULL, NULL, NULL, TO_ROOM);
+				act("{W$n has arrived, pulling $p.{x", ch, NULL, NULL, PULLING_CART(ch), NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 			else if(!MOUNTED(ch)) {
 				if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK] > 10)
-					act("{W$n stumbles in drunkenly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					act("{W$n stumbles in drunkenly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 				else
-					act("{W$n has arrived.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM);
+					act("{W$n has arrived.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 			} else {
 				if (!IS_AFFECTED(MOUNTED(ch), AFF_FLYING))
-					act("{W$n has arrived, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					act("{W$n has arrived, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 				else
-					act("{W$n soars in, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					act("{W$n soars in, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 			}
 		}
 	}
@@ -6477,8 +6477,8 @@ bool script_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *token
 	if (!IS_AFFECTED2(victim, AFF2_SPELL_DEFLECTION))
 		return true;
 
-	act("{MThe crimson aura around you pulses!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	act("{MThe crimson aura around $n pulses!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act("{MThe crimson aura around you pulses!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+	act("{MThe crimson aura around $n pulses!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 	// Find spell deflection
 	for (af = victim->affected; af; af = af->next) {
@@ -6496,9 +6496,9 @@ bool script_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *token
 			if (ch == victim)
 				send_to_char("Your spell gets through your protective crimson aura!\n\r", ch);
 			else {
-				act("Your spell gets through $N's protective crimson aura!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-				act("$n's spell gets through your protective crimson aura!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-				act("$n's spell gets through $N's protective crimson aura!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+				act("Your spell gets through $N's protective crimson aura!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+				act("$n's spell gets through your protective crimson aura!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+				act("$n's spell gets through $N's protective crimson aura!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
 			}
 		}
 
@@ -6521,24 +6521,24 @@ bool script_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *token
 	af->level -= 10;
 	if (af->level <= 0) {
 		send_to_char("{MThe crimson aura around you vanishes.{x\n\r", victim);
-		act("{MThe crimson aura around $n vanishes.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("{MThe crimson aura around $n vanishes.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		affect_remove(victim, af);
 		return true;
 	}
 
 	if (rch) {
 		if (ch) {
-			act("{YYour spell bounces off onto $N!{x",  ch, rch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			act("{Y$n's spell bounces off onto you!{x", ch, rch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-			act("{Y$n's spell bounces off onto $N!{x",  ch, rch, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+			act("{YYour spell bounces off onto $N!{x",  ch, rch, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+			act("{Y$n's spell bounces off onto you!{x", ch, rch, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+			act("{Y$n's spell bounces off onto $N!{x",  ch, rch, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
 		}
 
 		token->value[3] = ch ? ch->tot_level : af->level;
 
 		execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch ? ch : rch, NULL, NULL, rch, NULL,NULL, NULL,"deflection",NULL,0,0,0,0,0);
 	} else if (ch) {
-		act("{YYour spell bounces around for a while, then dies out.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		act("{Y$n's spell bounces around for a while, then dies out.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("{YYour spell bounces around for a while, then dies out.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+		act("{Y$n's spell bounces around for a while, then dies out.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	}
 
 	return false;

@@ -22,6 +22,7 @@
 
 extern bool dungeons_changed;
 extern long top_dungeon_vnum;
+extern void list_dungeons(CHAR_DATA *ch, char *argument);
 
 
 

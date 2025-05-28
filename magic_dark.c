@@ -36,7 +36,7 @@ SPELL_FUNC(spell_dark_shroud)
 		if (victim == ch)
 			send_to_char("You are already surrounded by darkness.\n\r",ch);
 		else
-			act("$N is already surrounded by darkness.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+			act("$N is already surrounded by darkness.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -60,9 +60,9 @@ SPELL_FUNC(spell_dark_shroud)
 	affect_to_char(victim, &af);
 
 	if(room_is_dark(ch->in_room) || is_darked(ch->in_room))
-		act("{DA dark shroud pulls $n into the darkness.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("{DA dark shroud pulls $n into the darkness.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	else
-		act("{D$n is surrounded by a shroud of darkness.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("{D$n is surrounded by a shroud of darkness.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	send_to_char("{DYou are surrounded by a shroud of darkness.{x\n\r", victim);
 	return true;
 }
@@ -83,7 +83,7 @@ SPELL_FUNC(spell_momentary_darkness)
 
 	for (darkness = ch->in_room->contents; darkness; darkness = darkness->next_content) {
 		if (darkness->item_type == ITEM_ROOM_DARKNESS) {
-			act("{DThe darkness seems to grow stronger...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
+			act("{DThe darkness seems to grow stronger...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL, NULL, NULL);
 			darkness->timer += 3 + catalyst;
 			return true;
 		}
@@ -100,7 +100,7 @@ SPELL_FUNC(spell_momentary_darkness)
 
 	obj_to_room(darkness, ch->in_room);
 
-	act("{DAn intense darkness shrouds the surrounding area!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
+	act("{DAn intense darkness shrouds the surrounding area!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL, NULL, NULL);
 
 	// Stop fights in the room
 	for (rch = ch->in_room->people; rch; rch = rch->next_in_room) {

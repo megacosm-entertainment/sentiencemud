@@ -943,7 +943,7 @@ AEDIT(aedit_builder)
 
 		if (!player_exists(name) && str_cmp(name, "All"))
 		{
-			act("There is no character by the name of $t.", ch, NULL, NULL, NULL, NULL, name, NULL, TO_CHAR);
+			act("There is no character by the name of $t.", ch, NULL, NULL, NULL, NULL, name, NULL, TO_CHAR, NULL, NULL);
 			return false;
 		}
 

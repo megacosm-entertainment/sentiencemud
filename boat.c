@@ -2090,7 +2090,7 @@ void ship_echo( SHIP_DATA *ship, char *str )
 		if( d->connected == CON_PLAYING &&
 			victim->in_room != NULL &&
 			ischar_onboard_ship(victim, ship) )
-			act(str, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act(str, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	}
 }
 
@@ -2108,7 +2108,7 @@ void ship_echoaround( SHIP_DATA *ship, CHAR_DATA *ch, char *str )
 			victim != ch &&
 			victim->in_room != NULL &&
 			ischar_onboard_ship(victim, ship) )
-			act(str, victim, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act(str, victim, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	}
 }
 
@@ -2320,7 +2320,7 @@ void do_ships(CHAR_DATA *ch, char *argument)
 			ship->ship->description = str_dup(buf);
 
 			obj_to_room(ship->ship, ch->in_room);
-			act("$p splashes down after being christened '$T'.",ch, NULL, NULL,ship->ship, NULL, NULL,ship->ship_name,TO_ALL);
+			act("$p splashes down after being christened '$T'.",ch, NULL, NULL,ship->ship, NULL, NULL,ship->ship_name,TO_ALL, NULL, NULL);
 		}
 		else if( !str_prefix(arg, "unload") )
 		{
@@ -2368,7 +2368,7 @@ void ship_dispatch_message(CHAR_DATA *ch, SHIP_DATA *ship, char *error, char *co
 	// This command was executed by someone other than the owner, tell the owner of the ship if they are online
 	if( IS_VALID(ship->owner) && ship->owner != ch )
 	{
-		act("{YDispatched '{W$T{Y':{x\n\r$t", ship->owner, NULL, NULL, NULL, NULL, error, command, TO_CHAR);
+		act("{YDispatched '{W$T{Y':{x\n\r$t", ship->owner, NULL, NULL, NULL, NULL, error, command, TO_CHAR, NULL, NULL);
 	}
 }
 
@@ -2533,7 +2533,7 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 
 	if (!IS_VALID(ship))
 	{
-		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
@@ -2601,7 +2601,7 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 	{
 		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act[1], PLR_HOLYAURA)) && !ship_isowner_player(ship, ch))
 		{
-			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			return;
 		}
 
@@ -2619,8 +2619,8 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 				{
 					int delay = (75 - ship->first_mate->crew->leadership) / 15;
 
-					act("You give the order to your first mate to 'steer $T'.", ch, NULL, NULL, NULL, NULL, NULL, command, TO_CHAR);
-					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					act("You give the order to your first mate to 'steer $T'.", ch, NULL, NULL, NULL, NULL, NULL, command, TO_CHAR, NULL, NULL);
+					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 					if( IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT) )
 					{
@@ -2639,7 +2639,7 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 				}
 			}
 
-			act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			return;
 		}
 	}
@@ -2821,13 +2821,13 @@ void do_ship_engines( CHAR_DATA *ch, char *argument )
 
 	if (!IS_VALID(ship))
 	{
-		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
 	if( ship->ship_type != SHIP_AIR_SHIP )
 	{
-		act("The vessel has no engines.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("The vessel has no engines.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
@@ -2838,7 +2838,7 @@ void do_ship_engines( CHAR_DATA *ch, char *argument )
 		else
 			sprintf(buf, "The engines are currently idling.");
 
-		act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
@@ -2847,7 +2847,7 @@ void do_ship_engines( CHAR_DATA *ch, char *argument )
 	{
 		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act[1], PLR_HOLYAURA)) && !ship_isowner_player(ship, ch))
 		{
-			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			return;
 		}
 
@@ -2865,8 +2865,8 @@ void do_ship_engines( CHAR_DATA *ch, char *argument )
 				{
 					int delay = (75 - ship->first_mate->crew->leadership) / 15;
 
-					act("You give the order to your first mate to 'engines $T'.", ch, NULL, NULL, NULL, NULL, NULL, command, TO_CHAR);
-					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					act("You give the order to your first mate to 'engines $T'.", ch, NULL, NULL, NULL, NULL, NULL, command, TO_CHAR, NULL, NULL);
+					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 					if( IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT) )
 					{
@@ -2885,7 +2885,7 @@ void do_ship_engines( CHAR_DATA *ch, char *argument )
 				}
 			}
 
-			act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			return;
 		}
 	}
@@ -2954,8 +2954,8 @@ void do_ship_engines( CHAR_DATA *ch, char *argument )
 	{
 		if( ship->ship_power > SHIP_SPEED_STOPPED )
 		{
-			act("You give the order for the furnace output to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			act("$n gives the order for the furnace output to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			act("You give the order for the furnace output to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+			act("$n gives the order for the furnace output to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 			ship->ship_power = speed;
 
@@ -2987,8 +2987,8 @@ void do_ship_engines( CHAR_DATA *ch, char *argument )
 	{
 		if( ship->ship_power < SHIP_SPEED_FULL_SPEED )
 		{
-			act("You give the order for full speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			act("$n gives the order for full speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			act("You give the order for full speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+			act("$n gives the order for full speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 			ship->ship_power = speed;
 
@@ -3009,15 +3009,15 @@ void do_ship_engines( CHAR_DATA *ch, char *argument )
 
 	if( ship->ship_power > speed )
 	{
-		act("You give the order to reduce speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		act("$n gives the order to reduce speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("You give the order to reduce speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+		act("$n gives the order to reduce speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 		ship_echo(ship, "You feel the vessel slowing down.");
 	}
 	else if( ship->ship_power < speed )
 	{
-		act("You give the order to increase speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		act("$n gives the order to increase speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("You give the order to increase speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+		act("$n gives the order to increase speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 		ship_echo(ship, "You feel the vessel gaining speed.");
 	}
@@ -3054,13 +3054,13 @@ void do_ship_sails( CHAR_DATA *ch, char *argument )
 
 	if (!IS_VALID(ship))
 	{
-		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
 	if( ship->ship_type != SHIP_SAILING_BOAT )
 	{
-		act("The vessel has no sails.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("The vessel has no sails.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
@@ -3071,7 +3071,7 @@ void do_ship_sails( CHAR_DATA *ch, char *argument )
 		else
 			sprintf(buf, "The sails are currently furled.");
 
-		act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
@@ -3080,7 +3080,7 @@ void do_ship_sails( CHAR_DATA *ch, char *argument )
 	{
 		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act[1], PLR_HOLYAURA)) && !ship_isowner_player(ship, ch))
 		{
-			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			return;
 		}
 
@@ -3098,8 +3098,8 @@ void do_ship_sails( CHAR_DATA *ch, char *argument )
 				{
 					int delay = (75 - ship->first_mate->crew->leadership) / 15;
 
-					act("You give the order to your first mate to 'sails $T'.", ch, NULL, NULL, NULL, NULL, NULL, command, TO_CHAR);
-					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					act("You give the order to your first mate to 'sails $T'.", ch, NULL, NULL, NULL, NULL, NULL, command, TO_CHAR, NULL, NULL);
+					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 					if( IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT) )
 					{
@@ -3118,7 +3118,7 @@ void do_ship_sails( CHAR_DATA *ch, char *argument )
 				}
 			}
 
-			act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			return;
 		}
 	}
@@ -3187,8 +3187,8 @@ void do_ship_sails( CHAR_DATA *ch, char *argument )
 	{
 		if( ship->ship_power > SHIP_SPEED_STOPPED )
 		{
-			act("You give the order for the sails to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			act("$n gives the order for the sails to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			act("You give the order for the sails to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+			act("$n gives the order for the sails to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 			ship->ship_power = speed;
 
@@ -3222,8 +3222,8 @@ void do_ship_sails( CHAR_DATA *ch, char *argument )
 	{
 		if( ship->ship_power < SHIP_SPEED_FULL_SPEED )
 		{
-			act("You give the order for full speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			act("$n gives the order for full speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			act("You give the order for full speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+			act("$n gives the order for full speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 			ship->ship_power = speed;
 
@@ -3244,15 +3244,15 @@ void do_ship_sails( CHAR_DATA *ch, char *argument )
 
 	if( ship->ship_power > speed )
 	{
-		act("You give the order to reduce speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		act("$n gives the order to reduce speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("You give the order to reduce speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+		act("$n gives the order to reduce speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 		ship_echo(ship, "You feel the vessel slowing down.");
 	}
 	else if( ship->ship_power < speed )
 	{
-		act("You give the order to increase speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		act("$n gives the order to increase speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("You give the order to increase speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+		act("$n gives the order to increase speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 		ship_echo(ship, "You feel the vessel gaining speed.");
 	}
@@ -3289,7 +3289,7 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 
 	if (!IS_VALID(ship))
 	{
-		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
@@ -3517,13 +3517,13 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 
 	if (!IS_VALID(ship))
 	{
-		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
 	if (!IS_IMMORTAL(ch) && !ship_isowner_player(ship, ch))
 	{
-		act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
@@ -3961,13 +3961,13 @@ void do_ship_oars( CHAR_DATA *ch, char *argument )
 
 	if (!IS_VALID(ship))
 	{
-		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
 	if( ship->oars < 1 )
 	{
-		act("The vessel has no oars.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("The vessel has no oars.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
@@ -3978,7 +3978,7 @@ void do_ship_oars( CHAR_DATA *ch, char *argument )
 		else
 			sprintf(buf, "The vessel is not using oars currently.");
 
-		act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
@@ -3987,7 +3987,7 @@ void do_ship_oars( CHAR_DATA *ch, char *argument )
 	{
 		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act[1], PLR_HOLYAURA)) && !ship_isowner_player(ship, ch))
 		{
-			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			return;
 		}
 
@@ -4005,8 +4005,8 @@ void do_ship_oars( CHAR_DATA *ch, char *argument )
 				{
 					int delay = (75 - ship->first_mate->crew->leadership) / 15;
 
-					act("You give the order to your first mate to 'sails $T'.", ch, NULL, NULL, NULL, NULL, NULL, command, TO_CHAR);
-					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					act("You give the order to your first mate to 'sails $T'.", ch, NULL, NULL, NULL, NULL, NULL, command, TO_CHAR, NULL, NULL);
+					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 					if( IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT) )
 					{
@@ -4025,7 +4025,7 @@ void do_ship_oars( CHAR_DATA *ch, char *argument )
 				}
 			}
 
-			act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			return;
 		}
 	}
@@ -4080,8 +4080,8 @@ void do_ship_oars( CHAR_DATA *ch, char *argument )
 	{
 		if( ship->oar_power > SHIP_SPEED_STOPPED )
 		{
-			act("You give the order for the oarsmen to cease.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			act("$n gives the order for the oarsmen to cease.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			act("You give the order for the oarsmen to cease.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+			act("$n gives the order for the oarsmen to cease.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 			ship->oar_power = speed;
 
@@ -4113,8 +4113,8 @@ void do_ship_oars( CHAR_DATA *ch, char *argument )
 	{
 		if( ship->oar_power < SHIP_SPEED_FULL_SPEED )
 		{
-			act("You give the order for full oarring.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			act("$n gives the order for full oarring.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			act("You give the order for full oarring.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+			act("$n gives the order for full oarring.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 			ship->oar_power = speed;
 
@@ -4135,15 +4135,15 @@ void do_ship_oars( CHAR_DATA *ch, char *argument )
 
 	if( ship->oar_power > speed )
 	{
-		act("You give the order to reduce oarring.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		act("$n gives the order to reduce oarring.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("You give the order to reduce oarring.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+		act("$n gives the order to reduce oarring.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 		ship_echo(ship, "You feel the vessel slowing down.");
 	}
 	else if( ship->oar_power < speed )
 	{
-		act("You give the order to increase oarring.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		act("$n gives the order to increase oarring.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("You give the order to increase oarring.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+		act("$n gives the order to increase oarring.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 		ship_echo(ship, "You feel the vessel gaining speed.");
 	}
@@ -4174,7 +4174,7 @@ void do_ship_christen(CHAR_DATA *ch, char *argument)
 
 	if (!IS_VALID(ship))
 	{
-		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
@@ -4217,8 +4217,8 @@ void do_ship_christen(CHAR_DATA *ch, char *argument)
 	sprintf(buf, ship->ship->pIndexData->description, ship->ship_name);
 	ship->ship->description = str_dup(buf);
 
-	act("{Y$n christens the vessel '{x$T{Y'.{x", ch, NULL, NULL, NULL, NULL, NULL, ship->ship_name, TO_ROOM);
-	act("{YYou christen the vessel '{x$T{Y'.{x", ch, NULL, NULL, NULL, NULL, NULL, ship->ship_name, TO_CHAR);
+	act("{Y$n christens the vessel '{x$T{Y'.{x", ch, NULL, NULL, NULL, NULL, NULL, ship->ship_name, TO_ROOM, NULL, NULL);
+	act("{YYou christen the vessel '{x$T{Y'.{x", ch, NULL, NULL, NULL, NULL, NULL, ship->ship_name, TO_CHAR, NULL, NULL);
 }
 
 void do_ship_land(CHAR_DATA *ch, char *argument)
@@ -4228,7 +4228,7 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 
 	if( !IS_VALID(ship) )
 	{
-		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
@@ -4237,7 +4237,7 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 	{
 		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act[1], PLR_HOLYAURA)) && !ship_isowner_player(ship, ch))
 		{
-			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			return;
 		}
 
@@ -4255,8 +4255,8 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 				{
 					int delay = (75 - ship->first_mate->crew->leadership) / 15;
 
-					act("You give the order to your first mate to 'land'.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					act("You give the order to your first mate to 'land'.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 					if( IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT) )
 					{
@@ -4275,7 +4275,7 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 				}
 			}
 
-			act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			return;
 		}
 	}
@@ -4445,7 +4445,7 @@ void do_ship_launch(CHAR_DATA *ch, char *argument)
 
 	if( !IS_VALID(ship) )
 	{
-		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
@@ -4454,7 +4454,7 @@ void do_ship_launch(CHAR_DATA *ch, char *argument)
 	{
 		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act[1], PLR_HOLYAURA)) && !ship_isowner_player(ship, ch))
 		{
-			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			return;
 		}
 
@@ -4472,8 +4472,8 @@ void do_ship_launch(CHAR_DATA *ch, char *argument)
 				{
 					int delay = (75 - ship->first_mate->crew->leadership) / 15;
 
-					act("You give the order to your first mate to 'launch'.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					act("You give the order to your first mate to 'launch'.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 					if( IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT) )
 					{
@@ -4492,7 +4492,7 @@ void do_ship_launch(CHAR_DATA *ch, char *argument)
 				}
 			}
 
-			act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			return;
 		}
 	}
@@ -4590,7 +4590,7 @@ void do_ship_flag(CHAR_DATA *ch, char *argument)
 
 	if (!IS_VALID(ship))
 	{
-		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
@@ -4694,7 +4694,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 
 	if (!IS_VALID(ship))
 	{
-		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
@@ -5336,7 +5336,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 
 		if( list_size(map->waypoints) < 1 )
 		{
-			act("{xThere are no waypoints on $p{x.", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR);
+			act("{xThere are no waypoints on $p{x.", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			return;
 		}
 
@@ -5518,7 +5518,7 @@ if( IS_NULLSTR(argument) )
 
 				if( wm )
 				{
-					act("{YThat coordinate is already on $p{Y.{x", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR);
+					act("{YThat coordinate is already on $p{Y.{x", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 					return;
 				}
 			}
@@ -5536,16 +5536,16 @@ if( IS_NULLSTR(argument) )
 
 		if( use_navigator )
 		{
-		    act("{x$N{Y jots something down onto {x$p{Y and hands it to {x$n{Y.{x", ch, ship->navigator, NULL, map, NULL, NULL, NULL, TO_NOTVICT);
-		    act("{x$N{Y jots something down onto {x$p{Y and hands it to you.{x", ch, ship->navigator, NULL, map, NULL, NULL, NULL, TO_CHAR);
+		    act("{x$N{Y jots something down onto {x$p{Y and hands it to {x$n{Y.{x", ch, ship->navigator, NULL, map, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+		    act("{x$N{Y jots something down onto {x$p{Y and hands it to you.{x", ch, ship->navigator, NULL, map, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 			// Improve the navigator's navigation skill
 			crew_skill_improve(ship->navigator, CREW_SKILL_NAVIGATION);
 		}
 		else
 		{
-		    act("{x$n{Y jots something down onto {x$p{Y.{x", ch, NULL, NULL, map, NULL, NULL, NULL, TO_ROOM);
-		    act("{YYou jot down coordinates onto {x$p{Y.{x", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR);
+		    act("{x$n{Y jots something down onto {x$p{Y.{x", ch, NULL, NULL, map, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+		    act("{YYou jot down coordinates onto {x$p{Y.{x", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		}
 		return;
 	}
@@ -5561,7 +5561,7 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 
 	if (!IS_VALID(ship))
 	{
-		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
@@ -6069,7 +6069,7 @@ void do_ship_keys(CHAR_DATA *ch, char *argument)
 
 	if (!IS_VALID(ship))
 	{
-		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 
@@ -6237,8 +6237,8 @@ void do_ship_keys(CHAR_DATA *ch, char *argument)
 		list_appendlink(sk->list, luid);
 
 		obj_to_char(key, ch);
-		act("{xA ship deckhand hands you $p{x.", ch, NULL, NULL, key, NULL, NULL, NULL, TO_CHAR);
-		act("{xA ship deckhand hands $n $p{x.", ch, NULL, NULL, key, NULL, NULL, NULL, TO_ROOM);
+		act("{xA ship deckhand hands you $p{x.", ch, NULL, NULL, key, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+		act("{xA ship deckhand hands $n $p{x.", ch, NULL, NULL, key, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		return;
 	}
 
@@ -6303,7 +6303,7 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 
 	if (!IS_VALID(ship))
 	{
-		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	}
 

@@ -363,14 +363,14 @@ void do_auction( CHAR_DATA *ch, char * argument )
 
 	for (af = obj->affected; af != NULL; af = af->next) {
 	    if (af->type == gsn_third_eye) {
-		act("The enchantment on $p prevents it from being auctioned.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		act("The enchantment on $p prevents it from being auctioned.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return;
 	    }
 	}
     }
 
     if (IS_SET(obj->extra[1], ITEM_NOAUCTION)) {
-	act("$p cannot be auctioned.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+	act("$p cannot be auctioned.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	return;
     }
 
@@ -400,12 +400,12 @@ void do_auction( CHAR_DATA *ch, char * argument )
     auction_info.item		= obj;
     auction_info.status		= 0;
 
-    act("{RA big hairy gnome appears out of nowhere.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-    act("{RA big hairy gnome appears out of nowhere.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-    act("A big hairy gnome takes an item off you.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-    act("A big hairy gnome takes an item off $n.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-    act("{RA big hairy gnome disappears with a loud POP!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-    act("{RA big hairy gnome disappears with a loud POP!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act("{RA big hairy gnome appears out of nowhere.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act("{RA big hairy gnome appears out of nowhere.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    act("A big hairy gnome takes an item off you.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act("A big hairy gnome takes an item off $n.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    act("{RA big hairy gnome disappears with a loud POP!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act("{RA big hairy gnome disappears with a loud POP!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
     sprintf(buf,"%s has put %s{M up for auction. The minimum bid is %ld.{x\n\r",
     ch->name,
@@ -452,14 +452,14 @@ void auction_update()
 	    obj_to_char( auction_info.item, auction_info.owner );
 
 	    send_to_char("{RA big hairy gnome appears out of nowhere.{x\n\r", auction_info.owner);
-	    act("{RA big hairy gnome appears out of nowhere.{x", auction_info.owner, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	    act("{RA big hairy gnome appears out of nowhere.{x", auction_info.owner, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	    sprintf(buf, "A big hairy gnome gives you %s.\n\r",
 		auction_info.item->short_descr );
 
 	    send_to_char( buf, auction_info.owner );
-	    act( "A big hairy gnome gives $n $p.", auction_info.owner, NULL, NULL, auction_info.item, NULL, NULL, NULL, TO_ROOM);
+	    act( "A big hairy gnome gives $n $p.", auction_info.owner, NULL, NULL, auction_info.item, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	    send_to_char("{RA big hairy gnome vanishes with a loud POP!{x\n\r", auction_info.owner);
-	    act("{RA big hairy gnome vanishes with a loud POP!{x", auction_info.owner, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	    act("{RA big hairy gnome vanishes with a loud POP!{x", auction_info.owner, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 	    auction_info.item           = NULL;
 	    auction_info.owner          = NULL;
@@ -497,13 +497,13 @@ void auction_update()
 	obj_to_char( auction_info.item, auction_info.high_bidder );
 
 	send_to_char("{RA big hairy gnome appears out of nowhere.{x\n\r", auction_info.high_bidder);
-	act("{RA big hairy gnome appears out of nowhere.{x", auction_info.high_bidder, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act("{RA big hairy gnome appears out of nowhere.{x", auction_info.high_bidder, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	sprintf(buf, "A big hairy gnome gives you %s.\n\r",
 		auction_info.item->short_descr );
 	send_to_char( buf, auction_info.high_bidder );
-	act( "A big hairy gnome gives $n $p.", auction_info.high_bidder, NULL, NULL, auction_info.item, NULL, NULL, NULL, TO_ROOM);
+	act( "A big hairy gnome gives $n $p.", auction_info.high_bidder, NULL, NULL, auction_info.item, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         send_to_char("{RA big hairy gnome vanishes with a loud POP!{x\n\r", auction_info.high_bidder);
-	act("{RA big hairy gnome vanishes with a loud POP!{x", auction_info.high_bidder, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act("{RA big hairy gnome vanishes with a loud POP!{x", auction_info.high_bidder, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 
 	auction_info.item		= NULL;
@@ -563,15 +563,15 @@ void auction_update()
 	    send_to_char("{RA big hairy gnome appears out of nowhere.{x\n\r",
 	    	auction_info.owner);
 	    act("{RA big hairy gnome appears out of nowhere.{x",
-	    	auction_info.owner, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	    	auction_info.owner, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	    sprintf(buf, "A big hairy gnome gives you %s.\n\r",
 		auction_info.item->short_descr );
 	    send_to_char( buf, auction_info.owner );
 	    act( "A big hairy gnome gives $n $p.",
-	    	auction_info.owner, NULL, NULL, auction_info.item, NULL, NULL, NULL, TO_ROOM);
+	    	auction_info.owner, NULL, NULL, auction_info.item, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	    send_to_char("{RA big hairy gnome vanishes with a loud POP!{x\n\r", 		auction_info.owner);
 	    act("{RA big hairy gnome vanishes with a loud POP!{x",
-	    	auction_info.owner, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	    	auction_info.owner, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 	    auction_info.item           = NULL;
 	    auction_info.owner          = NULL;

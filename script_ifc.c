@@ -1867,8 +1867,102 @@ DECL_IFC_FUN(ifc_sector)
 
 DECL_IFC_FUN(ifc_sex)
 {
-	*ret = ISARG_MOB(0) ? ARG_MOB(0)->sex : 0;
-	return true;
+    CHAR_DATA *target_mob = mob; // Default to self if no mob provided as first arg
+
+    if (argc == 0) return false; // Needs at least one argument (the string to compare)
+
+    if (ISARG_MOB(0)) {
+        target_mob = ARG_MOB(0);
+        if (argc < 2 || !ISARG_STR(1)) return false; // Need string after mob
+        *ret = !str_cmp(get_body_type_name(target_mob), ARG_STR(1));
+    } else if (ISARG_STR(0)) {
+        if (!target_mob) return false; // No implicit self to check
+        *ret = !str_cmp(get_body_type_name(target_mob), ARG_STR(0));
+    } else {
+        return false; // Invalid first argument
+    }
+    return true;
+}
+
+DECL_IFC_FUN(ifc_bodytypevalue)
+{
+    CHAR_DATA *target_mob = mob;
+
+    if (argc == 0) return false;
+
+    if (ISARG_MOB(0)) {
+        target_mob = ARG_MOB(0);
+        if (argc < 2 || !ISARG_NUM(1)) return false;
+        *ret = (target_mob->body_type == (body_type_t)ARG_NUM(1));
+    } else if (ISARG_NUM(0)) {
+        if (!target_mob) return false;
+        *ret = (target_mob->body_type == (body_type_t)ARG_NUM(0));
+    } else {
+        return false;
+    }
+    return true;
+}
+
+// ifc_isverbplural: Checks if the mob's preferred verb form is plural
+// Syntax: isverbplural <target_mob>
+DECL_IFC_FUN(ifc_isverbplural)
+{
+    CHAR_DATA *target_mob = mob;
+
+    if (argc > 0 && ISARG_MOB(0)) {
+        target_mob = ARG_MOB(0);
+    }
+    
+    if (!target_mob) return false;
+
+    // This logic directly uses the core of get_verb_form's decision process
+    verb_form_preference_t preference = target_mob->verb_preference;
+    if (preference == VERB_FORM_DEFAULT) {
+        if (target_mob->body_type >= 0 && target_mob->body_type < BODY_TYPE_MAX) {
+            preference = body_type_info[target_mob->body_type].verb_preference;
+        } else {
+            preference = body_type_info[BODY_TYPE_NEUTRAL].verb_preference;
+        }
+    }
+    
+    if (preference == VERB_FORM_DEFAULT) { // Still default, check pronoun "they"
+        const char *subj_pronoun = get_he_she(target_mob);
+        *ret = (subj_pronoun && (str_cmp(subj_pronoun, "they") == 0 || str_cmp(subj_pronoun, "They") == 0));
+    } else {
+        *ret = (preference == VERB_FORM_PLURAL);
+    }
+    return true;
+}
+
+// ifc_isverbsingular: Checks if the mob's preferred verb form is singular
+// Syntax: isverbsingular <target_mob>
+DECL_IFC_FUN(ifc_isverbsingular)
+{
+    CHAR_DATA *target_mob = mob;
+
+    if (argc > 0 && ISARG_MOB(0)) {
+        target_mob = ARG_MOB(0);
+    }
+
+    if (!target_mob) return false;
+    
+    // Inverse of isverbplural logic essentially
+    verb_form_preference_t preference = target_mob->verb_preference;
+    if (preference == VERB_FORM_DEFAULT) {
+        if (target_mob->body_type >= 0 && target_mob->body_type < BODY_TYPE_MAX) {
+            preference = body_type_info[target_mob->body_type].verb_preference;
+        } else {
+            preference = body_type_info[BODY_TYPE_NEUTRAL].verb_preference;
+        }
+    }
+
+    if (preference == VERB_FORM_DEFAULT) { // Still default, check pronoun "they"
+        const char *subj_pronoun = get_he_she(target_mob);
+        *ret = !(subj_pronoun && (str_cmp(subj_pronoun, "they") == 0 || str_cmp(subj_pronoun, "They") == 0));
+    } else {
+        *ret = (preference == VERB_FORM_SINGULAR);
+    }
+    return true;
 }
 
 DECL_IFC_FUN(ifc_silver)

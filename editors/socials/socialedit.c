@@ -30,7 +30,7 @@
 /* Entry point for editing social table. */
 void do_socialedit(CHAR_DATA *ch, char *argument)
 {
-    struct social_type *social;
+    //struct social_type *social;
     char command[MAX_INPUT_LENGTH];
 
     argument = one_argument(argument, command);
@@ -146,7 +146,7 @@ SOCEDIT(socialedit_list)
 SOCEDIT(socialedit_create)
 {
     struct social_type social;
-    struct social_type *temp_table;
+    //struct social_type *temp_table;
     char buf[MAX_STRING_LENGTH];
     
     if (argument[0] == '\0') {

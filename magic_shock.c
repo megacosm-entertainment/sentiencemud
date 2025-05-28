@@ -37,7 +37,7 @@ SPELL_FUNC(spell_call_lightning)
 	dam = dice(level/2, 8);
 
 	send_to_char("{YYou bring lightning upon your foes!{x\n\r", ch);
-	act("{Y$n calls lightning to strike $s foes!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act("{Y$n calls lightning to strike $s foes!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 	for (vch = ch->in_room->people; vch != NULL; vch = vch_next) {
 		vch_next = vch->next_in_room;
@@ -62,9 +62,9 @@ SPELL_FUNC(spell_chain_lightning)
 	int dam;
 
 	/* first strike */
-	act("A lightning bolt leaps from $n's hand and arcs to $N.", ch,victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-	act("A lightning bolt leaps from your hand and arcs to $N.", ch,victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	act("A lightning bolt leaps from $n's hand and hits you!", ch,victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+	act("A lightning bolt leaps from $n's hand and arcs to $N.", ch,victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+	act("A lightning bolt leaps from your hand and arcs to $N.", ch,victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+	act("A lightning bolt leaps from $n's hand and hits you!", ch,victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
 
 	dam = dice(level,6);
 	if (saves_spell(level,victim,DAM_LIGHTNING))
@@ -86,8 +86,8 @@ SPELL_FUNC(spell_chain_lightning)
 
 				if (check_shield_block_projectile(ch, tmp_vict, "arc of lightning", NULL)) {
 					if (number_percent() < get_skill(tmp_vict, gsn_shield_block)/4) {
-						act("The bolt arcs off $n's shield and fizzles out.", tmp_vict, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-						act("The bolt arcs off your shield and fizzles out.", tmp_vict, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+						act("The bolt arcs off $n's shield and fizzles out.", tmp_vict, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+						act("The bolt arcs off your shield and fizzles out.", tmp_vict, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 						level = 0;
 						break;
 					} else
@@ -97,8 +97,8 @@ SPELL_FUNC(spell_chain_lightning)
 				found = true;
 				last_vict = tmp_vict;
 
-				act("The bolt arcs to $n!",tmp_vict, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM);
-				act("The bolt hits you!",tmp_vict, NULL, NULL, NULL, NULL,NULL,NULL,TO_CHAR);
+				act("The bolt arcs to $n!",tmp_vict, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM, NULL, NULL);
+				act("The bolt hits you!",tmp_vict, NULL, NULL, NULL, NULL,NULL,NULL,TO_CHAR, NULL, NULL);
 				dam = dice(level,6);
 
 				if (saves_spell(level,tmp_vict,DAM_LIGHTNING))
@@ -117,13 +117,13 @@ SPELL_FUNC(spell_chain_lightning)
 				return true;
 
 			if (last_vict == ch) {/* no double hits */
-				act("The bolt seems to have fizzled out.",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
-				act("The bolt grounds out through your body.", ch,NULL, NULL, NULL, NULL, NULL,NULL,TO_CHAR);
+				act("The bolt seems to have fizzled out.",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
+				act("The bolt grounds out through your body.", ch,NULL, NULL, NULL, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
 				return true;
 			}
 
 			last_vict = ch;
-			act("The bolt arcs to $n...whoops!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+			act("The bolt arcs to $n...whoops!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
 			send_to_char("You are struck by your own lightning!\n\r",ch);
 			dam = dice(level,6);
 			if (saves_spell(level,ch,DAM_LIGHTNING))
@@ -156,7 +156,7 @@ SPELL_FUNC(spell_electrical_barrier)
 		if (victim == ch)
 			send_to_char("You are already surrounded by an electrical barrier.\n\r",ch);
 		else
-			act("$N is already surrounded by an electrical barrier.", ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+			act("$N is already surrounded by an electrical barrier.", ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -172,7 +172,7 @@ SPELL_FUNC(spell_electrical_barrier)
 	af.bitvector2 = AFF2_ELECTRICAL_BARRIER;
 	af.slot = obj_wear_loc;
 	affect_to_char(victim, &af);
-	act("{WCrackling blue arcs of electricity whip up and around $n forming a hazy barrier.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act("{WCrackling blue arcs of electricity whip up and around $n forming a hazy barrier.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	send_to_char("{WYou are surrounded by an electrical barrier.\n\r{x", victim);
 	return true;
 }
@@ -183,9 +183,9 @@ SPELL_FUNC(spell_lightning_breath)
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
 	int dam;
 
-	act("$n breathes a bolt of lightning at $N.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-	act("$n breathes a bolt of lightning at you!",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-	act("You breathe a bolt of lightning at $N.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	act("$n breathes a bolt of lightning at $N.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+	act("$n breathes a bolt of lightning at you!",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+	act("You breathe a bolt of lightning at $N.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 	if (check_shield_block_projectile(ch, victim, "lightning bolt", NULL))
 		return false;

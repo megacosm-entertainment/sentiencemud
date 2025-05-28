@@ -262,7 +262,7 @@ HEDIT(hedit_edit)
 
     if (help == NULL)
     {
-	act("Couldn't find a helpfile with keyword $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);
+	act("Couldn't find a helpfile with keyword $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR, NULL, NULL);
 	return false;
     }
 
@@ -350,7 +350,7 @@ HEDIT(hedit_move)
 	insert_help(help, &hCatDest->inside_helps);
 
 	act("Moved help $t into category $T.", ch, NULL, NULL, NULL, NULL, help->keyword,
-	    hCatDest == topHelpCat ? "root category" : hCatDest->name, TO_CHAR);
+	    hCatDest == topHelpCat ? "root category" : hCatDest->name, TO_CHAR, NULL, NULL);
     }
     else /* moving a category */
     {
@@ -393,7 +393,7 @@ HEDIT(hedit_move)
 
 	hCat->up = hCatDest->up;
 	act("Moved category $t into category $T.", ch, NULL, NULL, NULL, NULL, hCat->name,
-	    hCatDest == topHelpCat ? "root category" : hCatDest->name, TO_CHAR);
+	    hCatDest == topHelpCat ? "root category" : hCatDest->name, TO_CHAR, NULL, NULL);
     }
 
     return true;
@@ -458,12 +458,12 @@ HEDIT(hedit_opencat)
 
     if ((hCat = find_help_category(argument, ch->desc->hCat->inside_cats)) == NULL)
     {
-        act("No category by the name of $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);
+        act("No category by the name of $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR, NULL, NULL);
 	return false;
     }
 
     ch->desc->hCat = hCat;
-    act("Opened category $t.", ch, NULL, NULL, NULL, NULL, hCat->name, NULL, TO_CHAR);
+    act("Opened category $t.", ch, NULL, NULL, NULL, NULL, hCat->name, NULL, TO_CHAR, NULL, NULL);
     return false;
 }
 
@@ -485,7 +485,7 @@ HEDIT(hedit_upcat)
     ch->desc->hCat = ch->desc->hCat->up;
 
     act("Switched categories to $t.", ch, NULL, NULL, NULL, NULL,
-        ch->desc->hCat == topHelpCat ? "root category" : ch->desc->hCat->name, NULL, TO_CHAR);
+        ch->desc->hCat == topHelpCat ? "root category" : ch->desc->hCat->name, NULL, TO_CHAR, NULL, NULL);
     return false;
 }
 
@@ -524,7 +524,7 @@ HEDIT(hedit_remcat)
     else
 	ch->desc->hCat->inside_cats = hCat->next;
 
-    act("Removed category $t.", ch, NULL, NULL, NULL, NULL, hCat->name, NULL, TO_CHAR);
+    act("Removed category $t.", ch, NULL, NULL, NULL, NULL, hCat->name, NULL, TO_CHAR, NULL, NULL);
     free_help_category(hCat);
     return true;
 }
@@ -584,7 +584,7 @@ HEDIT(hedit_shiftcat)
 	else
 	    ch->desc->hCat->inside_cats = hcat;
 
-	act("Shifted category $t left in the list.", ch, NULL, NULL, NULL, NULL, hcat->name, NULL, TO_CHAR);
+	act("Shifted category $t left in the list.", ch, NULL, NULL, NULL, NULL, hcat->name, NULL, TO_CHAR, NULL, NULL);
     }
     else
     {
@@ -611,7 +611,7 @@ HEDIT(hedit_shiftcat)
 	else
 	    ch->desc->hCat->inside_cats = hcattmp;
 
-	act("Shifted category $t right in the list.", ch, NULL, NULL, NULL, NULL, hcat->name, NULL, TO_CHAR);
+	act("Shifted category $t right in the list.", ch, NULL, NULL, NULL, NULL, hcat->name, NULL, TO_CHAR, NULL, NULL);
     }
 
     hedit_show(ch, "");
@@ -747,7 +747,7 @@ HEDIT(hedit_level)
 	    }
 
 	    ch->desc->hCat->min_level = atoi(argument);
-	    act("Current category's level set.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	    act("Current category's level set.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	    return true;
 	}
     }
@@ -790,7 +790,7 @@ HEDIT(hedit_security)
 	}
 	else {
 	    ch->desc->hCat->security = arg;
-	    act("Current category's security set.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	    act("Current category's security set.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 	    return true;
 	}
     }
@@ -864,7 +864,7 @@ HEDIT(hedit_builder)
 
 	    if (!player_exists(name) && str_cmp(name, "All"))
 	    {
-			act("There is no character by the name of $t.", ch, NULL, NULL, NULL, NULL, name, NULL, TO_CHAR);
+			act("There is no character by the name of $t.", ch, NULL, NULL, NULL, NULL, name, NULL, TO_CHAR, NULL, NULL);
 			return false;
 	    }
 
@@ -916,7 +916,7 @@ HEDIT(hedit_builder)
 
 	    if (!player_exists(name) && str_cmp(name, "All"))
 	    {
-		act("There is no character by the name of $t.", ch, NULL, NULL, NULL, NULL, name, NULL, TO_CHAR);
+		act("There is no character by the name of $t.", ch, NULL, NULL, NULL, NULL, name, NULL, TO_CHAR, NULL, NULL);
 		return false;
 	    }
 
@@ -969,7 +969,7 @@ HEDIT(hedit_addtopic)
 
     if (lookup_help_exact(argument, ch->tot_level, topHelpCat) == NULL)
     {
-	act("There is no helpfile with keywords $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);
+	act("There is no helpfile with keywords $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR, NULL, NULL);
 	return false;
     }
 
@@ -1003,7 +1003,7 @@ HEDIT(hedit_addtopic)
 	    pHelp->related_topics = topic;
     }
 
-    act("Related topic $t added.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);
+    act("Related topic $t added.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR, NULL, NULL);
     return true;
 }
 
@@ -1087,7 +1087,7 @@ HEDIT(hedit_delete)
     }
 
     if (pHelp == NULL) {
-	act("Didn't find a file with keyword $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR);
+	act("Didn't find a file with keyword $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR, NULL, NULL);
 	return false;
     }
 
@@ -1101,7 +1101,7 @@ HEDIT(hedit_delete)
     else
 	hCat->inside_helps = pHelp->next;
 
-    act("Help file $t deleted.", ch, NULL, NULL, NULL, NULL, pHelp->keyword, NULL, TO_CHAR);
+    act("Help file $t deleted.", ch, NULL, NULL, NULL, NULL, pHelp->keyword, NULL, TO_CHAR, NULL, NULL);
     free_help(pHelp);
     return true;
 }

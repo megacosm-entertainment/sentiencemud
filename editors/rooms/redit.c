@@ -1073,7 +1073,7 @@ REDIT(redit_mreset)
 	pMobIndex->vnum,
 	pReset->arg2);
     send_to_char(output, ch);
-    act("$n has created $N!", ch, newmob, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act("$n has created $N!", ch, newmob, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     return true;
 }
 
@@ -1269,7 +1269,7 @@ REDIT(redit_oreset)
 	return false;
     }
 
-    act("$n has created $p!", ch, NULL, NULL, newobj, NULL, NULL, NULL, TO_ROOM);
+    act("$n has created $p!", ch, NULL, NULL, newobj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     return true;
 }
 

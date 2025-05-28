@@ -3150,7 +3150,7 @@ const struct do_func_type do_func_table[] =
         { "do_fill",                    do_fill },
         { "do_give",                    do_give },
         { "do_hands",                   do_hands },
-        { "do_heal",                    do_heal },
+//        { "do_heal",                    do_heal },
         { "do_wear",                    do_wear },
         { "do_infuse",                  do_infuse },
         { "do_inspect",                 do_inspect },
@@ -3454,6 +3454,7 @@ const struct do_func_type do_func_table[] =
         { "do_acctunlink", do_acctunlink },
         { "do_socialedit", do_socialedit },
         { "do_reserved", do_reserved },
+        { "do_pronouns", do_pronouns },
 };
 
 /* Table mapping connection states to display strings */
@@ -3829,4 +3830,15 @@ const struct flag_type staff_ranks[] =
     {"creator",     STAFF_CREATOR,          true},
     {"implementor", STAFF_IMPLEMENTOR,      true},
     {NULL,          0,                      false}
+};
+
+const struct flag_type body_types[] =
+{
+    {"neutral", BODY_TYPE_NEUTRAL, true},
+    {"masculine", BODY_TYPE_MALE, true},
+    {"feminine", BODY_TYPE_FEMALE, true},
+    {"other", BODY_TYPE_OTHER, true},
+    {"random", BODY_TYPE_RANDOM, true},
+    {NULL, 0, false}
+
 };

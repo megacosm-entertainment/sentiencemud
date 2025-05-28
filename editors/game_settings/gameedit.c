@@ -745,9 +745,10 @@ if (vis_len > max_vis_len) {
     while (pad-- > 0) strcat(display_value, " ");
 }
 for (int k = 0; display_value[k]; ++k)
+{
     if (display_value[k] == '\n' || display_value[k] == '\r')
         display_value[k] = ' ';
-
+}
     // Output the row (80 columns: 23 + 41 + 12 + separators)
     snprintf(buf, sizeof(buf),
         "{Y| %-23.23s {Y| %-39.39s {Y| %-14.14s {Y|{x\n\r",
@@ -1886,7 +1887,7 @@ GAMEEDIT(gameedit_comment)
 }
 
 // Add a handler for the string editor for EXTSTR type settings
-void game_settings_string_edit(CHAR_DATA *ch, char *argument)
+void game_settings_string_edit(CHAR_DATA *ch)
 {
     const struct game_setting_type *setting;
     GAME_SETTING_CHANGE *change;

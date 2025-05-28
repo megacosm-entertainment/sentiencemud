@@ -1735,30 +1735,42 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_STRING;
 		arg->d.str = arg->d.mob ? (char*)arg->d.mob->long_descr : (char*)&str_empty[0];
 		break;
-	case ENTITY_MOB_SEX:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.mob ? (char*)male_female[URANGE(0,arg->d.mob->sex,2)] : (char*)male_female[0];
-		break;
-	case ENTITY_MOB_HE:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.mob ? (char*)he_she[URANGE(0,arg->d.mob->sex,2)] : (char*)SOMEONE;
-		break;
-	case ENTITY_MOB_HIM:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.mob ? (char*)him_her[URANGE(0,arg->d.mob->sex,2)] : (char*)SOMEONE;
-		break;
-	case ENTITY_MOB_HIS:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.mob ? (char*)his_her[URANGE(0,arg->d.mob->sex,2)] : (char*)SOMEONES;
-		break;
-	case ENTITY_MOB_HIS_O:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.mob ? (char*)his_hers[URANGE(0,arg->d.mob->sex,2)] : (char*)SOMEONES;
-		break;
-	case ENTITY_MOB_HIMSELF:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.mob ? (char*)himself[URANGE(0,arg->d.mob->sex,2)] : (char*)SOMEONE;
-		break;
+    case ENTITY_MOB_SEX: // Now returns the body_type name string
+		clear_buf(arg->buffer);
+        add_buf(arg->buffer, (char *)get_body_type_name(self));
+		arg->d.str = buf_string(arg->buffer);
+        arg->type = ENT_STRING;
+        break;
+    case ENTITY_MOB_HE: // Subjective pronoun (he, she, they, ze)
+		clear_buf(arg->buffer);
+        add_buf(arg->buffer, (char *)get_he_she(self));
+		arg->d.str = buf_string(arg->buffer);
+        arg->type = ENT_STRING;
+        break;
+    case ENTITY_MOB_HIM: // Objective pronoun (him, her, them, zir)
+		clear_buf(arg->buffer);
+        add_buf(arg->buffer, (char *)get_him_her(self));
+		arg->d.str = buf_string(arg->buffer);
+        arg->type = ENT_STRING;
+        break;
+    case ENTITY_MOB_HIS: // Possessive adjective (his, her, their, zis)
+		clear_buf(arg->buffer);
+        add_buf(arg->buffer, (char *)get_his_her(self));
+		arg->d.str = buf_string(arg->buffer);
+        arg->type = ENT_STRING;
+        break;
+    case ENTITY_MOB_HIS_O: // Possessive pronoun (his, hers, theirs, zirs)
+		clear_buf(arg->buffer);
+        add_buf(arg->buffer, (char *)get_his_hers(self));
+		arg->d.str = buf_string(arg->buffer);
+        arg->type = ENT_STRING;
+        break;
+    case ENTITY_MOB_HIMSELF: // Reflexive pronoun (himself, herself, themself, zirself)
+		clear_buf(arg->buffer);
+        add_buf(arg->buffer, (char *)get_himself_herself(self));
+		arg->d.str = buf_string(arg->buffer);
+        arg->type = ENT_STRING;
+        break;
 	case ENTITY_MOB_RACE:
 		arg->type = ENT_STRING;
 		arg->d.str = arg->d.mob ? (char*)race_table[arg->d.mob->race].name : "unknown";
@@ -2215,6 +2227,14 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? current_time - arg->d.mob->pcdata->creation_date : current_time - arg->d.mob->creation_time;
 		break;
+    case ENTITY_MOB_BODY_TYPE_VALUE:
+        arg->d.num = self->body_type;
+        arg->type = ENT_NUMBER;
+        break;
+    case ENTITY_MOB_VERB_PREF_VALUE:
+        arg->d.num = self->verb_preference;
+        arg->type = ENT_NUMBER;
+        break;
 	default: return NULL;
 	}
 

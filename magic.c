@@ -194,7 +194,7 @@ void say_spell(CHAR_DATA *ch, int sn)
     {
 	if (rch != ch)
 	    act((!IS_NPC(rch) && ch->pcdata->class_current == rch->pcdata->class_current) ? buf : buf2,
-	        ch, rch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+	        ch, rch, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
     }
 }
 
@@ -315,7 +315,7 @@ bool check_dispel(CHAR_DATA *ch, CHAR_DATA *victim, int sn)
 						send_to_char("\n\r", victim);
 					}
 					if (skill_table[sn].msg_disp && skill_table[sn].msg_disp[0])
-						act(skill_table[sn].msg_disp,victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+						act(skill_table[sn].msg_disp,victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
 
 					return true;
 				} else
@@ -361,7 +361,7 @@ bool validate_spell_target(CHAR_DATA *ch,int type,char *arg,int *t,CHAR_DATA **v
         }
 
         if (ch->fighting && !is_same_group(victim, ch->fighting) && ch != victim && !IS_NPC(victim)) {
-            act("You must finish your fight before attacking $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+            act("You must finish your fight before attacking $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
             return false;
         }
 
@@ -558,7 +558,7 @@ void do_cast(CHAR_DATA *ch, char *argument)
 
 	if (IS_AFFECTED2(ch, AFF2_SILENCE)) {
 		send_to_char("You open your mouth but nothing comes out.\n\r", ch);
-		act("$n opens $s mouth but nothing comes out.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("$n opens $s mouth but nothing comes out.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		return;
 	}
 
@@ -711,7 +711,7 @@ void do_cast(CHAR_DATA *ch, char *argument)
 	}
 
 	send_to_char("{WYou begin to speak the words of the spell...\n\r{x", ch);
-	act("{W$n begins casting a spell...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act("{W$n begins casting a spell...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 	// this bit makes sure that if there are 2 mobs in the room with the same
 	//   name, cast_end is performed on the correct target.
@@ -774,7 +774,7 @@ void cast_end(CHAR_DATA *ch)
     int target;
 
     send_to_char("{WYou have completed your casting.{x\n\r", ch);
-    act("{W$n has completed $s casting.{x", ch , NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act("{W$n has completed $s casting.{x", ch , NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
     if(ch->cast_token) {
         token = ch->cast_token;
@@ -921,17 +921,17 @@ void cast_end(CHAR_DATA *ch)
     for (trap = ch->in_room->contents; trap; trap = trap->next_content) {
         if (trap->item_type == ITEM_SPELL_TRAP) {
             trap->level -= ch->tot_level/4;
-            act("{Y$p sucks up $n's spell!{x", ch, NULL, NULL, trap, NULL, NULL, NULL, TO_ROOM);
-            act("{Y$p sucks up your spell!{x", ch, NULL, NULL, trap, NULL, NULL, NULL, TO_CHAR);
+            act("{Y$p sucks up $n's spell!{x", ch, NULL, NULL, trap, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+            act("{Y$p sucks up your spell!{x", ch, NULL, NULL, trap, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
             if (trap->level <= 0) {
                 CHAR_DATA *dam_vict;
 
-                act("{R$p shatters explosively!{x", ch, NULL, NULL, trap, NULL, NULL, NULL, TO_ALL);
+                act("{R$p shatters explosively!{x", ch, NULL, NULL, trap, NULL, NULL, NULL, TO_ALL, NULL, NULL);
                 if (!IS_SET(ch->in_room->room_flag[0], ROOM_SAFE) && !IS_SOCIAL(ch)) {
                     for (dam_vict = ch->in_room->people; dam_vict; dam_vict = dam_vict->next_in_room) {
                         if (is_pk(dam_vict)) {
-                            act("{RYou are struck by $p's shards!", dam_vict, NULL, NULL, trap, NULL, NULL, NULL, TO_CHAR);
-                            act("{R$n is struck by $p's shards!", dam_vict, NULL, NULL, trap, NULL, NULL, NULL, TO_ROOM);
+                            act("{RYou are struck by $p's shards!", dam_vict, NULL, NULL, trap, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                            act("{R$n is struck by $p's shards!", dam_vict, NULL, NULL, trap, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
                             damage(dam_vict, dam_vict, dice(60, 8), 0, DAM_PIERCE, false);
                         }
                     }
@@ -1401,7 +1401,7 @@ bool can_escape(CHAR_DATA *ch)
 	}
 
 	if (ch->pulled_cart) {
-		act("You can't take $p with you.", ch, NULL, NULL, ch->pulled_cart, NULL, NULL, NULL, TO_CHAR);
+		act("You can't take $p with you.", ch, NULL, NULL, ch->pulled_cart, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -1438,7 +1438,7 @@ bool can_gate(CHAR_DATA *ch, CHAR_DATA *victim)
 		}
 
 		if (get_region(ch->in_room) != get_region(victim->in_room)) {
-			act("$N is too far away.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("$N is too far away.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 			return false;
 		}
 	}
@@ -1646,9 +1646,9 @@ void reverie_end(CHAR_DATA *ch, int amount)
     }
 
     sprintf(buf, "{YYou have finished your reverie.{x");
-    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     sprintf(buf, "{Y$n has finished $s reverie.{x");
-    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     sprintf(buf, "You have transferred %i %s to your %s.\n\r",
 	amount,
 	ch->reverie_type == MANA_TO_HIT ? "mana" : "hit points",

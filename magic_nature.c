@@ -72,14 +72,14 @@ SPELL_FUNC(spell_call_familiar)
 
 	if (victim) {
 		if(victim->in_room != ch->in_room) {
-			act("{WA brilliant light consumes $n before $e vanishes into thin air.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			act("{WA brilliant light consumes $n before $e vanishes into thin air.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 			char_from_room(victim);
 			char_to_room(victim, ch->in_room);
-			act("{W$N appears within a brilliant light next to $n.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-			act("{W$N appears within a brilliant light next to you.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("{W$N appears within a brilliant light next to $n.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+			act("{W$N appears within a brilliant light next to you.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		} else {
-			act("{YA faint glow pulses around $N momentarily before $E moves next to $n.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-			act("{YA faint glow pulses around $N momentarily before $E moves next to you.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("{YA faint glow pulses around $N momentarily before $E moves next to $n.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+			act("{YA faint glow pulses around $N momentarily before $E moves next to you.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		}
 
 		SET_BIT(victim->affected_by[0], AFF_CHARM);
@@ -103,11 +103,11 @@ SPELL_FUNC(spell_create_rose)
 	else vnum = number_range(100176, 100189);
 
 	rose = create_object(get_obj_index(vnum), 0, true);
-	act("You have created $p!", ch, NULL, NULL, rose, NULL, NULL, NULL, TO_CHAR);
-	act("$n has created $p!", ch, NULL, NULL, rose, NULL, NULL, NULL, TO_ROOM);
+	act("You have created $p!", ch, NULL, NULL, rose, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+	act("$n has created $p!", ch, NULL, NULL, rose, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	if (ch->carry_number + 1 > can_carry_n(ch)) {
 		obj_to_room(rose, ch->in_room);
-		act("$p floats gently to the ground.", ch, NULL, NULL, rose, NULL, NULL, NULL, TO_ALL);
+		act("$p floats gently to the ground.", ch, NULL, NULL, rose, NULL, NULL, NULL, TO_ALL, NULL, NULL);
 	} else
 		obj_to_char(rose, ch);
 	return true;
@@ -151,8 +151,8 @@ SPELL_FUNC(spell_eagle_eye)
 		return false;
 	}
 
-	act("You momentarily see through the eyes of an eagle.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	act("$n's eyes glaze over momentarily.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act("You momentarily see through the eyes of an eagle.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+	act("$n's eyes glaze over momentarily.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 	bonus_view = 20;
 
@@ -174,7 +174,7 @@ SPELL_FUNC(spell_ensnare)
 
 	if (IS_AFFECTED(victim, AFF_WEB) ||
 		IS_AFFECTED2(victim, AFF2_ENSNARE)) {
-		act("$N is already entangled enough.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$N is already entangled enough.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -194,9 +194,9 @@ SPELL_FUNC(spell_ensnare)
 	af.bitvector = 0;
 	af.bitvector2 = AFF2_ENSNARE;
 	affect_to_char(victim, &af);
-	act("{gThick vines sprout from the ground to clutch you!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-	act("{gThick vines sprout from the ground to clutch $N!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	act("{gThick vines sprout from the ground to clutch $N!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+	act("{gThick vines sprout from the ground to clutch you!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+	act("{gThick vines sprout from the ground to clutch $N!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+	act("{gThick vines sprout from the ground to clutch $N!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
 	return true;
 }
 
@@ -207,19 +207,19 @@ SPELL_FUNC(spell_master_weather)
 
 	if (!str_prefix(target_name, "clear")) {
 		send_to_char("{YHuge gusts of winds mobilize in the sky as you summon wind elementals.{x\n\r", ch);
-		act("{Y$n summons elementals which sweep the sky clear of clouds.",ch,NULL, NULL, NULL, NULL, NULL,NULL,TO_ROOM);
+		act("{Y$n summons elementals which sweep the sky clear of clouds.",ch,NULL, NULL, NULL, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
 		weather_info.sky = SKY_CLOUDLESS;
 	} else if (!str_prefix(target_name, "cloudy")) {
 		send_to_char("{YElemental forces start pulling clouds into the sky.{x\n\r", ch);
-		act("{Y$n summons elemental forces which pull clouds into the sky.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("{Y$n summons elemental forces which pull clouds into the sky.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		weather_info.sky = SKY_CLOUDY;
 	} else if (!str_prefix(target_name, "rainy")) {
 		send_to_char("{YThousands of tiny water elementals bring rain down from the heavens.{x\n\r", ch);
-		act("{Y$n summons thousands of tiny water elementals to bring rain down from the heavens.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("{Y$n summons thousands of tiny water elementals to bring rain down from the heavens.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		weather_info.sky = SKY_RAINING;
 	} else if (!str_prefix(target_name, "stormy")) {
 		send_to_char("{YFlashes of lightning arc across the sky you summon fire elementals.{x\n\r", ch);
-		act("{YFlashes of lightning arc across the sky as $n summons fire elementals.{x", ch,  NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("{YFlashes of lightning arc across the sky as $n summons fire elementals.{x", ch,  NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		weather_info.sky = SKY_LIGHTNING;
 	} else {
 		send_to_char("You must specify rainy, stormy, cloudy, or clear.\n\r", ch);
@@ -241,12 +241,12 @@ SPELL_FUNC(spell_vision)
 	if (!IS_WILDERNESS(room) && /*!ON_SHIP(ch) &&*/
 		(!IS_SET(ch->in_room->room_flag[0], ROOM_VIEWWILDS) ||
 		!IS_OUTSIDE(ch))) {
-		act("You must be outdoors.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("You must be outdoors.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return false;
 	}
 
-	act("$n blinks $s eyes.\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	act("You have a vision of your surrounding terrain.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	act("$n blinks $s eyes.\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+	act("You have a vision of your surrounding terrain.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 	WILDS_DATA *wilds = room->wilds;
 	if(IS_SET(ch->in_room->room_flag[0], ROOM_VIEWWILDS))
@@ -267,7 +267,7 @@ SPELL_FUNC(spell_web)
 	memset(&af,0,sizeof(af));
 
 	if (IS_AFFECTED(victim, AFF_WEB)) {
-		act("$N is already entangled in webs.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$N is already entangled in webs.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -288,8 +288,8 @@ SPELL_FUNC(spell_web)
 	af.bitvector2 = 0;
 	affect_to_char(victim, &af);
 	send_to_char("You are enmeshed in webs!\n\r", victim);
-	act("$n engulfs $N in a thick web.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-	if (ch != victim) act("You engulf $N in a thick web.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	act("$n engulfs $N in a thick web.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+	if (ch != victim) act("You engulf $N in a thick web.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
 	return true;
 }

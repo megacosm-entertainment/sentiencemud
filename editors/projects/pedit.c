@@ -250,7 +250,7 @@ PEDIT(pedit_builder)
 	else
 	    pb_prev->next = pb->next;
 
-	act("Builder $t removed.", ch, NULL, NULL, NULL, NULL, pb->name, NULL, TO_CHAR);
+	act("Builder $t removed.", ch, NULL, NULL, NULL, NULL, pb->name, NULL, TO_CHAR, NULL, NULL);
 	free_project_builder(pb);
     }
     else
@@ -277,7 +277,7 @@ PEDIT(pedit_builder)
 
         pb->project = project;
 
-	act("Builder $t added.", ch, NULL, NULL, NULL, NULL, pb->name, NULL, TO_CHAR);
+	act("Builder $t added.", ch, NULL, NULL, NULL, NULL, pb->name, NULL, TO_CHAR, NULL, NULL);
     }
 
 
@@ -339,7 +339,7 @@ PEDIT(pedit_leader)
     arg[0] = UPPER(arg[0]);
     project->leader = str_dup(arg);
 
-    act("Project leader set to $t.", ch, NULL, NULL, NULL, NULL, project->leader, NULL, TO_CHAR);
+    act("Project leader set to $t.", ch, NULL, NULL, NULL, NULL, project->leader, NULL, TO_CHAR, NULL, NULL);
     return true;
 }
 
@@ -410,7 +410,7 @@ PEDIT(pedit_area)
 	else
 	   string_last->next = string->next;
 
-	act("Area $t removed.", ch, NULL, NULL, NULL, NULL, string->string, NULL, TO_CHAR);
+	act("Area $t removed.", ch, NULL, NULL, NULL, NULL, string->string, NULL, TO_CHAR, NULL, NULL);
 
 	free_string_data(string);
     }
@@ -439,7 +439,7 @@ PEDIT(pedit_area)
 	else
 	    project->areas = string;
 
-	act("Area $t added.", ch, NULL, NULL, NULL, NULL, area->name, NULL, TO_CHAR);
+	act("Area $t added.", ch, NULL, NULL, NULL, NULL, area->name, NULL, TO_CHAR, NULL, NULL);
     }
 
     return true;

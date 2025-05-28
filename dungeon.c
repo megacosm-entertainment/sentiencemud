@@ -1077,8 +1077,8 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 			char_to_room(ch->pet, room);
 		}
 
-		act("{Y$n leaves $T.{x", ch, NULL, NULL, NULL, NULL, NULL, dungeon->index->name, TO_ROOM);
-		act("{YYou leave $T.{x", ch, NULL, NULL, NULL, NULL, NULL, dungeon->index->name, TO_CHAR);
+		act("{Y$n leaves $T.{x", ch, NULL, NULL, NULL, NULL, NULL, dungeon->index->name, TO_ROOM, NULL, NULL);
+		act("{YYou leave $T.{x", ch, NULL, NULL, NULL, NULL, NULL, dungeon->index->name, TO_CHAR, NULL, NULL);
 		do_function(ch, &do_look, "auto");
 		return;
 	}

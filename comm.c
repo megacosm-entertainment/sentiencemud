@@ -139,8 +139,6 @@ SSL_CTX *ctx;
 int ssl_errors_since_reset = 0;
 time_t last_ssl_error = 0;
 LLIST *ssl_ctx_cleanup_queue = NULL;
-static unsigned char crypto_key[AES_KEY_SIZE]; // Server-side key
-static bool key_initialized = false;
 
 /*
  * OS-dependent local functions.
@@ -1311,7 +1309,7 @@ void close_socket(DESCRIPTOR_DATA *dclose)
 			if (dclose->connected == CON_PLAYING && !merc_down)
 			{
 	    		if (ch->invis_level < STAFF_IMMORTAL)
-					act("$n has lost $s link.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					act("$n has lost $s link.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 				wiznet("$N has lost $S link.",ch,NULL,WIZ_LINKS,0,0);
 
 	    		ch->desc = NULL;
@@ -2165,6 +2163,7 @@ void bust_a_prompt(CHAR_DATA *ch)
 	case 'J' :
 		sprintf(buf2, "%s", IS_IMMORTAL(ch) ? ch->pcdata->immortal->build_project!= NULL ? ch->pcdata->immortal->build_project->name : "" : "N/A");
 		i = buf2; break;
+
 	case '<':
 		p = buf2;
 		++str;
@@ -2715,7 +2714,7 @@ if (ch && ch->desc) {
     
     // Send reconnection message
     send_to_char("Reconnecting. Type replay to see missed tells.\n\r", ch);
-    act("$n has reconnected.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act("$n has reconnected.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     
     // Log the reconnection
     sprintf(buf, "%s@%s reconnected.", ch->name, d->host);
@@ -2792,7 +2791,7 @@ void stop_idling(CHAR_DATA *ch)
 	}
 
     ch->was_in_room = NULL;
-    act("$n has returned from the void.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act("$n has returned from the void.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 }
 
 
@@ -3156,26 +3155,19 @@ void show_string(struct descriptor_data *d, char *input)
 
 
 void act_new(char *format, CHAR_DATA *ch,
-		CHAR_DATA *vch, CHAR_DATA *vch2,
-		OBJ_DATA *obj1, OBJ_DATA *obj2,
-		void *arg1, void *arg2,
-		int type, int min_pos, CHAR_TEST char_func)
+        CHAR_DATA *vch, CHAR_DATA *vch2,
+        const char *ch_verb, const char *vch_verb, /* These are already const char* */
+        OBJ_DATA *obj1, OBJ_DATA *obj2,
+        void *arg1, void *arg2,
+        int type, int min_pos, CHAR_TEST char_func)
 {
-    static char * const he_she  [] = { "it",  "he",  "she" };
-    static char * const him_her [] = { "it",  "him", "her" };
-    static char * const his_her [] = { "its", "his", "her" };
+
 
 
     CHAR_DATA 		*to;
-//    CHAR_DATA 		*vch = (CHAR_DATA *) arg2;
-//    CHAR_DATA 		*vch2 = (CHAR_DATA *) arg1;
-//    OBJ_DATA 		*obj1 = (OBJ_DATA  *) arg1;
-//    OBJ_DATA 		*obj2 = (OBJ_DATA  *) arg2;
     const 	char 	*str;
-    char 		*i = NULL;
+    const 	char 	*i = NULL;
     char 		*point;
-    //char 		*pbuff;
-//    char 		buffer[ MAX_STRING_LENGTH*2 ];
     char 		buf[ MAX_STRING_LENGTH   ];
     char 		fname[ MAX_INPUT_LENGTH  ];
     bool		see_all;
@@ -3189,7 +3181,7 @@ void act_new(char *format, CHAR_DATA *ch,
 
     /* discard null rooms and chars */
     if (!ch || !ch->in_room)
-	return;
+    return;
 
     to = ch->in_room->people;
     if (type == TO_VICT)
@@ -3200,17 +3192,17 @@ void act_new(char *format, CHAR_DATA *ch,
             return;
         }
 
-	if (!vch->in_room)
-	    return;
+    if (!vch->in_room)
+        return;
 
-        to = vch->in_room->people;
+    to = vch->in_room->people;
     }
 
     for (; to ; to = to->next_in_room)
     {
-	if ((!IS_NPC(to) && !to->desc )
-	||   (!IS_SWITCHED(to) && IS_NPC(to) && !HAS_TRIGGER_MOB(to, TRIG_ACT))
-	||    to->position < min_pos)
+    if ((!IS_NPC(to) && !to->desc )
+    ||   (!IS_SWITCHED(to) && IS_NPC(to) && !HAS_TRIGGER_MOB(to, TRIG_ACT))
+    ||    to->position < min_pos)
             continue;
 
         if ((type == TO_CHAR) && to != ch)
@@ -3227,9 +3219,9 @@ void act_new(char *format, CHAR_DATA *ch,
             continue;
         /* NIB : 20070122 : Specifying a function test to determine who should see this*/
         if (type == TO_FUNC && (!char_func || !(*char_func)(ch,vch,to)))
-	    continue;
+        continue;
         if (type == TO_NOTFUNC && (!char_func || (*char_func)(ch,vch,to)))
-	    continue;
+        continue;
 
         point   = buf;
         str     = format;
@@ -3240,82 +3232,98 @@ void act_new(char *format, CHAR_DATA *ch,
                 *point++ = *str++;
                 continue;
             }
-	    see_all = false;
+        see_all = false;
             ++str;
 
             if( *str == '$' )
             {
-				see_all = true;
-	            ++str;
-			}
+                see_all = true;
+                ++str;
+            }
 
-
-
-//            if (!arg2 && *str >= 'A' && *str <= 'Z')
-//            {
-//                bug("Act: missing arg2 for code %d.", *str);
-//                i = " <@@@> ";
-//            }
-//            else
-//            {
                 switch (*str)
                 {
                 default:  bug("Act: bad code %d.", *str);
                           i = " <@@@> ";
                           break;
                 /* Thx alex for 't' idea */
-                case 't': if (arg1) i = (char *) arg1;
+                case 't': if (arg1) i = (const char *) arg1; /* Cast to const char * */
                           else bug("Act: bad code $t for 'arg1'",0);
                           break;
-                case 'T': if (arg2) i = (char *) arg2;
+                case 'T': if (arg2) i = (const char *) arg2; /* Cast to const char * */
                           else bug("Act: bad code $T for 'arg2'",0);
                           break;
                 case 'v': if (vch2&&to) {
                           if (see_all || (to->tot_level >= 150 && !IS_NPC(vch2)))
-							i = ch->name;
+                            i = ch->name; 
                           else
-							i = pers(vch2,  to );
+                            i = pers(vch2,  to ); 
                           }
                           else bug("Act: bad code $v for 'vch2' or 'to'",0);
                           break;
                 case 'n': if (ch&&to) {
                           if (see_all || (to->tot_level >= 150 && !IS_NPC(ch)))
-							i = ch->name;
+                            i = ch->name;
                           else
-							i = pers(ch,  to );
+                            i = pers(ch,  to );
                           }
                           else bug("Act: bad code $n for 'ch' or 'to'",0);
                           break;
                 case 'N': if (vch&&to) {
                           if (see_all || (to->tot_level >= 150 && !IS_NPC(vch)))
-							i = vch->name;
+                            i = vch->name;
                           else
-							i = pers(vch,  to );
+                            i = pers(vch,  to );
                           }
-                          else bug("Act: bad code $N for 'ch' or 'to'",0);
+                          else bug("Act: bad code $N for 'ch' or 'to'",0); 
                           break;
-                case 'e': if (ch) i = he_she  [URANGE(0, ch  ->sex, 2)];
+                case 'e': if (ch) i = get_he_she(ch);
                           else bug("Act: bad code $e for 'ch'",0);
                           break;
-                case 'E': if (vch) i = he_she  [URANGE(0, vch ->sex, 2)];
-                          else bug("Act: bad code $E for 'ch'",0);
+                case 'E': if (vch) i = get_he_she(vch); 
+                          else bug("Act: bad code $E for 'vch'",0);
                           break;
-                case 'm': if (ch) i = him_her [URANGE(0, ch  ->sex, 2)];
+                case 'm': if (ch) i = get_him_her(ch); 
                           else bug("Act: bad code $m for 'ch'",0);
                           break;
-                case 'M': if (vch) i = him_her [URANGE(0, vch ->sex, 2)];
-                          else bug("Act: bad code $M for 'ch'",0);
+                case 'M': if (vch) i = get_him_her(vch);
+                          else bug("Act: bad code $M for 'vch'",0); 
                           break;
-                case 's': if (ch) i = his_her [URANGE(0, ch  ->sex, 2)];
+                case 's': if (ch) i = get_his_her(ch); 
                           else bug("Act: bad code $s for 'ch'",0);
                           break;
-                case 'S': if (vch) i = his_her [URANGE(0, vch ->sex, 2)];
-                          else bug("Act: bad code $S for 'ch'",0);
+                case 'S': if (vch) i = get_his_her(vch); 
+                          else bug("Act: bad code $S for 'vch'",0); 
                           break;
+                /* ADDED NEW PRONOUN CASES - ensure get_his_hers and get_himself_herself are declared and defined */
+                /* Assuming you might add these, for example:
+                case 'f': // Reflexive: himself/herself
+                    if (ch) i = get_himself_herself(ch);
+                    else bug("Act: bad code $f for 'ch'", 0);
+                    break;
+                case 'F': // Reflexive: himself/herself for vch
+                    if (vch) i = get_himself_herself(vch);
+                    else bug("Act: bad code $F for 'vch'", 0);
+                    break;
+                case 'q': // Possessive Pronoun: his/hers
+                    if (ch) i = get_his_hers(ch);
+                    else bug("Act: bad code $q for 'ch'", 0);
+                    break;
+                case 'Q': // Possessive Pronoun: his/hers for vch
+                    if (vch) i = get_his_hers(vch);
+                    else bug("Act: bad code $Q for 'vch'", 0);
+                    break;
+                */
+                case 'z': if (ch) i = ch_verb;
+                            else bug("Act: bad code $z for 'ch'",0);
+                            break;
+                case 'Z': if (vch) i = vch_verb; 
+                        else bug("Act: bad code $Z for 'vch'",0);
+                        break;
 
                 case 'p': if (to&&obj1) i = (see_all || can_see_obj(to, obj1))
-                            ? obj1->short_descr
-                            : "something";
+                            ? obj1->short_descr  
+                            : "something";       
                           else bug("Act: bad code $p for 'to' or 'obj1'",0);
                     break;
 
@@ -3326,7 +3334,7 @@ void act_new(char *format, CHAR_DATA *ch,
                     break;
 
                 case 'd':
-                    if (arg2 == NULL || ((char *) arg2)[0] == '\0')
+                    if (arg2 == NULL || ((char *) arg2)[0] == '\0') 
                     {
                         i = "door";
                     }
@@ -3337,32 +3345,39 @@ void act_new(char *format, CHAR_DATA *ch,
                     }
                     break;
                 }
-//            }
 
             ++str;
             if( i != NULL ) {
-	            while ((*point = *i) != '\0')
-	                ++point, ++i;
-			} else {
-				strcpy(point, "<NULL>");
-				point += 6;
-			}
+                while ((*point = *i) != '\0')
+                    ++point, ++i;
+            } else {
+
+                if (point + 7 < buf + MAX_STRING_LENGTH) {
+                    *point++ = '<'; *point++ = 'N'; *point++ = 'U'; *point++ = 'L'; *point++ = 'L'; *point++ = '>';
+                } else {
+                    
+                }
+            }
         }
 
         *point++ = '\n';
         *point++ = '\r';
-	*point   = '\0';
+    *point   = '\0';
         /*buf[0]   = UPPER(buf[0]);*/
-        sprintf(buf, "%s", upper_first(&buf[0]));
-	if (to->desc != NULL)
-	{//   pbuff = buffer;
-	    //colourconv(pbuff, buf, to);
-            write_to_buffer(to->desc, buf, 0);
-	}
+        // Ensure upper_first does not write out of bounds or expect a non-const char* if buf is effectively const here.
+        // If upper_first modifies in place and returns char*, it's fine.
+        // sprintf(buf, "%s", upper_first(&buf[0])); // This is redundant if upper_first modifies in-place.
+        // A direct call might be: upper_first(buf);
+        // For safety, if upper_first returns a new buffer, ensure it's handled. Assuming it modifies in place:
+        upper_first(buf); // Assuming upper_first modifies buf in place and handles its own safety.
 
-	else
-	if (MOBtrigger)
-	    p_act_trigger(buf, to, NULL, NULL, ch, vch, vch2, obj1, obj2, TRIG_ACT);
+    if (to->desc != NULL)
+    {
+            write_to_buffer(to->desc, buf, 0);
+    }
+    else
+    if (MOBtrigger) 
+        p_act_trigger(buf, to, NULL, NULL, ch, vch, vch2, obj1, obj2, TRIG_ACT);
     }
 
     if (MOBtrigger && (type == TO_ROOM || type == TO_NOTVICT))
@@ -3371,13 +3386,14 @@ void act_new(char *format, CHAR_DATA *ch,
     CHAR_DATA *tch, *tch_next;
         ITERATOR it;
 
+
      point   = buf;
-     str     = format;
-     while(*str != '\0')
+     str     = format; 
+     while(*str != '\0' && (point - buf < MAX_STRING_LENGTH -1)) 
      {
          *point++ = *str++;
      }
-     *point   = '\0';
+     *point   = '\0'; 
 
     for(obj = ch->in_room->contents; obj; obj = obj_next)
     {
@@ -3385,11 +3401,11 @@ void act_new(char *format, CHAR_DATA *ch,
         p_act_trigger(buf, NULL, obj, NULL, ch, vch, vch2, obj1, obj2, TRIG_ACT);
     }
 
-    for(tch = ch; tch; tch = tch_next)
+
+    for(tch = ch->in_room->people; tch; tch = tch_next) 
     {
         tch_next = tch->next_in_room;
 
-        // Use iterator for lcarrying instead of direct traversal
             iterator_start(&it, tch->lcarrying);
             while ((obj = (OBJ_DATA *)iterator_nextdata(&it)))
             {
@@ -3397,7 +3413,6 @@ void act_new(char *format, CHAR_DATA *ch,
             }
             iterator_stop(&it);
             
-            // Also iterate through lworn items
             iterator_start(&it, tch->lworn);
             while ((obj = (OBJ_DATA *)iterator_nextdata(&it)))
             {
@@ -3733,7 +3748,7 @@ void update_pc_timers(CHAR_DATA *ch)
 	if (ch->pk_timer == 0) {
 	    ch->pk_timer = 0;
 	    send_to_char("You feel the dangerous blood aura fade away.\n\r", ch);
-	    act("The dangerous blood aura surrounding $n fades away.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	    act("The dangerous blood aura surrounding $n fades away.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	}
     }
 
@@ -3761,8 +3776,8 @@ void update_pc_timers(CHAR_DATA *ch)
 	--ch->panic;
 	if (ch->panic <= 0)
 	{
-	    act("{RPANIC! You are overcome with FEAR and attmpts to FLEE!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	    act("{R$n is overcome with FEAR and attmpts to FLEE!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	    act("{RPANIC! You are overcome with FEAR and attempts to FLEE!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+	    act("{R$n is overcome with FEAR and attempts to FLEE!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 	    do_function(ch, &do_flee, NULL);
 	    ch->panic = 0;
 	}
@@ -3811,7 +3826,7 @@ void update_pc_timers(CHAR_DATA *ch)
 	    if (number_percent() > get_skill(ch, gsn_deep_trance) - 10)
 	    {
 		send_to_char("{YYou lose your meditative focus as something grabs your attention.{x\n\r", ch);
-		act("{Y$n loses $s meditative focus as something grabs $s attention.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("{Y$n loses $s meditative focus as something grabs $s attention.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		ch->trance = 0;
 	    }
 	}

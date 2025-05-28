@@ -29,7 +29,7 @@ SPELL_FUNC(spell_curse)
 	if (target == TARGET_OBJ) {
 		obj = (OBJ_DATA *) vo;
 		if (IS_OBJ_STAT(obj,ITEM_EVIL)) {
-			act("$p is already filled with evil.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+			act("$p is already filled with evil.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
 			return false;
 		}
 
@@ -39,11 +39,11 @@ SPELL_FUNC(spell_curse)
 			paf = affect_find(obj->affected,skill_lookup("bless"));
 			if (!saves_dispel(ch,NULL, paf ? paf->level : obj->level)) {
 				if (paf) affect_remove_obj(obj,paf);
-				act("$p glows with a red aura.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+				act("$p glows with a red aura.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL, NULL, NULL);
 				REMOVE_BIT(obj->extra[0],ITEM_BLESS);
 				return true;
 			} else {
-				act("The holy aura of $p is too powerful for you to overcome.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+				act("The holy aura of $p is too powerful for you to overcome.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
 				return false;
 			}
 		}
@@ -60,7 +60,7 @@ SPELL_FUNC(spell_curse)
 		af.slot	= WEAR_NONE;
 		affect_to_obj(obj,&af);
 
-		act("$p glows with a malevolent aura.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+		act("$p glows with a malevolent aura.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL, NULL, NULL);
 
 		if (obj->wear_loc != WEAR_NONE)
 			ch->saving_throw += 1;
@@ -88,7 +88,7 @@ SPELL_FUNC(spell_curse)
 
 		send_to_char("You feel unclean.\n\r", victim);
 		if (ch != victim)
-			act("$N looks very uncomfortable.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+			act("$N looks very uncomfortable.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 		return true;
 	}
 
@@ -101,8 +101,8 @@ SPELL_FUNC(spell_demonfire)
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
 	int dam;
 
-	act("{R$n calls forth the demons of Hell upon $N!{x", ch,victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-	act("{R$n has assailed you with the demons of Hell!{x", ch,victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+	act("{R$n calls forth the demons of Hell upon $N!{x", ch,victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+	act("{R$n has assailed you with the demons of Hell!{x", ch,victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
 	send_to_char("{RYou conjure forth the demons of hell!{x\n\r",ch);
 
 	dam = dice(level, 7);
@@ -119,12 +119,12 @@ SPELL_FUNC(spell_destruction)
 	OBJ_DATA *obj = (OBJ_DATA *) vo;
 
 	if (IS_SET(obj->extra[0], ITEM_NOPURGE) || !IS_SET(obj->wear_flags, ITEM_TAKE)) {
-		act("Even with the mightiest of magics, you can't seem to destroy $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		act("Even with the mightiest of magics, you can't seem to destroy $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return false;
 	}
 
-	act("A powerful force engulfs $p, and it vanishes instantly!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	act("$n's $p vanishes in a flash of light!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+	act("A powerful force engulfs $p, and it vanishes instantly!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+	act("$n's $p vanishes in a flash of light!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
 	if (obj->wear_loc != WEAR_NONE) unequip_char(obj->carried_by, obj, true);
 
@@ -138,12 +138,12 @@ SPELL_FUNC(spell_dispel_good)
 	int dam;
 
 	if (IS_EVIL(victim)) {
-		act("$N is protected by $S evil.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("$N is protected by $S evil.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 		return false;
 	}
 
 	if (IS_NEUTRAL(victim)) {
-		act("$N does not seem to be affected.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$N does not seem to be affected.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -181,7 +181,7 @@ SPELL_FUNC(spell_slow)
 		if (victim == ch)
 			send_to_char("You can't move any slower!\n\r",ch);
 		else
-			act("$N can't get any slower.", ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+			act("$N can't get any slower.", ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
 		return false;
 	}
 
@@ -204,7 +204,7 @@ SPELL_FUNC(spell_slow)
 	af.slot	= obj_wear_loc;
 	affect_to_char(victim, &af);
 	send_to_char("You feel yourself slow i n g  d  o   w    n...\n\r", victim);
-	act("$n starts to move in slow motion.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+	act("$n starts to move in slow motion.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
 	return true;
 }
 
@@ -229,6 +229,6 @@ SPELL_FUNC(spell_weaken)
 	af.slot	= obj_wear_loc;
 	affect_to_char(victim, &af);
 	send_to_char("You feel your strength slip away.\n\r", victim);
-	act("$n looks tired and weak.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+	act("$n looks tired and weak.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
 	return true;
 }

@@ -257,6 +257,10 @@ struct script_type {
 // Change #1: Turns PLR_COMPASS and PLR_AUTOCAT on.
 #define VERSION_PLAYER_008 0x01000007
 // Break inventory into LOCKER, EQUIPMENT, and INVENTORY sections.
+#define VERSION_PLAYER_009 0x01000008
+// Switch from sex to body types, etc.
+
+#define VERSION_MOBILE_001    0x01000001
 
 #define VERSION_OBJECT_001	0x01000000
 
@@ -279,10 +283,10 @@ struct script_type {
 
 #define VERSION_DB			VERSION_DB_001
 #define VERSION_AREA		VERSION_AREA_003
-#define VERSION_MOBILE		0x01000000
+#define VERSION_MOBILE		VERSION_MOBILE_001
 #define VERSION_OBJECT		VERSION_OBJECT_004
 #define VERSION_ROOM		VERSION_ROOM_002
-#define VERSION_PLAYER		VERSION_PLAYER_008
+#define VERSION_PLAYER		VERSION_PLAYER_009
 #define VERSION_TOKEN		0x01000000
 #define VERSION_AFFECT		0x01000000
 #define VERSION_SCRIPT		0x02000000
@@ -641,6 +645,36 @@ typedef struct random_string_class RANDOM_CLASS;
 typedef struct random_string_entry RANDOM_STRING_ENTRY;
 typedef struct random_string_data RANDOM_STRING;
 
+typedef enum
+{
+    BODY_TYPE_NEUTRAL,
+    BODY_TYPE_MALE,
+    BODY_TYPE_FEMALE,
+    BODY_TYPE_OTHER, // For custom/non-binary, pronouns will be essential
+    BODY_TYPE_RANDOM,
+    BODY_TYPE_MAX
+} body_type_t;
+
+typedef enum {
+    VERB_FORM_DEFAULT,  // Default behavior (e.g., based on pronouns like "they")
+    VERB_FORM_SINGULAR, // Force singular verbs (e.g., "he walks", "ze walks")
+    VERB_FORM_PLURAL    // Force plural verbs (e.g., "they walk", or if a singular entity wants plural verbs)
+} verb_form_preference_t;
+
+
+
+struct body_type_info_type
+{
+    const char *name;           // e.g., "neutral", "male", "female", "other"
+    const char *default_he_she;
+    const char *default_him_her;
+    const char *default_his_her;      // Possessive adjective
+    const char *default_his_hers;     // Possessive pronoun
+    const char *default_himself_herself;
+    verb_form_preference_t verb_preference; // Verb (and other) preference for this body type
+};
+
+const struct body_type_info_type body_type_info[BODY_TYPE_MAX];
 struct random_string_pattern {
 	RANDOM_PATTERN	*next;
 
@@ -3939,6 +3973,13 @@ struct	mob_index_data
 	MOB_INDEX_SKILL_DATA *skills;
 
 	bool		boss;
+    body_type_t         body_type;
+    char *              pronoun_he_she;
+    char *              pronoun_him_her;
+    char *              pronoun_his_her;        // Possessive adjective
+    char *              pronoun_his_hers;       // Possessive pronoun
+    char *              pronoun_himself_herself;
+    verb_form_preference_t verb_preference;
 };
 
 
@@ -4420,6 +4461,13 @@ struct	char_data
 
     /*int			group; Syn - unused and unnecessary */
     int			sex;
+    body_type_t    body_type;	/* Body type of the character */
+    char *      pronoun_he_she;         // e.g., "they", "ze", "he"
+    char *      pronoun_him_her;        // e.g., "them", "zir", "him"
+    char *      pronoun_his_her;        // e.g., "their", "zis", "his" (possessive adjective)
+    char *      pronoun_his_hers;       // e.g., "theirs", "zirs", "his" (possessive pronoun)
+    char *      pronoun_himself_herself; // e.g., "themself", "zirself", "himself"
+    verb_form_preference_t verb_preference;
 
     int			race;
     int			orace;
@@ -4971,6 +5019,13 @@ struct	pc_data
     char *last_area;
 
     int staff_rank;
+    char *      pronoun_he_she;         // e.g., "they", "ze", "he"
+    char *      pronoun_him_her;        // e.g., "them", "zir", "him"
+    char *      pronoun_his_her;        // e.g., "their", "zis", "his" (possessive adjective)
+    char *      pronoun_his_hers;       // e.g., "theirs", "zirs", "his" (possessive pronoun)
+    char *      pronoun_himself_herself; // e.g., "themself", "zirself", "himself"
+    verb_form_preference_t verb_preference;
+
 
     int			class_current;
     int			sub_class_current;
@@ -5053,6 +5108,14 @@ struct	pc_data
     bool recovery_used[MFA_RECOVERY_CODES];   // Used flags
 };
 
+
+const char *get_he_she(CHAR_DATA *ch);
+const char *get_him_her(CHAR_DATA *ch);
+const char *get_his_her(CHAR_DATA *ch);
+const char *get_his_hers(CHAR_DATA *ch);
+const char *get_himself_herself(CHAR_DATA *ch);
+const char *get_body_type_name(CHAR_DATA *ch);
+const char *get_verb_form(CHAR_DATA *ch, const char *singular, const char *plural);
 
 /*
  * Liquids.
@@ -7622,8 +7685,8 @@ extern int16_t grn_unique;
 #define IN_CHAT(ch)  (!str_cmp(ch->in_room->area->name, "Elysium"))
 #define IN_EDEN(ch)	(ch->in_room->area == eden_area)
 /* NIB : 20070122 : Added the NULL parameter at the end */
-#define act(format,ch,v1,v2,o1,o2,a1,a2,type)\
-	act_new((format),(ch),(v1),(v2),(o1),(o2),(a1),(a2),(type),POS_RESTING,NULL)
+#define act(format,ch,v1,v2,o1,o2,a1,a2,type,ch_verb, vch_verb)\
+	act_new((format),(ch),(v1),(v2),(ch_verb),(vch_verb),(o1),(o2),(a1),(a2),(type),POS_RESTING,NULL)
 
 #define damage(a,b,c,d,e,f) damage_new(( a ),( b ),NULL,( c ),( d ),( e ),( f ))
 #define IS_STAFF(ch, rank) (get_staff_rank((ch)) >= (rank))
@@ -8095,7 +8158,7 @@ void close_socket( DESCRIPTOR_DATA *dclose );
 void write_to_buffer( DESCRIPTOR_DATA *d, const char *txt, int length );
 void send_to_char	args( ( const char *txt, CHAR_DATA *ch ) );
 void page_to_char	args( ( const char *txt, CHAR_DATA *ch ) );
-void act_new ( char *format, CHAR_DATA *ch, CHAR_DATA *vch, CHAR_DATA *vch2, OBJ_DATA *obj, OBJ_DATA *obj2, void *arg1, void *arg2, int type, int min_pos, CHAR_TEST char_func);
+void act_new ( char *format, CHAR_DATA *ch, CHAR_DATA *vch, CHAR_DATA *vch2, const char *ch_verb, const char *vch_verb, OBJ_DATA *obj, OBJ_DATA *obj2, void *arg1, void *arg2, int type, int min_pos, CHAR_TEST char_func);
 char *stptok            args( (const char *s, char *tok, size_t toklen, char *brk));
 //int	colour		args( ( char type, CHAR_DATA *ch, char *string ) );
 //void	colourconv	args( ( char *buffer, const char *txt, CHAR_DATA *ch ) );
@@ -8717,6 +8780,8 @@ OBJ_INDEX_DATA *get_reserved_obj_index(const char *name);
 ROOM_INDEX_DATA *get_reserved_room_index(const char *name);
 MOB_INDEX_DATA *get_reserved_mob_index(const char *name);
 AREA_DATA *get_area_index(long uid);
+void display_pronoun_examples(CHAR_DATA *ch_viewer, const char *subj, const char *obj, const char *poss_adj, const char *poss_pron, const char *refl, verb_form_preference_t vpref);
+void reset_pronouns_to_body_type(CHAR_DATA *ch, body_type_t new_body_type);
 
 
 
@@ -9743,6 +9808,10 @@ void refresh_ssl_context(void);
 DH *get_dh_params(void);
 
 void string_end_chlog(CHAR_DATA *ch);
+void game_settings_string_edit(CHAR_DATA *ch);
+
+
+
 
 
 /*
