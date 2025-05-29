@@ -187,27 +187,6 @@ void generic_olc_mark_changed(CHAR_DATA *ch, bool changed_status) {
     }
 }
 */
-/*
- * Renders the bottom border of the OLC table.
- */
-// ... (includes and other functions) ...
-
-// ... (includes and other functions) ...
-
-void olc_render_table_footer(BUFFER *buffer, const OLC_TABLE_THEME *theme, CHAR_DATA *ch) {
-    char buf[MAX_STRING_LENGTH];
-    int screen_w = get_olc_screen_width(ch);
-    int line_len = screen_w - 2; // -2 for '+' characters
-
-    if (line_len < 10) line_len = 10;
-    if (line_len >= MAX_STRING_LENGTH) line_len = MAX_STRING_LENGTH - 1;
-
-    snprintf(buf, sizeof(buf), "%s+%s+%s\n\r",
-             theme->border,
-             repeat_char('-', line_len),
-             theme->default_text);
-    add_buf(buffer, buf);
-}
 
 const char *format_dice_string(DICE_DATA *dice) {
     static char buf[50]; // Static buffer for return

@@ -1034,7 +1034,8 @@ bool move_ship_success(SHIP_DATA *ship)
 					oarsman->move -= nor;
 
 					oarsman->move = UMAX(0, oarsman->move);
-					oarsman->position = POS_RESTING;
+					if (oarsman->move <= 0)
+						oarsman->position = POS_RESTING;
 				}
 			}
 		}
@@ -6480,7 +6481,7 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 	{
 		if( !is_number(argument) )
 		{
-			send_to_char("That is number a number.\n\r", ch);
+			send_to_char("That is not a number.\n\r", ch);
 			return;
 		}
 

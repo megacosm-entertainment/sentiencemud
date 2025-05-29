@@ -809,7 +809,7 @@ SCRIPT_CMD(do_opcall)
 		}
 	}
 
-	ret = execute_script(script->vnum, script, NULL, info->obj, NULL, NULL, NULL, NULL, NULL, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,0,0,0,0,0);
+	ret = execute_script(script->vnum, script, NULL, info->obj, NULL, NULL, NULL, NULL, NULL, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,info->trigger_type,0,0,0,0,0);
 	if(info->obj)
 		info->obj->progs->lastreturn = ret;
 	else
@@ -6118,7 +6118,7 @@ SCRIPT_CMD(do_opxcall)
 		}
 	}
 
-	ret = execute_script(script->vnum, script, mob, obj, room, token, NULL, NULL, NULL, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,0,0,0,0,0);
+	ret = execute_script(script->vnum, script, mob, obj, room, token, NULL, NULL, NULL, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,info->trigger_type,0,0,0,0,0);
 	if(info->obj)
 		info->obj->progs->lastreturn = ret;
 	else

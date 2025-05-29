@@ -46,6 +46,200 @@ bool dungeons_changed = false;
 long top_dungeon_vnum = 0;
 LLIST *loaded_dungeons;
 
+DUNGEON_INDEX_LEVEL_DATA *load_dungeon_index_level(FILE *fp, int mode)
+{
+	DUNGEON_INDEX_LEVEL_DATA *level;
+	char *word;
+	bool fMatch;
+	//char buf[MSL];
+	//int floor;
+
+	level = new_dungeon_index_level();
+	level->mode = mode;
+
+	if (mode == LEVELMODE_STATIC)
+		level->floor = fread_number(fp);
+	else if(mode == LEVELMODE_WEIGHTED)
+	{
+		level->total_weight = 0;
+	}
+	else if(mode == LEVELMODE_GROUP)
+	{
+
+	}
+
+	while (str_cmp((word = fread_word(fp)), "#-LEVEL"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+		case '#':
+			if (mode == LEVELMODE_GROUP)
+			{
+				if (!str_cmp(word, "#STATICLEVEL"))
+				{
+					DUNGEON_INDEX_LEVEL_DATA *lvl = load_dungeon_index_level(fp, LEVELMODE_STATIC);
+
+					list_appendlink(level->group, lvl);
+					fMatch = TRUE;
+				}
+
+				if (!str_cmp(word, "#WEIGHTEDLEVEL"))
+				{
+					DUNGEON_INDEX_LEVEL_DATA *lvl = load_dungeon_index_level(fp, LEVELMODE_WEIGHTED);
+
+					list_appendlink(level->group, lvl);
+					fMatch = TRUE;
+				}
+			}
+			break;
+
+		case 'F':
+			if (!str_cmp(word, "Floor"))
+			{
+				if (mode == LEVELMODE_WEIGHTED)
+				{
+					DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *weighted = new_weighted_random_floor();
+					weighted->weight = fread_number(fp);
+					weighted->floor = fread_number(fp);
+					list_appendlink(level->weighted_floors, weighted);
+
+					level->total_weight += weighted->weight;
+				}
+				else
+				{
+					// Complain about getting weighted floor data on a static reference?
+					fread_to_eol(fp);
+				}
+
+				fMatch = TRUE;
+			}
+			break;
+		}
+
+		if (!fMatch) {
+			char buf[MSL];
+			sprintf(buf, "load_dungeon_index_level: no match for word %.50s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return level;
+}
+
+DUNGEON_INDEX_SPECIAL_EXIT *load_dungeon_index_special_exit(FILE *fp, int mode)
+{
+	DUNGEON_INDEX_SPECIAL_EXIT *ex = new_dungeon_index_special_exit();
+	char *word;
+	bool fMatch;
+	char buf[MSL];
+
+	int max_from = 0;
+	int max_to = 0;
+
+	ex->mode = mode;
+	ex->name = fread_string(fp);
+
+	while (str_cmp((word = fread_word(fp)), "#-EXIT"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+		case '#':
+			if (mode != EXITMODE_GROUP)
+			{
+				if (!str_cmp(word, "#STATICEXIT"))
+				{
+					DUNGEON_INDEX_SPECIAL_EXIT *gex = load_dungeon_index_special_exit(fp, EXITMODE_STATIC);
+
+					list_appendlink(ex->group, gex);
+					fMatch = TRUE;
+					break;
+				}
+
+				if (!str_cmp(word, "#SOURCEEXIT"))
+				{
+					DUNGEON_INDEX_SPECIAL_EXIT *gex = load_dungeon_index_special_exit(fp, EXITMODE_WEIGHTED_SOURCE);
+
+					list_appendlink(ex->group, gex);
+					fMatch = TRUE;
+					break;
+				}
+
+				if (!str_cmp(word, "#DESTEXIT"))
+				{
+					DUNGEON_INDEX_SPECIAL_EXIT *gex = load_dungeon_index_special_exit(fp, EXITMODE_WEIGHTED_DEST);
+
+					list_appendlink(ex->group, gex);
+					fMatch = TRUE;
+					break;
+				}
+
+				if (!str_cmp(word, "#WEIGHTEDEXIT"))
+				{
+					DUNGEON_INDEX_SPECIAL_EXIT *gex = load_dungeon_index_special_exit(fp, EXITMODE_WEIGHTED);
+
+					list_appendlink(ex->group, gex);
+					fMatch = TRUE;
+					break;
+				}
+			}
+			break;
+
+		case 'F':
+			if (!str_cmp(word, "From"))
+			{
+				if (max_from > 0 && list_size(ex->from) >= max_from)
+				{
+					bug("load_dungeon_index_special_exit: too many From entries found for exit mode.", 0);
+					continue;
+				}
+
+				DUNGEON_INDEX_WEIGHTED_EXIT_DATA *weighted = new_weighted_random_exit();
+				weighted->weight = fread_number(fp);
+				weighted->level = fread_number(fp);
+				weighted->door = fread_number(fp);
+				list_appendlink(ex->from, weighted);
+				ex->total_from += weighted->weight;
+				
+				fMatch = TRUE;
+				break;
+			}
+			break;
+
+		case 'T':
+			if (!str_cmp(word, "To"))
+			{
+				if (max_to > 0 && list_size(ex->to) >= max_to)
+				{
+					bug("load_dungeon_index_special_exit: too many To entries found for exit mode.", 0);
+					continue;
+				}
+
+				DUNGEON_INDEX_WEIGHTED_EXIT_DATA *weighted = new_weighted_random_exit();
+				weighted->weight = fread_number(fp);
+				weighted->level = fread_number(fp);
+				weighted->door = fread_number(fp);
+				list_appendlink(ex->to, weighted);
+				ex->total_to += weighted->weight;
+
+				fMatch = TRUE;
+				break;
+			}
+			break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "load_dungeon_index_special_exit: no match for word %.50s", word);
+			bug(buf, 0);
+		}
+	}
+	
+	return ex;
+}
+
 DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
 {
 	DUNGEON_INDEX_DATA *dng;
@@ -65,6 +259,81 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
 
 		switch(word[0])
 		{
+
+		case '#':
+			if (!str_cmp(word, "#STATICLEVEL"))
+			{
+				DUNGEON_INDEX_LEVEL_DATA *level = load_dungeon_index_level(fp, LEVELMODE_STATIC);
+
+				list_appendlink(dng->levels, level);
+				fMatch = TRUE;
+				break;
+			}
+
+			if (!str_cmp(word, "#WEIGHTEDLEVEL"))
+			{
+				DUNGEON_INDEX_LEVEL_DATA *level = load_dungeon_index_level(fp, LEVELMODE_WEIGHTED);
+
+				list_appendlink(dng->levels, level);
+				fMatch = TRUE;
+				break;
+			}
+
+			if (!str_cmp(word, "#GROUPLEVEL"))
+			{
+				DUNGEON_INDEX_LEVEL_DATA *level = load_dungeon_index_level(fp, LEVELMODE_GROUP);
+
+				list_appendlink(dng->levels, level);
+				fMatch = TRUE;
+				break;
+			}
+
+			if (!str_cmp(word, "#STATICEXIT"))
+			{
+				DUNGEON_INDEX_SPECIAL_EXIT *ex = load_dungeon_index_special_exit(fp, EXITMODE_STATIC);
+
+				list_appendlink(dng->special_exits, ex);
+				fMatch = TRUE;
+				break;
+			}
+
+			if (!str_cmp(word, "#SOURCEEXIT"))
+			{
+				DUNGEON_INDEX_SPECIAL_EXIT *ex = load_dungeon_index_special_exit(fp, EXITMODE_WEIGHTED_SOURCE);
+
+				list_appendlink(dng->special_exits, ex);
+				fMatch = TRUE;
+				break;
+			}
+
+			if (!str_cmp(word, "#DESTEXIT"))
+			{
+				DUNGEON_INDEX_SPECIAL_EXIT *ex = load_dungeon_index_special_exit(fp, EXITMODE_WEIGHTED_DEST);
+
+				list_appendlink(dng->special_exits, ex);
+				fMatch = TRUE;
+				break;
+			}
+
+			if (!str_cmp(word, "#WEIGHTEDEXIT"))
+			{
+				DUNGEON_INDEX_SPECIAL_EXIT *ex = load_dungeon_index_special_exit(fp, EXITMODE_WEIGHTED);
+
+				list_appendlink(dng->special_exits, ex);
+				fMatch = TRUE;
+				break;
+			}
+
+			if (!str_cmp(word, "#GROUPEXIT"))
+			{
+				DUNGEON_INDEX_SPECIAL_EXIT *ex = load_dungeon_index_special_exit(fp, EXITMODE_GROUP);
+
+				list_appendlink(dng->special_exits, ex);
+				fMatch = TRUE;
+				break;
+			}
+			break;
+
 		case 'A':
 			KEY("AreaWho", dng->area_who, fread_number(fp));
 			break;
@@ -166,17 +435,13 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
 		case 'S':
 			if( !str_cmp(word, "SpecialRoom") )
 			{
-				char *name = fread_string(fp);
-				int floor = fread_number(fp);
-				int section = fread_number(fp);
-				long vnum = fread_number(fp);
+
 
 				DUNGEON_INDEX_SPECIAL_ROOM *special = new_dungeon_index_special_room();
 
-				special->name = name;
-				special->floor = floor;
-				special->section = section;
-				special->vnum = vnum;
+				special->name = fread_string(fp);
+				special->level = fread_number(fp);
+				special->room = fread_number(fp);
 
 				list_appendlink(dng->special_rooms, special);
 				fMatch = true;
@@ -236,7 +501,6 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
 		}
 
 		if (!fMatch) {
-			char buf[MSL];
 			sprintf(buf, "load_dungeon_index: no match for word %.50s", word);
 			bug(buf, 0);
 		}
@@ -300,6 +564,118 @@ void load_dungeons()
 	fclose(fp);
 }
 
+void save_dungeon_index_level(FILE *fp, DUNGEON_INDEX_LEVEL_DATA *level, bool allow_groups)
+{
+	switch(level->mode)
+	{
+		case LEVELMODE_STATIC:
+			fprintf(fp, "#STATICLEVEL %d\n", level->floor);
+			break;
+
+		case LEVELMODE_WEIGHTED:
+			fprintf(fp, "#WEIGHTEDLEVEL\n");
+			DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *floor;
+			ITERATOR wit;
+			iterator_start(&wit, level->weighted_floors);
+			while((floor = (DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *)iterator_nextdata(&wit)))
+			{
+				fprintf(fp, "Floor %d %d\n", floor->weight, floor->floor);
+			}
+			iterator_stop(&wit);
+			break;
+
+		case LEVELMODE_GROUP:
+			fprintf(fp, "#GROUPLEVEL\n");
+			DUNGEON_INDEX_LEVEL_DATA *group;
+			ITERATOR git;
+			iterator_start(&git, level->group);
+			while( (group = (DUNGEON_INDEX_LEVEL_DATA *)iterator_nextdata(&git)) )
+			{
+				save_dungeon_index_level(fp, group, false);
+			}
+
+			iterator_stop(&git);
+			break;
+		
+		default:
+			return;
+	}
+	fprintf(fp, "#-LEVEL\n");
+}
+
+void save_dungeon_index_special_exit(FILE *fp, DUNGEON_INDEX_SPECIAL_EXIT *special, bool allow_groups)
+{
+	ITERATOR it;
+	DUNGEON_INDEX_WEIGHTED_EXIT_DATA *from;
+	DUNGEON_INDEX_WEIGHTED_EXIT_DATA *to;
+
+	switch(special->mode)
+	{
+		case EXITMODE_STATIC:
+			fprintf(fp, "#STATICEXIT %s~\n", fix_string(special->name));
+			from = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)list_nthdata(special->from, 1);
+			fprintf(fp, "From 1 %d %d\n", from->level, from->door);
+			to = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)list_nthdata(special->to, 1);
+			fprintf(fp, "To 1 %d %d\n", to->level, to->door);
+			break;
+
+		case EXITMODE_WEIGHTED_SOURCE:
+			fprintf(fp, "#SOURCEEXIT %s~\n", fix_string(special->name));
+			iterator_start(&it, special->from);
+			while( (from = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)iterator_nextdata(&it)) )
+			{
+				fprintf(fp, "From %d %d %d\n", from->weight, from->level, from->door);
+			}
+			iterator_stop(&it);
+			to = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)list_nthdata(special->to, 1);
+			fprintf(fp, "To 1 %d %d\n", to->level, to->door);
+			break;
+
+		case EXITMODE_WEIGHTED_DEST:
+			fprintf(fp, "#DESTEXIT %s~\n", fix_string(special->name));
+			from = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)list_nthdata(special->from, 1);
+			fprintf(fp, "From 1 %d %d\n", from->level, from->door);
+			iterator_start(&it, special->to);
+			while( (to = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)iterator_nextdata(&it)) )
+			{
+				fprintf(fp, "To %d %d %d\n", to->weight, to->level, to->door);
+			}
+			iterator_stop(&it);
+			break;
+
+		case EXITMODE_WEIGHTED:
+			fprintf(fp, "#WEIGHTEDEXIT %s~\n", fix_string(special->name));
+			iterator_start(&it, special->from);
+			while( (from = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)iterator_nextdata(&it)) )
+			{
+				fprintf(fp, "From %d %d %d\n", from->weight, from->level, from->door);
+			}
+			iterator_stop(&it);
+			iterator_start(&it, special->to);
+			while( (to = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)iterator_nextdata(&it)) )
+			{
+				fprintf(fp, "To %d %d %d\n", to->weight, to->level, to->door);
+			}
+			iterator_stop(&it);
+			break;
+		
+		case EXITMODE_GROUP:
+			if (allow_groups)
+			{
+				DUNGEON_INDEX_SPECIAL_EXIT *gex;
+				fprintf(fp, "#GROUPEXIT %s~\n", fix_string(special->name));
+				iterator_start(&it, special->group);
+				while( (gex = (DUNGEON_INDEX_SPECIAL_EXIT *)iterator_nextdata(&it)) )
+				{
+					save_dungeon_index_special_exit(fp, gex, FALSE);
+				}	
+				iterator_stop(&it);
+			}
+			break;
+	}
+	fprintf(fp, "#-EXIT\n");
+}
+
 
 void save_dungeon_index(FILE *fp, DUNGEON_INDEX_DATA *dng)
 {
@@ -332,14 +708,35 @@ void save_dungeon_index(FILE *fp, DUNGEON_INDEX_DATA *dng)
 	}
 	iterator_stop(&it);
 
+		// Only save the level design if the dungeon is set to manual mode
+	if (!IS_SET(dng->flags, DUNGEON_SCRIPTED_LEVELS))
+	{
+		DUNGEON_INDEX_LEVEL_DATA *level;
+		ITERATOR lit;
+		iterator_start(&lit, dng->levels);
+		while((level = (DUNGEON_INDEX_LEVEL_DATA *)iterator_nextdata(&lit)))
+		{
+			save_dungeon_index_level(fp, level, true);
+		}
+		iterator_stop(&lit);
 
 	DUNGEON_INDEX_SPECIAL_ROOM *special;
 	iterator_start(&it, dng->special_rooms);
 	while( (special = (DUNGEON_INDEX_SPECIAL_ROOM *)iterator_nextdata(&it)) )
 	{
-		fprintf(fp, "SpecialRoom %s~ %d %d %ld\n", fix_string(special->name), special->floor, special->section, special->vnum);
+			fprintf(fp, "SpecialRoom %s~ %d %d\n", fix_string(special->name), special->level, special->room);
 	}
 	iterator_stop(&it);
+
+		DUNGEON_INDEX_SPECIAL_EXIT *ex;
+		iterator_start(&it, dng->special_exits);
+		while( (ex = (DUNGEON_INDEX_SPECIAL_EXIT *)iterator_nextdata(&it)) )
+		{
+			save_dungeon_index_special_exit(fp, ex, true);
+
+		}
+		iterator_stop(&it);
+	}
 
     if(dng->progs) {
 		ITERATOR it;
@@ -419,6 +816,399 @@ DUNGEON_INDEX_DATA *get_dungeon_index(long vnum)
 	return NULL;
 }
 
+static bool add_dungeon_instance(DUNGEON *dng, BLUEPRINT *bp)
+{
+	// Complain
+	if (!IS_VALID(bp))
+		return TRUE;
+
+	INSTANCE *instance = create_instance(bp);
+
+	if( !instance )
+		return TRUE;
+
+	instance->dungeon = dng;
+	list_appendlink(dng->floors, instance);
+	instance->floor = list_size(dng->floors);
+	list_appendlist(dng->rooms, instance->rooms);
+	list_appendlink(loaded_instances, instance);
+	return FALSE;
+}
+
+static bool add_dungeon_level(DUNGEON *dng, DUNGEON_INDEX_LEVEL_DATA *level)
+{
+	BLUEPRINT *bp;
+	switch(level->mode)
+	{
+		case LEVELMODE_STATIC:
+			bp = (BLUEPRINT *)list_nthdata(dng->floors, level->floor);
+			return add_dungeon_instance(dng, bp);
+
+		case LEVELMODE_WEIGHTED:
+		{
+			int w = number_range(1, level->total_weight);
+			bp = NULL;	// Should NEVER get this!
+
+			DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *weighted;
+			ITERATOR wit;
+			iterator_start(&wit, level->weighted_floors);
+			while((weighted = (DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *)iterator_nextdata(&wit)))
+			{
+				if (w <= weighted->weight)
+				{
+					bp = (BLUEPRINT *)list_nthdata(dng->floors, weighted->floor);
+					break;
+				}
+
+				w -= weighted->weight;
+			}
+			iterator_stop(&wit);
+
+			if (!IS_VALID(bp))
+			{
+				// Complain about an impossible situation
+				return TRUE;
+			}
+
+			return add_dungeon_instance(dng, bp);
+		}
+
+		case LEVELMODE_GROUP:
+		{
+			bool error = FALSE;
+			DUNGEON_INDEX_LEVEL_DATA *lvl;
+
+			int count = list_size(level->group);
+
+			int *source = (int *)alloc_mem(sizeof(int) * count);
+			for(int i = 0; i < count; i++)
+				source[i] = i + 1;
+
+			for(int i = count - 1; i >= 0; i--)
+			{
+				int ilevel = number_range(0, i);
+				int nlevel = source[ilevel];
+				source[ilevel] = source[i];
+
+				lvl = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(level->group, nlevel);
+
+				if (add_dungeon_level(dng, lvl))
+				{
+					error = TRUE;
+					break;
+				}
+			}
+
+			free_mem(source, sizeof(int) * count);
+			return error;
+		}
+	}
+
+	return TRUE;
+}
+
+/*
+static bool add_dungeon_levels(DUNGEON *dng)
+{
+	bool error = FALSE;
+	DUNGEON_INDEX_LEVEL_DATA *level;
+	ITERATOR lit;
+
+	list_clear(dng->floors);
+	list_clear(dng->rooms);
+	iterator_start(&lit, dng->index->levels);
+	while( (level = (DUNGEON_INDEX_LEVEL_DATA *)iterator_nextdata(&lit)) )
+	{
+		if (add_dungeon_level(dng, level))
+		{
+			error = TRUE;
+			break;
+		}
+	}
+	iterator_stop(&lit);
+
+	return error;
+}
+*/
+
+static DUNGEON_INDEX_WEIGHTED_EXIT_DATA *get_weighted_random_exit(LLIST *list, int total)
+{
+	int w = number_range(1, total);
+
+	ITERATOR it;
+	DUNGEON_INDEX_WEIGHTED_EXIT_DATA *weighted;
+	DUNGEON_INDEX_WEIGHTED_EXIT_DATA *selected = NULL;
+	iterator_start(&it, list);
+	while( (weighted = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)iterator_nextdata(&it)) )
+	{
+		if (w <= weighted->weight)
+		{
+			selected = weighted;
+			break;
+		}
+		else
+			w -= weighted->weight;
+	}
+	iterator_stop(&it);
+
+	return selected;
+}
+
+static EXIT_DATA *clone_dungeon_exit(ROOM_INDEX_DATA *room, int door)
+{
+	EXIT_DATA *ex = room->exit[door];
+
+	if (!IS_VALID(ex))
+	{
+		EXIT_DATA *index = room->source->exit[door];
+
+		room->exit[door] = ex = new_exit();
+		ex->orig_door = door;
+		ex->from_room = room;
+
+		if (IS_VALID(index))
+		{
+			ex->rs_flags = index->rs_flags;
+			REMOVE_BIT(ex->rs_flags, EX_ENVIRONMENT);
+			ex->door.rs_lock = index->door.rs_lock;
+		}
+	}
+
+	return ex;
+}
+
+static bool add_dungeon_special_exit(DUNGEON *dng, DUNGEON_INDEX_SPECIAL_EXIT *dsex)
+{
+	bool error = FALSE;
+	ITERATOR it;
+	//	DUNGEON_INDEX_DATA *index = dng->index;
+	DUNGEON_INDEX_WEIGHTED_EXIT_DATA *from = NULL;
+	DUNGEON_INDEX_WEIGHTED_EXIT_DATA *to = NULL;
+
+	switch(dsex->mode)
+	{
+	// Fixed source and Fixed destination
+	case EXITMODE_STATIC:
+		from = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)list_nthdata(dsex->from, 1);	// Get the first entries
+		to = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)list_nthdata(dsex->to, 1);
+		break;
+
+	// Weight Random source and Fixed destination
+	case EXITMODE_WEIGHTED_SOURCE:
+		from = get_weighted_random_exit(dsex->from, dsex->total_from);
+		to = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)list_nthdata(dsex->to, 1);
+		break;
+
+	// Fixed source and Weighted Random destination
+	case EXITMODE_WEIGHTED_DEST:
+		from = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)list_nthdata(dsex->from, 1);
+		to = get_weighted_random_exit(dsex->to, dsex->total_to);
+		break;
+
+	// Weighted Random source and Weighted Random destination
+	case EXITMODE_WEIGHTED:
+		from = get_weighted_random_exit(dsex->from, dsex->total_from);
+		to = get_weighted_random_exit(dsex->to, dsex->total_to);
+		break;
+
+	case EXITMODE_GROUP:
+		{
+			DUNGEON_INDEX_SPECIAL_EXIT *special;
+			iterator_start(&it, dsex->group);
+			while( (special = (DUNGEON_INDEX_SPECIAL_EXIT *)iterator_nextdata(&it)) )
+			{
+				if (add_dungeon_special_exit(dng, special))
+				{
+					error = TRUE;
+					break;
+				}
+			}
+			iterator_stop(&it);
+			return error;
+		}
+	}
+
+	if (!from || !to)
+	{
+		// Failed to get an exit reference
+		return TRUE;
+	}
+
+	INSTANCE *from_level = (INSTANCE *)list_nthdata(dng->floors, from->level);
+	if (!IS_VALID(from_level))
+	{
+		return TRUE;
+	}
+
+	INSTANCE *to_level = (INSTANCE *)list_nthdata(dng->floors, to->level);
+	if (!IS_VALID(to_level))
+	{
+		return TRUE;
+	}
+
+	BLUEPRINT_EXIT_DATA *from_ex = get_blueprint_exit(from_level->blueprint, from->door);
+	BLUEPRINT_EXIT_DATA *to_ex = get_blueprint_entrance(to_level->blueprint, to->door);
+
+	ROOM_INDEX_DATA *from_room = NULL;
+	int from_door = -1;
+	EXIT_DATA *from_exit = NULL;
+	EXIT_DATA *fromClone = NULL;
+
+	if (from_ex)
+	{
+		INSTANCE_SECTION *from_section = instance_get_section(from_level, from_ex->section);
+
+		if (from_section)
+		{
+			BLUEPRINT_LINK *from_link = get_section_link(from_section->section, from_ex->link);
+
+			if (from_link)
+			{
+				from_room = instance_section_get_room_byvnum(from_section, from_link->vnum);
+				from_door = from_link->door;
+
+				if (from_room && from_door >= 0 && from_door < MAX_DIR)
+				{
+					from_exit = from_room->source->exit[from_door];
+					fromClone = from_room->exit[from_door];
+				}
+			}
+		}
+	}
+
+	ROOM_INDEX_DATA *to_room = NULL;
+	int to_door = -1;
+	EXIT_DATA *to_exit = NULL;
+	EXIT_DATA *toClone = NULL;
+
+	if (to_ex)
+	{
+		INSTANCE_SECTION *to_section = instance_get_section(to_level, to_ex->section);
+
+		if (to_section)
+		{
+			BLUEPRINT_LINK *to_link = get_section_link(to_section->section, to_ex->link);
+
+			if (to_link)
+			{
+				to_room = instance_section_get_room_byvnum(to_section, to_link->vnum);
+				to_door = to_link->door;
+
+				if (to_room && to_door >= 0 && to_door < MAX_DIR)
+				{
+					to_exit = to_room->source->exit[to_door];
+					toClone = to_room->exit[to_door];
+				}
+			}
+		}
+	}
+
+	// Must have a source room, and either no source exit or an unlinked exit
+	if (from_room && (!IS_VALID(from_exit) || !from_exit->u1.to_room))
+	{
+		// Cannot link up an exit that is already linked up somewhere else
+		//  Or the remote index exit exists and has a destination already
+		if ((!IS_VALID(fromClone) || !fromClone->u1.to_room) &&
+			(!IS_VALID(to_exit) || !to_exit->u1.to_room))
+		{
+
+			// Deal with the remote exit, first
+			if (to_room)
+			{
+				// If the from exit doesn't have a clone or isn't already linked
+				if (!IS_VALID(fromClone) || !fromClone->u1.to_room)
+				{
+					if (IS_VALID(to_exit))
+					{
+						// Only connect if we can make a two-way exit?
+						if (dsex->connect_if_twoway)
+						{
+							if (!IS_VALID(toClone))
+								toClone = clone_dungeon_exit(to_room, to_door);
+						}
+					}
+					else
+					{
+						// The target room doesn't have a remote exit, so make it
+						toClone = clone_dungeon_exit(to_room, to_door);
+					}
+				}
+
+				if (IS_VALID(toClone))
+				{
+					REMOVE_BIT(toClone->rs_flags, EX_ENVIRONMENT);
+
+					if (!toClone->u1.to_room)
+					{
+						toClone->u1.to_room = from_room;
+						
+						// We are creating a two-way exit
+						//  Are the two exits reverses of each other
+						//  If so, set the reset data on the remote exit from the source exit
+						if (from_door == rev_dir[to_door])
+						{
+							// Only do this when they are reverses as the exit code doesn't account for exits
+							//    linked to each other not being this way, such as one going north, the other
+							//    going west.
+							if (IS_VALID(from_exit))
+							{
+								toClone->rs_flags = from_exit->rs_flags;
+								toClone->door.rs_lock.flags = from_exit->door.rs_lock.flags;
+								toClone->door.rs_lock.key_vnum = from_exit->door.rs_lock.key_vnum;
+								// TODO: toClone->door.rs_lock.keys = from_exit->door.rs_lock.keys;
+								toClone->door.rs_lock.pick_chance = from_exit->door.rs_lock.pick_chance;
+							}
+							else
+							{
+								toClone->rs_flags = 0;
+								toClone->door.rs_lock.flags = 0;
+								toClone->door.rs_lock.key_vnum = 0;
+								// TODO: toClone->door.rs_lock.keys....
+								toClone->door.rs_lock.pick_chance = 0;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if (!dsex->create_if_exists ||									// Creates unlinked exit
+			(to_room && !dsex->connect_if_twoway) ||			// Creates one-way exit
+			(IS_VALID(toClone) && toClone->u1.to_room == from_room))	// Creates two-exit
+		{
+			if (!IS_VALID(fromClone))
+			{
+				fromClone = clone_dungeon_exit(from_room, from_door);
+
+				// Explicit remote exit, no source exit and directions are reverses.
+				//   Put all exit settings from remote exit onto source exit to make them symmetric
+				if (!IS_VALID(from_exit) && IS_VALID(to_exit) && from_door == rev_dir[to_door])
+				{
+					fromClone->rs_flags = to_exit->rs_flags;
+					fromClone->door.rs_lock.flags = to_exit->door.rs_lock.flags;
+					fromClone->door.rs_lock.key_vnum = to_exit->door.rs_lock.key_vnum;
+					// TODO: fromClone->door.rs_lock.keys = to_exit->door.rs_lock.keys;
+					fromClone->door.rs_lock.pick_chance = to_exit->door.rs_lock.pick_chance;
+				}
+			}
+
+			fromClone->u1.to_room = to_room;
+		}
+	}
+
+	NAMED_SPECIAL_EXIT *special = new_named_special_exit();
+	special->name = str_dup(dsex->name);
+	if(from_room)
+	{
+		special->room = from_room;
+		if (IS_VALID(fromClone))
+			special->ex = fromClone;
+	}
+	list_appendlink(dng->special_exits, special);
+
+	return FALSE;
+}
+
 DUNGEON *create_dungeon(long vnum)
 {
 	ITERATOR it;
@@ -438,6 +1228,7 @@ DUNGEON *create_dungeon(long vnum)
 	dng->progs->progs	= index->progs;
 	variable_copylist(&index->index_vars,&dng->progs->vars,false);
 
+	// TODO: update for widevnum
 	dng->entry_room = get_room_index(index->entry_room);
 	if( !dng->entry_room )
 	{
@@ -445,6 +1236,7 @@ DUNGEON *create_dungeon(long vnum)
 		return NULL;
 	}
 
+	// TODO: update for widevnum
 	dng->exit_room = get_room_index(index->exit_room);
 	if( !dng->exit_room )
 	{
@@ -454,58 +1246,72 @@ DUNGEON *create_dungeon(long vnum)
 
 	dng->flags = index->flags;
 
-	int floor = 1;
-	bool error = false;
-	BLUEPRINT *bp;
-	INSTANCE *instance;
-	iterator_start(&it, index->floors);
-	while( (bp = (BLUEPRINT *)iterator_nextdata(&it)) )
+	// Allow a script to create the level definitions, provided it's set to do that.
+	if (IS_SET(dng->flags, DUNGEON_SCRIPTED_LEVELS))
 	{
-		instance = create_instance(bp);
+		list_clear(index->levels);
+		list_clear(index->special_rooms);
+		list_clear(index->special_exits);
+		p_percent2_trigger(NULL, NULL, dng, NULL, NULL, NULL, NULL, NULL, TRIG_DUNGEON_SCHEMATIC, NULL);
+	}
 
-		if( !instance )
+	bool error = FALSE;
+	DUNGEON_INDEX_LEVEL_DATA *level;
+	//BLUEPRINT *bp;
+	INSTANCE *instance;
+	iterator_start(&it, index->levels);
+	while( (level = (DUNGEON_INDEX_LEVEL_DATA *)iterator_nextdata(&it)) )
+	{
+		if (add_dungeon_level(dng, level))
 		{
-			error = true;
+			error = TRUE;
 			break;
 		}
-
-		instance->floor = floor++;
-		instance->dungeon = dng;
-		list_appendlink(dng->floors, instance);
-		list_appendlist(dng->rooms, instance->rooms);
-		list_appendlink(loaded_instances, instance);
 	}
 	iterator_stop(&it);
 
-	DUNGEON_INDEX_SPECIAL_ROOM *special;
-	iterator_start(&it, index->special_rooms);
-	while( (special = (DUNGEON_INDEX_SPECIAL_ROOM *)iterator_nextdata(&it)) )
+	if (!error)
 	{
-		instance = (INSTANCE *)list_nthdata(dng->floors, special->floor);
-
-		if( IS_VALID(instance) )
+		DUNGEON_INDEX_SPECIAL_ROOM *special;
+		iterator_start(&it, index->special_rooms);
+		while( (special = (DUNGEON_INDEX_SPECIAL_ROOM *)iterator_nextdata(&it)) )
 		{
-			INSTANCE_SECTION *section = (INSTANCE_SECTION *)list_nthdata(instance->sections, special->section);
-			if( IS_VALID(section) )
-			{
-				ROOM_INDEX_DATA *room = instance_section_get_room_byvnum(section, special->vnum);
+			// Get the instance for the specified level.
+			instance = (INSTANCE *)list_nthdata(dng->floors, special->level);
 
-				if( room )
+			if( IS_VALID(instance) )
+			{
+				// Get special room from the instance.
+				NAMED_SPECIAL_ROOM *isr = list_nthdata(instance->special_rooms, special->room);
+
+				// Room was found, add to dungeon under new name
+				if( isr )
 				{
 					NAMED_SPECIAL_ROOM *dsr = new_named_special_room();
 
 					free_string(dsr->name);
 					dsr->name = str_dup(special->name);
-					dsr->room = room;
+					dsr->room = isr->room;
 
 					list_appendlink(dng->special_rooms, dsr);
 				}
 			}
 		}
+		iterator_stop(&it);
 
+		DUNGEON_INDEX_SPECIAL_EXIT *dsex;
+		iterator_start(&it, index->special_exits);
+		while( (dsex = (DUNGEON_INDEX_SPECIAL_EXIT *)iterator_nextdata(&it)) )
+		{
+			if (add_dungeon_special_exit(dng, dsex))
+			{
+				error = TRUE;
+				break;
+			}
+
+		}
+		iterator_stop(&it);
 	}
-	iterator_stop(&it);
-
 
 	if( error )
 	{
@@ -580,7 +1386,7 @@ void extract_dungeon(DUNGEON *dungeon)
 	free_dungeon(dungeon);
 }
 
-
+// TODO: WIDEVNUM
 DUNGEON *find_dungeon_byplayer(CHAR_DATA *ch, long vnum)
 {
 	ITERATOR dit;
@@ -611,6 +1417,7 @@ CHAR_DATA *get_player_leader(CHAR_DATA *ch)
 	return leader;
 }
 
+// TODO: WIDEVNUM
 ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum, int floor)
 {
 	CHAR_DATA *leader = get_player_leader(ch);
@@ -776,11 +1583,13 @@ const struct olc_cmd_type dngedit_table[] =
 	{ "exit",			dngedit_exit		},
 	{ "flags",			dngedit_flags		},
 	{ "floors",			dngedit_floors		},
+	{ "levels",			dngedit_levels		},
 	{ "list",			dngedit_list		},
 	{ "mountout",		dngedit_mountout	},
 	{ "name",			dngedit_name		},
 	{ "portalout",		dngedit_portalout	},
 	{ "show",			dngedit_show		},
+	{ "special",		dngedit_special		},
 	{ "varclear",		dngedit_varclear	},
 	{ "varset",			dngedit_varset		},
 	{ "zoneout",		dngedit_zoneout		},
@@ -993,8 +1802,6 @@ void do_dngshow(CHAR_DATA *ch, char *argument)
 //
 // Immortal Commands
 //
-
-
 void do_dungeon(CHAR_DATA *ch, char *argument)
 {
 	char arg1[MIL];
@@ -1242,8 +2049,6 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 //
 // Dungeon Save/Load
 //
-
-
 void dungeon_save(FILE *fp, DUNGEON *dungeon)
 {
 	ITERATOR it;
@@ -1431,7 +2236,6 @@ void detach_dungeon_player(DUNGEON *dungeon, CHAR_DATA *ch)
 	}
 	iterator_stop(&it);
 }
-
 
 void detach_dungeons_player(CHAR_DATA *ch)
 {

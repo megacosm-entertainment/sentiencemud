@@ -1218,6 +1218,7 @@ void do_quit(CHAR_DATA *ch, char *argument)
 	if (ch->pulled_cart != NULL)
 	do_function(ch, &do_drop, ch->pulled_cart->name);
 
+	/* -- Removing this for now, working on bringing legacy up to 2.0 state. Leaving commented to return to later.
 	if (auto_war != NULL && ch->in_war)
 	{
 	char_from_team(ch);
@@ -1230,6 +1231,7 @@ void do_quit(CHAR_DATA *ch, char *argument)
 
 	test_for_end_of_war();
 	}
+	*/
 
 	if (ch->ambush != NULL)
 	send_to_char("You stop your ambush.\n\r", ch);

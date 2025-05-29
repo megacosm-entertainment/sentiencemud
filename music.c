@@ -404,7 +404,7 @@ void music_end( CHAR_DATA *ch )
 			else
 			{
 				if (check_spell_deflection_token(ch, mob, token, script, music_target_name)) {
-					if( execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL, NULL, NULL,music_target_name,NULL,0,0,0,0,0) > 0)
+					if( execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL, NULL, NULL,music_target_name,NULL,TRIG_NONE,0,0,0,0,0) > 0)
 						offensive = true;
 				}
 			}
@@ -502,7 +502,7 @@ void music_end( CHAR_DATA *ch )
 				else
 				{
 					if (check_spell_deflection_token(ch, mob, token, script, NULL))
-						if(execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL,NULL, NULL,NULL, NULL,0,0,0,0,0) > 0)
+						if(execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL,NULL, NULL,NULL, NULL,TRIG_NONE,0,0,0,0,0) > 0)
 							offensive = true;
 				}
 
@@ -545,7 +545,7 @@ void music_end( CHAR_DATA *ch )
 				}
 				else
 				{
-					execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL,NULL,NULL,NULL, NULL,0,0,0,0,0);
+					execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL,NULL,NULL,NULL, NULL,TRIG_NONE,0,0,0,0,0);
 				}
 			}
 			break;
@@ -587,7 +587,7 @@ void music_end( CHAR_DATA *ch )
 				else
 				{
 					if (check_spell_deflection_token(ch, mob, token, script, NULL))
-						if(execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL,NULL, NULL,NULL, NULL,0,0,0,0,0) > 0)
+						if(execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL,NULL, NULL,NULL, NULL,TRIG_NONE,0,0,0,0,0) > 0)
 							offensive = true;
 				}
 
@@ -623,7 +623,7 @@ void music_end( CHAR_DATA *ch )
 			}
 			else
 			{
-				execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL,NULL,NULL,NULL, NULL,0,0,0,0,0);
+				execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL,NULL,NULL,NULL, NULL,TRIG_NONE,0,0,0,0,0);
 			}
 			break;
 		case TAR_IGNORE:
@@ -653,7 +653,7 @@ void music_end( CHAR_DATA *ch )
 			}
 			else
 			{
-				execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL,NULL,NULL,NULL, NULL,0,0,0,0,0);
+				execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL,NULL,NULL,NULL, NULL,TRIG_NONE,0,0,0,0,0);
 			}
 			break;
 

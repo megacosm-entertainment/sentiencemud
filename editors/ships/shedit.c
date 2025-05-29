@@ -309,7 +309,7 @@ SHEDIT( shedit_blueprint )
 
 		// Verify the blueprint has certain features
 		// * Has an entry room
-		if( bp->static_entry_section < 1 || bp->static_entry_link < 1)
+		if( list_size(bp->_static.entries))
 		{
 			send_to_char("Blueprint requires an entry point for boarding purposes.\n\r", ch);
 			return false;

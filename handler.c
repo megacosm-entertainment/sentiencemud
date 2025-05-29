@@ -8983,13 +8983,13 @@ bool list_hasdata(LLIST *lp, register void *ptr)
 
 int list_size(LLIST *lp)
 {
-//	ITERATOR it;
-//	int size;
 
 	if(!lp || !lp->valid) return 0;
 
 #if 0
-	size = 0;
+	ITERATOR it;
+	int size = 0;
+
 	iterator_start(&it, lp);
 	while((iterator_nextdata(&it))) ++size;
 

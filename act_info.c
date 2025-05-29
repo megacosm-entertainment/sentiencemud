@@ -7681,7 +7681,7 @@ char *find_desc_for_room(ROOM_INDEX_DATA *room, CHAR_DATA *viewer)
 			case CONDITION_SCRIPT:
 				script = get_script_index(cd->phrase,PRG_RPROG);
 
-				if (script && execute_script(cd->phrase,script,NULL,NULL,room,NULL,NULL,NULL,NULL,viewer,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0,0,0,0) > 0)
+				if (script && execute_script(cd->phrase,script,NULL,NULL,room,NULL,NULL,NULL,NULL,viewer,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,TRIG_NONE, 0,0,0,0,0) > 0)
 					best_cd = cd;
 				break;
 			}
