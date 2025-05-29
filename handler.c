@@ -11205,6 +11205,49 @@ bool is_valid_colour_code(const char *code) {
     return true;
 }
 
+int get_colour_code_length_at_start(const char *p) {
+    if (*p != COLOUR_CHAR) {
+        return 0; // Not starting with a color code opener
+    }
+
+    const char *start = p;
+    p++; // Move past '{'
+
+    if (!*p) return 0; // Unterminated '{'
+
+    // Single-char code: e.g. {Y
+    if (strchr("xXrRbBwWcCmMgGyYD01234567aAjJlLoOpPtTvV", *p)) {
+        return (p + 1) - start; // Should be 2
+    }
+
+    // Extended code: {[F###] or {[B###]
+    if (*p == '[') {
+        const char *ext_start = p;
+        p++; // Move past '['
+        if (*p == 'F' || *p == 'B') {
+            p++; // Move past F or B
+            // Must be 3 digits
+            for (int i = 0; i < 3; i++) {
+                if (!*p || !isdigit(*p) || *p < '0' || *p > '5') { // Added !*p check
+                    return 0; // Invalid extended code format
+                }
+                p++;
+            }
+            if (*p == ']') {
+                return (p + 1) - start; // Should be 7
+            }
+        }
+        return 0; // Invalid extended code format (e.g., missing F/B or closing ']')
+    }
+
+    // Special codes: {i, {f
+    if (*p == 'i' || *p == 'f') {
+        return (p + 1) - start; // Should be 2
+    }
+
+    return 0; // Not a recognized color code pattern after '{'
+}
+
 /*
  * Safely check if a void pointer is actually an LLIST structure
  * Returns true if the pointer is a valid LLIST, false otherwise

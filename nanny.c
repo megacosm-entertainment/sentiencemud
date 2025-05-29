@@ -2120,8 +2120,8 @@ ch->race = race;
 
 		ch->size = pc_race_table[race].size;
 
-		send_to_char("\n\r{YWhat is your gender (M/F/N)?{x ", ch);
-		d->connected = CON_GET_NEW_SEX;
+		send_to_char("\n\r{YIs your body {wmasculine{Y, {Wfeminine{y, {Wneutral{Y, or {Wother{Y?{x ", ch);
+		d->connected = CON_GET_NEW_BODY_TYPE;
 		return;
 
 }
@@ -5353,6 +5353,331 @@ bool get_character_auth_data(CHAR_DATA *ch, ACCOUNT_DATA *acct, ACCOUNT_CHARACTE
     return false;
 }
 
+void login_get_char_body_type(DESCRIPTOR_DATA *d, char *argument) {
+    CHAR_DATA *ch = d->character;
+    body_type_t chosen_body_type = BODY_TYPE_NEUTRAL;
+    bool body_type_chosen = FALSE;
+    int i;
+    char buf[MSL];
+
+    if (!ch) {
+        write_to_buffer(d, "Error: No character found.\n\r", 0);
+        close_socket(d);
+        return;
+    }
+
+    if (argument[0] == '\0') {
+        write_to_buffer(d, "Please choose a body type.\n\r", 0);
+        
+        return;
+    }
+
+    for (i = 0; i < BODY_TYPE_MAX; i++) {
+        if (!str_prefix(argument, body_type_info[i].name)) {
+            chosen_body_type = (body_type_t)i;
+            body_type_chosen = TRUE;
+            break;
+        }
+        if (strlen(argument) == 1 && LOWER(argument[0]) == body_type_info[i].name[0]) {
+            chosen_body_type = (body_type_t)i;
+            body_type_chosen = TRUE;
+            break;
+        }
+    }
+
+    if (!body_type_chosen) {
+        write_to_buffer(d, "That's not a valid body type. Options are:\n\r", 0);
+        for (i = 0; i < BODY_TYPE_MAX; i++) {
+            sprintf(buf, "  %s\n\r", body_type_info[i].name);
+            write_to_buffer(d, buf, 0);
+        }
+        write_to_buffer(d, "What body type do you want? ", 0);
+        return;
+    }
+    ch->body_type = chosen_body_type;
+    reset_pronouns_to_body_type(ch, ch->body_type);
+
+    sprintf(buf, "\n\rYou have chosen the '%s' body type.\n\r", get_body_type_name(ch));
+    write_to_buffer(d, buf, 0);
+    write_to_buffer(d, "The default pronouns for this body type are:\n\r", 0);
+
+    display_pronoun_examples(ch,
+                             get_he_she(ch),
+                             get_him_her(ch),
+                             get_his_her(ch),
+                             get_his_hers(ch),
+                             get_himself_herself(ch),
+                             ch->verb_preference);
+
+    write_to_buffer(d, "\n\rAre these pronouns okay? (Yes/No)\n\r", 0);
+    write_to_buffer(d, "If you choose No, you will be guided to set custom pronouns.\n\r> ", 0);
+    d->connected = CON_CONFIRM_DEFAULT_PRONOUNS;
+}
+
+void login_char_get_default_pronouns(DESCRIPTOR_DATA *d, char *argument) {
+    CHAR_DATA *ch = d->character;
+    char buf[MSL];
+    int iClass;
+
+    if (!ch) {
+        write_to_buffer(d, "Error: No character found.\n\r", 0);
+        close_socket(d);
+        return;
+    }
+
+    if (LOWER(argument[0]) == 'y') {
+        write_to_buffer(d, "\n\rDefault pronouns accepted.\n\r", 0);
+
+    	send_to_char("\n\rIn Sentience, there are four main classes to choose from. From \n\r", ch);
+		send_to_char("these four classes you may choose a subclass that belong to these\n\r", ch);
+		send_to_char("classes. Within each subclass you must complete 30 levels before\n\r", ch);
+		send_to_char("advancing to master another class, inheriting each skill set\n\r", ch);
+		send_to_char("as you go. After 120 levels you may REMORT and master four\n\r", ch);
+		send_to_char("brand new subclasses.\n\r\n\r", ch);
+
+		send_to_char("For help on a specific class, type help <class>.\n\r\n\r", ch);
+
+		strcpy(buf, "{YSelect the class you would like to begin with {B[{C");
+		for (iClass = 0; iClass < MAX_CLASS; iClass++)
+		{
+			if (iClass > 0)
+				strcat(buf, " ");
+			strcat(buf, class_table[iClass].name);
+		}
+		strcat(buf, "{B]{Y:{x ");
+		send_to_char(buf, ch);
+		d->connected = CON_GET_NEW_CLASS;
+        return;
+    } else if (LOWER(argument[0]) == 'n') {
+        write_to_buffer(d, "\n\rOkay, let's set your custom pronouns.\n\r", 0);
+        
+        d->connected = CON_SET_CUSTOM_PRONOUN_SUBJ;
+        
+        write_to_buffer(d, "Enter your subjective pronoun (e.g., he, she, they, ze): ", 0);
+    } else {
+        write_to_buffer(d, "Please answer Yes or No.\n\rAre the default pronouns okay? (Yes/No)\n\r> ", 0);
+        
+    }
+}
+
+void login_char_set_custom_pronoun_subj(DESCRIPTOR_DATA *d, char *argument) {
+    CHAR_DATA *ch = d->character;
+    char buf[MSL];
+
+    if (!ch) {
+        write_to_buffer(d, "Error: No character found.\n\r", 0);
+        close_socket(d);
+        return;
+    }
+    if (argument[0] == '\0' || strlen(argument) > (MIL / 4)) { 
+        write_to_buffer(d, "Invalid input. Please enter your subjective pronoun (e.g., he, she, they, ze): ", 0);
+        return;
+    }
+
+    free_string(ch->pronoun_he_she);
+    ch->pronoun_he_she = str_dup(argument);
+    sprintf(buf, "Subjective pronoun set to: %s\n\r", ch->pronoun_he_she);
+    write_to_buffer(d, buf, 0);
+
+    d->connected = CON_SET_CUSTOM_PRONOUN_OBJ;
+    write_to_buffer(d, "Enter your objective pronoun (e.g., him, her, them, zir): ", 0);
+}
+
+void login_char_set_custom_pronoun_obj(DESCRIPTOR_DATA *d, char *argument) {
+    CHAR_DATA *ch = d->character;
+    char buf[MSL];
+
+    if (!ch) {
+        write_to_buffer(d, "Error: No character found.\n\r", 0);
+        close_socket(d);
+        return;
+    }
+
+    if (argument[0] == '\0' || strlen(argument) > (MIL / 4)) { // Basic validation
+        write_to_buffer(d, "Invalid input. Please enter your objective pronoun (e.g., him, her, them, zir): ", 0);
+        return;
+    }
+
+    free_string(ch->pronoun_him_her);
+    ch->pronoun_him_her = str_dup(argument);
+    sprintf(buf, "Objective pronoun set to: %s\n\r", ch->pronoun_him_her);
+    write_to_buffer(d, buf, 0);
+
+    d->connected = CON_SET_CUSTOM_PRONOUN_POSS_ADJ;
+    write_to_buffer(d, "Enter your possessive adjective pronoun (e.g., his, her, their, zir): ", 0);
+}
+
+void login_char_set_custom_pronoun_poss_adj(DESCRIPTOR_DATA *d, char *argument) {
+    CHAR_DATA *ch = d->character;
+    char buf[MSL];
+
+    if (!ch) {
+        write_to_buffer(d, "Error: No character found.\n\r", 0);
+        close_socket(d);
+        return;
+    }
+    if (argument[0] == '\0' || strlen(argument) > (MIL / 4)) {
+        write_to_buffer(d, "Invalid input. Please enter your possessive adjective pronoun (e.g., his, her, their, zir): ", 0);
+        return;
+    }
+
+    free_string(ch->pronoun_his_her);
+    ch->pronoun_his_her = str_dup(argument);
+    sprintf(buf, "Possessive adjective pronoun set to: %s\n\r", ch->pronoun_his_her);
+    write_to_buffer(d, buf, 0);
+
+    d->connected = CON_SET_CUSTOM_PRONOUN_POSS_PRON;
+    write_to_buffer(d, "Enter your possessive pronoun (e.g., his, hers, theirs, zirs): ", 0);
+}
+
+void login_char_set_custom_pronoun_poss_pron(DESCRIPTOR_DATA *d, char *argument) {
+    CHAR_DATA *ch = d->character;
+    char buf[MSL];
+
+    if (!ch) {
+        write_to_buffer(d, "Error: No character found.\n\r", 0);
+        close_socket(d);
+        return;
+    }
+    if (argument[0] == '\0' || strlen(argument) > (MIL / 4)) {
+        write_to_buffer(d, "Invalid input. Please enter your possessive pronoun (e.g., his, hers, theirs, zirs): ", 0);
+        return;
+    }
+
+    free_string(ch->pronoun_his_hers);
+    ch->pronoun_his_hers = str_dup(argument);
+    sprintf(buf, "Possessive pronoun set to: %s\n\r", ch->pronoun_his_hers);
+    write_to_buffer(d, buf, 0);
+
+    d->connected = CON_SET_CUSTOM_PRONOUN_REFL;
+    write_to_buffer(d, "Enter your reflexive pronoun (e.g., himself, herself, themself, zirself): ", 0);
+}
+
+void login_char_set_custom_pronoun_refl(DESCRIPTOR_DATA *d, char *argument) {
+    CHAR_DATA *ch = d->character;
+    char buf[MSL];
+
+    if (!ch) {
+        write_to_buffer(d, "Error: No character found.\n\r", 0);
+        close_socket(d);
+        return;
+    }
+    if (argument[0] == '\0' || strlen(argument) > (MIL / 4)) {
+        write_to_buffer(d, "Invalid input. Please enter your reflexive pronoun (e.g., himself, herself, themself, zirself): ", 0);
+        return;
+    }
+
+    free_string(ch->pronoun_himself_herself);
+    ch->pronoun_himself_herself = str_dup(argument);
+    sprintf(buf, "Reflexive pronoun set to: %s\n\r", ch->pronoun_himself_herself);
+    write_to_buffer(d, buf, 0);
+
+    d->connected = CON_SET_CUSTOM_VERB_PREF;
+    write_to_buffer(d, "Enter your verb preference (singular/plural/default): ", 0);
+}
+
+void login_char_set_custom_verb_pref(DESCRIPTOR_DATA *d, char *argument) {
+    CHAR_DATA *ch = d->character;
+    char buf[MSL];
+
+    if (!ch) {
+        write_to_buffer(d, "Error: No character found.\n\r", 0);
+        close_socket(d);
+        return;
+    }
+
+    if (argument[0] == '\0') {
+        write_to_buffer(d, "Invalid input. Please enter your verb preference (singular/plural/default): ", 0);
+        return;
+    }
+
+    if (!str_prefix(argument, "singular")) {
+        ch->verb_preference = VERB_FORM_SINGULAR;
+        write_to_buffer(d, "Verb preference set to: singular.\n\r", 0);
+    } else if (!str_prefix(argument, "plural")) {
+        ch->verb_preference = VERB_FORM_PLURAL;
+        write_to_buffer(d, "Verb preference set to: plural.\n\r", 0);
+    } else if (!str_prefix(argument, "default")) {
+        ch->verb_preference = VERB_FORM_DEFAULT;
+        write_to_buffer(d, "Verb preference set to: default.\n\r", 0);
+    } else {
+        write_to_buffer(d, "Invalid choice. Please enter 'singular', 'plural', or 'default'.\n\r> ", 0);
+        return;
+    }
+
+    write_to_buffer(d, "\n\rCustom pronouns and verb preference set. Here are your examples:\n\r", 0);
+    display_pronoun_examples(ch,
+                             get_he_she(ch),
+                             get_him_her(ch),
+                             get_his_her(ch),
+                             get_his_hers(ch),
+                             get_himself_herself(ch),
+                             ch->verb_preference);
+
+    d->connected = CON_SET_CUSTOM_PRONOUNS_CONFIRM;
+    return;
+}
+
+void login_char_set_custom_pronouns_confirm(DESCRIPTOR_DATA *d, char *argument) {
+    CHAR_DATA *ch = d->character;
+    char buf[MSL];
+    int iClass;
+
+    if (!ch) {
+        write_to_buffer(d, "Error: No character found.\n\r", 0);
+        close_socket(d);
+        return;
+    }
+
+    if (LOWER(argument[0]) == 'y') {
+        write_to_buffer(d, "\n\rCustom pronoun settings confirmed.\n\r", 0);
+    	send_to_char("\n\rIn Sentience, there are four main classes to choose from. From \n\r", ch);
+		send_to_char("these four classes you may choose a subclass that belong to these\n\r", ch);
+		send_to_char("classes. Within each subclass you must complete 30 levels before\n\r", ch);
+		send_to_char("advancing to master another class, inheriting each skill set\n\r", ch);
+		send_to_char("as you go. After 120 levels you may REMORT and master four\n\r", ch);
+		send_to_char("brand new subclasses.\n\r\n\r", ch);
+
+		send_to_char("For help on a specific class, type help <class>.\n\r\n\r", ch);
+
+		strcpy(buf, "{YSelect the class you would like to begin with {B[{C");
+		for (iClass = 0; iClass < MAX_CLASS; iClass++)
+		{
+			if (iClass > 0)
+				strcat(buf, " ");
+			strcat(buf, class_table[iClass].name);
+		}
+		strcat(buf, "{B]{Y:{x ");
+		send_to_char(buf, ch);
+		d->connected = CON_GET_NEW_CLASS;
+        return;
+    } else if (LOWER(argument[0]) == 'n' || !str_cmp(argument, "back")) {
+        write_to_buffer(d, "\n\rOkay, let's review the pronoun options for your chosen body type.\n\r", 0);
+        
+        reset_pronouns_to_body_type(ch, ch->body_type);
+
+
+        sprintf(buf, "You have chosen the '%s' body type.\n\r", get_body_type_name(ch));
+        write_to_buffer(d, buf, 0);
+        write_to_buffer(d, "The default pronouns for this body type are:\n\r", 0);
+
+        display_pronoun_examples(ch,
+                                 get_he_she(ch),
+                                 get_him_her(ch),
+                                 get_his_her(ch),
+                                 get_his_hers(ch),
+                                 get_himself_herself(ch),
+                                 ch->verb_preference);
+
+        write_to_buffer(d, "\n\rAre these pronouns okay? (Yes/No)\n\r", 0);
+        write_to_buffer(d, "If you choose No, you will be guided to set custom pronouns again.\n\r> ", 0);
+        d->connected = CON_CONFIRM_DEFAULT_PRONOUNS;
+
+    } else {
+        write_to_buffer(d, "Please answer Yes, No, or Back.\n\rAre these settings correct? (Yes/No/Back)\n\r> ", 0);
+    }
+}
+
 void nanny(DESCRIPTOR_DATA *d, char *argument)
 {
 
@@ -5423,6 +5748,34 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 	case CON_GET_NEW_SEX:
         login_get_new_sex(d, argument);
 		break;
+
+    case CON_GET_NEW_BODY_TYPE:
+        login_get_char_body_type(d, argument);
+        break;
+    case CON_CONFIRM_DEFAULT_PRONOUNS:
+        login_char_get_default_pronouns(d, argument);
+        break;
+    case CON_SET_CUSTOM_PRONOUN_SUBJ:
+        login_char_set_custom_pronoun_subj(d, argument);
+        break;
+    case CON_SET_CUSTOM_PRONOUN_OBJ:
+        login_char_set_custom_pronoun_obj(d, argument);
+        break;
+    case CON_SET_CUSTOM_PRONOUN_POSS_ADJ:
+        login_char_set_custom_pronoun_poss_adj(d, argument);
+        break;
+    case CON_SET_CUSTOM_PRONOUN_POSS_PRON:
+        login_char_set_custom_pronoun_poss_pron(d, argument);
+        break;
+    case CON_SET_CUSTOM_PRONOUN_REFL:
+        login_char_set_custom_pronoun_refl(d, argument);
+        break;
+    case CON_SET_CUSTOM_VERB_PREF:
+        login_char_set_custom_verb_pref(d, argument);
+        break;
+    case CON_SET_CUSTOM_PRONOUNS_CONFIRM:
+        login_char_set_custom_pronouns_confirm(d, argument);
+        break;
     case CON_GET_NEW_CLASS:
         login_get_new_class(d, argument);
         break;

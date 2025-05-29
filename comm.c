@@ -72,6 +72,7 @@
 #include "scripts.h"
 #include "tables.h"
 #include "wilds.h"
+#include "protocol.h"
 
 /*
  * Socket and TCP/IP stuff.

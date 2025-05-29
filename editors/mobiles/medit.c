@@ -67,12 +67,11 @@ MEDIT(medit_show)
 		flag_string(act2_flags, pMob->act2));
 	add_buf(buffer, buf);
 */
-sprintf(buf, "Vnum:         {C[{x%6ld{C]{x  Body Type: {C[{x%7s{C]{x  Race: {C[{x%s{C]{x\n\r",
-    pMob->vnum,
-    get_body_type_name((CHAR_DATA *)pMob), // Temporarily cast for get_body_type_name
-                                           // We'll need a way to get body_type_name from MOB_INDEX_DATA
-    race_table[pMob->race].name);
-add_buf(buffer, buf);
+	sprintf(buf, "Vnum:         {C[{x%6ld{C]{x  Body Type: {C[{x%7s{C]{x  Race: {C[{x%s{C]{x\n\r",
+		pMob->vnum,
+		pMob->body_type,
+		race_table[pMob->race].name);
+	add_buf(buffer, buf);
 
     sprintf(buf, "Boss:         {C[%s{C]{x\n\r", (pMob->persist ? "{RYES" : "{gno"));
     add_buf(buffer, buf);

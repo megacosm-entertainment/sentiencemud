@@ -811,32 +811,27 @@ ROOM_INDEX_DATA *get_random_room_area( CHAR_DATA *ch, AREA_DATA *area )
 
 
 /* Count how many letters in a string, not counting colour codes. */
-int strlen_no_colours( const char *str )
-{
-	int count;
-	int i;
+int strlen_no_colours(const char *str) {
+    if (!str) return 0;
+    int count = 0;
+    const char *p = str;
+    int code_len;
 
-	if ( str == NULL )
-		return 0;
-
-	count = 0;
-	for ( i = 0; str[i] != '\0'; i++ )
-	{
-
-		if (str[i] == COLOUR_CHAR )		// Double {{ becomes { when processed, but still counts as two
-		{
-			i++;
-				if (str[i] == '[' )
-				i += 5;
-			if( str[i] == COLOUR_CHAR )
-				count+=2;
-			continue;
-		}
-
-		count++;
-	}
-
-	return count;
+    while (*p) {
+        if (*p == COLOUR_CHAR && *(p+1) == COLOUR_CHAR) { // Escaped '{'
+            count++;
+            p += 2;
+            continue;
+        }
+        code_len = get_colour_code_length_at_start(p);
+        if (code_len > 0) {
+            p += code_len; // Skip the entire color code
+        } else {
+            count++; // Visible character
+            p++;
+        }
+    }
+    return count;
 }
 
 

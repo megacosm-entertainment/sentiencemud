@@ -1704,7 +1704,16 @@ struct church_treasure_room
 #define CON_SET_UNLINK_PASSWORD 73
 #define CON_VERIFY_CHARACTER_DELETE 74
 #define CON_CHARACTER_DELETE 75
-#define CON_MAX 76
+#define CON_GET_NEW_BODY_TYPE           76
+#define CON_CONFIRM_DEFAULT_PRONOUNS    77
+#define CON_SET_CUSTOM_PRONOUN_SUBJ     78
+#define CON_SET_CUSTOM_PRONOUN_OBJ      79
+#define CON_SET_CUSTOM_PRONOUN_POSS_ADJ 80
+#define CON_SET_CUSTOM_PRONOUN_POSS_PRON 81
+#define CON_SET_CUSTOM_PRONOUN_REFL     82
+#define CON_SET_CUSTOM_VERB_PREF        83
+#define CON_SET_CUSTOM_PRONOUNS_CONFIRM 84
+#define CON_MAX 85
 
 #define MFA_RECOVERY_CODES 5
 
@@ -1832,7 +1841,6 @@ struct	descriptor_data
     bool reconnecting;
     bool healthcheck;
     char * new_password_buffer;
-
 
 };
 
@@ -8782,6 +8790,7 @@ MOB_INDEX_DATA *get_reserved_mob_index(const char *name);
 AREA_DATA *get_area_index(long uid);
 void display_pronoun_examples(CHAR_DATA *ch_viewer, const char *subj, const char *obj, const char *poss_adj, const char *poss_pron, const char *refl, verb_form_preference_t vpref);
 void reset_pronouns_to_body_type(CHAR_DATA *ch, body_type_t new_body_type);
+int get_colour_code_length_at_start(const char *p);
 
 
 
@@ -8807,7 +8816,7 @@ HELP_DATA *read_help_new( FILE *fp );
 /* interp.c */
 bool check_social( CHAR_DATA *ch, char *command, char *argument );
 void	interpret	args( ( CHAR_DATA *ch, char *argument ) );
-bool	is_number	args( ( char *arg ) );
+bool	is_number	args( ( const char *arg ) );
 bool	is_percent	args( ( char *arg ) );
 int	number_argument	args( ( char *argument, char *arg ) );
 int	mult_argument	args( ( char *argument, char *arg) );

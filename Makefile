@@ -57,6 +57,7 @@ C_FILES = \
     editors/tokens/tedit.c \
     editors/wilderness/vledit.c \
     editors/wilderness/wedit.c \
+    editors/common.c \
     effects.c \
     events.c \
     fight.c \

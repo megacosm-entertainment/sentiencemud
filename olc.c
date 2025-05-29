@@ -18,7 +18,8 @@
 #include "recycle.h"
 #include "scripts.h"
 #include "wilds.h"
-
+#include "editors/common.h"
+extern const char *medit_tab_names[];
 extern GLOBAL_DATA gconfig;
 /*
  *  * Local functions.
@@ -703,6 +704,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
             sprintf(buf, "--");
         break;
 
+
 	default:
 	    sprintf(buf, " ");
 	    break;
@@ -1043,61 +1045,89 @@ void oedit(CHAR_DATA *ch, char *argument)
 }
 
 
-void medit(CHAR_DATA *ch, char *argument)
-{
+void medit(CHAR_DATA *ch, char *argument) {
     AREA_DATA *pArea;
     MOB_INDEX_DATA *pMob;
     char command[MAX_INPUT_LENGTH];
-    char arg[MAX_STRING_LENGTH];
-    int  cmd;
+    char arg[MAX_STRING_LENGTH]; // To store the original full argument for interpret
+    char *command_argument; // To store arguments for the medit commands or tab command
+    int cmd;
+    char buf[MAX_STRING_LENGTH];
 
-    smash_tilde(argument);
+    // Store the original argument for potential use with interpret()
     strcpy(arg, argument);
-    argument = one_argument(argument, command);
+
+    // Extract the first command word and the rest of the arguments
+    command_argument = one_argument(argument, command);
 
     EDIT_MOB(ch, pMob);
+    if (!pMob) { // Should ideally not happen if EDIT_MOB sets up correctly
+        sprintf(buf, "medit: pMob is NULL for %s.", ch->name);
+        bug(buf, 0);
+        edit_done(ch);
+        return;
+    }
     pArea = pMob->area;
 
-    if (pArea == NULL)
-    {
-	bug("medit: pArea was null!", 0);
-	return;
+    if (pArea == NULL) {
+        sprintf(buf, "medit: pArea is NULL for mob vnum %ld!", pMob->vnum);
+        bug(buf, 0);
+        // Attempt to find area by vnum if pMob->area is somehow unset but vnum is valid
+        // This is a fallback, the root cause of pArea being NULL should be investigated
+        if ( (pArea = get_vnum_area(pMob->vnum)) != NULL) {
+            pMob->area = pArea;
+            send_to_char("Warning: Mob's area was NULL, re-linked by vnum. Please save.\n\r", ch);
+            SET_BIT(pArea->area_flags, AREA_CHANGED);
+        } else {
+            send_to_char("MEdit: Mob's area is NULL and could not be re-linked. Aborting.\n\r", ch);
+            edit_done(ch);
+            return;
+        }
     }
 
-    if (!IS_BUILDER(ch, pArea))
-    {
-	send_to_char("MEdit: Insufficient security to edit area - action logged.\n\r", ch);
-	edit_done(ch);
-	return;
-    }
-
-    if (!str_cmp(command, "done"))
-    {
-	edit_done(ch);
-	return;
-    }
-
-    ch->pcdata->immortal->last_olc_command = current_time;
-    if (command[0] == '\0')
-    {
-        medit_show(ch, argument);
+    if (!IS_BUILDER(ch, pArea)) {
+        send_to_char("MEdit: Insufficient security to edit area - action logged.\n\r", ch);
+        edit_done(ch);
         return;
     }
 
-    for (cmd = 0; medit_table[cmd].name != NULL; cmd++)
-    {
-	if (!str_prefix(command, medit_table[cmd].name))
-	{
-	    if ((*medit_table[cmd].olc_fun) (ch, argument))
-	    {
-		SET_BIT(pArea->area_flags, AREA_CHANGED);
-		return;
-	    }
-	    else
-		return;
-	}
+    // Handle "done" command first
+    if (!str_cmp(command, "done")) {
+        edit_done(ch);
+        return;
     }
 
+    ch->pcdata->immortal->last_olc_command = current_time;
+
+    // Handle "tab" command for navigation
+    if (!str_cmp(command, "tab")) {
+        olc_select_tab(ch, medit_tab_names, command_argument, "medit tab");
+        medit_show(ch, ""); // Refresh display to show the new tab
+        return; // Tab switching doesn't mark area as changed directly
+    }
+
+    // Handle empty command (show current editor state)
+    if (command[0] == '\0') {
+        medit_show(ch, command_argument); // command_argument will be empty here
+        return;
+    }
+
+    // Process other MEdit commands from the table
+    for (cmd = 0; medit_table[cmd].name != NULL; cmd++) {
+        if (!str_prefix(command, medit_table[cmd].name)) {
+            // Pass command_argument (the rest of the line after the command itself)
+            if ((*medit_table[cmd].olc_fun)(ch, command_argument)) {
+                SET_BIT(pArea->area_flags, AREA_CHANGED);
+                // Optionally, call medit_show(ch, "") here if the command doesn't do it
+                // and you want to see the updated state immediately.
+                // Many OLC command functions call the _show function themselves.
+            }
+            return; // Command processed (or failed but was found)
+        }
+    }
+
+    // If the command wasn't found in the medit_table, try to interpret it
+    // Use the original full argument string 'arg' for interpret
     interpret(ch, arg);
 }
 
@@ -4062,61 +4092,7 @@ SHOP_STOCK_DATA *get_shop_stock_bypos(SHOP_DATA *shop, int nth)
 
 }
 
-void olc_show_progs(BUFFER *buffer, LLIST **progs, int type, const char *title)
-{
-	char buf[MSL];
-	int cnt, slot;
 
-	for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++)
-		if(list_size(progs[slot]) > 0) ++cnt;
-
-	if (cnt > 0) {
-		sprintf(buf, "{R%-6s %-12s %-10s %-10s %-9s %-20s\n\r{x", "Number", "Vnum      ", "Trigger", "Phrase", "Status      ", " Name");
-		add_buf(buffer, buf);
-
-		sprintf(buf, "{R%-6s %-12s %-10s %-10s %-9s %-20s\n\r{x", "------", "-----------", "-------", "------", "------------", " -----");
-		add_buf(buffer, buf);
-
-		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
-            ITERATOR it;
-            PROG_LIST *trigger;
-            SCRIPT_DATA *prog;
-			iterator_start(&it, progs[slot]);
-			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-                prog = get_script_index(trigger->vnum, type);                
-				sprintf(buf, "{C[{W%4d{C]{x %-12ld %-10s %-10s %-9s %-5s\n\r", cnt,
-					trigger->vnum, trigger_name(trigger->trig_type),
-					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, false, false), olc_show_script_status(prog, type), prog ? prog->name : "Unknown");
-				add_buf(buffer, buf);
-				cnt++;
-			}
-			iterator_stop(&it);
-		}
-	}
-}
-
-// Rewrite the below function to return a string to the above function
-char *olc_show_script_status(SCRIPT_DATA *prog, int type)
-{
-    static char status[20];
-
-    if (prog) {
-
-        if(IS_SET(prog->flags,SCRIPT_DISABLED))
-			sprintf(status, "{D[DISABLED]{x   ");
-		else if(prog->lines > 1 && prog->src != prog->edit_src)
-			sprintf(status, "{G[MODIFIED]{x   ");
-		else if(prog->lines == 1)
-			sprintf(status, "{W[BLANK]{x      ");
-		else if(prog->code)
-			sprintf(status, "{x[COMPILED]{x   ");
-		else
-			sprintf(status, "{R[UNCOMPILED]{x ");
-
-        return status;
-    }
-    else return "Unknown";
-}
 /* Used for handling projects. */
 
 const struct olc_cmd_type cmdedit_table[] =

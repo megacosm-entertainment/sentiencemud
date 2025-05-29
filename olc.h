@@ -1,4 +1,5 @@
-
+#ifndef __OLC_H__
+#define __OLC_H__
 /**************************************************************************
  *  File: olc.h                                                            *
  *                                                                         *
@@ -25,7 +26,6 @@
 typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 
 #define DECLARE_OLC_FUN( fun )	OLC_FUN    fun
-
 
 /*
  * Connected states for editor.
@@ -665,3 +665,4 @@ void olc_show_progs(BUFFER *buffer, LLIST **progs, int type, const char *title);
 #define RSGEDIT( fun )           bool fun(CHAR_DATA *ch, char*argument)
 
 #define EDIT_RSG(ch, rsg)   ( rsg = (RANDOM_STRING*)ch->desc->pEdit )
+#endif /* !def __OLC_H__ */
