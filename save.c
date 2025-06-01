@@ -5180,6 +5180,20 @@ bool load_account(DESCRIPTOR_DATA *d, char *name)
     FILE *fp;
     bool found;
 
+    if (loaded_accounts) {
+        ITERATOR it;
+        ACCOUNT_DATA *acct;
+        iterator_start(&it, loaded_accounts);
+        while ((acct = (ACCOUNT_DATA *)iterator_nextdata(&it))) {
+            if (!str_cmp(acct->username, name)) {
+                d->account = acct;
+                iterator_stop(&it);
+                return true;
+            }
+        }
+        iterator_stop(&it);
+    }
+
     // Create a new account structure
     account = new_account();
     d->account = account;
