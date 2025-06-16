@@ -67,7 +67,7 @@ MEDIT(medit_show)
 		flag_string(act2_flags, pMob->act2));
 	add_buf(buffer, buf);
 */
-	sprintf(buf, "Vnum:         {C[{x%6ld{C]{x  Body Type: {C[{x%7s{C]{x  Race: {C[{x%s{C]{x\n\r",
+	sprintf(buf, "Vnum:         {C[{x%6ld{C]{x  Body Type: {C[{x%7d{C]{x  Race: {C[{x%s{C]{x\n\r",
 		pMob->vnum,
 		pMob->body_type,
 		race_table[pMob->race].name);

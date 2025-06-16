@@ -223,22 +223,57 @@ void save_char_obj(CHAR_DATA *ch)
     // Save character to account first
     if (ch->desc && ch->desc->account) {
         account_add_character(ch->desc->account, ch);
-    } else if (!IS_NPC(ch) && 
-              (ch->pcdata->account_id[0] != 0 || !IS_NULLSTR(ch->pcdata->account_name))) {
-        // Try to find and update account - first by ID, then by name
+        // Account saving is typically handled at player quit or via specific account commands.
+        // account_add_character may trigger a save if migration occurs.
+    } else if (!IS_NPC(ch) &&
+              (!IS_NULLSTR(ch->pcdata->account_name) || ch->pcdata->account_id[0] != 0)) {
+        // Fallback: Try to find and update account if not already on descriptor.
+        // This might happen during auto-saves or other scenarios where desc might be temporarily unavailable
+        // or the account link wasn't established.
         ACCOUNT_DATA *account = NULL;
-        
-        if (ch->pcdata->account_id[0] != 0)
-            account = find_account_by_id(ch->pcdata->account_id[0], ch->pcdata->account_id[1]);
-            
-        // Fall back to name lookup if ID lookup fails
-        if (account == NULL && !IS_NULLSTR(ch->pcdata->account_name))
+
+        // Try by account name first
+        if (!IS_NULLSTR(ch->pcdata->account_name)) {
             account = find_account_by_name(ch->pcdata->account_name);
-            
+        }
+
+        // If not found by name, try by ID
+        if (account == NULL && ch->pcdata->account_id[0] != 0) {
+            account = find_account_by_id(ch->pcdata->account_id[0], ch->pcdata->account_id[1]);
+        }
+
         if (account != NULL) {
-            account_add_character(account, ch);
-            save_account(account);
-            free_account(account);
+            account_add_character(account, ch); // This might save the account if data is migrated
+            // If ch->desc is available, link the found account to it.
+            if (ch->desc) {
+                ch->desc->account = account; // Link it for the current session
+            } else {
+                save_account(account); // Explicitly save if we're not attaching to a descriptor.
+                if (!ch->desc) { // Only free if there's no descriptor to hold it
+                    // Check if it's in the global list before freeing
+                    bool is_globally_loaded = false;
+                    if (loaded_accounts) {
+                        ITERATOR acc_it;
+                        ACCOUNT_DATA *glob_acct;
+                        iterator_start(&acc_it, loaded_accounts);
+                        while((glob_acct = (ACCOUNT_DATA *)iterator_nextdata(&acc_it))) {
+                            if (glob_acct == account) {
+                                is_globally_loaded = true;
+                                break;
+                            }
+                        }
+                        iterator_stop(&acc_it);
+                    }
+                    if (!is_globally_loaded) {
+                        free_account(account);
+                    }
+                }
+            }
+        } else {
+            log_stringf("save_char_obj: Character %s has account identifiers but account could not be found by name ('%s') or ID (%lu %lu).",
+                ch->name,
+                ch->pcdata->account_name ? ch->pcdata->account_name : "NULL",
+                ch->pcdata->account_id[0], ch->pcdata->account_id[1]);
         }
     }
 

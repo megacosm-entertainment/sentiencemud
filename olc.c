@@ -1099,13 +1099,6 @@ void medit(CHAR_DATA *ch, char *argument) {
 
     ch->pcdata->immortal->last_olc_command = current_time;
 
-    // Handle "tab" command for navigation
-    if (!str_cmp(command, "tab")) {
-        olc_select_tab(ch, medit_tab_names, command_argument, "medit tab");
-        medit_show(ch, ""); // Refresh display to show the new tab
-        return; // Tab switching doesn't mark area as changed directly
-    }
-
     // Handle empty command (show current editor state)
     if (command[0] == '\0') {
         medit_show(ch, command_argument); // command_argument will be empty here

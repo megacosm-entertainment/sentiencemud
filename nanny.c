@@ -3230,8 +3230,11 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
             if (check_playing(d, ch->name))
                 return;
                 
-            if (check_reconnect(d, ch->name, true))
+            bool is_reconnecting_attempt = check_reconnect(d, ch->name, true);
+
+            if (is_reconnecting_attempt && d->connected != CON_CHARACTER_MENU) {
                 return;
+            }
                 
             if (!DEV_SKIP_PASSWORD) {
                 if (IS_IMMORTAL(ch) && game_settings.require_uniq_pass_staff && 
@@ -3274,10 +3277,11 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
                     return;
                 }
             }
-            
-
-            
-            proceed_to_game(d);
+            if (d->reconnecting) {
+                reconnect_char(d);
+            } else {
+                proceed_to_game(d);
+            }
             break;
 
         case 'P': // Set/change character password

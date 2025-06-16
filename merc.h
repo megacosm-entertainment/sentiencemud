@@ -8131,6 +8131,7 @@ char *	weapon_bit_name	args( ( int weapon_flags ) );
 char *  comm_bit_name	args( ( int comm_flags ) );
 char *	cont_bit_name	args( ( int cont_flags) );
 char *channel_flag_bit_name(int channel_flags);
+bool is_stat( register const struct flag_type *flag_table );
 
 /* lookup.c */
 int	church_lookup	(const char *name);

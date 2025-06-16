@@ -2253,7 +2253,7 @@ bool write_to_descriptor_2(DESCRIPTOR_DATA *d, char *txt, int length)
     int nWrite;
     int nBlock;
 
-	d->last_activity = current_time;
+    d->last_activity = current_time;
 
     if (d->out_compress)
         return writeCompressed(d, txt, length);
@@ -2266,22 +2266,37 @@ bool write_to_descriptor_2(DESCRIPTOR_DATA *d, char *txt, int length)
             if (nWrite <= 0) {
                 int err = SSL_get_error(d->ssl, nWrite);
                 if (err == SSL_ERROR_WANT_WRITE) {
-                    // The operation didn't complete; try again later
                     break;
                 } else if (err == SSL_ERROR_SYSCALL && errno == EPIPE) {
-                    // Explicitly handle EPIPE here
                     return false;
                 } else {
-                    fprintf(stderr, "SSL_write failed with error: %d\n", err);
-                    ERR_print_errors_fp(stderr);
+                    BIO *bio = BIO_new(BIO_s_mem());
+                    ERR_print_errors(bio);
+                    
+                    char ssl_err_buf[MAX_STRING_LENGTH];
+                    char *bio_data;
+                    long bio_len = BIO_get_mem_data(bio, &bio_data);
+                    
+                    if (bio_len >= MAX_STRING_LENGTH)
+                        bio_len = MAX_STRING_LENGTH - 1;
+                    memcpy(ssl_err_buf, bio_data, bio_len);
+                    ssl_err_buf[bio_len] = '\0';
+                    BIO_free(bio);
+                    
+                    sprintf(log_buf, "SSL_write failed with error: %d\nSSL errors: %s", 
+                            err, ssl_err_buf);
+                    log_string(log_buf);
+                    
+                    ssl_errors_since_reset++;
+                    last_ssl_error = current_time;
+                    
                     return false;
                 }
             }
         } else {
             nWrite = write(d->descriptor, txt + iStart, nBlock);
             if (nWrite < 0) {
-                                if (errno == EPIPE) {
-                    // Explicitly handle EPIPE here
+                if (errno == EPIPE) {
                     return false; 
                 }
                 perror("Write_to_descriptor_2");
@@ -2657,7 +2672,7 @@ bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
                 }
                 
                 // Normal reconnect process - no special auth needed
-                reconnect_char(d);
+                //reconnect_char(d);
                 break;
             }
         }
