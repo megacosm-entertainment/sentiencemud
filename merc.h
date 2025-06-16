@@ -4884,6 +4884,7 @@ struct account_data
     char *username;             // Account name
     int failed_attempts;        // Number of failed login attempts
     time_t last_failed_attempt; // Time of last failed login attempt
+    char *default_character;
 
     // Passwords
     char *passwd;       // Account Password (encrypted)
@@ -9075,6 +9076,10 @@ bool validate_password_uniqueness(ACCOUNT_DATA *acct, const char *plaintext_pass
                                 bool is_for_character, const char *character_name, bool is_staff);
 bool password_matches_account(ACCOUNT_DATA *acct, const char *plaintext_password);
 bool password_matches_staff_character(ACCOUNT_DATA *acct, const char *plaintext_password, const char *exclude_name);
+void process_direct_login(DESCRIPTOR_DATA *d);
+bool set_default_character(ACCOUNT_DATA *acct, const char *char_name);
+bool is_character_online(const char *name);
+ACCOUNT_CHARACTER *find_most_recent_character(ACCOUNT_DATA *acct);
 
 
 /* scripts.c */

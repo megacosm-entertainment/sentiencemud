@@ -805,6 +805,8 @@ void display_account_menu(DESCRIPTOR_DATA *d)
     char class_buf[50];
     ITERATOR it;
     ACCOUNT_CHARACTER *ch_entry;
+    char *default_char = IS_NULLSTR(acct->default_character) ? NULL : acct->default_character;
+    ACCOUNT_CHARACTER *recent_char = find_most_recent_character(acct);
     
     d->mfa_verified = false;
 
@@ -1017,6 +1019,16 @@ void display_account_menu(DESCRIPTOR_DATA *d)
     
     if (!DEV_SKIP_MFA)
     write_to_buffer(d, "{GM{x) MFA settings\n\r", 0);
+
+    if (default_char != NULL) {
+        sprintf(buf, "{GY{x) Log in with default character ({C%s{x)\n\r", default_char);
+        write_to_buffer(d, buf, 0);
+    }
+
+    if (recent_char != NULL && !is_character_online(recent_char->name)) {
+        sprintf(buf, "{GZ{x) Log in with last played character ({C%s{x)\n\r", recent_char->name);
+        write_to_buffer(d, buf, 0);
+    }
         
     write_to_buffer(d, "{GQ{x) Quit\n\r\n\r", 0);
 
@@ -1176,12 +1188,86 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
                 d->connected = CON_VERIFY_ACCOUNT_EMAIL_CHANGE;
                 return;
 
+        case 'Y': // Default character
+                
+            if (IS_NULLSTR(acct->default_character)) {
+                write_to_buffer(d, "No default character has been set.\n\r", 0);
+                display_account_menu(d);
+                return;
+            }
+            
+            // Find the character entry
+            ITERATOR it;
+            ACCOUNT_CHARACTER *ch_entry = NULL;
+            
+            iterator_start(&it, acct->characters);
+            while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+                if (!str_cmp(ch_entry->name, acct->default_character)) {
+                    break;
+                }
+            }
+            iterator_stop(&it);
+            
+            if (!ch_entry) {
+                write_to_buffer(d, "Default character not found in your account.\n\r", 0);
+                display_account_menu(d);
+                return;
+            }
+            
+            // Check if already online
+            if (is_character_online(ch_entry->name)) {
+                write_to_buffer(d, "That character is already logged in.\n\r", 0);
+                display_account_menu(d);
+                return;
+            }
+            
+            // Load the character
+            if (!load_char_obj(d, ch_entry->name)) {
+                write_to_buffer(d, "Error loading character.\n\r", 0);
+                display_account_menu(d);
+                return;
+            }
+            
+            // Skip character menu and proceed directly to authentication if needed
+            process_direct_login(d);
+            break;
+            
+        case 'Z': // Most recently played character
+                
+            ACCOUNT_CHARACTER *recent_char = find_most_recent_character(acct);
+            
+            if (!recent_char) {
+                write_to_buffer(d, "No eligible recent character found.\n\r", 0);
+                display_account_menu(d);
+                return;
+            }
+            
+            // Check if already online
+            if (is_character_online(recent_char->name)) {
+                write_to_buffer(d, "That character is already logged in.\n\r", 0);
+                display_account_menu(d);
+                return;
+            }
+            
+            // Load the character
+            if (!load_char_obj(d, recent_char->name)) {
+                write_to_buffer(d, "Error loading character.\n\r", 0);
+                display_account_menu(d);
+                return;
+            }
+            
+            // Skip character menu and proceed directly to authentication if needed
+            process_direct_login(d);
+            break;
+
             default:
                 write_to_buffer(d, "Invalid choice.\n\r", 0);
                 display_account_menu(d);
                 return;
         }
     }
+
+
 
     // (Only reached if not a menu letter)
     if (isdigit(argument[0]) || isalpha(argument[0])) {
@@ -2997,6 +3083,9 @@ void display_character_menu(DESCRIPTOR_DATA *d)
     if (ch->deleted)
         write_to_buffer(d, "{GC{x) Cancel deletion\n\r", 0);
 
+    write_to_buffer(d, "{GY{x) Set as default character\n\r", 0);
+
+
     write_to_buffer(d, "{GB{x) Back to account menu\n\r\n\r", 0);
 }
 
@@ -3488,6 +3577,15 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
             write_to_buffer(d, "Character deletion canceled.\n\r", 0);
             display_character_menu(d);
             return;
+
+    case 'Y': // Set as default character
+        if (set_default_character(acct, ch->name)) {
+            write_to_buffer(d, "This character has been set as your default login character.\n\r", 0);
+        } else {
+            write_to_buffer(d, "Error setting default character.\n\r", 0);
+        }
+        display_character_menu(d);
+        break;
 
         case 'B': // Back to account menu
             free_char(d->character);
@@ -5679,6 +5777,188 @@ void login_char_set_custom_pronouns_confirm(DESCRIPTOR_DATA *d, char *argument) 
 
     } else {
         write_to_buffer(d, "Please answer Yes, No, or Back.\n\rAre these settings correct? (Yes/No/Back)\n\r> ", 0);
+    }
+}
+
+/**
+ * Find the most recently played character for an account
+ * @param acct The account to check
+ * @return The most recently played character or NULL if none found
+ */
+ACCOUNT_CHARACTER *find_most_recent_character(ACCOUNT_DATA *acct)
+{
+    ACCOUNT_CHARACTER *most_recent = NULL;
+    time_t most_recent_time = 0;
+    ITERATOR it;
+    ACCOUNT_CHARACTER *ch_entry;
+    
+    if (!acct || !acct->characters)
+        return NULL;
+    
+    iterator_start(&it, acct->characters);
+    while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+        // Skip deleted characters and those currently online
+        if (ch_entry->deleted || is_character_online(ch_entry->name))
+            continue;
+        
+        // If this character was logged in more recently, update our tracking
+        if (ch_entry->last_login > most_recent_time) {
+            most_recent = ch_entry;
+            most_recent_time = ch_entry->last_login;
+        }
+    }
+    iterator_stop(&it);
+    
+    return most_recent;
+}
+
+/**
+ * Check if a character is currently online
+ * @param name The character name to check
+ * @return true if the character is online, false otherwise
+ */
+bool is_character_online(const char *name)
+{
+    DESCRIPTOR_DATA *d;
+    
+    for (d = descriptor_list; d != NULL; d = d->next) {
+        if (d->character && !IS_NPC(d->character) && 
+            d->connected == CON_PLAYING && 
+            !str_cmp(d->character->name, name)) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+/**
+ * Set a character as the default for an account
+ * @param acct The account to update
+ * @param char_name The character name to set as default
+ * @return true if successful, false if the character wasn't found
+ */
+bool set_default_character(ACCOUNT_DATA *acct, const char *char_name)
+{
+    ITERATOR it;
+    ACCOUNT_CHARACTER *ch_entry;
+    bool found = false;
+    
+    if (!acct || !acct->characters || IS_NULLSTR(char_name))
+        return false;
+    
+    // First verify the character exists in this account
+    iterator_start(&it, acct->characters);
+    while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+        if (!str_cmp(ch_entry->name, char_name)) {
+            found = true;
+            break;
+        }
+    }
+    iterator_stop(&it);
+    
+    if (!found)
+        return false;
+    
+    // Update the default character
+    if (acct->default_character)
+        free_string(acct->default_character);
+    
+    acct->default_character = str_dup(char_name);
+    save_account(acct);
+    
+    return true;
+}
+
+void process_direct_login(DESCRIPTOR_DATA *d)
+{
+    CHAR_DATA *ch = d->character;
+    ACCOUNT_DATA *acct = d->account;
+    ACCOUNT_CHARACTER *acct_char = NULL;
+    bool has_auth_data = get_character_auth_data(ch, acct, &acct_char);
+    
+    // Verify we have what we need
+    if (!has_auth_data || !acct_char) {
+        write_to_buffer(d, "\n\r{RERROR: Unable to find character data in your account.{x\n\r", 0);
+        log_string("process_direct_login: Missing account character data");
+        free_char(ch);
+        d->character = NULL;
+        display_account_menu(d);
+        d->connected = CON_ACCOUNT_MENU;
+        return;
+    }
+    
+    // Check if character is flagged for deletion
+    if (ch->deleted) {
+        write_to_buffer(d, "This character is flagged for deletion. Please cancel deletion first.\n\r", 0);
+        display_character_menu(d);
+        d->connected = CON_CHARACTER_MENU;
+        return;
+    }
+            
+    if (check_playing(d, ch->name))
+        return;
+            
+    bool is_reconnecting_attempt = check_reconnect(d, ch->name, true);
+    if (is_reconnecting_attempt && d->connected != CON_ACCOUNT_MENU) {
+        return;
+    }
+    
+    // Get authentication status from account_character data
+    bool has_char_pwd = !IS_NULLSTR(acct_char->pwd);
+    bool has_char_mfa = !IS_NULLSTR(acct_char->mfa_key);
+    
+    // Check password requirements
+    if (!DEV_SKIP_PASSWORD) {
+        if (IS_IMMORTAL(ch) && game_settings.require_uniq_pass_staff && 
+            !has_char_pwd &&
+            (IS_NULLSTR(acct->passwd) || acct->passwd_version == 0)) {
+            write_to_buffer(d, "\n\r{RERROR: Staff characters require a unique password.{x\n\r", 0);
+            write_to_buffer(d, "You must set a unique password for this character before logging in.\n\r", 0);
+            display_character_menu(d);
+            d->connected = CON_CHARACTER_MENU;
+            return;
+        }
+        
+        if (has_char_pwd) {
+            write_to_buffer(d, "\n\rThis character requires an additional password.\n\r", 0);
+            ProtocolNoEcho(d, true);
+            d->connected = CON_GET_CHAR_PASSWORD;
+            return;
+        }
+    }
+
+    // Check MFA requirements
+    if (!DEV_SKIP_MFA) {
+        if (IS_IMMORTAL(ch) && game_settings.require_2fa_staff &&
+            !has_char_mfa &&
+            (IS_NULLSTR(acct->mfa_key))) {
+            write_to_buffer(d, "\n\r{RERROR: Staff characters require MFA to be enabled.{x\n\r", 0);
+            write_to_buffer(d, "You must enable MFA on either your account or this character before logging in.\n\r", 0);
+            display_character_menu(d);
+            d->connected = CON_CHARACTER_MENU;
+            return;
+        }
+
+        if (has_char_mfa) {
+            write_to_buffer(d, "\n\rThis character has MFA enabled.\n\r", 0);
+            ProtocolNoEcho(d, true);
+            d->connected = CON_GET_CHAR_MFA;
+            return;
+        }
+        
+        if (IS_IMMORTAL(ch) && game_settings.require_2fa_staff && !IS_NULLSTR(acct->mfa_key) && !has_char_mfa) {
+            write_to_buffer(d, "\n\rThis is a staff character. Account MFA verification required.\n\r", 0);
+            d->connected = CON_GET_ACCOUNT_MFA_FOR_CHAR;
+            return;
+        }
+    }
+    
+    // No authentication needed, proceed directly to game
+    if (d->reconnecting && d->reconnect_ch) {
+        complete_reconnect(d);
+    } else {
+        proceed_to_game(d);
     }
 }
 

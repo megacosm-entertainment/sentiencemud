@@ -4877,6 +4877,7 @@ ACCOUNT_DATA *new_account(void)
     account->mfa_key = str_dup("");
     account->mfa_enabled = false;
     account->characters = list_create(false);
+    account->default_character = str_dup("");
     
     VALIDATE(account);
     return account;

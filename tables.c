@@ -3470,6 +3470,7 @@ const struct con_state_info con_states[] = {
     { CON_CONFIRM_NEW_PASSWORD,           "Confirm new password" },
     { CON_GET_NEW_RACE,                   "Get new race" },
     { CON_GET_NEW_SEX,                    "Get new sex" },
+    { CON_GET_NEW_BODY_TYPE,              "Get body type" },
     { CON_GET_NEW_CLASS,                  "Get new class" },
     { CON_GET_ALIGNMENT,                  "Get alignment" },
     /* 10: CON_DEFAULT_CHOICE (unused) */
@@ -3538,6 +3539,14 @@ const struct con_state_info con_states[] = {
     { CON_SET_UNLINK_PASSWORD,            "Set unlink password" },
     { CON_VERIFY_CHARACTER_DELETE,        "Verify character delete" },
     { CON_CHARACTER_DELETE,               "Character delete" },
+    { CON_CONFIRM_DEFAULT_PRONOUNS,       "Confirm default pronouns" },
+    { CON_SET_CUSTOM_PRONOUN_SUBJ,        "Set subject pronoun" },
+    { CON_SET_CUSTOM_PRONOUN_OBJ,         "Set object pronoun" },
+    { CON_SET_CUSTOM_PRONOUN_POSS_ADJ,    "Set possessive adjective" },
+    { CON_SET_CUSTOM_PRONOUN_POSS_PRON,   "Set possessive pronoun" },
+    { CON_SET_CUSTOM_PRONOUN_REFL,        "Set reflexive pronoun" },
+    { CON_SET_CUSTOM_VERB_PREF,           "Set verb preference" },
+    { CON_SET_CUSTOM_PRONOUNS_CONFIRM,    "Confirm custom pronouns" },
     { 0, NULL }  /* Terminator */
 };
 
