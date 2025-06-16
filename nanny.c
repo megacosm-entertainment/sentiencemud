@@ -1189,6 +1189,7 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
                 return;
 
 case 'Y': // Default character
+
         
     if (IS_NULLSTR(acct->default_character)) {
         write_to_buffer(d, "No default character has been set.\n\r", 0);
@@ -1199,16 +1200,18 @@ case 'Y': // Default character
     // Find the character entry
     ITERATOR it;
     ACCOUNT_CHARACTER *ch_entry = NULL;
+    bool found = false;
     
     iterator_start(&it, acct->characters);
     while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
         if (!str_cmp(ch_entry->name, acct->default_character)) {
+            found = true;
             break;
         }
     }
     iterator_stop(&it);
     
-    if (!ch_entry) {
+    if (!found) {
         write_to_buffer(d, "Default character not found in your account.\n\r", 0);
         display_account_menu(d);
         return;
@@ -1221,17 +1224,25 @@ case 'Y': // Default character
         return;
     }
     
-    // FIX: Add debug logging
+    // Clear any existing character data
+    if (d->character) {
+        free_char(d->character);
+        d->character = NULL;
+    }
+    
+    // Reset reconnection flags
+    d->reconnect_ch = NULL;
+    d->reconnecting = false;
+    
     log_stringf("Direct login: loading character %s", ch_entry->name);
     
-    // Load the character - use the full loading mode (2)
+    // Load the character
     if (!load_char_obj(d, ch_entry->name)) {
         write_to_buffer(d, "Error loading character.\n\r", 0);
         display_account_menu(d);
         return;
     }
     
-    // FIX: Verify the character was loaded correctly
     if (!d->character) {
         log_string("Direct login: Character loaded but d->character is NULL");
         write_to_buffer(d, "Error loading character data.\n\r", 0);
@@ -1245,33 +1256,55 @@ case 'Y': // Default character
     process_direct_login(d);
     break;
             
-        case 'Z': // Most recently played character
-                
-            ACCOUNT_CHARACTER *recent_char = find_most_recent_character(acct);
-            
-            if (!recent_char) {
-                write_to_buffer(d, "No eligible recent character found.\n\r", 0);
-                display_account_menu(d);
-                return;
-            }
-            
-            // Check if already online
-            if (is_character_online(recent_char->name)) {
-                write_to_buffer(d, "That character is already logged in.\n\r", 0);
-                display_account_menu(d);
-                return;
-            }
-            
-            // Load the character
-            if (!load_char_obj(d, recent_char->name)) {
-                write_to_buffer(d, "Error loading character.\n\r", 0);
-                display_account_menu(d);
-                return;
-            }
-            
-            // Skip character menu and proceed directly to authentication if needed
-            process_direct_login(d);
-            break;
+case 'Z': // Most recently played character
+
+        
+    ACCOUNT_CHARACTER *recent_char = find_most_recent_character(acct);
+    
+    if (!recent_char) {
+        write_to_buffer(d, "No eligible recent character found.\n\r", 0);
+        display_account_menu(d);
+        return;
+    }
+    
+    // Check if already online
+    if (is_character_online(recent_char->name)) {
+        write_to_buffer(d, "That character is already logged in.\n\r", 0);
+        display_account_menu(d);
+        return;
+    }
+    
+    // Clear any existing character data
+    if (d->character) {
+        free_char(d->character);
+        d->character = NULL;
+    }
+    
+    // Reset reconnection flags
+    d->reconnect_ch = NULL;
+    d->reconnecting = false;
+    
+    log_stringf("Direct login: loading character %s", recent_char->name);
+    
+    // Load the character
+    if (!load_char_obj(d, recent_char->name)) {
+        write_to_buffer(d, "Error loading character.\n\r", 0);
+        display_account_menu(d);
+        return;
+    }
+    
+    if (!d->character) {
+        log_string("Direct login: Character loaded but d->character is NULL");
+        write_to_buffer(d, "Error loading character data.\n\r", 0);
+        display_account_menu(d);
+        return;
+    }
+    
+    log_stringf("Direct login: character %s loaded successfully", d->character->name);
+    
+    // Skip character menu and proceed directly to authentication if needed
+    process_direct_login(d);
+    break;
 
             default:
                 write_to_buffer(d, "Invalid choice.\n\r", 0);
@@ -5897,19 +5930,33 @@ bool set_default_character(ACCOUNT_DATA *acct, const char *char_name)
     return true;
 }
 
-// Fix process_direct_login function
-
 void process_direct_login(DESCRIPTOR_DATA *d)
 {
     CHAR_DATA *ch = d->character;
     ACCOUNT_DATA *acct = d->account;
     ACCOUNT_CHARACTER *acct_char = NULL;
-    bool has_auth_data = get_character_auth_data(ch, acct, &acct_char);
+    bool has_auth_data = false;
     char debug_buf[MAX_STRING_LENGTH];
     
     // Add debug logging
-    sprintf(debug_buf, "process_direct_login: Character %s, has_auth_data=%d", 
-            ch ? ch->name : "NULL", has_auth_data);
+    sprintf(debug_buf, "process_direct_login: Character %s", 
+            ch ? ch->name : "NULL");
+    log_string(debug_buf);
+    
+    // Verify character exists
+    if (!ch) {
+        write_to_buffer(d, "\n\r{RERROR: Character not loaded properly.{x\n\r", 0);
+        log_string("process_direct_login: Character is NULL");
+        display_account_menu(d);
+        d->connected = CON_ACCOUNT_MENU;
+        return;
+    }
+    
+    // Get authentication data - critical step
+    has_auth_data = get_character_auth_data(ch, acct, &acct_char);
+    
+    sprintf(debug_buf, "process_direct_login: auth_data=%d, acct_char=%s", 
+            has_auth_data, acct_char ? "found" : "NULL");
     log_string(debug_buf);
     
     // Verify we have what we need
@@ -5934,17 +5981,16 @@ void process_direct_login(DESCRIPTOR_DATA *d)
     if (check_playing(d, ch->name))
         return;
     
-    // FIX: Better reconnect handling
-    bool is_reconnecting_attempt = check_reconnect(d, ch->name, true);
+    // Check for reconnection first - this must happen before authentication
+    bool is_reconnecting_attempt = check_reconnect(d, ch->name, false);
     
-    // Log reconnect attempt result
-    sprintf(debug_buf, "process_direct_login: check_reconnect result=%d, connected=%d", 
+    sprintf(debug_buf, "process_direct_login: reconnect check=%d, connected=%d", 
             is_reconnecting_attempt, d->connected);
     log_string(debug_buf);
     
-    // FIX: Only return if check_reconnect successfully handled the reconnection
-    if (is_reconnecting_attempt && d->connected == CON_PLAYING) {
-        log_string("process_direct_login: Reconnect succeeded, returning");
+    // If check_reconnect changed our connection state, return and let that handle it
+    if (is_reconnecting_attempt && d->connected != CON_ACCOUNT_MENU) {
+        log_string("process_direct_login: Letting reconnect handler take over");
         return;
     }
     
@@ -5965,6 +6011,7 @@ void process_direct_login(DESCRIPTOR_DATA *d)
         }
         
         if (has_char_pwd) {
+            log_string("process_direct_login: Character requires password");
             write_to_buffer(d, "\n\rThis character requires an additional password.\n\r", 0);
             ProtocolNoEcho(d, true);
             d->connected = CON_GET_CHAR_PASSWORD;
@@ -5985,6 +6032,7 @@ void process_direct_login(DESCRIPTOR_DATA *d)
         }
 
         if (has_char_mfa) {
+            log_string("process_direct_login: Character requires MFA");
             write_to_buffer(d, "\n\rThis character has MFA enabled.\n\r", 0);
             ProtocolNoEcho(d, true);
             d->connected = CON_GET_CHAR_MFA;
@@ -5993,21 +6041,25 @@ void process_direct_login(DESCRIPTOR_DATA *d)
         
         if (IS_IMMORTAL(ch) && game_settings.require_2fa_staff && 
             !IS_NULLSTR(acct->mfa_key) && !has_char_mfa) {
+            log_string("process_direct_login: Staff character requires account MFA");
             write_to_buffer(d, "\n\rThis is a staff character. Account MFA verification required.\n\r", 0);
+            ProtocolNoEcho(d, true);
             d->connected = CON_GET_ACCOUNT_MFA_FOR_CHAR;
             return;
         }
     }
     
+    // Now handle reconnection if needed - only if no authentication was required
+    if (is_reconnecting_attempt) {
+        log_string("process_direct_login: Processing reconnection now");
+        // Need to call with true to actually complete the reconnect
+        check_reconnect(d, ch->name, true);
+        return;
+    }
+    
     // No authentication needed, proceed directly to game
     log_string("process_direct_login: Proceeding to game");
-    if (d->reconnect_ch) {
-        log_string("process_direct_login: Using complete_reconnect");
-        complete_reconnect(d);
-    } else {
-        log_string("process_direct_login: Using proceed_to_game");
-        proceed_to_game(d);
-    }
+    proceed_to_game(d);
 }
 
 void nanny(DESCRIPTOR_DATA *d, char *argument)

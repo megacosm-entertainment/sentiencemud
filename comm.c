@@ -2620,7 +2620,12 @@ bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
     CHAR_DATA *ch;
     ACCOUNT_CHARACTER *acct_char = NULL;
     bool found = false;
+    bool authentication_needed = false;
     ITERATOR cit;
+
+    // Skip if we're already reconnecting to prevent double handling
+    if (d->reconnecting && d->reconnect_ch)
+        return true;
 
     iterator_start(&cit, loaded_chars);
     while((ch = (CHAR_DATA *)iterator_nextdata(&cit)) && !found)
@@ -2642,7 +2647,16 @@ bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
     log_stringf("check_reconnect: Found existing character %s, descriptor: %s", 
                 ch->name, ch->desc ? "connected" : "linkdead");
     
-    // Handle special authentication cases
+    // Set reconnect_ch regardless of authentication - we'll need it later
+    d->reconnect_ch = ch;
+    
+    // If not actually connecting yet, just set this up for auth checks
+    if (!fConn) {
+        d->reconnecting = true;
+        return true;
+    }
+    
+    // Handle authentication requirements
     if (!DEV_SKIP_MFA) {
         // Improve the MFA check to properly handle empty strings
         bool has_mfa = false;
@@ -2656,86 +2670,102 @@ bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
             if (has_mfa) {
                 write_to_buffer(d, "\n\rReconnecting - This character has MFA enabled.\n\r", 0);
                 ProtocolNoEcho(d, true);
-                d->reconnect_ch = ch;
                 d->reconnecting = true;
                 d->connected = CON_GET_CHAR_MFA;
-                return true;
+                authentication_needed = true;
             } 
             // Otherwise, verify account MFA only if it's actually set
             else if (d->account && !IS_NULLSTR(d->account->mfa_key)) {
                 write_to_buffer(d, "\n\rReconnecting - Staff account MFA verification required.\n\r", 0);
                 ProtocolNoEcho(d, true);
-                d->reconnect_ch = ch;
                 d->reconnecting = true;
                 d->connected = CON_GET_ACCOUNT_MFA_FOR_CHAR;
-                return true;
+                authentication_needed = true;
             }
         }
         // Regular character with MFA
         else if (has_mfa) {
             write_to_buffer(d, "\n\rReconnecting - This character has MFA enabled.\n\r", 0);
             ProtocolNoEcho(d, true);
-            d->reconnect_ch = ch;
             d->reconnecting = true;
             d->connected = CON_GET_CHAR_MFA;
-            return true;
+            authentication_needed = true;
         }
     }
 
     // Check for character password - use account_character data
-    if (!DEV_SKIP_PASSWORD && acct_char && !IS_NULLSTR(acct_char->pwd)) {
+    if (!authentication_needed && !DEV_SKIP_PASSWORD && acct_char && !IS_NULLSTR(acct_char->pwd)) {
         write_to_buffer(d, "\n\rReconnecting - Password verification required.\n\r", 0);
         ProtocolNoEcho(d, true);
-        d->reconnect_ch = ch;
         d->reconnecting = true;
         d->connected = CON_GET_CHAR_PASSWORD;
+        authentication_needed = true;
+    }
+
+    // If authentication is needed, don't complete the reconnect yet
+    if (authentication_needed) {
         return true;
     }
 
-    // If we get here, no authentication needed
-    if (fConn) {
-        // Store the character for later reconnection
-        d->reconnect_ch = ch;
-        d->reconnecting = true;
-        
-        // Complete the reconnection immediately
-        complete_reconnect(d);
-        return true;
-    }
-    
+    // No authentication needed, complete the reconnection immediately
+    d->reconnecting = true;
+    complete_reconnect(d);
     return true;
 }
 
 void complete_reconnect(DESCRIPTOR_DATA *d)
 {
-    if (!d->reconnect_ch || !d->reconnecting)
+    CHAR_DATA *ch;
+    
+    if (!d->reconnect_ch || !d->reconnecting) {
+        log_string("complete_reconnect: Missing reconnect_ch or reconnecting flag");
         return;
-        
-    CHAR_DATA *old_char = d->character;
-    CHAR_DATA *ch = d->reconnect_ch;
-
-    // Handle pet cleanup from incoming connection if needed
-    if (old_char->pet) {
-        CHAR_DATA *pet = old_char->pet;
-        char_to_room(pet, get_room_index(get_reserved_vnum("room_limbo")));
-        stop_follower(pet, true);
-        extract_char(pet, true);
     }
-
-    // Preserve any temporary descriptor data we need
-    ch->timer = 0;  // Reset idle timer
     
-    // Switch the descriptor to the existing character
+    ch = d->reconnect_ch;
+    
+    // Free any temporary character loaded during login
+    if (d->character && d->character != ch) {
+        free_char(d->character);
+    }
+    
+    // Connect the descriptor to the reconnecting character
+    d->character = ch;
     ch->desc = d;
-    d->character = ch;  // Point to the existing character
-    d->original = NULL; // Make sure we're not switched
-    d->reconnect_ch = NULL; // Clear the reconnect reference
     
-    // Now free the temporary character that was created during login
-    free_char(old_char);
+    // Clear reconnection flags
+    d->reconnect_ch = NULL;
+    d->reconnecting = false;
     
-    // Call reconnect_char to complete the process
-    reconnect_char(d);
+    // Reset inactivity timer
+    ch->timer = 0;
+    
+    // Set playing state
+    d->connected = CON_PLAYING;
+    
+    // Notify player of reconnection
+    send_to_char("\n\r{GReconnecting to game...{x\n\r", ch);
+    
+    // Place character if they're not already in a room
+    if (!ch->in_room) {
+        if (get_room_index(get_reserved_vnum("room_default_recall")))
+            char_to_room(ch, get_room_index(get_reserved_vnum("room_default_recall")));
+        else
+            char_to_room(ch, get_room_index(get_reserved_vnum("room_default_recall")));
+    }
+    
+    // Announce reconnection to room
+    act("$n has reconnected.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    
+    // Log the reconnection
+    log_stringf("%s@%s reconnected.", ch->name, d->host);
+    wiznet("$N has reconnected.", ch, NULL, WIZ_LINKS, 0, 0);
+    
+    // Update protocol
+    MXPSendTag(d, "<VERSION>");
+    
+    // Show room to player
+    do_function(ch, &do_look, "auto");
 }
 
 void reconnect_char(DESCRIPTOR_DATA *d)
