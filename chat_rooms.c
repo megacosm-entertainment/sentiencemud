@@ -374,7 +374,7 @@ void do_chat_join(CHAR_DATA *ch, char *argument)
     
     // Only check password if not creator and not an op
     if (str_cmp(chat->password, "none") && 
-        !str_cmp(chat->created_by, ch->name) && 
+        str_cmp(chat->created_by, ch->name) && 
         !is_op(chat, ch->name) && 
         str_cmp(chat->password, arg2))
     {
