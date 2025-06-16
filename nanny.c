@@ -1049,6 +1049,12 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
     ACCOUNT_CHARACTER *ch_entry;
     int choice = 0;
     ITERATOR it;
+    
+    ACCOUNT_CHARACTER *acct_char = NULL;
+    bool has_auth_data = false;
+    bool has_char_pwd = false;
+    bool has_char_mfa = false;
+    bool found = false;
 
     // Arrays to store sorted characters
     ACCOUNT_CHARACTER *staff_chars[100];
@@ -1188,123 +1194,200 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
                 d->connected = CON_VERIFY_ACCOUNT_EMAIL_CHANGE;
                 return;
 
-case 'Y': // Default character
-
-        
-    if (IS_NULLSTR(acct->default_character)) {
-        write_to_buffer(d, "No default character has been set.\n\r", 0);
-        display_account_menu(d);
-        return;
-    }
-    
-    // Find the character entry
-    ITERATOR it;
-    ACCOUNT_CHARACTER *ch_entry = NULL;
-    bool found = false;
-    
-    iterator_start(&it, acct->characters);
-    while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
-        if (!str_cmp(ch_entry->name, acct->default_character)) {
-            found = true;
-            break;
-        }
-    }
-    iterator_stop(&it);
-    
-    if (!found) {
-        write_to_buffer(d, "Default character not found in your account.\n\r", 0);
-        display_account_menu(d);
-        return;
-    }
-    
-    // Check if already online
-    if (is_character_online(ch_entry->name)) {
-        write_to_buffer(d, "That character is already logged in.\n\r", 0);
-        display_account_menu(d);
-        return;
-    }
-    
-    // Clear any existing character data
-    if (d->character) {
-        free_char(d->character);
-        d->character = NULL;
-    }
-    
-    // Reset reconnection flags
-    d->reconnect_ch = NULL;
-    d->reconnecting = false;
-    
-    log_stringf("Direct login: loading character %s", ch_entry->name);
-    
-    // Load the character
-    if (!load_char_obj(d, ch_entry->name)) {
-        write_to_buffer(d, "Error loading character.\n\r", 0);
-        display_account_menu(d);
-        return;
-    }
-    
-    if (!d->character) {
-        log_string("Direct login: Character loaded but d->character is NULL");
-        write_to_buffer(d, "Error loading character data.\n\r", 0);
-        display_account_menu(d);
-        return;
-    }
-    
-    log_stringf("Direct login: character %s loaded successfully", d->character->name);
-    
-    // Skip character menu and proceed directly to authentication if needed
-    process_direct_login(d);
-    break;
-            
-case 'Z': // Most recently played character
-
-        
-    ACCOUNT_CHARACTER *recent_char = find_most_recent_character(acct);
-    
-    if (!recent_char) {
-        write_to_buffer(d, "No eligible recent character found.\n\r", 0);
-        display_account_menu(d);
-        return;
-    }
-    
-    // Check if already online
-    if (is_character_online(recent_char->name)) {
-        write_to_buffer(d, "That character is already logged in.\n\r", 0);
-        display_account_menu(d);
-        return;
-    }
-    
-    // Clear any existing character data
-    if (d->character) {
-        free_char(d->character);
-        d->character = NULL;
-    }
-    
-    // Reset reconnection flags
-    d->reconnect_ch = NULL;
-    d->reconnecting = false;
-    
-    log_stringf("Direct login: loading character %s", recent_char->name);
-    
-    // Load the character
-    if (!load_char_obj(d, recent_char->name)) {
-        write_to_buffer(d, "Error loading character.\n\r", 0);
-        display_account_menu(d);
-        return;
-    }
-    
-    if (!d->character) {
-        log_string("Direct login: Character loaded but d->character is NULL");
-        write_to_buffer(d, "Error loading character data.\n\r", 0);
-        display_account_menu(d);
-        return;
-    }
-    
-    log_stringf("Direct login: character %s loaded successfully", d->character->name);
-    
-    // Skip character menu and proceed directly to authentication if needed
-    process_direct_login(d);
-    break;
+            case 'Y': // Default character
+                if (IS_NULLSTR(acct->default_character)) {
+                    write_to_buffer(d, "No default character has been set.\n\r", 0);
+                    display_account_menu(d);
+                    return;
+                }
+                
+                // Find the character entry
+                iterator_start(&it, acct->characters);
+                while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+                    if (!str_cmp(ch_entry->name, acct->default_character)) {
+                        found = true;
+                        break;
+                    }
+                }
+                iterator_stop(&it);
+                
+                if (!found) {
+                    write_to_buffer(d, "Default character not found in your account.\n\r", 0);
+                    display_account_menu(d);
+                    return;
+                }
+                
+                // Check if already online
+                if (is_character_online(ch_entry->name)) {
+                    write_to_buffer(d, "That character is already logged in.\n\r", 0);
+                    display_account_menu(d);
+                    return;
+                }
+                
+                // Clear any existing character data
+                if (d->character) {
+                    free_char(d->character);
+                    d->character = NULL;
+                }
+                
+                // Reset reconnection flags
+                d->reconnect_ch = NULL;
+                d->reconnecting = false;
+                
+                log_string("Direct login: Loading default character");
+                
+                // Load the character - this should create a new character
+                if (!load_char_obj(d, ch_entry->name)) {
+                    write_to_buffer(d, "Error loading character.\n\r", 0);
+                    display_account_menu(d);
+                    return;
+                }
+                
+                // Verify the character was loaded correctly
+                if (!d->character) {
+                    log_string("Direct login: Character loaded but d->character is NULL");
+                    write_to_buffer(d, "Error loading character data.\n\r", 0);
+                    display_account_menu(d);
+                    return;
+                }
+                
+                // Get account character data
+                has_auth_data = get_character_auth_data(d->character, acct, &acct_char);
+                
+                if (!has_auth_data || !acct_char) {
+                    write_to_buffer(d, "Error with character authentication data.\n\r", 0);
+                    free_char(d->character);
+                    d->character = NULL;
+                    display_account_menu(d);
+                    return;
+                }
+                
+                // Handle authentication inline
+                has_char_pwd = !IS_NULLSTR(acct_char->pwd);
+                has_char_mfa = !IS_NULLSTR(acct_char->mfa_key);
+                
+                // Check for reconnection
+                if (check_reconnect(d, d->character->name, false)) {
+                    // Let reconnect handler take over
+                    if (d->connected != CON_ACCOUNT_MENU) {
+                        return;
+                    }
+                    // Else fall through to auth checks
+                }
+                
+                // Check password if needed
+                if (!DEV_SKIP_PASSWORD && has_char_pwd) {
+                    write_to_buffer(d, "\n\rThis character requires an additional password.\n\r", 0);
+                    ProtocolNoEcho(d, true);
+                    d->connected = CON_GET_CHAR_PASSWORD;
+                    return;
+                }
+                
+                // Check MFA if needed
+                if (!DEV_SKIP_MFA && has_char_mfa) {
+                    write_to_buffer(d, "\n\rThis character has MFA enabled.\n\r", 0);
+                    ProtocolNoEcho(d, true);
+                    d->connected = CON_GET_CHAR_MFA;
+                    return;
+                }
+                
+                // If no auth needed, proceed to game
+                if (d->reconnecting && d->reconnect_ch) {
+                    complete_reconnect(d);
+                } else {
+                    proceed_to_game(d);
+                }
+                break;
+                
+            case 'Z': // Most recently played character
+                ACCOUNT_CHARACTER *recent_char = find_most_recent_character(acct);
+                
+                if (!recent_char) {
+                    write_to_buffer(d, "No eligible recent character found.\n\r", 0);
+                    display_account_menu(d);
+                    return;
+                }
+                
+                // Check if already online
+                if (is_character_online(recent_char->name)) {
+                    write_to_buffer(d, "That character is already logged in.\n\r", 0);
+                    display_account_menu(d);
+                    return;
+                }
+                
+                // Clear any existing character data
+                if (d->character) {
+                    free_char(d->character);
+                    d->character = NULL;
+                }
+                
+                // Reset reconnection flags
+                d->reconnect_ch = NULL;
+                d->reconnecting = false;
+                
+                log_string("Direct login: Loading most recent character");
+                
+                // Load the character
+                if (!load_char_obj(d, recent_char->name)) {
+                    write_to_buffer(d, "Error loading character.\n\r", 0);
+                    display_account_menu(d);
+                    return;
+                }
+                
+                if (!d->character) {
+                    log_string("Direct login: Character loaded but d->character is NULL");
+                    write_to_buffer(d, "Error loading character data.\n\r", 0);
+                    display_account_menu(d);
+                    return;
+                }
+                
+                // Get account character data - reuse the variables declared at the top
+                has_auth_data = get_character_auth_data(d->character, acct, &acct_char);
+                
+                if (!has_auth_data || !acct_char) {
+                    write_to_buffer(d, "Error with character authentication data.\n\r", 0);
+                    free_char(d->character);
+                    d->character = NULL;
+                    display_account_menu(d);
+                    return;
+                }
+                
+                // Handle authentication inline
+                has_char_pwd = !IS_NULLSTR(acct_char->pwd);
+                has_char_mfa = !IS_NULLSTR(acct_char->mfa_key);
+                
+                // Check for reconnection
+                if (check_reconnect(d, d->character->name, false)) {
+                    // Let reconnect handler take over
+                    if (d->connected != CON_ACCOUNT_MENU) {
+                        return;
+                    }
+                    // Else fall through to auth checks
+                }
+                
+                // Check password if needed
+                if (!DEV_SKIP_PASSWORD && has_char_pwd) {
+                    write_to_buffer(d, "\n\rThis character requires an additional password.\n\r", 0);
+                    ProtocolNoEcho(d, true);
+                    d->connected = CON_GET_CHAR_PASSWORD;
+                    return;
+                }
+                
+                // Check MFA if needed
+                if (!DEV_SKIP_MFA && has_char_mfa) {
+                    write_to_buffer(d, "\n\rThis character has MFA enabled.\n\r", 0);
+                    ProtocolNoEcho(d, true);
+                    d->connected = CON_GET_CHAR_MFA;
+                    return;
+                }
+                
+                // If no auth needed, proceed to game
+                if (d->reconnecting && d->reconnect_ch) {
+                    complete_reconnect(d);
+                } else {
+                    proceed_to_game(d);
+                }
+                break;
 
             default:
                 write_to_buffer(d, "Invalid choice.\n\r", 0);
