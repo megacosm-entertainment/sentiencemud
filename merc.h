@@ -4211,6 +4211,7 @@ struct token_index_data
 struct token_data
 {
 	char __type;
+    bool    gc;
 	TOKEN_INDEX_DATA	*pIndexData;
 	TOKEN_DATA		*global_next;
 	TOKEN_DATA 		*next;
@@ -4409,6 +4410,7 @@ struct limb_data {
 struct	char_data
 {
 	char __type;
+    bool gc;
     CHAR_DATA *		next;
     CHAR_DATA *		next_persist;
     CHAR_DATA *		next_in_room;
@@ -5278,6 +5280,7 @@ struct spell_data
 struct	obj_data
 {
 	char __type;
+    bool gc;
     OBJ_DATA *		next;		/* for the world list */
     OBJ_DATA *		next_persist;	// Next object in the persistance list
     OBJ_DATA *		next_content;
@@ -6060,6 +6063,7 @@ struct struckdrunk
 struct	room_index_data
 {
 	char __type;
+    bool gc;
     ROOM_INDEX_DATA *	next;
     ROOM_INDEX_DATA *	next_persist;
     ROOM_INDEX_DATA *	next_clone;	/* next clone in the chain for its environment */
@@ -6601,6 +6605,10 @@ extern          int			reckoning_chance;
 extern          int			reckoning_duration;
 extern          int			reckoning_intensity;
 extern          int			reckoning_cooldown;
+
+extern long gc_total_processed;
+extern long gc_calls;
+extern long gc_max_time;
 
 /*
  * Types of attacks.
@@ -8371,6 +8379,7 @@ char 	*fix_string( const char *str );
 AREA_DATA *get_wilderness_area ( void );
 char *skip_whitespace(register char *str);
 void send_boot_errors_to_coders();
+int process_garbage_collection(void);
 
 /* db2.c */
 AREA_DATA *get_random_area( CHAR_DATA *ch, int continent, bool no_get_random );
@@ -9932,7 +9941,10 @@ void string_end_chlog(CHAR_DATA *ch);
 void game_settings_string_edit(CHAR_DATA *ch);
 
 
-
+extern LLIST *gc_mobiles;
+extern LLIST *gc_objects;
+extern LLIST *gc_rooms;
+extern LLIST *gc_tokens;
 
 
 /*

@@ -190,6 +190,11 @@ int limbo_timeout = 12;
 /*
  * Globals.
  */
+
+LLIST *gc_mobiles;
+LLIST *gc_objects;
+LLIST *gc_rooms;
+LLIST *gc_tokens;
 AREA_DATA *		eden_area;
 AREA_DATA *		netherworld_area;
 AREA_DATA *		wilderness_area;
@@ -245,6 +250,9 @@ time_t			reckoning_cooldown_timer;
 PROG_DATA *		prog_data_virtual;
 char *			room_name_virtual;
 bool			objRepop;
+long gc_total_processed = 0;
+long gc_calls = 0;
+long gc_max_time = 0;
 /* This variable serves as a placeholder to make sure that obj repop scripts
    are only triggered by newly created objects instead of any objects. This
    is necesarry because I put the triggering mechanism in obj_to_char() and
@@ -5267,6 +5275,9 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
 		return false;
 	}
 
+	if (clone->gc || list_hasdata(gc_rooms, clone))
+		return true;
+
 	/* Prevents infinite loops*/
 	if(clone->progs && PROG_FLAG(clone,PROG_NODESTRUCT)) {
 //		sprintf(buf,"extract_clone_room(%lu, %lu, %lu) clone already being destructed", room->vnum, id1, id2);
@@ -5362,7 +5373,8 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
 
 	/* Remove from its environment*/
 	room_from_environment(clone);
-	free_room_index(clone);
+	list_appendlink(gc_rooms, clone);
+	clone->gc = true;
 
 //	sprintf(buf,"extract_clone_room(%lu, %lu, %lu) clone extracted", room->vnum, id1, id2);
 //	wiznet(buf, NULL, NULL, WIZ_TESTING, 0, 0);
@@ -8435,4 +8447,182 @@ void send_boot_errors_to_coders()
     }
     boot_error_len = 0;
     boot_error_buf[0] = '\0';
+}
+
+
+// Add these to global declarations
+#define MAX_GC_TIME_PER_TICK 5 /* Maximum milliseconds to spend on GC per tick */
+#define MAX_GC_ITEMS_PER_CATEGORY 100 /* Fallback max items if we can't measure time */
+
+/*
+ * Process pending garbage collection with time budgeting
+ * Returns number of items processed
+ */
+int process_garbage_collection(void)
+{
+    struct timeval start_time, current_time;
+    long elapsed_ms;
+    int total_processed = 0;
+    int processed;
+	gc_calls++;
+    
+    // Start the timer
+    gettimeofday(&start_time, NULL);
+    
+    // Process tokens first (usually lightweight)
+    processed = 0;
+    if (list_size(gc_tokens) > 0) {
+        ITERATOR it;
+        TOKEN_DATA *token;
+        LLIST *temp_list = list_create(false);
+        
+        iterator_start(&it, gc_tokens);
+        while ((token = (TOKEN_DATA *)iterator_nextdata(&it))) {
+            // Check time budget
+            gettimeofday(&current_time, NULL);
+            elapsed_ms = (current_time.tv_sec - start_time.tv_sec) * 1000 + 
+                         (current_time.tv_usec - start_time.tv_usec) / 1000;
+            
+            if (elapsed_ms >= MAX_GC_TIME_PER_TICK || processed >= MAX_GC_ITEMS_PER_CATEGORY)
+                break;
+                
+            list_appendlink(temp_list, token);
+            processed++;
+        }
+        iterator_stop(&it);
+        
+        // Free the collected tokens
+        iterator_start(&it, temp_list);
+        while ((token = (TOKEN_DATA *)iterator_nextdata(&it))) {
+            list_remlink(gc_tokens, token, false);
+            free_token(token);
+        }
+        iterator_stop(&it);
+        
+        list_destroy(temp_list);
+        total_processed += processed;
+        
+        // Early return if time budget exceeded
+        if (elapsed_ms >= MAX_GC_TIME_PER_TICK)
+            return total_processed;
+    }
+    
+    // Process objects next (medium weight)
+    processed = 0;
+    if (list_size(gc_objects) > 0) {
+        ITERATOR it;
+        OBJ_DATA *obj;
+        LLIST *temp_list = list_create(false);
+        
+        iterator_start(&it, gc_objects);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            // Check time budget
+            gettimeofday(&current_time, NULL);
+            elapsed_ms = (current_time.tv_sec - start_time.tv_sec) * 1000 + 
+                         (current_time.tv_usec - start_time.tv_usec) / 1000;
+            
+            if (elapsed_ms >= MAX_GC_TIME_PER_TICK || processed >= MAX_GC_ITEMS_PER_CATEGORY)
+                break;
+                
+            list_appendlink(temp_list, obj);
+            processed++;
+        }
+        iterator_stop(&it);
+        
+        // Free the collected objects
+        iterator_start(&it, temp_list);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            list_remlink(gc_objects, obj, false);
+            free_obj(obj);
+        }
+        iterator_stop(&it);
+        
+        list_destroy(temp_list);
+        total_processed += processed;
+        
+        // Early return if time budget exceeded
+        if (elapsed_ms >= MAX_GC_TIME_PER_TICK)
+            return total_processed;
+    }
+    
+    // Process rooms next
+    processed = 0;
+    if (list_size(gc_rooms) > 0) {
+        ITERATOR it;
+        ROOM_INDEX_DATA *room;
+        LLIST *temp_list = list_create(false);
+        
+        iterator_start(&it, gc_rooms);
+        while ((room = (ROOM_INDEX_DATA *)iterator_nextdata(&it))) {
+            // Check time budget
+            gettimeofday(&current_time, NULL);
+            elapsed_ms = (current_time.tv_sec - start_time.tv_sec) * 1000 + 
+                         (current_time.tv_usec - start_time.tv_usec) / 1000;
+            
+            if (elapsed_ms >= MAX_GC_TIME_PER_TICK || processed >= MAX_GC_ITEMS_PER_CATEGORY)
+                break;
+                
+            list_appendlink(temp_list, room);
+            processed++;
+        }
+        iterator_stop(&it);
+        
+        // Free the collected rooms
+        iterator_start(&it, temp_list);
+        while ((room = (ROOM_INDEX_DATA *)iterator_nextdata(&it))) {
+            list_remlink(gc_rooms, room, false);
+            free_room_index(room);
+        }
+        iterator_stop(&it);
+        
+        list_destroy(temp_list);
+        total_processed += processed;
+        
+        // Early return if time budget exceeded
+        if (elapsed_ms >= MAX_GC_TIME_PER_TICK)
+            return total_processed;
+    }
+    
+    // Process mobs last (heaviest)
+    processed = 0;
+    if (list_size(gc_mobiles) > 0) {
+        ITERATOR it;
+        CHAR_DATA *mob;
+        LLIST *temp_list = list_create(false);
+        
+        iterator_start(&it, gc_mobiles);
+        while ((mob = (CHAR_DATA *)iterator_nextdata(&it))) {
+            // Check time budget
+            gettimeofday(&current_time, NULL);
+            elapsed_ms = (current_time.tv_sec - start_time.tv_sec) * 1000 + 
+                         (current_time.tv_usec - start_time.tv_usec) / 1000;
+            
+            if (elapsed_ms >= MAX_GC_TIME_PER_TICK || processed >= MAX_GC_ITEMS_PER_CATEGORY)
+                break;
+                
+            list_appendlink(temp_list, mob);
+            processed++;
+        }
+        iterator_stop(&it);
+        
+        // Free the collected mobs
+        iterator_start(&it, temp_list);
+        while ((mob = (CHAR_DATA *)iterator_nextdata(&it))) {
+            list_remlink(gc_mobiles, mob, false);
+            free_char(mob);
+        }
+        iterator_stop(&it);
+        
+        list_destroy(temp_list);
+        total_processed += processed;
+    }
+
+gc_total_processed += total_processed;
+gettimeofday(&current_time, NULL);
+elapsed_ms = (current_time.tv_sec - start_time.tv_sec) * 1000 + 
+             (current_time.tv_usec - start_time.tv_usec) / 1000;
+if (elapsed_ms > gc_max_time)
+    gc_max_time = elapsed_ms;
+    
+    return total_processed;
 }

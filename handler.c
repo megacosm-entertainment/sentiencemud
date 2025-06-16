@@ -2946,6 +2946,9 @@ void extract_obj(OBJ_DATA *obj)
 	return;
     }
 
+	if (obj->gc || list_hasdata(gc_objects, obj))
+		return;
+
     if(obj->progs) {
 	    SET_BIT(obj->progs->entity_flags,PROG_NODESTRUCT);
 	    if(obj->progs->script_ref > 0) {
@@ -3022,7 +3025,8 @@ void extract_obj(OBJ_DATA *obj)
 	extract_special_key(obj);
 
     --obj->pIndexData->count;
-    free_obj(obj);
+	list_appendlink(gc_objects, obj);
+	obj->gc = true;
 }
 
 
@@ -3036,6 +3040,9 @@ void extract_char(CHAR_DATA *ch, bool fPull)
     DESCRIPTOR_DATA *d;
     char buf[MAX_STRING_LENGTH];
     ITERATOR it;
+
+	if (ch->gc || list_hasdata(gc_mobiles, ch))
+		return;
 
     if (ch->in_room == NULL)
     {
@@ -3218,12 +3225,17 @@ void extract_char(CHAR_DATA *ch, bool fPull)
     detach_dungeons_player(ch);
     detach_ships_player(ch);
 
-    free_char(ch);
+	list_appendlink(gc_mobiles, ch);
+	ch->gc = true;
     return;
 }
 
 void extract_token(TOKEN_DATA *token)
 {
+
+	if (token->gc || list_hasdata(gc_tokens, token))
+		return;
+	
     if(token->progs) {
 	    SET_BIT(token->progs->entity_flags,PROG_NODESTRUCT);
 		if(token->progs->script_ref > 0) {
@@ -3246,7 +3258,8 @@ void extract_token(TOKEN_DATA *token)
     	token_from_room(token);
 	}
 
-	free_token(token);
+	list_appendlink(gc_tokens, token);
+	token->gc = true;
 	return;
 }
 

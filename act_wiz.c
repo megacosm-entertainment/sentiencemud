@@ -11098,3 +11098,25 @@ void do_acctunlink(CHAR_DATA *ch, char *argument) {
     free_char(char_to_unlink);
     d_char.character = NULL;
 }
+
+// Add a command for immortals to view GC stats
+void do_gcstats(CHAR_DATA *ch, char *argument)
+{
+    if (!IS_IMMORTAL(ch)) {
+        send_to_char("Huh?\n\r", ch);
+        return;
+    }
+    
+    char buf[MAX_STRING_LENGTH];
+    sprintf(buf, "Garbage Collection Statistics:\n\r");
+    sprintf(buf + strlen(buf), "Items waiting: Mobs %d, Objs %d, Rooms %d, Tokens %d\n\r",
+            list_size(gc_mobiles), list_size(gc_objects), 
+            list_size(gc_rooms), list_size(gc_tokens));
+    sprintf(buf + strlen(buf), "Total GC calls: %ld\n\r", gc_calls);
+    sprintf(buf + strlen(buf), "Total items processed: %ld\n\r", gc_total_processed);
+    sprintf(buf + strlen(buf), "Average items per call: %.2f\n\r", 
+            gc_calls > 0 ? (float)gc_total_processed / gc_calls : 0);
+    sprintf(buf + strlen(buf), "Max GC time: %ld ms\n\r", gc_max_time);
+    
+    send_to_char(buf, ch);
+}

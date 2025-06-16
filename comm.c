@@ -337,6 +337,34 @@ int main(int argc, char **argv)
     malloc_debug(2);
 #endif
 
+	gc_mobiles = list_create(false);
+	if(!gc_mobiles)
+	{
+		perror("Could not create 'gc_mobiles'");
+		exit(1);
+	}
+
+	gc_objects  = list_create(false);
+	if(!gc_objects)
+	{
+		perror("Could not create 'gc_objects'");
+		exit(1);
+	}
+
+	gc_rooms = list_create(false);
+	if(!gc_rooms)
+	{
+		perror("Could not create 'gc_rooms'");
+		exit(1);
+	}
+
+	gc_tokens = list_create(false);
+	if(!gc_tokens)
+	{
+		perror("Could not create 'gc_tokens'");
+		exit(1);
+	}
+
 	conn_players = list_create(false);
 	if(!conn_players) {
 		perror("Could not create 'conn_players'");
@@ -527,6 +555,10 @@ int main(int argc, char **argv)
 	list_destroy(persist_mobs);
 	list_destroy(persist_objs);
 	list_destroy(persist_rooms);
+    list_destroy(gc_mobiles);
+	list_destroy(gc_objects);
+	list_destroy(gc_rooms);
+	list_destroy(gc_tokens);
 	iterator_start(&iter, loaded_areas);
 	while((data = iterator_nextdata(&iter)))
 		free_mem(data, sizeof(LLIST_AREA_DATA));
@@ -1073,7 +1105,8 @@ void game_loop(int control_telnet, int control_tls)
             }
         }
 
-	// Garbate collect
+	// Garbage collect
+    process_garbage_collection();
 
 	/* Check to see if the logfiles have overflowed*/
 	check_logfile();

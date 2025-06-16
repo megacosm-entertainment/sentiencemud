@@ -1150,29 +1150,34 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 
     ch->pcdata->last_login = current_time;
 
-    // After loading the character file and before returning found
-    // Add account migration code
-    if (found && !IS_NPC(ch) && 
-        (ch->pcdata->account_id[0] != 0 || !IS_NULLSTR(ch->pcdata->account_name))) {
-        
-        // Try to find and update account - first by ID, then by name
+if (found && !IS_NPC(ch) && 
+    (ch->pcdata->account_id[0] != 0 || !IS_NULLSTR(ch->pcdata->account_name))) {
+    
+    // First determine if migration is needed
+    bool migration_needed = ((!IS_NULLSTR(ch->pcdata->pwd) && ch->pcdata->account_pwd_override) || 
+                           !IS_NULLSTR(ch->pcdata->reset_code) ||
+                           ch->pcdata->mfa_enabled ||
+                           !IS_NULLSTR(ch->pcdata->email));
+    
+    // Only lookup account if we need to migrate or if descriptor doesn't have an account
+    if (migration_needed || d->account == NULL) {
         ACCOUNT_DATA *account = NULL;
-        bool migration_needed = false;
         
-        if (ch->pcdata->account_id[0] != 0)
-            account = find_account_by_id(ch->pcdata->account_id[0], ch->pcdata->account_id[1]);
-            
-        // Fall back to name lookup if ID lookup fails
-        if (account == NULL && !IS_NULLSTR(ch->pcdata->account_name))
+        // Try name lookup first (faster)
+        if (!IS_NULLSTR(ch->pcdata->account_name)) {
+            log_string(formatf("load_char_obj: looking up account %s by name", ch->pcdata->account_name));
             account = find_account_by_name(ch->pcdata->account_name);
-            
+        }
+        
+        // Only fall back to ID lookup if necessary and we have valid IDs
+        if (account == NULL && ch->pcdata->account_id[0] != 0) {
+            log_string(formatf("load_char_obj: falling back to ID lookup for account"));
+            account = find_account_by_id(ch->pcdata->account_id[0], ch->pcdata->account_id[1]);
+        }
+        
         if (account != NULL) {
-            // Check if we need to migrate any authentication data
-    if ((!IS_NULLSTR(ch->pcdata->pwd) && ch->pcdata->account_pwd_override) || 
-        !IS_NULLSTR(ch->pcdata->reset_code) ||
-        ch->pcdata->mfa_enabled ||
-        !IS_NULLSTR(ch->pcdata->email)) {
-                
+            // Perform migration if needed
+            if (migration_needed) {
                 log_string(formatf("load_char_obj: migrating authentication data for %s to account %s",
                     ch->name, account->username));
                 
@@ -1181,7 +1186,9 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
                 
                 // Save the account with migrated data
                 save_account(account);
-                migration_needed = true;
+                
+                // Save character with cleared auth data
+                save_char_obj(ch);
             }
             
             // Update descriptor's account pointer if needed
@@ -1192,13 +1199,14 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
                 // Just free this one we loaded temporarily
                 free_account(account);
             }
-        }
-        
-        // If we migrated data, we should save the character file with cleared auth data
-        if (migration_needed) {
-            save_char_obj(ch);
+        } else if (migration_needed) {
+            log_stringf("load_char_obj: Character %s has account identifiers but account could not be found by name ('%s') or ID (%lu %lu).",
+                ch->name,
+                ch->pcdata->account_name ? ch->pcdata->account_name : "NULL",
+                ch->pcdata->account_id[0], ch->pcdata->account_id[1]);
         }
     }
+}
 
     return found;
 }
