@@ -5483,6 +5483,8 @@ break;
     			fMatch = TRUE;
 			}
             break;
+		case 'D':
+		    KEY("DefaultChar", account->default_character, fread_string(fp));
 
         case 'E':
             if (!str_cmp(word, "End")) {
@@ -5768,7 +5770,9 @@ void fwrite_account(ACCOUNT_DATA *account, FILE *fp)
 	fprintf(fp, "LastLogin %ld\n", account->last_login);
 	fprintf(fp, "CharCount %d\n", account->character_count);
 	fprintf(fp, "StaffAccount %d\n", account->staff_account ? 1 : 0);
-	    // Save account notes
+	if (!IS_NULLSTR(account->default_character))
+		fprintf(fp, "DefaultChar %s~\n", account->default_character);
+	// Save account notes
     ACCOUNT_NOTE_DATA *note;
     for (note = account->staff_notes; note != NULL; note = note->next)
     {

@@ -3993,7 +3993,7 @@ void proceed_to_game(DESCRIPTOR_DATA *d)
 {
     CHAR_DATA *ch = d->character;
     
-    // Add validation and logging
+    // Validation check
     if (!ch) {
         log_string("ERROR: proceed_to_game called with NULL character");
         display_account_menu(d);
@@ -4003,13 +4003,18 @@ void proceed_to_game(DESCRIPTOR_DATA *d)
     
     log_stringf("proceed_to_game: %s preparing to enter game", ch->name);
     
-    // Add to loaded character lists if not already there
     if (!list_haslink(loaded_chars, ch)) {
         log_string("proceed_to_game: Adding to loaded_chars");
         list_appendlink(loaded_chars, ch);
     }
+    /*
+    if (!IS_NPC(ch) && !list_haslink(loaded_players, ch)) {
+        log_string("proceed_to_game: Adding to loaded_players");
+        list_appendlink(loaded_players, ch);
+    }
+        */
     
-    // Mark that they're no longer reconnecting (clear any existing state)
+    // Reset inactivity timer
     ch->timer = 0;
     
     // Make sure character's descriptor is correctly set
