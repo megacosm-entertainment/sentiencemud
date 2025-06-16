@@ -1300,26 +1300,36 @@ void close_socket(DESCRIPTOR_DATA *dclose)
     CHAR_DATA *ch;
 
     if (dclose->outtop > 0)
-	process_output(dclose, false);
+        process_output(dclose, false);
 
     if ((ch = dclose->character) != NULL)
     {
-		sprintf(log_buf, "Closing link to %s.", ch->name);
-		log_string(log_buf);
-		/* cut down on wiznet spam when rebooting */
-			if (dclose->connected == CON_PLAYING && !merc_down)
-			{
-	    		if (ch->invis_level < STAFF_IMMORTAL)
-					act("$n has lost $s link.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-				wiznet("$N has lost $S link.",ch,NULL,WIZ_LINKS,0,0);
+        sprintf(log_buf, "Closing link to %s.", ch->name);
+        log_string(log_buf);
+        /* cut down on wiznet spam when rebooting */
+        if (dclose->connected == CON_PLAYING && !merc_down)
+        {
+            if (ch->invis_level < STAFF_IMMORTAL)
+                act("$n has lost $s link.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+            wiznet("$N has lost $S link.",ch,NULL,WIZ_LINKS,0,0);
 
-	    		ch->desc = NULL;
-			}
-			else
-			{
-	    		free_char(dclose->original ? dclose->original :
-				dclose->character);
-			}
+            ch->desc = NULL;
+        }
+        else if (dclose->reconnecting && dclose->reconnect_ch) 
+        {
+            // Disconnected during reconnection process - don't free the reconnect character
+            // It remains link-dead and available for future reconnect attempts
+            if (dclose->reconnect_ch->desc == dclose) {
+                dclose->reconnect_ch->desc = NULL;
+            }
+            
+            // Still need to free the temporary character
+            free_char(dclose->character);
+        }
+        else
+        {
+            free_char(dclose->original ? dclose->original : dclose->character);
+        }
     }
 
     if (d_next == dclose)
@@ -2572,9 +2582,6 @@ CHAR_DATA *find_existing_player(char *name)
 /*
  * Look for link-dead player to reconnect.
  */
-/*
- * Look for link-dead player to reconnect.
- */
 bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
 {
     CHAR_DATA *ch;
@@ -2595,26 +2602,8 @@ bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
                 iterator_stop(&cit);
                 return true;
             } else {
-                CHAR_DATA *old_char = d->character;
-
-                // Handle pet cleanup from incoming connection if needed
-                if (old_char->pet) {
-                    CHAR_DATA *pet = old_char->pet;
-                    char_to_room(pet, get_room_index(get_reserved_vnum("room_limbo")));
-                    stop_follower(pet, true);
-                    extract_char(pet, true);
-                }
-
-                // Preserve any temporary descriptor data we need
-                ch->timer = 0;  // Reset idle timer
-                
-                // Switch the descriptor to the existing character
-                ch->desc = d;
-                d->character = ch;  // Point to the existing character
-                d->original = NULL; // Make sure we're not switched
-                
-                // Now free the temporary character that was created during login
-                free_char(old_char);
+                // Store the link-dead character for reconnection after authentication
+                d->reconnect_ch = ch;
                 d->reconnecting = true;
                 found = true;  // Mark as found so iterator_stop works properly
                 
@@ -2671,8 +2660,8 @@ bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
                     }
                 }
                 
-                // Normal reconnect process - no special auth needed
-                //reconnect_char(d);
+                // No authentication needed, complete reconnection now
+                complete_reconnect(d);
                 break;
             }
         }
@@ -2680,6 +2669,38 @@ bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
     iterator_stop(&cit);
     
     return found;
+}
+
+void complete_reconnect(DESCRIPTOR_DATA *d)
+{
+    if (!d->reconnect_ch || !d->reconnecting)
+        return;
+        
+    CHAR_DATA *old_char = d->character;
+    CHAR_DATA *ch = d->reconnect_ch;
+
+    // Handle pet cleanup from incoming connection if needed
+    if (old_char->pet) {
+        CHAR_DATA *pet = old_char->pet;
+        char_to_room(pet, get_room_index(get_reserved_vnum("room_limbo")));
+        stop_follower(pet, true);
+        extract_char(pet, true);
+    }
+
+    // Preserve any temporary descriptor data we need
+    ch->timer = 0;  // Reset idle timer
+    
+    // Switch the descriptor to the existing character
+    ch->desc = d;
+    d->character = ch;  // Point to the existing character
+    d->original = NULL; // Make sure we're not switched
+    d->reconnect_ch = NULL; // Clear the reconnect reference
+    
+    // Now free the temporary character that was created during login
+    free_char(old_char);
+    
+    // Call reconnect_char to complete the process
+    reconnect_char(d);
 }
 
 void reconnect_char(DESCRIPTOR_DATA *d)

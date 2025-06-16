@@ -3277,8 +3277,8 @@ void login_character_menu(DESCRIPTOR_DATA *d, char *argument)
                     return;
                 }
             }
-            if (d->reconnecting) {
-                reconnect_char(d);
+            if (d->reconnecting && d->reconnect_ch) {
+                complete_reconnect(d);
             } else {
                 proceed_to_game(d);
             }
@@ -3649,8 +3649,8 @@ void login_get_account_mfa_for_char(DESCRIPTOR_DATA *d, char *argument)
     ProtocolNoEcho(d, false);
     
     // Check if this is a reconnection 
-    if (d->reconnecting) {
-        reconnect_char(d);
+    if (d->reconnecting && d->reconnect_ch) {
+        complete_reconnect(d);
     } else {
         // Normal login flow for a fresh connection
         proceed_to_game(d);
@@ -3699,8 +3699,8 @@ void login_get_char_password(DESCRIPTOR_DATA *d, char *argument)
     ProtocolNoEcho(d, false);
     
     // Check if this is a reconnection 
-    if (d->reconnecting) {
-        reconnect_char(d);
+    if (d->reconnecting && d->reconnect_ch) {
+        complete_reconnect(d);
     } else {
         // Normal login flow for a fresh connection
         proceed_to_game(d);
@@ -3753,9 +3753,9 @@ void login_get_char_mfa(DESCRIPTOR_DATA *d, char *argument)
     ProtocolNoEcho(d, false);
     
     // Check for d->reconnecting flag.
-    if (d->reconnecting) {
+    if (d->reconnecting && d->reconnect_ch) {
         // This is a genuine reconnect - handle accordingly
-        reconnect_char(d);
+        complete_reconnect(d);
     } else {
         // Normal login flow for a fresh connection
         proceed_to_game(d);

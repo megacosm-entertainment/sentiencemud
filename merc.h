@@ -1844,6 +1844,7 @@ struct	descriptor_data
     bool reconnecting;
     bool healthcheck;
     char * new_password_buffer;
+    CHAR_DATA *reconnect_ch; /* Character being reconnected to */
 
 };
 
