@@ -8282,6 +8282,7 @@ void	send_to_char_bw	args( ( const char *txt, CHAR_DATA *ch ) );
 void	page_to_char_bw	args( ( const char *txt, CHAR_DATA *ch ) );
 void	update_pc_timers( CHAR_DATA *ch );
 void    plogf             args( ( char * fmt, ... ) );
+void complete_reconnect(DESCRIPTOR_DATA *d);
 
 
 /* auction.c */
