@@ -2652,46 +2652,47 @@ bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
                     iterator_stop(&it);
                 }
 
-                // Handle special authentication cases
-                if (!DEV_SKIP_MFA) {
-                    bool has_mfa = acct_char ? acct_char->mfa_key != NULL : false;
-                    
-                    if (IS_IMMORTAL(ch) && game_settings.require_2fa_staff) {
-                        // If character has MFA, verify that
-                        if (has_mfa) {
-                            write_to_buffer(d, "\n\rReconnecting - This character has MFA enabled.\n\r", 0);
-                            ProtocolNoEcho(d, true);
-                            d->connected = CON_GET_CHAR_MFA;
-                            break;
-                        } 
-                        // Otherwise, verify account MFA
-                        else if (!IS_NULLSTR(d->account->mfa_key)) {
-                            write_to_buffer(d, "\n\rReconnecting - Staff account MFA verification required.\n\r", 0);
-                            ProtocolNoEcho(d, true);
-                            d->connected = CON_GET_ACCOUNT_MFA_FOR_CHAR;
-                            break;
-                        }
-                    }
-                    // Regular character with MFA
-                    else if (has_mfa) {
-                        write_to_buffer(d, "\n\rReconnecting - This character has MFA enabled.\n\r", 0);
-                        ProtocolNoEcho(d, true);
-                        d->connected = CON_GET_CHAR_MFA;
-                        break;
-                    }
-                }
-                
-                // Check for character password - use account_character data
-                if (!DEV_SKIP_PASSWORD) {
-                    bool has_password = acct_char ? !IS_NULLSTR(acct_char->pwd) : false;
-                    
-                    if (has_password) {
-                        write_to_buffer(d, "\n\rReconnecting: This character requires password verification.\n\r", 0);
-                        ProtocolNoEcho(d, true);
-                        d->connected = CON_GET_CHAR_PASSWORD;
-                        break;
-                    }
-                }
+// Handle special authentication cases
+if (!DEV_SKIP_MFA) {
+    // Improve the MFA check to properly handle empty strings
+    bool has_mfa = acct_char ? !IS_NULLSTR(acct_char->mfa_key) : false;
+    
+    if (IS_IMMORTAL(ch) && game_settings.require_2fa_staff) {
+        // If character has MFA, verify that
+        if (has_mfa) {
+            write_to_buffer(d, "\n\rReconnecting - This character has MFA enabled.\n\r", 0);
+            ProtocolNoEcho(d, true);
+            d->connected = CON_GET_CHAR_MFA;
+            break;
+        } 
+        // Otherwise, verify account MFA only if it's actually set
+        else if (d->account && !IS_NULLSTR(d->account->mfa_key)) {
+            write_to_buffer(d, "\n\rReconnecting - Staff account MFA verification required.\n\r", 0);
+            ProtocolNoEcho(d, true);
+            d->connected = CON_GET_ACCOUNT_MFA_FOR_CHAR;
+            break;
+        }
+    }
+    // Regular character with MFA
+    else if (has_mfa) {
+        write_to_buffer(d, "\n\rReconnecting - This character has MFA enabled.\n\r", 0);
+        ProtocolNoEcho(d, true);
+        d->connected = CON_GET_CHAR_MFA;
+        break;
+    }
+}
+
+// Check for character password - use account_character data
+if (!DEV_SKIP_PASSWORD) {
+    bool has_password = acct_char ? !IS_NULLSTR(acct_char->pwd) : false;
+    
+    if (has_password) {
+        write_to_buffer(d, "\n\rReconnecting: This character requires password verification.\n\r", 0);
+        ProtocolNoEcho(d, true);
+        d->connected = CON_GET_CHAR_PASSWORD;
+        break;
+    }
+}
                 
                 // No authentication needed, complete reconnection now
                 complete_reconnect(d);

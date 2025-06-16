@@ -371,15 +371,18 @@ void do_chat_join(CHAR_DATA *ch, char *argument)
 	send_to_char("You're already there.\n\r", ch);
 	return;
     }
-
-    if (str_cmp(chat->password, "none")
-    && str_cmp(chat->password, arg2))
+    
+    // Only check password if not creator and not an op
+    if (str_cmp(chat->password, "none") && 
+        !str_cmp(chat->created_by, ch->name) && 
+        !is_op(chat, ch->name) && 
+        str_cmp(chat->password, arg2))
     {
-	sprintf(buf, "#%s is password protected.\n\r"
-		"Use /join <chatroom> <password>.\n\r",
-		chat->name);
-	send_to_char(buf, ch);
-	return;
+        sprintf(buf, "#%s is password protected.\n\r"
+            "Use /join <chatroom> <password>.\n\r",
+            chat->name);
+        send_to_char(buf, ch);
+        return;
     }
 
     act("{Y$n leaves for another chat room.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
