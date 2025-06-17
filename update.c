@@ -2286,6 +2286,7 @@ void obj_update(void)
 	while(( obj = (OBJ_DATA *)iterator_nextdata(&it))) {
 
 		if( !IS_VALID(obj) ) continue;
+		if( obj->gc ) continue;
 
 		// Unmarked objects in the rift will not update.
 		// Principle objects that are normally allowed to tick in the rift: room spell objects
