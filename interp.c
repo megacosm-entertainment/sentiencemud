@@ -1305,8 +1305,8 @@ if (ch->pk_question)
 	{	
 		if ( command[0] == cmd->name[0] && 
 		!str_prefix(command, cmd->name) && 
-		(!forced_command || cmd->level < LEVEL_IMMORTAL) && 
-		(cmd->level <= trust || is_granted_command(ch, cmd->name)))
+		(!forced_command || cmd->rank < STAFF_IMMORTAL) && 
+		(cmd->rank <= get_staff_rank(ch) || is_granted_command(ch, cmd->name)))
 		{
 			selected_command = cmd;
 			found = true;
