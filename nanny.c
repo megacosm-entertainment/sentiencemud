@@ -1297,7 +1297,7 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
                 } else {
                     proceed_to_game(d);
                 }
-                break;
+                return;
                 
             case 'Z': // Most recently played character
                 ACCOUNT_CHARACTER *recent_char = find_most_recent_character(acct);
@@ -1387,7 +1387,7 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
                 } else {
                     proceed_to_game(d);
                 }
-                break;
+                return;
 
             default:
                 write_to_buffer(d, "Invalid choice.\n\r", 0);
