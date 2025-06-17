@@ -3130,7 +3130,7 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 					 victim->at_wilds_y);
 	}
 
-	sprintf(buf, "{BVnum:{x %ld  {BRace:{x %s  {Body Type:{x %s  {BRoom:{x %ld\n\r",
+	sprintf(buf, "{BVnum:{x %ld  {BRace:{x %s  {BBody Type:{x %s  {BRoom:{x %ld\n\r",
 				 VNUM(victim),
 				 race_table[victim->race].name,
 				 body_type_info[victim->body_type].name,

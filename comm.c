@@ -329,6 +329,7 @@ int main(int argc, char **argv)
     ITERATOR iter;
     void *data;
 	static GAME_SETTINGS_DATA game_settings_zero;
+    signal(SIGPIPE, SIG_IGN);
 
     /*
      * Memory debugging if needed.
@@ -681,6 +682,7 @@ int init_tls_socket(int port)
     struct sockaddr_in sa;
     int x = 1;
     int fd;
+    int set = 1;
 
     if ((fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
@@ -2308,11 +2310,24 @@ bool write_to_descriptor_2(DESCRIPTOR_DATA *d, char *txt, int length)
             nWrite = SSL_write(d->ssl, txt + iStart, nBlock);
             if (nWrite <= 0) {
                 int err = SSL_get_error(d->ssl, nWrite);
-                if (err == SSL_ERROR_WANT_WRITE) {
+                if (err == SSL_ERROR_WANT_WRITE || err == SSL_ERROR_WANT_READ) {
+                    // Would block, try again later
                     break;
-                } else if (err == SSL_ERROR_SYSCALL && errno == EPIPE) {
+                } else if (err == SSL_ERROR_ZERO_RETURN) {
+                    // Clean connection close
+                    return false;
+                } else if (err == SSL_ERROR_SYSCALL) {
+                    // System error - check errno
+                    if (errno == EPIPE || errno == ECONNRESET || errno == 0) {
+                        // Connection closed by client or other error
+                        return false;
+                    }
+                    // Log other system errors
+                    sprintf(log_buf, "SSL_write failed with system error: %s", strerror(errno));
+                    log_string(log_buf);
                     return false;
                 } else {
+                    // Your existing error logging code
                     BIO *bio = BIO_new(BIO_s_mem());
                     ERR_print_errors(bio);
                     
@@ -2337,6 +2352,7 @@ bool write_to_descriptor_2(DESCRIPTOR_DATA *d, char *txt, int length)
                 }
             }
         } else {
+            // Your existing non-SSL write code
             nWrite = write(d->descriptor, txt + iStart, nBlock);
             if (nWrite < 0) {
                 if (errno == EPIPE) {

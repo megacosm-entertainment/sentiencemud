@@ -2799,6 +2799,18 @@ void login_link_character_name(DESCRIPTOR_DATA *d, char *argument)
             return;
         }
     }
+
+    // If the character is not already linked, but its email matches the verified email on the account, go ahead and link them.
+    if (!IS_NULLSTR(ch->pcdata->email)){
+        if (!str_cmp(ch->pcdata->email, acct->email)) {
+            account_add_character(acct, ch);
+            save_account(acct);
+            free_char(ch);
+            d->connected = CON_ACCOUNT_MENU;
+            display_account_menu(d);
+            return;
+        }
+    }
     
     // Store character name temporarily for the linking process
     d->character = ch;
