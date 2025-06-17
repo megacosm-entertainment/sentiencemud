@@ -2288,6 +2288,30 @@ void obj_update(void)
 		if( !IS_VALID(obj) ) continue;
 		if( obj->gc ) continue;
 
+        if (obj->carried_by != NULL) {
+            bool is_valid = false;
+            
+            if (loaded_chars) {
+                ITERATOR check_it;
+                CHAR_DATA *check_char;
+                
+                iterator_start(&check_it, loaded_chars);
+                while ((check_char = (CHAR_DATA *)iterator_nextdata(&check_it))) {
+                    if (check_char == obj->carried_by && !check_char->gc) {
+                        is_valid = true;
+                        break;
+                    }
+                }
+                iterator_stop(&check_it);
+            }
+            
+            if (!is_valid) {
+                log_string("obj_update: Object has invalid carrier - marking for GC");
+                obj->gc = true;
+                continue;
+            }
+        }
+
 		// Unmarked objects in the rift will not update.
 		// Principle objects that are normally allowed to tick in the rift: room spell objects
 		ROOM_INDEX_DATA *cur_room = obj_room(obj);
