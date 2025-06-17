@@ -1276,11 +1276,11 @@ if (ch->pk_question)
     found = false;
 	if (!IS_SWITCHED(ch))
 	{
-		trust = get_trust( ch );
+		trust = get_staff_rank( ch );
 	}
 	else
 	{
-		trust = get_trust( ch->desc->original );
+		trust = get_staff_rank( ch->desc->original );
 	}
 
 /*
