@@ -2557,11 +2557,11 @@ iterator_stop(&it);
 	}
     }
 
-	    if (old_sex_val != -1) { // Migration from old Sex field
+	    if (ch->pcdata->true_sex != -1) { // Migration from old Sex field
         if (ch->version < VERSION_PLAYER_009) { // VERSION_PLAYER_XXX is the version introducing body_type
-            if (old_sex_val == 0) ch->body_type = BODY_TYPE_NEUTRAL; // SEX_NEUTRAL
-            else if (old_sex_val == 1) ch->body_type = BODY_TYPE_MALE;   // SEX_MALE
-            else if (old_sex_val == 2) ch->body_type = BODY_TYPE_FEMALE; // SEX_FEMALE
+            if (ch->pcdata->true_sex == 0) ch->body_type = BODY_TYPE_NEUTRAL; // SEX_NEUTRAL
+            else if (ch->pcdata->true_sex == 1) ch->body_type = BODY_TYPE_MALE;   // SEX_MALE
+            else if (ch->pcdata->true_sex == 2) ch->body_type = BODY_TYPE_FEMALE; // SEX_FEMALE
             else ch->body_type = BODY_TYPE_NEUTRAL; // Default
         }
     }
