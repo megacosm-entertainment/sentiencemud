@@ -2632,12 +2632,11 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 	}
 
     if (old_sex_val != -1) { // Migration from old Sex field
-        if (area->version_mobile < VERSION_MOBILE_001) { // VERSION_MOBILE_XXX is the version introducing body_type for mobs
             if (old_sex_val == 0) mob->body_type = BODY_TYPE_NEUTRAL;
             else if (old_sex_val == 1) mob->body_type = BODY_TYPE_MALE;
             else if (old_sex_val == 2) mob->body_type = BODY_TYPE_FEMALE;
             else mob->body_type = BODY_TYPE_NEUTRAL;
-        }
+        
     }
 
     return mob;
