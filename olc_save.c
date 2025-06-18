@@ -835,6 +835,7 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
 	mob->vuln_flags);
     fprintf(fp, "StartPos %d DefaultPos %d Sex %d Wealth %ld\n",
         mob->start_pos, mob->default_pos, mob->sex, mob->wealth);
+	fprintf(fp, "BodyType %d\n", mob->body_type);
     fprintf(fp, "Parts %ld Size %d\n",
 	mob->parts, mob->size);
     fprintf(fp, "Material %s~\n", mob->material[0] == '\0' ? "Unknown" : mob->material);
