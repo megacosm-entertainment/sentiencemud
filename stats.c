@@ -22,7 +22,7 @@ STAT_DATA stat_table[10];
 
 /* Declare local functions */
 
-void do_stats( CHAR_DATA *ch, char *argument )
+void do_stats( CHAR_DATA *ch, char *argument, const char *context )
 {
     char arg[MAX_STRING_LENGTH];
     BUFFER *output = NULL;

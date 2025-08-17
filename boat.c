@@ -58,7 +58,7 @@ SCRIPT_DATA *read_script_new( FILE *fp, AREA_DATA *area, int type);
 void steering_set_heading(SHIP_DATA *ship, int heading);
 void steering_set_turning(SHIP_DATA *ship, char direction);
 void ship_stop(SHIP_DATA *ship);
-void do_ship_speed( CHAR_DATA *ch, char *argument );
+void do_ship_speed( CHAR_DATA *ch, char *argument, const char *context );
 
 extern LLIST *loaded_instances;
 
@@ -2099,7 +2099,7 @@ bool ship_has_enough_crew( SHIP_DATA *ship )
 }
 
 
-void do_ships(CHAR_DATA *ch, char *argument)
+void do_ships(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MIL];
 	SHIP_DATA *ship;
@@ -2349,7 +2349,7 @@ void ship_dispatch_message(CHAR_DATA *ch, SHIP_DATA *ship, char *error, char *co
 }
 
 
-void do_ship_scuttle( CHAR_DATA *ch, char *argument)
+void do_ship_scuttle( CHAR_DATA *ch, char *argument, const char *context)
 {
 //	ROOM_INDEX_DATA *location;
 //    OBJ_DATA *ship_obj;
@@ -2490,7 +2490,7 @@ void do_ship_scuttle( CHAR_DATA *ch, char *argument)
 }
 
 
-void do_ship_steer( CHAR_DATA *ch, char *argument )
+void do_ship_steer( CHAR_DATA *ch, char *argument, const char *context )
 {
 	char buf[MSL];
 	char arg[MIL];
@@ -2781,7 +2781,7 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 	}
 }
 
-void do_ship_engines( CHAR_DATA *ch, char *argument )
+void do_ship_engines( CHAR_DATA *ch, char *argument, const char *context )
 {
 	char buf[MSL];
 	char arg[MAX_INPUT_LENGTH];
@@ -3014,7 +3014,7 @@ void do_ship_engines( CHAR_DATA *ch, char *argument )
 	}
 }
 
-void do_ship_sails( CHAR_DATA *ch, char *argument )
+void do_ship_sails( CHAR_DATA *ch, char *argument, const char *context )
 {
 	char buf[MSL];
 	char arg[MAX_INPUT_LENGTH];
@@ -3249,7 +3249,7 @@ void do_ship_sails( CHAR_DATA *ch, char *argument )
 	}
 }
 
-void do_ship_speed( CHAR_DATA *ch, char *argument )
+void do_ship_speed( CHAR_DATA *ch, char *argument, const char *context )
 {
 	//char buf[MSL];
 	char arg[MAX_INPUT_LENGTH];
@@ -3314,7 +3314,7 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 	return;
 }
 
-void do_ship_aim( CHAR_DATA *ch, char *argument )
+void do_ship_aim( CHAR_DATA *ch, char *argument, const char *context )
 {
 #if 0
 	char arg[MAX_INPUT_LENGTH];
@@ -3479,7 +3479,7 @@ void do_ship_aim( CHAR_DATA *ch, char *argument )
 #endif
 }
 
-void do_ship_navigate(CHAR_DATA *ch, char *argument)
+void do_ship_navigate(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MSL];
 	char arg[MIL];
@@ -3921,7 +3921,7 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 	do_ship_navigate(ch, "");
 }
 
-void do_ship_oars( CHAR_DATA *ch, char *argument )
+void do_ship_oars( CHAR_DATA *ch, char *argument, const char *context )
 {
 	char buf[MSL];
 	char arg[MAX_INPUT_LENGTH];
@@ -4141,7 +4141,7 @@ void do_ship_oars( CHAR_DATA *ch, char *argument )
 }
 
 
-void do_ship_christen(CHAR_DATA *ch, char *argument)
+void do_ship_christen(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MSL];
 	SHIP_DATA *ship;
@@ -4197,7 +4197,7 @@ void do_ship_christen(CHAR_DATA *ch, char *argument)
 	act("{YYou christen the vessel '{x$T{Y'.{x", ch, NULL, NULL, NULL, NULL, NULL, ship->ship_name, TO_CHAR);
 }
 
-void do_ship_land(CHAR_DATA *ch, char *argument)
+void do_ship_land(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MSL];
 	SHIP_DATA *ship = get_room_ship(ch->in_room);
@@ -4417,7 +4417,7 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 	}
 }
 
-void do_ship_launch(CHAR_DATA *ch, char *argument)
+void do_ship_launch(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MSL];
 	SHIP_DATA *ship = get_room_ship(ch->in_room);
@@ -4557,12 +4557,12 @@ void do_ship_launch(CHAR_DATA *ch, char *argument)
 	}
 }
 
-void do_ship_chase(CHAR_DATA *ch, char *argument)
+void do_ship_chase(CHAR_DATA *ch, char *argument, const char *context)
 {
 	send_to_char("Not yet implemented.\n\r", ch);
 }
 
-void do_ship_flag(CHAR_DATA *ch, char *argument)
+void do_ship_flag(CHAR_DATA *ch, char *argument, const char *context)
 {
 	SHIP_DATA *ship;
 
@@ -4601,7 +4601,7 @@ void do_ship_flag(CHAR_DATA *ch, char *argument)
 	ship->flag = str_dup(argument);
 }
 
-void do_ship_list(CHAR_DATA *ch, char *argument)
+void do_ship_list(CHAR_DATA *ch, char *argument, const char *context)
 {
 	BUFFER *buffer;
 	char buf[MSL];
@@ -4666,7 +4666,7 @@ void do_ship_list(CHAR_DATA *ch, char *argument)
 	free_buf(buffer);
 }
 
-void do_ship_waypoints(CHAR_DATA *ch, char *argument)
+void do_ship_waypoints(CHAR_DATA *ch, char *argument, const char *context)
 {
 	SHIP_DATA *ship = get_room_ship(ch->in_room);
 	char buf[MSL];
@@ -5517,7 +5517,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 	do_ship_waypoints(ch, "");
 }
 
-void do_ship_routes(CHAR_DATA *ch, char *argument)
+void do_ship_routes(CHAR_DATA *ch, char *argument, const char *context)
 {
 	SHIP_DATA *ship = get_room_ship(ch->in_room);
 	char buf[MSL];
@@ -6025,7 +6025,7 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 	do_ship_routes(ch, "");
 }
 
-void do_ship_keys(CHAR_DATA *ch, char *argument)
+void do_ship_keys(CHAR_DATA *ch, char *argument, const char *context)
 {
 	SHIP_DATA *ship = get_room_ship(ch->in_room);
 	char buf[MSL];
@@ -6258,7 +6258,7 @@ static void crew_skill_rating(char *field, int rating, char *buf, size_t len)
 	snprintf(buf, len, "{C%-15.15s: {x[ %s {x] {W%d%%{x\n\r", field, ratings[rating10], rating);
 }
 
-void do_ship_crew(CHAR_DATA *ch, char *argument)
+void do_ship_crew(CHAR_DATA *ch, char *argument, const char *context)
 {
 	SHIP_DATA *ship = get_room_ship(ch->in_room);
 	char buf[MSL];
@@ -6740,7 +6740,7 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 	do_ship_crew(ch, "");
 }
 
-void do_ship(CHAR_DATA *ch, char *argument)
+void do_ship(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MIL];
 
@@ -7191,12 +7191,12 @@ void list_ship_indexes(CHAR_DATA *ch, char *argument)
 	free_buf(buffer);
 }
 
-void do_shlist(CHAR_DATA *ch, char *argument)
+void do_shlist(CHAR_DATA *ch, char *argument, const char *context)
 {
 	list_ship_indexes(ch, argument);
 }
 
-void shedit(CHAR_DATA *ch, char *argument)
+void shedit(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char command[MAX_INPUT_LENGTH];
 	char arg[MAX_INPUT_LENGTH];
@@ -7287,7 +7287,7 @@ void do_shedit(CHAR_DATA *ch, char *argument)
 				 "        shedit create <vnum>\n\r", ch);
 }
 
-void do_shshow(CHAR_DATA *ch, char *argument)
+void do_shshow(CHAR_DATA *ch, char *argument, const char *context)
 {
 	SHIP_INDEX_DATA *ship;
 	WNUM wnum;

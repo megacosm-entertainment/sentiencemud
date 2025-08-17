@@ -351,7 +351,7 @@ int find_path( AREA_DATA *in_area, long in_room_vnum, AREA_DATA *out_area, long 
 }
 
 
-void do_hunt( CHAR_DATA *ch, char *argument )
+void do_hunt( CHAR_DATA *ch, char *argument, const char *context )
 {
 //    char buf[MAX_STRING_LENGTH];
     char arg[MAX_STRING_LENGTH];

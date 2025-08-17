@@ -345,7 +345,7 @@ bool check_account_mfa(ACCOUNT_DATA *acct, const char *code) {
 /*
  * In-game command to manage MFA
  */
-void do_keygen(CHAR_DATA *ch, char *argument)
+void do_keygen(CHAR_DATA *ch, char *argument, const char *context)
 {
     if (argument[0] == '\0') {
         send_to_char("Syntax: keygen <generate|clear|confirm>\n\r", ch);

@@ -32,7 +32,7 @@ bool is_quiver(OBJ_DATA *obj, int subtype)
 	return container_filters_for_item_type(obj, ITEM_AMMO, subtype);
 }
 
-void do_shoot( CHAR_DATA *ch, char *argument )
+void do_shoot( CHAR_DATA *ch, char *argument, const char *context )
 {
     CHAR_DATA *victim;
     CHAR_DATA *vch = NULL;
@@ -793,7 +793,7 @@ int get_distance( CHAR_DATA *ch, char *argument, int direction, int range )
 }
 
 
-void do_throw( CHAR_DATA *ch, char *argument )
+void do_throw( CHAR_DATA *ch, char *argument, const char *context )
 {
     CHAR_DATA *victim;
     CHAR_DATA *vch = NULL;

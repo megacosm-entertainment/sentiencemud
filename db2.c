@@ -890,7 +890,7 @@ void fix_short_description( char *short_descr )
 }
 
 
-void do_dump( CHAR_DATA *ch, char *argument )
+void do_dump( CHAR_DATA *ch, char *argument, const char *context )
 {
 #if 0
     int i;

@@ -13,7 +13,7 @@
 #include "olc_save.h"
 
 
-void do_house(CHAR_DATA *ch, char *argument)
+void do_house(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_STRING_LENGTH];
     char arg2[MAX_STRING_LENGTH];
@@ -183,7 +183,7 @@ void do_house(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_evict(CHAR_DATA *ch, char *argument)
+void do_evict(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     CHAR_DATA *victim;
@@ -247,7 +247,7 @@ void do_evict(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_housemove(CHAR_DATA *ch, char *argument)
+void do_housemove(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_STRING_LENGTH];
     char arg2[MAX_STRING_LENGTH];
@@ -312,7 +312,7 @@ void do_housemove(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_gohome(CHAR_DATA *ch, char *argument)
+void do_gohome(CHAR_DATA *ch, char *argument, const char *context)
 {
     ROOM_INDEX_DATA *location;
 

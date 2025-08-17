@@ -57,18 +57,18 @@ extern void update_account_character(CHAR_DATA *ch);
 		free_string(no_colour); \
 	} while(0)
 
-void do_clear (CHAR_DATA * ch, char *argument)
+void do_clear (CHAR_DATA * ch, char *argument, const char *context)
 {
 	send_to_char ("\x01B[2J\x01B[H", ch);
 }
 
-void do_delet(CHAR_DATA *ch, char *argument)
+void do_delet(CHAR_DATA *ch, char *argument, const char *context)
 {
 	send_to_char("You must type the full command to delete yourself.\n\r",ch);
 }
 
 
-void do_delete(CHAR_DATA *ch, char *argument)
+void do_delete(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char strsave[MAX_INPUT_LENGTH];
 
@@ -109,7 +109,8 @@ void do_delete(CHAR_DATA *ch, char *argument)
 }
 
 /*  Lists all channels and their status */
-void do_channels(CHAR_DATA *ch, char *argument)
+// TODO: Update for new channel system
+void do_channels(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MAX_STRING_LENGTH];
 
@@ -217,7 +218,7 @@ void do_channels(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_quiet(CHAR_DATA *ch, char * argument)
+void do_quiet(CHAR_DATA *ch, char * argument, const char *context)
 {
 	if (IS_SET(ch->comm,COMM_QUIET))
 		send_to_char("Quiet mode removed.\n\r",ch);
@@ -227,7 +228,7 @@ void do_quiet(CHAR_DATA *ch, char * argument)
 }
 
 
-void do_afk(CHAR_DATA *ch, char * argument)
+void do_afk(CHAR_DATA *ch, char * argument, const char *context)
 {
 	if (IS_NPC(ch)) return;
 
@@ -250,8 +251,8 @@ void do_afk(CHAR_DATA *ch, char * argument)
 	TOGGLE_BIT(ch->comm,COMM_AFK);
 }
 
-
-void do_replay(CHAR_DATA *ch, char *argument)
+// TODO: Update for new channel system (new replay system)
+void do_replay(CHAR_DATA *ch, char *argument, const char *context)
 {
 	if (IS_NPC(ch)) {
 		send_to_char("You can't replay.\n\r",ch);
@@ -288,7 +289,7 @@ bool can_speak_channels(CHAR_DATA *ch)
 	return true;
 }
 
-void do_ooc(CHAR_DATA *ch, char *argument)
+void do_ooc(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MAX_STRING_LENGTH], msg[2*MSL];
 	DESCRIPTOR_DATA *d;
@@ -362,7 +363,7 @@ void gecho(char *message)
 }
 
 
-void do_gossip(CHAR_DATA *ch, char *argument)
+void do_gossip(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MAX_STRING_LENGTH], msg[2*MSL];
 	DESCRIPTOR_DATA *d;
@@ -436,7 +437,7 @@ void do_gossip(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_flame(CHAR_DATA *ch, char *argument)
+void do_flame(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MAX_STRING_LENGTH], msg[2*MSL];
 	DESCRIPTOR_DATA *d;
@@ -484,7 +485,7 @@ void do_flame(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_helper(CHAR_DATA *ch, char *argument)
+void do_helper(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MAX_STRING_LENGTH], msg[2*MSL];
 	DESCRIPTOR_DATA *d;
@@ -539,7 +540,7 @@ void do_helper(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_hints(CHAR_DATA *ch, char *argument)
+void do_hints(CHAR_DATA *ch, char *argument, const char *context)
 {
 	if (!argument[0]) {
 		if (IS_SET(ch->comm,COMM_NOHINTS))
@@ -552,7 +553,7 @@ void do_hints(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_music(CHAR_DATA *ch, char *argument)
+void do_music(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MAX_STRING_LENGTH], msg[2*MSL];
 	DESCRIPTOR_DATA *d;
@@ -600,7 +601,7 @@ void do_music(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_immtalk(CHAR_DATA *ch, char *argument)
+void do_immtalk(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MAX_STRING_LENGTH];
 	DESCRIPTOR_DATA *d;
@@ -625,7 +626,7 @@ void do_immtalk(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_say(CHAR_DATA *ch, char *argument)
+void do_say(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MAX_STRING_LENGTH];
 	char buf2[MAX_STRING_LENGTH], msg[MSL];
@@ -804,7 +805,7 @@ void do_say(CHAR_DATA *ch, char *argument)
 	}
 }
 
-void do_tells(CHAR_DATA *ch, char *argument)
+void do_tells(CHAR_DATA *ch, char *argument, const char *context)
 {
 	if (IS_SET(ch->comm, COMM_NOTELLS))
 	{
@@ -821,7 +822,7 @@ void do_tells(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_tell(CHAR_DATA *ch, char *argument)
+void do_tell(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_INPUT_LENGTH];
 	char buf[MAX_STRING_LENGTH];
@@ -980,7 +981,7 @@ void do_tell(CHAR_DATA *ch, char *argument)
 
 
 
-void do_reply(CHAR_DATA *ch, char *argument)
+void do_reply(CHAR_DATA *ch, char *argument, const char *context)
 {
 	CHAR_DATA *victim;
 	char buf[MAX_STRING_LENGTH];
@@ -999,7 +1000,7 @@ void do_reply(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_yell(CHAR_DATA *ch, char *argument)
+void do_yell(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MSL], msg[2*MSL];
 	DESCRIPTOR_DATA *d;
@@ -1072,7 +1073,7 @@ void do_yell(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_emote(CHAR_DATA *ch, char *argument)
+void do_emote(CHAR_DATA *ch, char *argument, const char *context)
 {
 	if (IS_SWITCHED(ch))
 	{
@@ -1093,7 +1094,7 @@ void do_emote(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_quit(CHAR_DATA *ch, char *argument)
+void do_quit(CHAR_DATA *ch, char *argument, const char *context)
 {
 	DESCRIPTOR_DATA *d,*d_next;
 	OBJ_DATA *obj;
@@ -1309,7 +1310,7 @@ void do_quit(CHAR_DATA *ch, char *argument)
 	}
 }
 
-void do_logout(CHAR_DATA *ch, char *argument)
+void do_logout(CHAR_DATA *ch, char *argument, const char *context)
 {
     DESCRIPTOR_DATA *d;
     OBJ_DATA *obj;
@@ -1544,7 +1545,7 @@ void do_logout(CHAR_DATA *ch, char *argument)
     }
 }
 
-void do_save(CHAR_DATA *ch, char *argument)
+void do_save(CHAR_DATA *ch, char *argument, const char *context)
 {
 	if (IS_SWITCHED(ch))
 	{
@@ -1563,7 +1564,7 @@ void do_save(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_follow(CHAR_DATA *ch, char *argument)
+void do_follow(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_INPUT_LENGTH];
 	CHAR_DATA *victim;
@@ -1749,7 +1750,7 @@ void die_follower(CHAR_DATA *ch)
 }
 
 
-void do_order(CHAR_DATA *ch, char *argument)
+void do_order(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MAX_STRING_LENGTH];
 	char arg[MAX_INPUT_LENGTH];
@@ -1839,14 +1840,14 @@ void do_order(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_ungroup(CHAR_DATA *ch, char *argument)
+void do_ungroup(CHAR_DATA *ch, char *argument, const char *context)
 {
 	send_to_char("Ungrouping.\n\r", ch);
 	die_follower(ch);
 }
 
 
-void do_group(CHAR_DATA *ch, char *argument)
+void do_group(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MAX_STRING_LENGTH];
 	char arg[MAX_INPUT_LENGTH];
@@ -1962,7 +1963,7 @@ void do_group(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_split(CHAR_DATA *ch, char *argument)
+void do_split(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MAX_STRING_LENGTH];
 	char arg1[MAX_INPUT_LENGTH],arg2[MAX_INPUT_LENGTH];
@@ -2080,7 +2081,7 @@ void do_split(CHAR_DATA *ch, char *argument)
 
 
 /*    Group chat */
-void do_gtell(CHAR_DATA *ch, char *argument)
+void do_gtell(CHAR_DATA *ch, char *argument, const char *context)
 {
 	CHAR_DATA *gch;
 	bool another_person = false;
@@ -2140,7 +2141,7 @@ bool is_same_group(CHAR_DATA *ach, CHAR_DATA *bch)
 }
 
 
-void do_colour(CHAR_DATA *ch, char *argument)
+void do_colour(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[ MAX_STRING_LENGTH ];
 
@@ -2247,7 +2248,7 @@ void crier_announce(char *argument)
 
 
 /*  Toggle crier announcements */
-void do_announcements(CHAR_DATA *ch, char *argument)
+void do_announcements(CHAR_DATA *ch, char *argument, const char *context)
 {
 	if (IS_SET(ch->comm,COMM_NOANNOUNCE))
 	{
@@ -2281,7 +2282,7 @@ void double_xp(CHAR_DATA *victim)
 }
 
 
-void do_ignore(CHAR_DATA *ch, char *argument)
+void do_ignore(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_STRING_LENGTH];
 	char buf[MAX_STRING_LENGTH];
@@ -2404,7 +2405,7 @@ void do_ignore(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_notify(CHAR_DATA *ch, char *argument)
+void do_notify(CHAR_DATA *ch, char *argument, const char *context)
 {
 	if (IS_NPC(ch))
 	return;
@@ -2423,7 +2424,7 @@ void do_notify(CHAR_DATA *ch, char *argument)
 
 
 /*  Toggle showing formation's HP percentage in combat.*/
-void do_formstate(CHAR_DATA *ch, char *argument)
+void do_formstate(CHAR_DATA *ch, char *argument, const char *context)
 {
 	if (IS_SET(ch->comm, COMM_SHOW_FORM_STATE))
 	{
@@ -2490,7 +2491,7 @@ void area_echo(AREA_DATA *area, char *message)
 
 
 /*  Toggle or hide "<empty>" equipment slots.*/
-void do_autoeq(CHAR_DATA *ch, char *argument)
+void do_autoeq(CHAR_DATA *ch, char *argument, const char *context)
 {
 	if (IS_SET(ch->act[0], PLR_AUTOEQ))
 	{
@@ -2508,7 +2509,7 @@ void do_autoeq(CHAR_DATA *ch, char *argument)
 
 
 /*  Quiet list -- allows certain people to tell you while you have quiet on.*/
-void do_qlist(CHAR_DATA *ch, char *argument)
+void do_qlist(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MSL];
 	char buf[MSL];
@@ -2554,7 +2555,7 @@ void do_qlist(CHAR_DATA *ch, char *argument)
 	for (string = ch->pcdata->quiet_people; string != NULL; string = string_next)
 	{
 	string_next = string->next;
-	do_function(ch, &do_qlist, string->string);
+	cmd_function(ch, &do_qlist, string->string, context);
 	}
 
 	send_to_char("Quiet list cleared.\n\r", ch);
@@ -2640,7 +2641,7 @@ void do_qlist(CHAR_DATA *ch, char *argument)
 	}
 }
 
-void do_whisper(CHAR_DATA *ch, char *argument)
+void do_whisper(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_INPUT_LENGTH];
 	CHAR_DATA *victim;
@@ -2684,17 +2685,17 @@ void do_whisper(CHAR_DATA *ch, char *argument)
 }
 
 /*  Catchup on notes, news and changes*/
-void do_catchup(CHAR_DATA *ch, char *argument)
+void do_catchup(CHAR_DATA *ch, char *argument, const char *context)
 {
-	do_function(ch, &do_note, "catchup");
-	do_function(ch, &do_news, "catchup");
-	do_function(ch, &do_changes, "catchup");
+	cmd_function(ch, &do_note, "catchup", context);
+	cmd_function(ch, &do_news, "catchup", context);
+	cmd_function(ch, &do_changes, "catchup", context);
 	send_to_char("Done.\n\r", ch);
 }
 
 
 /*  Set sense-danger range (sith) */
-void do_danger(CHAR_DATA *ch, char *argument)
+void do_danger(CHAR_DATA *ch, char *argument, const char *context)
 {
 	int range;
 	int max_range;
@@ -2729,7 +2730,7 @@ void do_danger(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_toggle(CHAR_DATA *ch, char *argument)
+void do_toggle(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MSL];
 	char buf[2*MSL];
@@ -2867,7 +2868,7 @@ void do_toggle(CHAR_DATA *ch, char *argument)
 	}
 }
 
-void do_quote(CHAR_DATA *ch, char *argument)
+void do_quote(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MAX_STRING_LENGTH], msg[2*MSL];
 	DESCRIPTOR_DATA *d;
@@ -2952,7 +2953,7 @@ void do_quote(CHAR_DATA *ch, char *argument)
 
 
 /* Allows people to view and change their set e-mail. */
-void do_email(CHAR_DATA *ch, char *argument)
+void do_email(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MSL];
 	char buf[MSL];
@@ -2981,7 +2982,7 @@ void do_email(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_flag(CHAR_DATA *ch, char *argument)
+void do_flag(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MSL];
 	char buf[2*MSL];
@@ -3046,7 +3047,7 @@ void do_flag(CHAR_DATA *ch, char *argument)
 }
 
 /*    NIB : 20070121 : Targeted speech to mobiles*/
-void do_sayto(CHAR_DATA *ch, char *argument)
+void do_sayto(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MIL];
 	char buf[MSL];
@@ -3207,7 +3208,7 @@ void do_sayto(CHAR_DATA *ch, char *argument)
 }
 
 /*  NIB : 20070121 : Targeted speech to objects*/
-void do_intone(CHAR_DATA *ch, char *argument)
+void do_intone(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MIL];
 	char msg[MSL];

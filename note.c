@@ -697,19 +697,19 @@ void do_unread(CHAR_DATA *ch)
 }
 
 
-void do_note(CHAR_DATA *ch,char *argument)
+void do_note(CHAR_DATA *ch,char *argument, const char *context)
 {
     parse_note(ch,argument,NOTE_NOTE);
 }
 
 
-void do_news(CHAR_DATA *ch,char *argument)
+void do_news(CHAR_DATA *ch,char *argument, const char *context)
 {
     parse_note(ch,argument,NOTE_NEWS);
 }
 
 
-void do_changes(CHAR_DATA *ch,char *argument)
+void do_changes(CHAR_DATA *ch,char *argument, const char *context)
 {
     parse_note(ch,argument,NOTE_CHANGES);
 }

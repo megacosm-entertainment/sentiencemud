@@ -84,7 +84,7 @@ extern LLIST *pending_changes; // List of GAME_SETTING_CHANGE objects
 bool pending_reboot = false;   // Whether a reboot will be needed after confirmation
 
 /* The main command */
-void do_gameedit(CHAR_DATA *ch, char *argument)
+void do_gameedit(CHAR_DATA *ch, char *argument, const char *context)
 {
     char command[MAX_INPUT_LENGTH];
     char arg[MAX_INPUT_LENGTH];

@@ -274,7 +274,7 @@ int dpcmd_lookup(char *command)
 //
 // Restrictions: Viewer must have READ access on the script to see it.
 //
-void do_apdump(CHAR_DATA *ch, char *argument)
+void do_apdump(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[ MAX_INPUT_LENGTH ];
 	SCRIPT_DATA *aprg;
@@ -314,7 +314,7 @@ void do_apdump(CHAR_DATA *ch, char *argument)
 //
 // Restrictions: Viewer must be able to edit blueprints
 //
-void do_ipdump(CHAR_DATA *ch, char *argument)
+void do_ipdump(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[ MAX_INPUT_LENGTH ];
 	SCRIPT_DATA *iprg;
@@ -352,7 +352,7 @@ void do_ipdump(CHAR_DATA *ch, char *argument)
 //
 // Restrictions: Viewer must be able to edit dungeons
 //
-void do_dpdump(CHAR_DATA *ch, char *argument)
+void do_dpdump(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[ MAX_INPUT_LENGTH ];
 	SCRIPT_DATA *dprg;

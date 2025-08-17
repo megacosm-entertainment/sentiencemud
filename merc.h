@@ -70,6 +70,7 @@
 
 #define args(list) list
 #define DECLARE_DO_FUN(fun) DO_FUN fun
+#define DECLARE_CMD_FUN(fun) CMD_FUN fun
 #define DECLARE_SPEC_FUN(fun) SPEC_FUN fun
 #define DECLARE_PRESPELL_FUN(fun) SPELL_FUN fun
 #define DECLARE_SPELL_FUN(fun) SPELL_FUN fun
@@ -684,6 +685,7 @@ typedef struct reserved_area_type
 
 /* Functions */
 typedef void DO_FUN(CHAR_DATA *ch, char *argument);
+typedef void CMD_FUN(CHAR_DATA *ch, char *argument, const char *context);
 typedef bool OLC_FUN args((CHAR_DATA * ch, char *argument));
 typedef bool SPEC_FUN(CHAR_DATA *ch);
 typedef bool SPELL_FUN(SKILL_DATA *skill, int level, CHAR_DATA *ch, void *vo, int target, int obj_wear_loc);
@@ -2181,6 +2183,12 @@ struct descriptor_data
     int nEditTab;
     int nMaxEditTabs;
     HELP_CATEGORY *hCat; /* hedit */
+
+    bool pStringNonEmpty;
+
+    CHANNEL_DATA *pendingChannel;
+    CHANNEL_PUNISHMENT_DATA *pendingPunishment;
+
     char **pString;      /* OLC */
     int editor;          /* OLC */
     void *editor_ptr;    // For general use
@@ -5086,6 +5094,7 @@ struct cmd_data
     CMD_DATA *next;
 
     char *name; // Command Name
+    char *context;      // Extra context for the command.
 
     char *description; // Description of command.
     char *comments;    // Comments on command. May be deprecated later.
@@ -5096,12 +5105,16 @@ struct cmd_data
     int16_t position;   // Minimum position to use command.
     int16_t log;        // Command log level.
     bool enabled;       // Is the command enabled?
+    bool internal;      // Do not allow this command to be modified using cmdedit
     char *reason;       // Reason command is disabled.
     long command_flags; // Various command flags.
 
-    DO_FUN *function;           // What does this function DO?!
+    CMD_FUN *function;           // What does this function DO?!
     STRING_DATA *help_keywords; // Helpfile topics for this command.
     char *summary;              // Used for MXP hints, quick one-liner about command.
+
+    SCRIPT_DATA *visible;       // Whether the command is visible to the player
+                                //   NULL indicates visible
 };
 
 #define CMD_TYPE_NONE (A) // Treated as the catchall / general / miscellaneous group
@@ -5802,6 +5815,179 @@ struct ready_check_state
     bool ready;
 };
 
+typedef struct channel_history_data CHANNEL_HISTORY_DATA;
+typedef struct channel_report_data CHANNEL_REPORT_DATA;
+typedef struct channel_punishment_data CHANNEL_PUNISHMENT_DATA;
+
+// Historical record of what was said on the channel
+struct channel_history_data
+{
+    CHANNEL_HISTORY_DATA *next;
+    bool valid;
+
+    char *speaker_account;          // Account name of speaker
+    char *speaker;                  // Character name of speaker
+    char *target_account;           // Account name of target
+    char *target;                   // Character name of target
+    char *message;                  // Message sent by speaker
+    char *banner;                   // Banner of speaker
+
+    time_t timestamp;               // When did this happen?
+
+    /*
+     *  When messages are shown in the history command, they
+     *  will be reprocessed to show the messages from the
+     *  viewer's perspective.
+     */
+};
+
+// Reasons for reporting channel activity
+#define CHANNEL_REPORT_NONE             0       // Placeholder for invalid
+#define CHANNEL_REPORT_SEXUAL           1       // Someone made sexual comments
+#define CHANNEL_REPORT_THREATENING      2       //          ... threatening comments
+#define CHANNEL_REPORT_HATEFUL          3       //          ... hateful comments
+#define CHANNEL_REPORT_HARMFUL          4       //          ... harmful comments
+#define CHANNEL_REPORT_DISTURBING       5       //          ... disturbing comments
+#define CHANNEL_REPORT_INAPPROPRIATE    6       //          ... inappropriate comments
+#define CHANNEL_REPORT_HARASSMENT       7       // Someone is harassing someone
+/*
+ There will be no reason that includes being offended.  Being offended
+ at someone is a highly subjective thing.  Only activity that can fit
+ into concrete reasons may be reported.
+*/
+
+// Report record made by players for inappropriate conduct on channels.
+struct channel_report_data 
+{
+    CHANNEL_REPORT_DATA *next;
+
+    char *reporter_account;     // Account name of who reported the message
+    char *reporter;             // Character name of who reported the message
+
+    char *speaker_account;          // Account name of speaker
+    char *speaker;                  // Character name of speaker
+
+    int reason;                 // Code for report
+    char *summary;              // Explanation for why the player was reported
+
+    // Context is captured at the time of reporting using the
+    //  reporter for the perspective to determine what messages
+    //  to collect.  This will allow moderators to make informed
+    //  decisions about whether to enact punishment.
+    // Some people may misreport things.
+    LLIST *context;             // List of messages 
+};
+
+#define PUNISHMENT_NONE         0
+#define PUNISHMENT_SILENCED     1       // Player was silenced (cannot speak on channel)
+#define PUNISHMENT_BANNED       2       // Player was banned (cannot join the channel)
+#define PUNISHMENT_NO_REPORT    3       // Player may not report others for a period of time.
+                                        //   Used in cases of abusing the report feature.
+
+struct channel_punishment_data
+{
+    CHANNEL_PUNISHMENT_DATA *next;
+    bool valid;
+
+    int reason;
+
+    char *moderator_account;
+    char *moderator;
+
+    char *speaker_account;          // Account name of speaker
+    char *speaker;                  // Character name of speaker
+    
+    char *summary;                   // Reason for punishment
+
+    // Might need to see about gathering messages 
+
+    time_t start;
+    time_t end;
+};
+
+#define CHANNEL_RESTRICTED          (A)     // Channel requires authorization to edit.
+#define CHANNEL_NEEDS_INSPECTION    (B)     // Channel requires inspection
+#define CHANNEL_INSPECTED           (C)     // Channel has been inspected
+#define CHANNEL_TARGETED            (D)     // Channel requires a target
+#define CHANNEL_GLOBAL_TARGET       (E)     // Channel uses global player list (Used with CHANNEL_TARGETED)
+#define CHANNEL_NO_ANON_BROADCASTS  (F)     // Cannot do anonymous broadcasts on the channel
+#define CHANNEL_ALLOW_COLORS        (G)     // Channel allows color codes in messages.
+#define CHANNEL_PLAYER_BANNER       (H)     // Channel allows players to have banners (placed before their messages)
+#define CHANNEL_PLAYER_MODERATED    (I)     // Channel is moderated by players
+#define CHANNEL_AUTO_JOIN           (J)     // Players automatically join after character creation
+#define CHANNEL_AUTO_JOIN_STAFF     (K)     // Staff automatically join after character creation
+
+typedef struct channel_data CHANNEL_DATA;
+
+struct channel_data
+{
+    CHANNEL_DATA *next;
+    
+    char *name;                 // System name for channel
+    char *title;                // Default display name for channel
+    char *description;          // Purpose of channel
+    CHANNEL_DATA **reserved;    // Reserved channel reference
+    COMMAND_DATA *cmd_command;
+    COMMAND_DATA *cmd_alias;
+    int min_position;           // Minimum position required to speak on channel
+    long flags;                 // Channel flags
+    char *color1;
+    char *color2;
+
+    char *broadcast_format;     // Format of full message for broadcasts
+    char *speaker_format;       // Format of full message from speaker's perspective
+    char *target_format;        // Format of full message from target's perspective
+    char *viewer_format;        // Format of full message from viewer's perspective
+
+    SCRIPT_DATA *can_join;
+    SCRIPT_DATA *can_see;
+    SCRIPT_DATA *can_read;
+    SCRIPT_DATA *can_speak;
+    SCRIPT_DATA *can_moderate;
+    SCRIPT_DATA *can_remove;
+    SCRIPT_DATA *on_join;
+    SCRIPT_DATA *on_leave;
+    SCRIPT_DATA *get_title;
+    SCRIPT_DATA *get_colors;
+    
+    LLIST *history;     // List of CHANNEL_HISTORY_DATA
+    int history_length;             // Total records to keep
+    int history_viewable;           // Max records viewable by players
+
+    LLIST *punishments; // List of CHANNEL_PUNISHMENT_DATA
+    int punishment_expiration;      // Time in days
+
+    LLIST *reports;     // List of CHANNEL_REPORT_DATA
+};
+
+typedef struct replay_entry_data REPLAY_ENTRY;
+
+struct replay_entry_data
+{
+    REPLAY_ENTRY *next;
+    bool valid;
+
+    char *speaker_account;
+    char *speaker;
+    time_t timestamp;
+    char *message;
+};
+
+#define CHANNEL_JOINED          (A)     // Character has joined the channel
+#define CHANNEL_ALLOW_REPLAY    (B)     // Enables the channel to be captured by the replay system.
+
+typedef struct channel_entry_data CHANNEL_ENTRY;
+
+struct channel_entry_data
+{
+    CHANNEL_ENTRY *next;
+    bool valid;
+
+    CHANNEL_DATA *channel;
+    char *banner;
+    long flags;
+};
+
 #define STAFF_PLAYER 0 // Pesky Mortal (Default)
 #define STAFF_GIMP 1   // Heh, Gimp...
 #define STAFF_IMMORTAL 2
@@ -5919,6 +6105,12 @@ typedef struct account_character_data ACCOUNT_CHARACTER;
 ACCOUNT_CHARACTER *new_account_character(void);
 void free_account_character(ACCOUNT_CHARACTER *acct_char);
 
+typedef struct player_channel_data PLAYER_CHANNEL_DATA;
+
+struct player_channel_data {
+    LLIST *channels;    // List of CHANNEL_ENTRY
+};
+
 /*
  * Data which only PC's have.
  */
@@ -5967,6 +6159,8 @@ struct pc_data
     char *last_region;
 
     int staff_rank;
+
+    PLAYER_CHANNEL_DATA *channels;
 
     LLIST *classes;
 
@@ -10717,6 +10911,8 @@ extern IMMORTAL_DATA *unassigned_immortal_list;
 #define HELP_DIR DATA_DIR "help/"
 #define AREA_DIR GAME_DIR "area/"
 #define LOG_DIR GAME_DIR "logs/"
+#define CHANNELS_DIR SYSTEM_DIR "channels/"
+
 
 /*World files - Regarding things specifically for the game world. */
 #define PROJECTS_FILE WORLD_DIR "projects.dat"
@@ -10750,6 +10946,7 @@ extern IMMORTAL_DATA *unassigned_immortal_list;
 #define CORPSE_FILE SYSTEM_DIR "corpse.dat"
 #define COMMANDS_FILE SYSTEM_DIR "commands.dat"
 #define GAME_SETTINGS_FILE SYSTEM_DIR "game_settings.dat"
+#define CHANNELS_FILE SYSTEM_DIR "channels.dat"
 /*Notes of all kinds */
 #define NOTE_FILE NOTE_DIR "notes.not" /* For 'notes'*/
 /*#define PENALTY_FILE	NOTE_DIR "penal.not"		Unused */
@@ -10796,7 +10993,7 @@ void check_sex args((CHAR_DATA * ch));
 void church_echo args((CHURCH_DATA * church, char *message));
 void crier_announce args((char *argument));
 void die_follower args((CHAR_DATA * ch));
-void do_say(CHAR_DATA *ch, char *argument);
+void do_say(CHAR_DATA *ch, char *argument, const char *context);
 void double_xp(CHAR_DATA *victim);
 void echo_around args((ROOM_INDEX_DATA * pRoom, char *message));
 void gecho args((char *message));
@@ -10864,7 +11061,7 @@ OBJ_DATA *create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *area, OBJ_DATA *tre
 /* act_info.c */
 char *get_wilderness_map args((AREA_DATA * pArea, int lx, int ly, int bonus_view_x, int bonus_view_y));
 CHURCH_DATA *find_char_church args((CHAR_DATA * ch));
-DECLARE_DO_FUN(do_look);
+DECLARE_CMD_FUN(do_look);
 char *find_desc_for_room(ROOM_INDEX_DATA *room, CHAR_DATA *viewer);
 char *get_char_where args((CHAR_DATA * ch));
 int find_char_position_in_church(CHAR_DATA *ch);
@@ -10931,7 +11128,7 @@ OBJ_DATA *get_obj_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, char *argument);
 void bomb_end(CHAR_DATA *ch);
 void brew_end(CHAR_DATA *ch);
 void imbue_end(CHAR_DATA *ch);
-void do_restring(CHAR_DATA *ch, char *argument);
+void do_restring(CHAR_DATA *ch, char *argument, const char *context);
 void obj_to_keeper(OBJ_DATA *obj, CHAR_DATA *ch);
 void recite_end(CHAR_DATA *ch);
 void removeall(CHAR_DATA *ch);
@@ -10951,7 +11148,7 @@ int gconfig_read(void);
 int gconfig_write(void);
 int game_settings_read(void);
 int game_settings_write(void);
-void do_chset(CHAR_DATA *ch, char *argument);
+void do_chset(CHAR_DATA *ch, char *argument, const char *context);
 void save_shares args((void));
 void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj, long flag, long flag_skip, int min_rank);
 
@@ -11441,6 +11638,7 @@ void extract_token(TOKEN_DATA *token);
 void extract_church args((CHURCH_DATA * church));
 void extract_obj args((OBJ_DATA * obj));
 void extract_char args((CHAR_DATA * ch, bool fPull));
+CHAR_DATA *find_player(char *name);
 CD *get_char_room args((CHAR_DATA * ch, ROOM_INDEX_DATA *room, char *argument));
 CD *get_char_world args((CHAR_DATA * ch, char *argument));
 CD *find_char_world args((CHAR_DATA * ch, char *argument));
@@ -11617,6 +11815,7 @@ char *one_argument_norm args((char *argument, char *arg_first));
 char *one_argument args((char *argument, char *arg_first));
 char *one_caseful_argument args((char *argument, char *arg_first));
 void do_function(CHAR_DATA *ch, DO_FUN *do_fun, char *argument);
+void cmd_function(CHAR_DATA *ch, CMD_FUN *do_fun, char *argument, const char *context);
 void stop_casting(CHAR_DATA *ch, bool messages);
 void stop_music(CHAR_DATA *ch, bool messages);
 void stop_ranged(CHAR_DATA *ch, bool messages);
@@ -11866,13 +12065,14 @@ bool processCompressed(DESCRIPTOR_DATA *desc);
 bool writeCompressed(DESCRIPTOR_DATA *desc, char *txt, int length);
 
 /* mount.c */
-void do_mount args((CHAR_DATA * ch, char *argument));
-void do_dismount args((CHAR_DATA * ch, char *argument));
+void do_mount args((CHAR_DATA * ch, char *argument, const char *context));
+void do_dismount args((CHAR_DATA * ch, char *argument, const char *context));
 void do_buy_mount args((CHAR_DATA * ch, char *argument));
 
 /* string.c */
 void string_edit args((CHAR_DATA * ch, char **pString));
 void string_append args((CHAR_DATA * ch, char **pString));
+void string_append_required args((CHAR_DATA * ch, char **pString));
 char *string_indent args((const char *src, int indent));
 char *string_replace_static args((char *orig, char *old, char *new));
 char *string_replace args((char *orig, char *old, char *new));
@@ -13179,7 +13379,7 @@ CMD_DATA *get_cmd_data(char *name);
 
 bool load_commands();
 void save_commands();
-void do_mxptest(CHAR_DATA *ch, char *argument);
+void do_mxptest(CHAR_DATA *ch, char *argument, const char *context);
 void generate_key(CHAR_DATA *ch, char *key);
 bool check_mfa(CHAR_DATA *ch, char *argument);
 char *sha256_crypt(const char *pwd);

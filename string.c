@@ -77,9 +77,17 @@ void string_append(CHAR_DATA *ch, char **pString)
 	send_to_char("\n\r", ch); */
 
     ch->desc->pString = pString;
-
+	ch->desc->pStringNonEmpty = false;
     return;
 }
+
+
+void string_append_required(CHAR_DATA *ch, char **pString)
+{
+	string_append(ch, pString);
+	ch->desc->pStringNonEmpty = true;
+}
+
 
 char *string_replace_static(char * orig, char * old, char * new)
 {
@@ -125,11 +133,16 @@ char *string_replace(char * orig, char * old, char * new)
     return str_dup(xbuf);
 }
 
+PLAYER_CHANNEL_DATA *get_player_channel_data(const char *name);
+void fwrite_player_channel_data(const char *name, PLAYER_CHANNEL_DATA *data);
+CHANNEL_ENTRY *get_channel_entry(PLAYER_CHANNEL_DATA *data, CHANNEL_DATA *channel, bool create);
+bool save_channels(CHANNEL_DATA *channel);
 void string_postprocess(CHAR_DATA *ch, bool execute)
 {
 	ch->desc->pString = NULL;
+	ch->desc->pStringNonEmpty = false;
 
-	    // Handle changeset comment editing
+	// Handle changeset comment editing
     if (ch->desc->editor == ED_CHANGESET) {
         ch->desc->editor = ED_NONE;
         
@@ -148,6 +161,81 @@ void string_postprocess(CHAR_DATA *ch, bool execute)
 		ch->desc->editor = ED_NONE;
 
 		string_end_chlog(ch);
+	}
+
+	if (ch->desc->pendingChannel)
+	{
+		CHANNEL_DATA *pc = ch->desc->pendingChannel;
+		if (IS_VALID(ch->desc->pendingPunishment))
+		{
+			bool valid = false;
+			CHANNEL_PUNISHMENT_DATA *pp = ch->desc->pendingPunishment;
+			if (execute)
+			{
+				// Adjust punishment range to
+				pp->start = current_time;
+				if (pp->end > 0) pp->end += current_time;
+
+				// Apply the punishment to the player
+				CHAR_DATA *speaker = find_player(pp->speaker);
+				PLAYER_CHANNEL_DATA *pcd = get_player_channel_data(pp->speaker);
+				CHANNEL_ENTRY *entry = get_channel_entry(pcd, pc, true);
+				if (entry)
+				{
+					char *reason = NULL;
+					if (pp->reason == PUNISHMENT_SILENCED) {
+						entry->silenced = pp->end;
+						reason = "silenced";
+					} else if (pp->reason == PUNISHMENT_BANNED) {
+						entry->banned = pp->end;
+						REMOVE_BIT(entry->flags, CHANNEL_JOINED);	// Automatically remove them from the channel.
+						reason = "banned";
+					} else if (pp->reason == PUNISHMENT_NO_REPORT) {
+						entry->gagged = pp->end;
+						reason = "suspended from reporting others";
+					} else {
+						send_to_char("Invalid punishment reason?\n\r", ch);
+					}
+
+					if (reason)
+					{
+						// Write to disk, regardless if the player is actually online.
+						fwrite_player_channel_data(pp->speaker,pcd);
+						list_appendlink(pp, pc->punishments);
+						if (pp->end > 0)
+							send_to_char(formatf("{Y%s{x has been {R%s{x on {W%s{x until {W%s{x.\n\r", capitalize(pp->speaker), reason, pc->name, (char *)ctime(&(pp->end))), ch);
+						else
+							send_to_char(formatf("{Y%s{x has been {R%s{x on {W%s{x indefinitely.\n\r", capitalize(pp->speaker), reason, pc->name), ch);
+
+						// Let the target know they've been punished.
+						if (IS_VALID(speaker))
+						{
+							char *title = get_channel_title(speaker, pc);
+							if (pp->end > 0)
+								send_to_char(formatf("You have been {R%s{x on {W%s{x until {W%s{x.\n\r", reason, title, (char *)ctime(&(pp->end))), ch);
+							else
+								send_to_char(formatf("You have been {R%s{x on {W%s{x indefinitely.\n\r", reason, title), ch);
+							free_string(title);
+						}
+
+						// TODO: Possibly add moderation messages on the channel?
+
+						save_channel(pc);
+						valid = true;
+					}
+				}
+			}
+
+			if (!valid)
+			{
+				free_channel_punishment(ch->desc->pendingPunishment);
+				send_to_char("Punishment could not be applied.\n\r", ch);
+			}
+
+			ch->desc->pendingPunishment = NULL;
+		}
+
+		ch->desc->pendingChannel = NULL;
 	}
 
 	if( ch->desc->input && ch->desc->inputString != NULL)
@@ -213,6 +301,18 @@ void string_postprocess(CHAR_DATA *ch, bool execute)
 	}
 
 	ch->desc->skip_blank_lines = false;
+}
+
+// Assumes CH is in string editor
+static bool _is_string_empty(CHAR_DATA *ch)
+{
+	char *plain = nocolour(*(ch->desc->pString));	// Strip all color
+
+	char *skip = skip_whitespace(plain);	// Skip to the first non-whitespace, or the end
+	bool ret = !*skip;						// If it is at the end of the string, it's all whitespace
+
+	free_string(plain);
+	return ret;
 }
 
 void string_add(CHAR_DATA *ch, char *argument)
@@ -338,7 +438,8 @@ void string_add(CHAR_DATA *ch, char *argument)
 
     if (*argument == '~' || *argument == '@')
     {
-		string_postprocess(ch, true);
+		// Either the string can be empty, or the string is not empty
+		string_postprocess(ch, !ch->desc->pStringNonEmpty || !_is_string_empty(ch))
         return;
     }
 

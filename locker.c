@@ -12,7 +12,7 @@
 #include "merc.h"
 
 
-void do_locker(CHAR_DATA *ch, char* argument)
+void do_locker(CHAR_DATA *ch, char* argument, const char *context)
 {
 	char arg1[MAX_INPUT_LENGTH];
 	char arg2[MAX_INPUT_LENGTH];

@@ -637,7 +637,7 @@ static bool __sectorlist_parse_params(CHAR_DATA *ch, char *argument, struct sect
 	return true;
 }
 
-void do_sectorlist(CHAR_DATA *ch, char *argument)
+void do_sectorlist(CHAR_DATA *ch, char *argument, const char *context)
 {
 	BUFFER *buffer = new_buf();
 	char buf[MSL];

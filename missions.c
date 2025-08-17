@@ -148,7 +148,7 @@ static bool __classes_compatible(CLASS_DATA *a, CLASS_DATA *b)
 	return a->type == b->type;
 }
 
-void do_mission(CHAR_DATA *ch, char *argument)
+void do_mission(CHAR_DATA *ch, char *argument, const char *context)
 {
 	CHAR_DATA *mob = NULL;
 	OBJ_DATA *obj = NULL;
@@ -1471,7 +1471,7 @@ CHAR_DATA *get_renewer_here(CHAR_DATA *ch, char *argument)
 // RENEW GUARD <MOBILE>[ <RENEWER>]
 // RENEW OBJECT <OBJECT>[ <RENEWER>]
 // RENEW OTHER <KEYWORD>[ <RENEWER>]
-void do_renew(CHAR_DATA *ch, char *argument)
+void do_renew(CHAR_DATA *ch, char *argument, const char *context)
 {
 	CHAR_DATA *mob;
 	OBJ_DATA *obj;

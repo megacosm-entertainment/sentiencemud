@@ -13,7 +13,7 @@
 #include "merc.h"
 #include "interp.h"
 
-void do_mount(CHAR_DATA *ch, char *argument)
+void do_mount(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     char buf[MAX_INPUT_LENGTH];
@@ -120,7 +120,7 @@ void do_mount(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_dismount(CHAR_DATA *ch, char *argument)
+void do_dismount(CHAR_DATA *ch, char *argument, const char *context)
 {
     CHAR_DATA *mount;
 
@@ -202,7 +202,7 @@ CHAR_DATA *find_personal_mount(char *name)
 }
 
 
-void do_whistle(CHAR_DATA *ch, char *argument)
+void do_whistle(CHAR_DATA *ch, char *argument, const char *context)
 {
     OBJ_DATA *obj;
     CHAR_DATA *mount;

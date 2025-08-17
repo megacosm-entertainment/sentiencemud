@@ -2660,7 +2660,7 @@ void save_wilds (FILE * fp, AREA_DATA * pArea)
     return;
 }
 
-void do_regions(CHAR_DATA *ch, char *argument)
+void do_regions(CHAR_DATA *ch, char *argument, const char *context)
 {
     WILDS_REGION *pRegion;
     char buf[MSL];
@@ -2718,7 +2718,7 @@ void do_regions(CHAR_DATA *ch, char *argument)
         send_to_char("    None defined.\n\r", ch);
 }
 
-void do_vlinks(CHAR_DATA *ch, char *argument)
+void do_vlinks(CHAR_DATA *ch, char *argument, const char *context)
 {
     WILDS_VLINK *pVLink;
     char buf[MSL];
@@ -3544,7 +3544,7 @@ ROOM_INDEX_DATA *wilds_seek_down(register WILDS_DATA *wilds, register int x, reg
 	return highest;
 }
 
-void do_wlist(CHAR_DATA *ch, char *argument)
+void do_wlist(CHAR_DATA *ch, char *argument, const char *context)
 {
     char buf[MAX_STRING_LENGTH];
     ITERATOR iter;

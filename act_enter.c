@@ -43,7 +43,7 @@
 
 void dungeon_check_commence(DUNGEON *dng, CHAR_DATA *ch);
 
-void do_disembark( CHAR_DATA *ch, char *argument)
+void do_disembark( CHAR_DATA *ch, char *argument, const char *context)
 {
     ROOM_INDEX_DATA *location;
     OBJ_DATA *ship_obj;
@@ -478,7 +478,7 @@ ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool al
 	return location;
 }
 
-void do_enter( CHAR_DATA *ch, char *argument)
+void do_enter( CHAR_DATA *ch, char *argument, const char *context)
 {
     ROOM_INDEX_DATA *location = NULL;
 

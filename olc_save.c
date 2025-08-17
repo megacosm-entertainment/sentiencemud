@@ -50,7 +50,7 @@ static bool 	fMatch;
 static char 	*word;
 static char 	buf[MSL];
 
-void do_asave_new(CHAR_DATA *ch, char *argument)
+void do_asave_new(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg1[MAX_INPUT_LENGTH];
 	AREA_DATA *pArea;

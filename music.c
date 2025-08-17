@@ -213,7 +213,7 @@ bool validate_song_target(CHAR_DATA *ch,int type,char *arg, int *targ, CHAR_DATA
 	return false;
 }
 
-void do_play(CHAR_DATA *ch, char *argument)
+void do_play(CHAR_DATA *ch, char *argument, const char *context)
 {
 	SKILL_ENTRY *entry;
     OBJ_DATA *instrument;

@@ -56,7 +56,7 @@ char *const distance[7] =
 bool scan_list(ROOM_INDEX_DATA *scan_room, CHAR_DATA *ch, int depth, int door, void *data);
 void scan_char(CHAR_DATA *victim, CHAR_DATA *ch, int depth, int door );
 
-void do_scan(CHAR_DATA *ch, char *argument)
+void do_scan(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg1[MAX_INPUT_LENGTH];
 	int door;

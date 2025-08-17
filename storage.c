@@ -24,7 +24,7 @@ bool handle_storage_rent(CHAR_DATA *ch, int storage_type);
  * Usage: storage <type> <subcommand> [arguments]
  * Types: char/character/locker, account/vault, church/coffer
  */
-void do_storage(CHAR_DATA *ch, char *argument)
+void do_storage(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg1[MAX_INPUT_LENGTH];
     char arg_remainder[MAX_INPUT_LENGTH];
@@ -1314,51 +1314,51 @@ bool can_put_to_church_storage(CHAR_DATA *ch, CHURCH_DATA *church)
 /*
  * Character-specific locker storage - convenience wrapper
  */
-void do_locker(CHAR_DATA *ch, char* argument)
+void do_locker(CHAR_DATA *ch, char* argument, const char *context)
 {
     char buf[MAX_STRING_LENGTH];
     
     if (argument[0] == '\0') {
         // If no arguments, just call storage with character type
-        do_storage(ch, "character");
+        do_storage(ch, "character", context);
     } else {
         // Prepend "character " to the arguments
         sprintf(buf, "character %s", argument);
-        do_storage(ch, buf);
+        do_storage(ch, buf, context);
     }
 }
 
 /*
  * Account-wide vault storage - convenience wrapper
  */
-void do_vault(CHAR_DATA *ch, char* argument)
+void do_vault(CHAR_DATA *ch, char* argument, const char *context)
 {
     char buf[MAX_STRING_LENGTH];
     
     if (argument[0] == '\0') {
         // If no arguments, just call storage with account type
-        do_storage(ch, "account");
+        do_storage(ch, "account", context);
     } else {
         // Prepend "account " to the arguments
         sprintf(buf, "account %s", argument);
-        do_storage(ch, buf);
+        do_storage(ch, buf, context);
     }
 }
 
 /*
  * Church coffer storage - convenience wrapper
  */
-void do_coffer(CHAR_DATA *ch, char* argument)
+void do_coffer(CHAR_DATA *ch, char* argument, const char *context)
 {
     char buf[MAX_STRING_LENGTH];
     
     if (argument[0] == '\0') {
         // If no arguments, just call storage with church type
-        do_storage(ch, "church");
+        do_storage(ch, "church", context);
     } else {
         // Prepend "church " to the arguments
         sprintf(buf, "church %s", argument);
-        do_storage(ch, buf);
+        do_storage(ch, buf, context);
     }
 }
 

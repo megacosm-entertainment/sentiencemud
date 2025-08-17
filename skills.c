@@ -1439,7 +1439,7 @@ SKILL_DATA *get_skill_data_uid(int16_t uid)
 	return skill;
 }
 
-void do_multi(CHAR_DATA *ch, char *argument)
+void do_multi(CHAR_DATA *ch, char *argument, const char *context)
 {
 #if 0
     char buf[2*MAX_STRING_LENGTH];
@@ -1966,7 +1966,7 @@ bool can_choose_subclass(CHAR_DATA *ch, int subclass)
 #endif
 
 // Train a stat
-void do_train(CHAR_DATA *ch, char *argument)
+void do_train(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MIL];
     char buf[MAX_STRING_LENGTH];
@@ -2198,7 +2198,7 @@ void do_train(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_convert(CHAR_DATA *ch, char *argument)
+void do_convert(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     CHAR_DATA *trainer;
@@ -2471,13 +2471,13 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
 }
 
 
-void do_spells(CHAR_DATA *ch, char *argument)
+void do_spells(CHAR_DATA *ch, char *argument, const char *context)
 {
 	list_skill_entries(ch, argument, false, true, false, false);
 }
 
 
-void do_skills(CHAR_DATA *ch, char *argument)
+void do_skills(CHAR_DATA *ch, char *argument, const char *context)
 {
 	list_skill_entries(ch, argument, true, false, false, false);
 }
@@ -3437,7 +3437,7 @@ static LLIST *__teacher_get_available(CHAR_DATA *ch, CHAR_DATA *teacher)
 
 // PRACTICE <teacher>				-- Lists all available skills and spells available to learn.
 // PRACTICE <teacher> <name>		-- Tries to learn specific ability from teacher
-void do_practice( CHAR_DATA *ch, char *argument )
+void do_practice( CHAR_DATA *ch, char *argument, const char *context )
 {
 	char buf[MAX_STRING_LENGTH];
 	char arg[MSL];
@@ -4115,7 +4115,7 @@ void do_practice( CHAR_DATA *ch, char *argument )
 
 // REHEARSE <teacher>
 // REHEARSE <teacher> <song>
-void do_rehearse( CHAR_DATA *ch, char *argument )
+void do_rehearse( CHAR_DATA *ch, char *argument, const char *context )
 {
 	char buf[MAX_STRING_LENGTH];
 	char arg[MSL];
@@ -7749,7 +7749,7 @@ void resolve_skill_classes()
 		save_classes(false);
 }
 
-void do_clslist(CHAR_DATA *ch, char *argument)
+void do_clslist(CHAR_DATA *ch, char *argument, const char *context)
 {
 	BUFFER *buffer = new_buf();
 	char buf[MSL];
@@ -8387,7 +8387,7 @@ bool is_current_class_combat(CHAR_DATA *ch)
 	return IS_SET(ch->pcdata->current_class->clazz->flags, CLASS_COMBATIVE) ? true : false;
 }
 
-void do_setclass(CHAR_DATA *ch, char *argument)
+void do_setclass(CHAR_DATA *ch, char *argument, const char *context)
 {
 	if (IS_NPC(ch))
 	{

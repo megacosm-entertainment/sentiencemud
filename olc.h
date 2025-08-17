@@ -867,6 +867,7 @@ DECLARE_OLC_FUN( cmdedit_create );
 DECLARE_OLC_FUN( cmdedit_show ); 
 DECLARE_OLC_FUN( cmdedit_delete );
 DECLARE_OLC_FUN( cmdedit_name ); 
+DECLARE_OLC_FUN( cmdedit_context ); 
 DECLARE_OLC_FUN( cmdedit_description );
 DECLARE_OLC_FUN( cmdedit_comments ); 
 DECLARE_OLC_FUN( cmdedit_type );
@@ -881,6 +882,7 @@ DECLARE_OLC_FUN( cmdedit_help );
 DECLARE_OLC_FUN( cmdedit_summary );
 DECLARE_OLC_FUN( cmdedit_order );
 DECLARE_OLC_FUN( cmdedit_additional );
+DECLARE_OLC_FUN( cmdedit_visible );
 
 
 /*

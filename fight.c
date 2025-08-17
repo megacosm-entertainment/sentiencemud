@@ -4433,7 +4433,7 @@ OBJ_DATA *disarm(CHAR_DATA *ch, CHAR_DATA *victim)
 }
 
 
-void do_circle(CHAR_DATA *ch, char *argument)
+void do_circle(CHAR_DATA *ch, char *argument, const char *context)
 {
 	CHAR_DATA *victim;
 	OBJ_DATA *obj;
@@ -4527,7 +4527,7 @@ void do_circle(CHAR_DATA *ch, char *argument)
 
 
 // Dwarven berserk
-void do_berserk(CHAR_DATA *ch, char *argument)
+void do_berserk(CHAR_DATA *ch, char *argument, const char *context)
 {
 	int chance;
 
@@ -4615,7 +4615,7 @@ void do_berserk(CHAR_DATA *ch, char *argument)
 
 
 // Minotaur charge: bashes everyone in the room
-void do_charge(CHAR_DATA *ch, char *argument)
+void do_charge(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_INPUT_LENGTH];
 	CHAR_DATA *rch, *rch_next;
@@ -4672,7 +4672,7 @@ void do_charge(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_intimidate(CHAR_DATA *ch, char *argument)
+void do_intimidate(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_INPUT_LENGTH];
 	CHAR_DATA *victim;
@@ -4747,7 +4747,7 @@ void do_intimidate(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_bash(CHAR_DATA *ch, char *argument)
+void do_bash(CHAR_DATA *ch, char *argument, const char *context)
 {
 	CHAR_DATA *victim;
 	OBJ_DATA *obj;
@@ -5154,7 +5154,7 @@ void do_bash(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_bite(CHAR_DATA *ch, char *argument)
+void do_bite(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_INPUT_LENGTH];
 	char arg2[MAX_INPUT_LENGTH];
@@ -5406,7 +5406,7 @@ void bitten_end(CHAR_DATA *ch)
 }
 
 
-void do_dirt(CHAR_DATA *ch, char *argument)
+void do_dirt(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_INPUT_LENGTH];
 	CHAR_DATA *victim;
@@ -5559,7 +5559,7 @@ void do_dirt(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_kill(CHAR_DATA *ch, char *argument)
+void do_kill(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_INPUT_LENGTH];
 	CHAR_DATA *victim;
@@ -5596,7 +5596,7 @@ void do_kill(CHAR_DATA *ch, char *argument)
 
 
 // Dracon/Dragon breathe skill.
-void do_breathe(CHAR_DATA *ch, char *argument)
+void do_breathe(CHAR_DATA *ch, char *argument, const char *context)
 {
 	static char *breath_names[] = { "acid", "fire", "frost", "gas", "lightning", NULL };
 	//static int16_t *breath_gsn[] = { &gsn_acid_breath, &gsn_fire_breath, &gsn_frost_breath, &gsn_gas_breath, &gsn_lightning_breath };
@@ -5657,7 +5657,7 @@ void do_breathe(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_backstab(CHAR_DATA *ch, char *argument)
+void do_backstab(CHAR_DATA *ch, char *argument, const char *context)
 {
 #if 0
 	char arg[MAX_INPUT_LENGTH];
@@ -5843,7 +5843,7 @@ void do_backstab(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_burgle(CHAR_DATA *ch, char *argument)
+void do_burgle(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_INPUT_LENGTH];
 	char buf[MAX_STRING_LENGTH];
@@ -5883,7 +5883,7 @@ void do_burgle(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_slit(CHAR_DATA *ch, char *argument)
+void do_slit(CHAR_DATA *ch, char *argument, const char *context)
 {
 #if 0
 	char arg[MAX_INPUT_LENGTH];
@@ -6020,7 +6020,7 @@ void do_slit(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_blackjack(CHAR_DATA *ch, char *argument)
+void do_blackjack(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_INPUT_LENGTH];
 //	char buf[MAX_INPUT_LENGTH];
@@ -6208,7 +6208,7 @@ void do_blackjack(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_flee(CHAR_DATA *ch, char *argument)
+void do_flee(CHAR_DATA *ch, char *argument, const char *context)
 {
 	do_flee_full(ch, argument, false, true);
 }
@@ -6433,7 +6433,7 @@ int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue)
 }
 
 
-void do_rescue(CHAR_DATA *ch, char *argument)
+void do_rescue(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_INPUT_LENGTH];
 	CHAR_DATA *victim;
@@ -6515,7 +6515,7 @@ void do_rescue(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_tail_kick(CHAR_DATA *ch, char *argument)
+void do_tail_kick(CHAR_DATA *ch, char *argument, const char *context)
 {
 	CHAR_DATA *victim;
 	int chance, dam;
@@ -6587,7 +6587,7 @@ void do_tail_kick(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_kick(CHAR_DATA *ch, char *argument)
+void do_kick(CHAR_DATA *ch, char *argument, const char *context)
 {
 	CHAR_DATA *victim;
 	int skill;
@@ -6663,7 +6663,7 @@ void do_kick(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_disarm(CHAR_DATA *ch, char *argument)
+void do_disarm(CHAR_DATA *ch, char *argument, const char *context)
 {
 	CHAR_DATA *victim;
 	OBJ_DATA *obj;
@@ -6752,7 +6752,7 @@ void do_disarm(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_slay(CHAR_DATA *ch, char *argument)
+void do_slay(CHAR_DATA *ch, char *argument, const char *context)
 {
 	CHAR_DATA *victim;
 	char arg[MAX_INPUT_LENGTH];
@@ -6833,7 +6833,7 @@ void do_slay(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_challenge(CHAR_DATA *ch, char *argument)
+void do_challenge(CHAR_DATA *ch, char *argument, const char *context)
 {
 	CHAR_DATA *victim;
 	char arg[MAX_INPUT_LENGTH];
@@ -6971,7 +6971,7 @@ void do_challenge(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_feign(CHAR_DATA *ch, char *argument)
+void do_feign(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MAX_INPUT_LENGTH];
 	int chance;
@@ -7042,7 +7042,7 @@ void do_feign(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_resurrect(CHAR_DATA *ch, char *argument)
+void do_resurrect(CHAR_DATA *ch, char *argument, const char *context)
 {
 	CHAR_DATA *victim;
 	char arg[MAX_INPUT_LENGTH];
@@ -7337,7 +7337,7 @@ void resurrect_end(CHAR_DATA *ch)
 }
 
 
-void do_holdup(CHAR_DATA *ch, char *argument)
+void do_holdup(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_INPUT_LENGTH];
 	CHAR_DATA *victim;
@@ -7433,7 +7433,7 @@ void do_holdup(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_judge(CHAR_DATA *ch, char *argument)
+void do_judge(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_INPUT_LENGTH];
 	char buf[MAX_INPUT_LENGTH];
@@ -7531,7 +7531,7 @@ void do_judge(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_bind(CHAR_DATA *ch, char *argument)
+void do_bind(CHAR_DATA *ch, char *argument, const char *context)
 {
 	CHAR_DATA *victim;
 	char arg[MAX_INPUT_LENGTH];
@@ -7639,7 +7639,7 @@ void bind_end(CHAR_DATA *ch)
 }
 
 
-void do_pursuit(CHAR_DATA *ch, char *argument)
+void do_pursuit(CHAR_DATA *ch, char *argument, const char *context)
 {
 	if (get_skill(ch, gsk_pursuit) == 0)
 	{
@@ -7660,7 +7660,7 @@ void do_pursuit(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_weave(CHAR_DATA *ch, char *argument)
+void do_weave(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_INPUT_LENGTH];
 	CHAR_DATA *victim;
@@ -7743,7 +7743,7 @@ void do_weave(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_rack(CHAR_DATA *ch, char *argument)
+void do_rack(CHAR_DATA *ch, char *argument, const char *context)
 {
 	CHAR_DATA *victim;
 	int dam;
@@ -7810,7 +7810,7 @@ void do_rack(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_warcry(CHAR_DATA *ch, char *argument)
+void do_warcry(CHAR_DATA *ch, char *argument, const char *context)
 {
 	AFFECT_DATA af;
 	CHAR_DATA *victim;

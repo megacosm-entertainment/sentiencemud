@@ -25,7 +25,7 @@ void extract_inks(CHAR_DATA *ch, int *need);
 bool show_help(CHAR_DATA *ch, char *argument);
 
 /* Used not only for depositing of pneuma but for the depositing of GQ items*/
-void do_deposit(CHAR_DATA *ch, char *argument)
+void do_deposit(CHAR_DATA *ch, char *argument, const char *context)
 {
     char buf[MAX_STRING_LENGTH];
     OBJ_DATA *obj;
@@ -154,7 +154,7 @@ void do_deposit(CHAR_DATA *ch, char *argument)
 
 // TODO: make VERB trigger on the hammer
 /* could be used for various things in the future, atm just for crystal hammers*/
-void do_strike(CHAR_DATA *ch, char *argument)
+void do_strike(CHAR_DATA *ch, char *argument, const char *context)
 {
     OBJ_DATA *obj;
     OBJ_DATA *obj_struck;
@@ -222,7 +222,7 @@ void do_strike(CHAR_DATA *ch, char *argument)
 
 
 // TODO: REWORK THIS ENTIRE THING
-void do_lore(CHAR_DATA *ch, char *argument)
+void do_lore(CHAR_DATA *ch, char *argument, const char *context)
 {
 #if 0
     CHAR_DATA *mob;
@@ -467,7 +467,7 @@ void save_last_wear(CHAR_DATA *ch)
 
 
 // TODO: Rework for general artificing stuff
-void do_combine(CHAR_DATA *ch, char *argument)
+void do_combine(CHAR_DATA *ch, char *argument, const char *context)
 {
 #if 0
     char arg[MSL];
@@ -693,7 +693,7 @@ void do_combine(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_keep(CHAR_DATA *ch, char *argument)
+void do_keep(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MSL];
     OBJ_DATA *obj;
@@ -734,7 +734,7 @@ void reset_obj(OBJ_DATA *obj)
 }
 
 
-void do_consume(CHAR_DATA *ch, char *argument)
+void do_consume(CHAR_DATA *ch, char *argument, const char *context)
 {
     OBJ_DATA *corpse;
     char arg[MAX_STRING_LENGTH];
@@ -835,7 +835,7 @@ void obj_touch_spell(OBJ_DATA *tattoo, SKILL_DATA *skill, int level, CHAR_DATA *
 		(*(skill->touch_fun)) (skill, level, ch, tattoo);
 }
 
-void do_touch(CHAR_DATA *ch, char *argument)
+void do_touch(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     OBJ_DATA *obj;
@@ -905,7 +905,7 @@ void do_touch(CHAR_DATA *ch, char *argument)
     }
 }
 
-void do_ruboff(CHAR_DATA *ch, char *argument)
+void do_ruboff(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     OBJ_DATA *obj;
@@ -1012,7 +1012,7 @@ bool can_ink_spell(CHAR_DATA *ch, SKILL_ENTRY *spell, CHAR_DATA *victim, int wea
 }
 
 
-void do_ink(CHAR_DATA *ch, char *argument)
+void do_ink(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MSL];
     CHAR_DATA *victim;
@@ -1310,7 +1310,7 @@ void ink_end( CHAR_DATA *ch )
 }
 
 
-void do_affix(CHAR_DATA *ch, char *argument)
+void do_affix(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     CHAR_DATA *victim;

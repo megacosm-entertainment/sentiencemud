@@ -18,6 +18,36 @@
 //#define DEBUG_MODULE
 #include "debug.h"
 
+#define MEMPOP(v,f,t) \
+    t *v; \
+    if (f) \
+    { \
+        v = f; \
+        f = (f)->next; \
+    } else \
+        v = alloc_mem(sizeof(t)); \
+    \
+    memset(v, 0, sizeof(t))
+
+
+#define PERMPOP(v,f,t) \
+    t *v; \
+    if (f) \
+    { \
+        v = f; \
+        f = (f)->next; \
+    } else \
+        v = alloc_perm(sizeof(t)); \
+    \
+    memset(v, 0, sizeof(t))
+
+
+#define MEMPUSH(v,f) \
+    (v)-> = f; \
+    f = v
+
+
+
 /* Vizz - External Globals */
 extern GLOBAL_DATA gconfig;
 
@@ -98,6 +128,26 @@ OLC_POINT_BOOST *olc_point_boost_free;
 SHIP_INDEX_DATA *ship_index_free;
 SHIP_DATA *ship_free;
 CHURCH_LOG_ENTRY *church_log_entry_free;
+
+void delete_channel_history(void *ptr)
+{
+    free_channel_history((CHANNEL_HISTORY_DATA *)ptr);
+}
+
+void delete_channel_report(void *ptr)
+{
+    free_channel_report((CHANNEL_REPORT_DATA *)ptr);
+}
+
+void delete_channel_punishment(void *ptr)
+{
+    free_channel_punishment((CHANNEL_PUNISHMENT_DATA *)ptr);
+}
+
+void delete_replay_entry(void *ptr)
+{
+    free_replay_entry((REPLAY_ENTRY *)ptr);
+}
 
 
 void *copy_string(void *ptr)
@@ -348,6 +398,8 @@ DESCRIPTOR_DATA *new_descriptor(void)
     d->creating_staff_character = false;
     d->reconnecting = false;
     d->editor_ptr = NULL;
+    d->pendingChannel = NULL;
+    d->pendingPunishment = NULL;
 
 
     top_descriptor++;
@@ -366,6 +418,8 @@ void free_descriptor(DESCRIPTOR_DATA *d)
     if(d->input_var) free_string(d->input_var);
     if(d->input_prompt) free_string(d->input_prompt);
     if(d->inputString) free_string(d->inputString);
+    if(d->pendingPunishment) free_channel_punishment(d->pendingPunishment);
+
     INVALIDATE(d);
     d->next = descriptor_free;
     descriptor_free = d;
@@ -8535,6 +8589,7 @@ CMD_DATA *new_cmd()
     memset(cmd, 0, sizeof(*cmd));
 
     cmd->name = NULL;
+    cmd->context = NULL;
     cmd->function = NULL;
     cmd->type = 0;
     cmd->rank = 0;
@@ -8557,6 +8612,7 @@ void free_cmd(CMD_DATA *cmd)
         return;
 
     free_string(cmd->name);
+    free_string(cmd->context);
     if (cmd->help_keywords)
         free_string(cmd->help_keywords->string);
     free_string(cmd->description);
@@ -8703,4 +8759,256 @@ void free_account(ACCOUNT_DATA *account)
     INVALIDATE(account);
     account->next = account_data_free;
     account_data_free = account;
+}
+
+
+
+
+CHANNEL_HISTORY_DATA *channel_history_free;
+CHANNEL_HISTORY_DATA *new_channel_history()
+{
+    MEMPOP(data,channel_history_free,CHANNEL_HISTORY_DATA);
+
+    data->speaker_account = &str_empty[0];
+    data->speaker = &str_empty[0];
+    data->target_account = &str_empty[0];
+    data->target = &str_empty[0];
+    data->message = &str_empty[0];
+    data->banner = &str_empty[0];
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_channel_history(CHANNEL_HISTORY_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    free_string(data->speaker_account);
+    free_string(data->speaker);
+    free_string(data->target_account);
+    free_string(data->target);
+    free_string(data->message);
+    free_string(data->banner);
+
+    MEMPUSH(data,channel_history_free);
+}
+
+CHANNEL_HISTORY_DATA *copy_channel_history(CHANNEL_HISTORY_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    MEMPOP(data,channel_history_free,CHANNEL_HISTORY_DATA);
+
+    data->speaker_account = str_dup(src->speaker_account);
+    data->speaker = str_dup(src->speaker);;
+    data->target_account = str_dup(src->target_account);
+    data->target = str_dup(src->target);
+    data->message = str_dup(src->message);
+    data->banner = str_dup(src->banner);
+    data->timestamp = src->timestamp;
+
+    VALIDATE(data);
+    return data;
+}
+
+CHANNEL_REPORT_DATA *channel_report_free;
+CHANNEL_REPORT_DATA *new_channel_report()
+{
+    MEMPOP(data,channel_report_free,CHANNEL_REPORT_DATA);
+
+    data->reporter_account = &str_empty[0];
+    data->reporter = &str_empty[0];
+    data->speaker_account = &str_empty[0];
+    data->speaker = &str_empty[0];
+    data->summary = &str_empty[0];
+
+    data->context = list_createx(false, NULL, delete_channel_history);
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_channel_report(CHANNEL_REPORT_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    free_string(data->reporter_account);
+    free_string(data->reporter);
+    free_string(data->speaker_account);
+    free_string(data->speaker);
+    free_string(data->summary);
+
+    list_destroy(data->context);
+
+    INVALIDATE(data);
+    MEMPUSH(data,channel_report_free);
+}
+
+
+CHANNEL_PUNISHMENT_DATA *channel_punishment_free;
+CHANNEL_PUNISHMENT_DATA *new_channel_punishment()
+{
+    MEMPOP(data,channel_punishment_free,CHANNEL_PUNISHMENT_DATA);
+
+    data->moderator_account = &str_empty[0];
+    data->moderator = &str_empty[0];
+    data->speaker_account = &str_empty[0];
+    data->speaker = &str_empty[0];
+    data->summary = &str_empty[0];
+
+    VALIDATE(data);
+    return data;
+}
+
+CHANNEL_PUNISHMENT_DATA *copy_channel_punishment(CHANNEL_PUNISHMENT_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    MEMPOP(data,channel_punishment_free,CHANNEL_PUNISHMENT_DATA);
+
+    data->moderator_account = str_dup(src->moderator_account);
+    data->moderator = str_dup(src->moderator);
+    data->speaker_account = str_dup(src->speaker_account);
+    data->speaker = str_dup(src->speaker);
+    data->summary = str_dup(src->summary);
+
+    data->reason = src->reason;
+    data->start = src->start;
+    data->end = src->end;
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_channel_punishment(CHANNEL_PUNISHMENT_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    free_string(data->moderator_account);
+    free_string(data->moderator);
+    free_string(data->speaker_account);
+    free_string(data->speaker);
+    free_string(data->summary);
+
+    INVALIDATE(data);
+    MEMPUSH(data,channel_punishment_free);
+}
+
+
+CHANNEL_DATA *channel_data_free;
+CHANNEL_DATA *new_channel_data()
+{
+    MEMPOP(data,channel_data_free,CHANNEL_DATA);
+
+    data->name = &str_empty[0];
+    data->title = &str_empty[0];
+    data->description = &str_empty[0];
+    data->color1 = &str_empty[0];
+    data->color2 = &str_empty[0];
+
+    data->broadcast_format = &str_empty[0];
+    data->speaker_format = &str_empty[0];
+    data->target_format = &str_empty[0];
+    data->viewer_format = &str_empty[0];
+
+    data->history = list_createx(false, NULL, delete_channel_history);
+    data->history_length = 100;
+    data->history_viewable = 30;
+
+    data->punishments = list_createx(false, NULL, delete_channel_punishment);
+    data->punishment_expiration = 30;
+
+    data->reports = list_createx(false, NULL, delete_channel_report);
+
+    return data;
+}
+
+void free_channel_data(CHANNEL_DATA *data)
+{
+    free_string(data->name);
+    free_string(data->title);
+    free_string(data->description);
+    free_string(data->color1);
+    free_string(data->color2);
+    free_string(data->broadcast_format);
+    free_string(data->speaker_format);
+    free_string(data->target_format);
+    free_string(data->viewer_format);
+
+    list_destroy(data->history);
+    list_destroy(data->punishments);
+    list_destroy(data->reports);
+
+    MEMPUSH(data,channel_data_free);
+}
+
+
+REPLAY_ENTRY *replay_entry_free;
+REPLAY_ENTRY *new_replay_entry()
+{
+    MEMPOP(data,replay_entry_free,REPLAY_ENTRY);
+
+    data->speaker_account = &str_empty[0];
+    data->speaker = &str_empty[0];
+    data->message = &str_empty[0];
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_replay_entry(REPLAY_ENTRY *data)
+{
+    if (!IS_VALID(data)) return;
+
+    free_string(data->speaker_account);
+    free_string(data->speaker);
+    free_string(data->message);
+
+    INVALIDATE(data);
+    MEMPUSH(data,replay_entry_free);
+}
+
+
+CHANNEL_ENTRY *channel_entry_free;
+CHANNEL_ENTRY *new_channel_entry()
+{
+    MEMPOP(data,channel_entry_free,CHANNEL_ENTRY);
+
+    data->banner = &str_empty[0];
+    
+    VALIDATE(data);
+    return data;
+}
+
+void free_channel_entry(CHANNEL_ENTRY *data)
+{
+    if (!IS_VALID(data)) return;
+
+    free_string(data->banner);
+
+    INVALIDATE(data);
+    MEMPUSH(data,channel_entry_free);
+}
+
+void delete_channel_entry(void *ptr)
+{
+    free_channel_entry((CHANNEL_ENTRY *)ptr);
+}
+
+PLAYER_CHANNEL_DATA *player_channel_data_free;
+PLAYER_CHANNEL_DATA *new_player_channel_data()
+{
+    MEMPOP(data,player_channel_data_free,PLAYER_CHANNEL_DATA);
+
+    data->channels = list_createx(false, NULL, delete_channel_entry);
+
+    return data;
+}
+
+void free_player_channel_data(PLAYER_CHANNEL_DATA *data)
+{
+    list_destroy(data->channels);
+
+    MEMPUSH(data,player_channel_data_free);
 }

@@ -145,15 +145,18 @@ char *f##_func_display(t *func) \
 } \
  \
 
-FUNC_LOOKUPS(do, DO_FUN,(!func))
+FUNC_LOOKUPS(cmd,CMD_FUN,(!func))
 
 // Create a function to load commands from a command file. If the command file does not exist, boostrap one from the cmd_table.
 
 void save_command(FILE *fp, CMD_DATA *command)
 {
     fprintf(fp, "#COMMAND %s~\n", command->name);
+    if (command->context)
+        fprintf(fp, "Comments %s~\n", command->context);
     fprintf(fp, "Enabled %d\n", command->enabled);
-    fprintf(fp, "Function %s~\n", do_func_name(command->function));
+    fprintf(fp, "Internal %d\n", command->internal);
+    fprintf(fp, "Function %s~\n", cmd_func_name(command->function));
     fprintf(fp, "Rank %d\n", command->rank);
     fprintf(fp, "Log %d\n", command->log);
     fprintf(fp, "Position %d\n", command->position);
@@ -168,6 +171,8 @@ void save_command(FILE *fp, CMD_DATA *command)
         fprintf(fp, "Reason %s~\n", command->reason);
     if (!IS_NULLSTR(command->summary))
         fprintf(fp, "Summary %s~\n", command->summary);
+    if (command->visible)
+        fprintf(fp, "Visible %s\n", widevnum_string_script(command->visible, NULL));
     fprintf(fp, "#-COMMAND\n");
 }
 
@@ -183,7 +188,7 @@ void save_commands()
     }
     else
     {
-        log_string(formatf("save_commands: Saving %ld commands", commands_list->size));
+        log_string(formatf("save_commands: Saving %ld commands", list_size(commands_list));
         
         ITERATOR it;
         CMD_DATA *command;
@@ -258,12 +263,23 @@ CMD_DATA *load_command(FILE *fp)
                 break;
             case 'C':
                 KEY("Comments", command->comments, fread_string(fp));
+                KEY("Context", command->context, fread_string(fp));
                 break;
             case 'D':
                 KEY("Description", command->description, fread_string(fp));
                 break;
             case 'E':
                 KEY("Enabled", command->enabled, fread_number(fp));
+                break;
+            case 'F':
+                KEY("Flags", command->command_flags, fread_number(fp));
+                if (!str_cmp(word, "Function"))
+                {
+                    char *name = fread_string(fp);
+                    command->function = do_func_lookup(name);
+                    fMatch = true;
+                    break;
+                }
                 break;
             case 'H':
                 if (!str_cmp(word, "HelpKeywords"))
@@ -277,15 +293,8 @@ CMD_DATA *load_command(FILE *fp)
                         break;
                 }
                 break;
-            case 'F':
-                KEY("Flags", command->command_flags, fread_number(fp));
-                if (!str_cmp(word, "Function"))
-                {
-                    char *name = fread_string(fp);
-                    command->function = do_func_lookup(name);
-                    fMatch = true;
-                    break;
-                }
+            case 'I':
+                KEY("Internal", command->internal, fread_number(fp));
                 break;
             case 'L':
                 KEY("Log", command->log, fread_number(fp));
@@ -301,6 +310,17 @@ CMD_DATA *load_command(FILE *fp)
                 break;
             case 'T':
                 KEY("Type", command->type, fread_number(fp));
+                break;
+            case 'V':
+                if (!str_cmp(word, "Visible"))
+                {
+                    WNUM_LOAD wnum = fread_widevnum(fp, 0);
+
+                    command->visible = get_script_index_auid(wnum.auid, wnum.vnum, PRG_MPROG);
+
+                    fMatch = true;
+                    break;
+                }
                 break;
         }
 
@@ -416,7 +436,7 @@ bool load_commands()
     return true;
 }
 
-void do_cmdlist(CHAR_DATA *ch, char *argument)
+void do_cmdlist(CHAR_DATA *ch, char *argument, const char *context)
 {
     BUFFER *buffer = new_buf();
     char buf[MSL];
@@ -567,7 +587,10 @@ CMDEDIT (cmdedit_show)
 
     BUFFER *buffer = new_buf();
 
+    if (command->internal)
+        add_buf(buffer, "{R[!!!{WINTERNAL ONLY{R!!!]{x\n\r");
     add_buf(buffer, formatf("Name:          %s\n\r", command->name));
+    add_buf(buffer, formatf("Context:       %s\n\r", command->context));
     add_buf(buffer, formatf("Type:          %s\n\r", command_types[command->type].name));
     add_buf(buffer, formatf("Add'l Types    %s\n\r", flag_string(command_addl_types, command->addl_types)));
     add_buf(buffer, formatf("Rank:          %s\n\r", staff_ranks[command->rank].name));
@@ -578,7 +601,7 @@ CMDEDIT (cmdedit_show)
     if (!command->enabled || !IS_NULLSTR(command->reason)) 
         add_buf(buffer, formatf("{rDisabled Reason{X: %s\n\r", !IS_NULLSTR(command->reason) ? command->reason : "(none)"));
 
-    add_buf(buffer, formatf("Function:      %s\n\r", command->function ? do_func_name(command->function) : "None"));
+    add_buf(buffer, formatf("Function:      %s\n\r", command->function ? cmd_func_name(command->function) : "None"));
     if (command->help_keywords != NULL && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) != NULL)
         add_buf(buffer, formatf("Help Keywords: '\t<send href=\"help #%d\">{W%s{X\t</send>' ({W#%d{X)\n\r", lookup_help_exact(command->help_keywords->string, get_staff_rank(ch), topHelpCat)->index, command->help_keywords->string, lookup_help_exact(command->help_keywords->string, get_staff_rank(ch), topHelpCat)->index));
     else if (command->help_keywords != NULL && lookup_help_exact(command->help_keywords->string,get_staff_rank(ch),topHelpCat) == NULL)
@@ -588,6 +611,18 @@ CMDEDIT (cmdedit_show)
     
     add_buf(buffer, formatf("Summary:       %s\n\r", command->summary ? command->summary : "(none)"));
     add_buf(buffer, formatf("Command Flags: %s\n\r", flag_string(command_flags, command->command_flags)));
+
+    if (command->visible)
+    {
+        add_buf(buffer,
+            formatf("Visible:       %s (%ld#%ld) %s{x\n\r",
+                command->visible->name,
+                command->visible->pArea ? command->visible->pArea->uid : 0,
+                command->visible->vnum,
+                olc_show_script_status(command->visible, PRG_MPROG)));
+    }
+    else
+        add_buf(buffer, "Visible:       (none)\n\r");
 
     add_buf(buffer, formatf("\n\rDescription:\n\r   %s\n\r", string_indent(command->description,3)));
 
@@ -640,6 +675,22 @@ CMDEDIT( cmdedit_name )
 	insert_command(command);
 
 	send_to_char("COMMAND Name set.\n\r", ch);
+	return true;
+}
+
+
+CMDEDIT( cmdedit_name )
+{
+	CMD_DATA *command;
+
+	EDIT_CMD(ch, command);
+
+	smash_tilde(argument);
+
+	free_string(command->context);
+	command->context = str_dup(argument);
+
+	send_to_char("COMMAND context set.\n\r", ch);
 	return true;
 }
 
@@ -918,24 +969,23 @@ CMDEDIT (cmdedit_function )
 
     if (!str_prefix(arg, "set"))
     {
-        if (argument[0] == '\0')
+        if (argument[0] == '\0' || argument[0] == '_')
         {
             send_to_char("Syntax: function set <name>\n\r", ch);
-            send_to_char("Invalid do_ function. Use '\t<send href=\"? do_func\">? do_func\t</send>' for a list of functions.\n\r", ch);
+            send_to_char("Invalid cmd_function. Use '\t<send href=\"? cmd_func\">? cmd_func\t</send>' for a list of functions.\n\r", ch);
             return false;
         }
     
-    
-        DO_FUN *func = do_func_lookup(argument);
+        CMD_FUN *func = cmd_func_lookup(argument);
         if (func == NULL)
         {
             send_to_char("Syntax: function set <name>\n\r", ch);
-            send_to_char("Invalid do_ function. Use '\t<send href=\"? do_func\">? do_func\t</send>' for a list of functions.", ch);
+            send_to_char("Invalid cmd_function. Use '\t<send href=\"? cmd_func\">? cmd_func\t</send>' for a list of functions.\n\r", ch);
             return false;
         }
 
         command->function = func;
-        sprintf(buf, "Function set to %s.\n\r", argument);
+        sprintf(buf, "Function set to {W%s{x.\n\r", cmd_func_name(func));   // Use the reverse lookup to give the full proper name
         send_to_char(buf, ch);
         return true;
     }
@@ -1169,3 +1219,44 @@ CMDEDIT( cmdedit_additional )
 	send_to_char("Additional command types toggled.\n\r", ch);
 	return true;
 }
+
+CMDEDIT( cmdedit_visible )
+{
+	CMD_DATA *command;
+
+	EDIT_CMD(ch, command);
+
+    SCRIPT_DATA script;
+    if (argument[0] == '\0')
+    {
+        send_to_char("Syntax: visible <widevnum>|none\n\r", ch);
+        return false;
+    }
+    else if (!str_prefix(argument, "none"))
+    {
+        script = NULL;
+        send_to_char("COMMAND visibility script cleared.\n\r", ch);
+    }
+    else
+    {
+        WNUM wnum;
+        if (!parse_widevnum(argument,ch->in_room->area,&wnum) || !wnum.pArea || wnum.vnum < 1)
+        {
+            send_to_char("Syntax: visible <widevnum>|none\n\r", ch);
+            return false;
+        }
+
+        script = get_script_index(wnum.pArea, wnum.vnum, PRG_MPROG);
+        if (!script)
+        {
+            send_to_char("No such script with the widevnum.\n\r", ch);
+            return false;
+        }
+
+        send_to_char("COMMAND visibility script set.\n\r", ch);
+    }
+
+    command->visible = script;
+	return true;
+}
+

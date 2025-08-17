@@ -1434,7 +1434,7 @@ void pedit(CHAR_DATA *ch, char *argument)
 
 
 // Entry points for all editors are below
-void do_olc(CHAR_DATA *ch, char *argument)
+void do_olc(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char command[MAX_INPUT_LENGTH];
 	int  cmd;
@@ -1457,7 +1457,7 @@ void do_olc(CHAR_DATA *ch, char *argument)
 	if (!str_prefix(command, editor_table[cmd].name))
 	{
 		ch->pcdata->immortal->last_olc_command = current_time;
-		(*editor_table[cmd].do_fun) (ch, argument);
+		(*editor_table[cmd].do_fun) (ch, argument, NULL);
 		return;
 	}
 	}
@@ -1466,7 +1466,7 @@ void do_olc(CHAR_DATA *ch, char *argument)
 	do_help(ch, "olc");
 }
 
-void do_tedit(CHAR_DATA *ch, char *argument)
+void do_tedit(CHAR_DATA *ch, char *argument, const char *context)
 {
 	TOKEN_INDEX_DATA *token_index = NULL;
 	WNUM wnum;
@@ -1505,7 +1505,7 @@ void do_tedit(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_aedit(CHAR_DATA *ch, char *argument)
+void do_aedit(CHAR_DATA *ch, char *argument, const char *context)
 {
 	AREA_DATA *pArea;
 	int value;
@@ -1559,7 +1559,7 @@ void do_aedit(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_redit(CHAR_DATA *ch, char *argument)
+void do_redit(CHAR_DATA *ch, char *argument, const char *context)
 {
 //	char buf[MSL];
 	ROOM_INDEX_DATA *pRoom;
@@ -1655,7 +1655,7 @@ void do_redit(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_oedit(CHAR_DATA *ch, char *argument)
+void do_oedit(CHAR_DATA *ch, char *argument, const char *context)
 {
 	OBJ_INDEX_DATA *pObj;
 	char arg1[MAX_STRING_LENGTH];
@@ -1694,7 +1694,7 @@ void do_oedit(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_medit(CHAR_DATA *ch, char *argument)
+void do_medit(CHAR_DATA *ch, char *argument, const char *context)
 {
 	MOB_INDEX_DATA *pMob;
 	char arg1[MAX_STRING_LENGTH];
@@ -1738,7 +1738,7 @@ void do_medit(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_pedit(CHAR_DATA *ch, char *argument)
+void do_pedit(CHAR_DATA *ch, char *argument, const char *context)
 {
 	PROJECT_DATA *project;
 	int value;
@@ -1872,7 +1872,7 @@ void wedit (CHAR_DATA * ch, char *argument)
 	return;
 }
 
-void do_wedit (CHAR_DATA * ch, char *argument)
+void do_wedit (CHAR_DATA * ch, char *argument, const char *context)
 {
 	AREA_DATA *pArea = NULL;
 	WILDS_DATA *pWilds = NULL,
@@ -2078,7 +2078,7 @@ void vledit (CHAR_DATA * ch, char *argument)
 }
 
 
-void do_vledit (CHAR_DATA * ch, char *argument)
+void do_vledit (CHAR_DATA * ch, char *argument, const char *context)
 {
 	WILDS_VLINK *pVLink = NULL;
 	char arg1[MSL];
@@ -2306,7 +2306,7 @@ void add_reset(ROOM_INDEX_DATA *room, RESET_DATA *pReset, int index)
 }
 
 
-void do_resets(CHAR_DATA *ch, char *argument)
+void do_resets(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg1[MAX_INPUT_LENGTH];
 	char arg2[MAX_INPUT_LENGTH];
@@ -2503,7 +2503,7 @@ void do_resets(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_asearch(CHAR_DATA *ch, char *argument)
+void do_asearch(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_INPUT_LENGTH];
 	char buf[MAX_STRING_LENGTH];
@@ -2541,7 +2541,7 @@ void do_asearch(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_alist(CHAR_DATA *ch, char *argument)
+void do_alist(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MAX_STRING_LENGTH];
 	AREA_DATA *pArea;
@@ -2644,7 +2644,7 @@ void hedit(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_hedit(CHAR_DATA *ch, char *argument)
+void do_hedit(CHAR_DATA *ch, char *argument, const char *context)
 {
 	ch->pcdata->immortal->last_olc_command = current_time;
 	olc_set_editor(ch, ED_HELP, NULL);
@@ -2655,7 +2655,7 @@ void do_hedit(CHAR_DATA *ch, char *argument)
 /*
  * Copy a room.
  */
-void do_rcopy(CHAR_DATA *ch, char *argument)
+void do_rcopy(CHAR_DATA *ch, char *argument, const char *context)
 {
 	ROOM_INDEX_DATA *old_room;
 	ROOM_INDEX_DATA *new_room;
@@ -2752,7 +2752,7 @@ void do_rcopy(CHAR_DATA *ch, char *argument)
 /*
  * Copy a mob.
  */
-void do_mcopy(CHAR_DATA *ch, char *argument)
+void do_mcopy(CHAR_DATA *ch, char *argument, const char *context)
 {
 	MOB_INDEX_DATA *old_mob;
 	MOB_INDEX_DATA *new_mob;
@@ -2866,7 +2866,7 @@ void do_mcopy(CHAR_DATA *ch, char *argument)
 /*
  * Copy an obj.
  */
-void do_ocopy(CHAR_DATA *ch, char *argument)
+void do_ocopy(CHAR_DATA *ch, char *argument, const char *context)
 {
 	OBJ_INDEX_DATA *old_obj;
 	OBJ_INDEX_DATA *new_obj;
@@ -3039,7 +3039,7 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
 /*
  * Copy an rprog.
  */
-void do_rpcopy(CHAR_DATA *ch, char *argument)
+void do_rpcopy(CHAR_DATA *ch, char *argument, const char *context)
 {
 	WNUM old_w;
 	WNUM new_w;
@@ -3104,7 +3104,7 @@ void do_rpcopy(CHAR_DATA *ch, char *argument)
 /*
  * Copy an mprog.
  */
-void do_mpcopy(CHAR_DATA *ch, char *argument)
+void do_mpcopy(CHAR_DATA *ch, char *argument, const char *context)
 {
 	WNUM old_w;
 	WNUM new_w;
@@ -3169,7 +3169,7 @@ void do_mpcopy(CHAR_DATA *ch, char *argument)
 /*
  * Copy an oprog.
  */
-void do_opcopy(CHAR_DATA *ch, char *argument)
+void do_opcopy(CHAR_DATA *ch, char *argument, const char *context)
 {
 	WNUM old_w;
 	WNUM new_w;
@@ -3231,7 +3231,7 @@ void do_opcopy(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_rlist(CHAR_DATA *ch, char *argument)
+void do_rlist(CHAR_DATA *ch, char *argument, const char *context)
 {
 	ROOM_INDEX_DATA *pRoomIndex;
 	AREA_DATA *pArea;
@@ -3310,7 +3310,7 @@ void do_rlist(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_mlist(CHAR_DATA *ch, char *argument)
+void do_mlist(CHAR_DATA *ch, char *argument, const char *context)
 {
 	MOB_INDEX_DATA *pMobIndex;
 	AREA_DATA *pArea;
@@ -3389,7 +3389,7 @@ int strlen_colours_limit( const char *str, int limit )
 	return i - count;
 }
 
-void do_olist(CHAR_DATA *ch, char *argument)
+void do_olist(CHAR_DATA *ch, char *argument, const char *context)
 {
 	OBJ_INDEX_DATA *pObjIndex;
 	AREA_DATA *pArea;
@@ -3451,7 +3451,7 @@ void do_olist(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_mshow(CHAR_DATA *ch, char *argument)
+void do_mshow(CHAR_DATA *ch, char *argument, const char *context)
 {
 	MOB_INDEX_DATA *pMob;
 	WNUM wnum;
@@ -3479,7 +3479,7 @@ void do_mshow(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_oshow(CHAR_DATA *ch, char *argument)
+void do_oshow(CHAR_DATA *ch, char *argument, const char *context)
 {
 	OBJ_INDEX_DATA *pObj;
 	WNUM wnum;
@@ -3506,7 +3506,7 @@ void do_oshow(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_rshow(CHAR_DATA *ch, char *argument)
+void do_rshow(CHAR_DATA *ch, char *argument, const char *context)
 {
 	ROOM_INDEX_DATA *pRoom, *oldRoom;
 	WNUM wnum;
@@ -3814,22 +3814,22 @@ void set_armour_obj(OBJ_DATA *obj)
 }
 
 
-void do_mpdelete(CHAR_DATA *ch, char *argument)
+void do_mpdelete(CHAR_DATA *ch, char *argument, const char *context)
 {
 }
 
 
-void do_opdelete(CHAR_DATA *ch, char *argument)
+void do_opdelete(CHAR_DATA *ch, char *argument, const char *context)
 {
 }
 
 
-void do_rpdelete(CHAR_DATA *ch, char *argument)
+void do_rpdelete(CHAR_DATA *ch, char *argument, const char *context)
 {
 }
 
 
-void do_dislink(CHAR_DATA *ch, char *argument)
+void do_dislink(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MSL];
 	char buf[MSL];
@@ -3917,7 +3917,7 @@ bool has_access_help(CHAR_DATA *ch, HELP_DATA *help)
 }
 
 
-void do_rjunk(CHAR_DATA *ch, char *argument)
+void do_rjunk(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MSL];
 	AREA_DATA *area;
@@ -4038,7 +4038,7 @@ void use_imp_sig(MOB_INDEX_DATA *mob, OBJ_INDEX_DATA *obj)
 }
 
 
-void do_tshow(CHAR_DATA *ch, char *argument)
+void do_tshow(CHAR_DATA *ch, char *argument, const char *context)
 {
 	TOKEN_INDEX_DATA *token_index;
 	WNUM wnum;
@@ -4065,7 +4065,7 @@ void do_tshow(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_tlist(CHAR_DATA *ch, char *argument)
+void do_tlist(CHAR_DATA *ch, char *argument, const char *context)
 {
 	TOKEN_INDEX_DATA *token_index;
 	AREA_DATA *pArea;
@@ -4217,7 +4217,7 @@ const struct olc_cmd_type liqedit_table[] =
 };
 
 
-void do_liqedit(CHAR_DATA *ch, char *argument)
+void do_liqedit(CHAR_DATA *ch, char *argument, const char *context)
 {
 	LIQUID *liquid;
     char command[MSL];
@@ -4240,7 +4240,7 @@ void do_liqedit(CHAR_DATA *ch, char *argument)
 	send_to_char("         liqedit create <name>\n\r", ch);
 }
 
-void do_liqlist(CHAR_DATA *ch, char *argument)
+void do_liqlist(CHAR_DATA *ch, char *argument, const char *context)
 {
 	liqedit_list(ch, argument);
 }
@@ -4309,7 +4309,7 @@ const struct olc_cmd_type matedit_table[] =
 };
 
 
-void do_matedit(CHAR_DATA *ch, char *argument)
+void do_matedit(CHAR_DATA *ch, char *argument, const char *context)
 {
 	MATERIAL *material;
     char command[MSL];
@@ -4332,12 +4332,12 @@ void do_matedit(CHAR_DATA *ch, char *argument)
 	send_to_char("         matedit create <name>\n\r", ch);
 }
 
-void do_matlist(CHAR_DATA *ch, char *argument)
+void do_matlist(CHAR_DATA *ch, char *argument, const char *context)
 {
 	matedit_list(ch, argument);
 }
 
-void do_matshow(CHAR_DATA *ch, char *argument)
+void do_matshow(CHAR_DATA *ch, char *argument, const char *context)
 {
 	if (argument[0] == '\0')
 	{
@@ -4453,7 +4453,7 @@ const struct olc_cmd_type skedit_table[] =
 };
 
 
-void do_skedit(CHAR_DATA *ch, char *argument)
+void do_skedit(CHAR_DATA *ch, char *argument, const char *context)
 {
 	SKILL_DATA *skill;
     char command[MSL];
@@ -4476,13 +4476,13 @@ void do_skedit(CHAR_DATA *ch, char *argument)
 	send_to_char("         skedit install <name>\n\r", ch);
 }
 
-void do_sklist(CHAR_DATA *ch, char *argument)
+void do_sklist(CHAR_DATA *ch, char *argument, const char *context)
 {
 	skedit_list(ch, argument);
 }
 
 
-void do_skshow(CHAR_DATA *ch, char *argument)
+void do_skshow(CHAR_DATA *ch, char *argument, const char *context)
 {
 	if (argument[0] == '\0')
 	{
@@ -4573,7 +4573,7 @@ const struct olc_cmd_type sgedit_table[] =
 	{	NULL,			NULL				}
 };
 
-void do_sgedit(CHAR_DATA *ch, char *argument)
+void do_sgedit(CHAR_DATA *ch, char *argument, const char *context)
 {
 	SKILL_GROUP *group;
     char command[MSL];
@@ -4628,7 +4628,7 @@ void show_skill_group(BUFFER *buffer, SKILL_GROUP *group)
 	add_buf(buffer, buf);
 }
 
-void do_sglist(CHAR_DATA *ch, char *argument)
+void do_sglist(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MSL];
 	BUFFER *buffer = new_buf();
@@ -4667,7 +4667,7 @@ void do_sglist(CHAR_DATA *ch, char *argument)
 
 
 
-void do_sgshow(CHAR_DATA *ch, char *argument)
+void do_sgshow(CHAR_DATA *ch, char *argument, const char *context)
 {
 	if (argument[0] == '\0')
 	{
@@ -4750,7 +4750,7 @@ const struct olc_cmd_type songedit_table[] =
 	{	NULL,			NULL				}
 };
 
-void do_songedit(CHAR_DATA *ch, char *argument)
+void do_songedit(CHAR_DATA *ch, char *argument, const char *context)
 {
 	SONG_DATA *song;
     char command[MSL];
@@ -4774,12 +4774,12 @@ void do_songedit(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_songlist(CHAR_DATA *ch, char *argument)
+void do_songlist(CHAR_DATA *ch, char *argument, const char *context)
 {
 	songedit_list(ch, argument);
 }
 
-void do_songshow(CHAR_DATA *ch, char *argument)
+void do_songshow(CHAR_DATA *ch, char *argument, const char *context)
 {
 	if (argument[0] == '\0')
 	{
@@ -4861,7 +4861,7 @@ const struct olc_cmd_type repedit_table[] =
 };
 
 
-void do_repedit(CHAR_DATA *ch, char *argument)
+void do_repedit(CHAR_DATA *ch, char *argument, const char *context)
 {
 	REPUTATION_INDEX_DATA *pRep;
 	char arg1[MAX_STRING_LENGTH];
@@ -4961,7 +4961,7 @@ void repedit(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_replist(CHAR_DATA *ch, char *argument)
+void do_replist(CHAR_DATA *ch, char *argument, const char *context)
 {
 	REPUTATION_INDEX_DATA *pRepIndex;
 	AREA_DATA *pArea;
@@ -5014,7 +5014,7 @@ void do_replist(CHAR_DATA *ch, char *argument)
 	return;
 }
 
-void do_repshow(CHAR_DATA *ch, char *argument)
+void do_repshow(CHAR_DATA *ch, char *argument, const char *context)
 {
 	REPUTATION_INDEX_DATA *pRep;
 	WNUM wnum;
@@ -5063,7 +5063,7 @@ const struct olc_cmd_type clsedit_table[] =
 };
 
 
-void do_clsedit(CHAR_DATA *ch, char *argument)
+void do_clsedit(CHAR_DATA *ch, char *argument, const char *context)
 {
 	CLASS_DATA *clazz;
 	char arg1[MSL];
@@ -5137,7 +5137,7 @@ void clsedit(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_clsshow(CHAR_DATA *ch, char *argument)
+void do_clsshow(CHAR_DATA *ch, char *argument, const char *context)
 {
 	CLASS_DATA *clazz;
 
@@ -5190,7 +5190,7 @@ const struct olc_cmd_type raceedit_table[] =
 };
 
 
-void do_raceedit(CHAR_DATA *ch, char *argument)
+void do_raceedit(CHAR_DATA *ch, char *argument, const char *context)
 {
 	RACE_DATA *race;
 	char arg1[MSL];
@@ -5263,7 +5263,7 @@ void raceedit(CHAR_DATA *ch, char *argument)
 	interpret(ch, arg);
 }
 
-void do_raceshow(CHAR_DATA *ch, char *argument)
+void do_raceshow(CHAR_DATA *ch, char *argument, const char *context)
 {
 	RACE_DATA *race;
 
@@ -5306,7 +5306,7 @@ const struct olc_cmd_type sectoredit_table[] =
 };
 
 
-void do_sectoredit(CHAR_DATA *ch, char *argument)
+void do_sectoredit(CHAR_DATA *ch, char *argument, const char *context)
 {
 	SECTOR_DATA *sector;
 	char arg1[MSL];
@@ -5379,7 +5379,7 @@ void sectoredit(CHAR_DATA *ch, char *argument)
 	interpret(ch, arg);
 }
 
-void do_sectorshow(CHAR_DATA *ch, char *argument)
+void do_sectorshow(CHAR_DATA *ch, char *argument, const char *context)
 {
 	SECTOR_DATA *sector;
 
@@ -5614,6 +5614,7 @@ const struct olc_cmd_type cmdedit_table[] =
     { "?",      show_help           },
     { "additional", cmdedit_additional },
     { "comments",   cmdedit_comments },
+    { "context",           cmdedit_context },
     { "create",     cmdedit_create  },
     { "description",    cmdedit_description },
 	{ "delete",			cmdedit_delete },
@@ -5630,9 +5631,11 @@ const struct olc_cmd_type cmdedit_table[] =
     { "show",      cmdedit_show },
 	{ "summary",	cmdedit_summary },
 	{ "type",		cmdedit_type },
+	{ "visible",	cmdedit_visible },
+	{ NULL, NULL }
 };
 
-void do_cmdedit(CHAR_DATA *ch, char *argument)
+void do_cmdedit(CHAR_DATA *ch, char *argument, const char *context)
 {
 	CMD_DATA *command;
 	char arg1[MSL];
@@ -5656,6 +5659,12 @@ void do_cmdedit(CHAR_DATA *ch, char *argument)
 		if (!command)
 		{
 			send_to_char("No command by that name.\n\r", ch);
+			return;
+		}
+
+		if (command->internal)
+		{
+			send_to_char("That command is registered as internal and may not be edited.\n\r", ch);
 			return;
 		}
 
@@ -5683,6 +5692,16 @@ void cmdedit(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
+	// Cannot modify a command if it has become internal for some reason
+	CMD_DATA *current_command;
+	EDIT_CMD(ch, current_command);
+	if (current_command && current_command->internal)
+	{
+		send_to_char("{RCommand currently being edited has been marked as {Winternal{R.  Closing editor.{x\n\r", ch);
+		edit_done(ch);
+		return;
+	}
+
 	ch->pcdata->immortal->last_olc_command = current_time;
 	if (command[0] == '\0')
 	{
@@ -5705,7 +5724,7 @@ void cmdedit(CHAR_DATA *ch, char *argument)
 	interpret(ch, arg);
 }
 
-void do_cmdshow(CHAR_DATA *ch, char *argument)
+void do_cmdshow(CHAR_DATA *ch, char *argument, const char *context)
 {
 	CMD_DATA *command;
 

@@ -15,7 +15,7 @@
 #include "tables.h"
 
 
-void do_smite(CHAR_DATA *ch, char *argument)
+void do_smite(CHAR_DATA *ch, char *argument, const char *context)
 {
 #if 0
 	CHAR_DATA *victim;
@@ -109,7 +109,7 @@ void do_smite(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_stake(CHAR_DATA *ch, char *argument)
+void do_stake(CHAR_DATA *ch, char *argument, const char *context)
 {
 #if 0
     CHAR_DATA *victim;
@@ -205,7 +205,7 @@ void do_stake(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_trample(CHAR_DATA *ch, char *argument)
+void do_trample(CHAR_DATA *ch, char *argument, const char *context)
 {
 #if 0
 	char arg[MSL];
@@ -320,7 +320,7 @@ void do_trample(CHAR_DATA *ch, char *argument)
 
 
 // Shift to werewolf or slayer
-void do_shift(CHAR_DATA *ch, char *argument)
+void do_shift(CHAR_DATA *ch, char *argument, const char *context)
 {
     if ((!IS_SLAYER(ch) && !IS_VAMPIRE(ch)) || get_skill(ch, gsk_shift) == 0)
     {
@@ -545,7 +545,7 @@ memset(&af,0,sizeof(af));
 
 
 // Vampires' shapeshift
-void do_shape(CHAR_DATA *ch, char *argument)
+void do_shape(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MAX_STRING_LENGTH];
 	char arg[MAX_STRING_LENGTH];
@@ -648,7 +648,7 @@ bool check_evasion(CHAR_DATA *ch)
 }
 
 
-void do_behead(CHAR_DATA *ch, char *argument)
+void do_behead(CHAR_DATA *ch, char *argument, const char *context)
 {
 #if 0
 	CHAR_DATA *victim;

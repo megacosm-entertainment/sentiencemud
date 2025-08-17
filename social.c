@@ -13,7 +13,7 @@
 #include <string.h>
 
 /* local functions */
-void do_chat(CHAR_DATA *ch, char *argument);
+void do_chat(CHAR_DATA *ch, char *argument, const char *context);
 void do_chat_enter(CHAR_DATA *ch, char *argument);
 void do_chat_exit(CHAR_DATA *ch, char *argument);
 void do_chat_list(CHAR_DATA *ch, char *argument);
@@ -32,7 +32,7 @@ void chat_add_ban(CHAR_DATA *ch, char *argument);
 void chat_remove_ban(CHAT_ROOM_DATA *chat, CHAT_BAN_DATA *ban);
 
 
-void do_chat(CHAR_DATA *ch, char *argument)
+void do_chat(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_STRING_LENGTH];
 

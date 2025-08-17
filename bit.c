@@ -103,6 +103,8 @@ const struct flag_type *flag_stat_table[] =
 	sector_classes,
     skill_sources,
     church_sizes,
+    report_reasons,
+    punishment_reasons,
     NULL
 };
 

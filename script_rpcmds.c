@@ -193,7 +193,7 @@ int rpcmd_lookup(char *command)
  *
  * Syntax: rpdump [vnum]
  */
-void do_rpdump(CHAR_DATA *ch, char *argument)
+void do_rpdump(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[ MAX_INPUT_LENGTH ];
 	SCRIPT_DATA *rprg;
@@ -223,7 +223,7 @@ void do_rpdump(CHAR_DATA *ch, char *argument)
  *
  * Syntax: rpstat [vnum]
  */
-void do_rpstat(CHAR_DATA *ch, char *argument)
+void do_rpstat(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_STRING_LENGTH];
 	ITERATOR it;

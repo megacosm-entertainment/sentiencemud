@@ -25,7 +25,7 @@
 extern char __BUILD_DATE;
 extern long int   __BUILD_NUMBER;
 
-void do_showdamage(CHAR_DATA *ch, char *argument)
+void do_showdamage(CHAR_DATA *ch, char *argument, const char *context)
 {
 #ifndef DEBUG_ALLOW_SHOW_DAMAGE
     if (!IS_IMMORTAL(ch) && !is_test_port) {
@@ -43,7 +43,7 @@ void do_showdamage(CHAR_DATA *ch, char *argument)
     }
 }
 
-void do_autosurvey(CHAR_DATA *ch, char *argument)
+void do_autosurvey(CHAR_DATA *ch, char *argument, const char *context)
 {
     if (IS_NPC(ch))
 	return;
@@ -60,7 +60,7 @@ void do_autosurvey(CHAR_DATA *ch, char *argument)
     }
 }
 
-void do_showversion(CHAR_DATA *ch, char *argument)
+void do_showversion(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MAX_STRING_LENGTH];
 	buf[0] = '\0';
@@ -78,7 +78,7 @@ void list_attachment_callback (quickmail mailobj, const char* filename, quickmai
   printf("[%i]: %s\n", ++*(int*)callbackdata, filename);
 }
 
-void do_testemail (CHAR_DATA *ch, char *argument)
+void do_testemail (CHAR_DATA *ch, char *argument, const char *context)
 {
 
   extern GAME_SETTINGS_DATA game_settings;

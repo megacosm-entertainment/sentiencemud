@@ -1455,6 +1455,22 @@ if (ch->pk_question)
 		(!forced_command || cmd->rank == STAFF_PLAYER) && 
 		(cmd->rank <= rank || is_granted_command(ch, cmd->name)))
 		{
+			if (cmd->visible)
+			{
+				// Allow/Deny
+				int ret = execute_script(cmd->visible,
+					ch, NULL, NULL, NULL, NULL, NULL, NULL,
+					ch, NULL, NULL, NULL, NULL, NULL, NULL,
+					cmd->name, cmd->context, TRIG_NONE, 0, 0, 0, 0, 0);
+
+				if (ret != 0) continue;
+			}
+
+			if (cmd->function == _do_speak_on_channel && !IS_NULLSTR(cmd->context))
+			{
+				// TODO: Can see channel?
+			}
+
 			selected_command = cmd;
 			found = true;
 			break;
@@ -1754,7 +1770,7 @@ if (ch->pk_question)
     }
 
     // Dispatch the command
-    (*selected_command->function) ( ch, argument );
+    (*selected_command->function) ( ch, argument, (const char *)selected_command->context );
 
     tail_chain();
 }
@@ -1770,6 +1786,19 @@ void do_function( CHAR_DATA *ch, DO_FUN *do_fun, char *argument )
 
     // dispatch the command
     (*do_fun) (ch, command_string);
+
+    // free the string
+    if(command_string) free_string(command_string);
+}
+
+// function to keep argument safe in all commands -- no static strings
+void cmd_function( CHAR_DATA *ch, CMD_FUN *cmd_fun, char *argument, const char *context )
+{
+    // copy the string
+    char *command_string = argument ? str_dup(argument) : NULL;
+
+    // dispatch the command
+    (*cmd_fun) (ch, command_string, context);
 
     // free the string
     if(command_string) free_string(command_string);
@@ -2053,7 +2082,7 @@ static int cmd_cmp(void *a, void *b)
 }
 
 // Output a table of commands.
-void do_commands( CHAR_DATA *ch, char *argument )
+void do_commands( CHAR_DATA *ch, char *argument, const char *context )
 {
     char buf[MAX_STRING_LENGTH], mxp_str[1024];
     //int cmd;
@@ -2072,7 +2101,7 @@ void do_commands( CHAR_DATA *ch, char *argument )
 		for (cmdtype = 0; cmdtype < MAX_COMMAND_TYPES; cmdtype++)
 		{
 			if (cmdtype == CMDTYPE_ADMIN || cmdtype == CMDTYPE_IMMORTAL || cmdtype == CMDTYPE_OLC || cmdtype == CMDTYPE_NEWBIE)
-			continue;
+				continue;
 
 			ch->pcdata->extra_commands = list_createx(false, NULL, delete_extra_commands);
 
@@ -2085,6 +2114,22 @@ void do_commands( CHAR_DATA *ch, char *argument )
 			{
 				if (command->type != cmdtype)
 					continue;
+
+				if (command->visible)
+				{
+					// Allow/Deny
+					int ret = execute_script(command->visible,
+						ch, NULL, NULL, NULL, NULL, NULL, NULL,
+						ch, NULL, NULL, NULL, NULL, NULL, NULL,
+						command->name, command->context, TRIG_NONE, 0, 0, 0, 0, 0);
+
+					if (ret != 0) continue;
+				}
+
+				if (command->function == _do_speak_on_channel && !IS_NULLSTR(command->context))
+				{
+					// TODO: Can see channel?
+				}
 
 				if (command->rank <= STAFF_PLAYER && !IS_SET(command->command_flags, CMD_HIDE_LISTS))
 				{
@@ -2248,7 +2293,7 @@ void do_commands( CHAR_DATA *ch, char *argument )
 
 
 // Output a table of imm-only commands.
-void do_wizhelp( CHAR_DATA *ch, char *argument )
+void do_wizhelp( CHAR_DATA *ch, char *argument, const char *context )
 {
     char buf[MAX_STRING_LENGTH];
 //    int cmd;

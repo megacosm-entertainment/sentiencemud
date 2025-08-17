@@ -43,7 +43,7 @@
 #include "magic.h"
 #include "scripts.h"
 
-void do_trance(CHAR_DATA *ch, char *argument)
+void do_trance(CHAR_DATA *ch, char *argument, const char *context)
 {
     int chance;
     char buf[MSL];

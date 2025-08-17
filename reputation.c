@@ -1029,7 +1029,7 @@ static bool __parse_reputation_filters(CHAR_DATA *ch, char *argument, struct __f
 }
 
 // List Reputations on Character
-void do_reputations(CHAR_DATA *ch, char *argument)
+void do_reputations(CHAR_DATA *ch, char *argument, const char *context)
 {
 	if (IS_NPC(ch))
 	{

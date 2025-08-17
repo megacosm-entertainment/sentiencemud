@@ -524,7 +524,7 @@ bool check_mana_cost(CHAR_DATA *ch, int cost)
 	return true;
 }
 
-void do_cast(CHAR_DATA *ch, char *argument)
+void do_cast(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg1[MAX_INPUT_LENGTH];
 	char arg2[MAX_INPUT_LENGTH];
@@ -1576,7 +1576,7 @@ OBJ_DATA *get_warp_stone(CHAR_DATA *ch)
 
 
 
-void do_reverie(CHAR_DATA *ch, char *argument)
+void do_reverie(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg1[MAX_STRING_LENGTH];
     char arg2[MAX_STRING_LENGTH];

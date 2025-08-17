@@ -141,6 +141,8 @@ void remove_duplicate_objects_from_char(CHAR_DATA *ch);
 static void dedupe_obj_list(OBJ_DATA **head, LLIST *seen, LLIST *lworn);
 void remove_duplicate_objects_from_list(OBJ_DATA **head, LLIST *seen);
 void remove_duplicate_objects_from_char(CHAR_DATA *ch);
+PLAYER_CHANNEL_DATA *fread_player_channel_data(const char *name);
+void fwrite_player_channel_data(const char *name, PLAYER_CHANNEL_DATA *data);
 
 
 // Version structures
@@ -246,6 +248,7 @@ static void __init_player_versioning(struct __player_data_versioning *data)
 }
 
 void fread_char(CHAR_DATA *ch, FILE *fp, struct __player_data_versioning *__versioning);
+void fread_channel_entry(PLAYER_CHANNEL_DATA *channels, FILE *fp);
 void fix_character( CHAR_DATA *ch, struct __player_data_versioning *__versioning );
 void fread_account(ACCOUNT_DATA *account, FILE *fp);
 void fread_account_character(ACCOUNT_DATA *account, FILE *fp);
@@ -435,11 +438,15 @@ if (ch->carrying_temp && ch->version < VERSION_PLAYER_011) {
         fwrite_skills(ch, fp);
         fwrite_reputations_char(ch, fp);
 
+
         fprintf(fp, "#END\n");
     }
 
     fclose(fp);
     rename(TEMP_FILE, strsave);
+
+	fwrite_player_channel_data(ch->name, ch->pcdata->channels);
+
     fpReserve = fopen(NULL_FILE, "r");
 }
 
@@ -496,7 +503,6 @@ void fwrite_affect(FILE *fp, AFFECT_DATA *paf)
 	fprintf(fp, "Slot %s~\n", flag_string(wear_loc_flags,paf->slot));
 	fprintf(fp, "#-AFFECT\n");
 }
-
 
 /*
  * Write the char.
@@ -1218,6 +1224,8 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 
         fclose(fp);
     }
+	ch->pcdata->channels = fread_player_channel_data(name);
+
     fpReserve = fopen(NULL_FILE, "r");
 
     if(!IS_NPC(ch)) {
@@ -1549,6 +1557,55 @@ AFFECT_DATA *fread_affect(FILE *fp)
 		    bug(buf, 0);
 		    fread_to_eol(fp);
 	    }
+	}
+}
+
+void fread_channel_entry(PLAYER_CHANNEL_DATA *channels, FILE *fp)
+{
+	CHANNEL_ENTRY *entry = new_channel_entry();
+
+	char buf[MSL];
+	char *word;
+	bool fMatch;
+
+	char *name = fread_string(fp);
+	entry->channel = get_channel_data(name);
+
+	while(str_cmp((word = fread_word(fp)), "#-CHANNELENTRY"))
+	{
+		fMatch = false;
+
+		switch(UPPER(word[0]))
+		{
+		case 'B':
+			KEYS("Banner", entry->banner, fread_string(fp));
+			break;
+
+		case 'F':
+			KEY("Flags", entry->flags, fread_flag(fp));
+			break;
+		}
+		
+		if (!fMatch)
+		{
+			snprintf(buf, sizeof(buf), "fread_channel_entry: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	// Only keep if the channel reference was found.
+	if (entry->channel)
+	{
+		list_appendlink(channels->channels, entry->channel);
+
+		// TODO: Update the joined flag if there is an active ban punishment for the channel
+	}
+	else
+	{
+		snprintf(buf, sizeof(buf), "fread_channel_entry: channel '%s' doesn't exist.  Ignoring entry.", name);
+		bug(buf, 0);
+
+		free_channel_entry(entry);
 	}
 }
 
@@ -9630,4 +9687,96 @@ void remove_duplicate_objects_from_list(OBJ_DATA **head, LLIST *seen) {
         }
         obj = next;
     }
+}
+
+char *fread_char_account_name(const char *name)
+{
+	char *account_name = NULL;
+	char path[MSL];
+
+    sprintf(path, "%s%c/%s", PLAYER_DIR, tolower(name[0]), capitalize(name));
+	FILE *fp;
+
+	if ((fp = fopen(path, "r")) != NULL) {
+		char *word;
+		bool fMatch = false;
+
+		while(str_cmp((word = fread_word(fp)),"#END"))
+		{
+			KEYS("Account", account_name, fread_string(fp));
+		}
+
+		fclose(fp);
+	}
+
+	return account_name;
+}
+
+PLAYER_CHANNEL_DATA *fread_player_channel_data(const char *name)
+{
+	PLAYER_CHANNEL_DATA *data = new_player_channel_data();
+	char path[MSL];
+
+    sprintf(path, "%s%c/%s.channels", PLAYER_DIR, tolower(name[0]), capitalize(name));
+	FILE *fp;
+	
+	if ((fp = fopen(path, "r")) != NULL) {
+		char *word;
+		bool fMatch;
+
+		while(str_cmp((word = fread_word(fp)),"#END"))
+		{
+			fMatch = false;
+
+			switch(UPPER(word[0]))
+			{
+				case '#':
+					if (!str_cmp(word, "#CHANNELENTRY"))
+					{
+						fread_channel_entry(data, fp);
+						fMatch = true;
+						break;
+					}
+					break;
+			}
+		}
+
+		fclose(fp);
+	}
+
+	return data;
+}
+
+void fwrite_player_channel_data(const char *name, PLAYER_CHANNEL_DATA *data)
+{
+	char path[MSL];
+
+    sprintf(path, "%s%c/%s.channels", PLAYER_DIR, tolower(name[0]), capitalize(name));
+	FILE *fp;
+	
+	if ((fp = fopen(TEMP_FILE, "w")) != NULL) {
+
+		if (data && IS_VALID(data->channels))
+		{
+			ITERATOR it;
+			CHANNEL_ENTRY *entry;
+			iterator_start(&it, data->channels);
+			while((entry = (CHANNEL_ENTRY *)iterator_nextdata(&it)))
+			{
+				fprintf(fp, "#CHANNELENTRY %s~\n\r", entry->channel->name);
+				fprintf(fp, "Flags %s\n\r", print_flags(entry->flags));
+				fprintf(fp, "Banner %s~\n\r", entry->banner);
+				fprintf(fp, "#-CHANNELENTRY\n\r");
+			}
+			iterator_stop(&it);
+		}
+
+		fprintf(fp, "#END\n\r");
+		fclose(fp);
+	    rename(TEMP_FILE, path);
+	}
+	else
+	{
+		// Complain
+	}
 }

@@ -470,3 +470,25 @@ void free_corpse_type(CORPSE_TYPE *data);
 
 CMD_DATA *new_cmd();
 void free_cmd(CMD_DATA *cmd);
+
+
+CHANNEL_HISTORY_DATA *new_channel_history();
+void free_channel_history(CHANNEL_HISTORY_DATA *data);
+
+CHANNEL_REPORT_DATA *new_channel_report();
+void free_channel_report(CHANNEL_REPORT_DATA *data);
+
+CHANNEL_PUNISHMENT_DATA *new_channel_punishment();
+void free_channel_punishment(CHANNEL_PUNISHMENT_DATA *data);
+
+CHANNEL_DATA *new_channel_data();
+void free_channel_data(CHANNEL_DATA *data);
+
+REPLAY_ENTRY *new_replay_entry();
+void free_replay_entry(REPLAY_ENTRY *data);
+
+CHANNEL_ENTRY *new_channel_entry();
+void free_channel_entry(CHANNEL_ENTRY *data);
+
+PLAYER_CHANNEL_DATA *new_player_channel_data();
+void free_player_channel_data(PLAYER_CHANNEL_DATA *data);

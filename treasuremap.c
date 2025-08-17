@@ -240,7 +240,7 @@ OBJ_DATA *create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea, OBJ_DATA *tr
 	return create_wilderness_map(pWilds, vx, vy, map, 5, "{RX{x");
 }
 
-void do_spawntreasuremap(CHAR_DATA *ch, char *argument)
+void do_spawntreasuremap(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MIL];
 	AREA_DATA *area = NULL;

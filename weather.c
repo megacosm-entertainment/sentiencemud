@@ -274,7 +274,7 @@ void remove_storm(AREA_DATA *pArea, STORM_DATA *storm) {
 }
 
 // Commenting this out, since Whisp's weather system doesn't work yet -- Areo
-void do_weather(CHAR_DATA *ch, char *argument)
+void do_weather(CHAR_DATA *ch, char *argument, const char *context)
 {
     AREA_DATA *pArea;
     STORM_DATA *storm = NULL;

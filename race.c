@@ -718,7 +718,7 @@ static bool __racelist_parse_params(CHAR_DATA *ch, char *argument, struct raceli
 	return true;
 }
 
-void do_racelist(CHAR_DATA *ch, char *argument)
+void do_racelist(CHAR_DATA *ch, char *argument, const char *context)
 {
 	BUFFER *buffer = new_buf();
 	char buf[MSL];

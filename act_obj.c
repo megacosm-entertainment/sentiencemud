@@ -482,7 +482,7 @@ void loot_corpse(CHAR_DATA *ch, OBJ_DATA *corpse)
 }
 
 
-void do_get(CHAR_DATA *ch, char *argument)
+void do_get(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg1[MAX_INPUT_LENGTH];
 	char arg2[MAX_INPUT_LENGTH];
@@ -1073,7 +1073,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_put(CHAR_DATA *ch, char *argument)
+void do_put(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg1[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
@@ -1777,7 +1777,7 @@ void do_put(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_drop(CHAR_DATA *ch, char *argument)
+void do_drop(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     char arg2[MSL];
@@ -2102,7 +2102,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_give(CHAR_DATA *ch, char *argument)
+void do_give(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg1[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
@@ -2433,7 +2433,7 @@ void change_money(CHAR_DATA *ch, CHAR_DATA *changer, long gold, long silver)
     }
 }
 
-void do_donate(CHAR_DATA *ch, char *argument)
+void do_donate(CHAR_DATA *ch, char *argument, const char *context)
 {
     OBJ_DATA *obj;
     CHAR_DATA *prev;
@@ -2510,7 +2510,7 @@ void do_donate(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_repair(CHAR_DATA *ch, char *argument)
+void do_repair(CHAR_DATA *ch, char *argument, const char *context)
 {
     OBJ_DATA *obj;
     char arg[MAX_STRING_LENGTH];
@@ -2632,7 +2632,7 @@ void do_repair(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_restring(CHAR_DATA *ch, char *argument)
+void do_restring(CHAR_DATA *ch, char *argument, const char *context)
 {
     OBJ_DATA *obj;
     CHAR_DATA *mob;
@@ -2783,7 +2783,7 @@ void do_restring(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_unrestring(CHAR_DATA *ch, char *argument)
+void do_unrestring(CHAR_DATA *ch, char *argument, const char *context)
 {
     OBJ_DATA *obj;
     CHAR_DATA *mob;
@@ -2861,7 +2861,7 @@ void do_unrestring(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_envenom(CHAR_DATA *ch, char *argument)
+void do_envenom(CHAR_DATA *ch, char *argument, const char *context)
 {
     OBJ_DATA *obj;
     AFFECT_DATA af;
@@ -3022,7 +3022,7 @@ void do_envenom(CHAR_DATA *ch, char *argument)
 
 
 // fill <fluid_container>[ <fluid_container (in room)>]
-void do_fill(CHAR_DATA *ch, char *argument)
+void do_fill(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
 //    char buf[MAX_STRING_LENGTH];
@@ -3166,7 +3166,7 @@ void do_fill(CHAR_DATA *ch, char *argument)
 	}
 }
 
-void do_pour(CHAR_DATA *ch, char *argument)
+void do_pour(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_STRING_LENGTH],buf[MAX_STRING_LENGTH];
     OBJ_DATA *out, *in;
@@ -3564,7 +3564,7 @@ void __drink_fluid_con(CHAR_DATA *ch, OBJ_DATA *obj, int max_amount, char *verb)
 
 }
 
-void do_sip(CHAR_DATA *ch, char *argument)
+void do_sip(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     OBJ_DATA *obj;
@@ -3600,7 +3600,7 @@ void do_sip(CHAR_DATA *ch, char *argument)
 	__drink_fluid_con(ch, obj, 1, "sip");
 }
 
-void do_drink(CHAR_DATA *ch, char *argument)
+void do_drink(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     OBJ_DATA *obj;
@@ -3636,7 +3636,7 @@ void do_drink(CHAR_DATA *ch, char *argument)
 	__drink_fluid_con(ch, obj, 0, "drink");
 }
 
-void do_quaff(CHAR_DATA *ch, char *argument)
+void do_quaff(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     OBJ_DATA *obj;
@@ -3673,7 +3673,7 @@ void do_quaff(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_eat(CHAR_DATA *ch, char *argument)
+void do_eat(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     OBJ_DATA *obj;
@@ -4369,7 +4369,7 @@ void wear_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool fReplace)
 }
 
 
-void do_wear(CHAR_DATA *ch, char *argument)
+void do_wear(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     OBJ_DATA *obj;
@@ -4482,7 +4482,7 @@ void removeall(CHAR_DATA *ch)
 }
 
 
-void do_remove(CHAR_DATA *ch, char *argument)
+void do_remove(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
@@ -4580,7 +4580,7 @@ void sacrifice_obj(CHAR_DATA *ch, OBJ_DATA *obj, char *name)
 
 }
 
-void do_sacrifice(CHAR_DATA *ch, char *argument)
+void do_sacrifice(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     char short_descr[MSL];
@@ -4711,7 +4711,7 @@ void do_sacrifice(CHAR_DATA *ch, char *argument)
 
 
 
-void do_recite(CHAR_DATA *ch, char *argument)
+void do_recite(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg1[MAX_INPUT_LENGTH];
 	char arg2[MAX_INPUT_LENGTH];
@@ -5116,7 +5116,7 @@ void obj_brandish_spell(OBJ_DATA *weapon, SKILL_DATA *skill, int level, CHAR_DAT
 		(*(skill->brandish_fun)) (skill, level, ch, weapon, victim);
 }
 
-void do_brandish(CHAR_DATA *ch, char *argument)
+void do_brandish(CHAR_DATA *ch, char *argument, const char *context)
 {
     CHAR_DATA *vch;
     CHAR_DATA *vch_next;
@@ -5454,7 +5454,7 @@ void obj_zap_spell(OBJ_DATA *wand, SKILL_DATA *skill, int level, CHAR_DATA *ch, 
 }
 
 // zap <wand> <target>
-void do_zap(CHAR_DATA *ch, char *argument)
+void do_zap(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     CHAR_DATA *victim;
@@ -5602,7 +5602,7 @@ void do_zap(CHAR_DATA *ch, char *argument)
 	}
 }
 
-void do_steal(CHAR_DATA *ch, char *argument)
+void do_steal(CHAR_DATA *ch, char *argument, const char *context)
 {
     char buf  [MAX_STRING_LENGTH];
     char arg1 [MAX_INPUT_LENGTH];
@@ -6231,7 +6231,7 @@ int get_cost(CHAR_DATA *keeper, OBJ_DATA *obj, bool fBuy)
 }
 
 
-void do_buy(CHAR_DATA *ch, char *argument)
+void do_buy(CHAR_DATA *ch, char *argument, const char *context
 {
 	char buf[MAX_STRING_LENGTH];
 	long cost;
@@ -6976,7 +6976,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_blow( CHAR_DATA *ch, char *argument )
+void do_blow( CHAR_DATA *ch, char *argument, const char *context )
 {
     char arg[MAX_INPUT_LENGTH];
     OBJ_DATA *obj;
@@ -7040,7 +7040,7 @@ void do_blow( CHAR_DATA *ch, char *argument )
     return;
 }
 
-void do_list(CHAR_DATA *ch, char *argument)
+void do_list(CHAR_DATA *ch, char *argument, const char *context)
 {
     char buf[MAX_STRING_LENGTH];
 
@@ -7306,7 +7306,7 @@ void do_list(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_inspect(CHAR_DATA *ch, char *argument)
+void do_inspect(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
 	char arg_keeper[MIL];
@@ -7432,7 +7432,7 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_sell(CHAR_DATA *ch, char *argument)
+void do_sell(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MAX_STRING_LENGTH];
 	char arg[MAX_INPUT_LENGTH];
@@ -7667,7 +7667,7 @@ void do_sell(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_value(CHAR_DATA *ch, char *argument)
+void do_value(CHAR_DATA *ch, char *argument, const char *context)
 {
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
@@ -7724,7 +7724,7 @@ void do_value(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_secondary(CHAR_DATA *ch, char *argument)
+void do_secondary(CHAR_DATA *ch, char *argument, const char *context)
 {
     OBJ_DATA *obj;
     OBJ_DATA *weapon;
@@ -7831,7 +7831,7 @@ void do_secondary(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_push(CHAR_DATA *ch, char *argument)
+void do_push(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MIL];
     OBJ_DATA *obj;
@@ -7952,7 +7952,7 @@ void do_push(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_pull(CHAR_DATA *ch, char *argument)
+void do_pull(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_STRING_LENGTH];
     CHAR_DATA *mob = NULL;
@@ -8103,7 +8103,7 @@ void do_pull(CHAR_DATA *ch, char *argument)
 
 
 // hitch <cart> <mount/team animal>
-void do_hitch(CHAR_DATA *ch, char *argument)
+void do_hitch(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MIL];
 	OBJ_DATA *obj;
@@ -8206,7 +8206,7 @@ void do_hitch(CHAR_DATA *ch, char *argument)
 }
 
 // UNHITCH <cart>
-void do_unhitch(CHAR_DATA *ch, char *argument)
+void do_unhitch(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MIL];
 	OBJ_DATA *obj;
@@ -8271,7 +8271,7 @@ void do_unhitch(CHAR_DATA *ch, char *argument)
 /*
  * Used for not only the turning of objects but also the turning of undead.
  */
-void do_turn(CHAR_DATA *ch, char *argument)
+void do_turn(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_STRING_LENGTH];
 	OBJ_DATA *obj;
@@ -8342,7 +8342,7 @@ void do_turn(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_skull(CHAR_DATA *ch, char *argument)
+void do_skull(CHAR_DATA *ch, char *argument, const char *context)
 {
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_STRING_LENGTH];
@@ -8561,7 +8561,7 @@ bool can_brew_spell(CHAR_DATA *ch, OBJ_DATA *obj, SKILL_ENTRY *spell)
 
 
 // brew <spell> <container>
-void do_brew(CHAR_DATA *ch, char *argument)
+void do_brew(CHAR_DATA *ch, char *argument, const char *context)
 {
     OBJ_DATA *obj;
     //int sn;
@@ -8935,7 +8935,7 @@ bool can_imbue_spell(CHAR_DATA *ch, OBJ_DATA *obj, SKILL_ENTRY *spell, int imbue
 
 
 // imbue <object>[ <context>] <spell1>[ <spell2>[ <spell3>]]
-void do_imbue(CHAR_DATA *ch, char *argument)
+void do_imbue(CHAR_DATA *ch, char *argument, const char *context)
 {
     OBJ_DATA *obj;
 	SKILL_ENTRY *spells[3];
@@ -9352,7 +9352,7 @@ void imbue_end(CHAR_DATA *ch)
 	}
 }
 
-void do_plant(CHAR_DATA *ch, char *argument)
+void do_plant(CHAR_DATA *ch, char *argument, const char *context)
 {
     OBJ_DATA *obj;
     char arg1[MAX_STRING_LENGTH];
@@ -9395,7 +9395,7 @@ void do_plant(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_hands(CHAR_DATA *ch, char *argument)
+void do_hands(CHAR_DATA *ch, char *argument, const char *context)
 {
     CHAR_DATA *victim;
     int chance;
@@ -9510,7 +9510,7 @@ bool can_scribe_spell(CHAR_DATA *ch, OBJ_DATA *obj, SKILL_ENTRY *spell)
 }
 
 // scribe <scroll> <spell1>[ <spell2>[ <spell3>]]
-void do_scribe(CHAR_DATA *ch, char *argument)
+void do_scribe(CHAR_DATA *ch, char *argument, const char *context)
 {
 	int need[CATALYST_MAX];
     OBJ_DATA *obj;
@@ -9862,7 +9862,7 @@ bool is_mana_regen_relic_in_room(ROOM_INDEX_DATA *room)
 }
 
 
-void do_bomb(CHAR_DATA *ch, char *argument)
+void do_bomb(CHAR_DATA *ch, char *argument, const char *context)
 {
     if (is_dead(ch))
 	return;
@@ -9921,7 +9921,7 @@ void bomb_end(CHAR_DATA *ch)
 }
 
 
-void do_infuse(CHAR_DATA *ch, char *argument)
+void do_infuse(CHAR_DATA *ch, char *argument, const char *context)
 {
 #if 0
     OBJ_DATA *obj;
@@ -10086,7 +10086,7 @@ void repair_end(CHAR_DATA *ch)
     ch->repair_obj = NULL;
 }
 
-void do_dig(CHAR_DATA *ch, char *argument) {
+void do_dig(CHAR_DATA *ch, char *argument, const char *context) {
   OBJ_DATA *obj;
   bool found = false;
 
@@ -10118,7 +10118,7 @@ void do_dig(CHAR_DATA *ch, char *argument) {
 }
 
 
-void do_use(CHAR_DATA *ch, char *argument)
+void do_use(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_STRING_LENGTH];
 	OBJ_DATA *obj, *tobj = NULL;
@@ -10160,7 +10160,7 @@ void do_use(CHAR_DATA *ch, char *argument)
 }
 
 /* Conceal merely hides an item.  No special affects will be done when doing this.*/
-void do_conceal(CHAR_DATA *ch, char *argument)
+void do_conceal(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_STRING_LENGTH];
 	OBJ_DATA *obj;
@@ -10288,7 +10288,7 @@ char *get_stock_description(SHOP_STOCK_DATA *stock)
 	return "something";
 }
 
-void do_ignite(CHAR_DATA *ch, char *argument)
+void do_ignite(CHAR_DATA *ch, char *argument, const char *context)
 {
 	OBJ_DATA *obj;
 	char arg[MIL];
@@ -10355,7 +10355,7 @@ void do_ignite(CHAR_DATA *ch, char *argument)
 	p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, NULL, TRIG_IGNITE, NULL, 0,0,0,0,0);
 }
 
-void do_extinguish(CHAR_DATA *ch, char *argument)
+void do_extinguish(CHAR_DATA *ch, char *argument, const char *context)
 {
 	OBJ_DATA *obj;
 	char arg[MIL];
@@ -10486,7 +10486,7 @@ void show_book_page(CHAR_DATA *ch, OBJ_DATA *book)
 }
 
 // READ <BOOK>
-void do_read(CHAR_DATA *ch, char *argument)
+void do_read(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MIL];
 	OBJ_DATA *obj;
@@ -10539,7 +10539,7 @@ void do_read(CHAR_DATA *ch, char *argument)
 	p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BOOK_READ, NULL, BOOK(obj)->current_page,0,0,0,0);
 }
 
-void do_write(CHAR_DATA *ch, char *argument)
+void do_write(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MSL];
 	char arg[MIL];
@@ -10648,7 +10648,7 @@ void do_write(CHAR_DATA *ch, char *argument)
 	do_write(ch, "");
 }
 
-void do_seal(CHAR_DATA *ch, char *argument)
+void do_seal(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MIL];
 	OBJ_DATA *obj;
@@ -10693,7 +10693,7 @@ void do_seal(CHAR_DATA *ch, char *argument)
 
 // PAGE <book> first|last|next|previous|<page#>
 // Book must be OPEN
-void do_page(CHAR_DATA *ch, char *argument)
+void do_page(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MSL];
 	char arg[MIL];
@@ -10908,7 +10908,7 @@ void do_page(CHAR_DATA *ch, char *argument)
 // RIP <book>[ <page#>] (defaults to current page)
 // Contents of the page are put into a scroll.
 // TODO: Instead of a scroll, have a PAGE type so the title and text can be preserved separately.
-void do_rip(CHAR_DATA *ch, char *argument)
+void do_rip(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MSL];
 	char arg[MIL];
@@ -11077,7 +11077,7 @@ void do_rip(CHAR_DATA *ch, char *argument)
 
 
 // ATTACH <page> <book>[ <append>]
-void do_attach(CHAR_DATA *ch, char *argument)
+void do_attach(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MIL];
 	char arg2[MIL];

@@ -22,7 +22,7 @@ int 	wizlist;
 static bool fMatch;
 static char buf[MSL];
 
-void do_help(CHAR_DATA *ch, char *argument)
+void do_help(CHAR_DATA *ch, char *argument, const char *context)
 {
 	HELP_DATA *help;
 	HELP_CATEGORY *hcat, *hcatnest;

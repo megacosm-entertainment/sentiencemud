@@ -225,7 +225,7 @@ bool writeCompressed(DESCRIPTOR_DATA *desc, char *txt, int length)
 }
 
 /* User-level compression toggle */
-void do_compress( CHAR_DATA *ch, char *argument )
+void do_compress( CHAR_DATA *ch, char *argument, const char *context )
 {
     if (!ch->desc) {
         send_to_char("What descriptor?!\n", ch);

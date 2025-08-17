@@ -128,6 +128,10 @@ void save_classes(bool booting);
 bool load_races();
 void save_races();
 
+bool load_channels();
+void save_channels();
+extern LLIST *channels_list;
+
 /*
  * Global variables.
  */
@@ -589,6 +593,9 @@ int main(int argc, char **argv)
 	if (!load_commands()) exit(1);
 	log_string("commands loaded.");
 
+    if (!load_channels()) exit(1);
+    log_string("channels loaded.");
+
     sprintf(log_buf, "Sentience is up on %d.", telnet_port);
     log_string(log_buf);
     #ifdef IMC
@@ -639,6 +646,10 @@ int main(int argc, char **argv)
 	save_skills();
 	save_songs();
 	save_sectors();
+	save_commands();
+    save_channels();
+
+	terminate_scripting();
 
 	list_destroy(corpse_list);
 	list_destroy(race_list);
@@ -651,10 +662,8 @@ int main(int argc, char **argv)
 	list_destroy(songs_list);
 	list_destroy(sectors_list);
 
-	terminate_scripting();
-
-		save_commands();
 	list_destroy(commands_list);
+    list_destroy(channels_list);
 
     if (gconfig_write()==1)
     {

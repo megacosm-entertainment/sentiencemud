@@ -16,7 +16,7 @@
 #include "tables.h"
 
 
-void do_gq(CHAR_DATA *ch, char *argument)
+void do_gq(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_STRING_LENGTH];
 	char arg2[MAX_STRING_LENGTH];

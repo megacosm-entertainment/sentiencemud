@@ -29,7 +29,7 @@ void do_mailshow(CHAR_DATA *ch, char *argument);
 void do_mailto(CHAR_DATA *ch, char *argument);
 void do_mailwrite(CHAR_DATA *ch, char *argument);
 
-void do_mail(CHAR_DATA *ch, char *argument)
+void do_mail(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MSL];
 

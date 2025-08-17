@@ -198,7 +198,7 @@ int opcmd_lookup(char *command)
  *
  * Syntax: opdump [vnum]
  */
-void do_opdump(CHAR_DATA *ch, char *argument)
+void do_opdump(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[ MAX_INPUT_LENGTH ];
 	SCRIPT_DATA *oprg;
@@ -230,7 +230,7 @@ void do_opdump(CHAR_DATA *ch, char *argument)
  *
  * Syntax: opstat [name]
  */
-void do_opstat(CHAR_DATA *ch, char *argument)
+void do_opstat(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_STRING_LENGTH];
 	PROG_LIST *oprg;

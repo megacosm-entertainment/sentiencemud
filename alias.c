@@ -89,7 +89,7 @@ void substitute_alias(DESCRIPTOR_DATA *d, char *argument)
 }
 
 
-void do_alias(CHAR_DATA *ch, char *argument)
+void do_alias(CHAR_DATA *ch, char *argument, const char *context)
 {
     CHAR_DATA *rch;
     char arg[MAX_INPUT_LENGTH],buf[MAX_STRING_LENGTH],alias_colour[10];
@@ -211,7 +211,7 @@ void do_alias(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_unalias(CHAR_DATA *ch, char *argument)
+void do_unalias(CHAR_DATA *ch, char *argument, const char *context)
 {
     CHAR_DATA *rch;
     char arg[MAX_INPUT_LENGTH];

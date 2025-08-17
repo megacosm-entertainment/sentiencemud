@@ -3651,6 +3651,23 @@ CHAR_DATA *get_char_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, char *argument)
     return NULL;
 }
 
+CHAR_DATA *find_player(char *name)
+{
+	char arg[MIL];
+	int number = number_argument(name, arg);
+
+	for(DESCRIPTOR_DATA *d = descriptor_list; d; d = d->next) {
+		CHAR_DATA *victim = d->original ? d->original : d->character;
+
+		if (d->conn == d->connected == CON_PLAYING && !IS_NPC(victim) && is_name(argument,victim->name))
+		{
+			if (--number < 1)
+				return victim;
+		}
+	}
+
+	return NULL;
+}
 
 /*
  * Find a char in the world, even if they are invisible etc.

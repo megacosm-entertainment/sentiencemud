@@ -1116,7 +1116,7 @@ int game_settings_write(void)
     return(0); /* Success*/
 }
 
-void do_wiznet(CHAR_DATA *ch, char *argument)
+void do_wiznet(CHAR_DATA *ch, char *argument, const char *context)
 {
     int flag;
     char buf[MAX_STRING_LENGTH];
@@ -1281,7 +1281,7 @@ void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj, long flag, long flag_ski
 }
 
 
-void do_zot(CHAR_DATA *ch, char *argument)
+void do_zot(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     char buf[MAX_STRING_LENGTH];
@@ -1371,7 +1371,7 @@ void do_zot(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_nochannels(CHAR_DATA *ch, char *argument)
+void do_nochannels(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH], buf[MAX_STRING_LENGTH];
     CHAR_DATA *victim;
@@ -1417,7 +1417,7 @@ void do_nochannels(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_bamfin(CHAR_DATA *ch, char *argument)
+void do_bamfin(CHAR_DATA *ch, char *argument, const char *context)
 {
     char buf[MAX_STRING_LENGTH];
 
@@ -1447,7 +1447,7 @@ void do_bamfin(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_bamfout(CHAR_DATA *ch, char *argument)
+void do_bamfout(CHAR_DATA *ch, char *argument, const char *context)
 {
     char buf[MAX_STRING_LENGTH];
 
@@ -1477,7 +1477,7 @@ void do_bamfout(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_deny(CHAR_DATA *ch, char *argument)
+void do_deny(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH],buf[MAX_STRING_LENGTH];
     CHAR_DATA *victim;
@@ -1518,7 +1518,7 @@ void do_deny(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_disconnect(CHAR_DATA *ch, char *argument)
+void do_disconnect(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     DESCRIPTOR_DATA *d;
@@ -1578,7 +1578,7 @@ void do_disconnect(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_echo(CHAR_DATA *ch, char *argument)
+void do_echo(CHAR_DATA *ch, char *argument, const char *context)
 {
     DESCRIPTOR_DATA *d;
 
@@ -1601,7 +1601,7 @@ void do_echo(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_recho(CHAR_DATA *ch, char *argument)
+void do_recho(CHAR_DATA *ch, char *argument, const char *context)
 {
 	DESCRIPTOR_DATA *d;
 
@@ -1626,7 +1626,7 @@ void do_recho(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_zecho(CHAR_DATA *ch, char *argument)
+void do_zecho(CHAR_DATA *ch, char *argument, const char *context)
 {
     DESCRIPTOR_DATA *d;
 
@@ -1651,7 +1651,7 @@ void do_zecho(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_pecho(CHAR_DATA *ch, char *argument)
+void do_pecho(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     CHAR_DATA *victim;
@@ -1683,7 +1683,7 @@ void do_pecho(CHAR_DATA *ch, char *argument)
 
 
 
-void do_transfer(CHAR_DATA *ch, char *argument)
+void do_transfer(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg1[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
@@ -1785,7 +1785,7 @@ void do_transfer(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_at(CHAR_DATA *ch, char *argument)
+void do_at(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_INPUT_LENGTH];
 	ROOM_INDEX_DATA *location;
@@ -1855,14 +1855,14 @@ void do_at(CHAR_DATA *ch, char *argument)
 	iterator_stop(&wit);
 }
 
-void do_startinvasion(CHAR_DATA *ch, char *argument)
+void do_startinvasion(CHAR_DATA *ch, char *argument, const char *context)
 {
 	send_to_char("Currently disabled", ch);
 	return;
 
 }
 
-void do_goto(CHAR_DATA *ch, char *argument)
+void do_goto(CHAR_DATA *ch, char *argument, const char *context)
 {
     ROOM_INDEX_DATA *location;
     CHAR_DATA *rch;
@@ -1931,10 +1931,10 @@ void do_goto(CHAR_DATA *ch, char *argument)
         }
     }
 
-    do_function(ch, &do_look, "auto");
+    cmd_function(ch, &do_look, "auto", NULL);
 }
 
-void do_goxy (CHAR_DATA * ch, char *argument)
+void do_goxy (CHAR_DATA * ch, char *argument, const char *context)
 {
     AREA_DATA *pArea;
     WILDS_DATA *pWilds;
@@ -2060,12 +2060,12 @@ void do_goxy (CHAR_DATA * ch, char *argument)
         }
     }
 
-    do_function (ch, &do_look, "auto");
+    cmd_function (ch, &do_look, "auto", NULL);
     return;
 }
 
 
-void do_stat(CHAR_DATA *ch, char *argument)
+void do_stat(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     char *string;
@@ -2155,7 +2155,7 @@ void do_stat(CHAR_DATA *ch, char *argument)
     send_to_char("Nothing by that name found anywhere.\n\r",ch);
 }
 
-void do_astat (CHAR_DATA * ch, char *argument)
+void do_astat (CHAR_DATA * ch, char *argument, const char *context)
 {
     AREA_DATA *pArea;
     WILDS_DATA *pWilds;
@@ -2246,7 +2246,7 @@ void do_astat (CHAR_DATA * ch, char *argument)
     return;
 }
 
-void do_accstat(CHAR_DATA *ch, char *argument)
+void do_accstat(CHAR_DATA *ch, char *argument, const char *context)
 {
      ACCOUNT_DATA *account;
     ACCOUNT_CHARACTER *acd;
@@ -2550,7 +2550,7 @@ char *lockstate_keylist(LOCK_STATE *lock)
 	return p;
 }
 
-void do_rstat(CHAR_DATA *ch, char *argument)
+void do_rstat(CHAR_DATA *ch, char *argument, const char *context)
 {
     BUFFER *output;
     char buf[MAX_STRING_LENGTH];
@@ -2834,7 +2834,7 @@ void do_rstat(CHAR_DATA *ch, char *argument)
 
 
 /* VIZZWILDS */
-void do_wstat (CHAR_DATA * ch, char *argument)
+void do_wstat (CHAR_DATA * ch, char *argument, const char *context)
 {
     AREA_DATA *pArea;
     WILDS_DATA *pWilds;
@@ -3274,7 +3274,7 @@ void ostat_portal_destination(OBJ_DATA *obj, BUFFER *buffer)
 	add_buf(buffer, "\n\r");
 }
 
-void do_ostat(CHAR_DATA *ch, char *argument)
+void do_ostat(CHAR_DATA *ch, char *argument, const char *context)
 {
 	BUFFER *buffer;
     char buf[MAX_STRING_LENGTH];
@@ -4108,7 +4108,7 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_mstat(CHAR_DATA *ch, char *argument)
+void do_mstat(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MAX_STRING_LENGTH];
 	char arg[MAX_INPUT_LENGTH];
@@ -4546,7 +4546,7 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_tstat(CHAR_DATA *ch, char *argument)
+void do_tstat(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MSL], buf[MSL], buf2[MSL], arg2[MSL], arg3[MSL];
     TOKEN_DATA *token = NULL;
@@ -4701,7 +4701,7 @@ void do_tstat(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_vnum(CHAR_DATA *ch, char *argument)
+void do_vnum(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     char *string;
@@ -4753,7 +4753,7 @@ void do_vnum(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_mfind(CHAR_DATA *ch, char *argument)
+void do_mfind(CHAR_DATA *ch, char *argument, const char *context)
 {
     /* extern long top_mob_index; */
     char buf[MAX_STRING_LENGTH];
@@ -4800,7 +4800,7 @@ void do_mfind(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_ofind(CHAR_DATA *ch, char *argument)
+void do_ofind(CHAR_DATA *ch, char *argument, const char *context)
 {
     /* extern long top_obj_index; */
     char buf[MAX_STRING_LENGTH];
@@ -4841,7 +4841,7 @@ void do_ofind(CHAR_DATA *ch, char *argument)
 	send_to_char("No objects by that name.\n\r", ch);
 }
 
-void do_tfind(CHAR_DATA *ch, char *argument)
+void do_tfind(CHAR_DATA *ch, char *argument, const char *context)
 {
     /* extern long top_mob_index; */
     char buf[MAX_STRING_LENGTH];
@@ -4888,7 +4888,7 @@ void do_tfind(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_rwhere(CHAR_DATA *ch, char *argument)
+void do_rwhere(CHAR_DATA *ch, char *argument, const char *context)
 {
     char buf[MAX_INPUT_LENGTH];
     BUFFER *buffer;
@@ -4943,7 +4943,7 @@ void do_rwhere(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_owhere(CHAR_DATA *ch, char *argument)
+void do_owhere(CHAR_DATA *ch, char *argument, const char *context)
 {
     char buf[MAX_INPUT_LENGTH*2];
     BUFFER *buffer;
@@ -5046,7 +5046,7 @@ void do_owhere(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_mwhere(CHAR_DATA *ch, char *argument)
+void do_mwhere(CHAR_DATA *ch, char *argument, const char *context)
 {
     char buf[MAX_STRING_LENGTH];
     BUFFER *buffer;
@@ -5168,19 +5168,19 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_reboo(CHAR_DATA *ch, char *argument)
+void do_reboo(CHAR_DATA *ch, char *argument, const char *context)
 {
     send_to_char("If you want to REBOOT, spell it out.\n\r", ch);
 }
 
 
-void do_reckonin(CHAR_DATA *ch, char *argument)
+void do_reckonin(CHAR_DATA *ch, char *argument, const char *context)
 {
     send_to_char("This command cannot be abbreviated!\n\r", ch);
 }
 
 
-void do_reboot(CHAR_DATA *ch, char *argument)
+void do_reboot(CHAR_DATA *ch, char *argument, const char *context)
 {
     int mins;
     int down_time;
@@ -5251,13 +5251,13 @@ void do_reboot(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_shutdow(CHAR_DATA *ch, char *argument)
+void do_shutdow(CHAR_DATA *ch, char *argument, const char *context)
 {
     send_to_char("If you want to SHUTDOWN, spell it out.\n\r", ch);
 }
 
 
-void do_shutdown(CHAR_DATA *ch, char *argument)
+void do_shutdown(CHAR_DATA *ch, char *argument, const char *context)
 {
     char buf[MAX_STRING_LENGTH];
     DESCRIPTOR_DATA *d,*d_next;
@@ -5344,7 +5344,7 @@ void do_shutdown(CHAR_DATA *ch, char *argument)
 
 
 
-void do_switch(CHAR_DATA *ch, char *argument)
+void do_switch(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH], buf[MAX_STRING_LENGTH];
     CHAR_DATA *victim;
@@ -5420,7 +5420,7 @@ void do_switch(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_return(CHAR_DATA *ch, char *argument)
+void do_return(CHAR_DATA *ch, char *argument, const char *context)
 {
     char buf[MAX_STRING_LENGTH];
 
@@ -5477,7 +5477,7 @@ void recursive_clone(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *clone)
 
 
 /* command that is similar to load */
-void do_clone(CHAR_DATA *ch, char *argument)
+void do_clone(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     char *rest;
@@ -5573,7 +5573,7 @@ void do_clone(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_load(CHAR_DATA *ch, char *argument)
+void do_load(CHAR_DATA *ch, char *argument, const char *context)
 {
    char arg[MAX_INPUT_LENGTH];
 
@@ -5590,13 +5590,13 @@ void do_load(CHAR_DATA *ch, char *argument)
 
     if (!str_cmp(arg,"mob") || !str_cmp(arg,"char"))
     {
-	do_function(ch, &do_mload, argument);
+	cmd_function(ch, &do_mload, argument, NULL);
 	return;
     }
 
     if (!str_cmp(arg,"obj"))
     {
-	do_function(ch, &do_oload, argument);
+	cmd_function(ch, &do_oload, argument, NULL);
 	return;
     }
 
@@ -5607,12 +5607,12 @@ void do_load(CHAR_DATA *ch, char *argument)
     }*/
 
     /* echo syntax */
-    do_function(ch, &do_load, "");
+    cmd_function(ch, &do_load, "", NULL);
 }
 
 // load mob <widevnum>
 // load mob $RESERVEDNAME
-void do_mload(CHAR_DATA *ch, char *argument)
+void do_mload(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     char buf[MAX_STRING_LENGTH];
@@ -5671,7 +5671,7 @@ void do_mload(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_oload(CHAR_DATA *ch, char *argument)
+void do_oload(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg1[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
@@ -5789,7 +5789,7 @@ void do_oload(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_purge(CHAR_DATA *ch, char *argument)
+void do_purge(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
@@ -5998,7 +5998,7 @@ void do_purge(CHAR_DATA *ch, char *argument)
 }
 
 /* Adding some new stuff to advance, for new immortals. It'll now display an intro screen to them. Perhaps the intro would be better as a helpfile, along the same lines as do_greeting? -- Areo 2006-08-23 */
-void do_advance(CHAR_DATA *ch, char *argument)
+void do_advance(CHAR_DATA *ch, char *argument, const char *context)
 {
 #if 0
     char buf[MAX_STRING_LENGTH];
@@ -6191,7 +6191,7 @@ void do_advance(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_trust(CHAR_DATA *ch, char *argument)
+void do_trust(CHAR_DATA *ch, char *argument, const char *context)
 {
 #if 0
     char arg1[MAX_INPUT_LENGTH];
@@ -6233,7 +6233,7 @@ void do_trust(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_restore(CHAR_DATA *ch, char *argument)
+void do_restore(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH], buf[MAX_STRING_LENGTH];
     CHAR_DATA *victim;
@@ -6289,7 +6289,7 @@ void do_restore(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_freeze(CHAR_DATA *ch, char *argument)
+void do_freeze(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH],buf[MAX_STRING_LENGTH];
     CHAR_DATA *victim;
@@ -6341,7 +6341,7 @@ void do_freeze(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_log(CHAR_DATA *ch, char *argument)
+void do_log(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     CHAR_DATA *victim;
@@ -6406,7 +6406,7 @@ void do_log(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_notell(CHAR_DATA *ch, char *argument)
+void do_notell(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH],buf[MAX_STRING_LENGTH];
     CHAR_DATA *victim;
@@ -6450,7 +6450,7 @@ void do_notell(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_peace(CHAR_DATA *ch, char *argument)
+void do_peace(CHAR_DATA *ch, char *argument, const char *context)
 {
     CHAR_DATA *rch;
 
@@ -6468,7 +6468,7 @@ void do_peace(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_wizlock(CHAR_DATA *ch, char *argument)
+void do_wizlock(CHAR_DATA *ch, char *argument, const char *context)
 {
 
 	if (argument[0] == '\0')
@@ -6510,7 +6510,7 @@ void do_wizlock(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_newlock(CHAR_DATA *ch, char *argument)
+void do_newlock(CHAR_DATA *ch, char *argument, const char *context)
 {
     newlock = !newlock;
 	char arg[MIL];
@@ -6600,7 +6600,7 @@ void do_newlock(CHAR_DATA *ch, char *argument)
 
 }
 
-void do_testport(CHAR_DATA *ch, char *argument)
+void do_testport(CHAR_DATA *ch, char *argument, const char *context)
 {
     is_test_port = !is_test_port;
 
@@ -6617,7 +6617,7 @@ void do_testport(CHAR_DATA *ch, char *argument)
     gconfig_write();
 }
 
-void do_set(CHAR_DATA *ch, char *argument)
+void do_set(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     char buf[MSL];
@@ -6741,7 +6741,7 @@ void do_set(CHAR_DATA *ch, char *argument)
 
 
 /* set token <char name> <token vnum> <v#|timer> <operator> <value> */
-void do_tkset(CHAR_DATA *ch, char *argument)
+void do_tkset(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MSL];
     char arg2[MSL], arg2b[MSL];
@@ -6922,7 +6922,7 @@ void set_moon_phase(void)
 	else time_info.moon = MOON_NEW;
 }
 
-void do_accset(CHAR_DATA *ch, char *argument)
+void do_accset(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH], arg2[MAX_INPUT_LENGTH], arg3[MAX_INPUT_LENGTH], buf[MSL];
     ACCOUNT_DATA *account;
@@ -7014,7 +7014,7 @@ void do_accset(CHAR_DATA *ch, char *argument)
     if (loaded) free_account(account); // Only free if we loaded it from disk
 }
 
-void do_tset(CHAR_DATA *ch, char *argument)
+void do_tset(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MSL];
     char arg2[MSL];
@@ -7099,7 +7099,7 @@ void do_tset(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_sset(CHAR_DATA *ch, char *argument)
+void do_sset(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg1[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
@@ -7227,7 +7227,7 @@ void do_sset(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_songset(CHAR_DATA *ch, char *argument)
+void do_songset(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg1[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
@@ -7344,7 +7344,7 @@ void do_songset(CHAR_DATA *ch, char *argument)
     send_to_char(buf, ch);
 }
 
-void do_chset(CHAR_DATA *ch, char *argument)
+void do_chset(CHAR_DATA *ch, char *argument, const char *context)
 {
     CHURCH_DATA *church;
     char arg[MAX_INPUT_LENGTH];
@@ -7802,7 +7802,7 @@ void do_chset(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_mset(CHAR_DATA *ch, char *argument)
+void do_mset(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg1[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
@@ -8359,7 +8359,7 @@ void do_mset(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_string(CHAR_DATA *ch, char *argument)
+void do_string(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
@@ -8412,7 +8412,7 @@ void do_string(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_oset(CHAR_DATA *ch, char *argument)
+void do_oset(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg1[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
@@ -8524,7 +8524,7 @@ void do_oset(CHAR_DATA *ch, char *argument)
 
 
 
-void do_rset(CHAR_DATA *ch, char *argument)
+void do_rset(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg1 [MAX_INPUT_LENGTH];
     char arg2 [MAX_INPUT_LENGTH];
@@ -8586,7 +8586,7 @@ void do_rset(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_sockets(CHAR_DATA *ch, char *argument)
+void do_sockets(CHAR_DATA *ch, char *argument, const char *context)
 {
     DESCRIPTOR_DATA *d;
     char buf[2 * MAX_STRING_LENGTH];
@@ -8725,7 +8725,7 @@ void do_sockets(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_force(CHAR_DATA *ch, char *argument)
+void do_force(CHAR_DATA *ch, char *argument, const char *context)
 {
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
@@ -8854,7 +8854,7 @@ void do_force(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_invis(CHAR_DATA *ch, char *argument)
+void do_invis(CHAR_DATA *ch, char *argument, const char *context)
 {
     int level;
     char arg[MAX_STRING_LENGTH];
@@ -8906,7 +8906,7 @@ void do_invis(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_incognito(CHAR_DATA *ch, char *argument)
+void do_incognito(CHAR_DATA *ch, char *argument, const char *context)
 {
     int level;
     char arg[MAX_STRING_LENGTH];
@@ -8957,7 +8957,7 @@ void do_incognito(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_holylight(CHAR_DATA *ch, char *argument)
+void do_holylight(CHAR_DATA *ch, char *argument, const char *context)
 {
     if (IS_NPC(ch))
 	return;
@@ -8976,7 +8976,7 @@ void do_holylight(CHAR_DATA *ch, char *argument)
     return;
 }
 
-void do_holypersona(CHAR_DATA *ch, char *argument)
+void do_holypersona(CHAR_DATA *ch, char *argument, const char *context)
 {
     if (IS_NPC(ch))
 	return;
@@ -8996,7 +8996,7 @@ void do_holypersona(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_holywarp(CHAR_DATA *ch, char *argument)
+void do_holywarp(CHAR_DATA *ch, char *argument, const char *context)
 {
     if (IS_NPC(ch))
 		return;
@@ -9015,7 +9015,7 @@ void do_holywarp(CHAR_DATA *ch, char *argument)
     return;
 }
 
-void do_holyaura(CHAR_DATA *ch, char *argument)
+void do_holyaura(CHAR_DATA *ch, char *argument, const char *context)
 {
     if (IS_NPC(ch))
 	return;
@@ -9034,7 +9034,7 @@ void do_holyaura(CHAR_DATA *ch, char *argument)
     return;
 }
 
-void do_olevel(CHAR_DATA *ch, char *argument)
+void do_olevel(CHAR_DATA *ch, char *argument, const char *context)
 {
 	ITERATOR it;
     char buf[MAX_INPUT_LENGTH];
@@ -9123,7 +9123,7 @@ void do_olevel(CHAR_DATA *ch, char *argument)
 
 
 // 20240120: NIB: Changed this to ONLY look at NPCs.
-void do_mlevel(CHAR_DATA *ch, char *argument)
+void do_mlevel(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MAX_INPUT_LENGTH];
 	BUFFER *buffer;
@@ -9170,7 +9170,7 @@ void do_mlevel(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_reckoning(CHAR_DATA *ch, char *argument)
+void do_reckoning(CHAR_DATA *ch, char *argument, const char *context)
 {
     struct tm *reck_time;
 
@@ -9209,7 +9209,7 @@ void do_reckoning(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_immortalise(CHAR_DATA *ch, char *argument)
+void do_immortalise(CHAR_DATA *ch, char *argument, const char *context)
 {
 #if 0
     CHAR_DATA *victim;
@@ -9282,7 +9282,7 @@ void do_immortalise(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_arealinks(CHAR_DATA *ch, char *argument)
+void do_arealinks(CHAR_DATA *ch, char *argument, const char *context)
 {
     /*FILE *fp;*/
     BUFFER *buffer;
@@ -9505,7 +9505,7 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
 
 
 /* Strip items of a vnum or name from a ch.*/
-void do_junk(CHAR_DATA *ch, char *argument)
+void do_junk(CHAR_DATA *ch, char *argument, const char *context)
 {
     CHAR_DATA *victim;
     OBJ_DATA *obj;
@@ -9562,7 +9562,7 @@ void do_junk(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_alevel(CHAR_DATA *ch, char *argument)
+void do_alevel(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     CHAR_DATA *victim;
@@ -9591,7 +9591,7 @@ void do_alevel(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_areset(CHAR_DATA *ch, char *argument)
+void do_areset(CHAR_DATA *ch, char *argument, const char *context)
 {
     AREA_DATA *area;
     char buf[MSL];
@@ -9622,7 +9622,7 @@ void do_areset(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_autosetname(CHAR_DATA *ch, char *argument)
+void do_autosetname(CHAR_DATA *ch, char *argument, const char *context)
 {
     if (!IS_SET(ch->act[0], PLR_AUTOSETNAME))
     {
@@ -9637,7 +9637,7 @@ void do_autosetname(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_autowar(CHAR_DATA *ch, char *argument)
+void do_autowar(CHAR_DATA *ch, char *argument, const char *context)
 {
     char buf[MSL];
     char arg[MSL];
@@ -9769,7 +9769,7 @@ void do_autowar(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_vislist(CHAR_DATA *ch, char *argument)
+void do_vislist(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MSL];
     char buf[MSL];
@@ -9908,12 +9908,12 @@ void do_vislist(CHAR_DATA *ch, char *argument)
 
 
 /* dummy command for whatever, used in debugging only */
-void do_test(CHAR_DATA *ch, char *argument)
+void do_test(CHAR_DATA *ch, char *argument, const char *context)
 {
 }
 
 
-void do_assignhelper(CHAR_DATA * ch, char *argument)
+void do_assignhelper(CHAR_DATA * ch, char *argument, const char *context)
 {
     char arg[MAX_STRING_LENGTH];
     CHAR_DATA * victim;
@@ -9970,7 +9970,7 @@ void do_assignhelper(CHAR_DATA * ch, char *argument)
 }
 
 
-void do_otransfer(CHAR_DATA *ch, char *argument)
+void do_otransfer(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg1[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
@@ -10028,7 +10028,7 @@ void do_otransfer(CHAR_DATA *ch, char *argument)
 
 
 /* Go unwizi for one command only*/
-void do_uninvis(CHAR_DATA *ch, char *argument)
+void do_uninvis(CHAR_DATA *ch, char *argument, const char *context)
 {
     int lev_wizi;
     int lev_incog;
@@ -10053,7 +10053,7 @@ void do_uninvis(CHAR_DATA *ch, char *argument)
 
 /* Allows custom granting of commands to people to do away with all those
    clumsy hacks. (Syn 2006-06-17) */
-void do_addcommand(CHAR_DATA *ch, char *argument)
+void do_addcommand(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MSL];
     char arg2[MSL];
@@ -10119,7 +10119,7 @@ void do_addcommand(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_remcommand(CHAR_DATA *ch, char *argument)
+void do_remcommand(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MSL];
     char arg2[MSL];
@@ -10182,7 +10182,7 @@ void do_remcommand(CHAR_DATA *ch, char *argument)
 }
 
 /* Adjusted boost to allow for up to 7 days (10080 minutes) - Tieryo */
-void do_boost(CHAR_DATA *ch, char *argument)
+void do_boost(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MSL];
 	char arg[MSL];
@@ -10257,7 +10257,7 @@ void do_boost(CHAR_DATA *ch, char *argument)
 
 
 /* Allows imms to fuck with tokens directly. */
-void do_token(CHAR_DATA *ch, char *argument)
+void do_token(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MSL];
     char arg2[MSL];
@@ -10492,7 +10492,7 @@ void do_token(CHAR_DATA *ch, char *argument)
    and import them without shutting down the game. Extreme care should be taken
    with this command, since it can be quite a performance drain.
 */
-void do_aload(CHAR_DATA *ch, char *argument)
+void do_aload(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MSL];
     FILE *fp;
@@ -10537,7 +10537,7 @@ void do_aload(CHAR_DATA *ch, char *argument)
     }
 }
 
-void do_immflag(CHAR_DATA *ch, char *argument)
+void do_immflag(CHAR_DATA *ch, char *argument, const char *context)
 {
     if (IS_NPC(ch)) {
        bug("NPC tried to change imm flag", 0);
@@ -10560,7 +10560,7 @@ void do_immflag(CHAR_DATA *ch, char *argument)
     act("Your immortal flag has been set to $T.", ch, NULL, NULL, NULL, NULL, NULL, argument, TO_CHAR);
 }
 
-void do_reserved(CHAR_DATA *ch, char *argument)
+void do_reserved(CHAR_DATA *ch, char *argument, const char *context)
 {
 	if (IS_NPC(ch))
 	{
@@ -11279,7 +11279,7 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 	do_reserved(ch, "");
 }
 
-void do_settings(CHAR_DATA *ch, char *argument)
+void do_settings(CHAR_DATA *ch, char *argument, const char *context)
 {
 	//char buf[MSL];
 	//char arg[MIL];
@@ -11594,7 +11594,7 @@ bool load_liquids()
 	return true;
 }
 
-void do_mxptest(CHAR_DATA *ch, char *argument)
+void do_mxptest(CHAR_DATA *ch, char *argument, const char *context)
 {
 	if (!ch->desc) return;
 	
@@ -11604,7 +11604,7 @@ void do_mxptest(CHAR_DATA *ch, char *argument)
 
 // immstrike <victim> <damage>
 // Does non-lethal damage.
-void do_immstrike(CHAR_DATA *ch, char *argument)
+void do_immstrike(CHAR_DATA *ch, char *argument, const char *context)
 {
 	CHAR_DATA *victim;
 	char arg[MIL];
@@ -11647,7 +11647,7 @@ void do_immstrike(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_repset(CHAR_DATA *ch, char *argument)
+void do_repset(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg1[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
@@ -11764,7 +11764,7 @@ void do_repset(CHAR_DATA *ch, char *argument)
 	return;
 }
 
-void do_classset(CHAR_DATA *ch, char *argument)
+void do_classset(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg1[MIL];
     char arg2[MIL];
@@ -12691,7 +12691,7 @@ bool load_corpses()
 // CORPSEDIT
 //
 
-void do_corpsedit(CHAR_DATA *ch, char *argument)
+void do_corpsedit(CHAR_DATA *ch, char *argument, const char *context)
 {
 	CORPSE_TYPE *corpse;
     char command[MSL];
@@ -12786,7 +12786,7 @@ void corpsedit(CHAR_DATA *ch, char *argument)
 	interpret(ch, arg);
 }
 
-void do_corpselist(CHAR_DATA *ch, char *argument)
+void do_corpselist(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MSL];
 	BUFFER *buffer = new_buf();
@@ -12815,7 +12815,7 @@ void do_corpselist(CHAR_DATA *ch, char *argument)
 	free_buf(buffer);
 }
 
-void do_corpseshow(CHAR_DATA *ch, char *argument)
+void do_corpseshow(CHAR_DATA *ch, char *argument, const char *context)
 {
 	if (argument[0] == '\0')
 	{
@@ -13950,7 +13950,7 @@ CORPSEDIT( corpsedit_damage )
 	return false;
 }
 
-void do_reloadstats(CHAR_DATA *ch, char *argument)
+void do_reloadstats(CHAR_DATA *ch, char *argument, const char *context)
 {
 	load_statistics();
 	stats_load_time = current_time;
@@ -14103,7 +14103,7 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
     }
 }
 
-void do_pwreset(CHAR_DATA *ch, char *argument)
+void do_pwreset(CHAR_DATA *ch, char *argument, const char *context)
 {
     CHAR_DATA *victim;
     char type[MAX_INPUT_LENGTH];
@@ -14436,7 +14436,7 @@ void do_pwreset(CHAR_DATA *ch, char *argument)
     }
 }
 
-void do_mfareset(CHAR_DATA *ch, char *argument)
+void do_mfareset(CHAR_DATA *ch, char *argument, const char *context)
 {
     CHAR_DATA *victim;
     char target[MAX_INPUT_LENGTH];
@@ -14590,7 +14590,7 @@ void do_mfareset(CHAR_DATA *ch, char *argument)
     }
 }
 
-void do_lvlaudit(CHAR_DATA *ch, char *argument)
+void do_lvlaudit(CHAR_DATA *ch, char *argument, const char *context)
 {
 	ITERATOR it;
 	AREA_DATA *area;

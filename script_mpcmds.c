@@ -228,7 +228,7 @@ int mpcmd_lookup(char *command)
 //
 // Restrictions: Viewer must have READ access on the script to see it.
 //
-void do_mpdump(CHAR_DATA *ch, char *argument)
+void do_mpdump(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[ MAX_INPUT_LENGTH ];
 	SCRIPT_DATA *mprg;
@@ -267,7 +267,7 @@ void do_mpdump(CHAR_DATA *ch, char *argument)
 //
 // Restrictions: Viewer must have READ access on the mobile to see it.
 //
-void do_mpstat(CHAR_DATA *ch, char *argument)
+void do_mpstat(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_STRING_LENGTH];
 	ITERATOR it;
@@ -371,7 +371,7 @@ void do_mpstat(CHAR_DATA *ch, char *argument)
 //
 // Restrictions: This is an internal interpreter and restricted to unswitched mobs
 //
-void do_mob(CHAR_DATA *ch, char *argument)
+void do_mob(CHAR_DATA *ch, char *argument, const char *context)
 {
 	SCRIPT_VARINFO info;
 

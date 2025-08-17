@@ -315,6 +315,11 @@ struct do_func_type
 	DO_FUN *func;
 };
 
+struct cmd_func_type
+{
+	char *name;
+	CMD_FUN *func;
+};
 
 struct con_state_info {
     int state;
@@ -563,6 +568,7 @@ extern const struct flag_type church_sizes[];
 extern const struct global_corpse_type global_corpses[];
 
 extern const struct do_func_type do_func_table[];
+extern const struct cmd_func_type cmd_func_table[];
 extern const struct flag_type	command_flags[];
 extern const struct flag_type	log_flags[];
 extern const struct flag_type command_addl_types[];
@@ -574,5 +580,11 @@ extern const char *setting_type_names[];
 extern const struct flag_type church_permission_flags[];
 extern const struct flag_type church_log_category_flags[];
 extern const CHURCH_LOG_META_CATEGORY church_log_meta_categories[];
+
+extern const struct flag_type report_reasons[];
+extern const struct flag_type punishment_reasons[];
+extern const struct flag_type channel_flags[];
+extern const struct flag_type channel_entry_flags[];
+
 #endif
 

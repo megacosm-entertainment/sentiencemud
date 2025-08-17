@@ -215,7 +215,7 @@ int tpcmd_lookup(char *command,bool istoken)
  *
  * Syntax: tpdump [vnum]
  */
-void do_tpdump(CHAR_DATA *ch, char *argument)
+void do_tpdump(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[ MAX_INPUT_LENGTH ];
 	SCRIPT_DATA *tprg;
@@ -245,7 +245,7 @@ void do_tpdump(CHAR_DATA *ch, char *argument)
  *
  * Syntax: tpstat [target] [vnum] [index]
  */
-void do_tpstat(CHAR_DATA *ch, char *argument)
+void do_tpstat(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MSL], arg2[MSL], arg3[MSL];
 	TOKEN_DATA *token = NULL;

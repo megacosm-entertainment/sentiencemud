@@ -35,7 +35,7 @@ PROJECT_INQUIRY_DATA	*project_inquiry_list; 	// List of inquiries.
 
 /* General-use project handler. Can be called by any immortal, although some functions
    are only accessible to imps or project leaders. */
-void do_project(CHAR_DATA *ch, char *argument)
+void do_project(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MSL];
 
@@ -73,7 +73,7 @@ void do_project(CHAR_DATA *ch, char *argument)
 
 
 /* Shows a character a list of all projects he/she has access to. */
-void do_plist(CHAR_DATA *ch, char *argument)
+void do_plist(CHAR_DATA *ch, char *argument, const char *context)
 {
     char buf[2*MSL];
     char status[MSL];
@@ -139,7 +139,7 @@ void do_plist(CHAR_DATA *ch, char *argument)
 
 
 /* Shows one project and a list of its builders and inquiries to a character. */
-void do_pshow(CHAR_DATA *ch, char *argument)
+void do_pshow(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MSL], arg2[MSL];
     BUFFER *buffer;
@@ -167,7 +167,7 @@ void do_pshow(CHAR_DATA *ch, char *argument)
 
 
 /* Deletes a project. Use caution. */
-void do_pdelete(CHAR_DATA *ch, char *argument)
+void do_pdelete(CHAR_DATA *ch, char *argument, const char *context)
 {
     PROJECT_DATA *project, *project_tmp, *project_last = NULL;
 
@@ -218,7 +218,7 @@ bool has_access_project(CHAR_DATA *ch, PROJECT_DATA *project)
 }
 
 /* Handles inquiries on objects. */
-void do_pinquiry(CHAR_DATA *ch, char *argument)
+void do_pinquiry(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MSL], arg2[MSL], arg3[MSL];
     char buf[MSL];
@@ -425,7 +425,7 @@ void do_pinquiry(CHAR_DATA *ch, char *argument)
 
 /* Start building in a project. Your time will be logged as long as you perform OLC
    commands. */
-void do_build(CHAR_DATA *ch, char *argument)
+void do_build(CHAR_DATA *ch, char *argument, const char *context)
 {
     //char buf[MSL];
     PROJECT_DATA *project;

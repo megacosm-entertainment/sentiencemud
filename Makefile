@@ -38,6 +38,7 @@ C_FILES = \
 	bit.c \
 	blueprint.c \
 	boat.c \
+	channels.c \
 	church.c \
 	cmdedit.c \
 	comm.c \
@@ -153,6 +154,7 @@ O_FILES = \
 	$(OBJDIR)/bit.o \
 	$(OBJDIR)/blueprint.o \
 	$(OBJDIR)/boat.o \
+	$(OBJDIR)/channels.o \
 	$(OBJDIR)/church.o \
 	$(OBJDIR)/cmdedit.o \
 	$(OBJDIR)/comm.o \

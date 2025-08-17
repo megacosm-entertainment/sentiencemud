@@ -2021,12 +2021,12 @@ void list_dungeons(CHAR_DATA *ch, char *argument)
 	free_buf(buffer);
 }
 
-void do_dnglist(CHAR_DATA *ch, char *argument)
+void do_dnglist(CHAR_DATA *ch, char *argument, const char *context)
 {
 	list_dungeons(ch, argument);
 }
 
-void do_dngedit(CHAR_DATA *ch, char *argument)
+void do_dngedit(CHAR_DATA *ch, char *argument, const char *context)
 {
 	DUNGEON_INDEX_DATA *dng;
 	WNUM wnum;
@@ -2939,7 +2939,7 @@ DNGEDIT( dngedit_show )
 	return false;
 }
 
-void do_dngshow(CHAR_DATA *ch, char *argument)
+void do_dngshow(CHAR_DATA *ch, char *argument, const char *context)
 {
 	DUNGEON_INDEX_DATA *dng;
 	WNUM wnum;
@@ -7897,7 +7897,7 @@ DNGEDIT(dngedit_varclear)
 //
 // Commands
 //
-void do_dungeon(CHAR_DATA *ch, char *argument)
+void do_dungeon(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg1[MIL];
 
@@ -8783,7 +8783,7 @@ bool is_readycheck_complete(CHAR_DATA *ch)
 	return ready;
 }
 
-void do_readycheck(CHAR_DATA *ch, char *argument)
+void do_readycheck(CHAR_DATA *ch, char *argument, const char *context)
 {
 	CHAR_DATA *leader;
 	//char buf[MIL];

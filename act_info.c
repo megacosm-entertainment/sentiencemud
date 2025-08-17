@@ -1286,7 +1286,7 @@ bool check_blind(CHAR_DATA * ch)
 }
 
 
-void do_scroll(CHAR_DATA * ch, char *argument)
+void do_scroll(CHAR_DATA * ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     char buf[100];
@@ -1329,7 +1329,7 @@ void do_scroll(CHAR_DATA * ch, char *argument)
 }
 
 
-void do_socials(CHAR_DATA * ch, char *argument)
+void do_socials(CHAR_DATA * ch, char *argument, const char *context)
 {
     char buf[MAX_STRING_LENGTH];
     int iSocial;
@@ -1349,7 +1349,7 @@ void do_socials(CHAR_DATA * ch, char *argument)
 }
 
 
-void do_motd(CHAR_DATA *ch, char *argument)
+void do_motd(CHAR_DATA *ch, char *argument, const char *context)
 {
     HELP_DATA *help;
 
@@ -1358,7 +1358,7 @@ void do_motd(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_imotd(CHAR_DATA *ch, char *argument)
+void do_imotd(CHAR_DATA *ch, char *argument, const char *context)
 {
     HELP_DATA *help;
 
@@ -1367,7 +1367,7 @@ void do_imotd(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_rules(CHAR_DATA *ch, char *argument)
+void do_rules(CHAR_DATA *ch, char *argument, const char *context)
 {
     HELP_DATA *help;
 
@@ -1376,7 +1376,7 @@ void do_rules(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_wizlist(CHAR_DATA *ch, char *argument)
+void do_wizlist(CHAR_DATA *ch, char *argument, const char *context)
 {
 	IMMORTAL_DATA *immortal;
 	char buf[MSL], duties[MSL/10];
@@ -1402,7 +1402,7 @@ void do_wizlist(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_prompt(CHAR_DATA * ch, char *argument)
+void do_prompt(CHAR_DATA * ch, char *argument, const char *context)
 {
     char buf[MAX_STRING_LENGTH];
 
@@ -1441,7 +1441,7 @@ void do_prompt(CHAR_DATA * ch, char *argument)
     return;
 }
 
-void do_survey(CHAR_DATA *ch, char *argument)
+void do_survey(CHAR_DATA *ch, char *argument, const char *context)
 {
 	SHIP_DATA *ship;
     char arg[MAX_INPUT_LENGTH];
@@ -1617,7 +1617,7 @@ void do_survey(CHAR_DATA *ch, char *argument)
     act("You aren't on a boat.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 }
 
-void do_areas(CHAR_DATA *ch, char *argument)
+void do_areas(CHAR_DATA *ch, char *argument, const char *context)
 {
 {
     char buf[MAX_STRING_LENGTH];
@@ -1674,7 +1674,7 @@ void do_areas(CHAR_DATA *ch, char *argument)
 }
 }
 
-void do_area(CHAR_DATA *ch, char *argument)
+void do_area(CHAR_DATA *ch, char *argument, const char *context)
 {
 	AREA_DATA *pArea;
     char arg[MAX_STRING_LENGTH];
@@ -2224,7 +2224,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	return;
 }
 
-void do_look(CHAR_DATA * ch, char *argument)
+void do_look(CHAR_DATA * ch, char *argument, const char *context)
 {
 	char buf[MAX_STRING_LENGTH];
 	char arg1[MAX_INPUT_LENGTH];
@@ -2940,7 +2940,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 }
 
 
-void do_examine(CHAR_DATA * ch, char *argument)
+void do_examine(CHAR_DATA * ch, char *argument, const char *context)
 {
     char buf[MAX_STRING_LENGTH];
     char arg1[MAX_INPUT_LENGTH];
@@ -3060,7 +3060,7 @@ void do_examine(CHAR_DATA * ch, char *argument)
 }
 
 
-void do_exits(CHAR_DATA * ch, char *argument)
+void do_exits(CHAR_DATA * ch, char *argument, const char *context)
 {
 	extern char *const dir_name[];
 	char buf[MAX_STRING_LENGTH];
@@ -3221,7 +3221,7 @@ void do_exits(CHAR_DATA * ch, char *argument)
 	return;
 }
 
-void do_worth(CHAR_DATA * ch, char *argument)
+void do_worth(CHAR_DATA * ch, char *argument, const char *context)
 {
     char buf[MAX_STRING_LENGTH];
 
@@ -3251,7 +3251,7 @@ void do_worth(CHAR_DATA * ch, char *argument)
     return;
 }
 
-void do_score(CHAR_DATA * ch, char *argument)
+void do_score(CHAR_DATA * ch, char *argument, const char *context)
 {
     char buf[2*MAX_STRING_LENGTH], buf2[MSL];
     char subclass[MIL];
@@ -4057,7 +4057,7 @@ char *get_affect_name(AFFECT_DATA *paf)
 		return "???";
 }
 
-void do_affects(CHAR_DATA * ch, char *argument)
+void do_affects(CHAR_DATA * ch, char *argument, const char *context)
 {
     AFFECT_DATA *paf, *paf_last = NULL;
     int i;
@@ -4585,7 +4585,7 @@ void draw_moon(CHAR_DATA *ch,int colour)
 }
 
 
-void do_time(CHAR_DATA * ch, char *argument)
+void do_time(CHAR_DATA * ch, char *argument, const char *context)
 {
     extern char str_boot_time[];
     char buf[MAX_STRING_LENGTH];
@@ -4683,7 +4683,7 @@ void do_time(CHAR_DATA * ch, char *argument)
 
 
 /*    Uncommenting this function, as Whisp's weather system isn't yet functional -- Areo */
-void do_weather(CHAR_DATA *ch, char *argument)
+void do_weather(CHAR_DATA *ch, char *argument, const char *context)
 {
     char buf[MAX_STRING_LENGTH];
 
@@ -4750,7 +4750,7 @@ void do_weather(CHAR_DATA *ch, char *argument)
 
 
 /*    Inclusive who-command */
-void do_who_new(CHAR_DATA * ch, char *argument)
+void do_who_new(CHAR_DATA * ch, char *argument, const char *context)
 {
     char buf[2*MAX_STRING_LENGTH];
     char buf2[MAX_STRING_LENGTH];
@@ -4951,7 +4951,7 @@ void do_who_new(CHAR_DATA * ch, char *argument)
     free_buf(output);
 }
 
-void do_whois(CHAR_DATA * ch, char *argument)
+void do_whois(CHAR_DATA * ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     BUFFER *output;
@@ -5096,7 +5096,7 @@ void format_page(int16_t n, char *a, CHAR_DATA * ch)
 
 
 
-void do_count(CHAR_DATA * ch, char *argument)
+void do_count(CHAR_DATA * ch, char *argument, const char *context)
 {
     int count;
     DESCRIPTOR_DATA *d;
@@ -5123,7 +5123,7 @@ void do_count(CHAR_DATA * ch, char *argument)
 }
 
 
-void do_inventory(CHAR_DATA * ch, char *argument)
+void do_inventory(CHAR_DATA * ch, char *argument, const char *context)
 {
     char buf[MAX_STRING_LENGTH];
 
@@ -5143,7 +5143,7 @@ void do_inventory(CHAR_DATA * ch, char *argument)
 }
 
 
-void do_equipment(CHAR_DATA * ch, char *argument)
+void do_equipment(CHAR_DATA * ch, char *argument, const char *context)
 {
     show_equipment(ch, ch);
 }
@@ -5215,12 +5215,12 @@ void show_equipment(CHAR_DATA *ch, CHAR_DATA *victim)
 	free_buf(buffer);
 }
 
-void do_credits(CHAR_DATA * ch, char *argument)
+void do_credits(CHAR_DATA * ch, char *argument, const char *context)
 {
     do_function(ch, &do_help, "diku");
 }
 
-void do_consider(CHAR_DATA * ch, char *argument)
+void do_consider(CHAR_DATA * ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     CHAR_DATA *victim;
@@ -5278,7 +5278,7 @@ void set_title(CHAR_DATA * ch, char *title)
     ch->pcdata->title = str_dup(title);
 }
 
-void do_title(CHAR_DATA * ch, char *argument)
+void do_title(CHAR_DATA * ch, char *argument, const char *context)
 {
 	char arg[MIL];
 	char buf[MSL * 2];
@@ -5360,13 +5360,13 @@ void do_title(CHAR_DATA * ch, char *argument)
 }
 
 
-void do_description(CHAR_DATA * ch, char *argument)
+void do_description(CHAR_DATA * ch, char *argument, const char *context)
 {
     string_append(ch, &ch->description);
 }
 
 
-void do_report(CHAR_DATA * ch, char *argument)
+void do_report(CHAR_DATA * ch, char *argument, const char *context)
 {
     char buf[MAX_INPUT_LENGTH];
 
@@ -5386,7 +5386,7 @@ void do_report(CHAR_DATA * ch, char *argument)
 }
 
 
-void do_wimpy(CHAR_DATA * ch, char *argument)
+void do_wimpy(CHAR_DATA * ch, char *argument, const char *context)
 {
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
@@ -5414,7 +5414,7 @@ void do_wimpy(CHAR_DATA * ch, char *argument)
     send_to_char(buf, ch);
 }
 
-void do_password(CHAR_DATA *ch, char *argument)
+void do_password(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg1[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
@@ -5515,7 +5515,7 @@ void do_password(CHAR_DATA *ch, char *argument)
     send_to_char("Password changed.\n\r", ch);
 }
 
-void do_bank(CHAR_DATA * ch, char *argument)
+void do_bank(CHAR_DATA * ch, char *argument, const char *context)
 {
     char arg1[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
@@ -5751,7 +5751,7 @@ void do_bank(CHAR_DATA * ch, char *argument)
     send_to_char("Bank wire <amount> <person>\n\r", ch);
 }
 
-void do_botter(CHAR_DATA* ch, char *argument)
+void do_botter(CHAR_DATA* ch, char *argument, const char *context)
 {
     char arg[MAX_STRING_LENGTH];
     CHAR_DATA * victim;
@@ -6922,7 +6922,7 @@ void show_map_to_char(CHAR_DATA *ch, CHAR_DATA *to, int bonus_view_x, int bonus_
 }
 #endif
 
-void do_scry(CHAR_DATA *ch, char *argument)
+void do_scry(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_INPUT_LENGTH];
 	char buf[MSL];
@@ -7732,7 +7732,7 @@ void convert_map_char(char *buf, char ch)
     }
 }
 
-void do_toxins(CHAR_DATA *ch, char *argument)
+void do_toxins(CHAR_DATA *ch, char *argument, const char *context)
 {
     char buf[2*MAX_STRING_LENGTH];
     char buf2[MAX_STRING_LENGTH];
@@ -8262,7 +8262,7 @@ bool in_same_locale(CHAR_DATA *ch, CHAR_DATA *victim)
 	return false;
 }
 
-void do_where(CHAR_DATA * ch, char *argument)
+void do_where(CHAR_DATA * ch, char *argument, const char *context)
 {
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
@@ -8323,7 +8323,7 @@ void do_where(CHAR_DATA * ch, char *argument)
 	}
 }
 
-void do_dice(CHAR_DATA *ch, char *argument)
+void do_dice(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MSL];
     char arg2[MSL];
@@ -8465,7 +8465,7 @@ void show_basic_mob_lore(CHAR_DATA *ch, CHAR_DATA *victim)
 }
 
 
-void do_expand(CHAR_DATA *ch, char *argument)
+void do_expand(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MIL];
 	OBJ_DATA *obj;
@@ -8533,7 +8533,7 @@ void do_expand(CHAR_DATA *ch, char *argument)
 	}
 }
 
-void do_collapse(CHAR_DATA *ch, char *argument)
+void do_collapse(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MIL];
 	OBJ_DATA *obj;
@@ -9252,7 +9252,7 @@ bool __classes_parse_filters(CHAR_DATA *ch, char *argument, struct class_info_fi
 }
 
 
-void do_classes(CHAR_DATA *ch, char *argument)
+void do_classes(CHAR_DATA *ch, char *argument, const char *context)
 {
 	if (IS_NPC(ch)) return;
 

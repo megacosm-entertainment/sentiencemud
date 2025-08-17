@@ -63,6 +63,7 @@ void do_chdefaultrank(CHAR_DATA *ch, char *argument);
 bool has_church_permission(CHURCH_PLAYER_DATA *member, long permission);
 bool is_church_leader(CHAR_DATA *ch, CHURCH_DATA *church);
 bool is_church_officer(CHAR_DATA *ch, CHURCH_DATA *church);
+bool is_church_member(char *name, CHURCH_DATA *church);
 
 bool remove_church_rank(CHURCH_DATA *church, CHURCH_RANK_DATA *rank);
 void assign_church_member_ranks(CHURCH_DATA *church);
@@ -220,7 +221,7 @@ void show_church_commands(CHAR_DATA *ch)
     send_to_char(buf, ch);
 }
 
-void do_church(CHAR_DATA *ch, char *argument)
+void do_church(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_STRING_LENGTH];
     int i;
@@ -379,7 +380,7 @@ void do_chadd(CHAR_DATA *ch, char *argument)
     ch->church->people = new_member;
 
     list_addlink(ch->church->online_players, target);
-    list_addlink(ch->church->roster, target);
+    list_addlink(ch->church->roster, target->name);
 
     target->church = ch->church;
     target->church_member = new_member;
@@ -5292,6 +5293,26 @@ bool is_church_officer(CHAR_DATA *ch, CHURCH_DATA *church)
         return FALSE;
         
     return (ch->church_member->rank->rank_type >= RANK_TYPE_OFFICER);
+}
+
+bool is_church_member(char *name, CHURCH_DATA *church)
+{
+    ITERATOR it;
+    char *roster;
+    bool found = false;
+
+    iterator_start(&it, church->roster);
+    while((roster = (char *)iterator_nextdata(&it)))
+    {
+        if (!str_cmp(name, roster))
+        {
+            found = true;
+            break;
+        }
+    }
+    iterator_stop(&it);
+
+    return found;
 }
 
 void do_chsetrank(CHAR_DATA *ch, char *argument)

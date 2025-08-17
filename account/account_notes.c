@@ -70,7 +70,7 @@ void free_all_account_notes(ACCOUNT_DATA *account)
 /*
  * Main command handler for account notes
  */
-void do_accnote(CHAR_DATA *ch, char *argument)
+void do_accnote(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg1[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];

@@ -1211,7 +1211,7 @@ void drunk_walk(CHAR_DATA *ch, int door)
 }
 
 
-void do_search(CHAR_DATA *ch, char *argument)
+void do_search(CHAR_DATA *ch, char *argument, const char *context)
 {
     char buf[2*MAX_STRING_LENGTH];
     char exit[MSL];
@@ -1313,62 +1313,62 @@ void do_search(CHAR_DATA *ch, char *argument)
 		act("You find nothing unusual.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 }
 
-void do_north(CHAR_DATA *ch, char *argument)
+void do_north(CHAR_DATA *ch, char *argument, const char *context)
 {
     move_char(ch, DIR_NORTH, false, false);
     return;
 }
 
-void do_east(CHAR_DATA *ch, char *argument)
+void do_east(CHAR_DATA *ch, char *argument, const char *context)
 {
     move_char(ch, DIR_EAST, false, false);
     return;
 }
 
-void do_south(CHAR_DATA *ch, char *argument)
+void do_south(CHAR_DATA *ch, char *argument, const char *context)
 {
     move_char(ch, DIR_SOUTH, false, false);
     return;
 }
 
-void do_west(CHAR_DATA *ch, char *argument)
+void do_west(CHAR_DATA *ch, char *argument, const char *context)
 {
     move_char(ch, DIR_WEST, false, false);
     return;
 }
 
-void do_northeast(CHAR_DATA *ch, char *argument)
+void do_northeast(CHAR_DATA *ch, char *argument, const char *context)
 {
     move_char(ch, DIR_NORTHEAST, false, false);
     return;
 }
 
-void do_northwest(CHAR_DATA *ch, char *argument)
+void do_northwest(CHAR_DATA *ch, char *argument, const char *context)
 {
     move_char(ch, DIR_NORTHWEST, false, false);
     return;
 }
 
-void do_southeast(CHAR_DATA *ch, char *argument)
+void do_southeast(CHAR_DATA *ch, char *argument, const char *context)
 {
     move_char(ch, DIR_SOUTHEAST, false, false);
     return;
 }
 
-void do_southwest(CHAR_DATA *ch, char *argument)
+void do_southwest(CHAR_DATA *ch, char *argument, const char *context)
 {
     move_char(ch, DIR_SOUTHWEST, false, false);
     return;
 }
 
-void do_up(CHAR_DATA *ch, char *argument)
+void do_up(CHAR_DATA *ch, char *argument, const char *context)
 {
     move_char(ch, DIR_UP, false, false);
     return;
 }
 
 
-void do_down(CHAR_DATA *ch, char *argument)
+void do_down(CHAR_DATA *ch, char *argument, const char *context)
 {
     move_char(ch, DIR_DOWN, false, false);
     return;
@@ -1440,7 +1440,7 @@ int find_door(CHAR_DATA *ch, char *arg, bool show)
     return door;
 }
 
-void do_open(CHAR_DATA *ch, char *argument)
+void do_open(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char *start = argument;
 	char arg[MAX_INPUT_LENGTH];
@@ -1644,7 +1644,7 @@ void do_open(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_close(CHAR_DATA *ch, char *argument)
+void do_close(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_INPUT_LENGTH];
 	char exit[MSL];
@@ -1854,7 +1854,7 @@ void use_key(CHAR_DATA *ch, OBJ_DATA *key, LOCK_STATE *lock)
 	}
 }
 
-void do_lock(CHAR_DATA *ch, char *argument)
+void do_lock(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_INPUT_LENGTH];
 	OBJ_DATA *obj;
@@ -2139,7 +2139,7 @@ void do_lock(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_unlock(CHAR_DATA *ch, char *argument)
+void do_unlock(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_INPUT_LENGTH];
 	char exit[MSL];
@@ -2426,7 +2426,7 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_pick(CHAR_DATA *ch, char *argument)
+void do_pick(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_INPUT_LENGTH];
 	OBJ_DATA *obj;
@@ -2860,7 +2860,7 @@ bool can_stand(CHAR_DATA *ch, OBJ_DATA *obj, FURNITURE_COMPARTMENT *compartment,
 	return true;
 }
 
-void do_stand(CHAR_DATA *ch, char *argument)
+void do_stand(CHAR_DATA *ch, char *argument, const char *context)
 {
     OBJ_DATA *obj = NULL;
 	FURNITURE_COMPARTMENT *compartment = NULL;
@@ -3195,7 +3195,7 @@ bool can_rest(CHAR_DATA *ch, OBJ_DATA *obj, FURNITURE_COMPARTMENT *compartment, 
 }
 
 
-void do_rest(CHAR_DATA *ch, char *argument)
+void do_rest(CHAR_DATA *ch, char *argument, const char *context)
 {
     OBJ_DATA *obj = NULL;
 	FURNITURE_COMPARTMENT *compartment = NULL;
@@ -3460,7 +3460,7 @@ bool can_sit(CHAR_DATA *ch, OBJ_DATA *obj, FURNITURE_COMPARTMENT *compartment, b
 	return true;
 }
 
-void do_sit (CHAR_DATA *ch, char *argument)
+void do_sit (CHAR_DATA *ch, char *argument, const char *context)
 {
     OBJ_DATA *obj = NULL;
 	FURNITURE_COMPARTMENT *compartment = NULL;
@@ -3722,7 +3722,7 @@ bool can_sleep(CHAR_DATA *ch, OBJ_DATA *obj, FURNITURE_COMPARTMENT *compartment,
 	return true;
 }
 
-void do_sleep(CHAR_DATA *ch, char *argument)
+void do_sleep(CHAR_DATA *ch, char *argument, const char *context)
 {
     OBJ_DATA *obj = NULL;
 	FURNITURE_COMPARTMENT *compartment = NULL;
@@ -3829,7 +3829,7 @@ void do_sleep(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_wake(CHAR_DATA *ch, char *argument)
+void do_wake(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_INPUT_LENGTH];
 	CHAR_DATA *victim;
@@ -3869,7 +3869,7 @@ void do_wake(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_sneak(CHAR_DATA *ch, char *argument)
+void do_sneak(CHAR_DATA *ch, char *argument, const char *context)
 {
     AFFECT_DATA af;
     char arg[MAX_STRING_LENGTH];
@@ -3936,7 +3936,7 @@ memset(&af,0,sizeof(af));
 }
 
 
-void do_hide(CHAR_DATA *ch, char *argument)
+void do_hide(CHAR_DATA *ch, char *argument, const char *context)
 {
     OBJ_DATA *obj;
 
@@ -4176,7 +4176,7 @@ void hide_end(CHAR_DATA *ch)
     }
 }
 
-void do_visible(CHAR_DATA *ch, char *argument)
+void do_visible(CHAR_DATA *ch, char *argument, const char *context)
 {
     affect_strip(ch, gsk_invis			);
     affect_strip(ch, gsk_mass_invis			);
@@ -4191,7 +4191,7 @@ void do_visible(CHAR_DATA *ch, char *argument)
     send_to_char("You reveal yourself.\n\r", ch);
 }
 
-void do_recall(CHAR_DATA *ch, char *argument)
+void do_recall(CHAR_DATA *ch, char *argument, const char *context)
 {
     ROOM_INDEX_DATA *location;
 
@@ -4268,7 +4268,7 @@ void do_recall(CHAR_DATA *ch, char *argument)
     }
 }
 
-void do_fade(CHAR_DATA *ch, char *argument)
+void do_fade(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     int door;
@@ -4481,7 +4481,7 @@ bool move_success(CHAR_DATA *ch)
 }
 
 
-void do_bar(CHAR_DATA *ch, char *argument)
+void do_bar(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg[MAX_INPUT_LENGTH];
 	char exit[MSL];
@@ -4641,12 +4641,12 @@ void do_bar(CHAR_DATA *ch, char *argument)
 	}
 }
 
-void do_jam(CHAR_DATA *ch, char *argument)
+void do_jam(CHAR_DATA *ch, char *argument, const char *context)
 {
-
+	// TODO: Was this supposed to jam locks?
 }
 
-void do_evasion(CHAR_DATA *ch, char *argument)
+void do_evasion(CHAR_DATA *ch, char *argument, const char *context)
 {
     AFFECT_DATA af;
 
@@ -4693,7 +4693,7 @@ memset(&af,0,sizeof(af));
 }
 
 
-void do_warp(CHAR_DATA *ch, char *argument)
+void do_warp(CHAR_DATA *ch, char *argument, const char *context)
 {
 	send_to_char("Warp speed! NOW!!!\n\r", ch);
 	return;
@@ -4776,7 +4776,7 @@ void check_traps(CHAR_DATA *ch, bool show)
 	}
 }
 
-void do_ambush(CHAR_DATA *ch, char *argument)
+void do_ambush(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MSL];
     char arg2[MSL];
@@ -4859,7 +4859,7 @@ void do_ambush(CHAR_DATA *ch, char *argument)
     act("$n finds a good place to hide and crouches down.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 }
 
-void do_pk(CHAR_DATA *ch, char *argument)
+void do_pk(CHAR_DATA *ch, char *argument, const char *context)
 {
     CHAR_DATA *mob = NULL;
 
@@ -4905,7 +4905,7 @@ void do_pk(CHAR_DATA *ch, char *argument)
     }
 }
 
-void do_knock(CHAR_DATA *ch, char *argument)
+void do_knock(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MAX_INPUT_LENGTH];
     char exit[MSL];
@@ -4948,7 +4948,7 @@ void do_knock(CHAR_DATA *ch, char *argument)
     }
 }
 
-void do_takeoff(CHAR_DATA *ch, char *argument)
+void do_takeoff(CHAR_DATA *ch, char *argument, const char *context)
 {
 	int chance;
 	int weight;
@@ -5057,7 +5057,7 @@ void do_takeoff(CHAR_DATA *ch, char *argument)
 	}
 }
 
-void do_land(CHAR_DATA *ch, char *argument)
+void do_land(CHAR_DATA *ch, char *argument, const char *context)
 {
 	if(MOUNTED(ch)) {
 		if (!mobile_is_flying(MOUNTED(ch)))
@@ -5133,7 +5133,7 @@ void do_land(CHAR_DATA *ch, char *argument)
 }
 
 // yoke <team animal> <team leader>
-void do_yoke(CHAR_DATA *ch, char *argument)
+void do_yoke(CHAR_DATA *ch, char *argument, const char *context)
 {
 	int ret;
 	char arg[MIL];
@@ -5261,7 +5261,7 @@ void do_yoke(CHAR_DATA *ch, char *argument)
 }
 
 // unyoke <team animal>
-void do_unyoke(CHAR_DATA *ch, char *argument)
+void do_unyoke(CHAR_DATA *ch, char *argument, const char *context)
 {
 	int ret;
 	CHAR_DATA *animal;
@@ -5346,7 +5346,7 @@ void do_unyoke(CHAR_DATA *ch, char *argument)
 
 // LEAD <mobile>
 // This is basically the counterpart to "follow".
-void do_lead(CHAR_DATA *ch, char *argument)
+void do_lead(CHAR_DATA *ch, char *argument, const char *context)
 {
 	int ret;
 	CHAR_DATA *mob;
@@ -5402,7 +5402,7 @@ void do_lead(CHAR_DATA *ch, char *argument)
 
 // UNLEAD <follower>
 // If they were grouped with you, they will also drop group in the process.
-void do_unlead(CHAR_DATA *ch, char *argument)
+void do_unlead(CHAR_DATA *ch, char *argument, const char *context)
 {
 	int ret;
 	CHAR_DATA *mob;

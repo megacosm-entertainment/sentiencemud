@@ -21,7 +21,7 @@ IMMORTAL_DATA		*immortal_list;
 
 /* Top level staff-management handler. For use only by whoever manages
    staff, although all imps can use it. */
-void do_staff(CHAR_DATA *ch, char *argument)
+void do_staff(CHAR_DATA *ch, char *argument, const char *context)
 {
     char arg[MSL];
 
@@ -81,10 +81,10 @@ void do_staff(CHAR_DATA *ch, char *argument)
 
 
 /* Show the staff list. */
-void do_slist(CHAR_DATA *ch, char *argument)
+void do_slist(CHAR_DATA *ch, char *argument, const char *context)
 {
     // true laziness exists :P
-     do_function(ch, &do_wizlist, "");
+     cmd_function(ch, &do_wizlist, "", NULL);
 
 }
 

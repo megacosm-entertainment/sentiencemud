@@ -3089,12 +3089,12 @@ void list_blueprint_sections(CHAR_DATA *ch, char *argument)
 	free_buf(buffer);
 }
 
-void do_bslist(CHAR_DATA *ch, char *argument)
+void do_bslist(CHAR_DATA *ch, char *argument, const char *context)
 {
 	list_blueprint_sections(ch, argument);
 }
 
-void do_bsedit(CHAR_DATA *ch, char *argument)
+void do_bsedit(CHAR_DATA *ch, char *argument, const char *context)
 {
 	BLUEPRINT_SECTION *bs;
 	WNUM wnum;
@@ -3352,7 +3352,7 @@ BSEDIT( bsedit_show )
 }
 
 
-void do_bsshow(CHAR_DATA *ch, char *argument)
+void do_bsshow(CHAR_DATA *ch, char *argument, const char *context)
 {
 	BLUEPRINT_SECTION *bs;
 	WNUM wnum;
@@ -4778,12 +4778,12 @@ void list_blueprints(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_bplist(CHAR_DATA *ch, char *argument)
+void do_bplist(CHAR_DATA *ch, char *argument, const char *context)
 {
 	list_blueprints(ch, argument);
 }
 
-void do_bpedit(CHAR_DATA *ch, char *argument)
+void do_bpedit(CHAR_DATA *ch, char *argument, const char *context)
 {
 	BLUEPRINT *bp;
 	WNUM wnum;
@@ -5630,7 +5630,7 @@ BPEDIT( bpedit_show )
 	return false;
 }
 
-void do_bpshow(CHAR_DATA *ch, char *argument)
+void do_bpshow(CHAR_DATA *ch, char *argument, const char *context)
 {
 	BLUEPRINT *bp;
 	WNUM wnum;
@@ -11167,7 +11167,7 @@ BPEDIT(bpedit_varclear)
 //
 
 
-void do_instance(CHAR_DATA *ch, char *argument)
+void do_instance(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char arg1[MIL];
 

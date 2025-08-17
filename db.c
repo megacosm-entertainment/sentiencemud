@@ -6039,7 +6039,7 @@ AREA_DATA *get_wilderness_area()
     return temp;
 }
 
-void do_memory(CHAR_DATA *ch, char *argument)
+void do_memory(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MAX_STRING_LENGTH];
 	int i = 0, i2 = 0, num_pcs = 0;

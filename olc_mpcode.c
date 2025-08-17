@@ -554,7 +554,7 @@ void dpedit( CHAR_DATA *ch, char *argument)
     return;
 }
 
-void do_mpedit(CHAR_DATA *ch, char *argument)
+void do_mpedit(CHAR_DATA *ch, char *argument, const char *context)
 {
     SCRIPT_DATA *pMcode;
     char command[MAX_INPUT_LENGTH];
@@ -600,7 +600,7 @@ void do_mpedit(CHAR_DATA *ch, char *argument)
     return;
 }
 
-void do_opedit(CHAR_DATA *ch, char *argument)
+void do_opedit(CHAR_DATA *ch, char *argument, const char *context)
 {
     SCRIPT_DATA *pOcode;
     char command[MAX_INPUT_LENGTH];
@@ -646,7 +646,7 @@ void do_opedit(CHAR_DATA *ch, char *argument)
     return;
 }
 
-void do_rpedit(CHAR_DATA *ch, char *argument)
+void do_rpedit(CHAR_DATA *ch, char *argument, const char *context)
 {
     SCRIPT_DATA *pRcode;
     char command[MAX_INPUT_LENGTH];
@@ -694,7 +694,7 @@ void do_rpedit(CHAR_DATA *ch, char *argument)
     return;
 }
 
-void do_tpedit(CHAR_DATA *ch, char *argument)
+void do_tpedit(CHAR_DATA *ch, char *argument, const char *context)
 {
     SCRIPT_DATA *pTcode;
     char command[MAX_INPUT_LENGTH];
@@ -738,7 +738,7 @@ void do_tpedit(CHAR_DATA *ch, char *argument)
     send_to_char( "         tpedit create [vnum]\n\r", ch );
 }
 
-void do_apedit(CHAR_DATA *ch, char *argument)
+void do_apedit(CHAR_DATA *ch, char *argument, const char *context)
 {
     SCRIPT_DATA *pAcode;
     char command[MAX_INPUT_LENGTH];
@@ -775,7 +775,7 @@ void do_apedit(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_ipedit(CHAR_DATA *ch, char *argument)
+void do_ipedit(CHAR_DATA *ch, char *argument, const char *context)
 {
     SCRIPT_DATA *pIcode;
     char command[MAX_INPUT_LENGTH];
@@ -811,7 +811,7 @@ void do_ipedit(CHAR_DATA *ch, char *argument)
 	send_to_char( "         ipedit create [vnum]\n\r", ch );
 }
 
-void do_dpedit(CHAR_DATA *ch, char *argument)
+void do_dpedit(CHAR_DATA *ch, char *argument, const char *context)
 {
     SCRIPT_DATA *pDcode;
     char command[MAX_INPUT_LENGTH];
@@ -1636,37 +1636,37 @@ DPEDIT( dpedit_list )
 }
 
 
-void do_mplist (CHAR_DATA *ch, char *argument)
+void do_mplist (CHAR_DATA *ch, char *argument, const char *context)
 {
 	show_script_list(ch,argument,PRG_MPROG);
 }
 
-void do_oplist (CHAR_DATA *ch, char *argument)
+void do_oplist (CHAR_DATA *ch, char *argument, const char *context)
 {
 	show_script_list(ch,argument,PRG_OPROG);
 }
 
-void do_rplist (CHAR_DATA *ch, char *argument)
+void do_rplist (CHAR_DATA *ch, char *argument, const char *context)
 {
 	show_script_list(ch,argument,PRG_RPROG);
 }
 
-void do_tplist (CHAR_DATA *ch, char *argument)
+void do_tplist (CHAR_DATA *ch, char *argument, const char *context)
 {
 	show_script_list(ch,argument,PRG_TPROG);
 }
 
-void do_aplist (CHAR_DATA *ch, char *argument)
+void do_aplist (CHAR_DATA *ch, char *argument, const char *context)
 {
 	show_script_list(ch,argument,PRG_APROG);
 }
 
-void do_iplist (CHAR_DATA *ch, char *argument)
+void do_iplist (CHAR_DATA *ch, char *argument, const char *context)
 {
 	show_script_list(ch,argument,PRG_IPROG);
 }
 
-void do_dplist (CHAR_DATA *ch, char *argument)
+void do_dplist (CHAR_DATA *ch, char *argument, const char *context)
 {
 	show_script_list(ch,argument,PRG_DPROG);
 }

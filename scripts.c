@@ -7298,7 +7298,7 @@ int script_login(CHAR_DATA *ch) // @@@NIB
 	PRETURN; // @@@NIB
 }
 
-void do_ifchecks( CHAR_DATA *ch, char *argument)
+void do_ifchecks( CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MIL]/*, *pbuf*/;
 	BUFFER *buffer;
@@ -10088,7 +10088,7 @@ struct trigger_type *get_trigger_type_byname(char *name)
 	return tt;
 }
 
-void do_triggers(CHAR_DATA *ch, char *argument)
+void do_triggers(CHAR_DATA *ch, char *argument, const char *context)
 {
 	char buf[MSL];
 	char arg1[MIL];

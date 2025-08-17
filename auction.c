@@ -37,7 +37,7 @@
 void show_obj_stats( CHAR_DATA *ch, OBJ_DATA *obj );
 void auction_channel( char *msg );
 
-void do_auction( CHAR_DATA *ch, char * argument )
+void do_auction( CHAR_DATA *ch, char * argument, const char *context )
 {
     long gold = 0;
     OBJ_DATA *obj;

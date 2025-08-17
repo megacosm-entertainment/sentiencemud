@@ -21,7 +21,7 @@ int 		auto_war_battle_timer;
 
 
 // TODO: Either rework or remove entirely
-void do_war(CHAR_DATA *ch, char *argument)
+void do_war(CHAR_DATA *ch, char *argument, const char *context)
 {
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];

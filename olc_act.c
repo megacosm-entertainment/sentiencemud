@@ -92,6 +92,7 @@ struct olc_help_type
 #define STRUCT_GR				29
 #define STRUCT_GSCT				30
 #define STRUCT_DOFUNC			31
+#define STRUCT_CMDFUNC			32
 
 struct trigger_type dummy_triggers[1];
 
@@ -122,6 +123,7 @@ const struct olc_help_type help_table[] =
 	{	"classes",				STRUCT_CLASSES,		NULL,						"Classes" },
 	{	"classtypes",			STRUCT_FLAGS,		class_types,				"Class Types"},
 	{	"cmd",					STRUCT_FLAGS,		command_flags,				"Command Flags (CMDEdit)"},
+	{	"cmd_func",				STRUCT_CMDFUNC,		cmd_func_table,				"Do_ functions (CMDEdit)"},
 	{ 	"compartment",			STRUCT_FLAGS,		compartment_flags,			"Compartment Flags."},
 	{	"condition",			STRUCT_FLAGS,		room_condition_flags,		"Room Condition types."	},
 	{	"container",			STRUCT_FLAGS,		container_flags,			"Container status."	},
@@ -462,6 +464,43 @@ void show_do_funcs(CHAR_DATA *ch, const struct do_func_type *table)
     return;
 }
 
+void show_cmd_funcs(CHAR_DATA *ch, const struct cmd_func_type *table)
+{
+    char buf  [ MAX_STRING_LENGTH ];
+//    char buf1 [ MAX_STRING_LENGTH ];
+    int  col;
+	BUFFER *buffer = new_buf();
+
+//    buf1[0] = '\0';
+    col = 0;
+    add_buf(buffer, "Functions available for use:\n\r");
+    for (int i = 0; table[i].name != NULL; i++)
+    {
+		// Hide all special functions that are strictly internal from this list.
+		if (table[i].name[0] == '_') continue;
+
+		sprintf(buf, "%-19.18s", table[i].name);
+		add_buf(buffer, buf);
+		if (++col % 4 == 0)
+	    	add_buf(buffer, "\n\r");
+    }
+
+    if (col % 4 != 0)
+	add_buf(buffer, "\n\r");
+
+    if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(buffer->string, ch);
+	}
+
+	free_buf(buffer);
+    return;
+}
+
 void show_gsns(CHAR_DATA *ch)
 {
     char buf  [ MAX_STRING_LENGTH ];
@@ -695,6 +734,10 @@ bool show_help(CHAR_DATA *ch, char *argument)
 
 				case STRUCT_DOFUNC:
 					show_do_funcs(ch, (const struct do_func_type *)help_table[cnt].structure);
+					break;
+
+				case STRUCT_CMDFUNC:
+					show_do_funcs(ch, (const struct cmd_func_type *)help_table[cnt].structure);
 					break;
 
 				case STRUCT_GSN:
