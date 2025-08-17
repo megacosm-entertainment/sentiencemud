@@ -1047,7 +1047,10 @@ static bool __enact_punishment(CHAR_DATA *ch, CHANNEL_DATA *channel, CHANNEL_ENT
 			}
 
 			if (!is_church_member(speaker, ch->church))
-
+			{
+				send_to_char(formatf("{W%s{R is not in your church.{x\n\r", capitalize(speaker)), ch);
+				return true;
+			}
 		}
 
 		time_t duration;
