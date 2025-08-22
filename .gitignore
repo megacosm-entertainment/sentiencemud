@@ -34,6 +34,7 @@ ehthumbs.db
 Thumbs.db
 #Custom rules
 obj/
+yacc/
 sent
 test
 /*.bak
