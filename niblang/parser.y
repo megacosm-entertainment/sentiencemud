@@ -171,17 +171,41 @@ def:	T_GLOBAL type[T] T_IDENTIFIER[I] T_SEMICOLON
 			// There is no initialization involved within the script,
 			//   that is done on the script itself.
 
-			//printf("global %s %s;\n", nib_get_typename($T), $I);
-			
 			if (nib_get_global_variable($I))
 			{
-				niberrorf("Duplicate global variable '%s'\n", $I);
+				niberrorf("Duplicate global variable '%s'", $I);
 				YYERROR;
 			}
 			else
 			{
 				NIB_VARIABLE *var = nib_new_variable($I, $T, NIB_GLOBAL_SCOPE);
 				nib_add_global_variable(var);
+			}
+		}
+	|	type[T] T_IDENTIFIER[I] T_SEMICOLON
+		{
+			// Local declaration (no initialization)
+
+			if (nib_get_global_variable($I))
+			{
+				niberrorf("Attempting to shadow a global variable '%s'", $I);
+				YYERROR;
+			}
+			else
+			{
+				NIB_VARIABLE *var;
+
+				var = nib_get_local_variable($I);
+				if (var && var->scope == nib_get_scope())
+				{
+					niberrorf("Redefinition of local variable '%s' within same scope.", $I);
+					YYERROR;
+				}
+				else
+				{
+					var = nib_new_variable($I, $T, nib_get_scope());
+					nib_add_local_variable(var);
+				}
 			}
 		}
 	;

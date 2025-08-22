@@ -2,3 +2,5 @@
 global int x;
 
 int y;
+
+string y;
