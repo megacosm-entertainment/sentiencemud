@@ -24,8 +24,7 @@
 %option bison-bridge
 
 %x ML_COMMENT
-%x IN_STRING
-%x IN_STRING_ESCAPE
+
 %%
 
 <INITIAL>"/*"			    { BEGIN(ML_COMMENT); /* ML comments */ }
@@ -34,10 +33,9 @@
 <ML_COMMENT><<EOF>>		    { /* Complain about unterminated comment */ }
 "//"[^\n]*\n     			    ;	// Ignore EOL comments
 
-[0-9]+.[0-9]+			{ yylval->float_number = atof(nibtext); return T_FLOAT_NUMBER; }
+[0-9]+\.[0-9]+			{ yylval->float_number = atof(nibtext); return T_FLOAT_NUMBER; }
 [0-9]+					{ yylval->number = atoi(nibtext); return T_NUMBER; }
 \"(\\.|[^"\\])*\"		{ yylval->literal = strdup(nibtext); return T_STRING_LITERAL; }
-[a-zA-Z][a_zA-Z0-9_]*	{ yylval->identifier = strdup(nibtext); return T_IDENTIFIER; }
 "global"                { return T_GLOBAL; }
 "map"                   { return T_MAP; }
 "if"					{ return T_IF; }
@@ -116,6 +114,8 @@
 ")"						{ return T_CLOSE_PAREN; }
 "{"						{ return T_OPEN_BRACE; }
 "}"						{ return T_CLOSE_BRACE; }
+","                     { return T_COMMA; }
+[a-zA-Z_][a-zA-Z0-9_]*  { yylval->identifier = strdup(nibtext); return T_IDENTIFIER; }
 [ \t\n]+  				{ /* Ignore white space*/ }
 .                       { /* complain */ }
 

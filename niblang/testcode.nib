@@ -1,6 +1,5 @@
 // Comment
 global int x;
 
-int y;
-
-string y;
+flag(32) y;
+flag(enabled,locked,muted) z;

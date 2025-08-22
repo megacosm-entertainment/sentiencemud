@@ -1,5 +1,6 @@
 %define lr.type ielr
 %define parse.error verbose
+%defines
 %{
 
 /*
@@ -66,6 +67,7 @@ void niberrorf(const char *msg, ...)
 %token T_CLOSE_PAREN
 %token T_COLON
 %token T_COLONS
+%token T_COMMA
 %token T_CONTINUE
 %token T_DECREMENT
 %token T_DEFAULT
@@ -237,7 +239,7 @@ comma_flag_name_list:
 		$$ = nib_create_string_list();
 		list_appendlink($$, $1);
 	}
-	| comma_flag_name_list ',' T_IDENTIFIER
+	| comma_flag_name_list T_COMMA T_IDENTIFIER
 	{
 		list_appendlink($1, $3);
 		$$ = $1;

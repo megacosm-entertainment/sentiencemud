@@ -43,7 +43,7 @@ $(YACCDIR)/%.c:  %.l
 
 $(YACCDIR)/%.c:  %.y
 	@echo Generating Parser $@
-	@bison $<
+	@bison --debug $<
 
 $(OBJDIR)/%.o:	%.c
 	@echo Building $@...

@@ -4,6 +4,7 @@
 
 #include "niblang.h"
 
+extern int nibdebug;
 
 char *fread_file(char *path)
 {
@@ -46,6 +47,7 @@ int main(void)
 		printf("----------------------------------\n");
 		printf("\n");
 
+		nibdebug = 0;
 		// Compile source
 		if (nib_compile_script(source))
 		{

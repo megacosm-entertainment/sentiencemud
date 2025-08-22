@@ -126,11 +126,14 @@ char *nib_get_typename(NIB_TYPE *type)
 			strcpy(p, "flag(");
 			ITERATOR it;
 			char *name;
-			bool first = false;
+			bool first = true;
 			iterator_start(&it, type->_.flag.names);
 			while((name = (char *)iterator_nextdata(&it)))
 			{
-				if (!first) strcat(p, ",");
+				if (first)
+					first = false;
+				else
+					strcat(p, ",");
 
 				strcat(p, name);
 			}

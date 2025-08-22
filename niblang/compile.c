@@ -159,7 +159,7 @@ void nib_dump_local_variables()
 	iterator_start(&it, nib_local_variables);
 	while((var = (NIB_VARIABLE *)iterator_nextdata(&it)))
 	{
-		printf("%-5d  %-16.16s  %s", var->scope, var->name, nib_get_typename(var->type));
+		printf("%-5d  %-16.16s  %s\n", var->scope, var->name, nib_get_typename(var->type));
 	}
 
 	iterator_stop(&it);
