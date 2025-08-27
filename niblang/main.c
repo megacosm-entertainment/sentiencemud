@@ -37,6 +37,12 @@ char *fread_file(char *path)
 
 int main(void)
 {
+	if (!nib_methods_init())
+	{
+		fprintf(stderr, "Failed to load method definitions.\n");
+		exit(1);
+	}
+
 	char *source = fread_file("./testcode.nib");
 	
 	if (source)
@@ -59,11 +65,15 @@ int main(void)
 			nib_dump_global_variables();
 			nib_dump_local_variables();
 
-			nib_cleanup_compile();
+			nib_dump_string_storage();
+
 		}
 
+		nib_cleanup_compile();
 		free(source);
 	}
+
+	nib_methods_cleanup();
 	return 0;
 }
 

@@ -1,5 +1,89 @@
 // Comment
-global int x;
+/*
+	Multiline Comment
 
-flag(32) y;
-flag(enabled,locked,muted) z;
+
+	Wheee
+*/
+table flag(<[enabled,locked,muted]>) doorstate;
+table stat(<[red,green,blue]>) colors;
+
+global int x = 2, foo;
+global float bar = -infinity;		// infinity is a constant
+
+constant float radius = 3.0;
+float a = pi * radius * radius;		// pi is a constant
+
+flag(32) y = <[2,3]>, w;
+flag(doorstate) z, z2 = doorstate<[enabled,locked]>;
+flag(affects) aff;
+flag(area) af;
+stat(colors) color;
+list(mobile) mobs;
+string name = "Foo";
+
+boolean state = true;
+boolean state2 = state;
+map zoo = state ? "foo" : "bar";
+widevnum wnum = "Plith"#2, wnum2 = 3#200, wnum3 = #4;
+// I would like this to be an inherent lookup under the hood
+area plith = "Plith";
+area achaeus = null;
+mobile target;
+object obj;
+token tk;
+room here;
+dungeon dng;
+instance inst;
+ship boat;
+char ch = 'A';
+
+if (plith.flags.changed)
+{
+	state = false;
+	x = 2;
+
+	wnum2 = plith#x;
+}
+else
+{
+	ch = '\r';
+}
+
+
+foreach( mob : mobs )
+{
+}
+
+for(int i = 0; i < 10; i++)
+{
+	if ((i + 4) > 12)
+		break;
+
+	if ((i + 4) < 7)
+		continue;
+}
+
+switch(x)
+{
+	case 0:
+		break;
+	
+	case 1..4:
+		break;
+
+	default:
+		break;
+}
+
+switch(name)
+{
+	case "Plith":
+		break;
+
+	case "Olaria":
+		break;
+
+	default:
+		break;
+}

@@ -8,6 +8,7 @@
 static NIB_SCOPE_NODE *__scope_tree = NULL;
 static NIB_SCOPE_NODE *__current_scope = NULL;
 static int __scope_id = 0;
+static int __max_scope_id = 0;
 
 static int __new_scope_id()
 {
@@ -20,10 +21,19 @@ static NIB_SCOPE_NODE *__new_scope_node(NIB_SCOPE_NODE *parent)
 
 	if (node)
 	{
-		node->scope = __new_scope_id();
+		__max_scope_id = node->scope = __new_scope_id();
 		node->parent = parent;
-		node->child = NULL;
+		node->head = NULL;
+		node->tail = NULL;
 		node->next = NULL;
+		if (parent)
+		{
+			if (parent->head)
+				parent->tail->next = node;
+			else
+				parent->head = node;
+			parent->tail = node;
+		}
 	}
 
 	return node;
@@ -33,7 +43,7 @@ static void __free_scopetree(NIB_SCOPE_NODE *node)
 {
 	if (node)
 	{
-		if (node->child) __free_scopetree(node->child);
+		if (node->head) __free_scopetree(node->head);
 
 		if (node->next) __free_scopetree(node->next);
 
@@ -44,6 +54,7 @@ static void __free_scopetree(NIB_SCOPE_NODE *node)
 void nib_init_scopetree()
 {
 	__scope_id = 0;
+	__max_scope_id = 0;
 	__scope_tree = __new_scope_node(NULL);
 	__current_scope = __scope_tree;
 }
@@ -59,12 +70,23 @@ int nib_get_scope()
 	return __current_scope ? __current_scope->scope : NIB_GLOBAL_SCOPE;
 }
 
+int nib_get_max_scope()
+{
+	return __max_scope_id;
+}
+
 // It should only return the GLOBAL scope if it failed
 int nib_push_scope()
 {
 	NIB_SCOPE_NODE *node = __new_scope_node(__current_scope);
 
-	return (node) ? node->scope : NIB_GLOBAL_SCOPE;
+	if (node)
+	{
+		__current_scope = node;
+		return node->scope;
+	}
+
+	return NIB_GLOBAL_SCOPE;
 }
 
 // It should only return the GLOBAL scope if it failed
@@ -98,8 +120,8 @@ static void __dump_scopetree_node(NIB_SCOPE_NODE *node, int indent)
 {
 	printf("%*.*s[%d]\n", indent, indent, " ", node->scope);
 
-	if (node->child)
-		__dump_scopetree_node(node->child, indent + 2);
+	if (node->head)
+		__dump_scopetree_node(node->head, indent + 2);
 	
 	if (node->next)
 		__dump_scopetree_node(node->next, indent);

@@ -5,13 +5,15 @@
 
 #include "niblang.h"
 
-NIB_VARIABLE *nib_new_variable(char *name, NIB_TYPE *type, int scope)
+NIB_VARIABLE *nib_new_variable(char *name, NIB_TYPE *type, int scope, bool constant)
 {
 	NIB_VARIABLE *var = calloc(1,sizeof(NIB_VARIABLE));
 
 	var->name = strdup(name);
 	var->type = type;
 	var->scope = scope;
+	var->constant = constant;
+	var->initialized = false;
 
 	//printf("New Variable: %s, %s, %d\n", name, nib_get_typename(type), scope);
 
@@ -22,7 +24,7 @@ NIB_VARIABLE *nib_copy_variable(NIB_VARIABLE *src)
 {
 	if (!src) return NULL;
 
-	return nib_new_variable(src->name, src->type, src->scope);
+	return nib_new_variable(src->name, src->type, src->scope, src->constant);
 }
 
 void nib_free_variable(NIB_VARIABLE *var)

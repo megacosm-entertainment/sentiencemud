@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <malloc.h>
+#include <inttypes.h>
+#include <stdint.h>
+
 
 #include "niblang.h"
 
@@ -44,6 +47,17 @@ static void *__copy_variable(void *data)
 	return nib_copy_variable((NIB_VARIABLE *)data);	
 }
 
+static void __free_nibtype(void *data)
+{
+	if (data) free_nib_type((NIB_TYPE *)data);
+}
+
+static void *__copy_nibtype(void *data)
+{
+	return nib_type_copy((NIB_TYPE *)data);
+}
+
+
 LLIST *nib_create_string_list()
 {
 	return list_createx(false, __copy_string, __free_string);
@@ -54,43 +68,29 @@ LLIST *nib_create_variable_list()
 	return list_createx(false, __copy_variable, __free_variable);
 }
 
+LLIST *nib_create_type_list()
+{
+	return list_createx(false, __copy_nibtype, __free_nibtype);
+}
+
 void nib_init_scopetree();
 bool nib_init_compile()
 {
 	nib_init_scopetree();
 
 	nib_program_storage = new_mem_buffer();
-	if (!nib_program_storage)
-	{
-		return false;
-	}
+	if (!nib_program_storage) return false;
 
 	nib_global_variables = nib_create_variable_list();
-	if (!list_isvalid(nib_global_variables))
-	{
-		free_mem_buffer(nib_program_storage);
-		nib_program_storage = NULL;
-		return false;
-	}
+	if (!list_isvalid(nib_global_variables)) return false;
 
 	nib_local_variables = nib_create_variable_list();
-	if (!list_isvalid(nib_local_variables))
-	{
-		free_mem_buffer(nib_program_storage);
-		list_destroy(nib_global_variables);
-
-		nib_program_storage = NULL;
-		nib_global_variables = NULL;
-		return false;
-	}
+	if (!list_isvalid(nib_local_variables)) return false;
 
 	nib_string_storage = nib_create_string_list();
-	if (!list_isvalid(nib_string_storage))
-	{
-		free_mem_buffer(nib_program_storage);
-		nib_program_storage = NULL;
-		return false;
-	}
+	if (!list_isvalid(nib_string_storage)) return false;
+
+	if (!flag_tables_init()) return false;
 
 	return true;
 }
@@ -108,12 +108,14 @@ void nib_cleanup_compile()
 	nib_local_variables = NULL;
 	nib_string_storage = NULL;
 
+	flag_tables_cleanup();
+
 	nib_cleanup_scopetree();
 }
 
 bool nib_compile_script(const char *src)
 {
-	nib_init_compile();
+	if(!nib_init_compile()) return false;
 
 	YY_BUFFER_STATE state = nib_scan_string(src);
 
@@ -135,14 +137,16 @@ char *compile_string_literal(const char *src)
 void nib_dump_global_variables()
 {
 	printf("Global Variables:\n");
-	printf("Scope  Name              Type\n");
-	printf("==================================\n");
+	printf("Scope  Name              C  Type\n");
+	printf("======================================\n");
 	ITERATOR it;
 	NIB_VARIABLE *var;
 	iterator_start(&it, nib_global_variables);
 	while((var = (NIB_VARIABLE *)iterator_nextdata(&it)))
 	{
-		printf("%-5d  %-16.16s  %s\n", var->scope, var->name, nib_get_typename(var->type));
+		printf("%-5d  %-16.16s  %c  %s\n", var->scope, var->name,
+			(var->constant ? 'Y' : 'N'),
+			nib_get_typename(var->type));
 	}
 
 	iterator_stop(&it);
@@ -152,14 +156,16 @@ void nib_dump_global_variables()
 void nib_dump_local_variables()
 {
 	printf("Local Variables:\n");
-	printf("Scope  Name              Type\n");
-	printf("==================================\n");
+	printf("Scope  Name              C  Type\n");
+	printf("======================================\n");
 	ITERATOR it;
 	NIB_VARIABLE *var;
 	iterator_start(&it, nib_local_variables);
 	while((var = (NIB_VARIABLE *)iterator_nextdata(&it)))
 	{
-		printf("%-5d  %-16.16s  %s\n", var->scope, var->name, nib_get_typename(var->type));
+		printf("%-5d  %-16.16s  %c  %s\n", var->scope, var->name,
+			(var->constant ? 'Y' : 'N'),
+			nib_get_typename(var->type));
 	}
 
 	iterator_stop(&it);
@@ -214,4 +220,62 @@ void nib_add_local_variable(NIB_VARIABLE *var)
 {
 	if (var)
 		list_appendlink(nib_local_variables, var);
+}
+
+int nib_get_string_in_storage(const char *str)
+{
+	if(!str) return 0;	
+	if(!list_isvalid(nib_string_storage)) return 0;
+
+	ITERATOR it;
+	char *name;
+	int index = 0;
+	iterator_start(&it, nib_string_storage);
+	while((name = (char *)iterator_nextdata(&it)))
+	{
+		++index;
+		
+		// Must be CASE SENSITIVE
+		if(!strcmp(name, str))
+			break;
+	}
+	iterator_stop(&it);
+
+	return name ? index : 0;
+}
+
+int nib_add_string_to_storage(const char *str)
+{
+	if(!str) return 0;	
+
+	// Make sure it is not in the storage already
+	int index = nib_get_string_in_storage(str);
+	if (index > 0) return index;
+
+	if (!list_isvalid(nib_string_storage))
+		nib_string_storage = nib_create_string_list();
+
+	list_appendlink(nib_string_storage, strdup(str));
+	return list_size(nib_string_storage);
+}
+
+void nib_dump_string_storage()
+{
+	if (list_isvalid(nib_string_storage))
+	{
+		printf("String Storage:\n");
+		printf("==================================\n");
+		ITERATOR it;
+		char *str;
+		int index = 0;
+		iterator_start(&it, nib_string_storage);
+		while((str = (char *)iterator_nextdata(&it)))
+		{
+			++index;
+			printf("%-5d \"%s\"\n", index, str);
+		}
+
+		iterator_stop(&it);
+		printf("\n");
+	}
 }

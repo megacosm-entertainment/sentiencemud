@@ -20,3 +20,31 @@ int str_cmp(const char *astr, const char *bstr)
 
 	return 0;
 }
+
+
+long number_range(long from, long to)
+{
+	long power;
+	long number;
+
+	if (from == 0 && to == 0)
+		return 0;
+
+	if ((to = to - from + 1) <= 1)
+		return from;
+
+	for (power = 2L; power < to; power <<= 1L);
+
+	if (to > RAND_MAX)
+	{
+		do {
+			number = ((long)random()<<32) | ((long)rand() << 1) | ((long)rand() & 1);
+		} while ((number & (power - 1)) >= to);
+	}
+	else
+	{
+		while (((number = random()) & (power - 1)) >= to);
+	}
+
+	return from + number;
+}

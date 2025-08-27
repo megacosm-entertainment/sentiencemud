@@ -2,21 +2,26 @@ OBJDIR = obj
 YACCDIR = yacc
 
 L_FILES = \
-	lexer.l
+	lexer.l \
+	method_lexer.l
 
 FLEX_FILES = $(patsubst %.l,$(YACCDIR)/%.c,$(L_FILES))
 
 Y_FILES = \
-	parser.y
+	parser.y \
+	method_parser.y
 
 BISON_FILES = $(patsubst %.y,$(YACCDIR)/%.c,$(Y_FILES))
 
 C_FILES = \
 	compile.c \
+	dummy.c \
 	expression.c \
+	flags.c \
 	list.c \
 	main.c \
 	mem.c \
+	methods.c \
 	scopetree.c \
 	types.c \
 	utils.c \
@@ -43,7 +48,7 @@ $(YACCDIR)/%.c:  %.l
 
 $(YACCDIR)/%.c:  %.y
 	@echo Generating Parser $@
-	@bison --debug $<
+	@bison --debug -Wcounterexamples $<
 
 $(OBJDIR)/%.o:	%.c
 	@echo Building $@...
@@ -52,7 +57,7 @@ $(OBJDIR)/%.o:	%.c
 $(EXE): $(O_FILES)
 	@echo Building $@
 	@-rm -f $@	
-	@gcc -g -o $@ $^
+	@gcc -g -o $@ $^ -lm
 	@-chmod 775 $@
 
 clean:
