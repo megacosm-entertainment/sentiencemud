@@ -17,7 +17,7 @@ static int __new_scope_id()
 
 static NIB_SCOPE_NODE *__new_scope_node(NIB_SCOPE_NODE *parent)
 {
-	NIB_SCOPE_NODE *node = calloc(1,sizeof(NIB_SCOPE_NODE));
+	NIB_SCOPE_NODE *node = nib_calloc(1,sizeof(NIB_SCOPE_NODE));
 
 	if (node)
 	{
@@ -47,7 +47,7 @@ static void __free_scopetree(NIB_SCOPE_NODE *node)
 
 		if (node->next) __free_scopetree(node->next);
 
-		free(node);
+		nib_free(node);
 	}
 }
 

@@ -99,7 +99,7 @@ void nibtype_cleanup()
 void nibtype_add(NIB_TYPE *type, char *name)
 {
 	NIB_TYPE *_type = nib_type_copy(type);
-	_type->name = strdup(name);
+	_type->name = nib_strdup(name);
 
 	list_appendlink(nibtype_created_types, _type);
 }
@@ -148,7 +148,7 @@ void nib_dump_created_types()
 LLIST *nib_create_string_list();
 NIB_TYPE *new_nib_type_flag(int bits)
 {
-	NIB_TYPE *type = calloc(1,sizeof(NIB_TYPE));
+	NIB_TYPE *type = nib_calloc(1,sizeof(NIB_TYPE));
 
 	type->_static = false;
 	type->type_class = NTC_FLAG;
@@ -161,7 +161,7 @@ NIB_TYPE *new_nib_type_flag(int bits)
 
 NIB_TYPE *new_nib_type_flag_named(LLIST *names)
 {
-	NIB_TYPE *type = calloc(1,sizeof(NIB_TYPE));
+	NIB_TYPE *type = nib_calloc(1,sizeof(NIB_TYPE));
 
 	type->_static = false;
 	type->type_class = NTC_FLAG;
@@ -175,7 +175,7 @@ NIB_TYPE *new_nib_type_flag_named(LLIST *names)
 
 NIB_TYPE *new_nib_type_flag_table(const struct flag_type *table)
 {
-	NIB_TYPE *type = calloc(1,sizeof(NIB_TYPE));
+	NIB_TYPE *type = nib_calloc(1,sizeof(NIB_TYPE));
 
 	type->_static = false;
 	type->type_class = NTC_FLAG;
@@ -189,7 +189,7 @@ NIB_TYPE *new_nib_type_flag_table(const struct flag_type *table)
 
 NIB_TYPE *new_nib_type_stat_named(LLIST *names)
 {
-	NIB_TYPE *type = calloc(1,sizeof(NIB_TYPE));
+	NIB_TYPE *type = nib_calloc(1,sizeof(NIB_TYPE));
 
 	type->_static = false;
 	type->type_class = NTC_STAT;
@@ -201,7 +201,7 @@ NIB_TYPE *new_nib_type_stat_named(LLIST *names)
 
 NIB_TYPE *new_nib_type_stat_table(const struct flag_type *table)
 {
-	NIB_TYPE *type = calloc(1,sizeof(NIB_TYPE));
+	NIB_TYPE *type = nib_calloc(1,sizeof(NIB_TYPE));
 
 	type->_static = false;
 	type->type_class = NTC_STAT;
@@ -215,7 +215,7 @@ NIB_TYPE *new_nib_type_stat_table(const struct flag_type *table)
 
 NIB_TYPE *new_nib_type_list(NIB_TYPE *elem)
 {
-	NIB_TYPE *type = calloc(1,sizeof(NIB_TYPE));
+	NIB_TYPE *type = nib_calloc(1,sizeof(NIB_TYPE));
 
 	type->_static = false;
 	type->type_class = NTC_LIST;
@@ -242,8 +242,8 @@ void free_nib_type(NIB_TYPE *type)
 			list_destroy(type->_.stat.names);
 		}
 
-		if (type->name) free(type->name);
-		free(type);
+		if (type->name) nib_free(type->name);
+		nib_free(type);
 	}
 }
 
@@ -251,12 +251,12 @@ NIB_TYPE *nib_type_copy(NIB_TYPE *src)
 {
 	if (!src) return nibtype_void;
 
-	NIB_TYPE *dest = calloc(1,sizeof(NIB_TYPE));
+	NIB_TYPE *dest = nib_calloc(1,sizeof(NIB_TYPE));
 
 	dest->_static = false;
 	dest->type_class = src->type_class;
 	if (src->name)
-		dest->name = strdup(src->name);
+		dest->name = nib_strdup(src->name);
 	else
 		dest->name = NULL;
 

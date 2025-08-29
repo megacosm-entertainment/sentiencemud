@@ -43,6 +43,8 @@ if (plith.flags.changed)
 	state = false;
 	x = 2;
 
+	achaeus = "Achaeus";
+
 	wnum2 = plith#x;
 }
 else
@@ -87,3 +89,5 @@ switch(name)
 	default:
 		break;
 }
+
+boolean dummy = state && (false || state2);

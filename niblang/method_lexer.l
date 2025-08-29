@@ -78,7 +78,7 @@ static char *trim_outer_quotes(const char *src)
 "..."					{ return T_VARARGS; }
 "."						{ return T_DOT; }
 ";"						{ return T_SEMICOLON; }
-[a-zA-Z_][a-zA-Z0-9_]*  { yylval->identifier = strdup(nibmethodtext); return T_IDENTIFIER; }
+[a-zA-Z_][a-zA-Z0-9_]*  { yylval->identifier = nib_strdup(nibmethodtext); return T_IDENTIFIER; }
 [ \t\n]+  				{ /* Ignore white space*/ }
 .                       { /* complain */ }
 

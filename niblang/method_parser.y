@@ -74,7 +74,7 @@ static bool check_argtype_list(LLIST *list)
 }
 
 %destructor { free_nib_type($$); } <nibtype>
-%destructor { free($$); } <identifier>
+%destructor { nib_free($$); } <identifier>
 %destructor { list_destroy($$); } <type_list>
 
 %token T_ANY
@@ -171,6 +171,13 @@ method_def:
 				yyerror("Could not add function signature.");
 				YYERROR;
 			}
+
+			nib_free($M);
+			nib_free($F);
+			free_nib_type($C);
+			free_nib_type($R);
+			list_destroy($A);
+
 		}
 	;
 
@@ -205,6 +212,11 @@ function_def:
 				yyerror("Could not add method signature.");
 				YYERROR;
 			}
+
+			nib_free($M);
+			nib_free($F);
+			free_nib_type($R);
+			list_destroy($A);
 		}
 	;
 
@@ -231,12 +243,17 @@ field_def:	T_FIELD possible_readonly[P] type[R] fieldtype[C] T_DOT field_name[I]
 			yyerror("Could not add field definition.");
 			YYERROR;
 		}
+
+		nib_free($I);
+		nib_free($F);
+		free_nib_type($C);
+		free_nib_type($R);
 	}
 
 field_name:
 		T_IDENTIFIER			{ $$ = $1; }
-	|	T_AREA					{ $$ = strdup("area"); }
-	|	T_STRING				{ $$ = strdup("string"); }
+	|	T_AREA					{ $$ = nib_strdup("area"); }
+	|	T_STRING				{ $$ = nib_strdup("string"); }
 	;
 
 optional_argtype_list:

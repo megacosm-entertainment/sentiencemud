@@ -42,14 +42,11 @@ typedef enum { false = 0, true = 1 } bool;
 typedef long flag_value_t;
 #define MAX_FLAG_BITS		(bitsize(flag_value_t))
 
-typedef struct list_type LLIST;
-typedef struct list_link_type LLIST_LINK;
-typedef void *LISTCOPY_FUNC(void *src);
-typedef void LISTDESTROY_FUNC(void *data);
-typedef struct iterator_type ITERATOR;
 typedef int METHOD_FUNC(void);
 
 #define DECL_METHOD_FUNC(f)	int f (void)
+
+#include "dummy.h"
 
 struct flag_type
 {
@@ -60,34 +57,9 @@ struct flag_type
 };
 
 
-struct list_link_type
-{
-    LLIST_LINK *next;
-    LLIST_LINK *prev;
-    void *data;
-};
 
-struct list_type
-{
-    LLIST *next;
-    LLIST_LINK *head;
-    LLIST_LINK *tail;
-    unsigned long ref;
-    unsigned long size;
-    LISTCOPY_FUNC *copier;
-    LISTDESTROY_FUNC *deleter;
-    bool valid;
-    bool purge;
-};
 
-struct iterator_type
-{
-    LLIST *list;
-    LLIST_LINK *current;
-    bool moved;
-};
-
-typedef enum nib_assignment_type
+typedef enum nib_assignment_type_e
 {
 	assASSIGN = 0,
 	assADD,
@@ -99,73 +71,19 @@ typedef enum nib_assignment_type
 	assBXOR,
 	assBAND,
 	assLEFT,
-	assRIGHT
+	assRIGHT,
+	assRIGHTL
 } NIB_ASSIGN;
 
-typedef enum expressionOperationType
-{
-	expoVALUE = 0,
-	expoADD,
-	expoSUBTRACT,
-	expoMULTIPLY,
-	expoDIVIDE,
-	expoEXPONENT,
-	expoSHIFTLEFT,
-	expoSHIFTRIGHT,
-	expoEQ,
-	expoNOTEQ,
-	expoLT,
-	expoLTE,
-	expoGT,
-	expoGTE,
-	expoNOT,
-	expoAND,
-	expoOR,
-	expoXOR,
-	expoBITNOT,
-	expoBITAND,
-	expoBITOR,
-	expoBITXOR,
-	expoPREFIX,
-	expoSUFFIX,
-	expoINFIX
-} EXPRESSION_OPERATION;
 
-typedef enum expressionResultType
-{
-	exprAUTO = -1,
-	exprBOOLEAN = 0,
-	exprINTEGER,
-	exprFLOAT
-} EXPRESSION_RESULT;
-
-typedef struct expressionNodeType
-{
-	EXPRESSION_RESULT result;
-    EXPRESSION_OPERATION op;
-
-	union {
-		int i;
-		double d;
-		bool b;
-	} value; /* /< valid only when type is expoVALUE */
-
-    struct expressionNodeType *left; /* /<  left side of the tree */
-    struct expressionNodeType *right; /* /< right side of the tree */
-} EXPRESSION_NODE;
-
-EXPRESSION_NODE *createInteger(int value);
-EXPRESSION_NODE *createFloat(double value);
-EXPRESSION_NODE *createBoolean(bool value);
-
-EXPRESSION_NODE *createOperation(EXPRESSION_OPERATION op, EXPRESSION_RESULT result, EXPRESSION_NODE *left, EXPRESSION_NODE *right);
-void deleteExpressionNode(EXPRESSION_NODE *b);
+typedef unsigned char nib_bytecode_t;
+typedef nib_bytecode_t *nib_bytecode_p;
 
 typedef struct nib_memory_buffer {
     short state;		// error state of the buffer
     int size;			// size in k
 	int len;			// length of data in buffer
-    char *buffer;		// actual buffer
+    nib_bytecode_p buffer;		// actual buffer
 } NIB_BUFFER;
 
 typedef enum nib_primary_types
@@ -226,12 +144,8 @@ struct nib_type {
 	char *name;
 };
 
-typedef enum nibOpCodes {
-	opGETSTRING,			// Get string #N from the string table
-	opJUMP,					// Jump to the address
-	opJUMP_ZERO,			// Test an expression, jump to address if zero
-	opJUMP_NOT_ZERO,		// Test an expression, jump to address if not zero
-} NIB_OP_CODE;
+
+
 
 typedef struct nib_variable_type NIB_VARIABLE;
 
@@ -242,6 +156,8 @@ struct nib_variable_type {
 	int id;
 	bool constant;
 	bool initialized;
+
+	// Add value union?
 };
 
 typedef struct nib_scope_tree_node NIB_SCOPE_NODE;
@@ -297,6 +213,100 @@ typedef struct statement_s
     bool warned_dead_code   : 1;  /* We already warned about dead code.  */
 } NIB_STATEMENT;
 
+// Instructions
+enum nib_instructions_e {
+	NI_ILLEGAL = 0,
+	NI_LOAD_LOCAL,			// Load a local variable onto stack
+	NI_LOAD_GLOBAL,			// Load a global variable onto stack
+	NI_LVALUE_LOCAL,		// Load the address of the local variable onto the stack
+	NI_LVALUE_GLOBAL,		// Load the global variable reference onto the stack (server script pVARIABLE)
+	NI_LVALUE_FLAG,			// Load and push a flag bit reference onto the stack
+	NI_RVALUE_FLAG,			// 
+	NI_CALL_FUNCTION,		// Makes a function call
+	NI_LOAD_STRING,			// Load a string literal onto stack
+	NI_LOAD_NUMBER,			// Load a number onto stack
+	NI_LOAD_FLOAT,			// Load a float onto stack
+	NI_LOAD_WIDEVNUM,		// Pops 2 (area, vnum) pushes combined WNUM onto stack
+	NI_CONST0,				// Load a constant 0 (or false) onto stack
+	NI_CONST1,				// Load a constant 1 (or true) onto stack
+	NI_NCONST1,				// Load a constant -1 onto stack
+	NI_FCONST0,				// Load a constant 0.0 onto stack
+	NI_DUP,					// Duplicate the top of the stack
+	NI_POP,					// Pop the top of the stack
+	NI_RETURN,				// Terminates program: pop 1 for return value
+	NI_JUMP,				// Jump to the given program address.
+	NI_JUMP_ZERO,			//  .. when the top of stack is zero
+	NI_JUMP_NOT_ZERO,		//  .. when the top of stack is not zero
+	NI_SWITCH,				// Switch statement: pop 1 for switching value
+	NI_INC,					// Increment: pop 1, update lvalue
+	NI_DEC,					// Decrement: pop 1, update lvalue
+	NI_POST_INC,			// Increment: pop 1, update lvalue, push prior value
+	NI_POST_DEC,			// Decrement: pop 1, update lvalue, push prior value
+	NI_PRE_INC,				// Increment: pop 1, update lvalue, push new value
+	NI_PRE_DEC,				// Decrement: pop 1, update lvalue, push new value
+
+	NI_LAND,
+	NI_LOR,
+	NI_LXOR,
+	NI_LNOT,
+
+	NI_ASSIGN,				// Assignment: pop 2, store rhs to lhs, push rhs
+	NI_VOID_ASSIGN,			// Assignment: pop 2, store rhs to lhs
+
+	NI_NEG,					// Unary Negate
+	NI_ADD,					// Binary addition: pop 2, add, push 1
+	NI_SUBT,				// Binary subtraction: pop 2, subtract, push 1
+	NI_MULT,				// Binary multiplication: pop 2, multiply, push 1
+	NI_MOD,					// Binary modulo: pop 2, checks divisor isn't zero, modulo, push remainder
+	NI_DIV,					// Binary division: pop 2, checks divisor isn't zero, divide, push quotient
+
+	NI_EQ,
+	NI_NEQ,
+	NI_LT,
+	NI_LE,
+	NI_GT,
+	NI_GE,
+
+	NI_BAND,
+	NI_BOR,
+	NI_BXOR,
+	NI_BNOT,
+
+	NI_LSH,
+	NI_RSH,
+	NI_RSHL,
+
+	NI_ADD_EQ,
+	NI_SUBT_EQ,
+	NI_MULT_EQ,
+	NI_MOD_EQ,
+	NI_DIV_EQ,
+
+	NI_BAND_EQ,
+	NI_BOR_EQ,
+	NI_BXOR_EQ,
+
+	NI_LSH_EQ,
+	NI_RSH_EQ,
+	NI_RSHL_EQ,
+
+	NI_GET_AREA,		// Pops 1 (number/string), gets the area, pushes onto stack
+
+	NI__MAX
+};
+
+struct lvalue_s {
+	char *name;				// Name of variable to be used
+	NIB_TYPE *type;			// Resolved type of expression
+	flag_value_t flags;
+
+	nib_bytecode_p lhs;		// Used for assigning a value
+	size_t lhs_len;
+
+	nib_bytecode_p rhs;		// Used for reading a value
+	size_t rhs_len;
+};
+
 
 // compile.c
 LLIST *nib_create_string_list();
@@ -306,20 +316,28 @@ bool nib_compile_script(const char *src);
 void nib_cleanup_compile();
 void nib_dump_global_variables();
 void nib_dump_local_variables();
+NIB_VARIABLE *nib_get_global_variable_byid(short id);
 NIB_VARIABLE *nib_get_global_variable(const char *name);
+NIB_VARIABLE *nib_get_local_variable_byid(short id);
 NIB_VARIABLE *nib_get_local_variable(const char *name);
 void nib_add_global_variable(NIB_VARIABLE *var);
 void nib_add_local_variable(NIB_VARIABLE *var);
+const char *nib_get_string(int index);
 int nib_get_string_in_storage(const char *str);
 int nib_add_string_to_storage(const char *str);
 void nib_dump_string_storage();
+void nib_dump_program();
+
+// decompile.c
+void nib_decompile_code();
+
 
 // flags.c
 const struct flag_type *lookup_flag_table(const char *name);
 const char *get_flag_table_name(const struct flag_type *table);
 const struct flag_type *lookup_stat_table(const char *name);
 const char *get_stat_table_name(const struct flag_type *table);
-bool find_flag_value(const struct flag_type *table, const char *name, bool settable, long *output);
+bool find_flag_value(const struct flag_type *table, const char *name, bool settable, flag_value_t *output);
 bool flag_add_table(LLIST *names, char *table_name);
 bool stat_add_table(LLIST *names, char *table_name);
 bool flag_tables_init();
@@ -367,13 +385,19 @@ bool iterator_hasdata(ITERATOR *it);
 NIB_BUFFER *new_mem_buffer_size(int size);
 NIB_BUFFER *new_mem_buffer();
 void free_mem_buffer(NIB_BUFFER *buffer);
-bool mem_buffer_append_byte(NIB_BUFFER *buffer, char ch);
+bool mem_buffer_append_byte(NIB_BUFFER *buffer, nib_bytecode_t ch);
 bool mem_buffer_append_short(NIB_BUFFER *buffer, short data);
 bool mem_buffer_append_int(NIB_BUFFER *buffer, int data);
 bool mem_buffer_append_long(NIB_BUFFER *buffer, long data);
-bool mem_buffer_append(NIB_BUFFER *buffer, char *data, int len);
+bool mem_buffer_append_float(NIB_BUFFER *buffer, double data);
+bool mem_buffer_update_short(NIB_BUFFER *buffer, int offset, short data);
+bool mem_buffer_update_int(NIB_BUFFER *buffer, int offset, int data);
+bool mem_buffer_update_long(NIB_BUFFER *buffer, int offset, long data);
+bool mem_buffer_update_float(NIB_BUFFER *buffer, int offset, double data);
+bool mem_buffer_append(NIB_BUFFER *buffer, nib_bytecode_p data, int len);
+bool mem_buffer_extend(NIB_BUFFER *buffer, int offset, int len);
 void mem_buffer_clear(NIB_BUFFER *buffer);
-char *mem_buffer_get(NIB_BUFFER *buffer);
+nib_bytecode_p mem_buffer_get(NIB_BUFFER *buffer);
 
 // methods.c
 size_t *nib_field_offset_lookup(NIB_TYPE *context, char *name);
@@ -441,28 +465,21 @@ NIB_TYPE *nib_combine_types(NIB_TYPE *a, NIB_TYPE *b);
 bool are_nib_types_equal(NIB_TYPE *a, NIB_TYPE *b);
 
 // utils.c
-int str_cmp(const char *astr, const char *bstr);
+extern unsigned long nib_allocations;
 
+int str_cmp(const char *astr, const char *bstr);
+char *nib_strdup(const char *str);
+void *nib_malloc(size_t size);
+void *nib_calloc(size_t count, size_t size);
+void nib_free(void *data);
+void nib_ledger_cleanup();
+void nib_ledger_display();
+void hex_dump(void *addr, size_t size);
 
 // variables.c
 NIB_VARIABLE *nib_new_variable(char *name, NIB_TYPE *type, int scope, bool constant);
 NIB_VARIABLE *nib_copy_variable(NIB_VARIABLE *src);
 void nib_free_variable(NIB_VARIABLE *var);
-
-// DUMMY CLASSES - REMOVE LATER
-typedef struct area_data AREA_DATA;
-struct area_data
-{
-	char *name;
-	char *description;
-	flag_value_t flags;
-};
-
-typedef struct wide_vnum_type
-{
-    AREA_DATA *pArea;
-    long vnum;
-} WNUM;
 
 
 #endif /* __NIBLANG_H__ */

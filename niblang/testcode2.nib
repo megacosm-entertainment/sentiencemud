@@ -1,0 +1,16 @@
+global area plith;		// Constant
+global int vnum;
+global float bar;		// Constant
+global widevnum wnum;	// Constant
+
+int x = 3;
+int y;
+
+if (x > vnum)
+{
+	y = x;
+}
+else
+{
+	y = 0;
+}

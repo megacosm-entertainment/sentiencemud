@@ -37,12 +37,12 @@ static int mem_get_size( int val , int target)
 
 NIB_BUFFER *new_mem_buffer_size(int size)
 {
-	NIB_BUFFER *buffer = calloc(1,sizeof(*buffer));
+	NIB_BUFFER *buffer = nib_calloc(1,sizeof(*buffer));
 
 	buffer->state	= BUFFER_SAFE;
 	buffer->size	= mem_get_size(size,0);
 	buffer->len		= 0;
-	buffer->buffer	= malloc(buffer->size);
+	buffer->buffer	= (nib_bytecode_p)malloc(buffer->size);
 
 	return buffer;
 }
@@ -56,63 +56,83 @@ void free_mem_buffer(NIB_BUFFER *buffer)
 {
 	if (buffer)
 	{
-		free(buffer->buffer);
-		free(buffer);
+		nib_free(buffer->buffer);
+		nib_free(buffer);
 	}
 }
 
-bool mem_buffer_append_byte(NIB_BUFFER *buffer, char ch)
+bool mem_buffer_append_byte(NIB_BUFFER *buffer, nib_bytecode_t ch)
 {
-    char tmp[2];
-    tmp[0] = ch;
-    tmp[1] = '\0';
-    return mem_buffer_append(buffer, tmp, 1);
+	return mem_buffer_append(buffer, (nib_bytecode_p)&ch, sizeof(ch));
 }
 
 bool mem_buffer_append_short(NIB_BUFFER *buffer, short data)
 {
-	char tmp[sizeof(data)];
-
-	for(int i = 0; i < sizeof(data); i++, data >>= 8)
-		tmp[i] = (char)(data & 0xFF);
-	return mem_buffer_append(buffer, tmp, sizeof(data));
+	return mem_buffer_append(buffer, (nib_bytecode_p)&data, sizeof(data));
 }
 
 bool mem_buffer_append_int(NIB_BUFFER *buffer, int data)
 {
-	char tmp[sizeof(data)];
-
-	for(int i = 0; i < sizeof(data); i++, data >>= 8)
-		tmp[i] = (char)(data & 0xFF);
-	return mem_buffer_append(buffer, tmp, sizeof(data));
+	return mem_buffer_append(buffer, (nib_bytecode_p)&data, sizeof(data));
 }
 
 bool mem_buffer_append_long(NIB_BUFFER *buffer, long data)
 {
-	char tmp[sizeof(data)];
-
-	for(int i = 0; i < sizeof(data); i++, data >>= 8)
-		tmp[i] = (char)(data & 0xFF);
-	return mem_buffer_append(buffer, tmp, sizeof(data));
+	return mem_buffer_append(buffer, (nib_bytecode_p)&data, sizeof(data));
 }
 
-bool mem_buffer_append(NIB_BUFFER *buffer, char *data, int len)
+bool mem_buffer_append_float(NIB_BUFFER *buffer, double data)
 {
-    int size;
-    char *oldbuffer;
+	return mem_buffer_append(buffer, (nib_bytecode_p)&data, sizeof(data));
+}
+
+bool mem_buffer_update_short(NIB_BUFFER *buffer, int offset, short data)
+{
+	if (offset + sizeof(data) > buffer->len) return false;
+
+	memcpy(buffer->buffer + offset, (nib_bytecode_p)&data, sizeof(data));
+
+	return true;
+}
+
+bool mem_buffer_update_int(NIB_BUFFER *buffer, int offset, int data)
+{
+	if (offset + sizeof(data) > buffer->len) return false;
+
+	memcpy(buffer->buffer + offset, (nib_bytecode_p)&data, sizeof(data));
+
+	return true;
+}
+
+bool mem_buffer_update_long(NIB_BUFFER *buffer, int offset, long data)
+{
+	if (offset + sizeof(data) > buffer->len) return false;
+
+	memcpy(buffer->buffer + offset, (nib_bytecode_p)&data, sizeof(data));
+
+	return true;
+}
+
+bool mem_buffer_update_float(NIB_BUFFER *buffer, int offset, double data)
+{
+	if (offset + sizeof(data) > buffer->len) return false;
+
+	memcpy(buffer->buffer + offset, (nib_bytecode_p)&data, sizeof(data));
+
+	return true;
+}
+
+bool mem_buffer_resize(NIB_BUFFER *buffer, int len, int new_size)
+{
+    nib_bytecode_p oldbuffer;
     int oldsize;
 
     oldbuffer = buffer->buffer;
     oldsize = buffer->size;
 
-    if (buffer->state == BUFFER_OVERFLOW) /* don't waste time on bad strings! */
-		return false;
-
-    size = buffer->len + len;
-
-    while (size > buffer->size) /* increase the buffer size */
+    while (new_size > buffer->size) /* increase the buffer size */
     {
-		buffer->size 	= mem_get_size(buffer->size + len, size);
+		buffer->size 	= mem_get_size(buffer->size + len, new_size);
 		if (buffer->size == -1) /* overflow */
 		{
 			buffer->size = oldsize;
@@ -124,14 +144,42 @@ bool mem_buffer_append(NIB_BUFFER *buffer, char *data, int len)
 
     if (buffer->size != oldsize)
     {
-		buffer->buffer = malloc(buffer->size);
+		buffer->buffer = (nib_bytecode_p)malloc(buffer->size);
 		memcpy(buffer->buffer,oldbuffer,oldsize);
-		free(oldbuffer);
+		nib_free(oldbuffer);
     }
+
+	return true;
+}
+
+bool mem_buffer_append(NIB_BUFFER *buffer, nib_bytecode_p data, int len)
+{
+    if (buffer->state == BUFFER_OVERFLOW) /* don't waste time on bad strings! */
+		return false;
+
+	if (!mem_buffer_resize(buffer, len, buffer->len + len))
+		return false;
 
 	memcpy(buffer->buffer + buffer->len, data, len);
 	buffer->len += len;
     return true;
+}
+
+bool mem_buffer_extend(NIB_BUFFER *buffer, int offset, int len)
+{
+	int oldsize = buffer->len;
+    if (buffer->state == BUFFER_OVERFLOW) /* don't waste time on bad strings! */
+		return false;
+
+	if (!mem_buffer_resize(buffer, len, buffer->len + len))
+		return false;
+
+	memmove(buffer->buffer + offset, buffer->buffer + offset + len, oldsize - offset);
+	for(int i = 0; i < len; i++)
+		buffer->buffer[offset + i] = '\0';	// Clear it out
+
+	buffer->len += len;
+	return true;
 }
 
 
@@ -142,7 +190,7 @@ void mem_buffer_clear(NIB_BUFFER *buffer)
 }
 
 
-char *mem_buffer_get(NIB_BUFFER *buffer)
+nib_bytecode_p mem_buffer_get(NIB_BUFFER *buffer)
 {
     return buffer->buffer;
 }

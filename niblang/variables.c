@@ -7,9 +7,9 @@
 
 NIB_VARIABLE *nib_new_variable(char *name, NIB_TYPE *type, int scope, bool constant)
 {
-	NIB_VARIABLE *var = calloc(1,sizeof(NIB_VARIABLE));
+	NIB_VARIABLE *var = nib_calloc(1,sizeof(NIB_VARIABLE));
 
-	var->name = strdup(name);
+	var->name = nib_strdup(name);
 	var->type = type;
 	var->scope = scope;
 	var->constant = constant;
@@ -31,9 +31,10 @@ void nib_free_variable(NIB_VARIABLE *var)
 {
 	if (var)
 	{
-		if (var->name) free(var->name);
+		if (var->name) nib_free(var->name);
+		if (var->type) free_nib_type(var->type);
 
-		free(var);
+		nib_free(var);
 	}
 }
 

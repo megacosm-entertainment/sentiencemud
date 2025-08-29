@@ -27,14 +27,14 @@ LLIST *nib_string_storage = NULL;
 
 static void __free_string(void *data)
 {
-	if (data) free(data);
+	if (data) nib_free(data);
 }
 
 static void *__copy_string(void *data)
 {
 	if (!data) return NULL;
 
-	return strdup((char *)data);
+	return nib_strdup((char *)data);
 }
 
 static void __free_variable(void *data)
@@ -131,20 +131,30 @@ bool nib_compile_script(const char *src)
 // Used to process the string into a compiled form for handling escape sequences
 char *compile_string_literal(const char *src)
 {
-	return strdup(src);
+	return nib_strdup(src);
+}
+
+void nib_dump_program()
+{
+	if (nib_program_storage)
+	{
+		printf("Program:\n");
+		hex_dump(nib_program_storage->buffer, nib_program_storage->len);
+		printf("\n");
+	}
 }
 
 void nib_dump_global_variables()
 {
 	printf("Global Variables:\n");
-	printf("Scope  Name              C  Type\n");
-	printf("======================================\n");
+	printf("Scope  ID     Name              C  Type\n");
+	printf("============================================\n");
 	ITERATOR it;
 	NIB_VARIABLE *var;
 	iterator_start(&it, nib_global_variables);
 	while((var = (NIB_VARIABLE *)iterator_nextdata(&it)))
 	{
-		printf("%-5d  %-16.16s  %c  %s\n", var->scope, var->name,
+		printf("%-5d  %-5d  %-16.16s  %c  %s\n", var->scope, var->id, var->name,
 			(var->constant ? 'Y' : 'N'),
 			nib_get_typename(var->type));
 	}
@@ -156,20 +166,36 @@ void nib_dump_global_variables()
 void nib_dump_local_variables()
 {
 	printf("Local Variables:\n");
-	printf("Scope  Name              C  Type\n");
-	printf("======================================\n");
+	printf("Scope  ID     Name              C  Type\n");
+	printf("============================================\n");
 	ITERATOR it;
 	NIB_VARIABLE *var;
 	iterator_start(&it, nib_local_variables);
 	while((var = (NIB_VARIABLE *)iterator_nextdata(&it)))
 	{
-		printf("%-5d  %-16.16s  %c  %s\n", var->scope, var->name,
+		printf("%-5d  %-5d  %-16.16s  %c  %s\n", var->scope, var->id, var->name,
 			(var->constant ? 'Y' : 'N'),
 			nib_get_typename(var->type));
 	}
 
 	iterator_stop(&it);
 	printf("\n");
+}
+
+NIB_VARIABLE *nib_get_global_variable_byid(short id)
+{
+	ITERATOR it;
+	NIB_VARIABLE *var;
+	iterator_start(&it, nib_global_variables);
+	while((var = (NIB_VARIABLE *)iterator_nextdata(&it)))
+	{
+		if (var->id == id)
+			break;
+	}
+
+	iterator_stop(&it);
+
+	return var;
 }
 
 NIB_VARIABLE *nib_get_global_variable(const char *name)
@@ -187,6 +213,23 @@ NIB_VARIABLE *nib_get_global_variable(const char *name)
 
 	return var;
 }
+
+NIB_VARIABLE *nib_get_local_variable_byid(short id)
+{
+	ITERATOR it;
+	NIB_VARIABLE *var;
+	iterator_start(&it, nib_local_variables);
+	while((var = (NIB_VARIABLE *)iterator_nextdata(&it)))
+	{
+		if (var->id == id)
+			break;
+	}
+
+	iterator_stop(&it);
+
+	return var;
+}
+
 
 // Gets the local variable closest to the current scope
 NIB_VARIABLE *nib_get_local_variable(const char *name)
@@ -213,13 +256,28 @@ NIB_VARIABLE *nib_get_local_variable(const char *name)
 void nib_add_global_variable(NIB_VARIABLE *var)
 {
 	if (var)
+	{
 		list_appendlink(nib_global_variables, var);
+		var->id = list_size(nib_global_variables);
+	}
 }
 
 void nib_add_local_variable(NIB_VARIABLE *var)
 {
 	if (var)
+	{
 		list_appendlink(nib_local_variables, var);
+		var->id = list_size(nib_local_variables);
+	}
+}
+
+const char *nib_get_string(int index)
+{
+	if(!list_isvalid(nib_string_storage)) return NULL;
+
+	if (index < 1 || index > list_size(nib_string_storage)) return NULL;
+
+	return (const char *)list_nthdata(nib_string_storage, index);
 }
 
 int nib_get_string_in_storage(const char *str)
@@ -255,7 +313,7 @@ int nib_add_string_to_storage(const char *str)
 	if (!list_isvalid(nib_string_storage))
 		nib_string_storage = nib_create_string_list();
 
-	list_appendlink(nib_string_storage, strdup(str));
+	list_appendlink(nib_string_storage, nib_strdup(str));
 	return list_size(nib_string_storage);
 }
 

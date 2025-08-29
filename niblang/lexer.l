@@ -18,7 +18,7 @@
 static char *trim_outer_quotes(const char *src)
 {
 	int len = strlen(src) - 2;
-	char *dest = malloc(len + 1);
+	char *dest = nib_malloc(len + 1);
 
 	strncpy(dest, src + 1, len);
 	dest[len] = 0;
@@ -114,22 +114,24 @@ static char parse_escape_character(char *str)
 "]>"					{ return T_CLOSE_FLAG; }
 "{["                    { return T_OPEN_MAP; }
 "]}"                    { return T_CLOSE_MAP; }
-"<<="					{ yylval->assign = assLEFT; return T_ASSIGN; }
-">>="					{ yylval->assign = assRIGHT; return T_ASSIGN; }
-"+="					{ yylval->assign = assADD; return T_ASSIGN; }
-"-="					{ yylval->assign = assSUB; return T_ASSIGN; }
-"*="					{ yylval->assign = assMULT; return T_ASSIGN; }
-"/="					{ yylval->assign = assDIV; return T_ASSIGN; }
-"%="					{ yylval->assign = assMOD; return T_ASSIGN; }
-"|="					{ yylval->assign = assBOR; return T_ASSIGN; }
-"^="					{ yylval->assign = assBXOR; return T_ASSIGN; }
-"&="					{ yylval->assign = assBAND; return T_ASSIGN; }
+"<<="					{ yylval->assign = NI_LSH_EQ; return T_ASSIGN; }
+">>="					{ yylval->assign = NI_RSH_EQ; return T_ASSIGN; }
+">>>="					{ yylval->assign = NI_RSHL_EQ; return T_ASSIGN; }
+"+="					{ yylval->assign = NI_ADD_EQ; return T_ASSIGN; }
+"-="					{ yylval->assign = NI_SUBT_EQ; return T_ASSIGN; }
+"*="					{ yylval->assign = NI_MULT_EQ; return T_ASSIGN; }
+"/="					{ yylval->assign = NI_DIV_EQ; return T_ASSIGN; }
+"%="					{ yylval->assign = NI_MOD_EQ; return T_ASSIGN; }
+"|="					{ yylval->assign = NI_BOR_EQ; return T_ASSIGN; }
+"^="					{ yylval->assign = NI_BXOR_EQ; return T_ASSIGN; }
+"&="					{ yylval->assign = NI_BAND_EQ; return T_ASSIGN; }
 "::"                    { return T_COLONS; }
 "->"                    { return T_ARROW; }
 "**"					{ return T_EXPONENT; }
 "--"					{ return T_DECREMENT; }
 "++"					{ return T_INCREMENT; }
 "<<"					{ return T_LEFT_SHIFT; }
+">>>"					{ return T_RIGHTL_SHIFT; }
 ">>"					{ return T_RIGHT_SHIFT; }
 "&&"					{ return T_LAND; }
 "||"					{ return T_LOR; }
@@ -140,7 +142,7 @@ static char parse_escape_character(char *str)
 ">="					{ return T_GT_EQUAL; }
 "<"						{ return T_LT; }
 ">"						{ return T_GT; }
-"="						{ yylval->assign = assASSIGN; return T_ASSIGN; }
+"="						{ yylval->assign = NI_ASSIGN; return T_ASSIGN; }
 "!"						{ return T_LNOT; }
 "&"						{ return T_BAND; }
 "|"						{ return T_BOR; }
@@ -165,7 +167,7 @@ static char parse_escape_character(char *str)
 "{"						{ return T_OPEN_BRACE; }
 "}"						{ return T_CLOSE_BRACE; }
 ","                     { return T_COMMA; }
-[a-zA-Z_][a-zA-Z0-9_]*  { yylval->identifier = strdup(nibtext); return T_IDENTIFIER; }
+[a-zA-Z_][a-zA-Z0-9_]*  { yylval->identifier = nib_strdup(nibtext); return T_IDENTIFIER; }
 [ \t\n]+  				{ /* Ignore white space*/ }
 .                       { /* complain */ }
 
