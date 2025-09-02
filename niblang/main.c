@@ -35,6 +35,9 @@ char *fread_file(char *path)
 	return NULL;
 }
 
+void dummy_init();
+void dummy_cleanup();
+
 int main(int argc, char **argv)
 {
 	if (argc != 2)
@@ -48,6 +51,8 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Failed to load method definitions.\n");
 		exit(1);
 	}
+
+	dummy_init();
 
 	if(variable_init())
 	{
@@ -65,12 +70,13 @@ int main(int argc, char **argv)
 
 			nibdebug = 0;
 			// Compile source
-			if (nib_compile_script(source))
+			NIB_SCRIPT *script = nib_compile_script(source, NSC_MOBILE);
+			if (script)
 			{
 				// Post processing
 				nib_dump_program();
 
-				nib_decompile_code();
+				nib_decompile_code(script);
 
 				nib_dump_scopetree();
 
@@ -79,6 +85,8 @@ int main(int argc, char **argv)
 				nib_dump_local_variables();
 
 				nib_dump_string_storage();
+
+				free_nib_script(script);
 			}
 
 			nib_cleanup_compile();
@@ -88,6 +96,8 @@ int main(int argc, char **argv)
 	}
 
 	variable_cleanup();
+
+	dummy_cleanup();
 
 	nib_methods_cleanup();
 

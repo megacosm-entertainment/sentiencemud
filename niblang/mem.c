@@ -182,6 +182,16 @@ bool mem_buffer_extend(NIB_BUFFER *buffer, int offset, int len)
 	return true;
 }
 
+bool mem_buffer_prune(NIB_BUFFER *buffer, int offset, int len)
+{
+	int oldsize = buffer->len;
+    if (buffer->state == BUFFER_OVERFLOW) /* don't waste time on bad strings! */
+		return false;
+
+	memmove(buffer->buffer + offset + len, buffer->buffer + offset, oldsize - (offset + len));
+	buffer->len -= len;
+	return true;
+}
 
 void mem_buffer_clear(NIB_BUFFER *buffer)
 {

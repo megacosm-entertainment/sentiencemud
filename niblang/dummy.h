@@ -75,6 +75,14 @@ enum variable_enum {
 	VAR_STRING_S,		/* Shared, allocated elsewhere! */
 	VAR_WIDEVNUM,
 	VAR_AREA,
+	VAR_DUNGEON,
+	VAR_INSTANCE,
+	VAR_MOBILE,
+	VAR_OBJECT,
+	VAR_QUEST,
+	VAR_ROOM,
+	VAR_SHIP,
+	VAR_TOKEN,
 	VAR_MAX
 };
 
@@ -108,11 +116,15 @@ struct iterator_type
 
 
 typedef struct area_data AREA_DATA;
+typedef struct char_data CHAR_DATA;
+typedef struct room_index_data ROOM_INDEX_DATA;
+
 struct area_data
 {
 	char *name;
 	char *description;
 	flag_value_t flags;
+	LLIST *rooms;
 };
 
 typedef struct wide_vnum_type
@@ -121,6 +133,21 @@ typedef struct wide_vnum_type
     long vnum;
 } WNUM;
 
+struct char_data
+{
+	char *name;
+	char *short_descr;
+	char *long_descr;
+	char *description;
+};
+
+struct room_index_data
+{
+	long vnum;
+	char *name;
+	char *description;
+	LLIST *people;
+};
 
 struct script_var_type {
 	pVARIABLE next;
@@ -137,6 +164,8 @@ struct script_var_type {
 		bool b;
 		char *str;
 		AREA_DATA *area;
+		CHAR_DATA *mobile;
+		ROOM_INDEX_DATA *room;
 		WNUM wnum;
 	} _;
 };
@@ -151,6 +180,8 @@ pVARIABLE variable_new_string(const char *name, char *str);
 pVARIABLE variable_new_shared_string(const char *name, char *str);
 pVARIABLE variable_new_widevnum(const char *name, AREA_DATA *area, long vnum);
 pVARIABLE variable_new_area(const char *name, AREA_DATA *area);
+pVARIABLE variable_new_mobile(const char *name, CHAR_DATA *mobile);
+pVARIABLE variable_new_room(const char *name, ROOM_INDEX_DATA *room);
 
 
 #endif

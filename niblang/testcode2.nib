@@ -14,3 +14,28 @@ else
 {
 	y = 0;
 }
+
+for(int z = 0; z < x; z++)
+{
+	if ((z + 2) < 3)
+		break;
+	y = z;
+}
+
+// plith.name = "Name";			// Readonly - would generate an error
+plith.flags.changed = true;
+
+int v = x.random();
+reckoning(100,4);
+
+y = 0;
+while(y < 5)
+{
+	y+=1;
+}
+
+list(mobile) mobs = ({});
+foreach(mob : mobs)
+{
+	y+=2;
+}

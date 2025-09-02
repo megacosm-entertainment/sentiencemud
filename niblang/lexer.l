@@ -60,7 +60,7 @@ static char parse_escape_character(char *str)
 <ML_COMMENT>"*/"		    { BEGIN(INITIAL); }
 <ML_COMMENT>.|\n		    ;	// Ignore stuff inside comment
 <ML_COMMENT><<EOF>>		    { /* Complain about unterminated comment */ }
-"//"[^\n]*\n     			    ;	// Ignore EOL comments
+"//"[^\n]*					;	// Ignore EOL comments
 
 [0-9]+\.[0-9]+			{ yylval->float_number = atof(nibtext); return T_FLOAT_NUMBER; }
 [0-9]+					{ yylval->number = atol(nibtext); return T_NUMBER; }
@@ -114,6 +114,8 @@ static char parse_escape_character(char *str)
 "]>"					{ return T_CLOSE_FLAG; }
 "{["                    { return T_OPEN_MAP; }
 "]}"                    { return T_CLOSE_MAP; }
+"({"					{ return T_OPEN_LIST; }
+"})"					{ return T_CLOSE_LIST; }
 "<<="					{ yylval->assign = NI_LSH_EQ; return T_ASSIGN; }
 ">>="					{ yylval->assign = NI_RSH_EQ; return T_ASSIGN; }
 ">>>="					{ yylval->assign = NI_RSHL_EQ; return T_ASSIGN; }

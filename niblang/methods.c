@@ -10,9 +10,10 @@
 #include "yacc/method_parser.h"
 #include "yacc/method_lexer.h"
 
-// Create function pointers for method names
+NIB_SCRIPT_STACK_TYPE convert_to_stype(NIB_TYPE *type);
 
-LLIST *nib_functions = NULL;			// Context-less methods
+// Create function pointers for method names
+LLIST *nib_functions = NULL;			// Context-less methods (aka functions)
 LLIST *nib_methods_int = NULL;
 LLIST *nib_methods_float = NULL;
 LLIST *nib_methods_boolean = NULL;
@@ -46,6 +47,8 @@ LLIST *nib_fields_token = NULL;
 
 
 static AREA_DATA __static_area;
+static ROOM_INDEX_DATA __static_room;
+static CHAR_DATA __static_mobile;
 static WNUM __static_wnum;
 
 #define ADDR(x)				((void *)&(x))
@@ -71,6 +74,14 @@ static struct nib_field_offset_type __field_offsets[] =
 	NFO(PRIMARY,AREA,name,__static_area),
 	NFO(PRIMARY,AREA,description,__static_area),
 	NFO(PRIMARY,AREA,flags,__static_area),
+	NFO(PRIMARY,MOBILE,name,__static_mobile),
+	NFO(PRIMARY,MOBILE,short_descr,__static_mobile),
+	NFO(PRIMARY,MOBILE,long_descr,__static_mobile),
+	NFO(PRIMARY,MOBILE,description,__static_mobile),
+	NFO(PRIMARY,ROOM,vnum,__static_room),
+	NFO(PRIMARY,ROOM,name,__static_room),
+	NFO(PRIMARY,ROOM,description,__static_room),
+	NFO(PRIMARY,ROOM,people,__static_room),
 	NFO(PRIMARY,WIDEVNUM,pArea,__static_wnum),
 	NFO(PRIMARY,WIDEVNUM,vnum,__static_wnum),
 	NFOEND
@@ -105,6 +116,7 @@ NIB_FIELD *new_nib_field(char *name, NIB_TYPE *type, bool readonly, size_t offse
 
 	field->name = strdup(name);
 	field->type = nib_type_copy(type);
+	field->stype = convert_to_stype(type);
 	field->readonly = readonly;
 	field->offset = offset;
 
@@ -147,6 +159,25 @@ bool nib_field_valid_context(NIB_TYPE *context)
 	}
 
 	return false;
+}
+
+static LLIST *__get_field_context_nst(NIB_SCRIPT_STACK_TYPE context)
+{
+	switch(context)
+	{
+		case NST_WIDEVNUM:	return nib_fields_widevnum;
+		case NST_AREA:		return nib_fields_area;
+		case NST_DUNGEON:	return nib_fields_dungeon;
+		case NST_INSTANCE:	return nib_fields_instance;
+		case NST_MOBILE:	return nib_fields_mobile;
+		case NST_OBJECT:	return nib_fields_object;
+		case NST_QUEST:		return nib_fields_quest;
+		case NST_ROOM:		return nib_fields_room;
+		case NST_SHIP:		return nib_fields_ship;
+		case NST_TOKEN:		return nib_fields_token;
+	}
+
+	return NULL;
 }
 
 static LLIST *__get_field_context(NIB_TYPE *context)
@@ -193,6 +224,25 @@ NIB_FIELD *nib_field_get(NIB_TYPE *context, char *name)
 	return field;
 }
 
+NIB_FIELD *nib_field_get_byid(NIB_SCRIPT_STACK_TYPE context, int id)
+{
+	// Determine the context
+	LLIST *fields = __get_field_context_nst(context);
+	if (!fields) return NULL;
+
+	ITERATOR it;
+	NIB_FIELD *field;
+	iterator_start(&it, fields);
+	while((field = (NIB_FIELD *)iterator_nextdata(&it)))
+	{
+		if (field->id == id)
+			break;
+	}
+	iterator_stop(&it);
+
+	return field;
+}
+
 bool nib_field_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, bool readonly, size_t offset)
 {
 	// Assume the field does not exist
@@ -206,16 +256,16 @@ bool nib_field_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, bool readonly, 
 	if (!field) return false;
 
 	list_appendlink(fields, field);
+	field->id = list_size(fields);
 	return true;
 }
-
-
 
 #include "funcs.h"
 
 const struct nib_method_func_type nib_method_funcs[] =
 {
 	MFE(area_get_name),
+	MFE(function_reckoning),
 	MFE(number_random_value),
 	MFE(string_length),
 	MFEND
@@ -237,6 +287,7 @@ NIB_METHOD *new_nib_method(char *name, NIB_TYPE *ret, LLIST *params, char *metho
 
 	method->name = strdup(name);
 	method->result = nib_type_copy(ret);
+	method->sresult = convert_to_stype(ret);
 
 	method->nparams = list_size(params);
 	if (method->nparams > 0)
@@ -399,6 +450,55 @@ static bool __method_matches_signature(NIB_METHOD *method, char *name, LLIST *pa
 	return valid;
 }
 
+static LLIST *__get_method_context_nst(NIB_SCRIPT_STACK_TYPE context)
+{
+	switch(context)
+	{
+		case NST_FUNCTION:	return nib_functions;
+		case NST_NUMBER:	return nib_methods_int;
+		case NST_FLOAT:		return nib_methods_float;
+		case NST_BOOLEAN:	return nib_methods_boolean;
+		case NST_CHAR:		return nib_methods_char;
+		case NST_STRING:	return nib_methods_string;
+		case NST_MAP:		return nib_methods_map;
+		case NST_WIDEVNUM:	return nib_methods_widevnum;
+		case NST_AREA:		return nib_methods_area;
+		case NST_DUNGEON:	return nib_methods_dungeon;
+		case NST_INSTANCE:	return nib_methods_instance;
+		case NST_MOBILE:	return nib_methods_mobile;
+		case NST_OBJECT:	return nib_methods_object;
+		case NST_QUEST:		return nib_methods_quest;
+		case NST_ROOM:		return nib_methods_room;
+		case NST_SHIP:		return nib_methods_ship;
+		case NST_TOKEN:		return nib_methods_token;
+		case NST_FLAG:		return nib_methods_flag;
+		case NST_STAT:		return nib_methods_stat;
+		case NST_LIST:		return nib_methods_list;
+	}
+
+	return NULL;
+}
+
+
+
+NIB_METHOD *nib_method_get_byid(NIB_SCRIPT_STACK_TYPE context, int id)
+{
+	// Determine the context
+	LLIST *methods = __get_method_context_nst(context);
+	if (!methods) return NULL;
+
+	ITERATOR it;
+	NIB_METHOD *method;
+	iterator_start(&it, methods);
+	while((method = (NIB_METHOD *)iterator_nextdata(&it)))
+	{
+		if (method->id == id)
+			break;
+	}
+	iterator_stop(&it);
+
+	return method;
+}
 
 NIB_METHOD *nib_method_get(NIB_TYPE *context, char *name, LLIST *params)
 {
@@ -474,6 +574,7 @@ bool nib_method_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, LLIST *params,
 	if (!method) return false;
 
 	list_appendlink(methods, method);
+	method->id = list_size(methods);
 	return true;
 }
 
@@ -649,3 +750,21 @@ void nib_methods_cleanup()
 
 }
 
+void nib_method_get_prototype(NIB_METHOD *method, char *buffer, size_t max_len)
+{
+	int len = 0;
+
+	len = snprintf(buffer, max_len, "%s", nib_get_typename(method->result));
+	len += snprintf(buffer + len, max_len - len, " %s(", method->name);
+
+	for(int i = 0; i < method->nparams; i++)
+	{
+		if (i > 0)
+			len += snprintf(buffer + len, max_len - len, ",%s", nib_get_typename(method->params[i]));
+		else
+			len += snprintf(buffer + len, max_len - len, "%s", nib_get_typename(method->params[i]));
+	}
+
+	len += snprintf(buffer + len, max_len - len, ")");
+	buffer[len] = 0;
+}

@@ -21,10 +21,15 @@
 #define IS_LITERAL		(B)
 
 #define IS_SET(v,b)		(((v) & (b)) && true)
+#define MAX_SHIFT		(bitsize(long) - 1)
 
 extern int niblineno;
+extern NIB_SCRIPT_CLASS nib_compile_script_class;
 extern NIB_BUFFER *nib_program_storage;
 bool is_valid_variable_type(pVARIABLE var, NIB_TYPE *type);
+NIB_SCRIPT_STACK_TYPE convert_to_stype(NIB_TYPE *type);
+
+static long last_expression = -1;
 
 #define CURRENT_PROGRAM_SIZE	(nib_program_storage->len)
 #define EXTEND_PROGRAM(o,l)		(mem_buffer_extend(nib_program_storage, (o), (l))
@@ -40,6 +45,8 @@ bool is_valid_variable_type(pVARIABLE var, NIB_TYPE *type);
 #define upd_int(o,i)			(mem_buffer_update_int(nib_program_storage, (o), (i)))
 #define upd_long(o,l)			(mem_buffer_update_long(nib_program_storage, (o), (l)))
 #define upd_float(o,f)			(mem_buffer_update_float(nib_program_storage, (o), (f)))
+
+#define get_byte(o)				(PROGRAM_BUFFER[(o)])
 
 #define PUT_TYPE(t) \
 static inline void put_##t (nib_bytecode_p address, t data) \
@@ -101,6 +108,93 @@ void nib_free_lvalue_s(struct lvalue_s *lvalue)
 	nib_free_bytecodes(lvalue->rhs);
 }
 
+void nib_free_lrvalue_s(struct lrvalue_s *lrvalue)
+{
+	nib_free_bytecodes(lrvalue->lhs);
+	nib_free_bytecodes(lrvalue->rhs);
+}
+
+void nib_free_rvalue_s(struct rvalue_s *rvalue)
+{
+	nib_free_bytecodes(rvalue->rhs);
+}
+
+static void insert_pop_value()
+{
+#if 1
+	if (last_expression < 0)
+	{
+		ins_code(NI_POP);
+	}
+	else if (last_expression == (CURRENT_PROGRAM_SIZE - sizeof(nib_bytecode_t)))
+	{
+		switch(get_byte(last_expression))
+		{
+			case NI_VOID_ASSIGN:
+				return;
+
+			case NI_ASSIGN:
+				upd_byte(last_expression, NI_VOID_ASSIGN);
+				break;
+
+			case NI_ADD_EQ:
+				upd_byte(last_expression, NI_VOID_ADD_EQ);
+				break;
+
+			case NI_PRE_INC:
+			case NI_POST_INC:
+				upd_byte(last_expression, NI_INC);
+				break;
+
+			case NI_PRE_DEC:
+			case NI_POST_DEC:
+				upd_byte(last_expression, NI_DEC);
+				break;
+
+			case NI_CONST0:
+			case NI_CONST1:
+			case NI_NCONST1:
+			case NI_FCONST0:
+				CURRENT_PROGRAM_SIZE = last_expression;
+				break;
+
+			default:
+				ins_code(NI_POP);
+				break;
+		}
+	}
+	// Check for LOAD_STRING
+	else if(last_expression == (CURRENT_PROGRAM_SIZE - sizeof(nib_bytecode_t) - sizeof(short)))
+	{
+		if (get_byte(last_expression) == NI_LOAD_STRING)
+			CURRENT_PROGRAM_SIZE = last_expression;
+		else
+			ins_code(NI_POP);
+	}
+	// Check for LOAD_NUMBER
+	else if(last_expression == (CURRENT_PROGRAM_SIZE - sizeof(nib_bytecode_t) - sizeof(long)))
+	{
+		if (get_byte(last_expression) == NI_LOAD_NUMBER)
+			CURRENT_PROGRAM_SIZE = last_expression;
+		else
+			ins_code(NI_POP);
+	}
+	// Check for LOAD FLOAT
+	else if(last_expression == (CURRENT_PROGRAM_SIZE - sizeof(nib_bytecode_t) - sizeof(double)))
+	{
+		if (get_byte(last_expression) == NI_LOAD_FLOAT)
+			CURRENT_PROGRAM_SIZE = last_expression;
+		else
+			ins_code(NI_POP);
+	}
+	else
+	{
+		ins_code(NI_POP);
+	}
+#else
+	ins_code(NI_POP);
+#endif
+}
 
 // reference the implementation provided in Lexer.l
 LLIST *nib_create_string_list();
@@ -153,6 +247,7 @@ void niberrorf(const char *msg, ...)
 %token T_CLOSE_BRACE
 %token T_CLOSE_BRACKET
 %token T_CLOSE_FLAG
+%token T_CLOSE_LIST
 %token T_CLOSE_MAP
 %token T_CLOSE_PAREN
 %token T_COLON
@@ -202,6 +297,7 @@ void niberrorf(const char *msg, ...)
 %token T_OPEN_BRACE
 %token T_OPEN_BRACKET
 %token T_OPEN_FLAG
+%token T_OPEN_LIST
 %token T_OPEN_MAP
 %token T_OPEN_PAREN
 %token T_PLUS
@@ -240,6 +336,21 @@ void niberrorf(const char *msg, ...)
 	NIB_TYPE *nibtype;
 	const struct flag_type *flag_table;
 
+	struct for_intr_exp_s {
+		nib_bytecode_p data;
+		size_t len;
+	} for_intr_exp;
+
+	struct for_cond_expr {
+		bool empty;
+		long address;
+	} for_cond_expr;
+
+	struct foreach_s {
+		NIB_VARIABLE *var;		// Loop variable
+		long address;
+	} foreach;
+
 	struct {
 		bool empty;
 		uintptr_t address;
@@ -260,6 +371,8 @@ void niberrorf(const char *msg, ...)
 		NIB_TYPE *type;
 		bool global;
 		bool constant;
+		nib_bytecode_t lvalue;
+		short id;
 	} decl;
 
 	LLIST *string_list;
@@ -270,29 +383,17 @@ void niberrorf(const char *msg, ...)
 
 	struct lvalue_s lvalue;
 
-    struct rvalue_s {
-		char *name;				// Name of variable to be used
-		NIB_TYPE *type;			// Resolved type of expression
-		bool needs_use;
-		flag_value_t flags;
+    struct rvalue_s rvalue;
 
-		// TODO: Add code stuff
-    } rvalue;
+	struct lrvalue_s lrvalue;
 
-	struct lrvalue_s {
-		char *name;				// Name of variable to be used
-		NIB_TYPE *type;			// Resolved type of expression
-		bool needs_use;
-		flag_value_t flags;
-
-		// TODO: Add code stuff
-	} lrvalue;
 
     struct
     {
 		NIB_TYPE *type;
 		bool might_lvalue;
 		bool needs_use;
+		bool needs_pop;
     } function_call_result;
 
 	NIB_STATEMENT statement;
@@ -324,7 +425,7 @@ void niberrorf(const char *msg, ...)
 %type <flags> flag_number_list comma_bit_list
 %type <modifiers> possible_modifiers
 %type <b> boolean_value switch_label
-%type <lrvalue> expr0 expr4 field_call widevnum_value
+%type <lrvalue> expr0 expr4 field_call widevnum_value for_cond_expr
 %type <lvalue> lvalue name_lvalue
 %type <rvalue> comma_expr
 %type <function_call_result> function_call method_call
@@ -358,6 +459,12 @@ void niberrorf(const char *msg, ...)
 
 %%
 
+all:
+		{
+			last_expression = -1;
+		}
+		program
+	;
 
 program: program statement
 	| /* empty */
@@ -453,6 +560,7 @@ name_list:
 
 				NIB_VARIABLE *var = nib_new_variable($I, $T, NIB_GLOBAL_SCOPE, _var->readonly);
 				nib_add_global_variable(var);
+
 				$<decl>$.type = $T;
 			}
 			else
@@ -486,7 +594,7 @@ name_list:
 			$<decl>$.constant = $M.constant;
 			nib_free($I);
 		}
-	|	possible_modifiers[M] type[T] T_IDENTIFIER[I]
+	|	possible_modifiers[M] type[T] T_IDENTIFIER[I] T_ASSIGN[A]
 		{
 			if ($M.global)
 			{
@@ -522,6 +630,9 @@ name_list:
 
 				NIB_VARIABLE *var = nib_new_variable($I, $T, NIB_GLOBAL_SCOPE, _var->readonly);
 				nib_add_global_variable(var);
+
+				ins_code(NI_LVALUE_GLOBAL);
+				ins_short(var->id);
 				$<decl>$.type = $T;
 			}
 			else
@@ -547,6 +658,8 @@ name_list:
 					var = nib_new_variable($I, $T, nib_get_scope(), $M.constant);
 					nib_add_local_variable(var);
 
+					ins_code(NI_LVALUE_LOCAL);
+					ins_short(var->id);
 					$<decl>$.type = $T;
 				}
 			}
@@ -554,21 +667,33 @@ name_list:
 			$<decl>$.global = $M.global;
 			$<decl>$.constant = $M.constant;
 		}
-		T_ASSIGN[A] expr0[E]
+		expr0[E]
 		{
-			if ($A != assASSIGN)
+			if ($A != NI_ASSIGN)
 			{
-
+				yyerror("Invalid operation.");
+				YYERROR;
 			}
 			// Do some initialization
 
 			// Special processing for getting the area under the hood
-			if ($T == nibtype_area && $E.type == nibtype_string)
+			if ($T == nibtype_area &&
+				($E.type == nibtype_string || $E.type == nibtype_int))
 			{
 				ins_code(NI_GET_AREA);
 			}
 
-			$<decl>$ = $<decl>4;
+			if ($T->type_class == NTC_LIST && ($E.type == nibtype_list))
+			{
+				ins_code(NI_NEW_LIST);
+				ins_byte(convert_to_stype($T->_.type));
+			}
+
+
+			last_expression = CURRENT_PROGRAM_SIZE;
+			ins_code(NI_VOID_ASSIGN);
+
+			$<decl>$ = $<decl>5;
 			nib_free($I);
 		}
 	|	name_list[L] T_COMMA T_IDENTIFIER[I]
@@ -632,8 +757,10 @@ name_list:
 			$<decl>$ = $<decl>L;
 			nib_free($I);
 		}
-	|	name_list[L] T_COMMA T_IDENTIFIER[I]
+	|	name_list[L] T_COMMA T_IDENTIFIER[I] T_ASSIGN[A]
 		{
+			$<decl>$ = $<decl>L;
+
 			if ($<decl>L.global)
 			{
 				// Global declaration.
@@ -663,6 +790,9 @@ name_list:
 
 				NIB_VARIABLE *var = nib_new_variable($I, $<decl>L.type, NIB_GLOBAL_SCOPE, _var->readonly);
 				nib_add_global_variable(var);
+
+				ins_code(NI_LVALUE_GLOBAL);
+				ins_short(var->id);
 			}
 			else
 			{
@@ -686,22 +816,35 @@ name_list:
 					{
 						var = nib_new_variable($I, $<decl>L.type, nib_get_scope(), $<decl>L.constant);
 						nib_add_local_variable(var);
+
+						ins_code(NI_LVALUE_LOCAL);
+						ins_short(var->id);
 					}
 				}
 			}
 
-			$<decl>$ = $<decl>L;
 		}
-		T_ASSIGN[A] expr0[E]
+		expr0[E]
 		{
 			// Do some initialization
 
-			if ($<decl>L.type == nibtype_area && $E.type == nibtype_string)
+			if ($<decl>L.type == nibtype_area &&
+				($E.type == nibtype_string || $E.type == nibtype_int))
 			{
 				ins_code(NI_GET_AREA);
 			}
 
-			$<decl>$ = $<decl>4;
+			if ($<decl>L.type->type_class == NTC_LIST && ($E.type == nibtype_list))
+			{
+				ins_code(NI_NEW_LIST);
+				ins_byte(convert_to_stype($<decl>L.type->_.type));
+			}
+
+
+			last_expression = CURRENT_PROGRAM_SIZE;
+			ins_code(NI_VOID_ASSIGN);
+
+			$<decl>$ = $<decl>5;
 			nib_free($I);
 		}
 	;
@@ -746,6 +889,8 @@ statement:
 		comma_expr T_SEMICOLON
 		{
 			// Do stuff?
+			if ($1.needs_pop)
+				insert_pop_value();
 		}
 	|	def
 		{
@@ -759,13 +904,42 @@ statement:
 	|	switch
 	|	T_BREAK T_SEMICOLON
 		{
-			// Verify we are in a situation that allows for breaking
-			// 1. Loops
-			// 2. Switch
+			if (!nib_break_address)
+			{
+				yyerror("BREAK encountered outside of a for loop or switch statement.");
+				YYERROR;
+			}
+
+			ins_code(NI_JUMP);
+			push_nib_break_statement(CURRENT_PROGRAM_SIZE);
+			ins_address(0);
 		}
 	|	T_CONTINUE T_SEMICOLON
 		{
-			// Verify we are in a loop
+			if (!nib_continue_address)
+			{
+				yyerror("CONTINUE encountered outside of a for loop.");
+				YYERROR;
+			}
+
+			ins_code(NI_JUMP);
+			push_nib_continue_statement(CURRENT_PROGRAM_SIZE);
+			ins_address(0);
+		}
+	|	T_RETURN T_SEMICOLON
+		{
+			ins_code(NI_CONST1);
+			ins_code(NI_RETURN);
+		}
+	|	T_RETURN T_OPEN_PAREN expr0[E] T_CLOSE_PAREN T_SEMICOLON
+		{
+			if ($E.type != nibtype_int)
+			{
+				yyerror("RETURN only accepts integer values.");
+				YYERROR;
+			}
+
+			ins_code(NI_RETURN);
 		}
 	|	block
 		{
@@ -791,8 +965,17 @@ cond:
 		}
 		optional_else
 		{
-			upd_address($<address>2, $<opt_else>5.address);
-			upd_address($<address>4, CURRENT_PROGRAM_SIZE);
+			if ($<opt_else>5.empty)
+			{
+				// Actually remove the JUMP from $4
+				mem_buffer_prune(nib_program_storage,$<address>4 - 1, 1 + sizeof(int));
+				upd_address($<address>2, $<opt_else>5.address - (1 + sizeof(int)));
+			}
+			else
+			{
+				upd_address($<address>2, $<opt_else>5.address);
+				upd_address($<address>4, CURRENT_PROGRAM_SIZE);
+			}
 		}
 	;
 
@@ -814,27 +997,145 @@ optional_else:
 	;
 
 for:	T_FOR T_OPEN_PAREN
-		{
+		{	// $3
 			nib_push_scope();
+			nib_script_comment_add(CURRENT_PROGRAM_SIZE, "for:");
 		}
-		name_list[N] T_SEMICOLON expr0[C] T_SEMICOLON comma_expr[P] T_CLOSE_PAREN
-		{
+		for_init_expr[N] T_SEMICOLON
+		{	// $6
 			// Configure CONTINUE and BREAK information
+			insert_pop_value();
+
+			push_nib_continue_address();
+			push_nib_break_address();
+
+			$<address>$ = CURRENT_PROGRAM_SIZE;		// Continue address
+			nib_script_comment_add(CURRENT_PROGRAM_SIZE, "for condition:");
+		}
+		for_cond_expr[C] T_SEMICOLON
+		{	// $9
+			if (!$C.needs_use)
+			{
+				yyerror("FOR condition does not have a value to test.");
+				YYERROR;
+			}
+
+			// Need to detect when this is an empty condition
+			if (CURRENT_PROGRAM_SIZE == $<address>6)
+			{
+				// An empty condition is treated as always true
+				$<for_cond_expr>$.address = CURRENT_PROGRAM_SIZE;
+				$<for_cond_expr>$.empty = true;
+			}
+			else
+			{
+				ins_code(NI_JUMP_ZERO);
+				$<for_cond_expr>$.address = CURRENT_PROGRAM_SIZE;
+				ins_address(0);
+
+				$<for_cond_expr>$.empty = false;
+			}
+			last_expression = -1;
+		}
+		for_iter_expr[P] T_CLOSE_PAREN
+		{	// $12
+			insert_pop_value();
+			last_expression = -1;
+
+			// Pull everything off the program storage from $<for_cond_expr>9+long to end
+			int address = $<for_cond_expr>9.address;
+			if (!$<for_cond_expr>9.empty)
+				address += sizeof(int);
+			$<for_intr_exp>$.len = CURRENT_PROGRAM_SIZE - address;
+			if ($<for_intr_exp>$.len > 0)
+			{
+				$<for_intr_exp>$.data = nib_malloc($<for_intr_exp>$.len);
+				memcpy($<for_intr_exp>$.data, nib_program_storage->buffer + address, $<for_intr_exp>$.len);
+				nib_program_storage->len -= $<for_intr_exp>$.len;
+			}
+			else
+				$<for_intr_exp>$.data = NULL;
 		}
 		statement
 		{
-			// Update CONTINUE and BREAK instructions
+			nib_script_comment_add(CURRENT_PROGRAM_SIZE, "for iteration:");
 
+			// Replace the FOR-iteration code
+			ins_bytes($<for_intr_exp>12.data, $<for_intr_exp>12.len);
+
+			ins_code(NI_JUMP);
+			ins_address($<address>6);
+
+			nib_script_comment_add(CURRENT_PROGRAM_SIZE, "end for loop:");
+
+			if (!$<for_cond_expr>9.empty)
+			{
+				set_current_address($<for_cond_expr>9.address);
+			}
+			update_nib_break_statements(CURRENT_PROGRAM_SIZE);
+			update_nib_continue_statements($<address>6);
+
+			pop_nib_break_address();
+			pop_nib_continue_address();
 			nib_pop_scope();
+
+			nib_free($<for_intr_exp>12.data);
 		}
+	;
+
+for_init_expr:
+		/* empty */
+		{
+			last_expression = CURRENT_PROGRAM_SIZE;
+			ins_int(1);
+		}
+	|	name_list
+	;
+
+for_cond_expr:
+		/* empty */
+		{
+			last_expression = -1;
+			// No instructions, will be treated as TRUE
+
+			$$.name = NULL;
+			$$.type = nibtype_bool;
+			$$.needs_use = true;
+			$$.flags = IS_LITERAL;
+		}
+	|	comma_expr
+		{
+			$$.name = $1.name;
+			$$.type = $1.type;
+			$$.needs_use = $1.needs_use;
+			$$.flags = $1.flags;
+			$$.lhs = NULL;
+			$$.lhs_len = 0;
+			$$.rhs = $1.rhs;
+			$$.rhs_len = $1.rhs_len;
+		}
+	;
+
+for_iter_expr:
+		/* empty */
+		{
+			last_expression = CURRENT_PROGRAM_SIZE;
+			ins_int(1);
+		}
+	|	comma_expr
+	;
 
 foreach:
-		T_FOREACH T_OPEN_PAREN T_IDENTIFIER[I] T_COLON expr0[E] T_CLOSE_PAREN
+		T_FOREACH
+		{
+			nib_push_scope();
+			nib_script_comment_add(CURRENT_PROGRAM_SIZE, "foreach:");
+		}
+		T_OPEN_PAREN T_IDENTIFIER[I] T_COLON expr0[E] T_CLOSE_PAREN
 		{
 			// Configure CONTINUE and BREAK information
-
-			// Open a new scope
-			nib_push_scope();
+			push_nib_continue_address();
+			push_nib_break_address();
 
 			// Create a variable in this scope using the element type of the expression
 			NIB_TYPE *type = NULL;
@@ -859,28 +1160,81 @@ foreach:
 				YYERROR;
 			}
 
-			NIB_VARIABLE *var = nib_new_variable($I, type, nib_get_scope(), false);
+			NIB_VARIABLE *var = $<foreach>$.var = nib_new_variable($I, type, nib_get_scope(), false);
 			nib_add_local_variable(var);
+
+			// Initialize iterator
+			ins_code(NI_ITER_START);	// Messes with the list *on* the stack
+
+			// Start loop
+			ins_code(NI_ITER_NEXT);
+			$<foreach>$.address = CURRENT_PROGRAM_SIZE;
+			ins_address(0);
+			ins_short(var->id);
 		}
 		statement
 		{
 			// Update CONTINUE and BREAK instructions
 
+			ins_byte(NI_JUMP);
+			ins_address($<foreach>8.address - sizeof(nib_bytecode_t));
+
+			update_nib_break_statements(CURRENT_PROGRAM_SIZE);
+			update_nib_continue_statements($<foreach>8.address);
+
+			set_current_address($<foreach>8.address);
+
+			ins_code(NI_ITER_STOP);	// Close out the current list
+
 			// Close scope
 			nib_pop_scope();
+
+			pop_nib_break_address();
+			pop_nib_continue_address();
 
 			nib_free($I);
 		}
 	;
 
 while:
-		T_WHILE T_OPEN_PAREN expr0 T_CLOSE_PAREN
+		T_WHILE T_OPEN_PAREN
 		{
-			// Configure CONTINUE and BREAK information
+			nib_script_comment_add(CURRENT_PROGRAM_SIZE, "while:");
+
+			push_nib_continue_address();
+			push_nib_break_address();
+
+			$<address>$ = CURRENT_PROGRAM_SIZE;
 		}
-		statement
+		expr0[C] T_CLOSE_PAREN
+		{
+			// Verify that the expression has a value to look at?
+			if (!$C.needs_use)
+			{
+				yyerror("WHILE condition does not have a value to test.");
+				YYERROR;
+			}
+
+
+			// Configure CONTINUE and BREAK information
+			ins_code(NI_JUMP_ZERO);
+			$<address>$ = CURRENT_PROGRAM_SIZE;
+			ins_address(0);
+		}
+		statement[S]
 		{
 			// Update CONTINUE and BREAK instructions
+
+			ins_code(NI_JUMP);
+			ins_address($<address>3);
+
+			set_current_address($<address>6);
+
+			update_nib_break_statements(CURRENT_PROGRAM_SIZE);
+			update_nib_continue_statements($<address>3);
+
+			pop_nib_break_address();
+			pop_nib_continue_address();
 		}
 	;
 
@@ -1034,11 +1388,46 @@ default:
 	;
 
 constant:
-
-		T_NUMBER
+		constant T_PLUS constant		{ $$ = $1 + $3; }
+	|	constant T_MINUS constant		{ $$ = $1 - $3; }
+	|	constant T_STAR constant		{ $$ = $1 * $3; }
+	|	constant T_MOD constant
 		{
+			if (!$3)
+			{
+				yyerror("Attempting to divide by zero.");
+				YYERROR;
+			}
 
+			$$ = $1 % $3;
 		}
+	|	constant T_DIVIDE constant
+		{
+			if (!$3)
+			{
+				yyerror("Attempting to divide by zero.");
+				YYERROR;
+			}
+
+			$$ = $1 / $3;
+		}
+	|	constant T_BAND constant			{ $$ = $1 & $3; }
+	|	constant T_BOR constant				{ $$ = $1 | $3; }
+	|	constant T_BXOR constant			{ $$ = $1 ^ $3; }
+	|	constant T_EQUAL constant			{ $$ = $1 == $3; }
+	|	constant T_NOT_EQUAL constant		{ $$ = $1 != $3; }
+	|	constant T_LT constant				{ $$ = $1 < $3; }
+	|	constant T_LT_EQUAL constant		{ $$ = $1 <= $3; }
+	|	constant T_GT constant				{ $$ = $1 > $3; }
+	|	constant T_GT_EQUAL constant		{ $$ = $1 >= $3; }
+	|	constant T_LEFT_SHIFT constant		{ $$ = ($3 > MAX_SHIFT) ? 0 : ($1 << $3); }
+	|	constant T_RIGHT_SHIFT constant		{ $$ = ($3 > MAX_SHIFT) ? (($1 >= 0) ? 0 : -1) : ($1 >> $3); }
+	|	constant T_RIGHTL_SHIFT constant	{ $$ = ($3 > MAX_SHIFT) ? 0 : (long)((unsigned long)$1 >> $3); }
+	|	T_BNOT constant						{ $$ = ~$2; }
+	|	T_MINUS constant %prec T_BNOT		{ $$ = -$2; }
+	|	T_LNOT constant						{ $$ = !$2; }
+	|	T_OPEN_PAREN constant T_CLOSE_PAREN	{ $$ = $2; }
+	|	T_NUMBER							{ $$ = $1; }
 	;
 
 comma_expr:
@@ -1047,21 +1436,23 @@ comma_expr:
 			$$.name = $1.name;
 			$$.type = $1.type;
 			$$.needs_use = $1.needs_use;
+			$$.needs_pop = $1.needs_pop;
 		}
 	|	comma_expr
 		{
 			// Complain if needed
 			if ($1.needs_use)
 			{
-				// Warn
+				yyerror("Expression result not used.  Discarded.");
+				insert_pop_value();
 			}
-			// Save value?
 		}
 		T_COMMA expr0
 		{
 			$$.name = $4.name;
 			$$.type = $4.type;
 			$$.needs_use = $4.needs_use;
+			$$.needs_pop = $4.needs_pop;
 		}
 	;
 
@@ -1073,21 +1464,30 @@ expr0:
 				yyerror("left hand expression is readonly.");
 				YYERROR;
 			}
+
+			ins_bytes($L.lhs, $L.lhs_len);
 		}
-		expr0
+		expr0[R]
 		{
 			// Special processing for getting the area under the hood
-			if ($L.type == nibtype_area && ($4.type == nibtype_int || $4.type == nibtype_string))
+			if ($L.type == nibtype_area && ($R.type == nibtype_int || $R.type == nibtype_string))
 			{
 				ins_code(NI_GET_AREA);
 			}
 
-			ins_bytes($L.lhs, $L.lhs_len);
+			if ($L.type->type_class == NTC_LIST && ($R.type == nibtype_list))
+			{
+				ins_code(NI_NEW_LIST);
+				ins_byte(convert_to_stype($L.type->_.type));
+			}
+
+			last_expression = CURRENT_PROGRAM_SIZE;
 			ins_code($2);
 
 			$$.name = $L.name;
 			$$.type = $L.type;
 			$$.needs_use = false;	// Since it is an assignment
+			$$.needs_pop = true;
 			$$.flags = IS_READONLY;
 
 			nib_free_lvalue_s(&($L));
@@ -1102,9 +1502,13 @@ expr0:
 		}
 		expr0
 		{
+			last_expression = CURRENT_PROGRAM_SIZE;
+			ins_code($2);
+
 			$$.name = $1.name;
 			$$.type = $1.type;
 			$$.needs_use = false;	// Since it is an assignment
+			$$.needs_pop = true;
 			$$.flags = IS_READONLY;
 		}
 	|	expr0[C] T_QMARK
@@ -1131,6 +1535,8 @@ expr0:
 
 			// Check the types of the two parts
 
+			last_expression = -1;
+
 			NIB_TYPE *t1 = $T.type;
 			NIB_TYPE *t2 = $F.type;
 
@@ -1144,6 +1550,7 @@ expr0:
 			$$.name = NULL;
 			$$.type = t;
 			$$.needs_use = $T.needs_use && $F.needs_use;
+			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	expr0 T_LOR %prec T_LOR
@@ -1157,9 +1564,12 @@ expr0:
 			// Update branching address
 			set_current_address($<address>3);
 
+			last_expression = -1;
+
 			$$.name = NULL;
 			$$.type = nibtype_bool;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	expr0 T_LXOR %prec T_LXOR
@@ -1171,15 +1581,17 @@ expr0:
 		expr0
 		{
 
+			last_expression = -1;
+
 			$$.name = NULL;
 			$$.type = nibtype_bool;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	expr0 T_LAND %prec T_LAND
 		{
-			// check $1 type 
-
+			// check $1 type
 			ins_code(NI_LAND);
 			$<address>$ = CURRENT_PROGRAM_SIZE;
 			ins_address(0);		// Placeholder for offset
@@ -1189,10 +1601,12 @@ expr0:
 			// Update branching offset
 			set_current_address($<address>3);
 
+			last_expression = -1;
 
 			$$.name = NULL;
 			$$.type = nibtype_bool;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	expr0 T_EQUAL expr0 %prec T_EQUAL
@@ -1202,6 +1616,7 @@ expr0:
 			$$.name = NULL;
 			$$.type = nibtype_bool;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	expr0 T_NOT_EQUAL expr0 %prec T_NOT_EQUAL
@@ -1211,6 +1626,7 @@ expr0:
 			$$.name = NULL;
 			$$.type = nibtype_bool;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	expr0 T_LT expr0 %prec T_LT
@@ -1220,6 +1636,7 @@ expr0:
 			$$.name = NULL;
 			$$.type = nibtype_bool;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	expr0 T_LT_EQUAL expr0 %prec T_LT_EQUAL
@@ -1229,6 +1646,7 @@ expr0:
 			$$.name = NULL;
 			$$.type = nibtype_bool;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	expr0 T_GT expr0 %prec T_GT
@@ -1238,6 +1656,7 @@ expr0:
 			$$.name = NULL;
 			$$.type = nibtype_bool;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	expr0 T_GT_EQUAL expr0 %prec T_GT_EQUAL
@@ -1247,6 +1666,7 @@ expr0:
 			$$.name = NULL;
 			$$.type = nibtype_bool;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	expr0 T_BOR expr0 %prec T_BOR
@@ -1259,6 +1679,7 @@ expr0:
 			$$.name = NULL;
 			$$.type = nibtype_int;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	expr0 T_BXOR expr0 %prec T_BXOR
@@ -1271,6 +1692,7 @@ expr0:
 			$$.name = NULL;
 			$$.type = nibtype_int;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	expr0 T_BAND expr0 %prec T_BAND
@@ -1283,6 +1705,7 @@ expr0:
 			$$.name = NULL;
 			$$.type = nibtype_int;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	expr0 T_LEFT_SHIFT expr0 %prec T_LEFT_SHIFT
@@ -1295,6 +1718,7 @@ expr0:
 			$$.name = NULL;
 			$$.type = nibtype_int;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	expr0 T_RIGHT_SHIFT expr0 %prec T_RIGHT_SHIFT
@@ -1307,6 +1731,7 @@ expr0:
 			$$.name = NULL;
 			$$.type = nibtype_int;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	expr0 T_RIGHTL_SHIFT expr0 %prec T_RIGHTL_SHIFT
@@ -1319,6 +1744,7 @@ expr0:
 			$$.name = NULL;
 			$$.type = nibtype_int;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	expr0 T_PLUS %prec T_PLUS
@@ -1333,6 +1759,7 @@ expr0:
 			$$.name = NULL;
 			$$.type = nibtype_int;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	expr0 T_MINUS expr0 %prec T_MINUS
@@ -1344,6 +1771,7 @@ expr0:
 			$$.name = NULL;
 			$$.type = nibtype_int;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	expr0 T_STAR expr0 %prec T_STAR
@@ -1355,6 +1783,7 @@ expr0:
 			$$.name = NULL;
 			$$.type = nibtype_int;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	expr0 T_MOD expr0 %prec T_MOD
@@ -1363,10 +1792,10 @@ expr0:
 
 			ins_code(NI_MOD);
 
-
 			$$.name = NULL;
 			$$.type = nibtype_int;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	expr0 T_DIVIDE expr0 %prec T_DIVIDE
@@ -1378,6 +1807,7 @@ expr0:
 			$$.name = NULL;
 			$$.type = nibtype_int;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	cast expr0 %prec T_BNOT
@@ -1387,40 +1817,46 @@ expr0:
 			$$.name = $2.name;
 			$$.type = $1;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	T_INCREMENT lvalue[L] %prec T_INCREMENT
 		{
-			ins_bytes($L.rhs, $L.rhs_len);
-
+			ins_bytes($L.lhs, $L.lhs_len);
+			last_expression = CURRENT_PROGRAM_SIZE;
 			ins_code(NI_PRE_INC);
 
 			$$.name = NULL;
 			$$.type = nibtype_int;
 			$$.needs_use = false;
+			$$.needs_pop = true;
 			$$.flags = IS_READONLY;
 
 			nib_free_lvalue_s(&($L));
 		}
 	|	T_DECREMENT lvalue[L] %prec T_DECREMENT
 		{
-			ins_bytes($L.rhs, $L.rhs_len);
+			ins_bytes($L.lhs, $L.lhs_len);
+			last_expression = CURRENT_PROGRAM_SIZE;
 			ins_code(NI_PRE_DEC);
 
 			$$.name = NULL;
 			$$.type = nibtype_int;
 			$$.needs_use = false;
+			$$.needs_pop = true;
 			$$.flags = IS_READONLY;
 
 			nib_free_lvalue_s(&($L));
 		}
 	|	T_LNOT expr0
 		{
+			last_expression = CURRENT_PROGRAM_SIZE;
 			ins_code(NI_LNOT);
 
 			$$.name = NULL;
 			$$.type = nibtype_bool;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	T_BNOT expr0
@@ -1430,6 +1866,7 @@ expr0:
 			$$.name = NULL;
 			$$.type = nibtype_int;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	T_MINUS expr0 %prec T_BNOT
@@ -1439,18 +1876,21 @@ expr0:
 			$$.name = NULL;
 			$$.type = nibtype_int;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	lvalue[L] T_INCREMENT %prec T_INCREMENT
 		{
 			// TODO: get correct type
 
-			ins_bytes($L.rhs, $L.rhs_len);
+			ins_bytes($L.lhs, $L.lhs_len);
+			last_expression = CURRENT_PROGRAM_SIZE;
 			ins_code(NI_POST_INC);
 
 			$$.name = NULL;
 			$$.type = nibtype_int;
 			$$.needs_use = false;
+			$$.needs_pop = true;
 			$$.flags = IS_READONLY;
 
 			nib_free_lvalue_s(&($L));
@@ -1459,12 +1899,14 @@ expr0:
 		{
 			// TODO: get correct type
 
-			ins_bytes($L.rhs, $L.rhs_len);
+			ins_bytes($L.lhs, $L.lhs_len);
+			last_expression = CURRENT_PROGRAM_SIZE;
 			ins_code(NI_POST_DEC);
 
 			$$.name = NULL;
 			$$.type = nibtype_int;
 			$$.needs_use = false;
+			$$.needs_pop = true;
 			$$.flags = IS_READONLY;
 
 			nib_free_lvalue_s(&($L));
@@ -1480,137 +1922,65 @@ expr0:
 	;
 
 expr4:
-		function_call
+		T_SELF
 		{
+			switch(nib_compile_script_class)
+			{
+			case NSC_AREA:		$$.type = nibtype_area; break;
+			case NSC_DUNGEON:	$$.type = nibtype_dungeon; break;
+			case NSC_INSTANCE:	$$.type = nibtype_instance;	break;
+			case NSC_MOBILE:	$$.type = nibtype_mobile; break;
+			case NSC_OBJECT:	$$.type = nibtype_object; break;
+			case NSC_ROOM:		$$.type = nibtype_room; break;
+			case NSC_TOKEN:		$$.type = nibtype_token; break;
+			default:
+				yyerror("SELF used with invalid script class.");
+				YYERROR;
+			}
+
+			// Can only be used as an rvalue!
+			$$.lhs = NULL;
+			$$.lhs_len = 0;
+			$$.rhs_len = 1;
+			$$.rhs = nib_alloc_bytecodes($$.rhs_len);
+			$$.rhs[0] = NI_LVALUE_SELF;
+
+			$$.name = NULL;
+			$$.needs_use = true;
+			$$.needs_pop = false;
+			$$.flags = IS_READONLY;
+		}
+	|	function_call
+		{
+			last_expression = CURRENT_PROGRAM_SIZE;
+
 			// Get type
 			$$.name = NULL;
 			$$.type = $1.type;
 			$$.needs_use = $1.needs_use;
+			$$.needs_pop = $1.needs_pop;
 			$$.flags = IS_READONLY;
 		}
 	|	method_call
 		{
+			last_expression = CURRENT_PROGRAM_SIZE;
+
 			// Get type
 			$$.name = NULL;
 			$$.type = $1.type;
 			$$.needs_use = $1.needs_use;
+			$$.needs_pop = $1.needs_pop;
 			$$.flags = IS_READONLY;
 		}
-	|	expr0[L] T_DOT field_name[F]
+	|	field_call
 		{
-			/*
-				This is separate from the 'field_call' rule because this
-				needs to create the load instructions
-			*/
+			last_expression = CURRENT_PROGRAM_SIZE;
 
-			if ($L.type == NULL)
-			{
-				yyerror("Attempting to access an invalid type.");
-				YYERROR;
-			}
-
-			if ($L.type->type_class == NTC_FLAG)
-			{
-				// Need a way to deal with a flag bit reference
-				if ($L.type->_.flag.bits > 0)
-				{
-					yyerror("Invalid syntax to access a numerical flag.");
-					YYERROR;
-				}
-
-				flag_value_t bit;
-				// Verify the flag actually exists
-				if ($L.type->_.flag.table)
-				{
-					if (!find_flag_value($L.type->_.flag.table, $F, false, &bit))
-					{
-						niberrorf("Flag '%s' is not defined.", $F);
-						YYERROR;
-					}
-				}
-				else
-				{
-					ITERATOR it;
-					char *name;
-					bit = 1;
-					iterator_start(&it, $L.type->_.flag.names);
-					while((name = (char *)iterator_nextdata(&it)))
-					{
-						if (!str_cmp(name, $F))
-							break;
-
-						bit <<= 1;
-					}
-					iterator_stop(&it);
-
-					if (!name)
-					{
-						niberrorf("Flag '%s' is not defined.", $F);
-						YYERROR;
-					}
-				}
-
-				ins_code(NI_RVALUE_FLAG);
-				ins_long((long)bit);
-
-				$$.name = NULL;
-				$$.type = nibtype_bool;
-				$$.needs_use = true;
-				$$.flags = IS_READONLY;
-			}
-			else if ($L.type->type_class == NTC_STAT)
-			{
-				// Verify the stat actually exists
-				if ($L.type->_.stat.table)
-				{
-					if (!find_flag_value($L.type->_.stat.table, $F, false, NULL))
-					{
-						niberrorf("Stat '%s' is not defined.", $F);
-						YYERROR;
-					}
-				}
-				else
-				{
-					ITERATOR it;
-					char *name;
-					iterator_start(&it, $L.type->_.stat.names);
-					while((name = (char *)iterator_nextdata(&it)))
-					{
-						if (!str_cmp(name, $F))
-							break;
-					}
-					iterator_stop(&it);
-
-					if (!name)
-					{
-						niberrorf("Stat '%s' is not defined.", $F);
-						YYERROR;
-					}
-				}
-
-				$$.name = NULL;
-				$$.type = nibtype_int;
-				$$.needs_use = true;
-				$$.flags = IS_READONLY;
-			}
-			else
-			{
-				// Search for $F on $L
-				NIB_FIELD *field = nib_field_get($L.type, $F);
-				if (!field)
-				{
-					niberrorf("No such field '%s' defined for type '%s'.",
-						$F, nib_get_typename($L.type));
-					YYERROR;
-				}
-
-				$$.name = $L.name;
-				$$.type = field->type;
-				$$.needs_use = true;
-				$$.flags = field->readonly ? IS_READONLY : 0;
-			}
-
-			nib_free($F);
+			// Get type
+			$$.name = $1.name;
+			$$.type = $1.type;
+			$$.needs_use = $1.needs_use;
+			$$.flags = $1.flags;
 		}
 	|	T_STRING_LITERAL
 		{
@@ -1622,6 +1992,8 @@ expr4:
 				YYERROR;
 			}
 
+			last_expression = CURRENT_PROGRAM_SIZE;
+
 			// Push OP code to pull string literal
 			// Push index
 			ins_code(NI_LOAD_STRING);
@@ -1630,21 +2002,27 @@ expr4:
 			$$.name = NULL;
 			$$.type = nibtype_string;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_LITERAL;
 
 			nib_free($1);
 		}
 	|	T_CHAR_LITERAL
 		{
-						
+			last_expression = CURRENT_PROGRAM_SIZE;
+
+			ins_code(NI_LOAD_CHAR);
+			ins_byte($1);
 
 			$$.name = NULL;
 			$$.type = nibtype_char;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_LITERAL;
 		}
 	|	T_NUMBER
 		{
+			last_expression = CURRENT_PROGRAM_SIZE;
 			if ($1 == 0L)
 			{
 				// Push opcode for constant 0
@@ -1672,10 +2050,13 @@ expr4:
 			$$.name = NULL;
 			$$.type = nibtype_int;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_LITERAL;
 		}
 	|	T_FLOAT_NUMBER
 		{
+			last_expression = CURRENT_PROGRAM_SIZE;
+
 			if ($1 == 0.0)
 			{
 				ins_code(NI_FCONST0);
@@ -1690,10 +2071,13 @@ expr4:
 			$$.name = NULL;
 			$$.type = nibtype_float;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_LITERAL;
 		}
 	|	boolean_value
 		{
+			last_expression = CURRENT_PROGRAM_SIZE;
+
 			if($1)
 			{
 				// Push opcode for reading TRUE
@@ -1708,6 +2092,7 @@ expr4:
 			$$.name = NULL;
 			$$.type = nibtype_bool;
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_LITERAL;
 		}
 	|	widevnum_value
@@ -1716,14 +2101,25 @@ expr4:
 
 			$$ = $1;
 		}
+	|	T_OPEN_LIST T_CLOSE_LIST
+		{
+			$$.name = NULL;
+			$$.type = nibtype_list;		// Generic empty list
+			$$.needs_use = true;
+			$$.needs_pop = false;
+			$$.flags = IS_LITERAL;
+		}
 	|	T_NULL
 		{
+			last_expression = CURRENT_PROGRAM_SIZE;
+
 			// Store opcode for constant 0
 			ins_code(NI_CONST0);
 
 			$$.name = NULL;
 			$$.type = nibtype_any;	// Think (void *) from C
 			$$.needs_use = true;
+			$$.needs_pop = false;
 			$$.flags = IS_LITERAL;
 		}
 	|	lvalue[L]
@@ -2010,7 +2406,7 @@ name_lvalue:
 				q = $$.rhs = nib_alloc_bytecodes(3);
 				$$.rhs_len = 3;
 
-				q[0] = NI_LOAD_GLOBAL;
+				q[0] = NI_LVALUE_GLOBAL;
 				put_short(q+1, (short)var->id);
 			}
 			else
@@ -2032,7 +2428,7 @@ name_lvalue:
 					q = $$.rhs = nib_alloc_bytecodes(3);
 					$$.rhs_len = 3;
 
-					q[0] = NI_LOAD_LOCAL;
+					q[0] = NI_LVALUE_LOCAL;
 					put_short(q+1, (short)var->id);
 				}
 				else
@@ -2055,7 +2451,11 @@ lvalue:
 	;
 
 function_call:
-		T_IDENTIFIER[M] optional_argument_list[A]
+		T_IDENTIFIER[M]
+		{
+			$<address>$ = CURRENT_PROGRAM_SIZE;
+		}
+		optional_argument_list[A]
 		{
 			// Use the type of $C to find $M with $A type list
 			NIB_METHOD *method = nib_method_get(NULL, $M, $A);
@@ -2066,13 +2466,23 @@ function_call:
 				YYERROR;
 			}
 
+			char comment[1000];
+			nib_method_get_prototype(method, comment, sizeof(comment) - 1);
+			nib_script_comment_add($<address>2, comment);
+
+			ins_code(NI_CALL_FUNCTION);
+			ins_short(method->id);
+			ins_byte((unsigned char)list_size($A));
+			
 			NIB_TYPE *type = method->result;
 			$$.type = nib_type_copy(type);
 			$$.might_lvalue = false;	// TODO: FIX THIS
 			$$.needs_use = (type && type->type_class != NTC_VOID);
+			$$.needs_pop = (type && type->type_class != NTC_VOID);
 
 			printf("Function Call: %s %s.\n", nib_get_typename(type), method->name);
 			nib_free($M);
+			list_destroy($A);
 		}
 	;
 
@@ -2182,6 +2592,9 @@ field_call:
 					YYERROR;
 				}
 
+				ins_code(NI_LVALUE_FIELD);
+				ins_short(field->id);
+
 				$$.name = $L.name;
 				$$.type = field->type;
 				$$.needs_use = true;
@@ -2199,7 +2612,11 @@ field_name:
 	;
 
 method_call:
-		expr0[C] T_DOT T_IDENTIFIER[M] optional_argument_list[A]
+		expr0[C] T_DOT T_IDENTIFIER[M]
+		{
+			$<address>$ = CURRENT_PROGRAM_SIZE;
+		}
+		optional_argument_list[A]
 		{
 			if ($C.type == NULL || $C.type->type_class == NTC_VOID)
 			{
@@ -2223,6 +2640,14 @@ method_call:
 				YYERROR;
 			}
 
+			ins_code(NI_CALL_METHOD);
+			ins_short(method->id);
+			ins_byte((unsigned char)list_size($A));
+
+			char comment[1000];
+			nib_method_get_prototype(method, comment, sizeof(comment) - 1);
+			nib_script_comment_add($<address>4, comment);
+
 			NIB_TYPE *type = method->result;
 			if (type != NULL && type->type_class == NTC_ANY)
 			{
@@ -2235,6 +2660,7 @@ method_call:
 			$$.type = nib_type_copy(type);
 			$$.might_lvalue = false;	// TODO: FIX THIS
 			$$.needs_use = (type && type->type_class != NTC_VOID);
+			$$.needs_pop = (type && type->type_class != NTC_VOID);
 
 			printf("Method Call: %s %s for %s type.\n", nib_get_typename(type), method->name, nib_get_typename($C.type));
 			nib_free($M);
@@ -2624,6 +3050,5 @@ stat_table:
 				$$ = table;
 			}
 	;
-
 
 %%

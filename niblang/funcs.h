@@ -3,6 +3,9 @@
 
 // Assumes DECL_METHOD_FUNC defined
 
+// Functions
+DECL_METHOD_FUNC(function_reckoning);
+
 // NUMBER methods
 DECL_METHOD_FUNC(number_random_value);
 

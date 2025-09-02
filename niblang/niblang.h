@@ -37,213 +37,46 @@
 
 #define bitsize(t)		(sizeof(t) * 8)
 
-typedef enum { false = 0, true = 1 } bool;
-
-typedef long flag_value_t;
-#define MAX_FLAG_BITS		(bitsize(flag_value_t))
-
-typedef int METHOD_FUNC(void);
-
-#define DECL_METHOD_FUNC(f)	int f (void)
-
-#include "dummy.h"
-
-struct flag_type
-{
-    char *name;
-    long bit;
-    bool settable;
-	char *description;
-};
-
-
-
-
-typedef enum nib_assignment_type_e
-{
-	assASSIGN = 0,
-	assADD,
-	assSUB,
-	assMULT,
-	assDIV,
-	assMOD,
-	assBOR,
-	assBXOR,
-	assBAND,
-	assLEFT,
-	assRIGHT,
-	assRIGHTL
-} NIB_ASSIGN;
-
-
-typedef unsigned char nib_bytecode_t;
-typedef nib_bytecode_t *nib_bytecode_p;
-
-typedef struct nib_memory_buffer {
-    short state;		// error state of the buffer
-    int size;			// size in k
-	int len;			// length of data in buffer
-    nib_bytecode_p buffer;		// actual buffer
-} NIB_BUFFER;
-
-typedef enum nib_primary_types
-{
-	NT_UNKNOWN = 0,
-	NT_BOOLEAN,
-	NT_NUMBER,
-	NT_FLOAT,
-	NT_CHAR,
-	NT_STRING,
-	NT_MAP,
-	NT_AREA,
-	NT_DUNGEON,
-	NT_INSTANCE,
-	NT_MOBILE,
-	NT_OBJECT,
-	NT_QUEST,
-	NT_ROOM,
-	NT_SHIP,
-	NT_TOKEN,
-	NT_WIDEVNUM,
-	NT_ANYPTR
-} NIB_PRIMARY_TYPE;
-
-typedef enum nib_type_class {
-	NTC_VOID = 0,		// Indicates nothing
-	NTC_ANY,			// Indicates anything
-	NTC_PRIMARY,
-	NTC_FLAG,
-	NTC_STAT,
-	NTC_LIST,
-	NTC_ARRAY,
-	NTC_VARARGS		// Special type used for function prototypes
-} NIB_TYPE_CLASS;
-
-typedef struct nib_type NIB_TYPE;
-
-struct nib_type {
-	bool _static;		// Statically defined, do not "free"
-
-	int type_class;
-
-	union {
-		int dummy;
-		NIB_PRIMARY_TYPE primary;	// Used by type_class PRIMARY
-		struct {
-			int bits;
-			LLIST *names;			// Only used if the bits is 0
-			const struct flag_type *table;
-		} flag;						// Used by type_class FLAG
-		struct {
-			LLIST *names;
-			const struct flag_type *table;
-		} stat;
-		NIB_TYPE *type;				// Used by type_class LIST
-	} _;
-
-	char *name;
-};
-
-
-
-
-typedef struct nib_variable_type NIB_VARIABLE;
-
-struct nib_variable_type {
-	char *name; 	// Duplicated name, needs to be freed
-	NIB_TYPE *type;
-	int scope;
-	int id;
-	bool constant;
-	bool initialized;
-
-	// Add value union?
-};
-
-typedef struct nib_scope_tree_node NIB_SCOPE_NODE;
-
-struct nib_scope_tree_node {
-	int scope;
-
-	NIB_SCOPE_NODE *parent;		// Ancestors
-	NIB_SCOPE_NODE *head;		// Descendants
-	NIB_SCOPE_NODE *tail;		// Descendants
-	NIB_SCOPE_NODE *next;		// Sibling nodes
-};
-
-
-
-typedef struct nib_field_type NIB_FIELD;
-struct nib_field_type
-{
-	char *name;
-	bool readonly;
-	NIB_TYPE *type;
-	size_t offset;
-};
-
-typedef struct nib_method_type NIB_METHOD;
-
-struct nib_method_type
-{
-	char *name;
-	NIB_TYPE *result;		// Use NULL to indicate no return
-	int nparams;
-	NIB_TYPE **params;
-
-	char *method_name;		// Copy of internal method name
-	METHOD_FUNC *method;
-};
-
-struct nib_method_func_type
-{
-	char *name;
-	METHOD_FUNC *func;
-};
-
-typedef struct statement_s
-{
-    bool may_return         : 1;  /* The statement may issue a return.   */
-    bool may_break          : 1;  /* The statement may issue a break.    */
-    bool may_continue       : 1;  /* The statement may issue a continue. */
-    bool may_finish         : 1;  /* The statement may finish without
-                                   * a break or return.
-                                   */
-    bool is_empty           : 1;  /* There is no real statement.         */
-    bool warned_dead_code   : 1;  /* We already warned about dead code.  */
-} NIB_STATEMENT;
+#include "typedefs.h"
 
 // Instructions
 enum nib_instructions_e {
 	NI_ILLEGAL = 0,
-	NI_LOAD_LOCAL,			// Load a local variable onto stack
-	NI_LOAD_GLOBAL,			// Load a global variable onto stack
 	NI_LVALUE_LOCAL,		// Load the address of the local variable onto the stack
 	NI_LVALUE_GLOBAL,		// Load the global variable reference onto the stack (server script pVARIABLE)
+	NI_LVALUE_SELF,			// Loads the reference for the SELF onto the stack
 	NI_LVALUE_FLAG,			// Load and push a flag bit reference onto the stack
-	NI_RVALUE_FLAG,			// 
+	NI_LVALUE_FIELD,
 	NI_CALL_FUNCTION,		// Makes a function call
-	NI_LOAD_STRING,			// Load a string literal onto stack
+	NI_CALL_METHOD,
 	NI_LOAD_NUMBER,			// Load a number onto stack
 	NI_LOAD_FLOAT,			// Load a float onto stack
+	NI_LOAD_CHAR,
+	NI_LOAD_STRING,			// Load a string literal onto stack
 	NI_LOAD_WIDEVNUM,		// Pops 2 (area, vnum) pushes combined WNUM onto stack
+	NI_NEW_LIST,			// Pushes an empty list (of the given list type) onto the stack
 	NI_CONST0,				// Load a constant 0 (or false) onto stack
 	NI_CONST1,				// Load a constant 1 (or true) onto stack
 	NI_NCONST1,				// Load a constant -1 onto stack
 	NI_FCONST0,				// Load a constant 0.0 onto stack
 	NI_DUP,					// Duplicate the top of the stack
 	NI_POP,					// Pop the top of the stack
+	NI_POPN,				// Pops the top N slots off the stack
 	NI_RETURN,				// Terminates program: pop 1 for return value
 	NI_JUMP,				// Jump to the given program address.
 	NI_JUMP_ZERO,			//  .. when the top of stack is zero
 	NI_JUMP_NOT_ZERO,		//  .. when the top of stack is not zero
 	NI_SWITCH,				// Switch statement: pop 1 for switching value
-	NI_INC,					// Increment: pop 1, update lvalue
-	NI_DEC,					// Decrement: pop 1, update lvalue
+	NI_INC,					// Increment: pop 1, update lvalue (does not put anything on the stack)
+	NI_DEC,					// Decrement: pop 1, update lvalue (does not put anything on the stack)
 	NI_POST_INC,			// Increment: pop 1, update lvalue, push prior value
 	NI_POST_DEC,			// Decrement: pop 1, update lvalue, push prior value
 	NI_PRE_INC,				// Increment: pop 1, update lvalue, push new value
 	NI_PRE_DEC,				// Decrement: pop 1, update lvalue, push new value
+
+	NI_ITER_START,
+	NI_ITER_STOP,
+	NI_ITER_NEXT,
 
 	NI_LAND,
 	NI_LOR,
@@ -277,6 +110,7 @@ enum nib_instructions_e {
 	NI_RSHL,
 
 	NI_ADD_EQ,
+	NI_VOID_ADD_EQ,
 	NI_SUBT_EQ,
 	NI_MULT_EQ,
 	NI_MOD_EQ,
@@ -295,6 +129,150 @@ enum nib_instructions_e {
 	NI__MAX
 };
 
+enum nib_script_stack_type_e
+{
+	NST_VOID = -2,			// No return
+	NST_FUNCTION = -1,		// Only used when getting the context for function calls
+	NST_UNKNOWN = 0,
+	NST_BOOLEAN,
+	NST_NUMBER,
+	NST_FLOAT,
+	NST_STRING,
+	NST_CHAR,
+	NST_MAP,
+	NST_WIDEVNUM,
+	NST_FLAG,
+	NST_STAT,
+	NST_LIST,
+	NST_AREA,
+	NST_DUNGEON,
+	NST_INSTANCE,
+	NST_MOBILE,
+	NST_OBJECT,
+	NST_QUEST,
+	NST_ROOM,
+	NST_SHIP,
+	NST_TOKEN,
+	NST__MAX,
+
+	// Types invalid for LVALUEs
+	NST_STRING_S = NST__MAX,	// String is not to be freed when popped
+	NST_LIST_S,					// Lists not created by the script
+	NST_LVALUE,
+};
+
+
+#define MAX_FLAG_BITS		(bitsize(flag_value_t))
+
+#define DECL_METHOD_FUNC(f)	int f (NIB_SCRIPT_RUNTIME *nsr)
+
+#include "dummy.h"
+
+struct flag_type
+{
+    char *name;
+    long bit;
+    bool settable;
+	char *description;
+};
+
+#include "script.h"
+
+
+
+
+typedef struct nib_memory_buffer {
+    short state;		// error state of the buffer
+    int size;			// size in k
+	int len;			// length of data in buffer
+    nib_bytecode_p buffer;		// actual buffer
+} NIB_BUFFER;
+
+
+
+
+
+typedef struct nib_variable_type NIB_VARIABLE;
+
+struct nib_variable_type {
+	char *name; 	// Duplicated name, needs to be freed
+	NIB_TYPE *type;
+	NIB_SCRIPT_STACK_TYPE stype;
+	int scope;
+	int id;
+	bool constant;
+	bool initialized;
+
+	// Add value union?
+};
+
+typedef struct nib_scope_tree_node NIB_SCOPE_NODE;
+
+struct nib_scope_tree_node {
+	int scope;
+
+	NIB_SCOPE_NODE *parent;		// Ancestors
+	NIB_SCOPE_NODE *head;		// Descendants
+	NIB_SCOPE_NODE *tail;		// Descendants
+	NIB_SCOPE_NODE *next;		// Sibling nodes
+};
+
+typedef struct nib_field_type NIB_FIELD;
+struct nib_field_type
+{
+	char *name;
+	bool readonly;
+	NIB_TYPE *type;
+	NIB_SCRIPT_STACK_TYPE stype;
+	size_t offset;
+
+	int id;				// ID is unique to the type
+};
+
+typedef struct nib_method_type NIB_METHOD;
+
+struct nib_method_type
+{
+	char *name;
+	NIB_TYPE *result;		// Use NULL to indicate no return
+	NIB_SCRIPT_STACK_TYPE sresult;
+
+	int nparams;
+	NIB_TYPE **params;
+
+	char *method_name;		// Copy of internal method name
+	METHOD_FUNC *method;
+
+	int id;
+};
+
+struct nib_method_func_type
+{
+	char *name;
+	METHOD_FUNC *func;
+};
+
+typedef struct statement_s
+{
+    bool may_return         : 1;  /* The statement may issue a return.   */
+    bool may_break          : 1;  /* The statement may issue a break.    */
+    bool may_continue       : 1;  /* The statement may issue a continue. */
+    bool may_finish         : 1;  /* The statement may finish without
+                                   * a break or return.
+                                   */
+    bool is_empty           : 1;  /* There is no real statement.         */
+    bool warned_dead_code   : 1;  /* We already warned about dead code.  */
+} NIB_STATEMENT;
+
+
+
+typedef struct nib_script_comment_s NIB_SCRIPT_COMMENT;
+
+struct nib_script_comment_s {
+	long address;
+	char *comment;
+};
+
 struct lvalue_s {
 	char *name;				// Name of variable to be used
 	NIB_TYPE *type;			// Resolved type of expression
@@ -307,12 +285,66 @@ struct lvalue_s {
 	size_t rhs_len;
 };
 
+struct rvalue_s {
+	char *name;				// Name of variable to be used
+	NIB_TYPE *type;			// Resolved type of expression
+	bool needs_use;
+	bool needs_pop;
+	flag_value_t flags;
+
+	nib_bytecode_p rhs;		// Used for reading a value
+	size_t rhs_len;
+};
+
+struct lrvalue_s {
+	char *name;				// Name of variable to be used
+	NIB_TYPE *type;			// Resolved type of expression
+	bool needs_use;
+	bool needs_pop;
+	flag_value_t flags;
+
+	nib_bytecode_p lhs;		// Used for assigning a value
+	size_t lhs_len;
+
+	nib_bytecode_p rhs;		// Used for reading a value
+	size_t rhs_len;
+};
+
+
+struct nib_bc_statment_s {
+	struct nib_bc_statment_s *next;
+	int address;
+};
+
+struct nib_break_s {
+	struct nib_break_s *prev;
+	struct nib_bc_statment_s *stmts;
+};
+
+struct nib_continue_s {
+	struct nib_continue_s *prev;
+	struct nib_bc_statment_s *stmts;
+};
+
 
 // compile.c
+extern struct nib_break_s *nib_break_address;
+extern struct nib_continue_s *nib_continue_address;
+
+void push_nib_break_address();
+void push_nib_break_statement(int address);
+void update_nib_break_statements(int address);
+void push_nib_continue_address();
+void push_nib_continue_statement(int address);
+void update_nib_continue_statements(int address);
+void pop_nib_break_address();
+void pop_nib_continue_address();
+
+LLIST *nib_create_comment_list();
 LLIST *nib_create_string_list();
 LLIST *nib_create_variable_list();
 LLIST *nib_create_type_list();
-bool nib_compile_script(const char *src);
+NIB_SCRIPT *nib_compile_script(const char *src, NIB_SCRIPT_CLASS sc);
 void nib_cleanup_compile();
 void nib_dump_global_variables();
 void nib_dump_local_variables();
@@ -327,9 +359,8 @@ int nib_get_string_in_storage(const char *str);
 int nib_add_string_to_storage(const char *str);
 void nib_dump_string_storage();
 void nib_dump_program();
+void nib_script_comment_add(long address, char *comment);
 
-// decompile.c
-void nib_decompile_code();
 
 
 // flags.c
@@ -359,6 +390,7 @@ bool list_appendlist(LLIST *lp, LLIST *src);
 void list_remlink(LLIST *lp, void *data, bool del);
 void *list_randomdata(LLIST *lp);
 void *list_nthdata(LLIST *lp, int nth);
+void **list_nthdataptr(LLIST *lp, int nth);
 void list_remnthlink(LLIST *lp, register int nth, bool del);
 bool list_contains(LLIST *lp, register void *ptr, int (*cmp)(void *a, void *b));
 bool list_hasdata(LLIST *lp, register void *ptr);
@@ -370,6 +402,7 @@ void iterator_start(ITERATOR *it, LLIST *lp);
 void iterator_start_nth(ITERATOR *it, LLIST *lp, int nth);
 LLIST_LINK *iterator_next(ITERATOR *it);
 void *iterator_nextdata(ITERATOR *it);
+void **iterator_nextdataptr(ITERATOR *it);
 void *iterator_prevdata(ITERATOR *it);
 void *iterator_currentdata(ITERATOR *it);
 void iterator_remcurrent(ITERATOR *it);
@@ -396,23 +429,27 @@ bool mem_buffer_update_long(NIB_BUFFER *buffer, int offset, long data);
 bool mem_buffer_update_float(NIB_BUFFER *buffer, int offset, double data);
 bool mem_buffer_append(NIB_BUFFER *buffer, nib_bytecode_p data, int len);
 bool mem_buffer_extend(NIB_BUFFER *buffer, int offset, int len);
+bool mem_buffer_prune(NIB_BUFFER *buffer, int offset, int len);
 void mem_buffer_clear(NIB_BUFFER *buffer);
 nib_bytecode_p mem_buffer_get(NIB_BUFFER *buffer);
 
 // methods.c
 size_t *nib_field_offset_lookup(NIB_TYPE *context, char *name);
 bool nib_field_valid_context(NIB_TYPE *context);
+NIB_FIELD *nib_field_get_byid(NIB_SCRIPT_STACK_TYPE context, int id);
 NIB_FIELD *nib_field_get(NIB_TYPE *context, char *name);
 bool nib_field_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, bool readonly, size_t offset);
 bool nib_method_valid_context(NIB_TYPE *context);
 METHOD_FUNC *nib_method_func_lookup(const char *name);
 NIB_METHOD *new_nib_method(char *name, NIB_TYPE *ret, LLIST *params, char *method_name, METHOD_FUNC *method_func);
 void free_nib_method(NIB_METHOD *method);
+NIB_METHOD *nib_method_get_byid(NIB_SCRIPT_STACK_TYPE context, int id);
 NIB_METHOD *nib_method_get(NIB_TYPE *context, char *name, LLIST *params);
 bool nib_method_exists(NIB_TYPE *context, char *name, LLIST *params);
 bool nib_method_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, LLIST *params, char *method_name, METHOD_FUNC *method_func);
 bool nib_methods_init();
 void nib_methods_cleanup();
+void nib_method_get_prototype(NIB_METHOD *method, char *buffer, size_t max_len);
 
 // scopetree.c
 void nib_init_scopetree();

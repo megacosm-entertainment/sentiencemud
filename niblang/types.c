@@ -251,6 +251,8 @@ NIB_TYPE *nib_type_copy(NIB_TYPE *src)
 {
 	if (!src) return nibtype_void;
 
+	if (src->_static) return src;	// Straight keep the static reference
+
 	NIB_TYPE *dest = nib_calloc(1,sizeof(NIB_TYPE));
 
 	dest->_static = false;

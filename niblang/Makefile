@@ -15,14 +15,15 @@ BISON_FILES = $(patsubst %.y,$(YACCDIR)/%.c,$(Y_FILES))
 
 C_FILES = \
 	compile.c \
-	decompile.c \
 	dummy.c \
 	flags.c \
+	interpret.c \
 	list.c \
 	main.c \
 	mem.c \
 	methods.c \
 	scopetree.c \
+	script.c \
 	types.c \
 	utils.c \
 	variables.c \

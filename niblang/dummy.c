@@ -11,11 +11,28 @@ Dummy file that will contain method functions to be referenced by the pointer ta
 #include <math.h>
 
 #include "niblang.h"
+#include "script.h"
+#include "interpret.h"
 
 AREA_DATA plith = {
 	.name = "Plith",
 	.description = "The Town of Plith.",
-	.flags = AREA_NEWBIE
+	.flags = AREA_NEWBIE,
+	.rooms = NULL
+};
+
+CHAR_DATA steiner = {
+	.name = "steiner",
+	.short_descr = "Steiner",
+	.long_descr = "Steiner watches over the Town of Plith.",
+	.description = ""
+};
+
+ROOM_INDEX_DATA beginning = {
+	.vnum = 1L,
+	.name = "The Beginning",
+	.description = "The heart of the Town of Plith.",
+	.people = NULL
 };
 
 const struct flag_type affect_flags[] =
@@ -79,7 +96,7 @@ const struct flag_type area_flags[] =
     {	NULL,			0,			0	}
 };
 
-
+/* 
 AREA_DATA *new_area()
 {
 	AREA_DATA *area = calloc(1, sizeof(AREA_DATA));
@@ -98,6 +115,29 @@ void free_area(AREA_DATA *area)
 		free(area->description);
 		free(area);
 	}
+}
+*/
+
+void dummy_init()
+{
+	plith.rooms = list_create(false);
+	list_appendlink(plith.rooms, &beginning);
+
+	beginning.people = list_create(false);
+	list_appendlink(beginning.people, &steiner);
+}
+
+void dummy_cleanup()
+{
+	list_destroy(plith.rooms);
+	list_destroy(beginning.people);
+
+}
+
+// Functions
+DECL_METHOD_FUNC(function_reckoning)
+{
+	return 0;
 }
 
 // NUMBER methods
@@ -341,6 +381,32 @@ pVARIABLE variable_new_area(const char *name, AREA_DATA *area)
 	{
 		var->type = VAR_AREA;
 		var->_.area = area;
+	}
+
+	return var;
+}
+
+pVARIABLE variable_new_mobile(const char *name, CHAR_DATA *mobile)
+{
+	pVARIABLE var = variable_new(name);
+
+	if (var)
+	{
+		var->type = VAR_MOBILE;
+		var->_.mobile = mobile;
+	}
+
+	return var;
+}
+
+pVARIABLE variable_new_room(const char *name, ROOM_INDEX_DATA *room)
+{
+	pVARIABLE var = variable_new(name);
+
+	if (var)
+	{
+		var->type = VAR_ROOM;
+		var->_.room = room;
 	}
 
 	return var;

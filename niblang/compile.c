@@ -6,7 +6,7 @@
 
 
 #include "niblang.h"
-
+#include "script.h"
 
 // HACK to fix the YYSTYPE for flex / bison interaction with regards to adding a name prefix
 #define YYSTYPE NIBSTYPE
@@ -17,6 +17,8 @@
 
 int nibparse();
 
+
+
 NIB_BUFFER *nib_program_storage = NULL;
 // Variable Storage
 LLIST *nib_global_variables = NULL;
@@ -24,6 +26,163 @@ LLIST *nib_local_variables = NULL;
 
 // String Storage
 LLIST *nib_string_storage = NULL;
+
+// Comment Storage
+LLIST *nib_comment_storage = NULL;
+
+struct nib_break_s *nib_break_address = NULL;
+struct nib_continue_s *nib_continue_address = NULL;
+
+void free_nib_bc_statement(struct nib_bc_statment_s *stmt)
+{
+	if (stmt)
+	{
+		free_nib_bc_statement(stmt->next);
+		nib_free(stmt);
+	}
+}
+
+void push_nib_break_address()
+{
+	struct nib_break_s *ba = nib_calloc(1, sizeof(struct nib_break_s));
+
+	ba->prev = nib_break_address;
+	nib_break_address = ba;
+}
+
+void push_nib_break_statement(int address)
+{
+	struct nib_bc_statment_s *stmt = nib_calloc(1, sizeof(struct nib_bc_statment_s));
+
+	stmt->address = address;
+	stmt->next = nib_break_address->stmts;
+	nib_break_address->stmts = stmt;
+}
+
+void update_nib_break_statements(int address)
+{
+	if (nib_break_address)
+	{
+		struct nib_bc_statment_s *stmt = nib_break_address->stmts;
+
+		while(stmt)
+		{
+			memcpy(nib_program_storage->buffer + stmt->address, &address, sizeof(address));
+
+			stmt = stmt->next;
+		}
+	}
+}
+
+
+void push_nib_continue_address()
+{
+	struct nib_continue_s *ca = nib_calloc(1, sizeof(struct nib_continue_s));
+
+	ca->prev = nib_continue_address;
+	nib_continue_address = ca;
+}
+
+void push_nib_continue_statement(int address)
+{
+	struct nib_bc_statment_s *stmt = nib_calloc(1, sizeof(struct nib_bc_statment_s));
+
+	stmt->address = address;
+	stmt->next = nib_continue_address->stmts;
+	nib_continue_address->stmts = stmt;
+}
+
+void update_nib_continue_statements(int address)
+{
+	if (nib_continue_address)
+	{
+		struct nib_bc_statment_s *stmt = nib_continue_address->stmts;
+
+		while(stmt)
+		{
+			memcpy(nib_program_storage->buffer + stmt->address, &address, sizeof(address));
+
+			stmt = stmt->next;
+		}
+	}
+}
+
+
+void pop_nib_break_address()
+{
+	if (nib_break_address)
+	{
+		struct nib_break_s *ba = nib_break_address->prev;
+		free_nib_bc_statement(nib_break_address->stmts);
+		nib_free(nib_break_address);
+		nib_break_address = ba;
+	}
+}
+
+void pop_nib_continue_address()
+{
+	if (nib_continue_address)
+	{
+		struct nib_continue_s *ca = nib_continue_address->prev;
+		free_nib_bc_statement(nib_continue_address->stmts);
+		nib_free(nib_continue_address);
+		nib_continue_address = ca;
+	}
+}
+
+NIB_SCRIPT_COMMENT *new_nib_script_comment(long address, char *comment)
+{
+	NIB_SCRIPT_COMMENT *data = nib_calloc(1, sizeof(NIB_SCRIPT_COMMENT));
+
+	if (data)
+	{
+		data->address = address;
+		data->comment = nib_strdup(comment);
+	}
+
+	return data;
+}
+
+NIB_SCRIPT_COMMENT *copy_nib_script_comment(NIB_SCRIPT_COMMENT *src)
+{
+	if (!src) return NULL;
+
+	NIB_SCRIPT_COMMENT *data = nib_calloc(1, sizeof(NIB_SCRIPT_COMMENT));
+
+	if (data)
+	{
+		data->address = src->address;
+		data->comment = nib_strdup(src->comment);
+	}
+
+	return data;
+}
+
+
+void nib_script_comment_add(long address, char *comment)
+{
+	NIB_SCRIPT_COMMENT *data = new_nib_script_comment(address, comment);
+
+	if (data)
+	{
+		list_appendlink(nib_comment_storage, data);
+	}
+}
+
+static void *__copy_comment(void *src)
+{
+	return copy_nib_script_comment((NIB_SCRIPT_COMMENT *)src);
+}
+
+static void __free_comment(void *data)
+{
+	if (!data) return;
+
+	NIB_SCRIPT_COMMENT *comment = (NIB_SCRIPT_COMMENT *)data;
+
+	nib_free(comment->comment);
+	nib_free(comment);
+}
 
 static void __free_string(void *data)
 {
@@ -57,6 +216,10 @@ static void *__copy_nibtype(void *data)
 	return nib_type_copy((NIB_TYPE *)data);
 }
 
+LLIST *nib_create_comment_list()
+{
+	return list_createx(false, __copy_comment, __free_comment);
+}
 
 LLIST *nib_create_string_list()
 {
@@ -90,6 +253,9 @@ bool nib_init_compile()
 	nib_string_storage = nib_create_string_list();
 	if (!list_isvalid(nib_string_storage)) return false;
 
+	nib_comment_storage = nib_create_comment_list();
+	if (!list_isvalid(nib_comment_storage)) return false;
+
 	if (!flag_tables_init()) return false;
 
 	return true;
@@ -102,30 +268,37 @@ void nib_cleanup_compile()
 	list_destroy(nib_global_variables);
 	list_destroy(nib_local_variables);
 	list_destroy(nib_string_storage);
+	list_destroy(nib_comment_storage);
 
 	nib_program_storage = NULL;
 	nib_global_variables = NULL;
 	nib_local_variables = NULL;
 	nib_string_storage = NULL;
+	nib_comment_storage = NULL;
 
 	flag_tables_cleanup();
 
 	nib_cleanup_scopetree();
 }
 
-bool nib_compile_script(const char *src)
+NIB_SCRIPT_CLASS nib_compile_script_class;
+
+NIB_SCRIPT *nib_compile_script(const char *src, NIB_SCRIPT_CLASS sc)
 {
-	if(!nib_init_compile()) return false;
+	if(!nib_init_compile()) return NULL;
 
 	YY_BUFFER_STATE state = nib_scan_string(src);
 
+	nib_compile_script_class = sc;
+
 	if (nibparse()) {
 		/* error parsing */
-		return false;
+		return NULL;
 	}
 
 	nib_delete_buffer(state);
-	return true;
+
+	return new_nib_script(src, nib_compile_script_class);
 }
 
 // Used to process the string into a compiled form for handling escape sequences

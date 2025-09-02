@@ -687,6 +687,23 @@ void *list_nthdata(LLIST *lp, register int nth)
 	return (link && !nth) ? link->data : NULL;
 }
 
+void **list_nthdataptr(LLIST *lp, register int nth)
+{
+	register LLIST_LINK *link = NULL;
+
+	if(lp && lp->valid) {
+		if( nth < 0 ) nth = lp->size + nth + 1;
+		for(link = lp->head; link && nth > 0; link = link->next)
+			if(link->data)
+			{
+				--nth;
+				if( !nth ) break;
+			}
+	}
+
+	return (link && !nth) ? &(link->data) : NULL;
+}
+
 void list_remnthlink(LLIST *lp, register int nth, bool del)
 {
 	register LLIST_LINK *link = NULL;
@@ -878,6 +895,27 @@ void *iterator_currentdata(ITERATOR *it)
     }
     return NULL;
 }
+
+// Used to get the data ptr for use in scripting
+//  Only used when the actual data is a naked pointer, and not a proxy type
+void **iterator_nextdataptr(ITERATOR *it)
+{
+	register LLIST_LINK *link = NULL;
+	//register LLIST_LINK *next = NULL;
+	if(it && it->list && it->list->valid && it->current) {
+		if( it->moved ) {
+			for(link = it->current->next; link && !link->data; link = link->next);
+		} else {
+			for(link = it->current; link && !link->data; link = link->next);
+
+			it->moved = true;
+		}
+		it->current = link;
+	}
+
+	return link ? &(link->data) : NULL;
+}
+
 
 void *iterator_nextdata(ITERATOR *it)
 {
