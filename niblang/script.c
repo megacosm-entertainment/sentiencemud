@@ -15,6 +15,9 @@ extern LLIST *nib_global_variables;
 extern LLIST *nib_local_variables;
 extern LLIST *nib_string_storage;
 extern LLIST *nib_comment_storage;
+extern LLIST *nib_flag_created_tables;
+extern LLIST *nib_stat_created_tables;
+extern LLIST *nib_used_tables;
 
 NIB_SCRIPT_STACK_TYPE convert_to_stype(NIB_TYPE *type);
 
@@ -35,6 +38,33 @@ NIB_SCRIPT *new_nib_script(const char *src, NIB_SCRIPT_CLASS sc)
 			script->code = malloc(nib_program_storage->len);
 			if (script->code)
 				memcpy(script->code, nib_program_storage->buffer, nib_program_storage->len);
+		}
+
+		// The script takes custody of these lists;
+		script->flag_tables = nib_flag_created_tables;
+		script->stat_tables = nib_stat_created_tables;
+
+		nib_flag_created_tables = NULL;
+		nib_stat_created_tables = NULL;
+
+		script->n_tables = list_size(nib_used_tables);
+		if (script->n_tables > 0)
+		{
+			script->tables = (struct flag_type **)calloc(script->n_tables,sizeof(struct flag_type *));
+
+			if (script->tables)
+			{
+				ITERATOR it;
+				struct flag_type *table;
+				int index = 0;
+
+				iterator_start(&it,nib_used_tables);
+				while((table = (struct flag_type *)iterator_nextdata(&it)))
+				{
+					script->tables[index++] = table;
+				}
+				iterator_stop(&it);
+			}
 		}
 
 		script->n_globals = list_size(nib_global_variables);
@@ -140,6 +170,10 @@ void free_nib_script(NIB_SCRIPT *script)
 			free(script->locals);
 		}
 
+		if (script->tables) free(script->tables);
+		list_destroy(script->flag_tables);
+		list_destroy(script->stat_tables);
+
 		if (script->strings)
 		{
 			for(int i = script->n_strings; i-- > 0;)
@@ -161,7 +195,7 @@ static const char *opcode_names[] = {
 	"LVALUE_LOCAL",
 	"LVALUE_GLOBAL",
 	"LVALUE_SELF",
-	"LVALUE_FLAG",	// Use for situations like flag.bit = true/false;
+	"LVALUE_BIT",	// Use for situations like flag.bit = true/false;
 	"LVALUE_FIELD",
 	"CALL_FUNCTION",
 	"CALL_METHOD",
@@ -170,7 +204,13 @@ static const char *opcode_names[] = {
 	"LOAD_CHAR",
 	"LOAD_STRING",
 	"LOAD_WIDEVNUM",
+	"LOAD_FLAG",
+	"LOAD_FLAG_TABLE",
+	"LOAD_STAT",
 	"NEW_LIST",
+	"NULL",
+	"TRUE",
+	"FALSE",
 	"CONST0",
 	"CONST1",
 	"NCONST1",
@@ -217,6 +257,9 @@ static const char *opcode_names[] = {
 	"LSH",
 	"RSH",
 	"RSHL",
+	"STRPREFIX",
+	"STRINFIX",
+	"STRSUFFIX",
 	"ADD_EQ",
 	"VOID_ADD_EQ",
 	"SUBT_EQ",
@@ -292,7 +335,10 @@ void nib_decompile_code(NIB_SCRIPT *script)
 	long number;
 	char ch;
 	double floating;
-	int string_index;
+	short string_index;
+	short table_index;
+	void *pointer;
+	struct flag_type *table;
 	NIB_SCRIPT_STACK_TYPE type = NST_UNKNOWN;
 
 	__print_comments(script, addr);
@@ -319,6 +365,9 @@ void nib_decompile_code(NIB_SCRIPT *script)
 		{
 		case NI_LVALUE_SELF:
 		case NI_LOAD_WIDEVNUM:
+		case NI_NULL:
+		case NI_TRUE:
+		case NI_FALSE:
 		case NI_CONST0:
 		case NI_CONST1:
 		case NI_NCONST1:
@@ -333,6 +382,8 @@ void nib_decompile_code(NIB_SCRIPT *script)
 		case NI_POST_DEC:
 		case NI_PRE_INC:
 		case NI_PRE_DEC:
+		case NI_LAND:
+		case NI_LOR:
 		case NI_LXOR:
 		case NI_LNOT:
 		case NI_ASSIGN:
@@ -403,7 +454,7 @@ void nib_decompile_code(NIB_SCRIPT *script)
 				if (var)
 				{
 					type = var->stype;
-					linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d (%s %s)", id, nib_get_typename(var->type), var->name);
+					linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d (%s %s)", id, nib_get_typename(script,var->type), var->name);
 				}
 				else
 				{
@@ -424,7 +475,7 @@ void nib_decompile_code(NIB_SCRIPT *script)
 				if (var)
 				{
 					type = var->stype;
-					linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d (%s %s)", id, nib_get_typename(var->type), var->name);
+					linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d (%s %s)", id, nib_get_typename(script,var->type), var->name);
 				}
 				else
 				{
@@ -445,7 +496,7 @@ void nib_decompile_code(NIB_SCRIPT *script)
 				if (field)
 				{
 					type = field->stype;
-					linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d (%s .%s)", id, nib_get_typename(field->type), field->name);
+					linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d (%s .%s)", id, nib_get_typename(script,field->type), field->name);
 				}
 				else
 				{
@@ -458,7 +509,7 @@ void nib_decompile_code(NIB_SCRIPT *script)
 			}
 
 		// Allows for access a flag bit
-		case NI_LVALUE_FLAG:
+		case NI_LVALUE_BIT:
 			{
 				flag_value_t bit;
 				memcpy(&bit, &pc[addr+1], sizeof(flag_value_t));
@@ -483,7 +534,7 @@ void nib_decompile_code(NIB_SCRIPT *script)
 				if (method)
 				{
 					type = method->sresult;
-					linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d, %d (%s %s)", id, args, nib_get_typename(method->result), method->name);
+					linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d, %d (%s %s)", id, args, nib_get_typename(script,method->result), method->name);
 				}
 				else
 				{
@@ -521,6 +572,34 @@ void nib_decompile_code(NIB_SCRIPT *script)
 			addr+=sizeof(number);
 			break;
 
+		case NI_LOAD_FLAG_TABLE:
+			memcpy(&number, &pc[addr+1], sizeof(number)); addr+=sizeof(number);
+			memcpy(&table_index, &pc[addr+1], sizeof(table_index)); addr+=sizeof(table_index);
+			if (table_index > 0 && table_index <= script->n_tables)
+				table = script->tables[table_index - 1];
+			else
+				table = NULL;
+
+			linej += snprintf(line + linej, sizeof(line) - linej - 1, " <[%08X@%s]>", number, nib_get_flag_table_name(script->flag_tables,table));
+			break;
+
+		case NI_LOAD_FLAG:
+			memcpy(&number, &pc[addr+1], sizeof(number));
+			linej += snprintf(line + linej, sizeof(line) - linej - 1, " <[%08X]>", number);
+
+			addr+=sizeof(number);
+			break;
+
+		case NI_LOAD_STAT:
+			memcpy(&number, &pc[addr+1], sizeof(number)); addr+=sizeof(number);
+			memcpy(&table_index, &pc[addr+1], sizeof(table_index)); addr+=sizeof(table_index);
+			if (table_index > 0 && table_index <= script->n_tables)
+				table = script->tables[table_index - 1];
+			else
+				table = NULL;
+			linej += snprintf(line + linej, sizeof(line) - linej - 1, " %ld@%s", number, nib_get_stat_table_name(script->stat_tables,table));
+			break;
+
 		case NI_LOAD_FLOAT:
 			memcpy(&floating, &pc[addr+1], sizeof(floating));
 			linej += snprintf(line + linej, sizeof(line) - linej - 1, " %lf", floating);
@@ -531,8 +610,6 @@ void nib_decompile_code(NIB_SCRIPT *script)
 		case NI_JUMP:
 		case NI_JUMP_ZERO:
 		case NI_JUMP_NOT_ZERO:
-		case NI_LAND:
-		case NI_LOR:
 			memcpy(&address, &pc[addr+1], sizeof(address));
 			linej += snprintf(line + linej, sizeof(line) - linej - 1, " <addr: %08X>", address);
 
@@ -549,7 +626,7 @@ void nib_decompile_code(NIB_SCRIPT *script)
 
 				if (var)
 				{
-					linej += snprintf(line + linej, sizeof(line) - linej - 1, " <addr: %08X> %d (%s %s)", address, id, nib_get_typename(var->type), var->name);
+					linej += snprintf(line + linej, sizeof(line) - linej - 1, " <addr: %08X> %d (%s %s)", address, id, nib_get_typename(script,var->type), var->name);
 				}
 				else
 				{
@@ -578,4 +655,34 @@ void nib_decompile_code(NIB_SCRIPT *script)
 	}
 
 	printf("%08X: --End of Code--\n\n", addr);
+}
+
+void nib_dump_script_tables(NIB_SCRIPT *script)
+{
+	ITERATOR it;
+	struct flag_type_lookup *lookup;
+
+	if (list_size(script->flag_tables) > 0)
+	{
+		printf("Flag Tables:\n");
+		iterator_start(&it, script->flag_tables);
+		while((lookup = (struct flag_type_lookup *)iterator_nextdata(&it)))
+		{
+			printf("- %s\n", lookup->name);
+		}
+		iterator_stop(&it);
+		printf("\n");
+	}
+
+	if (list_size(script->stat_tables) > 0)
+	{
+		printf("Stat Tables:\n");
+		iterator_start(&it, script->stat_tables);
+		while((lookup = (struct flag_type_lookup *)iterator_nextdata(&it)))
+		{
+			printf("- %s\n", lookup->name);
+		}
+		iterator_stop(&it);
+		printf("\n");
+	}
 }

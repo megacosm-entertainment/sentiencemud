@@ -14,26 +14,18 @@ Dummy file that will contain method functions to be referenced by the pointer ta
 #include "script.h"
 #include "interpret.h"
 
-AREA_DATA plith = {
-	.name = "Plith",
-	.description = "The Town of Plith.",
-	.flags = AREA_NEWBIE,
-	.rooms = NULL
-};
+AREA_DATA plith;
 
-CHAR_DATA steiner = {
-	.name = "steiner",
-	.short_descr = "Steiner",
-	.long_descr = "Steiner watches over the Town of Plith.",
-	.description = ""
-};
+MOB_INDEX_DATA steiner_index;
+CHAR_DATA steiner;
 
-ROOM_INDEX_DATA beginning = {
-	.vnum = 1L,
-	.name = "The Beginning",
-	.description = "The heart of the Town of Plith.",
-	.people = NULL
-};
+MOB_INDEX_DATA ravage_index;
+CHAR_DATA ravage;
+
+MOB_INDEX_DATA mayor_index;
+CHAR_DATA mayor;
+
+ROOM_INDEX_DATA beginning;
 
 const struct flag_type affect_flags[] =
 {
@@ -120,18 +112,93 @@ void free_area(AREA_DATA *area)
 
 void dummy_init()
 {
+	steiner_index.area = &plith;
+	steiner_index.vnum = 1L;
+	steiner.pIndexData = &steiner_index;
+	steiner.name = strdup("steiner");
+	steiner.short_descr = strdup("Steiner");
+	steiner.long_descr = strdup("Steiner watches over the Town of Plith.");
+	steiner.description = strdup("");
+
+	ravage_index.area = &plith;
+	ravage_index.vnum = 2L;
+	ravage.pIndexData = &ravage_index;
+	ravage.name = strdup("ravage");
+	ravage.short_descr = strdup("Ravage");
+	ravage.long_descr = strdup("The sinister Ravage looms over the city.");
+	ravage.description = strdup("");
+
+	mayor_index.area = &plith;
+	mayor_index.vnum = 3L;
+	mayor.pIndexData = &mayor_index;
+	mayor.name = strdup("mayor plith");
+	mayor.short_descr = strdup("the Mayor of Plith");
+	mayor.long_descr = strdup("The Mayor governs Plith with a firm hand.");
+	mayor.description = strdup("");
+
+	beginning.area = &plith;
+	beginning.vnum = 1L;
+	beginning.name = strdup("The Beginning");
+	beginning.description = strdup("The heart of the Town of Plith.");
+	beginning.people = list_create(false);
+	list_appendlink(beginning.people, &steiner);
+	list_appendlink(beginning.people, &ravage);
+	list_appendlink(beginning.people, &mayor);
+
+	plith.uid = 1;
+	plith.name = strdup("Plith");
+	plith.description = strdup("The Town of Plith.");
+	plith.flags = AREA_NEWBIE;
 	plith.rooms = list_create(false);
 	list_appendlink(plith.rooms, &beginning);
 
-	beginning.people = list_create(false);
-	list_appendlink(beginning.people, &steiner);
+	nib_register_flag_table("affect", affect_flags);
+	nib_register_flag_table("area", area_flags);
 }
 
 void dummy_cleanup()
 {
-	list_destroy(plith.rooms);
+	if (steiner.name) free(steiner.name);
+	if (steiner.short_descr) free(steiner.short_descr);
+	if (steiner.long_descr) free(steiner.long_descr);
+	if (steiner.description) free(steiner.description);
+
+	if (ravage.name) free(ravage.name);
+	if (ravage.short_descr) free(ravage.short_descr);
+	if (ravage.long_descr) free(ravage.long_descr);
+	if (ravage.description) free(ravage.description);
+
+	if (mayor.name) free(mayor.name);
+	if (mayor.short_descr) free(mayor.short_descr);
+	if (mayor.long_descr) free(mayor.long_descr);
+	if (mayor.description) free(mayor.description);
+
+	if (beginning.name) free(beginning.name);
+	if (beginning.description) free(beginning.description);
 	list_destroy(beginning.people);
 
+	if (plith.name) free(plith.name);
+	if (plith.description) free(plith.description);
+	list_destroy(plith.rooms);
+
+
+
+}
+
+AREA_DATA *find_area(char *name)
+{
+	if (!name) return NULL;
+
+	if (!str_cmp(plith.name, name))
+		return &plith;
+
+	return NULL;
+}
+
+AREA_DATA *get_area_from_uid (long uid)
+{
+	if (plith.uid == uid) return &plith;
+	return NULL;
 }
 
 // Functions
@@ -162,6 +229,25 @@ DECL_METHOD_FUNC(string_length)
 // FLAG methods
 
 // LIST methods
+DECL_METHOD_FUNC(list_add)
+{
+	return 0;
+}
+
+DECL_METHOD_FUNC(list_insert)
+{
+	return 0;
+}
+
+DECL_METHOD_FUNC(list_remove)
+{
+	return 0;
+}
+
+DECL_METHOD_FUNC(list_size)
+{
+	return 0;
+}
 
 // STAT methods
 

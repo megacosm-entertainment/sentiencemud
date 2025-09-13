@@ -4,49 +4,100 @@
 #include <malloc.h>
 
 #include "niblang.h"
+#include "interpret.h"
 
-static LLIST *flag_created_tables = NULL;
-static LLIST *stat_created_tables = NULL;
-
-struct flag_type_lookup
-{
-	char *name;
-	struct flag_type *table;
-	bool _static;
-};
-
-extern const struct flag_type affect_flags[];
-extern const struct flag_type area_flags[];
-
+extern LLIST *nib_flag_created_tables;
+extern LLIST *nib_stat_created_tables;
+extern LLIST *nib_used_tables;
 
 #define FTLK(n,f)	{ n, (struct flag_type *)f, true }
 #define FTLKNULL	{ NULL, NULL, true }
 
-struct flag_type_lookup flag_list[] = 
-{
-	FTLK("affects", affect_flags),
-	FTLK("area", area_flags),
-	FTLKNULL
-};
+struct flag_type_lookup *flag_list_head = NULL;
+struct flag_type_lookup *flag_list_tail = NULL;
 
-struct flag_type_lookup stat_list[] = 
-{
-	FTLKNULL
-};
+struct flag_type_lookup *stat_list_head = NULL;
+struct flag_type_lookup *stat_list_tail = NULL;
 
-
-const struct flag_type *lookup_flag_table(const char *name)
+static const struct flag_type_lookup *get_internal_flag_table(const char *name)
 {
-	for(int i = 0; flag_list[i].name; i++)
+	for(struct flag_type_lookup *cur = flag_list_head; cur; cur = cur->next)
 	{
-		if (!str_cmp(name, flag_list[i].name))
-			return flag_list[i].table;
+		if (!str_cmp(name, cur->name))
+			return cur;
+	}
+
+	return NULL;
+}
+
+bool nib_register_flag_table(const char *name, const struct flag_type *table)
+{
+	if (get_internal_flag_table(name))
+		return false;
+	
+	struct flag_type_lookup *lookup = nib_malloc(sizeof(struct flag_type_lookup));
+	if (!lookup) return false;
+
+	if (flag_list_head)
+		flag_list_tail->next = lookup;
+	else
+		flag_list_head = lookup;
+	flag_list_tail = lookup;
+	
+	lookup->next = NULL;
+	lookup->name = nib_strdup(name);
+	lookup->table = (struct flag_type *)table;
+	lookup->internal = true;	// Table is internal, just free the name
+
+	return true;
+}
+
+
+static const struct flag_type_lookup *get_internal_stat_table(const char *name)
+{
+	for(struct flag_type_lookup *cur = stat_list_head; cur; cur = cur->next)
+	{
+		if (!str_cmp(name, cur->name))
+			return cur;
+	}
+
+	return NULL;
+}
+
+bool nib_register_stat_table(const char *name, const struct flag_type *table)
+{
+	if (get_internal_stat_table(name))
+		return false;
+	
+	struct flag_type_lookup *lookup = nib_malloc(sizeof(struct flag_type_lookup));
+	if (!lookup) return false;
+
+	if (stat_list_head)
+		stat_list_tail->next = lookup;
+	else
+		stat_list_head = lookup;
+	stat_list_tail = lookup;
+	
+	lookup->next = NULL;
+	lookup->name = nib_strdup(name);
+	lookup->table = (struct flag_type *)table;
+	lookup->internal = true;	// Table is internal, just free the name
+
+	return true;
+}
+
+const struct flag_type *nib_lookup_flag_table(LLIST *created, const char *name)
+{
+	for(struct flag_type_lookup *cur = flag_list_head; cur; cur = cur->next)
+	{
+		if (!str_cmp(name, cur->name))
+			return cur->table;
 	}
 
 	ITERATOR it;
 	struct flag_type_lookup *lookup;
 
-	iterator_start(&it, flag_created_tables);
+	iterator_start(&it, created);
 	while((lookup = (struct flag_type_lookup *)iterator_nextdata(&it)))
 	{
 		if(lookup->name && !str_cmp(name, lookup->name))
@@ -57,19 +108,18 @@ const struct flag_type *lookup_flag_table(const char *name)
 	return lookup ? lookup->table : NULL;
 }
 
-
-const char *get_flag_table_name(const struct flag_type *table)
+const char *nib_get_flag_table_name(LLIST *created, const struct flag_type *table)
 {
-	for(int i = 0; flag_list[i].name; i++)
+	for(struct flag_type_lookup *cur = flag_list_head; cur; cur = cur->next)
 	{
-		if (flag_list[i].table == table)
-			return flag_list[i].name;
+		if (cur->table == table)
+			return cur->name;
 	}
 
 	ITERATOR it;
 	struct flag_type_lookup *lookup;
 
-	iterator_start(&it, flag_created_tables);
+	iterator_start(&it, created);
 	while((lookup = (struct flag_type_lookup *)iterator_nextdata(&it)))
 	{
 		if(lookup->name && lookup->table == table)
@@ -80,18 +130,18 @@ const char *get_flag_table_name(const struct flag_type *table)
 	return lookup ? lookup->name : "NULL";
 }
 
-const struct flag_type *lookup_stat_table(const char *name)
+const struct flag_type *nib_lookup_stat_table(LLIST *created, const char *name)
 {
-	for(int i = 0; stat_list[i].name; i++)
+	for(struct flag_type_lookup *cur = stat_list_head; cur; cur = cur->next)
 	{
-		if (!str_cmp(name, stat_list[i].name))
-			return stat_list[i].table;
+		if (!str_cmp(name, cur->name))
+			return cur->table;
 	}
 
 	ITERATOR it;
 	struct flag_type_lookup *lookup;
 
-	iterator_start(&it, stat_created_tables);
+	iterator_start(&it, created);
 	while((lookup = (struct flag_type_lookup *)iterator_nextdata(&it)))
 	{
 		if(lookup->name && !str_cmp(name, lookup->name))
@@ -102,18 +152,18 @@ const struct flag_type *lookup_stat_table(const char *name)
 	return lookup ? lookup->table : NULL;
 }
 
-const char *get_stat_table_name(const struct flag_type *table)
+const char *nib_get_stat_table_name(LLIST *created, const struct flag_type *table)
 {
-	for(int i = 0; stat_list[i].name; i++)
+	for(struct flag_type_lookup *cur = stat_list_head; cur; cur = cur->next)
 	{
-		if (stat_list[i].table == table)
-			return stat_list[i].name;
+		if (cur->table == table)
+			return cur->name;
 	}
 
 	ITERATOR it;
 	struct flag_type_lookup *lookup;
 
-	iterator_start(&it, stat_created_tables);
+	iterator_start(&it, created);
 	while((lookup = (struct flag_type_lookup *)iterator_nextdata(&it)))
 	{
 		if(lookup->name && lookup->table == table)
@@ -124,13 +174,13 @@ const char *get_stat_table_name(const struct flag_type *table)
 	return lookup ? lookup->name : "NULL";
 }
 
-bool find_flag_value(const struct flag_type *table, const char *name, bool settable, flag_value_t *output)
+bool nib_find_flag_value(const struct flag_type *table, const char *name, bool *settable, flag_value_t *output)
 {
 	for(int i = 0; table[i].name; i++)
 	{
-		if (!str_cmp(name, table[i].name) &&
-			(!settable || table[i].settable))
+		if (!str_cmp(name, table[i].name))
 		{
+			if (settable) *settable = table[i].settable;
 			if (output) *output = (flag_value_t)table[i].bit;
 			return true;
 		}
@@ -139,12 +189,86 @@ bool find_flag_value(const struct flag_type *table, const char *name, bool setta
 	return false;
 }
 
-void flag_free_table(struct flag_type_lookup *lookup)
+const char *nib_get_flag_string(const struct flag_type *table, long bits)
 {
-	if (lookup && !lookup->_static)
+	static char buf[4][512];
+	static int cnt = 0;
+	int  flag;
+
+	if (!table) return "none";
+
+	if ( ++cnt > 3 )
+		cnt = 0;
+
+	buf[cnt][0] = '\0';
+	for (flag = 0; table[flag].name != NULL; flag++)
+	{
+		if ( (bits & table[flag].bit) )
+		{
+			strcat( buf[cnt], " " );
+			strcat( buf[cnt], table[flag].name );
+		}
+	}
+	return (buf[cnt][0] != '\0') ? buf[cnt]+1 : "none";
+}
+
+const char *nib_get_stat_string(const struct flag_type *table, long bits)
+{
+	if (table)
+	{
+		for (int flag = 0; table[flag].name != NULL; flag++)
+		{
+			if ( table[flag].bit == bits )
+				return table[flag].name;
+		}
+	}
+	return "none";
+}
+
+struct flag_type_lookup *nib_flag_copy_table(struct flag_type_lookup *src)
+{
+	if (!src) return NULL;
+
+	struct flag_type_lookup *lookup = nib_calloc(1,sizeof(struct flag_type_lookup));
+	if (lookup)
+	{
+		lookup->internal = src->internal;
+		lookup->name = nib_strdup(src->name);
+
+		if (src->internal)
+			lookup->table = src->table;
+		else if (src->table)
+		{
+			int count = 0;
+			for(; src->table[count].name; count++);
+
+			lookup->table = nib_calloc(count + 1,sizeof(struct flag_type));
+			if (!lookup->table)
+			{
+				nib_free(lookup->name);
+				nib_free(lookup);
+				return NULL;
+			}
+
+			for(int i = 0; i < count; i++)
+			{
+				lookup->table[i].name = strdup(src->table[i].name);
+				lookup->table[i].bit = src->table[i].bit;
+				lookup->table[i].settable = src->table[i].settable;
+			}
+			
+		}
+	}
+
+	return lookup;
+}
+
+void nib_flag_free_table(struct flag_type_lookup *lookup)
+{
+	if (lookup)
 	{
 		if (lookup->name) nib_free(lookup->name);
-		if (lookup->table)
+		if (!lookup->internal && lookup->table)
 		{
 			for(int i = 0; lookup->table[i].name; i++)
 			{
@@ -159,7 +283,7 @@ void flag_free_table(struct flag_type_lookup *lookup)
 }
 
 // Only name and bit will be set
-struct flag_type_lookup *flag_new_table(LLIST *names, char *table_name)
+struct flag_type_lookup *nib_flag_new_table(LLIST *names, char *table_name)
 {
 	// ASSUME names length is valid
 	// ASSUME table_name is valid;
@@ -167,14 +291,14 @@ struct flag_type_lookup *flag_new_table(LLIST *names, char *table_name)
 	struct flag_type_lookup *lookup = nib_calloc(1, sizeof(struct flag_type_lookup));
 	if(lookup)
 	{
-		lookup->_static = false;
+		lookup->internal = false;
 		lookup->name = strdup(table_name);
 
 		// the +1 will fit the {NULL, ... } entry at the end
 		struct flag_type *table = nib_calloc(list_size(names) + 1, sizeof(struct flag_type));
 		if (!table)
 		{
-			flag_free_table(lookup);
+			nib_flag_free_table(lookup);
 			return NULL;
 		}
 
@@ -204,31 +328,31 @@ struct flag_type_lookup *flag_new_table(LLIST *names, char *table_name)
 }
 
 
-bool flag_add_table(LLIST *names, char *table_name)
+bool nib_flag_add_table(LLIST *names, char *table_name)
 {
 	// ASSUME names length is valid
-	struct flag_type_lookup *lookup = flag_new_table(names, table_name);
+	struct flag_type_lookup *lookup = nib_flag_new_table(names, table_name);
 	if (!lookup) return false;
 
-	list_appendlink(flag_created_tables, lookup);
+	list_appendlink(nib_flag_created_tables, lookup);
 }
 
 
-struct flag_type_lookup *stat_new_table(LLIST *names, char *table_name)
+struct flag_type_lookup *nib_stat_new_table(LLIST *names, char *table_name)
 {
 	// ASSUME table_name is valid;
 
 	struct flag_type_lookup *lookup = nib_calloc(1, sizeof(struct flag_type_lookup));
 	if(lookup)
 	{
-		lookup->_static = false;
+		lookup->internal = false;
 		lookup->name = strdup(table_name);
 
 		// the +1 will fit the {NULL, ... } entry at the end
 		struct flag_type *table = nib_calloc(list_size(names) + 1, sizeof(struct flag_type));
 		if (!table)
 		{
-			flag_free_table(lookup);
+			nib_flag_free_table(lookup);
 			return NULL;
 		}
 
@@ -257,35 +381,43 @@ struct flag_type_lookup *stat_new_table(LLIST *names, char *table_name)
 	return lookup;
 }
 
-bool stat_add_table(LLIST *names, char *table_name)
+bool nib_stat_add_table(LLIST *names, char *table_name)
 {
 	// ASSUME names length is valid
-	struct flag_type_lookup *lookup = stat_new_table(names, table_name);
+	struct flag_type_lookup *lookup = nib_stat_new_table(names, table_name);
 	if (!lookup) return false;
 
-	list_appendlink(stat_created_tables, lookup);
+	list_appendlink(nib_stat_created_tables, lookup);
 }
 
-
-
-static void __flag_free_table(void *data)
+int nib_add_used_table(const struct flag_type *table)
 {
-	flag_free_table((struct flag_type_lookup *)data);
+	int index = list_getindex(nib_used_tables, (void*)table);
+	if (index > 0) return index;
+
+	list_appendlink(nib_used_tables,(void *)table);
+	return list_size(nib_used_tables);
 }
 
-bool flag_tables_init()
+void nib_flag_tables_cleanup()
 {
-	flag_created_tables = list_createx(false, NULL, __flag_free_table);
-	if (!list_isvalid(flag_created_tables)) return false;
+	for(struct flag_type_lookup *cur = flag_list_head; cur;)
+	{
+		struct flag_type_lookup *next = cur->next;
+		nib_flag_free_table(cur);
+		cur = next;
+	}
 
-	stat_created_tables = list_createx(false, NULL, __flag_free_table);
-	if (!list_isvalid(stat_created_tables)) return false;
+	flag_list_head = NULL;
+	flag_list_tail = NULL;
 
-	return true;
-}
+	for(struct flag_type_lookup *cur = stat_list_head; cur;)
+	{
+		struct flag_type_lookup *next = cur->next;
+		nib_flag_free_table(cur);
+		cur = next;
+	}
 
-void flag_tables_cleanup()
-{
-	list_destroy(flag_created_tables);
-	list_destroy(stat_created_tables);
+	stat_list_head = NULL;
+	stat_list_tail = NULL;
 }

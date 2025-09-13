@@ -1,5 +1,6 @@
 OBJDIR = obj
 YACCDIR = yacc
+C_FLAGS = -Werror -Wfatal-errors -Wno-trigraphs
 
 L_FILES = \
 	lexer.l \
@@ -26,11 +27,13 @@ C_FILES = \
 	script.c \
 	types.c \
 	utils.c \
-	variables.c \
+	variables.c
+
+YACC_C_FILES = \
 	$(FLEX_FILES) \
 	$(BISON_FILES)
 
-O_FILES = $(patsubst $(YACCDIR)/%.c,$(OBJDIR)/$(YACCDIR)/%.o,$(patsubst %.c,$(OBJDIR)/%.o,$(C_FILES)))
+O_FILES = $(patsubst $(YACCDIR)/%.c,$(OBJDIR)/$(YACCDIR)/%.o,$(YACC_C_FILES)) $(patsubst %.c,$(OBJDIR)/%.o,$(C_FILES))
 
 EXE = niblang
 
@@ -53,7 +56,7 @@ $(YACCDIR)/%.c:  %.y
 
 $(OBJDIR)/%.o:	%.c
 	@echo Building $@...
-	@gcc -g -c $< -o $@
+	@gcc -g $(C_FLAGS) -c $< -o $@
 
 $(EXE): $(O_FILES)
 	@echo Building $@
@@ -61,9 +64,29 @@ $(EXE): $(O_FILES)
 	@gcc -g -o $@ $^ -lm
 	@-chmod 775 $@
 
+-include .depend
+
 clean:
 	@-rm -f $(OBJDIR)/*.o
 	@-rm -f $(OBJDIR)/$(YACCDIR)/*.o
 	@-rm -f $(YACCDIR)/*.*
 	@-rm -rf $(OBJDIR)
 	@-rm -rf $(YACCDIR)
+
+depend:
+	@gcc -E -MM $(C_FILES) -I. > .depend
+	@sed -e "/.*:/s//obj\/&/g" <.depend > .depend2
+	@gcc -E -MM $(YACC_C_FILES) -I. > .depend
+	@sed -e "/.*:/s//obj\/yacc\/&/g" <.depend > .depend3
+	@sed -e "/yacc\/\.\.\//s///g" <.depend3 > .depend4
+	@sed -e "/#.*/s///g" <.depend2 > .depend
+	@sed -e "/#.*/s///g" <.depend4 >> .depend
+	@rm -f .depend2
+	@rm -f .depend3
+	@rm -f .depend4
+
+test:
+	@gcc -E -MM $(C_FILES) -I. > .depend
+	@sed -e "/.*:/s//obj\/&/g" <.depend > .depend2
+	@sed -e "/#.*/s///g" <.depend2 > .depend
+	@rm -f .depend2

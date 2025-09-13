@@ -1,9 +1,14 @@
+#include <sys/ioctl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <malloc.h>
+#include <termios.h>
+#include <unistd.h>
 
 #include "niblang.h"
 
+extern int nibmethoddebug;
 extern int nibdebug;
 
 char *fread_file(char *path)
@@ -38,25 +43,77 @@ char *fread_file(char *path)
 void dummy_init();
 void dummy_cleanup();
 
+struct parse_params_s {
+	char *name;
+	bool dump;
+	bool run;
+	bool step;
+};
+
+bool parse_args(int argc, char **argv, struct parse_params_s *params)
+{
+	int n = 1;	// Skip argv[0]
+	memset(params,0,sizeof(*params));
+	params->run = true;
+	params->step = false;
+	
+	while(n < argc)
+	{
+		if (!str_cmp(argv[n], "-d"))
+			params->dump = true;
+		else if (!str_cmp(argv[n], "-s"))
+			params->step = true;
+		else if (!str_cmp(argv[n], "-f"))
+		{
+			if ((n+1) >= argc)
+			{
+				fprintf(stderr, "Missing input file name.\n");
+				return false;
+			}
+
+			params->name = argv[++n];
+		}
+		else
+		{
+			fprintf(stderr, "Invalid option '%s'.\n", argv[n]);
+			return false;
+		}
+		
+		n++;
+	}
+
+	return true;
+}
+
 int main(int argc, char **argv)
 {
-	if (argc != 2)
+	struct parse_params_s params;
+	if (!parse_args(argc,argv,&params))
 	{
-		fprintf(stderr, "Usage: niblang <script>\n");
+		fprintf(stderr, "Usage: niblang <options>\n");
+		fprintf(stderr, "Options:\n");
+		fprintf(stderr, "-f <file>   - Compiles <file>.\n");
+		fprintf(stderr, "-d          - Dumps compiled script information.\n");
+		fprintf(stderr, "-s          - Executes the script in Step mode.\n");
 		exit(-1);
 	}
 
+	nibmethoddebug = 0;
+
+	dummy_init();
+
 	if (!nib_methods_init())
 	{
+		dummy_cleanup();
+		nib_flag_tables_cleanup();
+		nib_ledger_cleanup();
 		fprintf(stderr, "Failed to load method definitions.\n");
 		exit(1);
 	}
 
-	dummy_init();
-
 	if(variable_init())
 	{
-		char *source = fread_file(argv[1]);
+		char *source = fread_file(params.name);
 		
 		if (source)
 		{
@@ -66,25 +123,94 @@ int main(int argc, char **argv)
 			printf("----------------------------------\n");
 			printf("\n");
 
-			// Need to add global variables for use in scripting stuff
-
 			nibdebug = 0;
 			// Compile source
 			NIB_SCRIPT *script = nib_compile_script(source, NSC_MOBILE);
 			if (script)
 			{
+				struct termios oldt, newt;
+				tcgetattr(STDIN_FILENO, &oldt);
+				newt = oldt;
+				newt.c_lflag &= ~(ICANON | ECHO);
+				tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+
+				printf("\033[?25l");
+
 				// Post processing
-				nib_dump_program();
+				if (params.dump)
+				{
+					nib_dump_program();
 
-				nib_decompile_code(script);
+					nib_decompile_code(script);
 
-				nib_dump_scopetree();
+					nib_dump_script_tables(script);
 
-				// List all the variables
-				nib_dump_global_variables();
-				nib_dump_local_variables();
+					nib_dump_scopetree();
 
-				nib_dump_string_storage();
+					// List all the variables
+					// nib_dump_global_variables();
+					// nib_dump_local_variables();
+
+					// nib_dump_string_storage();
+
+					printf("Press Q to quit.  Anything else to continue.");
+
+					char ch = getchar();
+					if (ch == 'q' || ch == 'Q')
+						params.run = false;
+
+					printf("\n");
+				}
+
+				if (params.run)
+				{
+					if (params.step)
+					{
+						struct winsize w;
+						ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+					
+						NIB_SCRIPT_RUNTIME *nsr = nib_step_execute_init(script);
+						if (nsr && !nib_is_execution_done(nsr))
+						{
+							nib_step_execute_show(nsr, w.ws_row, w.ws_col);
+
+							while(true)
+							{
+								char ch = getchar();
+								if (ch == '\n')
+								{
+									if (nib_is_execution_done(nsr) || nib_get_last_return(nsr) != SCPERR_SUCCESS)
+										break;
+
+									// Step
+									nib_step_execute(nsr);
+
+									if (nib_get_last_return(nsr) == SCPERR_SUCCESS)
+										nib_step_execute_show(nsr, w.ws_row, w.ws_col);
+									else
+										break;
+								}
+								else if (ch == 'q')
+								{
+									// Quit
+									break;
+								}
+							}
+						}
+
+						nib_step_execute_show(nsr, w.ws_row, w.ws_col);
+
+						nib_step_execute_cleanup(nsr);
+					}
+					else
+					{
+						int ret = nib_interpret_script(script);
+						printf("Script Return: %ld\n", ret);
+					}
+				}
+
+				printf("\n\033[?25h");
+				tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
 
 				free_nib_script(script);
 			}
@@ -100,6 +226,8 @@ int main(int argc, char **argv)
 	dummy_cleanup();
 
 	nib_methods_cleanup();
+
+	nib_flag_tables_cleanup();
 
 	nib_ledger_display();
 	printf("outstanding allocations: %lu\n", nib_allocations);

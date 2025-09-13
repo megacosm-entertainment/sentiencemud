@@ -21,6 +21,10 @@ DECL_METHOD_FUNC(string_length);
 // FLAG methods
 
 // LIST methods
+DECL_METHOD_FUNC(list_add);
+DECL_METHOD_FUNC(list_insert);
+DECL_METHOD_FUNC(list_remove);
+DECL_METHOD_FUNC(list_size);
 
 // STAT methods
 

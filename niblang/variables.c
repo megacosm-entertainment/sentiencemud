@@ -18,8 +18,6 @@ NIB_VARIABLE *nib_new_variable(char *name, NIB_TYPE *type, int scope, bool const
 	var->constant = constant;
 	var->initialized = false;
 
-	//printf("New Variable: %s, %s, %d\n", name, nib_get_typename(type), scope);
-
 	return var;
 }
 

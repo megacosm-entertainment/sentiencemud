@@ -86,6 +86,11 @@ bool mem_buffer_append_float(NIB_BUFFER *buffer, double data)
 	return mem_buffer_append(buffer, (nib_bytecode_p)&data, sizeof(data));
 }
 
+bool mem_buffer_append_pointer(NIB_BUFFER *buffer, void *data)
+{
+	return mem_buffer_append(buffer, (nib_bytecode_p)&data, sizeof(data));
+}
+
 bool mem_buffer_update_short(NIB_BUFFER *buffer, int offset, short data)
 {
 	if (offset + sizeof(data) > buffer->len) return false;
@@ -114,6 +119,15 @@ bool mem_buffer_update_long(NIB_BUFFER *buffer, int offset, long data)
 }
 
 bool mem_buffer_update_float(NIB_BUFFER *buffer, int offset, double data)
+{
+	if (offset + sizeof(data) > buffer->len) return false;
+
+	memcpy(buffer->buffer + offset, (nib_bytecode_p)&data, sizeof(data));
+
+	return true;
+}
+
+bool mem_buffer_update_pointer(NIB_BUFFER *buffer, int offset, void *data)
 {
 	if (offset + sizeof(data) > buffer->len) return false;
 

@@ -3,39 +3,83 @@
 
 #define NIB_GLOBAL_SCOPE	(-1)
 
-#define A 1
-#define B 2
-#define C 4
-#define D 8
-#define E 16
-#define F 32
-#define G 64
-#define H 128
-#define I 256
-#define J 512
-#define K 1024
-#define L 2048
-#define M 4096
-#define N 8192
-#define O 16384
-#define P 32768 /* Limit of signed int */
-#define Q 65536
-#define R 131072
-#define S 262144
-#define T 524288
-#define U 1048576
-#define V 2097152
-#define W 4194304
-#define X 8388608
-#define Y 16777216
-#define Z 33554432
-#define aa 67108864
-#define bb 134217728
-#define cc 268435456
-#define dd 536870912
-#define ee 1073741824
+#define A 1L						// 0
+#define B 2L						// 1
+#define C 4L						// 2
+#define D 8L						// 3
+#define E 16L						// 4
+#define F 32L						// 5
+#define G 64L						// 6
+#define H 128L						// 7
+#define I 256L						// 8
+#define J 512L						// 9
+#define K 1024L						// 10
+#define L 2048L						// 11
+#define M 4096L						// 12
+#define N 8192L						// 13
+#define O 16384L					// 14
+#define P 32768L					// 15
+#define Q 65536L					// 16
+#define R 131072L					// 17
+#define S 262144L					// 18
+#define T 524288L					// 19
+#define U 1048576L					// 20
+#define V 2097152L					// 21
+#define W 4194304L					// 22
+#define X 8388608L					// 23
+#define Y 16777216L					// 24
+#define Z 33554432L					// 25
+#define aa 67108864L				// 26
+#define bb 134217728L				// 27
+#define cc 268435456L				// 28
+#define dd 536870912L				// 29
+#define ee 1073741824L				// 30
+#define ff 2147483648L				// 31	(sign bit for 32-bit int)
+#define gg 4294967296L				// 32
+#define hh 8589934592L				// 33
+#define ii 17179869184L				// 34
+#define jj 34359738368L				// 35
+#define kk 68719476736L				// 36
+#define ll 137438953472L			// 37
+#define mm 274877906944L			// 38
+#define nn 549755813888L			// 39
+#define oo 1099511627776L			// 40
+#define pp 2199023255552L			// 41
+#define qq 4398046511104L			// 42
+#define rr 8796093022208L			// 43
+#define ss 17592186044416L			// 44
+#define tt 35184372088832L			// 45
+#define uu 70368744177664L			// 46
+#define vv 140737488355328L			// 47
+#define ww 281474976710656L			// 48
+#define xx 562949953421312L			// 49
+#define yy 1125899906842624L		// 50
+#define zz 2251799813685248L		// 51
+#define aaa 4503599627370496L		// 52
+#define bbb 9007199254740992L		// 53
+#define ccc 18014398509481984L		// 54
+#define ddd 36028797018963968L		// 55
+#define eee 72057594037927936L		// 56
+#define fff 144115188075855872L		// 57
+#define ggg 288230376151711744L		// 58
+#define hhh 576460752303423488L		// 59
+#define iii 1152921504606846976L	// 60
+#define jjj 2305843009213693952L	// 61
+#define kkk 4611686018427387904L	// 62
+#define lll 9223372036854775808L	// 63 (sign bit for 64-bit int)
 
+#define IS_SET(v,b)		(((v) & (b)) && true)
 #define bitsize(t)		(sizeof(t) * 8)
+
+#define SCPERR_SUCCESS		 	(0)			// Success
+#define SCPERR_FAILURE			(-1)		// General failure
+#define SCPERR_MATH				(-2)		// Math error (eg. division by zero)
+#define SCPERR_INVALID			(-3)		// Invalid operation
+#define SCPERR_MEMORY			(-4)		// Memory allocation error
+#define SCPERR_STACK			(-5)		// Stack under/overflow
+#define SCPERR_FIELD			(-6)		// Invalid field
+#define SCPERR_METHOD			(-7)		// Invalid method
+#define SCPERR_FUNCTION			(-8)		// Invalid function
 
 #include "typedefs.h"
 
@@ -45,7 +89,7 @@ enum nib_instructions_e {
 	NI_LVALUE_LOCAL,		// Load the address of the local variable onto the stack
 	NI_LVALUE_GLOBAL,		// Load the global variable reference onto the stack (server script pVARIABLE)
 	NI_LVALUE_SELF,			// Loads the reference for the SELF onto the stack
-	NI_LVALUE_FLAG,			// Load and push a flag bit reference onto the stack
+	NI_LVALUE_BIT,			// Load and push a flag bit reference onto the stack
 	NI_LVALUE_FIELD,
 	NI_CALL_FUNCTION,		// Makes a function call
 	NI_CALL_METHOD,
@@ -54,7 +98,13 @@ enum nib_instructions_e {
 	NI_LOAD_CHAR,
 	NI_LOAD_STRING,			// Load a string literal onto stack
 	NI_LOAD_WIDEVNUM,		// Pops 2 (area, vnum) pushes combined WNUM onto stack
+	NI_LOAD_FLAG,
+	NI_LOAD_FLAG_TABLE,		// Contains the TABLE pointer
+	NI_LOAD_STAT,
 	NI_NEW_LIST,			// Pushes an empty list (of the given list type) onto the stack
+	NI_NULL,				// Pushes a NST_NULL onto the stack
+	NI_TRUE,
+	NI_FALSE,
 	NI_CONST0,				// Load a constant 0 (or false) onto stack
 	NI_CONST1,				// Load a constant 1 (or true) onto stack
 	NI_NCONST1,				// Load a constant -1 onto stack
@@ -109,6 +159,10 @@ enum nib_instructions_e {
 	NI_RSH,
 	NI_RSHL,
 
+	NI_STR_PREFIX,
+	NI_STR_INFIX,
+	NI_STR_SUFFIX,
+
 	NI_ADD_EQ,
 	NI_VOID_ADD_EQ,
 	NI_SUBT_EQ,
@@ -142,6 +196,7 @@ enum nib_script_stack_type_e
 	NST_MAP,
 	NST_WIDEVNUM,
 	NST_FLAG,
+	NST_FLAG_BIT,		// Can only be an LVALUE; treated as BOOLEAN
 	NST_STAT,
 	NST_LIST,
 	NST_AREA,
@@ -158,13 +213,15 @@ enum nib_script_stack_type_e
 	// Types invalid for LVALUEs
 	NST_STRING_S = NST__MAX,	// String is not to be freed when popped
 	NST_LIST_S,					// Lists not created by the script
+	NST_ITERATOR,
+	NST_NULL,					// Explicitly a null pointer
 	NST_LVALUE,
 };
 
 
 #define MAX_FLAG_BITS		(bitsize(flag_value_t))
 
-#define DECL_METHOD_FUNC(f)	int f (NIB_SCRIPT_RUNTIME *nsr)
+#define DECL_METHOD_FUNC(f)	int nib_method_func_##f (NIB_SCRIPT_RUNTIME *nsr)
 
 #include "dummy.h"
 
@@ -175,6 +232,15 @@ struct flag_type
     bool settable;
 	char *description;
 };
+
+struct flag_type_lookup
+{
+	struct flag_type_lookup *next;
+	char *name;
+	struct flag_type *table;
+	bool internal;
+};
+
 
 #include "script.h"
 
@@ -189,15 +255,13 @@ typedef struct nib_memory_buffer {
 } NIB_BUFFER;
 
 
-
-
-
 typedef struct nib_variable_type NIB_VARIABLE;
 
 struct nib_variable_type {
 	char *name; 	// Duplicated name, needs to be freed
 	NIB_TYPE *type;
 	NIB_SCRIPT_STACK_TYPE stype;
+	NIB_SCRIPT_STACK_TYPE stype2;	// For NST_LIST subtype
 	int scope;
 	int id;
 	bool constant;
@@ -224,6 +288,7 @@ struct nib_field_type
 	bool readonly;
 	NIB_TYPE *type;
 	NIB_SCRIPT_STACK_TYPE stype;
+	NIB_SCRIPT_STACK_TYPE stype2;	// For LIST
 	size_t offset;
 
 	int id;				// ID is unique to the type
@@ -236,6 +301,7 @@ struct nib_method_type
 	char *name;
 	NIB_TYPE *result;		// Use NULL to indicate no return
 	NIB_SCRIPT_STACK_TYPE sresult;
+	NIB_SCRIPT_STACK_TYPE sresult2;	// For LIST
 
 	int nparams;
 	NIB_TYPE **params;
@@ -364,15 +430,31 @@ void nib_script_comment_add(long address, char *comment);
 
 
 // flags.c
-const struct flag_type *lookup_flag_table(const char *name);
-const char *get_flag_table_name(const struct flag_type *table);
-const struct flag_type *lookup_stat_table(const char *name);
-const char *get_stat_table_name(const struct flag_type *table);
-bool find_flag_value(const struct flag_type *table, const char *name, bool settable, flag_value_t *output);
-bool flag_add_table(LLIST *names, char *table_name);
-bool stat_add_table(LLIST *names, char *table_name);
-bool flag_tables_init();
-void flag_tables_cleanup();
+bool nib_register_flag_table(const char *name, const struct flag_type *table);
+bool nib_register_stat_table(const char *name, const struct flag_type *table);
+const struct flag_type *nib_lookup_flag_table(LLIST *created, const char *name);
+const char *nib_get_flag_table_name(LLIST *created, const struct flag_type *table);
+const struct flag_type *nib_lookup_stat_table(LLIST *created, const char *name);
+const char *nib_get_stat_table_name(LLIST *created, const struct flag_type *table);
+const char *nib_get_flag_string(const struct flag_type *table, long bits);
+const char *nib_get_stat_string(const struct flag_type *table, long bits);
+bool nib_find_flag_value(const struct flag_type *table, const char *name, bool *settable, flag_value_t *output);
+bool nib_flag_add_table(LLIST *names, char *table_name);
+bool nib_stat_add_table(LLIST *names, char *table_name);
+struct flag_type_lookup *nib_flag_copy_table(struct flag_type_lookup *src);
+void nib_flag_free_table(struct flag_type_lookup *lookup);
+bool nib_flag_tables_init();
+void nib_flag_tables_cleanup();
+int nib_add_used_table(const struct flag_type *table);
+
+// interpret.c
+int nib_interpret_script(NIB_SCRIPT *script /* add arguments */);
+NIB_SCRIPT_RUNTIME *nib_step_execute_init(NIB_SCRIPT *script /* add arguments*/ );
+bool nib_is_execution_done(NIB_SCRIPT_RUNTIME *nsr);
+bool nib_step_execute(NIB_SCRIPT_RUNTIME *nsr);
+void nib_step_execute_cleanup(NIB_SCRIPT_RUNTIME *nsr);
+void nib_step_execute_show(NIB_SCRIPT_RUNTIME *nsr, int rows, int cols);
+int nib_get_last_return(NIB_SCRIPT_RUNTIME *nsr);
 
 // list.c
 LLIST *list_create(bool purge);
@@ -423,10 +505,12 @@ bool mem_buffer_append_short(NIB_BUFFER *buffer, short data);
 bool mem_buffer_append_int(NIB_BUFFER *buffer, int data);
 bool mem_buffer_append_long(NIB_BUFFER *buffer, long data);
 bool mem_buffer_append_float(NIB_BUFFER *buffer, double data);
+bool mem_buffer_append_pointer(NIB_BUFFER *buffer, void *data);
 bool mem_buffer_update_short(NIB_BUFFER *buffer, int offset, short data);
 bool mem_buffer_update_int(NIB_BUFFER *buffer, int offset, int data);
 bool mem_buffer_update_long(NIB_BUFFER *buffer, int offset, long data);
 bool mem_buffer_update_float(NIB_BUFFER *buffer, int offset, double data);
+bool mem_buffer_update_pointer(NIB_BUFFER *buffer, int offset, void *data);
 bool mem_buffer_append(NIB_BUFFER *buffer, nib_bytecode_p data, int len);
 bool mem_buffer_extend(NIB_BUFFER *buffer, int offset, int len);
 bool mem_buffer_prune(NIB_BUFFER *buffer, int offset, int len);
@@ -463,6 +547,7 @@ void nib_dump_scopetree();
 
 
 // types.c
+extern NIB_TYPE *nibtype_null;
 extern NIB_TYPE *nibtype_void;
 extern NIB_TYPE *nibtype_any;
 extern NIB_TYPE *nibtype_bool;
@@ -496,7 +581,7 @@ NIB_TYPE *new_nib_type_stat_table(const struct flag_type *table);
 NIB_TYPE *new_nib_type_list(NIB_TYPE *elem);
 void free_nib_type(NIB_TYPE *type);
 NIB_TYPE *nib_type_copy(NIB_TYPE *src);
-char *nib_get_typename(NIB_TYPE *type);
+char *nib_get_typename(NIB_SCRIPT *context, NIB_TYPE *type);
 int nib_type_get_flag_index(NIB_TYPE *type, const char *str);
 NIB_TYPE *nib_combine_types(NIB_TYPE *a, NIB_TYPE *b);
 bool are_nib_types_equal(NIB_TYPE *a, NIB_TYPE *b);
@@ -504,7 +589,11 @@ bool are_nib_types_equal(NIB_TYPE *a, NIB_TYPE *b);
 // utils.c
 extern unsigned long nib_allocations;
 
+void ltoa(register long num, register char *output);
 int str_cmp(const char *astr, const char *bstr);
+bool str_prefix(const char *astr, const char *bstr);
+bool str_infix(const char *astr, const char *bstr);
+bool str_suffix(const char *astr, const char *bstr);
 char *nib_strdup(const char *str);
 void *nib_malloc(size_t size);
 void *nib_calloc(size_t count, size_t size);

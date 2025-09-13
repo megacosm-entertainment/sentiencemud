@@ -3,7 +3,6 @@
 
 #define MAX_STACK 1024
 
-
 struct nib_script_stack_lvalue_s
 {
 	NIB_SCRIPT_STACK_TYPE type;
@@ -21,8 +20,14 @@ struct nib_script_stack_lvalue_s
 
 		struct {
 			long *value;
+			const struct flag_type *table;
 			long bit;
-		} flag;
+		} bit;
+
+		struct {
+			long *number;
+			const struct flag_type *table;
+		} stat;		// FLAG and STAT
 
 		struct {
 			NIB_SCRIPT_STACK_TYPE type;
@@ -44,10 +49,21 @@ struct nib_script_stack_s
 		WNUM wnum;
 
 		struct {
+			long number;
+			const struct flag_type *table;
+		} stat;
+
+		struct {
 			NIB_SCRIPT_STACK_TYPE type;
 			LLIST *list;
 			ITERATOR it;
 		} list;
+
+		struct {
+			NIB_SCRIPT_STACK_TYPE type;
+			LLIST *list;
+			ITERATOR it;
+		} iter;
 
 		AREA_DATA *area;
 		// DUNGEON *dung;
@@ -82,6 +98,11 @@ struct nib_local_runtime_var_s
 			LLIST *list;
 		} list;
 
+		struct {
+			long number;
+			const struct flag_type *table;
+		} stat;
+
 		AREA_DATA *area;
 		// DUNGEON *dung;
 		// INSTANCE *inst;
@@ -94,6 +115,14 @@ struct nib_local_runtime_var_s
 	} _;
 };
 
+typedef struct nib_script_disassembled_line_s NIB_DISASSEMBLED_LINE;
+struct nib_script_disassembled_line_s
+{
+	long address;
+	char *str;
+	bool is_comment;
+};
+
 struct nib_script_runtime_s
 {
 	NIB_SCRIPT *script;
@@ -104,10 +133,15 @@ struct nib_script_runtime_s
 	NIB_SCRIPT_STACK stack[MAX_STACK];
 
 	// Indices
-	int pc;
-	int sp;
+	nib_address_t pc;
+	nib_address_t sp;
 
 	int last_return;
+
+	// Debugging information
+	LLIST *disassembly;
+
+	char debug[1024];
 };
 
 #define __push(t,n) bool nib_push_stack_##n (NIB_SCRIPT_RUNTIME *nsr, t value);
@@ -119,9 +153,9 @@ __push(char *,string)
 __push(char *,string_shared)
 bool nib_push_stack_list (NIB_SCRIPT_RUNTIME *nsr, LLIST *value, NIB_SCRIPT_STACK_TYPE type);
 bool nib_push_stack_list_shared (NIB_SCRIPT_RUNTIME *nsr, LLIST *value, NIB_SCRIPT_STACK_TYPE type);
-__push(WNUM,widevnum)
-__push(long,flag)
-__push(long,stat)
+bool nib_push_stack_widevnum (NIB_SCRIPT_RUNTIME *nsr, WNUM *value);
+bool nib_push_stack_flag (NIB_SCRIPT_RUNTIME *nsr, long value, const struct flag_type *table);
+bool nib_push_stack_stat (NIB_SCRIPT_RUNTIME *nsr, long value, const struct flag_type *table);
 __push(AREA_DATA *,area)
 __push(CHAR_DATA *,mobile)
 __push(ROOM_INDEX_DATA *,room)
@@ -130,6 +164,7 @@ __push(NIB_LOCAL_RUNTIME_VAR *,local_var)
 #undef __push
 
 NIB_SCRIPT_STACK_TYPE nib_peek_stack(NIB_SCRIPT_RUNTIME *nsr);
+NIB_SCRIPT_STACK_TYPE nib_peek_stack_offset(NIB_SCRIPT_RUNTIME *nsr, int offset);
 #define __peek(t,n) bool nib_peek_stack_##n (NIB_SCRIPT_RUNTIME *nsr, int offset, t *value);
 __peek(long,number)
 __peek(double,float)
@@ -140,8 +175,8 @@ __peek(char *,string_shared)
 bool nib_peek_stack_list (NIB_SCRIPT_RUNTIME *nsr, int offset, LLIST **value, NIB_SCRIPT_STACK_TYPE *type);
 bool nib_peek_stack_list_shared (NIB_SCRIPT_RUNTIME *nsr, int offset, LLIST **value, NIB_SCRIPT_STACK_TYPE *type);
 __peek(WNUM,widevnum)
-__peek(long,flag)
-__peek(long,stat)
+bool nib_peek_stack_flag (NIB_SCRIPT_RUNTIME *nsr, int offset, long *output, const struct flag_type **table);
+bool nib_peek_stack_stat (NIB_SCRIPT_RUNTIME *nsr, int offset, long *output, const struct flag_type **table);
 __peek(AREA_DATA *,area)
 __peek(CHAR_DATA *,mobile)
 __peek(ROOM_INDEX_DATA *,room)
@@ -159,8 +194,8 @@ __pop(char *,string_shared)
 bool nib_pop_stack_list (NIB_SCRIPT_RUNTIME *nsr, LLIST **value, NIB_SCRIPT_STACK_TYPE *type);
 bool nib_pop_stack_list_shared (NIB_SCRIPT_RUNTIME *nsr, LLIST **value, NIB_SCRIPT_STACK_TYPE *type);
 __pop(WNUM,widevnum)
-__pop(long,flag)
-__pop(long,stat)
+bool nib_pop_stack_flag (NIB_SCRIPT_RUNTIME *nsr, long *value, const struct flag_type **table);
+bool nib_pop_stack_stat (NIB_SCRIPT_RUNTIME *nsr, long *value, const struct flag_type **table);
 __pop(AREA_DATA *,area)
 __pop(CHAR_DATA *,mobile)
 __pop(ROOM_INDEX_DATA *,room)

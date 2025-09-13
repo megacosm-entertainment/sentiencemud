@@ -20,7 +20,6 @@
 #define IS_READONLY		(A)
 #define IS_LITERAL		(B)
 
-#define IS_SET(v,b)		(((v) & (b)) && true)
 #define MAX_SHIFT		(bitsize(long) - 1)
 
 extern int niblineno;
@@ -28,6 +27,8 @@ extern NIB_SCRIPT_CLASS nib_compile_script_class;
 extern NIB_BUFFER *nib_program_storage;
 bool is_valid_variable_type(pVARIABLE var, NIB_TYPE *type);
 NIB_SCRIPT_STACK_TYPE convert_to_stype(NIB_TYPE *type);
+extern LLIST *nib_flag_created_tables;
+extern LLIST *nib_stat_created_tables;
 
 static long last_expression = -1;
 
@@ -39,12 +40,14 @@ static long last_expression = -1;
 #define ins_int(i)				(mem_buffer_append_int(nib_program_storage, (i)))
 #define ins_long(l)				(mem_buffer_append_long(nib_program_storage, (l)))
 #define ins_float(f)			(mem_buffer_append_float(nib_program_storage, (f)))
+#define ins_ptr(p)				(mem_buffer_append_pointer(nib_program_storage, (void *)(p)))
 #define ins_bytes(d,l)			(mem_buffer_append(nib_program_storage, (d), (l)))
 #define upd_byte(o,b)			(PROGRAM_BUFFER[(o)] = (b))
 #define upd_short(o,s)			(mem_buffer_update_short(nib_program_storage, (o), (s)))
 #define upd_int(o,i)			(mem_buffer_update_int(nib_program_storage, (o), (i)))
 #define upd_long(o,l)			(mem_buffer_update_long(nib_program_storage, (o), (l)))
 #define upd_float(o,f)			(mem_buffer_update_float(nib_program_storage, (o), (f)))
+#define upd_ptr(o,p)			(mem_buffer_update_pointer(nib_program_storage, (o), (void *)(p)))
 
 #define get_byte(o)				(PROGRAM_BUFFER[(o)])
 
@@ -131,6 +134,7 @@ static void insert_pop_value()
 		switch(get_byte(last_expression))
 		{
 			case NI_VOID_ASSIGN:
+			case NI_VOID_ADD_EQ:
 				return;
 
 			case NI_ASSIGN:
@@ -151,6 +155,9 @@ static void insert_pop_value()
 				upd_byte(last_expression, NI_DEC);
 				break;
 
+			case NI_NULL:
+			case NI_TRUE:
+			case NI_FALSE:
 			case NI_CONST0:
 			case NI_CONST1:
 			case NI_NCONST1:
@@ -194,6 +201,613 @@ static void insert_pop_value()
 #else
 	ins_code(NI_POP);
 #endif
+}
+
+// Checks assignment can be handled, adding any instructions if necessary.
+static bool check_valid_assignment(NIB_TYPE *left, NIB_TYPE *right, enum nib_instructions_e op)
+{
+	NIB_SCRIPT_STACK_TYPE lhs = convert_to_stype(left);
+	NIB_SCRIPT_STACK_TYPE rhs = convert_to_stype(right);
+
+	switch(lhs)
+	{
+	case NST_NUMBER:
+		if (rhs == NST_NUMBER)
+			return true;	// All operations are valid between numbers
+		else if (rhs == NST_FLOAT)
+		{
+			if (op == NI_ASSIGN ||
+				op == NI_ADD_EQ ||
+				op == NI_SUBT_EQ ||
+				op == NI_MULT_EQ ||
+				op == NI_DIV_EQ)
+				return true;
+		}
+		else if (rhs == NST_BOOLEAN)
+			return op == NI_ASSIGN;
+		break;
+
+	case NST_FLOAT:
+		if (rhs == NST_NUMBER ||
+			rhs == NST_FLOAT)
+		{
+			if (op == NI_ASSIGN ||
+				op == NI_ADD_EQ ||
+				op == NI_SUBT_EQ ||
+				op == NI_MULT_EQ ||
+				op == NI_DIV_EQ)
+				return true;
+		}
+		else if (rhs == NST_BOOLEAN)
+			return op == NI_ASSIGN;
+		break;
+
+	case NST_BOOLEAN:				// Can only assign to BOOLEAN lvalues
+		if (rhs == NST_BOOLEAN)
+			return op == NI_ASSIGN;
+		break;
+
+	case NST_CHAR:					// Can only assign to CHAR lvalues
+		if (rhs == NST_NUMBER ||
+			rhs == NST_CHAR ||
+			rhs == NST_NULL)
+			return op == NI_ASSIGN;
+		break;
+	
+	case NST_STRING:
+		if (rhs == NST_NUMBER)
+		{
+			if (op == NI_ASSIGN ||	// Stringify
+				op == NI_ADD_EQ ||	// Concatenation
+				op == NI_MULT_EQ)	// Cloning
+				return true;
+		}
+		else if (rhs == NST_CHAR ||
+				 rhs == NST_STRING)
+		{
+			if (op == NI_ASSIGN ||		// Assignment
+				op == NI_ADD_EQ)		// Concatenation
+				return true;
+		}
+		else if (rhs != NST_LIST)
+			return op == NI_ASSIGN ||	// This performs a "stringify" operation
+				   op == NI_ADD_EQ;		// Concatenation
+		break;
+
+	case NST_WIDEVNUM:
+		if (rhs == NST_WIDEVNUM ||
+			rhs == NST_NULL)
+			return op == NI_ASSIGN;	// Can only assign to WIDEVNUM lvalues.
+		break;
+
+	case NST_FLAG:
+		if (rhs == NST_NUMBER ||
+			rhs == NST_FLAG)
+		{
+			if (op == NI_ASSIGN ||		// Assignment
+				op == NI_BAND_EQ ||		// Masking/Resetting
+				op == NI_BOR_EQ ||		// Setting
+				op == NI_BXOR_EQ)		// Toggling
+				return true;
+		}
+		break;
+
+	case NST_STAT:
+		if (rhs == NST_STAT)
+			return op == NI_ASSIGN;	// Can only assign to STAT lvalues.
+		break;
+
+	case NST_LIST:
+		if (right == nibtype_list)	// Special case: LIST = ({}); -- NEW LIST generation
+		{
+			if (op == NI_ASSIGN)
+			{
+				ins_code(NI_NEW_LIST);
+				ins_byte(convert_to_stype(right->_.type));
+				return true;
+			}
+		}
+		else if (rhs == NST_LIST ||
+				 rhs == NST_NULL)
+			return op == NI_ASSIGN;
+		break;
+	
+	case NST_AREA:
+		if (rhs == NST_NUMBER ||
+			rhs == NST_STRING)
+		{
+			if (op == NI_ASSIGN)
+			{
+				ins_code(NI_GET_AREA);
+				return true;
+			}
+		}
+		else if (rhs == NST_AREA ||
+				 rhs == NST_NULL)
+			return op == NI_ASSIGN;
+		break;
+
+	// case NST_DUNGEON:
+	// 	if (rhs == NST_DUNGEON ||
+	// 		rhs == NST_NULL)
+	// 		return op == NI_ASSIGN;	// Can only assign to DUNGEON lvalues.
+	// 	break;
+
+	// case NST_INSTANCE:
+	// 	if (rhs == NST_INSTANCE ||
+	// 		rhs == NST_NULL)
+	// 		return op == NI_ASSIGN;	// Can only assign to INSTANCE lvalues.
+	// 	break;
+
+	case NST_MOBILE:
+		if (rhs == NST_MOBILE ||
+			rhs == NST_NULL)
+			return op == NI_ASSIGN;	// Can only assign to MOBILE lvalues.
+		break;
+
+	// case NST_OBJECT:
+	// 	if (rhs == NST_OBJECT ||
+	// 		rhs == NST_NULL)
+	// 		return op == NI_ASSIGN;	// Can only assign to OBJECT lvalues.
+	// 	break;
+
+	// case NST_QUEST:
+	// 	if (rhs == NST_QUEST ||
+	// 		rhs == NST_NULL)
+	// 		return op == NI_ASSIGN;	// Can only assign to QUEST lvalues.
+	// 	break;
+
+	case NST_ROOM:
+		if (rhs == NST_ROOM ||
+			rhs == NST_NULL)
+			return op == NI_ASSIGN;	// Can only assign to ROOM lvalues.
+		break;
+
+	// case NST_SHIP:
+	// 	if (rhs == NST_SHIP ||
+	// 		rhs == NST_NULL)
+	// 		return op == NI_ASSIGN;	// Can only assign to SHIP lvalues.
+	// 	break;
+
+	// case NST_TOKEN:
+	// 	if (rhs == NST_TOKEN ||
+	// 		rhs == NST_NULL)
+	// 		return op == NI_ASSIGN;	// Can only assign to TOKEN lvalues.
+	// 	break;
+
+	}
+
+	return false;
+}
+
+static NIB_TYPE *check_valid_operation(NIB_TYPE *left, NIB_TYPE *right, enum nib_instructions_e op)
+{
+	NIB_SCRIPT_STACK_TYPE lhs = convert_to_stype(left);
+	NIB_SCRIPT_STACK_TYPE rhs = convert_to_stype(right);
+
+	switch(lhs)
+	{
+	case NST_NUMBER:	// NUMBER op ???
+		switch(rhs)
+		{
+		case NST_NUMBER:	// NUMBER op NUMBER
+			switch(op)
+			{
+			case NI_ADD:		// NUMBER + NUMBER (Addition)
+			case NI_SUBT:		// NUMBER - NUMBER (Subtraction)
+			case NI_MULT:		// NUMBER * NUMBER (Multiplication)
+			case NI_MOD:		// NUMBER % NUMBER (Modulo Division)
+			case NI_DIV:		// NUMBER / NUMBER (Division)
+			case NI_BAND:		// NUMBER & NUMBER (Bitwise AND)
+			case NI_BOR:		// NUMBER | NUMBER (Bitwise OR)
+			case NI_BXOR:		// NUMBER ^ NUMBER (Bitwise XOR)
+			case NI_LSH:		// NUMBER << NUMBER (Left Shift)
+			case NI_RSH:		// NUMBER >> NUMBER (Right Shift)
+			case NI_RSHL:		// NUMBER >>> NUMBER (Logical Right Shift)
+				return nibtype_int;
+
+			case NI_EQ:			// NUMBER == NUMBER (Equality)
+			case NI_NEQ:		// NUMBER != NUMBER (Inequality)
+			case NI_LT:			// NUMBER < NUMBER (Less Than)
+			case NI_LE:			// NUMBER <= NUMBER (Less Than or Equal)
+			case NI_GT:			// NUMBER > NUMBER (Greater Than)
+			case NI_GE:			// NUMBER >= NUMBER (Greater Than or Equal)
+			case NI_LAND:		// NUMBER && NUMBER (Both Numbers Non-Zero)
+			case NI_LOR:		// NUMBER || NUMBER (One or Both Numbers Non-Zero)
+			case NI_LXOR:		// NUMBER ^^ NUMBER (Only One Number Non-Zero)
+				return nibtype_bool;
+			}
+
+			break;
+		case NST_FLOAT:		// NUMBER op FLOAT
+			switch(op)
+			{
+			case NI_ADD:		// NUMBER + FLOAT (Addition)
+			case NI_SUBT:		// NUMBER - FLOAT (Subtraction)
+			case NI_MULT:		// NUMBER * FLOAT (Multiplication)
+			case NI_DIV:		// NUMBER / FLOAT (Division)
+				return nibtype_float;
+
+			case NI_EQ:			// NUMBER == FLOAT (Equality)
+			case NI_NEQ:		// NUMBER != FLOAT (Inequality)
+			case NI_LT:			// NUMBER < FLOAT (Less Than)
+			case NI_LE:			// NUMBER <= FLOAT (Less Than or Equal)
+			case NI_GT:			// NUMBER > FLOAT (Greater Than)
+			case NI_GE:			// NUMBER >= FLOAT (Greater Than or Equal)
+			case NI_LAND:		// NUMBER && FLOAT (Both Numbers Non-Zero)
+			case NI_LOR:		// NUMBER || FLOAT (One or Both Numbers Non-Zero)
+			case NI_LXOR:		// NUMBER ^^ FLOAT (Only One Number Non-Zero)
+				return nibtype_bool;
+			}
+			break;
+		case NST_CHAR:		// NUMBER op CHAR
+			switch(op)
+			{
+			case NI_MULT:		// Cloning
+				return nibtype_string;
+
+			case NI_EQ:			// NUMBER == NUMBER (Equality)
+			case NI_NEQ:		// NUMBER != NUMBER (Inequality)
+			case NI_LT:			// NUMBER < NUMBER (Less Than)
+			case NI_LE:			// NUMBER <= NUMBER (Less Than or Equal)
+			case NI_GT:			// NUMBER > NUMBER (Greater Than)
+			case NI_GE:			// NUMBER >= NUMBER (Greater Than or Equal)
+			case NI_LAND:		// NUMBER && NUMBER (Both Numbers Non-Zero)
+			case NI_LOR:		// NUMBER || NUMBER (One or Both Numbers Non-Zero)
+			case NI_LXOR:		// NUMBER ^^ NUMBER (Only One Number Non-Zero)
+				return nibtype_bool;
+			}
+			break;
+		case NST_STRING:	// NUMBER op STRING
+			if(op == NI_ADD || op == NI_MULT) return nibtype_string;
+			break;
+
+		case NST_BOOLEAN:	// NUMBER op BOOLEAN
+			switch(op)
+			{
+			case NI_LAND:
+			case NI_LOR:
+			case NI_LXOR:
+				return nibtype_bool;
+			}
+			break;
+
+		case NST_FLAG:		// NUMBER op FLAG
+			switch(op)
+			{
+			case NI_BAND:		// NUMBER & FLAG (Bitwise AND)
+			case NI_BOR:		// NUMBER | FLAG (Bitwise OR)
+			case NI_BXOR:		// NUMBER ^ FLAG (Bitwise XOR)
+				return right;
+
+			case NI_EQ:			// NUMBER == FLAG (Equality)
+			case NI_NEQ:		// NUMBER != FLAG (Inequality)
+			case NI_LAND:		// NUMBER && FLAG (Both Numbers Non-Zero)
+			case NI_LOR:		// NUMBER || FLAG (One or Both Numbers Non-Zero)
+			case NI_LXOR:		// NUMBER ^^ FLAG (Only One Number Non-Zero)
+				return nibtype_bool;
+			}
+		}
+		break;
+
+	case NST_FLOAT:		// FLOAT op ???
+		switch(rhs)
+		{
+		case NST_NUMBER:	// FLOAT op NUMBER
+		case NST_FLOAT:		// FLOAT op FLOAT
+			switch(op)
+			{
+			case NI_ADD:		// FLOAT + NUMBER (Addition)
+			case NI_SUBT:		// FLOAT - NUMBER (Subtraction)
+			case NI_MULT:		// FLOAT * NUMBER (Multiplication)
+			case NI_DIV:		// FLOAT / NUMBER (Division)
+				return nibtype_float;
+
+			case NI_EQ:			// FLOAT == NUMBER (Equality)
+			case NI_NEQ:		// FLOAT != NUMBER (Inequality)
+			case NI_LT:			// FLOAT < NUMBER (Less Than)
+			case NI_LE:			// FLOAT <= NUMBER (Less Than or Equal)
+			case NI_GT:			// FLOAT > NUMBER (Greater Than)
+			case NI_GE:			// FLOAT >= NUMBER (Greater Than or Equal)
+			case NI_LAND:		// FLOAT && NUMBER (Both Non-Zero)
+			case NI_LOR:		// FLOAT || NUMBER (One or Both Non-Zero)
+			case NI_LXOR:		// FLOAT ^^ NUMBER (Only One Non-Zero)
+				return nibtype_bool;
+			}
+
+			break;
+		}
+		break;
+
+	case NST_CHAR:		// CHAR op ???
+		switch(rhs)
+		{
+		case NST_NUMBER:	// CHAR op NUMBER
+			switch(op)
+			{
+			case NI_MULT:		// CHAR * NUMBER (Cloning)
+				return nibtype_string;
+
+			case NI_EQ:			// CHAR == NUMBER (Equality)
+			case NI_NEQ:		// CHAR != NUMBER (Inequality)
+			case NI_LT:			// CHAR < NUMBER (Less Than)
+			case NI_LE:			// CHAR <= NUMBER (Less Than or Equal)
+			case NI_GT:			// CHAR > NUMBER (Greater Than)
+			case NI_GE:			// CHAR >= NUMBER (Greater Than or Equal)
+			case NI_LAND:		// CHAR && NUMBER (Both Numbers Non-Zero)
+			case NI_LOR:		// CHAR || NUMBER (One or Both Numbers Non-Zero)
+			case NI_LXOR:		// CHAR ^^ NUMBER (Only One Number Non-Zero)
+				return nibtype_bool;
+			}
+			break;
+		case NST_CHAR:		// CHAR op CHAR
+			switch(op)
+			{
+			case NI_ADD:		// CHAR + CHAR (Concatenation)
+				return nibtype_string;
+
+			case NI_EQ:			// CHAR == CHAR (Equality)
+			case NI_NEQ:		// CHAR != CHAR (Inequality)
+			case NI_LT:			// CHAR < CHAR (Less Than)
+			case NI_LE:			// CHAR <= CHAR (Less Than or Equal)
+			case NI_GT:			// CHAR > CHAR (Greater Than)
+			case NI_GE:			// CHAR >= CHAR (Greater Than or Equal)
+			case NI_LAND:		// CHAR && CHAR (Both Numbers Non-Zero)
+			case NI_LOR:		// CHAR || CHAR (One or Both Numbers Non-Zero)
+			case NI_LXOR:		// CHAR ^^ CHAR (Only One Number Non-Zero)
+				return nibtype_bool;
+			}
+			
+			break;
+		case NST_STRING:	// CHAR op STRING
+			if (op == NI_ADD)		// CHAR + STRING (Concatenation)
+				return nibtype_string;
+			break;
+		}
+		break;
+
+	case NST_STRING:	// STRING op ???
+		switch(rhs)
+		{
+		case NST_NUMBER:	// STRING op NUMBER
+			if (op == NI_ADD ||		// STRING + NUMBER (Concatenation)
+				op == NI_MULT)		// STRING * NUMBER (Cloning)
+					return nibtype_string;
+			break;
+
+		case NST_CHAR:		// STRING op CHAR
+			if (op == NI_ADD)		// STRING + CHAR (Concatenation)
+				return nibtype_string;
+			break;
+
+		case NST_STRING:	// STRING op STRING
+			switch(op)
+			{
+			case NI_ADD:			// STRING + STRING (Concatenation)
+				return nibtype_string;
+
+			case NI_EQ:				// STRING == STRING (Equality, insensitive)
+			case NI_NEQ:			// STRING != STRING (Inequality, insensitive)
+			case NI_LT:				// STRING < STRING (case insensitive comparison)
+			case NI_LE:				// STRING <= STRING (case insensitive comparison)
+			case NI_GT:				// STRING > STRING (case insensitive comparison)
+			case NI_GE:				// STRING >= STRING (case insensitive comparison)
+			case NI_STR_PREFIX:		// STRING <~ STRING (String Prefix, insensitive)
+			case NI_STR_INFIX:		// STRING ~~ STRING (String Infix/Contains, insensitive)
+			case NI_STR_SUFFIX:		// STRING ~> STRING (String Suffix, insensitive)
+			case NI_LAND:			// STRING && STRING (Both Strings Non-Empty)
+			case NI_LOR:			// STRING || STRING (One or Both Strings Non-Empty)
+			case NI_LXOR:			// STRING ^^ STRING (Only One String Non-Empty)
+				return nibtype_bool;
+			}
+			break;
+
+		case NST_NULL:		// STRING op NULL (== and != allowed)
+			if (op == NI_EQ ||		// STRING == null (String is NULL)
+				op == NI_NEQ)		// STRING != null (String is not NULL)
+				return nibtype_bool;
+			break;
+		}
+		break;
+
+	case NST_FLAG:		// FLAG op ???
+		switch(rhs)
+		{
+		case NST_FLAG:		// FLAG op FLAG
+			// Flags *must* be compatible first
+			if (!are_nib_types_equal(left, right))
+				return NULL;
+
+		case NST_NUMBER:	// FLAG op NUMBER
+			switch(op)
+			{
+			case NI_BAND:
+			case NI_BOR:
+			case NI_BXOR:
+				return left;
+
+			case NI_EQ:
+			case NI_NEQ:
+				return nibtype_bool;
+			}
+			break;
+		}
+		break;
+
+	// Everything below can only do boolean operations
+	case NST_WIDEVNUM:
+		switch(rhs)
+		{
+		case NST_WIDEVNUM:
+		// case NST_DUNGEON:
+		// case NST_INSTANCE:
+		case NST_MOBILE:
+		// case NST_OBJECT:
+		// case NST_QUEST:
+		case NST_ROOM:
+		// case NST_SHIP:
+		// case NST_TOKEN:
+		case NST_NULL:
+			if (op == NI_EQ ||	// WIDEVNUM == null (WIDEVNUM is empty)
+				op == NI_NEQ)	// WIDEVNUM != null (WIDEVNUM is not empty)
+				return nibtype_bool;
+			break;
+		}
+		break;
+	case NST_BOOLEAN:	// BOOLEAN op ???
+		switch(rhs)
+		{
+		case NST_NUMBER:		// BOOLEAN op NUMBER
+			switch(op)
+			{
+			case NI_LAND:		// BOOLEAN && NUMBER (Both True)
+			case NI_LOR:		// BOOLEAN || NUMBER (One or Both True)
+			case NI_LXOR:		// BOOLEAN ^^ NUMBER (Only One True)
+				return nibtype_bool;
+			}
+			break;
+		case NST_BOOLEAN:		// BOOLEAN op BOOLEAN
+			switch(op)
+			{
+			case NI_EQ:			// BOOLEAN == BOOLEAN (Equality)
+			case NI_NEQ:		// BOOLEAN != BOOLEAN (Inequality)
+			case NI_LAND:		// BOOLEAN && BOOLEAN (Both True)
+			case NI_LOR:		// BOOLEAN || BOOLEAN (One or Both True)
+			case NI_LXOR:		// BOOLEAN ^^ BOOLEAN (Only One True)
+				return nibtype_bool;
+			}
+			break;
+		}
+		break;
+
+	case NST_STAT:		// STAT op ???
+		switch(rhs)
+		{
+		case NST_STAT:		// STAT op STAT
+			// For stat comparisons to work, they must be the same stat type
+			if (!are_nib_types_equal(left, right))
+				return NULL;
+
+		case NST_NUMBER:	// STAT op NUMBER
+			switch(op)
+			{
+			case NI_EQ:
+			case NI_NEQ:
+			case NI_LT:
+			case NI_LE:
+			case NI_GT:
+			case NI_GE:
+				return nibtype_bool;
+			}
+			break;
+		}
+		break;
+
+	case NST_AREA:		// AREA op ???
+		switch(rhs)
+		{
+		case NST_AREA:
+			switch(op)
+			{
+			case NI_EQ:			// AREA == AREA (Equality)
+			case NI_NEQ:		// AREA != AREA (Inequality)
+			case NI_LAND:		// AREA && AREA (Both Non-Null)
+			case NI_LOR:		// AREA || AREA (One or Both Non-Null)
+			case NI_LXOR:		// AREA ^^ AREA (Only One Non-Null)
+				return nibtype_bool;
+			}
+			break;
+		case NST_NULL:
+			if (op == NI_EQ ||	// AREA == null (AREA is null)
+				op == NI_NEQ)	// AREA != null (AREA is not null)
+				return nibtype_bool;
+			break;
+		}
+		break;
+
+	// case NST_DUNGEON:
+	// case NST_INSTANCE:
+	case NST_MOBILE:	// MOBILE op ???
+		switch(rhs)
+		{
+		case NST_MOBILE:
+			switch(op)
+			{
+			case NI_EQ:			// MOBILE == MOBILE (Equality)
+			case NI_NEQ:		// MOBILE != MOBILE (Inequality)
+			case NI_LAND:		// MOBILE && MOBILE (Both Non-Null)
+			case NI_LOR:		// MOBILE || MOBILE (One or Both Non-Null)
+			case NI_LXOR:		// MOBILE ^^ MOBILE (Only One Non-Null)
+				return nibtype_bool;
+			}
+			break;
+		case NST_WIDEVNUM:
+			if (op == NI_EQ ||	// MOBILE == WIDEVNUM (MOBILE is WIDEVNUM)
+				op == NI_NEQ)	// MOBILE != null (MOBILE is not WIDEVNUM)
+				return nibtype_bool;
+			break;
+		case NST_NULL:
+			if (op == NI_EQ ||	// MOBILE == null (MOBILE is null)
+				op == NI_NEQ)	// MOBILE != null (MOBILE is not null)
+				return nibtype_bool;
+			break;
+		}
+		break;
+
+	// case NST_OBJECT:
+	// case NST_QUEST:
+	case NST_ROOM:		// ROOM op ???
+		switch(rhs)
+		{
+		case NST_ROOM:
+			switch(op)
+			{
+			case NI_EQ:			// ROOM == ROOM (Equality)
+			case NI_NEQ:		// ROOM != ROOM (Inequality)
+			case NI_LAND:		// ROOM && ROOM (Both Non-Null)
+			case NI_LOR:		// ROOM || ROOM (One or Both Non-Null)
+			case NI_LXOR:		// ROOM ^^ ROOM (Only One Non-Null)
+				return nibtype_bool;
+			}
+			break;
+		case NST_WIDEVNUM:
+			if (op == NI_EQ ||	// ROOM == WIDEVNUM (ROOM is WIDEVNUM)
+				op == NI_NEQ)	// ROOM != null (ROOM is not WIDEVNUM)
+				return nibtype_bool;
+			break;
+		case NST_NULL:
+			if (op == NI_EQ ||	// ROOM == null (ROOM is null)
+				op == NI_NEQ)	// ROOM != null (ROOM is not null)
+				return nibtype_bool;
+			break;
+		}
+		break;
+
+	// case NST_SHIP:
+	// case NST_TOKEN:
+	case NST_NULL:
+		switch(rhs)
+		{
+		case NST_STRING:
+		case NST_WIDEVNUM:		// will check if the whole thing is "empty"
+		case NST_AREA:
+		// case NST_DUNGEON:
+		// case NST_INSTANCE:
+		case NST_MOBILE:
+		// case NST_OBJECT:
+		// case NST_QUEST:
+		case NST_ROOM:
+		// case NST_SHIP:
+		// case NST_TOKEN:
+			if (op == NI_EQ ||	// entity == null (entity is null)
+				op == NI_NEQ)	// entity != null (entity is not null)
+				return nibtype_bool;
+			break;
+		}
+		break;
+	}
+
+	return NULL;
 }
 
 // reference the implementation provided in Lexer.l
@@ -314,6 +928,9 @@ void niberrorf(const char *msg, ...)
 %token T_SIZEOF
 %token T_STAR
 %token T_STAT
+%token T_STR_PREFIX
+%token T_STR_INFIX
+%token T_STR_SUFFIX
 %token T_STRING
 %token T_STRING_LITERAL
 %token T_SWITCH
@@ -419,7 +1036,7 @@ void niberrorf(const char *msg, ...)
 %type <ch> T_CHAR_LITERAL
 %type <float_number> T_FLOAT_NUMBER
 %type <literal> T_STRING_LITERAL
-%type <identifier> T_IDENTIFIER field_name
+%type <identifier> T_IDENTIFIER /* table_name */
 %type <nibtype> type listtype cast
 %type <string_list> comma_name_list flag_name_list
 %type <flags> flag_number_list comma_bit_list
@@ -447,7 +1064,7 @@ void niberrorf(const char *msg, ...)
 %left T_BAND
 %left T_EQUAL T_NOT_EQUAL T_IDENTIFIER
 %left T_LT T_LT_EQUAL T_GT T_GT_EQUAL
-%left T_LEFT_SHIFT T_RIGHT_SHIFT T_RIGHTL_SHIFT
+%left T_LEFT_SHIFT T_RIGHT_SHIFT T_RIGHTL_SHIFT T_STR_PREFIX T_STR_INFIX T_STR_SUFFIX
 %left T_PLUS T_MINUS
 %left T_STAR T_DIVIDE T_MOD
 %right T_BNOT T_LNOT
@@ -477,7 +1094,7 @@ def:	name_list T_SEMICOLON
 table_def:
 		T_TABLE T_FLAG T_OPEN_PAREN flag_name_list[L] T_CLOSE_PAREN T_IDENTIFIER[I]
 		{
-			const struct flag_type *table = lookup_flag_table($I);
+			const struct flag_type *table = nib_lookup_flag_table(nib_flag_created_tables,$I);
 			if (table)
 			{
 				niberrorf("Duplicate flag table '%s' defined", $I);
@@ -497,13 +1114,13 @@ table_def:
 			}
 			
 			// Create flag table
-			flag_add_table($L, $I);
+			nib_flag_add_table($L, $I);
 			nib_free($I);
 			list_destroy($L);
 		}
 	|	T_TABLE T_STAT T_OPEN_PAREN flag_name_list[L] T_CLOSE_PAREN T_IDENTIFIER[I]
 		{
-			const struct flag_type *table = lookup_stat_table($I);
+			const struct flag_type *table = nib_lookup_stat_table(nib_stat_created_tables,$I);
 			if (table)
 			{
 				niberrorf("Duplicate stat table '%s' defined", $I);
@@ -517,7 +1134,7 @@ table_def:
 			}
 
 			// Create stat table
-			stat_add_table($L, $I);
+			nib_stat_add_table($L, $I);
 			nib_free($I);
 			list_destroy($L);
 		}
@@ -671,23 +1288,29 @@ name_list:
 		{
 			if ($A != NI_ASSIGN)
 			{
-				yyerror("Invalid operation.");
+				yyerror("Variable declarations only allow assignment (=).");
 				YYERROR;
 			}
 			// Do some initialization
 
-			// Special processing for getting the area under the hood
-			if ($T == nibtype_area &&
-				($E.type == nibtype_string || $E.type == nibtype_int))
+			if (!check_valid_assignment($T,$E.type,NI_ASSIGN))
 			{
-				ins_code(NI_GET_AREA);
+				yyerror("Right hand value not value for left hand lvalue.");
+				YYERROR;
 			}
 
-			if ($T->type_class == NTC_LIST && ($E.type == nibtype_list))
-			{
-				ins_code(NI_NEW_LIST);
-				ins_byte(convert_to_stype($T->_.type));
-			}
+			// Special processing for getting the area under the hood
+			// if ($T == nibtype_area &&
+			// 	($E.type == nibtype_string || $E.type == nibtype_int))
+			// {
+			// 	ins_code(NI_GET_AREA);
+			// }
+
+			// if ($T->type_class == NTC_LIST && ($E.type == nibtype_list))
+			// {
+			// 	ins_code(NI_NEW_LIST);
+			// 	ins_byte(convert_to_stype($T->_.type));
+			// }
 
 
 			last_expression = CURRENT_PROGRAM_SIZE;
@@ -695,6 +1318,7 @@ name_list:
 
 			$<decl>$ = $<decl>5;
 			nib_free($I);
+			free_nib_type($E.type);
 		}
 	|	name_list[L] T_COMMA T_IDENTIFIER[I]
 		{
@@ -846,6 +1470,7 @@ name_list:
 
 			$<decl>$ = $<decl>5;
 			nib_free($I);
+			free_nib_type($E.type);
 		}
 	;
 
@@ -1079,6 +1704,7 @@ for:	T_FOR T_OPEN_PAREN
 			pop_nib_continue_address();
 			nib_pop_scope();
 
+			free_nib_type($C.type);
 			nib_free($<for_intr_exp>12.data);
 		}
 	;
@@ -1453,13 +2079,15 @@ comma_expr:
 			$$.type = $4.type;
 			$$.needs_use = $4.needs_use;
 			$$.needs_pop = $4.needs_pop;
+
+			free_nib_type($1.type);
 		}
 	;
 
 expr0:
 		lvalue[L] T_ASSIGN
 		{
-			if (IS_SET($L.flags, IS_READONLY))
+			if (IS_SET($L.flags, (IS_READONLY|IS_LITERAL)))
 			{
 				yyerror("left hand expression is readonly.");
 				YYERROR;
@@ -1491,17 +2119,32 @@ expr0:
 			$$.flags = IS_READONLY;
 
 			nib_free_lvalue_s(&($L));
+
+			if (IS_SET($R.flags,IS_LITERAL))
+				free_nib_type($R.type);
 		}
-	|	field_call T_ASSIGN
+	|	field_call[L] T_ASSIGN
 		{
-			if (IS_SET($1.flags, IS_READONLY))
+			if (IS_SET($L.flags, IS_READONLY))
 			{
 				yyerror("Field is readonly.");
 				YYERROR;
 			}
 		}
-		expr0
+		expr0[R]
 		{
+			// Special processing for getting the area under the hood
+			if ($L.type == nibtype_area && ($R.type == nibtype_int || $R.type == nibtype_string))
+			{
+				ins_code(NI_GET_AREA);
+			}
+
+			if ($L.type->type_class == NTC_LIST && ($R.type == nibtype_list))
+			{
+				ins_code(NI_NEW_LIST);
+				ins_byte(convert_to_stype($L.type->_.type));
+			}
+
 			last_expression = CURRENT_PROGRAM_SIZE;
 			ins_code($2);
 
@@ -1510,6 +2153,9 @@ expr0:
 			$$.needs_use = false;	// Since it is an assignment
 			$$.needs_pop = true;
 			$$.flags = IS_READONLY;
+
+			if (IS_SET($R.flags,IS_LITERAL))
+				free_nib_type($R.type);
 		}
 	|	expr0[C] T_QMARK
 		{
@@ -1553,16 +2199,18 @@ expr0:
 			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
-	|	expr0 T_LOR %prec T_LOR
+	|	expr0[L] T_LOR %prec T_LOR
 		{
-			ins_code(NI_LOR);
-			$<address>$ = CURRENT_PROGRAM_SIZE;
-			ins_address(0);
 		}
-		expr0
+		expr0[R]
 		{
-			// Update branching address
-			set_current_address($<address>3);
+			if (!check_valid_operation($L.type,$R.type,NI_LOR))
+			{
+				yyerror("Invalid arguments for || operation.");
+				YYERROR;
+			}
+
+			ins_code(NI_LOR);
 
 			last_expression = -1;
 
@@ -1572,14 +2220,20 @@ expr0:
 			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
-	|	expr0 T_LXOR %prec T_LXOR
+	|	expr0[L] T_LXOR %prec T_LXOR
 		{
 			// check $1 type 
 
+		}
+		expr0[R]
+		{
+			if (!check_valid_operation($L.type,$R.type,NI_LXOR))
+			{
+				yyerror("Invalid arguments for ^^ operation.");
+				YYERROR;
+			}
+
 			ins_code(NI_LXOR);
-		}
-		expr0
-		{
 
 			last_expression = -1;
 
@@ -1589,17 +2243,18 @@ expr0:
 			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
-	|	expr0 T_LAND %prec T_LAND
+	|	expr0[L] T_LAND %prec T_LAND
 		{
-			// check $1 type
+		}
+		expr0[R]
+		{
+			if (!check_valid_operation($L.type,$R.type,NI_LAND))
+			{
+				yyerror("Invalid arguments for && operation.");
+				YYERROR;
+			}
+
 			ins_code(NI_LAND);
-			$<address>$ = CURRENT_PROGRAM_SIZE;
-			ins_address(0);		// Placeholder for offset
-		}
-		expr0
-		{
-			// Update branching offset
-			set_current_address($<address>3);
 
 			last_expression = -1;
 
@@ -1609,8 +2264,14 @@ expr0:
 			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
-	|	expr0 T_EQUAL expr0 %prec T_EQUAL
+	|	expr0[L] T_EQUAL expr0[R] %prec T_EQUAL
 		{
+			if (!check_valid_operation($L.type,$R.type,NI_EQ))
+			{
+				yyerror("Invalid arguments for == operation.");
+				YYERROR;
+			}
+
 			ins_code(NI_EQ);
 
 			$$.name = NULL;
@@ -1619,8 +2280,14 @@ expr0:
 			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
-	|	expr0 T_NOT_EQUAL expr0 %prec T_NOT_EQUAL
+	|	expr0[L] T_NOT_EQUAL expr0[R] %prec T_NOT_EQUAL
 		{
+			if (!check_valid_operation($L.type,$R.type,NI_NEQ))
+			{
+				yyerror("Invalid arguments for != operation.");
+				YYERROR;
+			}
+
 			ins_code(NI_NEQ);
 
 			$$.name = NULL;
@@ -1629,8 +2296,14 @@ expr0:
 			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
-	|	expr0 T_LT expr0 %prec T_LT
+	|	expr0[L] T_LT expr0[R] %prec T_LT
 		{
+			if (!check_valid_operation($L.type,$R.type,NI_LT))
+			{
+				yyerror("Invalid arguments for < operation.");
+				YYERROR;
+			}
+
 			ins_code(NI_LT);
 
 			$$.name = NULL;
@@ -1639,8 +2312,14 @@ expr0:
 			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
-	|	expr0 T_LT_EQUAL expr0 %prec T_LT_EQUAL
+	|	expr0[L] T_LT_EQUAL expr0[R] %prec T_LT_EQUAL
 		{
+			if (!check_valid_operation($L.type,$R.type,NI_LE))
+			{
+				yyerror("Invalid arguments for <= operation.");
+				YYERROR;
+			}
+
 			ins_code(NI_LE);
 
 			$$.name = NULL;
@@ -1649,8 +2328,14 @@ expr0:
 			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
-	|	expr0 T_GT expr0 %prec T_GT
+	|	expr0[L] T_GT expr0[R] %prec T_GT
 		{
+			if (!check_valid_operation($L.type,$R.type,NI_GT))
+			{
+				yyerror("Invalid arguments for > operation.");
+				YYERROR;
+			}
+
 			ins_code(NI_GT);
 
 			$$.name = NULL;
@@ -1659,8 +2344,14 @@ expr0:
 			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
-	|	expr0 T_GT_EQUAL expr0 %prec T_GT_EQUAL
+	|	expr0[L] T_GT_EQUAL expr0[R] %prec T_GT_EQUAL
 		{
+			if (!check_valid_operation($L.type,$R.type,NI_GE))
+			{
+				yyerror("Invalid arguments for >= operation.");
+				YYERROR;
+			}
+
 			ins_code(NI_GE);
 
 			$$.name = NULL;
@@ -1669,10 +2360,13 @@ expr0:
 			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
-	|	expr0 T_BOR expr0 %prec T_BOR
+	|	expr0[L] T_BOR expr0[R] %prec T_BOR
 		{
-			// TODO: check valid types
-			// TODO: get type for the binary operation
+			if (!check_valid_operation($L.type,$R.type,NI_BOR))
+			{
+				yyerror("Invalid arguments for | operation.");
+				YYERROR;
+			}
 
 			ins_code(NI_BOR);
 
@@ -1682,10 +2376,13 @@ expr0:
 			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
-	|	expr0 T_BXOR expr0 %prec T_BXOR
+	|	expr0[L] T_BXOR expr0[R] %prec T_BXOR
 		{
-			// TODO: check valid types
-			// TODO: get type for the binary operation
+			if (!check_valid_operation($L.type,$R.type,NI_BXOR))
+			{
+				yyerror("Invalid arguments for ^ operation.");
+				YYERROR;
+			}
 
 			ins_code(NI_BXOR);
 
@@ -1695,10 +2392,13 @@ expr0:
 			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
-	|	expr0 T_BAND expr0 %prec T_BAND
+	|	expr0[L] T_BAND expr0[R] %prec T_BAND
 		{
-			// TODO: check valid types
-			// TODO: get type for the binary operation
+			if (!check_valid_operation($L.type,$R.type,NI_BAND))
+			{
+				yyerror("Invalid arguments for & operation.");
+				YYERROR;
+			}
 
 			ins_code(NI_BAND);
 
@@ -1708,10 +2408,61 @@ expr0:
 			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
-	|	expr0 T_LEFT_SHIFT expr0 %prec T_LEFT_SHIFT
+	|	expr0[L] T_STR_PREFIX expr0[R] %prec T_STR_PREFIX
 		{
-			// TODO: check valid types
-			// TODO: get type for the binary operation
+			if (!check_valid_operation($L.type,$R.type,NI_STR_PREFIX))
+			{
+				yyerror("Invalid arguments for <~ operation.");
+				YYERROR;
+			}
+
+			ins_code(NI_STR_PREFIX);
+
+			$$.name = NULL;
+			$$.type = nibtype_bool;
+			$$.needs_use = true;
+			$$.needs_pop = false;
+			$$.flags = IS_READONLY;
+		}
+	|	expr0[L] T_STR_INFIX expr0[R] %prec T_STR_INFIX
+		{
+			if (!check_valid_operation($L.type,$R.type,NI_STR_INFIX))
+			{
+				yyerror("Invalid arguments for ~~ operation.");
+				YYERROR;
+			}
+
+			ins_code(NI_STR_INFIX);
+
+			$$.name = NULL;
+			$$.type = nibtype_bool;
+			$$.needs_use = true;
+			$$.needs_pop = false;
+			$$.flags = IS_READONLY;
+		}
+	|	expr0[L] T_STR_SUFFIX expr0[R] %prec T_STR_SUFFIX
+		{
+			if (!check_valid_operation($L.type,$R.type,NI_STR_SUFFIX))
+			{
+				yyerror("Invalid arguments for ~> operation.");
+				YYERROR;
+			}
+
+			ins_code(NI_STR_SUFFIX);
+
+			$$.name = NULL;
+			$$.type = nibtype_bool;
+			$$.needs_use = true;
+			$$.needs_pop = false;
+			$$.flags = IS_READONLY;
+		}
+	|	expr0[L] T_LEFT_SHIFT expr0[R] %prec T_LEFT_SHIFT
+		{
+			if (!check_valid_operation($L.type,$R.type,NI_LSH))
+			{
+				yyerror("Invalid arguments for << operation.");
+				YYERROR;
+			}
 
 			ins_code(NI_LSH);
 
@@ -1721,10 +2472,13 @@ expr0:
 			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
-	|	expr0 T_RIGHT_SHIFT expr0 %prec T_RIGHT_SHIFT
+	|	expr0[L] T_RIGHT_SHIFT expr0[R] %prec T_RIGHT_SHIFT
 		{
-			// TODO: check valid types
-			// TODO: get type for the binary operation
+			if (!check_valid_operation($L.type,$R.type,NI_RSH))
+			{
+				yyerror("Invalid arguments for >> operation.");
+				YYERROR;
+			}
 
 			ins_code(NI_RSH);
 
@@ -1734,10 +2488,13 @@ expr0:
 			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
-	|	expr0 T_RIGHTL_SHIFT expr0 %prec T_RIGHTL_SHIFT
+	|	expr0[L] T_RIGHTL_SHIFT expr0[R] %prec T_RIGHTL_SHIFT
 		{
-			// TODO: check valid types
-			// TODO: get type for the binary operation
+			if (!check_valid_operation($L.type,$R.type,NI_RSHL))
+			{
+				yyerror("Invalid arguments for >>> operation.");
+				YYERROR;
+			}
 
 			ins_code(NI_RSHL);
 
@@ -1747,65 +2504,91 @@ expr0:
 			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
-	|	expr0 T_PLUS %prec T_PLUS
+	|	expr0[L] T_PLUS %prec T_PLUS
 		{
 
 		}
-		expr0
+		expr0[R]
 		{
-			// TODO: get the correct types
+			NIB_TYPE *type = check_valid_operation($L.type,$R.type,NI_ADD);
+			if (!type)
+			{
+				yyerror("Invalid arguments for + operation.");
+				YYERROR;
+			}
+
 			ins_code(NI_ADD);
 
 			$$.name = NULL;
-			$$.type = nibtype_int;
+			$$.type = type;
 			$$.needs_use = true;
 			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
-	|	expr0 T_MINUS expr0 %prec T_MINUS
+	|	expr0[L] T_MINUS expr0[R] %prec T_MINUS
 		{
-			// TODO: get the correct types
+			NIB_TYPE *type = check_valid_operation($L.type,$R.type,NI_SUBT);
+			if (!type)
+			{
+				yyerror("Invalid arguments for - operation.");
+				YYERROR;
+			}
 
 			ins_code(NI_SUBT);
 
 			$$.name = NULL;
-			$$.type = nibtype_int;
+			$$.type = type;
 			$$.needs_use = true;
 			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
-	|	expr0 T_STAR expr0 %prec T_STAR
+	|	expr0[L] T_STAR expr0[R] %prec T_STAR
 		{
-			// TODO: get the correct types
+			NIB_TYPE *type = check_valid_operation($L.type,$R.type,NI_ADD);
+			if (!type)
+			{
+				yyerror("Invalid arguments for * operation.");
+				YYERROR;
+			}
 
 			ins_code(NI_MULT);
 
 			$$.name = NULL;
-			$$.type = nibtype_int;
+			$$.type = type;
 			$$.needs_use = true;
 			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
-	|	expr0 T_MOD expr0 %prec T_MOD
+	|	expr0[L] T_MOD expr0[R] %prec T_MOD
 		{
-			// TODO: get the correct types
+			NIB_TYPE *type = check_valid_operation($L.type,$R.type,NI_MOD);
+			if (!type)
+			{
+				yyerror("Invalid arguments for % operation.");
+				YYERROR;
+			}
 
 			ins_code(NI_MOD);
 
 			$$.name = NULL;
-			$$.type = nibtype_int;
+			$$.type = type;
 			$$.needs_use = true;
 			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
-	|	expr0 T_DIVIDE expr0 %prec T_DIVIDE
+	|	expr0[L] T_DIVIDE expr0[R] %prec T_DIVIDE
 		{
-			// TODO: get the correct types
+			NIB_TYPE *type = check_valid_operation($L.type,$R.type,NI_ADD);
+			if (!type)
+			{
+				yyerror("Invalid arguments for / operation.");
+				YYERROR;
+			}
 
 			ins_code(NI_DIV);
 
 			$$.name = NULL;
-			$$.type = nibtype_int;
+			$$.type = type;
 			$$.needs_use = true;
 			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
@@ -1822,6 +2605,12 @@ expr0:
 		}
 	|	T_INCREMENT lvalue[L] %prec T_INCREMENT
 		{
+			if ($L.type != nibtype_int)
+			{
+				yyerror("Only integers may be used with pre-increment operators.");
+				YYERROR;
+			}
+
 			ins_bytes($L.lhs, $L.lhs_len);
 			last_expression = CURRENT_PROGRAM_SIZE;
 			ins_code(NI_PRE_INC);
@@ -1836,6 +2625,12 @@ expr0:
 		}
 	|	T_DECREMENT lvalue[L] %prec T_DECREMENT
 		{
+			if ($L.type != nibtype_int)
+			{
+				yyerror("Only integers may be used with pre-decrement operators.");
+				YYERROR;
+			}
+
 			ins_bytes($L.lhs, $L.lhs_len);
 			last_expression = CURRENT_PROGRAM_SIZE;
 			ins_code(NI_PRE_DEC);
@@ -1848,8 +2643,21 @@ expr0:
 
 			nib_free_lvalue_s(&($L));
 		}
-	|	T_LNOT expr0
+	|	T_LNOT expr0[L]
 		{
+			if ($L.type == nibtype_list)
+			{
+				yyerror("Lists may not use ! operator.");
+				YYERROR;
+			}
+
+			if ($L.type->type_class == NTC_STAT)
+			{
+				yyerror("Stat values may not use ! operator.");
+				YYERROR;
+			}
+			// Everything else can be !X'd
+
 			last_expression = CURRENT_PROGRAM_SIZE;
 			ins_code(NI_LNOT);
 
@@ -1859,29 +2667,45 @@ expr0:
 			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
-	|	T_BNOT expr0
+	|	T_BNOT expr0[L]
 		{
+			if ($L.type != nibtype_int && $L.type->type_class != NTC_FLAG)
+			{
+				yyerror("Only integers and flags may use bitwise operations.");
+				YYERROR;
+			}
+
 			ins_code(NI_BNOT);
 
 			$$.name = NULL;
-			$$.type = nibtype_int;
+			$$.type = $L.type;
 			$$.needs_use = true;
 			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
-	|	T_MINUS expr0 %prec T_BNOT
+	|	T_MINUS expr0[L] %prec T_BNOT
 		{
+			if ($L.type != nibtype_int && $L.type != nibtype_float)
+			{
+				yyerror("Only numerical values may be used with negation.");
+				YYERROR;
+			}
+
 			ins_code(NI_NEG);
 
 			$$.name = NULL;
-			$$.type = nibtype_int;
+			$$.type = $L.type;
 			$$.needs_use = true;
 			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
 	|	lvalue[L] T_INCREMENT %prec T_INCREMENT
 		{
-			// TODO: get correct type
+			if ($L.type != nibtype_int)
+			{
+				yyerror("Only integers may be used with post-increment operators.");
+				YYERROR;
+			}
 
 			ins_bytes($L.lhs, $L.lhs_len);
 			last_expression = CURRENT_PROGRAM_SIZE;
@@ -1897,7 +2721,11 @@ expr0:
 		}
 	|	lvalue[L] T_DECREMENT %prec T_DECREMENT
 		{
-			// TODO: get correct type
+			if ($L.type != nibtype_int)
+			{
+				yyerror("Only integers may be used with post-decrement operators.");
+				YYERROR;
+			}
 
 			ins_bytes($L.lhs, $L.lhs_len);
 			last_expression = CURRENT_PROGRAM_SIZE;
@@ -1997,7 +2825,7 @@ expr4:
 			// Push OP code to pull string literal
 			// Push index
 			ins_code(NI_LOAD_STRING);
-			ins_int(index);
+			ins_short(index);
 			
 			$$.name = NULL;
 			$$.type = nibtype_string;
@@ -2081,12 +2909,12 @@ expr4:
 			if($1)
 			{
 				// Push opcode for reading TRUE
-				ins_code(NI_CONST1);
+				ins_code(NI_TRUE);
 			}
 			else
 			{
 				// Push opcode for reading FALSE
-				ins_code(NI_CONST0);
+				ins_code(NI_FALSE);
 			}
 
 			$$.name = NULL;
@@ -2113,11 +2941,10 @@ expr4:
 		{
 			last_expression = CURRENT_PROGRAM_SIZE;
 
-			// Store opcode for constant 0
-			ins_code(NI_CONST0);
+			ins_code(NI_NULL);
 
 			$$.name = NULL;
-			$$.type = nibtype_any;	// Think (void *) from C
+			$$.type = nibtype_null;	// Think ((void *)0) from C
 			$$.needs_use = true;
 			$$.needs_pop = false;
 			$$.flags = IS_LITERAL;
@@ -2133,13 +2960,20 @@ expr4:
 
 			nib_free_lvalue_s(&($L));
 		}
-	|	T_IDENTIFIER[I] flag_name_list[L]
+	|	T_OPEN_FLAG T_IDENTIFIER[I] T_COLON comma_name_list[L] T_CLOSE_FLAG
 		{
+			if (list_size($L) > MAX_FLAG_BITS)
+			{
+				niberrorf("Flag name lists only support %d names.  Encountered %d instead.",
+					MAX_FLAG_BITS, list_size($L));
+				YYERROR;
+			}
+
 			// Look up the flag table
-			const struct flag_type *table = lookup_flag_table($I);
+			const struct flag_type *table = nib_lookup_flag_table(nib_flag_created_tables,$I);
 			if (!table)
 			{
-				niberrorf("Undefined flag table '%s'.", $1);
+				niberrorf("Undefined flag table '%s'.", $I);
 				YYERROR;
 			}
 
@@ -2153,7 +2987,7 @@ expr4:
 			{
 				flag_value_t bit;
 
-				if (find_flag_value(table, name, false, &bit))
+				if (nib_find_flag_value(table, name, NULL, &bit))
 				{
 					value |= bit;
 				}
@@ -2168,8 +3002,13 @@ expr4:
 				YYERROR;
 			}
 
+			// Store it as a bitvector
+			ins_code(NI_LOAD_FLAG_TABLE);
+			ins_long(value);
+			ins_short((short)nib_add_used_table(table));
+
 			$$.name = NULL;
-			$$.type = nibtype_int;
+			$$.type = new_nib_type_flag_table(table);
 			$$.needs_use = true;
 			$$.flags = IS_LITERAL;
 			nib_free($I);
@@ -2177,16 +3016,62 @@ expr4:
 		}
 	|	flag_number_list[L]
 		{
-			// Store opcode for integer
-			// Store $L
+			ins_code(NI_LOAD_FLAG);
+			ins_long($L);
 
 			$$.name = NULL;
 			$$.type = nibtype_int;
 			$$.needs_use = true;
 			$$.flags = IS_LITERAL;
 		}
+	|	T_OPEN_FLAG T_IDENTIFIER[T] T_COLONS T_IDENTIFIER[I] T_CLOSE_FLAG
+		{
+			const struct flag_type *table = nib_lookup_stat_table(nib_stat_created_tables,$T);
+			if (!table)
+			{
+				niberrorf("Undefined stat table '%s'.", $T);
+				YYERROR;
+			}
+
+			flag_value_t bit;
+			bool settable;
+			if (!nib_find_flag_value(table, $I, &settable, &bit))
+			{
+				niberrorf("Stat table '%s' has no value '%s' defined.", $T, $I);
+				YYERROR;
+			}
+
+			ins_code(NI_LOAD_STAT);
+			ins_long(bit);
+			ins_short((short)nib_add_used_table(table));
+
+			$$.name = NULL;
+			$$.type = new_nib_type_stat_table(table);
+			$$.needs_use = true;
+			$$.flags = IS_LITERAL;
+
+			nib_free($I);
+			nib_free($T);
+		}
 	;
 
+/* table_name:
+		T_IDENTIFIER			{ $$ = $1; }
+	|	T_STRING				{ $$ = nib_strdup("string"); }
+	|	T_FLAG					{ $$ = nib_strdup("flag"); }
+	|	T_STAT					{ $$ = nib_strdup("stat"); }
+	|	T_LIST					{ $$ = nib_strdup("list"); }
+	|	T_AREA					{ $$ = nib_strdup("area"); }
+	|	T_DUNGEON				{ $$ = nib_strdup("dungeon"); }
+	|	T_INSTANCE				{ $$ = nib_strdup("instance"); }
+	|	T_MOBILE				{ $$ = nib_strdup("mobile"); }
+	|	T_OBJECT				{ $$ = nib_strdup("object"); }
+	|	T_QUEST					{ $$ = nib_strdup("quest"); }
+	|	T_ROOM					{ $$ = nib_strdup("room"); }
+	|	T_SHIP					{ $$ = nib_strdup("ship"); }
+	|	T_TOKEN					{ $$ = nib_strdup("token"); }
+	;
+ */
 widevnum_value:
 		T_NUMBER[A] T_WIDEVNUM_DELIM T_NUMBER[V]
 		{
@@ -2448,6 +3333,9 @@ name_lvalue:
 
 lvalue:
 		name_lvalue
+		{
+			$$ = $1;
+		}
 	;
 
 function_call:
@@ -2480,14 +3368,14 @@ function_call:
 			$$.needs_use = (type && type->type_class != NTC_VOID);
 			$$.needs_pop = (type && type->type_class != NTC_VOID);
 
-			printf("Function Call: %s %s.\n", nib_get_typename(type), method->name);
+			printf("Function Call: %s %s.\n", nib_get_typename(NULL,type), method->name);
 			nib_free($M);
 			list_destroy($A);
 		}
 	;
 
 field_call:
-		expr0[L] T_DOT field_name[F]
+		expr0[L] T_DOT T_IDENTIFIER[F]
 		{
 			if ($L.type == NULL)
 			{
@@ -2506,9 +3394,10 @@ field_call:
 				flag_value_t bit;
 
 				// Verify the flag actually exists
+				bool settable;
 				if ($L.type->_.flag.table)
 				{
-					if (!find_flag_value($L.type->_.flag.table, $F, false, &bit))
+					if (!nib_find_flag_value($L.type->_.flag.table, $F, &settable, &bit))
 					{
 						niberrorf("Flag '%s' is not defined.", $F);
 						YYERROR;
@@ -2538,20 +3427,24 @@ field_call:
 
 				// Instruction will pop the actual flag lvalue off the stack
 				// This will create a flag lvalue focusing on the bit
-				ins_code(NI_LVALUE_FLAG);
+				ins_code(NI_LVALUE_BIT);
 				ins_long((long)bit);
 
 				$$.name = NULL;
 				$$.type = nibtype_bool;
 				$$.needs_use = true;
-				$$.flags = IS_SET($L.flags, IS_READONLY);
+				if (IS_SET($L.flags, IS_READONLY) || !settable)
+					$$.flags = IS_READONLY;
+				else
+					$$.flags = 0;
 			}
+			/* This grammar (stat.name) doesn't make any sense
 			else if ($L.type->type_class == NTC_STAT)
 			{
 				// Verify the stat actually exists
 				if ($L.type->_.stat.table)
 				{
-					if (!find_flag_value($L.type->_.stat.table, $F, false, NULL))
+					if (!nib_find_flag_value($L.type->_.stat.table, $F, NULL, NULL))
 					{
 						niberrorf("Stat '%s' is not defined.", $F);
 						YYERROR;
@@ -2580,7 +3473,7 @@ field_call:
 				$$.type = nibtype_int;
 				$$.needs_use = true;
 				$$.flags = IS_READONLY;
-			}
+			}*/
 			else
 			{
 				// Search for $F on $L
@@ -2588,7 +3481,7 @@ field_call:
 				if (!field)
 				{
 					niberrorf("No such field '%s' defined for type '%s'.",
-						$F, nib_get_typename($L.type));
+						$F, nib_get_typename(NULL,$L.type));
 					YYERROR;
 				}
 
@@ -2603,13 +3496,57 @@ field_call:
 
 			nib_free($F);
 		}
+	|	expr0[L] T_DOT T_NUMBER[B]
+		{
+			if ($L.type == NULL || $L.type->type_class != NTC_FLAG)
+			{
+				yyerror("Attempting to access an invalid type.");
+				YYERROR;
+			}
+
+			if ($L.type->_.flag.bits < 1)
+			{
+				yyerror("Invalid syntax to access a named flag.");
+				YYERROR;
+			}
+
+			if ($B < 0 || $B >= $L.type->_.flag.bits)
+			{
+				niberrorf("Flag bit out of range for numerical flag: Range (0-%d)", $L.type->_.flag.bits - 1);
+				YYERROR;
+			}
+
+			ins_code(NI_LVALUE_BIT);
+			ins_long(1L << $B);
+
+			$$.name = NULL;
+			$$.type = nibtype_bool;
+			$$.needs_use = true;
+			if (IS_SET($L.flags, IS_READONLY))
+				$$.flags = IS_READONLY;
+			else
+				$$.flags = 0;
+		}
 	;
 
+/*
 field_name:
 		T_IDENTIFIER			{ $$ = $1; }
-	|	T_AREA					{ $$ = nib_strdup("area"); }
 	|	T_STRING				{ $$ = nib_strdup("string"); }
+	|	T_FLAG					{ $$ = nib_strdup("flag"); }
+	|	T_STAT					{ $$ = nib_strdup("stat"); }
+	|	T_LIST					{ $$ = nib_strdup("list"); }
+	|	T_AREA					{ $$ = nib_strdup("area"); }
+	|	T_DUNGEON				{ $$ = nib_strdup("dungeon"); }
+	|	T_INSTANCE				{ $$ = nib_strdup("instance"); }
+	|	T_MOBILE				{ $$ = nib_strdup("mobile"); }
+	|	T_OBJECT				{ $$ = nib_strdup("object"); }
+	|	T_QUEST					{ $$ = nib_strdup("quest"); }
+	|	T_ROOM					{ $$ = nib_strdup("room"); }
+	|	T_SHIP					{ $$ = nib_strdup("ship"); }
+	|	T_TOKEN					{ $$ = nib_strdup("token"); }
 	;
+*/
 
 method_call:
 		expr0[C] T_DOT T_IDENTIFIER[M]
@@ -2636,7 +3573,7 @@ method_call:
 			if (!method)
 			{
 				niberrorf("No such method '%s' found for '%s'.",
-					$M, nib_get_typename($C.type));
+					$M, nib_get_typename(NULL,$C.type));
 				YYERROR;
 			}
 
@@ -2662,7 +3599,7 @@ method_call:
 			$$.needs_use = (type && type->type_class != NTC_VOID);
 			$$.needs_pop = (type && type->type_class != NTC_VOID);
 
-			printf("Method Call: %s %s for %s type.\n", nib_get_typename(type), method->name, nib_get_typename($C.type));
+			printf("Method Call: %s %s for %s type.\n", nib_get_typename(NULL,type), method->name, nib_get_typename(NULL,$C.type));
 			nib_free($M);
 			list_destroy($A);
 		}
@@ -2707,6 +3644,7 @@ type:	T_INT										{ $$ = nibtype_int; }
 			}
 			$$ = new_nib_type_flag($N);
 		}
+	/* Deprecated.  Now requires a table definition
 	| T_FLAG T_OPEN_PAREN flag_name_list[L] T_CLOSE_PAREN
 		{
 			if (list_size($L) < 1)
@@ -2724,10 +3662,12 @@ type:	T_INT										{ $$ = nibtype_int; }
 			$$ = new_nib_type_flag_named($L);
 			list_destroy($L);
 		}
+	*/
 	| T_FLAG T_OPEN_PAREN flag_table[T] T_CLOSE_PAREN
 		{
 			$$ = new_nib_type_flag_table($T);
 		}
+	/* Deprecated.  Now requires a table definition
 	| T_STAT T_OPEN_PAREN flag_name_list[L] T_CLOSE_PAREN
 		{
 			if (list_size($L) < 1)
@@ -2738,7 +3678,7 @@ type:	T_INT										{ $$ = nibtype_int; }
 
 			$$ = new_nib_type_stat_named($L);
 			list_destroy($L);
-		}
+		}*/
 	| T_STAT T_OPEN_PAREN stat_table[T] T_CLOSE_PAREN
 		{
 			$$ = new_nib_type_stat_table($T);
@@ -2826,7 +3766,7 @@ listtype:	T_INT										{ $$ = nibtype_int; }
 flag_table:
 		T_IDENTIFIER			
 			{
-				const struct flag_type *table = lookup_flag_table($1);
+				const struct flag_type *table = nib_lookup_flag_table(nib_flag_created_tables,$1);
 				if (!table)
 				{
 					niberrorf("Unknown flag table '%s'", $1);
@@ -2838,7 +3778,7 @@ flag_table:
 			}
 	|	T_AREA
 			{
-				const struct flag_type *table = lookup_flag_table("area");
+				const struct flag_type *table = nib_lookup_flag_table(nib_flag_created_tables,"area");
 				if (!table)
 				{
 					yyerror("Unknown flag table 'area'");
@@ -2849,7 +3789,7 @@ flag_table:
 			}
 	|	T_DUNGEON
 			{
-				const struct flag_type *table = lookup_flag_table("dungeon");
+				const struct flag_type *table = nib_lookup_flag_table(nib_flag_created_tables,"dungeon");
 				if (!table)
 				{
 					yyerror("Unknown flag table 'dungeon'");
@@ -2860,7 +3800,7 @@ flag_table:
 			}
 	|	T_INSTANCE
 			{
-				const struct flag_type *table = lookup_flag_table("instance");
+				const struct flag_type *table = nib_lookup_flag_table(nib_flag_created_tables,"instance");
 				if (!table)
 				{
 					yyerror("Unknown flag table 'instance'");
@@ -2871,7 +3811,7 @@ flag_table:
 			}
 	|	T_MOBILE
 			{
-				const struct flag_type *table = lookup_flag_table("mobile");
+				const struct flag_type *table = nib_lookup_flag_table(nib_flag_created_tables,"mobile");
 				if (!table)
 				{
 					yyerror("Unknown flag table 'mobile'");
@@ -2882,7 +3822,7 @@ flag_table:
 			}
 	|	T_OBJECT
 			{
-				const struct flag_type *table = lookup_flag_table("object");
+				const struct flag_type *table = nib_lookup_flag_table(nib_flag_created_tables,"object");
 				if (!table)
 				{
 					yyerror("Unknown flag table 'object'");
@@ -2893,7 +3833,7 @@ flag_table:
 			}
 	|	T_QUEST
 			{
-				const struct flag_type *table = lookup_flag_table("quest");
+				const struct flag_type *table = nib_lookup_flag_table(nib_flag_created_tables,"quest");
 				if (!table)
 				{
 					yyerror("Unknown flag table 'quest'");
@@ -2904,7 +3844,7 @@ flag_table:
 			}
 	|	T_ROOM
 			{
-				const struct flag_type *table = lookup_flag_table("room");
+				const struct flag_type *table = nib_lookup_flag_table(nib_flag_created_tables,"room");
 				if (!table)
 				{
 					yyerror("Unknown flag table 'room'");
@@ -2915,7 +3855,7 @@ flag_table:
 			}
 	|	T_SHIP
 			{
-				const struct flag_type *table = lookup_flag_table("ship");
+				const struct flag_type *table = nib_lookup_flag_table(nib_flag_created_tables,"ship");
 				if (!table)
 				{
 					yyerror("Unknown flag table 'ship'");
@@ -2926,7 +3866,7 @@ flag_table:
 			}
 	|	T_TOKEN
 			{
-				const struct flag_type *table = lookup_flag_table("token");
+				const struct flag_type *table = nib_lookup_flag_table(nib_flag_created_tables,"token");
 				if (!table)
 				{
 					yyerror("Unknown flag table 'token'");
@@ -2940,7 +3880,7 @@ flag_table:
 stat_table:
 		T_IDENTIFIER			
 			{
-				const struct flag_type *table = lookup_stat_table($1);
+				const struct flag_type *table = nib_lookup_stat_table(nib_stat_created_tables,$1);
 				if (!table)
 				{
 					niberrorf("Unknown stat table '%s'", $1);
@@ -2952,7 +3892,7 @@ stat_table:
 			}
 	|	T_AREA
 			{
-				const struct flag_type *table = lookup_stat_table("area");
+				const struct flag_type *table = nib_lookup_stat_table(nib_stat_created_tables,"area");
 				if (!table)
 				{
 					yyerror("Unknown stat table 'area'");
@@ -2963,7 +3903,7 @@ stat_table:
 			}
 	|	T_DUNGEON
 			{
-				const struct flag_type *table = lookup_stat_table("dungeon");
+				const struct flag_type *table = nib_lookup_stat_table(nib_stat_created_tables,"dungeon");
 				if (!table)
 				{
 					yyerror("Unknown stat table 'dungeon'");
@@ -2974,7 +3914,7 @@ stat_table:
 			}
 	|	T_INSTANCE
 			{
-				const struct flag_type *table = lookup_stat_table("instance");
+				const struct flag_type *table = nib_lookup_stat_table(nib_stat_created_tables,"instance");
 				if (!table)
 				{
 					yyerror("Unknown stat table 'instance'");
@@ -2985,7 +3925,7 @@ stat_table:
 			}
 	|	T_MOBILE
 			{
-				const struct flag_type *table = lookup_stat_table("mobile");
+				const struct flag_type *table = nib_lookup_stat_table(nib_stat_created_tables,"mobile");
 				if (!table)
 				{
 					yyerror("Unknown stat table 'mobile'");
@@ -2996,7 +3936,7 @@ stat_table:
 			}
 	|	T_OBJECT
 			{
-				const struct flag_type *table = lookup_stat_table("object");
+				const struct flag_type *table = nib_lookup_stat_table(nib_stat_created_tables,"object");
 				if (!table)
 				{
 					yyerror("Unknown stat table 'object'");
@@ -3007,7 +3947,7 @@ stat_table:
 			}
 	|	T_QUEST
 			{
-				const struct flag_type *table = lookup_stat_table("quest");
+				const struct flag_type *table = nib_lookup_stat_table(nib_stat_created_tables,"quest");
 				if (!table)
 				{
 					yyerror("Unknown stat table 'quest'");
@@ -3018,7 +3958,7 @@ stat_table:
 			}
 	|	T_ROOM
 			{
-				const struct flag_type *table = lookup_stat_table("room");
+				const struct flag_type *table = nib_lookup_stat_table(nib_stat_created_tables,"room");
 				if (!table)
 				{
 					yyerror("Unknown stat table 'room'");
@@ -3029,7 +3969,7 @@ stat_table:
 			}
 	|	T_SHIP
 			{
-				const struct flag_type *table = lookup_stat_table("ship");
+				const struct flag_type *table = nib_lookup_stat_table(nib_stat_created_tables,"ship");
 				if (!table)
 				{
 					yyerror("Unknown stat table 'ship'");
@@ -3040,7 +3980,7 @@ stat_table:
 			}
 	|	T_TOKEN
 			{
-				const struct flag_type *table = lookup_stat_table("token");
+				const struct flag_type *table = nib_lookup_stat_table(nib_stat_created_tables,"token");
 				if (!table)
 				{
 					yyerror("Unknown stat table 'token'");

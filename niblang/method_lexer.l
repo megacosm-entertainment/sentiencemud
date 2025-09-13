@@ -35,6 +35,7 @@ static char *trim_outer_quotes(const char *src)
 %option bison-bridge
 
 %x ML_COMMENT
+%x FIELD_NAME
 
 %%
 <INITIAL>"/*"			    { BEGIN(ML_COMMENT); /* ML comments */ }
@@ -47,6 +48,7 @@ static char *trim_outer_quotes(const char *src)
 "any"					{ return T_ANY; }
 "area"					{ return T_AREA; }
 "boolean"				{ return T_BOOLEAN; }
+"bool"					{ return T_BOOLEAN; }
 "char"					{ return T_CHAR; }
 "dungeon"				{ return T_DUNGEON; }
 "field"					{ return T_FIELD; }
@@ -76,9 +78,10 @@ static char *trim_outer_quotes(const char *src)
 ")"						{ return T_CP; }
 ","						{ return T_COMMA; }
 "..."					{ return T_VARARGS; }
-"."						{ return T_DOT; }
+"."						{ BEGIN(FIELD_NAME); return T_DOT; }
 ";"						{ return T_SEMICOLON; }
 [a-zA-Z_][a-zA-Z0-9_]*  { yylval->identifier = nib_strdup(nibmethodtext); return T_IDENTIFIER; }
+<FIELD_NAME>[a-zA-Z_][a-zA-Z0-9_]*  { BEGIN(INITIAL); yylval->identifier = nib_strdup(nibmethodtext); return T_IDENTIFIER; }
 [ \t\n]+  				{ /* Ignore white space*/ }
 .                       { /* complain */ }
 

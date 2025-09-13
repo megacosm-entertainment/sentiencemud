@@ -35,7 +35,7 @@ void nibmethoderrorf(const char *msg, ...)
 }
 
 // Verify that VARARGS, if in the list, is the LAST arg
-static bool check_argtype_list(LLIST *list)
+static bool check_varargs_is_last(LLIST *list)
 {
 	bool found = false;
 	ITERATOR it;
@@ -48,6 +48,25 @@ static bool check_argtype_list(LLIST *list)
 			found = true;
 		}
 		else if(found)	// Found something else after a VARARGS type
+			break;
+	}
+	iterator_stop(&it);
+
+	return (type == NULL);
+}
+
+static bool check_anytype_on_list(NIB_TYPE *context, LLIST *list)
+{
+	// Don't care if it is known to be a list already
+	if(context != NULL && context->type_class == NTC_LIST)
+		return true;
+
+	ITERATOR it;
+	NIB_TYPE *type;
+	iterator_start(&it, list);
+	while((type = (NIB_TYPE *)iterator_nextdata(&it)))
+	{
+		if (type == nibtype_any)
 			break;
 	}
 	iterator_stop(&it);
@@ -115,7 +134,7 @@ static bool check_argtype_list(LLIST *list)
 %token T_WIDEVNUM
 
 %type <number> T_NUMBER
-%type <identifier> T_IDENTIFIER field_name
+%type <identifier> T_IDENTIFIER /*field_name*/
 
 %type <b> possible_readonly
 %type <nibtype> type return_type arg_type listtype contexttype fieldtype
@@ -151,10 +170,22 @@ method_def:
 				YYERROR;
 			}
 
+			if ($C->type_class != NTC_LIST && $R == nibtype_any)
+			{
+				yyerror("ANY return type may only be used with LIST contexts.");
+				YYERROR;
+			}
+
 			// Validate $A
-			if (!check_argtype_list($A))
+			if (!check_varargs_is_last($A))
 			{
 				yyerror("Variable arg type '...' must be the final parameter.");
+				YYERROR;
+			}
+
+			if (!check_anytype_on_list($C,$A))
+			{
+				yyerror("ANY type may only be used with LIST contexts.");
 				YYERROR;
 			}
 
@@ -168,7 +199,7 @@ method_def:
 			// Generate method info for the argument list with return type for the given context type
 			if (!nib_method_add($C, $M, $R, $A, $F, func))
 			{
-				yyerror("Could not add function signature.");
+				yyerror("Could not add method signature.");
 				YYERROR;
 			}
 
@@ -188,28 +219,40 @@ function_def:
 			METHOD_FUNC *func = nib_method_func_lookup($F);
 			if (!func)
 			{
-				nibmethoderrorf("Undefined method function '%s'.", $F);
+				nibmethoderrorf("Undefined function '%s'.", $F);
+				YYERROR;
+			}
+
+			if ($R == nibtype_any)
+			{
+				yyerror("ANY return type may not by used in function definitions.");
 				YYERROR;
 			}
 
 			// Validate $A
-			if (!check_argtype_list($A))
+			if (!check_varargs_is_last($A))
 			{
 				yyerror("Variable arg type '...' must be the final parameter.");
+				YYERROR;
+			}
+
+			if (!check_anytype_on_list(NULL,$A))
+			{
+				yyerror("ANY type may not be used in function definitions.");
 				YYERROR;
 			}
 
 			// Check for duplicate signatures
 			if (nib_method_exists(NULL, $M, $A))
 			{
-				yyerror("Duplicate method signature.");
+				yyerror("Duplicate function signature.");
 				YYERROR;
 			}
 
 			// Generate method info for the argument list with return type for the given context type
 			if (!nib_method_add(NULL, $M, $R, $A, $F, func))
 			{
-				yyerror("Could not add method signature.");
+				yyerror("Could not add function signature.");
 				YYERROR;
 			}
 
@@ -220,21 +263,28 @@ function_def:
 		}
 	;
 
-field_def:	T_FIELD possible_readonly[P] type[R] fieldtype[C] T_DOT field_name[I] T_ARROW T_IDENTIFIER[F] T_SEMICOLON
+field_def:	T_FIELD possible_readonly[P] type[R] fieldtype[C] T_DOT T_IDENTIFIER[I] T_ARROW T_IDENTIFIER[F] T_SEMICOLON
 	{
 		size_t *offset = nib_field_offset_lookup($C, $F);
 
 		if (!offset)
 		{
 			nibmethoderrorf("No such field offset '%s' defined for '%s' type.",
-				$F, nib_get_typename($C));
+				$F, nib_get_typename(NULL,$C));
+			YYERROR;
+		}
+
+
+		if ($R == nibtype_any)
+		{
+			yyerror("ANY return type may not by used in field definitions.");
 			YYERROR;
 		}
 
 		if (nib_field_get($C, $I))
 		{
 			nibmethoderrorf("Field '%s' already defined for '%s' type.",
-				$I, nib_get_typename($C));
+				$I, nib_get_typename(NULL,$C));
 			YYERROR;
 		}
 
@@ -250,11 +300,24 @@ field_def:	T_FIELD possible_readonly[P] type[R] fieldtype[C] T_DOT field_name[I]
 		free_nib_type($R);
 	}
 
+/*
 field_name:
 		T_IDENTIFIER			{ $$ = $1; }
-	|	T_AREA					{ $$ = nib_strdup("area"); }
 	|	T_STRING				{ $$ = nib_strdup("string"); }
+	|	T_FLAG					{ $$ = nib_strdup("flag"); }
+	|	T_STAT					{ $$ = nib_strdup("stat"); }
+	|	T_LIST					{ $$ = nib_strdup("list"); }
+	|	T_AREA					{ $$ = nib_strdup("area"); }
+	|	T_DUNGEON				{ $$ = nib_strdup("dungeon"); }
+	|	T_INSTANCE				{ $$ = nib_strdup("instance"); }
+	|	T_MOBILE				{ $$ = nib_strdup("mobile"); }
+	|	T_OBJECT				{ $$ = nib_strdup("object"); }
+	|	T_QUEST					{ $$ = nib_strdup("quest"); }
+	|	T_ROOM					{ $$ = nib_strdup("room"); }
+	|	T_SHIP					{ $$ = nib_strdup("ship"); }
+	|	T_TOKEN					{ $$ = nib_strdup("token"); }
 	;
+*/
 
 optional_argtype_list:
 		T_OP T_CP					{ $$ = nib_create_type_list(); /* empty list */ }
@@ -283,6 +346,7 @@ return_type:
 arg_type:
 		type			{ $$ = $1; }
 	|	T_VARARGS		{ $$ = nibtype_varargs; }
+	|	T_ANY			{ $$ = nibtype_any; }
 	;
 
 type:
@@ -369,7 +433,7 @@ fieldtype:
 flag_table:
 		T_IDENTIFIER			
 			{
-				const struct flag_type *table = lookup_flag_table($1);
+				const struct flag_type *table = nib_lookup_flag_table(NULL, $1);
 				if (!table)
 				{
 					nibmethoderrorf("Unknown flag table '%s'", $1);
@@ -380,7 +444,7 @@ flag_table:
 			}
 	|	T_AREA
 			{
-				const struct flag_type *table = lookup_flag_table("area");
+				const struct flag_type *table = nib_lookup_flag_table(NULL,"area");
 				if (!table)
 				{
 					yyerror("Unknown flag table 'area'");
@@ -391,7 +455,7 @@ flag_table:
 			}
 	|	T_DUNGEON
 			{
-				const struct flag_type *table = lookup_flag_table("dungeon");
+				const struct flag_type *table = nib_lookup_flag_table(NULL,"dungeon");
 				if (!table)
 				{
 					yyerror("Unknown flag table 'dungeon'");
@@ -402,7 +466,7 @@ flag_table:
 			}
 	|	T_INSTANCE
 			{
-				const struct flag_type *table = lookup_flag_table("instance");
+				const struct flag_type *table = nib_lookup_flag_table(NULL,"instance");
 				if (!table)
 				{
 					yyerror("Unknown flag table 'instance'");
@@ -413,7 +477,7 @@ flag_table:
 			}
 	|	T_MOBILE
 			{
-				const struct flag_type *table = lookup_flag_table("mobile");
+				const struct flag_type *table = nib_lookup_flag_table(NULL,"mobile");
 				if (!table)
 				{
 					yyerror("Unknown flag table 'mobile'");
@@ -424,7 +488,7 @@ flag_table:
 			}
 	|	T_OBJECT
 			{
-				const struct flag_type *table = lookup_flag_table("object");
+				const struct flag_type *table = nib_lookup_flag_table(NULL,"object");
 				if (!table)
 				{
 					yyerror("Unknown flag table 'object'");
@@ -435,7 +499,7 @@ flag_table:
 			}
 	|	T_QUEST
 			{
-				const struct flag_type *table = lookup_flag_table("quest");
+				const struct flag_type *table = nib_lookup_flag_table(NULL,"quest");
 				if (!table)
 				{
 					yyerror("Unknown flag table 'quest'");
@@ -446,7 +510,7 @@ flag_table:
 			}
 	|	T_ROOM
 			{
-				const struct flag_type *table = lookup_flag_table("room");
+				const struct flag_type *table = nib_lookup_flag_table(NULL,"room");
 				if (!table)
 				{
 					yyerror("Unknown flag table 'room'");
@@ -457,7 +521,7 @@ flag_table:
 			}
 	|	T_SHIP
 			{
-				const struct flag_type *table = lookup_flag_table("ship");
+				const struct flag_type *table = nib_lookup_flag_table(NULL,"ship");
 				if (!table)
 				{
 					yyerror("Unknown flag table 'ship'");
@@ -468,7 +532,7 @@ flag_table:
 			}
 	|	T_TOKEN
 			{
-				const struct flag_type *table = lookup_flag_table("token");
+				const struct flag_type *table = nib_lookup_flag_table(NULL,"token");
 				if (!table)
 				{
 					yyerror("Unknown flag table 'token'");
@@ -482,7 +546,7 @@ flag_table:
 stat_table:
 		T_IDENTIFIER			
 			{
-				const struct flag_type *table = lookup_stat_table($1);
+				const struct flag_type *table = nib_lookup_stat_table(NULL,$1);
 				if (!table)
 				{
 					nibmethoderrorf("Unknown stat table '%s'", $1);
@@ -493,7 +557,7 @@ stat_table:
 			}
 	|	T_AREA
 			{
-				const struct flag_type *table = lookup_stat_table("area");
+				const struct flag_type *table = nib_lookup_stat_table(NULL,"area");
 				if (!table)
 				{
 					yyerror("Unknown stat table 'area'");
@@ -504,7 +568,7 @@ stat_table:
 			}
 	|	T_DUNGEON
 			{
-				const struct flag_type *table = lookup_stat_table("dungeon");
+				const struct flag_type *table = nib_lookup_stat_table(NULL,"dungeon");
 				if (!table)
 				{
 					yyerror("Unknown stat table 'dungeon'");
@@ -515,7 +579,7 @@ stat_table:
 			}
 	|	T_INSTANCE
 			{
-				const struct flag_type *table = lookup_stat_table("instance");
+				const struct flag_type *table = nib_lookup_stat_table(NULL,"instance");
 				if (!table)
 				{
 					yyerror("Unknown stat table 'instance'");
@@ -526,7 +590,7 @@ stat_table:
 			}
 	|	T_MOBILE
 			{
-				const struct flag_type *table = lookup_stat_table("mobile");
+				const struct flag_type *table = nib_lookup_stat_table(NULL,"mobile");
 				if (!table)
 				{
 					yyerror("Unknown stat table 'mobile'");
@@ -537,7 +601,7 @@ stat_table:
 			}
 	|	T_OBJECT
 			{
-				const struct flag_type *table = lookup_stat_table("object");
+				const struct flag_type *table = nib_lookup_stat_table(NULL,"object");
 				if (!table)
 				{
 					yyerror("Unknown stat table 'object'");
@@ -548,7 +612,7 @@ stat_table:
 			}
 	|	T_QUEST
 			{
-				const struct flag_type *table = lookup_stat_table("quest");
+				const struct flag_type *table = nib_lookup_stat_table(NULL,"quest");
 				if (!table)
 				{
 					yyerror("Unknown stat table 'quest'");
@@ -559,7 +623,7 @@ stat_table:
 			}
 	|	T_ROOM
 			{
-				const struct flag_type *table = lookup_stat_table("room");
+				const struct flag_type *table = nib_lookup_stat_table(NULL,"room");
 				if (!table)
 				{
 					yyerror("Unknown stat table 'room'");
@@ -570,7 +634,7 @@ stat_table:
 			}
 	|	T_SHIP
 			{
-				const struct flag_type *table = lookup_stat_table("ship");
+				const struct flag_type *table = nib_lookup_stat_table(NULL,"ship");
 				if (!table)
 				{
 					yyerror("Unknown stat table 'ship'");
@@ -581,7 +645,7 @@ stat_table:
 			}
 	|	T_TOKEN
 			{
-				const struct flag_type *table = lookup_stat_table("token");
+				const struct flag_type *table = nib_lookup_stat_table(NULL,"token");
 				if (!table)
 				{
 					yyerror("Unknown stat table 'token'");

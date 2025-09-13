@@ -1,9 +1,12 @@
 /*
 Function Format:
-return-type function-name([param-list]) -> internal-name
+FUNCTION return-type function-name([param-list]) -> internal-name;
 
 Method Format:
-return-type context-type.method-name([param-list]) -> internal-name
+METHOD return-type context-type.method-name([param-list]) -> internal-name;
+
+Field Format:
+FIELD[ readonly] return-type context-type.field-name -> internal-name;
 
 For flags and stats, ONLY built-in named tables may be used
 */
@@ -21,13 +24,35 @@ method int string.length() -> string_length;
 field area widevnum.area -> widevnum_pArea;
 field int widevnum.vnum -> widevnum_vnum;
 
+// LIST methods (no fields) - only context that allows ANY to be used
+method int list.size() -> list_size;
+method int list.add(any) -> list_add;
+method bool list.insert(int,any) -> list_insert;
+method any list.remove(int) -> list_remove;
+
 // AREA methods/fields
+field readonly int area.uid -> area_uid;
 field readonly string area.name -> area_name;
 field readonly string area.description -> area_description;
 field flag(area) area.flags -> area_flags;
+
+// INSTANCE methods/fields
+
+// DUNGEON methods/fields
+
+// MOBILE methods/fields
+
+// OBJECT methods/fields
+
+// QUEST methods/fields
 
 // ROOM method/fields
 field readonly int room.vnum -> room_vnum;
 field string room.name -> room_name;
 field string room.description -> room_description;
 field readonly list(mobile) room.people -> room_people;
+
+// SHIP methods/fields
+
+// TOKEN methods/fields
+

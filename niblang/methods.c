@@ -71,6 +71,7 @@ struct nib_field_offset_type
 
 static struct nib_field_offset_type __field_offsets[] =
 {
+	NFO(PRIMARY,AREA,uid,__static_area),
 	NFO(PRIMARY,AREA,name,__static_area),
 	NFO(PRIMARY,AREA,description,__static_area),
 	NFO(PRIMARY,AREA,flags,__static_area),
@@ -87,7 +88,7 @@ static struct nib_field_offset_type __field_offsets[] =
 	NFOEND
 };
 
-#define MFE(f)	{ #f, f }
+#define MFE(f)	{ #f, nib_method_func_##f }
 #define MFEND	{ NULL, NULL }
 
 size_t *nib_field_offset_lookup(NIB_TYPE *context, char *name)
@@ -117,6 +118,10 @@ NIB_FIELD *new_nib_field(char *name, NIB_TYPE *type, bool readonly, size_t offse
 	field->name = strdup(name);
 	field->type = nib_type_copy(type);
 	field->stype = convert_to_stype(type);
+	if (type && type->type_class == NTC_LIST)
+		field->stype2 = convert_to_stype(type->_.type);
+	else
+		field->stype2 = NST_UNKNOWN;
 	field->readonly = readonly;
 	field->offset = offset;
 
@@ -266,6 +271,10 @@ const struct nib_method_func_type nib_method_funcs[] =
 {
 	MFE(area_get_name),
 	MFE(function_reckoning),
+	MFE(list_add),
+	MFE(list_insert),
+	MFE(list_remove),
+	MFE(list_size),
 	MFE(number_random_value),
 	MFE(string_length),
 	MFEND
@@ -288,7 +297,10 @@ NIB_METHOD *new_nib_method(char *name, NIB_TYPE *ret, LLIST *params, char *metho
 	method->name = strdup(name);
 	method->result = nib_type_copy(ret);
 	method->sresult = convert_to_stype(ret);
-
+	if (ret && ret->type_class == NTC_LIST)
+		method->sresult2 = convert_to_stype(ret->_.type);
+	else
+		method->sresult2 = NST_UNKNOWN;
 	method->nparams = list_size(params);
 	if (method->nparams > 0)
 	{
@@ -408,7 +420,7 @@ static LLIST *__get_method_context(NIB_TYPE *context)
 	return NULL;
 }
 
-static bool __method_matches_signature(NIB_METHOD *method, char *name, LLIST *params)
+static bool __method_matches_signature(NIB_METHOD *method, NIB_TYPE *anytype, char *name, LLIST *params)
 {
 	if (str_cmp(method->name, name)) return false;
 
@@ -435,6 +447,16 @@ static bool __method_matches_signature(NIB_METHOD *method, char *name, LLIST *pa
 		{
 			// Variable argument method; ignore the rest of the arguments
 			break;
+		}
+
+		if (atype->type_class == NTC_ANY)
+		{
+			// If it is ANY but the anytype is NULL, then skip it.
+			//  Only really care if it is a list
+			if (anytype == NULL)
+				continue;
+
+			atype = anytype;	// Substitute the ANY type replacement
 		}
 
 		if (!are_nib_types_equal(atype, ptype))
@@ -506,12 +528,16 @@ NIB_METHOD *nib_method_get(NIB_TYPE *context, char *name, LLIST *params)
 	LLIST *methods = __get_method_context(context);
 	if (!methods) return NULL;
 
+	NIB_TYPE *subtype = NULL;
+	if (context && context->type_class == NTC_LIST)
+		subtype = context->_.type;	// Get LIST element type
+
 	ITERATOR it;
 	NIB_METHOD *method;
 	iterator_start(&it, methods);
 	while((method = (NIB_METHOD *)iterator_nextdata(&it)))
 	{
-		if (__method_matches_signature(method, name, params))
+		if (__method_matches_signature(method, subtype, name, params))
 			break;
 	}
 	iterator_stop(&it);
@@ -754,15 +780,15 @@ void nib_method_get_prototype(NIB_METHOD *method, char *buffer, size_t max_len)
 {
 	int len = 0;
 
-	len = snprintf(buffer, max_len, "%s", nib_get_typename(method->result));
+	len = snprintf(buffer, max_len, "%s", nib_get_typename(NULL,method->result));
 	len += snprintf(buffer + len, max_len - len, " %s(", method->name);
 
 	for(int i = 0; i < method->nparams; i++)
 	{
 		if (i > 0)
-			len += snprintf(buffer + len, max_len - len, ",%s", nib_get_typename(method->params[i]));
+			len += snprintf(buffer + len, max_len - len, ",%s", nib_get_typename(NULL,method->params[i]));
 		else
-			len += snprintf(buffer + len, max_len - len, "%s", nib_get_typename(method->params[i]));
+			len += snprintf(buffer + len, max_len - len, "%s", nib_get_typename(NULL,method->params[i]));
 	}
 
 	len += snprintf(buffer + len, max_len - len, ")");

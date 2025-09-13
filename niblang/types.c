@@ -5,7 +5,12 @@
 
 
 #include "niblang.h"
+#include "interpret.h"
 
+extern LLIST *nib_flag_created_tables;
+extern LLIST *nib_stat_created_tables;
+
+static NIB_TYPE __nibtype_null		= { true, NTC_ANY, {0}, "null"};
 static NIB_TYPE __nibtype_void		= { true, NTC_VOID, {0}, "void"};
 static NIB_TYPE __nibtype_any		= { true, NTC_ANY, {0}, "any"};
 static NIB_TYPE __nibtype_bool		= { true, NTC_PRIMARY, {NT_BOOLEAN}, "boolean"};
@@ -29,7 +34,6 @@ static NIB_TYPE __nibtype_room		= { true, NTC_PRIMARY, {NT_ROOM}, "room"};
 static NIB_TYPE __nibtype_ship		= { true, NTC_PRIMARY, {NT_SHIP}, "ship"};
 static NIB_TYPE __nibtype_token		= { true, NTC_PRIMARY, {NT_TOKEN}, "token"};
 
-
 /* Types to add: TODO
 
 Basic Types:
@@ -38,6 +42,7 @@ coord
 Game Types:
 exit
 player
+account
 church/org
 channel
 objective
@@ -56,6 +61,7 @@ reputation
 
 */
 
+NIB_TYPE *nibtype_null = &__nibtype_null;
 NIB_TYPE *nibtype_void = &__nibtype_void;
 NIB_TYPE *nibtype_any = &__nibtype_any;
 NIB_TYPE *nibtype_bool = &__nibtype_bool;
@@ -122,6 +128,7 @@ NIB_TYPE *nibtype_get(char *name)
 
 void nib_dump_created_types()
 {
+#if 0
 	if (list_size(nibtype_created_types) > 0)
 	{
 		printf("Create Types:\n");
@@ -143,6 +150,7 @@ void nib_dump_created_types()
 		}
 		iterator_stop(&it);
 	}
+#endif
 }
 
 LLIST *nib_create_string_list();
@@ -235,6 +243,10 @@ void free_nib_type(NIB_TYPE *type)
 		}
 		else if (type->type_class == NTC_FLAG)
 		{
+			// if (type->_.flag.table)
+			// {
+			// 	printf("free_nib_type(flag(%s))\n", get_flag_table_name(type->_.flag.table));
+			// }
 			list_destroy(type->_.flag.names);
 		}
 		else if (type->type_class == NTC_STAT)
@@ -289,7 +301,7 @@ NIB_TYPE *nib_type_copy(NIB_TYPE *src)
 
 #define MSL 10240
 #define MSN 20
-char *nib_get_typename(NIB_TYPE *type)
+char *nib_get_typename(NIB_SCRIPT *context, NIB_TYPE *type)
 {
 	static char buf[MSN][MSL];
 	static int i = 0;
@@ -302,7 +314,7 @@ char *nib_get_typename(NIB_TYPE *type)
 	char *p = buf[i];
 	if (type->type_class == NTC_LIST)
 	{
-		snprintf(p, MSL-1, "list(%s)", nib_get_typename(type->_.type));
+		snprintf(p, MSL-1, "list(%s)", nib_get_typename(context, type->_.type));
 	}
 	else if (type->type_class == NTC_FLAG)
 	{
@@ -312,7 +324,7 @@ char *nib_get_typename(NIB_TYPE *type)
 		}
 		else if (type->_.flag.table)
 		{
-			snprintf(p, MSL-1, "flag(%s)", get_flag_table_name(type->_.flag.table));
+			snprintf(p, MSL-1, "flag(%s)", nib_get_flag_table_name((context?context->flag_tables:nib_flag_created_tables),type->_.flag.table));
 		}
 		else
 		{
@@ -338,7 +350,7 @@ char *nib_get_typename(NIB_TYPE *type)
 	{
 		if (type->_.stat.table)
 		{
-			snprintf(p, MSL-1, "stat(%s)", get_stat_table_name(type->_.stat.table));
+			snprintf(p, MSL-1, "stat(%s)", nib_get_stat_table_name((context?context->stat_tables:nib_stat_created_tables),type->_.stat.table));
 		}
 		else
 		{

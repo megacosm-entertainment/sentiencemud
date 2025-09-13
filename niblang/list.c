@@ -835,8 +835,14 @@ void iterator_start_nth(ITERATOR *it, LLIST *lp, int nth)
 			it->list = lp;
 
 			if( nth < 0 ) nth = lp->size + nth + 1;
+			// -1 -> size
+			// -2 -> size - 1
 
-			for(link = lp->head; link && nth > 0; link = link->next)
+			// Skip all dead nodes
+			for(link = lp->head; link && !link->data; link = link->next);
+
+			// Skip N-1 nodes
+			for(; link && nth > 1; link = link->next)
 				if(link->data)
 					--nth;
 

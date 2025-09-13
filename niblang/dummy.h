@@ -116,11 +116,13 @@ struct iterator_type
 
 
 typedef struct area_data AREA_DATA;
+typedef struct mob_index_data MOB_INDEX_DATA;
 typedef struct char_data CHAR_DATA;
 typedef struct room_index_data ROOM_INDEX_DATA;
 
 struct area_data
 {
+	long uid;
 	char *name;
 	char *description;
 	flag_value_t flags;
@@ -133,8 +135,15 @@ typedef struct wide_vnum_type
     long vnum;
 } WNUM;
 
+struct mob_index_data
+{
+	AREA_DATA *area;
+	long vnum;
+};
+
 struct char_data
 {
+	MOB_INDEX_DATA *pIndexData;
 	char *name;
 	char *short_descr;
 	char *long_descr;
@@ -143,6 +152,7 @@ struct char_data
 
 struct room_index_data
 {
+	AREA_DATA *area;
 	long vnum;
 	char *name;
 	char *description;
@@ -183,5 +193,8 @@ pVARIABLE variable_new_area(const char *name, AREA_DATA *area);
 pVARIABLE variable_new_mobile(const char *name, CHAR_DATA *mobile);
 pVARIABLE variable_new_room(const char *name, ROOM_INDEX_DATA *room);
 
+
+AREA_DATA *find_area(char *name);
+AREA_DATA *get_area_from_uid (long uid);
 
 #endif

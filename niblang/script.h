@@ -11,6 +11,7 @@
 	.	ROOM_INDEX_DATA
 	.
 	.	pVARIABLE
+	.	All of the BIT flags (A, B, C, etc)
 */
 
 // SWITCH CASE DATA
@@ -121,6 +122,12 @@ struct nib_script_type_s
 	int n_locals;
 	NIB_LOCAL_VAR *locals;
 
+	int n_tables;
+	struct flag_type **tables;	// Combined FLAG and STAT table usage
+
+	LLIST *flag_tables;
+	LLIST *stat_tables;
+
 	int n_strings;
 	char **strings;
 };
@@ -129,5 +136,6 @@ struct nib_script_type_s
 NIB_SCRIPT *new_nib_script(const char *src, NIB_SCRIPT_CLASS sc);
 void free_nib_script(NIB_SCRIPT *script);
 void nib_decompile_code(NIB_SCRIPT *script);
+void nib_dump_script_tables(NIB_SCRIPT *script);
 
 #endif

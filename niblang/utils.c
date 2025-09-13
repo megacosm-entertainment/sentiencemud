@@ -6,6 +6,39 @@
 
 #include "niblang.h"
 
+void ltoa(register long num, register char *output)
+{
+	static char number[100];
+
+	register char *str = &number[100];
+
+	*(--str) = '\0';
+
+	bool sign = false;
+	if (num < 0L)
+	{
+		num = -num;
+		sign = true;
+	}
+
+	do {
+		*(--str) = (num % 10) + '0';
+		num /= 10;
+	} while(num > 0);
+
+	if (sign)
+	{
+		*(--str) = '-';
+	}
+
+	// Place into output
+	do
+	{
+		*output++ = *str++;
+	}
+	while(*str);
+}
+
 // WARNING: NOT UTF8 aware!!!
 int str_cmp(const char *astr, const char *bstr)
 {
@@ -22,6 +55,65 @@ int str_cmp(const char *astr, const char *bstr)
 	return 0;
 }
 
+bool str_prefix(const char *astr, const char *bstr)
+{
+    if (astr == NULL)
+    {
+		return true;
+    }
+
+    if (bstr == NULL)
+    {
+		return true;
+    }
+
+	// Empty strings should *never* prefix another string
+	if (!*astr) return true;
+
+    for (; *astr; astr++, bstr++)
+    {
+	if (tolower(*astr) != tolower(*bstr))
+	    return true;
+    }
+
+    return false;
+}
+
+
+bool str_infix(const char *astr, const char *bstr)
+{
+    int sstr1;
+    int sstr2;
+    int ichar;
+    char c0;
+
+    if ((c0 = tolower(astr[0])) == '\0')
+	return true;
+
+    sstr1 = strlen(astr);
+    sstr2 = strlen(bstr);
+
+    for (ichar = 0; ichar <= sstr2 - sstr1; ichar++)
+    {
+	if (c0 == tolower(bstr[ichar]) && !str_prefix(astr, bstr + ichar))
+	    return true;
+    }
+
+    return false;
+}
+
+bool str_suffix(const char *astr, const char *bstr)
+{
+    int sstr1;
+    int sstr2;
+
+    sstr1 = strlen(astr);
+    sstr2 = strlen(bstr);
+    if (sstr1 <= sstr2 && !str_cmp(astr, bstr + sstr2 - sstr1))
+	return false;
+    else
+	return true;
+}
 
 long number_range(long from, long to)
 {
@@ -144,6 +236,7 @@ void nib_ledger_cleanup()
 
 char *nib_strdup(const char *str)
 {
+	if(!str) return NULL;
 	char *data = strdup(str);
 	add_ledger(data, 0, strlen(data) + 1);
 	return data;
@@ -165,8 +258,11 @@ void *nib_calloc(size_t count, size_t size)
 
 void nib_free(void *data)
 {
-	remove_address(data);
-	free(data);
+	if (data)
+	{
+		remove_address(data);
+		free(data);
+	}
 }
 
 void hex_dump(void *addr, size_t size)

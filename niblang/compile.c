@@ -30,8 +30,15 @@ LLIST *nib_string_storage = NULL;
 // Comment Storage
 LLIST *nib_comment_storage = NULL;
 
+LLIST *nib_flag_created_tables = NULL;
+LLIST *nib_stat_created_tables = NULL;
+
+LLIST *nib_used_tables = NULL;
+
 struct nib_break_s *nib_break_address = NULL;
 struct nib_continue_s *nib_continue_address = NULL;
+
+// Compilation Flags
 
 void free_nib_bc_statement(struct nib_bc_statment_s *stmt)
 {
@@ -216,6 +223,17 @@ static void *__copy_nibtype(void *data)
 	return nib_type_copy((NIB_TYPE *)data);
 }
 
+static void __free_flag_table(void *data)
+{
+	if (data) nib_flag_free_table((struct flag_type_lookup *)data);
+}
+
+static void *__copy_flag_table(void *data)
+{
+	return nib_flag_copy_table((struct flag_type_lookup *)data);
+}
+
+
 LLIST *nib_create_comment_list()
 {
 	return list_createx(false, __copy_comment, __free_comment);
@@ -234,6 +252,11 @@ LLIST *nib_create_variable_list()
 LLIST *nib_create_type_list()
 {
 	return list_createx(false, __copy_nibtype, __free_nibtype);
+}
+
+LLIST *nib_create_flag_table_list()
+{
+	return list_createx(false, __copy_flag_table, __free_flag_table);
 }
 
 void nib_init_scopetree();
@@ -256,7 +279,14 @@ bool nib_init_compile()
 	nib_comment_storage = nib_create_comment_list();
 	if (!list_isvalid(nib_comment_storage)) return false;
 
-	if (!flag_tables_init()) return false;
+	nib_flag_created_tables = nib_create_flag_table_list();
+	if (!list_isvalid(nib_flag_created_tables)) return false;
+
+	nib_stat_created_tables = nib_create_flag_table_list();
+	if (!list_isvalid(nib_stat_created_tables)) return false;
+
+	nib_used_tables = list_create(false);	// Will hold (struct flag_type *)
+	if (!list_isvalid(nib_used_tables)) return false;
 
 	return true;
 }
@@ -269,14 +299,18 @@ void nib_cleanup_compile()
 	list_destroy(nib_local_variables);
 	list_destroy(nib_string_storage);
 	list_destroy(nib_comment_storage);
+	list_destroy(nib_flag_created_tables);
+	list_destroy(nib_stat_created_tables);
+	list_destroy(nib_used_tables);
 
 	nib_program_storage = NULL;
 	nib_global_variables = NULL;
 	nib_local_variables = NULL;
 	nib_string_storage = NULL;
 	nib_comment_storage = NULL;
-
-	flag_tables_cleanup();
+	nib_flag_created_tables = NULL;
+	nib_stat_created_tables = NULL;
+	nib_used_tables = NULL;
 
 	nib_cleanup_scopetree();
 }
@@ -329,7 +363,7 @@ void nib_dump_global_variables()
 	{
 		printf("%-5d  %-5d  %-16.16s  %c  %s\n", var->scope, var->id, var->name,
 			(var->constant ? 'Y' : 'N'),
-			nib_get_typename(var->type));
+			nib_get_typename(NULL,var->type));
 	}
 
 	iterator_stop(&it);
@@ -348,7 +382,7 @@ void nib_dump_local_variables()
 	{
 		printf("%-5d  %-5d  %-16.16s  %c  %s\n", var->scope, var->id, var->name,
 			(var->constant ? 'Y' : 'N'),
-			nib_get_typename(var->type));
+			nib_get_typename(NULL,var->type));
 	}
 
 	iterator_stop(&it);
