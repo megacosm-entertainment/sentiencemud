@@ -219,6 +219,7 @@ static const char *opcode_names[] = {
 	"POP",
 	"POPN",
 	"RETURN",
+	"RETURN_BYTE",
 	"JUMP",
 	"JUMP_ZERO",
 	"JUMP_NOT_ZERO",
@@ -341,9 +342,9 @@ void nib_decompile_code(NIB_SCRIPT *script)
 	struct flag_type *table;
 	NIB_SCRIPT_STACK_TYPE type = NST_UNKNOWN;
 
-	__print_comments(script, addr);
-
 	printf("Program ML:\n");
+
+	__print_comments(script, addr);
 	while(addr < script->code_len)
 	{
 		char line[1000];
@@ -424,6 +425,16 @@ void nib_decompile_code(NIB_SCRIPT *script)
 		case NI_GET_AREA:
 			type = NST_AREA;
 			break;
+
+		case NI_RETURN_BYTE:
+		{
+			nib_bytecode_t ret = pc[addr+1];
+
+			linej += snprintf(line + linej, sizeof(line) - linej - 1, " %02.2X", ret);
+
+			addr++;
+			break;
+		}
 
 		case NI_NEW_LIST:
 		{

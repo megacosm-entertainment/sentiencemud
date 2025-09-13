@@ -1556,7 +1556,27 @@ statement:
 			ins_code(NI_CONST1);
 			ins_code(NI_RETURN);
 		}
-	|	T_RETURN T_OPEN_PAREN expr0[E] T_CLOSE_PAREN T_SEMICOLON
+	|	T_RETURN T_DOT T_IDENTIFIER[I] T_SEMICOLON
+		{
+			nib_bytecode_t ret;
+			if (!str_cmp($I,"allow"))
+				ret = 0;
+			else if (!str_cmp($I,"deny"))
+				ret = 1;
+			else if (!str_cmp($I,"silent"))
+				ret = 2;
+			else
+			{
+				yyerror("RETURN.code only allows \"allow\" (0), \"deny\" (1) and \"silent\" (2).");
+				YYERROR;
+			}
+
+			ins_code(NI_RETURN_BYTE);
+			ins_byte(ret);
+
+			nib_free($I);
+		}
+	|	T_RETURN expr0[E] T_SEMICOLON
 		{
 			if ($E.type != nibtype_int)
 			{
@@ -1567,6 +1587,11 @@ statement:
 			ins_code(NI_RETURN);
 		}
 	|	block
+		{
+
+		}
+
+	|	/* empty */	T_SEMICOLON
 		{
 
 		}
@@ -1715,7 +1740,120 @@ for_init_expr:
 			last_expression = CURRENT_PROGRAM_SIZE;
 			ins_int(1);
 		}
-	|	name_list
+	|	comma_expr_decl
+	;
+
+comma_expr_decl:
+		expr_decl
+	|	comma_expr_decl
+		{
+			insert_pop_value();
+		}
+		T_COMMA expr_decl
+	;
+
+expr_decl:
+		expr0
+		{
+
+		}
+	|	type[T] T_IDENTIFIER[I]
+		{
+			// Local declaration (no initialization)
+
+			if (nib_get_global_variable($I))
+			{
+				niberrorf("Attempting to shadow a global variable '%s'", $I);
+				YYERROR;
+			}
+
+			NIB_VARIABLE *var;
+
+			var = nib_get_local_variable($I);
+			if (var && var->scope == nib_get_scope())
+			{
+				niberrorf("Redefinition of local variable '%s' within same scope.", $I);
+				YYERROR;
+			}
+			else
+			{
+				var = nib_new_variable($I, $T, nib_get_scope(), false);
+				nib_add_local_variable(var);
+
+				$<decl>$.type = $T;
+			}
+
+			$<decl>$.global = false;
+			$<decl>$.constant = false;
+			nib_free($I);
+		}
+	|	type[T] T_IDENTIFIER[I] T_ASSIGN[A]
+		{
+			// Local declaration (no initialization)
+
+			if (nib_get_global_variable($I))
+			{
+				niberrorf("Attempting to shadow a global variable '%s'", $I);
+				YYERROR;
+			}
+
+			NIB_VARIABLE *var;
+
+			var = nib_get_local_variable($I);
+			if (var && var->scope == nib_get_scope())
+			{
+				niberrorf("Redefinition of local variable '%s' within same scope.", $I);
+				YYERROR;
+			}
+			else
+			{
+				var = nib_new_variable($I, $T, nib_get_scope(), false);
+				nib_add_local_variable(var);
+
+				ins_code(NI_LVALUE_LOCAL);
+				ins_short(var->id);
+				$<decl>$.type = $T;
+			}
+
+			$<decl>$.global = false;
+			$<decl>$.constant = false;
+		}
+		expr0[E]
+		{
+			if ($A != NI_ASSIGN)
+			{
+				yyerror("Variable declarations only allow assignment (=).");
+				YYERROR;
+			}
+			// Do some initialization
+
+			if (!check_valid_assignment($T,$E.type,NI_ASSIGN))
+			{
+				yyerror("Right hand value not value for left hand lvalue.");
+				YYERROR;
+			}
+
+			// Special processing for getting the area under the hood
+			// if ($T == nibtype_area &&
+			// 	($E.type == nibtype_string || $E.type == nibtype_int))
+			// {
+			// 	ins_code(NI_GET_AREA);
+			// }
+
+			// if ($T->type_class == NTC_LIST && ($E.type == nibtype_list))
+			// {
+			// 	ins_code(NI_NEW_LIST);
+			// 	ins_byte(convert_to_stype($T->_.type));
+			// }
+
+
+			last_expression = CURRENT_PROGRAM_SIZE;
+			ins_code(NI_VOID_ASSIGN);
+
+			$<decl>$ = $<decl>5;
+			nib_free($I);
+			free_nib_type($E.type);
+		}
 	;
 
 for_cond_expr:
@@ -3776,104 +3914,17 @@ flag_table:
 				$$ = table;
 				nib_free($1);
 			}
-	|	T_AREA
+	|	T_STRING_LITERAL[S]
 			{
-				const struct flag_type *table = nib_lookup_flag_table(nib_flag_created_tables,"area");
+				const struct flag_type *table = nib_lookup_flag_table(nib_flag_created_tables,$S);
 				if (!table)
 				{
-					yyerror("Unknown flag table 'area'");
+					niberrorf("Unknown flag table '%s'", $S);
 					YYERROR;
 				}
 
 				$$ = table;
-			}
-	|	T_DUNGEON
-			{
-				const struct flag_type *table = nib_lookup_flag_table(nib_flag_created_tables,"dungeon");
-				if (!table)
-				{
-					yyerror("Unknown flag table 'dungeon'");
-					YYERROR;
-				}
-
-				$$ = table;
-			}
-	|	T_INSTANCE
-			{
-				const struct flag_type *table = nib_lookup_flag_table(nib_flag_created_tables,"instance");
-				if (!table)
-				{
-					yyerror("Unknown flag table 'instance'");
-					YYERROR;
-				}
-
-				$$ = table;
-			}
-	|	T_MOBILE
-			{
-				const struct flag_type *table = nib_lookup_flag_table(nib_flag_created_tables,"mobile");
-				if (!table)
-				{
-					yyerror("Unknown flag table 'mobile'");
-					YYERROR;
-				}
-
-				$$ = table;
-			}
-	|	T_OBJECT
-			{
-				const struct flag_type *table = nib_lookup_flag_table(nib_flag_created_tables,"object");
-				if (!table)
-				{
-					yyerror("Unknown flag table 'object'");
-					YYERROR;
-				}
-
-				$$ = table;
-			}
-	|	T_QUEST
-			{
-				const struct flag_type *table = nib_lookup_flag_table(nib_flag_created_tables,"quest");
-				if (!table)
-				{
-					yyerror("Unknown flag table 'quest'");
-					YYERROR;
-				}
-
-				$$ = table;
-			}
-	|	T_ROOM
-			{
-				const struct flag_type *table = nib_lookup_flag_table(nib_flag_created_tables,"room");
-				if (!table)
-				{
-					yyerror("Unknown flag table 'room'");
-					YYERROR;
-				}
-
-				$$ = table;
-			}
-	|	T_SHIP
-			{
-				const struct flag_type *table = nib_lookup_flag_table(nib_flag_created_tables,"ship");
-				if (!table)
-				{
-					yyerror("Unknown flag table 'ship'");
-					YYERROR;
-				}
-
-				$$ = table;
-			}
-	|	T_TOKEN
-			{
-				const struct flag_type *table = nib_lookup_flag_table(nib_flag_created_tables,"token");
-				if (!table)
-				{
-					yyerror("Unknown flag table 'token'");
-					YYERROR;
-				}
-
-				$$ = table;
+				nib_free($S);
 			}
 	;
 
@@ -3890,104 +3941,17 @@ stat_table:
 				$$ = table;
 				nib_free($1);
 			}
-	|	T_AREA
+	|	T_STRING_LITERAL[S]
 			{
-				const struct flag_type *table = nib_lookup_stat_table(nib_stat_created_tables,"area");
+				const struct flag_type *table = nib_lookup_stat_table(nib_flag_created_tables,$S);
 				if (!table)
 				{
-					yyerror("Unknown stat table 'area'");
+					niberrorf("Unknown stat table '%s'", $S);
 					YYERROR;
 				}
 
 				$$ = table;
-			}
-	|	T_DUNGEON
-			{
-				const struct flag_type *table = nib_lookup_stat_table(nib_stat_created_tables,"dungeon");
-				if (!table)
-				{
-					yyerror("Unknown stat table 'dungeon'");
-					YYERROR;
-				}
-
-				$$ = table;
-			}
-	|	T_INSTANCE
-			{
-				const struct flag_type *table = nib_lookup_stat_table(nib_stat_created_tables,"instance");
-				if (!table)
-				{
-					yyerror("Unknown stat table 'instance'");
-					YYERROR;
-				}
-
-				$$ = table;
-			}
-	|	T_MOBILE
-			{
-				const struct flag_type *table = nib_lookup_stat_table(nib_stat_created_tables,"mobile");
-				if (!table)
-				{
-					yyerror("Unknown stat table 'mobile'");
-					YYERROR;
-				}
-
-				$$ = table;
-			}
-	|	T_OBJECT
-			{
-				const struct flag_type *table = nib_lookup_stat_table(nib_stat_created_tables,"object");
-				if (!table)
-				{
-					yyerror("Unknown stat table 'object'");
-					YYERROR;
-				}
-
-				$$ = table;
-			}
-	|	T_QUEST
-			{
-				const struct flag_type *table = nib_lookup_stat_table(nib_stat_created_tables,"quest");
-				if (!table)
-				{
-					yyerror("Unknown stat table 'quest'");
-					YYERROR;
-				}
-
-				$$ = table;
-			}
-	|	T_ROOM
-			{
-				const struct flag_type *table = nib_lookup_stat_table(nib_stat_created_tables,"room");
-				if (!table)
-				{
-					yyerror("Unknown stat table 'room'");
-					YYERROR;
-				}
-
-				$$ = table;
-			}
-	|	T_SHIP
-			{
-				const struct flag_type *table = nib_lookup_stat_table(nib_stat_created_tables,"ship");
-				if (!table)
-				{
-					yyerror("Unknown stat table 'ship'");
-					YYERROR;
-				}
-
-				$$ = table;
-			}
-	|	T_TOKEN
-			{
-				const struct flag_type *table = nib_lookup_stat_table(nib_stat_created_tables,"token");
-				if (!table)
-				{
-					yyerror("Unknown stat table 'token'");
-					YYERROR;
-				}
-
-				$$ = table;
+				nib_free($S);
 			}
 	;
 

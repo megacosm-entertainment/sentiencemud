@@ -5,6 +5,7 @@
 #include <malloc.h>
 #include <termios.h>
 #include <unistd.h>
+#include <time.h>
 
 #include "niblang.h"
 
@@ -48,6 +49,7 @@ struct parse_params_s {
 	bool dump;
 	bool run;
 	bool step;
+	bool clock;
 };
 
 bool parse_args(int argc, char **argv, struct parse_params_s *params)
@@ -55,7 +57,6 @@ bool parse_args(int argc, char **argv, struct parse_params_s *params)
 	int n = 1;	// Skip argv[0]
 	memset(params,0,sizeof(*params));
 	params->run = true;
-	params->step = false;
 	
 	while(n < argc)
 	{
@@ -63,6 +64,8 @@ bool parse_args(int argc, char **argv, struct parse_params_s *params)
 			params->dump = true;
 		else if (!str_cmp(argv[n], "-s"))
 			params->step = true;
+		else if (!str_cmp(argv[n], "-t"))
+			params->clock = true;
 		else if (!str_cmp(argv[n], "-f"))
 		{
 			if ((n+1) >= argc)
@@ -95,6 +98,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "-f <file>   - Compiles <file>.\n");
 		fprintf(stderr, "-d          - Dumps compiled script information.\n");
 		fprintf(stderr, "-s          - Executes the script in Step mode.\n");
+		fprintf(stderr, "-t          - Times execution when in Run mode.\n");
 		exit(-1);
 	}
 
@@ -204,8 +208,14 @@ int main(int argc, char **argv)
 					}
 					else
 					{
+						clock_t begin = clock();
+
 						int ret = nib_interpret_script(script);
+
+						clock_t end = clock();
 						printf("Script Return: %ld\n", ret);
+						if (params.clock)
+							printf("Execution time: %.3lfms\n", 1000.0 * (double)(end - begin) / CLOCKS_PER_SEC);
 					}
 				}
 

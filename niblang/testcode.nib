@@ -1,10 +1,2 @@
-table stat(<[sleep,prone,rest,sit,kneel,stand,fight]>) positions;
-
-stat(positions) pos = <[positions::rest]>;
-flag(area) af = <[area:changed]>;
-
-af.newbie = true;
-af.no_rooms = true;
-af.changed = false;
-
+return.silent;
 

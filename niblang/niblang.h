@@ -113,6 +113,7 @@ enum nib_instructions_e {
 	NI_POP,					// Pop the top of the stack
 	NI_POPN,				// Pops the top N slots off the stack
 	NI_RETURN,				// Terminates program: pop 1 for return value
+	NI_RETURN_BYTE,			// Terminates program: encoded with return byte code
 	NI_JUMP,				// Jump to the given program address.
 	NI_JUMP_ZERO,			//  .. when the top of stack is zero
 	NI_JUMP_NOT_ZERO,		//  .. when the top of stack is not zero

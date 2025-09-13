@@ -13112,11 +13112,42 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 
 	case NI_RETURN:
 		{
+			NIB_SCRIPT_STACK *sp = nib_pop_stack_raw(nsr);
+
+			if (!sp)
+			{
+				SETRET(nsr,STACK);
+				return true;
+			}
+
 			long code = SCPERR_FAILURE;
-			nib_pop_stack_number(nsr, &code);
+			switch(sp->type)
+			{
+			case NST_NUMBER:	code = sp->_.i;	break;
+			case NST_LVALUE:
+				switch(sp->_.lvalue.type)
+				{
+				case NST_NUMBER:	code = *(sp->_.lvalue._.number); break;
+				default:
+					free_stack_item(sp);
+					SETRET(nsr,INVALID);
+					return true;
+				}
+				break;
+			default:
+				free_stack_item(sp);
+				SETRET(nsr,INVALID);
+				return true;
+			}
 
 			// Scripts can only really return non-negative return values
 			nsr->last_return = (code < 0) ? SCPERR_FAILURE : code;
+			return true;
+		}
+
+	case NI_RETURN_BYTE:
+		{
+			nsr->last_return = (long)(__get_bytecode(nsr));
 			return true;
 		}
 
@@ -13657,6 +13688,7 @@ static const char *opcode_names[] = {
 	"POP",
 	"POPN",
 	"RETURN",
+	"RETURN_BYTE",
 	"JUMP",
 	"JUMP_ZERO",
 	"JUMP_NOT_ZERO",
@@ -13750,7 +13782,7 @@ static void __add_comments(LLIST *assembly, NIB_SCRIPT *script, long address)
 		if (comment->address == address)
 		{
 			if (first) {
-				__add_dissassembled_line(assembly, comment->address, "\n", true);
+				__add_dissassembled_line(assembly, comment->address, "", true);
 				first = false;
 			}
 
@@ -13862,6 +13894,16 @@ static LLIST *__generate_disassembly(NIB_SCRIPT *script)
 			case NI_GET_AREA:
 				type = NST_AREA;
 				break;
+
+			case NI_RETURN_BYTE:
+			{
+				nib_bytecode_t ret = pc[addr+1];
+
+				linej += snprintf(line + linej, sizeof(line) - linej - 1, " %02.2X", ret);
+
+				addr++;
+				break;
+			}
 
 			case NI_NEW_LIST:
 			{
