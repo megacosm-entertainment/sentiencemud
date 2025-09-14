@@ -34,6 +34,12 @@ LLIST *nib_methods_list = NULL;
 LLIST *nib_methods_flag = NULL;
 LLIST *nib_methods_stat = NULL;
 
+LLIST *nib_fields_int = NULL;
+LLIST *nib_fields_float = NULL;
+LLIST *nib_fields_boolean = NULL;
+LLIST *nib_fields_char = NULL;
+LLIST *nib_fields_string = NULL;
+LLIST *nib_fields_map = NULL;
 LLIST *nib_fields_widevnum = NULL;
 LLIST *nib_fields_area = NULL;
 LLIST *nib_fields_dungeon = NULL;
@@ -44,6 +50,9 @@ LLIST *nib_fields_quest = NULL;
 LLIST *nib_fields_room = NULL;
 LLIST *nib_fields_ship = NULL;
 LLIST *nib_fields_token = NULL;
+LLIST *nib_fields_list = NULL;
+LLIST *nib_fields_flag = NULL;
+LLIST *nib_fields_stat = NULL;
 
 
 static AREA_DATA __static_area;
@@ -141,7 +150,6 @@ void free_nib_field(NIB_FIELD *field)
 	}
 }
 
-
 bool nib_field_valid_context(NIB_TYPE *context)
 {
 	if (context)
@@ -172,6 +180,12 @@ static LLIST *__get_field_context_nst(NIB_SCRIPT_STACK_TYPE context)
 {
 	switch(context)
 	{
+		case NST_NUMBER:	return nib_fields_int;
+		case NST_FLOAT:		return nib_fields_float;
+		case NST_BOOLEAN:	return nib_fields_boolean;
+		case NST_CHAR:		return nib_fields_char;
+		case NST_STRING:	return nib_fields_string;
+		case NST_MAP:		return nib_fields_map;
 		case NST_WIDEVNUM:	return nib_fields_widevnum;
 		case NST_AREA:		return nib_fields_area;
 		case NST_DUNGEON:	return nib_fields_dungeon;
@@ -182,6 +196,9 @@ static LLIST *__get_field_context_nst(NIB_SCRIPT_STACK_TYPE context)
 		case NST_ROOM:		return nib_fields_room;
 		case NST_SHIP:		return nib_fields_ship;
 		case NST_TOKEN:		return nib_fields_token;
+		case NST_FLAG:		return nib_fields_flag;
+		case NST_STAT:		return nib_fields_stat;
+		case NST_LIST:		return nib_fields_list;
 	}
 
 	return NULL;
@@ -195,6 +212,12 @@ static LLIST *__get_field_context(NIB_TYPE *context)
 	{
 		switch(context->_.primary)
 		{
+			case NT_NUMBER:		return nib_fields_int;
+			case NT_FLOAT:		return nib_fields_float;
+			case NT_BOOLEAN:	return nib_fields_boolean;
+			case NT_CHAR:		return nib_fields_char;
+			case NT_STRING:		return nib_fields_string;
+			case NT_MAP:		return nib_fields_map;
 			case NT_WIDEVNUM:	return nib_fields_widevnum;
 
 			case NT_AREA:		return nib_fields_area;
@@ -208,6 +231,12 @@ static LLIST *__get_field_context(NIB_TYPE *context)
 			case NT_TOKEN:		return nib_fields_token;
 		}
 	}
+	else if (context->type_class == NTC_LIST)
+		return nib_fields_list;
+	else if (context->type_class == NTC_FLAG)
+		return nib_fields_flag;
+	else if (context->type_class == NTC_STAT)
+		return nib_fields_stat;
 
 	return NULL;
 }
@@ -271,8 +300,9 @@ bool nib_field_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, bool readonly, 
 
 const struct nib_method_func_type nib_method_funcs[] =
 {
-	MFE(function_reckoning),
 	MFE(function_print_msg),
+	MFE(function_random_percent),
+	MFE(function_reckoning),
 	MFE(list_add),
 	MFE(list_insert),
 	MFE(list_remove),
@@ -710,6 +740,24 @@ bool nib_methods_init()
 	nib_methods_stat = __create_method_list();
 	if(!list_isvalid(nib_methods_stat)) return false;
 
+	nib_fields_int = __create_field_list();
+	if(!list_isvalid(nib_fields_int)) return false;
+
+	nib_fields_float = __create_field_list();
+	if(!list_isvalid(nib_fields_float)) return false;
+
+	nib_fields_boolean = __create_field_list();
+	if(!list_isvalid(nib_fields_boolean)) return false;
+
+	nib_fields_char = __create_field_list();
+	if(!list_isvalid(nib_fields_char)) return false;
+
+	nib_fields_string = __create_field_list();
+	if(!list_isvalid(nib_fields_string)) return false;
+
+	nib_fields_map = __create_field_list();
+	if(!list_isvalid(nib_fields_map)) return false;
+
 	nib_fields_widevnum = __create_field_list();
 	if(!list_isvalid(nib_fields_widevnum)) return false;
 
@@ -740,6 +788,15 @@ bool nib_methods_init()
 	nib_fields_token = __create_field_list();
 	if(!list_isvalid(nib_fields_token)) return false;
 
+	nib_fields_list = __create_field_list();
+	if(!list_isvalid(nib_fields_list)) return false;
+
+	nib_fields_flag = __create_field_list();
+	if(!list_isvalid(nib_fields_flag)) return false;
+
+	nib_fields_stat = __create_field_list();
+	if(!list_isvalid(nib_fields_stat)) return false;
+
 	return nib_methods_load();
 }
 
@@ -766,6 +823,12 @@ void nib_methods_cleanup()
 	list_destroy(nib_methods_flag);
 	list_destroy(nib_methods_stat);
 
+	list_destroy(nib_fields_int);
+	list_destroy(nib_fields_float);
+	list_destroy(nib_fields_boolean);
+	list_destroy(nib_fields_char);
+	list_destroy(nib_fields_string);
+	list_destroy(nib_fields_map);
 	list_destroy(nib_fields_widevnum);
 	list_destroy(nib_fields_area);
 	list_destroy(nib_fields_dungeon);
@@ -776,6 +839,9 @@ void nib_methods_cleanup()
 	list_destroy(nib_fields_room);
 	list_destroy(nib_fields_ship);
 	list_destroy(nib_fields_token);
+	list_destroy(nib_fields_list);
+	list_destroy(nib_fields_flag);
+	list_destroy(nib_fields_stat);
 
 }
 

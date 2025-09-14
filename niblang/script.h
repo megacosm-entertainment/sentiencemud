@@ -137,5 +137,6 @@ NIB_SCRIPT *new_nib_script(const char *src, NIB_SCRIPT_CLASS sc);
 void free_nib_script(NIB_SCRIPT *script);
 void nib_decompile_code(NIB_SCRIPT *script);
 void nib_dump_script_tables(NIB_SCRIPT *script);
+void nib_dump_script_global_variables(NIB_SCRIPT *script);
 
 #endif

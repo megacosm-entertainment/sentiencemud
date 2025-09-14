@@ -299,7 +299,7 @@ field_def:
 				free_nib_type($C);
 				free_nib_type($R);
 			}
-	|	T_FIELD T_METHOD type[R] fieldtype[C] T_DOT T_IDENTIFIER[I] T_ARROW T_IDENTIFIER[F] T_SEMICOLON
+	|	T_FIELD T_METHOD type[R] contexttype[C] T_DOT T_IDENTIFIER[I] T_ARROW T_IDENTIFIER[F] T_SEMICOLON
 			{
 				METHOD_FUNC *func = nib_method_func_lookup($F);
 				if (!func)

@@ -9,6 +9,7 @@ Dummy file that will contain method functions to be referenced by the pointer ta
 #include <string.h>
 #include <malloc.h>
 #include <math.h>
+#include <ctype.h>
 
 #include "niblang.h"
 #include "script.h"
@@ -182,9 +183,6 @@ void dummy_cleanup()
 	if (plith.name) free(plith.name);
 	if (plith.description) free(plith.description);
 	list_destroy(plith.rooms);
-
-
-
 }
 
 AREA_DATA *find_area(char *name)
@@ -204,6 +202,15 @@ AREA_DATA *get_area_from_uid (long uid)
 }
 
 
+#define ARG_NUM(n)		(argv[(n)]._.i)
+#define ARG_STR(n)		(argv[(n)]._.str)
+#define ARG_LST(n)		(argv[(n)]._.list.list)
+#define ARG_MOB(n)		(argv[(n)]._.mobile)
+
+#define SET_NUM(n)		(output->type = NST_NUMBER, output->_.i = (n))
+#define SET_WNUM(w)		(output->type = NST_WIDEVNUM, output->_.wnum = (w))
+
+
 /////////////////////////////////////
 // Functions
 DECL_METHOD_FUNC(function_print_msg)
@@ -214,32 +221,25 @@ DECL_METHOD_FUNC(function_print_msg)
 	return SCPERR_SUCCESS;
 }
 
+DECL_METHOD_FUNC(function_random_percent)
+{
+	long value = number_range(0,99);
+	SET_NUM(value);
+	return SCPERR_SUCCESS;
+}
+
 DECL_METHOD_FUNC(function_reckoning)
 {
 	return SCPERR_SUCCESS;
 }
-
-#define ARG_NUM(n)		(argv[(n)]._.i)
-#define ARG_STR(n)		(argv[(n)]._.str)
-#define ARG_LST(n)		(argv[(n)]._.list.list)
-#define ARG_MOB(n)		(argv[(n)]._.mobile)
-
-#define SET_NUM(n)		(output->type = NST_NUMBER, output->_.i = (n))
-#define SET_WNUM(w)		(output->type = NST_WIDEVNUM, output->_.wnum = (w))
 
 // NUMBER methods
 DECL_METHOD_FUNC(number_random_value)
 {
 	// Get a number from 0 to N-1
 	long value = 0;
-
-	fprintf(stderr,"random(%ld)\n", ARG_NUM(0));
-
 	if (ARG_NUM(0) > 1)
 		value = number_range(0,ARG_NUM(0) - 1);
-
-	fprintf(stderr,"value = %ld\n", value);
-	fflush(stderr);
 
 	SET_NUM(value);
 	return SCPERR_SUCCESS;
@@ -348,6 +348,7 @@ pVARIABLE variable_new(const char *name)
 	if (var)
 	{
 		var->name = strdup(name);
+		var->type = VAR_UNKNOWN;
 	}
 
 	return var;
@@ -359,6 +360,10 @@ void variable_free(pVARIABLE var)
 	{
 		case VAR_STRING:
 			free(var->_.str);
+			break;
+
+		case VAR_LIST:
+			list_destroy(var->_.list.list);
 			break;
 	}
 
@@ -399,6 +404,12 @@ bool variable_init()
 	var->readonly = true;
 	list_appendlink(nib_variables, var);
 
+	var = variable_new_string("name", "");
+	list_appendlink(nib_variables, var);
+
+	var = variable_new_number("iterations", 0);
+	list_appendlink(nib_variables, var);
+
 	return true;
 }
 
@@ -420,15 +431,34 @@ bool is_valid_variable_type(pVARIABLE var, NIB_TYPE *type)
 		case VAR_FLOAT:
 			return (type != NULL && type->type_class == NTC_PRIMARY && type->_.primary == NT_FLOAT);
 
+		case VAR_CHAR:
+			return (type != NULL && type->type_class == NTC_PRIMARY && type->_.primary == NT_CHAR);
+
 		case VAR_STRING:
 		case VAR_STRING_S:
 			return (type != NULL && type->type_class == NTC_PRIMARY && type->_.primary == NT_STRING);
+
+		case VAR_FLAG:
+			return (type != NULL && type->type_class == NTC_FLAG);
+
+		case VAR_STAT:
+			return (type != NULL && type->type_class == NTC_STAT);
+
+		case VAR_LIST:
+		case VAR_LIST_S:
+			return (type != NULL && type->type_class == NTC_LIST);
 
 		case VAR_WIDEVNUM:
 			return (type != NULL && type->type_class == NTC_PRIMARY && type->_.primary == NT_WIDEVNUM);
 
 		case VAR_AREA:
 			return (type != NULL && type->type_class == NTC_PRIMARY && type->_.primary == NT_AREA);
+
+		case VAR_MOBILE:
+			return (type != NULL && type->type_class == NTC_PRIMARY && type->_.primary == NT_MOBILE);
+
+		case VAR_ROOM:
+			return (type != NULL && type->type_class == NTC_PRIMARY && type->_.primary == NT_ROOM);
 	}
 
 	return false;
@@ -489,6 +519,19 @@ pVARIABLE variable_new_bool(const char *name, bool value)
 	return var;
 }
 
+pVARIABLE variable_new_string_raw(const char *name, char *str)
+{
+	pVARIABLE var = variable_new(name);
+
+	if (var)
+	{
+		var->type = VAR_STRING;
+		var->_.str = str;
+	}
+
+	return var;
+}
+
 pVARIABLE variable_new_string(const char *name, char *str)
 {
 	pVARIABLE var = variable_new(name);
@@ -510,6 +553,92 @@ pVARIABLE variable_new_shared_string(const char *name, char *str)
 	{
 		var->type = VAR_STRING_S;
 		var->_.str = str;
+	}
+
+	return var;
+}
+
+pVARIABLE variable_new_list_raw(const char *name, LLIST *list, int type)
+{
+	pVARIABLE var = variable_new(name);
+
+	if (var)
+	{
+		var->type = VAR_LIST;
+		var->_.list.list = list;
+		var->_.list.type = type;
+	}
+
+	return var;
+}
+
+pVARIABLE variable_new_list(const char *name, LLIST *list, int type)
+{
+	pVARIABLE var = variable_new(name);
+
+	if (var)
+	{
+		var->type = VAR_LIST;
+		var->_.list.list = list_copy(list);
+		var->_.list.type = type;
+	}
+
+	return var;
+}
+
+pVARIABLE variable_new_shared_list(const char *name, LLIST *list, int type)
+{
+	pVARIABLE var = variable_new(name);
+
+	if (var)
+	{
+		var->type = VAR_LIST_S;
+		var->_.list.list = list;
+		var->_.list.type = type;
+	}
+
+	return var;
+}
+
+pVARIABLE variable_new_flag(const char *name, long number, struct flag_type *table, const char *table_name)
+{
+	pVARIABLE var = variable_new(name);
+
+	if (var)
+	{
+		var->type = VAR_FLAG;
+		var->_.stat.number = number;
+		var->_.stat.table = table;
+		var->_.stat.table_name = table_name;
+	}
+
+	return var;
+}
+
+pVARIABLE variable_new_stat(const char *name, long number, struct flag_type *table, const char *table_name)
+{
+	pVARIABLE var = variable_new(name);
+
+	if (var)
+	{
+		var->type = VAR_STAT;
+		var->_.stat.number = number;
+		var->_.stat.table = table;
+		var->_.stat.table_name = table_name;
+	}
+
+	return var;
+}
+
+pVARIABLE variable_new_widevnum(const char *name, AREA_DATA *area, long vnum)
+{
+	pVARIABLE var = variable_new(name);
+
+	if (var)
+	{
+		var->type = VAR_WIDEVNUM;
+		var->_.wnum.pArea = area;
+		var->_.wnum.vnum = vnum;
 	}
 
 	return var;
@@ -554,18 +683,216 @@ pVARIABLE variable_new_room(const char *name, ROOM_INDEX_DATA *room)
 	return var;
 }
 
-pVARIABLE variable_new_widevnum(const char *name, AREA_DATA *area, long vnum)
+void variable_get_string(pVARIABLE var, char *buf, int buf_len)
 {
-	pVARIABLE var = variable_new(name);
-
-	if (var)
+	int len;
+	switch(var->type)
 	{
-		var->type = VAR_WIDEVNUM;
-		var->_.wnum.pArea = area;
-		var->_.wnum.vnum = vnum;
-	}
+	case VAR_NUMBER:	len = snprintf(buf,buf_len,"%ld", var->_.num); break;
+	case VAR_FLOAT:		len = snprintf(buf,buf_len,"%lf", var->_.flt); break;
+	case VAR_BOOLEAN:	len = snprintf(buf,buf_len,"%s", var->_.b ? "true" : "false"); break;
+	case VAR_CHAR:
+			if (isprint(var->_.ch))
+				len = snprintf(buf,buf_len,"'%c'", var->_.ch);
+			else
+				len = snprintf(buf,buf_len,"0x%02X", (unsigned char)var->_.ch);
+			break;
 
-	return var;
+	case VAR_STRING:
+	case VAR_STRING_S:
+			if (var->_.str)
+			{
+				if ((strlen(var->_.str)) > (buf_len - 2))
+					len = snprintf(buf,buf_len,"\"%*.*s...\"",buf_len - 5,buf_len - 5,var->_.str);				else
+					len = snprintf(buf,buf_len,"\"%s\"",var->_.str);
+			}
+			else
+				len = snprintf(buf,buf_len,"null");
+			break;
+
+	case VAR_WIDEVNUM:
+		len = snprintf(buf,buf_len,"(%s[%ld]#%ld)",
+			((var->_.wnum.pArea) ? var->_.wnum.pArea->name : "null"),
+			((var->_.wnum.pArea) ? var->_.wnum.pArea->uid : 0L),
+			var->_.wnum.vnum);
+		break;
+
+	case VAR_FLAG:
+		if (var->_.stat.table)
+			len = snprintf(buf,buf_len,"%s", nib_get_flag_string(var->_.stat.table,var->_.stat.number));
+		else
+			len = snprintf(buf,buf_len,"%08X", var->_.stat.number);
+		break;
+
+	case VAR_STAT:
+		if (var->_.stat.table)
+			len = snprintf(buf,buf_len,"%s", nib_get_stat_string(var->_.stat.table,var->_.stat.number));
+		else	// Should never happen?
+			len = snprintf(buf,buf_len,"%ld", var->_.stat.number);
+		break;
+
+	case VAR_LIST:
+	case VAR_LIST_S:
+		{
+			char *type;
+			switch(var->_.list.type)
+			{
+			case VAR_NUMBER:	type = "int"; break;
+			case VAR_FLOAT:		type = "float"; break;
+			case VAR_BOOLEAN:	type = "boolean"; break;
+			case VAR_CHAR:		type = "char"; break;
+			case VAR_STRING:	type = "string"; break;
+			case VAR_FLAG:		type = "flag"; break;
+			case VAR_STAT:		type = "stat"; break;
+			case VAR_WIDEVNUM:	type = "widevnum"; break;
+			case VAR_AREA:		type = "area"; break;
+			case VAR_DUNGEON:	type = "dungeon"; break;
+			case VAR_INSTANCE:	type = "instance"; break;
+			case VAR_MOBILE:	type = "mobile"; break;
+			case VAR_OBJECT:	type = "object"; break;
+			case VAR_QUEST:		type = "quest"; break;
+			case VAR_ROOM:		type = "room"; break;
+			case VAR_SHIP:		type = "ship"; break;
+			case VAR_TOKEN:		type = "token"; break;
+			default:			type = "???"; break;
+			}
+
+			len = snprintf(buf,buf_len,"list(%s)[%d]",
+				type,
+				list_size(var->_.list.list));
+		}
+
+	case VAR_AREA:
+		if (var->_.area)
+			len = snprintf(buf,buf_len,"%s(%ld)", var->_.area->name, var->_.area->uid);
+		else
+			len = snprintf(buf,buf_len,"null");
+		break;
+	// case VAR_DUNGEON:
+	// case VAR_INSTANCE:
+	case VAR_MOBILE:
+		if (var->_.mobile)
+		{
+			if (var->_.mobile->pIndexData)
+				len = snprintf(buf,buf_len,"%s(%s[%ld]#%ld)",
+					var->_.mobile->short_descr,
+					var->_.mobile->pIndexData->area->name,
+					var->_.mobile->pIndexData->area->uid,
+					var->_.mobile->pIndexData->vnum);
+			else
+				len = snprintf(buf,buf_len,"%s(player)", var->_.mobile->short_descr);
+		}
+		else
+			len = snprintf(buf,buf_len,"null");
+		break;
+	// case VAR_OBJECT:
+	// case VAR_QUEST:
+	case VAR_ROOM:
+		if (var->_.room)
+		{
+			// TODO: handle clone rooms
+			len = snprintf(buf,buf_len,"%s(%s[%ld]#%ld)",
+				var->_.room->name,
+				var->_.room->area->name,
+				var->_.room->area->uid,
+				var->_.room->vnum);
+		}
+		else
+			len = snprintf(buf,buf_len,"null");
+		break;
+	// case VAR_SHIP:
+	// case VAR_TOKEN:
+	default:
+		len = snprintf(buf,buf_len,"???");
+		break;
+	}
+	buf[len] = '\0';
 }
 
+const char *variable_get_typename(pVARIABLE var)
+{
+	switch(var->type)
+	{
+	case VAR_NUMBER:		return "int";
+	case VAR_FLOAT:			return "float";
+	case VAR_BOOLEAN:		return "boolean";
+	case VAR_CHAR:			return "char";
+	case VAR_STRING:		return "string";
+	case VAR_STRING_S:		return "string_s";
+	case VAR_WIDEVNUM:		return "widevnum";
+	case VAR_FLAG:
+		if (var->_.stat.table)
+		{
+			static char buf[101];
+			int len = snprintf(buf, sizeof(buf)-1, "flag(%s)", var->_.stat.table_name);
+			buf[len] = 0;
+			return buf;
+		}
+		else
+			return "flag";
 
+	case VAR_STAT:
+		if (var->_.stat.table)
+		{
+			static char buf[101];
+			int len = snprintf(buf, sizeof(buf)-1, "stat(%s)", var->_.stat.table_name);
+			buf[len] = 0;
+			return buf;
+		}
+		else
+			return "stat(???)";
+
+	case VAR_LIST:
+		switch(var->_.list.type)
+		{
+		case VAR_NUMBER:	return "list(int)";
+		case VAR_FLOAT:		return "list(float)";
+		case VAR_BOOLEAN:	return "list(boolean)";
+		case VAR_CHAR:		return "list(char)";
+		case VAR_STRING:	return "list(string)";
+		case VAR_WIDEVNUM:	return "list(widevnum)";
+		case VAR_AREA:		return "list(area)";
+		case VAR_DUNGEON:	return "list(dungeon)";
+		case VAR_INSTANCE:	return "list(instance)";
+		case VAR_MOBILE:	return "list(mobile)";
+		case VAR_OBJECT:	return "list(object)";
+		case VAR_QUEST:		return "list(quest)";
+		case VAR_ROOM:		return "list(room)";
+		case VAR_SHIP:		return "list(ship)";
+		case VAR_TOKEN:		return "list(token)";
+		default:			return "list(???)";
+		}
+
+	case VAR_LIST_S:
+		switch(var->_.list.type)
+		{
+		case VAR_NUMBER:	return "list_s(int)";
+		case VAR_FLOAT:		return "list_s(float)";
+		case VAR_BOOLEAN:	return "list_s(boolean)";
+		case VAR_CHAR:		return "list_s(char)";
+		case VAR_STRING:	return "list_s(string)";
+		case VAR_WIDEVNUM:	return "list_s(widevnum)";
+		case VAR_AREA:		return "list_s(area)";
+		case VAR_DUNGEON:	return "list_s(dungeon)";
+		case VAR_INSTANCE:	return "list_s(instance)";
+		case VAR_MOBILE:	return "list_s(mobile)";
+		case VAR_OBJECT:	return "list_s(object)";
+		case VAR_QUEST:		return "list_s(quest)";
+		case VAR_ROOM:		return "list_s(room)";
+		case VAR_SHIP:		return "list_s(ship)";
+		case VAR_TOKEN:		return "list_s(token)";
+		default:			return "list_s(???)";
+		}
+
+	case VAR_AREA:			return "area";
+	// case VAR_DUNGEON:
+	// case VAR_INSTANCE:
+	case VAR_MOBILE:		return "mobile";
+	// case VAR_OBJECT:
+	// case VAR_QUEST:
+	case VAR_ROOM:			return "room";
+	// case VAR_SHIP:
+	// case VAR_TOKEN:
+	default:
+	}	
+}

@@ -697,3 +697,30 @@ void nib_dump_script_tables(NIB_SCRIPT *script)
 		printf("\n");
 	}
 }
+
+void nib_dump_script_global_variables(NIB_SCRIPT *script)
+{
+	if (script)
+	{
+		if (script->n_globals > 0 && script->globals)
+		{
+			printf("Global Variables:\n");
+			for(int i = 0; i < script->n_globals; i++)
+			{
+				pVARIABLE var = script->globals[i].var;
+
+				const char *type = variable_get_typename(var);
+
+				char left[81];
+				int len = snprintf(left,sizeof(left)-1, "%s %s", type, var->name);
+
+				char buf[81];
+
+				len = 80 - len;
+				variable_get_string(var,buf,len);
+
+				printf("%s %*.*s\n", left, len, len, buf);
+			}
+		}
+	}
+}

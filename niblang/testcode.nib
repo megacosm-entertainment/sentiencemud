@@ -1,21 +1,42 @@
 global area plith;
+global string name;
+global int iterations;
 
-print("-----------------------------------");
+print("===================================");
+print("Global Name: " + name);
 
-print("UID: " + plith.uid);
-print("Name: " + plith.name);
-print("Description: " + plith.description);
-print("Rooms: " + plith.rooms.size());
+if (!iterations)
+{
+	print("-----------------------------------");
+	print("UID: " + plith.uid);
+	print("Name: " + plith.name);
+	print("Description: " + plith.description);
+	print("Rooms: " + plith.rooms.size());
+}
+int mobs = 0;
 foreach(rm : plith.rooms)
 {
-	print("  Room: " + rm.name + "(" + rm.vnum + ")");
-	print("    People: " + rm.people.size());
+	if (!iterations)
+	{
+		print("  Room: " + rm.name + "(" + rm.vnum + ")");
+		print("    People: " + rm.people.size());
+	}
 
 	foreach(mob : rm.people)
 	{
-		print("      Mob: " + mob.short + " - " + mob.wnum);
-		print("        Description: " + mob.description);
+		mobs++;
+		if (!name.length && random_percent() < 10)
+			name = mob.short;
+
+		if (!iterations)
+		{
+			print("      Mob: " + mob.short + " - " + mob.widevnum);
+			print("        Description: " + mob.description);
+		}
 	}
 }
 
 print("-----------------------------------");
+++iterations;
+
+return (name.length ? mobs : 0);

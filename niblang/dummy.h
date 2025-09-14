@@ -67,13 +67,18 @@ typedef struct script_var_type VARIABLE, *pVARIABLE, **ppVARIABLE;
 typedef struct script_type_s SCRIPT_DATA;
 
 enum variable_enum {
-	VAR_UNKNOWN,
+	VAR_UNKNOWN = 0,
 	VAR_BOOLEAN,
 	VAR_NUMBER,
 	VAR_FLOAT,
+	VAR_CHAR,
 	VAR_STRING,
-	VAR_STRING_S,		/* Shared, allocated elsewhere! */
+	VAR_STRING_S,		// Shared, allocated elsewhere
 	VAR_WIDEVNUM,
+	VAR_FLAG,
+	VAR_STAT,
+	VAR_LIST,
+	VAR_LIST_S,			// Shared, allocated elsewhere
 	VAR_AREA,
 	VAR_DUNGEON,
 	VAR_INSTANCE,
@@ -164,7 +169,7 @@ struct script_var_type {
 	char *name;
 	bool save;
 	bool index;
-	bool readonly;
+	bool readonly;		// Readonly within the script, it can only be set in the script editor.
 	int type;
 	union {
 		void *raw;
@@ -172,11 +177,21 @@ struct script_var_type {
 		long num;
 		double flt;
 		bool b;
+		char ch;
 		char *str;
+		WNUM wnum;
+		struct {
+			long number;
+			struct flag_type *table;
+			const char *table_name;
+		} stat;
+		struct {
+			LLIST *list;
+			int type;
+		} list;
 		AREA_DATA *area;
 		CHAR_DATA *mobile;
 		ROOM_INDEX_DATA *room;
-		WNUM wnum;
 	} _;
 };
 
@@ -186,13 +201,27 @@ pVARIABLE variable_get(const char *name);
 pVARIABLE variable_new_number(const char *name, long value);
 pVARIABLE variable_new_float(const char *name, double value);
 pVARIABLE variable_new_bool(const char *name, bool value);
+pVARIABLE variable_new_char(const char *name, char ch);
+pVARIABLE variable_new_string_raw(const char *name, char *str);
 pVARIABLE variable_new_string(const char *name, char *str);
 pVARIABLE variable_new_shared_string(const char *name, char *str);
 pVARIABLE variable_new_widevnum(const char *name, AREA_DATA *area, long vnum);
+pVARIABLE variable_new_flag(const char *name, long number, struct flag_type *table, const char *table_name);
+pVARIABLE variable_new_stat(const char *name, long number, struct flag_type *table, const char *table_name);
+pVARIABLE variable_new_list_raw(const char *name, LLIST *list, int type);
+pVARIABLE variable_new_list(const char *name, LLIST *list, int type);
+pVARIABLE variable_new_shared_list(const char *name, LLIST *list, int type);
 pVARIABLE variable_new_area(const char *name, AREA_DATA *area);
+// pVARIABLE variable_new_dungeon(const char *name, DUNGEON *dungeon);
+// pVARIABLE variable_new_instance(const char *name, INSTANCE *instance);
 pVARIABLE variable_new_mobile(const char *name, CHAR_DATA *mobile);
+// pVARIABLE variable_new_object(const char *name, OBJ_DATA *object);
+// pVARIABLE variable_new_quest(const char *name, QUEST_DATA *quest);
 pVARIABLE variable_new_room(const char *name, ROOM_INDEX_DATA *room);
-
+// pVARIABLE variable_new_ship(const char *name, SHIP_DATA *ship);
+// pVARIABLE variable_new_token(const char *name, TOKEN_DATA *token);
+void variable_get_string(pVARIABLE var, char *buf, int buf_len);
+const char *variable_get_typename(pVARIABLE var);
 
 AREA_DATA *find_area(char *name);
 AREA_DATA *get_area_from_uid (long uid);

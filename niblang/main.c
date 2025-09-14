@@ -50,6 +50,7 @@ struct parse_params_s {
 	bool run;
 	bool step;
 	bool clock;
+	int run_count;
 };
 
 bool parse_args(int argc, char **argv, struct parse_params_s *params)
@@ -57,6 +58,7 @@ bool parse_args(int argc, char **argv, struct parse_params_s *params)
 	int n = 1;	// Skip argv[0]
 	memset(params,0,sizeof(*params));
 	params->run = true;
+	params->run_count = 1;
 	
 	while(n < argc)
 	{
@@ -76,6 +78,23 @@ bool parse_args(int argc, char **argv, struct parse_params_s *params)
 
 			params->name = argv[++n];
 		}
+		else if (!str_cmp(argv[n], "-n"))
+		{
+			if ((n+1) >= argc)
+			{
+				fprintf(stderr, "Missing run count.\n");
+				return false;
+			}
+
+			int count = atoi(argv[++n]);
+			if (count < 1)
+			{
+				fprintf(stderr, "Run count must be positive.\n");
+				return false;
+			}
+
+			params->run_count = count;
+		}
 		else
 		{
 			fprintf(stderr, "Invalid option '%s'.\n", argv[n]);
@@ -83,6 +102,12 @@ bool parse_args(int argc, char **argv, struct parse_params_s *params)
 		}
 		
 		n++;
+	}
+
+	if (params->step && params->run_count > 1)
+	{
+		fprintf(stderr, "Run count ignored in STEP mode.\n");
+		params->run_count = 1;
 	}
 
 	return true;
@@ -100,6 +125,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "-d          - Dumps compiled script information.\n");
 		fprintf(stderr, "-s          - Executes the script in Step mode.\n");
 		fprintf(stderr, "-t          - Times execution when in Run mode.\n");
+		fprintf(stderr, "-n <count>  - Executes the code <count>.  Ignored in STEP mode.\n");
 		exit(-1);
 	}
 
@@ -211,15 +237,35 @@ int main(int argc, char **argv)
 					}
 					else
 					{
-						clock_t begin = clock();
+						clock_t total;
+						int ret;
+						if (params.run_count > 1)
+						{
+							total = 0;
+							for(int i = params.run_count; i-- > 0;)
+							{
+								clock_t begin = clock();
+								ret = nib_interpret_script(script);
+								total += clock() - begin;
 
-						int ret = nib_interpret_script(script);
+								nib_dump_script_global_variables(script);
 
-						clock_t end = clock();
+								if (ret) break;
+							}
+						}
+						else
+						{
+							total = clock();
+							ret = nib_interpret_script(script);
+							total = clock() - total;
+
+							nib_dump_script_global_variables(script);
+						}
 						printf("Script Return: %d\n", ret);
 						if (params.clock)
-							printf("Execution time: %.3lfms\n", 1000.0 * (double)(end - begin) / CLOCKS_PER_SEC);
+							printf("Execution time: %.3lfms\n", 1000.0 * (double)total / CLOCKS_PER_SEC);
 					}
+
 				}
 
 				printf("\n\033[?25h");

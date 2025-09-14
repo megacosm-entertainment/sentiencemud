@@ -4,6 +4,7 @@
 // Assumes DECL_METHOD_FUNC defined
 
 // Functions
+DECL_METHOD_FUNC(function_random_percent);
 DECL_METHOD_FUNC(function_print_msg);
 DECL_METHOD_FUNC(function_reckoning);
 

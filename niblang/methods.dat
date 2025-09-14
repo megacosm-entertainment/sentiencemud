@@ -12,6 +12,7 @@ For flags and stats, ONLY built-in named tables may be used
 */
 
 // Functions
+function int random_percent() -> function_random_percent;
 function void print(string) -> function_print_msg;
 function void reckoning(int,int) -> function_reckoning;
 
@@ -19,7 +20,7 @@ function void reckoning(int,int) -> function_reckoning;
 method int int.random() -> number_random_value;
 
 // STRING methods/fields
-method int string.length() -> string_length;
+field method int string.length -> string_length;
 
 // WIDEVNUM methods/fields
 field area widevnum.area -> widevnum_pArea;
@@ -47,7 +48,7 @@ field string mobile.name -> mobile_name;
 field string mobile.short -> mobile_short_descr;
 field string mobile.long -> mobile_long_descr;
 field string mobile.description -> mobile_description;
-field method widevnum mobile.wnum -> mobile_get_widevnum;
+field method widevnum mobile.widevnum -> mobile_get_widevnum;
 
 // OBJECT methods/fields
 
