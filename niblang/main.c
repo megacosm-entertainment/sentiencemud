@@ -205,7 +205,7 @@ int main(int argc, char **argv)
 
 						nib_step_execute_show(nsr, w.ws_row, w.ws_col);
 
-						printf("\nScript Return: %ld\n", nib_get_last_return(nsr));
+						printf("\nScript Return: %d\n", nib_get_last_return(nsr));
 
 						nib_step_execute_cleanup(nsr);
 					}
@@ -216,7 +216,7 @@ int main(int argc, char **argv)
 						int ret = nib_interpret_script(script);
 
 						clock_t end = clock();
-						printf("Script Return: %ld\n", ret);
+						printf("Script Return: %d\n", ret);
 						if (params.clock)
 							printf("Execution time: %.3lfms\n", 1000.0 * (double)(end - begin) / CLOCKS_PER_SEC);
 					}

@@ -385,6 +385,7 @@ static NIB_TYPE *check_valid_operation(NIB_TYPE *left, NIB_TYPE *right, enum nib
 	NIB_SCRIPT_STACK_TYPE lhs = convert_to_stype(left);
 	NIB_SCRIPT_STACK_TYPE rhs = convert_to_stype(right);
 
+	// String concatenation for anything
 	switch(lhs)
 	{
 	case NST_NUMBER:	// NUMBER op ???
@@ -607,6 +608,12 @@ static NIB_TYPE *check_valid_operation(NIB_TYPE *left, NIB_TYPE *right, enum nib
 				op == NI_NEQ)		// STRING != null (String is not NULL)
 				return nibtype_bool;
 			break;
+		default:
+			if(rhs != NST_LIST)
+			{
+				if (op == NI_ADD)
+					return nibtype_string;
+			}
 		}
 		break;
 
@@ -2677,7 +2684,9 @@ expr0:
 			NIB_TYPE *type = check_valid_operation($L.type,$R.type,NI_ADD);
 			if (!type)
 			{
-				yyerror("Invalid arguments for + operation.");
+				niberrorf("Invalid arguments (%s + %s) for + operation.",
+					nib_get_typename(NULL,$L.type),
+					nib_get_typename(NULL,$R.type));
 				YYERROR;
 			}
 

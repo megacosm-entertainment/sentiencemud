@@ -292,7 +292,9 @@ struct nib_field_type
 	NIB_SCRIPT_STACK_TYPE stype2;	// For LIST
 	size_t offset;
 
-	int id;				// ID is unique to the type
+	METHOD_FUNC *method;		// If it is a field-method, instead of an offset
+
+	int id;						// ID is unique to the type
 };
 
 typedef struct nib_method_type NIB_METHOD;
@@ -524,7 +526,7 @@ size_t *nib_field_offset_lookup(NIB_TYPE *context, char *name);
 bool nib_field_valid_context(NIB_TYPE *context);
 NIB_FIELD *nib_field_get_byid(NIB_SCRIPT_STACK_TYPE context, int id);
 NIB_FIELD *nib_field_get(NIB_TYPE *context, char *name);
-bool nib_field_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, bool readonly, size_t offset);
+bool nib_field_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, bool readonly, size_t offset, METHOD_FUNC *method);
 bool nib_method_valid_context(NIB_TYPE *context);
 METHOD_FUNC *nib_method_func_lookup(const char *name);
 NIB_METHOD *new_nib_method(char *name, NIB_TYPE *ret, LLIST *params, char *method_name, METHOD_FUNC *method_func);

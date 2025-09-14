@@ -112,7 +112,7 @@ size_t *nib_field_offset_lookup(NIB_TYPE *context, char *name)
 	return NULL;
 }
 
-NIB_FIELD *new_nib_field(char *name, NIB_TYPE *type, bool readonly, size_t offset)
+NIB_FIELD *new_nib_field(char *name, NIB_TYPE *type, bool readonly, size_t offset, METHOD_FUNC *method)
 {
 	NIB_FIELD *field = calloc(1, sizeof(NIB_FIELD));
 
@@ -125,6 +125,7 @@ NIB_FIELD *new_nib_field(char *name, NIB_TYPE *type, bool readonly, size_t offse
 		field->stype2 = NST_UNKNOWN;
 	field->readonly = readonly;
 	field->offset = offset;
+	field->method = method;
 
 	return field;
 }
@@ -249,7 +250,7 @@ NIB_FIELD *nib_field_get_byid(NIB_SCRIPT_STACK_TYPE context, int id)
 	return field;
 }
 
-bool nib_field_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, bool readonly, size_t offset)
+bool nib_field_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, bool readonly, size_t offset, METHOD_FUNC *method)
 {
 	// Assume the field does not exist
 
@@ -258,7 +259,7 @@ bool nib_field_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, bool readonly, 
 	if (!fields) return false;
 
 	// Create field
-	NIB_FIELD *field = new_nib_field(name, ret, readonly, offset);
+	NIB_FIELD *field = new_nib_field(name, ret, readonly, offset, method);
 	if (!field) return false;
 
 	list_appendlink(fields, field);
@@ -276,6 +277,7 @@ const struct nib_method_func_type nib_method_funcs[] =
 	MFE(list_insert),
 	MFE(list_remove),
 	MFE(list_size),
+	MFE(mobile_get_widevnum),
 	MFE(number_random_value),
 	MFE(string_length),
 	MFEND

@@ -40,6 +40,7 @@ DECL_METHOD_FUNC(list_size);
 // INSTANCE methods
 
 // MOBILE methods
+DECL_METHOD_FUNC(mobile_get_widevnum);
 
 // OBJECT methods
 

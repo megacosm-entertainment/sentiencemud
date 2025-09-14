@@ -14,6 +14,8 @@ Dummy file that will contain method functions to be referenced by the pointer ta
 #include "script.h"
 #include "interpret.h"
 
+static WNUM __wnum_zero;
+
 AREA_DATA plith;
 
 MOB_INDEX_DATA steiner_index;
@@ -220,8 +222,10 @@ DECL_METHOD_FUNC(function_reckoning)
 #define ARG_NUM(n)		(argv[(n)]._.i)
 #define ARG_STR(n)		(argv[(n)]._.str)
 #define ARG_LST(n)		(argv[(n)]._.list.list)
+#define ARG_MOB(n)		(argv[(n)]._.mobile)
 
 #define SET_NUM(n)		(output->type = NST_NUMBER, output->_.i = (n))
+#define SET_WNUM(w)		(output->type = NST_WIDEVNUM, output->_.wnum = (w))
 
 // NUMBER methods
 DECL_METHOD_FUNC(number_random_value)
@@ -299,6 +303,25 @@ DECL_METHOD_FUNC(list_size)
 // INSTANCE methods
 
 // MOBILE methods
+DECL_METHOD_FUNC(mobile_get_widevnum)
+{
+	CHAR_DATA *mob = ARG_MOB(0);
+
+	WNUM wnum;
+	if (mob && mob->pIndexData)
+	{
+		wnum.pArea = mob->pIndexData->area;
+		wnum.vnum = mob->pIndexData->vnum;
+	}
+	else
+	{
+		wnum.pArea = NULL;
+		wnum.vnum = 0;
+	}
+
+	SET_WNUM(wnum);
+	return SCPERR_SUCCESS;
+}
 
 // OBJECT methods
 
@@ -544,3 +567,5 @@ pVARIABLE variable_new_widevnum(const char *name, AREA_DATA *area, long vnum)
 
 	return var;
 }
+
+

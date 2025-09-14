@@ -464,7 +464,7 @@ bool nib_push_stack_null (NIB_SCRIPT_RUNTIME *nsr)
 
 
 // This needs to be freed when popped
-bool nib_push_stack_string(NIB_SCRIPT_RUNTIME *nsr, char *value)
+bool nib_push_stack_string(NIB_SCRIPT_RUNTIME *nsr, const char *value)
 {
 	CHECK_STACK;
 
@@ -745,8 +745,6 @@ bool nib_push_stack_global_var(NIB_SCRIPT_RUNTIME *nsr, pVARIABLE var)
 
 bool nib_push_stack_global_var_lvalue(NIB_SCRIPT_RUNTIME *nsr, pVARIABLE var)
 {
-	if (var->readonly) return false;
-
 	NIB_SCRIPT_LVALUE lvalue;
 	switch(var->type)
 	{
@@ -2873,11 +2871,11 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					{
 					case NI_ADD:		// Concatenation
 						{
-							char number[100];
-							ltoa(rsp->_.i,number);
+							char stringify[100];
+							ltoa(rsp->_.i,stringify);
 							if (lsp->_.str)
 							{
-								char *value = calloc(1,strlen(lsp->_.str)+strlen(number)+1);
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
 								if (!value)
 								{
 									free(lsp->_.str);
@@ -2885,7 +2883,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									return true;
 								}
 								strcpy(value,lsp->_.str);
-								strcat(value,number);
+								strcat(value,stringify);
 
 								free(lsp->_.str);
 
@@ -2896,7 +2894,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									return true;
 								}
 							}
-							else if (!nib_push_stack_string(nsr,number))
+							else if (!nib_push_stack_string(nsr,stringify))
 							{
 								SETRET(nsr,STACK);
 								return true;
@@ -2937,6 +2935,97 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 								SETRET(nsr,STACK);
 								return true;
 							}
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_FLOAT:		// STRING op FLOAT => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							sprintf(stringify,"%lf", rsp->_.d);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_BOOLEAN:	// STRING op BOOLEAN => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char *stringify = (rsp->_.b?"true":"false");
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
 							break;
 						}
 
@@ -3117,6 +3206,291 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					break;
 				}
 
+			case NST_WIDEVNUM:	// STRING op WIDEVNUM => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							sprintf(stringify,"(%ld,%ld)",
+								(rsp->_.wnum.pArea?rsp->_.wnum.pArea->uid:0),
+								rsp->_.wnum.vnum);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_FLAG:		// STRING op FLAG => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							const char *stringify = nib_get_flag_string(rsp->_.stat.table,rsp->_.stat.number);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_STAT:		// STRING op STAT => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							const char *stringify = nib_get_stat_string(rsp->_.stat.table,rsp->_.stat.number);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_AREA:		// STRING op AREA => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							sprintf(stringify,"%s(%ld)",
+								(rsp->_.area) ? (rsp->_.area)->name : "null",
+								(rsp->_.area) ? (rsp->_.area)->uid : 0);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_MOBILE:	// STRING op MOBILE => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							sprintf(stringify,"%s(%ld,%ld)",
+								(rsp->_.mobile) ? (rsp->_.mobile)->name : "null",
+								(rsp->_.mobile && (rsp->_.mobile)->pIndexData) ? (rsp->_.mobile)->pIndexData->area->uid : 0,
+								(rsp->_.mobile && (rsp->_.mobile)->pIndexData) ? (rsp->_.mobile)->pIndexData->vnum : 0);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_ROOM:		// STRING op ROOM => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							sprintf(stringify,"%s(%ld,%ld)",
+								(rsp->_.room) ? (rsp->_.room)->name : "null",
+								(rsp->_.room) ? (rsp->_.room)->area->uid : 0,
+								(rsp->_.room) ? (rsp->_.room)->vnum : 0);
+
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
 			case NST_LVALUE:	// STRING op LVALUE => STRING
 				{
 					switch(rsp->_.lvalue.type)
@@ -3197,6 +3571,89 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 
 							default:
 								if (lsp->_.str) free(lsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_FLOAT:		// STRING op FLOAT => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									sprintf(stringify,"%lf", *(rsp->_.lvalue._.d));
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_BOOLEAN:	// STRING op BOOLEAN => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char *stringify = ((*(rsp->_.lvalue._.b))?"true":"false");
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
 								SETRET(nsr,INVALID);
 								return true;
 							}
@@ -3312,6 +3769,269 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							}
 							break;
 						}
+					case NST_WIDEVNUM:	// STRING op WIDEVNUM => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									sprintf(stringify,"(%ld,%ld)",
+										(rsp->_.lvalue._.wnum->pArea?rsp->_.lvalue._.wnum->pArea->uid:0),
+										rsp->_.lvalue._.wnum->vnum);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_FLAG:		// STRING op FLAG => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									const char *stringify = nib_get_flag_string(rsp->_.lvalue._.stat.table,*(rsp->_.lvalue._.stat.number));
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_STAT:		// STRING op STAT => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									const char *stringify = nib_get_stat_string(rsp->_.lvalue._.stat.table,*(rsp->_.lvalue._.stat.number));
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_AREA:		// STRING op AREA => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									sprintf(stringify,"%s(%ld)",
+										(*(rsp->_.lvalue._.area)) ? (*(rsp->_.lvalue._.area))->name : "null",
+										(*(rsp->_.lvalue._.area)) ? (*(rsp->_.lvalue._.area))->uid : 0);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_MOBILE:	// STRING op MOBILE => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									CHAR_DATA *mob = *(rsp->_.lvalue._.mobile);
+									char stringify[100];
+									sprintf(stringify,"%s(%ld,%ld)",
+										(mob) ? (mob)->name : "null",
+										(mob && (mob)->pIndexData) ? (mob)->pIndexData->area->uid : 0,
+										(mob && (mob)->pIndexData) ? (mob)->pIndexData->vnum : 0);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_ROOM:		// STRING op ROOM => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									ROOM_INDEX_DATA *room = *(rsp->_.lvalue._.room);
+									char stringify[100];
+									sprintf(stringify,"%s(%ld,%ld)",
+										(room) ? (room)->name : "null",
+										(room) ? (room)->area->uid : 0,
+										(room) ? (room)->vnum : 0);
+
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
 					default:
 						SETRET(nsr,INVALID);
 						return true;
@@ -3394,6 +4114,89 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 								SETRET(nsr,STACK);
 								return true;
 							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_FLOAT:		// STRING op FLOAT => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							sprintf(stringify,"%lf", rsp->_.d);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_BOOLEAN:	// STRING op BOOLEAN => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char *stringify = (rsp->_.b?"true":"false");
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
 							break;
 						}
 
@@ -3559,6 +4362,266 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					break;
 				}
 
+			case NST_WIDEVNUM:	// STRING op WIDEVNUM => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							sprintf(stringify,"(%ld,%ld)",
+								(rsp->_.wnum.pArea?rsp->_.wnum.pArea->uid:0),
+								rsp->_.wnum.vnum);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_FLAG:		// STRING op FLAG => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							const char *stringify = nib_get_flag_string(rsp->_.stat.table,rsp->_.stat.number);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_STAT:		// STRING op STAT => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							const char *stringify = nib_get_stat_string(rsp->_.stat.table,rsp->_.stat.number);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_AREA:		// STRING op AREA => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							sprintf(stringify,"%s(%ld)",
+								(rsp->_.area) ? (rsp->_.area)->name : "null",
+								(rsp->_.area) ? (rsp->_.area)->uid : 0);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_MOBILE:	// STRING op MOBILE => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							sprintf(stringify,"%s(%ld,%ld)",
+								(rsp->_.mobile) ? (rsp->_.mobile)->name : "null",
+								(rsp->_.mobile && (rsp->_.mobile)->pIndexData) ? (rsp->_.mobile)->pIndexData->area->uid : 0,
+								(rsp->_.mobile && (rsp->_.mobile)->pIndexData) ? (rsp->_.mobile)->pIndexData->vnum : 0);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_ROOM:		// STRING op ROOM => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							sprintf(stringify,"%s(%ld,%ld)",
+								(rsp->_.room) ? (rsp->_.room)->name : "null",
+								(rsp->_.room) ? (rsp->_.room)->area->uid : 0,
+								(rsp->_.room) ? (rsp->_.room)->vnum : 0);
+
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
 			case NST_LVALUE:	// STRING(s) op LVALUE => STRING
 				{
 					switch(rsp->_.lvalue.type)
@@ -3628,6 +4691,89 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 										SETRET(nsr,STACK);
 										return true;
 									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_FLOAT:		// STRING op FLOAT => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									sprintf(stringify,"%lf", *(rsp->_.lvalue._.d));
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_BOOLEAN:	// STRING op BOOLEAN => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char *stringify = ((*(rsp->_.lvalue._.b))?"true":"false");
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
 									break;
 								}
 
@@ -3737,6 +4883,269 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							}
 							break;
 						}
+					case NST_WIDEVNUM:	// STRING op WIDEVNUM => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									sprintf(stringify,"(%ld,%ld)",
+										(rsp->_.lvalue._.wnum->pArea?rsp->_.lvalue._.wnum->pArea->uid:0),
+										rsp->_.lvalue._.wnum->vnum);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_FLAG:		// STRING op FLAG => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									const char *stringify = nib_get_flag_string(rsp->_.lvalue._.stat.table,*(rsp->_.lvalue._.stat.number));
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_STAT:		// STRING op STAT => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									const char *stringify = nib_get_stat_string(rsp->_.lvalue._.stat.table,*(rsp->_.lvalue._.stat.number));
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_AREA:		// STRING op AREA => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									sprintf(stringify,"%s(%ld)",
+										(*(rsp->_.lvalue._.area)) ? (*(rsp->_.lvalue._.area))->name : "null",
+										(*(rsp->_.lvalue._.area)) ? (*(rsp->_.lvalue._.area))->uid : 0);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_MOBILE:	// STRING op MOBILE => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									CHAR_DATA *mob = *(rsp->_.lvalue._.mobile);
+									char stringify[100];
+									sprintf(stringify,"%s(%ld,%ld)",
+										(mob) ? (mob)->name : "null",
+										(mob && (mob)->pIndexData) ? (mob)->pIndexData->area->uid : 0,
+										(mob && (mob)->pIndexData) ? (mob)->pIndexData->vnum : 0);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_ROOM:		// STRING op ROOM => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									ROOM_INDEX_DATA *room = *(rsp->_.lvalue._.room);
+									char stringify[100];
+									sprintf(stringify,"%s(%ld,%ld)",
+										(room) ? (room)->name : "null",
+										(room) ? (room)->area->uid : 0,
+										(room) ? (room)->vnum : 0);
+
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
 					default:
 						SETRET(nsr,INVALID);
 						return true;
@@ -4794,6 +6203,89 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							break;
 						}
 					
+					case NST_FLOAT:		// STRING op FLOAT => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									sprintf(stringify,"%lf", rsp->_.d);
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_BOOLEAN:	// STRING op BOOLEAN => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char *stringify = (rsp->_.b?"true":"false");
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
 					case NST_CHAR:		// STRING op CHAR => STRING
 						{
 							if (op != NI_ADD)
@@ -4949,6 +6441,266 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							break;
 						}
 
+					case NST_WIDEVNUM:	// STRING op WIDEVNUM => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									sprintf(stringify,"(%ld,%ld)",
+										(rsp->_.wnum.pArea?rsp->_.wnum.pArea->uid:0),
+										rsp->_.wnum.vnum);
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_FLAG:		// STRING op FLAG => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									const char *stringify = nib_get_flag_string(rsp->_.stat.table,rsp->_.stat.number);
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_STAT:		// STRING op STAT => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									const char *stringify = nib_get_stat_string(rsp->_.stat.table,rsp->_.stat.number);
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_AREA:		// STRING op AREA => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									sprintf(stringify,"%s(%ld)",
+										(rsp->_.area) ? (rsp->_.area)->name : "null",
+										(rsp->_.area) ? (rsp->_.area)->uid : 0);
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_MOBILE:	// STRING op MOBILE => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									sprintf(stringify,"%s(%ld,%ld)",
+										(rsp->_.mobile) ? (rsp->_.mobile)->name : "null",
+										(rsp->_.mobile && (rsp->_.mobile)->pIndexData) ? (rsp->_.mobile)->pIndexData->area->uid : 0,
+										(rsp->_.mobile && (rsp->_.mobile)->pIndexData) ? (rsp->_.mobile)->pIndexData->vnum : 0);
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_ROOM:		// STRING op ROOM => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									sprintf(stringify,"%s(%ld,%ld)",
+										(rsp->_.room) ? (rsp->_.room)->name : "null",
+										(rsp->_.room) ? (rsp->_.room)->area->uid : 0,
+										(rsp->_.room) ? (rsp->_.room)->vnum : 0);
+
+									if (*(lsp->_.lvalue._.str))
+									{
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,*(lsp->_.lvalue._.str));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
 					case NST_LVALUE:	// STRING op LVALUE => STRING
 						{
 							switch(rsp->_.lvalue.type)
@@ -5018,6 +6770,89 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 												SETRET(nsr,STACK);
 												return true;
 											}
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_FLOAT:		// STRING op FLOAT => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char stringify[100];
+											sprintf(stringify,"%lf", *(rsp->_.lvalue._.d));
+											if (*(lsp->_.lvalue._.str))
+											{
+												char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,*(lsp->_.lvalue._.str));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_BOOLEAN:	// STRING op BOOLEAN => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char *stringify = ((*(rsp->_.lvalue._.b))?"true":"false");
+											if (*(lsp->_.lvalue._.str))
+											{
+												char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,*(lsp->_.lvalue._.str));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
 											break;
 										}
 
@@ -5127,6 +6962,269 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									}
 									break;
 								}
+							case NST_WIDEVNUM:	// STRING op WIDEVNUM => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char stringify[100];
+											sprintf(stringify,"(%ld,%ld)",
+												(rsp->_.lvalue._.wnum->pArea?rsp->_.lvalue._.wnum->pArea->uid:0),
+												rsp->_.lvalue._.wnum->vnum);
+											if (*(lsp->_.lvalue._.str))
+											{
+												char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,*(lsp->_.lvalue._.str));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_FLAG:		// STRING op FLAG => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											const char *stringify = nib_get_flag_string(rsp->_.lvalue._.stat.table,*(rsp->_.lvalue._.stat.number));
+											if (*(lsp->_.lvalue._.str))
+											{
+												char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,*(lsp->_.lvalue._.str));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_STAT:		// STRING op STAT => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											const char *stringify = nib_get_stat_string(rsp->_.lvalue._.stat.table,*(rsp->_.lvalue._.stat.number));
+											if (*(lsp->_.lvalue._.str))
+											{
+												char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,*(lsp->_.lvalue._.str));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_AREA:		// STRING op AREA => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char stringify[100];
+											sprintf(stringify,"%s(%ld)",
+												(*(rsp->_.lvalue._.area)) ? (*(rsp->_.lvalue._.area))->name : "null",
+												(*(rsp->_.lvalue._.area)) ? (*(rsp->_.lvalue._.area))->uid : 0);
+											if (*(lsp->_.lvalue._.str))
+											{
+												char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,*(lsp->_.lvalue._.str));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_MOBILE:	// STRING op MOBILE => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											CHAR_DATA *mob = *(rsp->_.lvalue._.mobile);
+											char stringify[100];
+											sprintf(stringify,"%s(%ld,%ld)",
+												(mob) ? (mob)->name : "null",
+												(mob && (mob)->pIndexData) ? (mob)->pIndexData->area->uid : 0,
+												(mob && (mob)->pIndexData) ? (mob)->pIndexData->vnum : 0);
+											if (*(lsp->_.lvalue._.str))
+											{
+												char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,*(lsp->_.lvalue._.str));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_ROOM:		// STRING op ROOM => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											ROOM_INDEX_DATA *room = *(rsp->_.lvalue._.room);
+											char stringify[100];
+											sprintf(stringify,"%s(%ld,%ld)",
+												(room) ? (room)->name : "null",
+												(room) ? (room)->area->uid : 0,
+												(room) ? (room)->vnum : 0);
+
+											if (*(lsp->_.lvalue._.str))
+											{
+												char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,*(lsp->_.lvalue._.str));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -12944,22 +15042,61 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 	case NI_LVALUE_FIELD:
 		{
 			short id = __get_short(nsr);
-			NIB_SCRIPT_LVALUE lvalue;
-			nib_pop_stack_lvalue(nsr, &lvalue);
 
-			NIB_FIELD *field = nib_field_get_byid(lvalue.type, id);
-			// TODO: Sanity check that field exists
+			NIB_SCRIPT_STACK_TYPE context = nib_peek_stack_lvalue_type(nsr);
+			if (context == NST_UNKNOWN)
+			{
+				SETRET(nsr,STACK);
+				return true;
+			}
+
+			NIB_FIELD *field = nib_field_get_byid(context, id);
 			if (!field)
 			{
 				SETRET(nsr,FIELD);
 				return true;
 			}
 
-			if (!nib_push_stack_field_lvalue(nsr, &lvalue, field))
+			if (field->method)
 			{
-				SETRET(nsr,STACK);
-				return true;
+				NIB_SCRIPT_ARG this;
+
+				if (!__pop_method_arg(nsr,&this))
+				{
+					SETRET(nsr,STACK);
+					return true;
+				}
+
+				NIB_SCRIPT_ARG output;
+				memset(&output,0,sizeof(output));
+				output.type = field->stype;
+
+				nsr->last_return = (*field->method)(nsr,1,&this,&output);
+
+				if (!__push_method_result(nsr,&output))
+				{
+					SETRET(nsr,STACK);
+					//SETRETN(nsr,__LINE__);
+					return true;
+				}
+
 			}
+			else
+			{
+				NIB_SCRIPT_LVALUE lvalue;
+				if (!nib_pop_stack_lvalue(nsr, &lvalue))
+				{
+					SETRET(nsr,STACK);
+					return true;
+				}
+				if (!nib_push_stack_field_lvalue(nsr, &lvalue, field))
+				{
+					SETRET(nsr,STACK);
+					return true;
+				}
+			}
+
+
 			break;
 		}
 
@@ -13075,8 +15212,8 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 				if (!__push_method_result(nsr,&output))
 				{
 					nib_free(argv);
-					// SETRET(nsr,STACK);
-					SETRETN(nsr,__LINE__);
+					SETRET(nsr,STACK);
+					// SETRETN(nsr,__LINE__);
 					return true;
 				}
 			}

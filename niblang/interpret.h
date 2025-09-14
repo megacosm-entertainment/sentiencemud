@@ -190,7 +190,7 @@ __push(long,number)
 __push(double,float)
 __push(bool,boolean)
 __push(char,char)
-__push(char *,string)
+__push(const char *,string)
 __push(char *,string_shared)
 bool nib_push_stack_list (NIB_SCRIPT_RUNTIME *nsr, LLIST *value, NIB_SCRIPT_STACK_TYPE type);
 bool nib_push_stack_list_shared (NIB_SCRIPT_RUNTIME *nsr, LLIST *value, NIB_SCRIPT_STACK_TYPE type);

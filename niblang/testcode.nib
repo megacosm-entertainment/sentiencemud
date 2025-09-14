@@ -1,4 +1,4 @@
-area plith = "Plith";
+global area plith;
 
 print("-----------------------------------");
 
@@ -13,7 +13,7 @@ foreach(rm : plith.rooms)
 
 	foreach(mob : rm.people)
 	{
-		print("      Mob: " + mob.short);
+		print("      Mob: " + mob.short + " - " + mob.wnum);
 		print("        Description: " + mob.description);
 	}
 }

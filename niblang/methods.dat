@@ -47,6 +47,7 @@ field string mobile.name -> mobile_name;
 field string mobile.short -> mobile_short_descr;
 field string mobile.long -> mobile_long_descr;
 field string mobile.description -> mobile_description;
+field method widevnum mobile.wnum -> mobile_get_widevnum;
 
 // OBJECT methods/fields
 
