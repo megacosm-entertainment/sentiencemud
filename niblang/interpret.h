@@ -144,6 +144,47 @@ struct nib_script_runtime_s
 	char debug[1024];
 };
 
+struct nib_script_argument_s
+{
+	NIB_SCRIPT_STACK_TYPE type;
+
+	union {
+		long i;
+		double d;
+		bool b;
+		char *str;
+		char ch;
+		WNUM wnum;
+
+		struct {
+			long number;
+			const struct flag_type *table;
+		} stat;
+
+		struct {
+			NIB_SCRIPT_STACK_TYPE type;
+			LLIST *list;
+			ITERATOR it;
+		} list;
+
+		struct {
+			NIB_SCRIPT_STACK_TYPE type;
+			LLIST *list;
+			ITERATOR it;
+		} iter;
+
+		AREA_DATA *area;
+		// DUNGEON dung;
+		// INSTANCE inst;
+		CHAR_DATA *mobile;
+		// OBJ_DATA object;
+		// QUEST_DATA quest;
+		ROOM_INDEX_DATA *room;
+		// SHIP_DATA ship;
+		// TOKEN_DATA token;
+	} _;
+};
+
 #define __push(t,n) bool nib_push_stack_##n (NIB_SCRIPT_RUNTIME *nsr, t value);
 __push(long,number)
 __push(double,float)

@@ -222,7 +222,7 @@ enum nib_script_stack_type_e
 
 #define MAX_FLAG_BITS		(bitsize(flag_value_t))
 
-#define DECL_METHOD_FUNC(f)	int nib_method_func_##f (NIB_SCRIPT_RUNTIME *nsr)
+#define DECL_METHOD_FUNC(f)	int nib_method_func_##f (NIB_SCRIPT_RUNTIME *nsr, int argc, NIB_SCRIPT_ARG *argv, NIB_SCRIPT_ARG *output)
 
 #include "dummy.h"
 
@@ -456,6 +456,7 @@ bool nib_step_execute(NIB_SCRIPT_RUNTIME *nsr);
 void nib_step_execute_cleanup(NIB_SCRIPT_RUNTIME *nsr);
 void nib_step_execute_show(NIB_SCRIPT_RUNTIME *nsr, int rows, int cols);
 int nib_get_last_return(NIB_SCRIPT_RUNTIME *nsr);
+const char *nib_get_debug(NIB_SCRIPT_RUNTIME *nsr);
 
 // list.c
 LLIST *list_create(bool purge);
@@ -590,6 +591,7 @@ bool are_nib_types_equal(NIB_TYPE *a, NIB_TYPE *b);
 // utils.c
 extern unsigned long nib_allocations;
 
+long number_range(long from, long to);
 void ltoa(register long num, register char *output);
 int str_cmp(const char *astr, const char *bstr);
 bool str_prefix(const char *astr, const char *bstr);

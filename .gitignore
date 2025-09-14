@@ -55,4 +55,5 @@ wip/
 gmon.out
 .depend
 niblang/niblang
+niblang/niblang.err
 

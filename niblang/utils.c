@@ -10,9 +10,9 @@ void ltoa(register long num, register char *output)
 {
 	static char number[100];
 
-	register char *str = &number[100];
+	register char *str = &number[99];
 
-	*(--str) = '\0';
+	*str = '\0';
 
 	bool sign = false;
 	if (num < 0L)
@@ -37,6 +37,8 @@ void ltoa(register long num, register char *output)
 		*output++ = *str++;
 	}
 	while(*str);
+
+	*output = 0;
 }
 
 // WARNING: NOT UTF8 aware!!!
@@ -131,12 +133,12 @@ long number_range(long from, long to)
 	if (to > RAND_MAX)
 	{
 		do {
-			number = ((long)random()<<32) | ((long)rand() << 1) | ((long)rand() & 1);
-		} while ((number & (power - 1)) >= to);
+			number = ((long)rand()<<32) | ((long)rand() << 1) | ((long)rand() & 1) & (power - 1);
+		} while (number >= to);
 	}
 	else
 	{
-		while (((number = random()) & (power - 1)) >= to);
+		while ((number = (rand() & (power - 1))) >= to);
 	}
 
 	return from + number;

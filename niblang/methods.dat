@@ -12,6 +12,7 @@ For flags and stats, ONLY built-in named tables may be used
 */
 
 // Functions
+function void print(string) -> function_print_msg;
 function void reckoning(int,int) -> function_reckoning;
 
 // INT methods/fields
@@ -35,12 +36,17 @@ field readonly int area.uid -> area_uid;
 field readonly string area.name -> area_name;
 field readonly string area.description -> area_description;
 field flag(area) area.flags -> area_flags;
+field readonly list(room) area.rooms -> area_rooms;
 
 // INSTANCE methods/fields
 
 // DUNGEON methods/fields
 
 // MOBILE methods/fields
+field string mobile.name -> mobile_name;
+field string mobile.short -> mobile_short_descr;
+field string mobile.long -> mobile_long_descr;
+field string mobile.description -> mobile_description;
 
 // OBJECT methods/fields
 

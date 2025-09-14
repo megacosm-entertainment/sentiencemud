@@ -4,6 +4,7 @@
 // Assumes DECL_METHOD_FUNC defined
 
 // Functions
+DECL_METHOD_FUNC(function_print_msg);
 DECL_METHOD_FUNC(function_reckoning);
 
 // NUMBER methods
@@ -33,7 +34,6 @@ DECL_METHOD_FUNC(list_size);
 // WIDEVNUM methods
 
 // AREA Methods
-DECL_METHOD_FUNC(area_get_name);
 
 // DUNGEON methods
 

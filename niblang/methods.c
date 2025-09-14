@@ -75,6 +75,7 @@ static struct nib_field_offset_type __field_offsets[] =
 	NFO(PRIMARY,AREA,name,__static_area),
 	NFO(PRIMARY,AREA,description,__static_area),
 	NFO(PRIMARY,AREA,flags,__static_area),
+	NFO(PRIMARY,AREA,rooms,__static_area),
 	NFO(PRIMARY,MOBILE,name,__static_mobile),
 	NFO(PRIMARY,MOBILE,short_descr,__static_mobile),
 	NFO(PRIMARY,MOBILE,long_descr,__static_mobile),
@@ -269,8 +270,8 @@ bool nib_field_add(NIB_TYPE *context, char *name, NIB_TYPE *ret, bool readonly, 
 
 const struct nib_method_func_type nib_method_funcs[] =
 {
-	MFE(area_get_name),
 	MFE(function_reckoning),
+	MFE(function_print_msg),
 	MFE(list_add),
 	MFE(list_insert),
 	MFE(list_remove),

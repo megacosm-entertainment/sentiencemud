@@ -118,7 +118,7 @@ void dummy_init()
 	steiner.name = strdup("steiner");
 	steiner.short_descr = strdup("Steiner");
 	steiner.long_descr = strdup("Steiner watches over the Town of Plith.");
-	steiner.description = strdup("");
+	steiner.description = strdup("Steiner watches over the Town of Plith.");
 
 	ravage_index.area = &plith;
 	ravage_index.vnum = 2L;
@@ -126,7 +126,7 @@ void dummy_init()
 	ravage.name = strdup("ravage");
 	ravage.short_descr = strdup("Ravage");
 	ravage.long_descr = strdup("The sinister Ravage looms over the city.");
-	ravage.description = strdup("");
+	ravage.description = strdup("The sinister Ravage looms over the city.");
 
 	mayor_index.area = &plith;
 	mayor_index.vnum = 3L;
@@ -134,7 +134,7 @@ void dummy_init()
 	mayor.name = strdup("mayor plith");
 	mayor.short_descr = strdup("the Mayor of Plith");
 	mayor.long_descr = strdup("The Mayor governs Plith with a firm hand.");
-	mayor.description = strdup("");
+	mayor.description = strdup("The Mayor governs Plith with a firm hand.");
 
 	beginning.area = &plith;
 	beginning.vnum = 1L;
@@ -201,18 +201,44 @@ AREA_DATA *get_area_from_uid (long uid)
 	return NULL;
 }
 
+
+/////////////////////////////////////
 // Functions
+DECL_METHOD_FUNC(function_print_msg)
+{
+	// Print the message
+	if (argv[0].type == NST_STRING)
+		printf("%s\n", argv[0]._.str ? argv[0]._.str : "<null>");
+	return SCPERR_SUCCESS;
+}
+
 DECL_METHOD_FUNC(function_reckoning)
 {
-	return 0;
+	return SCPERR_SUCCESS;
 }
+
+#define ARG_NUM(n)		(argv[(n)]._.i)
+#define ARG_STR(n)		(argv[(n)]._.str)
+#define ARG_LST(n)		(argv[(n)]._.list.list)
+
+#define SET_NUM(n)		(output->type = NST_NUMBER, output->_.i = (n))
 
 // NUMBER methods
 DECL_METHOD_FUNC(number_random_value)
 {
 	// Get a number from 0 to N-1
+	long value = 0;
 
-	return 0;
+	fprintf(stderr,"random(%ld)\n", ARG_NUM(0));
+
+	if (ARG_NUM(0) > 1)
+		value = number_range(0,ARG_NUM(0) - 1);
+
+	fprintf(stderr,"value = %ld\n", value);
+	fflush(stderr);
+
+	SET_NUM(value);
+	return SCPERR_SUCCESS;
 }
 
 // FLOAT methods
@@ -223,7 +249,14 @@ DECL_METHOD_FUNC(number_random_value)
 DECL_METHOD_FUNC(string_length)
 {
 	// Get length of string
-	return 0;
+	long len;
+	if (ARG_STR(0))
+		len = strlen(ARG_STR(0));
+	else
+		len = 0;
+
+	SET_NUM(len);
+	return SCPERR_SUCCESS;
 }
 
 // FLAG methods
@@ -231,22 +264,26 @@ DECL_METHOD_FUNC(string_length)
 // LIST methods
 DECL_METHOD_FUNC(list_add)
 {
-	return 0;
+	return SCPERR_SUCCESS;
 }
 
 DECL_METHOD_FUNC(list_insert)
 {
-	return 0;
+	return SCPERR_SUCCESS;
 }
 
 DECL_METHOD_FUNC(list_remove)
 {
-	return 0;
+	return SCPERR_SUCCESS;
 }
 
 DECL_METHOD_FUNC(list_size)
 {
-	return 0;
+	long size = list_size(ARG_LST(0));
+
+	SET_NUM(size);
+
+	return SCPERR_SUCCESS;
 }
 
 // STAT methods
@@ -256,10 +293,6 @@ DECL_METHOD_FUNC(list_size)
 // WIDEVNUM methods
 
 // AREA Methods
-DECL_METHOD_FUNC(area_get_name)
-{
-	return 0;
-}
 
 // DUNGEON methods
 

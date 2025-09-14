@@ -90,6 +90,7 @@ bool parse_args(int argc, char **argv, struct parse_params_s *params)
 
 int main(int argc, char **argv)
 {
+	srand(time(NULL));
 	struct parse_params_s params;
 	if (!parse_args(argc,argv,&params))
 	{
@@ -203,6 +204,8 @@ int main(int argc, char **argv)
 						}
 
 						nib_step_execute_show(nsr, w.ws_row, w.ws_col);
+
+						printf("\nScript Return: %ld\n", nib_get_last_return(nsr));
 
 						nib_step_execute_cleanup(nsr);
 					}

@@ -864,6 +864,7 @@ void niberrorf(const char *msg, ...)
 %token T_CLOSE_LIST
 %token T_CLOSE_MAP
 %token T_CLOSE_PAREN
+%token T_COALESCE
 %token T_COLON
 %token T_COLONS
 %token T_COMMA
@@ -1055,7 +1056,7 @@ void niberrorf(const char *msg, ...)
 %type <case_label> case_label
 
 %right T_ASSIGN
-%right T_QMARK
+%right T_QMARK T_COALESCE
 %left T_LOR
 %left T_LXOR
 %left T_LAND
@@ -2337,6 +2338,31 @@ expr0:
 			$$.needs_pop = false;
 			$$.flags = IS_READONLY;
 		}
+	|	expr0[L] T_COALESCE %prec T_COALESCE
+		{
+			ins_code(NI_DUP);	// Make a copy of $L on the stack
+			ins_code(NI_JUMP_NOT_ZERO);		// Pops $L' off the stack
+			$<address>$ = CURRENT_PROGRAM_SIZE;
+			ins_address(0);
+			ins_code(NI_POP);	// To remove the original $L off the stack
+		}
+		expr0[R]
+		{
+			NIB_TYPE *t = nib_combine_types($L.type, $R.type);
+			if (!t)
+			{
+				yyerror("Incompatible types used in ?: expression.");
+				YYERROR;
+			}
+
+			upd_address($<address>3,CURRENT_PROGRAM_SIZE);
+
+			$$.name = NULL;
+			$$.type = t;
+			$$.needs_use = $L.needs_use && $L.needs_use;
+			$$.needs_pop = false;
+			$$.flags = IS_READONLY;
+		}
 	|	expr0[L] T_LOR %prec T_LOR
 		{
 		}
@@ -3506,7 +3532,6 @@ function_call:
 			$$.needs_use = (type && type->type_class != NTC_VOID);
 			$$.needs_pop = (type && type->type_class != NTC_VOID);
 
-			printf("Function Call: %s %s.\n", nib_get_typename(NULL,type), method->name);
 			nib_free($M);
 			list_destroy($A);
 		}
@@ -3737,7 +3762,6 @@ method_call:
 			$$.needs_use = (type && type->type_class != NTC_VOID);
 			$$.needs_pop = (type && type->type_class != NTC_VOID);
 
-			printf("Method Call: %s %s for %s type.\n", nib_get_typename(NULL,type), method->name, nib_get_typename(NULL,$C.type));
 			nib_free($M);
 			list_destroy($A);
 		}

@@ -13,11 +13,13 @@ typedef struct nib_script_stack_lvalue_s NIB_SCRIPT_LVALUE;
 typedef struct nib_script_runtime_s NIB_SCRIPT_RUNTIME;
 typedef struct nib_local_runtime_var_s NIB_LOCAL_RUNTIME_VAR;
 
+typedef struct nib_script_argument_s NIB_SCRIPT_ARG;
+
 typedef struct nib_type NIB_TYPE;
 typedef struct nib_script_type_s NIB_SCRIPT;
 typedef struct nib_script_global_variable_s NIB_GLOBAL_VAR;
 typedef struct nib_script_local_variable_s NIB_LOCAL_VAR;
 
-typedef int METHOD_FUNC(NIB_SCRIPT_RUNTIME *nsr);
+typedef int METHOD_FUNC(NIB_SCRIPT_RUNTIME *nsr, int argc, NIB_SCRIPT_ARG *argv, NIB_SCRIPT_ARG *output);
 
 #endif

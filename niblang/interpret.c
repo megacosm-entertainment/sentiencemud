@@ -17,6 +17,8 @@
 #define RSTCLR			printf("\033[0m")
 #define MAX_STACK_SHOW 10
 #define SIDE_PANEL_WIDTH 50
+#define SETRET(n,r)			(n)->last_return = SCPERR_##r
+#define SETRETN(n,r)		(n)->last_return = (r)
 
 NIB_SCRIPT_STACK_TYPE convert_to_stype(NIB_TYPE *type)
 {
@@ -853,6 +855,7 @@ bool nib_push_stack_field_lvalue(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_LVALUE *lva
 
 	case NST_LIST:
 	case NST_LIST_S:
+		_lvalue.type = NST_LIST;	// LVALUE Lists are always "shared"
 		_lvalue._.list.type = field->stype2;
 		_lvalue._.list.list = ptr;
 		break;
@@ -868,10 +871,30 @@ bool nib_push_stack_field_lvalue(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_LVALUE *lva
 
 NIB_SCRIPT_STACK_TYPE nib_peek_stack(NIB_SCRIPT_RUNTIME *nsr)
 {
+	if (nsr->sp < 1) return NST_UNKNOWN;
 	return nsr->stack[nsr->sp-1].type;
 }
 
+NIB_SCRIPT_STACK_TYPE nib_peek_stack_lvalue_type(NIB_SCRIPT_RUNTIME *nsr)
+{
+	if (nsr->sp < 1) return NST_UNKNOWN;
+	NIB_SCRIPT_STACK *stack = &nsr->stack[nsr->sp-1];
+	if (stack->type != NST_LVALUE) return stack->type;
+	return stack->_.lvalue.type;
+}
+
 NIB_SCRIPT_STACK_TYPE nib_peek_stack_offset(NIB_SCRIPT_RUNTIME *nsr, int offset)
+{
+	int sp = nsr->sp + offset;
+
+	if (sp < 0 || sp >= nsr->sp) return NST_UNKNOWN;
+
+	NIB_SCRIPT_STACK *stack = &nsr->stack[sp];
+	if (stack->type != NST_LVALUE) return stack->type;
+	return stack->_.lvalue.type;
+}
+
+NIB_SCRIPT_STACK_TYPE nib_peek_stack_offset_lvalue_type(NIB_SCRIPT_RUNTIME *nsr, int offset)
 {
 	int sp = nsr->sp + offset;
 
@@ -1907,7 +1930,6 @@ static bool __decrement_stack(NIB_SCRIPT_RUNTIME *nsr, bool post, bool push_resu
 	return true;
 }
 
-#define SETRET(n,r)			(n)->last_return = SCPERR_##r
 
 // This only handles operations that allow for actual operations
 // Only arithmetic and bitwise operations are done
@@ -2023,7 +2045,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 
 					// Cloning
 					int len = (lsp->_.i>0)?lsp->_.i:0;
-					char *value = malloc(len+1);
+					char *value = calloc(1,len+1);
 					if (!value)
 					{
 						SETRET(nsr,MEMORY);
@@ -2052,7 +2074,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							ltoa(lsp->_.i, number);
 							if (rsp->_.str)
 							{
-								char *value = malloc(strlen(number)+strlen(rsp->_.str)+1);
+								char *value = calloc(1,strlen(number)+strlen(rsp->_.str)+1);
 								if (!value)
 								{
 									free(rsp->_.str);
@@ -2085,7 +2107,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							{
 								int len = strlen(rsp->_.str);
 								int cnt = (lsp->_.i>0)?lsp->_.i:0;
-								char *value = malloc(cnt * len + 1);
+								char *value = calloc(1,cnt * len + 1);
 								if(!value)
 								{
 									free(rsp->_.str);
@@ -2131,7 +2153,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							ltoa(lsp->_.i, number);
 							if (rsp->_.str)
 							{
-								char *value = malloc(strlen(number)+strlen(rsp->_.str)+1);
+								char *value = calloc(1,strlen(number)+strlen(rsp->_.str)+1);
 								if(!value)
 								{
 									SETRET(nsr,MEMORY);
@@ -2162,7 +2184,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							{
 								int len = strlen(rsp->_.str);
 								int cnt = (lsp->_.i>0)?lsp->_.i:0;
-								char *value = malloc(cnt * len + 1);
+								char *value = calloc(1,cnt * len + 1);
 								if(!value)
 								{
 									SETRET(nsr,MEMORY);
@@ -2301,7 +2323,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 
 							// Cloning
 							int len = (lsp->_.i>0)?lsp->_.i:0;
-							char *value = malloc(len+1);
+							char *value = calloc(1,len+1);
 							if (!value)
 							{
 								SETRET(nsr,MEMORY);
@@ -2330,7 +2352,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									ltoa(lsp->_.i, number);
 									if (*(rsp->_.lvalue._.str))
 									{
-										char *value = malloc(strlen(number)+strlen(rsp->_.str)+1);
+										char *value = calloc(1,strlen(number)+strlen(rsp->_.str)+1);
 										if(!value)
 										{
 											SETRET(nsr,MEMORY);
@@ -2361,7 +2383,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									{
 										int len = strlen(*(rsp->_.lvalue._.str));
 										int cnt = (lsp->_.i>0)?lsp->_.i:0;
-										char *value = malloc(cnt * len + 1);
+										char *value = calloc(1,cnt * len + 1);
 										if(!value)
 										{
 											SETRET(nsr,MEMORY);
@@ -2585,7 +2607,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 
 					// Cloning
 					int len = (rsp->_.i>0)?rsp->_.i:0;
-					char *value = malloc(len+1);
+					char *value = calloc(1,len+1);
 					if (!value)
 					{
 						SETRET(nsr,MEMORY);
@@ -2640,7 +2662,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					{
 						if (rsp->_.str)
 						{
-							char *value = malloc(strlen(rsp->_.str)+2);
+							char *value = calloc(1,strlen(rsp->_.str)+2);
 
 							value[0] = lsp->_.ch;
 							strcpy(value+1,rsp->_.str);
@@ -2691,7 +2713,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					{
 						if (rsp->_.str)
 						{
-							char *value = malloc(strlen(rsp->_.str)+2);
+							char *value = calloc(1,strlen(rsp->_.str)+2);
 
 							value[0] = lsp->_.ch;
 							strcpy(value+1,rsp->_.str);
@@ -2739,7 +2761,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							// Cloning
 							int cnt = *(rsp->_.lvalue._.number);
 							int len = (cnt>0)?cnt:0;
-							char *value = malloc(len+1);
+							char *value = calloc(1,len+1);
 							if (!value)
 							{
 								SETRET(nsr,MEMORY);
@@ -2792,7 +2814,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							{
 								if (*(rsp->_.lvalue._.str))
 								{
-									char *value = malloc(strlen(*(rsp->_.lvalue._.str))+2);
+									char *value = calloc(1,strlen(*(rsp->_.lvalue._.str))+2);
 
 									value[0] = lsp->_.ch;
 									strcpy(value+1,*(rsp->_.lvalue._.str));
@@ -2855,7 +2877,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							ltoa(rsp->_.i,number);
 							if (lsp->_.str)
 							{
-								char *value = malloc(strlen(lsp->_.str)+strlen(number)+1);
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(number)+1);
 								if (!value)
 								{
 									free(lsp->_.str);
@@ -2888,7 +2910,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							if (lsp->_.str)
 							{
 								int len = strlen(lsp->_.str);
-								char *value = malloc(len * ((rsp->_.i > 0)?rsp->_.i:0) + 1);
+								char *value = calloc(1,len * ((rsp->_.i > 0)?rsp->_.i:0) + 1);
 								if (!value)
 								{
 									free(lsp->_.str);
@@ -2940,7 +2962,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 						if (rsp->_.ch > 0)
 						{
 							int len = strlen(lsp->_.str);
-							char *value = malloc(len+2);
+							char *value = calloc(1,len+2);
 							if (!value)
 							{
 								free(lsp->_.str);
@@ -2995,7 +3017,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					{
 						if (rsp->_.str)
 						{
-							char *value = malloc(strlen(lsp->_.str)+strlen(rsp->_.str)+1);
+							char *value = calloc(1,strlen(lsp->_.str)+strlen(rsp->_.str)+1);
 							if (!value)
 							{
 								free(lsp->_.str);
@@ -3053,7 +3075,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					{
 						if (rsp->_.str)
 						{
-							char *value = malloc(strlen(lsp->_.str)+strlen(rsp->_.str)+1);
+							char *value = calloc(1,strlen(lsp->_.str)+strlen(rsp->_.str)+1);
 							if (!value)
 							{
 								free(lsp->_.str);
@@ -3109,7 +3131,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									ltoa(*(rsp->_.lvalue._.number),number);
 									if (lsp->_.str)
 									{
-										char *value = malloc(strlen(lsp->_.str)+strlen(number)+1);
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(number)+1);
 										if (!value)
 										{
 											free(lsp->_.str);
@@ -3143,7 +3165,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									{
 										register int cnt = *(rsp->_.lvalue._.number);
 										register int len = strlen(lsp->_.str);
-										char *value = malloc(len * ((cnt > 0)?cnt:0) + 1);
+										char *value = calloc(1,len * ((cnt > 0)?cnt:0) + 1);
 										if (!value)
 										{
 											free(lsp->_.str);
@@ -3195,7 +3217,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 								if (*(rsp->_.lvalue._.ch) > 0)
 								{
 									int len = strlen(lsp->_.str);
-									char *value = malloc(len+2);
+									char *value = calloc(1,len+2);
 									if (!value)
 									{
 										free(lsp->_.str);
@@ -3249,7 +3271,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							{
 								if (*(rsp->_.lvalue._.str))
 								{
-									char *value = malloc(strlen(lsp->_.str)+strlen(*(rsp->_.lvalue._.str))+1);
+									char *value = calloc(1,strlen(lsp->_.str)+strlen(*(rsp->_.lvalue._.str))+1);
 									if (!value)
 									{
 										free(lsp->_.str);
@@ -3318,7 +3340,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							ltoa(rsp->_.i,number);
 							if (lsp->_.str)
 							{
-								char *value = malloc(strlen(lsp->_.str)+strlen(number)+1);
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(number)+1);
 								if (!value)
 								{
 									SETRET(nsr,MEMORY);
@@ -3348,7 +3370,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							if (lsp->_.str)
 							{
 								int len = strlen(lsp->_.str);
-								char *value = malloc(len * ((rsp->_.i > 0)?rsp->_.i:0) + 1);
+								char *value = calloc(1,len * ((rsp->_.i > 0)?rsp->_.i:0) + 1);
 								if (!value)
 								{
 									SETRET(nsr,MEMORY);
@@ -3395,7 +3417,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 						if (rsp->_.ch > 0)
 						{
 							int len = strlen(lsp->_.str);
-							char *value = malloc(len+2);
+							char *value = calloc(1,len+2);
 							if (!value)
 							{
 								SETRET(nsr,MEMORY);
@@ -3445,7 +3467,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					{
 						if (rsp->_.str)
 						{
-							char *value = malloc(strlen(lsp->_.str)+strlen(rsp->_.str)+1);
+							char *value = calloc(1,strlen(lsp->_.str)+strlen(rsp->_.str)+1);
 							if (!value)
 							{
 								free(rsp->_.str);
@@ -3499,7 +3521,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					{
 						if (rsp->_.str)
 						{
-							char *value = malloc(strlen(lsp->_.str)+strlen(rsp->_.str)+1);
+							char *value = calloc(1,strlen(lsp->_.str)+strlen(rsp->_.str)+1);
 							if (!value)
 							{
 								SETRET(nsr,MEMORY);
@@ -3551,7 +3573,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									ltoa(*(rsp->_.lvalue._.number),number);
 									if (lsp->_.str)
 									{
-										char *value = malloc(strlen(lsp->_.str)+strlen(number)+1);
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(number)+1);
 										if (!value)
 										{
 											SETRET(nsr,MEMORY);
@@ -3582,7 +3604,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									{
 										register int cnt = *(rsp->_.lvalue._.number);
 										register int len = strlen(lsp->_.str);
-										char *value = malloc(len * ((cnt > 0)?cnt:0) + 1);
+										char *value = calloc(1,len * ((cnt > 0)?cnt:0) + 1);
 										if (!value)
 										{
 											SETRET(nsr,MEMORY);
@@ -3629,7 +3651,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 								if (*(rsp->_.lvalue._.ch) > 0)
 								{
 									int len = strlen(lsp->_.str);
-									char *value = malloc(len+2);
+									char *value = calloc(1,len+2);
 									if (!value)
 									{
 										SETRET(nsr,MEMORY);
@@ -3678,7 +3700,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							{
 								if (*(rsp->_.lvalue._.str))
 								{
-									char *value = malloc(strlen(lsp->_.str)+strlen(*(rsp->_.lvalue._.str))+1);
+									char *value = calloc(1,strlen(lsp->_.str)+strlen(*(rsp->_.lvalue._.str))+1);
 									if (!value)
 									{
 										SETRET(nsr,MEMORY);
@@ -3941,7 +3963,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 
 							// Cloning
 							int len = (*(lsp->_.lvalue._.number)>0)?*(lsp->_.lvalue._.number):0;
-							char *value = malloc(len+1);
+							char *value = calloc(1,len+1);
 							if (!value)
 							{
 								SETRET(nsr,MEMORY);
@@ -3970,7 +3992,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									ltoa(*(lsp->_.lvalue._.number), number);
 									if (rsp->_.str)
 									{
-										char *value = malloc(strlen(number)+strlen(rsp->_.str)+1);
+										char *value = calloc(1,strlen(number)+strlen(rsp->_.str)+1);
 										strcpy(value,number);
 										strcat(value,rsp->_.str);
 										free(rsp->_.str);
@@ -3997,7 +4019,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									{
 										int len = strlen(rsp->_.str);
 										int cnt = (*(lsp->_.lvalue._.number)>0)?*(lsp->_.lvalue._.number):0;
-										char *value = malloc(cnt * len + 1);
+										char *value = calloc(1,cnt * len + 1);
 										char *str = value;
 										for(int i = 0; i < cnt; i++, str += len)
 											strcpy(str,rsp->_.str);
@@ -4037,7 +4059,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									ltoa(*(lsp->_.lvalue._.number), number);
 									if (rsp->_.str)
 									{
-										char *value = malloc(strlen(number)+strlen(rsp->_.str)+1);
+										char *value = calloc(1,strlen(number)+strlen(rsp->_.str)+1);
 										strcpy(value,number);
 										strcat(value,rsp->_.str);
 
@@ -4063,7 +4085,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									{
 										int len = strlen(rsp->_.str);
 										int cnt = (*(lsp->_.lvalue._.number)>0)?*(lsp->_.lvalue._.number):0;
-										char *value = malloc(cnt * len + 1);
+										char *value = calloc(1,cnt * len + 1);
 										char *str = value;
 										for(int i = 0; i < cnt; i++, str += len)
 											strcpy(str,rsp->_.str);
@@ -4197,7 +4219,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 
 									// Cloning
 									int len = (*(lsp->_.lvalue._.number)>0)?*(lsp->_.lvalue._.number):0;
-									char *value = malloc(len+1);
+									char *value = calloc(1,len+1);
 									if (!value)
 									{
 										SETRET(nsr,MEMORY);
@@ -4226,7 +4248,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 											ltoa(*(lsp->_.lvalue._.number), number);
 											if (*(rsp->_.lvalue._.str))
 											{
-												char *value = malloc(strlen(number)+strlen(rsp->_.str)+1);
+												char *value = calloc(1,strlen(number)+strlen(rsp->_.str)+1);
 												strcpy(value,number);
 												strcat(value,*(rsp->_.lvalue._.str));
 
@@ -4252,7 +4274,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 											{
 												int len = strlen(*(rsp->_.lvalue._.str));
 												int cnt = (*(lsp->_.lvalue._.number)>0)?*(lsp->_.lvalue._.number):0;
-												char *value = malloc(cnt * len + 1);
+												char *value = calloc(1,cnt * len + 1);
 												char *str = value;
 												for(int i = 0; i < cnt; i++, str += len)
 													strcpy(str,*(rsp->_.lvalue._.str));
@@ -4471,7 +4493,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 
 							// Cloning
 							int len = (rsp->_.i>0)?rsp->_.i:0;
-							char *value = malloc(len+1);
+							char *value = calloc(1,len+1);
 							if (!value)
 							{
 								SETRET(nsr,MEMORY);
@@ -4523,7 +4545,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 
 							if (rsp->_.str)
 							{
-								char *value = malloc(strlen(rsp->_.str)+2);
+								char *value = calloc(1,strlen(rsp->_.str)+2);
 
 								value[0] = *(lsp->_.lvalue._.ch);
 								strcpy(value+1,rsp->_.str);
@@ -4561,7 +4583,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 
 							if (rsp->_.str)
 							{
-								char *value = malloc(strlen(rsp->_.str)+2);
+								char *value = calloc(1,strlen(rsp->_.str)+2);
 
 								value[0] = *(lsp->_.lvalue._.ch);
 								strcpy(value+1,rsp->_.str);
@@ -4603,7 +4625,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									// Cloning
 									int cnt = *(rsp->_.lvalue._.number);
 									int len = (cnt>0)?cnt:0;
-									char *value = malloc(len+1);
+									char *value = calloc(1,len+1);
 									if (!value)
 									{
 										SETRET(nsr,MEMORY);
@@ -4654,7 +4676,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 
 									if (*(rsp->_.lvalue._.str))
 									{
-										char *value = malloc(strlen(*(rsp->_.lvalue._.str))+2);
+										char *value = calloc(1,strlen(*(rsp->_.lvalue._.str))+2);
 
 										value[0] = *(lsp->_.lvalue._.ch);
 										strcpy(value+1,*(rsp->_.lvalue._.str));
@@ -4708,7 +4730,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									ltoa(rsp->_.i,number);
 									if (*(lsp->_.lvalue._.str))
 									{
-										char *value = malloc(strlen(*(lsp->_.lvalue._.str))+strlen(number)+1);
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(number)+1);
 										if (!value)
 										{
 											SETRET(nsr,MEMORY);
@@ -4738,7 +4760,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									if (*(lsp->_.lvalue._.str))
 									{
 										int len = strlen(*(lsp->_.lvalue._.str));
-										char *value = malloc(len * ((rsp->_.i > 0)?rsp->_.i:0) + 1);
+										char *value = calloc(1,len * ((rsp->_.i > 0)?rsp->_.i:0) + 1);
 										if (!value)
 										{
 											SETRET(nsr,MEMORY);
@@ -4785,7 +4807,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 								if (rsp->_.ch > 0)
 								{
 									int len = strlen(*(lsp->_.lvalue._.str));
-									char *value = malloc(len+2);
+									char *value = calloc(1,len+2);
 									if (!value)
 									{
 										SETRET(nsr,MEMORY);
@@ -4835,7 +4857,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							{
 								if (rsp->_.str)
 								{
-									char *value = malloc(strlen(*(lsp->_.lvalue._.str))+strlen(rsp->_.str)+1);
+									char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(rsp->_.str)+1);
 									if (!value)
 									{
 										free(rsp->_.str);
@@ -4889,7 +4911,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							{
 								if (rsp->_.str)
 								{
-									char *value = malloc(strlen(*(lsp->_.lvalue._.str))+strlen(rsp->_.str)+1);
+									char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(rsp->_.str)+1);
 									if (!value)
 									{
 										SETRET(nsr,MEMORY);
@@ -4941,7 +4963,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 											ltoa(*(rsp->_.lvalue._.number),number);
 											if (*(lsp->_.lvalue._.str))
 											{
-												char *value = malloc(strlen(*(lsp->_.lvalue._.str))+strlen(number)+1);
+												char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(number)+1);
 												if (!value)
 												{
 													SETRET(nsr,MEMORY);
@@ -4972,7 +4994,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 											{
 												register int cnt = *(rsp->_.lvalue._.number);
 												register int len = strlen(*(lsp->_.lvalue._.str));
-												char *value = malloc(len * ((cnt > 0)?cnt:0) + 1);
+												char *value = calloc(1,len * ((cnt > 0)?cnt:0) + 1);
 												if (!value)
 												{
 													SETRET(nsr,MEMORY);
@@ -5019,7 +5041,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 										if (*(rsp->_.lvalue._.ch) > 0)
 										{
 											int len = strlen(*(lsp->_.lvalue._.str));
-											char *value = malloc(len+2);
+											char *value = calloc(1,len+2);
 											if (!value)
 											{
 												SETRET(nsr,MEMORY);
@@ -5068,7 +5090,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									{
 										if (*(rsp->_.lvalue._.str))
 										{
-											char *value = malloc(strlen(*(lsp->_.lvalue._.str))+strlen(*(rsp->_.lvalue._.str))+1);
+											char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(*(rsp->_.lvalue._.str))+1);
 											if (!value)
 											{
 												SETRET(nsr,MEMORY);
@@ -10362,7 +10384,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 
 							if (*(lsp->_.lvalue._.str))
 							{
-								char *value = malloc(strlen(*(lsp->_.lvalue._.str))+len+1);
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+len+1);
 								if (!value)
 								{
 									SETRET(nsr,MEMORY);
@@ -10396,7 +10418,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 								if (rsp->_.i > 0)
 								{
 									int len = strlen(*(lsp->_.lvalue._.str));
-									char *value = malloc(len * rsp->_.i + 1);
+									char *value = calloc(1,len * rsp->_.i + 1);
 									if (!value)
 									{
 										SETRET(nsr,MEMORY);
@@ -10467,7 +10489,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 
 							if (*(lsp->_.lvalue._.str))
 							{
-								char *value = malloc(strlen(*(lsp->_.lvalue._.str))+len+1);
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+len+1);
 								if (!value)
 								{
 									SETRET(nsr,MEMORY);
@@ -10561,7 +10583,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 								if (rsp->_.ch > 0)
 								{
 									int len = strlen(*(lsp->_.lvalue._.str));
-									char *value = malloc(len + 2);
+									char *value = calloc(1,len + 2);
 									if (!value)
 									{
 										SETRET(nsr,MEMORY);
@@ -10636,7 +10658,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 							{
 								if (rsp->_.str)
 								{
-									char *value = malloc(strlen(*(lsp->_.lvalue._.str)) + strlen(rsp->_.str) + 1);
+									char *value = calloc(1,strlen(*(lsp->_.lvalue._.str)) + strlen(rsp->_.str) + 1);
 									if (!value)
 									{
 										free(rsp->_.str);
@@ -10713,7 +10735,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 							{
 								if (rsp->_.str)
 								{
-									char *value = malloc(strlen(*(lsp->_.lvalue._.str)) + strlen(rsp->_.str) + 1);
+									char *value = calloc(1,strlen(*(lsp->_.lvalue._.str)) + strlen(rsp->_.str) + 1);
 									if (!value)
 									{
 										SETRET(nsr,MEMORY);
@@ -10787,7 +10809,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 
 							if (*(lsp->_.lvalue._.str))
 							{
-								char *value = malloc(strlen(*(lsp->_.lvalue._.str))+len+1);
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+len+1);
 								if (!value)
 								{
 									SETRET(nsr,MEMORY);
@@ -10849,7 +10871,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 							int len = strlen(stringify);
 							if (*(lsp->_.lvalue._.str))
 							{
-								char *value = malloc(strlen(*(lsp->_.lvalue._.str))+len+1);
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+len+1);
 								if (!value)
 								{
 									SETRET(nsr,MEMORY);
@@ -10910,7 +10932,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 							int len = strlen(stringify);
 							if (*(lsp->_.lvalue._.str))
 							{
-								char *value = malloc(strlen(*(lsp->_.lvalue._.str))+len+1);
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+len+1);
 								if (!value)
 								{
 									SETRET(nsr,MEMORY);
@@ -10979,7 +11001,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 
 							if (*(lsp->_.lvalue._.str))
 							{
-								char *value = malloc(strlen(*(lsp->_.lvalue._.str))+len+1);
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+len+1);
 								if (!value)
 								{
 									SETRET(nsr,MEMORY);
@@ -11053,7 +11075,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 
 							if (*(lsp->_.lvalue._.str))
 							{
-								char *value = malloc(strlen(*(lsp->_.lvalue._.str))+len+1);
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+len+1);
 								if (!value)
 								{
 									SETRET(nsr,MEMORY);
@@ -11127,7 +11149,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 
 							if (*(lsp->_.lvalue._.str))
 							{
-								char *value = malloc(strlen(*(lsp->_.lvalue._.str))+len+1);
+								char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+len+1);
 								if (!value)
 								{
 									SETRET(nsr,MEMORY);
@@ -11224,7 +11246,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 
 									if (*(lsp->_.lvalue._.str))
 									{
-										char *value = malloc(strlen(*(lsp->_.lvalue._.str))+len+1);
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+len+1);
 										if (!value)
 										{
 											SETRET(nsr,MEMORY);
@@ -11258,7 +11280,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 										if (*(rsp->_.lvalue._.number) > 0)
 										{
 											int len = strlen(*(lsp->_.lvalue._.str));
-											char *value = malloc(len * *(rsp->_.lvalue._.number) + 1);
+											char *value = calloc(1,len * *(rsp->_.lvalue._.number) + 1);
 											if (!value)
 											{
 												SETRET(nsr,MEMORY);
@@ -11329,7 +11351,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 
 									if (*(lsp->_.lvalue._.str))
 									{
-										char *value = malloc(strlen(*(lsp->_.lvalue._.str))+len+1);
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+len+1);
 										if (!value)
 										{
 											SETRET(nsr,MEMORY);
@@ -11423,7 +11445,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 										if (*(rsp->_.lvalue._.ch) > 0)
 										{
 											int len = strlen(*(lsp->_.lvalue._.str));
-											char *value = malloc(len + 2);
+											char *value = calloc(1,len + 2);
 											if (!value)
 											{
 												SETRET(nsr,MEMORY);
@@ -11497,7 +11519,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 									{
 										if (*(rsp->_.lvalue._.str))
 										{
-											char *value = malloc(strlen(*(lsp->_.lvalue._.str)) + strlen(*(rsp->_.lvalue._.str)) + 1);
+											char *value = calloc(1,strlen(*(lsp->_.lvalue._.str)) + strlen(*(rsp->_.lvalue._.str)) + 1);
 											if (!value)
 											{
 												SETRET(nsr,MEMORY);
@@ -11571,7 +11593,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 
 									if (*(lsp->_.lvalue._.str))
 									{
-										char *value = malloc(strlen(*(lsp->_.lvalue._.str))+len+1);
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+len+1);
 										if (!value)
 										{
 											SETRET(nsr,MEMORY);
@@ -11633,7 +11655,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 									int len = strlen(stringify);
 									if (*(lsp->_.lvalue._.str))
 									{
-										char *value = malloc(strlen(*(lsp->_.lvalue._.str))+len+1);
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+len+1);
 										if (!value)
 										{
 											SETRET(nsr,MEMORY);
@@ -11694,7 +11716,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 									int len = strlen(stringify);
 									if (*(lsp->_.lvalue._.str))
 									{
-										char *value = malloc(strlen(*(lsp->_.lvalue._.str))+len+1);
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+len+1);
 										if (!value)
 										{
 											SETRET(nsr,MEMORY);
@@ -11763,7 +11785,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 
 									if (*(lsp->_.lvalue._.str))
 									{
-										char *value = malloc(strlen(*(lsp->_.lvalue._.str))+len+1);
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+len+1);
 										if (!value)
 										{
 											SETRET(nsr,MEMORY);
@@ -11837,7 +11859,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 
 									if (*(lsp->_.lvalue._.str))
 									{
-										char *value = malloc(strlen(*(lsp->_.lvalue._.str))+len+1);
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+len+1);
 										if (!value)
 										{
 											SETRET(nsr,MEMORY);
@@ -11911,7 +11933,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 
 									if (*(lsp->_.lvalue._.str))
 									{
-										char *value = malloc(strlen(*(lsp->_.lvalue._.str))+len+1);
+										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+len+1);
 										if (!value)
 										{
 											SETRET(nsr,MEMORY);
@@ -12719,6 +12741,119 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 	return false;
 }
 
+static bool __pop_method_arg(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_ARG *arg)
+{
+	NIB_SCRIPT_STACK *sp = nib_pop_stack_raw(nsr);
+	if (!sp)
+		return false;
+
+	arg->type = sp->type;
+	switch(sp->type)
+	{
+	case NST_NUMBER:		arg->_.i = sp->_.i;	break;
+	case NST_FLOAT:			arg->_.d = sp->_.d; break;
+	case NST_BOOLEAN:		arg->_.b = sp->_.b; break;
+	case NST_CHAR:			arg->_.ch = sp->_.ch; break;
+	case NST_STRING:		arg->_.str = sp->_.str; break;
+	case NST_STRING_S:		arg->_.str = sp->_.str; arg->type = NST_STRING; break;
+	case NST_WIDEVNUM:		arg->_.wnum = sp->_.wnum; break;
+	case NST_FLAG:
+	case NST_STAT:
+		arg->_.stat.number = sp->_.stat.number;
+		arg->_.stat.table = sp->_.stat.table;
+		break;
+	case NST_LIST:
+	case NST_LIST_S:
+		arg->type = NST_LIST;
+		arg->_.list.list = sp->_.list.list;
+		arg->_.list.type = sp->_.list.type;
+		break;
+	case NST_AREA:			arg->_.area = sp->_.area; break;
+	// case NST_DUNGEON:
+	// case NST_INSTANCE:
+	case NST_MOBILE:		arg->_.mobile = sp->_.mobile; break;
+	// case NST_OBJECT:
+	// case NST_QUEST:
+	case NST_ROOM:			arg->_.room = sp->_.room; break;
+	// case NST_SHIP:
+	// case NST_TOKEN:
+	case NST_LVALUE:
+		{
+			arg->type = sp->_.lvalue.type;
+			switch(sp->_.lvalue.type)
+			{
+			case NST_NUMBER:		arg->_.i = *(sp->_.lvalue._.number); break;
+			case NST_FLOAT:			arg->_.d = *(sp->_.lvalue._.d); break;
+			case NST_BOOLEAN:		arg->_.b = *(sp->_.lvalue._.b); break;
+			case NST_CHAR:			arg->_.ch = *(sp->_.lvalue._.ch); break;
+			case NST_STRING:
+			case NST_STRING_S:
+				arg->type = NST_STRING;
+				arg->_.str = *(sp->_.lvalue._.str);
+				break;
+			case NST_WIDEVNUM:		arg->_.wnum = *(sp->_.lvalue._.wnum); break;
+			case NST_FLAG:
+			case NST_STAT:
+				arg->_.stat.number = *(sp->_.lvalue._.stat.number);
+				arg->_.stat.table = sp->_.lvalue._.stat.table;
+				break;
+			case NST_LIST:
+			case NST_LIST_S:
+				arg->type = NST_LIST;
+				arg->_.list.list = *(sp->_.lvalue._.list.list);
+				arg->_.list.type = sp->_.lvalue._.list.type;
+				break;
+			case NST_AREA:			arg->_.area = *(sp->_.lvalue._.area); break;
+			// case NST_DUNGEON:
+			// case NST_INSTANCE:
+			case NST_MOBILE:		arg->_.mobile = *(sp->_.lvalue._.mobile); break;
+			// case NST_OBJECT:
+			// case NST_QUEST:
+			case NST_ROOM:			arg->_.room = *(sp->_.lvalue._.room); break;
+			// case NST_SHIP:
+			// case NST_TOKEN:
+			default:
+				return false;
+			}
+			break;
+		}
+
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+static bool __push_method_result(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_ARG *result)
+{
+	switch(result->type)
+	{
+	case NST_NUMBER:		return nib_push_stack_number(nsr,result->_.i);
+	case NST_FLOAT:			return nib_push_stack_float(nsr,result->_.d);
+	case NST_BOOLEAN:		return nib_push_stack_boolean(nsr,result->_.b);
+	case NST_CHAR:			return nib_push_stack_char(nsr,result->_.ch);
+	case NST_STRING:		return nib_push_stack_string_raw(nsr,result->_.str);
+	case NST_STRING_S:		return nib_push_stack_string_shared(nsr,result->_.str);
+	case NST_WIDEVNUM:		return nib_push_stack_widevnum(nsr,&(result->_.wnum));
+	case NST_FLAG:			return nib_push_stack_flag(nsr,result->_.stat.number,result->_.stat.table);
+	case NST_STAT:			return nib_push_stack_stat(nsr,result->_.stat.number,result->_.stat.table);
+	case NST_LIST:			return nib_push_stack_list_raw(nsr,result->_.list.list,result->_.list.type);
+	case NST_LIST_S:		return nib_push_stack_list_shared(nsr,result->_.list.list,result->_.list.type);
+	case NST_AREA:			return nib_push_stack_area(nsr,result->_.area);
+	// case NST_DUNGEON:
+	// case NST_INSTANCE:
+	case NST_MOBILE:		return nib_push_stack_mobile(nsr,result->_.mobile);
+	// case NST_OBJECT:
+	// case NST_QUEST:
+	case NST_ROOM:			return nib_push_stack_room(nsr,result->_.room);
+	// case NST_SHIP:
+	// case NST_TOKEN:
+	default:
+		return false;
+	}
+}
+
 static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 {
 	NIB_SCRIPT_STACK_TYPE type;
@@ -12829,10 +12964,130 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 		}
 
 	case NI_CALL_FUNCTION:
-		break;
+		{
+			short id = __get_short(nsr);
+			nib_bytecode_t argn = __get_bytecode(nsr);
+
+			NIB_METHOD *method = nib_method_get_byid(NST_FUNCTION, id);
+			if (!method)
+			{
+				SETRET(nsr,INVALID);
+				return true;
+			}
+
+			NIB_SCRIPT_ARG *argv = nib_calloc(argn, sizeof(NIB_SCRIPT_ARG));
+			if (!argv)
+			{
+				SETRET(nsr,MEMORY);
+				return true;
+			}
+
+			for(int i = argn; i-- > 0;)
+			{
+				if (!__pop_method_arg(nsr,&argv[i]))
+				{
+					nib_free(argv);
+					SETRET(nsr,STACK);
+					// SETRETN(nsr,__LINE__);
+					return true;
+				}
+			}
+//typedef int METHOD_FUNC(NIB_SCRIPT_RUNTIME *nsr, int argc, NIB_SCRIPT_ARG *argv, NIB_SCRIPT_ARG *output);
+
+			if (method->sresult == NST_VOID)
+			{
+				nsr->last_return = (*method->method)(nsr,argn,argv,NULL);
+			}
+			else
+			{
+				NIB_SCRIPT_ARG output;
+				memset(&output,0,sizeof(output));
+				output.type = method->sresult;
+
+				nsr->last_return = (*method->method)(nsr,argn,argv,&output);
+
+				if (!__push_method_result(nsr,&output))
+				{
+					nib_free(argv);
+					SETRET(nsr,STACK);
+					return true;
+				}
+			}
+
+			nib_free(argv);
+
+			// If something happened in the execution of the call that was considered fatal, fail the script
+			if (nsr->last_return != SCPERR_SUCCESS)
+				return true;
+			break;
+		}
 
 	case NI_CALL_METHOD:
-		break;
+		{
+			short id = __get_short(nsr);
+			int argn = __get_bytecode(nsr) + 1;		// argv[0] == "this"
+
+			NIB_SCRIPT_STACK_TYPE context = nib_peek_stack_lvalue_type(nsr);
+			if (context == NST_UNKNOWN)
+			{
+				SETRET(nsr,STACK);
+				return true;
+			}
+
+			NIB_METHOD *method = nib_method_get_byid(context, id);
+			if (!method)
+			{
+				SETRET(nsr,INVALID);
+				return true;
+			}
+
+			NIB_SCRIPT_ARG *argv = nib_calloc(argn, sizeof(NIB_SCRIPT_ARG));
+			if (!argv)
+			{
+				SETRET(nsr,MEMORY);
+				return true;
+			}
+
+			for(int i = argn; i-- > 0;)
+			{
+				if (!__pop_method_arg(nsr,&argv[i]))
+				{
+					nib_free(argv);
+					SETRET(nsr,STACK);
+					// SETRETN(nsr,(__LINE__ * 10 + i));
+					return true;
+				}
+			}
+//typedef int METHOD_FUNC(NIB_SCRIPT_RUNTIME *nsr, int argc, NIB_SCRIPT_ARG *argv, NIB_SCRIPT_ARG *output);
+
+			if (method->sresult == NST_VOID)
+			{
+				nsr->last_return = (*method->method)(nsr,argn,argv,NULL);
+			}
+			else
+			{
+				NIB_SCRIPT_ARG output;
+				memset(&output,0,sizeof(output));
+				output.type = method->sresult;
+
+				nsr->last_return = (*method->method)(nsr,argn,argv,&output);
+
+				if (!__push_method_result(nsr,&output))
+				{
+					nib_free(argv);
+					// SETRET(nsr,STACK);
+					SETRETN(nsr,__LINE__);
+					return true;
+				}
+			}
+
+			nib_free(argv);
+
+			// If something happened in the execution of the call that was considered fatal, fail the script
+			if (nsr->last_return != SCPERR_SUCCESS)
+				return true;
+			break;
+		}
 
 	case NI_LOAD_NUMBER:
 		{
@@ -13236,25 +13491,38 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 			LLIST *list;
 			NIB_SCRIPT_STACK_TYPE type;
 
-			// Get the list
-			switch(nib_peek_stack(nsr))
+			NIB_SCRIPT_STACK *sp = nib_pop_stack_raw(nsr);
+
+			if (!sp)
+			{
+				SETRET(nsr,STACK);
+				return true;
+			}
+
+			switch(sp->type)
 			{
 			case NST_LIST:
-				if (!nib_pop_stack_list(nsr,&list,&type))
-				{
-					SETRET(nsr,STACK);
-					return true;
-				}
-				break;
 			case NST_LIST_S:
-				if (!nib_pop_stack_list_shared(nsr,&list,&type))
+				list = sp->_.list.list;
+				type = sp->_.list.type;
+				break;
+			case NST_LVALUE:
+				switch(sp->_.lvalue.type)
 				{
-					SETRET(nsr,STACK);
+				case NST_LIST:
+				case NST_LIST_S:
+					list = *(sp->_.lvalue._.list.list);
+					type = sp->_.lvalue._.list.type;
+					break;
+				default:
+					free_stack_item(sp);
+					SETRET(nsr,INVALID);
 					return true;
 				}
 				break;
 			default:
-				SETRET(nsr,FAILURE);
+				free_stack_item(sp);
+				SETRET(nsr,INVALID);
 				return true;
 			}
 
@@ -13289,6 +13557,7 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 			if (!var)
 			{
 				SETRET(nsr,FAILURE);
+				// SETRETN(nsr,__LINE__);
 				return true;
 			}
 
@@ -13296,15 +13565,17 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 			LLIST *list;
 			NIB_SCRIPT_STACK_TYPE type;
 			// Leave the iterator on the stack
-			if (!nib_peek_stack_iterator (nsr,0,&it,&list,&type))
+			if (!nib_peek_stack_iterator (nsr,-1,&it,&list,&type))
 			{
 				SETRET(nsr,STACK);
+				// SETRETN(nsr,__LINE__);
 				return true;
 			}
 
 			if (type != var->type)
 			{
 				SETRET(nsr,INVALID);
+				// SETRETN(nsr,__LINE__);
 				return true;
 			}
 
@@ -13320,7 +13591,7 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 				{
 				case NST_NUMBER:	var->_.i = *((long *)data); break;
 				case NST_FLOAT:		var->_.f = *((double *)data); break;
-				case NST_BOOLEAN:	var->_.b = *((double *)data); break;
+				case NST_BOOLEAN:	var->_.b = *((bool *)data); break;
 				case NST_CHAR:		var->_.ch = *((char *)data); break;
 				case NST_STRING:
 					if (var->_.str) free(var->_.str);
@@ -13332,6 +13603,7 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 				case NST_ROOM:		var->_.room = (ROOM_INDEX_DATA *)data; break;
 				default:
 					SETRET(nsr,INVALID);
+					// SETRETN(nsr,__LINE__);
 					return true;
 				}
 			}
@@ -13653,6 +13925,10 @@ int nib_interpret_script(NIB_SCRIPT *script /* add arguments */)
 		nsr->last_return = SCPERR_STACK;
 
 	int ret = nsr->last_return;
+
+	if (nsr->debug[0])
+		printf("DEBUG: '%s'\n", nsr->debug);
+
 	free_script_runtime(nsr);
 	return ret;
 }
@@ -14265,6 +14541,8 @@ static int __display_stack_item(NIB_SCRIPT_STACK *stack, char *line, int max_len
 	case NST_STAT:		return snprintf(line, max_len, "STA(%08X)", stack->_.stat.number);
 	case NST_LIST:		return snprintf(line, max_len, "LST(%s)", nst_to_type(stack->_.list.type));
 	case NST_LIST_S:	return snprintf(line, max_len, "LSTS(%s)", nst_to_type(stack->_.list.type));
+	case NST_ITERATOR:
+		return snprintf(line, max_len, "ITER(%s)", nst_to_type(stack->_.iter.type));
 	case NST_LVALUE:
 		switch(stack->_.lvalue.type)
 		{
@@ -14295,8 +14573,8 @@ static int __display_stack_item(NIB_SCRIPT_STACK *stack, char *line, int max_len
 				return snprintf(line, max_len, "LVALUE(FLG(%08X))", *(stack->_.lvalue._.number));
 		case NST_FLAG_BIT:	return snprintf(line, max_len, "LVALUE(BIT(%08X:%s))", stack->_.lvalue._.bit.bit, (IS_SET(*(stack->_.lvalue._.bit.value),stack->_.lvalue._.bit.bit)?"ON":"OFF"));
 		case NST_STAT:		return snprintf(line, max_len, "LVALUE(STA(%08X))", *(stack->_.lvalue._.number));
-		// case NST_LIST:		return snprintf(line, max_len, "LST(%s)", nst_to_type(stack->_.list.type));
-		// case NST_LIST_S:	return snprintf(line, max_len, "LSTS(%s)", nst_to_type(stack->_.list.type));
+		case NST_LIST:		return snprintf(line, max_len, "LVALUE(LST(%s))", nst_to_type(stack->_.lvalue._.list.type));
+//		case NST_LIST_S:	return snprintf(line, max_len, "LSTS(%s)", nst_to_type(stack->_.list.type));
 
 		default:			return snprintf(line, max_len, "LVALUE(???)");
 		}
@@ -14509,4 +14787,9 @@ void nib_step_execute_show(NIB_SCRIPT_RUNTIME *nsr, int rows, int cols)
 int nib_get_last_return(NIB_SCRIPT_RUNTIME *nsr)
 {
 	return nsr->last_return;
+}
+
+const char *nib_get_debug(NIB_SCRIPT_RUNTIME *nsr)
+{
+	return nsr->debug;
 }

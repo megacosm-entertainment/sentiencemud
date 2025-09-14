@@ -1,2 +1,21 @@
-return.silent;
+area plith = "Plith";
 
+print("-----------------------------------");
+
+print("UID: " + plith.uid);
+print("Name: " + plith.name);
+print("Description: " + plith.description);
+print("Rooms: " + plith.rooms.size());
+foreach(rm : plith.rooms)
+{
+	print("  Room: " + rm.name + "(" + rm.vnum + ")");
+	print("    People: " + rm.people.size());
+
+	foreach(mob : rm.people)
+	{
+		print("      Mob: " + mob.short);
+		print("        Description: " + mob.description);
+	}
+}
+
+print("-----------------------------------");

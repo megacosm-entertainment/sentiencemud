@@ -162,6 +162,7 @@ static char parse_escape_character(char *str)
 "*"						{ return T_STAR; }
 "/"						{ return T_DIVIDE; }
 "%"                     { return T_MOD; }
+"??"					{ return T_COALESCE; }
 "?"						{ return T_QMARK; }
 ":"						{ return T_COLON; }
 ";"						{ return T_SEMICOLON; }
