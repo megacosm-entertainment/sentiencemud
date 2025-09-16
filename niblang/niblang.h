@@ -595,6 +595,21 @@ extern unsigned long nib_allocations;
 
 long number_range(long from, long to);
 void ltoa(register long num, register char *output);
+// UTF-8 aware
+int utf8_bytes(utf8char_t ch);
+char *utf8_getbytes(utf8char_t ch);
+char *utf8_nextchar(const char *str);
+char *utf8_skip(register const char *str, register size_t len);
+utf8char_t utf8_getchar(const char *str);
+size_t utf8_strlen(const char *str);
+int utf8_str_cmp(const char *astr, const char *bstr);
+bool utf8_str_prefix(const char *astr, const char *bstr);
+bool utf8_str_infix(const char *astr, const char *bstr);
+bool utf8_str_suffix(const char *astr, const char *bstr);
+bool utf8_isvalid(utf8char_t ch);
+bool utf8_isprint(utf8char_t ch);
+const char *utf8_getnchars(const char *str, int len);
+// Not UTF-8 aware
 int str_cmp(const char *astr, const char *bstr);
 bool str_prefix(const char *astr, const char *bstr);
 bool str_infix(const char *astr, const char *bstr);

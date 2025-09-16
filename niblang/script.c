@@ -571,9 +571,14 @@ void nib_decompile_code(NIB_SCRIPT *script)
 			}
 
 		case NI_LOAD_CHAR:
-			ch = pc[addr+1];
-			linej += snprintf(line + linej, sizeof(line) - linej - 1, " %c (%02X)", (isprint(ch) ? ch : '.'), (unsigned char)ch);
-			addr++;
+			{
+				utf8char_t ch;
+				memcpy(&ch,&pc[addr+1],sizeof(ch)); addr+=sizeof(ch);
+				if (utf8_isprint(ch))
+					linej += snprintf(line + linej, sizeof(line) - linej - 1, " %s", utf8_getbytes(ch));
+				else
+					linej += snprintf(line + linej, sizeof(line) - linej - 1, " 0x%X", ch);
+			}
 			break;
 
 		case NI_LOAD_NUMBER:
@@ -714,12 +719,17 @@ void nib_dump_script_global_variables(NIB_SCRIPT *script)
 				char left[81];
 				int len = snprintf(left,sizeof(left)-1, "%s %s", type, var->name);
 
-				char buf[81];
+				char buf[321];	// Account for 80 UTF-8 characters
 
 				len = 80 - len;
-				variable_get_string(var,buf,len);
+				variable_get_string(var,buf,sizeof(buf)-1,len);
 
-				printf("%s %*.*s\n", left, len, len, buf);
+				int vlen = utf8_strlen(buf);
+
+				if (vlen < len)
+					printf("%s %*.*s%s\n", left, len - vlen, len - vlen, "", buf);
+				else
+					printf("%s %s\n", left, buf);
 			}
 		}
 	}

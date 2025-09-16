@@ -6,6 +6,7 @@ typedef long flag_value_t;
 typedef unsigned char nib_bytecode_t;
 typedef nib_bytecode_t *nib_bytecode_p;
 typedef int nib_address_t;
+typedef unsigned int utf8char_t;
 
 typedef struct nib_script_stack_s NIB_SCRIPT_STACK;
 typedef enum nib_script_stack_type_e NIB_SCRIPT_STACK_TYPE;

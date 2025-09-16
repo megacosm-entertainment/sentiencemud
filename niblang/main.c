@@ -117,7 +117,7 @@ int main(int argc, char **argv)
 {
 	srand(time(NULL));
 	struct parse_params_s params;
-	if (!parse_args(argc,argv,&params))
+	if (argc < 2 || !parse_args(argc,argv,&params))
 	{
 		fprintf(stderr, "Usage: niblang <options>\n");
 		fprintf(stderr, "Options:\n");
@@ -291,6 +291,8 @@ int main(int argc, char **argv)
 	nib_ledger_display();
 	printf("outstanding allocations: %lu\n", nib_allocations);
 	nib_ledger_cleanup();
+
+	printf("\U0001F60A\n\U00004E16\n");
 	return 0;
 }
 

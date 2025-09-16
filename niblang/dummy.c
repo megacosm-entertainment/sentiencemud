@@ -410,6 +410,9 @@ bool variable_init()
 	var = variable_new_number("iterations", 0);
 	list_appendlink(nib_variables, var);
 
+	var = variable_new_char("pressed", utf8_getchar("世"));
+	list_appendlink(nib_variables, var);
+
 	return true;
 }
 
@@ -514,6 +517,19 @@ pVARIABLE variable_new_bool(const char *name, bool value)
 	{
 		var->type = VAR_BOOLEAN;
 		var->_.b = value;
+	}
+
+	return var;
+}
+
+pVARIABLE variable_new_char(const char *name, utf8char_t value)
+{
+	pVARIABLE var = variable_new(name);
+
+	if (var)
+	{
+		var->type = VAR_CHAR;
+		var->_.ch = value;
 	}
 
 	return var;
@@ -683,7 +699,7 @@ pVARIABLE variable_new_room(const char *name, ROOM_INDEX_DATA *room)
 	return var;
 }
 
-void variable_get_string(pVARIABLE var, char *buf, int buf_len)
+void variable_get_string(pVARIABLE var, char *buf, int buf_len, int char_len)
 {
 	int len;
 	switch(var->type)
@@ -692,18 +708,19 @@ void variable_get_string(pVARIABLE var, char *buf, int buf_len)
 	case VAR_FLOAT:		len = snprintf(buf,buf_len,"%lf", var->_.flt); break;
 	case VAR_BOOLEAN:	len = snprintf(buf,buf_len,"%s", var->_.b ? "true" : "false"); break;
 	case VAR_CHAR:
-			if (isprint(var->_.ch))
-				len = snprintf(buf,buf_len,"'%c'", var->_.ch);
+			if (utf8_isprint(var->_.ch))
+				len = snprintf(buf,buf_len,"'%s'", utf8_getbytes(var->_.ch));
 			else
-				len = snprintf(buf,buf_len,"0x%02X", (unsigned char)var->_.ch);
+				len = snprintf(buf,buf_len,"0x%X", var->_.ch);
 			break;
 
 	case VAR_STRING:
 	case VAR_STRING_S:
 			if (var->_.str)
 			{
-				if ((strlen(var->_.str)) > (buf_len - 2))
-					len = snprintf(buf,buf_len,"\"%*.*s...\"",buf_len - 5,buf_len - 5,var->_.str);				else
+				if ((utf8_strlen(var->_.str)) > (char_len - 2))
+					len = snprintf(buf,buf_len,"\"%s...\"", utf8_getnchars(var->_.str,char_len-5));
+				else
 					len = snprintf(buf,buf_len,"\"%s\"",var->_.str);
 			}
 			else

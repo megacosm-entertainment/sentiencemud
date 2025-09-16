@@ -6,6 +6,9 @@
 
 #include "niblang.h"
 
+#define TOLOWER(ch)		(((ch) >= 'A' && (ch) <= 'Z')?((ch)+' '):(ch))
+#define TOUPPER(ch)		(((ch) >= 'a' && (ch) <= 'z')?((ch)-' '):(ch))
+
 void ltoa(register long num, register char *output)
 {
 	static char number[100];
@@ -41,7 +44,212 @@ void ltoa(register long num, register char *output)
 	*output = 0;
 }
 
-// WARNING: NOT UTF8 aware!!!
+int utf8_bytes(utf8char_t ch)
+{
+	if (ch > 0xFFFFFF) return 4;
+	if (ch > 0xFFFF) return 3;
+	if (ch > 0xFF) return 2;
+	return 1;
+}
+
+// Converts the utf8char_t into a string
+char *utf8_getbytes(utf8char_t ch)
+{
+	static char bytes[4][5];
+	static int i = 0;
+
+	if (++i > 3) i = 0;
+	register char *b = &bytes[i][0];
+
+	if (ch > 0xFFFFFF)
+	{
+		b[0] = (char)((ch >> 24) & 0xFF);
+		b[1] = (char)((ch >> 16) & 0xFF);
+		b[2] = (char)((ch >> 8) & 0xFF);
+		b[3] = (char)(ch & 0xFF);
+		b[4] = 0;
+	}
+	else if (ch > 0xFFFF)
+	{
+		b[0] = (char)((ch >> 16) & 0xFF);
+		b[1] = (char)((ch >> 8) & 0xFF);
+		b[2] = (char)(ch & 0xFF);
+		b[3] = 0;
+	}
+	else if (ch > 0xFF)
+	{
+		b[0] = (char)((ch >> 8) & 0xFF);
+		b[1] = (char)(ch & 0xFF);
+		b[2] = 0;
+	}
+	else
+	{
+		b[0] = (char)(ch & 0xFF);
+		b[1] = 0;
+	}
+
+	return b;
+}
+
+char *utf8_nextchar(const char *str)
+{
+	// 2-byte UTF-8
+	if (((*str&0xE0) == 0xC0) &&
+		((*(str+1) & 0xC0) == 0x80))
+		return (char *)str+2;
+
+	// 3-byte UTF-8
+	if (((*str&0xF0) == 0xE0) &&
+		((*(str+1) & 0xC0) == 0x80) &&
+		((*(str+2) & 0xC0) == 0x80))
+		return (char *)str+3;
+
+	// 4-byte UTF-8
+	if (((*str&0xF8) == 0xF0) &&
+		((*(str+1) & 0xC0) == 0x80) &&
+		((*(str+2) & 0xC0) == 0x80) &&
+		((*(str+3) & 0xC0) == 0x80))
+		return (char *)str+4;
+
+	// 1-byte UTF-8
+	return (char *)str+1;
+}
+
+char *utf8_skip(register const char *str, register size_t len)
+{
+	for(;*str && len > 0; len--, str = utf8_nextchar(str));
+	return (char *)str;
+}
+
+utf8char_t utf8_getchar(const char *str)
+{
+	// 2-byte UTF-8
+	if (((*str&0xE0) == 0xC0) &&
+		((*(str+1) & 0xC0) == 0x80))
+		return ((((utf8char_t)*str) & 0xFF) << 8) | ((utf8char_t)*(str+1) & 0xFF);
+
+	// 3-byte UTF-8
+	if (((*str&0xF0) == 0xE0) &&
+		((*(str+1) & 0xC0) == 0x80) &&
+		((*(str+2) & 0xC0) == 0x80))
+		return ((((utf8char_t)*str) & 0xFF) << 16) | (((utf8char_t)*(str+1) & 0xFF) << 8) | ((utf8char_t)*(str+2) & 0xFF);
+
+	// 4-byte UTF-8
+	if (((*str&0xF8) == 0xF0) &&
+		((*(str+1) & 0xC0) == 0x80) &&
+		((*(str+2) & 0xC0) == 0x80) &&
+		((*(str+3) & 0xC0) == 0x80))
+		return ((((utf8char_t)*str) & 0xFF) << 24) | (((utf8char_t)*(str+1) & 0xFF) << 16) | (((utf8char_t)*(str+2) & 0xFF) << 8) | ((utf8char_t)*(str+3) & 0xFF);
+
+	// 1-byte UTF-8
+	return (utf8char_t)*str;
+}
+
+size_t utf8_strlen(const char *str)
+{
+	size_t len = 0;
+	while(*str)
+	{
+		len++;
+		str = utf8_nextchar(str);
+	}
+
+	return len;
+}
+
+int utf8_str_cmp(const char *astr, const char *bstr)
+{
+	int ch;
+	if (astr == NULL) return -1;
+
+	if (bstr == NULL) return 1;
+
+	for (; *astr || *bstr; astr = utf8_nextchar(astr), bstr = utf8_nextchar(bstr)) {
+		utf8char_t ach = utf8_getchar(astr);
+		utf8char_t bch = utf8_getchar(bstr);
+		if ((ch = (TOLOWER(ach) - TOLOWER(bch))))
+			return ch;
+	}
+
+	return 0;
+}
+
+// UTF8 aware
+bool utf8_str_prefix(const char *astr, const char *bstr)
+{
+    if (astr == NULL)
+    {
+		return true;
+    }
+
+    if (bstr == NULL)
+    {
+		return true;
+    }
+
+	// Empty strings should *never* prefix another string
+	if (!*astr) return true;
+
+    for (; *astr; astr = utf8_nextchar(astr), bstr = utf8_nextchar(bstr))
+    {
+		utf8char_t ach = utf8_getchar(astr);
+		utf8char_t bch = utf8_getchar(bstr);
+		if (TOLOWER(ach) != TOLOWER(bch))
+			return true;
+    }
+
+    return false;
+}
+
+
+// UTF8 aware
+bool utf8_str_infix(const char *astr, const char *bstr)
+{
+    size_t sstr1;
+    size_t sstr2;
+    int ichar;
+    utf8char_t c0;
+
+	c0 = utf8_getchar(astr);
+	c0 = TOLOWER(c0);
+    if (!c0)
+		return true;
+
+    sstr1 = utf8_strlen(astr);
+    sstr2 = utf8_strlen(bstr);
+
+    for (ichar = 0; ichar <= (sstr2 - sstr1); ichar++, bstr = utf8_nextchar(bstr))
+    {
+		utf8char_t bch = utf8_getchar(bstr);
+		if ((c0 == TOLOWER(bch)) &&
+			!utf8_str_prefix(astr,bstr))
+		    return true;
+    }
+
+    return false;
+}
+
+// UTF8 aware
+bool utf8_str_suffix(const char *astr, const char *bstr)
+{
+    size_t sstr1;
+    size_t sstr2;
+
+    sstr1 = utf8_strlen(astr);
+    sstr2 = utf8_strlen(bstr);
+
+	if (sstr1 <= sstr2)
+	{
+		bstr = utf8_skip(bstr, sstr2 - sstr1);
+
+		if (!utf8_str_cmp(astr, bstr))
+			return false;
+	}
+
+	return true;
+}
+
+// Not UTF-8 Aware
 int str_cmp(const char *astr, const char *bstr)
 {
 	int ch;
@@ -57,6 +265,7 @@ int str_cmp(const char *astr, const char *bstr)
 	return 0;
 }
 
+// Not UTF-8 Aware
 bool str_prefix(const char *astr, const char *bstr)
 {
     if (astr == NULL)
@@ -74,14 +283,14 @@ bool str_prefix(const char *astr, const char *bstr)
 
     for (; *astr; astr++, bstr++)
     {
-	if (tolower(*astr) != tolower(*bstr))
-	    return true;
+		if (tolower(*astr) != tolower(*bstr))
+	    	return true;
     }
 
     return false;
 }
 
-
+// Not UTF-8 Aware
 bool str_infix(const char *astr, const char *bstr)
 {
     int sstr1;
@@ -90,20 +299,21 @@ bool str_infix(const char *astr, const char *bstr)
     char c0;
 
     if ((c0 = tolower(astr[0])) == '\0')
-	return true;
+		return true;
 
     sstr1 = strlen(astr);
     sstr2 = strlen(bstr);
 
     for (ichar = 0; ichar <= sstr2 - sstr1; ichar++)
     {
-	if (c0 == tolower(bstr[ichar]) && !str_prefix(astr, bstr + ichar))
-	    return true;
+		if (c0 == tolower(bstr[ichar]) && !str_prefix(astr, bstr + ichar))
+		    return true;
     }
 
     return false;
 }
 
+// Not UTF-8 Aware
 bool str_suffix(const char *astr, const char *bstr)
 {
     int sstr1;
@@ -116,6 +326,7 @@ bool str_suffix(const char *astr, const char *bstr)
     else
 	return true;
 }
+
 
 long number_range(long from, long to)
 {
@@ -349,4 +560,82 @@ void nib_ledger_display()
 			current = next;
 		}
 	}
+}
+
+static inline bool __check_utf8_bytes(utf8char_t ch)
+{
+	register unsigned char *bytes = (unsigned char *)(void *)(&ch);
+
+	for(register int i = sizeof(ch); i-- > 0;bytes++)
+	{
+		if (*bytes == 0xC0) return false;
+		if (*bytes == 0xC1) return false;
+		if (*bytes >= 0xF5) return false;
+	}
+
+	return true;
+}
+
+bool utf8_isvalid(utf8char_t ch)
+{
+	if (ch <= 0x7F) return true;
+
+	if (!__check_utf8_bytes(ch)) return false;	// There was an invalid byte
+
+	if (ch <= 0xFFFF)
+		return ((ch & 0xE0C0) == 0xC080);
+
+	if (ch <= 0xFFFFFF)
+		return ((ch & 0xF0C0C0) == 0xE08080);
+
+	return ((ch & 0xF8C0C0C0) == 0xF0808080);
+}
+
+bool utf8_isprint(utf8char_t ch)
+{
+	if (ch <= 0x7F) return isprint(ch);
+
+	return utf8_isvalid(ch);	// Everything else is printable?
+}
+
+const char *utf8_getnchars(const char *str, int len)
+{
+	static char buf[4][10000];
+	static int i = 0;
+
+	if (++i > 3) i = 0;
+
+	char *start = &buf[i][0];
+	char *cur = start;
+
+	while(*str && len > 0)
+	{
+		int bytes;
+		// 2-byte UTF-8
+		if (((*str&0xE0) == 0xC0) &&
+			((*(str+1) & 0xC0) == 0x80))
+			bytes = 2;
+
+		// 3-byte UTF-8
+		else if (((*str&0xF0) == 0xE0) &&
+			((*(str+1) & 0xC0) == 0x80) &&
+			((*(str+2) & 0xC0) == 0x80))
+			bytes = 3;
+
+		// 4-byte UTF-8
+		else if (((*str&0xF8) == 0xF0) &&
+			((*(str+1) & 0xC0) == 0x80) &&
+			((*(str+2) & 0xC0) == 0x80) &&
+			((*(str+3) & 0xC0) == 0x80))
+			bytes = 4;
+		else
+			bytes = 1;
+
+		for(int i = 0; i < bytes;)
+			*cur++ = *str++;
+		len--;
+	}
+	*cur = '\0';
+
+	return start;
 }

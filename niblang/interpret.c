@@ -352,7 +352,7 @@ bool nib_push_stack_##n (NIB_SCRIPT_RUNTIME *nsr, t value) \
 __push(long,NUMBER,i,number)
 __push(double,FLOAT,d,float)
 __push(bool,BOOLEAN,b,boolean)
-__push(char,CHAR,ch,char)
+__push(utf8char_t,CHAR,ch,char)
 __push(char *,STRING_S,str,string_shared)
 
 static WNUM __wnum_zero;
@@ -763,9 +763,27 @@ bool nib_push_stack_global_var_lvalue(NIB_SCRIPT_RUNTIME *nsr, pVARIABLE var)
 		lvalue._.b = &(var->_.b);
 		break;
 
+	case VAR_CHAR:
+		lvalue.type = NST_CHAR;
+		lvalue._.ch = &(var->_.ch);
+		break;
+
 	case VAR_STRING:
+	case VAR_STRING_S:
 		lvalue.type = NST_STRING;
 		lvalue._.str = &(var->_.str);
+		break;
+
+	case VAR_FLAG:
+		lvalue.type = NST_FLAG;
+		lvalue._.stat.number = &(var->_.stat.number);
+		lvalue._.stat.table = var->_.stat.table;
+		break;
+
+	case VAR_STAT:
+		lvalue.type = NST_STAT;
+		lvalue._.stat.number = &(var->_.stat.number);
+		lvalue._.stat.table = var->_.stat.table;
 		break;
 
 	case VAR_WIDEVNUM:
@@ -922,7 +940,7 @@ bool nib_peek_stack_##n (NIB_SCRIPT_RUNTIME *nsr, int offset, t *output) \
 __peek(long,NUMBER,i,number)
 __peek(double,FLOAT,d,float)
 __peek(bool,BOOLEAN,b,boolean)
-__peek(char,CHAR,ch,char)
+__peek(utf8char_t,CHAR,ch,char)
 __peek(char *,STRING,str,string)
 __peek(char *,STRING_S,str,string_shared)
 __peek(WNUM,WIDEVNUM,wnum,widevnum)
@@ -1072,7 +1090,7 @@ bool nib_pop_stack_##n (NIB_SCRIPT_RUNTIME *nsr, t *output) \
 __pop(long,NUMBER,i,number)
 __pop(double,FLOAT,d,float)
 __pop(bool,BOOLEAN,b,boolean)
-__pop(char,CHAR,ch,char)
+__pop(utf8char_t,CHAR,ch,char)
 bool nib_pop_stack_string (NIB_SCRIPT_RUNTIME *nsr, char **output) \
 {
 	*output = NULL;	// This needs to be initialized to NULL
@@ -1185,6 +1203,7 @@ static inline t __get_##n(NIB_SCRIPT_RUNTIME *nsr) \
 	return value; \
 }
 
+__get(utf8char_t,utf8char)
 __get(short,short)
 __get(int,int)
 __get(long,long)
@@ -1499,7 +1518,7 @@ static bool __is_top_zero(NIB_SCRIPT_RUNTIME *nsr)
 
 		case NST_CHAR:
 		{
-			char value;
+			utf8char_t value;
 			if (!nib_peek_stack_char(nsr, -1, &value))
 			{
 				nsr->last_return = SCPERR_FAILURE;
@@ -1708,7 +1727,7 @@ static bool __is_top_not_zero(NIB_SCRIPT_RUNTIME *nsr)
 
 		case NST_CHAR:
 		{
-			char value;
+			utf8char_t value;
 			if (!nib_peek_stack_char(nsr, -1, &value))
 			{
 				nsr->last_return = SCPERR_FAILURE;
@@ -2042,16 +2061,20 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					}
 
 					// Cloning
-					int len = (lsp->_.i>0)?lsp->_.i:0;
-					char *value = calloc(1,len+1);
+					char *bytes = utf8_getbytes(rsp->_.ch);
+					int len = strlen(bytes);
+					int cnt = ((lsp->_.i>0)?lsp->_.i:0);
+
+					char *value = calloc(1,cnt*len+1);
 					if (!value)
 					{
 						SETRET(nsr,MEMORY);
 						return true;
 					}
-					for(int i = len; i-- > 0;)
-						value[i] = rsp->_.ch;
-					value[len] = '\0';
+					char *s = value;
+					for(int i = cnt; i-- > 0;s += len)
+						strcpy(value,bytes);
+					*s = '\0';
 
 					if (!nib_push_stack_string_raw(nsr,value))
 					{
@@ -2320,16 +2343,20 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							}
 
 							// Cloning
-							int len = (lsp->_.i>0)?lsp->_.i:0;
-							char *value = calloc(1,len+1);
+							char *bytes = utf8_getbytes(*(rsp->_.lvalue._.ch));
+							int len = strlen(bytes);
+							int cnt = (lsp->_.i>0)?lsp->_.i:0;
+
+							char *value = calloc(1,cnt*len+1);
 							if (!value)
 							{
 								SETRET(nsr,MEMORY);
 								return true;
 							}
-							for(int i = len; i-- > 0;)
-								value[i] = *(rsp->_.lvalue._.ch);
-							value[len] = '\0';
+							char *s = value;
+							for(int i = cnt; i-- > 0; s += len)
+								strcpy(s,bytes);
+							*s = '\0';
 
 							if (!nib_push_stack_string_raw(nsr,value))
 							{
@@ -2604,16 +2631,19 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					}
 
 					// Cloning
-					int len = (rsp->_.i>0)?rsp->_.i:0;
-					char *value = calloc(1,len+1);
+					char *bytes = utf8_getbytes(rsp->_.ch);
+					int len = strlen(bytes);
+					int cnt = (rsp->_.i>0)?rsp->_.i:0;
+					char *value = calloc(1,cnt*len+1);
 					if (!value)
 					{
 						SETRET(nsr,MEMORY);
 						return true;
 					}
-					for(int i = len; i-- > 0;)
-						value[i] = lsp->_.ch;
-					value[len] = '\0';
+					char *s = value;
+					for(int i = cnt; i-- > 0; s += len)
+						strcpy(s,bytes);
+					*s = '\0';
 
 					if (!nib_push_stack_string_raw(nsr,value))
 					{
@@ -2634,12 +2664,21 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					}
 
 					// If LHS is '\0', it will end up being an empty string
-					char tmp[3];
-					tmp[0] = lsp->_.ch;
-					tmp[1] = rsp->_.ch;
-					tmp[2] = 0;
+					char *lbytes = utf8_getbytes(lsp->_.ch);
+					char *rbytes = utf8_getbytes(rsp->_.ch);
+					int llen = strlen(lbytes);
+					int rlen = strlen(rbytes);
 
-					if (!nib_push_stack_string(nsr,tmp))
+					char *value = calloc(1,llen+rlen+1);
+					if (!value)
+					{
+						SETRET(nsr,MEMORY);
+						return true;
+					}
+					strcpy(value,lbytes);
+					strcpy(value+llen,rbytes);
+
+					if (!nib_push_stack_string_raw(nsr,value))
 					{
 						SETRET(nsr,STACK);
 						return true;
@@ -2658,12 +2697,21 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 
 					if (lsp->_.ch > 0)
 					{
+						char *bytes = utf8_getbytes(lsp->_.ch);
+						int len = strlen(bytes);
+
 						if (rsp->_.str)
 						{
-							char *value = calloc(1,strlen(rsp->_.str)+2);
+							char *value = calloc(1,len+strlen(rsp->_.str)+1);
+							if (!value)
+							{
+								if (rsp->_.str) free(rsp->_.str);
+								SETRET(nsr,MEMORY);
+								return true;
+							}
 
-							value[0] = lsp->_.ch;
-							strcpy(value+1,rsp->_.str);
+							strcpy(value,bytes);
+							strcpy(value+len,rsp->_.str);
 							free(rsp->_.str);
 
 							if (!nib_push_stack_string_raw(nsr,value))
@@ -2675,11 +2723,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 						}
 						else
 						{
-							char tmp[2];
-							tmp[0] = lsp->_.ch;
-							tmp[1] = 0;
-
-							if (!nib_push_stack_string(nsr,tmp))
+							if (!nib_push_stack_string(nsr,bytes))
 							{
 								SETRET(nsr,STACK);
 								return true;
@@ -2709,12 +2753,20 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 
 					if (lsp->_.ch > 0)
 					{
+						char *bytes = utf8_getbytes(lsp->_.ch);
+						int len = strlen(bytes);
+
 						if (rsp->_.str)
 						{
-							char *value = calloc(1,strlen(rsp->_.str)+2);
+							char *value = calloc(1,len+strlen(rsp->_.str)+1);
+							if (!value)
+							{
+								SETRET(nsr,MEMORY);
+								return true;
+							}
 
-							value[0] = lsp->_.ch;
-							strcpy(value+1,rsp->_.str);
+							strcpy(value,bytes);
+							strcpy(value+len,rsp->_.str);
 
 							if (!nib_push_stack_string_raw(nsr,value))
 							{
@@ -2725,11 +2777,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 						}
 						else
 						{
-							char tmp[2];
-							tmp[0] = lsp->_.ch;
-							tmp[1] = 0;
-
-							if (!nib_push_stack_string(nsr,tmp))
+							if (!nib_push_stack_string(nsr,bytes))
 							{
 								SETRET(nsr,STACK);
 								return true;
@@ -2757,17 +2805,20 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							}
 
 							// Cloning
+							char *bytes = utf8_getbytes(*(rsp->_.lvalue._.ch));
+							int len = strlen(bytes);
 							int cnt = *(rsp->_.lvalue._.number);
-							int len = (cnt>0)?cnt:0;
-							char *value = calloc(1,len+1);
+							cnt = (cnt>0)?cnt:0;
+							char *value = calloc(1,len*cnt+1);
 							if (!value)
 							{
 								SETRET(nsr,MEMORY);
 								return true;
 							}
-							for(int i = len; i-- > 0;)
-								value[i] = lsp->_.ch;
-							value[len] = '\0';
+							char *s = value;
+							for(int i = cnt; i-- > 0; s+=len)
+								strcpy(s,bytes);
+							*s = '\0';
 
 							if (!nib_push_stack_string_raw(nsr,value))
 							{
@@ -2787,12 +2838,21 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 								return true;
 							}
 
-							char tmp[3];
-							tmp[0] = lsp->_.ch;
-							tmp[1] = *(rsp->_.lvalue._.ch);
-							tmp[2] = 0;
+							char *lbytes = utf8_getbytes(lsp->_.ch);
+							char *rbytes = utf8_getbytes(*(rsp->_.lvalue._.ch));
+							int llen = strlen(lbytes);
+							int rlen = strlen(rbytes);
 
-							if (!nib_push_stack_string(nsr,tmp))
+							char *value = calloc(1,llen+rlen+1);
+							if (!value)
+							{
+								SETRET(nsr,MEMORY);
+								return true;
+							}
+							strcpy(value,lbytes);
+							strcpy(value+llen,rbytes);
+
+							if (!nib_push_stack_string_raw(nsr,value))
 							{
 								SETRET(nsr,STACK);
 								return true;
@@ -2810,12 +2870,20 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 
 							if (lsp->_.ch > 0)
 							{
+								char *bytes = utf8_getbytes(lsp->_.ch);
+								int len = strlen(bytes);
+
 								if (*(rsp->_.lvalue._.str))
 								{
-									char *value = calloc(1,strlen(*(rsp->_.lvalue._.str))+2);
+									char *value = calloc(1,len+strlen(*(rsp->_.lvalue._.str))+1);
+									if (!value)
+									{
+										SETRET(nsr,MEMORY);
+										return true;
+									}
 
-									value[0] = lsp->_.ch;
-									strcpy(value+1,*(rsp->_.lvalue._.str));
+									strcpy(value,bytes);
+									strcpy(value+len,*(rsp->_.lvalue._.str));
 
 									if (!nib_push_stack_string_raw(nsr,value))
 									{
@@ -2826,11 +2894,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 								}
 								else
 								{
-									char tmp[2];
-									tmp[0] = lsp->_.ch;
-									tmp[1] = 0;
-
-									if (!nib_push_stack_string(nsr,tmp))
+									if (!nib_push_stack_string(nsr,bytes))
 									{
 										SETRET(nsr,STACK);
 										return true;
@@ -3050,8 +3114,10 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					{
 						if (rsp->_.ch > 0)
 						{
+							char *bytes = utf8_getbytes(rsp->_.ch);
+							int blen = strlen(bytes);
 							int len = strlen(lsp->_.str);
-							char *value = calloc(1,len+2);
+							char *value = calloc(1,len+blen+1);
 							if (!value)
 							{
 								free(lsp->_.str);
@@ -3059,8 +3125,8 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 								return true;
 							}
 							strcpy(value,lsp->_.str);
-							value[len] = rsp->_.ch;
-							value[len+1] = 0;
+							strcpy(value+len,bytes);
+							value[len+blen] = '\0';
 
 							free(lsp->_.str);
 
@@ -3080,11 +3146,9 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					}
 					else
 					{
-						char tmp[2];
-						tmp[0] = rsp->_.ch;
-						tmp[1] = 0;
+						char *bytes = utf8_getbytes(rsp->_.ch);
 
-						if (!nib_push_stack_string(nsr, tmp))
+						if (!nib_push_stack_string(nsr, bytes))
 						{
 							SETRET(nsr,STACK);
 							return true;
@@ -3673,8 +3737,11 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							{
 								if (*(rsp->_.lvalue._.ch) > 0)
 								{
+									char *bytes = utf8_getbytes(*(rsp->_.lvalue._.ch));
+									int blen = strlen(bytes);
+
 									int len = strlen(lsp->_.str);
-									char *value = calloc(1,len+2);
+									char *value = calloc(1,len+blen+1);
 									if (!value)
 									{
 										free(lsp->_.str);
@@ -3682,8 +3749,8 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 										return true;
 									}
 									strcpy(value,lsp->_.str);
-									value[len] = *(rsp->_.lvalue._.ch);
-									value[len+1] = 0;
+									strcpy(value+len,bytes);
+									value[len+blen] = '\0';
 
 									free(lsp->_.str);
 
@@ -3703,11 +3770,9 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							}
 							else
 							{
-								char tmp[2];
-								tmp[0] = *(rsp->_.lvalue._.ch);
-								tmp[1] = 0;
+								char *bytes = utf8_getbytes(*(rsp->_.lvalue._.ch));
 
-								if (!nib_push_stack_string(nsr, tmp))
+								if (!nib_push_stack_string(nsr, bytes))
 								{
 									SETRET(nsr,STACK);
 									return true;
@@ -4219,16 +4284,19 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					{
 						if (rsp->_.ch > 0)
 						{
+							char *bytes = utf8_getbytes(rsp->_.ch);
+							int blen = strlen(bytes);
+
 							int len = strlen(lsp->_.str);
-							char *value = calloc(1,len+2);
+							char *value = calloc(1,len+blen+1);
 							if (!value)
 							{
 								SETRET(nsr,MEMORY);
 								return true;
 							}
 							strcpy(value,lsp->_.str);
-							value[len] = rsp->_.ch;
-							value[len+1] = 0;
+							strcpy(value+len,bytes);
+							value[len+blen] = '\0';
 
 							if (!nib_push_stack_string_raw(nsr,value))
 							{
@@ -4245,11 +4313,9 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					}
 					else
 					{
-						char tmp[2];
-						tmp[0] = rsp->_.ch;
-						tmp[1] = 0;
+						char *bytes = utf8_getbytes(rsp->_.ch);
 
-						if (!nib_push_stack_string(nsr, tmp))
+						if (!nib_push_stack_string(nsr, bytes))
 						{
 							SETRET(nsr,STACK);
 							return true;
@@ -4796,39 +4862,43 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							{
 								if (*(rsp->_.lvalue._.ch) > 0)
 								{
+									char *bytes = utf8_getbytes(*(rsp->_.lvalue._.ch));
+									int blen = strlen(bytes);
+
 									int len = strlen(lsp->_.str);
-									char *value = calloc(1,len+2);
+									char *value = calloc(1,len+blen+1);
 									if (!value)
 									{
 										SETRET(nsr,MEMORY);
 										return true;
 									}
 									strcpy(value,lsp->_.str);
-									value[len] = *(rsp->_.lvalue._.ch);
-									value[len+1] = 0;
+									strcpy(value+len,bytes);
+									value[len+blen] = '\0';
 
 									if (!nib_push_stack_string_raw(nsr,value))
 									{
 										free(value);
 										SETRET(nsr,STACK);
+										// SETRETN(nsr,__LINE__);
 										return true;
 									}
 								}
 								else if (!nib_push_stack_string_raw(nsr,lsp->_.str))
 								{
 									SETRET(nsr,STACK);
+									// SETRETN(nsr,__LINE__);
 									return true;
 								}
 							}
 							else
 							{
-								char tmp[2];
-								tmp[0] = *(rsp->_.lvalue._.ch);
-								tmp[1] = 0;
+								char *bytes = utf8_getbytes(*(rsp->_.lvalue._.ch));
 
-								if (!nib_push_stack_string(nsr, tmp))
+								if (!nib_push_stack_string(nsr, bytes))
 								{
 									SETRET(nsr,STACK);
+									// SETRETN(nsr,__LINE__);
 									return true;
 								}
 							}
@@ -5371,16 +5441,19 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							}
 
 							// Cloning
-							int len = (*(lsp->_.lvalue._.number)>0)?*(lsp->_.lvalue._.number):0;
-							char *value = calloc(1,len+1);
+							char *bytes = utf8_getbytes(*(rsp->_.lvalue._.ch));
+							int len = strlen(bytes);
+							int cnt = (*(lsp->_.lvalue._.number)>0)?*(lsp->_.lvalue._.number):0;
+							char *value = calloc(1,len*cnt+1);
 							if (!value)
 							{
 								SETRET(nsr,MEMORY);
 								return true;
 							}
-							for(int i = len; i-- > 0;)
-								value[i] = rsp->_.ch;
-							value[len] = '\0';
+							char *s = value;
+							for(int i = cnt; i-- > 0; s+=len)
+								strcpy(s,bytes);
+							*s = '\0';
 
 							if (!nib_push_stack_string_raw(nsr,value))
 							{
@@ -5627,16 +5700,19 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									}
 
 									// Cloning
-									int len = (*(lsp->_.lvalue._.number)>0)?*(lsp->_.lvalue._.number):0;
-									char *value = calloc(1,len+1);
+									char *bytes = utf8_getbytes(*(rsp->_.lvalue._.ch));
+									int len = strlen(bytes);
+									int cnt = (*(lsp->_.lvalue._.number)>0)?*(lsp->_.lvalue._.number):0;
+									char *value = calloc(1,len*cnt+1);
 									if (!value)
 									{
 										SETRET(nsr,MEMORY);
 										return true;
 									}
-									for(int i = len; i-- > 0;)
-										value[i] = *(rsp->_.lvalue._.ch);
-									value[len] = '\0';
+									char *s = value;
+									for(int i = cnt; i-- > 0;s+=len)
+										strcpy(s,bytes);
+									*s = '\0';
 
 									if (!nib_push_stack_string_raw(nsr,value))
 									{
@@ -5901,16 +5977,19 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							}
 
 							// Cloning
-							int len = (rsp->_.i>0)?rsp->_.i:0;
-							char *value = calloc(1,len+1);
+							char *bytes = utf8_getbytes(*(lsp->_.lvalue._.ch));
+							int len = strlen(bytes);
+							int cnt = (rsp->_.i>0)?rsp->_.i:0;
+							char *value = calloc(1,len*cnt+1);
 							if (!value)
 							{
 								SETRET(nsr,MEMORY);
 								return true;
 							}
-							for(int i = len; i-- > 0;)
-								value[i] = *(lsp->_.lvalue._.ch);
-							value[len] = '\0';
+							char *s = value;
+							for(int i = cnt; i-- > 0;s+=len)
+								strcpy(s,bytes);
+							*s = '\0';
 
 							if (!nib_push_stack_string_raw(nsr,value))
 							{
@@ -5930,12 +6009,19 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 								return true;
 							}
 
-							char tmp[3];
-							tmp[0] = *(lsp->_.lvalue._.ch);
-							tmp[1] = rsp->_.ch;
-							tmp[2] = 0;
+							char *lbytes = utf8_getbytes(*(lsp->_.lvalue._.ch));
+							char *rbytes = utf8_getbytes(rsp->_.ch);
+							int llen = strlen(lbytes);
+							int rlen = strlen(rbytes);
+							
+							char *value = calloc(1,llen+rlen+1);
+							if (!value)
+							{
+								SETRET(nsr,MEMORY);
+								return true;
+							}
 
-							if (!nib_push_stack_string(nsr,tmp))
+							if (!nib_push_stack_string_raw(nsr,value))
 							{
 								SETRET(nsr,STACK);
 								return true;
@@ -5952,28 +6038,47 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 								return true;
 							}
 
-							if (rsp->_.str)
+							if (*(lsp->_.lvalue._.ch) > 0)
 							{
-								char *value = calloc(1,strlen(rsp->_.str)+2);
+								char *bytes = utf8_getbytes(*(lsp->_.lvalue._.ch));
+								int len = strlen(bytes);
 
-								value[0] = *(lsp->_.lvalue._.ch);
-								strcpy(value+1,rsp->_.str);
-								free(rsp->_.str);
-
-								if (!nib_push_stack_string_raw(nsr,value))
+								if (rsp->_.str)
 								{
-									free(value);
-									SETRET(nsr,STACK);
-									return true;
+									char *value = calloc(1,strlen(rsp->_.str)+len+1);
+									if (!value)
+									{
+										free(rsp->_.str);
+										SETRET(nsr,MEMORY);
+										return true;
+									}
+
+									strcpy(value,bytes);
+									strcpy(value+len,rsp->_.str);
+									free(rsp->_.str);
+
+									if (!nib_push_stack_string_raw(nsr,value))
+									{
+										free(value);
+										SETRET(nsr,STACK);
+										return true;
+									}
+								}
+								else
+								{
+									if (!nib_push_stack_string(nsr,bytes))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
 								}
 							}
 							else
 							{
-								char tmp[2];
-								tmp[0] = *(lsp->_.lvalue._.ch);
-								tmp[1] = 0;
+								if (rsp->_.str) free(rsp->_.str);
 
-								if (!nib_push_stack_string(nsr,tmp))
+								// '\0' + string => empty string?
+								if (!nib_push_stack_string(nsr,""))
 								{
 									SETRET(nsr,STACK);
 									return true;
@@ -5990,27 +6095,43 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 								return true;
 							}
 
-							if (rsp->_.str)
+							if (*(lsp->_.lvalue._.ch) > 0)
 							{
-								char *value = calloc(1,strlen(rsp->_.str)+2);
+								char *bytes = utf8_getbytes(*(lsp->_.lvalue._.ch));
+								int len = strlen(bytes);
 
-								value[0] = *(lsp->_.lvalue._.ch);
-								strcpy(value+1,rsp->_.str);
-
-								if (!nib_push_stack_string_raw(nsr,value))
+								if (rsp->_.str)
 								{
-									free(value);
-									SETRET(nsr,STACK);
-									return true;
+									char *value = calloc(1,strlen(rsp->_.str)+len+1);
+									if (!value)
+									{
+										SETRET(nsr,MEMORY);
+										return true;
+									}
+
+									strcpy(value,bytes);
+									strcpy(value+len,rsp->_.str);
+
+									if (!nib_push_stack_string_raw(nsr,value))
+									{
+										free(value);
+										SETRET(nsr,STACK);
+										return true;
+									}
+								}
+								else
+								{
+									if (!nib_push_stack_string(nsr,bytes))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
 								}
 							}
 							else
 							{
-								char tmp[2];
-								tmp[0] = *(lsp->_.lvalue._.ch);
-								tmp[1] = 0;
-
-								if (!nib_push_stack_string(nsr,tmp))
+								// '\0' + string => empty string?
+								if (!nib_push_stack_string(nsr,""))
 								{
 									SETRET(nsr,STACK);
 									return true;
@@ -6031,24 +6152,38 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 										return true;
 									}
 
-									// Cloning
-									int cnt = *(rsp->_.lvalue._.number);
-									int len = (cnt>0)?cnt:0;
-									char *value = calloc(1,len+1);
-									if (!value)
+									if (*(lsp->_.lvalue._.ch) > 0)
 									{
-										SETRET(nsr,MEMORY);
-										return true;
-									}
-									for(int i = len; i-- > 0;)
-										value[i] = *(lsp->_.lvalue._.ch);
-									value[len] = '\0';
+										// Cloning
+										char *bytes = utf8_getbytes(*(lsp->_.lvalue._.ch));
+										int len = strlen(bytes);
+										int cnt = *(rsp->_.lvalue._.number);
+										cnt = (cnt>0)?cnt:0;
+										char *value = calloc(1,len*cnt+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										char *s = value;
+										for(int i = cnt; i-- > 0;s+=len)
+											strcpy(s,bytes);
+										*s = '\0';
 
-									if (!nib_push_stack_string_raw(nsr,value))
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else
 									{
-										free(value);
-										SETRET(nsr,STACK);
-										return true;
+										if (!nib_push_stack_string(nsr,""))
+										{
+											SETRET(nsr,STACK);
+											return true;
+										}
 									}
 
 									break;
@@ -6062,12 +6197,37 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 										return true;
 									}
 
-									char tmp[3];
-									tmp[0] = *(lsp->_.lvalue._.ch);
-									tmp[1] = *(rsp->_.lvalue._.ch);
-									tmp[2] = 0;
+									if (*(lsp->_.lvalue._.ch) > 0)
+									{
+										char *lbytes = utf8_getbytes(*(lsp->_.lvalue._.ch));
+										int llen = strlen(lbytes);
 
-									if (!nib_push_stack_string(nsr,tmp))
+										if (*(rsp->_.lvalue._.ch) > 0)
+										{
+											char *rbytes = utf8_getbytes(*(rsp->_.lvalue._.ch));
+											int rlen = strlen(rbytes);
+
+											char *value = calloc(1,llen+rlen+1);
+											if (!value)
+											{
+												SETRET(nsr,MEMORY);
+												return true;
+											}
+
+											if (!nib_push_stack_string_raw(nsr,value))
+											{
+												free(value);
+												SETRET(nsr,STACK);
+												return true;
+											}
+										}
+										else if (!nib_push_stack_string(nsr,lbytes))
+										{
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,""))
 									{
 										SETRET(nsr,STACK);
 										return true;
@@ -6083,31 +6243,42 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 										return true;
 									}
 
-									if (*(rsp->_.lvalue._.str))
+									if (*(lsp->_.lvalue._.ch) > 0)
 									{
-										char *value = calloc(1,strlen(*(rsp->_.lvalue._.str))+2);
+										char *bytes = utf8_getbytes(*(lsp->_.lvalue._.ch));
+										int len = strlen(bytes);
 
-										value[0] = *(lsp->_.lvalue._.ch);
-										strcpy(value+1,*(rsp->_.lvalue._.str));
-
-										if (!nib_push_stack_string_raw(nsr,value))
+										if (*(rsp->_.lvalue._.str))
 										{
-											free(value);
+											char *value = calloc(1,len+strlen(*(rsp->_.lvalue._.str))+1);
+											if (!value)
+											{
+												SETRET(nsr,MEMORY);
+												return true;
+											}
+
+											strcpy(value,bytes);
+											strcpy(value+len,*(rsp->_.lvalue._.str));
+
+											if (!nib_push_stack_string_raw(nsr,value))
+											{
+												free(value);
+												SETRET(nsr,STACK);
+												return true;
+											}
+										}
+										else if (!nib_push_stack_string(nsr,bytes))
+										{
 											SETRET(nsr,STACK);
 											return true;
 										}
 									}
-									else
-									{
-										char tmp[2];
-										tmp[0] = *(lsp->_.lvalue._.ch);
-										tmp[1] = 0;
 
-										if (!nib_push_stack_string(nsr,tmp))
-										{
-											SETRET(nsr,STACK);
-											return true;
-										}
+									// '\0' + string = empty string?
+									else if (!nib_push_stack_string(nsr,""))
+									{
+										SETRET(nsr,STACK);
+										return true;
 									}
 									break;
 								}
@@ -6298,16 +6469,17 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							{
 								if (rsp->_.ch > 0)
 								{
+									char *bytes = utf8_getbytes(rsp->_.ch);
+									int blen = strlen(bytes);
 									int len = strlen(*(lsp->_.lvalue._.str));
-									char *value = calloc(1,len+2);
+									char *value = calloc(1,len+blen+1);
 									if (!value)
 									{
 										SETRET(nsr,MEMORY);
 										return true;
 									}
 									strcpy(value,*(lsp->_.lvalue._.str));
-									value[len] = rsp->_.ch;
-									value[len+1] = 0;
+									strcpy(value+len,bytes);
 
 									if (!nib_push_stack_string_raw(nsr,value))
 									{
@@ -6324,11 +6496,9 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							}
 							else
 							{
-								char tmp[2];
-								tmp[0] = rsp->_.ch;
-								tmp[1] = 0;
+								char *bytes = utf8_getbytes(rsp->_.ch);
 
-								if (!nib_push_stack_string(nsr, tmp))
+								if (!nib_push_stack_string(nsr, bytes))
 								{
 									SETRET(nsr,STACK);
 									return true;
@@ -6875,16 +7045,17 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									{
 										if (*(rsp->_.lvalue._.ch) > 0)
 										{
+											char *bytes = utf8_getbytes(*(rsp->_.lvalue._.ch));
+											int blen = strlen(bytes);
 											int len = strlen(*(lsp->_.lvalue._.str));
-											char *value = calloc(1,len+2);
+											char *value = calloc(1,len+blen+1);
 											if (!value)
 											{
 												SETRET(nsr,MEMORY);
 												return true;
 											}
 											strcpy(value,*(lsp->_.lvalue._.str));
-											value[len] = *(rsp->_.lvalue._.ch);
-											value[len+1] = 0;
+											strcpy(value+len,bytes);
 
 											if (!nib_push_stack_string_raw(nsr,value))
 											{
@@ -6901,11 +7072,8 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									}
 									else
 									{
-										char tmp[2];
-										tmp[0] = *(rsp->_.lvalue._.ch);
-										tmp[1] = 0;
-
-										if (!nib_push_stack_string(nsr, tmp))
+										char *bytes = utf8_getbytes(*(rsp->_.lvalue._.ch));
+										if (!nib_push_stack_string(nsr, bytes))
 										{
 											SETRET(nsr,STACK);
 											return true;
@@ -12301,13 +12469,13 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 						push_result = false;
 					case NI_ASSIGN:
 						{
-							if (rsp->_.i < 0 || rsp->_.i > 255)
+							if (rsp->_.i < 0 || rsp->_.i > 0xFFFFFFFF || !utf8_isvalid((utf8char_t)rsp->_.i))
 							{
 								SETRET(nsr,INVALID);
 								return true;
 							}
 
-							*(lsp->_.lvalue._.ch) = (char)(unsigned char)rsp->_.i;
+							*(lsp->_.lvalue._.ch) = (utf8char_t)rsp->_.i;
 
 							if (push_result && !nib_push_stack_char(nsr,*(lsp->_.lvalue._.ch)))
 							{
@@ -12386,13 +12554,15 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 								push_result = false;
 							case NI_ASSIGN:
 								{
-									if (*(rsp->_.lvalue._.number) < 0 || *(rsp->_.lvalue._.number) > 255)
+									if (*(rsp->_.lvalue._.number) < 0 ||
+										*(rsp->_.lvalue._.number) > 0xFFFFFFFF ||
+										!utf8_isvalid((utf8char_t)*(rsp->_.lvalue._.number)))
 									{
 										SETRET(nsr,INVALID);
 										return true;
 									}
 
-									*(lsp->_.lvalue._.ch) = (char)(unsigned char)*(rsp->_.lvalue._.number);
+									*(lsp->_.lvalue._.ch) = (utf8char_t)*(rsp->_.lvalue._.number);
 
 									if (push_result && !nib_push_stack_char(nsr,*(lsp->_.lvalue._.ch)))
 									{
@@ -12657,12 +12827,10 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 						push_result = false;
 					case NI_ASSIGN:
 						{
-							char tmp[2];
-							tmp[0] = rsp->_.ch;
-							tmp[1] = '\0';
+							char *bytes = utf8_getbytes(rsp->_.ch);
 
 							if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
-							*(lsp->_.lvalue._.str) = strdup(tmp);
+							*(lsp->_.lvalue._.str) = strdup(bytes);
 
 							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
 							{
@@ -12680,8 +12848,11 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 							{
 								if (rsp->_.ch > 0)
 								{
+									char *bytes = utf8_getbytes(rsp->_.ch);
+									int blen = strlen(bytes);
+
 									int len = strlen(*(lsp->_.lvalue._.str));
-									char *value = calloc(1,len + 2);
+									char *value = calloc(1,len + blen + 1);
 									if (!value)
 									{
 										SETRET(nsr,MEMORY);
@@ -12689,8 +12860,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 									}
 
 									strcpy(value,*(lsp->_.lvalue._.str));
-									value[len] = rsp->_.ch;
-									value[len+1] = '\0';
+									strcpy(value+len,bytes);
 
 									free(*(lsp->_.lvalue._.str));
 									*(lsp->_.lvalue._.str) = value;
@@ -12698,11 +12868,9 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 							}
 							else
 							{
-								char tmp[2];
-								tmp[0] = rsp->_.ch;
-								tmp[1] = '\0';
+								char *bytes = utf8_getbytes(rsp->_.ch);
 
-								*(lsp->_.lvalue._.str) = strdup(tmp);
+								*(lsp->_.lvalue._.str) = strdup(bytes);
 							}
 
 							if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
@@ -13519,12 +13687,10 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 								push_result = false;
 							case NI_ASSIGN:
 								{
-									char tmp[2];
-									tmp[0] = *(rsp->_.lvalue._.ch);
-									tmp[1] = '\0';
+									char *bytes = utf8_getbytes(*(rsp->_.lvalue._.ch));
 
 									if (*(lsp->_.lvalue._.str)) free(*(lsp->_.lvalue._.str));
-									*(lsp->_.lvalue._.str) = strdup(tmp);
+									*(lsp->_.lvalue._.str) = strdup(bytes);
 
 									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
 									{
@@ -13542,8 +13708,11 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 									{
 										if (*(rsp->_.lvalue._.ch) > 0)
 										{
+											char *bytes = utf8_getbytes(*(rsp->_.lvalue._.ch));
+											int blen = strlen(bytes);
+
 											int len = strlen(*(lsp->_.lvalue._.str));
-											char *value = calloc(1,len + 2);
+											char *value = calloc(1,len + blen + 1);
 											if (!value)
 											{
 												SETRET(nsr,MEMORY);
@@ -13551,8 +13720,7 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 											}
 
 											strcpy(value,*(lsp->_.lvalue._.str));
-											value[len] = *(rsp->_.lvalue._.ch);
-											value[len+1] = '\0';
+											strcpy(value+len,bytes);
 
 											free(*(lsp->_.lvalue._.str));
 											*(lsp->_.lvalue._.str) = value;
@@ -13560,11 +13728,9 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 									}
 									else
 									{
-										char tmp[2];
-										tmp[0] = *(rsp->_.lvalue._.ch);
-										tmp[1] = '\0';
+										char *bytes = utf8_getbytes(*(rsp->_.lvalue._.ch));
 
-										*(lsp->_.lvalue._.str) = strdup(tmp);
+										*(lsp->_.lvalue._.str) = strdup(bytes);
 									}
 
 									if (push_result && !nib_push_stack_string_shared(nsr,*(lsp->_.lvalue._.str)))
@@ -15250,7 +15416,7 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 
 	case NI_LOAD_CHAR:
 		{
-			char value = __get_char(nsr);
+			utf8char_t value = __get_utf8char(nsr);
 			if (!nib_push_stack_char(nsr, value))
 			{
 				SETRET(nsr,STACK);
@@ -15729,7 +15895,7 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 				case NST_NUMBER:	var->_.i = *((long *)data); break;
 				case NST_FLOAT:		var->_.f = *((double *)data); break;
 				case NST_BOOLEAN:	var->_.b = *((bool *)data); break;
-				case NST_CHAR:		var->_.ch = *((char *)data); break;
+				case NST_CHAR:		var->_.ch = *((utf8char_t *)data); break;
 				case NST_STRING:
 					if (var->_.str) free(var->_.str);
 					var->_.str = strdup((char *)data);
@@ -16453,9 +16619,14 @@ static LLIST *__generate_disassembly(NIB_SCRIPT *script)
 				}
 
 			case NI_LOAD_CHAR:
-				ch = pc[addr+1];
-				linej += snprintf(line + linej, sizeof(line) - linej - 1, " %c (%02X)", (isprint(ch) ? ch : '.'), (unsigned char)ch);
-				addr++;
+				{
+					utf8char_t ch;
+					memcpy(&ch,&pc[addr+1],sizeof(ch)); addr+=sizeof(ch);
+					if (utf8_isprint(ch))
+						linej += snprintf(line + linej, sizeof(line) - linej - 1, " %s", utf8_getbytes(ch));
+					else
+						linej += snprintf(line + linej, sizeof(line) - linej - 1, " 0x%X", ch);
+				}
 				break;
 
 			case NI_LOAD_NUMBER:
@@ -16652,7 +16823,11 @@ static int __display_stack_item(NIB_SCRIPT_STACK *stack, char *line, int max_len
 	case NST_NUMBER:	return snprintf(line, max_len, "INT(%ld)", stack->_.i);
 	case NST_BOOLEAN:	return snprintf(line, max_len, "BLN(%s)", (stack->_.b) ? "true" : "false");
 	case NST_FLOAT:		return snprintf(line, max_len, "FLT(%lf)", stack->_.d);
-	case NST_CHAR:		return snprintf(line, max_len, "CHR(%02X %c)", (unsigned char)stack->_.ch, (isprint(stack->_.ch)?stack->_.ch:'.'));
+	case NST_CHAR:
+			if (utf8_isprint(stack->_.ch))
+				return snprintf(line, max_len, "CHR(%s)", utf8_getbytes(stack->_.ch));
+			else
+				return snprintf(line, max_len, "CHR(%X)", stack->_.ch);
 	case NST_STRING:	return snprintf(line, max_len, "STR(%s)", (stack->_.str)?stack->_.str:"null");
 	case NST_STRING_S:	return snprintf(line, max_len, "STRS(%s)", (stack->_.str)?stack->_.str:"null");
 	case NST_MAP:		return snprintf(line, max_len, "MAP");
@@ -16686,7 +16861,11 @@ static int __display_stack_item(NIB_SCRIPT_STACK *stack, char *line, int max_len
 		case NST_NUMBER:	return snprintf(line, max_len, "LVALUE(INT(%ld))", *(stack->_.lvalue._.number));
 		case NST_BOOLEAN:	return snprintf(line, max_len, "LVALUE(BLN(%s))", *(stack->_.lvalue._.b) ? "true" : "false");
 		case NST_FLOAT:		return snprintf(line, max_len, "LVALUE(FLT(%lf))", *(stack->_.lvalue._.d));
-		case NST_CHAR:		return snprintf(line, max_len, "LVALUE(CHR(%02X %c))", (unsigned char)*(stack->_.lvalue._.ch), (isprint(*(stack->_.lvalue._.ch))?*(stack->_.lvalue._.ch):'.'));
+		case NST_CHAR:
+				if (utf8_isprint(*(stack->_.lvalue._.ch)))
+					return snprintf(line, max_len, "CHR(%s)", utf8_getbytes(*(stack->_.lvalue._.ch)));
+				else
+					return snprintf(line, max_len, "CHR(%X)", *(stack->_.lvalue._.ch));
 		case NST_STRING:	return snprintf(line, max_len, "LVALUE(STR(%s))", (*(stack->_.lvalue._.str))?*(stack->_.lvalue._.str):"null");
 		case NST_MAP:		return snprintf(line, max_len, "LVALUE(MAP)");
 		case NST_WIDEVNUM:
@@ -16734,7 +16913,12 @@ static void __display_local_var(NIB_LOCAL_RUNTIME_VAR *var, char *line, int max_
 	case NST_NUMBER:	snprintf(value, max_vlen, "%ld", var->_.i);	break;
 	case NST_BOOLEAN:	strncpy(value, (var->_.b?"true":"false"), max_vlen);	break;
 	case NST_FLOAT:		snprintf(value, max_vlen, "%lf", var->_.f);	break;
-	case NST_CHAR:		if (isprint(var->_.ch)) snprintf(value, max_vlen, "'%c'", var->_.ch); else snprintf(value, max_vlen, "0x%02X", (unsigned char)var->_.ch); break;
+	case NST_CHAR:
+			if (utf8_isprint(var->_.ch))
+				snprintf(value, max_vlen, "'%s'", utf8_getbytes(var->_.ch));
+			else
+				snprintf(value, max_vlen, "0x%X", var->_.ch);
+			break;
 	case NST_STRING:
 	case NST_STRING_S:
 		if (var->_.str)

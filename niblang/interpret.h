@@ -11,7 +11,7 @@ struct nib_script_stack_lvalue_s
 		bool *b;
 		double *d;
 		char **str;
-		char *ch;
+		utf8char_t *ch;
 		WNUM *wnum;
 
 		AREA_DATA **area;
@@ -45,7 +45,7 @@ struct nib_script_stack_s
 		double d;
 		bool b;
 		char *str;
-		char ch;
+		utf8char_t ch;
 		WNUM wnum;
 
 		struct {
@@ -91,7 +91,7 @@ struct nib_local_runtime_var_s
 		double f;
 		bool b;
 		char *str;
-		char ch;
+		utf8char_t ch;
 		WNUM wnum;
 		struct {
 			NIB_SCRIPT_STACK_TYPE type;
@@ -153,7 +153,7 @@ struct nib_script_argument_s
 		double d;
 		bool b;
 		char *str;
-		char ch;
+		utf8char_t ch;
 		WNUM wnum;
 
 		struct {
@@ -189,7 +189,7 @@ struct nib_script_argument_s
 __push(long,number)
 __push(double,float)
 __push(bool,boolean)
-__push(char,char)
+__push(utf8char_t,char)
 __push(const char *,string)
 __push(char *,string_shared)
 bool nib_push_stack_list (NIB_SCRIPT_RUNTIME *nsr, LLIST *value, NIB_SCRIPT_STACK_TYPE type);
@@ -210,7 +210,7 @@ NIB_SCRIPT_STACK_TYPE nib_peek_stack_offset(NIB_SCRIPT_RUNTIME *nsr, int offset)
 __peek(long,number)
 __peek(double,float)
 __peek(bool,boolean)
-__peek(char,char)
+__peek(utf8char_t,char)
 __peek(char *,string)
 __peek(char *,string_shared)
 bool nib_peek_stack_list (NIB_SCRIPT_RUNTIME *nsr, int offset, LLIST **value, NIB_SCRIPT_STACK_TYPE *type);
@@ -229,7 +229,7 @@ bool nib_pop_stack (NIB_SCRIPT_RUNTIME *nsr);
 __pop(long,number)
 __pop(double,float)
 __pop(bool,boolean)
-__pop(char,char)
+__pop(utf8char_t,char)
 __pop(char *,string)
 __pop(char *,string_shared)
 bool nib_pop_stack_list (NIB_SCRIPT_RUNTIME *nsr, LLIST **value, NIB_SCRIPT_STACK_TYPE *type);

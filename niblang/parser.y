@@ -922,6 +922,7 @@ void niberrorf(const char *msg, ...)
 %token T_OPEN_LIST
 %token T_OPEN_MAP
 %token T_OPEN_PAREN
+%token T_PARSE_ERROR
 %token T_PLUS
 %token T_QMARK
 %token T_QUEST
@@ -953,7 +954,7 @@ void niberrorf(const char *msg, ...)
 
 %union {
 	bool b;
-	char ch;
+	utf8char_t ch;
     long number;
 	uintptr_t address;
 	nib_bytecode_t assign;	// Opcode for assignment
@@ -3013,7 +3014,7 @@ expr4:
 			last_expression = CURRENT_PROGRAM_SIZE;
 
 			ins_code(NI_LOAD_CHAR);
-			ins_byte($1);
+			ins_int($1);
 
 			$$.name = NULL;
 			$$.type = nibtype_char;

@@ -1,6 +1,7 @@
 global area plith;
 global string name;
 global int iterations;
+global char pressed;
 
 print("===================================");
 print("Global Name: " + name);
@@ -38,5 +39,8 @@ foreach(rm : plith.rooms)
 
 print("-----------------------------------");
 ++iterations;
+
+print("Last Pressed was " + pressed + '\a');
+pressed = '\u4E17';
 
 return (name.length ? mobs : 0);

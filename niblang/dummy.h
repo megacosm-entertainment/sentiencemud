@@ -177,7 +177,7 @@ struct script_var_type {
 		long num;
 		double flt;
 		bool b;
-		char ch;
+		utf8char_t ch;
 		char *str;
 		WNUM wnum;
 		struct {
@@ -201,7 +201,7 @@ pVARIABLE variable_get(const char *name);
 pVARIABLE variable_new_number(const char *name, long value);
 pVARIABLE variable_new_float(const char *name, double value);
 pVARIABLE variable_new_bool(const char *name, bool value);
-pVARIABLE variable_new_char(const char *name, char ch);
+pVARIABLE variable_new_char(const char *name, utf8char_t ch);
 pVARIABLE variable_new_string_raw(const char *name, char *str);
 pVARIABLE variable_new_string(const char *name, char *str);
 pVARIABLE variable_new_shared_string(const char *name, char *str);
@@ -220,7 +220,7 @@ pVARIABLE variable_new_mobile(const char *name, CHAR_DATA *mobile);
 pVARIABLE variable_new_room(const char *name, ROOM_INDEX_DATA *room);
 // pVARIABLE variable_new_ship(const char *name, SHIP_DATA *ship);
 // pVARIABLE variable_new_token(const char *name, TOKEN_DATA *token);
-void variable_get_string(pVARIABLE var, char *buf, int buf_len);
+void variable_get_string(pVARIABLE var, char *buf, int buf_len, int char_len);
 const char *variable_get_typename(pVARIABLE var);
 
 AREA_DATA *find_area(char *name);
