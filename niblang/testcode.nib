@@ -40,7 +40,7 @@ foreach(rm : plith.rooms)
 print("-----------------------------------");
 ++iterations;
 
-print("Last Pressed was " + pressed + '\a');
+print("Last Pressed was 丕" + pressed);
 pressed = '\u4E17';
 
 return (name.length ? mobs : 0);

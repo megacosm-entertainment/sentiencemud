@@ -13,7 +13,9 @@ typedef enum nib_script_stack_type_e NIB_SCRIPT_STACK_TYPE;
 typedef struct nib_script_stack_lvalue_s NIB_SCRIPT_LVALUE;
 typedef struct nib_script_runtime_s NIB_SCRIPT_RUNTIME;
 typedef struct nib_local_runtime_var_s NIB_LOCAL_RUNTIME_VAR;
-
+typedef enum nib_switch_type_e SWITCH_TYPE;
+typedef enum nib_switch_case_e CASE_TYPE;
+typedef struct nib_script_switch_case_s NIB_SWITCH_CASE;
 typedef struct nib_script_argument_s NIB_SCRIPT_ARG;
 
 typedef struct nib_type NIB_TYPE;

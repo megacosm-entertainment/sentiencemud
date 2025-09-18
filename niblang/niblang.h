@@ -2,6 +2,7 @@
 #define __NIBLANG_H__
 
 #define NIB_GLOBAL_SCOPE	(-1)
+#define NIB_INVALID_ADDRESS	(-1)
 
 #define A 1L						// 0
 #define B 2L						// 1
@@ -219,6 +220,27 @@ enum nib_script_stack_type_e
 	NST_LVALUE,
 };
 
+enum nib_switch_type_e
+{
+	NSWT_UNKNOWN,
+	NSWT_NUMBER,
+	NSWT_FLOAT,
+	NSWT_CHAR,
+	NSWT_STRING,
+	NSWT_STAT
+};
+
+enum nib_switch_case_e
+{
+	// Default is handled separately
+	NCASE_VALUE,				// Must be exactly this value
+	NCASE_VX,					// Must be at least the value (non-string)
+	NCASE_XV,					// Must be atmost the value (non-string)
+	NCASE_VV,					// Must be within the the inclusive range (non-string)
+	NCASE_PREFIX,				// Must be prefixed (string-only)
+	NCASE_INFIX,
+	NCASE_SUFFIX,
+};
 
 #define MAX_FLAG_BITS		(bitsize(flag_value_t))
 
@@ -395,10 +417,47 @@ struct nib_continue_s {
 	struct nib_bc_statment_s *stmts;
 };
 
+// The runtime version will use unions
+struct nib_compile_switch_case_s
+{
+	CASE_TYPE type;
+	struct {
+		long number;
+		double flt;
+		utf8char_t ch;
+		char *str;
+	} a;				// Minimum/Value
+	struct {
+		long number;
+		double flt;
+		utf8char_t ch;
+	} b;				// Maximum
+
+	nib_address_t address;	// Jump point
+};
+
+typedef int NIB_CASE_COMPARE(struct nib_compile_switch_case_s *c1, struct nib_compile_switch_case_s *c2);
+
+struct nib_compile_switch_s {
+	struct nib_compile_switch_s *prev;
+	short id;				// Which switch slot
+
+	SWITCH_TYPE type;		// Type of switch expression
+	const struct flag_type *table;	// For when a STAT is the type
+	LLIST *cases;
+	bool has_default;
+	nib_address_t default_address;
+
+	NIB_CASE_COMPARE *sorter;	// Sorts the cases
+};
+
+
+
 
 // compile.c
 extern struct nib_break_s *nib_break_address;
 extern struct nib_continue_s *nib_continue_address;
+extern struct nib_compile_switch_s *nib_current_switch;
 
 void push_nib_break_address();
 void push_nib_break_statement(int address);
@@ -424,8 +483,8 @@ NIB_VARIABLE *nib_get_local_variable(const char *name);
 void nib_add_global_variable(NIB_VARIABLE *var);
 void nib_add_local_variable(NIB_VARIABLE *var);
 const char *nib_get_string(int index);
-int nib_get_string_in_storage(const char *str);
-int nib_add_string_to_storage(const char *str);
+short nib_get_string_in_storage(const char *str);
+short nib_add_string_to_storage(const char *str);
 void nib_dump_string_storage();
 void nib_dump_program();
 void nib_script_comment_add(long address, char *comment);

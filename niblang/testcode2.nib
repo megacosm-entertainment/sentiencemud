@@ -1,41 +1,23 @@
-global area plith;		// Constant
-global int vnum;
-global float bar;		// Constant
-global widevnum wnum;	// Constant
+table stat(<[sleep,prone,rest,sit,kneel,crouch,stand,hang,fight]>) positions;
 
-int x = 3;
-int y;
-
-if (x > vnum)
+stat(positions) pos = <[positions.hang]>;
+switch(pos)
 {
-	y = x;
+case ..prone:
+	print("laying down");
+	break;
+case rest..sit:
+	print("sitting down");
+	break;
+case kneel:
+	print("kneeling");
+	break;
+case crouch:
+	print("crouching");
+	break;
+case stand..:
+	print("standing");
+	break;
 }
-else
-{
-	y = 0;
-}
+print("Position: " + pos);
 
-for(int z = 0; z < x; z++)
-{
-	if ((z + 2) < 3)
-		break;
-	y = z;
-}
-
-// plith.name = "Name";			// Readonly - would generate an error
-plith.flags.changed = true;
-
-int v = x.random();
-reckoning(100,4);
-
-y = 0;
-while(y < 5)
-{
-	y+=1;
-}
-
-list(mobile) mobs = ({});
-foreach(mob : mobs)
-{
-	y+=2;
-}

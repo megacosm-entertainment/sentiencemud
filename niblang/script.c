@@ -18,6 +18,7 @@ extern LLIST *nib_comment_storage;
 extern LLIST *nib_flag_created_tables;
 extern LLIST *nib_stat_created_tables;
 extern LLIST *nib_used_tables;
+extern LLIST *nib_switch_blocks;
 
 NIB_SCRIPT_STACK_TYPE convert_to_stype(NIB_TYPE *type);
 
@@ -64,6 +65,67 @@ NIB_SCRIPT *new_nib_script(const char *src, NIB_SCRIPT_CLASS sc)
 					script->tables[index++] = table;
 				}
 				iterator_stop(&it);
+			}
+		}
+
+		script->n_switches = list_size(nib_switch_blocks);
+		if (script->n_switches > 0)
+		{
+			script->switches = calloc(script->n_switches, sizeof(NIB_SWITCH));
+
+			if (script->switches)
+			{
+				ITERATOR swit;
+				int i = 0;
+				struct nib_compile_switch_s *s;
+				iterator_start(&swit,nib_switch_blocks);
+				while((s = (struct nib_compile_switch_s *)iterator_nextdata(&swit)))
+				{
+					NIB_SWITCH *sw = &script->switches[i++];
+					sw->type = s->type;
+					sw->default_address = s->has_default ? s->default_address : NIB_INVALID_ADDRESS;
+					sw->n_cases = list_size(s->cases);
+					if (sw->n_cases > 0)
+					{
+						sw->cases = calloc(sw->n_cases,sizeof(NIB_SWITCH_CASE));
+
+						if (sw->cases)
+						{
+							ITERATOR cit;
+							int j = 0;
+							struct nib_compile_switch_case_s *c;
+							iterator_start(&cit,s->cases);
+							while((c = (struct nib_compile_switch_case_s *)iterator_nextdata(&cit)))
+							{
+								NIB_SWITCH_CASE *cs = &sw->cases[j++];
+
+								cs->type = c->type;
+								cs->address = c->address;
+								switch(sw->type)
+								{
+								case NSWT_NUMBER:
+								case NSWT_STAT:
+									cs->a.number = c->a.number;
+									cs->b.number = c->b.number;
+									break;
+								case NSWT_FLOAT:
+									cs->a.flt = c->a.flt;
+									cs->b.flt = c->b.flt;
+									break;
+								case NSWT_CHAR:
+									cs->a.ch = c->a.ch;
+									cs->b.ch = c->b.ch;
+									break;
+								case NSWT_STRING:
+									cs->a.str = nib_add_string_to_storage(c->a.str);
+									break;
+								}
+							}
+							iterator_stop(&cit);
+						}
+					}
+				}
+				iterator_stop(&swit);
 			}
 		}
 
@@ -336,8 +398,7 @@ void nib_decompile_code(NIB_SCRIPT *script)
 	long number;
 	char ch;
 	double floating;
-	short string_index;
-	short table_index;
+	short index;
 	void *pointer;
 	struct flag_type *table;
 	NIB_SCRIPT_STACK_TYPE type = NST_UNKNOWN;
@@ -376,7 +437,6 @@ void nib_decompile_code(NIB_SCRIPT *script)
 		case NI_DUP:
 		case NI_POP:
 		case NI_RETURN:
-		case NI_SWITCH:
 		case NI_INC:
 		case NI_DEC:
 		case NI_POST_INC:
@@ -421,6 +481,16 @@ void nib_decompile_code(NIB_SCRIPT *script)
 		case NI_RSH_EQ:
 		case NI_RSHL_EQ:
 			break;
+
+		case NI_SWITCH:
+		{
+			memcpy(&index, &pc[addr+1], sizeof(index)); addr+=sizeof(index);
+			memcpy(&address, &pc[addr+1], sizeof(address)); addr+=sizeof(address);
+
+			linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d <addr: %08X>", index, address);
+
+			break;
+		}
 
 		case NI_GET_AREA:
 			type = NST_AREA;
@@ -558,15 +628,15 @@ void nib_decompile_code(NIB_SCRIPT *script)
 
 		case NI_LOAD_STRING:
 			{
-				memcpy(&string_index, &pc[addr+1], sizeof(string_index));
-				const char *str = nib_get_string(string_index);
+				memcpy(&index, &pc[addr+1], sizeof(index));
+				const char *str = nib_get_string(index);
 
 				if (str)
-					linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d \"%s\"", string_index, str);
+					linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d \"%s\"", index, str);
 				else
-					linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d --invalid--", string_index);
+					linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d --invalid--", index);
 
-				addr+=sizeof(string_index);
+				addr+=sizeof(index);
 				break;
 			}
 
@@ -590,9 +660,9 @@ void nib_decompile_code(NIB_SCRIPT *script)
 
 		case NI_LOAD_FLAG_TABLE:
 			memcpy(&number, &pc[addr+1], sizeof(number)); addr+=sizeof(number);
-			memcpy(&table_index, &pc[addr+1], sizeof(table_index)); addr+=sizeof(table_index);
-			if (table_index > 0 && table_index <= script->n_tables)
-				table = script->tables[table_index - 1];
+			memcpy(&index, &pc[addr+1], sizeof(index)); addr+=sizeof(index);
+			if (index > 0 && index <= script->n_tables)
+				table = script->tables[index - 1];
 			else
 				table = NULL;
 
@@ -608,9 +678,9 @@ void nib_decompile_code(NIB_SCRIPT *script)
 
 		case NI_LOAD_STAT:
 			memcpy(&number, &pc[addr+1], sizeof(number)); addr+=sizeof(number);
-			memcpy(&table_index, &pc[addr+1], sizeof(table_index)); addr+=sizeof(table_index);
-			if (table_index > 0 && table_index <= script->n_tables)
-				table = script->tables[table_index - 1];
+			memcpy(&index, &pc[addr+1], sizeof(index)); addr+=sizeof(index);
+			if (index > 0 && index <= script->n_tables)
+				table = script->tables[index - 1];
 			else
 				table = NULL;
 			linej += snprintf(line + linej, sizeof(line) - linej - 1, " %ld@%s", number, nib_get_stat_table_name(script->stat_tables,table));

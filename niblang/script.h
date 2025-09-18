@@ -61,7 +61,8 @@ typedef enum nib_type_class {
 } NIB_TYPE_CLASS;
 
 
-struct nib_type {
+struct nib_type
+{
 	bool _static;		// Statically defined, do not "free"
 
 	int type_class;
@@ -100,6 +101,35 @@ struct nib_script_local_variable_s
 	bool constant;			// Just to guard against writing
 };
 
+struct nib_script_switch_case_s
+{
+	CASE_TYPE type;
+	union {
+		long number;
+		double flt;
+		utf8char_t ch;
+		short str;			// String literal ID
+	} a;				// Minimum/Value
+	union {
+		long number;
+		double flt;
+		utf8char_t ch;
+		short str;			// String literal ID
+	} b;				// Maximum
+
+	nib_address_t address;	// Jump point
+};
+
+typedef struct nib_script_switch_s NIB_SWITCH;
+struct nib_script_switch_s
+{
+	SWITCH_TYPE type;		// What can be used as case labels
+	int n_cases;
+	NIB_SWITCH_CASE *cases;
+	nib_address_t default_address;
+};
+
+
 struct nib_script_type_s
 {
 	// NIB_SCRIPT *next;
@@ -114,8 +144,6 @@ struct nib_script_type_s
 	int code_len;
 	nib_bytecode_p code;
 
-	// TODO: switch cases
-
 	int n_globals;
 	NIB_GLOBAL_VAR *globals;
 
@@ -127,6 +155,9 @@ struct nib_script_type_s
 
 	LLIST *flag_tables;
 	LLIST *stat_tables;
+
+	int n_switches;
+	NIB_SWITCH *switches;
 
 	int n_strings;
 	char **strings;

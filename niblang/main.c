@@ -231,7 +231,27 @@ int main(int argc, char **argv)
 
 						nib_step_execute_show(nsr, w.ws_row, w.ws_col);
 
-						printf("\nScript Return: %d\n", nib_get_last_return(nsr));
+						char *code = NULL;
+						if(nib_get_last_return(nsr) < 0)
+						{
+							switch(nib_get_last_return(nsr))
+							{
+							case SCPERR_FAILURE:	code = "FAILURE"; break;
+							case SCPERR_MATH:		code = "MATH"; break;
+							case SCPERR_INVALID:	code = "INVALID"; break;
+							case SCPERR_MEMORY:		code = "MEMORY"; break;
+							case SCPERR_STACK:		code = "STACK"; break;
+							case SCPERR_FIELD:		code = "FIELD"; break;
+							case SCPERR_METHOD:		code = "METHOD"; break;
+							case SCPERR_FUNCTION:	code = "FUNCTION"; break;
+							}
+
+						}
+
+						if (code)
+							printf("\nScript Return: %s (%d)\n", code, nib_get_last_return(nsr));
+						else
+							printf("\nScript Return: %d\n", nib_get_last_return(nsr));
 
 						nib_step_execute_cleanup(nsr);
 					}
@@ -261,7 +281,27 @@ int main(int argc, char **argv)
 
 							nib_dump_script_global_variables(script);
 						}
-						printf("Script Return: %d\n", ret);
+						char *code = NULL;
+						if(ret < 0)
+						{
+							switch(ret)
+							{
+							case SCPERR_FAILURE:	code = "FAILURE"; break;
+							case SCPERR_MATH:		code = "MATH"; break;
+							case SCPERR_INVALID:	code = "INVALID"; break;
+							case SCPERR_MEMORY:		code = "MEMORY"; break;
+							case SCPERR_STACK:		code = "STACK"; break;
+							case SCPERR_FIELD:		code = "FIELD"; break;
+							case SCPERR_METHOD:		code = "METHOD"; break;
+							case SCPERR_FUNCTION:	code = "FUNCTION"; break;
+							}
+
+						}
+
+						if (code)
+							printf("Script Return: %s (%d)\n", code, ret);
+						else
+							printf("Script Return: %d\n", ret);
 						if (params.clock)
 							printf("Execution time: %.3lfms\n", 1000.0 * (double)total / CLOCKS_PER_SEC);
 					}

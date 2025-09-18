@@ -617,7 +617,7 @@ bool nib_push_stack_local_var(NIB_SCRIPT_RUNTIME *nsr, NIB_LOCAL_RUNTIME_VAR *va
 
 bool nib_push_stack_local_var_lvalue(NIB_SCRIPT_RUNTIME *nsr, NIB_LOCAL_RUNTIME_VAR *var)
 {
-	if (var->constant) return false;
+//	if (var->constant) return false;
 
 	NIB_SCRIPT_LVALUE lvalue;
 	switch(var->type)
@@ -8120,15 +8120,15 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					bool value;
 					switch(op)
 					{
-					case NI_EQ:			value = (str_cmp(lsp->_.str,rsp->_.str) == 0); break;
-					case NI_NEQ:		value = (str_cmp(lsp->_.str,rsp->_.str) != 0); break;
-					case NI_LT:			value = (str_cmp(lsp->_.str,rsp->_.str) < 0); break;
-					case NI_LE:			value = (str_cmp(lsp->_.str,rsp->_.str) <= 0); break;
-					case NI_GT:			value = (str_cmp(lsp->_.str,rsp->_.str) > 0); break;
-					case NI_GE:			value = (str_cmp(lsp->_.str,rsp->_.str) >= 0); break;
-					case NI_STR_PREFIX: value = !str_prefix(rsp->_.str,lsp->_.str); break;
-					case NI_STR_INFIX:	value = !str_infix(rsp->_.str,lsp->_.str); break;
-					case NI_STR_SUFFIX:	value = !str_suffix(rsp->_.str,lsp->_.str); break;
+					case NI_EQ:			value = (utf8_str_cmp(lsp->_.str,rsp->_.str) == 0); break;
+					case NI_NEQ:		value = (utf8_str_cmp(lsp->_.str,rsp->_.str) != 0); break;
+					case NI_LT:			value = (utf8_str_cmp(lsp->_.str,rsp->_.str) < 0); break;
+					case NI_LE:			value = (utf8_str_cmp(lsp->_.str,rsp->_.str) <= 0); break;
+					case NI_GT:			value = (utf8_str_cmp(lsp->_.str,rsp->_.str) > 0); break;
+					case NI_GE:			value = (utf8_str_cmp(lsp->_.str,rsp->_.str) >= 0); break;
+					case NI_STR_PREFIX: value = !utf8_str_prefix(rsp->_.str,lsp->_.str); break;
+					case NI_STR_INFIX:	value = !utf8_str_infix(rsp->_.str,lsp->_.str); break;
+					case NI_STR_SUFFIX:	value = !utf8_str_suffix(rsp->_.str,lsp->_.str); break;
 					case NI_LAND:		value = (!IS_NULLSTR(lsp->_.str)) && (!IS_NULLSTR(rsp->_.str)); break;
 					case NI_LOR:		value = (!IS_NULLSTR(lsp->_.str)) || (!IS_NULLSTR(rsp->_.str)); break;
 					case NI_LXOR:		value = (!IS_NULLSTR(lsp->_.str)) != (!IS_NULLSTR(rsp->_.str)); break;
@@ -8155,15 +8155,15 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					bool value;
 					switch(op)
 					{
-					case NI_EQ:			value = (str_cmp(lsp->_.str,rsp->_.str) == 0); break;
-					case NI_NEQ:		value = (str_cmp(lsp->_.str,rsp->_.str) != 0); break;
-					case NI_LT:			value = (str_cmp(lsp->_.str,rsp->_.str) < 0); break;
-					case NI_LE:			value = (str_cmp(lsp->_.str,rsp->_.str) <= 0); break;
-					case NI_GT:			value = (str_cmp(lsp->_.str,rsp->_.str) > 0); break;
-					case NI_GE:			value = (str_cmp(lsp->_.str,rsp->_.str) >= 0); break;
-					case NI_STR_PREFIX: value = !str_prefix(rsp->_.str,lsp->_.str); break;
-					case NI_STR_INFIX:	value = !str_infix(rsp->_.str,lsp->_.str); break;
-					case NI_STR_SUFFIX:	value = !str_suffix(rsp->_.str,lsp->_.str); break;
+					case NI_EQ:			value = (utf8_str_cmp(lsp->_.str,rsp->_.str) == 0); break;
+					case NI_NEQ:		value = (utf8_str_cmp(lsp->_.str,rsp->_.str) != 0); break;
+					case NI_LT:			value = (utf8_str_cmp(lsp->_.str,rsp->_.str) < 0); break;
+					case NI_LE:			value = (utf8_str_cmp(lsp->_.str,rsp->_.str) <= 0); break;
+					case NI_GT:			value = (utf8_str_cmp(lsp->_.str,rsp->_.str) > 0); break;
+					case NI_GE:			value = (utf8_str_cmp(lsp->_.str,rsp->_.str) >= 0); break;
+					case NI_STR_PREFIX: value = !utf8_str_prefix(rsp->_.str,lsp->_.str); break;
+					case NI_STR_INFIX:	value = !utf8_str_infix(rsp->_.str,lsp->_.str); break;
+					case NI_STR_SUFFIX:	value = !utf8_str_suffix(rsp->_.str,lsp->_.str); break;
 					case NI_LAND:		value = (!IS_NULLSTR(lsp->_.str)) && (!IS_NULLSTR(rsp->_.str)); break;
 					case NI_LOR:		value = (!IS_NULLSTR(lsp->_.str)) || (!IS_NULLSTR(rsp->_.str)); break;
 					case NI_LXOR:		value = (!IS_NULLSTR(lsp->_.str)) != (!IS_NULLSTR(rsp->_.str)); break;
@@ -8214,15 +8214,15 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:			value = (str_cmp(lsp->_.str,*(rsp->_.lvalue._.str)) == 0); break;
-							case NI_NEQ:		value = (str_cmp(lsp->_.str,*(rsp->_.lvalue._.str)) != 0); break;
-							case NI_LT:			value = (str_cmp(lsp->_.str,*(rsp->_.lvalue._.str)) < 0); break;
-							case NI_LE:			value = (str_cmp(lsp->_.str,*(rsp->_.lvalue._.str)) <= 0); break;
-							case NI_GT:			value = (str_cmp(lsp->_.str,*(rsp->_.lvalue._.str)) > 0); break;
-							case NI_GE:			value = (str_cmp(lsp->_.str,*(rsp->_.lvalue._.str)) >= 0); break;
-							case NI_STR_PREFIX: value = !str_prefix(*(rsp->_.lvalue._.str),lsp->_.str); break;
-							case NI_STR_INFIX:	value = !str_infix(*(rsp->_.lvalue._.str),lsp->_.str); break;
-							case NI_STR_SUFFIX:	value = !str_suffix(*(rsp->_.lvalue._.str),lsp->_.str); break;
+							case NI_EQ:			value = (utf8_str_cmp(lsp->_.str,*(rsp->_.lvalue._.str)) == 0); break;
+							case NI_NEQ:		value = (utf8_str_cmp(lsp->_.str,*(rsp->_.lvalue._.str)) != 0); break;
+							case NI_LT:			value = (utf8_str_cmp(lsp->_.str,*(rsp->_.lvalue._.str)) < 0); break;
+							case NI_LE:			value = (utf8_str_cmp(lsp->_.str,*(rsp->_.lvalue._.str)) <= 0); break;
+							case NI_GT:			value = (utf8_str_cmp(lsp->_.str,*(rsp->_.lvalue._.str)) > 0); break;
+							case NI_GE:			value = (utf8_str_cmp(lsp->_.str,*(rsp->_.lvalue._.str)) >= 0); break;
+							case NI_STR_PREFIX: value = !utf8_str_prefix(*(rsp->_.lvalue._.str),lsp->_.str); break;
+							case NI_STR_INFIX:	value = !utf8_str_infix(*(rsp->_.lvalue._.str),lsp->_.str); break;
+							case NI_STR_SUFFIX:	value = !utf8_str_suffix(*(rsp->_.lvalue._.str),lsp->_.str); break;
 							case NI_LAND:		value = (!IS_NULLSTR(lsp->_.str)) && (!IS_NULLSTR(*(rsp->_.lvalue._.str))); break;
 							case NI_LOR:		value = (!IS_NULLSTR(lsp->_.str)) || (!IS_NULLSTR(*(rsp->_.lvalue._.str))); break;
 							case NI_LXOR:		value = (!IS_NULLSTR(lsp->_.str)) != (!IS_NULLSTR(*(rsp->_.lvalue._.str))); break;
@@ -8265,15 +8265,15 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					bool value;
 					switch(op)
 					{
-					case NI_EQ:			value = (str_cmp(lsp->_.str,rsp->_.str) == 0); break;
-					case NI_NEQ:		value = (str_cmp(lsp->_.str,rsp->_.str) != 0); break;
-					case NI_LT:			value = (str_cmp(lsp->_.str,rsp->_.str) < 0); break;
-					case NI_LE:			value = (str_cmp(lsp->_.str,rsp->_.str) <= 0); break;
-					case NI_GT:			value = (str_cmp(lsp->_.str,rsp->_.str) > 0); break;
-					case NI_GE:			value = (str_cmp(lsp->_.str,rsp->_.str) >= 0); break;
-					case NI_STR_PREFIX: value = !str_prefix(rsp->_.str,lsp->_.str); break;
-					case NI_STR_INFIX:	value = !str_infix(rsp->_.str,lsp->_.str); break;
-					case NI_STR_SUFFIX:	value = !str_suffix(rsp->_.str,lsp->_.str); break;
+					case NI_EQ:			value = (utf8_str_cmp(lsp->_.str,rsp->_.str) == 0); break;
+					case NI_NEQ:		value = (utf8_str_cmp(lsp->_.str,rsp->_.str) != 0); break;
+					case NI_LT:			value = (utf8_str_cmp(lsp->_.str,rsp->_.str) < 0); break;
+					case NI_LE:			value = (utf8_str_cmp(lsp->_.str,rsp->_.str) <= 0); break;
+					case NI_GT:			value = (utf8_str_cmp(lsp->_.str,rsp->_.str) > 0); break;
+					case NI_GE:			value = (utf8_str_cmp(lsp->_.str,rsp->_.str) >= 0); break;
+					case NI_STR_PREFIX: value = !utf8_str_prefix(rsp->_.str,lsp->_.str); break;
+					case NI_STR_INFIX:	value = !utf8_str_infix(rsp->_.str,lsp->_.str); break;
+					case NI_STR_SUFFIX:	value = !utf8_str_suffix(rsp->_.str,lsp->_.str); break;
 					case NI_LAND:		value = (!IS_NULLSTR(lsp->_.str)) && (!IS_NULLSTR(rsp->_.str)); break;
 					case NI_LOR:		value = (!IS_NULLSTR(lsp->_.str)) || (!IS_NULLSTR(rsp->_.str)); break;
 					case NI_LXOR:		value = (!IS_NULLSTR(lsp->_.str)) != (!IS_NULLSTR(rsp->_.str)); break;
@@ -8298,15 +8298,15 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					bool value;
 					switch(op)
 					{
-					case NI_EQ:			value = (str_cmp(lsp->_.str,rsp->_.str) == 0); break;
-					case NI_NEQ:		value = (str_cmp(lsp->_.str,rsp->_.str) != 0); break;
-					case NI_LT:			value = (str_cmp(lsp->_.str,rsp->_.str) < 0); break;
-					case NI_LE:			value = (str_cmp(lsp->_.str,rsp->_.str) <= 0); break;
-					case NI_GT:			value = (str_cmp(lsp->_.str,rsp->_.str) > 0); break;
-					case NI_GE:			value = (str_cmp(lsp->_.str,rsp->_.str) >= 0); break;
-					case NI_STR_PREFIX: value = !str_prefix(rsp->_.str,lsp->_.str); break;
-					case NI_STR_INFIX:	value = !str_infix(rsp->_.str,lsp->_.str); break;
-					case NI_STR_SUFFIX:	value = !str_suffix(rsp->_.str,lsp->_.str); break;
+					case NI_EQ:			value = (utf8_str_cmp(lsp->_.str,rsp->_.str) == 0); break;
+					case NI_NEQ:		value = (utf8_str_cmp(lsp->_.str,rsp->_.str) != 0); break;
+					case NI_LT:			value = (utf8_str_cmp(lsp->_.str,rsp->_.str) < 0); break;
+					case NI_LE:			value = (utf8_str_cmp(lsp->_.str,rsp->_.str) <= 0); break;
+					case NI_GT:			value = (utf8_str_cmp(lsp->_.str,rsp->_.str) > 0); break;
+					case NI_GE:			value = (utf8_str_cmp(lsp->_.str,rsp->_.str) >= 0); break;
+					case NI_STR_PREFIX: value = !utf8_str_prefix(rsp->_.str,lsp->_.str); break;
+					case NI_STR_INFIX:	value = !utf8_str_infix(rsp->_.str,lsp->_.str); break;
+					case NI_STR_SUFFIX:	value = !utf8_str_suffix(rsp->_.str,lsp->_.str); break;
 					case NI_LAND:		value = (!IS_NULLSTR(lsp->_.str)) && (!IS_NULLSTR(rsp->_.str)); break;
 					case NI_LOR:		value = (!IS_NULLSTR(lsp->_.str)) || (!IS_NULLSTR(rsp->_.str)); break;
 					case NI_LXOR:		value = (!IS_NULLSTR(lsp->_.str)) != (!IS_NULLSTR(rsp->_.str)); break;
@@ -8353,15 +8353,15 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:			value = (str_cmp(lsp->_.str,*(rsp->_.lvalue._.str)) == 0); break;
-							case NI_NEQ:		value = (str_cmp(lsp->_.str,*(rsp->_.lvalue._.str)) != 0); break;
-							case NI_LT:			value = (str_cmp(lsp->_.str,*(rsp->_.lvalue._.str)) < 0); break;
-							case NI_LE:			value = (str_cmp(lsp->_.str,*(rsp->_.lvalue._.str)) <= 0); break;
-							case NI_GT:			value = (str_cmp(lsp->_.str,*(rsp->_.lvalue._.str)) > 0); break;
-							case NI_GE:			value = (str_cmp(lsp->_.str,*(rsp->_.lvalue._.str)) >= 0); break;
-							case NI_STR_PREFIX: value = !str_prefix(*(rsp->_.lvalue._.str),lsp->_.str); break;
-							case NI_STR_INFIX:	value = !str_infix(*(rsp->_.lvalue._.str),lsp->_.str); break;
-							case NI_STR_SUFFIX:	value = !str_suffix(*(rsp->_.lvalue._.str),lsp->_.str); break;
+							case NI_EQ:			value = (utf8_str_cmp(lsp->_.str,*(rsp->_.lvalue._.str)) == 0); break;
+							case NI_NEQ:		value = (utf8_str_cmp(lsp->_.str,*(rsp->_.lvalue._.str)) != 0); break;
+							case NI_LT:			value = (utf8_str_cmp(lsp->_.str,*(rsp->_.lvalue._.str)) < 0); break;
+							case NI_LE:			value = (utf8_str_cmp(lsp->_.str,*(rsp->_.lvalue._.str)) <= 0); break;
+							case NI_GT:			value = (utf8_str_cmp(lsp->_.str,*(rsp->_.lvalue._.str)) > 0); break;
+							case NI_GE:			value = (utf8_str_cmp(lsp->_.str,*(rsp->_.lvalue._.str)) >= 0); break;
+							case NI_STR_PREFIX: value = !utf8_str_prefix(*(rsp->_.lvalue._.str),lsp->_.str); break;
+							case NI_STR_INFIX:	value = !utf8_str_infix(*(rsp->_.lvalue._.str),lsp->_.str); break;
+							case NI_STR_SUFFIX:	value = !utf8_str_suffix(*(rsp->_.lvalue._.str),lsp->_.str); break;
 							case NI_LAND:		value = (!IS_NULLSTR(lsp->_.str)) && (!IS_NULLSTR(*(rsp->_.lvalue._.str))); break;
 							case NI_LOR:		value = (!IS_NULLSTR(lsp->_.str)) || (!IS_NULLSTR(*(rsp->_.lvalue._.str))); break;
 							case NI_LXOR:		value = (!IS_NULLSTR(lsp->_.str)) != (!IS_NULLSTR(*(rsp->_.lvalue._.str))); break;
@@ -10049,15 +10049,15 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:			value = (str_cmp(*(lsp->_.lvalue._.str),rsp->_.str) == 0); break;
-							case NI_NEQ:		value = (str_cmp(*(lsp->_.lvalue._.str),rsp->_.str) != 0); break;
-							case NI_LT:			value = (str_cmp(*(lsp->_.lvalue._.str),rsp->_.str) < 0); break;
-							case NI_LE:			value = (str_cmp(*(lsp->_.lvalue._.str),rsp->_.str) <= 0); break;
-							case NI_GT:			value = (str_cmp(*(lsp->_.lvalue._.str),rsp->_.str) > 0); break;
-							case NI_GE:			value = (str_cmp(*(lsp->_.lvalue._.str),rsp->_.str) >= 0); break;
-							case NI_STR_PREFIX: value = !str_prefix(rsp->_.str,*(lsp->_.lvalue._.str)); break;
-							case NI_STR_INFIX:	value = !str_infix(rsp->_.str,*(lsp->_.lvalue._.str)); break;
-							case NI_STR_SUFFIX:	value = !str_suffix(rsp->_.str,*(lsp->_.lvalue._.str)); break;
+							case NI_EQ:			value = (utf8_str_cmp(*(lsp->_.lvalue._.str),rsp->_.str) == 0); break;
+							case NI_NEQ:		value = (utf8_str_cmp(*(lsp->_.lvalue._.str),rsp->_.str) != 0); break;
+							case NI_LT:			value = (utf8_str_cmp(*(lsp->_.lvalue._.str),rsp->_.str) < 0); break;
+							case NI_LE:			value = (utf8_str_cmp(*(lsp->_.lvalue._.str),rsp->_.str) <= 0); break;
+							case NI_GT:			value = (utf8_str_cmp(*(lsp->_.lvalue._.str),rsp->_.str) > 0); break;
+							case NI_GE:			value = (utf8_str_cmp(*(lsp->_.lvalue._.str),rsp->_.str) >= 0); break;
+							case NI_STR_PREFIX: value = !utf8_str_prefix(rsp->_.str,*(lsp->_.lvalue._.str)); break;
+							case NI_STR_INFIX:	value = !utf8_str_infix(rsp->_.str,*(lsp->_.lvalue._.str)); break;
+							case NI_STR_SUFFIX:	value = !utf8_str_suffix(rsp->_.str,*(lsp->_.lvalue._.str)); break;
 							case NI_LAND:		value = (!IS_NULLSTR(*(lsp->_.lvalue._.str))) && (!IS_NULLSTR(rsp->_.str)); break;
 							case NI_LOR:		value = (!IS_NULLSTR(*(lsp->_.lvalue._.str))) || (!IS_NULLSTR(rsp->_.str)); break;
 							case NI_LXOR:		value = (!IS_NULLSTR(*(lsp->_.lvalue._.str))) != (!IS_NULLSTR(rsp->_.str)); break;
@@ -10082,15 +10082,15 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:			value = (str_cmp(*(lsp->_.lvalue._.str),rsp->_.str) == 0); break;
-							case NI_NEQ:		value = (str_cmp(*(lsp->_.lvalue._.str),rsp->_.str) != 0); break;
-							case NI_LT:			value = (str_cmp(*(lsp->_.lvalue._.str),rsp->_.str) < 0); break;
-							case NI_LE:			value = (str_cmp(*(lsp->_.lvalue._.str),rsp->_.str) <= 0); break;
-							case NI_GT:			value = (str_cmp(*(lsp->_.lvalue._.str),rsp->_.str) > 0); break;
-							case NI_GE:			value = (str_cmp(*(lsp->_.lvalue._.str),rsp->_.str) >= 0); break;
-							case NI_STR_PREFIX:	value = !str_prefix(rsp->_.str,*(lsp->_.lvalue._.str)); break;
-							case NI_STR_INFIX:	value = !str_infix(rsp->_.str,*(lsp->_.lvalue._.str)); break;
-							case NI_STR_SUFFIX:	value = !str_suffix(rsp->_.str,*(lsp->_.lvalue._.str)); break;
+							case NI_EQ:			value = (utf8_str_cmp(*(lsp->_.lvalue._.str),rsp->_.str) == 0); break;
+							case NI_NEQ:		value = (utf8_str_cmp(*(lsp->_.lvalue._.str),rsp->_.str) != 0); break;
+							case NI_LT:			value = (utf8_str_cmp(*(lsp->_.lvalue._.str),rsp->_.str) < 0); break;
+							case NI_LE:			value = (utf8_str_cmp(*(lsp->_.lvalue._.str),rsp->_.str) <= 0); break;
+							case NI_GT:			value = (utf8_str_cmp(*(lsp->_.lvalue._.str),rsp->_.str) > 0); break;
+							case NI_GE:			value = (utf8_str_cmp(*(lsp->_.lvalue._.str),rsp->_.str) >= 0); break;
+							case NI_STR_PREFIX:	value = !utf8_str_prefix(rsp->_.str,*(lsp->_.lvalue._.str)); break;
+							case NI_STR_INFIX:	value = !utf8_str_infix(rsp->_.str,*(lsp->_.lvalue._.str)); break;
+							case NI_STR_SUFFIX:	value = !utf8_str_suffix(rsp->_.str,*(lsp->_.lvalue._.str)); break;
 							case NI_LAND:		value = (!IS_NULLSTR(*(lsp->_.lvalue._.str))) && (!IS_NULLSTR(rsp->_.str)); break;
 							case NI_LOR:		value = (!IS_NULLSTR(*(lsp->_.lvalue._.str))) || (!IS_NULLSTR(rsp->_.str)); break;
 							case NI_LXOR:		value = (!IS_NULLSTR(*(lsp->_.lvalue._.str))) != (!IS_NULLSTR(rsp->_.str)); break;
@@ -10137,15 +10137,15 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 									bool value;
 									switch(op)
 									{
-									case NI_EQ:			value = (str_cmp(*(lsp->_.lvalue._.str),*(rsp->_.lvalue._.str)) == 0); break;
-									case NI_NEQ:		value = (str_cmp(*(lsp->_.lvalue._.str),*(rsp->_.lvalue._.str)) != 0); break;
-									case NI_LT:			value = (str_cmp(*(lsp->_.lvalue._.str),*(rsp->_.lvalue._.str)) < 0); break;
-									case NI_LE:			value = (str_cmp(*(lsp->_.lvalue._.str),*(rsp->_.lvalue._.str)) <= 0); break;
-									case NI_GT:			value = (str_cmp(*(lsp->_.lvalue._.str),*(rsp->_.lvalue._.str)) > 0); break;
-									case NI_GE:			value = (str_cmp(*(lsp->_.lvalue._.str),*(rsp->_.lvalue._.str)) >= 0); break;
-									case NI_STR_PREFIX: value = !str_prefix(*(rsp->_.lvalue._.str),*(lsp->_.lvalue._.str)); break;
-									case NI_STR_INFIX:	value = !str_infix(*(rsp->_.lvalue._.str),*(lsp->_.lvalue._.str)); break;
-									case NI_STR_SUFFIX:	value = !str_suffix(*(rsp->_.lvalue._.str),*(lsp->_.lvalue._.str)); break;
+									case NI_EQ:			value = (utf8_str_cmp(*(lsp->_.lvalue._.str),*(rsp->_.lvalue._.str)) == 0); break;
+									case NI_NEQ:		value = (utf8_str_cmp(*(lsp->_.lvalue._.str),*(rsp->_.lvalue._.str)) != 0); break;
+									case NI_LT:			value = (utf8_str_cmp(*(lsp->_.lvalue._.str),*(rsp->_.lvalue._.str)) < 0); break;
+									case NI_LE:			value = (utf8_str_cmp(*(lsp->_.lvalue._.str),*(rsp->_.lvalue._.str)) <= 0); break;
+									case NI_GT:			value = (utf8_str_cmp(*(lsp->_.lvalue._.str),*(rsp->_.lvalue._.str)) > 0); break;
+									case NI_GE:			value = (utf8_str_cmp(*(lsp->_.lvalue._.str),*(rsp->_.lvalue._.str)) >= 0); break;
+									case NI_STR_PREFIX: value = !utf8_str_prefix(*(rsp->_.lvalue._.str),*(lsp->_.lvalue._.str)); break;
+									case NI_STR_INFIX:	value = !utf8_str_infix(*(rsp->_.lvalue._.str),*(lsp->_.lvalue._.str)); break;
+									case NI_STR_SUFFIX:	value = !utf8_str_suffix(*(rsp->_.lvalue._.str),*(lsp->_.lvalue._.str)); break;
 									case NI_LAND:		value = (!IS_NULLSTR(*(lsp->_.lvalue._.str))) && (!IS_NULLSTR(*(rsp->_.lvalue._.str))); break;
 									case NI_LOR:		value = (!IS_NULLSTR(*(lsp->_.lvalue._.str))) || (!IS_NULLSTR(*(rsp->_.lvalue._.str))); break;
 									case NI_LXOR:		value = (!IS_NULLSTR(*(lsp->_.lvalue._.str))) != (!IS_NULLSTR(*(rsp->_.lvalue._.str))); break;
@@ -15739,7 +15739,241 @@ static bool __interpret_instruction(NIB_SCRIPT_RUNTIME *nsr)
 		}
 
 	case NI_SWITCH:
-		break;
+		{
+			short id = __get_short(nsr);
+			nib_address_t no_match = __get_address(nsr);
+
+			if (id <= 0 || id > nsr->script->n_switches)
+			{
+				SETRET(nsr,INVALID);
+				// SETRETN(nsr,__LINE__);
+				return true;
+			}
+
+			NIB_SWITCH *sw = &nsr->script->switches[id - 1];
+
+			NIB_SCRIPT_STACK *sp = nib_pop_stack_raw(nsr);
+			if (!sp)
+			{
+				SETRET(nsr,STACK);
+				// SETRETN(nsr,__LINE__);
+				return true;
+			}
+
+			nib_address_t address = NIB_INVALID_ADDRESS;
+			switch(sw->type)
+			{
+			case NSWT_NUMBER:
+				{
+					if (sp->type != NST_NUMBER && (sp->type == NST_LVALUE && sp->_.lvalue.type != NST_NUMBER))
+					{
+						SETRET(nsr,INVALID);
+						// SETRETN(nsr,__LINE__);
+						return true;
+					}
+
+					long number;
+					if (sp->type == NST_LVALUE)
+						number = *(sp->_.lvalue._.number);
+					else
+						number = sp->_.i;
+					
+					for(int i = 0; address < 0 && i < sw->n_cases; i++)
+					{
+						NIB_SWITCH_CASE *cs = &sw->cases[i];
+
+						switch(cs->type)
+						{
+						case NCASE_VALUE:
+							if (number == cs->a.number) address = cs->address;
+							break;
+						case NCASE_VX:
+							if (number >= cs->a.number) address = cs->address;
+							break;
+						case NCASE_XV:
+							if (number <= cs->b.number) address = cs->address;
+							break;
+						case NCASE_VV:
+							if ((number >= cs->a.number) &&
+								(number <= cs->b.number)) address = cs->address;
+							break;
+						}
+					}
+					break;
+				}
+
+			case NSWT_FLOAT:
+				{
+					if (sp->type != NST_FLOAT && (sp->type == NST_LVALUE && sp->_.lvalue.type != NST_FLOAT))
+					{
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					double number;
+					if (sp->type == NST_LVALUE)
+						number = *(sp->_.lvalue._.d);
+					else
+						number = sp->_.d;
+					
+					for(int i = 0; address < 0 && i < sw->n_cases; i++)
+					{
+						NIB_SWITCH_CASE *cs = &sw->cases[i];
+
+						switch(cs->type)
+						{
+						case NCASE_VALUE:
+							if (number == cs->a.flt) address = cs->address;
+							break;
+						case NCASE_VX:
+							if (number >= cs->a.flt) address = cs->address;
+							break;
+						case NCASE_XV:
+							if (number <= cs->b.flt) address = cs->address;
+							break;
+						case NCASE_VV:
+							if ((number >= cs->a.flt) &&
+								(number <= cs->b.flt)) address = cs->address;
+							break;
+						}
+					}
+					break;
+				}
+
+			case NSWT_CHAR:
+				{
+					if (sp->type != NST_CHAR && (sp->type == NST_LVALUE && sp->_.lvalue.type != NST_CHAR))
+					{
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					utf8char_t ch;
+					if (sp->type == NST_LVALUE)
+						ch = *(sp->_.lvalue._.ch);
+					else
+						ch = sp->_.ch;
+					
+					for(int i = 0; address < 0 && i < sw->n_cases; i++)
+					{
+						NIB_SWITCH_CASE *cs = &sw->cases[i];
+
+						switch(cs->type)
+						{
+						case NCASE_VALUE:
+							if (ch == cs->a.ch) address = cs->address;
+							break;
+						case NCASE_VX:
+							if (ch >= cs->a.ch) address = cs->address;
+							break;
+						case NCASE_XV:
+							if (ch <= cs->b.ch) address = cs->address;
+							break;
+						case NCASE_VV:
+							if ((ch >= cs->a.ch) &&
+								(ch <= cs->b.ch)) address = cs->address;
+							break;
+						}
+					}
+					break;
+				}
+
+			case NSWT_STRING:
+				{
+					if (sp->type != NST_STRING &&
+						sp->type != NST_STRING_S &&
+						(sp->type == NST_LVALUE && sp->_.lvalue.type != NST_STRING))
+					{
+						free_stack_item(sp);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					char *str;
+					if (sp->type == NST_LVALUE)
+						str = *(sp->_.lvalue._.str);
+					else
+						str = sp->_.str;
+					
+					for(int i = 0; address < 0 && i < sw->n_cases; i++)
+					{
+						NIB_SWITCH_CASE *cs = &sw->cases[i];
+						const char *cstr = nib_get_string(cs->a.str);
+
+						switch(cs->type)
+						{
+						case NCASE_VALUE:
+							if (!utf8_str_cmp(str, cstr)) address = cs->address;
+							break;
+						case NCASE_PREFIX:
+							if (!utf8_str_prefix(str, cstr)) address = cs->address;
+							break;
+						case NCASE_INFIX:
+							if (!utf8_str_infix(str, cstr)) address = cs->address;
+							break;
+						case NCASE_SUFFIX:
+							if (!utf8_str_suffix(str, cstr)) address = cs->address;
+							break;
+						}
+					}
+
+					free_stack_item(sp);	// Done with the string data
+					break;
+				}
+
+			case NSWT_STAT:
+				{
+					if (sp->type != NST_STAT && (sp->type == NST_LVALUE && sp->_.lvalue.type != NST_STAT))
+					{
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					long number;
+					if (sp->type == NST_LVALUE)
+						number = *(sp->_.lvalue._.stat.number);
+					else
+						number = sp->_.stat.number;
+					
+					for(int i = 0; address < 0 && i < sw->n_cases; i++)
+					{
+						NIB_SWITCH_CASE *cs = &sw->cases[i];
+
+						switch(cs->type)
+						{
+						case NCASE_VALUE:
+							if (number == cs->a.number) address = cs->address;
+							break;
+						case NCASE_VX:
+							if (number >= cs->a.number) address = cs->address;
+							break;
+						case NCASE_XV:
+							if (number <= cs->b.number) address = cs->address;
+							break;
+						case NCASE_VV:
+							if ((number >= cs->a.number) &&
+								(number <= cs->b.number)) address = cs->address;
+							break;
+						}
+					}
+					break;
+				}
+
+			default:
+				free_stack_item(sp);
+				SETRET(nsr,INVALID);
+				return true;
+			}
+
+			if (address < 0)	// No matching case found, try default
+				address = sw->default_address;
+
+			if (address < 0)	// No matching case nor default found
+				address = no_match;
+
+			nsr->pc = address;
+			break;
+		}
 
 	case NI_INC:
 		if (!__increment_stack(nsr, false, false))
@@ -16380,12 +16614,11 @@ static LLIST *__generate_disassembly(NIB_SCRIPT *script)
 	{
 		nib_bytecode_p pc = script->code;
 		uintptr_t addr = 0;
-		int address;
+		nib_address_t address;
 		long number;
 		char ch;
 		double floating;
-		short string_index;
-		short table_index;
+		short index;
 		void *pointer;
 		struct flag_type *table;
 		NIB_SCRIPT_STACK_TYPE type = NST_UNKNOWN;
@@ -16421,7 +16654,6 @@ static LLIST *__generate_disassembly(NIB_SCRIPT *script)
 			case NI_DUP:
 			case NI_POP:
 			case NI_RETURN:
-			case NI_SWITCH:
 			case NI_INC:
 			case NI_DEC:
 			case NI_POST_INC:
@@ -16469,6 +16701,16 @@ static LLIST *__generate_disassembly(NIB_SCRIPT *script)
 			case NI_RSH_EQ:
 			case NI_RSHL_EQ:
 				break;
+
+			case NI_SWITCH:
+			{
+				memcpy(&index, &pc[addr+1], sizeof(index)); addr+=sizeof(index);
+				memcpy(&address, &pc[addr+1], sizeof(address)); addr+=sizeof(address);
+
+				linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d <addr: %08X>", index, address);
+
+				break;
+			}
 
 			case NI_GET_AREA:
 				type = NST_AREA;
@@ -16606,15 +16848,15 @@ static LLIST *__generate_disassembly(NIB_SCRIPT *script)
 
 			case NI_LOAD_STRING:
 				{
-					memcpy(&string_index, &pc[addr+1], sizeof(string_index));
-					const char *str = nib_get_string(string_index);
+					memcpy(&index, &pc[addr+1], sizeof(index));
+					const char *str = nib_get_string(index);
 
 					if (str)
-						linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d \"%s\"", string_index, str);
+						linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d \"%s\"", index, str);
 					else
-						linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d --invalid--", string_index);
+						linej += snprintf(line + linej, sizeof(line) - linej - 1, " %d --invalid--", index);
 
-					addr+=sizeof(string_index);
+					addr+=sizeof(index);
 					break;
 				}
 
@@ -16652,9 +16894,9 @@ static LLIST *__generate_disassembly(NIB_SCRIPT *script)
 
 			case NI_LOAD_FLAG_TABLE:
 				memcpy(&number, &pc[addr+1], sizeof(number)); addr += sizeof(number);
-				memcpy(&table_index, &pc[addr+1], sizeof(table_index)); addr+=sizeof(table_index);
-				if (table_index > 0 && table_index <= script->n_tables)
-					table = script->tables[table_index - 1];
+				memcpy(&index, &pc[addr+1], sizeof(index)); addr+=sizeof(index);
+				if (index > 0 && index <= script->n_tables)
+					table = script->tables[index - 1];
 				else
 					table = NULL;
 
@@ -16663,9 +16905,9 @@ static LLIST *__generate_disassembly(NIB_SCRIPT *script)
 
 			case NI_LOAD_STAT:
 				memcpy(&number, &pc[addr+1], sizeof(number)); addr += sizeof(number);
-				memcpy(&table_index, &pc[addr+1], sizeof(table_index)); addr+=sizeof(table_index);
-				if (table_index > 0 && table_index <= script->n_tables)
-					table = script->tables[table_index - 1];
+				memcpy(&index, &pc[addr+1], sizeof(index)); addr+=sizeof(index);
+				if (index > 0 && index <= script->n_tables)
+					table = script->tables[index - 1];
 				else
 					table = NULL;
 

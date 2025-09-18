@@ -375,30 +375,32 @@ static utf8char_t parse_utf8_escape_character(char *str)
 %option bison-locations
 %option bison-bridge
 
+%option stack
 %x ML_COMMENT
 %x FIELD_NAME
 %x FLAG_NAMES
+%x CASE_LABEL
 
 /* UTF-8 continuation byte */
 UB [\200-\277]
 
 %%
 
-<INITIAL>"/*"			    { BEGIN(ML_COMMENT); /* ML comments */ }
-<ML_COMMENT>"*/"		    { BEGIN(INITIAL); }
+<INITIAL>"/*"			    { yy_push_state(ML_COMMENT); /* ML comments */ }
+<ML_COMMENT>"*/"		    { yy_pop_state(); }
 <ML_COMMENT>.|\n		    ;	// Ignore stuff inside comment
 <ML_COMMENT><<EOF>>		    { /* Complain about unterminated comment */ }
 "//"[^\n]*					;	// Ignore EOL comments
 
-[0-9]+\.[0-9]+			{ yylval->float_number = atof(nibtext); return T_FLOAT_NUMBER; }
-0x[0-9a-fA-F]+			{ yylval->number = strtol(nibtext+2,NULL,16); return T_NUMBER;}
-[0-9]+					{ yylval->number = atol(nibtext); return T_NUMBER; }
-'.'						{ yylval->ch = convert_to_utf8char(nibtext, 1); return T_CHAR_LITERAL; }
-'[\300-\337]{UB}'		{ yylval->ch = convert_to_utf8char(nibtext, 2); return T_CHAR_LITERAL; }
-'[\340-\357]{UB}{2}'	{ yylval->ch = convert_to_utf8char(nibtext, 3); return T_CHAR_LITERAL; }
-'[\360-\367]{UB}{3}'	{ yylval->ch = convert_to_utf8char(nibtext, 4); return T_CHAR_LITERAL; }
-'\\.'					{ yylval->ch = parse_escape_character(nibtext); return T_CHAR_LITERAL; }
-'(\\[Uu][0-9a-fA-F]+)'		{
+<INITIAL,CASE_LABEL>[0-9]+\.[0-9]+			{ yylval->float_number = atof(nibtext); return T_FLOAT_NUMBER; }
+<INITIAL,CASE_LABEL>0x[0-9a-fA-F]+			{ yylval->number = strtol(nibtext+2,NULL,16); return T_NUMBER;}
+<INITIAL,CASE_LABEL>[0-9]+					{ yylval->number = atol(nibtext); return T_NUMBER; }
+<INITIAL,CASE_LABEL>'.'						{ yylval->ch = convert_to_utf8char(nibtext, 1); return T_CHAR_LITERAL; }
+<INITIAL,CASE_LABEL>'[\300-\337]{UB}'		{ yylval->ch = convert_to_utf8char(nibtext, 2); return T_CHAR_LITERAL; }
+<INITIAL,CASE_LABEL>'[\340-\357]{UB}{2}'	{ yylval->ch = convert_to_utf8char(nibtext, 3); return T_CHAR_LITERAL; }
+<INITIAL,CASE_LABEL>'[\360-\367]{UB}{3}'	{ yylval->ch = convert_to_utf8char(nibtext, 4); return T_CHAR_LITERAL; }
+<INITIAL,CASE_LABEL>'\\.'					{ yylval->ch = parse_escape_character(nibtext); return T_CHAR_LITERAL; }
+<INITIAL,CASE_LABEL>'(\\[Uu][0-9a-fA-F]+)'		{
 		utf8char_t ch = parse_utf8_escape_character(nibtext);
 		if (ch != (utf8char_t)-1)
 		{
@@ -408,7 +410,7 @@ UB [\200-\277]
 		else
 			return T_PARSE_ERROR;
 	}
-'(\\[Xx][0-9a-fA-F]+)'		{
+<INITIAL,CASE_LABEL>'(\\[Xx][0-9a-fA-F]+)'		{
 		utf8char_t ch = parse_hex_escape_character(nibtext);
 		if (ch != (utf8char_t)-1)
 		{
@@ -418,7 +420,7 @@ UB [\200-\277]
 		else
 			return T_PARSE_ERROR;
 	}
-'(\\0[0-7]+)'		{
+<INITIAL,CASE_LABEL>'(\\0[0-7]+)'		{
 		utf8char_t ch = parse_octal_escape_character(nibtext);
 		if (ch != (utf8char_t)-1)
 		{
@@ -428,7 +430,7 @@ UB [\200-\277]
 		else
 			return T_PARSE_ERROR;
 	}
-\"(\\[Xx][0-9a-fA-F]+|\\[Uu][0-9a-fA-F]+|\\0[0-7]+|\\.|[^"\\])*\"		{
+<INITIAL,CASE_LABEL>\"(\\[Xx][0-9a-fA-F]+|\\[Uu][0-9a-fA-F]+|\\0[0-7]+|\\.|[^"\\])*\"		{
 		char *str = trim_outer_quotes(nibtext);
 		if (!str) return T_PARSE_ERROR;
 		yylval->literal = str;
@@ -438,7 +440,7 @@ UB [\200-\277]
 "boolean"				{ return T_BOOLEAN; }
 "bool"					{ return T_BOOLEAN; }	// Shorthand for BOOLEAN
 "break"					{ return T_BREAK; }
-"case"					{ return T_CASE; }
+"case"					{ yy_push_state(CASE_LABEL); return T_CASE; }
 "char"					{ return T_CHAR; }
 "constant"				{ return T_CONSTANT; }
 "continue"				{ return T_CONTINUE; }
@@ -478,8 +480,8 @@ UB [\200-\277]
 "typeof"                { return T_TYPEOF; }
 "while"					{ return T_WHILE; }
 "widevnum"				{ return T_WIDEVNUM; }
-"<["					{ BEGIN(FLAG_NAMES); return T_OPEN_FLAG; }
-<FLAG_NAMES>"]>"		{ BEGIN(INITIAL); return T_CLOSE_FLAG; }
+"<["					{ yy_push_state(FLAG_NAMES); return T_OPEN_FLAG; }
+<FLAG_NAMES>"]>"		{ yy_pop_state(); return T_CLOSE_FLAG; }
 "{["                    { return T_OPEN_MAP; }
 "]}"                    { return T_CLOSE_MAP; }
 "({"					{ return T_OPEN_LIST; }
@@ -533,7 +535,7 @@ UB [\200-\277]
 "#"						{ return T_WIDEVNUM_DELIM; }
 "..."					{ return T_VARARGS; }
 ".."                    { return T_RANGE; }
-"."                     { BEGIN(FIELD_NAME); return T_DOT; }
+"."                     { yy_push_state(FIELD_NAME); return T_DOT; }
 "["                     { return T_OPEN_BRACKET; }
 "]"                     { return T_CLOSE_BRACKET; }
 "("						{ return T_OPEN_PAREN; }
@@ -542,13 +544,17 @@ UB [\200-\277]
 "}"						{ return T_CLOSE_BRACE; }
 ","                     { return T_COMMA; }
 [a-zA-Z_][a-zA-Z0-9_]*  { yylval->identifier = nib_strdup(nibtext); return T_IDENTIFIER; }
-<FIELD_NAME>[a-zA-Z_][a-zA-Z0-9_]*  { BEGIN(INITIAL); yylval->identifier = nib_strdup(nibtext); return T_IDENTIFIER; }
+<FIELD_NAME>[a-zA-Z_][a-zA-Z0-9_]*  { yy_pop_state(); yylval->identifier = nib_strdup(nibtext); return T_IDENTIFIER; }
 <FLAG_NAMES>"::"		{ return T_COLONS; }
 <FLAG_NAMES>":"			{ return T_COLON; }
 <FLAG_NAMES>","   		{ return T_COMMA; }
+<FLAG_NAMES>"."   		{ return T_DOT; }
 <FLAG_NAMES>[0-9]+		{ yylval->number = atol(nibtext); return T_NUMBER; }
 <FLAG_NAMES>[a-zA-Z_][a-zA-Z0-9_]*  { yylval->identifier = nib_strdup(nibtext); return T_IDENTIFIER; }
-[ \t\n]+  				{ /* Ignore white space*/ }
+<CASE_LABEL>".."			{ yy_pop_state(); return T_RANGE; }
+<CASE_LABEL>":"			{ yy_pop_state(); return T_COLON; }
+<CASE_LABEL>[a-zA-Z_][a-zA-Z0-9_]*  { yylval->identifier = nib_strdup(nibtext); return T_IDENTIFIER; }
+<*>[ \t\n]+  				{ /* Ignore white space*/ }
 .                       { /* complain */ }
 
 %%

@@ -29,6 +29,14 @@ bool is_valid_variable_type(pVARIABLE var, NIB_TYPE *type);
 NIB_SCRIPT_STACK_TYPE convert_to_stype(NIB_TYPE *type);
 extern LLIST *nib_flag_created_tables;
 extern LLIST *nib_stat_created_tables;
+extern LLIST *nib_switch_blocks;
+extern struct nib_compile_switch_s *nib_current_switch;
+struct nib_compile_switch_case_s *new_nib_compile_switch_case();
+void free_nib_compile_switch_case(struct nib_compile_switch_case_s *cs);
+bool push_nib_switch_block(SWITCH_TYPE type, const struct flag_type *table);
+void pop_nib_switch_block();
+bool nib_switch_overlaps_case(struct nib_compile_switch_case_s *c);
+void nib_switch_add_case(struct nib_compile_switch_case_s *c);
 
 static long last_expression = -1;
 
@@ -201,6 +209,23 @@ static void insert_pop_value()
 #else
 	ins_code(NI_POP);
 #endif
+}
+
+static enum nib_switch_type_e check_valid_switch_type(NIB_TYPE *type, const struct flag_type **table)
+{
+	*table = NULL;
+	if (type == NULL) return NSWT_UNKNOWN;
+	if (type == nibtype_int) return NSWT_NUMBER;
+	if (type == nibtype_float) return NSWT_FLOAT;
+	if (type == nibtype_char) return NSWT_CHAR;
+	if (type == nibtype_string) return NSWT_STRING;
+	if (type->type_class == NTC_STAT)
+	{
+		*table = type->_.stat.table;
+		return NSWT_STAT;
+	}
+
+	return NSWT_UNKNOWN;
 }
 
 // Checks assignment can be handled, adding any instructions if necessary.
@@ -987,10 +1012,7 @@ void niberrorf(const char *msg, ...)
 		bool constant;
 	} modifiers;
 
-	struct {
-		intptr_t key;		/* shared string ptr, or a number */
-		bool numeric;		/* TRUE: .key is a number */
-	} case_label;
+	struct nib_compile_switch_case_s *case_label;
 
 	struct decl_s 
 	{
@@ -1040,17 +1062,18 @@ void niberrorf(const char *msg, ...)
 %destructor { nib_free($$); } <identifier>
 %destructor { list_destroy($$); } <string_list>
 %destructor { list_destroy($$); } <type_list>
+%destructor { free_nib_compile_switch_case($$); } <case_label>
 
 %type <number> T_NUMBER constant
 %type <ch> T_CHAR_LITERAL
-%type <float_number> T_FLOAT_NUMBER
+%type <float_number> T_FLOAT_NUMBER float_constant
 %type <literal> T_STRING_LITERAL
 %type <identifier> T_IDENTIFIER /* table_name */
 %type <nibtype> type listtype cast
 %type <string_list> comma_name_list flag_name_list
 %type <flags> flag_number_list comma_bit_list
 %type <modifiers> possible_modifiers
-%type <b> boolean_value switch_label
+%type <b> boolean_value
 %type <lrvalue> expr0 expr4 field_call widevnum_value for_cond_expr
 %type <lvalue> lvalue name_lvalue
 %type <rvalue> comma_expr
@@ -1060,7 +1083,6 @@ void niberrorf(const char *msg, ...)
 // Contains the opcode used for the assignment
 %type <assign> T_ASSIGN
 %type <statement> statement_block statement cond for foreach do while switch
-%type <switch_block> switch_block switch_statements
 %type <case_label> case_label
 
 %right T_ASSIGN
@@ -2023,140 +2045,539 @@ do:
 	;
 
 switch:
-		T_SWITCH T_OPEN_PAREN expr0 T_CLOSE_PAREN
+		T_SWITCH T_OPEN_PAREN expr0[E] T_CLOSE_PAREN
 		{
-			// Push current break information
-			// Push current PC
+			const struct flag_type *table;
+			enum nib_switch_type_e type = check_valid_switch_type($E.type,&table);
+			if(type == NSWT_UNKNOWN)
+			{
+				yyerror("Invalid expression type used in switch statement.");
+				YYERROR;
+			}
 
-			// Start code for dealing with SWITCH
-			// Setup for new case label generation
+			if (list_size(nib_switch_blocks) >= 0x7FFF)
+			{
+				yyerror("Too many switch statements declared.");
+				YYERROR;
+			}
 
-			// Set up break information
+			if (!push_nib_switch_block(type, table))
+			{
+				yyerror("Error generating switch block.");
+				YYERROR;
+			}
+
+			ins_code(NI_SWITCH);
+			ins_short(nib_current_switch->id);
+			// Add jump address in case there are no matching cases
+			$<address>$ = CURRENT_PROGRAM_SIZE;
+			ins_address(0);
+
+			push_nib_break_address();
 		}
 		T_OPEN_BRACE switch_block T_CLOSE_BRACE
 		{
+			if (list_size(nib_current_switch->cases) < 1 && !nib_current_switch->has_default)
+			{
+				yyerror("Switch has no cases.");
+				YYERROR;
+			}
 
+			upd_address($<address>5,CURRENT_PROGRAM_SIZE);
 
-			// Pop old PC
-			// Pop old break information
-			// Revert to previous case information
+			update_nib_break_statements(CURRENT_PROGRAM_SIZE);
+
+			pop_nib_break_address();
+			pop_nib_switch_block();
 		}
 	;
 
 switch_block:
-		switch_block switch_statements
-		{
-			$$.has_default = $1.has_default || $2.has_default;
-			$$.statements = (NIB_STATEMENT)
-					{
-						.may_return =		$1.statements.may_return		|| $2.statements.may_return,
-						.may_break =		$1.statements.may_break			|| $2.statements.may_break,
-						.may_continue =		$1.statements.may_continue		|| $2.statements.may_continue,
-						.may_finish =										   $2.statements.may_finish,
-						.is_empty =			false,
-						.warned_dead_code =	$1.statements.warned_dead_code	|| $2.statements.warned_dead_code,
-					};
-		}
-	|	switch_statements
+		switch_block switch_statement
+	|	switch_statement
 	;
 
-switch_statements:
-		switch_label statement_block
-		{
-			$$.has_default = $1;
-			$$.statements = $2;
-		}
+switch_statement:
+		case
+	|	default
+	|	statement
 	;
-
-switch_label:
-		case		{ $$ = false; }
-	|	default		{ $$ = true; }
 
 case:
-		T_CASE case_label T_COLON
+		T_CASE case_label[C] T_COLON
 		{
-			// Make sure we are in a switch statement
-
-			// Add case label
-
-			// Mark the zero case? (why?)
-
-			// Store info about case data
-		}
-	|	T_CASE case_label T_RANGE case_label T_COLON
-		{
-			// Make sure we are in a switch statement
-
-			// Verify both labels are numeric
-			if (!$2.numeric || !$4.numeric)
+			if (nib_switch_overlaps_case($C))
 			{
-				yyerror("String case labels not allowed as range bounds.");
+				free_nib_compile_switch_case($C);
+				yyerror("Duplicate or overlapping case in switch statement.");
 				YYERROR;
 			}
 
-			// Verify range is valid
-			if ($2.key >= $4.key)
-			{
-				if ($2.key < $4.key)
-				{
-					niberrorf("Illegal case range: lower limit %ld > upper limit %ld",
-						(long)$2.key, (long)$4.key);
-					YYERROR;
-				}
-
-				// Generate case entry
-			}
-			else
-			{
-				// Generate case entry pair
-				// - Mark lower bound entry
-				// - Mark upper bound entry
-			}
-
-
-			// Add case label
-
-			// Mark the zero case? (why?)
-
-			// Store info about case data
+			$C->address = CURRENT_PROGRAM_SIZE;
+			nib_switch_add_case($C);
 		}
 	;
 
 case_label:
-		constant
+		constant[A]
 		{
-			// Check if the current switch is using numeric labels
-
-			$$.key = $1;
-			$$.numeric = true;
-		}
-	|	T_STRING_LITERAL
-		{
-			// Check if the current switch is using string labels
-
-			int index = nib_add_string_to_storage($1);
-			if (index < 1)
+			if (nib_current_switch->type != NSWT_NUMBER)
 			{
-				yyerror("Error storing string literal into storage.");
+				yyerror("NUMBER case label used in a non-NUMBER switch.");
 				YYERROR;
 			}
 
-			$$.key = index;
-			$$.numeric = false;
-			nib_free($1);
+			struct nib_compile_switch_case_s *cs = new_nib_compile_switch_case();
+			if (!cs)
+			{
+				yyerror("Memory allocation failure.");
+				YYERROR;
+			}
+
+			cs->type = NCASE_VALUE;
+			cs->a.number = $A;
+
+			$$ = cs;
+		}
+	|	constant[A] T_RANGE
+		{
+			if (nib_current_switch->type != NSWT_NUMBER)
+			{
+				yyerror("NUMBER case label used in a non-NUMBER switch.");
+				YYERROR;
+			}
+
+			struct nib_compile_switch_case_s *cs = new_nib_compile_switch_case();
+			if (!cs)
+			{
+				yyerror("Memory allocation failure.");
+				YYERROR;
+			}
+
+			cs->type = NCASE_VX;
+			cs->a.number = $A;
+
+			$$ = cs;
+		}
+	|	T_RANGE constant[B]
+		{
+			if (nib_current_switch->type != NSWT_NUMBER)
+			{
+				yyerror("NUMBER case label used in a non-NUMBER switch.");
+				YYERROR;
+			}
+
+			struct nib_compile_switch_case_s *cs = new_nib_compile_switch_case();
+			if (!cs)
+			{
+				yyerror("Memory allocation failure.");
+				YYERROR;
+			}
+
+			cs->type = NCASE_XV;
+			cs->b.number = $B;
+
+			$$ = cs;
+		}
+	|	constant[A] T_RANGE constant[B]
+		{
+			if (nib_current_switch->type != NSWT_NUMBER)
+			{
+				yyerror("NUMBER case label used in a non-NUMBER switch.");
+				YYERROR;
+			}
+
+			struct nib_compile_switch_case_s *cs = new_nib_compile_switch_case();
+			if (!cs)
+			{
+				yyerror("Memory allocation failure.");
+				YYERROR;
+			}
+
+			cs->type = NCASE_VV;
+			cs->a.number = $A;
+			cs->b.number = $B;
+
+			$$ = cs;
+		}
+	|	float_constant[A]
+		{
+			if (nib_current_switch->type != NSWT_FLOAT)
+			{
+				yyerror("FLOAT case label used in a non-FLOAT switch.");
+				YYERROR;
+			}
+
+
+			struct nib_compile_switch_case_s *cs = new_nib_compile_switch_case();
+			if (!cs)
+			{
+				yyerror("Memory allocation failure.");
+				YYERROR;
+			}
+
+			cs->type = NCASE_VALUE;
+			cs->a.flt = $A;
+
+			$$ = cs;
+		}
+	|	float_constant[A] T_RANGE
+		{
+			if (nib_current_switch->type != NSWT_FLOAT)
+			{
+				yyerror("FLOAT case label used in a non-FLOAT switch.");
+				YYERROR;
+			}
+
+			struct nib_compile_switch_case_s *cs = new_nib_compile_switch_case();
+			if (!cs)
+			{
+				yyerror("Memory allocation failure.");
+				YYERROR;
+			}
+
+			cs->type = NCASE_VX;
+			cs->a.flt = $A;
+
+			$$ = cs;
+		}
+	|	T_RANGE float_constant[B]
+		{
+			if (nib_current_switch->type != NSWT_FLOAT)
+			{
+				yyerror("FLOAT case label used in a non-FLOAT switch.");
+				YYERROR;
+			}
+
+			struct nib_compile_switch_case_s *cs = new_nib_compile_switch_case();
+			if (!cs)
+			{
+				yyerror("Memory allocation failure.");
+				YYERROR;
+			}
+
+			cs->type = NCASE_XV;
+			cs->b.flt = $B;
+
+			$$ = cs;
+		}
+	|	float_constant[A] T_RANGE float_constant[B]
+		{
+			if (nib_current_switch->type != NSWT_FLOAT)
+			{
+				yyerror("FLOAT case label used in a non-FLOAT switch.");
+				YYERROR;
+			}
+
+
+			struct nib_compile_switch_case_s *cs = new_nib_compile_switch_case();
+			if (!cs)
+			{
+				yyerror("Memory allocation failure.");
+				YYERROR;
+			}
+
+			cs->type = NCASE_VV;
+			cs->a.flt = $A;
+			cs->b.flt = $B;
+
+			$$ = cs;
+		}
+	|	T_CHAR_LITERAL[A]
+		{
+			if (nib_current_switch->type != NSWT_CHAR)
+			{
+				yyerror("CHAR case label used in a non-CHAR switch.");
+				YYERROR;
+			}
+
+			struct nib_compile_switch_case_s *cs = new_nib_compile_switch_case();
+			if (!cs)
+			{
+				yyerror("Memory allocation failure.");
+				YYERROR;
+			}
+
+			cs->type = NCASE_VALUE;
+			cs->a.ch = $A;
+
+			$$ = cs;
+		}
+	|	T_CHAR_LITERAL[A] T_RANGE
+		{
+			if (nib_current_switch->type != NSWT_CHAR)
+			{
+				yyerror("CHAR case label used in a non-CHAR switch.");
+				YYERROR;
+			}
+
+			struct nib_compile_switch_case_s *cs = new_nib_compile_switch_case();
+			if (!cs)
+			{
+				yyerror("Memory allocation failure.");
+				YYERROR;
+			}
+
+			cs->type = NCASE_VX;
+			cs->a.ch = $A;
+
+			$$ = cs;
+		}
+	|	T_RANGE T_CHAR_LITERAL[B]
+		{
+			if (nib_current_switch->type != NSWT_CHAR)
+			{
+				yyerror("CHAR case label used in a non-CHAR switch.");
+				YYERROR;
+			}
+
+			struct nib_compile_switch_case_s *cs = new_nib_compile_switch_case();
+			if (!cs)
+			{
+				yyerror("Memory allocation failure.");
+				YYERROR;
+			}
+
+			cs->type = NCASE_XV;
+			cs->b.ch = $B;
+
+			$$ = cs;
+		}
+	|	T_CHAR_LITERAL[A] T_RANGE T_CHAR_LITERAL[B]
+		{
+			if (nib_current_switch->type != NSWT_CHAR)
+			{
+				yyerror("CHAR case label used in a non-CHAR switch.");
+				YYERROR;
+			}
+
+			struct nib_compile_switch_case_s *cs = new_nib_compile_switch_case();
+			if (!cs)
+			{
+				yyerror("Memory allocation failure.");
+				YYERROR;
+			}
+
+			cs->type = NCASE_VV;
+			cs->a.ch = $A;
+			cs->b.ch = $B;
+
+			$$ = cs;
+		}
+	|	T_STRING_LITERAL[A]
+		{
+			if (nib_current_switch->type != NSWT_STRING)
+			{
+				yyerror("STRING case label used in a non-STRING switch.");
+				YYERROR;
+			}
+
+			struct nib_compile_switch_case_s *cs = new_nib_compile_switch_case();
+			if (!cs)
+			{
+				yyerror("Memory allocation failure.");
+				YYERROR;
+			}
+
+			cs->type = NCASE_VALUE;
+			cs->a.str = $A;
+
+			$$ = cs;
+		}
+	|	T_STRING_LITERAL[A] T_RANGE
+		{
+			if (nib_current_switch->type != NSWT_STRING)
+			{
+				yyerror("STRING case label used in a non-STRING switch.");
+				YYERROR;
+			}
+
+			struct nib_compile_switch_case_s *cs = new_nib_compile_switch_case();
+			if (!cs)
+			{
+				yyerror("Memory allocation failure.");
+				YYERROR;
+			}
+
+			cs->type = NCASE_PREFIX;
+			cs->a.str = $A;
+
+			$$ = cs;
+		}
+	|	T_RANGE T_STRING_LITERAL[A]
+		{
+			if (nib_current_switch->type != NSWT_STRING)
+			{
+				yyerror("STRING case label used in a non-STRING switch.");
+				YYERROR;
+			}
+
+			struct nib_compile_switch_case_s *cs = new_nib_compile_switch_case();
+			if (!cs)
+			{
+				yyerror("Memory allocation failure.");
+				YYERROR;
+			}
+
+			cs->type = NCASE_SUFFIX;
+			cs->a.str = $A;
+
+			$$ = cs;
+		}
+	|	T_RANGE T_STRING_LITERAL[A] T_RANGE
+		{
+			if (nib_current_switch->type != NSWT_STRING)
+			{
+				yyerror("STRING case label used in a non-STRING switch.");
+				YYERROR;
+			}
+
+			struct nib_compile_switch_case_s *cs = new_nib_compile_switch_case();
+			if (!cs)
+			{
+				yyerror("Memory allocation failure.");
+				YYERROR;
+			}
+
+			cs->type = NCASE_INFIX;
+			cs->a.str = $A;
+
+			$$ = cs;
+		}
+	|	T_IDENTIFIER[A]
+		{
+			if (nib_current_switch->type != NSWT_STAT)
+			{
+				yyerror("STAT case label used in a non-STAT switch.");
+				YYERROR;
+			}
+
+			flag_value_t value;
+			if (!nib_find_flag_value(nib_current_switch->table, $A, NULL, &value))
+			{
+				niberrorf("Unknown stat value '%s' for case label.", $A);
+				YYERROR;
+			}
+
+			struct nib_compile_switch_case_s *cs = new_nib_compile_switch_case();
+			if (!cs)
+			{
+				yyerror("Memory allocation failure.");
+				YYERROR;
+			}
+
+			cs->type = NCASE_VALUE;
+			cs->a.number = value;
+
+			$$ = cs;
+			nib_free($A);
+		}
+	|	T_IDENTIFIER[A] T_RANGE
+		{
+			if (nib_current_switch->type != NSWT_STAT)
+			{
+				yyerror("STAT case label used in a non-STAT switch.");
+				YYERROR;
+			}
+
+			flag_value_t value;
+			if (!nib_find_flag_value(nib_current_switch->table, $A, NULL, &value))
+			{
+				niberrorf("Unknown stat value '%s' for case label.", $A);
+				YYERROR;
+			}
+
+			struct nib_compile_switch_case_s *cs = new_nib_compile_switch_case();
+			if (!cs)
+			{
+				yyerror("Memory allocation failure.");
+				YYERROR;
+			}
+
+			cs->type = NCASE_VX;
+			cs->a.number = value;
+
+			$$ = cs;
+			nib_free($A);
+		}
+	|	T_RANGE T_IDENTIFIER[A]
+		{
+			if (nib_current_switch->type != NSWT_STAT)
+			{
+				yyerror("STAT case label used in a non-STAT switch.");
+				YYERROR;
+			}
+
+			flag_value_t value;
+			if (!nib_find_flag_value(nib_current_switch->table, $A, NULL, &value))
+			{
+				niberrorf("Unknown stat value '%s' for case label.", $A);
+				YYERROR;
+			}
+
+			struct nib_compile_switch_case_s *cs = new_nib_compile_switch_case();
+			if (!cs)
+			{
+				yyerror("Memory allocation failure.");
+				YYERROR;
+			}
+
+			cs->type = NCASE_XV;
+			cs->b.number = value;
+
+			$$ = cs;
+			nib_free($A);
+		}
+	|	T_IDENTIFIER[A] T_RANGE T_IDENTIFIER[B]
+		{
+			if (nib_current_switch->type != NSWT_STAT)
+			{
+				yyerror("STAT case label used in a non-STAT switch.");
+				YYERROR;
+			}
+
+			flag_value_t a;
+			if (!nib_find_flag_value(nib_current_switch->table, $A, NULL, &a))
+			{
+				niberrorf("Unknown stat value '%s' for case label.", $A);
+				YYERROR;
+			}
+
+			flag_value_t b;
+			if (!nib_find_flag_value(nib_current_switch->table, $B, NULL, &b))
+			{
+				niberrorf("Unknown stat value '%s' for case label.", $B);
+				YYERROR;
+			}
+
+			struct nib_compile_switch_case_s *cs = new_nib_compile_switch_case();
+			if (!cs)
+			{
+				yyerror("Memory allocation failure.");
+				YYERROR;
+			}
+
+			cs->type = NCASE_VV;
+			cs->a.number = a;
+			cs->b.number = b;
+
+			$$ = cs;
+			nib_free($A);
+			nib_free($B);
 		}
 	;
 
 default:
 		T_DEFAULT T_COLON
 		{
-			// Detect this is done inside a switch statement
-			// Which.. I don't know why because it will only ever
-			//   be called in the switch parsing?
+			if (nib_current_switch->has_default)
+			{
+				yyerror("Duplicate DEFAULT case found in switch.");
+				YYERROR;
+			}
 
-			// Detect duplicate default in current switch
-
-			// Save default information in current switch
+			nib_current_switch->default_address = CURRENT_PROGRAM_SIZE;
+			nib_current_switch->has_default = true;
 		}
 	;
 
@@ -2187,21 +2608,43 @@ constant:
 	|	constant T_BAND constant			{ $$ = $1 & $3; }
 	|	constant T_BOR constant				{ $$ = $1 | $3; }
 	|	constant T_BXOR constant			{ $$ = $1 ^ $3; }
+	/*
 	|	constant T_EQUAL constant			{ $$ = $1 == $3; }
 	|	constant T_NOT_EQUAL constant		{ $$ = $1 != $3; }
 	|	constant T_LT constant				{ $$ = $1 < $3; }
 	|	constant T_LT_EQUAL constant		{ $$ = $1 <= $3; }
 	|	constant T_GT constant				{ $$ = $1 > $3; }
 	|	constant T_GT_EQUAL constant		{ $$ = $1 >= $3; }
+	*/
 	|	constant T_LEFT_SHIFT constant		{ $$ = ($3 > MAX_SHIFT) ? 0 : ($1 << $3); }
 	|	constant T_RIGHT_SHIFT constant		{ $$ = ($3 > MAX_SHIFT) ? (($1 >= 0) ? 0 : -1) : ($1 >> $3); }
 	|	constant T_RIGHTL_SHIFT constant	{ $$ = ($3 > MAX_SHIFT) ? 0 : (long)((unsigned long)$1 >> $3); }
 	|	T_BNOT constant						{ $$ = ~$2; }
 	|	T_MINUS constant %prec T_BNOT		{ $$ = -$2; }
-	|	T_LNOT constant						{ $$ = !$2; }
+	/*|	T_LNOT constant						{ $$ = !$2; }*/
 	|	T_OPEN_PAREN constant T_CLOSE_PAREN	{ $$ = $2; }
 	|	T_NUMBER							{ $$ = $1; }
 	;
+
+float_constant:
+		float_constant T_PLUS float_constant	{ $$ = $1 + $3; }
+	|	float_constant T_MINUS float_constant	{ $$ = $1 - $3; }
+	|	float_constant T_STAR float_constant	{ $$ = $1 * $3; }
+	|	float_constant T_DIVIDE float_constant
+		{
+			if ($3 == 0.0)
+			{
+				yyerror("Attempting to divide by zero.");
+				YYERROR;
+			}
+
+			$$ = $1 / $3;
+		}
+	|	T_MINUS float_constant %prec T_BNOT		{ $$ = -$2; }
+	|	T_OPEN_PAREN float_constant T_CLOSE_PAREN	{ $$ = $2; }
+	|	T_FLOAT_NUMBER							{ $$ = $1; }
+	;
+
 
 comma_expr:
 		expr0
@@ -2987,7 +3430,7 @@ expr4:
 	|	T_STRING_LITERAL
 		{
 			// Add string literal to the string literal list (if necessary)
-			int index = nib_add_string_to_storage($1);
+			short index = nib_add_string_to_storage($1);
 			if (index < 1)
 			{
 				yyerror("Error storing string literal into storage.");
@@ -3198,7 +3641,7 @@ expr4:
 			$$.needs_use = true;
 			$$.flags = IS_LITERAL;
 		}
-	|	T_OPEN_FLAG T_IDENTIFIER[T] T_COLONS T_IDENTIFIER[I] T_CLOSE_FLAG
+	|	T_OPEN_FLAG T_IDENTIFIER[T] T_DOT T_IDENTIFIER[I] T_CLOSE_FLAG
 		{
 			const struct flag_type *table = nib_lookup_stat_table(nib_stat_created_tables,$T);
 			if (!table)
@@ -3267,7 +3710,7 @@ widevnum_value:
 	|	T_STRING_LITERAL[A] T_WIDEVNUM_DELIM T_NUMBER[V]
 		{
 			// Add string literal to the string literal list (if necessary)
-			int index = nib_add_string_to_storage($A);
+			short index = nib_add_string_to_storage($A);
 			if (index < 1)
 			{
 				yyerror("Error storing string literal into storage.");
@@ -3361,7 +3804,7 @@ widevnum_value:
 			}
 
 			// Add string literal to the string literal list (if necessary)
-			int index = nib_add_string_to_storage($A);
+			short index = nib_add_string_to_storage($A);
 			if (index < 1)
 			{
 				yyerror("Error storing string literal into storage.");

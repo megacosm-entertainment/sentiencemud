@@ -35,10 +35,27 @@ LLIST *nib_stat_created_tables = NULL;
 
 LLIST *nib_used_tables = NULL;
 
+LLIST *nib_switch_blocks = NULL;
+
 struct nib_break_s *nib_break_address = NULL;
 struct nib_continue_s *nib_continue_address = NULL;
+struct nib_compile_switch_s *nib_current_switch = NULL;
 
 // Compilation Flags
+
+void free_nib_compile_switch_case(struct nib_compile_switch_case_s *cs)
+{
+	if (cs)
+	{
+		if (cs->a.str) nib_free(cs->a.str);
+		nib_free(cs);
+	}
+}
+
+static void __free_switch_case(void *data)
+{
+	free_nib_compile_switch_case((struct nib_compile_switch_case_s *)data);
+}
 
 void free_nib_bc_statement(struct nib_bc_statment_s *stmt)
 {
@@ -47,6 +64,729 @@ void free_nib_bc_statement(struct nib_bc_statment_s *stmt)
 		free_nib_bc_statement(stmt->next);
 		nib_free(stmt);
 	}
+}
+
+static int __compare_numbers(struct nib_compile_switch_case_s *a, struct nib_compile_switch_case_s *b)
+{
+	// Compare versus ranges
+	// a = element in the list
+	// b = new element
+
+	switch(a->type)
+	{
+	case NCASE_VALUE:		// Single value
+		switch(b->type)
+		{
+		case NCASE_VALUE:		// Single value
+			return b->a.number - a->a.number;
+		case NCASE_VX:			// Minimum
+			if (a->a.number < b->a.number)
+				return 1;
+			else
+				return 0;
+		case NCASE_XV:			// Maximum
+			if (a->a.number > b->b.number)
+				return -1;
+			else
+				return 0;
+		case NCASE_VV:
+			if (a->a.number < b->a.number)
+				return 1;
+			else if (a->a.number > b->b.number)
+				return -1;
+			else
+				return 0;	// Should never get to this point as it would mean they overlap
+		}
+		break;
+	
+	case NCASE_VX:			// Minimum
+		switch(b->type)
+		{
+		case NCASE_VALUE:		// Single value
+			if (a->a.number > b->a.number)
+				return -1;
+			else
+				return 0;
+		case NCASE_VX:			// Minimum
+			return 0;		// These always overlap, so order is irrelevant
+		case NCASE_XV:			// Maximum
+		case NCASE_VV:			// Range
+			if (a->a.number > b->b.number)
+				return -1;
+			else
+				return 0;	// Overlap
+		}
+		break;
+		
+	case NCASE_XV:			// Maximum
+		switch(b->type)
+		{
+		case NCASE_VALUE:		// Single value
+			if (a->b.number < b->a.number)
+				return 1;
+			else
+				return 0;
+		case NCASE_XV:			// Maximum
+			return 0;		// Overlap
+		case NCASE_VX:			// Minimum
+		case NCASE_VV:
+			if (a->b.number < b->a.number)
+				return 1;
+			else
+				return 0;	// overlap
+		}
+		break;
+	case NCASE_VV:
+		switch(b->type)
+		{
+		case NCASE_VALUE:		// Single value
+			if (a->b.number < b->a.number)
+				return 1;
+			else if (a->a.number > b->a.number)
+				return -1;
+			else
+				return 0;
+		case NCASE_VX:			// Minimum
+			if (a->b.number < b->a.number)
+				return 1;
+			else
+				return 0;
+		case NCASE_XV:			// Maximum
+			if (a->a.number > b->b.number)
+				return -1;
+			else
+				return 0;
+		case NCASE_VV:
+			if (a->b.number < b->a.number)
+				return 1;
+			if (a->a.number > b->b.number)
+				return -1;
+			return 0;	// overlap
+		}
+		break;
+	}
+
+	return 0;
+}
+
+static int __compare_floats(struct nib_compile_switch_case_s *a, struct nib_compile_switch_case_s *b)
+{
+	// Compare versus ranges
+	// a = element in the list
+	// b = new element
+
+	switch(a->type)
+	{
+	case NCASE_VALUE:		// Single value
+		switch(b->type)
+		{
+		case NCASE_VALUE:		// Single value
+			return b->a.flt - a->a.flt;
+		case NCASE_VX:			// Minimum
+			if (a->a.flt < b->a.flt)
+				return 1;
+			else
+				return 0;
+		case NCASE_XV:			// Maximum
+			if (a->a.flt > b->b.flt)
+				return -1;
+			else
+				return 0;
+		case NCASE_VV:
+			if (a->a.flt < b->a.flt)
+				return 1;
+			else if (a->a.flt > b->b.flt)
+				return -1;
+			else
+				return 0;	// Should never get to this point as it would mean they overlap
+		}
+		break;
+	
+	case NCASE_VX:			// Minimum
+		switch(b->type)
+		{
+		case NCASE_VALUE:		// Single value
+			if (a->a.flt > b->a.flt)
+				return -1;
+			else
+				return 0;
+		case NCASE_VX:			// Minimum
+			return 0;		// These always overlap, so order is irrelevant
+		case NCASE_XV:			// Maximum
+		case NCASE_VV:			// Range
+			if (a->a.flt > b->b.flt)
+				return -1;
+			else
+				return 0;	// Overlap
+		}
+		break;
+		
+	case NCASE_XV:			// Maximum
+		switch(b->type)
+		{
+		case NCASE_VALUE:		// Single value
+			if (a->b.flt < b->a.flt)
+				return 1;
+			else
+				return 0;
+		case NCASE_XV:			// Maximum
+			return 0;		// Overlap
+		case NCASE_VX:			// Minimum
+		case NCASE_VV:
+			if (a->b.flt < b->a.flt)
+				return 1;
+			else
+				return 0;	// overlap
+		}
+		break;
+	case NCASE_VV:
+		switch(b->type)
+		{
+		case NCASE_VALUE:		// Single value
+			if (a->b.flt < b->a.flt)
+				return 1;
+			else if (a->a.flt > b->a.flt)
+				return -1;
+			else
+				return 0;
+		case NCASE_VX:			// Minimum
+			if (a->b.flt < b->a.flt)
+				return 1;
+			else
+				return 0;
+		case NCASE_XV:			// Maximum
+			if (a->a.flt > b->b.flt)
+				return -1;
+			else
+				return 0;
+		case NCASE_VV:
+			if (a->b.flt < b->a.flt)
+				return 1;
+			if (a->a.flt > b->b.flt)
+				return -1;
+			return 0;	// overlap
+		}
+		break;
+	}
+
+	return 0;
+}
+
+static int __compare_chars(struct nib_compile_switch_case_s *a, struct nib_compile_switch_case_s *b)
+{
+	// Compare versus ranges
+	// a = element in the list
+	// b = new element
+
+	switch(a->type)
+	{
+	case NCASE_VALUE:		// Single value
+		switch(b->type)
+		{
+		case NCASE_VALUE:		// Single value
+			return b->a.ch - a->a.ch;
+		case NCASE_VX:			// Minimum
+			if (a->a.ch < b->a.ch)
+				return 1;
+			else
+				return 0;
+		case NCASE_XV:			// Maximum
+			if (a->a.ch > b->b.ch)
+				return -1;
+			else
+				return 0;
+		case NCASE_VV:
+			if (a->a.ch < b->a.ch)
+				return 1;
+			else if (a->a.ch > b->b.ch)
+				return -1;
+			else
+				return 0;	// Should never get to this point as it would mean they overlap
+		}
+		break;
+	
+	case NCASE_VX:			// Minimum
+		switch(b->type)
+		{
+		case NCASE_VALUE:		// Single value
+			if (a->a.ch > b->a.ch)
+				return -1;
+			else
+				return 0;
+		case NCASE_VX:			// Minimum
+			return 0;		// These always overlap, so order is irrelevant
+		case NCASE_XV:			// Maximum
+		case NCASE_VV:			// Range
+			if (a->a.ch > b->b.ch)
+				return -1;
+			else
+				return 0;	// Overlap
+		}
+		break;
+		
+	case NCASE_XV:			// Maximum
+		switch(b->type)
+		{
+		case NCASE_VALUE:		// Single value
+			if (a->b.ch < b->a.ch)
+				return 1;
+			else
+				return 0;
+		case NCASE_XV:			// Maximum
+			return 0;		// Overlap
+		case NCASE_VX:			// Minimum
+		case NCASE_VV:
+			if (a->b.ch < b->a.ch)
+				return 1;
+			else
+				return 0;	// overlap
+		}
+		break;
+	case NCASE_VV:
+		switch(b->type)
+		{
+		case NCASE_VALUE:		// Single value
+			if (a->b.ch < b->a.ch)
+				return 1;
+			else if (a->a.ch > b->a.ch)
+				return -1;
+			else
+				return 0;
+		case NCASE_VX:			// Minimum
+			if (a->b.ch < b->a.ch)
+				return 1;
+			else
+				return 0;
+		case NCASE_XV:			// Maximum
+			if (a->a.ch > b->b.ch)
+				return -1;
+			else
+				return 0;
+		case NCASE_VV:
+			if (a->b.ch < b->a.ch)
+				return 1;
+			if (a->a.ch > b->b.ch)
+				return -1;
+			return 0;	// overlap
+		}
+		break;
+	}
+
+	return 0;
+}
+
+static int __compare_strings(struct nib_compile_switch_case_s *a, struct nib_compile_switch_case_s *b)
+{
+	return utf8_str_cmp(b->a.str,a->a.str);
+}
+
+
+bool push_nib_switch_block(SWITCH_TYPE type, const struct flag_type *table)
+{
+	struct nib_compile_switch_s *sw = nib_calloc(1, sizeof(struct nib_compile_switch_s));
+	if (!sw) return false;
+
+	sw->prev = nib_current_switch;
+	nib_current_switch = sw;
+
+	list_appendlink(nib_switch_blocks, sw);
+	sw->id = list_size(nib_switch_blocks);
+
+	sw->type = type;
+	sw->table = table;
+	sw->cases = list_createx(false,NULL,__free_switch_case);
+	switch(type)
+	{
+	case NSWT_NUMBER:	sw->sorter = __compare_numbers; break;
+	case NSWT_FLOAT:	sw->sorter = __compare_floats; break;
+	case NSWT_CHAR:		sw->sorter = __compare_chars; break;
+	case NSWT_STRING:	sw->sorter = NULL; break;
+	case NSWT_STAT:		sw->sorter = __compare_numbers; break;
+	}
+
+	return true;
+}
+
+void pop_nib_switch_block()
+{
+	if (nib_current_switch)
+	{
+		nib_current_switch = nib_current_switch->prev;
+
+		// Nothing to free here
+	}
+}
+
+static bool nib_switch_overlaps_case_number(struct nib_compile_switch_case_s *c)
+{
+	bool overlaps = false;
+	ITERATOR it;
+	struct nib_compile_switch_case_s *cs;
+	iterator_start(&it, nib_current_switch->cases);
+	while(!overlaps && (cs = (struct nib_compile_switch_case_s *)iterator_nextdata(&it)))
+	{
+		switch(c->type)
+		{
+		case NCASE_VALUE:		// Single value
+			switch(cs->type)
+			{
+			case NCASE_VALUE:		// Single value
+				overlaps = c->a.number == cs->a.number;
+				break;
+			case NCASE_VX:			// Minimum
+				overlaps = c->a.number >= cs->a.number;
+				break;
+			case NCASE_XV:			// Maximum
+				overlaps = c->a.number <= cs->b.number;
+				break;
+			case NCASE_VV:			// Range
+				overlaps = (c->a.number >= cs->a.number) &&
+							(c->a.number <= cs->b.number);
+				break;
+			}
+			break;
+
+		case NCASE_VX:			// Minimum
+			switch(cs->type)
+			{
+			case NCASE_VALUE:		// Single value
+				// 1.. overlaps with 2
+				overlaps = c->a.number <= cs->a.number;
+				break;
+			case NCASE_VX:			// Minimum
+				// 1.. overlaps with 2..
+				overlaps = true;	// Always overlaps
+				break;
+			case NCASE_XV:			// Maximum
+				// 1.. overlaps with ..4
+			case NCASE_VV:			// Range
+				// 1.. overlaps with 2..4 and 0..4
+				overlaps = c->a.number <= cs->b.number;
+				break;
+			}
+			break;
+
+		case NCASE_XV:			// Maximum
+			switch(cs->type)
+			{
+			case NCASE_VALUE:		// Single value
+				// ..2 overlaps with 1
+				overlaps = c->b.number >= cs->a.number;
+				break;
+			case NCASE_XV:			// Maximum
+				// ..1 overlaps with ..2
+				overlaps = true;	// Always overlaps
+				break;
+			case NCASE_VX:			// Minimum
+				// ..2 overlaps with 1..
+			case NCASE_VV:			// Range
+				// ..3 overlaps with 1..4 and 1..2
+				overlaps = c->b.number >= cs->a.number;
+				break;
+			}
+			break;
+		case NCASE_VV:			// Range
+			switch(cs->type)
+			{
+			case NCASE_VALUE:		// Single value
+				// 1..2 overlaps with 1
+				overlaps = (c->a.number <= cs->a.number) &&
+							(c->b.number >= cs->a.number);
+				break;
+			case NCASE_VX:			// Minimum
+				// 3..5 overlaps with 4.. and 1..
+				overlaps = c->b.number >= cs->a.number;
+				break;
+			case NCASE_XV:			// Maximum
+				// 3..5 overlaps with ..4 and ..6
+				overlaps = c->a.number <= cs->b.number;
+				break;
+			case NCASE_VV:			// Range
+				// 3..5 overlaps 4..6
+				overlaps = (c->a.number <= cs->b.number) &&
+							(c->b.number >= cs->a.number);
+				break;
+			}
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	return overlaps;
+}
+
+static bool nib_switch_overlaps_case_float(struct nib_compile_switch_case_s *c)
+{
+	bool overlaps = false;
+	ITERATOR it;
+	struct nib_compile_switch_case_s *cs;
+	iterator_start(&it, nib_current_switch->cases);
+	while(!overlaps && (cs = (struct nib_compile_switch_case_s *)iterator_nextdata(&it)))
+	{
+		switch(c->type)
+		{
+		case NCASE_VALUE:		// Single value
+			switch(cs->type)
+			{
+			case NCASE_VALUE:		// Single value
+				overlaps = c->a.flt == cs->a.flt;
+				break;
+			case NCASE_VX:			// Minimum
+				overlaps = c->a.flt >= cs->a.flt;
+				break;
+			case NCASE_XV:			// Maximum
+				overlaps = c->a.flt <= cs->b.flt;
+				break;
+			case NCASE_VV:			// Range
+				overlaps = (c->a.flt >= cs->a.flt) &&
+							(c->a.flt <= cs->b.flt);
+				break;
+			}
+			break;
+
+		case NCASE_VX:			// Minimum
+			switch(cs->type)
+			{
+			case NCASE_VALUE:		// Single value
+				// 1.. overlaps with 2
+				overlaps = c->a.flt <= cs->a.flt;
+				break;
+			case NCASE_VX:			// Minimum
+				// 1.. overlaps with 2..
+				overlaps = true;	// Always overlaps
+				break;
+			case NCASE_XV:			// Maximum
+				// 1.. overlaps with ..4
+			case NCASE_VV:			// Range
+				// 1.. overlaps with 2..4 and 0..4
+				overlaps = c->a.flt <= cs->b.flt;
+				break;
+			}
+			break;
+
+		case NCASE_XV:			// Maximum
+			switch(cs->type)
+			{
+			case NCASE_VALUE:		// Single value
+				// ..2 overlaps with 1
+				overlaps = c->b.flt >= cs->a.flt;
+				break;
+			case NCASE_XV:			// Maximum
+				// ..1 overlaps with ..2
+				overlaps = true;	// Always overlaps
+				break;
+			case NCASE_VX:			// Minimum
+				// ..2 overlaps with 1..
+			case NCASE_VV:			// Range
+				// ..3 overlaps with 1..4 and 1..2
+				overlaps = c->b.flt >= cs->a.flt;
+				break;
+			}
+			break;
+		case NCASE_VV:			// Range
+			switch(cs->type)
+			{
+			case NCASE_VALUE:		// Single value
+				// 1..2 overlaps with 1
+				overlaps = (c->a.flt <= cs->a.flt) &&
+							(c->b.flt >= cs->a.flt);
+				break;
+			case NCASE_VX:			// Minimum
+				// 3..5 overlaps with 4.. and 1..
+				overlaps = c->b.flt >= cs->a.flt;
+				break;
+			case NCASE_XV:			// Maximum
+				// 3..5 overlaps with ..4 and ..6
+				overlaps = c->a.flt <= cs->b.flt;
+				break;
+			case NCASE_VV:			// Range
+				// 3..5 overlaps 4..6
+				overlaps = (c->a.flt <= cs->b.flt) &&
+							(c->b.flt >= cs->a.flt);
+				break;
+			}
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	return overlaps;
+}
+
+static bool nib_switch_overlaps_case_char(struct nib_compile_switch_case_s *c)
+{
+	bool overlaps = false;
+	ITERATOR it;
+	struct nib_compile_switch_case_s *cs;
+	iterator_start(&it, nib_current_switch->cases);
+	while(!overlaps && (cs = (struct nib_compile_switch_case_s *)iterator_nextdata(&it)))
+	{
+		switch(c->type)
+		{
+		case NCASE_VALUE:		// Single value
+			switch(cs->type)
+			{
+			case NCASE_VALUE:		// Single value
+				overlaps = c->a.ch == cs->a.ch;
+				break;
+			case NCASE_VX:			// Minimum
+				overlaps = c->a.ch >= cs->a.ch;
+				break;
+			case NCASE_XV:			// Maximum
+				overlaps = c->a.ch <= cs->b.ch;
+				break;
+			case NCASE_VV:			// Range
+				overlaps = (c->a.ch >= cs->a.ch) &&
+							(c->a.ch <= cs->b.ch);
+				break;
+			}
+			break;
+
+		case NCASE_VX:			// Minimum
+			switch(cs->type)
+			{
+			case NCASE_VALUE:		// Single value
+				// 1.. overlaps with 2
+				overlaps = c->a.ch <= cs->a.ch;
+				break;
+			case NCASE_VX:			// Minimum
+				// 1.. overlaps with 2..
+				overlaps = true;	// Always overlaps
+				break;
+			case NCASE_XV:			// Maximum
+				// 1.. overlaps with ..4
+			case NCASE_VV:			// Range
+				// 1.. overlaps with 2..4 and 0..4
+				overlaps = c->a.ch <= cs->b.ch;
+				break;
+			}
+			break;
+
+		case NCASE_XV:			// Maximum
+			switch(cs->type)
+			{
+			case NCASE_VALUE:		// Single value
+				// ..2 overlaps with 1
+				overlaps = c->b.ch >= cs->a.ch;
+				break;
+			case NCASE_XV:			// Maximum
+				// ..1 overlaps with ..2
+				overlaps = true;	// Always overlaps
+				break;
+			case NCASE_VX:			// Minimum
+				// ..2 overlaps with 1..
+			case NCASE_VV:			// Range
+				// ..3 overlaps with 1..4 and 1..2
+				overlaps = c->b.ch >= cs->a.ch;
+				break;
+			}
+			break;
+		case NCASE_VV:			// Range
+			switch(cs->type)
+			{
+			case NCASE_VALUE:		// Single value
+				// 1..2 overlaps with 1
+				overlaps = (c->a.ch <= cs->a.ch) &&
+							(c->b.ch >= cs->a.ch);
+				break;
+			case NCASE_VX:			// Minimum
+				// 3..5 overlaps with 4.. and 1..
+				overlaps = c->b.ch >= cs->a.ch;
+				break;
+			case NCASE_XV:			// Maximum
+				// 3..5 overlaps with ..4 and ..6
+				overlaps = c->a.ch <= cs->b.ch;
+				break;
+			case NCASE_VV:			// Range
+				// 3..5 overlaps 4..6
+				overlaps = (c->a.ch <= cs->b.ch) &&
+							(c->b.ch >= cs->a.ch);
+				break;
+			}
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	return overlaps;
+}
+
+static bool nib_switch_overlaps_case_string(struct nib_compile_switch_case_s *c)
+{
+	if (c->type != NCASE_VALUE) return false;	// Only care about exact strings
+
+	bool overlaps = false;
+	ITERATOR it;
+	struct nib_compile_switch_case_s *cs;
+	iterator_start(&it, nib_current_switch->cases);
+	while((cs = (struct nib_compile_switch_case_s *)iterator_nextdata(&it)))
+	{
+		if (cs->type == NCASE_VALUE && !utf8_str_cmp(c->a.str,cs->a.str))
+			break;
+	}
+	iterator_stop(&it);
+
+	return cs != NULL;
+}
+
+static bool nib_switch_overlaps_case_stat(struct nib_compile_switch_case_s *c)
+{
+	if (c->type != NCASE_VALUE) return false;	// Only care about exact strings
+
+	bool overlaps = false;
+	ITERATOR it;
+	struct nib_compile_switch_case_s *cs;
+	iterator_start(&it, nib_current_switch->cases);
+	while((cs = (struct nib_compile_switch_case_s *)iterator_nextdata(&it)))
+	{
+		if (cs->type == NCASE_VALUE && c->a.number == cs->a.number)
+			break;
+	}
+	iterator_stop(&it);
+
+	return cs != NULL;
+}
+
+struct nib_compile_switch_case_s *new_nib_compile_switch_case()
+{
+	return nib_calloc(1,sizeof(struct nib_compile_switch_case_s));
+}
+
+bool nib_switch_overlaps_case(struct nib_compile_switch_case_s *c)
+{
+	switch(nib_current_switch->type)
+	{
+	case NSWT_NUMBER:	return nib_switch_overlaps_case_number(c);
+	case NSWT_FLOAT:	return nib_switch_overlaps_case_float(c);
+	case NSWT_CHAR:		return nib_switch_overlaps_case_char(c);
+	case NSWT_STRING:	return nib_switch_overlaps_case_string(c);
+	case NSWT_STAT:		return nib_switch_overlaps_case_stat(c);
+	default:			return false;
+	}
+}
+
+void nib_switch_add_case(struct nib_compile_switch_case_s *c)
+{
+	struct nib_compile_switch_case_s *cs = NULL;
+	if (nib_current_switch->sorter)
+	{
+		ITERATOR it;
+		iterator_start(&it,nib_current_switch->cases);
+		while((cs = (struct nib_compile_switch_case_s *)iterator_nextdata(&it)))
+		{
+			int cmp = (*(nib_current_switch->sorter))(cs, c);
+
+			if (cmp < 0)
+			{
+				iterator_insert_before(&it, c);
+				break;
+			}
+		}
+		iterator_stop(&it);
+	}
+
+	if (!cs)
+		list_appendlink(nib_current_switch->cases, c);
 }
 
 void push_nib_break_address()
@@ -176,6 +916,17 @@ void nib_script_comment_add(long address, char *comment)
 	}
 }
 
+static void __free_switch(void *data)
+{
+	struct nib_compile_switch_s *sw = (struct nib_compile_switch_s *)data;
+
+	if (sw)
+	{
+		list_destroy(sw->cases);
+		nib_free(sw);
+	}
+}
+
 static void *__copy_comment(void *src)
 {
 	return copy_nib_script_comment((NIB_SCRIPT_COMMENT *)src);
@@ -259,6 +1010,11 @@ LLIST *nib_create_flag_table_list()
 	return list_createx(false, __copy_flag_table, __free_flag_table);
 }
 
+LLIST *nib_create_switch_list()
+{
+	return list_createx(false, NULL, __free_switch);
+}
+
 void nib_init_scopetree();
 bool nib_init_compile()
 {
@@ -288,6 +1044,9 @@ bool nib_init_compile()
 	nib_used_tables = list_create(false);	// Will hold (struct flag_type *)
 	if (!list_isvalid(nib_used_tables)) return false;
 
+	nib_switch_blocks = nib_create_switch_list();
+	if (!list_isvalid(nib_switch_blocks)) return false;
+
 	return true;
 }
 
@@ -302,6 +1061,7 @@ void nib_cleanup_compile()
 	list_destroy(nib_flag_created_tables);
 	list_destroy(nib_stat_created_tables);
 	list_destroy(nib_used_tables);
+	list_destroy(nib_switch_blocks);
 
 	nib_program_storage = NULL;
 	nib_global_variables = NULL;
@@ -311,6 +1071,7 @@ void nib_cleanup_compile()
 	nib_flag_created_tables = NULL;
 	nib_stat_created_tables = NULL;
 	nib_used_tables = NULL;
+	nib_switch_blocks = NULL;
 
 	nib_cleanup_scopetree();
 }
@@ -487,14 +1248,14 @@ const char *nib_get_string(int index)
 	return (const char *)list_nthdata(nib_string_storage, index);
 }
 
-int nib_get_string_in_storage(const char *str)
+short nib_get_string_in_storage(const char *str)
 {
 	if(!str) return 0;	
 	if(!list_isvalid(nib_string_storage)) return 0;
 
 	ITERATOR it;
 	char *name;
-	int index = 0;
+	short index = 0;
 	iterator_start(&it, nib_string_storage);
 	while((name = (char *)iterator_nextdata(&it)))
 	{
@@ -509,19 +1270,19 @@ int nib_get_string_in_storage(const char *str)
 	return name ? index : 0;
 }
 
-int nib_add_string_to_storage(const char *str)
+short nib_add_string_to_storage(const char *str)
 {
 	if(!str) return 0;	
 
 	// Make sure it is not in the storage already
-	int index = nib_get_string_in_storage(str);
+	short index = nib_get_string_in_storage(str);
 	if (index > 0) return index;
 
 	if (!list_isvalid(nib_string_storage))
 		nib_string_storage = nib_create_string_list();
 
 	list_appendlink(nib_string_storage, nib_strdup(str));
-	return list_size(nib_string_storage);
+	return (short)list_size(nib_string_storage);
 }
 
 void nib_dump_string_storage()

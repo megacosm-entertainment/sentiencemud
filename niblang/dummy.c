@@ -393,7 +393,7 @@ bool variable_init()
 	var->readonly = true;
 	list_appendlink(nib_variables, var);
 
-	var = variable_new_number("vnum", 2);
+	var = variable_new_number("vnum", 1);
 	list_appendlink(nib_variables, var);
 
 	var = variable_new_float("bar", -INFINITY);
