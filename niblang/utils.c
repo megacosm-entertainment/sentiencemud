@@ -4,10 +4,28 @@
 #include <malloc.h>
 #include <ctype.h>
 
+#include "../merc.h"
 #include "niblang.h"
 
 #define TOLOWER(ch)		(((ch) >= 'A' && (ch) <= 'Z')?((ch)+' '):(ch))
 #define TOUPPER(ch)		(((ch) >= 'a' && (ch) <= 'z')?((ch)-' '):(ch))
+
+// Utils for the standalone
+
+char * const dir_name[] =
+{
+    "north",
+	"east",
+	"south",
+	"west",
+	"up",
+	"down",
+	"northeast",
+	"northwest",
+	"southeast",
+	"southwest"
+};
+
 
 void ltoa(register long num, register char *output)
 {
@@ -327,7 +345,6 @@ bool str_suffix(const char *astr, const char *bstr)
 	return true;
 }
 
-
 long number_range(long from, long to)
 {
 	long power;
@@ -638,4 +655,46 @@ const char *utf8_getnchars(const char *str, int len)
 	*cur = '\0';
 
 	return start;
+}
+
+
+char *get_affect_name(AFFECT_DATA *paf)
+{
+	if (!paf) return "";	
+
+	if (paf->custom_name) return paf->custom_name;
+
+	if (paf->token && !IS_SET(paf->token->flags, TOKEN_HIDE_NAME))
+		return paf->token->pIndexData->name;
+
+	if (IS_VALID(paf->skill))
+	{
+		if (!IS_NULLSTR(paf->skill->display)) return paf->skill->display;
+
+		return paf->skill->name;
+	}
+	else
+		return "???";
+}
+
+bool affect_equal(AFFECT_DATA *a, AFFECT_DATA *b)
+{
+	// Custom name affect
+	if (a->custom_name)
+		return a->custom_name == b->custom_name;	// Custom names are registered
+	else if (b->custom_name)
+		return false;
+
+	if (a->token)
+		if (b->token)
+			return a->token->pIndexData == b->token->pIndexData;
+		else
+			return false;
+	else if (b->token)
+		return false;
+
+	if (IS_VALID(a->skill) && IS_VALID(b->skill))
+		return a->skill == b->skill;
+
+	return false;
 }

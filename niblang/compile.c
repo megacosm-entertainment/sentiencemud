@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 
+#include "../merc.h"
 #include "niblang.h"
 #include "script.h"
 

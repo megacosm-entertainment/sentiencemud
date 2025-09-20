@@ -998,6 +998,7 @@ void obj_to_mail(OBJ_DATA *obj, MAIL_DATA *mail)
 {
     obj->next_content	 = mail->objects;
     mail->objects	 = obj;
+	list_appendlink(mail->lobjects, obj);
 
     obj->in_room         = NULL;
     obj->carried_by      = NULL;
@@ -1032,6 +1033,8 @@ void obj_from_mail(OBJ_DATA *obj)
 	mail->objects = obj->next_content;
     else
 	obj_prev->next_content = obj->next_content;
+
+	list_remlink(mail->lobjects, obj, false);
 
     obj->in_mail = NULL;
 

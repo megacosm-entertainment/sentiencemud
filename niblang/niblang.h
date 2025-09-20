@@ -4,72 +4,6 @@
 #define NIB_GLOBAL_SCOPE	(-1)
 #define NIB_INVALID_ADDRESS	(-1)
 
-#define A 1L						// 0
-#define B 2L						// 1
-#define C 4L						// 2
-#define D 8L						// 3
-#define E 16L						// 4
-#define F 32L						// 5
-#define G 64L						// 6
-#define H 128L						// 7
-#define I 256L						// 8
-#define J 512L						// 9
-#define K 1024L						// 10
-#define L 2048L						// 11
-#define M 4096L						// 12
-#define N 8192L						// 13
-#define O 16384L					// 14
-#define P 32768L					// 15
-#define Q 65536L					// 16
-#define R 131072L					// 17
-#define S 262144L					// 18
-#define T 524288L					// 19
-#define U 1048576L					// 20
-#define V 2097152L					// 21
-#define W 4194304L					// 22
-#define X 8388608L					// 23
-#define Y 16777216L					// 24
-#define Z 33554432L					// 25
-#define aa 67108864L				// 26
-#define bb 134217728L				// 27
-#define cc 268435456L				// 28
-#define dd 536870912L				// 29
-#define ee 1073741824L				// 30
-#define ff 2147483648L				// 31	(sign bit for 32-bit int)
-#define gg 4294967296L				// 32
-#define hh 8589934592L				// 33
-#define ii 17179869184L				// 34
-#define jj 34359738368L				// 35
-#define kk 68719476736L				// 36
-#define ll 137438953472L			// 37
-#define mm 274877906944L			// 38
-#define nn 549755813888L			// 39
-#define oo 1099511627776L			// 40
-#define pp 2199023255552L			// 41
-#define qq 4398046511104L			// 42
-#define rr 8796093022208L			// 43
-#define ss 17592186044416L			// 44
-#define tt 35184372088832L			// 45
-#define uu 70368744177664L			// 46
-#define vv 140737488355328L			// 47
-#define ww 281474976710656L			// 48
-#define xx 562949953421312L			// 49
-#define yy 1125899906842624L		// 50
-#define zz 2251799813685248L		// 51
-#define aaa 4503599627370496L		// 52
-#define bbb 9007199254740992L		// 53
-#define ccc 18014398509481984L		// 54
-#define ddd 36028797018963968L		// 55
-#define eee 72057594037927936L		// 56
-#define fff 144115188075855872L		// 57
-#define ggg 288230376151711744L		// 58
-#define hhh 576460752303423488L		// 59
-#define iii 1152921504606846976L	// 60
-#define jjj 2305843009213693952L	// 61
-#define kkk 4611686018427387904L	// 62
-#define lll 9223372036854775808L	// 63 (sign bit for 64-bit int)
-
-#define IS_SET(v,b)		(((v) & (b)) && true)
 #define bitsize(t)		(sizeof(t) * 8)
 
 #define SCPERR_SUCCESS		 	(0)			// Success
@@ -181,6 +115,13 @@ enum nib_instructions_e {
 	NI_RSHL_EQ,
 
 	NI_GET_AREA,		// Pops 1 (number/string), gets the area, pushes onto stack
+	NI_GET_CLASS,		// Pops 1 string, gets class, pushes onto stack
+	NI_GET_LIQUID,		// Pops 1 string, gets liquid, pushes onto stack
+	NI_GET_MATERIAL,	// Pops 1 string, gets material, pushes onto stack
+	NI_GET_ORG,
+	NI_GET_RACE,		// Pops 1 string, gets race, pushes onto stack
+	NI_GET_SKILL,		// Pops 1 string, gets skill, pushes onto stack
+	NI_GET_WILDS,
 
 	NI__MAX
 };
@@ -201,15 +142,32 @@ enum nib_script_stack_type_e
 	NST_FLAG_BIT,		// Can only be an LVALUE; treated as BOOLEAN
 	NST_STAT,
 	NST_LIST,
+	NST_ACCOUNT,
+	NST_AFFECT,
 	NST_AREA,
+	NST_CHANNEL,
+	NST_CLASS,
 	NST_DUNGEON,
+	NST_EXIT,
 	NST_INSTANCE,
+	NST_LIQUID,
+	NST_MAIL,
+	NST_MATERIAL,
+	NST_MISSION,
 	NST_MOBILE,
+	NST_NOTE,
 	NST_OBJECT,
+	NST_ORG,
 	NST_QUEST,
+	NST_RACE,
+	NST_RANK,
+	NST_REPUTATION,
 	NST_ROOM,
+	NST_SKILL,
 	NST_SHIP,
 	NST_TOKEN,
+	NST_WILDS,
+	NST_WORLD,
 	NST__MAX,
 
 	// Types invalid for LVALUEs
@@ -626,15 +584,32 @@ extern NIB_TYPE *nibtype_widevnum;
 extern NIB_TYPE *nibtype_varargs;
 
 // Internal entity types (not exhaustive)
+extern NIB_TYPE *nibtype_account;
+extern NIB_TYPE *nibtype_affect;
 extern NIB_TYPE *nibtype_area;
+extern NIB_TYPE *nibtype_channel;
+extern NIB_TYPE *nibtype_class;
 extern NIB_TYPE *nibtype_dungeon;
+extern NIB_TYPE *nibtype_exit;
 extern NIB_TYPE *nibtype_instance;
+extern NIB_TYPE *nibtype_liquid;
+extern NIB_TYPE *nibtype_mail;
+extern NIB_TYPE *nibtype_material;
+extern NIB_TYPE *nibtype_mission;
 extern NIB_TYPE *nibtype_mobile;
+extern NIB_TYPE *nibtype_note;
 extern NIB_TYPE *nibtype_object;
+extern NIB_TYPE *nibtype_org;
 extern NIB_TYPE *nibtype_quest;
+extern NIB_TYPE *nibtype_race;
+extern NIB_TYPE *nibtype_rank;
+extern NIB_TYPE *nibtype_reputation;
 extern NIB_TYPE *nibtype_room;
 extern NIB_TYPE *nibtype_ship;
+extern NIB_TYPE *nibtype_skill;
 extern NIB_TYPE *nibtype_token;
+extern NIB_TYPE *nibtype_wilds;
+extern NIB_TYPE *nibtype_world;
 
 NIB_TYPE *new_nib_type_flag(int bits);
 NIB_TYPE *new_nib_type_flag_named(LLIST *names);

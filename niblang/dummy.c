@@ -11,6 +11,7 @@ Dummy file that will contain method functions to be referenced by the pointer ta
 #include <math.h>
 #include <ctype.h>
 
+#include "../merc.h"
 #include "niblang.h"
 #include "script.h"
 #include "interpret.h"
@@ -143,17 +144,17 @@ void dummy_init()
 	beginning.vnum = 1L;
 	beginning.name = strdup("The Beginning");
 	beginning.description = strdup("The heart of the Town of Plith.");
-	beginning.people = list_create(false);
-	list_appendlink(beginning.people, &steiner);
-	list_appendlink(beginning.people, &ravage);
-	list_appendlink(beginning.people, &mayor);
+	beginning.lpeople = list_create(false);
+	list_appendlink(beginning.lpeople, &steiner);
+	list_appendlink(beginning.lpeople, &ravage);
+	list_appendlink(beginning.lpeople, &mayor);
 
 	plith.uid = 1;
 	plith.name = strdup("Plith");
 	plith.description = strdup("The Town of Plith.");
-	plith.flags = AREA_NEWBIE;
-	plith.rooms = list_create(false);
-	list_appendlink(plith.rooms, &beginning);
+	plith.area_flags = AREA_NEWBIE;
+	plith.room_list = list_create(false);
+	list_appendlink(plith.room_list, &beginning);
 
 	nib_register_flag_table("affect", affect_flags);
 	nib_register_flag_table("area", area_flags);
@@ -178,11 +179,11 @@ void dummy_cleanup()
 
 	if (beginning.name) free(beginning.name);
 	if (beginning.description) free(beginning.description);
-	list_destroy(beginning.people);
+	list_destroy(beginning.lpeople);
 
 	if (plith.name) free(plith.name);
 	if (plith.description) free(plith.description);
-	list_destroy(plith.rooms);
+	list_destroy(plith.room_list);
 }
 
 AREA_DATA *find_area(char *name)

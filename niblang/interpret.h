@@ -14,9 +14,33 @@ struct nib_script_stack_lvalue_s
 		utf8char_t *ch;
 		WNUM *wnum;
 
+		ACCOUNT_DATA **account;
+		AFFECT_DATA **affect;
 		AREA_DATA **area;
+		//CHANNEL_DATA **channel;
+		CLASS_DATA **clazz;
+		DUNGEON **dungeon;
+		EXIT_DATA **ex;
+		INSTANCE **instance;
+		LIQUID **liquid;
+		MAIL_DATA **mail;
+		MATERIAL **material;
+		MISSION_DATA **mission;
 		CHAR_DATA **mobile;
+		NOTE_DATA **note;
+		OBJ_DATA **object;
+		CHURCH_DATA **org;	// Change to ORG_DATA when done
+		// QUEST_DATA **quest;
+		RACE_DATA **race;
+		REPUTATION_INDEX_RANK_DATA **rank;
+		REPUTATION_DATA **reputation;
 		ROOM_INDEX_DATA **room;
+		SHIP_DATA **ship;
+		SKILL_DATA **skill;
+		TOKEN_DATA **token;
+		WILDS_DATA **wilds;
+		// WORLD_DATA **world;
+
 
 		struct {
 			long *value;
@@ -65,15 +89,32 @@ struct nib_script_stack_s
 			ITERATOR it;
 		} iter;
 
+		ACCOUNT_DATA *account;
+		AFFECT_DATA *affect;
 		AREA_DATA *area;
-		// DUNGEON *dung;
-		// INSTANCE *inst;
+		//CHANNEL_DATA *channel;
+		CLASS_DATA *clazz;
+		DUNGEON *dungeon;
+		EXIT_DATA *ex;
+		INSTANCE *instance;
+		LIQUID *liquid;
+		MAIL_DATA *mail;
+		MATERIAL *material;
+		MISSION_DATA *mission;
 		CHAR_DATA *mobile;
-		// OBJ_DATA *object;
+		NOTE_DATA *note;
+		OBJ_DATA *object;
+		CHURCH_DATA *org;	// Change to ORG_DATA when done
 		// QUEST_DATA *quest;
+		RACE_DATA *race;
+		REPUTATION_INDEX_RANK_DATA *rank;
+		REPUTATION_DATA *reputation;
 		ROOM_INDEX_DATA *room;
-		// SHIP_DATA *ship;
-		// TOKEN_DATA *token;
+		SHIP_DATA *ship;
+		SKILL_DATA *skill;
+		TOKEN_DATA *token;
+		WILDS_DATA *wilds;
+		// WORLD_DATA *world;
 
 		NIB_SCRIPT_LVALUE lvalue;
 	} _;
@@ -103,15 +144,32 @@ struct nib_local_runtime_var_s
 			const struct flag_type *table;
 		} stat;
 
+		ACCOUNT_DATA *account;
+		AFFECT_DATA *affect;
 		AREA_DATA *area;
-		// DUNGEON *dung;
-		// INSTANCE *inst;
+		//CHANNEL_DATA *channel;
+		CLASS_DATA *clazz;
+		DUNGEON *dungeon;
+		EXIT_DATA *ex;
+		INSTANCE *instance;
+		LIQUID *liquid;
+		MAIL_DATA *mail;
+		MATERIAL *material;
+		MISSION_DATA *mission;
 		CHAR_DATA *mobile;
-		// OBJ_DATA *obj;
+		NOTE_DATA *note;
+		OBJ_DATA *object;
+		CHURCH_DATA *org;	// Change to ORG_DATA when done
 		// QUEST_DATA *quest;
+		RACE_DATA *race;
+		REPUTATION_INDEX_RANK_DATA *rank;
+		REPUTATION_DATA *reputation;
 		ROOM_INDEX_DATA *room;
-		// SHIP_DATA *ship;
-		// TOKEN_DATA *token;
+		SHIP_DATA *ship;
+		SKILL_DATA *skill;
+		TOKEN_DATA *token;
+		WILDS_DATA *wilds;
+		// WORLD_DATA *world;
 	} _;
 };
 
@@ -173,15 +231,32 @@ struct nib_script_argument_s
 			ITERATOR it;
 		} iter;
 
+		ACCOUNT_DATA *account;
+		AFFECT_DATA *affect;
 		AREA_DATA *area;
-		// DUNGEON dung;
-		// INSTANCE inst;
+		//CHANNEL_DATA *channel;
+		CLASS_DATA *clazz;
+		DUNGEON *dungeon;
+		EXIT_DATA *ex;
+		INSTANCE *instance;
+		LIQUID *liquid;
+		MAIL_DATA *mail;
+		MATERIAL *material;
+		MISSION_DATA *mission;
 		CHAR_DATA *mobile;
-		// OBJ_DATA object;
-		// QUEST_DATA quest;
+		NOTE_DATA *note;
+		OBJ_DATA *object;
+		CHURCH_DATA *org;	// Change to ORG_DATA when done
+		// QUEST_DATA *quest;
+		RACE_DATA *race;
+		REPUTATION_INDEX_RANK_DATA *rank;
+		REPUTATION_DATA *reputation;
 		ROOM_INDEX_DATA *room;
-		// SHIP_DATA ship;
-		// TOKEN_DATA token;
+		SHIP_DATA *ship;
+		SKILL_DATA *skill;
+		TOKEN_DATA *token;
+		WILDS_DATA *wilds;
+		// WORLD_DATA *world;
 	} _;
 };
 
@@ -197,9 +272,32 @@ bool nib_push_stack_list_shared (NIB_SCRIPT_RUNTIME *nsr, LLIST *value, NIB_SCRI
 bool nib_push_stack_widevnum (NIB_SCRIPT_RUNTIME *nsr, WNUM *value);
 bool nib_push_stack_flag (NIB_SCRIPT_RUNTIME *nsr, long value, const struct flag_type *table);
 bool nib_push_stack_stat (NIB_SCRIPT_RUNTIME *nsr, long value, const struct flag_type *table);
+__push(ACCOUNT_DATA *,account)
+__push(AFFECT_DATA *,affect)
 __push(AREA_DATA *,area)
+//__push(CHANNEL_DATA *,channel)
+__push(CLASS_DATA *,class)
+__push(DUNGEON *,dungeon)
+__push(EXIT_DATA *,exit)
+__push(INSTANCE *,instance)
+__push(LIQUID *,liquid)
+__push(MAIL_DATA *,mail)
+__push(MATERIAL *,material)
+__push(MISSION_DATA *,mission)
 __push(CHAR_DATA *,mobile)
+__push(NOTE_DATA *,note)
+__push(OBJ_DATA *,object)
+__push(CHURCH_DATA *,org)
+// __push(QUEST_DATA *,quest)
+__push(RACE_DATA *,race)
+__push(REPUTATION_INDEX_RANK_DATA *,rank)
+__push(REPUTATION_DATA *,reputation)
 __push(ROOM_INDEX_DATA *,room)
+__push(SHIP_DATA *,ship)
+__push(SKILL_DATA *,skill)
+__push(TOKEN_DATA *,token)
+__push(WILDS_DATA *,wilds)
+//__push(WORLD_DATA *,world)
 __push(NIB_SCRIPT_LVALUE *,lvalue)
 __push(NIB_LOCAL_RUNTIME_VAR *,local_var)
 #undef __push
@@ -218,9 +316,32 @@ bool nib_peek_stack_list_shared (NIB_SCRIPT_RUNTIME *nsr, int offset, LLIST **va
 __peek(WNUM,widevnum)
 bool nib_peek_stack_flag (NIB_SCRIPT_RUNTIME *nsr, int offset, long *output, const struct flag_type **table);
 bool nib_peek_stack_stat (NIB_SCRIPT_RUNTIME *nsr, int offset, long *output, const struct flag_type **table);
+__peek(ACCOUNT_DATA *,account)
+__peek(AFFECT_DATA *,affect)
 __peek(AREA_DATA *,area)
+//__peek(CHANNEL_DATA *,channel)
+__peek(CLASS_DATA *,class)
+__peek(DUNGEON *,dungeon)
+__peek(EXIT_DATA *,exit)
+__peek(INSTANCE *,instance)
+__peek(LIQUID *,liquid)
+__peek(MAIL_DATA *,mail)
+__peek(MATERIAL *,material)
+__peek(MISSION_DATA *,mission)
 __peek(CHAR_DATA *,mobile)
+__peek(NOTE_DATA *,note)
+__peek(OBJ_DATA *,object)
+__peek(CHURCH_DATA *,org)
+// __peek(QUEST_DATA *,quest)
+__peek(RACE_DATA *,race)
+__peek(REPUTATION_INDEX_RANK_DATA *,rank)
+__peek(REPUTATION_DATA *,reputation)
 __peek(ROOM_INDEX_DATA *,room)
+__peek(SHIP_DATA *,ship)
+__peek(SKILL_DATA *,skill)
+__peek(TOKEN_DATA *,token)
+__peek(WILDS_DATA *,wilds)
+//__peek(WORLD_DATA *,world)
 __peek(NIB_SCRIPT_LVALUE,lvalue)
 #undef __peek
 
@@ -237,9 +358,32 @@ bool nib_pop_stack_list_shared (NIB_SCRIPT_RUNTIME *nsr, LLIST **value, NIB_SCRI
 __pop(WNUM,widevnum)
 bool nib_pop_stack_flag (NIB_SCRIPT_RUNTIME *nsr, long *value, const struct flag_type **table);
 bool nib_pop_stack_stat (NIB_SCRIPT_RUNTIME *nsr, long *value, const struct flag_type **table);
+__pop(ACCOUNT_DATA *,account)
+__pop(AFFECT_DATA *,affect)
 __pop(AREA_DATA *,area)
+//__pop(CHANNEL_DATA *,channel)
+__pop(CLASS_DATA *,class)
+__pop(DUNGEON *,dungeon)
+__pop(EXIT_DATA *,exit)
+__pop(INSTANCE *,instance)
+__pop(LIQUID *,liquid)
+__pop(MAIL_DATA *,mail)
+__pop(MATERIAL *,material)
+__pop(MISSION_DATA *,mission)
 __pop(CHAR_DATA *,mobile)
+__pop(NOTE_DATA *,note)
+__pop(OBJ_DATA *,object)
+__pop(CHURCH_DATA *,org)
+// __pop(QUEST_DATA *,quest)
+__pop(RACE_DATA *,race)
+__pop(REPUTATION_INDEX_RANK_DATA *,rank)
+__pop(REPUTATION_DATA *,reputation)
 __pop(ROOM_INDEX_DATA *,room)
+__pop(SHIP_DATA *,ship)
+__pop(SKILL_DATA *,skill)
+__pop(TOKEN_DATA *,token)
+__pop(WILDS_DATA *,wilds)
+//__pop(WORLD_DATA *,world)
 __pop(NIB_SCRIPT_LVALUE,lvalue)
 #undef __pop
 

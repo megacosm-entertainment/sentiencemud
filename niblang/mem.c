@@ -6,6 +6,7 @@
 #include <malloc.h>
 #include <time.h>
 
+#include "../merc.h"
 #include "niblang.h"
 
 #define BASE_BUF 	1024

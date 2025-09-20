@@ -3,6 +3,8 @@
 #include <string.h>
 #include <malloc.h>
 
+#include "../merc.h"
+#include "../wilds.h"
 #include "niblang.h"
 
 #define YYSTYPE NIBMETHODSTYPE
@@ -54,11 +56,29 @@ LLIST *nib_fields_list = NULL;
 LLIST *nib_fields_flag = NULL;
 LLIST *nib_fields_stat = NULL;
 
-
-static AREA_DATA __static_area;
-static ROOM_INDEX_DATA __static_room;
-static CHAR_DATA __static_mobile;
 static WNUM __static_wnum;
+static ACCOUNT_DATA __static_account;
+static AFFECT_DATA __static_affect;
+static AREA_DATA __static_area;
+static CLASS_DATA __static_class;
+// static CHANNEL_DATA __static_channel;		// Add when CHANNEL update is done
+static DUNGEON __static_dungeon;
+static EXIT_DATA __static_exit;
+static INSTANCE __static_instance;
+static LIQUID __static_liquid;
+static MAIL_DATA __static_mail;
+static MATERIAL __static_material;
+static MISSION_DATA __static_mission;
+static CHAR_DATA __static_mobile;
+static NOTE_DATA __static_note;
+static OBJ_DATA __static_object;
+static RACE_DATA __static_race;
+static ROOM_INDEX_DATA __static_room;
+static SHIP_DATA __static_ship;
+static SKILL_DATA __static_skill;
+static TOKEN_DATA __static_token;
+static WILDS_DATA __static_wilds;
+// static WORLD_DATA __static_world;		// Add when WORLDS are done
 
 #define ADDR(x)				((void *)&(x))
 #define GET_OFFSET(v,f)		(size_t)(ADDR((v).f) - ADDR(v))
@@ -83,8 +103,8 @@ static struct nib_field_offset_type __field_offsets[] =
 	NFO(PRIMARY,AREA,uid,__static_area),
 	NFO(PRIMARY,AREA,name,__static_area),
 	NFO(PRIMARY,AREA,description,__static_area),
-	NFO(PRIMARY,AREA,flags,__static_area),
-	NFO(PRIMARY,AREA,rooms,__static_area),
+	NFO(PRIMARY,AREA,area_flags,__static_area),
+	NFO(PRIMARY,AREA,room_list,__static_area),
 	NFO(PRIMARY,MOBILE,name,__static_mobile),
 	NFO(PRIMARY,MOBILE,short_descr,__static_mobile),
 	NFO(PRIMARY,MOBILE,long_descr,__static_mobile),
@@ -92,7 +112,7 @@ static struct nib_field_offset_type __field_offsets[] =
 	NFO(PRIMARY,ROOM,vnum,__static_room),
 	NFO(PRIMARY,ROOM,name,__static_room),
 	NFO(PRIMARY,ROOM,description,__static_room),
-	NFO(PRIMARY,ROOM,people,__static_room),
+	NFO(PRIMARY,ROOM,lpeople,__static_room),
 	NFO(PRIMARY,WIDEVNUM,pArea,__static_wnum),
 	NFO(PRIMARY,WIDEVNUM,vnum,__static_wnum),
 	NFOEND

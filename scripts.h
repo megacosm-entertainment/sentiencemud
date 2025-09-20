@@ -2057,10 +2057,13 @@ struct script_var_type {
 	char *name;
 	sent_bool save;
 	bool index;
+	bool readonly;		// Readonly within the script, it can only be set in the script editor.
 	int type;
 	union {
 		void *raw;
-		int i;
+		long i;
+		double flt;
+		utf8char_t ch;
 		char *s;
 		ROOM_INDEX_DATA *r;
 		CHAR_DATA *m;
@@ -2170,12 +2173,21 @@ struct script_var_type {
 			int min;
 			int max;
 		} range;
-		LLIST *list;	// Used for HOMOGENOUS lists only
+		struct {
+			LLIST *list;
+			int type;
+		} list;
 		AREA_REGION *ar;
 		struct {
 			long aid;	// Area UID
 			long rid;	// Region UID
 		} arid;		// Area region id
+		struct {
+			long number;
+			struct flag_type *table;
+			const char *table_name;
+		} stat;
+
 	} _;
 };
 

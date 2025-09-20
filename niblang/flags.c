@@ -3,6 +3,7 @@
 #include <string.h>
 #include <malloc.h>
 
+#include "../merc.h"
 #include "niblang.h"
 #include "interpret.h"
 

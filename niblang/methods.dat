@@ -36,8 +36,8 @@ method any list.remove(int) -> list_remove;
 field readonly int area.uid -> area_uid;
 field readonly string area.name -> area_name;
 field readonly string area.description -> area_description;
-field flag(area) area.flags -> area_flags;
-field readonly list(room) area.rooms -> area_rooms;
+field flag(area) area.flags -> area_area_flags;
+field readonly list(room) area.rooms -> area_room_list;
 
 // INSTANCE methods/fields
 
@@ -58,7 +58,7 @@ field method widevnum mobile.widevnum -> mobile_get_widevnum;
 field readonly int room.vnum -> room_vnum;
 field string room.name -> room_name;
 field string room.description -> room_description;
-field readonly list(mobile) room.people -> room_people;
+field readonly list(mobile) room.people -> room_lpeople;
 
 // SHIP methods/fields
 

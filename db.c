@@ -5526,10 +5526,10 @@ int number_fuzzy(int number)
 /*
  * Generate a random number.
  */
-int number_range(int from, int to)
+long number_range(long from, long to)
 {
-    int power;
-    int number;
+    long power;
+    long number;
 
     if (from == 0 && to == 0)
 	return 0;
@@ -5643,7 +5643,7 @@ long number_mm(void)
     piState[-1]         = iState2;
     return iRand >> 6;
 #else
-    return random() >> 6;
+    return random();
 #endif
 }
 

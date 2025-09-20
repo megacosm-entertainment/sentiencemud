@@ -4,35 +4,53 @@
 #include <malloc.h>
 
 
+#include "../merc.h"
 #include "niblang.h"
 #include "interpret.h"
 
 extern LLIST *nib_flag_created_tables;
 extern LLIST *nib_stat_created_tables;
 
-static NIB_TYPE __nibtype_null		= { true, NTC_ANY, {0}, "null"};
-static NIB_TYPE __nibtype_void		= { true, NTC_VOID, {0}, "void"};
-static NIB_TYPE __nibtype_any		= { true, NTC_ANY, {0}, "any"};
-static NIB_TYPE __nibtype_bool		= { true, NTC_PRIMARY, {NT_BOOLEAN}, "boolean"};
-static NIB_TYPE __nibtype_char		= { true, NTC_PRIMARY, {NT_CHAR}, "char"};
-static NIB_TYPE __nibtype_int		= { true, NTC_PRIMARY, {NT_NUMBER}, "int"};
-static NIB_TYPE __nibtype_float		= { true, NTC_PRIMARY, {NT_FLOAT}, "float"};
-static NIB_TYPE __nibtype_string	= { true, NTC_PRIMARY, {NT_STRING}, "string"};
-static NIB_TYPE __nibtype_map		= { true, NTC_PRIMARY, {NT_MAP}, "map"};
-static NIB_TYPE __nibtype_flag		= { true, NTC_FLAG, {.flag = {0, NULL, NULL}}, "flag"};
-static NIB_TYPE __nibtype_list		= { true, NTC_LIST, {.type = NULL}, "list"};
-static NIB_TYPE __nibtype_stat		= { true, NTC_STAT, {.stat = {NULL, NULL}}, "stat"};
-static NIB_TYPE __nibtype_varargs	= { true, NTC_VARARGS, {0}, "..."};
-static NIB_TYPE __nibtype_widevnum	= { true, NTC_PRIMARY, {NT_WIDEVNUM}, "widevnum"};
-static NIB_TYPE __nibtype_area		= { true, NTC_PRIMARY, {NT_AREA}, "area"};
-static NIB_TYPE __nibtype_dungeon	= { true, NTC_PRIMARY, {NT_DUNGEON}, "dungeon"};
-static NIB_TYPE __nibtype_instance	= { true, NTC_PRIMARY, {NT_INSTANCE}, "instance"};
-static NIB_TYPE __nibtype_mobile	= { true, NTC_PRIMARY, {NT_MOBILE}, "mobile"};
-static NIB_TYPE __nibtype_object	= { true, NTC_PRIMARY, {NT_OBJECT}, "object"};
-static NIB_TYPE __nibtype_quest		= { true, NTC_PRIMARY, {NT_QUEST}, "quest"};
-static NIB_TYPE __nibtype_room		= { true, NTC_PRIMARY, {NT_ROOM}, "room"};
-static NIB_TYPE __nibtype_ship		= { true, NTC_PRIMARY, {NT_SHIP}, "ship"};
-static NIB_TYPE __nibtype_token		= { true, NTC_PRIMARY, {NT_TOKEN}, "token"};
+static NIB_TYPE __nibtype_null			= { true, NTC_ANY, {0}, "null"};
+static NIB_TYPE __nibtype_void			= { true, NTC_VOID, {0}, "void"};
+static NIB_TYPE __nibtype_any			= { true, NTC_ANY, {0}, "any"};
+static NIB_TYPE __nibtype_bool			= { true, NTC_PRIMARY, {NT_BOOLEAN}, "boolean"};
+static NIB_TYPE __nibtype_char			= { true, NTC_PRIMARY, {NT_CHAR}, "char"};
+static NIB_TYPE __nibtype_int			= { true, NTC_PRIMARY, {NT_NUMBER}, "int"};
+static NIB_TYPE __nibtype_float			= { true, NTC_PRIMARY, {NT_FLOAT}, "float"};
+static NIB_TYPE __nibtype_string		= { true, NTC_PRIMARY, {NT_STRING}, "string"};
+static NIB_TYPE __nibtype_map			= { true, NTC_PRIMARY, {NT_MAP}, "map"};
+static NIB_TYPE __nibtype_flag			= { true, NTC_FLAG, {.flag = {0, NULL, NULL}}, "flag"};
+static NIB_TYPE __nibtype_list			= { true, NTC_LIST, {.type = NULL}, "list"};
+static NIB_TYPE __nibtype_stat			= { true, NTC_STAT, {.stat = {NULL, NULL}}, "stat"};
+static NIB_TYPE __nibtype_varargs		= { true, NTC_VARARGS, {0}, "..."};
+static NIB_TYPE __nibtype_widevnum		= { true, NTC_PRIMARY, {NT_WIDEVNUM}, "widevnum"};
+static NIB_TYPE __nibtype_account		= { true, NTC_PRIMARY, {NT_ACCOUNT}, "account"};
+static NIB_TYPE __nibtype_affect		= { true, NTC_PRIMARY, {NT_AFFECT}, "affect"};
+static NIB_TYPE __nibtype_area			= { true, NTC_PRIMARY, {NT_AREA}, "area"};
+static NIB_TYPE __nibtype_channel		= { true, NTC_PRIMARY, {NT_CHANNEL}, "channel"};
+static NIB_TYPE __nibtype_class			= { true, NTC_PRIMARY, {NT_CLASS}, "class"};
+static NIB_TYPE __nibtype_dungeon		= { true, NTC_PRIMARY, {NT_DUNGEON}, "dungeon"};
+static NIB_TYPE __nibtype_exit			= { true, NTC_PRIMARY, {NT_EXIT}, "exit"};
+static NIB_TYPE __nibtype_instance		= { true, NTC_PRIMARY, {NT_INSTANCE}, "instance"};
+static NIB_TYPE __nibtype_liquid		= { true, NTC_PRIMARY, {NT_LIQUID}, "liquid"};
+static NIB_TYPE __nibtype_mail			= { true, NTC_PRIMARY, {NT_MAIL}, "mail"};
+static NIB_TYPE __nibtype_material		= { true, NTC_PRIMARY, {NT_MATERIAL}, "material"};
+static NIB_TYPE __nibtype_mission		= { true, NTC_PRIMARY, {NT_MISSION}, "mission"};
+static NIB_TYPE __nibtype_mobile		= { true, NTC_PRIMARY, {NT_MOBILE}, "mobile"};
+static NIB_TYPE __nibtype_note			= { true, NTC_PRIMARY, {NT_NOTE}, "note"};
+static NIB_TYPE __nibtype_object		= { true, NTC_PRIMARY, {NT_OBJECT}, "object"};
+static NIB_TYPE __nibtype_org			= { true, NTC_PRIMARY, {NT_ORG}, "organization"};
+static NIB_TYPE __nibtype_quest			= { true, NTC_PRIMARY, {NT_QUEST}, "quest"};
+static NIB_TYPE __nibtype_race			= { true, NTC_PRIMARY, {NT_RACE}, "race"};
+static NIB_TYPE __nibtype_rank			= { true, NTC_PRIMARY, {NT_RANK}, "rank"};
+static NIB_TYPE __nibtype_reputation	= { true, NTC_PRIMARY, {NT_REPUTATION}, "reputation"};
+static NIB_TYPE __nibtype_room			= { true, NTC_PRIMARY, {NT_ROOM}, "room"};
+static NIB_TYPE __nibtype_ship			= { true, NTC_PRIMARY, {NT_SHIP}, "ship"};
+static NIB_TYPE __nibtype_skill			= { true, NTC_PRIMARY, {NT_SKILL}, "skill"};
+static NIB_TYPE __nibtype_token			= { true, NTC_PRIMARY, {NT_TOKEN}, "token"};
+static NIB_TYPE __nibtype_wilds			= { true, NTC_PRIMARY, {NT_WILDS}, "wilds"};
+static NIB_TYPE __nibtype_world			= { true, NTC_PRIMARY, {NT_WORLD}, "world"};
 
 /* Types to add: TODO
 
@@ -41,7 +59,7 @@ coord
 
 Game Types:
 exit
-player
+player	?
 account
 church/org
 channel
@@ -75,15 +93,33 @@ NIB_TYPE *nibtype_list = &__nibtype_list;
 NIB_TYPE *nibtype_stat = &__nibtype_stat;
 NIB_TYPE *nibtype_varargs = &__nibtype_varargs;
 NIB_TYPE *nibtype_widevnum = &__nibtype_widevnum;
+NIB_TYPE *nibtype_account = &__nibtype_account;
+NIB_TYPE *nibtype_affect = &__nibtype_affect;
 NIB_TYPE *nibtype_area = &__nibtype_area;
+NIB_TYPE *nibtype_channel = &__nibtype_channel;
+NIB_TYPE *nibtype_class = &__nibtype_class;
 NIB_TYPE *nibtype_dungeon = &__nibtype_dungeon;
+NIB_TYPE *nibtype_exit = &__nibtype_exit;
 NIB_TYPE *nibtype_instance = &__nibtype_instance;
+NIB_TYPE *nibtype_liquid = &__nibtype_liquid;
+NIB_TYPE *nibtype_mail = &__nibtype_mail;
+NIB_TYPE *nibtype_material = &__nibtype_material;
+NIB_TYPE *nibtype_mission = &__nibtype_mission;
 NIB_TYPE *nibtype_mobile = &__nibtype_mobile;
+NIB_TYPE *nibtype_note = &__nibtype_note;
 NIB_TYPE *nibtype_object = &__nibtype_object;
+NIB_TYPE *nibtype_org = &__nibtype_org;
 NIB_TYPE *nibtype_quest = &__nibtype_quest;
+NIB_TYPE *nibtype_race = &__nibtype_race;
+NIB_TYPE *nibtype_rank = &__nibtype_rank;
+NIB_TYPE *nibtype_reputation = &__nibtype_reputation;
 NIB_TYPE *nibtype_room = &__nibtype_room;
 NIB_TYPE *nibtype_ship = &__nibtype_ship;
+NIB_TYPE *nibtype_skill = &__nibtype_skill;
 NIB_TYPE *nibtype_token = &__nibtype_token;
+NIB_TYPE *nibtype_wilds = &__nibtype_wilds;
+NIB_TYPE *nibtype_world = &__nibtype_world;
+
 
 // These will only be flags, stats and lists
 LLIST *nibtype_created_types = NULL;
@@ -299,32 +335,32 @@ NIB_TYPE *nib_type_copy(NIB_TYPE *src)
 	return dest;
 }
 
-#define MSL 10240
-#define MSN 20
+#define MTSL 10240
+#define MTSN 20
 char *nib_get_typename(NIB_SCRIPT *context, NIB_TYPE *type)
 {
-	static char buf[MSN][MSL];
+	static char buf[MTSN][MTSL];
 	static int i = 0;
 
 	// Already has a name
 	if (type->name)
 		return type->name;
 
-	i = (i + 1) % MSN;
+	i = (i + 1) % MTSN;
 	char *p = buf[i];
 	if (type->type_class == NTC_LIST)
 	{
-		snprintf(p, MSL-1, "list(%s)", nib_get_typename(context, type->_.type));
+		snprintf(p, MTSL-1, "list(%s)", nib_get_typename(context, type->_.type));
 	}
 	else if (type->type_class == NTC_FLAG)
 	{
 		if (type->_.flag.bits > 0)
 		{
-			snprintf(p, MSL-1, "flag(%d)", type->_.flag.bits);
+			snprintf(p, MTSL-1, "flag(%d)", type->_.flag.bits);
 		}
 		else if (type->_.flag.table)
 		{
-			snprintf(p, MSL-1, "flag(%s)", nib_get_flag_table_name((context?context->flag_tables:nib_flag_created_tables),type->_.flag.table));
+			snprintf(p, MTSL-1, "flag(%s)", nib_get_flag_table_name((context?context->flag_tables:nib_flag_created_tables),type->_.flag.table));
 		}
 		else
 		{
@@ -350,7 +386,7 @@ char *nib_get_typename(NIB_SCRIPT *context, NIB_TYPE *type)
 	{
 		if (type->_.stat.table)
 		{
-			snprintf(p, MSL-1, "stat(%s)", nib_get_stat_table_name((context?context->stat_tables:nib_stat_created_tables),type->_.stat.table));
+			snprintf(p, MTSL-1, "stat(%s)", nib_get_stat_table_name((context?context->stat_tables:nib_stat_created_tables),type->_.stat.table));
 		}
 		else
 		{
@@ -373,7 +409,7 @@ char *nib_get_typename(NIB_SCRIPT *context, NIB_TYPE *type)
 		}
 	}
 	
-	p[MSL-1] = '\0';
+	p[MTSL-1] = '\0';
 	return p;
 }
 

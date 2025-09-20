@@ -3724,6 +3724,7 @@ MAIL_DATA *new_mail( void )
     }
 
     mail->objects = NULL;
+    mail->lobjects = list_create(false);
     mail->sender = NULL;
     mail->recipient = NULL;
     mail->message = NULL;
@@ -3746,6 +3747,7 @@ void free_mail( MAIL_DATA *mail )
     free_string( mail->sender );
     free_string( mail->recipient );
     free_string( mail->message );
+    list_destroy( mail->lobjects );
 
     mail->next = mail_free;
     mail_free  = mail;

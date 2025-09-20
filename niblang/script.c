@@ -7,6 +7,7 @@
 #include <ctype.h>
 
 
+#include "../merc.h"
 #include "niblang.h"
 #include "script.h"
 
@@ -336,6 +337,13 @@ static const char *opcode_names[] = {
 	"RSH_EQ",
 	"RSHL_EQ",
 	"GET_AREA",
+	"GET_CLASS",
+	"GET_LIQUID",
+	"GET_MATERIAL",
+	"GET_ORG",
+	"GET_RACE",
+	"GET_SKILL",
+	"GET_WILDS",
 };
 
 static void __print_comments(NIB_SCRIPT *script, long address)

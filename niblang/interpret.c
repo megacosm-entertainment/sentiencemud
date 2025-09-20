@@ -6,11 +6,17 @@
 #include <stdint.h>
 #include <ctype.h>
 
+#include "../merc.h"
+#include "../wilds.h"
 #include "niblang.h"
 #include "script.h"
 #include "interpret.h"
 
-#define IS_NULLSTR(s)	(((s) == NULL) || ((s)[0] == '\0'))
+char *get_affect_name(AFFECT_DATA *paf);
+bool affect_equal(AFFECT_DATA *a, AFFECT_DATA *b);
+extern char * const dir_name[];
+
+//#define IS_NULLSTR(s)	(((s) == NULL) || ((s)[0] == '\0'))
 #define CLS				printf("\033[2J")
 #define SETPOS(r,c)		printf("\033[%d;%dH", (r), (c))
 #define INVCLR			printf("\033[7m")
@@ -39,15 +45,32 @@ NIB_SCRIPT_STACK_TYPE convert_to_stype(NIB_TYPE *type)
 				case NT_MAP:		return NST_MAP;
 				case NT_WIDEVNUM:	return NST_WIDEVNUM;
 
+				case NT_ACCOUNT:	return NST_ACCOUNT;
+				case NT_AFFECT:		return NST_AFFECT;
 				case NT_AREA:		return NST_AREA;
+				case NT_CHANNEL:	return NST_CHANNEL;
+				case NT_CLASS:		return NST_CLASS;
 				case NT_DUNGEON:	return NST_DUNGEON;
+				case NT_EXIT:		return NST_EXIT;
 				case NT_INSTANCE:	return NST_INSTANCE;
+				case NT_LIQUID:		return NST_LIQUID;
+				case NT_MAIL:		return NST_MAIL;
+				case NT_MATERIAL:	return NST_MATERIAL;
+				case NT_MISSION:	return NST_MISSION;
 				case NT_MOBILE:		return NST_MOBILE;
+				case NT_NOTE:		return NST_NOTE;
 				case NT_OBJECT:		return NST_OBJECT;
+				case NT_ORG:		return NST_ORG;
 				case NT_QUEST:		return NST_QUEST;
+				case NT_RACE:		return NST_RACE;
+				case NT_RANK:		return NST_RANK;
+				case NT_REPUTATION:	return NST_REPUTATION;
 				case NT_ROOM:		return NST_ROOM;
 				case NT_SHIP:		return NST_SHIP;
+				case NT_SKILL:		return NST_SKILL;
 				case NT_TOKEN:		return NST_TOKEN;
+				case NT_WILDS:		return NST_WILDS;
+				case NT_WORLD:		return NST_WORLD;
 			}
 			break;
 		case NTC_FLAG:		return NST_FLAG;
@@ -72,15 +95,32 @@ static const char *nst_to_type(NIB_SCRIPT_STACK_TYPE type)
 		case NST_FLAG:		return "flag";
 		case NST_STAT:		return "stat";
 		case NST_LIST:		return "list";
+		case NST_ACCOUNT:	return "account";
+		case NST_AFFECT:	return "affect";
 		case NST_AREA:		return "area";
+		case NST_CHANNEL:	return "channel";
+		case NST_CLASS:		return "class";
 		case NST_DUNGEON:	return "dungeon";
+		case NST_EXIT:		return "exit";
 		case NST_INSTANCE:	return "instance";
+		case NST_LIQUID:	return "liquid";
+		case NST_MAIL:		return "mail";
+		case NST_MATERIAL:	return "material";
+		case NST_MISSION:	return "mission";
 		case NST_MOBILE:	return "mobile";
+		case NST_NOTE:		return "note";
 		case NST_OBJECT:	return "object";
+		case NST_ORG:		return "org";
 		case NST_QUEST:		return "quest";
+		case NST_RACE:		return "race";
+		case NST_RANK:		return "rank";
+		case NST_REPUTATION:return "reputation";
 		case NST_ROOM:		return "room";
 		case NST_SHIP:		return "ship";
+		case NST_SKILL:		return "skill";
 		case NST_TOKEN:		return "token";
+		case NST_WILDS:		return "wilds";
+		case NST_WORLD:		return "world";
 	}
 
 	return "invalid";
@@ -394,9 +434,32 @@ bool nib_push_stack_stat (NIB_SCRIPT_RUNTIME *nsr, long value, const struct flag
 
 	return true;
 }
+__push(ACCOUNT_DATA *,ACCOUNT,account,account)
+__push(AFFECT_DATA *,AFFECT,affect,affect)
 __push(AREA_DATA *,AREA,area,area)
+//__push(CHANNEL_DATA *,CHANNEL,channel,channel)
+__push(CLASS_DATA *,CLASS,clazz,class)
+__push(DUNGEON *,DUNGEON,dungeon,dungeon)
+__push(EXIT_DATA *,EXIT,ex,exit)
+__push(INSTANCE *,INSTANCE,instance,instance)
+__push(LIQUID *,LIQUID,liquid,liquid)
+__push(MAIL_DATA *,MAIL,mail,mail)
+__push(MATERIAL *,MATERIAL,material,material)
+__push(MISSION_DATA *,MISSION,mission,mission)
 __push(CHAR_DATA *,MOBILE,mobile,mobile)
+__push(NOTE_DATA *,NOTE,note,note)
+__push(OBJ_DATA *,OBJECT,object,object)
+__push(CHURCH_DATA *,ORG,org,org)
+// __push(QUEST_DATA *,QUEST,quest,quest)
+__push(RACE_DATA *,RACE,race,race)
+__push(REPUTATION_INDEX_RANK_DATA *,RANK,rank,rank)
+__push(REPUTATION_DATA *,REPUTATION,reputation,reputation)
 __push(ROOM_INDEX_DATA *,ROOM,room,room)
+__push(SHIP_DATA *,SHIP,ship,ship)
+__push(SKILL_DATA *,SKILL,skill,skill)
+__push(TOKEN_DATA *,TOKEN,token,token)
+__push(WILDS_DATA *,WILDS,wilds,wilds)
+//__push(WORLD_DATA *,WORLD,world,world)
 
 bool nib_push_stack_list (NIB_SCRIPT_RUNTIME *nsr, LLIST *value, NIB_SCRIPT_STACK_TYPE type)
 {
@@ -504,46 +567,46 @@ bool nib_push_stack_lvalue(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_LVALUE *value)
 
 bool nib_push_stack_lvalue_value(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_LVALUE *lvalue)
 {
+#define __lv(t,f,n) \
+	case NST_##t:\
+		return nib_push_stack_##n (nsr, *(lvalue->_.f) );
+
 	switch(lvalue->type)
 	{
-	case NST_NUMBER:
-		return nib_push_stack_number(nsr, *(lvalue->_.number));
-
-	case NST_FLOAT:
-		return nib_push_stack_float(nsr, *(lvalue->_.d));
-
-	case NST_BOOLEAN:
-		return nib_push_stack_boolean(nsr, *(lvalue->_.b));
-
-	case NST_CHAR:
-		return nib_push_stack_char(nsr, *(lvalue->_.ch));
-
-	case NST_STRING:
-		return nib_push_stack_string(nsr, *(lvalue->_.str));
-
+	__lv(NUMBER,number,number)
+	__lv(FLOAT,d,float)
+	__lv(BOOLEAN,b,boolean)
+	__lv(CHAR,ch,char)
+	__lv(STRING,str,string_shared)
+	// __lv(MAP,map,map)
 	case NST_WIDEVNUM:
-		return nib_push_stack_widevnum(nsr, (lvalue->_.wnum));
-
-	case NST_AREA:
-		return nib_push_stack_area(nsr, *(lvalue->_.area));
-
-	// case NST_DUNGEON:
-
-	// case NST_INSTANCE:
-
-	case NST_MOBILE:
-		return nib_push_stack_mobile(nsr, *(lvalue->_.mobile));
-
-	// case NST_OBJECT:
-
-	// case NST_QUEST:
-
-	case NST_ROOM:
-		return nib_push_stack_room(nsr, *(lvalue->_.room));
-
-	// case NST_SHIP:
-
-	// case NST_TOKEN:
+		return nib_push_stack_widevnum (nsr, lvalue->_.wnum );
+	__lv(ACCOUNT,account,account)
+	__lv(AFFECT,affect,affect)
+	__lv(AREA,area,area)
+	// __lv(CHANNEL,channel,channel)
+	__lv(CLASS,clazz,class)
+	__lv(DUNGEON,dungeon,dungeon)
+	__lv(EXIT,ex,exit)
+	__lv(INSTANCE,instance,instance)
+	__lv(LIQUID,liquid,liquid)
+	__lv(MAIL,mail,mail)
+	__lv(MATERIAL,material,material)
+	__lv(MISSION,mission,mission)
+	__lv(MOBILE,mobile,mobile)
+	__lv(NOTE,note,note)
+	__lv(OBJECT,object,object)
+	__lv(ORG,org,org)
+	// __lv(QUEST,quest,quest)
+	__lv(RACE,race,race)
+	__lv(RANK,rank,rank)
+	__lv(REPUTATION,reputation,reputation)
+	__lv(ROOM,room,room)
+	__lv(SHIP,ship,ship)
+	__lv(SKILL,skill,skill)
+	__lv(TOKEN,token,token)
+	__lv(WILDS,wilds,wilds)
+	// __lv(WORLD,world,world)
 
 	case NST_FLAG:
 		return nib_push_stack_flag(nsr, *(lvalue->_.stat.number),lvalue->_.stat.table);
@@ -561,46 +624,46 @@ bool nib_push_stack_lvalue_value(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_LVALUE *lva
 
 bool nib_push_stack_local_var(NIB_SCRIPT_RUNTIME *nsr, NIB_LOCAL_RUNTIME_VAR *var)
 {
+#define __lcl(t,f,n) \
+	case NST_##t:\
+		return nib_push_stack_##n (nsr, var->_.f );
+
 	switch(var->type)
 	{
-	case NST_NUMBER:
-		return nib_push_stack_number(nsr, var->_.i);
-
-	case NST_FLOAT:
-		return nib_push_stack_float(nsr, var->_.f);
-
-	case NST_BOOLEAN:
-		return nib_push_stack_boolean(nsr, var->_.b);
-
-	case NST_CHAR:
-		return nib_push_stack_char(nsr, var->_.ch);
-
-	case NST_STRING:
-		return nib_push_stack_string_shared(nsr, var->_.str);
-
+	__lcl(NUMBER,i,number)
+	__lcl(FLOAT,f,float)
+	__lcl(BOOLEAN,b,boolean)
+	__lcl(CHAR,ch,char)
+	__lcl(STRING,str,string_shared)
+	// __lcl(MAP,map,map)
 	case NST_WIDEVNUM:
 		return nib_push_stack_widevnum(nsr, &var->_.wnum);
-
-	case NST_AREA:
-		return nib_push_stack_area(nsr, var->_.area);
-
-	// case NST_DUNGEON:
-
-	// case NST_INSTANCE:
-
-	case NST_MOBILE:
-		return nib_push_stack_mobile(nsr, var->_.mobile);
-
-	// case NST_OBJECT:
-
-	// case NST_QUEST:
-
-	case NST_ROOM:
-		return nib_push_stack_room(nsr, var->_.room);
-
-	// case NST_SHIP:
-
-	// case NST_TOKEN:
+	__lcl(ACCOUNT,account,account)
+	__lcl(AFFECT,affect,affect)
+	__lcl(AREA,area,area)
+	// __lcl(CHANNEL,channel,channel)
+	__lcl(CLASS,clazz,class)
+	__lcl(DUNGEON,dungeon,dungeon)
+	__lcl(EXIT,ex,exit)
+	__lcl(INSTANCE,instance,instance)
+	__lcl(LIQUID,liquid,liquid)
+	__lcl(MAIL,mail,mail)
+	__lcl(MATERIAL,material,material)
+	__lcl(MISSION,mission,mission)
+	__lcl(MOBILE,mobile,mobile)
+	__lcl(NOTE,note,note)
+	__lcl(OBJECT,object,object)
+	__lcl(ORG,org,org)
+	// __lcl(QUEST,quest,quest)
+	__lcl(RACE,race,race)
+	__lcl(RANK,rank,rank)
+	__lcl(REPUTATION,reputation,reputation)
+	__lcl(ROOM,room,room)
+	__lcl(SHIP,ship,ship)
+	__lcl(SKILL,skill,skill)
+	__lcl(TOKEN,token,token)
+	__lcl(WILDS,wilds,wilds)
+	// __lcl(WORLD,world,world)
 
 	case NST_FLAG:
 		return nib_push_stack_flag(nsr, var->_.stat.number, var->_.stat.table);
@@ -617,67 +680,48 @@ bool nib_push_stack_local_var(NIB_SCRIPT_RUNTIME *nsr, NIB_LOCAL_RUNTIME_VAR *va
 
 bool nib_push_stack_local_var_lvalue(NIB_SCRIPT_RUNTIME *nsr, NIB_LOCAL_RUNTIME_VAR *var)
 {
-//	if (var->constant) return false;
+#define __llv(t,f,l) \
+	case NST_##t:\
+		lvalue.type = NST_##t; \
+		lvalue._.l = &(var->_.f); \
+		break;
 
 	NIB_SCRIPT_LVALUE lvalue;
 	switch(var->type)
 	{
-	case NST_NUMBER:
-		lvalue.type = NST_NUMBER;
-		lvalue._.number = &(var->_.i);
-		break;
-
-	case NST_FLOAT:
-		lvalue.type = NST_FLOAT;
-		lvalue._.d = &(var->_.f);
-		break;
-
-	case NST_BOOLEAN:
-		lvalue.type = NST_BOOLEAN;
-		lvalue._.b = &(var->_.b);
-		break;
-
-	case NST_CHAR:
-		lvalue.type = NST_CHAR;
-		lvalue._.ch = &(var->_.ch);
-		break;
-
-	case NST_STRING:
-		lvalue.type = NST_STRING;
-		lvalue._.str = &(var->_.str);
-		break;
-
-	case NST_WIDEVNUM:
-		lvalue.type = NST_WIDEVNUM;
-		lvalue._.wnum = &(var->_.wnum);
-		break;
-
-	case NST_AREA:
-		lvalue.type = NST_AREA;
-		lvalue._.area = &(var->_.area);
-		break;
-
-	// case NST_DUNGEON:
-
-	// case NST_INSTANCE:
-
-	case NST_MOBILE:
-		lvalue.type = NST_MOBILE;
-		lvalue._.mobile = &(var->_.mobile);
-		break;
-
-	// case NST_OBJECT:
-
-	// case NST_QUEST:
-
-	case NST_ROOM:
-		lvalue.type = NST_ROOM;
-		lvalue._.room = &(var->_.room);
-		break;
-
-	// case NST_SHIP:
-
-	// case NST_TOKEN:
+	__llv(NUMBER,i,number)
+	__llv(FLOAT,f,d)
+	__llv(BOOLEAN,b,b)
+	__llv(CHAR,ch,ch)
+	__llv(STRING,str,str)
+	// __llv(MAP,map,map)
+	__llv(WIDEVNUM,wnum,wnum)
+	__llv(ACCOUNT,account,account)
+	__llv(AFFECT,affect,affect)
+	__llv(AREA,area,area)
+	// __llv(CHANNEL,channel,channel)
+	__llv(CLASS,clazz,clazz)
+	__llv(DUNGEON,dungeon,dungeon)
+	__llv(EXIT,ex,ex)
+	__llv(INSTANCE,instance,instance)
+	__llv(LIQUID,liquid,liquid)
+	__llv(MAIL,mail,mail)
+	__llv(MATERIAL,material,material)
+	__llv(MISSION,mission,mission)
+	__llv(MOBILE,mobile,mobile)
+	__llv(NOTE,note,note)
+	__llv(OBJECT,object,object)
+	__llv(ORG,org,org)
+	// __llv(QUEST,quest,quest)
+	__llv(RACE,race,race)
+	__llv(RANK,rank,rank)
+	__llv(REPUTATION,reputation,reputation)
+	__llv(ROOM,room,room)
+	__llv(SHIP,ship,ship)
+	__llv(SKILL,skill,skill)
+	__llv(TOKEN,token,token)
+	__llv(WILDS,wilds,wilds)
+	// __llv(WORLD,world,world)
 
 	case NST_FLAG:
 		lvalue.type = NST_FLAG;
@@ -705,7 +749,6 @@ bool nib_push_stack_local_var_lvalue(NIB_SCRIPT_RUNTIME *nsr, NIB_LOCAL_RUNTIME_
 
 	default:
 		return false;
-
 	}
 
 	return nib_push_stack_lvalue(nsr, &lvalue);
@@ -713,31 +756,46 @@ bool nib_push_stack_local_var_lvalue(NIB_SCRIPT_RUNTIME *nsr, NIB_LOCAL_RUNTIME_
 
 bool nib_push_stack_global_var(NIB_SCRIPT_RUNTIME *nsr, pVARIABLE var)
 {
+#define __gbl(t,f,n) \
+	case VAR_##t:\
+		return nib_push_stack_##n (nsr, var->_.f);
+
 	switch(var->type)
 	{
-	case VAR_NUMBER:
-		return nib_push_stack_number(nsr, var->_.num);
-
-	case VAR_FLOAT:
-		return nib_push_stack_float(nsr, var->_.flt);
-
-	case VAR_BOOLEAN:
-		return nib_push_stack_boolean(nsr, var->_.b);
-
-	case VAR_STRING:
-		return nib_push_stack_string_shared(nsr, var->_.str);
-
+	__gbl(NUMBER,num,number)
+	__gbl(FLOAT,flt,float)
+	__gbl(BOOLEAN,b,boolean)
+	__gbl(CHAR,ch,char)
+	case VAR_STRING_S:
+	__gbl(STRING,str,string_shared)
+	// __gbl(MAP,map,map)
 	case VAR_WIDEVNUM:
 		return nib_push_stack_widevnum(nsr, &var->_.wnum);
-
-	case VAR_AREA:
-		return nib_push_stack_area(nsr, var->_.area);
-
-	case VAR_MOBILE:
-		return nib_push_stack_mobile(nsr, var->_.mobile);
-
-	case VAR_ROOM:
-		return nib_push_stack_room(nsr, var->_.room);
+	__gbl(ACCOUNT,account,account)
+	__gbl(AFFECT,affect,affect)
+	__gbl(AREA,area,area)
+	// __gbl(CHANNEL,channel,channel)
+	__gbl(CLASS,clazz,class)
+	__gbl(DUNGEON,dungeon,dungeon)
+	__gbl(EXIT,ex,exit)
+	__gbl(INSTANCE,instance,instance)
+	__gbl(LIQUID,liquid,liquid)
+	__gbl(MAIL,mail,mail)
+	__gbl(MATERIAL,material,material)
+	__gbl(MISSION,mission,mission)
+	__gbl(MOBILE,mobile,mobile)
+	__gbl(NOTE,note,note)
+	__gbl(OBJECT,object,object)
+	__gbl(ORG,org,org)
+	// __gbl(QUEST,quest,quest)
+	__gbl(RACE,race,race)
+	__gbl(RANK,rank,rank)
+	__gbl(REPUTATION,reputation,reputation)
+	__gbl(ROOM,room,room)
+	__gbl(SHIP,ship,ship)
+	__gbl(SKILL,skill,skill)
+	__gbl(TOKEN,token,token)
+	__gbl(WILDS,wilds,wilds)
 	}
 
 	return false;
@@ -745,35 +803,22 @@ bool nib_push_stack_global_var(NIB_SCRIPT_RUNTIME *nsr, pVARIABLE var)
 
 bool nib_push_stack_global_var_lvalue(NIB_SCRIPT_RUNTIME *nsr, pVARIABLE var)
 {
+#define __glv(t,f,l) \
+	case VAR_##t: \
+		lvalue.type = NST_##t; \
+		lvalue._.l = &(var->_.f); \
+		break;
+
 	NIB_SCRIPT_LVALUE lvalue;
 	switch(var->type)
 	{
-	case VAR_NUMBER:
-		lvalue.type = NST_NUMBER;
-		lvalue._.number = &(var->_.num);
-		break;
-
-	case VAR_FLOAT:
-		lvalue.type = NST_FLOAT;
-		lvalue._.d = &(var->_.flt);
-		break;
-
-	case VAR_BOOLEAN:
-		lvalue.type = NST_BOOLEAN;
-		lvalue._.b = &(var->_.b);
-		break;
-
-	case VAR_CHAR:
-		lvalue.type = NST_CHAR;
-		lvalue._.ch = &(var->_.ch);
-		break;
-
-	case VAR_STRING:
+	__glv(NUMBER,num,number)
+	__glv(FLOAT,flt,d)
+	__glv(BOOLEAN,b,b)
+	__glv(CHAR,ch,ch)
 	case VAR_STRING_S:
-		lvalue.type = NST_STRING;
-		lvalue._.str = &(var->_.str);
-		break;
-
+	__glv(STRING,str,str)
+	// __glv(MAP,map,map)
 	case VAR_FLAG:
 		lvalue.type = NST_FLAG;
 		lvalue._.stat.number = &(var->_.stat.number);
@@ -786,25 +831,32 @@ bool nib_push_stack_global_var_lvalue(NIB_SCRIPT_RUNTIME *nsr, pVARIABLE var)
 		lvalue._.stat.table = var->_.stat.table;
 		break;
 
-	case VAR_WIDEVNUM:
-		lvalue.type = NST_WIDEVNUM;
-		lvalue._.wnum = &(var->_.wnum);
-		break;
-
-	case VAR_AREA:
-		lvalue.type = NST_AREA;
-		lvalue._.area = &(var->_.area);
-		break;
-
-	case VAR_MOBILE:
-		lvalue.type = NST_MOBILE;
-		lvalue._.mobile = &(var->_.mobile);
-		break;
-
-	case VAR_ROOM:
-		lvalue.type = NST_ROOM;
-		lvalue._.room = &(var->_.room);
-		break;
+	__glv(WIDEVNUM,wnum,wnum)
+	__glv(ACCOUNT,account,account)
+	__glv(AFFECT,affect,affect)
+	__glv(AREA,area,area)
+	// __glv(CHANNEL,channel,channel)
+	__glv(CLASS,clazz,clazz)
+	__glv(DUNGEON,dungeon,dungeon)
+	__glv(EXIT,ex,ex)
+	__glv(INSTANCE,instance,instance)
+	__glv(LIQUID,liquid,liquid)
+	__glv(MAIL,mail,mail)
+	__glv(MATERIAL,material,material)
+	__glv(MISSION,mission,mission)
+	__glv(MOBILE,mobile,mobile)
+	__glv(NOTE,note,note)
+	__glv(OBJECT,object,object)
+	__glv(ORG,org,org)
+	// __glv(QUEST,quest,quest)
+	__glv(RACE,race,race)
+	__glv(RANK,rank,rank)
+	__glv(REPUTATION,reputation,reputation)
+	__glv(ROOM,room,room)
+	__glv(SHIP,ship,ship)
+	__glv(SKILL,skill,skill)
+	__glv(TOKEN,token,token)
+	__glv(WILDS,wilds,wilds)
 
 	default:
 		return false;
@@ -816,17 +868,36 @@ bool nib_push_stack_global_var_lvalue(NIB_SCRIPT_RUNTIME *nsr, pVARIABLE var)
 
 static void *__get_lvalue_field(NIB_SCRIPT_LVALUE *lvalue, NIB_FIELD *field)
 {
+#define __lfo(t,f) \
+	case NST_##t:		return (void *)*(lvalue->_.f) + field->offset;
+
 	switch(lvalue->type)
 	{
-	case NST_AREA:		return (void*)*(lvalue->_.area) + field->offset;
-	// case NST_DUNGEON:	return (void*)*(lvalue->_.dungeon) + field->offset;
-	// case NST_INSTANCE:	return (void*)*(lvalue->_.instance) + field->offset;
-	case NST_MOBILE:	return (void*)*(lvalue->_.mobile) + field->offset;
-	// case NST_OBJECT:	return (void*)*(lvalue->_.object) + field->offset;
-	// case NST_QUEST:		return (void*)*(lvalue->_.quest) + field->offset;
-	case NST_ROOM:		return (void*)*(lvalue->_.room) + field->offset;
-	// case NST_SHIP:		return (void*)*(lvalue->_.ship) + field->offset;
-	// case NST_TOKEN:		return (void*)*(lvalue->_.token) + field->offset;
+	__lfo(ACCOUNT,account)
+	__lfo(AFFECT,affect)
+	__lfo(AREA,area)
+	// __lfo(CHANNEL,channel)
+	__lfo(CLASS,clazz)
+	__lfo(DUNGEON,dungeon)
+	__lfo(EXIT,ex)
+	__lfo(INSTANCE,instance)
+	__lfo(LIQUID,liquid)
+	__lfo(MAIL,mail)
+	__lfo(MATERIAL,material)
+	__lfo(MISSION,mission)
+	__lfo(MOBILE,mobile)
+	__lfo(NOTE,note)
+	__lfo(OBJECT,object)
+	__lfo(ORG,org)
+	// __lfo(QUEST,quest)
+	__lfo(RACE,race)
+	__lfo(RANK,rank)
+	__lfo(REPUTATION,reputation)
+	__lfo(ROOM,room)
+	__lfo(SHIP,ship)
+	__lfo(SKILL,skill)
+	__lfo(TOKEN,token)
+	__lfo(WILDS,wilds)
 	case NST_WIDEVNUM:	return (void*)(lvalue->_.wnum) + field->offset;
 	}
 
@@ -835,6 +906,8 @@ static void *__get_lvalue_field(NIB_SCRIPT_LVALUE *lvalue, NIB_FIELD *field)
 
 bool nib_push_stack_field_lvalue(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_LVALUE *lvalue, NIB_FIELD *field)
 {
+#define __flv(t,f)	case NST_##t:	_lvalue._.f = ptr; break;
+
 	void *ptr = __get_lvalue_field(lvalue, field);
 	if (!ptr) return false;
 
@@ -842,23 +915,38 @@ bool nib_push_stack_field_lvalue(NIB_SCRIPT_RUNTIME *nsr, NIB_SCRIPT_LVALUE *lva
 	_lvalue.type = field->stype;
 	switch(field->stype)
 	{
-	case NST_NUMBER:			_lvalue._.number = ptr;		break;
-	case NST_FLOAT:				_lvalue._.d = ptr;			break;
-	case NST_BOOLEAN:			_lvalue._.b = ptr;			break;
-	case NST_CHAR:				_lvalue._.ch = ptr;			break;
-	case NST_STRING:			_lvalue._.str = ptr;		break;
-	case NST_WIDEVNUM:			_lvalue._.wnum = ptr;		break;
-
-	case NST_AREA:				_lvalue._.area = ptr;		break;
-	// case NST_DUNGEON:
-	// case NST_INSTANCE:
-	case NST_MOBILE:			_lvalue._.mobile = ptr;		break;
-	// case NST_OBJECT:
-	// case NST_QUEST:
-	case NST_ROOM:				_lvalue._.room = ptr;		break;
-	// case NST_SHIP:
-	// case NST_TOKEN:
-
+	__flv(NUMBER,number)
+	__flv(FLOAT,d)
+	__flv(BOOLEAN,b)
+	__flv(CHAR,ch)
+	__flv(STRING,str)
+	// __flv(MAP,map)
+	__flv(WIDEVNUM,wnum)
+	__flv(ACCOUNT,account)
+	__flv(AFFECT,affect)
+	__flv(AREA,area)
+	// __flv(CHANNEL,channel)
+	__flv(CLASS,clazz)
+	__flv(DUNGEON,dungeon)
+	__flv(EXIT,ex)
+	__flv(INSTANCE,instance)
+	__flv(LIQUID,liquid)
+	__flv(MAIL,mail)
+	__flv(MATERIAL,material)
+	__flv(MISSION,mission)
+	__flv(MOBILE,mobile)
+	__flv(NOTE,note)
+	__flv(OBJECT,object)
+	__flv(ORG,org)
+	// __flv(QUEST,quest)
+	__flv(RACE,race)
+	__flv(RANK,rank)
+	__flv(REPUTATION,reputation)
+	__flv(ROOM,room)
+	__flv(SHIP,ship)
+	__flv(SKILL,skill)
+	__flv(TOKEN,token)
+	__flv(WILDS,wilds)
 	case NST_FLAG:
 		_lvalue._.stat.number = ptr;
 		_lvalue._.stat.table = field->type->_.flag.table;
@@ -978,9 +1066,32 @@ bool nib_peek_stack_stat (NIB_SCRIPT_RUNTIME *nsr, int offset, long *output, con
 
 	return false;
 }
+__peek(ACCOUNT_DATA *,ACCOUNT,account,account)
+__peek(AFFECT_DATA *,AFFECT,affect,affect)
 __peek(AREA_DATA *,AREA,area,area)
+//__peek(CHANNEL_DATA *,CHANNEL,channel,channel)
+__peek(CLASS_DATA *,CLASS,clazz,class)
+__peek(DUNGEON *,DUNGEON,dungeon,dungeon)
+__peek(EXIT_DATA *,EXIT,ex,exit)
+__peek(INSTANCE *,INSTANCE,instance,instance)
+__peek(LIQUID *,LIQUID,liquid,liquid)
+__peek(MAIL_DATA *,MAIL,mail,mail)
+__peek(MATERIAL *,MATERIAL,material,material)
+__peek(MISSION_DATA *,MISSION,mission,mission)
 __peek(CHAR_DATA *,MOBILE,mobile,mobile)
+__peek(NOTE_DATA *,NOTE,note,note)
+__peek(OBJ_DATA *,OBJECT,object,object)
+__peek(CHURCH_DATA *,ORG,org,org)
+// __peek(QUEST_DATA *,QUEST,quest,quest)
+__peek(RACE_DATA *,RACE,race,race)
+__peek(REPUTATION_INDEX_RANK_DATA *,RANK,rank,rank)
+__peek(REPUTATION_DATA *,REPUTATION,reputation,reputation)
 __peek(ROOM_INDEX_DATA *,ROOM,room,room)
+__peek(SHIP_DATA *,SHIP,ship,ship)
+__peek(SKILL_DATA *,SKILL,skill,skill)
+__peek(TOKEN_DATA *,TOKEN,token,token)
+__peek(WILDS_DATA *,WILDS,wilds,wilds)
+//__peek(WORLD_DATA *,WORLD,world,world)
 __peek(NIB_SCRIPT_LVALUE,LVALUE,lvalue,lvalue)
 
 bool nib_peek_stack_iterator (NIB_SCRIPT_RUNTIME *nsr, int offset, ITERATOR **it, LLIST **list, NIB_SCRIPT_STACK_TYPE *type)
@@ -1138,9 +1249,33 @@ bool nib_pop_stack_stat (NIB_SCRIPT_RUNTIME *nsr, long *output, const struct fla
 
 	return false;
 }
+__pop(ACCOUNT_DATA *,ACCOUNT,account,account)
+__pop(AFFECT_DATA *,AFFECT,affect,affect)
 __pop(AREA_DATA *,AREA,area,area)
+//__pop(CHANNEL_DATA *,CHANNEL,channel,channel)
+__pop(CLASS_DATA *,CLASS,clazz,class)
+__pop(DUNGEON *,DUNGEON,dungeon,dungeon)
+__pop(EXIT_DATA *,EXIT,ex,exit)
+__pop(INSTANCE *,INSTANCE,instance,instance)
+__pop(LIQUID *,LIQUID,liquid,liquid)
+__pop(MAIL_DATA *,MAIL,mail,mail)
+__pop(MATERIAL *,MATERIAL,material,material)
+__pop(MISSION_DATA *,MISSION,mission,mission)
 __pop(CHAR_DATA *,MOBILE,mobile,mobile)
+__pop(NOTE_DATA *,NOTE,note,note)
+__pop(OBJ_DATA *,OBJECT,object,object)
+__pop(CHURCH_DATA *,ORG,org,org)
+// __pop(QUEST_DATA *,QUEST,quest,quest)
+__pop(RACE_DATA *,RACE,race,race)
+__pop(REPUTATION_INDEX_RANK_DATA *,RANK,rank,rank)
+__pop(REPUTATION_DATA *,REPUTATION,reputation,reputation)
 __pop(ROOM_INDEX_DATA *,ROOM,room,room)
+__pop(SHIP_DATA *,SHIP,ship,ship)
+__pop(SKILL_DATA *,SKILL,skill,skill)
+__pop(TOKEN_DATA *,TOKEN,token,token)
+__pop(WILDS_DATA *,WILDS,wilds,wilds)
+//__pop(WORLD_DATA *,WORLD,world,world)
+
 __pop(NIB_SCRIPT_LVALUE,LVALUE,lvalue,lvalue)
 
 bool nib_pop_stack_iterator (NIB_SCRIPT_RUNTIME *nsr, ITERATOR *it, LLIST **list, NIB_SCRIPT_STACK_TYPE *type)
@@ -1250,372 +1385,64 @@ void nib_dump_stack(NIB_SCRIPT_RUNTIME *nsr)
 	printf("\n");
 }
 
-#if 0
-#define __assign(t,d,f,n) \
-static bool __assign_lvalue_##n (NIB_SCRIPT_RUNTIME *nsr, bool push_result) \
-{ \
-	/* Load VALUE */ \
-	t value; \
-	if (!nib_pop_stack_##n (nsr, &value)) \
-		return false; \
+#define __zr(s,t,n,z) \
+	case NST_##s: \
+	{ \
+		t value; \
+		if (!nib_peek_stack_##n (nsr, -1, &value)) \
+		{ \
+			SETRET(nsr,STACK); \
+			return true; \
+		} \
 \
-	/* Load LVALUE */ \
-	NIB_SCRIPT_LVALUE lvalue; \
-	if (!nib_pop_stack_lvalue(nsr, &lvalue)) \
-		return false; \
-\
-	/* Verify types actually match */ \
-	if (lvalue.type != NST_##d) \
-		return false; \
-\
-	(*(lvalue._.f)) = value; \
-\
-	if (push_result) \
-		return nib_push_stack_##n (nsr, value); \
-\
-	return true; \
-}
-
-// Needs special processing to handle assigning to BOOLEANS using CONST0/1
-static bool __assign_lvalue_number (NIB_SCRIPT_RUNTIME *nsr, bool push_result)
-{
-	/* Load VALUE */
-	long value;
-	if (!nib_pop_stack_number (nsr, &value))
-		return false;
-
-	/* Load LVALUE */
-	NIB_SCRIPT_LVALUE lvalue;
-	if (!nib_pop_stack_lvalue(nsr, &lvalue))
-		return false;
-
-	switch(lvalue.type)
-	{
-		case NST_NUMBER:		(*(lvalue._.number)) = value; break;
-		case NST_BOOLEAN:		(*(lvalue._.number)) = (value != 0); break;
-
-		default:
-			return false;
+		return (z); \
 	}
-
-	if (push_result)
-		return nib_push_stack_number (nsr, value);
-
-	return true;
-}
-
-//__assign(long,NUMBER,number,number)
-__assign(bool,BOOLEAN,b,boolean)
-__assign(double,FLOAT,d,float)
-__assign(char,CHAR,ch,char)
-static bool __assign_lvalue_string (NIB_SCRIPT_RUNTIME *nsr, bool push_result)
-{
-	/* Load VALUE */
-	char *value;
-	if (!nib_pop_stack_string (nsr, &value))
-		return false;
-
-	/* Load LVALUE */
-	NIB_SCRIPT_LVALUE lvalue;
-	if (!nib_pop_stack_lvalue(nsr, &lvalue))
-		return false;
-
-	/* Verify types actually match */
-	if (lvalue.type != NST_STRING)
-		return false;
-
-	// Replace the string
-	if (*(lvalue._.str)) free(*(lvalue._.str));
-	(*(lvalue._.str)) = strdup(value);
-
-	if (push_result)
-		return nib_push_stack_string (nsr, value);
-
-	return true;
-}
-static bool __assign_lvalue_string_shared (NIB_SCRIPT_RUNTIME *nsr, bool push_result)
-{
-	/* Load VALUE */
-	char *value;
-	if (!nib_pop_stack_string_shared (nsr, &value))
-		return false;
-
-	/* Load LVALUE */
-	NIB_SCRIPT_LVALUE lvalue;
-	if (!nib_pop_stack_lvalue(nsr, &lvalue))
-		return false;
-
-	/* Verify types actually match */
-	if (lvalue.type != NST_STRING)
-		return false;
-
-	// Replace the string
-	if (*(lvalue._.str)) free(*(lvalue._.str));
-	(*(lvalue._.str)) = strdup(value);
-
-	if (push_result)
-		return nib_push_stack_string_shared (nsr, value);
-
-
-	return true;
-}
-static bool __assign_lvalue_widevnum (NIB_SCRIPT_RUNTIME *nsr, bool push_result)
-{
-	/* Load VALUE */
-	WNUM value;
-	if (!nib_pop_stack_widevnum (nsr, &value))
-		return false;
-
-	/* Load LVALUE */
-	NIB_SCRIPT_LVALUE lvalue;
-	if (!nib_pop_stack_lvalue(nsr, &lvalue))
-		return false;
-
-	/* Verify types actually match */
-	if (lvalue.type != NST_WIDEVNUM)
-		return false;
-
-	(*(lvalue._.wnum)) = value;
-
-	if (push_result)
-		return nib_push_stack_widevnum (nsr, &value);
-
-	return true;
-}
-__assign(AREA_DATA *,AREA,area,area)
-__assign(CHAR_DATA *,MOBILE,mobile,mobile)
-__assign(ROOM_INDEX_DATA *,ROOM,room,room)
-// TODO: LIST
-static bool __assign_lvalue_lvalue (NIB_SCRIPT_RUNTIME *nsr, bool push_result)
-{
-	/* Load RHS */
-	NIB_SCRIPT_LVALUE rvalue;
-	if (!nib_pop_stack_lvalue (nsr, &rvalue))
-		return false;
-
-	/* Load LHS */
-	NIB_SCRIPT_LVALUE lvalue;
-	if (!nib_pop_stack_lvalue(nsr, &lvalue))
-		return false;
-
-	/* Verify types actually match */
-	if (lvalue.type != rvalue.type)
-		return false;
-
-	/* Verify list types actually match */
-	if (lvalue.type == NTC_LIST && lvalue._.list.type != rvalue._.list.type)
-		return false;
-
-	switch(lvalue.type)
-	{
-	case NST_NUMBER:		*(lvalue._.number) = *(rvalue._.number); break;
-	case NST_FLOAT:			*(lvalue._.d) = *(rvalue._.d); break;
-	case NST_BOOLEAN:		*(lvalue._.b) = *(rvalue._.b); break;
-	case NST_CHAR:			*(lvalue._.ch) = *(rvalue._.ch); break;
-	case NST_STRING:
-			if (*(lvalue._.str)) free(*(lvalue._.str));		// Free old string
-			// Duplicate new one, or keep NULL
-			*(lvalue._.str) = *(rvalue._.str) ? strdup(*(rvalue._.str)) : NULL;
-			break;
-	case NST_WIDEVNUM:		*(lvalue._.wnum) = *(rvalue._.wnum); break;
-	case NST_AREA:			*(lvalue._.area) = *(rvalue._.area); break;
-	// case NST_DUNGEON:		*(lvalue._.dungeon) = *(rvalue._.dungeon); break;
-	// case NST_INSTANCE:		*(lvalue._.instance) = *(rvalue._.instance); break;
-	case NST_MOBILE:		*(lvalue._.mobile) = *(rvalue._.mobile); break;
-	// case NST_OBJECT:		*(lvalue._.object) = *(rvalue._.object); break;
-	// case NST_QUEST:			*(lvalue._.quest) = *(rvalue._.quest); break;
-	case NST_ROOM:			*(lvalue._.room) = *(rvalue._.room); break;
-	// case NST_SHIP:			*(lvalue._.ship) = *(rvalue._.ship); break;
-	// case NST_TOKEN:			*(lvalue._.token) = *(rvalue._.token); break;
-	case NST_FLAG:			*(lvalue._.number) = *(rvalue._.number); break;
-	case NST_STAT:			*(lvalue._.number) = *(rvalue._.number); break;
-	case NST_LIST:
-			// TODO: LIST management for script created (should be freed) and external lists (freed elsewhere)
-			*(lvalue._.list.list) = *(rvalue._.list.list);
-			break;
-	}
-
-	if (push_result)
-		nib_push_stack_lvalue_value(nsr, &rvalue);
-
-	return true;
-}
-
-static bool __assign_lvalue_null (NIB_SCRIPT_RUNTIME *nsr, bool push_result)
-{
-	/* Load LHS */
-	NIB_SCRIPT_LVALUE lvalue;
-	if (!nib_pop_stack_lvalue(nsr, &lvalue))
-		return false;
-
-	switch(lvalue.type)
-	{
-	case NST_STRING:
-		if (*(lvalue._.str))	free(*(lvalue._.str));
-		*(lvalue._.str) = NULL;
-		break;
-
-	case NST_AREA:			*(lvalue._.area) = NULL; break;
-	// case NST_DUNGEON:		*(lvalue._.dungeon) = NULL; break;
-	// case NST_INSTANCE:		*(lvalue._.instance) = NULL; break;
-	case NST_MOBILE:		*(lvalue._.mobile) = NULL; break;
-	// case NST_OBJECT:		*(lvalue._.object) = NULL; break;
-	// case NST_QUEST:			*(lvalue._.quest) = NULL; break;
-	case NST_ROOM:			*(lvalue._.room) = NULL; break;
-	// case NST_SHIP:			*(lvalue._.ship) = NULL; break;
-	// case NST_TOKEN:			*(lvalue._.token) = NULL; break;
-	//case NST_LIST:			*(lvalue._.list.list) = NULL; break;
-	}
-
-	// If the result needs to stay, just keep the NST_NULL on the stack,
-	//  Otherwise, pop it.
-	if (!push_result)
-		return nib_pop_stack (nsr);
-
-	return true;
-}
-#endif
 
 static bool __is_top_zero(NIB_SCRIPT_RUNTIME *nsr)
 {
 	switch(nib_peek_stack(nsr))
 	{
-		case NST_NUMBER:
-		{
-			long number;
-			if (!nib_peek_stack_number(nsr, -1, &number))
-			{
-				nsr->last_return = SCPERR_FAILURE;
-				return true;
-			}
-
-			return !number;
-		}
-
-		case NST_BOOLEAN:
-		{
-			bool value;
-			if (!nib_peek_stack_boolean(nsr, -1, &value))
-			{
-				nsr->last_return = SCPERR_FAILURE;
-				return true;
-			}
-
-			return !value;
-		}
-
-		case NST_FLOAT:
-		{
-			double value;
-			if (!nib_peek_stack_float(nsr, -1, &value))
-			{
-				nsr->last_return = SCPERR_FAILURE;
-				return true;
-			}
-
-			return value == 0.0;
-		}
-
-		case NST_CHAR:
-		{
-			utf8char_t value;
-			if (!nib_peek_stack_char(nsr, -1, &value))
-			{
-				nsr->last_return = SCPERR_FAILURE;
-				return true;
-			}
-
-			return !value;
-		}
-
-		case NST_STRING:
-		{
-			char *value;
-			if (!nib_peek_stack_string(nsr, -1, &value))
-			{
-				nsr->last_return = SCPERR_FAILURE;
-				return true;
-			}
-
-			bool ret = !value || !value[0];	// NULL or empty
-			return ret;
-		}
-
-		case NST_STRING_S:
-		{
-			char *value;
-			if (!nib_peek_stack_string_shared(nsr, -1, &value))
-			{
-				nsr->last_return = SCPERR_FAILURE;
-				return true;
-			}
-
-			return !value || !value[0];	// NULL or empty
-		}
-
-		case NST_WIDEVNUM:
-		{
-			WNUM value;
-			if (!nib_peek_stack_widevnum(nsr, -1, &value))
-			{
-				nsr->last_return = SCPERR_FAILURE;
-				return true;
-			}
-
-			return !value.pArea && value.vnum < 1;
-		}
-
-		case NST_AREA:
-		{
-			AREA_DATA *value;
-			if (!nib_peek_stack_area(nsr, -1, &value))
-			{
-				nsr->last_return = SCPERR_FAILURE;
-				return true;
-			}
-
-			return !value;
-		}
-
-		// case NST_DUNGEON:
-		// case NST_INSTANCE:
-
-		case NST_MOBILE:
-		{
-			CHAR_DATA *value;
-			if (!nib_peek_stack_mobile(nsr, -1, &value))
-			{
-				nsr->last_return = SCPERR_FAILURE;
-				return true;
-			}
-
-			return !value;
-		}
-
-		// case NST_OBJECT:
-		// case NST_QUEST:
-
-		case NST_ROOM:
-		{
-			ROOM_INDEX_DATA *value;
-			if (!nib_peek_stack_room(nsr, -1, &value))
-			{
-				nsr->last_return = SCPERR_FAILURE;
-				return true;
-			}
-
-			return !value;
-		}
-
-		// case NST_SHIP:
-		// case NST_TOKEN:
+		__zr(NUMBER,long,number,!value)
+		__zr(FLOAT,double,float,value == 0.0)
+		__zr(BOOLEAN,bool,boolean,!value)
+		__zr(CHAR,utf8char_t,char,value == '\0')
+		__zr(STRING,char *,string,IS_NULLSTR(value))
+		__zr(STRING_S,char *,string_shared,IS_NULLSTR(value))
+//		__zr(MAP...)
+		__zr(WIDEVNUM,WNUM,widevnum,(!value.pArea && value.vnum < 1))
+		__zr(ACCOUNT,ACCOUNT_DATA *,account,!IS_VALID(value))
+		__zr(AFFECT,AFFECT_DATA *,affect,!IS_VALID(value))
+		__zr(AREA,AREA_DATA *,area,value)
+		// __zr(CHANNEL,CHANNEL_DATA *,channel,!value)
+		__zr(CLASS,CLASS_DATA *,class,!IS_VALID(value))
+		__zr(DUNGEON,DUNGEON *,dungeon,!IS_VALID(value))
+		__zr(EXIT,EXIT_DATA *,exit,!IS_VALID(value))
+		__zr(INSTANCE,INSTANCE *,instance,!IS_VALID(value))
+		__zr(LIQUID,LIQUID *,liquid,!IS_VALID(value))
+		__zr(MAIL,MAIL_DATA *,mail,!value)
+		__zr(MATERIAL,MATERIAL *,material,!value)
+		__zr(MISSION,MISSION_DATA *,mission,!value)
+		__zr(MOBILE,CHAR_DATA *,mobile,!IS_VALID(value))
+		__zr(NOTE,NOTE_DATA *,note,!IS_VALID(value))
+		__zr(OBJECT,OBJ_DATA *,object,!IS_VALID(value))
+		__zr(ORG,CHURCH_DATA *,org,value)
+		//__zr(QUEST,QUEST_DATA *,quest,!IS_VALID(value))
+		__zr(RACE,RACE_DATA *,race,!IS_VALID(value))
+		__zr(RANK,REPUTATION_INDEX_RANK_DATA *,rank,!value)
+		__zr(REPUTATION,REPUTATION_DATA *,reputation,!IS_VALID(value))
+		__zr(ROOM,ROOM_INDEX_DATA *,room,!value)
+		__zr(SHIP,SHIP_DATA *,ship,!IS_VALID(value))
+		__zr(SKILL,SKILL_DATA *,skill,!IS_VALID(value))
+		__zr(TOKEN,TOKEN_DATA *,token,!IS_VALID(value))
+		__zr(WILDS,WILDS_DATA *,wilds,value)
+		// __zr(WORLD,WORLD_DATA *,world,!IS_VALID(value))
 
 		case NST_FLAG:
 		{
 			long value;
-			if (!nib_peek_stack_number(nsr, -1, &value))
+			if (!nib_peek_stack_flag(nsr, -1, &value, NULL))
 			{
-				nsr->last_return = SCPERR_FAILURE;
+				SETRET(nsr,STACK);
 				return true;
 			}
 
@@ -1628,7 +1455,7 @@ static bool __is_top_zero(NIB_SCRIPT_RUNTIME *nsr)
 			NIB_SCRIPT_STACK_TYPE type;
 			if (!nib_peek_stack_list(nsr, -1, &list, &type))
 			{
-				nsr->last_return = SCPERR_FAILURE;
+				SETRET(nsr,STACK);
 				return true;
 			}
 
@@ -1641,7 +1468,7 @@ static bool __is_top_zero(NIB_SCRIPT_RUNTIME *nsr)
 			NIB_SCRIPT_STACK_TYPE type;
 			if (!nib_peek_stack_list_shared(nsr, -1, &list, &type))
 			{
-				nsr->last_return = SCPERR_FAILURE;
+				SETRET(nsr,STACK);
 				return true;
 			}
 
@@ -1653,7 +1480,7 @@ static bool __is_top_zero(NIB_SCRIPT_RUNTIME *nsr)
 			NIB_SCRIPT_LVALUE lvalue;
 			if (!nib_peek_stack_lvalue(nsr, -1, &lvalue))
 			{
-				nsr->last_return = SCPERR_FAILURE;
+				SETRET(nsr,STACK);
 				return true;
 			}
 
@@ -1665,18 +1492,35 @@ static bool __is_top_zero(NIB_SCRIPT_RUNTIME *nsr)
 			case NST_FLAG_BIT:		return !IS_SET(*(lvalue._.bit.value),lvalue._.bit.bit);
 			case NST_CHAR:			return !*(lvalue._.ch);
 			case NST_STRING:		return !*(lvalue._.str) || !(*(lvalue._.str))[0];
+			// case NST_MAP:		return is map null or empty;
 			case NST_WIDEVNUM:		return !lvalue._.wnum->pArea && lvalue._.wnum->vnum < 1;
+			case NST_ACCOUNT:		return !IS_VALID((*(lvalue._.account)));
+			case NST_AFFECT:		return !IS_VALID((*(lvalue._.affect)));
 			case NST_AREA:			return !*(lvalue._.area);
-			// case NST_DUNGEON:
-			// case NST_INSTANCE:
-			case NST_MOBILE:		return !*(lvalue._.mobile);
-			// case NST_OBJECT:
-			// case NST_QUEST:
+			// case NST_CHANNEL:		return !IS_VALID((*(lvalue._.channel)));
+			case NST_CLASS:			return !IS_VALID((*(lvalue._.clazz)));
+			case NST_DUNGEON:		return !IS_VALID((*(lvalue._.dungeon)));
+			case NST_EXIT:			return !IS_VALID((*(lvalue._.ex)));
+			case NST_INSTANCE:		return !IS_VALID((*(lvalue._.instance)));
+			case NST_LIQUID:		return !IS_VALID((*(lvalue._.liquid)));
+			case NST_MAIL:			return !*(lvalue._.mail);
+			case NST_MATERIAL:		return !IS_VALID((*(lvalue._.material)));
+			case NST_MISSION:		return !*(lvalue._.mission);
+			case NST_MOBILE:		return !IS_VALID((*(lvalue._.mobile)));
+			case NST_NOTE:			return !IS_VALID((*(lvalue._.note)));
+			case NST_OBJECT:		return !IS_VALID((*(lvalue._.object)));
+			case NST_ORG:			return !*(lvalue._.org);
+			// case NST_QUEST:			return !IS_VALID((*(lvalue._.quest)));
+			case NST_RACE:			return !IS_VALID((*(lvalue._.race)));
+			case NST_RANK:			return !*(lvalue._.rank);
+			case NST_REPUTATION:	return !IS_VALID((*(lvalue._.reputation)));
 			case NST_ROOM:			return !*(lvalue._.room);
-			// case NST_SHIP:
-			// case NST_TOKEN:
-			case NST_FLAG:			return !*(lvalue._.number);
-			// cast NST_STAT - cannot be "zero/false"
+			case NST_SHIP:			return !IS_VALID((*(lvalue._.ship)));
+			case NST_SKILL:			return !IS_VALID((*(lvalue._.skill)));
+			case NST_TOKEN:			return !IS_VALID((*(lvalue._.token)));
+			case NST_WILDS:			return !*(lvalue._.wilds);
+			// case NST_WORLD:			return !IS_VALID((*(lvalue._.world)));
+			case NST_FLAG:			return !*(lvalue._.stat.number);
 			case NST_LIST:			return !list_isvalid(*(lvalue._.list.list)) || list_size(*(lvalue._.list.list)) < 1;
 			}
 			break;
@@ -1689,142 +1533,47 @@ static bool __is_top_not_zero(NIB_SCRIPT_RUNTIME *nsr)
 {
 	switch(nib_peek_stack(nsr))
 	{
-		case NST_NUMBER:
-		{
-			long number;
-			if (!nib_peek_stack_number(nsr, -1, &number))
-			{
-				nsr->last_return = SCPERR_FAILURE;
-				return true;
-			}
-
-			return number != 0;
-		}
-
-		case NST_BOOLEAN:
-		{
-			bool value;
-			if (!nib_peek_stack_boolean(nsr, -1, &value))
-			{
-				nsr->last_return = SCPERR_FAILURE;
-				return true;
-			}
-
-			return value;
-		}
-
-		case NST_FLOAT:
-		{
-			double value;
-			if (!nib_peek_stack_float(nsr, -1, &value))
-			{
-				nsr->last_return = SCPERR_FAILURE;
-				return true;
-			}
-
-			return value != 0.0;
-		}
-
-		case NST_CHAR:
-		{
-			utf8char_t value;
-			if (!nib_peek_stack_char(nsr, -1, &value))
-			{
-				nsr->last_return = SCPERR_FAILURE;
-				return true;
-			}
-
-			return value != '\0';
-		}
-
-		case NST_STRING:
-		{
-			char *value;
-			if (!nib_peek_stack_string(nsr, -1, &value))
-			{
-				nsr->last_return = SCPERR_FAILURE;
-				return true;
-			}
-
-			bool ret = value && value[0];
-			return ret;
-		}
-
-		case NST_STRING_S:
-		{
-			char *value;
-			if (!nib_peek_stack_string_shared(nsr, -1, &value))
-			{
-				nsr->last_return = SCPERR_FAILURE;
-				return true;
-			}
-
-			return value && value[0];
-		}
-
-		case NST_WIDEVNUM:
-		{
-			WNUM value;
-			if (!nib_peek_stack_widevnum(nsr, -1, &value))
-			{
-				nsr->last_return = SCPERR_FAILURE;
-				return true;
-			}
-
-			return value.vnum > 0;		// Area can be null
-		}
-
-		case NST_AREA:
-		{
-			AREA_DATA *value;
-			if (!nib_peek_stack_area(nsr, -1, &value))
-			{
-				nsr->last_return = SCPERR_FAILURE;
-				return true;
-			}
-
-			return value != NULL;
-		}
-
-		// case NST_DUNGEON:
-		// case NST_INSTANCE:
-
-		case NST_MOBILE:
-		{
-			CHAR_DATA *value;
-			if (!nib_peek_stack_mobile(nsr, -1, &value))
-			{
-				nsr->last_return = SCPERR_FAILURE;
-				return true;
-			}
-
-			return value != NULL;
-		}
-
-		// case NST_OBJECT:
-		// case NST_QUEST:
-
-		case NST_ROOM:
-		{
-			ROOM_INDEX_DATA *value;
-			if (!nib_peek_stack_room(nsr, -1, &value))
-			{
-				nsr->last_return = SCPERR_FAILURE;
-				return true;
-			}
-
-			return value != NULL;
-		}
-
-		// case NST_SHIP:
-		// case NST_TOKEN:
+		__zr(NUMBER,long,number,value != 0)
+		__zr(FLOAT,double,float,value != 0.0)
+		__zr(BOOLEAN,bool,boolean,value)
+		__zr(CHAR,utf8char_t,char,value != '\0')
+		__zr(STRING,char *,string,!IS_NULLSTR(value))
+		__zr(STRING_S,char *,string_shared,!IS_NULLSTR(value))
+		// __zr(MAP...)
+		__zr(WIDEVNUM,WNUM,widevnum,value.vnum > 0)
+		__zr(ACCOUNT,ACCOUNT_DATA *,account,IS_VALID(value))
+		__zr(AFFECT,AFFECT_DATA *,affect,IS_VALID(value))
+		__zr(AREA,AREA_DATA *,area,value != NULL)
+		// __zr(CHANNEL,CHANNEL_DATA *,channel,!value)
+		__zr(CLASS,CLASS_DATA *,class,IS_VALID(value))
+		__zr(DUNGEON,DUNGEON *,dungeon,IS_VALID(value))
+		__zr(EXIT,EXIT_DATA *,exit,IS_VALID(value))
+		__zr(INSTANCE,INSTANCE *,instance,IS_VALID(value))
+		__zr(LIQUID,LIQUID *,liquid,IS_VALID(value))
+		__zr(MAIL,MAIL_DATA *,mail,value != NULL)
+		__zr(MATERIAL,MATERIAL *,material,value)
+		__zr(MISSION,MISSION_DATA *,mission,value)
+		__zr(MOBILE,CHAR_DATA *,mobile,IS_VALID(value))
+		__zr(NOTE,NOTE_DATA *,note,IS_VALID(value))
+		__zr(OBJECT,OBJ_DATA *,object,IS_VALID(value))
+		__zr(ORG,CHURCH_DATA *,org,value != NULL)
+		//__zr(QUEST,QUEST_DATA *,quest,IS_VALID(value))
+		__zr(RACE,RACE_DATA *,race,IS_VALID(value))
+		__zr(RANK,REPUTATION_INDEX_RANK_DATA *,rank,value)
+		__zr(REPUTATION,REPUTATION_DATA *,reputation,IS_VALID(value))
+		__zr(ROOM,ROOM_INDEX_DATA *,room,value != NULL)
+		__zr(SHIP,SHIP_DATA *,ship,IS_VALID(value))
+		__zr(SKILL,SKILL_DATA *,skill,IS_VALID(value))
+		__zr(TOKEN,TOKEN_DATA *,token,IS_VALID(value))
+		__zr(WILDS,WILDS_DATA *,wilds,value != NULL)
+		// __zr(WORLD,WORLD_DATA *,world,!IS_VALID(value))
 
 		case NST_FLAG:
 		{
 			long value;
-			if (!nib_peek_stack_number(nsr, -1, &value))
+			if (!nib_peek_stack_flag(nsr, -1, &value, NULL))
 			{
-				nsr->last_return = SCPERR_FAILURE;
+				SETRET(nsr,STACK);
 				return true;
 			}
 
@@ -1837,7 +1586,7 @@ static bool __is_top_not_zero(NIB_SCRIPT_RUNTIME *nsr)
 			NIB_SCRIPT_STACK_TYPE type;
 			if (!nib_peek_stack_list(nsr, -1, &list, &type))
 			{
-				nsr->last_return = SCPERR_FAILURE;
+				SETRET(nsr,STACK);
 				return true;
 			}
 
@@ -1850,7 +1599,7 @@ static bool __is_top_not_zero(NIB_SCRIPT_RUNTIME *nsr)
 			NIB_SCRIPT_STACK_TYPE type;
 			if (!nib_peek_stack_list_shared(nsr, -1, &list, &type))
 			{
-				nsr->last_return = SCPERR_FAILURE;
+				SETRET(nsr,STACK);
 				return true;
 			}
 
@@ -1862,7 +1611,7 @@ static bool __is_top_not_zero(NIB_SCRIPT_RUNTIME *nsr)
 			NIB_SCRIPT_LVALUE lvalue;
 			if (!nib_peek_stack_lvalue(nsr, -1, &lvalue))
 			{
-				nsr->last_return = SCPERR_FAILURE;
+				SETRET(nsr,STACK);
 				return true;
 			}
 
@@ -1873,17 +1622,35 @@ static bool __is_top_not_zero(NIB_SCRIPT_RUNTIME *nsr)
 			case NST_BOOLEAN:		return *(lvalue._.b);
 			case NST_FLAG_BIT:		return IS_SET(*(lvalue._.bit.value),lvalue._.bit.bit);
 			case NST_CHAR:			return *(lvalue._.ch) != '\0';
-			case NST_STRING:		return *(lvalue._.str) && (*(lvalue._.str))[0];
+			case NST_STRING:		return !IS_NULLSTR((*(lvalue._.str)));
+			// case NST_MAP:		return is map valid and with entries;
 			case NST_WIDEVNUM:		return lvalue._.wnum->vnum > 0;
+			case NST_ACCOUNT:		return IS_VALID((*(lvalue._.account)));
+			case NST_AFFECT:		return IS_VALID((*(lvalue._.affect)));
 			case NST_AREA:			return *(lvalue._.area) != NULL;
-			// case NST_DUNGEON:
-			// case NST_INSTANCE:
-			case NST_MOBILE:		return *(lvalue._.mobile) != NULL;
-			// case NST_OBJECT:
-			// case NST_QUEST:
+			// case NST_CHANNEL:		return IS_VALID((*(lvalue._.channel)));
+			case NST_CLASS:			return IS_VALID((*(lvalue._.clazz)));
+			case NST_DUNGEON:		return IS_VALID((*(lvalue._.dungeon)));
+			case NST_EXIT:			return IS_VALID((*(lvalue._.ex)));
+			case NST_INSTANCE:		return IS_VALID((*(lvalue._.instance)));
+			case NST_LIQUID:		return IS_VALID((*(lvalue._.liquid)));
+			case NST_MAIL:			return *(lvalue._.mail) != NULL;
+			case NST_MATERIAL:		return IS_VALID((*(lvalue._.material)));
+			case NST_MISSION:		return *(lvalue._.mission) != NULL;
+			case NST_MOBILE:		return IS_VALID((*(lvalue._.mobile)));
+			case NST_NOTE:			return IS_VALID((*(lvalue._.note)));
+			case NST_OBJECT:		return IS_VALID((*(lvalue._.object)));
+			case NST_ORG:			return *(lvalue._.org) != NULL;
+			// case NST_QUEST:			return IS_VALID((*(lvalue._.quest)));
+			case NST_RACE:			return IS_VALID((*(lvalue._.race)));
+			case NST_RANK:			return *(lvalue._.rank) != NULL;
+			case NST_REPUTATION:	return IS_VALID((*(lvalue._.reputation)));
 			case NST_ROOM:			return *(lvalue._.room) != NULL;
-			// case NST_SHIP:
-			// case NST_TOKEN:
+			case NST_SHIP:			return IS_VALID((*(lvalue._.ship)));
+			case NST_SKILL:			return IS_VALID((*(lvalue._.skill)));
+			case NST_TOKEN:			return IS_VALID((*(lvalue._.token)));
+			case NST_WILDS:			return *(lvalue._.wilds) != NULL;
+			// case NST_WORLD:			return IS_VALID((*(lvalue._.world)));
 			case NST_FLAG:			return *(lvalue._.number) != 0;
 			case NST_LIST:			return list_size(*(lvalue._.list.list)) > 0;
 			}
@@ -3407,6 +3174,101 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					}
 					break;
 				}
+
+			case NST_ACCOUNT:	// STRING op ACCOUNT => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							strncpy(stringify,IS_VALID(rsp->_.account) ? rsp->_.account->username : "null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_AFFECT:	// STRING op AFFECT => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.affect))
+								strncpy(stringify,get_affect_name(rsp->_.affect),sizeof(stringify)-1);
+							else
+								strcpy(stringify,"null");
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
 			
 			case NST_AREA:		// STRING op AREA => STRING
 				{
@@ -3456,6 +3318,404 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					break;
 				}
 			
+			// case NST_CHANNEL:	// STRING op CHANNEL => STRING
+			case NST_CLASS:		// STRING op CLASS => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.clazz))
+								strncpy(stringify,rsp->_.clazz->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_DUNGEON:	// STRING op DUNGEON => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.dungeon))
+								strncpy(stringify,rsp->_.dungeon->index->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_EXIT:		// STRING op EXIT => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.ex))
+							{
+								if (rsp->_.ex->orig_door >= 0 && rsp->_.ex->orig_door < MAX_DIR)
+									strncpy(stringify,dir_name[rsp->_.ex->orig_door],sizeof(stringify)-1);
+								else
+									strncpy(stringify,"???",sizeof(stringify)-1);
+							}
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_INSTANCE:	// STRING op INSTANCE => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.instance))
+								strncpy(stringify,rsp->_.instance->blueprint->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_LIQUID:	// STRING op LIQUID => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.liquid))
+								strncpy(stringify,rsp->_.liquid->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_MAIL:		// STRING op MAIL => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (rsp->_.mail)
+								snprintf(stringify,sizeof(stringify)-1,"<mailto:%s>",rsp->_.mail->recipient);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_MATERIAL:	// STRING op MATERIAL => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.material))
+								strncpy(stringify,rsp->_.material->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_MISSION:	// STRING op MISSION => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (rsp->_.mission)
+								snprintf(stringify,sizeof(stringify)-1,"<mission:%ld>",rsp->_.mission->timer);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
 			case NST_MOBILE:	// STRING op MOBILE => STRING
 				{
 					switch(op)
@@ -3464,9 +3724,303 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 						{
 							char stringify[100];
 							sprintf(stringify,"%s(%ld,%ld)",
-								(rsp->_.mobile) ? (rsp->_.mobile)->name : "null",
+								(rsp->_.mobile) ? (rsp->_.mobile)->short_descr : "null",
 								(rsp->_.mobile && (rsp->_.mobile)->pIndexData) ? (rsp->_.mobile)->pIndexData->area->uid : 0,
 								(rsp->_.mobile && (rsp->_.mobile)->pIndexData) ? (rsp->_.mobile)->pIndexData->vnum : 0);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_NOTE:		// STRING op NOTE => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.note))
+								snprintf(stringify,sizeof(stringify)-1,"<note:%s>",rsp->_.note->to_list);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_OBJECT:	// STRING op OBJECT => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							sprintf(stringify,"%s(%ld,%ld)",
+								(rsp->_.object) ? (rsp->_.object)->short_descr : "null",
+								(rsp->_.object && (rsp->_.object)->pIndexData) ? (rsp->_.object)->pIndexData->area->uid : 0,
+								(rsp->_.object && (rsp->_.object)->pIndexData) ? (rsp->_.object)->pIndexData->vnum : 0);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_ORG:		// STRING op ORG => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (rsp->_.org)
+								strncpy(stringify,rsp->_.org->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			// case NST_QUEST:	// STRING op QUEST => STRING
+			case NST_RACE:		// STRING op RACE => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.race))
+								strncpy(stringify,rsp->_.race->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_RANK:		// STRING op RANK => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.rank))
+								strncpy(stringify,rsp->_.rank->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_REPUTATION:// STRING op REPUTATION => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.reputation))
+								strncpy(stringify,rsp->_.reputation->pIndexData->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
 							if (lsp->_.str)
 							{
 								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
@@ -3512,6 +4066,27 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					case NI_ADD:		// Concatenation
 						{
 							char stringify[100];
+							if (rsp->_.room)
+							{
+								if(rsp->_.room->source)
+								{
+									snprintf(stringify,sizeof(stringify)-1,"%s(%ld,%ld,%lu,%lu)",
+										(rsp->_.room)->source->name,
+										(rsp->_.room)->source->area->uid,
+										(rsp->_.room)->source->vnum,
+										(rsp->_.room)->id[0],
+										(rsp->_.room)->id[1]);
+								}
+								else
+								{
+									snprintf(stringify,sizeof(stringify)-1,"%s(%ld,%ld,%ld,%ld)",
+										(rsp->_.room)->name,
+										(rsp->_.room)->area->uid,
+										(rsp->_.room)->vnum);
+								}
+							}
+							else
+								strcpy(stringify, "null");
 							sprintf(stringify,"%s(%ld,%ld)",
 								(rsp->_.room) ? (rsp->_.room)->name : "null",
 								(rsp->_.room) ? (rsp->_.room)->area->uid : 0,
@@ -3555,6 +4130,203 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					break;
 				}
 			
+			case NST_SHIP:		// STRING op SHIP => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.ship))
+								strncpy(stringify,rsp->_.ship->index->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_SKILL:		// STRING op SKILL => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.skill))
+								strncpy(stringify,rsp->_.skill->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_TOKEN:		// STRING op TOKEN => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							sprintf(stringify,"%s(%ld,%ld)",
+								(rsp->_.token) ? (rsp->_.token)->name : "null",
+								(rsp->_.token && (rsp->_.token)->pIndexData) ? (rsp->_.token)->pIndexData->area->uid : 0,
+								(rsp->_.token && (rsp->_.token)->pIndexData) ? (rsp->_.token)->pIndexData->vnum : 0);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_WILDS:		// STRING op WILDS => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							sprintf(stringify,"%s(%ld,%ld)",
+								(rsp->_.wilds) ? (rsp->_.wilds)->name : "null",
+								(rsp->_.wilds) ? (rsp->_.wilds)->pArea->uid : 0,
+								(rsp->_.wilds) ? (rsp->_.wilds)->uid : 0);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									free(lsp->_.str);
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								free(lsp->_.str);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						if (lsp->_.str) free(lsp->_.str);
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			// case NST_WORLD:	// STRING op WORLD => STRING
 			case NST_LVALUE:	// STRING op LVALUE => STRING
 				{
 					switch(rsp->_.lvalue.type)
@@ -3654,11 +4426,14 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
 										if (!value)
 										{
+											free(lsp->_.str);
 											SETRET(nsr,MEMORY);
 											return true;
 										}
 										strcpy(value,lsp->_.str);
 										strcat(value,stringify);
+
+										free(lsp->_.str);
 
 										if (!nib_push_stack_string_raw(nsr,value))
 										{
@@ -3677,6 +4452,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 								}
 
 							default:
+								if(lsp->_.str) free(lsp->_.str);
 								SETRET(nsr,INVALID);
 								return true;
 							}
@@ -3695,11 +4471,60 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
 										if (!value)
 										{
+											free(lsp->_.str);
 											SETRET(nsr,MEMORY);
 											return true;
 										}
 										strcpy(value,lsp->_.str);
 										strcat(value,stringify);
+
+										free(lsp->_.str);
+										
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								if(lsp->_.str) free(lsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					case NST_FLAG_BIT:	// STRING op BIT => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									bool set = IS_SET(*(rsp->_.lvalue._.bit.value),rsp->_.lvalue._.bit.bit);
+									char *stringify = (set?"true":"false");
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										free(lsp->_.str);
 
 										if (!nib_push_stack_string_raw(nsr,value))
 										{
@@ -3718,12 +4543,13 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 								}
 
 							default:
+								if (lsp->_.str) free(lsp->_.str);
 								SETRET(nsr,INVALID);
 								return true;
 							}
 							break;
 						}
-					
+
 					case NST_CHAR:		// STRING op CHAR => STRING
 						{
 							if (op != NI_ADD)
@@ -3960,6 +4786,101 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							break;
 						}
 					
+					case NST_ACCOUNT:	// STRING op ACCOUNT => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									strncpy(stringify,IS_VALID((*(rsp->_.lvalue._.account))) ? (*(rsp->_.lvalue._.account))->username : "null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								if (lsp->_.str) free(lsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_AFFECT:	// STRING op AFFECT => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.affect))))
+										strncpy(stringify,get_affect_name((*(rsp->_.lvalue._.affect))),sizeof(stringify)-1);
+									else
+										strcpy(stringify,"null");
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								if (lsp->_.str) free(lsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
 					case NST_AREA:		// STRING op AREA => STRING
 						{
 							switch(op)
@@ -3998,6 +4919,404 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 								}
 
 							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					// case NST_CHANNEL:	// STRING op CHANNEL => STRING
+					case NST_CLASS:		// STRING op CLASS => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.clazz))))
+										strncpy(stringify,(*(rsp->_.lvalue._.clazz))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								if (lsp->_.str) free(lsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_DUNGEON:	// STRING op DUNGEON => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.dungeon))))
+										strncpy(stringify,(*(rsp->_.lvalue._.dungeon))->index->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								if (lsp->_.str) free(lsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_EXIT:		// STRING op EXIT => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.ex))))
+									{
+										if ((*(rsp->_.lvalue._.ex))->orig_door >= 0 && (*(rsp->_.lvalue._.ex))->orig_door < MAX_DIR)
+											strncpy(stringify,dir_name[(*(rsp->_.lvalue._.ex))->orig_door],sizeof(stringify)-1);
+										else
+											strncpy(stringify,"???",sizeof(stringify)-1);
+									}
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								if (lsp->_.str) free(lsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_INSTANCE:	// STRING op INSTANCE => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.instance))))
+										strncpy(stringify,(*(rsp->_.lvalue._.instance))->blueprint->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								if (lsp->_.str) free(lsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_LIQUID:	// STRING op LIQUID => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.liquid))))
+										strncpy(stringify,(*(rsp->_.lvalue._.liquid))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								if (lsp->_.str) free(lsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_MAIL:		// STRING op MAIL => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (*(rsp->_.lvalue._.mail))
+										snprintf(stringify,sizeof(stringify)-1,"<mailto:%s>",(*(rsp->_.lvalue._.mail))->recipient);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								if (lsp->_.str) free(lsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_MATERIAL:	// STRING op MATERIAL => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.material))))
+										strncpy(stringify,(*(rsp->_.lvalue._.material))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								if (lsp->_.str) free(lsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_MISSION:	// STRING op MISSION => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (*(rsp->_.lvalue._.mission))
+										snprintf(stringify,sizeof(stringify)-1,"<mission:%ld>",(*(rsp->_.lvalue._.mission))->timer);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								if (lsp->_.str) free(lsp->_.str);
 								SETRET(nsr,INVALID);
 								return true;
 							}
@@ -4044,6 +5363,300 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 								}
 
 							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_NOTE:		// STRING op NOTE => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.note))))
+										snprintf(stringify,sizeof(stringify)-1,"<note:%s>",(*(rsp->_.lvalue._.note))->to_list);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								if (lsp->_.str) free(lsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_OBJECT:	// STRING op OBJECT => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									sprintf(stringify,"%s(%ld,%ld)",
+										((*(rsp->_.lvalue._.object))) ? ((*(rsp->_.lvalue._.object)))->short_descr : "null",
+										((*(rsp->_.lvalue._.object)) && ((*(rsp->_.lvalue._.object)))->pIndexData) ? ((*(rsp->_.lvalue._.object)))->pIndexData->area->uid : 0,
+										((*(rsp->_.lvalue._.object)) && ((*(rsp->_.lvalue._.object)))->pIndexData) ? ((*(rsp->_.lvalue._.object)))->pIndexData->vnum : 0);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								if (lsp->_.str) free(lsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_ORG:		// STRING op ORG => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (*(rsp->_.lvalue._.org))
+										strncpy(stringify,(*(rsp->_.lvalue._.org))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								if (lsp->_.str) free(lsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					// case NST_QUEST:	// STRING op QUEST => STRING
+					case NST_RACE:		// STRING op RACE => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.race))))
+										strncpy(stringify,(*(rsp->_.lvalue._.race))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								if (lsp->_.str) free(lsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_RANK:		// STRING op RANK => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.rank))))
+										strncpy(stringify,(*(rsp->_.lvalue._.rank))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								if (lsp->_.str) free(lsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_REPUTATION:// STRING op REPUTATION => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.reputation))))
+										strncpy(stringify,(*(rsp->_.lvalue._.reputation))->pIndexData->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								if (lsp->_.str) free(lsp->_.str);
 								SETRET(nsr,INVALID);
 								return true;
 							}
@@ -4097,6 +5710,204 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							break;
 						}
 					
+					case NST_SHIP:		// STRING op SHIP => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.ship))))
+										strncpy(stringify,(*(rsp->_.lvalue._.ship))->index->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								if (lsp->_.str) free(lsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_SKILL:		// STRING op SKILL => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.skill))))
+										strncpy(stringify,(*(rsp->_.lvalue._.skill))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								if (lsp->_.str) free(lsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_TOKEN:		// STRING op TOKEN => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									sprintf(stringify,"%s(%ld,%ld)",
+										((*(rsp->_.lvalue._.token))) ? ((*(rsp->_.lvalue._.token)))->name : "null",
+										((*(rsp->_.lvalue._.token)) && ((*(rsp->_.lvalue._.token)))->pIndexData) ? ((*(rsp->_.lvalue._.token)))->pIndexData->area->uid : 0,
+										((*(rsp->_.lvalue._.token)) && ((*(rsp->_.lvalue._.token)))->pIndexData) ? ((*(rsp->_.lvalue._.token)))->pIndexData->vnum : 0);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								if (lsp->_.str) free(lsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_WILDS:		// STRING op WILDS => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									sprintf(stringify,"%s(%ld,%ld)",
+										((*(rsp->_.lvalue._.wilds))) ? ((*(rsp->_.lvalue._.wilds)))->name : "null",
+										((*(rsp->_.lvalue._.wilds))) ? ((*(rsp->_.lvalue._.wilds)))->pArea->uid : 0,
+										((*(rsp->_.lvalue._.wilds))) ? ((*(rsp->_.lvalue._.wilds)))->uid : 0);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											free(lsp->_.str);
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										free(lsp->_.str);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								if (lsp->_.str) free(lsp->_.str);
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					// case NST_WORLD:	// STRING op WORLD => STRING
+
 					default:
 						SETRET(nsr,INVALID);
 						return true;
@@ -4554,6 +6365,93 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					break;
 				}
 			
+			case NST_ACCOUNT:	// STRING op ACCOUNT => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							strncpy(stringify,IS_VALID(rsp->_.account) ? rsp->_.account->username : "null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_AFFECT:	// STRING op AFFECT => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.affect))
+								strncpy(stringify,get_affect_name(rsp->_.affect),sizeof(stringify)-1);
+							else
+								strcpy(stringify,"null");
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
 			case NST_AREA:		// STRING op AREA => STRING
 				{
 					switch(op)
@@ -4598,6 +6496,372 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					break;
 				}
 			
+			// case NST_CHANNEL:	// STRING op CHANNEL => STRING
+			case NST_CLASS:		// STRING op CLASS => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.clazz))
+								strncpy(stringify,rsp->_.clazz->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_DUNGEON:	// STRING op DUNGEON => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.dungeon))
+								strncpy(stringify,rsp->_.dungeon->index->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_EXIT:		// STRING op EXIT => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.ex))
+							{
+								if (rsp->_.ex->orig_door >= 0 && rsp->_.ex->orig_door < MAX_DIR)
+									strncpy(stringify,dir_name[rsp->_.ex->orig_door],sizeof(stringify)-1);
+								else
+									strncpy(stringify,"???",sizeof(stringify)-1);
+							}
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_INSTANCE:	// STRING op INSTANCE => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.instance))
+								strncpy(stringify,rsp->_.instance->blueprint->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_LIQUID:	// STRING op LIQUID => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.liquid))
+								strncpy(stringify,rsp->_.liquid->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_MAIL:		// STRING op MAIL => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (rsp->_.mail)
+								snprintf(stringify,sizeof(stringify)-1,"<mailto:%s>",rsp->_.mail->recipient);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_MATERIAL:	// STRING op MATERIAL => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.material))
+								strncpy(stringify,rsp->_.material->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_MISSION:	// STRING op MISSION => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (rsp->_.mission)
+								snprintf(stringify,sizeof(stringify)-1,"<mission:%ld>",rsp->_.mission->timer);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
 			case NST_MOBILE:	// STRING op MOBILE => STRING
 				{
 					switch(op)
@@ -4606,7 +6870,7 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 						{
 							char stringify[100];
 							sprintf(stringify,"%s(%ld,%ld)",
-								(rsp->_.mobile) ? (rsp->_.mobile)->name : "null",
+								(rsp->_.mobile) ? (rsp->_.mobile)->short_descr : "null",
 								(rsp->_.mobile && (rsp->_.mobile)->pIndexData) ? (rsp->_.mobile)->pIndexData->area->uid : 0,
 								(rsp->_.mobile && (rsp->_.mobile)->pIndexData) ? (rsp->_.mobile)->pIndexData->vnum : 0);
 							if (lsp->_.str)
@@ -4629,6 +6893,277 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							}
 							else if (!nib_push_stack_string(nsr,stringify))
 							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_NOTE:		// STRING op NOTE => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.note))
+								snprintf(stringify,sizeof(stringify)-1,"<note:%s>",rsp->_.note->to_list);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_OBJECT:	// STRING op OBJECT => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							sprintf(stringify,"%s(%ld,%ld)",
+								(rsp->_.object) ? (rsp->_.object)->short_descr : "null",
+								(rsp->_.object && (rsp->_.object)->pIndexData) ? (rsp->_.object)->pIndexData->area->uid : 0,
+								(rsp->_.object && (rsp->_.object)->pIndexData) ? (rsp->_.object)->pIndexData->vnum : 0);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_ORG:		// STRING op ORG => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (rsp->_.org)
+								strncpy(stringify,rsp->_.org->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			// case NST_QUEST:	// STRING op QUEST => STRING
+			case NST_RACE:		// STRING op RACE => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.race))
+								strncpy(stringify,rsp->_.race->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_RANK:		// STRING op RANK => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.rank))
+								strncpy(stringify,rsp->_.rank->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_REPUTATION:// STRING op REPUTATION => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.reputation))
+								strncpy(stringify,rsp->_.reputation->pIndexData->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
 								return true;
 							}
 
@@ -4649,6 +7184,27 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					case NI_ADD:		// Concatenation
 						{
 							char stringify[100];
+							if (rsp->_.room)
+							{
+								if(rsp->_.room->source)
+								{
+									snprintf(stringify,sizeof(stringify)-1,"%s(%ld,%ld,%lu,%lu)",
+										(rsp->_.room)->source->name,
+										(rsp->_.room)->source->area->uid,
+										(rsp->_.room)->source->vnum,
+										(rsp->_.room)->id[0],
+										(rsp->_.room)->id[1]);
+								}
+								else
+								{
+									snprintf(stringify,sizeof(stringify)-1,"%s(%ld,%ld,%ld,%ld)",
+										(rsp->_.room)->name,
+										(rsp->_.room)->area->uid,
+										(rsp->_.room)->vnum);
+								}
+							}
+							else
+								strcpy(stringify, "null");
 							sprintf(stringify,"%s(%ld,%ld)",
 								(rsp->_.room) ? (rsp->_.room)->name : "null",
 								(rsp->_.room) ? (rsp->_.room)->area->uid : 0,
@@ -4688,6 +7244,187 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 					break;
 				}
 			
+			case NST_SHIP:		// STRING op SHIP => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.ship))
+								strncpy(stringify,rsp->_.ship->index->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_SKILL:		// STRING op SKILL => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							if (IS_VALID(rsp->_.skill))
+								strncpy(stringify,rsp->_.skill->name,sizeof(stringify)-1);
+							else
+								strncpy(stringify,"null",sizeof(stringify)-1);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_TOKEN:		// STRING op TOKEN => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							sprintf(stringify,"%s(%ld,%ld)",
+								(rsp->_.token) ? (rsp->_.token)->name : "null",
+								(rsp->_.token && (rsp->_.token)->pIndexData) ? (rsp->_.token)->pIndexData->area->uid : 0,
+								(rsp->_.token && (rsp->_.token)->pIndexData) ? (rsp->_.token)->pIndexData->vnum : 0);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			case NST_WILDS:		// STRING op WILDS => STRING
+				{
+					switch(op)
+					{
+					case NI_ADD:		// Concatenation
+						{
+							char stringify[100];
+							sprintf(stringify,"%s(%ld,%ld)",
+								(rsp->_.wilds) ? (rsp->_.wilds)->name : "null",
+								(rsp->_.wilds) ? (rsp->_.wilds)->pArea->uid : 0,
+								(rsp->_.wilds) ? (rsp->_.wilds)->uid : 0);
+							if (lsp->_.str)
+							{
+								char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+								if (!value)
+								{
+									SETRET(nsr,MEMORY);
+									return true;
+								}
+								strcpy(value,lsp->_.str);
+								strcat(value,stringify);
+
+								if (!nib_push_stack_string_raw(nsr,value))
+								{
+									free(value);
+									SETRET(nsr,STACK);
+									return true;
+								}
+							}
+							else if (!nib_push_stack_string(nsr,stringify))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+			
+			// case NST_WORLD:	// STRING op WORLD => STRING
 			case NST_LVALUE:	// STRING(s) op LVALUE => STRING
 				{
 					switch(rsp->_.lvalue.type)
@@ -4850,6 +7587,48 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							break;
 						}
 					
+					case NST_FLAG_BIT:	// STRING op BIT => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									bool set = IS_SET(*(rsp->_.lvalue._.bit.value),rsp->_.lvalue._.bit.bit);
+									char *stringify = (set?"true":"false");
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
 					case NST_CHAR:		// STRING(s) op CHAR => STRING
 						{
 							if (op != NI_ADD)
@@ -5079,6 +7858,93 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							break;
 						}
 					
+					case NST_ACCOUNT:	// STRING op ACCOUNT => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									strncpy(stringify,IS_VALID((*(rsp->_.lvalue._.account))) ? (*(rsp->_.lvalue._.account))->username : "null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_AFFECT:	// STRING op AFFECT => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.affect))))
+										strncpy(stringify,get_affect_name((*(rsp->_.lvalue._.affect))),sizeof(stringify)-1);
+									else
+										strcpy(stringify,"null");
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
 					case NST_AREA:		// STRING op AREA => STRING
 						{
 							switch(op)
@@ -5087,8 +7953,374 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 								{
 									char stringify[100];
 									sprintf(stringify,"%s(%ld)",
-										(*(rsp->_.lvalue._.area)) ? (*(rsp->_.lvalue._.area))->name : "null",
-										(*(rsp->_.lvalue._.area)) ? (*(rsp->_.lvalue._.area))->uid : 0);
+										((*(rsp->_.lvalue._.area))) ? ((*(rsp->_.lvalue._.area)))->name : "null",
+										((*(rsp->_.lvalue._.area))) ? ((*(rsp->_.lvalue._.area)))->uid : 0);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					// case NST_CHANNEL:	// STRING op CHANNEL => STRING
+					case NST_CLASS:		// STRING op CLASS => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.clazz))))
+										strncpy(stringify,(*(rsp->_.lvalue._.clazz))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_DUNGEON:	// STRING op DUNGEON => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.dungeon))))
+										strncpy(stringify,(*(rsp->_.lvalue._.dungeon))->index->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_EXIT:		// STRING op EXIT => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.ex))))
+									{
+										if ((*(rsp->_.lvalue._.ex))->orig_door >= 0 && (*(rsp->_.lvalue._.ex))->orig_door < MAX_DIR)
+											strncpy(stringify,dir_name[(*(rsp->_.lvalue._.ex))->orig_door],sizeof(stringify)-1);
+										else
+											strncpy(stringify,"???",sizeof(stringify)-1);
+									}
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_INSTANCE:	// STRING op INSTANCE => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.instance))))
+										strncpy(stringify,(*(rsp->_.lvalue._.instance))->blueprint->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_LIQUID:	// STRING op LIQUID => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.liquid))))
+										strncpy(stringify,(*(rsp->_.lvalue._.liquid))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_MAIL:		// STRING op MAIL => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if ((*(rsp->_.lvalue._.mail)))
+										snprintf(stringify,sizeof(stringify)-1,"<mailto:%s>",(*(rsp->_.lvalue._.mail))->recipient);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_MATERIAL:	// STRING op MATERIAL => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.material))))
+										strncpy(stringify,(*(rsp->_.lvalue._.material))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_MISSION:	// STRING op MISSION => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if ((*(rsp->_.lvalue._.mission)))
+										snprintf(stringify,sizeof(stringify)-1,"<mission:%ld>",(*(rsp->_.lvalue._.mission))->timer);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
 									if (lsp->_.str)
 									{
 										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
@@ -5129,12 +8361,281 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							{
 							case NI_ADD:		// Concatenation
 								{
-									CHAR_DATA *mob = *(rsp->_.lvalue._.mobile);
 									char stringify[100];
 									sprintf(stringify,"%s(%ld,%ld)",
-										(mob) ? (mob)->name : "null",
-										(mob && (mob)->pIndexData) ? (mob)->pIndexData->area->uid : 0,
-										(mob && (mob)->pIndexData) ? (mob)->pIndexData->vnum : 0);
+										((*(rsp->_.lvalue._.mobile))) ? ((*(rsp->_.lvalue._.mobile)))->short_descr : "null",
+										((*(rsp->_.lvalue._.mobile)) && ((*(rsp->_.lvalue._.mobile)))->pIndexData) ? ((*(rsp->_.lvalue._.mobile)))->pIndexData->area->uid : 0,
+										((*(rsp->_.lvalue._.mobile)) && ((*(rsp->_.lvalue._.mobile)))->pIndexData) ? ((*(rsp->_.lvalue._.mobile)))->pIndexData->vnum : 0);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_NOTE:		// STRING op NOTE => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.note))))
+										snprintf(stringify,sizeof(stringify)-1,"<note:%s>",(*(rsp->_.lvalue._.note))->to_list);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_OBJECT:	// STRING op OBJECT => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									sprintf(stringify,"%s(%ld,%ld)",
+										((*(rsp->_.lvalue._.object))) ? ((*(rsp->_.lvalue._.object)))->short_descr : "null",
+										((*(rsp->_.lvalue._.object)) && ((*(rsp->_.lvalue._.object)))->pIndexData) ? ((*(rsp->_.lvalue._.object)))->pIndexData->area->uid : 0,
+										((*(rsp->_.lvalue._.object)) && ((*(rsp->_.lvalue._.object)))->pIndexData) ? ((*(rsp->_.lvalue._.object)))->pIndexData->vnum : 0);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_ORG:		// STRING op ORG => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if ((*(rsp->_.lvalue._.org)))
+										strncpy(stringify,(*(rsp->_.lvalue._.org))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					// case NST_QUEST:	// STRING op QUEST => STRING
+					case NST_RACE:		// STRING op RACE => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.race))))
+										strncpy(stringify,(*(rsp->_.lvalue._.race))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_RANK:		// STRING op RANK => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.rank))))
+										strncpy(stringify,(*(rsp->_.lvalue._.rank))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_REPUTATION:// STRING op REPUTATION => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.reputation))))
+										strncpy(stringify,(*(rsp->_.lvalue._.reputation))->pIndexData->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
 									if (lsp->_.str)
 									{
 										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
@@ -5175,12 +8676,32 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							{
 							case NI_ADD:		// Concatenation
 								{
-									ROOM_INDEX_DATA *room = *(rsp->_.lvalue._.room);
 									char stringify[100];
+									if ((*(rsp->_.lvalue._.room)))
+									{
+										if((*(rsp->_.lvalue._.room))->source)
+										{
+											snprintf(stringify,sizeof(stringify)-1,"%s(%ld,%ld,%lu,%lu)",
+												((*(rsp->_.lvalue._.room)))->source->name,
+												((*(rsp->_.lvalue._.room)))->source->area->uid,
+												((*(rsp->_.lvalue._.room)))->source->vnum,
+												((*(rsp->_.lvalue._.room)))->id[0],
+												((*(rsp->_.lvalue._.room)))->id[1]);
+										}
+										else
+										{
+											snprintf(stringify,sizeof(stringify)-1,"%s(%ld,%ld,%ld,%ld)",
+												((*(rsp->_.lvalue._.room)))->name,
+												((*(rsp->_.lvalue._.room)))->area->uid,
+												((*(rsp->_.lvalue._.room)))->vnum);
+										}
+									}
+									else
+										strcpy(stringify, "null");
 									sprintf(stringify,"%s(%ld,%ld)",
-										(room) ? (room)->name : "null",
-										(room) ? (room)->area->uid : 0,
-										(room) ? (room)->vnum : 0);
+										((*(rsp->_.lvalue._.room))) ? ((*(rsp->_.lvalue._.room)))->name : "null",
+										((*(rsp->_.lvalue._.room))) ? ((*(rsp->_.lvalue._.room)))->area->uid : 0,
+										((*(rsp->_.lvalue._.room))) ? ((*(rsp->_.lvalue._.room)))->vnum : 0);
 
 									if (lsp->_.str)
 									{
@@ -5216,6 +8737,187 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							break;
 						}
 					
+					case NST_SHIP:		// STRING op SHIP => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.ship))))
+										strncpy(stringify,(*(rsp->_.lvalue._.ship))->index->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_SKILL:		// STRING op SKILL => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID((*(rsp->_.lvalue._.skill))))
+										strncpy(stringify,(*(rsp->_.lvalue._.skill))->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_TOKEN:		// STRING op TOKEN => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									sprintf(stringify,"%s(%ld,%ld)",
+										((*(rsp->_.lvalue._.token))) ? ((*(rsp->_.lvalue._.token)))->name : "null",
+										((*(rsp->_.lvalue._.token)) && ((*(rsp->_.lvalue._.token)))->pIndexData) ? ((*(rsp->_.lvalue._.token)))->pIndexData->area->uid : 0,
+										((*(rsp->_.lvalue._.token)) && ((*(rsp->_.lvalue._.token)))->pIndexData) ? ((*(rsp->_.lvalue._.token)))->pIndexData->vnum : 0);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_WILDS:		// STRING op WILDS => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									sprintf(stringify,"%s(%ld,%ld)",
+										((*(rsp->_.lvalue._.wilds))) ? ((*(rsp->_.lvalue._.wilds)))->name : "null",
+										((*(rsp->_.lvalue._.wilds))) ? ((*(rsp->_.lvalue._.wilds)))->pArea->uid : 0,
+										((*(rsp->_.lvalue._.wilds))) ? ((*(rsp->_.lvalue._.wilds)))->uid : 0);
+									if (lsp->_.str)
+									{
+										char *value = calloc(1,strlen(lsp->_.str)+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,lsp->_.str);
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					// case NST_WORLD:	// STRING op WORLD => STRING
 					default:
 						SETRET(nsr,INVALID);
 						return true;
@@ -6737,6 +10439,93 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							break;
 						}
 					
+					case NST_ACCOUNT:	// STRING op ACCOUNT => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									strncpy(stringify,IS_VALID(rsp->_.account) ? rsp->_.account->username : "null",sizeof(stringify)-1);
+									if ((*(lsp->_.lvalue._.str)))
+									{
+										char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,(*(lsp->_.lvalue._.str)));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_AFFECT:	// STRING op AFFECT => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID(rsp->_.affect))
+										strncpy(stringify,get_affect_name(rsp->_.affect),sizeof(stringify)-1);
+									else
+										strcpy(stringify,"null");
+									if ((*(lsp->_.lvalue._.str)))
+									{
+										char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,(*(lsp->_.lvalue._.str)));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
 					case NST_AREA:		// STRING op AREA => STRING
 						{
 							switch(op)
@@ -6747,15 +10536,381 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									sprintf(stringify,"%s(%ld)",
 										(rsp->_.area) ? (rsp->_.area)->name : "null",
 										(rsp->_.area) ? (rsp->_.area)->uid : 0);
-									if (*(lsp->_.lvalue._.str))
+									if ((*(lsp->_.lvalue._.str)))
 									{
-										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
 										if (!value)
 										{
 											SETRET(nsr,MEMORY);
 											return true;
 										}
-										strcpy(value,*(lsp->_.lvalue._.str));
+										strcpy(value,(*(lsp->_.lvalue._.str)));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					// case NST_CHANNEL:	// STRING op CHANNEL => STRING
+					case NST_CLASS:		// STRING op CLASS => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID(rsp->_.clazz))
+										strncpy(stringify,rsp->_.clazz->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if ((*(lsp->_.lvalue._.str)))
+									{
+										char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,(*(lsp->_.lvalue._.str)));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_DUNGEON:	// STRING op DUNGEON => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID(rsp->_.dungeon))
+										strncpy(stringify,rsp->_.dungeon->index->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if ((*(lsp->_.lvalue._.str)))
+									{
+										char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,(*(lsp->_.lvalue._.str)));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_EXIT:		// STRING op EXIT => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID(rsp->_.ex))
+									{
+										if (rsp->_.ex->orig_door >= 0 && rsp->_.ex->orig_door < MAX_DIR)
+											strncpy(stringify,dir_name[rsp->_.ex->orig_door],sizeof(stringify)-1);
+										else
+											strncpy(stringify,"???",sizeof(stringify)-1);
+									}
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if ((*(lsp->_.lvalue._.str)))
+									{
+										char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,(*(lsp->_.lvalue._.str)));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_INSTANCE:	// STRING op INSTANCE => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID(rsp->_.instance))
+										strncpy(stringify,rsp->_.instance->blueprint->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if ((*(lsp->_.lvalue._.str)))
+									{
+										char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,(*(lsp->_.lvalue._.str)));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_LIQUID:	// STRING op LIQUID => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID(rsp->_.liquid))
+										strncpy(stringify,rsp->_.liquid->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if ((*(lsp->_.lvalue._.str)))
+									{
+										char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,(*(lsp->_.lvalue._.str)));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_MAIL:		// STRING op MAIL => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (rsp->_.mail)
+										snprintf(stringify,sizeof(stringify)-1,"<mailto:%s>",rsp->_.mail->recipient);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if ((*(lsp->_.lvalue._.str)))
+									{
+										char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,(*(lsp->_.lvalue._.str)));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_MATERIAL:	// STRING op MATERIAL => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID(rsp->_.material))
+										strncpy(stringify,rsp->_.material->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if ((*(lsp->_.lvalue._.str)))
+									{
+										char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,(*(lsp->_.lvalue._.str)));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_MISSION:	// STRING op MISSION => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (rsp->_.mission)
+										snprintf(stringify,sizeof(stringify)-1,"<mission:%ld>",rsp->_.mission->timer);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if ((*(lsp->_.lvalue._.str)))
+									{
+										char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,(*(lsp->_.lvalue._.str)));
 										strcat(value,stringify);
 
 										if (!nib_push_stack_string_raw(nsr,value))
@@ -6789,63 +10944,18 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 								{
 									char stringify[100];
 									sprintf(stringify,"%s(%ld,%ld)",
-										(rsp->_.mobile) ? (rsp->_.mobile)->name : "null",
+										(rsp->_.mobile) ? (rsp->_.mobile)->short_descr : "null",
 										(rsp->_.mobile && (rsp->_.mobile)->pIndexData) ? (rsp->_.mobile)->pIndexData->area->uid : 0,
 										(rsp->_.mobile && (rsp->_.mobile)->pIndexData) ? (rsp->_.mobile)->pIndexData->vnum : 0);
-									if (*(lsp->_.lvalue._.str))
+									if ((*(lsp->_.lvalue._.str)))
 									{
-										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+										char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
 										if (!value)
 										{
 											SETRET(nsr,MEMORY);
 											return true;
 										}
-										strcpy(value,*(lsp->_.lvalue._.str));
-										strcat(value,stringify);
-
-										if (!nib_push_stack_string_raw(nsr,value))
-										{
-											free(value);
-											SETRET(nsr,STACK);
-											return true;
-										}
-									}
-									else if (!nib_push_stack_string(nsr,stringify))
-									{
-										return true;
-									}
-
-									break;
-								}
-
-							default:
-								SETRET(nsr,INVALID);
-								return true;
-							}
-							break;
-						}
-					
-					case NST_ROOM:		// STRING op ROOM => STRING
-						{
-							switch(op)
-							{
-							case NI_ADD:		// Concatenation
-								{
-									char stringify[100];
-									sprintf(stringify,"%s(%ld,%ld)",
-										(rsp->_.room) ? (rsp->_.room)->name : "null",
-										(rsp->_.room) ? (rsp->_.room)->area->uid : 0,
-										(rsp->_.room) ? (rsp->_.room)->vnum : 0);
-
-									if (*(lsp->_.lvalue._.str))
-									{
-										char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
-										if (!value)
-										{
-											SETRET(nsr,MEMORY);
-											return true;
-										}
-										strcpy(value,*(lsp->_.lvalue._.str));
+										strcpy(value,(*(lsp->_.lvalue._.str)));
 										strcat(value,stringify);
 
 										if (!nib_push_stack_string_raw(nsr,value))
@@ -6871,6 +10981,524 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 							break;
 						}
 					
+					case NST_NOTE:		// STRING op NOTE => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID(rsp->_.note))
+										snprintf(stringify,sizeof(stringify)-1,"<note:%s>",rsp->_.note->to_list);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if ((*(lsp->_.lvalue._.str)))
+									{
+										char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,(*(lsp->_.lvalue._.str)));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_OBJECT:	// STRING op OBJECT => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									sprintf(stringify,"%s(%ld,%ld)",
+										(rsp->_.object) ? (rsp->_.object)->short_descr : "null",
+										(rsp->_.object && (rsp->_.object)->pIndexData) ? (rsp->_.object)->pIndexData->area->uid : 0,
+										(rsp->_.object && (rsp->_.object)->pIndexData) ? (rsp->_.object)->pIndexData->vnum : 0);
+									if ((*(lsp->_.lvalue._.str)))
+									{
+										char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,(*(lsp->_.lvalue._.str)));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_ORG:		// STRING op ORG => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (rsp->_.org)
+										strncpy(stringify,rsp->_.org->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if ((*(lsp->_.lvalue._.str)))
+									{
+										char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,(*(lsp->_.lvalue._.str)));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					// case NST_QUEST:	// STRING op QUEST => STRING
+					case NST_RACE:		// STRING op RACE => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID(rsp->_.race))
+										strncpy(stringify,rsp->_.race->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if ((*(lsp->_.lvalue._.str)))
+									{
+										char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,(*(lsp->_.lvalue._.str)));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_RANK:		// STRING op RANK => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID(rsp->_.rank))
+										strncpy(stringify,rsp->_.rank->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if ((*(lsp->_.lvalue._.str)))
+									{
+										char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,(*(lsp->_.lvalue._.str)));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_REPUTATION:// STRING op REPUTATION => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID(rsp->_.reputation))
+										strncpy(stringify,rsp->_.reputation->pIndexData->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if ((*(lsp->_.lvalue._.str)))
+									{
+										char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,(*(lsp->_.lvalue._.str)));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_ROOM:		// STRING op ROOM => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (rsp->_.room)
+									{
+										if(rsp->_.room->source)
+										{
+											snprintf(stringify,sizeof(stringify)-1,"%s(%ld,%ld,%lu,%lu)",
+												(rsp->_.room)->source->name,
+												(rsp->_.room)->source->area->uid,
+												(rsp->_.room)->source->vnum,
+												(rsp->_.room)->id[0],
+												(rsp->_.room)->id[1]);
+										}
+										else
+										{
+											snprintf(stringify,sizeof(stringify)-1,"%s(%ld,%ld,%ld,%ld)",
+												(rsp->_.room)->name,
+												(rsp->_.room)->area->uid,
+												(rsp->_.room)->vnum);
+										}
+									}
+									else
+										strcpy(stringify, "null");
+									sprintf(stringify,"%s(%ld,%ld)",
+										(rsp->_.room) ? (rsp->_.room)->name : "null",
+										(rsp->_.room) ? (rsp->_.room)->area->uid : 0,
+										(rsp->_.room) ? (rsp->_.room)->vnum : 0);
+
+									if ((*(lsp->_.lvalue._.str)))
+									{
+										char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,(*(lsp->_.lvalue._.str)));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_SHIP:		// STRING op SHIP => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID(rsp->_.ship))
+										strncpy(stringify,rsp->_.ship->index->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if ((*(lsp->_.lvalue._.str)))
+									{
+										char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,(*(lsp->_.lvalue._.str)));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_SKILL:		// STRING op SKILL => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									if (IS_VALID(rsp->_.skill))
+										strncpy(stringify,rsp->_.skill->name,sizeof(stringify)-1);
+									else
+										strncpy(stringify,"null",sizeof(stringify)-1);
+									if ((*(lsp->_.lvalue._.str)))
+									{
+										char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,(*(lsp->_.lvalue._.str)));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_TOKEN:		// STRING op TOKEN => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									sprintf(stringify,"%s(%ld,%ld)",
+										(rsp->_.token) ? (rsp->_.token)->name : "null",
+										(rsp->_.token && (rsp->_.token)->pIndexData) ? (rsp->_.token)->pIndexData->area->uid : 0,
+										(rsp->_.token && (rsp->_.token)->pIndexData) ? (rsp->_.token)->pIndexData->vnum : 0);
+									if ((*(lsp->_.lvalue._.str)))
+									{
+										char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,(*(lsp->_.lvalue._.str)));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					case NST_WILDS:		// STRING op WILDS => STRING
+						{
+							switch(op)
+							{
+							case NI_ADD:		// Concatenation
+								{
+									char stringify[100];
+									sprintf(stringify,"%s(%ld,%ld)",
+										(rsp->_.wilds) ? (rsp->_.wilds)->name : "null",
+										(rsp->_.wilds) ? (rsp->_.wilds)->pArea->uid : 0,
+										(rsp->_.wilds) ? (rsp->_.wilds)->uid : 0);
+									if ((*(lsp->_.lvalue._.str)))
+									{
+										char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+										if (!value)
+										{
+											SETRET(nsr,MEMORY);
+											return true;
+										}
+										strcpy(value,(*(lsp->_.lvalue._.str)));
+										strcat(value,stringify);
+
+										if (!nib_push_stack_string_raw(nsr,value))
+										{
+											free(value);
+											SETRET(nsr,STACK);
+											return true;
+										}
+									}
+									else if (!nib_push_stack_string(nsr,stringify))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+					
+					// case NST_WORLD:	// STRING op WORLD => STRING
 					case NST_LVALUE:	// STRING op LVALUE => STRING
 						{
 							switch(rsp->_.lvalue.type)
@@ -7033,6 +11661,48 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									break;
 								}
 							
+							case NST_FLAG_BIT:	// STRING op BIT => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											bool set = IS_SET(*(rsp->_.lvalue._.bit.value),rsp->_.lvalue._.bit.bit);
+											char *stringify = (set?"true":"false");
+											if ((*(lsp->_.lvalue._.str)))
+											{
+												char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,(*(lsp->_.lvalue._.str)));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+
 							case NST_CHAR:		// STRING op CHAR => STRING
 								{
 									if (op != NI_ADD)
@@ -7256,6 +11926,93 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									break;
 								}
 							
+							case NST_ACCOUNT:	// STRING op ACCOUNT => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char stringify[100];
+											strncpy(stringify,IS_VALID((*(rsp->_.lvalue._.account))) ? (*(rsp->_.lvalue._.account))->username : "null",sizeof(stringify)-1);
+											if ((*(lsp->_.lvalue._.str)))
+											{
+												char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,(*(lsp->_.lvalue._.str)));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_AFFECT:	// STRING op AFFECT => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char stringify[100];
+											if (IS_VALID((*(rsp->_.lvalue._.affect))))
+												strncpy(stringify,get_affect_name((*(rsp->_.lvalue._.affect))),sizeof(stringify)-1);
+											else
+												strcpy(stringify,"null");
+											if ((*(lsp->_.lvalue._.str)))
+											{
+												char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,(*(lsp->_.lvalue._.str)));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
 							case NST_AREA:		// STRING op AREA => STRING
 								{
 									switch(op)
@@ -7264,17 +12021,383 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 										{
 											char stringify[100];
 											sprintf(stringify,"%s(%ld)",
-												(*(rsp->_.lvalue._.area)) ? (*(rsp->_.lvalue._.area))->name : "null",
-												(*(rsp->_.lvalue._.area)) ? (*(rsp->_.lvalue._.area))->uid : 0);
-											if (*(lsp->_.lvalue._.str))
+												((*(rsp->_.lvalue._.area))) ? ((*(rsp->_.lvalue._.area)))->name : "null",
+												((*(rsp->_.lvalue._.area))) ? ((*(rsp->_.lvalue._.area)))->uid : 0);
+											if ((*(lsp->_.lvalue._.str)))
 											{
-												char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+												char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
 												if (!value)
 												{
 													SETRET(nsr,MEMORY);
 													return true;
 												}
-												strcpy(value,*(lsp->_.lvalue._.str));
+												strcpy(value,(*(lsp->_.lvalue._.str)));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							// case NST_CHANNEL:	// STRING op CHANNEL => STRING
+							case NST_CLASS:		// STRING op CLASS => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char stringify[100];
+											if (IS_VALID((*(rsp->_.lvalue._.clazz))))
+												strncpy(stringify,(*(rsp->_.lvalue._.clazz))->name,sizeof(stringify)-1);
+											else
+												strncpy(stringify,"null",sizeof(stringify)-1);
+											if ((*(lsp->_.lvalue._.str)))
+											{
+												char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,(*(lsp->_.lvalue._.str)));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_DUNGEON:	// STRING op DUNGEON => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char stringify[100];
+											if (IS_VALID((*(rsp->_.lvalue._.dungeon))))
+												strncpy(stringify,(*(rsp->_.lvalue._.dungeon))->index->name,sizeof(stringify)-1);
+											else
+												strncpy(stringify,"null",sizeof(stringify)-1);
+											if ((*(lsp->_.lvalue._.str)))
+											{
+												char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,(*(lsp->_.lvalue._.str)));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_EXIT:		// STRING op EXIT => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char stringify[100];
+											if (IS_VALID((*(rsp->_.lvalue._.ex))))
+											{
+												if ((*(rsp->_.lvalue._.ex))->orig_door >= 0 && (*(rsp->_.lvalue._.ex))->orig_door < MAX_DIR)
+													strncpy(stringify,dir_name[(*(rsp->_.lvalue._.ex))->orig_door],sizeof(stringify)-1);
+												else
+													strncpy(stringify,"???",sizeof(stringify)-1);
+											}
+											else
+												strncpy(stringify,"null",sizeof(stringify)-1);
+											if ((*(lsp->_.lvalue._.str)))
+											{
+												char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,(*(lsp->_.lvalue._.str)));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_INSTANCE:	// STRING op INSTANCE => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char stringify[100];
+											if (IS_VALID((*(rsp->_.lvalue._.instance))))
+												strncpy(stringify,(*(rsp->_.lvalue._.instance))->blueprint->name,sizeof(stringify)-1);
+											else
+												strncpy(stringify,"null",sizeof(stringify)-1);
+											if ((*(lsp->_.lvalue._.str)))
+											{
+												char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,(*(lsp->_.lvalue._.str)));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_LIQUID:	// STRING op LIQUID => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char stringify[100];
+											if (IS_VALID((*(rsp->_.lvalue._.liquid))))
+												strncpy(stringify,(*(rsp->_.lvalue._.liquid))->name,sizeof(stringify)-1);
+											else
+												strncpy(stringify,"null",sizeof(stringify)-1);
+											if ((*(lsp->_.lvalue._.str)))
+											{
+												char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,(*(lsp->_.lvalue._.str)));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_MAIL:		// STRING op MAIL => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char stringify[100];
+											if ((*(rsp->_.lvalue._.mail)))
+												snprintf(stringify,sizeof(stringify)-1,"<mailto:%s>",(*(rsp->_.lvalue._.mail))->recipient);
+											else
+												strncpy(stringify,"null",sizeof(stringify)-1);
+											if ((*(lsp->_.lvalue._.str)))
+											{
+												char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,(*(lsp->_.lvalue._.str)));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_MATERIAL:	// STRING op MATERIAL => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char stringify[100];
+											if (IS_VALID((*(rsp->_.lvalue._.material))))
+												strncpy(stringify,(*(rsp->_.lvalue._.material))->name,sizeof(stringify)-1);
+											else
+												strncpy(stringify,"null",sizeof(stringify)-1);
+											if ((*(lsp->_.lvalue._.str)))
+											{
+												char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,(*(lsp->_.lvalue._.str)));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_MISSION:	// STRING op MISSION => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char stringify[100];
+											if ((*(rsp->_.lvalue._.mission)))
+												snprintf(stringify,sizeof(stringify)-1,"<mission:%ld>",(*(rsp->_.lvalue._.mission))->timer);
+											else
+												strncpy(stringify,"null",sizeof(stringify)-1);
+											if ((*(lsp->_.lvalue._.str)))
+											{
+												char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,(*(lsp->_.lvalue._.str)));
 												strcat(value,stringify);
 
 												if (!nib_push_stack_string_raw(nsr,value))
@@ -7306,21 +12429,290 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									{
 									case NI_ADD:		// Concatenation
 										{
-											CHAR_DATA *mob = *(rsp->_.lvalue._.mobile);
 											char stringify[100];
 											sprintf(stringify,"%s(%ld,%ld)",
-												(mob) ? (mob)->name : "null",
-												(mob && (mob)->pIndexData) ? (mob)->pIndexData->area->uid : 0,
-												(mob && (mob)->pIndexData) ? (mob)->pIndexData->vnum : 0);
-											if (*(lsp->_.lvalue._.str))
+												((*(rsp->_.lvalue._.mobile))) ? ((*(rsp->_.lvalue._.mobile)))->short_descr : "null",
+												((*(rsp->_.lvalue._.mobile)) && ((*(rsp->_.lvalue._.mobile)))->pIndexData) ? ((*(rsp->_.lvalue._.mobile)))->pIndexData->area->uid : 0,
+												((*(rsp->_.lvalue._.mobile)) && ((*(rsp->_.lvalue._.mobile)))->pIndexData) ? ((*(rsp->_.lvalue._.mobile)))->pIndexData->vnum : 0);
+											if ((*(lsp->_.lvalue._.str)))
 											{
-												char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+												char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
 												if (!value)
 												{
 													SETRET(nsr,MEMORY);
 													return true;
 												}
-												strcpy(value,*(lsp->_.lvalue._.str));
+												strcpy(value,(*(lsp->_.lvalue._.str)));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_NOTE:		// STRING op NOTE => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char stringify[100];
+											if (IS_VALID((*(rsp->_.lvalue._.note))))
+												snprintf(stringify,sizeof(stringify)-1,"<note:%s>",(*(rsp->_.lvalue._.note))->to_list);
+											else
+												strncpy(stringify,"null",sizeof(stringify)-1);
+											if ((*(lsp->_.lvalue._.str)))
+											{
+												char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,(*(lsp->_.lvalue._.str)));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_OBJECT:	// STRING op OBJECT => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char stringify[100];
+											sprintf(stringify,"%s(%ld,%ld)",
+												((*(rsp->_.lvalue._.object))) ? ((*(rsp->_.lvalue._.object)))->short_descr : "null",
+												((*(rsp->_.lvalue._.object)) && ((*(rsp->_.lvalue._.object)))->pIndexData) ? ((*(rsp->_.lvalue._.object)))->pIndexData->area->uid : 0,
+												((*(rsp->_.lvalue._.object)) && ((*(rsp->_.lvalue._.object)))->pIndexData) ? ((*(rsp->_.lvalue._.object)))->pIndexData->vnum : 0);
+											if ((*(lsp->_.lvalue._.str)))
+											{
+												char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,(*(lsp->_.lvalue._.str)));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_ORG:		// STRING op ORG => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char stringify[100];
+											if ((*(rsp->_.lvalue._.org)))
+												strncpy(stringify,(*(rsp->_.lvalue._.org))->name,sizeof(stringify)-1);
+											else
+												strncpy(stringify,"null",sizeof(stringify)-1);
+											if ((*(lsp->_.lvalue._.str)))
+											{
+												char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,(*(lsp->_.lvalue._.str)));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							// case NST_QUEST:	// STRING op QUEST => STRING
+							case NST_RACE:		// STRING op RACE => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char stringify[100];
+											if (IS_VALID((*(rsp->_.lvalue._.race))))
+												strncpy(stringify,(*(rsp->_.lvalue._.race))->name,sizeof(stringify)-1);
+											else
+												strncpy(stringify,"null",sizeof(stringify)-1);
+											if ((*(lsp->_.lvalue._.str)))
+											{
+												char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,(*(lsp->_.lvalue._.str)));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_RANK:		// STRING op RANK => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char stringify[100];
+											if (IS_VALID((*(rsp->_.lvalue._.rank))))
+												strncpy(stringify,(*(rsp->_.lvalue._.rank))->name,sizeof(stringify)-1);
+											else
+												strncpy(stringify,"null",sizeof(stringify)-1);
+											if ((*(lsp->_.lvalue._.str)))
+											{
+												char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,(*(lsp->_.lvalue._.str)));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_REPUTATION:// STRING op REPUTATION => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char stringify[100];
+											if (IS_VALID((*(rsp->_.lvalue._.reputation))))
+												strncpy(stringify,(*(rsp->_.lvalue._.reputation))->pIndexData->name,sizeof(stringify)-1);
+											else
+												strncpy(stringify,"null",sizeof(stringify)-1);
+											if ((*(lsp->_.lvalue._.str)))
+											{
+												char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,(*(lsp->_.lvalue._.str)));
 												strcat(value,stringify);
 
 												if (!nib_push_stack_string_raw(nsr,value))
@@ -7352,22 +12744,42 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									{
 									case NI_ADD:		// Concatenation
 										{
-											ROOM_INDEX_DATA *room = *(rsp->_.lvalue._.room);
 											char stringify[100];
-											sprintf(stringify,"%s(%ld,%ld)",
-												(room) ? (room)->name : "null",
-												(room) ? (room)->area->uid : 0,
-												(room) ? (room)->vnum : 0);
-
-											if (*(lsp->_.lvalue._.str))
+											if ((*(rsp->_.lvalue._.room)))
 											{
-												char *value = calloc(1,strlen(*(lsp->_.lvalue._.str))+strlen(stringify)+1);
+												if((*(rsp->_.lvalue._.room))->source)
+												{
+													snprintf(stringify,sizeof(stringify)-1,"%s(%ld,%ld,%lu,%lu)",
+														((*(rsp->_.lvalue._.room)))->source->name,
+														((*(rsp->_.lvalue._.room)))->source->area->uid,
+														((*(rsp->_.lvalue._.room)))->source->vnum,
+														((*(rsp->_.lvalue._.room)))->id[0],
+														((*(rsp->_.lvalue._.room)))->id[1]);
+												}
+												else
+												{
+													snprintf(stringify,sizeof(stringify)-1,"%s(%ld,%ld,%ld,%ld)",
+														((*(rsp->_.lvalue._.room)))->name,
+														((*(rsp->_.lvalue._.room)))->area->uid,
+														((*(rsp->_.lvalue._.room)))->vnum);
+												}
+											}
+											else
+												strcpy(stringify, "null");
+											sprintf(stringify,"%s(%ld,%ld)",
+												((*(rsp->_.lvalue._.room))) ? ((*(rsp->_.lvalue._.room)))->name : "null",
+												((*(rsp->_.lvalue._.room))) ? ((*(rsp->_.lvalue._.room)))->area->uid : 0,
+												((*(rsp->_.lvalue._.room))) ? ((*(rsp->_.lvalue._.room)))->vnum : 0);
+
+											if ((*(lsp->_.lvalue._.str)))
+											{
+												char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
 												if (!value)
 												{
 													SETRET(nsr,MEMORY);
 													return true;
 												}
-												strcpy(value,*(lsp->_.lvalue._.str));
+												strcpy(value,(*(lsp->_.lvalue._.str)));
 												strcat(value,stringify);
 
 												if (!nib_push_stack_string_raw(nsr,value))
@@ -7393,6 +12805,187 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 									break;
 								}
 							
+							case NST_SHIP:		// STRING op SHIP => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char stringify[100];
+											if (IS_VALID((*(rsp->_.lvalue._.ship))))
+												strncpy(stringify,(*(rsp->_.lvalue._.ship))->index->name,sizeof(stringify)-1);
+											else
+												strncpy(stringify,"null",sizeof(stringify)-1);
+											if ((*(lsp->_.lvalue._.str)))
+											{
+												char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,(*(lsp->_.lvalue._.str)));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_SKILL:		// STRING op SKILL => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char stringify[100];
+											if (IS_VALID((*(rsp->_.lvalue._.skill))))
+												strncpy(stringify,(*(rsp->_.lvalue._.skill))->name,sizeof(stringify)-1);
+											else
+												strncpy(stringify,"null",sizeof(stringify)-1);
+											if ((*(lsp->_.lvalue._.str)))
+											{
+												char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,(*(lsp->_.lvalue._.str)));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_TOKEN:		// STRING op TOKEN => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char stringify[100];
+											sprintf(stringify,"%s(%ld,%ld)",
+												((*(rsp->_.lvalue._.token))) ? ((*(rsp->_.lvalue._.token)))->name : "null",
+												((*(rsp->_.lvalue._.token)) && ((*(rsp->_.lvalue._.token)))->pIndexData) ? ((*(rsp->_.lvalue._.token)))->pIndexData->area->uid : 0,
+												((*(rsp->_.lvalue._.token)) && ((*(rsp->_.lvalue._.token)))->pIndexData) ? ((*(rsp->_.lvalue._.token)))->pIndexData->vnum : 0);
+											if ((*(lsp->_.lvalue._.str)))
+											{
+												char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,(*(lsp->_.lvalue._.str)));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							case NST_WILDS:		// STRING op WILDS => STRING
+								{
+									switch(op)
+									{
+									case NI_ADD:		// Concatenation
+										{
+											char stringify[100];
+											sprintf(stringify,"%s(%ld,%ld)",
+												((*(rsp->_.lvalue._.wilds))) ? ((*(rsp->_.lvalue._.wilds)))->name : "null",
+												((*(rsp->_.lvalue._.wilds))) ? ((*(rsp->_.lvalue._.wilds)))->pArea->uid : 0,
+												((*(rsp->_.lvalue._.wilds))) ? ((*(rsp->_.lvalue._.wilds)))->uid : 0);
+											if ((*(lsp->_.lvalue._.str)))
+											{
+												char *value = calloc(1,strlen((*(lsp->_.lvalue._.str)))+strlen(stringify)+1);
+												if (!value)
+												{
+													SETRET(nsr,MEMORY);
+													return true;
+												}
+												strcpy(value,(*(lsp->_.lvalue._.str)));
+												strcat(value,stringify);
+
+												if (!nib_push_stack_string_raw(nsr,value))
+												{
+													free(value);
+													SETRET(nsr,STACK);
+													return true;
+												}
+											}
+											else if (!nib_push_stack_string(nsr,stringify))
+											{
+												SETRET(nsr,STACK);
+												return true;
+											}
+
+											break;
+										}
+
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+									break;
+								}
+							
+							// case NST_WORLD:	// STRING op WORLD => STRING
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -7536,6 +13129,112 @@ static bool __binary_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e 
 
 	return false;
 }
+
+#define __bool_null(t,v) \
+			case NST_##t: \
+				{ \
+					bool value = (v); \
+					switch(op) \
+					{ \
+					case NI_EQ:		/* Already tested */break; \
+					case NI_NEQ:	value = !value; break; \
+					default: \
+						SETRET(nsr,INVALID); \
+						return true; \
+					} \
+\
+					if (!nib_push_stack_boolean(nsr,value)) \
+					{ \
+						SETRET(nsr,STACK); \
+						return true; \
+					} \
+					break; \
+				}
+
+#define __bool_nullf(t,f) \
+			case NST_##t: \
+				{ \
+					bool value = (rsp->_.f == NULL); \
+					switch(op) \
+					{ \
+					case NI_EQ:		/* Already tested */break; \
+					case NI_NEQ:	value = !value; break; \
+					default: \
+						SETRET(nsr,INVALID); \
+						return true; \
+					} \
+\
+					if (!nib_push_stack_boolean(nsr,value)) \
+					{ \
+						SETRET(nsr,STACK); \
+						return true; \
+					} \
+					break; \
+				}
+
+#define __bool_nullflv(t,f) \
+			case NST_##t: \
+				{ \
+					bool value = (*(rsp->_.lvalue._.f) == NULL); \
+					switch(op) \
+					{ \
+					case NI_EQ:		/* Already tested */break; \
+					case NI_NEQ:	value = !value; break; \
+					default: \
+						SETRET(nsr,INVALID); \
+						return true; \
+					} \
+\
+					if (!nib_push_stack_boolean(nsr,value)) \
+					{ \
+						SETRET(nsr,STACK); \
+						return true; \
+					} \
+					break; \
+				}
+
+#define __bool_nullvf(t,f) \
+			case NST_##t: \
+				{ \
+					bool value = IS_VALID(rsp->_.f); \
+					switch(op) \
+					{ \
+					case NI_EQ:		value = !value; break; \
+					case NI_NEQ:	/* Already tested */ break; \
+					default: \
+						SETRET(nsr,INVALID); \
+						return true; \
+					} \
+\
+					if (!nib_push_stack_boolean(nsr,value)) \
+					{ \
+						SETRET(nsr,STACK); \
+						return true; \
+					} \
+					break; \
+				}
+
+#define __bool_nullvflv(t,f) \
+			case NST_##t: \
+				{ \
+					bool value = IS_VALID(*(rsp->_.lvalue._.f)); \
+					switch(op) \
+					{ \
+					case NI_EQ:		value = !value; break; \
+					case NI_NEQ:	/* Already tested */ break; \
+					default: \
+						SETRET(nsr,INVALID); \
+						return true; \
+					} \
+\
+					if (!nib_push_stack_boolean(nsr,value)) \
+					{ \
+						SETRET(nsr,STACK); \
+						return true; \
+					} \
+					break; \
+				}
+
 
 // Does boolean comparisions (AND, OR, equalities)
 static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e op)
@@ -8517,15 +14216,18 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					break;
 				}
 
-			// case NST_DUNGEON:
-			// case NST_INSTANCE:
-			case NST_MOBILE:		// WIDEVNUM op MOBILE => BOOLEAN
+			case NST_DUNGEON:		// WIDEVNUM op DUNGEON => BOOLEAN
 				{
 					bool value;
 					switch(op)
 					{
-					case NI_EQ:		value = (rsp->_.mobile->pIndexData != NULL) && (lsp->_.wnum.pArea == rsp->_.mobile->pIndexData->area) && (lsp->_.wnum.vnum == rsp->_.mobile->pIndexData->vnum); break;
-					case NI_NEQ:	value = (rsp->_.mobile->pIndexData == NULL) || (lsp->_.wnum.pArea != rsp->_.mobile->pIndexData->area) || (lsp->_.wnum.vnum != rsp->_.mobile->pIndexData->vnum); break;
+					case NI_EQ:		value = (rsp->_.dungeon) && (rsp->_.dungeon->index) && (lsp->_.wnum.pArea == rsp->_.dungeon->index->area) && (lsp->_.wnum.vnum == rsp->_.dungeon->index->vnum); break;
+					case NI_NEQ:
+						if (rsp->_.dungeon && rsp->_.dungeon->index)
+							value = (lsp->_.wnum.pArea != rsp->_.dungeon->index->area) || (lsp->_.wnum.vnum != rsp->_.dungeon->index->vnum);
+						else
+							value = lsp->_.wnum.pArea && lsp->_.wnum.vnum > 0;
+						break;
 					default:
 						SETRET(nsr,INVALID);
 						return true;		
@@ -8540,15 +14242,96 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					break;
 				}
 			
-			// case NST_OBJECT:
+			case NST_INSTANCE:		// WIDEVNUM op INSTANCE
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = rsp->_.instance && (rsp->_.instance->blueprint != NULL) && (lsp->_.wnum.pArea == rsp->_.instance->blueprint->area) && (lsp->_.wnum.vnum == rsp->_.instance->blueprint->vnum); break;
+					case NI_NEQ:
+						if (rsp->_.instance && rsp->_.instance->blueprint)
+							value = (lsp->_.wnum.pArea != rsp->_.instance->blueprint->area) || (lsp->_.wnum.vnum != rsp->_.instance->blueprint->vnum);
+						else
+							value = lsp->_.wnum.pArea && lsp->_.wnum.vnum > 0;
+						break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;		
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;		
+					}
+
+					break;
+				}
+			
+			case NST_MOBILE:		// WIDEVNUM op MOBILE => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = rsp->_.mobile && (rsp->_.mobile->pIndexData != NULL) && (lsp->_.wnum.pArea == rsp->_.mobile->pIndexData->area) && (lsp->_.wnum.vnum == rsp->_.mobile->pIndexData->vnum); break;
+					case NI_NEQ:
+						if (rsp->_.mobile && rsp->_.mobile->pIndexData)
+							value = (lsp->_.wnum.pArea != rsp->_.mobile->pIndexData->area) || (lsp->_.wnum.vnum != rsp->_.mobile->pIndexData->vnum);
+						else
+							value = lsp->_.wnum.pArea && lsp->_.wnum.vnum > 0;
+						break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;		
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;		
+					}
+
+					break;
+				}
+			
+			case NST_OBJECT:		// WIDEVNUM op OBJECT => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = rsp->_.object && (rsp->_.object->pIndexData != NULL) && (lsp->_.wnum.pArea == rsp->_.object->pIndexData->area) && (lsp->_.wnum.vnum == rsp->_.object->pIndexData->vnum); break;
+					case NI_NEQ:
+						if (rsp->_.object && rsp->_.object->pIndexData)
+							value = (lsp->_.wnum.pArea != rsp->_.object->pIndexData->area) || (lsp->_.wnum.vnum != rsp->_.object->pIndexData->vnum);
+						else
+							value = lsp->_.wnum.pArea && lsp->_.wnum.vnum > 0;
+					default:
+						SETRET(nsr,INVALID);
+						return true;		
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;		
+					}
+
+					break;
+				}
+			
 			// case NST_QUEST:
 			case NST_ROOM:			// WIDEVNUM op ROOM
 				{
 					bool value;
 					switch(op)
 					{
-					case NI_EQ:		value = (lsp->_.wnum.pArea == rsp->_.room->area) && (lsp->_.wnum.vnum == rsp->_.room->vnum); break;
-					case NI_NEQ:	value = (lsp->_.wnum.pArea != rsp->_.room->area) || (lsp->_.wnum.vnum != rsp->_.room->vnum); break;
+					case NI_EQ:		value = rsp->_.room && (lsp->_.wnum.pArea == rsp->_.room->area) && (lsp->_.wnum.vnum == rsp->_.room->vnum); break;
+					case NI_NEQ:
+						if (rsp->_.room)
+							value = (lsp->_.wnum.pArea != rsp->_.room->area) || (lsp->_.wnum.vnum != rsp->_.room->vnum);
+						else
+							value = lsp->_.wnum.pArea && lsp->_.wnum.vnum > 0;
+						break;
 					default:
 						SETRET(nsr,INVALID);
 						return true;		
@@ -8563,8 +14346,58 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					break;
 				}
 
-			// case NST_SHIP:
-			// case NST_TOKEN:
+			case NST_SHIP:
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = rsp->_.ship && (rsp->_.ship->index != NULL) && (lsp->_.wnum.pArea == rsp->_.ship->index->area) && (lsp->_.wnum.vnum == rsp->_.ship->index->vnum); break;
+					case NI_NEQ:
+						if (rsp->_.ship && rsp->_.ship->index)
+							value = (lsp->_.wnum.pArea != rsp->_.ship->index->area) || (lsp->_.wnum.vnum != rsp->_.ship->index->vnum);
+						else
+							value = lsp->_.wnum.pArea && lsp->_.wnum.vnum > 0;
+						break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;		
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;		
+					}
+
+					break;
+				}
+			
+			case NST_TOKEN:
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = rsp->_.token && (rsp->_.token->pIndexData != NULL) && (lsp->_.wnum.pArea == rsp->_.token->pIndexData->area) && (lsp->_.wnum.vnum == rsp->_.token->pIndexData->vnum); break;
+					case NI_NEQ:
+						if (rsp->_.token && rsp->_.token->pIndexData)
+							value = (lsp->_.wnum.pArea != rsp->_.token->pIndexData->area) || (lsp->_.wnum.vnum != rsp->_.token->pIndexData->vnum);
+						else
+							value = lsp->_.wnum.pArea && lsp->_.wnum.vnum > 0;
+						break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;		
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;		
+					}
+
+					break;
+				}
+			
 			case NST_NULL:			// WIDEVNUM op null
 				{
 					bool value;
@@ -8610,15 +14443,18 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							break;
 						}
 
-					// case NST_DUNGEON:
-					// case NST_INSTANCE:
-					case NST_MOBILE:		// WIDEVNUM op MOBILE => BOOLEAN
+					case NST_DUNGEON:		// WIDEVNUM op DUNGEON => BOOLEAN
 						{
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = ((*(rsp->_.lvalue._.mobile))->pIndexData != NULL) && (lsp->_.wnum.pArea == (*(rsp->_.lvalue._.mobile))->pIndexData->area) && (lsp->_.wnum.vnum == (*(rsp->_.lvalue._.mobile))->pIndexData->vnum); break;
-							case NI_NEQ:	value = ((*(rsp->_.lvalue._.mobile))->pIndexData == NULL) || (lsp->_.wnum.pArea != (*(rsp->_.lvalue._.mobile))->pIndexData->area) || (lsp->_.wnum.vnum != (*(rsp->_.lvalue._.mobile))->pIndexData->vnum); break;
+							case NI_EQ:		value = *(rsp->_.lvalue._.dungeon) && ((*(rsp->_.lvalue._.dungeon))->index != NULL) && (lsp->_.wnum.pArea == (*(rsp->_.lvalue._.dungeon))->index->area) && (lsp->_.wnum.vnum == (*(rsp->_.lvalue._.dungeon))->index->vnum); break;
+							case NI_NEQ:
+								if (*(rsp->_.lvalue._.dungeon) && (*(rsp->_.lvalue._.dungeon))->index)
+									value = (lsp->_.wnum.pArea != (*(rsp->_.lvalue._.dungeon))->index->area) || (lsp->_.wnum.vnum != (*(rsp->_.lvalue._.dungeon))->index->vnum);
+								else
+									value = lsp->_.wnum.pArea && lsp->_.wnum.vnum > 0;
+								break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;		
@@ -8633,15 +14469,97 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							break;
 						}
 					
-					// case NST_OBJECT:
+					case NST_INSTANCE:		// WIDEVNUM op INSTANCE
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = *(rsp->_.lvalue._.instance) && ((*(rsp->_.lvalue._.instance))->blueprint != NULL) && (lsp->_.wnum.pArea == (*(rsp->_.lvalue._.instance))->blueprint->area) && (lsp->_.wnum.vnum == (*(rsp->_.lvalue._.instance))->blueprint->vnum); break;
+							case NI_NEQ:
+								if (*(rsp->_.lvalue._.instance) && (*(rsp->_.lvalue._.instance))->blueprint)
+									value = (lsp->_.wnum.pArea != (*(rsp->_.lvalue._.instance))->blueprint->area) || (lsp->_.wnum.vnum != (*(rsp->_.lvalue._.instance))->blueprint->vnum);
+								else
+									value = lsp->_.wnum.pArea && lsp->_.wnum.vnum > 0;
+								break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;		
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;		
+							}
+
+							break;
+						}
+					
+					case NST_MOBILE:		// WIDEVNUM op MOBILE => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = *(rsp->_.lvalue._.mobile) && ((*(rsp->_.lvalue._.mobile))->pIndexData != NULL) && (lsp->_.wnum.pArea == (*(rsp->_.lvalue._.mobile))->pIndexData->area) && (lsp->_.wnum.vnum == (*(rsp->_.lvalue._.mobile))->pIndexData->vnum); break;
+							case NI_NEQ:
+								if (*(rsp->_.lvalue._.mobile) && (*(rsp->_.lvalue._.mobile))->pIndexData)
+									value = (lsp->_.wnum.pArea != (*(rsp->_.lvalue._.mobile))->pIndexData->area) || (lsp->_.wnum.vnum != (*(rsp->_.lvalue._.mobile))->pIndexData->vnum);
+								else
+									value = lsp->_.wnum.pArea && lsp->_.wnum.vnum > 0;
+								break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;		
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;		
+							}
+
+							break;
+						}
+					
+					case NST_OBJECT:		// WIDEVNUM op OBJECT => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = *(rsp->_.lvalue._.object) && ((*(rsp->_.lvalue._.object))->pIndexData != NULL) && (lsp->_.wnum.pArea == (*(rsp->_.lvalue._.object))->pIndexData->area) && (lsp->_.wnum.vnum == (*(rsp->_.lvalue._.object))->pIndexData->vnum); break;
+							case NI_NEQ:
+								if (*(rsp->_.lvalue._.object) && (*(rsp->_.lvalue._.object))->pIndexData)
+									value = (lsp->_.wnum.pArea != (*(rsp->_.lvalue._.object))->pIndexData->area) || (lsp->_.wnum.vnum != (*(rsp->_.lvalue._.object))->pIndexData->vnum);
+								else
+									value = lsp->_.wnum.pArea && lsp->_.wnum.vnum > 0;
+								break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;		
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;		
+							}
+
+							break;
+						}
+					
 					// case NST_QUEST:
 					case NST_ROOM:			// WIDEVNUM op ROOM
 						{
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = (lsp->_.wnum.pArea == (*(rsp->_.lvalue._.room))->area) && (lsp->_.wnum.vnum == (*(rsp->_.lvalue._.room))->vnum); break;
-							case NI_NEQ:	value = (lsp->_.wnum.pArea != (*(rsp->_.lvalue._.room))->area) || (lsp->_.wnum.vnum != (*(rsp->_.lvalue._.room))->vnum); break;
+							case NI_EQ:		value = *(rsp->_.lvalue._.room) && (lsp->_.wnum.pArea == (*(rsp->_.lvalue._.room))->area) && (lsp->_.wnum.vnum == (*(rsp->_.lvalue._.room))->vnum); break;
+							case NI_NEQ:
+								if (*(rsp->_.lvalue._.room))
+									value = (lsp->_.wnum.pArea != (*(rsp->_.lvalue._.room))->area) || (lsp->_.wnum.vnum != (*(rsp->_.lvalue._.room))->vnum);
+								else
+									value = lsp->_.wnum.pArea && lsp->_.wnum.vnum > 0;
+								break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;		
@@ -8656,8 +14574,58 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							break;
 						}
 
-					// case NST_SHIP:
-					// case NST_TOKEN:
+					case NST_SHIP:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = *(rsp->_.lvalue._.ship) && ((*(rsp->_.lvalue._.ship))->index != NULL) && (lsp->_.wnum.pArea == (*(rsp->_.lvalue._.ship))->index->area) && (lsp->_.wnum.vnum == (*(rsp->_.lvalue._.ship))->index->vnum); break;
+							case NI_NEQ:
+								if (*(rsp->_.lvalue._.ship) && (*(rsp->_.lvalue._.ship))->index)
+									value = (lsp->_.wnum.pArea != (*(rsp->_.lvalue._.ship))->index->area) || (lsp->_.wnum.vnum != (*(rsp->_.lvalue._.ship))->index->vnum);
+								else
+									value = lsp->_.wnum.pArea && lsp->_.wnum.vnum > 0;
+								break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;		
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;		
+							}
+
+							break;
+						}
+					
+					case NST_TOKEN:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(rsp->_.lvalue._.token))->pIndexData != NULL) && (lsp->_.wnum.pArea == (*(rsp->_.lvalue._.token))->pIndexData->area) && (lsp->_.wnum.vnum == (*(rsp->_.lvalue._.token))->pIndexData->vnum); break;
+							case NI_NEQ:
+								if (*(rsp->_.lvalue._.token) && (*(rsp->_.lvalue._.token))->pIndexData)
+									value = (lsp->_.wnum.pArea != (*(rsp->_.lvalue._.token))->pIndexData->area) || (lsp->_.wnum.vnum != (*(rsp->_.lvalue._.token))->pIndexData->vnum);
+								else
+									value = lsp->_.wnum.pArea && lsp->_.wnum.vnum > 0;
+								break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;		
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;		
+							}
+
+							break;
+						}
+					
 					default:
 						SETRET(nsr,INVALID);
 						return true;		
@@ -8923,6 +14891,171 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 			break;
 		}
 
+	case NST_ACCOUNT:		// ACCOUNT op ???
+		{
+			switch(rsp->type)
+			{
+			case NST_ACCOUNT:		// ACCOUNT op ACCOUNT => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.account) == (rsp->_.account); break;
+					case NI_NEQ:	value = (lsp->_.account) != (rsp->_.account); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NULL:		// ACCOUNT op null => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.account) == NULL; break;
+					case NI_NEQ:	value = (lsp->_.account) != NULL; break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:	// ACCOUNT op LVALUE => BOOLEAN
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_ACCOUNT:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.account) == *(rsp->_.lvalue._.account); break;
+							case NI_NEQ:	value = (lsp->_.account) != *(rsp->_.lvalue._.account); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
+	case NST_AFFECT:		// AFFECT op ???
+		{
+			switch(rsp->type)
+			{
+			case NST_AFFECT:		// AFFECT op AFFECT => BOOLEAN
+				{
+					// TODO: Add an affect_cmp function
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = affect_equal(lsp->_.affect, rsp->_.affect); break;
+					case NI_NEQ:	value = !affect_equal(lsp->_.affect, rsp->_.affect); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NULL:		// AFFECT op null => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.affect) == NULL; break;
+					case NI_NEQ:	value = (lsp->_.affect) != NULL; break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:	// AFFECT op LVALUE => BOOLEAN
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_AFFECT:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = affect_equal(lsp->_.affect, *(rsp->_.lvalue._.affect)); break;
+							case NI_NEQ:	value = !affect_equal(lsp->_.affect, *(rsp->_.lvalue._.affect)); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
 	case NST_AREA:			// AREA op ???
 		{
 			switch(rsp->type)
@@ -9005,8 +15138,763 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 			break;
 		}
 
-	// case NST_DUNGEON:
-	// case NST_INSTANCE:
+	// case NST_CHANNEL:
+	case NST_CLASS:			// CLASS op ???
+		{
+			switch(rsp->type)
+			{
+			case NST_CLASS:		// CLASS op CLASS => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.clazz) == (rsp->_.clazz); break;
+					case NI_NEQ:	value = (lsp->_.clazz) != (rsp->_.clazz); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NULL:		// CLASS op null => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.clazz) == NULL; break;
+					case NI_NEQ:	value = (lsp->_.clazz) != NULL; break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:	// CLASS op LVALUE => BOOLEAN
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_CLASS:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.clazz) == *(rsp->_.lvalue._.clazz); break;
+							case NI_NEQ:	value = (lsp->_.clazz) != *(rsp->_.lvalue._.clazz); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
+	case NST_DUNGEON:		// DUNGEON op ???
+		{
+			switch(rsp->type)
+			{
+			case NST_DUNGEON:		// DUNGEON op DUNGEON => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.dungeon) == (rsp->_.dungeon); break;
+					case NI_NEQ:	value = (lsp->_.dungeon) != (rsp->_.dungeon); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_WIDEVNUM:		// DUNGEON op WIDEVNUM => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = lsp->_.dungeon && (lsp->_.dungeon && lsp->_.dungeon->index) && (lsp->_.dungeon->index->area == rsp->_.wnum.pArea) && (lsp->_.dungeon->index->vnum == rsp->_.wnum.vnum); break;
+					case NI_NEQ:
+						if (lsp->_.dungeon && lsp->_.dungeon->index)
+							value = (lsp->_.dungeon->index->area != rsp->_.wnum.pArea) || (lsp->_.dungeon->index->vnum != rsp->_.wnum.vnum);
+						else
+							value = (rsp->_.wnum.pArea && rsp->_.wnum.vnum > 0);
+						break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NULL:		// DUNGEON op null => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.dungeon) == NULL; break;
+					case NI_NEQ:	value = (lsp->_.dungeon) != NULL; break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:	// DUNGEON op LVALUE => BOOLEAN
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_DUNGEON:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.dungeon) == *(rsp->_.lvalue._.dungeon); break;
+							case NI_NEQ:	value = (lsp->_.dungeon) != *(rsp->_.lvalue._.dungeon); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_WIDEVNUM:			// DUNGEON op WIDEVNUM => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = lsp->_.dungeon && (lsp->_.dungeon->index != NULL) && (lsp->_.dungeon->index->area == rsp->_.lvalue._.wnum->pArea) && (lsp->_.dungeon->index->vnum == rsp->_.lvalue._.wnum->vnum); break;
+							case NI_NEQ:
+								if (lsp->_.dungeon && lsp->_.dungeon->index)
+									value = (lsp->_.dungeon->index->area != rsp->_.lvalue._.wnum->pArea) || (lsp->_.dungeon->index->vnum != rsp->_.lvalue._.wnum->vnum);
+								else
+									value = (rsp->_.lvalue._.wnum->pArea && rsp->_.lvalue._.wnum->vnum > 0);
+								break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
+	case NST_EXIT:			// EXIT op ???
+		{
+			switch(rsp->type)
+			{
+			case NST_EXIT:		// EXIT op EXIT => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.ex) == (rsp->_.ex); break;
+					case NI_NEQ:	value = (lsp->_.ex) != (rsp->_.ex); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NULL:		// EXIT op null => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.ex) == NULL; break;
+					case NI_NEQ:	value = (lsp->_.ex) != NULL; break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:	// EXIT op LVALUE => BOOLEAN
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_EXIT:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.ex) == *(rsp->_.lvalue._.ex); break;
+							case NI_NEQ:	value = (lsp->_.ex) != *(rsp->_.lvalue._.ex); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
+	case NST_INSTANCE:		// INSTANCE op ???
+		{
+			switch(rsp->type)
+			{
+			case NST_INSTANCE:		// INSTANCE op INSTANCE => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.instance) == (rsp->_.instance); break;
+					case NI_NEQ:	value = (lsp->_.instance) != (rsp->_.instance); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_WIDEVNUM:		// INSTANCE op WIDEVNUM => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = lsp->_.instance && (lsp->_.instance && lsp->_.instance->blueprint) && (lsp->_.instance->blueprint->area == rsp->_.wnum.pArea) && (lsp->_.instance->blueprint->vnum == rsp->_.wnum.vnum); break;
+					case NI_NEQ:
+						if (lsp->_.instance && lsp->_.instance->blueprint)
+							value = (lsp->_.instance->blueprint->area != rsp->_.wnum.pArea) || (lsp->_.instance->blueprint->vnum != rsp->_.wnum.vnum);
+						else
+							value = (rsp->_.wnum.pArea && rsp->_.wnum.vnum > 0);
+						break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NULL:		// INSTANCE op null => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.instance) == NULL; break;
+					case NI_NEQ:	value = (lsp->_.instance) != NULL; break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:	// INSTANCE op LVALUE => BOOLEAN
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_INSTANCE:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.instance) == *(rsp->_.lvalue._.instance); break;
+							case NI_NEQ:	value = (lsp->_.instance) != *(rsp->_.lvalue._.instance); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_WIDEVNUM:			// INSTANCE op WIDEVNUM => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = lsp->_.instance && (lsp->_.instance->blueprint != NULL) && (lsp->_.instance->blueprint->area == rsp->_.lvalue._.wnum->pArea) && (lsp->_.instance->blueprint->vnum == rsp->_.lvalue._.wnum->vnum); break;
+							case NI_NEQ:
+								if (lsp->_.instance && lsp->_.instance->blueprint)
+									value = (lsp->_.instance->blueprint->area != rsp->_.lvalue._.wnum->pArea) || (lsp->_.instance->blueprint->vnum != rsp->_.lvalue._.wnum->vnum);
+								else
+									value = (rsp->_.lvalue._.wnum->pArea && rsp->_.lvalue._.wnum->vnum > 0);
+								break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
+	case NST_LIQUID:		// LIQUID op ???
+		{
+			switch(rsp->type)
+			{
+			case NST_LIQUID:		// LIQUID op LIQUID => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.liquid) == (rsp->_.liquid); break;
+					case NI_NEQ:	value = (lsp->_.liquid) != (rsp->_.liquid); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NULL:		// LIQUID op null => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.liquid) == NULL; break;
+					case NI_NEQ:	value = (lsp->_.liquid) != NULL; break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:	// LIQUID op LVALUE => BOOLEAN
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_LIQUID:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.liquid) == *(rsp->_.lvalue._.liquid); break;
+							case NI_NEQ:	value = (lsp->_.liquid) != *(rsp->_.lvalue._.liquid); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
+	case NST_MAIL:			// MAIL op ???
+		{
+			switch(rsp->type)
+			{
+			case NST_MAIL:		// MAIL op MAIL => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.mail) == (rsp->_.mail); break;
+					case NI_NEQ:	value = (lsp->_.mail) != (rsp->_.mail); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NULL:		// MAIL op null => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.mail) == NULL; break;
+					case NI_NEQ:	value = (lsp->_.mail) != NULL; break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:	// MAIL op LVALUE => BOOLEAN
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_MAIL:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.mail) == *(rsp->_.lvalue._.mail); break;
+							case NI_NEQ:	value = (lsp->_.mail) != *(rsp->_.lvalue._.mail); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
+	case NST_MATERIAL:		// MATERIAL op ???
+		{
+			switch(rsp->type)
+			{
+			case NST_MATERIAL:		// MATERIAL op MATERIAL => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.material) == (rsp->_.material); break;
+					case NI_NEQ:	value = (lsp->_.material) != (rsp->_.material); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NULL:		// MATERIAL op null => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.material) == NULL; break;
+					case NI_NEQ:	value = (lsp->_.material) != NULL; break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:	// MATERIAL op LVALUE => BOOLEAN
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_MATERIAL:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.material) == *(rsp->_.lvalue._.material); break;
+							case NI_NEQ:	value = (lsp->_.material) != *(rsp->_.lvalue._.material); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
+	case NST_MISSION:		// MISSION op ???
+		{
+			switch(rsp->type)
+			{
+			case NST_MISSION:		// MISSION op MISSION => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.mission) == (rsp->_.mission); break;
+					case NI_NEQ:	value = (lsp->_.mission) != (rsp->_.mission); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NULL:		// MISSION op null => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.mission) == NULL; break;
+					case NI_NEQ:	value = (lsp->_.mission) != NULL; break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:	// MISSION op LVALUE => BOOLEAN
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_MISSION:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.mission) == *(rsp->_.lvalue._.mission); break;
+							case NI_NEQ:	value = (lsp->_.mission) != *(rsp->_.lvalue._.mission); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
 	case NST_MOBILE:		// MOBILE op ???
 		{
 			switch(rsp->type)
@@ -9036,8 +15924,13 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					bool value;
 					switch(op)
 					{
-					case NI_EQ:		value = (lsp->_.mobile->pIndexData != NULL) && (lsp->_.mobile->pIndexData->area == rsp->_.wnum.pArea) && (lsp->_.mobile->pIndexData->vnum == rsp->_.wnum.vnum); break;
-					case NI_NEQ:	value = (lsp->_.mobile->pIndexData == NULL) || (lsp->_.mobile->pIndexData->area != rsp->_.wnum.pArea) || (lsp->_.mobile->pIndexData->vnum != rsp->_.wnum.vnum); break;
+					case NI_EQ:		value = (lsp->_.mobile && lsp->_.mobile->pIndexData != NULL) && (lsp->_.mobile->pIndexData->area == rsp->_.wnum.pArea) && (lsp->_.mobile->pIndexData->vnum == rsp->_.wnum.vnum); break;
+					case NI_NEQ:
+						if (lsp->_.mobile && lsp->_.mobile->pIndexData)
+							value = (lsp->_.mobile->pIndexData->area != rsp->_.wnum.pArea) || (lsp->_.mobile->pIndexData->vnum != rsp->_.wnum.vnum);
+						else
+							value = (rsp->_.wnum.pArea && rsp->_.wnum.vnum > 0);
+						break;
 					default:
 						SETRET(nsr,INVALID);
 						return true;
@@ -9100,8 +15993,15 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = (lsp->_.mobile->pIndexData != NULL) && (lsp->_.mobile->pIndexData->area == rsp->_.lvalue._.wnum->pArea) && (lsp->_.mobile->pIndexData->vnum == rsp->_.lvalue._.wnum->vnum); break;
-							case NI_NEQ:	value = (lsp->_.mobile->pIndexData == NULL) || (lsp->_.mobile->pIndexData->area != rsp->_.lvalue._.wnum->pArea) || (lsp->_.mobile->pIndexData->vnum != rsp->_.lvalue._.wnum->vnum); break;
+							case NI_EQ:		value = (lsp->_.mobile && lsp->_.mobile->pIndexData != NULL) && (lsp->_.mobile->pIndexData->area == rsp->_.lvalue._.wnum->pArea) && (lsp->_.mobile->pIndexData->vnum == rsp->_.lvalue._.wnum->vnum); break;
+							case NI_NEQ:
+								if (lsp->_.mobile && lsp->_.mobile->pIndexData)
+								{
+									value = (lsp->_.mobile->pIndexData->area != rsp->_.lvalue._.wnum->pArea) || (lsp->_.mobile->pIndexData->vnum != rsp->_.lvalue._.wnum->vnum);
+								}
+								else
+									value = (rsp->_.lvalue._.wnum->pArea && rsp->_.lvalue._.wnum->vnum > 0);
+								break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -9129,8 +16029,469 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 			break;
 		}
 
-	// case NST_OBJECT:
+	case NST_OBJECT:		// OBJECT op ???
+		{
+			switch(rsp->type)
+			{
+			case NST_OBJECT:		// OBJECT op OBJECT => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.object) == (rsp->_.object); break;
+					case NI_NEQ:	value = (lsp->_.object) != (rsp->_.object); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_WIDEVNUM:		// OBJECT op WIDEVNUM => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.object && lsp->_.object->pIndexData != NULL) && (lsp->_.object->pIndexData->area == rsp->_.wnum.pArea) && (lsp->_.object->pIndexData->vnum == rsp->_.wnum.vnum); break;
+					case NI_NEQ:
+						if (lsp->_.object && lsp->_.object->pIndexData)
+							value = (lsp->_.object->pIndexData->area != rsp->_.wnum.pArea) || (lsp->_.object->pIndexData->vnum != rsp->_.wnum.vnum);
+						else
+							value = (rsp->_.wnum.pArea && rsp->_.wnum.vnum > 0);
+						break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NULL:			// OBJECT op null => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.object) == NULL; break;
+					case NI_NEQ:	value = (lsp->_.object) != NULL; break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:		// OBJECT op LVALUE => BOOLEAN
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_OBJECT:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.object) == *(rsp->_.lvalue._.object); break;
+							case NI_NEQ:	value = (lsp->_.object) != *(rsp->_.lvalue._.object); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_WIDEVNUM:			// OBJECT op WIDEVNUM => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.object && lsp->_.object->pIndexData != NULL) && (lsp->_.object->pIndexData->area == rsp->_.lvalue._.wnum->pArea) && (lsp->_.object->pIndexData->vnum == rsp->_.lvalue._.wnum->vnum); break;
+							case NI_NEQ:
+								if (lsp->_.object && lsp->_.object->pIndexData)
+								{
+									value = (lsp->_.object->pIndexData->area != rsp->_.lvalue._.wnum->pArea) || (lsp->_.object->pIndexData->vnum != rsp->_.lvalue._.wnum->vnum);
+								}
+								else
+									value = (rsp->_.lvalue._.wnum->pArea && rsp->_.lvalue._.wnum->vnum > 0);
+								break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
+	case NST_ORG:			// ORG op ???
+		{
+			switch(rsp->type)
+			{
+			case NST_ORG:		// ORG op ORG => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.org) == (rsp->_.org); break;
+					case NI_NEQ:	value = (lsp->_.org) != (rsp->_.org); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NULL:		// ORG op null => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.org) == NULL; break;
+					case NI_NEQ:	value = (lsp->_.org) != NULL; break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:	// ORG op LVALUE => BOOLEAN
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_ORG:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.org) == *(rsp->_.lvalue._.org); break;
+							case NI_NEQ:	value = (lsp->_.org) != *(rsp->_.lvalue._.org); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
 	// case NST_QUEST:
+	case NST_RACE:			// RACE op ???
+		{
+			switch(rsp->type)
+			{
+			case NST_RACE:		// RACE op RACE => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.race) == (rsp->_.race); break;
+					case NI_NEQ:	value = (lsp->_.race) != (rsp->_.race); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NULL:		// RACE op null => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.race) == NULL; break;
+					case NI_NEQ:	value = (lsp->_.race) != NULL; break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:	// RACE op LVALUE => BOOLEAN
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_RACE:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.race) == *(rsp->_.lvalue._.race); break;
+							case NI_NEQ:	value = (lsp->_.race) != *(rsp->_.lvalue._.race); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
+	case NST_RANK:			// RANK op ???
+		{
+			switch(rsp->type)
+			{
+			case NST_RANK:		// RANK op RANK => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.rank) == (rsp->_.rank); break;
+					case NI_NEQ:	value = (lsp->_.rank) != (rsp->_.rank); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NULL:		// RANK op null => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.rank) == NULL; break;
+					case NI_NEQ:	value = (lsp->_.rank) != NULL; break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:	// RANK op LVALUE => BOOLEAN
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_RANK:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.rank) == *(rsp->_.lvalue._.rank); break;
+							case NI_NEQ:	value = (lsp->_.rank) != *(rsp->_.lvalue._.rank); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
+	case NST_REPUTATION:	// REPUTATION op ???
+		{
+			switch(rsp->type)
+			{
+			case NST_REPUTATION:		// REPUTATION op REPUTATION => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.reputation) == (rsp->_.reputation); break;
+					case NI_NEQ:	value = (lsp->_.reputation) != (rsp->_.reputation); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NULL:		// REPUTATION op null => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.reputation) == NULL; break;
+					case NI_NEQ:	value = (lsp->_.reputation) != NULL; break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:	// REPUTATION op LVALUE => BOOLEAN
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_REPUTATION:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.reputation) == *(rsp->_.lvalue._.reputation); break;
+							case NI_NEQ:	value = (lsp->_.reputation) != *(rsp->_.lvalue._.reputation); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
 	case NST_ROOM:			// ROOM op ???
 		{
 			switch(rsp->type)
@@ -9160,8 +16521,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					bool value;
 					switch(op)
 					{
-					case NI_EQ:		value = (lsp->_.room->area == rsp->_.wnum.pArea) && (lsp->_.room->vnum == rsp->_.wnum.vnum); break;
-					case NI_NEQ:	value = (lsp->_.room->area != rsp->_.wnum.pArea) || (lsp->_.room->vnum != rsp->_.wnum.vnum); break;
+					case NI_EQ:		value = (lsp->_.room) && (lsp->_.room->area == rsp->_.wnum.pArea) && (lsp->_.room->vnum == rsp->_.wnum.vnum); break;
+					case NI_NEQ:	value = !(lsp->_.room) && ((lsp->_.room->area != rsp->_.wnum.pArea) || (lsp->_.room->vnum != rsp->_.wnum.vnum)); break;
 					default:
 						SETRET(nsr,INVALID);
 						return true;
@@ -9253,8 +16614,437 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 			break;
 		}
 
-	// case NST_SHIP:
-	// case NST_TOKEN:
+	case NST_SHIP:			// SHIP op ???
+		{
+			switch(rsp->type)
+			{
+			case NST_SHIP:		// SHIP op SHIP => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.ship) == (rsp->_.ship); break;
+					case NI_NEQ:	value = (lsp->_.ship) != (rsp->_.ship); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_WIDEVNUM:		// SHIP op WIDEVNUM => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = lsp->_.ship && (lsp->_.ship && lsp->_.ship->index) && (lsp->_.ship->index->area == rsp->_.wnum.pArea) && (lsp->_.ship->index->vnum == rsp->_.wnum.vnum); break;
+					case NI_NEQ:
+						if (lsp->_.ship && lsp->_.ship->index)
+							value = (lsp->_.ship->index->area != rsp->_.wnum.pArea) || (lsp->_.ship->index->vnum != rsp->_.wnum.vnum);
+						else
+							value = (rsp->_.wnum.pArea && rsp->_.wnum.vnum > 0);
+						break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NULL:		// SHIP op null => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.ship) == NULL; break;
+					case NI_NEQ:	value = (lsp->_.ship) != NULL; break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:	// SHIP op LVALUE => BOOLEAN
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_SHIP:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.ship) == *(rsp->_.lvalue._.ship); break;
+							case NI_NEQ:	value = (lsp->_.ship) != *(rsp->_.lvalue._.ship); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_WIDEVNUM:			// SHIP op WIDEVNUM => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = lsp->_.ship && (lsp->_.ship->index != NULL) && (lsp->_.ship->index->area == rsp->_.lvalue._.wnum->pArea) && (lsp->_.ship->index->vnum == rsp->_.lvalue._.wnum->vnum); break;
+							case NI_NEQ:
+								if (lsp->_.ship && lsp->_.ship->index)
+									value = (lsp->_.ship->index->area != rsp->_.lvalue._.wnum->pArea) || (lsp->_.ship->index->vnum != rsp->_.lvalue._.wnum->vnum);
+								else
+									value = (rsp->_.lvalue._.wnum->pArea && rsp->_.lvalue._.wnum->vnum > 0);
+								break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
+	case NST_SKILL:			// SKILL op ???
+		{
+			switch(rsp->type)
+			{
+			case NST_SKILL:		// SKILL op SKILL => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.skill) == (rsp->_.skill); break;
+					case NI_NEQ:	value = (lsp->_.skill) != (rsp->_.skill); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NULL:		// SKILL op null => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.skill) == NULL; break;
+					case NI_NEQ:	value = (lsp->_.skill) != NULL; break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:	// SKILL op LVALUE => BOOLEAN
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_SKILL:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.skill) == *(rsp->_.lvalue._.skill); break;
+							case NI_NEQ:	value = (lsp->_.skill) != *(rsp->_.lvalue._.skill); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
+	case NST_TOKEN:			// TOKEN op ???
+		{
+			switch(rsp->type)
+			{
+			case NST_TOKEN:		// TOKEN op TOKEN => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.token) == (rsp->_.token); break;
+					case NI_NEQ:	value = (lsp->_.token) != (rsp->_.token); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_WIDEVNUM:		// TOKEN op WIDEVNUM => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.token && lsp->_.token->pIndexData != NULL) && (lsp->_.token->pIndexData->area == rsp->_.wnum.pArea) && (lsp->_.token->pIndexData->vnum == rsp->_.wnum.vnum); break;
+					case NI_NEQ:
+						if (lsp->_.token && lsp->_.token->pIndexData)
+							value = (lsp->_.token->pIndexData->area != rsp->_.wnum.pArea) || (lsp->_.token->pIndexData->vnum != rsp->_.wnum.vnum);
+						else
+							value = (rsp->_.wnum.pArea && rsp->_.wnum.vnum > 0);
+						break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NULL:			// TOKEN op null => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.token) == NULL; break;
+					case NI_NEQ:	value = (lsp->_.token) != NULL; break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:		// TOKEN op LVALUE => BOOLEAN
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_TOKEN:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.token) == *(rsp->_.lvalue._.token); break;
+							case NI_NEQ:	value = (lsp->_.token) != *(rsp->_.lvalue._.token); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_WIDEVNUM:			// TOKEN op WIDEVNUM => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.token && lsp->_.token->pIndexData != NULL) && (lsp->_.token->pIndexData->area == rsp->_.lvalue._.wnum->pArea) && (lsp->_.token->pIndexData->vnum == rsp->_.lvalue._.wnum->vnum); break;
+							case NI_NEQ:
+								if (lsp->_.token && lsp->_.token->pIndexData)
+								{
+									value = (lsp->_.token->pIndexData->area != rsp->_.lvalue._.wnum->pArea) || (lsp->_.token->pIndexData->vnum != rsp->_.lvalue._.wnum->vnum);
+								}
+								else
+									value = (rsp->_.lvalue._.wnum->pArea && rsp->_.lvalue._.wnum->vnum > 0);
+								break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
+	case NST_WILDS:			// WILDS op ???
+		{
+			switch(rsp->type)
+			{
+			case NST_WILDS:		// WILDS op WILDS => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.wilds) == (rsp->_.wilds); break;
+					case NI_NEQ:	value = (lsp->_.wilds) != (rsp->_.wilds); break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_NULL:		// WILDS op null => BOOLEAN
+				{
+					bool value;
+					switch(op)
+					{
+					case NI_EQ:		value = (lsp->_.wilds) == NULL; break;
+					case NI_NEQ:	value = (lsp->_.wilds) != NULL; break;
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+
+					if (!nib_push_stack_boolean(nsr,value))
+					{
+						SETRET(nsr,STACK);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LVALUE:	// WILDS op LVALUE => BOOLEAN
+				{
+					switch(rsp->_.lvalue.type)
+					{
+					case NST_WILDS:
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (lsp->_.wilds) == *(rsp->_.lvalue._.wilds); break;
+							case NI_NEQ:	value = (lsp->_.wilds) != *(rsp->_.lvalue._.wilds); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			default:
+				SETRET(nsr,INVALID);
+				return true;
+			}
+			break;
+		}
+
+	// case NST_WORLD:
 	case NST_NULL:
 		{
 			switch(rsp->type)
@@ -9320,72 +17110,33 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					break;
 				}
 
-			case NST_AREA:
-				{
-					bool value = (rsp->_.area == NULL);
-					switch(op)
-					{
-					case NI_EQ:		/* Already tested */break;
-					case NI_NEQ:	value = !value; break;
-					default:
-						SETRET(nsr,INVALID);
-						return true;
-					}
 
-					if (!nib_push_stack_boolean(nsr,value))
-					{
-						SETRET(nsr,STACK);
-						return true;
-					}
-					break;
-				}
-
-			// case NST_DUNGEON:
-			// case NST_INSTANCE:
-			case NST_MOBILE:
-				{
-					bool value = (rsp->_.mobile == NULL);
-					switch(op)
-					{
-					case NI_EQ:		/* Already tested */break;
-					case NI_NEQ:	value = !value; break;
-					default:
-						SETRET(nsr,INVALID);
-						return true;
-					}
-
-					if (!nib_push_stack_boolean(nsr,value))
-					{
-						SETRET(nsr,STACK);
-						return true;
-					}
-					break;
-				}
-
-			// case NST_OBJECT:
-			// case NST_QUEST:
-			case NST_ROOM:
-				{
-					bool value = (rsp->_.room == NULL);
-					switch(op)
-					{
-					case NI_EQ:		/* Already tested */break;
-					case NI_NEQ:	value = !value; break;
-					default:
-						SETRET(nsr,INVALID);
-						return true;
-					}
-
-					if (!nib_push_stack_boolean(nsr,value))
-					{
-						SETRET(nsr,STACK);
-						return true;
-					}
-					break;
-				}
-
-			// case NST_SHIP:
-			// case NST_TOKEN:
+			__bool_nullvf(ACCOUNT,account)
+			__bool_nullvf(AFFECT,affect)
+			__bool_nullf(AREA,area)
+			// __bool_nullvf(CHANNEL,channel)
+			__bool_nullvf(CLASS,clazz)
+			__bool_nullvf(DUNGEON,dungeon)
+			__bool_nullvf(EXIT,ex)
+			__bool_nullvf(INSTANCE,instance)
+			__bool_nullvf(LIQUID,liquid)
+			__bool_nullf(MAIL,mail)
+			__bool_nullvf(MATERIAL,material)
+			__bool_nullf(MISSION,mission)
+			__bool_nullvf(MOBILE,mobile)
+			__bool_nullvf(NOTE,note)
+			__bool_nullvf(OBJECT,object)
+			__bool_nullf(ORG,org)
+			// __bool_nullvf(QUEST,quest)
+			__bool_nullvf(RACE,race)
+			__bool_nullvf(RANK,rank)
+			__bool_nullvf(REPUTATION,reputation)
+			__bool_nullf(ROOM,room)
+			__bool_nullvf(SHIP,ship)
+			__bool_nullvf(SKILL,skill)
+			__bool_nullvf(TOKEN,token)
+			__bool_nullvf(WILDS,wilds)
+			// __bool_nullvf(WORLD,world)
 			case NST_LVALUE:
 				{
 					switch(rsp->_.lvalue.type)
@@ -9430,72 +17181,32 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							break;
 						}
 
-					case NST_AREA:
-						{
-							bool value = (*(rsp->_.lvalue._.area) == NULL);
-							switch(op)
-							{
-							case NI_EQ:		/* Already tested */break;
-							case NI_NEQ:	value = !value; break;
-							default:
-								SETRET(nsr,INVALID);
-								return true;
-							}
-
-							if (!nib_push_stack_boolean(nsr,value))
-							{
-								SETRET(nsr,STACK);
-								return true;
-							}
-							break;
-						}
-
-					// case NST_DUNGEON:
-					// case NST_INSTANCE:
-					case NST_MOBILE:
-						{
-							bool value = (*(rsp->_.lvalue._.mobile) == NULL);
-							switch(op)
-							{
-							case NI_EQ:		/* Already tested */break;
-							case NI_NEQ:	value = !value; break;
-							default:
-								SETRET(nsr,INVALID);
-								return true;
-							}
-
-							if (!nib_push_stack_boolean(nsr,value))
-							{
-								SETRET(nsr,STACK);
-								return true;
-							}
-							break;
-						}
-
-					// case NST_OBJECT:
-					// case NST_QUEST:
-					case NST_ROOM:
-						{
-							bool value = (*(rsp->_.lvalue._.room) == NULL);
-							switch(op)
-							{
-							case NI_EQ:		/* Already tested */break;
-							case NI_NEQ:	value = !value; break;
-							default:
-								SETRET(nsr,INVALID);
-								return true;
-							}
-
-							if (!nib_push_stack_boolean(nsr,value))
-							{
-								SETRET(nsr,STACK);
-								return true;
-							}
-							break;
-						}
-
-					// case NST_SHIP:
-					// case NST_TOKEN:
+					__bool_nullvflv(ACCOUNT,account)
+					__bool_nullvflv(AFFECT,affect)
+					__bool_nullflv(AREA,area)
+					// __bool_nullvflv(CHANNEL,channel)
+					__bool_nullvflv(CLASS,clazz)
+					__bool_nullvflv(DUNGEON,dungeon)
+					__bool_nullvflv(EXIT,ex)
+					__bool_nullvflv(INSTANCE,instance)
+					__bool_nullvflv(LIQUID,liquid)
+					__bool_nullflv(MAIL,mail)
+					__bool_nullvflv(MATERIAL,material)
+					__bool_nullflv(MISSION,mission)
+					__bool_nullvflv(MOBILE,mobile)
+					__bool_nullvflv(NOTE,note)
+					__bool_nullvflv(OBJECT,object)
+					__bool_nullflv(ORG,org)
+					// __bool_nullvflv(QUEST,quest)
+					__bool_nullvflv(RACE,race)
+					__bool_nullvflv(RANK,rank)
+					__bool_nullvflv(REPUTATION,reputation)
+					__bool_nullflv(ROOM,room)
+					__bool_nullvflv(SHIP,ship)
+					__bool_nullvflv(SKILL,skill)
+					__bool_nullvflv(TOKEN,token)
+					__bool_nullvflv(WILDS,wilds)
+					// __bool_nullvflv(WORLD,world)
 					default:
 						SETRET(nsr,INVALID);
 						return true;
@@ -10841,6 +18552,171 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					break;
 				}
 
+			case NST_ACCOUNT:		// ACCOUNT op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_ACCOUNT:		// ACCOUNT op ACCOUNT => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.account))) == (rsp->_.account); break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.account))) != (rsp->_.account); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NULL:		// ACCOUNT op null => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.account))) == NULL; break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.account))) != NULL; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:	// ACCOUNT op LVALUE => BOOLEAN
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_ACCOUNT:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = ((*(lsp->_.lvalue._.account))) == *(rsp->_.lvalue._.account); break;
+									case NI_NEQ:	value = ((*(lsp->_.lvalue._.account))) != *(rsp->_.lvalue._.account); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_AFFECT:		// AFFECT op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_AFFECT:		// AFFECT op AFFECT => BOOLEAN
+						{
+							// TODO: Add an affect_cmp function
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = affect_equal((*(lsp->_.lvalue._.affect)), rsp->_.affect); break;
+							case NI_NEQ:	value = !affect_equal((*(lsp->_.lvalue._.affect)), rsp->_.affect); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NULL:		// AFFECT op null => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.affect))) == NULL; break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.affect))) != NULL; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:	// AFFECT op LVALUE => BOOLEAN
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_AFFECT:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = affect_equal((*(lsp->_.lvalue._.affect)), *(rsp->_.lvalue._.affect)); break;
+									case NI_NEQ:	value = !affect_equal((*(lsp->_.lvalue._.affect)), *(rsp->_.lvalue._.affect)); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
 			case NST_AREA:			// AREA op ???
 				{
 					switch(rsp->type)
@@ -10850,8 +18726,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = *(lsp->_.lvalue._.area) == (rsp->_.area); break;
-							case NI_NEQ:	value = *(lsp->_.lvalue._.area) != (rsp->_.area); break;
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.area))) == (rsp->_.area); break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.area))) != (rsp->_.area); break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -10870,8 +18746,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = *(lsp->_.lvalue._.area) == NULL; break;
-							case NI_NEQ:	value = *(lsp->_.lvalue._.area) != NULL; break;
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.area))) == NULL; break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.area))) != NULL; break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -10894,8 +18770,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 									bool value;
 									switch(op)
 									{
-									case NI_EQ:		value = *(lsp->_.lvalue._.area) == *(rsp->_.lvalue._.area); break;
-									case NI_NEQ:	value = *(lsp->_.lvalue._.area) != *(rsp->_.lvalue._.area); break;
+									case NI_EQ:		value = ((*(lsp->_.lvalue._.area))) == *(rsp->_.lvalue._.area); break;
+									case NI_NEQ:	value = ((*(lsp->_.lvalue._.area))) != *(rsp->_.lvalue._.area); break;
 									default:
 										SETRET(nsr,INVALID);
 										return true;
@@ -10923,8 +18799,763 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					break;
 				}
 
-			// case NST_DUNGEON:
-			// case NST_INSTANCE:
+			// case NST_CHANNEL:
+			case NST_CLASS:			// CLASS op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_CLASS:		// CLASS op CLASS => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.clazz))) == (rsp->_.clazz); break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.clazz))) != (rsp->_.clazz); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NULL:		// CLASS op null => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.clazz))) == NULL; break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.clazz))) != NULL; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:	// CLASS op LVALUE => BOOLEAN
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_CLASS:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = ((*(lsp->_.lvalue._.clazz))) == *(rsp->_.lvalue._.clazz); break;
+									case NI_NEQ:	value = ((*(lsp->_.lvalue._.clazz))) != *(rsp->_.lvalue._.clazz); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_DUNGEON:		// DUNGEON op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_DUNGEON:		// DUNGEON op DUNGEON => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.dungeon))) == (rsp->_.dungeon); break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.dungeon))) != (rsp->_.dungeon); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_WIDEVNUM:		// DUNGEON op WIDEVNUM => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (*(lsp->_.lvalue._.dungeon)) && ((*(lsp->_.lvalue._.dungeon)) && (*(lsp->_.lvalue._.dungeon))->index) && ((*(lsp->_.lvalue._.dungeon))->index->area == rsp->_.wnum.pArea) && ((*(lsp->_.lvalue._.dungeon))->index->vnum == rsp->_.wnum.vnum); break;
+							case NI_NEQ:
+								if ((*(lsp->_.lvalue._.dungeon)) && (*(lsp->_.lvalue._.dungeon))->index)
+									value = ((*(lsp->_.lvalue._.dungeon))->index->area != rsp->_.wnum.pArea) || ((*(lsp->_.lvalue._.dungeon))->index->vnum != rsp->_.wnum.vnum);
+								else
+									value = (rsp->_.wnum.pArea && rsp->_.wnum.vnum > 0);
+								break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NULL:		// DUNGEON op null => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.dungeon))) == NULL; break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.dungeon))) != NULL; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:	// DUNGEON op LVALUE => BOOLEAN
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_DUNGEON:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = ((*(lsp->_.lvalue._.dungeon))) == *(rsp->_.lvalue._.dungeon); break;
+									case NI_NEQ:	value = ((*(lsp->_.lvalue._.dungeon))) != *(rsp->_.lvalue._.dungeon); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_WIDEVNUM:			// DUNGEON op WIDEVNUM => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.dungeon)) && ((*(lsp->_.lvalue._.dungeon))->index != NULL) && ((*(lsp->_.lvalue._.dungeon))->index->area == rsp->_.lvalue._.wnum->pArea) && ((*(lsp->_.lvalue._.dungeon))->index->vnum == rsp->_.lvalue._.wnum->vnum); break;
+									case NI_NEQ:
+										if ((*(lsp->_.lvalue._.dungeon)) && (*(lsp->_.lvalue._.dungeon))->index)
+											value = ((*(lsp->_.lvalue._.dungeon))->index->area != rsp->_.lvalue._.wnum->pArea) || ((*(lsp->_.lvalue._.dungeon))->index->vnum != rsp->_.lvalue._.wnum->vnum);
+										else
+											value = (rsp->_.lvalue._.wnum->pArea && rsp->_.lvalue._.wnum->vnum > 0);
+										break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_EXIT:			// EXIT op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_EXIT:		// EXIT op EXIT => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.ex))) == (rsp->_.ex); break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.ex))) != (rsp->_.ex); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NULL:		// EXIT op null => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.ex))) == NULL; break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.ex))) != NULL; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:	// EXIT op LVALUE => BOOLEAN
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_EXIT:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = ((*(lsp->_.lvalue._.ex))) == *(rsp->_.lvalue._.ex); break;
+									case NI_NEQ:	value = ((*(lsp->_.lvalue._.ex))) != *(rsp->_.lvalue._.ex); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_INSTANCE:		// INSTANCE op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_INSTANCE:		// INSTANCE op INSTANCE => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.instance))) == (rsp->_.instance); break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.instance))) != (rsp->_.instance); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_WIDEVNUM:		// INSTANCE op WIDEVNUM => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (*(lsp->_.lvalue._.instance)) && ((*(lsp->_.lvalue._.instance)) && (*(lsp->_.lvalue._.instance))->blueprint) && ((*(lsp->_.lvalue._.instance))->blueprint->area == rsp->_.wnum.pArea) && ((*(lsp->_.lvalue._.instance))->blueprint->vnum == rsp->_.wnum.vnum); break;
+							case NI_NEQ:
+								if ((*(lsp->_.lvalue._.instance)) && (*(lsp->_.lvalue._.instance))->blueprint)
+									value = ((*(lsp->_.lvalue._.instance))->blueprint->area != rsp->_.wnum.pArea) || ((*(lsp->_.lvalue._.instance))->blueprint->vnum != rsp->_.wnum.vnum);
+								else
+									value = (rsp->_.wnum.pArea && rsp->_.wnum.vnum > 0);
+								break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NULL:		// INSTANCE op null => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.instance))) == NULL; break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.instance))) != NULL; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:	// INSTANCE op LVALUE => BOOLEAN
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_INSTANCE:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = ((*(lsp->_.lvalue._.instance))) == *(rsp->_.lvalue._.instance); break;
+									case NI_NEQ:	value = ((*(lsp->_.lvalue._.instance))) != *(rsp->_.lvalue._.instance); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_WIDEVNUM:			// INSTANCE op WIDEVNUM => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.instance)) && ((*(lsp->_.lvalue._.instance))->blueprint != NULL) && ((*(lsp->_.lvalue._.instance))->blueprint->area == rsp->_.lvalue._.wnum->pArea) && ((*(lsp->_.lvalue._.instance))->blueprint->vnum == rsp->_.lvalue._.wnum->vnum); break;
+									case NI_NEQ:
+										if ((*(lsp->_.lvalue._.instance)) && (*(lsp->_.lvalue._.instance))->blueprint)
+											value = ((*(lsp->_.lvalue._.instance))->blueprint->area != rsp->_.lvalue._.wnum->pArea) || ((*(lsp->_.lvalue._.instance))->blueprint->vnum != rsp->_.lvalue._.wnum->vnum);
+										else
+											value = (rsp->_.lvalue._.wnum->pArea && rsp->_.lvalue._.wnum->vnum > 0);
+										break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_LIQUID:		// LIQUID op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_LIQUID:		// LIQUID op LIQUID => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.liquid))) == (rsp->_.liquid); break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.liquid))) != (rsp->_.liquid); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NULL:		// LIQUID op null => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.liquid))) == NULL; break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.liquid))) != NULL; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:	// LIQUID op LVALUE => BOOLEAN
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_LIQUID:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = ((*(lsp->_.lvalue._.liquid))) == *(rsp->_.lvalue._.liquid); break;
+									case NI_NEQ:	value = ((*(lsp->_.lvalue._.liquid))) != *(rsp->_.lvalue._.liquid); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_MAIL:			// MAIL op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_MAIL:		// MAIL op MAIL => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.mail))) == (rsp->_.mail); break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.mail))) != (rsp->_.mail); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NULL:		// MAIL op null => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.mail))) == NULL; break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.mail))) != NULL; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:	// MAIL op LVALUE => BOOLEAN
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_MAIL:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = ((*(lsp->_.lvalue._.mail))) == *(rsp->_.lvalue._.mail); break;
+									case NI_NEQ:	value = ((*(lsp->_.lvalue._.mail))) != *(rsp->_.lvalue._.mail); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_MATERIAL:		// MATERIAL op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_MATERIAL:		// MATERIAL op MATERIAL => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.material))) == (rsp->_.material); break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.material))) != (rsp->_.material); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NULL:		// MATERIAL op null => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.material))) == NULL; break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.material))) != NULL; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:	// MATERIAL op LVALUE => BOOLEAN
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_MATERIAL:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = ((*(lsp->_.lvalue._.material))) == *(rsp->_.lvalue._.material); break;
+									case NI_NEQ:	value = ((*(lsp->_.lvalue._.material))) != *(rsp->_.lvalue._.material); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_MISSION:		// MISSION op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_MISSION:		// MISSION op MISSION => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.mission))) == (rsp->_.mission); break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.mission))) != (rsp->_.mission); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NULL:		// MISSION op null => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.mission))) == NULL; break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.mission))) != NULL; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:	// MISSION op LVALUE => BOOLEAN
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_MISSION:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = ((*(lsp->_.lvalue._.mission))) == *(rsp->_.lvalue._.mission); break;
+									case NI_NEQ:	value = ((*(lsp->_.lvalue._.mission))) != *(rsp->_.lvalue._.mission); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
 			case NST_MOBILE:		// MOBILE op ???
 				{
 					switch(rsp->type)
@@ -10934,8 +19565,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = *(lsp->_.lvalue._.mobile) == (rsp->_.mobile); break;
-							case NI_NEQ:	value = *(lsp->_.lvalue._.mobile) != (rsp->_.mobile); break;
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.mobile))) == (rsp->_.mobile); break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.mobile))) != (rsp->_.mobile); break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -10954,8 +19585,13 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = ((*(lsp->_.lvalue._.mobile))->pIndexData != NULL) && ((*(lsp->_.lvalue._.mobile))->pIndexData->area == rsp->_.wnum.pArea) && ((*(lsp->_.lvalue._.mobile))->pIndexData->vnum == rsp->_.wnum.vnum); break;
-							case NI_NEQ:	value = ((*(lsp->_.lvalue._.mobile))->pIndexData == NULL) || ((*(lsp->_.lvalue._.mobile))->pIndexData->area != rsp->_.wnum.pArea) || ((*(lsp->_.lvalue._.mobile))->pIndexData->vnum != rsp->_.wnum.vnum); break;
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.mobile)) && (*(lsp->_.lvalue._.mobile))->pIndexData != NULL) && ((*(lsp->_.lvalue._.mobile))->pIndexData->area == rsp->_.wnum.pArea) && ((*(lsp->_.lvalue._.mobile))->pIndexData->vnum == rsp->_.wnum.vnum); break;
+							case NI_NEQ:
+								if ((*(lsp->_.lvalue._.mobile)) && (*(lsp->_.lvalue._.mobile))->pIndexData)
+									value = ((*(lsp->_.lvalue._.mobile))->pIndexData->area != rsp->_.wnum.pArea) || ((*(lsp->_.lvalue._.mobile))->pIndexData->vnum != rsp->_.wnum.vnum);
+								else
+									value = (rsp->_.wnum.pArea && rsp->_.wnum.vnum > 0);
+								break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -10974,8 +19610,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = *(lsp->_.lvalue._.mobile) == NULL; break;
-							case NI_NEQ:	value = *(lsp->_.lvalue._.mobile) != NULL; break;
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.mobile))) == NULL; break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.mobile))) != NULL; break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -10998,8 +19634,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 									bool value;
 									switch(op)
 									{
-									case NI_EQ:		value = *(lsp->_.lvalue._.mobile) == *(rsp->_.lvalue._.mobile); break;
-									case NI_NEQ:	value = *(lsp->_.lvalue._.mobile) != *(rsp->_.lvalue._.mobile); break;
+									case NI_EQ:		value = ((*(lsp->_.lvalue._.mobile))) == *(rsp->_.lvalue._.mobile); break;
+									case NI_NEQ:	value = ((*(lsp->_.lvalue._.mobile))) != *(rsp->_.lvalue._.mobile); break;
 									default:
 										SETRET(nsr,INVALID);
 										return true;
@@ -11018,8 +19654,15 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 									bool value;
 									switch(op)
 									{
-									case NI_EQ:		value = ((*(lsp->_.lvalue._.mobile))->pIndexData != NULL) && ((*(lsp->_.lvalue._.mobile))->pIndexData->area == rsp->_.lvalue._.wnum->pArea) && ((*(lsp->_.lvalue._.mobile))->pIndexData->vnum == rsp->_.lvalue._.wnum->vnum); break;
-									case NI_NEQ:	value = ((*(lsp->_.lvalue._.mobile))->pIndexData == NULL) || ((*(lsp->_.lvalue._.mobile))->pIndexData->area != rsp->_.lvalue._.wnum->pArea) || ((*(lsp->_.lvalue._.mobile))->pIndexData->vnum != rsp->_.lvalue._.wnum->vnum); break;
+									case NI_EQ:		value = ((*(lsp->_.lvalue._.mobile)) && (*(lsp->_.lvalue._.mobile))->pIndexData != NULL) && ((*(lsp->_.lvalue._.mobile))->pIndexData->area == rsp->_.lvalue._.wnum->pArea) && ((*(lsp->_.lvalue._.mobile))->pIndexData->vnum == rsp->_.lvalue._.wnum->vnum); break;
+									case NI_NEQ:
+										if ((*(lsp->_.lvalue._.mobile)) && (*(lsp->_.lvalue._.mobile))->pIndexData)
+										{
+											value = ((*(lsp->_.lvalue._.mobile))->pIndexData->area != rsp->_.lvalue._.wnum->pArea) || ((*(lsp->_.lvalue._.mobile))->pIndexData->vnum != rsp->_.lvalue._.wnum->vnum);
+										}
+										else
+											value = (rsp->_.lvalue._.wnum->pArea && rsp->_.lvalue._.wnum->vnum > 0);
+										break;
 									default:
 										SETRET(nsr,INVALID);
 										return true;
@@ -11047,8 +19690,469 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					break;
 				}
 
-			// case NST_OBJECT:
+			case NST_OBJECT:		// OBJECT op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_OBJECT:		// OBJECT op OBJECT => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.object))) == (rsp->_.object); break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.object))) != (rsp->_.object); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_WIDEVNUM:		// OBJECT op WIDEVNUM => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.object)) && (*(lsp->_.lvalue._.object))->pIndexData != NULL) && ((*(lsp->_.lvalue._.object))->pIndexData->area == rsp->_.wnum.pArea) && ((*(lsp->_.lvalue._.object))->pIndexData->vnum == rsp->_.wnum.vnum); break;
+							case NI_NEQ:
+								if ((*(lsp->_.lvalue._.object)) && (*(lsp->_.lvalue._.object))->pIndexData)
+									value = ((*(lsp->_.lvalue._.object))->pIndexData->area != rsp->_.wnum.pArea) || ((*(lsp->_.lvalue._.object))->pIndexData->vnum != rsp->_.wnum.vnum);
+								else
+									value = (rsp->_.wnum.pArea && rsp->_.wnum.vnum > 0);
+								break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NULL:			// OBJECT op null => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.object))) == NULL; break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.object))) != NULL; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:		// OBJECT op LVALUE => BOOLEAN
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_OBJECT:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = ((*(lsp->_.lvalue._.object))) == *(rsp->_.lvalue._.object); break;
+									case NI_NEQ:	value = ((*(lsp->_.lvalue._.object))) != *(rsp->_.lvalue._.object); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_WIDEVNUM:			// OBJECT op WIDEVNUM => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = ((*(lsp->_.lvalue._.object)) && (*(lsp->_.lvalue._.object))->pIndexData != NULL) && ((*(lsp->_.lvalue._.object))->pIndexData->area == rsp->_.lvalue._.wnum->pArea) && ((*(lsp->_.lvalue._.object))->pIndexData->vnum == rsp->_.lvalue._.wnum->vnum); break;
+									case NI_NEQ:
+										if ((*(lsp->_.lvalue._.object)) && (*(lsp->_.lvalue._.object))->pIndexData)
+										{
+											value = ((*(lsp->_.lvalue._.object))->pIndexData->area != rsp->_.lvalue._.wnum->pArea) || ((*(lsp->_.lvalue._.object))->pIndexData->vnum != rsp->_.lvalue._.wnum->vnum);
+										}
+										else
+											value = (rsp->_.lvalue._.wnum->pArea && rsp->_.lvalue._.wnum->vnum > 0);
+										break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_ORG:			// ORG op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_ORG:		// ORG op ORG => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.org))) == (rsp->_.org); break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.org))) != (rsp->_.org); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NULL:		// ORG op null => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.org))) == NULL; break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.org))) != NULL; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:	// ORG op LVALUE => BOOLEAN
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_ORG:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = ((*(lsp->_.lvalue._.org))) == *(rsp->_.lvalue._.org); break;
+									case NI_NEQ:	value = ((*(lsp->_.lvalue._.org))) != *(rsp->_.lvalue._.org); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
 			// case NST_QUEST:
+			case NST_RACE:			// RACE op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_RACE:		// RACE op RACE => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.race))) == (rsp->_.race); break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.race))) != (rsp->_.race); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NULL:		// RACE op null => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.race))) == NULL; break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.race))) != NULL; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:	// RACE op LVALUE => BOOLEAN
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_RACE:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = ((*(lsp->_.lvalue._.race))) == *(rsp->_.lvalue._.race); break;
+									case NI_NEQ:	value = ((*(lsp->_.lvalue._.race))) != *(rsp->_.lvalue._.race); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_RANK:			// RANK op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_RANK:		// RANK op RANK => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.rank))) == (rsp->_.rank); break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.rank))) != (rsp->_.rank); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NULL:		// RANK op null => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.rank))) == NULL; break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.rank))) != NULL; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:	// RANK op LVALUE => BOOLEAN
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_RANK:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = ((*(lsp->_.lvalue._.rank))) == *(rsp->_.lvalue._.rank); break;
+									case NI_NEQ:	value = ((*(lsp->_.lvalue._.rank))) != *(rsp->_.lvalue._.rank); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_REPUTATION:	// REPUTATION op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_REPUTATION:		// REPUTATION op REPUTATION => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.reputation))) == (rsp->_.reputation); break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.reputation))) != (rsp->_.reputation); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NULL:		// REPUTATION op null => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.reputation))) == NULL; break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.reputation))) != NULL; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:	// REPUTATION op LVALUE => BOOLEAN
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_REPUTATION:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = ((*(lsp->_.lvalue._.reputation))) == *(rsp->_.lvalue._.reputation); break;
+									case NI_NEQ:	value = ((*(lsp->_.lvalue._.reputation))) != *(rsp->_.lvalue._.reputation); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
 			case NST_ROOM:			// ROOM op ???
 				{
 					switch(rsp->type)
@@ -11058,8 +20162,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = *(lsp->_.lvalue._.room) == (rsp->_.room); break;
-							case NI_NEQ:	value = *(lsp->_.lvalue._.room) != (rsp->_.room); break;
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.room))) == (rsp->_.room); break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.room))) != (rsp->_.room); break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -11078,8 +20182,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = ((*(lsp->_.lvalue._.room))->area == rsp->_.wnum.pArea) && ((*(lsp->_.lvalue._.room))->vnum == rsp->_.wnum.vnum); break;
-							case NI_NEQ:	value = ((*(lsp->_.lvalue._.room))->area != rsp->_.wnum.pArea) || ((*(lsp->_.lvalue._.room))->vnum != rsp->_.wnum.vnum); break;
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.room))) && ((*(lsp->_.lvalue._.room))->area == rsp->_.wnum.pArea) && ((*(lsp->_.lvalue._.room))->vnum == rsp->_.wnum.vnum); break;
+							case NI_NEQ:	value = !((*(lsp->_.lvalue._.room))) && (((*(lsp->_.lvalue._.room))->area != rsp->_.wnum.pArea) || ((*(lsp->_.lvalue._.room))->vnum != rsp->_.wnum.vnum)); break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -11098,8 +20202,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 							bool value;
 							switch(op)
 							{
-							case NI_EQ:		value = *(lsp->_.lvalue._.room) == NULL; break;
-							case NI_NEQ:	value = *(lsp->_.lvalue._.room) != NULL; break;
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.room))) == NULL; break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.room))) != NULL; break;
 							default:
 								SETRET(nsr,INVALID);
 								return true;
@@ -11122,8 +20226,8 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 									bool value;
 									switch(op)
 									{
-									case NI_EQ:		value = *(lsp->_.lvalue._.room) == *(rsp->_.lvalue._.room); break;
-									case NI_NEQ:	value = *(lsp->_.lvalue._.room) != *(rsp->_.lvalue._.room); break;
+									case NI_EQ:		value = ((*(lsp->_.lvalue._.room))) == *(rsp->_.lvalue._.room); break;
+									case NI_NEQ:	value = ((*(lsp->_.lvalue._.room))) != *(rsp->_.lvalue._.room); break;
 									default:
 										SETRET(nsr,INVALID);
 										return true;
@@ -11171,8 +20275,437 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 					break;
 				}
 
-			// case NST_SHIP:
-			// case NST_TOKEN:
+			case NST_SHIP:			// SHIP op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_SHIP:		// SHIP op SHIP => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.ship))) == (rsp->_.ship); break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.ship))) != (rsp->_.ship); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_WIDEVNUM:		// SHIP op WIDEVNUM => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = (*(lsp->_.lvalue._.ship)) && ((*(lsp->_.lvalue._.ship)) && (*(lsp->_.lvalue._.ship))->index) && ((*(lsp->_.lvalue._.ship))->index->area == rsp->_.wnum.pArea) && ((*(lsp->_.lvalue._.ship))->index->vnum == rsp->_.wnum.vnum); break;
+							case NI_NEQ:
+								if ((*(lsp->_.lvalue._.ship)) && (*(lsp->_.lvalue._.ship))->index)
+									value = ((*(lsp->_.lvalue._.ship))->index->area != rsp->_.wnum.pArea) || ((*(lsp->_.lvalue._.ship))->index->vnum != rsp->_.wnum.vnum);
+								else
+									value = (rsp->_.wnum.pArea && rsp->_.wnum.vnum > 0);
+								break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NULL:		// SHIP op null => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.ship))) == NULL; break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.ship))) != NULL; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:	// SHIP op LVALUE => BOOLEAN
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_SHIP:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = ((*(lsp->_.lvalue._.ship))) == *(rsp->_.lvalue._.ship); break;
+									case NI_NEQ:	value = ((*(lsp->_.lvalue._.ship))) != *(rsp->_.lvalue._.ship); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_WIDEVNUM:			// SHIP op WIDEVNUM => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = (*(lsp->_.lvalue._.ship)) && ((*(lsp->_.lvalue._.ship))->index != NULL) && ((*(lsp->_.lvalue._.ship))->index->area == rsp->_.lvalue._.wnum->pArea) && ((*(lsp->_.lvalue._.ship))->index->vnum == rsp->_.lvalue._.wnum->vnum); break;
+									case NI_NEQ:
+										if ((*(lsp->_.lvalue._.ship)) && (*(lsp->_.lvalue._.ship))->index)
+											value = ((*(lsp->_.lvalue._.ship))->index->area != rsp->_.lvalue._.wnum->pArea) || ((*(lsp->_.lvalue._.ship))->index->vnum != rsp->_.lvalue._.wnum->vnum);
+										else
+											value = (rsp->_.lvalue._.wnum->pArea && rsp->_.lvalue._.wnum->vnum > 0);
+										break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_SKILL:			// SKILL op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_SKILL:		// SKILL op SKILL => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.skill))) == (rsp->_.skill); break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.skill))) != (rsp->_.skill); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NULL:		// SKILL op null => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.skill))) == NULL; break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.skill))) != NULL; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:	// SKILL op LVALUE => BOOLEAN
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_SKILL:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = ((*(lsp->_.lvalue._.skill))) == *(rsp->_.lvalue._.skill); break;
+									case NI_NEQ:	value = ((*(lsp->_.lvalue._.skill))) != *(rsp->_.lvalue._.skill); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_TOKEN:			// TOKEN op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_TOKEN:		// TOKEN op TOKEN => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.token))) == (rsp->_.token); break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.token))) != (rsp->_.token); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_WIDEVNUM:		// TOKEN op WIDEVNUM => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.token)) && (*(lsp->_.lvalue._.token))->pIndexData != NULL) && ((*(lsp->_.lvalue._.token))->pIndexData->area == rsp->_.wnum.pArea) && ((*(lsp->_.lvalue._.token))->pIndexData->vnum == rsp->_.wnum.vnum); break;
+							case NI_NEQ:
+								if ((*(lsp->_.lvalue._.token)) && (*(lsp->_.lvalue._.token))->pIndexData)
+									value = ((*(lsp->_.lvalue._.token))->pIndexData->area != rsp->_.wnum.pArea) || ((*(lsp->_.lvalue._.token))->pIndexData->vnum != rsp->_.wnum.vnum);
+								else
+									value = (rsp->_.wnum.pArea && rsp->_.wnum.vnum > 0);
+								break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NULL:			// TOKEN op null => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.token))) == NULL; break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.token))) != NULL; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:		// TOKEN op LVALUE => BOOLEAN
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_TOKEN:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = ((*(lsp->_.lvalue._.token))) == *(rsp->_.lvalue._.token); break;
+									case NI_NEQ:	value = ((*(lsp->_.lvalue._.token))) != *(rsp->_.lvalue._.token); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							case NST_WIDEVNUM:			// TOKEN op WIDEVNUM => BOOLEAN
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = ((*(lsp->_.lvalue._.token)) && (*(lsp->_.lvalue._.token))->pIndexData != NULL) && ((*(lsp->_.lvalue._.token))->pIndexData->area == rsp->_.lvalue._.wnum->pArea) && ((*(lsp->_.lvalue._.token))->pIndexData->vnum == rsp->_.lvalue._.wnum->vnum); break;
+									case NI_NEQ:
+										if ((*(lsp->_.lvalue._.token)) && (*(lsp->_.lvalue._.token))->pIndexData)
+										{
+											value = ((*(lsp->_.lvalue._.token))->pIndexData->area != rsp->_.lvalue._.wnum->pArea) || ((*(lsp->_.lvalue._.token))->pIndexData->vnum != rsp->_.lvalue._.wnum->vnum);
+										}
+										else
+											value = (rsp->_.lvalue._.wnum->pArea && rsp->_.lvalue._.wnum->vnum > 0);
+										break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			case NST_WILDS:			// WILDS op ???
+				{
+					switch(rsp->type)
+					{
+					case NST_WILDS:		// WILDS op WILDS => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.wilds))) == (rsp->_.wilds); break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.wilds))) != (rsp->_.wilds); break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_NULL:		// WILDS op null => BOOLEAN
+						{
+							bool value;
+							switch(op)
+							{
+							case NI_EQ:		value = ((*(lsp->_.lvalue._.wilds))) == NULL; break;
+							case NI_NEQ:	value = ((*(lsp->_.lvalue._.wilds))) != NULL; break;
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+
+							if (!nib_push_stack_boolean(nsr,value))
+							{
+								SETRET(nsr,STACK);
+								return true;
+							}
+							break;
+						}
+
+					case NST_LVALUE:	// WILDS op LVALUE => BOOLEAN
+						{
+							switch(rsp->_.lvalue.type)
+							{
+							case NST_WILDS:
+								{
+									bool value;
+									switch(op)
+									{
+									case NI_EQ:		value = ((*(lsp->_.lvalue._.wilds))) == *(rsp->_.lvalue._.wilds); break;
+									case NI_NEQ:	value = ((*(lsp->_.lvalue._.wilds))) != *(rsp->_.lvalue._.wilds); break;
+									default:
+										SETRET(nsr,INVALID);
+										return true;
+									}
+
+									if (!nib_push_stack_boolean(nsr,value))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
+					default:
+						SETRET(nsr,INVALID);
+						return true;
+					}
+					break;
+				}
+
+			// case NST_WORLD:
 			default:
 				SETRET(nsr,INVALID);
 				return true;
@@ -11187,6 +20720,106 @@ static bool __boolean_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e
 
 	return false;
 }
+
+#define __asn(t,l,f,n) \
+	case NST_##t:\
+		{ \
+			switch(rsp->type) \
+			{ \
+			case NST_##t: \
+				{ \
+					switch(op) \
+					{ \
+					case NI_VOID_ASSIGN: \
+						push_result = false; \
+					case NI_ASSIGN: \
+						{ \
+							*(lsp->_.lvalue._.l) = rsp->_.f; \
+\
+							if (push_result && !nib_push_stack_##n (nsr,*(lsp->_.lvalue._.l))) \
+							{ \
+								SETRET(nsr,STACK); \
+								return true; \
+							} \
+							break; \
+						} \
+\
+					default: \
+						SETRET(nsr,INVALID); \
+						return true; \
+					} \
+					break; \
+				} \
+\
+			case NST_NULL: \
+				{ \
+					switch(op) \
+					{ \
+					case NI_VOID_ASSIGN: \
+						push_result = false; \
+					case NI_ASSIGN: \
+						{ \
+							*(lsp->_.lvalue._.l) = NULL; \
+\
+							if (push_result && !nib_push_stack_##n (nsr,*(lsp->_.lvalue._.l))) \
+							{ \
+								SETRET(nsr,STACK); \
+								return true; \
+							} \
+							break; \
+						} \
+\
+					default: \
+						SETRET(nsr,INVALID); \
+						return true; \
+					} \
+					break; \
+				} \
+\
+			case NST_LVALUE: \
+				{ \
+					switch(rsp->_.lvalue.type) \
+					{ \
+					case NST_##t: \
+						{ \
+							switch(op) \
+							{ \
+							case NI_VOID_ASSIGN: \
+								push_result = false; \
+							case NI_ASSIGN: \
+								{ \
+									*(lsp->_.lvalue._.l) = *(rsp->_.lvalue._.l); \
+\
+									if (push_result && !nib_push_stack_##n (nsr,*(lsp->_.lvalue._.l))) \
+									{ \
+										SETRET(nsr,STACK); \
+										return true; \
+									} \
+									break; \
+								} \
+\
+							default: \
+								SETRET(nsr,INVALID); \
+								return true; \
+							} \
+							break; \
+						} \
+ \
+					default: \
+						SETRET(nsr,INVALID); \
+						return true; \
+					} \
+					break; \
+				} \
+\
+			default: \
+				SETRET(nsr,INVALID); \
+				return true; \
+			} \
+\
+			break; \
+		}
+
 
 static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instructions_e op)
 {
@@ -14705,11 +24338,11 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 			break;
 		}
 
-	case NST_AREA:
+	case NST_ACCOUNT:
 		{
 			switch(rsp->type)
 			{
-			case NST_AREA:
+			case NST_ACCOUNT:
 				{
 					switch(op)
 					{
@@ -14717,9 +24350,9 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 						push_result = false;
 					case NI_ASSIGN:
 						{
-							*(lsp->_.lvalue._.area) = rsp->_.area;
+							*(lsp->_.lvalue._.account) = rsp->_.account;
 
-							if (push_result && !nib_push_stack_area(nsr,*(lsp->_.lvalue._.area)))
+							if (push_result && !nib_push_stack_account (nsr,*(lsp->_.lvalue._.account)))
 							{
 								SETRET(nsr,STACK);
 								return true;
@@ -14734,78 +24367,6 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 					break;
 				}
 
-			case NST_NULL:
-				{
-					switch(op)
-					{
-					case NI_VOID_ASSIGN:
-						push_result = false;
-					case NI_ASSIGN:
-						{
-							*(lsp->_.lvalue._.area) = NULL;
-
-							if (push_result && !nib_push_stack_area(nsr,*(lsp->_.lvalue._.area)))
-							{
-								SETRET(nsr,STACK);
-								return true;
-							}
-							break;
-						}
-
-					default:
-						SETRET(nsr,INVALID);
-						return true;
-					}
-					break;
-				}
-
-			case NST_LVALUE:
-				{
-					switch(rsp->_.lvalue.type)
-					{
-					case NST_AREA:
-						{
-							switch(op)
-							{
-							case NI_VOID_ASSIGN:
-								push_result = false;
-							case NI_ASSIGN:
-								{
-									*(lsp->_.lvalue._.area) = *(rsp->_.lvalue._.area);
-
-									if (push_result && !nib_push_stack_area(nsr,*(lsp->_.lvalue._.area)))
-									{
-										SETRET(nsr,STACK);
-										return true;
-									}
-									break;
-								}
-
-							default:
-								SETRET(nsr,INVALID);
-								return true;
-							}
-							break;
-						}
-
-					default:
-						SETRET(nsr,INVALID);
-						return true;
-					}
-					break;
-				}
-
-			default:
-				SETRET(nsr,INVALID);
-				return true;
-			}
-			break;
-		}
-
-	case NST_MOBILE:
-		{
-			switch(rsp->type)
-			{
 			case NST_MOBILE:
 				{
 					switch(op)
@@ -14814,9 +24375,13 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 						push_result = false;
 					case NI_ASSIGN:
 						{
-							*(lsp->_.lvalue._.mobile) = rsp->_.mobile;
+							// Grab the connected account
+							if (IS_VALID(rsp->_.mobile) && rsp->_.mobile->desc)
+								*(lsp->_.lvalue._.account) = rsp->_.mobile->desc->account;
+							else
+								*(lsp->_.lvalue._.account) = NULL;
 
-							if (push_result && !nib_push_stack_mobile(nsr,*(lsp->_.lvalue._.mobile)))
+							if (push_result && !nib_push_stack_account (nsr,*(lsp->_.lvalue._.account)))
 							{
 								SETRET(nsr,STACK);
 								return true;
@@ -14839,9 +24404,9 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 						push_result = false;
 					case NI_ASSIGN:
 						{
-							*(lsp->_.lvalue._.mobile) = NULL;
+							*(lsp->_.lvalue._.account) = NULL;
 
-							if (push_result && !nib_push_stack_mobile(nsr,*(lsp->_.lvalue._.mobile)))
+							if (push_result && !nib_push_stack_account(nsr,*(lsp->_.lvalue._.account)))
 							{
 								SETRET(nsr,STACK);
 								return true;
@@ -14860,6 +24425,31 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 				{
 					switch(rsp->_.lvalue.type)
 					{
+					case NST_ACCOUNT:
+						{
+							switch(op)
+							{
+							case NI_VOID_ASSIGN:
+								push_result = false;
+							case NI_ASSIGN:
+								{
+									*(lsp->_.lvalue._.account) = *(rsp->_.lvalue._.account);
+
+									if (push_result && !nib_push_stack_account (nsr,*(lsp->_.lvalue._.account)))
+									{
+										SETRET(nsr,STACK);
+										return true;
+									}
+									break;
+								}
+
+							default:
+								SETRET(nsr,INVALID);
+								return true;
+							}
+							break;
+						}
+
 					case NST_MOBILE:
 						{
 							switch(op)
@@ -14868,9 +24458,13 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 								push_result = false;
 							case NI_ASSIGN:
 								{
-									*(lsp->_.lvalue._.mobile) = *(rsp->_.lvalue._.mobile);
+									// Grab the connected account
+									if (IS_VALID(*(rsp->_.lvalue._.mobile)) && (*(rsp->_.lvalue._.mobile))->desc)
+										*(lsp->_.lvalue._.account) = (*(rsp->_.lvalue._.mobile))->desc->account;
+									else
+										*(lsp->_.lvalue._.account) = NULL;
 
-									if (push_result && !nib_push_stack_mobile(nsr,*(lsp->_.lvalue._.mobile)))
+									if (push_result && !nib_push_stack_account (nsr,*(lsp->_.lvalue._.account)))
 									{
 										SETRET(nsr,STACK);
 										return true;
@@ -14896,106 +24490,35 @@ static bool __assignment_operation(NIB_SCRIPT_RUNTIME *nsr, enum nib_instruction
 				SETRET(nsr,INVALID);
 				return true;
 			}
+
 			break;
 		}
 
-	case NST_ROOM:
-		{
-			switch(rsp->type)
-			{
-			case NST_ROOM:
-				{
-					switch(op)
-					{
-					case NI_VOID_ASSIGN:
-						push_result = false;
-					case NI_ASSIGN:
-						{
-							*(lsp->_.lvalue._.room) = rsp->_.room;
-
-							if (push_result && !nib_push_stack_room(nsr,*(lsp->_.lvalue._.room)))
-							{
-								SETRET(nsr,STACK);
-								return true;
-							}
-							break;
-						}
-
-					default:
-						SETRET(nsr,INVALID);
-						return true;
-					}
-					break;
-				}
-
-			case NST_NULL:
-				{
-					switch(op)
-					{
-					case NI_VOID_ASSIGN:
-						push_result = false;
-					case NI_ASSIGN:
-						{
-							*(lsp->_.lvalue._.room) = NULL;
-
-							if (push_result && !nib_push_stack_room(nsr,*(lsp->_.lvalue._.room)))
-							{
-								SETRET(nsr,STACK);
-								return true;
-							}
-							break;
-						}
-
-					default:
-						SETRET(nsr,INVALID);
-						return true;
-					}
-					break;
-				}
-
-			case NST_LVALUE:
-				{
-					switch(rsp->_.lvalue.type)
-					{
-					case NST_ROOM:
-						{
-							switch(op)
-							{
-							case NI_VOID_ASSIGN:
-								push_result = false;
-							case NI_ASSIGN:
-								{
-									*(lsp->_.lvalue._.room) = *(rsp->_.lvalue._.room);
-
-									if (push_result && !nib_push_stack_room(nsr,*(lsp->_.lvalue._.room)))
-									{
-										SETRET(nsr,STACK);
-										return true;
-									}
-									break;
-								}
-
-							default:
-								SETRET(nsr,INVALID);
-								return true;
-							}
-							break;
-						}
-
-					default:
-						SETRET(nsr,INVALID);
-						return true;
-					}
-					break;
-				}
-
-			default:
-				SETRET(nsr,INVALID);
-				return true;
-			}
-			break;
-		}
-
+	__asn(AFFECT,affect,affect,affect)
+	__asn(AREA,area,area,area)
+	// __asn(CHANNEL,channel,channel,channel)
+	__asn(CLASS,clazz,clazz,class)
+	__asn(DUNGEON,dungeon,dungeon,dungeon)
+	__asn(EXIT,ex,ex,exit)
+	__asn(INSTANCE,instance,instance,instance)
+	__asn(LIQUID,liquid,liquid,liquid)
+	__asn(MAIL,mail,mail,mail)
+	__asn(MATERIAL,material,material,material)
+	__asn(MISSION,mission,mission,mission)
+	__asn(MOBILE,mobile,mobile,mobile)
+	__asn(NOTE,note,note,note)
+	__asn(OBJECT,object,object,object)
+	__asn(ORG,org,org,org)
+	// __asn(QUEST,quest,quest,quest)
+	__asn(RACE,race,race,race)
+	__asn(RANK,rank,rank,rank)
+	__asn(REPUTATION,reputation,reputation,reputation)
+	__asn(ROOM,room,room,room)
+	__asn(SHIP,ship,ship,ship)
+	__asn(SKILL,skill,skill,skill)
+	__asn(TOKEN,token,token,token)
+	__asn(WILDS,wilds,wilds,wilds)
+	// __asn(WORLD,world,world,world)
 	default:
 		SETRET(nsr,INVALID);
 		return true;
@@ -16556,6 +26079,13 @@ static const char *opcode_names[] = {
 	"RSH_EQ",
 	"RSHL_EQ",
 	"GET_AREA",
+	"GET_CLASS",
+	"GET_LIQUID",
+	"GET_MATERIAL",
+	"GET_ORG",
+	"GET_RACE",
+	"GET_SKILL",
+	"GET_WILDS",
 };
 
 static void __add_dissassembled_line(LLIST *assembly, long address, char *str, bool is_comment)

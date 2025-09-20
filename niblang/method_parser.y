@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
+#include "../../merc.h"
 #include "../niblang.h"
 #include "method_parser.h"
 #include "method_lexer.h"
@@ -96,15 +97,20 @@ static bool check_anytype_on_list(NIB_TYPE *context, LLIST *list)
 %destructor { nib_free($$); } <identifier>
 %destructor { list_destroy($$); } <type_list>
 
+%token T_ACCOUNT
+%token T_AFFECT
 %token T_ANY
 %token T_AREA
 %token T_ARROW
 %token T_BOOLEAN
+%token T_CHANNEL
 %token T_CHAR
+%token T_CLASS
 %token T_COMMA
 %token T_CP
 %token T_DOT
 %token T_DUNGEON
+%token T_EXIT
 %token T_FIELD
 %token T_FLAG
 %token T_FLOAT
@@ -113,25 +119,37 @@ static bool check_anytype_on_list(NIB_TYPE *context, LLIST *list)
 %token T_IDENTIFIER
 %token T_INSTANCE
 %token T_INT
+%token T_LIQUID
 %token T_LIST
 %token T_LT
+%token T_MAIL
 %token T_MAP
+%token T_MATERIAL
 %token T_METHOD
+%token T_MISSION
 %token T_MOBILE
+%token T_NOTE
 %token T_NUMBER
 %token T_OBJECT
 %token T_OP
+%token T_ORG
 %token T_QUEST
+%token T_RACE
+%token T_RANK
 %token T_READONLY
+%token T_REPUTATION
 %token T_ROOM
 %token T_SEMICOLON
 %token T_SHIP
+%token T_SKILL
 %token T_STAT
 %token T_STRING
 %token T_TOKEN
 %token T_VARARGS
 %token T_VOID
 %token T_WIDEVNUM
+%token T_WILDS
+%token T_WORLD
 
 %type <number> T_NUMBER
 %type <identifier> T_IDENTIFIER /*field_name*/
@@ -399,16 +417,32 @@ type:
 			$$ = new_nib_type_stat_table($T);
 		}
 	| T_LIST T_OP listtype[T] T_CP					{ $$ = new_nib_type_list($T); }
+	| T_WIDEVNUM									{ $$ = nibtype_widevnum; }
+	| T_ACCOUNT										{ $$ = nibtype_account; }
+	| T_AFFECT										{ $$ = nibtype_affect; }
 	| T_AREA										{ $$ = nibtype_area; }
+	| T_CLASS										{ $$ = nibtype_class; }
 	| T_DUNGEON										{ $$ = nibtype_dungeon; }
+	| T_EXIT										{ $$ = nibtype_exit; }
 	| T_INSTANCE									{ $$ = nibtype_instance; }
+	| T_LIQUID										{ $$ = nibtype_liquid; }
+	| T_MAIL										{ $$ = nibtype_mail; }
+	| T_MATERIAL									{ $$ = nibtype_material; }
+	| T_MISSION										{ $$ = nibtype_mission; }
 	| T_MOBILE										{ $$ = nibtype_mobile; }
+	| T_NOTE										{ $$ = nibtype_note; }
 	| T_OBJECT										{ $$ = nibtype_object; }
+	| T_ORG											{ $$ = nibtype_org; }
 	| T_QUEST										{ $$ = nibtype_quest; }
+	| T_RACE										{ $$ = nibtype_race; }
+	| T_RANK										{ $$ = nibtype_rank; }
+	| T_REPUTATION									{ $$ = nibtype_reputation; }
 	| T_ROOM										{ $$ = nibtype_room; }
 	| T_SHIP										{ $$ = nibtype_ship; }
+	| T_SKILL										{ $$ = nibtype_skill; }
 	| T_TOKEN										{ $$ = nibtype_token; }
-	| T_WIDEVNUM									{ $$ = nibtype_widevnum; }
+	| T_WILDS										{ $$ = nibtype_wilds; }
+	| T_WORLD										{ $$ = nibtype_world; }
 	;
 
 listtype:
@@ -417,16 +451,32 @@ listtype:
 	|	T_BOOLEAN									{ $$ = nibtype_bool; }
 	|	T_STRING									{ $$ = nibtype_string; }
 	|	T_MAP										{ $$ = nibtype_map; }
+	|	T_WIDEVNUM									{ $$ = nibtype_widevnum; }
+	|	T_ACCOUNT									{ $$ = nibtype_account; }
+	|	T_AFFECT									{ $$ = nibtype_affect; }
 	|	T_AREA										{ $$ = nibtype_area; }
+	|	T_CLASS										{ $$ = nibtype_class; }
 	|	T_DUNGEON									{ $$ = nibtype_dungeon; }
+	|	T_EXIT										{ $$ = nibtype_exit; }
 	|	T_INSTANCE									{ $$ = nibtype_instance; }
+	|	T_LIQUID									{ $$ = nibtype_liquid; }
+	|	T_MAIL										{ $$ = nibtype_mail; }
+	|	T_MATERIAL									{ $$ = nibtype_material; }
+	|	T_MISSION									{ $$ = nibtype_mission; }
 	|	T_MOBILE									{ $$ = nibtype_mobile; }
+	|	T_NOTE										{ $$ = nibtype_note; }
 	|	T_OBJECT									{ $$ = nibtype_object; }
+	|	T_ORG										{ $$ = nibtype_org; }
 	|	T_QUEST										{ $$ = nibtype_quest; }
+	|	T_RACE										{ $$ = nibtype_race; }
+	|	T_RANK										{ $$ = nibtype_rank; }
+	|	T_REPUTATION								{ $$ = nibtype_reputation; }
 	|	T_ROOM										{ $$ = nibtype_room; }
 	|	T_SHIP										{ $$ = nibtype_ship; }
+	|	T_SKILL										{ $$ = nibtype_skill; }
 	|	T_TOKEN										{ $$ = nibtype_token; }
-	|	T_WIDEVNUM									{ $$ = nibtype_widevnum; }
+	|	T_WILDS										{ $$ = nibtype_wilds; }
+	|	T_WORLD										{ $$ = nibtype_world; }
 	;
 
 contexttype:
@@ -438,29 +488,61 @@ contexttype:
 	|	T_FLAG										{ $$ = nibtype_flag; }
 	|	T_STAT										{ $$ = nibtype_stat; }
 	|	T_LIST										{ $$ = nibtype_list; }
+	|	T_WIDEVNUM									{ $$ = nibtype_widevnum; }
+	|	T_ACCOUNT									{ $$ = nibtype_account; }
+	|	T_AFFECT									{ $$ = nibtype_affect; }
 	|	T_AREA										{ $$ = nibtype_area; }
+	|	T_CLASS										{ $$ = nibtype_class; }
 	|	T_DUNGEON									{ $$ = nibtype_dungeon; }
+	|	T_EXIT										{ $$ = nibtype_exit; }
 	|	T_INSTANCE									{ $$ = nibtype_instance; }
+	|	T_LIQUID									{ $$ = nibtype_liquid; }
+	|	T_MAIL										{ $$ = nibtype_mail; }
+	|	T_MATERIAL									{ $$ = nibtype_material; }
+	|	T_MISSION									{ $$ = nibtype_mission; }
 	|	T_MOBILE									{ $$ = nibtype_mobile; }
+	|	T_NOTE										{ $$ = nibtype_note; }
 	|	T_OBJECT									{ $$ = nibtype_object; }
+	|	T_ORG										{ $$ = nibtype_org; }
 	|	T_QUEST										{ $$ = nibtype_quest; }
+	|	T_RACE										{ $$ = nibtype_race; }
+	|	T_RANK										{ $$ = nibtype_rank; }
+	|	T_REPUTATION								{ $$ = nibtype_reputation; }
 	|	T_ROOM										{ $$ = nibtype_room; }
 	|	T_SHIP										{ $$ = nibtype_ship; }
+	|	T_SKILL										{ $$ = nibtype_skill; }
 	|	T_TOKEN										{ $$ = nibtype_token; }
-	|	T_WIDEVNUM									{ $$ = nibtype_widevnum; }
+	|	T_WILDS										{ $$ = nibtype_wilds; }
+	|	T_WORLD										{ $$ = nibtype_world; }
 	;
 
 fieldtype:
-		T_AREA										{ $$ = nibtype_area; }
+		T_WIDEVNUM									{ $$ = nibtype_widevnum; }
+	|	T_ACCOUNT									{ $$ = nibtype_account; }
+	|	T_AFFECT									{ $$ = nibtype_affect; }
+	|	T_AREA										{ $$ = nibtype_area; }
+	|	T_CLASS										{ $$ = nibtype_class; }
 	|	T_DUNGEON									{ $$ = nibtype_dungeon; }
+	|	T_EXIT										{ $$ = nibtype_exit; }
 	|	T_INSTANCE									{ $$ = nibtype_instance; }
+	|	T_LIQUID									{ $$ = nibtype_liquid; }
+	|	T_MAIL										{ $$ = nibtype_mail; }
+	|	T_MATERIAL									{ $$ = nibtype_material; }
+	|	T_MISSION									{ $$ = nibtype_mission; }
 	|	T_MOBILE									{ $$ = nibtype_mobile; }
+	|	T_NOTE										{ $$ = nibtype_note; }
 	|	T_OBJECT									{ $$ = nibtype_object; }
+	|	T_ORG										{ $$ = nibtype_org; }
 	|	T_QUEST										{ $$ = nibtype_quest; }
+	|	T_RACE										{ $$ = nibtype_race; }
+	|	T_RANK										{ $$ = nibtype_rank; }
+	|	T_REPUTATION								{ $$ = nibtype_reputation; }
 	|	T_ROOM										{ $$ = nibtype_room; }
 	|	T_SHIP										{ $$ = nibtype_ship; }
+	|	T_SKILL										{ $$ = nibtype_skill; }
 	|	T_TOKEN										{ $$ = nibtype_token; }
-	|	T_WIDEVNUM									{ $$ = nibtype_widevnum; }
+	|	T_WILDS										{ $$ = nibtype_wilds; }
+	|	T_WORLD										{ $$ = nibtype_world; }
 	;
 
 

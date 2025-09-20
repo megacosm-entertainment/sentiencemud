@@ -723,6 +723,7 @@ typedef bool (*OPCODE_FUNC)(SCRIPT_CB *block);
 typedef struct entity_field_type ENT_FIELD;
 typedef struct script_var_type VARIABLE, *pVARIABLE, **ppVARIABLE;
 typedef struct script_boolexp BOOLEXP;
+typedef unsigned int utf8char_t;
 
 typedef struct rs_location_type
 {
@@ -2882,37 +2883,70 @@ struct affliction_type
 #define WEATHER_TORNADO 5
 
 /* bitfields */
-#define A 1
-#define B 2
-#define C 4
-#define D 8
-#define E 16
-#define F 32
-#define G 64
-#define H 128
-#define I 256
-#define J 512
-#define K 1024
-#define L 2048
-#define M 4096
-#define N 8192
-#define O 16384
-#define P 32768 /* Limit of signed int */
-#define Q 65536
-#define R 131072
-#define S 262144
-#define T 524288
-#define U 1048576
-#define V 2097152
-#define W 4194304
-#define X 8388608
-#define Y 16777216
-#define Z 33554432
-#define aa 67108864
-#define bb 134217728
-#define cc 268435456
-#define dd 536870912
-#define ee 1073741824
+#define A 1						// 0
+#define B 2						// 1
+#define C 4						// 2
+#define D 8						// 3
+#define E 16						// 4
+#define F 32						// 5
+#define G 64						// 6
+#define H 128						// 7
+#define I 256						// 8
+#define J 512						// 9
+#define K 1024						// 10
+#define L 2048						// 11
+#define M 4096						// 12
+#define N 8192						// 13
+#define O 16384					// 14
+#define P 32768					// 15
+#define Q 65536					// 16
+#define R 131072					// 17
+#define S 262144					// 18
+#define T 524288					// 19
+#define U 1048576					// 20
+#define V 2097152					// 21
+#define W 4194304					// 22
+#define X 8388608					// 23
+#define Y 16777216					// 24
+#define Z 33554432					// 25
+#define aa 67108864	    			// 26
+#define bb 134217728				// 27
+#define cc 268435456				// 28
+#define dd 536870912				// 29
+#define ee 1073741824				// 30
+#define ff 2147483648L				// 31	(sign bit for 32-bit int)
+#define gg 4294967296L				// 32
+#define hh 8589934592L				// 33
+#define ii 17179869184L				// 34
+#define jj 34359738368L				// 35
+#define kk 68719476736L				// 36
+#define ll 137438953472L			// 37
+#define mm 274877906944L			// 38
+#define nn 549755813888L			// 39
+#define oo 1099511627776L			// 40
+#define pp 2199023255552L			// 41
+#define qq 4398046511104L			// 42
+#define rr 8796093022208L			// 43
+#define ss 17592186044416L			// 44
+#define tt 35184372088832L			// 45
+#define uu 70368744177664L			// 46
+#define vv 140737488355328L			// 47
+#define ww 281474976710656L			// 48
+#define xx 562949953421312L			// 49
+#define yy 1125899906842624L		// 50
+#define zz 2251799813685248L		// 51
+#define aaa 4503599627370496L		// 52
+#define bbb 9007199254740992L		// 53
+#define ccc 18014398509481984L		// 54
+#define ddd 36028797018963968L		// 55
+#define eee 72057594037927936L		// 56
+#define fff 144115188075855872L		// 57
+#define ggg 288230376151711744L		// 58
+#define hhh 576460752303423488L		// 59
+#define iii 1152921504606846976L	// 60
+#define jjj 2305843009213693952L	// 61
+#define kkk 4611686018427387904L	// 62
+#define lll 9223372036854775808L	// 63 (sign bit for 64-bit int)
 
 /*
  * ACT bits for mobs.
@@ -4633,6 +4667,7 @@ struct mail_data
     MAIL_DATA *next;
 
     OBJ_DATA *objects;         /* objects in the package */
+    LLIST *lobjects;
     char *sender;              /* who sent it */
     char *recipient;           /* who receives it */
     time_t sent_date;          /* when sent */
@@ -8041,8 +8076,10 @@ struct room_index_data
     /* VIZZWILDS */
     WILDS_DATA *wilds;
     EXIT_DATA *exit[10];
+    // TODO: LLIST *lexits;
     RESET_DATA *reset_first;
     RESET_DATA *reset_last;
+    // TODO: LLIST *lresets;
     EVENT_DATA *events;
     EVENT_DATA *events_tail;
     char *name;
@@ -10307,7 +10344,7 @@ extern int16_t grn_unique;
 #define URANGE(a, b, c) ((b) < (a) ? (a) : ((b) > (c) ? (c) : (b)))
 #define LOWER(c) ((c) >= 'A' && (c) <= 'Z' ? (c) + 'a' - 'A' : (c))
 #define UPPER(c) ((c) >= 'a' && (c) <= 'z' ? (c) + 'A' - 'a' : (c))
-#define IS_SET(flag, bit) ((flag) & (bit))
+#define IS_SET(flag, bit) (((flag) & (bit)) && true)
 #define SET_BIT(var, bit) ((var) |= (bit))
 #define REMOVE_BIT(var, bit) ((var) &= ~(bit))
 #define TOGGLE_BIT(var, bit) ((var) ^= (bit))
@@ -11038,7 +11075,7 @@ void str_lower args((char *src, char *dest));
 char *str_dup args((const char *str));
 void free_string args((char *pstr));
 int number_fuzzy args((int number));
-int number_range args((int from, int to));
+long number_range args((long from, long to));
 int number_percent args((void));
 int number_door args((void));
 int number_bits args((int width));

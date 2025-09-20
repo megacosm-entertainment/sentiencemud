@@ -3,6 +3,7 @@
 #include <malloc.h>
 #include <string.h>
 
+#include "../merc.h"
 #include "niblang.h"
 
 LLIST *list_create(bool purge)

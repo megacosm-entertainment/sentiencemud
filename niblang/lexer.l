@@ -5,6 +5,7 @@
 #include <malloc.h>
 #include <math.h>
 
+#include "../../merc.h"
 #include "../niblang.h"
 
 #define YYSTYPE NIBSTYPE
@@ -436,36 +437,52 @@ UB [\200-\277]
 		yylval->literal = str;
 		return T_STRING_LITERAL;
 	}
+"account"				{ return T_ACCOUNT; }
+"affect"				{ return T_AFFECT; }
 "area"					{ return T_AREA; }
 "boolean"				{ return T_BOOLEAN; }
 "bool"					{ return T_BOOLEAN; }	// Shorthand for BOOLEAN
 "break"					{ return T_BREAK; }
 "case"					{ yy_push_state(CASE_LABEL); return T_CASE; }
+"channel"				{ return T_CHANNEL; }
 "char"					{ return T_CHAR; }
+"class"					{ return T_CLASS; }
 "constant"				{ return T_CONSTANT; }
+"const"					{ return T_CONSTANT; }	// Shorthand for CONSTANT
 "continue"				{ return T_CONTINUE; }
 "default"				{ return T_DEFAULT; }
 "do"					{ return T_DO; }
 "dungeon"				{ return T_DUNGEON; }
 "else"					{ return T_ELSE; }
+"exit"					{ return T_EXIT; }
 "false"                 { return T_FALSE; }
 "flag"					{ return T_FLAG; }
 "float"					{ return T_FLOAT; }
 "foreach"				{ return T_FOREACH; }
 "for"					{ return T_FOR; }
+"game"					{ return T_GAME; }
 "global"                { return T_GLOBAL; }
 "if"					{ return T_IF; }
 "infinity"				{ yylval->float_number = INFINITY; return T_FLOAT_NUMBER; }
 "instance"				{ return T_INSTANCE; }
 "int"					{ return T_INT; }
+"liquid"				{ return T_LIQUID; }
 "list"					{ return T_LIST; }
+"mail"					{ return T_MAIL; }
 "map"                   { return T_MAP; }
+"material"				{ return T_MATERIAL; }
+"mission"				{ return T_MISSION; }
 "mobile"				{ return T_MOBILE; }
 "nan"					{ yylval->float_number = nan(""); return T_FLOAT_NUMBER; }
+"note"					{ return T_NOTE; }
 "null"                  { return T_NULL; }
 "object"				{ return T_OBJECT; }
+"organization"			{ return T_ORG; }
 "pi"					{ yylval->float_number = M_PI; return T_FLOAT_NUMBER; }
 "quest"					{ return T_QUEST; }
+"race"					{ return T_RACE; }
+"rank"					{ return T_RANK; }
+"reputation"			{ return T_REPUTATION; }
 "return"				{ return T_RETURN; }
 "room"					{ return T_ROOM; }
 "self"					{ return T_SELF; }
@@ -480,6 +497,8 @@ UB [\200-\277]
 "typeof"                { return T_TYPEOF; }
 "while"					{ return T_WHILE; }
 "widevnum"				{ return T_WIDEVNUM; }
+"wilds"					{ return T_WILDS; }
+"world"					{ return T_WORLD; }
 "<["					{ yy_push_state(FLAG_NAMES); return T_OPEN_FLAG; }
 <FLAG_NAMES>"]>"		{ yy_pop_state(); return T_CLOSE_FLAG; }
 "{["                    { return T_OPEN_MAP; }

@@ -12,15 +12,15 @@ extern void assign_area_vnum args(( long vnum ));                    /* OLC */
 extern long top_exit;
 
 /* internal globals */
-long top_wilds;
-long top_wilds_terrain;
-long top_wilds_vlink;
-long top_wilds_vroom;
-WILDS_DATA *wilds_free;
-WILDS_TERRAIN *wilds_terrain_free;
-WILDS_VLINK *wilds_vlink_free;
+extern long top_wilds;
+extern long top_wilds_terrain;
+extern long top_wilds_vlink;
+extern long top_wilds_vroom;
+extern WILDS_DATA *wilds_free;
+extern WILDS_TERRAIN *wilds_terrain_free;
+extern WILDS_VLINK *wilds_vlink_free;
 
-long next_wilds_uid;
+extern long next_wilds_uid;
 
 /* Structure types */
 /* typedef struct    wilds_vlink      WILDS_VLINK; */
@@ -130,28 +130,28 @@ struct wilds_data
     char            *name;
     char            *staticmap;      /* The actual wilds map to be loaded and saved */
     char            *map;	     /* The working map */
-    int             map_size_x;
-    int             map_size_y;
-    int             startx;
-    int             starty;
+    long             map_size_x;
+    long             map_size_y;
+    long             startx;
+    long             starty;
     int             defaultRegion;
     long            defaultPlaceFlags;
-    int             sector_size_x;   /* Dynamic wilds sector management */
-    int             sector_size_y;   /* These variables dictate the dimensions of a sector */
+    long             sector_size_x;   /* Dynamic wilds sector management */
+    long             sector_size_y;   /* These variables dictate the dimensions of a sector */
     char            cDefaultTerrain;
     WILDS_TERRAIN   *pTerrain;
     WILDS_VLINK     *pVLink;
     WILDS_REGION    *pRegion;
-    int             loaded_rooms;    /* Dynamically loaded vroom count for wilds v2 */
+    long             loaded_rooms;    /* Dynamically loaded vroom count for wilds v2 */
     LLIST *loaded_vrooms;
-    int             loaded_mobs;
+    long             loaded_mobs;
     CHAR_DATA       *char_list;        /* Statically allocated list of pointers to lists of characters */
-    int             loaded_objs;
+    long             loaded_objs;
     OBJ_DATA        *obj_list;        /* Statically allocated list of pointers to lists of objs */
-    int             nplayer;
+    long             nplayer;
     bool            empty;
-    int             age;            /* current age */
-    int             repop;          /* age to repop at */
+    long             age;            /* current age */
+    long             repop;          /* age to repop at */
 };
 
 struct wilds_region

@@ -9517,8 +9517,14 @@ void iterator_start_nth(ITERATOR *it, LLIST *lp, int nth)
 			it->list = lp;
 
 			if( nth < 0 ) nth = lp->size + nth + 1;
+			// -1 -> size
+			// -2 -> size - 1
 
-			for(link = lp->head; link && nth > 0; link = link->next)
+			// Skip all dead nodes
+			for(link = lp->head; link && !link->data; link = link->next);
+
+			// Skip N-1 nodes
+			for(; link && nth > 1; link = link->next)
 				if(link->data)
 					--nth;
 
@@ -11640,4 +11646,39 @@ bool should_purge_deleted_character(const ACCOUNT_CHARACTER *ch_entry) {
     long delay = game_settings.character_delete_delay_days;
     if (delay <= 0) delay = 30; // Default to 7 days if not set
     return (current_time - ch_entry->delete_time) >= (delay * 86400);
+}
+
+void ltoa(register long num, register char *output)
+{
+	static char number[100];
+
+	register char *str = &number[99];
+
+	*str = '\0';
+
+	bool sign = false;
+	if (num < 0L)
+	{
+		num = -num;
+		sign = true;
+	}
+
+	do {
+		*(--str) = (num % 10) + '0';
+		num /= 10;
+	} while(num > 0);
+
+	if (sign)
+	{
+		*(--str) = '-';
+	}
+
+	// Place into output
+	do
+	{
+		*output++ = *str++;
+	}
+	while(*str);
+
+	*output = 0;
 }

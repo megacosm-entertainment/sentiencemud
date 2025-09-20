@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <time.h>
 
+#include "../merc.h"
 #include "niblang.h"
 
 extern int nibmethoddebug;

@@ -3,6 +3,7 @@
 #include <string.h>
 #include <malloc.h>
 
+#include "../merc.h"
 #include "niblang.h"
 
 NIB_SCRIPT_STACK_TYPE convert_to_stype(NIB_TYPE *type);

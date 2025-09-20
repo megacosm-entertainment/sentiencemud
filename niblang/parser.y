@@ -13,6 +13,7 @@
 #include <inttypes.h>
 #include <stdint.h>
 
+#include "../../merc.h"
 #include "../niblang.h"
 #include "parser.h"
 #include "lexer.h"
@@ -337,6 +338,35 @@ static bool check_valid_assignment(NIB_TYPE *left, NIB_TYPE *right, enum nib_ins
 			return op == NI_ASSIGN;
 		break;
 	
+	case NST_AFFECT:
+	// case NST_CHANNEL:
+	case NST_DUNGEON:
+	case NST_EXIT:
+	case NST_INSTANCE:
+	case NST_MAIL:
+	case NST_MISSION:
+	case NST_MOBILE:
+	case NST_NOTE:
+	case NST_OBJECT:
+	// case NST_QUEST:
+	case NST_RANK:
+	case NST_REPUTATION:
+	case NST_ROOM:
+	case NST_SHIP:
+	case NST_TOKEN:
+	// case NST_WORLD:
+		if (rhs == lhs ||
+			rhs == NST_NULL)
+			return op == NI_ASSIGN;
+		break;
+
+	case NST_ACCOUNT:
+		if (rhs == NST_ACCOUNT ||		// Direct
+			rhs == NST_MOBILE ||		// Pulls off players, NULL for NPCs
+			rhs == NST_NULL)
+			return op == NI_ASSIGN;
+		break;
+
 	case NST_AREA:
 		if (rhs == NST_NUMBER ||
 			rhs == NST_STRING)
@@ -352,58 +382,157 @@ static bool check_valid_assignment(NIB_TYPE *left, NIB_TYPE *right, enum nib_ins
 			return op == NI_ASSIGN;
 		break;
 
-	// case NST_DUNGEON:
-	// 	if (rhs == NST_DUNGEON ||
-	// 		rhs == NST_NULL)
-	// 		return op == NI_ASSIGN;	// Can only assign to DUNGEON lvalues.
-	// 	break;
-
-	// case NST_INSTANCE:
-	// 	if (rhs == NST_INSTANCE ||
-	// 		rhs == NST_NULL)
-	// 		return op == NI_ASSIGN;	// Can only assign to INSTANCE lvalues.
-	// 	break;
-
-	case NST_MOBILE:
-		if (rhs == NST_MOBILE ||
-			rhs == NST_NULL)
-			return op == NI_ASSIGN;	// Can only assign to MOBILE lvalues.
+	case NST_CLASS:
+		if (rhs == NST_STRING)
+		{
+			if (op == NI_ASSIGN)
+			{
+				ins_code(NI_GET_CLASS);
+				return true;
+			}
+		}
+		else if (rhs == lhs ||
+				 rhs == NST_NULL)
+			return op == NI_ASSIGN;
 		break;
 
-	// case NST_OBJECT:
-	// 	if (rhs == NST_OBJECT ||
-	// 		rhs == NST_NULL)
-	// 		return op == NI_ASSIGN;	// Can only assign to OBJECT lvalues.
-	// 	break;
-
-	// case NST_QUEST:
-	// 	if (rhs == NST_QUEST ||
-	// 		rhs == NST_NULL)
-	// 		return op == NI_ASSIGN;	// Can only assign to QUEST lvalues.
-	// 	break;
-
-	case NST_ROOM:
-		if (rhs == NST_ROOM ||
-			rhs == NST_NULL)
-			return op == NI_ASSIGN;	// Can only assign to ROOM lvalues.
+	case NST_LIQUID:
+		if (rhs == NST_STRING)
+		{
+			if (op == NI_ASSIGN)
+			{
+				ins_code(NI_GET_LIQUID);
+				return true;
+			}
+		}
+		else if (rhs == lhs ||
+				 rhs == NST_NULL)
+			return op == NI_ASSIGN;
 		break;
 
-	// case NST_SHIP:
-	// 	if (rhs == NST_SHIP ||
-	// 		rhs == NST_NULL)
-	// 		return op == NI_ASSIGN;	// Can only assign to SHIP lvalues.
-	// 	break;
+	case NST_MATERIAL:
+		if (rhs == NST_STRING)
+		{
+			if (op == NI_ASSIGN)
+			{
+				ins_code(NI_GET_MATERIAL);
+				return true;
+			}
+		}
+		else if (rhs == lhs ||
+				 rhs == NST_NULL)
+			return op == NI_ASSIGN;
+		break;
 
-	// case NST_TOKEN:
-	// 	if (rhs == NST_TOKEN ||
-	// 		rhs == NST_NULL)
-	// 		return op == NI_ASSIGN;	// Can only assign to TOKEN lvalues.
-	// 	break;
+	case NST_ORG:
+		if (rhs == NST_STRING)
+		{
+			if (op == NI_ASSIGN)
+			{
+				ins_code(NI_GET_ORG);
+				return true;
+			}
+		}
+		else if (rhs == lhs ||
+				 rhs == NST_NULL)
+			return op == NI_ASSIGN;
+		break;
+
+	case NST_RACE:
+		if (rhs == NST_STRING)
+		{
+			if (op == NI_ASSIGN)
+			{
+				ins_code(NI_GET_RACE);
+				return true;
+			}
+		}
+		else if (rhs == lhs ||
+				 rhs == NST_NULL)
+			return op == NI_ASSIGN;
+		break;
+
+	case NST_SKILL:
+		if (rhs == NST_STRING)
+		{
+			if (op == NI_ASSIGN)
+			{
+				ins_code(NI_GET_SKILL);
+				return true;
+			}
+		}
+		else if (rhs == lhs ||
+				 rhs == NST_NULL)
+			return op == NI_ASSIGN;
+		break;
+
+	case NST_WILDS:
+		if (rhs == NST_NUMBER)
+		{
+			if (op == NI_ASSIGN)
+			{
+				ins_code(NI_GET_WILDS);
+				return true;
+			}
+		}
+		else if (rhs == lhs ||
+				 rhs == NST_NULL)
+			return op == NI_ASSIGN;
+		break;
 
 	}
 
 	return false;
 }
+
+#define __bool_ent(t) \
+	case NST_##t: \
+		switch(rhs) \
+		{ \
+		case NST_##t: \
+			switch(op) \
+			{ \
+			case NI_EQ: \
+			case NI_NEQ: \
+			case NI_LAND: \
+			case NI_LOR: \
+			case NI_LXOR: \
+				return nibtype_bool; \
+			} \
+			break; \
+		case NST_NULL: \
+			if (op == NI_EQ || op == NI_NEQ) \
+				return nibtype_bool; \
+			break; \
+		} \
+		break; \
+
+#define __bool_ent_wnum(t) \
+	case NST_##t: \
+		switch(rhs) \
+		{ \
+		case NST_##t: \
+			switch(op) \
+			{ \
+			case NI_EQ: \
+			case NI_NEQ: \
+			case NI_LAND: \
+			case NI_LOR: \
+			case NI_LXOR: \
+				return nibtype_bool; \
+			} \
+			break; \
+		case NST_WIDEVNUM: \
+			if (op == NI_EQ || op == NI_NEQ) \
+				return nibtype_bool; \
+			break; \
+		case NST_NULL: \
+			if (op == NI_EQ || op == NI_NEQ) \
+				return nibtype_bool; \
+			break; \
+		} \
+		break; \
+
 
 static NIB_TYPE *check_valid_operation(NIB_TYPE *left, NIB_TYPE *right, enum nib_instructions_e op)
 {
@@ -671,14 +800,14 @@ static NIB_TYPE *check_valid_operation(NIB_TYPE *left, NIB_TYPE *right, enum nib
 		switch(rhs)
 		{
 		case NST_WIDEVNUM:
-		// case NST_DUNGEON:
-		// case NST_INSTANCE:
+		case NST_DUNGEON:
+		case NST_INSTANCE:
 		case NST_MOBILE:
-		// case NST_OBJECT:
+		case NST_OBJECT:
 		// case NST_QUEST:
 		case NST_ROOM:
-		// case NST_SHIP:
-		// case NST_TOKEN:
+		case NST_SHIP:
+		case NST_TOKEN:
 		case NST_NULL:
 			if (op == NI_EQ ||	// WIDEVNUM == null (WIDEVNUM is empty)
 				op == NI_NEQ)	// WIDEVNUM != null (WIDEVNUM is not empty)
@@ -735,102 +864,63 @@ static NIB_TYPE *check_valid_operation(NIB_TYPE *left, NIB_TYPE *right, enum nib
 		}
 		break;
 
-	case NST_AREA:		// AREA op ???
-		switch(rhs)
-		{
-		case NST_AREA:
-			switch(op)
-			{
-			case NI_EQ:			// AREA == AREA (Equality)
-			case NI_NEQ:		// AREA != AREA (Inequality)
-			case NI_LAND:		// AREA && AREA (Both Non-Null)
-			case NI_LOR:		// AREA || AREA (One or Both Non-Null)
-			case NI_LXOR:		// AREA ^^ AREA (Only One Non-Null)
-				return nibtype_bool;
-			}
-			break;
-		case NST_NULL:
-			if (op == NI_EQ ||	// AREA == null (AREA is null)
-				op == NI_NEQ)	// AREA != null (AREA is not null)
-				return nibtype_bool;
-			break;
-		}
-		break;
-
-	// case NST_DUNGEON:
-	// case NST_INSTANCE:
-	case NST_MOBILE:	// MOBILE op ???
-		switch(rhs)
-		{
-		case NST_MOBILE:
-			switch(op)
-			{
-			case NI_EQ:			// MOBILE == MOBILE (Equality)
-			case NI_NEQ:		// MOBILE != MOBILE (Inequality)
-			case NI_LAND:		// MOBILE && MOBILE (Both Non-Null)
-			case NI_LOR:		// MOBILE || MOBILE (One or Both Non-Null)
-			case NI_LXOR:		// MOBILE ^^ MOBILE (Only One Non-Null)
-				return nibtype_bool;
-			}
-			break;
-		case NST_WIDEVNUM:
-			if (op == NI_EQ ||	// MOBILE == WIDEVNUM (MOBILE is WIDEVNUM)
-				op == NI_NEQ)	// MOBILE != null (MOBILE is not WIDEVNUM)
-				return nibtype_bool;
-			break;
-		case NST_NULL:
-			if (op == NI_EQ ||	// MOBILE == null (MOBILE is null)
-				op == NI_NEQ)	// MOBILE != null (MOBILE is not null)
-				return nibtype_bool;
-			break;
-		}
-		break;
-
-	// case NST_OBJECT:
-	// case NST_QUEST:
-	case NST_ROOM:		// ROOM op ???
-		switch(rhs)
-		{
-		case NST_ROOM:
-			switch(op)
-			{
-			case NI_EQ:			// ROOM == ROOM (Equality)
-			case NI_NEQ:		// ROOM != ROOM (Inequality)
-			case NI_LAND:		// ROOM && ROOM (Both Non-Null)
-			case NI_LOR:		// ROOM || ROOM (One or Both Non-Null)
-			case NI_LXOR:		// ROOM ^^ ROOM (Only One Non-Null)
-				return nibtype_bool;
-			}
-			break;
-		case NST_WIDEVNUM:
-			if (op == NI_EQ ||	// ROOM == WIDEVNUM (ROOM is WIDEVNUM)
-				op == NI_NEQ)	// ROOM != null (ROOM is not WIDEVNUM)
-				return nibtype_bool;
-			break;
-		case NST_NULL:
-			if (op == NI_EQ ||	// ROOM == null (ROOM is null)
-				op == NI_NEQ)	// ROOM != null (ROOM is not null)
-				return nibtype_bool;
-			break;
-		}
-		break;
-
-	// case NST_SHIP:
-	// case NST_TOKEN:
+	__bool_ent(ACCOUNT)		// ACCOUNT op ???
+	__bool_ent(AFFECT)		// AFFECT op ???
+	__bool_ent(AREA)		// AREA op ???
+	// __bool_ent(CHANNEL)
+	__bool_ent(CLASS)
+	__bool_ent_wnum(DUNGEON)
+	__bool_ent(EXIT)
+	__bool_ent_wnum(INSTANCE)
+	__bool_ent(LIQUID)
+	__bool_ent(MAIL)
+	__bool_ent(MATERIAL)
+	__bool_ent(MISSION)
+	__bool_ent_wnum(MOBILE)
+	__bool_ent(NOTE)
+	__bool_ent_wnum(OBJECT)
+	__bool_ent(ORG)
+	// __bool_ent_wnum(QUEST)
+	__bool_ent(RACE)
+	__bool_ent(RANK)
+	__bool_ent(REPUTATION)
+	__bool_ent_wnum(ROOM)
+	__bool_ent_wnum(SHIP)
+	__bool_ent(SKILL)
+	__bool_ent_wnum(TOKEN)
+	__bool_ent(WILDS)
+	// __bool_ent(WORLD)
 	case NST_NULL:
 		switch(rhs)
 		{
 		case NST_STRING:
 		case NST_WIDEVNUM:		// will check if the whole thing is "empty"
+		case NST_ACCOUNT:
+		case NST_AFFECT:
 		case NST_AREA:
-		// case NST_DUNGEON:
-		// case NST_INSTANCE:
+		// case NST_CHANNEL:
+		case NST_CLASS:
+		case NST_DUNGEON:
+		case NST_EXIT:
+		case NST_INSTANCE:
+		case NST_LIQUID:
+		case NST_MAIL:
+		case NST_MATERIAL:
+		case NST_MISSION:
 		case NST_MOBILE:
-		// case NST_OBJECT:
+		case NST_NOTE:
+		case NST_OBJECT:
+		case NST_ORG:
 		// case NST_QUEST:
+		case NST_RACE:
+		case NST_RANK:
+		case NST_REPUTATION:
 		case NST_ROOM:
-		// case NST_SHIP:
-		// case NST_TOKEN:
+		case NST_SHIP:
+		case NST_SKILL:
+		case NST_TOKEN:
+		case NST_WILDS:
+		// case NST_WORLD:
 			if (op == NI_EQ ||	// entity == null (entity is null)
 				op == NI_NEQ)	// entity != null (entity is not null)
 				return nibtype_bool;
@@ -878,6 +968,8 @@ void niberrorf(const char *msg, ...)
 %define api.pure
 %define api.prefix {nib}
 
+%token T_ACCOUNT
+%token T_AFFECT
 %token T_AREA
 %token T_ARROW
 %token T_ASSIGN
@@ -888,8 +980,10 @@ void niberrorf(const char *msg, ...)
 %token T_BXOR
 %token T_BREAK
 %token T_CASE
+%token T_CHANNEL
 %token T_CHAR
 %token T_CHAR_LITERAL
+%token T_CLASS
 %token T_CLOSE_BRACE
 %token T_CLOSE_BRACKET
 %token T_CLOSE_FLAG
@@ -910,6 +1004,7 @@ void niberrorf(const char *msg, ...)
 %token T_DUNGEON
 %token T_ELSE
 %token T_EQUAL
+%token T_EXIT
 %token T_EXPONENT
 %token T_FALSE
 %token T_FLAG
@@ -917,6 +1012,7 @@ void niberrorf(const char *msg, ...)
 %token T_FLOAT_NUMBER
 %token T_FOR
 %token T_FOREACH
+%token T_GAME
 %token T_GLOBAL
 %token T_GT
 %token T_GT_EQUAL
@@ -928,16 +1024,21 @@ void niberrorf(const char *msg, ...)
 %token T_LAND
 %token T_LEFT_SHIFT
 %token T_LIST
+%token T_LIQUID
 %token T_LNOT
 %token T_LOR
 %token T_LT
 %token T_LT_EQUAL
 %token T_LXOR
+%token T_MAIL
 %token T_MAP
+%token T_MATERIAL
 %token T_MINUS
+%token T_MISSION
 %token T_MOBILE
 %token T_MOD
 %token T_NOT_EQUAL
+%token T_NOTE
 %token T_NULL
 %token T_NUMBER
 %token T_OBJECT
@@ -947,11 +1048,15 @@ void niberrorf(const char *msg, ...)
 %token T_OPEN_LIST
 %token T_OPEN_MAP
 %token T_OPEN_PAREN
+%token T_ORG
 %token T_PARSE_ERROR
 %token T_PLUS
 %token T_QMARK
 %token T_QUEST
+%token T_RACE
 %token T_RANGE
+%token T_RANK
+%token T_REPUTATION
 %token T_RETURN
 %token T_RIGHT_SHIFT
 %token T_RIGHTL_SHIFT
@@ -960,6 +1065,7 @@ void niberrorf(const char *msg, ...)
 %token T_SEMICOLON
 %token T_SHIP
 %token T_SIZEOF
+%token T_SKILL
 %token T_STAR
 %token T_STAT
 %token T_STR_PREFIX
@@ -976,6 +1082,8 @@ void niberrorf(const char *msg, ...)
 %token T_WHILE
 %token T_WIDEVNUM
 %token T_WIDEVNUM_DELIM
+%token T_WILDS
+%token T_WORLD
 
 %union {
 	bool b;
@@ -4259,56 +4367,41 @@ type:	T_INT										{ $$ = nibtype_int; }
 			}
 			$$ = new_nib_type_flag($N);
 		}
-	/* Deprecated.  Now requires a table definition
-	| T_FLAG T_OPEN_PAREN flag_name_list[L] T_CLOSE_PAREN
-		{
-			if (list_size($L) < 1)
-			{
-				yyerror("Please specify at least one named flag.");
-				YYERROR;
-			}
-
-			if (list_size($L) > MAX_FLAG_BITS)
-			{
-				niberrorf("Named flags only support up to %d names.", MAX_FLAG_BITS);
-				YYERROR;
-			}
-
-			$$ = new_nib_type_flag_named($L);
-			list_destroy($L);
-		}
-	*/
 	| T_FLAG T_OPEN_PAREN flag_table[T] T_CLOSE_PAREN
 		{
 			$$ = new_nib_type_flag_table($T);
 		}
-	/* Deprecated.  Now requires a table definition
-	| T_STAT T_OPEN_PAREN flag_name_list[L] T_CLOSE_PAREN
-		{
-			if (list_size($L) < 1)
-			{
-				yyerror("Please specify at least one named stat.");
-				YYERROR;
-			}
-
-			$$ = new_nib_type_stat_named($L);
-			list_destroy($L);
-		}*/
 	| T_STAT T_OPEN_PAREN stat_table[T] T_CLOSE_PAREN
 		{
 			$$ = new_nib_type_stat_table($T);
 		}
 	| T_LIST T_OPEN_PAREN listtype[T] T_CLOSE_PAREN	{ $$ = new_nib_type_list($T); }
+	| T_WIDEVNUM									{ $$ = nibtype_widevnum; }
+	| T_ACCOUNT										{ $$ = nibtype_account; }
+	| T_AFFECT										{ $$ = nibtype_affect; }
 	| T_AREA										{ $$ = nibtype_area; }
+	| T_CLASS										{ $$ = nibtype_class; }
 	| T_DUNGEON										{ $$ = nibtype_dungeon; }
+	| T_EXIT										{ $$ = nibtype_exit; }
 	| T_INSTANCE									{ $$ = nibtype_instance; }
+	| T_LIQUID										{ $$ = nibtype_liquid; }
+	| T_MAIL										{ $$ = nibtype_mail; }
+	| T_MATERIAL									{ $$ = nibtype_material; }
+	| T_MISSION										{ $$ = nibtype_mission; }
 	| T_MOBILE										{ $$ = nibtype_mobile; }
+	| T_NOTE										{ $$ = nibtype_note; }
 	| T_OBJECT										{ $$ = nibtype_object; }
+	| T_ORG											{ $$ = nibtype_org; }
 	| T_QUEST										{ $$ = nibtype_quest; }
+	| T_RACE										{ $$ = nibtype_race; }
+	| T_RANK										{ $$ = nibtype_rank; }
+	| T_REPUTATION									{ $$ = nibtype_reputation; }
 	| T_ROOM										{ $$ = nibtype_room; }
 	| T_SHIP										{ $$ = nibtype_ship; }
+	| T_SKILL										{ $$ = nibtype_skill; }
 	| T_TOKEN										{ $$ = nibtype_token; }
-	| T_WIDEVNUM									{ $$ = nibtype_widevnum; }
+	| T_WILDS										{ $$ = nibtype_wilds; }
+	| T_WORLD										{ $$ = nibtype_world; }
 	;
 
 flag_number_list:
@@ -4366,16 +4459,32 @@ listtype:	T_INT										{ $$ = nibtype_int; }
 	| T_CHAR										{ $$ = nibtype_char; }
 	| T_STRING										{ $$ = nibtype_string; }
 	| T_MAP											{ $$ = nibtype_map; }
+	| T_WIDEVNUM									{ $$ = nibtype_widevnum; }
+	| T_ACCOUNT										{ $$ = nibtype_account; }
+	| T_AFFECT										{ $$ = nibtype_affect; }
 	| T_AREA										{ $$ = nibtype_area; }
+	| T_CLASS										{ $$ = nibtype_class; }
 	| T_DUNGEON										{ $$ = nibtype_dungeon; }
+	| T_EXIT										{ $$ = nibtype_exit; }
 	| T_INSTANCE									{ $$ = nibtype_instance; }
+	| T_LIQUID										{ $$ = nibtype_liquid; }
+	| T_MAIL										{ $$ = nibtype_mail; }
+	| T_MATERIAL									{ $$ = nibtype_material; }
+	| T_MISSION										{ $$ = nibtype_mission; }
 	| T_MOBILE										{ $$ = nibtype_mobile; }
+	| T_NOTE										{ $$ = nibtype_note; }
 	| T_OBJECT										{ $$ = nibtype_object; }
+	| T_ORG											{ $$ = nibtype_org; }
 	| T_QUEST										{ $$ = nibtype_quest; }
+	| T_RACE										{ $$ = nibtype_race; }
+	| T_RANK										{ $$ = nibtype_rank; }
+	| T_REPUTATION									{ $$ = nibtype_reputation; }
 	| T_ROOM										{ $$ = nibtype_room; }
 	| T_SHIP										{ $$ = nibtype_ship; }
+	| T_SKILL										{ $$ = nibtype_skill; }
 	| T_TOKEN										{ $$ = nibtype_token; }
-	| T_WIDEVNUM									{ $$ = nibtype_widevnum; }
+	| T_WILDS										{ $$ = nibtype_wilds; }
+	| T_WORLD										{ $$ = nibtype_world; }
 	;
 
 flag_table:
